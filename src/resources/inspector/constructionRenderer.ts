@@ -15,7 +15,7 @@ import {
   type ConstructionPriority,
 } from '../../logistics/constructionPriority.ts';
 
-type ConstructionMaterial = 'timber' | 'stone' | 'ironwork';
+type ConstructionMaterial = 'timber' | 'stone' | 'ironwork' | 'roofTiles';
 type SupplyResolution = {
   state:
     | 'ready-free'
@@ -52,21 +52,31 @@ export function renderConstructionInspector(
     (building.constructionReservedIronwork ?? 0)
       - (building.constructionTreasuryIronwork ?? 0),
   );
+  const roofTilesPending = Math.max(
+    0,
+    (building.constructionReservedRoofTiles ?? 0)
+      - (building.constructionTreasuryRoofTiles ?? 0),
+  );
   const hasUndelivered = building.constructionReservedTimber > 1e-6
     || building.constructionReservedStone > 1e-6
-    || ironworkPending > 1e-6;
+    || ironworkPending > 1e-6
+    || roofTilesPending > 1e-6;
   const pendingMaterial: ConstructionMaterial | null = stonePending > 1e-6
     ? 'stone'
     : timberPending > 1e-6
       ? 'timber'
       : ironworkPending > 1e-6
         ? 'ironwork'
+        : roofTilesPending > 1e-6
+          ? 'roofTiles'
         : null;
   const pendingAmount = pendingMaterial === 'stone'
     ? stonePending
     : pendingMaterial === 'timber'
       ? timberPending
-      : ironworkPending;
+      : pendingMaterial === 'ironwork'
+        ? ironworkPending
+        : roofTilesPending;
   const supply = pendingMaterial && !held
     ? resolveConstructionSupply(context, building, pendingMaterial)
     : null;
@@ -162,10 +172,11 @@ export function renderConstructionInspector(
       <li data-inspector-primary><span>Timber delivered</span><span>${formatAmount(building.constructionDeliveredTimber)} / ${formatAmount(building.constructionRequiredTimber)}</span></li>
       <li data-inspector-primary><span>Stone delivered</span><span>${formatAmount(building.constructionDeliveredStone)} / ${formatAmount(building.constructionRequiredStone)}</span></li>
       ${(building.constructionRequiredIronwork ?? 0) > 0 ? `<li><span>Ironwork fittings delivered</span><span>${formatAmount(building.constructionDeliveredIronwork ?? 0)} / ${formatAmount(building.constructionRequiredIronwork ?? 0)}</span></li>` : ''}
+      ${(building.constructionRequiredRoofTiles ?? 0) > 0 ? `<li><span>Fired roof tiles delivered</span><span>${formatAmount(building.constructionDeliveredRoofTiles ?? 0)} / ${formatAmount(building.constructionRequiredRoofTiles ?? 0)}</span></li>` : ''}
       <li><span>Incoming haul</span><span>${incomingLabel}</span></li>
       <li><span>Material source</span><span>${nextSourceLabel}</span></li>
-      <li><span>Reserved at stores</span><span>${formatAmount(timberPending)} timber · ${formatAmount(stonePending)} stone · ${formatAmount(ironworkPending)} ironwork</span></li>
-      <li><span>Legacy ledger reserve</span><span>${formatAmount(building.constructionTreasuryTimber)} timber · ${formatAmount(building.constructionTreasuryStone)} stone · ${formatAmount(building.constructionTreasuryIronwork ?? 0)} ironwork</span></li>
+      <li><span>Reserved at stores</span><span>${formatAmount(timberPending)} timber · ${formatAmount(stonePending)} stone · ${formatAmount(ironworkPending)} ironwork · ${formatAmount(roofTilesPending)} roof tiles</span></li>
+      <li><span>Legacy ledger reserve</span><span>${formatAmount(building.constructionTreasuryTimber)} timber · ${formatAmount(building.constructionTreasuryStone)} stone · ${formatAmount(building.constructionTreasuryIronwork ?? 0)} ironwork · ${formatAmount(building.constructionTreasuryRoofTiles ?? 0)} roof tiles</span></li>
       ${buildingRoadAccessRow(context.worldQueries, building)}
     `,
     demolish: {

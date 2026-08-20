@@ -102,7 +102,8 @@ pub use village_economy::{
 };
 
 pub use crate::balance_generated::{
-    IRONWORK_SALVAGE_FRACTION, RESIDENCE_STONE_COST, RESIDENCE_TIMBER_COST, STARTING_GOLD,
+    IRONWORK_SALVAGE_FRACTION, RESIDENCE_STONE_COST, RESIDENCE_TILE_ROOF_SALVAGE_FRACTION,
+    RESIDENCE_TIMBER_COST, STARTING_GOLD,
     STARTING_STONE, STARTING_TIMBER, STONE_SALVAGE_FRACTION, TIMBER_SALVAGE_FRACTION,
 };
 
@@ -110,6 +111,7 @@ pub struct ResourceAmount {
     pub timber: f64,
     pub stone: f64,
     pub ironwork: f64,
+    pub roof_tiles: f64,
 }
 
 pub fn building_cost(kind: &str) -> Result<ResourceAmount, String> {
@@ -118,6 +120,7 @@ pub fn building_cost(kind: &str) -> Result<ResourceAmount, String> {
         timber: def.cost_timber,
         stone: def.cost_stone,
         ironwork: def.cost_ironwork,
+        roof_tiles: def.cost_roof_tiles,
     })
 }
 
@@ -127,6 +130,7 @@ pub fn building_salvage_refund(kind: &str) -> Result<ResourceAmount, String> {
         timber: (cost.timber * TIMBER_SALVAGE_FRACTION).round(),
         stone: (cost.stone * STONE_SALVAGE_FRACTION).round(),
         ironwork: (cost.ironwork * IRONWORK_SALVAGE_FRACTION).round(),
+        roof_tiles: (cost.roof_tiles * RESIDENCE_TILE_ROOF_SALVAGE_FRACTION).round(),
     })
 }
 
@@ -136,6 +140,7 @@ pub fn backyard_garden_cost(kind: crate::balance_generated::BackyardGardenKind) 
         timber: def.cost_timber,
         stone: def.cost_stone,
         ironwork: 0.0,
+        roof_tiles: 0.0,
     }
 }
 
@@ -147,6 +152,7 @@ pub fn backyard_garden_salvage_refund(
         timber: (cost.timber * TIMBER_SALVAGE_FRACTION).round(),
         stone: (cost.stone * STONE_SALVAGE_FRACTION).round(),
         ironwork: 0.0,
+        roof_tiles: 0.0,
     }
 }
 
@@ -159,5 +165,6 @@ pub fn residence_zone_cost_for_units(cost_units: f64) -> ResourceAmount {
         timber: (RESIDENCE_TIMBER_COST * cost_units.max(0.0)).ceil(),
         stone: (RESIDENCE_STONE_COST * cost_units.max(0.0)).ceil(),
         ironwork: 0.0,
+        roof_tiles: 0.0,
     }
 }

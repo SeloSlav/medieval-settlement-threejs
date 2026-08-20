@@ -213,10 +213,13 @@ export function buildingDemolishHint(kind: BuildingKind): string {
   const fittings = (cost.ironwork ?? 0) > 0
     ? ` and ${refund.ironwork ?? 0} ironwork`
     : '';
+  const roofTiles = (cost.roofTiles ?? 0) > 0
+    ? ` and ${refund.roofTiles ?? 0} roof tiles`
+    : '';
   const fittingRate = (cost.ironwork ?? 0) > 0
     ? `, ${Math.round(IRONWORK_SALVAGE_FRACTION * 100)}% ironwork`
     : '';
-  return `Leaves about ${refund.timber} timber, ${refund.stone} stone${fittings} at this site (${Math.round(STONE_SALVAGE_FRACTION * 100)}% stone, ${Math.round(TIMBER_SALVAGE_FRACTION * 100)}% timber${fittingRate} of ${formatBuildingCost(cost)}). Carts must recover it, and the footprint remains occupied until the pile is empty.`;
+  return `Leaves about ${refund.timber} timber, ${refund.stone} stone${fittings}${roofTiles} at this site (${Math.round(STONE_SALVAGE_FRACTION * 100)}% stone, ${Math.round(TIMBER_SALVAGE_FRACTION * 100)}% timber${fittingRate} of ${formatBuildingCost(cost)}). Carts must recover it, and the footprint remains occupied until the pile is empty.`;
 }
 
 export function buildingLaborView(

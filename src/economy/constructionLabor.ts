@@ -48,21 +48,26 @@ export function constructionLaborReady(
     | 'constructionRequiredTimber'
     | 'constructionRequiredStone'
     | 'constructionRequiredIronwork'
+    | 'constructionRequiredRoofTiles'
     | 'constructionDeliveredTimber'
     | 'constructionDeliveredStone'
     | 'constructionDeliveredIronwork'
+    | 'constructionDeliveredRoofTiles'
     | 'constructionProgress'
     | 'constructionTreasuryTimber'
     | 'constructionTreasuryStone'
     | 'constructionTreasuryIronwork'
+    | 'constructionTreasuryRoofTiles'
   >,
 ): boolean {
   const requiredTotal = nonnegative(building.constructionRequiredTimber)
     + nonnegative(building.constructionRequiredStone)
-    + nonnegative(building.constructionRequiredIronwork);
+    + nonnegative(building.constructionRequiredIronwork)
+    + nonnegative(building.constructionRequiredRoofTiles);
   const deliveredTotal = nonnegative(building.constructionDeliveredTimber)
     + nonnegative(building.constructionDeliveredStone)
-    + nonnegative(building.constructionDeliveredIronwork);
+    + nonnegative(building.constructionDeliveredIronwork)
+    + nonnegative(building.constructionDeliveredRoofTiles);
   const materialReadiness = requiredTotal <= EPSILON
     ? 1
     : Math.min(1, deliveredTotal / requiredTotal);
@@ -70,7 +75,8 @@ export function constructionLaborReady(
   return progress + EPSILON < materialReadiness
     || nonnegative(building.constructionTreasuryTimber)
       + nonnegative(building.constructionTreasuryStone)
-      + nonnegative(building.constructionTreasuryIronwork) > EPSILON;
+      + nonnegative(building.constructionTreasuryIronwork)
+      + nonnegative(building.constructionTreasuryRoofTiles) > EPSILON;
 }
 
 export function computeSettlementConstructionLaborPlan(

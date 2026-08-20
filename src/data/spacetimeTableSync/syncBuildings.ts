@@ -47,6 +47,10 @@ function buildingStateFromRow(
     commuteEfficiency: number;
     chapelTier: number;
     fireRepairActive: boolean;
+    constructionRequiredRoofTiles: number;
+    constructionDeliveredRoofTiles: number;
+    constructionReservedRoofTiles: number;
+    constructionTreasuryRoofTiles: number;
   }>;
   return {
     id,
@@ -115,15 +119,19 @@ function buildingStateFromRow(
     constructionRequiredTimber: wholeResourceUnits(row.constructionRequiredTimber),
     constructionRequiredStone: wholeResourceUnits(row.constructionRequiredStone),
     constructionRequiredIronwork: wholeResourceUnits(row.constructionRequiredIronwork),
+    constructionRequiredRoofTiles: wholeResourceUnits(materialRow.constructionRequiredRoofTiles),
     constructionDeliveredTimber: wholeResourceUnits(row.constructionDeliveredTimber),
     constructionDeliveredStone: wholeResourceUnits(row.constructionDeliveredStone),
     constructionDeliveredIronwork: wholeResourceUnits(row.constructionDeliveredIronwork),
+    constructionDeliveredRoofTiles: wholeResourceUnits(materialRow.constructionDeliveredRoofTiles),
     constructionReservedTimber: wholeResourceUnits(row.constructionReservedTimber),
     constructionReservedStone: wholeResourceUnits(row.constructionReservedStone),
     constructionReservedIronwork: wholeResourceUnits(row.constructionReservedIronwork),
+    constructionReservedRoofTiles: wholeResourceUnits(materialRow.constructionReservedRoofTiles),
     constructionTreasuryTimber: wholeResourceUnits(row.constructionTreasuryTimber),
     constructionTreasuryStone: wholeResourceUnits(row.constructionTreasuryStone),
     constructionTreasuryIronwork: wholeResourceUnits(row.constructionTreasuryIronwork),
+    constructionTreasuryRoofTiles: wholeResourceUnits(materialRow.constructionTreasuryRoofTiles),
     storehouseAcceptsTimber: row.storehouseAcceptsTimber,
     storehouseAcceptsStone: row.storehouseAcceptsStone,
     storehouseAcceptsFirewood: row.storehouseAcceptsFirewood,

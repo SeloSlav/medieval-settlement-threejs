@@ -6,6 +6,7 @@ import {
   BUILDING_COSTS,
   IRONWORK_SALVAGE_FRACTION,
   RESIDENCE_STONE_COST,
+  RESIDENCE_TILE_ROOF_SALVAGE_FRACTION,
   RESIDENCE_TIMBER_COST,
   STONE_SALVAGE_FRACTION,
   TIMBER_SALVAGE_FRACTION,
@@ -43,6 +44,7 @@ export function residenceZoneSalvageRefund(residenceCount: number): BuildingReso
     timber: Math.round(cost.timber * TIMBER_SALVAGE_FRACTION),
     stone: Math.round(cost.stone * STONE_SALVAGE_FRACTION),
     ironwork: Math.round((cost.ironwork ?? 0) * IRONWORK_SALVAGE_FRACTION),
+    roofTiles: Math.round((cost.roofTiles ?? 0) * RESIDENCE_TILE_ROOF_SALVAGE_FRACTION),
   };
 }
 
@@ -55,17 +57,20 @@ export function buildingSalvageRefund(kind: BuildingKind): BuildingResourceCost 
   return {
     timber: Math.round(cost.timber * TIMBER_SALVAGE_FRACTION),
     stone: Math.round(cost.stone * STONE_SALVAGE_FRACTION),
+    ironwork: Math.round((cost.ironwork ?? 0) * IRONWORK_SALVAGE_FRACTION),
+    roofTiles: Math.round((cost.roofTiles ?? 0) * RESIDENCE_TILE_ROOF_SALVAGE_FRACTION),
   };
 }
 
 export function canAffordBuilding(
-  totals: Pick<ResourceTotals, 'timber' | 'stone' | 'ironwork'>,
+  totals: Pick<ResourceTotals, 'timber' | 'stone' | 'ironwork' | 'roofTiles'>,
   kind: BuildingKind,
 ): boolean {
   const cost = getBuildingCost(kind);
   return totals.timber >= cost.timber
     && totals.stone >= cost.stone
-    && totals.ironwork >= (cost.ironwork ?? 0);
+    && totals.ironwork >= (cost.ironwork ?? 0)
+    && totals.roofTiles >= (cost.roofTiles ?? 0);
 }
 
 export function canAffordResidenceZone(
@@ -80,7 +85,10 @@ export function formatBuildingCost(cost: BuildingResourceCost): string {
   const fittings = (cost.ironwork ?? 0) > 0
     ? `, ${cost.ironwork} ironwork`
     : '';
-  return `${cost.timber} timber, ${cost.stone} stone${fittings}`;
+  const roofTiles = (cost.roofTiles ?? 0) > 0
+    ? `, ${cost.roofTiles} roof tiles`
+    : '';
+  return `${cost.timber} timber, ${cost.stone} stone${fittings}${roofTiles}`;
 }
 
 export function getBackyardGardenCost(kind: BackyardGardenKind): BuildingResourceCost {

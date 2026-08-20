@@ -505,7 +505,7 @@ function createCompactChurchMesh(tier: 1 | 2): THREE.Group {
   const wallMaterial = stoneTier
     ? stoneMaterial('light')
     : timberMaterial('weathered');
-  const roofMaterial = sharedBuildingMaterial(stoneTier ? 'clayRed' : 'shingle');
+  const roofMaterial = sharedBuildingMaterial('clayRed');
 
   addMesh(
     group,
@@ -627,7 +627,7 @@ function createLargeStoneChurchMesh(): THREE.Group {
   group.scale.setScalar(PARISH_CHURCH_MODEL_SCALE);
   root.add(group);
   const materials = createChapelMaterials();
-  const roofMaterial = sharedBuildingMaterial('slate');
+  const roofMaterial = sharedBuildingMaterial('clayRed');
 
   const width = 5.2;
   const depth = 6.9;

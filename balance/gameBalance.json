@@ -1083,7 +1083,7 @@
     },
     "lumber_mill": {
       "label": "Lumber mill",
-      "cost": { "timber": 30, "stone": 8 },
+      "cost": { "timber": 30, "stone": 8, "roofTiles": 48 },
       "storage": { "timber": 240, "firewood": 0, "stone": 0, "water": 48, "food": 0, "ironwork": 3 },
       "workRadius": 210,
       "pickRadius": 8,
@@ -1349,7 +1349,7 @@
     },
     "chapel": {
       "label": "Church",
-      "cost": { "timber": 24, "stone": 2 },
+      "cost": { "timber": 24, "stone": 2, "roofTiles": 24 },
       "storage": { "timber": 0, "firewood": 0, "stone": 0, "water": 0, "food": 0 },
       "workRadius": 0,
       "pickRadius": 10,
@@ -1366,7 +1366,7 @@
     },
     "marketplace": {
       "label": "Marketplace",
-      "cost": { "timber": 32, "stone": 26 },
+      "cost": { "timber": 32, "stone": 26, "roofTiles": 24 },
       "storage": { "timber": 0, "firewood": 80, "stone": 0, "water": 0, "food": 96, "preservedFood": 120, "grain": 0, "barley": 0, "ale": 140, "honey": 48, "wine": 0, "cloth": 120, "ironwork": 0, "iron": 0, "salt": 0, "charcoal": 80, "pottery": 96, "remedies": 48 },
       "workRadius": 0,
       "pickRadius": 8,
@@ -1400,7 +1400,7 @@
     },
     "town_hall": {
       "label": "Town Hall",
-      "cost": { "timber": 88, "stone": 96, "ironwork": 6 },
+      "cost": { "timber": 88, "stone": 96, "ironwork": 6, "roofTiles": 48 },
       "storage": { "timber": 0, "firewood": 0, "stone": 0, "water": 0, "food": 0 },
       "workRadius": 0,
       "pickRadius": 11,
@@ -1503,7 +1503,7 @@
     },
     "threshing_barn": {
       "label": "Farmstead and threshing barn",
-      "cost": { "timber": 44, "stone": 16 },
+      "cost": { "timber": 44, "stone": 16, "roofTiles": 36 },
       "storage": { "timber": 0, "firewood": 0, "stone": 0, "grain": 240, "barley": 180, "flax": 180, "manure": 120, "ironwork": 3 },
       "workRadius": 250,
       "pickRadius": 9,
@@ -1560,7 +1560,7 @@
     },
     "monastery": {
       "label": "Pauline monastery",
-      "cost": { "timber": 90, "stone": 150, "ironwork": 8 },
+      "cost": { "timber": 90, "stone": 150, "ironwork": 8, "roofTiles": 72 },
       "storage": { "timber": 0, "firewood": 0, "stone": 0, "grain": 180, "ale": 120, "food": 180, "preservedFood": 80, "honey": 160, "wine": 120 },
       "workRadius": 0,
       "pickRadius": 15,
@@ -1579,7 +1579,7 @@
     },
     "brewery": {
       "label": "Brewhouse",
-      "cost": { "timber": 48, "stone": 36, "ironwork": 3 },
+      "cost": { "timber": 48, "stone": 36, "ironwork": 3, "roofTiles": 32 },
       "storage": { "timber": 0, "firewood": 40, "stone": 0, "water": 120, "barley": 96, "malt": 48, "ale": 200 },
       "workRadius": 0,
       "pickRadius": 9,
@@ -1633,7 +1633,7 @@
     },
     "bakery": {
       "label": "Village bakery",
-      "cost": { "timber": 36, "stone": 30, "ironwork": 2 },
+      "cost": { "timber": 36, "stone": 30, "ironwork": 2, "roofTiles": 24 },
       "storage": { "timber": 0, "firewood": 36, "stone": 0, "water": 48, "flour": 96, "food": 100 },
       "workRadius": 0,
       "pickRadius": 8,
@@ -1669,7 +1669,7 @@
     },
     "watermill": {
       "label": "Grain watermill",
-      "cost": { "timber": 58, "stone": 42, "ironwork": 6 },
+      "cost": { "timber": 58, "stone": 42, "ironwork": 6, "roofTiles": 36 },
       "storage": { "timber": 0, "firewood": 0, "stone": 0, "water": 80, "grain": 180, "flour": 260, "ironwork": 3 },
       "workRadius": 0,
       "pickRadius": 10,
@@ -1705,7 +1705,7 @@
     },
     "carpenter": {
       "label": "Carpenter and wheelwright",
-      "cost": { "timber": 52, "stone": 20, "ironwork": 2 },
+      "cost": { "timber": 52, "stone": 20, "ironwork": 2, "roofTiles": 24 },
       "storage": { "timber": 140, "firewood": 0, "stone": 0, "ironwork": 18, "polearms": 24 },
       "workRadius": 0,
       "pickRadius": 9,
@@ -1742,7 +1742,7 @@
     },
     "vineyard": {
       "label": "Vineyard terrace",
-      "cost": { "timber": 26, "stone": 18 },
+      "cost": { "timber": 26, "stone": 18, "roofTiles": 12 },
       "storage": { "timber": 0, "firewood": 0, "stone": 0, "food": 40, "wine": 180 },
       "workRadius": 0,
       "pickRadius": 11,

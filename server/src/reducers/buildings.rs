@@ -2672,6 +2672,7 @@ pub fn demolish_building(ctx: &ReducerContext, building_id: u64) -> Result<(), S
             timber: 0.0,
             stone: 0.0,
             ironwork: 0.0,
+            roof_tiles: 0.0,
         }
     } else if building.construction_complete {
         building_salvage_refund(&building.kind)?
@@ -2685,6 +2686,9 @@ pub fn demolish_building(ctx: &ReducerContext, building_id: u64) -> Result<(), S
                 .round(),
             ironwork: (building.construction_delivered_ironwork
                 * crate::balance_generated::IRONWORK_SALVAGE_FRACTION)
+                .round(),
+            roof_tiles: (building.construction_delivered_roof_tiles
+                * crate::balance_generated::RESIDENCE_TILE_ROOF_SALVAGE_FRACTION)
                 .round(),
         }
     };

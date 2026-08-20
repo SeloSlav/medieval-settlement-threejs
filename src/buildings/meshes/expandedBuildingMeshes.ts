@@ -307,7 +307,7 @@ function addMonasteryTreasuryChest(group: THREE.Group): void {
 export function createThreshingBarnMesh(): THREE.Group {
   const group = new THREE.Group();
   group.name = 'Threshing barn';
-  const shell = addGableShell(group, { width: 10.8, depth: 7.2, stoneHeight: 0.58, wallHeight: 3.25, ridgeHeight: 3.0, wallMaterial: timberMaterial('weathered'), roofMaterial: shingleMaterial() });
+  const shell = addGableShell(group, { width: 10.8, depth: 7.2, stoneHeight: 0.58, wallHeight: 3.25, ridgeHeight: 3.0, wallMaterial: timberMaterial('weathered'), roofMaterial: tileMaterial(0) });
   addPlankDoor(group, -3.1, 0.62, shell.frontZ + 0.03, 1.25, 2.45);
   addPlankDoor(group, 0, 0.62, shell.frontZ + 0.03, 2.6, 2.7);
   addDarkOpening(group, 0, 0.66, -shell.frontZ - 0.03, 3.7, 2.85);
@@ -847,14 +847,14 @@ export function createWindmillMesh(): THREE.Group {
 export function createCarpenterMesh(): THREE.Group {
   const group = new THREE.Group();
   group.name = 'Carpenter and wheelwright';
-  const shell = addGableShell(group, { width: 7.2, depth: 5.6, stoneHeight: 0.7, wallHeight: 2.7, ridgeHeight: 2.2, wallMaterial: timberMaterial('weathered'), roofMaterial: shingleMaterial() });
+  const shell = addGableShell(group, { width: 7.2, depth: 5.6, stoneHeight: 0.7, wallHeight: 2.7, ridgeHeight: 2.2, wallMaterial: timberMaterial('weathered'), roofMaterial: tileMaterial(0) });
   addPlankDoor(group, -1.3, 0.74, shell.frontZ + 0.03, 0.95, 1.86);
   addSmallWindow(group, 1.4, 1.85, shell.frontZ + 0.03, 0.82, 0.94);
   addLeanToRoof(group, {
     width: 3.4,
     depth: 5.0,
     thickness: 0.14,
-    material: shingleMaterial(),
+    material: tileMaterial(1),
     position: new THREE.Vector3(5.1, 2.65, 0),
     pitch: 0.16,
     highEdge: 'negativeX',

@@ -18,7 +18,7 @@ import {
 
 type BuildingBalance = {
   label: string;
-  cost: { timber: number; stone: number; ironwork?: number };
+  cost: { timber: number; stone: number; ironwork?: number; roofTiles?: number };
   storage: {
     timber: number;
     firewood: number;
@@ -1462,6 +1462,7 @@ function generateRust(): string {
   lines.push('    pub cost_timber: f64,');
   lines.push('    pub cost_stone: f64,');
   lines.push('    pub cost_ironwork: f64,');
+  lines.push('    pub cost_roof_tiles: f64,');
   lines.push('    pub storage_timber: f64,');
   lines.push('    pub storage_firewood: f64,');
   lines.push('    pub storage_stone: f64,');
@@ -1514,6 +1515,7 @@ function generateRust(): string {
     lines.push(`    cost_timber: ${rustF64(def.cost.timber)},`);
     lines.push(`    cost_stone: ${rustF64(def.cost.stone)},`);
     lines.push(`    cost_ironwork: ${rustF64(def.cost.ironwork ?? 0)},`);
+    lines.push(`    cost_roof_tiles: ${rustF64(def.cost.roofTiles ?? 0)},`);
     lines.push(`    storage_timber: ${rustF64(def.storage.timber)},`);
     lines.push(`    storage_firewood: ${rustF64(def.storage.firewood)},`);
     lines.push(`    storage_stone: ${rustF64(def.storage.stone)},`);
@@ -2260,6 +2262,7 @@ function generateTypeScript(): string {
     '  timber: number;',
     '  stone: number;',
     '  ironwork?: number;',
+    '  roofTiles?: number;',
     '};',
     '',
     'export type StorageCaps = {',
@@ -2344,7 +2347,10 @@ function generateTypeScript(): string {
     const ironwork = def.cost.ironwork
       ? `, ironwork: ${def.cost.ironwork}`
       : '';
-    lines.push(`  ${kind}: { timber: ${def.cost.timber}, stone: ${def.cost.stone}${ironwork} },`);
+    const roofTiles = def.cost.roofTiles
+      ? `, roofTiles: ${def.cost.roofTiles}`
+      : '';
+    lines.push(`  ${kind}: { timber: ${def.cost.timber}, stone: ${def.cost.stone}${ironwork}${roofTiles} },`);
   }
 
   lines.push('} as const satisfies Record<BuildingKind, BuildingResourceCost>;');

@@ -872,6 +872,7 @@ pub fn demolish_residence(ctx: &ReducerContext, residence_id: u64) -> Result<(),
             * STONE_SALVAGE_FRACTION)
             .round(),
         ironwork: 0.0,
+        roof_tiles: 0.0,
     };
     if !insert_reclamation_pile(
         ctx,
@@ -962,6 +963,7 @@ pub fn demolish_burgage_zone(ctx: &ReducerContext, zone_id: u64) -> Result<(), S
         timber: ((refund.timber + upgrade_timber) * TIMBER_SALVAGE_FRACTION).round(),
         stone: ((refund.stone + upgrade_stone) * STONE_SALVAGE_FRACTION).round(),
         ironwork: 0.0,
+        roof_tiles: 0.0,
     };
     let base_salvage = if completed_intact_residence_count > 0 {
         ReclamationStock {

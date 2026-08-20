@@ -846,6 +846,10 @@ export class BuildingMarkers {
       building.constructionDeliveredIronwork ?? 0,
       building.constructionRequiredIronwork ?? 0,
     );
+    const roofTilesRatio = ratio(
+      building.constructionDeliveredRoofTiles ?? 0,
+      building.constructionRequiredRoofTiles ?? 0,
+    );
     const operational = building.constructionComplete !== false;
     const useCompletedMesh = buildingUsesCompletedMesh(building);
     const visualSignature = buildingMeshSignature(building);
@@ -886,6 +890,7 @@ export class BuildingMarkers {
             timberRatio,
             stoneRatio,
             ironworkRatio,
+            roofTilesRatio,
           );
       markerNeedsRegistration = true;
     }

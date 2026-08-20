@@ -12,6 +12,7 @@ const IRON = new THREE.MeshStandardMaterial({
   roughness: 0.62,
   metalness: 0.48,
 });
+const FIRED_CLAY = new THREE.MeshStandardMaterial({ color: 0x9b4f35, roughness: 0.9 });
 const ROOF_PLATE_Y = 4.25;
 const ROOF_RIDGE_Y = 5.45;
 
@@ -20,12 +21,14 @@ export function constructionVisualSignature(
   timberRatio: number,
   stoneRatio: number,
   ironworkRatio = 0,
+  roofTilesRatio = 0,
 ): string {
   const stage = Math.min(4, Math.floor(Math.max(0, progress) * 5));
   const timberPile = Math.min(3, Math.ceil(Math.max(0, timberRatio) * 3));
   const stonePile = Math.min(3, Math.ceil(Math.max(0, stoneRatio) * 3));
   const fittings = Math.min(3, Math.ceil(Math.max(0, ironworkRatio) * 3));
-  return `site:${stage}:${timberPile}:${stonePile}:${fittings}`;
+  const roofTiles = Math.min(3, Math.ceil(Math.max(0, roofTilesRatio) * 3));
+  return `site:${stage}:${timberPile}:${stonePile}:${fittings}:${roofTiles}`;
 }
 
 export function createConstructionSiteMesh(
@@ -34,6 +37,7 @@ export function createConstructionSiteMesh(
   timberRatio: number,
   stoneRatio: number,
   ironworkRatio = 0,
+  roofTilesRatio = 0,
 ): THREE.Group {
   const root = new THREE.Group();
   root.name = 'Construction site';
@@ -50,6 +54,7 @@ export function createConstructionSiteMesh(
   addTimberPile(root, halfWidth + 1.25, -halfDepth * 0.45, timberRatio);
   addStonePile(root, -halfWidth - 1.25, halfDepth * 0.42, stoneRatio);
   addFittingsCrate(root, halfWidth + 1.15, halfDepth * 0.62, ironworkRatio);
+  addRoofTileStack(root, -halfWidth - 1.2, -halfDepth * 0.55, roofTilesRatio);
 
   root.traverse((object) => {
     if (object instanceof THREE.Mesh) {
@@ -58,6 +63,28 @@ export function createConstructionSiteMesh(
     }
   });
   return root;
+}
+
+function addRoofTileStack(
+  root: THREE.Group,
+  x: number,
+  z: number,
+  ratio: number,
+): void {
+  const visibleLayers = Math.min(3, Math.ceil(THREE.MathUtils.clamp(ratio, 0, 1) * 3));
+  if (visibleLayers <= 0) return;
+  const stack = new THREE.Group();
+  stack.name = 'Construction roof tile stack';
+  stack.position.set(x, 0, z);
+  for (let layer = 0; layer < visibleLayers; layer += 1) {
+    for (let tile = 0; tile < 4; tile += 1) {
+      const piece = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.07, 0.56), FIRED_CLAY);
+      piece.name = `Construction roof tile ${layer * 4 + tile + 1}`;
+      piece.position.set((tile - 1.5) * 0.27, 0.06 + layer * 0.08, 0);
+      stack.add(piece);
+    }
+  }
+  root.add(stack);
 }
 
 function addFoundation(
