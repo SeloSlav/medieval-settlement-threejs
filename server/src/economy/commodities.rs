@@ -43,7 +43,6 @@ pub enum CommodityKind {
     Vegetables,
     Eggs,
     Grapes,
-    Porridge,
     CuredMeat,
     SmokedFish,
     Cheese,
@@ -62,7 +61,7 @@ pub enum CommodityKind {
     Mead,
 }
 
-pub const FRESH_FOOD_COMMODITIES: [CommodityKind; 15] = [
+pub const FRESH_FOOD_COMMODITIES: [CommodityKind; 14] = [
     CommodityKind::Food,
     CommodityKind::OatGrain,
     CommodityKind::RyeBread,
@@ -77,7 +76,6 @@ pub const FRESH_FOOD_COMMODITIES: [CommodityKind; 15] = [
     CommodityKind::Vegetables,
     CommodityKind::Eggs,
     CommodityKind::Grapes,
-    CommodityKind::Porridge,
 ];
 
 pub const PRESERVED_FOOD_COMMODITIES: [CommodityKind; 4] = [
@@ -94,7 +92,7 @@ pub const PRESERVABLE_FOOD_COMMODITIES: [CommodityKind; 4] = [
     CommodityKind::Milk,
 ];
 
-pub const EDIBLE_COMMODITIES: [CommodityKind; 20] = [
+pub const EDIBLE_COMMODITIES: [CommodityKind; 19] = [
     CommodityKind::Food,
     CommodityKind::OatGrain,
     CommodityKind::RyeBread,
@@ -109,7 +107,6 @@ pub const EDIBLE_COMMODITIES: [CommodityKind; 20] = [
     CommodityKind::Vegetables,
     CommodityKind::Eggs,
     CommodityKind::Grapes,
-    CommodityKind::Porridge,
     CommodityKind::PreservedFood,
     CommodityKind::CuredMeat,
     CommodityKind::SmokedFish,
@@ -120,7 +117,7 @@ pub const EDIBLE_COMMODITIES: [CommodityKind; 20] = [
 /// Consume the shortest-lived foods first so mixed pantries and institutions
 /// naturally preserve durable reserves. The legacy mixed buckets remain in
 /// the order only so old saves drain cleanly after migration.
-pub const FOOD_CONSUMPTION_ORDER: [CommodityKind; 20] = [
+pub const FOOD_CONSUMPTION_ORDER: [CommodityKind; 19] = [
     CommodityKind::Meat,
     CommodityKind::Fish,
     CommodityKind::Milk,
@@ -133,7 +130,6 @@ pub const FOOD_CONSUMPTION_ORDER: [CommodityKind; 20] = [
     CommodityKind::Vegetables,
     CommodityKind::RyeBread,
     CommodityKind::MaslinBread,
-    CommodityKind::Porridge,
     CommodityKind::OatGrain,
     CommodityKind::Food,
     CommodityKind::Cheese,
@@ -182,7 +178,6 @@ pub fn food_category(kind: CommodityKind) -> Option<FoodCategory> {
         | CommodityKind::OatGrain
         | CommodityKind::RyeBread
         | CommodityKind::MaslinBread
-        | CommodityKind::Porridge
         | CommodityKind::PreservedFood => Some(FoodCategory::Grains),
         CommodityKind::Vegetables => Some(FoodCategory::Vegetables),
         CommodityKind::Apples | CommodityKind::Cherries | CommodityKind::Grapes => {
@@ -237,7 +232,6 @@ impl CommodityKind {
             Self::Vegetables => 35,
             Self::Eggs => 36,
             Self::Grapes => 37,
-            Self::Porridge => 38,
             Self::CuredMeat => 39,
             Self::SmokedFish => 40,
             Self::Cheese => 41,
@@ -294,7 +288,6 @@ impl CommodityKind {
             35 => Some(Self::Vegetables),
             36 => Some(Self::Eggs),
             37 => Some(Self::Grapes),
-            38 => Some(Self::Porridge),
             39 => Some(Self::CuredMeat),
             40 => Some(Self::SmokedFish),
             41 => Some(Self::Cheese),
@@ -363,7 +356,6 @@ impl CommodityKind {
             Self::Meat => 1.1,
             Self::CuredMeat => 1.15,
             Self::Honey => 1.2,
-            Self::Porridge => 0.85,
             Self::Milk | Self::Eggs => 0.75,
             Self::Vegetables => 0.7,
             Self::Mushrooms | Self::Apples | Self::Cherries | Self::Grapes => 0.6,
@@ -389,7 +381,6 @@ impl CommodityKind {
             Self::Cherries | Self::Vegetables | Self::Food | Self::Cheese => 1.0,
             Self::Eggs => 0.9,
             Self::Grapes => 1.2,
-            Self::Porridge => 1.3,
             Self::PreservedFood => 0.75,
             Self::CuredMeat => 0.55,
             Self::SmokedFish => 0.7,
@@ -448,7 +439,6 @@ pub fn building_commodity_stock(building: &Building, kind: CommodityKind) -> f64
         CommodityKind::Vegetables => building.vegetables,
         CommodityKind::Eggs => building.eggs,
         CommodityKind::Grapes => building.grapes,
-        CommodityKind::Porridge => building.porridge,
         CommodityKind::CuredMeat => building.cured_meat,
         CommodityKind::SmokedFish => building.smoked_fish,
         CommodityKind::Cheese => building.cheese,
@@ -537,7 +527,7 @@ pub fn building_commodity_cap(kind: &str, commodity: CommodityKind) -> f64 {
         | CommodityKind::Vegetables
         | CommodityKind::Eggs
         | CommodityKind::Grapes
-        | CommodityKind::Porridge => def.storage_food,
+        => def.storage_food,
         CommodityKind::CuredMeat | CommodityKind::SmokedFish | CommodityKind::Cheese => {
             def.storage_preserved_food
         }
@@ -672,7 +662,6 @@ pub fn withdraw_building_commodity(
         CommodityKind::Vegetables => building.vegetables -= withdrawn,
         CommodityKind::Eggs => building.eggs -= withdrawn,
         CommodityKind::Grapes => building.grapes -= withdrawn,
-        CommodityKind::Porridge => building.porridge -= withdrawn,
         CommodityKind::CuredMeat => building.cured_meat -= withdrawn,
         CommodityKind::SmokedFish => building.smoked_fish -= withdrawn,
         CommodityKind::Cheese => building.cheese -= withdrawn,
@@ -735,7 +724,6 @@ pub fn deposit_building_commodity(
         CommodityKind::Vegetables => building.vegetables += deposited,
         CommodityKind::Eggs => building.eggs += deposited,
         CommodityKind::Grapes => building.grapes += deposited,
-        CommodityKind::Porridge => building.porridge += deposited,
         CommodityKind::CuredMeat => building.cured_meat += deposited,
         CommodityKind::SmokedFish => building.smoked_fish += deposited,
         CommodityKind::Cheese => building.cheese += deposited,
@@ -811,7 +799,6 @@ pub fn credit_treasury_commodity(
         CommodityKind::Vegetables => treasury.vegetables += amount,
         CommodityKind::Eggs => treasury.eggs += amount,
         CommodityKind::Grapes => treasury.grapes += amount,
-        CommodityKind::Porridge => treasury.porridge += amount,
         CommodityKind::CuredMeat => treasury.cured_meat += amount,
         CommodityKind::SmokedFish => treasury.smoked_fish += amount,
         CommodityKind::Cheese => treasury.cheese += amount,
@@ -852,7 +839,6 @@ pub fn residence_commodity_stock(residence: &Residence, kind: CommodityKind) -> 
         CommodityKind::Vegetables => residence.vegetables,
         CommodityKind::Eggs => residence.eggs,
         CommodityKind::Grapes => residence.grapes,
-        CommodityKind::Porridge => residence.porridge,
         CommodityKind::CuredMeat => residence.cured_meat,
         CommodityKind::SmokedFish => residence.smoked_fish,
         CommodityKind::Cheese => residence.cheese,
@@ -931,7 +917,6 @@ pub fn withdraw_residence_commodity(
         CommodityKind::Vegetables => residence.vegetables -= withdrawn,
         CommodityKind::Eggs => residence.eggs -= withdrawn,
         CommodityKind::Grapes => residence.grapes -= withdrawn,
-        CommodityKind::Porridge => residence.porridge -= withdrawn,
         CommodityKind::CuredMeat => residence.cured_meat -= withdrawn,
         CommodityKind::SmokedFish => residence.smoked_fish -= withdrawn,
         CommodityKind::Cheese => residence.cheese -= withdrawn,
@@ -1014,7 +999,6 @@ pub fn deposit_residence_commodity(
         CommodityKind::Vegetables => residence.vegetables += deposited,
         CommodityKind::Eggs => residence.eggs += deposited,
         CommodityKind::Grapes => residence.grapes += deposited,
-        CommodityKind::Porridge => residence.porridge += deposited,
         CommodityKind::CuredMeat => residence.cured_meat += deposited,
         CommodityKind::SmokedFish => residence.smoked_fish += deposited,
         CommodityKind::Cheese => residence.cheese += deposited,

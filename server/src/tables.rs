@@ -264,8 +264,6 @@ pub struct PlayerResources {
     #[default(0.0)]
     pub grapes: f64,
     #[default(0.0)]
-    pub porridge: f64,
-    #[default(0.0)]
     pub cured_meat: f64,
     #[default(0.0)]
     pub smoked_fish: f64,
@@ -706,8 +704,6 @@ pub struct Building {
     pub eggs: f64,
     #[default(0.0)]
     pub grapes: f64,
-    #[default(0.0)]
-    pub porridge: f64,
     #[default(0.0)]
     pub cured_meat: f64,
     #[default(0.0)]
@@ -1218,8 +1214,6 @@ pub struct Residence {
     pub eggs: f64,
     #[default(0.0)]
     pub grapes: f64,
-    #[default(0.0)]
-    pub porridge: f64,
     #[default(0.0)]
     pub cured_meat: f64,
     #[default(0.0)]
