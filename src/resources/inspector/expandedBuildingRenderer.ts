@@ -158,6 +158,7 @@ import {
 import {
   BREWERY_RECIPE_AUTO,
   BREWERY_RECIPE_PRESETS,
+  breweryPolicyOutput,
   breweryRecipePolicyLabel,
   normalizeBreweryRecipePolicy,
   selectedBreweryRecipePolicy,
@@ -1719,7 +1720,15 @@ export function renderProcessorOutputTargetPanel(building: BuildingState): strin
         return `
           <p class="resource-inspector-note">Active recipe · choose which raw material this Brewery accepts and converts.</p>
           <div class="resource-action-row">${BREWERY_RECIPE_PRESETS
-            .map((preset) => `<button type="button" class="resource-action-button" data-brewery-recipe-policy="${preset.policy}" title="${preset.hint}" ${configured === preset.policy ? 'disabled' : ''}>${preset.label}</button>`)
+            .map((preset) => {
+              const output = breweryPolicyOutput(preset.policy);
+              const icon = output === 'cider'
+                ? renderResourceCost({ cider: 1 }, { compact: true })
+                : output === 'mead'
+                  ? renderResourceCost({ mead: 1 }, { compact: true })
+                  : renderResourceCost({ ale: 1 }, { compact: true });
+              return `<button type="button" class="resource-action-button" data-brewery-recipe-policy="${preset.policy}" title="${preset.hint}" ${configured === preset.policy ? 'disabled' : ''}>${preset.label} · ${icon}</button>`;
+            })
             .join('')}</div>
           <p class="inspector-action-panel__hint">${active} Cider uses 4 apples for 1 cider; mead uses 1 honey for 1 mead. Ale, cider, and mead are all hauled to a staffed Tavern and fulfill the same Beverage requirement.</p>
         `;

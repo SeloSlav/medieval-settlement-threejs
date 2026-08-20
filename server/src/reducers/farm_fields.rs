@@ -3,7 +3,7 @@ use spacetimedb::{reducer, ReducerContext};
 use crate::balance_generated::{
     FARM_MAX_ACCEPTED_SLOPE_DEGREES, FARM_MIN_FIELD_AREA, FARM_MIN_FIELD_EDGE,
 };
-use crate::burgage::{convex_zones_overlap, zone_corners_polygon, zone_overlaps_footprint, Point2};
+use crate::burgage::{convex_zones_overlap, zone_corners_polygon, Point2};
 use crate::db::*;
 use crate::farming::{
     centroid, corners_from_values, early_harvest_available, early_harvest_yield_multiplier,
@@ -11,7 +11,8 @@ use crate::farming::{
     polygon_area, valid_crop, NO_FOLLOWING_CROP, STAGE_HARVESTING, STAGE_PLOUGHING,
 };
 use crate::hydrology::sample_world_hydrology_score;
-use crate::placement_validation::{building_pick_radius, zone_overlaps_resource_deposit};
+use crate::placement_validation::{zone_overlaps_building_footprint, zone_overlaps_resource_deposit};
+use crate::roads::load_owner_road_network;
 use crate::simulation::game_clock;
 use crate::tables::{farm_field, FarmField};
 
@@ -90,11 +91,15 @@ pub fn place_farm_field(
     // mask. The server hydrology grid is a groundwater proxy, not this world's
     // generated surface-water layout, so it must not contradict that result.
 
+    let road_network = load_owner_road_network(ctx, owner);
     for building in ctx.db.building().owner().filter(&owner) {
-        let Some(radius) = building_pick_radius(&building.kind) else {
-            continue;
-        };
-        if zone_overlaps_footprint(&polygon, building.x, building.z, radius) {
+        if zone_overlaps_building_footprint(
+            &polygon,
+            &building.kind,
+            building.x,
+            building.z,
+            road_network.as_ref(),
+        ) {
             return Err("Field overlaps a building.".to_string());
         }
     }

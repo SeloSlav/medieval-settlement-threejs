@@ -11,6 +11,7 @@ import {
 } from './BuildingPlacementValidation.ts';
 import type { BuildingMarkers } from './BuildingMarkers.ts';
 import type { RoadNetwork } from '../roads/RoadNetwork.ts';
+import type { TerrainBounds } from '../terrain/Terrain.ts';
 import {
   buildingCostWithCarpenterSupport,
   carpenterCartServiceReady,
@@ -72,6 +73,7 @@ type BuildingToolOptions = {
   getNaturalHeightAt: (x: number, z: number) => number;
   countMatureTreesInRadius?: (x: number, z: number, radius: number) => number | null;
   getRoadNetwork?: () => RoadNetwork;
+  mapBounds: TerrainBounds;
   getDeliveryTravelSpeedMultiplier?: (origin: { x: number; z: number }) => number;
   onModeChanged: () => void;
   onPlacementPreviewChanged?: () => void;
@@ -622,6 +624,7 @@ export class BuildingTool {
       getNaturalHeightAt: this.options.getNaturalHeightAt,
       countMatureTreesInRadius: this.options.countMatureTreesInRadius,
       roadNetwork: this.options.getRoadNetwork?.(),
+      mapBounds: this.options.mapBounds,
       fireDisabledBuildingIds: fireDisabledBuildingIds(state.fireIncidents.values()),
     });
   }

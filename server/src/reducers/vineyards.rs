@@ -1,13 +1,14 @@
 use spacetimedb::{reducer, ReducerContext};
 
-use crate::burgage::{convex_zones_overlap, zone_corners_polygon, zone_overlaps_footprint, Point2};
+use crate::burgage::{convex_zones_overlap, zone_corners_polygon, Point2};
 use crate::db::*;
 use crate::farming::{
     centroid, corners_from_values, edge_lengths, is_valid_convex_quadrilateral, point_in_field,
     polygon_area, shape_efficiency,
 };
 use crate::hydrology::sample_world_hydrology_score;
-use crate::placement_validation::{building_pick_radius, zone_overlaps_resource_deposit};
+use crate::placement_validation::{zone_overlaps_building_footprint, zone_overlaps_resource_deposit};
+use crate::roads::load_owner_road_network;
 use crate::reducers::buildings::place_building_internal;
 use crate::tables::{farm_field, graveyard, vineyard_parcel, VineyardParcel};
 use crate::vineyard::{
@@ -76,11 +77,15 @@ pub fn place_vineyard(
     // The rendered, seed-aware water mask is sampled across the parcel by the
     // client. Server hydrology is intentionally used only as groundwater.
 
+    let road_network = load_owner_road_network(ctx, owner);
     for building in ctx.db.building().owner().filter(&owner) {
-        let Some(radius) = building_pick_radius(&building.kind) else {
-            continue;
-        };
-        if zone_overlaps_footprint(&polygon, building.x, building.z, radius) {
+        if zone_overlaps_building_footprint(
+            &polygon,
+            &building.kind,
+            building.x,
+            building.z,
+            road_network.as_ref(),
+        ) {
             return Err("Vineyard overlaps a building.".to_string());
         }
     }

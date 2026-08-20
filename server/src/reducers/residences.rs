@@ -40,8 +40,8 @@ use crate::simulation::{
 };
 use crate::supply_policy::{
     is_firewood_supplier_operational, is_specialty_supplier_operational,
-    is_well_supplier_operational, CLOTH_PRODUCER_KINDS, POTTERY_PRODUCER_KINDS,
-    PRESERVED_FOOD_PRODUCER_KINDS,
+    is_well_supplier_operational, BEVERAGE_SERVICE_KINDS, CLOTH_PRODUCER_KINDS,
+    POTTERY_PRODUCER_KINDS, PRESERVED_FOOD_PRODUCER_KINDS,
 };
 use crate::tables::{farm_field, BurgageZone, Residence};
 use crate::well_policy::position_within_well_service_radius;
@@ -51,7 +51,7 @@ enum ResidenceUpgradeService {
     Firewood,
     Water,
     PreservedFood,
-    Ale,
+    Beverage,
     Cloth,
     Pottery,
     Marketplace,
@@ -415,7 +415,7 @@ pub fn upgrade_residence(ctx: &ReducerContext, residence_id: u64) -> Result<(), 
             RESIDENCE_TIER3_CAPACITY,
             &[
                 ResidenceUpgradeService::PreservedFood,
-                ResidenceUpgradeService::Ale,
+                ResidenceUpgradeService::Beverage,
                 ResidenceUpgradeService::Cloth,
                 ResidenceUpgradeService::Pottery,
                 ResidenceUpgradeService::StoneChurch,
@@ -432,7 +432,7 @@ pub fn upgrade_residence(ctx: &ReducerContext, residence_id: u64) -> Result<(), 
         return Err(if next_tier == 2 {
             "Tier 2 requires fuel and well supply, a staffed road-linked church, two food categories, household cloth, and staffed market stalls.".to_string()
         } else {
-            "Tier 3 requires three food categories, a stone church, and a Marketplace with preserved food, ale, cloth, and pottery supply.".to_string()
+            "Tier 3 requires three food categories, a stone church, staffed Tavern beverage service, and a Marketplace with preserved food, cloth, and pottery supply.".to_string()
         });
     }
     let physical_economy = ctx
@@ -745,8 +745,8 @@ fn has_connected_services(
                             building.assigned_labor,
                         )
                 }
-                ResidenceUpgradeService::Ale => {
-                    building.kind == "tavern"
+                ResidenceUpgradeService::Beverage => {
+                    BEVERAGE_SERVICE_KINDS.contains(&building.kind.as_str())
                         && building.construction_complete
                         && building.assigned_labor > 0
                 }

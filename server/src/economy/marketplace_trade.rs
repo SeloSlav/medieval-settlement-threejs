@@ -770,10 +770,11 @@ pub(crate) fn settle_regional_market_export(
         .find(&marketplace_id)
         .filter(|building| {
             building.owner == owner
-                && building.kind == "trading_post"
+                && (building.kind == "trading_post"
+                    || (building.kind == "monastery" && contract_code == 0))
                 && building.construction_complete
         })
-        .ok_or_else(|| "The contracting Trading Post no longer exists.".to_string())?;
+        .ok_or_else(|| "The contracting regional export site no longer exists.".to_string())?;
     if !sold_amount.is_finite() || sold_amount < 0.0 {
         return Err("The regional export load is invalid.".to_string());
     }

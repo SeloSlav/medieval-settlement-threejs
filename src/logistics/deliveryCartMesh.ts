@@ -142,6 +142,8 @@ function addCargo(
       addFlourLoad(group);
       break;
     case 'ale':
+    case 'cider':
+    case 'mead':
       addAleLoad(group);
       break;
     case 'preservedFood':

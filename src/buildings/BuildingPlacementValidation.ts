@@ -34,6 +34,12 @@ import {
 } from '../resources/physicalDepositProtection.ts';
 import { buildingPlacementYaw } from './buildingPlacement.ts';
 import { buildingFootprintsTooClose } from './BuildingSpacing.ts';
+import type { TerrainBounds } from '../terrain/Terrain.ts';
+import {
+  monasteryEstateFitsMap,
+  monasteryEstateIsNearMapEdge,
+  sampleMonasteryEstatePoints,
+} from './monasteryEstate.ts';
 
 export type BuildingPlacementFailureReason =
   | 'water'
@@ -56,6 +62,8 @@ export type BuildingPlacementFailureReason =
   | 'no_fish_in_range'
   | 'no_trees_in_range'
   | 'on_road'
+  | 'outside_map'
+  | 'requires_map_edge'
   | 'insufficient_resources'
   | 'requires_completed_watchtower'
   | 'requires_completed_guardhouse'
@@ -91,6 +99,7 @@ type BuildingPlacementContext = {
   getNaturalHeightAt: (x: number, z: number) => number;
   countMatureTreesInRadius?: (x: number, z: number, radius: number) => number | null;
   roadNetwork?: RoadNetwork;
+  mapBounds?: TerrainBounds;
   fireDisabledBuildingIds?: ReadonlySet<string>;
 };
 
@@ -119,6 +128,16 @@ export function validateBuildingPlacement(
     && (context.isWaterAt(x, z) || fishingFootprintTouchesWater)
   ) {
     return { ok: false, reason: 'water' };
+  }
+
+  if (kind === 'monastery' && context.mapBounds) {
+    const yaw = buildingPlacementYaw(kind, x, z, context.roadNetwork);
+    if (!monasteryEstateFitsMap(x, z, yaw, context.mapBounds)) {
+      return { ok: false, reason: 'outside_map' };
+    }
+    if (!monasteryEstateIsNearMapEdge(x, z, yaw, context.mapBounds)) {
+      return { ok: false, reason: 'requires_map_edge' };
+    }
   }
 
   if (
@@ -169,7 +188,10 @@ export function validateBuildingPlacement(
     kind !== 'large_quarry'
     && kind !== 'mine'
     && kind !== 'clay_pit'
-    && context.isResourceDepositAt?.(x, z)
+    && (kind === 'monastery'
+      ? monasteryEstateSamples(kind, x, z, context.roadNetwork)
+        .some((point) => context.isResourceDepositAt?.(point.x, point.z) === true)
+      : context.isResourceDepositAt?.(x, z))
   ) {
     return { ok: false, reason: 'on_resource_deposit' };
   }
@@ -567,10 +589,21 @@ export function buildingFootprintOverlapsRoadSurface(
   z: number,
   roadNetwork: RoadNetwork,
 ): boolean {
-  for (const point of sampleBuildingFootprintPoints(kind, x, z, roadNetwork)) {
+  for (const point of monasteryEstateSamples(kind, x, z, roadNetwork)) {
     if (isOnRoadSurface(point.x, point.z, roadNetwork)) return true;
   }
   return false;
+}
+
+function monasteryEstateSamples(
+  kind: BuildingKind,
+  x: number,
+  z: number,
+  roadNetwork?: RoadNetwork | null,
+): Array<{ x: number; z: number }> {
+  if (kind !== 'monastery') return sampleBuildingFootprintPoints(kind, x, z, roadNetwork);
+  const yaw = buildingPlacementYaw(kind, x, z, roadNetwork);
+  return sampleMonasteryEstatePoints(x, z, yaw);
 }
 
 function buildingFootprintOverlapsStaticForagingResource(

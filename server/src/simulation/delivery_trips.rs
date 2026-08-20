@@ -33,6 +33,7 @@ use crate::raid_agent_policy::{
     playable_half_for_map_size, COMBAT_FACTION_RAIDER, COMBAT_STATE_ADVANCING,
     COMBAT_STATE_LOOTING, COMBAT_TARGET_BUILDING, COMBAT_TARGET_DELIVERY_TRIP,
 };
+use crate::monastery_estate_policy::playable_half_for_monastery_map_size;
 use crate::residence_upgrade_policy::residence_project_active;
 use crate::roads::{RoadNetwork, RoadPathRoute};
 use crate::season_policy::environment_for;
@@ -518,7 +519,11 @@ pub fn regional_market_import_route(
         .find(&0)
         .ok_or_else(|| "World configuration unavailable.".to_string())?;
     let entropy = config.seed ^ marketplace.id.wrapping_mul(0x9e37_79b9);
-    let playable_half = playable_half_for_map_size(config.map_size);
+    let playable_half = if marketplace.kind == "monastery" {
+        playable_half_for_monastery_map_size(config.map_size)
+    } else {
+        playable_half_for_map_size(config.map_size)
+    };
     let (entry_x, entry_z) =
         adriatic_trade_entry_point(entropy, marketplace.x, marketplace.z, playable_half)
             .ok_or_else(|| "The Adriatic trade approach is invalid.".to_string())?;
@@ -653,7 +658,7 @@ pub fn start_regional_market_export_trip(
         || speed_mps <= 1e-6
         || !unload_seconds.is_finite()
         || unload_seconds < 0.0
-        || !external_market_import_ready(ctx, marketplace, amount, &route)
+        || !regional_market_export_ready(ctx, marketplace, contract_code, amount, &route)
     {
         return false;
     }
@@ -741,6 +746,23 @@ fn external_market_import_ready(
     route: &RoadPathRoute,
 ) -> bool {
     marketplace.kind == "trading_post"
+        && marketplace.construction_complete
+        && amount > 1e-6
+        && amount.is_finite()
+        && valid_external_route(route)
+        && !building_has_regional_market_trip(ctx, marketplace.id)
+}
+
+fn regional_market_export_ready(
+    ctx: &ReducerContext,
+    marketplace: &Building,
+    contract_code: u64,
+    amount: f64,
+    route: &RoadPathRoute,
+) -> bool {
+    let authorized_site = marketplace.kind == "trading_post"
+        || (marketplace.kind == "monastery" && contract_code == 0);
+    authorized_site
         && marketplace.construction_complete
         && amount > 1e-6
         && amount.is_finite()
@@ -2875,7 +2897,10 @@ fn return_commodity_to_building(
     } else {
         deposit_building_commodity(&mut building, commodity, amount)
     };
-    if commodity == CommodityKind::Gold && building.kind == "monastery" {
+    if commodity == CommodityKind::Gold
+        && building.kind == "monastery"
+        && !is_regional_market_export_trip(trip)
+    {
         restore_local_civic_receipts(&mut building, deposited);
     }
     if commodity == CommodityKind::Gold

@@ -536,6 +536,8 @@ export class ResourceInspector {
       oatFlour: this.mustElement(options.uiRoot, '[data-stockpile="oatFlour"]'),
       maslinFlour: this.mustElement(options.uiRoot, '[data-stockpile="maslinFlour"]'),
       ale: this.mustElement(options.uiRoot, '[data-stockpile="ale"]'),
+      cider: this.mustElement(options.uiRoot, '[data-stockpile="cider"]'),
+      mead: this.mustElement(options.uiRoot, '[data-stockpile="mead"]'),
       preservedFood: this.mustElement(options.uiRoot, '[data-stockpile="preservedFood"]'),
       honey: this.mustElement(options.uiRoot, '[data-stockpile="honey"]'),
       wine: this.mustElement(options.uiRoot, '[data-stockpile="wine"]'),

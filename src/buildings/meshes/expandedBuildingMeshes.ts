@@ -54,6 +54,7 @@ import {
 import { STOREHOUSE_HAUL_PER_WORKER } from '../../generated/gameBalance.ts';
 import { addStockedPolearmRack } from './polearmRack.ts';
 import { createManureStockpile } from './manureStockpileMesh.ts';
+import { createMonasteryEstateMesh } from './monasteryEstateMesh.ts';
 
 export const LOCAL_RECEIPT_VISUAL_SEGMENTS = 3;
 export const LOCAL_RECEIPT_VISUAL_CAPACITY = STOREHOUSE_HAUL_PER_WORKER;
@@ -343,9 +344,10 @@ export function createThreshingBarnMesh(): THREE.Group {
   return group;
 }
 
-export function createMonasteryMesh(): THREE.Group {
+export function createMonasteryMesh(estateLevel = 0): THREE.Group {
   const group = new THREE.Group();
   group.name = 'Pauline monastery';
+  group.add(createMonasteryEstateMesh(estateLevel));
   const main = addGableShell(group, { width: 13.2, depth: 6.4, stoneHeight: 1.35, wallHeight: 3.8, ridgeHeight: 2.7, wallMaterial: residenceFacadeMaterial('white'), roofMaterial: tileMaterial(0), centerX: -1.2 });
   addPlankDoor(group, -1.2, 1.38, main.frontZ + 0.03, 1.1, 2.05);
   for (const x of [-5.8, -3.1, 0.8, 3.5]) for (const y of [2.45, 4.18]) addSmallWindow(group, x, y, main.frontZ + 0.03, 0.66, 0.9);

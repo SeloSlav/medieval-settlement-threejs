@@ -147,4 +147,7 @@ export default __t.row({
   constructionDeliveredRoofTiles: __t.f64().name("construction_delivered_roof_tiles"),
   constructionReservedRoofTiles: __t.f64().name("construction_reserved_roof_tiles"),
   constructionTreasuryRoofTiles: __t.f64().name("construction_treasury_roof_tiles"),
+  cider: __t.f64(),
+  mead: __t.f64(),
+  breweryRecipePolicy: __t.u8().name("brewery_recipe_policy"),
 });

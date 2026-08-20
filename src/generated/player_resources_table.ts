@@ -112,4 +112,6 @@ export default __t.row({
   oatBread: __t.f64().name("oat_bread"),
   maslinBread: __t.f64().name("maslin_bread"),
   pantrySafeguardPolicy: __t.u8().name("pantry_safeguard_policy"),
+  cider: __t.f64(),
+  mead: __t.f64(),
 });

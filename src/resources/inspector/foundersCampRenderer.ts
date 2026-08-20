@@ -61,6 +61,9 @@ function storageNeed(plan: FoundingStockyardRelocationPlan): string {
     case 'malt':
       return 'a Brewhouse with dry malt storage';
     case 'ale':
+    case 'cider':
+    case 'mead':
+      return 'a staffed Tavern or Brewery';
     case 'honey':
     case 'wine':
       return 'a Marketplace, Monastery, or compatible producer';

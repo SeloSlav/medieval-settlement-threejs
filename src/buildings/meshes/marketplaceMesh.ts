@@ -107,7 +107,6 @@ function addMarketStallDisplay(
     case 'curedMeat': addMeatCounter(display, true); break;
     case 'smokedFish': addFishCounter(display, true); break;
     case 'cheese': addCheeseCounter(display); break;
-    case 'ale': addAleCounter(display); break;
     case 'firewood': addFirewoodCounter(display); break;
     case 'charcoal': addCharcoalCounter(display); break;
     case 'cloth': addClothCounter(display); break;
@@ -353,21 +352,6 @@ function addCheeseCounter(display: THREE.Group): void {
       residenceFacadeMaterial('yellow'),
       new THREE.Vector3(x, 0.09 + (index === 1 ? 0.12 : 0), 0),
       new THREE.Euler(0, index * 0.65, 0),
-    );
-  }
-}
-
-function addAleCounter(display: THREE.Group): void {
-  const cask = new THREE.Group();
-  cask.position.set(-0.24, 0, 0);
-  addBarrel(cask, 0, 0, 0.46);
-  display.add(cask);
-  for (const x of [0.2, 0.43]) {
-    addMesh(
-      display,
-      new THREE.CylinderGeometry(0.11, 0.09, 0.2, 8),
-      timberMaterial('light'),
-      new THREE.Vector3(x, 0.1, 0),
     );
   }
 }

@@ -20,9 +20,22 @@ import {
   processorInputStagingCycles,
   processorNeedsInputs,
   processorOutputCommodity,
+  processorOutputCommodityForBuilding,
   processorOutputHeadroom,
   processorOutputTargetForBuilding,
 } from '../src/economy/processorOutputPolicy.ts';
+import {
+  BREWERY_RECIPE_AUTO,
+  BREWERY_RECIPE_CIDER,
+  BREWERY_RECIPE_MEAD,
+  selectedBreweryRecipePolicy,
+} from '../src/economy/breweryRecipePolicy.ts';
+import {
+  BREWERY_APPLES_PER_CIDER_CYCLE,
+  BREWERY_CIDER_PER_CYCLE,
+  BREWERY_HONEY_PER_MEAD_CYCLE,
+  BREWERY_MEAD_PER_CYCLE,
+} from '../src/generated/gameBalance.ts';
 import { selectDirectProcessorInputTarget } from '../src/logistics/processorInputLogistics.ts';
 import { renderExtractionStockTargetPanel } from '../src/resources/inspector/extractionStockTargetRenderer.ts';
 import type { BuildingKind, BuildingState } from '../src/resources/types.ts';
@@ -50,6 +63,10 @@ function processor(
     oatBread: 0,
     maslinBread: 0,
     ale: 0,
+    cider: 0,
+    mead: 0,
+    apples: 0,
+    honey: 0,
     preservedFood: 0,
     cloth: 0,
     wool: 0,
@@ -117,6 +134,21 @@ assert.equal(processorOutputCommodity('weaver'), 'cloth');
 assert.equal(processorOutputCommodity('charcoal_burner'), 'charcoal');
 assert.equal(processorOutputCommodity('smithy'), 'ironwork');
 assert.equal(processorOutputCommodity('potter_kiln'), 'pottery');
+assert.equal(BREWERY_APPLES_PER_CIDER_CYCLE, 4);
+assert.equal(BREWERY_CIDER_PER_CYCLE, 1);
+assert.equal(BREWERY_HONEY_PER_MEAD_CYCLE, 1);
+assert.equal(BREWERY_MEAD_PER_CYCLE, 1);
+const ciderBrewery = processor('cider-brewery', 'brewery');
+ciderBrewery.breweryRecipePolicy = BREWERY_RECIPE_CIDER;
+assert.equal(processorOutputCommodityForBuilding(ciderBrewery), 'cider');
+const meadBrewery = processor('mead-brewery', 'brewery');
+meadBrewery.breweryRecipePolicy = BREWERY_RECIPE_MEAD;
+assert.equal(processorOutputCommodityForBuilding(meadBrewery), 'mead');
+assert.equal(
+  selectedBreweryRecipePolicy(BREWERY_RECIPE_AUTO, { barley: 3, apples: 8, honey: 1 }),
+  BREWERY_RECIPE_CIDER,
+  'Auto must choose the greatest complete-batch readiness',
+);
 
 const leanQuarry = processor('quarry', 'stone_quarry', 25);
 leanQuarry.stone = 44;

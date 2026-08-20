@@ -132,6 +132,9 @@ pub mod livestock_policy;
 #[path = "../../src/monastery_hospitality_policy.rs"]
 pub mod monastery_hospitality_policy;
 
+#[path = "../../src/monastery_estate_policy.rs"]
+pub mod monastery_estate_policy;
+
 #[path = "../../src/residence_settlement_policy.rs"]
 pub mod residence_settlement_policy;
 

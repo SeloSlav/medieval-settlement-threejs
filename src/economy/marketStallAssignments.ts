@@ -16,7 +16,6 @@ import { combinedFuelEquivalent } from './fuelReservePolicy.ts';
 export const MARKET_FOOD_STALL_NEEDS = [
   'food',
   'preservedFood',
-  'ale',
 ] as const satisfies readonly ResidenceNeedKind[];
 
 export const MARKET_GOODS_STALL_NEEDS = [
@@ -33,7 +32,6 @@ export type MarketStallGroup = 'food' | 'goods';
 
 export type MarketStallCommodityKind =
   | FoodInventoryKind
-  | 'ale'
   | 'firewood'
   | 'charcoal'
   | 'cloth'
@@ -59,7 +57,6 @@ export type MarketStallDisplayKind =
   | 'curedMeat'
   | 'smokedFish'
   | 'cheese'
-  | 'ale'
   | 'firewood'
   | 'charcoal'
   | 'cloth'
@@ -110,7 +107,6 @@ export type MarketStallRoadDistance = (
 const MARKET_STALL_LABELS: Readonly<Record<MarketStallNeed, string>> = {
   food: 'Fresh food',
   preservedFood: 'Preserved food',
-  ale: 'Ale',
   firewood: 'Fuel',
   cloth: 'Cloth',
   pottery: 'Pottery',
@@ -125,7 +121,6 @@ const MARKET_STALL_COMMODITIES_BY_NEED: Readonly<
 > = {
   food: [...FRESH_FOOD_KINDS, 'honey'],
   preservedFood: PRESERVED_FOOD_KINDS,
-  ale: ['ale'],
   firewood: ['firewood', 'charcoal'],
   cloth: ['cloth'],
   pottery: ['pottery'],
@@ -162,7 +157,8 @@ function marketStallDisplayKind(
   commodityKind: MarketStallCommodityKind,
 ): MarketStallDisplayKind {
   switch (commodityKind) {
-    case 'food': return 'provisions';
+    case 'food':
+    case 'oatGrain': return 'provisions';
     case 'ryeBread':
     case 'oatBread':
     case 'maslinBread': return 'bread';
@@ -182,11 +178,14 @@ function marketStallDisplayKind(
     case 'curedMeat': return 'curedMeat';
     case 'smokedFish': return 'smokedFish';
     case 'cheese': return 'cheese';
-    case 'ale': return 'ale';
     case 'firewood': return 'firewood';
     case 'charcoal': return 'charcoal';
     case 'cloth': return 'cloth';
     case 'pottery': return 'pottery';
+    default: {
+      const unreachable: never = commodityKind;
+      return unreachable;
+    }
   }
 }
 
@@ -427,8 +426,6 @@ export function marketStallStock(
       return freshFoodStock(building) + finiteStock(building.honey);
     case 'preservedFood':
       return preservedFoodStock(building);
-    case 'ale':
-      return finiteStock(building.ale);
     case 'firewood':
       return combinedFuelEquivalent(
         finiteStock(building.firewood),
@@ -447,7 +444,6 @@ function stallNeedRank(needKind: MarketStallNeed): number {
     case 'firewood': return 0;
     case 'preservedFood': return 1;
     case 'cloth': return 1;
-    case 'ale': return 2;
     case 'pottery': return 2;
   }
 }

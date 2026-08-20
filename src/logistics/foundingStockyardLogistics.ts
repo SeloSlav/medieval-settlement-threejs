@@ -224,6 +224,12 @@ function foundingDestinationPriority(
     case 'malt':
       return building.kind === 'brewery' ? 0 : 3;
     case 'ale':
+    case 'cider':
+    case 'mead':
+      if (building.kind === 'tavern') return 0;
+      if (building.kind === 'brewery') return 1;
+      if (building.kind === 'marketplace') return 2;
+      return 3;
     case 'honey':
     case 'wine':
       if (building.kind === 'marketplace') return 0;

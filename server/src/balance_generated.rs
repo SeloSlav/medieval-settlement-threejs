@@ -2048,7 +2048,7 @@ const WATCHTOWER: BuildingDef = BuildingDef {
     requires_berries: false,
     requires_fish: false,
     requires_water_shore: false,
-    requires_hillside: true,
+    requires_hillside: false,
     sim_kind: None,
 };
 

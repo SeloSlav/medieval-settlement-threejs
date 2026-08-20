@@ -23,6 +23,7 @@ import {
   type PhysicalDepositFootprint,
 } from '../resources/physicalDepositProtection.ts';
 import type { TerrainProjector } from '../terrain/TerrainProjector.ts';
+import type { RoadNetwork } from '../roads/RoadNetwork.ts';
 import { convexPolygonsOverlap2, type Point2 } from '../utils/polygonGeometry.ts';
 import { FarmFieldPreview } from './FarmFieldMarkers.ts';
 import {
@@ -91,6 +92,7 @@ type FarmFieldToolOptions = {
   isWaterAt: (x: number, z: number) => boolean;
   isResourceDepositAt: (x: number, z: number) => boolean;
   physicalDeposits?: readonly PhysicalDepositFootprint[];
+  getRoadNetwork?: () => RoadNetwork;
   onCommit: (input: {
     farmsteadId: string;
     corners: FarmFieldCorners;
@@ -667,7 +669,10 @@ export class FarmFieldTool {
       return { ok: false, reason: 'resource_deposit', corners, slope, moisture };
     }
     for (const building of state.buildings.values()) {
-      if (convexPolygonsOverlap2(corners, buildingFootprintPolygonFromState(building))) {
+      if (convexPolygonsOverlap2(
+        corners,
+        buildingFootprintPolygonFromState(building, this.options.getRoadNetwork?.()),
+      )) {
         return { ok: false, reason: 'building', corners, slope, moisture };
       }
     }

@@ -12,7 +12,7 @@ import {
 } from '../src/ui/buildMenuCards.ts';
 
 assert.deepEqual(keys(CIVIC_BUILD_MENU_ENTRIES), [
-  'residences', 'well', 'chapel', 'monastery', 'marketplace', 'trading_post', 'town_hall',
+  'residences', 'well', 'chapel', 'monastery', 'marketplace', 'tavern', 'trading_post', 'town_hall',
   'village_storehouse', 'granary',
 ]);
 assert.deepEqual(keys(GATHERING_BUILD_MENU_ENTRIES), [
@@ -56,6 +56,19 @@ assert.equal(
 const renderedCards = renderBuildMenuCards();
 assert.match(renderedCards, />Mining Pit</);
 assert.match(renderedCards, />Quarry</);
+assert.match(
+  renderedCards,
+  /data-action="tavern"[\s\S]*?data-src="\/assets\/ui\/build-menu\/cards\/tavern\.webp"/,
+  'the Tavern must use its dedicated build-card illustration',
+);
+assert.ok(fs.existsSync('public/assets/ui/build-menu/cards/tavern.webp'));
+assert.ok(fs.existsSync('public/assets/ui/icons/resource-cider.png'));
+assert.ok(fs.existsSync('public/assets/ui/icons/resource-mead.png'));
+const iconography = fs.readFileSync('src/ui/iconography.css', 'utf8');
+assert.match(iconography, /data-resource='cider'[\s\S]*?resource-cider\.png/);
+assert.match(iconography, /data-resource='mead'[\s\S]*?resource-mead\.png/);
+assert.match(iconography, /data-resource-cost='cider'[\s\S]*?resource-cider\.png/);
+assert.match(iconography, /data-resource-cost='mead'[\s\S]*?resource-mead\.png/);
 const descriptions = [...renderedCards.matchAll(/data-tooltip="([^"]+)"/g)]
   .map((match) => match[1]);
 assert.equal(descriptions.length, BUILD_MENU_ENTRIES.length, 'every build card needs one short description');

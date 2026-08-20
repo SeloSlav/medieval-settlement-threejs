@@ -4,12 +4,12 @@ use crate::apiary_policy::is_valid_apiary_harvest_policy;
 use crate::balance_generated::{
     CARPENTER_TIMBER_COST_MULTIPLIER, CONSTRUCTION_MAX_BUILDERS, TOWN_HALL_POPULATION_REQUIRED,
 };
-use crate::building_defs::{building_def, building_def_or_err};
 use crate::brewery_recipe_policy::{
     is_valid_brewery_recipe_policy, normalize_brewery_recipe_policy, BREWERY_RECIPE_AUTO,
     BREWERY_RECIPE_CIDER, BREWERY_RECIPE_MEAD,
 };
-use crate::burgage::{zone_overlaps_footprint, Point2};
+use crate::building_defs::{building_def, building_def_or_err};
+use crate::burgage::Point2;
 use crate::chapel_upgrade_policy::{chapel_upgrade_cost, normalize_chapel_tier};
 use crate::construction_priority::{
     construction_labor_ready, construction_labor_rotation,
@@ -28,13 +28,13 @@ use crate::economy::{
     spend_aggregate_stone, spend_aggregate_timber, total_ironwork, total_roof_tiles, total_stone,
     total_timber, CommodityKind,
 };
+use crate::farm_work_policy::is_valid_threshing_priority;
 use crate::foraging_policy::harvest_available;
 use crate::frontier_economy_policy::{
     is_valid_carpenter_polearm_reserve, is_valid_guardhouse_food_reserve,
     is_valid_guardhouse_pay_priority, CARPENTER_POLEARM_RESERVE_DEFAULT,
     GUARDHOUSE_FOOD_RESERVE_STANDARD, GUARDHOUSE_PAY_PRIORITY_NORMAL,
 };
-use crate::farm_work_policy::is_valid_threshing_priority;
 use crate::granary_policy::{
     is_valid_granary_fresh_food_target_percent, normalize_granary_grain_reserve,
     GRANARY_FRESH_FOOD_TARGET_DEFAULT_PERCENT,
@@ -50,7 +50,13 @@ use crate::marketplace_procurement_policy::{
 };
 use crate::placement_validation::{
     building_footprints_too_close, building_overlaps_residence_zone,
-    building_overlaps_road_surface, building_site_contains_point, is_on_resource_deposit,
+    building_overlaps_resource_deposit, building_overlaps_road_surface,
+    building_site_contains_point, resolved_building_placement_yaw,
+    zone_overlaps_building_footprint,
+};
+use crate::monastery_estate_policy::{
+    monastery_estate_fits_map, monastery_estate_is_near_map_edge,
+    playable_half_for_monastery_map_size,
 };
 use crate::potter_firing_policy::{is_valid_potter_firing_policy, potter_fires_roof_tiles};
 use crate::pottery_dispatch_policy::is_valid_pottery_dispatch_policy;
@@ -153,9 +159,7 @@ fn building_overlaps_farm_field(
     x: f64,
     z: f64,
 ) -> bool {
-    let Some(def) = building_def(kind) else {
-        return false;
-    };
+    let network = load_owner_road_network(ctx, owner);
     ctx.db.farm_field().owner().filter(&owner).any(|field| {
         let polygon = [
             Point2 {
@@ -175,7 +179,7 @@ fn building_overlaps_farm_field(
                 z: field.corner_dz,
             },
         ];
-        zone_overlaps_footprint(&polygon, x, z, def.pick_radius)
+        zone_overlaps_building_footprint(&polygon, kind, x, z, network.as_ref())
     })
 }
 
@@ -186,9 +190,7 @@ fn building_overlaps_pasture(
     x: f64,
     z: f64,
 ) -> bool {
-    let Some(def) = building_def(kind) else {
-        return false;
-    };
+    let network = load_owner_road_network(ctx, owner);
     ctx.db.pasture().owner().filter(&owner).any(|pasture| {
         let polygon = [
             Point2 {
@@ -208,7 +210,7 @@ fn building_overlaps_pasture(
                 z: pasture.corner_dz,
             },
         ];
-        zone_overlaps_footprint(&polygon, x, z, def.pick_radius)
+        zone_overlaps_building_footprint(&polygon, kind, x, z, network.as_ref())
     })
 }
 
@@ -405,9 +407,7 @@ fn building_overlaps_vineyard(
     x: f64,
     z: f64,
 ) -> bool {
-    let Some(def) = building_def(kind) else {
-        return false;
-    };
+    let network = load_owner_road_network(ctx, owner);
     ctx.db
         .vineyard_parcel()
         .owner()
@@ -431,7 +431,7 @@ fn building_overlaps_vineyard(
                     z: vineyard.corner_dz,
                 },
             ];
-            zone_overlaps_footprint(&polygon, x, z, def.pick_radius)
+            zone_overlaps_building_footprint(&polygon, kind, x, z, network.as_ref())
         })
 }
 
@@ -467,7 +467,7 @@ pub(crate) fn place_building_internal(
     if kind != "large_quarry"
         && !on_mineral_deposit
         && !on_generated_clay_bank
-        && is_on_resource_deposit(ctx, x, z)
+        && building_overlaps_resource_deposit(ctx, owner, &kind, x, z)
     {
         return Err("Cannot build over a physical resource deposit.".to_string());
     }
@@ -540,6 +540,26 @@ pub(crate) fn place_building_internal(
     }
 
     if kind == "monastery" {
+        let config = ctx
+            .db
+            .world_config()
+            .id()
+            .find(&0)
+            .ok_or_else(|| "World not initialized.".to_string())?;
+        let playable_half = playable_half_for_monastery_map_size(config.map_size);
+        let yaw = resolved_building_placement_yaw(road_network.as_ref(), &kind, x, z);
+        if !monastery_estate_fits_map(x, z, yaw, playable_half) {
+            return Err(
+                "The monastery's complete 68 x 53 metre fenced estate must fit inside the map."
+                    .to_string(),
+            );
+        }
+        if !monastery_estate_is_near_map_edge(x, z, yaw, playable_half) {
+            return Err(
+                "The monastery estate must be founded within 60 metres of the map edge."
+                    .to_string(),
+            );
+        }
         let staffed_chapel = ctx.db.building().owner().filter(&owner).any(|building| {
             building.kind == "chapel"
                 && building.construction_complete
@@ -1267,9 +1287,7 @@ fn processor_stall_and_recovery(ctx: &ReducerContext, building: &Building) -> (b
         if ready {
             return (false, false);
         }
-        let inbound = |commodity| {
-            building_has_inbound_commodity_trip(ctx, building.id, commodity)
-        };
+        let inbound = |commodity| building_has_inbound_commodity_trip(ctx, building.id, commodity);
         let ale_recovering = (inbound(CommodityKind::Barley) || inbound(CommodityKind::Malt))
             && (building.water > 1e-6 || inbound(CommodityKind::Water))
             && (building.firewood > 1e-6 || inbound(CommodityKind::Firewood));
@@ -1277,9 +1295,7 @@ fn processor_stall_and_recovery(ctx: &ReducerContext, building: &Building) -> (b
             BREWERY_RECIPE_CIDER => inbound(CommodityKind::Apples),
             BREWERY_RECIPE_MEAD => inbound(CommodityKind::Honey),
             BREWERY_RECIPE_AUTO => {
-                ale_recovering
-                    || inbound(CommodityKind::Apples)
-                    || inbound(CommodityKind::Honey)
+                ale_recovering || inbound(CommodityKind::Apples) || inbound(CommodityKind::Honey)
             }
             _ => ale_recovering,
         };
@@ -3056,20 +3072,38 @@ pub fn demolish_building(ctx: &ReducerContext, building_id: u64) -> Result<(), S
             CommodityKind::MaslinSheaves,
             building.maslin_sheaves + trip_cargo.maslin_sheaves,
         ),
-        (CommodityKind::RyeGrain, building.rye_grain + trip_cargo.rye_grain),
-        (CommodityKind::OatGrain, building.oat_grain + trip_cargo.oat_grain),
+        (
+            CommodityKind::RyeGrain,
+            building.rye_grain + trip_cargo.rye_grain,
+        ),
+        (
+            CommodityKind::OatGrain,
+            building.oat_grain + trip_cargo.oat_grain,
+        ),
         (
             CommodityKind::MaslinGrain,
             building.maslin_grain + trip_cargo.maslin_grain,
         ),
-        (CommodityKind::RyeFlour, building.rye_flour + trip_cargo.rye_flour),
-        (CommodityKind::OatFlour, building.oat_flour + trip_cargo.oat_flour),
+        (
+            CommodityKind::RyeFlour,
+            building.rye_flour + trip_cargo.rye_flour,
+        ),
+        (
+            CommodityKind::OatFlour,
+            building.oat_flour + trip_cargo.oat_flour,
+        ),
         (
             CommodityKind::MaslinFlour,
             building.maslin_flour + trip_cargo.maslin_flour,
         ),
-        (CommodityKind::RyeBread, building.rye_bread + trip_cargo.rye_bread),
-        (CommodityKind::OatBread, building.oat_bread + trip_cargo.oat_bread),
+        (
+            CommodityKind::RyeBread,
+            building.rye_bread + trip_cargo.rye_bread,
+        ),
+        (
+            CommodityKind::OatBread,
+            building.oat_bread + trip_cargo.oat_bread,
+        ),
         (
             CommodityKind::MaslinBread,
             building.maslin_bread + trip_cargo.maslin_bread,

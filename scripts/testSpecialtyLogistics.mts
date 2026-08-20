@@ -43,6 +43,8 @@ function building(
     grain: 0,
     flour: 0,
     ale: 80,
+    cider: 0,
+    mead: 0,
     preservedFood: 80,
     honey: 0,
     wine: 0,
@@ -87,7 +89,7 @@ const network = {
   }),
 } as unknown as RoadNetwork;
 
-assert.deepEqual(ALE_SUPPLIER_KINDS, ['marketplace']);
+assert.deepEqual(ALE_SUPPLIER_KINDS, ['tavern']);
 assert.deepEqual(PRESERVED_FOOD_PRODUCER_KINDS, ['smokehouse', 'pastoral_farmstead']);
 assert.deepEqual(
   PRESERVED_FOOD_SUPPLIER_KINDS,
@@ -183,16 +185,16 @@ assert.equal(
 
 const monastery = building('monastery', 'monastery', 5);
 const brewery = building('brewery', 'brewery', 18);
+const tavern = { ...building('tavern', 'tavern', 4), ale: 0, cider: 12, mead: 0 };
 assert.equal(
   findRoadLinkedSupplierForResidence(
     home,
-    [monastery, brewery, foodMarket],
+    [monastery, brewery, foodMarket, tavern],
     network,
     'ale',
-    (candidate) => candidate.kind !== 'monastery',
   )?.id,
-  foodMarket.id,
-  'breweries and monasteries must stage household ale at the Marketplace',
+  tavern.id,
+  'a staffed Tavern must serve cider as a full Beverage substitute',
 );
 const weaver = { ...building('weaver', 'weaver', 6), cloth: 12 };
 const goodsMarket = { ...building('goods-market', 'marketplace', 4), cloth: 12, pottery: 12 };
@@ -237,16 +239,16 @@ assert.equal(
   null,
   'a granary with perishable collection disabled must leave cured surplus in its producer loft',
 );
-const emptyBrewery = { ...building('empty-brewery', 'brewery', 2), ale: 0 };
+const emptyTavern = { ...building('empty-tavern', 'tavern', 2), ale: 0, cider: 0, mead: 0 };
 assert.equal(
   findRoadLinkedSupplierForResidence(
     home,
-    [emptyBrewery, monastery],
+    [emptyTavern, monastery, brewery],
     network,
     'ale',
   )?.id,
   undefined,
-  'monastic ale also requires Marketplace staging before household delivery',
+  'breweries and monasteries cannot bypass an empty Tavern for household Beverage service',
 );
 
 const largeUrgent = residence('large-urgent', 25, 6, 'ale', 6);
@@ -272,17 +274,21 @@ assert.equal(
 );
 
 const tickContext = fs.readFileSync('server/src/simulation/tick_context.rs', 'utf8');
-assert.match(tickContext, /MONASTERY_COVERAGE_RADIUS/);
 assert.doesNotMatch(
   tickContext,
   /specialty_claims:\s*RefCell|fn build_specialty_claims|pub fn specialty_supplier_for/,
-  'routine specialty service must be centralized at Marketplace stalls instead of producer territories',
+  'routine specialty service must stay centralized instead of using producer territories',
 );
 const marketplaceCaravan = fs.readFileSync('server/src/simulation/marketplace_caravan.rs', 'utf8');
 assert.match(
   tickContext,
-  /MARKET_FOOD_STALL_NEEDS[\s\S]*ResidenceNeedKind::PreservedFood[\s\S]*ResidenceNeedKind::Ale[\s\S]*MARKET_STALL_GROUP_FOOD[\s\S]*"granary"/,
-  'preserved food and ale carts must reserve granary-run Marketplace stall workers',
+  /MARKET_FOOD_STALL_NEEDS[\s\S]*ResidenceNeedKind::PreservedFood[\s\S]*MARKET_STALL_GROUP_FOOD[\s\S]*"granary"/,
+  'fresh and preserved food carts must reserve granary-run Marketplace stall workers',
+);
+assert.match(
+  tickContext,
+  /stall_need == ResidenceNeedKind::Ale[\s\S]*?"tavern"[\s\S]*?building\.assigned_labor > 0/,
+  'Beverage claims must resolve to staffed Taverns without consuming a Marketplace stall worker',
 );
 assert.match(
   tickContext,
@@ -302,8 +308,13 @@ assert.match(marketplaceCaravan, /ResidenceNeedKind::Pottery/);
 const expanded = fs.readFileSync('server/src/simulation/expanded_economy.rs', 'utf8');
 assert.match(
   expanded,
-  /step_granary[\s\S]*?GranaryDispatchDuty::Households[\s\S]*?CommodityKind::Food[\s\S]*?CommodityKind::PreservedFood[\s\S]*?CommodityKind::Ale[\s\S]*?&\["marketplace"\]/,
-  'a granary must stock Marketplace food stalls with staple, cured, and ale goods',
+  /step_granary[\s\S]*?GranaryDispatchDuty::Households[\s\S]*?CommodityKind::Food[\s\S]*?CommodityKind::PreservedFood[\s\S]*?&\["marketplace"\]/,
+  'a granary must stock Marketplace food stalls with staple and cured goods',
+);
+assert.match(
+  expanded,
+  /GranaryDispatchDuty::Households[\s\S]*?CommodityKind::Ale[\s\S]*?&\["tavern"\]/,
+  'granary-held ale must be routed to Taverns instead of household Marketplace stalls',
 );
 assert.match(
   expanded,

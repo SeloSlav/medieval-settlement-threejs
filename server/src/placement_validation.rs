@@ -8,6 +8,10 @@ use crate::burgage::{
 };
 use crate::db::*;
 use crate::hydrology::sample_hydrology_score;
+use crate::monastery_estate_policy::{
+    monastery_estate_corners, MONASTERY_ESTATE_DEPTH,
+    MONASTERY_ESTATE_HALF_WIDTH, MONASTERY_ESTATE_REAR_DEPTH, MONASTERY_ESTATE_WIDTH,
+};
 use crate::roads::{load_owner_road_network, RoadNetwork};
 
 const ORDINARY_STONE_DEPOSIT_PROTECTION_RADIUS: f64 = 34.0;
@@ -165,17 +169,20 @@ pub fn burgage_zone_overlaps_buildings(
     false
 }
 
-fn zone_overlaps_building_footprint(
+pub fn zone_overlaps_building_footprint(
     zone: &[Point2; 4],
     kind: &str,
     x: f64,
     z: f64,
     network: Option<&RoadNetwork>,
 ) -> bool {
-    let pad = building_pad_params(kind);
     let yaw = network
         .map(|roads| road_aware_building_placement_yaw(roads, kind, x, z))
         .unwrap_or_else(|| building_placement_yaw(x, z));
+    if kind == "monastery" {
+        return convex_zones_overlap(zone, &building_footprint_polygon(kind, x, z, network));
+    }
+    let pad = building_pad_params(kind);
     zone_overlaps_oriented_footprint(
         zone,
         x,
@@ -195,27 +202,28 @@ pub fn building_footprints_too_close(
     other_z: f64,
     network: Option<&RoadNetwork>,
 ) -> bool {
-    let candidate = building_footprint_polygon(
-        candidate_kind,
-        candidate_x,
-        candidate_z,
-        network,
-    );
+    let candidate = building_footprint_polygon(candidate_kind, candidate_x, candidate_z, network);
     let other = building_footprint_polygon(other_kind, other_x, other_z, network);
     minimum_polygon_distance(&candidate, &other)
         < BUILDING_EDGE_CLEARANCE - BUILDING_EDGE_CLEARANCE_EPSILON
 }
 
-fn building_footprint_polygon(
+pub fn building_footprint_polygon(
     kind: &str,
     x: f64,
     z: f64,
     network: Option<&RoadNetwork>,
 ) -> [Point2; 4] {
-    let pad = building_pad_params(kind);
     let yaw = network
         .map(|roads| road_aware_building_placement_yaw(roads, kind, x, z))
         .unwrap_or_else(|| building_placement_yaw(x, z));
+    if kind == "monastery" {
+        return monastery_estate_corners(x, z, yaw).map(|point| Point2 {
+            x: point.x,
+            z: point.z,
+        });
+    }
+    let pad = building_pad_params(kind);
     oriented_footprint_polygon(
         x,
         z,
@@ -240,6 +248,36 @@ pub fn is_on_resource_deposit(ctx: &ReducerContext, x: f64, z: f64) -> bool {
                 static_foraging_resource_protection_radius(&deposit.node_kind, deposit.max_yield)
             })
             .is_some_and(|radius| point_overlaps_circle(x, z, deposit.x, deposit.z, radius))
+    })
+}
+
+pub fn building_overlaps_resource_deposit(
+    ctx: &ReducerContext,
+    owner: Identity,
+    kind: &str,
+    x: f64,
+    z: f64,
+) -> bool {
+    if kind != "monastery" {
+        return is_on_resource_deposit(ctx, x, z);
+    }
+    let network = load_owner_road_network(ctx, owner);
+    let polygon = building_footprint_polygon(kind, x, z, network.as_ref());
+    ctx.db.quarry().iter().any(|deposit| {
+        polygon_overlaps_circle(
+            &polygon,
+            deposit.x,
+            deposit.z,
+            quarry_deposit_protection_radius(&deposit.quarry_id, deposit.is_rich),
+        )
+    }) || ctx.db.foraging_node().iter().any(|deposit| {
+        clay_deposit_protection_radius(&deposit.node_id, &deposit.node_kind)
+            .or_else(|| {
+                static_foraging_resource_protection_radius(&deposit.node_kind, deposit.max_yield)
+            })
+            .is_some_and(|radius| {
+                polygon_overlaps_circle(&polygon, deposit.x, deposit.z, radius)
+            })
     })
 }
 
@@ -376,6 +414,27 @@ fn minimum_polygon_distance(a: &[Point2; 4], b: &[Point2; 4]) -> f64 {
 }
 
 pub fn building_overlaps_road_surface(network: &RoadNetwork, kind: &str, x: f64, z: f64) -> bool {
+    if kind == "monastery" {
+        let yaw = road_aware_building_placement_yaw(network, kind, x, z);
+        let columns = (MONASTERY_ESTATE_WIDTH / 5.5).ceil() as usize;
+        let rows = (MONASTERY_ESTATE_DEPTH / 5.5).ceil() as usize;
+        let cos = yaw.cos();
+        let sin = yaw.sin();
+        for column in 0..=columns {
+            let local_x = -MONASTERY_ESTATE_HALF_WIDTH
+                + MONASTERY_ESTATE_WIDTH * column as f64 / columns as f64;
+            for row in 0..=rows {
+                let local_z = -MONASTERY_ESTATE_REAR_DEPTH
+                    + MONASTERY_ESTATE_DEPTH * row as f64 / rows as f64;
+                let sample_x = x + local_x * cos + local_z * sin;
+                let sample_z = z - local_x * sin + local_z * cos;
+                if network.is_on_road_surface(sample_x, sample_z) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
     let pad = building_pad_params(kind);
     let yaw = road_aware_building_placement_yaw(network, kind, x, z);
     let cos = yaw.cos();
@@ -423,6 +482,17 @@ fn road_aware_building_placement_yaw(network: &RoadNetwork, kind: &str, x: f64, 
         }
     }
     building_placement_yaw(x, z)
+}
+
+pub fn resolved_building_placement_yaw(
+    network: Option<&RoadNetwork>,
+    kind: &str,
+    x: f64,
+    z: f64,
+) -> f64 {
+    network
+        .map(|roads| road_aware_building_placement_yaw(roads, kind, x, z))
+        .unwrap_or_else(|| building_placement_yaw(x, z))
 }
 
 pub fn building_overlaps_open_water(kind: &str, x: f64, z: f64) -> bool {

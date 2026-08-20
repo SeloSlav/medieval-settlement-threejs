@@ -170,6 +170,9 @@ export const Building = __t.object("Building", {
   constructionDeliveredRoofTiles: __t.f64(),
   constructionReservedRoofTiles: __t.f64(),
   constructionTreasuryRoofTiles: __t.f64(),
+  cider: __t.f64(),
+  mead: __t.f64(),
+  breweryRecipePolicy: __t.u8(),
 });
 export type Building = __Infer<typeof Building>;
 
@@ -531,6 +534,8 @@ export const PlayerResources = __t.object("PlayerResources", {
   oatBread: __t.f64(),
   maslinBread: __t.f64(),
   pantrySafeguardPolicy: __t.u8(),
+  cider: __t.f64(),
+  mead: __t.f64(),
 });
 export type PlayerResources = __Infer<typeof PlayerResources>;
 
@@ -630,6 +635,7 @@ export const Residence = __t.object("Residence", {
   ryeBread: __t.f64(),
   oatBread: __t.f64(),
   maslinBread: __t.f64(),
+  oatGrain: __t.f64(),
 });
 export type Residence = __Infer<typeof Residence>;
 

@@ -60,6 +60,7 @@ export type ProcessorInputCommodity =
   | 'maslinFlour'
   | 'water'
   | 'firewood'
+  | 'food'
   | 'wool'
   | 'flax'
   | 'iron'
@@ -136,8 +137,8 @@ const INPUTS_BY_KIND: Record<
   ProcessorOutputTargetKind,
   readonly ProcessorInputCommodity[]
 > = {
-  watermill: ['ryeGrain', 'maslinGrain'],
-  windmill: ['ryeGrain', 'maslinGrain'],
+  watermill: ['ryeGrain', 'oatGrain', 'maslinGrain'],
+  windmill: ['ryeGrain', 'oatGrain', 'maslinGrain'],
   bakery: ['ryeFlour', 'maslinFlour', 'water', 'firewood'],
   brewery: ['barley', 'apples', 'honey', 'water', 'firewood'],
   smokehouse: ['food', 'firewood', 'salt', 'pottery'],

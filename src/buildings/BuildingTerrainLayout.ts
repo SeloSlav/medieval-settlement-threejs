@@ -2,6 +2,7 @@ import type { BuildingKind } from '../resources/types.ts';
 import type { RoadNetwork } from '../roads/RoadNetwork.ts';
 import type { TerrainBounds } from '../terrain/Terrain.ts';
 import { buildingPlacementYaw } from './buildingPlacement.ts';
+import { monasteryEstateFootprintCorners } from './monasteryEstate.ts';
 
 export type BuildingTerrainSource = {
   kind: BuildingKind;
@@ -182,6 +183,9 @@ export function getBuildingFootprintCorners(
   { x: number; z: number },
   { x: number; z: number },
 ] {
+  if (kind === 'monastery') {
+    return monasteryEstateFootprintCorners(x, z, yaw);
+  }
   const { halfWidth, halfDepth } = getBuildingFootprintHalfExtents(kind);
   const cos = Math.cos(yaw);
   const sin = Math.sin(yaw);

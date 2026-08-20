@@ -51,7 +51,8 @@ import {
   createPalisadedRefugeMesh,
 } from './meshes/civicLogisticsBuildingMeshes.ts';
 
-export function createBuildingMesh(kind: BuildingKind, chapelTier: 1 | 2 | 3 = 3): THREE.Group {
+export function createBuildingMesh(kind: BuildingKind, developmentTier?: 0 | 1 | 2 | 3): THREE.Group {
+  const chapelTier = Math.max(1, developmentTier ?? 3) as 1 | 2 | 3;
   switch (kind) {
     case 'founders_camp':
       return createFoundersCampMesh();
@@ -102,7 +103,7 @@ export function createBuildingMesh(kind: BuildingKind, chapelTier: 1 | 2 | 3 = 3
     case 'guardhouse': return createGuardhouseMesh();
     case 'palisaded_refuge': return createPalisadedRefugeMesh();
     case 'threshing_barn': return createThreshingBarnMesh();
-    case 'monastery': return createMonasteryMesh();
+    case 'monastery': return createMonasteryMesh(developmentTier ?? 0);
     case 'brewery': return createBreweryMesh();
     case 'tavern': return createTavernMesh();
     case 'smokehouse': return createSmokehouseMesh();

@@ -90,6 +90,10 @@ use crate::monastery_hospitality_policy::{
     is_monastery_feast_day, monastery_feast_batch, monastery_feast_refill_shortfall,
     monastery_hospitality_use, monastery_pilgrimage_gold,
 };
+use crate::monastery_estate_policy::{
+    monastery_estate_can_reinvest, monastery_estate_exportable,
+    monastery_estate_next_investment_cost, monastery_estate_yields,
+};
 use crate::potter_firing_policy::potter_fires_roof_tiles;
 use crate::pottery_dispatch_policy::pottery_households_first;
 use crate::processor_output_policy::{
@@ -99,7 +103,9 @@ use crate::processor_output_policy::{
 use crate::season_policy::{EnvironmentState, WeatherKind};
 use crate::simulation::delivery_trips::{
     building_has_active_trip, building_has_inbound_commodity_trip,
-    building_has_inbound_supply_trip, onsite_building_labor, try_start_building_supply_trip,
+    building_has_inbound_supply_trip, building_has_regional_market_trip, onsite_building_labor,
+    regional_market_export_route, start_regional_market_export_trip,
+    try_start_building_supply_trip,
 };
 use crate::simulation::game_calendar::GameClock;
 use crate::simulation::labor_and_logistics_paused;
@@ -3163,20 +3169,36 @@ pub fn step_monastery(
     } else {
         MONASTERY_UNLINKED_PRODUCTIVITY
     };
-    let mut monastery = step_autonomous_processor(
-        ctx,
-        tick,
-        clock,
-        building,
-        &[(
-            CommodityKind::OatGrain,
-            MONASTERY_OAT_GRAIN_PER_CYCLE * productivity,
-        )],
-        &[(
-            CommodityKind::Porridge,
-            MONASTERY_FOOD_PER_CYCLE * productivity,
-        )],
-    );
+    let mut monastery = building;
+    if cycle_labor_if_ready(ctx, tick, clock, &mut monastery, true).is_some() {
+        process_batch(
+            &mut monastery,
+            &[(
+                CommodityKind::OatGrain,
+                MONASTERY_OAT_GRAIN_PER_CYCLE * productivity,
+            )],
+            &[(
+                CommodityKind::Porridge,
+                MONASTERY_FOOD_PER_CYCLE * productivity,
+            )],
+            1.0,
+            None,
+        );
+        let yields = monastery_estate_yields(monastery.chapel_tier);
+        for (commodity, amount) in [
+            (CommodityKind::Apples, yields.apples),
+            (CommodityKind::Vegetables, yields.vegetables),
+            (CommodityKind::Eggs, yields.eggs),
+            (CommodityKind::Milk, yields.milk),
+            (CommodityKind::Meat, yields.meat),
+            (CommodityKind::Honey, yields.honey),
+            (CommodityKind::Ale, yields.ale),
+            (CommodityKind::Cheese, yields.cheese),
+        ] {
+            deposit_building_commodity(&mut monastery, commodity, amount * productivity);
+        }
+        reset_cycle(&mut monastery, 1.0);
+    }
 
     let hospitality_enabled = tick.monastery_hospitality_enabled(ctx, monastery.owner);
     let mut receipt_daily_income = MONASTERY_PILGRIMAGE_GOLD_PER_DAY;
@@ -3210,17 +3232,82 @@ pub fn step_monastery(
         // before ordinary household carts. This makes feast preparation a
         // predictable reserve decision instead of a race with the noon route.
         run_monastery_feast(ctx, tick, clock, &mut monastery);
-        dispatch_to_building(
-            ctx,
-            tick,
-            clock,
-            &mut monastery,
-            CommodityKind::Ale,
-            &["granary"],
-        );
     }
     try_dispatch_local_civic_receipts(ctx, tick, clock, &mut monastery, receipt_daily_income);
+    reinvest_monastery_estate(&mut monastery);
+    dispatch_monastery_estate_export(ctx, tick, &mut monastery, hospitality_enabled);
     ctx.db.building().id().update(monastery);
+}
+
+fn reinvest_monastery_estate(monastery: &mut Building) {
+    let private_gold = (monastery.gold - monastery.civic_receipts_gold).max(0.0);
+    if !monastery_estate_can_reinvest(monastery.chapel_tier, private_gold) {
+        return;
+    }
+    let Some(cost) = monastery_estate_next_investment_cost(monastery.chapel_tier) else {
+        return;
+    };
+    let spent = withdraw_building_commodity(monastery, CommodityKind::Gold, cost);
+    if spent + 1e-6 >= cost {
+        monastery.chapel_tier = monastery.chapel_tier.saturating_add(1).min(3);
+    } else {
+        deposit_building_commodity(monastery, CommodityKind::Gold, spent);
+    }
+}
+
+fn dispatch_monastery_estate_export(
+    ctx: &ReducerContext,
+    tick: &SimTickContext,
+    monastery: &mut Building,
+    hospitality_enabled: bool,
+) {
+    if building_has_regional_market_trip(ctx, monastery.id) {
+        return;
+    }
+    let Some(network) = tick.road_network(monastery.owner) else {
+        return;
+    };
+    let ale_floor = if hospitality_enabled { MONASTERY_FEAST_ALE } else { 6.0 };
+    let honey_floor = if hospitality_enabled { MONASTERY_FEAST_HONEY } else { 4.0 };
+    let candidates = [
+        (
+            CommodityKind::Ale,
+            monastery_estate_exportable(monastery.ale, ale_floor),
+        ),
+        (
+            CommodityKind::Honey,
+            monastery_estate_exportable(monastery.honey, honey_floor),
+        ),
+        (
+            CommodityKind::Cheese,
+            monastery_estate_exportable(monastery.cheese, 8.0),
+        ),
+    ];
+    let Some((commodity, amount)) = candidates
+        .into_iter()
+        .filter(|(_, amount)| *amount > 1e-6)
+        .max_by(|left, right| left.1.total_cmp(&right.1))
+    else {
+        return;
+    };
+    let Ok(route) = regional_market_export_route(ctx, network, monastery) else {
+        return;
+    };
+    let withdrawn = withdraw_building_commodity(monastery, commodity, amount);
+    if !start_regional_market_export_trip(
+        ctx,
+        tick,
+        network,
+        monastery,
+        0,
+        commodity,
+        withdrawn,
+        TIMBER_DELIVERY_SPEED_MPS,
+        TIMBER_DELIVERY_UNLOAD_SEC,
+        route,
+    ) {
+        deposit_building_commodity(monastery, commodity, withdrawn);
+    }
 }
 
 fn frontier_economy_enabled(ctx: &ReducerContext) -> bool {
@@ -3516,22 +3603,6 @@ fn step_processor_at_rate(
         Some(output_target_percent),
     );
     reset_cycle(&mut building, labor);
-    building
-}
-
-fn step_autonomous_processor(
-    ctx: &ReducerContext,
-    tick: &SimTickContext,
-    clock: &GameClock,
-    mut building: Building,
-    inputs: &[(CommodityKind, f64)],
-    outputs: &[(CommodityKind, f64)],
-) -> Building {
-    if cycle_labor_if_ready(ctx, tick, clock, &mut building, true).is_none() {
-        return building;
-    }
-    process_batch(&mut building, inputs, outputs, 1.0, None);
-    reset_cycle(&mut building, 1.0);
     building
 }
 

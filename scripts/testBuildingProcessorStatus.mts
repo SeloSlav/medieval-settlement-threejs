@@ -231,6 +231,65 @@ assert.match(
   /Ale output room<\/span><span>50 cycles · ale before 200 target/,
 );
 
+const ciderBrewery = makeBuilding({
+  id: 'brewery-cider',
+  kind: 'brewery',
+  x: 0,
+  z: 0,
+  assignedLabor: 1,
+  breweryRecipePolicy: 1,
+  apples: 4,
+  water: 0,
+  firewood: 0,
+});
+assert.equal(
+  getBuildingProcessorStatus(ciderBrewery, noWellQueries)?.statusText,
+  'Pressing apples into cider',
+);
+assert.match(
+  getBuildingProcessorStatus(ciderBrewery, noWellQueries)?.waterDetailHtml ?? '',
+  /Cider recipe<\/span><span>4 apples → 1 cider/,
+);
+
+const meadBrewery = makeBuilding({
+  id: 'brewery-mead',
+  kind: 'brewery',
+  x: 0,
+  z: 0,
+  assignedLabor: 1,
+  breweryRecipePolicy: 2,
+  honey: 1,
+  water: 0,
+  firewood: 0,
+});
+assert.equal(
+  getBuildingProcessorStatus(meadBrewery, noWellQueries)?.statusText,
+  'Fermenting honey into mead',
+);
+assert.match(
+  getBuildingProcessorStatus(meadBrewery, noWellQueries)?.waterDetailHtml ?? '',
+  /Mead recipe<\/span><span>1 honey → 1 mead/,
+);
+
+const tavern = makeBuilding({
+  id: 'tavern-1',
+  kind: 'tavern',
+  x: 0,
+  z: 0,
+  assignedLabor: 1,
+  ale: 0,
+  cider: 6,
+  mead: 0,
+});
+assert.equal(
+  getBuildingProcessorStatus(tavern, noWellQueries)?.statusText,
+  'Serving beverages to connected households',
+);
+assert.match(
+  getBuildingProcessorStatus(tavern, noWellQueries)?.waterDetailHtml ?? '',
+  /6 total · 0 ale · 6 cider · 0 mead/,
+);
+
 const cappedBrewery = makeBuilding({
   id: 'brewery-capped',
   kind: 'brewery',

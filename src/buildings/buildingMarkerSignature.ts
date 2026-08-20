@@ -52,7 +52,7 @@ import { buildingUsesCompletedMesh } from './buildingVisualState.ts';
 
 export function buildingMeshSignature(building: BuildingState): string {
   if (buildingUsesCompletedMesh(building)) {
-    return `complete:${building.kind}${building.kind === 'chapel' ? `:tier-${building.chapelTier ?? 3}` : ''}`;
+    return `complete:${building.kind}${building.kind === 'chapel' || building.kind === 'monastery' ? `:tier-${building.chapelTier ?? (building.kind === 'monastery' ? 0 : 3)}` : ''}`;
   }
   return constructionVisualSignature(
     building.constructionProgress,

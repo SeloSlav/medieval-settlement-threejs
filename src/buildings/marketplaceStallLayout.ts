@@ -11,7 +11,7 @@ export const MARKETPLACE_STALL_DISPLAY_PREFIX = 'MarketStallDisplay:';
 export const MARKETPLACE_STALL_X_POSITIONS = [-2.35, 0, 2.35] as const;
 
 export const MARKETPLACE_STALL_DISPLAY_NEEDS = {
-  food: ['food', 'preservedFood', 'ale'],
+  food: ['food', 'preservedFood'],
   goods: ['firewood', 'cloth', 'pottery'],
 } as const satisfies Readonly<Record<MarketStallGroup, readonly MarketStallNeed[]>>;
 
@@ -32,7 +32,6 @@ export const MARKETPLACE_STALL_DISPLAY_KINDS = {
     'curedMeat',
     'smokedFish',
     'cheese',
-    'ale',
   ],
   goods: ['firewood', 'charcoal', 'cloth', 'pottery'],
 } as const satisfies Readonly<

@@ -71,6 +71,7 @@ const buildingsExpectedToHaveOpenings = new Set<string>([
   'swineherd',
   'monastery',
   'brewery',
+  'tavern',
   'smokehouse',
   'granary',
   'bakery',
@@ -142,6 +143,7 @@ const expectedLeanToRoofs = new Map<string, number>([
   ['monastery', 1],
   ['windmill', 1],
   ['brewery', 1],
+  ['tavern', 1],
   ['smokehouse', 1],
   ['carpenter', 1],
   ['weaver', 1],
@@ -158,6 +160,19 @@ for (const kind of BUILDING_KINDS) {
   modelNames.add(model.name);
   if (kind === 'vineyard' && !model.getObjectByName('SeedThree cultivated grapevine cards')) {
     throw new Error('Vineyard must use the shared SeedThree instanced vine-card renderer.');
+  }
+  if (kind === 'tavern') {
+    const plan = model.userData.architecturePlan as {
+      exposedFacades?: string[];
+      diagnostics?: { overlappingModules?: number; hiddenFacadeModules?: number };
+    } | undefined;
+    if (
+      plan?.exposedFacades?.length !== 4
+      || plan.diagnostics?.overlappingModules !== 0
+      || plan.diagnostics?.hiddenFacadeModules !== 0
+    ) {
+      throw new Error('Tavern must compile from a clean, four-facade architecture plan.');
+    }
   }
   auditFacadeOpenings(model, kind, buildingsExpectedToHaveOpenings.has(kind));
 

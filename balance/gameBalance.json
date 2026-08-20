@@ -1465,7 +1465,7 @@
       "requiresGame": false,
       "requiresBerries": false,
       "requiresWaterShore": false,
-      "requiresHillside": true
+      "requiresHillside": false
     },
     "guardhouse": {
       "label": "Frontier guardhouse",

@@ -45,10 +45,9 @@ struct FarmsteadSeedReserves {
 
 const MARKET_STALL_GROUP_FOOD: u8 = 0;
 const MARKET_STALL_GROUP_GOODS: u8 = 1;
-const MARKET_FOOD_STALL_NEEDS: [ResidenceNeedKind; 3] = [
+const MARKET_FOOD_STALL_NEEDS: [ResidenceNeedKind; 2] = [
     ResidenceNeedKind::Food,
     ResidenceNeedKind::PreservedFood,
-    ResidenceNeedKind::Ale,
 ];
 const MARKET_GOODS_STALL_NEEDS: [ResidenceNeedKind; 3] = [
     ResidenceNeedKind::Firewood,

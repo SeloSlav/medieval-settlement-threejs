@@ -8,13 +8,14 @@ use crate::balance_generated::{
     SHEEP_MINIMUM_BREEDING_RESERVE, SHEEP_STARTER_HERD, SWINE_DEFAULT_BREEDING_RESERVE,
     SWINE_MAX_HERD, SWINE_MINIMUM_BREEDING_RESERVE,
 };
-use crate::burgage::{convex_zones_overlap, zone_overlaps_footprint, Point2};
+use crate::burgage::{convex_zones_overlap, Point2};
 use crate::db::*;
 use crate::farming::{
     centroid, corners_from_values, edge_lengths, is_valid_convex_quadrilateral, polygon_area,
 };
 use crate::hydrology::sample_world_hydrology_score;
-use crate::placement_validation::{building_pick_radius, zone_overlaps_resource_deposit};
+use crate::placement_validation::{zone_overlaps_building_footprint, zone_overlaps_resource_deposit};
+use crate::roads::load_owner_road_network;
 use crate::tables::{farm_field, livestock_herd, pasture, LivestockHerd, Pasture};
 
 pub const SPECIES_CATTLE: u8 = 0;
@@ -110,11 +111,15 @@ pub fn place_pasture(
     // The client samples the entire parcel against the active rendered-water
     // mask. The server hydrology grid is a groundwater proxy, not this world's
     // generated surface-water layout, so it must not contradict that result.
+    let road_network = load_owner_road_network(ctx, owner);
     for building in ctx.db.building().owner().filter(&owner) {
-        let Some(radius) = building_pick_radius(&building.kind) else {
-            continue;
-        };
-        if zone_overlaps_footprint(&polygon, building.x, building.z, radius) {
+        if zone_overlaps_building_footprint(
+            &polygon,
+            &building.kind,
+            building.x,
+            building.z,
+            road_network.as_ref(),
+        ) {
             return Err("Pasture overlaps a building.".to_string());
         }
     }

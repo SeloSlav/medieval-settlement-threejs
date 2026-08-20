@@ -23,9 +23,8 @@ use crate::balance_generated::{
 use crate::civilian_tool_policy::{civilian_tool_refill_due, is_civilian_tool_site};
 use crate::processor_output_policy::processor_input_staging_cycles;
 
-/// Production buildings prove that a settlement can sustainably create the
-/// good. They never provide routine household delivery themselves.
-pub const ALE_PRODUCER_KINDS: &[&str] = &["brewery", "monastery"];
+/// Staffed Taverns are the household-facing service point for ale, cider, and mead.
+pub const BEVERAGE_SERVICE_KINDS: &[&str] = &["tavern"];
 pub const CLOTH_PRODUCER_KINDS: &[&str] = &["weaver"];
 pub const POTTERY_PRODUCER_KINDS: &[&str] = &["potter_kiln"];
 /// Buildings that can create a sustainable preserved-food service for a new
@@ -797,7 +796,7 @@ mod tests {
         select_processor_input_dispatch_candidate, select_seed_grain_delivery_candidate,
         select_supply_route_candidate, GranaryDispatchDuty, InstitutionalFoodDispatchDuty,
         NeedDeliveryCandidate, ProcessorInputDispatchDuty,
-        ALE_PRODUCER_KINDS, CLOTH_PRODUCER_KINDS, FOOD_SUPPLIER_KINDS,
+        BEVERAGE_SERVICE_KINDS, CLOTH_PRODUCER_KINDS, FOOD_SUPPLIER_KINDS,
         GRAIN_CRITICAL_RUNWAY_CYCLES, GRAIN_INPUT_BUFFER_CYCLES, GRAIN_PROCESSOR_KINDS,
         INDUSTRIAL_FIREWOOD_TARGET_KINDS, INSTITUTIONAL_FOOD_SOURCE_KINDS,
         LOCAL_MATERIAL_SOURCE_KINDS, MARKETPLACE_MATERIAL_TARGET_KINDS, POTTERY_PRODUCER_KINDS,
@@ -1597,7 +1596,7 @@ mod tests {
 
     #[test]
     fn specialty_producer_roles_are_explicit() {
-        assert_eq!(ALE_PRODUCER_KINDS, &["brewery", "monastery"]);
+        assert_eq!(BEVERAGE_SERVICE_KINDS, &["tavern"]);
         assert_eq!(
             PRESERVED_FOOD_PRODUCER_KINDS,
             &["smokehouse", "pastoral_farmstead"]

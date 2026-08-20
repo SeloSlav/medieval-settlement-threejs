@@ -302,6 +302,21 @@
 .settlement-hud__stat[data-resource='wine']::before { background-position: 50% 100%; }
 .settlement-hud__stat[data-resource='wool']::before { background-position: 100% 100%; }
 
+.settlement-hud__stat[data-resource='cider']::before,
+.settlement-hud__stat[data-resource='mead']::before {
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: contain;
+}
+
+.settlement-hud__stat[data-resource='cider']::before {
+  background-image: url('/assets/ui/icons/resource-cider.png');
+}
+
+.settlement-hud__stat[data-resource='mead']::before {
+  background-image: url('/assets/ui/icons/resource-mead.png');
+}
+
 .settlement-hud__stat[data-resource='ryeGrain']::before,
 .settlement-hud__stat[data-resource='oatGrain']::before,
 .settlement-hud__stat[data-resource='maslinGrain']::before,
@@ -510,6 +525,21 @@
 .resource-cost__item[data-resource-cost='honey'] .resource-cost__icon { background-position: 0 100%; }
 .resource-cost__item[data-resource-cost='wine'] .resource-cost__icon { background-position: 50% 100%; }
 .resource-cost__item[data-resource-cost='wool'] .resource-cost__icon { background-position: 100% 100%; }
+
+.resource-cost__item[data-resource-cost='cider'] .resource-cost__icon,
+.resource-cost__item[data-resource-cost='mead'] .resource-cost__icon {
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: contain;
+}
+
+.resource-cost__item[data-resource-cost='cider'] .resource-cost__icon {
+  background-image: url('/assets/ui/icons/resource-cider.png');
+}
+
+.resource-cost__item[data-resource-cost='mead'] .resource-cost__icon {
+  background-image: url('/assets/ui/icons/resource-mead.png');
+}
 
 .resource-cost__item[data-resource-cost='ryeSheaves'] .resource-cost__icon,
 .resource-cost__item[data-resource-cost='oatSheaves'] .resource-cost__icon,

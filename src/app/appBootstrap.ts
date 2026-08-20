@@ -307,6 +307,7 @@ export async function bootstrapAppSession(
     registry: layoutRegistry,
     getGameState: () => liveContext.gameState,
     getRoadNetwork: () => roadNetwork,
+    mapBounds: sceneManager.terrain.bounds,
     getTreeRegistry: () => liveContext.treeRegistry,
     getWorldHydrology: () => spacetimeStore.snapshot.worldGeneration?.hydrology ?? 50,
     getMonasteryHospitalityEnabled: () =>
@@ -550,6 +551,7 @@ export async function bootstrapAppSession(
     isWaterAt: (x, z) => sceneManager.riverField.isRenderedWetAt(x, z),
     isResourceDepositAt,
     physicalDeposits,
+    getRoadNetwork: () => roadNetwork,
     onCommit: async (commit) => {
       requireSessionReady();
       await spacetimeStore.placeBurgageZone({

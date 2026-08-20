@@ -1230,7 +1230,7 @@ export const BUILDING_DEFINITIONS = {
     requiresBerries: false,
     requiresFish: false,
     requiresWaterShore: false,
-    requiresHillside: true,
+    requiresHillside: false,
   },
   guardhouse: {
     kind: 'guardhouse',

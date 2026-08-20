@@ -77,7 +77,6 @@ import {
   type ResourceCostAmounts,
 } from '../../ui/resourceCost.ts';
 import {
-  BREWERY_RECIPE_ALE,
   BREWERY_RECIPE_CIDER,
   BREWERY_RECIPE_MEAD,
   breweryRecipePolicyLabel,
