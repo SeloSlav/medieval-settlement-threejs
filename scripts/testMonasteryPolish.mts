@@ -237,6 +237,13 @@ if (!smallParishResult.ok) {
 const monasteryMarker = createBuildingMesh('monastery');
 for (const estatePart of [
   'Monastery estate main gate',
+  'Monastery precinct rear wall',
+  'Monastery east gatehouse',
+  'Monastery southeast round tower',
+  'Monastery protected cattle pasture',
+  'Monastery reserved dairy upgrade plot',
+  'Monastery reserved apple press upgrade plot',
+  'Monastery enclosed cloister court',
   'Monastery ale brewhouse and cellar yard',
   'Monastery apple orchard',
   'Monastery bee garden',

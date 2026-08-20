@@ -63,7 +63,14 @@ for (const level of [0, 1, 2, 3] as const) {
   const mesh = createBuildingMesh('monastery', level);
   const estate = mesh.getObjectByName(`Monastery enclosed estate level ${level}`);
   assert.ok(estate instanceof THREE.Group, `estate level ${level} must be rendered`);
-  assert.ok(mesh.getObjectByName('Monastery estate rear fence'));
+  assert.ok(mesh.getObjectByName('Monastery precinct rear wall'));
+  assert.ok(mesh.getObjectByName('Monastery east gatehouse'));
+  assert.ok(mesh.getObjectByName('Monastery northwest round tower'));
+  assert.ok(mesh.getObjectByName('Monastery protected cattle pasture'));
+  assert.ok(mesh.getObjectByName('Monastery reserved dairy upgrade plot'));
+  assert.ok(mesh.getObjectByName('Monastery reserved apple press upgrade plot'));
+  assert.ok(mesh.getObjectByName('Monastery enclosed cloister court'));
+  assert.ok(mesh.getObjectByName('Monastery front cloister arcade'));
   assert.ok(mesh.getObjectByName('Monastery ale brewhouse and cellar yard'));
   assert.ok(mesh.getObjectByName('Monastery apple orchard'));
   assert.ok(mesh.getObjectByName('Monastery bee garden'));
@@ -73,6 +80,30 @@ for (const level of [0, 1, 2, 3] as const) {
   assert.ok(mesh.getObjectByName('Scriptorium duplicate records chest'));
   assert.ok(mesh.getObjectByName('Monastery agricultural archive and seed vault'));
   assert.ok(mesh.getObjectByName('Rye emergency seed chest'));
+  const architecturePlan = estate.userData.architecturePlan as {
+    typology?: string;
+    gatehouse?: { centerX?: number };
+    reservedUpgradeZoneIds?: string[];
+    diagnostics?: {
+      pastureArea?: number;
+      wallRunCount?: number;
+      towerCount?: number;
+      outOfBoundsZoneIds?: string[];
+      overlappingZonePairs?: string[];
+      triangleCount?: number;
+      meshCount?: number;
+    };
+  };
+  assert.equal(architecturePlan.typology, 'fortified-rural-monastery');
+  assert.ok((architecturePlan.gatehouse?.centerX ?? 0) > 10, 'gatehouse should be offset from the cloister axis');
+  assert.deepEqual(architecturePlan.reservedUpgradeZoneIds, ['dairy-upgrade', 'apple-press-upgrade']);
+  assert.ok((architecturePlan.diagnostics?.pastureArea ?? 0) >= 350);
+  assert.equal(architecturePlan.diagnostics?.wallRunCount, 5);
+  assert.equal(architecturePlan.diagnostics?.towerCount, 4);
+  assert.deepEqual(architecturePlan.diagnostics?.outOfBoundsZoneIds, []);
+  assert.deepEqual(architecturePlan.diagnostics?.overlappingZonePairs, []);
+  assert.ok((architecturePlan.diagnostics?.triangleCount ?? 0) > 0);
+  assert.ok((architecturePlan.diagnostics?.meshCount ?? 0) > 0);
 }
 assert.ok(createBuildingMesh('monastery', 1).getObjectByName('Monastery invested dairy'));
 assert.ok(createBuildingMesh('monastery', 3).getObjectByName('Monastery invested apple press'));

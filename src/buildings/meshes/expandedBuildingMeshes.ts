@@ -55,6 +55,10 @@ import { STOREHOUSE_HAUL_PER_WORKER } from '../../generated/gameBalance.ts';
 import { addStockedPolearmRack } from './polearmRack.ts';
 import { createManureStockpile } from './manureStockpileMesh.ts';
 import { createMonasteryEstateMesh } from './monasteryEstateMesh.ts';
+import {
+  monasteryCoreModule,
+  type MonasteryPrecinctPlan,
+} from './monasteryPrecinctPlan.ts';
 
 export const LOCAL_RECEIPT_VISUAL_SEGMENTS = 3;
 export const LOCAL_RECEIPT_VISUAL_CAPACITY = STOREHOUSE_HAUL_PER_WORKER;
@@ -344,74 +348,207 @@ export function createThreshingBarnMesh(): THREE.Group {
   return group;
 }
 
+function addMonasteryCloisterArcade(
+  parent: THREE.Group,
+  axis: 'x' | 'z',
+  fixed: number,
+  start: number,
+  end: number,
+  name: string,
+): void {
+  const arcade = new THREE.Group();
+  arcade.name = name;
+  arcade.userData.architectureModule = 'cloister-arcade';
+  const bays = Math.max(2, Math.round(Math.abs(end - start) / 1.55));
+  for (let index = 0; index <= bays; index += 1) {
+    const along = THREE.MathUtils.lerp(start, end, index / bays);
+    const column = addMesh(
+      arcade,
+      new THREE.BoxGeometry(0.2, 2.05, 0.2),
+      stoneMaterial('light'),
+      axis === 'x'
+        ? new THREE.Vector3(along, 1.03, fixed)
+        : new THREE.Vector3(fixed, 1.03, along),
+    );
+    column.name = 'Monastery cloister pier';
+    if (index === bays) continue;
+    const next = THREE.MathUtils.lerp(start, end, (index + 1) / bays);
+    const midpoint = (along + next) * 0.5;
+    const radius = Math.abs(next - along) * 0.42;
+    const arch = addMesh(
+      arcade,
+      new THREE.TorusGeometry(radius, 0.1, 5, 14, Math.PI),
+      stoneMaterial('light'),
+      axis === 'x'
+        ? new THREE.Vector3(midpoint, 1.36, fixed)
+        : new THREE.Vector3(fixed, 1.36, midpoint),
+      axis === 'x' ? new THREE.Euler() : new THREE.Euler(0, Math.PI * 0.5, 0),
+    );
+    arch.name = 'Monastery cloister round arch';
+  }
+  parent.add(arcade);
+}
+
+function monasteryMeshDiagnostics(root: THREE.Object3D): { triangleCount: number; meshCount: number } {
+  let triangleCount = 0;
+  let meshCount = 0;
+  root.traverse((object) => {
+    if (!(object instanceof THREE.Mesh)) return;
+    meshCount += 1;
+    const index = object.geometry.getIndex();
+    const positions = object.geometry.getAttribute('position');
+    triangleCount += index ? index.count / 3 : (positions?.count ?? 0) / 3;
+  });
+  return { triangleCount: Math.round(triangleCount), meshCount };
+}
+
 export function createMonasteryMesh(estateLevel = 0): THREE.Group {
   const group = new THREE.Group();
   group.name = 'Pauline monastery';
-  group.add(createMonasteryEstateMesh(estateLevel));
-  const main = addGableShell(group, { width: 13.2, depth: 6.4, stoneHeight: 1.35, wallHeight: 3.8, ridgeHeight: 2.7, wallMaterial: residenceFacadeMaterial('white'), roofMaterial: tileMaterial(0), centerX: -1.2 });
-  addPlankDoor(group, -1.2, 1.38, main.frontZ + 0.03, 1.1, 2.05);
-  for (const x of [-5.8, -3.1, 0.8, 3.5]) for (const y of [2.45, 4.18]) addSmallWindow(group, x, y, main.frontZ + 0.03, 0.66, 0.9);
+  const estate = createMonasteryEstateMesh(estateLevel);
+  const plan = estate.userData.architecturePlan as MonasteryPrecinctPlan;
+  group.add(estate);
+  group.userData.architecturePlan = plan;
+
+  const churchPlan = monasteryCoreModule(plan, 'church-range');
+  const churchRange = new THREE.Group();
+  churchRange.name = 'Monastery church and conventual range';
+  churchRange.position.set(churchPlan.centerX, 0, churchPlan.centerZ);
+  churchRange.userData.architectureModule = churchPlan.id;
+  const main = addGableShell(churchRange, {
+    width: churchPlan.width,
+    depth: churchPlan.depth,
+    stoneHeight: 1.55,
+    wallHeight: 3.7,
+    ridgeHeight: 2.85,
+    wallMaterial: residenceFacadeMaterial('white'),
+    roofMaterial: tileMaterial(0),
+  });
+  addPlankDoor(churchRange, 0, 1.58, main.frontZ + 0.03, 1.16, 2.12);
+  for (const x of [-5.25, -2.35, 1.15, 4.35]) for (const y of [2.55, 4.28]) {
+    addSmallWindow(churchRange, x, y, main.frontZ + 0.03, 0.66, 0.9);
+  }
+  for (const x of [-6.85, 6.85]) {
+    addMesh(churchRange, new THREE.BoxGeometry(0.46, 2.15, 0.72), stoneMaterial('light'), new THREE.Vector3(x, 1.08, main.frontZ - 0.18)).name = 'Monastery church range buttress';
+    addMesh(churchRange, new THREE.BoxGeometry(0.46, 2.15, 0.72), stoneMaterial('light'), new THREE.Vector3(x, 1.08, -main.frontZ + 0.18)).name = 'Monastery church range buttress';
+  }
+  group.add(churchRange);
+
+  const scriptoriumPlan = monasteryCoreModule(plan, 'scriptorium-wing');
   const scriptoriumWing = new THREE.Group();
   scriptoriumWing.name = 'Monastery scriptorium and records wing';
+  scriptoriumWing.position.set(scriptoriumPlan.centerX, 0, scriptoriumPlan.centerZ);
   scriptoriumWing.userData.architectureModule = 'scriptorium-wing';
   scriptoriumWing.userData.disasterResilience = 'preserved plans and ledgers reduce fire reconstruction materials';
   const scriptorium = addGableShell(scriptoriumWing, {
-    width: 4.8,
-    depth: 8.4,
+    width: scriptoriumPlan.width,
+    depth: scriptoriumPlan.depth,
     stoneHeight: 1.35,
     wallHeight: 3.55,
     ridgeHeight: 2.55,
     wallMaterial: residenceFacadeMaterial('white'),
     roofMaterial: tileMaterial(1),
-    centerX: -9.3,
-    centerZ: -1.2,
   });
-  addPlankDoor(scriptoriumWing, -9.3, 1.38, scriptorium.frontZ + 0.03, 0.9, 1.95);
+  addPlankDoor(scriptoriumWing, 0, 1.38, scriptorium.frontZ + 0.03, 0.9, 1.95);
   // Tall paired windows express the daylight-dependent writing room; the
   // compact stone undercroft below reads as the fire-resistant record vault.
-  for (const x of [-10.35, -8.25]) {
+  for (const x of [-1.05, 1.05]) {
     for (const y of [2.3, 3.65]) {
       addSmallWindow(scriptoriumWing, x, y, scriptorium.frontZ + 0.03, 0.62, 0.82);
       addSmallWindow(scriptoriumWing, x, y, scriptorium.centerZ - scriptorium.halfD - 0.03, 0.62, 0.82);
     }
   }
-  for (const x of [-11.55, -7.05]) {
+  for (const x of [-2.25, 2.25]) {
     addMesh(scriptoriumWing, new THREE.BoxGeometry(0.36, 1.75, 0.56), stoneMaterial('light'), new THREE.Vector3(x, 0.88, scriptorium.frontZ - 0.12)).name = 'Scriptorium vault buttress';
   }
   const recordsChest = new THREE.Group();
   recordsChest.name = 'Scriptorium duplicate records chest';
-  recordsChest.position.set(-11.0, 0, scriptorium.frontZ + 1.05);
+  recordsChest.position.set(-0.8, 0, scriptorium.frontZ + 1.05);
   addMesh(recordsChest, new THREE.BoxGeometry(1.35, 0.72, 0.78), timberMaterial('dark'), new THREE.Vector3(0, 0.37, 0));
   for (const x of [-0.48, 0.48]) addMesh(recordsChest, new THREE.BoxGeometry(0.08, 0.76, 0.82), metalMaterial('iron'), new THREE.Vector3(x, 0.38, 0));
   scriptoriumWing.add(recordsChest);
   group.add(scriptoriumWing);
+
+  const infirmaryPlan = monasteryCoreModule(plan, 'infirmary-wing');
   const infirmaryWing = new THREE.Group();
   infirmaryWing.name = 'Monastery infirmary wing';
-  const wing = addGableShell(infirmaryWing, { width: 5.4, depth: 8.8, stoneHeight: 1.1, wallHeight: 3.35, ridgeHeight: 2.45, wallMaterial: residenceFacadeMaterial('white'), roofMaterial: tileMaterial(1), centerX: 6.2, centerZ: 1.1 });
-  addPlankDoor(infirmaryWing, 6.2, 1.14, wing.frontZ + 0.03, 0.94, 1.95);
-  for (const x of [5.0, 6.2, 7.4]) addSmallWindow(infirmaryWing, x, 2.35, wing.centerZ - wing.halfD - 0.03, 0.64, 0.86);
+  infirmaryWing.position.set(infirmaryPlan.centerX, 0, infirmaryPlan.centerZ);
+  infirmaryWing.userData.architectureModule = infirmaryPlan.id;
+  const wing = addGableShell(infirmaryWing, { width: infirmaryPlan.width, depth: infirmaryPlan.depth, stoneHeight: 1.1, wallHeight: 3.35, ridgeHeight: 2.45, wallMaterial: residenceFacadeMaterial('white'), roofMaterial: tileMaterial(1) });
+  addPlankDoor(infirmaryWing, 0, 1.14, wing.frontZ + 0.03, 0.94, 1.95);
+  for (const x of [-1.2, 0, 1.2]) addSmallWindow(infirmaryWing, x, 2.35, wing.centerZ - wing.halfD - 0.03, 0.64, 0.86);
   group.add(infirmaryWing);
-  // Low arcaded cloister edge and a restrained belfry distinguish it from the parish chapel.
-  for (let x = -4.9; x <= 2.6; x += 1.5) addMesh(group, new THREE.BoxGeometry(0.18, 2.15, 0.18), stoneMaterial('light'), new THREE.Vector3(x, 1.08, 4.25));
+
+  const courtPlan = monasteryCoreModule(plan, 'cloister-court');
+  const court = new THREE.Group();
+  court.name = 'Monastery enclosed cloister court';
+  court.userData.architectureModule = courtPlan.id;
+  addMesh(
+    court,
+    new THREE.BoxGeometry(courtPlan.width - 1.8, 0.05, courtPlan.depth - 1.5),
+    earth,
+    new THREE.Vector3(courtPlan.centerX, 0.055, courtPlan.centerZ),
+  ).name = 'Monastery cloister court surface';
+  const rearWalkZ = courtPlan.centerZ - courtPlan.depth * 0.5 + 0.65;
+  const frontWalkZ = courtPlan.centerZ + courtPlan.depth * 0.5 - 0.65;
+  const westWalkX = courtPlan.centerX - courtPlan.width * 0.5 + 0.65;
+  const eastWalkX = courtPlan.centerX + courtPlan.width * 0.5 - 0.65;
+
   addLeanToRoof(group, {
-    width: 8.0,
+    width: courtPlan.width - 1.1,
     depth: 1.55,
     thickness: 0.18,
     material: tileMaterial(1),
-    position: new THREE.Vector3(-1.15, 2.3, 4.25),
+    position: new THREE.Vector3(courtPlan.centerX, 2.3, rearWalkZ),
     pitch: 0.16,
     highEdge: 'negativeZ',
-    name: 'Monastery cloister roof',
+    name: 'Monastery rear cloister roof',
   });
-  addMesh(group, new THREE.BoxGeometry(2.1, 2.25, 2.1), stoneMaterial('light'), new THREE.Vector3(-1.2, 6.25, 0));
-  addMesh(group, new THREE.ConeGeometry(1.55, 2.35, 4), tileMaterial(2), new THREE.Vector3(-1.2, 8.55, 0), new THREE.Euler(0, Math.PI * 0.25, 0));
-  addCross(group, -1.2, 10.05, 0, 0.85);
-  // Cloister shadow rhythm and a small physic garden keep the long facade from reading as a manor house.
-  for (let x = -4.15; x <= 1.9; x += 1.5) addMesh(group, new THREE.BoxGeometry(1.12, 1.45, 0.08), timberMaterial('dark'), new THREE.Vector3(x, 1.22, 4.27));
-  for (const [x, z] of [[-4.1, 6.0], [-1.5, 6.0], [1.1, 6.0]] as const) {
+  addLeanToRoof(group, {
+    width: courtPlan.width - 1.1,
+    depth: 1.55,
+    thickness: 0.18,
+    material: tileMaterial(1),
+    position: new THREE.Vector3(courtPlan.centerX, 2.3, frontWalkZ),
+    pitch: 0.16,
+    highEdge: 'positiveZ',
+    name: 'Monastery front cloister roof',
+  });
+  addLeanToRoof(group, {
+    width: 1.55,
+    depth: courtPlan.depth - 1.25,
+    thickness: 0.18,
+    material: tileMaterial(1),
+    position: new THREE.Vector3(westWalkX, 2.3, courtPlan.centerZ),
+    pitch: 0.16,
+    highEdge: 'negativeX',
+    name: 'Monastery west cloister roof',
+  });
+  addLeanToRoof(group, {
+    width: 1.55,
+    depth: courtPlan.depth - 1.25,
+    thickness: 0.18,
+    material: tileMaterial(1),
+    position: new THREE.Vector3(eastWalkX, 2.3, courtPlan.centerZ),
+    pitch: 0.16,
+    highEdge: 'positiveX',
+    name: 'Monastery east cloister roof',
+  });
+  addMonasteryCloisterArcade(group, 'x', rearWalkZ + 0.18, westWalkX, eastWalkX, 'Monastery rear cloister arcade');
+  addMonasteryCloisterArcade(group, 'x', frontWalkZ - 0.18, westWalkX, eastWalkX, 'Monastery front cloister arcade');
+  addMonasteryCloisterArcade(group, 'z', westWalkX + 0.18, rearWalkZ, frontWalkZ, 'Monastery west cloister arcade');
+  addMonasteryCloisterArcade(group, 'z', eastWalkX - 0.18, rearWalkZ, frontWalkZ, 'Monastery east cloister arcade');
+
+  for (const x of [courtPlan.centerX - 3.2, courtPlan.centerX, courtPlan.centerX + 3.2]) {
+    const z = courtPlan.centerZ;
     addMesh(group, new THREE.BoxGeometry(2.0, 0.18, 1.15), earth, new THREE.Vector3(x, 0.09, z));
     for (let i = -2; i <= 2; i++) addMesh(group, new THREE.SphereGeometry(0.13, 6, 4), leaf, new THREE.Vector3(x + i * 0.38, 0.27, z));
   }
+  group.add(court);
+
+  addMesh(group, new THREE.BoxGeometry(2.1, 2.25, 2.1), stoneMaterial('light'), new THREE.Vector3(churchPlan.centerX, 6.4, churchPlan.centerZ));
+  addMesh(group, new THREE.ConeGeometry(1.55, 2.35, 4), tileMaterial(2), new THREE.Vector3(churchPlan.centerX, 8.7, churchPlan.centerZ), new THREE.Euler(0, Math.PI * 0.25, 0));
+  addCross(group, churchPlan.centerX, 10.2, churchPlan.centerZ, 0.85);
   addSegmentedStockProps(
     group,
     'MonasteryFoodStockpile',
@@ -457,6 +594,10 @@ export function createMonasteryMesh(estateLevel = 0): THREE.Group {
     (segment, scale) => addWineCask(segment, scale),
   );
   addMonasteryTreasuryChest(group);
+  const diagnostics = monasteryMeshDiagnostics(group);
+  plan.diagnostics.triangleCount = diagnostics.triangleCount;
+  plan.diagnostics.meshCount = diagnostics.meshCount;
+  group.userData.architectureDiagnostics = plan.diagnostics;
   return group;
 }
 

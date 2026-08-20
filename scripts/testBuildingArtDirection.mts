@@ -140,7 +140,7 @@ const expectedLeanToRoofs = new Map<string, number>([
   ['guardhouse', 1],
   ['palisaded_refuge', 1],
   ['pastoral_farmstead', 1],
-  ['monastery', 1],
+  ['monastery', 5],
   ['windmill', 1],
   ['brewery', 1],
   ['tavern', 1],
@@ -172,6 +172,26 @@ for (const kind of BUILDING_KINDS) {
       || plan.diagnostics?.hiddenFacadeModules !== 0
     ) {
       throw new Error('Tavern must compile from a clean, four-facade architecture plan.');
+    }
+  }
+  if (kind === 'monastery') {
+    const plan = model.userData.architecturePlan as {
+      typology?: string;
+      reservedUpgradeZoneIds?: string[];
+      diagnostics?: {
+        pastureArea?: number;
+        outOfBoundsZoneIds?: string[];
+        overlappingZonePairs?: string[];
+      };
+    } | undefined;
+    if (
+      plan?.typology !== 'fortified-rural-monastery'
+      || plan.reservedUpgradeZoneIds?.length !== 2
+      || (plan.diagnostics?.pastureArea ?? 0) < 350
+      || plan.diagnostics?.outOfBoundsZoneIds?.length !== 0
+      || plan.diagnostics?.overlappingZonePairs?.length !== 0
+    ) {
+      throw new Error('Monastery must compile from a clean stone-precinct plan with protected pasture and upgrade parcels.');
     }
   }
   auditFacadeOpenings(model, kind, buildingsExpectedToHaveOpenings.has(kind));
