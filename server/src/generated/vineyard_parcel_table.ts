@@ -11,7 +11,8 @@ import {
 } from "spacetimedb";
 
 export default __t.row({
-  buildingId: __t.u64().primaryKey().name("building_id"),
+  id: __t.u64().primaryKey(),
+  buildingId: __t.u64().name("building_id"),
   owner: __t.identity(),
   cornerAx: __t.f64().name("corner_ax"),
   cornerAz: __t.f64().name("corner_az"),

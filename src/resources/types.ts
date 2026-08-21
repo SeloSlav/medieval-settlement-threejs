@@ -300,7 +300,7 @@ export type PastureState = {
 };
 
 export type VineyardParcelState = {
-  /** The parcel is one-to-one with, and keyed by, its monastery. */
+  /** Stable parcel id; any number of parcels may share one monastery. */
   id: string;
   monasteryId: string;
   corners: FarmFieldState['corners'];

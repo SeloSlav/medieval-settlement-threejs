@@ -90,7 +90,7 @@ export function describeToolbarStatus(stats: ToolbarStats): string {
     return stats.statusDetail ?? "Shape a free-form fenced pasture inside a livestock holding's work extent";
   }
   if (stats.mode === 'burial-grounds') {
-    return stats.statusDetail ?? 'Shape four free-form burial-ground corners beside a completed chapel';
+    return stats.statusDetail ?? 'Shape four free-form burial-ground corners inside a completed chapel’s work extent';
   }
   if (stats.mode === 'vineyards') {
     return stats.statusDetail ?? 'Shape four free-form corners around a grape-growing parcel';

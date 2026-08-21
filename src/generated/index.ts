@@ -567,12 +567,15 @@ const tablesSchema = __schema({
       { name: 'building_id', algorithm: 'btree', columns: [
         'buildingId',
       ] },
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
       { name: 'owner', algorithm: 'btree', columns: [
         'owner',
       ] },
     ],
     constraints: [
-      { name: 'vineyard_parcel_building_id_key', constraint: 'unique', columns: ['buildingId'] },
+      { name: 'vineyard_parcel_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, VineyardParcelRow),
   world_config: __table({

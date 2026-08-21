@@ -35,10 +35,7 @@ fn clear_owner_settlement(ctx: &ReducerContext, owner: Identity) {
         .filter(&owner)
         .collect::<Vec<VineyardParcel>>()
     {
-        ctx.db
-            .vineyard_parcel()
-            .building_id()
-            .delete(&vineyard.building_id);
+        ctx.db.vineyard_parcel().id().delete(vineyard.id);
     }
     for agent in ctx
         .db

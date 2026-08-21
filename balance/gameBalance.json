@@ -575,7 +575,6 @@
     "graveyardMinEdge": 4,
     "graveyardMaxSlope": 12,
     "graveyardMaxDistance": 38,
-    "graveyardAdjacencyDistance": 18,
     "graveAreaPerBurial": 5,
     "burialCartSpeedMps": 1.4,
     "residenceRecoveryFirewoodMin": 8,

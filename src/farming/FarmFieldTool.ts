@@ -5,7 +5,6 @@ import {
   FARM_MAX_ACCEPTED_SLOPE_DEGREES,
   FARM_MIN_FIELD_AREA,
   FARM_MIN_FIELD_EDGE,
-  GRAVEYARD_ADJACENCY_DISTANCE,
   GRAVEYARD_MAX_DISTANCE,
   GRAVEYARD_MAX_SLOPE,
   GRAVEYARD_MIN_AREA,
@@ -57,9 +56,9 @@ import {
   VINEYARD_MAX_SLOPE_DEGREES,
   VINEYARD_MIN_AREA,
   VINEYARD_MIN_EDGE,
-  VINEYARD_MONASTERY_ADJACENCY_DISTANCE,
   VINEYARD_MONASTERY_MAX_DISTANCE,
 } from '../vineyards/vineyardSuitability.ts';
+import { snapLandParcelPoint } from './landParcelSnap.ts';
 
 const MIN_CLICK_DISTANCE = 1.5;
 const PREVIEW_VALIDATION_INTERVAL_MS = 110;
@@ -243,15 +242,15 @@ export class FarmFieldTool {
           : 'field';
     if (!this.fixedCorners && this.points.length === 0) {
       if (this.mode === 'pasture') {
-        return 'Click pasture corner 1/4 · shape a free-form enclosure with four independent corners';
+        return 'Click pasture corner 1/4 · free-form inside the holding work extent · linked boundaries snap nearby';
       }
       if (this.mode === 'graveyard') {
-        return 'Click burial-ground corner 1/4 · keep the free-form parcel beside the chapel';
+        return 'Click burial-ground corner 1/4 · free-form inside the chapel work extent · linked boundaries snap nearby';
       }
       if (this.mode === 'vineyard') {
-        return 'Click vineyard corner 1/4 · shape a free-form growing parcel · grape suitability map visible';
+        return 'Click vineyard corner 1/4 · free-form inside the monastery work extent · linked boundaries snap nearby';
       }
-      return `Click field corner 1/4 · shape a free-form growing parcel · ${cropLabel(this.crop)} suitability map visible (C to change)`;
+      return `Click field corner 1/4 · linked boundaries snap nearby · ${cropLabel(this.crop)} suitability map visible (C to change)`;
     }
     if (!this.fixedCorners && this.points.length === 1) {
       return `Click ${parcel} corner 2/4 along the boundary`;
@@ -404,7 +403,7 @@ export class FarmFieldTool {
       this.pointerDirty = false;
       if (!this.pointerInside) return;
       const point = this.options.terrainProjector.pick(this.pointerClientX, this.pointerClientY);
-      this.hoverPoint = point ? { x: point.x, z: point.z } : null;
+      this.hoverPoint = point ? this.snapPointToLinkedParcel({ x: point.x, z: point.z }) : null;
       this.refreshPreviewVisual();
       this.maybeRunDeferredValidation();
       return;
@@ -451,7 +450,7 @@ export class FarmFieldTool {
     if (event.button !== 0 || event.altKey) return;
     const picked = this.options.terrainProjector.pick(event.clientX, event.clientY);
     if (!picked) return;
-    const point = { x: picked.x, z: picked.z };
+    const point = this.snapPointToLinkedParcel({ x: picked.x, z: picked.z });
     if (this.points.length > 0
       && Math.hypot(point.x - this.points[this.points.length - 1].x, point.z - this.points[this.points.length - 1].z) < MIN_CLICK_DISTANCE) return;
     event.preventDefault();
@@ -564,6 +563,27 @@ export class FarmFieldTool {
     );
   }
 
+  private snapPointToLinkedParcel(point: Point2): Point2 {
+    if (!this.farmsteadId) return point;
+    const state = this.options.getState();
+    const linked = this.mode === 'field'
+      ? [...state.farmFields.values()]
+          .filter((parcel) => parcel.farmsteadId === this.farmsteadId)
+          .map((parcel) => parcel.corners)
+      : this.mode === 'pasture'
+        ? [...state.pastures.values()]
+            .filter((parcel) => parcel.farmsteadId === this.farmsteadId)
+            .map((parcel) => parcel.corners)
+        : this.mode === 'graveyard'
+          ? [...(state.graveyards ?? new Map()).values()]
+              .filter((parcel) => parcel.chapelId === this.farmsteadId)
+              .map((parcel) => parcel.corners)
+          : [...(state.vineyardParcels ?? new Map()).values()]
+              .filter((parcel) => parcel.monasteryId === this.farmsteadId)
+              .map((parcel) => parcel.corners);
+    return snapLandParcelPoint(point, linked);
+  }
+
   private resolveDraftPath(): Point2[] {
     if (this.fixedCorners || this.resolvePreviewCorners()) return [];
     const path = [...this.points];
@@ -651,22 +671,6 @@ export class FarmFieldTool {
       )) {
         return { ok: false, reason: 'no_farmstead', corners, slope, moisture, southExposure };
       }
-      if (
-        this.mode === 'graveyard'
-        && corners.every((point) =>
-          Math.hypot(point.x - farmstead.x, point.z - farmstead.z) > GRAVEYARD_ADJACENCY_DISTANCE
-        )
-      ) {
-        return { ok: false, reason: 'no_farmstead', corners, slope, moisture, southExposure };
-      }
-      if (
-        this.mode === 'vineyard'
-        && corners.every((point) =>
-          Math.hypot(point.x - farmstead.x, point.z - farmstead.z) > VINEYARD_MONASTERY_ADJACENCY_DISTANCE
-        )
-      ) {
-        return { ok: false, reason: 'no_farmstead', corners, slope, moisture, southExposure };
-      }
     }
     const maxSlope = this.mode === 'pasture'
       ? state.livestockHerds.get(farmstead!.id)?.species === 'cattle'
@@ -748,9 +752,9 @@ export class FarmFieldTool {
         return this.mode === 'pasture'
           ? 'Keep the entire pasture inside this livestock holding’s work extent'
           : this.mode === 'graveyard'
-            ? 'Keep the entire burial ground beside and within range of this chapel'
+            ? 'Keep the entire burial ground inside this chapel’s work extent'
             : this.mode === 'vineyard'
-              ? 'Keep the vineyard adjoining and within range of this monastery estate'
+              ? 'Keep the vineyard inside this monastery’s work extent'
               : 'Keep the entire field inside this farmstead’s work extent';
       case 'water': return `${parcel} cannot cover open water`;
       case 'resource_deposit': return `${parcel} cannot cover a physical resource deposit`;

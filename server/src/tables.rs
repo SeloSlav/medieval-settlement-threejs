@@ -1025,17 +1025,20 @@ pub struct FarmField {
     pub manure_applied: f64,
 }
 
-/// A player-drawn grape-growing extension belonging to one monastery. The
-/// monastery building id is the stable one-to-one parcel id; all harvest,
-/// cellar work, storage, and cart labor remain on that monastic roster.
+/// A player-drawn grape-growing parcel belonging to one monastery. A monastery
+/// may own any number of non-overlapping parcels inside its work extent; all
+/// harvest, cellar work, storage, and cart labor remain on that monastic roster.
 #[spacetimedb::table(
     accessor = vineyard_parcel,
     public,
-    index(accessor = owner, btree(columns = [owner]))
+    index(accessor = owner, btree(columns = [owner])),
+    index(accessor = building_id, btree(columns = [building_id]))
 )]
 #[derive(Clone)]
 pub struct VineyardParcel {
     #[primary_key]
+    #[auto_inc]
+    pub id: u64,
     pub building_id: u64,
     pub owner: Identity,
     pub corner_ax: f64,
@@ -1084,8 +1087,8 @@ pub struct Pasture {
     pub moisture: f64,
 }
 
-/// Consecrated burial parcel laid beside a chapel. Capacity is derived from
-/// the authored area and remains occupied permanently as burials accumulate.
+/// Consecrated burial parcel inside a chapel's work extent. Capacity is derived
+/// from the authored area and remains occupied permanently as burials accumulate.
 #[spacetimedb::table(
     accessor = graveyard,
     public,

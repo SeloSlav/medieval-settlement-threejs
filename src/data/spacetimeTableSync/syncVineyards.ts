@@ -1,6 +1,6 @@
 import type { VineyardParcel } from '../../generated/types.ts';
 import type { VineyardParcelState } from '../../resources/types.ts';
-import { buildingClientId } from '../spacetimeIds.ts';
+import { buildingClientId, vineyardClientId } from '../spacetimeIds.ts';
 
 export function syncVineyardParcels(
   rows: Iterable<VineyardParcel>,
@@ -10,9 +10,10 @@ export function syncVineyardParcels(
   if (!identityHex) return vineyards;
   for (const row of rows) {
     if (row.owner.toHexString() !== identityHex) continue;
+    const id = vineyardClientId(row.id);
     const monasteryId = buildingClientId(row.buildingId);
-    vineyards.set(monasteryId, {
-      id: monasteryId,
+    vineyards.set(id, {
+      id,
       monasteryId,
       corners: [
         { x: row.cornerAx, z: row.cornerAz },

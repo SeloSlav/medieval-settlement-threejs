@@ -777,6 +777,7 @@ export const TreeEntity = __t.object("TreeEntity", {
 export type TreeEntity = __Infer<typeof TreeEntity>;
 
 export const VineyardParcel = __t.object("VineyardParcel", {
+  id: __t.u64(),
   buildingId: __t.u64(),
   owner: __t.identity(),
   cornerAx: __t.f64(),

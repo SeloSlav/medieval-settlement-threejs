@@ -3024,7 +3024,8 @@ fn advance_monastery_vineyard_fermentation(
         .db
         .vineyard_parcel()
         .building_id()
-        .find(&monastery.id)
+        .filter(&monastery.id)
+        .next()
         .is_none()
     {
         monastery.vineyard_fermenting_grapes = 0.0;
@@ -3182,22 +3183,36 @@ pub fn step_monastery(
         MONASTERY_UNLINKED_PRODUCTIVITY
     };
     let mut monastery = building;
-    let vineyard_production_multiplier = ctx
+    let (vineyard_area, vineyard_site, vineyard_shape, vineyard_pollination) = ctx
         .db
         .vineyard_parcel()
         .building_id()
-        .find(&monastery.id)
-        .map(|parcel| {
+        .filter(&monastery.id)
+        .fold((0.0, 0.0, 0.0, 0.0), |totals, parcel| {
+            let area = parcel.area.max(0.0);
             let x =
                 (parcel.corner_ax + parcel.corner_bx + parcel.corner_cx + parcel.corner_dx) * 0.25;
             let z =
                 (parcel.corner_az + parcel.corner_bz + parcel.corner_cz + parcel.corner_dz) * 0.25;
-            crate::vineyard::production_multiplier(
-                parcel.area,
-                parcel.site_suitability,
-                parcel.shape_efficiency,
-            ) * nearby_apiary_pollination_multiplier(ctx, tick, monastery.owner, x, z)
+            (
+                totals.0 + area,
+                totals.1 + parcel.site_suitability * area,
+                totals.2 + parcel.shape_efficiency * area,
+                totals.3
+                    + nearby_apiary_pollination_multiplier(ctx, tick, monastery.owner, x, z) * area,
+            )
         });
+    // Aggregate before applying the diminishing area curve so splitting the
+    // same acreage into many snapped parcels never creates free production.
+    let vineyard_production_multiplier = if vineyard_area > 1e-9 {
+        crate::vineyard::production_multiplier(
+            vineyard_area,
+            vineyard_site / vineyard_area,
+            vineyard_shape / vineyard_area,
+        ) * (vineyard_pollination / vineyard_area)
+    } else {
+        0.0
+    };
     let orchard_maturity =
         monastery_orchard_maturity_for_year(monastery.monastery_orchard_planted_year, clock.year);
     monastery.monastery_orchard_maturity = orchard_maturity;
@@ -3227,12 +3242,12 @@ pub fn step_monastery(
             deposit_building_commodity(&mut monastery, commodity, amount * productivity * staffing);
         }
         if vineyard_is_harvesting(clock.month as u8) {
-            if let Some(vineyard_multiplier) = vineyard_production_multiplier {
+            if vineyard_production_multiplier > 1e-9 {
                 deposit_building_commodity(
                     &mut monastery,
                     CommodityKind::Grapes,
                     VINEYARD_GRAPES_PER_HARVEST_CYCLE
-                        * vineyard_multiplier
+                        * vineyard_production_multiplier
                         * productivity
                         * staffing,
                 );

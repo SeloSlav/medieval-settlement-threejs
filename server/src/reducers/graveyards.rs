@@ -1,8 +1,8 @@
 use spacetimedb::{reducer, ReducerContext};
 
 use crate::balance_generated::{
-    GRAVEYARD_ADJACENCY_DISTANCE, GRAVEYARD_MAX_DISTANCE, GRAVEYARD_MAX_SLOPE, GRAVEYARD_MIN_AREA,
-    GRAVEYARD_MIN_EDGE, GRAVE_AREA_PER_BURIAL,
+    GRAVEYARD_MAX_DISTANCE, GRAVEYARD_MAX_SLOPE, GRAVEYARD_MIN_AREA, GRAVEYARD_MIN_EDGE,
+    GRAVE_AREA_PER_BURIAL,
 };
 use crate::burgage::{convex_zones_overlap, zone_corners_polygon, zone_overlaps_footprint, Point2};
 use crate::db::*;
@@ -35,7 +35,7 @@ pub fn place_graveyard(
         .find(&chapel_id)
         .ok_or_else(|| "Chapel not found.".to_string())?;
     if chapel.owner != owner || chapel.kind != "chapel" || !chapel.construction_complete {
-        return Err("Burial grounds must adjoin one of your completed chapels.".to_string());
+        return Err("Burial grounds must belong to one of your completed chapels.".to_string());
     }
 
     let corners = corners_from_values([
@@ -74,13 +74,6 @@ pub fn place_graveyard(
     {
         return Err("The entire burial ground must stay close to its chapel.".to_string());
     }
-    if distances
-        .iter()
-        .all(|distance| *distance > GRAVEYARD_ADJACENCY_DISTANCE)
-    {
-        return Err("The burial ground must directly adjoin the chapel precinct.".to_string());
-    }
-
     if zone_overlaps_resource_deposit(ctx, &corners) {
         return Err("Graveyards cannot cover a physical resource deposit.".to_string());
     }

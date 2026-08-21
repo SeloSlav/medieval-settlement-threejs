@@ -739,12 +739,12 @@ export async function bootstrapAppSession(
     if (!wasEnabled) {
       toastManager?.show(
         mode === 'field'
-          ? `Lay out a ${cropLabel(farmFieldTool.getCrop()).toLowerCase()} field entirely inside this farmstead’s work extent. Press C to change the crop.`
+          ? `Lay out ${cropLabel(farmFieldTool.getCrop()).toLowerCase()} parcels inside this farmstead’s work extent. Nearby linked boundaries snap together. Press C to change the crop.`
           : mode === 'graveyard'
-            ? 'Lay consecrated burial ground directly beside this chapel.'
+            ? 'Lay consecrated burial parcels anywhere inside this chapel’s work extent. Nearby linked boundaries snap together.'
             : mode === 'vineyard'
-              ? 'Lay out one vineyard extension adjoining the monastery estate. Sunny, well-drained slopes produce the strongest harvests.'
-              : 'Fence a parcel entirely inside this holding’s work extent.',
+              ? 'Lay out vineyard parcels anywhere inside the monastery’s work extent. Nearby linked boundaries snap together; sunny, well-drained slopes produce the strongest harvests.'
+              : 'Fence parcels entirely inside this holding’s work extent. Nearby linked boundaries snap together.',
         { variant: 'info', durationMs: 6000 },
       );
     }
@@ -851,7 +851,7 @@ export async function bootstrapAppSession(
         );
         if (!wasEnabled && !tutorialShown) {
           toastManager?.show(
-            'Draw the rectangle along the road, then use the on-screen plot controls to choose how many homes fit.',
+            'Draw the parcel along the road. Nearby residence-plot ends and boundaries snap together; then choose how many homes fit.',
             { variant: 'info', durationMs: 6500 },
           );
         }

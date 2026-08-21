@@ -824,7 +824,7 @@ function collectMonasteryWorkstations(
     if (parcel.monasteryId !== building.id) continue;
     const center = polygonCenter(parcel.corners);
     targets.push({
-      id: `${building.id}:monastery:vineyard:center`,
+      id: `${building.id}:monastery:vineyard:${parcel.id}:center`,
       kind: 'workstation',
       activity: 'gather',
       ...center,
@@ -833,7 +833,7 @@ function collectMonasteryWorkstations(
       const corner = parcel.corners[index];
       const next = parcel.corners[(index + 1) % parcel.corners.length];
       targets.push({
-        id: `${building.id}:monastery:vineyard:row-${index}`,
+        id: `${building.id}:monastery:vineyard:${parcel.id}:row-${index}`,
         kind: 'workstation',
         activity: 'gather',
         x: (corner.x + next.x + center.x) / 3,

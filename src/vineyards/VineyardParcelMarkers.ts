@@ -62,10 +62,11 @@ function buildParcelGroup(
 ): THREE.Group {
   const corners = parcel.corners as FarmFieldCorners;
   const dimensions = parcelDimensions(corners);
-  const parcelSeed = hashParcelSeed(parcel.monasteryId);
+  const parcelSeed = hashParcelSeed(parcel.id);
   const group = new THREE.Group();
-  group.name = `Monastery vineyard rows ${parcel.monasteryId}`;
+  group.name = `Monastery vineyard rows ${parcel.id}`;
   group.userData.monasteryBuildingId = parcel.monasteryId;
+  group.userData.vineyardParcelId = parcel.id;
 
   const groundGeometry = new THREE.BufferGeometry();
   updateTerrainQuadGeometry(groundGeometry, corners, getHeightAt, 0.055, 12, 12);
@@ -198,7 +199,7 @@ export class VineyardParcelMarkers {
   sync(parcels: Iterable<VineyardParcelState>): void {
     const list = [...parcels];
     const signature = list.map((parcel) =>
-      `${parcel.monasteryId}:${parcel.corners.map((point) => `${point.x.toFixed(2)},${point.z.toFixed(2)}`).join(';')}`
+      `${parcel.id}:${parcel.monasteryId}:${parcel.corners.map((point) => `${point.x.toFixed(2)},${point.z.toFixed(2)}`).join(';')}`
     ).join('|');
     if (signature === this.lastSignature) return;
     this.lastSignature = signature;
@@ -208,7 +209,7 @@ export class VineyardParcelMarkers {
     for (const parcel of list) {
       const group = buildParcelGroup(parcel, this.getHeightAt);
       this.root.add(group);
-      this.groups.set(parcel.monasteryId, group);
+      this.groups.set(parcel.id, group);
     }
   }
 

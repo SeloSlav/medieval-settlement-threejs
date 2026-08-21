@@ -261,7 +261,6 @@ export const GRAVEYARD_MIN_AREA = 48;
 export const GRAVEYARD_MIN_EDGE = 4;
 export const GRAVEYARD_MAX_SLOPE = 12;
 export const GRAVEYARD_MAX_DISTANCE = 38;
-export const GRAVEYARD_ADJACENCY_DISTANCE = 18;
 export const GRAVE_AREA_PER_BURIAL = 5;
 export const BURIAL_CART_SPEED_MPS = 1.4;
 export const RESIDENCE_RECOVERY_FIREWOOD_MIN = 8;

@@ -4,7 +4,7 @@ import type { RoadNetwork } from '../roads/RoadNetwork.ts';
 import type { BurgageZoneState, GameState } from '../resources/types.ts';
 import { computeResourceTotals } from '../resources/resourceTotals.ts';
 import type { BurgageFrontageEdge, BurgageLayoutResult } from './burgageLayout.ts';
-import { cornersFromPoints, getZoneEdge, MIN_ZONE_DEPTH, resolveBurgageLayout, STANDARD_ZONE_DEPTH, suggestPlotCount } from './burgageLayout.ts';
+import { cornersFromPoints, getZoneEdge, MAX_ROAD_FRONTAGE_DISTANCE, MIN_ZONE_DEPTH, resolveBurgageLayout, STANDARD_ZONE_DEPTH, suggestPlotCount } from './burgageLayout.ts';
 import {
   inwardNormalForFrontage,
   measureRawDepthFromBackPoint,
@@ -25,6 +25,10 @@ import {
   type BurgagePlacementResult,
 } from './burgagePlacementValidation.ts';
 import type { PhysicalDepositFootprint } from '../resources/physicalDepositProtection.ts';
+import {
+  snapBurgageBoundaryPoint,
+  snapBurgageFrontagePoint,
+} from './burgagePlotSnap.ts';
 
 const MIN_POINT_DISTANCE = 1.2;
 const SNAP_DISTANCE = 6;
@@ -185,10 +189,10 @@ export class BurgageTool {
   getStatusDetail(): string | null {
     if (!this.enabled) return null;
     if (this.placementStage === 0) {
-      return 'Click along the road to start the frontage (white dotted line)';
+      return 'Click along the road to start the frontage (nearby residence-plot ends snap together)';
     }
     if (this.placementStage === 1) {
-      return 'Click along the road to set the other end of the frontage';
+      return 'Click along the road to set the other end (nearby residence-plot ends snap together)';
     }
     if (this.placementStage === 2) {
       const depth = this.getPreviewDepthMeters();
@@ -995,13 +999,62 @@ export class BurgageTool {
         this.options.onPickRejected?.('off_road');
         return null;
       }
-      const point = this.applyRoadSnap(picked);
+      const roadPoint = this.applyRoadSnap(picked);
+      const point = this.snapFrontagePointToExistingPlots(roadPoint);
       return new THREE.Vector3(point.x, point.y, point.z);
     }
     this.hoverCenter = null;
-    return this.constrainBackPointToMinimumDepth(
+    const constrained = this.constrainBackPointToMinimumDepth(
       new THREE.Vector3(picked.x, picked.y, picked.z),
     );
+    return this.snapBackPointToExistingPlots(constrained);
+  }
+
+  private snapFrontagePointToExistingPlots(point: THREE.Vector3): THREE.Vector3 {
+    const snapped = snapBurgageFrontagePoint(
+      point,
+      this.options.getState().burgageZones.values(),
+    );
+    if (Math.hypot(snapped.x - point.x, snapped.z - point.z) <= 1e-6) return point;
+
+    // Keep the curved frontage preview anchored to the road position that
+    // corresponds to the existing plot corner, rather than the raw cursor.
+    const roadSnap = this.options.roadNetwork.findSnap(
+      new THREE.Vector3(snapped.x, point.y, snapped.z),
+      MAX_ROAD_FRONTAGE_DISTANCE,
+    );
+    if (!roadSnap) return point;
+    this.hoverCenter = roadSnap.point.clone();
+    return new THREE.Vector3(
+      snapped.x,
+      this.options.getHeightAt(snapped.x, snapped.z),
+      snapped.z,
+    );
+  }
+
+  private snapBackPointToExistingPlots(point: THREE.Vector3): THREE.Vector3 {
+    const snapped = snapBurgageBoundaryPoint(
+      point,
+      this.options.getState().burgageZones.values(),
+      undefined,
+      (candidate) => this.backPointMeetsMinimumDepth(candidate),
+    );
+    return new THREE.Vector3(
+      snapped.x,
+      this.options.getHeightAt(snapped.x, snapped.z),
+      snapped.z,
+    );
+  }
+
+  private backPointMeetsMinimumDepth(point: { x: number; z: number }): boolean {
+    if ((this.placementStage !== 2 && this.placementStage !== 3) || this.points.length < 2) {
+      return true;
+    }
+    const frontStart = this.points[0];
+    const frontEnd = this.points[1];
+    const inward = inwardNormalForFrontage(frontStart, frontEnd, this.options.roadNetwork);
+    const anchor = this.placementStage === 3 ? frontStart : frontEnd;
+    return measureRawDepthFromBackPoint(anchor, point, inward) >= MIN_ZONE_DEPTH - 0.05;
   }
 
   private constrainBackPointToMinimumDepth(point: THREE.Vector3): THREE.Vector3 {

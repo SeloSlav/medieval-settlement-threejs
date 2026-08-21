@@ -235,7 +235,7 @@ const PROCESS: Record<string, string> = {
   tavern: 'Receives ale, apple cider, pear cider, and mead, then serves any of them as the residential Beverage service',
   smokehouse: 'Meat, fish, or milk + firewood + local or imported salt + pottery vessels -> cured meat, smoked fish, or cheese',
   apiary: 'April-September forage + a healthy overwintered colony -> honey, with nearby orchard and vineyard pollination',
-  monastery: 'A self-governing 68 × 53 m walled estate raises orchard and croft crops alongside eggs, milk, meat, honey, and cheese; its unique drawn vineyard turns staffed monastic land into town-market wine',
+  monastery: 'A self-governing 68 × 53 m walled estate raises orchard and croft crops alongside eggs, milk, meat, honey, and cheese; its unique player-drawn vineyard parcels turn staffed monastic land into town-market wine',
   carpenter: 'Timber + smith-forged ironwork → polearms and cartwright support',
   weaver: 'Annual sheep fleece or flax + hauled water → woven cloth → tier-2+ Marketplace stalls, then Trading Post export',
   tannery: 'Goat or game hides + hauled water + firewood → tanned leather for Cobbler workshops and trade',
@@ -1365,9 +1365,10 @@ export function renderExpandedBuildingInspector(
   const farmsteadPlanning = building.kind === 'threshing_barn'
     ? renderFarmsteadPlanning(building, context)
     : null;
-  const vineyardParcel = building.kind === 'monastery'
-    ? context.gameState.vineyardParcels?.get(building.id) ?? null
-    : null;
+  const vineyardParcels = building.kind === 'monastery'
+    ? [...(context.gameState.vineyardParcels?.values() ?? [])]
+        .filter((parcel) => parcel.monasteryId === building.id)
+    : [];
   const vineyardRows = building.kind === 'monastery'
     ? (() => {
         const progress = Math.max(0, building.vineyardFermentationProgress ?? 0);
@@ -1375,23 +1376,39 @@ export function renderExpandedBuildingInspector(
         const cellarProgress = fermenting > 1e-6
           ? `${Math.min(100, progress / VINEYARD_FERMENTATION_SECONDS * 100).toFixed(0)}% · ${Math.max(0, VINEYARD_FERMENTATION_SECONDS - progress).toFixed(0)} worker-seconds remain`
           : 'Idle · awaiting one complete grape batch';
-        const parcelRows = vineyardParcel ? (() => {
-          const center = vineyardParcel.corners.reduce(
-            (sum, point) => ({ x: sum.x + point.x / 4, z: sum.z + point.z / 4 }),
-            { x: 0, z: 0 },
-          );
-          const factors = vineyardSiteFactors(
-            vineyardParcel.moisture,
-            vineyardParcel.averageSlopeDegrees,
-            vineyardParcel.southExposure,
-            center.x,
-            center.z,
-          );
-          const throughput = vineyardProductionMultiplier(vineyardParcel);
-          return `<li><span>Growing parcel</span><span>${Math.round(vineyardParcel.area)} m² · ${vineyardParcel.averageSlopeDegrees.toFixed(1)}° average slope · ${Math.round(vineyardParcel.shapeEfficiency * 100)}% row efficiency</span></li>
-            <li><span>Grape site</span><span>${Math.round(vineyardParcel.siteSuitability * 100)}% potential · ${Math.round(factors.drainage * 100)}% drainage · ${Math.round(factors.sun * 100)}% sun exposure</span></li>
-            <li><span>Harvest pace</span><span>${throughput.toFixed(2)}× grape harvest during September–October</span></li>`;
-        })() : '<li><span>Growing parcel</span><span>None drawn · use the vineyard layout action to place rows</span></li>';
+        const parcelRows = vineyardParcels.length > 0 ? (() => {
+          const totals = vineyardParcels.reduce((sum, parcel) => {
+            const center = parcel.corners.reduce(
+              (value, point) => ({ x: value.x + point.x / 4, z: value.z + point.z / 4 }),
+              { x: 0, z: 0 },
+            );
+            const factors = vineyardSiteFactors(
+              parcel.moisture,
+              parcel.averageSlopeDegrees,
+              parcel.southExposure,
+              center.x,
+              center.z,
+            );
+            const area = Math.max(0, parcel.area);
+            return {
+              area: sum.area + area,
+              slope: sum.slope + parcel.averageSlopeDegrees * area,
+              efficiency: sum.efficiency + parcel.shapeEfficiency * area,
+              potential: sum.potential + parcel.siteSuitability * area,
+              drainage: sum.drainage + factors.drainage * area,
+              sun: sum.sun + factors.sun * area,
+            };
+          }, { area: 0, slope: 0, efficiency: 0, potential: 0, drainage: 0, sun: 0 });
+          const area = Math.max(1, totals.area);
+          const throughput = vineyardProductionMultiplier({
+            area: totals.area,
+            siteSuitability: totals.potential / area,
+            shapeEfficiency: totals.efficiency / area,
+          });
+          return `<li><span>Growing parcels</span><span>${vineyardParcels.length} parcels · ${Math.round(totals.area)} m² · ${(totals.slope / area).toFixed(1)}° area-weighted slope · ${Math.round(totals.efficiency / area * 100)}% row efficiency</span></li>
+            <li><span>Grape sites</span><span>${Math.round(totals.potential / area * 100)}% potential · ${Math.round(totals.drainage / area * 100)}% drainage · ${Math.round(totals.sun / area * 100)}% sun exposure</span></li>
+            <li><span>Harvest pace</span><span>${throughput.toFixed(2)}× combined grape harvest during September–October · splitting land into more parcels does not multiply yield</span></li>`;
+        })() : '<li><span>Growing parcels</span><span>None drawn · use the vineyard layout action to place rows</span></li>';
         return `${parcelRows}
           <li><span>Cellar batch</span><span>${VINEYARD_GRAPES_PER_FERMENTATION_BATCH} grapes → ${VINEYARD_WINE_PER_FERMENTATION_BATCH} wine over ${VINEYARD_FERMENTATION_SECONDS} worker-seconds</span></li>
           <li><span>Fermentation</span><span>${Math.round(fermenting)} grapes staged · ${cellarProgress}</span></li>
@@ -1839,7 +1856,7 @@ function renderFarmsteadFieldPanel(building: BuildingState): string {
         .map((preset) => `<button type="button" class="resource-action-button" data-threshing-priority="${preset.priority}" title="${preset.hint}" ${threshingPriority === preset.priority ? 'disabled' : ''}>${preset.label}</button>`)
         .join('')}</div>
       <p class="inspector-action-panel__hint">Automatic restores linked-field seed and one dispatch load after High/Urgent fieldwork but before Normal fieldwork. Fields first leaves threshing until field jobs are quiet; Thresh first pre-empts every non-harvest field job.</p>
-      <p class="inspector-action-panel__hint">Lay out cultivated land for this farmstead. Choose the first crop now; its suitability map opens with the drawing tool. Linked fields always enter this farmstead’s queue, while nearby High/Urgent fields may also request its crew.</p>
+      <p class="inspector-action-panel__hint">Lay out as many cultivated parcels as fit inside this farmstead’s work extent. Nearby linked boundaries snap together while each field keeps its own orientation. Choose the first crop now; its suitability map opens with the drawing tool. Linked fields always enter this farmstead’s queue, while nearby High/Urgent fields may also request its crew.</p>
       <div class="resource-action-row" role="group" aria-label="Choose the new field's first crop">
         ${FARM_CROPS.map((crop) => `<button type="button" class="resource-action-button resource-action-button--crop" data-land-parcel="field" data-field-layout-crop="${crop}" title="Lay out a ${cropLabel(crop).toLowerCase()} field"><span class="farm-crop-choice__icon" data-field-crop-icon="${crop}" aria-hidden="true"></span><span>${cropLabel(crop)} field</span></button>`).join('')}
       </div>
@@ -1871,7 +1888,9 @@ function renderMonasteryPolicyPanel(building: BuildingState, context: InspectorR
   const clock = gameClock(context.gameState.tick);
   const croftWindow = monasteryCroftChoiceAllowed(clock.month)
     && (building.monasteryCroftChoiceYear ?? 0) !== clock.year;
-  const vineyard = context.gameState.vineyardParcels?.get(building.id) ?? null;
+  const vineyards = [...(context.gameState.vineyardParcels?.values() ?? [])]
+    .filter((parcel) => parcel.monasteryId === building.id);
+  const vineyardArea = vineyards.reduce((sum, parcel) => sum + Math.max(0, parcel.area), 0);
   const extensions = building.monasteryExtensions ?? 0;
   const availableExtensions = MONASTERY_EXTENSIONS.filter(
     (extension) => !monasteryHasExtension(extensions, extension.value),
@@ -1881,11 +1900,11 @@ function renderMonasteryPolicyPanel(building: BuildingState, context: InspectorR
     <div class="inspector-action-panel">
       <p class="inspector-action-panel__hint"><strong>${archetype.name}</strong> · ${archetype.payoff}. Assign residents to the eight-cell community; without a monk on site the estate and every service remain dormant. Ordinary surplus is sold outside the map, while vineyard wine uniquely enters the town through its granary and food stalls.</p>
       <div class="city-admin-panel__slider-label"><span>Orchard parcel</span><strong>${MONASTERY_ORCHARD_PLANTINGS[orchardPlanting].output}</strong></div>
-      <p class="inspector-action-panel__hint">The enclosed perennial parcel is the monastery's apple orchard. Wine comes only from its separate, player-drawn vineyard extension.</p>
+      <p class="inspector-action-panel__hint">The enclosed perennial parcel is the monastery's apple orchard. Wine comes only from its separate, player-drawn vineyard parcels.</p>
       <div class="resource-action-row">
-        <button type="button" class="resource-action-button resource-action-button--icon" data-land-parcel="vineyard" ${vineyard ? 'disabled' : ''}><span class="inspector-action-icon" data-action-icon="field-parcel" aria-hidden="true"></span><span>${vineyard ? `Vineyard laid out · ${Math.round(vineyard.area)} m²` : 'Lay out vineyard extension'}</span></button>
+        <button type="button" class="resource-action-button resource-action-button--icon" data-land-parcel="vineyard"><span class="inspector-action-icon" data-action-icon="field-parcel" aria-hidden="true"></span><span>${vineyards.length > 0 ? `Add vineyard parcel · ${vineyards.length} laid out (${Math.round(vineyardArea)} m²)` : 'Lay out vineyard parcel'}</span></button>
       </div>
-      <p class="inspector-action-panel__hint">One free-form vineyard may adjoin the estate. Monks harvest it in September–October, ferment grapes in the monastery cellar, and one onsite monk handcarts only true hospitality surplus to the nearest accepting granary.</p>
+      <p class="inspector-action-panel__hint">Lay out as many free-form vineyard parcels as fit inside the monastery’s work extent. Nearby boundaries snap together while every parcel may use its own orientation. Monks harvest them in September–October, ferment the combined grapes in the cellar, and one onsite monk handcarts only true hospitality surplus to the nearest accepting granary.</p>
       <div class="city-admin-panel__slider-label"><span>Enclosed croft</span><strong>${MONASTERY_CROFT_PLANTINGS[croftPlanting].output}</strong></div>
       <div class="monastery-planting-grid" role="group" aria-label="Choose the monastery croft planting">
         ${MONASTERY_CROFT_PLANTINGS.map((planting) => `<button type="button" class="monastery-planting-choice${planting.value === croftPlanting ? ' is-selected' : ''}" data-monastery-croft-choice="${planting.value}" aria-pressed="${planting.value === croftPlanting ? 'true' : 'false'}" title="${planting.output}" ${!croftWindow || planting.value === croftPlanting ? 'disabled' : ''}>

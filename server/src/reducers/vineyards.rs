@@ -14,8 +14,7 @@ use crate::roads::load_owner_road_network;
 use crate::tables::{farm_field, graveyard, vineyard_parcel, VineyardParcel};
 use crate::vineyard::{
     site_suitability, VINEYARD_MAX_AREA, VINEYARD_MAX_SLOPE_DEGREES, VINEYARD_MIN_AREA,
-    VINEYARD_MIN_EDGE, VINEYARD_MONASTERY_ADJACENCY_DISTANCE,
-    VINEYARD_MONASTERY_MAX_DISTANCE,
+    VINEYARD_MIN_EDGE, VINEYARD_MONASTERY_MAX_DISTANCE,
 };
 
 #[reducer]
@@ -41,20 +40,9 @@ pub fn place_vineyard(
         .id()
         .find(&monastery_id)
         .ok_or_else(|| "Monastery not found.".to_string())?;
-    if monastery.owner != owner
-        || monastery.kind != "monastery"
-        || !monastery.construction_complete
+    if monastery.owner != owner || monastery.kind != "monastery" || !monastery.construction_complete
     {
         return Err("Vineyards must belong to one of your completed monasteries.".to_string());
-    }
-    if ctx
-        .db
-        .vineyard_parcel()
-        .building_id()
-        .find(&monastery_id)
-        .is_some()
-    {
-        return Err("This monastery already has a vineyard extension.".to_string());
     }
     let corners = corners_from_values([
         corner_ax, corner_az, corner_bx, corner_bz, corner_cx, corner_cz, corner_dx, corner_dz,
@@ -103,13 +91,6 @@ pub fn place_vineyard(
     {
         return Err("The entire vineyard must stay near its monastery.".to_string());
     }
-    if distances
-        .iter()
-        .all(|distance| *distance > VINEYARD_MONASTERY_ADJACENCY_DISTANCE)
-    {
-        return Err("The vineyard must adjoin the monastery estate.".to_string());
-    }
-
     if zone_overlaps_resource_deposit(ctx, &corners) {
         return Err("Vineyards cannot cover a physical resource deposit.".to_string());
     }
@@ -245,6 +226,7 @@ pub fn place_vineyard(
     }
 
     ctx.db.vineyard_parcel().insert(VineyardParcel {
+        id: 0,
         building_id: monastery_id,
         owner,
         corner_ax,

@@ -452,7 +452,6 @@ export type GameBalance = {
     graveyardMinEdge: number;
     graveyardMaxSlope: number;
     graveyardMaxDistance: number;
-    graveyardAdjacencyDistance: number;
     graveAreaPerBurial: number;
     burialCartSpeedMps: number;
     residenceRecoveryFirewoodMin: number;
@@ -1074,7 +1073,6 @@ function generateRust(): string {
     `pub const GRAVEYARD_MIN_EDGE: f64 = ${rustF64(b.population.graveyardMinEdge)};`,
     `pub const GRAVEYARD_MAX_SLOPE: f64 = ${rustF64(b.population.graveyardMaxSlope)};`,
     `pub const GRAVEYARD_MAX_DISTANCE: f64 = ${rustF64(b.population.graveyardMaxDistance)};`,
-    `pub const GRAVEYARD_ADJACENCY_DISTANCE: f64 = ${rustF64(b.population.graveyardAdjacencyDistance)};`,
     `pub const GRAVE_AREA_PER_BURIAL: f64 = ${rustF64(b.population.graveAreaPerBurial)};`,
     `pub const BURIAL_CART_SPEED_MPS: f64 = ${rustF64(b.population.burialCartSpeedMps)};`,
     `pub const RESIDENCE_RECOVERY_FIREWOOD_MIN: f64 = ${rustF64(b.population.residenceRecoveryFirewoodMin)};`,
@@ -2051,7 +2049,6 @@ function generateTypeScript(): string {
     `export const GRAVEYARD_MIN_EDGE = ${b.population.graveyardMinEdge};`,
     `export const GRAVEYARD_MAX_SLOPE = ${b.population.graveyardMaxSlope};`,
     `export const GRAVEYARD_MAX_DISTANCE = ${b.population.graveyardMaxDistance};`,
-    `export const GRAVEYARD_ADJACENCY_DISTANCE = ${b.population.graveyardAdjacencyDistance};`,
     `export const GRAVE_AREA_PER_BURIAL = ${b.population.graveAreaPerBurial};`,
     `export const BURIAL_CART_SPEED_MPS = ${b.population.burialCartSpeedMps};`,
     `export const RESIDENCE_RECOVERY_FIREWOOD_MIN = ${b.population.residenceRecoveryFirewoodMin};`,

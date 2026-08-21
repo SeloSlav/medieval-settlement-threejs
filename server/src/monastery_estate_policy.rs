@@ -314,7 +314,7 @@ pub fn monastery_estate_yields(
         } else {
             0.0
         },
-        // Wine is produced only by the player-drawn vineyard extension.
+        // Wine is produced only by the player-drawn vineyard parcels.
         wine: 0.0,
         cheese: 0.18 * multiplier,
     }

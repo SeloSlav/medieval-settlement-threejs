@@ -3020,14 +3020,14 @@ pub fn demolish_building(ctx: &ReducerContext, building_id: u64) -> Result<(), S
     {
         ctx.db.livestock_herd().building_id().delete(&building_id);
     }
-    if ctx
+    for parcel in ctx
         .db
         .vineyard_parcel()
         .building_id()
-        .find(&building_id)
-        .is_some()
+        .filter(&building_id)
+        .collect::<Vec<_>>()
     {
-        ctx.db.vineyard_parcel().building_id().delete(&building_id);
+        ctx.db.vineyard_parcel().id().delete(parcel.id);
     }
 
     let physical_reclamation = ctx

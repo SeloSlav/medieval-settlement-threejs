@@ -15,7 +15,6 @@ export const VINEYARD_MIN_EDGE = 10;
 export const VINEYARD_MAX_SLOPE_DEGREES = 28;
 export const VINEYARD_REFERENCE_AREA = 220;
 export const VINEYARD_MONASTERY_MAX_DISTANCE = 120;
-export const VINEYARD_MONASTERY_ADJACENCY_DISTANCE = 78;
 
 export type VineyardSiteFactors = {
   score: number;

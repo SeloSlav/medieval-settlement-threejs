@@ -6,7 +6,6 @@ pub const VINEYARD_MIN_EDGE: f64 = 10.0;
 pub const VINEYARD_MAX_SLOPE_DEGREES: f64 = 28.0;
 pub const VINEYARD_REFERENCE_AREA: f64 = 220.0;
 pub const VINEYARD_MONASTERY_MAX_DISTANCE: f64 = 120.0;
-pub const VINEYARD_MONASTERY_ADJACENCY_DISTANCE: f64 = 78.0;
 pub fn fermentable_grapes(grapes: f64) -> f64 {
     grapes.max(0.0)
 }

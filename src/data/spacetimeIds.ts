@@ -30,6 +30,10 @@ export function pastureClientId(serverId: bigint | number): string {
   return `pasture-${serverId}`;
 }
 
+export function vineyardClientId(serverId: bigint | number): string {
+  return `vineyard-${serverId}`;
+}
+
 export function graveyardClientId(serverId: bigint | number): string {
   return `graveyard-${serverId}`;
 }
