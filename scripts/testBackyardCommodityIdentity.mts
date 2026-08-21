@@ -73,12 +73,39 @@ for (const root of ['src/generated', 'server/src/generated']) {
 
 for (const icon of [
   'pears', 'aronia', 'rosehips', 'cabbage', 'carrots', 'beetroot',
-  'aronia-jam', 'rosehip-jam', 'apple-cider', 'pear-cider',
+  'aronia-jam', 'rosehip-jam',
 ]) {
-  assert.ok(existsSync(`public/assets/ui/icons/provisions/${icon}.svg`), `${icon} needs its own icon`);
+  const path = `public/assets/ui/icons/provisions/${icon}.png`;
+  assert.ok(existsSync(path), `${icon} needs its own generated raster icon`);
 }
 for (const icon of ['hides', 'leather', 'shoes']) {
-  assert.ok(existsSync(`public/assets/ui/icons/materials/${icon}.svg`), `${icon} needs its own icon`);
+  const path = `public/assets/ui/icons/materials/${icon}.png`;
+  assert.ok(existsSync(path), `${icon} needs its own generated raster icon`);
+}
+for (const icon of ['orchard', 'vegetable-garden', 'animal-pen']) {
+  const path = `public/assets/ui/icons/backyards/${icon}.png`;
+  assert.ok(existsSync(path), `${icon} shell needs its own generated raster icon`);
+}
+assert.ok(existsSync('public/assets/ui/icons/resource-cider.png'));
+assert.ok(existsSync('public/assets/ui/icons/resource-pear-cider.png'));
+
+const iconography = readFileSync('src/ui/iconography.css', 'utf8');
+const backyardIcons = readFileSync('src/ui/polishedGameUi.css', 'utf8');
+for (const rejectedSvg of [
+  'apple-cider', 'pear-cider', 'pears', 'aronia', 'rosehips', 'cabbage',
+  'carrots', 'beetroot', 'aronia-jam', 'rosehip-jam', 'hides', 'leather', 'shoes',
+]) {
+  assert.doesNotMatch(iconography, new RegExp(`${rejectedSvg}\\.svg`));
+}
+for (const [kind, filename] of [
+  ['orchard', 'orchard'],
+  ['vegetable_garden', 'vegetable-garden'],
+  ['animal_pen', 'animal-pen'],
+] as const) {
+  assert.match(
+    backyardIcons,
+    new RegExp(`data-garden-kind='${kind}'[\\s\\S]*?backyards/${filename}\\.png`),
+  );
 }
 
-console.log('Distinct backyard crops, jams, ciders, storage, trade, bindings, and icon contracts passed.');
+console.log('Distinct backyard crops, jams, ciders, storage, trade, bindings, and raster icon contracts passed.');

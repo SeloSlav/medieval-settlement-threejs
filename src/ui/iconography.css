@@ -413,15 +413,15 @@
 }
 
 .settlement-hud__stat[data-resource='hides']::before {
-  background-image: url('/assets/ui/icons/materials/hides.svg');
+  background-image: url('/assets/ui/icons/materials/hides.png');
 }
 
 .settlement-hud__stat[data-resource='leather']::before {
-  background-image: url('/assets/ui/icons/materials/leather.svg');
+  background-image: url('/assets/ui/icons/materials/leather.png');
 }
 
 .settlement-hud__stat[data-resource='shoes']::before {
-  background-image: url('/assets/ui/icons/materials/shoes.svg');
+  background-image: url('/assets/ui/icons/materials/shoes.png');
 }
 
 /* Inline resource costs reuse the HUD's artwork so construction, trade,
@@ -669,15 +669,15 @@
 }
 
 .resource-cost__item[data-resource-cost='hides'] .resource-cost__icon {
-  background-image: url('/assets/ui/icons/materials/hides.svg');
+  background-image: url('/assets/ui/icons/materials/hides.png');
 }
 
 .resource-cost__item[data-resource-cost='leather'] .resource-cost__icon {
-  background-image: url('/assets/ui/icons/materials/leather.svg');
+  background-image: url('/assets/ui/icons/materials/leather.png');
 }
 
 .resource-cost__item[data-resource-cost='shoes'] .resource-cost__icon {
-  background-image: url('/assets/ui/icons/materials/shoes.svg');
+  background-image: url('/assets/ui/icons/materials/shoes.png');
 }
 
 .resource-cost__item[data-resource-cost='manure'] .resource-cost__icon,
@@ -817,52 +817,52 @@
 
 .settlement-hud__stat[data-resource='cider']::before,
 .resource-cost__item[data-resource-cost='cider'] .resource-cost__icon {
-  background-image: url('/assets/ui/icons/provisions/apple-cider.svg');
+  background-image: url('/assets/ui/icons/resource-cider.png');
 }
 
 .settlement-hud__stat[data-resource='pearCider']::before,
 .resource-cost__item[data-resource-cost='pearCider'] .resource-cost__icon {
-  background-image: url('/assets/ui/icons/provisions/pear-cider.svg');
+  background-image: url('/assets/ui/icons/resource-pear-cider.png');
 }
 
 .resource-cost__item[data-resource-cost='pears'] .resource-cost__icon,
 .settlement-hud__food-card[data-food-resource='pears']::before {
-  background-image: url('/assets/ui/icons/provisions/pears.svg');
+  background-image: url('/assets/ui/icons/provisions/pears.png');
 }
 
 .resource-cost__item[data-resource-cost='aronia'] .resource-cost__icon,
 .settlement-hud__food-card[data-food-resource='aronia']::before {
-  background-image: url('/assets/ui/icons/provisions/aronia.svg');
+  background-image: url('/assets/ui/icons/provisions/aronia.png');
 }
 
 .resource-cost__item[data-resource-cost='rosehips'] .resource-cost__icon,
 .settlement-hud__food-card[data-food-resource='rosehips']::before {
-  background-image: url('/assets/ui/icons/provisions/rosehips.svg');
+  background-image: url('/assets/ui/icons/provisions/rosehips.png');
 }
 
 .resource-cost__item[data-resource-cost='cabbage'] .resource-cost__icon,
 .settlement-hud__food-card[data-food-resource='cabbage']::before {
-  background-image: url('/assets/ui/icons/provisions/cabbage.svg');
+  background-image: url('/assets/ui/icons/provisions/cabbage.png');
 }
 
 .resource-cost__item[data-resource-cost='carrots'] .resource-cost__icon,
 .settlement-hud__food-card[data-food-resource='carrots']::before {
-  background-image: url('/assets/ui/icons/provisions/carrots.svg');
+  background-image: url('/assets/ui/icons/provisions/carrots.png');
 }
 
 .resource-cost__item[data-resource-cost='beetroot'] .resource-cost__icon,
 .settlement-hud__food-card[data-food-resource='beetroot']::before {
-  background-image: url('/assets/ui/icons/provisions/beetroot.svg');
+  background-image: url('/assets/ui/icons/provisions/beetroot.png');
 }
 
 .resource-cost__item[data-resource-cost='aroniaJam'] .resource-cost__icon,
 .settlement-hud__food-card[data-food-resource='aroniaJam']::before {
-  background-image: url('/assets/ui/icons/provisions/aronia-jam.svg');
+  background-image: url('/assets/ui/icons/provisions/aronia-jam.png');
 }
 
 .resource-cost__item[data-resource-cost='rosehipJam'] .resource-cost__icon,
 .settlement-hud__food-card[data-food-resource='rosehipJam']::before {
-  background-image: url('/assets/ui/icons/provisions/rosehip-jam.svg');
+  background-image: url('/assets/ui/icons/provisions/rosehip-jam.png');
 }
 
 .settlement-hud__food-card[data-food-resource]:hover::before {
