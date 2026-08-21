@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
+  BACKYARD_GARDEN_KINDS,
   CALENDAR_SECONDS_PER_DAY,
   HOUSEHOLD_PROJECT_WEALTH_RESERVE,
   RESIDENCE_UPGRADE_SERVICE_BLOCK_DAYS,
@@ -376,7 +377,7 @@ assert.equal(
 
 const activeBackyard = residence('active-backyard', 1, 3);
 Object.assign(activeBackyard, {
-  backyardProjectKind: 3,
+  backyardProjectKind: BACKYARD_GARDEN_KINDS.indexOf('vegetable_garden') + 1,
   upgradeProgress: 0.2,
   upgradeRequiredTimber: 6,
   upgradeRequiredStone: 2,

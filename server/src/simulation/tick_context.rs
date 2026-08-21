@@ -1382,7 +1382,10 @@ fn stall_group_for_need(need_kind: ResidenceNeedKind) -> Option<u8> {
         ResidenceNeedKind::Firewood | ResidenceNeedKind::Cloth | ResidenceNeedKind::Pottery => {
             Some(MARKET_STALL_GROUP_GOODS)
         }
-        ResidenceNeedKind::Water | ResidenceNeedKind::Church | ResidenceNeedKind::FoodVariety => {
+        ResidenceNeedKind::Water
+        | ResidenceNeedKind::Church
+        | ResidenceNeedKind::FoodVariety
+        | ResidenceNeedKind::Luxury => {
             None
         }
     }
@@ -1409,7 +1412,10 @@ fn stall_need_rank(need_kind: ResidenceNeedKind) -> u8 {
         ResidenceNeedKind::Food | ResidenceNeedKind::Firewood => 0,
         ResidenceNeedKind::PreservedFood | ResidenceNeedKind::Cloth => 1,
         ResidenceNeedKind::Ale | ResidenceNeedKind::Pottery => 2,
-        ResidenceNeedKind::Water | ResidenceNeedKind::Church | ResidenceNeedKind::FoodVariety => 3,
+        ResidenceNeedKind::Water
+        | ResidenceNeedKind::Church
+        | ResidenceNeedKind::FoodVariety
+        | ResidenceNeedKind::Luxury => 3,
     }
 }
 

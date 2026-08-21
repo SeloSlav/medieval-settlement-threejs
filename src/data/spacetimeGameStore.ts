@@ -382,6 +382,14 @@ export class SpacetimeGameStore {
     return spacetimeReducers.demolishBackyardGarden(residenceId);
   }
 
+  specializeOrchard(residenceId: string, kind: BackyardGardenKind): Promise<void> {
+    return spacetimeReducers.specializeOrchard(residenceId, kind);
+  }
+
+  upgradeFlowerGardenLuxury(residenceId: string): Promise<void> {
+    return spacetimeReducers.upgradeFlowerGardenLuxury(residenceId);
+  }
+
   placeBurgageZone(input: {
     corners: Array<{ x: number; z: number }>;
     frontageEdge: BurgageFrontageEdge;
@@ -645,6 +653,18 @@ export class SpacetimeGameStore {
     targetPercent: number,
   ): Promise<void> {
     return spacetimeReducers.setProcessorOutputTarget(buildingId, targetPercent);
+  }
+
+  setStorageCommodityAcceptance(
+    buildingId: string,
+    commodity: import('../economy/storageAcceptancePolicy.ts').StorageCommodity,
+    accepts: boolean,
+  ): Promise<void> {
+    return spacetimeReducers.setStorageCommodityAcceptance(buildingId, commodity, accepts);
+  }
+
+  setAllStorageAcceptance(buildingId: string, accepts: boolean): Promise<void> {
+    return spacetimeReducers.setAllStorageAcceptance(buildingId, accepts);
   }
 
   setThreshingPriority(buildingId: string, priority: number): Promise<void> {

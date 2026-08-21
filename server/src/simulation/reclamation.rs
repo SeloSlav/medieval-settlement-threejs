@@ -10,7 +10,9 @@ use crate::balance_generated::{
 use crate::building_defs::building_def;
 use crate::construction_priority::CONSTRUCTION_PRIORITY_NORMAL;
 use crate::db::*;
-use crate::economy::{building_commodity_room, building_commodity_stock, CommodityKind};
+use crate::economy::{
+    building_commodity_room, building_commodity_stock, storage_accepts_commodity, CommodityKind,
+};
 use crate::placement_validation::{building_overlaps_open_water, building_overlaps_road_surface};
 use crate::reducers::buildings::next_available_building_id;
 use crate::roads::load_owner_road_network;
@@ -826,6 +828,7 @@ pub fn insert_reclamation_pile(
         monastery_croft_choice_year: 0,
         monastery_service_funding: 1.0,
         monastery_last_service_day: 0,
+        storage_acceptance_mask: u64::MAX,
     });
     ctx.db.world_config().id().update(WorldConfig {
         next_building_id: building_id
@@ -1101,6 +1104,7 @@ pub fn step_reclamation_piles(
                         || !target.construction_complete
                         || tick.building_disabled_by_fire(ctx, target.id)
                         || building_has_inbound_supply_trip(ctx, target.id)
+                        || !storage_accepts_commodity(&target, commodity)
                         || building_commodity_room(&target, commodity) <= EPSILON
                     {
                         return None;

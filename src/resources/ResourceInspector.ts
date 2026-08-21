@@ -62,6 +62,10 @@ import {
   isStorehouseCommodity,
   type StorehouseCommodity,
 } from '../economy/storehousePolicy.ts';
+import {
+  isStorageCommodity,
+  type StorageCommodity,
+} from '../economy/storageAcceptancePolicy.ts';
 import { isProcessorOutputTargetKind } from '../economy/processorOutputPolicy.ts';
 import { computeSettlementProductionCapacity } from '../economy/settlementProduction.ts';
 import { windWeatherThroughputMultiplier } from '../wind/windField.ts';
@@ -119,6 +123,8 @@ type ResourceInspectorOptions = {
   ) => void | Promise<void>;
   onDemolishBurgageZone?: (zoneId: string) => void | Promise<void>;
   onPlaceBackyardGarden?: (residenceId: string, kind: BackyardGardenKind) => void | Promise<void>;
+  onSpecializeOrchard?: (residenceId: string, kind: BackyardGardenKind) => void | Promise<void>;
+  onUpgradeFlowerGardenLuxury?: (residenceId: string) => void | Promise<void>;
   onDemolishBackyardGarden?: (residenceId: string) => void | Promise<void>;
   onAssignBuildingLabor?: (buildingId: string, labor: number) => void | Promise<void>;
   onRotateConstructionLabor?: () => void | Promise<void>;
@@ -180,6 +186,15 @@ type ResourceInspectorOptions = {
   onSetProcessorOutputTarget?: (
     buildingId: string,
     targetPercent: number,
+  ) => void | Promise<void>;
+  onSetStorageCommodityAcceptance?: (
+    buildingId: string,
+    commodity: StorageCommodity,
+    accepts: boolean,
+  ) => void | Promise<void>;
+  onSetAllStorageAcceptance?: (
+    buildingId: string,
+    accepts: boolean,
   ) => void | Promise<void>;
   onSetBreweryRecipePolicy?: (
     buildingId: string,
@@ -709,6 +724,32 @@ export class ResourceInspector {
 
   private readonly onPanelClick = (event: MouseEvent): void => {
     event.stopPropagation();
+    if (
+      this.selectedTarget?.kind === 'building'
+      && (this.selectedTarget.building.kind === 'village_storehouse'
+        || this.selectedTarget.building.kind === 'granary')
+    ) {
+      const commodityButton = (event.target as HTMLElement)
+        .closest<HTMLElement>('[data-storage-commodity]');
+      const commodity = commodityButton?.dataset.storageCommodity;
+      if (isStorageCommodity(commodity)) {
+        void this.options.onSetStorageCommodityAcceptance?.(
+          this.selectedTarget.building.id,
+          commodity,
+          commodityButton?.dataset.storageAccepts !== 'true',
+        );
+        return;
+      }
+      const allButton = (event.target as HTMLElement)
+        .closest<HTMLElement>('[data-storage-accept-all]');
+      if (allButton?.dataset.storageAcceptAll != null) {
+        void this.options.onSetAllStorageAcceptance?.(
+          this.selectedTarget.building.id,
+          allButton.dataset.storageAcceptAll === 'true',
+        );
+        return;
+      }
+    }
     const inspectDeliveryTripId = (event.target as HTMLElement)
       .closest<HTMLElement>('[data-inspect-delivery-trip]')
       ?.dataset.inspectDeliveryTrip;
@@ -1269,6 +1310,8 @@ export class ResourceInspector {
     }
     handleSupplementalPanelClick(this.selectedTarget, event.target as HTMLElement, {
       onPlaceBackyardGarden: this.options.onPlaceBackyardGarden,
+      onSpecializeOrchard: this.options.onSpecializeOrchard,
+      onUpgradeFlowerGardenLuxury: this.options.onUpgradeFlowerGardenLuxury,
       onUpgradeChapel: this.options.onUpgradeChapel,
       onUpgradeResidence: this.options.onUpgradeResidence,
       onRetrofitResidenceTileRoof: this.options.onRetrofitResidenceTileRoof,
@@ -1429,8 +1472,8 @@ export class ResourceInspector {
       );
       return;
     }
-    if (building.kind === 'granary' && input.matches('[data-granary-accepts-fresh-food], [data-granary-households-first]')) {
-      const acceptsFreshFood = this.supplementalPanelSection.querySelector<HTMLInputElement>('[data-granary-accepts-fresh-food]')?.checked ?? true;
+    if (building.kind === 'granary' && input.matches('[data-granary-households-first]')) {
+      const acceptsFreshFood = building.granaryAcceptsFreshFood !== false;
       const householdsFirst = this.supplementalPanelSection.querySelector<HTMLInputElement>('[data-granary-households-first]')?.checked ?? false;
       void this.options.onSetGranaryPolicy?.(building.id, acceptsFreshFood, householdsFirst);
     }

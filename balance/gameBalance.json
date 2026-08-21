@@ -504,6 +504,8 @@
     "residenceClothPerPersonPerSec": 0.00018,
     "residencePotteryCapacity": 6,
     "residencePotteryPerPersonPerSec": 0.001,
+    "residenceLuxuryJamCapacity": 12,
+    "residenceLuxuryJamPerPersonPerSec": 0.0005,
     "hungerWarningDays": 2,
     "malnutritionDays": 5,
     "starvationDeathStartDays": 14,
@@ -1803,18 +1805,76 @@
     }
   },
   "backyardGardens": {
+    "orchard": {
+      "label": "Orchard",
+      "cost": { "timber": 10, "stone": 4, "gold": 2 },
+      "foodPerPersonPerSec": 0,
+      "settlementAttractionMultiplier": 1.01
+    },
     "apple_orchard": {
       "label": "Apple orchard",
       "cost": { "timber": 10, "stone": 4, "gold": 4 },
       "foodPerPersonPerSec": 0.0025,
-      "settlementAttractionMultiplier": 1
+      "settlementAttractionMultiplier": 1,
+      "hiddenFromPicker": true,
+      "specializationOf": "orchard",
+      "firstHarvestDays": 90,
+      "harvestStartMonth": 9,
+      "harvestEndMonth": 9,
+      "yieldEfficiency": 1,
+      "jamPerPersonPerSec": 0
     },
     "cherry_orchard": {
       "label": "Cherry orchard",
       "cost": { "timber": 9, "stone": 3, "gold": 4 },
       "foodPerPersonPerSec": 0.00225,
       "settlementAttractionMultiplier": 1,
-      "hiddenFromPicker": true
+      "hiddenFromPicker": true,
+      "specializationOf": "orchard",
+      "firstHarvestDays": 120,
+      "harvestStartMonth": 6,
+      "harvestEndMonth": 6,
+      "yieldEfficiency": 0.92,
+      "jamPerPersonPerSec": 0
+    },
+    "pear_orchard": {
+      "label": "Pear orchard",
+      "cost": { "timber": 10, "stone": 4, "gold": 5 },
+      "foodPerPersonPerSec": 0.0027,
+      "settlementAttractionMultiplier": 1.01,
+      "hiddenFromPicker": true,
+      "specializationOf": "orchard",
+      "firstHarvestDays": 150,
+      "harvestStartMonth": 9,
+      "harvestEndMonth": 10,
+      "yieldEfficiency": 1.08,
+      "jamPerPersonPerSec": 0
+    },
+    "aronia_orchard": {
+      "label": "Aronia bushes",
+      "cost": { "timber": 10, "stone": 4, "gold": 4 },
+      "foodPerPersonPerSec": 0.00165,
+      "settlementAttractionMultiplier": 1.015,
+      "hiddenFromPicker": true,
+      "specializationOf": "orchard",
+      "firstHarvestDays": 60,
+      "harvestStartMonth": 8,
+      "harvestEndMonth": 9,
+      "yieldEfficiency": 0.9,
+      "jamPerPersonPerSec": 0.00065
+    },
+    "rosehip_orchard": {
+      "label": "Rosehip bushes",
+      "cost": { "timber": 10, "stone": 4, "gold": 4 },
+      "foodPerPersonPerSec": 0.00125,
+      "settlementAttractionMultiplier": 1.02,
+      "hiddenFromPicker": true,
+      "specializationOf": "orchard",
+      "firstHarvestDays": 75,
+      "harvestStartMonth": 10,
+      "harvestEndMonth": 11,
+      "yieldEfficiency": 0.82,
+      "jamPerPersonPerSec": 0.0009
     },
     "vegetable_garden": {
       "label": "Vegetable garden",
@@ -1826,7 +1886,8 @@
       "label": "Flower garden",
       "cost": { "timber": 4, "stone": 1, "gold": 2 },
       "foodPerPersonPerSec": 0,
-      "settlementAttractionMultiplier": 0.88
+      "settlementAttractionMultiplier": 0.88,
+      "luxuryUpgradeGoldCost": 8
     },
     "herb_garden": {
       "label": "Herb garden",

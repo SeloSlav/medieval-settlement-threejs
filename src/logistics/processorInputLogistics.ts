@@ -431,10 +431,7 @@ export function localMaterialInputCommodities(
       return [
         ...((source?.charcoal ?? 0) > 1e-6 ? ['charcoal'] as const : []),
         ...((['iron', 'clay', 'salt'] as const)
-          .filter((commodity) =>
-            (source?.[commodity] ?? 0) > 1e-6
-            && source?.[storehouseAcceptsField(commodity)] !== false
-          )),
+          .filter((commodity) => (source?.[commodity] ?? 0) > 1e-6)),
       ];
     default: return [];
   }
@@ -589,16 +586,6 @@ export function assignLocalMaterialInputTargets<
     acceptsInput,
     false,
   );
-}
-
-function storehouseAcceptsField(
-  commodity: 'iron' | 'clay' | 'salt',
-): 'storehouseAcceptsIron' | 'storehouseAcceptsClay' | 'storehouseAcceptsSalt' {
-  switch (commodity) {
-    case 'iron': return 'storehouseAcceptsIron';
-    case 'clay': return 'storehouseAcceptsClay';
-    case 'salt': return 'storehouseAcceptsSalt';
-  }
 }
 
 type ProcessorInputOffer<

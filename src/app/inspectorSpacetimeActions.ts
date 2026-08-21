@@ -11,6 +11,7 @@ import { describeBackyardGardenShortfall } from '../resources/buildingEconomy.ts
 import { computeResourceTotals } from '../resources/resourceTotals.ts';
 import type { FireTargetKind } from '../fires/fireIncident.ts';
 import type { StorehouseCommodity } from '../economy/storehousePolicy.ts';
+import type { StorageCommodity } from '../economy/storageAcceptancePolicy.ts';
 import type { NightPolicyCode } from '../economy/nightPolicy.ts';
 import type { PantrySafeguardPolicyCode } from '../economy/pantrySafeguardPolicy.ts';
 
@@ -24,6 +25,8 @@ export type InspectorSpacetimeActions = {
   onSetResidenceUpgradePriority: (residenceId: string, priority: number) => Promise<void>;
   onRepairFireDamage: (targetKind: FireTargetKind, targetId: string) => Promise<void>;
   onPlaceBackyardGarden: (residenceId: string, kind: BackyardGardenKind) => Promise<void>;
+  onSpecializeOrchard: (residenceId: string, kind: BackyardGardenKind) => Promise<void>;
+  onUpgradeFlowerGardenLuxury: (residenceId: string) => Promise<void>;
   onDemolishBackyardGarden: (residenceId: string) => Promise<void>;
   onAssignBuildingLabor: (buildingId: string, labor: number) => Promise<void>;
   onRotateConstructionLabor: () => Promise<void>;
@@ -87,6 +90,12 @@ export type InspectorSpacetimeActions = {
     acceptsClay: boolean,
     acceptsSalt: boolean,
   ) => Promise<void>;
+  onSetStorageCommodityAcceptance: (
+    buildingId: string,
+    commodity: StorageCommodity,
+    accepts: boolean,
+  ) => Promise<void>;
+  onSetAllStorageAcceptance: (buildingId: string, accepts: boolean) => Promise<void>;
   onSetStorehouseStockTarget: (
     buildingId: string,
     commodity: StorehouseCommodity,
@@ -368,6 +377,22 @@ export function createInspectorSpacetimeActions(
       await runReducer(
         () => store.setTradingPostTradeRule(buildingId, commodityKind, mode, targetSurplus),
         'Could not update the monthly trade rule.',
+      );
+    },
+    onSpecializeOrchard: async (residenceId, kind) => {
+      const store = requireReady();
+      if (!store) return;
+      await runReducer(
+        () => store.specializeOrchard(residenceId, kind),
+        'Could not plant this orchard.',
+      );
+    },
+    onUpgradeFlowerGardenLuxury: async (residenceId) => {
+      const store = requireReady();
+      if (!store) return;
+      await runReducer(
+        () => store.upgradeFlowerGardenLuxury(residenceId),
+        'Could not cultivate luxury cut flowers.',
       );
     },
     onDemolishFarmField: async (fieldId) => {
@@ -652,6 +677,22 @@ export function createInspectorSpacetimeActions(
       await runReducer(
         () => store.setProcessorOutputTarget(buildingId, targetPercent),
         'Could not update the production stock target.',
+      );
+    },
+    onSetStorageCommodityAcceptance: async (buildingId, commodity, accepts) => {
+      const store = requireReady();
+      if (!store) return;
+      await runReducer(
+        () => store.setStorageCommodityAcceptance(buildingId, commodity, accepts),
+        'Could not update the storage acceptance filter.',
+      );
+    },
+    onSetAllStorageAcceptance: async (buildingId, accepts) => {
+      const store = requireReady();
+      if (!store) return;
+      await runReducer(
+        () => store.setAllStorageAcceptance(buildingId, accepts),
+        'Could not update all storage acceptance filters.',
       );
     },
     onSetBreweryRecipePolicy: async (buildingId, recipePolicy) => {

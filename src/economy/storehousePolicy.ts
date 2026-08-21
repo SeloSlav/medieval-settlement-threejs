@@ -1,5 +1,6 @@
 import { BUILDING_STORAGE_CAPS } from '../generated/gameBalance.ts';
 import type { BuildingState } from '../resources/types.ts';
+import { storageAcceptsCommodity } from './storageAcceptancePolicy.ts';
 
 export const STOREHOUSE_COMMODITIES = [
   'timber',
@@ -29,16 +30,6 @@ type StorehouseTargetField =
   | 'storehouseIronTargetPercent'
   | 'storehouseClayTargetPercent'
   | 'storehouseSaltTargetPercent';
-
-const STOREHOUSE_ACCEPTS_FIELDS: Record<StorehouseCommodity, StorehouseAcceptsField> = {
-  timber: 'storehouseAcceptsTimber',
-  stone: 'storehouseAcceptsStone',
-  firewood: 'storehouseAcceptsFirewood',
-  charcoal: 'storehouseAcceptsCharcoal',
-  iron: 'storehouseAcceptsIron',
-  clay: 'storehouseAcceptsClay',
-  salt: 'storehouseAcceptsSalt',
-};
 
 const STOREHOUSE_TARGET_FIELDS: Record<StorehouseCommodity, StorehouseTargetField> = {
   timber: 'storehouseTimberTargetPercent',
@@ -127,10 +118,13 @@ export function storehouseCommodityTarget(
 }
 
 export function storehouseAcceptsCommodity(
-  building: Pick<BuildingState, StorehouseAcceptsField>,
+  building: Pick<
+    BuildingState,
+    StorehouseAcceptsField | 'kind' | 'storageAcceptanceMask' | 'granaryAcceptsFreshFood'
+  >,
   commodity: StorehouseCommodity,
 ): boolean {
-  return building[STOREHOUSE_ACCEPTS_FIELDS[commodity]] !== false;
+  return storageAcceptsCommodity(building, commodity);
 }
 
 /** Shared intake-gated headroom used by producer overflow and founding-yard relocation. */
@@ -138,6 +132,7 @@ export function storehouseFilteredCollectionHeadroom(
   building: Pick<
     BuildingState,
     StorehouseCommodity | StorehouseAcceptsField | StorehouseTargetField
+      | 'kind' | 'storageAcceptanceMask' | 'granaryAcceptsFreshFood'
   >,
   commodity: StorehouseCommodity,
 ): number {

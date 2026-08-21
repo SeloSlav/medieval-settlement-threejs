@@ -179,6 +179,8 @@ export type BuildingState = {
   granaryHouseholdsFirst?: boolean;
   granaryGrainReserve?: number;
   granaryFreshFoodTargetPercent?: number;
+  /** Stable CommodityKind bitset controlling new Storehouse/Granary intake. */
+  storageAcceptanceMask?: string;
   constructionPriority?: number;
   woodcutterTimberReserve?: number;
   harvestReservePercent?: number;
@@ -456,6 +458,9 @@ export type BackyardGardenState = {
   id: string;
   residenceId: string;
   kind: import('../generated/gameBalance.ts').BackyardGardenKind;
+  firstHarvestDay: number;
+  jamStock: number;
+  flowerLuxuryUpgraded: boolean;
 };
 
 export type ResourceStockpile = Record<ResourceKind, number> & {

@@ -7,8 +7,10 @@ import { bilberry } from '@seedthree/species/bilberry.js';
 import { commonJuniper } from '@seedthree/species/common-juniper.js';
 import { raspberry } from '@seedthree/species/raspberry.js';
 import { commonHornbeamHedge } from '@seedthree/species/common-hornbeam-hedge.js';
+import { aronia } from '@seedthree/species/aronia.js';
+import { rosehip } from '@seedthree/species/rosehip.js';
 
-export type GorskiShrubKind = 'bush' | 'fern' | 'juniper' | 'raspberry' | 'field-hornbeam';
+export type GorskiShrubKind = 'bush' | 'fern' | 'juniper' | 'raspberry' | 'field-hornbeam' | 'aronia' | 'rosehip';
 
 export type GorskiShrubPrototype = {
   geometry: THREE.BufferGeometry;
@@ -40,6 +42,8 @@ const PRESETS = {
   juniper: commonJuniper as SeedThreeShrubPreset,
   raspberry: raspberry as SeedThreeShrubPreset,
   'field-hornbeam': commonHornbeamHedge as SeedThreeShrubPreset,
+  aronia: aronia as SeedThreeShrubPreset,
+  rosehip: rosehip as SeedThreeShrubPreset,
 } as const;
 
 export function createGorskiShrubPrototype(
@@ -105,9 +109,14 @@ export function createGorskiShrubPrototype(
   geometry.userData.gorskiShrubVariant = variant;
   geometry.userData.seedThreeGenerator = 'dichotomous/sprayClusters';
 
-  const fruitAnchors = kind === 'raspberry'
-    ? selectFruitAnchors(generated.terminalStems, RASPBERRY_FRUIT_ANCHOR_LIMIT)
-    : [];
+  const fruitLimit = kind === 'raspberry'
+    ? RASPBERRY_FRUIT_ANCHOR_LIMIT
+    : kind === 'aronia'
+      ? 12
+      : kind === 'rosehip'
+        ? 10
+        : 0;
+  const fruitAnchors = selectFruitAnchors(generated.terminalStems, fruitLimit);
 
   terminalFoliage?.geometry.dispose();
   parentFoliage?.geometry.dispose();

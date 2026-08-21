@@ -15,6 +15,7 @@ const tests = [
   'test:specialty-trade',
   'test:settlement-specialty-exports',
   'test:backyard-economy-planning',
+  'test:orchard-specializations',
   'test:household-market-contingency',
   'test:parish-relief-planning',
   'test:textile-economy',

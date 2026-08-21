@@ -226,6 +226,8 @@ export const RESIDENCE_CLOTH_CAPACITY = 8;
 export const RESIDENCE_CLOTH_PER_PERSON_PER_SEC = 0.00018;
 export const RESIDENCE_POTTERY_CAPACITY = 6;
 export const RESIDENCE_POTTERY_PER_PERSON_PER_SEC = 0.001;
+export const RESIDENCE_LUXURY_JAM_CAPACITY = 12;
+export const RESIDENCE_LUXURY_JAM_PER_PERSON_PER_SEC = 0.0005;
 export const HUNGER_WARNING_DAYS = 2;
 export const MALNUTRITION_DAYS = 5;
 export const STARVATION_DEATH_START_DAYS = 14;
@@ -1673,7 +1675,7 @@ export const BUILDING_STORAGE_CAPS = {
   vineyard: { timber: 0, firewood: 0, stone: 0, food: 40, wine: 180 },
 } as const satisfies Record<BuildingKind, StorageCaps>;
 
-export const BACKYARD_GARDEN_KINDS = ["apple_orchard","cherry_orchard","vegetable_garden","flower_garden","herb_garden","hen_yard","goat_pen","backyard_apiary"] as const;
+export const BACKYARD_GARDEN_KINDS = ["orchard","apple_orchard","cherry_orchard","pear_orchard","aronia_orchard","rosehip_orchard","vegetable_garden","flower_garden","herb_garden","hen_yard","goat_pen","backyard_apiary"] as const;
 export type BackyardGardenKind = (typeof BACKYARD_GARDEN_KINDS)[number];
 
 export type BackyardGardenDefinition = {
@@ -1682,16 +1684,45 @@ export type BackyardGardenDefinition = {
   foodPerPersonPerSec: number;
   settlementAttractionMultiplier: number;
   hiddenFromPicker: boolean;
+  specializationOf: BackyardGardenKind | null;
+  firstHarvestDays: number;
+  harvestStartMonth: number;
+  harvestEndMonth: number;
+  yieldEfficiency: number;
+  jamPerPersonPerSec: number;
+  luxuryUpgradeGoldCost: number;
   goldCost: number;
 };
 
 export const BACKYARD_GARDEN_DEFINITIONS = {
+  orchard: {
+    kind: 'orchard',
+    label: "Orchard",
+    foodPerPersonPerSec: 0,
+    settlementAttractionMultiplier: 1.01,
+    hiddenFromPicker: false,
+    specializationOf: null,
+    firstHarvestDays: 0,
+    harvestStartMonth: 0,
+    harvestEndMonth: 0,
+    yieldEfficiency: 1,
+    jamPerPersonPerSec: 0,
+    luxuryUpgradeGoldCost: 0,
+    goldCost: 2,
+  },
   apple_orchard: {
     kind: 'apple_orchard',
     label: "Apple orchard",
     foodPerPersonPerSec: 0.0025,
     settlementAttractionMultiplier: 1,
-    hiddenFromPicker: false,
+    hiddenFromPicker: true,
+    specializationOf: 'orchard',
+    firstHarvestDays: 90,
+    harvestStartMonth: 9,
+    harvestEndMonth: 9,
+    yieldEfficiency: 1,
+    jamPerPersonPerSec: 0,
+    luxuryUpgradeGoldCost: 0,
     goldCost: 4,
   },
   cherry_orchard: {
@@ -1700,6 +1731,58 @@ export const BACKYARD_GARDEN_DEFINITIONS = {
     foodPerPersonPerSec: 0.00225,
     settlementAttractionMultiplier: 1,
     hiddenFromPicker: true,
+    specializationOf: 'orchard',
+    firstHarvestDays: 120,
+    harvestStartMonth: 6,
+    harvestEndMonth: 6,
+    yieldEfficiency: 0.92,
+    jamPerPersonPerSec: 0,
+    luxuryUpgradeGoldCost: 0,
+    goldCost: 4,
+  },
+  pear_orchard: {
+    kind: 'pear_orchard',
+    label: "Pear orchard",
+    foodPerPersonPerSec: 0.0027,
+    settlementAttractionMultiplier: 1.01,
+    hiddenFromPicker: true,
+    specializationOf: 'orchard',
+    firstHarvestDays: 150,
+    harvestStartMonth: 9,
+    harvestEndMonth: 10,
+    yieldEfficiency: 1.08,
+    jamPerPersonPerSec: 0,
+    luxuryUpgradeGoldCost: 0,
+    goldCost: 5,
+  },
+  aronia_orchard: {
+    kind: 'aronia_orchard',
+    label: "Aronia bushes",
+    foodPerPersonPerSec: 0.00165,
+    settlementAttractionMultiplier: 1.015,
+    hiddenFromPicker: true,
+    specializationOf: 'orchard',
+    firstHarvestDays: 60,
+    harvestStartMonth: 8,
+    harvestEndMonth: 9,
+    yieldEfficiency: 0.9,
+    jamPerPersonPerSec: 0.00065,
+    luxuryUpgradeGoldCost: 0,
+    goldCost: 4,
+  },
+  rosehip_orchard: {
+    kind: 'rosehip_orchard',
+    label: "Rosehip bushes",
+    foodPerPersonPerSec: 0.00125,
+    settlementAttractionMultiplier: 1.02,
+    hiddenFromPicker: true,
+    specializationOf: 'orchard',
+    firstHarvestDays: 75,
+    harvestStartMonth: 10,
+    harvestEndMonth: 11,
+    yieldEfficiency: 0.82,
+    jamPerPersonPerSec: 0.0009,
+    luxuryUpgradeGoldCost: 0,
     goldCost: 4,
   },
   vegetable_garden: {
@@ -1708,6 +1791,13 @@ export const BACKYARD_GARDEN_DEFINITIONS = {
     foodPerPersonPerSec: 0.003,
     settlementAttractionMultiplier: 1,
     hiddenFromPicker: false,
+    specializationOf: null,
+    firstHarvestDays: 0,
+    harvestStartMonth: 0,
+    harvestEndMonth: 0,
+    yieldEfficiency: 1,
+    jamPerPersonPerSec: 0,
+    luxuryUpgradeGoldCost: 0,
     goldCost: 3,
   },
   flower_garden: {
@@ -1716,6 +1806,13 @@ export const BACKYARD_GARDEN_DEFINITIONS = {
     foodPerPersonPerSec: 0,
     settlementAttractionMultiplier: 0.88,
     hiddenFromPicker: false,
+    specializationOf: null,
+    firstHarvestDays: 0,
+    harvestStartMonth: 0,
+    harvestEndMonth: 0,
+    yieldEfficiency: 1,
+    jamPerPersonPerSec: 0,
+    luxuryUpgradeGoldCost: 8,
     goldCost: 2,
   },
   herb_garden: {
@@ -1724,6 +1821,13 @@ export const BACKYARD_GARDEN_DEFINITIONS = {
     foodPerPersonPerSec: 0,
     settlementAttractionMultiplier: 1,
     hiddenFromPicker: false,
+    specializationOf: null,
+    firstHarvestDays: 0,
+    harvestStartMonth: 0,
+    harvestEndMonth: 0,
+    yieldEfficiency: 1,
+    jamPerPersonPerSec: 0,
+    luxuryUpgradeGoldCost: 0,
     goldCost: 4,
   },
   hen_yard: {
@@ -1732,6 +1836,13 @@ export const BACKYARD_GARDEN_DEFINITIONS = {
     foodPerPersonPerSec: 0.0025,
     settlementAttractionMultiplier: 1,
     hiddenFromPicker: false,
+    specializationOf: null,
+    firstHarvestDays: 0,
+    harvestStartMonth: 0,
+    harvestEndMonth: 0,
+    yieldEfficiency: 1,
+    jamPerPersonPerSec: 0,
+    luxuryUpgradeGoldCost: 0,
     goldCost: 3,
   },
   goat_pen: {
@@ -1740,6 +1851,13 @@ export const BACKYARD_GARDEN_DEFINITIONS = {
     foodPerPersonPerSec: 0.0018,
     settlementAttractionMultiplier: 0.97,
     hiddenFromPicker: false,
+    specializationOf: null,
+    firstHarvestDays: 0,
+    harvestStartMonth: 0,
+    harvestEndMonth: 0,
+    yieldEfficiency: 1,
+    jamPerPersonPerSec: 0,
+    luxuryUpgradeGoldCost: 0,
     goldCost: 4,
   },
   backyard_apiary: {
@@ -1748,13 +1866,24 @@ export const BACKYARD_GARDEN_DEFINITIONS = {
     foodPerPersonPerSec: 0.001,
     settlementAttractionMultiplier: 1.03,
     hiddenFromPicker: false,
+    specializationOf: null,
+    firstHarvestDays: 0,
+    harvestStartMonth: 0,
+    harvestEndMonth: 0,
+    yieldEfficiency: 1,
+    jamPerPersonPerSec: 0,
+    luxuryUpgradeGoldCost: 0,
     goldCost: 4,
   },
 } as const satisfies Record<BackyardGardenKind, BackyardGardenDefinition>;
 
 export const BACKYARD_GARDEN_COSTS = {
+  orchard: { timber: 10, stone: 4, gold: 2 },
   apple_orchard: { timber: 10, stone: 4, gold: 4 },
   cherry_orchard: { timber: 9, stone: 3, gold: 4 },
+  pear_orchard: { timber: 10, stone: 4, gold: 5 },
+  aronia_orchard: { timber: 10, stone: 4, gold: 4 },
+  rosehip_orchard: { timber: 10, stone: 4, gold: 4 },
   vegetable_garden: { timber: 5, stone: 2, gold: 3 },
   flower_garden: { timber: 4, stone: 1, gold: 2 },
   herb_garden: { timber: 4, stone: 2, gold: 4 },

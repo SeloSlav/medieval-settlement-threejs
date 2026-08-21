@@ -119,6 +119,8 @@ export function syncSettlementWorld(
     );
   const workerForagingMonthChanged = !previous
     || gameClock(state.tick).month !== gameClock(previous.tick).month;
+  const backyardGardenDayChanged = !previous
+    || gameClock(state.tick).totalDays !== gameClock(previous.tick).totalDays;
   const workerTreePhasesChanged = !previous || !mapEntriesMatch(
     state.trees,
     previous.trees,
@@ -196,12 +198,15 @@ export function syncSettlementWorld(
     || burgageZonesChanged
     || gardensChanged
     || workerForagingMonthChanged
+    || backyardGardenDayChanged
   ) {
+    const clock = gameClock(state.tick);
     targets.backyardGardenMarkers?.syncGardens({
       residences: state.residences.values(),
       zones: state.burgageZones.values(),
       gardens: state.backyardGardens,
-      month: gameClock(state.tick).month,
+      month: clock.month,
+      totalDays: clock.totalDays,
       getHeightAt,
     });
   }

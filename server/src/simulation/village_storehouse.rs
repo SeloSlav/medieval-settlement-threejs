@@ -8,7 +8,9 @@ use crate::balance_generated::{
     TIMBER_DELIVERY_SPEED_MPS, TIMBER_DELIVERY_UNLOAD_SEC,
 };
 use crate::db::*;
-use crate::economy::{building_commodity_cap, building_commodity_stock, CommodityKind};
+use crate::economy::{
+    building_commodity_cap, building_commodity_stock, storage_accepts_commodity, CommodityKind,
+};
 use crate::fuel_reserve_policy::{
     combined_fuel_equivalent, fuel_runway_days, household_fuel_demand_per_day,
     marketplace_fuel_reserve_target,
@@ -405,19 +407,6 @@ fn dispatch_overflow_collection_for_owner(
     }
 }
 
-fn storehouse_accepts_commodity(storehouse: &Building, commodity: CommodityKind) -> bool {
-    match commodity {
-        CommodityKind::Timber => storehouse.storehouse_accepts_timber,
-        CommodityKind::Stone => storehouse.storehouse_accepts_stone,
-        CommodityKind::Firewood => storehouse.storehouse_accepts_firewood,
-        CommodityKind::Charcoal => storehouse.storehouse_accepts_charcoal,
-        CommodityKind::Iron => storehouse.storehouse_accepts_iron,
-        CommodityKind::Clay => storehouse.storehouse_accepts_clay,
-        CommodityKind::Salt => storehouse.storehouse_accepts_salt,
-        _ => false,
-    }
-}
-
 fn storehouse_collection_room(storehouse: &Building, commodity: CommodityKind) -> f64 {
     let percent = match commodity {
         CommodityKind::Timber => storehouse.storehouse_timber_target_percent,
@@ -430,7 +419,7 @@ fn storehouse_collection_room(storehouse: &Building, commodity: CommodityKind) -
         _ => return 0.0,
     };
     storehouse_filtered_collection_headroom(
-        storehouse_accepts_commodity(storehouse, commodity),
+        storage_accepts_commodity(storehouse, commodity),
         building_commodity_stock(storehouse, commodity),
         building_commodity_cap(&storehouse.kind, commodity),
         percent,

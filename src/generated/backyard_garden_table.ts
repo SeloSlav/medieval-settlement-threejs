@@ -15,4 +15,7 @@ export default __t.row({
   residenceId: __t.u64().name("residence_id"),
   owner: __t.identity(),
   kind: __t.u8(),
+  firstHarvestDay: __t.u64().name("first_harvest_day"),
+  jamStock: __t.f64().name("jam_stock"),
+  flowerLuxuryUpgraded: __t.bool().name("flower_luxury_upgraded"),
 });

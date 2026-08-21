@@ -6,9 +6,12 @@ import {
 import { fireDisabledBuildingIds } from '../fires/fireIncident.ts';
 import {
   isStorehouseCommodity,
-  storehouseAcceptsCommodity,
   storehouseFilteredCollectionHeadroom,
 } from '../economy/storehousePolicy.ts';
+import {
+  isStorageCommodity,
+  storageAcceptsCommodity,
+} from '../economy/storageAcceptancePolicy.ts';
 import {
   freshFoodStock,
   isFreshFoodCargo,
@@ -404,8 +407,8 @@ export function planFoundingStockyardRelocation(
       }
       hasCompatibleStorage = true;
       if (
-        isStorehouseCommodity(commodity)
-        && !storehouseAcceptsCommodity(destination, commodity)
+        isStorageCommodity(commodity)
+        && !storageAcceptsCommodity(destination, commodity)
       ) {
         continue;
       }

@@ -5,8 +5,11 @@ import { WIND_DIR } from '@seedthree/core/wind.js';
 import { loadSeedThreeSpeciesAssets } from './seedThreeAssets.ts';
 import { seedThreeFruitUrl } from './seedThreeTextures.ts';
 import { BACKYARD_PLANT_SPECIES, type BackyardPlantKind } from './backyardPlantPresets.ts';
+import { createGorskiShrubPrototype } from './gorskiShrubPrototypes.ts';
 
-export type OrchardFruitKind = 'apple' | 'cherry';
+export type OrchardTreeKind = 'apple' | 'cherry' | 'pear';
+export type OrchardShrubKind = 'aronia' | 'rosehip';
+export type OrchardFruitKind = OrchardTreeKind | OrchardShrubKind;
 
 export type BackyardSeasonalFoliageTintBinding = {
   color: { value: THREE.Color };
@@ -30,6 +33,9 @@ type FruitPrototype = {
 const VARIANT_COUNT: Record<BackyardPlantKind, number> = {
   apple: 3,
   cherry: 3,
+  pear: 3,
+  aronia: 3,
+  rosehip: 3,
   rose: 2,
 };
 
@@ -99,10 +105,10 @@ export function loadBackyardPlantCatalog(maxAnisotropy: number): Promise<Backyar
       OrchardFruitKind,
       BackyardSeasonalFoliageTintBinding[]
     >();
-    for (const kind of ['apple', 'cherry', 'rose'] as const) {
+    for (const kind of ['apple', 'cherry', 'pear', 'aronia', 'rosehip', 'rose'] as const) {
       const species = BACKYARD_PLANT_SPECIES[kind];
       const assets = await loadSeedThreeSpeciesAssets(species, maxAnisotropy);
-      if (kind === 'apple' || kind === 'cherry') {
+      if (kind === 'apple' || kind === 'cherry' || kind === 'pear') {
         seasonalFoliageBindings.set(kind, [
           { color: assets.leafTintColor, amount: assets.leafTintAmount },
           { color: assets.clusterTintColor, amount: assets.clusterTintAmount },
@@ -110,14 +116,18 @@ export function loadBackyardPlantCatalog(maxAnisotropy: number): Promise<Backyar
       }
       const variants: THREE.LOD[] = [];
       for (let variant = 0; variant < VARIANT_COUNT[kind]; variant++) {
-        const { group } = buildTree(
-          species,
-          `backyard:${kind}:${variant}`,
-          assets,
-          GARDEN_LOD_OPTIONS,
-        );
+        const group = kind === 'aronia' || kind === 'rosehip'
+          ? createOrchardShrub(kind, variant, assets)
+          : buildTree(
+            species,
+            `backyard:${kind}:${variant}`,
+            assets,
+            GARDEN_LOD_OPTIONS,
+          ).group;
         group.name = `SeedThree ${kind} prototype ${variant + 1}`;
-        normalizeBackyardPlantFoliageWind(group);
+        if (kind !== 'aronia' && kind !== 'rosehip') {
+          normalizeBackyardPlantFoliageWind(group);
+        }
         markSharedPrototypeGeometry(group);
         variants.push(group);
       }
@@ -131,8 +141,12 @@ export function loadBackyardPlantCatalog(maxAnisotropy: number): Promise<Backyar
         const source = variants[Math.abs(variant) % variants.length]!;
         const clone = source.clone(true) as THREE.LOD;
         clone.name = `SeedThree backyard ${kind}`;
-        if (kind === 'apple' || kind === 'cherry') {
+        if (kind === 'apple' || kind === 'cherry' || kind === 'pear') {
           clone.userData.backyardSeasonalFoliageTintBindings = seasonalFoliageBindings.get(kind);
+        }
+        const fruitAnchors = source.userData.backyardFruitAnchors as number[][] | undefined;
+        if (fruitAnchors) {
+          clone.userData.backyardFruitAnchors = fruitAnchors.map((anchor) => [...anchor]);
         }
         markSharedPrototypeGeometry(clone);
         return clone;
@@ -144,8 +158,9 @@ export function loadBackyardPlantCatalog(maxAnisotropy: number): Promise<Backyar
       ): THREE.InstancedMesh {
         const prototype = fruitPrototypes[kind];
         const mesh = new THREE.InstancedMesh(prototype.geometry, prototype.material, positions.length);
-        mesh.name = kind === 'apple' ? 'SeedThree apple GLB fruit' : 'SeedThree cherry-pair GLB fruit';
-        mesh.userData.fruitModel = kind === 'apple' ? 'apple.glb' : 'cherry_pair.glb';
+        const metadata = FRUIT_METADATA[kind];
+        mesh.name = metadata.name;
+        mesh.userData.fruitModel = metadata.fileName;
         mesh.userData.fruitCount = positions.length;
         mesh.castShadow = false;
         mesh.receiveShadow = true;
@@ -156,7 +171,7 @@ export function loadBackyardPlantCatalog(maxAnisotropy: number): Promise<Backyar
           const yaw = hash01(index * 9.17 + variant * 3.11) * Math.PI * 2;
           const tilt = (hash01(index * 4.73 + variant * 7.07) - 0.5) * 0.24;
           quaternion.setFromEuler(new THREE.Euler(tilt, yaw, tilt * 0.35, 'YXZ'));
-          const baseScale = kind === 'apple' ? 1.14 : 1.0;
+          const baseScale = metadata.scale;
           const variedScale = baseScale * THREE.MathUtils.lerp(0.9, 1.12, hash01(index * 6.19 + 2.7));
           scale.setScalar(variedScale);
           matrix.compose(positions[index]!, quaternion, scale);
@@ -176,11 +191,72 @@ export function loadBackyardPlantCatalog(maxAnisotropy: number): Promise<Backyar
 }
 
 async function loadFruitPrototypes(): Promise<Record<OrchardFruitKind, FruitPrototype>> {
-  const [apple, cherry] = await Promise.all([
-    loadFruitPrototype('apple.glb'),
-    loadFruitPrototype('cherry_pair.glb'),
-  ]);
-  return { apple, cherry };
+  const entries = await Promise.all(
+    (Object.keys(FRUIT_METADATA) as OrchardFruitKind[]).map(async (kind) => [
+      kind,
+      await loadFruitPrototype(FRUIT_METADATA[kind].fileName),
+    ] as const),
+  );
+  return Object.fromEntries(entries) as Record<OrchardFruitKind, FruitPrototype>;
+}
+
+const FRUIT_METADATA: Record<OrchardFruitKind, {
+  fileName: string;
+  name: string;
+  scale: number;
+}> = {
+  apple: { fileName: 'apple.glb', name: 'SeedThree apple GLB fruit', scale: 1.14 },
+  cherry: { fileName: 'cherry_pair.glb', name: 'SeedThree cherry-pair GLB fruit', scale: 1 },
+  pear: { fileName: 'pear.glb', name: 'SeedThree pear GLB fruit', scale: 1 },
+  aronia: { fileName: 'aronia_cluster.glb', name: 'SeedThree aronia-cluster GLB fruit', scale: 1 },
+  rosehip: { fileName: 'rosehip_cluster.glb', name: 'SeedThree rosehip-cluster GLB fruit', scale: 1 },
+};
+
+function createOrchardShrub(
+  kind: OrchardShrubKind,
+  variant: number,
+  assets: Awaited<ReturnType<typeof loadSeedThreeSpeciesAssets>>,
+): THREE.LOD {
+  const prototype = createGorskiShrubPrototype(kind, variant);
+  prototype.geometry.userData.prototypeTriangleCount = prototype.triangleCount;
+  const branch = new THREE.MeshStandardMaterial({
+    name: `SeedThree ${kind} branch material`,
+    map: assets.barkTexture,
+    normalMap: assets.barkNormal,
+    roughnessMap: assets.barkRoughness,
+    roughness: assets.barkRoughness ? 1 : 0.92,
+    metalness: 0,
+  });
+  const foliage = new THREE.MeshStandardMaterial({
+    name: `SeedThree ${kind} foliage material`,
+    map: assets.leafTexture,
+    normalMap: assets.leafNormal,
+    roughnessMap: assets.leafRoughness,
+    roughness: assets.leafRoughness ? 1 : 0.91,
+    metalness: 0,
+    alphaTest: kind === 'aronia' ? 0.42 : 0.4,
+    side: THREE.DoubleSide,
+  });
+  foliage.forceSinglePass = true;
+  foliage.normalScale.set(0.45, 0.45);
+  foliage.userData.translucencyMap = assets.leafTranslucency;
+
+  const mesh = new THREE.Mesh(prototype.geometry, [branch, foliage]);
+  mesh.name = `SeedThree ${kind} dichotomous shrub`;
+  mesh.receiveShadow = true;
+  mesh.castShadow = false;
+  mesh.userData.backyardSharedGeometry = true;
+  mesh.userData.seedThreeGenerator = prototype.geometry.userData.seedThreeGenerator;
+  mesh.userData.prototypeTriangleCount = prototype.triangleCount;
+
+  const lod = new THREE.LOD();
+  lod.addLevel(mesh, 0);
+  lod.userData.backyardFruitAnchors = prototype.fruitAnchors.map(
+    (anchor) => [anchor.x, anchor.y, anchor.z],
+  );
+  lod.userData.seedThreeGenerator = prototype.geometry.userData.seedThreeGenerator;
+  lod.userData.prototypeTriangleCount = prototype.triangleCount;
+  return lod;
 }
 
 async function loadFruitPrototype(fileName: string): Promise<FruitPrototype> {

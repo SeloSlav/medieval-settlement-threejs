@@ -58,6 +58,7 @@ mod seasonal_labor_policy;
 mod security_policy;
 mod simulation;
 mod specialty_trade_policy;
+mod storage_acceptance_policy;
 mod storehouse_policy;
 mod supply_policy;
 mod tables;

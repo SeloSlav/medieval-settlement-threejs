@@ -9,10 +9,11 @@ pub enum ResidenceNeedKind {
     Pottery,
     Church,
     FoodVariety,
+    Luxury,
 }
 
 impl ResidenceNeedKind {
-    pub const ALL: [ResidenceNeedKind; 9] = [
+    pub const ALL: [ResidenceNeedKind; 10] = [
         Self::Firewood,
         Self::Water,
         Self::Food,
@@ -22,13 +23,14 @@ impl ResidenceNeedKind {
         Self::Pottery,
         Self::Church,
         Self::FoodVariety,
+        Self::Luxury,
     ];
 
     pub fn is_active_for_tier(self, tier: u8) -> bool {
         match self {
             Self::Food | Self::Firewood | Self::Water | Self::Church => tier >= 1,
             Self::FoodVariety | Self::Cloth | Self::Ale => tier >= 2,
-            Self::PreservedFood | Self::Pottery => tier >= 4,
+            Self::PreservedFood | Self::Pottery | Self::Luxury => tier >= 4,
         }
     }
 
@@ -53,6 +55,7 @@ impl ResidenceNeedKind {
             // Virtual service rows sit after physical CommodityKind ids.
             Self::Church => 42,
             Self::FoodVariety => 43,
+            Self::Luxury => 57,
         }
     }
 
@@ -67,6 +70,7 @@ impl ResidenceNeedKind {
             23 => Some(Self::Pottery),
             42 => Some(Self::Church),
             43 => Some(Self::FoodVariety),
+            57 => Some(Self::Luxury),
             _ => None,
         }
     }
@@ -89,7 +93,7 @@ mod tests {
         assert_eq!(active_count(1), 4);
         assert_eq!(active_count(2), 7);
         assert_eq!(active_count(3), 7);
-        assert_eq!(active_count(4), 9);
+        assert_eq!(active_count(4), 10);
         assert!(ResidenceNeedKind::Food.is_active_for_tier(1));
         assert!(ResidenceNeedKind::Firewood.is_active_for_tier(1));
         assert!(ResidenceNeedKind::Cloth.is_active_for_tier(2));
@@ -97,6 +101,7 @@ mod tests {
         assert!(!ResidenceNeedKind::PreservedFood.is_active_for_tier(2));
         assert!(!ResidenceNeedKind::Pottery.is_active_for_tier(3));
         assert!(ResidenceNeedKind::Pottery.is_active_for_tier(4));
+        assert!(ResidenceNeedKind::Luxury.is_active_for_tier(4));
         assert_eq!(ResidenceNeedKind::Cloth.as_u8(), 14);
         assert_eq!(ResidenceNeedKind::Pottery.as_u8(), 23);
     }

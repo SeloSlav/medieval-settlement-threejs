@@ -26,6 +26,13 @@ import {
   storehouseCommodityTargetPercent,
   type StorehouseCommodity,
 } from '../../economy/storehousePolicy.ts';
+import {
+  renderStorageAcceptanceControls,
+  storageAcceptsCommodity,
+  storageCommodityLabel,
+  STOREHOUSE_STORAGE_COMMODITIES,
+  STOREHOUSE_STORAGE_GROUPS,
+} from '../../economy/storageAcceptancePolicy.ts';
 
 export function renderStorehouseInspector(
   target: Extract<InspectableTarget, { kind: 'building' }>,
@@ -38,8 +45,7 @@ export function renderStorehouseInspector(
     && (building.charcoal ?? 0) > 1e-6
     ? context.worldQueries.getNextDirectProcessorInputDispatch(building, 'charcoal')
     : null;
-  const firewoodDispatch = building.storehouseAcceptsFirewood
-    && building.assignedLabor > 0
+  const firewoodDispatch = building.assignedLabor > 0
     && building.firewood > 1e-6
     ? context.worldQueries.getNextDirectProcessorInputDispatch(building, 'firewood')
     : null;
@@ -50,8 +56,7 @@ export function renderStorehouseInspector(
       : null;
   const materialDispatch = (['iron', 'clay', 'salt'] as const)
     .filter((commodity) =>
-      storehouseAcceptsCommodity(building, commodity)
-      && Math.max(0, building[commodity] ?? 0) > 1e-6
+      Math.max(0, building[commodity] ?? 0) > 1e-6
     )
     .map((commodity) => ({
       commodity,
@@ -81,9 +86,9 @@ export function renderStorehouseInspector(
       : building.firewood <= 1e-6
         ? 'No surplus firewood stored'
         : 'No staffed workshop currently requests surplus fuel';
-  const accepted = STOREHOUSE_COMMODITIES
-    .filter((commodity) => storehouseAcceptsCommodity(building, commodity))
-    .map(storehouseCommodityLabel);
+  const accepted = STOREHOUSE_STORAGE_COMMODITIES
+    .filter((commodity) => storageAcceptsCommodity(building, commodity))
+    .map(storageCommodityLabel);
   const collectionTargets = STOREHOUSE_COMMODITIES
     .map((commodity) =>
       `${storehouseCommodityLabel(commodity)} ${storehouseCommodityTargetPercent(building, commodity)}%`,
@@ -153,15 +158,9 @@ export function renderStorehouseInspector(
     labor: buildingLaborView(building, context.populationStats, context.worldQueries),
     supplementalPanelHtml: `
       <div class="inspector-action-panel">
-        <p class="inspector-action-panel__hint">Stored goods remain safe without staff. Each assigned keeper can set up one stocked fuel, cloth, or pottery table at one nearest connected Marketplace; unstocked keepers stand by to accept the first compatible producer delivery. Other duties still include urgent workshop supply and producer overflow. Household collection is automatic; there is no emergency top-up button.</p>
-        ${acceptanceToggle('timber', 'Timber', building.storehouseAcceptsTimber)}
-        ${acceptanceToggle('stone', 'Stone', building.storehouseAcceptsStone)}
-        ${acceptanceToggle('firewood', 'Firewood', building.storehouseAcceptsFirewood)}
-        ${acceptanceToggle('charcoal', 'Charcoal', building.storehouseAcceptsCharcoal !== false)}
-        ${acceptanceToggle('iron', 'Iron', building.storehouseAcceptsIron !== false)}
-        ${acceptanceToggle('clay', 'Clay', building.storehouseAcceptsClay !== false)}
-        ${acceptanceToggle('salt', 'Salt', building.storehouseAcceptsSalt !== false)}
-        <p class="inspector-action-panel__hint">Collection targets distribute producer overflow between depots. Charcoal is different: its target is a maximum transit batch, requested only when linked market demand remains after existing depot fuel is counted. Full smithies and full household runway never create charcoal storage demand. Other targets cap incoming overflow carts; material already above a lowered target remains available.</p>
+        <p class="inspector-action-panel__hint">Choose exactly which goods this Storehouse may receive. Disabled goods stay at producers or route to another compatible depot; stock already here remains safe and may still be dispatched. Each assigned keeper can set up one stocked fuel, cloth, or pottery table at one nearest connected Marketplace.</p>
+        ${renderStorageAcceptanceControls(building, STOREHOUSE_STORAGE_GROUPS)}
+        <p class="inspector-action-panel__hint">Collection targets distribute producer overflow between depots. Charcoal is a transit buffer: an accepting depot fills toward this target when its road branch has uncovered Marketplace fuel demand or a Trading Post exporting charcoal. Other targets cap incoming overflow carts; material already above a lowered target remains available.</p>
         ${renderStorehouseStockTargetControls(building)}
       </div>
     `,
@@ -180,7 +179,7 @@ export function renderStorehouseStockTargetControls(building: BuildingState): st
     );
     const pressure = headroom > 0.05
       ? commodity === 'charcoal'
-        ? `${headroom.toFixed(0)} transit ceiling room · pulled only for linked demand`
+        ? `${headroom.toFixed(0)} transit room · linked market or export demand`
         : `${headroom.toFixed(0)} collection headroom`
       : stock > target + 0.05
         ? `${(stock - target).toFixed(0)} above target · still available`
@@ -192,10 +191,6 @@ export function renderStorehouseStockTargetControls(building: BuildingState): st
         .join('')}</div>
     `;
   }).join('');
-}
-
-function acceptanceToggle(key: StorehouseCommodity, label: string, checked: boolean): string {
-  return `<label class="city-admin-panel__toggle"><input type="checkbox" data-storehouse-accepts-${key} ${checked ? 'checked' : ''} /><span>Accept ${label}</span></label>`;
 }
 
 function storehouseCommodityLabel(commodity: StorehouseCommodity): string {

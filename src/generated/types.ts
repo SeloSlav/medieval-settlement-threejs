@@ -37,6 +37,9 @@ export const BackyardGarden = __t.object("BackyardGarden", {
   residenceId: __t.u64(),
   owner: __t.identity(),
   kind: __t.u8(),
+  firstHarvestDay: __t.u64(),
+  jamStock: __t.f64(),
+  flowerLuxuryUpgraded: __t.bool(),
 });
 export type BackyardGarden = __Infer<typeof BackyardGarden>;
 
@@ -186,6 +189,7 @@ export const Building = __t.object("Building", {
   monasteryCroftChoiceYear: __t.u32(),
   monasteryServiceFunding: __t.f64(),
   monasteryLastServiceDay: __t.u64(),
+  storageAcceptanceMask: __t.u64(),
 });
 export type Building = __Infer<typeof Building>;
 

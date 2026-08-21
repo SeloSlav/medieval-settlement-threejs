@@ -1,6 +1,9 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import type { BackyardGardenKind } from '../generated/gameBalance.ts';
+import {
+  BACKYARD_GARDEN_DEFINITIONS,
+  type BackyardGardenKind,
+} from '../generated/gameBalance.ts';
 import {
   sharedBuildingDetailMaterial,
   sharedBuildingMaterial,
@@ -19,6 +22,7 @@ export type BackyardGardenMeshOptions = {
   depth?: number;
   seed?: number;
   plants?: BackyardPlantCatalog | null;
+  flowerLuxuryUpgraded?: boolean;
 };
 
 const FLOWER_STEM_MAP_SIZE = 64;
@@ -30,6 +34,7 @@ const ORCHARD_SPRING_LEAF_COLOR = 0xb6d965;
 const ORCHARD_AUTUMN_LEAF_COLOR = {
   apple: 0xd1762b,
   cherry: 0xc84d32,
+  pear: 0xc79932,
 } as const;
 
 function createFlowerStemMaps(): {
@@ -201,6 +206,9 @@ const MATERIALS = {
   apple: new THREE.MeshStandardMaterial({ color: 0xb94332, roughness: 0.76 }),
   appleGold: new THREE.MeshStandardMaterial({ color: 0xd99b3a, roughness: 0.76 }),
   cherry: new THREE.MeshStandardMaterial({ color: 0x7f1f2f, roughness: 0.72 }),
+  pear: new THREE.MeshStandardMaterial({ color: 0x9aaa43, roughness: 0.78 }),
+  aronia: new THREE.MeshStandardMaterial({ color: 0x242137, roughness: 0.7 }),
+  rosehip: new THREE.MeshStandardMaterial({ color: 0xba482f, roughness: 0.76 }),
   flowerCenter: new THREE.MeshStandardMaterial({ color: 0xd8aa3f, roughness: 0.82 }),
   flowerVertex: new THREE.MeshStandardMaterial({
     color: 0xffffff,
@@ -701,19 +709,20 @@ function addBasket(
 
 function addFruitClusters(
   anchor: THREE.Group,
-  plantKind: 'apple' | 'cherry',
+  plantKind: 'apple' | 'cherry' | 'pear',
   variant: number,
   seed: number,
   plants: BackyardPlantCatalog,
 ): void {
   const rng = mulberry32(seed ^ 0x9e3779b9);
-  const clusterCount = plantKind === 'apple' ? 10 : 13;
+  const clusterCount = plantKind === 'apple' ? 10 : plantKind === 'cherry' ? 13 : 9;
   const positions: THREE.Vector3[] = [];
 
   for (let cluster = 0; cluster < clusterCount; cluster++) {
     const angle = rng() * Math.PI * 2;
     const radius = 0.45 + rng() * 0.8;
-    const y = (plantKind === 'apple' ? 2.1 : 2.35) + rng() * 1.25;
+    const y = (plantKind === 'apple' ? 2.1 : plantKind === 'cherry' ? 2.35 : 2.5)
+      + rng() * (plantKind === 'pear' ? 1.45 : 1.25);
     const center = new THREE.Vector3(
       Math.cos(angle) * radius,
       y,
@@ -730,10 +739,11 @@ function addFruitClusters(
 
 function addFruitTreeCollisionProxy(
   anchor: THREE.Group,
-  plantKind: 'apple' | 'cherry',
+  plantKind: 'apple' | 'cherry' | 'pear',
 ): void {
-  const height = plantKind === 'apple' ? 1.72 : 2.02;
-  const radius = plantKind === 'apple' ? 0.22 : 0.2;
+  const height = plantKind === 'apple' ? 1.72 : plantKind === 'cherry' ? 2.02 : 2.2;
+  const radius = plantKind === 'apple' ? 0.22 : plantKind === 'cherry' ? 0.2 : 0.19;
+  const label = plantKind === 'apple' ? 'Apple' : plantKind === 'cherry' ? 'Cherry' : 'Pear';
   const proxy = addMesh(
     anchor,
     new THREE.CylinderGeometry(radius, radius * 1.18, height, 8),
@@ -743,14 +753,14 @@ function addFruitTreeCollisionProxy(
     0,
     undefined,
     undefined,
-    `${plantKind === 'apple' ? 'Apple' : 'Cherry'} tree trunk collision proxy`,
+    `${label} tree trunk collision proxy`,
   );
   proxy.userData.fpCollisionProxy = true;
 }
 
 function addFruitTree(
   group: THREE.Group,
-  plantKind: 'apple' | 'cherry',
+  plantKind: 'apple' | 'cherry' | 'pear',
   x: number,
   z: number,
   variant: number,
@@ -758,9 +768,15 @@ function addFruitTree(
   plants: BackyardPlantCatalog | null,
 ): void {
   const anchor = new THREE.Group();
-  anchor.name = `${plantKind === 'apple' ? 'AppleTree' : 'CherryTree'}:${variant}`;
+  const label = plantKind === 'apple' ? 'AppleTree' : plantKind === 'cherry' ? 'CherryTree' : 'PearTree';
+  anchor.name = `${label}:${variant}`;
   anchor.position.set(x, 0, z);
   anchor.rotation.y = mulberry32(seed)() * Math.PI * 2;
+  // Backyard orchards are managed semi-dwarf standards. SeedThree species
+  // retain botanical metre scales for the forest/catalog; this plot-local
+  // transform keeps crowns legible without swallowing the cottage parcel.
+  anchor.scale.setScalar(plantKind === 'apple' ? 0.76 : plantKind === 'cherry' ? 0.64 : 0.68);
+  anchor.userData.backyardMaturityAnchor = true;
   group.add(anchor);
 
   // Never substitute a procedural tree while the SeedThree catalog is
@@ -805,7 +821,7 @@ function orchardTreeGrid(width: number, depth: number): {
 
 function addOrchard(
   group: THREE.Group,
-  kind: 'apple' | 'cherry',
+  kind: 'apple' | 'cherry' | 'pear',
   width: number,
   depth: number,
   seed: number,
@@ -819,9 +835,133 @@ function addOrchard(
     width * 0.34,
     -depth * 0.34,
     true,
-    kind === 'apple' ? MATERIALS.apple : MATERIALS.cherry,
-    kind === 'apple' ? 0.09 : 0.036,
-    kind === 'apple' ? 5 : 12,
+    kind === 'apple' ? MATERIALS.apple : kind === 'cherry' ? MATERIALS.cherry : MATERIALS.pear,
+    kind === 'apple' ? 0.09 : kind === 'cherry' ? 0.036 : 0.082,
+    kind === 'apple' ? 5 : kind === 'cherry' ? 12 : 6,
+  );
+}
+
+function addPreparedOrchard(
+  group: THREE.Group,
+  width: number,
+  depth: number,
+  seed: number,
+): void {
+  const { columns, rows, positions } = orchardTreeGrid(width, depth);
+  group.userData.orchardGrid = { columns, rows };
+  group.userData.orchardAwaitingSpecialization = true;
+  for (const [x, z] of positions) {
+    addMesh(
+      group,
+      new THREE.CylinderGeometry(0.48, 0.58, 0.055, 14),
+      MATERIALS.darkSoil,
+      x,
+      0.03,
+      z,
+      undefined,
+      undefined,
+      'Prepared orchard planting pit',
+    );
+    addMesh(
+      group,
+      new THREE.CylinderGeometry(0.025, 0.04, 1.15, 6),
+      MATERIALS.darkTimber,
+      x + 0.34,
+      0.575,
+      z,
+      new THREE.Euler(0, 0, -0.04),
+      undefined,
+      'Orchard planting stake',
+    );
+  }
+  addSteppingStones(group, -depth * 0.44, depth * 0.42, seed, false);
+  addBasket(group, width * 0.34, -depth * 0.34, false, MATERIALS.apple);
+}
+
+function orchardBushGrid(width: number, depth: number): Array<[number, number]> {
+  const columns = width > 4.6 ? 2 : 1;
+  const rows = Math.max(2, Math.min(4, Math.floor(depth / 1.25)));
+  const positions: Array<[number, number]> = [];
+  for (let row = 0; row < rows; row++) {
+    for (let column = 0; column < columns; column++) {
+      positions.push([
+        ((column + 0.5) / columns - 0.5) * width * 0.72,
+        ((row + 0.5) / rows - 0.5) * depth * 0.8,
+      ]);
+    }
+  }
+  return positions;
+}
+
+function addFruitBush(
+  group: THREE.Group,
+  plantKind: 'aronia' | 'rosehip',
+  x: number,
+  z: number,
+  variant: number,
+  seed: number,
+  plants: BackyardPlantCatalog | null,
+): void {
+  const anchor = new THREE.Group();
+  anchor.name = `${plantKind === 'aronia' ? 'AroniaBush' : 'RosehipBush'}:${variant}`;
+  anchor.position.set(x, 0, z);
+  anchor.rotation.y = mulberry32(seed)() * Math.PI * 2;
+  anchor.userData.backyardMaturityAnchor = true;
+  group.add(anchor);
+  if (!plants) return;
+
+  const shrub = plants.clone(plantKind, variant);
+  shrub.userData.fpNoCollision = true;
+  anchor.add(shrub);
+  const fruitAnchors = shrub.userData.backyardFruitAnchors as number[][] | undefined;
+  const positions = (fruitAnchors ?? []).map(
+    ([fruitX = 0, fruitY = 0.8, fruitZ = 0]) => new THREE.Vector3(fruitX, fruitY, fruitZ),
+  );
+  if (positions.length > 0) {
+    const fruit = plants.createFruitInstances(plantKind, positions, variant);
+    fruit.userData.fpNoCollision = true;
+    fruit.userData.backyardSeasonalRole = 'orchard-fruit';
+    anchor.add(fruit);
+  }
+  const proxy = addMesh(
+    anchor,
+    new THREE.CylinderGeometry(0.42, 0.5, 0.9, 8),
+    MATERIALS.collisionProxy,
+    0,
+    0.45,
+    0,
+    undefined,
+    undefined,
+    `${plantKind === 'aronia' ? 'Aronia' : 'Rosehip'} bush collision proxy`,
+  );
+  proxy.userData.fpCollisionProxy = true;
+  anchor.userData.fpCollisionAggregate = true;
+}
+
+function addBushOrchard(
+  group: THREE.Group,
+  kind: 'aronia' | 'rosehip',
+  width: number,
+  depth: number,
+  seed: number,
+  plants: BackyardPlantCatalog | null,
+): void {
+  const positions = orchardBushGrid(width, depth);
+  group.userData.orchardGrid = {
+    columns: width > 4.6 ? 2 : 1,
+    rows: positions.length / (width > 4.6 ? 2 : 1),
+  };
+  positions.forEach(([x, z], index) => (
+    addFruitBush(group, kind, x, z, index, seed + index * 617, plants)
+  ));
+  addBasket(
+    group,
+    width * 0.36,
+    -depth * 0.39,
+    true,
+    kind === 'aronia' ? MATERIALS.aronia : MATERIALS.rosehip,
+    kind === 'aronia' ? 0.027 : 0.045,
+    kind === 'aronia' ? 14 : 9,
   );
 }
 
@@ -1016,12 +1156,44 @@ function addRoseShrub(
   }
 }
 
+function addLuxuryFlowerTable(
+  group: THREE.Group,
+  width: number,
+  depth: number,
+): void {
+  const table = new THREE.Group();
+  table.name = 'Tier 4 flower luxury bouquet table';
+  table.position.set(width * 0.31, 0, -depth * 0.34);
+  table.userData.flowerLuxuryUpgrade = true;
+  group.add(table);
+  addMesh(table, new THREE.BoxGeometry(1.3, 0.12, 0.58), MATERIALS.timber, 0, 0.72, 0, undefined, undefined, 'Bouquet table top');
+  for (const x of [-0.48, 0.48]) {
+    addMesh(table, new THREE.BoxGeometry(0.1, 0.72, 0.44), MATERIALS.darkTimber, x, 0.36, 0, undefined, undefined, 'Bouquet table trestle');
+  }
+  for (let index = 0; index < 3; index++) {
+    const bouquet = new THREE.Group();
+    bouquet.name = `Arranged luxury bouquet ${index + 1}`;
+    bouquet.position.set((index - 1) * 0.38, 0.81, 0);
+    bouquet.rotation.z = (index - 1) * 0.12;
+    table.add(bouquet);
+    addMesh(bouquet, new THREE.CylinderGeometry(0.025, 0.035, 0.32, 6), MATERIALS.flowerStem, 0, 0.16, 0);
+    addFlowerHead(
+      bouquet,
+      'Tier 4 arranged flower head',
+      FLOWER_MATERIALS[(index + 1) % FLOWER_MATERIALS.length]!,
+      0.82,
+      index === 1,
+    ).position.y = 0.34;
+  }
+}
+
 function addFlowerGarden(
   group: THREE.Group,
   width: number,
   depth: number,
   seed: number,
   plants: BackyardPlantCatalog | null,
+  luxuryUpgraded: boolean,
 ): void {
   const sideWidth = Math.max(1.25, width * 0.34);
   const groundLevelBed = { bordered: false, profile: 'ground-level' } as const;
@@ -1096,6 +1268,7 @@ function addFlowerGarden(
     );
   }
   addSteppingStones(group, -depth * 0.45, depth * 0.42, seed);
+  if (luxuryUpgraded) addLuxuryFlowerTable(group, width, depth);
 }
 
 function addHerbClump(group: THREE.Group, x: number, z: number, kind: number, seed: number): void {
@@ -1333,17 +1506,29 @@ export function createBackyardGardenMesh(
   group.userData.usesSeedThree = Boolean(plants);
 
   switch (kind) {
+    case 'orchard':
+      addPreparedOrchard(group, width, depth, seed);
+      break;
     case 'apple_orchard':
       addOrchard(group, 'apple', width, depth, seed, plants);
       break;
     case 'cherry_orchard':
       addOrchard(group, 'cherry', width, depth, seed, plants);
       break;
+    case 'pear_orchard':
+      addOrchard(group, 'pear', width, depth, seed, plants);
+      break;
+    case 'aronia_orchard':
+      addBushOrchard(group, 'aronia', width, depth, seed, plants);
+      break;
+    case 'rosehip_orchard':
+      addBushOrchard(group, 'rosehip', width, depth, seed, plants);
+      break;
     case 'vegetable_garden':
       addVegetableGarden(group, width, depth, seed);
       break;
     case 'flower_garden':
-      addFlowerGarden(group, width, depth, seed, plants);
+      addFlowerGarden(group, width, depth, seed, plants, options.flowerLuxuryUpgraded ?? false);
       break;
     case 'herb_garden':
       addHerbGarden(group, width, depth, seed);
@@ -1409,14 +1594,19 @@ function backyardFoliageForMonth(month: number): DeciduousFoliagePresentation {
 
 function syncOrchardDeciduousFoliage(
   group: THREE.Group,
-  kind: 'apple_orchard' | 'cherry_orchard',
+  kind: 'apple_orchard' | 'cherry_orchard' | 'pear_orchard',
   presentation: DeciduousFoliagePresentation,
 ): void {
   const retention = THREE.MathUtils.clamp(1 - presentation.dormancy, 0, 1);
   const spring = THREE.MathUtils.clamp(presentation.springFlush, 0, 1);
   const autumn = THREE.MathUtils.clamp(presentation.autumnColor, 0, 1);
+  const tintKind = kind === 'apple_orchard'
+    ? 'apple'
+    : kind === 'cherry_orchard'
+      ? 'cherry'
+      : 'pear';
   const tintColor = autumn > 0
-    ? ORCHARD_AUTUMN_LEAF_COLOR[kind === 'apple_orchard' ? 'apple' : 'cherry']
+    ? ORCHARD_AUTUMN_LEAF_COLOR[tintKind]
     : ORCHARD_SPRING_LEAF_COLOR;
   const tintAmount = autumn > 0 ? autumn : spring * 0.72;
   const updatedBindings = new Set<object>();
@@ -1455,12 +1645,14 @@ export function syncBackyardGardenSeasonVisuals(
   kind: BackyardGardenKind,
   month: number,
   deciduousFoliage?: DeciduousFoliagePresentation,
+  daysUntilFirstHarvest = 0,
 ): void {
   const monthIndex = Math.min(12, Math.max(1, Math.floor(month))) - 1;
-  const phenology = backyardGardenPhenology(kind, month);
+  const phenology = backyardGardenPhenology(kind, month, daysUntilFirstHarvest);
   group.userData.backyardPhenology = phenology;
+  group.userData.daysUntilFirstHarvest = Math.max(0, daysUntilFirstHarvest);
 
-  if (kind === 'apple_orchard' || kind === 'cherry_orchard') {
+  if (kind === 'apple_orchard' || kind === 'cherry_orchard' || kind === 'pear_orchard') {
     syncOrchardDeciduousFoliage(
       group,
       kind,
@@ -1469,6 +1661,14 @@ export function syncBackyardGardenSeasonVisuals(
   }
 
   group.traverse((object) => {
+    if (object.userData.backyardMaturityAnchor === true) {
+      const establishmentDays = BACKYARD_GARDEN_DEFINITIONS[kind].firstHarvestDays;
+      const progress = establishmentDays > 0
+        ? THREE.MathUtils.clamp(1 - daysUntilFirstHarvest / establishmentDays, 0, 1)
+        : 1;
+      setSeasonalScale(object, THREE.MathUtils.lerp(0.3, 1, progress));
+      object.userData.backyardMaturityProgress = progress;
+    }
     const role = object.userData.backyardSeasonalRole as string | undefined;
     if (role === 'orchard-fruit') {
       object.visible = phenology.produceVisibility !== 'none';

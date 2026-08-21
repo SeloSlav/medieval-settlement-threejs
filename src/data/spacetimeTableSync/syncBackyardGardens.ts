@@ -19,6 +19,9 @@ export function syncBackyardGardens(
       id: gardenClientId(row.id),
       residenceId,
       kind,
+      firstHarvestDay: Number(row.firstHarvestDay),
+      jamStock: Number(row.jamStock),
+      flowerLuxuryUpgraded: row.flowerLuxuryUpgraded,
     });
   }
   return backyardGardens;

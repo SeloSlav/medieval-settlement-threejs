@@ -1,5 +1,5 @@
 use crate::balance_generated::{
-    BackyardGardenKind, BACKYARD_FOOD_RESERVE_TIER1_DAYS, BACKYARD_FOOD_RESERVE_TIER2_DAYS,
+    backyard_garden_def, BackyardGardenKind, BACKYARD_FOOD_RESERVE_TIER1_DAYS, BACKYARD_FOOD_RESERVE_TIER2_DAYS,
     BACKYARD_FOOD_RESERVE_TIER3_DAYS, RESIDENCE_FOOD_CAPACITY, RESIDENCE_PRESERVED_FOOD_CAPACITY,
 };
 use crate::food_demand_policy::household_food_per_day;
@@ -73,8 +73,8 @@ pub fn backyard_goat_product(total_days: u64, residence_id: u64) -> BackyardGoat
 
 /// Calendar- and weather-bound output shared by household food and market
 /// activity. Mixed vegetables and herbs use staggered April-November harvests,
-/// orchards concentrate their annual crop into September, and drought cuts
-/// exposed plants. Mirrors `src/economy/backyardGardenTick.ts`.
+/// orchard species use authored harvest windows and efficiencies, while
+/// drought cuts exposed plants. Mirrors `src/economy/backyardGardenTick.ts`.
 pub fn backyard_garden_seasonal_multiplier(
     kind: BackyardGardenKind,
     month: u32,
@@ -82,13 +82,16 @@ pub fn backyard_garden_seasonal_multiplier(
 ) -> f64 {
     use BackyardGardenKind::*;
     let base = match kind {
-        AppleOrchard | CherryOrchard => {
-            if month == 9 {
-                12.0
+        AppleOrchard | CherryOrchard | PearOrchard | AroniaOrchard | RosehipOrchard => {
+            let def = backyard_garden_def(kind);
+            if month >= def.harvest_start_month && month <= def.harvest_end_month {
+                let window = (def.harvest_end_month - def.harvest_start_month + 1).max(1) as f64;
+                12.0 / window * def.yield_efficiency
             } else {
                 0.0
             }
         }
+        Orchard => 0.0,
         VegetableGarden => match month {
             4 | 5 => 0.7,
             6..=8 => 1.0,
@@ -123,13 +126,18 @@ pub fn backyard_garden_seasonal_multiplier(
             Season::Winter => 0.0,
         },
     };
-    if environment.weather == WeatherKind::Drought
-        && !matches!(kind, HenYard | GoatPen | AppleOrchard | CherryOrchard)
-    {
-        base * 0.55
-    } else {
-        base
+    if environment.weather != WeatherKind::Drought {
+        return base;
     }
+    let drought_multiplier = match kind {
+        HenYard | GoatPen => 1.0,
+        AppleOrchard | CherryOrchard | PearOrchard => 0.9,
+        AroniaOrchard => 0.75,
+        RosehipOrchard => 0.85,
+        Orchard => 0.0,
+        _ => 0.55,
+    };
+    base * drought_multiplier
 }
 
 #[cfg(test)]
@@ -141,18 +149,39 @@ mod tests {
     }
 
     #[test]
-    fn orchards_concentrate_the_crop_into_september() {
+    fn orchard_species_keep_distinct_harvest_windows_and_efficiencies() {
         let autumn = environment(Season::Autumn, WeatherKind::Fair);
         assert_eq!(
             backyard_garden_seasonal_multiplier(BackyardGardenKind::AppleOrchard, 8, autumn,),
             0.0,
         );
         assert_eq!(
-            backyard_garden_seasonal_multiplier(BackyardGardenKind::CherryOrchard, 9, autumn,),
+            backyard_garden_seasonal_multiplier(BackyardGardenKind::AppleOrchard, 9, autumn,),
             12.0,
         );
         assert_eq!(
             backyard_garden_seasonal_multiplier(BackyardGardenKind::AppleOrchard, 10, autumn,),
+            0.0,
+        );
+        let summer = environment(Season::Summer, WeatherKind::Fair);
+        assert!((
+            backyard_garden_seasonal_multiplier(BackyardGardenKind::CherryOrchard, 6, summer)
+                - 11.04
+        ).abs() < 1e-9);
+        assert!((
+            backyard_garden_seasonal_multiplier(BackyardGardenKind::PearOrchard, 10, autumn)
+                - 6.48
+        ).abs() < 1e-9);
+        assert!((
+            backyard_garden_seasonal_multiplier(BackyardGardenKind::AroniaOrchard, 8, summer)
+                - 5.4
+        ).abs() < 1e-9);
+        assert!((
+            backyard_garden_seasonal_multiplier(BackyardGardenKind::RosehipOrchard, 11, autumn)
+                - 4.92
+        ).abs() < 1e-9);
+        assert_eq!(
+            backyard_garden_seasonal_multiplier(BackyardGardenKind::Orchard, 9, autumn),
             0.0,
         );
     }
@@ -214,7 +243,7 @@ mod tests {
         );
         assert_eq!(
             backyard_garden_seasonal_multiplier(BackyardGardenKind::AppleOrchard, 9, drought,),
-            12.0,
+            10.8,
         );
     }
 

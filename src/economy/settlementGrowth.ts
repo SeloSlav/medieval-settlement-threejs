@@ -58,6 +58,7 @@ const EMPTY_WAITING_COUNTS = (): Record<ResidenceNeedKind, number> => ({
   pottery: 0,
   church: 0,
   foodVariety: 0,
+  luxury: 0,
 });
 
 export function computeSettlementGrowthPlan(input: {

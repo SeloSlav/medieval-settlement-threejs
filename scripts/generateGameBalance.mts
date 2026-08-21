@@ -72,6 +72,13 @@ type BackyardGardenBalance = {
   foodPerPersonPerSec: number;
   settlementAttractionMultiplier: number;
   hiddenFromPicker?: boolean;
+  specializationOf?: string;
+  firstHarvestDays?: number;
+  harvestStartMonth?: number;
+  harvestEndMonth?: number;
+  yieldEfficiency?: number;
+  jamPerPersonPerSec?: number;
+  luxuryUpgradeGoldCost?: number;
 };
 
 type FarmCropBalance = {
@@ -397,6 +404,8 @@ export type GameBalance = {
     residenceClothPerPersonPerSec: number;
     residencePotteryCapacity: number;
     residencePotteryPerPersonPerSec: number;
+    residenceLuxuryJamCapacity: number;
+    residenceLuxuryJamPerPersonPerSec: number;
     hungerWarningDays: number;
     malnutritionDays: number;
     starvationDeathStartDays: number;
@@ -1002,6 +1011,8 @@ function generateRust(): string {
     `pub const RESIDENCE_CLOTH_PER_PERSON_PER_SEC: f64 = ${rustF64(b.population.residenceClothPerPersonPerSec)};`,
     `pub const RESIDENCE_POTTERY_CAPACITY: f64 = ${rustF64(b.population.residencePotteryCapacity)};`,
     `pub const RESIDENCE_POTTERY_PER_PERSON_PER_SEC: f64 = ${rustF64(b.population.residencePotteryPerPersonPerSec)};`,
+    `pub const RESIDENCE_LUXURY_JAM_CAPACITY: f64 = ${rustF64(b.population.residenceLuxuryJamCapacity)};`,
+    `pub const RESIDENCE_LUXURY_JAM_PER_PERSON_PER_SEC: f64 = ${rustF64(b.population.residenceLuxuryJamPerPersonPerSec)};`,
     `pub const HUNGER_WARNING_DAYS: f64 = ${rustF64(b.population.hungerWarningDays)};`,
     `pub const MALNUTRITION_DAYS: f64 = ${rustF64(b.population.malnutritionDays)};`,
     `pub const STARVATION_DEATH_START_DAYS: f64 = ${rustF64(b.population.starvationDeathStartDays)};`,
@@ -1646,6 +1657,13 @@ function generateRust(): string {
   lines.push('    pub food_per_person_per_sec: f64,');
   lines.push('    pub settlement_attraction_multiplier: f64,');
   lines.push('    pub hidden_from_picker: bool,');
+  lines.push('    pub specialization_of: Option<&\'static str>,');
+  lines.push('    pub first_harvest_days: u64,');
+  lines.push('    pub harvest_start_month: u32,');
+  lines.push('    pub harvest_end_month: u32,');
+  lines.push('    pub yield_efficiency: f64,');
+  lines.push('    pub jam_per_person_per_sec: f64,');
+  lines.push('    pub luxury_upgrade_gold_cost: f64,');
   lines.push('}');
   lines.push('');
 
@@ -1664,6 +1682,13 @@ function generateRust(): string {
     lines.push(`    food_per_person_per_sec: ${rustF64(def.foodPerPersonPerSec)},`);
     lines.push(`    settlement_attraction_multiplier: ${rustF64(def.settlementAttractionMultiplier)},`);
     lines.push(`    hidden_from_picker: ${def.hiddenFromPicker === true},`);
+    lines.push(`    specialization_of: ${def.specializationOf ? `Some(${JSON.stringify(def.specializationOf)})` : 'None'},`);
+    lines.push(`    first_harvest_days: ${Math.max(0, Math.round(def.firstHarvestDays ?? 0))},`);
+    lines.push(`    harvest_start_month: ${Math.max(0, Math.round(def.harvestStartMonth ?? 0))},`);
+    lines.push(`    harvest_end_month: ${Math.max(0, Math.round(def.harvestEndMonth ?? 0))},`);
+    lines.push(`    yield_efficiency: ${rustF64(def.yieldEfficiency ?? 1)},`);
+    lines.push(`    jam_per_person_per_sec: ${rustF64(def.jamPerPersonPerSec ?? 0)},`);
+    lines.push(`    luxury_upgrade_gold_cost: ${rustF64(def.luxuryUpgradeGoldCost ?? 0)},`);
     lines.push('};');
     lines.push('');
   }
@@ -1926,6 +1951,8 @@ function generateTypeScript(): string {
     `export const RESIDENCE_CLOTH_PER_PERSON_PER_SEC = ${b.population.residenceClothPerPersonPerSec};`,
     `export const RESIDENCE_POTTERY_CAPACITY = ${b.population.residencePotteryCapacity};`,
     `export const RESIDENCE_POTTERY_PER_PERSON_PER_SEC = ${b.population.residencePotteryPerPersonPerSec};`,
+    `export const RESIDENCE_LUXURY_JAM_CAPACITY = ${b.population.residenceLuxuryJamCapacity};`,
+    `export const RESIDENCE_LUXURY_JAM_PER_PERSON_PER_SEC = ${b.population.residenceLuxuryJamPerPersonPerSec};`,
     `export const HUNGER_WARNING_DAYS = ${b.population.hungerWarningDays};`,
     `export const MALNUTRITION_DAYS = ${b.population.malnutritionDays};`,
     `export const STARVATION_DEATH_START_DAYS = ${b.population.starvationDeathStartDays};`,
@@ -2475,6 +2502,13 @@ function generateTypeScript(): string {
   lines.push('  foodPerPersonPerSec: number;');
   lines.push('  settlementAttractionMultiplier: number;');
   lines.push('  hiddenFromPicker: boolean;');
+  lines.push('  specializationOf: BackyardGardenKind | null;');
+  lines.push('  firstHarvestDays: number;');
+  lines.push('  harvestStartMonth: number;');
+  lines.push('  harvestEndMonth: number;');
+  lines.push('  yieldEfficiency: number;');
+  lines.push('  jamPerPersonPerSec: number;');
+  lines.push('  luxuryUpgradeGoldCost: number;');
   lines.push('  goldCost: number;');
   lines.push('};');
   lines.push('');
@@ -2486,6 +2520,13 @@ function generateTypeScript(): string {
     lines.push(`    foodPerPersonPerSec: ${def.foodPerPersonPerSec},`);
     lines.push(`    settlementAttractionMultiplier: ${def.settlementAttractionMultiplier},`);
     lines.push(`    hiddenFromPicker: ${def.hiddenFromPicker === true},`);
+    lines.push(`    specializationOf: ${def.specializationOf ? `'${def.specializationOf}'` : 'null'},`);
+    lines.push(`    firstHarvestDays: ${Math.max(0, Math.round(def.firstHarvestDays ?? 0))},`);
+    lines.push(`    harvestStartMonth: ${Math.max(0, Math.round(def.harvestStartMonth ?? 0))},`);
+    lines.push(`    harvestEndMonth: ${Math.max(0, Math.round(def.harvestEndMonth ?? 0))},`);
+    lines.push(`    yieldEfficiency: ${def.yieldEfficiency ?? 1},`);
+    lines.push(`    jamPerPersonPerSec: ${def.jamPerPersonPerSec ?? 0},`);
+    lines.push(`    luxuryUpgradeGoldCost: ${def.luxuryUpgradeGoldCost ?? 0},`);
     lines.push(`    goldCost: ${def.cost.gold},`);
     lines.push('  },');
   }

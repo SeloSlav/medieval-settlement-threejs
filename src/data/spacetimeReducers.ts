@@ -19,6 +19,10 @@ import { settingsToConfigurePayload } from '../world/worldConfigAuthority.ts';
 import type { WorldGenerationSettings } from '../world/worldGenerationSettings.ts';
 import type { GameSpeed } from '../world/gameSpeed.ts';
 import type { StorehouseCommodity } from '../economy/storehousePolicy.ts';
+import {
+  STORAGE_COMMODITY_CODES,
+  type StorageCommodity,
+} from '../economy/storageAcceptancePolicy.ts';
 import { normalizeLaborStewardReserve } from '../economy/laborSteward.ts';
 import { normalizeMonasteryCharterRate } from '../economy/monasteryPolicy.ts';
 import type { NightPolicyCode } from '../economy/nightPolicy.ts';
@@ -140,6 +144,26 @@ export async function upgradeResidence(residenceId: string): Promise<void> {
   const serverId = parseResidenceServerId(residenceId);
   if (serverId === null) throw new Error('Invalid residence id.');
   await callReducer('upgradeResidence', 'upgrade_residence', { residenceId: serverId });
+}
+
+export async function specializeOrchard(
+  residenceId: string,
+  kind: BackyardGardenKind,
+): Promise<void> {
+  const serverId = parseResidenceServerId(residenceId);
+  if (serverId === null) throw new Error('Invalid residence id.');
+  await callReducer('specializeOrchard', 'specialize_orchard', {
+    residenceId: serverId,
+    kind,
+  });
+}
+
+export async function upgradeFlowerGardenLuxury(residenceId: string): Promise<void> {
+  const serverId = parseResidenceServerId(residenceId);
+  if (serverId === null) throw new Error('Invalid residence id.');
+  await callReducer('upgradeFlowerGardenLuxury', 'upgrade_flower_garden_luxury', {
+    residenceId: serverId,
+  });
 }
 
 export async function retrofitResidenceTileRoof(residenceId: string): Promise<void> {
@@ -464,6 +488,32 @@ export async function setStorehousePolicy(
     acceptsIron,
     acceptsClay,
     acceptsSalt,
+  });
+}
+
+export async function setStorageCommodityAcceptance(
+  buildingId: string,
+  commodity: StorageCommodity,
+  accepts: boolean,
+): Promise<void> {
+  const serverId = parseBuildingServerId(buildingId);
+  if (serverId === null) throw new Error('Invalid storage building id.');
+  await callReducer('setStorageCommodityAcceptance', 'set_storage_commodity_acceptance', {
+    buildingId: serverId,
+    commodityKind: STORAGE_COMMODITY_CODES[commodity],
+    accepts,
+  });
+}
+
+export async function setAllStorageAcceptance(
+  buildingId: string,
+  accepts: boolean,
+): Promise<void> {
+  const serverId = parseBuildingServerId(buildingId);
+  if (serverId === null) throw new Error('Invalid storage building id.');
+  await callReducer('setAllStorageAcceptance', 'set_all_storage_acceptance', {
+    buildingId: serverId,
+    accepts,
   });
 }
 

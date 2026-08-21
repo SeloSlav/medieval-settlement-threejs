@@ -44,6 +44,7 @@ import RepairFireDamageReducer from "../repair_fire_damage_reducer";
 import ResetWorldReducer from "../reset_world_reducer";
 import RetrofitResidenceTileRoofReducer from "../retrofit_residence_tile_roof_reducer";
 import RotateConstructionLaborReducer from "../rotate_construction_labor_reducer";
+import SetAllStorageAcceptanceReducer from "../set_all_storage_acceptance_reducer";
 import SetApiaryHarvestPolicyReducer from "../set_apiary_harvest_policy_reducer";
 import SetBreweryRecipePolicyReducer from "../set_brewery_recipe_policy_reducer";
 import SetCarpenterCartServiceTargetReducer from "../set_carpenter_cart_service_target_reducer";
@@ -87,6 +88,7 @@ import SetProcessorOutputTargetReducer from "../set_processor_output_target_redu
 import SetProductionLaborStewardReducer from "../set_production_labor_steward_reducer";
 import SetResidenceUpgradePriorityReducer from "../set_residence_upgrade_priority_reducer";
 import SetSeasonalLaborStewardReducer from "../set_seasonal_labor_steward_reducer";
+import SetStorageCommodityAcceptanceReducer from "../set_storage_commodity_acceptance_reducer";
 import SetStorehousePolicyReducer from "../set_storehouse_policy_reducer";
 import SetStorehouseStockTargetReducer from "../set_storehouse_stock_target_reducer";
 import SetThreshingPriorityReducer from "../set_threshing_priority_reducer";
@@ -94,10 +96,12 @@ import SetTradingPostTradeRuleReducer from "../set_trading_post_trade_rule_reduc
 import SetVineyardProductionPolicyReducer from "../set_vineyard_production_policy_reducer";
 import SetWeaverInputPolicyReducer from "../set_weaver_input_policy_reducer";
 import SetWoodcutterTimberReserveReducer from "../set_woodcutter_timber_reserve_reducer";
+import SpecializeOrchardReducer from "../specialize_orchard_reducer";
 import StartFarmFieldEarlyHarvestReducer from "../start_farm_field_early_harvest_reducer";
 import SyncRoadNetworkReducer from "../sync_road_network_reducer";
 import TickSimReducer from "../tick_sim_reducer";
 import UpgradeChapelReducer from "../upgrade_chapel_reducer";
+import UpgradeFlowerGardenLuxuryReducer from "../upgrade_flower_garden_luxury_reducer";
 import UpgradeResidenceReducer from "../upgrade_residence_reducer";
 
 export type AssignBuildingLaborParams = __Infer<typeof AssignBuildingLaborReducer>;
@@ -138,6 +142,7 @@ export type RepairFireDamageParams = __Infer<typeof RepairFireDamageReducer>;
 export type ResetWorldParams = __Infer<typeof ResetWorldReducer>;
 export type RetrofitResidenceTileRoofParams = __Infer<typeof RetrofitResidenceTileRoofReducer>;
 export type RotateConstructionLaborParams = __Infer<typeof RotateConstructionLaborReducer>;
+export type SetAllStorageAcceptanceParams = __Infer<typeof SetAllStorageAcceptanceReducer>;
 export type SetApiaryHarvestPolicyParams = __Infer<typeof SetApiaryHarvestPolicyReducer>;
 export type SetBreweryRecipePolicyParams = __Infer<typeof SetBreweryRecipePolicyReducer>;
 export type SetCarpenterCartServiceTargetParams = __Infer<typeof SetCarpenterCartServiceTargetReducer>;
@@ -181,6 +186,7 @@ export type SetProcessorOutputTargetParams = __Infer<typeof SetProcessorOutputTa
 export type SetProductionLaborStewardParams = __Infer<typeof SetProductionLaborStewardReducer>;
 export type SetResidenceUpgradePriorityParams = __Infer<typeof SetResidenceUpgradePriorityReducer>;
 export type SetSeasonalLaborStewardParams = __Infer<typeof SetSeasonalLaborStewardReducer>;
+export type SetStorageCommodityAcceptanceParams = __Infer<typeof SetStorageCommodityAcceptanceReducer>;
 export type SetStorehousePolicyParams = __Infer<typeof SetStorehousePolicyReducer>;
 export type SetStorehouseStockTargetParams = __Infer<typeof SetStorehouseStockTargetReducer>;
 export type SetThreshingPriorityParams = __Infer<typeof SetThreshingPriorityReducer>;
@@ -188,9 +194,11 @@ export type SetTradingPostTradeRuleParams = __Infer<typeof SetTradingPostTradeRu
 export type SetVineyardProductionPolicyParams = __Infer<typeof SetVineyardProductionPolicyReducer>;
 export type SetWeaverInputPolicyParams = __Infer<typeof SetWeaverInputPolicyReducer>;
 export type SetWoodcutterTimberReserveParams = __Infer<typeof SetWoodcutterTimberReserveReducer>;
+export type SpecializeOrchardParams = __Infer<typeof SpecializeOrchardReducer>;
 export type StartFarmFieldEarlyHarvestParams = __Infer<typeof StartFarmFieldEarlyHarvestReducer>;
 export type SyncRoadNetworkParams = __Infer<typeof SyncRoadNetworkReducer>;
 export type TickSimParams = __Infer<typeof TickSimReducer>;
 export type UpgradeChapelParams = __Infer<typeof UpgradeChapelReducer>;
+export type UpgradeFlowerGardenLuxuryParams = __Infer<typeof UpgradeFlowerGardenLuxuryReducer>;
 export type UpgradeResidenceParams = __Infer<typeof UpgradeResidenceReducer>;
 

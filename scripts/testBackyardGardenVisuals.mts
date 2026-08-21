@@ -19,8 +19,12 @@ import type { BackyardPlantCatalog } from '../src/vegetation/seedthree/backyardP
 import { BACKYARD_PLANT_SPECIES } from '../src/vegetation/seedthree/backyardPlantPresets.ts';
 
 const kinds: BackyardGardenKind[] = [
+  'orchard',
   'apple_orchard',
   'cherry_orchard',
+  'pear_orchard',
+  'aronia_orchard',
+  'rosehip_orchard',
   'vegetable_garden',
   'flower_garden',
   'herb_garden',
@@ -30,8 +34,12 @@ const kinds: BackyardGardenKind[] = [
 ];
 
 const signatures: Record<BackyardGardenKind, string> = {
+  orchard: 'Prepared orchard planting pit',
   apple_orchard: 'AppleTree:',
   cherry_orchard: 'CherryTree:',
+  pear_orchard: 'PearTree:',
+  aronia_orchard: 'AroniaBush:',
+  rosehip_orchard: 'RosehipBush:',
   vegetable_garden: 'CabbageRows',
   flower_garden: 'RoseBush:',
   herb_garden: 'HerbDryingRack',
@@ -41,8 +49,12 @@ const signatures: Record<BackyardGardenKind, string> = {
 };
 
 const terrainBackedKinds = new Set<BackyardGardenKind>([
+  'orchard',
   'apple_orchard',
   'cherry_orchard',
+  'pear_orchard',
+  'aronia_orchard',
+  'rosehip_orchard',
   'vegetable_garden',
   'flower_garden',
   'herb_garden',
@@ -52,6 +64,11 @@ const terrainBackedKinds = new Set<BackyardGardenKind>([
 ]);
 
 assert.equal(BACKYARD_GARDEN_PICKER_KINDS.includes('cherry_orchard'), false);
+assert.equal(BACKYARD_GARDEN_PICKER_KINDS.includes('apple_orchard'), false);
+assert.equal(BACKYARD_GARDEN_PICKER_KINDS.includes('pear_orchard'), false);
+assert.equal(BACKYARD_GARDEN_PICKER_KINDS.includes('aronia_orchard'), false);
+assert.equal(BACKYARD_GARDEN_PICKER_KINDS.includes('rosehip_orchard'), false);
+assert.equal(BACKYARD_GARDEN_PICKER_KINDS[0], 'orchard');
 assert.equal(BACKYARD_GARDEN_PICKER_KINDS.includes('goat_pen'), true);
 assert.equal(BACKYARD_GARDEN_PICKER_KINDS.includes('backyard_apiary'), true);
 
@@ -113,9 +130,7 @@ for (const kind of kinds) {
 
   assert.equal(garden.userData.gardenKind, kind, `${kind} should retain its gameplay identity`);
   assert.equal(garden.userData.usesSeedThree, false, `${kind} should report that SeedThree is not yet attached`);
-  const minimumMeshCountWithoutStreamedPlants = kind === 'apple_orchard' || kind === 'cherry_orchard'
-    ? 7
-    : 12;
+  const minimumMeshCountWithoutStreamedPlants = kind.endsWith('_orchard') ? 7 : 12;
   assert.ok(
     meshCount >= minimumMeshCountWithoutStreamedPlants,
     `${kind} should be a composed scene, not a placeholder prop`,
@@ -397,6 +412,12 @@ const collisionCatalog: BackyardPlantCatalog = {
   clone(kind, variant) {
     const tree = new THREE.LOD();
     tree.name = `Test ${kind} tree ${variant}`;
+    if (kind === 'aronia' || kind === 'rosehip') {
+      tree.userData.backyardFruitAnchors = [
+        [0.2, 0.8, 0],
+        [-0.18, 0.68, 0.12],
+      ];
+    }
     tree.userData.backyardSeasonalFoliageTintBindings = [{
       color: seasonalFoliageTintColor,
       amount: seasonalFoliageTintAmount,
@@ -419,13 +440,15 @@ const collisionCatalog: BackyardPlantCatalog = {
     tree.addLevel(canopy, 0);
     return tree;
   },
-  createFruitInstances() {
+  createFruitInstances(_kind, positions) {
     const fruit = new THREE.InstancedMesh(
       new THREE.BoxGeometry(0.12, 0.12, 0.12),
       new THREE.MeshBasicMaterial(),
-      1,
+      positions.length,
     );
-    fruit.setMatrixAt(0, new THREE.Matrix4());
+    positions.forEach((position, index) => {
+      fruit.setMatrixAt(index, new THREE.Matrix4().makeTranslation(position.x, position.y, position.z));
+    });
     return fruit;
   },
 };
@@ -536,6 +559,65 @@ assert.ok(
 );
 disposeBackyardGardenMesh(winterCherry);
 
+const establishingPear = createBackyardGardenMesh('pear_orchard', {
+  width: 4.4,
+  depth: 2.1,
+  seed: 221,
+  plants: collisionCatalog,
+});
+const pearAnchors: THREE.Object3D[] = [];
+const pearFruit: THREE.Object3D[] = [];
+establishingPear.traverse((object) => {
+  if (object.userData.backyardMaturityAnchor === true) pearAnchors.push(object);
+  if (object.userData.backyardSeasonalRole === 'orchard-fruit') pearFruit.push(object);
+});
+syncBackyardGardenSeasonVisuals(establishingPear, 'pear_orchard', 9, undefined, 150);
+assert.ok(pearAnchors.every((anchor) => Math.abs(anchor.scale.x - 0.68 * 0.3) < 1e-9));
+assert.ok(pearFruit.every((fruit) => !fruit.visible), 'new pear standards must not fruit before establishment');
+syncBackyardGardenSeasonVisuals(establishingPear, 'pear_orchard', 9, undefined, 75);
+assert.ok(pearAnchors.every((anchor) => Math.abs(anchor.scale.x - 0.68 * 0.65) < 1e-9));
+syncBackyardGardenSeasonVisuals(establishingPear, 'pear_orchard', 9, undefined, 0);
+assert.ok(pearAnchors.every((anchor) => Math.abs(anchor.scale.x - 0.68) < 1e-9));
+assert.ok(pearFruit.every((fruit) => fruit.visible), 'mature pears should become visible in their harvest window');
+disposeBackyardGardenMesh(establishingPear);
+
+for (const [kind, signature] of [
+  ['aronia_orchard', 'AroniaBush:'],
+  ['rosehip_orchard', 'RosehipBush:'],
+] as const) {
+  const shrubOrchard = createBackyardGardenMesh(kind, {
+    width: 6.2,
+    depth: 5.4,
+    seed: 811,
+    plants: collisionCatalog,
+  });
+  const bushes: THREE.Object3D[] = [];
+  const fruits: THREE.InstancedMesh[] = [];
+  shrubOrchard.traverse((object) => {
+    if (object.name.startsWith(signature)) bushes.push(object);
+    if (object.userData.backyardSeasonalRole === 'orchard-fruit') {
+      fruits.push(object as THREE.InstancedMesh);
+    }
+  });
+  assert.equal(bushes.length, 8, `${kind} should use dense two-by-four cultivated bush rows`);
+  assert.ok(fruits.length === bushes.length && fruits.every((fruit) => fruit.count === 2));
+  syncBackyardGardenSeasonVisuals(shrubOrchard, kind, kind === 'aronia_orchard' ? 8 : 10);
+  assert.ok(fruits.every((fruit) => fruit.visible), `${kind} fruit should follow its authored harvest window`);
+  disposeBackyardGardenMesh(shrubOrchard);
+}
+
+const preparedOrchard = createBackyardGardenMesh('orchard', { width: 6.2, depth: 5.4, seed: 91 });
+assert.equal(preparedOrchard.userData.orchardAwaitingSpecialization, true);
+let preparedPitCount = 0;
+let preparedPlantCount = 0;
+preparedOrchard.traverse((object) => {
+  if (object.name === 'Prepared orchard planting pit') preparedPitCount += 1;
+  if (object.userData.backyardMaturityAnchor === true) preparedPlantCount += 1;
+});
+assert.equal(preparedPitCount, 4);
+assert.equal(preparedPlantCount, 0, 'the constructed orchard shell must remain unplanted until selected');
+disposeBackyardGardenMesh(preparedOrchard);
+
 const flowerDetail = createBackyardGardenMesh('flower_garden', { width: 6.2, depth: 5.4, seed: 4271 });
 let petalCount = 0;
 let modeledFlowerMeshes = 0;
@@ -616,11 +698,33 @@ assert.ok(
 );
 disposeBackyardGardenMesh(flowerDetail);
 
+const luxuryFlowers = createBackyardGardenMesh('flower_garden', {
+  width: 6.2,
+  depth: 5.4,
+  seed: 4271,
+  flowerLuxuryUpgraded: true,
+});
+let bouquetTableCount = 0;
+let arrangedBouquets = 0;
+luxuryFlowers.traverse((object) => {
+  if (object.userData.flowerLuxuryUpgrade === true) bouquetTableCount += 1;
+  if (object.name.startsWith('Arranged luxury bouquet')) arrangedBouquets += 1;
+});
+assert.equal(bouquetTableCount, 1, 'the tier-4 flower upgrade should have a distinct preparation table');
+assert.equal(arrangedBouquets, 3, 'the tier-4 flower upgrade should visibly prepare household bouquets');
+disposeBackyardGardenMesh(luxuryFlowers);
+
 for (const [kind, species] of Object.entries(BACKYARD_PLANT_SPECIES)) {
-  const scale = Number(species.params?.scale);
-  const branches = species.params?.branches;
-  assert.ok(Number.isFinite(scale) && scale > 0, `${kind} should have a finite cultivated-plant scale`);
-  assert.ok(Array.isArray(branches) && branches.length === 4, `${kind} should define the complete SeedThree branch grammar`);
+  if (kind === 'aronia' || kind === 'rosehip') {
+    assert.ok(Number(species.params?.trunks) >= 6, `${kind} should use the multi-cane shrub grammar`);
+    assert.ok(Number(species.params?.forkGenerations) >= 4, `${kind} should expose dichotomous fork generations`);
+    assert.equal(species.foliageType, 'sprayClusters');
+  } else {
+    const scale = Number(species.params?.scale);
+    const branches = species.params?.branches;
+    assert.ok(Number.isFinite(scale) && scale > 0, `${kind} should have a finite cultivated-plant scale`);
+    assert.ok(Array.isArray(branches) && branches.length === 4, `${kind} should define the complete SeedThree branch grammar`);
+  }
 }
 assert.ok(
   Number(BACKYARD_PLANT_SPECIES.apple.params?.scale) < Number(BACKYARD_PLANT_SPECIES.cherry.params?.scale),
@@ -629,6 +733,10 @@ assert.ok(
 assert.ok(
   Number(BACKYARD_PLANT_SPECIES.rose.params?.scale) < 1.5,
   'rose shrubs should remain below windowsill scale',
+);
+assert.ok(
+  Number(BACKYARD_PLANT_SPECIES.pear.params?.scale) > Number(BACKYARD_PLANT_SPECIES.apple.params?.scale),
+  'pear standards should keep their distinct upright, taller orchard habit',
 );
 
 const backyardAssetSource = readFileSync(
@@ -716,7 +824,7 @@ assert.match(
 assert.match(
   backyardAssetSource,
   /backyardSeasonalFoliageTintBindings/,
-  'apple and cherry clones should retain live SeedThree foliage tint uniforms',
+  'apple, cherry, and pear clones should retain live SeedThree foliage tint uniforms',
 );
 assert.match(
   backyardMarkerSource,
@@ -728,10 +836,16 @@ assert.match(
   /backyardGardenMarkers\?\.setDeciduousFoliage\(presentationEnvironment\.deciduousFoliage\)/,
   'live and visual-QA environment changes should reach orchard foliage',
 );
-for (const fruitFile of ['apple.glb', 'cherry_pair.glb']) {
+for (const fruitFile of [
+  'apple.glb',
+  'cherry_pair.glb',
+  'pear.glb',
+  'aronia_cluster.glb',
+  'rosehip_cluster.glb',
+]) {
   assert.ok(
     existsSync(join(process.cwd(), 'vendor/seedthree/assets/fruits', fruitFile)),
-    `SkyeShark's exact ${fruitFile} orchard asset should be packaged`,
+    `${fruitFile} orchard asset should be packaged in the SeloSlav SeedThree fork`,
   );
   assert.match(
     backyardAssetSource,
@@ -739,6 +853,27 @@ for (const fruitFile of ['apple.glb', 'cherry_pair.glb']) {
     `the orchard catalog should load ${fruitFile}`,
   );
 }
+for (const textureFile of [
+  'pear_single_albedo.png',
+  'pear_single_normal.png',
+  'pear_single_roughness.png',
+  'pear_single_translucency.png',
+  'aronia_spray_albedo.png',
+  'aronia_spray_normal.png',
+  'aronia_spray_roughness.png',
+  'aronia_spray_translucency.png',
+  'rosehip_spray_albedo.png',
+  'rosehip_spray_normal.png',
+  'rosehip_spray_roughness.png',
+  'rosehip_spray_translucency.png',
+]) {
+  assert.ok(
+    existsSync(join(process.cwd(), 'vendor/seedthree/assets/leaves', textureFile)),
+    `${textureFile} should be present in the SeloSlav SeedThree fork`,
+  );
+}
+assert.match(backyardAssetSource, /createGorskiShrubPrototype\(kind, variant\)/);
+assert.match(backyardAssetSource, /backyardFruitAnchors/);
 assert.match(
   backyardGardenSource,
   /plants\.createFruitInstances\(plantKind, positions, variant\)/,

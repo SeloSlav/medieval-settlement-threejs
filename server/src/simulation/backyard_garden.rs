@@ -7,7 +7,8 @@ use crate::backyard_garden_policy::{
 };
 use crate::balance_generated::{
     backyard_garden_def, BackyardGardenKind, CALENDAR_SECONDS_PER_DAY, FOOD_SALE_GOLD_PER_UNIT,
-    HERB_REMEDIES_PER_PERSON_DAY, HERB_REMEDY_CAPACITY, HERB_REMEDY_SALE_GOLD_PER_UNIT, TICK_DT,
+    HERB_REMEDIES_PER_PERSON_DAY, HERB_REMEDY_CAPACITY, HERB_REMEDY_SALE_GOLD_PER_UNIT,
+    RESIDENCE_LUXURY_JAM_CAPACITY, TICK_DT,
 };
 use crate::db::*;
 use crate::economy::{
@@ -22,7 +23,7 @@ use crate::simulation::residence_needs::food;
 use crate::simulation::residence_needs::sync_food_need_rows;
 use crate::simulation::residence_needs::ResidenceNeedKind;
 use crate::simulation::tick_context::SimTickContext;
-use crate::tables::Residence;
+use crate::tables::{BackyardGarden, Residence};
 
 pub fn step_backyard_gardens(
     ctx: &ReducerContext,
@@ -68,6 +69,7 @@ pub fn step_backyard_gardens(
         let toll = step_one_garden(
             ctx,
             tick,
+            &garden,
             kind,
             &residence,
             marketplace_id,
@@ -97,6 +99,7 @@ pub fn step_backyard_gardens(
 fn step_one_garden(
     ctx: &ReducerContext,
     tick: &SimTickContext,
+    garden: &BackyardGarden,
     kind: BackyardGardenKind,
     residence: &Residence,
     marketplace_id: Option<u64>,
@@ -106,6 +109,9 @@ fn step_one_garden(
     environment: EnvironmentState,
 ) -> f64 {
     let def = backyard_garden_def(kind);
+    if garden.first_harvest_day > clock.total_days {
+        return 0.0;
+    }
     let population = residence.population as f64;
     let seasonal_multiplier = backyard_garden_seasonal_multiplier(kind, clock.month, environment);
     if seasonal_multiplier <= 1e-9 {
@@ -113,7 +119,11 @@ fn step_one_garden(
     }
 
     let pollination_multiplier = match kind {
-        BackyardGardenKind::AppleOrchard | BackyardGardenKind::CherryOrchard => {
+        BackyardGardenKind::AppleOrchard
+        | BackyardGardenKind::CherryOrchard
+        | BackyardGardenKind::PearOrchard
+        | BackyardGardenKind::AroniaOrchard
+        | BackyardGardenKind::RosehipOrchard => {
             crate::simulation::expanded_economy::nearby_apiary_pollination_multiplier(
                 ctx,
                 tick,
@@ -173,6 +183,11 @@ fn step_one_garden(
         }
     }
 
+    if def.jam_per_person_per_sec > 1e-9 {
+        let jam = population * def.jam_per_person_per_sec * seasonal_multiplier * TICK_DT;
+        deposit_backyard_jam(ctx, garden.id, jam);
+    }
+
     if marketplace_id.is_none() {
         return 0.0;
     }
@@ -206,9 +221,23 @@ fn deposit_herb_remedies(ctx: &ReducerContext, residence: &Residence, amount: f6
     deposited
 }
 
+fn deposit_backyard_jam(ctx: &ReducerContext, garden_id: u64, amount: f64) -> f64 {
+    if amount <= 1e-9 {
+        return 0.0;
+    }
+    let Some(mut garden) = ctx.db.backyard_garden().id().find(&garden_id) else {
+        return 0.0;
+    };
+    let before = garden.jam_stock.max(0.0);
+    garden.jam_stock = (before + amount).min(RESIDENCE_LUXURY_JAM_CAPACITY);
+    let deposited = (garden.jam_stock - before).max(0.0);
+    ctx.db.backyard_garden().id().update(garden);
+    deposited
+}
+
 fn backyard_market_stall_need(kind: BackyardGardenKind) -> Option<ResidenceNeedKind> {
     match kind {
-        BackyardGardenKind::FlowerGarden => None,
+        BackyardGardenKind::FlowerGarden | BackyardGardenKind::Orchard => None,
         BackyardGardenKind::HerbGarden => Some(ResidenceNeedKind::Cloth),
         _ => Some(ResidenceNeedKind::Food),
     }
@@ -222,6 +251,10 @@ fn backyard_food_commodity(
     match kind {
         BackyardGardenKind::AppleOrchard => Some(CommodityKind::Apples),
         BackyardGardenKind::CherryOrchard => Some(CommodityKind::Cherries),
+        BackyardGardenKind::PearOrchard => Some(CommodityKind::Apples),
+        BackyardGardenKind::AroniaOrchard | BackyardGardenKind::RosehipOrchard => {
+            Some(CommodityKind::Berries)
+        }
         BackyardGardenKind::VegetableGarden => Some(CommodityKind::Vegetables),
         BackyardGardenKind::HenYard => Some(CommodityKind::Eggs),
         // A small household herd cannot specialize like a cattle dairy or
@@ -234,7 +267,9 @@ fn backyard_food_commodity(
             })
         }
         BackyardGardenKind::BackyardApiary => Some(CommodityKind::Honey),
-        BackyardGardenKind::FlowerGarden | BackyardGardenKind::HerbGarden => None,
+        BackyardGardenKind::FlowerGarden
+        | BackyardGardenKind::HerbGarden
+        | BackyardGardenKind::Orchard => None,
     }
 }
 

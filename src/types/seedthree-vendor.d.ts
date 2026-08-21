@@ -728,6 +728,18 @@ declare module '@seedthree/species/cherry.js' {
   export const cherry: Record<string, unknown>;
 }
 
+declare module '@seedthree/species/pear.js' {
+  export const pear: Record<string, unknown>;
+}
+
+declare module '@seedthree/species/aronia.js' {
+  export const aronia: Record<string, unknown>;
+}
+
+declare module '@seedthree/species/rosehip.js' {
+  export const rosehip: Record<string, unknown>;
+}
+
 declare module '@seedthree/species/bilberry.js' {
   export const bilberry: Record<string, unknown>;
 }

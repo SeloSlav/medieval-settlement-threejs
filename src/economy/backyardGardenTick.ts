@@ -92,7 +92,7 @@ export function allocateBackyardFood(
 export function backyardGardenMarketChannel(
   kind: BackyardGardenKind,
 ): BackyardGardenMarketChannel {
-  if (kind === 'flower_garden') return null;
+  if (kind === 'flower_garden' || kind === 'orchard') return null;
   if (kind === 'herb_garden') return 'goods';
   return 'food';
 }
@@ -106,14 +106,44 @@ function calendarMonth(month: number): number {
 export function backyardGardenPhenology(
   kind: BackyardGardenKind,
   month: number,
+  daysUntilFirstHarvest = 0,
 ): BackyardGardenPhenology {
   const currentMonth = calendarMonth(month);
   const winter = currentMonth === 12 || currentMonth <= 2;
 
   switch (kind) {
+    case 'orchard':
+      return {
+        baseMultiplier: 0,
+        growing: false,
+        harvestable: false,
+        phase: 'establishing',
+        produceVisibility: 'none',
+        label: 'Prepared orchard — awaiting a planting choice',
+        harvestWindow: 'Choose a fruit tree or berry-bush specialization',
+      };
     case 'apple_orchard':
     case 'cherry_orchard':
-      if (winter || currentMonth === 11) {
+    case 'pear_orchard':
+    case 'aronia_orchard':
+    case 'rosehip_orchard': {
+      const def = BACKYARD_GARDEN_DEFINITIONS[kind];
+      const crop = def.label;
+      const windowLabel = def.harvestStartMonth === def.harvestEndMonth
+        ? monthLabel(def.harvestStartMonth)
+        : `${monthLabel(def.harvestStartMonth)}–${monthLabel(def.harvestEndMonth)}`;
+      if (daysUntilFirstHarvest > 0) {
+        return {
+          baseMultiplier: 0,
+          growing: true,
+          harvestable: false,
+          phase: 'establishing',
+          produceVisibility: 'none',
+          label: `${crop} establishing — ${Math.ceil(daysUntilFirstHarvest)} days until first harvest maturity`,
+          harvestWindow: `First productive ${windowLabel} window after establishment`,
+        };
+      }
+      if (winter) {
         return {
           baseMultiplier: 0,
           growing: false,
@@ -121,7 +151,7 @@ export function backyardGardenPhenology(
           phase: 'dormant',
           produceVisibility: 'none',
           label: 'Dormant wood — no fruit on the trees or in the harvest basket',
-          harvestWindow: 'Fruit ripens in August; the household harvests in September',
+          harvestWindow: `${crop} harvest window: ${windowLabel}`,
         };
       }
       if (currentMonth <= 4) {
@@ -132,10 +162,23 @@ export function backyardGardenPhenology(
           phase: 'flowering',
           produceVisibility: 'none',
           label: 'Spring blossom — pollination and fruit set, not harvestable yet',
-          harvestWindow: 'Fruit ripens in August; the household harvests in September',
+          harvestWindow: `${crop} harvest window: ${windowLabel}`,
         };
       }
-      if (currentMonth <= 7) {
+      if (currentMonth > def.harvestEndMonth) {
+        return {
+          baseMultiplier: 0,
+          growing: false,
+          harvestable: false,
+          phase: 'post_harvest',
+          produceVisibility: 'none',
+          label: `${crop} post-harvest — fruit and filled baskets have been cleared`,
+          harvestWindow: `The next annual crop returns during ${windowLabel}`,
+        };
+      }
+      const ripeningMonth = def.harvestStartMonth - 1;
+      if (currentMonth !== ripeningMonth
+        && !(currentMonth >= def.harvestStartMonth && currentMonth <= def.harvestEndMonth)) {
         return {
           baseMultiplier: 0,
           growing: true,
@@ -143,10 +186,10 @@ export function backyardGardenPhenology(
           phase: 'establishing',
           produceVisibility: 'none',
           label: 'Fruit setting — the annual crop is still developing',
-          harvestWindow: 'Fruit ripens in August; the household harvests in September',
+          harvestWindow: `${crop} harvest window: ${windowLabel}`,
         };
       }
-      if (currentMonth === 8) {
+      if (currentMonth === ripeningMonth) {
         return {
           baseMultiplier: 0,
           growing: true,
@@ -154,18 +197,19 @@ export function backyardGardenPhenology(
           phase: 'ripening',
           produceVisibility: 'ripening',
           label: 'Fruit ripening on the trees — basket remains empty',
-          harvestWindow: 'The household harvests the concentrated annual crop in September',
+          harvestWindow: `The household harvests during ${windowLabel}`,
         };
       }
-      if (currentMonth === 9) {
+      if (currentMonth >= def.harvestStartMonth && currentMonth <= def.harvestEndMonth) {
+        const windowMonths = Math.max(1, def.harvestEndMonth - def.harvestStartMonth + 1);
         return {
-          baseMultiplier: 12,
+          baseMultiplier: 12 / windowMonths * def.yieldEfficiency,
           growing: false,
           harvestable: true,
           phase: 'harvest',
           produceVisibility: 'harvest',
-          label: 'September harvest — concentrated annual crop',
-          harvestWindow: 'Harvestable now; fruit and filled baskets clear after September',
+          label: `${crop} harvest — ${Math.round(def.yieldEfficiency * 100)}% species efficiency`,
+          harvestWindow: `Harvestable now during ${windowLabel}`,
         };
       }
       return {
@@ -175,8 +219,9 @@ export function backyardGardenPhenology(
         phase: 'post_harvest',
         produceVisibility: 'none',
         label: 'Post-harvest — fruit and filled baskets have been cleared',
-        harvestWindow: 'The next crop begins with spring blossom and returns next September',
+        harvestWindow: `The next annual crop returns during ${windowLabel}`,
       };
+    }
 
     case 'vegetable_garden':
       if (winter) {
@@ -333,26 +378,25 @@ export function backyardGardenSeasonalMultiplier(
   environment: Pick<EnvironmentState, 'season' | 'weather'>,
 ): number {
   const base = backyardGardenPhenology(kind, month).baseMultiplier;
-  return environment.weather === 'drought'
-    && kind !== 'hen_yard'
-    && kind !== 'goat_pen'
-    && kind !== 'apple_orchard'
-    && kind !== 'cherry_orchard'
-    ? base * 0.55
-    : base;
+  if (environment.weather !== 'drought') return base;
+  if (kind === 'hen_yard' || kind === 'goat_pen') return base;
+  if (kind === 'apple_orchard' || kind === 'cherry_orchard' || kind === 'pear_orchard') return base * 0.9;
+  if (kind === 'aronia_orchard') return base * 0.75;
+  if (kind === 'rosehip_orchard') return base * 0.85;
+  if (kind === 'orchard') return 0;
+  return base * 0.55;
 }
 
 export function backyardGardenSeasonStatus(
   kind: BackyardGardenKind,
   month: number,
   environment: Pick<EnvironmentState, 'season' | 'weather'>,
+  daysUntilFirstHarvest = 0,
 ): BackyardGardenSeasonStatus {
-  const phenology = backyardGardenPhenology(kind, month);
-  const multiplier = backyardGardenSeasonalMultiplier(
-    kind,
-    month,
-    environment,
-  );
+  const phenology = backyardGardenPhenology(kind, month, daysUntilFirstHarvest);
+  const multiplier = daysUntilFirstHarvest > 0
+    ? 0
+    : backyardGardenSeasonalMultiplier(kind, month, environment);
   let label: string;
   if (environment.weather === 'drought' && multiplier > 1e-9) {
     label = `${phenology.label} · drought reduces output to ${Math.round(multiplier * 100)}%`;
@@ -367,6 +411,10 @@ export function backyardGardenSeasonStatus(
     active: multiplier > 1e-9,
     label,
   };
+}
+
+function monthLabel(month: number): string {
+  return ['?', 'January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'][month] ?? '?';
 }
 
 export function computeBackyardGardenTickEffects(

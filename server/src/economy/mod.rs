@@ -26,7 +26,7 @@ pub use commodities::{
     residence_commodity_stock, residence_edible_food_stock, residence_food_category_mask,
     residence_food_progression_met, residence_food_progression_required_slots,
     residence_food_progression_slots, residence_fresh_food_stock, residence_preserved_food_stock,
-    withdraw_building_commodity, withdraw_building_edible_food, withdraw_residence_commodity,
+    storage_accepts_commodity, withdraw_building_commodity, withdraw_building_edible_food, withdraw_residence_commodity,
     withdraw_residence_fresh_food, withdraw_residence_preserved_food, CommodityKind,
     FRESH_FOOD_COMMODITIES, PRESERVED_FOOD_COMMODITIES,
 };

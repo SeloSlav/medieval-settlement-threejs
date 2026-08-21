@@ -20,7 +20,8 @@ use crate::residence_upgrade_policy::{
 };
 use crate::roads::load_owner_road_network;
 use crate::simulation::{
-    cancel_trips_for_residence, clear_residence_project, insert_reclamation_pile, ReclamationStock,
+    cancel_trips_for_residence, clear_residence_project, game_clock, insert_reclamation_pile,
+    ReclamationStock,
 };
 use crate::tables::{BackyardGarden, Residence};
 
@@ -114,6 +115,12 @@ pub fn place_backyard_garden(
 
     let def = backyard_garden_def_by_slug(kind.trim())
         .ok_or_else(|| format!("Unknown backyard garden kind: {kind}"))?;
+    if def.specialization_of.is_some() {
+        return Err(
+            "Construct an orchard first, then choose its planting after the worksite is complete."
+                .to_string(),
+        );
+    }
 
     let cost = backyard_garden_cost(def.kind);
     let gold_cost = def.cost_gold;
@@ -192,8 +199,128 @@ pub fn place_backyard_garden(
         residence_id,
         owner,
         kind: def.kind as u8,
+        first_harvest_day: 0,
+        jam_stock: 0.0,
+        flower_luxury_upgraded: false,
     });
 
+    Ok(())
+}
+
+#[reducer]
+pub fn specialize_orchard(
+    ctx: &ReducerContext,
+    residence_id: u64,
+    kind: String,
+) -> Result<(), String> {
+    let owner = ctx.sender();
+    ensure_player_resources(ctx, owner);
+    let mut residence = ctx
+        .db
+        .residence()
+        .id()
+        .find(&residence_id)
+        .ok_or_else(|| "Residence not found.".to_string())?;
+    if residence.owner != owner {
+        return Err("You do not own this residence.".to_string());
+    }
+    let mut garden = ctx
+        .db
+        .backyard_garden()
+        .residence_id()
+        .filter(&residence_id)
+        .next()
+        .ok_or_else(|| "Construct an orchard before choosing what to plant.".to_string())?;
+    if garden.owner != owner
+        || BackyardGardenKind::from_id(garden.kind) != Some(BackyardGardenKind::Orchard)
+    {
+        return Err("Only a completed, unplanted orchard can be specialized.".to_string());
+    }
+    let def = backyard_garden_def_by_slug(kind.trim())
+        .filter(|candidate| candidate.specialization_of == Some("orchard"))
+        .ok_or_else(|| "That is not an orchard planting option.".to_string())?;
+    let orchard = crate::balance_generated::backyard_garden_def(BackyardGardenKind::Orchard);
+    let planting_gold = (def.cost_gold - orchard.cost_gold).max(0.0);
+    let household_contribution =
+        residence_upgrade_household_contribution(residence.household_wealth, planting_gold);
+    let civic_gold_due = (planting_gold - household_contribution).max(0.0);
+    if treasury_gold(ctx, owner) + 1e-6 < civic_gold_due {
+        return Err(format!(
+            "Needs {} more treasury gold for saplings and planting stock.",
+            (civic_gold_due - treasury_gold(ctx, owner)).ceil() as i64,
+        ));
+    }
+    residence.household_wealth =
+        (residence.household_wealth - household_contribution).max(0.0);
+    spend_treasury_gold(ctx, owner, civic_gold_due)?;
+    credit_settlement_household_income(ctx, owner, planting_gold);
+
+    let total_days = ctx
+        .db
+        .world_config()
+        .id()
+        .find(&0)
+        .map(|config| game_clock(config.sim_tick).total_days)
+        .unwrap_or(0);
+    garden.kind = def.kind as u8;
+    garden.first_harvest_day = total_days.saturating_add(def.first_harvest_days);
+    garden.jam_stock = 0.0;
+    garden.flower_luxury_upgraded = false;
+    ctx.db.backyard_garden().id().update(garden);
+    ctx.db.residence().id().update(residence);
+    Ok(())
+}
+
+#[reducer]
+pub fn upgrade_flower_garden_luxury(
+    ctx: &ReducerContext,
+    residence_id: u64,
+) -> Result<(), String> {
+    let owner = ctx.sender();
+    ensure_player_resources(ctx, owner);
+    let mut residence = ctx
+        .db
+        .residence()
+        .id()
+        .find(&residence_id)
+        .ok_or_else(|| "Residence not found.".to_string())?;
+    if residence.owner != owner {
+        return Err("You do not own this residence.".to_string());
+    }
+    if residence.tier < 4 {
+        return Err("Only a tier-4 household can cultivate luxury cut flowers.".to_string());
+    }
+    let mut garden = ctx
+        .db
+        .backyard_garden()
+        .residence_id()
+        .filter(&residence_id)
+        .next()
+        .ok_or_else(|| "This backyard has no flower garden.".to_string())?;
+    if BackyardGardenKind::from_id(garden.kind) != Some(BackyardGardenKind::FlowerGarden) {
+        return Err("This backyard is not a flower garden.".to_string());
+    }
+    if garden.flower_luxury_upgraded {
+        return Err("This flower garden already supplies luxury bouquets.".to_string());
+    }
+    let cost = crate::balance_generated::backyard_garden_def(BackyardGardenKind::FlowerGarden)
+        .luxury_upgrade_gold_cost;
+    let household_contribution =
+        residence_upgrade_household_contribution(residence.household_wealth, cost);
+    let civic_gold_due = (cost - household_contribution).max(0.0);
+    if treasury_gold(ctx, owner) + 1e-6 < civic_gold_due {
+        return Err(format!(
+            "Needs {} more treasury gold for luxury bulbs and cutting tools.",
+            (civic_gold_due - treasury_gold(ctx, owner)).ceil() as i64,
+        ));
+    }
+    residence.household_wealth =
+        (residence.household_wealth - household_contribution).max(0.0);
+    spend_treasury_gold(ctx, owner, civic_gold_due)?;
+    credit_settlement_household_income(ctx, owner, cost);
+    garden.flower_luxury_upgraded = true;
+    ctx.db.backyard_garden().id().update(garden);
+    ctx.db.residence().id().update(residence);
     Ok(())
 }
 

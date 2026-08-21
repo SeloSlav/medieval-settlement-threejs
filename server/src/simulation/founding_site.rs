@@ -8,7 +8,8 @@ use crate::balance_generated::{
 };
 use crate::db::*;
 use crate::economy::{
-    building_commodity_cap, building_commodity_room, building_commodity_stock, CommodityKind,
+    building_commodity_cap, building_commodity_room, building_commodity_stock,
+    storage_accepts_commodity, CommodityKind,
 };
 use crate::residence_upgrade_policy::residence_project_active;
 use crate::simulation::delivery_trips::{
@@ -257,6 +258,9 @@ fn founding_destination_room(
     if matches!(candidate.kind.as_str(), "founders_camp" | "salvage_pile") {
         return None;
     }
+    if !storage_accepts_commodity(candidate, commodity) {
+        return None;
+    }
     let priority =
         founding_destination_priority(commodity, &candidate.kind, starter_supplies_only)?;
     let room = building_commodity_room(candidate, commodity);
@@ -360,12 +364,7 @@ fn relocatable_stock(ctx: &ReducerContext, site: &Building, commodity: Commodity
 }
 
 fn founding_storehouse_room(storehouse: &Building, commodity: CommodityKind) -> f64 {
-    let accepts = match commodity {
-        CommodityKind::Timber => storehouse.storehouse_accepts_timber,
-        CommodityKind::Stone => storehouse.storehouse_accepts_stone,
-        CommodityKind::Firewood => storehouse.storehouse_accepts_firewood,
-        _ => false,
-    };
+    let accepts = storage_accepts_commodity(storehouse, commodity);
     let target_percent = match commodity {
         CommodityKind::Timber => storehouse.storehouse_timber_target_percent,
         CommodityKind::Stone => storehouse.storehouse_stone_target_percent,

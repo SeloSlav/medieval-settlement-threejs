@@ -82,6 +82,9 @@ pub mod specialty_trade_policy;
 #[path = "../../src/storehouse_policy.rs"]
 pub mod storehouse_policy;
 
+#[path = "../../src/storage_acceptance_policy.rs"]
+pub mod storage_acceptance_policy;
+
 #[path = "../../src/processor_output_policy.rs"]
 pub mod processor_output_policy;
 

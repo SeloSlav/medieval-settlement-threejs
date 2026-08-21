@@ -114,6 +114,10 @@ import {
   normalizeGranaryGrainReserve,
 } from '../../economy/granaryPolicy.ts';
 import {
+  GRANARY_STORAGE_GROUPS,
+  renderStorageAcceptanceControls,
+} from '../../economy/storageAcceptancePolicy.ts';
+import {
   CARPENTER_POLEARM_RESERVE_PRESETS,
   carpenterArmoryPlan,
 } from '../../economy/carpenterArmoryPolicy.ts';
@@ -1694,8 +1698,8 @@ export function renderGranaryPolicyPanel(building: BuildingState): string {
     : 'Preservation-first restores the highest-priority smokehouse fresh-food buffer before stocking fresh and cured Marketplace stalls.';
   return `
     <div class="inspector-action-panel">
-      <p class="inspector-action-panel__hint">Centralizing perishables shelters fresh food. Each assigned granary worker can set up one fresh-food or preserved-food table at one nearest connected Marketplace; an unstocked worker stands by to accept the first compatible producer delivery. Ale is hauled to staffed Taverns instead. Those keepers also haul physical institutional routes, but never cart routine provisions from a stall to individual homes. Fresh-food surplus carts still serve critical guards, smokehouse working batches, routine company reserves, and enabled granaries.</p>
-      <label class="city-admin-panel__toggle"><input type="checkbox" data-granary-accepts-fresh-food ${building.granaryAcceptsFreshFood === false ? '' : 'checked'} /><span>Collect fresh and cured surplus</span></label>
+      <p class="inspector-action-panel__hint">Choose exactly which harvests and provisions this Granary may receive. Disabled goods stay at producers or route to another compatible Granary; stock already here remains available. Each assigned keeper can set up one stocked provision table at a connected Marketplace and haul physical institutional routes.</p>
+      ${renderStorageAcceptanceControls(building, GRANARY_STORAGE_GROUPS)}
       <label class="city-admin-panel__toggle"><input type="checkbox" data-granary-households-first ${householdsFirst ? 'checked' : ''} /><span>Feed households before smokehouses</span></label>
       <p class="inspector-action-panel__hint">${priorityHint}</p>
       <p class="resource-inspector-note">Fresh-food intake target — lower settings reduce collection-cart pressure and keep stock near its source territory; higher settings shelter more food from spoilage for winter and preservation.</p>

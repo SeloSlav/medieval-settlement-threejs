@@ -868,6 +868,11 @@ pub struct Building {
     /// Rational-calendar day on which service funding was last settled.
     #[default(0u64)]
     pub monastery_last_service_day: u64,
+    /// Per-commodity intake gates for Granaries and Storehouses. Commodity
+    /// codes are stable bit positions; all bits default on so old saves retain
+    /// their former behavior until the player changes a storage policy.
+    #[default(18446744073709551615u64)]
+    pub storage_acceptance_mask: u64,
 }
 
 /// One persistent import/export instruction for one Trading Post commodity.
@@ -1317,6 +1322,19 @@ pub struct BackyardGarden {
     pub owner: Identity,
     /// Matches `BackyardGardenKind` in balance_generated.
     pub kind: u8,
+    /// Absolute rational-calendar day on which a new orchard specialization
+    /// reaches its first productive harvest. Zero is reserved for unplanted
+    /// orchards and non-perennial backyard extensions.
+    #[default(0u64)]
+    pub first_harvest_day: u64,
+    /// Household-produced aronia or rosehip preserves reserved for the local
+    /// tier-4 luxury need. Kept on the backyard row to avoid teleporting jars.
+    #[default(0.0)]
+    pub jam_stock: f64,
+    /// A tier-4 cut-flower upgrade satisfies the same luxury-comfort need as
+    /// preserves while retaining the garden's pollinator/attraction effects.
+    #[default(false)]
+    pub flower_luxury_upgraded: bool,
 }
 
 /// A deceased resident awaiting or undergoing physical transport to a

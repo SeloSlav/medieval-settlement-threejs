@@ -14,6 +14,7 @@ use crate::balance_generated::{
     HERB_MORTALITY_MULTIPLIER, HERB_RECOVERY_MULTIPLIER, HERB_TREATMENT_PER_SICK_DAY,
     ILLNESS_MORTALITY_CHANCE_PER_SICK_DAY, ILLNESS_RECOVERY_DAYS, MALNUTRITION_ILLNESS_MULTIPLIER,
     PRESERVED_FOOD_STORAGE_RESIDENCE_FACTOR, TICK_DT, UNSAFE_WATER_ILLNESS_MULTIPLIER,
+    RESIDENCE_LUXURY_JAM_PER_PERSON_PER_SEC,
 };
 use crate::season_policy::{EnvironmentState, Season};
 use crate::simulation::game_calendar::GameClock;
@@ -113,6 +114,8 @@ pub fn step_residence_needs(
             } else {
                 ConsumeResult::Unmet
             }
+        } else if kind == ResidenceNeedKind::Luxury {
+            consume_backyard_luxury(ctx, &residence, need)
         } else if kind == ResidenceNeedKind::PreservedFood {
             // The meal allocator already rotated the seasonal ration without
             // adding a second calorie demand. Any remainder is the household's
@@ -196,6 +199,38 @@ pub fn step_residence_needs(
     if next_effective_workers < previous_effective_workers {
         reconcile_building_labor(ctx, owner);
     }
+}
+
+fn consume_backyard_luxury(
+    ctx: &ReducerContext,
+    residence: &Residence,
+    need: &NeedState,
+) -> ConsumeResult {
+    let Some(mut garden) = ctx
+        .db
+        .backyard_garden()
+        .residence_id()
+        .filter(&residence.id)
+        .next()
+    else {
+        return ConsumeResult::Unmet;
+    };
+    if garden.flower_luxury_upgraded {
+        return ConsumeResult::Met(NeedState {
+            stock: 1.0,
+            ..*need
+        });
+    }
+    let demand = residence.population as f64 * RESIDENCE_LUXURY_JAM_PER_PERSON_PER_SEC * TICK_DT;
+    if demand <= 1e-9 || garden.jam_stock + 1e-9 >= demand {
+        garden.jam_stock = (garden.jam_stock - demand).max(0.0);
+        let stock = garden.jam_stock;
+        ctx.db.backyard_garden().id().update(garden);
+        return ConsumeResult::Met(NeedState { stock, ..*need });
+    }
+    garden.jam_stock = 0.0;
+    ctx.db.backyard_garden().id().update(garden);
+    ConsumeResult::Unmet
 }
 
 fn consume_food_with_preserved(
@@ -622,7 +657,9 @@ fn consume_need(
             provisions::ConsumeOutcome::Met(updated) => ConsumeResult::Met(updated),
             provisions::ConsumeOutcome::Unmet => ConsumeResult::Unmet,
         },
-        ResidenceNeedKind::Church | ResidenceNeedKind::FoodVariety => ConsumeResult::Unmet,
+        ResidenceNeedKind::Church | ResidenceNeedKind::FoodVariety | ResidenceNeedKind::Luxury => {
+            ConsumeResult::Unmet
+        }
     }
 }
 
@@ -635,7 +672,7 @@ fn on_unmet_need(kind: ResidenceNeedKind, need: &NeedState) -> NeedState {
         | ResidenceNeedKind::PreservedFood
         | ResidenceNeedKind::Cloth
         | ResidenceNeedKind::Pottery => provisions::on_unmet(need),
-        ResidenceNeedKind::Church | ResidenceNeedKind::FoodVariety => *need,
+        ResidenceNeedKind::Church | ResidenceNeedKind::FoodVariety | ResidenceNeedKind::Luxury => *need,
     }
 }
 
@@ -648,7 +685,7 @@ fn apply_delivery_for_kind(kind: ResidenceNeedKind, need: &NeedState, delivered:
         | ResidenceNeedKind::PreservedFood
         | ResidenceNeedKind::Cloth
         | ResidenceNeedKind::Pottery => provisions::apply_delivery(need, delivered),
-        ResidenceNeedKind::Church | ResidenceNeedKind::FoodVariety => *need,
+        ResidenceNeedKind::Church | ResidenceNeedKind::FoodVariety | ResidenceNeedKind::Luxury => *need,
     }
 }
 

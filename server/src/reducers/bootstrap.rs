@@ -360,6 +360,7 @@ pub(crate) fn place_founding_camp(ctx: &ReducerContext, x: f64, z: f64) -> Resul
         monastery_croft_choice_year: 0,
         monastery_service_funding: 1.0,
         monastery_last_service_day: 0,
+        storage_acceptance_mask: u64::MAX,
     });
 
     resources.timber = 0.0;

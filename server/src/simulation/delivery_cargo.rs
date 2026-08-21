@@ -137,7 +137,7 @@ pub fn building_delivery_stock(building: &Building, kind: ResidenceNeedKind) -> 
         ResidenceNeedKind::PreservedFood => building_preserved_food_stock(building),
         ResidenceNeedKind::Cloth => building.cloth,
         ResidenceNeedKind::Pottery => building.pottery,
-        ResidenceNeedKind::Church | ResidenceNeedKind::FoodVariety => 0.0,
+        ResidenceNeedKind::Church | ResidenceNeedKind::FoodVariety | ResidenceNeedKind::Luxury => 0.0,
     }
 }
 
@@ -193,7 +193,7 @@ pub fn withdraw_delivery_cargo(
         ResidenceNeedKind::Pottery => {
             withdraw_building_commodity(building, CommodityKind::Pottery, amount)
         }
-        ResidenceNeedKind::Church | ResidenceNeedKind::FoodVariety => 0.0,
+        ResidenceNeedKind::Church | ResidenceNeedKind::FoodVariety | ResidenceNeedKind::Luxury => 0.0,
     }
 }
 
@@ -321,7 +321,7 @@ pub fn delivery_stock_room(kind: ResidenceNeedKind, stock: f64) -> f64 {
         | ResidenceNeedKind::PreservedFood
         | ResidenceNeedKind::Cloth
         | ResidenceNeedKind::Pottery => (provisions::stock_capacity(kind) - stock).max(0.0),
-        ResidenceNeedKind::Church | ResidenceNeedKind::FoodVariety => 0.0,
+        ResidenceNeedKind::Church | ResidenceNeedKind::FoodVariety | ResidenceNeedKind::Luxury => 0.0,
     }
 }
 
@@ -334,7 +334,7 @@ pub fn has_delivery_stock_room(kind: ResidenceNeedKind, stock: f64) -> bool {
         | ResidenceNeedKind::PreservedFood
         | ResidenceNeedKind::Cloth
         | ResidenceNeedKind::Pottery => stock + 1e-6 < provisions::stock_capacity(kind),
-        ResidenceNeedKind::Church | ResidenceNeedKind::FoodVariety => false,
+        ResidenceNeedKind::Church | ResidenceNeedKind::FoodVariety | ResidenceNeedKind::Luxury => false,
     }
 }
 

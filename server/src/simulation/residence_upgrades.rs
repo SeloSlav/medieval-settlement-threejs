@@ -396,6 +396,9 @@ fn complete_project(ctx: &ReducerContext, residence: &mut Residence) -> bool {
                 residence_id: residence.id,
                 owner: residence.owner,
                 kind: residence.backyard_project_kind,
+                first_harvest_day: 0,
+                jam_stock: 0.0,
+                flower_luxury_upgraded: false,
             });
         }
         clear_residence_project(residence);

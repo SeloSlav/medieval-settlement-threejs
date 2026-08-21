@@ -78,6 +78,10 @@ import {
   processorAcceptsInput,
 } from '../economy/processorOutputPolicy.ts';
 import { edibleFoodStock } from '../economy/foodInventory.ts';
+import {
+  isStorageCommodity,
+  storageAcceptsCommodity,
+} from '../economy/storageAcceptancePolicy.ts';
 import { mineralDepositBeneath } from '../economy/settlementGeology.ts';
 import {
   areRoadConnected,
@@ -1226,8 +1230,9 @@ export class WorldQueries {
       material: DirectProcessorInputCommodity,
     ): boolean => {
       if (material === 'preservedFood') {
-        return target.granaryAcceptsFreshFood !== false;
+        return storageAcceptsCommodity(target, material);
       }
+      if (isStorageCommodity(material) && !storageAcceptsCommodity(target, material)) return false;
       if (!processorAcceptsInput(target, material)) return false;
       if (material !== 'ironwork') return true;
       const deposit = target.kind === 'mine'

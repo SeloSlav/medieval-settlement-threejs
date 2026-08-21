@@ -1,8 +1,11 @@
 import { apple } from '@seedthree/species/apple.js';
 import { cherry } from '@seedthree/species/cherry.js';
+import { pear } from '@seedthree/species/pear.js';
+import { aronia } from '@seedthree/species/aronia.js';
+import { rosehip } from '@seedthree/species/rosehip.js';
 import type { SeedThreeSpeciesPreset } from './seedThreeAssets.ts';
 
-export type BackyardPlantKind = 'apple' | 'cherry' | 'rose';
+export type BackyardPlantKind = 'apple' | 'cherry' | 'pear' | 'aronia' | 'rosehip' | 'rose';
 
 /**
  * Apple and cherry are shared SeedThree species. The cottage rose remains a
@@ -12,6 +15,9 @@ export const BACKYARD_PLANT_SPECIES: Record<BackyardPlantKind, SeedThreeSpeciesP
   // Keep the historical names because SeedThree uses species.name in its RNG seed.
   apple: { ...apple, name: 'Gorski Backyard Apple' } as SeedThreeSpeciesPreset,
   cherry: { ...cherry, name: 'Gorski Backyard Cherry' } as SeedThreeSpeciesPreset,
+  pear: { ...pear, name: 'Gorski Backyard Pear' } as SeedThreeSpeciesPreset,
+  aronia: { ...aronia, name: 'Gorski Backyard Aronia' } as SeedThreeSpeciesPreset,
+  rosehip: { ...rosehip, name: 'Gorski Backyard Rosehip' } as SeedThreeSpeciesPreset,
   rose: {
     name: 'Gorski Cottage Rose',
     bark: 'sweetgum_albedo.png',

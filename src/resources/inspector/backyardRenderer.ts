@@ -2,6 +2,7 @@ import {
   BACKYARD_GARDEN_DEFINITIONS,
   BACKYARD_GARDEN_KINDS,
   BACKYARD_GARDEN_PICKER_KINDS,
+  ORCHARD_SPECIALIZATION_KINDS,
   backyardGardenLabel,
   backyardGardenProductSummary,
   formatBackyardGardenCost,
@@ -16,6 +17,7 @@ import {
   STONE_SALVAGE_FRACTION,
   TIMBER_SALVAGE_FRACTION,
   TOWN_HALL_UNSTAFFED_TAX_COLLECTION_MULTIPLIER,
+  RESIDENCE_LUXURY_JAM_CAPACITY,
 } from '../../generated/gameBalance.ts';
 import {
   backyardFoodReserveDays,
@@ -56,6 +58,9 @@ export function renderBackyardInspector(
   if (!garden) {
     return renderEmptyBackyardPicker(residence, zone, context);
   }
+  if (garden.kind === 'orchard') {
+    return renderOrchardSpecializationPicker(residence, garden, context);
+  }
 
   const def = BACKYARD_GARDEN_DEFINITIONS[garden.kind];
   const producesFood = def.foodPerPersonPerSec > 0;
@@ -74,6 +79,7 @@ export function renderBackyardInspector(
     garden.kind,
     clock.month,
     environment,
+    Math.max(0, garden.firstHarvestDay - clock.totalDays),
   );
   const parishPolicy = context.getParishPolicy?.();
   const sabbathPaused = clock.isSunday
@@ -144,6 +150,15 @@ export function renderBackyardInspector(
       <li><span>Crop phase</span><span>${season.label}${sabbathPaused ? ' · household work paused today by parish policy' : ''}</span></li>
       <li><span>Harvest window</span><span>${season.harvestWindow}</span></li>
       <li><span>Product</span><span>${backyardGardenProductSummary(garden.kind)}</span></li>
+      ${BACKYARD_GARDEN_DEFINITIONS[garden.kind].firstHarvestDays > 0
+        ? `<li><span>First harvest</span><span>${garden.firstHarvestDay > clock.totalDays
+          ? `${garden.firstHarvestDay - clock.totalDays} days remaining`
+          : 'Planting established'}</span></li>
+           <li><span>Yield efficiency</span><span>${Math.round(BACKYARD_GARDEN_DEFINITIONS[garden.kind].yieldEfficiency * 100)}%</span></li>`
+        : ''}
+      ${BACKYARD_GARDEN_DEFINITIONS[garden.kind].jamPerPersonPerSec > 0
+        ? `<li><span>Household jam</span><span>${garden.jamStock.toFixed(1)} / ${RESIDENCE_LUXURY_JAM_CAPACITY} jars · reserved for tier-4 luxury comfort</span></li>`
+        : ''}
       ${producesFood
         ? `<li><span>Home food today</span><span>${economy.selfFoodPerDay.toFixed(1)} (${hasMarketAccess ? `fills the tier ${residence.tier} ${reserveDays}-day reserve first` : '100% kept without a staffed stall'})</span></li>
            <li><span>Shared market food today</span><span>${economy.marketFoodPerDay.toFixed(1)}${hasMarketAccess ? ' pooled for other households' : ' — household keeps the full crop without a stall'}</span></li>
@@ -174,7 +189,14 @@ export function renderBackyardInspector(
       <li><span>Household savings</span><span>${formatBackyardSavingsLabel(economy.netWealthPerDay, hasMarketAccess)}</span></li>`}
       <li><span>Build cost</span><span>${renderBuildingResourceCost(getBackyardGardenCost(garden.kind))}</span></li>
     `,
-    supplementalPanelHtml: `<p class="resource-inspector-note">${producesFood
+    supplementalPanelHtml: `${garden.kind === 'flower_garden' && !garden.flowerLuxuryUpgraded
+      ? `<div class="inspector-action-panel">
+          <p class="resource-inspector-note">Tier-4 households can add selected bulbs, cutting beds, and bouquet tools. The garden keeps its pollinator and attraction effects while satisfying the luxury-comfort need.</p>
+          <button type="button" class="resource-action-button" data-action="upgrade-flower-luxury" ${residence.tier < 4 ? 'disabled title="Requires a tier-4 residence"' : ''}>Cultivate luxury flowers · ${BACKYARD_GARDEN_DEFINITIONS.flower_garden.luxuryUpgradeGoldCost} gold</button>
+        </div>`
+      : garden.kind === 'flower_garden' && garden.flowerLuxuryUpgraded
+        ? '<p class="resource-inspector-note">Luxury cut flowers are active: this home satisfies its tier-4 luxury-comfort need without consuming jam.</p>'
+        : ''}<p class="resource-inspector-note">${producesFood
       ? `The household keeps edible output until its ${reserveDays}-day reserve is filled. Only physical overflow becomes Marketplace inventory. Gardens do not compete for a fourth food slot: they share the existing Granary-staffed food group, its inventory capacity, and its throughput.`
       : marketChannel === 'goods'
         ? 'The household fills its remedy store first. Surplus uses the existing Storehouse-staffed goods group without reserving another table; it still shares Marketplace inventory capacity and throughput.'
@@ -282,8 +304,63 @@ function renderEmptyBackyardPicker(
   };
 }
 
+function renderOrchardSpecializationPicker(
+  residence: Extract<InspectableTarget, { kind: 'backyard' }>['residence'],
+  garden: NonNullable<Extract<InspectableTarget, { kind: 'backyard' }>['garden']>,
+  context: InspectorRenderContext,
+): InspectorView {
+  const orchardGold = BACKYARD_GARDEN_DEFINITIONS.orchard.goldCost;
+  const options = ORCHARD_SPECIALIZATION_KINDS.map((kind) => {
+    const def = BACKYARD_GARDEN_DEFINITIONS[kind];
+    const plantingGold = Math.max(0, def.goldCost - orchardGold);
+    const funding = householdProjectFunding(
+      residence.householdWealth,
+      plantingGold,
+      context.resourceTotals.gold,
+      context.gameState.physicalFoundingSiteEnabled === true,
+    );
+    const ready = funding.ready;
+    const harvestMonths = def.harvestStartMonth === def.harvestEndMonth
+      ? monthName(def.harvestStartMonth)
+      : `${monthName(def.harvestStartMonth)}–${monthName(def.harvestEndMonth)}`;
+    return `<li class="backyard-picker-row">
+      <button type="button" class="backyard-picker-option${ready ? '' : ' backyard-picker-option--disabled'}"
+        data-inspector-action="specialize-orchard" data-garden-kind="${kind}"
+        ${ready ? '' : 'disabled'} aria-label="Plant ${backyardGardenLabel(kind)}">
+        <span class="backyard-picker-option__icon" aria-hidden="true"></span>
+        <span class="backyard-picker-option__title">${backyardGardenLabel(kind)}</span>
+        <span class="backyard-picker-option__cost">${plantingGold} gold · first harvest ${def.firstHarvestDays} days</span>
+        <span class="backyard-picker-option__funding">${harvestMonths} · ${Math.round(def.yieldEfficiency * 100)}% efficiency${def.jamPerPersonPerSec > 0 ? ' · makes jam' : ''}</span>
+      </button>
+    </li>`;
+  }).join('');
+  return {
+    eyebrow: 'Completed orchard',
+    title: backyardGardenLabel(garden.kind),
+    statusText: 'Choose trees or fruiting bushes',
+    statusState: 'neutral',
+    detailsHtml: `
+      <li><span>Population</span><span>${residence.population}</span></li>
+      <li><span>Construction</span><span>Complete · no builder assigned</span></li>
+      <li><span>Planting</span><span>Unselected · no production yet</span></li>
+    `,
+    supplementalPanelHtml: `<p class="resource-inspector-note">Planting is a permanent orchard choice until demolition. Species differ in establishment time, harvest window, output efficiency, and preserve yield.</p><ul class="backyard-picker-list">${options}</ul>`,
+    demolish: {
+      visible: true,
+      label: 'Demolish orchard',
+      hint: 'Removes the orchard so this backyard can choose any extension again after reclaimed materials are hauled away.',
+    },
+    labor: hiddenLabor(),
+  };
+}
+
+function monthName(month: number): string {
+  return ['?', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][month] ?? '?';
+}
+
 function backyardGardenPickerLabel(kind: BackyardGardenKind): string {
   switch (kind) {
+    case 'orchard': return 'Orchard';
     case 'apple_orchard': return 'Apple orchard';
     case 'cherry_orchard': return 'Cherry orchard';
     case 'vegetable_garden': return 'Vegetables';
@@ -292,6 +369,9 @@ function backyardGardenPickerLabel(kind: BackyardGardenKind): string {
     case 'hen_yard': return 'Hens';
     case 'goat_pen': return 'Goats';
     case 'backyard_apiary': return 'Apiary';
+    case 'pear_orchard': return 'Pear orchard';
+    case 'aronia_orchard': return 'Aronia bushes';
+    case 'rosehip_orchard': return 'Rosehip bushes';
   }
 }
 
@@ -365,5 +445,17 @@ export function parseGardenPickerKind(button: HTMLElement): BackyardGardenKind |
   if (!value) return null;
   return (BACKYARD_GARDEN_KINDS as readonly string[]).includes(value)
     ? (value as BackyardGardenKind)
+    : null;
+}
+
+export function parseOrchardSpecializationKind(button: HTMLElement): BackyardGardenKind | null {
+  const option = button.closest<HTMLButtonElement>(
+    '[data-inspector-action="specialize-orchard"]',
+  );
+  if (!option || option.disabled) return null;
+  const value = option.dataset.gardenKind;
+  if (!value) return null;
+  return ORCHARD_SPECIALIZATION_KINDS.includes(value as BackyardGardenKind)
+    ? value as BackyardGardenKind
     : null;
 }

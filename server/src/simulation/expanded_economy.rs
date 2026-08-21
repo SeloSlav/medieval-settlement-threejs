@@ -16,7 +16,7 @@ use crate::balance_generated::{
     BREWERY_HONEY_PER_MEAD_CYCLE, BREWERY_MALTING_FIREWOOD_PER_CYCLE,
     BREWERY_MALTING_WATER_PER_CYCLE, BREWERY_MALT_PER_ALE_CYCLE, BREWERY_MALT_PER_CYCLE,
     BREWERY_MEAD_PER_CYCLE, CALENDAR_SECONDS_PER_DAY, CHARCOAL_BURNER_CHARCOAL_PER_CYCLE,
-    CHARCOAL_BURNER_FIREWOOD_PER_CYCLE, CHARCOAL_HOUSEHOLD_FUEL_VALUE,
+    CHARCOAL_BURNER_FIREWOOD_PER_CYCLE,
     CIVILIAN_TOOL_IRONWORK_PER_CYCLE, CLAY_PIT_CLAY_PER_CYCLE, FARM_GROWTH_SECONDS,
     FARM_WORK_METERS_PER_WORKER_PER_SEC, GRAIN_TRANSFER_PER_TRIP, MINE_IRON_PER_CYCLE,
     MINE_SALT_PER_CYCLE, MINE_TIMBER_SUPPORT_PER_CYCLE, MONASTERY_FEAST_ALE, MONASTERY_FEAST_FOOD,
@@ -52,7 +52,8 @@ use crate::economy::{
     building_preservable_food_stock, credit_monastery_export_receipt,
     credit_settlement_household_income, deposit_building_commodity,
     first_building_edible_commodity, flour_bulk_stock, restore_treasury_gold, spend_treasury_gold,
-    treasury_gold, withdraw_building_commodity, withdraw_building_edible_food, CommodityKind,
+    storage_accepts_commodity, treasury_gold, withdraw_building_commodity,
+    withdraw_building_edible_food, CommodityKind,
     FRESH_FOOD_COMMODITIES,
 };
 use crate::farm_work_policy::{field_task_rank, threshing_preempts_fields};
@@ -400,7 +401,7 @@ fn institutional_food_target_plan(
                 desired_stock,
             ))
         }
-        "granary" if target.granary_accepts_fresh_food => {
+        "granary" if storage_accepts_commodity(target, commodity) => {
             let desired_stock = granary_fresh_food_target(
                 building_commodity_cap(&target.kind, CommodityKind::Food),
                 target.granary_fresh_food_target_percent,
@@ -879,7 +880,6 @@ pub fn step_industrial_firewood_dispatch(
         if !source.construction_complete
             || tick.building_disabled_by_fire(ctx, source.id)
             || source.firewood <= 1e-6
-            || (source.kind == "village_storehouse" && !source.storehouse_accepts_firewood)
             || !matches!(
                 source.kind.as_str(),
                 "woodcutters_lodge" | "village_storehouse"
@@ -1374,8 +1374,7 @@ fn dispatch_local_material_candidates(
         let desired_stock =
             if target.kind == "village_storehouse" && commodity == CommodityKind::Charcoal {
                 if target.assigned_labor == 0
-                    || !target.storehouse_accepts_charcoal
-                    || combined_fuel_equivalent(target.firewood, target.charcoal) > 1e-6
+                    || !storage_accepts_commodity(&target, CommodityKind::Charcoal)
                 {
                     continue;
                 }
@@ -1483,13 +1482,9 @@ fn local_material_target_kinds(
             "carpenter",
         ]),
         ("trading_post", CommodityKind::Pottery) => Some(&["smokehouse", "village_storehouse"]),
-        ("village_storehouse", CommodityKind::Iron) if source.storehouse_accepts_iron => {
-            Some(&["smithy", "trading_post"])
-        }
-        ("village_storehouse", CommodityKind::Clay) if source.storehouse_accepts_clay => {
-            Some(&["potter_kiln"])
-        }
-        ("village_storehouse", CommodityKind::Salt) if source.storehouse_accepts_salt => {
+        ("village_storehouse", CommodityKind::Iron) => Some(&["smithy", "trading_post"]),
+        ("village_storehouse", CommodityKind::Clay) => Some(&["potter_kiln"]),
+        ("village_storehouse", CommodityKind::Salt) => {
             Some(&["smokehouse", "pastoral_farmstead", "trading_post"])
         }
         // Existing depot charcoal always remains dispatchable even when new
@@ -1609,65 +1604,49 @@ fn storehouse_charcoal_transit_plan(
     market_shortfalls: &HashMap<u64, f64>,
 ) -> Option<(ProcessorInputDispatchDuty, f64, f64)> {
     if storehouse.assigned_labor == 0
-        || !storehouse.storehouse_accepts_charcoal
-        || combined_fuel_equivalent(storehouse.firewood, storehouse.charcoal) > 1e-6
+        || !storage_accepts_commodity(storehouse, CommodityKind::Charcoal)
     {
         return None;
     }
     let network = tick.road_network(storehouse.owner)?;
-    // One stable empty transit depot claims a road branch at a time. Multiple
-    // kilns therefore cannot each reserve the same uncovered market shortfall.
-    let designated_transit_depot = tick
-        .building_ids_for_kinds(ctx, storehouse.owner, &["village_storehouse"])
+    let has_linked_market_shortfall = market_shortfalls
+        .iter()
+        .any(|(market_id, shortfall)| {
+            if *shortfall <= 1e-6 {
+                return false;
+            }
+            ctx.db.building().id().find(market_id).is_some_and(|market| {
+                market.owner == storehouse.owner
+                    && local_delivery_distance(
+                        network,
+                        storehouse.x,
+                        storehouse.z,
+                        market.x,
+                        market.z,
+                    )
+                    .is_some()
+            })
+        });
+    let has_linked_export_post = tick
+        .building_ids_for_kinds(ctx, storehouse.owner, &["trading_post"])
         .into_iter()
         .filter_map(|id| ctx.db.building().id().find(&id))
-        .filter(|depot| {
-            depot.construction_complete
-                && depot.assigned_labor > 0
-                && depot.storehouse_accepts_charcoal
-                && !tick.building_disabled_by_fire(ctx, depot.id)
-                && combined_fuel_equivalent(depot.firewood, depot.charcoal) <= 1e-6
-                && local_delivery_distance(network, storehouse.x, storehouse.z, depot.x, depot.z)
+        .any(|post| {
+            post.construction_complete
+                && !tick.building_disabled_by_fire(ctx, post.id)
+                && trading_post_exports_commodity(ctx, post.id, CommodityKind::Charcoal)
+                && local_delivery_distance(network, storehouse.x, storehouse.z, post.x, post.z)
                     .is_some()
-        })
-        .map(|depot| depot.id)
-        .min()?;
-    if designated_transit_depot != storehouse.id {
+        });
+    if !has_linked_market_shortfall && !has_linked_export_post {
         return None;
     }
-    let linked_shortfall = market_shortfalls
-        .iter()
-        .filter_map(|(market_id, shortfall)| {
-            let market = ctx.db.building().id().find(market_id)?;
-            if market.owner != storehouse.owner {
-                return None;
-            }
-            local_delivery_distance(network, storehouse.x, storehouse.z, market.x, market.z)
-                .map(|_| *shortfall)
-        })
-        .sum::<f64>();
-    let staged_elsewhere = tick
-        .building_ids_for_kinds(ctx, storehouse.owner, &["village_storehouse"])
-        .into_iter()
-        .filter_map(|id| ctx.db.building().id().find(&id))
-        .filter(|depot| {
-            depot.id != storehouse.id
-                && depot.construction_complete
-                && depot.assigned_labor > 0
-                && !tick.building_disabled_by_fire(ctx, depot.id)
-                && local_delivery_distance(network, storehouse.x, storehouse.z, depot.x, depot.z)
-                    .is_some()
-        })
-        .map(|depot| combined_fuel_equivalent(depot.firewood, depot.charcoal))
-        .sum::<f64>();
-    let unstaged_shortfall = (linked_shortfall - staged_elsewhere).max(0.0);
-    let desired = (unstaged_shortfall / CHARCOAL_HOUSEHOLD_FUEL_VALUE.max(1e-9)).min(
-        storehouse_stock_target(
-            building_commodity_cap(&storehouse.kind, CommodityKind::Charcoal),
-            storehouse.storehouse_charcoal_target_percent,
-        ),
+    let desired = storehouse_stock_target(
+        building_commodity_cap(&storehouse.kind, CommodityKind::Charcoal),
+        storehouse.storehouse_charcoal_target_percent,
     );
-    (desired > 1e-6).then_some((ProcessorInputDispatchDuty::WorkshopOverflow, desired, 0.0))
+    (storehouse.charcoal + 1e-6 < desired)
+        .then_some((ProcessorInputDispatchDuty::WorkshopOverflow, desired, 0.0))
 }
 
 pub fn step_mine(
@@ -2708,7 +2687,7 @@ pub fn step_smokehouse(
             &mut smokehouse,
             commodity,
             &["granary"],
-            |target| target.granary_accepts_fresh_food,
+            |target| storage_accepts_commodity(target, commodity),
         );
     }
     ctx.db.building().id().update(smokehouse);
@@ -3950,6 +3929,9 @@ fn processor_uses_input(kind: &str, commodity: CommodityKind) -> bool {
 }
 
 pub(crate) fn processor_accepts_input(building: &Building, commodity: CommodityKind) -> bool {
+    if !storage_accepts_commodity(building, commodity) {
+        return false;
+    }
     // Oats leave the farmstead ready for households, livestock, or monastic
     // hospitality; mills accept only rye and maslin grain.
     if matches!(building.kind.as_str(), "watermill" | "windmill")
@@ -3958,7 +3940,7 @@ pub(crate) fn processor_accepts_input(building: &Building, commodity: CommodityK
         return false;
     }
     if building.kind == "granary" && (commodity.is_fresh_food() || commodity.is_preserved_food()) {
-        return building.granary_accepts_fresh_food;
+        return true;
     }
     if building.kind == "pastoral_farmstead" && commodity == CommodityKind::Salt {
         return normalize_milk_use_policy(building.processor_output_target_percent)

@@ -324,7 +324,10 @@ fn household_issue_target(
         ResidenceNeedKind::Pottery => {
             population * RESIDENCE_POTTERY_PER_PERSON_PER_SEC * workday_seconds
         }
-        ResidenceNeedKind::Water | ResidenceNeedKind::Church | ResidenceNeedKind::FoodVariety => {
+        ResidenceNeedKind::Water
+        | ResidenceNeedKind::Church
+        | ResidenceNeedKind::FoodVariety
+        | ResidenceNeedKind::Luxury => {
             return None
         }
     };

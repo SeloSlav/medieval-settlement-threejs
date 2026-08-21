@@ -199,6 +199,15 @@ function evaluateNeedRecovery(
         threshold,
         supplyAvailable: need.stock > 0,
       };
+    case 'luxury':
+      return {
+        kind,
+        label: 'Luxury preserves or flowers',
+        ready: need.stock > 0,
+        stock: need.stock,
+        threshold: 1,
+        supplyAvailable: need.stock > 0,
+      };
     default: {
       const unhandled: never = kind;
       return unhandled;
@@ -421,6 +430,10 @@ function describeActiveNeed(
           }
         : null;
     }
+    case 'luxury':
+      return getNeed(residence.needs, kind).stock <= 1e-6
+        ? { label: 'Luxury comfort missing — supply household jam or upgraded cut flowers', state: 'warning' }
+        : null;
     default: {
       const unhandled: never = kind;
       return unhandled;
@@ -448,6 +461,8 @@ function needLabel(kind: ResidenceNeedKind): string {
       return 'Church access';
     case 'foodVariety':
       return 'Food variety';
+    case 'luxury':
+      return 'Luxury preserves or flowers';
     default: {
       const unhandled: never = kind;
       return unhandled;

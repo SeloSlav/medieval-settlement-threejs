@@ -548,6 +548,37 @@ pub fn building_commodity_room(building: &Building, kind: CommodityKind) -> f64 
     (building_commodity_cap(&building.kind, kind) - occupied).max(0.0)
 }
 
+/// True when a completed storage building may receive a new physical cart of
+/// this commodity. Existing stock always remains withdrawable after a policy
+/// change. Legacy booleans remain authoritative for old saves and reducers.
+pub fn storage_accepts_commodity(building: &Building, kind: CommodityKind) -> bool {
+    if !crate::storage_acceptance_policy::storage_kind_supports_commodity(
+        &building.kind,
+        kind.as_u8(),
+    ) {
+        return !matches!(building.kind.as_str(), "village_storehouse" | "granary");
+    }
+    if !crate::storage_acceptance_policy::storage_mask_accepts(
+        building.storage_acceptance_mask,
+        kind.as_u8(),
+    ) {
+        return false;
+    }
+    match (building.kind.as_str(), kind) {
+        ("village_storehouse", CommodityKind::Timber) => building.storehouse_accepts_timber,
+        ("village_storehouse", CommodityKind::Stone) => building.storehouse_accepts_stone,
+        ("village_storehouse", CommodityKind::Firewood) => building.storehouse_accepts_firewood,
+        ("village_storehouse", CommodityKind::Charcoal) => building.storehouse_accepts_charcoal,
+        ("village_storehouse", CommodityKind::Iron) => building.storehouse_accepts_iron,
+        ("village_storehouse", CommodityKind::Clay) => building.storehouse_accepts_clay,
+        ("village_storehouse", CommodityKind::Salt) => building.storehouse_accepts_salt,
+        ("granary", commodity) if commodity.is_fresh_food() || commodity.is_preserved_food() => {
+            building.granary_accepts_fresh_food
+        }
+        _ => true,
+    }
+}
+
 pub fn bread_grain_bulk_stock(building: &Building) -> f64 {
     building.rye_sheaves.max(0.0)
         + building.oat_sheaves.max(0.0)

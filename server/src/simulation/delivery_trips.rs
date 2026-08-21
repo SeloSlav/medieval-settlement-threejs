@@ -24,7 +24,7 @@ use crate::economy::{
     player_economic_activity_tax_rate, private_export_proceeds, record_parish_ledger,
     record_private_export_income, restore_local_civic_receipts, restore_private_export_proceeds,
     settle_regional_market_export, taxed_economic_activity, town_hall_tax_collection_multiplier,
-    withdraw_building_commodity, withdraw_coffer_in_place, withdraw_private_export_proceeds,
+    storage_accepts_commodity, withdraw_building_commodity, withdraw_coffer_in_place, withdraw_private_export_proceeds,
     CommodityKind, ParishLedgerKind,
 };
 use crate::fire_policy::fire_response_load;
@@ -1303,6 +1303,10 @@ fn try_start_building_supply_trip_with_labor(
         return false;
     }
 
+    if !storage_accepts_commodity(target, commodity) {
+        return false;
+    }
+
     let target_room = building_commodity_room(target, commodity);
     if target_room <= 1e-6 {
         return false;
@@ -2345,6 +2349,12 @@ fn unload_commodity_to_building(
             trip.amount = (trip.amount - deposited).max(0.0);
             ctx.db.building().id().update(target);
         }
+        return;
+    }
+    // A policy changed while the cart was on the road. Leave its cargo aboard;
+    // the return leg restores it to the origin instead of bypassing the new
+    // intake gate during unloading.
+    if !storage_accepts_commodity(&target, commodity) {
         return;
     }
     let monastery_tithe_delivery = commodity == CommodityKind::Gold

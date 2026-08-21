@@ -71,6 +71,7 @@ pub fn stock_capacity(kind: ResidenceNeedKind) -> f64 {
         ResidenceNeedKind::PreservedFood => RESIDENCE_PRESERVED_FOOD_CAPACITY,
         ResidenceNeedKind::Cloth => RESIDENCE_CLOTH_CAPACITY,
         ResidenceNeedKind::Pottery => RESIDENCE_POTTERY_CAPACITY,
+        ResidenceNeedKind::Luxury => 0.0,
         _ => 0.0,
     }
 }

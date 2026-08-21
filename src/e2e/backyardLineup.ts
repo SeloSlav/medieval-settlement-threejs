@@ -47,7 +47,13 @@ const focusHerb = view === 'herb-close';
 const focusHen = view === 'hen-close';
 const focusApple = view === 'apple-close';
 const focusCherry = view === 'cherry-close';
-const focusOrchard = focusApple || focusCherry;
+const focusPear = view === 'pear-close';
+const focusAronia = view === 'aronia-close';
+const focusRosehip = view === 'rosehip-close';
+const focusPreparedOrchard = view === 'orchard-close';
+const focusTreeOrchard = focusApple || focusCherry || focusPear;
+const focusShrubOrchard = focusAronia || focusRosehip;
+const focusOrchard = focusTreeOrchard || focusShrubOrchard || focusPreparedOrchard;
 const focusSingle = focusFlower || focusVegetable || focusHerb || focusHen || focusOrchard;
 const plants = focusVegetable || focusHerb || focusHen
   ? null
@@ -66,8 +72,12 @@ const goatSource = focusFlower || focusVegetable || focusHerb || focusHen || foc
   });
 if (plants) windStrength.value = 0.85;
 const allSpecs = [
+  { kind: 'orchard', label: 'Prepared orchard' },
   { kind: 'apple_orchard', label: 'Apple orchard' },
   { kind: 'cherry_orchard', label: 'Cherry orchard' },
+  { kind: 'pear_orchard', label: 'Pear orchard' },
+  { kind: 'aronia_orchard', label: 'Aronia bushes' },
+  { kind: 'rosehip_orchard', label: 'Rosehip bushes' },
   { kind: 'vegetable_garden', label: 'Vegetable garden' },
   { kind: 'flower_garden', label: 'Flower garden' },
   { kind: 'herb_garden', label: 'Herb garden' },
@@ -75,25 +85,36 @@ const allSpecs = [
   { kind: 'goat_pen', label: 'Goat pen' },
   { kind: 'backyard_apiary', label: 'Backyard apiary' },
 ] as const;
-const specs = focusFlower
-  ? allSpecs.slice(3)
+const focusedKind = focusFlower
+  ? 'flower_garden'
   : focusApple
-    ? allSpecs.slice(0, 1)
+    ? 'apple_orchard'
     : focusCherry
-      ? allSpecs.slice(1, 2)
-  : focusVegetable
-    ? allSpecs.slice(2, 3)
-    : focusHerb
-      ? allSpecs.slice(4, 5)
-      : focusHen
-        ? allSpecs.slice(5, 6)
-        : allSpecs;
+      ? 'cherry_orchard'
+      : focusPear
+        ? 'pear_orchard'
+        : focusAronia
+          ? 'aronia_orchard'
+          : focusRosehip
+            ? 'rosehip_orchard'
+            : focusPreparedOrchard
+              ? 'orchard'
+              : focusVegetable
+                ? 'vegetable_garden'
+                : focusHerb
+                  ? 'herb_garden'
+                  : focusHen
+                    ? 'hen_yard'
+                    : null;
+const specs = focusedKind
+  ? allSpecs.filter((spec) => spec.kind === focusedKind)
+  : allSpecs;
 labels.style.gridTemplateColumns = focusSingle
   ? '1fr'
   : 'repeat(4, minmax(0, 1fr))';
 labels.style.gridTemplateRows = focusSingle
   ? '1fr'
-  : 'repeat(2, minmax(0, 1fr))';
+  : 'repeat(3, minmax(0, 1fr))';
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0xa6b29a);
@@ -207,9 +228,15 @@ if (focusFlower) {
 } else if (focusHen) {
   camera.position.set(5.4, 3.7, 7.2);
   camera.lookAt(0, 0.65, 0.05);
-} else if (focusOrchard) {
+} else if (focusTreeOrchard) {
   camera.position.set(5.8, 4.6, 7.8);
-  camera.lookAt(0, 1.85, 0);
+  camera.lookAt(0, 1.55, 0);
+} else if (focusShrubOrchard) {
+  camera.position.set(5.3, 3.2, 7);
+  camera.lookAt(0, 0.58, 0);
+} else if (focusPreparedOrchard) {
+  camera.position.set(5.2, 3.5, 7.2);
+  camera.lookAt(0, 0.48, 0);
 } else {
   camera.position.set(0, 13.4, 27.5);
   camera.lookAt(0, 1.25, 0);

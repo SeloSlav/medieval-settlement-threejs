@@ -7,6 +7,10 @@ import {
   POTTER_FIRE_ROOF_TILES,
 } from './potterFiringPolicy.ts';
 import { breweryPolicyOutput } from './breweryRecipePolicy.ts';
+import {
+  isStorageCommodity,
+  storageAcceptsCommodity,
+} from './storageAcceptancePolicy.ts';
 
 export const PROCESSOR_OUTPUT_TARGET_KINDS = [
   'watermill',
@@ -362,6 +366,9 @@ export function processorAcceptsInput(
   building: BuildingState,
   commodity: ProcessorInputCommodity,
 ): boolean {
+  if (isStorageCommodity(commodity) && !storageAcceptsCommodity(building, commodity)) {
+    return false;
+  }
   if (
     (building.kind === 'watermill' || building.kind === 'windmill')
     && commodity === 'oatGrain'

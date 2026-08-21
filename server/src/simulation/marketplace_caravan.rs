@@ -71,7 +71,7 @@ pub fn try_dispatch_marketplace_caravan(
         ResidenceNeedKind::Ale => building.ale,
         ResidenceNeedKind::Cloth => building.cloth,
         ResidenceNeedKind::Pottery => building.pottery,
-        ResidenceNeedKind::Church | ResidenceNeedKind::FoodVariety => return false,
+        ResidenceNeedKind::Church | ResidenceNeedKind::FoodVariety | ResidenceNeedKind::Luxury => return false,
     };
     if stock <= 1e-6
         || (building.kind == "trading_post" && building_has_active_trip(ctx, building.id))
@@ -163,7 +163,7 @@ pub fn try_dispatch_marketplace_caravan(
         ResidenceNeedKind::Cloth | ResidenceNeedKind::Pottery => {
             (TIMBER_DELIVERY_SPEED_MPS, TIMBER_DELIVERY_UNLOAD_SEC)
         }
-        ResidenceNeedKind::Church | ResidenceNeedKind::FoodVariety => return false,
+        ResidenceNeedKind::Church | ResidenceNeedKind::FoodVariety | ResidenceNeedKind::Luxury => return false,
     };
 
     if building.kind == "marketplace" {

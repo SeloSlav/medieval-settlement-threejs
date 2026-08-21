@@ -34,6 +34,7 @@ const NEED_LABELS: Record<ResidenceNeedKind, string> = {
   pottery: 'household pottery',
   church: 'church access',
   foodVariety: 'food variety',
+  luxury: 'luxury preserves or flowers',
 };
 
 /**

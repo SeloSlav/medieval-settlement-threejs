@@ -79,6 +79,9 @@ use crate::simulation::{
     preserve_in_transit_cart_labor, recall_idle_seasonal_labor_for_owner,
     staffed_cart_workers_by_building, FIRE_TARGET_BUILDING,
 };
+use crate::storage_acceptance_policy::{
+    set_storage_mask_all, set_storage_mask_commodity, storage_kind_supports_commodity,
+};
 use crate::specialty_trade_policy::{is_valid_specialty_export_policy, SpecialtyMarketFamily};
 use crate::storehouse_policy::{
     is_valid_storehouse_stock_target_percent, STOREHOUSE_STOCK_TARGET_DEFAULT_PERCENT,
@@ -991,6 +994,7 @@ pub(crate) fn place_building_internal(
         monastery_croft_choice_year: 0,
         monastery_service_funding: 1.0,
         monastery_last_service_day: 0,
+        storage_acceptance_mask: u64::MAX,
     });
 
     ctx.db.world_config().id().update(WorldConfig {
@@ -2008,6 +2012,122 @@ pub fn set_storehouse_policy(
     building.storehouse_accepts_iron = accepts_iron;
     building.storehouse_accepts_clay = accepts_clay;
     building.storehouse_accepts_salt = accepts_salt;
+    for (commodity, accepts) in [
+        (CommodityKind::Timber, accepts_timber),
+        (CommodityKind::Stone, accepts_stone),
+        (CommodityKind::Firewood, accepts_firewood),
+        (CommodityKind::Charcoal, accepts_charcoal),
+        (CommodityKind::Iron, accepts_iron),
+        (CommodityKind::Clay, accepts_clay),
+        (CommodityKind::Salt, accepts_salt),
+    ] {
+        building.storage_acceptance_mask = set_storage_mask_commodity(
+            building.storage_acceptance_mask,
+            commodity.as_u8(),
+            accepts,
+        );
+    }
+    ctx.db.building().id().update(building);
+    Ok(())
+}
+
+#[reducer]
+pub fn set_storage_commodity_acceptance(
+    ctx: &ReducerContext,
+    building_id: u64,
+    commodity_kind: u8,
+    accepts: bool,
+) -> Result<(), String> {
+    let owner = ctx.sender();
+    let mut building = ctx
+        .db
+        .building()
+        .id()
+        .find(&building_id)
+        .ok_or_else(|| "Storage building not found.".to_string())?;
+    if building.owner != owner
+        || !matches!(building.kind.as_str(), "village_storehouse" | "granary")
+        || !building.construction_complete
+    {
+        return Err("You do not own this completed storage building.".to_string());
+    }
+    if !storage_kind_supports_commodity(&building.kind, commodity_kind) {
+        return Err("That commodity cannot be stored in this building.".to_string());
+    }
+    building.storage_acceptance_mask = set_storage_mask_commodity(
+        building.storage_acceptance_mask,
+        commodity_kind,
+        accepts,
+    );
+    if let Some(commodity) = CommodityKind::from_u8(commodity_kind) {
+        match (building.kind.as_str(), commodity) {
+            ("village_storehouse", CommodityKind::Timber) => {
+                building.storehouse_accepts_timber = accepts
+            }
+            ("village_storehouse", CommodityKind::Stone) => {
+                building.storehouse_accepts_stone = accepts
+            }
+            ("village_storehouse", CommodityKind::Firewood) => {
+                building.storehouse_accepts_firewood = accepts
+            }
+            ("village_storehouse", CommodityKind::Charcoal) => {
+                building.storehouse_accepts_charcoal = accepts
+            }
+            ("village_storehouse", CommodityKind::Iron) => {
+                building.storehouse_accepts_iron = accepts
+            }
+            ("village_storehouse", CommodityKind::Clay) => {
+                building.storehouse_accepts_clay = accepts
+            }
+            ("village_storehouse", CommodityKind::Salt) => {
+                building.storehouse_accepts_salt = accepts
+            }
+            ("granary", commodity)
+                if accepts && (commodity.is_fresh_food() || commodity.is_preserved_food()) =>
+            {
+                // An old save may have the former aggregate intake switch off.
+                // Enabling one detailed food filter must make that choice effective.
+                building.granary_accepts_fresh_food = true;
+            }
+            _ => {}
+        }
+    }
+    ctx.db.building().id().update(building);
+    Ok(())
+}
+
+#[reducer]
+pub fn set_all_storage_acceptance(
+    ctx: &ReducerContext,
+    building_id: u64,
+    accepts: bool,
+) -> Result<(), String> {
+    let owner = ctx.sender();
+    let mut building = ctx
+        .db
+        .building()
+        .id()
+        .find(&building_id)
+        .ok_or_else(|| "Storage building not found.".to_string())?;
+    if building.owner != owner
+        || !matches!(building.kind.as_str(), "village_storehouse" | "granary")
+        || !building.construction_complete
+    {
+        return Err("You do not own this completed storage building.".to_string());
+    }
+    building.storage_acceptance_mask =
+        set_storage_mask_all(building.storage_acceptance_mask, &building.kind, accepts);
+    if building.kind == "village_storehouse" {
+        building.storehouse_accepts_timber = accepts;
+        building.storehouse_accepts_stone = accepts;
+        building.storehouse_accepts_firewood = accepts;
+        building.storehouse_accepts_charcoal = accepts;
+        building.storehouse_accepts_iron = accepts;
+        building.storehouse_accepts_clay = accepts;
+        building.storehouse_accepts_salt = accepts;
+    } else {
+        building.granary_accepts_fresh_food = accepts;
+    }
     ctx.db.building().id().update(building);
     Ok(())
 }
@@ -2225,6 +2345,32 @@ pub fn set_granary_policy(
     }
     building.granary_accepts_fresh_food = accepts_fresh_food;
     building.granary_households_first = households_first;
+    for commodity in [
+        CommodityKind::Food,
+        CommodityKind::OatGrain,
+        CommodityKind::RyeBread,
+        CommodityKind::MaslinBread,
+        CommodityKind::Meat,
+        CommodityKind::Fish,
+        CommodityKind::Berries,
+        CommodityKind::Mushrooms,
+        CommodityKind::Milk,
+        CommodityKind::Apples,
+        CommodityKind::Cherries,
+        CommodityKind::Vegetables,
+        CommodityKind::Eggs,
+        CommodityKind::Grapes,
+        CommodityKind::PreservedFood,
+        CommodityKind::CuredMeat,
+        CommodityKind::SmokedFish,
+        CommodityKind::Cheese,
+    ] {
+        building.storage_acceptance_mask = set_storage_mask_commodity(
+            building.storage_acceptance_mask,
+            commodity.as_u8(),
+            accepts_fresh_food,
+        );
+    }
     ctx.db.building().id().update(building);
     Ok(())
 }

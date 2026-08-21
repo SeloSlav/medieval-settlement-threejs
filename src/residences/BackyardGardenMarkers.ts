@@ -61,6 +61,7 @@ type GardenSyncInput = {
   zones: Iterable<BurgageZoneState>;
   gardens: Map<string, BackyardGardenState>;
   month?: number;
+  totalDays?: number;
   getHeightAt: (x: number, z: number) => number;
 };
 
@@ -154,6 +155,10 @@ export class BackyardGardenMarkers {
         marker.userData.gardenKind as BackyardGardenState['kind'],
         month,
         this.deciduousFoliage,
+        Math.max(
+          0,
+          Number(marker.userData.firstHarvestDay ?? 0) - (this.latestInput?.totalDays ?? 0),
+        ),
       );
     }
   }
@@ -184,6 +189,7 @@ export class BackyardGardenMarkers {
         this.plants ? 'seedthree' : 'vegetation-pending',
         this.chickenSource ? 'animated-hens' : 'fallback-hens',
         this.goatSource ? 'animated-goats' : 'fallback-goats',
+        garden.flowerLuxuryUpgraded ? 'luxury-flowers' : 'ordinary-flowers',
       ].join(':');
       if (force || !marker || marker.userData.visualKey !== visualKey) {
         if (marker) {
@@ -197,6 +203,7 @@ export class BackyardGardenMarkers {
           depth: placement.depth,
           seed: hashStringSeed(residence.id),
           plants: this.plants,
+          flowerLuxuryUpgraded: garden.flowerLuxuryUpgraded,
         });
         marker.userData.visualKey = visualKey;
         this.root.add(marker);
@@ -223,6 +230,7 @@ export class BackyardGardenMarkers {
       }
 
       const y = input.getHeightAt(placement.x, placement.z);
+      marker.userData.firstHarvestDay = garden.firstHarvestDay;
       marker.position.set(placement.x, y, placement.z);
       marker.rotation.y = placement.yaw;
       syncBackyardGardenSeasonVisuals(
@@ -230,6 +238,7 @@ export class BackyardGardenMarkers {
         garden.kind,
         input.month ?? 1,
         this.deciduousFoliage ?? undefined,
+        Math.max(0, garden.firstHarvestDay - (input.totalDays ?? 0)),
       );
     }
 

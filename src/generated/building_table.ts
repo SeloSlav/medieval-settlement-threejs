@@ -156,4 +156,5 @@ export default __t.row({
   monasteryCroftChoiceYear: __t.u32().name("monastery_croft_choice_year"),
   monasteryServiceFunding: __t.f64().name("monastery_service_funding"),
   monasteryLastServiceDay: __t.u64().name("monastery_last_service_day"),
+  storageAcceptanceMask: __t.u64().name("storage_acceptance_mask"),
 });

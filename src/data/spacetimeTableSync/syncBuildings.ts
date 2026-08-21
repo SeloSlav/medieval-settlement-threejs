@@ -167,6 +167,7 @@ function buildingStateFromRow(
     granaryHouseholdsFirst: row.granaryHouseholdsFirst,
     granaryGrainReserve: wholeResourceUnits(row.granaryGrainReserve),
     granaryFreshFoodTargetPercent: row.granaryFreshFoodTargetPercent,
+    storageAcceptanceMask: row.storageAcceptanceMask.toString(),
     constructionPriority: row.constructionPriority,
     woodcutterTimberReserve: wholeResourceUnits(row.woodcutterTimberReserve),
     harvestReservePercent: row.harvestReservePercent,

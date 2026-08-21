@@ -51,11 +51,15 @@ assert.match(
   materials,
   /\("village_storehouse", CommodityKind::Charcoal\) => Some\(&\["smithy"\]\)/,
 );
-assert.match(materials, /storehouse_accepts_charcoal/);
+assert.match(materials, /storage_accepts_commodity[\s\S]*CommodityKind::Charcoal/);
 assert.match(materials, /storehouse_charcoal_target_percent/);
 assert.match(materials, /fn storehouse_charcoal_transit_plan/);
-assert.match(materials, /linked_shortfall[\s\S]*staged_elsewhere[\s\S]*unstaged_shortfall/);
-assert.match(materials, /designated_transit_depot[\s\S]*\.min\(\)\?/);
+assert.match(materials, /has_linked_market_shortfall/);
+assert.match(
+  materials,
+  /has_linked_export_post[\s\S]*trading_post_exports_commodity\(ctx, post\.id, CommodityKind::Charcoal\)/,
+  'accepted charcoal depots must be able to stage stock for a linked Trading Post export rule',
+);
 assert.doesNotMatch(
   routing,
   /"charcoal_burner" => &\[CommodityKind::Charcoal\]/,

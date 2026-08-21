@@ -144,6 +144,10 @@ function emptyKindPlans(): Record<BackyardGardenKind, BackyardGardenKindPlan> {
     hen_yard: emptyKindPlan(),
     goat_pen: emptyKindPlan(),
     backyard_apiary: emptyKindPlan(),
+    orchard: emptyKindPlan(),
+    pear_orchard: emptyKindPlan(),
+    aronia_orchard: emptyKindPlan(),
+    rosehip_orchard: emptyKindPlan(),
   };
 }
 

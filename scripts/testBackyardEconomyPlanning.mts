@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { performance } from 'node:perf_hooks';
 import {
+  BACKYARD_GARDEN_KINDS,
   CALENDAR_DAYS_PER_MONTH,
   CALENDAR_MONTHS_PER_YEAR,
   CALENDAR_SECONDS_PER_DAY,
@@ -558,7 +559,7 @@ const backyardView = renderBackyardInspector(
   } as Parameters<typeof renderBackyardInspector>[1],
 );
 assert.equal(backyardView.statusText, 'Harvestable — household collection active');
-assert.match(backyardView.detailsHtml, /September harvest/);
+assert.match(backyardView.detailsHtml, /Harvestable now during September/);
 assert.match(backyardView.detailsHtml, /Harvest window/);
 assert.match(backyardView.detailsHtml, /No assigned labor slot/);
 assert.match(backyardView.detailsHtml, /claims no extra Marketplace table or depot worker/);
@@ -569,7 +570,7 @@ assert.match(backyardView.detailsHtml, /collection without a staffed clerk/);
 
 const backyardProjectHome: ResidenceState = {
   ...westHome,
-  backyardProjectKind: 3,
+  backyardProjectKind: BACKYARD_GARDEN_KINDS.indexOf('vegetable_garden') + 1,
   upgradeProgress: 0.42,
   upgradeRequiredTimber: 6,
   upgradeRequiredStone: 2,
@@ -767,7 +768,7 @@ assert.match(serverStepSource, /market_tolls_by_market/);
 assert.match(serverStepSource, /local_marketplace_for_residence/);
 assert.match(serverStepSource, /credit_marketplace_receipt_gold/);
 assert.match(serverStepSource, /fn backyard_market_stall_need/);
-assert.match(serverStepSource, /FlowerGarden => None/);
+assert.match(serverStepSource, /FlowerGarden \| BackyardGardenKind::Orchard => None/);
 assert.match(serverStepSource, /HerbGarden => Some\(ResidenceNeedKind::Cloth\)/);
 assert.match(serverStepSource, /_ => Some\(ResidenceNeedKind::Food\)/);
 assert.match(serverStepSource, /CommodityKind::Remedies/);
@@ -781,9 +782,13 @@ assert.match(
   serverStepSource,
   /backyard_garden_seasonal_multiplier\(kind, clock\.month, environment\)/,
 );
-assert.match(serverPolicySource, /AppleOrchard \| CherryOrchard/);
-assert.match(serverPolicySource, /month == 9/);
-assert.match(serverPolicySource, /base \* 0\.55/);
+assert.match(serverStepSource, /garden\.first_harvest_day > clock\.total_days/);
+assert.match(serverStepSource, /def\.jam_per_person_per_sec[\s\S]*deposit_backyard_jam/);
+assert.match(serverPolicySource, /AppleOrchard \| CherryOrchard \| PearOrchard/);
+assert.match(serverPolicySource, /def\.harvest_start_month[\s\S]*def\.harvest_end_month/);
+assert.match(serverPolicySource, /12\.0 \/ window \* def\.yield_efficiency/);
+assert.match(serverPolicySource, /AroniaOrchard => 0\.75/);
+assert.match(serverPolicySource, /RosehipOrchard => 0\.85/);
 assert.match(serverTickContextSource, /marketplace_claims/);
 assert.match(serverTickContextSource, /building_disabled_by_fire\(ctx, building\.id\)/);
 assert.match(
@@ -830,6 +835,11 @@ assert.match(
   serverBackyardReducerSource,
   /demolish_backyard_garden[\s\S]*backyard_project_kind != 0[\s\S]*cancel_trips_for_residence[\s\S]*clear_residence_project/,
   'canceling backyard works must return cart cargo and release its household builder',
+);
+assert.match(
+  serverBackyardReducerSource,
+  /specialize_orchard[\s\S]*specialization_of == Some\("orchard"\)[\s\S]*first_harvest_day/,
+  'a completed generic orchard must be explicitly specialized before its maturity clock begins',
 );
 assert.match(backyardInspectorSource, /Backyard worksite/);
 assert.match(backyardInspectorSource, /Production[\s\S]*Begins only after the worksite is complete/);

@@ -7,7 +7,8 @@ export type ResidenceNeedKind =
   | 'cloth'
   | 'pottery'
   | 'church'
-  | 'foodVariety';
+  | 'foodVariety'
+  | 'luxury';
 
 export const RESIDENCE_NEED_KINDS: readonly ResidenceNeedKind[] = [
   'food',
@@ -19,6 +20,7 @@ export const RESIDENCE_NEED_KINDS: readonly ResidenceNeedKind[] = [
   'preservedFood',
   'ale',
   'pottery',
+  'luxury',
 ];
 
 export type ResidenceNeedCategory = {
@@ -46,7 +48,7 @@ export const RESIDENCE_NEED_CATEGORIES: readonly ResidenceNeedCategory[] = [
   {
     id: 'household-goods',
     label: 'Clothing & household goods',
-    kinds: ['cloth', 'pottery'],
+    kinds: ['cloth', 'pottery', 'luxury'],
   },
   {
     id: 'faith-and-community',
@@ -83,6 +85,7 @@ export const RESIDENCE_NEED_KIND_IDS: Record<ResidenceNeedKind, number> = {
   pottery: 23,
   church: 42,
   foodVariety: 43,
+  luxury: 57,
 };
 
 export type ResidenceNeedRecord = {
@@ -146,6 +149,7 @@ export function createDefaultNeeds(): ResidenceNeedsState {
     pottery: { stock: 0, deficitTicks: 0 },
     church: { stock: 0, deficitTicks: 0 },
     foodVariety: { stock: 0, deficitTicks: 0 },
+    luxury: { stock: 0, deficitTicks: 0 },
   };
 }
 
@@ -169,6 +173,8 @@ export function needKindFromId(id: number): ResidenceNeedKind | null {
       return 'church';
     case RESIDENCE_NEED_KIND_IDS.foodVariety:
       return 'foodVariety';
+    case RESIDENCE_NEED_KIND_IDS.luxury:
+      return 'luxury';
     default:
       return null;
   }

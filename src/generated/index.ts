@@ -70,6 +70,7 @@ import RepairFireDamageReducer from "./repair_fire_damage_reducer";
 import ResetWorldReducer from "./reset_world_reducer";
 import RetrofitResidenceTileRoofReducer from "./retrofit_residence_tile_roof_reducer";
 import RotateConstructionLaborReducer from "./rotate_construction_labor_reducer";
+import SetAllStorageAcceptanceReducer from "./set_all_storage_acceptance_reducer";
 import SetApiaryHarvestPolicyReducer from "./set_apiary_harvest_policy_reducer";
 import SetBreweryRecipePolicyReducer from "./set_brewery_recipe_policy_reducer";
 import SetCarpenterCartServiceTargetReducer from "./set_carpenter_cart_service_target_reducer";
@@ -113,6 +114,7 @@ import SetProcessorOutputTargetReducer from "./set_processor_output_target_reduc
 import SetProductionLaborStewardReducer from "./set_production_labor_steward_reducer";
 import SetResidenceUpgradePriorityReducer from "./set_residence_upgrade_priority_reducer";
 import SetSeasonalLaborStewardReducer from "./set_seasonal_labor_steward_reducer";
+import SetStorageCommodityAcceptanceReducer from "./set_storage_commodity_acceptance_reducer";
 import SetStorehousePolicyReducer from "./set_storehouse_policy_reducer";
 import SetStorehouseStockTargetReducer from "./set_storehouse_stock_target_reducer";
 import SetThreshingPriorityReducer from "./set_threshing_priority_reducer";
@@ -120,10 +122,12 @@ import SetTradingPostTradeRuleReducer from "./set_trading_post_trade_rule_reduce
 import SetVineyardProductionPolicyReducer from "./set_vineyard_production_policy_reducer";
 import SetWeaverInputPolicyReducer from "./set_weaver_input_policy_reducer";
 import SetWoodcutterTimberReserveReducer from "./set_woodcutter_timber_reserve_reducer";
+import SpecializeOrchardReducer from "./specialize_orchard_reducer";
 import StartFarmFieldEarlyHarvestReducer from "./start_farm_field_early_harvest_reducer";
 import SyncRoadNetworkReducer from "./sync_road_network_reducer";
 import TickSimReducer from "./tick_sim_reducer";
 import UpgradeChapelReducer from "./upgrade_chapel_reducer";
+import UpgradeFlowerGardenLuxuryReducer from "./upgrade_flower_garden_luxury_reducer";
 import UpgradeResidenceReducer from "./upgrade_residence_reducer";
 
 // Import all procedure arg schemas
@@ -621,6 +625,7 @@ const reducersSchema = __reducers(
   __reducerSchema("reset_world", ResetWorldReducer),
   __reducerSchema("retrofit_residence_tile_roof", RetrofitResidenceTileRoofReducer),
   __reducerSchema("rotate_construction_labor", RotateConstructionLaborReducer),
+  __reducerSchema("set_all_storage_acceptance", SetAllStorageAcceptanceReducer),
   __reducerSchema("set_apiary_harvest_policy", SetApiaryHarvestPolicyReducer),
   __reducerSchema("set_brewery_recipe_policy", SetBreweryRecipePolicyReducer),
   __reducerSchema("set_carpenter_cart_service_target", SetCarpenterCartServiceTargetReducer),
@@ -664,6 +669,7 @@ const reducersSchema = __reducers(
   __reducerSchema("set_production_labor_steward", SetProductionLaborStewardReducer),
   __reducerSchema("set_residence_upgrade_priority", SetResidenceUpgradePriorityReducer),
   __reducerSchema("set_seasonal_labor_steward", SetSeasonalLaborStewardReducer),
+  __reducerSchema("set_storage_commodity_acceptance", SetStorageCommodityAcceptanceReducer),
   __reducerSchema("set_storehouse_policy", SetStorehousePolicyReducer),
   __reducerSchema("set_storehouse_stock_target", SetStorehouseStockTargetReducer),
   __reducerSchema("set_threshing_priority", SetThreshingPriorityReducer),
@@ -671,10 +677,12 @@ const reducersSchema = __reducers(
   __reducerSchema("set_vineyard_production_policy", SetVineyardProductionPolicyReducer),
   __reducerSchema("set_weaver_input_policy", SetWeaverInputPolicyReducer),
   __reducerSchema("set_woodcutter_timber_reserve", SetWoodcutterTimberReserveReducer),
+  __reducerSchema("specialize_orchard", SpecializeOrchardReducer),
   __reducerSchema("start_farm_field_early_harvest", StartFarmFieldEarlyHarvestReducer),
   __reducerSchema("sync_road_network", SyncRoadNetworkReducer),
   __reducerSchema("tick_sim", TickSimReducer),
   __reducerSchema("upgrade_chapel", UpgradeChapelReducer),
+  __reducerSchema("upgrade_flower_garden_luxury", UpgradeFlowerGardenLuxuryReducer),
   __reducerSchema("upgrade_residence", UpgradeResidenceReducer),
 );
 
