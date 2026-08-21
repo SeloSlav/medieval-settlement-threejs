@@ -19,6 +19,5 @@ export default __t.row({
   lastPrimaryProductionDay: __t.u64().name("last_primary_production_day"),
   lastSecondaryProductionDay: __t.u64().name("last_secondary_production_day"),
   hideStock: __t.f64().name("hide_stock"),
-  jamStock: __t.f64().name("jam_stock"),
   flowerLuxuryUpgraded: __t.bool().name("flower_luxury_upgraded"),
 });

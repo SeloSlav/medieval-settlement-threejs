@@ -198,7 +198,13 @@ assert.equal(
 
 const monastery = building('monastery', 'monastery', 5);
 const brewery = building('brewery', 'brewery', 18);
-const tavern = { ...building('tavern', 'tavern', 4), ale: 0, cider: 12, mead: 0 };
+const tavern = {
+  ...building('tavern', 'tavern', 4),
+  ale: 0,
+  cider: 0,
+  pearCider: 12,
+  mead: 0,
+};
 assert.equal(
   findRoadLinkedSupplierForResidence(
     home,
@@ -207,7 +213,7 @@ assert.equal(
     'ale',
   )?.id,
   tavern.id,
-  'a staffed Tavern must serve cider as a full Beverage substitute',
+  'a staffed Tavern must serve pear cider as a full Beverage substitute',
 );
 const weaver = { ...building('weaver', 'weaver', 6), cloth: 12 };
 const goodsMarket = {
@@ -268,7 +274,13 @@ assert.equal(
   null,
   'a granary with perishable collection disabled must leave cured surplus in its producer loft',
 );
-const emptyTavern = { ...building('empty-tavern', 'tavern', 2), ale: 0, cider: 0, mead: 0 };
+const emptyTavern = {
+  ...building('empty-tavern', 'tavern', 2),
+  ale: 0,
+  cider: 0,
+  pearCider: 0,
+  mead: 0,
+};
 assert.equal(
   findRoadLinkedSupplierForResidence(
     home,

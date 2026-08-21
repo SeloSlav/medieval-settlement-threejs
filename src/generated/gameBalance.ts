@@ -228,7 +228,6 @@ export const RESIDENCE_SHOES_CAPACITY = 6;
 export const RESIDENCE_SHOES_PER_PERSON_PER_SEC = 0.00012;
 export const RESIDENCE_POTTERY_CAPACITY = 6;
 export const RESIDENCE_POTTERY_PER_PERSON_PER_SEC = 0.001;
-export const RESIDENCE_LUXURY_JAM_CAPACITY = 12;
 export const RESIDENCE_LUXURY_JAM_PER_PERSON_PER_SEC = 0.0005;
 export const HUNGER_WARNING_DAYS = 2;
 export const MALNUTRITION_DAYS = 5;
@@ -777,6 +776,7 @@ export type StorageCaps = {
   flour?: number;
   ale?: number;
   cider?: number;
+  pearCider?: number;
   mead?: number;
   preservedFood?: number;
   honey?: number;
@@ -1715,7 +1715,7 @@ export const BUILDING_STORAGE_CAPS = {
   pastoral_farmstead: { timber: 0, firewood: 0, stone: 0, food: 120, grain: 90, preservedFood: 70, wool: 120, salt: 6, manure: 160 },
   swineherd: { timber: 0, firewood: 0, stone: 0, food: 150, grain: 120 },
   monastery: { timber: 0, firewood: 0, stone: 0, food: 180, grain: 180, ale: 120, cider: 80, preservedFood: 80, honey: 160, wine: 120 },
-  brewery: { timber: 0, firewood: 40, stone: 0, water: 120, food: 96, barley: 96, malt: 48, ale: 200, cider: 200, mead: 200, honey: 72 },
+  brewery: { timber: 0, firewood: 40, stone: 0, water: 120, food: 96, barley: 96, malt: 48, ale: 200, cider: 200, pearCider: 200, mead: 200, honey: 72 },
   tavern: { timber: 0, firewood: 0, stone: 0, ale: 180, cider: 180, mead: 180 },
   smokehouse: { timber: 0, firewood: 40, stone: 0, food: 120, preservedFood: 180, salt: 24, pottery: 12 },
   granary: { timber: 0, firewood: 0, stone: 0, food: 340, grain: 360, barley: 240, flour: 260, ale: 180, preservedFood: 180, honey: 96, flax: 180 },

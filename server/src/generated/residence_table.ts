@@ -77,4 +77,12 @@ export default __t.row({
   ryeBread: __t.f64().name("rye_bread"),
   maslinBread: __t.f64().name("maslin_bread"),
   oatGrain: __t.f64().name("oat_grain"),
+  pears: __t.f64(),
+  aronia: __t.f64(),
+  rosehips: __t.f64(),
+  cabbage: __t.f64(),
+  carrots: __t.f64(),
+  beetroot: __t.f64(),
+  aroniaJam: __t.f64().name("aronia_jam"),
+  rosehipJam: __t.f64().name("rosehip_jam"),
 });

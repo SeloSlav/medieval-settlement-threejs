@@ -283,9 +283,9 @@ fn consume_household_jam_meal(
     } else {
         0.0
     };
-    let jam_stock = residence.aronia_jam.max(0.0) + residence.rosehip_jam.max(0.0);
-    let allocation = allocate_backyard_jam_meal(jam_stock, food_demand, luxury_demand);
-    let mut used = (jam_stock - allocation.remaining_stock).max(0.0);
+    let household_jams = residence.aronia_jam.max(0.0) + residence.rosehip_jam.max(0.0);
+    let allocation = allocate_backyard_jam_meal(household_jams, food_demand, luxury_demand);
+    let mut used = (household_jams - allocation.remaining_stock).max(0.0);
     let aronia_used = residence.aronia_jam.max(0.0).min(used);
     residence.aronia_jam = (residence.aronia_jam - aronia_used).max(0.0);
     used = (used - aronia_used).max(0.0);

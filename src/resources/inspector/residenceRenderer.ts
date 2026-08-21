@@ -915,7 +915,10 @@ function upgradeSupplierHasStock(
   if (kind === 'water') return supplier.water > 1e-6;
   if (kind === 'preservedFood') return preservedFoodStock(supplier) > 1e-6;
   if (kind === 'ale') {
-    return supplier.ale + (supplier.cider ?? 0) + (supplier.mead ?? 0) > 1e-6;
+    return supplier.ale
+      + (supplier.cider ?? 0)
+      + (supplier.pearCider ?? 0)
+      + (supplier.mead ?? 0) > 1e-6;
   }
   return (supplier.cloth ?? 0) > 1e-6;
 }

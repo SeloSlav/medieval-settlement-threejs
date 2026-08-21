@@ -22,7 +22,8 @@ use crate::balance_generated::{
 use crate::civilian_tool_policy::{civilian_tool_refill_due, is_civilian_tool_site};
 use crate::processor_output_policy::processor_input_staging_cycles;
 
-/// Staffed Taverns are the household-facing service point for ale, cider, and mead.
+/// Staffed Taverns are the household-facing service point for ale, apple cider,
+/// pear cider, and mead.
 pub const BEVERAGE_SERVICE_KINDS: &[&str] = &["tavern"];
 pub const CLOTH_PRODUCER_KINDS: &[&str] = &["weaver"];
 pub const POTTERY_PRODUCER_KINDS: &[&str] = &["potter_kiln"];

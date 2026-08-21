@@ -15,6 +15,7 @@ export const DELIVERY_CARGO_KINDS = [
   'timber',
   'ale',
   'cider',
+  'pearCider',
   'mead',
   'preservedFood',
   'honey',
@@ -42,8 +43,14 @@ export const DELIVERY_CARGO_KINDS = [
   'mushrooms',
   'milk',
   'apples',
+  'pears',
   'cherries',
+  'aronia',
+  'rosehips',
   'vegetables',
+  'cabbage',
+  'carrots',
+  'beetroot',
   'eggs',
   'grapes',
   'curedMeat',
@@ -63,6 +70,8 @@ export const DELIVERY_CARGO_KINDS = [
   'hides',
   'leather',
   'shoes',
+  'aroniaJam',
+  'rosehipJam',
 ] as const;
 export type DeliveryCargoKind = (typeof DELIVERY_CARGO_KINDS)[number];
 
@@ -255,6 +264,10 @@ export function cargoKindFromId(value: number): DeliveryCargoKind | null {
       return 'food';
     case 3:
       return 'timber';
+    case 4:
+      return 'pears';
+    case 5:
+      return 'aronia';
     case 6:
       return 'ale';
     case 7:
@@ -297,6 +310,8 @@ export function cargoKindFromId(value: number): DeliveryCargoKind | null {
       return 'remedies';
     case 26:
       return 'roofTiles';
+    case 27:
+      return 'rosehips';
     case 28:
       return 'meat';
     case 29:
@@ -317,6 +332,8 @@ export function cargoKindFromId(value: number): DeliveryCargoKind | null {
       return 'eggs';
     case 37:
       return 'grapes';
+    case 38:
+      return 'cabbage';
     case 39:
       return 'curedMeat';
     case 40:
@@ -339,22 +356,32 @@ export function cargoKindFromId(value: number): DeliveryCargoKind | null {
       return 'maslinGrain';
     case 49:
       return 'ryeFlour';
+    case 50:
+      return 'carrots';
     case 51:
       return 'maslinFlour';
     case 52:
       return 'ryeBread';
+    case 53:
+      return 'beetroot';
     case 54:
       return 'maslinBread';
     case 55:
       return 'cider';
     case 56:
       return 'mead';
+    case 57:
+      return 'pearCider';
     case 58:
       return 'hides';
     case 59:
       return 'leather';
     case 60:
       return 'shoes';
+    case 61:
+      return 'aroniaJam';
+    case 62:
+      return 'rosehipJam';
     default:
       return null;
   }
@@ -425,7 +452,9 @@ export function cargoKindLabel(kind: DeliveryCargoKind): string {
     case 'ale':
       return 'Ale';
     case 'cider':
-      return 'Cider';
+      return 'Apple cider';
+    case 'pearCider':
+      return 'Pear cider';
     case 'mead':
       return 'Mead';
     case 'preservedFood':
@@ -446,10 +475,22 @@ export function cargoKindLabel(kind: DeliveryCargoKind): string {
       return 'Milk';
     case 'apples':
       return 'Apples';
+    case 'pears':
+      return 'Pears';
     case 'cherries':
       return 'Cherries';
+    case 'aronia':
+      return 'Aronia berries';
+    case 'rosehips':
+      return 'Rosehips';
     case 'vegetables':
       return 'Vegetables';
+    case 'cabbage':
+      return 'Cabbage';
+    case 'carrots':
+      return 'Carrots';
+    case 'beetroot':
+      return 'Beetroot';
     case 'eggs':
       return 'Eggs';
     case 'grapes':
@@ -460,6 +501,10 @@ export function cargoKindLabel(kind: DeliveryCargoKind): string {
       return 'Smoked fish';
     case 'cheese':
       return 'Cheese';
+    case 'aroniaJam':
+      return 'Aronia jam';
+    case 'rosehipJam':
+      return 'Rosehip jam';
     case 'honey':
       return 'Honey';
     case 'wine':
@@ -872,8 +917,14 @@ export function cargoColor(kind: DeliveryCargoKind): number {
     case 'mushrooms':
     case 'milk':
     case 'apples':
+    case 'pears':
     case 'cherries':
+    case 'aronia':
+    case 'rosehips':
     case 'vegetables':
+    case 'cabbage':
+    case 'carrots':
+    case 'beetroot':
     case 'eggs':
     case 'grapes':
       return 0x5f9f4a;
@@ -898,12 +949,16 @@ export function cargoColor(kind: DeliveryCargoKind): number {
       return 0xb8860b;
     case 'cider':
       return 0xc27c32;
+    case 'pearCider':
+      return 0xb59b38;
     case 'mead':
       return 0xd4a017;
     case 'preservedFood':
     case 'curedMeat':
     case 'smokedFish':
     case 'cheese':
+    case 'aroniaJam':
+    case 'rosehipJam':
       return 0x8b5a3c;
     case 'honey':
       return 0xd4a017;

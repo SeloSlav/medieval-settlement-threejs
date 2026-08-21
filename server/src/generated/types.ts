@@ -41,7 +41,6 @@ export const BackyardGarden = __t.object("BackyardGarden", {
   lastPrimaryProductionDay: __t.u64(),
   lastSecondaryProductionDay: __t.u64(),
   hideStock: __t.f64(),
-  jamStock: __t.f64(),
   flowerLuxuryUpgraded: __t.bool(),
 });
 export type BackyardGarden = __Infer<typeof BackyardGarden>;
@@ -193,6 +192,18 @@ export const Building = __t.object("Building", {
   monasteryServiceFunding: __t.f64(),
   monasteryLastServiceDay: __t.u64(),
   storageAcceptanceMask: __t.u64(),
+  hides: __t.f64(),
+  leather: __t.f64(),
+  shoes: __t.f64(),
+  pears: __t.f64(),
+  aronia: __t.f64(),
+  rosehips: __t.f64(),
+  cabbage: __t.f64(),
+  carrots: __t.f64(),
+  beetroot: __t.f64(),
+  aroniaJam: __t.f64(),
+  rosehipJam: __t.f64(),
+  pearCider: __t.f64(),
 });
 export type Building = __Infer<typeof Building>;
 
@@ -561,6 +572,18 @@ export const PlayerResources = __t.object("PlayerResources", {
   pantrySafeguardPolicy: __t.u8(),
   cider: __t.f64(),
   mead: __t.f64(),
+  hides: __t.f64(),
+  leather: __t.f64(),
+  shoes: __t.f64(),
+  pears: __t.f64(),
+  aronia: __t.f64(),
+  rosehips: __t.f64(),
+  cabbage: __t.f64(),
+  carrots: __t.f64(),
+  beetroot: __t.f64(),
+  aroniaJam: __t.f64(),
+  rosehipJam: __t.f64(),
+  pearCider: __t.f64(),
 });
 export type PlayerResources = __Infer<typeof PlayerResources>;
 
@@ -659,6 +682,14 @@ export const Residence = __t.object("Residence", {
   ryeBread: __t.f64(),
   maslinBread: __t.f64(),
   oatGrain: __t.f64(),
+  pears: __t.f64(),
+  aronia: __t.f64(),
+  rosehips: __t.f64(),
+  cabbage: __t.f64(),
+  carrots: __t.f64(),
+  beetroot: __t.f64(),
+  aroniaJam: __t.f64(),
+  rosehipJam: __t.f64(),
 });
 export type Residence = __Infer<typeof Residence>;
 

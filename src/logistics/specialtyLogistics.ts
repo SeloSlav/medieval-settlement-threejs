@@ -366,6 +366,7 @@ function specialtySupplierStock(
   if (needKind === 'ale') {
     return Math.max(0, building.ale)
       + Math.max(0, building.cider ?? 0)
+      + Math.max(0, building.pearCider ?? 0)
       + Math.max(0, building.mead ?? 0);
   }
   if (needKind === 'cloth') return building.cloth ?? 0;

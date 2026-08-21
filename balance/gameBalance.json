@@ -542,7 +542,6 @@
     "residenceShoesPerPersonPerSec": 0.00012,
     "residencePotteryCapacity": 6,
     "residencePotteryPerPersonPerSec": 0.001,
-    "residenceLuxuryJamCapacity": 12,
     "residenceLuxuryJamPerPersonPerSec": 0.0005,
     "hungerWarningDays": 2,
     "malnutritionDays": 5,
@@ -1660,7 +1659,7 @@
     "brewery": {
       "label": "Brewhouse",
       "cost": { "timber": 48, "stone": 36, "ironwork": 3 },
-      "storage": { "timber": 0, "firewood": 40, "stone": 0, "water": 120, "food": 96, "barley": 96, "malt": 48, "ale": 200, "cider": 200, "mead": 200, "honey": 72 },
+      "storage": { "timber": 0, "firewood": 40, "stone": 0, "water": 120, "food": 96, "barley": 96, "malt": 48, "ale": 200, "cider": 200, "pearCider": 200, "mead": 200, "honey": 72 },
       "workRadius": 0,
       "pickRadius": 9,
       "harvestInterval": 7,

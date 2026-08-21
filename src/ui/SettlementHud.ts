@@ -496,13 +496,13 @@ const SETTLEMENT_HUD_HTML = `
         <strong class="settlement-hud__value" data-stockpile="maslinFlour">0</strong>
         <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="maslinFlour" hidden></span>
       </div>
-      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="ale" data-tooltip="Brewery ale; Taverns can serve it, cider, or mead to prosperous households.">
+      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="ale" data-tooltip="Brewery ale; Taverns can serve it, apple cider, pear cider, or mead to prosperous households.">
         <span class="settlement-hud__label">Ale</span>
         <strong class="settlement-hud__value" data-stockpile="ale">0</strong>
         <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="ale" hidden></span>
       </div>
       <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="cider" data-tooltip="Apple beverage served by staffed Taverns.">
-        <span class="settlement-hud__label">Cider</span>
+        <span class="settlement-hud__label">Apple cider</span>
         <strong class="settlement-hud__value" data-stockpile="cider">0</strong>
         <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="cider" hidden></span>
       </div>

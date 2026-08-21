@@ -98,6 +98,7 @@ import SetWeaverInputPolicyReducer from "../set_weaver_input_policy_reducer";
 import SetWoodcutterTimberReserveReducer from "../set_woodcutter_timber_reserve_reducer";
 import SpecializeAnimalPenReducer from "../specialize_animal_pen_reducer";
 import SpecializeOrchardReducer from "../specialize_orchard_reducer";
+import SpecializeVegetableGardenReducer from "../specialize_vegetable_garden_reducer";
 import StartFarmFieldEarlyHarvestReducer from "../start_farm_field_early_harvest_reducer";
 import SyncRoadNetworkReducer from "../sync_road_network_reducer";
 import TickSimReducer from "../tick_sim_reducer";
@@ -197,6 +198,7 @@ export type SetWeaverInputPolicyParams = __Infer<typeof SetWeaverInputPolicyRedu
 export type SetWoodcutterTimberReserveParams = __Infer<typeof SetWoodcutterTimberReserveReducer>;
 export type SpecializeAnimalPenParams = __Infer<typeof SpecializeAnimalPenReducer>;
 export type SpecializeOrchardParams = __Infer<typeof SpecializeOrchardReducer>;
+export type SpecializeVegetableGardenParams = __Infer<typeof SpecializeVegetableGardenReducer>;
 export type StartFarmFieldEarlyHarvestParams = __Infer<typeof StartFarmFieldEarlyHarvestReducer>;
 export type SyncRoadNetworkParams = __Infer<typeof SyncRoadNetworkReducer>;
 export type TickSimParams = __Infer<typeof TickSimReducer>;

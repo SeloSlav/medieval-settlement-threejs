@@ -143,8 +143,8 @@ pub const EDIBLE_COMMODITIES: [CommodityKind; 27] = [
 ];
 
 /// Consume the shortest-lived foods first so mixed pantries and institutions
-/// naturally preserve durable reserves. The legacy mixed buckets remain in
-/// the order only so old saves drain cleanly after migration.
+/// naturally preserve durable reserves. Combined food buckets remain available
+/// for producers whose output is intentionally not crop-specific.
 pub const FOOD_CONSUMPTION_ORDER: [CommodityKind; 27] = [
     CommodityKind::Meat,
     CommodityKind::Fish,

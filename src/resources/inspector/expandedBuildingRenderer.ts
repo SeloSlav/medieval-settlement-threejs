@@ -235,8 +235,8 @@ const PROCESS: Record<string, string> = {
   windmill: 'Grain + upland wind + smith-dressed millstones and iron fittings → flour without river access',
   granary: 'Shelters foodstuffs, farm crops, flour, and cured provisions, then stocks Marketplace stalls, Taverns, and physical institutional routes',
   bakery: 'Flour + hauled water + firewood + baker labor -> bread for Marketplace stalls and institutions',
-  brewery: 'Barley → malt → ale, 4 apples → 1 cider, or 1 honey → 1 mead; finished beverages go to staffed Taverns',
-  tavern: 'Receives ale, cider, and mead, then serves any of them as the residential Beverage service',
+  brewery: 'Barley → malt → ale, 4 apples → 1 apple cider, 4 pears → 1 pear cider, or 1 honey → 1 mead; each finished beverage remains distinct and goes to staffed Taverns',
+  tavern: 'Receives ale, apple cider, pear cider, and mead, then serves any of them as the residential Beverage service',
   smokehouse: 'Meat, fish, or milk + firewood + local or imported salt + pottery vessels -> cured meat, smoked fish, or cheese',
   apiary: 'April-September forage + a healthy overwintered colony -> honey, with nearby orchard and vineyard pollination',
   vineyard: 'September-October harvest -> table-grape reserve or a staffed, timed cellar batch -> wine',
@@ -298,9 +298,11 @@ function buildingHasOutboundStock(
       return (building.barley ?? 0) > 0
         || (building.malt ?? 0) > 0
         || (building.apples ?? 0) > 0
+        || (building.pears ?? 0) > 0
         || (building.honey ?? 0) > 0
         || building.ale > 0
         || (building.cider ?? 0) > 0
+        || (building.pearCider ?? 0) > 0
         || (building.mead ?? 0) > 0;
     case 'smokehouse':
       return preservedFoodStock(building) > 0;
@@ -1756,13 +1758,15 @@ export function renderProcessorOutputTargetPanel(building: BuildingState): strin
               const output = breweryPolicyOutput(preset.policy);
               const icon = output === 'cider'
                 ? renderResourceCost({ cider: 1 }, { compact: true })
+                : output === 'pearCider'
+                  ? renderResourceCost({ pearCider: 1 }, { compact: true })
                 : output === 'mead'
                   ? renderResourceCost({ mead: 1 }, { compact: true })
                   : renderResourceCost({ ale: 1 }, { compact: true });
               return `<button type="button" class="resource-action-button" data-brewery-recipe-policy="${preset.policy}" title="${preset.hint}" ${configured === preset.policy ? 'disabled' : ''}>${preset.label} · ${icon}</button>`;
             })
             .join('')}</div>
-          <p class="inspector-action-panel__hint">${active} Cider uses 4 apples for 1 cider; mead uses 1 honey for 1 mead. Ale, cider, and mead are all hauled to a staffed Tavern and fulfill the same Beverage requirement.</p>
+          <p class="inspector-action-panel__hint">${active} Apple cider uses 4 apples; pear cider uses 4 pears; mead uses 1 honey. All four beverages are hauled separately to a staffed Tavern and fulfill the same Beverage requirement.</p>
         `;
       })()
     : '';

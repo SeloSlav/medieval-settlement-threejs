@@ -47,16 +47,34 @@ assert.equal(foodMealValue('honey'), 1.2);
 assert.equal(foodMealValue('apples'), 0.6);
 assert.equal(foodSpoilageMultiplier('honey'), 0);
 assert.ok(foodSpoilageMultiplier('milk') > foodSpoilageMultiplier('apples'));
-assert.equal(NAMED_FOOD_KINDS.length, 17);
+assert.equal(NAMED_FOOD_KINDS.length, 25);
 assert.equal(foodCategory('apples'), 'fruits');
+assert.equal(foodCategory('pears'), 'fruits');
 assert.equal(foodCategory('cherries'), 'fruits');
 assert.equal(foodCategory('vegetables'), 'vegetables');
+assert.equal(foodCategory('cabbage'), 'vegetables');
+assert.equal(foodCategory('carrots'), 'vegetables');
+assert.equal(foodCategory('beetroot'), 'vegetables');
+assert.equal(foodCategory('aronia'), 'foraged');
+assert.equal(foodCategory('rosehips'), 'foraged');
+assert.equal(foodCategory('aroniaJam'), 'foraged');
+assert.equal(foodCategory('rosehipJam'), 'foraged');
 assert.equal(foodCategory('milk'), 'animalProduce');
 assert.equal(foodCategory('cheese'), 'animalProduce');
 assert.equal(
   foodVarietyCount({ apples: 2, cherries: 2, vegetables: 3, milk: 1, cheese: 1 }, 1),
   3,
   'close substitutes must not inflate household variety',
+);
+assert.equal(
+  foodVarietyCount({ cabbage: 2, carrots: 2, beetroot: 2 }, 1),
+  1,
+  'separate vegetable commodities remain one dietary category',
+);
+assert.equal(
+  foodVarietyCount({ aronia: 2, rosehips: 2, aroniaJam: 2, rosehipJam: 2 }, 1),
+  1,
+  'fresh and preserved hedgerow fruit remain one dietary category',
 );
 assert.ok(Math.abs(foodCategoryQualifyingStock(1) - 1 / 3) < 1e-9);
 assert.ok(Math.abs(foodCategoryQualifyingStock(6) - 2) < 1e-9);
@@ -114,6 +132,9 @@ assert.deepEqual(
 );
 
 const typedCargoKinds = [
+  [4, 'pears'],
+  [5, 'aronia'],
+  [27, 'rosehips'],
   [28, 'meat'],
   [29, 'fish'],
   [30, 'berries'],
@@ -124,18 +145,20 @@ const typedCargoKinds = [
   [35, 'vegetables'],
   [36, 'eggs'],
   [37, 'grapes'],
+  [38, 'cabbage'],
   [39, 'curedMeat'],
   [40, 'smokedFish'],
   [41, 'cheese'],
+  [50, 'carrots'],
+  [53, 'beetroot'],
+  [57, 'pearCider'],
+  [61, 'aroniaJam'],
+  [62, 'rosehipJam'],
 ] as const;
 for (const [id, kind] of typedCargoKinds) {
   assert.equal(cargoKindFromId(id), kind, `cargo id ${id} must remain ${kind}`);
   assert.notEqual(cargoKindLabel(kind), 'Food');
 }
-assert.equal(cargoKindFromId(27), null, 'removed generic bread id remains vacant');
-assert.equal(cargoKindFromId(38), null, 'removed porridge id remains vacant');
-assert.equal(cargoKindFromId(50), null, 'removed oat flour id remains vacant');
-assert.equal(cargoKindFromId(53), null, 'removed oat bread id remains vacant');
 for (const [id, kind] of [
   [42, 'ryeSheaves'], [43, 'oatSheaves'], [44, 'barleySheaves'], [45, 'maslinSheaves'],
   [46, 'ryeGrain'], [47, 'oatGrain'], [48, 'maslinGrain'],

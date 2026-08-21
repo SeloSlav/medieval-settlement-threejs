@@ -32,6 +32,7 @@ type BuildingBalance = {
     flour?: number;
     ale?: number;
     cider?: number;
+    pearCider?: number;
     mead?: number;
     preservedFood?: number;
     honey?: number;
@@ -418,7 +419,6 @@ export type GameBalance = {
     residenceShoesPerPersonPerSec: number;
     residencePotteryCapacity: number;
     residencePotteryPerPersonPerSec: number;
-    residenceLuxuryJamCapacity: number;
     residenceLuxuryJamPerPersonPerSec: number;
     hungerWarningDays: number;
     malnutritionDays: number;
@@ -1037,7 +1037,6 @@ function generateRust(): string {
     `pub const RESIDENCE_SHOES_PER_PERSON_PER_SEC: f64 = ${rustF64(b.population.residenceShoesPerPersonPerSec)};`,
     `pub const RESIDENCE_POTTERY_CAPACITY: f64 = ${rustF64(b.population.residencePotteryCapacity)};`,
     `pub const RESIDENCE_POTTERY_PER_PERSON_PER_SEC: f64 = ${rustF64(b.population.residencePotteryPerPersonPerSec)};`,
-    `pub const RESIDENCE_LUXURY_JAM_CAPACITY: f64 = ${rustF64(b.population.residenceLuxuryJamCapacity)};`,
     `pub const RESIDENCE_LUXURY_JAM_PER_PERSON_PER_SEC: f64 = ${rustF64(b.population.residenceLuxuryJamPerPersonPerSec)};`,
     `pub const HUNGER_WARNING_DAYS: f64 = ${rustF64(b.population.hungerWarningDays)};`,
     `pub const MALNUTRITION_DAYS: f64 = ${rustF64(b.population.malnutritionDays)};`,
@@ -2011,7 +2010,6 @@ function generateTypeScript(): string {
     `export const RESIDENCE_SHOES_PER_PERSON_PER_SEC = ${b.population.residenceShoesPerPersonPerSec};`,
     `export const RESIDENCE_POTTERY_CAPACITY = ${b.population.residencePotteryCapacity};`,
     `export const RESIDENCE_POTTERY_PER_PERSON_PER_SEC = ${b.population.residencePotteryPerPersonPerSec};`,
-    `export const RESIDENCE_LUXURY_JAM_CAPACITY = ${b.population.residenceLuxuryJamCapacity};`,
     `export const RESIDENCE_LUXURY_JAM_PER_PERSON_PER_SEC = ${b.population.residenceLuxuryJamPerPersonPerSec};`,
     `export const HUNGER_WARNING_DAYS = ${b.population.hungerWarningDays};`,
     `export const MALNUTRITION_DAYS = ${b.population.malnutritionDays};`,
@@ -2421,6 +2419,7 @@ function generateTypeScript(): string {
     '  flour?: number;',
     '  ale?: number;',
     '  cider?: number;',
+    '  pearCider?: number;',
     '  mead?: number;',
     '  preservedFood?: number;',
     '  honey?: number;',
@@ -2514,6 +2513,7 @@ function generateTypeScript(): string {
     const flour = def.storage.flour ?? 0;
     const ale = def.storage.ale ?? 0;
     const cider = def.storage.cider ?? 0;
+    const pearCider = def.storage.pearCider ?? 0;
     const mead = def.storage.mead ?? 0;
     const preservedFood = def.storage.preservedFood ?? 0;
     const honey = def.storage.honey ?? 0;
@@ -2543,6 +2543,7 @@ function generateTypeScript(): string {
     if (flour > 0) extras.push(`flour: ${flour}`);
     if (ale > 0) extras.push(`ale: ${ale}`);
     if (cider > 0) extras.push(`cider: ${cider}`);
+    if (pearCider > 0) extras.push(`pearCider: ${pearCider}`);
     if (mead > 0) extras.push(`mead: ${mead}`);
     if (preservedFood > 0) extras.push(`preservedFood: ${preservedFood}`);
     if (honey > 0) extras.push(`honey: ${honey}`);

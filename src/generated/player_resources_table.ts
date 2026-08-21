@@ -122,4 +122,13 @@ export default __t.row({
   hides: __t.f64(),
   leather: __t.f64(),
   shoes: __t.f64(),
+  pears: __t.f64(),
+  aronia: __t.f64(),
+  rosehips: __t.f64(),
+  cabbage: __t.f64(),
+  carrots: __t.f64(),
+  beetroot: __t.f64(),
+  aroniaJam: __t.f64().name("aronia_jam"),
+  rosehipJam: __t.f64().name("rosehip_jam"),
+  pearCider: __t.f64().name("pear_cider"),
 });

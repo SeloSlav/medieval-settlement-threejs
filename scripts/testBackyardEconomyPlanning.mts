@@ -81,7 +81,6 @@ function garden(
     lastPrimaryProductionDay: 0,
     lastSecondaryProductionDay: 0,
     hideStock: 0,
-    jamStock: 0,
     flowerLuxuryUpgraded: false,
   };
 }
@@ -794,7 +793,9 @@ assert.match(
   /backyard_garden_seasonal_multiplier\(kind, clock\.month, environment\)/,
 );
 assert.match(serverStepSource, /garden\.first_harvest_day > clock\.total_days/);
-assert.match(serverStepSource, /def\.jam_per_person_per_sec[\s\S]*deposit_backyard_jam/);
+assert.match(serverStepSource, /def\.jam_per_person_per_sec[\s\S]*backyard_jam_commodity[\s\S]*distribute_backyard_food/);
+assert.match(serverStepSource, /AroniaOrchard => Some\(CommodityKind::AroniaJam\)/);
+assert.match(serverStepSource, /RosehipOrchard => Some\(CommodityKind::RosehipJam\)/);
 assert.match(serverPolicySource, /AppleOrchard \| CherryOrchard \| PearOrchard/);
 assert.match(serverPolicySource, /def\.harvest_start_month[\s\S]*def\.harvest_end_month/);
 assert.match(serverPolicySource, /12\.0 \/ window \* def\.yield_efficiency/);

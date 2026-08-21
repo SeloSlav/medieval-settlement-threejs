@@ -117,8 +117,14 @@ function addCargo(
     case 'mushrooms':
     case 'milk':
     case 'apples':
+    case 'pears':
     case 'cherries':
+    case 'aronia':
+    case 'rosehips':
     case 'vegetables':
+    case 'cabbage':
+    case 'carrots':
+    case 'beetroot':
     case 'eggs':
     case 'grapes':
       addFoodLoad(group);
@@ -140,6 +146,7 @@ function addCargo(
       break;
     case 'ale':
     case 'cider':
+    case 'pearCider':
     case 'mead':
       addAleLoad(group);
       break;
@@ -147,6 +154,8 @@ function addCargo(
     case 'curedMeat':
     case 'smokedFish':
     case 'cheese':
+    case 'aroniaJam':
+    case 'rosehipJam':
       addPreservedFoodLoad(group);
       break;
     case 'honey':

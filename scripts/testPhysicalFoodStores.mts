@@ -132,9 +132,9 @@ assert.notEqual(
 );
 
 const granary = building('granary', {
-  grain: 141,
+  ryeGrain: 141,
   barley: 160,
-  flour: 130,
+  ryeFlour: 130,
   flax: 90,
   food: 261,
   preservedFood: 50,
@@ -144,7 +144,7 @@ syncFoodStockpileVisuals(granaryMarker, granary);
 assertVisibleSegments(granaryMarker, 'GranaryGrainStockpile', 'GranaryGrainSegment', 2);
 assertVisibleSegments(granaryMarker, 'GranaryProvisionStockpile', 'GranaryProvisionSegment', 2);
 
-const watermill = building('watermill', { grain: 61, flour: 87 });
+const watermill = building('watermill', { ryeGrain: 61, ryeFlour: 87 });
 const watermillMarker = createBuildingMesh('watermill');
 syncFoodStockpileVisuals(watermillMarker, watermill);
 assertVisibleSegments(watermillMarker, 'WatermillGrainStockpile', 'WatermillGrainSegment', 2);
@@ -164,9 +164,9 @@ assertVisibleSegments(
 );
 
 const emptyGranary = building('granary');
-const firstGrainSack = building('granary', { grain: 1 });
-const sameGrainBand = building('granary', { grain: 100 });
-const secondGrainBand = building('granary', { grain: 201 });
+const firstGrainSack = building('granary', { ryeGrain: 1 });
+const sameGrainBand = building('granary', { ryeGrain: 100 });
+const secondGrainBand = building('granary', { ryeGrain: 201 });
 const emptySignatures = buildingMarkerSignatures(
   new Map([[emptyGranary.id, emptyGranary]]),
 );
@@ -197,8 +197,8 @@ const perfBuildings = Array.from({ length: 100_000 }, (_, index) => {
     'watermill',
   ] as const;
   return building(kinds[index % kinds.length], {
-    grain: index % 421,
-    flour: index % 261,
+    ryeGrain: index % 421,
+    ryeFlour: index % 261,
     food: index % 341,
     firewood: index % 61,
     ale: index % 201,
@@ -242,8 +242,8 @@ function building(
   kind: BuildingKind,
   stocks: Partial<Pick<
     BuildingState,
-    | 'grain'
-    | 'flour'
+    | 'ryeGrain'
+    | 'ryeFlour'
     | 'flax'
     | 'food'
     | 'firewood'

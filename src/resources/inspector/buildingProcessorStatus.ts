@@ -78,6 +78,7 @@ import {
 import {
   BREWERY_RECIPE_CIDER,
   BREWERY_RECIPE_MEAD,
+  BREWERY_RECIPE_PEAR_CIDER,
   breweryRecipePolicyLabel,
   normalizeBreweryRecipePolicy,
   selectedBreweryRecipePolicy,
@@ -111,6 +112,7 @@ type StockKey =
   | 'maslinBread'
   | 'ale'
   | 'cider'
+  | 'pearCider'
   | 'mead'
   | 'preservedFood'
   | 'wool'
@@ -123,7 +125,8 @@ type StockKey =
   | 'pottery'
   | 'ironwork'
   | 'honey'
-  | 'apples';
+  | 'apples'
+  | 'pears';
 
 type InputRequirement = {
   key: StockKey;
@@ -538,13 +541,35 @@ function getBreweryStatus(
       }],
       output: 'cider',
       outputPerCycle: BREWERY_CIDER_PER_CYCLE,
-      operatingLabel: 'Pressing apples into cider',
-      idleNoWorkersLabel: 'Idle — assign brewers to press cider',
+      operatingLabel: 'Pressing apples into apple cider',
+      idleNoWorkersLabel: 'Idle — assign brewers to press apple cider',
     };
     const status = buildProcessorStatus(building, profile, null, onsiteLabor);
     status.waterDetailHtml = policyRow
       + status.waterDetailHtml
-      + `<li><span>Cider recipe</span><span>${BREWERY_APPLES_PER_CIDER_CYCLE} apples → ${BREWERY_CIDER_PER_CYCLE} cider</span></li>`;
+      + `<li><span>Apple cider recipe</span><span>${BREWERY_APPLES_PER_CIDER_CYCLE} apples → ${BREWERY_CIDER_PER_CYCLE} apple cider</span></li>`;
+    return status;
+  }
+
+  if (selectedRecipe === BREWERY_RECIPE_PEAR_CIDER) {
+    const profile: ProcessorProfile = {
+      requiresLabor: true,
+      waterPerCycle: 0,
+      inputs: [{
+        key: 'pears',
+        label: 'pears',
+        required: BREWERY_APPLES_PER_CIDER_CYCLE,
+        deliveryHint: 'pear orchards, granaries, or market carts may supply',
+      }],
+      output: 'pearCider',
+      outputPerCycle: BREWERY_CIDER_PER_CYCLE,
+      operatingLabel: 'Pressing pears into pear cider',
+      idleNoWorkersLabel: 'Idle — assign brewers to press pear cider',
+    };
+    const status = buildProcessorStatus(building, profile, null, onsiteLabor);
+    status.waterDetailHtml = policyRow
+      + status.waterDetailHtml
+      + `<li><span>Pear cider recipe</span><span>${BREWERY_APPLES_PER_CIDER_CYCLE} pears → ${BREWERY_CIDER_PER_CYCLE} pear cider</span></li>`;
     return status;
   }
 
@@ -690,10 +715,11 @@ function getTavernStatus(
 ): BuildingProcessorStatus {
   const ale = Math.max(0, building.ale);
   const cider = Math.max(0, building.cider ?? 0);
+  const pearCider = Math.max(0, building.pearCider ?? 0);
   const mead = Math.max(0, building.mead ?? 0);
-  const total = ale + cider + mead;
+  const total = ale + cider + pearCider + mead;
   const details = `
-    <li><span>Beverage cellar</span><span>${total.toFixed(0)} total · ${ale.toFixed(0)} ale · ${cider.toFixed(0)} cider · ${mead.toFixed(0)} mead</span></li>
+    <li><span>Beverage cellar</span><span>${total.toFixed(0)} total · ${ale.toFixed(0)} ale · ${cider.toFixed(0)} apple cider · ${pearCider.toFixed(0)} pear cider · ${mead.toFixed(0)} mead</span></li>
     <li><span>Household service</span><span>Any stocked beverage fulfills the same residential requirement</span></li>
   `;
   if (onsiteLabor <= 0) {
@@ -707,7 +733,7 @@ function getTavernStatus(
   }
   if (total <= 1e-6) {
     return {
-      statusText: 'Waiting for ale, cider, or mead',
+      statusText: 'Waiting for ale, apple cider, pear cider, or mead',
       statusState: 'warning',
       waterDetailHtml: details,
     };

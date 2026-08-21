@@ -108,12 +108,15 @@ assert.equal(
   BUILD_MENU_ENTRIES.length,
   'every build-card tooltip must request the above-menu placement',
 );
-assert.ok(fs.existsSync('public/assets/ui/icons/resource-cider.png'));
+assert.ok(fs.existsSync('public/assets/ui/icons/provisions/apple-cider.svg'));
+assert.ok(fs.existsSync('public/assets/ui/icons/provisions/pear-cider.svg'));
 assert.ok(fs.existsSync('public/assets/ui/icons/resource-mead.png'));
 const iconography = fs.readFileSync('src/ui/iconography.css', 'utf8');
-assert.match(iconography, /data-resource='cider'[\s\S]*?resource-cider\.png/);
+assert.match(iconography, /data-resource='cider'[\s\S]*?apple-cider\.svg/);
+assert.match(iconography, /data-resource='pearCider'[\s\S]*?pear-cider\.svg/);
 assert.match(iconography, /data-resource='mead'[\s\S]*?resource-mead\.png/);
-assert.match(iconography, /data-resource-cost='cider'[\s\S]*?resource-cider\.png/);
+assert.match(iconography, /data-resource-cost='cider'[\s\S]*?apple-cider\.svg/);
+assert.match(iconography, /data-resource-cost='pearCider'[\s\S]*?pear-cider\.svg/);
 assert.match(iconography, /data-resource-cost='mead'[\s\S]*?resource-mead\.png/);
 const descriptions = [...renderedCards.matchAll(/data-tooltip="([^"]+)"/g)]
   .map((match) => match[1]);

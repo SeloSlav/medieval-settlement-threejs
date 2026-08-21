@@ -94,6 +94,7 @@ import {
 import {
   BREWERY_RECIPE_CIDER,
   BREWERY_RECIPE_MEAD,
+  BREWERY_RECIPE_PEAR_CIDER,
   selectedBreweryRecipePolicy,
 } from './breweryRecipePolicy.ts';
 import {
@@ -215,6 +216,7 @@ export type SettlementProductionCapacity = {
 export type ProcessorInput =
   | 'barley'
   | 'apples'
+  | 'pears'
   | 'honey'
   | 'grain'
   | 'flour'
@@ -1265,23 +1267,31 @@ function completedProcessorOverview(
           building,
         );
         const beverageCycles = recipe === BREWERY_RECIPE_CIDER
+          || recipe === BREWERY_RECIPE_PEAR_CIDER
           || recipe === BREWERY_RECIPE_MEAD
           ? workCycles
           : workCycles / 2;
         const outputPerCycle = recipe === BREWERY_RECIPE_CIDER
+          || recipe === BREWERY_RECIPE_PEAR_CIDER
           ? BREWERY_CIDER_PER_CYCLE
           : recipe === BREWERY_RECIPE_MEAD
             ? BREWERY_MEAD_PER_CYCLE
             : BREWERY_ALE_PER_CYCLE;
         const outputKind = recipe === BREWERY_RECIPE_CIDER
           ? 'cider'
+          : recipe === BREWERY_RECIPE_PEAR_CIDER
+            ? 'pearCider'
           : recipe === BREWERY_RECIPE_MEAD
             ? 'mead'
             : 'ale';
         const outputPerDay = beverageCycles * outputPerCycle;
         beverageOutputPerDay += outputPerDay;
         const aleCycles = workCycles / 2;
-        if (recipe !== BREWERY_RECIPE_CIDER && recipe !== BREWERY_RECIPE_MEAD) {
+        if (
+          recipe !== BREWERY_RECIPE_CIDER
+          && recipe !== BREWERY_RECIPE_PEAR_CIDER
+          && recipe !== BREWERY_RECIPE_MEAD
+        ) {
           beverageBarleyPerDay += aleCycles * BREWERY_BARLEY_PER_MALT_CYCLE;
           beverageWaterPerDay += aleCycles * (
             BREWERY_MALTING_WATER_PER_CYCLE
@@ -1307,6 +1317,14 @@ function completedProcessorOverview(
             deliveries,
             building,
             'apples',
+            beverageCycles * BREWERY_APPLES_PER_CIDER_CYCLE,
+          );
+        } else if (recipe === BREWERY_RECIPE_PEAR_CIDER) {
+          limitingInput = 'pears';
+          runway = buildingInputRunway(
+            deliveries,
+            building,
+            'pears',
             beverageCycles * BREWERY_APPLES_PER_CIDER_CYCLE,
           );
         } else if (recipe === BREWERY_RECIPE_MEAD) {

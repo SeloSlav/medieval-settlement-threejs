@@ -2227,7 +2227,9 @@ pub fn set_brewery_recipe_policy(
     recipe_policy: u8,
 ) -> Result<(), String> {
     if !is_valid_brewery_recipe_policy(recipe_policy) {
-        return Err("Brewery recipe must be Ale, Cider, Mead, or Auto.".to_string());
+        return Err(
+            "Brewery recipe must be Ale, Apple Cider, Pear Cider, Mead, or Auto.".to_string(),
+        );
     }
     let owner = ctx.sender();
     let mut building = ctx

@@ -30,7 +30,13 @@ assert.ok(STOREHOUSE_STORAGE_COMMODITIES.includes('hides'));
 assert.ok(STOREHOUSE_STORAGE_COMMODITIES.includes('leather'));
 assert.ok(STOREHOUSE_STORAGE_COMMODITIES.includes('shoes'));
 assert.ok(STOREHOUSE_STORAGE_COMMODITIES.includes('pottery'));
-assert.equal(GRANARY_STORAGE_COMMODITIES.length, 30);
+assert.equal(GRANARY_STORAGE_COMMODITIES.length, 40);
+for (const commodity of [
+  'pears', 'aronia', 'rosehips', 'cabbage', 'carrots', 'beetroot',
+  'aroniaJam', 'rosehipJam', 'cider', 'pearCider',
+] as const) {
+  assert.ok(GRANARY_STORAGE_COMMODITIES.includes(commodity));
+}
 assert.equal(storageAcceptsCommodity(storehouse, 'charcoal'), true);
 assert.equal(
   storageAcceptsCommodity({
@@ -42,7 +48,7 @@ assert.equal(
 assert.equal(
   storageAcceptsCommodity({ ...storehouse, storehouseAcceptsTimber: false }, 'timber'),
   false,
-  'legacy policy must remain effective for old saves',
+  'the coarse per-material switch remains effective when granular acceptance is enabled',
 );
 assert.equal(storageAcceptsCommodity({ ...storehouse, storageAcceptanceMask: undefined }, 'cloth'), true);
 

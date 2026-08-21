@@ -71,7 +71,7 @@ export function buildingStorageRows(
     caps.flour != null && caps.flour > 0 ? `<li><span>Flour room</span><span>${Math.round(flourStock(building))} / ${caps.flour}</span></li>
       <li><span>&nbsp;&nbsp;Rye / maslin</span><span>${Math.round(building.ryeFlour ?? 0)} / ${Math.round(building.maslinFlour ?? 0)}</span></li>` : '',
     caps.ale != null && caps.ale > 0 ? `<li><span>Ale stored</span><span>${Math.round(building.ale)} / ${caps.ale}</span></li>` : '',
-    caps.cider != null && caps.cider > 0 ? `<li><span>Cider stored</span><span>${Math.round(building.cider ?? 0)} / ${caps.cider}</span></li>` : '',
+    caps.cider != null && caps.cider > 0 ? `<li><span>Cider cellar</span><span>${Math.round(building.cider ?? 0)} apple · ${Math.round(building.pearCider ?? 0)} pear / ${caps.cider} each</span></li>` : '',
     caps.mead != null && caps.mead > 0 ? `<li><span>Mead stored</span><span>${Math.round(building.mead ?? 0)} / ${caps.mead}</span></li>` : '',
     buildingFoodStorageRows(building, caps.preservedFood ?? 0, true),
     caps.honey != null && caps.honey > 0 ? `<li><span>Honey stored</span><span>${Math.round(building.honey)} / ${caps.honey}</span></li>` : '',
