@@ -1,6 +1,6 @@
 .tutorial-launcher {
   position: absolute;
-  top: 124px;
+  top: 132px;
   right: max(14px, env(safe-area-inset-right, 0px));
   bottom: auto;
   left: auto;
@@ -384,7 +384,7 @@
 
 @media (max-width: 760px) {
   .tutorial-launcher {
-    top: 104px;
+    top: 112px;
     right: max(14px, env(safe-area-inset-right, 0px));
   }
 }

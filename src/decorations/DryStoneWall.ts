@@ -13,7 +13,7 @@ export type DryStoneWallState = {
   revision: number;
 };
 
-export type DryStoneWallDebugMode = 'final' | 'courses' | 'variants' | 'moss-mask';
+export type DryStoneWallDebugMode = 'final' | 'courses' | 'variants';
 export type DryStoneWallQuality = 'preview' | 'final';
 
 export type DryStonePlacement = {
@@ -30,7 +30,10 @@ export type DryStonePlacement = {
   depth: number;
   tone: number;
   warmth: number;
-  moss: number;
+};
+
+export type DryStoneWallPlanOptions = {
+  stoneAllowed?: (stone: DryStonePlacement) => boolean;
 };
 
 export type DryStoneWallPlan = {
@@ -42,7 +45,7 @@ export type DryStoneWallPlan = {
   diagnostics: {
     courseCounts: readonly [number, number];
     variantCounts: readonly number[];
-    mossStoneCount: number;
+    omittedStoneCount: number;
     minimumStoneWidth: number;
     maximumStoneWidth: number;
     approximateHeight: number;
@@ -72,13 +75,15 @@ export function createDryStoneWallPlan(
   wall: DryStoneWallState,
   terrain: TerrainHeightSampler,
   quality: DryStoneWallQuality = 'final',
+  options: DryStoneWallPlanOptions = {},
 ): DryStoneWallPlan {
   const path = wall.sampledPath.map(tupleToVector);
   const pathLength = pathLengthXZ(path);
   const stones: DryStonePlacement[] = [];
   const courseCounts: [number, number] = [0, 0];
   const variantCounts = Array.from({ length: DRY_STONE_WALL_VARIANTS }, () => 0);
-  let mossStoneCount = 0;
+  let omittedStoneCount = 0;
+  let generatedStoneCount = 0;
   let minimumStoneWidth = Number.POSITIVE_INFINITY;
   let maximumStoneWidth = 0;
 
@@ -111,12 +116,9 @@ export function createDryStoneWallPlan(
           DRY_STONE_WALL_VARIANTS - 1,
           Math.floor(random() * DRY_STONE_WALL_VARIANTS),
         );
-        const moss = quality === 'final'
-          ? THREE.MathUtils.clamp((random() - (course === 1 ? 0.72 : 0.9)) * 2.6, 0, 1)
-          : 0;
         const stone: DryStonePlacement = {
           wallId: wall.id,
-          stoneIndex: stones.length,
+          stoneIndex: generatedStoneCount,
           course,
           variant,
           x: sample.point.x + normalX * lateralJitter,
@@ -128,14 +130,17 @@ export function createDryStoneWallPlan(
           depth,
           tone: THREE.MathUtils.lerp(0.86, 1.08, random()),
           warmth: random() - 0.5,
-          moss,
         };
-        stones.push(stone);
-        courseCounts[course] += 1;
-        variantCounts[variant] += 1;
-        if (moss > 0.05) mossStoneCount += 1;
-        minimumStoneWidth = Math.min(minimumStoneWidth, width);
-        maximumStoneWidth = Math.max(maximumStoneWidth, width);
+        generatedStoneCount += 1;
+        if (!options.stoneAllowed || options.stoneAllowed(stone)) {
+          stones.push(stone);
+          courseCounts[course] += 1;
+          variantCounts[variant] += 1;
+          minimumStoneWidth = Math.min(minimumStoneWidth, width);
+          maximumStoneWidth = Math.max(maximumStoneWidth, width);
+        } else {
+          omittedStoneCount += 1;
+        }
 
         const gap = THREE.MathUtils.lerp(0.055, 0.12, random());
         cursor += width + gap;
@@ -152,7 +157,7 @@ export function createDryStoneWallPlan(
     diagnostics: {
       courseCounts,
       variantCounts,
-      mossStoneCount,
+      omittedStoneCount,
       minimumStoneWidth: Number.isFinite(minimumStoneWidth) ? minimumStoneWidth : 0,
       maximumStoneWidth,
       approximateHeight: 1.18,

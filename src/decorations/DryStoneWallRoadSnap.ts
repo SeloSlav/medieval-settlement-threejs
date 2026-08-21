@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import type { RoadEdge } from '../roads/RoadEdge.ts';
 import type { RoadNetwork, SnapTarget } from '../roads/RoadNetwork.ts';
 import { roadVisualWidth } from '../roads/roadDimensions.ts';
-import type { TerrainHeightSampler } from './DryStoneWall.ts';
+import type { DryStonePlacement, TerrainHeightSampler } from './DryStoneWall.ts';
 import { DRY_STONE_WALL_SHOULDER_CLEARANCE } from './DryStoneWall.ts';
 
 export type DryStoneWallRoadSnap = {
@@ -13,6 +13,8 @@ export type DryStoneWallRoadSnap = {
   side: -1 | 1;
   distance: number;
 };
+
+const ROAD_OVERLAP_MARGIN = 0.08;
 
 /** Snaps to either shoulder, choosing the side nearest the cursor. */
 export function findDryStoneWallRoadSnap(
@@ -48,6 +50,43 @@ export function alignSecondWallAnchorParallel(
   const x = start.x + tangent.x * distance * direction;
   const z = start.z + tangent.z * distance * direction;
   return new THREE.Vector3(x, terrain.getHeightAt(x, z), z);
+}
+
+/**
+ * Tests the oriented footprint of one generated stone against every road
+ * corridor. A parallel roadside wall retains its narrow depth clearance,
+ * while a crossing road uses the stone's longer axis and cuts a clean gap.
+ */
+export function isDryStoneWallStoneClearOfRoads(
+  network: RoadNetwork,
+  stone: DryStonePlacement,
+): boolean {
+  const widthAxisX = Math.cos(stone.yaw);
+  const widthAxisZ = -Math.sin(stone.yaw);
+  const depthAxisX = Math.sin(stone.yaw);
+  const depthAxisZ = Math.cos(stone.yaw);
+
+  for (const edge of network.edges.values()) {
+    const path = edge.sampledPath.length >= 2 ? edge.sampledPath : edge.controlPoints;
+    const roadHalfWidth = roadVisualWidth(edge.width) * 0.5;
+    for (let index = 0; index < path.length - 1; index += 1) {
+      const a = path[index];
+      const b = path[index + 1];
+      const segmentX = b.x - a.x;
+      const segmentZ = b.z - a.z;
+      const segmentLength = Math.hypot(segmentX, segmentZ);
+      if (segmentLength <= 1e-5) continue;
+      const normalX = -segmentZ / segmentLength;
+      const normalZ = segmentX / segmentLength;
+      const projectedHalfExtent = (
+        Math.abs(widthAxisX * normalX + widthAxisZ * normalZ) * stone.width * 0.5
+        + Math.abs(depthAxisX * normalX + depthAxisZ * normalZ) * stone.depth * 0.5
+      );
+      const blockedDistance = roadHalfWidth + projectedHalfExtent + ROAD_OVERLAP_MARGIN;
+      if (distanceToSegmentXZ(stone, a, b) <= blockedDistance) return false;
+    }
+  }
+  return true;
 }
 
 function candidatesForEdge(
@@ -107,7 +146,11 @@ function tangentAt(
   ).normalize();
 }
 
-function distanceToSegmentXZ(point: THREE.Vector3, a: THREE.Vector3, b: THREE.Vector3): number {
+function distanceToSegmentXZ(
+  point: Pick<THREE.Vector3, 'x' | 'z'>,
+  a: THREE.Vector3,
+  b: THREE.Vector3,
+): number {
   const abx = b.x - a.x;
   const abz = b.z - a.z;
   const lengthSq = abx * abx + abz * abz;

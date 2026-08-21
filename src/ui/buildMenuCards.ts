@@ -36,7 +36,7 @@ const BUILD_CARD_ART: Record<PlacementArtKey, string> = {
   well: '/assets/ui/build-menu/cards/water-well.webp', hunters_hall: '/assets/ui/build-menu/cards/hunter-hall.webp',
   foragers_shed: '/assets/ui/build-menu/cards/foragers-hut.webp', chapel: '/assets/ui/build-menu/cards/chapel.webp',
   wayside_shrine: '/assets/ui/build-menu/cards/wayside-shrine.webp',
-  dry_stone_wall: '/assets/ui/build-menu/cards/dry-stone-wall.svg',
+  dry_stone_wall: '/assets/ui/build-menu/cards/dry-stone-wall.webp',
   fishing_camp: '/assets/ui/build-menu/cards/fishing-camp.webp',
   marketplace: '/assets/ui/build-menu/cards/market.webp', residences: '/assets/ui/build-menu/cards/residence.webp',
   trading_post: '/assets/ui/build-menu/cards/trading-post.webp',

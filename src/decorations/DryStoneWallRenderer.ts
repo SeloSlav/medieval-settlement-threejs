@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import type { Terrain } from '../terrain/Terrain.ts';
+import type { RoadNetwork } from '../roads/RoadNetwork.ts';
 import {
   createDryStoneWallPlan,
   DRY_STONE_WALL_SEED,
@@ -13,6 +14,7 @@ import {
   createDryStoneWallMaterials,
   type DryStoneWallMaterialSet,
 } from './DryStoneWallMaterial.ts';
+import { isDryStoneWallStoneClearOfRoads } from './DryStoneWallRoadSnap.ts';
 
 const MAX_PREVIEW_ANCHORS = 16;
 
@@ -27,7 +29,6 @@ export class DryStoneWallRenderer {
   private readonly terrain: Terrain;
   private readonly materials: DryStoneWallMaterialSet;
   private readonly stoneGeometries: THREE.BufferGeometry[];
-  private readonly mossGeometry: THREE.BufferGeometry;
   private readonly previewStones = new THREE.Group();
   private readonly cursor: THREE.Mesh<THREE.RingGeometry, THREE.MeshBasicMaterial>;
   private readonly anchorMarkers: THREE.InstancedMesh;
@@ -39,6 +40,7 @@ export class DryStoneWallRenderer {
   private readonly yAxis = new THREE.Vector3(0, 1, 0);
   private readonly color = new THREE.Color();
   private walls: DryStoneWallState[] = [];
+  private roadNetwork: RoadNetwork | null = null;
   private signature = '';
   private previewSignature = '';
   private debugMode: DryStoneWallDebugMode = 'final';
@@ -54,7 +56,6 @@ export class DryStoneWallRenderer {
       { length: DRY_STONE_WALL_VARIANTS },
       (_, variant) => createChippedStoneGeometry(variant),
     );
-    this.mossGeometry = createMossPatchGeometry();
     this.group.name = 'Dry-stone wall decorations';
     this.previewGroup.name = 'Dry-stone wall placement preview';
     this.previewStones.name = 'Dry-stone wall preview stones';
@@ -97,13 +98,22 @@ export class DryStoneWallRenderer {
     options.previewParent.add(this.previewGroup);
   }
 
-  sync(walls: Iterable<DryStoneWallState>): void {
+  sync(walls: Iterable<DryStoneWallState>, roadNetwork: RoadNetwork | null = this.roadNetwork): void {
+    this.roadNetwork = roadNetwork;
     const next = [...walls];
-    const signature = `${this.debugMode}|${next.map((wall) => `${wall.id}:${wall.revision}:${wall.seed}`).join('|')}`;
+    const roadRevision = roadNetwork?.getTopologyRevision() ?? 0;
+    const signature = `${this.debugMode}|r${roadRevision}|${next.map((wall) => `${wall.id}:${wall.revision}:${wall.seed}`).join('|')}`;
     if (signature === this.signature) return;
     this.signature = signature;
     this.walls = next;
-    const plans = next.map((wall) => createDryStoneWallPlan(wall, this.terrain, 'final'));
+    const plans = next.map((wall) => createDryStoneWallPlan(
+      wall,
+      this.terrain,
+      'final',
+      roadNetwork
+        ? { stoneAllowed: (stone) => isDryStoneWallStoneClearOfRoads(roadNetwork, stone) }
+        : undefined,
+    ));
     this.rebuild(this.group, plans, this.materials.stone, false);
   }
 
@@ -129,7 +139,8 @@ export class DryStoneWallRenderer {
       this.previewSignature = '';
       return;
     }
-    const signature = `${valid ? 1 : 0}|${path.map((point) => `${point.x.toFixed(1)},${point.z.toFixed(1)}`).join('|')}`;
+    const roadRevision = this.roadNetwork?.getTopologyRevision() ?? 0;
+    const signature = `${valid ? 1 : 0}|r${roadRevision}|${path.map((point) => `${point.x.toFixed(1)},${point.z.toFixed(1)}`).join('|')}`;
     if (signature === this.previewSignature) return;
     this.previewSignature = signature;
     const state: DryStoneWallState = {
@@ -140,7 +151,14 @@ export class DryStoneWallRenderer {
       length: pathLength(path),
       revision: 1,
     };
-    const plan = createDryStoneWallPlan(state, this.terrain, 'preview');
+    const plan = createDryStoneWallPlan(
+      state,
+      this.terrain,
+      'preview',
+      this.roadNetwork
+        ? { stoneAllowed: (stone) => isDryStoneWallStoneClearOfRoads(this.roadNetwork!, stone) }
+        : undefined,
+    );
     this.rebuild(
       this.previewStones,
       [plan],
@@ -176,7 +194,6 @@ export class DryStoneWallRenderer {
     this.group.clear();
     this.previewGroup.clear();
     for (const geometry of this.stoneGeometries) geometry.dispose();
-    this.mossGeometry.dispose();
     this.cursor.geometry.dispose();
     this.cursor.material.dispose();
     this.anchorMarkers.geometry.dispose();

@@ -977,21 +977,12 @@
   opacity: 1;
 }
 
-.noble-hud__gold.settlement-hud__stat::before {
-  content: none;
-}
-
-.noble-hud__gold-icon {
+.noble-hud .noble-hud__gold.settlement-hud__stat::before {
   grid-column: 1;
   grid-row: 1 / span 2;
+  align-self: center;
   width: 34px;
-  height: 28px;
-  overflow: visible;
-  fill: rgba(202, 167, 91, 0.28);
-  stroke: #d3b46f;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  stroke-width: 1.1;
+  height: 34px;
   filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.42));
 }
 
@@ -1089,7 +1080,7 @@
   .noble-hud__identity { gap: 8px; }
   .noble-hud__identity > strong { padding-bottom: 6px; font-size: 11px; }
   .noble-hud__gold.settlement-hud__stat { grid-template-columns: 29px minmax(0, 1fr); }
-  .noble-hud__gold-icon { width: 29px; }
+  .noble-hud .noble-hud__gold.settlement-hud__stat::before { width: 29px; height: 29px; }
   .noble-hud__gold .settlement-hud__value { font-size: 18px; }
   .noble-hud__eye { bottom: 2px; left: -8px; width: 30px; height: 30px; }
   .noble-hud__eye svg { width: 19px; height: 13px; }
