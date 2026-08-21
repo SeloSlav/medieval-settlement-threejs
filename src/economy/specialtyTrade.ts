@@ -16,14 +16,10 @@ import {
   SPECIALTY_EXPORT_GOLD_PER_HONEY,
   SPECIALTY_EXPORT_GOLD_PER_POTTERY,
   SPECIALTY_EXPORT_GOLD_PER_WINE,
-  VINEYARD_GRAPES_PER_HARVEST_CYCLE,
-  VINEYARD_BALANCED_GRAPE_RESERVE,
-  VINEYARD_WINE_FIRST_GRAPE_RESERVE,
   VINEYARD_HARVEST_END_MONTH,
   VINEYARD_HARVEST_START_MONTH,
 } from '../generated/gameBalance.ts';
 import type { BuildingState } from '../resources/types.ts';
-import { MONTH_NAMES } from '../world/gameCalendar.ts';
 
 export const MARKETPLACE_SPECIALTY_EXPORT_POLICIES = [
   {
@@ -87,14 +83,6 @@ export function specialtySeasonStatus(
       ? { active: true, label: 'Bee forage season - April-September' }
       : { active: false, label: 'Hives dormant - production resumes in April' };
   }
-  if (kind === 'vineyard') {
-    return vineyardIsHarvesting(month)
-      ? { active: true, label: 'Grape harvest - September-October' }
-      : {
-          active: false,
-          label: `Vines tending - next harvest ${MONTH_NAMES[VINEYARD_HARVEST_START_MONTH - 1]}`,
-        };
-  }
   return null;
 }
 
@@ -130,35 +118,9 @@ export const APIARY_HARVEST_POLICIES = [
   },
 ] as const;
 
-export const VINEYARD_PRODUCTION_POLICIES = [
-  {
-    value: 0,
-    label: 'Table grapes',
-    reserve: Number.POSITIVE_INFINITY,
-    hint: 'Keep every grape edible; do not begin new fermentation batches.',
-  },
-  {
-    value: 1,
-    label: 'Balanced',
-    reserve: VINEYARD_BALANCED_GRAPE_RESERVE,
-    hint: 'Protect a table-grape reserve, then ferment the surplus.',
-  },
-  {
-    value: 2,
-    label: 'Wine first',
-    reserve: VINEYARD_WINE_FIRST_GRAPE_RESERVE,
-    hint: 'Protect only a small table reserve and send most grapes to the cellar.',
-  },
-] as const;
-
 export function apiaryHarvestPolicy(value: number | undefined) {
   return APIARY_HARVEST_POLICIES.find((policy) => policy.value === value)
     ?? APIARY_HARVEST_POLICIES[1];
-}
-
-export function vineyardProductionPolicy(value: number | undefined) {
-  return VINEYARD_PRODUCTION_POLICIES.find((policy) => policy.value === value)
-    ?? VINEYARD_PRODUCTION_POLICIES[1];
 }
 
 export type SpecialtyFamilyRates = Record<SpecialtyMarketFamily, number>;
@@ -197,11 +159,7 @@ export function seasonalProducerOutputBlocker(
     ? [
         ['honey', 'Honey', building.honey, BUILDING_STORAGE_CAPS.apiary.honey, APIARY_HONEY_PER_CYCLE],
       ] as const
-    : building.kind === 'vineyard'
-      ? [
-          ['grapes', 'Grapes', building.grapes ?? 0, BUILDING_STORAGE_CAPS.vineyard.food, VINEYARD_GRAPES_PER_HARVEST_CYCLE],
-        ] as const
-      : null;
+    : null;
   if (!outputs) return null;
 
   for (const [commodity, label, rawStock, rawCapacity, rawBatch] of outputs) {

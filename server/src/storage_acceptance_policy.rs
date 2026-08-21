@@ -18,6 +18,7 @@ pub const GRANARY_ACCEPTANCE_MASK: u64 = bit(2) // legacy mixed food
     | bit(6) // ale
     | bit(7) // legacy preserved food
     | bit(8) // honey
+    | bit(9) // wine
     | bit(16) // barley
     | bit(18) // flax
     | bit(28) // meat
@@ -107,6 +108,7 @@ mod tests {
         assert!(storage_kind_supports_commodity("village_storehouse", 22));
         assert!(!storage_kind_supports_commodity("village_storehouse", 28));
         assert!(storage_kind_supports_commodity("granary", 28));
+        assert!(storage_kind_supports_commodity("granary", 9));
         assert!(!storage_kind_supports_commodity("granary", 22));
         assert!(storage_mask_accepts(u64::MAX, 54));
     }

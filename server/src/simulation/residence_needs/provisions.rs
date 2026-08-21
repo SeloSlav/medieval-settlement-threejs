@@ -1,6 +1,7 @@
 use crate::balance_generated::{
     RESIDENCE_ALE_CAPACITY, RESIDENCE_ALE_PER_PERSON_PER_SEC, RESIDENCE_CLOTH_CAPACITY,
-    RESIDENCE_CLOTH_PER_PERSON_PER_SEC, RESIDENCE_POTTERY_CAPACITY,
+    RESIDENCE_CLOTH_PER_PERSON_PER_SEC, RESIDENCE_LUXURY_CAPACITY,
+    RESIDENCE_LUXURY_JAM_PER_PERSON_PER_SEC, RESIDENCE_POTTERY_CAPACITY,
     RESIDENCE_SHOES_CAPACITY, RESIDENCE_SHOES_PER_PERSON_PER_SEC,
     RESIDENCE_POTTERY_PER_PERSON_PER_SEC, RESIDENCE_PRESERVED_FOOD_CAPACITY,
     RESIDENCE_PRESERVED_FOOD_PER_PERSON_PER_SEC, TICK_DT,
@@ -44,6 +45,10 @@ pub fn consume_pottery(residence: &Residence, need: &NeedState) -> ConsumeOutcom
     consume(residence, need, RESIDENCE_POTTERY_PER_PERSON_PER_SEC)
 }
 
+pub fn consume_luxury(residence: &Residence, need: &NeedState) -> ConsumeOutcome {
+    consume(residence, need, RESIDENCE_LUXURY_JAM_PER_PERSON_PER_SEC)
+}
+
 fn consume(residence: &Residence, need: &NeedState, rate: f64) -> ConsumeOutcome {
     let demand = residence.population as f64 * rate * TICK_DT;
     if demand <= 1e-9 || need.stock + 1e-9 >= demand {
@@ -77,7 +82,7 @@ pub fn stock_capacity(kind: ResidenceNeedKind) -> f64 {
         ResidenceNeedKind::Cloth => RESIDENCE_CLOTH_CAPACITY,
         ResidenceNeedKind::Shoes => RESIDENCE_SHOES_CAPACITY,
         ResidenceNeedKind::Pottery => RESIDENCE_POTTERY_CAPACITY,
-        ResidenceNeedKind::Luxury => 0.0,
+        ResidenceNeedKind::Luxury => RESIDENCE_LUXURY_CAPACITY,
         _ => 0.0,
     }
 }

@@ -235,7 +235,6 @@ export const BUILDING_AUDIO_CLIPS: Record<
   weaver: { path: '/sounds/buildings/weaver.mp3', volume: 0.05 },
   tannery: { path: '/sounds/buildings/smokehouse.mp3', volume: 0.045 },
   cobbler: { path: '/sounds/buildings/carpenter.mp3', volume: 0.045 },
-  vineyard: { path: '/sounds/buildings/vineyard.mp3', volume: 0.045 },
   residence: { path: '/sounds/buildings/residence.mp3', volume: 0.035 },
 };
 

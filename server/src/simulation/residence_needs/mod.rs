@@ -216,22 +216,22 @@ fn consume_backyard_luxury(
             ..*need
         });
     }
-    let Some(garden) = ctx
+    let garden = ctx
         .db
         .backyard_garden()
         .residence_id()
         .filter(&residence.id)
-        .next()
-    else {
-        return ConsumeResult::Unmet;
-    };
-    if garden.flower_luxury_upgraded {
+        .next();
+    if garden.is_some_and(|garden| garden.flower_luxury_upgraded) {
         return ConsumeResult::Met(NeedState {
             stock: 1.0,
             ..*need
         });
     }
-    ConsumeResult::Unmet
+    match provisions::consume_luxury(residence, need) {
+        provisions::ConsumeOutcome::Met(updated) => ConsumeResult::Met(updated),
+        provisions::ConsumeOutcome::Unmet => ConsumeResult::Unmet,
+    }
 }
 
 fn consume_food_with_preserved(
@@ -693,7 +693,11 @@ fn consume_need(
             provisions::ConsumeOutcome::Met(updated) => ConsumeResult::Met(updated),
             provisions::ConsumeOutcome::Unmet => ConsumeResult::Unmet,
         },
-        ResidenceNeedKind::Church | ResidenceNeedKind::FoodVariety | ResidenceNeedKind::Luxury => {
+        ResidenceNeedKind::Luxury => match provisions::consume_luxury(residence, need) {
+            provisions::ConsumeOutcome::Met(updated) => ConsumeResult::Met(updated),
+            provisions::ConsumeOutcome::Unmet => ConsumeResult::Unmet,
+        },
+        ResidenceNeedKind::Church | ResidenceNeedKind::FoodVariety => {
             ConsumeResult::Unmet
         }
     }
@@ -708,8 +712,9 @@ fn on_unmet_need(kind: ResidenceNeedKind, need: &NeedState) -> NeedState {
         | ResidenceNeedKind::PreservedFood
         | ResidenceNeedKind::Cloth
         | ResidenceNeedKind::Shoes
-        | ResidenceNeedKind::Pottery => provisions::on_unmet(need),
-        ResidenceNeedKind::Church | ResidenceNeedKind::FoodVariety | ResidenceNeedKind::Luxury => {
+        | ResidenceNeedKind::Pottery
+        | ResidenceNeedKind::Luxury => provisions::on_unmet(need),
+        ResidenceNeedKind::Church | ResidenceNeedKind::FoodVariety => {
             *need
         }
     }
@@ -724,8 +729,9 @@ fn apply_delivery_for_kind(kind: ResidenceNeedKind, need: &NeedState, delivered:
         | ResidenceNeedKind::PreservedFood
         | ResidenceNeedKind::Cloth
         | ResidenceNeedKind::Shoes
-        | ResidenceNeedKind::Pottery => provisions::apply_delivery(need, delivered),
-        ResidenceNeedKind::Church | ResidenceNeedKind::FoodVariety | ResidenceNeedKind::Luxury => {
+        | ResidenceNeedKind::Pottery
+        | ResidenceNeedKind::Luxury => provisions::apply_delivery(need, delivered),
+        ResidenceNeedKind::Church | ResidenceNeedKind::FoodVariety => {
             *need
         }
     }

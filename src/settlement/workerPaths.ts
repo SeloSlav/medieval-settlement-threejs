@@ -8,6 +8,7 @@ import type {
   ResidenceState,
   TreeEntityState,
   TreeLayoutEntry,
+  VineyardParcelState,
 } from '../resources/types.ts';
 import { getBuildingDefinition } from '../resources/buildings.ts';
 import {
@@ -19,7 +20,10 @@ import { PEDESTRIAN_ROAD_SPEED_MULTIPLIER } from '../roads/roadTravel.ts';
 import { polylineLengthXZ, type PointXZ } from '../utils/pathGeometry.ts';
 import { hashStringSeed, mulberry32 } from '../utils/random.ts';
 import { isForagingHarvestAvailable } from '../foraging/foragingSeason.ts';
-import { isWildStockHarvestable } from '../foraging/harvestReservePolicy.ts';
+import {
+  HARVEST_RESERVE_DEFAULT_PERCENT,
+  isWildStockHarvestable,
+} from '../foraging/harvestReservePolicy.ts';
 import { WATCHTOWER_GALLERY_FLOOR_HEIGHT } from '../buildings/watchtowerLayout.ts';
 import { BUILDING_STORAGE_CAPS } from '../generated/gameBalance.ts';
 import { STARTING_POPULATION } from '../generated/gameBalance.ts';
@@ -66,7 +70,6 @@ export const PRODUCTION_WORKPLACE_KINDS = [
   'weaver',
   'watchtower',
   'guardhouse',
-  'vineyard',
 ] as const satisfies readonly BuildingKind[];
 
 const PRODUCTION_WORKPLACE_KIND_SET = new Set<BuildingKind>(PRODUCTION_WORKPLACE_KINDS);
@@ -150,6 +153,7 @@ export type WorkerTargetInputs = {
   } | null;
   farmFields: Iterable<FarmFieldState>;
   pastures: Iterable<PastureState>;
+  vineyardParcels?: Iterable<VineyardParcelState>;
   foragingMonth?: number;
   roadNetwork?: RoadNetwork | null;
 };
@@ -178,7 +182,6 @@ export const YARD_WORK_ACTIVITY = {
   carpenter: 'build',
   weaver: 'tend',
   guardhouse: 'build',
-  vineyard: 'tend',
   monastery: 'tend',
 } as const satisfies Partial<Record<BuildingKind, WorkerActivityKind>>;
 
@@ -499,7 +502,10 @@ export function collectWorkerTargets(
     for (const node of inputs.foragingNodes) {
       if (
         node.kind !== 'game'
-        || !isWildStockHarvestable(node, building.harvestReservePercent ?? 0)
+        || !isWildStockHarvestable(
+          node,
+          building.harvestReservePercent ?? HARVEST_RESERVE_DEFAULT_PERCENT,
+        )
         || (
           inputs.foragingMonth !== undefined
           && !isForagingHarvestAvailable(node.kind, inputs.foragingMonth)
@@ -512,7 +518,10 @@ export function collectWorkerTargets(
     for (const node of inputs.foragingNodes) {
       if (
         (node.kind !== 'berries' && node.kind !== 'mushrooms')
-        || node.remaining <= 0
+        || !isWildStockHarvestable(
+          node,
+          building.harvestReservePercent ?? HARVEST_RESERVE_DEFAULT_PERCENT,
+        )
         || (
           inputs.foragingMonth !== undefined
           && !isForagingHarvestAvailable(node.kind, inputs.foragingMonth)
@@ -525,7 +534,10 @@ export function collectWorkerTargets(
     for (const node of inputs.foragingNodes) {
       if (
         node.kind !== 'fish'
-        || !isWildStockHarvestable(node, building.harvestReservePercent ?? 0)
+        || !isWildStockHarvestable(
+          node,
+          building.harvestReservePercent ?? HARVEST_RESERVE_DEFAULT_PERCENT,
+        )
         || (
           inputs.foragingMonth !== undefined
           && !isForagingHarvestAvailable(node.kind, inputs.foragingMonth)
@@ -556,7 +568,12 @@ export function collectWorkerTargets(
   }
 
   if (building.kind === 'monastery') {
-    collectMonasteryWorkstations(building, inputs.roadNetwork ?? null, targets);
+    collectMonasteryWorkstations(
+      building,
+      inputs.roadNetwork ?? null,
+      inputs.vineyardParcels ?? [],
+      targets,
+    );
   } else if (building.kind in YARD_WORK_ACTIVITY) {
     collectYardWorkstations(building, targets);
   }
@@ -772,6 +789,7 @@ function workerActivityFor(
   if (building.kind === 'swineherd' && target.kind === 'tree') return 'gather';
   if (target.kind === 'workstation') {
     if (workerProductionBlocker(building)) return null;
+    if (target.activity) return target.activity;
     return YARD_WORK_ACTIVITY[
       building.kind as keyof typeof YARD_WORK_ACTIVITY
     ] ?? null;
@@ -782,6 +800,7 @@ function workerActivityFor(
 function collectMonasteryWorkstations(
   building: BuildingState,
   roadNetwork: RoadNetwork | null,
+  vineyardParcels: Iterable<VineyardParcelState>,
   targets: WorkerTarget[],
 ): void {
   for (const workstation of MONASTERY_WORKSTATIONS) {
@@ -800,6 +819,27 @@ function collectMonasteryWorkstations(
         roadNetwork,
       ),
     });
+  }
+  for (const parcel of vineyardParcels) {
+    if (parcel.monasteryId !== building.id) continue;
+    const center = polygonCenter(parcel.corners);
+    targets.push({
+      id: `${building.id}:monastery:vineyard:center`,
+      kind: 'workstation',
+      activity: 'gather',
+      ...center,
+    });
+    for (let index = 0; index < parcel.corners.length; index += 1) {
+      const corner = parcel.corners[index];
+      const next = parcel.corners[(index + 1) % parcel.corners.length];
+      targets.push({
+        id: `${building.id}:monastery:vineyard:row-${index}`,
+        kind: 'workstation',
+        activity: 'gather',
+        x: (corner.x + next.x + center.x) / 3,
+        z: (corner.z + next.z + center.z) / 3,
+      });
+    }
   }
 }
 

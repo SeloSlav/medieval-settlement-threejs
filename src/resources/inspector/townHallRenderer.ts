@@ -2648,7 +2648,7 @@ export function renderTownHallInspector(
             ${staffedTownHallAvailable ? '' : 'disabled'} />
           <span>Daily seasonal labor steward</span>
         </label>
-        <p class="inspector-action-panel__hint">At each new calendar day, a staffed Town Hall releases dormant farm, forage, fishing, apiary, and vineyard crews before assigning free labor fairly across active seasonal sites in stable worksite order. Year-round jobs, builders, and production-workshop crews are untouched. Enabling performs one review immediately. Manual is the save-compatible default.</p>
+        <p class="inspector-action-panel__hint">At each new calendar day, a staffed Town Hall releases dormant farm, forage, fishing, and apiary crews before assigning free labor fairly across active seasonal sites in stable worksite order. Year-round jobs, builders, and production-workshop crews are untouched. Enabling performs one review immediately. Manual is the save-compatible default.</p>
         ${!staffedTownHallAvailable ? '<p class="inspector-action-panel__hint">Assign a Town Hall clerk to change or run this policy.</p>' : ''}
       </div>
       <div class="inspector-action-panel">
@@ -2699,7 +2699,7 @@ export function renderTownHallInspector(
         ${!staffedTownHallAvailable && constructionLabor.assignments.length > 0 ? '<p class="inspector-action-panel__hint">Assign a clerk to issue a settlement-wide construction rotation.</p>' : ''}
       </div>
       <div class="inspector-action-panel">
-        <p class="inspector-action-panel__hint">Recall full production crews at seasonally dormant farms, apiaries, vineyards, foragers, and fishing camps. Stored goods remain available to the appropriate logistics labor; no producer is retained as a hauler.${seasonalLaborStewardEnabled ? ' The steward will call labor back when work becomes active.' : ' You must restaff before the next work window.'}</p>
+        <p class="inspector-action-panel__hint">Recall full production crews at seasonally dormant farms, apiaries, foragers, and fishing camps. Stored goods remain available to the appropriate logistics labor; no producer is retained as a hauler.${seasonalLaborStewardEnabled ? ' The steward will call labor back when work becomes active.' : ' You must restaff before the next work window.'}</p>
         <button type="button" class="resource-action-button" data-recall-idle-seasonal-labor ${staffedTownHallAvailable && seasonalLabor.reclaimableWorkers > 0 ? '' : 'disabled'}>
           ${seasonalLabor.reclaimableWorkers > 0
             ? `Recall ${seasonalLabor.reclaimableWorkers} idle ${seasonalLabor.reclaimableWorkers === 1 ? 'worker' : 'workers'}`

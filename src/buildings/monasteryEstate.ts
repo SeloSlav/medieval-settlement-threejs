@@ -14,7 +14,7 @@ export const MONASTERY_ESTATE_EDGE_BAND = 60;
 
 export type MonasteryEstateLevel = 0 | 1 | 2 | 3;
 export type MonasteryEstatePoint = { x: number; z: number };
-export type MonasteryOrchardPlanting = 0 | 1;
+export type MonasteryOrchardPlanting = 0;
 export type MonasteryCroftPlanting = 0 | 1;
 export type MonasteryOrchardMaturity = 0 | 1 | 2;
 
@@ -34,7 +34,6 @@ export const MONASTERY_EXTENSIONS = [
 
 export const MONASTERY_ORCHARD_PLANTINGS = [
   { value: 0, label: 'Apple orchard', output: 'Perennial apples · cider with an estate workshop' },
-  { value: 1, label: 'Grapevines', output: 'Perennial wine · prestige hospitality' },
 ] as const;
 
 export const MONASTERY_CROFT_PLANTINGS = [
@@ -159,16 +158,16 @@ export function monasteryArchetype(
 ): { name: string; payoff: string } {
   const orchard = normalizeMonasteryOrchardPlanting(orchardPlanting);
   const croft = normalizeMonasteryCroftPlanting(croftPlanting);
-  if (orchard === 0 && croft === 0) return { name: 'Hospitaller grange', payoff: 'Food security, infirmary support, and late cider' };
-  if (orchard === 0 && croft === 1) return { name: 'Commercial estate', payoff: 'Ale and cider exports with the strongest eventual income' };
-  if (orchard === 1 && croft === 0) return { name: 'Pilgrim hospice', payoff: 'Wine prestige, meals, and dependable healthcare' };
-  return { name: 'Festal abbey', payoff: 'Feast prestige and pilgrimage gifts with the least food resilience' };
+  void orchard;
+  if (croft === 0) return { name: 'Hospitaller grange', payoff: 'Food security, infirmary support, and late cider' };
+  return { name: 'Commercial estate', payoff: 'Ale and cider exports with the strongest eventual income' };
 }
 
 export function normalizeMonasteryOrchardPlanting(
   planting: number | null | undefined,
 ): MonasteryOrchardPlanting {
-  return planting === 1 ? 1 : 0;
+  void planting;
+  return 0;
 }
 
 export function normalizeMonasteryCroftPlanting(
@@ -259,18 +258,18 @@ export function monasteryEstateYields(
   const maturity = Math.max(0, Math.min(2, Math.floor(orchardMaturity ?? 2)));
   const orchardMultiplier = maturity === 0 ? 0 : maturity === 1 ? 0.55 : 1;
   const workshop = monasteryHasExtension(normalizedExtensions, MONASTERY_EXTENSION_WORKSHOP);
-  const applesPlanted = normalizeMonasteryOrchardPlanting(orchardPlanting) === 0;
+  void orchardPlanting;
   const vegetablesPlanted = normalizeMonasteryCroftPlanting(croftPlanting) === 0;
   return {
-    apples: applesPlanted ? 0.75 * multiplier * orchardMultiplier : 0,
+    apples: 0.75 * multiplier * orchardMultiplier,
     vegetables: vegetablesPlanted ? 0.5 * multiplier : 0,
     eggs: 0.42 * multiplier,
     milk: 0.45 * multiplier,
     meat: 0.16 * multiplier,
     honey: 0.22 * multiplier,
     ale: vegetablesPlanted ? 0 : 0.32 * multiplier * (workshop ? 1.25 : 1),
-    cider: applesPlanted && workshop ? 0.16 * multiplier * orchardMultiplier : 0,
-    wine: applesPlanted ? 0 : 0.14 * multiplier * orchardMultiplier * (workshop ? 1.25 : 1),
+    cider: workshop ? 0.16 * multiplier * orchardMultiplier : 0,
+    wine: 0,
     cheese: 0.18 * multiplier,
   };
 }

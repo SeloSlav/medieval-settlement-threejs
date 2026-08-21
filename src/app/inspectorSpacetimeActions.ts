@@ -159,7 +159,6 @@ export type InspectorSpacetimeActions = {
     family: number,
     exportPolicy: number,
   ) => Promise<void>;
-  onSetVineyardProductionPolicy: (buildingId: string, productionPolicy: number) => Promise<void>;
   onSetApiaryHarvestPolicy: (buildingId: string, harvestPolicy: number) => Promise<void>;
   onSetHarvestReservePercent: (buildingId: string, reservePercent: number) => Promise<void>;
 };
@@ -871,14 +870,6 @@ export function createInspectorSpacetimeActions(
       await runReducer(
         () => store.setMarketplaceSpecialtyFamilyExportPolicy(buildingId, family, exportPolicy),
         'Could not update this Trading Post export family.',
-      );
-    },
-    onSetVineyardProductionPolicy: async (buildingId, productionPolicy) => {
-      const store = requireReady();
-      if (!store) return;
-      await runReducer(
-        () => store.setVineyardProductionPolicy(buildingId, productionPolicy),
-        'Could not update the vineyard grape allocation.',
       );
     },
     onSetApiaryHarvestPolicy: async (buildingId, harvestPolicy) => {

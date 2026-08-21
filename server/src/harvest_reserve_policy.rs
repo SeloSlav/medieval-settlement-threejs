@@ -1,17 +1,26 @@
 use crate::balance_generated::GAME_MIN_BREEDING_POPULATION;
 
 pub const HARVEST_RESERVE_PERCENT_MAX: u8 = 90;
+pub const HARVEST_RESERVE_DEFAULT_PERCENT: u8 = 50;
 const ORDINARY_FISH_CAPACITY: f64 = 120.0;
 const RICH_FISH_BREEDING_POPULATION: f64 = 2.0;
+
+pub fn default_harvest_reserve_percent(building_kind: &str) -> u8 {
+    if matches!(
+        building_kind,
+        "foragers_shed" | "hunters_hall" | "fishing_camp"
+    ) {
+        HARVEST_RESERVE_DEFAULT_PERCENT
+    } else {
+        0
+    }
+}
 
 pub fn normalize_harvest_reserve_percent(percent: u8) -> u8 {
     percent.min(HARVEST_RESERVE_PERCENT_MAX)
 }
 
 pub fn protected_wild_stock(node_kind: &str, max_yield: f64, percent: u8) -> f64 {
-    if !matches!(node_kind, "game" | "fish") {
-        return 0.0;
-    }
     let capacity = max_yield.max(0.0);
     let policy_floor = capacity * normalize_harvest_reserve_percent(percent) as f64 / 100.0;
     let renewable_floor = match node_kind {
@@ -62,14 +71,22 @@ mod tests {
     }
 
     #[test]
-    fn seasonal_forage_is_not_affected_by_wild_stock_policy() {
-        assert_eq!(protected_wild_stock("berries", 60.0, 50), 0.0);
-        assert_eq!(harvestable_wild_stock("mushrooms", 12.0, 42.0, 50), 12.0);
+    fn seasonal_forage_obeys_the_same_sustainable_floor() {
+        assert_eq!(protected_wild_stock("berries", 60.0, 50), 30.0);
+        assert_eq!(harvestable_wild_stock("mushrooms", 30.0, 42.0, 50), 9.0);
     }
 
     #[test]
     fn malformed_large_percentages_are_capped() {
         assert_eq!(normalize_harvest_reserve_percent(255), 90);
         assert_eq!(protected_wild_stock("fish", 100.0, 255), 90.0);
+    }
+
+    #[test]
+    fn new_wild_food_camps_start_at_a_balanced_sustainable_floor() {
+        assert_eq!(default_harvest_reserve_percent("foragers_shed"), 50);
+        assert_eq!(default_harvest_reserve_percent("hunters_hall"), 50);
+        assert_eq!(default_harvest_reserve_percent("fishing_camp"), 50);
+        assert_eq!(default_harvest_reserve_percent("granary"), 0);
     }
 }

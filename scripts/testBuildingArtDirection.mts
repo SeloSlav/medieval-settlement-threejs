@@ -158,9 +158,6 @@ for (const kind of BUILDING_KINDS) {
   if (!model.name) throw new Error(`${kind} must have a named, dedicated model.`);
   if (modelNames.has(model.name)) throw new Error(`${kind} reuses the model identity “${model.name}”.`);
   modelNames.add(model.name);
-  if (kind === 'vineyard' && !model.getObjectByName('SeedThree cultivated grapevine cards')) {
-    throw new Error('Vineyard must use the shared SeedThree instanced vine-card renderer.');
-  }
   if (kind === 'tavern') {
     const plan = model.userData.architecturePlan as {
       exposedFacades?: string[];
@@ -449,9 +446,9 @@ if (stats.constructionMaterials > 20) {
 if (stats.detailMaterials > 10) {
   throw new Error(`Shared building-detail palette grew beyond 10 materials (${stats.detailMaterials}).`);
 }
-// Vineyard foliage, the founding camp's feathered ground, and the well's node
-// water each need one global material outside the opaque construction library.
-const externalSharedMaterialAllowance = 3;
+// The founding camp's feathered ground and the well's node water each need one
+// global material outside the opaque construction library.
+const externalSharedMaterialAllowance = 2;
 const buildingMaterialCeiling =
   stats.constructionMaterials + stats.detailMaterials + externalSharedMaterialAllowance;
 if (sharedMaterials.size > buildingMaterialCeiling) {

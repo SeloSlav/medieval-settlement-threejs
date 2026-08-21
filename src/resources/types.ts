@@ -228,8 +228,6 @@ export type BuildingState = {
   civicReceiptsGold?: number;
   /** Private automatic-export proceeds awaiting distribution to producer households. */
   privateExportProceedsGold?: number;
-  /** 0 table grapes, 1 balanced cellar, 2 wine first. */
-  vineyardProductionPolicy?: number;
   vineyardFermentingGrapes?: number;
   vineyardFermentationProgress?: number;
   /** 0 conservative, 1 balanced, 2 extractive. */

@@ -81,16 +81,16 @@ function richnessDetail(
   isRich: boolean,
 ): string {
   if (kind === 'fish') {
-    return `<li><span>Shoal</span><span>${isRich ? 'Rich renewable population (1.75× catch)' : 'Small finite population'}</span></li>`;
+    return `<li><span>Shoal</span><span>${isRich ? 'Rich · 2× capacity · 1.75× catch and recovery' : 'Ordinary renewable population when managed'}</span></li>`;
   }
   if (kind === 'berries') {
-    return `<li><span>Thicket</span><span>${isRich ? 'Rich renewable growth (1.5× harvest)' : 'Ordinary seasonal growth'}</span></li>`;
+    return `<li><span>Thicket</span><span>${isRich ? 'Rich · larger capacity · 1.5× harvest and regrowth' : 'Ordinary seasonal growth'}</span></li>`;
   }
   if (kind === 'game') {
-    return `<li><span>Habitat</span><span>${isRich ? 'Rich renewable herd' : 'Ordinary renewable herd'}</span></li>`;
+    return `<li><span>Habitat</span><span>${isRich ? 'Rich · larger herd · 1.5× yield · 1.75× recovery' : 'Ordinary renewable herd'}</span></li>`;
   }
   if (kind === 'mushrooms') {
-    return `<li><span>Bed</span><span>${isRich ? 'Rich renewable seasonal growth' : 'Ordinary seasonal growth'}</span></li>`;
+    return `<li><span>Bed</span><span>${isRich ? 'Rich · larger bed · 1.5× harvest and regrowth' : 'Ordinary seasonal growth'}</span></li>`;
   }
   return '';
 }
@@ -113,7 +113,7 @@ function lifecycleDescription(
   if (kind === 'fish') {
     return isRich
       ? 'Renewable spring reproduction; recolonizes after depletion'
-      : 'Spring reproduction from surviving fish; zero is permanent';
+      : 'Renewable spring reproduction while fish survive; zero is permanent';
   }
   if (kind === 'game') return 'Breeding pair protected; herd-size reproduction';
   if (kind === 'mushrooms') return 'Renewable spring–autumn regrowth; dormant in winter';

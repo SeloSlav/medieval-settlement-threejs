@@ -105,14 +105,14 @@ function renderCommodityRow(
         ${renderModeButton(resource, TRADE_MODE_EXPORT, mode, 'Export')}
       </div>
       <div class="trading-post-ledger__target">
-        <span>Desired surplus</span>
+        <span>Keep in settlement</span>
         <div class="trading-post-ledger__stepper">
-          <button type="button" data-trade-surplus-delta="-1" aria-label="Reduce ${TRADE_RESOURCE_LABELS[resource]} surplus">&#x2039;</button>
+          <button type="button" data-trade-surplus-delta="-1" aria-label="Reduce ${TRADE_RESOURCE_LABELS[resource]} kept in settlement">&#x2039;</button>
           <input type="number" min="0" max="9999" step="1" inputmode="numeric"
             value="${target}" data-trade-surplus-input
             data-commodity-kind="${TRADE_RESOURCE_COMMODITY_CODES[resource]}"
-            aria-label="Desired ${TRADE_RESOURCE_LABELS[resource]} surplus">
-          <button type="button" data-trade-surplus-delta="1" aria-label="Increase ${TRADE_RESOURCE_LABELS[resource]} surplus">&#x203A;</button>
+            aria-label="${TRADE_RESOURCE_LABELS[resource]} to keep in settlement">
+          <button type="button" data-trade-surplus-delta="1" aria-label="Increase ${TRADE_RESOURCE_LABELS[resource]} kept in settlement">&#x203A;</button>
         </div>
       </div>
       <p class="trading-post-ledger__status">${status}${lastResult ? ` · ${lastResult}` : ''}</p>

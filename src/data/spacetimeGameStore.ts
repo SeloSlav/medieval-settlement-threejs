@@ -784,10 +784,6 @@ export class SpacetimeGameStore {
     );
   }
 
-  setVineyardProductionPolicy(buildingId: string, productionPolicy: number): Promise<void> {
-    return spacetimeReducers.setVineyardProductionPolicy(buildingId, productionPolicy);
-  }
-
   setApiaryHarvestPolicy(buildingId: string, harvestPolicy: number): Promise<void> {
     return spacetimeReducers.setApiaryHarvestPolicy(buildingId, harvestPolicy);
   }

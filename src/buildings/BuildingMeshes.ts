@@ -35,7 +35,6 @@ import {
   createMonasteryMesh,
   createSmokehouseMesh,
   createThreshingBarnMesh,
-  createVineyardMesh,
   createWatermillMesh,
   createWindmillMesh,
   createWeaverMesh,
@@ -134,7 +133,6 @@ export function createBuildingMesh(
     case 'weaver': return createWeaverMesh();
     case 'tannery': return createTanneryMesh();
     case 'cobbler': return createCobblerMesh();
-    case 'vineyard': return createVineyardMesh();
     case 'pastoral_farmstead': return createPastoralFarmsteadMesh();
     case 'swineherd': return createSwineherdMesh();
     default: {

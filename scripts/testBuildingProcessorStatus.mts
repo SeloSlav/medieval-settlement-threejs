@@ -511,32 +511,4 @@ assert.equal(
   'a released seasonal crew must not hide a full physical output store',
 );
 
-const vineyard = makeBuilding({
-  id: 'vineyard-1',
-  kind: 'vineyard',
-  x: 0,
-  z: 0,
-  assignedLabor: 1,
-});
-assert.match(
-  getBuildingProcessorStatus(vineyard, noWellQueries, { month: 8 })?.statusText ?? '',
-  /next harvest September/,
-);
-assert.equal(
-  getBuildingProcessorStatus(vineyard, noWellQueries, { month: 9 })?.statusState,
-  'active',
-);
-const fullVineyardFood = makeBuilding({
-  id: 'vineyard-food-full',
-  kind: 'vineyard',
-  x: 0,
-  z: 0,
-  assignedLabor: 1,
-  grapes: 40,
-});
-assert.equal(
-  getBuildingProcessorStatus(fullVineyardFood, noWellQueries, { month: 9 })?.statusText,
-  'Seasonal work waiting - grapes store needs 4 more room',
-);
-
 console.log('building processor status tests passed');

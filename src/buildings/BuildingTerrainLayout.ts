@@ -76,7 +76,6 @@ const PAD_PARAMS: Record<BuildingKind, BuildingPadParams> = {
   weaver: { radiusX: 5.8, radiusZ: 4.5, innerFade: 0.88, outerFade: 1.3 },
   tannery: { radiusX: 5.2, radiusZ: 5.4, innerFade: 0.86, outerFade: 1.32 },
   cobbler: { radiusX: 4.2, radiusZ: 4.1, innerFade: 0.88, outerFade: 1.3 },
-  vineyard: { radiusX: 8.0, radiusZ: 6.8, innerFade: 0.88, outerFade: 1.24 },
   pastoral_farmstead: { radiusX: 7.2, radiusZ: 5.4, innerFade: 0.88, outerFade: 1.3 },
   swineherd: { radiusX: 6.2, radiusZ: 5.2, innerFade: 0.88, outerFade: 1.28 },
 };

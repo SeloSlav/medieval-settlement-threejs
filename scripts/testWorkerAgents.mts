@@ -413,7 +413,7 @@ assert.ok(reforesterPlan, 'reforesters should stop and plant at regrowing tree t
 assert.equal(reforesterPlan.target?.id, 'tree-stump');
 
 const quarryCamp = building('building-6', 'stone_quarry', 0, 0, 1, 55);
-const quarryTarget = resourceNode('quarry-near', 'quarry', 30, 0, 40);
+const quarryTarget = resourceNode('quarry-near', 'quarry', 30, 0, 80);
 const depletedTarget = resourceNode('quarry-empty', 'quarry', 20, 0, 0);
 const distantTarget = resourceNode('quarry-far', 'quarry', 80, 0, 40);
 const quarryTargets = collectWorkerTargets(quarryCamp, {
@@ -548,7 +548,6 @@ const expectedWorkplaces = [
   'weaver',
   'watchtower',
   'guardhouse',
-  'vineyard',
 ] as const;
 assert.deepEqual(
   PRODUCTION_WORKPLACE_KINDS,
@@ -557,13 +556,36 @@ assert.deepEqual(
 );
 
 const monasteryWorkplace = building('visible-monastery', 'monastery', 0, 0, 8, 0);
-const monasteryTargets = collectWorkerTargets(monasteryWorkplace, targetInputs);
+const monasteryTargets = collectWorkerTargets(monasteryWorkplace, {
+  ...targetInputs,
+  vineyardParcels: [{
+    id: monasteryWorkplace.id,
+    monasteryId: monasteryWorkplace.id,
+    corners: [
+      { x: 30, z: -8 },
+      { x: 46, z: -8 },
+      { x: 46, z: 8 },
+      { x: 30, z: 8 },
+    ],
+    area: 256,
+    averageSlopeDegrees: 4,
+    moisture: 0.55,
+    southExposure: 0.8,
+    siteSuitability: 0.86,
+    shapeEfficiency: 1,
+  }],
+});
 assert.ok(
   monasteryTargets.some((target) => target.id.endsWith(':orchard'))
     && monasteryTargets.some((target) => target.id.endsWith(':croft'))
     && monasteryTargets.some((target) => target.id.endsWith(':pasture'))
     && monasteryTargets.some((target) => target.id.endsWith(':infirmary')),
   'monks must visibly work across the productive and service grounds',
+);
+assert.equal(
+  monasteryTargets.filter((target) => target.id.includes(':monastery:vineyard:')).length,
+  5,
+  'the monastery roster must visibly work the player-drawn vineyard outside the precinct',
 );
 const outerGateTarget = monasteryTargets.find((target) => target.id.endsWith(':outer-gate'));
 assert.ok(

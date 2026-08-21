@@ -7,7 +7,7 @@ export type PlacementBuildMenuAction =
   | 'lumber-mill' | 'stone-quarry' | 'large-quarry' | 'mine' | 'reforester' | 'woodcutters-lodge'
   | 'well' | 'hunters-hall' | 'foragers-shed' | 'fishing-camp' | 'chapel' | 'wayside-shrine' | 'marketplace' | 'trading-post'
   | 'threshing-barn' | 'monastery' | 'brewery' | 'tavern' | 'smokehouse'
-  | 'granary' | 'bakery' | 'apiary' | 'watermill' | 'windmill' | 'carpenter' | 'vineyard'
+  | 'granary' | 'bakery' | 'apiary' | 'watermill' | 'windmill' | 'carpenter'
   | 'weaver'
   | 'tannery' | 'cobbler'
   | 'pastoral-farmstead' | 'swineherd'
@@ -56,7 +56,6 @@ const BUILD_CARD_ART: Record<PlacementArtKey, string> = {
   weaver: '/assets/ui/build-menu/cards/weaver.webp',
   tannery: '/assets/ui/build-menu/cards/tannery.webp',
   cobbler: '/assets/ui/build-menu/cards/cobbler.webp',
-  vineyard: '/assets/ui/build-menu/cards/vineyard.webp',
   pastoral_farmstead: '/assets/ui/build-menu/cards/pastoral-farmstead.webp',
   swineherd: '/assets/ui/build-menu/cards/swineherd.webp',
 };
@@ -117,7 +116,6 @@ const DETAILS: Record<PlacementArtKey, BuildCardDetail> = {
   weaver: ["Weaver's workshop", 'Weaves wool into cloth and prepares flax with water for linen.', flow(['wool', 'flax', 'water'], ['cloth'])],
   tannery: ['Tannery', 'Tans goat and game hides with water and bark-fired heat into workable leather.', flow(['hides', 'water', 'firewood'], ['leather'])],
   cobbler: ["Cobbler's workshop", 'Cuts leather into finished shoes for prosperous Tier 3 households.', flow(['leather'], ['shoes'])],
-  vineyard: ['Vineyard terrace', 'Cultivates hillside grapes and presses them into wine.', flow([], ['grapes', 'wine'])],
   pastoral_farmstead: ['Pastoral farmstead', 'Raises cattle or sheep for milk, wool, manure, and meat.', flow([], ['milk', 'wool', 'manure', 'meat'])],
   swineherd: ['Woodland swineherd', 'Fattens pigs on woodland mast or oats for meat.', flow(['oatGrain'], ['meat'])],
 };
@@ -147,7 +145,7 @@ export const GATHERING_BUILD_MENU_ENTRIES: readonly BuildMenuEntry[] = [
 
 /** Farming, husbandry, and other primary agricultural production. */
 export const AGRICULTURE_BUILD_MENU_ENTRIES: readonly BuildMenuEntry[] = [
-  entry('threshing_barn'), entry('apiary'), entry('vineyard'),
+  entry('threshing_barn'), entry('apiary'),
   entry('pastoral_farmstead'), entry('swineherd'),
 ];
 

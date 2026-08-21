@@ -896,7 +896,7 @@ export async function setHarvestReservePercent(
   reservePercent: number,
 ): Promise<void> {
   const serverId = parseBuildingServerId(buildingId);
-  if (serverId === null) throw new Error("Invalid hunter's hall or fishing camp id.");
+  if (serverId === null) throw new Error('Invalid wild-food camp id.');
   await callReducer('setHarvestReservePercent', 'set_harvest_reserve_percent', {
     buildingId: serverId,
     reservePercent: Math.max(0, Math.min(90, Math.round(reservePercent))),
@@ -990,18 +990,6 @@ export async function setMarketplaceSpecialtyFamilyExportPolicy(
       exportPolicy: Math.max(0, Math.min(2, Math.floor(exportPolicy))),
     },
   );
-}
-
-export async function setVineyardProductionPolicy(
-  buildingId: string,
-  productionPolicy: number,
-): Promise<void> {
-  const serverId = parseBuildingServerId(buildingId);
-  if (serverId === null) throw new Error('Invalid vineyard id.');
-  await callReducer('setVineyardProductionPolicy', 'set_vineyard_production_policy', {
-    buildingId: serverId,
-    productionPolicy: Math.max(0, Math.min(2, Math.floor(productionPolicy))),
-  });
 }
 
 export async function setApiaryHarvestPolicy(

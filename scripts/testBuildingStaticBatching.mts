@@ -83,7 +83,6 @@ const denseKinds = [
   'founders_camp',
   'threshing_barn',
   'marketplace',
-  'vineyard',
   'large_quarry',
   'village_storehouse',
   'pastoral_farmstead',

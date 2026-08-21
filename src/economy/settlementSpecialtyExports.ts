@@ -185,7 +185,6 @@ const SOURCE_COMMODITY_BY_KIND: Partial<
 > = {
   brewery: 'ale',
   apiary: 'honey',
-  vineyard: 'wine',
   pastoral_farmstead: 'cheese',
   weaver: 'cloth',
   potter_kiln: 'pottery',

@@ -7,6 +7,7 @@ export const STORAGE_COMMODITY_CODES = {
   ale: 6,
   preservedFood: 7,
   honey: 8,
+  wine: 9,
   stone: 10,
   cloth: 14,
   barley: 16,
@@ -64,6 +65,7 @@ export const STORAGE_COMMODITY_LABELS: Record<StorageCommodity, string> = {
   ale: 'Ale',
   preservedFood: 'Preserved provisions',
   honey: 'Honey',
+  wine: 'Wine',
   stone: 'Stone',
   cloth: 'Cloth',
   barley: 'Threshed barley',
@@ -134,7 +136,7 @@ export const GRANARY_STORAGE_GROUPS = [
     label: 'Preserved provisions',
     commodities: [
       'preservedFood', 'curedMeat', 'smokedFish', 'cheese', 'aroniaJam',
-      'rosehipJam', 'honey', 'cider', 'pearCider',
+      'rosehipJam', 'honey', 'cider', 'pearCider', 'wine',
     ],
   },
   {

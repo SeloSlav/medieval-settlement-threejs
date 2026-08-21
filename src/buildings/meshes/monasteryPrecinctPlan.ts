@@ -162,7 +162,7 @@ export function createMonasteryPrecinctPlan(rawLevel: number): MonasteryPrecinct
   const zones: MonasteryPlanRect[] = [
     { id: 'cloister-core', label: 'Church, conventual wings, and cloister', role: 'cloister-core', centerX: -2.15, centerZ: -1, width: 24.3, depth: 15.2, activeFromLevel: 0 },
     { id: 'brewhouse', label: 'Brewhouse and cellar yard', role: 'working-building', centerX: -17.8, centerZ: -12, width: 8.2, depth: 6.3, activeFromLevel: 0 },
-    { id: 'orchard', label: 'Orchard or vineyard parcel', role: 'garden', centerX: -23, centerZ: -35.25, width: 18, depth: 15.5, activeFromLevel: 0 },
+    { id: 'orchard', label: 'Apple orchard parcel', role: 'garden', centerX: -23, centerZ: -35.25, width: 18, depth: 15.5, activeFromLevel: 0 },
     { id: 'apiary', label: 'Bee garden', role: 'garden', centerX: -26, centerZ: -22, width: 11, depth: 7, activeFromLevel: 0 },
     { id: 'vegetable-garden', label: 'Enclosed croft', role: 'garden', centerX: -7, centerZ: -18.75, width: 13, depth: 8, activeFromLevel: 0 },
     { id: 'herb-garden', label: 'Physic herb garden', role: 'garden', centerX: 3.5, centerZ: -19, width: 7, depth: 6, activeFromLevel: 0 },

@@ -9,7 +9,6 @@ pub const MONASTERY_ESTATE_GOLD_RESERVE: f64 = 6.0;
 pub const MONASTERY_ESTATE_EXPORT_LOT: f64 = 6.0;
 pub const MONASTERY_INFIRMARY_FOOD_PER_BED_DAY: f64 = 0.6;
 pub const MONASTERY_ORCHARD_APPLES: u8 = 0;
-pub const MONASTERY_ORCHARD_VINES: u8 = 1;
 pub const MONASTERY_CROFT_VEGETABLES: u8 = 0;
 pub const MONASTERY_CROFT_BARLEY: u8 = 1;
 pub const MONASTERY_EXTENSION_INFIRMARY: u8 = 1;
@@ -270,11 +269,8 @@ pub fn monastery_croft_choice_allowed(month: u32) -> bool {
 }
 
 pub fn normalize_monastery_orchard_planting(planting: u8) -> u8 {
-    if planting == MONASTERY_ORCHARD_VINES {
-        MONASTERY_ORCHARD_VINES
-    } else {
-        MONASTERY_ORCHARD_APPLES
-    }
+    let _ = planting;
+    MONASTERY_ORCHARD_APPLES
 }
 
 pub fn normalize_monastery_croft_planting(planting: u8) -> u8 {
@@ -294,16 +290,11 @@ pub fn monastery_estate_yields(
     let multiplier = monastery_estate_yield_multiplier(extensions);
     let orchard_multiplier = monastery_orchard_yield_multiplier(orchard_maturity);
     let workshop = monastery_has_extension(extensions, MONASTERY_EXTENSION_WORKSHOP);
-    let apples_planted =
-        normalize_monastery_orchard_planting(orchard_planting) == MONASTERY_ORCHARD_APPLES;
+    let _ = orchard_planting;
     let vegetables_planted =
         normalize_monastery_croft_planting(croft_planting) == MONASTERY_CROFT_VEGETABLES;
     MonasteryEstateYields {
-        apples: if apples_planted {
-            0.75 * multiplier * orchard_multiplier
-        } else {
-            0.0
-        },
+        apples: 0.75 * multiplier * orchard_multiplier,
         vegetables: if vegetables_planted {
             0.5 * multiplier
         } else {
@@ -318,16 +309,13 @@ pub fn monastery_estate_yields(
         } else {
             0.32 * multiplier * if workshop { 1.25 } else { 1.0 }
         },
-        cider: if apples_planted && workshop {
+        cider: if workshop {
             0.16 * multiplier * orchard_multiplier
         } else {
             0.0
         },
-        wine: if apples_planted {
-            0.0
-        } else {
-            0.14 * multiplier * orchard_multiplier * if workshop { 1.25 } else { 1.0 }
-        },
+        // Wine is produced only by the player-drawn vineyard extension.
+        wine: 0.0,
         cheese: 0.18 * multiplier,
     }
 }
@@ -407,7 +395,7 @@ mod tests {
     }
 
     #[test]
-    fn planting_plan_selects_outputs_and_cider_needs_the_press() {
+    fn orchard_yields_apples_and_cider_needs_the_press() {
         let kitchen = monastery_estate_yields(
             MONASTERY_EXTENSION_INFIRMARY | MONASTERY_EXTENSION_SCRIPTORIUM,
             MONASTERY_ORCHARD_APPLES,
@@ -418,17 +406,6 @@ mod tests {
         assert_eq!(kitchen.ale, 0.0);
         assert_eq!(kitchen.wine, 0.0);
         assert_eq!(kitchen.cider, 0.0);
-
-        let commercial = monastery_estate_yields(
-            MONASTERY_EXTENSION_WORKSHOP,
-            MONASTERY_ORCHARD_VINES,
-            MONASTERY_CROFT_BARLEY,
-            MONASTERY_ORCHARD_MATURITY_MATURE,
-        );
-        assert_eq!(commercial.apples, 0.0);
-        assert_eq!(commercial.vegetables, 0.0);
-        assert!(commercial.ale > 0.0 && commercial.wine > 0.0);
-        assert_eq!(commercial.cider, 0.0);
 
         let cider = monastery_estate_yields(
             MONASTERY_EXTENSION_WORKSHOP,

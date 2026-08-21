@@ -195,7 +195,7 @@ mod tests {
         ] {
             assert!(is_processor_output_target_kind(kind));
         }
-        for kind in ["monastery", "apiary", "vineyard", "carpenter"] {
+        for kind in ["monastery", "apiary", "carpenter"] {
             assert!(!is_processor_output_target_kind(kind));
         }
         assert_eq!(

@@ -289,7 +289,6 @@ pub(crate) fn place_founding_camp(ctx: &ReducerContext, x: f64, z: f64) -> Resul
         chapel_monastery_tithe_due: 0.0,
         civic_receipts_gold: 0.0,
         private_export_proceeds_gold: 0.0,
-        vineyard_production_policy: 1,
         vineyard_fermenting_grapes: 0.0,
         vineyard_fermentation_progress: 0.0,
         apiary_harvest_policy: 1,

@@ -76,7 +76,6 @@ import {
   MONASTERY_INFIRMARY_FOOD_PER_BED_DAY,
   MONASTERY_CROFT_PLANTINGS,
   MONASTERY_EXTENSIONS,
-  MONASTERY_ORCHARD_REPLANT_COST,
   MONASTERY_ORCHARD_PLANTINGS,
   monasteryArchetype,
   monasteryExtensionCount,
@@ -87,7 +86,6 @@ import {
   monasteryInfirmaryMortalityMultiplier,
   monasteryInfirmaryRecoveryMultiplier,
   monasteryCroftChoiceAllowed,
-  monasteryOrchardReplantingAllowed,
   monasteryScriptoriumRecoveryMultiplier,
   monasterySeedArchiveTargetPerCrop,
   normalizeMonasteryCroftPlanting,
@@ -192,9 +190,7 @@ import { renderExtractionStockTargetPanel } from './extractionStockTargetRendere
 import { renderResourceCost } from '../../ui/resourceCost.ts';
 import {
   APIARY_HARVEST_POLICIES,
-  VINEYARD_PRODUCTION_POLICIES,
   apiaryHarvestPolicy,
-  vineyardProductionPolicy,
 } from '../../economy/specialtyTrade.ts';
 import {
   BREAD_GRAIN_KINDS,
@@ -239,8 +235,7 @@ const PROCESS: Record<string, string> = {
   tavern: 'Receives ale, apple cider, pear cider, and mead, then serves any of them as the residential Beverage service',
   smokehouse: 'Meat, fish, or milk + firewood + local or imported salt + pottery vessels -> cured meat, smoked fish, or cheese',
   apiary: 'April-September forage + a healthy overwintered colony -> honey, with nearby orchard and vineyard pollination',
-  vineyard: 'September-October harvest -> table-grape reserve or a staffed, timed cellar batch -> wine',
-  monastery: 'A self-governing 68 × 53 m walled estate raises the player-selected orchard and croft crops alongside eggs, milk, meat, honey, and cheese; a developed apple estate also presses cider, and genuine surplus is sold beyond the map',
+  monastery: 'A self-governing 68 × 53 m walled estate raises orchard and croft crops alongside eggs, milk, meat, honey, and cheese; its unique drawn vineyard turns staffed monastic land into town-market wine',
   carpenter: 'Timber + smith-forged ironwork → polearms and cartwright support',
   weaver: 'Annual sheep fleece or flax + hauled water → woven cloth → tier-2+ Marketplace stalls, then Trading Post export',
   tannery: 'Goat or game hides + hauled water + firewood → tanned leather for Cobbler workshops and trade',
@@ -257,7 +252,6 @@ const OUTBOUND_SUPPLY_KINDS = new Set<BuildingKind>([
   'brewery',
   'smokehouse',
   'apiary',
-  'vineyard',
   'monastery',
   'carpenter',
   'tannery',
@@ -308,12 +302,11 @@ function buildingHasOutboundStock(
       return preservedFoodStock(building) > 0;
     case 'apiary':
       return building.honey > 0;
-    case 'vineyard':
-      return building.wine > 0 || (building.grapes ?? 0) > 0;
     case 'monastery':
       return building.ale > 18 + 1e-6
         || building.honey > 10 + 1e-6
-        || (building.cheese ?? 0) > 8 + 1e-6;
+        || (building.cheese ?? 0) > 8 + 1e-6
+        || building.wine > 6 + 1e-6;
     case 'carpenter':
       return (building.polearms ?? 0) > 0;
     case 'weaver':
@@ -347,10 +340,9 @@ function outboundDestinationLabel(building: BuildingState): string {
     case 'smokehouse':
       return 'Nearest staffed granary or Marketplace cured-food reserve';
     case 'apiary':
-    case 'vineyard':
       return 'Ordinary town demand, then the road-linked export market';
     case 'monastery':
-      return 'Regional merchant at the map edge · sale proceeds return to the monastery purse';
+      return 'Vineyard wine to the nearest granary by monk handcart · other surplus to a regional merchant';
     case 'carpenter':
       return 'Nearest road-linked guardhouse';
     case 'weaver':
@@ -376,7 +368,6 @@ function cargoPerTripLabel(building: BuildingState): string | null {
     case 'brewery':
     case 'bakery':
     case 'apiary':
-    case 'vineyard':
       return `${GRAIN_TRANSFER_PER_TRIP} per haul`;
     case 'granary':
       return `4 fresh or 3 cured per market-stall haul · ${GRAIN_TRANSFER_PER_TRIP} per bulk haul`;
@@ -390,7 +381,7 @@ function cargoPerTripLabel(building: BuildingState): string | null {
     case 'potter_kiln':
       return `${GRAIN_TRANSFER_PER_TRIP} per handcart`;
     case 'monastery':
-      return 'Up to 6 ale, honey, or cheese per estate export';
+      return 'Up to 6 wine per monk handcart or 6 goods per estate export';
     default:
       return null;
   }
@@ -406,7 +397,6 @@ function outboundTargetKinds(kind: BuildingKind): BuildingKind[] {
     case 'granary':
       return ['bakery', 'brewery', 'weaver', 'smokehouse'];
     case 'apiary':
-    case 'vineyard':
       return ['marketplace'];
     case 'carpenter':
       return ['guardhouse'];
@@ -457,9 +447,12 @@ function outboundTripTarget(
     if (home) return home;
     return context.worldQueries.findNearestRoadLinkedBuilding(building, ['marketplace']);
   }
-  if (building.kind === 'apiary' || building.kind === 'vineyard') {
+  if (building.kind === 'apiary') {
     return context.worldQueries.getNextFoodDeliveryTargetForSupplier(building)
       ?? context.worldQueries.findNearestRoadLinkedBuilding(building, ['marketplace']);
+  }
+  if (building.kind === 'monastery' && building.wine > 6 + 1e-6) {
+    return context.worldQueries.findNearestRoadLinkedBuilding(building, ['granary']);
   }
   if (building.kind === 'weaver') {
     return context.worldQueries.getNextSpecialtyDeliveryTargetForSupplier(building, 'cloth')
@@ -1329,21 +1322,16 @@ export function renderExpandedBuildingInspector(
       ? `<li><span>Wind exposure</span><span>${Math.round(windSiteThroughput * 100)}% site power × ${Math.round(windWeatherThroughput * 100)}% ${environment.weather} wind = ${Math.round(windmillThroughput * 100)}% current throughput</span></li>
         <li><span>Site role</span><span>River-independent flour processor · use the wind overlay to find stronger ground, then connect grain and bakeries by road</span></li>`
       : '';
-  const routineFreshFoodSource = building.kind === 'apiary'
-    || building.kind === 'vineyard';
+  const routineFreshFoodSource = building.kind === 'apiary';
   const routineFreshFoodClaims = routineFreshFoodSource
     ? context.worldQueries.getClaimedResidencesForFoodSupplier(building).length
     : 0;
   const routineFreshFoodCapacity = routineFreshFoodSource
-    ? building.kind === 'apiary'
-      ? buildingStorageCaps(building.kind).honey ?? 0
-      : buildingStorageCaps(building.kind).food ?? 0
+    ? buildingStorageCaps(building.kind).honey ?? 0
     : 0;
   const routinePolicyReserve = building.kind === 'apiary'
     ? apiaryHarvestPolicy(building.apiaryHarvestPolicy).reserve
-    : building.kind === 'vineyard'
-      ? vineyardProductionPolicy(building.vineyardProductionPolicy).reserve
-      : 0;
+    : 0;
   const routineGenericSurplus = routineFreshFoodSource
     ? institutionalFoodSurplus(
         edibleFoodStock(building),
@@ -1377,37 +1365,37 @@ export function renderExpandedBuildingInspector(
   const farmsteadPlanning = building.kind === 'threshing_barn'
     ? renderFarmsteadPlanning(building, context)
     : null;
-  const vineyardParcel = building.kind === 'vineyard'
+  const vineyardParcel = building.kind === 'monastery'
     ? context.gameState.vineyardParcels?.get(building.id) ?? null
     : null;
-  const vineyardRows = building.kind === 'vineyard'
+  const vineyardRows = building.kind === 'monastery'
     ? (() => {
-        const policy = vineyardProductionPolicy(building.vineyardProductionPolicy);
         const progress = Math.max(0, building.vineyardFermentationProgress ?? 0);
         const fermenting = Math.max(0, building.vineyardFermentingGrapes ?? 0);
         const cellarProgress = fermenting > 1e-6
           ? `${Math.min(100, progress / VINEYARD_FERMENTATION_SECONDS * 100).toFixed(0)}% · ${Math.max(0, VINEYARD_FERMENTATION_SECONDS - progress).toFixed(0)} worker-seconds remain`
-          : 'Idle · awaiting one complete grape batch above the selected table reserve';
+          : 'Idle · awaiting one complete grape batch';
         const parcelRows = vineyardParcel ? (() => {
+          const center = vineyardParcel.corners.reduce(
+            (sum, point) => ({ x: sum.x + point.x / 4, z: sum.z + point.z / 4 }),
+            { x: 0, z: 0 },
+          );
           const factors = vineyardSiteFactors(
             vineyardParcel.moisture,
             vineyardParcel.averageSlopeDegrees,
             vineyardParcel.southExposure,
-            building.x,
-            building.z,
+            center.x,
+            center.z,
           );
           const throughput = vineyardProductionMultiplier(vineyardParcel);
           return `<li><span>Growing parcel</span><span>${Math.round(vineyardParcel.area)} m² · ${vineyardParcel.averageSlopeDegrees.toFixed(1)}° average slope · ${Math.round(vineyardParcel.shapeEfficiency * 100)}% row efficiency</span></li>
             <li><span>Grape site</span><span>${Math.round(vineyardParcel.siteSuitability * 100)}% potential · ${Math.round(factors.drainage * 100)}% drainage · ${Math.round(factors.sun * 100)}% sun exposure</span></li>
             <li><span>Harvest pace</span><span>${throughput.toFixed(2)}× grape harvest during September–October</span></li>`;
         })() : '<li><span>Growing parcel</span><span>None drawn · use the vineyard layout action to place rows</span></li>';
-        const reserve = Number.isFinite(policy.reserve)
-          ? `${policy.reserve.toFixed(0)} table grapes protected`
-          : 'All grapes protected for the table';
         return `${parcelRows}
-          <li><span>Grape allocation</span><span>${policy.label} · ${reserve}</span></li>
           <li><span>Cellar batch</span><span>${VINEYARD_GRAPES_PER_FERMENTATION_BATCH} grapes → ${VINEYARD_WINE_PER_FERMENTATION_BATCH} wine over ${VINEYARD_FERMENTATION_SECONDS} worker-seconds</span></li>
-          <li><span>Fermentation</span><span>${Math.round(fermenting)} grapes staged · ${cellarProgress}</span></li>`;
+          <li><span>Fermentation</span><span>${Math.round(fermenting)} grapes staged · ${cellarProgress}</span></li>
+          <li><span>Wine route</span><span>One onsite monk handcarts genuine hospitality surplus to the nearest accepting granary · Marketplace food stalls reserve it for tier-4 luxury demand</span></li>`;
       })()
     : '';
   const apiaryRows = building.kind === 'apiary'
@@ -1431,9 +1419,7 @@ export function renderExpandedBuildingInspector(
           ? renderCarpenterPolicyPanel(building, context.conflictEnabled === true)
           : building.kind === 'apiary'
             ? renderApiaryHarvestPolicyPanel(building)
-            : building.kind === 'vineyard'
-              ? renderVineyardProductionPolicyPanel(building)
-              : undefined;
+            : undefined;
   const processorPolicyPanelHtml = renderProcessorOutputTargetPanel(building);
   const extractionPolicyPanelHtml = building.kind === 'clay_pit'
     ? renderExtractionStockTargetPanel(building, 'clay')
@@ -1875,19 +1861,6 @@ function renderApiaryHarvestPolicyPanel(building: BuildingState): string {
   `;
 }
 
-function renderVineyardProductionPolicyPanel(building: BuildingState): string {
-  const selected = vineyardProductionPolicy(building.vineyardProductionPolicy);
-  return `
-    <div class="inspector-action-panel">
-      <p class="resource-inspector-note">Grape allocation · the harvest always enters storage as real grapes. The selected reserve is protected before any new cellar batch begins.</p>
-      <div class="resource-action-row">${VINEYARD_PRODUCTION_POLICIES
-        .map((policy) => `<button type="button" class="resource-action-button" data-vineyard-production-policy="${policy.value}" title="${policy.hint}" ${selected.value === policy.value ? 'disabled' : ''}>${policy.label}${Number.isFinite(policy.reserve) ? ` · ${policy.reserve} reserve` : ''}</button>`)
-        .join('')}</div>
-      <p class="inspector-action-panel__hint">A staffed cellar withdraws ${VINEYARD_GRAPES_PER_FERMENTATION_BATCH} grapes above the reserve, works for ${VINEYARD_FERMENTATION_SECONDS} seconds, then deposits ${VINEYARD_WINE_PER_FERMENTATION_BATCH} wine if storage has room. Changing policy never converts grapes or wine instantly.</p>
-    </div>
-  `;
-}
-
 function renderMonasteryPolicyPanel(building: BuildingState, context: InspectorRenderContext): string {
   const policy = context.getMonasteryPolicy?.() ?? DEFAULT_MONASTERY_POLICY;
   const feastBatchCost = `${MONASTERY_FEAST_FOOD} food · ${MONASTERY_FEAST_HONEY} honey · ${MONASTERY_FEAST_ALE} ale, cider, and/or wine`;
@@ -1896,9 +1869,9 @@ function renderMonasteryPolicyPanel(building: BuildingState, context: InspectorR
   const croftPlanting = normalizeMonasteryCroftPlanting(building.monasteryCroftPlanting);
   const archetype = monasteryArchetype(orchardPlanting, croftPlanting);
   const clock = gameClock(context.gameState.tick);
-  const orchardWindow = monasteryOrchardReplantingAllowed(clock.month);
   const croftWindow = monasteryCroftChoiceAllowed(clock.month)
     && (building.monasteryCroftChoiceYear ?? 0) !== clock.year;
+  const vineyard = context.gameState.vineyardParcels?.get(building.id) ?? null;
   const extensions = building.monasteryExtensions ?? 0;
   const availableExtensions = MONASTERY_EXTENSIONS.filter(
     (extension) => !monasteryHasExtension(extensions, extension.value),
@@ -1906,15 +1879,13 @@ function renderMonasteryPolicyPanel(building: BuildingState, context: InspectorR
   const nextExtension = building.monasteryNextExtension ?? 0;
   return `
     <div class="inspector-action-panel">
-      <p class="inspector-action-panel__hint"><strong>${archetype.name}</strong> · ${archetype.payoff}. Assign residents to the eight-cell community; without a monk on site the estate and every service remain dormant. The monastery feeds itself, protects its own reserves, and sends genuine surplus outside the map rather than joining ordinary household delivery routes.</p>
+      <p class="inspector-action-panel__hint"><strong>${archetype.name}</strong> · ${archetype.payoff}. Assign residents to the eight-cell community; without a monk on site the estate and every service remain dormant. Ordinary surplus is sold outside the map, while vineyard wine uniquely enters the town through its granary and food stalls.</p>
       <div class="city-admin-panel__slider-label"><span>Orchard parcel</span><strong>${MONASTERY_ORCHARD_PLANTINGS[orchardPlanting].output}</strong></div>
-      <div class="monastery-planting-grid" role="group" aria-label="Choose the monastery orchard planting">
-        ${MONASTERY_ORCHARD_PLANTINGS.map((planting) => `<button type="button" class="monastery-planting-choice${planting.value === orchardPlanting ? ' is-selected' : ''}" data-monastery-orchard-choice="${planting.value}" aria-pressed="${planting.value === orchardPlanting ? 'true' : 'false'}" title="${planting.output}" ${!orchardWindow || planting.value === orchardPlanting ? 'disabled' : ''}>
-          <span class="monastery-planting-choice__icon" data-monastery-planting-icon="orchard-${planting.value}" aria-hidden="true"></span>
-          <span class="monastery-planting-choice__copy"><strong>${planting.label}</strong><small>${planting.output}</small></span>
-        </button>`).join('')}
+      <p class="inspector-action-panel__hint">The enclosed perennial parcel is the monastery's apple orchard. Wine comes only from its separate, player-drawn vineyard extension.</p>
+      <div class="resource-action-row">
+        <button type="button" class="resource-action-button resource-action-button--icon" data-land-parcel="vineyard" ${vineyard ? 'disabled' : ''}><span class="inspector-action-icon" data-action-icon="field-parcel" aria-hidden="true"></span><span>${vineyard ? `Vineyard laid out · ${Math.round(vineyard.area)} m²` : 'Lay out vineyard extension'}</span></button>
       </div>
-      <p class="inspector-action-panel__hint">Perennial rows may be changed only November–February. Replanting costs ${MONASTERY_ORCHARD_REPLANT_COST} monastery gold, preserves the 6-gold working reserve, loses the next harvest, then returns as young rows before becoming fully mature.${orchardWindow ? ' The dormant-season window is open.' : ' The rows are locked until November.'}</p>
+      <p class="inspector-action-panel__hint">One free-form vineyard may adjoin the estate. Monks harvest it in September–October, ferment grapes in the monastery cellar, and one onsite monk handcarts only true hospitality surplus to the nearest accepting granary.</p>
       <div class="city-admin-panel__slider-label"><span>Enclosed croft</span><strong>${MONASTERY_CROFT_PLANTINGS[croftPlanting].output}</strong></div>
       <div class="monastery-planting-grid" role="group" aria-label="Choose the monastery croft planting">
         ${MONASTERY_CROFT_PLANTINGS.map((planting) => `<button type="button" class="monastery-planting-choice${planting.value === croftPlanting ? ' is-selected' : ''}" data-monastery-croft-choice="${planting.value}" aria-pressed="${planting.value === croftPlanting ? 'true' : 'false'}" title="${planting.output}" ${!croftWindow || planting.value === croftPlanting ? 'disabled' : ''}>

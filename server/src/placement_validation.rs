@@ -761,12 +761,6 @@ fn building_pad_params(kind: &str) -> BuildingPadParams {
             inner_fade: 0.88,
             outer_fade: 1.3,
         },
-        "vineyard" => BuildingPadParams {
-            radius_x: 8.0,
-            radius_z: 6.8,
-            inner_fade: 0.88,
-            outer_fade: 1.24,
-        },
         _ => BuildingPadParams {
             radius_x: 10.5,
             radius_z: 10.5,

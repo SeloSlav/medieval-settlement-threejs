@@ -57,7 +57,6 @@ export const INSTITUTIONAL_FOOD_SOURCE_KINDS = [
   'fishing_camp',
   'bakery',
   'apiary',
-  'vineyard',
   'pastoral_farmstead',
   'swineherd',
 ] as const satisfies readonly BuildingKind[];

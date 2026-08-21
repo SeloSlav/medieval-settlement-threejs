@@ -360,12 +360,6 @@
   background-image: url('/assets/ui/icons/backyards/orchard.png');
 }
 
-.monastery-planting-choice__icon[data-monastery-planting-icon='orchard-1'] {
-  background-image: url('/assets/ui/build-menu/cards/vineyard.webp');
-  background-size: cover;
-  border-radius: 50%;
-}
-
 .monastery-planting-choice__icon[data-monastery-planting-icon='croft-0'] {
   background-image: url('/assets/ui/icons/backyards/vegetable-garden.png');
 }

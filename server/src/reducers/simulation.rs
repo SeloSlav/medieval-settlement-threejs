@@ -20,7 +20,7 @@ use crate::simulation::{
     step_seasonal_labor_stewards, step_seed_grain_distribution, step_settlement_security,
     step_smithy, step_smokehouse, step_stone_quarry, step_storehouse_market_stalls, step_swineherd,
     step_threshing_barn, step_trading_post_trade, step_village_storehouse_overflow_collection,
-    step_cobbler, step_tannery, step_vineyard, step_watermill, step_weaver, step_well,
+    step_cobbler, step_tannery, step_watermill, step_weaver, step_well,
     step_windmill, step_woodcutters_lodge,
     step_workforce_commutes, try_dispatch_guardhouse_payroll, SharedRoadNetworks, SimTickContext,
 };
@@ -286,7 +286,6 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
             | crate::building_defs::BuildingSimKind::Weaver
             | crate::building_defs::BuildingSimKind::Tannery
             | crate::building_defs::BuildingSimKind::Cobbler
-            | crate::building_defs::BuildingSimKind::Vineyard
             | crate::building_defs::BuildingSimKind::PastoralFarmstead
             | crate::building_defs::BuildingSimKind::Swineherd => {
                 expanded_ids.push((sim_kind, building.id))
@@ -317,10 +316,11 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
         }
     }
 
-    step_household_discretionary_trade(ctx, &tick, &clock);
-    // Export carts stage only local surplus; the off-map exchange settles
-    // once per month without spawning a regional caravan unit.
+    // Export rules get first claim on newly available local carts and stock.
+    // Carts stage only settlement surplus; the off-map exchange settles once
+    // per month without spawning a regional caravan unit.
     step_trading_post_trade(ctx, &tick, &clock);
+    step_household_discretionary_trade(ctx, &tick, &clock);
     step_marketplace_caravans(ctx, &clock, &tick, environment);
     step_seed_grain_distribution(ctx, &tick, &clock);
     let material_marketplaces = trading_post_ids
@@ -453,9 +453,6 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
             }
             crate::building_defs::BuildingSimKind::Cobbler => {
                 step_cobbler(ctx, &tick, &clock, building)
-            }
-            crate::building_defs::BuildingSimKind::Vineyard => {
-                step_vineyard(ctx, &tick, &clock, building)
             }
             crate::building_defs::BuildingSimKind::PastoralFarmstead => {
                 step_pastoral_farmstead(ctx, &tick, &clock, environment, building)

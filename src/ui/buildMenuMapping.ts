@@ -41,7 +41,6 @@ export const BUILDING_KIND_TO_MENU_ACTION: Partial<Record<BuildingKind, Placemen
   weaver: 'weaver',
   tannery: 'tannery',
   cobbler: 'cobbler',
-  vineyard: 'vineyard',
   pastoral_farmstead: 'pastoral-farmstead',
   swineherd: 'swineherd',
 };
@@ -86,7 +85,6 @@ export const MENU_ACTION_TO_BUILDING_KIND: Record<BuildingMenuAction, BuildingKi
   weaver: 'weaver',
   tannery: 'tannery',
   cobbler: 'cobbler',
-  vineyard: 'vineyard',
   'pastoral-farmstead': 'pastoral_farmstead',
   swineherd: 'swineherd',
 };
@@ -97,7 +95,7 @@ export function toolbarModeToMenuAction(
   if (mode === 'idle' || mode === 'road') return null;
   if (mode === 'dry-stone-wall') return 'dry-stone-wall';
   if (mode === 'residences') return 'residences';
-  if (mode === 'vineyards') return 'vineyard';
+  if (mode === 'vineyards') return null;
   if (mode === 'farm-fields' || mode === 'pastures' || mode === 'burial-grounds') return null;
   return BUILDING_KIND_TO_MENU_ACTION[mode] ?? null;
 }

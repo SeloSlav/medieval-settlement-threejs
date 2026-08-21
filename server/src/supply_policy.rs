@@ -15,8 +15,8 @@ use crate::balance_generated::{
     POTTER_FIREWOOD_PER_CYCLE, POTTER_WATER_PER_CYCLE, SMITHY_CHARCOAL_PER_CYCLE,
     SMITHY_IRON_PER_CYCLE, SMITHY_WATER_PER_CYCLE, SMOKEHOUSE_FIREWOOD_PER_CYCLE,
     SMOKEHOUSE_FOOD_PER_CYCLE, SMOKEHOUSE_POTTERY_PER_CYCLE, SMOKEHOUSE_SALT_PER_CYCLE,
-    VINEYARD_GRAPES_PER_FERMENTATION_BATCH, WATERMILL_GRAIN_PER_CYCLE, WEAVER_FLAX_PER_CYCLE,
-    WEAVER_FLAX_WATER_PER_CYCLE, WEAVER_WOOL_PER_CYCLE, TANNERY_FIREWOOD_PER_CYCLE,
+    WATERMILL_GRAIN_PER_CYCLE, WEAVER_FLAX_PER_CYCLE, WEAVER_FLAX_WATER_PER_CYCLE,
+    WEAVER_WOOL_PER_CYCLE, TANNERY_FIREWOOD_PER_CYCLE,
     TANNERY_HIDES_PER_CYCLE, TANNERY_WATER_PER_CYCLE, COBBLER_LEATHER_PER_CYCLE,
 };
 use crate::civilian_tool_policy::{civilian_tool_refill_due, is_civilian_tool_site};
@@ -44,7 +44,6 @@ pub const INSTITUTIONAL_FOOD_SOURCE_KINDS: &[&str] = &[
     "fishing_camp",
     "bakery",
     "apiary",
-    "vineyard",
     "pastoral_farmstead",
     "swineherd",
 ];
@@ -85,7 +84,6 @@ pub const MARKETPLACE_MATERIAL_TARGET_KINDS: &[&str] = &[
     "tannery",
     "cobbler",
     "pastoral_farmstead",
-    "vineyard",
     "threshing_barn",
     "guardhouse",
 ];
@@ -504,7 +502,6 @@ pub fn directly_dispatched_processor_input_per_cycle(target_kind: &str, commodit
         ("smithy", "charcoal") => SMITHY_CHARCOAL_PER_CYCLE,
         ("smithy", "iron") => SMITHY_IRON_PER_CYCLE,
         ("smithy", "water") => SMITHY_WATER_PER_CYCLE,
-        ("vineyard", "grapes") => VINEYARD_GRAPES_PER_FERMENTATION_BATCH,
         _ => 0.0,
     }
 }
@@ -907,7 +904,6 @@ mod tests {
                 "fishing_camp",
                 "bakery",
                 "apiary",
-                "vineyard",
                 "pastoral_farmstead",
                 "swineherd",
             ]
@@ -1175,7 +1171,6 @@ mod tests {
                 "tannery",
                 "cobbler",
                 "pastoral_farmstead",
-                "vineyard",
                 "threshing_barn",
                 "guardhouse",
             ],
@@ -1191,10 +1186,6 @@ mod tests {
         assert_eq!(
             directly_dispatched_processor_input_per_cycle("brewery", "malt"),
             super::BREWERY_MALT_PER_ALE_CYCLE,
-        );
-        assert_eq!(
-            directly_dispatched_processor_input_per_cycle("vineyard", "grapes"),
-            super::VINEYARD_GRAPES_PER_FERMENTATION_BATCH,
         );
         assert_eq!(
             directly_dispatched_processor_input_per_cycle("smithy", "charcoal"),

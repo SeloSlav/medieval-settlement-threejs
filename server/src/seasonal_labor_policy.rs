@@ -2,7 +2,7 @@
 use crate::construction_priority::CONSTRUCTION_PRIORITY_URGENT;
 use crate::construction_priority::{CONSTRUCTION_PRIORITY_LOW, CONSTRUCTION_PRIORITY_NORMAL};
 use crate::foraging_policy::harvest_available;
-use crate::specialty_trade_policy::{apiary_is_active, vineyard_is_harvesting};
+use crate::specialty_trade_policy::apiary_is_active;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct SeasonalCallupCandidate {
@@ -19,7 +19,7 @@ fn normalize_staffing_priority(_priority: u8) -> u8 {
 pub fn is_seasonal_labor_kind(kind: &str) -> bool {
     matches!(
         kind,
-        "foragers_shed" | "fishing_camp" | "threshing_barn" | "apiary" | "watermill" | "vineyard"
+        "foragers_shed" | "fishing_camp" | "threshing_barn" | "apiary" | "watermill"
     )
 }
 
@@ -38,7 +38,6 @@ pub fn seasonal_production_active(
         "threshing_barn" => Some(farmstead_work_active),
         "apiary" => Some(apiary_is_active(month as u8)),
         "watermill" => Some(!matches!(month, 12 | 1 | 2)),
-        "vineyard" => Some(vineyard_is_harvesting(month as u8)),
         _ => None,
     }
 }
@@ -120,14 +119,9 @@ mod tests {
     use super::*;
 
     #[test]
-    fn apiary_and_vineyard_follow_their_existing_windows() {
+    fn apiary_follows_its_existing_window() {
         assert_eq!(seasonal_production_active("apiary", 3, false), Some(false));
         assert_eq!(seasonal_production_active("apiary", 4, false), Some(true));
-        assert_eq!(seasonal_production_active("vineyard", 9, false), Some(true));
-        assert_eq!(
-            seasonal_production_active("vineyard", 11, false),
-            Some(false)
-        );
     }
 
     #[test]

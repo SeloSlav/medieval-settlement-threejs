@@ -144,7 +144,6 @@ mod tests {
             "fishing_camp",
             "threshing_barn",
             "apiary",
-            "vineyard",
             "watermill",
             "windmill",
             "bakery",

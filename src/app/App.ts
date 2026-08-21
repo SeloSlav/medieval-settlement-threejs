@@ -333,6 +333,7 @@ export class App {
               treeRegistry: this.treeRegistry,
               farmFields: this.gameState.farmFields.values(),
               pastures: this.gameState.pastures.values(),
+              vineyardParcels: this.gameState.vineyardParcels?.values() ?? [],
               deliveryTrips: this.gameState.deliveryTrips.values(),
               fireIncidents: this.gameState.fireIncidents.values(),
               roadNetwork: this.roadNetwork,

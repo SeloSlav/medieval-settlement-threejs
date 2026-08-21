@@ -777,9 +777,6 @@ pub struct Building {
     /// `civic_receipts_gold` is the protected public subset.
     #[default(0.0)]
     pub private_export_proceeds_gold: f64,
-    /// Vineyard cellar allocation: 0 table grapes, 1 balanced, 2 wine first.
-    #[default(1u8)]
-    pub vineyard_production_policy: u8,
     /// Grapes physically committed to the current sealed fermentation batch.
     #[default(0.0)]
     pub vineyard_fermenting_grapes: f64,

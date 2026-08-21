@@ -42,7 +42,8 @@ import { formatCooldown } from './woodcuttersLodgeStatus.ts';
 import { gameClock } from '../../world/gameCalendar.ts';
 import { isForagingHarvestAvailable } from '../../foraging/foragingSeason.ts';
 import {
-  HARVEST_RESERVE_PRESETS,
+  HARVEST_RESERVE_DEFAULT_PERCENT,
+  HARVEST_RESERVE_PERCENT_MAX,
   harvestableWildStock,
   isWildStockHarvestable,
   normalizeHarvestReservePercent,
@@ -164,10 +165,13 @@ export function renderHarvestBuildingInspector(
   const label = context.worldQueries.getBuildingLabel(building.kind);
   const cost = getBuildingCost(building.kind);
   const definition = getBuildingDefinition(building.kind);
-  const managesWildStock = building.kind === 'hunters_hall'
+  const managesWildStock = building.kind === 'foragers_shed'
+    || building.kind === 'hunters_hall'
     || building.kind === 'fishing_camp';
   const reservePercent = managesWildStock
-    ? normalizeHarvestReservePercent(building.harvestReservePercent ?? 0)
+    ? normalizeHarvestReservePercent(
+      building.harvestReservePercent ?? HARVEST_RESERVE_DEFAULT_PERCENT,
+    )
     : 0;
   const foragingKinds: readonly HarvestForagingKind[] = Array.isArray(copy.foragingKind)
     ? copy.foragingKind
@@ -310,6 +314,27 @@ export function renderHarvestBuildingInspector(
     )
     && !activeTrip;
   const cycleSeconds = definition.harvestInterval;
+  const stockUnit = nearestNode?.kind === 'game'
+    ? 'game'
+    : nearestNode?.kind ?? 'wild stock';
+  const automaticFloor = nearestNode && managesWildStock
+    ? protectedWildStock(
+      nearestNode.kind as HarvestForagingKind,
+      nearestNode.maxYield,
+      0,
+    )
+    : 0;
+  const reserveSliderMin = Math.ceil(automaticFloor - 1e-6);
+  const reserveSliderMax = nearestNode
+    ? Math.max(
+      reserveSliderMin,
+      Math.floor(nearestNode.maxYield * HARVEST_RESERVE_PERCENT_MAX / 100),
+    )
+    : HARVEST_RESERVE_PERCENT_MAX;
+  const reserveSliderValue = Math.min(
+    reserveSliderMax,
+    Math.max(reserveSliderMin, Math.round(protectedStock)),
+  );
 
   let statusText: string;
   let statusState: InspectorView['statusState'];
@@ -354,8 +379,10 @@ export function renderHarvestBuildingInspector(
       : 'idle';
   } else if (nearestNode && managesWildStock && harvestableStock <= 1e-6) {
     statusText = nearestNode.kind === 'fish'
-      ? `Resting - ${nearestNode.remaining.toFixed(0)} fish protected; the shoal reproduces in spring`
-      : `Resting - ${Math.round(nearestNode.remaining)} game protected as breeding stock`;
+      ? `Resting — ${nearestNode.remaining.toFixed(0)} fish protected; the shoal reproduces in spring`
+      : nearestNode.kind === 'game'
+        ? `Resting — ${Math.round(nearestNode.remaining)} game protected as breeding stock`
+        : `Resting — ${Math.round(nearestNode.remaining)} ${nearestNode.kind} protected for regrowth`;
     statusState = 'idle';
   } else if (nearestNode?.kind === 'game' && nearestNode.remaining < 2) {
     statusText = `Idle — the protected breeding pair is recolonizing`;
@@ -380,22 +407,26 @@ export function renderHarvestBuildingInspector(
     : `<li><span>Delivery</span><span>Waiting for an unassigned hauler</span></li>`;
 
   const reserveRows = managesWildStock
-    ? `<li><span>Wild-stock reserve</span><span>${hasAutomaticRenewableFloor ? `Breeding population minimum + ${reservePercent}% policy` : `${reservePercent}% of carrying capacity`}${nearestNode ? ` / ${Math.ceil(protectedStock)} protected here` : ''}</span></li>
-      <li><span>Harvestable stock</span><span>${nearestNode ? `${Math.floor(harvestableStock)} above reserve / ${Math.round(nearestNode.remaining)} of ${Math.round(nearestNode.maxYield)} population` : 'No population in range'}</span></li>`
+    ? `<li><span>Harvest floor</span><span>${reservePercent}% of each source's capacity${nearestNode ? ` · stop at ${reserveSliderValue} ${stockUnit} here` : ''}</span></li>
+      <li><span>Harvestable stock</span><span>${nearestNode ? `${Math.floor(harvestableStock)} above floor / ${Math.round(nearestNode.remaining)} of ${Math.round(nearestNode.maxYield)} population` : 'No population in range'}</span></li>`
     : '';
   const reservePanel = managesWildStock
     ? `<div class="inspector-action-panel">
-        <p class="resource-inspector-note">Wild-stock reserve - this building's workers leave protected population untouched and may use another healthy population in range. Hunter's halls always spare a breeding pair, and rich shoals retain a breeding school for spring recovery; the selected percentage can protect more. Another hall or camp with a lower reserve can still harvest the same stock.</p>
-        <div class="resource-action-row">
-          ${HARVEST_RESERVE_PRESETS
-            .map((preset) => `<button type="button" class="resource-action-button" data-harvest-reserve-percent="${preset.percent}" ${reservePercent === preset.percent ? 'disabled' : ''}>${hasAutomaticRenewableFloor && preset.percent === 0 ? 'Breeding stock / automatic' : `${preset.label} / ${preset.percent}%`}</button>`)
-            .join('')}
+        <p class="resource-inspector-note">Set the quantity this camp must leave in the wild. Workers stop at that floor, switch to another healthy source in range, and resume here after regeneration lifts stock above it.</p>
+        <p class="city-admin-panel__slider-label"><span>Stop harvesting at</span><strong data-harvest-reserve-value>${reserveSliderValue} ${stockUnit}</strong></p>
+        <input class="city-admin-panel__slider" type="range" data-harvest-reserve-slider data-harvest-reserve-capacity="${nearestNode?.maxYield ?? 100}" data-harvest-reserve-unit="${stockUnit}" min="${reserveSliderMin}" max="${reserveSliderMax}" step="1" value="${reserveSliderValue}" ${nearestNode ? '' : 'disabled'} />
+        <div class="city-admin-panel__range-hints">
+          <span>${hasAutomaticRenewableFloor ? `${reserveSliderMin} automatic minimum` : '0 maximum harvest'}</span>
+          <span>${reserveSliderMax} light harvest</span>
         </div>
+        <p class="inspector-action-panel__hint" data-harvest-reserve-share>${reservePercent}% of capacity · the same proportional floor adapts automatically to ordinary and rich sources.</p>
         <p class="inspector-action-panel__hint">${building.kind === 'fishing_camp'
           ? nearestNode?.isRich === true
-            ? "The rich shoal is renewable but rebuilds only in spring. Quarter and half reserves keep a larger school for faster recovery."
-            : "An ordinary protected shoal rebuilds only in spring. Open harvest maximizes today's catch but can cause permanent extinction."
-          : "Every hall leaves two animals to breed. Quarter and half reserves trade today's yield for a larger herd and faster recovery."}</p>
+            ? 'Rich shoals hold twice the fish, yield 1.75× per cycle, and reproduce 1.75× faster. They rebuild only in spring.'
+            : 'Ordinary shoals are renewable when fish survive to reproduce in spring. Setting the floor to zero risks permanent extinction.'
+          : building.kind === 'hunters_hall'
+            ? 'Every habitat keeps an automatic breeding pair. Rich habitats hold more game, yield 1.5× per cycle, and reproduce 1.75× faster.'
+            : 'Berry thickets and mushroom beds regrow in season even after depletion. Rich patches hold more, yield 1.5× per cycle, and regrow 1.5× faster.'}</p>
       </div>`
     : undefined;
   const remedyRows = building.kind === 'foragers_shed'

@@ -232,7 +232,6 @@ assert.match(resourceInspector, /data-monastery-extension-choice[\s\S]{0,500}onS
 
 const monasteryPlantingArtwork = new Map([
   ['orchard-0', 'icons/backyards/orchard.png'],
-  ['orchard-1', 'build-menu/cards/vineyard.webp'],
   ['croft-0', 'icons/backyards/vegetable-garden.png'],
   ['croft-1', 'icons/provisions/barley-sheaves.png'],
 ] as const);

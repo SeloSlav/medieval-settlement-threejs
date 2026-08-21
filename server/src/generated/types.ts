@@ -150,7 +150,6 @@ export const Building = __t.object("Building", {
   smokedFish: __t.f64(),
   cheese: __t.f64(),
   privateExportProceedsGold: __t.f64(),
-  vineyardProductionPolicy: __t.u8(),
   vineyardFermentingGrapes: __t.f64(),
   vineyardFermentationProgress: __t.f64(),
   apiaryHarvestPolicy: __t.u8(),

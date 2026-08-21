@@ -21,6 +21,7 @@ import type {
   ResidenceState,
   TreeEntityState,
   TreeLayoutEntry,
+  VineyardParcelState,
 } from '../resources/types.ts';
 import { backyardGardenPlacement } from '../residences/backyardPosition.ts';
 import { backyardGardenLabel } from '../residences/backyardGarden.ts';
@@ -339,7 +340,7 @@ type VillagerAgent = {
   simPathCursor: number;
   displayPathCursor: number;
   workActivity: WorkerActivityKind | null;
-  workTarget: PointXZ | null;
+  workTarget: (PointXZ & { id?: string }) | null;
   workStopDistance: number;
   workRemaining: number;
   workPerformed: boolean;
@@ -713,6 +714,7 @@ export class VillagerRenderer {
     } | null;
     farmFields: Iterable<FarmFieldState>;
     pastures: Iterable<PastureState>;
+    vineyardParcels?: Iterable<VineyardParcelState>;
     backyardGardens?: Iterable<BackyardGardenState>;
     burgageZones?: Iterable<BurgageZoneState>;
     deliveryTrips?: Iterable<DeliveryTripState>;
@@ -734,6 +736,7 @@ export class VillagerRenderer {
     const foragingNodes = [...options.foragingNodes];
     const farmFields = [...options.farmFields];
     const pastures = [...options.pastures];
+    const vineyardParcels = [...(options.vineyardParcels ?? [])];
     const backyardGardens = [...(options.backyardGardens ?? [])];
     const burgageZones = [...(options.burgageZones ?? [])];
     const fireIncidents = [...(options.fireIncidents ?? [])];
@@ -1050,6 +1053,7 @@ export class VillagerRenderer {
       treeRegistry: options.treeRegistry,
       farmFields,
       pastures,
+      vineyardParcels,
       foragingMonth: options.foragingMonth,
       roadNetwork: this.roadNetwork,
     };
@@ -2371,7 +2375,7 @@ export class VillagerRenderer {
     agent.displayPathCursor = 0;
     agent.workActivity = plan?.activity ?? null;
     agent.workTarget = plan?.target
-      ? { x: plan.target.x, z: plan.target.z }
+      ? { id: plan.target.id, x: plan.target.x, z: plan.target.z }
       : null;
     agent.workStopDistance = routedPlan?.workStopDistance ?? 0;
     agent.workRemaining = 0;
@@ -4683,7 +4687,10 @@ export class VillagerRenderer {
       || kind === 'clay_pit'
       || kind === 'charcoal_burner'
     ) return 'shovel';
-    if (kind === 'threshing_barn' || kind === 'vineyard') return 'hoe';
+    if (
+      kind === 'threshing_barn'
+      || (kind === 'monastery' && agent.workTarget?.id?.includes(':monastery:vineyard:'))
+    ) return 'hoe';
     if (kind === 'carpenter' || kind === 'smithy') return 'hammer';
     if (kind === 'guardhouse') {
       return agent.workplaceSlot < Math.floor(workplace?.polearms ?? 0) ? 'spear' : null;
@@ -4884,6 +4891,9 @@ function describeVillagerActivity(
         if (workplace?.kind === 'hunters_hall') return `Checking game near ${workplaceLabel}`;
         if (workplace?.kind === 'swineherd') return `Collecting mast near ${workplaceLabel}`;
         if (workplace?.kind === 'apiary') return `Inspecting hives at ${workplaceLabel}`;
+        if (workplace?.kind === 'monastery' && agent.workTarget?.id?.includes(':monastery:vineyard:')) {
+          return `Tending the vineyard rows for ${workplaceLabel}`;
+        }
         return `Gathering wild food near ${workplaceLabel}`;
       }
       if (agent.mode === 'tend') {
@@ -4898,7 +4908,6 @@ function describeVillagerActivity(
           case 'bakery': return `Baking bread at ${workplaceLabel}`;
           case 'watermill': return `Tending the mill at ${workplaceLabel}`;
           case 'windmill': return `Tending the sails at ${workplaceLabel}`;
-          case 'vineyard': return `Tending vines at ${workplaceLabel}`;
           case 'charcoal_burner': return `Sealing and venting the clamp at ${workplaceLabel}`;
           case 'potter_kiln': return `Shaping and firing vessels at ${workplaceLabel}`;
           default: return `Tending work at ${workplaceLabel}`;

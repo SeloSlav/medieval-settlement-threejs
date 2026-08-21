@@ -344,14 +344,20 @@ pub const FORAGER_REMEDY_SEASON_END_MONTH: u8 = 10;
 pub const REMEDIES_PER_DELIVERY: f64 = 3.0;
 pub const REMEDY_DELIVERY_TARGET_DAYS: f64 = 10.0;
 pub const FISH_PER_HARVEST: f64 = 3.5;
+pub const RICH_GAME_YIELD_MULTIPLIER: f64 = 1.5;
 pub const RICH_FISH_YIELD_MULTIPLIER: f64 = 1.75;
 pub const RICH_BERRY_YIELD_MULTIPLIER: f64 = 1.5;
+pub const RICH_MUSHROOM_YIELD_MULTIPLIER: f64 = 1.5;
 pub const FOOD_PER_DELIVERY: f64 = 6.0;
 pub const BERRIES_REGROW_PER_DAY: f64 = 18.0;
 pub const MUSHROOMS_REGROW_PER_DAY: f64 = 12.0;
 pub const MUSHROOM_AUTUMN_REGROWTH_MULTIPLIER: f64 = 1.75;
 pub const FISH_REPRODUCTION_RATE_PER_DAY: f64 = 0.08;
 pub const GAME_REPRODUCTION_RATE_PER_DAY: f64 = 0.12;
+pub const RICH_GAME_REGROWTH_MULTIPLIER: f64 = 1.75;
+pub const RICH_FISH_REGROWTH_MULTIPLIER: f64 = 1.75;
+pub const RICH_BERRY_REGROWTH_MULTIPLIER: f64 = 1.5;
+pub const RICH_MUSHROOM_REGROWTH_MULTIPLIER: f64 = 1.5;
 pub const GAME_MIN_BREEDING_POPULATION: f64 = 2.0;
 pub const GAME_HABITAT_DISRUPTION_RADIUS: f64 = 38.0;
 pub const NATURAL_TREE_MATURATION_DAYS: f64 = 180.0;
@@ -843,7 +849,6 @@ pub enum BuildingSimKind {
     Tannery,
     Cobbler,
     Guardhouse,
-    Vineyard,
     PastoralFarmstead,
     Swineherd,
     VillageStorehouse,

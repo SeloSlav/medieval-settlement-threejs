@@ -25,7 +25,6 @@ for (const kind of [
   'fishing_camp',
   'threshing_barn',
   'apiary',
-  'vineyard',
   'watermill',
   'windmill',
   'bakery',

@@ -542,14 +542,20 @@ export type GameBalance = {
     remediesPerDelivery: number;
     remedyDeliveryTargetDays: number;
     fishPerHarvest: number;
+    richGameYieldMultiplier: number;
     richFishYieldMultiplier: number;
     richBerryYieldMultiplier: number;
+    richMushroomYieldMultiplier: number;
     foodPerDelivery: number;
     berriesRegrowPerDay: number;
     mushroomsRegrowPerDay: number;
     mushroomAutumnRegrowthMultiplier: number;
     fishReproductionRatePerDay: number;
     gameReproductionRatePerDay: number;
+    richGameRegrowthMultiplier: number;
+    richFishRegrowthMultiplier: number;
+    richBerryRegrowthMultiplier: number;
+    richMushroomRegrowthMultiplier: number;
     gameMinBreedingPopulation: number;
     gameHabitatDisruptionRadius: number;
     naturalTreeMaturationDays: number;
@@ -799,7 +805,6 @@ const simKindByKind: Record<string, string | null> = {
   weaver: 'Weaver',
   tannery: 'Tannery',
   cobbler: 'Cobbler',
-  vineyard: 'Vineyard',
   pastoral_farmstead: 'PastoralFarmstead',
   swineherd: 'Swineherd',
 };
@@ -1157,14 +1162,20 @@ function generateRust(): string {
     `pub const REMEDIES_PER_DELIVERY: f64 = ${rustF64(b.production.remediesPerDelivery)};`,
     `pub const REMEDY_DELIVERY_TARGET_DAYS: f64 = ${rustF64(b.production.remedyDeliveryTargetDays)};`,
     `pub const FISH_PER_HARVEST: f64 = ${rustF64(b.production.fishPerHarvest)};`,
+    `pub const RICH_GAME_YIELD_MULTIPLIER: f64 = ${rustF64(b.production.richGameYieldMultiplier)};`,
     `pub const RICH_FISH_YIELD_MULTIPLIER: f64 = ${rustF64(b.production.richFishYieldMultiplier)};`,
     `pub const RICH_BERRY_YIELD_MULTIPLIER: f64 = ${rustF64(b.production.richBerryYieldMultiplier)};`,
+    `pub const RICH_MUSHROOM_YIELD_MULTIPLIER: f64 = ${rustF64(b.production.richMushroomYieldMultiplier)};`,
     `pub const FOOD_PER_DELIVERY: f64 = ${rustF64(b.production.foodPerDelivery)};`,
     `pub const BERRIES_REGROW_PER_DAY: f64 = ${rustF64(b.production.berriesRegrowPerDay)};`,
     `pub const MUSHROOMS_REGROW_PER_DAY: f64 = ${rustF64(b.production.mushroomsRegrowPerDay)};`,
     `pub const MUSHROOM_AUTUMN_REGROWTH_MULTIPLIER: f64 = ${rustF64(b.production.mushroomAutumnRegrowthMultiplier)};`,
     `pub const FISH_REPRODUCTION_RATE_PER_DAY: f64 = ${rustF64(b.production.fishReproductionRatePerDay)};`,
     `pub const GAME_REPRODUCTION_RATE_PER_DAY: f64 = ${rustF64(b.production.gameReproductionRatePerDay)};`,
+    `pub const RICH_GAME_REGROWTH_MULTIPLIER: f64 = ${rustF64(b.production.richGameRegrowthMultiplier)};`,
+    `pub const RICH_FISH_REGROWTH_MULTIPLIER: f64 = ${rustF64(b.production.richFishRegrowthMultiplier)};`,
+    `pub const RICH_BERRY_REGROWTH_MULTIPLIER: f64 = ${rustF64(b.production.richBerryRegrowthMultiplier)};`,
+    `pub const RICH_MUSHROOM_REGROWTH_MULTIPLIER: f64 = ${rustF64(b.production.richMushroomRegrowthMultiplier)};`,
     `pub const GAME_MIN_BREEDING_POPULATION: f64 = ${rustF64(b.production.gameMinBreedingPopulation)};`,
     `pub const GAME_HABITAT_DISRUPTION_RADIUS: f64 = ${rustF64(b.production.gameHabitatDisruptionRadius)};`,
     `pub const NATURAL_TREE_MATURATION_DAYS: f64 = ${rustF64(b.production.naturalTreeMaturationDays)};`,
@@ -1525,7 +1536,6 @@ function generateRust(): string {
   lines.push('    Tannery,');
   lines.push('    Cobbler,');
   lines.push('    Guardhouse,');
-  lines.push('    Vineyard,');
   lines.push('    PastoralFarmstead,');
   lines.push('    Swineherd,');
   lines.push('    VillageStorehouse,');
@@ -2131,14 +2141,20 @@ function generateTypeScript(): string {
     `export const REMEDIES_PER_DELIVERY = ${b.production.remediesPerDelivery};`,
     `export const REMEDY_DELIVERY_TARGET_DAYS = ${b.production.remedyDeliveryTargetDays};`,
     `export const FISH_PER_HARVEST = ${b.production.fishPerHarvest};`,
+    `export const RICH_GAME_YIELD_MULTIPLIER = ${b.production.richGameYieldMultiplier};`,
     `export const RICH_FISH_YIELD_MULTIPLIER = ${b.production.richFishYieldMultiplier};`,
     `export const RICH_BERRY_YIELD_MULTIPLIER = ${b.production.richBerryYieldMultiplier};`,
+    `export const RICH_MUSHROOM_YIELD_MULTIPLIER = ${b.production.richMushroomYieldMultiplier};`,
     `export const FOOD_PER_DELIVERY = ${b.production.foodPerDelivery};`,
     `export const BERRIES_REGROW_PER_DAY = ${b.production.berriesRegrowPerDay};`,
     `export const MUSHROOMS_REGROW_PER_DAY = ${b.production.mushroomsRegrowPerDay};`,
     `export const MUSHROOM_AUTUMN_REGROWTH_MULTIPLIER = ${b.production.mushroomAutumnRegrowthMultiplier};`,
     `export const FISH_REPRODUCTION_RATE_PER_DAY = ${b.production.fishReproductionRatePerDay};`,
     `export const GAME_REPRODUCTION_RATE_PER_DAY = ${b.production.gameReproductionRatePerDay};`,
+    `export const RICH_GAME_REGROWTH_MULTIPLIER = ${b.production.richGameRegrowthMultiplier};`,
+    `export const RICH_FISH_REGROWTH_MULTIPLIER = ${b.production.richFishRegrowthMultiplier};`,
+    `export const RICH_BERRY_REGROWTH_MULTIPLIER = ${b.production.richBerryRegrowthMultiplier};`,
+    `export const RICH_MUSHROOM_REGROWTH_MULTIPLIER = ${b.production.richMushroomRegrowthMultiplier};`,
     `export const GAME_MIN_BREEDING_POPULATION = ${b.production.gameMinBreedingPopulation};`,
     `export const GAME_HABITAT_DISRUPTION_RADIUS = ${b.production.gameHabitatDisruptionRadius};`,
     `export const NATURAL_TREE_MATURATION_DAYS = ${b.production.naturalTreeMaturationDays};`,

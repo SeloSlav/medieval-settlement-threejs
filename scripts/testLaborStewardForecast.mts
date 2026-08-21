@@ -146,9 +146,9 @@ assert.equal(seasonalFirstWithReserve.availableLaborAfter, 1);
 
 const monthBoundaryState = emptyGameState();
 const emptyApiary = building('apiary', 'apiary', 0);
-const dormantVineyard = building('vineyard', 'vineyard', 2);
+const dormantFarm = building('dormant-farm', 'threshing_barn', 2);
 monthBoundaryState.buildings.set(emptyApiary.id, emptyApiary);
-monthBoundaryState.buildings.set(dormantVineyard.id, dormantVineyard);
+monthBoundaryState.buildings.set(dormantFarm.id, dormantFarm);
 const marchSnapshot = computeSettlementLaborStewardForecast(
   monthBoundaryState,
   3,
@@ -196,14 +196,14 @@ renderedState.tick = Math.round(
 );
 const townHall = building('hall', 'town_hall', 1);
 const aprilApiary = building('apiary', 'apiary', 0);
-const aprilVineyard = building('vineyard', 'vineyard', 2);
+const aprilDormantFarm = building('dormant-farm', 'threshing_barn', 2);
 const aprilMill = building('mill', 'watermill', 0);
 aprilMill.grain = 20;
 const aprilConstruction = constructionSite('construction');
 for (const site of [
   townHall,
   aprilApiary,
-  aprilVineyard,
+  aprilDormantFarm,
   aprilMill,
   aprilConstruction,
 ]) {
@@ -236,7 +236,7 @@ assert.match(
 );
 assert.match(
   inspector.detailsHtml,
-  /data-inspect-building="vineyard" aria-label="Inspect first dawn labor steward crew change"/,
+  /data-inspect-building="dormant-farm" aria-label="Inspect first dawn labor steward crew change"/,
 );
 assert.match(inspector.detailsHtml, /Steward reserve.*1 villager held for explicit orders/);
 assert.match(

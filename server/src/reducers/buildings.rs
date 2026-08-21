@@ -39,7 +39,10 @@ use crate::granary_policy::{
     is_valid_granary_fresh_food_target_percent, normalize_granary_grain_reserve,
     GRANARY_FRESH_FOOD_TARGET_DEFAULT_PERCENT,
 };
-use crate::harvest_reserve_policy::{harvestable_wild_stock, normalize_harvest_reserve_percent};
+use crate::harvest_reserve_policy::{
+    default_harvest_reserve_percent, harvestable_wild_stock,
+    normalize_harvest_reserve_percent,
+};
 use crate::hydrology::{sample_world_hydrology_score, well_capacity_from_hydrology};
 use crate::labor_steward_policy::steward_deployable_labor;
 use crate::lifecycle::ensure_player_resources;
@@ -94,7 +97,6 @@ use crate::tables::graveyard;
 use crate::tables::{
     farm_field, livestock_herd, pasture, Building, ForagingNode, Quarry, WorldConfig,
 };
-use crate::vineyard::is_valid_vineyard_policy;
 use crate::weaver_input_policy::is_valid_weaver_input_policy;
 use crate::woodcutter_policy::normalize_woodcutter_timber_reserve;
 use crate::worksite_stall_policy::{
@@ -358,9 +360,6 @@ fn supports_buildable_remote_work_camp(kind: &str) -> bool {
 pub fn place_building(ctx: &ReducerContext, kind: String, x: f64, z: f64) -> Result<(), String> {
     if kind == "remote_work_camp" {
         return Err("Plan an overnight camp from its rural worksite card.".to_string());
-    }
-    if kind == "vineyard" {
-        return Err("Lay out vineyards by drawing their four-corner growing parcel.".to_string());
     }
     place_building_internal(ctx, kind, x, z, 0).map(|_| ())
 }
@@ -847,6 +846,7 @@ pub(crate) fn place_building_internal(
         0
     };
     let chapel_tier = if kind == "chapel" { 1 } else { 0 };
+    let harvest_reserve_percent = default_harvest_reserve_percent(&kind);
     ctx.db.building().insert(Building {
         id: building_id,
         owner,
@@ -896,7 +896,7 @@ pub(crate) fn place_building_internal(
         granary_accepts_fresh_food: true,
         granary_households_first: false,
         granary_grain_reserve: 0.0,
-        harvest_reserve_percent: 0,
+        harvest_reserve_percent,
         wool: 0.0,
         cloth: 0.0,
         construction_priority: CONSTRUCTION_PRIORITY_NORMAL,
@@ -923,7 +923,6 @@ pub(crate) fn place_building_internal(
         chapel_monastery_tithe_due: 0.0,
         civic_receipts_gold: 0.0,
         private_export_proceeds_gold: 0.0,
-        vineyard_production_policy: 1,
         vineyard_fermenting_grapes: 0.0,
         vineyard_fermentation_progress: 0.0,
         apiary_harvest_policy: 1,
@@ -2800,30 +2799,6 @@ pub fn set_marketplace_specialty_family_export_policy(
 }
 
 #[reducer]
-pub fn set_vineyard_production_policy(
-    ctx: &ReducerContext,
-    building_id: u64,
-    production_policy: u8,
-) -> Result<(), String> {
-    if !is_valid_vineyard_policy(production_policy) {
-        return Err("Vineyard policy must be Table grapes, Balanced, or Wine first.".to_string());
-    }
-    let owner = ctx.sender();
-    let mut building = ctx
-        .db
-        .building()
-        .id()
-        .find(&building_id)
-        .ok_or_else(|| "Vineyard not found.".to_string())?;
-    if building.owner != owner || building.kind != "vineyard" || !building.construction_complete {
-        return Err("You do not own this completed vineyard.".to_string());
-    }
-    building.vineyard_production_policy = production_policy;
-    ctx.db.building().id().update(building);
-    Ok(())
-}
-
-#[reducer]
 pub fn set_apiary_harvest_policy(
     ctx: &ReducerContext,
     building_id: u64,
@@ -2859,12 +2834,15 @@ pub fn set_harvest_reserve_percent(
         .building()
         .id()
         .find(&building_id)
-        .ok_or_else(|| "Hunter's hall or fishing camp not found.".to_string())?;
+        .ok_or_else(|| "Wild-food camp not found.".to_string())?;
     if building.owner != owner
-        || !matches!(building.kind.as_str(), "hunters_hall" | "fishing_camp")
+        || !matches!(
+            building.kind.as_str(),
+            "foragers_shed" | "hunters_hall" | "fishing_camp"
+        )
         || !building.construction_complete
     {
-        return Err("You do not own this completed hunter's hall or fishing camp.".to_string());
+        return Err("You do not own this completed wild-food camp.".to_string());
     }
     building.harvest_reserve_percent = normalize_harvest_reserve_percent(reserve_percent);
     ctx.db.building().id().update(building);

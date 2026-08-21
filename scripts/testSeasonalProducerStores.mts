@@ -7,8 +7,6 @@ import {
   APIARY_HONEY_VISUAL_SEGMENTS,
   THRESHING_GRAIN_VISUAL_SEGMENTS,
   THRESHING_FLAX_VISUAL_SEGMENTS,
-  VINEYARD_GRAPE_VISUAL_SEGMENTS,
-  VINEYARD_WINE_VISUAL_SEGMENTS,
   syncSeasonalStockpileVisuals,
 } from '../src/buildings/seasonalStockpileVisuals.ts';
 import { PASTORAL_SALT_VISUAL_SEGMENTS } from '../src/buildings/buildingStockpileVisuals.ts';
@@ -18,7 +16,6 @@ import { seasonalProducerOutputBlocker } from '../src/economy/specialtyTrade.ts'
 import {
   APIARY_HONEY_PER_CYCLE,
   BUILDING_STORAGE_CAPS,
-  VINEYARD_GRAPES_PER_HARVEST_CYCLE,
 } from '../src/generated/gameBalance.ts';
 import type { BuildingKind, BuildingState } from '../src/resources/types.ts';
 
@@ -46,18 +43,6 @@ const stockGroups = [
     'ApiaryHoneyStockpile',
     'ApiaryHoneySegment',
     APIARY_HONEY_VISUAL_SEGMENTS,
-  ],
-  [
-    'vineyard',
-    'VineyardGrapeStockpile',
-    'VineyardGrapeSegment',
-    VINEYARD_GRAPE_VISUAL_SEGMENTS,
-  ],
-  [
-    'vineyard',
-    'VineyardWineStockpile',
-    'VineyardWineSegment',
-    VINEYARD_WINE_VISUAL_SEGMENTS,
   ],
 ] as const;
 
@@ -115,17 +100,6 @@ assert.notEqual(
   'the first farmstead salt sack must invalidate the visual signature',
 );
 
-const vineyardMarker = createBuildingMesh('vineyard');
-syncSeasonalStockpileVisuals(
-  vineyardMarker,
-  building('vineyard', { grapes: 1, wine: 91 }),
-);
-assertVisibleSegments(vineyardMarker, 'VineyardGrapeStockpile', 'VineyardGrapeSegment', 1);
-assertVisibleSegments(vineyardMarker, 'VineyardWineStockpile', 'VineyardWineSegment', 2);
-syncSeasonalStockpileVisuals(vineyardMarker, building('vineyard'));
-assertVisibleSegments(vineyardMarker, 'VineyardGrapeStockpile', 'VineyardGrapeSegment', 0);
-assertVisibleSegments(vineyardMarker, 'VineyardWineStockpile', 'VineyardWineSegment', 0);
-
 assert.equal(
   seasonalProducerOutputBlocker(building('apiary', {
     honey: BUILDING_STORAGE_CAPS.apiary.honey
@@ -141,23 +115,6 @@ const honeyBlocked = seasonalProducerOutputBlocker(building('apiary', {
 }));
 assert.equal(honeyBlocked?.commodity, 'honey');
 assert.ok(Math.abs((honeyBlocked?.missingRoom ?? 0) - 0.1) < 1e-9);
-
-assert.equal(
-  seasonalProducerOutputBlocker(building('vineyard', {
-    wine: BUILDING_STORAGE_CAPS.vineyard.wine,
-    grapes: BUILDING_STORAGE_CAPS.vineyard.food - VINEYARD_GRAPES_PER_HARVEST_CYCLE,
-  })),
-  null,
-  'harvest backpressure depends on a whole grape batch, not future cellar output',
-);
-assert.equal(
-  seasonalProducerOutputBlocker(building('vineyard', {
-    grapes: BUILDING_STORAGE_CAPS.vineyard.food
-      - VINEYARD_GRAPES_PER_HARVEST_CYCLE
-      + 0.1,
-  }))?.commodity,
-  'grapes',
-);
 
 const firstHoneyBand = building('apiary', { honey: 1 });
 const sameHoneyBand = building('apiary', { honey: 46 });
@@ -202,8 +159,8 @@ assert.match(
 );
 assert.match(
   serverSimulation,
-  /advance_vineyard_fermentation[\s\S]*fermentable_grapes[\s\S]*withdraw_building_commodity\([\s\S]*CommodityKind::Grapes[\s\S]*vineyard_fermentation_progress \+= TICK_DT \* onsite_labor as f64[\s\S]*deposit_building_commodity\([\s\S]*CommodityKind::Wine/,
-  'vineyards must stage real grapes, accumulate staffed work, and only then deposit wine',
+  /advance_monastery_vineyard_fermentation[\s\S]*fermentable_grapes[\s\S]*withdraw_building_commodity\([\s\S]*CommodityKind::Grapes[\s\S]*vineyard_fermentation_progress \+= TICK_DT \* onsite_labor as f64[\s\S]*deposit_building_commodity\([\s\S]*CommodityKind::Wine/,
+  'the monastery cellar must stage real grapes, accumulate monk work, and only then deposit wine',
 );
 
 const expandedInspector = readFileSync(
@@ -211,7 +168,8 @@ const expandedInspector = readFileSync(
   'utf8',
 );
 assert.match(expandedInspector, /data-apiary-harvest-policy=/);
-assert.match(expandedInspector, /data-vineyard-production-policy=/);
+assert.match(expandedInspector, /data-land-parcel="vineyard"/);
+assert.doesNotMatch(expandedInspector, /data-vineyard-production-policy=/);
 assert.match(expandedInspector, /Forage landscape/);
 assert.match(expandedInspector, /worker-seconds remain/);
 

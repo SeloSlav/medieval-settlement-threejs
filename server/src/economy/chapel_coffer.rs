@@ -264,7 +264,6 @@ mod tests {
             cured_meat: 0.0,
             smoked_fish: 0.0,
             cheese: 0.0,
-            vineyard_production_policy: 1,
             vineyard_fermenting_grapes: 0.0,
             vineyard_fermentation_progress: 0.0,
             apiary_harvest_policy: 1,

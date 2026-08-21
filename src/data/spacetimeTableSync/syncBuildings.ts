@@ -223,7 +223,6 @@ function buildingStateFromRow(
     chapelTier: Math.max(1, Math.min(3, Number(materialRow.chapelTier ?? 3))) as 1 | 2 | 3,
     civicReceiptsGold: wholeResourceUnits(row.civicReceiptsGold),
     privateExportProceedsGold: wholeResourceUnits(row.privateExportProceedsGold),
-    vineyardProductionPolicy: row.vineyardProductionPolicy,
     vineyardFermentingGrapes: wholeResourceUnits(row.vineyardFermentingGrapes),
     vineyardFermentationProgress: row.vineyardFermentationProgress,
     apiaryHarvestPolicy: row.apiaryHarvestPolicy,

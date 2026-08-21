@@ -8,7 +8,7 @@ import { fireDisabledBuildingIds } from '../fires/fireIncident.ts';
 import { BUILDING_DEFINITIONS } from '../generated/gameBalance.ts';
 import { compareStableEntityIds } from '../logistics/roadLogistics.ts';
 import type { BuildingKind, BuildingState, FarmFieldState, GameState } from '../resources/types.ts';
-import { apiaryIsActive, vineyardIsHarvesting } from './specialtyTrade.ts';
+import { apiaryIsActive } from './specialtyTrade.ts';
 import { edibleFoodStock } from './foodInventory.ts';
 import { breadGrainStock, grainSheafStock } from './cropGoods.ts';
 import {
@@ -24,7 +24,6 @@ export const SEASONAL_LABOR_KINDS = [
   'threshing_barn',
   'apiary',
   'watermill',
-  'vineyard',
 ] as const satisfies readonly BuildingKind[];
 
 export type SeasonalLaborKind = (typeof SEASONAL_LABOR_KINDS)[number];
@@ -98,8 +97,6 @@ export function seasonalProductionActive(
       return apiaryIsActive(month);
     case 'watermill':
       return month < 12 && month > 2;
-    case 'vineyard':
-      return vineyardIsHarvesting(month);
     default:
       return null;
   }
@@ -146,8 +143,6 @@ function hasOutboundSeasonalStock(
       return (building.fish ?? 0) > 1e-6;
     case 'apiary':
       return building.honey > 1e-6;
-    case 'vineyard':
-      return (building.grapes ?? 0) > 1e-6 || building.wine > 1e-6;
     case 'threshing_barn':
       return farmsteadExportableGrain(breadGrainStock(building), fields) > 1e-6
         || grainSheafStock(building) > 1e-6;

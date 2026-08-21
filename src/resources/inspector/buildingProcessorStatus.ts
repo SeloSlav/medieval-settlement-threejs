@@ -978,7 +978,6 @@ export function getBuildingProcessorStatus(
         onsiteLabor,
       );
     case 'apiary':
-    case 'vineyard':
       return getSeasonalProducerStatus(building, context.month, onsiteLabor);
     case 'carpenter':
       return getSimpleLaborStatus(
@@ -1015,9 +1014,7 @@ function getSeasonalProducerStatus(
     return {
       statusText: building.assignedLabor > 0
         ? 'Seasonal work paused - the full roster is away with its cart'
-        : building.kind === 'apiary'
-          ? 'Idle - assign workers to tend the apiary'
-          : 'Idle - assign workers to tend the vineyard',
+        : 'Idle - assign workers to tend the apiary',
       statusState: 'idle',
       waterDetailHtml: '',
     };

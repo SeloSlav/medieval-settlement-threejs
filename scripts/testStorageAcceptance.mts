@@ -30,10 +30,10 @@ assert.ok(STOREHOUSE_STORAGE_COMMODITIES.includes('hides'));
 assert.ok(STOREHOUSE_STORAGE_COMMODITIES.includes('leather'));
 assert.ok(STOREHOUSE_STORAGE_COMMODITIES.includes('shoes'));
 assert.ok(STOREHOUSE_STORAGE_COMMODITIES.includes('pottery'));
-assert.equal(GRANARY_STORAGE_COMMODITIES.length, 40);
+assert.equal(GRANARY_STORAGE_COMMODITIES.length, 41);
 for (const commodity of [
   'pears', 'aronia', 'rosehips', 'cabbage', 'carrots', 'beetroot',
-  'aroniaJam', 'rosehipJam', 'cider', 'pearCider',
+  'aroniaJam', 'rosehipJam', 'cider', 'pearCider', 'wine',
 ] as const) {
   assert.ok(GRANARY_STORAGE_COMMODITIES.includes(commodity));
 }
@@ -59,6 +59,7 @@ const meatOnlyGranary = {
 } as BuildingState;
 assert.equal(storageAcceptsCommodity(meatOnlyGranary, 'meat'), true);
 assert.equal(storageAcceptsCommodity(meatOnlyGranary, 'fish'), false);
+assert.equal(storageAcceptsCommodity(meatOnlyGranary, 'wine'), false);
 
 const storehouseControls = renderStorageAcceptanceControls(
   storehouse,
@@ -81,6 +82,7 @@ assert.match(granaryControls, /Fresh provisions/);
 assert.match(granaryControls, /Harvest and grain/);
 assert.match(granaryControls, /data-storage-commodity="meat"[^>]*aria-pressed="true"/);
 assert.match(granaryControls, /data-storage-commodity="fish"[^>]*is-blocked|class="[^"]*is-blocked[^"]*"[^>]*data-resource-cost="fish"/);
+assert.match(granaryControls, /data-storage-commodity="wine"/);
 
 const deliveryTrips = readFileSync('server/src/simulation/delivery_trips.rs', 'utf8');
 assert.match(
@@ -104,6 +106,16 @@ assert.match(
   expandedEconomy,
   /has_linked_export_post[\s\S]*CommodityKind::Charcoal[\s\S]*storehouse_stock_target/,
   'a filtered Storehouse can deliberately buffer charcoal for a linked export post',
+);
+assert.match(
+  expandedEconomy,
+  /fn dispatch_monastery_vineyard_wine[\s\S]*storage_accepts_commodity\(granary, CommodityKind::Wine\)/,
+  'wine must leave its producer for a Granary only when that Granary accepts wine',
+);
+assert.match(
+  expandedEconomy,
+  /GranaryDispatchDuty::Households[\s\S]*CommodityKind::Wine,[\s\S]*&\["marketplace"\]/,
+  'accepted Granary wine must remain eligible for ordinary market supply',
 );
 
 console.log('granular storage acceptance and physical Trading Post staging checks passed');

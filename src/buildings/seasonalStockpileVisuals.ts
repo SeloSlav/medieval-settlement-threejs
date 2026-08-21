@@ -15,8 +15,6 @@ import {
 export const THRESHING_GRAIN_VISUAL_SEGMENTS = 4;
 export const THRESHING_FLAX_VISUAL_SEGMENTS = 4;
 export const APIARY_HONEY_VISUAL_SEGMENTS = 3;
-export const VINEYARD_GRAPE_VISUAL_SEGMENTS = 2;
-export const VINEYARD_WINE_VISUAL_SEGMENTS = 2;
 
 export function seasonalStockpileVisualSignature(building: BuildingState): string {
   if (building.constructionComplete === false) return '';
@@ -52,20 +50,6 @@ export function seasonalStockpileVisualSignature(building: BuildingState): strin
           building.honey,
           BUILDING_STORAGE_CAPS.apiary.honey,
           APIARY_HONEY_VISUAL_SEGMENTS,
-        )
-      }`;
-    case 'vineyard':
-      return `:seasonal-store:${
-        stockpileVisualLevel(
-          building.grapes ?? 0,
-          BUILDING_STORAGE_CAPS.vineyard.food,
-          VINEYARD_GRAPE_VISUAL_SEGMENTS,
-        )
-      }:${
-        stockpileVisualLevel(
-          building.wine,
-          BUILDING_STORAGE_CAPS.vineyard.wine,
-          VINEYARD_WINE_VISUAL_SEGMENTS,
         )
       }`;
     default:
@@ -125,22 +109,6 @@ export function syncSeasonalStockpileVisuals(
         'ApiaryHoneySegment',
         building.honey,
         BUILDING_STORAGE_CAPS.apiary.honey,
-      );
-      break;
-    case 'vineyard':
-      syncNamedStockpile(
-        marker,
-        'VineyardGrapeStockpile',
-        'VineyardGrapeSegment',
-        building.grapes ?? 0,
-        BUILDING_STORAGE_CAPS.vineyard.food,
-      );
-      syncNamedStockpile(
-        marker,
-        'VineyardWineStockpile',
-        'VineyardWineSegment',
-        building.wine,
-        BUILDING_STORAGE_CAPS.vineyard.wine,
       );
       break;
   }

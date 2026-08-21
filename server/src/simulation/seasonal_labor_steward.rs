@@ -95,7 +95,6 @@ pub fn recall_idle_seasonal_labor_for_owner(
             }
             "fishing_camp" => building.fish > 1e-6,
             "apiary" => building.honey > 1e-6,
-            "vineyard" => building.grapes > 1e-6 || building.wine > 1e-6,
             "threshing_barn" => {
                 farmstead_exportable_grain(
                     building.rye_grain + building.oat_grain + building.maslin_grain + building.flax,

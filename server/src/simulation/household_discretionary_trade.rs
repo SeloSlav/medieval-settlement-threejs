@@ -21,6 +21,7 @@ use crate::simulation::chapel_community::recovery_stock_min;
 use crate::simulation::game_calendar::GameClock;
 use crate::simulation::residence_needs::{load_needs, ResidenceNeedKind};
 use crate::simulation::tick_context::SimTickContext;
+use crate::simulation::trading_post_exports_commodity;
 use crate::tables::{Building, Residence};
 
 const OPTIONAL_GOODS: [CommodityKind; 6] = [
@@ -127,6 +128,11 @@ fn try_purchase_one_good(
     let start = (residence.id.wrapping_add(day_marker) as usize) % OPTIONAL_GOODS.len();
     for offset in 0..OPTIONAL_GOODS.len() {
         let commodity = OPTIONAL_GOODS[(start + offset) % OPTIONAL_GOODS.len()];
+        // Once a commodity is marked for export, stock staged in this post is
+        // committed to the monthly exchange rather than the local shopfront.
+        if trading_post_exports_commodity(ctx, trading_post.id, commodity) {
+            continue;
+        }
         let price = local_unit_price(commodity);
         let stock = building_commodity_stock(trading_post, commodity);
         let units = stock

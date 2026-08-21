@@ -112,17 +112,17 @@ const westApiary = building('west-apiary', 'apiary', 0, {
   assignedLabor: 0,
   honey: 5,
 });
-const westVineyard = building('west-vineyard', 'vineyard', 0, {
+const westWineEquivalent = building('west-ciderhouse', 'brewery', 0, {
   assignedLabor: 1,
-  wine: 4,
+  ale: 4,
 });
 const westWeaver = building('west-weaver', 'weaver', 0, {
   assignedLabor: 1,
   cloth: 2,
 });
-const remoteVineyard = building('remote-vineyard', 'vineyard', 100, {
+const remoteBrewery = building('remote-brewery', 'brewery', 100, {
   assignedLabor: 1,
-  wine: 8,
+  ale: 8,
 });
 const fullHoneyMarket = building('full-honey-market', 'trading_post', 200, {
   assignedLabor: 1,
@@ -137,9 +137,9 @@ for (const candidate of [
   westOverflowMarket,
   westBrewery,
   westApiary,
-  westVineyard,
+  westWineEquivalent,
   westWeaver,
-  remoteVineyard,
+  remoteBrewery,
   fullHoneyMarket,
   blockedApiary,
 ]) {
@@ -153,7 +153,7 @@ trips.set(
   'returning-wine-cart',
   trip(
     'returning-wine-cart',
-    westVineyard.id,
+    westWineEquivalent.id,
     'wine',
     99,
     westMarket.id,
@@ -203,7 +203,7 @@ assert.equal(split.roadPlan?.exposedProducerBranches, 2);
 assert.equal(split.roadPlan?.roadMatchedProducerStock, 30);
 assert.equal(split.roadPlan?.roadStrandedProducerStock, 8);
 assert.equal(split.roadPlan?.brokerCoveredProducerStock, 30);
-assert.equal(split.firstAttentionBuildingId, remoteVineyard.id);
+assert.equal(split.firstAttentionBuildingId, remoteBrewery.id);
 assert.equal(split.firstAttentionKind, 'producer-road');
 assert.equal(split.slowestActiveMarketId, fullHoneyMarket.id);
 assert.ok(
@@ -217,7 +217,7 @@ assert.match(splitRows, /2 \/ 3 producer branches reach a completed market/);
 assert.match(splitRows, /8\.0 stranded by topology/);
 assert.match(splitRows, /9\.0 behind full destination stores/);
 assert.match(splitRows, /3 \/ 3 completed markets actively selling/);
-assert.match(splitRows, /data-inspect-building="remote-vineyard"/);
+assert.match(splitRows, /data-inspect-building="remote-brewery"/);
 const physicalSplitRows = renderSettlementSpecialtyExportRows(split, true);
 assert.match(physicalSplitRows, /3 \/ 3 completed markets ready/);
 assert.match(physicalSplitRows, /regional traders prepare discrete loads/);

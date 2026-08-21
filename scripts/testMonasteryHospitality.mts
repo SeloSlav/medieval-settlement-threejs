@@ -274,8 +274,13 @@ assert.match(
 );
 assert.match(
   server,
-  /step_vineyard[\s\S]*?advance_vineyard_fermentation[\s\S]*?CommodityKind::Wine,[\s\S]*?&\["trading_post"\]/,
-  'vineyards must export their own wine without provisioning monastery stores',
+  /fn advance_monastery_vineyard_fermentation[\s\S]*?deposit_building_commodity\([\s\S]*?CommodityKind::Wine/,
+  'the monastery vineyard must ferment physical grapes into physical wine',
+);
+assert.match(
+  server,
+  /fn dispatch_monastery_vineyard_wine[\s\S]*?&\["granary"\][\s\S]*?storage_accepts_commodity\(granary, CommodityKind::Wine\)/,
+  'estate wine must enter only granaries that the player allows to store wine',
 );
 assert.match(
   server,
@@ -294,7 +299,7 @@ assert.match(
 );
 assert.match(
   server,
-  /step_brewery[\s\S]*?for beverage in \[[\s\S]*?CommodityKind::Ale,[\s\S]*?CommodityKind::Cider,[\s\S]*?CommodityKind::Mead,[\s\S]*?&\["tavern"\][\s\S]*?CommodityKind::Ale,[\s\S]*?&\["trading_post"\]/,
+  /step_brewery[\s\S]*?for beverage in \[[\s\S]*?CommodityKind::Cider,[\s\S]*?CommodityKind::PearCider,[\s\S]*?CommodityKind::Ale,[\s\S]*?CommodityKind::Mead,[\s\S]*?&\["tavern"\][\s\S]*?CommodityKind::Ale,[\s\S]*?&\["trading_post"\]/,
   'town breweries must serve taverns and external trade without refilling monastery stores',
 );
 assert.doesNotMatch(

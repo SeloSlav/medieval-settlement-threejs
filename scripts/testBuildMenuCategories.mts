@@ -27,7 +27,7 @@ assert.equal(
   'Mining Pit and Quarry must replace the individual Mineral mine and Clay pit cards',
 );
 assert.deepEqual(keys(AGRICULTURE_BUILD_MENU_ENTRIES), [
-  'threshing_barn', 'apiary', 'vineyard', 'pastoral_farmstead', 'swineherd',
+  'threshing_barn', 'apiary', 'pastoral_farmstead', 'swineherd',
 ]);
 assert.deepEqual(keys(INDUSTRY_BUILD_MENU_ENTRIES), [
   'woodcutters_lodge', 'watermill', 'windmill', 'bakery', 'brewery', 'smokehouse',
@@ -44,7 +44,7 @@ assert.deepEqual(categoryKeys('trade'), ['marketplace', 'trading_post', 'village
 assert.deepEqual(categoryKeys('gathering'), [
   'lumber_mill', 'reforester', 'stone_quarry', 'large_quarry', 'hunters_hall', 'foragers_shed', 'fishing_camp',
 ]);
-assert.deepEqual(categoryKeys('agriculture'), ['threshing_barn', 'apiary', 'vineyard', 'pastoral_farmstead', 'swineherd']);
+assert.deepEqual(categoryKeys('agriculture'), ['threshing_barn', 'apiary', 'pastoral_farmstead', 'swineherd']);
 assert.deepEqual(categoryKeys('food'), ['watermill', 'windmill', 'bakery', 'brewery', 'tavern', 'smokehouse']);
 assert.deepEqual(categoryKeys('industry'), ['woodcutters_lodge', 'carpenter', 'weaver', 'tannery', 'cobbler', 'charcoal_burner', 'smithy', 'potter_kiln']);
 assert.deepEqual(categoryKeys('faith'), ['chapel', 'monastery']);
@@ -103,6 +103,7 @@ assert.doesNotMatch(
   /data-tooltip-flow=/,
   'the monastery must not present its private estate stores as player-facing production',
 );
+assert.doesNotMatch(renderedCards, /data-action="vineyard"/, 'vineyards must be monastery field extensions, not standalone buildings');
 assert.equal(
   [...renderedCards.matchAll(/data-tooltip-placement="above"/g)].length,
   BUILD_MENU_ENTRIES.length,

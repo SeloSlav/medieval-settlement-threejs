@@ -45,8 +45,11 @@ struct FarmsteadSeedReserves {
 
 const MARKET_STALL_GROUP_FOOD: u8 = 0;
 const MARKET_STALL_GROUP_GOODS: u8 = 1;
-const MARKET_FOOD_STALL_NEEDS: [ResidenceNeedKind; 2] =
-    [ResidenceNeedKind::Food, ResidenceNeedKind::PreservedFood];
+const MARKET_FOOD_STALL_NEEDS: [ResidenceNeedKind; 3] = [
+    ResidenceNeedKind::Food,
+    ResidenceNeedKind::PreservedFood,
+    ResidenceNeedKind::Luxury,
+];
 const MARKET_GOODS_STALL_NEEDS: [ResidenceNeedKind; 4] = [
     ResidenceNeedKind::Firewood,
     ResidenceNeedKind::Cloth,
@@ -1377,9 +1380,10 @@ impl SimTickContext {
 
 fn stall_group_for_need(need_kind: ResidenceNeedKind) -> Option<u8> {
     match need_kind {
-        ResidenceNeedKind::Food | ResidenceNeedKind::PreservedFood | ResidenceNeedKind::Ale => {
-            Some(MARKET_STALL_GROUP_FOOD)
-        }
+        ResidenceNeedKind::Food
+        | ResidenceNeedKind::PreservedFood
+        | ResidenceNeedKind::Ale
+        | ResidenceNeedKind::Luxury => Some(MARKET_STALL_GROUP_FOOD),
         ResidenceNeedKind::Firewood
         | ResidenceNeedKind::Cloth
         | ResidenceNeedKind::Shoes
@@ -1388,8 +1392,7 @@ fn stall_group_for_need(need_kind: ResidenceNeedKind) -> Option<u8> {
         }
         ResidenceNeedKind::Water
         | ResidenceNeedKind::Church
-        | ResidenceNeedKind::FoodVariety
-        | ResidenceNeedKind::Luxury => None,
+        | ResidenceNeedKind::FoodVariety => None,
     }
 }
 
@@ -1414,11 +1417,10 @@ fn stall_need_rank(need_kind: ResidenceNeedKind) -> u8 {
         ResidenceNeedKind::Food | ResidenceNeedKind::Firewood => 0,
         ResidenceNeedKind::PreservedFood | ResidenceNeedKind::Cloth => 1,
         ResidenceNeedKind::Shoes => 2,
-        ResidenceNeedKind::Ale | ResidenceNeedKind::Pottery => 2,
+        ResidenceNeedKind::Ale | ResidenceNeedKind::Pottery | ResidenceNeedKind::Luxury => 2,
         ResidenceNeedKind::Water
         | ResidenceNeedKind::Church
-        | ResidenceNeedKind::FoodVariety
-        | ResidenceNeedKind::Luxury => 3,
+        | ResidenceNeedKind::FoodVariety => 3,
     }
 }
 
@@ -1439,6 +1441,7 @@ fn stall_need_for_commodity(commodity: CommodityKind) -> Option<ResidenceNeedKin
             CommodityKind::Cloth => Some(ResidenceNeedKind::Cloth),
             CommodityKind::Shoes => Some(ResidenceNeedKind::Shoes),
             CommodityKind::Pottery => Some(ResidenceNeedKind::Pottery),
+            CommodityKind::Wine => Some(ResidenceNeedKind::Luxury),
             _ => None,
         }
     }

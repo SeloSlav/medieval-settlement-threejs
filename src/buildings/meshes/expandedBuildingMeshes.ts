@@ -10,10 +10,6 @@ import {
   timberMaterial,
 } from '../buildingMaterials.ts';
 import {
-  createSeedThreeVineyardVines,
-  type VineyardVinePlacement,
-} from '../../vegetation/seedthree/vineyardVines.ts';
-import {
   addBarrel,
   addDarkOpening,
   addGableShell,
@@ -42,8 +38,6 @@ import {
 import {
   APIARY_HONEY_VISUAL_SEGMENTS,
   THRESHING_GRAIN_VISUAL_SEGMENTS,
-  VINEYARD_GRAPE_VISUAL_SEGMENTS,
-  VINEYARD_WINE_VISUAL_SEGMENTS,
 } from '../seasonalStockpileVisuals.ts';
 import {
   MONASTERY_ALE_VISUAL_SEGMENTS,
@@ -145,41 +139,6 @@ function addFlaxBundle(group: THREE.Group, x: number, z: number, scale = 1): voi
     new THREE.Vector3(x, 0.66 * scale, z),
     new THREE.Euler(Math.PI * 0.5, 0, 0),
   );
-}
-
-function addProduceBasket(
-  group: THREE.Group,
-  scale: number,
-  produceMaterial: THREE.Material,
-): void {
-  addMesh(
-    group,
-    new THREE.CylinderGeometry(0.34 * scale, 0.43 * scale, 0.5 * scale, 10),
-    timberMaterial('light'),
-    new THREE.Vector3(0, 0.25 * scale, 0),
-  );
-  for (let band = 0; band < 2; band++) {
-    addMesh(
-      group,
-      new THREE.TorusGeometry((0.38 - band * 0.035) * scale, 0.025 * scale, 4, 10),
-      timberMaterial('dark'),
-      new THREE.Vector3(0, (0.14 + band * 0.27) * scale, 0),
-      new THREE.Euler(Math.PI * 0.5, 0, 0),
-    );
-  }
-  for (let index = 0; index < 7; index++) {
-    const angle = index * Math.PI * 2 / 7;
-    addMesh(
-      group,
-      new THREE.SphereGeometry(0.13 * scale, 6, 4),
-      produceMaterial,
-      new THREE.Vector3(
-        Math.cos(angle) * 0.25 * scale,
-        (0.5 + (index % 2) * 0.06) * scale,
-        Math.sin(angle) * 0.2 * scale,
-      ),
-    );
-  }
 }
 
 function addHoneyJar(group: THREE.Group, scale: number): void {
@@ -1281,47 +1240,3 @@ export function createWeaverMesh(): THREE.Group {
   return group;
 }
 
-export function createVineyardMesh(): THREE.Group {
-  const group = new THREE.Group();
-  group.name = 'Vineyard work shelter';
-  const vinePlacements: VineyardVinePlacement[] = [];
-  // The authored parcel renderer supplies the actual rows. A short sample row
-  // beside the work shelter keeps the hub readable before parcel sync arrives.
-  addMesh(group, new THREE.BoxGeometry(5.6, 0.22, 1.2), earth, new THREE.Vector3(0.4, 0.05, 3.15));
-  for (let vine = 0; vine < 4; vine++) {
-    const x = -1.8 + vine * 1.45;
-    addMesh(group, new THREE.BoxGeometry(0.1, 1.55, 0.1), timberMaterial('dark'), new THREE.Vector3(x, 0.88, 3.15));
-    vinePlacements.push({ x, y: 0.76, z: 3.15, fruiting: vine % 2 === 0, seed: 70 + vine });
-  }
-  addMesh(group, new THREE.CylinderGeometry(0.025, 0.025, 5.0, 5), metalMaterial('iron'), new THREE.Vector3(0.4, 1.02, 3.15), new THREE.Euler(0, 0, Math.PI * 0.5));
-  group.add(createSeedThreeVineyardVines(vinePlacements));
-  const shell = addGableShell(group, { width: 4.3, depth: 3.6, stoneHeight: 0.65, wallHeight: 1.95, ridgeHeight: 1.55, wallMaterial: residenceFacadeMaterial('white'), roofMaterial: shingleMaterial(), centerX: -5.2, centerZ: 5.3 });
-  addPlankDoor(group, -5.2, 0.68, shell.frontZ + 0.03, 0.76, 1.55);
-  addMesh(group, new THREE.SphereGeometry(0.65, 7, 5), leaf, new THREE.Vector3(5.7, 1.0, 5.0));
-  addSegmentedStockProps(
-    group,
-    'VineyardGrapeStockpile',
-    'VineyardGrapeSegment',
-    ([
-      [0.25, 0, 5.08, 0.92],
-      [1.08, 0, 5.24, 0.76],
-    ] as const)
-      .slice(0, VINEYARD_GRAPE_VISUAL_SEGMENTS),
-    (segment, scale) => addProduceBasket(segment, scale, hiveRed),
-  );
-  addSegmentedStockProps(
-    group,
-    'VineyardWineStockpile',
-    'VineyardWineSegment',
-    ([
-      [3.1, 0, 5.25, 0.85],
-      [4.25, 0, 5.3, 0.72],
-    ] as const)
-      .slice(0, VINEYARD_WINE_VISUAL_SEGMENTS),
-    (segment, scale) => addBarrel(segment, 0, 0, scale),
-  );
-  addMesh(group, new THREE.CylinderGeometry(0.72, 0.82, 0.92, 12), timberMaterial('weathered'), new THREE.Vector3(2.0, 0.48, 5.2));
-  addMesh(group, new THREE.CylinderGeometry(0.08, 0.08, 1.85, 8), timberMaterial('dark'), new THREE.Vector3(2.0, 1.58, 5.2));
-  addMesh(group, new THREE.BoxGeometry(1.15, 0.14, 0.32), timberMaterial('dark'), new THREE.Vector3(2.0, 2.45, 5.2));
-  return group;
-}

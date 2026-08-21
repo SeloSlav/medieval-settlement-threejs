@@ -45,7 +45,7 @@ import { describeToolbarStatus } from '../src/ui/buildToolbarStatus.ts';
 
 const expanded = [
   'threshing_barn', 'monastery', 'brewery', 'smokehouse', 'granary',
-  'apiary', 'watermill', 'windmill', 'carpenter', 'vineyard',
+  'apiary', 'watermill', 'windmill', 'carpenter',
 ] as const;
 for (const kind of expanded) {
   assert.ok(BUILDING_KINDS.includes(kind), `${kind} must remain a generated buildable kind`);

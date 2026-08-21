@@ -1237,6 +1237,42 @@ pub fn try_start_building_supply_trip(
     )
 }
 
+/// Sends a producer's own rostered worker with its cargo. This is reserved for
+/// institutions whose identity depends on the named worker making the trip,
+/// rather than a depot worker collecting the load.
+#[allow(clippy::too_many_arguments)]
+pub fn try_start_origin_rostered_building_supply_trip(
+    ctx: &ReducerContext,
+    tick: &SimTickContext,
+    clock: &GameClock,
+    network: &RoadNetwork,
+    origin: &mut Building,
+    target: &Building,
+    delivery_workers: u32,
+    commodity: CommodityKind,
+    speed_mps: f64,
+    unload_seconds: f64,
+    per_delivery_amount: f64,
+    needed: f64,
+) -> bool {
+    let origin_id = origin.id;
+    try_start_building_supply_trip_with_labor(
+        ctx,
+        tick,
+        clock,
+        network,
+        origin,
+        target,
+        delivery_workers,
+        commodity,
+        speed_mps,
+        unload_seconds,
+        per_delivery_amount,
+        needed,
+        DeliveryLaborSource::Building(origin_id),
+    )
+}
+
 /// Ad-hoc cleanup and founding-stock work always belongs to the flexible
 /// settlement pool, even when the destination is a staffed depot.
 pub fn try_start_free_building_supply_trip(

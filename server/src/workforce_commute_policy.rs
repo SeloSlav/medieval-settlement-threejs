@@ -50,7 +50,7 @@ pub fn is_visible_worker_workplace(kind: &str) -> bool {
             | "weaver"
             | "watchtower"
             | "guardhouse"
-            | "vineyard"
+            | "monastery"
     )
 }
 

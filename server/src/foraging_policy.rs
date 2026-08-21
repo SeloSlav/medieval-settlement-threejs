@@ -1,10 +1,16 @@
 use crate::balance_generated::{
     BERRIES_REGROW_PER_DAY, CALENDAR_SECONDS_PER_DAY, FISH_REPRODUCTION_RATE_PER_DAY,
     GAME_MIN_BREEDING_POPULATION, GAME_REPRODUCTION_RATE_PER_DAY, MUSHROOMS_REGROW_PER_DAY,
-    MUSHROOM_AUTUMN_REGROWTH_MULTIPLIER, RICH_BERRY_YIELD_MULTIPLIER, RICH_FISH_YIELD_MULTIPLIER,
+    MUSHROOM_AUTUMN_REGROWTH_MULTIPLIER, RICH_BERRY_REGROWTH_MULTIPLIER,
+    RICH_BERRY_YIELD_MULTIPLIER, RICH_FISH_REGROWTH_MULTIPLIER,
+    RICH_FISH_YIELD_MULTIPLIER, RICH_GAME_REGROWTH_MULTIPLIER,
+    RICH_GAME_YIELD_MULTIPLIER, RICH_MUSHROOM_REGROWTH_MULTIPLIER,
+    RICH_MUSHROOM_YIELD_MULTIPLIER,
 };
 
+const ORDINARY_GAME_CAPACITY: f64 = 12.0;
 const ORDINARY_BERRY_CAPACITY: f64 = 60.0;
+const ORDINARY_MUSHROOM_CAPACITY: f64 = 42.0;
 const ORDINARY_FISH_CAPACITY: f64 = 120.0;
 
 pub fn is_spring(month: u32) -> bool {
@@ -39,8 +45,24 @@ pub fn preserves_runtime_location_during_bootstrap(node_kind: &str) -> bool {
 
 pub fn harvest_yield_multiplier(node_kind: &str, max_yield: f64) -> f64 {
     match node_kind {
+        "game" if max_yield > ORDINARY_GAME_CAPACITY => RICH_GAME_YIELD_MULTIPLIER,
         "berries" if max_yield > ORDINARY_BERRY_CAPACITY => RICH_BERRY_YIELD_MULTIPLIER,
+        "mushrooms" if max_yield > ORDINARY_MUSHROOM_CAPACITY => {
+            RICH_MUSHROOM_YIELD_MULTIPLIER
+        }
         "fish" if max_yield > ORDINARY_FISH_CAPACITY => RICH_FISH_YIELD_MULTIPLIER,
+        _ => 1.0,
+    }
+}
+
+pub fn population_regrowth_multiplier(node_kind: &str, max_yield: f64) -> f64 {
+    match node_kind {
+        "game" if max_yield > ORDINARY_GAME_CAPACITY => RICH_GAME_REGROWTH_MULTIPLIER,
+        "berries" if max_yield > ORDINARY_BERRY_CAPACITY => RICH_BERRY_REGROWTH_MULTIPLIER,
+        "mushrooms" if max_yield > ORDINARY_MUSHROOM_CAPACITY => {
+            RICH_MUSHROOM_REGROWTH_MULTIPLIER
+        }
+        "fish" if max_yield > ORDINARY_FISH_CAPACITY => RICH_FISH_REGROWTH_MULTIPLIER,
         _ => 1.0,
     }
 }
@@ -54,23 +76,32 @@ pub fn population_growth_per_second(
     if max_yield <= 0.0 || remaining >= max_yield {
         return 0.0;
     }
+    let richness = population_regrowth_multiplier(node_kind, max_yield);
 
     match node_kind {
         "berries" if is_spring(month) || is_summer(month) => {
-            BERRIES_REGROW_PER_DAY / CALENDAR_SECONDS_PER_DAY
+            BERRIES_REGROW_PER_DAY * richness / CALENDAR_SECONDS_PER_DAY
         }
         "mushrooms" if is_spring(month) || is_summer(month) => {
-            MUSHROOMS_REGROW_PER_DAY / CALENDAR_SECONDS_PER_DAY
+            MUSHROOMS_REGROW_PER_DAY * richness / CALENDAR_SECONDS_PER_DAY
         }
         "mushrooms" if is_autumn(month) => {
-            MUSHROOMS_REGROW_PER_DAY * MUSHROOM_AUTUMN_REGROWTH_MULTIPLIER
+            MUSHROOMS_REGROW_PER_DAY * MUSHROOM_AUTUMN_REGROWTH_MULTIPLIER * richness
                 / CALENDAR_SECONDS_PER_DAY
         }
         "fish" if is_spring(month) && remaining > 0.0 => {
-            logistic_growth_per_second(remaining, max_yield, FISH_REPRODUCTION_RATE_PER_DAY)
+            logistic_growth_per_second(
+                remaining,
+                max_yield,
+                FISH_REPRODUCTION_RATE_PER_DAY * richness,
+            )
         }
         "game" if remaining >= GAME_MIN_BREEDING_POPULATION => {
-            logistic_growth_per_second(remaining, max_yield, GAME_REPRODUCTION_RATE_PER_DAY)
+            logistic_growth_per_second(
+                remaining,
+                max_yield,
+                GAME_REPRODUCTION_RATE_PER_DAY * richness,
+            )
         }
         _ => 0.0,
     }
@@ -130,11 +161,27 @@ mod tests {
 
     #[test]
     fn rich_food_nodes_apply_their_harvest_multiplier() {
+        assert_eq!(harvest_yield_multiplier("game", 12.0), 1.0);
+        assert_eq!(harvest_yield_multiplier("game", 20.0), 1.5);
         assert_eq!(harvest_yield_multiplier("berries", 60.0), 1.0);
         assert_eq!(harvest_yield_multiplier("berries", 100.0), 1.5);
+        assert_eq!(harvest_yield_multiplier("mushrooms", 42.0), 1.0);
+        assert_eq!(harvest_yield_multiplier("mushrooms", 72.0), 1.5);
         assert_eq!(harvest_yield_multiplier("fish", 120.0), 1.0);
         assert_eq!(harvest_yield_multiplier("fish", 240.0), 1.75);
-        assert_eq!(harvest_yield_multiplier("game", 20.0), 1.0);
+    }
+
+    #[test]
+    fn every_rich_wild_food_recovers_faster_than_its_ordinary_counterpart() {
+        for (kind, ordinary, rich) in [
+            ("game", 12.0, 20.0),
+            ("berries", 60.0, 100.0),
+            ("mushrooms", 42.0, 72.0),
+            ("fish", 120.0, 240.0),
+        ] {
+            assert_eq!(population_regrowth_multiplier(kind, ordinary), 1.0);
+            assert!(population_regrowth_multiplier(kind, rich) > 1.0);
+        }
     }
 
     #[test]

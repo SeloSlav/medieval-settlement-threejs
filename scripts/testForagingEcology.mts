@@ -6,6 +6,11 @@ import {
   GAME_MIN_BREEDING_POPULATION,
   MUSHROOM_AUTUMN_REGROWTH_MULTIPLIER,
   MUSHROOMS_PER_HARVEST,
+  RICH_BERRY_REGROWTH_MULTIPLIER,
+  RICH_GAME_REGROWTH_MULTIPLIER,
+  RICH_GAME_YIELD_MULTIPLIER,
+  RICH_MUSHROOM_REGROWTH_MULTIPLIER,
+  RICH_MUSHROOM_YIELD_MULTIPLIER,
 } from '../src/generated/gameBalance.ts';
 import {
   foragingRegrowthMultiplier,
@@ -14,7 +19,7 @@ import {
   isForagingRegrowthSeason,
 } from '../src/foraging/foragingSeason.ts';
 import {
-  HARVEST_RESERVE_PRESETS,
+  HARVEST_RESERVE_DEFAULT_PERCENT,
   harvestableWildStock,
   isWildStockHarvestable,
   normalizeHarvestReservePercent,
@@ -125,7 +130,7 @@ assert.equal(
   MUSHROOM_AUTUMN_REGROWTH_MULTIPLIER,
 );
 assert.equal(foragingRegrowthMultiplier('mushrooms', 1), 0);
-assert.deepEqual(HARVEST_RESERVE_PRESETS.map((preset) => preset.percent), [0, 25, 50]);
+assert.equal(HARVEST_RESERVE_DEFAULT_PERCENT, 50);
 assert.equal(normalizeHarvestReservePercent(255), 90);
 assert.equal(protectedWildStock('game', 12, 0), 2);
 assert.equal(
@@ -150,9 +155,15 @@ assert.equal(
 );
 assert.equal(
   harvestableWildStock({ kind: 'berries', remaining: 12, maxYield: 60 }, 50),
-  12,
-  'wild-stock policy must not reserve seasonal forage',
+  0,
+  'foragers must rest when a berry thicket reaches its selected harvest floor',
 );
+assert.equal(protectedWildStock('mushrooms', 42, 50), 21);
+assert.ok(RICH_GAME_YIELD_MULTIPLIER > 1);
+assert.ok(RICH_MUSHROOM_YIELD_MULTIPLIER > 1);
+assert.ok(RICH_GAME_REGROWTH_MULTIPLIER > 1);
+assert.ok(RICH_BERRY_REGROWTH_MULTIPLIER > 1);
+assert.ok(RICH_MUSHROOM_REGROWTH_MULTIPLIER > 1);
 
 for (const mapSize of ['small', 'medium', 'large'] as const) {
   const layout = createWorldLayout({
@@ -424,6 +435,28 @@ assert.ok(
   }).some((target) => target.kind === 'game'),
   'visible hunters should return when population growth creates harvestable surplus',
 );
+const reserveForager = {
+  ...hunter,
+  id: 'forager-reserve-test',
+  kind: 'foragers_shed',
+  harvestReservePercent: 50,
+} as BuildingState;
+assert.equal(
+  collectWorkerTargets(reserveForager, {
+    ...workerTargetInputs,
+    foragingMonth: 7,
+    foragingNodes: [{
+      ...protectedGame,
+      nodeId: 'protected-mushrooms',
+      kind: 'mushrooms',
+      resource: 'mushrooms',
+      remaining: 21,
+      maxYield: 42,
+    }],
+  }).length,
+  0,
+  'visible foragers must rest at the player-selected mushroom floor',
+);
 
 assert.ok(MUSHROOM_ICON_HTML.includes('map-resource-icon-glyph--mushrooms'));
 assert.ok(!MUSHROOM_ICON_HTML.includes('<img'));
@@ -471,6 +504,14 @@ assert.match(foodSupplier, /&\["berries",\s*"mushrooms"\]/);
 assert.match(foodSupplier, /GAME_ANIMALS_PER_HARVEST/);
 assert.match(foodSupplier, /harvestable_wild_stock/);
 assert.match(foodSupplier, /building\.harvest_reserve_percent/);
+const foragingPolicy = readFileSync(
+  `${projectRoot}server/src/foraging_policy.rs`,
+  'utf8',
+);
+assert.match(foragingPolicy, /RICH_GAME_REGROWTH_MULTIPLIER/);
+assert.match(foragingPolicy, /RICH_MUSHROOM_REGROWTH_MULTIPLIER/);
+assert.match(foragingPolicy, /RICH_GAME_YIELD_MULTIPLIER/);
+assert.match(foragingPolicy, /RICH_MUSHROOM_YIELD_MULTIPLIER/);
 
 const mapIconStyles = readFileSync(
   `${projectRoot}src/ui/mapIcons.css`,
@@ -506,8 +547,9 @@ const harvestInspector = readFileSync(
   `${projectRoot}src/resources/inspector/harvestBuildingRenderer.ts`,
   'utf8',
 );
-assert.match(harvestInspector, /data-harvest-reserve-percent/);
-assert.match(harvestInspector, /Wild-stock reserve/);
+assert.match(harvestInspector, /data-harvest-reserve-slider/);
+assert.match(harvestInspector, /Stop harvesting at/);
+assert.match(harvestInspector, /building\.kind === 'foragers_shed'/);
 
 const granary = readFileSync(
   `${projectRoot}server/src/simulation/expanded_economy.rs`,

@@ -119,7 +119,6 @@ import SetStorehousePolicyReducer from "./set_storehouse_policy_reducer";
 import SetStorehouseStockTargetReducer from "./set_storehouse_stock_target_reducer";
 import SetThreshingPriorityReducer from "./set_threshing_priority_reducer";
 import SetTradingPostTradeRuleReducer from "./set_trading_post_trade_rule_reducer";
-import SetVineyardProductionPolicyReducer from "./set_vineyard_production_policy_reducer";
 import SetWeaverInputPolicyReducer from "./set_weaver_input_policy_reducer";
 import SetWoodcutterTimberReserveReducer from "./set_woodcutter_timber_reserve_reducer";
 import SpecializeAnimalPenReducer from "./specialize_animal_pen_reducer";
@@ -676,7 +675,6 @@ const reducersSchema = __reducers(
   __reducerSchema("set_storehouse_stock_target", SetStorehouseStockTargetReducer),
   __reducerSchema("set_threshing_priority", SetThreshingPriorityReducer),
   __reducerSchema("set_trading_post_trade_rule", SetTradingPostTradeRuleReducer),
-  __reducerSchema("set_vineyard_production_policy", SetVineyardProductionPolicyReducer),
   __reducerSchema("set_weaver_input_policy", SetWeaverInputPolicyReducer),
   __reducerSchema("set_woodcutter_timber_reserve", SetWoodcutterTimberReserveReducer),
   __reducerSchema("specialize_animal_pen", SpecializeAnimalPenReducer),

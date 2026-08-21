@@ -11,6 +11,7 @@ import {
   BUILDING_STORAGE_CAPS,
   FISH_REPRODUCTION_RATE_PER_DAY,
   FISH_PER_HARVEST,
+  RICH_FISH_REGROWTH_MULTIPLIER,
   RICH_FISH_YIELD_MULTIPLIER,
 } from '../src/generated/gameBalance.ts';
 import {
@@ -119,6 +120,7 @@ assert.equal(BUILDING_DEFINITIONS.fishing_camp.workRadius, 64);
 assert.equal(BUILDING_STORAGE_CAPS.fishing_camp.food, 120);
 assert.ok(FISH_PER_HARVEST > 0);
 assert.ok(RICH_FISH_YIELD_MULTIPLIER > 1);
+assert.ok(RICH_FISH_REGROWTH_MULTIPLIER > 1);
 assert.ok(FISH_REPRODUCTION_RATE_PER_DAY > 0);
 assert.equal(isForagingHarvestAvailable('fish', 1), false);
 assert.equal(isForagingHarvestAvailable('fish', 4), true);

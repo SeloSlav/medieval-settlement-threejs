@@ -158,6 +158,7 @@ export function syncSettlementWorld(
     || workerTreePhasesChanged
     || workerFieldsChanged
     || workerPasturesChanged
+    || vineyardsChanged
     || workerCartCrewsChanged
     || fireIncidentsChanged
     || gardensChanged
@@ -172,6 +173,7 @@ export function syncSettlementWorld(
       treeRegistry: targets.getTreeRegistry(),
       farmFields: state.farmFields.values(),
       pastures: state.pastures.values(),
+      vineyardParcels: state.vineyardParcels?.values() ?? [],
       backyardGardens: state.backyardGardens.values(),
       burgageZones: state.burgageZones.values(),
       deliveryTrips: state.deliveryTrips.values(),

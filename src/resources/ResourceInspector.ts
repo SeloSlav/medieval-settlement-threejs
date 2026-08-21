@@ -280,10 +280,6 @@ type ResourceInspectorOptions = {
     family: number,
     exportPolicy: number,
   ) => void | Promise<void>;
-  onSetVineyardProductionPolicy?: (
-    buildingId: string,
-    productionPolicy: number,
-  ) => void | Promise<void>;
   onSetApiaryHarvestPolicy?: (
     buildingId: string,
     harvestPolicy: number,
@@ -1175,21 +1171,6 @@ export class ResourceInspector {
     }
     if (
       this.selectedTarget?.kind === 'building'
-      && this.selectedTarget.building.kind === 'vineyard'
-    ) {
-      const value = (event.target as HTMLElement)
-        .closest<HTMLElement>('[data-vineyard-production-policy]')
-        ?.dataset.vineyardProductionPolicy;
-      if (value != null) {
-        void this.options.onSetVineyardProductionPolicy?.(
-          this.selectedTarget.building.id,
-          Number(value),
-        );
-        return;
-      }
-    }
-    if (
-      this.selectedTarget?.kind === 'building'
       && this.selectedTarget.building.kind === 'apiary'
     ) {
       const value = (event.target as HTMLElement)
@@ -1309,6 +1290,8 @@ export class ResourceInspector {
     if (
       this.selectedTarget?.kind === 'building'
       && (
+        this.selectedTarget.building.kind === 'foragers_shed'
+        ||
         this.selectedTarget.building.kind === 'hunters_hall'
         || this.selectedTarget.building.kind === 'fishing_camp'
       )
@@ -1396,6 +1379,17 @@ export class ResourceInspector {
     } else if (input.matches('[data-policy-monastery-tithe]')) {
       const output = this.supplementalPanelSection.querySelector<HTMLElement>('[data-policy-monastery-tithe-value]');
       if (output) output.textContent = `${Math.round(Number(input.value))}%`;
+    } else if (input.matches('[data-harvest-reserve-slider]')) {
+      const reserve = Math.max(0, Math.round(Number(input.value)));
+      const capacity = Math.max(0, Number(input.dataset.harvestReserveCapacity));
+      const unit = input.dataset.harvestReserveUnit ?? 'wild stock';
+      const output = this.supplementalPanelSection.querySelector<HTMLElement>('[data-harvest-reserve-value]');
+      const share = this.supplementalPanelSection.querySelector<HTMLElement>('[data-harvest-reserve-share]');
+      if (output) output.textContent = `${reserve} ${unit}`;
+      if (share) {
+        const percent = capacity > 0 ? Math.round(reserve / capacity * 100) : 0;
+        share.textContent = `${percent}% of capacity · release the slider to apply this floor to every managed source.`;
+      }
     }
   };
 
@@ -1404,6 +1398,23 @@ export class ResourceInspector {
     const input = event.target as HTMLInputElement;
     if (this.selectedTarget?.kind !== 'building') return;
     const building = this.selectedTarget.building;
+
+    if (
+      (
+        building.kind === 'foragers_shed'
+        || building.kind === 'hunters_hall'
+        || building.kind === 'fishing_camp'
+      )
+      && input.matches('[data-harvest-reserve-slider]')
+    ) {
+      const capacity = Math.max(0, Number(input.dataset.harvestReserveCapacity));
+      const reserve = Math.max(0, Number(input.value));
+      const reservePercent = capacity > 0
+        ? Math.round(reserve / capacity * 100)
+        : 0;
+      void this.options.onSetHarvestReservePercent?.(building.id, reservePercent);
+      return;
+    }
 
     if (building.kind === 'trading_post' && input.matches('[data-trade-surplus-input]')) {
       const row = input.closest<HTMLElement>('[data-trade-rule-row]');
@@ -2409,7 +2420,6 @@ const BUILDING_INSPECTOR_ART: Partial<Record<string, string>> = {
   threshing_barn: 'threshing-barn.webp',
   town_hall: 'town-hall.webp',
   village_storehouse: 'village-storehouse.webp',
-  vineyard: 'vineyard.webp',
   watchtower: 'watchtower.webp',
   watermill: 'watermill.webp',
   windmill: 'windmill.webp',
@@ -2443,8 +2453,7 @@ function inspectablePresentation(target: InspectableTarget): InspectorPresentati
     const agricultural = target.building.kind === 'threshing_barn'
       || target.building.kind === 'pastoral_farmstead'
       || target.building.kind === 'swineherd'
-      || target.building.kind === 'apiary'
-      || target.building.kind === 'vineyard';
+      || target.building.kind === 'apiary';
     const storage = target.building.kind === 'granary'
       || target.building.kind === 'village_storehouse'
       || target.building.kind === 'salvage_pile';

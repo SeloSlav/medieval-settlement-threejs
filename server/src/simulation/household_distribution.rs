@@ -13,6 +13,7 @@ use crate::balance_generated::{
     CALENDAR_WORK_END_HOUR, CALENDAR_WORK_START_HOUR, RESIDENCE_ALE_PER_PERSON_PER_SEC,
     RESIDENCE_CLOTH_PER_PERSON_PER_SEC, RESIDENCE_SHOES_PER_PERSON_PER_SEC,
     RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC,
+    RESIDENCE_LUXURY_JAM_PER_PERSON_PER_SEC,
     RESIDENCE_POTTERY_PER_PERSON_PER_SEC, RESIDENCE_PRESERVED_FOOD_PER_PERSON_PER_SEC, TICK_DT,
 };
 use crate::db::*;
@@ -35,7 +36,7 @@ use crate::simulation::residence_needs::{
 use crate::simulation::tick_context::SimTickContext;
 use crate::tables::{Building, Residence};
 
-const MARKET_NEEDS: [ResidenceNeedKind; 7] = [
+const MARKET_NEEDS: [ResidenceNeedKind; 8] = [
     ResidenceNeedKind::Food,
     ResidenceNeedKind::Firewood,
     ResidenceNeedKind::PreservedFood,
@@ -43,6 +44,7 @@ const MARKET_NEEDS: [ResidenceNeedKind; 7] = [
     ResidenceNeedKind::Shoes,
     ResidenceNeedKind::Pottery,
     ResidenceNeedKind::Ale,
+    ResidenceNeedKind::Luxury,
 ];
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -329,10 +331,12 @@ fn household_issue_target(
         ResidenceNeedKind::Pottery => {
             population * RESIDENCE_POTTERY_PER_PERSON_PER_SEC * workday_seconds
         }
+        ResidenceNeedKind::Luxury => {
+            population * RESIDENCE_LUXURY_JAM_PER_PERSON_PER_SEC * workday_seconds
+        }
         ResidenceNeedKind::Water
         | ResidenceNeedKind::Church
-        | ResidenceNeedKind::FoodVariety
-        | ResidenceNeedKind::Luxury => return None,
+        | ResidenceNeedKind::FoodVariety => return None,
     };
     if daily_lot <= 1e-9 {
         return None;

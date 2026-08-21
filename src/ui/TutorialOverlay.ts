@@ -76,7 +76,6 @@ const WORKSITE_BUILDING_KINDS = new Set<BuildingKind>([
   'windmill',
   'carpenter',
   'weaver',
-  'vineyard',
 ]);
 
 const TUTORIALS: Record<TutorialId, TutorialDefinition> = {

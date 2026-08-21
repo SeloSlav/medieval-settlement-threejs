@@ -171,7 +171,6 @@ for (const kind of [
   'bakery',
   'watermill',
   'carpenter',
-  'vineyard',
   'potter_kiln',
   'stone_quarry',
   'large_quarry',

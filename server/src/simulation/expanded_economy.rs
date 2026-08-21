@@ -106,7 +106,7 @@ use crate::simulation::delivery_trips::{
     building_has_active_trip, building_has_inbound_commodity_trip,
     building_has_inbound_supply_trip, building_has_regional_market_trip, onsite_building_labor,
     regional_market_export_route, start_regional_market_export_trip,
-    try_start_building_supply_trip,
+    try_start_building_supply_trip, try_start_origin_rostered_building_supply_trip,
 };
 use crate::simulation::game_calendar::GameClock;
 use crate::simulation::labor_and_logistics_paused;
@@ -135,7 +135,7 @@ use crate::supply_policy::{
     LOCAL_MATERIAL_SOURCE_KINDS, MARKETPLACE_MATERIAL_TARGET_KINDS,
 };
 use crate::tables::{farm_field, Building, FarmField, ForagingNode, Quarry, Residence};
-use crate::vineyard::{fermentable_grapes, vineyard_grape_reserve};
+use crate::vineyard::fermentable_grapes;
 use crate::weaver_input_policy::{weaver_fibre_delivery_preference_rank, weaver_uses_flax};
 
 struct RoutedBuilding {
@@ -1855,6 +1855,7 @@ pub fn step_granary(
                     CommodityKind::CuredMeat,
                     CommodityKind::PreservedFood,
                     CommodityKind::Honey,
+                    CommodityKind::Wine,
                 ] {
                     dispatch_to_building(
                         ctx,
@@ -2503,9 +2504,9 @@ pub fn step_brewery(
 
     request_brewery_recipe_inputs(ctx, tick, clock, &brewery, recipe, input_staging_cycles);
     for beverage in [
-        CommodityKind::Ale,
         CommodityKind::Cider,
         CommodityKind::PearCider,
+        CommodityKind::Ale,
         CommodityKind::Mead,
     ] {
         dispatch_to_building_where(
@@ -3013,99 +3014,68 @@ pub fn step_apiary(
     ctx.db.building().id().update(apiary);
 }
 
-pub fn step_vineyard(
+fn advance_monastery_vineyard_fermentation(
     ctx: &ReducerContext,
     tick: &SimTickContext,
     clock: &GameClock,
-    building: Building,
+    monastery: &mut Building,
 ) {
-    let production_multiplier = ctx
+    if ctx
         .db
         .vineyard_parcel()
         .building_id()
-        .find(&building.id)
-        .map(|parcel| {
-            crate::vineyard::production_multiplier(
-                parcel.area,
-                parcel.site_suitability,
-                parcel.shape_efficiency,
-            )
-        })
-        // Legacy point-placed vineyards keep their original save-compatible output.
-        .unwrap_or(1.0)
-        * nearby_apiary_pollination_multiplier(ctx, tick, building.owner, building.x, building.z);
-    let mut vineyard = if vineyard_is_harvesting(clock.month as u8) {
-        step_simple_producer_at_rate(
-            ctx,
-            tick,
-            clock,
-            building,
-            &[(CommodityKind::Grapes, VINEYARD_GRAPES_PER_HARVEST_CYCLE)],
-            production_multiplier,
-        )
-    } else {
-        building
-    };
-    advance_vineyard_fermentation(ctx, tick, clock, &mut vineyard);
-    dispatch_to_building(
-        ctx,
-        tick,
-        clock,
-        &mut vineyard,
-        CommodityKind::Wine,
-        &["trading_post"],
-    );
-    ctx.db.building().id().update(vineyard);
-}
-
-fn advance_vineyard_fermentation(
-    ctx: &ReducerContext,
-    tick: &SimTickContext,
-    clock: &GameClock,
-    vineyard: &mut Building,
-) {
-    let onsite_labor = onsite_building_labor(ctx, vineyard);
-    if onsite_labor == 0 || labor_and_logistics_paused(ctx, tick, vineyard.owner, clock) {
+        .find(&monastery.id)
+        .is_none()
+    {
+        monastery.vineyard_fermenting_grapes = 0.0;
+        monastery.vineyard_fermentation_progress = 0.0;
+        return;
+    }
+    let onsite_labor = onsite_building_labor(ctx, monastery);
+    if onsite_labor == 0 || labor_and_logistics_paused(ctx, tick, monastery.owner, clock) {
         return;
     }
 
-    if vineyard.vineyard_fermenting_grapes <= 1e-9 {
-        let available = fermentable_grapes(vineyard.grapes, vineyard.vineyard_production_policy);
+    if monastery.vineyard_fermenting_grapes <= 1e-9 {
+        let available = fermentable_grapes(
+            monastery.grapes,
+            crate::vineyard::VINEYARD_POLICY_WINE_FIRST,
+        );
         if available + 1e-6 < VINEYARD_GRAPES_PER_FERMENTATION_BATCH
-            || building_commodity_room(vineyard, CommodityKind::Wine) + 1e-6
+            || building_commodity_room(monastery, CommodityKind::Wine) + 1e-6
                 < VINEYARD_WINE_PER_FERMENTATION_BATCH
         {
-            vineyard.vineyard_fermentation_progress = 0.0;
+            monastery.vineyard_fermentation_progress = 0.0;
             return;
         }
         let staged = withdraw_building_commodity(
-            vineyard,
+            monastery,
             CommodityKind::Grapes,
             VINEYARD_GRAPES_PER_FERMENTATION_BATCH,
         );
         if staged + 1e-6 < VINEYARD_GRAPES_PER_FERMENTATION_BATCH {
-            deposit_building_commodity(vineyard, CommodityKind::Grapes, staged);
+            deposit_building_commodity(monastery, CommodityKind::Grapes, staged);
             return;
         }
-        vineyard.vineyard_fermenting_grapes = staged;
-        vineyard.vineyard_fermentation_progress = 0.0;
+        monastery.vineyard_fermenting_grapes = staged;
+        monastery.vineyard_fermentation_progress = 0.0;
     }
 
-    vineyard.vineyard_fermentation_progress += TICK_DT * onsite_labor as f64;
-    if vineyard.vineyard_fermentation_progress + 1e-6 < VINEYARD_FERMENTATION_SECONDS
-        || building_commodity_room(vineyard, CommodityKind::Wine) + 1e-6
+    monastery.vineyard_fermentation_progress += TICK_DT * onsite_labor as f64;
+    if monastery.vineyard_fermentation_progress + 1e-6 < VINEYARD_FERMENTATION_SECONDS
+        || building_commodity_room(monastery, CommodityKind::Wine) + 1e-6
             < VINEYARD_WINE_PER_FERMENTATION_BATCH
     {
         return;
     }
 
     deposit_building_commodity(
-        vineyard,
+        monastery,
         CommodityKind::Wine,
         VINEYARD_WINE_PER_FERMENTATION_BATCH,
     );
-    vineyard.vineyard_fermenting_grapes = 0.0;
-    vineyard.vineyard_fermentation_progress = 0.0;
+    monastery.vineyard_fermenting_grapes = 0.0;
+    monastery.vineyard_fermentation_progress = 0.0;
 }
 
 fn apiary_landscape_forage_score(ctx: &ReducerContext, apiary: &Building) -> f64 {
@@ -3146,14 +3116,10 @@ fn apiary_landscape_forage_score(ctx: &ReducerContext, apiary: &Building) -> f64
         .owner()
         .filter(&apiary.owner)
         .filter_map(|parcel| {
-            ctx.db
-                .building()
-                .id()
-                .find(&parcel.building_id)
-                .filter(|vineyard| {
-                    (vineyard.x - apiary.x).powi(2) + (vineyard.z - apiary.z).powi(2) <= radius_sq
-                })
-                .map(|_| parcel.area.max(0.0))
+            let x = (parcel.corner_ax + parcel.corner_bx + parcel.corner_cx + parcel.corner_dx) * 0.25;
+            let z = (parcel.corner_az + parcel.corner_bz + parcel.corner_cz + parcel.corner_dz) * 0.25;
+            ((x - apiary.x).powi(2) + (z - apiary.z).powi(2) <= radius_sq)
+                .then_some(parcel.area.max(0.0))
         })
         .sum();
 
@@ -3219,6 +3185,22 @@ pub fn step_monastery(
         MONASTERY_UNLINKED_PRODUCTIVITY
     };
     let mut monastery = building;
+    let vineyard_production_multiplier = ctx
+        .db
+        .vineyard_parcel()
+        .building_id()
+        .find(&monastery.id)
+        .map(|parcel| {
+            let x =
+                (parcel.corner_ax + parcel.corner_bx + parcel.corner_cx + parcel.corner_dx) * 0.25;
+            let z =
+                (parcel.corner_az + parcel.corner_bz + parcel.corner_cz + parcel.corner_dz) * 0.25;
+            crate::vineyard::production_multiplier(
+                parcel.area,
+                parcel.site_suitability,
+                parcel.shape_efficiency,
+            ) * nearby_apiary_pollination_multiplier(ctx, tick, monastery.owner, x, z)
+        });
     let orchard_maturity =
         monastery_orchard_maturity_for_year(monastery.monastery_orchard_planted_year, clock.year);
     monastery.monastery_orchard_maturity = orchard_maturity;
@@ -3247,8 +3229,21 @@ pub fn step_monastery(
         ] {
             deposit_building_commodity(&mut monastery, commodity, amount * productivity * staffing);
         }
+        if vineyard_is_harvesting(clock.month as u8) {
+            if let Some(vineyard_multiplier) = vineyard_production_multiplier {
+                deposit_building_commodity(
+                    &mut monastery,
+                    CommodityKind::Grapes,
+                    VINEYARD_GRAPES_PER_HARVEST_CYCLE
+                        * vineyard_multiplier
+                        * productivity
+                        * staffing,
+                );
+            }
+        }
         reset_cycle(&mut monastery, 1.0);
     }
+    advance_monastery_vineyard_fermentation(ctx, tick, clock, &mut monastery);
 
     let hospitality_enabled = tick.monastery_hospitality_enabled(ctx, monastery.owner);
     let mut receipt_daily_income = MONASTERY_PILGRIMAGE_GOLD_PER_DAY;
@@ -3300,6 +3295,7 @@ pub fn step_monastery(
         run_monastery_feast(ctx, tick, clock, &mut monastery);
         request_monastery_seed_archive(ctx, tick, clock, &monastery);
     }
+    dispatch_monastery_vineyard_wine(ctx, tick, clock, &mut monastery, hospitality_enabled);
     try_dispatch_local_civic_receipts(ctx, tick, clock, &mut monastery, receipt_daily_income);
     reinvest_monastery_estate(&mut monastery);
     dispatch_monastery_estate_export(ctx, tick, &mut monastery, hospitality_enabled);
@@ -3386,6 +3382,77 @@ fn fund_monastery_services(monastery: &mut Building, total_days: u64) {
     };
 }
 
+fn dispatch_monastery_vineyard_wine(
+    ctx: &ReducerContext,
+    tick: &SimTickContext,
+    clock: &GameClock,
+    monastery: &mut Building,
+    hospitality_enabled: bool,
+) {
+    if monastery.wine <= 1e-6
+        || building_has_active_trip(ctx, monastery.id)
+        || onsite_building_labor(ctx, monastery) == 0
+    {
+        return;
+    }
+    let drink_floor = if hospitality_enabled {
+        MONASTERY_FEAST_ALE
+    } else {
+        6.0
+    };
+    let drink_surplus = (monastery.ale.max(0.0)
+        + monastery.cider.max(0.0)
+        + monastery.wine.max(0.0)
+        - drink_floor)
+        .max(0.0);
+    let transferable = monastery_estate_exportable(monastery.wine, 0.0).min(drink_surplus);
+    if transferable <= 1e-6 {
+        return;
+    }
+    let Some(network) = tick.road_network(monastery.owner) else {
+        return;
+    };
+    let Some(target) = tick
+        .building_ids_for_kinds(ctx, monastery.owner, &["granary"])
+        .into_iter()
+        .filter_map(|id| ctx.db.building().id().find(&id))
+        .filter(|granary| {
+            granary.construction_complete
+                && !tick.building_disabled_by_fire(ctx, granary.id)
+                && storage_accepts_commodity(granary, CommodityKind::Wine)
+                && building_commodity_room(granary, CommodityKind::Wine) > 1e-6
+                && !building_has_inbound_commodity_trip(ctx, granary.id, CommodityKind::Wine)
+        })
+        .filter_map(|granary| {
+            local_delivery_distance(network, monastery.x, monastery.z, granary.x, granary.z)
+                .map(|distance| (distance, granary))
+        })
+        .min_by(|left, right| {
+            left.0
+                .total_cmp(&right.0)
+                .then_with(|| left.1.id.cmp(&right.1.id))
+        })
+        .map(|(_, granary)| granary)
+    else {
+        return;
+    };
+    let needed = transferable.min(building_commodity_room(&target, CommodityKind::Wine));
+    try_start_origin_rostered_building_supply_trip(
+        ctx,
+        tick,
+        clock,
+        network,
+        monastery,
+        &target,
+        1,
+        CommodityKind::Wine,
+        TIMBER_DELIVERY_SPEED_MPS,
+        TIMBER_DELIVERY_UNLOAD_SEC,
+        commodity_transfer_per_trip(CommodityKind::Wine),
+        needed,
+    );
+}
+
 fn dispatch_monastery_estate_export(
     ctx: &ReducerContext,
     tick: &SimTickContext,
@@ -3463,7 +3530,6 @@ fn dispatch_monastery_estate_export(
             CommodityKind::Honey,
             monastery_estate_exportable(monastery.honey, honey_floor),
         ),
-        (CommodityKind::Wine, drink_exportable(monastery.wine)),
         (CommodityKind::Cider, drink_exportable(monastery.cider)),
     ];
     let Some((commodity, amount)) = candidates
@@ -3995,7 +4061,6 @@ fn processor_uses_input(kind: &str, commodity: CommodityKind) -> bool {
                 | CommodityKind::Pears
                 | CommodityKind::Honey
         ),
-        "vineyard" => commodity == CommodityKind::Grapes,
         "smokehouse" => {
             matches!(
                 commodity,
@@ -4838,9 +4903,6 @@ fn institutional_source_food_surplus(
     );
     let policy_surplus = match source.kind.as_str() {
         "apiary" => (source.honey - apiary_honey_reserve(source.apiary_harvest_policy)).max(0.0),
-        "vineyard" => {
-            (source.grapes - vineyard_grape_reserve(source.vineyard_production_policy)).max(0.0)
-        }
         _ => generic_surplus,
     };
     generic_surplus.min(policy_surplus)

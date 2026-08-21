@@ -3,10 +3,11 @@ import { GAME_MIN_BREEDING_POPULATION } from '../generated/gameBalance.ts';
 import { FISH_SHOAL_MAX_YIELD } from './foragingYields.ts';
 
 export const HARVEST_RESERVE_PERCENT_MAX = 90;
+export const HARVEST_RESERVE_DEFAULT_PERCENT = 50;
 export const HARVEST_RESERVE_PRESETS = [
   { label: 'Open harvest', percent: 0 },
   { label: 'Keep quarter', percent: 25 },
-  { label: 'Keep half', percent: 50 },
+  { label: 'Keep half', percent: HARVEST_RESERVE_DEFAULT_PERCENT },
 ] as const;
 
 export function normalizeHarvestReservePercent(percent: number): number {
@@ -22,7 +23,6 @@ export function protectedWildStock(
   maxYield: number,
   percent: number,
 ): number {
-  if (kind !== 'game' && kind !== 'fish') return 0;
   const capacity = Math.max(0, maxYield);
   const policyFloor = capacity
     * normalizeHarvestReservePercent(percent)

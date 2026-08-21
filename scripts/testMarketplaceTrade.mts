@@ -56,6 +56,7 @@ assert.deepEqual(
 );
 assert.equal(new Set(Object.values(TRADE_RESOURCE_COMMODITY_CODES)).size, TRADE_RESOURCE_KINDS.length);
 assert.equal('gold' in TRADE_RESOURCE_COMMODITY_CODES, false, 'gold is currency, not a trade commodity');
+assert.equal(TRADE_RESOURCE_COMMODITY_CODES.wine, 9, 'wine must be exposed as a trade commodity');
 
 for (const resource of TRADE_RESOURCE_KINDS) {
   assert.ok(TRADE_RESOURCE_LABELS[resource], `${resource} needs a player-facing ledger label`);
@@ -111,6 +112,7 @@ assert.match(panel, /units per collection cart/);
 assert.match(panel, /data-trade-surplus-input/);
 assert.match(panel, /data-trade-surplus-delta="-1"/);
 assert.match(panel, /data-trade-surplus-delta="1"/);
+assert.match(panel, /Keep in settlement/);
 assert.match(panel, /last sold 9 for 4\.5g/);
 assert.equal(
   (panel.match(/data-trade-rule-row/g) ?? []).length,
@@ -127,10 +129,32 @@ assert.match(serverLoop, /settle_due_rules/);
 assert.match(serverLoop, /stage_one_export/);
 assert.match(serverLoop, /credit_treasury_gold/);
 assert.match(serverLoop, /spend_treasury_gold/);
+assert.match(
+  serverLoop,
+  /protected_outside_stock[\s\S]*?exportable_surplus\(available, rule\.target_surplus\)/,
+  'export collection must leave the configured settlement-wide stock floor outside the post',
+);
+assert.match(
+  serverLoop,
+  /source\.id != post\.id[\s\S]*?source_exportable_stock\(source, commodity\)[\s\S]*?try_start_building_supply_trip/,
+  'export haulers must collect directly from any connected producer or storage building',
+);
 assert.doesNotMatch(
   serverLoop,
   /start_regional_market_export_trip|regional_market_export_route/,
   'monthly regional settlement must not create an off-map caravan unit',
+);
+
+const simulationReducer = readFileSync('server/src/reducers/simulation.rs', 'utf8');
+const exportStep = simulationReducer.lastIndexOf('step_trading_post_trade(ctx, &tick, &clock);');
+const householdStep = simulationReducer.lastIndexOf('step_household_discretionary_trade(ctx, &tick, &clock);');
+assert.ok(exportStep >= 0 && exportStep < householdStep, 'export staging must run before local trade and later logistics');
+
+const householdTrade = readFileSync('server/src/simulation/household_discretionary_trade.rs', 'utf8');
+assert.match(
+  householdTrade,
+  /trading_post_exports_commodity\(ctx, trading_post\.id, commodity\)/,
+  'local shoppers must not consume stock committed to an export rule',
 );
 
 const legacyReducer = readFileSync('server/src/reducers/marketplace_trade.rs', 'utf8');
