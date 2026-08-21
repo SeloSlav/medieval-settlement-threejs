@@ -20,6 +20,7 @@ import type { WorldGenerationSettings } from '../world/worldGenerationSettings.t
 import type { GameSpeed } from '../world/gameSpeed.ts';
 import type { StorehouseCommodity } from '../economy/storehousePolicy.ts';
 import { normalizeLaborStewardReserve } from '../economy/laborSteward.ts';
+import { normalizeMonasteryCharterRate } from '../economy/monasteryPolicy.ts';
 import type { NightPolicyCode } from '../economy/nightPolicy.ts';
 import {
   parseBuildingServerId,
@@ -468,7 +469,7 @@ export async function setStorehousePolicy(
 
 export async function setMonasteryCharter(levyRate: number): Promise<void> {
   await callReducer('setMonasteryCharter', 'set_monastery_charter', {
-    levyRate: Math.max(0, Math.min(0.25, levyRate)),
+    levyRate: normalizeMonasteryCharterRate(levyRate),
   });
 }
 

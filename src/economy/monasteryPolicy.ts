@@ -35,9 +35,19 @@ export const DEFAULT_MONASTERY_POLICY: MonasteryPolicyState = {
   scriptoriumRoofTilesSavedTotal: 0,
 };
 
+export const MONASTERY_CHARTER_RATES = [0, 0.10, 0.25] as const;
+
+export function normalizeMonasteryCharterRate(rate: number): number {
+  if (!Number.isFinite(rate)) return 0.10;
+  return MONASTERY_CHARTER_RATES.reduce((nearest, candidate) =>
+    Math.abs(rate - candidate) < Math.abs(rate - nearest) ? candidate : nearest
+  );
+}
+
 export function monasteryCharterLabel(rate: number): string {
-  if (rate <= 0.001) return 'Chartered immunity';
-  if (rate <= 0.15) return 'Customary aid';
+  const normalized = normalizeMonasteryCharterRate(rate);
+  if (normalized === 0) return 'Chartered immunity';
+  if (normalized === 0.10) return 'Customary aid';
   return 'Extraordinary subsidy';
 }
 

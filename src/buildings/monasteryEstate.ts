@@ -219,6 +219,12 @@ export function monasteryInfirmaryMortalityMultiplier(extensions: number | null 
     : 0);
 }
 
+export function monasteryGuesthouseMultiplier(extensions: number | null | undefined, funding = 1): number {
+  return 1 + (monasteryHasExtension(extensions, MONASTERY_EXTENSION_GUESTHOUSE)
+    ? 0.35 * Math.max(0, Math.min(1, funding))
+    : 0);
+}
+
 export function monasterySeedArchiveTargetPerCrop(extensions: number | null | undefined, funding = 1): number {
   return 8 + (monasteryHasExtension(extensions, MONASTERY_EXTENSION_SCRIPTORIUM)
     ? 12 * Math.max(0, Math.min(1, funding))

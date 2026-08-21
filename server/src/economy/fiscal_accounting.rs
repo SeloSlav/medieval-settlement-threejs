@@ -4,7 +4,8 @@ use spacetimedb::ReducerContext;
 
 use crate::db::*;
 use crate::fiscal_policy::{
-    clamp_export_duty_rate, split_private_export_receipt, PrivateExportSplit,
+    clamp_export_duty_rate, normalize_monastery_levy_rate, split_private_export_receipt,
+    PrivateExportSplit,
 };
 use crate::tables::Building;
 
@@ -39,7 +40,7 @@ pub fn player_monastery_levy_rate(ctx: &ReducerContext, owner: spacetimedb::Iden
         .player_resources()
         .owner()
         .find(&owner)
-        .map(|resources| resources.monastery_levy_rate.clamp(0.0, 0.25))
+        .map(|resources| normalize_monastery_levy_rate(resources.monastery_levy_rate))
         .unwrap_or(0.10)
 }
 

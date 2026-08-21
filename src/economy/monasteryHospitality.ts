@@ -12,6 +12,7 @@ import {
 import type { BuildingState } from '../resources/types.ts';
 import { MONTH_NAMES, type GameClock } from '../world/gameCalendar.ts';
 import { edibleFoodStock, type FoodInventoryLike } from './foodInventory.ts';
+import { monasteryGuesthouseMultiplier } from '../buildings/monasteryEstate.ts';
 
 export const MONASTERY_FEASTS = [
   { name: 'Epiphany', month: 1, monthDay: 6 },
@@ -131,8 +132,13 @@ export function monasteryHospitalityPlan(
     drinkRunwayDays: monasteryHospitalityRunwayDays(dailyDrink, drinkPerDay),
     supplyRatio,
     pilgrimageGoldPerDay:
-      MONASTERY_PILGRIMAGE_GOLD_PER_DAY
-      + (enabled ? MONASTERY_HOSPITALITY_BONUS_GOLD_PER_DAY * supplyRatio * prestigeMultiplier : 0),
+      (
+        MONASTERY_PILGRIMAGE_GOLD_PER_DAY
+        + (enabled ? MONASTERY_HOSPITALITY_BONUS_GOLD_PER_DAY * supplyRatio * prestigeMultiplier : 0)
+      ) * monasteryGuesthouseMultiplier(
+        monastery.monasteryExtensions,
+        monastery.monasteryServiceFunding,
+      ),
     honeyPerDay,
     drinkPerDay,
     honeyPerYear:

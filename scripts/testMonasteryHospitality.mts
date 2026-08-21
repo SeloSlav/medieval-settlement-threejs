@@ -27,6 +27,7 @@ import {
   operationalFeastMonasteries,
 } from '../src/settlement/monasteryFeast.ts';
 import type { BuildingState } from '../src/resources/types.ts';
+import { MONASTERY_EXTENSION_GUESTHOUSE } from '../src/buildings/monasteryEstate.ts';
 
 const full = monasteryHospitalityPlan({ honey: 80, ale: 50, cider: 0, wine: 0 }, true);
 assert.equal(full.supplyRatio, 1);
@@ -43,6 +44,25 @@ assert.equal(monasteryHospitalityStatusLabel(full), 'Fully provisioned');
 const wineHospitality = monasteryHospitalityPlan({ honey: 80, ale: 0, cider: 0, wine: 50 }, true);
 assert.equal(wineHospitality.prestigeMultiplier, 1.25);
 assert.equal(wineHospitality.pilgrimageGoldPerDay, 3.875);
+
+const fundedGuesthouse = monasteryHospitalityPlan({
+  honey: 80,
+  ale: 50,
+  cider: 0,
+  wine: 0,
+  monasteryExtensions: MONASTERY_EXTENSION_GUESTHOUSE,
+  monasteryServiceFunding: 1,
+}, true);
+assert.ok(Math.abs(fundedGuesthouse.pilgrimageGoldPerDay - 4.725) < 1e-9);
+const underfundedGuesthouse = monasteryHospitalityPlan({
+  honey: 80,
+  ale: 50,
+  cider: 0,
+  wine: 0,
+  monasteryExtensions: MONASTERY_EXTENSION_GUESTHOUSE,
+  monasteryServiceFunding: 0.5,
+}, true);
+assert.ok(Math.abs(underfundedGuesthouse.pilgrimageGoldPerDay - 4.1125) < 1e-9);
 
 const mixedCellar = monasteryHospitalityPlan({ honey: 80, ale: 25, cider: 25, wine: 0 }, true);
 assert.equal(mixedCellar.mixedCellar, true);

@@ -16,6 +16,32 @@ pub struct PrivateExportSplit {
     pub export_duty: f64,
 }
 
+pub const MONASTERY_LEVY_CHARTERED_IMMUNITY: f64 = 0.0;
+pub const MONASTERY_LEVY_CUSTOMARY_AID: f64 = 0.10;
+pub const MONASTERY_LEVY_EXTRAORDINARY_SUBSIDY: f64 = 0.25;
+pub const MONASTERY_LEVY_RATES: [f64; 3] = [
+    MONASTERY_LEVY_CHARTERED_IMMUNITY,
+    MONASTERY_LEVY_CUSTOMARY_AID,
+    MONASTERY_LEVY_EXTRAORDINARY_SUBSIDY,
+];
+
+pub fn is_valid_monastery_levy_rate(rate: f64) -> bool {
+    rate.is_finite()
+        && MONASTERY_LEVY_RATES
+            .iter()
+            .any(|candidate| (rate - candidate).abs() <= 1e-6)
+}
+
+pub fn normalize_monastery_levy_rate(rate: f64) -> f64 {
+    if !rate.is_finite() {
+        return MONASTERY_LEVY_CUSTOMARY_AID;
+    }
+    MONASTERY_LEVY_RATES
+        .into_iter()
+        .min_by(|left, right| (rate - left).abs().total_cmp(&(rate - right).abs()))
+        .unwrap_or(MONASTERY_LEVY_CUSTOMARY_AID)
+}
+
 pub fn clamp_land_levy_rate(rate: f64) -> f64 {
     rate.clamp(LAND_LEVY_RATE_MIN, LAND_LEVY_RATE_MAX)
 }
@@ -69,6 +95,17 @@ mod tests {
         assert!((split.household_income + split.export_duty - 100.0).abs() < 1e-9);
         assert_eq!(clamp_import_duty_rate(-1.0), IMPORT_DUTY_RATE_MIN);
         assert_eq!(clamp_export_duty_rate(2.0), EXPORT_DUTY_RATE_MAX);
+    }
+
+    #[test]
+    fn monastic_charter_has_only_three_named_rates() {
+        assert!(is_valid_monastery_levy_rate(0.0));
+        assert!(is_valid_monastery_levy_rate(0.10));
+        assert!(is_valid_monastery_levy_rate(0.25));
+        assert!(!is_valid_monastery_levy_rate(0.17));
+        assert_eq!(normalize_monastery_levy_rate(0.04), 0.0);
+        assert_eq!(normalize_monastery_levy_rate(0.16), 0.10);
+        assert_eq!(normalize_monastery_levy_rate(0.24), 0.25);
     }
 
     #[test]

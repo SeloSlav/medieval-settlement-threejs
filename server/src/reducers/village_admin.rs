@@ -2,6 +2,7 @@ use spacetimedb::{reducer, ReducerContext};
 
 use crate::db::*;
 use crate::economy::clamp_chapel_coffer_reserve_gold;
+use crate::fiscal_policy::{is_valid_monastery_levy_rate, normalize_monastery_levy_rate};
 use crate::labor_steward_policy::is_valid_labor_steward_reserve;
 use crate::lifecycle::ensure_player_resources;
 use crate::monastery_estate_policy::{
@@ -195,13 +196,16 @@ pub fn set_monastery_charter(ctx: &ReducerContext, levy_rate: f64) -> Result<(),
     ensure_player_resources(ctx, owner);
     require_owned_building(ctx, "town_hall", true)?;
     require_owned_building(ctx, "monastery", false)?;
-    if !levy_rate.is_finite() {
-        return Err("The monastic levy must be a finite rate.".to_string());
+    if !is_valid_monastery_levy_rate(levy_rate) {
+        return Err(
+            "Choose Chartered immunity (0%), Customary aid (10%), or Extraordinary subsidy (25%)."
+                .to_string(),
+        );
     }
     let Some(mut resources) = ctx.db.player_resources().owner().find(&owner) else {
         return Err("Player resources not found.".to_string());
     };
-    resources.monastery_levy_rate = levy_rate.clamp(0.0, 0.25);
+    resources.monastery_levy_rate = normalize_monastery_levy_rate(levy_rate);
     ctx.db.player_resources().owner().update(resources);
     Ok(())
 }
