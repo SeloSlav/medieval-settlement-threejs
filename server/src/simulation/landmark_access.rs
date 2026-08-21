@@ -3,9 +3,7 @@ use std::collections::HashMap;
 use spacetimedb::{Identity, ReducerContext};
 
 use crate::balance_generated::HERB_TREATMENT_PER_SICK_DAY;
-use crate::monastery_estate_policy::{
-    monastery_extension_count, monastery_infirmary_beds,
-};
+use crate::monastery_estate_policy::{monastery_extension_count, monastery_infirmary_beds};
 use crate::simulation::tick_context::SimTickContext;
 use crate::tables::{Building, Residence};
 

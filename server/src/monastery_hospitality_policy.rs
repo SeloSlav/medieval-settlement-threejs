@@ -196,8 +196,7 @@ pub fn monastery_pilgrimage_gold(
     } else {
         0.0
     };
-    (MONASTERY_PILGRIMAGE_GOLD_PER_DAY
-        + hospitality_bonus * prestige_multiplier.max(1.0))
+    (MONASTERY_PILGRIMAGE_GOLD_PER_DAY + hospitality_bonus * prestige_multiplier.max(1.0))
         * guesthouse_multiplier.max(1.0)
         * day_fraction
 }
@@ -240,13 +239,8 @@ mod tests {
 
     #[test]
     fn mixed_cellar_is_valid_and_has_a_small_prestige_bonus() {
-        let mixed = monastery_feast_batch(
-            MONASTERY_FEAST_FOOD,
-            5.0,
-            5.0,
-            MONASTERY_FEAST_HONEY,
-            0.0,
-        );
+        let mixed =
+            monastery_feast_batch(MONASTERY_FEAST_FOOD, 5.0, 5.0, MONASTERY_FEAST_HONEY, 0.0);
         assert!(mixed.ready);
         assert!(mixed.mixed_cellar);
         assert!((mixed.prestige_multiplier - 1.10).abs() < 1e-9);
@@ -347,6 +341,9 @@ mod tests {
         let disabled = monastery_hospitality_use(10.0, 10.0, 10.0, 10.0, 60.0, 60.0, false);
         assert_eq!(disabled.honey_used, 0.0);
         assert_eq!(disabled.wine_used, 0.0);
-        assert_eq!(monastery_pilgrimage_gold(false, 1.0, 1.0, 1.0, 60.0, 60.0), 2.0);
+        assert_eq!(
+            monastery_pilgrimage_gold(false, 1.0, 1.0, 1.0, 60.0, 60.0),
+            2.0
+        );
     }
 }

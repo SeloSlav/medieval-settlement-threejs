@@ -274,7 +274,8 @@ mod tests {
             monastery_extensions: 0,
             monastery_next_extension: 0,
             monastery_orchard_planted_year: 0,
-            monastery_orchard_maturity: crate::monastery_estate_policy::MONASTERY_ORCHARD_MATURITY_MATURE,
+            monastery_orchard_maturity:
+                crate::monastery_estate_policy::MONASTERY_ORCHARD_MATURITY_MATURE,
             monastery_croft_choice_year: 0,
             monastery_service_funding: 1.0,
             monastery_last_service_day: 0,

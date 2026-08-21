@@ -17,8 +17,8 @@ use crate::farming::{
     CROP_WHEAT,
 };
 use crate::raid_agent_policy::combat_agent_is_active_raider_threat;
-use crate::resident_welfare_policy::CorpseSpatialIndex;
 use crate::residence_service_policy::required_chapel_tier;
+use crate::resident_welfare_policy::CorpseSpatialIndex;
 use crate::roads::RoadNetwork;
 use crate::simulation::fires::{FIRE_TARGET_BUILDING, FIRE_TARGET_RESIDENCE};
 use crate::simulation::residence_needs::ResidenceNeedKind;
@@ -45,10 +45,8 @@ struct FarmsteadSeedReserves {
 
 const MARKET_STALL_GROUP_FOOD: u8 = 0;
 const MARKET_STALL_GROUP_GOODS: u8 = 1;
-const MARKET_FOOD_STALL_NEEDS: [ResidenceNeedKind; 2] = [
-    ResidenceNeedKind::Food,
-    ResidenceNeedKind::PreservedFood,
-];
+const MARKET_FOOD_STALL_NEEDS: [ResidenceNeedKind; 2] =
+    [ResidenceNeedKind::Food, ResidenceNeedKind::PreservedFood];
 const MARKET_GOODS_STALL_NEEDS: [ResidenceNeedKind; 3] = [
     ResidenceNeedKind::Firewood,
     ResidenceNeedKind::Cloth,
@@ -103,8 +101,7 @@ pub struct SimTickContext {
     marketplace_stall_rosters: RefCell<HashMap<Identity, MarketplaceStallRoster>>,
     active_remote_camp_by_worksite: RefCell<HashMap<(Identity, u64), bool>>,
     waiting_corpse_index: RefCell<Option<HashMap<Identity, CorpseSpatialIndex>>>,
-    farmstead_seed_reserves:
-        RefCell<HashMap<Identity, HashMap<u64, FarmsteadSeedReserves>>>,
+    farmstead_seed_reserves: RefCell<HashMap<Identity, HashMap<u64, FarmsteadSeedReserves>>>,
     farmstead_manure_requirements: RefCell<HashMap<Identity, HashMap<u64, (f64, u8)>>>,
     cattle_field_sources_by_owner: RefCell<HashMap<Identity, HashMap<u64, Vec<u64>>>>,
 }
@@ -1085,11 +1082,7 @@ impl SimTickContext {
                     building.construction_complete,
                     building.assigned_labor,
                 ) && !self.building_disabled_by_fire(ctx, building.id)
-                    && self.marketplace_has_stall_workers(
-                        ctx,
-                        building,
-                        ResidenceNeedKind::Food,
-                    )
+                    && self.marketplace_has_stall_workers(ctx, building, ResidenceNeedKind::Food)
                     && building_edible_food_stock(building) > 1e-6
             })
             .collect();

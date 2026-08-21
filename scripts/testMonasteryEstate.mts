@@ -4,6 +4,12 @@ import * as THREE from 'three';
 import {
   MONASTERY_ESTATE_DEPTH,
   MONASTERY_ESTATE_WIDTH,
+  MONASTERY_EXTENSION_ALL,
+  MONASTERY_EXTENSION_GUESTHOUSE,
+  MONASTERY_EXTENSION_INFIRMARY,
+  MONASTERY_EXTENSION_SCRIPTORIUM,
+  MONASTERY_EXTENSION_WORKSHOP,
+  monasteryCroftChoiceAllowed,
   monasteryEstateFitsMap,
   monasteryEstateFootprintCorners,
   monasteryEstateIsNearMapEdge,
@@ -12,8 +18,10 @@ import {
   monasteryInfirmaryBeds,
   monasteryInfirmaryMortalityMultiplier,
   monasteryInfirmaryRecoveryMultiplier,
+  monasteryOrchardReplantingAllowed,
   monasteryScriptoriumRecoveryMultiplier,
   monasterySeedArchiveTargetPerCrop,
+  monasteryVisualEstateLevel,
 } from '../src/buildings/monasteryEstate.ts';
 import { createBuildingMesh } from '../src/buildings/BuildingMeshes.ts';
 import { fireRecoveryCost } from '../src/fires/fireRecovery.ts';
@@ -40,26 +48,40 @@ assert.equal(monasteryEstateIsNearMapEdge(0, 350, 0, smallBounds), true);
 assert.equal(monasteryEstateIsNearMapEdge(0, 0, 0, smallBounds), false);
 assert.equal(monasteryEstateFitsMap(0, 405, 0, smallBounds), false);
 
-assert.equal(monasteryEstateNextInvestmentCost(0), 18);
-assert.equal(monasteryEstateNextInvestmentCost(1), 42);
-assert.equal(monasteryEstateNextInvestmentCost(2), 78);
-assert.equal(monasteryEstateNextInvestmentCost(3), null);
-assert.ok(monasteryEstateYields(3).apples > monasteryEstateYields(0).apples);
-assert.equal(monasteryEstateYields(0).cheese, 0);
-assert.ok(monasteryEstateYields(1).cheese > 0);
+assert.equal(monasteryEstateNextInvestmentCost(0, MONASTERY_EXTENSION_INFIRMARY), 24);
+assert.equal(monasteryEstateNextInvestmentCost(0, MONASTERY_EXTENSION_SCRIPTORIUM), 28);
+assert.equal(monasteryEstateNextInvestmentCost(0, MONASTERY_EXTENSION_GUESTHOUSE), 20);
+assert.equal(monasteryEstateNextInvestmentCost(0, MONASTERY_EXTENSION_WORKSHOP), 30);
+assert.equal(
+  monasteryEstateNextInvestmentCost(MONASTERY_EXTENSION_ALL, MONASTERY_EXTENSION_GUESTHOUSE),
+  null,
+);
+assert.ok(
+  monasteryEstateYields(MONASTERY_EXTENSION_ALL).apples
+    > monasteryEstateYields(0).apples,
+);
+assert.ok(monasteryEstateYields(0).cheese > 0);
 assert.equal(monasteryEstateYields(0).wine, 0);
 assert.ok(monasteryEstateYields(0, 1, 0).wine > 0);
-assert.equal(monasteryEstateYields(2, 0, 1).cider, 0);
-assert.ok(monasteryEstateYields(3, 0, 1).cider > 0);
+assert.equal(monasteryEstateYields(0, 0, 1).cider, 0);
+assert.ok(monasteryEstateYields(MONASTERY_EXTENSION_WORKSHOP, 0, 1).cider > 0);
 assert.ok(monasteryEstateYields(0, 0, 1).ale > 0);
 assert.equal(monasteryEstateYields(0, 0, 0).ale, 0);
-assert.equal(monasteryInfirmaryBeds(0), 4);
-assert.equal(monasteryInfirmaryBeds(3), 10);
-assert.ok(monasteryInfirmaryRecoveryMultiplier(3) > monasteryInfirmaryRecoveryMultiplier(0));
-assert.ok(monasteryInfirmaryMortalityMultiplier(3) < monasteryInfirmaryMortalityMultiplier(0));
+assert.equal(monasteryEstateYields(0, 0, 0, 0).apples, 0);
+assert.ok(monasteryEstateYields(0, 0, 0, 1).apples > 0);
+assert.ok(monasteryEstateYields(0, 0, 0, 1).apples < monasteryEstateYields(0, 0, 0, 2).apples);
+assert.equal(monasteryOrchardReplantingAllowed(12), true);
+assert.equal(monasteryOrchardReplantingAllowed(6), false);
+assert.equal(monasteryCroftChoiceAllowed(2), true);
+assert.equal(monasteryCroftChoiceAllowed(3), false);
+assert.equal(monasteryInfirmaryBeds(0), 2);
+assert.equal(monasteryInfirmaryBeds(MONASTERY_EXTENSION_INFIRMARY), 10);
+assert.equal(monasteryInfirmaryBeds(MONASTERY_EXTENSION_INFIRMARY, 0), 2);
+assert.ok(monasteryInfirmaryRecoveryMultiplier(MONASTERY_EXTENSION_INFIRMARY) > monasteryInfirmaryRecoveryMultiplier(0));
+assert.ok(monasteryInfirmaryMortalityMultiplier(MONASTERY_EXTENSION_INFIRMARY) < monasteryInfirmaryMortalityMultiplier(0));
 assert.equal(monasterySeedArchiveTargetPerCrop(0), 8);
-assert.equal(monasterySeedArchiveTargetPerCrop(3), 20);
-assert.ok(monasteryScriptoriumRecoveryMultiplier(3) < monasteryScriptoriumRecoveryMultiplier(0));
+assert.equal(monasterySeedArchiveTargetPerCrop(MONASTERY_EXTENSION_SCRIPTORIUM), 20);
+assert.ok(monasteryScriptoriumRecoveryMultiplier(MONASTERY_EXTENSION_SCRIPTORIUM) < monasteryScriptoriumRecoveryMultiplier(0));
 assert.deepEqual(
   fireRecoveryCost(
     { timber: 100, stone: 50, ironwork: 10, roofTiles: 20 },
@@ -71,8 +93,21 @@ assert.deepEqual(
   { timber: 56, stone: 28, ironwork: 5.6, roofTiles: 11.2 },
 );
 
-for (const level of [0, 1, 2, 3] as const) {
-  const mesh = createBuildingMesh('monastery', level);
+for (const extensions of [
+  0,
+  MONASTERY_EXTENSION_INFIRMARY,
+  MONASTERY_EXTENSION_SCRIPTORIUM,
+  MONASTERY_EXTENSION_GUESTHOUSE,
+  MONASTERY_EXTENSION_WORKSHOP,
+  MONASTERY_EXTENSION_ALL,
+]) {
+  const level = monasteryVisualEstateLevel(extensions);
+  const mesh = createBuildingMesh('monastery', level, {
+    orchard: 0,
+    croft: 0,
+    extensions,
+    orchardMaturity: 2,
+  });
   const estate = mesh.getObjectByName(`Monastery enclosed estate level ${level}`);
   assert.ok(estate instanceof THREE.Group, `estate level ${level} must be rendered`);
   assert.ok(mesh.getObjectByName('Monastery precinct rear wall'));
@@ -87,9 +122,26 @@ for (const level of [0, 1, 2, 3] as const) {
   assert.ok(mesh.getObjectByName('Monastery apple orchard'));
   assert.ok(mesh.getObjectByName('Monastery bee garden'));
   assert.ok(mesh.getObjectByName('Monastery chicken yard'));
-  assert.ok(mesh.getObjectByName('Monastery infirmary wing'));
-  assert.ok(mesh.getObjectByName('Monastery scriptorium and records wing'));
-  assert.ok(mesh.getObjectByName('Scriptorium duplicate records chest'));
+  assert.equal(
+    mesh.getObjectByName('Monastery infirmary wing') != null,
+    (extensions & MONASTERY_EXTENSION_INFIRMARY) !== 0,
+  );
+  assert.equal(
+    mesh.getObjectByName('Monastery scriptorium and records wing') != null,
+    (extensions & MONASTERY_EXTENSION_SCRIPTORIUM) !== 0,
+  );
+  assert.equal(
+    mesh.getObjectByName('Scriptorium duplicate records chest') != null,
+    (extensions & MONASTERY_EXTENSION_SCRIPTORIUM) !== 0,
+  );
+  assert.equal(
+    mesh.getObjectByName('Monastery guesthouse') != null,
+    (extensions & MONASTERY_EXTENSION_GUESTHOUSE) !== 0,
+  );
+  assert.equal(
+    mesh.getObjectByName('Monastery invested cider press') != null,
+    (extensions & MONASTERY_EXTENSION_WORKSHOP) !== 0,
+  );
   assert.ok(mesh.getObjectByName('Monastery agricultural archive and seed vault'));
   assert.ok(mesh.getObjectByName('Rye emergency seed chest'));
   const architecturePlan = estate.userData.architecturePlan as {
@@ -117,9 +169,20 @@ for (const level of [0, 1, 2, 3] as const) {
   assert.ok((architecturePlan.diagnostics?.triangleCount ?? 0) > 0);
   assert.ok((architecturePlan.diagnostics?.meshCount ?? 0) > 0);
 }
-assert.ok(createBuildingMesh('monastery', 1).getObjectByName('Monastery invested dairy'));
-assert.ok(createBuildingMesh('monastery', 3).getObjectByName('Monastery invested cider press'));
-const wineAndAleEstate = createBuildingMesh('monastery', 3, { orchard: 1, croft: 1 });
+const fullyDevelopedEstate = createBuildingMesh('monastery', 3, {
+  orchard: 0,
+  croft: 0,
+  extensions: MONASTERY_EXTENSION_ALL,
+  orchardMaturity: 2,
+});
+assert.ok(fullyDevelopedEstate.getObjectByName('Monastery estate root cellar'));
+assert.ok(fullyDevelopedEstate.getObjectByName('Monastery invested cider press'));
+const wineAndAleEstate = createBuildingMesh('monastery', 3, {
+  orchard: 1,
+  croft: 1,
+  extensions: MONASTERY_EXTENSION_ALL,
+  orchardMaturity: 2,
+});
 assert.ok(wineAndAleEstate.getObjectByName('Monastery grapevine parcel'));
 assert.ok(wineAndAleEstate.getObjectByName('Monastery brewing barley croft'));
 assert.ok(wineAndAleEstate.getObjectByName('Monastery invested wine press'));
@@ -127,11 +190,18 @@ assert.equal(wineAndAleEstate.getObjectByName('Monastery apple orchard'), undefi
 
 const serverPolicy = readFileSync(new URL('../server/src/monastery_estate_policy.rs', import.meta.url), 'utf8');
 assert.match(serverPolicy, /MONASTERY_ESTATE_HALF_WIDTH: f64 = 34\.0/);
-assert.match(serverPolicy, /INVESTMENT_COSTS: \[f64; 3\] = \[18\.0, 42\.0, 78\.0\]/);
 assert.match(serverPolicy, /MONASTERY_ESTATE_EXPORT_LOT: f64 = 6\.0/);
-assert.match(serverPolicy, /INFIRMARY_BEDS: \[u32; 4\] = \[4, 6, 8, 10\]/);
-assert.match(serverPolicy, /SEED_ARCHIVE_TARGET_PER_CROP: \[f64; 4\] = \[8\.0, 12\.0, 16\.0, 20\.0\]/);
-assert.match(serverPolicy, /SCRIPTORIUM_RECOVERY_MULTIPLIERS: \[f64; 4\] = \[0\.90, 0\.84, 0\.78, 0\.72\]/);
+assert.match(serverPolicy, /MONASTERY_EXTENSION_INFIRMARY: u8 = 1/);
+assert.match(serverPolicy, /MONASTERY_EXTENSION_SCRIPTORIUM: u8 = 2/);
+assert.match(serverPolicy, /MONASTERY_EXTENSION_GUESTHOUSE: u8 = 4/);
+assert.match(serverPolicy, /MONASTERY_EXTENSION_WORKSHOP: u8 = 8/);
+assert.match(serverPolicy, /MONASTERY_EXTENSION_INFIRMARY => Some\(24\.0\)/);
+assert.match(serverPolicy, /MONASTERY_EXTENSION_SCRIPTORIUM => Some\(28\.0\)/);
+assert.match(serverPolicy, /MONASTERY_EXTENSION_GUESTHOUSE => Some\(20\.0\)/);
+assert.match(serverPolicy, /MONASTERY_EXTENSION_WORKSHOP => Some\(30\.0\)/);
+assert.match(serverPolicy, /MONASTERY_ORCHARD_REPLANT_COST: f64 = 12\.0/);
+assert.match(serverPolicy, /monastery_orchard_replanting_allowed/);
+assert.match(serverPolicy, /monastery_croft_choice_allowed/);
 assert.match(serverPolicy, /MONASTERY_ORCHARD_APPLES: u8 = 0/);
 assert.match(serverPolicy, /MONASTERY_CROFT_BARLEY: u8 = 1/);
 assert.match(serverPolicy, /pub cider: f64/);
@@ -166,6 +236,7 @@ const staffedEstate = {
   waterCapacity: 0,
   assignedLabor: 8,
   constructionComplete: true,
+  monasteryExtensions: MONASTERY_EXTENSION_ALL,
 } as BuildingState;
 const estateWorkTargets = collectWorkerTargets(staffedEstate, {
   quarries: [],
@@ -179,6 +250,24 @@ for (const station of ['orchard', 'croft', 'pasture', 'infirmary', 'outer-gate']
   assert.ok(
     estateWorkTargets.some((target) => target.id.endsWith(`:${station}`)),
     `assigned monks need a visible ${station} duty target`,
+  );
+}
+const baseEstateWorkTargets = collectWorkerTargets(
+  { ...staffedEstate, monasteryExtensions: 0 },
+  {
+    quarries: [],
+    foragingNodes: [],
+    trees: new Map(),
+    treeRegistry: null,
+    farmFields: [],
+    pastures: [],
+  },
+);
+for (const unbuiltStation of ['infirmary', 'scriptorium', 'guesthouse']) {
+  assert.equal(
+    baseEstateWorkTargets.some((target) => target.id.endsWith(`:${unbuiltStation}`)),
+    false,
+    `monks must not walk into the unbuilt ${unbuiltStation}`,
   );
 }
 const outsidePlan = Array.from({ length: 512 }, (_, seed) =>
@@ -201,9 +290,10 @@ assert.match(simulation, /fn dispatch_monastery_estate_export/);
 assert.match(simulation, /CommodityKind::Apples, yields\.apples/);
 assert.match(simulation, /CommodityKind::Wine, yields\.wine/);
 assert.match(simulation, /CommodityKind::Cider, yields\.cider/);
-assert.match(simulation, /CommodityKind::Milk, food_exportable/);
-assert.match(simulation, /CommodityKind::Wine,[\s\S]*monastery_estate_exportable\(monastery\.wine, wine_floor\)/);
-assert.match(simulation, /CommodityKind::Cider,[\s\S]*monastery_estate_exportable\(monastery\.cider, 3\.0\)/);
+assert.match(simulation, /CommodityKind::Milk,\s*food_exportable/);
+assert.match(simulation, /let drink_floor[\s\S]*MONASTERY_FEAST_ALE[\s\S]*let drink_surplus[\s\S]*monastery\.ale[\s\S]*monastery\.cider[\s\S]*monastery\.wine/);
+assert.match(simulation, /CommodityKind::Wine,[\s\S]*drink_exportable\(monastery\.wine\)/);
+assert.match(simulation, /CommodityKind::Cider,[\s\S]*drink_exportable\(monastery\.cider\)/);
 assert.match(simulation, /monastery_infirmary_beds[\s\S]*MONASTERY_INFIRMARY_FOOD_PER_BED_DAY/);
 assert.match(simulation, /start_regional_market_export_trip/);
 assert.match(simulation, /fn request_monastery_seed_archive/);

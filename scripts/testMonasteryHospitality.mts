@@ -6,7 +6,6 @@ import {
   MONASTERY_FEAST_ALE,
   MONASTERY_FEAST_FOOD,
   MONASTERY_FEAST_HONEY,
-  MONASTERY_FEAST_WINE,
   MONASTERY_HOSPITALITY_BONUS_GOLD_PER_DAY,
   MONASTERY_HOSPITALITY_HONEY_PER_DAY,
   MONASTERY_HOSPITALITY_WINE_PER_DAY,
@@ -29,29 +28,40 @@ import {
 } from '../src/settlement/monasteryFeast.ts';
 import type { BuildingState } from '../src/resources/types.ts';
 
-const full = monasteryHospitalityPlan({ honey: 80, wine: 50 }, true);
+const full = monasteryHospitalityPlan({ honey: 80, ale: 50, cider: 0, wine: 0 }, true);
 assert.equal(full.supplyRatio, 1);
 assert.equal(full.pilgrimageGoldPerDay, 3.5);
 assert.equal(full.honeyRunwayDays, 95);
-assert.equal(full.wineRunwayDays, 94);
+assert.equal(full.drinkRunwayDays, 80);
 assert.equal(full.honeyPerYear, 308);
-assert.equal(full.winePerYear, 195);
+assert.equal(full.drinkPerYear, 230);
 assert.equal(full.feastFoodPerYear, 90);
-assert.equal(full.feastAlePerYear, 50);
+assert.equal(full.feastDrinkPerYear, 50);
+assert.equal(full.commonTableMultiplier, 1.25);
 assert.equal(monasteryHospitalityStatusLabel(full), 'Fully provisioned');
 
-const honeyOnly = monasteryHospitalityPlan({ honey: 8, wine: 0 }, true);
+const wineHospitality = monasteryHospitalityPlan({ honey: 80, ale: 0, cider: 0, wine: 50 }, true);
+assert.equal(wineHospitality.prestigeMultiplier, 1.25);
+assert.equal(wineHospitality.pilgrimageGoldPerDay, 3.875);
+
+const mixedCellar = monasteryHospitalityPlan({ honey: 80, ale: 25, cider: 25, wine: 0 }, true);
+assert.equal(mixedCellar.mixedCellar, true);
+assert.equal(mixedCellar.prestigeMultiplier, 1.1);
+
+const honeyOnly = monasteryHospitalityPlan({ honey: 8, ale: 0, cider: 0, wine: 0 }, true);
 assert.equal(honeyOnly.supplyRatio, 0.5);
 assert.equal(honeyOnly.pilgrimageGoldPerDay, 2.75);
 assert.match(monasteryHospitalityStatusLabel(honeyOnly), /Partly provisioned/);
 
 const protectedBatch = monasteryHospitalityPlan({
   honey: MONASTERY_FEAST_HONEY,
-  wine: MONASTERY_FEAST_WINE,
+  ale: 0,
+  cider: MONASTERY_FEAST_ALE,
+  wine: 0,
 }, true);
 assert.equal(protectedBatch.supplyRatio, 0);
 assert.equal(protectedBatch.honeyRunwayDays, 0);
-assert.equal(protectedBatch.wineRunwayDays, 0);
+assert.equal(protectedBatch.drinkRunwayDays, 0);
 assert.equal(
   monasteryFeastSurplus(MONASTERY_FEAST_ALE + 2.5, MONASTERY_FEAST_ALE, true),
   2.5,
@@ -65,15 +75,15 @@ assert.equal(
   MONASTERY_FEAST_ALE,
 );
 
-const disabled = monasteryHospitalityPlan({ honey: 80, wine: 50 }, false);
+const disabled = monasteryHospitalityPlan({ honey: 80, ale: 0, cider: 0, wine: 50 }, false);
 assert.equal(disabled.supplyRatio, 0);
 assert.equal(disabled.pilgrimageGoldPerDay, MONASTERY_PILGRIMAGE_GOLD_PER_DAY);
 assert.equal(disabled.honeyPerDay, 0);
-assert.equal(disabled.winePerDay, 0);
+assert.equal(disabled.drinkPerDay, 0);
 assert.equal(disabled.honeyPerYear, 0);
-assert.equal(disabled.winePerYear, 0);
+assert.equal(disabled.drinkPerYear, 0);
 assert.equal(disabled.feastFoodPerYear, 0);
-assert.equal(disabled.feastAlePerYear, 0);
+assert.equal(disabled.feastDrinkPerYear, 0);
 assert.match(monasteryHospitalityStatusLabel(disabled), /remain exportable/);
 
 assert.equal(MONASTERY_FEAST_FOOD, 18);
@@ -81,7 +91,6 @@ assert.equal(MONASTERY_FEAST_ALE, 10);
 assert.equal(MONASTERY_HOSPITALITY_HONEY_PER_DAY, 0.8);
 assert.equal(MONASTERY_HOSPITALITY_WINE_PER_DAY, 0.5);
 assert.equal(MONASTERY_FEAST_HONEY, 4);
-assert.equal(MONASTERY_FEAST_WINE, 3);
 assert.equal(BUILDING_STORAGE_CAPS.monastery.honey, 160);
 assert.equal(BUILDING_STORAGE_CAPS.monastery.wine, 120);
 assert.deepEqual(
@@ -97,23 +106,25 @@ assert.ok(
 
 const readyFeast = monasteryFeastReadiness({
   food: MONASTERY_FEAST_FOOD,
-  ale: MONASTERY_FEAST_ALE,
+  ale: 0,
+  cider: MONASTERY_FEAST_ALE,
   honey: MONASTERY_FEAST_HONEY,
-  wine: MONASTERY_FEAST_WINE,
+  wine: 0,
 });
 assert.equal(readyFeast.ready, true);
 const shortFeast = monasteryFeastReadiness({
   food: 17,
   ale: 8,
+  cider: 0,
   honey: 1.5,
   wine: 0,
 });
 assert.deepEqual(shortFeast, {
   ready: false,
   missingFood: 1,
-  missingAle: 2,
   missingHoney: 2.5,
-  missingWine: 3,
+  missingDrink: 2,
+  drinkMix: 'ale',
 });
 
 const beforeSaintsPeterAndPaul = nextMonasteryFeast({
@@ -255,12 +266,12 @@ assert.match(
 );
 assert.match(
   rustHospitalityPolicy,
-  /monastery_hospitality_use[\s\S]*?monastery_feast_surplus\([\s\S]*?MONASTERY_FEAST_HONEY[\s\S]*?monastery_feast_surplus\([\s\S]*?MONASTERY_FEAST_WINE/,
-  'daily hospitality must consume only specialty stock above the protected feast batch',
+  /monastery_hospitality_use[\s\S]*?monastery_feast_surplus\([\s\S]*?MONASTERY_FEAST_HONEY[\s\S]*?monastery_feast_surplus\([\s\S]*?MONASTERY_FEAST_ALE[\s\S]*?draw_estate_drink/,
+  'daily hospitality must consume honey and aggregate estate drink only above the protected feast batch',
 );
 assert.match(
   server,
-  /step_brewery[\s\S]*?for beverage in \[CommodityKind::Ale, CommodityKind::Cider, CommodityKind::Mead\][\s\S]*?&\["tavern"\][\s\S]*?CommodityKind::Ale,[\s\S]*?&\["trading_post"\]/,
+  /step_brewery[\s\S]*?for beverage in \[[\s\S]*?CommodityKind::Ale,[\s\S]*?CommodityKind::Cider,[\s\S]*?CommodityKind::Mead,[\s\S]*?&\["tavern"\][\s\S]*?CommodityKind::Ale,[\s\S]*?&\["trading_post"\]/,
   'town breweries must serve taverns and external trade without refilling monastery stores',
 );
 assert.doesNotMatch(
@@ -270,8 +281,8 @@ assert.doesNotMatch(
 );
 assert.match(
   server,
-  /is_monastery_feast_day[\s\S]*?tick\.monastery_for_residence\([\s\S]*?== Some\(monastery\.id\)[\s\S]*?if residences\.is_empty\(\)[\s\S]*?monastery_feast_batch[\s\S]*?if !batch\.ready[\s\S]*?MONASTERY_FEAST_FOOD[\s\S]*?MONASTERY_FEAST_ALE[\s\S]*?MONASTERY_FEAST_HONEY[\s\S]*?MONASTERY_FEAST_WINE/,
-  'reachable feast days must serve only this monastery territory and require a complete physical batch before any withdrawal',
+  /is_monastery_feast_day[\s\S]*?tick\.monastery_for_residence\([\s\S]*?== Some\(monastery\.id\)[\s\S]*?if residences\.is_empty\(\)[\s\S]*?monastery_feast_batch[\s\S]*?monastery\.ale[\s\S]*?monastery\.cider[\s\S]*?monastery\.honey[\s\S]*?monastery\.wine[\s\S]*?if !batch\.ready/,
+  'reachable feast days must serve only this monastery territory and require food, honey, and one complete aggregate drink batch before any withdrawal',
 );
 const feastSource = server.slice(
   server.indexOf('fn run_monastery_feast'),
@@ -343,7 +354,7 @@ assert.doesNotMatch(
 );
 assert.match(
   fs.readFileSync('src/resources/inspector/expandedBuildingRenderer.ts', 'utf8'),
-  /Next feast[\s\S]*?Feast pantry[\s\S]*?one complete batch protected[\s\S]*?Annual hospitality[\s\S]*?Pilgrimage income[\s\S]*?Provision hospitality and feast days/,
+  /Next feast[\s\S]*?Feast pantry[\s\S]*?one complete batch protected[\s\S]*?Annual hospitality[\s\S]*?Pilgrimage offerings[\s\S]*?Provision hospitality and feast days/,
   'the monastery inspector must expose the next deadline, reserve readiness, annual targets, income, and export tradeoff',
 );
 assert.match(
@@ -356,12 +367,13 @@ const performanceStarted = performance.now();
 let checksum = 0;
 for (let index = 0; index < 100_000; index += 1) {
   checksum += monasteryHospitalityPlan(
-    { honey: index % 160, wine: index % 120 },
+    { honey: index % 160, ale: index % 80, cider: index % 40, wine: index % 120 },
     true,
   ).pilgrimageGoldPerDay;
   checksum += monasteryFeastReadiness({
     food: index % 320,
     ale: index % 160,
+    cider: index % 80,
     honey: index % 160,
     wine: index % 120,
   }).missingFood;

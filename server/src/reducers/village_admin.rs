@@ -5,11 +5,10 @@ use crate::economy::clamp_chapel_coffer_reserve_gold;
 use crate::labor_steward_policy::is_valid_labor_steward_reserve;
 use crate::lifecycle::ensure_player_resources;
 use crate::monastery_estate_policy::{
-    monastery_croft_choice_allowed, monastery_extension_cost,
-    monastery_has_extension, monastery_orchard_replanting_allowed,
-    normalize_monastery_croft_planting, normalize_monastery_extensions,
-    normalize_monastery_orchard_planting, MONASTERY_ESTATE_GOLD_RESERVE,
-    MONASTERY_ORCHARD_MATURITY_NEW, MONASTERY_ORCHARD_REPLANT_COST,
+    monastery_croft_choice_allowed, monastery_extension_cost, monastery_has_extension,
+    monastery_orchard_replanting_allowed, normalize_monastery_croft_planting,
+    normalize_monastery_extensions, normalize_monastery_orchard_planting,
+    MONASTERY_ESTATE_GOLD_RESERVE, MONASTERY_ORCHARD_MATURITY_NEW, MONASTERY_ORCHARD_REPLANT_COST,
 };
 use crate::night_policy::valid_policy_code;
 use crate::pantry_safeguard_policy::valid_pantry_safeguard_policy;
@@ -234,7 +233,9 @@ pub fn set_monastery_planting(
 
     if orchard_planting != monastery.monastery_orchard_planting {
         if !monastery_orchard_replanting_allowed(clock.month) {
-            return Err("Perennial rows may be replanted only from November through February.".to_string());
+            return Err(
+                "Perennial rows may be replanted only from November through February.".to_string(),
+            );
         }
         let private_gold = (monastery.gold - monastery.civic_receipts_gold.max(0.0)).max(0.0);
         if private_gold + 1e-9 < MONASTERY_ORCHARD_REPLANT_COST + MONASTERY_ESTATE_GOLD_RESERVE {
@@ -259,7 +260,10 @@ pub fn set_monastery_planting(
 
     if croft_planting != monastery.monastery_croft_planting {
         if !monastery_croft_choice_allowed(clock.month) {
-            return Err("The annual croft choice may be changed only before sowing in January or February.".to_string());
+            return Err(
+                "The annual croft choice may be changed only before sowing in January or February."
+                    .to_string(),
+            );
         }
         if monastery.monastery_croft_choice_year == clock.year {
             return Err("The monastery has already committed its enclosed croft for this agricultural year.".to_string());

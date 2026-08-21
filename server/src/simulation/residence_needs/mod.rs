@@ -34,11 +34,11 @@ use crate::monastery_estate_policy::{
     MONASTERY_INFIRMARY_FOOD_PER_BED_DAY,
 };
 use crate::preserved_food_policy::allocate_preserved_meal;
+use crate::residence_service_policy::required_chapel_tier;
 use crate::resident_welfare_policy::{
     cold_exposure_death_chance, deterministic_unit, next_malnutrition, next_service_deficit_ticks,
     starvation_death_chance, ticks_for_days,
 };
-use crate::residence_service_policy::required_chapel_tier;
 use crate::simulation::residence_needs::state::{
     delete_needs, find_need_mut, init_needs, migrate_and_sync_food_inventory, persist_needs,
     NeedState,
@@ -393,11 +393,8 @@ fn update_health(
             1.0
         };
         let infirmary_recovery_multiplier = infirmary_care.map_or(1.0, |care| {
-            1.0
-                + (monastery_infirmary_recovery_multiplier(
-                    care.extensions,
-                    care.service_funding,
-                ) - 1.0)
+            1.0 + (monastery_infirmary_recovery_multiplier(care.extensions, care.service_funding)
+                - 1.0)
                 * infirmary_care_ratio
         });
         let effective_recovery_ticks = (f64::from(recovery_ticks)
@@ -429,12 +426,8 @@ fn update_health(
         death_cause = Some(2);
     } else if residence.sick_population > 0 {
         let infirmary_mortality_multiplier = infirmary_care.map_or(1.0, |care| {
-            1.0
-                - (1.0
-                    - monastery_infirmary_mortality_multiplier(
-                        care.extensions,
-                        care.service_funding,
-                    ))
+            1.0 - (1.0
+                - monastery_infirmary_mortality_multiplier(care.extensions, care.service_funding))
                 * infirmary_care_ratio
         });
         let mortality_chance = (ILLNESS_MORTALITY_CHANCE_PER_SICK_DAY

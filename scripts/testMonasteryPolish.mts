@@ -6,6 +6,7 @@ import {
 } from '../src/generated/gameBalance.ts';
 import { validateBuildingPlacement } from '../src/buildings/BuildingPlacementValidation.ts';
 import { createBuildingMesh } from '../src/buildings/BuildingMeshes.ts';
+import { MONASTERY_EXTENSION_ALL } from '../src/buildings/monasteryEstate.ts';
 import { buildingMarkerSignatures } from '../src/buildings/buildingMarkerSignature.ts';
 import {
   MONASTERY_ALE_VISUAL_SEGMENTS,
@@ -251,7 +252,12 @@ if (!smallParishResult.ok) {
   assert.equal(smallParishResult.reason, 'requires_parish_population');
 }
 
-const monasteryMarker = createBuildingMesh('monastery');
+const monasteryMarker = createBuildingMesh('monastery', 3, {
+  orchard: 0,
+  croft: 0,
+  extensions: MONASTERY_EXTENSION_ALL,
+  orchardMaturity: 2,
+});
 for (const estatePart of [
   'Monastery estate main gate',
   'Monastery precinct rear wall',

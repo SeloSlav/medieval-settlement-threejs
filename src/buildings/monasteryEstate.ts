@@ -177,6 +177,14 @@ export function normalizeMonasteryCroftPlanting(
   return planting === 1 ? 1 : 0;
 }
 
+export function monasteryOrchardReplantingAllowed(month: number): boolean {
+  return month === 11 || month === 12 || month === 1 || month === 2;
+}
+
+export function monasteryCroftChoiceAllowed(month: number): boolean {
+  return month === 1 || month === 2;
+}
+
 export const MONASTERY_ESTATE_YIELD_MULTIPLIERS = [1, 1.15, 1.3, 1.5, 1.75] as const;
 export const MONASTERY_INFIRMARY_FOOD_PER_BED_DAY = 0.6;
 

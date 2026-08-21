@@ -86,6 +86,8 @@ import {
   monasteryInfirmaryBeds,
   monasteryInfirmaryMortalityMultiplier,
   monasteryInfirmaryRecoveryMultiplier,
+  monasteryCroftChoiceAllowed,
+  monasteryOrchardReplantingAllowed,
   monasteryScriptoriumRecoveryMultiplier,
   monasterySeedArchiveTargetPerCrop,
   normalizeMonasteryCroftPlanting,
@@ -1881,8 +1883,8 @@ function renderMonasteryPolicyPanel(building: BuildingState, context: InspectorR
   const croftPlanting = normalizeMonasteryCroftPlanting(building.monasteryCroftPlanting);
   const archetype = monasteryArchetype(orchardPlanting, croftPlanting);
   const clock = gameClock(context.gameState.tick);
-  const orchardWindow = [11, 12, 1, 2].includes(clock.month);
-  const croftWindow = [1, 2].includes(clock.month)
+  const orchardWindow = monasteryOrchardReplantingAllowed(clock.month);
+  const croftWindow = monasteryCroftChoiceAllowed(clock.month)
     && (building.monasteryCroftChoiceYear ?? 0) !== clock.year;
   const extensions = building.monasteryExtensions ?? 0;
   const availableExtensions = MONASTERY_EXTENSIONS.filter(

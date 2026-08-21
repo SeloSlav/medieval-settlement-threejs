@@ -205,10 +205,7 @@ pub fn monastery_seed_archive_target_per_crop(extensions: u8, service_funding: f
 /// Surviving plans, measurements, contracts, and craft notes reduce the
 /// physical materials needed to reconstruct a fire-damaged holding. This is a
 /// recovery-only effect: it never accelerates ordinary construction or output.
-pub fn monastery_scriptorium_recovery_multiplier(
-    extensions: u8,
-    service_funding: f64,
-) -> f64 {
+pub fn monastery_scriptorium_recovery_multiplier(extensions: u8, service_funding: f64) -> f64 {
     if monastery_has_extension(extensions, MONASTERY_EXTENSION_SCRIPTORIUM) {
         0.92 - 0.20 * service_funding.clamp(0.0, 1.0)
     } else {
@@ -226,11 +223,23 @@ pub fn monastery_guesthouse_multiplier(extensions: u8, service_funding: f64) -> 
 
 pub fn monastery_daily_service_cost(extensions: u8) -> f64 {
     let extensions = normalize_monastery_extensions(extensions);
-    0.5
-        + if monastery_has_extension(extensions, MONASTERY_EXTENSION_INFIRMARY) { 0.7 } else { 0.0 }
-        + if monastery_has_extension(extensions, MONASTERY_EXTENSION_SCRIPTORIUM) { 0.6 } else { 0.0 }
-        + if monastery_has_extension(extensions, MONASTERY_EXTENSION_GUESTHOUSE) { 0.9 } else { 0.0 }
-        + if monastery_has_extension(extensions, MONASTERY_EXTENSION_WORKSHOP) { 0.3 } else { 0.0 }
+    0.5 + if monastery_has_extension(extensions, MONASTERY_EXTENSION_INFIRMARY) {
+        0.7
+    } else {
+        0.0
+    } + if monastery_has_extension(extensions, MONASTERY_EXTENSION_SCRIPTORIUM) {
+        0.6
+    } else {
+        0.0
+    } + if monastery_has_extension(extensions, MONASTERY_EXTENSION_GUESTHOUSE) {
+        0.9
+    } else {
+        0.0
+    } + if monastery_has_extension(extensions, MONASTERY_EXTENSION_WORKSHOP) {
+        0.3
+    } else {
+        0.0
+    }
 }
 
 pub fn monastery_orchard_maturity_for_year(planted_year: u32, year: u32) -> u8 {
@@ -323,7 +332,11 @@ pub fn monastery_estate_yields(
     }
 }
 
-pub fn monastery_estate_can_reinvest(extensions: u8, next_extension: u8, private_gold: f64) -> bool {
+pub fn monastery_estate_can_reinvest(
+    extensions: u8,
+    next_extension: u8,
+    private_gold: f64,
+) -> bool {
     monastery_estate_next_investment_cost(extensions, next_extension)
         .is_some_and(|cost| private_gold + 1e-9 >= cost + MONASTERY_ESTATE_GOLD_RESERVE)
 }
@@ -395,25 +408,23 @@ mod tests {
 
     #[test]
     fn planting_plan_selects_outputs_and_cider_needs_the_press() {
-        let kitchen =
-            monastery_estate_yields(
-                MONASTERY_EXTENSION_INFIRMARY | MONASTERY_EXTENSION_SCRIPTORIUM,
-                MONASTERY_ORCHARD_APPLES,
-                MONASTERY_CROFT_VEGETABLES,
-                MONASTERY_ORCHARD_MATURITY_MATURE,
-            );
+        let kitchen = monastery_estate_yields(
+            MONASTERY_EXTENSION_INFIRMARY | MONASTERY_EXTENSION_SCRIPTORIUM,
+            MONASTERY_ORCHARD_APPLES,
+            MONASTERY_CROFT_VEGETABLES,
+            MONASTERY_ORCHARD_MATURITY_MATURE,
+        );
         assert!(kitchen.apples > 0.0 && kitchen.vegetables > 0.0);
         assert_eq!(kitchen.ale, 0.0);
         assert_eq!(kitchen.wine, 0.0);
         assert_eq!(kitchen.cider, 0.0);
 
-        let commercial =
-            monastery_estate_yields(
-                MONASTERY_EXTENSION_WORKSHOP,
-                MONASTERY_ORCHARD_VINES,
-                MONASTERY_CROFT_BARLEY,
-                MONASTERY_ORCHARD_MATURITY_MATURE,
-            );
+        let commercial = monastery_estate_yields(
+            MONASTERY_EXTENSION_WORKSHOP,
+            MONASTERY_ORCHARD_VINES,
+            MONASTERY_CROFT_BARLEY,
+            MONASTERY_ORCHARD_MATURITY_MATURE,
+        );
         assert_eq!(commercial.apples, 0.0);
         assert_eq!(commercial.vegetables, 0.0);
         assert!(commercial.ale > 0.0 && commercial.wine > 0.0);
@@ -430,11 +441,26 @@ mod tests {
 
     #[test]
     fn replanting_has_a_real_establishment_delay_and_season() {
-        assert_eq!(monastery_orchard_maturity_for_year(3, 3), MONASTERY_ORCHARD_MATURITY_NEW);
-        assert_eq!(monastery_orchard_maturity_for_year(3, 4), MONASTERY_ORCHARD_MATURITY_YOUNG);
-        assert_eq!(monastery_orchard_maturity_for_year(3, 5), MONASTERY_ORCHARD_MATURITY_MATURE);
-        assert_eq!(monastery_orchard_yield_multiplier(MONASTERY_ORCHARD_MATURITY_NEW), 0.0);
-        assert_eq!(monastery_orchard_yield_multiplier(MONASTERY_ORCHARD_MATURITY_YOUNG), 0.55);
+        assert_eq!(
+            monastery_orchard_maturity_for_year(3, 3),
+            MONASTERY_ORCHARD_MATURITY_NEW
+        );
+        assert_eq!(
+            monastery_orchard_maturity_for_year(3, 4),
+            MONASTERY_ORCHARD_MATURITY_YOUNG
+        );
+        assert_eq!(
+            monastery_orchard_maturity_for_year(3, 5),
+            MONASTERY_ORCHARD_MATURITY_MATURE
+        );
+        assert_eq!(
+            monastery_orchard_yield_multiplier(MONASTERY_ORCHARD_MATURITY_NEW),
+            0.0
+        );
+        assert_eq!(
+            monastery_orchard_yield_multiplier(MONASTERY_ORCHARD_MATURITY_YOUNG),
+            0.55
+        );
         assert!(monastery_orchard_replanting_allowed(12));
         assert!(!monastery_orchard_replanting_allowed(6));
         assert!(monastery_croft_choice_allowed(2));
