@@ -15,11 +15,13 @@ export type PlacementBuildMenuAction =
   | 'guardhouse'
   | 'palisaded-refuge'
   | 'clay-pit' | 'charcoal-burner' | 'smithy' | 'potter-kiln'
-  | 'residences';
+  | 'residences'
+  | 'dry-stone-wall';
 
 export type BuildMenuAction = PlacementBuildMenuAction;
 type PlayerPlaceableBuildingKind = Exclude<BuildingKind, 'founders_camp' | 'salvage_pile' | 'remote_work_camp'>;
-type PlacementArtKey = PlayerPlaceableBuildingKind | 'residences';
+type DecorationArtKey = 'dry_stone_wall';
+type PlacementArtKey = PlayerPlaceableBuildingKind | 'residences' | DecorationArtKey;
 export type BuildMenuEntry = { kind: 'placement'; action: PlacementBuildMenuAction; artKey: PlacementArtKey };
 
 const BUILD_CARD_ART: Record<PlacementArtKey, string> = {
@@ -34,6 +36,7 @@ const BUILD_CARD_ART: Record<PlacementArtKey, string> = {
   well: '/assets/ui/build-menu/cards/water-well.webp', hunters_hall: '/assets/ui/build-menu/cards/hunter-hall.webp',
   foragers_shed: '/assets/ui/build-menu/cards/foragers-hut.webp', chapel: '/assets/ui/build-menu/cards/chapel.webp',
   wayside_shrine: '/assets/ui/build-menu/cards/wayside-shrine.webp',
+  dry_stone_wall: '/assets/ui/build-menu/cards/dry-stone-wall.svg',
   fishing_camp: '/assets/ui/build-menu/cards/fishing-camp.webp',
   marketplace: '/assets/ui/build-menu/cards/market.webp', residences: '/assets/ui/build-menu/cards/residence.webp',
   trading_post: '/assets/ui/build-menu/cards/trading-post.webp',
@@ -77,6 +80,7 @@ const DETAILS: Record<PlacementArtKey, BuildCardDetail> = {
   well: ['Well', 'E', 'Supplies road-linked homes with water.', flow([], ['water'])],
   chapel: ['Church', 'C', 'Collects tithes and supports nearby households.'],
   wayside_shrine: ['Wayside shrine', 'D', 'A purely decorative roadside Catholic shrine with no practical benefit.'],
+  dry_stone_wall: ['Dry-stone wall', 'F', 'Trace a free, instantly built wall from either shoulder of an existing dirt road.'],
   monastery: ['Pauline monastery', 'O', 'Choose apples or vines and vegetables or barley; the walled estate sells surplus beyond the map.', flow([], ['ale', 'cider', 'wine', 'honey', 'gold'])],
   marketplace: ['Marketplace', 'P', 'Lets households exchange food and goods while collecting local taxes.'],
   trading_post: ['Trading Post', 'X', 'Sets monthly import and export rules while local haulers stage surplus goods.'],
@@ -120,13 +124,15 @@ const entry = (artKey: PlacementArtKey): BuildMenuEntry => ({
   kind: 'placement',
   action: artKey === 'residences'
     ? 'residences'
-    : action(artKey),
+    : artKey === 'dry_stone_wall'
+      ? 'dry-stone-wall'
+      : action(artKey),
   artKey,
 });
 
 /** Housing, services, institutions, trade, transport, and shared storage. */
 export const CIVIC_BUILD_MENU_ENTRIES: readonly BuildMenuEntry[] = [
-  entry('residences'), entry('well'), entry('chapel'), entry('wayside_shrine'), entry('monastery'), entry('marketplace'), entry('tavern'), entry('trading_post'), entry('town_hall'), entry('village_storehouse'), entry('granary'),
+  entry('residences'), entry('well'), entry('chapel'), entry('wayside_shrine'), entry('dry_stone_wall'), entry('monastery'), entry('marketplace'), entry('tavern'), entry('trading_post'), entry('town_hall'), entry('village_storehouse'), entry('granary'),
 ];
 
 /** Sites whose crews gather raw resources from the landscape. */
@@ -163,6 +169,7 @@ export const BUILD_MENU_ENTRIES: readonly BuildMenuEntry[] = [
 export type BuildMenuHandlers = {
   onSelectBuilding: (kind: BuildingKind) => void;
   onSelectResidences: () => void;
+  onSelectDryStoneWall: () => void;
 };
 
 export function renderBuildMenuCards(entries: readonly BuildMenuEntry[] = BUILD_MENU_ENTRIES): string {
@@ -170,7 +177,9 @@ export function renderBuildMenuCards(entries: readonly BuildMenuEntry[] = BUILD_
     const [title, hotkey, description, resourceFlow] = DETAILS[entry.artKey];
     const resourceCost = entry.artKey === 'residences'
       ? residenceZoneCost(1)
-      : getBuildingCost(entry.artKey as BuildingKind);
+      : entry.artKey === 'dry_stone_wall'
+        ? { timber: 0, stone: 0, ironwork: 0 }
+        : getBuildingCost(entry.artKey as BuildingKind);
     const costSuffix = entry.artKey === 'residences' ? 'per home' : '';
     const costText = `${formatBuildingCost(resourceCost)}${costSuffix ? ` ${costSuffix}` : ''}`;
     const costMarkup = renderBuildingResourceCost(resourceCost, {
@@ -206,5 +215,6 @@ export function resolveBuildMenuHotkey(key: string, entries: readonly BuildMenuE
 export function runBuildMenuAction(action: BuildMenuAction, handlers: BuildMenuHandlers, closeMenu: () => void): void {
   closeMenu();
   if (action === 'residences') handlers.onSelectResidences();
+  else if (action === 'dry-stone-wall') handlers.onSelectDryStoneWall();
   else handlers.onSelectBuilding(MENU_ACTION_TO_BUILDING_KIND[action]);
 }

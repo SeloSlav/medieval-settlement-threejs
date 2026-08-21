@@ -15,6 +15,11 @@ import {
 } from './BuildingRoadConnections.ts';
 import { ROAD_WIDTH } from './roadDimensions.ts';
 import { RoadNodeSnapMarkers } from './RoadNodeSnapMarkers.ts';
+import {
+  alignSecondWallAnchorParallel,
+  findDryStoneWallRoadSnap,
+  type DryStoneWallRoadSnap,
+} from '../decorations/DryStoneWallRoadSnap.ts';
 
 const MIN_POINT_DISTANCE = 1.05;
 const MIN_COMMIT_LENGTH = 3.5;
@@ -26,9 +31,19 @@ const HOVER_PREVIEW_MOVE_THRESHOLD = 1.1;
 const VALIDATION_INTERVAL_MS = 180;
 const PREVIEW_MESH_SAMPLE_SPACING = 1.5;
 const PREVIEW_MESH_MAX_SAMPLES = 80;
+const WALL_MIN_COMMIT_LENGTH = 2.2;
+const WALL_SAMPLE_SPACING = 0.52;
+const WALL_MAX_SAMPLES = 640;
 
-export type RoadDeleteRequest = {
+export type RoadToolMode = 'road' | 'dry-stone-wall' | 'off';
+
+export type RoadDeleteRequest = ({
+  kind: 'road';
   edgeId: string;
+} | {
+  kind: 'dry-stone-wall';
+  wallId: string;
+}) & {
   clientX: number;
   clientY: number;
 };
@@ -49,11 +64,13 @@ export class RoadTool {
     onStateChanged: () => void;
     onDeleteRequested: (request: RoadDeleteRequest | null) => void;
     onPlacementRejected?: (event: RoadPlacementRejectedEvent) => void;
+    onDryStoneWallStartRejected?: () => void;
     onToggle?: () => void;
     isBlocked: () => boolean;
     getBuildings: () => Iterable<BuildingRoadConnectionSource>;
   };
   private enabled = false;
+  private mode: Exclude<RoadToolMode, 'off'> = 'road';
   private points: THREE.Vector3[] = [];
   private segmentCurves: number[] = [];
   private pendingCurve = 0;
@@ -78,6 +95,11 @@ export class RoadTool {
   private readonly projectScratch = new THREE.Vector3();
   private cachedPreviewSignature = '';
   private readonly cachedPreviewPath: THREE.Vector3[] = [];
+  private readonly wallSampleScratch: THREE.Vector3[] = [];
+  private hoverWallRoadSnap: DryStoneWallRoadSnap | null = null;
+  private wallStartTangent: THREE.Vector3 | null = null;
+  private readonly deleteRaycaster = new THREE.Raycaster();
+  private readonly deletePointer = new THREE.Vector2();
 
   constructor(options: {
     domElement: HTMLElement;
@@ -89,6 +111,7 @@ export class RoadTool {
     onStateChanged: () => void;
     onDeleteRequested: (request: RoadDeleteRequest | null) => void;
     onPlacementRejected?: (event: RoadPlacementRejectedEvent) => void;
+    onDryStoneWallStartRejected?: () => void;
     onToggle?: () => void;
     isBlocked: () => boolean;
     getBuildings: () => Iterable<BuildingRoadConnectionSource>;
@@ -116,6 +139,10 @@ export class RoadTool {
     return this.enabled;
   }
 
+  getMode(): RoadToolMode {
+    return this.enabled ? this.mode : 'off';
+  }
+
   hasDraft(): boolean {
     return this.points.length > 0;
   }
@@ -125,10 +152,19 @@ export class RoadTool {
   }
 
   setEnabled(enabled: boolean): void {
+    if (enabled && this.enabled && this.mode !== 'road') {
+      this.cancelDraft(false);
+      this.mode = 'road';
+      this.buildingConnections.setVisible(true);
+      this.roadNodeSnapMarkers.setVisible(true);
+      this.options.onStateChanged();
+      return;
+    }
     if (enabled && this.options.isBlocked()) return;
     if (this.enabled === enabled) return;
+    if (enabled) this.mode = 'road';
     this.enabled = enabled;
-    this.buildingConnections.setVisible(enabled);
+    this.buildingConnections.setVisible(enabled && this.mode === 'road');
     this.roadNodeSnapMarkers.setVisible(enabled);
     if (
       enabled
@@ -142,12 +178,41 @@ export class RoadTool {
     if (!enabled) {
       this.cancelDraft(false);
       this.preview.updateCursor(null);
+      this.options.sceneManager.dryStoneWallRenderer.setPreviewCursor(null);
+    }
+    this.options.onStateChanged();
+  }
+
+  setMode(mode: RoadToolMode): void {
+    if (mode === 'off') {
+      this.setEnabled(false);
+      return;
+    }
+    if (mode === 'road') {
+      this.setEnabled(true);
+      return;
+    }
+    if (this.options.isBlocked()) return;
+    if (this.enabled && this.mode === mode) return;
+    this.cancelDraft(false);
+    this.mode = mode;
+    this.enabled = true;
+    this.buildingConnections.setVisible(false);
+    this.roadNodeSnapMarkers.setVisible(true);
+    this.options.onDeleteRequested(null);
+    this.options.selection.setSelected(null);
+    if (
+      Number.isFinite(this.pointerClientX)
+      && Number.isFinite(this.pointerClientY)
+    ) {
+      this.processPointerHover(this.pointerClientX, this.pointerClientY);
     }
     this.options.onStateChanged();
   }
 
   getCursor(): string | null {
     if (!this.enabled) return null;
+    if (this.mode === 'dry-stone-wall') return 'crosshair';
     return this.hasDraft() ? 'crosshair' : 'copy';
   }
 
@@ -175,7 +240,7 @@ export class RoadTool {
       this.pointerDirty = false;
       this.processPointerHover(this.pointerClientX, this.pointerClientY);
     }
-    this.buildingConnections.update(dt);
+    if (this.mode === 'road') this.buildingConnections.update(dt);
     this.roadNodeSnapMarkers.update(dt);
     if (!this.hasDraft()) return;
     this.maybeRunDeferredValidation(false);
@@ -184,14 +249,25 @@ export class RoadTool {
   commitDraft(): void {
     if (this.options.isBlocked()) return;
     const path = this.buildDraftPath();
-    const validation = validateRoadPlacement(path, MIN_COMMIT_LENGTH);
+    const validation = validateRoadPlacement(path, this.minimumCommitLength());
     if (!validation.ok) {
       this.options.onPlacementRejected?.({ reason: validation.reason, action: 'commit' });
       return;
     }
     const snapshot = this.options.network.snapshot();
-    const added = this.options.network.addRoadPath(path, ROAD_WIDTH);
-    if (added.length === 0) return;
+    if (this.mode === 'dry-stone-wall') {
+      this.options.sceneManager.roadMeshBuilder.samplePathInto(
+        path,
+        WALL_SAMPLE_SPACING,
+        this.wallSampleScratch,
+        WALL_MAX_SAMPLES,
+      );
+      const wallId = this.options.network.addDryStoneWallPath(this.wallSampleScratch);
+      if (!wallId) return;
+    } else {
+      const added = this.options.network.addRoadPath(path, ROAD_WIDTH);
+      if (added.length === 0) return;
+    }
     this.undoStack.push(snapshot);
     this.redoStack.length = 0;
     this.cancelDraft(false);
@@ -238,6 +314,17 @@ export class RoadTool {
     this.options.onStateChanged();
   }
 
+  confirmDryStoneWallDelete(wallId: string): void {
+    const snapshot = this.options.network.snapshot();
+    if (!this.options.network.deleteDryStoneWall(wallId)) return;
+    this.undoStack.push(snapshot);
+    this.redoStack.length = 0;
+    this.options.selection.setSelected(null);
+    this.options.onNetworkChanged();
+    this.refreshPreview();
+    this.options.onStateChanged();
+  }
+
   shouldBlockCameraInput(event: MouseEvent | WheelEvent): boolean {
     if (!this.enabled) return false;
     if (event instanceof WheelEvent) return event.ctrlKey;
@@ -250,6 +337,8 @@ export class RoadTool {
     this.options.domElement.removeEventListener('wheel', this.onWheel, true);
     window.removeEventListener('keydown', this.onKeyDown);
     this.preview.dispose();
+    this.options.sceneManager.dryStoneWallRenderer.clearPreview();
+    this.options.sceneManager.dryStoneWallRenderer.setPreviewCursor(null);
     this.buildingConnections.dispose();
     this.roadNodeSnapMarkers.dispose();
   }
@@ -269,7 +358,7 @@ export class RoadTool {
     if (event.button !== 0) return;
     const hit = this.options.terrainProjector.pick(event.clientX, event.clientY);
     if (!hit) return;
-    this.buildingConnections.setCursor(hit);
+    this.buildingConnections.setCursor(this.mode === 'road' ? hit : null);
     this.roadNodeSnapMarkers.setCursor(hit);
     event.preventDefault();
     event.stopPropagation();
@@ -281,7 +370,23 @@ export class RoadTool {
     this.options.onDeleteRequested(null);
     this.options.selection.setSelected(null);
     const point = this.applySnap(hit);
-    this.preview.updateCursor(point);
+    if (
+      this.mode === 'dry-stone-wall'
+      && !this.hasDraft()
+      && !this.hoverWallRoadSnap
+    ) {
+      this.options.onDryStoneWallStartRejected?.();
+      return;
+    }
+    if (this.mode === 'dry-stone-wall') {
+      this.preview.updateCursor(null);
+      this.options.sceneManager.dryStoneWallRenderer.setPreviewCursor(
+        point,
+        this.hasDraft() || Boolean(this.hoverWallRoadSnap),
+      );
+    } else {
+      this.preview.updateCursor(point);
+    }
     this.addRoadPoint(point);
   };
 
@@ -298,12 +403,22 @@ export class RoadTool {
       this.buildingConnections.setCursor(null);
       this.roadNodeSnapMarkers.setCursor(null);
       this.preview.updateCursor(null);
+      this.options.sceneManager.dryStoneWallRenderer.setPreviewCursor(null);
       return;
     }
-    this.buildingConnections.setCursor(hit);
+    this.buildingConnections.setCursor(this.mode === 'road' ? hit : null);
     this.roadNodeSnapMarkers.setCursor(hit);
     const snapped = this.applySnap(hit);
-    this.preview.updateCursor(snapped);
+    if (this.mode === 'dry-stone-wall') {
+      this.preview.updateCursor(null);
+      this.options.sceneManager.dryStoneWallRenderer.setPreviewCursor(
+        snapped,
+        this.hasDraft() || Boolean(this.hoverWallRoadSnap),
+      );
+    } else {
+      this.options.sceneManager.dryStoneWallRenderer.setPreviewCursor(null);
+      this.preview.updateCursor(snapped);
+    }
     this.hoverPoint = snapped;
     if (!this.hasDraft()) return;
     if (this.shouldSkipHoverPreview(snapped)) return;
@@ -374,6 +489,13 @@ export class RoadTool {
       this.segmentCurves.push(this.pendingCurve);
     }
     this.points.push(point.clone());
+    if (
+      this.mode === 'dry-stone-wall'
+      && this.points.length === 1
+      && this.hoverWallRoadSnap
+    ) {
+      this.wallStartTangent = this.hoverWallRoadSnap.tangent.clone();
+    }
     this.pendingCurve = 0;
     this.hoverPoint = null;
     this.resetHoverPreviewCache();
@@ -398,6 +520,10 @@ export class RoadTool {
   private requestDelete(event: MouseEvent): void {
     event.preventDefault();
     event.stopPropagation();
+    if (this.mode === 'dry-stone-wall') {
+      this.requestDryStoneWallDelete(event);
+      return;
+    }
     const edgeId = this.options.selection.pickEdgeId(event.clientX, event.clientY);
     if (!edgeId) {
       this.options.selection.setSelected(null);
@@ -405,7 +531,38 @@ export class RoadTool {
       return;
     }
     this.options.selection.setSelected(edgeId);
-    this.options.onDeleteRequested({ edgeId, clientX: event.clientX, clientY: event.clientY });
+    this.options.onDeleteRequested({ kind: 'road', edgeId, clientX: event.clientX, clientY: event.clientY });
+  }
+
+  private requestDryStoneWallDelete(event: MouseEvent): void {
+    const rect = this.options.domElement.getBoundingClientRect();
+    this.deletePointer.set(
+      ((event.clientX - rect.left) / Math.max(1, rect.width)) * 2 - 1,
+      -((event.clientY - rect.top) / Math.max(1, rect.height)) * 2 + 1,
+    );
+    this.deleteRaycaster.setFromCamera(
+      this.deletePointer,
+      this.options.sceneManager.camera,
+    );
+    const hits = this.deleteRaycaster.intersectObjects(
+      this.options.sceneManager.getDryStoneWallPickMeshes(),
+      true,
+    );
+    for (const hit of hits) {
+      const wallIds = hit.object.userData.dryStoneWallIds as string[] | undefined;
+      const instanceId = hit.instanceId;
+      if (!wallIds || instanceId === undefined) continue;
+      const wallId = wallIds[instanceId];
+      if (!wallId) continue;
+      this.options.onDeleteRequested({
+        kind: 'dry-stone-wall',
+        wallId,
+        clientX: event.clientX,
+        clientY: event.clientY,
+      });
+      return;
+    }
+    this.options.onDeleteRequested(null);
   }
 
   private refreshPreview(): void {
@@ -417,12 +574,33 @@ export class RoadTool {
   private refreshPreviewVisual(): void {
     if (!this.hasDraft()) {
       this.preview.clear();
+      this.options.sceneManager.dryStoneWallRenderer.clearPreview();
       this.cachedDraftValidation = null;
       return;
     }
 
     const { anchors, path } = this.buildPreviewAnchors();
     const valid = this.cachedDraftValidation?.ok ?? true;
+    if (this.mode === 'dry-stone-wall') {
+      this.preview.clear();
+      if (path.length < 2) {
+        this.options.sceneManager.dryStoneWallRenderer.updatePreview(path, valid, anchors);
+        return;
+      }
+      this.options.sceneManager.roadMeshBuilder.samplePathInto(
+        path,
+        WALL_SAMPLE_SPACING,
+        this.wallSampleScratch,
+        WALL_MAX_SAMPLES,
+      );
+      this.options.sceneManager.dryStoneWallRenderer.updatePreview(
+        this.wallSampleScratch,
+        valid,
+        anchors,
+      );
+      return;
+    }
+    this.options.sceneManager.dryStoneWallRenderer.clearPreview();
     if (path.length < 2) {
       this.preview.update(path, valid, ROAD_WIDTH, anchors);
       return;
@@ -461,15 +639,17 @@ export class RoadTool {
     if (path.length < 2) {
       this.cachedDraftValidation = { ok: false, reason: 'too_short' };
       this.validationDirty = false;
-      this.preview.setValidity(false);
+      if (this.mode === 'dry-stone-wall') this.refreshPreviewVisual();
+      else this.preview.setValidity(false);
       return;
     }
 
-    const validation = validateRoadPlacement(path, MIN_COMMIT_LENGTH);
+    const validation = validateRoadPlacement(path, this.minimumCommitLength());
     this.cachedDraftValidation = validation;
     this.validationDirty = false;
     this.lastValidationTime = performance.now();
-    this.preview.setValidity(validation.ok);
+    if (this.mode === 'dry-stone-wall') this.refreshPreviewVisual();
+    else this.preview.setValidity(validation.ok);
   }
 
   private buildPreviewAnchors(): { anchors: THREE.Vector3[]; path: THREE.Vector3[] } {
@@ -527,6 +707,26 @@ export class RoadTool {
   }
 
   private applySnap(point: THREE.Vector3): THREE.Vector3 {
+    if (this.mode === 'dry-stone-wall') {
+      const roadside = findDryStoneWallRoadSnap(
+        this.options.network,
+        this.options.sceneManager.terrain,
+        point,
+      );
+      this.hoverWallRoadSnap = roadside;
+      if (roadside) return roadside.point.clone();
+      const terrainPoint = this.options.sceneManager.terrain.getPointAt(point.x, point.z, 0);
+      if (this.points.length === 1 && this.wallStartTangent) {
+        return alignSecondWallAnchorParallel(
+          this.points[0],
+          this.wallStartTangent,
+          terrainPoint,
+          this.options.sceneManager.terrain,
+        );
+      }
+      return terrainPoint;
+    }
+    this.hoverWallRoadSnap = null;
     this.buildingConnections.refresh();
     const networkSnap = this.options.network.findSnap(point, SNAP_DISTANCE);
     const draftSnap = this.findDraftSnap(point, SNAP_DISTANCE);
@@ -557,8 +757,11 @@ export class RoadTool {
     this.hoverPoint = null;
     this.cachedDraftValidation = null;
     this.validationDirty = true;
+    this.hoverWallRoadSnap = null;
+    this.wallStartTangent = null;
     this.resetHoverPreviewCache();
     this.preview.clear();
+    this.options.sceneManager.dryStoneWallRenderer.clearPreview();
     this.options.onDeleteRequested(null);
     if (notify) this.options.onStateChanged();
   }
@@ -630,9 +833,15 @@ export class RoadTool {
     );
     if (path.length < 2) return null;
 
-    const result = validateRoadPlacement(path, MIN_COMMIT_LENGTH);
+    const result = validateRoadPlacement(path, this.minimumCommitLength());
     if (result.ok || result.reason === 'too_short') return null;
     return result.reason;
+  }
+
+  private minimumCommitLength(): number {
+    return this.mode === 'dry-stone-wall'
+      ? WALL_MIN_COMMIT_LENGTH
+      : MIN_COMMIT_LENGTH;
   }
 }
 

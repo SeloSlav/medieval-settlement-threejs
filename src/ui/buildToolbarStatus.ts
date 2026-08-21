@@ -11,7 +11,7 @@ import { renderBuildingResourceCost } from './resourceCost.ts';
 export type ToolbarStats = {
   canBuild: boolean;
   hasDraft: boolean;
-  mode: BuildingKind | 'road' | 'residences' | 'farm-fields' | 'pastures' | 'burial-grounds' | 'vineyards' | 'idle';
+  mode: BuildingKind | 'road' | 'dry-stone-wall' | 'residences' | 'farm-fields' | 'pastures' | 'burial-grounds' | 'vineyards' | 'idle';
   statusDetail?: string | null;
   placementBlocked?: boolean;
   placementReady?: boolean;
@@ -35,6 +35,7 @@ export function isBuildingToolMode(mode: ToolbarStats['mode']): mode is Building
 
 export function isConstructionToolMode(mode: ToolbarStats['mode']): boolean {
   return isBuildingToolMode(mode)
+    || mode === 'dry-stone-wall'
     || mode === 'residences'
     || mode === 'farm-fields'
     || mode === 'pastures'
@@ -93,6 +94,15 @@ export function describeToolbarStatus(stats: ToolbarStats): string {
   }
   if (stats.mode === 'vineyards') {
     return stats.statusDetail ?? 'Shape four free-form corners around a grape-growing parcel';
+  }
+  if (stats.mode === 'dry-stone-wall') {
+    if (stats.canBuild) {
+      return 'Dry-stone wall ready · L-click trace · Ctrl + wheel curve · Enter build free · Alt + L-click remove';
+    }
+    if (stats.hasDraft) {
+      return 'Dry-stone wall · L-click trace · Ctrl + wheel curve · Esc cancel';
+    }
+    return 'Dry-stone wall · start beside a dirt road; the first span aligns parallel · free and instant';
   }
   if (stats.mode !== 'road') return 'Road tool off';
   if (stats.canBuild) {

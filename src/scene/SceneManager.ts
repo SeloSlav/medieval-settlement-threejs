@@ -34,6 +34,7 @@ import { RoadMaterialFactory } from '../roads/RoadMaterialFactory.ts';
 import { RoadMeshBuilder } from '../roads/RoadMeshBuilder.ts';
 import { sampleRoadSurfaceY } from '../roads/RoadSurfaceSampling.ts';
 import type { RoadNetwork } from '../roads/RoadNetwork.ts';
+import { DryStoneWallRenderer } from '../decorations/DryStoneWallRenderer.ts';
 import type { Point2 } from '../utils/polygonGeometry.ts';
 import type { BridgeSamplingContext } from '../roads/RiverBridgeSpans.ts';
 import { getStillWaterSurfaceY } from '../rivers/RiverWaterLevel.ts';
@@ -159,6 +160,7 @@ export class SceneManager {
   readonly terrainProjector: TerrainProjector;
   readonly materials: RoadMaterialFactory;
   readonly roadMeshBuilder: RoadMeshBuilder;
+  readonly dryStoneWallRenderer: DryStoneWallRenderer;
   private readonly buildingAccessSpurs: BuildingAccessSpurs;
   readonly previewGroup = new THREE.Group();
   readonly selectionGroup = new THREE.Group();
@@ -320,6 +322,11 @@ export class SceneManager {
       this.sky.updateConstellationVisibility(areConstellationGuidesEnabled() ? 1 : 0);
     });
     this.roadMeshBuilder = new RoadMeshBuilder(this.terrain, materials, this.getBridgeSamplingContext());
+    this.dryStoneWallRenderer = new DryStoneWallRenderer({
+      terrain: this.terrain,
+      parent: this.roadGroup,
+      previewParent: this.previewGroup,
+    });
 
     this.roadGroup.name = 'Road network visuals';
     this.junctionGroup.name = 'Road junction visuals';
@@ -1252,6 +1259,7 @@ export class SceneManager {
 
   syncRoadNetwork(network: RoadNetwork): void {
     this.roadNetworkRef = network;
+    this.dryStoneWallRenderer.sync(network.dryStoneWalls.values());
     for (const [edgeId, visual] of this.edgeVisuals) {
       if (!network.edges.has(edgeId)) {
         this.roadGroup.remove(visual.group);
@@ -1341,6 +1349,10 @@ export class SceneManager {
     return meshes;
   }
 
+  getDryStoneWallPickMeshes(): THREE.Object3D[] {
+    return this.dryStoneWallRenderer.getPickMeshes();
+  }
+
   dispose(): void {
     this.unsubscribeShadowPreferences?.();
     this.unsubscribeShadowPreferences = null;
@@ -1357,6 +1369,7 @@ export class SceneManager {
     this.cropSuitabilityCrop = null;
     this.vineyardSuitabilityActive = false;
     this.buildingAccessSpurs.dispose();
+    this.dryStoneWallRenderer.dispose();
     for (const visual of this.edgeVisuals.values()) disposeObject3D(visual.group);
     this.edgeVisuals.clear();
     if (this.forestManager) {

@@ -294,6 +294,7 @@ export class BuildToolbar {
       onOpenRoads: () => void;
       onBuildRoad: () => void;
       onSelectBuilding: (kind: BuildingKind) => void;
+      onSelectDryStoneWall: () => void;
       onPlaceStarterCamp: () => void;
       onSelectResidences: () => void;
       onCancelPlacement: () => void;
@@ -510,6 +511,7 @@ export class BuildToolbar {
     this.toolbarHandlers = {
       onSelectBuilding: handlers.onSelectBuilding,
       onSelectResidences: handlers.onSelectResidences,
+      onSelectDryStoneWall: handlers.onSelectDryStoneWall,
       onOpenRoads: handlers.onOpenRoads,
       onCancelPlacement: handlers.onCancelPlacement,
       onSetMapOverlay: handlers.onSetMapOverlay,
@@ -800,6 +802,9 @@ export class BuildToolbar {
     this.syncBuildMenuButtons();
     this.syncBuildMenuCardActiveState(stats.mode);
     this.buildButton.disabled = !stats.canBuild;
+    const wallMode = stats.mode === 'dry-stone-wall';
+    this.buildButton.title = wallMode ? 'Build dry-stone wall (Enter)' : 'Build road (Enter)';
+    this.buildButton.setAttribute('aria-label', wallMode ? 'Build dry-stone wall' : 'Build road');
     this.buildButton.classList.toggle('is-ready', stats.canBuild);
     this.buildButton.classList.toggle('has-draft', stats.hasDraft);
     const statusState = stats.placementBlocked
