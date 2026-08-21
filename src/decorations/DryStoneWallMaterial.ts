@@ -21,9 +21,9 @@ const TEXTURE_SIZE = 128;
 /** Dedicated, deterministic wall texture bundle; no building masonry atlas is reused. */
 export function createDryStoneWallMaterials(): DryStoneWallMaterialSet {
   const stoneTextures = createSurfaceTextures(0x5e10, {
-    low: [78, 80, 76],
-    high: [143, 145, 139],
-    pit: [45, 47, 44],
+    low: [102, 102, 102],
+    high: [160, 160, 160],
+    pit: [65, 65, 65],
     roughness: [218, 248],
     normalStrength: 2.7,
   });
