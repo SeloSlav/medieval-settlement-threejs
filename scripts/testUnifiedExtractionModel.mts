@@ -56,7 +56,7 @@ assert.equal(
 const cards = renderBuildMenuCards(GATHERING_BUILD_MENU_ENTRIES);
 assert.match(cards, />Mining Pit</);
 assert.match(cards, />Quarry</);
-assert.match(cards, /stone, iron, salt, or clay deposit/);
+assert.match(cards, /stone, iron, salt, or clay from shallow surface deposits/);
 assert.deepEqual(
   localMaterialInputCommodities('stone_quarry', { iron: 4, salt: 0, clay: 7 }),
   ['iron', 'clay'],

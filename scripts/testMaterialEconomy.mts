@@ -1016,13 +1016,13 @@ assert.ok(
 const renderedCards = renderBuildMenuCards();
 assert.match(
   renderedCards,
-  /Forest bloomery & smithy[\s\S]*Turns iron, charcoal, and water into ironwork/i,
-  'the smithy build card must explain its production chain in one short sentence',
+  /Forest bloomery & smithy[\s\S]*Forges ironwork, tools, fittings, and weapons from iron and charcoal/i,
+  'the smithy build card must describe its craft in one short sentence',
 );
 assert.match(
   renderedCards,
-  /Potter's kiln[\s\S]*Turns clay, water, and firewood into pottery or roof tiles/i,
-  'the potter build card must explain its production chain in one short sentence',
+  /Potter's kiln[\s\S]*Fires clay into household pottery or sturdy roof tiles/i,
+  'the potter build card must describe its craft in one short sentence',
 );
 const smithyCard = renderedCards.match(/<button[^>]*data-action="smithy"[^>]*>/)?.[0] ?? '';
 const smithyFlow = smithyCard.match(/data-tooltip-flow="([^"]+)"/)?.[1];

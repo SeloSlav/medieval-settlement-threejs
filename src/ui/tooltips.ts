@@ -81,6 +81,7 @@ export function mountTooltips(root: HTMLElement): () => void {
         'data-tooltip-amount',
         'data-tooltip-amount-label',
         'data-tooltip-flow',
+        'data-tooltip-placement',
         'data-tooltip-variant',
         'data-tooltip-season',
       ],
@@ -448,18 +449,39 @@ function findTooltipAnchor(target: EventTarget | null): HTMLElement | null {
 function positionTooltip(anchor: HTMLElement, tooltip: HTMLElement): void {
   const anchorRect = anchor.getBoundingClientRect();
   const tooltipRect = tooltip.getBoundingClientRect();
+  const placement = anchor.dataset.tooltipPlacement === 'above' ? 'above' : 'auto';
+  const position = resolveTooltipPosition(
+    anchorRect,
+    tooltipRect,
+    window.innerWidth,
+    window.innerHeight,
+    placement,
+  );
 
-  let top = anchorRect.bottom + TOOLTIP_GAP;
+  tooltip.style.left = `${Math.round(position.left)}px`;
+  tooltip.style.top = `${Math.round(position.top)}px`;
+}
+
+export type TooltipPlacement = 'auto' | 'above';
+
+export function resolveTooltipPosition(
+  anchorRect: Pick<DOMRect, 'left' | 'top' | 'bottom' | 'width'>,
+  tooltipRect: Pick<DOMRect, 'width' | 'height'>,
+  viewportWidth: number,
+  viewportHeight: number,
+  placement: TooltipPlacement = 'auto',
+): { left: number; top: number } {
+  const belowTop = anchorRect.bottom + TOOLTIP_GAP;
+  const aboveTop = anchorRect.top - tooltipRect.height - TOOLTIP_GAP;
+  let top = placement === 'above' ? aboveTop : belowTop;
   let left = anchorRect.left + (anchorRect.width - tooltipRect.width) * 0.5;
 
-  const aboveTop = anchorRect.top - tooltipRect.height - TOOLTIP_GAP;
-  if (top + tooltipRect.height > window.innerHeight - VIEWPORT_MARGIN && aboveTop >= VIEWPORT_MARGIN) {
+  if (placement === 'auto' && belowTop + tooltipRect.height > viewportHeight - VIEWPORT_MARGIN && aboveTop >= VIEWPORT_MARGIN) {
     top = aboveTop;
   }
 
-  left = Math.max(VIEWPORT_MARGIN, Math.min(window.innerWidth - tooltipRect.width - VIEWPORT_MARGIN, left));
-  top = Math.max(VIEWPORT_MARGIN, Math.min(window.innerHeight - tooltipRect.height - VIEWPORT_MARGIN, top));
+  left = Math.max(VIEWPORT_MARGIN, Math.min(viewportWidth - tooltipRect.width - VIEWPORT_MARGIN, left));
+  top = Math.max(VIEWPORT_MARGIN, Math.min(viewportHeight - tooltipRect.height - VIEWPORT_MARGIN, top));
 
-  tooltip.style.left = `${Math.round(left)}px`;
-  tooltip.style.top = `${Math.round(top)}px`;
+  return { left, top };
 }

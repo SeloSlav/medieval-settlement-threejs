@@ -10,6 +10,7 @@ import {
   renderBuildMenuCards,
   type BuildMenuEntry,
 } from '../src/ui/buildMenuCards.ts';
+import { resolveTooltipPosition } from '../src/ui/tooltips.ts';
 
 assert.deepEqual(keys(CIVIC_BUILD_MENU_ENTRIES), [
   'residences', 'well', 'chapel', 'wayside_shrine', 'dry_stone_wall', 'monastery', 'marketplace', 'tavern', 'trading_post', 'town_hall',
@@ -65,6 +66,30 @@ assert.ok(fs.existsSync('public/assets/ui/build-menu/cards/tavern.webp'));
 assert.ok(fs.existsSync('public/assets/ui/build-menu/cards/wayside-shrine.webp'));
 assert.ok(fs.existsSync('public/assets/ui/build-menu/cards/dry-stone-wall.webp'));
 assert.match(renderedCards, /data-action="dry-stone-wall"[\s\S]*?>Dry-stone wall</);
+assert.match(renderedCards, /data-action="village-storehouse"[\s\S]*?>Storehouse</);
+assert.match(renderedCards, /data-action="granary"[\s\S]*?>Granary</);
+assert.doesNotMatch(renderedCards, />Village (?:storehouse|granary)</);
+assert.match(
+  renderedCards,
+  /data-action="marketplace"[^>]*data-tooltip="Required to distribute food to residences;/,
+);
+assert.match(
+  renderedCards,
+  /data-action="village-storehouse"[^>]*data-tooltip="[^"]*clay, salt, and all other non-food goods\./,
+);
+assert.match(
+  renderedCards,
+  /data-action="granary"[^>]*data-tooltip="Stores grain, fresh food, and preserved provisions for the settlement\./,
+);
+assert.match(
+  renderedCards,
+  /data-action="monastery"[^>]*data-tooltip="[^"]*hosts pilgrims[^"]*aids villagers[^"]*charitable works\./,
+);
+assert.equal(
+  [...renderedCards.matchAll(/data-tooltip-placement="above"/g)].length,
+  BUILD_MENU_ENTRIES.length,
+  'every build-card tooltip must request the above-menu placement',
+);
 assert.ok(fs.existsSync('public/assets/ui/icons/resource-cider.png'));
 assert.ok(fs.existsSync('public/assets/ui/icons/resource-mead.png'));
 const iconography = fs.readFileSync('src/ui/iconography.css', 'utf8');
@@ -81,11 +106,33 @@ for (const description of descriptions) {
   assert.ok(sentenceCount <= 2, `build-card copy must stay within two sentences: ${description}`);
   assert.ok(wordCount <= 18, `build-card copy must stay quickly scannable: ${description}`);
   assert.doesNotMatch(description, /\bcost:/i, 'construction cost must not be repeated in tooltip prose');
+  assert.doesNotMatch(
+    description,
+    /\b(?:beyond the map|off[- ]map|does not|no practical benefit|fallback|non-depleting|requirement|unlocks?)\b/i,
+    `build-card copy must stay in-world and benefit-led: ${description}`,
+  );
 }
 assert.ok(
   [...renderedCards.matchAll(/data-tooltip-flow="([^"]+)"/g)].length >= 20,
   'resource-producing build cards should expose compact icon flows',
 );
+
+const abovePosition = resolveTooltipPosition(
+  { left: 200, top: 300, bottom: 500, width: 160 },
+  { width: 320, height: 120 },
+  1280,
+  720,
+  'above',
+);
+assert.equal(abovePosition.top, 172, 'above placement must sit over the card even when there is room below');
+
+const automaticPosition = resolveTooltipPosition(
+  { left: 200, top: 100, bottom: 300, width: 160 },
+  { width: 320, height: 120 },
+  1280,
+  720,
+);
+assert.equal(automaticPosition.top, 308, 'ordinary tooltips should retain automatic placement');
 
 const toolbarSource = fs.readFileSync('src/ui/BuildToolbar.ts', 'utf8');
 for (const [action, hotkey] of [

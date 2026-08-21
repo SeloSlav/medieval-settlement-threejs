@@ -48,7 +48,7 @@ const cards = renderBuildMenuCards(CIVIC_BUILD_MENU_ENTRIES);
 assert.match(cards, /data-action="wayside-shrine"/);
 assert.match(cards, /data-src="\/assets\/ui\/build-menu\/cards\/wayside-shrine\.webp"/);
 assert.match(cards, />Wayside shrine</);
-assert.match(cards, /purely decorative roadside Catholic shrine with no practical benefit/);
+assert.match(cards, /Marks the roadside with a small place of prayer and devotion/);
 assert.match(cards, /Wayside shrine \(D\)[^>]*Cost: 4 timber, 8 stone, 1 ironwork/);
 assert.ok(fs.existsSync('public/assets/ui/build-menu/cards/wayside-shrine.webp'));
 
