@@ -63,7 +63,7 @@ assert.match(
 );
 assert.ok(fs.existsSync('public/assets/ui/build-menu/cards/tavern.webp'));
 assert.ok(fs.existsSync('public/assets/ui/build-menu/cards/wayside-shrine.webp'));
-assert.ok(fs.existsSync('public/assets/ui/build-menu/cards/dry-stone-wall.svg'));
+assert.ok(fs.existsSync('public/assets/ui/build-menu/cards/dry-stone-wall.webp'));
 assert.match(renderedCards, /data-action="dry-stone-wall"[\s\S]*?>Dry-stone wall</);
 assert.ok(fs.existsSync('public/assets/ui/icons/resource-cider.png'));
 assert.ok(fs.existsSync('public/assets/ui/icons/resource-mead.png'));

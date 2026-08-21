@@ -138,6 +138,21 @@ function rmbPan(domElement: HTMLElement, fromX: number, fromY: number, toX: numb
   }));
 }
 
+function mmbOrbit(domElement: HTMLElement, fromX: number, fromY: number, toX: number, toY: number): void {
+  domElement.dispatch('mousedown', mouseEvent({
+    type: 'mousedown',
+    button: 1,
+    clientX: fromX,
+    clientY: fromY,
+  }));
+  window.dispatchEvent(mouseEvent({
+    type: 'mousemove',
+    clientX: toX,
+    clientY: toY,
+    buttons: 4,
+  }));
+}
+
 function releaseMouse(button: number): void {
   window.dispatchEvent(mouseEvent({
     type: 'mouseup',
@@ -159,6 +174,34 @@ function releaseMouse(button: number): void {
   controller.update(0.016);
   controller.update(0.016);
   assert.equal(target.x, afterPanX, 'target must not lag behind after pan ends');
+}
+
+{
+  const { controller, domElement } = createController();
+  const yawBefore = controller.getYaw();
+  mmbOrbit(domElement, 100, 100, 140, 100);
+  assert.ok(
+    controller.getYaw() > yawBefore,
+    'dragging orbit right should increase yaw',
+  );
+  releaseMouse(1);
+}
+
+{
+  const { controller, domElement } = createController(undefined, true);
+  const yawBefore = controller.getYaw();
+  mmbOrbit(domElement, 100, 100, 140, 100);
+  assert.equal(
+    controller.getYaw(),
+    yawBefore,
+    'continuous play should defer orbit input until the render frame',
+  );
+  controller.update(0.016);
+  assert.ok(
+    controller.getYaw() > yawBefore,
+    'continuous orbit dragging right should increase yaw',
+  );
+  releaseMouse(1);
 }
 
 {

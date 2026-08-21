@@ -212,12 +212,10 @@ export class DryStoneWallRenderer {
       { length: DRY_STONE_WALL_VARIANTS },
       () => ({ placements: [], wallIds: [] }),
     );
-    const mossPlacements: DryStonePlacement[] = [];
     for (const plan of plans) {
       for (const stone of plan.stones) {
         batches[stone.variant].placements.push(stone);
         batches[stone.variant].wallIds.push(stone.wallId);
-        if (!preview && stone.moss > 0.05) mossPlacements.push(stone);
       }
     }
 
@@ -253,52 +251,24 @@ export class DryStoneWallRenderer {
       drawCalls += 1;
     }
 
-    if (mossPlacements.length > 0 && this.debugMode !== 'courses' && this.debugMode !== 'variants') {
-      const moss = new THREE.InstancedMesh(
-        this.mossGeometry,
-        this.materials.moss,
-        mossPlacements.length,
-      );
-      moss.name = 'Dry-stone wall upward moss patches';
-      moss.castShadow = false;
-      moss.receiveShadow = false;
-      moss.userData.dryStoneWallIds = mossPlacements.map((stone) => stone.wallId);
-      for (let index = 0; index < mossPlacements.length; index += 1) {
-        const stone = mossPlacements[index];
-        const spread = 0.25 + stone.moss * 0.32;
-        this.position.set(stone.x, stone.y + stone.height + 0.018, stone.z);
-        this.rotation.setFromAxisAngle(this.yAxis, -stone.yaw + stone.variant * 0.41);
-        this.scale.set(stone.width * spread, 1, stone.depth * (0.2 + stone.moss * 0.24));
-        this.matrix.compose(this.position, this.rotation, this.scale);
-        moss.setMatrixAt(index, this.matrix);
-        this.color.setRGB(
-          0.72 + stone.moss * 0.12,
-          0.86 + stone.moss * 0.08,
-          0.62 + stone.moss * 0.06,
-        );
-        moss.setColorAt(index, this.color);
-      }
-      moss.instanceMatrix.needsUpdate = true;
-      if (moss.instanceColor) moss.instanceColor.needsUpdate = true;
-      target.add(moss);
-      triangleCount += geometryTriangleCount(this.mossGeometry) * mossPlacements.length;
-      drawCalls += 1;
-    }
-
     target.userData.dryStoneWallDiagnostics = {
       seedManifest: plans.map((plan) => ({ id: plan.wallId, seed: plan.seed })),
       debugMode: this.debugMode,
       quality: preview ? 'preview' : 'final',
       wallCount: plans.length,
       stoneCount,
-      mossPatchCount: mossPlacements.length,
+      omittedRoadOverlapCount: plans.reduce(
+        (sum, plan) => sum + plan.diagnostics.omittedStoneCount,
+        0,
+      ),
       geometryVariantCount: DRY_STONE_WALL_VARIANTS,
       triangles: triangleCount,
       drawCalls,
-      textureSet: 'dedicated-generated limestone + moss PBR',
+      textureSet: 'dedicated-generated limestone PBR',
       invariants: [
         'two independently walked courses keep vertical joints staggered',
         'every stone is terrain seated and remains readable without post-processing',
+        'road corridors omit overlapping stones without invalidating the spline',
         'wall layout and material microstructure are deterministic',
       ],
     };
@@ -321,9 +291,6 @@ export class DryStoneWallRenderer {
     }
     if (this.debugMode === 'variants') {
       return target.setHSL(variant / DRY_STONE_WALL_VARIANTS, 0.52, 0.62);
-    }
-    if (this.debugMode === 'moss-mask') {
-      return target.setRGB(0.32 + stone.moss * 0.3, 0.32 + stone.moss * 0.68, 0.32);
     }
     const tone = stone.tone;
     return target.setRGB(tone, tone, tone);
@@ -446,25 +413,6 @@ export function createChippedStoneGeometry(variant: number): THREE.BufferGeometr
   return geometry;
 }
 
-function createMossPatchGeometry(): THREE.BufferGeometry {
-  const geometry = new THREE.CircleGeometry(0.5, 11);
-  const position = geometry.getAttribute('position') as THREE.BufferAttribute;
-  for (let index = 1; index < position.count; index += 1) {
-    const angle = Math.atan2(position.getY(index), position.getX(index));
-    const radius = 0.82 + hashUnit(index * 19) * 0.24;
-    position.setX(index, Math.cos(angle) * 0.5 * radius);
-    position.setY(index, Math.sin(angle) * 0.5 * radius);
-  }
-  geometry.rotateX(-Math.PI * 0.5);
-  const positionCount = geometry.getAttribute('position').count;
-  const colors = new Float32Array(positionCount * 3);
-  colors.fill(1);
-  geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-  geometry.computeVertexNormals();
-  geometry.name = 'Irregular dry-stone top moss patch';
-  return geometry;
-}
-
 function emitQuad(
   positions: number[],
   uvs: number[],
@@ -545,9 +493,4 @@ function mulberry32(seed: number): () => number {
     value ^= value + Math.imul(value ^ (value >>> 7), value | 61);
     return ((value ^ (value >>> 14)) >>> 0) / 4294967296;
   };
-}
-
-function hashUnit(value: number): number {
-  const hashed = Math.sin(value * 12.9898 + 78.233) * 43758.5453;
-  return hashed - Math.floor(hashed);
 }

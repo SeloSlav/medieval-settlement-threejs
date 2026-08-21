@@ -2,7 +2,6 @@ import * as THREE from 'three';
 
 export type DryStoneWallMaterialSet = {
   stone: THREE.MeshStandardMaterial;
-  moss: THREE.MeshStandardMaterial;
   previewValid: THREE.MeshStandardMaterial;
   previewInvalid: THREE.MeshStandardMaterial;
   dispose: () => void;
@@ -27,14 +26,6 @@ export function createDryStoneWallMaterials(): DryStoneWallMaterialSet {
     roughness: [218, 248],
     normalStrength: 2.7,
   });
-  const mossTextures = createSurfaceTextures(0x4d055, {
-    low: [45, 66, 33],
-    high: [98, 116, 58],
-    pit: [29, 41, 23],
-    roughness: [235, 255],
-    normalStrength: 1.9,
-  });
-
   const stone = new THREE.MeshStandardMaterial({
     name: 'Dry-stone wall · weathered limestone',
     color: 0xffffff,
@@ -51,29 +42,8 @@ export function createDryStoneWallMaterials(): DryStoneWallMaterialSet {
     perceptualTextureScale: 1.35,
     roughnessRange: [0.86, 1],
     microNormalStrength: 0.52,
-    materialIdentityWeights: { limestone: 1, dampBase: 0.18, moss: 0 },
-    debugModes: ['final', 'courses', 'variants', 'moss-mask'],
-  };
-
-  const moss = new THREE.MeshStandardMaterial({
-    name: 'Dry-stone wall · upward moss',
-    color: 0xffffff,
-    map: mossTextures.albedo,
-    roughness: 1,
-    roughnessMap: mossTextures.roughness,
-    metalness: 0,
-    vertexColors: true,
-    side: THREE.DoubleSide,
-  });
-  moss.polygonOffset = true;
-  moss.polygonOffsetFactor = -1;
-  moss.polygonOffsetUnits = -1;
-  moss.userData.dryStoneWallSurface = {
-    textureOwnership: 'dedicated-generated-pbr',
-    perceptualTextureScale: 1.8,
-    roughnessRange: [0.94, 1],
-    microNormalStrength: 0,
-    materialIdentityWeights: { limestone: 0, dampBase: 0, moss: 1 },
+    materialIdentityWeights: { limestone: 1, dampBase: 0.18 },
+    debugModes: ['final', 'courses', 'variants'],
   };
 
   const previewValid = new THREE.MeshStandardMaterial({
@@ -97,21 +67,16 @@ export function createDryStoneWallMaterials(): DryStoneWallMaterialSet {
 
   return {
     stone,
-    moss,
     previewValid,
     previewInvalid,
     dispose: () => {
       stone.dispose();
-      moss.dispose();
       previewValid.dispose();
       previewInvalid.dispose();
       for (const texture of [
         stoneTextures.albedo,
         stoneTextures.normal,
         stoneTextures.roughness,
-        mossTextures.albedo,
-        mossTextures.normal,
-        mossTextures.roughness,
       ]) texture.dispose();
     },
   };

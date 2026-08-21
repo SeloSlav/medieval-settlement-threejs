@@ -1,5 +1,7 @@
 import * as THREE from 'three';
 import { DryStoneWallRenderer } from '../decorations/DryStoneWallRenderer.ts';
+import { RoadNetwork } from '../roads/RoadNetwork.ts';
+import { ROAD_WIDTH } from '../roads/roadDimensions.ts';
 import type {
   DryStoneWallDebugMode,
   DryStoneWallState,
@@ -32,7 +34,6 @@ const requestedDebug = params.get('debug');
 const debugMode: DryStoneWallDebugMode = (
   requestedDebug === 'courses'
   || requestedDebug === 'variants'
-  || requestedDebug === 'moss-mask'
 )
   ? requestedDebug
   : 'final';
@@ -65,6 +66,19 @@ const roadPath = roadCurve.getPoints(90).map((point) => (
   new THREE.Vector3(point.x, terrainHeight(point.x, point.z) + 0.025, point.z)
 ));
 scene.add(createRoadRibbon(roadPath, 2.8));
+const junctionPoint = roadCurve.getPoint(0.5);
+const junctionTangent = roadCurve.getTangent(0.5).setY(0).normalize();
+const junctionNormal = new THREE.Vector3(-junctionTangent.z, 0, junctionTangent.x);
+const crossingRoadPath = Array.from({ length: 49 }, (_, index) => {
+  const distance = THREE.MathUtils.lerp(-19, 19, index / 48);
+  const x = junctionPoint.x + junctionNormal.x * distance;
+  const z = junctionPoint.z + junctionNormal.z * distance;
+  return new THREE.Vector3(x, terrainHeight(x, z) + 0.025, z);
+});
+scene.add(createRoadRibbon(crossingRoadPath, 2.8));
+const roadNetwork = new RoadNetwork();
+roadNetwork.addRoadPath(roadPath, ROAD_WIDTH);
+roadNetwork.addRoadPath(crossingRoadPath, ROAD_WIDTH);
 
 const finalParent = new THREE.Group();
 const previewParent = new THREE.Group();
@@ -77,7 +91,7 @@ const wallRenderer = new DryStoneWallRenderer({
 wallRenderer.setDebugMode(debugMode);
 const primaryWall = wallBesideCurve(roadCurve, 0.06, 0.94, 1, 'visual-wall-1', 1550);
 const returnWall = wallBesideCurve(roadCurve, 0.17, 0.46, -1, 'visual-wall-2', 2471);
-wallRenderer.sync([primaryWall, returnWall]);
+wallRenderer.sync([primaryWall, returnWall], roadNetwork);
 
 addVegetation();
 addLighting();
@@ -278,6 +292,11 @@ function applyCamera(selected: string): THREE.Vector3 {
       position: new THREE.Vector3(21, 19, 30),
       target: new THREE.Vector3(-1, 0.45, 0),
       fov: 46,
+    },
+    intersection: {
+      position: new THREE.Vector3(junctionPoint.x + 0.01, 27, junctionPoint.z + 0.01),
+      target: new THREE.Vector3(junctionPoint.x, 0, junctionPoint.z),
+      fov: 43,
     },
   };
   const preset = presets[selected] ?? presets.design;

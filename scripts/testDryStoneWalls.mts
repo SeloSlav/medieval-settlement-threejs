@@ -8,6 +8,7 @@ import {
 import {
   alignSecondWallAnchorParallel,
   findDryStoneWallRoadSnap,
+  isDryStoneWallStoneClearOfRoads,
 } from '../src/decorations/DryStoneWallRoadSnap.ts';
 import { createChippedStoneGeometry } from '../src/decorations/DryStoneWallRenderer.ts';
 import { createDryStoneWallMaterials } from '../src/decorations/DryStoneWallMaterial.ts';
@@ -23,6 +24,11 @@ const roadIds = roadNetwork.addRoadPath([
   new THREE.Vector3(22, 0.2, 0),
 ]);
 assert.equal(roadIds.length, 1, 'fixture road should be created');
+const crossingRoadIds = roadNetwork.addRoadPath([
+  new THREE.Vector3(10, 0, -14),
+  new THREE.Vector3(10, 0, 14),
+]);
+assert.ok(crossingRoadIds.length >= 2, 'crossing fixture should split at the junction');
 
 const roadside = findDryStoneWallRoadSnap(
   roadNetwork,
@@ -56,12 +62,35 @@ assert.equal(restored.dryStoneWalls.size, 1, 'wall should survive authoritative 
 assert.equal(restored.snapshot().dryStoneWalls?.[0]?.seed, snapshot.dryStoneWalls?.[0]?.seed, 'wall seed should remain stable');
 
 const wall = restored.dryStoneWalls.get(wallId!) as DryStoneWallState;
-const firstPlan = createDryStoneWallPlan(wall, flatTerrain, 'final');
-const secondPlan = createDryStoneWallPlan(wall, flatTerrain, 'final');
+const roadClearance = {
+  stoneAllowed: (stone: Parameters<typeof isDryStoneWallStoneClearOfRoads>[1]) => (
+    isDryStoneWallStoneClearOfRoads(restored, stone)
+  ),
+};
+const firstPlan = createDryStoneWallPlan(wall, flatTerrain, 'final', roadClearance);
+const secondPlan = createDryStoneWallPlan(wall, flatTerrain, 'final', roadClearance);
+const previewPlan = createDryStoneWallPlan(wall, flatTerrain, 'preview', roadClearance);
+const unfilteredPlan = createDryStoneWallPlan(wall, flatTerrain, 'final');
 assert.deepEqual(firstPlan, secondPlan, 'identical state and seed should reproduce the exact stone plan');
-assert.ok(firstPlan.diagnostics.courseCounts[0] >= 7, 'lower course should contain a continuous stone walk');
-assert.ok(firstPlan.diagnostics.courseCounts[1] >= 8, 'upper course should contain an independently staggered walk');
-assert.ok(firstPlan.diagnostics.mossStoneCount > 0, 'final quality should include restrained upward moss');
+assert.ok(firstPlan.diagnostics.omittedStoneCount > 0, 'crossing road should omit overlapping stones');
+assert.equal(
+  previewPlan.diagnostics.omittedStoneCount,
+  firstPlan.diagnostics.omittedStoneCount,
+  'preview and committed wall should cut the same road-overlap gap',
+);
+for (const course of [0, 1] as const) {
+  const courseStones = firstPlan.stones.filter((stone) => stone.course === course);
+  assert.ok(courseStones.some((stone) => stone.x < 8), `course ${course} should remain visible before the crossing`);
+  assert.ok(courseStones.some((stone) => stone.x > 12), `course ${course} should resume after the crossing`);
+  assert.ok(
+    courseStones.length < unfilteredPlan.diagnostics.courseCounts[course],
+    `course ${course} should omit stones at the crossing`,
+  );
+}
+assert.ok(
+  firstPlan.stones.every((stone) => isDryStoneWallStoneClearOfRoads(restored, stone)),
+  'no emitted stone footprint may overlap any road corridor',
+);
 assert.ok(firstPlan.diagnostics.minimumStoneWidth >= 0.52, 'no sliver stones should be emitted');
 assert.ok(firstPlan.diagnostics.maximumStoneWidth <= 1.82, 'stone scale should remain human and reference-like');
 assert.ok(new Set(firstPlan.stones.map((stone) => stone.variant)).size >= 6, 'a wall should exercise multiple chipped silhouettes');
@@ -90,8 +119,8 @@ const materials = createDryStoneWallMaterials();
 assert.equal(materials.stone.map?.name, 'Dry-stone limestone albedo');
 assert.equal(materials.stone.normalMap?.name, 'Dry-stone limestone OpenGL normal');
 assert.equal(materials.stone.roughnessMap?.name, 'Dry-stone limestone roughness');
-assert.notEqual(materials.stone.map, materials.moss.map, 'stone and moss must own distinct PBR texture identities');
 assert.equal(materials.stone.metalness, 0, 'limestone must remain dielectric');
+assert.equal('moss' in materials, false, 'wall material set should not allocate a moss pass');
 materials.dispose();
 
 console.log(JSON.stringify({
@@ -101,7 +130,7 @@ console.log(JSON.stringify({
   courses: firstPlan.diagnostics.courseCounts,
   stones: firstPlan.stones.length,
   variantsUsed: new Set(firstPlan.stones.map((stone) => stone.variant)).size,
-  mossStones: firstPlan.diagnostics.mossStoneCount,
+  omittedRoadOverlapStones: firstPlan.diagnostics.omittedStoneCount,
   averageNearestJointOffset: Number(averageNearestJointOffset.toFixed(3)),
   geometryTrianglesPerStone: 64,
   materialTextureOwnership: materials.stone.userData.dryStoneWallSurface?.textureOwnership,

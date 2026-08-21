@@ -198,7 +198,7 @@ export class CameraController {
     }
     if (this.pendingRotateX !== 0 || this.pendingRotateY !== 0) {
       this.currentYaw = this.normalizeAngle(
-        this.currentYaw - this.pendingRotateX * ROTATE_SENSITIVITY,
+        this.currentYaw + this.pendingRotateX * ROTATE_SENSITIVITY,
       );
       this.currentPitch = THREE.MathUtils.clamp(
         this.currentPitch + this.pendingRotateY * PITCH_SENSITIVITY,
@@ -286,7 +286,7 @@ export class CameraController {
         this.pendingRotateX += dx;
         this.pendingRotateY += dy;
       } else {
-        this.currentYaw = this.normalizeAngle(this.currentYaw - dx * ROTATE_SENSITIVITY);
+        this.currentYaw = this.normalizeAngle(this.currentYaw + dx * ROTATE_SENSITIVITY);
         this.currentPitch = THREE.MathUtils.clamp(this.currentPitch + dy * PITCH_SENSITIVITY, MIN_PITCH, MAX_PITCH);
         this.currentDistance = this.clampDistance(this.currentDistance);
         this.commitViewChange();

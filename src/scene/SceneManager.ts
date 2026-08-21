@@ -1259,7 +1259,7 @@ export class SceneManager {
 
   syncRoadNetwork(network: RoadNetwork): void {
     this.roadNetworkRef = network;
-    this.dryStoneWallRenderer.sync(network.dryStoneWalls.values());
+    this.dryStoneWallRenderer.sync(network.dryStoneWalls.values(), network);
     for (const [edgeId, visual] of this.edgeVisuals) {
       if (!network.edges.has(edgeId)) {
         this.roadGroup.remove(visual.group);
