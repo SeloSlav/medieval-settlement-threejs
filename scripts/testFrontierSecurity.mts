@@ -1634,10 +1634,11 @@ const generatedReducers = readFileSync('src/generated/types/reducers.ts', 'utf8'
 assert.match(setupPanel, /Peaceful settlement/);
 assert.match(setupPanel, /Contested frontier/);
 assert.match(setupPanel, /enemy pressure/i);
-assert.match(toolbar, /MILITARY_BUILD_MENU_ENTRIES/);
+assert.match(toolbar, /BUILD_MENU_CATEGORIES/);
 assert.match(toolbar, /setConflictEnabled/);
-assert.match(toolbar, /data-tooltip="Defenses \(X\)"/);
-assert.match(toolbar, /hotkey: 'x'/);
+assert.match(toolbar, /data-build-category="\$\{category\.id\}"/);
+assert.match(toolbar, /category\.conflictOnly/);
+assert.doesNotMatch(toolbar, /hotkey: 'x'/);
 assert.doesNotMatch(toolbar, /hotkey: 'd'/);
 {
   let active = false;

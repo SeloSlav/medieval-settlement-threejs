@@ -11,7 +11,7 @@ import {
   createWaysideShrinePlan,
 } from '../src/buildings/meshes/waysideShrineMesh.ts';
 import {
-  CIVIC_BUILD_MENU_ENTRIES,
+  BUILD_MENU_CATEGORIES,
   renderBuildMenuCards,
 } from '../src/ui/buildMenuCards.ts';
 import {
@@ -39,17 +39,16 @@ assert.ok(
 
 assert.equal(BUILDING_KIND_TO_MENU_ACTION.wayside_shrine, 'wayside-shrine');
 assert.equal(MENU_ACTION_TO_BUILDING_KIND['wayside-shrine'], 'wayside_shrine');
-assert.ok(
-  CIVIC_BUILD_MENU_ENTRIES.some((entry) => entry.artKey === 'wayside_shrine'),
-  'wayside shrine must appear in the Civic menu',
-);
+const decorationEntries = BUILD_MENU_CATEGORIES.find((category) => category.id === 'decorations')?.entries ?? [];
+assert.ok(decorationEntries.some((entry) => entry.artKey === 'wayside_shrine'), 'wayside shrine must appear in Decorations');
 
-const cards = renderBuildMenuCards(CIVIC_BUILD_MENU_ENTRIES);
+const cards = renderBuildMenuCards(decorationEntries);
 assert.match(cards, /data-action="wayside-shrine"/);
 assert.match(cards, /data-src="\/assets\/ui\/build-menu\/cards\/wayside-shrine\.webp"/);
 assert.match(cards, />Wayside shrine</);
 assert.match(cards, /Marks the roadside with a small place of prayer and devotion/);
-assert.match(cards, /Wayside shrine \(D\)[^>]*Cost: 4 timber, 8 stone, 1 ironwork/);
+assert.match(cards, /Wayside shrine\.[^>]*Cost: 4 timber, 8 stone, 1 ironwork/);
+assert.doesNotMatch(cards, /data-hotkey=/);
 assert.ok(fs.existsSync('public/assets/ui/build-menu/cards/wayside-shrine.webp'));
 
 const plan = createWaysideShrinePlan();

@@ -27,9 +27,6 @@ export const GAME_CONTROL_SECTIONS: readonly GameControlSection[] = [
     entries: [
       { action: 'Road tool', keys: 'R' },
       { action: 'Build menu', keys: 'B' },
-      { action: 'Agriculture menu', keys: 'U' },
-      { action: 'Industry menu', keys: 'V' },
-      { action: 'Defenses menu (frontier only)', keys: 'X' },
       { action: 'Map overlays (water, wind, fertility)', keys: 'M' },
       { action: 'Select Town Hall administration', keys: 'I' },
       { action: 'Settings', keys: 'Esc' },
@@ -70,43 +67,6 @@ export const GAME_CONTROL_SECTIONS: readonly GameControlSection[] = [
       { action: 'Toggle walk mode', keys: '~' },
       { action: 'Settings', keys: 'Esc' },
       { action: 'World map', keys: 'Hold G' },
-    ],
-  },
-  {
-    title: 'Basic build menu',
-    entries: [
-      { action: 'Residence plots', keys: 'H' },
-      { action: 'Well', keys: 'E' },
-      { action: 'Church', keys: 'C' },
-      { action: 'Monastery', keys: 'O' },
-      { action: 'Marketplace', keys: 'P' },
-    ],
-  },
-  {
-    title: 'Agriculture build menu',
-    entries: [
-      { action: 'Farmstead', keys: 'T' },
-      { action: 'Grain watermill', keys: 'M' },
-      { action: 'Grain windmill', keys: 'I' },
-      { action: 'Granary', keys: 'N' },
-      { action: 'Bakery', keys: 'B' },
-      { action: 'Brewhouse', keys: 'B' },
-      { action: 'Smokehouse', keys: 'Q' },
-      { action: 'Forest apiary', keys: 'A' },
-      { action: 'Vineyard terrace', keys: 'V' },
-    ],
-  },
-  {
-    title: 'Gathering build menu',
-    entries: [
-      { action: "Hunter's hall", keys: 'K' },
-      { action: "Forager's shed", keys: 'Y' },
-      { action: "Woodcutter's lodge", keys: 'W' },
-      { action: 'Lumber mill', keys: 'L' },
-      { action: 'Reforester', keys: 'F' },
-      { action: 'Mining Pit', keys: 'M' },
-      { action: 'Quarry', keys: 'Q' },
-      { action: 'Carpenter & wheelwright', keys: 'R' },
     ],
   },
   {

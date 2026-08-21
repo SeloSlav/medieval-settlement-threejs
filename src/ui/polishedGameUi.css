@@ -1843,6 +1843,167 @@ select:focus-visible {
   min-width: max-content;
 }
 
+.construction-menu--unified {
+  display: grid;
+  grid-template-rows: auto minmax(184px, auto) auto;
+  gap: 7px;
+  padding: 9px 10px 10px;
+}
+
+.construction-menu--unified[hidden] {
+  display: none;
+}
+
+.construction-menu__header {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr);
+  align-items: baseline;
+  gap: 8px;
+  min-height: 27px;
+  padding: 1px 7px 5px;
+  border-bottom: 1px solid rgba(222, 193, 132, 0.14);
+  line-height: 1.1;
+}
+
+.construction-menu__header > span {
+  color: rgba(215, 190, 135, 0.72);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.construction-menu__header > strong {
+  color: #f0ddb2;
+  font-family: var(--ui-display);
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: 0.025em;
+}
+
+.construction-menu__header > small {
+  overflow: hidden;
+  color: rgba(224, 216, 198, 0.62);
+  font-size: 10px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.construction-menu--unified .construction-menu__viewport {
+  align-self: stretch;
+  padding-block: 0;
+}
+
+.construction-menu--unified:not(.is-scrollable) .construction-menu__cards {
+  justify-content: center;
+  min-width: 100%;
+}
+
+.construction-menu--unified .construction-menu__scroll {
+  top: 72px;
+  transform: none;
+}
+
+.build-menu-categories {
+  display: flex;
+  justify-content: center;
+  gap: 4px;
+  min-width: 0;
+  padding: 8px 6px 1px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  border-top: 1px solid rgba(222, 193, 132, 0.16);
+  scrollbar-width: none;
+}
+
+.build-menu-categories::-webkit-scrollbar {
+  display: none;
+}
+
+.build-menu-category {
+  position: relative;
+  display: grid;
+  flex: 0 0 72px;
+  grid-template-rows: 42px auto;
+  justify-items: center;
+  gap: 3px;
+  min-width: 0;
+  padding: 0 2px 3px;
+  color: rgba(219, 211, 193, 0.68);
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.build-menu-category[hidden] {
+  display: none;
+}
+
+.build-menu-category__icon {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border: 1px solid rgba(213, 190, 139, 0.24);
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 38% 28%, rgba(255, 245, 216, 0.1), transparent 44%),
+    rgba(46, 47, 39, 0.74);
+  box-shadow:
+    inset 0 1px rgba(255, 247, 219, 0.06),
+    0 3px 8px rgba(0, 0, 0, 0.2);
+  transition: color 130ms ease, border-color 130ms ease, background 130ms ease, transform 130ms ease;
+}
+
+.build-menu-category__icon svg {
+  width: 24px;
+  height: 24px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.65;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 1px rgba(0, 0, 0, 0.45));
+}
+
+.build-menu-category > span:last-child {
+  width: 100%;
+  overflow: hidden;
+  font-size: 9px;
+  font-weight: 750;
+  line-height: 1.1;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.build-menu-category:hover,
+.build-menu-category:focus-visible {
+  color: #f3dfae;
+  outline: none;
+}
+
+.build-menu-category:hover .build-menu-category__icon,
+.build-menu-category:focus-visible .build-menu-category__icon {
+  border-color: rgba(235, 204, 127, 0.72);
+  transform: translateY(-1px);
+}
+
+.build-menu-category.is-active {
+  color: #f1d993;
+}
+
+.build-menu-category.is-active .build-menu-category__icon {
+  color: #2b2418;
+  border-color: #e2c77b;
+  background: radial-gradient(circle at 38% 28%, #f2d891, #ad7e31 76%);
+  box-shadow:
+    inset 0 1px rgba(255, 250, 222, 0.54),
+    0 0 0 2px rgba(27, 24, 17, 0.68),
+    0 0 12px rgba(206, 161, 67, 0.24);
+}
+
 .construction-card {
   width: 122px;
   height: 184px;
@@ -1912,16 +2073,6 @@ select:focus-visible {
 
 .construction-card__cost .resource-cost__suffix {
   font-size: 8px;
-}
-
-.construction-card__hotkey {
-  top: 6px;
-  right: 6px;
-  bottom: auto;
-  left: auto;
-  min-width: 22px;
-  border-radius: 50%;
-  background: rgba(15, 18, 15, 0.86);
 }
 
 .construction-card__tooltip {
@@ -2665,6 +2816,24 @@ select:focus-visible {
 
   .construction-menu {
     width: calc(100vw - 16px);
+  }
+
+  .construction-menu--unified {
+    grid-template-rows: auto minmax(162px, auto) auto;
+    padding-inline: 7px;
+  }
+
+  .construction-menu__header > small {
+    display: none;
+  }
+
+  .build-menu-categories {
+    justify-content: flex-start;
+    padding-inline: 2px;
+  }
+
+  .build-menu-category {
+    flex-basis: 62px;
   }
 
   .construction-card {

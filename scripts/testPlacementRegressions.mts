@@ -1460,7 +1460,7 @@ assert.match(
 );
 assert.match(
   buildToolbar,
-  /beginBrowsingBuildMenu[\s\S]{0,300}onCancelPlacement\(\)[\s\S]{0,120}closeOtherBuildMenus/,
+  /beginBrowsingBuildMenu[\s\S]{0,300}onCancelPlacement\(\)[\s\S]{0,120}setOverlayMenuOpen\(false\)/,
   'opening any build palette must cancel the previous placement intent before switching menus',
 );
 assert.match(

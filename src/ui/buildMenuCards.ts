@@ -65,7 +65,6 @@ type BuildCardResourceFlow = readonly [
 
 type BuildCardDetail = readonly [
   title: string,
-  hotkey: string,
   description: string,
   resourceFlow?: BuildCardResourceFlow,
 ];
@@ -76,46 +75,46 @@ const flow = (
 ): BuildCardResourceFlow => [inputs, outputs];
 
 const DETAILS: Record<PlacementArtKey, BuildCardDetail> = {
-  residences: ['Residence', 'H', 'Raises road-fronted homes that grow as their families prosper.'],
-  well: ['Well', 'E', 'Draws water for nearby homes along the roads.', flow([], ['water'])],
-  chapel: ['Church', 'C', 'Tends parish life, gathers tithes, and strengthens nearby households.'],
-  wayside_shrine: ['Wayside shrine', 'D', 'Marks the roadside with a small place of prayer and devotion.'],
-  dry_stone_wall: ['Dry-stone wall', 'F', 'Lines dirt roads with a free, instantly raised wall of fitted stone.'],
-  monastery: ['Pauline monastery', 'O', 'A monastic estate that hosts pilgrims, keeps feasts, aids villagers, safeguards seed, and expands its charitable works.'],
-  marketplace: ['Marketplace', 'P', 'Required to distribute food to residences; its stalls also trade goods and collect local taxes.'],
-  trading_post: ['Trading Post', 'X', 'Orders imports and exports while haulers gather wares for trade.'],
-  town_hall: ['Town Hall', 'T', "Governs local taxes and keeps the settlement's accounts."],
-  village_storehouse: ['Storehouse', 'S', 'Stores construction materials, fuel, minerals, clay, salt, and all other non-food goods.'],
-  watchtower: ['Frontier watchtower', 'W', 'Spots approaching raiders and warns nearby homes and stores.'],
-  guardhouse: ['Frontier guardhouse', 'G', 'Musters armed guards to defend the settlement once a watchtower stands.'],
-  palisaded_refuge: ['Palisaded refuge', 'R', 'Shelters warned families and their coin once a guardhouse stands.'],
-  lumber_mill: ['Lumber mill', 'L', 'Fells mature trees and saws them into building timber.', flow([], ['timber'])],
-  stone_quarry: ['Mining Pit', 'M', 'Gathers stone, iron, salt, or clay from shallow surface deposits.', flow([], ['stone', 'iron', 'salt', 'clay'])],
-  large_quarry: ['Quarry', 'Q', 'Works rich deposits with timber supports for a lasting supply of stone or minerals.', flow(['timber'], ['stone', 'iron', 'salt', 'clay'])],
-  mine: ['Mine', 'N', 'Delves mineral seams for iron or salt.', flow([], ['iron', 'salt'])],
-  clay_pit: ['Clay pit', 'C', 'Digs workable clay for pottery and roof tiles.', flow([], ['clay'])],
-  charcoal_burner: ["Charcoal burner's yard", 'U', 'Slow-burns firewood into charcoal for the smithy.', flow(['firewood'], ['charcoal'])],
-  smithy: ['Forest bloomery & smithy', 'Y', 'Forges ironwork, tools, fittings, and weapons from iron and charcoal.', flow(['iron', 'charcoal', 'water'], ['ironwork'])],
-  potter_kiln: ["Potter's kiln", 'P', 'Fires clay into household pottery or sturdy roof tiles.', flow(['clay', 'water', 'firewood'], ['pottery', 'roofTiles'])],
-  reforester: ['Reforester', 'F', 'Restores felled woodland with young native trees.'],
-  woodcutters_lodge: ["Woodcutter's lodge", 'W', 'Splits timber into firewood for settlement hearths.', flow(['timber'], ['firewood'])],
-  hunters_hall: ["Hunter's hall", 'K', 'Hunts nearby game and dresses the catch for meat.', flow([], ['meat'])],
-  foragers_shed: ["Forager's shed", 'Y', 'Gathers woodland berries, mushrooms, and healing remedies.', flow([], ['berries', 'mushrooms', 'remedies'])],
-  fishing_camp: ['Fishing camp', 'Z', 'Catches fish from nearby waters through the warmer seasons.', flow([], ['fish'])],
-  threshing_barn: ['Farmstead', 'T', 'Harvests and threshes rye, oats, barley, maslin, and flax.', flow(['ryeSheaves', 'oatSheaves', 'barleySheaves', 'maslinSheaves'], ['ryeGrain', 'oatGrain', 'barley', 'maslinGrain', 'flax'])],
-  watermill: ['Grain watermill', 'M', 'Uses seasonal river power to grind rye and maslin into flour.', flow(['ryeGrain', 'maslinGrain'], ['ryeFlour', 'maslinFlour'])],
-  windmill: ['Grain windmill', 'I', 'Uses strong winds to grind rye and maslin into flour.', flow(['ryeGrain', 'maslinGrain'], ['ryeFlour', 'maslinFlour'])],
-  granary: ['Granary', 'N', 'Stores grain, fresh food, and preserved provisions for the settlement.'],
-  bakery: ['Bakery', 'B', 'Bakes rye or maslin flour into bread for the settlement.', flow(['ryeFlour', 'maslinFlour', 'water', 'firewood'], ['ryeBread', 'maslinBread'])],
-  brewery: ['Brewhouse', 'A', 'Brews ale from barley, cider from apples, or mead from honey.', flow(['barley', 'apples', 'honey', 'water', 'firewood'], ['ale', 'cider', 'mead'])],
-  tavern: ['Tavern', 'J', 'Serves ale, cider, and mead to satisfy household thirst.', flow(['ale', 'cider', 'mead'], [])],
-  smokehouse: ['Smokehouse', 'Q', 'Preserves fresh food with firewood, salt, and pottery.', flow(['food', 'firewood', 'salt', 'pottery'], ['preservedFood'])],
-  apiary: ['Forest apiary', 'A', 'Keeps bees for honey throughout the warm season.', flow([], ['honey'])],
-  carpenter: ['Carpenter & wheelwright', 'R', 'Crafts frames and carts that lower building costs and hasten deliveries.'],
-  weaver: ["Weaver's workshop", 'V', 'Weaves wool into cloth and prepares flax with water for linen.', flow(['wool', 'flax', 'water'], ['cloth'])],
-  vineyard: ['Vineyard terrace', 'V', 'Cultivates hillside grapes and presses them into wine.', flow([], ['grapes', 'wine'])],
-  pastoral_farmstead: ['Pastoral farmstead', 'D', 'Raises cattle or sheep for milk, wool, manure, and meat.', flow([], ['milk', 'wool', 'manure', 'meat'])],
-  swineherd: ['Woodland swineherd', 'X', 'Fattens pigs on woodland mast or oats for meat.', flow(['oatGrain'], ['meat'])],
+  residences: ['Residence', 'Raises road-fronted homes that grow as their families prosper.'],
+  well: ['Well', 'Draws water for nearby homes along the roads.', flow([], ['water'])],
+  chapel: ['Church', 'Tends parish life, gathers tithes, and strengthens nearby households.'],
+  wayside_shrine: ['Wayside shrine', 'Marks the roadside with a small place of prayer and devotion.'],
+  dry_stone_wall: ['Dry-stone wall', 'Lines dirt roads with a free, instantly raised wall of fitted stone.'],
+  monastery: ['Pauline monastery', 'A monastic estate that hosts pilgrims, keeps feasts, aids villagers, safeguards seed, and expands its charitable works.'],
+  marketplace: ['Marketplace', 'Required to distribute food to residences; its stalls also trade goods and collect local taxes.'],
+  trading_post: ['Trading Post', 'Orders imports and exports while haulers gather wares for trade.'],
+  town_hall: ['Town Hall', "Governs local taxes and keeps the settlement's accounts."],
+  village_storehouse: ['Storehouse', 'Stores construction materials, fuel, minerals, clay, salt, and all other non-food goods.'],
+  watchtower: ['Frontier watchtower', 'Spots approaching raiders and warns nearby homes and stores.'],
+  guardhouse: ['Frontier guardhouse', 'Musters armed guards to defend the settlement once a watchtower stands.'],
+  palisaded_refuge: ['Palisaded refuge', 'Shelters warned families and their coin once a guardhouse stands.'],
+  lumber_mill: ['Lumber mill', 'Fells mature trees and saws them into building timber.', flow([], ['timber'])],
+  stone_quarry: ['Mining Pit', 'Gathers stone, iron, salt, or clay from shallow surface deposits.', flow([], ['stone', 'iron', 'salt', 'clay'])],
+  large_quarry: ['Quarry', 'Works rich deposits with timber supports for a lasting supply of stone or minerals.', flow(['timber'], ['stone', 'iron', 'salt', 'clay'])],
+  mine: ['Mine', 'Delves mineral seams for iron or salt.', flow([], ['iron', 'salt'])],
+  clay_pit: ['Clay pit', 'Digs workable clay for pottery and roof tiles.', flow([], ['clay'])],
+  charcoal_burner: ["Charcoal burner's yard", 'Slow-burns firewood into charcoal for the smithy.', flow(['firewood'], ['charcoal'])],
+  smithy: ['Forest bloomery & smithy', 'Forges ironwork, tools, fittings, and weapons from iron and charcoal.', flow(['iron', 'charcoal', 'water'], ['ironwork'])],
+  potter_kiln: ["Potter's kiln", 'Fires clay into household pottery or sturdy roof tiles.', flow(['clay', 'water', 'firewood'], ['pottery', 'roofTiles'])],
+  reforester: ['Reforester', 'Restores felled woodland with young native trees.'],
+  woodcutters_lodge: ["Woodcutter's lodge", 'Splits timber into firewood for settlement hearths.', flow(['timber'], ['firewood'])],
+  hunters_hall: ["Hunter's hall", 'Hunts nearby game and dresses the catch for meat.', flow([], ['meat'])],
+  foragers_shed: ["Forager's shed", 'Gathers woodland berries, mushrooms, and healing remedies.', flow([], ['berries', 'mushrooms', 'remedies'])],
+  fishing_camp: ['Fishing camp', 'Catches fish from nearby waters through the warmer seasons.', flow([], ['fish'])],
+  threshing_barn: ['Farmstead', 'Harvests and threshes rye, oats, barley, maslin, and flax.', flow(['ryeSheaves', 'oatSheaves', 'barleySheaves', 'maslinSheaves'], ['ryeGrain', 'oatGrain', 'barley', 'maslinGrain', 'flax'])],
+  watermill: ['Grain watermill', 'Uses seasonal river power to grind rye and maslin into flour.', flow(['ryeGrain', 'maslinGrain'], ['ryeFlour', 'maslinFlour'])],
+  windmill: ['Grain windmill', 'Uses strong winds to grind rye and maslin into flour.', flow(['ryeGrain', 'maslinGrain'], ['ryeFlour', 'maslinFlour'])],
+  granary: ['Granary', 'Stores grain, fresh food, and preserved provisions for the settlement.'],
+  bakery: ['Bakery', 'Bakes rye or maslin flour into bread for the settlement.', flow(['ryeFlour', 'maslinFlour', 'water', 'firewood'], ['ryeBread', 'maslinBread'])],
+  brewery: ['Brewhouse', 'Brews ale from barley, cider from apples, or mead from honey.', flow(['barley', 'apples', 'honey', 'water', 'firewood'], ['ale', 'cider', 'mead'])],
+  tavern: ['Tavern', 'Serves ale, cider, and mead to satisfy household thirst.', flow(['ale', 'cider', 'mead'], [])],
+  smokehouse: ['Smokehouse', 'Preserves fresh food with firewood, salt, and pottery.', flow(['food', 'firewood', 'salt', 'pottery'], ['preservedFood'])],
+  apiary: ['Forest apiary', 'Keeps bees for honey throughout the warm season.', flow([], ['honey'])],
+  carpenter: ['Carpenter & wheelwright', 'Crafts frames and carts that lower building costs and hasten deliveries.'],
+  weaver: ["Weaver's workshop", 'Weaves wool into cloth and prepares flax with water for linen.', flow(['wool', 'flax', 'water'], ['cloth'])],
+  vineyard: ['Vineyard terrace', 'Cultivates hillside grapes and presses them into wine.', flow([], ['grapes', 'wine'])],
+  pastoral_farmstead: ['Pastoral farmstead', 'Raises cattle or sheep for milk, wool, manure, and meat.', flow([], ['milk', 'wool', 'manure', 'meat'])],
+  swineherd: ['Woodland swineherd', 'Fattens pigs on woodland mast or oats for meat.', flow(['oatGrain'], ['meat'])],
 };
 
 const action = (kind: PlayerPlaceableBuildingKind): PlacementBuildMenuAction =>
@@ -130,7 +129,7 @@ const entry = (artKey: PlacementArtKey): BuildMenuEntry => ({
   artKey,
 });
 
-/** Housing, services, institutions, trade, transport, and shared storage. */
+/** Compatibility collection for systems that need the complete non-production civic set. */
 export const CIVIC_BUILD_MENU_ENTRIES: readonly BuildMenuEntry[] = [
   entry('residences'), entry('well'), entry('chapel'), entry('wayside_shrine'), entry('dry_stone_wall'), entry('monastery'), entry('marketplace'), entry('tavern'), entry('trading_post'), entry('town_hall'), entry('village_storehouse'), entry('granary'),
 ];
@@ -158,12 +157,57 @@ export const MILITARY_BUILD_MENU_ENTRIES: readonly BuildMenuEntry[] = [
   entry('watchtower'), entry('guardhouse'), entry('palisaded_refuge'),
 ];
 
+export type BuildMenuCategoryId =
+  | 'civic'
+  | 'housing'
+  | 'trade'
+  | 'gathering'
+  | 'agriculture'
+  | 'food'
+  | 'industry'
+  | 'faith'
+  | 'decorations'
+  | 'military';
+
+export type BuildMenuCategory = {
+  id: BuildMenuCategoryId;
+  label: string;
+  hint: string;
+  icon: BuildMenuCategoryId;
+  entries: readonly BuildMenuEntry[];
+  conflictOnly?: boolean;
+};
+
+const HOUSING_BUILD_MENU_ENTRIES = [entry('residences')] as const;
+const CIVIC_SERVICES_BUILD_MENU_ENTRIES = [entry('well'), entry('town_hall')] as const;
+const TRADE_BUILD_MENU_ENTRIES = [
+  entry('marketplace'), entry('trading_post'), entry('village_storehouse'), entry('granary'),
+] as const;
+const FOOD_BUILD_MENU_ENTRIES = [
+  entry('watermill'), entry('windmill'), entry('bakery'), entry('brewery'), entry('tavern'), entry('smokehouse'),
+] as const;
+const WORKSHOP_BUILD_MENU_ENTRIES = [
+  entry('woodcutters_lodge'), entry('carpenter'), entry('weaver'), entry('charcoal_burner'), entry('smithy'), entry('potter_kiln'),
+] as const;
+const FAITH_BUILD_MENU_ENTRIES = [entry('chapel'), entry('monastery')] as const;
+const DECORATION_BUILD_MENU_ENTRIES = [entry('wayside_shrine'), entry('dry_stone_wall')] as const;
+
+/** The single build palette's icon-driven, deliberately granular category model. */
+export const BUILD_MENU_CATEGORIES: readonly BuildMenuCategory[] = [
+  { id: 'civic', label: 'Civic', hint: 'Water and settlement government', icon: 'civic', entries: CIVIC_SERVICES_BUILD_MENU_ENTRIES },
+  { id: 'housing', label: 'Housing', hint: 'Road-fronted residence plots', icon: 'housing', entries: HOUSING_BUILD_MENU_ENTRIES },
+  { id: 'trade', label: 'Trade & storage', hint: 'Markets, exchange, and shared stores', icon: 'trade', entries: TRADE_BUILD_MENU_ENTRIES },
+  { id: 'gathering', label: 'Gathering', hint: 'Wood, stone, game, forage, and fish', icon: 'gathering', entries: GATHERING_BUILD_MENU_ENTRIES },
+  { id: 'agriculture', label: 'Agriculture', hint: 'Fields, orchards, and livestock', icon: 'agriculture', entries: AGRICULTURE_BUILD_MENU_ENTRIES },
+  { id: 'food', label: 'Food & drink', hint: 'Milling, baking, brewing, and preservation', icon: 'food', entries: FOOD_BUILD_MENU_ENTRIES },
+  { id: 'industry', label: 'Industry', hint: 'Fuel, crafts, textiles, metal, and pottery', icon: 'industry', entries: WORKSHOP_BUILD_MENU_ENTRIES },
+  { id: 'faith', label: 'Faith', hint: 'Parish and monastic institutions', icon: 'faith', entries: FAITH_BUILD_MENU_ENTRIES },
+  { id: 'decorations', label: 'Decorations', hint: 'Roadside details and stone walls', icon: 'decorations', entries: DECORATION_BUILD_MENU_ENTRIES },
+  { id: 'military', label: 'Military', hint: 'Warning, defense, and refuge', icon: 'military', entries: MILITARY_BUILD_MENU_ENTRIES, conflictOnly: true },
+];
+
 export const BUILD_MENU_ENTRIES: readonly BuildMenuEntry[] = [
-  ...CIVIC_BUILD_MENU_ENTRIES,
-  ...GATHERING_BUILD_MENU_ENTRIES,
-  ...AGRICULTURE_BUILD_MENU_ENTRIES,
-  ...INDUSTRY_BUILD_MENU_ENTRIES,
-  ...MILITARY_BUILD_MENU_ENTRIES,
+  ...BUILD_MENU_CATEGORIES.flatMap((category) => category.entries),
 ];
 
 export type BuildMenuHandlers = {
@@ -174,7 +218,7 @@ export type BuildMenuHandlers = {
 
 export function renderBuildMenuCards(entries: readonly BuildMenuEntry[] = BUILD_MENU_ENTRIES): string {
   return entries.map((entry) => {
-    const [title, hotkey, description, resourceFlow] = DETAILS[entry.artKey];
+    const [title, description, resourceFlow] = DETAILS[entry.artKey];
     const resourceCost = entry.artKey === 'residences'
       ? residenceZoneCost(1)
       : entry.artKey === 'dry_stone_wall'
@@ -189,11 +233,10 @@ export function renderBuildMenuCards(entries: readonly BuildMenuEntry[] = BUILD_
     const flowAttribute = resourceFlow
       ? ` data-tooltip-flow="${encodeURIComponent(JSON.stringify({ inputs: resourceFlow[0], outputs: resourceFlow[1] }))}"`
       : '';
-    return `<button type="button" class="construction-card" data-action="${entry.action}" data-hotkey="${hotkey}" data-tooltip-placement="above" data-tooltip-title="${title} (${hotkey})" data-tooltip="${description}"${flowAttribute} aria-label="${title} (${hotkey}). ${description} Cost: ${costText}">
+    return `<button type="button" class="construction-card" data-action="${entry.action}" data-tooltip-placement="above" data-tooltip-title="${title}" data-tooltip="${description}"${flowAttribute} aria-label="${title}. ${description} Cost: ${costText}">
       <img class="construction-card__art" data-src="${BUILD_CARD_ART[entry.artKey]}" alt="" width="320" height="480" loading="lazy" decoding="async" draggable="false" />
-      <span class="construction-card__hotkey" aria-hidden="true">${hotkey}</span>
       <span class="construction-card__caption" aria-hidden="true"><strong>${title}</strong><span class="construction-card__cost">${costMarkup}</span></span>
-      <span class="construction-card__tooltip" role="tooltip"><span class="construction-card__tooltip-title">${title} (${hotkey})</span><span class="construction-card__tooltip-desc">${description}</span><span class="construction-card__tooltip-cost">Cost: ${costMarkup}</span></span>
+      <span class="construction-card__tooltip" role="tooltip"><span class="construction-card__tooltip-title">${title}</span><span class="construction-card__tooltip-desc">${description}</span><span class="construction-card__tooltip-cost">Cost: ${costMarkup}</span></span>
     </button>`;
   }).join('');
 }
@@ -205,11 +248,6 @@ export function hydrateBuildMenuImages(menu: ParentNode): void {
     image.src = source;
     delete image.dataset.src;
   }
-}
-
-export function resolveBuildMenuHotkey(key: string, entries: readonly BuildMenuEntry[] = BUILD_MENU_ENTRIES): BuildMenuAction | null {
-  const normalized = key.toLowerCase();
-  return entries.find((candidate) => DETAILS[candidate.artKey][1].toLowerCase() === normalized)?.action ?? null;
 }
 
 export function runBuildMenuAction(action: BuildMenuAction, handlers: BuildMenuHandlers, closeMenu: () => void): void {

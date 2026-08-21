@@ -612,26 +612,6 @@
   transition: filter 0.12s ease;
 }
 
-.construction-card__hotkey {
-  position: absolute;
-  left: 8px;
-  bottom: 10px;
-  z-index: 2;
-  min-width: 22px;
-  padding: 3px 6px;
-  border: 1px solid rgba(215, 180, 99, 0.55);
-  border-radius: 5px;
-  background: rgba(16, 20, 26, 0.88);
-  color: var(--accent);
-  font-size: 12px;
-  font-weight: 700;
-  line-height: 1;
-  letter-spacing: 0.04em;
-  text-align: center;
-  pointer-events: none;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
-}
-
 .construction-card__tooltip {
   position: absolute;
   left: 50%;
@@ -766,14 +746,6 @@
 
   .construction-card__art {
     height: 176px;
-  }
-
-  .construction-card__hotkey {
-    left: 6px;
-    bottom: 8px;
-    min-width: 20px;
-    padding: 2px 5px;
-    font-size: 11px;
   }
 
   .construction-card__tooltip {

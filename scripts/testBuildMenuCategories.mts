@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {
   AGRICULTURE_BUILD_MENU_ENTRIES,
+  BUILD_MENU_CATEGORIES,
   BUILD_MENU_ENTRIES,
   CIVIC_BUILD_MENU_ENTRIES,
   GATHERING_BUILD_MENU_ENTRIES,
@@ -33,18 +34,23 @@ assert.deepEqual(keys(INDUSTRY_BUILD_MENU_ENTRIES), [
   'carpenter', 'weaver', 'charcoal_burner', 'smithy', 'potter_kiln',
 ]);
 
-for (const [name, entries] of [
-  ['Civic', CIVIC_BUILD_MENU_ENTRIES],
-  ['Gathering', GATHERING_BUILD_MENU_ENTRIES],
-  ['Agriculture', AGRICULTURE_BUILD_MENU_ENTRIES],
-  ['Industry', INDUSTRY_BUILD_MENU_ENTRIES],
-  ['Defense', MILITARY_BUILD_MENU_ENTRIES],
-] as const) {
-  const hotkeys = [...renderBuildMenuCards(entries).matchAll(/data-hotkey="([^"]+)"/g)]
-    .map((match) => match[1].toLowerCase());
-  assert.equal(hotkeys.length, entries.length, `${name} must render one hotkey per entry`);
-  assert.equal(new Set(hotkeys).size, hotkeys.length, `${name} submenu hotkeys must be unique`);
-}
+assert.deepEqual(BUILD_MENU_CATEGORIES.map((category) => category.id), [
+  'civic', 'housing', 'trade', 'gathering', 'agriculture',
+  'food', 'industry', 'faith', 'decorations', 'military',
+]);
+assert.deepEqual(categoryKeys('civic'), ['well', 'town_hall']);
+assert.deepEqual(categoryKeys('housing'), ['residences']);
+assert.deepEqual(categoryKeys('trade'), ['marketplace', 'trading_post', 'village_storehouse', 'granary']);
+assert.deepEqual(categoryKeys('gathering'), [
+  'lumber_mill', 'reforester', 'stone_quarry', 'large_quarry', 'hunters_hall', 'foragers_shed', 'fishing_camp',
+]);
+assert.deepEqual(categoryKeys('agriculture'), ['threshing_barn', 'apiary', 'vineyard', 'pastoral_farmstead', 'swineherd']);
+assert.deepEqual(categoryKeys('food'), ['watermill', 'windmill', 'bakery', 'brewery', 'tavern', 'smokehouse']);
+assert.deepEqual(categoryKeys('industry'), ['woodcutters_lodge', 'carpenter', 'weaver', 'charcoal_burner', 'smithy', 'potter_kiln']);
+assert.deepEqual(categoryKeys('faith'), ['chapel', 'monastery']);
+assert.deepEqual(categoryKeys('decorations'), ['wayside_shrine', 'dry_stone_wall']);
+assert.deepEqual(categoryKeys('military'), ['watchtower', 'guardhouse', 'palisaded_refuge']);
+assert.equal(BUILD_MENU_CATEGORIES.at(-1)?.conflictOnly, true);
 
 const allActions = BUILD_MENU_ENTRIES.map((entry) => entry.action);
 assert.equal(new Set(allActions).size, allActions.length, 'each build action must belong to exactly one menu');
@@ -55,6 +61,8 @@ assert.equal(
 );
 
 const renderedCards = renderBuildMenuCards();
+assert.doesNotMatch(renderedCards, /data-hotkey=/, 'build cards must no longer expose sub-hotkeys');
+assert.doesNotMatch(renderedCards, /construction-card__hotkey/, 'build cards must not render hotkey badges');
 assert.match(renderedCards, />Mining Pit</);
 assert.match(renderedCards, />Quarry</);
 assert.match(
@@ -141,21 +149,24 @@ const automaticPosition = resolveTooltipPosition(
 assert.equal(automaticPosition.top, 308, 'ordinary tooltips should retain automatic placement');
 
 const toolbarSource = fs.readFileSync('src/ui/BuildToolbar.ts', 'utf8');
-for (const [action, hotkey] of [
-  ['civic-build-menu', 'B'],
-  ['gathering-build-menu', 'G'],
-  ['agriculture-build-menu', 'U'],
-  ['industry-build-menu', 'V'],
-  ['military-build-menu', 'X'],
-] as const) {
-  assert.match(
-    toolbarSource,
-    new RegExp(`data-action="${action}"[^>]*>[\\s\\S]*?construction-dock-button__hotkey"[^>]*>${hotkey}<`),
-  );
-}
+assert.match(
+  toolbarSource,
+  /data-action="build-menu"[^>]*>[\s\S]*?construction-dock-button__hotkey"[^>]*>B</,
+);
+assert.match(toolbarSource, /data-build-menu-cards/);
+assert.match(toolbarSource, /class="build-menu-categories"/);
+assert.match(toolbarSource, /setBuildMenuCategory\(DEFAULT_BUILD_MENU_CATEGORY, true\)/);
+assert.doesNotMatch(toolbarSource, /resolveBuildMenuHotkey/);
+assert.doesNotMatch(toolbarSource, /data-action="(?:civic|gathering|agriculture|industry|military)-build-menu"/);
 
 console.log('Build menu category tests passed.');
 
 function keys(entries: readonly BuildMenuEntry[]): string[] {
   return entries.map((entry) => entry.artKey);
+}
+
+function categoryKeys(id: string): string[] {
+  const category = BUILD_MENU_CATEGORIES.find((candidate) => candidate.id === id);
+  assert.ok(category, `missing build category ${id}`);
+  return keys(category.entries);
 }
