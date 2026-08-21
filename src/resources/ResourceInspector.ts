@@ -306,9 +306,10 @@ type ResourceInspectorOptions = {
   onSetLivestockSpecies?: (buildingId: string, species: Exclude<LivestockSpecies, 'swine'>) => void | Promise<void>;
   onSetLivestockBreedingReserve?: (buildingId: string, breedingReserve: number) => void | Promise<void>;
   onSetLivestockHaymakingPercent?: (buildingId: string, haymakingPercent: number) => void | Promise<void>;
-  onBeginFarmFieldPlacement?: (farmsteadId: string) => void;
+  onBeginFarmFieldPlacement?: (farmsteadId: string, crop: FarmCrop) => void;
   onBeginPasturePlacement?: (farmsteadId: string) => void;
   onBeginGraveyardPlacement?: (chapelId: string) => void;
+  onBeginVineyardPlacement?: (monasteryId: string) => void;
   onBeginRemoteWorkCampPlacement?: (worksiteId: string) => void;
   onInspectDeliveryTrip?: (tripId: string) => void;
   onFocusWorldPosition?: (x: number, z: number) => void;
@@ -924,7 +925,12 @@ export class ResourceInspector {
       }
       const landParcel = (event.target as HTMLElement).closest<HTMLElement>('[data-land-parcel]')?.dataset.landParcel;
       if (landParcel === 'field' && building.kind === 'threshing_barn') {
-        this.options.onBeginFarmFieldPlacement?.(building.id);
+        const crop = (event.target as HTMLElement)
+          .closest<HTMLElement>('[data-field-layout-crop]')
+          ?.dataset.fieldLayoutCrop as FarmCrop | undefined;
+        if (crop && FARM_CROPS.includes(crop)) {
+          this.options.onBeginFarmFieldPlacement?.(building.id, crop);
+        }
         return;
       }
       if (landParcel === 'pasture' && (building.kind === 'pastoral_farmstead' || building.kind === 'swineherd')) {
@@ -933,6 +939,10 @@ export class ResourceInspector {
       }
       if (landParcel === 'graveyard' && building.kind === 'chapel') {
         this.options.onBeginGraveyardPlacement?.(building.id);
+        return;
+      }
+      if (landParcel === 'vineyard' && building.kind === 'monastery') {
+        this.options.onBeginVineyardPlacement?.(building.id);
         return;
       }
     }
@@ -1314,6 +1324,43 @@ export class ResourceInspector {
         return;
       }
     }
+    if (
+      this.selectedTarget?.kind === 'building'
+      && this.selectedTarget.building.kind === 'monastery'
+    ) {
+      const orchardValue = (event.target as HTMLElement)
+        .closest<HTMLElement>('[data-monastery-orchard-choice]')
+        ?.dataset.monasteryOrchardChoice;
+      if (orchardValue != null) {
+        void this.options.onSetMonasteryPlanting?.(
+          this.selectedTarget.building.id,
+          Number(orchardValue),
+          this.selectedTarget.building.monasteryCroftPlanting === 1 ? 1 : 0,
+        );
+        return;
+      }
+      const croftValue = (event.target as HTMLElement)
+        .closest<HTMLElement>('[data-monastery-croft-choice]')
+        ?.dataset.monasteryCroftChoice;
+      if (croftValue != null) {
+        void this.options.onSetMonasteryPlanting?.(
+          this.selectedTarget.building.id,
+          this.selectedTarget.building.monasteryOrchardPlanting === 1 ? 1 : 0,
+          Number(croftValue),
+        );
+        return;
+      }
+      const extensionValue = (event.target as HTMLElement)
+        .closest<HTMLElement>('[data-monastery-extension-choice]')
+        ?.dataset.monasteryExtensionChoice;
+      if (extensionValue != null) {
+        void this.options.onSetMonasteryNextExtension?.(
+          this.selectedTarget.building.id,
+          Number(extensionValue),
+        );
+        return;
+      }
+    }
     handleSupplementalPanelClick(this.selectedTarget, event.target as HTMLElement, {
       onPlaceBackyardGarden: this.options.onPlaceBackyardGarden,
       onSpecializeOrchard: this.options.onSpecializeOrchard,
@@ -1440,12 +1487,6 @@ export class ResourceInspector {
     }
     if (building.kind === 'town_hall' && input.matches('[data-policy-monastery-levy]')) {
       void this.options.onSetMonasteryCharter?.(Number(input.value) / 100);
-      return;
-    }
-    if (building.kind === 'monastery' && input.matches('[data-monastery-orchard-planting], [data-monastery-croft-planting]')) {
-      const orchard = Number(this.supplementalPanelSection.querySelector<HTMLSelectElement>('[data-monastery-orchard-planting]')?.value ?? 0);
-      const croft = Number(this.supplementalPanelSection.querySelector<HTMLSelectElement>('[data-monastery-croft-planting]')?.value ?? 0);
-      void this.options.onSetMonasteryPlanting?.(building.id, orchard, croft);
       return;
     }
     if (building.kind === 'monastery' && input.matches('[data-monastery-next-extension]')) {
@@ -2094,13 +2135,13 @@ export class ResourceInspector {
             <p class="inspector-action-panel__hint">${target.kind === 'building'
               ? 'Recovery reuses the existing site and enters the normal material-hauling and builder-work pipeline.'
               : 'Fire recovery reuses the surviving homestead footprint; the rebuilt cottage returns vacant and can be settled again.'}</p>
-            <button type="button" class="resource-action-button" data-fire-recovery ${
+            <button type="button" class="resource-action-button resource-action-button--icon" data-fire-recovery ${
               coolingSeconds > 1e-6 || !canAffordRecovery ? 'disabled' : ''
-            }>${coolingSeconds > 1e-6
+            }><span class="inspector-action-icon" data-action-icon="fire-recovery" aria-hidden="true"></span><span>${coolingSeconds > 1e-6
               ? `Cooling (${Math.ceil(coolingSeconds)}s)`
               : !canAffordRecovery
                 ? `Need ${renderBuildingResourceCost(recovery.cost, { compact: true })}`
-                : `${recoveryLabel} · ${renderBuildingResourceCost(recovery.cost, { compact: true })}`}</button>
+                : `${recoveryLabel} · ${renderBuildingResourceCost(recovery.cost, { compact: true })}`}</span></button>
             ${recovery.carpenterSupported ? '<p class="inspector-action-panel__hint">A staffed road-linked carpenter reduces the timber requirement by 10%.</p>' : ''}
           </div>`;
       }

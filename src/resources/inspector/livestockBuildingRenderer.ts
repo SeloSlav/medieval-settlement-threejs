@@ -286,8 +286,8 @@ export function renderLivestockBuildingInspector(
           ? 'Herd specialization — switching keeps the building and pasture, but replaces the herd with starter stock.'
           : 'Choose this holding’s herd before fencing pasture. The first choice establishes its starter animals.'}</p>
         <div class="resource-action-row">
-          <button type="button" class="resource-action-button" data-livestock-species="cattle" ${herd?.species === 'cattle' ? 'disabled' : ''}>Cattle · ${CATTLE_STARTER_HERD}</button>
-          <button type="button" class="resource-action-button" data-livestock-species="sheep" ${herd?.species === 'sheep' ? 'disabled' : ''}>Sheep · ${SHEEP_STARTER_HERD}</button>
+          <button type="button" class="resource-action-button resource-action-button--icon" data-livestock-species="cattle" ${herd?.species === 'cattle' ? 'disabled' : ''}><span class="inspector-action-icon" data-action-icon="cattle-herd" aria-hidden="true"></span><span>Cattle · ${CATTLE_STARTER_HERD}</span></button>
+          <button type="button" class="resource-action-button resource-action-button--icon" data-livestock-species="sheep" ${herd?.species === 'sheep' ? 'disabled' : ''}><span class="inspector-action-icon" data-action-icon="sheep-flock" aria-hidden="true"></span><span>Sheep · ${SHEEP_STARTER_HERD}</span></button>
         </div>
         <p class="inspector-action-panel__hint"><strong>Cattle:</strong> ${CATTLE_AREA_PER_HEAD} m²/head, up to ${CATTLE_MAX_HERD}; stronger milk per head, physical manure, and ox support for ${CATTLE_MAX_PLOUGH_SUPPORTED_FIELDS} priority fields. <strong>Sheep:</strong> ${SHEEP_AREA_PER_HEAD} m²/head, up to ${SHEEP_MAX_HERD}; faster-growing upland flocks and an annual ${SHEEP_WOOL_PER_SHEARING_PER_HEAD} wool/head clip for cloth and export. A full holding has broadly comparable food potential, so the land, fertility, and textile benefits decide the trade.</p>
       </div>`
@@ -312,7 +312,7 @@ export function renderLivestockBuildingInspector(
   const pastureControls = `<div class="inspector-action-panel">
       <p class="resource-inspector-note">${pastureHint}</p>
       <div class="resource-action-row">
-        <button type="button" class="resource-action-button" data-land-parcel="pasture" ${building.kind === 'pastoral_farmstead' && !herd ? 'disabled' : ''}>${pastureLabel}</button>
+        <button type="button" class="resource-action-button resource-action-button--icon" data-land-parcel="pasture" ${building.kind === 'pastoral_farmstead' && !herd ? 'disabled' : ''}><span class="inspector-action-icon" data-action-icon="pasture-parcel" aria-hidden="true"></span><span>${pastureLabel}</span></button>
       </div>
     </div>`;
   const reserveControls = herd

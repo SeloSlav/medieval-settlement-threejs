@@ -513,6 +513,7 @@ export class SpacetimeGameStore {
   }
 
   placeVineyard(input: {
+    monasteryId: string;
     corners: Array<{ x: number; z: number }>;
     averageSlopeDegrees: number;
     southExposure: number;

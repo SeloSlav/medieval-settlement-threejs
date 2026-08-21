@@ -6,7 +6,7 @@ import {
   type TerrainOverlaySegment,
 } from '../placement/TerrainOverlayGeometry.ts';
 import type { VineyardParcelState } from '../resources/types.ts';
-import { bilinearPoint, fieldCentroid, type FarmFieldCorners } from '../farming/farmFieldMath.ts';
+import { bilinearPoint, type FarmFieldCorners } from '../farming/farmFieldMath.ts';
 import { createSeedThreeVineyardVines } from '../vegetation/seedthree/vineyardVines.ts';
 import {
   hashParcelSeed,
@@ -62,11 +62,10 @@ function buildParcelGroup(
 ): THREE.Group {
   const corners = parcel.corners as FarmFieldCorners;
   const dimensions = parcelDimensions(corners);
-  const center = fieldCentroid(corners);
-  const parcelSeed = hashParcelSeed(parcel.buildingId);
+  const parcelSeed = hashParcelSeed(parcel.monasteryId);
   const group = new THREE.Group();
-  group.name = `Vineyard rows ${parcel.buildingId}`;
-  group.userData.vineyardBuildingId = parcel.buildingId;
+  group.name = `Monastery vineyard rows ${parcel.monasteryId}`;
+  group.userData.monasteryBuildingId = parcel.monasteryId;
 
   const groundGeometry = new THREE.BufferGeometry();
   updateTerrainQuadGeometry(groundGeometry, corners, getHeightAt, 0.055, 12, 12);
@@ -98,8 +97,6 @@ function buildParcelGroup(
       const point = samplePolylineAtFraction(rowPath, v);
       const before = samplePolylineAtFraction(rowPath, Math.max(0, v - 0.025));
       const after = samplePolylineAtFraction(rowPath, Math.min(1, v + 0.025));
-      // Leave the central vintner shelter and its loading yard legible.
-      if (Math.hypot(point.x - center.x, point.z - center.z) < 6.2) continue;
       placements.push({
         x: point.x,
         z: point.z,
@@ -201,7 +198,7 @@ export class VineyardParcelMarkers {
   sync(parcels: Iterable<VineyardParcelState>): void {
     const list = [...parcels];
     const signature = list.map((parcel) =>
-      `${parcel.buildingId}:${parcel.corners.map((point) => `${point.x.toFixed(2)},${point.z.toFixed(2)}`).join(';')}`
+      `${parcel.monasteryId}:${parcel.corners.map((point) => `${point.x.toFixed(2)},${point.z.toFixed(2)}`).join(';')}`
     ).join('|');
     if (signature === this.lastSignature) return;
     this.lastSignature = signature;
@@ -211,7 +208,7 @@ export class VineyardParcelMarkers {
     for (const parcel of list) {
       const group = buildParcelGroup(parcel, this.getHeightAt);
       this.root.add(group);
-      this.groups.set(parcel.buildingId, group);
+      this.groups.set(parcel.monasteryId, group);
     }
   }
 

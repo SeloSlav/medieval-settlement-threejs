@@ -1386,6 +1386,10 @@ select:focus-visible {
 }
 
 .resource-inspector-demolish {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
   min-width: 0;
   min-height: 30px;
   height: auto;
@@ -1637,6 +1641,15 @@ select:focus-visible {
   font: 600 9px/1.2 var(--ui-font-sans);
   letter-spacing: 0.06em;
   text-transform: uppercase;
+}
+
+.resource-inspector-demolish::before {
+  width: 24px;
+  height: 24px;
+  flex: 0 0 24px;
+  background: url('/assets/ui/icons/actions/demolish.png') center / contain no-repeat;
+  content: '';
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.72));
 }
 
 .storage-acceptance__bulk {
@@ -1937,7 +1950,7 @@ select:focus-visible {
 }
 
 .construction-dock-button[data-action='overlay-menu'],
-.construction-dock-button[data-action='settings'] {
+.construction-dock-button[data-action='tutorials'] {
   margin-left: 8px;
 }
 
@@ -2094,16 +2107,29 @@ select:focus-visible {
   transition: color 130ms ease, border-color 130ms ease, background 130ms ease, transform 130ms ease;
 }
 
-.build-menu-category__icon svg {
-  width: 24px;
-  height: 24px;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1.65;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  filter: drop-shadow(0 1px rgba(0, 0, 0, 0.45));
+.build-menu-category__icon::before {
+  width: 34px;
+  height: 34px;
+  background-image: var(--build-category-art);
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
+  border-radius: 50%;
+  content: '';
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.68));
+  pointer-events: none;
 }
+
+.build-menu-category__icon[data-build-category-icon='civic'] { --build-category-art: url('/assets/ui/build-menu/cards/town-hall.webp'); }
+.build-menu-category__icon[data-build-category-icon='housing'] { --build-category-art: url('/assets/ui/build-menu/cards/residence.webp'); }
+.build-menu-category__icon[data-build-category-icon='trade'] { --build-category-art: url('/assets/ui/build-menu/cards/trading-post.webp'); }
+.build-menu-category__icon[data-build-category-icon='gathering'] { --build-category-art: url('/assets/ui/build-menu/cards/foragers-hut.webp'); }
+.build-menu-category__icon[data-build-category-icon='agriculture'] { --build-category-art: url('/assets/ui/build-menu/cards/grain-field.webp'); }
+.build-menu-category__icon[data-build-category-icon='food'] { --build-category-art: url('/assets/ui/build-menu/cards/bakery.webp'); }
+.build-menu-category__icon[data-build-category-icon='industry'] { --build-category-art: url('/assets/ui/build-menu/cards/watermill.webp'); }
+.build-menu-category__icon[data-build-category-icon='faith'] { --build-category-art: url('/assets/ui/build-menu/cards/chapel.webp'); }
+.build-menu-category__icon[data-build-category-icon='decorations'] { --build-category-art: url('/assets/ui/build-menu/cards/wayside-shrine.webp'); }
+.build-menu-category__icon[data-build-category-icon='military'] { --build-category-art: url('/assets/ui/build-menu/cards/watchtower.webp'); }
 
 .build-menu-category > span:last-child {
   width: 100%;
@@ -2529,6 +2555,13 @@ select:focus-visible {
   line-height: 1;
 }
 
+.ui-tooltip__season-introduction {
+  margin: -2px 0 13px;
+  color: #c8bda8;
+  font-size: 11.5px;
+  line-height: 1.42;
+}
+
 .ui-tooltip__season-list {
   display: grid;
   gap: 10px;
@@ -2543,7 +2576,14 @@ select:focus-visible {
   align-items: start;
   gap: 10px;
   margin: 0;
-  padding: 0;
+  padding: 2px 0;
+}
+
+.ui-tooltip__season-list > li.is-current {
+  margin: -2px -7px;
+  padding: 4px 7px;
+  border: 1px solid color-mix(in srgb, var(--season-border) 55%, transparent);
+  background: linear-gradient(90deg, color-mix(in srgb, var(--season-surface) 38%, transparent), transparent 82%);
 }
 
 .ui-tooltip__season-list > li::before {
@@ -2578,6 +2618,21 @@ select:focus-visible {
   color: #b7aa94;
   font-size: 11.5px;
   font-weight: 650;
+  white-space: nowrap;
+}
+
+.ui-tooltip__season-current {
+  padding: 1px 5px;
+  border: 1px solid color-mix(in srgb, var(--season-border) 72%, transparent);
+  border-radius: 999px;
+  color: var(--season-color);
+  background: rgba(8, 11, 9, 0.36);
+  font-size: 8.5px;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+  line-height: 1.25;
+  text-transform: uppercase;
+  vertical-align: 1px;
   white-space: nowrap;
 }
 
@@ -3068,7 +3123,7 @@ select:focus-visible {
   }
 
   .construction-dock-button[data-action='overlay-menu'],
-  .construction-dock-button[data-action='settings'] {
+  .construction-dock-button[data-action='tutorials'] {
     margin-left: 2px;
   }
 }

@@ -327,11 +327,18 @@ function renderSeasonAlmanacTooltip(
   header.append(headerIcon, titleElement);
   fragment.appendChild(header);
 
+  const introduction = document.createElement('p');
+  introduction.className = 'ui-tooltip__season-introduction';
+  introduction.textContent = 'Seasons shape harvests, livestock, travel, stores, and household needs.';
+  fragment.appendChild(introduction);
+
   const list = document.createElement('ul');
   list.className = 'ui-tooltip__season-list';
   for (const item of items) {
     const listItem = document.createElement('li');
     listItem.dataset.season = item.season;
+    const isCurrent = item.season === current.season;
+    listItem.classList.toggle('is-current', isCurrent);
 
     const icon = document.createElement('span');
     icon.className = 'ui-tooltip__season-icon';
@@ -349,6 +356,12 @@ function renderSeasonAlmanacTooltip(
     months.className = 'ui-tooltip__season-months';
     months.textContent = `(${item.months})`;
     identity.append(label, document.createTextNode(' '), months);
+    if (isCurrent) {
+      const currentMarker = document.createElement('span');
+      currentMarker.className = 'ui-tooltip__season-current';
+      currentMarker.textContent = 'Current';
+      identity.append(document.createTextNode(' '), currentMarker);
+    }
 
     const description = document.createElement('span');
     description.className = 'ui-tooltip__season-description';

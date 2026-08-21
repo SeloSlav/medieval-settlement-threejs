@@ -10,18 +10,19 @@ use crate::hydrology::sample_world_hydrology_score;
 use crate::placement_validation::{
     zone_overlaps_building_footprint, zone_overlaps_resource_deposit,
 };
-use crate::reducers::buildings::place_building_internal;
 use crate::roads::load_owner_road_network;
 use crate::tables::{farm_field, graveyard, vineyard_parcel, VineyardParcel};
 use crate::vineyard::{
     site_suitability, VINEYARD_MAX_AREA, VINEYARD_MAX_SLOPE_DEGREES, VINEYARD_MIN_AREA,
-    VINEYARD_MIN_EDGE,
+    VINEYARD_MIN_EDGE, VINEYARD_MONASTERY_ADJACENCY_DISTANCE,
+    VINEYARD_MONASTERY_MAX_DISTANCE,
 };
 
 #[reducer]
 #[allow(clippy::too_many_arguments)]
 pub fn place_vineyard(
     ctx: &ReducerContext,
+    monastery_id: u64,
     corner_ax: f64,
     corner_az: f64,
     corner_bx: f64,
@@ -34,6 +35,27 @@ pub fn place_vineyard(
     south_exposure: f64,
 ) -> Result<(), String> {
     let owner = ctx.sender();
+    let monastery = ctx
+        .db
+        .building()
+        .id()
+        .find(&monastery_id)
+        .ok_or_else(|| "Monastery not found.".to_string())?;
+    if monastery.owner != owner
+        || monastery.kind != "monastery"
+        || !monastery.construction_complete
+    {
+        return Err("Vineyards must belong to one of your completed monasteries.".to_string());
+    }
+    if ctx
+        .db
+        .vineyard_parcel()
+        .building_id()
+        .find(&monastery_id)
+        .is_some()
+    {
+        return Err("This monastery already has a vineyard extension.".to_string());
+    }
     let corners = corners_from_values([
         corner_ax, corner_az, corner_bx, corner_bz, corner_cx, corner_cz, corner_dx, corner_dz,
     ]);
@@ -72,6 +94,21 @@ pub fn place_vineyard(
     }
     let exposure = south_exposure.clamp(0.0, 1.0);
     let polygon = zone_corners_polygon(&corners);
+
+    let distances = [corners.a, corners.b, corners.c, corners.d]
+        .map(|point| ((point.x - monastery.x).powi(2) + (point.z - monastery.z).powi(2)).sqrt());
+    if distances
+        .iter()
+        .any(|distance| *distance > VINEYARD_MONASTERY_MAX_DISTANCE)
+    {
+        return Err("The entire vineyard must stay near its monastery.".to_string());
+    }
+    if distances
+        .iter()
+        .all(|distance| *distance > VINEYARD_MONASTERY_ADJACENCY_DISTANCE)
+    {
+        return Err("The vineyard must adjoin the monastery estate.".to_string());
+    }
 
     if zone_overlaps_resource_deposit(ctx, &corners) {
         return Err("Vineyards cannot cover a physical resource deposit.".to_string());
@@ -207,9 +244,8 @@ pub fn place_vineyard(
         ctx.db.tree_entity().tree_id().delete(&tree_id);
     }
 
-    let building_id = place_building_internal(ctx, "vineyard".to_string(), center.x, center.z, 0)?;
     ctx.db.vineyard_parcel().insert(VineyardParcel {
-        building_id,
+        building_id: monastery_id,
         owner,
         corner_ax,
         corner_az,

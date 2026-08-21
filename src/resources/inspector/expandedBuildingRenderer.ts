@@ -1853,10 +1853,11 @@ function renderFarmsteadFieldPanel(building: BuildingState): string {
         .map((preset) => `<button type="button" class="resource-action-button" data-threshing-priority="${preset.priority}" title="${preset.hint}" ${threshingPriority === preset.priority ? 'disabled' : ''}>${preset.label}</button>`)
         .join('')}</div>
       <p class="inspector-action-panel__hint">Automatic restores linked-field seed and one dispatch load after High/Urgent fieldwork but before Normal fieldwork. Fields first leaves threshing until field jobs are quiet; Thresh first pre-empts every non-harvest field job.</p>
-      <p class="inspector-action-panel__hint">Lay out cultivated land for this farmstead. Linked fields always enter its queue; nearby High/Urgent fields may also request this crew when they fall inside its work radius.</p>
-      <div class="resource-action-row">
-        <button type="button" class="resource-action-button" data-land-parcel="field">Lay out farm field</button>
+      <p class="inspector-action-panel__hint">Lay out cultivated land for this farmstead. Choose the first crop now; its suitability map opens with the drawing tool. Linked fields always enter this farmstead’s queue, while nearby High/Urgent fields may also request its crew.</p>
+      <div class="resource-action-row" role="group" aria-label="Choose the new field's first crop">
+        ${FARM_CROPS.map((crop) => `<button type="button" class="resource-action-button resource-action-button--crop" data-land-parcel="field" data-field-layout-crop="${crop}" title="Lay out a ${cropLabel(crop).toLowerCase()} field"><span class="farm-crop-choice__icon" data-field-crop-icon="${crop}" aria-hidden="true"></span><span>${cropLabel(crop)} field</span></button>`).join('')}
       </div>
+      <p class="inspector-action-panel__hint">The selected crop becomes both the first planting and the initial Year 2 plan. Press C during layout only if you want to change it before committing the parcel.</p>
     </div>
   `;
 }
@@ -1906,21 +1907,31 @@ function renderMonasteryPolicyPanel(building: BuildingState, context: InspectorR
   return `
     <div class="inspector-action-panel">
       <p class="inspector-action-panel__hint"><strong>${archetype.name}</strong> · ${archetype.payoff}. Assign residents to the eight-cell community; without a monk on site the estate and every service remain dormant. The monastery feeds itself, protects its own reserves, and sends genuine surplus outside the map rather than joining ordinary household delivery routes.</p>
-      <label class="city-admin-panel__slider-label" for="monastery-orchard-planting"><span>Orchard parcel</span><strong>${MONASTERY_ORCHARD_PLANTINGS[orchardPlanting].output}</strong></label>
-      <select class="inspector-policy-select" id="monastery-orchard-planting" data-monastery-orchard-planting ${orchardWindow ? '' : 'disabled'}>
-        ${MONASTERY_ORCHARD_PLANTINGS.map((planting) => `<option value="${planting.value}" ${planting.value === orchardPlanting ? 'selected' : ''}>${planting.label}</option>`).join('')}
-      </select>
+      <div class="city-admin-panel__slider-label"><span>Orchard parcel</span><strong>${MONASTERY_ORCHARD_PLANTINGS[orchardPlanting].output}</strong></div>
+      <div class="monastery-planting-grid" role="group" aria-label="Choose the monastery orchard planting">
+        ${MONASTERY_ORCHARD_PLANTINGS.map((planting) => `<button type="button" class="monastery-planting-choice${planting.value === orchardPlanting ? ' is-selected' : ''}" data-monastery-orchard-choice="${planting.value}" aria-pressed="${planting.value === orchardPlanting ? 'true' : 'false'}" title="${planting.output}" ${!orchardWindow || planting.value === orchardPlanting ? 'disabled' : ''}>
+          <span class="monastery-planting-choice__icon" data-monastery-planting-icon="orchard-${planting.value}" aria-hidden="true"></span>
+          <span class="monastery-planting-choice__copy"><strong>${planting.label}</strong><small>${planting.output}</small></span>
+        </button>`).join('')}
+      </div>
       <p class="inspector-action-panel__hint">Perennial rows may be changed only November–February. Replanting costs ${MONASTERY_ORCHARD_REPLANT_COST} monastery gold, preserves the 6-gold working reserve, loses the next harvest, then returns as young rows before becoming fully mature.${orchardWindow ? ' The dormant-season window is open.' : ' The rows are locked until November.'}</p>
-      <label class="city-admin-panel__slider-label" for="monastery-croft-planting"><span>Enclosed croft</span><strong>${MONASTERY_CROFT_PLANTINGS[croftPlanting].output}</strong></label>
-      <select class="inspector-policy-select" id="monastery-croft-planting" data-monastery-croft-planting ${croftWindow ? '' : 'disabled'}>
-        ${MONASTERY_CROFT_PLANTINGS.map((planting) => `<option value="${planting.value}" ${planting.value === croftPlanting ? 'selected' : ''}>${planting.label}</option>`).join('')}
-      </select>
+      <div class="city-admin-panel__slider-label"><span>Enclosed croft</span><strong>${MONASTERY_CROFT_PLANTINGS[croftPlanting].output}</strong></div>
+      <div class="monastery-planting-grid" role="group" aria-label="Choose the monastery croft planting">
+        ${MONASTERY_CROFT_PLANTINGS.map((planting) => `<button type="button" class="monastery-planting-choice${planting.value === croftPlanting ? ' is-selected' : ''}" data-monastery-croft-choice="${planting.value}" aria-pressed="${planting.value === croftPlanting ? 'true' : 'false'}" title="${planting.output}" ${!croftWindow || planting.value === croftPlanting ? 'disabled' : ''}>
+          <span class="monastery-planting-choice__icon" data-monastery-planting-icon="croft-${planting.value}" aria-hidden="true"></span>
+          <span class="monastery-planting-choice__copy"><strong>${planting.label}</strong><small>${planting.output}</small></span>
+        </button>`).join('')}
+      </div>
       <p class="inspector-action-panel__hint">The annual croft may be changed once in January or February before sowing; its commitment then lasts through the agricultural year. An estate workshop strengthens whichever planting pair you chose and unlocks cider for apple houses.</p>
-      <label class="city-admin-panel__slider-label" for="monastery-next-extension"><span>Next reserved extension</span><strong>${monasteryExtensionCount(extensions)} / 4 complete</strong></label>
-      <select class="inspector-policy-select" id="monastery-next-extension" data-monastery-next-extension ${availableExtensions.length === 0 ? 'disabled' : ''}>
-        <option value="0" ${nextExtension === 0 ? 'selected' : ''} disabled>${availableExtensions.length === 0 ? 'Estate fully developed' : 'Choose the next project'}</option>
-        ${availableExtensions.map((extension) => `<option value="${extension.value}" ${nextExtension === extension.value ? 'selected' : ''}>${extension.label} · ${extension.cost} gold</option>`).join('')}
-      </select>
+      <div class="city-admin-panel__slider-label"><span>Next reserved extension</span><strong>${monasteryExtensionCount(extensions)} / 4 complete</strong></div>
+      ${availableExtensions.length > 0
+        ? `<div class="monastery-extension-grid" role="group" aria-label="Choose the next monastery extension">
+            ${availableExtensions.map((extension) => `<button type="button" class="monastery-extension-choice${nextExtension === extension.value ? ' is-selected' : ''}" data-monastery-extension-choice="${extension.value}" aria-pressed="${nextExtension === extension.value ? 'true' : 'false'}" title="${extension.payoff}" ${nextExtension === extension.value ? 'disabled' : ''}>
+              <span class="monastery-extension-choice__icon" data-monastery-extension-icon="${extension.value}" aria-hidden="true"></span>
+              <span class="monastery-extension-choice__copy"><strong>${extension.label}</strong><small>${extension.cost} gold</small></span>
+            </button>`).join('')}
+          </div>`
+        : '<p class="inspector-action-panel__hint monastery-extension-grid__complete">Estate fully developed · all four extensions complete.</p>'}
       <p class="inspector-action-panel__hint">The monks keep their own purse and begin the selected project automatically when its cost and the working reserve are secured. Order determines which benefit arrives first; all four can eventually be built. ${availableExtensions.map((extension) => `${extension.label}: ${extension.payoff}`).join(' · ')}</p>
       <label class="city-admin-panel__toggle"><input type="checkbox" data-policy-monastery-feasts ${policy.feastsEnabled ? 'checked' : ''} /><span>Provision hospitality and feast days</span></label>
       <p class="inspector-action-panel__hint">Enabled houses protect ${feastBatchCost}. Any estate drink qualifies: ale stretches the common table, wine increases offering prestige, cider favours export income, and a mixed cellar earns a smaller lavish-hospitality bonus. Tiny liturgical wine is ordinary overhead and never dictates planting. Feast crowds still gather visibly; ordinary pilgrims and infirmary patients remain abstract service simulation. Daily hospitality uses ${dailyHospitalityCost}.</p>

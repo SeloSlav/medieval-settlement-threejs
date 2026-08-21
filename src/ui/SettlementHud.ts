@@ -76,25 +76,25 @@ const SEASON_ALMANAC = {
     label: 'Spring',
     months: 'March–May',
     icon: '❀',
-    description: 'Rain wakes field and forest.',
+    description: 'Rain quickens crops and refills wells. Forage regrows, fish recover, and livestock breed faster.',
   },
   summer: {
     label: 'Summer',
     months: 'June–August',
     icon: '☀',
-    description: 'Long days favor growth and building.',
+    description: 'Crops keep growing and hearth demand eases, but drought can drain wells, pasture, fish, and fresh stores.',
   },
   autumn: {
     label: 'Autumn',
     months: 'September–November',
     icon: '❧',
-    description: 'Gather the harvest before the frost.',
+    description: 'Harvest grain and orchards in September, then plough and sow before winter closes the fields.',
   },
   winter: {
     label: 'Winter',
     months: 'December–February',
     icon: '❄',
-    description: 'Keep the hearths warm.',
+    description: 'Foraging, fishing, wool, and garden work pause. Frozen roads slow carts while homes burn twice the usual firewood.',
   },
 } as const satisfies Record<EnvironmentState['season'], {
   label: string;

@@ -302,9 +302,9 @@ export type PastureState = {
 };
 
 export type VineyardParcelState = {
-  /** The parcel is one-to-one with, and keyed by, its vineyard building. */
+  /** The parcel is one-to-one with, and keyed by, its monastery. */
   id: string;
-  buildingId: string;
+  monasteryId: string;
   corners: FarmFieldState['corners'];
   area: number;
   averageSlopeDegrees: number;

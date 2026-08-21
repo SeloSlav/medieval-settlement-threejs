@@ -334,6 +334,7 @@ export async function demolishPasture(pastureId: string): Promise<void> {
 }
 
 export async function placeVineyard(input: {
+  monasteryId: string;
   corners: Array<{ x: number; z: number }>;
   averageSlopeDegrees: number;
   southExposure: number;
@@ -341,8 +342,11 @@ export async function placeVineyard(input: {
   if (input.corners.length !== 4) {
     throw new Error('Invalid vineyard placement.');
   }
+  const monasteryId = parseBuildingServerId(input.monasteryId);
+  if (monasteryId === null) throw new Error('Invalid monastery id.');
   const [a, b, c, d] = input.corners;
   await callReducer('placeVineyard', 'place_vineyard', {
+    monasteryId,
     cornerAx: a.x,
     cornerAz: a.z,
     cornerBx: b.x,

@@ -108,8 +108,8 @@ const TUTORIALS: Record<TutorialId, TutorialDefinition> = {
         label: 'Open tutorials again',
         parts: [
           { text: 'Use the always-visible ' },
-          { text: 'Tutorials', emphasis: 'gold' },
-          { text: ' button beneath your profile in the upper-right whenever you want to replay the full guide.' },
+          { text: '?', emphasis: 'gold' },
+          { text: ' button beside Settings in the bottom toolbar whenever you want to replay the full guide.' },
         ],
       },
     ],

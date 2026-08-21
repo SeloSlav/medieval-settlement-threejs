@@ -38,6 +38,13 @@ if (!placementRoot) throw new Error('Placement lineup host is missing.');
 const root: HTMLElement = placementRoot;
 const lineupParams = new URLSearchParams(window.location.search);
 const alignmentView = lineupParams.get('view') === 'residence-alignment';
+const buildingPreviewView = lineupParams.get('view') === 'building-preview';
+const buildingPreviewDistance = lineupParams.get('distance');
+const previewYawParam = lineupParams.get('yaw');
+const requestedPreviewYaw = previewYawParam === null ? Number.NaN : Number(previewYawParam);
+const buildingPreviewYaw = Number.isFinite(requestedPreviewYaw)
+  ? requestedPreviewYaw
+  : 0.58;
 const requestedBuilding = lineupParams.get('building');
 const buildingKind: BuildingKind = requestedBuilding
   && BUILDING_KINDS.includes(requestedBuilding as BuildingKind)
@@ -113,14 +120,14 @@ scene.add(road);
 const buildingPreview = createBuildingPreviewMesh(buildingKind);
 scene.add(buildingPreview);
 buildingPreview.visible = !alignmentView;
-let buildingX = -31;
-let buildingZ = 1;
+let buildingX = buildingPreviewView ? 0 : -31;
+let buildingZ = buildingPreviewView ? 0 : 1;
 updateBuildingPreviewGeometry(
   buildingPreview,
   buildingKind,
   buildingX,
   buildingZ,
-  -0.18,
+  buildingPreviewView ? buildingPreviewYaw : -0.18,
   getHeightAt,
 );
 
@@ -151,6 +158,7 @@ burgagePreview.update(
   null,
 );
 burgagePreview.group.visible = !alignmentView;
+if (buildingPreviewView) burgagePreview.group.visible = false;
 
 if (alignmentView && burgageZoneCorners && burgageLayout) {
   const residenceRoot = new THREE.Group();
@@ -208,6 +216,7 @@ const fieldPreview = new FarmFieldPreview(getHeightAt);
 scene.add(fieldPreview.group);
 fieldPreview.show(fieldCorners, true, 'rye');
 fieldPreview.group.visible = !alignmentView;
+if (buildingPreviewView) fieldPreview.group.visible = false;
 
 scene.add(new THREE.HemisphereLight(0xe4ebe0, 0x3f392d, 2.15));
 const sun = new THREE.DirectionalLight(0xffefd0, 3.4);
@@ -224,6 +233,14 @@ const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 220);
 if (alignmentView) {
   camera.position.set(0, 43, 38);
   camera.lookAt(0, 0, 6);
+} else if (buildingPreviewView) {
+  const cameraScale = buildingPreviewDistance === 'near'
+    ? 0.68
+    : buildingPreviewDistance === 'far'
+      ? 1.7
+      : 1;
+  camera.position.set(20 * cameraScale, 24 * cameraScale, 27 * cameraScale);
+  camera.lookAt(0, 2.8, 0);
 } else {
   camera.position.set(13, 51, 63);
   camera.lookAt(7, 0, 0);
@@ -242,7 +259,7 @@ renderer.domElement.dataset.lastUpdateMs = '0';
 renderer.domElement.dataset.worstUpdateMs = '0';
 
 renderer.domElement.addEventListener('pointermove', (event) => {
-  if (alignmentView) return;
+  if (alignmentView || buildingPreviewView) return;
   const rect = renderer.domElement.getBoundingClientRect();
   pointer.set(
     ((event.clientX - rect.left) / rect.width) * 2 - 1,
@@ -341,6 +358,14 @@ if (alignmentView) {
   labels[0]!.textContent = 'Herb garden';
   labels[1]!.textContent = 'Vegetable garden';
   labels[2]!.textContent = 'Flower garden';
+} else if (buildingPreviewView) {
+  document.querySelector('h1')!.textContent = 'Building Placement Ghost QA';
+  document.querySelector('header p')!.textContent = 'Hatched footprint · four road sockets · colorless model';
+  const labels = document.querySelectorAll<HTMLElement>('.label');
+  labels[0]!.textContent = `${buildingDefinition.label} placement ghost`;
+  labels[0]!.style.left = '50%';
+  labels[1]!.hidden = true;
+  labels[2]!.hidden = true;
 } else {
   document.querySelector<HTMLElement>('.label')!.textContent = `${buildingDefinition.label} footprint`;
 }

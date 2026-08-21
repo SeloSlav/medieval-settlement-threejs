@@ -239,12 +239,12 @@
 }
 
 .construction-dock-button[data-action='overlay-menu'],
-.construction-dock-button[data-action='settings'] {
+.construction-dock-button[data-action='tutorials'] {
   margin-left: 5px;
 }
 
 .construction-dock-button[data-action='overlay-menu']::before,
-.construction-dock-button[data-action='settings']::before {
+.construction-dock-button[data-action='tutorials']::before {
   content: '';
   position: absolute;
   top: 7px;
@@ -736,7 +736,7 @@
   }
 
   .construction-dock-button[data-action='overlay-menu'],
-  .construction-dock-button[data-action='settings'] {
+  .construction-dock-button[data-action='tutorials'] {
     margin-left: 3px;
   }
 

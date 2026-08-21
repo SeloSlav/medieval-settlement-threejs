@@ -57,6 +57,8 @@ import {
   VINEYARD_MAX_SLOPE_DEGREES,
   VINEYARD_MIN_AREA,
   VINEYARD_MIN_EDGE,
+  VINEYARD_MONASTERY_ADJACENCY_DISTANCE,
+  VINEYARD_MONASTERY_MAX_DISTANCE,
 } from '../vineyards/vineyardSuitability.ts';
 
 const MIN_CLICK_DISTANCE = 1.5;
@@ -110,6 +112,7 @@ type FarmFieldToolOptions = {
     averageSlopeDegrees: number;
   }) => Promise<void> | void;
   onCommitVineyard: (input: {
+    monasteryId: string;
     corners: FarmFieldCorners;
     averageSlopeDegrees: number;
     southExposure: number;
@@ -215,13 +218,19 @@ export class FarmFieldTool {
     return this.crop;
   }
 
-  cycleCrop(): void {
+  setCrop(crop: FarmCrop): void {
+    if (this.crop === crop) return;
+    this.crop = crop;
     if (!this.enabled || this.mode !== 'field') return;
-    const index = FARM_CROPS.indexOf(this.crop);
-    this.crop = FARM_CROPS[(index + 1) % FARM_CROPS.length];
     this.refreshPreview();
     this.options.onCropChanged?.(this.crop, 'suitability map updated');
     this.options.onModeChanged();
+  }
+
+  cycleCrop(): void {
+    if (!this.enabled || this.mode !== 'field') return;
+    const index = FARM_CROPS.indexOf(this.crop);
+    this.setCrop(FARM_CROPS[(index + 1) % FARM_CROPS.length]);
   }
 
   getStatusDetail(): string {
@@ -370,6 +379,7 @@ export class FarmFieldTool {
           })
       : this.mode === 'vineyard'
         ? this.options.onCommitVineyard({
+            monasteryId: commit.farmstead!.id,
             corners: commit.corners,
             averageSlopeDegrees: commit.slope,
             southExposure: commit.southExposure,
@@ -620,17 +630,21 @@ export class FarmFieldTool {
     const southExposure = sampleAverageSouthExposure(corners, this.options.getHeightAt);
     const state = this.options.getState();
     const farmstead = this.farmsteadId ? state.buildings.get(this.farmsteadId) ?? null : null;
-    const eligible = this.mode === 'vineyard' || (farmstead && (this.mode === 'pasture'
+    const eligible = farmstead && (this.mode === 'pasture'
       ? farmstead.kind === 'pastoral_farmstead' || farmstead.kind === 'swineherd'
       : this.mode === 'graveyard'
         ? farmstead.kind === 'chapel' && farmstead.constructionComplete !== false
-        : farmstead.kind === 'threshing_barn'));
-    if (!eligible || (this.mode !== 'vineyard' && !farmstead)) {
+        : this.mode === 'vineyard'
+          ? farmstead.kind === 'monastery' && farmstead.constructionComplete !== false
+          : farmstead.kind === 'threshing_barn');
+    if (!eligible || !farmstead) {
       return { ok: false, reason: 'no_farmstead', corners, slope, moisture, southExposure };
     }
     if (farmstead) {
       const parentRange = this.mode === 'graveyard'
         ? GRAVEYARD_MAX_DISTANCE
+        : this.mode === 'vineyard'
+          ? VINEYARD_MONASTERY_MAX_DISTANCE
         : farmstead.workRadius;
       if (corners.some((point) =>
         Math.hypot(point.x - farmstead.x, point.z - farmstead.z) > parentRange
@@ -641,6 +655,14 @@ export class FarmFieldTool {
         this.mode === 'graveyard'
         && corners.every((point) =>
           Math.hypot(point.x - farmstead.x, point.z - farmstead.z) > GRAVEYARD_ADJACENCY_DISTANCE
+        )
+      ) {
+        return { ok: false, reason: 'no_farmstead', corners, slope, moisture, southExposure };
+      }
+      if (
+        this.mode === 'vineyard'
+        && corners.every((point) =>
+          Math.hypot(point.x - farmstead.x, point.z - farmstead.z) > VINEYARD_MONASTERY_ADJACENCY_DISTANCE
         )
       ) {
         return { ok: false, reason: 'no_farmstead', corners, slope, moisture, southExposure };
@@ -727,7 +749,9 @@ export class FarmFieldTool {
           ? 'Keep the entire pasture inside this livestock holding’s work extent'
           : this.mode === 'graveyard'
             ? 'Keep the entire burial ground beside and within range of this chapel'
-            : 'Keep the entire field inside this farmstead’s work extent';
+            : this.mode === 'vineyard'
+              ? 'Keep the vineyard adjoining and within range of this monastery estate'
+              : 'Keep the entire field inside this farmstead’s work extent';
       case 'water': return `${parcel} cannot cover open water`;
       case 'resource_deposit': return `${parcel} cannot cover a physical resource deposit`;
       case 'building': return `${parcel} overlaps a building`;

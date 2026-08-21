@@ -401,7 +401,7 @@
 }
 
 .settlement-hud__stat[data-resource='roofTiles']::before {
-  background-image: url('/assets/ui/icons/materials/roof-tiles.svg');
+  background-image: url('/assets/ui/icons/materials/roof-tiles.png');
 }
 
 .settlement-hud__stat[data-resource='hides']::before,
@@ -657,7 +657,7 @@
 }
 
 .resource-cost__item[data-resource-cost='roofTiles'] .resource-cost__icon {
-  background-image: url('/assets/ui/icons/materials/roof-tiles.svg');
+  background-image: url('/assets/ui/icons/materials/roof-tiles.png');
 }
 
 .resource-cost__item[data-resource-cost='hides'] .resource-cost__icon,
@@ -687,11 +687,11 @@
 }
 
 .resource-cost__item[data-resource-cost='manure'] .resource-cost__icon {
-  background-image: url('/assets/ui/icons/materials/manure.svg');
+  background-image: url('/assets/ui/icons/materials/manure.png');
 }
 
 .resource-cost__item[data-resource-cost='remedies'] .resource-cost__icon {
-  background-image: url('/assets/ui/icons/materials/remedies.svg');
+  background-image: url('/assets/ui/icons/materials/remedies.png');
 }
 
 .resource-cost__item[data-resource-cost='bread'] .resource-cost__icon,

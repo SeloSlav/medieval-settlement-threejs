@@ -542,6 +542,7 @@
     "residenceShoesPerPersonPerSec": 0.00012,
     "residencePotteryCapacity": 6,
     "residencePotteryPerPersonPerSec": 0.001,
+    "residenceLuxuryCapacity": 6,
     "residenceLuxuryJamPerPersonPerSec": 0.0005,
     "hungerWarningDays": 2,
     "malnutritionDays": 5,
@@ -1443,7 +1444,7 @@
     "marketplace": {
       "label": "Marketplace",
       "cost": { "timber": 32, "stone": 26 },
-      "storage": { "timber": 0, "firewood": 80, "stone": 0, "water": 0, "food": 96, "preservedFood": 120, "grain": 96, "barley": 0, "ale": 140, "honey": 48, "wine": 0, "cloth": 120, "hides": 80, "leather": 96, "shoes": 96, "ironwork": 0, "iron": 0, "salt": 0, "charcoal": 80, "pottery": 96, "remedies": 48 },
+      "storage": { "timber": 0, "firewood": 80, "stone": 0, "water": 0, "food": 96, "preservedFood": 120, "grain": 96, "barley": 0, "ale": 140, "honey": 48, "wine": 72, "cloth": 120, "hides": 80, "leather": 96, "shoes": 96, "ironwork": 0, "iron": 0, "salt": 0, "charcoal": 80, "pottery": 96, "remedies": 48 },
       "workRadius": 0,
       "pickRadius": 8,
       "harvestInterval": 0,
@@ -1714,7 +1715,7 @@
     "granary": {
       "label": "Village granary",
       "cost": { "timber": 50, "stone": 28, "ironwork": 3 },
-      "storage": { "timber": 0, "firewood": 0, "stone": 0, "grain": 360, "barley": 240, "flax": 180, "flour": 260, "food": 340, "preservedFood": 180, "honey": 96, "ale": 180 },
+      "storage": { "timber": 0, "firewood": 0, "stone": 0, "grain": 360, "barley": 240, "flax": 180, "flour": 260, "food": 340, "preservedFood": 180, "honey": 96, "ale": 180, "wine": 180 },
       "workRadius": 0,
       "pickRadius": 9,
       "harvestInterval": 4,
@@ -1875,25 +1876,6 @@
       "requiresBerries": false,
       "requiresWaterShore": false,
       "requiresHillside": false
-    },
-    "vineyard": {
-      "label": "Vineyard terrace",
-      "cost": { "timber": 26, "stone": 18 },
-      "storage": { "timber": 0, "firewood": 0, "stone": 0, "food": 40, "wine": 180 },
-      "workRadius": 0,
-      "pickRadius": 11,
-      "harvestInterval": 20,
-      "regrowRatePerSecond": 0,
-      "maxLabor": 2,
-      "acceptsLabor": true,
-      "requiresRoad": true,
-      "facesRoad": false,
-      "requiresMatureTrees": false,
-      "requiresQuarryStone": false,
-      "requiresGame": false,
-      "requiresBerries": false,
-      "requiresWaterShore": false,
-      "requiresHillside": true
     }
   },
   "backyardGardens": {

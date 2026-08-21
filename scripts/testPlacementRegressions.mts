@@ -831,9 +831,127 @@ function testPlacementPreviewOmitsRadiusExtents(): void {
       `${kind} must not expose a fire-planning radius`,
     );
     updateBuildingPreviewGeometry(preview, kind, 35, -48, 0.42, heightAt);
+    if (kind === 'monastery') {
+      const hatch = preview.getObjectByName('Building footprint diagonal hatch');
+      assert(hatch instanceof THREE.Mesh);
+      const positions = hatch.geometry.getAttribute('position') as THREE.BufferAttribute;
+      let maximumRadius = 0;
+      for (let index = 0; index < positions.count; index += 1) {
+        maximumRadius = Math.max(
+          maximumRadius,
+          Math.hypot(positions.getX(index) - 35, positions.getZ(index) + 48),
+        );
+      }
+      assert(
+        maximumRadius > 40,
+        'the monastery hatch should fill its complete asymmetric estate footprint',
+      );
+    }
     updateBuildingPreviewAppearance(preview, false);
     disposeBuildingPreviewMesh(preview);
   }
+}
+
+function testPlacementPreviewShowsHatchGhostAndRotatingRoadAttachments(): void {
+  const kind = 'smithy' as const;
+  const x = 18;
+  const z = -27;
+  const yaw = 0.63;
+  const heightAt = (pointX: number, pointZ: number) =>
+    Math.sin(pointX * 0.04) * 1.7 + Math.cos(pointZ * 0.035) * 1.2;
+  const preview = createBuildingPreviewMesh(kind);
+  updateBuildingPreviewGeometry(preview, kind, x, z, yaw, heightAt);
+
+  const fill = preview.getObjectByName('Building footprint fill');
+  const hatch = preview.getObjectByName('Building footprint diagonal hatch');
+  assert(fill instanceof THREE.Mesh, 'the opaque footprint fill should remain visible');
+  assert(hatch instanceof THREE.Mesh, 'building placement should add diagonal footprint hatching');
+  assert(
+    (hatch.geometry.getAttribute('position') as THREE.BufferAttribute).count > 12,
+    'the diagonal hatch should contain terrain-sampled stripe geometry',
+  );
+
+  const attachmentGroup = preview.getObjectByName('Building road attachment circles');
+  assert(attachmentGroup instanceof THREE.Group);
+  assert.equal(
+    attachmentGroup.children.length,
+    4,
+    'placement should expose all four footprint road attachments',
+  );
+  const { halfWidth, halfDepth } = getBuildingFootprintHalfExtents(kind);
+  const localOffsets = [
+    [0, halfDepth],
+    [halfWidth, 0],
+    [0, -halfDepth],
+    [-halfWidth, 0],
+  ] as const;
+  for (const [index, [localX, localZ]] of localOffsets.entries()) {
+    const circle = preview.getObjectByName(`Building road attachment circle ${index + 1}`);
+    assert(circle instanceof THREE.Mesh);
+    assert(
+      (circle.geometry.getAttribute('position') as THREE.BufferAttribute).count >= 96,
+      'each road attachment should render as a complete terrain-following circle',
+    );
+    const connectionPoint = circle.userData.connectionPoint as [number, number, number];
+    const expectedX = x + localX * Math.cos(yaw) + localZ * Math.sin(yaw);
+    const expectedZ = z - localX * Math.sin(yaw) + localZ * Math.cos(yaw);
+    assert(Math.abs(connectionPoint[0] - expectedX) < 1e-9);
+    assert(Math.abs(connectionPoint[1] - heightAt(expectedX, expectedZ)) < 1e-9);
+    assert(Math.abs(connectionPoint[2] - expectedZ) < 1e-9);
+  }
+
+  const ghost = preview.getObjectByName('Building placement ghost');
+  assert(ghost instanceof THREE.Group, 'placement should include the selected building model');
+  assert.deepEqual(ghost.position.toArray(), [x, heightAt(x, z), z]);
+  assert.equal(ghost.rotation.y, yaw);
+  let translucentMeshCount = 0;
+  let outlineCount = 0;
+  ghost.traverse((object) => {
+    if (object.userData.previewRole === 'model-outline') outlineCount += 1;
+    if (!(object instanceof THREE.Mesh) || object instanceof THREE.InstancedMesh) return;
+    assert(object.material instanceof THREE.MeshBasicMaterial);
+    assert.equal(object.material.color.getHex(), 0xfffdf5);
+    assert(object.material.transparent);
+    assert(object.material.opacity <= 0.14);
+    translucentMeshCount += 1;
+  });
+  assert.equal(
+    translucentMeshCount,
+    1,
+    'the colorless building surfaces should be flattened into one preview draw',
+  );
+  assert.equal(
+    outlineCount,
+    1,
+    'the white building edges should be flattened into one preview draw',
+  );
+
+  const originalFirstConnection = (
+    preview.getObjectByName('Building road attachment circle 1') as THREE.Mesh
+  ).userData.connectionPoint as [number, number, number];
+  updateBuildingPreviewGeometry(preview, kind, x, z, yaw + Math.PI * 0.5, heightAt);
+  const rotatedFirstConnection = (
+    preview.getObjectByName('Building road attachment circle 1') as THREE.Mesh
+  ).userData.connectionPoint as [number, number, number];
+  assert(
+    Math.hypot(
+      rotatedFirstConnection[0] - originalFirstConnection[0],
+      rotatedFirstConnection[2] - originalFirstConnection[2],
+    ) > 1,
+    'road attachment circles should move with building rotation',
+  );
+  assert.equal(ghost.rotation.y, yaw + Math.PI * 0.5);
+
+  updateBuildingPreviewAppearance(preview, false);
+  assert.equal(
+    (hatch.material as THREE.MeshBasicMaterial).color.getHex(),
+    0xfffdf5,
+    'diagonal hatching should stay white while the center and border report invalid placement',
+  );
+  for (const circle of attachmentGroup.children as THREE.Mesh[]) {
+    assert.equal((circle.material as THREE.MeshBasicMaterial).color.getHex(), 0xfffdf5);
+  }
+  disposeBuildingPreviewMesh(preview);
 }
 
 function testCivicAndFrontierPlacementPrerequisites(): void {
@@ -1260,6 +1378,7 @@ testOrganicBurgagePlotsAndPreviewIcons();
 testBurgageFrontageDirectionAndRoadSideSelection();
 testPlacementOverlaysFollowTerrainHeight();
 testPlacementPreviewOmitsRadiusExtents();
+testPlacementPreviewShowsHatchGhostAndRotatingRoadAttachments();
 testCivicAndFrontierPlacementPrerequisites();
 testDenseBuildingFootprintSpacingAndEdgeSnap();
 testMineralMineCanOccupyItsDeposit();

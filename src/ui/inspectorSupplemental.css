@@ -237,3 +237,261 @@
 .inspector-action-icon[data-action-icon='church-tier-3'] {
   background-image: url('/assets/ui/icons/upgrades/church-tier-3.png');
 }
+
+.inspector-action-icon[data-action-icon='fire-recovery'],
+.inspector-action-icon[data-action-icon='early-harvest'] {
+  background-image: url('/assets/ui/icons/construction-actions.png');
+  background-size: 300% 300%;
+}
+
+.inspector-action-icon[data-action-icon='fire-recovery'] {
+  background-position: 50% 0;
+}
+
+.inspector-action-icon[data-action-icon='early-harvest'] {
+  background-position: 100% 0;
+}
+
+.inspector-action-icon[data-action-icon='pasture-parcel'] {
+  background-image: url('/assets/ui/build-menu/cards/pasture.webp');
+}
+
+.inspector-action-icon[data-action-icon='graveyard'] {
+  background-image: url('/assets/ui/icons/actions/graveyard.png');
+}
+
+.inspector-action-icon[data-action-icon='cattle-herd'] {
+  background-image: url('/assets/ui/icons/actions/cattle-herd.png');
+}
+
+.inspector-action-icon[data-action-icon='sheep-flock'] {
+  background-image: url('/assets/ui/icons/actions/sheep-flock.png');
+}
+
+.resource-action-button--crop {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.farm-crop-choice__icon {
+  display: block;
+  width: 24px;
+  height: 24px;
+  flex: 0 0 24px;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: contain;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.72));
+  pointer-events: none;
+}
+
+.farm-crop-choice__icon[data-field-crop-icon='rye'] { background-image: url('/assets/ui/icons/provisions/rye-sheaves.png'); }
+.farm-crop-choice__icon[data-field-crop-icon='oats'] { background-image: url('/assets/ui/icons/provisions/oat-sheaves.png'); }
+.farm-crop-choice__icon[data-field-crop-icon='barley'] { background-image: url('/assets/ui/icons/provisions/barley-sheaves.png'); }
+.farm-crop-choice__icon[data-field-crop-icon='wheat'] { background-image: url('/assets/ui/icons/provisions/maslin-sheaves.png'); }
+.farm-crop-choice__icon[data-field-crop-icon='flax'] {
+  background-image: url('/assets/ui/icons/hud-resources-goods-b.png');
+  background-position: 0 0;
+  background-size: 200% 200%;
+}
+.farm-crop-choice__icon[data-field-crop-icon='fallow'] {
+  background-image: url('/assets/ui/icons/actions/fallow-field.png');
+}
+
+.monastery-extension-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.monastery-planting-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.monastery-planting-choice {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr);
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  min-height: 50px;
+  padding: 5px;
+  color: #e7d9bc;
+  text-align: left;
+  background: rgba(196, 167, 99, 0.08);
+  border: 1px solid rgba(210, 177, 99, 0.32);
+  border-radius: 2px;
+  cursor: pointer;
+}
+
+.monastery-planting-choice:hover:not(:disabled),
+.monastery-planting-choice:focus-visible {
+  color: #fff1ce;
+  background: rgba(207, 160, 72, 0.16);
+  border-color: rgba(237, 203, 121, 0.66);
+  outline: none;
+}
+
+.monastery-planting-choice.is-selected {
+  color: #fff1ce;
+  background: rgba(207, 160, 72, 0.18);
+  border-color: var(--accent);
+}
+
+.monastery-planting-choice:disabled {
+  opacity: 0.74;
+  cursor: default;
+}
+
+.monastery-planting-choice__icon {
+  width: 38px;
+  height: 38px;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: contain;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.72));
+  pointer-events: none;
+}
+
+.monastery-planting-choice__icon[data-monastery-planting-icon='orchard-0'] {
+  background-image: url('/assets/ui/icons/backyards/orchard.png');
+}
+
+.monastery-planting-choice__icon[data-monastery-planting-icon='orchard-1'] {
+  background-image: url('/assets/ui/build-menu/cards/vineyard.webp');
+  background-size: cover;
+  border-radius: 50%;
+}
+
+.monastery-planting-choice__icon[data-monastery-planting-icon='croft-0'] {
+  background-image: url('/assets/ui/icons/backyards/vegetable-garden.png');
+}
+
+.monastery-planting-choice__icon[data-monastery-planting-icon='croft-1'] {
+  background-image: url('/assets/ui/icons/provisions/barley-sheaves.png');
+}
+
+.monastery-planting-choice__copy {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+  pointer-events: none;
+}
+
+.monastery-planting-choice__copy strong {
+  overflow-wrap: anywhere;
+  font-family: var(--ui-display);
+  font-size: 10px;
+  line-height: 1.15;
+}
+
+.monastery-planting-choice__copy small {
+  color: #a99e88;
+  font-size: 8px;
+  line-height: 1.15;
+}
+
+.inspector-jump-button--demolish {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.inspector-jump-button--demolish::before {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 14px;
+  background: url('/assets/ui/icons/actions/demolish.png') center / contain no-repeat;
+  content: '';
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.68));
+}
+
+.monastery-extension-choice {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  min-height: 54px;
+  padding: 5px;
+  color: #e7d9bc;
+  text-align: left;
+  background: rgba(196, 167, 99, 0.08);
+  border: 1px solid rgba(210, 177, 99, 0.32);
+  border-radius: 2px;
+  cursor: pointer;
+}
+
+.monastery-extension-choice:hover:not(:disabled),
+.monastery-extension-choice:focus-visible {
+  color: #fff1ce;
+  background: rgba(207, 160, 72, 0.16);
+  border-color: rgba(237, 203, 121, 0.66);
+  outline: none;
+}
+
+.monastery-extension-choice.is-selected {
+  color: #fff1ce;
+  background: rgba(207, 160, 72, 0.18);
+  border-color: var(--accent);
+}
+
+.monastery-extension-choice:disabled {
+  opacity: 0.74;
+  cursor: default;
+}
+
+.monastery-extension-choice__icon {
+  width: 42px;
+  height: 42px;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
+  border: 1px solid rgba(237, 203, 121, 0.22);
+  box-shadow: inset 0 0 0 1px rgba(9, 12, 9, 0.36);
+  pointer-events: none;
+}
+
+.monastery-extension-choice__icon[data-monastery-extension-icon='1'] {
+  background-image: url('/assets/ui/build-menu/cards/foragers-hut.webp');
+}
+
+.monastery-extension-choice__icon[data-monastery-extension-icon='2'] {
+  background-image: url('/assets/ui/build-menu/cards/monastery.webp');
+}
+
+.monastery-extension-choice__icon[data-monastery-extension-icon='4'] {
+  background-image: url('/assets/ui/build-menu/cards/residence.webp');
+}
+
+.monastery-extension-choice__icon[data-monastery-extension-icon='8'] {
+  background-image: url('/assets/ui/build-menu/cards/carpenter.webp');
+}
+
+.monastery-extension-choice__copy {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+  pointer-events: none;
+}
+
+.monastery-extension-choice__copy strong {
+  overflow-wrap: anywhere;
+  font-family: var(--ui-display);
+  font-size: 10px;
+  line-height: 1.15;
+}
+
+.monastery-extension-choice__copy small {
+  color: #a99e88;
+  font-size: 8px;
+  line-height: 1;
+}
+
+.monastery-extension-grid__complete {
+  padding: 8px;
+  border: 1px solid rgba(210, 177, 99, 0.2);
+}

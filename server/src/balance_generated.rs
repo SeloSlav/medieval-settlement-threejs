@@ -225,6 +225,7 @@ pub const RESIDENCE_SHOES_CAPACITY: f64 = 6.0;
 pub const RESIDENCE_SHOES_PER_PERSON_PER_SEC: f64 = 0.00012;
 pub const RESIDENCE_POTTERY_CAPACITY: f64 = 6.0;
 pub const RESIDENCE_POTTERY_PER_PERSON_PER_SEC: f64 = 0.001;
+pub const RESIDENCE_LUXURY_CAPACITY: f64 = 6.0;
 pub const RESIDENCE_LUXURY_JAM_PER_PERSON_PER_SEC: f64 = 0.0005;
 pub const HUNGER_WARNING_DAYS: f64 = 2.0;
 pub const MALNUTRITION_DAYS: f64 = 5.0;
@@ -1971,7 +1972,7 @@ const MARKETPLACE: BuildingDef = BuildingDef {
     storage_mead: 0.0,
     storage_preserved_food: 120.0,
     storage_honey: 48.0,
-    storage_wine: 0.0,
+    storage_wine: 72.0,
     storage_wool: 0.0,
     storage_cloth: 120.0,
     storage_hides: 80.0,
@@ -2741,7 +2742,7 @@ const GRANARY: BuildingDef = BuildingDef {
     storage_mead: 0.0,
     storage_preserved_food: 180.0,
     storage_honey: 96.0,
-    storage_wine: 0.0,
+    storage_wine: 180.0,
     storage_wool: 0.0,
     storage_cloth: 0.0,
     storage_hides: 0.0,
@@ -3214,62 +3215,7 @@ const COBBLER: BuildingDef = BuildingDef {
     sim_kind: Some(BuildingSimKind::Cobbler),
 };
 
-const VINEYARD: BuildingDef = BuildingDef {
-    kind: "vineyard",
-    cost_timber: 26.0,
-    cost_stone: 18.0,
-    cost_gold: 0.0,
-    cost_ironwork: 0.0,
-    cost_roof_tiles: 0.0,
-    storage_timber: 0.0,
-    storage_firewood: 0.0,
-    storage_stone: 0.0,
-    storage_water: 0.0,
-    storage_food: 40.0,
-    storage_grain: 0.0,
-    storage_barley: 0.0,
-    storage_malt: 0.0,
-    storage_flax: 0.0,
-    storage_flour: 0.0,
-    storage_ale: 0.0,
-    storage_cider: 0.0,
-    storage_mead: 0.0,
-    storage_preserved_food: 0.0,
-    storage_honey: 0.0,
-    storage_wine: 180.0,
-    storage_wool: 0.0,
-    storage_cloth: 0.0,
-    storage_hides: 0.0,
-    storage_leather: 0.0,
-    storage_shoes: 0.0,
-    storage_ironwork: 0.0,
-    storage_polearms: 0.0,
-    storage_iron: 0.0,
-    storage_clay: 0.0,
-    storage_salt: 0.0,
-    storage_charcoal: 0.0,
-    storage_pottery: 0.0,
-    storage_roof_tiles: 0.0,
-    storage_manure: 0.0,
-    storage_remedies: 0.0,
-    accepts_labor: true,
-    max_labor: 2,
-    work_radius: 0.0,
-    action_interval: 20.0,
-    pick_radius: 11.0,
-    requires_road: true,
-    faces_road: false,
-    requires_mature_trees: false,
-    requires_quarry_stone: false,
-    requires_game: false,
-    requires_berries: false,
-    requires_fish: false,
-    requires_water_shore: false,
-    requires_hillside: true,
-    sim_kind: Some(BuildingSimKind::Vineyard),
-};
-
-const ALL: &[BuildingDef] = &[FOUNDERS_CAMP, SALVAGE_PILE, LUMBER_MILL, REFORESTER, WOODCUTTERS_LODGE, STONE_QUARRY, LARGE_QUARRY, REMOTE_WORK_CAMP, MINE, CLAY_PIT, CHARCOAL_BURNER, SMITHY, POTTER_KILN, WELL, HUNTERS_HALL, FORAGERS_SHED, FISHING_CAMP, CHAPEL, WAYSIDE_SHRINE, MARKETPLACE, TRADING_POST, TOWN_HALL, VILLAGE_STOREHOUSE, WATCHTOWER, GUARDHOUSE, PALISADED_REFUGE, THRESHING_BARN, PASTORAL_FARMSTEAD, SWINEHERD, MONASTERY, BREWERY, TAVERN, SMOKEHOUSE, GRANARY, BAKERY, APIARY, WATERMILL, WINDMILL, CARPENTER, WEAVER, TANNERY, COBBLER, VINEYARD];
+const ALL: &[BuildingDef] = &[FOUNDERS_CAMP, SALVAGE_PILE, LUMBER_MILL, REFORESTER, WOODCUTTERS_LODGE, STONE_QUARRY, LARGE_QUARRY, REMOTE_WORK_CAMP, MINE, CLAY_PIT, CHARCOAL_BURNER, SMITHY, POTTER_KILN, WELL, HUNTERS_HALL, FORAGERS_SHED, FISHING_CAMP, CHAPEL, WAYSIDE_SHRINE, MARKETPLACE, TRADING_POST, TOWN_HALL, VILLAGE_STOREHOUSE, WATCHTOWER, GUARDHOUSE, PALISADED_REFUGE, THRESHING_BARN, PASTORAL_FARMSTEAD, SWINEHERD, MONASTERY, BREWERY, TAVERN, SMOKEHOUSE, GRANARY, BAKERY, APIARY, WATERMILL, WINDMILL, CARPENTER, WEAVER, TANNERY, COBBLER];
 
 pub fn building_def(kind: &str) -> Option<&'static BuildingDef> {
     ALL.iter().find(|def| def.kind == kind)

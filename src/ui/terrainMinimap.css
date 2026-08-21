@@ -95,7 +95,7 @@
 
 .terrain-minimap__marker--resource {
   --resource-stock-angle: 360deg;
-  --resource-stock-color: #8fb582;
+  --resource-stock-color: var(--resource-wheel-stone);
   display: grid;
   place-items: center;
   width: 20px;
@@ -132,28 +132,36 @@
   pointer-events: none;
 }
 
-.terrain-minimap__marker--resource[data-resource-stock='unknown'] {
-  --resource-stock-color: #958b77;
-}
-
-.terrain-minimap__marker--resource[data-resource-stock='abundant'] {
-  --resource-stock-color: #8fb582;
-}
-
-.terrain-minimap__marker--resource[data-resource-stock='steady'] {
-  --resource-stock-color: #d2ad58;
-}
-
-.terrain-minimap__marker--resource[data-resource-stock='low'] {
-  --resource-stock-color: #d87943;
-}
-
-.terrain-minimap__marker--resource[data-resource-stock='empty'] {
-  --resource-stock-color: #6e6254;
-}
-
 .terrain-minimap__marker--resource[data-resource-stock='hidden']::before {
   display: none;
+}
+
+.terrain-minimap__marker--game {
+  --resource-stock-color: var(--resource-wheel-game);
+}
+
+.terrain-minimap__marker--berries {
+  --resource-stock-color: var(--resource-wheel-berries);
+}
+
+.terrain-minimap__marker--mushrooms {
+  --resource-stock-color: var(--resource-wheel-mushrooms);
+}
+
+.terrain-minimap__marker--fish {
+  --resource-stock-color: var(--resource-wheel-fish);
+}
+
+.terrain-minimap__marker--clay {
+  --resource-stock-color: var(--resource-wheel-clay);
+}
+
+.terrain-minimap__marker--iron {
+  --resource-stock-color: var(--resource-wheel-iron);
+}
+
+.terrain-minimap__marker--salt {
+  --resource-stock-color: var(--resource-wheel-salt);
 }
 
 .terrain-minimap__marker--resource .map-resource-icon-glyph {

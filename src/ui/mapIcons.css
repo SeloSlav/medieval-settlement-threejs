@@ -8,7 +8,7 @@
 
 .quarry-map-icon {
   --resource-stock-angle: 360deg;
-  --resource-stock-color: #8fb582;
+  --resource-stock-color: var(--resource-wheel-stone);
   position: fixed;
   z-index: 3;
   display: grid;
@@ -67,41 +67,18 @@
   pointer-events: none;
 }
 
-.quarry-map-icon[data-resource-stock='unknown'],
-.foraging-map-icon[data-resource-stock='unknown'] {
-  --resource-stock-color: #958b77;
-}
-
-.quarry-map-icon[data-resource-stock='abundant'],
-.foraging-map-icon[data-resource-stock='abundant'] {
-  --resource-stock-color: #8fb582;
-}
-
-.quarry-map-icon[data-resource-stock='steady'],
-.foraging-map-icon[data-resource-stock='steady'] {
-  --resource-stock-color: #d2ad58;
-}
-
-.quarry-map-icon[data-resource-stock='low'],
-.foraging-map-icon[data-resource-stock='low'] {
-  --resource-stock-color: #d87943;
-}
-
-.quarry-map-icon[data-resource-stock='empty'],
-.foraging-map-icon[data-resource-stock='empty'] {
-  --resource-stock-color: #6e6254;
-}
-
 .quarry-map-icon[data-resource-stock='hidden']::before,
 .foraging-map-icon[data-resource-stock='hidden']::before {
   display: none;
 }
 
 .quarry-map-icon--iron {
+  --resource-stock-color: var(--resource-wheel-iron);
   border-color: rgba(164, 86, 60, 0.84);
 }
 
 .quarry-map-icon--salt {
+  --resource-stock-color: var(--resource-wheel-salt);
   border-color: rgba(224, 222, 201, 0.9);
 }
 
@@ -199,7 +176,7 @@
 
 .foraging-map-icon {
   --resource-stock-angle: 360deg;
-  --resource-stock-color: #8fb582;
+  --resource-stock-color: var(--resource-wheel-game);
   position: fixed;
   z-index: 3;
   display: grid;
@@ -233,18 +210,22 @@
 }
 
 .foraging-map-icon--berries {
+  --resource-stock-color: var(--resource-wheel-berries);
   border-color: rgba(176, 92, 118, 0.58);
 }
 
 .foraging-map-icon--mushrooms {
+  --resource-stock-color: var(--resource-wheel-mushrooms);
   border-color: rgba(183, 143, 92, 0.68);
 }
 
 .foraging-map-icon--fish {
+  --resource-stock-color: var(--resource-wheel-fish);
   border-color: rgba(91, 153, 176, 0.72);
 }
 
 .foraging-map-icon--clay {
+  --resource-stock-color: var(--resource-wheel-clay);
   border-color: rgba(190, 111, 69, 0.76);
 }
 

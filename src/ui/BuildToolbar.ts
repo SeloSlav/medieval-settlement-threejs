@@ -46,19 +46,7 @@ const BUILD_MENU_ACTION_CATEGORY = new Map(
 );
 
 function renderBuildMenuCategoryIcon(category: BuildMenuCategoryId): string {
-  const paths: Record<BuildMenuCategoryId, string> = {
-    civic: '<path d="M5 20h14M7 20v-9h10v9M9 11V8h6v3M11 20v-5h2v5M8 8l4-4 4 4"/>',
-    housing: '<path d="M3.5 11.5 12 4l8.5 7.5M6 10v10h12V10M10 20v-6h4v6"/>',
-    trade: '<path d="M4 8h16v12H4zM4 12h16M10 8v4M14 8v4M9 16h6M7 8l2-4h6l2 4"/>',
-    gathering: '<path d="M12 3 7.5 9h3L6 15h5v6h2v-6h5l-4.5-6h3z"/>',
-    agriculture: '<path d="M6 20c8-2 11-8 11-16M8 16c-3-1-4-3-4-5 3 0 5 1 6 3M12 11c-2-2-2-4-1-6 3 1 4 3 4 5M14 8c0-3 2-5 5-6 0 3-1 5-4 7"/>',
-    food: '<path d="M5 10h12l-1 10H7zM8 10V7a4 4 0 0 1 8 0v3M17 12h2a2 2 0 0 1 0 4h-2"/>',
-    industry: '<path d="m5 19 8-8M10 6l3-3 8 8-3 3zM3 21l3-6 3 3z"/>',
-    faith: '<path d="M12 3v7M9 6h6M6 21V11h12v10M4 21h16M10 21v-5h4v5"/>',
-    decorations: '<path d="m4 20 4-1 10-10-3-3L5 16zM13 8l3 3M16 5l2-2 3 3-2 2M5 16l3 3"/>',
-    military: '<path d="M12 3 5 6v5c0 5 3 8 7 10 4-2 7-5 7-10V6zM9 12l2 2 4-5"/>',
-  };
-  return `<span class="build-menu-category__icon" aria-hidden="true"><svg viewBox="0 0 24 24">${paths[category]}</svg></span>`;
+  return `<span class="build-menu-category__icon" data-build-category-icon="${category}" aria-hidden="true"></span>`;
 }
 
 type DeletePopupOptions = {
@@ -271,11 +259,6 @@ export class BuildToolbar {
     },
   ) {
     root.insertAdjacentHTML('beforeend', `
-      <button type="button" class="tutorial-launcher" data-action="tutorials" aria-label="Open tutorials">
-        <span class="tutorial-launcher__mark" aria-hidden="true">?</span>
-        <span>Tutorials</span>
-      </button>
-
       <div class="hud-right-stack">
         <aside class="crop-suitability-legend map-overlay-legend" data-crop-suitability-legend hidden aria-label="Map overlay legend">
           <header>
@@ -376,6 +359,9 @@ export class BuildToolbar {
         <button type="button" class="construction-dock-button construction-dock-button--hotkey" data-action="city-admin" data-tooltip="Select Town Hall administration (I)" aria-label="Select Town Hall administration (I)" aria-pressed="false">
           <span class="gk-icon gk-icon--construction gk-icon--town-hall" aria-hidden="true"></span>
           <span class="construction-dock-button__hotkey" aria-hidden="true">I</span>
+        </button>
+        <button type="button" class="construction-dock-button construction-dock-button--tutorial" data-action="tutorials" data-tooltip="Tutorials" aria-label="Open tutorials">
+          <span class="construction-dock-button__question" aria-hidden="true">?</span>
         </button>
         <button type="button" class="construction-dock-button" data-action="settings" data-tooltip="Settings (Esc)" aria-label="Settings (Esc)">
           <span class="gk-icon gk-icon--construction gk-icon--settings" aria-hidden="true"></span>

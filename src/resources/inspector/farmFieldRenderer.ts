@@ -83,7 +83,7 @@ function cropButton(
   current: FarmCrop | null,
   dataAttribute: 'data-field-crop' | 'data-field-following-crop',
 ): string {
-  return `<button type="button" class="resource-action-button" ${dataAttribute}="${crop}" ${crop === current ? 'disabled' : ''}>${cropLabel(crop)}</button>`;
+  return `<button type="button" class="resource-action-button resource-action-button--crop" ${dataAttribute}="${crop}" ${crop === current ? 'disabled' : ''}><span class="farm-crop-choice__icon" data-field-crop-icon="${crop}" aria-hidden="true"></span><span>${cropLabel(crop)}</span></button>`;
 }
 
 export function renderFarmFieldInspector(
@@ -236,7 +236,7 @@ export function renderFarmFieldInspector(
           ? 'finish the farmstead before ordering the cut.'
           : earlyHarvest.reason} Waiting until ${harvestMonthLabel} keeps 100% yield.</p>
         <div class="resource-action-row">
-          <button type="button" class="resource-action-button" data-field-early-harvest ${!earlyHarvest.available || !farmstead?.constructionComplete ? 'disabled' : ''}>Begin early harvest · ${(expectedYield * earlyHarvest.yieldMultiplier).toFixed(1)} ${cropHarvestUnit(field.crop)} · ${Math.round(earlyHarvest.yieldMultiplier * 100)}%</button>
+          <button type="button" class="resource-action-button resource-action-button--icon" data-field-early-harvest ${!earlyHarvest.available || !farmstead?.constructionComplete ? 'disabled' : ''}><span class="inspector-action-icon" data-action-icon="early-harvest" aria-hidden="true"></span><span>Begin early harvest · ${(expectedYield * earlyHarvest.yieldMultiplier).toFixed(1)} ${cropHarvestUnit(field.crop)} · ${Math.round(earlyHarvest.yieldMultiplier * 100)}%</span></button>
         </div>
       </div>`
     : '';

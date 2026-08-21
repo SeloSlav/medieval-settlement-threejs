@@ -11,6 +11,7 @@ import {
 } from "spacetimedb";
 
 export default {
+  monasteryId: __t.u64(),
   cornerAx: __t.f64(),
   cornerAz: __t.f64(),
   cornerBx: __t.f64(),

@@ -1028,8 +1028,9 @@ pub struct FarmField {
     pub manure_applied: f64,
 }
 
-/// A player-drawn grape-growing parcel with one vineyard work/storage building
-/// at its centroid. The building id is the stable one-to-one parcel id.
+/// A player-drawn grape-growing extension belonging to one monastery. The
+/// monastery building id is the stable one-to-one parcel id; all harvest,
+/// cellar work, storage, and cart labor remain on that monastic roster.
 #[spacetimedb::table(
     accessor = vineyard_parcel,
     public,

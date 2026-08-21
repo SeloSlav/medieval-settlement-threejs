@@ -10,6 +10,7 @@ import {
   type FarmFieldPlacementFailureReason,
   type LandParcelMode,
 } from '../farming/FarmFieldTool.ts';
+import { cropLabel } from '../farming/farmFieldMath.ts';
 import type { PastureMarkers } from '../farming/PastureMarkers.ts';
 import type { LivestockVisuals } from '../farming/LivestockVisuals.ts';
 import type { VineyardParcelMarkers } from '../vineyards/VineyardParcelMarkers.ts';
@@ -717,7 +718,9 @@ export async function bootstrapAppSession(
       ? farmstead.kind === 'threshing_barn'
       : mode === 'graveyard'
         ? farmstead.kind === 'chapel' && farmstead.constructionComplete !== false
-        : farmstead.kind === 'pastoral_farmstead' || farmstead.kind === 'swineherd');
+        : mode === 'vineyard'
+          ? farmstead.kind === 'monastery' && farmstead.constructionComplete !== false
+          : farmstead.kind === 'pastoral_farmstead' || farmstead.kind === 'swineherd');
     if (!farmstead || !eligible) {
       toastManager?.show('That holding can no longer manage this type of land.', { variant: 'error' });
       return;
@@ -736,10 +739,12 @@ export async function bootstrapAppSession(
     if (!wasEnabled) {
       toastManager?.show(
         mode === 'field'
-          ? 'Lay out a field entirely inside this farmstead’s work extent. Press C to change the crop.'
+          ? `Lay out a ${cropLabel(farmFieldTool.getCrop()).toLowerCase()} field entirely inside this farmstead’s work extent. Press C to change the crop.`
           : mode === 'graveyard'
             ? 'Lay consecrated burial ground directly beside this chapel.'
-            : 'Fence a parcel entirely inside this holding’s work extent.',
+            : mode === 'vineyard'
+              ? 'Lay out one vineyard extension adjoining the monastery estate. Sunny, well-drained slopes produce the strongest harvests.'
+              : 'Fence a parcel entirely inside this holding’s work extent.',
         { variant: 'info', durationMs: 6000 },
       );
     }
@@ -790,26 +795,6 @@ export async function bootstrapAppSession(
     onSelectBuilding: (kind: BuildingKind) => {
       if (!sessionGate.isReady()) {
         toastManager?.show('SpacetimeDB is not connected.', { variant: 'error' });
-        return;
-      }
-      if (kind === 'vineyard') {
-        const wasEnabled = farmFieldTool.isEnabled()
-          && farmFieldTool.getMode() === 'vineyard';
-        farmFieldTool.setMode('vineyard', null);
-        if (farmFieldTool.isEnabled()) {
-          roadTool.setEnabled(false);
-          buildingTool.setMode('off');
-          burgageTool.setEnabled(false);
-          resourceInspector?.clearSelection();
-          villagerInspector?.clearSelection();
-          if (!wasEnabled) {
-            toastManager?.show(
-              'Trace four corners around the grape rows. Sunny, well-drained slopes produce the strongest harvests.',
-              { variant: 'info', durationMs: 6500 },
-            );
-          }
-        }
-        bridge.syncToolbar();
         return;
       }
       buildingTool.setMode(kind);
@@ -1021,9 +1006,13 @@ export async function bootstrapAppSession(
     getWorksiteCommuteSummary: (buildingId) =>
       villagers.getWorksiteCommuteSummary(buildingId),
     ...inspectorActions,
-    onBeginFarmFieldPlacement: (farmsteadId) => beginLinkedLandParcelPlacement('field', farmsteadId),
+    onBeginFarmFieldPlacement: (farmsteadId, crop) => {
+      farmFieldTool.setCrop(crop);
+      beginLinkedLandParcelPlacement('field', farmsteadId);
+    },
     onBeginPasturePlacement: (farmsteadId) => beginLinkedLandParcelPlacement('pasture', farmsteadId),
     onBeginGraveyardPlacement: (chapelId) => beginLinkedLandParcelPlacement('graveyard', chapelId),
+    onBeginVineyardPlacement: (monasteryId) => beginLinkedLandParcelPlacement('vineyard', monasteryId),
     onBeginRemoteWorkCampPlacement: (worksiteId) => {
       if (!sessionGate.isReady()) {
         toastManager.show('SpacetimeDB is not connected.', { variant: 'error' });

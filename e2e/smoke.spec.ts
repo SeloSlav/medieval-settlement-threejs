@@ -200,12 +200,23 @@ test('connects, places a reforester, and updates settlement HUD timber', async (
     /^(Spring|Summer|Autumn|Winter)$/,
   );
   await expect(tooltip.locator('.ui-tooltip__season-header-icon')).toBeVisible();
+  await expect(tooltip.locator('.ui-tooltip__season-introduction')).toHaveText(
+    'Seasons shape harvests, livestock, travel, stores, and household needs.',
+  );
   await expect(tooltip.locator('.ui-tooltip__season-list > li')).toHaveCount(4);
+  await expect(tooltip.locator('.ui-tooltip__season-list > li.is-current')).toHaveCount(1);
+  await expect(tooltip.locator('.ui-tooltip__season-current')).toHaveText('Current');
   await expect(tooltip.locator('.ui-tooltip__season-months')).toHaveText([
     '(March–May)',
     '(June–August)',
     '(September–November)',
     '(December–February)',
+  ]);
+  await expect(tooltip.locator('.ui-tooltip__season-description')).toHaveText([
+    /Rain quickens crops and refills wells/,
+    /drought can drain wells, pasture, fish, and fresh stores/,
+    /Harvest grain and orchards in September/,
+    /homes burn twice the usual firewood/,
   ]);
   await expect(totalsMode).toHaveAttribute(
     'aria-label',

@@ -528,8 +528,8 @@ const tutorialOverlay = read('src/ui/TutorialOverlay.ts');
 const buildToolbar = read('src/ui/BuildToolbar.ts');
 assert.match(
   buildToolbar,
-  /class="tutorial-launcher"[\s\S]*?>Tutorials<[\s\S]*?handlers\.onReplayTutorials\?\.\(\)/,
-  'tutorial replay must have a permanently visible, plainly labeled HUD control',
+  /data-action="tutorials"[\s\S]*?construction-dock-button__question" aria-hidden="true">\?<\/span>[\s\S]*?data-action="settings"[\s\S]*?handlers\.onReplayTutorials\?\.\(\)/,
+  'tutorial replay must have a question-mark dock control immediately before Settings',
 );
 assert.match(
   tutorialOverlay,

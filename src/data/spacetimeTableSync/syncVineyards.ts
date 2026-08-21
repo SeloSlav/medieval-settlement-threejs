@@ -10,10 +10,10 @@ export function syncVineyardParcels(
   if (!identityHex) return vineyards;
   for (const row of rows) {
     if (row.owner.toHexString() !== identityHex) continue;
-    const buildingId = buildingClientId(row.buildingId);
-    vineyards.set(buildingId, {
-      id: buildingId,
-      buildingId,
+    const monasteryId = buildingClientId(row.buildingId);
+    vineyards.set(monasteryId, {
+      id: monasteryId,
+      monasteryId,
       corners: [
         { x: row.cornerAx, z: row.cornerAz },
         { x: row.cornerBx, z: row.cornerBz },
