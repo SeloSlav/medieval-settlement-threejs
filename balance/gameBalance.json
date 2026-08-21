@@ -778,8 +778,6 @@
     "vineyardGrapesPerFermentationBatch": 3,
     "vineyardWinePerFermentationBatch": 3,
     "vineyardFermentationSeconds": 60,
-    "vineyardBalancedGrapeReserve": 12,
-    "vineyardWineFirstGrapeReserve": 2,
     "vineyardHarvestStartMonth": 9,
     "vineyardHarvestEndMonth": 10,
     "marketSpecialtyExportPerBrokerPerSecond": 0.45,

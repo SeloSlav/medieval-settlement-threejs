@@ -244,10 +244,9 @@ for (const [planting, asset] of monasteryPlantingArtwork) {
   );
   assert.ok(existsSync(`public/assets/ui/${asset}`));
 }
-assert.match(expandedBuildingRenderer, /class="monastery-planting-grid"[\s\S]*data-monastery-orchard-choice="\$\{planting\.value\}"/);
 assert.match(expandedBuildingRenderer, /class="monastery-planting-grid"[\s\S]*data-monastery-croft-choice="\$\{planting\.value\}"/);
 assert.doesNotMatch(expandedBuildingRenderer, /data-monastery-(?:orchard|croft)-planting/);
-assert.match(resourceInspector, /data-monastery-orchard-choice[\s\S]{0,650}onSetMonasteryPlanting/);
+assert.doesNotMatch(expandedBuildingRenderer, /data-monastery-orchard-choice/);
 assert.match(resourceInspector, /data-monastery-croft-choice[\s\S]{0,650}onSetMonasteryPlanting/);
 
 console.log('Complete backyard, upgrade, monastery, commodity, crop, livestock, land-project, demolition, recovery, and build-category icon contracts passed.');

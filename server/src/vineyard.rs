@@ -1,6 +1,3 @@
-use crate::balance_generated::{
-    VINEYARD_BALANCED_GRAPE_RESERVE, VINEYARD_WINE_FIRST_GRAPE_RESERVE,
-};
 use crate::farming::{arable_land_conditions, effective_field_moisture};
 
 pub const VINEYARD_MIN_AREA: f64 = 220.0;
@@ -10,35 +7,8 @@ pub const VINEYARD_MAX_SLOPE_DEGREES: f64 = 28.0;
 pub const VINEYARD_REFERENCE_AREA: f64 = 220.0;
 pub const VINEYARD_MONASTERY_MAX_DISTANCE: f64 = 120.0;
 pub const VINEYARD_MONASTERY_ADJACENCY_DISTANCE: f64 = 78.0;
-pub const VINEYARD_POLICY_TABLE_GRAPES: u8 = 0;
-pub const VINEYARD_POLICY_BALANCED: u8 = 1;
-pub const VINEYARD_POLICY_WINE_FIRST: u8 = 2;
-
-pub fn is_valid_vineyard_policy(policy: u8) -> bool {
-    matches!(
-        policy,
-        VINEYARD_POLICY_TABLE_GRAPES | VINEYARD_POLICY_BALANCED | VINEYARD_POLICY_WINE_FIRST
-    )
-}
-
-pub fn normalize_vineyard_policy(policy: u8) -> u8 {
-    if is_valid_vineyard_policy(policy) {
-        policy
-    } else {
-        VINEYARD_POLICY_BALANCED
-    }
-}
-
-pub fn vineyard_grape_reserve(policy: u8) -> f64 {
-    match normalize_vineyard_policy(policy) {
-        VINEYARD_POLICY_TABLE_GRAPES => f64::INFINITY,
-        VINEYARD_POLICY_WINE_FIRST => VINEYARD_WINE_FIRST_GRAPE_RESERVE,
-        _ => VINEYARD_BALANCED_GRAPE_RESERVE,
-    }
-}
-
-pub fn fermentable_grapes(grapes: f64, policy: u8) -> f64 {
-    (grapes.max(0.0) - vineyard_grape_reserve(policy)).max(0.0)
+pub fn fermentable_grapes(grapes: f64) -> f64 {
+    grapes.max(0.0)
 }
 
 /// Mirrors `src/vineyards/vineyardSuitability.ts` so the map preview and
@@ -99,19 +69,4 @@ mod tests {
         assert_eq!(area_efficiency(1_000_000.0), 2.6);
     }
 
-    #[test]
-    fn cellar_policy_protects_table_grapes_before_fermentation() {
-        assert_eq!(fermentable_grapes(100.0, VINEYARD_POLICY_TABLE_GRAPES), 0.0);
-        assert_eq!(
-            fermentable_grapes(
-                VINEYARD_BALANCED_GRAPE_RESERVE + 3.0,
-                VINEYARD_POLICY_BALANCED
-            ),
-            3.0
-        );
-        assert!(
-            fermentable_grapes(20.0, VINEYARD_POLICY_WINE_FIRST)
-                > fermentable_grapes(20.0, VINEYARD_POLICY_BALANCED)
-        );
-    }
 }

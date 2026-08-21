@@ -3037,10 +3037,7 @@ fn advance_monastery_vineyard_fermentation(
     }
 
     if monastery.vineyard_fermenting_grapes <= 1e-9 {
-        let available = fermentable_grapes(
-            monastery.grapes,
-            crate::vineyard::VINEYARD_POLICY_WINE_FIRST,
-        );
+        let available = fermentable_grapes(monastery.grapes);
         if available + 1e-6 < VINEYARD_GRAPES_PER_FERMENTATION_BATCH
             || building_commodity_room(monastery, CommodityKind::Wine) + 1e-6
                 < VINEYARD_WINE_PER_FERMENTATION_BATCH

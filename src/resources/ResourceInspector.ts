@@ -1311,17 +1311,6 @@ export class ResourceInspector {
       this.selectedTarget?.kind === 'building'
       && this.selectedTarget.building.kind === 'monastery'
     ) {
-      const orchardValue = (event.target as HTMLElement)
-        .closest<HTMLElement>('[data-monastery-orchard-choice]')
-        ?.dataset.monasteryOrchardChoice;
-      if (orchardValue != null) {
-        void this.options.onSetMonasteryPlanting?.(
-          this.selectedTarget.building.id,
-          Number(orchardValue),
-          this.selectedTarget.building.monasteryCroftPlanting === 1 ? 1 : 0,
-        );
-        return;
-      }
       const croftValue = (event.target as HTMLElement)
         .closest<HTMLElement>('[data-monastery-croft-choice]')
         ?.dataset.monasteryCroftChoice;

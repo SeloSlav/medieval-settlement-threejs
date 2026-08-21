@@ -655,8 +655,6 @@ export type GameBalance = {
     vineyardGrapesPerFermentationBatch: number;
     vineyardWinePerFermentationBatch: number;
     vineyardFermentationSeconds: number;
-    vineyardBalancedGrapeReserve: number;
-    vineyardWineFirstGrapeReserve: number;
     vineyardHarvestStartMonth: number;
     vineyardHarvestEndMonth: number;
     marketSpecialtyExportPerBrokerPerSecond: number;
@@ -1275,8 +1273,6 @@ function generateRust(): string {
     `pub const VINEYARD_GRAPES_PER_FERMENTATION_BATCH: f64 = ${rustF64(b.production.vineyardGrapesPerFermentationBatch)};`,
     `pub const VINEYARD_WINE_PER_FERMENTATION_BATCH: f64 = ${rustF64(b.production.vineyardWinePerFermentationBatch)};`,
     `pub const VINEYARD_FERMENTATION_SECONDS: f64 = ${rustF64(b.production.vineyardFermentationSeconds)};`,
-    `pub const VINEYARD_BALANCED_GRAPE_RESERVE: f64 = ${rustF64(b.production.vineyardBalancedGrapeReserve)};`,
-    `pub const VINEYARD_WINE_FIRST_GRAPE_RESERVE: f64 = ${rustF64(b.production.vineyardWineFirstGrapeReserve)};`,
     `pub const VINEYARD_HARVEST_START_MONTH: u8 = ${b.production.vineyardHarvestStartMonth};`,
     `pub const VINEYARD_HARVEST_END_MONTH: u8 = ${b.production.vineyardHarvestEndMonth};`,
     `pub const MARKET_SPECIALTY_EXPORT_PER_BROKER_PER_SECOND: f64 = ${rustF64(b.production.marketSpecialtyExportPerBrokerPerSecond)};`,
@@ -2254,8 +2250,6 @@ function generateTypeScript(): string {
     `export const VINEYARD_GRAPES_PER_FERMENTATION_BATCH = ${b.production.vineyardGrapesPerFermentationBatch};`,
     `export const VINEYARD_WINE_PER_FERMENTATION_BATCH = ${b.production.vineyardWinePerFermentationBatch};`,
     `export const VINEYARD_FERMENTATION_SECONDS = ${b.production.vineyardFermentationSeconds};`,
-    `export const VINEYARD_BALANCED_GRAPE_RESERVE = ${b.production.vineyardBalancedGrapeReserve};`,
-    `export const VINEYARD_WINE_FIRST_GRAPE_RESERVE = ${b.production.vineyardWineFirstGrapeReserve};`,
     `export const VINEYARD_HARVEST_START_MONTH = ${b.production.vineyardHarvestStartMonth};`,
     `export const VINEYARD_HARVEST_END_MONTH = ${b.production.vineyardHarvestEndMonth};`,
     `export const MARKET_SPECIALTY_EXPORT_PER_BROKER_PER_SECOND = ${b.production.marketSpecialtyExportPerBrokerPerSecond};`,

@@ -5,7 +5,7 @@ import {
   specialtySeasonStatus,
   vineyardIsHarvesting,
 } from '../src/economy/specialtyTrade.ts';
-import { BUILDING_STORAGE_CAPS } from '../src/generated/gameBalance.ts';
+import { BUILDING_KINDS, BUILDING_STORAGE_CAPS } from '../src/generated/gameBalance.ts';
 import { getBuildingDefinition } from '../src/resources/buildings.ts';
 
 assert.equal(apiaryIsActive(3), false);
@@ -21,7 +21,7 @@ assert.match(specialtySeasonStatus('apiary', 1)?.label ?? '', /resumes in April/
 const apiary = getBuildingDefinition('apiary');
 assert.equal(apiary.requiresMatureTrees, true);
 assert.equal(apiary.workRadius, 48);
-assert.throws(() => getBuildingDefinition('vineyard' as never));
+assert.equal(BUILDING_KINDS.includes('vineyard' as never), false);
 assert.equal(BUILDING_STORAGE_CAPS.marketplace.ale, 140);
 assert.equal(BUILDING_STORAGE_CAPS.marketplace.cloth, 120);
 assert.equal(BUILDING_STORAGE_CAPS.marketplace.honey, 48);

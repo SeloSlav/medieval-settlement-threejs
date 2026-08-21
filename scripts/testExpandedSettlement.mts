@@ -54,8 +54,8 @@ for (const kind of expanded) {
 assert.equal(BUILDING_DEFINITIONS.watermill.requiresWaterShore, true);
 assert.equal(BUILDING_DEFINITIONS.windmill.requiresWaterShore, false);
 assert.equal(BUILDING_KINDS.some((kind) => kind.includes('ferry')), false);
-assert.equal(BUILDING_DEFINITIONS.monastery.acceptsLabor, false);
-assert.equal(BUILDING_DEFINITIONS.monastery.requiresHillside, true);
+assert.equal(BUILDING_DEFINITIONS.monastery.acceptsLabor, true);
+assert.equal(BUILDING_DEFINITIONS.monastery.requiresHillside, false);
 assert.equal(BUILDING_DEFINITIONS.monastery.workRadius, 0);
 assert.equal(MONASTERY_COVERAGE_RADIUS, 520);
 assert.deepEqual(

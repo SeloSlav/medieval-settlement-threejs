@@ -133,6 +133,7 @@
     "test:grain-logistics": "node --experimental-strip-types scripts/testGrainLogistics.mts",
     "test:monastery-polish": "npx tsx scripts/testMonasteryPolish.mts",
     "test:monastery-estate": "npx tsx scripts/testMonasteryEstate.mts",
+    "test:monastery-vineyard": "node --experimental-strip-types scripts/testMonasteryVineyard.mts",
     "test:backyard-gardens": "npx tsx scripts/testBackyardGardenVisuals.mts",
     "test:residence-terrain": "node --experimental-strip-types scripts/testResidenceTerrainAdaptation.mts",
     "test:building-art": "npx tsx scripts/testBuildingArtDirection.mts",

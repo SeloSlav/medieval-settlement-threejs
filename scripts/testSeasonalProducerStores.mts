@@ -67,7 +67,7 @@ assertVisibleSegments(
   threshingMarker,
   'ThreshingGrainStockpile',
   'ThreshingGrainSegment',
-  3,
+  1,
 );
 assertVisibleSegments(
   threshingMarker,

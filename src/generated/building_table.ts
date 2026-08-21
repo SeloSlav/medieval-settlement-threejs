@@ -115,7 +115,6 @@ export default __t.row({
   smokedFish: __t.f64().name("smoked_fish"),
   cheese: __t.f64(),
   privateExportProceedsGold: __t.f64().name("private_export_proceeds_gold"),
-  vineyardProductionPolicy: __t.u8().name("vineyard_production_policy"),
   vineyardFermentingGrapes: __t.f64().name("vineyard_fermenting_grapes"),
   vineyardFermentationProgress: __t.f64().name("vineyard_fermentation_progress"),
   apiaryHarvestPolicy: __t.u8().name("apiary_harvest_policy"),
