@@ -243,6 +243,8 @@ const PROCESS: Record<string, string> = {
   monastery: 'A self-governing 68 × 53 m walled estate raises the player-selected orchard and croft crops alongside eggs, milk, meat, honey, and cheese; a developed apple estate also presses cider, and genuine surplus is sold beyond the map',
   carpenter: 'Timber + smith-forged ironwork → polearms and cartwright support',
   weaver: 'Annual sheep fleece or flax + hauled water → woven cloth → tier-2+ Marketplace stalls, then Trading Post export',
+  tannery: 'Goat or game hides + hauled water + firewood → tanned leather for Cobbler workshops and trade',
+  cobbler: 'Tanned leather + cobbler labor → finished shoes → Tier 3+ Marketplace stalls, then Trading Post export',
 };
 
 const OUTBOUND_SUPPLY_KINDS = new Set<BuildingKind>([
@@ -258,6 +260,8 @@ const OUTBOUND_SUPPLY_KINDS = new Set<BuildingKind>([
   'vineyard',
   'monastery',
   'carpenter',
+  'tannery',
+  'cobbler',
   'weaver',
   'clay_pit',
   'charcoal_burner',

@@ -43,7 +43,7 @@ use crate::simulation::{
 use crate::supply_policy::{
     is_firewood_supplier_operational, is_specialty_supplier_operational,
     is_well_supplier_operational, BEVERAGE_SERVICE_KINDS, CLOTH_PRODUCER_KINDS,
-    POTTERY_PRODUCER_KINDS, PRESERVED_FOOD_PRODUCER_KINDS,
+    POTTERY_PRODUCER_KINDS, PRESERVED_FOOD_PRODUCER_KINDS, SHOES_PRODUCER_KINDS,
 };
 use crate::tables::{farm_field, BurgageZone, Residence};
 use crate::well_policy::position_within_well_service_radius;
@@ -55,6 +55,7 @@ enum ResidenceUpgradeService {
     PreservedFood,
     Beverage,
     Cloth,
+    Shoes,
     Pottery,
     Marketplace,
     GranaryStalls,
@@ -421,6 +422,7 @@ pub fn upgrade_residence(ctx: &ReducerContext, residence_id: u64) -> Result<(), 
                 ResidenceUpgradeService::Water,
                 ResidenceUpgradeService::Beverage,
                 ResidenceUpgradeService::Cloth,
+                ResidenceUpgradeService::Shoes,
                 ResidenceUpgradeService::Church(2),
                 ResidenceUpgradeService::FoodVariety(3),
                 ResidenceUpgradeService::Marketplace,
@@ -440,6 +442,7 @@ pub fn upgrade_residence(ctx: &ReducerContext, residence_id: u64) -> Result<(), 
                 ResidenceUpgradeService::PreservedFood,
                 ResidenceUpgradeService::Beverage,
                 ResidenceUpgradeService::Cloth,
+                ResidenceUpgradeService::Shoes,
                 ResidenceUpgradeService::Pottery,
                 ResidenceUpgradeService::Church(3),
                 ResidenceUpgradeService::FoodVariety(4),
@@ -455,7 +458,7 @@ pub fn upgrade_residence(ctx: &ReducerContext, residence_id: u64) -> Result<(), 
         return Err(if next_tier == 2 {
             "Tier 2 requires fuel and well supply, a staffed road-linked level-2 church, a grain staple plus one other food group, ale, clothing, and staffed market stalls.".to_string()
         } else if next_tier == 3 {
-            "Tier 3 requires fuel and well supply, grain, produce or forage, meat or animal produce, fish, a level-2 church, ale, clothing, and staffed market stalls.".to_string()
+            "Tier 3 requires fuel and well supply, grain, produce or forage, meat or animal produce, fish, a level-2 church, ale, clothing, shoes, and staffed market stalls.".to_string()
         } else {
             "Tier 4 requires fuel and well supply, a level-3 church, cured provisions, pottery, the complete grain/produce/animal/fish diet and services, and staffed market supply.".to_string()
         });
@@ -803,6 +806,14 @@ fn has_connected_services(
                 }
                 ResidenceUpgradeService::Cloth => {
                     CLOTH_PRODUCER_KINDS.contains(&building.kind.as_str())
+                        && is_specialty_supplier_operational(
+                            &building.kind,
+                            building.construction_complete,
+                            building.assigned_labor,
+                        )
+                }
+                ResidenceUpgradeService::Shoes => {
+                    SHOES_PRODUCER_KINDS.contains(&building.kind.as_str())
                         && is_specialty_supplier_operational(
                             &building.kind,
                             building.construction_complete,

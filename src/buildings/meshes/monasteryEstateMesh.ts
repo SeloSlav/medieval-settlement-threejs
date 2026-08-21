@@ -366,7 +366,7 @@ function addReservedUpgradePlot(
 
 function placeGarden(
   parent: THREE.Group,
-  kind: 'apple_orchard' | 'vegetable_garden' | 'herb_garden' | 'flower_garden' | 'hen_yard' | 'goat_pen' | 'backyard_apiary',
+  kind: 'apple_orchard' | 'vegetable_garden' | 'herb_garden' | 'flower_garden' | 'chicken_pen' | 'goat_pen' | 'backyard_apiary',
   name: string,
   zone: MonasteryPlanRect,
   seed: number,
@@ -661,7 +661,7 @@ export function createMonasteryEstateMesh(
   }
   placeGarden(group, 'herb_garden', 'Monastery physic herb garden', monasteryPlanZone(plan, 'herb-garden'), 8304);
   placeGarden(group, 'flower_garden', 'Monastery pollinator garden', monasteryPlanZone(plan, 'flower-garden'), 8305);
-  placeGarden(group, 'hen_yard', 'Monastery chicken yard', monasteryPlanZone(plan, 'hen-yard'), 8306);
+  placeGarden(group, 'chicken_pen', 'Monastery chicken yard', monasteryPlanZone(plan, 'hen-yard'), 8306);
   placeGarden(group, 'goat_pen', 'Monastery small-stock enclosure', monasteryPlanZone(plan, 'small-stock-yard'), 8307);
 
   const random = mulberry32(8310 + level * 19);

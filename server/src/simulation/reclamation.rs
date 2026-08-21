@@ -25,7 +25,7 @@ use crate::simulation::{labor_and_logistics_paused, GameClock, SimTickContext};
 use crate::tables::{Building, PlayerResources, WorldConfig};
 
 const EPSILON: f64 = 1e-6;
-const RECOVERY_ORDER: [CommodityKind; 51] = [
+const RECOVERY_ORDER: [CommodityKind; 54] = [
     CommodityKind::Gold,
     CommodityKind::Remedies,
     CommodityKind::Food,
@@ -62,6 +62,9 @@ const RECOVERY_ORDER: [CommodityKind; 51] = [
     CommodityKind::Honey,
     CommodityKind::Wine,
     CommodityKind::Cloth,
+    CommodityKind::Shoes,
+    CommodityKind::Leather,
+    CommodityKind::Hides,
     CommodityKind::Flax,
     CommodityKind::Iron,
     CommodityKind::Salt,
@@ -96,6 +99,9 @@ pub struct ReclamationStock {
     pub polearms: f64,
     pub wool: f64,
     pub cloth: f64,
+    pub hides: f64,
+    pub leather: f64,
+    pub shoes: f64,
     pub gold: f64,
     pub barley: f64,
     pub malt: f64,
@@ -198,6 +204,9 @@ impl ReclamationStock {
                 cloth: amount,
                 ..Self::default()
             },
+            CommodityKind::Hides => Self { hides: amount, ..Self::default() },
+            CommodityKind::Leather => Self { leather: amount, ..Self::default() },
+            CommodityKind::Shoes => Self { shoes: amount, ..Self::default() },
             CommodityKind::Gold => Self {
                 gold: amount,
                 ..Self::default()
@@ -368,6 +377,9 @@ impl ReclamationStock {
             polearms: resources.polearms.max(0.0),
             wool: resources.wool.max(0.0),
             cloth: resources.cloth.max(0.0),
+            hides: resources.hides.max(0.0),
+            leather: resources.leather.max(0.0),
+            shoes: resources.shoes.max(0.0),
             gold: resources.gold.max(0.0),
             barley: resources.barley.max(0.0),
             malt: resources.malt.max(0.0),
@@ -424,6 +436,9 @@ impl ReclamationStock {
             CommodityKind::Polearms => self.polearms,
             CommodityKind::Wool => self.wool,
             CommodityKind::Cloth => self.cloth,
+            CommodityKind::Hides => self.hides,
+            CommodityKind::Leather => self.leather,
+            CommodityKind::Shoes => self.shoes,
             CommodityKind::Gold => self.gold,
             CommodityKind::Barley => self.barley,
             CommodityKind::Malt => self.malt,
@@ -479,6 +494,9 @@ impl ReclamationStock {
         building.polearms += self.polearms;
         building.wool += self.wool;
         building.cloth += self.cloth;
+        building.hides += self.hides;
+        building.leather += self.leather;
+        building.shoes += self.shoes;
         building.gold += self.gold;
         building.barley += self.barley;
         building.malt += self.malt;
@@ -534,6 +552,9 @@ fn clear_resource_ledger(resources: &mut PlayerResources) {
     resources.polearms = 0.0;
     resources.wool = 0.0;
     resources.cloth = 0.0;
+    resources.hides = 0.0;
+    resources.leather = 0.0;
+    resources.shoes = 0.0;
     resources.gold = 0.0;
     resources.barley = 0.0;
     resources.malt = 0.0;
@@ -828,6 +849,9 @@ pub fn insert_reclamation_pile(
         monastery_croft_choice_year: 0,
         monastery_service_funding: 1.0,
         monastery_last_service_day: 0,
+        hides: stock.hides.max(0.0),
+        leather: stock.leather.max(0.0),
+        shoes: stock.shoes.max(0.0),
         storage_acceptance_mask: u64::MAX,
     });
     ctx.db.world_config().id().update(WorldConfig {
@@ -1242,6 +1266,24 @@ pub(crate) fn reclamation_destination_priority(commodity: CommodityKind, kind: &
         CommodityKind::Cloth => match kind {
             "marketplace" => Some(0),
             "weaver" => Some(1),
+            "founders_camp" => Some(2),
+            _ => Some(3),
+        },
+        CommodityKind::Hides => match kind {
+            "tannery" => Some(0),
+            "village_storehouse" | "marketplace" => Some(1),
+            "founders_camp" => Some(2),
+            _ => Some(3),
+        },
+        CommodityKind::Leather => match kind {
+            "cobbler" => Some(0),
+            "village_storehouse" | "marketplace" => Some(1),
+            "founders_camp" => Some(2),
+            _ => Some(3),
+        },
+        CommodityKind::Shoes => match kind {
+            "marketplace" => Some(0),
+            "village_storehouse" | "cobbler" => Some(1),
             "founders_camp" => Some(2),
             _ => Some(3),
         },

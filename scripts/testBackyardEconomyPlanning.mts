@@ -73,7 +73,17 @@ function garden(
   residenceId: string,
   kind: BackyardGardenKind,
 ): BackyardGardenState {
-  return { id, residenceId, kind };
+  return {
+    id,
+    residenceId,
+    kind,
+    firstHarvestDay: 0,
+    lastPrimaryProductionDay: 0,
+    lastSecondaryProductionDay: 0,
+    hideStock: 0,
+    jamStock: 0,
+    flowerLuxuryUpgraded: false,
+  };
 }
 
 function building(
@@ -182,22 +192,23 @@ assert.equal(
 );
 assert.equal(
   backyardGardenSeasonalMultiplier(
-    'vegetable_garden',
+    'cabbage_garden',
     7,
     { season: 'summer', weather: 'drought' },
   ),
-  0.55,
+  0.6325,
 );
 assert.equal(
   backyardGardenSeasonalMultiplier(
-    'hen_yard',
+    'chicken_pen',
     1,
     { season: 'winter', weather: 'frost' },
   ),
-  0.75,
+  0,
 );
 assert.equal(backyardGardenPhenology('vegetable_garden', 3).harvestable, false);
-assert.equal(backyardGardenPhenology('vegetable_garden', 4).harvestable, true);
+assert.equal(backyardGardenPhenology('vegetable_garden', 7).harvestable, false);
+assert.equal(backyardGardenPhenology('carrot_garden', 6).harvestable, true);
 assert.equal(backyardGardenPhenology('herb_garden', 1).growing, false);
 assert.equal(backyardGardenPhenology('herb_garden', 1).harvestable, false);
 assert.equal(backyardGardenMarketChannel('flower_garden'), null);
@@ -216,8 +227,8 @@ const splitState = state({
   residences: [westHome, eastHome, junctionHome],
   gardens: [
     garden('west-apples', westHome.id, 'apple_orchard'),
-    garden('east-vegetables', eastHome.id, 'vegetable_garden'),
-    garden('junction-hens', junctionHome.id, 'hen_yard'),
+    garden('east-vegetables', eastHome.id, 'carrot_garden'),
+    garden('junction-hens', junctionHome.id, 'chicken_pen'),
   ],
 });
 const components = new Map<string, number | readonly number[]>([
@@ -405,7 +416,7 @@ const sabbathState = state({
   ],
   residences: [residence('sabbath-home', 0)],
   gardens: [
-    garden('sabbath-hens', 'sabbath-home', 'hen_yard'),
+    garden('sabbath-hens', 'sabbath-home', 'chicken_pen'),
   ],
 });
 const sabbath = computeSettlementBackyardEconomyPlan({
@@ -480,13 +491,13 @@ assert.equal(
 );
 
 const dailyVegetable = backyardGardenEconomyPerDay(
-  'vegetable_garden',
+  'carrot_garden',
   4,
   0.2,
   { seasonalMultiplier: 1, hasMarketAccess: true, tier: 1, currentFoodStock: 20 },
 );
 const droughtVegetable = backyardGardenEconomyPerDay(
-  'vegetable_garden',
+  'carrot_garden',
   4,
   0.2,
   { seasonalMultiplier: 0.55, hasMarketAccess: true, tier: 1, currentFoodStock: 20 },
@@ -682,7 +693,7 @@ for (let index = 0; index < 100_000; index += 1) {
     garden(
       `garden-${index}`,
       home.id,
-      index % 2 === 0 ? 'vegetable_garden' : 'hen_yard',
+      index % 2 === 0 ? 'carrot_garden' : 'chicken_pen',
     ),
   );
   if (index % 4 === 0) {
@@ -768,7 +779,7 @@ assert.match(serverStepSource, /market_tolls_by_market/);
 assert.match(serverStepSource, /local_marketplace_for_residence/);
 assert.match(serverStepSource, /credit_marketplace_receipt_gold/);
 assert.match(serverStepSource, /fn backyard_market_stall_need/);
-assert.match(serverStepSource, /FlowerGarden \| BackyardGardenKind::Orchard => None/);
+assert.match(serverStepSource, /BackyardGardenKind::FlowerGarden[\s\S]*BackyardGardenKind::AnimalPen => None/);
 assert.match(serverStepSource, /HerbGarden => Some\(ResidenceNeedKind::Cloth\)/);
 assert.match(serverStepSource, /_ => Some\(ResidenceNeedKind::Food\)/);
 assert.match(serverStepSource, /CommodityKind::Remedies/);
@@ -841,6 +852,13 @@ assert.match(
   /specialize_orchard[\s\S]*specialization_of == Some\("orchard"\)[\s\S]*first_harvest_day/,
   'a completed generic orchard must be explicitly specialized before its maturity clock begins',
 );
+assert.match(
+  serverBackyardReducerSource,
+  /specialize_animal_pen[\s\S]*specialization_of == Some\("animal_pen"\)[\s\S]*first_harvest_day/,
+  'a completed generic animal pen must be explicitly stocked before its maturity clock begins',
+);
+assert.match(serverStepSource, /backyard_interval_harvest_due/);
+assert.match(serverStepSource, /last_primary_production_day/);
 assert.match(backyardInspectorSource, /Backyard worksite/);
 assert.match(backyardInspectorSource, /Production[\s\S]*Begins only after the worksite is complete/);
 assert.match(backyardInspectorSource, /data-residence-upgrade-priority/);

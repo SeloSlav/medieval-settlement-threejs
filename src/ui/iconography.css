@@ -404,6 +404,26 @@
   background-image: url('/assets/ui/icons/materials/roof-tiles.svg');
 }
 
+.settlement-hud__stat[data-resource='hides']::before,
+.settlement-hud__stat[data-resource='leather']::before,
+.settlement-hud__stat[data-resource='shoes']::before {
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: contain;
+}
+
+.settlement-hud__stat[data-resource='hides']::before {
+  background-image: url('/assets/ui/icons/materials/hides.svg');
+}
+
+.settlement-hud__stat[data-resource='leather']::before {
+  background-image: url('/assets/ui/icons/materials/leather.svg');
+}
+
+.settlement-hud__stat[data-resource='shoes']::before {
+  background-image: url('/assets/ui/icons/materials/shoes.svg');
+}
+
 /* Inline resource costs reuse the HUD's artwork so construction, trade,
  * upkeep, and production prices never fall back to text abbreviations. */
 .resource-cost {
@@ -638,6 +658,26 @@
 
 .resource-cost__item[data-resource-cost='roofTiles'] .resource-cost__icon {
   background-image: url('/assets/ui/icons/materials/roof-tiles.svg');
+}
+
+.resource-cost__item[data-resource-cost='hides'] .resource-cost__icon,
+.resource-cost__item[data-resource-cost='leather'] .resource-cost__icon,
+.resource-cost__item[data-resource-cost='shoes'] .resource-cost__icon {
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: contain;
+}
+
+.resource-cost__item[data-resource-cost='hides'] .resource-cost__icon {
+  background-image: url('/assets/ui/icons/materials/hides.svg');
+}
+
+.resource-cost__item[data-resource-cost='leather'] .resource-cost__icon {
+  background-image: url('/assets/ui/icons/materials/leather.svg');
+}
+
+.resource-cost__item[data-resource-cost='shoes'] .resource-cost__icon {
+  background-image: url('/assets/ui/icons/materials/shoes.svg');
 }
 
 .resource-cost__item[data-resource-cost='manure'] .resource-cost__icon,

@@ -42,6 +42,7 @@ Avoid: ANY BORDER, frame, outline around the canvas, ornamental edge, decorative
 | `bakery.webp` | Stone bakehouse, oven mass, chimney, firewood, flour, and cooling racks. |
 | `brewery.webp` | Warm-walled brewhouse, malt kiln, brewing porch, vats, and barrels. |
 | `carpenter.webp` | Enclosed shop with deep working bay, joinery, wheels, and handcart. |
+| `cobbler.webp` | Compact limewashed road workshop with deep porch, broad work window, shoe lasts, leather rolls, finished shoes, and a boot-shaped sign. |
 | `chapel.webp` | Limewashed parish nave with an open oak belfry and a steep hand-split shingle roof. |
 | `wayside-shrine.webp` | Tiny limewashed roadside poklonac with an arched Marian niche, limestone plinth, shingle cap, and iron cross. |
 | `charcoal-burner.webp` | Earth-covered charcoal clamp, billet ring, and tiny watch shelter. |
@@ -68,6 +69,7 @@ Avoid: ANY BORDER, frame, outline around the canvas, ornamental edge, decorative
 | `smokehouse.webp` | Tall vented timber smoke chamber, flue, firewood, salt, and pottery. |
 | `stonecutters-camp.webp` | Unified shallow Mining Pit with visible material bands and sorting shelter. |
 | `swineherd.webp` | Woodland pannage shelter, rail enclosure, feed bins, wallow, and pigs. |
+| `tannery.webp` | Long low wet-work shed with a louvered drying loft, deep yard roof, bark-liquor vats, trough, bark, and a clean hide frame. |
 | `threshing-barn.webp` | High-roofed through-barn, broad doors, stone plinth, and grain sheaves. |
 | `town-hall.webp` | Vertical but compact civic house with modest bell turret and notice porch. |
 | `trading-post.webp` | Secure road depot, covered loading porch, weighing beam, cart, and goods. |
@@ -83,3 +85,5 @@ Avoid: ANY BORDER, frame, outline around the canvas, ornamental edge, decorative
 ### Output pipeline
 
 The 2026-08-20 set was generated with the built-in image-generation tool at `1024x1536`, visually reviewed as a contact sheet, then converted with ImageMagick to `320x480` WebP at quality 90. The Lumber Mill, Chapel, Town Hall, Threshing Barn, Brewhouse, Watermill, and Carpenter cards received a second material-parity pass replacing ordinary terracotta roofs with hand-split shingles. Existing filenames were intentionally preserved so menu and inspector mappings required no code changes.
+
+The 2026-08-21 leather-chain additions used the same `1024x1536` to `320x480` WebP pipeline. Their generation prompts explicitly locked a no-people/no-text/no-border architectural three-quarter view: the tannery prompt prioritized its louvered loft, three bark-liquor vats, hide frame, trough, bark, barrels, and firewood; the cobbler prompt prioritized its deep work porch, broad window, cutting bench, shoe lasts, leather rolls, finished shoes, and letterless boot sign.

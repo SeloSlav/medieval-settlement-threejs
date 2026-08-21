@@ -4,6 +4,7 @@ export const MARKETPLACE_TRADE_RESOURCES = [
   'ryeFlour', 'maslinFlour',
   'ryeBread', 'maslinBread', 'ale', 'cider',
   'preservedFood', 'honey', 'wine', 'ironwork', 'polearms', 'wool', 'cloth',
+  'hides', 'leather', 'shoes',
   'barley', 'malt', 'flax', 'iron', 'clay', 'salt', 'charcoal', 'pottery',
   'manure', 'remedies', 'roofTiles', 'meat', 'fish', 'berries', 'mushrooms',
   'milk', 'apples', 'cherries', 'vegetables', 'eggs', 'grapes',

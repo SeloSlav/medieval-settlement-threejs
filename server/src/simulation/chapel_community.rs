@@ -45,6 +45,7 @@ pub fn recovery_stock_min(
         ResidenceNeedKind::PreservedFood => 4.0,
         ResidenceNeedKind::Ale => 3.0,
         ResidenceNeedKind::Cloth => 2.0,
+        ResidenceNeedKind::Shoes => 2.0,
         ResidenceNeedKind::Pottery => 2.0,
         ResidenceNeedKind::Church => 1.0,
         ResidenceNeedKind::FoodVariety => 2.0,

@@ -2,8 +2,8 @@ use spacetimedb::ReducerContext;
 use std::collections::HashMap;
 
 use crate::backyard_garden_policy::{
-    allocate_backyard_food, backyard_garden_seasonal_multiplier, backyard_goat_product,
-    BackyardGoatProduct,
+    allocate_backyard_food, backyard_garden_seasonal_multiplier, backyard_interval_food_batch,
+    backyard_interval_harvest_due, backyard_month_in_window,
 };
 use crate::balance_generated::{
     backyard_garden_def, BackyardGardenKind, CALENDAR_SECONDS_PER_DAY, FOOD_SALE_GOLD_PER_UNIT,
@@ -112,6 +112,24 @@ fn step_one_garden(
     if garden.first_harvest_day > clock.total_days {
         return 0.0;
     }
+    if matches!(
+        kind,
+        BackyardGardenKind::ChickenPen
+            | BackyardGardenKind::GoatPen
+            | BackyardGardenKind::PigPen
+    ) {
+        return step_livestock_pen(
+            ctx,
+            garden,
+            kind,
+            residence,
+            marketplace_id,
+            tax_rate,
+            collection_multiplier,
+            clock,
+            environment,
+        );
+    }
     let population = residence.population as f64;
     let seasonal_multiplier = backyard_garden_seasonal_multiplier(kind, clock.month, environment);
     if seasonal_multiplier <= 1e-9 {
@@ -146,9 +164,9 @@ fn step_one_garden(
             marketplace_id.is_some(),
             residence.tier,
             residence.population,
-            residence_edible_food_stock(residence),
+            residence_edible_food_stock(residence) + garden.jam_stock.max(0.0),
         );
-        let commodity = backyard_food_commodity(kind, clock.total_days, residence.id);
+        let commodity = backyard_food_commodity(kind);
         let kept_food = if allocation.self_food > 1e-9 {
             commodity
                 .map(|commodity| {
@@ -228,26 +246,31 @@ fn deposit_backyard_jam(ctx: &ReducerContext, garden_id: u64, amount: f64) -> f6
     let Some(mut garden) = ctx.db.backyard_garden().id().find(&garden_id) else {
         return 0.0;
     };
+    let residence_id = garden.residence_id;
     let before = garden.jam_stock.max(0.0);
     garden.jam_stock = (before + amount).min(RESIDENCE_LUXURY_JAM_CAPACITY);
     let deposited = (garden.jam_stock - before).max(0.0);
     ctx.db.backyard_garden().id().update(garden);
+    if deposited > 1e-9 {
+        if let Some(residence) = ctx.db.residence().id().find(&residence_id) {
+            sync_food_need_rows(ctx, &residence);
+        }
+    }
     deposited
 }
 
 fn backyard_market_stall_need(kind: BackyardGardenKind) -> Option<ResidenceNeedKind> {
     match kind {
-        BackyardGardenKind::FlowerGarden | BackyardGardenKind::Orchard => None,
+        BackyardGardenKind::FlowerGarden
+        | BackyardGardenKind::Orchard
+        | BackyardGardenKind::VegetableGarden
+        | BackyardGardenKind::AnimalPen => None,
         BackyardGardenKind::HerbGarden => Some(ResidenceNeedKind::Cloth),
         _ => Some(ResidenceNeedKind::Food),
     }
 }
 
-fn backyard_food_commodity(
-    kind: BackyardGardenKind,
-    total_days: u64,
-    residence_id: u64,
-) -> Option<CommodityKind> {
+fn backyard_food_commodity(kind: BackyardGardenKind) -> Option<CommodityKind> {
     match kind {
         BackyardGardenKind::AppleOrchard => Some(CommodityKind::Apples),
         BackyardGardenKind::CherryOrchard => Some(CommodityKind::Cherries),
@@ -255,22 +278,205 @@ fn backyard_food_commodity(
         BackyardGardenKind::AroniaOrchard | BackyardGardenKind::RosehipOrchard => {
             Some(CommodityKind::Berries)
         }
-        BackyardGardenKind::VegetableGarden => Some(CommodityKind::Vegetables),
-        BackyardGardenKind::HenYard => Some(CommodityKind::Eggs),
-        // A small household herd cannot specialize like a cattle dairy or
-        // sheep flock. Pens alternate modest milk and meat output by household
-        // and day, making both useful without eclipsing either full system.
-        BackyardGardenKind::GoatPen => {
-            Some(match backyard_goat_product(total_days, residence_id) {
-                BackyardGoatProduct::Milk => CommodityKind::Milk,
-                BackyardGoatProduct::Meat => CommodityKind::Meat,
-            })
-        }
+        BackyardGardenKind::CabbageGarden
+        | BackyardGardenKind::CarrotGarden
+        | BackyardGardenKind::BeetrootGarden => Some(CommodityKind::Vegetables),
+        BackyardGardenKind::ChickenPen => Some(CommodityKind::Eggs),
+        BackyardGardenKind::GoatPen => Some(CommodityKind::Milk),
+        BackyardGardenKind::PigPen => Some(CommodityKind::Meat),
         BackyardGardenKind::BackyardApiary => Some(CommodityKind::Honey),
         BackyardGardenKind::FlowerGarden
         | BackyardGardenKind::HerbGarden
-        | BackyardGardenKind::Orchard => None,
+        | BackyardGardenKind::Orchard
+        | BackyardGardenKind::VegetableGarden
+        | BackyardGardenKind::AnimalPen => None,
     }
+}
+
+fn step_livestock_pen(
+    ctx: &ReducerContext,
+    garden: &BackyardGarden,
+    kind: BackyardGardenKind,
+    residence: &Residence,
+    marketplace_id: Option<u64>,
+    tax_rate: f64,
+    collection_multiplier: f64,
+    clock: &GameClock,
+    environment: EnvironmentState,
+) -> f64 {
+    let def = backyard_garden_def(kind);
+    let population = residence.population;
+    let mut market_food_sold = 0.0;
+    let mut primary_collected = false;
+    let mut secondary_collected = false;
+    let mut hides_collected = 0.0;
+
+    if backyard_interval_harvest_due(
+        clock.total_days,
+        garden.first_harvest_day,
+        garden.last_primary_production_day,
+        def.production_interval_days,
+        clock.month,
+        def.harvest_start_month,
+        def.harvest_end_month,
+    ) {
+        let multiplier = backyard_garden_seasonal_multiplier(kind, clock.month, environment);
+        let total_food = backyard_interval_food_batch(
+            def.food_per_person_per_sec,
+            population,
+            def.production_interval_days,
+            multiplier,
+        );
+        if let Some(commodity) = livestock_primary_commodity(kind) {
+            market_food_sold += distribute_backyard_food(
+                ctx,
+                residence,
+                garden,
+                marketplace_id,
+                commodity,
+                total_food,
+            );
+        }
+        primary_collected = true;
+    }
+
+    if def.secondary_production_interval_days > 0
+        && backyard_interval_harvest_due(
+            clock.total_days,
+            garden.first_harvest_day,
+            garden.last_secondary_production_day,
+            def.secondary_production_interval_days,
+            clock.month,
+            def.secondary_harvest_start_month,
+            def.secondary_harvest_end_month,
+        )
+    {
+        let seasonal_multiplier = if backyard_month_in_window(
+            clock.month,
+            def.secondary_harvest_start_month,
+            def.secondary_harvest_end_month,
+        ) {
+            def.yield_efficiency
+        } else {
+            0.0
+        };
+        let total_food = backyard_interval_food_batch(
+            def.secondary_food_per_person_per_sec,
+            population,
+            def.secondary_production_interval_days,
+            seasonal_multiplier,
+        );
+        market_food_sold += distribute_backyard_food(
+            ctx,
+            residence,
+            garden,
+            marketplace_id,
+            CommodityKind::Meat,
+            total_food,
+        );
+        hides_collected = def.hide_per_person_per_secondary_harvest * population as f64;
+        secondary_collected = true;
+    }
+
+    if primary_collected || secondary_collected {
+        if let Some(mut current) = ctx.db.backyard_garden().id().find(&garden.id) {
+            if primary_collected {
+                current.last_primary_production_day = clock.total_days;
+            }
+            if secondary_collected {
+                current.last_secondary_production_day = clock.total_days;
+                if hides_collected > 1e-9 {
+                    current.hide_stock = (current.hide_stock.max(0.0) + hides_collected)
+                        .min(def.hide_capacity.max(0.0));
+                }
+            }
+            ctx.db.backyard_garden().id().update(current);
+        }
+    }
+
+    // Goat hides remain on the household row until a real local market has
+    // room. Once staged there, ordinary physical commodity trips carry them
+    // to a tannery; a full market therefore back-pressures the pen.
+    if kind == BackyardGardenKind::GoatPen {
+        if let Some(marketplace_id) = marketplace_id {
+            transfer_backyard_hides_to_market(ctx, garden.id, marketplace_id);
+        }
+    }
+
+    if marketplace_id.is_none() || market_food_sold <= 1e-9 {
+        return 0.0;
+    }
+    let economic_activity = market_food_sold * FOOD_SALE_GOLD_PER_UNIT;
+    let (adjusted, assessed_tax) = taxed_economic_activity(economic_activity, tax_rate);
+    let tax = assessed_tax * collection_multiplier;
+    let net_wealth = (adjusted - tax).max(0.0);
+    if net_wealth > 1e-9 {
+        credit_residence_wealth(ctx, residence.id, net_wealth);
+    }
+    tax
+}
+
+fn transfer_backyard_hides_to_market(
+    ctx: &ReducerContext,
+    garden_id: u64,
+    marketplace_id: u64,
+) -> f64 {
+    let Some(mut garden) = ctx.db.backyard_garden().id().find(&garden_id) else {
+        return 0.0;
+    };
+    let available = garden.hide_stock.max(0.0);
+    if available <= 1e-9 {
+        return 0.0;
+    }
+    let deposited = deposit_market_commodity(
+        ctx,
+        marketplace_id,
+        CommodityKind::Hides,
+        available,
+    );
+    if deposited > 1e-9 {
+        garden.hide_stock = (available - deposited).max(0.0);
+        ctx.db.backyard_garden().id().update(garden);
+    }
+    deposited
+}
+
+fn livestock_primary_commodity(kind: BackyardGardenKind) -> Option<CommodityKind> {
+    match kind {
+        BackyardGardenKind::ChickenPen => Some(CommodityKind::Eggs),
+        BackyardGardenKind::GoatPen => Some(CommodityKind::Milk),
+        BackyardGardenKind::PigPen => Some(CommodityKind::Meat),
+        _ => None,
+    }
+}
+
+fn distribute_backyard_food(
+    ctx: &ReducerContext,
+    residence: &Residence,
+    garden: &BackyardGarden,
+    marketplace_id: Option<u64>,
+    commodity: CommodityKind,
+    total_food: f64,
+) -> f64 {
+    if total_food <= 1e-9 {
+        return 0.0;
+    }
+    let allocation = allocate_backyard_food(
+        total_food,
+        marketplace_id.is_some(),
+        residence.tier,
+        residence.population,
+        residence_edible_food_stock(residence) + garden.jam_stock.max(0.0),
+    );
+    let kept = if allocation.self_food > 1e-9 {
+        deposit_self_food(ctx, residence.id, commodity, allocation.self_food)
+    } else {
+        0.0
+    };
+    let Some(marketplace_id) = marketplace_id else {
+        return 0.0;
+    };
+    deposit_market_commodity(ctx, marketplace_id, commodity, (total_food - kept).max(0.0))
 }
 
 fn deposit_self_food(

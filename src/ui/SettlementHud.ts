@@ -541,6 +541,21 @@ const SETTLEMENT_HUD_HTML = `
         <strong class="settlement-hud__value" data-stockpile="cloth">0</strong>
         <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="cloth" hidden></span>
       </div>
+      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="hides" data-tooltip="Untanned hides supplied by hunters and backyard goats.">
+        <span class="settlement-hud__label">Hides</span>
+        <strong class="settlement-hud__value" data-stockpile="hides">0</strong>
+        <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="hides" hidden></span>
+      </div>
+      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="leather" data-tooltip="Tanned leather ready for a cobbler or trade.">
+        <span class="settlement-hud__label">Leather</span>
+        <strong class="settlement-hud__value" data-stockpile="leather">0</strong>
+        <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="leather" hidden></span>
+      </div>
+      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="shoes" data-tooltip="Finished footwear required by Tier 3 and Tier 4 households.">
+        <span class="settlement-hud__label">Shoes</span>
+        <strong class="settlement-hud__value" data-stockpile="shoes">0</strong>
+        <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="shoes" hidden></span>
+      </div>
       <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="iron" data-tooltip="Metal used by smithies to make ironwork.">
         <span class="settlement-hud__label">Iron</span>
         <strong class="settlement-hud__value" data-stockpile="iron">0</strong>

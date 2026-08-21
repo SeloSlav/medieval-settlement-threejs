@@ -10,6 +10,13 @@ import {
   type Infer as __Infer,
 } from "spacetimedb";
 
+export const ActiveGameSession = __t.object("ActiveGameSession", {
+  connectionId: __t.connectionId(),
+  identity: __t.identity(),
+  enteredAt: __t.timestamp(),
+});
+export type ActiveGameSession = __Infer<typeof ActiveGameSession>;
+
 export const ActiveRaid = __t.object("ActiveRaid", {
   owner: __t.identity(),
   raidId: __t.u64(),
@@ -30,6 +37,12 @@ export const BackyardGarden = __t.object("BackyardGarden", {
   residenceId: __t.u64(),
   owner: __t.identity(),
   kind: __t.u8(),
+  firstHarvestDay: __t.u64(),
+  lastPrimaryProductionDay: __t.u64(),
+  lastSecondaryProductionDay: __t.u64(),
+  hideStock: __t.f64(),
+  jamStock: __t.f64(),
+  flowerLuxuryUpgraded: __t.bool(),
 });
 export type BackyardGarden = __Infer<typeof BackyardGarden>;
 
@@ -170,6 +183,16 @@ export const Building = __t.object("Building", {
   cider: __t.f64(),
   mead: __t.f64(),
   breweryRecipePolicy: __t.u8(),
+  monasteryOrchardPlanting: __t.u8(),
+  monasteryCroftPlanting: __t.u8(),
+  monasteryExtensions: __t.u8(),
+  monasteryNextExtension: __t.u8(),
+  monasteryOrchardPlantedYear: __t.u32(),
+  monasteryOrchardMaturity: __t.u8(),
+  monasteryCroftChoiceYear: __t.u32(),
+  monasteryServiceFunding: __t.f64(),
+  monasteryLastServiceDay: __t.u64(),
+  storageAcceptanceMask: __t.u64(),
 });
 export type Building = __Infer<typeof Building>;
 
@@ -456,6 +479,14 @@ export const PlayerResources = __t.object("PlayerResources", {
   monasteryTithePaidTotal: __t.f64(),
   monasteryPilgrimageGoldTotal: __t.f64(),
   monasteryFoodCharityTotal: __t.f64(),
+  monasteryLevyRate: __t.f64(),
+  monasteryLevyCollectedTotal: __t.f64(),
+  monasteryFeastsHeldTotal: __t.u32(),
+  monasterySeedRescueTotal: __t.f64(),
+  monasteryScriptoriumTimberSavedTotal: __t.f64(),
+  monasteryScriptoriumStoneSavedTotal: __t.f64(),
+  monasteryScriptoriumIronworkSavedTotal: __t.f64(),
+  monasteryScriptoriumRoofTilesSavedTotal: __t.f64(),
   ironwork: __t.f64(),
   wool: __t.f64(),
   cloth: __t.f64(),

@@ -1,0 +1,161 @@
+The outdoor temperature ribbon at Tomas’s workstation had darkened to its final warning color before dawn. The reading showed minus fifty-one. Across the triple glass, heat-exchanger plumes climbed through Lena ice fog and disappeared above the compute towers. The opposite block showed only as rows of blurred amber windows.
+
+Inside Continuity, Tomas worked in shirtsleeves. A blue facilities line traced heat from the compute stacks into the gestation wards four floors below, where it kept nutrient reservoirs within half a degree of target. One pump had begun to chatter at 06:20. A technician corrected it without interrupting a chamber cycle, and the incident shrank to a gray icon at the edge of his display.
+
+His own queue behaved almost as well. Most mitochondrial exceptions came from old tissue lines that had acquired new regional aliases. He matched each signature to its archive record and signed the correction. By nine he had cleared seven cases. The eighth belonged to a child decanted in Tiksi, where a clerk had transposed two digits during a registry transfer. Tomas repaired the pointer in less time than it took his tea to cool.
+
+A ward technician passed the glass partition with a cartridge trolley. He stopped to show another worker a loose seal, pressed it flat with his thumb, and continued toward the lifts. Tomas scarcely followed his movement. Artificial gestation generated thousands of small maintenance acts. The work drew the same attention as a filter change in the building’s air system.
+
+The ninth case arrived at 09:17.
+
+[READOUT]ELIAS-904
+AGE: 6 YEARS, 2 MONTHS
+REVIEW CAUSE: MITOCHONDRIAL PROVENANCE MISMATCH
+
+Tomas opened the child’s health summary. Elias lived in the western residential ring and had gone home that morning after treatment for a fractured wrist. The scan had triggered an automatic genomic verification. His recovery markers were ordinary. The system wanted a clean maternal-line pointer before closing the visit.
+
+<i>This would take three minutes.</i>
+
+The declared source was MTR-SK-1184, an Aldan library line used in forty-one living children. He laid its consensus sequence over Elias’s raw clinical read. The first divergence appeared near the middle of the alignment. More followed along a branch too coherent to be sequencing noise.
+
+Tomas requested the original scan. The cold had made two campus data couplers temperamental that week, and an interrupted archive fetch could leave convincing debris. Elias’s sequence returned under a valid local seal. Its checksum matched the specimen taken at the clinic.
+
+Tomas enlarged the alignment until the divergent bases filled the display.
+
+Maternal provenance was routine language in Continuity. It identified the cytoplasm that had carried the original mitochondria. Children learned the term beside nuclear contributor and gestational environment; nobody in Tomas’s office heard mother in it unless an old document required the older meaning.
+
+He replaced the declared line with the nearest sequence match. The system rejected the correction.
+
+[READOUT]PROVENANCE ROOT REQUIRED.
+
+“Of course you are,” Tomas said.
+
+He expanded the lineage graph. Most records opened into branches that reached back through centuries of banked tissue. Elias’s actual sequence ended after two short edges. The first led to a biological contribution logged six years and eleven months ago. Behind it sat a sealed root with a modern Continuity mark. Both records had been stripped of a name and facility.
+
+Tomas checked the date twice.
+
+The root was twenty-three years and twelve days old.
+
+An ordinary mitochondrial source would have carried him back through centuries of storage. This one began twenty-three years ago, then surfaced again on Elias’s record nearly a standard gestation cycle before the boy’s birth.
+
+He opened the witness chain attached to the newer edge. It was minted on a local Continuity clock at 14:08 and countersigned by an intake instrument. Someone had received biological material that afternoon and linked it to the twenty-three-year-old root.
+
+The source field remained folded under an old privacy rule. Tomas supplied his investigator credential. For two seconds the display showed the turning circle used by sealed records, then released one line.
+
+[READOUT]SPECIMEN CLASS: OVUM
+INTAKE STATE: FRESH
+
+The steady rush from the ceiling vent filled the pause, and a man’s laugh behind him made Tomas’s shoulders tighten.
+
+Fresh meant material transferred without a culture interval. The field could still describe tissue maintained without a living donor. Tomas pictured a woman arriving from the cold, boots shedding snow across a modern clinic floor. The next query opened, but he was still watching her stamp the snow from her boots.
+
+He ran the signature against the known cytoplasmic source catalog. Nothing matched. Routine mitochondrial sources were regenerated from banked cytoplast lines. Their production batches could be recent; the chain behind each one still ran back into old tissue. Elias’s line passed through the fresh intake and stopped at the twenty-three-year-old root.
+
+A second query returned a red border around the case, followed by a request for supervisory review.
+
+Tomas’s hand hovered over the cancel control. Cancelling would preserve his ordinary queue and leave the error for another investigator. He confirmed the escalation.
+
+Aysen Kychkin arrived four minutes later with his tea still in hand. The Continuity director wore a dark wool vest over his office shirt, and a damp crescent marked the cuff where the cup had spilled. He pulled the spare chair beside Tomas instead of reading over his shoulder.
+
+“Show me how you reached it,” Aysen said.
+
+Tomas reconstructed the path from the clinical scan to the sealed root, ending on the fresh intake. Aysen asked him to reopen the signature test. The director’s face stayed composed until the intake state appeared. His thumb stopped moving against the cup.
+
+“How long has the source packet been open?” Aysen asked.
+
+“Eleven minutes.”
+
+“Did you export any part of it?”
+
+“I haven’t exported anything.”
+
+Aysen set the cup down. “Good. You were right to escalate.”
+
+“What is it?”
+
+“A record that inherited the wrong access rule.”
+
+“That doesn’t account for the sequence.”
+
+“I know.” Aysen studied the graph. “Elias’s clinical record should never have exposed this link to general provenance review. A protected team will verify the correction.”
+
+“Is the intake certificate genuine?” Tomas asked.
+
+“I can’t discuss the source.”
+
+“The signature is current.”
+
+Aysen turned toward him. Fatigue showed in the fine red veins around his eyes. “Fresh is a handling code. You’re picturing more than these fields can establish.”
+
+“Then tell me what they establish.”
+
+“That Elias received a valid mitochondrial contribution. His health isn’t at risk.”
+
+Tomas lowered his voice. “Where did the ovum come from?”
+
+Aysen looked through the partition toward the gestation corridor. A service door opened below, spilling warm light across a technician’s shoes before it sealed again.
+
+“This case is covered by the Settlement protection articles,” Aysen said. “The restriction protects the source and the child. Elias is six. Keep his private record here while the correction is handled.”
+
+“Does Elias know?”
+
+“That question belongs to his guardians.”
+
+“He may have a recent maternal contributor.”
+
+“He has several genetic contributors. You read those files every day.”
+
+“None of them supplied this.”
+
+Aysen’s gaze returned to the date. Tomas expected him to offer some harmless explanation involving a mislabeled culture. The director reached across the desk and touched his credential ring to the display.
+
+The lineage graph vanished. A gray panel replaced it.
+
+[READOUT]CASE RECLASSIFIED
+DIRECTORATE REVIEW PENDING
+
+Tomas watched the letters settle. “You knew this record existed.”
+
+“I know why some records are protected.” Aysen removed his ring. “I won’t discuss what sits behind this one.”
+
+Aysen had once delayed an entire birth allocation cycle over a consent discrepancy while clinic administrators crowded this same aisle. Tomas had seen him refuse easier compromises than this. He looked at the gray panel, then at Aysen, and kept the next question behind his teeth.
+
+Aysen picked up his tea. “I’m not treating this as misconduct. Your work reached its handoff point. Close the local review and take another case.”
+
+“Will I see the correction?”
+
+“If the protected team releases it.”
+
+“When?”
+
+“I don’t know.” Aysen glanced at the weather ribbon. “Go home on time. Transit is slowing.”
+
+After he left, Tomas opened the tenth case. He read the same mitochondrial alias four times before realizing he had not started the comparison.
+
+At midday, ice fog hid the neighboring tower. Waste heat kept the walls warm while the gestation status line advanced across his screen.
+
+Tomas had grown up seeing women in preserved recordings and reconstructed worlds. One museum sequence returned to him now. A woman stood on a summer bank of the Lena, trying to speak to an interviewer while mosquitoes worried her neck. She swatted one, lost her sentence, and laughed at the camera. As a boy, Tomas had replayed that brief irritation more often than the interview.
+
+The source behind Elias’s ovum, if there had been a living source, belonged to Tomas’s own time. She might have known this rebuilt city and its heated galleries. He caught himself wondering whether she spoke Sakha, whether she hated cold. The file supported neither question.
+
+By the end of shift, he had cleared only two more cases.
+
+At 18:47 he opened the oversight form. It asked for a case identifier, which the gray panel no longer supplied. He could file a general objection and expose his curiosity without preserving the evidence that had caused it. Tomas closed the form.
+
+The accession hash had passed through his specimen labeler during the raw provenance check. Local devices retained their last signed jobs in case a district link failed, a safeguard that kept clinics working through winter outages. A scheduled sync would purge the queue at nineteen hundred.
+
+Tomas closed his work feed at 18:54. The labeler’s status light remained green. Protocol required him to finalize its queue before leaving.
+
+He slid the machine into local maintenance mode.
+
+The reason menu offered ICE-LINK FAILURE. Tomas selected it while the network indicator held steady. His pulse beat at his throat as he confirmed the lie with his credential.
+
+The labeler woke with a soft mechanical rasp. Tomas chose LAST VERIFIED ACCESSION and pressed PRINT. A narrow thermal strip emerged beneath his hand. The complete sixty-four-character root hash filled its first two lines.
+
+Footsteps crossed the main aisle. Tomas covered the strip with his palm until the cleaner entered the adjoining office. He tore it free, folded it once, and slipped it behind the insulated lining of his right glove.
+
+Before switching off the labeler, he looked at the final field restored from its local cache.
+
+[READOUT]SOURCE PHENOTYPE
+
+[DISPLAY]FEMALE

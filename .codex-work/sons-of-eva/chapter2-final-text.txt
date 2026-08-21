@@ -1,0 +1,205 @@
+[00003] [Normal] БABUSHKA
+
+[00004] [Normal] SONS OF EVA
+[00007] [Normal] By Martin Erlic
+[00008] [Heading 1] CHAPTER ONE
+ACCESSION
+[00010] [Normal] The outdoor temperature ribbon at Tomas’s workstation had darkened to its final warning color before dawn. The reading showed minus fifty-one. Across the triple glass, heat-exchanger plumes climbed through Lena ice fog and disappeared above the compute towers. The opposite block showed only as rows of blurred amber windows.
+[00011] [Normal] Inside Continuity, Tomas worked in shirtsleeves. A blue facilities line traced heat from the compute stacks into the gestation wards four floors below, where it kept nutrient reservoirs within half a degree of target. One pump had begun to chatter at 06:20. A technician corrected it without interrupting a chamber cycle, and the incident shrank to a gray icon at the edge of his display.
+[00012] [Normal] His own queue behaved almost as well. Most mitochondrial exceptions came from old tissue lines that had acquired new regional aliases. He matched each signature to its archive record and signed the correction. By nine he had cleared seven cases. The eighth belonged to a child decanted in Tiksi, where a clerk had transposed two digits during a registry transfer. Tomas repaired the pointer in less time than it took his tea to cool.
+[00013] [Normal] A ward technician passed the glass partition with a cartridge trolley. He stopped to show another worker a loose seal, pressed it flat with his thumb, and continued toward the lifts. Tomas scarcely followed his movement. Artificial gestation generated thousands of small maintenance acts. The work drew the same attention as a filter change in the building’s air system.
+[00014] [Normal] The ninth case arrived at 09:17.
+[00015] [Normal] ELIAS-904
+AGE: 6 YEARS, 2 MONTHS
+REVIEW CAUSE: MITOCHONDRIAL PROVENANCE MISMATCH
+[00016] [Normal] Tomas opened the child’s health summary. Elias lived in the western residential ring and had gone home that morning after treatment for a fractured wrist. The scan had triggered an automatic genomic verification. His recovery markers were ordinary. The system wanted a clean maternal-line pointer before closing the visit.
+[00017] [Normal] This would take three minutes.
+[00018] [Normal] The declared source was MTR-SK-1184, an Aldan library line used in forty-one living children. He laid its consensus sequence over Elias’s raw clinical read. The first divergence appeared near the middle of the alignment. More followed along a branch too coherent to be sequencing noise.
+[00019] [Normal] Tomas requested the original scan. The cold had made two campus data couplers temperamental that week, and an interrupted archive fetch could leave convincing debris. Elias’s sequence returned under a valid local seal. Its checksum matched the specimen taken at the clinic.
+[00020] [Normal] Tomas enlarged the alignment until the divergent bases filled the display.
+[00021] [Normal] Maternal provenance was routine language in Continuity. It identified the cytoplasm that had carried the original mitochondria. Children learned the term beside nuclear contributor and gestational environment; nobody in Tomas’s office heard mother in it unless an old document required the older meaning.
+[00022] [Normal] He replaced the declared line with the nearest sequence match. The system rejected the correction.
+[00023] [Normal] PROVENANCE ROOT REQUIRED.
+[00024] [Normal] “Of course you are,” Tomas said.
+[00025] [Normal] He expanded the lineage graph. Most records opened into branches that reached back through centuries of banked tissue. Elias’s actual sequence ended after two short edges. The first led to a biological contribution logged six years and eleven months ago. Behind it sat a sealed root with a modern Continuity mark. Both records had been stripped of a name and facility.
+[00026] [Normal] Tomas checked the date twice.
+[00027] [Normal] The root was twenty-three years and twelve days old.
+[00028] [Normal] An ordinary mitochondrial source would have carried him back through centuries of storage. This one began twenty-three years ago, then surfaced again on Elias’s record nearly a standard gestation cycle before the boy’s birth.
+[00029] [Normal] He opened the witness chain attached to the newer edge. It was minted on a local Continuity clock at 14:08 and countersigned by an intake instrument. Someone had received biological material that afternoon and linked it to the twenty-three-year-old root.
+[00030] [Normal] The source field remained folded under an old privacy rule. Tomas supplied his investigator credential. For two seconds the display showed the turning circle used by sealed records, then released one line.
+[00031] [Normal] SPECIMEN CLASS: OVUM
+INTAKE STATE: FRESH
+[00032] [Normal] The steady rush from the ceiling vent filled the pause, and a man’s laugh behind him made Tomas’s shoulders tighten.
+[00033] [Normal] Fresh meant material transferred without a culture interval. The field could still describe tissue maintained without a living donor. Tomas pictured a woman arriving from the cold, boots shedding snow across a modern clinic floor. The next query opened, but he was still watching her stamp the snow from her boots.
+[00034] [Normal] He ran the signature against the known cytoplasmic source catalog. Nothing matched. Routine mitochondrial sources were regenerated from banked cytoplast lines. Their production batches could be recent; the chain behind each one still ran back into old tissue. Elias’s line passed through the fresh intake and stopped at the twenty-three-year-old root.
+[00035] [Normal] A second query returned a red border around the case, followed by a request for supervisory review.
+[00036] [Normal] Tomas’s hand hovered over the cancel control. Cancelling would preserve his ordinary queue and leave the error for another investigator. He confirmed the escalation.
+[00037] [Normal] Aysen Kychkin arrived four minutes later with his tea still in hand. The Continuity director wore a dark wool vest over his office shirt, and a damp crescent marked the cuff where the cup had spilled. He pulled the spare chair beside Tomas instead of reading over his shoulder.
+[00038] [Normal] “Show me how you reached it,” Aysen said.
+[00039] [Normal] Tomas reconstructed the path from the clinical scan to the sealed root, ending on the fresh intake. Aysen asked him to reopen the signature test. The director’s face stayed composed until the intake state appeared. His thumb stopped moving against the cup.
+[00040] [Normal] “How long has the source packet been open?” Aysen asked.
+[00041] [Normal] “Eleven minutes.”
+[00042] [Normal] “Did you export any part of it?”
+[00043] [Normal] “I haven’t exported anything.”
+[00044] [Normal] Aysen set the cup down. “Good. You were right to escalate.”
+[00045] [Normal] “What is it?”
+[00046] [Normal] “A record that inherited the wrong access rule.”
+[00047] [Normal] “That doesn’t account for the sequence.”
+[00048] [Normal] “I know.” Aysen studied the graph. “Elias’s clinical record should never have exposed this link to general provenance review. A protected team will verify the correction.”
+[00049] [Normal] “Is the intake certificate genuine?” Tomas asked.
+[00050] [Normal] “I can’t discuss the source.”
+[00051] [Normal] “The signature is current.”
+[00052] [Normal] Aysen turned toward him. Fatigue showed in the fine red veins around his eyes. “Fresh is a handling code. You’re picturing more than these fields can establish.”
+[00053] [Normal] “Then tell me what they establish.”
+[00054] [Normal] “That Elias received a valid mitochondrial contribution. His health isn’t at risk.”
+[00055] [Normal] Tomas lowered his voice. “Where did the ovum come from?”
+[00056] [Normal] Aysen looked through the partition toward the gestation corridor. A service door opened below, spilling warm light across a technician’s shoes before it sealed again.
+[00057] [Normal] “This case is covered by the Settlement protection articles,” Aysen said. “The restriction protects the source and the child. Elias is six. Keep his private record here while the correction is handled.”
+[00058] [Normal] “Does Elias know?”
+[00059] [Normal] “That question belongs to his guardians.”
+[00060] [Normal] “He may have a recent maternal contributor.”
+[00061] [Normal] “He has several genetic contributors. You read those files every day.”
+[00062] [Normal] “None of them supplied this.”
+[00063] [Normal] Aysen’s gaze returned to the date. Tomas expected him to offer some harmless explanation involving a mislabeled culture. The director reached across the desk and touched his credential ring to the display.
+[00064] [Normal] The lineage graph vanished. A gray panel replaced it.
+[00065] [Normal] CASE RECLASSIFIED
+DIRECTORATE REVIEW PENDING
+[00066] [Normal] Tomas watched the letters settle. “You knew this record existed.”
+[00067] [Normal] “I know why some records are protected.” Aysen removed his ring. “I won’t discuss what sits behind this one.”
+[00068] [Normal] Aysen had once delayed an entire birth allocation cycle over a consent discrepancy while clinic administrators crowded this same aisle. Tomas had seen him refuse easier compromises than this. He looked at the gray panel, then at Aysen, and kept the next question behind his teeth.
+[00069] [Normal] Aysen picked up his tea. “I’m not treating this as misconduct. Your work reached its handoff point. Close the local review and take another case.”
+[00070] [Normal] “Will I see the correction?”
+[00071] [Normal] “If the protected team releases it.”
+[00072] [Normal] “When?”
+[00073] [Normal] “I don’t know.” Aysen glanced at the weather ribbon. “Go home on time. Transit is slowing.”
+[00074] [Normal] After he left, Tomas opened the tenth case. He read the same mitochondrial alias four times before realizing he had not started the comparison.
+[00075] [Normal] At midday, ice fog hid the neighboring tower. Waste heat kept the walls warm while the gestation status line advanced across his screen.
+[00076] [Normal] Tomas had grown up seeing women in preserved recordings and reconstructed worlds. One museum sequence returned to him now. A woman stood on a summer bank of the Lena, trying to speak to an interviewer while mosquitoes worried her neck. She swatted one, lost her sentence, and laughed at the camera. As a boy, Tomas had replayed that brief irritation more often than the interview.
+[00077] [Normal] The source behind Elias’s ovum, if there had been a living source, belonged to Tomas’s own time. She might have known this rebuilt city and its heated galleries. He caught himself wondering whether she spoke Sakha, whether she hated cold. The file supported neither question.
+[00078] [Normal] By the end of shift, he had cleared only two more cases.
+[00079] [Normal] At 18:47 he opened the oversight form. It asked for a case identifier, which the gray panel no longer supplied. He could file a general objection and expose his curiosity without preserving the evidence that had caused it. Tomas closed the form.
+[00080] [Normal] The accession hash had passed through his specimen labeler during the raw provenance check. Local devices retained their last signed jobs in case a district link failed, a safeguard that kept clinics working through winter outages. A scheduled sync would purge the queue at nineteen hundred.
+[00081] [Normal] Tomas closed his work feed at 18:54. The labeler’s status light remained green. Protocol required him to finalize its queue before leaving.
+[00082] [Normal] He slid the machine into local maintenance mode.
+[00083] [Normal] The reason menu offered ICE-LINK FAILURE. Tomas selected it while the network indicator held steady. His pulse beat at his throat as he confirmed the lie with his credential.
+[00084] [Normal] The labeler woke with a soft mechanical rasp. Tomas chose LAST VERIFIED ACCESSION and pressed PRINT. A narrow thermal strip emerged beneath his hand. The complete sixty-four-character root hash filled its first two lines.
+[00085] [Normal] Footsteps crossed the main aisle. Tomas covered the strip with his palm until the cleaner entered the adjoining office. He tore it free, folded it once, and slipped it behind the insulated lining of his right glove.
+[00086] [Normal] Before switching off the labeler, he looked at the final field restored from its local cache.
+[00087] [Normal] SOURCE PHENOTYPE
+[00088] [Normal] FEMALE
+[00089] [Heading 1] CHAPTER TWO
+MARA
+[00091] [Normal] The heated gallery left Continuity at the third floor and ran west above the service road. Tomas entered with his collar still open from the office. Warm air rose through vents along the glass, meeting the cold that radiated from the panes. Every few meters, a clear patch gave him a view of maintenance lights moving through the ice fog below.
+[00092] [Normal] The thermal strip pressed against his wrist inside the right glove. He had shifted it twice since leaving his desk. Each time, the folded edge found the same place against his skin.
+[00093] [Normal] The gallery passed through a compute block where evening workers filled the food kiosks, then narrowed over a set of coolant mains. Tomas followed it into his residential building without stepping outside. A weather seal at the entrance opened long enough to admit two men in frost-stiff coats. Ice crystals fell from their shoulders and melted into the floor grate.
+[00094] [Normal] His apartment measured thirty-two square meters with the bed folded away. The immersion cradle occupied more floor than the table, an arrangement Mara considered proof that he had surrendered physical life through poor furniture choices. Tomas had to turn sideways between the open mechanical drawer beneath his sink and the cradle. He locked the thermal strip inside and tested the latch.
+[00095] [Normal] “You’re late,” Mara said through the wall speaker.
+[00096] [Normal] “I know.”
+[00097] [Normal] “You said seven.”
+[00098] [Normal] “I said after seven.”
+[00099] [Normal] “That defense has failed before.”
+[00100] [Normal] Her voice followed him as he stripped off his outer layers. Tomas hung the right glove last. He could still feel the paper against his wrist after it was gone.
+[00101] [Normal] A meal pack warmed in the counter while he fitted the immersion web over his scalp. He ate standing, barely tasting the broth, and checked the drawer again. The network showed nothing from Continuity. Aysen had not called.
+[00102] [Normal] Mara waited until he settled into the cradle. “Are you planning to join me, or do you want to keep staring at that cupboard?”
+[00103] [Normal] “I’m coming.”
+[00104] [Normal] The cradle tightened beneath his calves and took the weight of his head. Tomas closed his eyes for the balance check. Pressure moved from his heels to the base of his spine, then released as the interface found him.
+[00105] [Normal] Warm boards met his bare feet.
+[00106] [Normal] He opened his eyes on the veranda of their summer house. The Lena moved beyond a line of birches, broad and blue under a late-afternoon sun that had held its position for three days. Mara disliked early darkness during Yakutsk winters. She had also removed the mosquitoes, allowing Tomas to walk through the reeds without hearing one near his ears.
+[00107] [Normal] He flexed his toes against the grain of the boards. Heat had collected where the sun reached them. A cooler strip ran beneath the table.
+[00108] [Normal] Mara sat there with a bowl in her lap, shelling peas. The body she had chosen for the evening was familiar, though its dark hair now ended at her jaw. She had entered the house directly, without the calibration delay Tomas carried from the cradle.
+[00109] [Normal] She tossed a pea at him.
+[00110] [Normal] Tomas caught it against his chest. “That’s my welcome?”
+[00111] [Normal] “The kinder version expired at seven.”
+[00112] [Normal] He ate the pea. It snapped between his teeth with a sweetness his physical dinner had lacked. “You didn’t grow these.”
+[00113] [Normal] “I did. You weren’t here to witness the labor, so now you insult it.”
+[00114] [Normal] “You moved them from the kitchen catalog.”
+[00115] [Normal] Mara set the bowl down. “I adjusted the soil for six weeks.”
+[00116] [Normal] “You adjusted a number.”
+[00117] [Normal] “I suffered over that number.”
+[00118] [Normal] Tomas laughed. Mara rose and came around the table. She had spent the day mediating a habitat allocation appeal and had postponed her written decision until midnight. The thin silver band she wore during hearings still circled her wrist.
+[00119] [Normal] “You’re cold,” she said.
+[00120] [Normal] “I’m in a heated room.”
+[00121] [Normal] “Your body disagrees.”
+[00122] [Normal] She took his hands and rubbed her thumbs across his knuckles. Warmth spread under her touch. The interface carried every pressure change cleanly enough that he could feel the edge of her thumbnail.
+[00123] [Normal] Mara looked at his right hand. “You keep checking for something.”
+[00124] [Normal] “It isn’t here.”
+[00125] [Normal] “That answer could use more work.”
+[00126] [Normal] “Later.”
+[00127] [Normal] She held his gaze, then released him. “Food first. You become prosecutorial when you’re hungry.”
+[00128] [Normal] They ate on the veranda while light moved across the river without getting any lower. Mara had made flatbread and a pepper stew too hot for Tomas, which she denied even after his eyes watered. He told her about the coolant pump at Continuity. She told him the habitat appeal had lasted four hours because one representative refused to accept the shared definition of a corridor.
+[00129] [Normal] “Perhaps the corridor was misunderstood,” Tomas said.
+[00130] [Normal] “It connected two doors.”
+[00131] [Normal] “A controversial number.”
+[00132] [Normal] Mara kicked his ankle under the table. Tomas caught her foot between his and held it there. She tried once to pull free, saw him smile, and leaned across to kiss him.
+[00133] [Normal] The heat from the stew remained on her mouth. Tomas touched the back of her neck, feeling short hair brush his fingers. She moved onto his lap and the chair took their combined weight with a wooden complaint that Mara had refused to remove from the simulation.
+[00134] [Normal] Her hand slipped under his shirt. “Are you still at work?”
+[00135] [Normal] “No.”
+[00136] [Normal] “You hesitated.”
+[00137] [Normal] “I’m here.”
+[00138] [Normal] Mara searched his face. “Come upstairs?”
+[00139] [Normal] “Yes.”
+[00140] [Normal] The bedroom windows stood open to the river. Curtains lifted in warm air and settled against the sill. Mara pushed his shirt over his head, then paused until he raised his arms to help. Tomas drew her against him. Her weight shifted over his hips, exact enough that his muscles answered before he thought about moving.
+[00141] [Normal] She kissed his throat and guided his hand lower. When he hurried, she caught his wrist.
+[00142] [Normal] “Slow down,” Mara said.
+[00143] [Normal] Tomas slowed, following the pressure of her fingers until she moved with him. The mattress gave beneath his shoulder. Linen dragged across the back of his knee, rougher where Mara had once increased the weave and forgotten to change it back.
+[00144] [Normal] When Mara drew his lower lip between her teeth, he stopped rehearsing Aysen’s careful answers. Tomas pulled her closer until his heartbeat blurred the status mark at the edge of his vision.
+[00145] [Normal] Afterward, Mara lay across his chest with one knee between his legs. Sweat cooled along Tomas’s ribs. Far from the summer house, the cradle adjusted under his physical shoulder; the sensation arrived as a brief firmness beneath the virtual mattress.
+[00146] [Normal] His thumb moved along the skin above Mara’s hip without his noticing.
+[00147] [Normal] “If that’s a provenance graph you’re drawing on me,” she said, “Continuity owes rent.”
+[00148] [Normal] Tomas stilled his hand.
+[00149] [Normal] “Now tell me what you hid in the cupboard.”
+[00150] [Normal] He turned his palm over and linked their fingers. “I copied a hash from a protected record.”
+[00151] [Normal] “You stole it.”
+[00152] [Normal] “I retained it.”
+[00153] [Normal] “Ah. A Continuity distinction.”
+[00154] [Normal] “I was told to close the case before anyone explained the mismatch.”
+[00155] [Normal] Mara lifted her head. Her fingers went still between his. “Whose record?”
+[00156] [Normal] “A child’s. I’m not giving you his identity.”
+[00157] [Normal] “Good. Is he in danger?”
+[00158] [Normal] “No. His mitochondrial line passes through an ovum logged six years and eleven months ago. The sealed root behind it is only twenty-three years old.”
+[00159] [Normal] Mara sat up against the headboard, pulling the sheet across her legs. “A cultured source?”
+[00160] [Normal] “It doesn’t match any registered line. The phenotype field was sealed, but the labeler had cached it.”
+[00161] [Normal] “And?”
+[00162] [Normal] “Female.”
+[00163] [Normal] Mara waited for him to continue.
+[00164] [Normal] “There may have been a biological woman alive here within the last seven years,” Tomas said. “If she supplied the ovum herself.”
+[00165] [Normal] “The record says she did?”
+[00166] [Normal] “It says fresh intake.”
+[00167] [Normal] “That describes the specimen.”
+[00168] [Normal] “I know how the field works.”
+[00169] [Normal] Mara rubbed her thumb over the silver hearing band. “What else do you know about her?”
+[00170] [Normal] “Nothing yet.”
+[00171] [Normal] “Yet you said woman.”
+[00172] [Normal] “The source phenotype was female.”
+[00173] [Normal] “You said there may have been a woman. Those are different claims.”
+[00174] [Normal] Tomas sat up and pulled the sheet from his chest. “Someone authorized a modern female contribution and buried the provenance. Aysen reclassified the case while I watched.”
+[00175] [Normal] “Aysen closed access to a record,” Mara said. “You still know nothing about the source who produced it.”
+[00176] [Normal] “I kept seeing her walk into a clinic from the cold.”
+[00177] [Normal] “Was that in the record?”
+[00178] [Normal] “No.”
+[00179] [Normal] “What did she look like?”
+[00180] [Normal] “I didn’t get that far.”
+[00181] [Normal] Mara drew the sheet higher over her lap. “You gave her boots, though.”
+[00182] [Normal] Tomas stood and left the sheet behind. The floor felt cool now that the sun no longer reached the room. “Why are you cross-examining me?”
+[00183] [Normal] “Because you came here with half a fact and spent dinner somewhere else.”
+[00184] [Normal] “I was with you.”
+[00185] [Normal] “Most of you.”
+[00186] [Normal] He went to the open window. Below, water touched the bank with a quiet, repetitive wash. Mara had made that sound from a recording they took during spring breakup, slowed until the ice became water.
+[00187] [Normal] Tomas rested his hands on the sill. “A real woman may have lived in Yakutsk while I was an adult.”
+[00188] [Normal] Behind him, the mattress shifted.
+[00189] [Normal] “Real,” Mara said.
+[00190] [Normal] He turned. “Biological. That’s what I meant.”
+[00191] [Normal] “You put real first.”
+[00192] [Normal] “I wasn’t comparing her to you.”
+[00193] [Normal] “You managed it without trying.”
+[00194] [Normal] Mara rose from the bed. The white shirt appeared around her when she reached for it, fastening itself under her hands. She crossed to the dressing table and removed the hearing band.
+[00195] [Normal] Tomas drew breath to explain that the ovum made the distinction relevant to his work. Mara watched him in the dressing mirror. He closed his mouth.
+[00196] [Normal] Mara set the band beside her brush. “Do you want truth or novelty?”
+[00197] [Normal] “Truth.”
+[00198] [Normal] “Then take the hash to someone who can read it. Ask what the record contains before you finish inventing her.”
+[00199] [Normal] “You think that’s what I’m doing?”
+[00200] [Normal] “I think you started before you left the office.”
+[00201] [Normal] She left the bedroom and went downstairs. Tomas heard a chair move on the veranda. A moment later the river resumed its ordinary pace; Mara had released the paused afternoon, and sunlight began to withdraw from the floor.
+[00202] [Normal] Tomas opened a private message pane and found Nyurgun still at the Orchestration House. He sent one line: I need help tracing an old accession. In person.
+[00203] [Normal] The answer came before he could close it: Come tomorrow. Bring it.
+[00204] [Normal] Downstairs, Mara had reopened the habitat appeal. She shifted her chair into the remaining sunlight and continued reading while a pale diagram turned beneath her hand.

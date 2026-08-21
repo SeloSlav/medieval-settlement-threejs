@@ -92,6 +92,9 @@ pub fn price_multiplier_for(state: &MarketState, resource: TradeResource) -> f64
         | TradeResource::Cheese => state.provision_price_mult,
         TradeResource::Wool
         | TradeResource::Cloth
+        | TradeResource::Hides
+        | TradeResource::Leather
+        | TradeResource::Shoes
         | TradeResource::Pottery
         | TradeResource::Manure
         | TradeResource::Remedies => state.wares_price_mult,
@@ -236,6 +239,9 @@ pub fn record_market_trade(
         }
         TradeResource::Wool
         | TradeResource::Cloth
+        | TradeResource::Hides
+        | TradeResource::Leather
+        | TradeResource::Shoes
         | TradeResource::Pottery
         | TradeResource::Manure
         | TradeResource::Remedies => {
@@ -388,7 +394,9 @@ pub fn specialty_family_for_commodity(commodity: CommodityKind) -> Option<Specia
             Some(SpecialtyMarketFamily::Drink)
         }
         CommodityKind::Honey | CommodityKind::Cheese => Some(SpecialtyMarketFamily::Provision),
-        CommodityKind::Cloth | CommodityKind::Pottery => Some(SpecialtyMarketFamily::Wares),
+        CommodityKind::Cloth | CommodityKind::Shoes | CommodityKind::Pottery => {
+            Some(SpecialtyMarketFamily::Wares)
+        }
         _ => None,
     }
 }

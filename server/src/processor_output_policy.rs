@@ -19,6 +19,8 @@ pub enum ProcessorOutputKind {
     Charcoal,
     Ironwork,
     Pottery,
+    Leather,
+    Shoes,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -38,6 +40,8 @@ pub enum ProcessorInputKind {
     Clay,
     Apples,
     Honey,
+    Hides,
+    Leather,
 }
 
 pub fn processor_output_kind(kind: &str) -> Option<ProcessorOutputKind> {
@@ -50,6 +54,8 @@ pub fn processor_output_kind(kind: &str) -> Option<ProcessorOutputKind> {
         "charcoal_burner" => Some(ProcessorOutputKind::Charcoal),
         "smithy" => Some(ProcessorOutputKind::Ironwork),
         "potter_kiln" => Some(ProcessorOutputKind::Pottery),
+        "tannery" => Some(ProcessorOutputKind::Leather),
+        "cobbler" => Some(ProcessorOutputKind::Shoes),
         _ => None,
     }
 }
@@ -66,6 +72,8 @@ pub fn processor_input_kinds(kind: &str) -> &'static [ProcessorInputKind] {
         "charcoal_burner" => &[Firewood],
         "smithy" => &[Iron, Charcoal, Water],
         "potter_kiln" => &[Clay, Firewood, Water],
+        "tannery" => &[Hides, Water, Firewood],
+        "cobbler" => &[Leather],
         _ => &[],
     }
 }

@@ -109,6 +109,7 @@ function addMarketStallDisplay(
     case 'firewood': addFirewoodCounter(display); break;
     case 'charcoal': addCharcoalCounter(display); break;
     case 'cloth': addClothCounter(display); break;
+    case 'shoes': addShoesCounter(display); break;
     case 'pottery': addPotteryCounter(display); break;
   }
   table.add(display);
@@ -374,6 +375,27 @@ function addClothCounter(display: THREE.Group): void {
     folded.position.x = x;
     addFoldedCloth(folded, 0.68, index);
     display.add(folded);
+  }
+}
+
+function addShoesCounter(display: THREE.Group): void {
+  const leather = sharedBuildingMaterial('timberDark');
+  for (const [index, x] of [-0.42, 0, 0.42].entries()) {
+    const direction = index % 2 === 0 ? 1 : -1;
+    addMesh(
+      display,
+      new THREE.BoxGeometry(0.34, 0.15, 0.2),
+      leather,
+      new THREE.Vector3(x, 0.12, 0),
+      new THREE.Euler(0, direction * 0.12, 0),
+    );
+    addMesh(
+      display,
+      new THREE.BoxGeometry(0.18, 0.24, 0.19),
+      leather,
+      new THREE.Vector3(x - direction * 0.08, 0.28, 0),
+      new THREE.Euler(0, direction * 0.12, 0),
+    );
   }
 }
 

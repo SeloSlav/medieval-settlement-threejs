@@ -126,6 +126,8 @@ export function renderBuildingInspector(
     case 'potter_kiln':
     case 'carpenter':
     case 'weaver':
+    case 'tannery':
+    case 'cobbler':
     case 'vineyard':
       return renderExpandedBuildingInspector(target, context);
     case 'pastoral_farmstead':

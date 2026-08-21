@@ -44,6 +44,9 @@ const RESOURCE_LABELS: Record<HudResourceKind, string> = {
   wine: 'Wine',
   wool: 'Wool',
   cloth: 'Cloth',
+  hides: 'Untanned hides',
+  leather: 'Leather',
+  shoes: 'Shoes',
   ironwork: 'Ironwork',
   polearms: 'Polearms',
   iron: 'Iron',
@@ -61,6 +64,7 @@ const RESIDENCE_NEED_RESOURCES = new Set<ResidenceNeedKind>([
   'ale',
   'preservedFood',
   'cloth',
+  'shoes',
   'pottery',
 ]);
 

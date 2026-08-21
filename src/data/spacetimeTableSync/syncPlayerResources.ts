@@ -40,6 +40,11 @@ export function syncPlayerResources(rows: Iterable<PlayerResources>, state: Game
 
   for (const row of rows) {
     if (row.owner.toHexString() !== state.identityHex) continue;
+    const leatherRow = row as typeof row & Partial<{
+      hides: number;
+      leather: number;
+      shoes: number;
+    }>;
     state.stockpile = {
       timber: wholeResourceUnits(row.timber),
       stone: wholeResourceUnits(row.stone),
@@ -71,6 +76,9 @@ export function syncPlayerResources(rows: Iterable<PlayerResources>, state: Game
       wine: wholeResourceUnits(row.wine),
       wool: wholeResourceUnits(row.wool),
       cloth: wholeResourceUnits(row.cloth),
+      hides: wholeResourceUnits(leatherRow.hides),
+      leather: wholeResourceUnits(leatherRow.leather),
+      shoes: wholeResourceUnits(leatherRow.shoes),
       ironwork: wholeResourceUnits(row.ironwork),
       polearms: wholeResourceUnits(row.polearms),
       iron: wholeResourceUnits(row.iron),

@@ -364,6 +364,15 @@ pub struct PlayerResources {
     /// Honey wine recovered from demolished stores or interrupted hauling.
     #[default(0.0)]
     pub mead: f64,
+    /// Untanned animal skins recovered from hunting, goat pens, demolition, or hauling.
+    #[default(0.0)]
+    pub hides: f64,
+    /// Vegetable-tanned leather recovered from workshops or interrupted hauling.
+    #[default(0.0)]
+    pub leather: f64,
+    /// Finished footwear recovered from cobblers or interrupted household delivery.
+    #[default(0.0)]
+    pub shoes: f64,
 }
 
 #[spacetimedb::table(accessor = quarry, public)]
@@ -873,6 +882,14 @@ pub struct Building {
     /// their former behavior until the player changes a storage policy.
     #[default(18446744073709551615u64)]
     pub storage_acceptance_mask: u64,
+    /// Physical leather-chain inventories. Appended together because the
+    /// chain is introduced as one development-only schema change.
+    #[default(0.0)]
+    pub hides: f64,
+    #[default(0.0)]
+    pub leather: f64,
+    #[default(0.0)]
+    pub shoes: f64,
 }
 
 /// One persistent import/export instruction for one Trading Post commodity.
@@ -1327,8 +1344,23 @@ pub struct BackyardGarden {
     /// orchards and non-perennial backyard extensions.
     #[default(0u64)]
     pub first_harvest_day: u64,
-    /// Household-produced aronia or rosehip preserves reserved for the local
-    /// tier-4 luxury need. Kept on the backyard row to avoid teleporting jars.
+    /// Last absolute rational-calendar day on which the pen's primary product
+    /// (eggs, milk, or pork) was collected. Persisting this prevents an
+    /// interval harvest from being repeated by every simulation tick.
+    #[default(0u64)]
+    pub last_primary_production_day: u64,
+    /// Independent clock for lower-frequency culls (chicken/goat meat and
+    /// goat hides). Plant backyards leave both production clocks at zero.
+    #[default(0u64)]
+    pub last_secondary_production_day: u64,
+    /// Untanned goat hides retained physically at the household pen. Hides do
+    /// not masquerade as wool or teleport into civic stores while the leather
+    /// production chain is still absent.
+    #[default(0.0)]
+    pub hide_stock: f64,
+    /// Household-produced aronia or rosehip preserves. These are edible food
+    /// at every tier; at tier 4 the same serving also satisfies local luxury
+    /// comfort. Kept on the backyard row to avoid teleporting jars.
     #[default(0.0)]
     pub jam_stock: f64,
     /// A tier-4 cut-flower upgrade satisfies the same luxury-comfort need as

@@ -18,6 +18,12 @@ export const BACKYARD_GARDEN_PICKER_KINDS = BACKYARD_GARDEN_KINDS.filter(
 export const ORCHARD_SPECIALIZATION_KINDS = BACKYARD_GARDEN_KINDS.filter(
   (kind) => BACKYARD_GARDEN_DEFINITIONS[kind].specializationOf === 'orchard',
 );
+export const ANIMAL_PEN_SPECIALIZATION_KINDS = BACKYARD_GARDEN_KINDS.filter(
+  (kind) => BACKYARD_GARDEN_DEFINITIONS[kind].specializationOf === 'animal_pen',
+);
+export const VEGETABLE_GARDEN_SPECIALIZATION_KINDS = BACKYARD_GARDEN_KINDS.filter(
+  (kind) => BACKYARD_GARDEN_DEFINITIONS[kind].specializationOf === 'vegetable_garden',
+);
 export {
   backyardGardenSalvageRefund,
   formatBackyardGardenCost,
@@ -37,11 +43,16 @@ export function backyardGardenProductSummary(kind: BackyardGardenKind): string {
     case 'aronia_orchard': return 'Aronia berries · early preserves crop';
     case 'rosehip_orchard': return 'Rosehips · late, jam-rich preserves crop';
     case 'orchard': return 'Prepared orchard · choose trees or fruiting bushes after construction';
-    case 'vegetable_garden': return 'Vegetables · one category';
+    case 'vegetable_garden': return 'Prepared vegetable beds · choose one seed crop after construction';
+    case 'cabbage_garden': return 'Cabbages · slow, costly, high-yield summer-to-autumn crop';
+    case 'carrot_garden': return 'Carrots · balanced maturity, cost, season, and yield';
+    case 'beetroot_garden': return 'Beetroot · cheapest, fastest early crop with lower yield';
     case 'flower_garden': return 'Pollinator forage · no saleable good';
     case 'herb_garden': return 'Remedies · household first';
-    case 'hen_yard': return 'Eggs · animal-produce category';
-    case 'goat_pen': return 'Alternating milk and meat · low yield';
+    case 'animal_pen': return 'Completed livestock enclosure · choose chickens, goats, or pigs';
+    case 'chicken_pen': return 'Eggs on short intervals · seasonal chicken culls for meat';
+    case 'goat_pen': return 'Milk on short intervals · occasional meat and hides';
+    case 'pig_pen': return 'Pork-only finishing cycle · large autumn harvest';
     case 'backyard_apiary': return 'Honey · small seasonal yield';
   }
 }
@@ -50,6 +61,18 @@ export function isOrchardSpecialization(
   kind: BackyardGardenKind,
 ): boolean {
   return BACKYARD_GARDEN_DEFINITIONS[kind].specializationOf === 'orchard';
+}
+
+export function isAnimalPenSpecialization(
+  kind: BackyardGardenKind,
+): boolean {
+  return BACKYARD_GARDEN_DEFINITIONS[kind].specializationOf === 'animal_pen';
+}
+
+export function isVegetableGardenSpecialization(
+  kind: BackyardGardenKind,
+): boolean {
+  return BACKYARD_GARDEN_DEFINITIONS[kind].specializationOf === 'vegetable_garden';
 }
 
 export function backyardGardenKindFromId(id: number): BackyardGardenKind | null {

@@ -70,8 +70,11 @@ pub fn try_dispatch_marketplace_caravan(
         ResidenceNeedKind::PreservedFood => building_preserved_food_stock(building),
         ResidenceNeedKind::Ale => building.ale,
         ResidenceNeedKind::Cloth => building.cloth,
+        ResidenceNeedKind::Shoes => building.shoes,
         ResidenceNeedKind::Pottery => building.pottery,
-        ResidenceNeedKind::Church | ResidenceNeedKind::FoodVariety | ResidenceNeedKind::Luxury => return false,
+        ResidenceNeedKind::Church | ResidenceNeedKind::FoodVariety | ResidenceNeedKind::Luxury => {
+            return false
+        }
     };
     if stock <= 1e-6
         || (building.kind == "trading_post" && building_has_active_trip(ctx, building.id))
@@ -160,10 +163,12 @@ pub fn try_dispatch_marketplace_caravan(
         ResidenceNeedKind::PreservedFood | ResidenceNeedKind::Ale => {
             (FOOD_DELIVERY_SPEED_MPS, FOOD_DELIVERY_UNLOAD_SEC)
         }
-        ResidenceNeedKind::Cloth | ResidenceNeedKind::Pottery => {
+        ResidenceNeedKind::Cloth | ResidenceNeedKind::Shoes | ResidenceNeedKind::Pottery => {
             (TIMBER_DELIVERY_SPEED_MPS, TIMBER_DELIVERY_UNLOAD_SEC)
         }
-        ResidenceNeedKind::Church | ResidenceNeedKind::FoodVariety | ResidenceNeedKind::Luxury => return false,
+        ResidenceNeedKind::Church | ResidenceNeedKind::FoodVariety | ResidenceNeedKind::Luxury => {
+            return false
+        }
     };
 
     if building.kind == "marketplace" {
@@ -241,6 +246,7 @@ fn try_dispatch_trading_post_stock_to_marketplace(
         ResidenceNeedKind::Water,
         ResidenceNeedKind::Ale,
         ResidenceNeedKind::Cloth,
+        ResidenceNeedKind::Shoes,
         ResidenceNeedKind::Pottery,
     ];
     let start = (clock.sim_tick as usize) % needs.len();
@@ -259,6 +265,7 @@ fn try_dispatch_trading_post_stock_to_marketplace(
             ResidenceNeedKind::Water => Some(CommodityKind::Water),
             ResidenceNeedKind::Ale => Some(CommodityKind::Ale),
             ResidenceNeedKind::Cloth => Some(CommodityKind::Cloth),
+            ResidenceNeedKind::Shoes => Some(CommodityKind::Shoes),
             ResidenceNeedKind::Pottery => Some(CommodityKind::Pottery),
             _ => None,
         };
@@ -324,6 +331,11 @@ fn try_dispatch_trading_post_stock_to_marketplace(
                 crate::balance_generated::MARKET_CARAVAN_ALE_PER_DELIVERY,
             ),
             ResidenceNeedKind::Cloth => (
+                TIMBER_DELIVERY_SPEED_MPS,
+                TIMBER_DELIVERY_UNLOAD_SEC,
+                crate::balance_generated::MARKET_CARAVAN_CLOTH_PER_DELIVERY,
+            ),
+            ResidenceNeedKind::Shoes => (
                 TIMBER_DELIVERY_SPEED_MPS,
                 TIMBER_DELIVERY_UNLOAD_SEC,
                 crate::balance_generated::MARKET_CARAVAN_CLOTH_PER_DELIVERY,

@@ -361,6 +361,9 @@ pub(crate) fn place_founding_camp(ctx: &ReducerContext, x: f64, z: f64) -> Resul
         monastery_service_funding: 1.0,
         monastery_last_service_day: 0,
         storage_acceptance_mask: u64::MAX,
+        hides: resources.hides.max(0.0),
+        leather: resources.leather.max(0.0),
+        shoes: resources.shoes.max(0.0),
     });
 
     resources.timber = 0.0;
@@ -371,6 +374,9 @@ pub(crate) fn place_founding_camp(ctx: &ReducerContext, x: f64, z: f64) -> Resul
     resources.ale = 0.0;
     resources.cider = 0.0;
     resources.mead = 0.0;
+    resources.hides = 0.0;
+    resources.leather = 0.0;
+    resources.shoes = 0.0;
     resources.preserved_food = 0.0;
     resources.honey = 0.0;
     resources.wine = 0.0;

@@ -928,7 +928,10 @@ pub(super) fn delivery_trip_portable_stores(trip: &DeliveryTrip) -> RaidPortable
             CommodityKind::Stone
             | CommodityKind::Water
             | CommodityKind::Manure
-            | CommodityKind::RoofTiles,
+            | CommodityKind::RoofTiles
+            | CommodityKind::Hides
+            | CommodityKind::Leather
+            | CommodityKind::Shoes,
         )
         | None => {}
     }
@@ -987,7 +990,10 @@ fn delivery_trip_remaining_amount(cargo_kind: u8, stores: RaidPortableStores) ->
             CommodityKind::Stone
             | CommodityKind::Water
             | CommodityKind::Manure
-            | CommodityKind::RoofTiles,
+            | CommodityKind::RoofTiles
+            | CommodityKind::Hides
+            | CommodityKind::Leather
+            | CommodityKind::Shoes,
         )
         | None => 0.0,
     }

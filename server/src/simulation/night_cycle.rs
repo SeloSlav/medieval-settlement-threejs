@@ -107,7 +107,7 @@ fn complete_night_for_owner(
     for (household_index, residence) in residences.iter().enumerate() {
         let mut current = residence.clone();
         let mut needs = load_needs(ctx, residence.id);
-        migrate_and_sync_food_inventory(&mut current, &mut needs);
+        migrate_and_sync_food_inventory(ctx, &mut current, &mut needs);
         let warm = residence.tier < 1
             || (need_stock(&needs, ResidenceNeedKind::Firewood) > 1e-6
                 && needs
@@ -127,7 +127,7 @@ fn complete_night_for_owner(
             0.0
         };
         let fed = fresh_used + preserved_used + 1e-6 >= meal_due;
-        migrate_and_sync_food_inventory(&mut current, &mut needs);
+        migrate_and_sync_food_inventory(ctx, &mut current, &mut needs);
         persist_needs(ctx, residence.id, &needs);
 
         let worked_night_shift = household_index < tired_household_slots as usize;

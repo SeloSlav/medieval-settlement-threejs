@@ -1087,7 +1087,10 @@ function syncBuildingVisualState(
           + (building.roofTiles ?? 0)
           + (building.wool ?? 0)
           + (building.flax ?? 0)
-          + (building.cloth ?? 0),
+          + (building.cloth ?? 0)
+          + (building.hides ?? 0)
+          + (building.leather ?? 0)
+          + (building.shoes ?? 0),
         SALVAGE_GOODS_VISUAL_CAPACITY,
       );
     }
@@ -1129,6 +1132,9 @@ function syncBuildingVisualState(
         + edibleFoodStock(building)
         + building.ale
         + (building.cloth ?? 0)
+        + (building.hides ?? 0)
+        + (building.leather ?? 0)
+        + (building.shoes ?? 0)
         + (building.pottery ?? 0);
       const cratedCapacity =
         BUILDING_STORAGE_CAPS.marketplace.firewood
@@ -1136,6 +1142,9 @@ function syncBuildingVisualState(
         + BUILDING_STORAGE_CAPS.marketplace.preservedFood
         + BUILDING_STORAGE_CAPS.marketplace.ale
         + (BUILDING_STORAGE_CAPS.marketplace.cloth ?? 0)
+        + (BUILDING_STORAGE_CAPS.marketplace.hides ?? 0)
+        + (BUILDING_STORAGE_CAPS.marketplace.leather ?? 0)
+        + (BUILDING_STORAGE_CAPS.marketplace.shoes ?? 0)
         + (BUILDING_STORAGE_CAPS.marketplace.pottery ?? 0);
       syncStockpileSegments(
         crates,
@@ -1289,6 +1298,24 @@ function syncBuildingVisualState(
         building.flax ?? 0,
         BUILDING_STORAGE_CAPS.weaver.flax ?? 0,
       );
+    }
+  }
+  if (building.kind === 'tannery' || building.kind === 'cobbler') {
+    const leatherCaps = BUILDING_STORAGE_CAPS[building.kind] as Partial<Record<
+      'hides' | 'leather' | 'shoes',
+      number
+    >>;
+    const hides = marker.getObjectByName('HidesStock');
+    if (hides instanceof THREE.Group) {
+      syncStockpileSegments(hides, 'HidesStockSegment', building.hides ?? 0, leatherCaps.hides ?? 0);
+    }
+    const leather = marker.getObjectByName('LeatherStock');
+    if (leather instanceof THREE.Group) {
+      syncStockpileSegments(leather, 'LeatherStockSegment', building.leather ?? 0, leatherCaps.leather ?? 0);
+    }
+    const shoes = marker.getObjectByName('ShoesStock');
+    if (shoes instanceof THREE.Group) {
+      syncStockpileSegments(shoes, 'ShoesStockSegment', building.shoes ?? 0, leatherCaps.shoes ?? 0);
     }
   }
   syncFoodStockpileVisuals(marker, building);

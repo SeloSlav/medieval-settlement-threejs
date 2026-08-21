@@ -8,6 +8,7 @@ import {
   CALENDAR_WORK_START_HOUR,
   RESIDENCE_ALE_PER_PERSON_PER_SEC,
   RESIDENCE_CLOTH_PER_PERSON_PER_SEC,
+  RESIDENCE_SHOES_PER_PERSON_PER_SEC,
   RESIDENCE_PRESERVED_FOOD_PER_PERSON_PER_SEC,
   RESIDENCE_PRESERVED_FOOD_WINTER_MULTIPLIER,
   RESIDENCE_POTTERY_PER_PERSON_PER_SEC,
@@ -26,10 +27,12 @@ const preservedPerResident =
   * RESIDENCE_PRESERVED_FOOD_WINTER_MULTIPLIER;
 const alePerResident = RESIDENCE_ALE_PER_PERSON_PER_SEC * workdaySeconds;
 const clothPerResident = RESIDENCE_CLOTH_PER_PERSON_PER_SEC * workdaySeconds;
+const shoesPerResident = RESIDENCE_SHOES_PER_PERSON_PER_SEC * workdaySeconds;
 const potteryPerResident = RESIDENCE_POTTERY_PER_PERSON_PER_SEC * workdaySeconds;
 
 const production = {
   tierTwoPlusResidents: 50,
+  tierThreePlusResidents: 50,
   tierFourResidents: 50,
   preservedFoodOutputPerDay: preservedPerResident * 80,
   preservedFoodDemandPerDay: preservedPerResident * 50,
@@ -37,6 +40,8 @@ const production = {
   aleDemandPerDay: alePerResident * 50,
   clothOutputPerDay: clothPerResident * 200,
   clothDemandPerDay: clothPerResident * 50,
+  shoesOutputPerDay: shoesPerResident * 100,
+  shoesDemandPerDay: shoesPerResident * 50,
   potteryOutputPerDay: potteryPerResident * 160,
   potteryDemandPerDay: potteryPerResident * 50,
 };
@@ -44,6 +49,7 @@ const growth = {
   additionalPreservedFoodPerDay: preservedPerResident * 20,
   additionalAlePerDay: alePerResident * 20,
   additionalClothPerDay: clothPerResident * 20,
+  additionalShoesPerDay: shoesPerResident * 20,
   additionalPotteryPerDay: potteryPerResident * 20,
 };
 const plan = computeSettlementProsperityPlan(production, growth);
@@ -77,6 +83,7 @@ assert.equal(promotion.immediateHeadroomResidents, 24);
 approx(promotion.immediateDemand.preservedFood, preservedPerResident * 6);
 approx(promotion.immediateDemand.ale, alePerResident * 6);
 approx(promotion.immediateDemand.cloth, clothPerResident * 6);
+approx(promotion.immediateDemand.shoes, shoesPerResident * 6);
 approx(promotion.immediateDemand.pottery, potteryPerResident * 6);
 approx(promotion.fullHouseDemand.preservedFood, preservedPerResident * 10);
 
@@ -94,6 +101,7 @@ assert.equal(riskyPromotion.immediateHeadroomResidents, -1);
 
 const noIndustry = computeSettlementProsperityPlan({
   tierTwoPlusResidents: 0,
+  tierThreePlusResidents: 0,
   tierFourResidents: 0,
   preservedFoodOutputPerDay: Number.NaN,
   preservedFoodDemandPerDay: 0,
@@ -101,6 +109,8 @@ const noIndustry = computeSettlementProsperityPlan({
   aleDemandPerDay: 0,
   clothOutputPerDay: 0,
   clothDemandPerDay: 0,
+  shoesOutputPerDay: 0,
+  shoesDemandPerDay: 0,
   potteryOutputPerDay: 0,
   potteryDemandPerDay: 0,
 });
@@ -109,6 +119,7 @@ assert.equal(noIndustry.currentSustainable, true);
 
 const roadProduction = {
   tierTwoPlusResidents: 10,
+  tierThreePlusResidents: 10,
   tierFourResidents: 10,
   preservedFoodOutputPerDay: preservedPerResident * 100,
   preservedFoodDemandPerDay: preservedPerResident * 10,
@@ -116,6 +127,8 @@ const roadProduction = {
   aleDemandPerDay: alePerResident * 10,
   clothOutputPerDay: clothPerResident * 100,
   clothDemandPerDay: clothPerResident * 10,
+  shoesOutputPerDay: shoesPerResident * 100,
+  shoesDemandPerDay: shoesPerResident * 10,
   potteryOutputPerDay: potteryPerResident * 100,
   potteryDemandPerDay: potteryPerResident * 10,
 };
@@ -128,6 +141,7 @@ const splitSpecialties = computeSettlementProsperityPlan({
       preservedFoodOutputPerDay: preservedPerResident * 100,
       aleOutputPerDay: 0,
       clothOutputPerDay: 0,
+      shoesOutputPerDay: 0,
       potteryOutputPerDay: 0,
       firstResidenceId: 'split-home',
     }],
@@ -137,6 +151,7 @@ const splitSpecialties = computeSettlementProsperityPlan({
       preservedFoodOutputPerDay: 0,
       aleOutputPerDay: alePerResident * 100,
       clothOutputPerDay: 0,
+      shoesOutputPerDay: 0,
       potteryOutputPerDay: 0,
       firstResidenceId: null,
     }],
@@ -146,6 +161,7 @@ const splitSpecialties = computeSettlementProsperityPlan({
       preservedFoodOutputPerDay: 0,
       aleOutputPerDay: 0,
       clothOutputPerDay: clothPerResident * 100,
+      shoesOutputPerDay: 0,
       potteryOutputPerDay: 0,
       firstResidenceId: null,
     }],
@@ -155,13 +171,24 @@ const splitSpecialties = computeSettlementProsperityPlan({
       preservedFoodOutputPerDay: 0,
       aleOutputPerDay: 0,
       clothOutputPerDay: 0,
+      shoesOutputPerDay: 0,
       potteryOutputPerDay: potteryPerResident * 100,
+      firstResidenceId: null,
+    }],
+    ['shoes', {
+      currentResidents: 0,
+      fullResidents: 0,
+      preservedFoodOutputPerDay: 0,
+      aleOutputPerDay: 0,
+      clothOutputPerDay: 0,
+      shoesOutputPerDay: shoesPerResident * 100,
+      potteryOutputPerDay: 0,
       firstResidenceId: null,
     }],
   ]),
 });
 assert.equal(splitSpecialties.installedResidentCapacity, 100);
-assert.equal(splitSpecialties.roadPlan?.activeBranches, 4);
+assert.equal(splitSpecialties.roadPlan?.activeBranches, 5);
 assert.equal(splitSpecialties.roadPlan?.matchedBranches, 0);
 assert.equal(splitSpecialties.roadPlan?.roadMatchedResidentCapacity, 0);
 assert.equal(splitSpecialties.roadPlan?.fragmentationResidentCapacity, 100);
@@ -181,6 +208,7 @@ const joinedSpecialties = computeSettlementProsperityPlan({
       preservedFoodOutputPerDay: preservedPerResident * 100,
       aleOutputPerDay: alePerResident * 100,
       clothOutputPerDay: clothPerResident * 100,
+      shoesOutputPerDay: shoesPerResident * 100,
       potteryOutputPerDay: potteryPerResident * 100,
       firstResidenceId: 'joined-home',
     }],
@@ -197,10 +225,12 @@ assert.equal(joinedSpecialties.currentSustainable, true);
 const balancedSatelliteProduction = {
   ...roadProduction,
   tierTwoPlusResidents: 20,
+  tierThreePlusResidents: 20,
   tierFourResidents: 20,
   preservedFoodDemandPerDay: preservedPerResident * 20,
   aleDemandPerDay: alePerResident * 20,
   clothDemandPerDay: clothPerResident * 20,
+  shoesDemandPerDay: shoesPerResident * 20,
   potteryDemandPerDay: potteryPerResident * 20,
   prosperityRoadBranches: new Map([
     ['west', {
@@ -209,6 +239,7 @@ const balancedSatelliteProduction = {
       preservedFoodOutputPerDay: preservedPerResident * 50,
       aleOutputPerDay: alePerResident * 50,
       clothOutputPerDay: clothPerResident * 50,
+      shoesOutputPerDay: shoesPerResident * 50,
       potteryOutputPerDay: potteryPerResident * 50,
       firstResidenceId: 'west-home',
     }],
@@ -218,6 +249,7 @@ const balancedSatelliteProduction = {
       preservedFoodOutputPerDay: preservedPerResident * 50,
       aleOutputPerDay: alePerResident * 50,
       clothOutputPerDay: clothPerResident * 50,
+      shoesOutputPerDay: shoesPerResident * 50,
       potteryOutputPerDay: potteryPerResident * 50,
       firstResidenceId: 'east-home',
     }],
@@ -240,6 +272,7 @@ const localPromotionPlan = computeSettlementProsperityPlan({
       preservedFoodOutputPerDay: preservedPerResident * 5,
       aleOutputPerDay: alePerResident * 5,
       clothOutputPerDay: clothPerResident * 5,
+      shoesOutputPerDay: shoesPerResident * 5,
       potteryOutputPerDay: potteryPerResident * 5,
       firstResidenceId: null,
     }],
@@ -249,6 +282,7 @@ const localPromotionPlan = computeSettlementProsperityPlan({
       preservedFoodOutputPerDay: preservedPerResident * 95,
       aleOutputPerDay: alePerResident * 95,
       clothOutputPerDay: clothPerResident * 95,
+      shoesOutputPerDay: shoesPerResident * 95,
       potteryOutputPerDay: potteryPerResident * 95,
       firstResidenceId: 'remote-home',
     }],
@@ -305,6 +339,7 @@ for (let index = 0; index < 100_000; index += 1) {
     preservedFoodOutputPerDay: preservedPerResident,
     aleOutputPerDay: alePerResident,
     clothOutputPerDay: clothPerResident,
+    shoesOutputPerDay: shoesPerResident,
     potteryOutputPerDay: potteryPerResident,
     firstResidenceId: `home-${index}`,
   });
@@ -312,6 +347,7 @@ for (let index = 0; index < 100_000; index += 1) {
 const roadStarted = performance.now();
 const largeRoadPlan = computeSettlementProsperityPlan({
   tierTwoPlusResidents: 100_000,
+  tierThreePlusResidents: 100_000,
   tierFourResidents: 100_000,
   preservedFoodOutputPerDay: preservedPerResident * 100_000,
   preservedFoodDemandPerDay: preservedPerResident * 100_000,
@@ -319,6 +355,8 @@ const largeRoadPlan = computeSettlementProsperityPlan({
   aleDemandPerDay: alePerResident * 100_000,
   clothOutputPerDay: clothPerResident * 100_000,
   clothDemandPerDay: clothPerResident * 100_000,
+  shoesOutputPerDay: shoesPerResident * 100_000,
+  shoesDemandPerDay: shoesPerResident * 100_000,
   potteryOutputPerDay: potteryPerResident * 100_000,
   potteryDemandPerDay: potteryPerResident * 100_000,
   prosperityRoadBranches: largeRoadBranches,

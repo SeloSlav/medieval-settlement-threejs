@@ -122,7 +122,9 @@ import SetTradingPostTradeRuleReducer from "./set_trading_post_trade_rule_reduce
 import SetVineyardProductionPolicyReducer from "./set_vineyard_production_policy_reducer";
 import SetWeaverInputPolicyReducer from "./set_weaver_input_policy_reducer";
 import SetWoodcutterTimberReserveReducer from "./set_woodcutter_timber_reserve_reducer";
+import SpecializeAnimalPenReducer from "./specialize_animal_pen_reducer";
 import SpecializeOrchardReducer from "./specialize_orchard_reducer";
+import SpecializeVegetableGardenReducer from "./specialize_vegetable_garden_reducer";
 import StartFarmFieldEarlyHarvestReducer from "./start_farm_field_early_harvest_reducer";
 import SyncRoadNetworkReducer from "./sync_road_network_reducer";
 import TickSimReducer from "./tick_sim_reducer";
@@ -677,7 +679,9 @@ const reducersSchema = __reducers(
   __reducerSchema("set_vineyard_production_policy", SetVineyardProductionPolicyReducer),
   __reducerSchema("set_weaver_input_policy", SetWeaverInputPolicyReducer),
   __reducerSchema("set_woodcutter_timber_reserve", SetWoodcutterTimberReserveReducer),
+  __reducerSchema("specialize_animal_pen", SpecializeAnimalPenReducer),
   __reducerSchema("specialize_orchard", SpecializeOrchardReducer),
+  __reducerSchema("specialize_vegetable_garden", SpecializeVegetableGardenReducer),
   __reducerSchema("start_farm_field_early_harvest", StartFarmFieldEarlyHarvestReducer),
   __reducerSchema("sync_road_network", SyncRoadNetworkReducer),
   __reducerSchema("tick_sim", TickSimReducer),

@@ -157,4 +157,7 @@ export default __t.row({
   monasteryServiceFunding: __t.f64().name("monastery_service_funding"),
   monasteryLastServiceDay: __t.u64().name("monastery_last_service_day"),
   storageAcceptanceMask: __t.u64().name("storage_acceptance_mask"),
+  hides: __t.f64(),
+  leather: __t.f64(),
+  shoes: __t.f64(),
 });

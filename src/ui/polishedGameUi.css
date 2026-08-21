@@ -2634,7 +2634,10 @@ select:focus-visible {
 
 .backyard-picker-option[data-garden-kind='apple_orchard'] .backyard-picker-option__icon,
 .backyard-picker-option[data-garden-kind='vegetable_garden'] .backyard-picker-option__icon,
-.backyard-picker-option[data-garden-kind='hen_yard'] .backyard-picker-option__icon {
+.backyard-picker-option[data-garden-kind='cabbage_garden'] .backyard-picker-option__icon,
+.backyard-picker-option[data-garden-kind='carrot_garden'] .backyard-picker-option__icon,
+.backyard-picker-option[data-garden-kind='beetroot_garden'] .backyard-picker-option__icon,
+.backyard-picker-option[data-garden-kind='chicken_pen'] .backyard-picker-option__icon {
   background-image: url('/assets/ui/icons/hud-resources-foods.png');
   background-size: 400% 400%;
 }
@@ -2643,15 +2646,20 @@ select:focus-visible {
   background-position: 66.667% 33.333%;
 }
 
-.backyard-picker-option[data-garden-kind='vegetable_garden'] .backyard-picker-option__icon {
+.backyard-picker-option[data-garden-kind='vegetable_garden'] .backyard-picker-option__icon,
+.backyard-picker-option[data-garden-kind='cabbage_garden'] .backyard-picker-option__icon,
+.backyard-picker-option[data-garden-kind='carrot_garden'] .backyard-picker-option__icon,
+.backyard-picker-option[data-garden-kind='beetroot_garden'] .backyard-picker-option__icon {
   background-position: 0 66.667%;
 }
 
-.backyard-picker-option[data-garden-kind='hen_yard'] .backyard-picker-option__icon {
+.backyard-picker-option[data-garden-kind='chicken_pen'] .backyard-picker-option__icon {
   background-position: 33.333% 66.667%;
 }
 
 .backyard-picker-option[data-garden-kind='flower_garden'] .backyard-picker-option__icon,
+.backyard-picker-option[data-garden-kind='animal_pen'] .backyard-picker-option__icon,
+.backyard-picker-option[data-garden-kind='pig_pen'] .backyard-picker-option__icon,
 .backyard-picker-option[data-garden-kind='goat_pen'] .backyard-picker-option__icon {
   background-position: center;
   background-size: 78%;
@@ -2668,6 +2676,11 @@ select:focus-visible {
 
 .backyard-picker-option[data-garden-kind='goat_pen'] .backyard-picker-option__icon {
   background-image: url('/assets/ui/noble-setup/charges/goat.png');
+}
+
+.backyard-picker-option[data-garden-kind='animal_pen'] .backyard-picker-option__icon,
+.backyard-picker-option[data-garden-kind='pig_pen'] .backyard-picker-option__icon {
+  background-image: url('/assets/ui/noble-setup/charges/boar.png');
 }
 
 .backyard-picker-option[data-garden-kind='backyard_apiary'] .backyard-picker-option__icon {

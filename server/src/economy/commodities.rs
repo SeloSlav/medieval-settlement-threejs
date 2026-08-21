@@ -59,6 +59,9 @@ pub enum CommodityKind {
     MaslinBread,
     Cider,
     Mead,
+    Hides,
+    Leather,
+    Shoes,
 }
 
 pub const FRESH_FOOD_COMMODITIES: [CommodityKind; 14] = [
@@ -248,6 +251,9 @@ impl CommodityKind {
             Self::MaslinBread => 54,
             Self::Cider => 55,
             Self::Mead => 56,
+            Self::Hides => 58,
+            Self::Leather => 59,
+            Self::Shoes => 60,
         }
     }
 
@@ -304,6 +310,9 @@ impl CommodityKind {
             54 => Some(Self::MaslinBread),
             55 => Some(Self::Cider),
             56 => Some(Self::Mead),
+            58 => Some(Self::Hides),
+            59 => Some(Self::Leather),
+            60 => Some(Self::Shoes),
             _ => None,
         }
     }
@@ -453,6 +462,9 @@ pub fn building_commodity_stock(building: &Building, kind: CommodityKind) -> f64
         CommodityKind::MaslinFlour => building.maslin_flour,
         CommodityKind::RyeBread => building.rye_bread,
         CommodityKind::MaslinBread => building.maslin_bread,
+        CommodityKind::Hides => building.hides,
+        CommodityKind::Leather => building.leather,
+        CommodityKind::Shoes => building.shoes,
     }
 }
 
@@ -476,6 +488,9 @@ pub fn building_commodity_cap(kind: &str, commodity: CommodityKind) -> f64 {
         CommodityKind::Polearms => def.storage_polearms,
         CommodityKind::Wool => def.storage_wool,
         CommodityKind::Cloth => def.storage_cloth,
+        CommodityKind::Hides => def.storage_hides,
+        CommodityKind::Leather => def.storage_leather,
+        CommodityKind::Shoes => def.storage_shoes,
         CommodityKind::Gold => {
             if matches!(
                 kind,
@@ -704,6 +719,9 @@ pub fn withdraw_building_commodity(
         CommodityKind::MaslinFlour => building.maslin_flour -= withdrawn,
         CommodityKind::RyeBread => building.rye_bread -= withdrawn,
         CommodityKind::MaslinBread => building.maslin_bread -= withdrawn,
+        CommodityKind::Hides => building.hides -= withdrawn,
+        CommodityKind::Leather => building.leather -= withdrawn,
+        CommodityKind::Shoes => building.shoes -= withdrawn,
     }
     withdrawn
 }
@@ -766,6 +784,9 @@ pub fn deposit_building_commodity(
         CommodityKind::MaslinFlour => building.maslin_flour += deposited,
         CommodityKind::RyeBread => building.rye_bread += deposited,
         CommodityKind::MaslinBread => building.maslin_bread += deposited,
+        CommodityKind::Hides => building.hides += deposited,
+        CommodityKind::Leather => building.leather += deposited,
+        CommodityKind::Shoes => building.shoes += deposited,
     }
     deposited
 }
@@ -841,6 +862,9 @@ pub fn credit_treasury_commodity(
         CommodityKind::MaslinFlour => treasury.maslin_flour += amount,
         CommodityKind::RyeBread => treasury.rye_bread += amount,
         CommodityKind::MaslinBread => treasury.maslin_bread += amount,
+        CommodityKind::Hides => treasury.hides += amount,
+        CommodityKind::Leather => treasury.leather += amount,
+        CommodityKind::Shoes => treasury.shoes += amount,
     }
     let physical = treasury.physical_founding_site_enabled;
     ctx.db.player_resources().owner().update(treasury);
@@ -923,8 +947,10 @@ pub fn residence_food_category_mask(residence: &Residence) -> u8 {
 /// Count the food goals that matter at a residence tier. Tier 1 can live on
 /// any qualifying food. Tier 2 establishes grain as the staple alongside one
 /// other category. Tier 3+ keeps that staple and asks for produce/forage,
-/// land-based animal food, and fish as distinct parts of the diet. Tier 4's
-/// additional cured-food standard remains the separate PreservedFood need.
+/// land-based animal food, and fish as distinct parts of the diet. Tier 4
+/// splits animal produce from meat, so eggs/milk and pork no longer satisfy
+/// the same late-game food goal. Its cured-food standard remains the separate
+/// PreservedFood need.
 pub fn residence_food_progression_slots(residence: &Residence, tier: u8) -> u8 {
     let categories = residence_food_category_mask(residence);
     if tier == 0 {
@@ -945,10 +971,18 @@ pub fn residence_food_progression_slots(residence: &Residence, tier: u8) -> u8 {
         | FoodCategory::Fruits.bit()
         | FoodCategory::Foraged.bit()
         | FoodCategory::Honey.bit();
-    let land_animal_food = FoodCategory::AnimalProduce.bit() | FoodCategory::Meats.bit();
+    if tier == 3 {
+        let land_animal_food = FoodCategory::AnimalProduce.bit() | FoodCategory::Meats.bit();
+        return u8::from(grain_ready)
+            + u8::from(categories & produce_or_forage != 0)
+            + u8::from(categories & land_animal_food != 0)
+            + u8::from(categories & FoodCategory::Fishes.bit() != 0);
+    }
+
     u8::from(grain_ready)
         + u8::from(categories & produce_or_forage != 0)
-        + u8::from(categories & land_animal_food != 0)
+        + u8::from(categories & FoodCategory::AnimalProduce.bit() != 0)
+        + u8::from(categories & FoodCategory::Meats.bit() != 0)
         + u8::from(categories & FoodCategory::Fishes.bit() != 0)
 }
 
@@ -957,7 +991,8 @@ pub fn residence_food_progression_required_slots(tier: u8) -> u8 {
         0 => 0,
         1 => 1,
         2 => 2,
-        _ => 4,
+        3 => 4,
+        _ => 5,
     }
 }
 
@@ -995,6 +1030,10 @@ pub fn food_commodity_advances_residence_progression(
                 | FoodCategory::Honey.bit();
             categories & produce_or_forage == 0
         }
+        FoodCategory::AnimalProduce if tier >= 4 => {
+            categories & FoodCategory::AnimalProduce.bit() == 0
+        }
+        FoodCategory::Meats if tier >= 4 => categories & FoodCategory::Meats.bit() == 0,
         FoodCategory::AnimalProduce | FoodCategory::Meats => {
             let land_animal_food = FoodCategory::AnimalProduce.bit() | FoodCategory::Meats.bit();
             categories & land_animal_food == 0
@@ -1150,6 +1189,11 @@ mod tests {
             }
         }
         assert_eq!(CommodityKind::from_u8(57), None);
+        for id in 58_u8..=60 {
+            let commodity = CommodityKind::from_u8(id)
+                .unwrap_or_else(|| panic!("missing leather-chain commodity id {id}"));
+            assert_eq!(commodity.as_u8(), id);
+        }
     }
 
     #[test]

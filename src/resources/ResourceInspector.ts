@@ -124,6 +124,8 @@ type ResourceInspectorOptions = {
   onDemolishBurgageZone?: (zoneId: string) => void | Promise<void>;
   onPlaceBackyardGarden?: (residenceId: string, kind: BackyardGardenKind) => void | Promise<void>;
   onSpecializeOrchard?: (residenceId: string, kind: BackyardGardenKind) => void | Promise<void>;
+  onSpecializeAnimalPen?: (residenceId: string, kind: BackyardGardenKind) => void | Promise<void>;
+  onSpecializeVegetableGarden?: (residenceId: string, kind: BackyardGardenKind) => void | Promise<void>;
   onUpgradeFlowerGardenLuxury?: (residenceId: string) => void | Promise<void>;
   onDemolishBackyardGarden?: (residenceId: string) => void | Promise<void>;
   onAssignBuildingLabor?: (buildingId: string, labor: number) => void | Promise<void>;
@@ -549,6 +551,9 @@ export class ResourceInspector {
       wool: this.mustElement(options.uiRoot, '[data-stockpile="wool"]'),
       flax: this.mustElement(options.uiRoot, '[data-stockpile="flax"]'),
       cloth: this.mustElement(options.uiRoot, '[data-stockpile="cloth"]'),
+      hides: this.mustElement(options.uiRoot, '[data-stockpile="hides"]'),
+      leather: this.mustElement(options.uiRoot, '[data-stockpile="leather"]'),
+      shoes: this.mustElement(options.uiRoot, '[data-stockpile="shoes"]'),
       ironwork: this.mustElement(options.uiRoot, '[data-stockpile="ironwork"]'),
       polearms: this.mustElement(options.uiRoot, '[data-stockpile="polearms"]'),
       iron: this.mustElement(options.uiRoot, '[data-stockpile="iron"]'),
@@ -1311,6 +1316,8 @@ export class ResourceInspector {
     handleSupplementalPanelClick(this.selectedTarget, event.target as HTMLElement, {
       onPlaceBackyardGarden: this.options.onPlaceBackyardGarden,
       onSpecializeOrchard: this.options.onSpecializeOrchard,
+      onSpecializeAnimalPen: this.options.onSpecializeAnimalPen,
+      onSpecializeVegetableGarden: this.options.onSpecializeVegetableGarden,
       onUpgradeFlowerGardenLuxury: this.options.onUpgradeFlowerGardenLuxury,
       onUpgradeChapel: this.options.onUpgradeChapel,
       onUpgradeResidence: this.options.onUpgradeResidence,
@@ -2365,6 +2372,8 @@ const BUILDING_INSPECTOR_ART: Partial<Record<string, string>> = {
   watermill: 'watermill.webp',
   windmill: 'windmill.webp',
   weaver: 'weaver.webp',
+  tannery: 'tannery.webp',
+  cobbler: 'cobbler.webp',
   well: 'water-well.webp',
   woodcutters_lodge: 'woodcutters-lodge.webp',
 };

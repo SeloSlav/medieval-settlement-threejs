@@ -9,6 +9,7 @@ export type PlacementBuildMenuAction =
   | 'threshing-barn' | 'monastery' | 'brewery' | 'tavern' | 'smokehouse'
   | 'granary' | 'bakery' | 'apiary' | 'watermill' | 'windmill' | 'carpenter' | 'vineyard'
   | 'weaver'
+  | 'tannery' | 'cobbler'
   | 'pastoral-farmstead' | 'swineherd'
   | 'town-hall' | 'village-storehouse'
   | 'watchtower'
@@ -53,6 +54,8 @@ const BUILD_CARD_ART: Record<PlacementArtKey, string> = {
   windmill: '/assets/ui/build-menu/cards/windmill.webp',
   carpenter: '/assets/ui/build-menu/cards/carpenter.webp',
   weaver: '/assets/ui/build-menu/cards/weaver.webp',
+  tannery: '/assets/ui/build-menu/cards/tannery.webp',
+  cobbler: '/assets/ui/build-menu/cards/cobbler.webp',
   vineyard: '/assets/ui/build-menu/cards/vineyard.webp',
   pastoral_farmstead: '/assets/ui/build-menu/cards/pastoral-farmstead.webp',
   swineherd: '/assets/ui/build-menu/cards/swineherd.webp',
@@ -98,7 +101,7 @@ const DETAILS: Record<PlacementArtKey, BuildCardDetail> = {
   potter_kiln: ["Potter's kiln", 'Fires clay into household pottery or sturdy roof tiles.', flow(['clay', 'water', 'firewood'], ['pottery', 'roofTiles'])],
   reforester: ['Reforester', 'Restores felled woodland with young native trees.'],
   woodcutters_lodge: ["Woodcutter's lodge", 'Splits timber into firewood for settlement hearths.', flow(['timber'], ['firewood'])],
-  hunters_hall: ["Hunter's hall", 'Hunts nearby game and dresses the catch for meat.', flow([], ['meat'])],
+  hunters_hall: ["Hunter's hall", 'Hunts nearby game and dresses the catch for meat and hides.', flow([], ['meat', 'hides'])],
   foragers_shed: ["Forager's shed", 'Gathers woodland berries, mushrooms, and healing remedies.', flow([], ['berries', 'mushrooms', 'remedies'])],
   fishing_camp: ['Fishing camp', 'Catches fish from nearby waters through the warmer seasons.', flow([], ['fish'])],
   threshing_barn: ['Farmstead', 'Harvests and threshes rye, oats, barley, maslin, and flax.', flow(['ryeSheaves', 'oatSheaves', 'barleySheaves', 'maslinSheaves'], ['ryeGrain', 'oatGrain', 'barley', 'maslinGrain', 'flax'])],
@@ -112,6 +115,8 @@ const DETAILS: Record<PlacementArtKey, BuildCardDetail> = {
   apiary: ['Forest apiary', 'Keeps bees for honey throughout the warm season.', flow([], ['honey'])],
   carpenter: ['Carpenter & wheelwright', 'Crafts frames and carts that lower building costs and hasten deliveries.'],
   weaver: ["Weaver's workshop", 'Weaves wool into cloth and prepares flax with water for linen.', flow(['wool', 'flax', 'water'], ['cloth'])],
+  tannery: ['Tannery', 'Tans goat and game hides with water and bark-fired heat into workable leather.', flow(['hides', 'water', 'firewood'], ['leather'])],
+  cobbler: ["Cobbler's workshop", 'Cuts leather into finished shoes for prosperous Tier 3 households.', flow(['leather'], ['shoes'])],
   vineyard: ['Vineyard terrace', 'Cultivates hillside grapes and presses them into wine.', flow([], ['grapes', 'wine'])],
   pastoral_farmstead: ['Pastoral farmstead', 'Raises cattle or sheep for milk, wool, manure, and meat.', flow([], ['milk', 'wool', 'manure', 'meat'])],
   swineherd: ['Woodland swineherd', 'Fattens pigs on woodland mast or oats for meat.', flow(['oatGrain'], ['meat'])],
@@ -149,7 +154,7 @@ export const AGRICULTURE_BUILD_MENU_ENTRIES: readonly BuildMenuEntry[] = [
 /** Workshops that process gathered or agricultural inputs into finished goods. */
 export const INDUSTRY_BUILD_MENU_ENTRIES: readonly BuildMenuEntry[] = [
   entry('woodcutters_lodge'), entry('watermill'), entry('windmill'), entry('bakery'), entry('brewery'), entry('smokehouse'),
-  entry('carpenter'), entry('weaver'), entry('charcoal_burner'), entry('smithy'), entry('potter_kiln'),
+  entry('carpenter'), entry('weaver'), entry('tannery'), entry('cobbler'), entry('charcoal_burner'), entry('smithy'), entry('potter_kiln'),
 ];
 
 /** Conflict-enabled early warning and settlement defenses. */
@@ -187,7 +192,7 @@ const FOOD_BUILD_MENU_ENTRIES = [
   entry('watermill'), entry('windmill'), entry('bakery'), entry('brewery'), entry('tavern'), entry('smokehouse'),
 ] as const;
 const WORKSHOP_BUILD_MENU_ENTRIES = [
-  entry('woodcutters_lodge'), entry('carpenter'), entry('weaver'), entry('charcoal_burner'), entry('smithy'), entry('potter_kiln'),
+  entry('woodcutters_lodge'), entry('carpenter'), entry('weaver'), entry('tannery'), entry('cobbler'), entry('charcoal_burner'), entry('smithy'), entry('potter_kiln'),
 ] as const;
 const FAITH_BUILD_MENU_ENTRIES = [entry('chapel'), entry('monastery')] as const;
 const DECORATION_BUILD_MENU_ENTRIES = [entry('wayside_shrine'), entry('dry_stone_wall')] as const;
@@ -200,7 +205,7 @@ export const BUILD_MENU_CATEGORIES: readonly BuildMenuCategory[] = [
   { id: 'gathering', label: 'Gathering', hint: 'Wood, stone, game, forage, and fish', icon: 'gathering', entries: GATHERING_BUILD_MENU_ENTRIES },
   { id: 'agriculture', label: 'Agriculture', hint: 'Fields, orchards, and livestock', icon: 'agriculture', entries: AGRICULTURE_BUILD_MENU_ENTRIES },
   { id: 'food', label: 'Food & drink', hint: 'Milling, baking, brewing, and preservation', icon: 'food', entries: FOOD_BUILD_MENU_ENTRIES },
-  { id: 'industry', label: 'Industry', hint: 'Fuel, crafts, textiles, metal, and pottery', icon: 'industry', entries: WORKSHOP_BUILD_MENU_ENTRIES },
+  { id: 'industry', label: 'Industry', hint: 'Fuel, crafts, textiles, leather, metal, and pottery', icon: 'industry', entries: WORKSHOP_BUILD_MENU_ENTRIES },
   { id: 'faith', label: 'Faith', hint: 'Parish and monastic institutions', icon: 'faith', entries: FAITH_BUILD_MENU_ENTRIES },
   { id: 'decorations', label: 'Decorations', hint: 'Roadside details and stone walls', icon: 'decorations', entries: DECORATION_BUILD_MENU_ENTRIES },
   { id: 'military', label: 'Military', hint: 'Warning, defense, and refuge', icon: 'military', entries: MILITARY_BUILD_MENU_ENTRIES, conflictOnly: true },

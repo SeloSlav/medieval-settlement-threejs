@@ -85,6 +85,9 @@ export type ResourceTotals = {
   wine: number;
   wool: number;
   cloth: number;
+  hides: number;
+  leather: number;
+  shoes: number;
   ironwork: number;
   polearms: number;
   iron: number;
@@ -143,6 +146,9 @@ export const HUD_RESOURCE_KINDS = [
   'wine',
   'wool',
   'cloth',
+  'hides',
+  'leather',
+  'shoes',
   'ironwork',
   'polearms',
   'iron',
@@ -228,6 +234,9 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
   let wine = ledger?.wine ?? 0;
   let wool = ledger?.wool ?? 0;
   let cloth = ledger?.cloth ?? 0;
+  let hides = ledger?.hides ?? 0;
+  let leather = ledger?.leather ?? 0;
+  let shoes = ledger?.shoes ?? 0;
   let ironwork = ledger?.ironwork ?? 0;
   let polearms = ledger?.polearms ?? 0;
   let iron = ledger?.iron ?? 0;
@@ -304,6 +313,9 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
     wine += building.wine;
     wool += building.wool ?? 0;
     cloth += building.cloth ?? 0;
+    hides += building.hides ?? 0;
+    leather += building.leather ?? 0;
+    shoes += building.shoes ?? 0;
     ironwork += building.ironwork ?? 0;
     polearms += building.polearms ?? 0;
     iron += building.iron ?? 0;
@@ -482,6 +494,9 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
     wine,
     wool,
     cloth,
+    hides,
+    leather,
+    shoes,
     ironwork,
     polearms,
     iron,
@@ -943,6 +958,9 @@ function emptyResourceTotals(): ResourceTotals {
     wine: 0,
     wool: 0,
     cloth: 0,
+    hides: 0,
+    leather: 0,
+    shoes: 0,
     ironwork: 0,
     polearms: 0,
     iron: 0,

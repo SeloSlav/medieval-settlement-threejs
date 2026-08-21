@@ -64,7 +64,8 @@ const smokehouse = building('smokehouse', 'smokehouse', 4);
 const brewery = building('brewery', 'brewery', 5);
 const weaver = building('weaver', 'weaver', 6);
 const potter = building('potter', 'potter_kiln', 7);
-const chapel = building('chapel', 'chapel', 8);
+const cobbler = building('cobbler', 'cobbler', 8);
+const chapel = building('chapel', 'chapel', 9);
 chapel.chapelTier = 2;
 const allServices: ResidenceUpgradeServices = {
   firewood: { supplier: lodge, stocked: false },
@@ -72,6 +73,7 @@ const allServices: ResidenceUpgradeServices = {
   preservedFood: { supplier: smokehouse, stocked: false },
   ale: { supplier: brewery, stocked: false },
   cloth: { supplier: weaver, stocked: false },
+  shoes: { supplier: cobbler, stocked: false },
   pottery: { supplier: potter, stocked: false },
   church: { supplier: chapel, stocked: false, ready: true },
   foodVariety: { supplier: null, stocked: false, ready: true },
@@ -222,7 +224,7 @@ assert.equal(tierThreePlan.nextTier, 3);
 assert.equal(tierThreePlan.addedCapacity, 4);
 assert.deepEqual(
   tierThreePlan.services.map((service) => service.kind),
-  ['firewood', 'water', 'ale', 'cloth', 'church', 'foodVariety'],
+  ['firewood', 'water', 'ale', 'cloth', 'shoes', 'church', 'foodVariety'],
 );
 assert.deepEqual(
   tierThreePlan.resources.map((resource) => resource.required),
@@ -244,7 +246,7 @@ assert.equal(tierFourPlan.nextTier, 4);
 assert.equal(tierFourPlan.populationCapacity, RESIDENCE_TIER4_CAPACITY);
 assert.deepEqual(
   tierFourPlan.services.map((service) => service.kind),
-  ['firewood', 'water', 'preservedFood', 'ale', 'cloth', 'pottery', 'church', 'foodVariety'],
+  ['firewood', 'water', 'preservedFood', 'ale', 'cloth', 'shoes', 'pottery', 'church', 'foodVariety'],
 );
 assert.deepEqual(
   tierFourPlan.resources.map((resource) => resource.required),

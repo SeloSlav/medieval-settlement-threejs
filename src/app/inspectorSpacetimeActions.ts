@@ -26,6 +26,8 @@ export type InspectorSpacetimeActions = {
   onRepairFireDamage: (targetKind: FireTargetKind, targetId: string) => Promise<void>;
   onPlaceBackyardGarden: (residenceId: string, kind: BackyardGardenKind) => Promise<void>;
   onSpecializeOrchard: (residenceId: string, kind: BackyardGardenKind) => Promise<void>;
+  onSpecializeAnimalPen: (residenceId: string, kind: BackyardGardenKind) => Promise<void>;
+  onSpecializeVegetableGarden: (residenceId: string, kind: BackyardGardenKind) => Promise<void>;
   onUpgradeFlowerGardenLuxury: (residenceId: string) => Promise<void>;
   onDemolishBackyardGarden: (residenceId: string) => Promise<void>;
   onAssignBuildingLabor: (buildingId: string, labor: number) => Promise<void>;
@@ -385,6 +387,22 @@ export function createInspectorSpacetimeActions(
       await runReducer(
         () => store.specializeOrchard(residenceId, kind),
         'Could not plant this orchard.',
+      );
+    },
+    onSpecializeAnimalPen: async (residenceId, kind) => {
+      const store = requireReady();
+      if (!store) return;
+      await runReducer(
+        () => store.specializeAnimalPen(residenceId, kind),
+        'Could not stock this animal pen.',
+      );
+    },
+    onSpecializeVegetableGarden: async (residenceId, kind) => {
+      const store = requireReady();
+      if (!store) return;
+      await runReducer(
+        () => store.specializeVegetableGarden(residenceId, kind),
+        'Could not purchase seed for this vegetable garden.',
       );
     },
     onUpgradeFlowerGardenLuxury: async (residenceId) => {

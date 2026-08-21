@@ -423,12 +423,19 @@ export class WorldFoleyAudio {
       });
     }
     for (const garden of input.backyardGardens) {
-      if (garden.kind !== 'hen_yard') continue;
+      const kind = garden.kind === 'chicken_pen'
+        ? 'chicken'
+        : garden.kind === 'goat_pen'
+          ? 'sheep'
+          : garden.kind === 'pig_pen'
+            ? 'swine'
+            : null;
+      if (!kind) continue;
       const residence = input.residences.get(garden.residenceId);
       if (!residence) continue;
       candidates.push({
-        id: `chickens:${garden.residenceId}`,
-        kind: 'chicken',
+        id: `${kind}:${garden.residenceId}`,
+        kind,
         x: residence.x,
         z: residence.z,
       });

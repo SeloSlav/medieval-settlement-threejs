@@ -5,6 +5,7 @@ import {
   CALENDAR_WORK_START_HOUR,
   RESIDENCE_ALE_PER_PERSON_PER_SEC,
   RESIDENCE_CLOTH_PER_PERSON_PER_SEC,
+  RESIDENCE_SHOES_PER_PERSON_PER_SEC,
   RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC,
   RESIDENCE_PRESERVED_FOOD_PER_PERSON_PER_SEC,
   RESIDENCE_PRESERVED_FOOD_WINTER_MULTIPLIER,
@@ -45,6 +46,7 @@ export type SettlementGrowthPlan = {
   additionalPreservedFoodPerDay: number;
   additionalAlePerDay: number;
   additionalClothPerDay: number;
+  additionalShoesPerDay: number;
   additionalPotteryPerDay: number;
 };
 
@@ -55,6 +57,7 @@ const EMPTY_WAITING_COUNTS = (): Record<ResidenceNeedKind, number> => ({
   preservedFood: 0,
   ale: 0,
   cloth: 0,
+  shoes: 0,
   pottery: 0,
   church: 0,
   foodVariety: 0,
@@ -93,6 +96,7 @@ export function computeSettlementGrowthPlan(input: {
   let additionalPreservedFoodPerDay = 0;
   let additionalAlePerDay = 0;
   let additionalClothPerDay = 0;
+  let additionalShoesPerDay = 0;
   let additionalPotteryPerDay = 0;
   const fireDisabled = fireDisabledResidenceIds(
     input.state.fireIncidents?.values() ?? [],
@@ -134,6 +138,9 @@ export function computeSettlementGrowthPlan(input: {
     if (residence.tier >= 2) {
       additionalClothPerDay += vacancies * RESIDENCE_CLOTH_PER_PERSON_PER_SEC * workdaySeconds;
       additionalAlePerDay += vacancies * RESIDENCE_ALE_PER_PERSON_PER_SEC * workdaySeconds;
+    }
+    if (residence.tier >= 3) {
+      additionalShoesPerDay += vacancies * RESIDENCE_SHOES_PER_PERSON_PER_SEC * workdaySeconds;
     }
     if (residence.tier >= 4) {
       const preservedFoodPerDay = vacancies
@@ -195,6 +202,7 @@ export function computeSettlementGrowthPlan(input: {
     additionalPreservedFoodPerDay,
     additionalAlePerDay,
     additionalClothPerDay,
+    additionalShoesPerDay,
     additionalPotteryPerDay,
   };
 }

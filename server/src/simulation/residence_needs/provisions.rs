@@ -1,6 +1,7 @@
 use crate::balance_generated::{
     RESIDENCE_ALE_CAPACITY, RESIDENCE_ALE_PER_PERSON_PER_SEC, RESIDENCE_CLOTH_CAPACITY,
     RESIDENCE_CLOTH_PER_PERSON_PER_SEC, RESIDENCE_POTTERY_CAPACITY,
+    RESIDENCE_SHOES_CAPACITY, RESIDENCE_SHOES_PER_PERSON_PER_SEC,
     RESIDENCE_POTTERY_PER_PERSON_PER_SEC, RESIDENCE_PRESERVED_FOOD_CAPACITY,
     RESIDENCE_PRESERVED_FOOD_PER_PERSON_PER_SEC, TICK_DT,
 };
@@ -31,6 +32,10 @@ pub fn preserved_food_demand(residence: &Residence, seasonal_multiplier: f64) ->
 
 pub fn consume_cloth(residence: &Residence, need: &NeedState) -> ConsumeOutcome {
     consume(residence, need, RESIDENCE_CLOTH_PER_PERSON_PER_SEC)
+}
+
+pub fn consume_shoes(residence: &Residence, need: &NeedState) -> ConsumeOutcome {
+    consume(residence, need, RESIDENCE_SHOES_PER_PERSON_PER_SEC)
 }
 
 /// Models replacement of broken cooking, serving, and storage vessels rather
@@ -70,6 +75,7 @@ pub fn stock_capacity(kind: ResidenceNeedKind) -> f64 {
         ResidenceNeedKind::Ale => RESIDENCE_ALE_CAPACITY,
         ResidenceNeedKind::PreservedFood => RESIDENCE_PRESERVED_FOOD_CAPACITY,
         ResidenceNeedKind::Cloth => RESIDENCE_CLOTH_CAPACITY,
+        ResidenceNeedKind::Shoes => RESIDENCE_SHOES_CAPACITY,
         ResidenceNeedKind::Pottery => RESIDENCE_POTTERY_CAPACITY,
         ResidenceNeedKind::Luxury => 0.0,
         _ => 0.0,

@@ -27,7 +27,7 @@ Pears use the existing physical orchard-fruit storage channel; aronia and rosehi
 
 ## Tier-4 luxury
 
-Aronia and rosehip turn part of their harvest into household jam. Jam is physical local stock on the backyard row, capped at 12 jars, and is consumed only by the owning tier-4 residence. It is deliberately not teleported into a regional market inventory.
+Aronia and rosehip turn part of their harvest into household jam. Jam is physical local stock on the backyard row, capped at 12 jars, and is ordinary edible food for its owning residence at tiers 1–4. At tier 4, the same serving simultaneously satisfies the luxury-preserves requirement: it is withdrawn once, supplies calories once, and receives the additional luxury value. It is deliberately not teleported into a regional market inventory.
 
 A tier-4 flower garden can instead buy an 8-gold cut-flower upgrade. Its bouquet table is visible in the world, and the upgraded garden satisfies the same luxury-comfort need without consuming jam. This makes jam and cultivated flowers alternative plot strategies rather than cumulative mandatory needs.
 

@@ -279,6 +279,18 @@ function foundingDestinationPriority(
       if (building.kind === 'marketplace') return 0;
       if (building.kind === 'weaver') return 1;
       return 3;
+    case 'hides':
+      if (building.kind === 'tannery') return 0;
+      if (building.kind === 'hunters_hall' || building.kind === 'marketplace') return 1;
+      return 3;
+    case 'leather':
+      if (building.kind === 'cobbler') return 0;
+      if (building.kind === 'tannery' || building.kind === 'marketplace') return 1;
+      return 3;
+    case 'shoes':
+      if (building.kind === 'marketplace') return 0;
+      if (building.kind === 'cobbler') return 1;
+      return 3;
     case 'water':
       return building.kind === 'well' ? 0 : 2;
     default: {

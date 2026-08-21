@@ -24,8 +24,11 @@ const storehouse = {
   storehouseAcceptsSalt: true,
 } as BuildingState;
 
-assert.equal(STOREHOUSE_STORAGE_COMMODITIES.length, 9);
+assert.equal(STOREHOUSE_STORAGE_COMMODITIES.length, 12);
 assert.ok(STOREHOUSE_STORAGE_COMMODITIES.includes('cloth'));
+assert.ok(STOREHOUSE_STORAGE_COMMODITIES.includes('hides'));
+assert.ok(STOREHOUSE_STORAGE_COMMODITIES.includes('leather'));
+assert.ok(STOREHOUSE_STORAGE_COMMODITIES.includes('shoes'));
 assert.ok(STOREHOUSE_STORAGE_COMMODITIES.includes('pottery'));
 assert.equal(GRANARY_STORAGE_COMMODITIES.length, 30);
 assert.equal(storageAcceptsCommodity(storehouse, 'charcoal'), true);
@@ -55,8 +58,11 @@ const storehouseControls = renderStorageAcceptanceControls(
   storehouse,
   STOREHOUSE_STORAGE_GROUPS,
 );
-assert.equal((storehouseControls.match(/data-storage-commodity=/g) ?? []).length, 9);
+assert.equal((storehouseControls.match(/data-storage-commodity=/g) ?? []).length, 12);
 assert.match(storehouseControls, /data-storage-commodity="cloth"/);
+assert.match(storehouseControls, /data-storage-commodity="hides"/);
+assert.match(storehouseControls, /data-storage-commodity="leather"/);
+assert.match(storehouseControls, /data-storage-commodity="shoes"/);
 assert.match(storehouseControls, /data-storage-commodity="pottery"/);
 assert.match(storehouseControls, /data-storage-accept-all="true"/);
 assert.match(storehouseControls, /data-storage-accept-all="false"/);

@@ -1,7 +1,7 @@
 use spacetimedb::ReducerContext;
 
 use crate::balance_generated::{
-    FORAGER_REMEDIES_PER_HARVEST, FORAGER_REMEDY_SEASON_END_MONTH,
+    FORAGER_REMEDIES_PER_HARVEST, FORAGER_REMEDY_SEASON_END_MONTH, GAME_HIDES_PER_ANIMAL,
     FORAGER_REMEDY_SEASON_START_MONTH,
 };
 use crate::building_defs::building_def;
@@ -204,6 +204,7 @@ fn harvest_from_node(
         return building;
     }
 
+    let harvested_game = node.node_kind == "game";
     ctx.db.foraging_node().node_id().update(ForagingNode {
         remaining: (node.remaining - extracted).max(0.0),
         respawn_cooldown: 0.0,
@@ -227,6 +228,13 @@ fn harvest_from_node(
             &mut updated_building,
             CommodityKind::Remedies,
             remedy_output,
+        );
+    }
+    if harvested_game {
+        deposit_building_commodity(
+            &mut updated_building,
+            CommodityKind::Hides,
+            extracted * GAME_HIDES_PER_ANIMAL,
         );
     }
     updated_building

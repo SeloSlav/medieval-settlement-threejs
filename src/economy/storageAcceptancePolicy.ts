@@ -40,6 +40,9 @@ export const STORAGE_COMMODITY_CODES = {
   maslinFlour: 51,
   ryeBread: 52,
   maslinBread: 54,
+  hides: 58,
+  leather: 59,
+  shoes: 60,
 } as const;
 
 export type StorageCommodity = keyof typeof STORAGE_COMMODITY_CODES;
@@ -84,12 +87,15 @@ export const STORAGE_COMMODITY_LABELS: Record<StorageCommodity, string> = {
   maslinFlour: 'Maslin flour',
   ryeBread: 'Rye bread',
   maslinBread: 'Maslin bread',
+  hides: 'Untanned hides',
+  leather: 'Leather',
+  shoes: 'Shoes',
 };
 
 export const STOREHOUSE_STORAGE_GROUPS = [
   { label: 'Building materials', commodities: ['timber', 'stone'] },
   { label: 'Fuel and minerals', commodities: ['firewood', 'charcoal', 'iron', 'clay', 'salt'] },
-  { label: 'Market wares', commodities: ['cloth', 'pottery'] },
+  { label: 'Market wares', commodities: ['cloth', 'hides', 'leather', 'shoes', 'pottery'] },
 ] as const satisfies ReadonlyArray<{
   label: string;
   commodities: readonly StorageCommodity[];

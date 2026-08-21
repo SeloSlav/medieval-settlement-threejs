@@ -38,6 +38,9 @@ type BuildingBalance = {
     wine?: number;
     wool?: number;
     cloth?: number;
+    hides?: number;
+    leather?: number;
+    shoes?: number;
     ironwork?: number;
     polearms?: number;
     iron?: number;
@@ -74,8 +77,16 @@ type BackyardGardenBalance = {
   hiddenFromPicker?: boolean;
   specializationOf?: string;
   firstHarvestDays?: number;
+  gestationDays?: number;
   harvestStartMonth?: number;
   harvestEndMonth?: number;
+  productionIntervalDays?: number;
+  secondaryFoodPerPersonPerSec?: number;
+  secondaryProductionIntervalDays?: number;
+  secondaryHarvestStartMonth?: number;
+  secondaryHarvestEndMonth?: number;
+  hidePerPersonPerSecondaryHarvest?: number;
+  hideCapacity?: number;
   yieldEfficiency?: number;
   jamPerPersonPerSec?: number;
   luxuryUpgradeGoldCost?: number;
@@ -140,7 +151,8 @@ type TradeResource = 'timber' | 'stone' | 'firewood' | 'food'
   | 'ryeGrain' | 'oatGrain' | 'maslinGrain'
   | 'ryeFlour' | 'maslinFlour'
   | 'ryeBread' | 'maslinBread'
-  | 'barley' | 'ironwork' | 'iron' | 'salt' | 'pottery';
+  | 'barley' | 'ironwork' | 'iron' | 'salt' | 'pottery'
+  | 'hides' | 'leather' | 'shoes';
 
 type MarketplaceGoldBuyOffer = {
   id: string;
@@ -402,6 +414,8 @@ export type GameBalance = {
     residenceAlePerPersonPerSec: number;
     residenceClothCapacity: number;
     residenceClothPerPersonPerSec: number;
+    residenceShoesCapacity: number;
+    residenceShoesPerPersonPerSec: number;
     residencePotteryCapacity: number;
     residencePotteryPerPersonPerSec: number;
     residenceLuxuryJamCapacity: number;
@@ -518,6 +532,7 @@ export type GameBalance = {
     stonePerHarvest: number;
     gameAnimalsPerHarvest: number;
     gamePerHarvest: number;
+    gameHidesPerAnimal: number;
     berriesPerHarvest: number;
     mushroomsPerHarvest: number;
     foragerRemediesPerHarvest: number;
@@ -580,6 +595,13 @@ export type GameBalance = {
     weaverFlaxWaterPerCycle: number;
     weaverClothPerCycle: number;
     textileTransferPerTrip: number;
+    tanneryHidesPerCycle: number;
+    tanneryWaterPerCycle: number;
+    tanneryFirewoodPerCycle: number;
+    tanneryLeatherPerCycle: number;
+    cobblerLeatherPerCycle: number;
+    cobblerShoesPerCycle: number;
+    leatherTransferPerTrip: number;
     smokehouseFoodPerCycle: number;
     smokehouseFirewoodPerCycle: number;
     smokehouseSaltPerCycle: number;
@@ -774,6 +796,8 @@ const simKindByKind: Record<string, string | null> = {
   windmill: 'Windmill',
   carpenter: 'Carpenter',
   weaver: 'Weaver',
+  tannery: 'Tannery',
+  cobbler: 'Cobbler',
   vineyard: 'Vineyard',
   pastoral_farmstead: 'PastoralFarmstead',
   swineherd: 'Swineherd',
@@ -1009,6 +1033,8 @@ function generateRust(): string {
     `pub const RESIDENCE_ALE_PER_PERSON_PER_SEC: f64 = ${rustF64(b.population.residenceAlePerPersonPerSec)};`,
     `pub const RESIDENCE_CLOTH_CAPACITY: f64 = ${rustF64(b.population.residenceClothCapacity)};`,
     `pub const RESIDENCE_CLOTH_PER_PERSON_PER_SEC: f64 = ${rustF64(b.population.residenceClothPerPersonPerSec)};`,
+    `pub const RESIDENCE_SHOES_CAPACITY: f64 = ${rustF64(b.population.residenceShoesCapacity)};`,
+    `pub const RESIDENCE_SHOES_PER_PERSON_PER_SEC: f64 = ${rustF64(b.population.residenceShoesPerPersonPerSec)};`,
     `pub const RESIDENCE_POTTERY_CAPACITY: f64 = ${rustF64(b.population.residencePotteryCapacity)};`,
     `pub const RESIDENCE_POTTERY_PER_PERSON_PER_SEC: f64 = ${rustF64(b.population.residencePotteryPerPersonPerSec)};`,
     `pub const RESIDENCE_LUXURY_JAM_CAPACITY: f64 = ${rustF64(b.population.residenceLuxuryJamCapacity)};`,
@@ -1121,6 +1147,7 @@ function generateRust(): string {
     `pub const STONE_PER_HARVEST: f64 = ${rustF64(b.production.stonePerHarvest)};`,
     `pub const GAME_ANIMALS_PER_HARVEST: f64 = ${rustF64(b.production.gameAnimalsPerHarvest)};`,
     `pub const GAME_PER_HARVEST: f64 = ${rustF64(b.production.gamePerHarvest)};`,
+    `pub const GAME_HIDES_PER_ANIMAL: f64 = ${rustF64(b.production.gameHidesPerAnimal)};`,
     `pub const BERRIES_PER_HARVEST: f64 = ${rustF64(b.production.berriesPerHarvest)};`,
     `pub const MUSHROOMS_PER_HARVEST: f64 = ${rustF64(b.production.mushroomsPerHarvest)};`,
     `pub const FORAGER_REMEDIES_PER_HARVEST: f64 = ${rustF64(b.production.foragerRemediesPerHarvest)};`,
@@ -1183,6 +1210,13 @@ function generateRust(): string {
     `pub const WEAVER_FLAX_WATER_PER_CYCLE: f64 = ${rustF64(b.production.weaverFlaxWaterPerCycle)};`,
     `pub const WEAVER_CLOTH_PER_CYCLE: f64 = ${rustF64(b.production.weaverClothPerCycle)};`,
     `pub const TEXTILE_TRANSFER_PER_TRIP: f64 = ${rustF64(b.production.textileTransferPerTrip)};`,
+    `pub const TANNERY_HIDES_PER_CYCLE: f64 = ${rustF64(b.production.tanneryHidesPerCycle)};`,
+    `pub const TANNERY_WATER_PER_CYCLE: f64 = ${rustF64(b.production.tanneryWaterPerCycle)};`,
+    `pub const TANNERY_FIREWOOD_PER_CYCLE: f64 = ${rustF64(b.production.tanneryFirewoodPerCycle)};`,
+    `pub const TANNERY_LEATHER_PER_CYCLE: f64 = ${rustF64(b.production.tanneryLeatherPerCycle)};`,
+    `pub const COBBLER_LEATHER_PER_CYCLE: f64 = ${rustF64(b.production.cobblerLeatherPerCycle)};`,
+    `pub const COBBLER_SHOES_PER_CYCLE: f64 = ${rustF64(b.production.cobblerShoesPerCycle)};`,
+    `pub const LEATHER_TRANSFER_PER_TRIP: f64 = ${rustF64(b.production.leatherTransferPerTrip)};`,
     `pub const SMOKEHOUSE_FOOD_PER_CYCLE: f64 = ${rustF64(b.production.smokehouseFoodPerCycle)};`,
     `pub const SMOKEHOUSE_FIREWOOD_PER_CYCLE: f64 = ${rustF64(b.production.smokehouseFirewoodPerCycle)};`,
     `pub const SMOKEHOUSE_SALT_PER_CYCLE: f64 = ${rustF64(b.production.smokehouseSaltPerCycle)};`,
@@ -1487,6 +1521,8 @@ function generateRust(): string {
   lines.push('    Windmill,');
   lines.push('    Carpenter,');
   lines.push('    Weaver,');
+  lines.push('    Tannery,');
+  lines.push('    Cobbler,');
   lines.push('    Guardhouse,');
   lines.push('    Vineyard,');
   lines.push('    PastoralFarmstead,');
@@ -1520,6 +1556,9 @@ function generateRust(): string {
   lines.push('    pub storage_wine: f64,');
   lines.push('    pub storage_wool: f64,');
   lines.push('    pub storage_cloth: f64,');
+  lines.push('    pub storage_hides: f64,');
+  lines.push('    pub storage_leather: f64,');
+  lines.push('    pub storage_shoes: f64,');
   lines.push('    pub storage_ironwork: f64,');
   lines.push('    pub storage_polearms: f64,');
   lines.push('    pub storage_iron: f64,');
@@ -1576,6 +1615,9 @@ function generateRust(): string {
     lines.push(`    storage_wine: ${rustF64(def.storage.wine ?? 0)},`);
     lines.push(`    storage_wool: ${rustF64(def.storage.wool ?? 0)},`);
     lines.push(`    storage_cloth: ${rustF64(def.storage.cloth ?? 0)},`);
+    lines.push(`    storage_hides: ${rustF64(def.storage.hides ?? 0)},`);
+    lines.push(`    storage_leather: ${rustF64(def.storage.leather ?? 0)},`);
+    lines.push(`    storage_shoes: ${rustF64(def.storage.shoes ?? 0)},`);
     lines.push(`    storage_ironwork: ${rustF64(def.storage.ironwork ?? 0)},`);
     lines.push(`    storage_polearms: ${rustF64(def.storage.polearms ?? 0)},`);
     lines.push(`    storage_iron: ${rustF64(def.storage.iron ?? 0)},`);
@@ -1659,8 +1701,16 @@ function generateRust(): string {
   lines.push('    pub hidden_from_picker: bool,');
   lines.push('    pub specialization_of: Option<&\'static str>,');
   lines.push('    pub first_harvest_days: u64,');
+  lines.push('    pub gestation_days: u64,');
   lines.push('    pub harvest_start_month: u32,');
   lines.push('    pub harvest_end_month: u32,');
+  lines.push('    pub production_interval_days: u64,');
+  lines.push('    pub secondary_food_per_person_per_sec: f64,');
+  lines.push('    pub secondary_production_interval_days: u64,');
+  lines.push('    pub secondary_harvest_start_month: u32,');
+  lines.push('    pub secondary_harvest_end_month: u32,');
+  lines.push('    pub hide_per_person_per_secondary_harvest: f64,');
+  lines.push('    pub hide_capacity: f64,');
   lines.push('    pub yield_efficiency: f64,');
   lines.push('    pub jam_per_person_per_sec: f64,');
   lines.push('    pub luxury_upgrade_gold_cost: f64,');
@@ -1684,8 +1734,16 @@ function generateRust(): string {
     lines.push(`    hidden_from_picker: ${def.hiddenFromPicker === true},`);
     lines.push(`    specialization_of: ${def.specializationOf ? `Some(${JSON.stringify(def.specializationOf)})` : 'None'},`);
     lines.push(`    first_harvest_days: ${Math.max(0, Math.round(def.firstHarvestDays ?? 0))},`);
+    lines.push(`    gestation_days: ${Math.max(0, Math.round(def.gestationDays ?? 0))},`);
     lines.push(`    harvest_start_month: ${Math.max(0, Math.round(def.harvestStartMonth ?? 0))},`);
     lines.push(`    harvest_end_month: ${Math.max(0, Math.round(def.harvestEndMonth ?? 0))},`);
+    lines.push(`    production_interval_days: ${Math.max(0, Math.round(def.productionIntervalDays ?? 0))},`);
+    lines.push(`    secondary_food_per_person_per_sec: ${rustF64(def.secondaryFoodPerPersonPerSec ?? 0)},`);
+    lines.push(`    secondary_production_interval_days: ${Math.max(0, Math.round(def.secondaryProductionIntervalDays ?? 0))},`);
+    lines.push(`    secondary_harvest_start_month: ${Math.max(0, Math.round(def.secondaryHarvestStartMonth ?? 0))},`);
+    lines.push(`    secondary_harvest_end_month: ${Math.max(0, Math.round(def.secondaryHarvestEndMonth ?? 0))},`);
+    lines.push(`    hide_per_person_per_secondary_harvest: ${rustF64(def.hidePerPersonPerSecondaryHarvest ?? 0)},`);
+    lines.push(`    hide_capacity: ${rustF64(def.hideCapacity ?? 0)},`);
     lines.push(`    yield_efficiency: ${rustF64(def.yieldEfficiency ?? 1)},`);
     lines.push(`    jam_per_person_per_sec: ${rustF64(def.jamPerPersonPerSec ?? 0)},`);
     lines.push(`    luxury_upgrade_gold_cost: ${rustF64(def.luxuryUpgradeGoldCost ?? 0)},`);
@@ -1949,6 +2007,8 @@ function generateTypeScript(): string {
     `export const RESIDENCE_ALE_PER_PERSON_PER_SEC = ${b.population.residenceAlePerPersonPerSec};`,
     `export const RESIDENCE_CLOTH_CAPACITY = ${b.population.residenceClothCapacity};`,
     `export const RESIDENCE_CLOTH_PER_PERSON_PER_SEC = ${b.population.residenceClothPerPersonPerSec};`,
+    `export const RESIDENCE_SHOES_CAPACITY = ${b.population.residenceShoesCapacity};`,
+    `export const RESIDENCE_SHOES_PER_PERSON_PER_SEC = ${b.population.residenceShoesPerPersonPerSec};`,
     `export const RESIDENCE_POTTERY_CAPACITY = ${b.population.residencePotteryCapacity};`,
     `export const RESIDENCE_POTTERY_PER_PERSON_PER_SEC = ${b.population.residencePotteryPerPersonPerSec};`,
     `export const RESIDENCE_LUXURY_JAM_CAPACITY = ${b.population.residenceLuxuryJamCapacity};`,
@@ -2061,6 +2121,7 @@ function generateTypeScript(): string {
     `export const STONE_PER_HARVEST = ${b.production.stonePerHarvest};`,
     `export const GAME_ANIMALS_PER_HARVEST = ${b.production.gameAnimalsPerHarvest};`,
     `export const GAME_PER_HARVEST = ${b.production.gamePerHarvest};`,
+    `export const GAME_HIDES_PER_ANIMAL = ${b.production.gameHidesPerAnimal};`,
     `export const BERRIES_PER_HARVEST = ${b.production.berriesPerHarvest};`,
     `export const MUSHROOMS_PER_HARVEST = ${b.production.mushroomsPerHarvest};`,
     `export const FORAGER_REMEDIES_PER_HARVEST = ${b.production.foragerRemediesPerHarvest};`,
@@ -2123,6 +2184,13 @@ function generateTypeScript(): string {
     `export const WEAVER_FLAX_WATER_PER_CYCLE = ${b.production.weaverFlaxWaterPerCycle};`,
     `export const WEAVER_CLOTH_PER_CYCLE = ${b.production.weaverClothPerCycle};`,
     `export const TEXTILE_TRANSFER_PER_TRIP = ${b.production.textileTransferPerTrip};`,
+    `export const TANNERY_HIDES_PER_CYCLE = ${b.production.tanneryHidesPerCycle};`,
+    `export const TANNERY_WATER_PER_CYCLE = ${b.production.tanneryWaterPerCycle};`,
+    `export const TANNERY_FIREWOOD_PER_CYCLE = ${b.production.tanneryFirewoodPerCycle};`,
+    `export const TANNERY_LEATHER_PER_CYCLE = ${b.production.tanneryLeatherPerCycle};`,
+    `export const COBBLER_LEATHER_PER_CYCLE = ${b.production.cobblerLeatherPerCycle};`,
+    `export const COBBLER_SHOES_PER_CYCLE = ${b.production.cobblerShoesPerCycle};`,
+    `export const LEATHER_TRANSFER_PER_TRIP = ${b.production.leatherTransferPerTrip};`,
     `export const SMOKEHOUSE_FOOD_PER_CYCLE = ${b.production.smokehouseFoodPerCycle};`,
     `export const SMOKEHOUSE_FIREWOOD_PER_CYCLE = ${b.production.smokehouseFirewoodPerCycle};`,
     `export const SMOKEHOUSE_SALT_PER_CYCLE = ${b.production.smokehouseSaltPerCycle};`,
@@ -2366,6 +2434,9 @@ function generateTypeScript(): string {
     '  salt?: number;',
     '  charcoal?: number;',
     '  pottery?: number;',
+    '  hides?: number;',
+    '  leather?: number;',
+    '  shoes?: number;',
     '  roofTiles?: number;',
     '  manure?: number;',
     '  remedies?: number;',
@@ -2457,6 +2528,9 @@ function generateTypeScript(): string {
     const salt = def.storage.salt ?? 0;
     const charcoal = def.storage.charcoal ?? 0;
     const pottery = def.storage.pottery ?? 0;
+    const hides = def.storage.hides ?? 0;
+    const leather = def.storage.leather ?? 0;
+    const shoes = def.storage.shoes ?? 0;
     const roofTiles = def.storage.roofTiles ?? 0;
     const manure = def.storage.manure ?? 0;
     const remedies = def.storage.remedies ?? 0;
@@ -2483,6 +2557,9 @@ function generateTypeScript(): string {
     if (salt > 0) extras.push(`salt: ${salt}`);
     if (charcoal > 0) extras.push(`charcoal: ${charcoal}`);
     if (pottery > 0) extras.push(`pottery: ${pottery}`);
+    if (hides > 0) extras.push(`hides: ${hides}`);
+    if (leather > 0) extras.push(`leather: ${leather}`);
+    if (shoes > 0) extras.push(`shoes: ${shoes}`);
     if (roofTiles > 0) extras.push(`roofTiles: ${roofTiles}`);
     if (manure > 0) extras.push(`manure: ${manure}`);
     if (remedies > 0) extras.push(`remedies: ${remedies}`);
@@ -2504,8 +2581,16 @@ function generateTypeScript(): string {
   lines.push('  hiddenFromPicker: boolean;');
   lines.push('  specializationOf: BackyardGardenKind | null;');
   lines.push('  firstHarvestDays: number;');
+  lines.push('  gestationDays: number;');
   lines.push('  harvestStartMonth: number;');
   lines.push('  harvestEndMonth: number;');
+  lines.push('  productionIntervalDays: number;');
+  lines.push('  secondaryFoodPerPersonPerSec: number;');
+  lines.push('  secondaryProductionIntervalDays: number;');
+  lines.push('  secondaryHarvestStartMonth: number;');
+  lines.push('  secondaryHarvestEndMonth: number;');
+  lines.push('  hidePerPersonPerSecondaryHarvest: number;');
+  lines.push('  hideCapacity: number;');
   lines.push('  yieldEfficiency: number;');
   lines.push('  jamPerPersonPerSec: number;');
   lines.push('  luxuryUpgradeGoldCost: number;');
@@ -2522,8 +2607,16 @@ function generateTypeScript(): string {
     lines.push(`    hiddenFromPicker: ${def.hiddenFromPicker === true},`);
     lines.push(`    specializationOf: ${def.specializationOf ? `'${def.specializationOf}'` : 'null'},`);
     lines.push(`    firstHarvestDays: ${Math.max(0, Math.round(def.firstHarvestDays ?? 0))},`);
+    lines.push(`    gestationDays: ${Math.max(0, Math.round(def.gestationDays ?? 0))},`);
     lines.push(`    harvestStartMonth: ${Math.max(0, Math.round(def.harvestStartMonth ?? 0))},`);
     lines.push(`    harvestEndMonth: ${Math.max(0, Math.round(def.harvestEndMonth ?? 0))},`);
+    lines.push(`    productionIntervalDays: ${Math.max(0, Math.round(def.productionIntervalDays ?? 0))},`);
+    lines.push(`    secondaryFoodPerPersonPerSec: ${def.secondaryFoodPerPersonPerSec ?? 0},`);
+    lines.push(`    secondaryProductionIntervalDays: ${Math.max(0, Math.round(def.secondaryProductionIntervalDays ?? 0))},`);
+    lines.push(`    secondaryHarvestStartMonth: ${Math.max(0, Math.round(def.secondaryHarvestStartMonth ?? 0))},`);
+    lines.push(`    secondaryHarvestEndMonth: ${Math.max(0, Math.round(def.secondaryHarvestEndMonth ?? 0))},`);
+    lines.push(`    hidePerPersonPerSecondaryHarvest: ${def.hidePerPersonPerSecondaryHarvest ?? 0},`);
+    lines.push(`    hideCapacity: ${def.hideCapacity ?? 0},`);
     lines.push(`    yieldEfficiency: ${def.yieldEfficiency ?? 1},`);
     lines.push(`    jamPerPersonPerSec: ${def.jamPerPersonPerSec ?? 0},`);
     lines.push(`    luxuryUpgradeGoldCost: ${def.luxuryUpgradeGoldCost ?? 0},`);

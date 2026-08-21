@@ -1,0 +1,140 @@
+{
+  "input": "C:\\WebProjects\\medieval-road-system\\.codex-work\\sons-of-eva\\Echoes-of-Immortality-v35.docx",
+  "fonts_by_char_count": {
+    "Times New Roman": 105
+  },
+  "direct_run_formatting_runs": 1824,
+  "direct_paragraph_formatting_paragraphs": 158,
+  "heading_like_paragraphs_not_heading_style": [
+    {
+      "para_index": 4684,
+      "text": "Babushka: Echoes of Immortality (2022)",
+      "style": "Normal"
+    },
+    {
+      "para_index": 4731,
+      "text": "Otherwise known as: The UBS, Syndicate, Syn",
+      "style": "Normal"
+    },
+    {
+      "para_index": 4734,
+      "text": "Current Pra Matron Chair: Doctor Anastasia Zakharovna",
+      "style": "Normal"
+    },
+    {
+      "para_index": 4736,
+      "text": "Current Grand Mariner: Admiral Veronika Lagunov",
+      "style": "Normal"
+    },
+    {
+      "para_index": 4737,
+      "text": "Current Black Wolf Commander: Commander Arkadya Borisova",
+      "style": "Normal"
+    },
+    {
+      "para_index": 4761,
+      "text": "Leader:\nPra Matron Chair Doctor Anastasia Zakharovna Zakharova\n",
+      "style": "Normal"
+    },
+    {
+      "para_index": 4782,
+      "text": "Leader:\nAdmiral Veronika Lagunov\n\nMembers:\nCommodore Alexandra Baranov",
+      "style": "Normal"
+    },
+    {
+      "para_index": 4788,
+      "text": "Leaders:\nAlpha Commander Arkadya Borisova\nAlpha Commander Vesna Volkova\n",
+      "style": "Normal"
+    },
+    {
+      "para_index": 4789,
+      "text": "Members:\nGoga Borisova\nSeargent Elina Kovalenko\nLieutenant Teodora Markovich",
+      "style": "Normal"
+    },
+    {
+      "para_index": 4796,
+      "text": "Members:\nDimitra",
+      "style": "Normal"
+    },
+    {
+      "para_index": 4805,
+      "text": "Leader:\nPra Matron Vatraliyna",
+      "style": "Normal"
+    },
+    {
+      "para_index": 4807,
+      "text": "Members:\nKlara Chaban\nMarzanna Poplawski\nLusiya\nSvetlana\nSaryn Kuo",
+      "style": "Normal"
+    },
+    {
+      "para_index": 4814,
+      "text": "Members:\nCypherWing\nKennelCleaner\nBrushBitch\nMirrorFox\nMindMaven",
+      "style": "Normal"
+    },
+    {
+      "para_index": 4822,
+      "text": "A Collaborative Compendium by Authors from Across Gred\u2019s Expanse",
+      "style": "Normal"
+    }
+  ],
+  "examples": {
+    "direct_paragraph_formatting": [
+      {
+        "para_index": 1,
+        "text": "",
+        "style": "Normal"
+      },
+      {
+        "para_index": 2,
+        "text": "",
+        "style": "Normal"
+      },
+      {
+        "para_index": 3,
+        "text": "",
+        "style": "Normal"
+      },
+      {
+        "para_index": 4,
+        "text": "\u0411ABUSHKA\n",
+        "style": "Normal"
+      },
+      {
+        "para_index": 5,
+        "text": "BOOK ONE\nEchoes of Immortality",
+        "style": "Normal"
+      }
+    ],
+    "direct_run_formatting": [
+      {
+        "para_index": 4,
+        "run_text": "\u0411ABUSHKA",
+        "style": "Normal"
+      },
+      {
+        "para_index": 4,
+        "run_text": "\n",
+        "style": "Normal"
+      },
+      {
+        "para_index": 5,
+        "run_text": "BOOK",
+        "style": "Normal"
+      },
+      {
+        "para_index": 5,
+        "run_text": " ",
+        "style": "Normal"
+      },
+      {
+        "para_index": 5,
+        "run_text": "ONE",
+        "style": "Normal"
+      }
+    ]
+  },
+  "notes": [
+    "Direct formatting is not always wrong, but it often causes inconsistent output when templates change.",
+    "Heading-like paragraphs not using Heading styles can break TOC and accessibility."
+  ]
+}

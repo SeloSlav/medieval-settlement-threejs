@@ -5,6 +5,7 @@ import {
   CALENDAR_WORK_START_HOUR,
   RESIDENCE_ALE_PER_PERSON_PER_SEC,
   RESIDENCE_CLOTH_PER_PERSON_PER_SEC,
+  RESIDENCE_SHOES_PER_PERSON_PER_SEC,
   RESIDENCE_PRESERVED_FOOD_PER_PERSON_PER_SEC,
   RESIDENCE_PRESERVED_FOOD_WINTER_MULTIPLIER,
   RESIDENCE_POTTERY_PER_PERSON_PER_SEC,
@@ -17,7 +18,7 @@ import type {
   SettlementProductionCapacity,
 } from './settlementProduction.ts';
 
-export type ProsperityCommodity = 'preservedFood' | 'ale' | 'cloth' | 'pottery';
+export type ProsperityCommodity = 'preservedFood' | 'ale' | 'cloth' | 'shoes' | 'pottery';
 
 export type ProsperityChain = {
   kind: ProsperityCommodity;
@@ -94,6 +95,7 @@ const PER_RESIDENT_PER_DAY: Record<ProsperityCommodity, number> = {
     * RESIDENCE_PRESERVED_FOOD_WINTER_MULTIPLIER,
   ale: RESIDENCE_ALE_PER_PERSON_PER_SEC * WORKDAY_SECONDS,
   cloth: RESIDENCE_CLOTH_PER_PERSON_PER_SEC * WORKDAY_SECONDS,
+  shoes: RESIDENCE_SHOES_PER_PERSON_PER_SEC * WORKDAY_SECONDS,
   pottery: RESIDENCE_POTTERY_PER_PERSON_PER_SEC * WORKDAY_SECONDS,
 };
 
@@ -101,6 +103,7 @@ export function computeSettlementProsperityPlan(
   production: Pick<
     SettlementProductionCapacity,
     | 'tierTwoPlusResidents'
+    | 'tierThreePlusResidents'
     | 'tierFourResidents'
     | 'preservedFoodOutputPerDay'
     | 'preservedFoodDemandPerDay'
@@ -108,6 +111,8 @@ export function computeSettlementProsperityPlan(
     | 'aleDemandPerDay'
     | 'clothOutputPerDay'
     | 'clothDemandPerDay'
+    | 'shoesOutputPerDay'
+    | 'shoesDemandPerDay'
     | 'potteryOutputPerDay'
     | 'potteryDemandPerDay'
   > & {
@@ -118,12 +123,17 @@ export function computeSettlementProsperityPlan(
     | 'additionalPreservedFoodPerDay'
     | 'additionalAlePerDay'
     | 'additionalClothPerDay'
+    | 'additionalShoesPerDay'
     | 'additionalPotteryPerDay'
   >,
 ): SettlementProsperityPlan {
   const lowerTierAleClothResidents = Math.max(
     0,
     production.tierTwoPlusResidents - production.tierFourResidents,
+  );
+  const lowerTierShoesResidents = Math.max(
+    0,
+    production.tierThreePlusResidents - production.tierFourResidents,
   );
   const chains = [
     prosperityChain(
@@ -147,6 +157,13 @@ export function computeSettlementProsperityPlan(
       lowerTierAleClothResidents * PER_RESIDENT_PER_DAY.cloth,
     ),
     prosperityChain(
+      'shoes',
+      'shoes',
+      production.shoesOutputPerDay,
+      production.shoesDemandPerDay,
+      lowerTierShoesResidents * PER_RESIDENT_PER_DAY.shoes,
+    ),
+    prosperityChain(
       'pottery',
       'household pottery',
       production.potteryOutputPerDay,
@@ -167,6 +184,7 @@ export function computeSettlementProsperityPlan(
         ),
         safeRatio(growth.additionalAlePerDay, PER_RESIDENT_PER_DAY.ale),
         safeRatio(growth.additionalClothPerDay, PER_RESIDENT_PER_DAY.cloth),
+        safeRatio(growth.additionalShoesPerDay, PER_RESIDENT_PER_DAY.shoes),
         safeRatio(growth.additionalPotteryPerDay, PER_RESIDENT_PER_DAY.pottery),
       ))
     : 0;
@@ -286,6 +304,14 @@ function buildProsperityRoadPlan(
           raw.clothOutputPerDay
             - positive(raw.lowerTierAleClothResidents) * PER_RESIDENT_PER_DAY.cloth,
           PER_RESIDENT_PER_DAY.cloth,
+        ),
+      },
+      {
+        kind: 'shoes' as const,
+        supported: safeRatio(
+          raw.shoesOutputPerDay
+            - positive(raw.lowerTierShoesResidents) * PER_RESIDENT_PER_DAY.shoes,
+          PER_RESIDENT_PER_DAY.shoes,
         ),
       },
       {
@@ -420,6 +446,7 @@ function demandForResidents(
     preservedFood: residents * PER_RESIDENT_PER_DAY.preservedFood,
     ale: residents * PER_RESIDENT_PER_DAY.ale,
     cloth: residents * PER_RESIDENT_PER_DAY.cloth,
+    shoes: residents * PER_RESIDENT_PER_DAY.shoes,
     pottery: residents * PER_RESIDENT_PER_DAY.pottery,
   };
 }

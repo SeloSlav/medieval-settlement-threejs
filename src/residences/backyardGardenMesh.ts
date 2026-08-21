@@ -106,7 +106,7 @@ const FLOWER_STEM_MAPS = createFlowerStemMaps();
 const KITCHEN_CROP_TEXTURE_PATHS = {
   cabbage: '/assets/textures/vegetation/kitchen_crops/cabbage_leaf.png',
   carrot: '/assets/textures/vegetation/kitchen_crops/carrot_frond.png',
-  turnip: '/assets/textures/vegetation/kitchen_crops/turnip_leaf.png',
+  beetroot: '/assets/textures/vegetation/kitchen_crops/turnip_leaf.png',
 } as const;
 
 const KITCHEN_HERB_TEXTURE_PATHS = {
@@ -135,7 +135,7 @@ function loadKitchenCropTexture(path: string, name: string): THREE.Texture | nul
 const KITCHEN_CROP_TEXTURES = {
   cabbage: loadKitchenCropTexture(KITCHEN_CROP_TEXTURE_PATHS.cabbage, 'Generated cabbage leaf cutout'),
   carrot: loadKitchenCropTexture(KITCHEN_CROP_TEXTURE_PATHS.carrot, 'Generated carrot frond cutout'),
-  turnip: loadKitchenCropTexture(KITCHEN_CROP_TEXTURE_PATHS.turnip, 'Generated turnip leaf cutout'),
+  beetroot: loadKitchenCropTexture(KITCHEN_CROP_TEXTURE_PATHS.beetroot, 'Generated beetroot leaf cutout'),
 } as const;
 
 const KITCHEN_HERB_TEXTURES = {
@@ -248,10 +248,10 @@ const MATERIALS = {
     alphaTest: 0.16,
     side: THREE.DoubleSide,
   }),
-  turnipLeafCard: new THREE.MeshStandardMaterial({
-    name: 'Generated turnip leaf material',
+  beetrootLeafCard: new THREE.MeshStandardMaterial({
+    name: 'Generated beetroot leaf material',
     color: 0xffffff,
-    map: KITCHEN_CROP_TEXTURES.turnip,
+    map: KITCHEN_CROP_TEXTURES.beetroot,
     emissive: 0x182014,
     emissiveIntensity: 0.16,
     roughness: 0.92,
@@ -290,6 +290,9 @@ const MATERIALS = {
   straw: new THREE.MeshStandardMaterial({ color: 0xb28a49, roughness: 0.96 }),
   goat: new THREE.MeshStandardMaterial({ color: 0x9b8062, roughness: 0.92 }),
   goatDark: new THREE.MeshStandardMaterial({ color: 0x4a382c, roughness: 0.94 }),
+  pig: new THREE.MeshStandardMaterial({ color: 0xb77765, roughness: 0.9 }),
+  pigDark: new THREE.MeshStandardMaterial({ color: 0x6b4037, roughness: 0.94 }),
+  mud: new THREE.MeshStandardMaterial({ color: 0x594334, roughness: 1 }),
   water: sharedBuildingDetailMaterial('water'),
   collisionProxy: new THREE.MeshBasicMaterial({ visible: false }),
 } as const;
@@ -1038,10 +1041,10 @@ function addCarrot(group: THREE.Group, x: number, z: number, seed: number): void
   }
 }
 
-function addTurnip(group: THREE.Group, x: number, z: number, seed: number): void {
+function addBeetroot(group: THREE.Group, x: number, z: number, seed: number): void {
   const rng = mulberry32(seed);
   const plant = new THREE.Group();
-  plant.name = 'Turnip plant';
+  plant.name = 'Beetroot plant';
   plant.position.set(x, 0.02, z);
   plant.rotation.y = rng() * Math.PI * 2;
   group.add(plant);
@@ -1049,8 +1052,8 @@ function addTurnip(group: THREE.Group, x: number, z: number, seed: number): void
     const card = createRootedLeafCard(
       0.36 + rng() * 0.045,
       0.29 + rng() * 0.035,
-      MATERIALS.turnipLeafCard,
-      'Textured turnip leaf',
+      MATERIALS.beetrootLeafCard,
+      'Textured beetroot leaf',
     );
     card.position.y = 0.015;
     card.rotation.set(-0.16 - rng() * 0.12, leaf * Math.PI * 0.5, (rng() - 0.5) * 0.08);
@@ -1058,28 +1061,39 @@ function addTurnip(group: THREE.Group, x: number, z: number, seed: number): void
   }
 }
 
-function addVegetableGarden(group: THREE.Group, width: number, depth: number, seed: number): void {
+type VegetableCropKind = 'cabbage' | 'carrot' | 'beetroot';
+
+function addVegetableGarden(
+  group: THREE.Group,
+  width: number,
+  depth: number,
+  seed: number,
+  crop: VegetableCropKind | null,
+): void {
   const bedCount = 3;
   const gap = 0.3;
   const bedWidth = (width - gap * (bedCount + 1)) / bedCount;
   const bedDepth = Math.max(1.15, depth - 0.62);
   const bedZ = 0;
-  const cropRows = [
-    { name: 'CabbageRows', add: addCabbage, spacing: 0.58 },
-    { name: 'CarrotRows', add: addCarrot, spacing: 0.4 },
-    { name: 'TurnipRows', add: addTurnip, spacing: 0.48 },
-  ] as const;
+  const cropDefinition = crop === 'cabbage'
+    ? { name: 'CabbageRows', add: addCabbage, spacing: 0.58 }
+    : crop === 'carrot'
+      ? { name: 'CarrotRows', add: addCarrot, spacing: 0.4 }
+      : crop === 'beetroot'
+        ? { name: 'BeetrootRows', add: addBeetroot, spacing: 0.48 }
+        : null;
   for (let bed = 0; bed < bedCount; bed++) {
     const x = -width * 0.5 + gap + bedWidth * 0.5 + bed * (bedWidth + gap);
     addSoilBed(group, x, bedZ, bedWidth, bedDepth, {
       bordered: false,
       profile: 'ground-level',
     });
+    if (!cropDefinition || !crop) continue;
     const cropGroup = new THREE.Group();
-    cropGroup.name = cropRows[bed]!.name;
-    cropGroup.userData.backyardCropKind = (['cabbage', 'carrot', 'turnip'] as const)[bed];
+    cropGroup.name = `${cropDefinition.name}:${bed + 1}`;
+    cropGroup.userData.backyardCropKind = crop;
     group.add(cropGroup);
-    const spacing = cropRows[bed]!.spacing;
+    const spacing = cropDefinition.spacing;
     const naturalCols = Math.max(2, Math.floor(bedWidth / spacing));
     const naturalRows = Math.max(2, Math.floor(bedDepth / spacing));
     const cols = Math.min(MAX_GARDEN_GRID_COLUMNS, naturalCols);
@@ -1092,7 +1106,7 @@ function addVegetableGarden(group: THREE.Group, width: number, depth: number, se
       : (rows - 1) * spacing;
     for (let row = 0; row < rows; row++) {
       for (let col = 0; col < cols; col++) {
-        cropRows[bed]!.add(
+        cropDefinition.add(
           cropGroup,
           x - columnSpan * 0.5 + col * columnSpan / Math.max(1, cols - 1),
           bedZ - rowSpan * 0.5 + row * rowSpan / Math.max(1, rows - 1),
@@ -1100,6 +1114,32 @@ function addVegetableGarden(group: THREE.Group, width: number, depth: number, se
         );
       }
     }
+  }
+  if (!crop) {
+    const markerX = width * 0.38;
+    const markerZ = depth * 0.38;
+    addMesh(
+      group,
+      new THREE.CylinderGeometry(0.035, 0.045, 0.82, 6),
+      MATERIALS.darkTimber,
+      markerX,
+      0.41,
+      markerZ,
+      undefined,
+      undefined,
+      'Vegetable seed-choice marker stake',
+    );
+    addMesh(
+      group,
+      new THREE.BoxGeometry(0.62, 0.28, 0.055),
+      MATERIALS.timber,
+      markerX,
+      0.72,
+      markerZ,
+      new THREE.Euler(0, -0.12, 0),
+      undefined,
+      'Vegetable seed-choice marker',
+    );
   }
 }
 
@@ -1397,67 +1437,163 @@ function addHerbGarden(group: THREE.Group, width: number, depth: number, seed: n
   addDryingRack(group, rackX, depth * 0.17, 2);
 }
 
-function addHenYard(group: THREE.Group, width: number, depth: number, seed: number): void {
-  const rng = mulberry32(seed ^ 0x4e57a11);
-  const coopWidth = Math.min(2.4, width * 0.42);
-  const coopDepth = Math.min(1.9, depth * 0.38);
-  const coopX = -width * 0.24;
-  const coopZ = -depth * 0.24;
-  addMesh(group, new THREE.BoxGeometry(coopWidth, 1.15, coopDepth), MATERIALS.timber, coopX, 0.72, coopZ);
-  addMesh(group, new THREE.ConeGeometry(Math.max(coopWidth, coopDepth) * 0.72, 0.75, 4), MATERIALS.darkTimber, coopX, 1.65, coopZ, new THREE.Euler(0, Math.PI * 0.25, 0));
-  addMesh(group, new THREE.BoxGeometry(0.62, 0.72, 0.08), MATERIALS.darkSoil, coopX + 0.35, 0.58, coopZ + coopDepth * 0.52, new THREE.Euler(), undefined, 'HenCoopDoor');
+export type AnimalPenVisualSpecies = 'unstocked' | 'chickens' | 'goats' | 'pigs';
+
+export type AnimalPenVisualPlan = {
+  seed: number;
+  species: AnimalPenVisualSpecies;
+  footprint: { width: number; depth: number };
+  enclosure: {
+    halfWidth: number;
+    halfDepth: number;
+    postHeight: number;
+    railHeights: readonly [number, number];
+    gateWidth: number;
+  };
+  shelter: { x: number; z: number; width: number; depth: number; wallHeight: number };
+  fixtures: readonly ('trough' | 'nesting-boxes' | 'milking-stand' | 'mud-wallow')[];
+  fallbackAnimalCount: number;
+};
+
+/** Serializable authored plan compiled by the animal-pen mesh emitter below. */
+export function createAnimalPenVisualPlan(
+  kind: Extract<BackyardGardenKind, 'animal_pen' | 'chicken_pen' | 'goat_pen' | 'pig_pen'>,
+  width: number,
+  depth: number,
+  seed: number,
+): AnimalPenVisualPlan {
+  const species: AnimalPenVisualSpecies = kind === 'chicken_pen'
+    ? 'chickens'
+    : kind === 'goat_pen'
+      ? 'goats'
+      : kind === 'pig_pen'
+        ? 'pigs'
+        : 'unstocked';
+  const shelterWidth = Math.min(species === 'chickens' ? 2.25 : 2.7, width * 0.44);
+  const fixtures = species === 'chickens'
+    ? ['trough', 'nesting-boxes'] as const
+    : species === 'goats'
+      ? ['trough', 'milking-stand'] as const
+      : species === 'pigs'
+        ? ['trough', 'mud-wallow'] as const
+        : ['trough'] as const;
+  return {
+    seed,
+    species,
+    footprint: { width, depth },
+    enclosure: {
+      halfWidth: width * 0.47,
+      halfDepth: depth * 0.43,
+      postHeight: species === 'chickens' ? 0.95 : 1.12,
+      railHeights: species === 'chickens' ? [0.42, 0.76] : [0.44, 0.86],
+      gateWidth: Math.min(1.15, width * 0.22),
+    },
+    shelter: {
+      x: -width * 0.24,
+      z: -depth * 0.25,
+      width: shelterWidth,
+      depth: Math.min(1.9, depth * 0.36),
+      wallHeight: species === 'chickens' ? 1.05 : 1.25,
+    },
+    fixtures,
+    fallbackAnimalCount: species === 'chickens'
+      ? Math.max(3, Math.min(6, Math.round(width * depth / 6)))
+      : species === 'unstocked' ? 0 : 3,
+  };
+}
+
+function addAnimalPen(
+  group: THREE.Group,
+  kind: Extract<BackyardGardenKind, 'animal_pen' | 'chicken_pen' | 'goat_pen' | 'pig_pen'>,
+  width: number,
+  depth: number,
+  seed: number,
+): void {
+  const plan = createAnimalPenVisualPlan(kind, width, depth, seed);
+  group.userData.animalPenPlan = plan;
+  compileAnimalPenShell(group, plan);
+  if (plan.species === 'chickens') addChickenPenFixtures(group, plan);
+  if (plan.species === 'goats') addGoatPenFixtures(group, plan);
+  if (plan.species === 'pigs') addPigPenFixtures(group, plan);
+}
+
+function compileAnimalPenShell(group: THREE.Group, plan: AnimalPenVisualPlan): void {
+  const { enclosure, shelter } = plan;
+  const fence = new THREE.Group();
+  fence.name = 'Animal pen enclosure fence';
+  fence.userData.architectureModule = 'enclosure';
+  group.add(fence);
+  const gateHalf = enclosure.gateWidth * 0.5;
+  const posts = [
+    [-enclosure.halfWidth, -enclosure.halfDepth],
+    [enclosure.halfWidth, -enclosure.halfDepth],
+    [-enclosure.halfWidth, enclosure.halfDepth],
+    [enclosure.halfWidth, enclosure.halfDepth],
+    [-gateHalf, enclosure.halfDepth],
+    [gateHalf, enclosure.halfDepth],
+  ] as const;
+  for (const [x, z] of posts) {
+    addMesh(fence, new THREE.CylinderGeometry(0.055, 0.075, enclosure.postHeight, 6), MATERIALS.darkTimber, x, enclosure.postHeight * 0.5, z);
+  }
+  for (const y of enclosure.railHeights) {
+    addMesh(fence, new THREE.BoxGeometry(enclosure.halfWidth * 2, 0.065, 0.065), MATERIALS.wicker, 0, y, -enclosure.halfDepth);
+    addMesh(fence, new THREE.BoxGeometry(0.065, 0.065, enclosure.halfDepth * 2), MATERIALS.wicker, -enclosure.halfWidth, y, 0);
+    addMesh(fence, new THREE.BoxGeometry(0.065, 0.065, enclosure.halfDepth * 2), MATERIALS.wicker, enclosure.halfWidth, y, 0);
+    const sideRailWidth = enclosure.halfWidth - gateHalf;
+    addMesh(fence, new THREE.BoxGeometry(sideRailWidth, 0.065, 0.065), MATERIALS.wicker, -(gateHalf + sideRailWidth * 0.5), y, enclosure.halfDepth);
+    addMesh(fence, new THREE.BoxGeometry(sideRailWidth, 0.065, 0.065), MATERIALS.wicker, gateHalf + sideRailWidth * 0.5, y, enclosure.halfDepth);
+  }
+  const gate = new THREE.Group();
+  gate.name = 'Animal pen gate';
+  gate.userData.architectureModule = 'gate';
+  gate.position.set(-gateHalf, 0, enclosure.halfDepth);
+  gate.rotation.y = -0.18;
+  for (const y of enclosure.railHeights) {
+    addMesh(gate, new THREE.BoxGeometry(enclosure.gateWidth, 0.07, 0.07), MATERIALS.darkTimber, gateHalf, y, 0);
+  }
+  fence.add(gate);
+
+  const shelterGroup = new THREE.Group();
+  shelterGroup.name = 'Animal pen weather shelter';
+  shelterGroup.userData.architectureModule = 'shelter';
+  group.add(shelterGroup);
+  addMesh(shelterGroup, new THREE.BoxGeometry(shelter.width, shelter.wallHeight, 0.12), MATERIALS.timber, shelter.x, shelter.wallHeight * 0.5, shelter.z - shelter.depth * 0.5);
+  for (const x of [shelter.x - shelter.width * 0.5, shelter.x + shelter.width * 0.5]) {
+    addMesh(shelterGroup, new THREE.BoxGeometry(0.12, shelter.wallHeight, shelter.depth), MATERIALS.timber, x, shelter.wallHeight * 0.5, shelter.z);
+  }
+  addMesh(shelterGroup, new THREE.ConeGeometry(Math.max(shelter.width, shelter.depth) * 0.72, 0.72, 4), MATERIALS.darkTimber, shelter.x, shelter.wallHeight + 0.38, shelter.z, new THREE.Euler(0, Math.PI * 0.25, 0));
+  addMesh(shelterGroup, new THREE.BoxGeometry(shelter.width * 0.88, 0.08, shelter.depth * 0.82), MATERIALS.straw, shelter.x, 0.06, shelter.z, undefined, undefined, 'AnimalPenBedding');
+
+  if (plan.fixtures.includes('trough')) {
+    addMesh(group, new THREE.BoxGeometry(1.35, 0.22, 0.46), MATERIALS.darkTimber, plan.footprint.width * 0.2, 0.23, -plan.footprint.depth * 0.19, undefined, undefined, 'AnimalPenTrough');
+    addMesh(group, new THREE.BoxGeometry(1.12, 0.06, 0.28), MATERIALS.water, plan.footprint.width * 0.2, 0.36, -plan.footprint.depth * 0.19);
+  }
+}
+
+function addChickenPenFixtures(group: THREE.Group, plan: AnimalPenVisualPlan): void {
+  const rng = mulberry32(plan.seed ^ 0x4e57a11);
+  const { shelter, footprint } = plan;
+  addMesh(group, new THREE.BoxGeometry(shelter.width * 0.72, 0.58, 0.18), MATERIALS.darkTimber, shelter.x, 0.46, shelter.z + shelter.depth * 0.44, undefined, undefined, 'ChickenNestingBoxes');
   for (let rung = 0; rung < 4; rung++) {
-    addMesh(group, new THREE.BoxGeometry(0.82, 0.07, 0.08), MATERIALS.wicker, coopX + 0.35, 0.18 + rung * 0.18, coopZ + coopDepth * 0.68 + rung * 0.12);
+    addMesh(group, new THREE.BoxGeometry(0.82, 0.07, 0.08), MATERIALS.wicker, shelter.x + 0.25, 0.14 + rung * 0.15, shelter.z + shelter.depth * 0.55 + rung * 0.11);
   }
-  const enclosure = new THREE.Group();
-  enclosure.name = 'Hen yard enclosure fence';
-  group.add(enclosure);
-  for (const x of [-width * 0.48, width * 0.48]) {
-    for (const z of [-depth * 0.44, depth * 0.44]) {
-      addMesh(enclosure, new THREE.CylinderGeometry(0.045, 0.06, 0.95, 6), MATERIALS.darkTimber, x, 0.48, z);
-    }
-  }
-  for (const z of [-depth * 0.44, depth * 0.44]) {
-    addMesh(enclosure, new THREE.BoxGeometry(width * 0.96, 0.055, 0.055), MATERIALS.wicker, 0, 0.45, z);
-    addMesh(enclosure, new THREE.BoxGeometry(width * 0.96, 0.055, 0.055), MATERIALS.wicker, 0, 0.78, z);
-  }
-  for (const x of [-width * 0.48, width * 0.48]) {
-    addMesh(enclosure, new THREE.BoxGeometry(0.055, 0.055, depth * 0.88), MATERIALS.wicker, x, 0.45, 0);
-    addMesh(enclosure, new THREE.BoxGeometry(0.055, 0.055, depth * 0.88), MATERIALS.wicker, x, 0.78, 0);
-  }
-  // Lightweight fallback birds are replaced by the freely licensed animated asset when available.
-  for (let i = 0; i < Math.max(3, Math.min(6, Math.round(width * depth / 6))); i++) {
-    const x = (rng() - 0.34) * width * 0.72;
-    const z = (rng() - 0.2) * depth * 0.62;
+  for (let index = 0; index < plan.fallbackAnimalCount; index++) {
     const bird = new THREE.Group();
     bird.name = 'HenFallback';
-    addMesh(bird, new THREE.SphereGeometry(0.19, 7, 5), i === 0 ? MATERIALS.darkTimber : MATERIALS.wicker, 0, 0.22, 0, new THREE.Euler(), new THREE.Vector3(1.12, 0.88, 0.82));
+    addMesh(bird, new THREE.SphereGeometry(0.19, 7, 5), index === 0 ? MATERIALS.darkTimber : MATERIALS.wicker, 0, 0.22, 0, new THREE.Euler(), new THREE.Vector3(1.12, 0.88, 0.82));
     addMesh(bird, new THREE.SphereGeometry(0.11, 7, 5), MATERIALS.wicker, 0.15, 0.38, 0);
     addMesh(bird, new THREE.ConeGeometry(0.045, 0.14, 5), MATERIALS.terracotta, 0.27, 0.38, 0, new THREE.Euler(0, 0, -Math.PI * 0.5));
-    bird.position.set(x, 0, z);
+    bird.position.set((rng() - 0.34) * footprint.width * 0.72, 0, (rng() - 0.2) * footprint.depth * 0.62);
     bird.rotation.y = rng() * Math.PI * 2;
     group.add(bird);
   }
 }
 
-function addGoatPen(group: THREE.Group, width: number, depth: number, seed: number): void {
-  const rng = mulberry32(seed ^ 0x60a7);
-  const shelterWidth = Math.min(2.6, width * 0.45);
-  addMesh(group, new THREE.BoxGeometry(shelterWidth, 1.25, Math.min(1.8, depth * 0.34)), MATERIALS.timber, -width * 0.24, 0.68, -depth * 0.28, undefined, undefined, 'GoatShelter');
-  addMesh(group, new THREE.ConeGeometry(shelterWidth * 0.72, 0.72, 4), MATERIALS.darkTimber, -width * 0.24, 1.62, -depth * 0.28, new THREE.Euler(0, Math.PI * 0.25, 0));
-  addMesh(group, new THREE.BoxGeometry(1.25, 0.22, 0.42), MATERIALS.darkTimber, width * 0.22, 0.23, -depth * 0.24, undefined, undefined, 'GoatTrough');
-  for (const x of [-width * 0.47, width * 0.47]) {
-    for (const z of [-depth * 0.43, depth * 0.43]) {
-      addMesh(group, new THREE.CylinderGeometry(0.055, 0.075, 1.12, 6), MATERIALS.darkTimber, x, 0.56, z);
-    }
-  }
-  for (const z of [-depth * 0.43, depth * 0.43]) {
-    for (const y of [0.42, 0.82]) addMesh(group, new THREE.BoxGeometry(width * 0.94, 0.065, 0.065), MATERIALS.wicker, 0, y, z, undefined, undefined, y === 0.42 && z < 0 ? 'Goat pen enclosure fence' : undefined);
-  }
-  for (const x of [-width * 0.47, width * 0.47]) {
-    for (const y of [0.42, 0.82]) addMesh(group, new THREE.BoxGeometry(0.065, 0.065, depth * 0.86), MATERIALS.wicker, x, y, 0);
-  }
-  for (let index = 0; index < 3; index++) {
+function addGoatPenFixtures(group: THREE.Group, plan: AnimalPenVisualPlan): void {
+  const rng = mulberry32(plan.seed ^ 0x60a7);
+  const { footprint } = plan;
+  addMesh(group, new THREE.BoxGeometry(1.05, 0.12, 0.62), MATERIALS.wicker, footprint.width * 0.22, 0.18, footprint.depth * 0.18, undefined, undefined, 'GoatMilkingStand');
+  for (let index = 0; index < plan.fallbackAnimalCount; index++) {
     const goat = new THREE.Group();
     goat.name = 'GoatFallback';
     addMesh(goat, new THREE.SphereGeometry(0.34, 8, 6), MATERIALS.goat, 0, 0.55, 0, undefined, new THREE.Vector3(1.35, 0.8, 0.72));
@@ -1466,9 +1602,29 @@ function addGoatPen(group: THREE.Group, width: number, depth: number, seed: numb
       addMesh(goat, new THREE.CylinderGeometry(0.035, 0.045, 0.48, 5), MATERIALS.goatDark, -0.18, 0.26, z);
       addMesh(goat, new THREE.CylinderGeometry(0.035, 0.045, 0.48, 5), MATERIALS.goatDark, 0.2, 0.26, z);
     }
-    goat.position.set((rng() - 0.25) * width * 0.55, 0, (rng() - 0.1) * depth * 0.5);
+    goat.position.set((rng() - 0.25) * footprint.width * 0.55, 0, (rng() - 0.1) * footprint.depth * 0.5);
     goat.rotation.y = rng() * Math.PI * 2;
     group.add(goat);
+  }
+}
+
+function addPigPenFixtures(group: THREE.Group, plan: AnimalPenVisualPlan): void {
+  const rng = mulberry32(plan.seed ^ 0x7165);
+  const { footprint } = plan;
+  addMesh(group, new THREE.CylinderGeometry(0.82, 1.0, 0.035, 18), MATERIALS.mud, footprint.width * 0.22, 0.025, footprint.depth * 0.19, new THREE.Euler(), new THREE.Vector3(1, 1, 0.55), 'PigMudWallow');
+  for (let index = 0; index < plan.fallbackAnimalCount; index++) {
+    const pig = new THREE.Group();
+    pig.name = 'PigFallback';
+    addMesh(pig, new THREE.SphereGeometry(0.34, 9, 6), MATERIALS.pig, 0, 0.42, 0, undefined, new THREE.Vector3(1.35, 0.82, 0.82));
+    addMesh(pig, new THREE.SphereGeometry(0.21, 8, 6), MATERIALS.pig, 0.43, 0.46, 0, undefined, new THREE.Vector3(0.9, 0.88, 0.82));
+    addMesh(pig, new THREE.CylinderGeometry(0.09, 0.12, 0.16, 8), MATERIALS.pigDark, 0.61, 0.43, 0, new THREE.Euler(0, 0, Math.PI * 0.5));
+    for (const z of [-0.16, 0.16]) {
+      addMesh(pig, new THREE.CylinderGeometry(0.04, 0.055, 0.28, 5), MATERIALS.pigDark, -0.2, 0.18, z);
+      addMesh(pig, new THREE.CylinderGeometry(0.04, 0.055, 0.28, 5), MATERIALS.pigDark, 0.2, 0.18, z);
+    }
+    pig.position.set((rng() - 0.28) * footprint.width * 0.58, 0, (rng() - 0.05) * footprint.depth * 0.5);
+    pig.rotation.y = rng() * Math.PI * 2;
+    group.add(pig);
   }
 }
 
@@ -1525,7 +1681,16 @@ export function createBackyardGardenMesh(
       addBushOrchard(group, 'rosehip', width, depth, seed, plants);
       break;
     case 'vegetable_garden':
-      addVegetableGarden(group, width, depth, seed);
+      addVegetableGarden(group, width, depth, seed, null);
+      break;
+    case 'cabbage_garden':
+      addVegetableGarden(group, width, depth, seed, 'cabbage');
+      break;
+    case 'carrot_garden':
+      addVegetableGarden(group, width, depth, seed, 'carrot');
+      break;
+    case 'beetroot_garden':
+      addVegetableGarden(group, width, depth, seed, 'beetroot');
       break;
     case 'flower_garden':
       addFlowerGarden(group, width, depth, seed, plants, options.flowerLuxuryUpgraded ?? false);
@@ -1533,11 +1698,11 @@ export function createBackyardGardenMesh(
     case 'herb_garden':
       addHerbGarden(group, width, depth, seed);
       break;
-    case 'hen_yard':
-      addHenYard(group, width, depth, seed);
-      break;
+    case 'animal_pen':
+    case 'chicken_pen':
     case 'goat_pen':
-      addGoatPen(group, width, depth, seed);
+    case 'pig_pen':
+      addAnimalPen(group, kind, width, depth, seed);
       break;
     case 'backyard_apiary':
       addBackyardApiary(group, width, depth, seed);
@@ -1552,9 +1717,9 @@ export function createBackyardGardenMesh(
 }
 
 const VEGETABLE_MONTHLY_SCALE = {
-  cabbage: [0, 0, 0.28, 0.62, 0.86, 0.96, 0.9, 0.72, 0.86, 1, 0.58, 0],
-  carrot: [0, 0, 0.16, 0.38, 0.64, 0.86, 1, 1, 0.9, 0.68, 0.18, 0],
-  turnip: [0, 0, 0.22, 0.56, 0.86, 0.76, 0.48, 0.38, 0.66, 0.92, 0.62, 0],
+  cabbage: [0, 0, 0.2, 0.38, 0.58, 0.78, 0.94, 1, 1, 0.94, 0.78, 0],
+  carrot: [0, 0, 0.24, 0.5, 0.72, 0.9, 1, 1, 0.94, 0.82, 0.62, 0],
+  beetroot: [0, 0, 0.32, 0.62, 0.9, 1, 0.94, 0.88, 0.82, 0.72, 0, 0],
 } as const;
 
 const HERB_MONTHLY_SCALE = {
@@ -1685,7 +1850,14 @@ export function syncBackyardGardenSeasonVisuals(
 
     const cropKind = object.userData.backyardCropKind as keyof typeof VEGETABLE_MONTHLY_SCALE | undefined;
     if (cropKind) {
-      setSeasonalScale(object, VEGETABLE_MONTHLY_SCALE[cropKind][monthIndex]);
+      const def = BACKYARD_GARDEN_DEFINITIONS[kind];
+      const maturityProgress = def.specializationOf === 'vegetable_garden'
+        && def.firstHarvestDays > 0
+        ? THREE.MathUtils.clamp(1 - daysUntilFirstHarvest / def.firstHarvestDays, 0, 1)
+        : 1;
+      const maturityScale = THREE.MathUtils.lerp(0.22, 1, maturityProgress);
+      setSeasonalScale(object, VEGETABLE_MONTHLY_SCALE[cropKind][monthIndex] * maturityScale);
+      object.userData.backyardMaturityProgress = maturityProgress;
       return;
     }
     const herbKind = object.userData.backyardHerbKind as keyof typeof HERB_MONTHLY_SCALE | undefined;

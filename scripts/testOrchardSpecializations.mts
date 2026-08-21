@@ -32,10 +32,15 @@ const canonicalKinds = [
   'aronia_orchard',
   'rosehip_orchard',
   'vegetable_garden',
+  'cabbage_garden',
+  'carrot_garden',
+  'beetroot_garden',
   'flower_garden',
   'herb_garden',
-  'hen_yard',
+  'animal_pen',
+  'chicken_pen',
   'goat_pen',
+  'pig_pen',
   'backyard_apiary',
 ] as const;
 assert.deepEqual(
@@ -124,14 +129,16 @@ assert.equal(activeResidenceNeedKinds(3).includes('luxury'), false);
 assert.equal(activeResidenceNeedKinds(4).includes('luxury'), true);
 
 const reducerSource = readFileSync(join(process.cwd(), 'server/src/reducers/backyards.rs'), 'utf8');
+const policySource = readFileSync(join(process.cwd(), 'server/src/backyard_garden_policy.rs'), 'utf8');
 const simulationSource = readFileSync(join(process.cwd(), 'server/src/simulation/backyard_garden.rs'), 'utf8');
 const needsSource = readFileSync(join(process.cwd(), 'server/src/simulation/residence_needs/mod.rs'), 'utf8');
+const needStateSource = readFileSync(join(process.cwd(), 'server/src/simulation/residence_needs/state.rs'), 'utf8');
 const tablesSource = readFileSync(join(process.cwd(), 'server/src/tables.rs'), 'utf8');
 const clientReducerSource = readFileSync(join(process.cwd(), 'src/data/spacetimeReducers.ts'), 'utf8');
 const inspectorSource = readFileSync(join(process.cwd(), 'src/resources/inspector/backyardRenderer.ts'), 'utf8');
 
 assert.match(reducerSource, /specialize_orchard[\s\S]*Only a completed, unplanted orchard/);
-assert.match(reducerSource, /def\.specialization_of\.is_some\(\)[\s\S]*Construct an orchard first/);
+assert.match(reducerSource, /def\.specialization_of\.is_some\(\)[\s\S]*matching backyard shell first/);
 assert.match(reducerSource, /specialization_of == Some\("orchard"\)/);
 assert.match(reducerSource, /first_harvest_day = total_days\.saturating_add\(def\.first_harvest_days\)/);
 assert.match(reducerSource, /demolish_backyard_garden[\s\S]*backyard_garden\(\)\.id\(\)\.delete\(garden\.id\)/);
@@ -141,7 +148,11 @@ assert.match(simulationSource, /first_harvest_day > clock\.total_days/);
 assert.match(simulationSource, /jam_per_person_per_sec[\s\S]*deposit_backyard_jam/);
 assert.match(needsSource, /ResidenceNeedKind::Luxury[\s\S]*consume_backyard_luxury/);
 assert.match(needsSource, /garden\.flower_luxury_upgraded[\s\S]*stock: 1\.0/);
-assert.match(needsSource, /garden\.jam_stock - demand/);
+assert.match(policySource, /allocate_backyard_jam_meal[\s\S]*food_used:[\s\S]*luxury_met:/);
+assert.match(needsSource, /consume_food_with_preserved[\s\S]*consume_backyard_jam_meal/);
+assert.match(needsSource, /jam_meal\.luxury_met[\s\S]*remaining_stock/);
+assert.match(needStateSource, /residence_edible_food_stock\(residence\)[\s\S]*backyard_jam_food_stock/);
+assert.doesNotMatch(needsSource, /garden\.jam_stock - demand/);
 for (const field of ['first_harvest_day', 'jam_stock', 'flower_luxury_upgraded']) {
   assert.match(tablesSource, new RegExp(`pub ${field}:`));
 }

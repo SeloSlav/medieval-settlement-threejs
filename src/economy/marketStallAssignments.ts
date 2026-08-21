@@ -21,6 +21,7 @@ export const MARKET_FOOD_STALL_NEEDS = [
 export const MARKET_GOODS_STALL_NEEDS = [
   'firewood',
   'cloth',
+  'shoes',
   'pottery',
 ] as const satisfies readonly ResidenceNeedKind[];
 
@@ -35,6 +36,7 @@ export type MarketStallCommodityKind =
   | 'firewood'
   | 'charcoal'
   | 'cloth'
+  | 'shoes'
   | 'pottery';
 
 /**
@@ -59,6 +61,7 @@ export type MarketStallDisplayKind =
   | 'firewood'
   | 'charcoal'
   | 'cloth'
+  | 'shoes'
   | 'pottery';
 
 export type MarketStallRepresentative = {
@@ -108,6 +111,7 @@ const MARKET_STALL_LABELS: Readonly<Record<MarketStallNeed, string>> = {
   preservedFood: 'Preserved food',
   firewood: 'Fuel',
   cloth: 'Cloth',
+  shoes: 'Shoes',
   pottery: 'Pottery',
 };
 
@@ -122,6 +126,7 @@ const MARKET_STALL_COMMODITIES_BY_NEED: Readonly<
   preservedFood: PRESERVED_FOOD_KINDS,
   firewood: ['firewood', 'charcoal'],
   cloth: ['cloth'],
+  shoes: ['shoes'],
   pottery: ['pottery'],
 };
 
@@ -178,6 +183,7 @@ function marketStallDisplayKind(
     case 'firewood': return 'firewood';
     case 'charcoal': return 'charcoal';
     case 'cloth': return 'cloth';
+    case 'shoes': return 'shoes';
     case 'pottery': return 'pottery';
     default: {
       const unreachable: never = commodityKind;
@@ -430,6 +436,8 @@ export function marketStallStock(
       );
     case 'cloth':
       return finiteStock(building.cloth);
+    case 'shoes':
+      return finiteStock(building.shoes);
     case 'pottery':
       return finiteStock(building.pottery);
   }
@@ -441,6 +449,7 @@ function stallNeedRank(needKind: MarketStallNeed): number {
     case 'firewood': return 0;
     case 'preservedFood': return 1;
     case 'cloth': return 1;
+    case 'shoes': return 2;
     case 'pottery': return 2;
   }
 }

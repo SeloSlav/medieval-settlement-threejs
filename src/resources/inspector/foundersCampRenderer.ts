@@ -90,6 +90,12 @@ function storageNeed(plan: FoundingStockyardRelocationPlan): string {
       return "a Weaver's Workshop or Threshing Barn";
     case 'cloth':
       return "a Marketplace or Weaver's Workshop";
+    case 'hides':
+      return "a Tannery, Hunter's Hall, Marketplace, or Storehouse";
+    case 'leather':
+      return "a Cobbler's Workshop, Marketplace, or Storehouse";
+    case 'shoes':
+      return 'a Marketplace, Cobbler, or Storehouse';
     case 'water':
       return 'a Well or water-using workshop';
     case null:

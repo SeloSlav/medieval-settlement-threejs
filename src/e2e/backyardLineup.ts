@@ -19,12 +19,24 @@ import {
   loadBackyardGoatSource,
   removeBackyardGoatFallbacks,
 } from '../residences/backyardGoatAssets.ts';
+import {
+  createBackyardPigModel,
+  disposeBackyardPigSource,
+  loadBackyardPigSource,
+  removeBackyardPigFallbacks,
+} from '../residences/backyardPigAssets.ts';
 import { mulberry32 } from '../utils/random.ts';
 import { loadBackyardPlantCatalog } from '../vegetation/seedthree/backyardPlantAssets.ts';
 
 declare global {
   interface Window {
     __BACKYARD_LINEUP_READY__?: boolean;
+    __BACKYARD_LINEUP_DIAGNOSTICS__?: {
+      gardenCount: number;
+      triangleCount: number;
+      animalPlanKinds: string[];
+      vegetableCropKinds: string[][];
+    };
   }
 }
 
@@ -41,10 +53,26 @@ await renderer.init();
 root.prepend(renderer.domElement);
 
 const view = new URLSearchParams(window.location.search).get('view');
+if (view === 'animals-no-post' || view === 'vegetables-no-post') {
+  renderer.toneMapping = THREE.NoToneMapping;
+  renderer.toneMappingExposure = 1;
+}
 const focusFlower = view === 'flower-close';
-const focusVegetable = view === 'vegetable-close';
+const focusVegetableShell = view === 'vegetable-close';
+const focusCabbage = view === 'cabbage-close';
+const focusCarrot = view === 'carrot-close';
+const focusBeetroot = view === 'beetroot-close';
+const focusVegetable = focusVegetableShell || focusCabbage || focusCarrot || focusBeetroot;
+const vegetableLineup = view === 'vegetables-design'
+  || view === 'vegetables-far'
+  || view === 'vegetables-no-post'
+  || view === 'vegetables-stress';
 const focusHerb = view === 'herb-close';
-const focusHen = view === 'hen-close';
+const focusAnimalShell = view === 'animal-close';
+const focusChicken = view === 'chicken-close' || view === 'hen-close';
+const focusGoat = view === 'goat-close';
+const focusPig = view === 'pig-close';
+const animalLineup = view === 'animals-design' || view === 'animals-far' || view === 'animals-no-post';
 const focusApple = view === 'apple-close';
 const focusCherry = view === 'cherry-close';
 const focusPear = view === 'pear-close';
@@ -54,20 +82,27 @@ const focusPreparedOrchard = view === 'orchard-close';
 const focusTreeOrchard = focusApple || focusCherry || focusPear;
 const focusShrubOrchard = focusAronia || focusRosehip;
 const focusOrchard = focusTreeOrchard || focusShrubOrchard || focusPreparedOrchard;
-const focusSingle = focusFlower || focusVegetable || focusHerb || focusHen || focusOrchard;
-const plants = focusVegetable || focusHerb || focusHen
+const focusAnimal = focusAnimalShell || focusChicken || focusGoat || focusPig;
+const focusSingle = focusFlower || focusVegetable || focusHerb || focusAnimal || focusOrchard;
+const plants = focusVegetable || vegetableLineup || focusHerb || focusAnimal || animalLineup
   ? null
   : await loadBackyardPlantCatalog(renderer.getMaxAnisotropy());
-const chickenSource = focusFlower || focusVegetable || focusHerb || focusOrchard
+const chickenSource = focusFlower || focusVegetable || vegetableLineup || focusHerb || focusOrchard
   ? null
   : await loadBackyardChickenSource().catch((error: unknown) => {
     console.warn('[Backyard lineup] Could not load the Quaternius chicken pack.', error);
     return null;
   });
-const goatSource = focusFlower || focusVegetable || focusHerb || focusHen || focusOrchard
+const goatSource = focusFlower || focusVegetable || vegetableLineup || focusHerb || focusChicken || focusAnimalShell || focusOrchard
   ? null
   : await loadBackyardGoatSource().catch((error: unknown) => {
     console.warn('[Backyard lineup] Could not load the sheep-derived CC0 goat source.', error);
+    return null;
+  });
+const pigSource = focusFlower || focusVegetable || vegetableLineup || focusHerb || focusChicken || focusGoat || focusAnimalShell || focusOrchard
+  ? null
+  : await loadBackyardPigSource().catch((error: unknown) => {
+    console.warn('[Backyard lineup] Could not load the Quaternius pig source.', error);
     return null;
   });
 if (plants) windStrength.value = 0.85;
@@ -79,10 +114,15 @@ const allSpecs = [
   { kind: 'aronia_orchard', label: 'Aronia bushes' },
   { kind: 'rosehip_orchard', label: 'Rosehip bushes' },
   { kind: 'vegetable_garden', label: 'Vegetable garden' },
+  { kind: 'cabbage_garden', label: 'Cabbage garden' },
+  { kind: 'carrot_garden', label: 'Carrot garden' },
+  { kind: 'beetroot_garden', label: 'Beetroot garden' },
   { kind: 'flower_garden', label: 'Flower garden' },
   { kind: 'herb_garden', label: 'Herb garden' },
-  { kind: 'hen_yard', label: 'Hen yard' },
+  { kind: 'animal_pen', label: 'Animal pen shell' },
+  { kind: 'chicken_pen', label: 'Chicken pen' },
   { kind: 'goat_pen', label: 'Goat pen' },
+  { kind: 'pig_pen', label: 'Pig pen' },
   { kind: 'backyard_apiary', label: 'Backyard apiary' },
 ] as const;
 const focusedKind = focusFlower
@@ -99,22 +139,38 @@ const focusedKind = focusFlower
             ? 'rosehip_orchard'
             : focusPreparedOrchard
               ? 'orchard'
-              : focusVegetable
+              : focusVegetableShell
                 ? 'vegetable_garden'
+                : focusCabbage
+                  ? 'cabbage_garden'
+                  : focusCarrot
+                    ? 'carrot_garden'
+                    : focusBeetroot
+                      ? 'beetroot_garden'
                 : focusHerb
                   ? 'herb_garden'
-                  : focusHen
-                    ? 'hen_yard'
+                  : focusAnimalShell
+                    ? 'animal_pen'
+                    : focusChicken
+                      ? 'chicken_pen'
+                      : focusGoat
+                        ? 'goat_pen'
+                        : focusPig
+                          ? 'pig_pen'
                     : null;
 const specs = focusedKind
   ? allSpecs.filter((spec) => spec.kind === focusedKind)
-  : allSpecs;
+  : animalLineup
+    ? allSpecs.filter((spec) => ['animal_pen', 'chicken_pen', 'goat_pen', 'pig_pen'].includes(spec.kind))
+    : vegetableLineup
+      ? allSpecs.filter((spec) => ['vegetable_garden', 'cabbage_garden', 'carrot_garden', 'beetroot_garden'].includes(spec.kind))
+    : allSpecs;
 labels.style.gridTemplateColumns = focusSingle
   ? '1fr'
-  : 'repeat(4, minmax(0, 1fr))';
+  : animalLineup || vegetableLineup ? 'repeat(2, minmax(0, 1fr))' : 'repeat(4, minmax(0, 1fr))';
 labels.style.gridTemplateRows = focusSingle
   ? '1fr'
-  : 'repeat(3, minmax(0, 1fr))';
+  : animalLineup || vegetableLineup ? 'repeat(2, minmax(0, 1fr))' : 'repeat(4, minmax(0, 1fr))';
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0xa6b29a);
@@ -129,14 +185,18 @@ const gardens = specs.map((spec, index) => {
   const garden = createBackyardGardenMesh(spec.kind, {
     width: 6.2,
     depth: 5.4,
-    seed: 4271 + index * 97,
+    seed: view === 'vegetables-stress'
+      ? 0x7fffffff - index * 7919
+      : 4271 + index * 97,
     plants,
   });
   if (focusSingle) {
     garden.position.x = 0;
   } else {
-    garden.position.x = (index % 4 - 1.5) * 7.2;
-    garden.position.z = (Math.floor(index / 4) - 0.5) * 6.4;
+    const columns = animalLineup || vegetableLineup ? 2 : 4;
+    const rows = Math.ceil(specs.length / columns);
+    garden.position.x = (index % columns - (columns - 1) * 0.5) * 7.2;
+    garden.position.z = (Math.floor(index / columns) - (rows - 1) * 0.5) * 6.4;
   }
   if (focusFlower) {
     const cottageFlower = garden.children.find((child) => child.name.startsWith('Swaying cottage flower'));
@@ -148,7 +208,7 @@ const gardens = specs.map((spec, index) => {
       focusedFlowerY = cottageFlower.position.y + (headAnchor?.position.y ?? focusedFlowerY);
     }
   }
-  if (spec.kind === 'hen_yard' && chickenSource) {
+  if (spec.kind === 'chicken_pen' && chickenSource) {
     removeBackyardChickenFallbacks(garden);
     for (let chickenIndex = 0; chickenIndex < 5; chickenIndex++) {
       const random = mulberry32(4271 ^ Math.imul(chickenIndex + 1, 0x45d9f3b));
@@ -195,6 +255,25 @@ const gardens = specs.map((spec, index) => {
     }
     garden.userData.usesQuaterniusFarmPackGoatDerivative = true;
   }
+  if (spec.kind === 'pig_pen' && pigSource) {
+    removeBackyardPigFallbacks(garden);
+    for (let pigIndex = 0; pigIndex < 3; pigIndex++) {
+      const random = mulberry32(9173 ^ Math.imul(pigIndex + 1, 0x165667b1));
+      const model = createBackyardPigModel(pigSource, 0.72 * THREE.MathUtils.lerp(0.9, 1.08, random()));
+      const root = new THREE.Group();
+      root.name = 'Rigged lineup pig';
+      root.position.set(THREE.MathUtils.lerp(-1.0, 1.8, random()), 0, THREE.MathUtils.lerp(-0.3, 1.5, random()));
+      root.rotation.y = random() * Math.PI * 2;
+      root.add(model);
+      garden.add(root);
+      const mixer = new THREE.AnimationMixer(model);
+      const graze = mixer.clipAction(pigIndex === 0 ? pigSource.idle : pigSource.graze, model);
+      graze.setLoop(THREE.LoopRepeat, Number.POSITIVE_INFINITY);
+      graze.play();
+      chickenMixers.push(mixer);
+    }
+    garden.userData.usesQuaterniusPig = true;
+  }
   scene.add(garden);
 
   const cell = document.createElement('div');
@@ -225,9 +304,17 @@ if (focusFlower) {
 } else if (focusHerb) {
   camera.position.set(4.6, 3.9, 6.1);
   camera.lookAt(0, 0.42, -0.15);
-} else if (focusHen) {
+} else if (focusAnimal) {
   camera.position.set(5.4, 3.7, 7.2);
   camera.lookAt(0, 0.65, 0.05);
+} else if (view === 'animals-design' || view === 'animals-no-post'
+  || view === 'vegetables-design' || view === 'vegetables-no-post'
+  || view === 'vegetables-stress') {
+  camera.position.set(0, 7.8, 15.5);
+  camera.lookAt(0, 0.8, 0);
+} else if (view === 'animals-far' || view === 'vegetables-far') {
+  camera.position.set(0, 13.4, 27.5);
+  camera.lookAt(0, 1.1, 0);
 } else if (focusTreeOrchard) {
   camera.position.set(5.8, 4.6, 7.8);
   camera.lookAt(0, 1.55, 0);
@@ -263,6 +350,32 @@ function render(): void {
 
 render();
 await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+let triangleCount = 0;
+for (const garden of gardens) {
+  garden.traverse((object) => {
+    const mesh = object as THREE.Mesh;
+    if (!mesh.isMesh) return;
+    const count = mesh.geometry.index?.count
+      ?? mesh.geometry.getAttribute('position')?.count
+      ?? 0;
+    triangleCount += count / 3;
+  });
+}
+window.__BACKYARD_LINEUP_DIAGNOSTICS__ = {
+  gardenCount: gardens.length,
+  triangleCount,
+  animalPlanKinds: gardens
+    .filter((garden) => garden.userData.animalPenPlan)
+    .map((garden) => garden.userData.gardenKind as string),
+  vegetableCropKinds: gardens.map((garden) => {
+    const crops = new Set<string>();
+    garden.traverse((object) => {
+      const crop = object.userData.backyardCropKind as string | undefined;
+      if (crop) crops.add(crop);
+    });
+    return [...crops];
+  }),
+};
 window.__BACKYARD_LINEUP_READY__ = true;
 document.body.dataset.ready = 'true';
 
@@ -275,5 +388,6 @@ window.addEventListener('beforeunload', () => {
   }
   if (chickenSource) disposeBackyardChickenSource(chickenSource.scene);
   if (goatSource) disposeBackyardGoatSource(goatSource.scene);
+  if (pigSource) disposeBackyardPigSource(pigSource.scene);
   renderer.dispose();
 });

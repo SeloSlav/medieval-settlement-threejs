@@ -22,6 +22,8 @@ export const PROCESSOR_OUTPUT_TARGET_KINDS = [
   'charcoal_burner',
   'smithy',
   'potter_kiln',
+  'tannery',
+  'cobbler',
 ] as const satisfies readonly BuildingKind[];
 
 export type ProcessorOutputTargetKind =
@@ -48,7 +50,9 @@ export type ProcessorOutputCommodity =
   | 'charcoal'
   | 'ironwork'
   | 'pottery'
-  | 'roofTiles';
+  | 'roofTiles'
+  | 'leather'
+  | 'shoes';
 
 export type ExtractionOutputCommodity = 'stone' | 'iron' | 'salt' | 'clay';
 
@@ -71,7 +75,9 @@ export type ProcessorInputCommodity =
   | 'salt'
   | 'charcoal'
   | 'pottery'
-  | 'ironwork';
+  | 'ironwork'
+  | 'hides'
+  | 'leather';
 
 export const PROCESSOR_OUTPUT_TARGET_DEFAULT_PERCENT = 100;
 export const PROCESSOR_INPUT_STAGING_DEFAULT_CYCLES = 3;
@@ -134,6 +140,8 @@ const OUTPUT_BY_KIND: Record<
   charcoal_burner: 'charcoal',
   smithy: 'ironwork',
   potter_kiln: 'pottery',
+  tannery: 'leather',
+  cobbler: 'shoes',
 };
 
 const INPUTS_BY_KIND: Record<
@@ -149,6 +157,8 @@ const INPUTS_BY_KIND: Record<
   charcoal_burner: ['firewood'],
   smithy: ['iron', 'charcoal', 'water'],
   potter_kiln: ['clay', 'firewood', 'water'],
+  tannery: ['hides', 'water', 'firewood'],
+  cobbler: ['leather'],
 };
 
 export function isProcessorOutputTargetKind(

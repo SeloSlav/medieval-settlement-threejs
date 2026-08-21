@@ -51,6 +51,7 @@ import {
   createGuardhouseMesh,
   createPalisadedRefugeMesh,
 } from './meshes/civicLogisticsBuildingMeshes.ts';
+import { createCobblerMesh, createTanneryMesh } from './meshes/leatherChainBuildingMeshes.ts';
 
 export function createBuildingMesh(
   kind: BuildingKind,
@@ -131,6 +132,8 @@ export function createBuildingMesh(
     case 'windmill': return createWindmillMesh();
     case 'carpenter': return createCarpenterMesh();
     case 'weaver': return createWeaverMesh();
+    case 'tannery': return createTanneryMesh();
+    case 'cobbler': return createCobblerMesh();
     case 'vineyard': return createVineyardMesh();
     case 'pastoral_farmstead': return createPastoralFarmsteadMesh();
     case 'swineherd': return createSwineherdMesh();

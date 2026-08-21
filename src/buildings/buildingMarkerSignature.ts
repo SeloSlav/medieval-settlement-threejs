@@ -262,6 +262,17 @@ export function buildingMarkerSignatures(
           CLOTH_STOCKPILE_VISUAL_SEGMENTS,
         )}`
         : '';
+      const leatherChainState = (building.kind === 'tannery' || building.kind === 'cobbler')
+        && building.constructionComplete !== false
+        ? (() => {
+            const caps = BUILDING_STORAGE_CAPS[building.kind] as Partial<Record<'hides' | 'leather' | 'shoes', number>>;
+            return [
+              `:hides:${stockpileVisualLevel(building.hides ?? 0, caps.hides ?? 0, 3)}`,
+              `:leather:${stockpileVisualLevel(building.leather ?? 0, caps.leather ?? 0, 3)}`,
+              `:shoes:${stockpileVisualLevel(building.shoes ?? 0, caps.shoes ?? 0, 3)}`,
+            ].join('');
+          })()
+        : '';
       const flaxState = building.kind === 'weaver'
         && building.constructionComplete !== false
         ? `:flax:${stockpileVisualLevel(
@@ -288,7 +299,7 @@ export function buildingMarkerSignatures(
       ].join(':');
       return {
         id: building.id,
-        visual: `${structural}${foundingState}${salvageState}${treasuryState}${localReceiptState}${guardhousePayrollState}${marketState}${timberState}${storehouseState}${hayState}${woolState}${flaxState}${clothState}${foodStockState}${bulkStockState}${armoryStockState}${seasonalStockState}${marketplaceSpecialtyStockState}${monasteryStockState}`,
+        visual: `${structural}${foundingState}${salvageState}${treasuryState}${localReceiptState}${guardhousePayrollState}${marketState}${timberState}${storehouseState}${hayState}${woolState}${flaxState}${clothState}${leatherChainState}${foodStockState}${bulkStockState}${armoryStockState}${seasonalStockState}${marketplaceSpecialtyStockState}${monasteryStockState}`,
         collider: structural,
       };
     })

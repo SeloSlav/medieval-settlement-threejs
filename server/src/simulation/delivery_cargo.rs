@@ -66,6 +66,9 @@ pub struct DeliveryCargoTotals {
     pub maslin_flour: f64,
     pub rye_bread: f64,
     pub maslin_bread: f64,
+    pub hides: f64,
+    pub leather: f64,
+    pub shoes: f64,
 }
 
 impl DeliveryCargoTotals {
@@ -122,6 +125,9 @@ impl DeliveryCargoTotals {
             CommodityKind::MaslinFlour => self.maslin_flour += amount,
             CommodityKind::RyeBread => self.rye_bread += amount,
             CommodityKind::MaslinBread => self.maslin_bread += amount,
+            CommodityKind::Hides => self.hides += amount,
+            CommodityKind::Leather => self.leather += amount,
+            CommodityKind::Shoes => self.shoes += amount,
         }
     }
 }
@@ -136,8 +142,11 @@ pub fn building_delivery_stock(building: &Building, kind: ResidenceNeedKind) -> 
         ResidenceNeedKind::Ale => building.ale + building.cider + building.mead,
         ResidenceNeedKind::PreservedFood => building_preserved_food_stock(building),
         ResidenceNeedKind::Cloth => building.cloth,
+        ResidenceNeedKind::Shoes => building.shoes,
         ResidenceNeedKind::Pottery => building.pottery,
-        ResidenceNeedKind::Church | ResidenceNeedKind::FoodVariety | ResidenceNeedKind::Luxury => 0.0,
+        ResidenceNeedKind::Church | ResidenceNeedKind::FoodVariety | ResidenceNeedKind::Luxury => {
+            0.0
+        }
     }
 }
 
@@ -190,10 +199,15 @@ pub fn withdraw_delivery_cargo(
         ResidenceNeedKind::Cloth => {
             withdraw_building_commodity(building, CommodityKind::Cloth, amount)
         }
+        ResidenceNeedKind::Shoes => {
+            withdraw_building_commodity(building, CommodityKind::Shoes, amount)
+        }
         ResidenceNeedKind::Pottery => {
             withdraw_building_commodity(building, CommodityKind::Pottery, amount)
         }
-        ResidenceNeedKind::Church | ResidenceNeedKind::FoodVariety | ResidenceNeedKind::Luxury => 0.0,
+        ResidenceNeedKind::Church | ResidenceNeedKind::FoodVariety | ResidenceNeedKind::Luxury => {
+            0.0
+        }
     }
 }
 
@@ -320,8 +334,11 @@ pub fn delivery_stock_room(kind: ResidenceNeedKind, stock: f64) -> f64 {
         ResidenceNeedKind::Ale
         | ResidenceNeedKind::PreservedFood
         | ResidenceNeedKind::Cloth
+        | ResidenceNeedKind::Shoes
         | ResidenceNeedKind::Pottery => (provisions::stock_capacity(kind) - stock).max(0.0),
-        ResidenceNeedKind::Church | ResidenceNeedKind::FoodVariety | ResidenceNeedKind::Luxury => 0.0,
+        ResidenceNeedKind::Church | ResidenceNeedKind::FoodVariety | ResidenceNeedKind::Luxury => {
+            0.0
+        }
     }
 }
 
@@ -333,8 +350,11 @@ pub fn has_delivery_stock_room(kind: ResidenceNeedKind, stock: f64) -> bool {
         ResidenceNeedKind::Ale
         | ResidenceNeedKind::PreservedFood
         | ResidenceNeedKind::Cloth
+        | ResidenceNeedKind::Shoes
         | ResidenceNeedKind::Pottery => stock + 1e-6 < provisions::stock_capacity(kind),
-        ResidenceNeedKind::Church | ResidenceNeedKind::FoodVariety | ResidenceNeedKind::Luxury => false,
+        ResidenceNeedKind::Church | ResidenceNeedKind::FoodVariety | ResidenceNeedKind::Luxury => {
+            false
+        }
     }
 }
 

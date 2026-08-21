@@ -63,6 +63,9 @@ function buildingStateFromRow(
     monasteryCroftChoiceYear: number;
     monasteryServiceFunding: number;
     monasteryLastServiceDay: bigint;
+    hides: number;
+    leather: number;
+    shoes: number;
   }>;
   return {
     id,
@@ -96,6 +99,9 @@ function buildingStateFromRow(
     wine: wholeResourceUnits(row.wine),
     wool: wholeResourceUnits(row.wool),
     cloth: wholeResourceUnits(row.cloth),
+    hides: wholeResourceUnits(materialRow.hides),
+    leather: wholeResourceUnits(materialRow.leather),
+    shoes: wholeResourceUnits(materialRow.shoes),
     ironwork: wholeResourceUnits(row.ironwork),
     polearms: wholeResourceUnits(row.polearms),
     iron: wholeResourceUnits(row.iron),

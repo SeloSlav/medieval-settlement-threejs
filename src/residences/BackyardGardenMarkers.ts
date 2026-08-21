@@ -16,6 +16,13 @@ import {
   type BackyardGoatSource,
 } from './backyardGoatAssets.ts';
 import {
+  createBackyardPigModel,
+  disposeBackyardPigSource,
+  loadBackyardPigSource,
+  removeBackyardPigFallbacks,
+  type BackyardPigSource,
+} from './backyardPigAssets.ts';
+import {
   animateBackyardGardenMesh,
   createBackyardGardenMesh,
   disposeBackyardGardenMesh,
@@ -56,6 +63,8 @@ type GoatVisual = {
   random: () => number;
 };
 
+type PigVisual = GoatVisual;
+
 type GardenSyncInput = {
   residences: Iterable<ResidenceState>;
   zones: Iterable<BurgageZoneState>;
@@ -80,9 +89,11 @@ export class BackyardGardenMarkers {
   private readonly meshes = new Map<string, THREE.Group>();
   private readonly chickens = new Map<string, ChickenVisual[]>();
   private readonly goats = new Map<string, GoatVisual[]>();
+  private readonly pigs = new Map<string, PigVisual[]>();
   private plants: BackyardPlantCatalog | null = null;
   private chickenSource: BackyardChickenSource | null = null;
   private goatSource: BackyardGoatSource | null = null;
+  private pigSource: BackyardPigSource | null = null;
   private latestInput: ReplayableGardenSyncInput | null = null;
   private deciduousFoliage: DeciduousFoliagePresentation | null = null;
   private animationElapsedSeconds = 0;
@@ -117,6 +128,20 @@ export class BackyardGardenMarkers {
       },
       (error: unknown) => {
         console.warn('[Livestock] Sheep-derived CC0 goat visual failed to load; retaining procedural goats.', error);
+      },
+    );
+
+    void loadBackyardPigSource().then(
+      (source) => {
+        if (this.disposed) {
+          disposeBackyardPigSource(source.scene);
+          return;
+        }
+        this.pigSource = source;
+        if (this.latestInput) this.syncReplayable(this.latestInput, true);
+      },
+      (error: unknown) => {
+        console.warn('[Livestock] Animated pig asset failed to load; retaining procedural pigs.', error);
       },
     );
 
@@ -189,12 +214,14 @@ export class BackyardGardenMarkers {
         this.plants ? 'seedthree' : 'vegetation-pending',
         this.chickenSource ? 'animated-hens' : 'fallback-hens',
         this.goatSource ? 'animated-goats' : 'fallback-goats',
+        this.pigSource ? 'animated-pigs' : 'fallback-pigs',
         garden.flowerLuxuryUpgraded ? 'luxury-flowers' : 'ordinary-flowers',
       ].join(':');
       if (force || !marker || marker.userData.visualKey !== visualKey) {
         if (marker) {
           this.disposeChickens(residence.id);
           this.disposeGoats(residence.id);
+          this.disposePigs(residence.id);
           this.root.remove(marker);
           disposeBackyardGardenMesh(marker);
         }
@@ -208,7 +235,7 @@ export class BackyardGardenMarkers {
         marker.userData.visualKey = visualKey;
         this.root.add(marker);
         this.meshes.set(residence.id, marker);
-        if (garden.kind === 'hen_yard' && this.chickenSource) {
+        if (garden.kind === 'chicken_pen' && this.chickenSource) {
           this.attachAnimatedChickens(
             residence.id,
             marker,
@@ -219,6 +246,15 @@ export class BackyardGardenMarkers {
         }
         if (garden.kind === 'goat_pen' && this.goatSource) {
           this.attachAnimatedGoats(
+            residence.id,
+            marker,
+            placement.width,
+            placement.depth,
+            hashStringSeed(residence.id),
+          );
+        }
+        if (garden.kind === 'pig_pen' && this.pigSource) {
+          this.attachAnimatedPigs(
             residence.id,
             marker,
             placement.width,
@@ -247,6 +283,7 @@ export class BackyardGardenMarkers {
       this.root.remove(marker);
       this.disposeChickens(id);
       this.disposeGoats(id);
+      this.disposePigs(id);
       disposeBackyardGardenMesh(marker);
       this.meshes.delete(id);
     }
@@ -319,6 +356,25 @@ export class BackyardGardenMarkers {
           goat.timer = 2.5 + goat.random() * 6;
         }
         goat.mixer.update(dt);
+      }
+    }
+    for (const [residenceId, visuals] of this.pigs) {
+      const marker = this.meshes.get(residenceId);
+      if (!marker) continue;
+      const visible = isWithinCrowdView(marker.position.x, marker.position.z, view);
+      for (const pig of visuals) {
+        pig.root.visible = visible;
+        if (!visible) continue;
+        pig.timer -= dt;
+        if (pig.timer <= 0) {
+          const next = pig.grazing ? pig.idle : pig.graze;
+          const previous = pig.grazing ? pig.graze : pig.idle;
+          previous.fadeOut(0.25);
+          next.reset().fadeIn(0.25).play();
+          pig.grazing = !pig.grazing;
+          pig.timer = 2.5 + pig.random() * 6;
+        }
+        pig.mixer.update(dt);
       }
     }
   }
@@ -438,11 +494,61 @@ export class BackyardGardenMarkers {
     this.goats.delete(residenceId);
   }
 
+  private attachAnimatedPigs(
+    residenceId: string,
+    marker: THREE.Group,
+    width: number,
+    depth: number,
+    seed: number,
+  ): void {
+    if (!this.pigSource) return;
+    removeBackyardPigFallbacks(marker);
+    const visuals: PigVisual[] = [];
+    for (let index = 0; index < 3; index++) {
+      const random = mulberry32(seed ^ Math.imul(index + 1, 0x165667b1));
+      const model = createBackyardPigModel(
+        this.pigSource,
+        0.72 * THREE.MathUtils.lerp(0.9, 1.08, random()),
+      );
+      const root = new THREE.Group();
+      root.name = 'Rigged backyard pig';
+      root.position.set(
+        THREE.MathUtils.lerp(-width * 0.16, width * 0.32, random()),
+        0,
+        THREE.MathUtils.lerp(-depth * 0.04, depth * 0.31, random()),
+      );
+      root.rotation.y = random() * Math.PI * 2;
+      root.add(model);
+      marker.add(root);
+      const mixer = new THREE.AnimationMixer(model);
+      const idle = mixer.clipAction(this.pigSource.idle, model);
+      const graze = mixer.clipAction(this.pigSource.graze, model);
+      idle.setLoop(THREE.LoopRepeat, Number.POSITIVE_INFINITY);
+      graze.setLoop(THREE.LoopRepeat, Number.POSITIVE_INFINITY);
+      const grazing = index !== 0;
+      (grazing ? graze : idle).play();
+      visuals.push({ root, model, mixer, idle, graze, grazing, timer: 2 + random() * 5, random });
+    }
+    this.pigs.set(residenceId, visuals);
+  }
+
+  private disposePigs(residenceId: string): void {
+    const visuals = this.pigs.get(residenceId);
+    if (!visuals) return;
+    for (const pig of visuals) {
+      pig.mixer.stopAllAction();
+      pig.mixer.uncacheRoot(pig.model);
+      pig.root.removeFromParent();
+    }
+    this.pigs.delete(residenceId);
+  }
+
   dispose(): void {
     this.disposed = true;
     this.latestInput = null;
     for (const id of this.chickens.keys()) this.disposeChickens(id);
     for (const id of this.goats.keys()) this.disposeGoats(id);
+    for (const id of this.pigs.keys()) this.disposePigs(id);
     for (const marker of this.meshes.values()) {
       disposeBackyardGardenMesh(marker);
     }
@@ -451,6 +557,8 @@ export class BackyardGardenMarkers {
     this.chickenSource = null;
     if (this.goatSource) disposeBackyardGoatSource(this.goatSource.scene);
     this.goatSource = null;
+    if (this.pigSource) disposeBackyardPigSource(this.pigSource.scene);
+    this.pigSource = null;
     this.root.removeFromParent();
   }
 }
@@ -458,7 +566,7 @@ export class BackyardGardenMarkers {
 function collectAnimalFallbacks(marker: THREE.Object3D): THREE.Object3D[] {
   const fallbacks: THREE.Object3D[] = [];
   marker.traverse((object) => {
-    if (object.name === 'HenFallback' || object.name === 'GoatFallback') {
+    if (object.name === 'HenFallback' || object.name === 'GoatFallback' || object.name === 'PigFallback') {
       fallbacks.push(object);
     }
   });

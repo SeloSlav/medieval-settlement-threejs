@@ -6,6 +6,7 @@ pub enum ResidenceNeedKind {
     Ale,
     PreservedFood,
     Cloth,
+    Shoes,
     Pottery,
     Church,
     FoodVariety,
@@ -13,13 +14,14 @@ pub enum ResidenceNeedKind {
 }
 
 impl ResidenceNeedKind {
-    pub const ALL: [ResidenceNeedKind; 10] = [
+    pub const ALL: [ResidenceNeedKind; 11] = [
         Self::Firewood,
         Self::Water,
         Self::Food,
         Self::PreservedFood,
         Self::Ale,
         Self::Cloth,
+        Self::Shoes,
         Self::Pottery,
         Self::Church,
         Self::FoodVariety,
@@ -30,6 +32,7 @@ impl ResidenceNeedKind {
         match self {
             Self::Food | Self::Firewood | Self::Water | Self::Church => tier >= 1,
             Self::FoodVariety | Self::Cloth | Self::Ale => tier >= 2,
+            Self::Shoes => tier >= 3,
             Self::PreservedFood | Self::Pottery | Self::Luxury => tier >= 4,
         }
     }
@@ -49,6 +52,7 @@ impl ResidenceNeedKind {
             Self::Ale => 6,
             Self::PreservedFood => 7,
             Self::Cloth => 14,
+            Self::Shoes => 60,
             // Residence delivery cargo ids mirror CommodityKind so the
             // existing cart renderer and unload path remain unambiguous.
             Self::Pottery => 23,
@@ -67,6 +71,7 @@ impl ResidenceNeedKind {
             6 => Some(Self::Ale),
             7 => Some(Self::PreservedFood),
             14 => Some(Self::Cloth),
+            60 => Some(Self::Shoes),
             23 => Some(Self::Pottery),
             42 => Some(Self::Church),
             43 => Some(Self::FoodVariety),
@@ -92,12 +97,14 @@ mod tests {
         assert_eq!(active_count(0), 0);
         assert_eq!(active_count(1), 4);
         assert_eq!(active_count(2), 7);
-        assert_eq!(active_count(3), 7);
-        assert_eq!(active_count(4), 10);
+        assert_eq!(active_count(3), 8);
+        assert_eq!(active_count(4), 11);
         assert!(ResidenceNeedKind::Food.is_active_for_tier(1));
         assert!(ResidenceNeedKind::Firewood.is_active_for_tier(1));
         assert!(ResidenceNeedKind::Cloth.is_active_for_tier(2));
         assert!(ResidenceNeedKind::Ale.is_active_for_tier(2));
+        assert!(!ResidenceNeedKind::Shoes.is_active_for_tier(2));
+        assert!(ResidenceNeedKind::Shoes.is_active_for_tier(3));
         assert!(!ResidenceNeedKind::PreservedFood.is_active_for_tier(2));
         assert!(!ResidenceNeedKind::Pottery.is_active_for_tier(3));
         assert!(ResidenceNeedKind::Pottery.is_active_for_tier(4));

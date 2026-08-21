@@ -8,13 +8,14 @@ pub mod water;
 pub use kinds::ResidenceNeedKind;
 pub use state::{load_needs, need_stock, sync_food_need_rows};
 
+use crate::backyard_garden_policy::{allocate_backyard_jam_meal, BackyardJamMealAllocation};
 use crate::balance_generated::{
-    BASE_ILLNESS_CHANCE_PER_PERSON_DAY, CALENDAR_SECONDS_PER_DAY, COLD_EXPOSURE_ILLNESS_MULTIPLIER,
-    CORPSE_DISEASE_RADIUS, CORPSE_ILLNESS_MULTIPLIER, FRESH_FOOD_STORAGE_RESIDENCE_FACTOR,
-    HERB_MORTALITY_MULTIPLIER, HERB_RECOVERY_MULTIPLIER, HERB_TREATMENT_PER_SICK_DAY,
-    ILLNESS_MORTALITY_CHANCE_PER_SICK_DAY, ILLNESS_RECOVERY_DAYS, MALNUTRITION_ILLNESS_MULTIPLIER,
-    PRESERVED_FOOD_STORAGE_RESIDENCE_FACTOR, TICK_DT, UNSAFE_WATER_ILLNESS_MULTIPLIER,
-    RESIDENCE_LUXURY_JAM_PER_PERSON_PER_SEC,
+    BackyardGardenKind, BASE_ILLNESS_CHANCE_PER_PERSON_DAY, CALENDAR_SECONDS_PER_DAY,
+    COLD_EXPOSURE_ILLNESS_MULTIPLIER, CORPSE_DISEASE_RADIUS, CORPSE_ILLNESS_MULTIPLIER,
+    FRESH_FOOD_STORAGE_RESIDENCE_FACTOR, HERB_MORTALITY_MULTIPLIER, HERB_RECOVERY_MULTIPLIER,
+    HERB_TREATMENT_PER_SICK_DAY, ILLNESS_MORTALITY_CHANCE_PER_SICK_DAY, ILLNESS_RECOVERY_DAYS,
+    MALNUTRITION_ILLNESS_MULTIPLIER, PRESERVED_FOOD_STORAGE_RESIDENCE_FACTOR,
+    RESIDENCE_LUXURY_JAM_PER_PERSON_PER_SEC, TICK_DT, UNSAFE_WATER_ILLNESS_MULTIPLIER,
 };
 use crate::season_policy::{EnvironmentState, Season};
 use crate::simulation::game_calendar::GameClock;
@@ -63,10 +64,10 @@ pub fn step_residence_needs(
         return;
     }
 
-    migrate_and_sync_food_inventory(&mut residence, &mut needs);
+    migrate_and_sync_food_inventory(ctx, &mut residence, &mut needs);
     let general_consumption_paused = is_consumption_paused(ctx, residence.owner, clock);
     spoil_residence_food_inventory(&mut residence, environment);
-    migrate_and_sync_food_inventory(&mut residence, &mut needs);
+    migrate_and_sync_food_inventory(ctx, &mut residence, &mut needs);
     let food_progression_slots = residence_food_progression_slots(&residence, residence.tier);
     let food_progression_required = residence_food_progression_required_slots(residence.tier);
 
@@ -75,9 +76,11 @@ pub fn step_residence_needs(
     let mut water_unmet = false;
     let mut cold_unmet = false;
     let mut service_unmet = false;
+    let mut backyard_jam_meal = BackyardJamMealAllocation::default();
 
     if !general_consumption_paused && ResidenceNeedKind::Food.is_active_for_tier(residence.tier) {
-        food_unmet = consume_food_with_preserved(&mut residence, &mut needs, environment);
+        (food_unmet, backyard_jam_meal) =
+            consume_food_with_preserved(ctx, &mut residence, &mut needs, environment);
         service_unmet = food_unmet;
     }
 
@@ -115,7 +118,7 @@ pub fn step_residence_needs(
                 ConsumeResult::Unmet
             }
         } else if kind == ResidenceNeedKind::Luxury {
-            consume_backyard_luxury(ctx, &residence, need)
+            consume_backyard_luxury(ctx, &residence, need, backyard_jam_meal)
         } else if kind == ResidenceNeedKind::PreservedFood {
             // The meal allocator already rotated the seasonal ration without
             // adding a second calorie demand. Any remainder is the household's
@@ -189,7 +192,7 @@ pub fn step_residence_needs(
         general_consumption_paused,
     );
     residence.abandoned = false;
-    migrate_and_sync_food_inventory(&mut residence, &mut needs);
+    migrate_and_sync_food_inventory(ctx, &mut residence, &mut needs);
     let owner = residence.owner;
     persist_needs(ctx, residence.id, &needs);
     let next_effective_workers = residence
@@ -205,8 +208,15 @@ fn consume_backyard_luxury(
     ctx: &ReducerContext,
     residence: &Residence,
     need: &NeedState,
+    jam_meal: BackyardJamMealAllocation,
 ) -> ConsumeResult {
-    let Some(mut garden) = ctx
+    if jam_meal.luxury_met {
+        return ConsumeResult::Met(NeedState {
+            stock: jam_meal.remaining_stock,
+            ..*need
+        });
+    }
+    let Some(garden) = ctx
         .db
         .backyard_garden()
         .residence_id()
@@ -221,52 +231,80 @@ fn consume_backyard_luxury(
             ..*need
         });
     }
-    let demand = residence.population as f64 * RESIDENCE_LUXURY_JAM_PER_PERSON_PER_SEC * TICK_DT;
-    if demand <= 1e-9 || garden.jam_stock + 1e-9 >= demand {
-        garden.jam_stock = (garden.jam_stock - demand).max(0.0);
-        let stock = garden.jam_stock;
-        ctx.db.backyard_garden().id().update(garden);
-        return ConsumeResult::Met(NeedState { stock, ..*need });
-    }
-    garden.jam_stock = 0.0;
-    ctx.db.backyard_garden().id().update(garden);
     ConsumeResult::Unmet
 }
 
 fn consume_food_with_preserved(
+    ctx: &ReducerContext,
     residence: &mut Residence,
     needs: &mut [NeedState],
     environment: EnvironmentState,
-) -> bool {
+) -> (bool, BackyardJamMealAllocation) {
     let Some(food_index) = needs
         .iter()
         .position(|need| need.kind == ResidenceNeedKind::Food)
     else {
-        return true;
+        return (true, BackyardJamMealAllocation::default());
     };
     let demand = food::demand(residence);
+    let jam_meal = consume_backyard_jam_meal(ctx, residence, demand);
+    let remaining_demand = (demand - jam_meal.food_used).max(0.0);
     let fresh_stock = residence_fresh_food_stock(residence);
     let preserved_stock = residence_preserved_food_stock(residence);
-    let rotation_demand = provisions::preserved_food_demand(
+    let rotation_demand = (provisions::preserved_food_demand(
         residence,
         environment.preserved_food_demand_multiplier(),
-    );
+    ) - jam_meal.food_used)
+        .max(0.0);
     let allocation = allocate_preserved_meal(
         fresh_stock,
         preserved_stock,
-        demand,
+        remaining_demand,
         rotation_demand,
         residence.tier >= 4,
     );
     withdraw_residence_food_group(residence, false, allocation.fresh_used);
     withdraw_residence_food_group(residence, true, allocation.preserved_used());
-    migrate_and_sync_food_inventory(residence, needs);
+    migrate_and_sync_food_inventory(ctx, residence, needs);
     if allocation.unmet <= 1e-9 {
         needs[food_index].deficit_ticks = 0;
-        return false;
+        return (false, jam_meal);
     }
     needs[food_index].deficit_ticks = needs[food_index].deficit_ticks.saturating_add(1);
-    true
+    (true, jam_meal)
+}
+
+fn consume_backyard_jam_meal(
+    ctx: &ReducerContext,
+    residence: &Residence,
+    food_demand: f64,
+) -> BackyardJamMealAllocation {
+    let Some(mut garden) = ctx
+        .db
+        .backyard_garden()
+        .residence_id()
+        .filter(&residence.id)
+        .next()
+    else {
+        return BackyardJamMealAllocation::default();
+    };
+    if !matches!(
+        BackyardGardenKind::from_id(garden.kind),
+        Some(BackyardGardenKind::AroniaOrchard | BackyardGardenKind::RosehipOrchard)
+    ) {
+        return BackyardJamMealAllocation::default();
+    }
+    let luxury_demand = if residence.tier >= 4 {
+        residence.population as f64 * RESIDENCE_LUXURY_JAM_PER_PERSON_PER_SEC * TICK_DT
+    } else {
+        0.0
+    };
+    let allocation = allocate_backyard_jam_meal(garden.jam_stock, food_demand, luxury_demand);
+    if (garden.jam_stock - allocation.remaining_stock).abs() > 1e-9 {
+        garden.jam_stock = allocation.remaining_stock;
+        ctx.db.backyard_garden().id().update(garden);
+    }
+    allocation
 }
 
 fn spoil_residence_food_inventory(residence: &mut Residence, environment: EnvironmentState) {
@@ -653,6 +691,10 @@ fn consume_need(
             provisions::ConsumeOutcome::Met(updated) => ConsumeResult::Met(updated),
             provisions::ConsumeOutcome::Unmet => ConsumeResult::Unmet,
         },
+        ResidenceNeedKind::Shoes => match provisions::consume_shoes(residence, need) {
+            provisions::ConsumeOutcome::Met(updated) => ConsumeResult::Met(updated),
+            provisions::ConsumeOutcome::Unmet => ConsumeResult::Unmet,
+        },
         ResidenceNeedKind::Pottery => match provisions::consume_pottery(residence, need) {
             provisions::ConsumeOutcome::Met(updated) => ConsumeResult::Met(updated),
             provisions::ConsumeOutcome::Unmet => ConsumeResult::Unmet,
@@ -671,8 +713,11 @@ fn on_unmet_need(kind: ResidenceNeedKind, need: &NeedState) -> NeedState {
         ResidenceNeedKind::Ale
         | ResidenceNeedKind::PreservedFood
         | ResidenceNeedKind::Cloth
+        | ResidenceNeedKind::Shoes
         | ResidenceNeedKind::Pottery => provisions::on_unmet(need),
-        ResidenceNeedKind::Church | ResidenceNeedKind::FoodVariety | ResidenceNeedKind::Luxury => *need,
+        ResidenceNeedKind::Church | ResidenceNeedKind::FoodVariety | ResidenceNeedKind::Luxury => {
+            *need
+        }
     }
 }
 
@@ -684,8 +729,11 @@ fn apply_delivery_for_kind(kind: ResidenceNeedKind, need: &NeedState, delivered:
         ResidenceNeedKind::Ale
         | ResidenceNeedKind::PreservedFood
         | ResidenceNeedKind::Cloth
+        | ResidenceNeedKind::Shoes
         | ResidenceNeedKind::Pottery => provisions::apply_delivery(need, delivered),
-        ResidenceNeedKind::Church | ResidenceNeedKind::FoodVariety | ResidenceNeedKind::Luxury => *need,
+        ResidenceNeedKind::Church | ResidenceNeedKind::FoodVariety | ResidenceNeedKind::Luxury => {
+            *need
+        }
     }
 }
 

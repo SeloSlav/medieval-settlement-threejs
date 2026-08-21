@@ -176,6 +176,13 @@ function addCargo(
     case 'cloth':
       addClothLoad(group);
       break;
+    case 'hides':
+    case 'leather':
+      addClothLoad(group);
+      break;
+    case 'shoes':
+      addPotteryLoad(group);
+      break;
     case 'gold':
       addGoldLoad(group);
       break;

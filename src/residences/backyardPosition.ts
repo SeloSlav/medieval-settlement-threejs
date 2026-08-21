@@ -34,6 +34,9 @@ export const BACKYARD_GROUNDCOVER_CLEARANCE_MARGIN = 0.55;
 
 export function backyardGardenClearsGroundcover(kind: BackyardGardenState['kind']): boolean {
   return kind === 'vegetable_garden'
+    || kind === 'cabbage_garden'
+    || kind === 'carrot_garden'
+    || kind === 'beetroot_garden'
     || kind === 'flower_garden'
     || kind === 'herb_garden';
 }

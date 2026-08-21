@@ -119,4 +119,7 @@ export default __t.row({
   pantrySafeguardPolicy: __t.u8().name("pantry_safeguard_policy"),
   cider: __t.f64(),
   mead: __t.f64(),
+  hides: __t.f64(),
+  leather: __t.f64(),
+  shoes: __t.f64(),
 });

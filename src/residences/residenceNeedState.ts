@@ -5,6 +5,7 @@ export type ResidenceNeedKind =
   | 'ale'
   | 'preservedFood'
   | 'cloth'
+  | 'shoes'
   | 'pottery'
   | 'church'
   | 'foodVariety'
@@ -17,6 +18,7 @@ export const RESIDENCE_NEED_KINDS: readonly ResidenceNeedKind[] = [
   'church',
   'foodVariety',
   'cloth',
+  'shoes',
   'preservedFood',
   'ale',
   'pottery',
@@ -48,7 +50,7 @@ export const RESIDENCE_NEED_CATEGORIES: readonly ResidenceNeedCategory[] = [
   {
     id: 'household-goods',
     label: 'Clothing & household goods',
-    kinds: ['cloth', 'pottery', 'luxury'],
+    kinds: ['cloth', 'shoes', 'pottery', 'luxury'],
   },
   {
     id: 'faith-and-community',
@@ -69,6 +71,7 @@ export function activeResidenceNeedKinds(tier: 0 | 1 | 2 | 3 | 4): ResidenceNeed
   return RESIDENCE_NEED_KINDS.filter((kind) => {
     if (kind === 'food' || kind === 'firewood' || kind === 'water' || kind === 'church') return true;
     if (kind === 'foodVariety' || kind === 'cloth' || kind === 'ale') return tier >= 2;
+    if (kind === 'shoes') return tier >= 3;
     return tier >= 4;
   });
 }
@@ -80,6 +83,7 @@ export const RESIDENCE_NEED_KIND_IDS: Record<ResidenceNeedKind, number> = {
   ale: 6,
   preservedFood: 7,
   cloth: 14,
+  shoes: 60,
   // Must mirror CommodityKind::Pottery because delivery_trip.cargo_kind is
   // shared by household and building-bound carts.
   pottery: 23,
@@ -102,6 +106,7 @@ export type ResidenceNeedSupplyContext = {
   servingPreservedFoodSupplierId?: string | null;
   servingAleSupplierId?: string | null;
   servingClothSupplierId?: string | null;
+  servingShoesSupplierId?: string | null;
   servingPotterySupplierId?: string | null;
 };
 
@@ -146,6 +151,7 @@ export function createDefaultNeeds(): ResidenceNeedsState {
     ale: { stock: 0, deficitTicks: 0 },
     preservedFood: { stock: 0, deficitTicks: 0 },
     cloth: { stock: 0, deficitTicks: 0 },
+    shoes: { stock: 0, deficitTicks: 0 },
     pottery: { stock: 0, deficitTicks: 0 },
     church: { stock: 0, deficitTicks: 0 },
     foodVariety: { stock: 0, deficitTicks: 0 },
@@ -167,6 +173,8 @@ export function needKindFromId(id: number): ResidenceNeedKind | null {
       return 'preservedFood';
     case RESIDENCE_NEED_KIND_IDS.cloth:
       return 'cloth';
+    case RESIDENCE_NEED_KIND_IDS.shoes:
+      return 'shoes';
     case RESIDENCE_NEED_KIND_IDS.pottery:
       return 'pottery';
     case RESIDENCE_NEED_KIND_IDS.church:

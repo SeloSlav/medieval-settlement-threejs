@@ -32,6 +32,7 @@ export type ResidenceUpgradeServiceKind =
   | 'preservedFood'
   | 'ale'
   | 'cloth'
+  | 'shoes'
   | 'pottery'
   | 'church'
   | 'foodVariety';
@@ -178,8 +179,8 @@ function definitionForTier(tier: ResidenceState['tier']): UpgradeDefinition | nu
       gold: RESIDENCE_TIER3_GOLD_COST,
       roofTiles: 0,
       requiredChapelTier: 2,
-      serviceKinds: ['firewood', 'water', 'ale', 'cloth', 'church', 'foodVariety'],
-      addedNeeds: 'Adds produce or forage, land-animal food, fish, and a stone-church standard while retaining grain',
+      serviceKinds: ['firewood', 'water', 'ale', 'cloth', 'shoes', 'church', 'foodVariety'],
+      addedNeeds: 'Adds footwear, produce or forage, land-animal food, fish, and a stone-church standard while retaining grain',
     };
   }
   if (tier === 3) {
@@ -191,7 +192,7 @@ function definitionForTier(tier: ResidenceState['tier']): UpgradeDefinition | nu
       gold: RESIDENCE_TIER4_GOLD_COST,
       roofTiles: RESIDENCE_TILE_ROOF_TILE_COST,
       requiredChapelTier: 3,
-      serviceKinds: ['firewood', 'water', 'preservedFood', 'ale', 'cloth', 'pottery', 'church', 'foodVariety'],
+      serviceKinds: ['firewood', 'water', 'preservedFood', 'ale', 'cloth', 'shoes', 'pottery', 'church', 'foodVariety'],
       addedNeeds: 'Adds cured provisions, pottery, a level-3 church standard, and a finished fired-tile house',
     };
   }
@@ -204,6 +205,7 @@ const SERVICE_LABELS: Record<ResidenceUpgradeServiceKind, string> = {
   preservedFood: 'Cured provisions',
   ale: 'Beverages',
   cloth: 'Cloth',
+  shoes: 'Shoes',
   pottery: 'Pottery',
   church: 'Church access',
   foodVariety: 'Food variety',

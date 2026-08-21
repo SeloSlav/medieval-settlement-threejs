@@ -16,6 +16,7 @@ import {
   MALNUTRITION_DAYS,
   PRESERVED_FOOD_STORAGE_RESIDENCE_FACTOR,
   RESIDENCE_CLOTH_CAPACITY,
+  RESIDENCE_SHOES_CAPACITY,
   RESIDENCE_FOOD_CAPACITY,
   RESIDENCE_PRESERVED_FOOD_CAPACITY,
   RESIDENCE_PRESERVED_FOOD_PER_PERSON_PER_SEC,
@@ -49,6 +50,7 @@ import {
   SPECIALTY_CONSUMPTION_SECONDS_PER_DAY,
   residenceAleRunwayDays,
   residenceClothRunwayDays,
+  residenceShoesRunwayDays,
   residencePreservedFoodRunwayDays,
   residencePotteryRunwayDays,
 } from '../../logistics/specialtyLogistics.ts';
@@ -238,6 +240,9 @@ export function renderResidenceInspector(
   const servingClothSupplier = residence.tier >= 2
     ? context.worldQueries.getServingClothSupplierForResidence(residence)
     : null;
+  const servingShoesSupplier = residence.tier >= 3
+    ? context.worldQueries.getServingShoesSupplierForResidence(residence)
+    : null;
   const servingPotterySupplier = residence.tier >= 4
     ? context.worldQueries.getServingPotterySupplierForResidence(residence)
     : null;
@@ -253,6 +258,10 @@ export function renderResidenceInspector(
     ? servingClothSupplier
       ?? context.worldQueries.getClothUpgradeSupplierForResidence(residence)
     : servingClothSupplier;
+  const shoesUpgradeSupplier = residence.tier === 2
+    ? servingShoesSupplier
+      ?? context.worldQueries.getShoesUpgradeSupplierForResidence(residence)
+    : servingShoesSupplier;
   const potteryUpgradeSupplier = residence.tier === 3
     ? servingPotterySupplier
       ?? context.worldQueries.getPotteryUpgradeSupplierForResidence(residence)
@@ -310,6 +319,10 @@ export function renderResidenceInspector(
       cloth: {
         supplier: clothUpgradeSupplier,
         stocked: servingClothSupplier != null,
+      },
+      shoes: {
+        supplier: shoesUpgradeSupplier,
+        stocked: servingShoesSupplier != null,
       },
       pottery: {
         supplier: potteryUpgradeSupplier,
@@ -458,6 +471,10 @@ export function renderResidenceInspector(
   const clothRunwayLabel = clothRunwayDays == null
     ? '—'
     : formatSpecialtyRunwayDays(clothRunwayDays);
+  const shoesRunwayDays = residence.tier >= 3 ? residenceShoesRunwayDays(residence) : null;
+  const shoesRunwayLabel = shoesRunwayDays == null
+    ? '—'
+    : formatSpecialtyRunwayDays(shoesRunwayDays);
   const potteryRunwayDays = residence.tier >= 4
     ? residencePotteryRunwayDays(residence)
     : null;
@@ -480,6 +497,7 @@ export function renderResidenceInspector(
   const preservedFoodSupplierLabel = supplierLabel(servingPreservedFoodSupplier);
   const aleSupplierLabel = supplierLabel(servingAleSupplier);
   const clothSupplierLabel = supplierLabel(servingClothSupplier);
+  const shoesSupplierLabel = supplierLabel(servingShoesSupplier);
   const potterySupplierLabel = supplierLabel(servingPotterySupplier);
   const capacity = residence.populationCapacity;
   const settlersRemaining = Math.max(0, capacity - residence.population);
@@ -664,8 +682,10 @@ export function renderResidenceInspector(
       ${residence.tier > 0 ? `<li data-inspector-secondary data-inspector-section="${fuelAndWaterSection}"><span>Heating supplier</span><span>${firewoodSupplierLabel}</span></li>` : ''}
       ${residence.tier > 0 ? `<li data-inspector-secondary data-inspector-section="${fuelAndWaterSection}"><span>Serving well</span><span>${wellLabel}</span></li>` : ''}
       ${residence.tier >= 2 ? `<li data-inspector-primary data-inspector-section="${householdGoodsSection}"><span>Household textiles</span><span>${Math.round(getNeedStock(residence.needs, 'cloth'))} / ${RESIDENCE_CLOTH_CAPACITY} · ${clothRunwayLabel} runway</span></li>` : ''}
+      ${residence.tier >= 3 ? `<li data-inspector-primary data-inspector-section="${householdGoodsSection}"><span>Footwear</span><span>${Math.round(getNeedStock(residence.needs, 'shoes'))} / ${RESIDENCE_SHOES_CAPACITY} · ${shoesRunwayLabel} replacement</span></li>` : ''}
       ${residence.tier >= 4 ? `<li data-inspector-primary data-inspector-section="${householdGoodsSection}"><span>Household pottery</span><span>${Math.round(getNeedStock(residence.needs, 'pottery'))} / ${RESIDENCE_POTTERY_CAPACITY} · ${potteryRunwayLabel} replacement</span></li>` : ''}
       ${residence.tier >= 2 ? `<li data-inspector-secondary data-inspector-section="${householdGoodsSection}"><span>Cloth supplier</span><span>${clothSupplierLabel}</span></li>` : ''}
+      ${residence.tier >= 3 ? `<li data-inspector-secondary data-inspector-section="${householdGoodsSection}"><span>Shoe supplier</span><span>${shoesSupplierLabel}</span></li>` : ''}
       ${residence.tier >= 4 ? `<li data-inspector-secondary data-inspector-section="${householdGoodsSection}"><span>Pottery supplier</span><span>${potterySupplierLabel}</span></li>` : ''}
       ${residence.tier > 0 ? `<li data-inspector-primary data-inspector-section="${faithAndCommunitySection}"><span>Church access</span><span>${community.hasChapelAccess ? `Staffed level-${community.chapelTier ?? 1} parish on the road` : `No qualifying parish on branch · level ${residence.tier >= 4 ? 3 : residence.tier >= 2 ? 2 : 1} required`}</span></li>` : ''}
       ${residence.tier > 0 ? `<li data-inspector-secondary data-inspector-section="${faithAndCommunitySection}"><span>Monastery coverage</span><span>${community.hasMonasteryCoverage ? 'Linked Pauline house within parish radius' : 'None'}</span></li>` : ''}

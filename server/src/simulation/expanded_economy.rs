@@ -16,22 +16,24 @@ use crate::balance_generated::{
     BREWERY_HONEY_PER_MEAD_CYCLE, BREWERY_MALTING_FIREWOOD_PER_CYCLE,
     BREWERY_MALTING_WATER_PER_CYCLE, BREWERY_MALT_PER_ALE_CYCLE, BREWERY_MALT_PER_CYCLE,
     BREWERY_MEAD_PER_CYCLE, CALENDAR_SECONDS_PER_DAY, CHARCOAL_BURNER_CHARCOAL_PER_CYCLE,
-    CHARCOAL_BURNER_FIREWOOD_PER_CYCLE,
-    CIVILIAN_TOOL_IRONWORK_PER_CYCLE, CLAY_PIT_CLAY_PER_CYCLE, FARM_GROWTH_SECONDS,
-    FARM_WORK_METERS_PER_WORKER_PER_SEC, GRAIN_TRANSFER_PER_TRIP, MINE_IRON_PER_CYCLE,
-    MINE_SALT_PER_CYCLE, MINE_TIMBER_SUPPORT_PER_CYCLE, MONASTERY_FEAST_ALE, MONASTERY_FEAST_FOOD,
-    MONASTERY_FEAST_HONEY, MONASTERY_PILGRIMAGE_GOLD_PER_DAY, MONASTERY_UNLINKED_PRODUCTIVITY,
-    POTTER_CLAY_PER_CYCLE, POTTER_FIREWOOD_PER_CYCLE, POTTER_POTTERY_PER_CYCLE,
-    POTTER_ROOF_TILES_PER_CYCLE, POTTER_WATER_PER_CYCLE, RICH_MINE_THROUGHPUT_MULTIPLIER,
-    SMITHY_CHARCOAL_PER_CYCLE, SMITHY_IRONWORK_PER_CYCLE, SMITHY_IRON_PER_CYCLE,
-    SMITHY_WATER_PER_CYCLE, SMOKEHOUSE_FIREWOOD_PER_CYCLE, SMOKEHOUSE_FOOD_PER_CYCLE,
-    SMOKEHOUSE_POTTERY_PER_CYCLE, SMOKEHOUSE_PRESERVED_FOOD_PER_CYCLE, SMOKEHOUSE_SALT_PER_CYCLE,
-    TEXTILE_TRANSFER_PER_TRIP, THRESHING_GRAIN_PER_CYCLE, THRESHING_SHEAVES_PER_CYCLE, TICK_DT,
-    TIMBER_DELIVERY_SPEED_MPS, TIMBER_DELIVERY_UNLOAD_SEC, VINEYARD_FERMENTATION_SECONDS,
-    VINEYARD_GRAPES_PER_FERMENTATION_BATCH, VINEYARD_GRAPES_PER_HARVEST_CYCLE,
-    VINEYARD_WINE_PER_FERMENTATION_BATCH, WATERMILL_GRAIN_PER_CYCLE,
-    WATERMILL_MASLIN_FLOUR_PER_CYCLE, WATERMILL_RYE_FLOUR_PER_CYCLE, WEAVER_CLOTH_PER_CYCLE,
-    WEAVER_FLAX_PER_CYCLE, WEAVER_FLAX_WATER_PER_CYCLE, WEAVER_WOOL_PER_CYCLE,
+    CHARCOAL_BURNER_FIREWOOD_PER_CYCLE, CIVILIAN_TOOL_IRONWORK_PER_CYCLE, CLAY_PIT_CLAY_PER_CYCLE,
+    FARM_GROWTH_SECONDS, FARM_WORK_METERS_PER_WORKER_PER_SEC, GRAIN_TRANSFER_PER_TRIP,
+    MINE_IRON_PER_CYCLE, MINE_SALT_PER_CYCLE, MINE_TIMBER_SUPPORT_PER_CYCLE, MONASTERY_FEAST_ALE,
+    MONASTERY_FEAST_FOOD, MONASTERY_FEAST_HONEY, MONASTERY_PILGRIMAGE_GOLD_PER_DAY,
+    MONASTERY_UNLINKED_PRODUCTIVITY, POTTER_CLAY_PER_CYCLE, POTTER_FIREWOOD_PER_CYCLE,
+    POTTER_POTTERY_PER_CYCLE, POTTER_ROOF_TILES_PER_CYCLE, POTTER_WATER_PER_CYCLE,
+    RICH_MINE_THROUGHPUT_MULTIPLIER, SMITHY_CHARCOAL_PER_CYCLE, SMITHY_IRONWORK_PER_CYCLE,
+    SMITHY_IRON_PER_CYCLE, SMITHY_WATER_PER_CYCLE, SMOKEHOUSE_FIREWOOD_PER_CYCLE,
+    SMOKEHOUSE_FOOD_PER_CYCLE, SMOKEHOUSE_POTTERY_PER_CYCLE, SMOKEHOUSE_PRESERVED_FOOD_PER_CYCLE,
+    SMOKEHOUSE_SALT_PER_CYCLE, TEXTILE_TRANSFER_PER_TRIP, THRESHING_GRAIN_PER_CYCLE,
+    THRESHING_SHEAVES_PER_CYCLE, TICK_DT, TIMBER_DELIVERY_SPEED_MPS, TIMBER_DELIVERY_UNLOAD_SEC,
+    VINEYARD_FERMENTATION_SECONDS, VINEYARD_GRAPES_PER_FERMENTATION_BATCH,
+    VINEYARD_GRAPES_PER_HARVEST_CYCLE, VINEYARD_WINE_PER_FERMENTATION_BATCH,
+    WATERMILL_GRAIN_PER_CYCLE, WATERMILL_MASLIN_FLOUR_PER_CYCLE, WATERMILL_RYE_FLOUR_PER_CYCLE,
+    WEAVER_CLOTH_PER_CYCLE, WEAVER_FLAX_PER_CYCLE, WEAVER_FLAX_WATER_PER_CYCLE,
+    WEAVER_WOOL_PER_CYCLE, TANNERY_HIDES_PER_CYCLE, TANNERY_WATER_PER_CYCLE,
+    TANNERY_FIREWOOD_PER_CYCLE, TANNERY_LEATHER_PER_CYCLE, COBBLER_LEATHER_PER_CYCLE,
+    COBBLER_SHOES_PER_CYCLE, LEATHER_TRANSFER_PER_TRIP,
 };
 use crate::brewery_recipe_policy::{
     normalize_brewery_recipe_policy, BREWERY_RECIPE_ALE, BREWERY_RECIPE_AUTO, BREWERY_RECIPE_CIDER,
@@ -53,8 +55,7 @@ use crate::economy::{
     credit_settlement_household_income, deposit_building_commodity,
     first_building_edible_commodity, flour_bulk_stock, restore_treasury_gold, spend_treasury_gold,
     storage_accepts_commodity, treasury_gold, withdraw_building_commodity,
-    withdraw_building_edible_food, CommodityKind,
-    FRESH_FOOD_COMMODITIES,
+    withdraw_building_edible_food, CommodityKind, FRESH_FOOD_COMMODITIES,
 };
 use crate::farm_work_policy::{field_task_rank, threshing_preempts_fields};
 use crate::farming::{
@@ -1432,6 +1433,9 @@ const LOCAL_MATERIAL_COMMODITIES: &[CommodityKind] = &[
     CommodityKind::Charcoal,
     CommodityKind::Ironwork,
     CommodityKind::Pottery,
+    CommodityKind::Hides,
+    CommodityKind::Leather,
+    CommodityKind::Shoes,
 ];
 
 fn local_material_target_kinds(
@@ -1465,6 +1469,15 @@ fn local_material_target_kinds(
         ("potter_kiln", CommodityKind::Pottery) => {
             Some(&["smokehouse", "village_storehouse", "trading_post"])
         }
+        ("hunters_hall" | "marketplace", CommodityKind::Hides) => {
+            Some(&["tannery", "village_storehouse", "trading_post"])
+        }
+        ("tannery", CommodityKind::Leather) => {
+            Some(&["cobbler", "village_storehouse", "trading_post"])
+        }
+        ("cobbler", CommodityKind::Shoes) => {
+            Some(&["village_storehouse", "trading_post"])
+        }
         ("trading_post", CommodityKind::Iron) => Some(&["smithy"]),
         ("trading_post", CommodityKind::Salt) => Some(&["smokehouse", "pastoral_farmstead"]),
         ("trading_post", CommodityKind::Clay) => Some(&["potter_kiln"]),
@@ -1482,6 +1495,9 @@ fn local_material_target_kinds(
             "carpenter",
         ]),
         ("trading_post", CommodityKind::Pottery) => Some(&["smokehouse", "village_storehouse"]),
+        ("trading_post", CommodityKind::Hides) => Some(&["tannery", "village_storehouse"]),
+        ("trading_post", CommodityKind::Leather) => Some(&["cobbler", "village_storehouse"]),
+        ("trading_post", CommodityKind::Shoes) => Some(&["village_storehouse"]),
         ("village_storehouse", CommodityKind::Iron) => Some(&["smithy", "trading_post"]),
         ("village_storehouse", CommodityKind::Clay) => Some(&["potter_kiln"]),
         ("village_storehouse", CommodityKind::Salt) => {
@@ -1490,6 +1506,8 @@ fn local_material_target_kinds(
         // Existing depot charcoal always remains dispatchable even when new
         // charcoal intake is disabled, so changing policy cannot strand stock.
         ("village_storehouse", CommodityKind::Charcoal) => Some(&["smithy"]),
+        ("village_storehouse", CommodityKind::Hides) => Some(&["tannery", "trading_post"]),
+        ("village_storehouse", CommodityKind::Leather) => Some(&["cobbler", "trading_post"]),
         _ => None,
     }
 }
@@ -1518,6 +1536,9 @@ fn local_material_target_plan(
         CommodityKind::Charcoal => "charcoal",
         CommodityKind::Ironwork => "ironwork",
         CommodityKind::Pottery => "pottery",
+        CommodityKind::Hides => "hides",
+        CommodityKind::Leather => "leather",
+        CommodityKind::Shoes => "shoes",
         _ => return None,
     };
     let stock = building_commodity_stock(target, commodity);
@@ -1609,13 +1630,15 @@ fn storehouse_charcoal_transit_plan(
         return None;
     }
     let network = tick.road_network(storehouse.owner)?;
-    let has_linked_market_shortfall = market_shortfalls
-        .iter()
-        .any(|(market_id, shortfall)| {
-            if *shortfall <= 1e-6 {
-                return false;
-            }
-            ctx.db.building().id().find(market_id).is_some_and(|market| {
+    let has_linked_market_shortfall = market_shortfalls.iter().any(|(market_id, shortfall)| {
+        if *shortfall <= 1e-6 {
+            return false;
+        }
+        ctx.db
+            .building()
+            .id()
+            .find(market_id)
+            .is_some_and(|market| {
                 market.owner == storehouse.owner
                     && local_delivery_distance(
                         network,
@@ -1626,7 +1649,7 @@ fn storehouse_charcoal_transit_plan(
                     )
                     .is_some()
             })
-        });
+    });
     let has_linked_export_post = tick
         .building_ids_for_kinds(ctx, storehouse.owner, &["trading_post"])
         .into_iter()
@@ -1645,8 +1668,11 @@ fn storehouse_charcoal_transit_plan(
         building_commodity_cap(&storehouse.kind, CommodityKind::Charcoal),
         storehouse.storehouse_charcoal_target_percent,
     );
-    (storehouse.charcoal + 1e-6 < desired)
-        .then_some((ProcessorInputDispatchDuty::WorkshopOverflow, desired, 0.0))
+    (storehouse.charcoal + 1e-6 < desired).then_some((
+        ProcessorInputDispatchDuty::WorkshopOverflow,
+        desired,
+        0.0,
+    ))
 }
 
 pub fn step_mine(
@@ -2633,6 +2659,44 @@ pub fn step_weaver(
         &["trading_post"],
     );
     ctx.db.building().id().update(weaver);
+}
+
+pub fn step_tannery(
+    ctx: &ReducerContext,
+    tick: &SimTickContext,
+    clock: &GameClock,
+    building: Building,
+) {
+    let tannery = step_processor(
+        ctx,
+        tick,
+        clock,
+        building,
+        &[
+            (CommodityKind::Hides, TANNERY_HIDES_PER_CYCLE),
+            (CommodityKind::Water, TANNERY_WATER_PER_CYCLE),
+            (CommodityKind::Firewood, TANNERY_FIREWOOD_PER_CYCLE),
+        ],
+        &[(CommodityKind::Leather, TANNERY_LEATHER_PER_CYCLE)],
+    );
+    ctx.db.building().id().update(tannery);
+}
+
+pub fn step_cobbler(
+    ctx: &ReducerContext,
+    tick: &SimTickContext,
+    clock: &GameClock,
+    building: Building,
+) {
+    let cobbler = step_processor(
+        ctx,
+        tick,
+        clock,
+        building,
+        &[(CommodityKind::Leather, COBBLER_LEATHER_PER_CYCLE)],
+        &[(CommodityKind::Shoes, COBBLER_SHOES_PER_CYCLE)],
+    );
+    ctx.db.building().id().update(cobbler);
 }
 
 pub fn step_smokehouse(
@@ -3752,6 +3816,8 @@ fn processor_output_commodity(kind: &str) -> Option<CommodityKind> {
         ProcessorOutputKind::Charcoal => Some(CommodityKind::Charcoal),
         ProcessorOutputKind::Ironwork => Some(CommodityKind::Ironwork),
         ProcessorOutputKind::Pottery => Some(CommodityKind::Pottery),
+        ProcessorOutputKind::Leather => Some(CommodityKind::Leather),
+        ProcessorOutputKind::Shoes => Some(CommodityKind::Shoes),
     }
 }
 
@@ -3924,6 +3990,11 @@ fn processor_uses_input(kind: &str, commodity: CommodityKind) -> bool {
             commodity,
             CommodityKind::Clay | CommodityKind::Firewood | CommodityKind::Water
         ),
+        "tannery" => matches!(
+            commodity,
+            CommodityKind::Hides | CommodityKind::Water | CommodityKind::Firewood
+        ),
+        "cobbler" => commodity == CommodityKind::Leather,
         _ => false,
     }
 }
@@ -4007,6 +4078,9 @@ fn commodity_transfer_per_trip(commodity: CommodityKind) -> f64 {
     match commodity {
         CommodityKind::Wool | CommodityKind::Flax | CommodityKind::Cloth => {
             TEXTILE_TRANSFER_PER_TRIP
+        }
+        CommodityKind::Hides | CommodityKind::Leather | CommodityKind::Shoes => {
+            LEATHER_TRANSFER_PER_TRIP
         }
         _ => GRAIN_TRANSFER_PER_TRIP,
     }
@@ -4654,6 +4728,9 @@ fn directly_dispatched_commodity_name(commodity: CommodityKind) -> Option<&'stat
         CommodityKind::Clay => Some("clay"),
         CommodityKind::Charcoal => Some("charcoal"),
         CommodityKind::Pottery => Some("pottery"),
+        CommodityKind::Hides => Some("hides"),
+        CommodityKind::Leather => Some("leather"),
+        CommodityKind::Shoes => Some("shoes"),
         CommodityKind::Firewood => Some("firewood"),
         CommodityKind::Water => Some("water"),
         CommodityKind::Iron => Some("iron"),

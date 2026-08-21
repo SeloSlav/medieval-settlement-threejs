@@ -38,6 +38,9 @@ export const BackyardGarden = __t.object("BackyardGarden", {
   owner: __t.identity(),
   kind: __t.u8(),
   firstHarvestDay: __t.u64(),
+  lastPrimaryProductionDay: __t.u64(),
+  lastSecondaryProductionDay: __t.u64(),
+  hideStock: __t.f64(),
   jamStock: __t.f64(),
   flowerLuxuryUpgraded: __t.bool(),
 });
@@ -190,6 +193,9 @@ export const Building = __t.object("Building", {
   monasteryServiceFunding: __t.f64(),
   monasteryLastServiceDay: __t.u64(),
   storageAcceptanceMask: __t.u64(),
+  hides: __t.f64(),
+  leather: __t.f64(),
+  shoes: __t.f64(),
 });
 export type Building = __Infer<typeof Building>;
 
@@ -558,6 +564,9 @@ export const PlayerResources = __t.object("PlayerResources", {
   pantrySafeguardPolicy: __t.u8(),
   cider: __t.f64(),
   mead: __t.f64(),
+  hides: __t.f64(),
+  leather: __t.f64(),
+  shoes: __t.f64(),
 });
 export type PlayerResources = __Infer<typeof PlayerResources>;
 

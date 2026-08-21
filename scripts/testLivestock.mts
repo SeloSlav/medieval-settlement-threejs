@@ -63,7 +63,10 @@ assert.ok(
   'grain-only pig keeping must remain deliberately inefficient',
 );
 assert.ok(SWINE_MATURE_TREES_PER_HEAD > 0, 'swine capacity must depend on live mature trees');
-assert.ok(BACKYARD_GARDEN_DEFINITIONS.hen_yard, 'hen yard must remain a backyard choice');
+assert.equal(BACKYARD_GARDEN_DEFINITIONS.animal_pen.hiddenFromPicker, false);
+assert.equal(BACKYARD_GARDEN_DEFINITIONS.chicken_pen.specializationOf, 'animal_pen');
+assert.equal(BACKYARD_GARDEN_DEFINITIONS.goat_pen.specializationOf, 'animal_pen');
+assert.equal(BACKYARD_GARDEN_DEFINITIONS.pig_pen.specializationOf, 'animal_pen');
 
 const lowerPasture = {
   id: 'pasture-1',
@@ -338,7 +341,7 @@ assert.match(
 );
 assert.match(
   farmSimulation,
-  /withdraw_building_commodity\(farmstead, CommodityKind::Manure, manure_needed\)/,
+  /withdraw_building_commodity\(resource_farmstead, CommodityKind::Manure, manure_needed\)/,
   'field work must consume physical manure from its owning crop farmstead',
 );
 assert.match(

@@ -2,7 +2,9 @@ import {
   BACKYARD_GARDEN_DEFINITIONS,
   BACKYARD_GARDEN_KINDS,
   BACKYARD_GARDEN_PICKER_KINDS,
+  ANIMAL_PEN_SPECIALIZATION_KINDS,
   ORCHARD_SPECIALIZATION_KINDS,
+  VEGETABLE_GARDEN_SPECIALIZATION_KINDS,
   backyardGardenLabel,
   backyardGardenProductSummary,
   formatBackyardGardenCost,
@@ -61,11 +63,19 @@ export function renderBackyardInspector(
   if (garden.kind === 'orchard') {
     return renderOrchardSpecializationPicker(residence, garden, context);
   }
+  if (garden.kind === 'animal_pen') {
+    return renderAnimalPenSpecializationPicker(residence, garden, context);
+  }
+  if (garden.kind === 'vegetable_garden') {
+    return renderVegetableGardenSpecializationPicker(residence, garden, context);
+  }
 
   const def = BACKYARD_GARDEN_DEFINITIONS[garden.kind];
+  const isLivestockPen = def.specializationOf === 'animal_pen';
+  const isSelectedVegetable = def.specializationOf === 'vegetable_garden';
   const producesFood = def.foodPerPersonPerSec > 0;
   const marketChannel = backyardGardenMarketChannel(garden.kind);
-  const foodStock = edibleFoodStock(residence);
+  const foodStock = edibleFoodStock(residence) + Math.max(0, garden.jamStock);
   const taxRate = context.getEconomicActivityTaxRate?.() ?? ECONOMIC_ACTIVITY_TAX_RATE_DEFAULT;
   const hasMarketAccess = marketChannel !== null
     && context.worldQueries.isResidenceConnectedToMarketplace(residence, marketChannel);
@@ -147,29 +157,52 @@ export function renderBackyardInspector(
     detailsHtml: `
       <li><span>Parcel</span><span>#${residence.parcelIndex + 1}</span></li>
       <li><span>Population</span><span>${residence.population}</span></li>
-      <li><span>Crop phase</span><span>${season.label}${sabbathPaused ? ' · household work paused today by parish policy' : ''}</span></li>
-      <li><span>Harvest window</span><span>${season.harvestWindow}</span></li>
+      <li><span>${isLivestockPen ? 'Husbandry phase' : 'Crop phase'}</span><span>${season.label}${sabbathPaused ? ' · household work paused today by parish policy' : ''}</span></li>
+      <li><span>${isLivestockPen ? 'Collection window' : 'Harvest window'}</span><span>${season.harvestWindow}</span></li>
       <li><span>Product</span><span>${backyardGardenProductSummary(garden.kind)}</span></li>
       ${BACKYARD_GARDEN_DEFINITIONS[garden.kind].firstHarvestDays > 0
-        ? `<li><span>First harvest</span><span>${garden.firstHarvestDay > clock.totalDays
+        ? `<li><span>${isLivestockPen ? 'First output' : 'First harvest'}</span><span>${garden.firstHarvestDay > clock.totalDays
           ? `${garden.firstHarvestDay - clock.totalDays} days remaining`
-          : 'Planting established'}</span></li>
-           <li><span>Yield efficiency</span><span>${Math.round(BACKYARD_GARDEN_DEFINITIONS[garden.kind].yieldEfficiency * 100)}%</span></li>`
+          : isLivestockPen ? 'Breeding stock mature' : isSelectedVegetable ? 'Seed crop mature' : 'Planting established'}</span></li>
+           <li><span>${isLivestockPen ? 'Husbandry efficiency' : 'Yield efficiency'}</span><span>${Math.round(BACKYARD_GARDEN_DEFINITIONS[garden.kind].yieldEfficiency * 100)}%</span></li>`
+        : ''}
+      ${isLivestockPen
+        ? `<li><span>Gestation / maturity</span><span>${def.gestationDays} days</span></li>
+           <li><span>Primary interval</span><span>Every ${def.productionIntervalDays} days during ${formatMonthWindow(def.harvestStartMonth, def.harvestEndMonth)}</span></li>
+           ${def.secondaryProductionIntervalDays > 0
+             ? `<li><span>Cull interval</span><span>Every ${def.secondaryProductionIntervalDays} days during ${formatMonthWindow(def.secondaryHarvestStartMonth, def.secondaryHarvestEndMonth)}</span></li>`
+             : ''}
+           ${garden.kind === 'goat_pen'
+             ? `<li><span>Untanned hides</span><span>${garden.hideStock.toFixed(1)} / ${def.hideCapacity} retained at this household · produced only with an actual cull</span></li>`
+             : ''}`
         : ''}
       ${BACKYARD_GARDEN_DEFINITIONS[garden.kind].jamPerPersonPerSec > 0
-        ? `<li><span>Household jam</span><span>${garden.jamStock.toFixed(1)} / ${RESIDENCE_LUXURY_JAM_CAPACITY} jars · reserved for tier-4 luxury comfort</span></li>`
+        ? `<li><span>Household jam</span><span>${garden.jamStock.toFixed(1)} / ${RESIDENCE_LUXURY_JAM_CAPACITY} jars · food at every tier${residence.tier >= 4 ? ' and luxury comfort from the same serving' : '; gains luxury value at tier 4'}</span></li>`
         : ''}
       ${producesFood
-        ? `<li><span>Home food today</span><span>${economy.selfFoodPerDay.toFixed(1)} (${hasMarketAccess ? `fills the tier ${residence.tier} ${reserveDays}-day reserve first` : '100% kept without a staffed stall'})</span></li>
-           <li><span>Shared market food today</span><span>${economy.marketFoodPerDay.toFixed(1)}${hasMarketAccess ? ' pooled for other households' : ' — household keeps the full crop without a stall'}</span></li>
+        ? `<li><span>${isLivestockPen ? 'Average primary home food/day' : 'Home food today'}</span><span>${economy.selfFoodPerDay.toFixed(1)} (${hasMarketAccess ? `fills the tier ${residence.tier} ${reserveDays}-day reserve first` : '100% kept without a staffed stall'})</span></li>
+           <li><span>${isLivestockPen ? 'Average primary market overflow/day' : 'Shared market food today'}</span><span>${economy.marketFoodPerDay.toFixed(1)}${hasMarketAccess ? ' pooled for other households' : ' — household keeps the full crop without a stall'}</span></li>
+           ${isLivestockPen && def.secondaryProductionIntervalDays > 0
+             ? '<li><span>Seasonal culls</span><span>Discrete meat collections are shown by the cull interval above and are not folded into the primary daily average.</span></li>'
+             : ''}
            <li><span>Household food reserve</span><span>${Math.round(foodStock)} / ${Math.ceil(reserveTarget)}</span></li>`
         : ''}
       ${garden.kind === 'herb_garden'
         ? '<li><span>Herb mix</span><span>Rosemary and sage are perennial; parsley and tender growth are seasonal. Fresh cutting pauses in winter, while remedies already stored indoors remain available.</span></li>'
         : garden.kind === 'flower_garden'
           ? '<li><span>Flower effect</span><span>Pollinator forage and settlement attraction; flowers create no saleable commodity or passive gold</span></li>'
+          : garden.kind === 'chicken_pen'
+            ? '<li><span>Trade-off</span><span>Fastest maturity and frequent eggs, with small autumn meat culls; eggs spoil quickly and cannot be preserved at the smokehouse.</span></li>'
           : garden.kind === 'goat_pen'
-            ? '<li><span>Trade-off</span><span>Uses no pasture, but alternates one low milk/meat stream; produces no wool, plough power, or collectable field manure</span></li>'
+            ? '<li><span>Trade-off</span><span>Longest maturity, but regular milk can become cheese. Meat and hides arrive only on the much slower cull interval; the pen produces no wool or plough power.</span></li>'
+          : garden.kind === 'pig_pen'
+            ? '<li><span>Trade-off</span><span>No eggs, milk, or secondary by-product. The household waits for a large autumn pork harvest that can enter the meat-to-cured-meat chain.</span></li>'
+          : garden.kind === 'cabbage_garden'
+            ? '<li><span>Trade-off</span><span>Costliest seed and slowest maturity, rewarded with the highest yield through a strong July–November harvest.</span></li>'
+          : garden.kind === 'carrot_garden'
+            ? '<li><span>Trade-off</span><span>Middle seed cost and maturity with a dependable June–November season and balanced yield.</span></li>'
+          : garden.kind === 'beetroot_garden'
+            ? '<li><span>Trade-off</span><span>Cheapest seed and fastest maturity, beginning in May, but each productive day yields less than carrots or cabbage.</span></li>'
             : garden.kind === 'backyard_apiary'
               ? '<li><span>Trade-off</span><span>Seasonal honey and a minor local pollination contribution; much less output and reach than a staffed forest apiary</span></li>'
               : ''}
@@ -354,6 +387,101 @@ function renderOrchardSpecializationPicker(
   };
 }
 
+function renderAnimalPenSpecializationPicker(
+  residence: Extract<InspectableTarget, { kind: 'backyard' }>['residence'],
+  garden: NonNullable<Extract<InspectableTarget, { kind: 'backyard' }>['garden']>,
+  context: InspectorRenderContext,
+): InspectorView {
+  const shellGold = BACKYARD_GARDEN_DEFINITIONS.animal_pen.goldCost;
+  const options = ANIMAL_PEN_SPECIALIZATION_KINDS.map((kind) => {
+    const def = BACKYARD_GARDEN_DEFINITIONS[kind];
+    const stockingGold = Math.max(0, def.goldCost - shellGold);
+    const funding = householdProjectFunding(
+      residence.householdWealth,
+      stockingGold,
+      context.resourceTotals.gold,
+      context.gameState.physicalFoundingSiteEnabled === true,
+    );
+    const secondary = def.secondaryProductionIntervalDays > 0
+      ? ` · cull every ${def.secondaryProductionIntervalDays} days (${formatMonthWindow(def.secondaryHarvestStartMonth, def.secondaryHarvestEndMonth)})`
+      : '';
+    return `<li class="backyard-picker-row">
+      <button type="button" class="backyard-picker-option${funding.ready ? '' : ' backyard-picker-option--disabled'}"
+        data-inspector-action="specialize-animal-pen" data-garden-kind="${kind}"
+        ${funding.ready ? '' : 'disabled'} aria-label="House ${backyardGardenLabel(kind)}">
+        <span class="backyard-picker-option__icon" aria-hidden="true"></span>
+        <span class="backyard-picker-option__title">${backyardGardenLabel(kind)}</span>
+        <span class="backyard-picker-option__cost">${stockingGold} gold · first output ${def.firstHarvestDays} days</span>
+        <span class="backyard-picker-option__funding">${backyardGardenProductSummary(kind)} · primary every ${def.productionIntervalDays} days (${formatMonthWindow(def.harvestStartMonth, def.harvestEndMonth)})${secondary}</span>
+      </button>
+    </li>`;
+  }).join('');
+  return {
+    eyebrow: 'Completed animal pen',
+    title: backyardGardenLabel(garden.kind),
+    statusText: 'Choose livestock for the enclosure',
+    statusState: 'neutral',
+    detailsHtml: `
+      <li><span>Population</span><span>${residence.population}</span></li>
+      <li><span>Construction</span><span>Complete · no builder assigned</span></li>
+      <li><span>Livestock</span><span>Unselected · no production yet</span></li>
+    `,
+    supplementalPanelHtml: `<p class="resource-inspector-note">Stocking is permanent until demolition. Chickens favor quick eggs, goats combine milk with occasional meat and hides, and pigs delay all value for a larger pork harvest. Their products retain typed food identity through household storage, Marketplace overflow, spoilage, cheese-making, and meat curing.</p><ul class="backyard-picker-list">${options}</ul>`,
+    demolish: {
+      visible: true,
+      label: 'Demolish animal pen',
+      hint: 'Removes the enclosure so this backyard can choose any extension again after reclaimed materials are hauled away.',
+    },
+    labor: hiddenLabor(),
+  };
+}
+
+function renderVegetableGardenSpecializationPicker(
+  residence: Extract<InspectableTarget, { kind: 'backyard' }>['residence'],
+  garden: NonNullable<Extract<InspectableTarget, { kind: 'backyard' }>['garden']>,
+  context: InspectorRenderContext,
+): InspectorView {
+  const shellGold = BACKYARD_GARDEN_DEFINITIONS.vegetable_garden.goldCost;
+  const options = VEGETABLE_GARDEN_SPECIALIZATION_KINDS.map((kind) => {
+    const def = BACKYARD_GARDEN_DEFINITIONS[kind];
+    const seedGold = Math.max(0, def.goldCost - shellGold);
+    const funding = householdProjectFunding(
+      residence.householdWealth,
+      seedGold,
+      context.resourceTotals.gold,
+      context.gameState.physicalFoundingSiteEnabled === true,
+    );
+    return `<li class="backyard-picker-row">
+      <button type="button" class="backyard-picker-option${funding.ready ? '' : ' backyard-picker-option--disabled'}"
+        data-inspector-action="specialize-vegetable-garden" data-garden-kind="${kind}"
+        ${funding.ready ? '' : 'disabled'} aria-label="Purchase ${backyardGardenLabel(kind)} seed">
+        <span class="backyard-picker-option__icon" aria-hidden="true"></span>
+        <span class="backyard-picker-option__title">${backyardGardenLabel(kind)}</span>
+        <span class="backyard-picker-option__cost">${seedGold} gold seed · first harvest ${def.firstHarvestDays} days</span>
+        <span class="backyard-picker-option__funding">${formatMonthWindow(def.harvestStartMonth, def.harvestEndMonth)} · ${Math.round(def.yieldEfficiency * 100)}% yield efficiency</span>
+      </button>
+    </li>`;
+  }).join('');
+  return {
+    eyebrow: 'Completed vegetable garden',
+    title: backyardGardenLabel(garden.kind),
+    statusText: 'Choose seed for every bed',
+    statusState: 'neutral',
+    detailsHtml: `
+      <li><span>Population</span><span>${residence.population}</span></li>
+      <li><span>Construction</span><span>Complete · no builder assigned</span></li>
+      <li><span>Seed crop</span><span>Unselected · prepared beds produce no food</span></li>
+    `,
+    supplementalPanelHtml: `<p class="resource-inspector-note">The seed purchase is permanent until demolition, and all beds grow the same crop. Beetroot is fast and cheap, carrots balance access and yield, while cabbage delays production for the strongest harvest.</p><ul class="backyard-picker-list">${options}</ul>`,
+    demolish: {
+      visible: true,
+      label: 'Demolish vegetable garden',
+      hint: 'Removes the prepared beds so this backyard can choose any extension again after reclaimed materials are hauled away.',
+    },
+    labor: hiddenLabor(),
+  };
+}
+
 function monthName(month: number): string {
   return ['?', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][month] ?? '?';
 }
@@ -364,10 +492,15 @@ function backyardGardenPickerLabel(kind: BackyardGardenKind): string {
     case 'apple_orchard': return 'Apple orchard';
     case 'cherry_orchard': return 'Cherry orchard';
     case 'vegetable_garden': return 'Vegetables';
+    case 'cabbage_garden': return 'Cabbages';
+    case 'carrot_garden': return 'Carrots';
+    case 'beetroot_garden': return 'Beetroot';
     case 'flower_garden': return 'Flowers';
     case 'herb_garden': return 'Herbs';
-    case 'hen_yard': return 'Hens';
+    case 'animal_pen': return 'Animal pen';
+    case 'chicken_pen': return 'Chickens';
     case 'goat_pen': return 'Goats';
+    case 'pig_pen': return 'Pigs';
     case 'backyard_apiary': return 'Apiary';
     case 'pear_orchard': return 'Pear orchard';
     case 'aronia_orchard': return 'Aronia bushes';
@@ -458,4 +591,36 @@ export function parseOrchardSpecializationKind(button: HTMLElement): BackyardGar
   return ORCHARD_SPECIALIZATION_KINDS.includes(value as BackyardGardenKind)
     ? value as BackyardGardenKind
     : null;
+}
+
+export function parseAnimalPenSpecializationKind(button: HTMLElement): BackyardGardenKind | null {
+  const option = button.closest<HTMLButtonElement>(
+    '[data-inspector-action="specialize-animal-pen"]',
+  );
+  if (!option || option.disabled) return null;
+  const value = option.dataset.gardenKind;
+  if (!value) return null;
+  return ANIMAL_PEN_SPECIALIZATION_KINDS.includes(value as BackyardGardenKind)
+    ? value as BackyardGardenKind
+    : null;
+}
+
+export function parseVegetableGardenSpecializationKind(
+  button: HTMLElement,
+): BackyardGardenKind | null {
+  const option = button.closest<HTMLButtonElement>(
+    '[data-inspector-action="specialize-vegetable-garden"]',
+  );
+  if (!option || option.disabled) return null;
+  const value = option.dataset.gardenKind;
+  if (!value) return null;
+  return VEGETABLE_GARDEN_SPECIALIZATION_KINDS.includes(value as BackyardGardenKind)
+    ? value as BackyardGardenKind
+    : null;
+}
+
+function formatMonthWindow(startMonth: number, endMonth: number): string {
+  return startMonth === endMonth
+    ? monthName(startMonth)
+    : `${monthName(startMonth)}–${monthName(endMonth)}`;
 }

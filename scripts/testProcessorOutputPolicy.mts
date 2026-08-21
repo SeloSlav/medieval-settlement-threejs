@@ -88,6 +88,8 @@ assert.deepEqual(
     'charcoal_burner',
     'smithy',
     'potter_kiln',
+    'tannery',
+    'cobbler',
   ],
 );
 assert.equal(normalizeProcessorOutputTargetPercent(undefined), 100);
@@ -132,6 +134,8 @@ assert.equal(processorOutputCommodity('weaver'), 'cloth');
 assert.equal(processorOutputCommodity('charcoal_burner'), 'charcoal');
 assert.equal(processorOutputCommodity('smithy'), 'ironwork');
 assert.equal(processorOutputCommodity('potter_kiln'), 'pottery');
+assert.equal(processorOutputCommodity('tannery'), 'leather');
+assert.equal(processorOutputCommodity('cobbler'), 'shoes');
 assert.equal(BREWERY_APPLES_PER_CIDER_CYCLE, 4);
 assert.equal(BREWERY_CIDER_PER_CYCLE, 1);
 assert.equal(BREWERY_HONEY_PER_MEAD_CYCLE, 1);
@@ -211,6 +215,8 @@ assert.deepEqual(
   ['clay', 'firewood', 'water'],
   'the pottery stock policy must stage clay, fuel, and puddling water together',
 );
+assert.deepEqual(processorInputCommodities('tannery'), ['hides', 'water', 'firewood']);
+assert.deepEqual(processorInputCommodities('cobbler'), ['leather']);
 
 const mill = processor('mill', 'watermill', 25);
 assert.equal(processorOutputTargetForBuilding(mill), 65);

@@ -79,10 +79,10 @@ use crate::simulation::{
     preserve_in_transit_cart_labor, recall_idle_seasonal_labor_for_owner,
     staffed_cart_workers_by_building, FIRE_TARGET_BUILDING,
 };
+use crate::specialty_trade_policy::{is_valid_specialty_export_policy, SpecialtyMarketFamily};
 use crate::storage_acceptance_policy::{
     set_storage_mask_all, set_storage_mask_commodity, storage_kind_supports_commodity,
 };
-use crate::specialty_trade_policy::{is_valid_specialty_export_policy, SpecialtyMarketFamily};
 use crate::storehouse_policy::{
     is_valid_storehouse_stock_target_percent, STOREHOUSE_STOCK_TARGET_DEFAULT_PERCENT,
 };
@@ -995,6 +995,9 @@ pub(crate) fn place_building_internal(
         monastery_service_funding: 1.0,
         monastery_last_service_day: 0,
         storage_acceptance_mask: u64::MAX,
+        hides: 0.0,
+        leather: 0.0,
+        shoes: 0.0,
     });
 
     ctx.db.world_config().id().update(WorldConfig {
@@ -1210,6 +1213,8 @@ fn processor_output_commodity(kind: &str) -> Option<CommodityKind> {
         ProcessorOutputKind::Charcoal => Some(CommodityKind::Charcoal),
         ProcessorOutputKind::Ironwork => Some(CommodityKind::Ironwork),
         ProcessorOutputKind::Pottery => Some(CommodityKind::Pottery),
+        ProcessorOutputKind::Leather => Some(CommodityKind::Leather),
+        ProcessorOutputKind::Shoes => Some(CommodityKind::Shoes),
     }
 }
 
@@ -1270,6 +1275,8 @@ fn processor_input_commodity(kind: ProcessorInputKind) -> CommodityKind {
         ProcessorInputKind::Clay => CommodityKind::Clay,
         ProcessorInputKind::Apples => CommodityKind::Apples,
         ProcessorInputKind::Honey => CommodityKind::Honey,
+        ProcessorInputKind::Hides => CommodityKind::Hides,
+        ProcessorInputKind::Leather => CommodityKind::Leather,
     }
 }
 
@@ -2054,11 +2061,8 @@ pub fn set_storage_commodity_acceptance(
     if !storage_kind_supports_commodity(&building.kind, commodity_kind) {
         return Err("That commodity cannot be stored in this building.".to_string());
     }
-    building.storage_acceptance_mask = set_storage_mask_commodity(
-        building.storage_acceptance_mask,
-        commodity_kind,
-        accepts,
-    );
+    building.storage_acceptance_mask =
+        set_storage_mask_commodity(building.storage_acceptance_mask, commodity_kind, accepts);
     if let Some(commodity) = CommodityKind::from_u8(commodity_kind) {
         match (building.kind.as_str(), commodity) {
             ("village_storehouse", CommodityKind::Timber) => {

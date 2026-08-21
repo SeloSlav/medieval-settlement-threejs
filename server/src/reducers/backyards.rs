@@ -117,7 +117,7 @@ pub fn place_backyard_garden(
         .ok_or_else(|| format!("Unknown backyard garden kind: {kind}"))?;
     if def.specialization_of.is_some() {
         return Err(
-            "Construct an orchard first, then choose its planting after the worksite is complete."
+            "Construct the matching backyard shell first, then choose its specialization after the worksite is complete."
                 .to_string(),
         );
     }
@@ -200,6 +200,9 @@ pub fn place_backyard_garden(
         owner,
         kind: def.kind as u8,
         first_harvest_day: 0,
+        last_primary_production_day: 0,
+        last_secondary_production_day: 0,
+        hide_stock: 0.0,
         jam_stock: 0.0,
         flower_luxury_upgraded: false,
     });
@@ -250,8 +253,7 @@ pub fn specialize_orchard(
             (civic_gold_due - treasury_gold(ctx, owner)).ceil() as i64,
         ));
     }
-    residence.household_wealth =
-        (residence.household_wealth - household_contribution).max(0.0);
+    residence.household_wealth = (residence.household_wealth - household_contribution).max(0.0);
     spend_treasury_gold(ctx, owner, civic_gold_due)?;
     credit_settlement_household_income(ctx, owner, planting_gold);
 
@@ -264,6 +266,9 @@ pub fn specialize_orchard(
         .unwrap_or(0);
     garden.kind = def.kind as u8;
     garden.first_harvest_day = total_days.saturating_add(def.first_harvest_days);
+    garden.last_primary_production_day = total_days;
+    garden.last_secondary_production_day = total_days;
+    garden.hide_stock = 0.0;
     garden.jam_stock = 0.0;
     garden.flower_luxury_upgraded = false;
     ctx.db.backyard_garden().id().update(garden);
@@ -272,10 +277,141 @@ pub fn specialize_orchard(
 }
 
 #[reducer]
-pub fn upgrade_flower_garden_luxury(
+pub fn specialize_vegetable_garden(
     ctx: &ReducerContext,
     residence_id: u64,
+    kind: String,
 ) -> Result<(), String> {
+    let owner = ctx.sender();
+    ensure_player_resources(ctx, owner);
+    let mut residence = ctx
+        .db
+        .residence()
+        .id()
+        .find(&residence_id)
+        .ok_or_else(|| "Residence not found.".to_string())?;
+    if residence.owner != owner {
+        return Err("You do not own this residence.".to_string());
+    }
+    let mut garden = ctx
+        .db
+        .backyard_garden()
+        .residence_id()
+        .filter(&residence_id)
+        .next()
+        .ok_or_else(|| "Construct a vegetable garden before purchasing seed.".to_string())?;
+    if garden.owner != owner
+        || BackyardGardenKind::from_id(garden.kind) != Some(BackyardGardenKind::VegetableGarden)
+    {
+        return Err("Only a completed, unplanted vegetable garden can be sown.".to_string());
+    }
+    let def = backyard_garden_def_by_slug(kind.trim())
+        .filter(|candidate| candidate.specialization_of == Some("vegetable_garden"))
+        .ok_or_else(|| "That seed cannot be planted in this vegetable garden.".to_string())?;
+    let shell =
+        crate::balance_generated::backyard_garden_def(BackyardGardenKind::VegetableGarden);
+    let seed_gold = (def.cost_gold - shell.cost_gold).max(0.0);
+    let household_contribution =
+        residence_upgrade_household_contribution(residence.household_wealth, seed_gold);
+    let civic_gold_due = (seed_gold - household_contribution).max(0.0);
+    if treasury_gold(ctx, owner) + 1e-6 < civic_gold_due {
+        return Err(format!(
+            "Needs {} more treasury gold for seed and planting stock.",
+            (civic_gold_due - treasury_gold(ctx, owner)).ceil() as i64,
+        ));
+    }
+    residence.household_wealth = (residence.household_wealth - household_contribution).max(0.0);
+    spend_treasury_gold(ctx, owner, civic_gold_due)?;
+    credit_settlement_household_income(ctx, owner, seed_gold);
+
+    let total_days = ctx
+        .db
+        .world_config()
+        .id()
+        .find(&0)
+        .map(|config| game_clock(config.sim_tick).total_days)
+        .unwrap_or(0);
+    garden.kind = def.kind as u8;
+    garden.first_harvest_day = total_days.saturating_add(def.first_harvest_days);
+    garden.last_primary_production_day = total_days;
+    garden.last_secondary_production_day = total_days;
+    garden.hide_stock = 0.0;
+    garden.jam_stock = 0.0;
+    garden.flower_luxury_upgraded = false;
+    ctx.db.backyard_garden().id().update(garden);
+    ctx.db.residence().id().update(residence);
+    Ok(())
+}
+
+#[reducer]
+pub fn specialize_animal_pen(
+    ctx: &ReducerContext,
+    residence_id: u64,
+    kind: String,
+) -> Result<(), String> {
+    let owner = ctx.sender();
+    ensure_player_resources(ctx, owner);
+    let mut residence = ctx
+        .db
+        .residence()
+        .id()
+        .find(&residence_id)
+        .ok_or_else(|| "Residence not found.".to_string())?;
+    if residence.owner != owner {
+        return Err("You do not own this residence.".to_string());
+    }
+    let mut garden = ctx
+        .db
+        .backyard_garden()
+        .residence_id()
+        .filter(&residence_id)
+        .next()
+        .ok_or_else(|| "Construct an animal pen before choosing livestock.".to_string())?;
+    if garden.owner != owner
+        || BackyardGardenKind::from_id(garden.kind) != Some(BackyardGardenKind::AnimalPen)
+    {
+        return Err("Only a completed, unstocked animal pen can house livestock.".to_string());
+    }
+    let def = backyard_garden_def_by_slug(kind.trim())
+        .filter(|candidate| candidate.specialization_of == Some("animal_pen"))
+        .ok_or_else(|| "That livestock cannot be housed in this pen.".to_string())?;
+    let shell =
+        crate::balance_generated::backyard_garden_def(BackyardGardenKind::AnimalPen);
+    let stocking_gold = (def.cost_gold - shell.cost_gold).max(0.0);
+    let household_contribution =
+        residence_upgrade_household_contribution(residence.household_wealth, stocking_gold);
+    let civic_gold_due = (stocking_gold - household_contribution).max(0.0);
+    if treasury_gold(ctx, owner) + 1e-6 < civic_gold_due {
+        return Err(format!(
+            "Needs {} more treasury gold for breeding stock and husbandry equipment.",
+            (civic_gold_due - treasury_gold(ctx, owner)).ceil() as i64,
+        ));
+    }
+    residence.household_wealth = (residence.household_wealth - household_contribution).max(0.0);
+    spend_treasury_gold(ctx, owner, civic_gold_due)?;
+    credit_settlement_household_income(ctx, owner, stocking_gold);
+
+    let total_days = ctx
+        .db
+        .world_config()
+        .id()
+        .find(&0)
+        .map(|config| game_clock(config.sim_tick).total_days)
+        .unwrap_or(0);
+    garden.kind = def.kind as u8;
+    garden.first_harvest_day = total_days.saturating_add(def.first_harvest_days);
+    garden.last_primary_production_day = total_days;
+    garden.last_secondary_production_day = total_days;
+    garden.hide_stock = 0.0;
+    garden.jam_stock = 0.0;
+    garden.flower_luxury_upgraded = false;
+    ctx.db.backyard_garden().id().update(garden);
+    ctx.db.residence().id().update(residence);
+    Ok(())
+}
+
+#[reducer]
+pub fn upgrade_flower_garden_luxury(ctx: &ReducerContext, residence_id: u64) -> Result<(), String> {
     let owner = ctx.sender();
     ensure_player_resources(ctx, owner);
     let mut residence = ctx
@@ -314,8 +450,7 @@ pub fn upgrade_flower_garden_luxury(
             (civic_gold_due - treasury_gold(ctx, owner)).ceil() as i64,
         ));
     }
-    residence.household_wealth =
-        (residence.household_wealth - household_contribution).max(0.0);
+    residence.household_wealth = (residence.household_wealth - household_contribution).max(0.0);
     spend_treasury_gold(ctx, owner, civic_gold_due)?;
     credit_settlement_household_income(ctx, owner, cost);
     garden.flower_luxury_upgraded = true;

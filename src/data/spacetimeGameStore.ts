@@ -386,6 +386,14 @@ export class SpacetimeGameStore {
     return spacetimeReducers.specializeOrchard(residenceId, kind);
   }
 
+  specializeAnimalPen(residenceId: string, kind: BackyardGardenKind): Promise<void> {
+    return spacetimeReducers.specializeAnimalPen(residenceId, kind);
+  }
+
+  specializeVegetableGarden(residenceId: string, kind: BackyardGardenKind): Promise<void> {
+    return spacetimeReducers.specializeVegetableGarden(residenceId, kind);
+  }
+
   upgradeFlowerGardenLuxury(residenceId: string): Promise<void> {
     return spacetimeReducers.upgradeFlowerGardenLuxury(residenceId);
   }

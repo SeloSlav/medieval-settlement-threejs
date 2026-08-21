@@ -24,6 +24,7 @@ import {
 import {
   formatSpecialtyRunwayDays,
   residenceClothRunwayDays,
+  residenceShoesRunwayDays,
   residencePotteryRunwayDays,
 } from '../logistics/specialtyLogistics.ts';
 import type { ResidenceState } from '../resources/types.ts';
@@ -171,6 +172,15 @@ function evaluateNeedRecovery(
         stock: need.stock,
         threshold,
         supplyAvailable: supply.servingClothSupplierId != null,
+      };
+    case 'shoes':
+      return {
+        kind,
+        label: 'Footwear',
+        ready: supply.servingShoesSupplierId != null && need.stock + 1e-6 >= threshold,
+        stock: need.stock,
+        threshold,
+        supplyAvailable: supply.servingShoesSupplierId != null,
       };
     case 'pottery':
       return {
@@ -389,6 +399,23 @@ function describeActiveNeed(
       }
       return null;
     }
+    case 'shoes': {
+      const runwayDays = residenceShoesRunwayDays(residence);
+      if (runwayDays == null) return null;
+      if (runwayDays <= 0.25) {
+        return {
+          label: 'Out of footwear — awaiting cobbler supply',
+          state: 'warning',
+        };
+      }
+      if (runwayDays < 3) {
+        return {
+          label: `Footwear low — ${formatSpecialtyRunwayDays(runwayDays)} left`,
+          state: 'warning',
+        };
+      }
+      return null;
+    }
     case 'pottery': {
       const runwayDays = residencePotteryRunwayDays(residence);
       if (runwayDays == null) return null;
@@ -455,6 +482,8 @@ function needLabel(kind: ResidenceNeedKind): string {
       return 'Cured provisions';
     case 'cloth':
       return 'Household textiles';
+    case 'shoes':
+      return 'Footwear';
     case 'pottery':
       return 'Household pottery';
     case 'church':

@@ -158,6 +158,30 @@ export async function specializeOrchard(
   });
 }
 
+export async function specializeAnimalPen(
+  residenceId: string,
+  kind: BackyardGardenKind,
+): Promise<void> {
+  const serverId = parseResidenceServerId(residenceId);
+  if (serverId === null) throw new Error('Invalid residence id.');
+  await callReducer('specializeAnimalPen', 'specialize_animal_pen', {
+    residenceId: serverId,
+    kind,
+  });
+}
+
+export async function specializeVegetableGarden(
+  residenceId: string,
+  kind: BackyardGardenKind,
+): Promise<void> {
+  const serverId = parseResidenceServerId(residenceId);
+  if (serverId === null) throw new Error('Invalid residence id.');
+  await callReducer('specializeVegetableGarden', 'specialize_vegetable_garden', {
+    residenceId: serverId,
+    kind,
+  });
+}
+
 export async function upgradeFlowerGardenLuxury(residenceId: string): Promise<void> {
   const serverId = parseResidenceServerId(residenceId);
   if (serverId === null) throw new Error('Invalid residence id.');

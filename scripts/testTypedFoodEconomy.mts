@@ -4,9 +4,8 @@ import {
   NAMED_FOOD_KINDS,
   foodCategory,
   foodCategoryQualifyingStock,
+  foodProgressionStatus,
   foodMealValue,
-  foodDietGroupCount,
-  presentFoodDietGroups,
   foodSpoilageMultiplier,
   foodVarietyCount,
   edibleFoodStock,
@@ -76,20 +75,32 @@ assert.equal(
   1,
   'close substitutes may combine to qualify their one shared category',
 );
-assert.equal(
-  foodDietGroupCount({ ryeBread: 2, vegetables: 2, apples: 2 }, 1),
-  1,
+assert.deepEqual(
+  foodProgressionStatus({ ryeBread: 2, vegetables: 2, apples: 2 }, 1, 3).satisfiedSlots,
+  ['grains', 'produceAndForage'],
   'three crop and forage categories must not masquerade as a balanced tier-three diet',
 );
 assert.deepEqual(
-  presentFoodDietGroups({ ryeBread: 2, meat: 2, fish: 2 }, 1),
-  ['cropsAndForage', 'animalFoods', 'fish'],
+  foodProgressionStatus({ ryeBread: 2, meat: 2, fish: 2 }, 1, 3).satisfiedSlots,
+  ['grains', 'animalFoods', 'fish'],
   'tier-three balance requires crops/forage, animal foods, and fish',
 );
+assert.deepEqual(
+  foodProgressionStatus({ milk: 2, cheese: 2, meat: 2 }, 1, 3).satisfiedSlots,
+  ['animalFoods'],
+  'animal produce and meat remain one broad tier-three diet group',
+);
+const tierFourBase = { ryeBread: 2, vegetables: 2, fish: 2 };
+const tierFourEggs = foodProgressionStatus({ ...tierFourBase, eggs: 2 }, 1, 4);
+assert.equal(tierFourEggs.missingSlots.includes('animalProduce'), false);
+assert.equal(tierFourEggs.missingSlots.includes('meat'), true);
+const tierFourPork = foodProgressionStatus({ ...tierFourBase, meat: 2 }, 1, 4);
+assert.equal(tierFourPork.missingSlots.includes('animalProduce'), true);
+assert.equal(tierFourPork.missingSlots.includes('meat'), false);
 assert.equal(
-  foodDietGroupCount({ milk: 2, cheese: 2, meat: 2 }, 1),
-  1,
-  'animal produce and meat remain one broad diet group',
+  foodProgressionStatus({ ...tierFourBase, eggs: 2, meat: 2 }, 1, 4).ready,
+  true,
+  'tier four should require animal produce and meat as distinct food goals',
 );
 assert.deepEqual(
   Object.fromEntries(MARKET_COMMODITIES.map((offer) => [offer.id, offer.resourceKind])),

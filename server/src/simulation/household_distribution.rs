@@ -11,7 +11,8 @@ use spacetimedb::{Identity, ReducerContext};
 use crate::balance_generated::{
     CALENDAR_DAYS_PER_WEEK, CALENDAR_HOURS_PER_DAY, CALENDAR_SECONDS_PER_DAY,
     CALENDAR_WORK_END_HOUR, CALENDAR_WORK_START_HOUR, RESIDENCE_ALE_PER_PERSON_PER_SEC,
-    RESIDENCE_CLOTH_PER_PERSON_PER_SEC, RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC,
+    RESIDENCE_CLOTH_PER_PERSON_PER_SEC, RESIDENCE_SHOES_PER_PERSON_PER_SEC,
+    RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC,
     RESIDENCE_POTTERY_PER_PERSON_PER_SEC, RESIDENCE_PRESERVED_FOOD_PER_PERSON_PER_SEC, TICK_DT,
 };
 use crate::db::*;
@@ -34,11 +35,12 @@ use crate::simulation::residence_needs::{
 use crate::simulation::tick_context::SimTickContext;
 use crate::tables::{Building, Residence};
 
-const MARKET_NEEDS: [ResidenceNeedKind; 6] = [
+const MARKET_NEEDS: [ResidenceNeedKind; 7] = [
     ResidenceNeedKind::Food,
     ResidenceNeedKind::Firewood,
     ResidenceNeedKind::PreservedFood,
     ResidenceNeedKind::Cloth,
+    ResidenceNeedKind::Shoes,
     ResidenceNeedKind::Pottery,
     ResidenceNeedKind::Ale,
 ];
@@ -321,15 +323,16 @@ fn household_issue_target(
         ResidenceNeedKind::Cloth => {
             population * RESIDENCE_CLOTH_PER_PERSON_PER_SEC * workday_seconds
         }
+        ResidenceNeedKind::Shoes => {
+            population * RESIDENCE_SHOES_PER_PERSON_PER_SEC * workday_seconds
+        }
         ResidenceNeedKind::Pottery => {
             population * RESIDENCE_POTTERY_PER_PERSON_PER_SEC * workday_seconds
         }
         ResidenceNeedKind::Water
         | ResidenceNeedKind::Church
         | ResidenceNeedKind::FoodVariety
-        | ResidenceNeedKind::Luxury => {
-            return None
-        }
+        | ResidenceNeedKind::Luxury => return None,
     };
     if daily_lot <= 1e-9 {
         return None;
@@ -501,7 +504,7 @@ fn distribute_food_to_residence(
         return;
     };
     let mut needs = load_needs(ctx, residence_id);
-    migrate_and_sync_food_inventory(&mut residence, &mut needs);
+    migrate_and_sync_food_inventory(ctx, &mut residence, &mut needs);
     persist_needs(ctx, residence_id, &needs);
     ctx.db.residence().id().update(residence);
 

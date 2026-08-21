@@ -16,7 +16,8 @@ use crate::balance_generated::{
     SMITHY_IRON_PER_CYCLE, SMITHY_WATER_PER_CYCLE, SMOKEHOUSE_FIREWOOD_PER_CYCLE,
     SMOKEHOUSE_FOOD_PER_CYCLE, SMOKEHOUSE_POTTERY_PER_CYCLE, SMOKEHOUSE_SALT_PER_CYCLE,
     VINEYARD_GRAPES_PER_FERMENTATION_BATCH, WATERMILL_GRAIN_PER_CYCLE, WEAVER_FLAX_PER_CYCLE,
-    WEAVER_FLAX_WATER_PER_CYCLE, WEAVER_WOOL_PER_CYCLE,
+    WEAVER_FLAX_WATER_PER_CYCLE, WEAVER_WOOL_PER_CYCLE, TANNERY_FIREWOOD_PER_CYCLE,
+    TANNERY_HIDES_PER_CYCLE, TANNERY_WATER_PER_CYCLE, COBBLER_LEATHER_PER_CYCLE,
 };
 use crate::civilian_tool_policy::{civilian_tool_refill_due, is_civilian_tool_site};
 use crate::processor_output_policy::processor_input_staging_cycles;
@@ -25,6 +26,7 @@ use crate::processor_output_policy::processor_input_staging_cycles;
 pub const BEVERAGE_SERVICE_KINDS: &[&str] = &["tavern"];
 pub const CLOTH_PRODUCER_KINDS: &[&str] = &["weaver"];
 pub const POTTERY_PRODUCER_KINDS: &[&str] = &["potter_kiln"];
+pub const SHOES_PRODUCER_KINDS: &[&str] = &["cobbler"];
 /// Buildings that can create a sustainable preserved-food service for a new
 /// prosperous household. Storage depots deliberately remain outside this
 /// roster so an empty granary cannot satisfy a tier-three upgrade gate.
@@ -53,6 +55,10 @@ pub const LOCAL_MATERIAL_SOURCE_KINDS: &[&str] = &[
     "charcoal_burner",
     "smithy",
     "potter_kiln",
+    "hunters_hall",
+    "marketplace",
+    "tannery",
+    "cobbler",
     "village_storehouse",
     "trading_post",
 ];
@@ -63,6 +69,7 @@ pub const INDUSTRIAL_FIREWOOD_TARGET_KINDS: &[&str] = &[
     "smokehouse",
     "charcoal_burner",
     "potter_kiln",
+    "tannery",
 ];
 pub const MARKETPLACE_MATERIAL_TARGET_KINDS: &[&str] = &[
     "watermill",
@@ -74,6 +81,8 @@ pub const MARKETPLACE_MATERIAL_TARGET_KINDS: &[&str] = &[
     "charcoal_burner",
     "smithy",
     "potter_kiln",
+    "tannery",
+    "cobbler",
     "pastoral_farmstead",
     "vineyard",
     "threshing_barn",
@@ -487,6 +496,10 @@ pub fn directly_dispatched_processor_input_per_cycle(target_kind: &str, commodit
         ("brewery", "water") => BREWERY_MALTING_WATER_PER_CYCLE + BREWERY_BREWING_WATER_PER_CYCLE,
         ("potter_kiln", "clay") => POTTER_CLAY_PER_CYCLE,
         ("potter_kiln", "water") => POTTER_WATER_PER_CYCLE,
+        ("tannery", "hides") => TANNERY_HIDES_PER_CYCLE,
+        ("tannery", "water") => TANNERY_WATER_PER_CYCLE,
+        ("tannery", "firewood") => TANNERY_FIREWOOD_PER_CYCLE,
+        ("cobbler", "leather") => COBBLER_LEATHER_PER_CYCLE,
         ("smithy", "charcoal") => SMITHY_CHARCOAL_PER_CYCLE,
         ("smithy", "iron") => SMITHY_IRON_PER_CYCLE,
         ("smithy", "water") => SMITHY_WATER_PER_CYCLE,
@@ -1079,6 +1092,10 @@ mod tests {
                 "charcoal_burner",
                 "smithy",
                 "potter_kiln",
+                "hunters_hall",
+                "marketplace",
+                "tannery",
+                "cobbler",
                 "village_storehouse",
                 "trading_post",
             ],
@@ -1091,6 +1108,7 @@ mod tests {
                 "smokehouse",
                 "charcoal_burner",
                 "potter_kiln",
+                "tannery",
             ]
         );
         assert_eq!(
@@ -1118,6 +1136,18 @@ mod tests {
             3.0,
         );
         assert_eq!(
+            directly_dispatched_processor_input_per_cycle("tannery", "hides"),
+            super::TANNERY_HIDES_PER_CYCLE,
+        );
+        assert_eq!(
+            directly_dispatched_processor_input_per_cycle("tannery", "firewood"),
+            super::TANNERY_FIREWOOD_PER_CYCLE,
+        );
+        assert_eq!(
+            directly_dispatched_processor_input_per_cycle("cobbler", "leather"),
+            super::COBBLER_LEATHER_PER_CYCLE,
+        );
+        assert_eq!(
             directly_dispatched_processor_input_per_cycle("smithy", "iron"),
             super::SMITHY_IRON_PER_CYCLE,
         );
@@ -1141,6 +1171,8 @@ mod tests {
                 "charcoal_burner",
                 "smithy",
                 "potter_kiln",
+                "tannery",
+                "cobbler",
                 "pastoral_farmstead",
                 "vineyard",
                 "threshing_barn",

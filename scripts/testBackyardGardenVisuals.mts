@@ -14,7 +14,10 @@ import {
   backyardGardenClearancePolygon,
 } from '../src/residences/backyardPosition.ts';
 import type { BackyardGardenKind } from '../src/generated/gameBalance.ts';
-import { BACKYARD_GARDEN_PICKER_KINDS } from '../src/residences/backyardGarden.ts';
+import {
+  BACKYARD_GARDEN_DEFINITIONS,
+  BACKYARD_GARDEN_PICKER_KINDS,
+} from '../src/residences/backyardGarden.ts';
 import type { BackyardPlantCatalog } from '../src/vegetation/seedthree/backyardPlantAssets.ts';
 import { BACKYARD_PLANT_SPECIES } from '../src/vegetation/seedthree/backyardPlantPresets.ts';
 
@@ -26,10 +29,15 @@ const kinds: BackyardGardenKind[] = [
   'aronia_orchard',
   'rosehip_orchard',
   'vegetable_garden',
+  'cabbage_garden',
+  'carrot_garden',
+  'beetroot_garden',
   'flower_garden',
   'herb_garden',
-  'hen_yard',
+  'animal_pen',
+  'chicken_pen',
   'goat_pen',
+  'pig_pen',
   'backyard_apiary',
 ];
 
@@ -40,11 +48,16 @@ const signatures: Record<BackyardGardenKind, string> = {
   pear_orchard: 'PearTree:',
   aronia_orchard: 'AroniaBush:',
   rosehip_orchard: 'RosehipBush:',
-  vegetable_garden: 'CabbageRows',
+  vegetable_garden: 'Vegetable seed-choice marker',
+  cabbage_garden: 'CabbageRows:',
+  carrot_garden: 'CarrotRows:',
+  beetroot_garden: 'BeetrootRows:',
   flower_garden: 'RoseBush:',
   herb_garden: 'HerbDryingRack',
-  hen_yard: 'HenCoopDoor',
-  goat_pen: 'GoatShelter',
+  animal_pen: 'Animal pen weather shelter',
+  chicken_pen: 'ChickenNestingBoxes',
+  goat_pen: 'GoatMilkingStand',
+  pig_pen: 'PigMudWallow',
   backyard_apiary: 'BackyardBeeSkep',
 };
 
@@ -56,10 +69,15 @@ const terrainBackedKinds = new Set<BackyardGardenKind>([
   'aronia_orchard',
   'rosehip_orchard',
   'vegetable_garden',
+  'cabbage_garden',
+  'carrot_garden',
+  'beetroot_garden',
   'flower_garden',
   'herb_garden',
-  'hen_yard',
+  'animal_pen',
+  'chicken_pen',
   'goat_pen',
+  'pig_pen',
   'backyard_apiary',
 ]);
 
@@ -69,13 +87,24 @@ assert.equal(BACKYARD_GARDEN_PICKER_KINDS.includes('pear_orchard'), false);
 assert.equal(BACKYARD_GARDEN_PICKER_KINDS.includes('aronia_orchard'), false);
 assert.equal(BACKYARD_GARDEN_PICKER_KINDS.includes('rosehip_orchard'), false);
 assert.equal(BACKYARD_GARDEN_PICKER_KINDS[0], 'orchard');
-assert.equal(BACKYARD_GARDEN_PICKER_KINDS.includes('goat_pen'), true);
+assert.equal(BACKYARD_GARDEN_PICKER_KINDS.includes('animal_pen'), true);
+assert.equal(BACKYARD_GARDEN_PICKER_KINDS.includes('chicken_pen'), false);
+assert.equal(BACKYARD_GARDEN_PICKER_KINDS.includes('goat_pen'), false);
+assert.equal(BACKYARD_GARDEN_PICKER_KINDS.includes('pig_pen'), false);
+assert.equal(BACKYARD_GARDEN_PICKER_KINDS.includes('cabbage_garden'), false);
+assert.equal(BACKYARD_GARDEN_PICKER_KINDS.includes('carrot_garden'), false);
+assert.equal(BACKYARD_GARDEN_PICKER_KINDS.includes('beetroot_garden'), false);
 assert.equal(BACKYARD_GARDEN_PICKER_KINDS.includes('backyard_apiary'), true);
 
 for (const kind of kinds) {
   assert.equal(
     backyardGardenClearsGroundcover(kind),
-    kind === 'vegetable_garden' || kind === 'flower_garden' || kind === 'herb_garden',
+    kind === 'vegetable_garden'
+      || kind === 'cabbage_garden'
+      || kind === 'carrot_garden'
+      || kind === 'beetroot_garden'
+      || kind === 'flower_garden'
+      || kind === 'herb_garden',
     `${kind} should ${kind.endsWith('_garden') ? '' : 'not '}clear grass and wildflowers`,
   );
 }
@@ -130,7 +159,11 @@ for (const kind of kinds) {
 
   assert.equal(garden.userData.gardenKind, kind, `${kind} should retain its gameplay identity`);
   assert.equal(garden.userData.usesSeedThree, false, `${kind} should report that SeedThree is not yet attached`);
-  const minimumMeshCountWithoutStreamedPlants = kind.endsWith('_orchard') ? 7 : 12;
+  const minimumMeshCountWithoutStreamedPlants = kind.endsWith('_orchard')
+    ? 7
+    : kind === 'vegetable_garden'
+      ? 5
+      : 12;
   assert.ok(
     meshCount >= minimumMeshCountWithoutStreamedPlants,
     `${kind} should be a composed scene, not a placeholder prop`,
@@ -138,8 +171,16 @@ for (const kind of kinds) {
   assert.ok(names.some((name) => name.startsWith(signatures[kind])), `${kind} should expose its signature feature`);
   assert.ok(size.x <= 7.5, `${kind} should stay inside a 6.2m parcel with modest foliage overhang`);
   assert.ok(size.z <= 7.5, `${kind} should stay inside a 5.4m backyard with modest foliage overhang`);
-  assert.ok(size.y > 0.4, `${kind} should have readable vertical structure`);
-  if (kind === 'vegetable_garden' || kind === 'flower_garden' || kind === 'herb_garden') {
+  const minimumHeight = BACKYARD_GARDEN_DEFINITIONS[kind]?.specializationOf === 'vegetable_garden'
+    ? 0.25
+    : 0.4;
+  assert.ok(size.y > minimumHeight, `${kind} should have readable vertical structure at its real crop scale`);
+  if (kind === 'vegetable_garden'
+    || kind === 'cabbage_garden'
+    || kind === 'carrot_garden'
+    || kind === 'beetroot_garden'
+    || kind === 'flower_garden'
+    || kind === 'herb_garden') {
     assert.ok(soilBeds.length >= 2, `${kind} should expose its individual textured soil beds`);
     for (const bed of soilBeds) {
       const material = bed.material as THREE.MeshStandardMaterial;
@@ -151,7 +192,11 @@ for (const kind of kinds) {
       });
     }
   }
-  if (kind === 'vegetable_garden' || kind === 'flower_garden') {
+  if (kind === 'vegetable_garden'
+    || kind === 'cabbage_garden'
+    || kind === 'carrot_garden'
+    || kind === 'beetroot_garden'
+    || kind === 'flower_garden') {
     assert.equal(bedRails.length, 0, `${kind} should not have timber frames around its beds`);
     for (const bed of soilBeds) {
       assert.equal(
@@ -180,17 +225,11 @@ for (const kind of kinds) {
     }
   }
   const fenceNames = names.filter((name) => /fence/i.test(name));
-  if (kind === 'hen_yard') {
+  if (kind === 'animal_pen' || kind === 'chicken_pen' || kind === 'goat_pen' || kind === 'pig_pen') {
     assert.deepEqual(
       fenceNames,
-      ['Hen yard enclosure fence'],
-      'hen yards should retain their functional animal enclosure',
-    );
-  } else if (kind === 'goat_pen') {
-    assert.deepEqual(
-      fenceNames,
-      ['Goat pen enclosure fence'],
-      'goat pens should retain their functional animal enclosure',
+      ['Animal pen enclosure fence'],
+      `${kind} should compile the shared functional enclosure plan`,
     );
   } else {
     assert.deepEqual(
@@ -251,57 +290,77 @@ assert.deepEqual(
 );
 disposeBackyardGardenMesh(deepOrchard);
 
-const vegetableDetail = createBackyardGardenMesh('vegetable_garden', {
+const vegetableShell = createBackyardGardenMesh('vegetable_garden', {
   width: 6.2,
   depth: 5.4,
   seed: 4271,
 });
-const vegetableNames: string[] = [];
-const vegetableCrops: THREE.Object3D[] = [];
-vegetableDetail.traverse((object) => {
-  if (object.name) vegetableNames.push(object.name);
-  if (object.userData.backyardCropKind) vegetableCrops.push(object);
+const shellCropKinds = new Set<string>();
+vegetableShell.traverse((object) => {
+  if (object.userData.backyardCropKind) shellCropKinds.add(object.userData.backyardCropKind as string);
 });
-for (const cropName of ['CabbageRows', 'CarrotRows', 'TurnipRows']) {
-  assert.ok(
-    vegetableNames.includes(cropName),
-    `vegetable gardens should devote a visible planting bed to ${cropName}`,
-  );
-}
-assert.ok(
-  vegetableNames.filter((name) => name === 'Textured cabbage outer leaf').length >= 28,
-  'cabbages should use layered botanical leaf cutouts',
-);
-assert.ok(
-  vegetableNames.filter((name) => name === 'Textured carrot frond').length >= 18,
-  'carrots should expose feathery foliage above their modeled roots',
-);
-assert.ok(
-  vegetableNames.filter((name) => name === 'Textured turnip leaf').length >= 20,
-  'turnips should expose broad leaf rosettes above their bulbs',
-);
-assert.ok(!vegetableNames.includes('Bean and pea trellis'), 'vegetable gardens should not retain the lintel-like trellis');
-assert.ok(!vegetableNames.includes('Textured climbing bean vine'), 'the unidentified tall vine strip should be removed with its trellis');
-assert.ok(!vegetableNames.includes('Harvest basket'), 'vegetable gardens should not retain the stray pot-like center prop');
-for (const primitiveName of [
-  'Layered cabbage heart',
-  'Carrot root shoulder',
-  'Carrot crown',
-  'Turnip root bulb',
-  'Purple turnip shoulder',
+assert.deepEqual([...shellCropKinds], [], 'the completed vegetable shell must remain empty until seed is purchased');
+disposeBackyardGardenMesh(vegetableShell);
+
+for (const contract of [
+  {
+    kind: 'cabbage_garden' as const,
+    crop: 'cabbage',
+    rowPrefix: 'CabbageRows:',
+    detail: 'Textured cabbage outer leaf',
+    minimumDetail: 60,
+    growingMonth: 4,
+  },
+  {
+    kind: 'carrot_garden' as const,
+    crop: 'carrot',
+    rowPrefix: 'CarrotRows:',
+    detail: 'Textured carrot frond',
+    minimumDetail: 40,
+    growingMonth: 4,
+  },
+  {
+    kind: 'beetroot_garden' as const,
+    crop: 'beetroot',
+    rowPrefix: 'BeetrootRows:',
+    detail: 'Textured beetroot leaf',
+    minimumDetail: 40,
+    growingMonth: 4,
+  },
 ]) {
-  assert.ok(
-    !vegetableNames.includes(primitiveName),
-    `visible vegetable detail should not fall back to primitive ${primitiveName} geometry`,
+  const garden = createBackyardGardenMesh(contract.kind, { width: 6.2, depth: 5.4, seed: 4271 });
+  const names: string[] = [];
+  const cropGroups: THREE.Object3D[] = [];
+  const cropKinds = new Set<string>();
+  garden.traverse((object) => {
+    if (object.name) names.push(object.name);
+    if (!object.userData.backyardCropKind) return;
+    cropGroups.push(object);
+    cropKinds.add(object.userData.backyardCropKind as string);
+  });
+  assert.deepEqual([...cropKinds], [contract.crop], `${contract.kind} must contain only its selected crop`);
+  assert.equal(
+    names.filter((name) => name.startsWith(contract.rowPrefix)).length,
+    3,
+    `${contract.kind} should fill all three prepared beds with the selected seed`,
   );
+  assert.ok(
+    names.filter((name) => name === contract.detail).length >= contract.minimumDetail,
+    `${contract.kind} should retain its existing authored crop detail`,
+  );
+  for (const forbidden of ['CabbageRows:', 'CarrotRows:', 'BeetrootRows:'].filter(
+    (prefix) => prefix !== contract.rowPrefix,
+  )) {
+    assert.ok(!names.some((name) => name.startsWith(forbidden)), `${contract.kind} must not mix in ${forbidden}`);
+  }
+  syncBackyardGardenSeasonVisuals(garden, contract.kind, 1, undefined, 0);
+  assert.ok(cropGroups.every((crop) => !crop.visible), `${contract.kind} should clear for winter`);
+  syncBackyardGardenSeasonVisuals(garden, contract.kind, contract.growingMonth, undefined, 30);
+  assert.ok(cropGroups.every((crop) => crop.visible), `${contract.kind} should show rooted immature growth`);
+  syncBackyardGardenSeasonVisuals(garden, contract.kind, 7, undefined, 0);
+  assert.ok(cropGroups.every((crop) => crop.visible), `${contract.kind} should show its mature summer crop`);
+  disposeBackyardGardenMesh(garden);
 }
-syncBackyardGardenSeasonVisuals(vegetableDetail, 'vegetable_garden', 1);
-assert.ok(vegetableCrops.every((crop) => !crop.visible), 'winter vegetable beds should show no crop growth');
-syncBackyardGardenSeasonVisuals(vegetableDetail, 'vegetable_garden', 3);
-assert.ok(vegetableCrops.every((crop) => crop.visible), 'March vegetable beds should show mixed seedlings');
-syncBackyardGardenSeasonVisuals(vegetableDetail, 'vegetable_garden', 12);
-assert.ok(vegetableCrops.every((crop) => !crop.visible), 'December vegetable beds should be cleared');
-disposeBackyardGardenMesh(vegetableDetail);
 
 const herbDetail = createBackyardGardenMesh('herb_garden', {
   width: 6.2,
@@ -353,7 +412,7 @@ syncBackyardGardenSeasonVisuals(herbDetail, 'herb_garden', 4);
 assert.ok(dryingBundles.every((bundle) => bundle.visible), 'April cutting should put herbs on the drying racks');
 disposeBackyardGardenMesh(herbDetail);
 
-const fullBackyardVegetables = createBackyardGardenMesh('vegetable_garden', {
+const fullBackyardVegetables = createBackyardGardenMesh('cabbage_garden', {
   width: 6.9,
   depth: 10.8,
   seed: 4271,
@@ -365,14 +424,14 @@ assert.deepEqual(
 );
 disposeBackyardGardenMesh(fullBackyardVegetables);
 
-const extremeBackyardVegetables = createBackyardGardenMesh('vegetable_garden', {
+const extremeBackyardVegetables = createBackyardGardenMesh('cabbage_garden', {
   width: 30,
   depth: 40,
   seed: 4271,
 });
 let extremeCropCount = 0;
 extremeBackyardVegetables.traverse((object) => {
-  if (/^(Cabbage|Carrot|Turnip) plant$/.test(object.name)) extremeCropCount += 1;
+  if (/^Cabbage plant$/.test(object.name)) extremeCropCount += 1;
 });
 assert.deepEqual(extremeBackyardVegetables.userData.footprint, { width: 30, depth: 40 });
 assert.ok(

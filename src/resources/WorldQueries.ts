@@ -1082,6 +1082,32 @@ export class WorldQueries {
     );
   }
 
+  getServingShoesSupplierForResidence(residence: ResidenceState): BuildingState | null {
+    const state = this.getGameState();
+    if (fireDisabledResidenceIds(state.fireIncidents.values()).has(residence.id)) {
+      return null;
+    }
+    return findRoadLinkedSupplierForResidence(
+      residence,
+      this.fireEnabledBuildings(state),
+      this.getRoadNetwork(),
+      'shoes',
+    );
+  }
+
+  getShoesUpgradeSupplierForResidence(residence: ResidenceState): BuildingState | null {
+    const state = this.getGameState();
+    if (fireDisabledResidenceIds(state.fireIncidents.values()).has(residence.id)) {
+      return null;
+    }
+    return findRoadLinkedUpgradeSupplierForResidence(
+      residence,
+      this.fireEnabledBuildings(state),
+      this.getRoadNetwork(),
+      'shoes',
+    );
+  }
+
   getServingPotterySupplierForResidence(residence: ResidenceState): BuildingState | null {
     const state = this.getGameState();
     if (fireDisabledResidenceIds(state.fireIncidents.values()).has(residence.id)) {
@@ -1144,6 +1170,8 @@ export class WorldQueries {
         ? this.getServingAleSupplierForResidence(residence)
         : needKind === 'cloth'
           ? this.getServingClothSupplierForResidence(residence)
+          : needKind === 'shoes'
+            ? this.getServingShoesSupplierForResidence(residence)
           : needKind === 'pottery'
             ? this.getServingPotterySupplierForResidence(residence)
           : this.getServingPreservedFoodSupplierForResidence(residence);

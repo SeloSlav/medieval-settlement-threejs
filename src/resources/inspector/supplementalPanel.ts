@@ -1,10 +1,17 @@
 import type { BackyardGardenKind } from '../../residences/backyardGarden.ts';
-import { parseGardenPickerKind, parseOrchardSpecializationKind } from './backyardRenderer.ts';
+import {
+  parseAnimalPenSpecializationKind,
+  parseGardenPickerKind,
+  parseOrchardSpecializationKind,
+  parseVegetableGardenSpecializationKind,
+} from './backyardRenderer.ts';
 import type { InspectableTarget } from '../types.ts';
 
 export type SupplementalPanelHandlers = {
   onPlaceBackyardGarden?: (residenceId: string, kind: BackyardGardenKind) => void | Promise<void>;
   onSpecializeOrchard?: (residenceId: string, kind: BackyardGardenKind) => void | Promise<void>;
+  onSpecializeAnimalPen?: (residenceId: string, kind: BackyardGardenKind) => void | Promise<void>;
+  onSpecializeVegetableGarden?: (residenceId: string, kind: BackyardGardenKind) => void | Promise<void>;
   onUpgradeFlowerGardenLuxury?: (residenceId: string) => void | Promise<void>;
   onUpgradeChapel?: (buildingId: string) => void | Promise<void>;
   onUpgradeResidence?: (residenceId: string) => void | Promise<void>;
@@ -63,6 +70,18 @@ export function handleSupplementalPanelClick(
   const orchardKind = parseOrchardSpecializationKind(eventTarget);
   if (orchardKind && target?.kind === 'backyard' && target.garden?.kind === 'orchard') {
     void handlers.onSpecializeOrchard?.(target.residence.id, orchardKind);
+    return true;
+  }
+
+  const animalKind = parseAnimalPenSpecializationKind(eventTarget);
+  if (animalKind && target?.kind === 'backyard' && target.garden?.kind === 'animal_pen') {
+    void handlers.onSpecializeAnimalPen?.(target.residence.id, animalKind);
+    return true;
+  }
+
+  const vegetableKind = parseVegetableGardenSpecializationKind(eventTarget);
+  if (vegetableKind && target?.kind === 'backyard' && target.garden?.kind === 'vegetable_garden') {
+    void handlers.onSpecializeVegetableGarden?.(target.residence.id, vegetableKind);
     return true;
   }
 

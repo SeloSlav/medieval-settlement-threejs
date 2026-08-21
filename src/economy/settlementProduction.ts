@@ -37,6 +37,7 @@ import {
   POTTER_WATER_PER_CYCLE,
   RESIDENCE_ALE_PER_PERSON_PER_SEC,
   RESIDENCE_CLOTH_PER_PERSON_PER_SEC,
+  RESIDENCE_SHOES_PER_PERSON_PER_SEC,
   RESIDENCE_POTTERY_PER_PERSON_PER_SEC,
   RESIDENCE_PRESERVED_FOOD_PER_PERSON_PER_SEC,
   RESIDENCE_PRESERVED_FOOD_WINTER_MULTIPLIER,
@@ -58,6 +59,12 @@ import {
   WEAVER_FLAX_PER_CYCLE,
   WEAVER_FLAX_WATER_PER_CYCLE,
   WEAVER_WOOL_PER_CYCLE,
+  TANNERY_HIDES_PER_CYCLE,
+  TANNERY_WATER_PER_CYCLE,
+  TANNERY_FIREWOOD_PER_CYCLE,
+  TANNERY_LEATHER_PER_CYCLE,
+  COBBLER_LEATHER_PER_CYCLE,
+  COBBLER_SHOES_PER_CYCLE,
 } from '../generated/gameBalance.ts';
 import {
   rosteredCartWorkersByBuilding,
@@ -137,11 +144,15 @@ export type SettlementProductionCapacity = {
   breweryWorkers: number;
   smokehouseWorkers: number;
   weaverWorkers: number;
+  tanneryWorkers: number;
+  cobblerWorkers: number;
   millInputBuffer: ProcessorInputBuffer | null;
   bakeryInputBuffer: ProcessorInputBuffer | null;
   breweryInputBuffer: ProcessorInputBuffer | null;
   smokehouseInputBuffer: ProcessorInputBuffer | null;
   weaverInputBuffer: ProcessorInputBuffer | null;
+  tanneryInputBuffer: ProcessorInputBuffer | null;
+  cobblerInputBuffer: ProcessorInputBuffer | null;
   charcoalInputBuffer: ProcessorInputBuffer | null;
   smithyInputBuffer: ProcessorInputBuffer | null;
   potterInputBuffer: ProcessorInputBuffer | null;
@@ -150,6 +161,8 @@ export type SettlementProductionCapacity = {
   breweryOutputRoom: ProcessorOutputRoom | null;
   smokehouseOutputRoom: ProcessorOutputRoom | null;
   weaverOutputRoom: ProcessorOutputRoom | null;
+  tanneryOutputRoom: ProcessorOutputRoom | null;
+  cobblerOutputRoom: ProcessorOutputRoom | null;
   charcoalOutputRoom: ProcessorOutputRoom | null;
   smithyOutputRoom: ProcessorOutputRoom | null;
   potterOutputRoom: ProcessorOutputRoom | null;
@@ -174,8 +187,15 @@ export type SettlementProductionCapacity = {
   clothWoolPerDay: number;
   clothFlaxPerDay: number;
   clothFlaxWaterPerDay: number;
+  leatherOutputPerDay: number;
+  leatherHidesPerDay: number;
+  leatherWaterPerDay: number;
+  leatherFirewoodPerDay: number;
+  shoesOutputPerDay: number;
+  shoesLeatherPerDay: number;
   industrialMaterials: IndustrialMaterialPlan;
   tierTwoPlusResidents: number;
+  tierThreePlusResidents: number;
   tierFourResidents: number;
   fireDisabledTierFourHomes: number;
   fireDisabledTierFourResidents: number;
@@ -186,6 +206,7 @@ export type SettlementProductionCapacity = {
   currentPreservedFoodDemandPerDay: number;
   currentPreservedFoodDemandMultiplier: number;
   clothDemandPerDay: number;
+  shoesDemandPerDay: number;
   potteryOutputPerDay: number;
   potteryDemandPerDay: number;
   prosperityRoadBranches: ReadonlyMap<string, ProsperityRoadBranch> | null;
@@ -206,7 +227,9 @@ export type ProcessorInput =
   | 'salt'
   | 'pottery'
   | 'wool'
-  | 'flax';
+  | 'flax'
+  | 'hides'
+  | 'leather';
 
 export type ProcessorInputBuffer = {
   days: number;
@@ -319,10 +342,13 @@ export type ProsperityRoadBranch = {
   currentResidents: number;
   fullResidents: number;
   tierTwoPlusResidents: number;
+  tierThreePlusResidents: number;
   lowerTierAleClothResidents: number;
+  lowerTierShoesResidents: number;
   preservedFoodOutputPerDay: number;
   aleOutputPerDay: number;
   clothOutputPerDay: number;
+  shoesOutputPerDay: number;
   potteryOutputPerDay: number;
   firstResidenceId: string | null;
   firstClothResidenceId: string | null;
@@ -349,11 +375,15 @@ type ProcessorOverview = Pick<
   | 'breweryWorkers'
   | 'smokehouseWorkers'
   | 'weaverWorkers'
+  | 'tanneryWorkers'
+  | 'cobblerWorkers'
   | 'millInputBuffer'
   | 'bakeryInputBuffer'
   | 'breweryInputBuffer'
   | 'smokehouseInputBuffer'
   | 'weaverInputBuffer'
+  | 'tanneryInputBuffer'
+  | 'cobblerInputBuffer'
   | 'charcoalInputBuffer'
   | 'smithyInputBuffer'
   | 'potterInputBuffer'
@@ -362,6 +392,8 @@ type ProcessorOverview = Pick<
   | 'breweryOutputRoom'
   | 'smokehouseOutputRoom'
   | 'weaverOutputRoom'
+  | 'tanneryOutputRoom'
+  | 'cobblerOutputRoom'
   | 'charcoalOutputRoom'
   | 'smithyOutputRoom'
   | 'potterOutputRoom'
@@ -531,10 +563,13 @@ function prosperityRoadBranch(
     currentResidents: 0,
     fullResidents: 0,
     tierTwoPlusResidents: 0,
+    tierThreePlusResidents: 0,
     lowerTierAleClothResidents: 0,
+    lowerTierShoesResidents: 0,
     preservedFoodOutputPerDay: 0,
     aleOutputPerDay: 0,
     clothOutputPerDay: 0,
+    shoesOutputPerDay: 0,
     potteryOutputPerDay: 0,
     firstResidenceId: null,
     firstClothResidenceId: null,
@@ -547,7 +582,7 @@ function recordProsperityOutput(
   branches: Map<string, ProsperityRoadBranch> | null,
   building: BuildingState,
   componentFor: ProductionRoadComponentResolver | undefined,
-  kind: 'preservedFood' | 'ale' | 'cloth' | 'pottery',
+  kind: 'preservedFood' | 'ale' | 'cloth' | 'shoes' | 'pottery',
   outputPerDay: number,
 ): void {
   if (!branches || !componentFor) return;
@@ -565,6 +600,8 @@ function recordProsperityOutput(
     branch.aleOutputPerDay += outputPerDay;
   } else if (kind === 'cloth') {
     branch.clothOutputPerDay += outputPerDay;
+  } else if (kind === 'shoes') {
+    branch.shoesOutputPerDay += outputPerDay;
   } else {
     branch.potteryOutputPerDay += outputPerDay;
   }
@@ -895,6 +932,8 @@ function completedProcessorOverview(
   const breweryCyclesPerWorker = cyclesPerCalendarDay('brewery', 1, sabbathObserved);
   const smokehouseCyclesPerWorker = cyclesPerCalendarDay('smokehouse', 1, sabbathObserved);
   const weaverCyclesPerWorker = cyclesPerCalendarDay('weaver', 1, sabbathObserved);
+  const tanneryCyclesPerWorker = cyclesPerCalendarDay('tannery', 1, sabbathObserved);
+  const cobblerCyclesPerWorker = cyclesPerCalendarDay('cobbler', 1, sabbathObserved);
   const charcoalCyclesPerWorker = cyclesPerCalendarDay(
     'charcoal_burner',
     1,
@@ -916,6 +955,8 @@ function completedProcessorOverview(
   let breweryWorkers = 0;
   let smokehouseWorkers = 0;
   let weaverWorkers = 0;
+  let tanneryWorkers = 0;
+  let cobblerWorkers = 0;
   let clayWorkers = 0;
   let charcoalWorkers = 0;
   let smithyWorkers = 0;
@@ -936,6 +977,8 @@ function completedProcessorOverview(
   let breweryInputBuffer: ProcessorInputBuffer | null = null;
   let smokehouseInputBuffer: ProcessorInputBuffer | null = null;
   let weaverInputBuffer: ProcessorInputBuffer | null = null;
+  let tanneryInputBuffer: ProcessorInputBuffer | null = null;
+  let cobblerInputBuffer: ProcessorInputBuffer | null = null;
   let charcoalInputBuffer: ProcessorInputBuffer | null = null;
   let smithyInputBuffer: ProcessorInputBuffer | null = null;
   let potterInputBuffer: ProcessorInputBuffer | null = null;
@@ -944,6 +987,8 @@ function completedProcessorOverview(
   let breweryOutputRoom: ProcessorOutputRoom | null = null;
   let smokehouseOutputRoom: ProcessorOutputRoom | null = null;
   let weaverOutputRoom: ProcessorOutputRoom | null = null;
+  let tanneryOutputRoom: ProcessorOutputRoom | null = null;
+  let cobblerOutputRoom: ProcessorOutputRoom | null = null;
   let charcoalOutputRoom: ProcessorOutputRoom | null = null;
   let smithyOutputRoom: ProcessorOutputRoom | null = null;
   let potterOutputRoom: ProcessorOutputRoom | null = null;
@@ -992,6 +1037,8 @@ function completedProcessorOverview(
         || building.kind === 'brewery'
         || building.kind === 'smokehouse'
         || building.kind === 'weaver'
+        || building.kind === 'tannery'
+        || building.kind === 'cobbler'
         || building.kind === 'charcoal_burner'
         || building.kind === 'smithy'
         || building.kind === 'potter_kiln'
@@ -1462,6 +1509,90 @@ function completedProcessorOverview(
         );
         break;
       }
+      case 'tannery': {
+        tanneryWorkers += building.assignedLabor;
+        const cycles = tanneryCyclesPerWorker * building.assignedLabor;
+        let runway = buildingInputRunway(
+          deliveries,
+          building,
+          'hides',
+          cycles * TANNERY_HIDES_PER_CYCLE,
+        );
+        let limitingInput: ProcessorInput = 'hides';
+        const waterRunway = buildingInputRunway(
+          deliveries,
+          building,
+          'water',
+          cycles * TANNERY_WATER_PER_CYCLE,
+        );
+        if (waterRunway.days < runway.days) {
+          runway = waterRunway;
+          limitingInput = 'water';
+        }
+        const firewoodRunway = buildingInputRunway(
+          deliveries,
+          building,
+          'firewood',
+          cycles * TANNERY_FIREWOOD_PER_CYCLE,
+        );
+        if (firewoodRunway.days < runway.days) {
+          runway = firewoodRunway;
+          limitingInput = 'firewood';
+        }
+        tanneryInputBuffer = updateFirstToStop(
+          tanneryInputBuffer,
+          runway,
+          limitingInput,
+          building.id,
+        );
+        tanneryOutputRoom = updateFirstToFill(
+          tanneryOutputRoom,
+          outputRoomDays(
+            building.leather ?? 0,
+            processorOutputTargetForBuilding(building)
+              ?? (BUILDING_STORAGE_CAPS.tannery.leather ?? 0),
+            cycles * TANNERY_LEATHER_PER_CYCLE,
+          ),
+          building.id,
+          normalizeProcessorOutputTargetPercent(building.processorOutputTargetPercent),
+        );
+        break;
+      }
+      case 'cobbler': {
+        cobblerWorkers += building.assignedLabor;
+        const cycles = cobblerCyclesPerWorker * building.assignedLabor;
+        recordProsperityOutput(
+          prosperityRoadBranches,
+          building,
+          componentFor,
+          'shoes',
+          cycles * COBBLER_SHOES_PER_CYCLE,
+        );
+        const runway = buildingInputRunway(
+          deliveries,
+          building,
+          'leather',
+          cycles * COBBLER_LEATHER_PER_CYCLE,
+        );
+        cobblerInputBuffer = updateFirstToStop(
+          cobblerInputBuffer,
+          runway,
+          'leather',
+          building.id,
+        );
+        cobblerOutputRoom = updateFirstToFill(
+          cobblerOutputRoom,
+          outputRoomDays(
+            building.shoes ?? 0,
+            processorOutputTargetForBuilding(building)
+              ?? (BUILDING_STORAGE_CAPS.cobbler.shoes ?? 0),
+            cycles * COBBLER_SHOES_PER_CYCLE,
+          ),
+          building.id,
+          normalizeProcessorOutputTargetPercent(building.processorOutputTargetPercent),
+        );
+        break;
+      }
       case 'clay_pit': {
         clayWorkers += building.assignedLabor;
         clayBankWeightedLabor += building.assignedLabor * clayBankYield;
@@ -1743,6 +1874,8 @@ function completedProcessorOverview(
     breweryWorkers,
     smokehouseWorkers,
     weaverWorkers,
+    tanneryWorkers,
+    cobblerWorkers,
     clayWorkers,
     charcoalWorkers,
     smithyWorkers,
@@ -1763,6 +1896,8 @@ function completedProcessorOverview(
     breweryInputBuffer,
     smokehouseInputBuffer,
     weaverInputBuffer,
+    tanneryInputBuffer,
+    cobblerInputBuffer,
     charcoalInputBuffer,
     smithyInputBuffer,
     potterInputBuffer,
@@ -1771,6 +1906,8 @@ function completedProcessorOverview(
     breweryOutputRoom,
     smokehouseOutputRoom,
     weaverOutputRoom,
+    tanneryOutputRoom,
+    cobblerOutputRoom,
     charcoalOutputRoom,
     smithyOutputRoom,
     potterOutputRoom,
@@ -2533,6 +2670,8 @@ export function computeSettlementProductionCapacity(
     breweryWorkers,
     smokehouseWorkers,
     weaverWorkers,
+    tanneryWorkers,
+    cobblerWorkers,
     clayWorkers,
     charcoalWorkers,
     smithyWorkers,
@@ -2553,6 +2692,8 @@ export function computeSettlementProductionCapacity(
     breweryInputBuffer,
     smokehouseInputBuffer,
     weaverInputBuffer,
+    tanneryInputBuffer,
+    cobblerInputBuffer,
     charcoalInputBuffer,
     smithyInputBuffer,
     potterInputBuffer,
@@ -2561,6 +2702,8 @@ export function computeSettlementProductionCapacity(
     breweryOutputRoom,
     smokehouseOutputRoom,
     weaverOutputRoom,
+    tanneryOutputRoom,
+    cobblerOutputRoom,
     charcoalOutputRoom,
     smithyOutputRoom,
     potterOutputRoom,
@@ -2584,6 +2727,8 @@ export function computeSettlementProductionCapacity(
     sabbathObserved,
   );
   const weaverCycles = cyclesPerCalendarDay('weaver', weaverWorkers, sabbathObserved);
+  const tanneryCycles = cyclesPerCalendarDay('tannery', tanneryWorkers, sabbathObserved);
+  const cobblerCycles = cyclesPerCalendarDay('cobbler', cobblerWorkers, sabbathObserved);
 
   let flourOutputPerDay = 0;
   let bakeryFlourCapacityPerDay = 0;
@@ -2628,6 +2773,7 @@ export function computeSettlementProductionCapacity(
     hypotheticalBreadFoodPerDay,
   );
   let tierTwoPlusResidents = 0;
+  let tierThreePlusResidents = 0;
   let tierFourResidents = 0;
   let fireDisabledTierFourHomes = 0;
   let fireDisabledTierFourResidents = 0;
@@ -2649,6 +2795,9 @@ export function computeSettlementProductionCapacity(
       continue;
     }
     tierTwoPlusResidents += residence.population;
+    if (residence.tier >= 3) {
+      tierThreePlusResidents += residence.population;
+    }
     if (prosperityRoadBranches && roadComponentFor) {
       const branch = prosperityRoadBranch(
         prosperityRoadBranches,
@@ -2659,12 +2808,18 @@ export function computeSettlementProductionCapacity(
         ),
       );
       branch.tierTwoPlusResidents += Math.max(0, residence.population);
+      if (residence.tier >= 3) {
+        branch.tierThreePlusResidents += Math.max(0, residence.population);
+      }
       branch.firstClothResidenceId = earlierStableId(
         branch.firstClothResidenceId,
         residence.id,
       );
       if (residence.tier < 4) {
         branch.lowerTierAleClothResidents += Math.max(0, residence.population);
+        if (residence.tier >= 3) {
+          branch.lowerTierShoesResidents += Math.max(0, residence.population);
+        }
       }
     }
     if (residence.tier >= 4) {
@@ -2744,11 +2899,15 @@ export function computeSettlementProductionCapacity(
     breweryWorkers,
     smokehouseWorkers,
     weaverWorkers,
+    tanneryWorkers,
+    cobblerWorkers,
     millInputBuffer,
     bakeryInputBuffer,
     breweryInputBuffer,
     smokehouseInputBuffer,
     weaverInputBuffer,
+    tanneryInputBuffer,
+    cobblerInputBuffer,
     charcoalInputBuffer,
     smithyInputBuffer,
     potterInputBuffer,
@@ -2757,6 +2916,8 @@ export function computeSettlementProductionCapacity(
     breweryOutputRoom,
     smokehouseOutputRoom,
     weaverOutputRoom,
+    tanneryOutputRoom,
+    cobblerOutputRoom,
     charcoalOutputRoom,
     smithyOutputRoom,
     potterOutputRoom,
@@ -2782,8 +2943,15 @@ export function computeSettlementProductionCapacity(
     clothFlaxPerDay: weaverCycles * WEAVER_FLAX_PER_CYCLE,
     clothFlaxWaterPerDay:
       weaverCycles * WEAVER_FLAX_WATER_PER_CYCLE,
+    leatherOutputPerDay: tanneryCycles * TANNERY_LEATHER_PER_CYCLE,
+    leatherHidesPerDay: tanneryCycles * TANNERY_HIDES_PER_CYCLE,
+    leatherWaterPerDay: tanneryCycles * TANNERY_WATER_PER_CYCLE,
+    leatherFirewoodPerDay: tanneryCycles * TANNERY_FIREWOOD_PER_CYCLE,
+    shoesOutputPerDay: cobblerCycles * COBBLER_SHOES_PER_CYCLE,
+    shoesLeatherPerDay: cobblerCycles * COBBLER_LEATHER_PER_CYCLE,
     industrialMaterials,
     tierTwoPlusResidents,
+    tierThreePlusResidents,
     tierFourResidents,
     fireDisabledTierFourHomes,
     fireDisabledTierFourResidents,
@@ -2804,6 +2972,8 @@ export function computeSettlementProductionCapacity(
       normalizedPreservedFoodDemandMultiplier,
     clothDemandPerDay:
       tierTwoPlusResidents * RESIDENCE_CLOTH_PER_PERSON_PER_SEC * WORKDAY_SECONDS,
+    shoesDemandPerDay:
+      tierThreePlusResidents * RESIDENCE_SHOES_PER_PERSON_PER_SEC * WORKDAY_SECONDS,
     potteryOutputPerDay: industrialMaterials.potteryOutputPerDay,
     potteryDemandPerDay:
       tierFourResidents * RESIDENCE_POTTERY_PER_PERSON_PER_SEC * WORKDAY_SECONDS,

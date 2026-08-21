@@ -108,6 +108,9 @@ export function priceMultiplierFor(
       return state.provisionPriceMult;
     case 'wool':
     case 'cloth':
+    case 'hides':
+    case 'leather':
+    case 'shoes':
     case 'pottery':
     case 'manure':
     case 'remedies':

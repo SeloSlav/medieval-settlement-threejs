@@ -260,6 +260,9 @@ pub fn ensure_player_resources(ctx: &ReducerContext, owner: Identity) {
         pantry_safeguard_policy: crate::pantry_safeguard_policy::PANTRY_SAFEGUARD_DEFAULT,
         cider: 0.0,
         mead: 0.0,
+        hides: 0.0,
+        leather: 0.0,
+        shoes: 0.0,
     });
     ensure_market_state(ctx, owner);
     ensure_settlement_security(ctx, owner);

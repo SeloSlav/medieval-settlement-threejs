@@ -153,6 +153,8 @@ export const FOOD_PROGRESSION_SLOT_LABELS = {
   otherFood: 'Another food group',
   produceAndForage: 'Produce or forage',
   animalFoods: 'Meat or animal produce',
+  animalProduce: 'Eggs, milk, or cheese',
+  meat: 'Fresh or cured meat',
   fish: 'Fish',
 } as const;
 export type FoodProgressionSlot = keyof typeof FOOD_PROGRESSION_SLOT_LABELS;
@@ -240,8 +242,9 @@ export function foodVarietyCount(inventory: FoodInventoryLike, population: numbe
  * Residence food progression follows broad Manor-Lords-style food families
  * without importing its late-game item counts wholesale. Tier 1 accepts any
  * viable opening food; Tier 2 establishes grain plus a second category; Tier
- * 3+ separates produce/forage, land animal food, and fish. Tier 4 layers its
- * separate cured-provisions need on top of this result.
+ * 3 separates produce/forage, land animal food, and fish. Tier 4 splits land
+ * animal food into animal produce and meat, then layers its separate cured-
+ * provisions and luxury needs on top of this result.
  */
 export function foodProgressionStatus(
   inventory: FoodInventoryLike,
@@ -254,7 +257,9 @@ export function foodProgressionStatus(
     ? ['anyFood']
     : tier === 2
       ? ['grains', 'otherFood']
-      : ['grains', 'produceAndForage', 'animalFoods', 'fish'];
+      : tier === 3
+        ? ['grains', 'produceAndForage', 'animalFoods', 'fish']
+        : ['grains', 'produceAndForage', 'animalProduce', 'meat', 'fish'];
   const minimum = foodCategoryQualifyingStock(population);
   const grainStock = (['food', 'oatGrain', 'ryeBread', 'maslinBread'] as const)
     .reduce((total, kind) => total + finiteFood(inventory[kind]) * foodMealValue(kind), 0);
@@ -268,6 +273,8 @@ export function foodProgressionStatus(
     supplied.add('produceAndForage');
   }
   if (categories.has('animalProduce') || categories.has('meats')) supplied.add('animalFoods');
+  if (categories.has('animalProduce')) supplied.add('animalProduce');
+  if (categories.has('meats')) supplied.add('meat');
   if (categories.has('fishes')) supplied.add('fish');
 
   const satisfiedSlots = requiredSlots.filter((slot) => supplied.has(slot));
