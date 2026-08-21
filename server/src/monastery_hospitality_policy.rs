@@ -124,6 +124,7 @@ pub fn monastery_hospitality_use(
     ale_available: f64,
     cider_available: f64,
     wine_available: f64,
+    service_funding: f64,
     elapsed_seconds: f64,
     seconds_per_day: f64,
     enabled: bool,
@@ -143,10 +144,11 @@ pub fn monastery_hospitality_use(
         };
     }
     let day_fraction = elapsed_seconds.max(0.0) / seconds_per_day.max(1e-9);
+    let funded_fraction = service_funding.clamp(0.0, 1.0);
     let honey_due = MONASTERY_HOSPITALITY_HONEY_PER_DAY * day_fraction;
     let drink_due = MONASTERY_HOSPITALITY_WINE_PER_DAY * day_fraction;
-    let honey_used =
-        monastery_feast_surplus(honey_available, MONASTERY_FEAST_HONEY, enabled).min(honey_due);
+    let honey_used = monastery_feast_surplus(honey_available, MONASTERY_FEAST_HONEY, enabled)
+        .min(honey_due * funded_fraction);
     let drink_surplus = monastery_feast_surplus(
         ale_available.max(0.0) + cider_available.max(0.0) + wine_available.max(0.0),
         MONASTERY_FEAST_ALE,
@@ -156,7 +158,7 @@ pub fn monastery_hospitality_use(
         ale_available,
         cider_available,
         wine_available,
-        drink_due.min(drink_surplus),
+        (drink_due * funded_fraction).min(drink_surplus),
     );
     let honey_ratio = if honey_due > 1e-9 {
         honey_used / honey_due
@@ -270,6 +272,7 @@ mod tests {
             MONASTERY_FEAST_ALE,
             0.0,
             0.0,
+            1.0,
             60.0,
             60.0,
             true,
@@ -281,7 +284,7 @@ mod tests {
 
     #[test]
     fn full_hospitality_preserves_the_previous_pilgrimage_income() {
-        let use_plan = monastery_hospitality_use(10.0, 20.0, 0.0, 0.0, 60.0, 60.0, true);
+        let use_plan = monastery_hospitality_use(10.0, 20.0, 0.0, 0.0, 1.0, 60.0, 60.0, true);
         assert!((use_plan.honey_used - 0.8).abs() < 1e-9);
         assert!((use_plan.ale_used - 0.5).abs() < 1e-9);
         assert!((use_plan.supply_ratio - 1.0).abs() < 1e-9);
@@ -302,7 +305,7 @@ mod tests {
 
     #[test]
     fn wine_improves_pilgrimage_prestige() {
-        let use_plan = monastery_hospitality_use(10.0, 0.0, 0.0, 20.0, 60.0, 60.0, true);
+        let use_plan = monastery_hospitality_use(10.0, 0.0, 0.0, 20.0, 1.0, 60.0, 60.0, true);
         assert!((use_plan.prestige_multiplier - 1.25).abs() < 1e-9);
         assert!(
             (monastery_pilgrimage_gold(
@@ -320,7 +323,7 @@ mod tests {
 
     #[test]
     fn either_missing_good_removes_half_the_hospitality_bonus() {
-        let honey_only = monastery_hospitality_use(10.0, 0.0, 0.0, 0.0, 60.0, 60.0, true);
+        let honey_only = monastery_hospitality_use(10.0, 0.0, 0.0, 0.0, 1.0, 60.0, 60.0, true);
         assert!((honey_only.supply_ratio - 0.5).abs() < 1e-9);
         assert!(
             (monastery_pilgrimage_gold(
@@ -337,8 +340,16 @@ mod tests {
     }
 
     #[test]
+    fn underfunding_contracts_daily_hospitality_without_fake_penalties() {
+        let half_funded = monastery_hospitality_use(10.0, 20.0, 0.0, 0.0, 0.5, 60.0, 60.0, true);
+        assert!((half_funded.honey_used - 0.4).abs() < 1e-9);
+        assert!((half_funded.ale_used - 0.25).abs() < 1e-9);
+        assert!((half_funded.supply_ratio - 0.5).abs() < 1e-9);
+    }
+
+    #[test]
     fn disabling_hospitality_preserves_goods_and_base_income() {
-        let disabled = monastery_hospitality_use(10.0, 10.0, 10.0, 10.0, 60.0, 60.0, false);
+        let disabled = monastery_hospitality_use(10.0, 10.0, 10.0, 10.0, 1.0, 60.0, 60.0, false);
         assert_eq!(disabled.honey_used, 0.0);
         assert_eq!(disabled.wine_used, 0.0);
         assert_eq!(

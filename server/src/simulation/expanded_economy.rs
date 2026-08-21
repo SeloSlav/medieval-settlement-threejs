@@ -3179,6 +3179,10 @@ pub fn step_monastery(
 
     let hospitality_enabled = tick.monastery_hospitality_enabled(ctx, monastery.owner);
     let mut receipt_daily_income = MONASTERY_PILGRIMAGE_GOLD_PER_DAY;
+    // Services are paid from coin already retained at the house. Today's
+    // offerings replenish that purse for future days rather than funding the
+    // very hospitality that generated them.
+    fund_monastery_services(&mut monastery, clock.total_days);
     if linked && owner_has_connected_marketplace(ctx, tick, &monastery) {
         // A small liturgical wine allowance belongs to ordinary overhead.
         // Public hospitality requires honey and whichever estate drink this
@@ -3188,6 +3192,7 @@ pub fn step_monastery(
             monastery.ale,
             monastery.cider,
             monastery.wine,
+            monastery.monastery_service_funding,
             TICK_DT,
             CALENDAR_SECONDS_PER_DAY,
             hospitality_enabled,
@@ -3215,7 +3220,6 @@ pub fn step_monastery(
             ctx.db.player_resources().owner().update(treasury);
         }
     }
-    fund_monastery_services(&mut monastery, clock.total_days);
     if linked {
         // Scheduled communal hospitality claims its complete pantry batch
         // before ordinary household carts. This makes feast preparation a

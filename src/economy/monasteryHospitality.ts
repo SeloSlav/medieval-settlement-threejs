@@ -97,8 +97,11 @@ export function monasteryHospitalityPlan(
   monastery: Pick<BuildingState, 'honey' | 'ale' | 'cider' | 'wine' | 'monasteryExtensions' | 'monasteryServiceFunding'>,
   enabled: boolean,
 ): MonasteryHospitalityPlan {
-  const honeyPerDay = enabled ? MONASTERY_HOSPITALITY_HONEY_PER_DAY : 0;
-  const drinkPerDay = enabled ? MONASTERY_HOSPITALITY_WINE_PER_DAY : 0;
+  const serviceFunding = enabled
+    ? Math.max(0, Math.min(1, monastery.monasteryServiceFunding ?? 1))
+    : 0;
+  const honeyPerDay = MONASTERY_HOSPITALITY_HONEY_PER_DAY * serviceFunding;
+  const drinkPerDay = MONASTERY_HOSPITALITY_WINE_PER_DAY * serviceFunding;
   const dailyHoney = monasteryFeastSurplus(
     monastery.honey,
     MONASTERY_FEAST_HONEY,
@@ -119,12 +122,13 @@ export function monasteryHospitalityPlan(
   const mixedCellar = availableDrinks.length >= 2;
   const prestigeMultiplier = 1 + 0.25 * wineShare + (mixedCellar ? 0.1 : 0);
   const commonTableMultiplier = 1 + 0.25 * aleShare;
-  const supplyRatio = enabled
+  const resourceSupplyRatio = enabled
     ? (
         stockSupplyRatio(dailyHoney)
         + stockSupplyRatio(dailyDrink)
       ) * 0.5
     : 0;
+  const supplyRatio = resourceSupplyRatio * serviceFunding;
   const daysPerYear = CALENDAR_DAYS_PER_MONTH * CALENDAR_MONTHS_PER_YEAR;
   return {
     enabled,
@@ -238,7 +242,7 @@ export function monasteryHospitalityStatusLabel(
 ): string {
   if (!plan.enabled) return 'Disabled — specialty goods remain exportable';
   if (plan.supplyRatio >= 0.999) return 'Fully provisioned';
-  if (plan.supplyRatio >= 0.499) return 'Partly provisioned — one specialty good missing';
+  if (plan.supplyRatio >= 0.499) return 'Partly provisioned or funded';
   return 'Unprovisioned — baseline pilgrim income only';
 }
 

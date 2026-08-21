@@ -62,7 +62,10 @@ const underfundedGuesthouse = monasteryHospitalityPlan({
   monasteryExtensions: MONASTERY_EXTENSION_GUESTHOUSE,
   monasteryServiceFunding: 0.5,
 }, true);
-assert.ok(Math.abs(underfundedGuesthouse.pilgrimageGoldPerDay - 4.1125) < 1e-9);
+assert.ok(Math.abs(underfundedGuesthouse.pilgrimageGoldPerDay - 3.23125) < 1e-9);
+assert.equal(underfundedGuesthouse.supplyRatio, 0.5);
+assert.equal(underfundedGuesthouse.honeyPerDay, 0.4);
+assert.equal(underfundedGuesthouse.drinkPerDay, 0.25);
 
 const mixedCellar = monasteryHospitalityPlan({ honey: 80, ale: 25, cider: 25, wine: 0 }, true);
 assert.equal(mixedCellar.mixedCellar, true);
