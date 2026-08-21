@@ -244,7 +244,7 @@ export class DryStoneWallRenderer {
       );
       moss.name = 'Dry-stone wall upward moss patches';
       moss.castShadow = false;
-      moss.receiveShadow = true;
+      moss.receiveShadow = false;
       moss.userData.dryStoneWallIds = mossPlacements.map((stone) => stone.wallId);
       for (let index = 0; index < mossPlacements.length; index += 1) {
         const stone = mossPlacements[index];
@@ -309,11 +309,7 @@ export class DryStoneWallRenderer {
       return target.setRGB(0.32 + stone.moss * 0.3, 0.32 + stone.moss * 0.68, 0.32);
     }
     const tone = stone.tone;
-    return target.setRGB(
-      tone * (0.98 + stone.warmth * 0.045),
-      tone * (1 + stone.warmth * 0.025),
-      tone * (0.95 - stone.warmth * 0.035),
-    );
+    return target.setRGB(tone, tone, tone);
   }
 
   private updateAnchors(points: readonly THREE.Vector3[], valid: boolean): void {
@@ -374,8 +370,8 @@ export function createChippedStoneGeometry(variant: number): THREE.BufferGeometr
         0,
         a.z + b.z + c.z + d.z,
       ).normalize();
-      const u0 = side / footprint.length * 2.15 + uvOffset;
-      const u1 = (side + 1) / footprint.length * 2.15 + uvOffset;
+      const u0 = uvOffset;
+      const u1 = 1 + uvOffset;
       emitQuad(
         positions,
         uvs,
@@ -443,6 +439,10 @@ function createMossPatchGeometry(): THREE.BufferGeometry {
     position.setY(index, Math.sin(angle) * 0.5 * radius);
   }
   geometry.rotateX(-Math.PI * 0.5);
+  const positionCount = geometry.getAttribute('position').count;
+  const colors = new Float32Array(positionCount * 3);
+  colors.fill(1);
+  geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
   geometry.computeVertexNormals();
   geometry.name = 'Irregular dry-stone top moss patch';
   return geometry;

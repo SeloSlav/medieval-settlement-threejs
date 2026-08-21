@@ -21,9 +21,9 @@ const TEXTURE_SIZE = 128;
 /** Dedicated, deterministic wall texture bundle; no building masonry atlas is reused. */
 export function createDryStoneWallMaterials(): DryStoneWallMaterialSet {
   const stoneTextures = createSurfaceTextures(0x5e10, {
-    low: [104, 108, 94],
-    high: [168, 169, 144],
-    pit: [65, 69, 60],
+    low: [78, 80, 76],
+    high: [143, 145, 139],
+    pit: [45, 47, 44],
     roughness: [218, 248],
     normalStrength: 2.7,
   });
@@ -59,8 +59,6 @@ export function createDryStoneWallMaterials(): DryStoneWallMaterialSet {
     name: 'Dry-stone wall · upward moss',
     color: 0xffffff,
     map: mossTextures.albedo,
-    normalMap: mossTextures.normal,
-    normalScale: new THREE.Vector2(0.36, 0.36),
     roughness: 1,
     roughnessMap: mossTextures.roughness,
     metalness: 0,
@@ -74,7 +72,7 @@ export function createDryStoneWallMaterials(): DryStoneWallMaterialSet {
     textureOwnership: 'dedicated-generated-pbr',
     perceptualTextureScale: 1.8,
     roughnessRange: [0.94, 1],
-    microNormalStrength: 0.36,
+    microNormalStrength: 0,
     materialIdentityWeights: { limestone: 0, dampBase: 0, moss: 1 },
   };
 
