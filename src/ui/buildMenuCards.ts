@@ -81,7 +81,7 @@ const DETAILS: Record<PlacementArtKey, BuildCardDetail> = {
   chapel: ['Church', 'C', 'Tends parish life, gathers tithes, and strengthens nearby households.'],
   wayside_shrine: ['Wayside shrine', 'D', 'Marks the roadside with a small place of prayer and devotion.'],
   dry_stone_wall: ['Dry-stone wall', 'F', 'Lines dirt roads with a free, instantly raised wall of fitted stone.'],
-  monastery: ['Pauline monastery', 'O', 'A self-sufficient estate that farms, brews, hosts pilgrims, keeps feasts, aids villagers, and expands its charitable works.', flow([], ['ale', 'cider', 'wine', 'honey', 'gold'])],
+  monastery: ['Pauline monastery', 'O', 'A monastic estate that hosts pilgrims, keeps feasts, aids villagers, safeguards seed, and expands its charitable works.'],
   marketplace: ['Marketplace', 'P', 'Required to distribute food to residences; its stalls also trade goods and collect local taxes.'],
   trading_post: ['Trading Post', 'X', 'Orders imports and exports while haulers gather wares for trade.'],
   town_hall: ['Town Hall', 'T', "Governs local taxes and keeps the settlement's accounts."],

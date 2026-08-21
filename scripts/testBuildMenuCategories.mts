@@ -83,7 +83,13 @@ assert.match(
 );
 assert.match(
   renderedCards,
-  /data-action="monastery"[^>]*data-tooltip="[^"]*hosts pilgrims[^"]*aids villagers[^"]*charitable works\./,
+  /data-action="monastery"[^>]*data-tooltip="[^"]*hosts pilgrims[^"]*aids villagers[^"]*safeguards seed[^"]*charitable works\./,
+);
+const monasteryCard = renderedCards.match(/<button[^>]*data-action="monastery"[^>]*>/)?.[0] ?? '';
+assert.doesNotMatch(
+  monasteryCard,
+  /data-tooltip-flow=/,
+  'the monastery must not present its private estate stores as player-facing production',
 );
 assert.equal(
   [...renderedCards.matchAll(/data-tooltip-placement="above"/g)].length,
