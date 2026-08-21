@@ -1,8 +1,6 @@
 use spacetimedb::ReducerContext;
 
-use crate::balance_generated::{
-    BackyardGardenKind, RESIDENCE_CLOTH_CAPACITY, RESIDENCE_POTTERY_CAPACITY,
-};
+use crate::balance_generated::{RESIDENCE_CLOTH_CAPACITY, RESIDENCE_POTTERY_CAPACITY};
 use crate::db::*;
 use crate::economy::{residence_edible_food_stock, residence_preserved_food_stock};
 use crate::simulation::residence_needs::kinds::ResidenceNeedKind;
@@ -118,12 +116,10 @@ pub fn persist_needs(ctx: &ReducerContext, residence_id: u64, needs: &[NeedState
     }
 }
 
-/// Move old save pantry values out of need rows exactly once, then make the
-/// Food and PreservedFood rows derived read models over physical commodities.
-/// Backyard jam remains on its garden row, but counts toward edible household
-/// stock so provisioning and the inspector do not treat it as unusable.
+/// Move old pantry values out of need rows exactly once, then make the Food
+/// and PreservedFood rows derived read models over physical commodities.
 pub fn migrate_and_sync_food_inventory(
-    ctx: &ReducerContext,
+    _ctx: &ReducerContext,
     residence: &mut Residence,
     needs: &mut [NeedState],
 ) {
@@ -133,8 +129,7 @@ pub fn migrate_and_sync_food_inventory(
         residence.food_inventory_migrated = true;
     }
     if let Some(food_need) = find_need_mut(needs, ResidenceNeedKind::Food) {
-        food_need.stock =
-            residence_edible_food_stock(residence) + backyard_jam_food_stock(ctx, residence.id);
+        food_need.stock = residence_edible_food_stock(residence);
     }
     if let Some(preserved_need) = find_need_mut(needs, ResidenceNeedKind::PreservedFood) {
         preserved_need.stock = residence_preserved_food_stock(residence);
@@ -144,32 +139,12 @@ pub fn migrate_and_sync_food_inventory(
 pub fn sync_food_need_rows(ctx: &ReducerContext, residence: &Residence) {
     let mut needs = load_needs(ctx, residence.id);
     if let Some(food_need) = find_need_mut(&mut needs, ResidenceNeedKind::Food) {
-        food_need.stock =
-            residence_edible_food_stock(residence) + backyard_jam_food_stock(ctx, residence.id);
+        food_need.stock = residence_edible_food_stock(residence);
     }
     if let Some(preserved_need) = find_need_mut(&mut needs, ResidenceNeedKind::PreservedFood) {
         preserved_need.stock = residence_preserved_food_stock(residence);
     }
     persist_needs(ctx, residence.id, &needs);
-}
-
-pub fn backyard_jam_food_stock(ctx: &ReducerContext, residence_id: u64) -> f64 {
-    let Some(garden) = ctx
-        .db
-        .backyard_garden()
-        .residence_id()
-        .filter(&residence_id)
-        .next()
-    else {
-        return 0.0;
-    };
-    if !matches!(
-        BackyardGardenKind::from_id(garden.kind),
-        Some(BackyardGardenKind::AroniaOrchard | BackyardGardenKind::RosehipOrchard)
-    ) {
-        return 0.0;
-    }
-    garden.jam_stock.max(0.0)
 }
 
 pub fn init_needs(ctx: &ReducerContext, residence_id: u64) {

@@ -9,7 +9,10 @@ pub const STOREHOUSE_ACCEPTANCE_MASK: u64 = bit(0) // firewood
     | bit(20) // clay
     | bit(21) // salt
     | bit(22) // charcoal
-    | bit(23); // pottery
+    | bit(23) // pottery
+    | bit(58) // hides
+    | bit(59) // leather
+    | bit(60); // shoes
 
 pub const GRANARY_ACCEPTANCE_MASK: u64 = bit(2) // legacy mixed food
     | bit(6) // ale
@@ -40,7 +43,17 @@ pub const GRANARY_ACCEPTANCE_MASK: u64 = bit(2) // legacy mixed food
     | bit(49) // rye flour
     | bit(51) // maslin flour
     | bit(52) // rye bread
-    | bit(54); // maslin bread
+    | bit(54) // maslin bread
+    | bit(4) // pears
+    | bit(5) // aronia berries
+    | bit(27) // rosehips
+    | bit(38) // cabbage
+    | bit(50) // carrots
+    | bit(53) // beetroot
+    | bit(55) // apple cider
+    | bit(57) // pear cider
+    | bit(61) // aronia jam
+    | bit(62); // rosehip jam
 
 const fn bit(code: u8) -> u64 {
     1u64 << code

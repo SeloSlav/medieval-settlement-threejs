@@ -258,6 +258,8 @@ pub struct RaidPortableStores {
     pub rye_bread: f64,
     pub maslin_bread: f64,
     pub ale: f64,
+    pub cider: f64,
+    pub pear_cider: f64,
     pub preserved_food: f64,
     pub honey: f64,
     pub wine: f64,
@@ -288,6 +290,14 @@ pub struct RaidPortableStores {
     pub cured_meat: f64,
     pub smoked_fish: f64,
     pub cheese: f64,
+    pub pears: f64,
+    pub aronia: f64,
+    pub rosehips: f64,
+    pub cabbage: f64,
+    pub carrots: f64,
+    pub beetroot: f64,
+    pub aronia_jam: f64,
+    pub rosehip_jam: f64,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
@@ -314,6 +324,8 @@ impl RaidPortableStores {
             + positive_store(self.rye_bread)
             + positive_store(self.maslin_bread)
             + positive_store(self.ale)
+            + positive_store(self.cider)
+            + positive_store(self.pear_cider)
             + positive_store(self.preserved_food)
             + positive_store(self.honey)
             + positive_store(self.wine)
@@ -344,6 +356,14 @@ impl RaidPortableStores {
             + positive_store(self.cured_meat)
             + positive_store(self.smoked_fish)
             + positive_store(self.cheese)
+            + positive_store(self.pears)
+            + positive_store(self.aronia)
+            + positive_store(self.rosehips)
+            + positive_store(self.cabbage)
+            + positive_store(self.carrots)
+            + positive_store(self.beetroot)
+            + positive_store(self.aronia_jam)
+            + positive_store(self.rosehip_jam)
     }
 
     pub fn goods_amount(self) -> f64 {
@@ -362,6 +382,8 @@ impl RaidPortableStores {
             + positive_store(self.rye_bread)
             + positive_store(self.maslin_bread)
             + positive_store(self.ale)
+            + positive_store(self.cider)
+            + positive_store(self.pear_cider)
             + positive_store(self.preserved_food)
             + positive_store(self.honey)
             + positive_store(self.wine)
@@ -391,6 +413,14 @@ impl RaidPortableStores {
             + positive_store(self.cured_meat)
             + positive_store(self.smoked_fish)
             + positive_store(self.cheese)
+            + positive_store(self.pears)
+            + positive_store(self.aronia)
+            + positive_store(self.rosehips)
+            + positive_store(self.cabbage)
+            + positive_store(self.carrots)
+            + positive_store(self.beetroot)
+            + positive_store(self.aronia_jam)
+            + positive_store(self.rosehip_jam)
     }
 
     pub fn plunder(self, loss_fraction: f64) -> RaidPlunder {
@@ -425,6 +455,8 @@ impl RaidPortableStores {
         plunder_good!(rye_bread);
         plunder_good!(maslin_bread);
         plunder_good!(ale);
+        plunder_good!(cider);
+        plunder_good!(pear_cider);
         plunder_good!(preserved_food);
         plunder_good!(honey);
         plunder_good!(wine);
@@ -454,6 +486,14 @@ impl RaidPortableStores {
         plunder_good!(cured_meat);
         plunder_good!(smoked_fish);
         plunder_good!(cheese);
+        plunder_good!(pears);
+        plunder_good!(aronia);
+        plunder_good!(rosehips);
+        plunder_good!(cabbage);
+        plunder_good!(carrots);
+        plunder_good!(beetroot);
+        plunder_good!(aronia_jam);
+        plunder_good!(rosehip_jam);
         let (gold, wealth_lost) = plunder_store(self.gold, fraction);
         remaining.gold = gold;
 
@@ -486,6 +526,8 @@ impl RaidPortableStores {
             rye_bread: removed!(rye_bread),
             maslin_bread: removed!(maslin_bread),
             ale: removed!(ale),
+            cider: removed!(cider),
+            pear_cider: removed!(pear_cider),
             preserved_food: removed!(preserved_food),
             honey: removed!(honey),
             wine: removed!(wine),
@@ -516,6 +558,14 @@ impl RaidPortableStores {
             cured_meat: removed!(cured_meat),
             smoked_fish: removed!(smoked_fish),
             cheese: removed!(cheese),
+            pears: removed!(pears),
+            aronia: removed!(aronia),
+            rosehips: removed!(rosehips),
+            cabbage: removed!(cabbage),
+            carrots: removed!(carrots),
+            beetroot: removed!(beetroot),
+            aronia_jam: removed!(aronia_jam),
+            rosehip_jam: removed!(rosehip_jam),
         }
     }
 }

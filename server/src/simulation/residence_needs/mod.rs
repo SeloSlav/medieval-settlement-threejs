@@ -10,7 +10,7 @@ pub use state::{load_needs, need_stock, sync_food_need_rows};
 
 use crate::backyard_garden_policy::{allocate_backyard_jam_meal, BackyardJamMealAllocation};
 use crate::balance_generated::{
-    BackyardGardenKind, BASE_ILLNESS_CHANCE_PER_PERSON_DAY, CALENDAR_SECONDS_PER_DAY,
+    BASE_ILLNESS_CHANCE_PER_PERSON_DAY, CALENDAR_SECONDS_PER_DAY,
     COLD_EXPOSURE_ILLNESS_MULTIPLIER, CORPSE_DISEASE_RADIUS, CORPSE_ILLNESS_MULTIPLIER,
     FRESH_FOOD_STORAGE_RESIDENCE_FACTOR, HERB_MORTALITY_MULTIPLIER, HERB_RECOVERY_MULTIPLIER,
     HERB_TREATMENT_PER_SICK_DAY, ILLNESS_MORTALITY_CHANCE_PER_SICK_DAY, ILLNESS_RECOVERY_DAYS,
@@ -247,7 +247,7 @@ fn consume_food_with_preserved(
         return (true, BackyardJamMealAllocation::default());
     };
     let demand = food::demand(residence);
-    let jam_meal = consume_backyard_jam_meal(ctx, residence, demand);
+    let jam_meal = consume_household_jam_meal(residence, demand);
     let remaining_demand = (demand - jam_meal.food_used).max(0.0);
     let fresh_stock = residence_fresh_food_stock(residence);
     let preserved_stock = residence_preserved_food_stock(residence);
@@ -274,36 +274,22 @@ fn consume_food_with_preserved(
     (true, jam_meal)
 }
 
-fn consume_backyard_jam_meal(
-    ctx: &ReducerContext,
-    residence: &Residence,
+fn consume_household_jam_meal(
+    residence: &mut Residence,
     food_demand: f64,
 ) -> BackyardJamMealAllocation {
-    let Some(mut garden) = ctx
-        .db
-        .backyard_garden()
-        .residence_id()
-        .filter(&residence.id)
-        .next()
-    else {
-        return BackyardJamMealAllocation::default();
-    };
-    if !matches!(
-        BackyardGardenKind::from_id(garden.kind),
-        Some(BackyardGardenKind::AroniaOrchard | BackyardGardenKind::RosehipOrchard)
-    ) {
-        return BackyardJamMealAllocation::default();
-    }
     let luxury_demand = if residence.tier >= 4 {
         residence.population as f64 * RESIDENCE_LUXURY_JAM_PER_PERSON_PER_SEC * TICK_DT
     } else {
         0.0
     };
-    let allocation = allocate_backyard_jam_meal(garden.jam_stock, food_demand, luxury_demand);
-    if (garden.jam_stock - allocation.remaining_stock).abs() > 1e-9 {
-        garden.jam_stock = allocation.remaining_stock;
-        ctx.db.backyard_garden().id().update(garden);
-    }
+    let jam_stock = residence.aronia_jam.max(0.0) + residence.rosehip_jam.max(0.0);
+    let allocation = allocate_backyard_jam_meal(jam_stock, food_demand, luxury_demand);
+    let mut used = (jam_stock - allocation.remaining_stock).max(0.0);
+    let aronia_used = residence.aronia_jam.max(0.0).min(used);
+    residence.aronia_jam = (residence.aronia_jam - aronia_used).max(0.0);
+    used = (used - aronia_used).max(0.0);
+    residence.rosehip_jam = (residence.rosehip_jam - used).max(0.0);
     allocation
 }
 
@@ -343,6 +329,8 @@ fn withdraw_residence_food_group(
 ) -> f64 {
     let order: &[CommodityKind] = if preserved {
         &[
+            CommodityKind::AroniaJam,
+            CommodityKind::RosehipJam,
             CommodityKind::Cheese,
             CommodityKind::SmokedFish,
             CommodityKind::CuredMeat,
@@ -353,11 +341,17 @@ fn withdraw_residence_food_group(
             CommodityKind::Meat,
             CommodityKind::Fish,
             CommodityKind::Milk,
+            CommodityKind::Aronia,
+            CommodityKind::Rosehips,
             CommodityKind::Mushrooms,
             CommodityKind::Berries,
             CommodityKind::Grapes,
             CommodityKind::Cherries,
             CommodityKind::Apples,
+            CommodityKind::Pears,
+            CommodityKind::Cabbage,
+            CommodityKind::Carrots,
+            CommodityKind::Beetroot,
             CommodityKind::Vegetables,
             CommodityKind::Eggs,
             CommodityKind::RyeBread,

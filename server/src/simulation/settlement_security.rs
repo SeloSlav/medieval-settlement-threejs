@@ -689,6 +689,8 @@ pub(super) fn building_portable_stores(building: &Building) -> RaidPortableStore
         rye_bread: building.rye_bread,
         maslin_bread: building.maslin_bread,
         ale: building.ale,
+        cider: building.cider,
+        pear_cider: building.pear_cider,
         preserved_food: building.preserved_food,
         honey: building.honey,
         wine: building.wine,
@@ -719,6 +721,14 @@ pub(super) fn building_portable_stores(building: &Building) -> RaidPortableStore
         cured_meat: building.cured_meat,
         smoked_fish: building.smoked_fish,
         cheese: building.cheese,
+        pears: building.pears,
+        aronia: building.aronia,
+        rosehips: building.rosehips,
+        cabbage: building.cabbage,
+        carrots: building.carrots,
+        beetroot: building.beetroot,
+        aronia_jam: building.aronia_jam,
+        rosehip_jam: building.rosehip_jam,
     }
 }
 
@@ -901,11 +911,21 @@ pub(super) fn delivery_trip_portable_stores(trip: &DeliveryTrip) -> RaidPortable
         Some(CommodityKind::RyeFlour) => stores.rye_flour = amount,
         Some(CommodityKind::MaslinFlour) => stores.maslin_flour = amount,
         Some(CommodityKind::Ale) => stores.ale = amount,
-        Some(CommodityKind::Cider | CommodityKind::Mead) => stores.ale = amount,
+        Some(CommodityKind::Cider) => stores.cider = amount,
+        Some(CommodityKind::PearCider) => stores.pear_cider = amount,
+        Some(CommodityKind::Mead) => stores.ale = amount,
         Some(CommodityKind::PreservedFood) => stores.preserved_food = amount,
         Some(CommodityKind::CuredMeat) => stores.cured_meat = amount,
         Some(CommodityKind::SmokedFish) => stores.smoked_fish = amount,
         Some(CommodityKind::Cheese) => stores.cheese = amount,
+        Some(CommodityKind::Pears) => stores.pears = amount,
+        Some(CommodityKind::Aronia) => stores.aronia = amount,
+        Some(CommodityKind::Rosehips) => stores.rosehips = amount,
+        Some(CommodityKind::Cabbage) => stores.cabbage = amount,
+        Some(CommodityKind::Carrots) => stores.carrots = amount,
+        Some(CommodityKind::Beetroot) => stores.beetroot = amount,
+        Some(CommodityKind::AroniaJam) => stores.aronia_jam = amount,
+        Some(CommodityKind::RosehipJam) => stores.rosehip_jam = amount,
         Some(CommodityKind::Honey) => stores.honey = amount,
         Some(CommodityKind::Wine) => stores.wine = amount,
         Some(CommodityKind::Wool) => stores.wool = amount,
@@ -965,11 +985,21 @@ fn delivery_trip_remaining_amount(cargo_kind: u8, stores: RaidPortableStores) ->
         Some(CommodityKind::RyeFlour) => stores.rye_flour,
         Some(CommodityKind::MaslinFlour) => stores.maslin_flour,
         Some(CommodityKind::Ale) => stores.ale,
-        Some(CommodityKind::Cider | CommodityKind::Mead) => stores.ale,
+        Some(CommodityKind::Cider) => stores.cider,
+        Some(CommodityKind::PearCider) => stores.pear_cider,
+        Some(CommodityKind::Mead) => stores.ale,
         Some(CommodityKind::PreservedFood) => stores.preserved_food,
         Some(CommodityKind::CuredMeat) => stores.cured_meat,
         Some(CommodityKind::SmokedFish) => stores.smoked_fish,
         Some(CommodityKind::Cheese) => stores.cheese,
+        Some(CommodityKind::Pears) => stores.pears,
+        Some(CommodityKind::Aronia) => stores.aronia,
+        Some(CommodityKind::Rosehips) => stores.rosehips,
+        Some(CommodityKind::Cabbage) => stores.cabbage,
+        Some(CommodityKind::Carrots) => stores.carrots,
+        Some(CommodityKind::Beetroot) => stores.beetroot,
+        Some(CommodityKind::AroniaJam) => stores.aronia_jam,
+        Some(CommodityKind::RosehipJam) => stores.rosehip_jam,
         Some(CommodityKind::Honey) => stores.honey,
         Some(CommodityKind::Wine) => stores.wine,
         Some(CommodityKind::Wool) => stores.wool,
@@ -1030,6 +1060,8 @@ fn treasury_portable_stores(
         rye_bread: treasury.rye_bread,
         maslin_bread: treasury.maslin_bread,
         ale: treasury.ale,
+        cider: treasury.cider,
+        pear_cider: treasury.pear_cider,
         preserved_food: treasury.preserved_food,
         honey: treasury.honey,
         wine: treasury.wine,
@@ -1060,6 +1092,14 @@ fn treasury_portable_stores(
         cured_meat: treasury.cured_meat,
         smoked_fish: treasury.smoked_fish,
         cheese: treasury.cheese,
+        pears: treasury.pears,
+        aronia: treasury.aronia,
+        rosehips: treasury.rosehips,
+        cabbage: treasury.cabbage,
+        carrots: treasury.carrots,
+        beetroot: treasury.beetroot,
+        aronia_jam: treasury.aronia_jam,
+        rosehip_jam: treasury.rosehip_jam,
     }
 }
 
@@ -1130,6 +1170,8 @@ fn retain_unplundered_stores(building: &mut Building, stores: RaidPortableStores
     building.rye_bread = stores.rye_bread;
     building.maslin_bread = stores.maslin_bread;
     building.ale = stores.ale;
+    building.cider = stores.cider;
+    building.pear_cider = stores.pear_cider;
     building.preserved_food = stores.preserved_food;
     building.honey = stores.honey;
     building.wine = stores.wine;
@@ -1160,6 +1202,14 @@ fn retain_unplundered_stores(building: &mut Building, stores: RaidPortableStores
     building.cured_meat = stores.cured_meat;
     building.smoked_fish = stores.smoked_fish;
     building.cheese = stores.cheese;
+    building.pears = stores.pears;
+    building.aronia = stores.aronia;
+    building.rosehips = stores.rosehips;
+    building.cabbage = stores.cabbage;
+    building.carrots = stores.carrots;
+    building.beetroot = stores.beetroot;
+    building.aronia_jam = stores.aronia_jam;
+    building.rosehip_jam = stores.rosehip_jam;
     building.civic_receipts_gold = building
         .civic_receipts_gold
         .max(0.0)
@@ -1197,6 +1247,8 @@ fn retain_unplundered_treasury_stores(
     subtract_loss!(rye_bread);
     subtract_loss!(maslin_bread);
     subtract_loss!(ale);
+    subtract_loss!(cider);
+    subtract_loss!(pear_cider);
     subtract_loss!(preserved_food);
     subtract_loss!(honey);
     subtract_loss!(wine);
@@ -1226,6 +1278,14 @@ fn retain_unplundered_treasury_stores(
     subtract_loss!(cured_meat);
     subtract_loss!(smoked_fish);
     subtract_loss!(cheese);
+    subtract_loss!(pears);
+    subtract_loss!(aronia);
+    subtract_loss!(rosehips);
+    subtract_loss!(cabbage);
+    subtract_loss!(carrots);
+    subtract_loss!(beetroot);
+    subtract_loss!(aronia_jam);
+    subtract_loss!(rosehip_jam);
 }
 
 fn portable_store_loss(before: f64, remaining: f64) -> f64 {

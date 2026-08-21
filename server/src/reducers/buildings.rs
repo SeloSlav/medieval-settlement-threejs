@@ -6,7 +6,7 @@ use crate::balance_generated::{
 };
 use crate::brewery_recipe_policy::{
     is_valid_brewery_recipe_policy, normalize_brewery_recipe_policy, BREWERY_RECIPE_AUTO,
-    BREWERY_RECIPE_CIDER, BREWERY_RECIPE_MEAD,
+    BREWERY_RECIPE_CIDER, BREWERY_RECIPE_MEAD, BREWERY_RECIPE_PEAR_CIDER,
 };
 use crate::building_defs::{building_def, building_def_or_err};
 use crate::burgage::Point2;
@@ -998,6 +998,15 @@ pub(crate) fn place_building_internal(
         hides: 0.0,
         leather: 0.0,
         shoes: 0.0,
+        pears: 0.0,
+        aronia: 0.0,
+        rosehips: 0.0,
+        cabbage: 0.0,
+        carrots: 0.0,
+        beetroot: 0.0,
+        aronia_jam: 0.0,
+        rosehip_jam: 0.0,
+        pear_cider: 0.0,
     });
 
     ctx.db.world_config().id().update(WorldConfig {
@@ -1237,9 +1246,11 @@ fn processor_output_room(building: &Building) -> Option<f64> {
         };
         return Some(match policy {
             BREWERY_RECIPE_CIDER => headroom(CommodityKind::Cider),
+            BREWERY_RECIPE_PEAR_CIDER => headroom(CommodityKind::PearCider),
             BREWERY_RECIPE_MEAD => headroom(CommodityKind::Mead),
             BREWERY_RECIPE_AUTO => headroom(CommodityKind::Ale)
                 .max(headroom(CommodityKind::Cider))
+                .max(headroom(CommodityKind::PearCider))
                 .max(headroom(CommodityKind::Mead)),
             _ => headroom(CommodityKind::Ale),
         });
@@ -1307,11 +1318,13 @@ fn processor_stall_and_recovery(ctx: &ReducerContext, building: &Building) -> (b
             && building.water > 1e-6
             && building.firewood > 1e-6;
         let cider_ready = building.apples > 1e-6;
+        let pear_cider_ready = building.pears > 1e-6;
         let mead_ready = building.honey > 1e-6;
         let ready = match policy {
             BREWERY_RECIPE_CIDER => cider_ready,
+            BREWERY_RECIPE_PEAR_CIDER => pear_cider_ready,
             BREWERY_RECIPE_MEAD => mead_ready,
-            BREWERY_RECIPE_AUTO => ale_ready || cider_ready || mead_ready,
+            BREWERY_RECIPE_AUTO => ale_ready || cider_ready || pear_cider_ready || mead_ready,
             _ => ale_ready,
         };
         if ready {
@@ -1323,9 +1336,13 @@ fn processor_stall_and_recovery(ctx: &ReducerContext, building: &Building) -> (b
             && (building.firewood > 1e-6 || inbound(CommodityKind::Firewood));
         let recovering = match policy {
             BREWERY_RECIPE_CIDER => inbound(CommodityKind::Apples),
+            BREWERY_RECIPE_PEAR_CIDER => inbound(CommodityKind::Pears),
             BREWERY_RECIPE_MEAD => inbound(CommodityKind::Honey),
             BREWERY_RECIPE_AUTO => {
-                ale_recovering || inbound(CommodityKind::Apples) || inbound(CommodityKind::Honey)
+                ale_recovering
+                    || inbound(CommodityKind::Apples)
+                    || inbound(CommodityKind::Pears)
+                    || inbound(CommodityKind::Honey)
             }
             _ => ale_recovering,
         };

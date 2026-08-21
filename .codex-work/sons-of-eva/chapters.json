@@ -8,5 +8,10 @@
     "number": "CHAPTER TWO",
     "title": "MARA",
     "file": "chapter-02.txt"
+  },
+  {
+    "number": "CHAPTER THREE",
+    "title": "THE ORCHESTRATORS",
+    "file": "chapter-03.txt"
   }
 ]

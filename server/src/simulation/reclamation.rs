@@ -25,7 +25,7 @@ use crate::simulation::{labor_and_logistics_paused, GameClock, SimTickContext};
 use crate::tables::{Building, PlayerResources, WorldConfig};
 
 const EPSILON: f64 = 1e-6;
-const RECOVERY_ORDER: [CommodityKind; 54] = [
+const RECOVERY_ORDER: [CommodityKind; 63] = [
     CommodityKind::Gold,
     CommodityKind::Remedies,
     CommodityKind::Food,
@@ -49,15 +49,24 @@ const RECOVERY_ORDER: [CommodityKind; 54] = [
     CommodityKind::Mushrooms,
     CommodityKind::Milk,
     CommodityKind::Apples,
+    CommodityKind::Pears,
+    CommodityKind::Aronia,
+    CommodityKind::Rosehips,
     CommodityKind::Cherries,
     CommodityKind::Vegetables,
+    CommodityKind::Cabbage,
+    CommodityKind::Carrots,
+    CommodityKind::Beetroot,
     CommodityKind::Eggs,
     CommodityKind::Grapes,
     CommodityKind::CuredMeat,
     CommodityKind::SmokedFish,
     CommodityKind::Cheese,
+    CommodityKind::AroniaJam,
+    CommodityKind::RosehipJam,
     CommodityKind::Ale,
     CommodityKind::Cider,
+    CommodityKind::PearCider,
     CommodityKind::Mead,
     CommodityKind::Honey,
     CommodityKind::Wine,
@@ -91,6 +100,7 @@ pub struct ReclamationStock {
     pub food: f64,
     pub ale: f64,
     pub cider: f64,
+    pub pear_cider: f64,
     pub mead: f64,
     pub preserved_food: f64,
     pub honey: f64,
@@ -138,6 +148,14 @@ pub struct ReclamationStock {
     pub maslin_flour: f64,
     pub rye_bread: f64,
     pub maslin_bread: f64,
+    pub pears: f64,
+    pub aronia: f64,
+    pub rosehips: f64,
+    pub cabbage: f64,
+    pub carrots: f64,
+    pub beetroot: f64,
+    pub aronia_jam: f64,
+    pub rosehip_jam: f64,
 }
 
 impl ReclamationStock {
@@ -170,6 +188,10 @@ impl ReclamationStock {
             },
             CommodityKind::Cider => Self {
                 cider: amount,
+                ..Self::default()
+            },
+            CommodityKind::PearCider => Self {
+                pear_cider: amount,
                 ..Self::default()
             },
             CommodityKind::Mead => Self {
@@ -351,6 +373,38 @@ impl ReclamationStock {
                 maslin_bread: amount,
                 ..Self::default()
             },
+            CommodityKind::Pears => Self {
+                pears: amount,
+                ..Self::default()
+            },
+            CommodityKind::Aronia => Self {
+                aronia: amount,
+                ..Self::default()
+            },
+            CommodityKind::Rosehips => Self {
+                rosehips: amount,
+                ..Self::default()
+            },
+            CommodityKind::Cabbage => Self {
+                cabbage: amount,
+                ..Self::default()
+            },
+            CommodityKind::Carrots => Self {
+                carrots: amount,
+                ..Self::default()
+            },
+            CommodityKind::Beetroot => Self {
+                beetroot: amount,
+                ..Self::default()
+            },
+            CommodityKind::AroniaJam => Self {
+                aronia_jam: amount,
+                ..Self::default()
+            },
+            CommodityKind::RosehipJam => Self {
+                rosehip_jam: amount,
+                ..Self::default()
+            },
         }
     }
 
@@ -369,6 +423,7 @@ impl ReclamationStock {
             food: resources.food.max(0.0),
             ale: resources.ale.max(0.0),
             cider: resources.cider.max(0.0),
+            pear_cider: resources.pear_cider.max(0.0),
             mead: resources.mead.max(0.0),
             preserved_food: resources.preserved_food.max(0.0),
             honey: resources.honey.max(0.0),
@@ -416,6 +471,14 @@ impl ReclamationStock {
             maslin_flour: resources.maslin_flour.max(0.0),
             rye_bread: resources.rye_bread.max(0.0),
             maslin_bread: resources.maslin_bread.max(0.0),
+            pears: resources.pears.max(0.0),
+            aronia: resources.aronia.max(0.0),
+            rosehips: resources.rosehips.max(0.0),
+            cabbage: resources.cabbage.max(0.0),
+            carrots: resources.carrots.max(0.0),
+            beetroot: resources.beetroot.max(0.0),
+            aronia_jam: resources.aronia_jam.max(0.0),
+            rosehip_jam: resources.rosehip_jam.max(0.0),
         }
     }
 
@@ -428,6 +491,7 @@ impl ReclamationStock {
             CommodityKind::Food => self.food,
             CommodityKind::Ale => self.ale,
             CommodityKind::Cider => self.cider,
+            CommodityKind::PearCider => self.pear_cider,
             CommodityKind::Mead => self.mead,
             CommodityKind::PreservedFood => self.preserved_food,
             CommodityKind::Honey => self.honey,
@@ -475,6 +539,14 @@ impl ReclamationStock {
             CommodityKind::MaslinFlour => self.maslin_flour,
             CommodityKind::RyeBread => self.rye_bread,
             CommodityKind::MaslinBread => self.maslin_bread,
+            CommodityKind::Pears => self.pears,
+            CommodityKind::Aronia => self.aronia,
+            CommodityKind::Rosehips => self.rosehips,
+            CommodityKind::Cabbage => self.cabbage,
+            CommodityKind::Carrots => self.carrots,
+            CommodityKind::Beetroot => self.beetroot,
+            CommodityKind::AroniaJam => self.aronia_jam,
+            CommodityKind::RosehipJam => self.rosehip_jam,
         }
     }
 
@@ -486,6 +558,7 @@ impl ReclamationStock {
         building.food += self.food;
         building.ale += self.ale;
         building.cider += self.cider;
+        building.pear_cider += self.pear_cider;
         building.mead += self.mead;
         building.preserved_food += self.preserved_food;
         building.honey += self.honey;
@@ -533,6 +606,14 @@ impl ReclamationStock {
         building.maslin_flour += self.maslin_flour;
         building.rye_bread += self.rye_bread;
         building.maslin_bread += self.maslin_bread;
+        building.pears += self.pears;
+        building.aronia += self.aronia;
+        building.rosehips += self.rosehips;
+        building.cabbage += self.cabbage;
+        building.carrots += self.carrots;
+        building.beetroot += self.beetroot;
+        building.aronia_jam += self.aronia_jam;
+        building.rosehip_jam += self.rosehip_jam;
     }
 }
 
@@ -544,6 +625,7 @@ fn clear_resource_ledger(resources: &mut PlayerResources) {
     resources.food = 0.0;
     resources.ale = 0.0;
     resources.cider = 0.0;
+    resources.pear_cider = 0.0;
     resources.mead = 0.0;
     resources.preserved_food = 0.0;
     resources.honey = 0.0;
@@ -589,6 +671,14 @@ fn clear_resource_ledger(resources: &mut PlayerResources) {
     resources.cured_meat = 0.0;
     resources.smoked_fish = 0.0;
     resources.cheese = 0.0;
+    resources.pears = 0.0;
+    resources.aronia = 0.0;
+    resources.rosehips = 0.0;
+    resources.cabbage = 0.0;
+    resources.carrots = 0.0;
+    resources.beetroot = 0.0;
+    resources.aronia_jam = 0.0;
+    resources.rosehip_jam = 0.0;
 }
 
 fn recovery_pile_position_beside_building(
@@ -708,6 +798,7 @@ pub fn insert_reclamation_pile(
         food: stock.food.max(0.0),
         ale: stock.ale.max(0.0),
         cider: stock.cider.max(0.0),
+        pear_cider: stock.pear_cider.max(0.0),
         mead: stock.mead.max(0.0),
         preserved_food: stock.preserved_food.max(0.0),
         honey: stock.honey.max(0.0),
@@ -825,6 +916,14 @@ pub fn insert_reclamation_pile(
         cured_meat: stock.cured_meat.max(0.0),
         smoked_fish: stock.smoked_fish.max(0.0),
         cheese: stock.cheese.max(0.0),
+        pears: stock.pears.max(0.0),
+        aronia: stock.aronia.max(0.0),
+        rosehips: stock.rosehips.max(0.0),
+        cabbage: stock.cabbage.max(0.0),
+        carrots: stock.carrots.max(0.0),
+        beetroot: stock.beetroot.max(0.0),
+        aronia_jam: stock.aronia_jam.max(0.0),
+        rosehip_jam: stock.rosehip_jam.max(0.0),
         rye_sheaves: stock.rye_sheaves.max(0.0),
         oat_sheaves: stock.oat_sheaves.max(0.0),
         barley_sheaves: stock.barley_sheaves.max(0.0),
@@ -1199,13 +1298,21 @@ pub(crate) fn reclamation_destination_priority(commodity: CommodityKind, kind: &
         | CommodityKind::Mushrooms
         | CommodityKind::Milk
         | CommodityKind::Apples
+        | CommodityKind::Pears
+        | CommodityKind::Aronia
+        | CommodityKind::Rosehips
         | CommodityKind::Cherries
         | CommodityKind::Vegetables
+        | CommodityKind::Cabbage
+        | CommodityKind::Carrots
+        | CommodityKind::Beetroot
         | CommodityKind::Eggs
         | CommodityKind::Grapes
         | CommodityKind::CuredMeat
         | CommodityKind::SmokedFish
         | CommodityKind::Cheese
+        | CommodityKind::AroniaJam
+        | CommodityKind::RosehipJam
         | CommodityKind::RyeSheaves
         | CommodityKind::OatSheaves
         | CommodityKind::BarleySheaves
@@ -1228,7 +1335,10 @@ pub(crate) fn reclamation_destination_priority(commodity: CommodityKind, kind: &
             "founders_camp" => Some(1),
             _ => Some(2),
         },
-        CommodityKind::Ale | CommodityKind::Cider | CommodityKind::Mead => match kind {
+        CommodityKind::Ale
+        | CommodityKind::Cider
+        | CommodityKind::PearCider
+        | CommodityKind::Mead => match kind {
             "tavern" => Some(0),
             "founders_camp" => Some(1),
             _ => Some(2),

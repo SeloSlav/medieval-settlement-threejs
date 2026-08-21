@@ -73,21 +73,14 @@ def add_title_page(document: Document):
     for _ in range(3):
         add_centered_blank(document)
 
-    series = document.add_paragraph(style="Normal")
-    series.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    series.paragraph_format.first_line_indent = Inches(0)
-    run = series.add_run("БABUSHKA")
-    set_run_font(run, "Bookman Old Style", 40)
-    run.add_break(WD_BREAK.LINE)
-
     title = document.add_paragraph(style="Normal")
     title.alignment = WD_ALIGN_PARAGRAPH.CENTER
     title.paragraph_format.first_line_indent = Inches(0)
-    run = title.add_run("SONS OF EVA")
-    set_run_font(run, "Bookman Old Style", 22)
+    run = title.add_run("Sons of Eva")
+    set_run_font(run, "Bookman Old Style", 40)
+    run.add_break(WD_BREAK.LINE)
 
-    for _ in range(2):
-        add_centered_blank(document)
+    add_centered_blank(document)
 
     author = document.add_paragraph(style="Normal")
     author.alignment = WD_ALIGN_PARAGRAPH.CENTER

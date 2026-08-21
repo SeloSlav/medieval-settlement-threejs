@@ -320,6 +320,14 @@ pub fn place_burgage_zone(
             rye_bread: 0.0,
             maslin_bread: 0.0,
             oat_grain: 0.0,
+            pears: 0.0,
+            aronia: 0.0,
+            rosehips: 0.0,
+            cabbage: 0.0,
+            carrots: 0.0,
+            beetroot: 0.0,
+            aronia_jam: 0.0,
+            rosehip_jam: 0.0,
         });
         ensure_residence_needs(ctx, inserted.id);
         if let Some(network) = physical_road_network.as_ref() {

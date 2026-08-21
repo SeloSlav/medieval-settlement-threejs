@@ -1993,6 +1993,8 @@ fn reclamation_from_raid_stores(stores: RaidPortableStores) -> ReclamationStock 
         rye_bread: stores.rye_bread,
         maslin_bread: stores.maslin_bread,
         ale: stores.ale,
+        cider: stores.cider,
+        pear_cider: stores.pear_cider,
         preserved_food: stores.preserved_food,
         honey: stores.honey,
         wine: stores.wine,
@@ -2023,6 +2025,14 @@ fn reclamation_from_raid_stores(stores: RaidPortableStores) -> ReclamationStock 
         cured_meat: stores.cured_meat,
         smoked_fish: stores.smoked_fish,
         cheese: stores.cheese,
+        pears: stores.pears,
+        aronia: stores.aronia,
+        rosehips: stores.rosehips,
+        cabbage: stores.cabbage,
+        carrots: stores.carrots,
+        beetroot: stores.beetroot,
+        aronia_jam: stores.aronia_jam,
+        rosehip_jam: stores.rosehip_jam,
         ..ReclamationStock::default()
     }
 }

@@ -203,7 +203,6 @@ pub fn place_backyard_garden(
         last_primary_production_day: 0,
         last_secondary_production_day: 0,
         hide_stock: 0.0,
-        jam_stock: 0.0,
         flower_luxury_upgraded: false,
     });
 
@@ -269,7 +268,6 @@ pub fn specialize_orchard(
     garden.last_primary_production_day = total_days;
     garden.last_secondary_production_day = total_days;
     garden.hide_stock = 0.0;
-    garden.jam_stock = 0.0;
     garden.flower_luxury_upgraded = false;
     ctx.db.backyard_garden().id().update(garden);
     ctx.db.residence().id().update(residence);
@@ -336,7 +334,6 @@ pub fn specialize_vegetable_garden(
     garden.last_primary_production_day = total_days;
     garden.last_secondary_production_day = total_days;
     garden.hide_stock = 0.0;
-    garden.jam_stock = 0.0;
     garden.flower_luxury_upgraded = false;
     ctx.db.backyard_garden().id().update(garden);
     ctx.db.residence().id().update(residence);
@@ -403,7 +400,6 @@ pub fn specialize_animal_pen(
     garden.last_primary_production_day = total_days;
     garden.last_secondary_production_day = total_days;
     garden.hide_stock = 0.0;
-    garden.jam_stock = 0.0;
     garden.flower_luxury_upgraded = false;
     ctx.db.backyard_garden().id().update(garden);
     ctx.db.residence().id().update(residence);

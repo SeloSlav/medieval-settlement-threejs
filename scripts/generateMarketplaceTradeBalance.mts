@@ -2,13 +2,14 @@ export const MARKETPLACE_TRADE_RESOURCES = [
   'timber', 'stone', 'firewood', 'water', 'food',
   'ryeGrain', 'oatGrain', 'maslinGrain',
   'ryeFlour', 'maslinFlour',
-  'ryeBread', 'maslinBread', 'ale', 'cider',
+  'ryeBread', 'maslinBread', 'ale', 'cider', 'pearCider',
   'preservedFood', 'honey', 'wine', 'ironwork', 'polearms', 'wool', 'cloth',
   'hides', 'leather', 'shoes',
   'barley', 'malt', 'flax', 'iron', 'clay', 'salt', 'charcoal', 'pottery',
   'manure', 'remedies', 'roofTiles', 'meat', 'fish', 'berries', 'mushrooms',
-  'milk', 'apples', 'cherries', 'vegetables', 'eggs', 'grapes',
-  'curedMeat', 'smokedFish', 'cheese',
+  'milk', 'apples', 'pears', 'cherries', 'aronia', 'rosehips',
+  'vegetables', 'cabbage', 'carrots', 'beetroot', 'eggs', 'grapes',
+  'curedMeat', 'smokedFish', 'cheese', 'aroniaJam', 'rosehipJam',
   'ryeSheaves', 'oatSheaves', 'barleySheaves', 'maslinSheaves',
 ] as const;
 

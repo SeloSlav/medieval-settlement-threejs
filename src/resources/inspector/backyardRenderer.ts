@@ -19,7 +19,6 @@ import {
   STONE_SALVAGE_FRACTION,
   TIMBER_SALVAGE_FRACTION,
   TOWN_HALL_UNSTAFFED_TAX_COLLECTION_MULTIPLIER,
-  RESIDENCE_LUXURY_JAM_CAPACITY,
 } from '../../generated/gameBalance.ts';
 import {
   backyardFoodReserveDays,
@@ -75,7 +74,7 @@ export function renderBackyardInspector(
   const isSelectedVegetable = def.specializationOf === 'vegetable_garden';
   const producesFood = def.foodPerPersonPerSec > 0;
   const marketChannel = backyardGardenMarketChannel(garden.kind);
-  const foodStock = edibleFoodStock(residence) + Math.max(0, garden.jamStock);
+  const foodStock = edibleFoodStock(residence);
   const taxRate = context.getEconomicActivityTaxRate?.() ?? ECONOMIC_ACTIVITY_TAX_RATE_DEFAULT;
   const hasMarketAccess = marketChannel !== null
     && context.worldQueries.isResidenceConnectedToMarketplace(residence, marketChannel);
@@ -177,7 +176,7 @@ export function renderBackyardInspector(
              : ''}`
         : ''}
       ${BACKYARD_GARDEN_DEFINITIONS[garden.kind].jamPerPersonPerSec > 0
-        ? `<li><span>Household jam</span><span>${garden.jamStock.toFixed(1)} / ${RESIDENCE_LUXURY_JAM_CAPACITY} jars · food at every tier${residence.tier >= 4 ? ' and luxury comfort from the same serving' : '; gains luxury value at tier 4'}</span></li>`
+        ? `<li><span>${garden.kind === 'aronia_orchard' ? 'Aronia jam' : 'Rosehip jam'}</span><span>${Math.max(0, garden.kind === 'aronia_orchard' ? residence.aroniaJam ?? 0 : residence.rosehipJam ?? 0).toFixed(1)} jars in the household pantry · transferable preserved food at every tier${residence.tier >= 4 ? ' and luxury comfort from the same serving' : '; gains luxury value at tier 4'}</span></li>`
         : ''}
       ${producesFood
         ? `<li><span>${isLivestockPen ? 'Average primary home food/day' : 'Home food today'}</span><span>${economy.selfFoodPerDay.toFixed(1)} (${hasMarketAccess ? `fills the tier ${residence.tier} ${reserveDays}-day reserve first` : '100% kept without a staffed stall'})</span></li>

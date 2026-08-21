@@ -3846,6 +3846,7 @@ pub enum TradeResource {
     MaslinBread,
     Ale,
     Cider,
+    PearCider,
     PreservedFood,
     Honey,
     Wine,
@@ -3873,13 +3874,21 @@ pub enum TradeResource {
     Mushrooms,
     Milk,
     Apples,
+    Pears,
     Cherries,
+    Aronia,
+    Rosehips,
     Vegetables,
+    Cabbage,
+    Carrots,
+    Beetroot,
     Eggs,
     Grapes,
     CuredMeat,
     SmokedFish,
     Cheese,
+    AroniaJam,
+    RosehipJam,
     RyeSheaves,
     OatSheaves,
     BarleySheaves,
@@ -3910,6 +3919,7 @@ impl TradeResource {
             Self::MaslinBread => TradeResourceSpendScope::MarketAccessible,
             Self::Ale => TradeResourceSpendScope::MarketAccessible,
             Self::Cider => TradeResourceSpendScope::MarketAccessible,
+            Self::PearCider => TradeResourceSpendScope::MarketAccessible,
             Self::PreservedFood => TradeResourceSpendScope::MarketAccessible,
             Self::Honey => TradeResourceSpendScope::MarketAccessible,
             Self::Wine => TradeResourceSpendScope::MarketAccessible,
@@ -3937,13 +3947,21 @@ impl TradeResource {
             Self::Mushrooms => TradeResourceSpendScope::MarketAccessible,
             Self::Milk => TradeResourceSpendScope::MarketAccessible,
             Self::Apples => TradeResourceSpendScope::MarketAccessible,
+            Self::Pears => TradeResourceSpendScope::MarketAccessible,
             Self::Cherries => TradeResourceSpendScope::MarketAccessible,
+            Self::Aronia => TradeResourceSpendScope::MarketAccessible,
+            Self::Rosehips => TradeResourceSpendScope::MarketAccessible,
             Self::Vegetables => TradeResourceSpendScope::MarketAccessible,
+            Self::Cabbage => TradeResourceSpendScope::MarketAccessible,
+            Self::Carrots => TradeResourceSpendScope::MarketAccessible,
+            Self::Beetroot => TradeResourceSpendScope::MarketAccessible,
             Self::Eggs => TradeResourceSpendScope::MarketAccessible,
             Self::Grapes => TradeResourceSpendScope::MarketAccessible,
             Self::CuredMeat => TradeResourceSpendScope::MarketAccessible,
             Self::SmokedFish => TradeResourceSpendScope::MarketAccessible,
             Self::Cheese => TradeResourceSpendScope::MarketAccessible,
+            Self::AroniaJam => TradeResourceSpendScope::MarketAccessible,
+            Self::RosehipJam => TradeResourceSpendScope::MarketAccessible,
             Self::RyeSheaves => TradeResourceSpendScope::MarketAccessible,
             Self::OatSheaves => TradeResourceSpendScope::MarketAccessible,
             Self::BarleySheaves => TradeResourceSpendScope::MarketAccessible,
@@ -4690,6 +4708,24 @@ const TRADE_SELL_APPLES: MarketplaceTradeOffer = MarketplaceTradeOffer {
     },
 };
 
+const TRADE_BUY_PEARS: MarketplaceTradeOffer = MarketplaceTradeOffer {
+    id: "buy_pears",
+    kind: MarketplaceTradeKind::GoldBuy {
+        resource: TradeResource::Pears,
+        amount: 10.0,
+        gold_cost: 13.0,
+    },
+};
+
+const TRADE_SELL_PEARS: MarketplaceTradeOffer = MarketplaceTradeOffer {
+    id: "sell_pears",
+    kind: MarketplaceTradeKind::GoldSell {
+        resource: TradeResource::Pears,
+        amount: 10.0,
+        gold_yield: 8.0,
+    },
+};
+
 const TRADE_BUY_CHERRIES: MarketplaceTradeOffer = MarketplaceTradeOffer {
     id: "buy_cherries",
     kind: MarketplaceTradeKind::GoldBuy {
@@ -4704,6 +4740,42 @@ const TRADE_SELL_CHERRIES: MarketplaceTradeOffer = MarketplaceTradeOffer {
     kind: MarketplaceTradeKind::GoldSell {
         resource: TradeResource::Cherries,
         amount: 10.0,
+        gold_yield: 8.0,
+    },
+};
+
+const TRADE_BUY_ARONIA: MarketplaceTradeOffer = MarketplaceTradeOffer {
+    id: "buy_aronia",
+    kind: MarketplaceTradeKind::GoldBuy {
+        resource: TradeResource::Aronia,
+        amount: 8.0,
+        gold_cost: 14.0,
+    },
+};
+
+const TRADE_SELL_ARONIA: MarketplaceTradeOffer = MarketplaceTradeOffer {
+    id: "sell_aronia",
+    kind: MarketplaceTradeKind::GoldSell {
+        resource: TradeResource::Aronia,
+        amount: 8.0,
+        gold_yield: 9.0,
+    },
+};
+
+const TRADE_BUY_ROSEHIPS: MarketplaceTradeOffer = MarketplaceTradeOffer {
+    id: "buy_rosehips",
+    kind: MarketplaceTradeKind::GoldBuy {
+        resource: TradeResource::Rosehips,
+        amount: 8.0,
+        gold_cost: 13.0,
+    },
+};
+
+const TRADE_SELL_ROSEHIPS: MarketplaceTradeOffer = MarketplaceTradeOffer {
+    id: "sell_rosehips",
+    kind: MarketplaceTradeKind::GoldSell {
+        resource: TradeResource::Rosehips,
+        amount: 8.0,
         gold_yield: 8.0,
     },
 };
@@ -4723,6 +4795,60 @@ const TRADE_SELL_VEGETABLES: MarketplaceTradeOffer = MarketplaceTradeOffer {
         resource: TradeResource::Vegetables,
         amount: 10.0,
         gold_yield: 7.0,
+    },
+};
+
+const TRADE_BUY_CABBAGE: MarketplaceTradeOffer = MarketplaceTradeOffer {
+    id: "buy_cabbage",
+    kind: MarketplaceTradeKind::GoldBuy {
+        resource: TradeResource::Cabbage,
+        amount: 10.0,
+        gold_cost: 10.0,
+    },
+};
+
+const TRADE_SELL_CABBAGE: MarketplaceTradeOffer = MarketplaceTradeOffer {
+    id: "sell_cabbage",
+    kind: MarketplaceTradeKind::GoldSell {
+        resource: TradeResource::Cabbage,
+        amount: 10.0,
+        gold_yield: 6.0,
+    },
+};
+
+const TRADE_BUY_CARROTS: MarketplaceTradeOffer = MarketplaceTradeOffer {
+    id: "buy_carrots",
+    kind: MarketplaceTradeKind::GoldBuy {
+        resource: TradeResource::Carrots,
+        amount: 10.0,
+        gold_cost: 11.0,
+    },
+};
+
+const TRADE_SELL_CARROTS: MarketplaceTradeOffer = MarketplaceTradeOffer {
+    id: "sell_carrots",
+    kind: MarketplaceTradeKind::GoldSell {
+        resource: TradeResource::Carrots,
+        amount: 10.0,
+        gold_yield: 7.0,
+    },
+};
+
+const TRADE_BUY_BEETROOT: MarketplaceTradeOffer = MarketplaceTradeOffer {
+    id: "buy_beetroot",
+    kind: MarketplaceTradeKind::GoldBuy {
+        resource: TradeResource::Beetroot,
+        amount: 10.0,
+        gold_cost: 9.0,
+    },
+};
+
+const TRADE_SELL_BEETROOT: MarketplaceTradeOffer = MarketplaceTradeOffer {
+    id: "sell_beetroot",
+    kind: MarketplaceTradeKind::GoldSell {
+        resource: TradeResource::Beetroot,
+        amount: 10.0,
+        gold_yield: 6.0,
     },
 };
 
@@ -4813,6 +4939,42 @@ const TRADE_SELL_CHEESE: MarketplaceTradeOffer = MarketplaceTradeOffer {
         resource: TradeResource::Cheese,
         amount: 8.0,
         gold_yield: 13.0,
+    },
+};
+
+const TRADE_BUY_ARONIA_JAM: MarketplaceTradeOffer = MarketplaceTradeOffer {
+    id: "buy_aronia_jam",
+    kind: MarketplaceTradeKind::GoldBuy {
+        resource: TradeResource::AroniaJam,
+        amount: 8.0,
+        gold_cost: 22.0,
+    },
+};
+
+const TRADE_SELL_ARONIA_JAM: MarketplaceTradeOffer = MarketplaceTradeOffer {
+    id: "sell_aronia_jam",
+    kind: MarketplaceTradeKind::GoldSell {
+        resource: TradeResource::AroniaJam,
+        amount: 8.0,
+        gold_yield: 15.0,
+    },
+};
+
+const TRADE_BUY_ROSEHIP_JAM: MarketplaceTradeOffer = MarketplaceTradeOffer {
+    id: "buy_rosehip_jam",
+    kind: MarketplaceTradeKind::GoldBuy {
+        resource: TradeResource::RosehipJam,
+        amount: 8.0,
+        gold_cost: 21.0,
+    },
+};
+
+const TRADE_SELL_ROSEHIP_JAM: MarketplaceTradeOffer = MarketplaceTradeOffer {
+    id: "sell_rosehip_jam",
+    kind: MarketplaceTradeKind::GoldSell {
+        resource: TradeResource::RosehipJam,
+        amount: 8.0,
+        gold_yield: 14.0,
     },
 };
 
@@ -4936,7 +5098,25 @@ const TRADE_SELL_CIDER: MarketplaceTradeOffer = MarketplaceTradeOffer {
     },
 };
 
-const ALL_MARKETPLACE_TRADES: &[MarketplaceTradeOffer] = &[TRADE_BUY_TIMBER, TRADE_SELL_TIMBER, TRADE_BUY_STONE, TRADE_SELL_STONE, TRADE_BUY_FIREWOOD, TRADE_SELL_FIREWOOD, TRADE_BUY_WATER, TRADE_SELL_WATER, TRADE_BUY_FOOD, TRADE_SELL_FOOD, TRADE_BUY_RYE_GRAIN, TRADE_SELL_RYE_GRAIN, TRADE_BUY_OAT_GRAIN, TRADE_SELL_OAT_GRAIN, TRADE_BUY_MASLIN_GRAIN, TRADE_SELL_MASLIN_GRAIN, TRADE_BUY_RYE_FLOUR, TRADE_SELL_RYE_FLOUR, TRADE_BUY_MASLIN_FLOUR, TRADE_SELL_MASLIN_FLOUR, TRADE_BUY_RYE_BREAD, TRADE_SELL_RYE_BREAD, TRADE_BUY_MASLIN_BREAD, TRADE_SELL_MASLIN_BREAD, TRADE_BUY_ALE, TRADE_SELL_ALE, TRADE_BUY_PRESERVED_FOOD, TRADE_SELL_PRESERVED_FOOD, TRADE_BUY_HONEY, TRADE_SELL_HONEY, TRADE_BUY_WINE, TRADE_SELL_WINE, TRADE_BUY_POLEARMS, TRADE_SELL_POLEARMS, TRADE_BUY_WOOL, TRADE_SELL_WOOL, TRADE_BUY_CLOTH, TRADE_SELL_CLOTH, TRADE_BUY_HIDES, TRADE_SELL_HIDES, TRADE_BUY_LEATHER, TRADE_SELL_LEATHER, TRADE_BUY_SHOES, TRADE_SELL_SHOES, TRADE_BUY_BARLEY_SEED, TRADE_SELL_BARLEY, TRADE_BUY_MALT, TRADE_SELL_MALT, TRADE_BUY_FLAX, TRADE_SELL_FLAX, TRADE_BUY_IRONWORK, TRADE_SELL_IRONWORK, TRADE_BUY_IRON, TRADE_SELL_IRON, TRADE_BUY_CLAY, TRADE_SELL_CLAY, TRADE_BUY_SALT, TRADE_SELL_SALT, TRADE_BUY_CHARCOAL, TRADE_SELL_CHARCOAL, TRADE_BUY_POTTERY, TRADE_SELL_POTTERY, TRADE_BUY_MANURE, TRADE_SELL_MANURE, TRADE_BUY_REMEDIES, TRADE_SELL_REMEDIES, TRADE_BUY_ROOF_TILES, TRADE_SELL_ROOF_TILES, TRADE_BUY_MEAT, TRADE_SELL_MEAT, TRADE_BUY_FISH, TRADE_SELL_FISH, TRADE_BUY_BERRIES, TRADE_SELL_BERRIES, TRADE_BUY_MUSHROOMS, TRADE_SELL_MUSHROOMS, TRADE_BUY_MILK, TRADE_SELL_MILK, TRADE_BUY_APPLES, TRADE_SELL_APPLES, TRADE_BUY_CHERRIES, TRADE_SELL_CHERRIES, TRADE_BUY_VEGETABLES, TRADE_SELL_VEGETABLES, TRADE_BUY_EGGS, TRADE_SELL_EGGS, TRADE_BUY_GRAPES, TRADE_SELL_GRAPES, TRADE_BUY_CURED_MEAT, TRADE_SELL_CURED_MEAT, TRADE_BUY_SMOKED_FISH, TRADE_SELL_SMOKED_FISH, TRADE_BUY_CHEESE_BULK, TRADE_SELL_CHEESE, TRADE_BUY_RYE_SHEAVES, TRADE_SELL_RYE_SHEAVES, TRADE_BUY_OAT_SHEAVES, TRADE_SELL_OAT_SHEAVES, TRADE_BUY_BARLEY_SHEAVES, TRADE_SELL_BARLEY_SHEAVES, TRADE_BUY_MASLIN_SHEAVES, TRADE_SELL_MASLIN_SHEAVES, TRADE_TIMBER_FOR_STONE, TRADE_STONE_FOR_TIMBER, TRADE_TIMBER_FOR_FIREWOOD, TRADE_BUY_CIDER, TRADE_SELL_CIDER];
+const TRADE_BUY_PEAR_CIDER: MarketplaceTradeOffer = MarketplaceTradeOffer {
+    id: "buy_pear_cider",
+    kind: MarketplaceTradeKind::GoldBuy {
+        resource: TradeResource::PearCider,
+        amount: 12.0,
+        gold_cost: 21.0,
+    },
+};
+
+const TRADE_SELL_PEAR_CIDER: MarketplaceTradeOffer = MarketplaceTradeOffer {
+    id: "sell_pear_cider",
+    kind: MarketplaceTradeKind::GoldSell {
+        resource: TradeResource::PearCider,
+        amount: 12.0,
+        gold_yield: 13.0,
+    },
+};
+
+const ALL_MARKETPLACE_TRADES: &[MarketplaceTradeOffer] = &[TRADE_BUY_TIMBER, TRADE_SELL_TIMBER, TRADE_BUY_STONE, TRADE_SELL_STONE, TRADE_BUY_FIREWOOD, TRADE_SELL_FIREWOOD, TRADE_BUY_WATER, TRADE_SELL_WATER, TRADE_BUY_FOOD, TRADE_SELL_FOOD, TRADE_BUY_RYE_GRAIN, TRADE_SELL_RYE_GRAIN, TRADE_BUY_OAT_GRAIN, TRADE_SELL_OAT_GRAIN, TRADE_BUY_MASLIN_GRAIN, TRADE_SELL_MASLIN_GRAIN, TRADE_BUY_RYE_FLOUR, TRADE_SELL_RYE_FLOUR, TRADE_BUY_MASLIN_FLOUR, TRADE_SELL_MASLIN_FLOUR, TRADE_BUY_RYE_BREAD, TRADE_SELL_RYE_BREAD, TRADE_BUY_MASLIN_BREAD, TRADE_SELL_MASLIN_BREAD, TRADE_BUY_ALE, TRADE_SELL_ALE, TRADE_BUY_PRESERVED_FOOD, TRADE_SELL_PRESERVED_FOOD, TRADE_BUY_HONEY, TRADE_SELL_HONEY, TRADE_BUY_WINE, TRADE_SELL_WINE, TRADE_BUY_POLEARMS, TRADE_SELL_POLEARMS, TRADE_BUY_WOOL, TRADE_SELL_WOOL, TRADE_BUY_CLOTH, TRADE_SELL_CLOTH, TRADE_BUY_HIDES, TRADE_SELL_HIDES, TRADE_BUY_LEATHER, TRADE_SELL_LEATHER, TRADE_BUY_SHOES, TRADE_SELL_SHOES, TRADE_BUY_BARLEY_SEED, TRADE_SELL_BARLEY, TRADE_BUY_MALT, TRADE_SELL_MALT, TRADE_BUY_FLAX, TRADE_SELL_FLAX, TRADE_BUY_IRONWORK, TRADE_SELL_IRONWORK, TRADE_BUY_IRON, TRADE_SELL_IRON, TRADE_BUY_CLAY, TRADE_SELL_CLAY, TRADE_BUY_SALT, TRADE_SELL_SALT, TRADE_BUY_CHARCOAL, TRADE_SELL_CHARCOAL, TRADE_BUY_POTTERY, TRADE_SELL_POTTERY, TRADE_BUY_MANURE, TRADE_SELL_MANURE, TRADE_BUY_REMEDIES, TRADE_SELL_REMEDIES, TRADE_BUY_ROOF_TILES, TRADE_SELL_ROOF_TILES, TRADE_BUY_MEAT, TRADE_SELL_MEAT, TRADE_BUY_FISH, TRADE_SELL_FISH, TRADE_BUY_BERRIES, TRADE_SELL_BERRIES, TRADE_BUY_MUSHROOMS, TRADE_SELL_MUSHROOMS, TRADE_BUY_MILK, TRADE_SELL_MILK, TRADE_BUY_APPLES, TRADE_SELL_APPLES, TRADE_BUY_PEARS, TRADE_SELL_PEARS, TRADE_BUY_CHERRIES, TRADE_SELL_CHERRIES, TRADE_BUY_ARONIA, TRADE_SELL_ARONIA, TRADE_BUY_ROSEHIPS, TRADE_SELL_ROSEHIPS, TRADE_BUY_VEGETABLES, TRADE_SELL_VEGETABLES, TRADE_BUY_CABBAGE, TRADE_SELL_CABBAGE, TRADE_BUY_CARROTS, TRADE_SELL_CARROTS, TRADE_BUY_BEETROOT, TRADE_SELL_BEETROOT, TRADE_BUY_EGGS, TRADE_SELL_EGGS, TRADE_BUY_GRAPES, TRADE_SELL_GRAPES, TRADE_BUY_CURED_MEAT, TRADE_SELL_CURED_MEAT, TRADE_BUY_SMOKED_FISH, TRADE_SELL_SMOKED_FISH, TRADE_BUY_CHEESE_BULK, TRADE_SELL_CHEESE, TRADE_BUY_ARONIA_JAM, TRADE_SELL_ARONIA_JAM, TRADE_BUY_ROSEHIP_JAM, TRADE_SELL_ROSEHIP_JAM, TRADE_BUY_RYE_SHEAVES, TRADE_SELL_RYE_SHEAVES, TRADE_BUY_OAT_SHEAVES, TRADE_SELL_OAT_SHEAVES, TRADE_BUY_BARLEY_SHEAVES, TRADE_SELL_BARLEY_SHEAVES, TRADE_BUY_MASLIN_SHEAVES, TRADE_SELL_MASLIN_SHEAVES, TRADE_TIMBER_FOR_STONE, TRADE_STONE_FOR_TIMBER, TRADE_TIMBER_FOR_FIREWOOD, TRADE_BUY_CIDER, TRADE_SELL_CIDER, TRADE_BUY_PEAR_CIDER, TRADE_SELL_PEAR_CIDER];
 
 pub fn marketplace_trade_offer(id: &str) -> Option<&'static MarketplaceTradeOffer> {
     ALL_MARKETPLACE_TRADES.iter().find(|offer| offer.id == id)
@@ -4995,18 +5175,27 @@ pub fn marketplace_trade_contract_code(id: &str) -> Option<u8> {
         "sell_mushrooms" => Some(41),
         "sell_milk" => Some(42),
         "sell_apples" => Some(43),
-        "sell_cherries" => Some(44),
-        "sell_vegetables" => Some(45),
-        "sell_eggs" => Some(46),
-        "sell_grapes" => Some(47),
-        "sell_cured_meat" => Some(48),
-        "sell_smoked_fish" => Some(49),
-        "sell_cheese" => Some(50),
-        "sell_rye_sheaves" => Some(51),
-        "sell_oat_sheaves" => Some(52),
-        "sell_barley_sheaves" => Some(53),
-        "sell_maslin_sheaves" => Some(54),
-        "sell_cider" => Some(55),
+        "sell_pears" => Some(44),
+        "sell_cherries" => Some(45),
+        "sell_aronia" => Some(46),
+        "sell_rosehips" => Some(47),
+        "sell_vegetables" => Some(48),
+        "sell_cabbage" => Some(49),
+        "sell_carrots" => Some(50),
+        "sell_beetroot" => Some(51),
+        "sell_eggs" => Some(52),
+        "sell_grapes" => Some(53),
+        "sell_cured_meat" => Some(54),
+        "sell_smoked_fish" => Some(55),
+        "sell_cheese" => Some(56),
+        "sell_aronia_jam" => Some(57),
+        "sell_rosehip_jam" => Some(58),
+        "sell_rye_sheaves" => Some(59),
+        "sell_oat_sheaves" => Some(60),
+        "sell_barley_sheaves" => Some(61),
+        "sell_maslin_sheaves" => Some(62),
+        "sell_cider" => Some(63),
+        "sell_pear_cider" => Some(64),
         _ => None,
     }
 }
@@ -5056,18 +5245,27 @@ pub fn marketplace_trade_offer_for_contract_code(code: u8) -> Option<&'static Ma
         41 => "sell_mushrooms",
         42 => "sell_milk",
         43 => "sell_apples",
-        44 => "sell_cherries",
-        45 => "sell_vegetables",
-        46 => "sell_eggs",
-        47 => "sell_grapes",
-        48 => "sell_cured_meat",
-        49 => "sell_smoked_fish",
-        50 => "sell_cheese",
-        51 => "sell_rye_sheaves",
-        52 => "sell_oat_sheaves",
-        53 => "sell_barley_sheaves",
-        54 => "sell_maslin_sheaves",
-        55 => "sell_cider",
+        44 => "sell_pears",
+        45 => "sell_cherries",
+        46 => "sell_aronia",
+        47 => "sell_rosehips",
+        48 => "sell_vegetables",
+        49 => "sell_cabbage",
+        50 => "sell_carrots",
+        51 => "sell_beetroot",
+        52 => "sell_eggs",
+        53 => "sell_grapes",
+        54 => "sell_cured_meat",
+        55 => "sell_smoked_fish",
+        56 => "sell_cheese",
+        57 => "sell_aronia_jam",
+        58 => "sell_rosehip_jam",
+        59 => "sell_rye_sheaves",
+        60 => "sell_oat_sheaves",
+        61 => "sell_barley_sheaves",
+        62 => "sell_maslin_sheaves",
+        63 => "sell_cider",
+        64 => "sell_pear_cider",
         _ => return None,
     };
     marketplace_trade_offer(id)

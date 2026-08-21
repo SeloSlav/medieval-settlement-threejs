@@ -2173,7 +2173,7 @@ export const BACKYARD_GARDEN_COSTS = {
 
 export const MARKETPLACE_BULK_TRADE_COOLDOWN_SECONDS = 8;
 
-export const TRADE_RESOURCE_KINDS = ["timber","stone","firewood","water","food","ryeGrain","oatGrain","maslinGrain","ryeFlour","maslinFlour","ryeBread","maslinBread","ale","cider","preservedFood","honey","wine","ironwork","polearms","wool","cloth","hides","leather","shoes","barley","malt","flax","iron","clay","salt","charcoal","pottery","manure","remedies","roofTiles","meat","fish","berries","mushrooms","milk","apples","cherries","vegetables","eggs","grapes","curedMeat","smokedFish","cheese","ryeSheaves","oatSheaves","barleySheaves","maslinSheaves"] as const;
+export const TRADE_RESOURCE_KINDS = ["timber","stone","firewood","water","food","ryeGrain","oatGrain","maslinGrain","ryeFlour","maslinFlour","ryeBread","maslinBread","ale","cider","pearCider","preservedFood","honey","wine","ironwork","polearms","wool","cloth","hides","leather","shoes","barley","malt","flax","iron","clay","salt","charcoal","pottery","manure","remedies","roofTiles","meat","fish","berries","mushrooms","milk","apples","pears","cherries","aronia","rosehips","vegetables","cabbage","carrots","beetroot","eggs","grapes","curedMeat","smokedFish","cheese","aroniaJam","rosehipJam","ryeSheaves","oatSheaves","barleySheaves","maslinSheaves"] as const;
 export type TradeResourceKind = (typeof TRADE_RESOURCE_KINDS)[number];
 
 export type TradeResourceSpendScope = 'marketAccessible' | 'treasury';
@@ -2193,6 +2193,7 @@ export const TRADE_RESOURCE_SPEND_SCOPES = {
   maslinBread: 'marketAccessible',
   ale: 'marketAccessible',
   cider: 'marketAccessible',
+  pearCider: 'marketAccessible',
   preservedFood: 'marketAccessible',
   honey: 'marketAccessible',
   wine: 'marketAccessible',
@@ -2220,13 +2221,21 @@ export const TRADE_RESOURCE_SPEND_SCOPES = {
   mushrooms: 'marketAccessible',
   milk: 'marketAccessible',
   apples: 'marketAccessible',
+  pears: 'marketAccessible',
   cherries: 'marketAccessible',
+  aronia: 'marketAccessible',
+  rosehips: 'marketAccessible',
   vegetables: 'marketAccessible',
+  cabbage: 'marketAccessible',
+  carrots: 'marketAccessible',
+  beetroot: 'marketAccessible',
   eggs: 'marketAccessible',
   grapes: 'marketAccessible',
   curedMeat: 'marketAccessible',
   smokedFish: 'marketAccessible',
   cheese: 'marketAccessible',
+  aroniaJam: 'marketAccessible',
+  rosehipJam: 'marketAccessible',
   ryeSheaves: 'marketAccessible',
   oatSheaves: 'marketAccessible',
   barleySheaves: 'marketAccessible',
@@ -2344,10 +2353,22 @@ export const MARKETPLACE_TRADE_OFFERS = [
   {"id":"sell_milk","kind":"goldSell","resource":"milk","amount":8,"goldYield":6},
   {"id":"buy_apples","kind":"goldBuy","resource":"apples","amount":10,"goldCost":12},
   {"id":"sell_apples","kind":"goldSell","resource":"apples","amount":10,"goldYield":7},
+  {"id":"buy_pears","kind":"goldBuy","resource":"pears","amount":10,"goldCost":13},
+  {"id":"sell_pears","kind":"goldSell","resource":"pears","amount":10,"goldYield":8},
   {"id":"buy_cherries","kind":"goldBuy","resource":"cherries","amount":10,"goldCost":14},
   {"id":"sell_cherries","kind":"goldSell","resource":"cherries","amount":10,"goldYield":8},
+  {"id":"buy_aronia","kind":"goldBuy","resource":"aronia","amount":8,"goldCost":14},
+  {"id":"sell_aronia","kind":"goldSell","resource":"aronia","amount":8,"goldYield":9},
+  {"id":"buy_rosehips","kind":"goldBuy","resource":"rosehips","amount":8,"goldCost":13},
+  {"id":"sell_rosehips","kind":"goldSell","resource":"rosehips","amount":8,"goldYield":8},
   {"id":"buy_vegetables","kind":"goldBuy","resource":"vegetables","amount":10,"goldCost":11},
   {"id":"sell_vegetables","kind":"goldSell","resource":"vegetables","amount":10,"goldYield":7},
+  {"id":"buy_cabbage","kind":"goldBuy","resource":"cabbage","amount":10,"goldCost":10},
+  {"id":"sell_cabbage","kind":"goldSell","resource":"cabbage","amount":10,"goldYield":6},
+  {"id":"buy_carrots","kind":"goldBuy","resource":"carrots","amount":10,"goldCost":11},
+  {"id":"sell_carrots","kind":"goldSell","resource":"carrots","amount":10,"goldYield":7},
+  {"id":"buy_beetroot","kind":"goldBuy","resource":"beetroot","amount":10,"goldCost":9},
+  {"id":"sell_beetroot","kind":"goldSell","resource":"beetroot","amount":10,"goldYield":6},
   {"id":"buy_eggs","kind":"goldBuy","resource":"eggs","amount":8,"goldCost":12},
   {"id":"sell_eggs","kind":"goldSell","resource":"eggs","amount":8,"goldYield":7},
   {"id":"buy_grapes","kind":"goldBuy","resource":"grapes","amount":10,"goldCost":14},
@@ -2358,6 +2379,10 @@ export const MARKETPLACE_TRADE_OFFERS = [
   {"id":"sell_smoked_fish","kind":"goldSell","resource":"smokedFish","amount":8,"goldYield":13},
   {"id":"buy_cheese_bulk","kind":"goldBuy","resource":"cheese","amount":8,"goldCost":20},
   {"id":"sell_cheese","kind":"goldSell","resource":"cheese","amount":8,"goldYield":13},
+  {"id":"buy_aronia_jam","kind":"goldBuy","resource":"aroniaJam","amount":8,"goldCost":22},
+  {"id":"sell_aronia_jam","kind":"goldSell","resource":"aroniaJam","amount":8,"goldYield":15},
+  {"id":"buy_rosehip_jam","kind":"goldBuy","resource":"rosehipJam","amount":8,"goldCost":21},
+  {"id":"sell_rosehip_jam","kind":"goldSell","resource":"rosehipJam","amount":8,"goldYield":14},
   {"id":"buy_rye_sheaves","kind":"goldBuy","resource":"ryeSheaves","amount":24,"goldCost":12},
   {"id":"sell_rye_sheaves","kind":"goldSell","resource":"ryeSheaves","amount":24,"goldYield":6},
   {"id":"buy_oat_sheaves","kind":"goldBuy","resource":"oatSheaves","amount":24,"goldCost":13},
@@ -2371,11 +2396,13 @@ export const MARKETPLACE_TRADE_OFFERS = [
   {"id":"timber_for_firewood","kind":"barter","give":"timber","giveAmount":10,"receive":"firewood","receiveAmount":18},
   {"id":"buy_cider","kind":"goldBuy","resource":"cider","amount":12,"goldCost":20},
   {"id":"sell_cider","kind":"goldSell","resource":"cider","amount":12,"goldYield":12},
+  {"id":"buy_pear_cider","kind":"goldBuy","resource":"pearCider","amount":12,"goldCost":21},
+  {"id":"sell_pear_cider","kind":"goldSell","resource":"pearCider","amount":12,"goldYield":13},
 ] as const satisfies readonly MarketplaceTradeOffer[];
 
 export type MarketplaceTradeOfferId = (typeof MARKETPLACE_TRADE_OFFERS)[number]['id'];
 
-export const MARKETPLACE_PENDING_TRADE_IDS = {"1":"sell_timber","2":"sell_stone","3":"sell_firewood","4":"sell_food","5":"timber_for_stone","6":"stone_for_timber","7":"timber_for_firewood","8":"sell_pottery","9":"sell_water","10":"sell_rye_grain","11":"sell_oat_grain","12":"sell_maslin_grain","13":"sell_rye_flour","14":"sell_maslin_flour","15":"sell_rye_bread","16":"sell_maslin_bread","17":"sell_ale","18":"sell_preserved_food","19":"sell_honey","20":"sell_wine","21":"sell_polearms","22":"sell_wool","23":"sell_cloth","24":"sell_hides","25":"sell_leather","26":"sell_shoes","27":"sell_barley","28":"sell_malt","29":"sell_flax","30":"sell_ironwork","31":"sell_iron","32":"sell_clay","33":"sell_salt","34":"sell_charcoal","35":"sell_manure","36":"sell_remedies","37":"sell_roof_tiles","38":"sell_meat","39":"sell_fish","40":"sell_berries","41":"sell_mushrooms","42":"sell_milk","43":"sell_apples","44":"sell_cherries","45":"sell_vegetables","46":"sell_eggs","47":"sell_grapes","48":"sell_cured_meat","49":"sell_smoked_fish","50":"sell_cheese","51":"sell_rye_sheaves","52":"sell_oat_sheaves","53":"sell_barley_sheaves","54":"sell_maslin_sheaves","55":"sell_cider"} as const;
+export const MARKETPLACE_PENDING_TRADE_IDS = {"1":"sell_timber","2":"sell_stone","3":"sell_firewood","4":"sell_food","5":"timber_for_stone","6":"stone_for_timber","7":"timber_for_firewood","8":"sell_pottery","9":"sell_water","10":"sell_rye_grain","11":"sell_oat_grain","12":"sell_maslin_grain","13":"sell_rye_flour","14":"sell_maslin_flour","15":"sell_rye_bread","16":"sell_maslin_bread","17":"sell_ale","18":"sell_preserved_food","19":"sell_honey","20":"sell_wine","21":"sell_polearms","22":"sell_wool","23":"sell_cloth","24":"sell_hides","25":"sell_leather","26":"sell_shoes","27":"sell_barley","28":"sell_malt","29":"sell_flax","30":"sell_ironwork","31":"sell_iron","32":"sell_clay","33":"sell_salt","34":"sell_charcoal","35":"sell_manure","36":"sell_remedies","37":"sell_roof_tiles","38":"sell_meat","39":"sell_fish","40":"sell_berries","41":"sell_mushrooms","42":"sell_milk","43":"sell_apples","44":"sell_pears","45":"sell_cherries","46":"sell_aronia","47":"sell_rosehips","48":"sell_vegetables","49":"sell_cabbage","50":"sell_carrots","51":"sell_beetroot","52":"sell_eggs","53":"sell_grapes","54":"sell_cured_meat","55":"sell_smoked_fish","56":"sell_cheese","57":"sell_aronia_jam","58":"sell_rosehip_jam","59":"sell_rye_sheaves","60":"sell_oat_sheaves","61":"sell_barley_sheaves","62":"sell_maslin_sheaves","63":"sell_cider","64":"sell_pear_cider"} as const;
 
 export const MARKET_PRICE_UPDATE_INTERVAL_TICKS = 150;
 export const MARKET_PRICE_MULTIPLIER_MIN = 0.78;

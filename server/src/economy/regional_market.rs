@@ -80,16 +80,27 @@ pub fn price_multiplier_for(state: &MarketState, resource: TradeResource) -> f64
         | TradeResource::Mushrooms
         | TradeResource::Milk
         | TradeResource::Apples
+        | TradeResource::Pears
         | TradeResource::Cherries
+        | TradeResource::Aronia
+        | TradeResource::Rosehips
         | TradeResource::Vegetables
+        | TradeResource::Cabbage
+        | TradeResource::Carrots
+        | TradeResource::Beetroot
         | TradeResource::Eggs
         | TradeResource::Grapes => state.food_price_mult,
-        TradeResource::Ale | TradeResource::Cider | TradeResource::Wine => state.drink_price_mult,
+        TradeResource::Ale
+        | TradeResource::Cider
+        | TradeResource::PearCider
+        | TradeResource::Wine => state.drink_price_mult,
         TradeResource::PreservedFood
         | TradeResource::Honey
         | TradeResource::CuredMeat
         | TradeResource::SmokedFish
-        | TradeResource::Cheese => state.provision_price_mult,
+        | TradeResource::Cheese
+        | TradeResource::AroniaJam
+        | TradeResource::RosehipJam => state.provision_price_mult,
         TradeResource::Wool
         | TradeResource::Cloth
         | TradeResource::Hides
@@ -218,14 +229,23 @@ pub fn record_market_trade(
         | TradeResource::Mushrooms
         | TradeResource::Milk
         | TradeResource::Apples
+        | TradeResource::Pears
         | TradeResource::Cherries
+        | TradeResource::Aronia
+        | TradeResource::Rosehips
         | TradeResource::Vegetables
+        | TradeResource::Cabbage
+        | TradeResource::Carrots
+        | TradeResource::Beetroot
         | TradeResource::Eggs
         | TradeResource::Grapes => {
             state.regional_food_supply =
                 adjust_supply_index(state.regional_food_supply, direction, amount);
         }
-        TradeResource::Ale | TradeResource::Cider | TradeResource::Wine => {
+        TradeResource::Ale
+        | TradeResource::Cider
+        | TradeResource::PearCider
+        | TradeResource::Wine => {
             state.regional_drink_demand =
                 adjust_demand_index(state.regional_drink_demand, direction, amount);
         }
@@ -233,7 +253,9 @@ pub fn record_market_trade(
         | TradeResource::Honey
         | TradeResource::CuredMeat
         | TradeResource::SmokedFish
-        | TradeResource::Cheese => {
+        | TradeResource::Cheese
+        | TradeResource::AroniaJam
+        | TradeResource::RosehipJam => {
             state.regional_provision_demand =
                 adjust_demand_index(state.regional_provision_demand, direction, amount);
         }
@@ -390,10 +412,16 @@ fn refresh_specialty_prices(state: &mut MarketState) {
 
 pub fn specialty_family_for_commodity(commodity: CommodityKind) -> Option<SpecialtyMarketFamily> {
     match commodity {
-        CommodityKind::Ale | CommodityKind::Cider | CommodityKind::Wine => {
+        CommodityKind::Ale
+        | CommodityKind::Cider
+        | CommodityKind::PearCider
+        | CommodityKind::Wine => {
             Some(SpecialtyMarketFamily::Drink)
         }
-        CommodityKind::Honey | CommodityKind::Cheese => Some(SpecialtyMarketFamily::Provision),
+        CommodityKind::Honey
+        | CommodityKind::Cheese
+        | CommodityKind::AroniaJam
+        | CommodityKind::RosehipJam => Some(SpecialtyMarketFamily::Provision),
         CommodityKind::Cloth | CommodityKind::Shoes | CommodityKind::Pottery => {
             Some(SpecialtyMarketFamily::Wares)
         }

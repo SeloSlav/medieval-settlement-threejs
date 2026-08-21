@@ -373,6 +373,26 @@ pub struct PlayerResources {
     /// Finished footwear recovered from cobblers or interrupted household delivery.
     #[default(0.0)]
     pub shoes: f64,
+    /// Backyard crops and preserves retain their species identity through every ledger.
+    #[default(0.0)]
+    pub pears: f64,
+    #[default(0.0)]
+    pub aronia: f64,
+    #[default(0.0)]
+    pub rosehips: f64,
+    #[default(0.0)]
+    pub cabbage: f64,
+    #[default(0.0)]
+    pub carrots: f64,
+    #[default(0.0)]
+    pub beetroot: f64,
+    #[default(0.0)]
+    pub aronia_jam: f64,
+    #[default(0.0)]
+    pub rosehip_jam: f64,
+    /// Pear cider is distinct from the established `cider` (apple cider) stock.
+    #[default(0.0)]
+    pub pear_cider: f64,
 }
 
 #[spacetimedb::table(accessor = quarry, public)]
@@ -844,7 +864,7 @@ pub struct Building {
     /// Honey wine held by brewhouses, taverns, and haulers.
     #[default(0.0)]
     pub mead: f64,
-    /// Brewhouse active recipe: 0 ale, 1 cider, 2 mead, 3 automatic.
+    /// Brewhouse active recipe: 0 ale, 1 apple cider, 2 mead, 3 automatic, 4 pear cider.
     #[default(0u8)]
     pub brewery_recipe_policy: u8,
     /// Monastery orchard: 0 apples, 1 grapevines.
@@ -890,6 +910,25 @@ pub struct Building {
     pub leather: f64,
     #[default(0.0)]
     pub shoes: f64,
+    /// Species-typed backyard harvests, preserves, and pear drink.
+    #[default(0.0)]
+    pub pears: f64,
+    #[default(0.0)]
+    pub aronia: f64,
+    #[default(0.0)]
+    pub rosehips: f64,
+    #[default(0.0)]
+    pub cabbage: f64,
+    #[default(0.0)]
+    pub carrots: f64,
+    #[default(0.0)]
+    pub beetroot: f64,
+    #[default(0.0)]
+    pub aronia_jam: f64,
+    #[default(0.0)]
+    pub rosehip_jam: f64,
+    #[default(0.0)]
+    pub pear_cider: f64,
 }
 
 /// One persistent import/export instruction for one Trading Post commodity.
@@ -1323,6 +1362,23 @@ pub struct Residence {
     /// Threshed oats are a ready household staple as well as livestock fodder.
     #[default(0.0)]
     pub oat_grain: f64,
+    /// Backyard harvest identity survives household storage and consumption.
+    #[default(0.0)]
+    pub pears: f64,
+    #[default(0.0)]
+    pub aronia: f64,
+    #[default(0.0)]
+    pub rosehips: f64,
+    #[default(0.0)]
+    pub cabbage: f64,
+    #[default(0.0)]
+    pub carrots: f64,
+    #[default(0.0)]
+    pub beetroot: f64,
+    #[default(0.0)]
+    pub aronia_jam: f64,
+    #[default(0.0)]
+    pub rosehip_jam: f64,
 }
 
 #[spacetimedb::table(
@@ -1358,11 +1414,6 @@ pub struct BackyardGarden {
     /// production chain is still absent.
     #[default(0.0)]
     pub hide_stock: f64,
-    /// Household-produced aronia or rosehip preserves. These are edible food
-    /// at every tier; at tier 4 the same serving also satisfies local luxury
-    /// comfort. Kept on the backyard row to avoid teleporting jars.
-    #[default(0.0)]
-    pub jam_stock: f64,
     /// A tier-4 cut-flower upgrade satisfies the same luxury-comfort need as
     /// preserves while retaining the garden's pollinator/attraction effects.
     #[default(false)]

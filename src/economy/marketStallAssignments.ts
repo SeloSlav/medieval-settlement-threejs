@@ -168,15 +168,23 @@ function marketStallDisplayKind(
     case 'meat': return 'meat';
     case 'fish': return 'fish';
     case 'berries':
+    case 'aronia':
+    case 'rosehips':
     case 'mushrooms': return 'foraged';
     case 'milk': return 'milk';
     case 'apples':
+    case 'pears':
     case 'cherries':
     case 'grapes': return 'fruit';
-    case 'vegetables': return 'vegetables';
+    case 'vegetables':
+    case 'cabbage':
+    case 'carrots':
+    case 'beetroot': return 'vegetables';
     case 'eggs': return 'eggs';
     case 'honey': return 'honey';
-    case 'preservedFood': return 'preserves';
+    case 'preservedFood':
+    case 'aroniaJam':
+    case 'rosehipJam': return 'preserves';
     case 'curedMeat': return 'curedMeat';
     case 'smokedFish': return 'smokedFish';
     case 'cheese': return 'cheese';

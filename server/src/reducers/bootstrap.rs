@@ -364,6 +364,15 @@ pub(crate) fn place_founding_camp(ctx: &ReducerContext, x: f64, z: f64) -> Resul
         hides: resources.hides.max(0.0),
         leather: resources.leather.max(0.0),
         shoes: resources.shoes.max(0.0),
+        pears: resources.pears.max(0.0),
+        aronia: resources.aronia.max(0.0),
+        rosehips: resources.rosehips.max(0.0),
+        cabbage: resources.cabbage.max(0.0),
+        carrots: resources.carrots.max(0.0),
+        beetroot: resources.beetroot.max(0.0),
+        aronia_jam: resources.aronia_jam.max(0.0),
+        rosehip_jam: resources.rosehip_jam.max(0.0),
+        pear_cider: resources.pear_cider.max(0.0),
     });
 
     resources.timber = 0.0;
@@ -377,6 +386,15 @@ pub(crate) fn place_founding_camp(ctx: &ReducerContext, x: f64, z: f64) -> Resul
     resources.hides = 0.0;
     resources.leather = 0.0;
     resources.shoes = 0.0;
+    resources.pears = 0.0;
+    resources.aronia = 0.0;
+    resources.rosehips = 0.0;
+    resources.cabbage = 0.0;
+    resources.carrots = 0.0;
+    resources.beetroot = 0.0;
+    resources.aronia_jam = 0.0;
+    resources.rosehip_jam = 0.0;
+    resources.pear_cider = 0.0;
     resources.preserved_food = 0.0;
     resources.honey = 0.0;
     resources.wine = 0.0;

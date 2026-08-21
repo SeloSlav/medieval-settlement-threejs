@@ -1,0 +1,224 @@
+By 07:40 the next morning, cold had tightened the weather seals along the eastern gallery. Each door opened with a rubbery crack. Tomas crossed above the service lanes with his right hand closed around the thermal strip inside his glove. He had taken it from the mechanical drawer beneath his sink and tucked it behind the lining again. Mara had not spoken through the wall speaker while he dressed, and he had left without calling her.
+
+The Orchestration House stood between two compute blocks at the edge of the eastern campus. Its lower floors occupied a broad civic building whose old timber frame had been preserved under newer glass. Frost covered the panes above the district-heating mains.
+
+A public panel beside the entrance reported that the campus was supplying eleven percent of the eastern district’s heat. Someone had drawn a smiling face in the condensation beneath the number.
+
+Nyurgun answered Tomas’s arrival message from inside.
+
+<i>Come up. If the agents solve this before you arrive, I’ll pretend I did it.</i>
+
+The main orchestration floor was warmer than Continuity. Tomas removed his coat and carried it between shallow work bays. In the nearest bay, an orchestrator paced inside a marked circle with one hand cupped over his earpiece while a field of quiet voices argued into it.
+
+Nyurgun Sleptsov occupied the last bay beside the campus wall. His hair was flattened on one side, and untouched porridge sat beneath his display. Hundreds of luminous threads crossed the glass. Successful branches brightened; failed ones tightened into gray knots.
+
+“You brought contraband before breakfast,” Nyurgun said.
+
+“Retained evidence.”
+
+“That sounds safer.”
+
+“You said to come.”
+
+“I expected you to arrive after I had eaten.” Nyurgun nudged the porridge toward an empty corner. “Give me ten minutes.”
+
+Tomas took the spare chair. A thermal schematic filled the center of the display. It showed a new crossover planned between the campus coolant return and the municipal heating loop. The eastern district depended on the existing exchangers; the crossover would keep hot water moving while workers isolated a failing bank.
+
+At the right edge of the display, JANUS marked the design compliant. Nyurgun’s agents had reached the same conclusion through hundreds of separate reviews. Only minor disputes over wear remained.
+
+“Then what are we waiting for?” Tomas asked.
+
+“It’s wrong.”
+
+“Where?”
+
+Nyurgun enlarged the pressure curve. It rose after the simulated isolation, settled, then ran as smoothly as a drawn horizon.
+
+“I don’t know.”
+
+Tomas looked at the compliance mark. “How long have they been testing it?”
+
+“Since four.”
+
+“And none found a failure.”
+
+“They found plenty. The design survived them.” Nyurgun leaned closer to the curve. “It still feels wrong.”
+
+He placed two fingers against the contact strip on his desk. The luminous threads loosened from their knots.
+
+“Reject the current boundary,” he said. “Spend the next cycle explaining my objection.”
+
+The threads divided so quickly that the schematic dimmed behind them. Four hundred and thirty-one agents began from Nyurgun’s refusal and searched for reasons it might deserve attention. They attacked assumptions that the original review had held fixed, and each new branch left an audit trail for a sibling to break.
+
+Tomas had seen orchestrations in public demonstrations, where disagreements became clean trees and the human at the center appeared to conduct them with a hand. At Nyurgun’s desk, most proposals died before he had time to read their labels. The few that survived arrived with objections already attached.
+
+“You told them the design was wrong,” Tomas said. “Doesn’t that bias the search?”
+
+“Of course. The first search was biased toward proving it worked.”
+
+Nyurgun dismissed a proposal about pump cavitation. An agent restored it under a different pressure assumption. Three more attacked the restoration, and the branch went gray.
+
+“The answer may still be that I’m tired,” Nyurgun said. “They’re allowed to establish that.”
+
+A new thread opened across the middle of the schematic. It linked the campus isolation controller to an older municipal control station two kilometers east. The systems belonged to different operators and had been tested separately, although both responded to the same fall in return pressure.
+
+Nyurgun sat forward. “Open their timing.”
+
+The smooth curve broke into two moving lines. When the campus valve narrowed, the municipal station compensated. Its correction reached the crossover after an eighteen-second delay and caused the campus controller to reopen. The municipal station then withdrew its correction. With both controllers active, the valves began to hunt against each other.
+
+The first surviving branch found that the eastern station had received a faster actuator the previous autumn while the procurement model still used the old timing. A sibling widened the ambient-temperature envelope and found that cold compensation in both valve housings strengthened the oscillation.
+
+Eleven minutes into the simulated run, flow collapsed along the model’s outer residential spur. A red band spread over the district map.
+
+Nyurgun called the campus engineer. “Delay fabrication on crossover seven. I’m sending you a coupled-control failure.”
+
+The engineer appeared in a small pane, his face creased from a respirator seal. “JANUS cleared seven.”
+
+“On the campus boundary. Couple it to Municipal East with the current actuator.”
+
+A pause followed while the engineer ran the supplied branch. His eyes shifted once to someone outside the pane.
+
+“I see it,” he said. “Send the witness chain.”
+
+Nyurgun released the chain with his credential. The red map disappeared, leaving his desk crowded with agents arguing over corrections.
+
+Tomas looked through the glass wall. A compute block filled the view, its exchanger plumes feeding the ice fog. “JANUS missed that?”
+
+“JANUS answered the procurement question. The campus can isolate safely. The municipal controller is stable on its own. Nobody asked what they do to each other.”
+
+“You did.”
+
+“I said the curve made my teeth hurt.”
+
+“That was enough?”
+
+“The only bit I gave them was my belief that the design was wrong.”
+
+“Could they have generated the objection without you?” Tomas asked.
+
+“Eventually, if someone paid to attack every boundary.”
+
+“So this is Closure in practice?”
+
+Nyurgun gave him a tired look. “Please don’t turn my breakfast into a seminar.”
+
+“I’m asking.”
+
+“If you want them to emulate this particular hesitation, first give them the relevant microtubular state in its biological context. At useful scale that costs more compute than this campus owns.” He picked up the cold porridge and tasted it. “It remains cheaper to feed me, even badly.”
+
+Tomas glanced at the plumes. “At least the failed branches warmed the baths.”
+
+“They complained the last time we solved something quickly.”
+
+Tomas smiled despite the strip pressing against his palm.
+
+Nyurgun set the bowl aside and cleared the central display. “Now show me what made you cross the city.”
+
+Before Tomas removed his glove, he said, “The hash comes from a child’s protected medical record.”
+
+“Who knows you have it?”
+
+“No one.”
+
+Nyurgun waited.
+
+“Aysen knows I saw the record,” Tomas said. “He watched me see it.”
+
+“And the access log?”
+
+Tomas hesitated. “I left an ice-link exception.”
+
+“Was there an ice-link failure?”
+
+“No.”
+
+Nyurgun closed his eyes for a moment. “Do I need the child’s identity?”
+
+“No.”
+
+“Then don’t give it to me.”
+
+Tomas worked the folded strip from behind the lining and placed it on the desk. Nyurgun did not touch it. He brought an isolated reader over the printed characters, and the sixty-four symbols appeared on a blank local pane.
+
+“What do you believe this proves?” Nyurgun asked.
+
+“That a female source root was created twenty-three years ago. A fresh ovum from the same line entered Continuity six years and eleven months ago.”
+
+“I asked what it proves.”
+
+Tomas felt Mara’s bedroom cooling around him again. “The intake fields prove that much.”
+
+“The fields as you remember them. This proves you copied a hash.”
+
+“I watched Aysen reclassify the record.”
+
+“That proves he restricted it.”
+
+“You sound like Mara.”
+
+“I like Mara.”
+
+Nyurgun checked the hash against Continuity’s public witness ledger. The search revealed no medical payload, but the ledger accepted the commitment as genuine. A timestamp appeared beside it, twenty-three years and twelve days old, with two later migration seals beneath the original issue.
+
+Tomas leaned toward the display. “Can you open those?”
+
+“I can verify who signed them.”
+
+Nyurgun quarantined the value before assigning archival agents to follow the seals. They received only match-or-reject responses from the witness paths. The first migration belonged to a general Continuity harmonization. The later seal used a format retired years ago, yet the current provenance service still carried a translation certificate for it.
+
+One agent recovered the old schema from a deprecation library. Its certificate pointed to a read-only maternal-line concordance that Continuity had used during the Settlement transition. The concordance held historical source trees whose names no longer appeared in routine production views.
+
+A gray address appeared.
+
+[READOUT]ARCHIVAL SOURCE CONCORDANCE  
+CONTINUITY CREDENTIAL REQUIRED
+
+Tomas reached for the pane. Nyurgun caught his wrist before he touched it.
+
+“This is where your question matters,” Nyurgun said. “The concordance may show how the root was assembled. Fresh does not necessarily mean a living donor.”
+
+“It excluded cryostock.”
+
+“It may not exclude an ovum matured from maintained tissue.”
+
+“The source phenotype was female.”
+
+“A maintained tissue line can carry a female phenotype. Stop asking the ledger for a person.”
+
+Heat rose into Tomas’s face. He had unfolded the strip expecting Nyurgun to find a woman behind it. The display offered only seals and a timestamp. On the wall behind them, the corrected thermal model now included both controllers. The violent pressure oscillation had flattened into a smaller, uneven curve.
+
+“Can the agents test whether there was a living contributor?” Tomas asked.
+
+“Not from this ledger. They can help you read what survives in the concordance.”
+
+“What if the names are gone?”
+
+“Then you document the absence and keep looking elsewhere.”
+
+Nyurgun copied the archival address onto the back of the thermal strip. Beneath it he added the translation certificate identifier by hand.
+
+“The public witness only gives us this address,” he said. “Your Continuity credential should open the concordance.”
+
+Tomas refolded the strip. “You could lose your license for helping me.”
+
+“For reading a public ledger?”
+
+“For knowing why.”
+
+Nyurgun glanced at him. “I know you found a protected source record and are already too fond of your explanation. If you bring me evidence of something worse, I’ll reconsider my peril.”
+
+Tomas slid the paper behind his glove lining. This time he did not picture boots striking snow from a clinic floor.
+
+At the lift, he opened a message to Mara.
+
+<i>Nyurgun found a route into the old source trees. I still don’t know who supplied the ovum.</i>
+
+He hesitated, then added another line.
+
+<i>You were right about the boots.</i>
+
+Mara’s answer arrived as the lift doors opened.
+
+<i>I know. Come home tonight anyway.</i>
+
+Tomas stepped into the gallery. Heat from the compute campus ran beneath the handrail, warm enough to sting his palm. Behind the glass, exchanger plumes rose through the cold while Nyurgun’s agents continued arguing over the district valves.

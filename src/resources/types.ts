@@ -1,4 +1,4 @@
-export const RESOURCE_KINDS = ['timber', 'stone', 'firewood', 'water', 'game', 'berries', 'mushrooms', 'fish', 'food', 'ryeSheaves', 'oatSheaves', 'barleySheaves', 'maslinSheaves', 'ryeGrain', 'oatGrain', 'maslinGrain', 'barley', 'malt', 'ryeFlour', 'maslinFlour', 'ale', 'cider', 'mead', 'preservedFood', 'honey', 'wine', 'wool', 'flax', 'cloth', 'hides', 'leather', 'shoes', 'ironwork', 'polearms', 'iron', 'clay', 'salt', 'charcoal', 'pottery', 'roofTiles', 'gold', 'ryeBread', 'maslinBread', 'meat', 'milk', 'apples', 'cherries', 'vegetables', 'eggs', 'grapes', 'curedMeat', 'smokedFish', 'cheese'] as const;
+export const RESOURCE_KINDS = ['timber', 'stone', 'firewood', 'water', 'game', 'berries', 'mushrooms', 'fish', 'food', 'ryeSheaves', 'oatSheaves', 'barleySheaves', 'maslinSheaves', 'ryeGrain', 'oatGrain', 'maslinGrain', 'barley', 'malt', 'ryeFlour', 'maslinFlour', 'ale', 'cider', 'pearCider', 'mead', 'preservedFood', 'honey', 'wine', 'wool', 'flax', 'cloth', 'hides', 'leather', 'shoes', 'ironwork', 'polearms', 'iron', 'clay', 'salt', 'charcoal', 'pottery', 'roofTiles', 'gold', 'ryeBread', 'maslinBread', 'meat', 'milk', 'apples', 'pears', 'cherries', 'aronia', 'rosehips', 'vegetables', 'cabbage', 'carrots', 'beetroot', 'eggs', 'grapes', 'curedMeat', 'smokedFish', 'cheese', 'aroniaJam', 'rosehipJam'] as const;
 export type ResourceKind = (typeof RESOURCE_KINDS)[number];
 
 export const RESOURCE_NODE_KINDS = ['quarry', 'game', 'berries', 'mushrooms', 'fish'] as const;
@@ -94,6 +94,7 @@ export type BuildingState = {
   maslinFlour?: number;
   ale: number;
   cider?: number;
+  pearCider?: number;
   mead?: number;
   preservedFood: number;
   honey: number;
@@ -122,13 +123,21 @@ export type BuildingState = {
   mushrooms?: number;
   milk?: number;
   apples?: number;
+  pears?: number;
   cherries?: number;
+  aronia?: number;
+  rosehips?: number;
   vegetables?: number;
+  cabbage?: number;
+  carrots?: number;
+  beetroot?: number;
   eggs?: number;
   grapes?: number;
   curedMeat?: number;
   smokedFish?: number;
   cheese?: number;
+  aroniaJam?: number;
+  rosehipJam?: number;
   gold: number;
   waterCapacity: number;
   assignedLabor: number;
@@ -168,7 +177,7 @@ export type BuildingState = {
   storehouseClayTargetPercent?: number;
   storehouseSaltTargetPercent?: number;
   processorOutputTargetPercent?: number;
-  /** 0 ale, 1 cider, 2 mead, 3 automatic; meaningful only for brewhouses. */
+  /** 0 ale, 1 apple cider, 2 mead, 3 automatic, 4 pear cider. */
   breweryRecipePolicy?: number;
   /** 1 fields first, 2 demand-aware automatic, 3 thresh before non-harvest fieldwork. */
   threshingPriority?: number;
@@ -389,13 +398,21 @@ export type ResidenceState = {
   mushrooms?: number;
   milk?: number;
   apples?: number;
+  pears?: number;
   cherries?: number;
+  aronia?: number;
+  rosehips?: number;
   vegetables?: number;
+  cabbage?: number;
+  carrots?: number;
+  beetroot?: number;
   eggs?: number;
   grapes?: number;
   curedMeat?: number;
   smokedFish?: number;
   cheese?: number;
+  aroniaJam?: number;
+  rosehipJam?: number;
   foodInventoryMigrated?: boolean;
   /** Deprecated replicated save field. Runtime homes are never abandoned. */
   abandoned: boolean;
@@ -465,7 +482,6 @@ export type BackyardGardenState = {
   lastPrimaryProductionDay: number;
   lastSecondaryProductionDay: number;
   hideStock: number;
-  jamStock: number;
   flowerLuxuryUpgraded: boolean;
 };
 
@@ -550,7 +566,7 @@ export type InspectableTarget =
     };
 
 export function createEmptyStockpile(): ResourceStockpile {
-  return { timber: 0, stone: 0, firewood: 0, water: 0, game: 0, berries: 0, mushrooms: 0, fish: 0, food: 0, ryeSheaves: 0, oatSheaves: 0, barleySheaves: 0, maslinSheaves: 0, ryeGrain: 0, oatGrain: 0, maslinGrain: 0, barley: 0, malt: 0, ryeFlour: 0, maslinFlour: 0, ale: 0, cider: 0, mead: 0, preservedFood: 0, honey: 0, wine: 0, wool: 0, flax: 0, cloth: 0, hides: 0, leather: 0, shoes: 0, ironwork: 0, polearms: 0, iron: 0, clay: 0, salt: 0, charcoal: 0, pottery: 0, roofTiles: 0, gold: 0, ryeBread: 0, maslinBread: 0, meat: 0, milk: 0, apples: 0, cherries: 0, vegetables: 0, eggs: 0, grapes: 0, curedMeat: 0, smokedFish: 0, cheese: 0 };
+  return Object.fromEntries(RESOURCE_KINDS.map((kind) => [kind, 0])) as ResourceStockpile;
 }
 
 export function isResourceKind(value: string): value is ResourceKind {

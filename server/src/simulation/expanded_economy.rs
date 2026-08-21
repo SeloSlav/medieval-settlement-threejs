@@ -37,7 +37,7 @@ use crate::balance_generated::{
 };
 use crate::brewery_recipe_policy::{
     normalize_brewery_recipe_policy, BREWERY_RECIPE_ALE, BREWERY_RECIPE_AUTO, BREWERY_RECIPE_CIDER,
-    BREWERY_RECIPE_MEAD,
+    BREWERY_RECIPE_MEAD, BREWERY_RECIPE_PEAR_CIDER,
 };
 use crate::building_defs::building_def;
 use crate::burgage::{Point2, ZoneCorners};
@@ -2443,6 +2443,16 @@ pub fn step_brewery(
                 &[(CommodityKind::Cider, BREWERY_CIDER_PER_CYCLE)],
             );
         }
+        BREWERY_RECIPE_PEAR_CIDER => {
+            brewery = step_processor(
+                ctx,
+                tick,
+                clock,
+                brewery,
+                &[(CommodityKind::Pears, BREWERY_APPLES_PER_CIDER_CYCLE)],
+                &[(CommodityKind::PearCider, BREWERY_CIDER_PER_CYCLE)],
+            );
+        }
         BREWERY_RECIPE_MEAD => {
             brewery = step_processor(
                 ctx,
@@ -2495,6 +2505,7 @@ pub fn step_brewery(
     for beverage in [
         CommodityKind::Ale,
         CommodityKind::Cider,
+        CommodityKind::PearCider,
         CommodityKind::Mead,
     ] {
         dispatch_to_building_where(
@@ -2545,6 +2556,14 @@ fn selected_brewery_recipe(building: &Building) -> u8 {
             BREWERY_RECIPE_CIDER,
             if brewery_output_headroom(building, CommodityKind::Cider) > 1e-6 {
                 building.apples / BREWERY_APPLES_PER_CIDER_CYCLE.max(1e-9)
+            } else {
+                -1.0
+            },
+        ),
+        (
+            BREWERY_RECIPE_PEAR_CIDER,
+            if brewery_output_headroom(building, CommodityKind::PearCider) > 1e-6 {
+                building.pears / BREWERY_APPLES_PER_CIDER_CYCLE.max(1e-9)
             } else {
                 -1.0
             },
@@ -2603,6 +2622,17 @@ fn request_brewery_recipe_inputs(
             clock,
             brewery,
             CommodityKind::Apples,
+            &["marketplace", "granary", "trading_post"],
+            BREWERY_APPLES_PER_CIDER_CYCLE * staging_cycles,
+        );
+    }
+    if selected_recipe == BREWERY_RECIPE_PEAR_CIDER || policy == BREWERY_RECIPE_AUTO {
+        request_connected_commodity(
+            ctx,
+            tick,
+            clock,
+            brewery,
+            CommodityKind::Pears,
             &["marketplace", "granary", "trading_post"],
             BREWERY_APPLES_PER_CIDER_CYCLE * staging_cycles,
         );
@@ -3962,6 +3992,7 @@ fn processor_uses_input(kind: &str, commodity: CommodityKind) -> bool {
                 | CommodityKind::Water
                 | CommodityKind::Firewood
                 | CommodityKind::Apples
+                | CommodityKind::Pears
                 | CommodityKind::Honey
         ),
         "vineyard" => commodity == CommodityKind::Grapes,
@@ -4029,6 +4060,7 @@ pub(crate) fn processor_accepts_input(building: &Building, commodity: CommodityK
         let policy = normalize_brewery_recipe_policy(building.brewery_recipe_policy);
         let recipe_accepts = match policy {
             BREWERY_RECIPE_CIDER => commodity == CommodityKind::Apples,
+            BREWERY_RECIPE_PEAR_CIDER => commodity == CommodityKind::Pears,
             BREWERY_RECIPE_MEAD => commodity == CommodityKind::Honey,
             BREWERY_RECIPE_AUTO => true,
             _ => matches!(
@@ -4044,9 +4076,11 @@ pub(crate) fn processor_accepts_input(building: &Building, commodity: CommodityK
         }
         let output = match policy {
             BREWERY_RECIPE_CIDER => CommodityKind::Cider,
+            BREWERY_RECIPE_PEAR_CIDER => CommodityKind::PearCider,
             BREWERY_RECIPE_MEAD => CommodityKind::Mead,
             BREWERY_RECIPE_AUTO => match commodity {
                 CommodityKind::Apples => CommodityKind::Cider,
+                CommodityKind::Pears => CommodityKind::PearCider,
                 CommodityKind::Honey => CommodityKind::Mead,
                 _ => CommodityKind::Ale,
             },

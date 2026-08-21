@@ -1,0 +1,110 @@
+{
+  "pdf": "C:\\WebProjects\\medieval-road-system\\.codex-work\\sons-of-eva\\user-master-baseline-render\\Sons-of-Eva.pdf",
+  "page_count": 17,
+  "rendered_pages": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16
+  ],
+  "sizes": [
+    {
+      "page": 1,
+      "width_pt": 432.0,
+      "height_pt": 648.0
+    },
+    {
+      "page": 2,
+      "width_pt": 432.0,
+      "height_pt": 648.0
+    },
+    {
+      "page": 3,
+      "width_pt": 432.0,
+      "height_pt": 648.0
+    },
+    {
+      "page": 4,
+      "width_pt": 432.0,
+      "height_pt": 648.0
+    },
+    {
+      "page": 5,
+      "width_pt": 432.0,
+      "height_pt": 648.0
+    },
+    {
+      "page": 6,
+      "width_pt": 432.0,
+      "height_pt": 648.0
+    },
+    {
+      "page": 7,
+      "width_pt": 432.0,
+      "height_pt": 648.0
+    },
+    {
+      "page": 8,
+      "width_pt": 432.0,
+      "height_pt": 648.0
+    },
+    {
+      "page": 9,
+      "width_pt": 432.0,
+      "height_pt": 648.0
+    },
+    {
+      "page": 10,
+      "width_pt": 432.0,
+      "height_pt": 648.0
+    },
+    {
+      "page": 11,
+      "width_pt": 432.0,
+      "height_pt": 648.0
+    },
+    {
+      "page": 12,
+      "width_pt": 432.0,
+      "height_pt": 648.0
+    },
+    {
+      "page": 13,
+      "width_pt": 432.0,
+      "height_pt": 648.0
+    },
+    {
+      "page": 14,
+      "width_pt": 432.0,
+      "height_pt": 648.0
+    },
+    {
+      "page": 15,
+      "width_pt": 432.0,
+      "height_pt": 648.0
+    },
+    {
+      "page": 16,
+      "width_pt": 432.0,
+      "height_pt": 648.0
+    },
+    {
+      "page": 17,
+      "width_pt": 432.0,
+      "height_pt": 648.0
+    }
+  ]
+}

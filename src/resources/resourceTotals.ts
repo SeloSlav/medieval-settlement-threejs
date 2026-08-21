@@ -79,6 +79,7 @@ export type ResourceTotals = {
   maslinFlour: number;
   ale: number;
   cider: number;
+  pearCider: number;
   mead: number;
   preservedFood: number;
   honey: number;
@@ -106,13 +107,21 @@ export type ResourceTotals = {
   mushrooms: number;
   milk: number;
   apples: number;
+  pears: number;
   cherries: number;
+  aronia: number;
+  rosehips: number;
   vegetables: number;
+  cabbage: number;
+  carrots: number;
+  beetroot: number;
   eggs: number;
   grapes: number;
   curedMeat: number;
   smokedFish: number;
   cheese: number;
+  aroniaJam: number;
+  rosehipJam: number;
   /** Compatibility stock from old saves; never produced by the new economy. */
   legacyFood: number;
   /** Compatibility cured stock from old saves; never produced by the new economy. */
@@ -140,6 +149,7 @@ export const HUD_RESOURCE_KINDS = [
   'maslinFlour',
   'ale',
   'cider',
+  'pearCider',
   'mead',
   'preservedFood',
   'honey',
@@ -228,6 +238,7 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
   let maslinFlour = ledger?.maslinFlour ?? 0;
   let ale = ledger?.ale ?? 0;
   let cider = ledger?.cider ?? 0;
+  let pearCider = ledger?.pearCider ?? 0;
   let mead = ledger?.mead ?? 0;
   let legacyPreservedFood = ledger?.preservedFood ?? 0;
   let honey = ledger?.honey ?? 0;
@@ -255,13 +266,21 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
   let mushrooms = ledger?.mushrooms ?? 0;
   let milk = ledger?.milk ?? 0;
   let apples = ledger?.apples ?? 0;
+  let pears = ledger?.pears ?? 0;
   let cherries = ledger?.cherries ?? 0;
+  let aronia = ledger?.aronia ?? 0;
+  let rosehips = ledger?.rosehips ?? 0;
   let vegetables = ledger?.vegetables ?? 0;
+  let cabbage = ledger?.cabbage ?? 0;
+  let carrots = ledger?.carrots ?? 0;
+  let beetroot = ledger?.beetroot ?? 0;
   let eggs = ledger?.eggs ?? 0;
   let grapes = ledger?.grapes ?? 0;
   let curedMeat = ledger?.curedMeat ?? 0;
   let smokedFish = ledger?.smokedFish ?? 0;
   let cheese = ledger?.cheese ?? 0;
+  let aroniaJam = ledger?.aroniaJam ?? 0;
+  let rosehipJam = ledger?.rosehipJam ?? 0;
   let gold = ledger?.gold ?? 0;
   let reservedTimber = 0;
   let reservedStone = 0;
@@ -279,13 +298,21 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
   let reservedMushrooms = 0;
   let reservedMilk = 0;
   let reservedApples = 0;
+  let reservedPears = 0;
   let reservedCherries = 0;
+  let reservedAronia = 0;
+  let reservedRosehips = 0;
   let reservedVegetables = 0;
+  let reservedCabbage = 0;
+  let reservedCarrots = 0;
+  let reservedBeetroot = 0;
   let reservedEggs = 0;
   let reservedGrapes = 0;
   let reservedCuredMeat = 0;
   let reservedSmokedFish = 0;
   let reservedCheese = 0;
+  let reservedAroniaJam = 0;
+  let reservedRosehipJam = 0;
 
   for (const building of state.buildings.values()) {
     timber += building.timber;
@@ -307,6 +334,7 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
     maslinFlour += building.maslinFlour ?? 0;
     ale += building.ale;
     cider += building.cider ?? 0;
+    pearCider += building.pearCider ?? 0;
     mead += building.mead ?? 0;
     legacyPreservedFood += building.preservedFood;
     honey += building.honey;
@@ -334,13 +362,21 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
     mushrooms += building.mushrooms ?? 0;
     milk += building.milk ?? 0;
     apples += building.apples ?? 0;
+    pears += building.pears ?? 0;
     cherries += building.cherries ?? 0;
+    aronia += building.aronia ?? 0;
+    rosehips += building.rosehips ?? 0;
     vegetables += building.vegetables ?? 0;
+    cabbage += building.cabbage ?? 0;
+    carrots += building.carrots ?? 0;
+    beetroot += building.beetroot ?? 0;
     eggs += building.eggs ?? 0;
     grapes += building.grapes ?? 0;
     curedMeat += building.curedMeat ?? 0;
     smokedFish += building.smokedFish ?? 0;
     cheese += building.cheese ?? 0;
+    aroniaJam += building.aroniaJam ?? 0;
+    rosehipJam += building.rosehipJam ?? 0;
     // Monastery provisions belong to the enclosed estate economy. Keep them in
     // the physical-storage ledger for inspection, but never advertise them as
     // food available to the town's household provisioning plan.
@@ -356,13 +392,21 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
       reservedMushrooms += Math.max(0, building.mushrooms ?? 0);
       reservedMilk += Math.max(0, building.milk ?? 0);
       reservedApples += Math.max(0, building.apples ?? 0);
+      reservedPears += Math.max(0, building.pears ?? 0);
       reservedCherries += Math.max(0, building.cherries ?? 0);
+      reservedAronia += Math.max(0, building.aronia ?? 0);
+      reservedRosehips += Math.max(0, building.rosehips ?? 0);
       reservedVegetables += Math.max(0, building.vegetables ?? 0);
+      reservedCabbage += Math.max(0, building.cabbage ?? 0);
+      reservedCarrots += Math.max(0, building.carrots ?? 0);
+      reservedBeetroot += Math.max(0, building.beetroot ?? 0);
       reservedEggs += Math.max(0, building.eggs ?? 0);
       reservedGrapes += Math.max(0, building.grapes ?? 0);
       reservedCuredMeat += Math.max(0, building.curedMeat ?? 0);
       reservedSmokedFish += Math.max(0, building.smokedFish ?? 0);
       reservedCheese += Math.max(0, building.cheese ?? 0);
+      reservedAroniaJam += Math.max(0, building.aroniaJam ?? 0);
+      reservedRosehipJam += Math.max(0, building.rosehipJam ?? 0);
     }
     if (
       building.kind === 'founders_camp'
@@ -399,13 +443,21 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
     const pantryMushrooms = Math.max(0, residence.mushrooms ?? 0);
     const pantryMilk = Math.max(0, residence.milk ?? 0);
     const pantryApples = Math.max(0, residence.apples ?? 0);
+    const pantryPears = Math.max(0, residence.pears ?? 0);
     const pantryCherries = Math.max(0, residence.cherries ?? 0);
+    const pantryAronia = Math.max(0, residence.aronia ?? 0);
+    const pantryRosehips = Math.max(0, residence.rosehips ?? 0);
     const pantryVegetables = Math.max(0, residence.vegetables ?? 0);
+    const pantryCabbage = Math.max(0, residence.cabbage ?? 0);
+    const pantryCarrots = Math.max(0, residence.carrots ?? 0);
+    const pantryBeetroot = Math.max(0, residence.beetroot ?? 0);
     const pantryEggs = Math.max(0, residence.eggs ?? 0);
     const pantryGrapes = Math.max(0, residence.grapes ?? 0);
     const pantryCuredMeat = Math.max(0, residence.curedMeat ?? 0);
     const pantrySmokedFish = Math.max(0, residence.smokedFish ?? 0);
     const pantryCheese = Math.max(0, residence.cheese ?? 0);
+    const pantryAroniaJam = Math.max(0, residence.aroniaJam ?? 0);
+    const pantryRosehipJam = Math.max(0, residence.rosehipJam ?? 0);
     legacyFood += pantryLegacyFood;
     legacyPreservedFood += pantryLegacyPreserved;
     honey += pantryHoney;
@@ -417,13 +469,21 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
     mushrooms += pantryMushrooms;
     milk += pantryMilk;
     apples += pantryApples;
+    pears += pantryPears;
     cherries += pantryCherries;
+    aronia += pantryAronia;
+    rosehips += pantryRosehips;
     vegetables += pantryVegetables;
+    cabbage += pantryCabbage;
+    carrots += pantryCarrots;
+    beetroot += pantryBeetroot;
     eggs += pantryEggs;
     grapes += pantryGrapes;
     curedMeat += pantryCuredMeat;
     smokedFish += pantrySmokedFish;
     cheese += pantryCheese;
+    aroniaJam += pantryAroniaJam;
+    rosehipJam += pantryRosehipJam;
     reservedLegacyFood += pantryLegacyFood;
     reservedLegacyPreservedFood += pantryLegacyPreserved;
     reservedHoney += pantryHoney;
@@ -435,13 +495,21 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
     reservedMushrooms += pantryMushrooms;
     reservedMilk += pantryMilk;
     reservedApples += pantryApples;
+    reservedPears += pantryPears;
     reservedCherries += pantryCherries;
+    reservedAronia += pantryAronia;
+    reservedRosehips += pantryRosehips;
     reservedVegetables += pantryVegetables;
+    reservedCabbage += pantryCabbage;
+    reservedCarrots += pantryCarrots;
+    reservedBeetroot += pantryBeetroot;
     reservedEggs += pantryEggs;
     reservedGrapes += pantryGrapes;
     reservedCuredMeat += pantryCuredMeat;
     reservedSmokedFish += pantrySmokedFish;
     reservedCheese += pantryCheese;
+    reservedAroniaJam += pantryAroniaJam;
+    reservedRosehipJam += pantryRosehipJam;
     ale += getNeedStock(residence.needs, 'ale');
     cloth += getNeedStock(residence.needs, 'cloth');
     pottery += getNeedStock(residence.needs, 'pottery');
@@ -451,7 +519,9 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
   const storedPreservedFood = legacyPreservedFood * foodMealValue('preservedFood')
     + curedMeat * foodMealValue('curedMeat')
     + smokedFish * foodMealValue('smokedFish')
-    + cheese * foodMealValue('cheese');
+    + cheese * foodMealValue('cheese')
+    + aroniaJam * foodMealValue('aroniaJam')
+    + rosehipJam * foodMealValue('rosehipJam');
   const storedFood = legacyFood * foodMealValue('food')
     + ryeBread * foodMealValue('ryeBread')
     + maslinBread * foodMealValue('maslinBread')
@@ -461,8 +531,14 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
     + mushrooms * foodMealValue('mushrooms')
     + milk * foodMealValue('milk')
     + apples * foodMealValue('apples')
+    + pears * foodMealValue('pears')
     + cherries * foodMealValue('cherries')
+    + aronia * foodMealValue('aronia')
+    + rosehips * foodMealValue('rosehips')
     + vegetables * foodMealValue('vegetables')
+    + cabbage * foodMealValue('cabbage')
+    + carrots * foodMealValue('carrots')
+    + beetroot * foodMealValue('beetroot')
     + eggs * foodMealValue('eggs')
     + grapes * foodMealValue('grapes')
     + storedPreservedFood
@@ -488,6 +564,7 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
     maslinFlour,
     ale,
     cider,
+    pearCider,
     mead,
     preservedFood: storedPreservedFood,
     honey,
@@ -515,13 +592,21 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
     mushrooms,
     milk,
     apples,
+    pears,
     cherries,
+    aronia,
+    rosehips,
     vegetables,
+    cabbage,
+    carrots,
+    beetroot,
     eggs,
     grapes,
     curedMeat,
     smokedFish,
     cheese,
+    aroniaJam,
+    rosehipJam,
     legacyFood,
     legacyPreservedFood,
   };
@@ -539,17 +624,27 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
   const surplusMushrooms = Math.max(0, mushrooms - reservedMushrooms);
   const surplusMilk = Math.max(0, milk - reservedMilk);
   const surplusApples = Math.max(0, apples - reservedApples);
+  const surplusPears = Math.max(0, pears - reservedPears);
   const surplusCherries = Math.max(0, cherries - reservedCherries);
+  const surplusAronia = Math.max(0, aronia - reservedAronia);
+  const surplusRosehips = Math.max(0, rosehips - reservedRosehips);
   const surplusVegetables = Math.max(0, vegetables - reservedVegetables);
+  const surplusCabbage = Math.max(0, cabbage - reservedCabbage);
+  const surplusCarrots = Math.max(0, carrots - reservedCarrots);
+  const surplusBeetroot = Math.max(0, beetroot - reservedBeetroot);
   const surplusEggs = Math.max(0, eggs - reservedEggs);
   const surplusGrapes = Math.max(0, grapes - reservedGrapes);
   const surplusCuredMeat = Math.max(0, curedMeat - reservedCuredMeat);
   const surplusSmokedFish = Math.max(0, smokedFish - reservedSmokedFish);
   const surplusCheese = Math.max(0, cheese - reservedCheese);
+  const surplusAroniaJam = Math.max(0, aroniaJam - reservedAroniaJam);
+  const surplusRosehipJam = Math.max(0, rosehipJam - reservedRosehipJam);
   const surplusPreservedFood = surplusLegacyPreservedFood * foodMealValue('preservedFood')
     + surplusCuredMeat * foodMealValue('curedMeat')
     + surplusSmokedFish * foodMealValue('smokedFish')
-    + surplusCheese * foodMealValue('cheese');
+    + surplusCheese * foodMealValue('cheese')
+    + surplusAroniaJam * foodMealValue('aroniaJam')
+    + surplusRosehipJam * foodMealValue('rosehipJam');
   const surplusFood = surplusLegacyFood * foodMealValue('food')
     + surplusRyeBread * foodMealValue('ryeBread')
     + surplusMaslinBread * foodMealValue('maslinBread')
@@ -559,8 +654,14 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
     + surplusMushrooms * foodMealValue('mushrooms')
     + surplusMilk * foodMealValue('milk')
     + surplusApples * foodMealValue('apples')
+    + surplusPears * foodMealValue('pears')
     + surplusCherries * foodMealValue('cherries')
+    + surplusAronia * foodMealValue('aronia')
+    + surplusRosehips * foodMealValue('rosehips')
     + surplusVegetables * foodMealValue('vegetables')
+    + surplusCabbage * foodMealValue('cabbage')
+    + surplusCarrots * foodMealValue('carrots')
+    + surplusBeetroot * foodMealValue('beetroot')
     + surplusEggs * foodMealValue('eggs')
     + surplusGrapes * foodMealValue('grapes')
     + surplusPreservedFood
@@ -583,13 +684,21 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
     mushrooms: surplusMushrooms,
     milk: surplusMilk,
     apples: surplusApples,
+    pears: surplusPears,
     cherries: surplusCherries,
+    aronia: surplusAronia,
+    rosehips: surplusRosehips,
     vegetables: surplusVegetables,
+    cabbage: surplusCabbage,
+    carrots: surplusCarrots,
+    beetroot: surplusBeetroot,
     eggs: surplusEggs,
     grapes: surplusGrapes,
     curedMeat: surplusCuredMeat,
     smokedFish: surplusSmokedFish,
     cheese: surplusCheese,
+    aroniaJam: surplusAroniaJam,
+    rosehipJam: surplusRosehipJam,
     legacyFood: surplusLegacyFood,
     legacyPreservedFood: surplusLegacyPreservedFood,
   };
@@ -632,7 +741,9 @@ export function computeInTransitResourceTotals(
   totals.preservedFood = totals.legacyPreservedFood * foodMealValue('preservedFood')
     + totals.curedMeat * foodMealValue('curedMeat')
     + totals.smokedFish * foodMealValue('smokedFish')
-    + totals.cheese * foodMealValue('cheese');
+    + totals.cheese * foodMealValue('cheese')
+    + totals.aroniaJam * foodMealValue('aroniaJam')
+    + totals.rosehipJam * foodMealValue('rosehipJam');
   totals.food = totals.legacyFood * foodMealValue('food')
     + totals.ryeBread * foodMealValue('ryeBread')
     + totals.maslinBread * foodMealValue('maslinBread')
@@ -642,8 +753,14 @@ export function computeInTransitResourceTotals(
     + totals.mushrooms * foodMealValue('mushrooms')
     + totals.milk * foodMealValue('milk')
     + totals.apples * foodMealValue('apples')
+    + totals.pears * foodMealValue('pears')
     + totals.cherries * foodMealValue('cherries')
+    + totals.aronia * foodMealValue('aronia')
+    + totals.rosehips * foodMealValue('rosehips')
     + totals.vegetables * foodMealValue('vegetables')
+    + totals.cabbage * foodMealValue('cabbage')
+    + totals.carrots * foodMealValue('carrots')
+    + totals.beetroot * foodMealValue('beetroot')
     + totals.eggs * foodMealValue('eggs')
     + totals.grapes * foodMealValue('grapes')
     + totals.preservedFood
@@ -952,6 +1069,7 @@ function emptyResourceTotals(): ResourceTotals {
     maslinFlour: 0,
     ale: 0,
     cider: 0,
+    pearCider: 0,
     mead: 0,
     preservedFood: 0,
     honey: 0,
@@ -979,13 +1097,21 @@ function emptyResourceTotals(): ResourceTotals {
     mushrooms: 0,
     milk: 0,
     apples: 0,
+    pears: 0,
     cherries: 0,
+    aronia: 0,
+    rosehips: 0,
     vegetables: 0,
+    cabbage: 0,
+    carrots: 0,
+    beetroot: 0,
     eggs: 0,
     grapes: 0,
     curedMeat: 0,
     smokedFish: 0,
     cheese: 0,
+    aroniaJam: 0,
+    rosehipJam: 0,
     legacyFood: 0,
     legacyPreservedFood: 0,
   };

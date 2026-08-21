@@ -20,8 +20,14 @@ export const FRESH_FOOD_KINDS = [
   'mushrooms',
   'milk',
   'apples',
+  'pears',
   'cherries',
+  'aronia',
+  'rosehips',
   'vegetables',
+  'cabbage',
+  'carrots',
+  'beetroot',
   'eggs',
   'grapes',
 ] as const;
@@ -31,6 +37,8 @@ export const PRESERVED_FOOD_KINDS = [
   'curedMeat',
   'smokedFish',
   'cheese',
+  'aroniaJam',
+  'rosehipJam',
 ] as const;
 
 export const NAMED_FOOD_KINDS = [
@@ -43,13 +51,21 @@ export const NAMED_FOOD_KINDS = [
   'mushrooms',
   'milk',
   'apples',
+  'pears',
   'cherries',
+  'aronia',
+  'rosehips',
   'vegetables',
+  'cabbage',
+  'carrots',
+  'beetroot',
   'eggs',
   'grapes',
   'curedMeat',
   'smokedFish',
   'cheese',
+  'aroniaJam',
+  'rosehipJam',
   'honey',
 ] as const;
 
@@ -69,13 +85,21 @@ export const NAMED_FOOD_LABELS: Record<NamedFoodKind, string> = {
   mushrooms: 'Mushrooms',
   milk: 'Milk',
   apples: 'Apples',
+  pears: 'Pears',
   cherries: 'Cherries',
+  aronia: 'Aronia berries',
+  rosehips: 'Rosehips',
   vegetables: 'Vegetables',
+  cabbage: 'Cabbage',
+  carrots: 'Carrots',
+  beetroot: 'Beetroot',
   eggs: 'Eggs',
   grapes: 'Grapes',
   curedMeat: 'Cured meat',
   smokedFish: 'Smoked fish',
   cheese: 'Cheese',
+  aroniaJam: 'Aronia jam',
+  rosehipJam: 'Rosehip jam',
   honey: 'Honey',
 };
 
@@ -93,14 +117,22 @@ export const FOOD_MEAL_VALUES: Readonly<Record<FoodInventoryKind, number>> = {
   mushrooms: 0.6,
   milk: 0.75,
   apples: 0.6,
+  pears: 0.62,
   cherries: 0.6,
+  aronia: 0.5,
+  rosehips: 0.52,
   vegetables: 0.7,
+  cabbage: 0.75,
+  carrots: 0.68,
+  beetroot: 0.7,
   eggs: 0.75,
   grapes: 0.6,
   preservedFood: 1,
   curedMeat: 1.15,
   smokedFish: 1.05,
   cheese: 0.9,
+  aroniaJam: 1,
+  rosehipJam: 1,
   honey: 1.2,
 };
 
@@ -116,14 +148,22 @@ export const FOOD_SPOILAGE_MULTIPLIERS: Readonly<Record<FoodInventoryKind, numbe
   mushrooms: 1.6,
   milk: 2.4,
   apples: 0.75,
+  pears: 0.8,
   cherries: 1,
+  aronia: 1.3,
+  rosehips: 1.2,
   vegetables: 1,
+  cabbage: 0.8,
+  carrots: 0.7,
+  beetroot: 0.75,
   eggs: 0.9,
   grapes: 1.2,
   preservedFood: 0.75,
   curedMeat: 0.55,
   smokedFish: 0.7,
   cheese: 1,
+  aroniaJam: 0.35,
+  rosehipJam: 0.35,
   honey: 0,
 };
 
@@ -177,8 +217,12 @@ export function foodCategory(kind: FoodInventoryKind): FoodCategory {
     case 'preservedFood':
       return 'grains';
     case 'vegetables':
+    case 'cabbage':
+    case 'carrots':
+    case 'beetroot':
       return 'vegetables';
     case 'apples':
+    case 'pears':
     case 'cherries':
     case 'grapes':
       return 'fruits';
@@ -193,6 +237,10 @@ export function foodCategory(kind: FoodInventoryKind): FoodCategory {
     case 'smokedFish':
       return 'fishes';
     case 'berries':
+    case 'aronia':
+    case 'rosehips':
+    case 'aroniaJam':
+    case 'rosehipJam':
     case 'mushrooms':
       return 'foraged';
     case 'honey':

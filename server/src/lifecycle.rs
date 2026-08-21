@@ -263,6 +263,15 @@ pub fn ensure_player_resources(ctx: &ReducerContext, owner: Identity) {
         hides: 0.0,
         leather: 0.0,
         shoes: 0.0,
+        pears: 0.0,
+        aronia: 0.0,
+        rosehips: 0.0,
+        cabbage: 0.0,
+        carrots: 0.0,
+        beetroot: 0.0,
+        aronia_jam: 0.0,
+        rosehip_jam: 0.0,
+        pear_cider: 0.0,
     });
     ensure_market_state(ctx, owner);
     ensure_settlement_security(ctx, owner);

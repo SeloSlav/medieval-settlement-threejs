@@ -8,7 +8,7 @@ use crate::backyard_garden_policy::{
 use crate::balance_generated::{
     backyard_garden_def, BackyardGardenKind, CALENDAR_SECONDS_PER_DAY, FOOD_SALE_GOLD_PER_UNIT,
     HERB_REMEDIES_PER_PERSON_DAY, HERB_REMEDY_CAPACITY, HERB_REMEDY_SALE_GOLD_PER_UNIT,
-    RESIDENCE_LUXURY_JAM_CAPACITY, TICK_DT,
+    TICK_DT,
 };
 use crate::db::*;
 use crate::economy::{
@@ -159,30 +159,15 @@ fn step_one_garden(
             * seasonal_multiplier
             * pollination_multiplier
             * TICK_DT;
-        let allocation = allocate_backyard_food(
-            total_food,
-            marketplace_id.is_some(),
-            residence.tier,
-            residence.population,
-            residence_edible_food_stock(residence) + garden.jam_stock.max(0.0),
-        );
         let commodity = backyard_food_commodity(kind);
-        let kept_food = if allocation.self_food > 1e-9 {
-            commodity
-                .map(|commodity| {
-                    deposit_self_food(ctx, residence.id, commodity, allocation.self_food)
-                })
-                .unwrap_or(0.0)
-        } else {
-            0.0
-        };
-        if let (Some(marketplace_id), Some(commodity)) = (marketplace_id, commodity) {
-            // If the relevant home store is full, offer that physical overflow too.
-            let market_food = (total_food - kept_food).max(0.0);
-            if market_food > 1e-9 {
-                market_food_sold =
-                    deposit_market_commodity(ctx, marketplace_id, commodity, market_food);
-            }
+        if let Some(commodity) = commodity {
+            market_food_sold += distribute_backyard_food(
+                ctx,
+                residence,
+                marketplace_id,
+                commodity,
+                total_food,
+            );
         }
     }
 
@@ -203,7 +188,10 @@ fn step_one_garden(
 
     if def.jam_per_person_per_sec > 1e-9 {
         let jam = population * def.jam_per_person_per_sec * seasonal_multiplier * TICK_DT;
-        deposit_backyard_jam(ctx, garden.id, jam);
+        if let Some(commodity) = backyard_jam_commodity(kind) {
+            market_food_sold +=
+                distribute_backyard_food(ctx, residence, marketplace_id, commodity, jam);
+        }
     }
 
     if marketplace_id.is_none() {
@@ -239,26 +227,6 @@ fn deposit_herb_remedies(ctx: &ReducerContext, residence: &Residence, amount: f6
     deposited
 }
 
-fn deposit_backyard_jam(ctx: &ReducerContext, garden_id: u64, amount: f64) -> f64 {
-    if amount <= 1e-9 {
-        return 0.0;
-    }
-    let Some(mut garden) = ctx.db.backyard_garden().id().find(&garden_id) else {
-        return 0.0;
-    };
-    let residence_id = garden.residence_id;
-    let before = garden.jam_stock.max(0.0);
-    garden.jam_stock = (before + amount).min(RESIDENCE_LUXURY_JAM_CAPACITY);
-    let deposited = (garden.jam_stock - before).max(0.0);
-    ctx.db.backyard_garden().id().update(garden);
-    if deposited > 1e-9 {
-        if let Some(residence) = ctx.db.residence().id().find(&residence_id) {
-            sync_food_need_rows(ctx, &residence);
-        }
-    }
-    deposited
-}
-
 fn backyard_market_stall_need(kind: BackyardGardenKind) -> Option<ResidenceNeedKind> {
     match kind {
         BackyardGardenKind::FlowerGarden
@@ -274,13 +242,12 @@ fn backyard_food_commodity(kind: BackyardGardenKind) -> Option<CommodityKind> {
     match kind {
         BackyardGardenKind::AppleOrchard => Some(CommodityKind::Apples),
         BackyardGardenKind::CherryOrchard => Some(CommodityKind::Cherries),
-        BackyardGardenKind::PearOrchard => Some(CommodityKind::Apples),
-        BackyardGardenKind::AroniaOrchard | BackyardGardenKind::RosehipOrchard => {
-            Some(CommodityKind::Berries)
-        }
-        BackyardGardenKind::CabbageGarden
-        | BackyardGardenKind::CarrotGarden
-        | BackyardGardenKind::BeetrootGarden => Some(CommodityKind::Vegetables),
+        BackyardGardenKind::PearOrchard => Some(CommodityKind::Pears),
+        BackyardGardenKind::AroniaOrchard => Some(CommodityKind::Aronia),
+        BackyardGardenKind::RosehipOrchard => Some(CommodityKind::Rosehips),
+        BackyardGardenKind::CabbageGarden => Some(CommodityKind::Cabbage),
+        BackyardGardenKind::CarrotGarden => Some(CommodityKind::Carrots),
+        BackyardGardenKind::BeetrootGarden => Some(CommodityKind::Beetroot),
         BackyardGardenKind::ChickenPen => Some(CommodityKind::Eggs),
         BackyardGardenKind::GoatPen => Some(CommodityKind::Milk),
         BackyardGardenKind::PigPen => Some(CommodityKind::Meat),
@@ -290,6 +257,14 @@ fn backyard_food_commodity(kind: BackyardGardenKind) -> Option<CommodityKind> {
         | BackyardGardenKind::Orchard
         | BackyardGardenKind::VegetableGarden
         | BackyardGardenKind::AnimalPen => None,
+    }
+}
+
+fn backyard_jam_commodity(kind: BackyardGardenKind) -> Option<CommodityKind> {
+    match kind {
+        BackyardGardenKind::AroniaOrchard => Some(CommodityKind::AroniaJam),
+        BackyardGardenKind::RosehipOrchard => Some(CommodityKind::RosehipJam),
+        _ => None,
     }
 }
 
@@ -331,7 +306,6 @@ fn step_livestock_pen(
             market_food_sold += distribute_backyard_food(
                 ctx,
                 residence,
-                garden,
                 marketplace_id,
                 commodity,
                 total_food,
@@ -369,7 +343,6 @@ fn step_livestock_pen(
         market_food_sold += distribute_backyard_food(
             ctx,
             residence,
-            garden,
             marketplace_id,
             CommodityKind::Meat,
             total_food,
@@ -453,7 +426,6 @@ fn livestock_primary_commodity(kind: BackyardGardenKind) -> Option<CommodityKind
 fn distribute_backyard_food(
     ctx: &ReducerContext,
     residence: &Residence,
-    garden: &BackyardGarden,
     marketplace_id: Option<u64>,
     commodity: CommodityKind,
     total_food: f64,
@@ -466,7 +438,7 @@ fn distribute_backyard_food(
         marketplace_id.is_some(),
         residence.tier,
         residence.population,
-        residence_edible_food_stock(residence) + garden.jam_stock.max(0.0),
+        residence_edible_food_stock(residence),
     );
     let kept = if allocation.self_food > 1e-9 {
         deposit_self_food(ctx, residence.id, commodity, allocation.self_food)

@@ -1429,7 +1429,10 @@ fn stall_need_for_commodity(commodity: CommodityKind) -> Option<ResidenceNeedKin
         Some(ResidenceNeedKind::Food)
     } else {
         match commodity {
-            CommodityKind::Ale | CommodityKind::Cider | CommodityKind::Mead => {
+            CommodityKind::Ale
+            | CommodityKind::Cider
+            | CommodityKind::PearCider
+            | CommodityKind::Mead => {
                 Some(ResidenceNeedKind::Ale)
             }
             CommodityKind::Firewood | CommodityKind::Charcoal => Some(ResidenceNeedKind::Firewood),

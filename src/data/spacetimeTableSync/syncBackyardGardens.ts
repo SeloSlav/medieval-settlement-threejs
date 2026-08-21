@@ -23,7 +23,6 @@ export function syncBackyardGardens(
       lastPrimaryProductionDay: Number(row.lastPrimaryProductionDay),
       lastSecondaryProductionDay: Number(row.lastSecondaryProductionDay),
       hideStock: Number(row.hideStock),
-      jamStock: Number(row.jamStock),
       flowerLuxuryUpgraded: row.flowerLuxuryUpgraded,
     });
   }

@@ -44,6 +44,15 @@ export function syncPlayerResources(rows: Iterable<PlayerResources>, state: Game
       hides: number;
       leather: number;
       shoes: number;
+      pears: number;
+      aronia: number;
+      rosehips: number;
+      cabbage: number;
+      carrots: number;
+      beetroot: number;
+      aroniaJam: number;
+      rosehipJam: number;
+      pearCider: number;
     }>;
     state.stockpile = {
       timber: wholeResourceUnits(row.timber),
@@ -70,6 +79,7 @@ export function syncPlayerResources(rows: Iterable<PlayerResources>, state: Game
       maslinFlour: wholeResourceUnits(row.maslinFlour),
       ale: wholeResourceUnits(row.ale),
       cider: wholeResourceUnits(row.cider),
+      pearCider: wholeResourceUnits(leatherRow.pearCider),
       mead: wholeResourceUnits(row.mead),
       preservedFood: wholeResourceUnits(row.preservedFood),
       honey: wholeResourceUnits(row.honey),
@@ -94,13 +104,21 @@ export function syncPlayerResources(rows: Iterable<PlayerResources>, state: Game
       meat: wholeResourceUnits(row.meat),
       milk: wholeResourceUnits(row.milk),
       apples: wholeResourceUnits(row.apples),
+      pears: wholeResourceUnits(leatherRow.pears),
       cherries: wholeResourceUnits(row.cherries),
+      aronia: wholeResourceUnits(leatherRow.aronia),
+      rosehips: wholeResourceUnits(leatherRow.rosehips),
       vegetables: wholeResourceUnits(row.vegetables),
+      cabbage: wholeResourceUnits(leatherRow.cabbage),
+      carrots: wholeResourceUnits(leatherRow.carrots),
+      beetroot: wholeResourceUnits(leatherRow.beetroot),
       eggs: wholeResourceUnits(row.eggs),
       grapes: wholeResourceUnits(row.grapes),
       curedMeat: wholeResourceUnits(row.curedMeat),
       smokedFish: wholeResourceUnits(row.smokedFish),
       cheese: wholeResourceUnits(row.cheese),
+      aroniaJam: wholeResourceUnits(leatherRow.aroniaJam),
+      rosehipJam: wholeResourceUnits(leatherRow.rosehipJam),
     };
     state.physicalFoundingSiteEnabled = row.physicalFoundingSiteEnabled ?? false;
     state.legacyUnhousedPopulationBonusEnabled =

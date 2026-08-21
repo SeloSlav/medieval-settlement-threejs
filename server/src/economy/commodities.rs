@@ -62,9 +62,18 @@ pub enum CommodityKind {
     Hides,
     Leather,
     Shoes,
+    Pears,
+    Aronia,
+    Rosehips,
+    Cabbage,
+    Carrots,
+    Beetroot,
+    AroniaJam,
+    RosehipJam,
+    PearCider,
 }
 
-pub const FRESH_FOOD_COMMODITIES: [CommodityKind; 14] = [
+pub const FRESH_FOOD_COMMODITIES: [CommodityKind; 20] = [
     CommodityKind::Food,
     CommodityKind::OatGrain,
     CommodityKind::RyeBread,
@@ -79,13 +88,21 @@ pub const FRESH_FOOD_COMMODITIES: [CommodityKind; 14] = [
     CommodityKind::Vegetables,
     CommodityKind::Eggs,
     CommodityKind::Grapes,
+    CommodityKind::Pears,
+    CommodityKind::Aronia,
+    CommodityKind::Rosehips,
+    CommodityKind::Cabbage,
+    CommodityKind::Carrots,
+    CommodityKind::Beetroot,
 ];
 
-pub const PRESERVED_FOOD_COMMODITIES: [CommodityKind; 4] = [
+pub const PRESERVED_FOOD_COMMODITIES: [CommodityKind; 6] = [
     CommodityKind::PreservedFood,
     CommodityKind::CuredMeat,
     CommodityKind::SmokedFish,
     CommodityKind::Cheese,
+    CommodityKind::AroniaJam,
+    CommodityKind::RosehipJam,
 ];
 
 pub const PRESERVABLE_FOOD_COMMODITIES: [CommodityKind; 4] = [
@@ -95,7 +112,7 @@ pub const PRESERVABLE_FOOD_COMMODITIES: [CommodityKind; 4] = [
     CommodityKind::Milk,
 ];
 
-pub const EDIBLE_COMMODITIES: [CommodityKind; 19] = [
+pub const EDIBLE_COMMODITIES: [CommodityKind; 27] = [
     CommodityKind::Food,
     CommodityKind::OatGrain,
     CommodityKind::RyeBread,
@@ -115,22 +132,36 @@ pub const EDIBLE_COMMODITIES: [CommodityKind; 19] = [
     CommodityKind::SmokedFish,
     CommodityKind::Cheese,
     CommodityKind::Honey,
+    CommodityKind::Pears,
+    CommodityKind::Aronia,
+    CommodityKind::Rosehips,
+    CommodityKind::Cabbage,
+    CommodityKind::Carrots,
+    CommodityKind::Beetroot,
+    CommodityKind::AroniaJam,
+    CommodityKind::RosehipJam,
 ];
 
 /// Consume the shortest-lived foods first so mixed pantries and institutions
 /// naturally preserve durable reserves. The legacy mixed buckets remain in
 /// the order only so old saves drain cleanly after migration.
-pub const FOOD_CONSUMPTION_ORDER: [CommodityKind; 19] = [
+pub const FOOD_CONSUMPTION_ORDER: [CommodityKind; 27] = [
     CommodityKind::Meat,
     CommodityKind::Fish,
     CommodityKind::Milk,
     CommodityKind::Berries,
+    CommodityKind::Aronia,
+    CommodityKind::Rosehips,
     CommodityKind::Mushrooms,
     CommodityKind::Grapes,
     CommodityKind::Cherries,
     CommodityKind::Eggs,
     CommodityKind::Apples,
+    CommodityKind::Pears,
     CommodityKind::Vegetables,
+    CommodityKind::Cabbage,
+    CommodityKind::Carrots,
+    CommodityKind::Beetroot,
     CommodityKind::RyeBread,
     CommodityKind::MaslinBread,
     CommodityKind::OatGrain,
@@ -139,6 +170,8 @@ pub const FOOD_CONSUMPTION_ORDER: [CommodityKind; 19] = [
     CommodityKind::SmokedFish,
     CommodityKind::CuredMeat,
     CommodityKind::PreservedFood,
+    CommodityKind::AroniaJam,
+    CommodityKind::RosehipJam,
     CommodityKind::Honey,
 ];
 
@@ -182,8 +215,14 @@ pub fn food_category(kind: CommodityKind) -> Option<FoodCategory> {
         | CommodityKind::RyeBread
         | CommodityKind::MaslinBread
         | CommodityKind::PreservedFood => Some(FoodCategory::Grains),
-        CommodityKind::Vegetables => Some(FoodCategory::Vegetables),
-        CommodityKind::Apples | CommodityKind::Cherries | CommodityKind::Grapes => {
+        CommodityKind::Vegetables
+        | CommodityKind::Cabbage
+        | CommodityKind::Carrots
+        | CommodityKind::Beetroot => Some(FoodCategory::Vegetables),
+        CommodityKind::Apples
+        | CommodityKind::Cherries
+        | CommodityKind::Grapes
+        | CommodityKind::Pears => {
             Some(FoodCategory::Fruits)
         }
         CommodityKind::Milk | CommodityKind::Eggs | CommodityKind::Cheese => {
@@ -191,7 +230,12 @@ pub fn food_category(kind: CommodityKind) -> Option<FoodCategory> {
         }
         CommodityKind::Meat | CommodityKind::CuredMeat => Some(FoodCategory::Meats),
         CommodityKind::Fish | CommodityKind::SmokedFish => Some(FoodCategory::Fishes),
-        CommodityKind::Berries | CommodityKind::Mushrooms => Some(FoodCategory::Foraged),
+        CommodityKind::Berries
+        | CommodityKind::Mushrooms
+        | CommodityKind::Aronia
+        | CommodityKind::Rosehips
+        | CommodityKind::AroniaJam
+        | CommodityKind::RosehipJam => Some(FoodCategory::Foraged),
         CommodityKind::Honey => Some(FoodCategory::Honey),
         _ => None,
     }
@@ -254,6 +298,15 @@ impl CommodityKind {
             Self::Hides => 58,
             Self::Leather => 59,
             Self::Shoes => 60,
+            Self::Pears => 4,
+            Self::Aronia => 5,
+            Self::Rosehips => 27,
+            Self::Cabbage => 38,
+            Self::Carrots => 50,
+            Self::Beetroot => 53,
+            Self::PearCider => 57,
+            Self::AroniaJam => 61,
+            Self::RosehipJam => 62,
         }
     }
 
@@ -313,6 +366,15 @@ impl CommodityKind {
             58 => Some(Self::Hides),
             59 => Some(Self::Leather),
             60 => Some(Self::Shoes),
+            4 => Some(Self::Pears),
+            5 => Some(Self::Aronia),
+            27 => Some(Self::Rosehips),
+            38 => Some(Self::Cabbage),
+            50 => Some(Self::Carrots),
+            53 => Some(Self::Beetroot),
+            57 => Some(Self::PearCider),
+            61 => Some(Self::AroniaJam),
+            62 => Some(Self::RosehipJam),
             _ => None,
         }
     }
@@ -330,7 +392,7 @@ impl CommodityKind {
     }
 
     pub fn is_beverage(self) -> bool {
-        matches!(self, Self::Ale | Self::Cider | Self::Mead)
+        matches!(self, Self::Ale | Self::Cider | Self::PearCider | Self::Mead)
     }
 
     pub fn is_bread_grain_bulk(self) -> bool {
@@ -369,6 +431,13 @@ impl CommodityKind {
             Self::Vegetables => 0.7,
             Self::Mushrooms | Self::Apples | Self::Cherries | Self::Grapes => 0.6,
             Self::Berries => 0.55,
+            Self::Pears => 0.62,
+            Self::Aronia => 0.5,
+            Self::Rosehips => 0.52,
+            Self::Cabbage => 0.75,
+            Self::Carrots => 0.68,
+            Self::Beetroot => 0.7,
+            Self::AroniaJam | Self::RosehipJam => 1.0,
             _ => 0.0,
         }
     }
@@ -384,16 +453,23 @@ impl CommodityKind {
             Self::Meat => 2.0,
             Self::Fish => 2.2,
             Self::Berries => 1.4,
+            Self::Aronia => 1.3,
+            Self::Rosehips => 1.2,
             Self::Mushrooms => 1.6,
             Self::Milk => 2.4,
             Self::Apples => 0.75,
+            Self::Pears => 0.8,
             Self::Cherries | Self::Vegetables | Self::Food | Self::Cheese => 1.0,
+            Self::Cabbage => 0.8,
+            Self::Carrots => 0.7,
+            Self::Beetroot => 0.75,
             Self::Eggs => 0.9,
             Self::Grapes => 1.2,
             Self::PreservedFood => 0.75,
             Self::CuredMeat => 0.55,
             Self::SmokedFish => 0.7,
             Self::Honey => 0.0,
+            Self::AroniaJam | Self::RosehipJam => 0.35,
             _ => 0.0,
         }
     }
@@ -465,6 +541,15 @@ pub fn building_commodity_stock(building: &Building, kind: CommodityKind) -> f64
         CommodityKind::Hides => building.hides,
         CommodityKind::Leather => building.leather,
         CommodityKind::Shoes => building.shoes,
+        CommodityKind::Pears => building.pears,
+        CommodityKind::Aronia => building.aronia,
+        CommodityKind::Rosehips => building.rosehips,
+        CommodityKind::Cabbage => building.cabbage,
+        CommodityKind::Carrots => building.carrots,
+        CommodityKind::Beetroot => building.beetroot,
+        CommodityKind::AroniaJam => building.aronia_jam,
+        CommodityKind::RosehipJam => building.rosehip_jam,
+        CommodityKind::PearCider => building.pear_cider,
     }
 }
 
@@ -491,6 +576,7 @@ pub fn building_commodity_cap(kind: &str, commodity: CommodityKind) -> f64 {
         CommodityKind::Hides => def.storage_hides,
         CommodityKind::Leather => def.storage_leather,
         CommodityKind::Shoes => def.storage_shoes,
+        CommodityKind::PearCider => def.storage_cider,
         CommodityKind::Gold => {
             if matches!(
                 kind,
@@ -540,7 +626,17 @@ pub fn building_commodity_cap(kind: &str, commodity: CommodityKind) -> f64 {
         | CommodityKind::Vegetables
         | CommodityKind::Eggs
         | CommodityKind::Grapes => def.storage_food,
-        CommodityKind::CuredMeat | CommodityKind::SmokedFish | CommodityKind::Cheese => {
+        CommodityKind::Pears
+        | CommodityKind::Aronia
+        | CommodityKind::Rosehips
+        | CommodityKind::Cabbage
+        | CommodityKind::Carrots
+        | CommodityKind::Beetroot => def.storage_food,
+        CommodityKind::CuredMeat
+        | CommodityKind::SmokedFish
+        | CommodityKind::Cheese
+        | CommodityKind::AroniaJam
+        | CommodityKind::RosehipJam => {
             def.storage_preserved_food
         }
     }
@@ -722,6 +818,15 @@ pub fn withdraw_building_commodity(
         CommodityKind::Hides => building.hides -= withdrawn,
         CommodityKind::Leather => building.leather -= withdrawn,
         CommodityKind::Shoes => building.shoes -= withdrawn,
+        CommodityKind::Pears => building.pears -= withdrawn,
+        CommodityKind::Aronia => building.aronia -= withdrawn,
+        CommodityKind::Rosehips => building.rosehips -= withdrawn,
+        CommodityKind::Cabbage => building.cabbage -= withdrawn,
+        CommodityKind::Carrots => building.carrots -= withdrawn,
+        CommodityKind::Beetroot => building.beetroot -= withdrawn,
+        CommodityKind::AroniaJam => building.aronia_jam -= withdrawn,
+        CommodityKind::RosehipJam => building.rosehip_jam -= withdrawn,
+        CommodityKind::PearCider => building.pear_cider -= withdrawn,
     }
     withdrawn
 }
@@ -787,6 +892,15 @@ pub fn deposit_building_commodity(
         CommodityKind::Hides => building.hides += deposited,
         CommodityKind::Leather => building.leather += deposited,
         CommodityKind::Shoes => building.shoes += deposited,
+        CommodityKind::Pears => building.pears += deposited,
+        CommodityKind::Aronia => building.aronia += deposited,
+        CommodityKind::Rosehips => building.rosehips += deposited,
+        CommodityKind::Cabbage => building.cabbage += deposited,
+        CommodityKind::Carrots => building.carrots += deposited,
+        CommodityKind::Beetroot => building.beetroot += deposited,
+        CommodityKind::AroniaJam => building.aronia_jam += deposited,
+        CommodityKind::RosehipJam => building.rosehip_jam += deposited,
+        CommodityKind::PearCider => building.pear_cider += deposited,
     }
     deposited
 }
@@ -865,6 +979,15 @@ pub fn credit_treasury_commodity(
         CommodityKind::Hides => treasury.hides += amount,
         CommodityKind::Leather => treasury.leather += amount,
         CommodityKind::Shoes => treasury.shoes += amount,
+        CommodityKind::Pears => treasury.pears += amount,
+        CommodityKind::Aronia => treasury.aronia += amount,
+        CommodityKind::Rosehips => treasury.rosehips += amount,
+        CommodityKind::Cabbage => treasury.cabbage += amount,
+        CommodityKind::Carrots => treasury.carrots += amount,
+        CommodityKind::Beetroot => treasury.beetroot += amount,
+        CommodityKind::AroniaJam => treasury.aronia_jam += amount,
+        CommodityKind::RosehipJam => treasury.rosehip_jam += amount,
+        CommodityKind::PearCider => treasury.pear_cider += amount,
     }
     let physical = treasury.physical_founding_site_enabled;
     ctx.db.player_resources().owner().update(treasury);
@@ -896,6 +1019,14 @@ pub fn residence_commodity_stock(residence: &Residence, kind: CommodityKind) -> 
         CommodityKind::Cheese => residence.cheese,
         CommodityKind::RyeBread => residence.rye_bread,
         CommodityKind::MaslinBread => residence.maslin_bread,
+        CommodityKind::Pears => residence.pears,
+        CommodityKind::Aronia => residence.aronia,
+        CommodityKind::Rosehips => residence.rosehips,
+        CommodityKind::Cabbage => residence.cabbage,
+        CommodityKind::Carrots => residence.carrots,
+        CommodityKind::Beetroot => residence.beetroot,
+        CommodityKind::AroniaJam => residence.aronia_jam,
+        CommodityKind::RosehipJam => residence.rosehip_jam,
         _ => 0.0,
     }
 }
@@ -1092,6 +1223,14 @@ pub fn withdraw_residence_commodity(
         CommodityKind::Cheese => residence.cheese -= withdrawn,
         CommodityKind::RyeBread => residence.rye_bread -= withdrawn,
         CommodityKind::MaslinBread => residence.maslin_bread -= withdrawn,
+        CommodityKind::Pears => residence.pears -= withdrawn,
+        CommodityKind::Aronia => residence.aronia -= withdrawn,
+        CommodityKind::Rosehips => residence.rosehips -= withdrawn,
+        CommodityKind::Cabbage => residence.cabbage -= withdrawn,
+        CommodityKind::Carrots => residence.carrots -= withdrawn,
+        CommodityKind::Beetroot => residence.beetroot -= withdrawn,
+        CommodityKind::AroniaJam => residence.aronia_jam -= withdrawn,
+        CommodityKind::RosehipJam => residence.rosehip_jam -= withdrawn,
         _ => return 0.0,
     }
     withdrawn
@@ -1168,6 +1307,14 @@ pub fn deposit_residence_commodity(
         CommodityKind::Cheese => residence.cheese += deposited,
         CommodityKind::RyeBread => residence.rye_bread += deposited,
         CommodityKind::MaslinBread => residence.maslin_bread += deposited,
+        CommodityKind::Pears => residence.pears += deposited,
+        CommodityKind::Aronia => residence.aronia += deposited,
+        CommodityKind::Rosehips => residence.rosehips += deposited,
+        CommodityKind::Cabbage => residence.cabbage += deposited,
+        CommodityKind::Carrots => residence.carrots += deposited,
+        CommodityKind::Beetroot => residence.beetroot += deposited,
+        CommodityKind::AroniaJam => residence.aronia_jam += deposited,
+        CommodityKind::RosehipJam => residence.rosehip_jam += deposited,
         _ => return 0.0,
     }
     deposited
@@ -1179,21 +1326,12 @@ mod tests {
 
     #[test]
     fn commodity_ids_remain_stable_and_round_trip() {
-        for id in 0_u8..=56 {
-            if matches!(id, 4 | 5 | 27 | 38 | 50 | 53) {
-                assert_eq!(CommodityKind::from_u8(id), None);
-            } else {
-                let commodity = CommodityKind::from_u8(id)
-                    .unwrap_or_else(|| panic!("missing commodity id {id}"));
-                assert_eq!(commodity.as_u8(), id);
-            }
-        }
-        assert_eq!(CommodityKind::from_u8(57), None);
-        for id in 58_u8..=60 {
+        for id in 0_u8..=62 {
             let commodity = CommodityKind::from_u8(id)
-                .unwrap_or_else(|| panic!("missing leather-chain commodity id {id}"));
+                .unwrap_or_else(|| panic!("missing commodity id {id}"));
             assert_eq!(commodity.as_u8(), id);
         }
+        assert_eq!(CommodityKind::from_u8(63), None);
     }
 
     #[test]

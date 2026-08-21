@@ -22,6 +22,7 @@ pub fn trade_resource_for_commodity(commodity: CommodityKind) -> Option<TradeRes
         CommodityKind::MaslinBread => TradeResource::MaslinBread,
         CommodityKind::Ale => TradeResource::Ale,
         CommodityKind::Cider => TradeResource::Cider,
+        CommodityKind::PearCider => TradeResource::PearCider,
         CommodityKind::Mead => return None,
         CommodityKind::PreservedFood => TradeResource::PreservedFood,
         CommodityKind::Honey => TradeResource::Honey,
@@ -50,13 +51,21 @@ pub fn trade_resource_for_commodity(commodity: CommodityKind) -> Option<TradeRes
         CommodityKind::Mushrooms => TradeResource::Mushrooms,
         CommodityKind::Milk => TradeResource::Milk,
         CommodityKind::Apples => TradeResource::Apples,
+        CommodityKind::Pears => TradeResource::Pears,
         CommodityKind::Cherries => TradeResource::Cherries,
+        CommodityKind::Aronia => TradeResource::Aronia,
+        CommodityKind::Rosehips => TradeResource::Rosehips,
         CommodityKind::Vegetables => TradeResource::Vegetables,
+        CommodityKind::Cabbage => TradeResource::Cabbage,
+        CommodityKind::Carrots => TradeResource::Carrots,
+        CommodityKind::Beetroot => TradeResource::Beetroot,
         CommodityKind::Eggs => TradeResource::Eggs,
         CommodityKind::Grapes => TradeResource::Grapes,
         CommodityKind::CuredMeat => TradeResource::CuredMeat,
         CommodityKind::SmokedFish => TradeResource::SmokedFish,
         CommodityKind::Cheese => TradeResource::Cheese,
+        CommodityKind::AroniaJam => TradeResource::AroniaJam,
+        CommodityKind::RosehipJam => TradeResource::RosehipJam,
         CommodityKind::Gold => return None,
     })
 }
@@ -68,7 +77,7 @@ mod tests {
     #[test]
     fn every_market_traded_commodity_has_a_unique_trade_resource() {
         let mut resources = std::collections::HashSet::new();
-        for code in 0..=56 {
+        for code in 0..=62 {
             let Some(commodity) = CommodityKind::from_u8(code) else {
                 continue;
             };

@@ -54,10 +54,22 @@ export function formatResourceAmount(kind: ResourceKind, amount: number): string
       return `${Math.round(amount)} milk`;
     case 'apples':
       return `${Math.round(amount)} apples`;
+    case 'pears':
+      return `${Math.round(amount)} pears`;
     case 'cherries':
       return `${Math.round(amount)} cherries`;
+    case 'aronia':
+      return `${Math.round(amount)} aronia berries`;
+    case 'rosehips':
+      return `${Math.round(amount)} rosehips`;
     case 'vegetables':
       return `${Math.round(amount)} vegetables`;
+    case 'cabbage':
+      return `${Math.round(amount)} cabbage`;
+    case 'carrots':
+      return `${Math.round(amount)} carrots`;
+    case 'beetroot':
+      return `${Math.round(amount)} beetroot`;
     case 'eggs':
       return `${Math.round(amount)} eggs`;
     case 'grapes':
@@ -87,7 +99,9 @@ export function formatResourceAmount(kind: ResourceKind, amount: number): string
     case 'ale':
       return `${Math.round(amount)} ale`;
     case 'cider':
-      return `${Math.round(amount)} cider`;
+      return `${Math.round(amount)} apple cider`;
+    case 'pearCider':
+      return `${Math.round(amount)} pear cider`;
     case 'mead':
       return `${Math.round(amount)} mead`;
     case 'preservedFood':
@@ -98,6 +112,10 @@ export function formatResourceAmount(kind: ResourceKind, amount: number): string
       return `${Math.round(amount)} smoked fish`;
     case 'cheese':
       return `${Math.round(amount)} cheese`;
+    case 'aroniaJam':
+      return `${Math.round(amount)} aronia jam`;
+    case 'rosehipJam':
+      return `${Math.round(amount)} rosehip jam`;
     case 'honey':
       return `${Math.round(amount)} honey`;
     case 'wine':

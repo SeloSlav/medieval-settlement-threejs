@@ -35,6 +35,8 @@ export const TRADE_RESOURCE_COMMODITY_CODES: Record<TradeResourceKind, number> =
   barleySheaves: 44, maslinSheaves: 45, ryeGrain: 46, oatGrain: 47,
   maslinGrain: 48, ryeFlour: 49, maslinFlour: 51,
   ryeBread: 52, maslinBread: 54, cider: 55,
+  pears: 4, aronia: 5, rosehips: 27, cabbage: 38, carrots: 50, beetroot: 53,
+  pearCider: 57, aroniaJam: 61, rosehipJam: 62,
   hides: 58, leather: 59, shoes: 60,
 };
 
@@ -52,10 +54,12 @@ export const TRADE_RESOURCE_LABELS: Record<TradeResourceKind, string> = {
   ryeFlour: 'Rye flour', maslinFlour: 'Maslin flour',
   malt: 'Malt', ryeBread: 'Rye bread',
   maslinBread: 'Maslin bread', meat: 'Meat', fish: 'Fish',
-  berries: 'Berries', mushrooms: 'Mushrooms', milk: 'Milk', apples: 'Apples',
-  cherries: 'Cherries', vegetables: 'Vegetables', eggs: 'Eggs', grapes: 'Grapes',
+  berries: 'Berries', mushrooms: 'Mushrooms', milk: 'Milk', apples: 'Apples', pears: 'Pears',
+  cherries: 'Cherries', aronia: 'Aronia berries', rosehips: 'Rosehips',
+  vegetables: 'Vegetables', cabbage: 'Cabbage', carrots: 'Carrots', beetroot: 'Beetroot', eggs: 'Eggs', grapes: 'Grapes',
   preservedFood: 'Preserved food', curedMeat: 'Cured meat', smokedFish: 'Smoked fish',
-  cheese: 'Cheese', honey: 'Honey', ale: 'Ale', cider: 'Cider', wine: 'Wine', wool: 'Wool',
+  cheese: 'Cheese', aroniaJam: 'Aronia jam', rosehipJam: 'Rosehip jam', honey: 'Honey',
+  ale: 'Ale', cider: 'Apple cider', pearCider: 'Pear cider', wine: 'Wine', wool: 'Wool',
   cloth: 'Cloth', iron: 'Iron', clay: 'Clay', salt: 'Salt', ironwork: 'Ironwork',
   hides: 'Hides', leather: 'Leather', shoes: 'Shoes',
   polearms: 'Polearms', pottery: 'Pottery', roofTiles: 'Roof tiles', manure: 'Manure',
@@ -67,9 +71,9 @@ export const TRADING_POST_TRADE_CATEGORIES = [
   { label: 'Fuel & utilities', resources: ['firewood', 'charcoal', 'water'] },
   { label: 'Crops & harvest', resources: ['ryeSheaves', 'oatSheaves', 'barleySheaves', 'maslinSheaves', 'ryeGrain', 'oatGrain', 'maslinGrain', 'barley', 'flax', 'manure'] },
   { label: 'Milled & prepared staples', resources: ['ryeFlour', 'maslinFlour', 'malt', 'ryeBread', 'maslinBread'] },
-  { label: 'Fresh food', resources: ['food', 'meat', 'fish', 'berries', 'mushrooms', 'milk', 'apples', 'cherries', 'vegetables', 'eggs', 'grapes'] },
-  { label: 'Preserved provisions', resources: ['preservedFood', 'curedMeat', 'smokedFish', 'cheese', 'honey'] },
-  { label: 'Finished goods', resources: ['ale', 'cider', 'wine', 'wool', 'cloth', 'hides', 'leather', 'shoes', 'polearms', 'pottery', 'remedies'] },
+  { label: 'Fresh food', resources: ['food', 'meat', 'fish', 'berries', 'mushrooms', 'milk', 'apples', 'pears', 'cherries', 'aronia', 'rosehips', 'vegetables', 'cabbage', 'carrots', 'beetroot', 'eggs', 'grapes'] },
+  { label: 'Preserved provisions', resources: ['preservedFood', 'curedMeat', 'smokedFish', 'cheese', 'aroniaJam', 'rosehipJam', 'honey'] },
+  { label: 'Finished goods', resources: ['ale', 'cider', 'pearCider', 'wine', 'wool', 'cloth', 'hides', 'leather', 'shoes', 'polearms', 'pottery', 'remedies'] },
 ] as const satisfies ReadonlyArray<{ label: string; resources: readonly TradeResourceKind[] }>;
 
 export function tradingPostRuleId(buildingId: string, resource: TradeResourceKind): string {

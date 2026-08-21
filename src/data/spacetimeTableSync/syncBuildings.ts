@@ -52,6 +52,7 @@ function buildingStateFromRow(
     constructionReservedRoofTiles: number;
     constructionTreasuryRoofTiles: number;
     cider: number;
+    pearCider: number;
     mead: number;
     breweryRecipePolicy: number;
     monasteryOrchardPlanting: number;
@@ -66,6 +67,14 @@ function buildingStateFromRow(
     hides: number;
     leather: number;
     shoes: number;
+    pears: number;
+    aronia: number;
+    rosehips: number;
+    cabbage: number;
+    carrots: number;
+    beetroot: number;
+    aroniaJam: number;
+    rosehipJam: number;
   }>;
   return {
     id,
@@ -93,6 +102,7 @@ function buildingStateFromRow(
     maslinFlour: wholeResourceUnits(row.maslinFlour),
     ale: wholeResourceUnits(row.ale),
     cider: wholeResourceUnits(materialRow.cider),
+    pearCider: wholeResourceUnits(materialRow.pearCider),
     mead: wholeResourceUnits(materialRow.mead),
     preservedFood: wholeResourceUnits(row.preservedFood),
     honey: wholeResourceUnits(row.honey),
@@ -120,13 +130,21 @@ function buildingStateFromRow(
     mushrooms: wholeResourceUnits(row.mushrooms),
     milk: wholeResourceUnits(row.milk),
     apples: wholeResourceUnits(row.apples),
+    pears: wholeResourceUnits(materialRow.pears),
     cherries: wholeResourceUnits(row.cherries),
+    aronia: wholeResourceUnits(materialRow.aronia),
+    rosehips: wholeResourceUnits(materialRow.rosehips),
     vegetables: wholeResourceUnits(row.vegetables),
+    cabbage: wholeResourceUnits(materialRow.cabbage),
+    carrots: wholeResourceUnits(materialRow.carrots),
+    beetroot: wholeResourceUnits(materialRow.beetroot),
     eggs: wholeResourceUnits(row.eggs),
     grapes: wholeResourceUnits(row.grapes),
     curedMeat: wholeResourceUnits(row.curedMeat),
     smokedFish: wholeResourceUnits(row.smokedFish),
     cheese: wholeResourceUnits(row.cheese),
+    aroniaJam: wholeResourceUnits(materialRow.aroniaJam),
+    rosehipJam: wholeResourceUnits(materialRow.rosehipJam),
     gold: wholeResourceUnits(row.gold),
     waterCapacity: wholeResourceUnits(row.waterCapacity),
     assignedLabor: Number(row.assignedLabor),

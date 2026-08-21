@@ -91,13 +91,20 @@ export function priceMultiplierFor(
     case 'mushrooms':
     case 'milk':
     case 'apples':
+    case 'pears':
     case 'cherries':
+    case 'aronia':
+    case 'rosehips':
     case 'vegetables':
+    case 'cabbage':
+    case 'carrots':
+    case 'beetroot':
     case 'eggs':
     case 'grapes':
       return state.foodPriceMult;
     case 'ale':
     case 'cider':
+    case 'pearCider':
     case 'wine':
       return state.drinkPriceMult;
     case 'preservedFood':
@@ -105,6 +112,8 @@ export function priceMultiplierFor(
     case 'curedMeat':
     case 'smokedFish':
     case 'cheese':
+    case 'aroniaJam':
+    case 'rosehipJam':
       return state.provisionPriceMult;
     case 'wool':
     case 'cloth':

@@ -21,6 +21,7 @@ pub struct DeliveryCargoTotals {
     pub food: f64,
     pub ale: f64,
     pub cider: f64,
+    pub pear_cider: f64,
     pub mead: f64,
     pub preserved_food: f64,
     pub honey: f64,
@@ -69,6 +70,14 @@ pub struct DeliveryCargoTotals {
     pub hides: f64,
     pub leather: f64,
     pub shoes: f64,
+    pub pears: f64,
+    pub aronia: f64,
+    pub rosehips: f64,
+    pub cabbage: f64,
+    pub carrots: f64,
+    pub beetroot: f64,
+    pub aronia_jam: f64,
+    pub rosehip_jam: f64,
 }
 
 impl DeliveryCargoTotals {
@@ -80,6 +89,7 @@ impl DeliveryCargoTotals {
             CommodityKind::Food => self.food += amount,
             CommodityKind::Ale => self.ale += amount,
             CommodityKind::Cider => self.cider += amount,
+            CommodityKind::PearCider => self.pear_cider += amount,
             CommodityKind::Mead => self.mead += amount,
             CommodityKind::PreservedFood => self.preserved_food += amount,
             CommodityKind::Honey => self.honey += amount,
@@ -128,6 +138,14 @@ impl DeliveryCargoTotals {
             CommodityKind::Hides => self.hides += amount,
             CommodityKind::Leather => self.leather += amount,
             CommodityKind::Shoes => self.shoes += amount,
+            CommodityKind::Pears => self.pears += amount,
+            CommodityKind::Aronia => self.aronia += amount,
+            CommodityKind::Rosehips => self.rosehips += amount,
+            CommodityKind::Cabbage => self.cabbage += amount,
+            CommodityKind::Carrots => self.carrots += amount,
+            CommodityKind::Beetroot => self.beetroot += amount,
+            CommodityKind::AroniaJam => self.aronia_jam += amount,
+            CommodityKind::RosehipJam => self.rosehip_jam += amount,
         }
     }
 }
@@ -139,7 +157,9 @@ pub fn building_delivery_stock(building: &Building, kind: ResidenceNeedKind) -> 
         }
         ResidenceNeedKind::Water => building.water,
         ResidenceNeedKind::Food => building_edible_food_stock(building),
-        ResidenceNeedKind::Ale => building.ale + building.cider + building.mead,
+        ResidenceNeedKind::Ale => {
+            building.ale + building.cider + building.pear_cider + building.mead
+        }
         ResidenceNeedKind::PreservedFood => building_preserved_food_stock(building),
         ResidenceNeedKind::Cloth => building.cloth,
         ResidenceNeedKind::Shoes => building.shoes,
@@ -182,6 +202,7 @@ pub fn withdraw_delivery_cargo(
             for beverage in [
                 CommodityKind::Ale,
                 CommodityKind::Cider,
+                CommodityKind::PearCider,
                 CommodityKind::Mead,
             ] {
                 let used = withdraw_building_commodity(building, beverage, remaining);
@@ -218,15 +239,21 @@ pub fn selected_food_delivery_commodity(
     building: &Building,
     need_kind: ResidenceNeedKind,
 ) -> Option<CommodityKind> {
-    const FRESH_ORDER: [CommodityKind; 15] = [
+    const FRESH_ORDER: [CommodityKind; 21] = [
         CommodityKind::Meat,
         CommodityKind::Fish,
         CommodityKind::Milk,
+        CommodityKind::Aronia,
+        CommodityKind::Rosehips,
         CommodityKind::Mushrooms,
         CommodityKind::Berries,
         CommodityKind::Grapes,
         CommodityKind::Cherries,
         CommodityKind::Apples,
+        CommodityKind::Pears,
+        CommodityKind::Cabbage,
+        CommodityKind::Carrots,
+        CommodityKind::Beetroot,
         CommodityKind::Vegetables,
         CommodityKind::Eggs,
         CommodityKind::RyeBread,
@@ -235,7 +262,9 @@ pub fn selected_food_delivery_commodity(
         CommodityKind::Food,
         CommodityKind::Honey,
     ];
-    const PRESERVED_ORDER: [CommodityKind; 4] = [
+    const PRESERVED_ORDER: [CommodityKind; 6] = [
+        CommodityKind::AroniaJam,
+        CommodityKind::RosehipJam,
         CommodityKind::Cheese,
         CommodityKind::SmokedFish,
         CommodityKind::CuredMeat,
@@ -244,25 +273,12 @@ pub fn selected_food_delivery_commodity(
 
     let candidates: &[CommodityKind] = match need_kind {
         ResidenceNeedKind::Food => &[
-            FRESH_ORDER[0],
-            FRESH_ORDER[1],
-            FRESH_ORDER[2],
-            FRESH_ORDER[3],
-            FRESH_ORDER[4],
-            FRESH_ORDER[5],
-            FRESH_ORDER[6],
-            FRESH_ORDER[7],
-            FRESH_ORDER[8],
-            FRESH_ORDER[9],
-            FRESH_ORDER[10],
-            FRESH_ORDER[11],
-            FRESH_ORDER[12],
-            PRESERVED_ORDER[0],
-            PRESERVED_ORDER[1],
-            PRESERVED_ORDER[2],
-            PRESERVED_ORDER[3],
-            FRESH_ORDER[13],
-            FRESH_ORDER[14],
+            FRESH_ORDER[0], FRESH_ORDER[1], FRESH_ORDER[2], FRESH_ORDER[3], FRESH_ORDER[4],
+            FRESH_ORDER[5], FRESH_ORDER[6], FRESH_ORDER[7], FRESH_ORDER[8], FRESH_ORDER[9],
+            FRESH_ORDER[10], FRESH_ORDER[11], FRESH_ORDER[12], FRESH_ORDER[13], FRESH_ORDER[14],
+            FRESH_ORDER[15], FRESH_ORDER[16], FRESH_ORDER[17], FRESH_ORDER[18],
+            PRESERVED_ORDER[0], PRESERVED_ORDER[1], PRESERVED_ORDER[2], PRESERVED_ORDER[3],
+            PRESERVED_ORDER[4], PRESERVED_ORDER[5], FRESH_ORDER[19], FRESH_ORDER[20],
         ],
         ResidenceNeedKind::PreservedFood => &PRESERVED_ORDER,
         _ => return None,
@@ -284,21 +300,29 @@ pub fn selected_food_delivery_commodity_for_residence(
     if need_kind != ResidenceNeedKind::Food {
         return selected_food_delivery_commodity(building, need_kind);
     }
-    const ORDER: [CommodityKind; 19] = [
+    const ORDER: [CommodityKind; 27] = [
         CommodityKind::Meat,
         CommodityKind::Fish,
         CommodityKind::Milk,
+        CommodityKind::Aronia,
+        CommodityKind::Rosehips,
         CommodityKind::Mushrooms,
         CommodityKind::Berries,
         CommodityKind::Grapes,
         CommodityKind::Cherries,
         CommodityKind::Apples,
+        CommodityKind::Pears,
+        CommodityKind::Cabbage,
+        CommodityKind::Carrots,
+        CommodityKind::Beetroot,
         CommodityKind::Vegetables,
         CommodityKind::Eggs,
         CommodityKind::RyeBread,
         CommodityKind::MaslinBread,
         CommodityKind::OatGrain,
         CommodityKind::Food,
+        CommodityKind::AroniaJam,
+        CommodityKind::RosehipJam,
         CommodityKind::Cheese,
         CommodityKind::SmokedFish,
         CommodityKind::CuredMeat,

@@ -77,6 +77,7 @@ pub(crate) fn settle_regional_market_export(
     let specialty_gold_per_unit = match sold_commodity {
         CommodityKind::Ale => Some(SPECIALTY_EXPORT_GOLD_PER_ALE),
         CommodityKind::Cider => Some(SPECIALTY_EXPORT_GOLD_PER_CIDER),
+        CommodityKind::PearCider => Some(SPECIALTY_EXPORT_GOLD_PER_CIDER),
         CommodityKind::Honey => Some(SPECIALTY_EXPORT_GOLD_PER_HONEY),
         CommodityKind::Wine => Some(SPECIALTY_EXPORT_GOLD_PER_WINE),
         CommodityKind::Cloth => Some(SPECIALTY_EXPORT_GOLD_PER_CLOTH),

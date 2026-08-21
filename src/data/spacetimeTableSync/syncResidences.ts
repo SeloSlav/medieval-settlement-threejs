@@ -70,6 +70,14 @@ export function syncResidences(
       upgradeRequiredRoofTiles: number;
       upgradeDeliveredRoofTiles: number;
       upgradeReservedRoofTiles: number;
+      pears: number;
+      aronia: number;
+      rosehips: number;
+      cabbage: number;
+      carrots: number;
+      beetroot: number;
+      aroniaJam: number;
+      rosehipJam: number;
     }>;
     const residenceId = residenceClientId(row.id);
     residences.set(residenceId, {
@@ -96,13 +104,21 @@ export function syncResidences(
       mushrooms: wholeResourceUnits(row.mushrooms),
       milk: wholeResourceUnits(row.milk),
       apples: wholeResourceUnits(row.apples),
+      pears: wholeResourceUnits(upgradeRow.pears),
       cherries: wholeResourceUnits(row.cherries),
+      aronia: wholeResourceUnits(upgradeRow.aronia),
+      rosehips: wholeResourceUnits(upgradeRow.rosehips),
       vegetables: wholeResourceUnits(row.vegetables),
+      cabbage: wholeResourceUnits(upgradeRow.cabbage),
+      carrots: wholeResourceUnits(upgradeRow.carrots),
+      beetroot: wholeResourceUnits(upgradeRow.beetroot),
       eggs: wholeResourceUnits(row.eggs),
       grapes: wholeResourceUnits(row.grapes),
       curedMeat: wholeResourceUnits(row.curedMeat),
       smokedFish: wholeResourceUnits(row.smokedFish),
       cheese: wholeResourceUnits(row.cheese),
+      aroniaJam: wholeResourceUnits(upgradeRow.aroniaJam),
+      rosehipJam: wholeResourceUnits(upgradeRow.rosehipJam),
       foodInventoryMigrated: row.foodInventoryMigrated,
       // Kept in the replicated schema for old saves only. Completed homes are
       // permanent housing and empty capacity immediately re-enters settlement.
