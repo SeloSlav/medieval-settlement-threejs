@@ -12,7 +12,7 @@ import {
 } from '../src/ui/buildMenuCards.ts';
 
 assert.deepEqual(keys(CIVIC_BUILD_MENU_ENTRIES), [
-  'residences', 'well', 'chapel', 'wayside_shrine', 'monastery', 'marketplace', 'tavern', 'trading_post', 'town_hall',
+  'residences', 'well', 'chapel', 'wayside_shrine', 'dry_stone_wall', 'monastery', 'marketplace', 'tavern', 'trading_post', 'town_hall',
   'village_storehouse', 'granary',
 ]);
 assert.deepEqual(keys(GATHERING_BUILD_MENU_ENTRIES), [
@@ -63,6 +63,8 @@ assert.match(
 );
 assert.ok(fs.existsSync('public/assets/ui/build-menu/cards/tavern.webp'));
 assert.ok(fs.existsSync('public/assets/ui/build-menu/cards/wayside-shrine.webp'));
+assert.ok(fs.existsSync('public/assets/ui/build-menu/cards/dry-stone-wall.svg'));
+assert.match(renderedCards, /data-action="dry-stone-wall"[\s\S]*?>Dry-stone wall</);
 assert.ok(fs.existsSync('public/assets/ui/icons/resource-cider.png'));
 assert.ok(fs.existsSync('public/assets/ui/icons/resource-mead.png'));
 const iconography = fs.readFileSync('src/ui/iconography.css', 'utf8');

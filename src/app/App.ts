@@ -879,7 +879,9 @@ export class App {
         : burgageEnabled
         ? 'residences'
         : this.roadTool.isEnabled()
-          ? 'road'
+          ? this.roadTool.getMode() === 'dry-stone-wall'
+            ? 'dry-stone-wall'
+            : 'road'
           : buildingMode === 'off'
             ? 'idle'
             : buildingMode,
@@ -907,11 +909,15 @@ export class App {
   }
 
   private syncBuildInteractionPerf(): void {
-    const roadDraft = Boolean(this.roadTool?.isEnabled() && this.roadTool.hasDraft());
+    const splineDraft = Boolean(this.roadTool?.isEnabled() && this.roadTool.hasDraft());
+    const roadDraft = Boolean(
+      splineDraft
+      && this.roadTool?.getMode() === 'road',
+    );
     const burgageDraft = Boolean(this.burgageTool?.isEnabled() && this.burgageTool.hasDraft());
     const farmFieldDraft = Boolean(this.farmFieldTool?.isEnabled() && this.farmFieldTool.hasDraft());
     const buildingActive = Boolean(this.buildingTool?.isEnabled());
-    this.sceneManager?.setBuildInteractionActive(roadDraft || burgageDraft || farmFieldDraft || buildingActive);
+    this.sceneManager?.setBuildInteractionActive(splineDraft || burgageDraft || farmFieldDraft || buildingActive);
     this.sceneManager?.setRoadDraftActive(roadDraft);
   }
 

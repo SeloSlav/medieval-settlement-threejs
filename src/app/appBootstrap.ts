@@ -419,7 +419,8 @@ export async function bootstrapAppSession(
       toastManager?.show('SpacetimeDB is not connected.', { variant: 'error' });
       return;
     }
-    roadTool.setEnabled(!roadTool.isEnabled());
+    const enableRoad = !roadTool.isEnabled() || roadTool.getMode() !== 'road';
+    roadTool.setEnabled(enableRoad);
     if (roadTool.isEnabled()) {
       buildingTool.setMode('off');
       burgageTool.setEnabled(false);
@@ -465,7 +466,13 @@ export async function bootstrapAppSession(
       toolbar.showDeletePopup({
         clientX: request.clientX,
         clientY: request.clientY,
-        onRemove: () => roadTool.confirmDelete(request.edgeId),
+        onRemove: () => {
+          if (request.kind === 'dry-stone-wall') {
+            roadTool.confirmDryStoneWallDelete(request.wallId);
+          } else {
+            roadTool.confirmDelete(request.edgeId);
+          }
+        },
         onCancel: () => roadSelection.setSelected(null),
       });
     },
@@ -473,6 +480,13 @@ export async function bootstrapAppSession(
       ambientAudio.playUiSound('error');
       const messageId = roadPlacementReasonToToastId(event.reason);
       if (messageId) toastManager?.showMessageId(messageId, { variant: 'error' });
+    },
+    onDryStoneWallStartRejected: () => {
+      ambientAudio.playUiSound('error');
+      toastManager?.show(
+        'Start the wall beside an existing dirt road; the first span snaps parallel to its shoulder.',
+        { variant: 'info', durationMs: 3600 },
+      );
     },
   });
 
@@ -809,6 +823,28 @@ export async function bootstrapAppSession(
           kind,
           [...liveContext.gameState.buildings.values()].map((building) => building.kind),
         );
+      }
+      bridge.syncToolbar();
+    },
+    onSelectDryStoneWall: () => {
+      if (!sessionGate.isReady()) {
+        toastManager?.show('SpacetimeDB is not connected.', { variant: 'error' });
+        return;
+      }
+      const wasEnabled = roadTool.getMode() === 'dry-stone-wall';
+      buildingTool.setMode('off');
+      burgageTool.setEnabled(false);
+      farmFieldTool.setEnabled(false);
+      roadTool.setMode('dry-stone-wall');
+      if (roadTool.getMode() === 'dry-stone-wall') {
+        resourceInspector?.clearSelection();
+        villagerInspector?.clearSelection();
+        if (!wasEnabled) {
+          toastManager?.show(
+            'Start beside a dirt road, then trace the wall. Roadside points hug either shoulder; Ctrl + wheel bends a span. Walls are free and build instantly.',
+            { variant: 'info', durationMs: 6500 },
+          );
+        }
       }
       bridge.syncToolbar();
     },

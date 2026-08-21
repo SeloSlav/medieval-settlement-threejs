@@ -112,7 +112,7 @@ export function createDryStoneWallPlan(
           Math.floor(random() * DRY_STONE_WALL_VARIANTS),
         );
         const moss = quality === 'final'
-          ? THREE.MathUtils.clamp((random() - (course === 1 ? 0.58 : 0.82)) * 2.35, 0, 1)
+          ? THREE.MathUtils.clamp((random() - (course === 1 ? 0.72 : 0.9)) * 2.6, 0, 1)
           : 0;
         const stone: DryStonePlacement = {
           wallId: wall.id,

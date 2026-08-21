@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 480" role="img" aria-label="Dry-stone wall beside a winding dirt road">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#92ad8a"/>
+      <stop offset="1" stop-color="#526845"/>
+    </linearGradient>
+    <linearGradient id="road" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#b89967"/>
+      <stop offset="1" stop-color="#826947"/>
+    </linearGradient>
+    <linearGradient id="stone" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#a9ab8c"/>
+      <stop offset="1" stop-color="#5c6254"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-30%" width="150%" height="170%">
+      <feGaussianBlur stdDeviation="4"/>
+    </filter>
+  </defs>
+  <rect width="320" height="480" fill="url(#sky)"/>
+  <path d="M-28 479C55 412 72 351 70 287c-2-70 42-115 106-159 49-33 72-74 84-128h88v480z" fill="url(#road)"/>
+  <path d="M-20 455c77-66 91-111 90-170-1-65 40-113 102-155 48-33 71-74 82-130" fill="none" stroke="#d2b77d" stroke-width="7" opacity=".32"/>
+  <ellipse cx="157" cy="315" rx="145" ry="42" fill="#263323" opacity=".42" filter="url(#shadow)"/>
+  <g stroke="#41483d" stroke-width="3" stroke-linejoin="round">
+    <path d="M2 366l42-18 39 5 33 25-13 36-45 9-49-20z" fill="url(#stone)"/>
+    <path d="M87 351l38-28 46 3 28 29-14 38-47 7-36-16z" fill="url(#stone)"/>
+    <path d="M174 326l35-29 44 3 30 25-12 39-42 15-43-15z" fill="url(#stone)"/>
+    <path d="M255 300l28-28 39 4 20 26-12 36-37 11-31-16z" fill="url(#stone)"/>
+    <path d="M25 326l33-22 38 3 29 24-10 31-39 10-42-13z" fill="#8f947b"/>
+    <path d="M114 303l31-26 43 4 25 26-12 31-42 10-35-12z" fill="#9b9e82"/>
+    <path d="M202 278l28-24 38 3 27 23-10 31-39 11-34-15z" fill="#858b74"/>
+  </g>
+  <g fill="none" stroke="#60783f" stroke-width="8" stroke-linecap="round" opacity=".9">
+    <path d="M45 323l18-4 17 4"/>
+    <path d="M143 300l18-5 21 5"/>
+    <path d="M230 274l20-4 15 3"/>
+  </g>
+  <g fill="#a8bd71" opacity=".8">
+    <circle cx="32" cy="253" r="9"/><circle cx="48" cy="263" r="12"/><circle cx="270" cy="211" r="10"/><circle cx="286" cy="224" r="14"/>
+  </g>
+</svg>
