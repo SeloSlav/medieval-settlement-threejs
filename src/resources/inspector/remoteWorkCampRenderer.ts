@@ -68,13 +68,13 @@ export function withWorksiteLodging(
             : camp.constructionComplete === false
             ? 'Builders and haulers are raising the linked tents and fire ring. The crew still commutes home until construction is complete.'
             : 'The linked tents and campfire are operational, restoring the worksite\'s full productive shift. Demolish the camp itself to return this crew to household commuting.'}</p>
-          <button type="button" class="inspector-action-panel__button" data-inspect-building="${camp.id}">${camp.constructionComplete === false ? 'Inspect camp construction' : 'Inspect overnight camp'}</button>
+          <button type="button" class="inspector-action-panel__button inspector-action-panel__button--icon" data-work-camp-action data-inspect-building="${camp.id}"><span class="inspector-action-icon" data-action-icon="overnight-work-camp" aria-hidden="true"></span><span>${camp.constructionComplete === false ? 'Inspect camp construction' : 'Inspect overnight camp'}</span></button>
         </section>
       `
       : `
         <section class="inspector-action-panel">
           <h3>Overnight work camp</h3>
-          <button type="button" class="inspector-action-panel__button" data-begin-remote-work-camp>Plan overnight camp</button>
+          <button type="button" class="inspector-action-panel__button inspector-action-panel__button--icon" data-work-camp-action data-begin-remote-work-camp><span class="inspector-action-icon" data-action-icon="overnight-work-camp" aria-hidden="true"></span><span>Plan overnight camp</span></button>
           <p class="inspector-action-panel__hint">Choose a nearby clear site. Timber and stone are reserved normally, haulers deliver them, and assigned builders raise two tents and a campfire. It can later be demolished like any building.</p>
         </section>
       `;

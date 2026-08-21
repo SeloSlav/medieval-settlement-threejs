@@ -189,3 +189,51 @@
   border-color: var(--accent);
   outline: none;
 }
+
+.resource-action-button--icon,
+.inspector-action-panel__button--icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.inspector-action-icon {
+  display: block;
+  flex: 0 0 30px;
+  width: 30px;
+  height: 30px;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: contain;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.72));
+  pointer-events: none;
+}
+
+.inspector-action-icon[data-action-icon='overnight-work-camp'] {
+  background-image: url('/assets/ui/icons/actions/overnight-work-camp.png');
+}
+
+.inspector-action-icon[data-action-icon='luxury-flowers'] {
+  background-image: url('/assets/ui/icons/actions/luxury-flowers.png');
+}
+
+.inspector-action-icon[data-action-icon='residence-tier-2'] {
+  background-image: url('/assets/ui/icons/upgrades/residence-tier-2.png');
+}
+
+.inspector-action-icon[data-action-icon='residence-tier-3'] {
+  background-image: url('/assets/ui/icons/upgrades/residence-tier-3.png');
+}
+
+.inspector-action-icon[data-action-icon='residence-tier-4'] {
+  background-image: url('/assets/ui/icons/upgrades/residence-tier-4.png');
+}
+
+.inspector-action-icon[data-action-icon='church-tier-2'] {
+  background-image: url('/assets/ui/icons/upgrades/church-tier-2.png');
+}
+
+.inspector-action-icon[data-action-icon='church-tier-3'] {
+  background-image: url('/assets/ui/icons/upgrades/church-tier-3.png');
+}

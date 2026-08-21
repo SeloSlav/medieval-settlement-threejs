@@ -2633,8 +2633,7 @@ select:focus-visible {
 }
 
 .backyard-picker-option[data-garden-kind='apple_orchard'] .backyard-picker-option__icon,
-.backyard-picker-option[data-garden-kind='cherry_orchard'] .backyard-picker-option__icon,
-.backyard-picker-option[data-garden-kind='chicken_pen'] .backyard-picker-option__icon {
+.backyard-picker-option[data-garden-kind='cherry_orchard'] .backyard-picker-option__icon {
   background-image: url('/assets/ui/icons/hud-resources-foods.png');
   background-size: 400% 400%;
 }
@@ -2647,10 +2646,6 @@ select:focus-visible {
   background-position: 100% 33.333%;
 }
 
-.backyard-picker-option[data-garden-kind='chicken_pen'] .backyard-picker-option__icon {
-  background-position: 33.333% 66.667%;
-}
-
 .backyard-picker-option[data-garden-kind='orchard'] .backyard-picker-option__icon,
 .backyard-picker-option[data-garden-kind='vegetable_garden'] .backyard-picker-option__icon,
 .backyard-picker-option[data-garden-kind='animal_pen'] .backyard-picker-option__icon,
@@ -2661,6 +2656,9 @@ select:focus-visible {
 .backyard-picker-option[data-garden-kind='carrot_garden'] .backyard-picker-option__icon,
 .backyard-picker-option[data-garden-kind='beetroot_garden'] .backyard-picker-option__icon,
 .backyard-picker-option[data-garden-kind='flower_garden'] .backyard-picker-option__icon,
+.backyard-picker-option[data-garden-kind='herb_garden'] .backyard-picker-option__icon,
+.backyard-picker-option[data-garden-kind='backyard_apiary'] .backyard-picker-option__icon,
+.backyard-picker-option[data-garden-kind='chicken_pen'] .backyard-picker-option__icon,
 .backyard-picker-option[data-garden-kind='pig_pen'] .backyard-picker-option__icon,
 .backyard-picker-option[data-garden-kind='goat_pen'] .backyard-picker-option__icon {
   background-position: center;
@@ -2705,26 +2703,27 @@ select:focus-visible {
 }
 
 .backyard-picker-option[data-garden-kind='flower_garden'] .backyard-picker-option__icon {
-  background-image: url('/assets/ui/noble-setup/charges/bee.png');
+  background-image: url('/assets/ui/icons/backyards/flower-garden.png');
 }
 
 .backyard-picker-option[data-garden-kind='herb_garden'] .backyard-picker-option__icon {
-  background-image: url('/assets/ui/icons/materials/remedies.svg');
-  background-size: 82%;
-}
-
-.backyard-picker-option[data-garden-kind='goat_pen'] .backyard-picker-option__icon {
-  background-image: url('/assets/ui/noble-setup/charges/goat.png');
-}
-
-.backyard-picker-option[data-garden-kind='pig_pen'] .backyard-picker-option__icon {
-  background-image: url('/assets/ui/noble-setup/charges/boar.png');
+  background-image: url('/assets/ui/icons/backyards/herb-garden.png');
 }
 
 .backyard-picker-option[data-garden-kind='backyard_apiary'] .backyard-picker-option__icon {
-  background-image: url('/assets/ui/icons/hud-resources-goods-a.png');
-  background-position: 0 100%;
-  background-size: 300% 300%;
+  background-image: url('/assets/ui/icons/backyards/backyard-apiary.png');
+}
+
+.backyard-picker-option[data-garden-kind='chicken_pen'] .backyard-picker-option__icon {
+  background-image: url('/assets/ui/icons/backyards/chicken-pen.png');
+}
+
+.backyard-picker-option[data-garden-kind='goat_pen'] .backyard-picker-option__icon {
+  background-image: url('/assets/ui/icons/backyards/goat-pen.png');
+}
+
+.backyard-picker-option[data-garden-kind='pig_pen'] .backyard-picker-option__icon {
+  background-image: url('/assets/ui/icons/backyards/pig-pen.png');
 }
 
 .marketplace-trade-panel {

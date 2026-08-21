@@ -170,8 +170,8 @@ export function renderChapelInspector(
     <div class="inspector-action-panel">
       ${upgrade == null
         ? '<p class="inspector-action-panel__hint">The large stone church is fully upgraded.</p>'
-        : `<button type="button" class="inspector-action-panel__button" data-action="upgrade-chapel"${upgradeBlocker ? ' disabled' : ''}>
-            <span>Upgrade to tier ${upgrade.targetTier}</span>${upgradeCostLabel}
+        : `<button type="button" class="inspector-action-panel__button inspector-action-panel__button--icon" data-action="upgrade-chapel" data-upgrade-tier="${upgrade.targetTier}"${upgradeBlocker ? ' disabled' : ''}>
+            <span class="inspector-action-icon" data-action-icon="church-tier-${upgrade.targetTier}" aria-hidden="true"></span><span>Upgrade to tier ${upgrade.targetTier}</span>${upgradeCostLabel}
           </button>
           <p class="inspector-action-panel__hint">${upgradeBlocker ?? 'Rebuild the church in place; the final footprint was reserved when the wooden church was laid out.'}</p>`}
       <p class="inspector-action-panel__hint">${suspendedByFire

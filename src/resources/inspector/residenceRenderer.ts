@@ -854,7 +854,7 @@ function residenceUpgradePanel(
   const funding = plan.physicalEconomy
     ? ` The household contributes ${formatUpgradeAmount(plan.householdContribution)} coin from savings above its protected reserve; the treasury grants the remaining ${formatUpgradeAmount(plan.civicGoldRequired)} coin. Exact household savings stay private. Materials remain at their stores until a builder and cart can move them.`
     : '';
-  return `<button type="button" class="resource-action-button" data-action="upgrade-residence" ${plan.ready ? '' : 'disabled'}>Begin tier ${plan.nextTier} works</button><p class="resource-inspector-note">${status}${throughput}${funding} ${guidance}</p>`;
+  return `<button type="button" class="resource-action-button resource-action-button--icon" data-action="upgrade-residence" data-upgrade-tier="${plan.nextTier}" ${plan.ready ? '' : 'disabled'}><span class="inspector-action-icon" data-action-icon="residence-tier-${plan.nextTier}" aria-hidden="true"></span><span>Begin tier ${plan.nextTier} works</span></button><p class="resource-inspector-note">${status}${throughput}${funding} ${guidance}</p>`;
 }
 
 function residenceUpgradeProjectPanel(

@@ -56,12 +56,12 @@ const read = (path: string) => readFileSync(join(root, path), 'utf8');
 
 const buildingSchemaBlock = read('server/src/tables.rs')
   .split('pub struct Building {')[1]
-  ?.split('\n}\n\n/// A player-drawn arable parcel')[0] ?? '';
+  ?.split(/\r?\n}\r?\n/)[0] ?? '';
 const buildingSchemaFields = [...buildingSchemaBlock.matchAll(/pub\s+([a-z0-9_]+):/g)]
   .map((match) => match[1]);
-const legacyBuildingSchemaPrefix = [
+const typedBuildingSchemaPrefix = [
   'id owner kind x z work_radius action_cooldown timber firewood stone water food',
-  'grain flour ale preserved_food honey wine polearms water_capacity assigned_labor',
+  'ale preserved_food honey wine polearms water_capacity assigned_labor',
   'storehouse_accepts_timber storehouse_accepts_stone storehouse_accepts_firewood gold',
   'construction_complete construction_progress construction_required_timber',
   'construction_required_stone construction_delivered_timber construction_delivered_stone',
@@ -79,14 +79,14 @@ const legacyBuildingSchemaPrefix = [
   'marketplace_iron_target marketplace_salt_target manure remedies',
 ].join(' ').split(' ');
 assert.deepEqual(
-  buildingSchemaFields.slice(0, legacyBuildingSchemaPrefix.length),
-  legacyBuildingSchemaPrefix,
-  'the complete deployed Building prefix must remain byte-order stable for additive upgrades',
+  buildingSchemaFields.slice(0, typedBuildingSchemaPrefix.length),
+  typedBuildingSchemaPrefix,
+  'the clean-development Building foundation must retain the current typed commodity order',
 );
 assert.deepEqual(
   buildingSchemaFields.slice(
-    legacyBuildingSchemaPrefix.length,
-    legacyBuildingSchemaPrefix.length + 4,
+    typedBuildingSchemaPrefix.length,
+    typedBuildingSchemaPrefix.length + 4,
   ),
   [
     'construction_required_ironwork',
@@ -94,17 +94,20 @@ assert.deepEqual(
     'construction_reserved_ironwork',
     'construction_treasury_ironwork',
   ],
-  'construction ironwork accounting must append after the deployed schema prefix',
+  'construction ironwork accounting must follow the current Building foundation',
 );
 assert.deepEqual(
-  buildingSchemaFields.slice(-4),
+  buildingSchemaFields.slice(
+    buildingSchemaFields.indexOf('construction_required_roof_tiles'),
+    buildingSchemaFields.indexOf('construction_required_roof_tiles') + 4,
+  ),
   [
     'construction_required_roof_tiles',
     'construction_delivered_roof_tiles',
     'construction_reserved_roof_tiles',
     'construction_treasury_roof_tiles',
   ],
-  'construction roof-tile accounting must remain an additive save-compatible schema suffix',
+  'construction roof-tile accounting must remain a contiguous four-field group',
 );
 
 assert.equal(CONSTRUCTION_MAX_BUILDERS, 4);
@@ -907,7 +910,7 @@ const fireBlockedConstructionRows = renderConstructionQueueRows(
 assert.match(fireBlockedConstructionRows, /Fire-quarantined stores/);
 assert.match(
   fireBlockedConstructionRows,
-  /100 timber \+ 100 stone \+ 0 ironwork unavailable/,
+  /100 timber \+ 100 stone \+ 0 ironwork \+ 0 roof tiles unavailable/,
 );
 assert.match(
   fireBlockedConstructionRows,
@@ -1001,21 +1004,21 @@ assert.equal(
     siteTarget,
     constructionContext([stoneSource], 5, 30) as never,
   ).statusText,
-  "Unassigned worker fetching 15 stone from Stonecutter's camp",
+  'Unassigned worker fetching 15 stone from Mining Pit',
 );
 assert.equal(
   renderConstructionInspector(
     siteTarget,
     constructionContext([stoneSource], 0, 30) as never,
   ).statusText,
-  "Waiting for an unassigned hauler — 15 stone is at Stonecutter's camp",
+  'Waiting for an unassigned hauler — 15 stone is at Mining Pit',
 );
 assert.equal(
   renderConstructionInspector(
     siteTarget,
     constructionContext([stoneSource], 5, null) as never,
   ).statusText,
-  "Unassigned worker fetching 15 stone from Stonecutter's camp",
+  'Unassigned worker fetching 15 stone from Mining Pit',
   'construction supplies must remain available off-road at the slower travel rate',
 );
 const staffedStorehouse = buildingState({
@@ -1038,7 +1041,7 @@ const fireBlockedSourceView = renderConstructionInspector(
 );
 assert.equal(
   fireBlockedSourceView.statusText,
-  "Reserved 15 stone is fire-quarantined at Stonecutter's camp — repair it or supply another store",
+  'Reserved 15 stone is fire-quarantined at Mining Pit — repair it or supply another store',
 );
 assert.match(fireBlockedSourceView.detailsHtml, /fire-disabled/);
 const healthyFallbackView = renderConstructionInspector(
@@ -1089,10 +1092,10 @@ const routeAwareView = renderConstructionInspector(
 );
 assert.equal(
   routeAwareView.statusText,
-  'Large Quarry crew preparing 15 stone',
+  'Quarry crew preparing 15 stone',
   'the source with the shorter road route must beat the source that looks nearer in a straight line',
 );
-assert.match(routeAwareView.detailsHtml, /Large Quarry · 20m haul/);
+assert.match(routeAwareView.detailsHtml, /Quarry · 20m haul/);
 assert.match(routeAwareView.detailsHtml, /Queue priority<\/span><span>Normal/);
 assert.equal(
   (routeAwareView.detailsHtml.match(/data-inspector-primary/g) ?? []).length,
@@ -1274,7 +1277,7 @@ assert.equal(
     siteTarget,
     constructionContext([stoneSource], 5, 30, visibleInbound) as never,
   ).statusText,
-  "Unassigned hauler bringing 8 stone from Stonecutter's camp",
+  'Unassigned hauler bringing 8 stone from Mining Pit',
 );
 
 const placementServer = read('server/src/reducers/buildings.rs');

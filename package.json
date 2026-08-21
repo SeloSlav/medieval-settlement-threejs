@@ -43,6 +43,7 @@
     "test:settlement-specialty-exports": "npx tsx scripts/testSettlementSpecialtyExports.mts",
     "test:backyard-economy-planning": "npx tsx scripts/testBackyardEconomyPlanning.mts",
     "test:backyard-commodity-identity": "npx tsx scripts/testBackyardCommodityIdentity.mts",
+    "test:action-button-iconography": "npx tsx scripts/testActionButtonIconography.mts",
     "test:orchard-specializations": "npx tsx scripts/testOrchardSpecializations.mts",
     "test:animal-pen-specializations": "npx tsx scripts/testAnimalPenSpecializations.mts",
     "test:vegetable-garden-specializations": "npx tsx scripts/testVegetableGardenSpecializations.mts",
