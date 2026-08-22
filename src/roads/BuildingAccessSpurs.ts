@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import type { Terrain } from '../terrain/Terrain.ts';
 import { disposeObject3D } from '../utils/dispose.ts';
 import {
-  getBuildingRoadConnectionPoints,
+  getBuildingRoadEntrancePoints,
   type BuildingRoadConnection,
   type BuildingRoadConnectionSource,
 } from './BuildingRoadConnections.ts';
@@ -26,7 +26,9 @@ export type BuildingAccessSpurPlan = {
 
 /**
  * Resolves visual spurs from the same building-center road-access rule used by
- * simulation, then chooses the existing footprint anchor nearest that road.
+ * simulation, then chooses the building-envelope entrance nearest that road.
+ * Display circles deliberately sit farther out and are not physical spur
+ * endpoints.
  */
 export function planBuildingAccessSpurs(
   buildings: Iterable<BuildingRoadConnectionSource>,
@@ -42,7 +44,7 @@ export function planBuildingAccessSpurs(
     const roadSnap = network.findSnap(center, BUILDING_ROAD_ACCESS_DISTANCE + 1e-6);
     if (!roadSnap) continue;
 
-    const connections = getBuildingRoadConnectionPoints(building, terrain, network);
+    const connections = getBuildingRoadEntrancePoints(building, terrain, network);
     const connection = nearestConnection(connections, roadSnap.point);
     if (!connection) continue;
     const length = distanceXZ(connection.point, roadSnap.point);
@@ -148,6 +150,7 @@ function spurSignature(
       building.x.toFixed(3),
       building.z.toFixed(3),
       building.yaw?.toFixed(4) ?? 'auto',
+      building.constructionComplete ?? 'complete',
     ].join(':'))
     .sort()
     .join('|');

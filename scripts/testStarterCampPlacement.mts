@@ -484,7 +484,12 @@ assert.doesNotMatch(
   /assessFoundingSite|describeFoundingSiteAssessment|Founding outlook/,
   'founding-camp placement should not reveal its calculated site quality',
 );
-assert.match(buildingTool, /kind === 'founders_camp'[\s\S]*Ready: click to establish the camp/);
+assert.match(
+  buildingTool,
+  /if \(kind === 'founders_camp'\) \{\s*this\.setPlacementStatusDetail\(null\);\s*return;/,
+  'the camp preview should communicate placement validity without status-bar copy',
+);
+assert.doesNotMatch(buildingTool, /Ready: click to establish the camp/);
 assert.match(
   buildingTool,
   /onPlacementPreviewChanged\?\.\(\)/,
@@ -580,12 +585,17 @@ assert.doesNotMatch(
 assert.match(
   buildToolbar,
   /data-builder-status/,
-  'placement guidance should remain in the compact bottom status bar',
+  'ordinary placement guidance should remain in the compact bottom status bar',
 );
 assert.match(
+  buildToolbar,
+  /builderStatusBar\.innerHTML = placingStarterCamp \? '' : renderToolbarStatus\(stats\);[\s\S]*?builderStatusBar\.hidden = this\.firstPersonActive[\s\S]*?\|\| placingStarterCamp/,
+  'starter-camp placement should clear and hide the shared builder status bar',
+);
+assert.doesNotMatch(
   read('src/app/appBootstrap.ts'),
   /This temporary camp will support the settlement as it takes root/,
-  'founding guidance must describe the camp as temporary rather than the permanent settlement heart',
+  'starter-camp placement should not show a redundant instructional toast',
 );
 
 const simulation = read('server/src/reducers/simulation.rs');

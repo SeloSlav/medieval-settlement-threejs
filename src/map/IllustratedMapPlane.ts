@@ -52,6 +52,9 @@ export class IllustratedMapPlane {
     this.mapTexture.name = 'Illustrated strategic map parchment';
     this.mapTexture.colorSpace = THREE.SRGBColorSpace;
     this.mapTexture.anisotropy = this.maxAnisotropy;
+    this.mapTexture.magFilter = THREE.LinearFilter;
+    this.mapTexture.minFilter = THREE.LinearMipmapLinearFilter;
+    this.mapTexture.generateMipmaps = true;
     this.mapTexture.wrapS = THREE.ClampToEdgeWrapping;
     this.mapTexture.wrapT = THREE.ClampToEdgeWrapping;
     this.mapTexture.needsUpdate = true;
@@ -60,6 +63,9 @@ export class IllustratedMapPlane {
     this.stampTexture.name = 'Illustrated strategic map resource stamps';
     this.stampTexture.colorSpace = THREE.SRGBColorSpace;
     this.stampTexture.anisotropy = this.maxAnisotropy;
+    this.stampTexture.magFilter = THREE.LinearFilter;
+    this.stampTexture.minFilter = THREE.LinearMipmapLinearFilter;
+    this.stampTexture.generateMipmaps = true;
     this.stampTexture.wrapS = THREE.ClampToEdgeWrapping;
     this.stampTexture.wrapT = THREE.ClampToEdgeWrapping;
     this.stampTexture.needsUpdate = true;

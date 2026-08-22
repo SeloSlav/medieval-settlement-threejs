@@ -5,7 +5,11 @@ import {
   updateTerrainRibbonGeometry,
 } from '../placement/TerrainOverlayGeometry.ts';
 import type { BuildingKind } from '../resources/types.ts';
-import { getBuildingRoadConnectionPoints } from '../roads/BuildingRoadConnections.ts';
+import {
+  BUILDING_ROAD_CONNECTION_MARKER_INNER_RADIUS,
+  BUILDING_ROAD_CONNECTION_MARKER_OUTER_RADIUS,
+  getBuildingRoadConnectionPoints,
+} from '../roads/BuildingRoadConnections.ts';
 import { disposeObject3D } from '../utils/dispose.ts';
 import { createBuildingMesh } from './BuildingMeshes.ts';
 import { getBuildingFootprintCorners } from './BuildingTerrainLayout.ts';
@@ -22,8 +26,12 @@ const FOOTPRINT_HATCH_SPACING = 1.25;
 const FOOTPRINT_BORDER_LIFT = 0.145;
 const FOOTPRINT_BORDER_WIDTH = 0.34;
 const ROAD_ATTACHMENT_LIFT = 0.21;
-const ROAD_ATTACHMENT_RADIUS = 1.15;
-const ROAD_ATTACHMENT_WIDTH = 0.3;
+const ROAD_ATTACHMENT_RADIUS = (
+  BUILDING_ROAD_CONNECTION_MARKER_INNER_RADIUS
+  + BUILDING_ROAD_CONNECTION_MARKER_OUTER_RADIUS
+) * 0.5;
+const ROAD_ATTACHMENT_WIDTH = BUILDING_ROAD_CONNECTION_MARKER_OUTER_RADIUS
+  - BUILDING_ROAD_CONNECTION_MARKER_INNER_RADIUS;
 const ROAD_ATTACHMENT_SEGMENTS = 28;
 const GHOST_FILL_OPACITY = 0.1;
 const GHOST_OUTLINE_OPACITY = 0.66;

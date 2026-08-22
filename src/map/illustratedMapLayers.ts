@@ -24,6 +24,12 @@ const MAP_INK = 'rgba(52, 36, 21, 0.88)';
 const MAP_INK_SOFT = 'rgba(75, 50, 25, 0.42)';
 const BUILDING_WASH = 'rgba(86, 56, 27, 0.28)';
 const RESIDENCE_WASH = 'rgba(99, 67, 33, 0.22)';
+const MAP_ART_RESOLUTION = 512;
+
+function mapArtScale(context: CanvasRenderingContext2D): number {
+  return Math.min(context.canvas.width, context.canvas.height) / MAP_ART_RESOLUTION;
+}
+
 export function drawIllustratedMapLayers(options: {
   context: CanvasRenderingContext2D;
   bounds: TerrainBounds;
@@ -32,10 +38,11 @@ export function drawIllustratedMapLayers(options: {
 }): void {
   const { context, bounds, roadNetwork, state } = options;
   const { width, height } = context.canvas;
+  const drawScale = mapArtScale(context);
 
   context.save();
   context.beginPath();
-  context.rect(5, 5, width - 10, height - 10);
+  context.rect(5 * drawScale, 5 * drawScale, width - 10 * drawScale, height - 10 * drawScale);
   context.clip();
 
   drawRoadInk(context, bounds, roadNetwork.edges.values());
@@ -53,9 +60,15 @@ export function drawIllustratedResourceStampLayer(options: {
   stampImages: IllustratedMapStampImages;
 }): void {
   const { context, bounds, state, layoutMarkers, stampImages } = options;
+  const drawScale = mapArtScale(context);
   context.save();
   context.beginPath();
-  context.rect(5, 5, context.canvas.width - 10, context.canvas.height - 10);
+  context.rect(
+    5 * drawScale,
+    5 * drawScale,
+    context.canvas.width - 10 * drawScale,
+    context.canvas.height - 10 * drawScale,
+  );
   context.clip();
   drawResourceStamps(context, bounds, layoutMarkers, state, stampImages);
   context.restore();
@@ -67,6 +80,7 @@ function drawRoadInk(
   edges: Iterable<RoadEdge>,
 ): void {
   const metresPerPixel = (bounds.maxX - bounds.minX) / context.canvas.width;
+  const drawScale = mapArtScale(context);
   context.save();
   context.lineCap = 'round';
   context.lineJoin = 'round';
@@ -74,16 +88,16 @@ function drawRoadInk(
   for (const edge of edges) {
     const path = edge.surfacePath ?? edge.sampledPath;
     if (path.length < 2) continue;
-    const roadWidthPixels = clamp(edge.width / metresPerPixel, 0.9, 3.2);
+    const roadWidthPixels = clamp(edge.width / metresPerPixel, 0.9 * drawScale, 3.2 * drawScale);
 
     traceWorldPath(context, bounds, path);
     context.strokeStyle = MAP_INK_SOFT;
-    context.lineWidth = roadWidthPixels + 1.15;
+    context.lineWidth = roadWidthPixels + 1.15 * drawScale;
     context.stroke();
 
     traceWorldPath(context, bounds, path);
     context.strokeStyle = MAP_INK;
-    context.lineWidth = Math.max(0.72, roadWidthPixels * 0.42);
+    context.lineWidth = Math.max(0.72 * drawScale, roadWidthPixels * 0.42);
     context.stroke();
   }
 
@@ -184,8 +198,9 @@ function drawFootprintPolygon(
   context.fillStyle = fillStyle;
   context.fill();
   context.strokeStyle = MAP_INK;
-  context.lineWidth = 0.82;
-  context.setLineDash(underConstruction ? [1.8, 1.2] : []);
+  const drawScale = mapArtScale(context);
+  context.lineWidth = 0.82 * drawScale;
+  context.setLineDash(underConstruction ? [1.8 * drawScale, 1.2 * drawScale] : []);
   context.stroke();
   context.restore();
 }
@@ -198,6 +213,7 @@ function drawResourceStamps(
   stampImages: IllustratedMapStampImages,
 ): void {
   context.save();
+  const drawScale = mapArtScale(context);
 
   for (const marker of markers) {
     const geologicalNode = geologicalNodeForMapMarker(marker, state.quarries);
@@ -216,7 +232,7 @@ function drawResourceStamps(
       context.canvas.height,
     );
     const rich = node?.isRich === true;
-    const size = rich ? 42 : marker.quarryKind === 'large' ? 31 : 27;
+    const size = (rich ? 42 : marker.quarryKind === 'large' ? 31 : 27) * drawScale;
     context.globalAlpha = node && node.remaining <= 0 ? 0.38 : rich ? 0.96 : 0.86;
     context.drawImage(image, point.x - size * 0.5, point.y - size * 0.5, size, size);
   }

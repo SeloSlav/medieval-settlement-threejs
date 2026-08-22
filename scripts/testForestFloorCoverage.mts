@@ -8,7 +8,10 @@ import {
 } from '../src/terrain/ForestCanopyOcclusion.ts';
 import {
   createTerrainConformingIvyGeometry,
+  FOREST_FLOOR_IVY_CANOPY_HEIGHT_MAX,
   FOREST_FLOOR_IVY_GROUND_CLEARANCE,
+  FOREST_FLOOR_IVY_LAYER_COUNT,
+  FOREST_FLOOR_IVY_LAYER_SPECS,
   FOREST_FLOOR_IVY_TRIANGLES_PER_PATCH,
   FOREST_FLOOR_IVY_UV_BOUNDS,
   FOREST_FLOOR_IVY_VERTICES_PER_PATCH,
@@ -171,52 +174,121 @@ const compiledIvy = createTerrainConformingIvyGeometry(
 const ivyPosition = compiledIvy.geometry.getAttribute('position') as THREE.BufferAttribute;
 const ivyNormal = compiledIvy.geometry.getAttribute('normal') as THREE.BufferAttribute;
 const ivyUv = compiledIvy.geometry.getAttribute('uv') as THREE.BufferAttribute;
+const ivyLayer = compiledIvy.geometry.getAttribute('ivyLayer') as THREE.BufferAttribute;
+const ivyTint = compiledIvy.geometry.getAttribute('aTint') as THREE.BufferAttribute;
 assert.equal(ivyPosition.count, FOREST_FLOOR_IVY_VERTICES_PER_PATCH);
 assert.equal(
   compiledIvy.geometry.index!.count / 3,
   FOREST_FLOOR_IVY_TRIANGLES_PER_PATCH,
 );
+assert.equal(compiledIvy.layerVertexRanges.length, FOREST_FLOOR_IVY_LAYER_COUNT);
 assert.deepEqual(
   compiledIvy.placementVertexRangesByTree,
   [[{ start: 0, count: FOREST_FLOOR_IVY_VERTICES_PER_PATCH }]],
 );
-let minimumClearance = Number.POSITIVE_INFINITY;
-let maximumClearance = Number.NEGATIVE_INFINITY;
-let minimumNormalY = 1;
-let maximumNormalY = -1;
-for (let index = 0; index < ivyPosition.count; index++) {
-  const x = ivyPosition.getX(index);
-  const z = ivyPosition.getZ(index);
-  const clearance = ivyPosition.getY(index) - slopedTerrain.getHeightAt(x, z);
-  minimumClearance = Math.min(minimumClearance, clearance);
-  maximumClearance = Math.max(maximumClearance, clearance);
-  minimumNormalY = Math.min(minimumNormalY, ivyNormal.getY(index));
-  maximumNormalY = Math.max(maximumNormalY, ivyNormal.getY(index));
+const expectedLayerKinds = FOREST_FLOOR_IVY_LAYER_SPECS.map((layer) => layer.kind);
+assert.deepEqual(
+  compiledIvy.layerVertexRanges.map((range) => range.kind),
+  expectedLayerKinds,
+);
+let expectedLayerStart = 0;
+for (const [layerIndex, range] of compiledIvy.layerVertexRanges.entries()) {
+  const spec = FOREST_FLOOR_IVY_LAYER_SPECS[layerIndex]!;
+  assert.equal(range.start, expectedLayerStart);
+  assert.equal(range.count, (spec.segmentsX + 1) * (spec.segmentsZ + 1));
+  assert.equal(range.layerIndex, layerIndex);
+  assert.equal(range.placementIndex, 0);
+  for (let index = range.start; index < range.start + range.count; index++) {
+    assert.equal(ivyLayer.getX(index), layerIndex);
+  }
+  expectedLayerStart += range.count;
 }
+assert.equal(expectedLayerStart, FOREST_FLOOR_IVY_VERTICES_PER_PATCH);
+
+const ivyIndices = compiledIvy.geometry.index!.array;
+for (let index = 0; index < ivyIndices.length; index += 3) {
+  const aLayer = ivyLayer.getX(ivyIndices[index]!);
+  assert.equal(ivyLayer.getX(ivyIndices[index + 1]!), aLayer);
+  assert.equal(ivyLayer.getX(ivyIndices[index + 2]!), aLayer);
+}
+
+const clearanceByLayer = compiledIvy.layerVertexRanges.map(() => [] as number[]);
+const normalYByLayer = compiledIvy.layerVertexRanges.map(() => [] as number[]);
+const tintBrightnessByLayer = compiledIvy.layerVertexRanges.map(() => [] as number[]);
+for (const [layerIndex, range] of compiledIvy.layerVertexRanges.entries()) {
+  for (let index = range.start; index < range.start + range.count; index++) {
+    const x = ivyPosition.getX(index);
+    const z = ivyPosition.getZ(index);
+    clearanceByLayer[layerIndex]!.push(
+      ivyPosition.getY(index) - slopedTerrain.getHeightAt(x, z),
+    );
+    normalYByLayer[layerIndex]!.push(ivyNormal.getY(index));
+    tintBrightnessByLayer[layerIndex]!.push(
+      (ivyTint.getX(index) + ivyTint.getY(index) + ivyTint.getZ(index)) / 3,
+    );
+  }
+}
+const minimumClearance = Math.min(...clearanceByLayer.flat());
+const maximumClearance = Math.max(...clearanceByLayer.flat());
+const layerPeaks = clearanceByLayer.map((values) => Math.max(...values));
+const layerTintMeans = tintBrightnessByLayer.map(
+  (values) => values.reduce((sum, value) => sum + value, 0) / values.length,
+);
+const tierPeaks = [0, 0, 0, 0];
+const tierTintTotals = [0, 0, 0, 0];
+const tierTintCounts = [0, 0, 0, 0];
+for (const [layerIndex, spec] of FOREST_FLOOR_IVY_LAYER_SPECS.entries()) {
+  tierPeaks[spec.tier] = Math.max(tierPeaks[spec.tier]!, layerPeaks[layerIndex]!);
+  tierTintTotals[spec.tier] += layerTintMeans[layerIndex]!;
+  tierTintCounts[spec.tier] += 1;
+}
+const tierTintMeans = tierTintTotals.map(
+  (total, tier) => total / tierTintCounts[tier]!,
+);
 assert.ok(
   Math.abs(minimumClearance - FOREST_FLOOR_IVY_GROUND_CLEARANCE) < 1e-6,
-  'the alpha perimeter should touch the terrain within the depth-safe clearance',
+  'the ground stratum should retain exact litter contact',
 );
 assert.ok(
-  maximumClearance > 0.1 && maximumClearance < 0.23,
-  'the patch should carry shallow physical leaf relief without becoming a shrub',
+  maximumClearance > 0.22
+    && maximumClearance <= FOREST_FLOOR_IVY_GROUND_CLEARANCE
+      + FOREST_FLOOR_IVY_CANOPY_HEIGHT_MAX + 1e-6,
+  'the crown should create real layered depth while remaining bounded groundcover',
 );
 assert.ok(
-  maximumNormalY - minimumNormalY > 0.015,
-  'computed normals should prove that the carrier is curved rather than a flat card',
+  FOREST_FLOOR_IVY_LAYER_COUNT > tierPeaks.length,
+  'paired botanical lobes should create more disconnected sheets than height tiers',
 );
-assert.ok(minimumNormalY > 0.75, 'the drape should remain a ground-facing surface');
+for (let tier = 1; tier < tierPeaks.length; tier++) {
+  assert.ok(
+    tierPeaks[tier]! > tierPeaks[tier - 1]! + 0.025,
+    `tier ${tier} should establish a distinct height band`,
+  );
+  assert.ok(
+    tierTintMeans[tier]! > tierTintMeans[tier - 1]!,
+    `tier ${tier} should be brighter than its supporting foliage`,
+  );
+}
+assert.ok(
+  Math.min(...normalYByLayer[0]!) > 0.75,
+  'only the grounded apron must remain consistently ground-facing',
+);
+const raisedNormals = normalYByLayer.slice(1).flat();
+assert.ok(
+  raisedNormals.filter((normalY) => normalY < Math.cos(THREE.MathUtils.degToRad(20))).length
+    / raisedNormals.length > 0.05,
+  'raised shelves should contain visibly canted macro normals rather than parallel sheets',
+);
 assert.ok(Math.abs(ivyUv.getX(0) - FOREST_FLOOR_IVY_UV_BOUNDS.minU) < 1e-6);
 assert.ok(Math.abs(ivyUv.getY(0) - FOREST_FLOOR_IVY_UV_BOUNDS.minV) < 1e-6);
 assert.ok(
-  Math.abs(
-    ivyUv.getX(ivyUv.count - 1) - FOREST_FLOOR_IVY_UV_BOUNDS.maxU,
-  ) < 1e-6,
+  Math.min(...Array.from({ length: ivyUv.count }, (_, index) => ivyUv.getX(index)))
+    < FOREST_FLOOR_IVY_UV_BOUNDS.minU,
+  'raised shelves should include a transparent UV guard around the alpha silhouette',
 );
 assert.ok(
-  Math.abs(
-    ivyUv.getY(ivyUv.count - 1) - FOREST_FLOOR_IVY_UV_BOUNDS.maxV,
-  ) < 1e-6,
+  Math.max(...Array.from({ length: ivyUv.count }, (_, index) => ivyUv.getX(index)))
+    > FOREST_FLOOR_IVY_UV_BOUNDS.maxU,
 );
 const repeatedIvy = createTerrainConformingIvyGeometry(
   [ivyPlacement],
@@ -227,7 +299,12 @@ const repeatedIvy = createTerrainConformingIvyGeometry(
 assert.deepEqual(
   Array.from(repeatedIvy.originalPositions),
   Array.from(compiledIvy.originalPositions),
-  'fixed seed, placement, and terrain should reproduce the exact drape',
+  'fixed seed, placement, and terrain should reproduce every shelf exactly',
+);
+assert.deepEqual(
+  Array.from(repeatedIvy.geometry.index!.array),
+  Array.from(compiledIvy.geometry.index!.array),
+  'fixed inputs should reproduce layered topology exactly',
 );
 
 assert.match(
@@ -243,14 +320,16 @@ assert.doesNotMatch(
 assert.match(ivySource, /terrain\.getHeightAt\(worldX, worldZ\)/);
 assert.match(ivySource, /sourceTreeIndex:[\s\S]*?placementVertexRangesByTree/);
 assert.match(ivySource, /new THREE\.Mesh\(compiled\.geometry, material\)/);
-assert.match(ivySource, /normalNode = normalView/);
+assert.match(ivySource, /normalNode = normalViewGeometry/);
 assert.match(ivySource, /positionLocal as SeedThreeGroundCoverPositionNode/);
 assert.match(ivySource, /FOREST_FLOOR_IVY_HIDDEN_Y[\s\S]*?position\.addUpdateRange/);
 assert.match(
   ivySource,
-  /FOREST_FLOOR_IVY_GROUND_CLEARANCE = 0\.014[\s\S]*?FOREST_FLOOR_IVY_RELIEF_MIN = 0\.12[\s\S]*?FOREST_FLOOR_IVY_RELIEF_MAX = 0\.22/,
-  'ivy should declare a measurable ground-contact and shallow-relief contract',
+  /FOREST_FLOOR_IVY_LAYER_SPECS[\s\S]*?kind: 'ground'[\s\S]*?kind: 'lower'[\s\S]*?kind: 'upper'[\s\S]*?kind: 'crown'/,
+  'ivy should declare semantic ground, lower, upper, and crown strata',
 );
+assert.match(ivySource, /ivyStackHeightAtWorld[\s\S]*?overhangScale[\s\S]*?supportGap/);
+assert.match(ivySource, /geometry\.setAttribute\('ivyLayer'/);
 assert.match(
   managerSource,
   /setTreeForestFloorActive\(treeIndex, false\)[\s\S]*?setTreeForestFloorActive\(treeIndex, true\)/,

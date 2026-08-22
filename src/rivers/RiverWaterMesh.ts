@@ -478,7 +478,7 @@ export function createRiverWaterMesh(
   const waterProfile = waterSurfaceProfileForPreset(riverField.layout.terrainPreset);
   const mesh = new THREE.Mesh(
     geometry,
-    getSharedRiverWaterMaterial(shoreMaps),
+    getSharedRiverWaterMaterial(shoreMaps, waterProfile),
   );
   mesh.name = waterProfile.id === 'coastal'
     ? 'Coastal sea surface'

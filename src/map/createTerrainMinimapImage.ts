@@ -10,11 +10,16 @@ import {
 import { riverFieldBounds } from './worldToMapPercent.ts';
 import { yieldToMain } from '../utils/yieldToMain.ts';
 
-const MINIMAP_RESOLUTION = 512;
-const ROWS_PER_YIELD = 32;
+// Keep the original 512 px composition as the authoring grid, but rasterize it
+// at 4x resolution. The strategic plane can cover a 1440p/4K viewport, where
+// the old texture otherwise enlarged each source pixel into a visible block.
+const MAP_ART_RESOLUTION = 512;
+const MINIMAP_RESOLUTION = 2048;
+const MAP_ART_SCALE = MINIMAP_RESOLUTION / MAP_ART_RESOLUTION;
+const ROWS_PER_YIELD = 32 * MAP_ART_SCALE;
 const RELIEF_GRID_RESOLUTION = 82;
-const FOREST_GLYPH_SPACING = 16;
-const GRASS_GLYPH_SPACING = 22;
+const FOREST_GLYPH_SPACING = 16 * MAP_ART_SCALE;
+const GRASS_GLYPH_SPACING = 22 * MAP_ART_SCALE;
 
 const PARCHMENT_COLOR = { r: 214, g: 193, b: 147 } as const;
 const WATER_WASH_COLOR = { r: 129, g: 151, b: 146 } as const;
@@ -81,15 +86,17 @@ async function createParchmentRaster(
   const waterMask = new Uint8Array(MINIMAP_RESOLUTION * MINIMAP_RESOLUTION);
   const denominator = Math.max(MINIMAP_RESOLUTION - 1, 1);
   const riverDenominator = Math.max(riverField.resolution - 1, 1);
+  const sourceWaterMask = createRenderedWaterMask(riverField);
 
   for (let row = 0; row < MINIMAP_RESOLUTION; row++) {
     if (row > 0 && row % ROWS_PER_YIELD === 0) await yieldToMain();
-    const riverRow = Math.round((row / denominator) * riverDenominator);
+    const riverRow = (row / denominator) * riverDenominator;
 
     for (let column = 0; column < MINIMAP_RESOLUTION; column++) {
-      const riverColumn = Math.round((column / denominator) * riverDenominator);
+      const riverColumn = (column / denominator) * riverDenominator;
       const pixelIndex = row * MINIMAP_RESOLUTION + column;
-      waterMask[pixelIndex] = riverField.isRenderedWetAtGrid(riverColumn, riverRow) ? 1 : 0;
+      const wetCoverage = sampleBinaryMaskBilinear(sourceWaterMask, riverField.resolution, riverColumn, riverRow);
+      waterMask[pixelIndex] = wetCoverage >= 0.5 ? 1 : 0;
     }
   }
 
@@ -100,7 +107,11 @@ async function createParchmentRaster(
       const pixelIndex = row * MINIMAP_RESOLUTION + column;
       const isWater = waterMask[pixelIndex] === 1;
       const grain = mapHash(column, row, seed) - 0.5;
-      const longFiber = Math.sin(column * 0.071 + row * 0.017 + seed * 0.0017) * 1.7;
+      const longFiber = Math.sin(
+        (column / MAP_ART_SCALE) * 0.071
+          + (row / MAP_ART_SCALE) * 0.017
+          + seed * 0.0017,
+      ) * 1.7;
       const base = isWater
         ? blendColors(PARCHMENT_COLOR, WATER_WASH_COLOR, 0.66 + grain * 0.08)
         : PARCHMENT_COLOR;
@@ -128,6 +139,28 @@ async function createParchmentRaster(
   return waterMask;
 }
 
+function createRenderedWaterMask(riverField: RiverField): Uint8Array {
+  const mask = new Uint8Array(riverField.resolution * riverField.resolution);
+  for (let row = 0; row < riverField.resolution; row++) {
+    for (let column = 0; column < riverField.resolution; column++) {
+      mask[row * riverField.resolution + column] = riverField.isRenderedWetAtGrid(column, row) ? 1 : 0;
+    }
+  }
+  return mask;
+}
+
+function sampleBinaryMaskBilinear(mask: Uint8Array, resolution: number, x: number, y: number): number {
+  const x0 = Math.floor(x);
+  const y0 = Math.floor(y);
+  const x1 = Math.min(resolution - 1, x0 + 1);
+  const y1 = Math.min(resolution - 1, y0 + 1);
+  const tx = x - x0;
+  const ty = y - y0;
+  const top = mask[y0 * resolution + x0] * (1 - tx) + mask[y0 * resolution + x1] * tx;
+  const bottom = mask[y1 * resolution + x0] * (1 - tx) + mask[y1 * resolution + x1] * tx;
+  return top * (1 - ty) + bottom * ty;
+}
+
 function drawParchmentMottling(context: CanvasRenderingContext2D, seed: number): void {
   const rng = mulberry32(seed ^ 0x7a4d_21c3);
   context.save();
@@ -136,7 +169,7 @@ function drawParchmentMottling(context: CanvasRenderingContext2D, seed: number):
   for (let index = 0; index < 22; index++) {
     const x = rng() * MINIMAP_RESOLUTION;
     const y = rng() * MINIMAP_RESOLUTION;
-    const radius = 22 + rng() * 74;
+    const radius = (22 + rng() * 74) * MAP_ART_SCALE;
     const gradient = context.createRadialGradient(x, y, 0, x, y, radius);
     gradient.addColorStop(0, `rgba(101, 72, 34, ${0.018 + rng() * 0.025})`);
     gradient.addColorStop(1, 'rgba(101, 72, 34, 0)');
@@ -179,14 +212,14 @@ async function drawReliefLines(
 
   context.save();
   context.strokeStyle = 'rgba(66, 49, 29, 0.25)';
-  context.lineWidth = 0.7;
+  context.lineWidth = 0.7 * MAP_ART_SCALE;
   context.lineCap = 'round';
   context.lineJoin = 'round';
-  context.setLineDash([2.2, 2.6]);
+  context.setLineDash([2.2 * MAP_ART_SCALE, 2.6 * MAP_ART_SCALE]);
 
   for (let levelIndex = 0; levelIndex < levels.length; levelIndex++) {
     const level = levels[levelIndex];
-    context.lineDashOffset = mapHash(levelIndex, 19, seed) * 4;
+    context.lineDashOffset = mapHash(levelIndex, 19, seed) * 4 * MAP_ART_SCALE;
     context.beginPath();
 
     for (let row = 0; row < RELIEF_GRID_RESOLUTION - 1; row++) {
@@ -247,13 +280,14 @@ function drawGrassGlyphs(
   const terrainExtent = terrain.size * 0.5;
   context.save();
   context.strokeStyle = 'rgba(72, 55, 32, 0.46)';
-  context.lineWidth = 0.72;
+  context.lineWidth = 0.72 * MAP_ART_SCALE;
   context.lineCap = 'round';
 
-  for (let row = 8; row < MINIMAP_RESOLUTION - 8; row += GRASS_GLYPH_SPACING) {
-    for (let column = 8; column < MINIMAP_RESOLUTION - 8; column += GRASS_GLYPH_SPACING) {
-      const jitterX = (mapHash(column, row, seed ^ 0x1821) - 0.5) * 13;
-      const jitterY = (mapHash(column, row, seed ^ 0x2b77) - 0.5) * 13;
+  const inset = 8 * MAP_ART_SCALE;
+  for (let row = inset; row < MINIMAP_RESOLUTION - inset; row += GRASS_GLYPH_SPACING) {
+    for (let column = inset; column < MINIMAP_RESOLUTION - inset; column += GRASS_GLYPH_SPACING) {
+      const jitterX = (mapHash(column, row, seed ^ 0x1821) - 0.5) * 13 * MAP_ART_SCALE;
+      const jitterY = (mapHash(column, row, seed ^ 0x2b77) - 0.5) * 13 * MAP_ART_SCALE;
       const pixelX = column + jitterX;
       const pixelY = row + jitterY;
       if (isWaterPixel(waterMask, pixelX, pixelY)) continue;
@@ -273,8 +307,8 @@ function drawGrassGlyphs(
         context,
         pixelX,
         pixelY,
-        1.3 + mapHash(column - 31, row + 42, seed) * 1.3,
-        mapHash(column, row, seed ^ 0x51a4) - 0.5,
+        (1.3 + mapHash(column - 31, row + 42, seed) * 1.3) * MAP_ART_SCALE,
+        (mapHash(column, row, seed ^ 0x51a4) - 0.5) * MAP_ART_SCALE,
       );
     }
   }
@@ -294,15 +328,16 @@ function drawForestGlyphs(
   context.save();
   context.strokeStyle = 'rgba(49, 40, 25, 0.82)';
   context.fillStyle = 'rgba(84, 72, 42, 0.08)';
-  context.lineWidth = 0.9;
+  context.lineWidth = 0.9 * MAP_ART_SCALE;
   context.lineCap = 'round';
   context.lineJoin = 'round';
 
-  for (let row = 8; row < MINIMAP_RESOLUTION - 8; row += FOREST_GLYPH_SPACING) {
+  const inset = 8 * MAP_ART_SCALE;
+  for (let row = inset; row < MINIMAP_RESOLUTION - inset; row += FOREST_GLYPH_SPACING) {
     const rowOffset = (Math.floor(row / FOREST_GLYPH_SPACING) % 2) * (FOREST_GLYPH_SPACING * 0.5);
-    for (let column = 8 + rowOffset; column < MINIMAP_RESOLUTION - 8; column += FOREST_GLYPH_SPACING) {
-      const jitterX = (mapHash(column, row, seed ^ 0x731f) - 0.5) * 10;
-      const jitterY = (mapHash(column, row, seed ^ 0x09d5) - 0.5) * 10;
+    for (let column = inset + rowOffset; column < MINIMAP_RESOLUTION - inset; column += FOREST_GLYPH_SPACING) {
+      const jitterX = (mapHash(column, row, seed ^ 0x731f) - 0.5) * 10 * MAP_ART_SCALE;
+      const jitterY = (mapHash(column, row, seed ^ 0x09d5) - 0.5) * 10 * MAP_ART_SCALE;
       const pixelX = column + jitterX;
       const pixelY = row + jitterY;
       if (isWaterPixel(waterMask, pixelX, pixelY)) continue;
@@ -318,8 +353,8 @@ function drawForestGlyphs(
       if (mapHash(column + 43, row - 26, seed) > chance) continue;
 
       const coniferBias = forestConiferBiasAt(world.x, world.z, forestCores);
-      const scale = 0.78 + mapHash(column - 12, row + 67, seed) * 0.38;
-      const lean = (mapHash(column + 5, row + 8, seed ^ 0x4c17) - 0.5) * 0.8;
+      const scale = (0.78 + mapHash(column - 12, row + 67, seed) * 0.38) * MAP_ART_SCALE;
+      const lean = (mapHash(column + 5, row + 8, seed ^ 0x4c17) - 0.5) * 0.8 * MAP_ART_SCALE;
       if (mapHash(column - 19, row + 4, seed ^ 0x6a3d) < coniferBias) {
         drawConiferGlyph(context, pixelX, pixelY, scale, lean);
       } else {
@@ -338,25 +373,27 @@ function drawWaterHatching(
 ): void {
   context.save();
   context.strokeStyle = 'rgba(47, 58, 50, 0.54)';
-  context.lineWidth = 0.75;
+  context.lineWidth = 0.75 * MAP_ART_SCALE;
   context.lineCap = 'round';
 
-  for (let row = 9; row < MINIMAP_RESOLUTION - 9; row += 13) {
-    for (let column = 9; column < MINIMAP_RESOLUTION - 9; column += 17) {
-      const jitterX = (mapHash(column, row, seed ^ 0x56ce) - 0.5) * 8;
-      const jitterY = (mapHash(column, row, seed ^ 0x112f) - 0.5) * 6;
+  const inset = 9 * MAP_ART_SCALE;
+  for (let row = inset; row < MINIMAP_RESOLUTION - inset; row += 13 * MAP_ART_SCALE) {
+    for (let column = inset; column < MINIMAP_RESOLUTION - inset; column += 17 * MAP_ART_SCALE) {
+      const jitterX = (mapHash(column, row, seed ^ 0x56ce) - 0.5) * 8 * MAP_ART_SCALE;
+      const jitterY = (mapHash(column, row, seed ^ 0x112f) - 0.5) * 6 * MAP_ART_SCALE;
       const x = column + jitterX;
       const y = row + jitterY;
-      const length = 4 + mapHash(column + 7, row + 3, seed) * 5;
+      const length = (4 + mapHash(column + 7, row + 3, seed) * 5) * MAP_ART_SCALE;
       if (
-        !isWaterPixel(waterMask, x, y)
-        || !isWaterPixel(waterMask, x - length * 0.5, y)
-        || !isWaterPixel(waterMask, x + length * 0.5, y)
-      ) continue;
+        !isWaterPixel(waterMask, x, y) ||
+        !isWaterPixel(waterMask, x - length * 0.5, y) ||
+        !isWaterPixel(waterMask, x + length * 0.5, y)
+      )
+        continue;
       context.beginPath();
       context.moveTo(x - length * 0.5, y);
-      context.quadraticCurveTo(x - length * 0.2, y - 1.1, x, y);
-      context.quadraticCurveTo(x + length * 0.2, y + 1.1, x + length * 0.5, y);
+      context.quadraticCurveTo(x - length * 0.2, y - 1.1 * MAP_ART_SCALE, x, y);
+      context.quadraticCurveTo(x + length * 0.2, y + 1.1 * MAP_ART_SCALE, x + length * 0.5, y);
       context.stroke();
     }
   }
@@ -372,11 +409,11 @@ function drawGrassTuft(
   lean: number,
 ): void {
   context.beginPath();
-  context.moveTo(x, y + 1);
+  context.moveTo(x, y + MAP_ART_SCALE);
   context.lineTo(x + lean, y - height);
-  context.moveTo(x, y + 1);
+  context.moveTo(x, y + MAP_ART_SCALE);
   context.lineTo(x - height * 0.7, y - height * 0.45);
-  context.moveTo(x, y + 1);
+  context.moveTo(x, y + MAP_ART_SCALE);
   context.lineTo(x + height * 0.72, y - height * 0.55);
   context.stroke();
 }
@@ -453,11 +490,21 @@ function drawBroadleafGlyph(
 function drawInkBorder(context: CanvasRenderingContext2D): void {
   context.save();
   context.strokeStyle = 'rgba(55, 43, 27, 0.72)';
-  context.lineWidth = 1.4;
-  context.strokeRect(5.5, 5.5, MINIMAP_RESOLUTION - 11, MINIMAP_RESOLUTION - 11);
+  context.lineWidth = 1.4 * MAP_ART_SCALE;
+  context.strokeRect(
+    5.5 * MAP_ART_SCALE,
+    5.5 * MAP_ART_SCALE,
+    MINIMAP_RESOLUTION - 11 * MAP_ART_SCALE,
+    MINIMAP_RESOLUTION - 11 * MAP_ART_SCALE,
+  );
   context.strokeStyle = 'rgba(55, 43, 27, 0.32)';
-  context.lineWidth = 0.7;
-  context.strokeRect(9.5, 9.5, MINIMAP_RESOLUTION - 19, MINIMAP_RESOLUTION - 19);
+  context.lineWidth = 0.7 * MAP_ART_SCALE;
+  context.strokeRect(
+    9.5 * MAP_ART_SCALE,
+    9.5 * MAP_ART_SCALE,
+    MINIMAP_RESOLUTION - 19 * MAP_ART_SCALE,
+    MINIMAP_RESOLUTION - 19 * MAP_ART_SCALE,
+  );
   context.restore();
 }
 

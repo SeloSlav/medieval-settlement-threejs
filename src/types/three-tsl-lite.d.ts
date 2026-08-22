@@ -37,6 +37,7 @@ declare module 'three/tsl' {
   export const sin: (value: unknown) => unknown;
   export const time: unknown;
   export const normalView: unknown;
+  export const normalWorldGeometry: unknown;
   export const normalize: (value: unknown) => unknown;
   export const positionWorld: unknown;
   export const screenSize: unknown;

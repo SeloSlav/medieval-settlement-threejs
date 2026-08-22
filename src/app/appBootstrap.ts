@@ -787,7 +787,6 @@ export async function bootstrapAppSession(
         toastManager?.show('SpacetimeDB is not connected.', { variant: 'error' });
         return;
       }
-      const wasActive = buildingTool.getMode() === 'founders_camp';
       buildingTool.setMode('founders_camp');
       if (buildingTool.getMode() !== 'founders_camp') return;
       roadTool.setEnabled(false);
@@ -795,12 +794,6 @@ export async function bootstrapAppSession(
       farmFieldTool.setEnabled(false);
       resourceInspector?.clearSelection();
       villagerInspector?.clearSelection();
-      if (!wasActive) {
-        toastManager?.show(
-          'Choose clear, dry ground for your founders. This temporary camp will support the settlement as it takes root.',
-          { variant: 'info', durationMs: 6000 },
-        );
-      }
       bridge.syncToolbar();
     },
     onSelectBuilding: (kind: BuildingKind) => {

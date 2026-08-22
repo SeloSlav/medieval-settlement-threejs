@@ -3,15 +3,29 @@ import { performance } from 'node:perf_hooks';
 import { readFileSync } from 'node:fs';
 import * as THREE from 'three';
 import {
+  BUILDING_ROAD_CONNECTION_CENTER_OFFSET,
+  BUILDING_ROAD_CONNECTION_EDGE_CLEARANCE,
+  BUILDING_ROAD_CONNECTION_MARKER_OUTER_RADIUS,
   BuildingRoadConnections,
+  getBuildingRoadEntrancePoints,
   getBuildingRoadConnectionPoints,
   markerRevealOpacity,
+  type BuildingRoadConnectionSource,
 } from '../src/roads/BuildingRoadConnections.ts';
+import { createConstructionSiteMesh } from '../src/buildings/ConstructionSiteMesh.ts';
 import {
   BuildingAccessSpurs,
   planBuildingAccessSpurs,
 } from '../src/roads/BuildingAccessSpurs.ts';
-import { getBuildingFootprintHalfExtents } from '../src/buildings/BuildingTerrainLayout.ts';
+import {
+  getBuildingFootprintCorners,
+} from '../src/buildings/BuildingTerrainLayout.ts';
+import {
+  BUILDING_LOCAL_VISUAL_BOUNDS,
+  BUILDING_VISUAL_BOUNDS_SAFETY_MARGIN,
+  getConstructionSiteLocalVisualBounds,
+  type BuildingLocalVisualBounds,
+} from '../src/buildings/BuildingVisualBounds.ts';
 import {
   BUILDING_ACCESS_SPUR_WIDTH,
   ROAD_WIDTH,
@@ -21,6 +35,7 @@ import { hasRoadAccess } from '../src/roads/roadConnectivity.ts';
 import { RoadMeshBuilder } from '../src/roads/RoadMeshBuilder.ts';
 import { RoadNetwork } from '../src/roads/RoadNetwork.ts';
 import { RoadPreview } from '../src/roads/RoadPreview.ts';
+import { BUILDING_KINDS } from '../src/generated/gameBalance.ts';
 import {
   isWorldInspectionBlocked,
   isWorldResourceIconVisibilityBlocked,
@@ -31,6 +46,150 @@ const flatTerrain = {
   getPointAt: (x: number, z: number, offset = 0) =>
     new THREE.Vector3(x, 12 + offset, z),
 };
+
+const EXPECTED_MARKER_EDGE_CLEARANCE = BUILDING_ROAD_CONNECTION_CENTER_OFFSET
+  - BUILDING_ROAD_CONNECTION_MARKER_OUTER_RADIUS;
+const ROAD_CONNECTION_TEST_YAWS = [0, 0.37, -1.11] as const;
+assert(
+  EXPECTED_MARKER_EDGE_CLEARANCE > 0,
+  'the shared outer ring edge must retain positive clearance from every authored envelope',
+);
+assertAlmostEqual(
+  EXPECTED_MARKER_EDGE_CLEARANCE,
+  BUILDING_ROAD_CONNECTION_EDGE_CLEARANCE,
+  'the marker center and outer radius should preserve the authored fixed clearance',
+);
+
+type AuthoredRoadBuilding = BuildingRoadConnectionSource & { yaw: number };
+
+function localPoint(
+  point: Pick<THREE.Vector3, 'x' | 'z'>,
+  building: Pick<AuthoredRoadBuilding, 'x' | 'z' | 'yaw'>,
+): { x: number; z: number } {
+  const dx = point.x - building.x;
+  const dz = point.z - building.z;
+  const cos = Math.cos(building.yaw);
+  const sin = Math.sin(building.yaw);
+  return {
+    x: dx * cos - dz * sin,
+    z: dx * sin + dz * cos,
+  };
+}
+
+function expectedAuthoredRoadEnvelope(
+  building: AuthoredRoadBuilding,
+): BuildingLocalVisualBounds {
+  const visualBounds = building.constructionComplete === false
+    ? getConstructionSiteLocalVisualBounds(building.kind)
+    : BUILDING_LOCAL_VISUAL_BOUNDS[building.kind];
+  let minX = visualBounds.minX;
+  let maxX = visualBounds.maxX;
+  let minZ = visualBounds.minZ;
+  let maxZ = visualBounds.maxZ;
+  for (const corner of getBuildingFootprintCorners(
+    building.kind,
+    building.x,
+    building.z,
+    building.yaw,
+  )) {
+    const local = localPoint(corner, building);
+    minX = Math.min(minX, local.x - BUILDING_VISUAL_BOUNDS_SAFETY_MARGIN);
+    maxX = Math.max(maxX, local.x + BUILDING_VISUAL_BOUNDS_SAFETY_MARGIN);
+    minZ = Math.min(minZ, local.z - BUILDING_VISUAL_BOUNDS_SAFETY_MARGIN);
+    maxZ = Math.max(maxZ, local.z + BUILDING_VISUAL_BOUNDS_SAFETY_MARGIN);
+  }
+  return { minX, maxX, minZ, maxZ };
+}
+
+function expectedRoadOffsets(
+  bounds: BuildingLocalVisualBounds,
+  centerOffset = BUILDING_ROAD_CONNECTION_CENTER_OFFSET,
+): ReadonlyArray<Readonly<{ x: number; z: number }>> {
+  const midpointX = (bounds.minX + bounds.maxX) * 0.5;
+  const midpointZ = (bounds.minZ + bounds.maxZ) * 0.5;
+  return [
+    { x: midpointX, z: bounds.maxZ + centerOffset },
+    { x: bounds.maxX + centerOffset, z: midpointZ },
+    { x: midpointX, z: bounds.minZ - centerOffset },
+    { x: bounds.minX - centerOffset, z: midpointZ },
+  ];
+}
+
+function sideDistanceFromEnvelope(
+  index: number,
+  point: { x: number; z: number },
+  bounds: BuildingLocalVisualBounds,
+): number {
+  if (index === 0) return point.z - bounds.maxZ;
+  if (index === 1) return point.x - bounds.maxX;
+  if (index === 2) return bounds.minZ - point.z;
+  return bounds.minX - point.x;
+}
+
+function assertAlmostEqual(actual: number, expected: number, message: string): void {
+  assert(
+    Math.abs(actual - expected) < 1e-9,
+    `${message}: ${actual} !== ${expected}`,
+  );
+}
+
+function exactObjectBoundsXZ(root: THREE.Object3D): BuildingLocalVisualBounds {
+  root.updateMatrixWorld(true);
+  const point = new THREE.Vector3();
+  const instanceMatrix = new THREE.Matrix4();
+  const worldMatrix = new THREE.Matrix4();
+  let minX = Number.POSITIVE_INFINITY;
+  let maxX = Number.NEGATIVE_INFINITY;
+  let minZ = Number.POSITIVE_INFINITY;
+  let maxZ = Number.NEGATIVE_INFINITY;
+  root.traverseVisible((object) => {
+    if (!(object instanceof THREE.Mesh)) return;
+    const position = object.geometry.getAttribute('position');
+    if (!position) return;
+    const visit = (matrix: THREE.Matrix4) => {
+      for (let vertex = 0; vertex < position.count; vertex += 1) {
+        point.fromBufferAttribute(position, vertex).applyMatrix4(matrix);
+        minX = Math.min(minX, point.x);
+        maxX = Math.max(maxX, point.x);
+        minZ = Math.min(minZ, point.z);
+        maxZ = Math.max(maxZ, point.z);
+      }
+    };
+    if (object instanceof THREE.InstancedMesh) {
+      for (let instance = 0; instance < object.count; instance += 1) {
+        object.getMatrixAt(instance, instanceMatrix);
+        worldMatrix.multiplyMatrices(object.matrixWorld, instanceMatrix);
+        visit(worldMatrix);
+      }
+    } else {
+      visit(object.matrixWorld);
+    }
+  });
+  return { minX, maxX, minZ, maxZ };
+}
+
+function assertAuthoredRoadConnectionClearance(building: AuthoredRoadBuilding): void {
+  const bounds = expectedAuthoredRoadEnvelope(building);
+  const expectedOffsets = expectedRoadOffsets(bounds);
+  const connections = getBuildingRoadConnectionPoints(building, flatTerrain);
+  assert.equal(connections.length, 4, `${building.kind} should expose four road connections`);
+  for (const [index, connection] of connections.entries()) {
+    const local = localPoint(connection.point, building);
+    assertAlmostEqual(local.x, expectedOffsets[index].x, `${building.id} connection ${index} local x`);
+    assertAlmostEqual(local.z, expectedOffsets[index].z, `${building.id} connection ${index} local z`);
+    const centerClearance = sideDistanceFromEnvelope(index, local, bounds);
+    assertAlmostEqual(
+      centerClearance,
+      BUILDING_ROAD_CONNECTION_CENTER_OFFSET,
+      `${building.id} connection ${index} center clearance`,
+    );
+    assertAlmostEqual(
+      centerClearance - BUILDING_ROAD_CONNECTION_MARKER_OUTER_RADIUS,
+      EXPECTED_MARKER_EDGE_CLEARANCE,
+      `${building.id} connection ${index} outer ring-edge clearance`,
+    );
+  }
+}
 
 const foundersCamp = {
   id: 'founders-camp',
@@ -50,20 +209,35 @@ assert.equal(
   'all four founders-camp road connections should be distinct',
 );
 assert(campConnections.every(({ point }) => point.y === 12), 'connection markers should follow terrain height');
-const { halfWidth, halfDepth } = getBuildingFootprintHalfExtents(foundersCamp.kind);
-const expectedPerimeterPoints = [
-  [foundersCamp.x, foundersCamp.z + halfDepth],
-  [foundersCamp.x + halfWidth, foundersCamp.z],
-  [foundersCamp.x, foundersCamp.z - halfDepth],
-  [foundersCamp.x - halfWidth, foundersCamp.z],
-] as const;
-for (const [x, z] of expectedPerimeterPoints) {
+assertAuthoredRoadConnectionClearance(foundersCamp);
+
+for (const [kindIndex, kind] of BUILDING_KINDS.entries()) {
+  for (const [yawIndex, yaw] of ROAD_CONNECTION_TEST_YAWS.entries()) {
+    for (const constructionComplete of [true, false] as const) {
+      assertAuthoredRoadConnectionClearance({
+        id: `clearance-${kind}-${kindIndex}-${yawIndex}-${constructionComplete ? 'complete' : 'construction'}`,
+        kind,
+        x: 31,
+        z: -17,
+        yaw,
+        constructionComplete,
+      });
+    }
+  }
+
+  const constructionSite = createConstructionSiteMesh(kind, 0.99, 1, 1, 1, 1);
+  const constructionVisualBounds = exactObjectBoundsXZ(constructionSite);
+  const constructionBounds = getConstructionSiteLocalVisualBounds(kind);
   assert(
-    campConnections.some(({ point }) =>
-      Math.abs(point.x - x) < 1e-9 && Math.abs(point.z - z) < 1e-9
-    ),
-    'each connection should sit on the midpoint of the true footprint perimeter',
+    constructionVisualBounds.minX >= constructionBounds.minX - 1e-4
+      && constructionVisualBounds.maxX <= constructionBounds.maxX + 1e-4
+      && constructionVisualBounds.minZ >= constructionBounds.minZ - 1e-4
+      && constructionVisualBounds.maxZ <= constructionBounds.maxZ + 1e-4,
+    `${kind} construction envelope should contain every maximum-stage scaffold and material pile`,
   );
+  constructionSite.traverse((object) => {
+    if (object instanceof THREE.Mesh) object.geometry.dispose();
+  });
 }
 
 const accessNetwork = new RoadNetwork();
@@ -99,14 +273,58 @@ const wellPlan = accessPlans[0];
 assert.equal(wellPlan.buildingId, connectedWell.id);
 assert(Math.abs(wellPlan.centerRoadDistance - 15) < 1e-9);
 assert.equal(wellPlan.roadPoint.z, 0, 'the spur should terminate at the nearest road centerline');
+const wellDisplayConnections = getBuildingRoadConnectionPoints(connectedWell, flatTerrain);
+const wellEntrances = getBuildingRoadEntrancePoints(connectedWell, flatTerrain);
+const southDisplayConnection = wellDisplayConnections[2];
+const southEntrance = wellEntrances[2];
+assert(
+  wellPlan.connection.point.distanceTo(southEntrance.point) < 1e-9,
+  'the access spur should terminate at the building-envelope entrance',
+);
+assert.equal(wellPlan.connection.id, `${connectedWell.id}:entrance:2`);
+assert(
+  wellPlan.connection.point.distanceTo(southDisplayConnection.point)
+    > BUILDING_ROAD_CONNECTION_CENTER_OFFSET - 1e-9,
+  'the access spur endpoint must not reuse the outward display-circle center',
+);
 assert(
   wellPlan.connection.point.z < connectedWell.z,
-  'the spur should start at the footprint anchor facing the road',
+  'the spur should reach the building entrance facing the road',
 );
 assert.equal(wellPlan.visualWidth, BUILDING_ACCESS_SPUR_WIDTH);
 assert(
   BUILDING_ACCESS_SPUR_WIDTH < roadVisualWidth(ROAD_WIDTH) * 0.5,
   'building access spurs should remain distinctly slimmer than the main road',
+);
+
+const roadBetweenCircleAndBuildingZ = (
+  southDisplayConnection.point.z + southEntrance.point.z
+) * 0.5;
+const roadBetweenCircleAndBuilding = new RoadNetwork();
+roadBetweenCircleAndBuilding.addRoadPath([
+  new THREE.Vector3(-30, 12, roadBetweenCircleAndBuildingZ),
+  new THREE.Vector3(30, 12, roadBetweenCircleAndBuildingZ),
+]);
+assert(
+  southDisplayConnection.point.z < roadBetweenCircleAndBuildingZ
+    && roadBetweenCircleAndBuildingZ < southEntrance.point.z
+    && southEntrance.point.z < connectedWell.z,
+  'the risk fixture should put the road between the display circle and the building',
+);
+const betweenCircleAndBuildingPlan = planBuildingAccessSpurs(
+  [connectedWell],
+  flatTerrain,
+  roadBetweenCircleAndBuilding,
+)[0];
+assert(betweenCircleAndBuildingPlan);
+assert(
+  betweenCircleAndBuildingPlan.connection.point.distanceTo(southEntrance.point) < 1e-9,
+  'a road between the circle and building must still spur inward to the entrance',
+);
+assert(
+  betweenCircleAndBuildingPlan.connection.point.distanceTo(southDisplayConnection.point)
+    > BUILDING_ROAD_CONNECTION_CENTER_OFFSET - 1e-9,
+  'a road between the circle and building must not create an outward spur to the display circle',
 );
 
 const spurRoadMaterial = new THREE.MeshBasicMaterial();
@@ -174,6 +392,71 @@ accessSpurs.dispose();
 spurRoadMaterial.dispose();
 spurBlendMaterial.dispose();
 
+const monastery = {
+  id: 'monastery-road-marker-risk',
+  kind: 'monastery' as const,
+  x: 90,
+  z: -40,
+  yaw: 0,
+  constructionComplete: true,
+};
+const monasteryDisplayConnections = getBuildingRoadConnectionPoints(monastery, flatTerrain);
+const monasteryEntrances = getBuildingRoadEntrancePoints(monastery, flatTerrain);
+const monasteryFrontCircle = monasteryDisplayConnections[0];
+const monasteryFrontEntrance = monasteryEntrances[0];
+assertAlmostEqual(
+  monasteryFrontCircle.point.z - monasteryFrontEntrance.point.z,
+  BUILDING_ROAD_CONNECTION_CENTER_OFFSET,
+  'monastery front display circle should keep the shared center offset',
+);
+const monasteryMarkerParent = new THREE.Group();
+const monasteryMarkers = new BuildingRoadConnections({
+  parent: monasteryMarkerParent,
+  terrain: flatTerrain as never,
+  getBuildings: () => [monastery],
+  getRoadNetwork: () => null,
+});
+monasteryMarkers.setVisible(true);
+const monasteryCircleSnap = monasteryMarkers.findSnap(
+  monasteryFrontCircle.point.clone().add(new THREE.Vector3(0.5, 0, 0)),
+  0.75,
+);
+assert(monasteryCircleSnap);
+assert(
+  monasteryCircleSnap.point.equals(monasteryFrontCircle.point),
+  'the asymmetric monastery estate should snap roads to its exterior display circle',
+);
+monasteryMarkers.dispose();
+
+const monasteryRiskRoadZ = (
+  monasteryFrontCircle.point.z + monasteryFrontEntrance.point.z
+) * 0.5;
+const monasteryRiskNetwork = new RoadNetwork();
+monasteryRiskNetwork.addRoadPath([
+  new THREE.Vector3(monastery.x - 45, 12, monasteryRiskRoadZ),
+  new THREE.Vector3(monastery.x + 45, 12, monasteryRiskRoadZ),
+]);
+assert(
+  monasteryFrontEntrance.point.z < monasteryRiskRoadZ
+    && monasteryRiskRoadZ < monasteryFrontCircle.point.z,
+  'the monastery access-risk road should lie between its entrance and display circle',
+);
+const monasteryRiskPlan = planBuildingAccessSpurs(
+  [monastery],
+  flatTerrain,
+  monasteryRiskNetwork,
+)[0];
+assert(monasteryRiskPlan);
+assert(
+  monasteryRiskPlan.connection.point.distanceTo(monasteryFrontEntrance.point) < 1e-9,
+  'monastery access should terminate at the estate entrance when the road crosses its marker gap',
+);
+assert(
+  monasteryRiskPlan.connection.point.distanceTo(monasteryFrontCircle.point)
+    > BUILDING_ROAD_CONNECTION_CENTER_OFFSET - 1e-9,
+  'monastery access must not spur outward to its oversized-estate display circle',
+);
+
 const parent = new THREE.Group();
 const connections = new BuildingRoadConnections({
   parent,
@@ -194,12 +477,11 @@ assert.equal(
   'no marker buffers should be allocated before a building is near the cursor',
 );
 
-const eastConnection = campConnections.find(({ point }) => point.x > foundersCamp.x);
-assert(eastConnection);
+const eastConnection = campConnections[1];
 connections.setCursor(eastConnection.point.clone().add(new THREE.Vector3(7, 0, 0)));
 connections.update(0.1);
 assert.equal(markerRevealOpacity(7, true), 1, 'the nearest marker should be fully revealed first');
-assert.equal(markerRevealOpacity(10, false), 0, 'sibling markers should remain hidden farther away');
+assert.equal(markerRevealOpacity(16, false), 0, 'sibling markers should remain hidden farther away');
 
 for (const markerName of [
   'Building road connection rings',
@@ -212,6 +494,17 @@ for (const markerName of [
   assert.equal(markers.material.color.getHex(), 0xffffff, `${markerName} should be white`);
   assert.equal(markers.material.depthTest, false, `${markerName} should render as an overlay`);
   assert.equal(markers.material.depthWrite, false, `${markerName} must not alter scene depth`);
+  if (markers.geometry instanceof THREE.RingGeometry) {
+    assert.equal(
+      markers.geometry.parameters.outerRadius,
+      BUILDING_ROAD_CONNECTION_MARKER_OUTER_RADIUS,
+      'placed and preview road-connection circles should share one outer radius',
+    );
+    assert(
+      markers.geometry.parameters.outerRadius < BUILDING_ROAD_CONNECTION_CENTER_OFFSET,
+      'the complete placed-building ring should remain outside the safety envelope',
+    );
+  }
   const markerOpacity = markers.geometry.getAttribute('markerOpacity');
   assert(markerOpacity instanceof THREE.InstancedBufferAttribute);
   assert(markerOpacity.getX(0) > 0, `${markerName} should be fading in`);

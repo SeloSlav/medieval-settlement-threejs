@@ -241,7 +241,7 @@ export class SpacetimeSnapshotApplier {
       }
     }
 
-    if (buildingsChanged) {
+    if (buildingsChanged || destroyedStructureVisibilityChanged) {
       deps.sceneManager?.syncBuildingAccessRoads(
         deps.buildingMarkers?.getRoadConnectionSources() ?? [],
       );

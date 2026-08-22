@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import * as THREE from 'three';
+import { BUILDING_KINDS } from '../src/generated/gameBalance.ts';
 import { intersectTerrainHeightfieldRay } from '../src/terrain/TerrainProjector.ts';
 import {
   BuildingTerrainLayout,
@@ -9,6 +10,11 @@ import {
   getBuildingSiteClearanceSearchRadius,
   pointWithinBuildingSiteClearance,
 } from '../src/buildings/BuildingTerrainLayout.ts';
+import {
+  BUILDING_LOCAL_VISUAL_BOUNDS,
+  BUILDING_VISUAL_BOUNDS_SAFETY_MARGIN,
+  type BuildingLocalVisualBounds,
+} from '../src/buildings/BuildingVisualBounds.ts';
 import {
   BUILDING_EDGE_CLEARANCE,
   BUILDING_EDGE_SNAP_DISTANCE,
@@ -62,6 +68,12 @@ import {
 import { isPointInPolygon2 } from '../src/utils/polygonGeometry.ts';
 import { RiverLayout } from '../src/rivers/RiverLayout.ts';
 import { RoadNetwork } from '../src/roads/RoadNetwork.ts';
+import {
+  BUILDING_ROAD_CONNECTION_CENTER_OFFSET,
+  BUILDING_ROAD_CONNECTION_EDGE_CLEARANCE,
+  BUILDING_ROAD_CONNECTION_MARKER_OUTER_RADIUS,
+  getBuildingRoadConnectionPoints,
+} from '../src/roads/BuildingRoadConnections.ts';
 import type {
   BuildingKind,
   BuildingState,
@@ -808,17 +820,180 @@ function testPlacementOverlaysFollowTerrainHeight(): void {
   borderGeometry.dispose();
 }
 
+function localPlacementPoint(
+  point: { x: number; z: number },
+  x: number,
+  z: number,
+  yaw: number,
+): { x: number; z: number } {
+  const dx = point.x - x;
+  const dz = point.z - z;
+  const cos = Math.cos(yaw);
+  const sin = Math.sin(yaw);
+  return {
+    x: dx * cos - dz * sin,
+    z: dx * sin + dz * cos,
+  };
+}
+
+function completedAuthoredRoadEnvelope(
+  kind: BuildingKind,
+  x: number,
+  z: number,
+  yaw: number,
+): BuildingLocalVisualBounds {
+  const visualBounds = BUILDING_LOCAL_VISUAL_BOUNDS[kind];
+  let minX = visualBounds.minX;
+  let maxX = visualBounds.maxX;
+  let minZ = visualBounds.minZ;
+  let maxZ = visualBounds.maxZ;
+  for (const corner of getBuildingFootprintCorners(kind, x, z, yaw)) {
+    const local = localPlacementPoint(corner, x, z, yaw);
+    minX = Math.min(minX, local.x - BUILDING_VISUAL_BOUNDS_SAFETY_MARGIN);
+    maxX = Math.max(maxX, local.x + BUILDING_VISUAL_BOUNDS_SAFETY_MARGIN);
+    minZ = Math.min(minZ, local.z - BUILDING_VISUAL_BOUNDS_SAFETY_MARGIN);
+    maxZ = Math.max(maxZ, local.z + BUILDING_VISUAL_BOUNDS_SAFETY_MARGIN);
+  }
+  return { minX, maxX, minZ, maxZ };
+}
+
+function previewSideDistance(
+  index: number,
+  point: { x: number; z: number },
+  bounds: BuildingLocalVisualBounds,
+): number {
+  if (index === 0) return point.z - bounds.maxZ;
+  if (index === 1) return point.x - bounds.maxX;
+  if (index === 2) return bounds.minZ - point.z;
+  return bounds.minX - point.x;
+}
+
+function assertPreviewRoadAttachmentsOutsideModelAndFootprint(
+  preview: THREE.Group,
+  kind: BuildingKind,
+  x: number,
+  z: number,
+  yaw: number,
+  heightAt: (pointX: number, pointZ: number) => number,
+): void {
+  const footprintLocal = getBuildingFootprintCorners(kind, x, z, yaw)
+    .map((corner) => localPlacementPoint(corner, x, z, yaw));
+  const footprintBounds = {
+    minX: Math.min(...footprintLocal.map((point) => point.x)),
+    maxX: Math.max(...footprintLocal.map((point) => point.x)),
+    minZ: Math.min(...footprintLocal.map((point) => point.z)),
+    maxZ: Math.max(...footprintLocal.map((point) => point.z)),
+  };
+  const authoredEnvelope = completedAuthoredRoadEnvelope(kind, x, z, yaw);
+  const connections = getBuildingRoadConnectionPoints(
+    { id: `preview-${kind}`, kind, x, z, yaw },
+    {
+      getPointAt: (pointX: number, pointZ: number, offset = 0) =>
+        new THREE.Vector3(pointX, heightAt(pointX, pointZ) + offset, pointZ),
+    },
+  );
+  const ghostFill = preview.getObjectByName('Building placement ghost fill');
+  assert(ghostFill instanceof THREE.Mesh);
+  const ghostPositions = ghostFill.geometry.getAttribute('position') as THREE.BufferAttribute;
+  let modelMinX = Number.POSITIVE_INFINITY;
+  let modelMaxX = Number.NEGATIVE_INFINITY;
+  let modelMinZ = Number.POSITIVE_INFINITY;
+  let modelMaxZ = Number.NEGATIVE_INFINITY;
+  for (let vertexIndex = 0; vertexIndex < ghostPositions.count; vertexIndex += 1) {
+    modelMinX = Math.min(modelMinX, ghostPositions.getX(vertexIndex));
+    modelMaxX = Math.max(modelMaxX, ghostPositions.getX(vertexIndex));
+    modelMinZ = Math.min(modelMinZ, ghostPositions.getZ(vertexIndex));
+    modelMaxZ = Math.max(modelMaxZ, ghostPositions.getZ(vertexIndex));
+  }
+  const authoredVisualBounds = BUILDING_LOCAL_VISUAL_BOUNDS[kind];
+  const modelBoundsTolerance = 1e-4;
+  assert(modelMinX >= authoredVisualBounds.minX - modelBoundsTolerance, `${kind} model minX audit`);
+  assert(modelMaxX <= authoredVisualBounds.maxX + modelBoundsTolerance, `${kind} model maxX audit`);
+  assert(modelMinZ >= authoredVisualBounds.minZ - modelBoundsTolerance, `${kind} model minZ audit`);
+  assert(modelMaxZ <= authoredVisualBounds.maxZ + modelBoundsTolerance, `${kind} model maxZ audit`);
+
+  const midpointX = (authoredEnvelope.minX + authoredEnvelope.maxX) * 0.5;
+  const midpointZ = (authoredEnvelope.minZ + authoredEnvelope.maxZ) * 0.5;
+  const expectedOffsets = [
+    { x: midpointX, z: authoredEnvelope.maxZ + BUILDING_ROAD_CONNECTION_CENTER_OFFSET },
+    { x: authoredEnvelope.maxX + BUILDING_ROAD_CONNECTION_CENTER_OFFSET, z: midpointZ },
+    { x: midpointX, z: authoredEnvelope.minZ - BUILDING_ROAD_CONNECTION_CENTER_OFFSET },
+    { x: authoredEnvelope.minX - BUILDING_ROAD_CONNECTION_CENTER_OFFSET, z: midpointZ },
+  ] as const;
+
+  for (const [index, expected] of connections.entries()) {
+    const circle = preview.getObjectByName(`Building road attachment circle ${index + 1}`);
+    assert(circle instanceof THREE.Mesh);
+    const connectionPoint = circle.userData.connectionPoint as [number, number, number];
+    assert(
+      new THREE.Vector3(...connectionPoint).distanceTo(expected.point) < 1e-9,
+      `${kind} preview attachment ${index + 1} should reuse the placed-building anchor`,
+    );
+    const localConnection = localPlacementPoint(
+      { x: connectionPoint[0], z: connectionPoint[2] },
+      x,
+      z,
+      yaw,
+    );
+    assert(Math.abs(localConnection.x - expectedOffsets[index].x) < 1e-9);
+    assert(Math.abs(localConnection.z - expectedOffsets[index].z) < 1e-9);
+
+    const positions = circle.geometry.getAttribute('position') as THREE.BufferAttribute;
+    let minimumFootprintDistance = Number.POSITIVE_INFINITY;
+    let minimumModelDistance = Number.POSITIVE_INFINITY;
+    let minimumEnvelopeDistance = Number.POSITIVE_INFINITY;
+    let maximumCircleRadius = 0;
+    for (let vertexIndex = 0; vertexIndex < positions.count; vertexIndex += 1) {
+      const worldPoint = {
+        x: positions.getX(vertexIndex),
+        z: positions.getZ(vertexIndex),
+      };
+      const local = localPlacementPoint(worldPoint, x, z, yaw);
+      minimumFootprintDistance = Math.min(
+        minimumFootprintDistance,
+        previewSideDistance(index, local, footprintBounds),
+      );
+      minimumModelDistance = Math.min(
+        minimumModelDistance,
+        previewSideDistance(index, local, {
+          minX: modelMinX,
+          maxX: modelMaxX,
+          minZ: modelMinZ,
+          maxZ: modelMaxZ,
+        }),
+      );
+      minimumEnvelopeDistance = Math.min(
+        minimumEnvelopeDistance,
+        previewSideDistance(index, local, authoredEnvelope),
+      );
+      maximumCircleRadius = Math.max(
+        maximumCircleRadius,
+        Math.hypot(worldPoint.x - connectionPoint[0], worldPoint.z - connectionPoint[2]),
+      );
+    }
+    assert(
+      minimumFootprintDistance > 0,
+      `${kind} preview attachment ${index + 1} should remain completely outside its exact footprint`,
+    );
+    assert(
+      minimumModelDistance > 0,
+      `${kind} preview attachment ${index + 1} should remain completely outside its model`,
+    );
+    assert(
+      Math.abs(minimumEnvelopeDistance - BUILDING_ROAD_CONNECTION_EDGE_CLEARANCE) < 0.03,
+      `${kind} preview attachment ${index + 1} should preserve the fixed ring-edge clearance`,
+    );
+    assert(
+      Math.abs(maximumCircleRadius - BUILDING_ROAD_CONNECTION_MARKER_OUTER_RADIUS) < 0.025,
+      `${kind} preview attachment ${index + 1} should share the placed marker outer radius`,
+    );
+  }
+}
+
 function testPlacementPreviewOmitsRadiusExtents(): void {
   const heightAt = (x: number, z: number) =>
     Math.sin(x * 0.018) * 3.4 + Math.cos(z * 0.021) * 2.6;
-  for (const kind of [
-    'threshing_barn',
-    'well',
-    'monastery',
-    'watchtower',
-    'palisaded_refuge',
-    'smithy',
-  ] as const) {
+  for (const kind of BUILDING_KINDS) {
     const preview = createBuildingPreviewMesh(kind);
     assert.equal(
       preview.getObjectByName('Building placement extent'),
@@ -830,7 +1005,17 @@ function testPlacementPreviewOmitsRadiusExtents(): void {
       undefined,
       `${kind} must not expose a fire-planning radius`,
     );
-    updateBuildingPreviewGeometry(preview, kind, 35, -48, 0.42, heightAt);
+    for (const yaw of [0, 0.42, -1.09]) {
+      updateBuildingPreviewGeometry(preview, kind, 35, -48, yaw, heightAt);
+      assertPreviewRoadAttachmentsOutsideModelAndFootprint(
+        preview,
+        kind,
+        35,
+        -48,
+        yaw,
+        heightAt,
+      );
+    }
     if (kind === 'monastery') {
       const hatch = preview.getObjectByName('Building footprint diagonal hatch');
       assert(hatch instanceof THREE.Mesh);
@@ -878,12 +1063,14 @@ function testPlacementPreviewShowsHatchGhostAndRotatingRoadAttachments(): void {
     4,
     'placement should expose all four footprint road attachments',
   );
-  const { halfWidth, halfDepth } = getBuildingFootprintHalfExtents(kind);
+  const authoredEnvelope = completedAuthoredRoadEnvelope(kind, x, z, yaw);
+  const envelopeMidpointX = (authoredEnvelope.minX + authoredEnvelope.maxX) * 0.5;
+  const envelopeMidpointZ = (authoredEnvelope.minZ + authoredEnvelope.maxZ) * 0.5;
   const localOffsets = [
-    [0, halfDepth],
-    [halfWidth, 0],
-    [0, -halfDepth],
-    [-halfWidth, 0],
+    [envelopeMidpointX, authoredEnvelope.maxZ + BUILDING_ROAD_CONNECTION_CENTER_OFFSET],
+    [authoredEnvelope.maxX + BUILDING_ROAD_CONNECTION_CENTER_OFFSET, envelopeMidpointZ],
+    [envelopeMidpointX, authoredEnvelope.minZ - BUILDING_ROAD_CONNECTION_CENTER_OFFSET],
+    [authoredEnvelope.minX - BUILDING_ROAD_CONNECTION_CENTER_OFFSET, envelopeMidpointZ],
   ] as const;
   for (const [index, [localX, localZ]] of localOffsets.entries()) {
     const circle = preview.getObjectByName(`Building road attachment circle ${index + 1}`);
@@ -898,6 +1085,23 @@ function testPlacementPreviewShowsHatchGhostAndRotatingRoadAttachments(): void {
     assert(Math.abs(connectionPoint[0] - expectedX) < 1e-9);
     assert(Math.abs(connectionPoint[1] - heightAt(expectedX, expectedZ)) < 1e-9);
     assert(Math.abs(connectionPoint[2] - expectedZ) < 1e-9);
+
+    const positions = circle.geometry.getAttribute('position') as THREE.BufferAttribute;
+    let minimumEnvelopeDistance = Number.POSITIVE_INFINITY;
+    for (let vertexIndex = 0; vertexIndex < positions.count; vertexIndex += 1) {
+      const local = localPlacementPoint({
+        x: positions.getX(vertexIndex),
+        z: positions.getZ(vertexIndex),
+      }, x, z, yaw);
+      minimumEnvelopeDistance = Math.min(
+        minimumEnvelopeDistance,
+        previewSideDistance(index, local, authoredEnvelope),
+      );
+    }
+    assert(
+      minimumEnvelopeDistance > 0,
+      `road attachment ${index + 1} should remain completely outside the authored envelope`,
+    );
   }
 
   const ghost = preview.getObjectByName('Building placement ghost');

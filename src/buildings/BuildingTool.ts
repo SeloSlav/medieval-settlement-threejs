@@ -561,15 +561,15 @@ export class BuildingTool {
     kind: BuildingKind,
     validation: BuildingPlacementResult,
   ): void {
+    if (kind === 'founders_camp') {
+      this.setPlacementStatusDetail(null);
+      return;
+    }
     if (!validation.ok) {
       const detail = this.options.describePlacementFailure?.(
         validation.reason,
       ) ?? `Placement blocked: ${validation.reason}`;
       this.setPlacementStatusDetail(detail);
-      return;
-    }
-    if (kind === 'founders_camp') {
-      this.setPlacementStatusDetail('Ready: click to establish the camp');
       return;
     }
     this.setPlacementStatusDetail(

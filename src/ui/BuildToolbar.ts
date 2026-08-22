@@ -677,8 +677,10 @@ export class BuildToolbar {
       : 'Map overlays (M)';
     if (this.cropSuitabilityActive) this.setOverlayMenuOpen(false);
     this.syncMapOverlayLegend();
-    this.builderStatusBar.innerHTML = renderToolbarStatus(stats);
-    this.builderStatusBar.hidden = this.firstPersonActive || !isBuilderHudMode(stats.mode);
+    this.builderStatusBar.innerHTML = placingStarterCamp ? '' : renderToolbarStatus(stats);
+    this.builderStatusBar.hidden = this.firstPersonActive
+      || placingStarterCamp
+      || !isBuilderHudMode(stats.mode);
     this.builderStatusBar.dataset.state = statusState;
   }
 

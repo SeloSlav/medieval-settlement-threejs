@@ -80,7 +80,7 @@ select:focus-visible {
 .settlement-hud {
   position: relative;
   display: grid;
-  grid-template-columns: 60px 42px minmax(0, 1fr) 52px;
+  grid-template-columns: 72px 42px minmax(0, 1fr) 52px;
   align-items: stretch;
   gap: 0;
   width: min(704px, calc(100vw - 64px));
@@ -182,12 +182,12 @@ select:focus-visible {
 }
 
 .settlement-hud__approval-button {
-  grid-template-columns: 23px minmax(0, 1fr);
+  grid-template-columns: 21px minmax(0, 1fr);
   grid-template-rows: 1fr;
   gap: 4px;
   height: 100%;
   min-height: 44px;
-  padding: 5px 4px;
+  padding: 5px 3px;
   border: 0;
   border-right: 1px solid rgba(218, 194, 139, 0.14);
   border-radius: 0;
@@ -211,8 +211,8 @@ select:focus-visible {
   grid-column: 1;
   grid-row: 1;
   align-self: center;
-  width: 23px;
-  height: 23px;
+  width: 21px;
+  height: 21px;
   font-size: 12px;
 }
 
@@ -231,6 +231,7 @@ select:focus-visible {
   font-family: var(--ui-display);
   font-size: 15px;
   font-weight: 600;
+  white-space: nowrap;
 }
 
 .settlement-hud__approval-standing {
@@ -254,7 +255,7 @@ select:focus-visible {
   right: auto;
   bottom: auto;
   left: 0;
-  max-height: min(480px, calc(100vh - 140px));
+  max-height: calc(100vh - 100px);
 }
 
 .settlement-hud.has-approval-open .settlement-hud__approval-shell::after {
@@ -2911,8 +2912,20 @@ select:focus-visible {
 
 @media (max-width: 1080px) {
   .settlement-hud {
-    grid-template-columns: 50px 36px minmax(0, 1fr) 42px;
+    grid-template-columns: 52px 36px minmax(0, 1fr) 42px;
     width: min(570px, calc(100vw - 70px));
+  }
+
+  .settlement-hud__approval-button {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .settlement-hud__approval-icon {
+    display: none;
+  }
+
+  .settlement-hud__approval-copy {
+    grid-column: 1;
   }
 
   .settlement-hud__body {
@@ -2940,7 +2953,7 @@ select:focus-visible {
   }
 
   .settlement-hud {
-    grid-template-columns: 46px 34px minmax(0, 1fr) 38px;
+    grid-template-columns: 52px 34px minmax(0, 1fr) 38px;
     width: calc(100vw - 14px);
     min-height: 48px;
   }

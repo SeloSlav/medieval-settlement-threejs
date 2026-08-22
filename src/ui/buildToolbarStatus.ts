@@ -48,7 +48,6 @@ export function isBuilderHudMode(mode: ToolbarStats['mode']): boolean {
 }
 
 const PLACEMENT_STATUS_HINTS: Partial<Record<BuildingKind, string>> = {
-  founders_camp: ' — a temporary base while your settlement takes root',
   fishing_camp: ' — keep the camp on land; the finite shoal must be inside its work extent',
   town_hall: ' — requires 24 people, a church, a marketplace, and road access',
   village_storehouse: ' — road-linked haulers collect producer overflow',

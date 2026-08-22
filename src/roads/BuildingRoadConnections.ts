@@ -1,15 +1,31 @@
 import * as THREE from 'three';
 import { buildingPlacementYaw } from '../buildings/buildingPlacement.ts';
-import { getBuildingFootprintHalfExtents } from '../buildings/BuildingTerrainLayout.ts';
+import {
+  getBuildingFootprintCorners,
+} from '../buildings/BuildingTerrainLayout.ts';
+import {
+  BUILDING_LOCAL_VISUAL_BOUNDS,
+  BUILDING_VISUAL_BOUNDS_SAFETY_MARGIN,
+  getConstructionSiteLocalVisualBounds,
+  type BuildingLocalVisualBounds,
+} from '../buildings/BuildingVisualBounds.ts';
 import type { BuildingState } from '../resources/types.ts';
 import type { Terrain } from '../terrain/Terrain.ts';
 import type { RoadNetwork } from './RoadNetwork.ts';
 
 const MARKER_LIFT = 0.16;
-const NEAREST_MARKER_FULL_DISTANCE = 7;
-const NEAREST_MARKER_REVEAL_DISTANCE = 14;
-const SIBLING_MARKER_FULL_DISTANCE = 5;
-const SIBLING_MARKER_REVEAL_DISTANCE = 9;
+export const BUILDING_ROAD_CONNECTION_MARKER_INNER_RADIUS = 0.78;
+export const BUILDING_ROAD_CONNECTION_MARKER_OUTER_RADIUS = 1.14;
+/** Clear space from the audited building envelope to every circle's outer edge. */
+export const BUILDING_ROAD_CONNECTION_EDGE_CLEARANCE = 0.86;
+/** Horizontal distance from the building envelope to a circle center. */
+export const BUILDING_ROAD_CONNECTION_CENTER_OFFSET =
+  BUILDING_ROAD_CONNECTION_MARKER_OUTER_RADIUS
+  + BUILDING_ROAD_CONNECTION_EDGE_CLEARANCE;
+const NEAREST_MARKER_FULL_DISTANCE = 7 + BUILDING_ROAD_CONNECTION_CENTER_OFFSET;
+const NEAREST_MARKER_REVEAL_DISTANCE = 14 + BUILDING_ROAD_CONNECTION_CENTER_OFFSET;
+const SIBLING_MARKER_FULL_DISTANCE = 5 + BUILDING_ROAD_CONNECTION_CENTER_OFFSET;
+const SIBLING_MARKER_REVEAL_DISTANCE = 13 + BUILDING_ROAD_CONNECTION_CENTER_OFFSET;
 const MARKER_FADE_IN_RATE = 13;
 const MARKER_FADE_OUT_RATE = 9;
 const MIN_RENDERED_OPACITY = 0.015;
@@ -23,6 +39,8 @@ export type BuildingRoadConnection = {
 export type BuildingRoadConnectionSource = Pick<BuildingState, 'id' | 'kind' | 'x' | 'z'> & {
   /** The displayed mesh yaw, when the building has already been presented. */
   yaw?: number;
+  /** False while the displayed mesh is the generic construction site. */
+  constructionComplete?: boolean;
 };
 
 type RuntimeBuildingRoadConnection = BuildingRoadConnection & {
@@ -36,12 +54,14 @@ type BuildingSignatureSnapshot = {
   x: number;
   z: number;
   yaw: number | undefined;
+  constructionComplete: boolean | undefined;
 };
 
 /**
- * Returns four road anchors at the midpoint of each rotated building edge.
- * Each anchor sits directly on the exact footprint perimeter shown during
- * building placement.
+ * Returns four road anchors centered beyond the midpoint of each rotated
+ * building edge. The edge envelope combines the exact placement footprint
+ * with audited model bounds, then applies one fixed outward offset so the
+ * complete marker remains clear independent of building size.
  */
 export function getBuildingRoadConnectionPoints(
   building: BuildingRoadConnectionSource,
@@ -54,21 +74,92 @@ export function getBuildingRoadConnectionPoints(
       building.z,
       roadNetwork,
     );
-  const { halfWidth, halfDepth } = getBuildingFootprintHalfExtents(building.kind);
+  const bounds = getBuildingRoadEnvelope(building, yaw);
+  const midpointX = (bounds.minX + bounds.maxX) * 0.5;
+  const midpointZ = (bounds.minZ + bounds.maxZ) * 0.5;
+  const localOffsets = [
+    { x: midpointX, z: bounds.maxZ + BUILDING_ROAD_CONNECTION_CENTER_OFFSET },
+    { x: bounds.maxX + BUILDING_ROAD_CONNECTION_CENTER_OFFSET, z: midpointZ },
+    { x: midpointX, z: bounds.minZ - BUILDING_ROAD_CONNECTION_CENTER_OFFSET },
+    { x: bounds.minX - BUILDING_ROAD_CONNECTION_CENTER_OFFSET, z: midpointZ },
+  ] as const;
+
+  return localOffsetsToConnections(building, terrain, yaw, localOffsets);
+}
+
+/**
+ * Returns the four corresponding building-edge endpoints. Access spurs use
+ * these instead of the display-circle centers so every spur runs inward and
+ * actually reaches the building envelope.
+ */
+export function getBuildingRoadEntrancePoints(
+  building: BuildingRoadConnectionSource,
+  terrain: Pick<Terrain, 'getPointAt'>,
+  roadNetwork?: RoadNetwork | null,
+): BuildingRoadConnection[] {
+  const yaw = building.yaw ?? buildingPlacementYaw(
+    building.kind,
+    building.x,
+    building.z,
+    roadNetwork,
+  );
+  const bounds = getBuildingRoadEnvelope(building, yaw);
+  const midpointX = (bounds.minX + bounds.maxX) * 0.5;
+  const midpointZ = (bounds.minZ + bounds.maxZ) * 0.5;
+  return localOffsetsToConnections(building, terrain, yaw, [
+    { x: midpointX, z: bounds.maxZ },
+    { x: bounds.maxX, z: midpointZ },
+    { x: midpointX, z: bounds.minZ },
+    { x: bounds.minX, z: midpointZ },
+  ], 'entrance:');
+}
+
+function getBuildingRoadEnvelope(
+  building: BuildingRoadConnectionSource,
+  yaw: number,
+): BuildingLocalVisualBounds {
+  const visualBounds = building.constructionComplete === false
+    ? getConstructionSiteLocalVisualBounds(building.kind)
+    : BUILDING_LOCAL_VISUAL_BOUNDS[building.kind];
+  let minX = visualBounds.minX;
+  let maxX = visualBounds.maxX;
+  let minZ = visualBounds.minZ;
+  let maxZ = visualBounds.maxZ;
   const cos = Math.cos(yaw);
   const sin = Math.sin(yaw);
-  const localOffsets = [
-    { x: 0, z: halfDepth },
-    { x: halfWidth, z: 0 },
-    { x: 0, z: -halfDepth },
-    { x: -halfWidth, z: 0 },
-  ] as const;
+  for (const corner of getBuildingFootprintCorners(
+    building.kind,
+    building.x,
+    building.z,
+    yaw,
+  )) {
+    const dx = corner.x - building.x;
+    const dz = corner.z - building.z;
+    const localX = dx * cos - dz * sin;
+    const localZ = dx * sin + dz * cos;
+    minX = Math.min(minX, localX - BUILDING_VISUAL_BOUNDS_SAFETY_MARGIN);
+    maxX = Math.max(maxX, localX + BUILDING_VISUAL_BOUNDS_SAFETY_MARGIN);
+    minZ = Math.min(minZ, localZ - BUILDING_VISUAL_BOUNDS_SAFETY_MARGIN);
+    maxZ = Math.max(maxZ, localZ + BUILDING_VISUAL_BOUNDS_SAFETY_MARGIN);
+  }
+  return { minX, maxX, minZ, maxZ };
+}
+
+function localOffsetsToConnections(
+  building: BuildingRoadConnectionSource,
+  terrain: Pick<Terrain, 'getPointAt'>,
+  yaw: number,
+  localOffsets: ReadonlyArray<Readonly<{ x: number; z: number }>>,
+  idPrefix = '',
+): BuildingRoadConnection[] {
+  const cos = Math.cos(yaw);
+  const sin = Math.sin(yaw);
 
   return localOffsets.map((offset, index) => {
     const x = building.x + offset.x * cos + offset.z * sin;
     const z = building.z - offset.x * sin + offset.z * cos;
     return {
-      id: `${building.id}:${index}`,
+      id: `${building.id}:${idPrefix}${index}`,
       buildingId: building.id,
       point: terrain.getPointAt(x, z, 0),
     };
@@ -83,7 +174,11 @@ export class BuildingRoadConnections {
     getRoadNetwork: () => RoadNetwork | null;
   };
   private readonly group = new THREE.Group();
-  private readonly ringGeometry = new THREE.RingGeometry(0.78, 1.14, 20);
+  private readonly ringGeometry = new THREE.RingGeometry(
+    BUILDING_ROAD_CONNECTION_MARKER_INNER_RADIUS,
+    BUILDING_ROAD_CONNECTION_MARKER_OUTER_RADIUS,
+    20,
+  );
   private readonly postGeometry = new THREE.CylinderGeometry(0.18, 0.28, 0.56, 8);
   private readonly ringMaterial = createFadingMarkerMaterial(0.9, THREE.DoubleSide);
   private readonly postMaterial = createFadingMarkerMaterial(0.94, THREE.FrontSide);
@@ -202,6 +297,7 @@ export class BuildingRoadConnections {
         || !Object.is(previous.x, building.x)
         || !Object.is(previous.z, building.z)
         || !Object.is(previous.yaw, building.yaw)
+        || !Object.is(previous.constructionComplete, building.constructionComplete)
       ) {
         rawSignatureUnchanged = false;
       }
@@ -214,7 +310,7 @@ export class BuildingRoadConnections {
 
     const roadNetwork = this.options.getRoadNetwork();
     const signature = buildings
-      .map((building) => `${building.id}:${building.kind}:${building.x.toFixed(2)}:${building.z.toFixed(2)}:${building.yaw?.toFixed(4) ?? ''}`)
+      .map((building) => `${building.id}:${building.kind}:${building.x.toFixed(2)}:${building.z.toFixed(2)}:${building.yaw?.toFixed(4) ?? ''}:${building.constructionComplete ?? ''}`)
       .sort()
       .join('|');
     this.captureBuildingSignatureSnapshot(buildings);
@@ -334,6 +430,7 @@ export class BuildingRoadConnections {
         snapshot.x = building.x;
         snapshot.z = building.z;
         snapshot.yaw = building.yaw;
+        snapshot.constructionComplete = building.constructionComplete;
       } else {
         this.buildingSignatureSnapshots.push({
           id: building.id,
@@ -341,6 +438,7 @@ export class BuildingRoadConnections {
           x: building.x,
           z: building.z,
           yaw: building.yaw,
+          constructionComplete: building.constructionComplete,
         });
       }
     }

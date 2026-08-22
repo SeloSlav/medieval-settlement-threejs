@@ -306,20 +306,21 @@ export class BuildingMarkers {
   }
 
   getRoadConnectionSources(): Array<
-    Pick<BuildingState, 'id' | 'kind' | 'x' | 'z'> & { yaw: number }
+    Pick<BuildingState, 'id' | 'kind' | 'x' | 'z' | 'constructionComplete'> & { yaw: number }
   > {
     const sources: Array<
-      Pick<BuildingState, 'id' | 'kind' | 'x' | 'z'> & { yaw: number }
+      Pick<BuildingState, 'id' | 'kind' | 'x' | 'z' | 'constructionComplete'> & { yaw: number }
     > = [];
     for (const [id, building] of this.buildingStates) {
       const marker = this.buildingMeshes.get(id);
-      if (!marker) continue;
+      if (!marker || this.destroyedBuildingIds.has(id)) continue;
       sources.push({
         id,
         kind: building.kind,
         x: building.x,
         z: building.z,
         yaw: marker.rotation.y,
+        constructionComplete: buildingUsesCompletedMesh(building),
       });
     }
     return sources;

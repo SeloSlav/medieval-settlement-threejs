@@ -231,10 +231,7 @@ const SETTLEMENT_HUD_HTML = `
         hidden
       >
         <header class="settlement-hud__approval-panel-header">
-          <div>
-            <span class="settlement-hud__approval-eyebrow">Settlement standing</span>
-            <h2 id="settlement-approval-title">Approval</h2>
-          </div>
+          <h2 id="settlement-approval-title">Approval</h2>
         </header>
         <div class="settlement-hud__approval-reading">
           <strong data-approval-panel-score>--</strong>
@@ -267,10 +264,6 @@ const SETTLEMENT_HUD_HTML = `
           <h3>Supporting factors</h3>
           <ul class="settlement-hud__approval-factors" data-approval-support></ul>
         </section>
-        <p class="settlement-hud__approval-note">
-          Approval summarizes live settlement conditions. Authoritative arrivals,
-          departures, and welfare remain household-driven.
-        </p>
       </section>
     </div>
     <div class="settlement-hud__perf">
