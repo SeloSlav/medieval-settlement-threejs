@@ -23,6 +23,7 @@ import type { Terrain } from '../terrain/Terrain.ts';
 import type { ClayDepositSite } from '../clay/ClayDepositLayout.ts';
 import type { ForestCore } from '../props/forestField.ts';
 import type { TerrainMinimapImage } from '../map/createTerrainMinimapImage.ts';
+import type { RoadNetwork } from '../roads/RoadNetwork.ts';
 
 export type WorldMapUiBundle = {
   quarry: QuarryMapIcons;
@@ -43,9 +44,11 @@ export function createWorldMapUi(options: {
   getCamera: () => PerspectiveCamera | null;
   getZoomPercent: () => number;
   getGameState: () => GameState;
+  getRoadNetwork: () => RoadNetwork;
   getFocus: () => MinimapFocus;
   placementGate: PlacementInteractionGate;
   onTerrainImageReady?: (image: TerrainMinimapImage) => void;
+  onTerrainImageUpdated?: () => void;
   onQuarrySelect: (quarryId: string) => void;
   onForagingSelect: (nodeId: string) => void;
   onClaySelect?: (x: number, z: number) => void;
@@ -62,9 +65,11 @@ export function createWorldMapUi(options: {
     getCamera,
     getZoomPercent,
     getGameState,
+    getRoadNetwork,
     getFocus,
     placementGate,
     onTerrainImageReady,
+    onTerrainImageUpdated,
     onQuarrySelect,
     onForagingSelect,
     onClaySelect,
@@ -109,10 +114,12 @@ export function createWorldMapUi(options: {
     forestCores,
     worldSeed,
     layoutMarkers,
+    getRoadNetwork,
     getGameState,
     getFocus,
     isBlocked: () => isOverlayBlocked(placementGate),
     onTerrainImageReady,
+    onTerrainImageUpdated,
   });
   let sharedFrameRect: DOMRect | null = null;
   const getFrameRect = (): DOMRect => {

@@ -11,6 +11,12 @@ import {
   SETTLEMENT_RESIDENCE_LINK_RADIUS,
 } from '../src/map/settlementMapMarker.ts';
 import { SETTLEMENT_MAP_ICON_HTML } from '../src/map/settlementMapIconArt.ts';
+import {
+  MAP_STAMP_RESOURCE_KINDS,
+  mapStampKey,
+  residenceFootprintCorners,
+  worldToMapPixels,
+} from '../src/map/illustratedMapGeometry.ts';
 
 const EPSILON = 1e-12;
 const bounds = { minX: -100, maxX: 100, minZ: -200, maxZ: 200 };
@@ -81,6 +87,10 @@ const terrainMinimapCss = readFileSync(
   new URL('../src/ui/terrainMinimap.css', import.meta.url),
   'utf8',
 );
+const illustratedLayersSource = readFileSync(
+  new URL('../src/map/illustratedMapLayers.ts', import.meta.url),
+  'utf8',
+);
 
 assert.match(
   terrainMinimapSource,
@@ -110,6 +120,33 @@ assert.match(
   'the minimap overlay should pass the generated forest cores into the terrain renderer',
 );
 assert.doesNotMatch(
+  terrainMinimapOverlaySource,
+  /deriveSettlementMapMarker|SETTLEMENT_MAP_ICON_HTML/,
+  'the live map should render real structures rather than a derived city emblem',
+);
+for (const renderer of [
+  'drawRoadInk',
+  'drawBuildingFootprints',
+  'drawResidenceFootprints',
+  'drawResourceStamps',
+] as const) {
+  assert.match(
+    illustratedLayersSource,
+    new RegExp(`${renderer}\\(`),
+    `the shared map canvas should include ${renderer}`,
+  );
+}
+assert.match(
+  illustratedLayersSource,
+  /getBuildingFootprintCorners\(/,
+  'map buildings should use the authoritative placement footprint',
+);
+assert.match(
+  terrainMinimapOverlaySource,
+  /onTerrainImageUpdated\?\.\(\)/,
+  'live map changes should invalidate the shared 3D canvas texture',
+);
+assert.doesNotMatch(
   terrainMinimapSource,
   /drawTown|settlementHull|townBoundary/,
   'the terrain layer should not guess at a town footprint',
@@ -119,6 +156,54 @@ assert.match(
   /\.terrain-minimap\s*\{[\s\S]*?position:\s*fixed;[\s\S]*?z-index:\s*2147483000;/,
   'the held map should cover the viewport above every normal UI stacking layer',
 );
+
+assert.deepEqual(
+  worldToMapPixels({ x: 0, z: 0 }, bounds, 512, 256),
+  { x: 256, y: 128 },
+  'canvas layers should share the same X/Z coordinate frame as the held map',
+);
+assert.equal(
+  mapStampKey({
+    id: 'iron-vein',
+    kind: 'quarry',
+    label: 'Rich iron',
+    x: 0,
+    z: 0,
+    resource: 'iron',
+  }, true),
+  'iron-rich',
+);
+assert.equal(
+  mapStampKey({
+    id: 'stone-outcrop',
+    kind: 'quarry',
+    label: 'Stone',
+    x: 0,
+    z: 0,
+    resource: 'stone',
+  }, false),
+  'stone-normal',
+);
+const residenceCorners = residenceFootprintCorners({ x: 10, z: 20, yaw: 0 });
+assert.deepEqual(
+  residenceCorners,
+  [
+    { x: 6.7, z: 16.3 },
+    { x: 13.3, z: 16.3 },
+    { x: 13.3, z: 23.7 },
+    { x: 6.7, z: 23.7 },
+  ],
+  'residences should be drawn at their physical 6.6m by 7.4m footprint',
+);
+for (const resource of MAP_STAMP_RESOURCE_KINDS) {
+  for (const variant of ['normal', 'rich'] as const) {
+    const asset = readFileSync(
+      new URL(`../public/assets/ui/map-stamps/${resource}-${variant}.png`, import.meta.url),
+    );
+    assert.ok(asset.byteLength > 1_000, `${resource}-${variant} should have a real PNG asset`);
+    assert.equal(asset.subarray(1, 4).toString('ascii'), 'PNG');
+  }
+}
 assert.match(
   terrainMinimapCss,
   /\.terrain-minimap__panel\s*\{[\s\S]*?inset:\s*0;[\s\S]*?width:\s*100%;[\s\S]*?height:\s*100%;/,

@@ -13,7 +13,7 @@ use crate::db::*;
 use crate::economy::{
     building_commodity_room, building_commodity_stock, storage_accepts_commodity, CommodityKind,
 };
-use crate::placement_validation::{building_overlaps_open_water, building_overlaps_road_surface};
+use crate::placement_validation::building_overlaps_road_surface;
 use crate::reducers::buildings::next_available_building_id;
 use crate::roads::load_owner_road_network;
 use crate::simulation::delivery_trips::{
@@ -724,7 +724,6 @@ fn recovery_pile_position_beside_building(
                 < (pile_radius + other_radius + 0.25).powi(2)
         });
         let blocked = overlaps_building
-            || building_overlaps_open_water("salvage_pile", x, z)
             || network
                 .as_ref()
                 .is_some_and(|roads| building_overlaps_road_surface(roads, "salvage_pile", x, z));

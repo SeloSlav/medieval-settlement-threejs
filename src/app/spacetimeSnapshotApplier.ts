@@ -118,6 +118,9 @@ export class SpacetimeSnapshotApplier {
     const foragingChanged = !previous
       || state.foragingNodes !== previous.foragingNodes
       || state.tick !== previous.tick;
+    if (quarriesChanged || foragingChanged) {
+      deps.terrainMinimap?.syncResources();
+    }
     const residenceCollidersChanged = !previous || !mapEntriesMatch(
       state.residences,
       previous.residences,

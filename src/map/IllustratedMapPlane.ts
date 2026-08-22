@@ -99,6 +99,10 @@ export class IllustratedMapPlane {
     this.root.position.y = elevation;
   }
 
+  invalidateTexture(): void {
+    if (this.mapTexture) this.mapTexture.needsUpdate = true;
+  }
+
   setDebugMode(mode: IllustratedMapDebugMode): void {
     if (this.debugMode === mode) return;
     this.debugMode = mode;

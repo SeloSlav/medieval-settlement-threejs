@@ -301,6 +301,7 @@ export class App {
         onRoadsHydrated: (roads) => {
           this.roadNetwork?.restore(roads);
           this.sceneManager?.syncRoadNetwork(this.roadNetwork!);
+          this.worldMapUi?.minimap.syncRoads();
           syncPlacedBuildingTerrain({
             sceneManager: this.sceneManager,
             gameState: this.gameState,

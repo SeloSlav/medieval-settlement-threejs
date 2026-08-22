@@ -807,6 +807,10 @@ export class SceneManager {
     this.illustratedMap.setCanvas(canvas, bounds);
   }
 
+  invalidateIllustratedMapImage(): void {
+    this.illustratedMap.invalidateTexture();
+  }
+
   setIllustratedMapActive(active: boolean): void {
     this.illustratedMapActive = active;
   }

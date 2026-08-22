@@ -487,32 +487,6 @@ pub fn resolved_building_placement_yaw(
         .unwrap_or_else(|| building_placement_yaw(x, z))
 }
 
-pub fn building_overlaps_open_water(kind: &str, x: f64, z: f64) -> bool {
-    let pad = building_pad_params(kind);
-    let yaw = building_placement_yaw(x, z);
-    let cos = yaw.cos();
-    let sin = yaw.sin();
-
-    for &fraction in &FOOTPRINT_SAMPLE_FRACTIONS {
-        for sx in [-1, 0, 1] {
-            for sz in [-1, 0, 1] {
-                if fraction == 0.0 && (sx != 0 || sz != 0) {
-                    continue;
-                }
-                let local_x = sx as f64 * pad.radius_x * pad.inner_fade * fraction;
-                let local_z = sz as f64 * pad.radius_z * pad.inner_fade * fraction;
-                let sample_x = x + local_x * cos - local_z * sin;
-                let sample_z = z + local_x * sin + local_z * cos;
-                if is_open_water(sample_x, sample_z) {
-                    return true;
-                }
-            }
-        }
-    }
-
-    false
-}
-
 fn building_pad_params(kind: &str) -> BuildingPadParams {
     match kind {
         "founders_camp" => BuildingPadParams {

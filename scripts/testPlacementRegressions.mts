@@ -1454,6 +1454,7 @@ assert.equal(
 
 const buildingReducer = readFileSync('server/src/reducers/buildings.rs', 'utf8');
 const placementValidation = readFileSync('server/src/placement_validation.rs', 'utf8');
+const reclamationSimulation = readFileSync('server/src/simulation/reclamation.rs', 'utf8');
 const residenceReducer = readFileSync('server/src/reducers/residences.rs', 'utf8');
 const farmFieldReducer = readFileSync('server/src/reducers/farm_fields.rs', 'utf8');
 const livestockReducer = readFileSync('server/src/reducers/livestock.rs', 'utf8');
@@ -1535,6 +1536,8 @@ for (const [source, label] of [
   [farmFieldReducer, 'fields'],
   [livestockReducer, 'pastures'],
   [graveyardReducer, 'graveyards'],
+  [placementValidation, 'shared placement validation'],
+  [reclamationSimulation, 'reclamation piles'],
 ] as const) {
   assert.doesNotMatch(
     source,

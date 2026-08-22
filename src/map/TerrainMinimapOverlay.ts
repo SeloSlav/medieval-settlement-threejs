@@ -1,5 +1,5 @@
+import type { RoadNetwork } from '../roads/RoadNetwork.ts';
 import type { GameState } from '../resources/types.ts';
-import type { WorldMapMarker, WorldMapMarkerKind } from './worldMapMarkers.ts';
 import type { RiverField } from '../rivers/RiverField.ts';
 import type { Terrain, TerrainBounds } from '../terrain/Terrain.ts';
 import type { ForestCore } from '../props/forestField.ts';
@@ -7,14 +7,15 @@ import {
   createTerrainMinimapImage,
   type TerrainMinimapImage,
 } from './createTerrainMinimapImage.ts';
-import { RESOURCE_MAP_ICON_HTML } from './resourceMapIconArt.ts';
-import { SETTLEMENT_MAP_ICON_HTML } from './settlementMapIconArt.ts';
-import { deriveSettlementMapMarker } from './settlementMapMarker.ts';
 import {
-  describeGeologicalMapMarker,
-  geologicalNodeForMapMarker,
-} from './geologicalMapMarkerState.ts';
-import { syncResourceStockRing } from './resourceStockRing.ts';
+  drawIllustratedMapLayers,
+  type IllustratedMapStampImages,
+} from './illustratedMapLayers.ts';
+import {
+  MAP_STAMP_RESOURCE_KINDS,
+  type MapStampKey,
+} from './illustratedMapGeometry.ts';
+import type { WorldMapMarker } from './worldMapMarkers.ts';
 import {
   riverFieldBounds,
   worldDirectionToMapRotation,
@@ -35,40 +36,26 @@ type TerrainMinimapOverlayOptions = {
   forestCores: readonly ForestCore[];
   worldSeed: number;
   layoutMarkers: readonly WorldMapMarker[];
+  getRoadNetwork: () => RoadNetwork;
   getGameState: () => GameState;
   getFocus: () => MinimapFocus;
   isBlocked: () => boolean;
   onTerrainImageReady?: (image: TerrainMinimapImage) => void;
-};
-
-type MinimapMarkerEntry = {
-  marker: WorldMapMarker;
-  element: HTMLElement;
-  hidden: boolean;
-};
-
-const MARKER_KIND_CLASS: Record<WorldMapMarkerKind, string> = {
-  quarry: 'terrain-minimap__marker--quarry',
-  game: 'terrain-minimap__marker--game',
-  berries: 'terrain-minimap__marker--berries',
-  mushrooms: 'terrain-minimap__marker--mushrooms',
-  fish: 'terrain-minimap__marker--fish',
-  clay: 'terrain-minimap__marker--clay',
-  building: 'terrain-minimap__marker--building',
+  onTerrainImageUpdated?: () => void;
 };
 
 export class TerrainMinimapOverlay {
   private readonly options: TerrainMinimapOverlayOptions;
   private readonly root: HTMLElement;
   private readonly mapSurface: HTMLElement;
-  private readonly markersRoot: HTMLElement;
   private readonly focusMarker: HTMLElement;
-  private readonly settlementMarker: HTMLElement;
   private readonly bounds: TerrainBounds;
-  private readonly layoutMarkerEntries: MinimapMarkerEntry[] = [];
-  private readonly buildingMarkerEntries = new Map<string, MinimapMarkerEntry>();
+  private readonly stampImages = new Map<MapStampKey, HTMLImageElement>();
+  private baseCanvas: HTMLCanvasElement | null = null;
+  private mapCanvas: HTMLCanvasElement | null = null;
   private visible = false;
-  private settlementMarkerDirty = true;
+  private redrawQueued = false;
+  private disposed = false;
 
   private constructor(options: TerrainMinimapOverlayOptions, bounds: TerrainBounds) {
     this.options = options;
@@ -87,27 +74,13 @@ export class TerrainMinimapOverlay {
         </div>
         <div class="terrain-minimap__map-wrap">
           <div class="terrain-minimap__map-surface"></div>
-          <div class="terrain-minimap__markers"></div>
           <div class="terrain-minimap__focus" aria-hidden="true"></div>
         </div>
       </div>
     `;
 
     this.mapSurface = this.root.querySelector<HTMLElement>('.terrain-minimap__map-surface')!;
-    this.markersRoot = this.root.querySelector<HTMLElement>('.terrain-minimap__markers')!;
     this.focusMarker = this.root.querySelector<HTMLElement>('.terrain-minimap__focus')!;
-
-    for (const marker of options.layoutMarkers) {
-      const entry = this.createMarkerEntry(marker);
-      this.layoutMarkerEntries.push(entry);
-      this.markersRoot.appendChild(entry.element);
-    }
-
-    this.settlementMarker = document.createElement('span');
-    this.settlementMarker.className = 'terrain-minimap__marker terrain-minimap__marker--settlement';
-    this.settlementMarker.hidden = true;
-    this.settlementMarker.setAttribute('role', 'img');
-    this.markersRoot.appendChild(this.settlementMarker);
 
     // Mount outside the ordinary UI stacking context so the held map always
     // covers menus, HUD chrome, inspectors, and setup overlays.
@@ -117,6 +90,7 @@ export class TerrainMinimapOverlay {
   static create(options: TerrainMinimapOverlayOptions): TerrainMinimapOverlay {
     const overlay = new TerrainMinimapOverlay(options, riverFieldBounds(options.riverField));
     void overlay.loadTerrainImage();
+    void overlay.loadResourceStamps();
     return overlay;
   }
 
@@ -126,55 +100,31 @@ export class TerrainMinimapOverlay {
       this.visible = shouldShow;
       this.root.hidden = !shouldShow;
       this.root.setAttribute('aria-hidden', shouldShow ? 'false' : 'true');
-      if (shouldShow) {
-        this.refreshLayoutMarkerVisibility();
-        this.refreshBuildingMarkerPositions();
-        this.refreshSettlementMarker();
-        this.updateFocusMarker();
-      }
+      if (shouldShow) this.updateFocusMarker();
       return;
     }
 
-    if (!this.visible) return;
-    this.refreshLayoutMarkerVisibility();
-    if (this.settlementMarkerDirty) this.refreshSettlementMarker();
-    this.updateFocusMarker();
+    if (this.visible) this.updateFocusMarker();
   }
 
-  syncBuildings(markers: readonly WorldMapMarker[]): void {
-    const activeIds = new Set<string>();
-
-    for (const marker of markers) {
-      activeIds.add(marker.id);
-      let entry = this.buildingMarkerEntries.get(marker.id);
-      if (!entry) {
-        entry = this.createMarkerEntry(marker);
-        this.buildingMarkerEntries.set(marker.id, entry);
-        this.markersRoot.appendChild(entry.element);
-      } else {
-        entry.marker = marker;
-        entry.element.title = marker.label;
-      }
-    }
-
-    for (const [id, entry] of this.buildingMarkerEntries) {
-      if (activeIds.has(id)) continue;
-      entry.element.remove();
-      this.buildingMarkerEntries.delete(id);
-    }
-
-    if (this.visible) {
-      this.refreshBuildingMarkerPositions();
-    }
-    this.syncSettlement();
+  syncBuildings(_markers: readonly WorldMapMarker[]): void {
+    this.scheduleRedraw();
   }
 
   syncSettlement(): void {
-    this.settlementMarkerDirty = true;
-    if (this.visible) this.refreshSettlementMarker();
+    this.scheduleRedraw();
+  }
+
+  syncResources(): void {
+    this.scheduleRedraw();
+  }
+
+  syncRoads(): void {
+    this.scheduleRedraw();
   }
 
   dispose(): void {
+    this.disposed = true;
     this.root.remove();
   }
 
@@ -186,69 +136,75 @@ export class TerrainMinimapOverlay {
         forestCores: this.options.forestCores,
         seed: this.options.worldSeed,
       });
-      this.mapSurface.replaceChildren(image.canvas);
-      this.options.onTerrainImageReady?.(image);
+      if (this.disposed) return;
+      this.baseCanvas = image.canvas;
+      this.mapCanvas = document.createElement('canvas');
+      this.mapCanvas.width = image.canvas.width;
+      this.mapCanvas.height = image.canvas.height;
+      this.mapCanvas.dataset.terrainStyle = 'medieval-parchment-live-map';
+      this.mapCanvas.setAttribute('role', 'img');
+      this.mapCanvas.setAttribute(
+        'aria-label',
+        'Illustrated parchment map with ink roads, true building footprints, and resource woodcuts',
+      );
+      this.redrawMap();
+      this.mapSurface.replaceChildren(this.mapCanvas);
+      this.options.onTerrainImageReady?.({ canvas: this.mapCanvas, bounds: image.bounds });
     } catch (error) {
       console.error('Terrain minimap image failed to load:', error);
     }
   }
 
-  private refreshLayoutMarkerVisibility(): void {
-    const state = this.options.getGameState();
-    const foragingNodes = state.foragingNodes;
-    for (const entry of this.layoutMarkerEntries) {
-      // Live rows refine positions and reserve state, but valid generated
-      // resources must remain visible while those rows are still hydrating.
-      entry.hidden = false;
-      const geologicalNode = geologicalNodeForMapMarker(
-        entry.marker,
-        state.quarries,
-      );
-      const node = geologicalNode ?? foragingNodes.get(entry.marker.id);
-      syncResourceStockRing(entry.element, node, {
-        hideWhenEmpty: geologicalNode?.isRich === true,
-      });
-      const geologicalPresentation = geologicalNode
-        ? describeGeologicalMapMarker(entry.marker, geologicalNode)
-        : null;
-      entry.element.classList.toggle(
-        'resource-node-marker--rich',
-        node?.isRich === true,
-      );
-      entry.element.classList.toggle(
-        'terrain-minimap__marker--depleted',
-        geologicalPresentation?.level === 'depleted'
-          || Boolean(
-            node
-            && geologicalNode === undefined
-            && node.isRich !== true
-            && node.remaining <= 0,
-          ),
-      );
-      for (const level of ['low', 'deep'] as const) {
-        entry.element.classList.toggle(
-          `terrain-minimap__marker--${level}`,
-          geologicalPresentation?.level === level,
-        );
+  private async loadResourceStamps(): Promise<void> {
+    const baseUrl = import.meta.env.BASE_URL.endsWith('/')
+      ? import.meta.env.BASE_URL
+      : `${import.meta.env.BASE_URL}/`;
+    const loads: Promise<void>[] = [];
+    for (const resource of MAP_STAMP_RESOURCE_KINDS) {
+      for (const variant of ['normal', 'rich'] as const) {
+        const key: MapStampKey = `${resource}-${variant}`;
+        const image = new Image();
+        image.decoding = 'async';
+        const loaded = new Promise<void>((resolve) => {
+          image.addEventListener('load', () => resolve(), { once: true });
+          image.addEventListener('error', () => {
+            console.error(`Map stamp failed to load: ${key}`);
+            resolve();
+          }, { once: true });
+        });
+        image.src = `${baseUrl}assets/ui/map-stamps/${key}.png`;
+        this.stampImages.set(key, image);
+        loads.push(loaded);
       }
-      entry.element.dataset.reserveLevel =
-        geologicalPresentation?.level ?? 'unknown';
-      entry.element.title =
-        geologicalPresentation?.label ?? entry.marker.label;
     }
-    this.refreshLayoutMarkerPositions();
+    await Promise.all(loads);
+    if (!this.disposed) this.scheduleRedraw();
   }
 
-  private refreshLayoutMarkerPositions(): void {
-    for (const entry of this.layoutMarkerEntries) {
-      this.placeMarkerEntry(entry);
-    }
+  private scheduleRedraw(): void {
+    if (this.redrawQueued || this.disposed) return;
+    this.redrawQueued = true;
+    queueMicrotask(() => {
+      this.redrawQueued = false;
+      if (!this.disposed) this.redrawMap();
+    });
   }
 
-  private refreshBuildingMarkerPositions(): void {
-    for (const entry of this.buildingMarkerEntries.values()) {
-      this.placeMarkerEntry(entry);
-    }
+  private redrawMap(): void {
+    if (!this.baseCanvas || !this.mapCanvas) return;
+    const context = this.mapCanvas.getContext('2d');
+    if (!context) return;
+    context.clearRect(0, 0, this.mapCanvas.width, this.mapCanvas.height);
+    context.drawImage(this.baseCanvas, 0, 0);
+    drawIllustratedMapLayers({
+      context,
+      bounds: this.bounds,
+      roadNetwork: this.options.getRoadNetwork(),
+      state: this.options.getGameState(),
+      layoutMarkers: this.options.layoutMarkers,
+      stampImages: this.stampImages as IllustratedMapStampImages,
+    });
+    this.options.onTerrainImageUpdated?.();
   }
 
   private updateFocusMarker(): void {
@@ -259,70 +215,5 @@ export class TerrainMinimapOverlay {
     this.focusMarker.style.top = `${point.y}%`;
     const rotation = worldDirectionToMapRotation(focus.forwardX, focus.forwardZ);
     this.focusMarker.style.transform = `translate(-50%, -50%) rotate(${rotation}rad)`;
-  }
-
-  private refreshSettlementMarker(): void {
-    this.settlementMarkerDirty = false;
-    const state = this.options.getGameState();
-    const marker = deriveSettlementMapMarker({
-      residences: state.residences.values(),
-      buildings: state.buildings.values(),
-    });
-    if (!marker) {
-      this.settlementMarker.hidden = true;
-      return;
-    }
-
-    this.settlementMarker.hidden = false;
-    if (this.settlementMarker.dataset.tier !== marker.tier) {
-      this.settlementMarker.dataset.tier = marker.tier;
-      this.settlementMarker.innerHTML = SETTLEMENT_MAP_ICON_HTML[marker.tier];
-    }
-    this.settlementMarker.dataset.residenceCount = `${marker.residenceCount}`;
-    this.settlementMarker.dataset.population = `${marker.population}`;
-    if (this.settlementMarker.title !== marker.label) {
-      this.settlementMarker.title = marker.label;
-      this.settlementMarker.setAttribute('aria-label', marker.label);
-    }
-    const point = worldToMapPercent(marker.x, marker.z, this.bounds);
-    this.settlementMarker.style.left = `${point.x}%`;
-    this.settlementMarker.style.top = `${point.y}%`;
-  }
-
-  private placeMarkerEntry(entry: MinimapMarkerEntry): void {
-    entry.element.hidden = entry.hidden;
-    if (entry.hidden) return;
-    const state = this.options.getGameState();
-    const node = geologicalNodeForMapMarker(entry.marker, state.quarries)
-      ?? state.foragingNodes.get(entry.marker.id);
-    const point = worldToMapPercent(
-      node?.x ?? entry.marker.x,
-      node?.z ?? entry.marker.z,
-      this.bounds,
-    );
-    entry.element.style.left = `${point.x}%`;
-    entry.element.style.top = `${point.y}%`;
-  }
-
-  private createMarkerEntry(marker: WorldMapMarker): MinimapMarkerEntry {
-    const element = document.createElement('span');
-    element.className = `terrain-minimap__marker ${MARKER_KIND_CLASS[marker.kind]}`;
-    if (marker.kind !== 'building') {
-      element.classList.add('terrain-minimap__marker--resource');
-      const iconKind = marker.resource === 'iron' || marker.resource === 'salt'
-        ? marker.resource
-        : marker.kind;
-      element.innerHTML = RESOURCE_MAP_ICON_HTML[iconKind];
-      if (marker.resource === 'iron' || marker.resource === 'salt') {
-        element.classList.add(`terrain-minimap__marker--${marker.resource}`);
-      }
-      if (marker.kind === 'quarry' && marker.quarryKind === 'large') {
-        element.classList.add('terrain-minimap__marker--large');
-      }
-    }
-    element.dataset.kind = marker.kind;
-    element.dataset.id = marker.id;
-    element.title = marker.label;
-    return { marker, element, hidden: false };
   }
 }

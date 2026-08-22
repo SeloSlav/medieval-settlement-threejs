@@ -451,6 +451,7 @@ export async function bootstrapAppSession(
     onToggle: toggleRoadTool,
     onNetworkChanged: () => {
       sceneManager.syncRoadNetwork(roadNetwork);
+      worldMapUi.minimap.syncRoads();
       syncPlacedBuildingTerrain({
         sceneManager,
         gameState: liveContext.gameState,
@@ -1372,11 +1373,13 @@ export async function bootstrapAppSession(
     getCamera: () => sceneManager.camera,
     getZoomPercent: () => cameraController.getZoomPercent(),
     getGameState: () => liveContext.gameState,
+    getRoadNetwork: () => roadNetwork,
     getFocus: () => resolveWorldMapFocus(cameraController, firstPersonController),
     placementGate,
     onTerrainImageReady: ({ canvas, bounds }) => {
       sceneManager.setIllustratedMapImage(canvas, bounds);
     },
+    onTerrainImageUpdated: () => sceneManager.invalidateIllustratedMapImage(),
     onQuarrySelect: (quarryId) => resourceInspector.selectQuarry(quarryId),
     onForagingSelect: (nodeId) => resourceInspector.selectForaging(nodeId),
     onClaySelect: (x, z) => cameraController.focusWorldPosition(x, z),
