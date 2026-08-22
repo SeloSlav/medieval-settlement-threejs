@@ -433,7 +433,7 @@ export class SceneManager {
     );
     const riverField = RiverField.fromSerialized(startupData.riverField, riverLayout);
     const terrain = Terrain.fromGeometryData(
-      materials.createTerrainMaterialWithRiverShore(),
+      materials.createTerrainMaterialWithRiverShore(dimensions.terrainSize),
       startupData.terrain,
       dimensions,
     );

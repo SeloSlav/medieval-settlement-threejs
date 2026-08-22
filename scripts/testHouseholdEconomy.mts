@@ -163,8 +163,18 @@ assert.match(
 );
 assert.match(
   discretionaryTrade,
-  /basic_buffers_are_safe[\s\S]*settlement_buffers_ready/,
-  'food, fuel, water, and active-need buffers must be safe before optional spending',
+  /discretionary_spending_multiplier[\s\S]*settlement_buffers_ready/,
+  'food, fuel, and water buffers must be safe before optional spending',
+);
+assert.match(
+  discretionaryTrade,
+  /tier_four_non_vital_discretionary_multiplier[\s\S]*non_vital_deficit_ticks/,
+  'sustained Tier-4 non-vital shortages must reduce rather than eliminate optional spending',
+);
+assert.match(
+  discretionaryTrade,
+  /HOUSEHOLD_DISCRETIONARY_BUDGET_PER_PERSON_DAY[\s\S]*spending_multiplier[\s\S]*HOUSEHOLD_DISCRETIONARY_UNITS_PER_PERSON_DAY[\s\S]*spending_multiplier/,
+  'the shortage multiplier must cap both optional spend and taxable purchase volume',
 );
 for (const commodity of ['Ale', 'Wine', 'Honey', 'Cheese', 'Cloth', 'Pottery']) {
   assert.match(discretionaryTrade, new RegExp(`CommodityKind::${commodity}`));

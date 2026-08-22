@@ -35,7 +35,9 @@ const LEGACY_TERRAIN_SIZE = 1080;
 const BASE_TREE_COUNT = 1_000;
 const BASE_HILL_EDGE_TREE_COUNT = 1_650;
 const BASE_ROCK_COUNT = 86;
-const BASE_UNDERGROWTH_COUNT = 880;
+// Broad ivy owns the lowest layer; this modest increase lets real SeedThree
+// bilberry, fern and juniper silhouettes break it up without becoming a wall.
+const BASE_UNDERGROWTH_COUNT = 1_180;
 const BASE_SAPLING_COUNT = 420;
 
 export function createForestSpawnConfig(

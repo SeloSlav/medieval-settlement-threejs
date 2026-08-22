@@ -15,6 +15,7 @@ import {
   smoothstep,
   sub,
   texture,
+  uniform,
   uv,
   vec2,
   vec3,
@@ -27,6 +28,7 @@ import {
 import type { RoadWeatherUniforms } from '../roads/RoadSurfaceMaterial.ts';
 import type { TextureSet } from '../roads/RoadTextureLoader.ts';
 import type { TerrainBlendTextureSet } from '../roads/RoadTextureLoader.ts';
+import { ForestCanopyOcclusionMap } from './ForestCanopyOcclusion.ts';
 
 type TslNode = {
   abs(): TslNode;
@@ -61,6 +63,8 @@ export const TERRAIN_SHORE_RAIN_FADE_START = 0.08;
 export const TERRAIN_SHORE_RAIN_FADE_END = 0.72;
 export const TERRAIN_SHORE_BLEND_FLOOR = 0.045;
 export const TERRAIN_ROAD_WEAR_BLEND_FLOOR = 0.055;
+export const FOREST_CANOPY_GROUND_SHADE_MIN = 0.58;
+export const FOREST_CANOPY_GROUND_AO_MIN = 0.76;
 
 export function stableTerrainBlendWeight(
   raw: number,
@@ -1158,9 +1162,13 @@ export function createTerrainGrassMaterialWithRiverShore(
   grassTextures: TerrainBlendTextureSet,
   roadTextures: TextureSet,
   weather?: RoadWeatherUniforms,
+  terrainSize = 1080,
 ): MeshStandardNodeMaterial {
   const resolvedWeather = resolveTerrainWeather(weather);
   const blendNodes = buildGrassBlendNodes(grassTextures, resolvedWeather);
+  const canopyOcclusion = new ForestCanopyOcclusionMap(terrainSize);
+  const canopyDebugMode = uniform(0) as unknown as TslNode & { value: number };
+  canopyOcclusion.attachDebugUniform(canopyDebugMode);
   const mudColor = buildMuddyRoadColorNode(roadTextures, blendNodes.grassUv);
   const dirtSurface = buildLayeredDirtGroundNodes(
     roadTextures,
@@ -1190,6 +1198,36 @@ export function createTerrainGrassMaterialWithRiverShore(
   const wornMask = max(max(shoreBlend, roadWear) as TslNode, quarryPad) as TslNode;
   const forestSurfaceBlend = blendNodes.forestBlend.mul(
     sub(float(1) as TslNode, wornMask) as TslNode,
+  ) as TslNode;
+  const canopyCoverage = smoothstep(
+    float(0.035) as TslNode,
+    float(0.78) as TslNode,
+    attribute('forestCanopyOcclusion', 'float') as TslNode,
+  ) as TslNode;
+  // Tree-owned coverage supplies the broad shade body; the established macro
+  // ecology field opens soft light wells through it. Real directional shadows
+  // remain responsible for the smaller, sharper sun patches.
+  const canopyMottle = canopyCoverage.mul(
+    mix(
+      float(0.62) as TslNode,
+      float(1) as TslNode,
+      smoothstep(
+        float(0.24) as TslNode,
+        float(0.78) as TslNode,
+        blendNodes.macro,
+      ) as TslNode,
+    ) as TslNode,
+  ) as TslNode;
+  const canopyGroundShade = canopyMottle.mul(forestSurfaceBlend) as TslNode;
+  const canopyColorFactor = mix(
+    float(1) as TslNode,
+    float(FOREST_CANOPY_GROUND_SHADE_MIN) as TslNode,
+    canopyGroundShade,
+  ) as TslNode;
+  const canopyAoFactor = mix(
+    float(1) as TslNode,
+    float(FOREST_CANOPY_GROUND_AO_MIN) as TslNode,
+    canopyGroundShade,
   ) as TslNode;
   // Terrain undercoat only — bank mesh overlay carries the inner mud detail.
   // During sustained rain the authored river meshes remain the authoritative
@@ -1293,9 +1331,9 @@ export function createTerrainGrassMaterialWithRiverShore(
     forestSurfaceBlend,
   ) as TslNode;
   const wetBaseColorNode = applyTerrainWetColor(
-    baseColorNode,
-    stableBaseColorNode,
-    rainStableBaseColorNode,
+    baseColorNode.mul(canopyColorFactor) as TslNode,
+    stableBaseColorNode.mul(canopyColorFactor) as TslNode,
+    rainStableBaseColorNode.mul(canopyColorFactor) as TslNode,
     blendNodes.moisture,
     blendNodes.rainMoisture,
     resolvedWeather,
@@ -1311,11 +1349,36 @@ export function createTerrainGrassMaterialWithRiverShore(
     resolvedWeather,
     snowExposure,
   );
-  const colorNode = applyTerrainSnowColor(
+  const finalColorNode = applyTerrainSnowColor(
     wetBaseColorNode,
     snowNodes.colorNode,
     snowNodes.mask,
   );
+  const coverageDebugGate = smoothstep(
+    float(0.5) as TslNode,
+    float(1) as TslNode,
+    canopyDebugMode,
+  ) as TslNode;
+  const mottleDebugGate = smoothstep(
+    float(1.5) as TslNode,
+    float(2) as TslNode,
+    canopyDebugMode,
+  ) as TslNode;
+  const coverageDebugColor = vec3(
+    canopyCoverage,
+    canopyCoverage,
+    canopyCoverage,
+  ) as TslNode;
+  const mottleDebugColor = vec3(
+    canopyGroundShade,
+    canopyMottle,
+    forestSurfaceBlend,
+  ) as TslNode;
+  const colorNode = mix(
+    mix(finalColorNode, coverageDebugColor, coverageDebugGate) as TslNode,
+    mottleDebugColor,
+    mottleDebugGate,
+  ) as TslNode;
 
   const roadRoughness = (texture(roadTextures.roughness, blendNodes.grassUv) as TslNode).r;
   const muddyRoughness = mix(roadRoughness, float(0.58) as TslNode, float(0.42) as TslNode);
@@ -1377,10 +1440,11 @@ export function createTerrainGrassMaterialWithRiverShore(
   material.colorNode = colorNode;
   material.normalNode = baseNormalNode;
   material.roughnessNode = roughnessNode;
-  material.aoNode = mix(
+  material.aoNode = (mix(
     baseAoNode,
     snowNodes.aoNode,
     snowNodes.mask,
-  ) as TslNode;
+  ) as TslNode).mul(canopyAoFactor) as TslNode;
+  material.userData.forestCanopyOcclusionMap = canopyOcclusion;
   return material;
 }

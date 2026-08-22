@@ -159,7 +159,7 @@ export class RoadMaterialFactory {
     }
   }
 
-  createTerrainMaterialWithRiverShore(): MeshStandardNodeMaterial {
+  createTerrainMaterialWithRiverShore(terrainSize = 1080): MeshStandardNodeMaterial {
     if (!this.roadTextures || !this.terrainBlendTextures) {
       throw new Error('Textures are not loaded.');
     }
@@ -167,6 +167,7 @@ export class RoadMaterialFactory {
       this.terrainBlendTextures,
       this.roadTextures,
       this.roadWeatherUniforms,
+      terrainSize,
     );
   }
 

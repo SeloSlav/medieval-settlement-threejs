@@ -140,7 +140,15 @@ assert.match(reducerSource, /def\.specialization_of\.is_some\(\)[\s\S]*matching 
 assert.match(reducerSource, /specialization_of == Some\("orchard"\)/);
 assert.match(reducerSource, /first_harvest_day = total_days\.saturating_add\(def\.first_harvest_days\)/);
 assert.match(reducerSource, /demolish_backyard_garden[\s\S]*backyard_garden\(\)\.id\(\)\.delete\(garden\.id\)/);
-assert.match(reducerSource, /residence\.tier < 4[\s\S]*luxury cut flowers/);
+assert.match(
+  reducerSource,
+  /residence\.tier < 3[\s\S]*tier-3 or tier-4 household[\s\S]*luxury cut flowers/,
+);
+assert.match(
+  inspectorSource,
+  /residence\.tier < 3[\s\S]*Requires a tier-3 residence/,
+  'Tier-3 households must be able to prepare cut flowers before Tier-4 promotion',
+);
 assert.match(reducerSource, /garden\.flower_luxury_upgraded = true/);
 assert.match(simulationSource, /first_harvest_day > clock\.total_days/);
 assert.match(simulationSource, /backyard_jam_commodity[\s\S]*CommodityKind::AroniaJam[\s\S]*CommodityKind::RosehipJam/);

@@ -14,6 +14,10 @@ import {
   type UndergrowthInstances,
   type UndergrowthPlacement,
 } from './ForestUndergrowth.ts';
+import type {
+  ForestFloorIvyInstances,
+  ForestFloorIvyStats,
+} from './ForestFloorIvy.ts';
 import {
   commitHarvestStumpInstanceUpdates,
   createHarvestStumpInstances,
@@ -36,6 +40,11 @@ import type { DeciduousFoliagePresentation } from '../world/deciduousFoliagePoli
 import { PlacementClearanceSpatialIndex } from '../placement/PlacementClearanceSpatialIndex.ts';
 import { GRASS_BLADE_REVEAL } from '../grass/grassLodMath.ts';
 import { FOREST_WIND_SAMPLE_RADIUS } from '../audio/forestWindRules.ts';
+import {
+  forestCanopyOcclusionMapFromMaterial,
+  type ForestCanopyOcclusionDebugMode,
+  type ForestCanopyOcclusionMap,
+} from '../terrain/ForestCanopyOcclusion.ts';
 
 const ROAD_CLEAR_MARGIN = 1.35;
 const BUILDING_CLEAR_MARGIN = 1.35;
@@ -122,6 +131,8 @@ export class ForestManager {
   private readonly broadleafFoliageMatrices: THREE.Matrix4[];
   private readonly undergrowth: UndergrowthInstances | null;
   private readonly undergrowthPlacements: UndergrowthPlacement[];
+  private readonly forestFloorIvy: ForestFloorIvyInstances | null;
+  private readonly canopyOcclusion: ForestCanopyOcclusionMap | null;
   private readonly rockInstances: ForestRockInstance[];
   private readonly allRockPlacements: RockObstacle[];
   private activeRockPlacements: RockObstacle[];
@@ -155,6 +166,7 @@ export class ForestManager {
     seedThreeForest: SeedThreeForestController | null = null,
     maxAnisotropy = 1,
     resolveHarvestStumpBark?: HarvestStumpBarkResolver,
+    forestFloorIvy: ForestFloorIvyInstances | null = null,
   ) {
     this.seedThreeForest = seedThreeForest;
     this.group = root;
@@ -177,7 +189,16 @@ export class ForestManager {
     this.broadleafFoliageMatrices = forestInstances.broadleafFoliageMatrices;
     this.undergrowth = undergrowth;
     this.undergrowthPlacements = undergrowthPlacements;
+    this.forestFloorIvy = forestFloorIvy;
     this.terrain = terrain;
+    this.canopyOcclusion = forestCanopyOcclusionMapFromMaterial(
+      terrain.mesh.material,
+    );
+    this.canopyOcclusion?.rebuild(this.placements.map((placement) => ({
+      x: placement.x,
+      z: placement.z,
+      canopyRadius: treeCanopyRadius(placement),
+    })));
     this.harvestStumps = createHarvestStumpInstances(
       this.placements,
       maxAnisotropy,
@@ -255,6 +276,14 @@ export class ForestManager {
 
   getCollisionVersion(): number {
     return this.collisionVersion;
+  }
+
+  getForestFloorIvyStats(): ForestFloorIvyStats | null {
+    return this.forestFloorIvy?.stats ?? null;
+  }
+
+  setForestFloorDebugMode(mode: ForestCanopyOcclusionDebugMode): void {
+    this.canopyOcclusion?.setDebugMode(mode);
   }
 
   applyTreePhase(layoutIndex: number, phase: TreePhase, growthProgress: number): void {
@@ -421,7 +450,7 @@ export class ForestManager {
     if (harvestStumpVisibilityChanged) {
       this.harvestStumps.group.visible = harvestStumpsVisible;
     }
-    if (!this.undergrowth) {
+    if (!this.undergrowth && !this.forestFloorIvy) {
       return shadowCastersChanged || harvestStumpVisibilityChanged;
     }
     const threshold = this.undergrowthVisible
@@ -432,7 +461,8 @@ export class ForestManager {
       return shadowCastersChanged || harvestStumpVisibilityChanged;
     }
     this.undergrowthVisible = visible;
-    this.undergrowth.group.visible = visible;
+    if (this.undergrowth) this.undergrowth.group.visible = visible;
+    if (this.forestFloorIvy) this.forestFloorIvy.group.visible = visible;
     return shadowCastersChanged || harvestStumpVisibilityChanged;
   }
 
@@ -697,6 +727,7 @@ export class ForestManager {
   }
 
   private hideTree(treeIndex: number): void {
+    this.setTreeForestFloorActive(treeIndex, false);
     if (this.seedThreeForest) {
       this.seedThreeForest.hideTree(treeIndex);
       return;
@@ -707,6 +738,7 @@ export class ForestManager {
   }
 
   private showTree(treeIndex: number): void {
+    this.setTreeForestFloorActive(treeIndex, true);
     if (this.seedThreeForest) {
       this.seedThreeForest.showTree(treeIndex);
       return;
@@ -742,7 +774,13 @@ export class ForestManager {
       this.coniferShadowMesh.instanceMatrix.needsUpdate = true;
       this.broadleafShadowMesh.instanceMatrix.needsUpdate = true;
     }
+    this.forestFloorIvy?.commit();
     commitHarvestStumpInstanceUpdates(this.harvestStumps);
+  }
+
+  private setTreeForestFloorActive(treeIndex: number, active: boolean): void {
+    this.canopyOcclusion?.setTreeActive(treeIndex, active);
+    this.forestFloorIvy?.setTreeActive(treeIndex, active);
   }
 
   private hideConiferLayers(treeIndex: number): void {

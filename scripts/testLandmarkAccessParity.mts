@@ -92,6 +92,19 @@ assert.equal(
   true,
 );
 assert.equal(findServingChapel(home, buildings, connectedProbe)?.id, staffedChapel.id);
+const levelTwoChapel = building({
+  id: 'b-chapel-level-2',
+  kind: 'chapel',
+  x: 40,
+  z: 10,
+  assignedLabor: 1,
+  chapelTier: 2,
+});
+assert.equal(
+  findServingChapel(home, [staffedChapel, levelTwoChapel], () => 12, 2)?.id,
+  levelTwoChapel.id,
+  'an upgrade preview must select a qualifying church tier instead of the nearest basic church',
+);
 
 const disconnectedProbe = () => null;
 assert.equal(isResidenceConnectedToMarketplace(home, buildings, disconnectedProbe), false);
@@ -144,6 +157,24 @@ assert.equal(connectedQueries.isResidenceConnectedToMarketplace(home, 'goods'), 
 assert.equal(connectedQueries.getServingChapelForResidence(home)?.id, staffedChapel.id);
 assert.equal(connectedQueries.isResidenceConnectedToChapel(home), true);
 assert.equal(connectedQueries.isResidenceInMonasteryCoverage(home), true);
+assert.equal(
+  connectedQueries.getLuxuryUpgradeSupplierForResidence(home),
+  null,
+  'an empty Marketplace must not unlock Tier-4 luxury demand',
+);
+const luxuryMarketplace = { ...marketplace, honey: 2 };
+const luxuryMarketState = {
+  ...gameState,
+  buildings: new Map(
+    [...buildings.filter((building) => building.id !== marketplace.id), luxuryMarketplace, monastery]
+      .map((entry) => [entry.id, entry]),
+  ),
+} as GameState;
+assert.equal(
+  new StubWorldQueries(true, luxuryMarketState).getLuxuryUpgradeSupplierForResidence(home)?.id,
+  luxuryMarketplace.id,
+  'a stocked reachable luxury Marketplace must qualify for Tier-4 promotion',
+);
 
 const unstaffedState = {
   ...gameState,

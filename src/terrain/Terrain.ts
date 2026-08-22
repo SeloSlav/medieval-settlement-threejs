@@ -13,6 +13,7 @@ import {
   TERRAIN_RESOLUTION,
   type TerrainGeometryData,
 } from './terrainGeometryData.ts';
+import { forestCanopyOcclusionMapFromMaterial } from './ForestCanopyOcclusion.ts';
 
 export type TerrainBounds = {
   minX: number;
@@ -64,6 +65,7 @@ export class Terrain {
     this.dirtZoomGateAttr = geometry.getAttribute('dirtZoomGate') as THREE.BufferAttribute;
     this.fairColorAttr = geometry.getAttribute('color') as THREE.BufferAttribute;
     this.rainColorAttr = createRainColorAttribute(geometry, this.fairColorAttr);
+    forestCanopyOcclusionMapFromMaterial(material)?.bindTerrainGeometry(geometry);
     this.mesh = new THREE.Mesh(geometry, material);
     this.mesh.name = 'Continuous terrain heightfield';
     this.mesh.receiveShadow = true;
@@ -102,6 +104,7 @@ export class Terrain {
   dispose(): void {
     this.mesh.geometry.dispose();
     const { material } = this.mesh;
+    forestCanopyOcclusionMapFromMaterial(material)?.dispose();
     if (Array.isArray(material)) {
       for (const entry of material) entry.dispose();
     } else {

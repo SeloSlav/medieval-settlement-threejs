@@ -26,6 +26,7 @@ import {
   evaluateResidenceUpgrade,
   residenceBackyardProject,
   residenceFireRepairProject,
+  residenceHasHouseholdLuxuryOption,
   residenceRoofTileProject,
   residenceUpgradeProject,
   type ResidenceUpgradeServices,
@@ -66,7 +67,7 @@ const weaver = building('weaver', 'weaver', 6);
 const potter = building('potter', 'potter_kiln', 7);
 const cobbler = building('cobbler', 'cobbler', 8);
 const chapel = building('chapel', 'chapel', 9);
-chapel.chapelTier = 2;
+chapel.chapelTier = 1;
 const allServices: ResidenceUpgradeServices = {
   firewood: { supplier: lodge, stocked: false },
   water: { supplier: well, stocked: false },
@@ -75,6 +76,7 @@ const allServices: ResidenceUpgradeServices = {
   cloth: { supplier: weaver, stocked: false },
   shoes: { supplier: cobbler, stocked: false },
   pottery: { supplier: potter, stocked: false },
+  luxury: { supplier: null, stocked: false, ready: false },
   church: { supplier: chapel, stocked: false, ready: true },
   foodVariety: { supplier: null, stocked: false, ready: true },
 };
@@ -92,6 +94,11 @@ assert.ok(tierTwoPlan);
 assert.equal(tierTwoPlan.nextTier, 2);
 assert.equal(tierTwoPlan.addedCapacity, 3);
 assert.equal(tierTwoPlan.ready, true);
+assert.equal(
+  tierTwoPlan.services.find((service) => service.kind === 'church')?.label,
+  'Level 1 church',
+  'Tier 2 promotion must retain the basic-church standard',
+);
 assert.deepEqual(
   tierTwoPlan.services.map((service) => service.kind),
   ['firewood', 'water', 'church', 'foodVariety', 'ale', 'cloth'],
@@ -218,7 +225,19 @@ assert.equal(serviceStrainedPlan.ready, false);
 assert.match(serviceStrainedPlan.blockers.join(' '), /sustained household needs/);
 
 const tierTwo = residence('tier-two', 2, 6);
-const tierThreePlan = evaluateResidenceUpgrade(tierTwo, richTotals, allServices);
+const basicChurchTierThreePlan = evaluateResidenceUpgrade(tierTwo, richTotals, allServices);
+assert.ok(basicChurchTierThreePlan);
+assert.equal(basicChurchTierThreePlan.ready, false);
+assert.match(
+  basicChurchTierThreePlan.blockers.join(' '),
+  /level 2 church route missing/,
+  'Tier 3 promotion must introduce the level-2 church requirement',
+);
+const levelTwoChapel = { ...chapel, chapelTier: 2 };
+const tierThreePlan = evaluateResidenceUpgrade(tierTwo, richTotals, {
+  ...allServices,
+  church: { supplier: levelTwoChapel, stocked: false, ready: true },
+});
 assert.ok(tierThreePlan);
 assert.equal(tierThreePlan.nextTier, 3);
 assert.equal(tierThreePlan.addedCapacity, 4);
@@ -236,9 +255,23 @@ assert.deepEqual(
 );
 assert.equal(tierThreePlan.ready, true);
 const tierThree = residence('tier-three', 3, 10);
-const levelThreeChapel = { ...chapel, chapelTier: 3 };
+const levelThreeChapel = { ...levelTwoChapel, chapelTier: 3 };
+const tierFourWithoutLuxury = evaluateResidenceUpgrade(tierThree, richTotals, {
+  ...allServices,
+  church: { supplier: levelThreeChapel, stocked: false, ready: true },
+});
+assert.ok(tierFourWithoutLuxury);
+assert.equal(tierFourWithoutLuxury.ready, false);
+assert.match(
+  tierFourWithoutLuxury.blockers.join(' '),
+  /luxury source route missing/,
+  'Tier 4 promotion must not activate luxury demand without a viable source',
+);
+const luxuryMarketplace = building('luxury-market', 'marketplace', 10);
+luxuryMarketplace.honey = 4;
 const tierFourPlan = evaluateResidenceUpgrade(tierThree, richTotals, {
   ...allServices,
+  luxury: { supplier: luxuryMarketplace, stocked: true, ready: true },
   church: { supplier: levelThreeChapel, stocked: false, ready: true },
 });
 assert.ok(tierFourPlan);
@@ -246,7 +279,7 @@ assert.equal(tierFourPlan.nextTier, 4);
 assert.equal(tierFourPlan.populationCapacity, RESIDENCE_TIER4_CAPACITY);
 assert.deepEqual(
   tierFourPlan.services.map((service) => service.kind),
-  ['firewood', 'water', 'preservedFood', 'ale', 'cloth', 'shoes', 'pottery', 'church', 'foodVariety'],
+  ['firewood', 'water', 'preservedFood', 'ale', 'cloth', 'shoes', 'pottery', 'luxury', 'church', 'foodVariety'],
 );
 assert.deepEqual(
   tierFourPlan.resources.map((resource) => resource.required),
@@ -258,6 +291,41 @@ assert.deepEqual(
   ],
 );
 assert.equal(tierFourPlan.ready, true);
+assert.equal(
+  residenceHasHouseholdLuxuryOption(
+    { aroniaJam: 0, rosehipJam: 0 },
+    { kind: 'flower_garden', flowerLuxuryUpgraded: true },
+  ),
+  true,
+  'prepared cut flowers must provide a household Tier-4 promotion path',
+);
+assert.equal(
+  residenceHasHouseholdLuxuryOption(
+    { aroniaJam: 0, rosehipJam: 0 },
+    { kind: 'aronia_orchard', flowerLuxuryUpgraded: false },
+  ),
+  true,
+  'a preserves orchard must count as a viable household luxury source before its next harvest',
+);
+assert.equal(
+  residenceHasHouseholdLuxuryOption(
+    { aroniaJam: 1, rosehipJam: 0 },
+    null,
+  ),
+  true,
+  'existing household preserves must satisfy the Tier-4 promotion gate',
+);
+const tierFourHouseholdLuxuryPlan = evaluateResidenceUpgrade(tierThree, richTotals, {
+  ...allServices,
+  luxury: { supplier: null, stocked: true, ready: true },
+  church: { supplier: levelThreeChapel, stocked: false, ready: true },
+});
+assert.ok(tierFourHouseholdLuxuryPlan);
+assert.equal(
+  tierFourHouseholdLuxuryPlan.ready,
+  true,
+  'a viable household luxury source must unlock Tier 4 without a Marketplace supplier',
+);
 assert.equal(
   evaluateResidenceUpgrade(residence('tier-four', 4, 15), richTotals, allServices),
   null,

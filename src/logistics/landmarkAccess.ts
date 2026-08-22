@@ -85,13 +85,14 @@ export function findServingChapel(
   residence: ResidenceState,
   chapels: Iterable<BuildingState>,
   probe: RoadPathProbe,
+  requiredTier = requiredChapelTierForResidence(residence.tier),
 ): BuildingState | null {
   let best: BuildingState | null = null;
   let bestDistance = Infinity;
   for (const chapel of chapels) {
     if (
       !isChapelStaffed(chapel)
-      || (chapel.chapelTier ?? 1) < requiredChapelTierForResidence(residence.tier)
+      || (chapel.chapelTier ?? 1) < requiredTier
     ) {
       continue;
     }

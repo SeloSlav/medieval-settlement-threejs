@@ -2,11 +2,16 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
   CALENDAR_SECONDS_PER_DAY,
+  HOUSEHOLD_TIER4_SHORTAGE_DISCRETIONARY_MULTIPLIER,
   RESIDENCE_SERVICE_WARNING_DAYS,
   RESIDENCE_UPGRADE_SERVICE_BLOCK_DAYS,
   SIM_TICK_SECONDS,
 } from '../src/generated/gameBalance.ts';
-import { residenceServiceState } from '../src/economy/residenceSatisfaction.ts';
+import {
+  formatResidenceServiceConsequence,
+  residenceServiceState,
+} from '../src/economy/residenceSatisfaction.ts';
+import { createDefaultNeeds } from '../src/residences/residenceNeedState.ts';
 import type { ResidenceState } from '../src/resources/types.ts';
 
 assert.equal(RESIDENCE_SERVICE_WARNING_DAYS, 3);
@@ -23,6 +28,28 @@ assert.equal(warning.upgradeBlocked, false);
 const blocked = serviceStateAtDays(RESIDENCE_UPGRADE_SERVICE_BLOCK_DAYS);
 assert.equal(blocked.warning, true);
 assert.equal(blocked.upgradeBlocked, true);
+
+const tierFourLuxuryPressure = tierFourLuxuryStateAtDays(RESIDENCE_SERVICE_WARNING_DAYS);
+assert.equal(
+  tierFourLuxuryPressure.discretionarySpendingMultiplier,
+  HOUSEHOLD_TIER4_SHORTAGE_DISCRETIONARY_MULTIPLIER,
+);
+assert.match(
+  formatResidenceServiceConsequence(tierFourLuxuryPressure),
+  /optional spending and local market tax reduced 25%/,
+);
+assert.equal(
+  tierFourLuxuryStateAtDays(RESIDENCE_SERVICE_WARNING_DAYS - 0.01)
+    .discretionarySpendingMultiplier,
+  1,
+  'Tier 4 keeps its logistics grace period before the economic consequence begins',
+);
+assert.equal(
+  tierFourLuxuryStateAtDays(RESIDENCE_SERVICE_WARNING_DAYS, 3)
+    .discretionarySpendingMultiplier,
+  1,
+  'the non-vital spending consequence is exclusive to Tier 4',
+);
 
 const balance = JSON.parse(source('../balance/gameBalance.json')) as {
   population: Record<string, unknown>;
@@ -70,6 +97,12 @@ function serviceStateAtDays(days: number) {
       pottery: { stock: 0, deficitTicks: 0 },
     },
   } as Pick<ResidenceState, 'needs' | 'tier'>);
+}
+
+function tierFourLuxuryStateAtDays(days: number, tier: 3 | 4 = 4) {
+  const needs = createDefaultNeeds();
+  needs.luxury.deficitTicks = days * CALENDAR_SECONDS_PER_DAY / SIM_TICK_SECONDS;
+  return residenceServiceState({ tier, needs });
 }
 
 function source(relativePath: string): string {

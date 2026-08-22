@@ -16,10 +16,11 @@ use crate::economy::{
     building_commodity_room, building_commodity_stock, credit_local_purchase_receipt,
     debit_residence_wealth, deposit_building_commodity, withdraw_building_commodity, CommodityKind,
 };
+use crate::residence_service_policy::tier_four_non_vital_discretionary_multiplier;
 use crate::residence_settlement_policy::settlement_buffers_ready;
 use crate::simulation::chapel_community::recovery_stock_min;
 use crate::simulation::game_calendar::GameClock;
-use crate::simulation::residence_needs::{load_needs, ResidenceNeedKind};
+use crate::simulation::residence_needs::load_needs;
 use crate::simulation::tick_context::SimTickContext;
 use crate::simulation::trading_post_exports_commodity;
 use crate::tables::{Building, Residence};
@@ -61,9 +62,9 @@ pub fn step_household_discretionary_trade(
     residences.sort_by_key(|residence| residence.id);
 
     for residence in residences {
-        if !basic_buffers_are_safe(ctx, &residence) {
+        let Some(spending_multiplier) = discretionary_spending_multiplier(ctx, &residence) else {
             continue;
-        }
+        };
         let Some(trading_post_id) =
             tick.marketplace_for_residence(ctx, residence.owner, residence.id)
         else {
@@ -72,28 +73,58 @@ pub fn step_household_discretionary_trade(
         let Some(mut trading_post) = ctx.db.building().id().find(&trading_post_id) else {
             continue;
         };
-        if try_purchase_one_good(ctx, &residence, &mut trading_post, day_marker) {
+        if try_purchase_one_good(
+            ctx,
+            &residence,
+            &mut trading_post,
+            day_marker,
+            spending_multiplier,
+        ) {
             ctx.db.building().id().update(trading_post);
         }
     }
 }
 
-fn basic_buffers_are_safe(ctx: &ReducerContext, residence: &Residence) -> bool {
+fn discretionary_spending_multiplier(
+    ctx: &ReducerContext,
+    residence: &Residence,
+) -> Option<f64> {
     let needs = load_needs(ctx, residence.id);
+    let vital_deficit = needs.iter().any(|need| {
+        need.kind.is_vital_for_tier(residence.tier, true) && need.deficit_ticks > 0
+    });
+    if vital_deficit {
+        return None;
+    }
+
     let basic = needs
         .iter()
-        .filter(|need| {
-            matches!(
-                need.kind,
-                ResidenceNeedKind::Food | ResidenceNeedKind::Firewood | ResidenceNeedKind::Water
-            ) && need.kind.is_active_for_tier(residence.tier)
-        })
+        .filter(|need| need.kind.is_vital_for_tier(residence.tier, true))
         .map(|need| (need.stock, recovery_stock_min(need.kind, false, false)));
-    needs
+    if !settlement_buffers_ready(residence.population, basic) {
+        return None;
+    }
+
+    let non_vital_deficit_ticks = needs
         .iter()
-        .filter(|need| need.kind.is_active_for_tier(residence.tier))
-        .all(|need| need.deficit_ticks == 0)
-        && settlement_buffers_ready(residence.population, basic)
+        .filter(|need| {
+            need.kind.is_active_for_tier(residence.tier)
+                && !need.kind.is_vital_for_tier(residence.tier, true)
+        })
+        .map(|need| need.deficit_ticks)
+        .max()
+        .unwrap_or(0);
+
+    // Lower-tier households retain the established all-needs-safe rule.
+    // Tier 4 instead gets a logistics grace window followed by a modest,
+    // explicit reduction in optional purchases and the tax they generate.
+    if residence.tier < 4 && non_vital_deficit_ticks > 0 {
+        return None;
+    }
+    Some(tier_four_non_vital_discretionary_multiplier(
+        residence.tier,
+        non_vital_deficit_ticks,
+    ))
 }
 
 fn try_purchase_one_good(
@@ -101,11 +132,13 @@ fn try_purchase_one_good(
     residence: &Residence,
     trading_post: &mut Building,
     day_marker: u64,
+    spending_multiplier: f64,
 ) -> bool {
-    let spendable = (residence.household_wealth - HOUSEHOLD_DISCRETIONARY_WEALTH_RESERVE)
-        .max(0.0)
-        .min(HOUSEHOLD_DISCRETIONARY_BUDGET_PER_PERSON_DAY * residence.population as f64);
-    let unit_limit = HOUSEHOLD_DISCRETIONARY_UNITS_PER_PERSON_DAY * residence.population as f64;
+    let (spendable, unit_limit) = discretionary_limits(
+        residence.household_wealth,
+        residence.population,
+        spending_multiplier,
+    );
     if spendable <= 1e-9 || unit_limit <= 1e-9 {
         return false;
     }
@@ -164,6 +197,21 @@ fn try_purchase_one_good(
     false
 }
 
+fn discretionary_limits(wealth: f64, population: u32, spending_multiplier: f64) -> (f64, f64) {
+    let spending_multiplier = spending_multiplier.clamp(0.0, 1.0);
+    let spendable = (wealth - HOUSEHOLD_DISCRETIONARY_WEALTH_RESERVE)
+        .max(0.0)
+        .min(
+            HOUSEHOLD_DISCRETIONARY_BUDGET_PER_PERSON_DAY
+                * population as f64
+                * spending_multiplier,
+        );
+    let unit_limit = HOUSEHOLD_DISCRETIONARY_UNITS_PER_PERSON_DAY
+        * population as f64
+        * spending_multiplier;
+    (spendable, unit_limit)
+}
+
 fn local_unit_price(commodity: CommodityKind) -> f64 {
     match commodity {
         CommodityKind::Ale => SPECIALTY_EXPORT_GOLD_PER_ALE,
@@ -189,5 +237,19 @@ mod tests {
         assert!(ale > 0.0 && wine > 0.0 && pottery > 0.0);
         assert_ne!(ale, wine);
         assert_ne!(wine, pottery);
+    }
+
+    #[test]
+    fn shortage_multiplier_scales_spending_and_taxable_purchase_volume() {
+        let wealth = HOUSEHOLD_DISCRETIONARY_WEALTH_RESERVE + 10_000.0;
+        let (full_spend, full_units) = discretionary_limits(wealth, 4, 1.0);
+        let (reduced_spend, reduced_units) = discretionary_limits(
+            wealth,
+            4,
+            crate::balance_generated::HOUSEHOLD_TIER4_SHORTAGE_DISCRETIONARY_MULTIPLIER,
+        );
+
+        assert!((reduced_spend - full_spend * 0.75).abs() < 1e-9);
+        assert!((reduced_units - full_units * 0.75).abs() < 1e-9);
     }
 }

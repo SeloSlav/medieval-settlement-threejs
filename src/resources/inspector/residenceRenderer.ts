@@ -81,6 +81,7 @@ import {
   evaluateResidenceUpgrade,
   residenceBackyardProject,
   residenceFireRepairProject,
+  residenceHasHouseholdLuxuryOption,
   residenceRoofTileProject,
   residenceUpgradeProject,
   type ResidenceFireRepairProject,
@@ -119,6 +120,7 @@ import {
   getNeed,
   getNeedStock,
 } from '../../residences/residenceNeeds.ts';
+import { requiredChapelTierForResidence } from '../../residences/residenceNeedState.ts';
 import type { BuildingState, InspectableTarget, ResidenceState } from '../types.ts';
 import type { InspectorRenderContext, InspectorView } from './renderInspectableTarget.ts';
 import { hiddenLabor } from './renderInspectableTarget.ts';
@@ -231,6 +233,12 @@ export function renderResidenceInspector(
   const servingWell = context.worldQueries.getServingWellForResidence(residence);
   const servingFoodSupplier = context.worldQueries.getServingFoodSupplierForResidence(residence);
   const servingChapel = context.worldQueries.getServingChapelForResidence(residence);
+  const upgradeChapel = residence.tier >= 1 && residence.tier < 4
+    ? context.worldQueries.getServingChapelForResidence(
+        residence,
+        requiredChapelTierForResidence(residence.tier + 1),
+      )
+    : servingChapel;
   const servingPreservedFoodSupplier = residence.tier >= 4
     ? context.worldQueries.getServingPreservedFoodSupplierForResidence(residence)
     : null;
@@ -266,6 +274,13 @@ export function renderResidenceInspector(
     ? servingPotterySupplier
       ?? context.worldQueries.getPotteryUpgradeSupplierForResidence(residence)
     : servingPotterySupplier;
+  const luxuryUpgradeSupplier = residence.tier === 3
+    ? context.worldQueries.getLuxuryUpgradeSupplierForResidence(residence)
+    : null;
+  const householdLuxuryOption = residenceHasHouseholdLuxuryOption(
+    residence,
+    context.gameState.backyardGardens.get(residence.id),
+  );
   const upgradeProject = residenceUpgradeProject(
     residence,
     context.gameState.deliveryTrips.values(),
@@ -328,9 +343,14 @@ export function renderResidenceInspector(
         supplier: potteryUpgradeSupplier,
         stocked: servingPotterySupplier != null,
       },
+      luxury: {
+        supplier: luxuryUpgradeSupplier,
+        stocked: luxuryUpgradeSupplier != null || householdLuxuryOption,
+        ready: luxuryUpgradeSupplier != null || householdLuxuryOption,
+      },
       church: {
-        supplier: servingChapel,
-        stocked: servingChapel != null,
+        supplier: upgradeChapel,
+        stocked: upgradeChapel != null,
       },
       foodVariety: {
         supplier: null,
@@ -840,10 +860,10 @@ function residenceUpgradePanel(
     ? `Ready · adds ${plan.addedCapacity} resident capacity (${plan.populationCapacity} total) · ${plan.addedNeeds.toLowerCase()}.`
     : `Blocked · ${plan.blockers.join(' · ')}.`;
   const guidance = plan.nextTier === 2
-    ? 'Tier 2 needs a one-day grain staple plus one other stocked food group, a level-2 church, a staffed road-connected Tavern, and a staffed weaver in addition to fuel and well access.'
+    ? 'Tier 2 needs a one-day grain staple plus one other stocked food group, a staffed basic church, a staffed road-connected Tavern, and a staffed weaver in addition to fuel and well access.'
     : plan.nextTier === 3
       ? 'Tier 3 needs separate one-day stocks of grain, produce or forage, meat or animal produce, and fish, plus a staffed level-2 church while retaining fuel, well, and Tier 2 services.'
-      : 'Tier 4 needs cured provisions, pottery, a staffed level-3 church, and physical fired roof tiles while retaining the complete lower-tier diet and services.';
+      : 'Tier 4 needs cured provisions, pottery, a staffed level-3 church, physical fired roof tiles, and either a stocked road-reachable Marketplace with honey or wine or a household preserve/flower source while retaining the complete lower-tier diet and services.';
   const throughput = prosperity && projection
     ? projection.immediateSustainable
       ? projection.fullPipelineSustainable

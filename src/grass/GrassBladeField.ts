@@ -33,6 +33,7 @@ import {
   grassMicroTuftTargetForForestBlend,
   grassPlacementChanceForForestBlend,
   grassTuftTargetForForestBlend,
+  wildflowerPlacementChanceForForestBlend,
   GRASS_STREAM_CHUNK_RADIUS,
   GRASS_TUFT_SCATTER_ATTEMPTS,
   GRASS_TUFTS_PER_CHUNK,
@@ -1216,7 +1217,7 @@ function* generateSeedThreeWildflowerChunkInstances(
         if (isGrassNearAnyRoad(x, z, roadSpatialIndex)) continue;
 
         const density = sampleForestFloorBlend(context, x, z);
-        const habitatChance = THREE.MathUtils.lerp(0.86, 0.02, density);
+        const habitatChance = wildflowerPlacementChanceForForestBlend(density);
         if (rng() > habitatChance) continue;
 
         localPlacements.push({ x, z, variantIndex: cohort.variantIndex });

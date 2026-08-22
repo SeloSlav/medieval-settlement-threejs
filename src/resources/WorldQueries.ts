@@ -752,7 +752,10 @@ export class WorldQueries {
     );
   }
 
-  getServingChapelForResidence(residence: ResidenceState): BuildingState | null {
+  getServingChapelForResidence(
+    residence: ResidenceState,
+    requiredTier?: 1 | 2 | 3,
+  ): BuildingState | null {
     const state = this.getGameState();
     if (fireDisabledResidenceIds(state.fireIncidents.values()).has(residence.id)) {
       return null;
@@ -761,6 +764,7 @@ export class WorldQueries {
       residence,
       this.activeParishChapels(state),
       (a, b, c, d) => this.getRoadPathDistance(a, b, c, d),
+      requiredTier,
     );
   }
 
@@ -1132,6 +1136,20 @@ export class WorldQueries {
       this.getRoadNetwork(),
       'pottery',
     );
+  }
+
+  getLuxuryUpgradeSupplierForResidence(residence: ResidenceState): BuildingState | null {
+    const state = this.getGameState();
+    if (fireDisabledResidenceIds(state.fireIncidents.values()).has(residence.id)) {
+      return null;
+    }
+    const candidates = [...this.fireEnabledBuildings(state)].filter(
+      (building) =>
+        building.kind === 'marketplace'
+        && building.constructionComplete !== false
+        && Math.max(0, building.wine ?? 0) + Math.max(0, building.honey ?? 0) > 1e-6,
+    );
+    return sortByRoadPathDistance(this.getRoadNetwork(), residence, candidates)[0] ?? null;
   }
 
   getNextFarmBarleyDispatch(

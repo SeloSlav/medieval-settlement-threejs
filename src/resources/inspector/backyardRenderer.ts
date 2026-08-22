@@ -234,8 +234,8 @@ export function renderBackyardInspector(
     `,
     supplementalPanelHtml: `${garden.kind === 'flower_garden' && !garden.flowerLuxuryUpgraded
       ? `<div class="inspector-action-panel">
-          <p class="resource-inspector-note">Tier-4 households can add selected bulbs, cutting beds, and bouquet tools. The garden keeps its pollinator and attraction effects while satisfying the luxury-comfort need.</p>
-          <button type="button" class="resource-action-button resource-action-button--icon" data-action="upgrade-flower-luxury" ${residence.tier < 4 ? 'disabled title="Requires a tier-4 residence"' : ''}><span class="inspector-action-icon" data-action-icon="luxury-flowers" aria-hidden="true"></span><span>Cultivate luxury flowers · ${BACKYARD_GARDEN_DEFINITIONS.flower_garden.luxuryUpgradeGoldCost} gold</span></button>
+          <p class="resource-inspector-note">Tier-3 households can prepare selected bulbs, cutting beds, and bouquet tools for Tier-4 luxury comfort. The garden keeps its pollinator and attraction effects.</p>
+          <button type="button" class="resource-action-button resource-action-button--icon" data-action="upgrade-flower-luxury" ${residence.tier < 3 ? 'disabled title="Requires a tier-3 residence"' : ''}><span class="inspector-action-icon" data-action-icon="luxury-flowers" aria-hidden="true"></span><span>Cultivate luxury flowers · ${BACKYARD_GARDEN_DEFINITIONS.flower_garden.luxuryUpgradeGoldCost} gold</span></button>
         </div>`
       : garden.kind === 'flower_garden' && garden.flowerLuxuryUpgraded
         ? '<p class="resource-inspector-note">Luxury cut flowers are active: this home satisfies its tier-4 luxury-comfort need without consuming jam.</p>'

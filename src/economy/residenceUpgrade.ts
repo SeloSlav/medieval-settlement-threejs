@@ -17,7 +17,11 @@ import {
   type BackyardGardenKind,
 } from '../generated/gameBalance.ts';
 import type { ResourceTotals } from '../resources/resourceTotals.ts';
-import type { BuildingState, ResidenceState } from '../resources/types.ts';
+import type {
+  BackyardGardenState,
+  BuildingState,
+  ResidenceState,
+} from '../resources/types.ts';
 import type { DeliveryTripState } from '../logistics/deliveryTrips.ts';
 import {
   constructionPriorityLabel,
@@ -34,6 +38,7 @@ export type ResidenceUpgradeServiceKind =
   | 'cloth'
   | 'shoes'
   | 'pottery'
+  | 'luxury'
   | 'church'
   | 'foodVariety';
 
@@ -151,7 +156,7 @@ type UpgradeDefinition = {
   stone: number;
   gold: number;
   roofTiles: number;
-  requiredChapelTier: 2 | 3;
+  requiredChapelTier: 1 | 2 | 3;
   serviceKinds: ResidenceUpgradeServiceKind[];
   addedNeeds: string;
 };
@@ -165,9 +170,9 @@ function definitionForTier(tier: ResidenceState['tier']): UpgradeDefinition | nu
       stone: RESIDENCE_TIER2_STONE_COST,
       gold: RESIDENCE_TIER2_GOLD_COST,
       roofTiles: 0,
-      requiredChapelTier: 2,
+      requiredChapelTier: 1,
       serviceKinds: ['firewood', 'water', 'church', 'foodVariety', 'ale', 'cloth'],
-      addedNeeds: 'Adds a grain staple, one other food group, ale, clothing, and a level-2 church standard',
+      addedNeeds: 'Adds a grain staple, one other food group, ale, and clothing while retaining the basic-church standard',
     };
   }
   if (tier === 2) {
@@ -180,7 +185,7 @@ function definitionForTier(tier: ResidenceState['tier']): UpgradeDefinition | nu
       roofTiles: 0,
       requiredChapelTier: 2,
       serviceKinds: ['firewood', 'water', 'ale', 'cloth', 'shoes', 'church', 'foodVariety'],
-      addedNeeds: 'Adds footwear, produce or forage, land-animal food, fish, and a stone-church standard while retaining grain',
+      addedNeeds: 'Adds footwear, produce or forage, land-animal food, fish, and a level-2 stone-church standard while retaining grain',
     };
   }
   if (tier === 3) {
@@ -192,8 +197,8 @@ function definitionForTier(tier: ResidenceState['tier']): UpgradeDefinition | nu
       gold: RESIDENCE_TIER4_GOLD_COST,
       roofTiles: RESIDENCE_TILE_ROOF_TILE_COST,
       requiredChapelTier: 3,
-      serviceKinds: ['firewood', 'water', 'preservedFood', 'ale', 'cloth', 'shoes', 'pottery', 'church', 'foodVariety'],
-      addedNeeds: 'Adds cured provisions, pottery, a level-3 church standard, and a finished fired-tile house',
+      serviceKinds: ['firewood', 'water', 'preservedFood', 'ale', 'cloth', 'shoes', 'pottery', 'luxury', 'church', 'foodVariety'],
+      addedNeeds: 'Adds cured provisions, pottery, a viable luxury source, a level-3 church standard, and a finished fired-tile house',
     };
   }
   return null;
@@ -207,9 +212,21 @@ const SERVICE_LABELS: Record<ResidenceUpgradeServiceKind, string> = {
   cloth: 'Cloth',
   shoes: 'Shoes',
   pottery: 'Pottery',
+  luxury: 'Luxury source',
   church: 'Church access',
   foodVariety: 'Food variety',
 };
+
+/** Mirrors the household alternatives accepted by the authoritative Tier-4 gate. */
+export function residenceHasHouseholdLuxuryOption(
+  residence: Pick<ResidenceState, 'aroniaJam' | 'rosehipJam'>,
+  garden: Pick<BackyardGardenState, 'kind' | 'flowerLuxuryUpgraded'> | null | undefined,
+): boolean {
+  return Math.max(0, residence.aroniaJam ?? 0) + Math.max(0, residence.rosehipJam ?? 0) > 1e-6
+    || garden?.flowerLuxuryUpgraded === true
+    || garden?.kind === 'aronia_orchard'
+    || garden?.kind === 'rosehip_orchard';
+}
 
 export function evaluateResidenceUpgrade(
   residence: ResidenceState,

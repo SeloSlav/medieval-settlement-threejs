@@ -1,5 +1,18 @@
 # Vegetation card textures
 
+`forest-floor-ivy-card.png` is the generated RGBA alpha card used by the
+SeedThree broad woodland-floor ivy batch. The source was generated from the
+supplied Manor Lords forest-floor references as a low, horizontally spreading
+European ivy clump on a uniform magenta extraction field, then converted with
+the Seloslav/SeedThree `chroma-key.mjs` pipeline. Runtime geometry tilts seven
+overlapping cards close to the terrain so the asset reads as connected ground
+coverage rather than an upright shrub.
+
+Final generation prompt summary: a single botanically convincing carpet of
+small overlapping five-lobed ivy leaves, broad irregular perimeter, restrained
+young yellow-green leaves and visible creeping stems; diffuse de-lit botanical
+game texture; no grass, flowers, soil, rocks, trees, text, or cast shadow.
+
 `raspberry_patch_albedo.png` is the dedicated transparent alpha card for harvestable berry-resource patches. It replaces the former bilberry-card-plus-red-sphere treatment with raspberry canes whose aggregate fruit is part of the texture. Ordinary procedural juniper scrub continues to use SeedThree's original `juniper_scrub_*` texture set.
 
 Generation prompt:
