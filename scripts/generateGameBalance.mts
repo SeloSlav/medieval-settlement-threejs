@@ -331,6 +331,7 @@ export type GameBalance = {
     householdDiscretionaryBudgetPerPersonDay: number;
     householdDiscretionaryUnitsPerPersonDay: number;
     householdDiscretionaryMinTier: number;
+    householdTier4ShortageDiscretionaryMultiplier: number;
     householdLocalPotteryGoldPerUnit: number;
     localMarketFoodGoldPerMeal: number;
     localMarketFirewoodGoldPerUnit: number;
@@ -953,6 +954,7 @@ function generateRust(): string {
     `pub const HOUSEHOLD_DISCRETIONARY_BUDGET_PER_PERSON_DAY: f64 = ${rustF64(b.economy.householdDiscretionaryBudgetPerPersonDay)};`,
     `pub const HOUSEHOLD_DISCRETIONARY_UNITS_PER_PERSON_DAY: f64 = ${rustF64(b.economy.householdDiscretionaryUnitsPerPersonDay)};`,
     `pub const HOUSEHOLD_DISCRETIONARY_MIN_TIER: u8 = ${b.economy.householdDiscretionaryMinTier};`,
+    `pub const HOUSEHOLD_TIER4_SHORTAGE_DISCRETIONARY_MULTIPLIER: f64 = ${rustF64(b.economy.householdTier4ShortageDiscretionaryMultiplier)};`,
     `pub const HOUSEHOLD_LOCAL_POTTERY_GOLD_PER_UNIT: f64 = ${rustF64(b.economy.householdLocalPotteryGoldPerUnit)};`,
     `pub const LOCAL_MARKET_FOOD_GOLD_PER_MEAL: f64 = ${rustF64(b.economy.localMarketFoodGoldPerMeal)};`,
     `pub const LOCAL_MARKET_FIREWOOD_GOLD_PER_UNIT: f64 = ${rustF64(b.economy.localMarketFirewoodGoldPerUnit)};`,
@@ -1928,6 +1930,7 @@ function generateTypeScript(): string {
     `export const HOUSEHOLD_DISCRETIONARY_BUDGET_PER_PERSON_DAY = ${b.economy.householdDiscretionaryBudgetPerPersonDay};`,
     `export const HOUSEHOLD_DISCRETIONARY_UNITS_PER_PERSON_DAY = ${b.economy.householdDiscretionaryUnitsPerPersonDay};`,
     `export const HOUSEHOLD_DISCRETIONARY_MIN_TIER = ${b.economy.householdDiscretionaryMinTier};`,
+    `export const HOUSEHOLD_TIER4_SHORTAGE_DISCRETIONARY_MULTIPLIER = ${b.economy.householdTier4ShortageDiscretionaryMultiplier};`,
     `export const HOUSEHOLD_LOCAL_POTTERY_GOLD_PER_UNIT = ${b.economy.householdLocalPotteryGoldPerUnit};`,
     `export const LOCAL_MARKET_FOOD_GOLD_PER_MEAL = ${b.economy.localMarketFoodGoldPerMeal};`,
     `export const LOCAL_MARKET_FIREWOOD_GOLD_PER_UNIT = ${b.economy.localMarketFirewoodGoldPerUnit};`,

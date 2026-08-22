@@ -176,6 +176,7 @@
     "householdDiscretionaryBudgetPerPersonDay": 0.2,
     "householdDiscretionaryUnitsPerPersonDay": 0.12,
     "householdDiscretionaryMinTier": 2,
+    "householdTier4ShortageDiscretionaryMultiplier": 0.75,
     "householdLocalPotteryGoldPerUnit": 0.9,
     "localMarketFoodGoldPerMeal": 0.04,
     "localMarketFirewoodGoldPerUnit": 0.08,

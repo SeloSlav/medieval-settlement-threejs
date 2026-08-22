@@ -125,7 +125,7 @@ export const DEFAULT_RESIDENCE_COMMUNITY_CONTEXT: ResidenceCommunityContext = {
 
 export function requiredChapelTierForResidence(tier: number): 1 | 2 | 3 {
   if (tier >= 4) return 3;
-  if (tier >= 2) return 2;
+  if (tier >= 3) return 2;
   return 1;
 }
 
