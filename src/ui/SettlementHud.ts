@@ -1350,9 +1350,12 @@ export class SettlementHud {
 
   setZoomPercent(zoomPercent: number): void {
     const displayZoom = Math.max(0, Math.round(zoomPercent));
-    if (displayZoom === this.displayedZoom) return;
-    this.zoomValue.textContent = `${displayZoom}%`;
-    this.displayedZoom = displayZoom;
+    const illustratedMapActive = zoomPercent < 30;
+    const displayKey = illustratedMapActive ? -1 : displayZoom;
+    if (displayKey === this.displayedZoom) return;
+    this.zoomValue.textContent = illustratedMapActive ? 'MAP' : `${displayZoom}%`;
+    this.zoomStat.dataset.cameraMode = illustratedMapActive ? 'map' : 'world';
+    this.displayedZoom = displayKey;
   }
 
   private readonly onResourceRowClick = (event: MouseEvent): void => {

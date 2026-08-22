@@ -367,6 +367,7 @@ export async function bootstrapAppSession(
     isBurgageToolEnabled: () => false,
     isFarmFieldToolEnabled: () => false,
     isFirstPersonActive: () => false,
+    isIllustratedMapActive: () => cameraController?.isIllustratedMapActive() ?? false,
     isMenuOpen: () => false,
     isTutorialOpen: () => tutorialOverlay?.isGameplayBlocking() ?? false,
   };
@@ -396,6 +397,12 @@ export async function bootstrapAppSession(
     onViewChanged: () => {
       if (firstPersonController?.isActive()) return;
       sceneManager.render(0, cameraController.getOrbitDistance());
+    },
+    onIllustratedMapModeChanged: (active) => {
+      sceneManager.setIllustratedMapActive(active);
+      document.documentElement.dataset.cameraView = active
+        ? 'illustrated-map'
+        : 'world';
     },
   });
 
@@ -1312,6 +1319,9 @@ export async function bootstrapAppSession(
       }
     },
     onModeChange: (active) => {
+      if (active && cameraController.isIllustratedMapActive()) {
+        cameraController.applyRtsOrbitView();
+      }
       cameraController.setInputEnabled(
         !active
         && !toolbar.isGameMenuOpen()
@@ -1364,6 +1374,9 @@ export async function bootstrapAppSession(
     getGameState: () => liveContext.gameState,
     getFocus: () => resolveWorldMapFocus(cameraController, firstPersonController),
     placementGate,
+    onTerrainImageReady: ({ canvas, bounds }) => {
+      sceneManager.setIllustratedMapImage(canvas, bounds);
+    },
     onQuarrySelect: (quarryId) => resourceInspector.selectQuarry(quarryId),
     onForagingSelect: (nodeId) => resourceInspector.selectForaging(nodeId),
     onClaySelect: (x, z) => cameraController.focusWorldPosition(x, z),

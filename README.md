@@ -383,7 +383,8 @@ Food is physical and keeps its identity throughout the economy: bakeries make br
 | Demolish building, garden, or residence | Inspector panel → **Remove** |
 | Pan camera | Right-click drag, `WASD`, or arrow keys |
 | Rotate camera | Middle-click drag or `Q` / `E` |
-| Zoom camera | Mouse wheel |
+| Zoom camera / enter illustrated world map | Mouse wheel; scroll one step beyond the 30% overview for the map plane, then inward to return |
+| Hold flat parchment map | `G` |
 | Choose / toggle walk mode | Backtick (`~`); in RTS, click terrain and confirm the placement pin |
 | Cancel walk placement | Right-click or click **Cancel** |
 | Move (walk mode) | `WASD` or arrow keys |

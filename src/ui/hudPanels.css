@@ -149,6 +149,10 @@
 .map-overlay-legend[data-overlay='wind'] .crop-suitability-scale__good { background: rgb(80, 163, 165); }
 .map-overlay-legend[data-overlay='wind'] .crop-suitability-scale__prime { background: rgb(215, 224, 177); }
 
+html[data-camera-view='illustrated-map'] .map-overlay-legend {
+  display: none !important;
+}
+
 .crop-suitability-legend p {
   margin: 0;
   line-height: 1.35;

@@ -45,7 +45,7 @@ import {
   type DayNightGrade,
   type DayNightLightingState,
 } from '../world/dayNightPresentation.ts';
-import { Terrain } from '../terrain/Terrain.ts';
+import { Terrain, type TerrainBounds } from '../terrain/Terrain.ts';
 import { TerrainProjector } from '../terrain/TerrainProjector.ts';
 import { disposeObject3D } from '../utils/dispose.ts';
 import type { RockObstacle } from '../utils/pathGeometry.ts';
@@ -114,6 +114,10 @@ import {
   type RendererFrameStats,
   type RendererInfoLike,
 } from './rendererFrameStats.ts';
+import {
+  IllustratedMapPlane,
+  type IllustratedMapDebugMode,
+} from '../map/IllustratedMapPlane.ts';
 
 export type SceneLoadProgress = {
   label: string;
@@ -153,6 +157,8 @@ export class SceneManager {
   private readonly rendererAdapterEvidence: RendererAdapterEvidence;
   private readonly waitForSubmittedWork: () => Promise<void>;
   readonly postProcessor: ScenePostProcessor;
+  private readonly illustratedMap: IllustratedMapPlane;
+  private illustratedMapActive = false;
   private readonly maxAnisotropy: number;
   readonly cameraTarget = new THREE.Vector3();
   readonly terrain: Terrain;
@@ -275,6 +281,7 @@ export class SceneManager {
     };
     this.waitForSubmittedWork = backend.waitForSubmittedWork;
     this.maxAnisotropy = backend.maxAnisotropy;
+    this.illustratedMap = new IllustratedMapPlane(this.maxAnisotropy);
     this.materials = materials;
     this.scene = new THREE.Scene();
     this.scene.background = null;
@@ -796,6 +803,22 @@ export class SceneManager {
     this.sky.updateResolution(width * pixelRatio, height * pixelRatio);
   }
 
+  setIllustratedMapImage(canvas: HTMLCanvasElement, bounds: TerrainBounds): void {
+    this.illustratedMap.setCanvas(canvas, bounds);
+  }
+
+  setIllustratedMapActive(active: boolean): void {
+    this.illustratedMapActive = active;
+  }
+
+  isIllustratedMapActive(): boolean {
+    return this.illustratedMapActive;
+  }
+
+  setIllustratedMapDebugMode(mode: IllustratedMapDebugMode): void {
+    this.illustratedMap.setDebugMode(mode);
+  }
+
   setBuildInteractionActive(active: boolean): void {
     if (this.buildInteractionActive === active) {
       this.grassField?.setBuildInteractionActive(active);
@@ -840,6 +863,18 @@ export class SceneManager {
     }
     this.worldAnimationElapsedSeconds += Math.max(0, dt);
     setWorldAnimationTime(this.worldAnimationElapsedSeconds);
+    if (this.illustratedMapActive && this.illustratedMap.ready) {
+      // The plane follows only the target's elevation. Its X/Z transform stays
+      // fixed to world coordinates, preserving pan and orbit semantics.
+      this.illustratedMap.setElevation(this.cameraTarget.y);
+      this.renderer.render(this.illustratedMap.scene, this.camera);
+      this.completedRenderFrames++;
+      this.lastRendererFrameStats = readRendererFrameStats(
+        rendererInfo,
+        rendererFrameBoundary,
+      );
+      return;
+    }
     const cameraDistance = orbitDistance ?? this.camera.position.distanceTo(this.cameraTarget);
     // The RTS target is intentionally frozen while first-person mode is active.
     // Center streaming and fitted shadows on the player instead, otherwise the
@@ -1413,6 +1448,7 @@ export class SceneManager {
     setActiveClayDepositLayout(null);
     this.precipitation.dispose();
     this.sky.dispose();
+    this.illustratedMap.dispose();
     this.postProcessor.dispose();
     disposeObject3D(this.junctionGroup);
     disposeObject3D(this.previewGroup);

@@ -7,6 +7,7 @@ export type PlacementInteractionGate = {
   isBurgageToolEnabled: () => boolean;
   isFarmFieldToolEnabled: () => boolean;
   isFirstPersonActive: () => boolean;
+  isIllustratedMapActive?: () => boolean;
   isMenuOpen: () => boolean;
   isTutorialOpen?: () => boolean;
 };
@@ -17,6 +18,7 @@ export function isSessionGameplayBlocked(gate: PlacementInteractionGate): boolea
 
 export function isBuildingPlacementBlocked(gate: PlacementInteractionGate): boolean {
   return isSessionGameplayBlocked(gate)
+    || (gate.isIllustratedMapActive?.() ?? false)
     || gate.isRoadToolEnabled()
     || gate.isBurgageToolEnabled()
     || gate.isFarmFieldToolEnabled()
@@ -27,6 +29,7 @@ export function isBuildingPlacementBlocked(gate: PlacementInteractionGate): bool
 
 export function isBurgagePlacementBlocked(gate: PlacementInteractionGate): boolean {
   return isSessionGameplayBlocked(gate)
+    || (gate.isIllustratedMapActive?.() ?? false)
     || !gate.isSettlementFounded()
     || gate.isRoadToolEnabled()
     || gate.isBuildingToolEnabled()
@@ -38,6 +41,7 @@ export function isBurgagePlacementBlocked(gate: PlacementInteractionGate): boole
 
 export function isRoadPlacementBlocked(gate: PlacementInteractionGate): boolean {
   return isSessionGameplayBlocked(gate)
+    || (gate.isIllustratedMapActive?.() ?? false)
     || !gate.isSettlementFounded()
     || gate.isBuildingToolEnabled()
     || gate.isBurgageToolEnabled()
@@ -49,6 +53,7 @@ export function isRoadPlacementBlocked(gate: PlacementInteractionGate): boolean 
 
 export function isFarmFieldPlacementBlocked(gate: PlacementInteractionGate): boolean {
   return isSessionGameplayBlocked(gate)
+    || (gate.isIllustratedMapActive?.() ?? false)
     || !gate.isSettlementFounded()
     || gate.isRoadToolEnabled()
     || gate.isBuildingToolEnabled()
@@ -60,6 +65,7 @@ export function isFarmFieldPlacementBlocked(gate: PlacementInteractionGate): boo
 
 export function isWorldInspectionBlocked(gate: PlacementInteractionGate): boolean {
   return isSessionGameplayBlocked(gate)
+    || (gate.isIllustratedMapActive?.() ?? false)
     || gate.isRoadToolEnabled()
     || gate.isBuildingToolEnabled()
     || gate.isBurgageToolEnabled()
@@ -73,6 +79,7 @@ export function isWorldResourceIconVisibilityBlocked(
   gate: PlacementInteractionGate,
 ): boolean {
   return isSessionGameplayBlocked(gate)
+    || (gate.isIllustratedMapActive?.() ?? false)
     || gate.isFirstPersonActive()
     || gate.isMenuOpen()
     || (gate.isTutorialOpen?.() ?? false);

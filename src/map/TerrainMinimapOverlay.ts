@@ -3,7 +3,10 @@ import type { WorldMapMarker, WorldMapMarkerKind } from './worldMapMarkers.ts';
 import type { RiverField } from '../rivers/RiverField.ts';
 import type { Terrain, TerrainBounds } from '../terrain/Terrain.ts';
 import type { ForestCore } from '../props/forestField.ts';
-import { createTerrainMinimapImage } from './createTerrainMinimapImage.ts';
+import {
+  createTerrainMinimapImage,
+  type TerrainMinimapImage,
+} from './createTerrainMinimapImage.ts';
 import { RESOURCE_MAP_ICON_HTML } from './resourceMapIconArt.ts';
 import { SETTLEMENT_MAP_ICON_HTML } from './settlementMapIconArt.ts';
 import { deriveSettlementMapMarker } from './settlementMapMarker.ts';
@@ -35,6 +38,7 @@ type TerrainMinimapOverlayOptions = {
   getGameState: () => GameState;
   getFocus: () => MinimapFocus;
   isBlocked: () => boolean;
+  onTerrainImageReady?: (image: TerrainMinimapImage) => void;
 };
 
 type MinimapMarkerEntry = {
@@ -176,13 +180,14 @@ export class TerrainMinimapOverlay {
 
   private async loadTerrainImage(): Promise<void> {
     try {
-      const { canvas } = await createTerrainMinimapImage({
+      const image = await createTerrainMinimapImage({
         riverField: this.options.riverField,
         terrain: this.options.terrain,
         forestCores: this.options.forestCores,
         seed: this.options.worldSeed,
       });
-      this.mapSurface.replaceChildren(canvas);
+      this.mapSurface.replaceChildren(image.canvas);
+      this.options.onTerrainImageReady?.(image);
     } catch (error) {
       console.error('Terrain minimap image failed to load:', error);
     }

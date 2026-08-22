@@ -20,10 +20,13 @@ const MIN_PITCH = THREE.MathUtils.degToRad(5);
 const MAX_PITCH = THREE.MathUtils.degToRad(70);
 const BASELINE_ZOOM_PERCENT = 100;
 const MAX_ZOOM_PERCENT = 1000;
-const MIN_ZOOM_PERCENT = 30;
+const LIVE_WORLD_MIN_ZOOM_PERCENT = 30;
 const MIN_DISTANCE = BASELINE_ORBIT_DISTANCE / (MAX_ZOOM_PERCENT / BASELINE_ZOOM_PERCENT);
-const MAX_DISTANCE = BASELINE_ORBIT_DISTANCE / (MIN_ZOOM_PERCENT / BASELINE_ZOOM_PERCENT);
+const LIVE_WORLD_MAX_DISTANCE = BASELINE_ORBIT_DISTANCE
+  / (LIVE_WORLD_MIN_ZOOM_PERCENT / BASELINE_ZOOM_PERCENT);
 const ZOOM_MULTIPLIER = 1.18;
+const ILLUSTRATED_MAP_FIT_MARGIN = 1.42;
+const DISTANCE_EPSILON = 0.01;
 const ROTATE_SENSITIVITY = 0.005;
 const PITCH_SENSITIVITY = 0.004;
 const RMB_PAN_MULTIPLIER = 0.105;
@@ -54,13 +57,16 @@ export type CameraControllerConfig = {
   getCursorOverride?: () => string | null;
   shouldIgnoreInput?: (event: MouseEvent | WheelEvent) => boolean;
   onViewChanged?: () => void;
+  onIllustratedMapModeChanged?: (active: boolean) => void;
   /** The owner already renders every animation frame, so view changes only invalidate that frame. */
   continuousRenderLoop?: boolean;
 };
 
 export class CameraController {
   private readonly config: CameraControllerConfig;
-  private readonly maxDistance: number;
+  private readonly liveWorldMaxDistance: number;
+  private readonly illustratedMapDistance: number;
+  private readonly illustratedMapFarPlane: number;
   private currentDistance = RTS_ORBIT_DISTANCE;
   private currentYaw = -Math.PI / 2;
   private currentPitch = RTS_ORBIT_PITCH;
@@ -82,17 +88,33 @@ export class CameraController {
   private activeCursor = '';
   private viewChangeFrame = 0;
   private wheelNavigationUntilMs = 0;
+  private illustratedMapActive = false;
+  private projectionFarBeforeIllustratedMap: number | null = null;
 
   constructor(config: CameraControllerConfig) {
     this.config = config;
-    this.maxDistance = Math.min(
-      MAX_DISTANCE,
+    this.liveWorldMaxDistance = Math.min(
+      LIVE_WORLD_MAX_DISTANCE,
       computeMaxOrbitDistance(
         config.bounds,
-        config.camera.fov,
+        DEFAULT_FOV,
         RTS_ORBIT_PITCH,
       ),
     );
+    this.illustratedMapDistance = Math.max(
+      this.liveWorldMaxDistance * ZOOM_MULTIPLIER,
+      computeMaxOrbitDistance(
+        config.bounds,
+        DEFAULT_FOV,
+        RTS_ORBIT_PITCH,
+        ILLUSTRATED_MAP_FIT_MARGIN,
+      ),
+    );
+    const mapDiagonal = Math.hypot(
+      config.bounds.maxX - config.bounds.minX,
+      config.bounds.maxZ - config.bounds.minZ,
+    );
+    this.illustratedMapFarPlane = this.illustratedMapDistance + mapDiagonal * 1.6;
     this.config.target.set(0, config.getHeightAt(0, 0), 0);
     this.applyRtsOrbitView();
     config.domElement.addEventListener('mousedown', this.onMouseDown, { capture: true });
@@ -116,6 +138,10 @@ export class CameraController {
     return this.currentYaw;
   }
 
+  isIllustratedMapActive(): boolean {
+    return this.illustratedMapActive;
+  }
+
   isNavigationActive(): boolean {
     if (this.isPanning || this.isRotating) return true;
     if (performance.now() < this.wheelNavigationUntilMs) return true;
@@ -134,6 +160,7 @@ export class CameraController {
     z: number,
     maxDistance = INSPECT_FOCUS_DISTANCE,
   ): void {
+    this.exitIllustratedMap();
     this.config.target.set(x, this.config.getHeightAt(x, z), z);
     this.clampTarget();
     this.currentDistance = this.clampDistance(
@@ -157,8 +184,13 @@ export class CameraController {
   }
 
   applyRtsOrbitView(): void {
+    this.exitIllustratedMap();
     this.currentPitch = RTS_ORBIT_PITCH;
-    this.currentDistance = THREE.MathUtils.clamp(RTS_ORBIT_DISTANCE, this.getMinDistance(), this.maxDistance);
+    this.currentDistance = THREE.MathUtils.clamp(
+      RTS_ORBIT_DISTANCE,
+      this.getMinDistance(),
+      this.liveWorldMaxDistance,
+    );
     this.updateCamera();
   }
 
@@ -169,6 +201,7 @@ export class CameraController {
     pitch = THREE.MathUtils.degToRad(14),
     distance = 70,
   ): void {
+    this.exitIllustratedMap();
     this.config.target.set(x, this.config.getHeightAt(x, z), z);
     this.clampTarget();
     this.currentYaw = this.normalizeAngle(yaw);
@@ -179,6 +212,7 @@ export class CameraController {
   }
 
   syncFromFirstPerson(x: number, z: number, yaw: number): void {
+    this.exitIllustratedMap();
     const terrainY = this.config.getHeightAt(x, z);
     this.config.target.set(x, terrainY, z);
     this.currentYaw = this.normalizeAngle(yaw);
@@ -234,6 +268,11 @@ export class CameraController {
     window.removeEventListener('mouseup', this.onMouseUp);
     window.removeEventListener('keydown', this.onKeyDown);
     window.removeEventListener('keyup', this.onKeyUp);
+    this.restoreProjectionAfterIllustratedMap();
+    if (this.illustratedMapActive) {
+      this.illustratedMapActive = false;
+      this.config.onIllustratedMapModeChanged?.(false);
+    }
     el.style.cursor = '';
     document.body.style.cursor = '';
   }
@@ -305,9 +344,29 @@ export class CameraController {
     event.preventDefault();
     if (event.deltaY !== 0) {
       const steps = Math.max(1, Math.floor(Math.abs(event.deltaY) / 80));
-      const factor = event.deltaY > 0 ? ZOOM_MULTIPLIER : 1 / ZOOM_MULTIPLIER;
-      for (let i = 0; i < steps; i++) {
-        this.currentDistance = this.clampDistance(this.currentDistance * factor);
+      if (event.deltaY > 0) {
+        for (let i = 0; i < steps; i++) {
+          if (this.illustratedMapActive) break;
+          if (this.currentDistance >= this.liveWorldMaxDistance - DISTANCE_EPSILON) {
+            this.enterIllustratedMap();
+            break;
+          }
+          this.currentDistance = THREE.MathUtils.clamp(
+            this.currentDistance * ZOOM_MULTIPLIER,
+            this.getMinDistance(),
+            this.liveWorldMaxDistance,
+          );
+        }
+      } else {
+        for (let i = 0; i < steps; i++) {
+          if (this.illustratedMapActive) {
+            this.exitIllustratedMap();
+            continue;
+          }
+          this.currentDistance = this.clampDistance(
+            this.currentDistance / ZOOM_MULTIPLIER,
+          );
+        }
       }
     }
     if (event.deltaX !== 0) {
@@ -375,7 +434,37 @@ export class CameraController {
   }
 
   private clampDistance(value: number): number {
-    return THREE.MathUtils.clamp(value, this.getMinDistance(), this.maxDistance);
+    if (this.illustratedMapActive) return this.illustratedMapDistance;
+    return THREE.MathUtils.clamp(value, this.getMinDistance(), this.liveWorldMaxDistance);
+  }
+
+  private enterIllustratedMap(): void {
+    if (this.illustratedMapActive) return;
+    this.illustratedMapActive = true;
+    this.currentDistance = this.illustratedMapDistance;
+    this.projectionFarBeforeIllustratedMap = this.config.camera.far;
+    if (this.config.camera.far < this.illustratedMapFarPlane) {
+      this.config.camera.far = this.illustratedMapFarPlane;
+      this.config.camera.updateProjectionMatrix();
+    }
+    this.config.onIllustratedMapModeChanged?.(true);
+  }
+
+  private exitIllustratedMap(): void {
+    if (!this.illustratedMapActive) return;
+    this.illustratedMapActive = false;
+    this.currentDistance = this.liveWorldMaxDistance;
+    this.restoreProjectionAfterIllustratedMap();
+    this.config.onIllustratedMapModeChanged?.(false);
+  }
+
+  private restoreProjectionAfterIllustratedMap(): void {
+    if (this.projectionFarBeforeIllustratedMap === null) return;
+    if (this.config.camera.far !== this.projectionFarBeforeIllustratedMap) {
+      this.config.camera.far = this.projectionFarBeforeIllustratedMap;
+      this.config.camera.updateProjectionMatrix();
+    }
+    this.projectionFarBeforeIllustratedMap = null;
   }
 
   private clampTarget(): void {

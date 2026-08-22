@@ -64,13 +64,14 @@ function createDomElement(): HTMLElement {
 function createController(
   onViewChanged?: () => void,
   continuousRenderLoop = false,
+  onIllustratedMapModeChanged?: (active: boolean) => void,
 ): {
   controller: CameraController;
   camera: THREE.PerspectiveCamera;
   target: THREE.Vector3;
   domElement: HTMLElement;
 } {
-  const camera = new THREE.PerspectiveCamera(60, 1, 0.1, 10000);
+  const camera = new THREE.PerspectiveCamera(60, 1, 0.1, 2600);
   const target = new THREE.Vector3(0, 0, 0);
   const domElement = createDomElement();
   const controller = new CameraController({
@@ -81,6 +82,7 @@ function createController(
     getHeightAt: () => 0,
     onViewChanged,
     continuousRenderLoop,
+    onIllustratedMapModeChanged,
   });
   return { controller, camera, target, domElement };
 }
@@ -273,20 +275,58 @@ function releaseMouse(button: number): void {
 }
 
 {
-  const { controller, domElement } = createController();
-  for (let step = 0; step < 40; step += 1) {
+  const mapModeChanges: boolean[] = [];
+  const { controller, camera, target, domElement } = createController(
+    undefined,
+    false,
+    (active) => mapModeChanges.push(active),
+  );
+  for (let step = 0; step < 40 && controller.getZoomPercent() > 30; step += 1) {
     domElement.dispatch('wheel', wheelEvent({ deltaY: 120 }));
   }
   assert.ok(
     Math.abs(controller.getZoomPercent() - 30) < 1e-9,
-    'zooming out should stop at the current 30% overview',
+    'the live 3D world should still stop at the existing 30% overview',
   );
-  const cappedDistance = controller.getOrbitDistance();
+  assert.equal(controller.isIllustratedMapActive(), false);
+  const liveWorldDistance = controller.getOrbitDistance();
+  const liveWorldFarPlane = camera.far;
+
   domElement.dispatch('wheel', wheelEvent({ deltaY: 120 }));
-  assert.equal(
-    controller.getOrbitDistance(),
-    cappedDistance,
-    'additional wheel input must not move beyond the 30% overview',
+  assert.equal(controller.isIllustratedMapActive(), true,
+    'one additional outward wheel step should enter the illustrated map tier');
+  assert.ok(controller.getOrbitDistance() > liveWorldDistance,
+    'the illustrated map tier should use its scale-aware full-world camera distance');
+  assert.ok(camera.far > liveWorldFarPlane,
+    'the illustrated map tier should expand projection depth for the full plane');
+  assert.deepEqual(mapModeChanges, [true]);
+
+  const mapDistance = controller.getOrbitDistance();
+  domElement.dispatch('wheel', wheelEvent({ deltaY: 120 }));
+  assert.equal(controller.getOrbitDistance(), mapDistance,
+    'the illustrated map is one explicit final zoom tier');
+
+  const yawBefore = controller.getYaw();
+  mmbOrbit(domElement, 100, 100, 140, 100);
+  assert.ok(controller.getYaw() > yawBefore,
+    'ordinary orbit rotation should remain active over the illustrated map');
+  releaseMouse(1);
+  const targetBeforePan = target.clone();
+  rmbPan(domElement, 100, 100, 140, 100);
+  assert.ok(!target.equals(targetBeforePan),
+    'ordinary world-space panning should remain active over the illustrated map');
+  releaseMouse(2);
+
+  domElement.dispatch('wheel', wheelEvent({ deltaY: -120 }));
+  assert.equal(controller.isIllustratedMapActive(), false,
+    'scrolling inward should return to the live 30% overview');
+  assert.ok(Math.abs(controller.getZoomPercent() - 30) < 1e-9);
+  assert.equal(camera.far, liveWorldFarPlane,
+    'leaving the illustrated map must restore the prior projection far plane');
+  assert.deepEqual(
+    mapModeChanges,
+    [true, false],
+    'the render owner should receive one callback for each map handoff',
   );
 }
 
