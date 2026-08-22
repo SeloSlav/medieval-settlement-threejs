@@ -12,10 +12,11 @@ import {
   FOOD_DELIVERY_UNLOAD_SEC,
   FRESH_FOOD_STORAGE_GRANARY_FACTOR,
   GRAIN_TRANSFER_PER_TRIP,
-  MONASTERY_FEAST_ALE,
+  MONASTERY_FEAST_DRINK,
   MONASTERY_FEAST_FOOD,
   MONASTERY_FEAST_HONEY,
   MONASTERY_HOSPITALITY_HONEY_PER_DAY,
+  MONASTERY_HOSPITALITY_DRINK_PER_DAY,
   MONASTERY_PILGRIMAGE_GOLD_PER_DAY,
   TIMBER_DELIVERY_SPEED_MPS,
   TIMBER_DELIVERY_UNLOAD_SEC,
@@ -74,22 +75,17 @@ import {
 } from '../../economy/monasteryHospitality.ts';
 import {
   MONASTERY_INFIRMARY_FOOD_PER_BED_DAY,
-  MONASTERY_CROFT_PLANTINGS,
   MONASTERY_EXTENSIONS,
-  MONASTERY_ORCHARD_PLANTINGS,
   monasteryArchetype,
   monasteryExtensionCount,
   monasteryEstateNextInvestmentCost,
-  monasteryEstateYields,
+  monasteryEstateYieldMultiplier,
   monasteryHasExtension,
   monasteryInfirmaryBeds,
   monasteryInfirmaryMortalityMultiplier,
   monasteryInfirmaryRecoveryMultiplier,
-  monasteryCroftChoiceAllowed,
   monasteryScriptoriumRecoveryMultiplier,
   monasterySeedArchiveTargetPerCrop,
-  normalizeMonasteryCroftPlanting,
-  normalizeMonasteryOrchardPlanting,
 } from '../../buildings/monasteryEstate.ts';
 import {
   buildingPreservedFoodStorageFactor,
@@ -234,8 +230,8 @@ const PROCESS: Record<string, string> = {
   brewery: 'Barley → malt → ale, 4 apples → 1 apple cider, 4 pears → 1 pear cider, or 1 honey → 1 mead; each finished beverage remains distinct and goes to staffed Taverns',
   tavern: 'Receives ale, apple cider, pear cider, and mead, then serves any of them as the residential Beverage service',
   smokehouse: 'Meat, fish, or milk + firewood + local or imported salt + pottery vessels -> cured meat, smoked fish, or cheese',
-  apiary: 'April-September forage + a healthy overwintered colony -> honey, with nearby orchard and vineyard pollination',
-  monastery: 'A self-governing 68 × 53 m walled estate raises orchard and croft crops alongside eggs, milk, meat, honey, and cheese; its unique player-drawn vineyard parcels turn staffed monastic land into town-market wine',
+  apiary: 'April-September forage + a healthy overwintered colony → physical honey for household food or luxury comfort and Mead-selected Brewhouses, with nearby orchard and vineyard pollination',
+  monastery: 'A self-governing 68 × 53 m walled estate raises mixed orchard and garden crops alongside cattle, sheep, eggs, milk, meat, honey, and cheese; orchard fruit becomes house cider, apiary honey becomes mead, and player-drawn vineyards produce town-market wine',
   carpenter: 'Timber + smith-forged ironwork → polearms and cartwright support',
   weaver: 'Annual sheep fleece or flax + hauled water → woven cloth → tier-2+ Marketplace stalls, then Trading Post export',
   tannery: 'Goat or game hides + hauled water + firewood → tanned leather for Cobbler workshops and trade',
@@ -1111,11 +1107,12 @@ export function renderExpandedBuildingInspector(
   const monasteryHospitalityRows = hospitality
     ? `<li><span>Hospitality</span><span>${monasteryHospitalityStatusLabel(hospitality)}</span></li>
       <li><span>Honey runway</span><span>${formatHospitalityRunway(hospitality.honeyRunwayDays)} daily surplus · ${MONASTERY_FEAST_HONEY} feast honey protected</span></li>
-      <li><span>Estate drink</span><span>${hospitality.drinkMix} · ${formatHospitalityRunway(hospitality.drinkRunwayDays)} surplus runway · ale stretches the common table, wine raises gift prestige, cider remains the strongest paired export</span></li>
+      <li><span>Estate drink</span><span>${hospitality.drinkMix} · ${formatHospitalityRunway(hospitality.drinkRunwayDays)} surplus runway · orchard cider and brewhouse mead sustain the common table, while vintner-made wine raises gift prestige</span></li>
       <li><span>Cellar character</span><span>${hospitality.mixedCellar ? 'Lavish mixed cellar' : 'Single estate drink'} · table ×${hospitality.commonTableMultiplier.toFixed(2)} · gift prestige ×${hospitality.prestigeMultiplier.toFixed(2)}</span></li>
       <li><span>Next feast</span><span>${nextFeast ? formatNextMonasteryFeast(nextFeast) : 'No observance scheduled'}</span></li>
       <li><span>Feast pantry</span><span>${feastReadiness ? formatMonasteryFeastReadiness(feastReadiness) : 'Unavailable'} · one complete batch protected from routine use</span></li>
-      <li><span>Annual hospitality cost</span><span>${hospitality.feastFoodPerYear.toFixed(0)} food · ${hospitality.feastDrinkPerYear.toFixed(0)} any drink · ${hospitality.honeyPerYear.toFixed(0)} honey</span></li>
+      <li><span>Feast table</span><span>Estate meat, cheese, and milk are explicitly set out when stocked; the rest of the fixed meal comes from the general orchard, garden, egg, and pantry supply</span></li>
+      <li><span>Annual hospitality cost</span><span>${hospitality.feastFoodPerYear.toFixed(0)} food · ${hospitality.feastDrinkPerYear.toFixed(0)} cider, mead, and/or wine · ${hospitality.honeyPerYear.toFixed(0)} honey</span></li>
       <li><span>Pilgrimage offerings</span><span>~${hospitality.pilgrimageGoldPerDay.toFixed(2)} gold/day before charter levy · requires church and market road link · retained income funds the house and its services</span></li>`
     : '';
   const monasteryTreasuryRows = building.kind === 'monastery'
@@ -1126,12 +1123,7 @@ export function renderExpandedBuildingInspector(
         const nextInvestment = monasteryEstateNextInvestmentCost(extensions, nextExtension);
         const privateGold = Math.max(0, building.gold - (building.civicReceiptsGold ?? 0));
         const serviceFunding = Math.max(0, Math.min(1, building.monasteryServiceFunding ?? 1));
-        const yields = monasteryEstateYields(
-          extensions,
-          building.monasteryOrchardPlanting,
-          building.monasteryCroftPlanting,
-          building.monasteryOrchardMaturity,
-        );
+        const estateMultiplier = monasteryEstateYieldMultiplier(extensions);
         const onsiteMonks = onsiteBuildingLabor(
           building,
           context.worldQueries.getActiveDeliveryTrip?.(building) ?? null,
@@ -1140,21 +1132,18 @@ export function renderExpandedBuildingInspector(
           0,
           Math.min(1, onsiteMonks / Math.max(1, definition.maxLabor)),
         );
-        const staffedYield = (amount: number) => amount * staffing;
         const infirmaryBeds = monasteryInfirmaryBeds(extensions, serviceFunding);
         const infirmaryRecovery = monasteryInfirmaryRecoveryMultiplier(extensions, serviceFunding);
         const infirmaryMortality = monasteryInfirmaryMortalityMultiplier(extensions, serviceFunding);
         const seedTarget = monasterySeedArchiveTargetPerCrop(extensions, serviceFunding);
         const scriptoriumRecovery = monasteryScriptoriumRecoveryMultiplier(extensions, serviceFunding);
-        const archetype = monasteryArchetype(
-          building.monasteryOrchardPlanting,
-          building.monasteryCroftPlanting,
-        );
+        const archetype = monasteryArchetype(0, 0);
         const builtExtensions = MONASTERY_EXTENSIONS
           .filter((extension) => monasteryHasExtension(extensions, extension.value))
           .map((extension) => extension.label);
         const selectedExtension = MONASTERY_EXTENSIONS.find((extension) => extension.value === nextExtension);
-        const maturityLabel = ['new rows — no harvest', 'young rows — 55% harvest', 'mature rows'][building.monasteryOrchardMaturity ?? 2];
+        const vineyardParcels = [...(context.gameState.vineyardParcels?.values() ?? [])]
+          .filter((parcel) => parcel.monasteryId === building.id);
         const incomingTithe = Array.from(context.gameState.deliveryTrips.values())
           .filter(
             (trip) =>
@@ -1165,23 +1154,16 @@ export function renderExpandedBuildingInspector(
           .reduce((sum, trip) => sum + trip.amount, 0);
         return `<li><span>Reserved estate</span><span>68 × 53 m inside a complete stone precinct wall · founded in the outer 60 m of the map</span></li>
           <li><span>Monastery identity</span><span><strong>${archetype.name}</strong> · ${archetype.payoff}</span></li>
-          <li><span>Perennial parcel</span><span>${MONASTERY_ORCHARD_PLANTINGS[normalizeMonasteryOrchardPlanting(building.monasteryOrchardPlanting)].label} · ${maturityLabel}</span></li>
+          <li><span>Enclosed estate</span><span>Mixed apples and pears · kitchen vegetables · apiary · cattle and sheep pasture · no crop-by-crop player choices</span></li>
           <li><span>Estate development</span><span>${extensionCount} / 4 extensions · ${builtExtensions.join(' · ') || 'founding house only'}</span></li>
           <li><span>Service endowment</span><span>${Math.round(serviceFunding * 100)}% funded today · retained offerings, tithes, and export income pay real daily service costs after the charter levy</span></li>
           <li><span>Monastic community</span><span>${onsiteMonks} on site / ${building.assignedLabor} assigned / ${definition.maxLabor} cells · ${Math.round(staffing * 100)}% estate output before commute losses${building.assignedLabor <= 0 ? ' · every service dormant' : ''}</span></li>
-          <li><span>Estate produce</span><span>${[
-            yields.apples > 0 ? `apples ${staffedYield(yields.apples).toFixed(2)}` : '',
-            yields.vegetables > 0 ? `vegetables ${staffedYield(yields.vegetables).toFixed(2)}` : '',
-            `eggs ${staffedYield(yields.eggs).toFixed(2)}`,
-            `milk ${staffedYield(yields.milk).toFixed(2)}`,
-            `meat ${staffedYield(yields.meat).toFixed(2)}`,
-            `honey ${staffedYield(yields.honey).toFixed(2)}`,
-            yields.ale > 0 ? `ale ${staffedYield(yields.ale).toFixed(2)}` : '',
-            yields.cider > 0 ? `cider ${staffedYield(yields.cider).toFixed(2)}` : '',
-            yields.wine > 0 ? `wine ${staffedYield(yields.wine).toFixed(2)}` : '',
-            yields.cheese > 0 ? `cheese ${staffedYield(yields.cheese).toFixed(2)}` : '',
-          ].filter(Boolean).join(' · ')} per cycle at the assigned roster</span></li>
-          <li><span>Regional estate exports</span><span>Automatic 6-unit lots · ${Math.round(monasteryPolicy.levyRate * 100)}% ${monasteryCharterLabel(monasteryPolicy.levyRate).toLowerCase()} reserved for the civic treasury · remainder stays here</span></li>
+          <li><span>Estate proceeds</span><span>Orchard, gardens, apiary, livestock, dairy, and workshop activity resolve into abstract off-map sales and returning gold · development ×${estateMultiplier.toFixed(2)}</span></li>
+          <li><span>Orchard cider press</span><span>The fixed mixed orchard supplies apples and pears to a visible press and cider cellar bay · it makes one canonical house cider with no fruit-recipe choice</span></li>
+          <li><span>Mead brewhouse</span><span>Monks canonically brew apiary honey into mead for their own table and hospitality · it is not monastery ale</span></li>
+          <li><span>Pasture and feast table</span><span>Visible cattle and sheep canonically supply estate meat, milk, and cheese · feasts preferentially serve portions of all three when stocked, then complete the meal from the broader pantry</span></li>
+          <li><span>Separate vintner</span><span>${vineyardParcels.length} player-laid vineyard parcel${vineyardParcels.length === 1 ? '' : 's'} · monks work the visible press and cellar · grapes become physical wine that may enter town stock</span></li>
+          <li><span>Regional estate exports</span><span>Routine estate goods are presented as gold-in/gold-out administration · ${Math.round(monasteryPolicy.levyRate * 100)}% ${monasteryCharterLabel(monasteryPolicy.levyRate).toLowerCase()} reserved for the civic treasury · house cider and mead stay in the monastery cellar, while wine remains the deliberate physical settlement-economy exception</span></li>
           <li><span>Infirmary</span><span>${infirmaryBeds} abstract beds · patients remain simulated at home; shortest remedy runway receives care first · consumes ${MONASTERY_INFIRMARY_FOOD_PER_BED_DAY.toFixed(1)} estate food per occupied bed/day</span></li>
           <li><span>Skilled nursing</span><span>Up to ${Math.round((infirmaryRecovery - 1) * 100)}% faster illness recovery and ${Math.round((1 - infirmaryMortality) * 100)}% lower illness mortality · stacks with household remedies</span></li>
           <li><span>Agricultural archive</span><span>Rye ${Math.max(0, building.ryeGrain ?? 0).toFixed(1)} / ${seedTarget.toFixed(0)} · oats ${Math.max(0, building.oatGrain ?? 0).toFixed(1)} / ${seedTarget.toFixed(0)} · maslin ${Math.max(0, building.maslinGrain ?? 0).toFixed(1)} / ${seedTarget.toFixed(0)} emergency seed</span></li>
@@ -1880,14 +1862,9 @@ function renderApiaryHarvestPolicyPanel(building: BuildingState): string {
 
 function renderMonasteryPolicyPanel(building: BuildingState, context: InspectorRenderContext): string {
   const policy = context.getMonasteryPolicy?.() ?? DEFAULT_MONASTERY_POLICY;
-  const feastBatchCost = `${MONASTERY_FEAST_FOOD} food · ${MONASTERY_FEAST_HONEY} honey · ${MONASTERY_FEAST_ALE} ale, cider, and/or wine`;
-  const dailyHospitalityCost = `${MONASTERY_HOSPITALITY_HONEY_PER_DAY.toFixed(1)} honey + ${0.5.toFixed(1)} any estate drink/day`;
-  const orchardPlanting = normalizeMonasteryOrchardPlanting(building.monasteryOrchardPlanting);
-  const croftPlanting = normalizeMonasteryCroftPlanting(building.monasteryCroftPlanting);
-  const archetype = monasteryArchetype(orchardPlanting, croftPlanting);
-  const clock = gameClock(context.gameState.tick);
-  const croftWindow = monasteryCroftChoiceAllowed(clock.month)
-    && (building.monasteryCroftChoiceYear ?? 0) !== clock.year;
+  const feastBatchCost = `${MONASTERY_FEAST_FOOD} food · ${MONASTERY_FEAST_HONEY} honey · ${MONASTERY_FEAST_DRINK} cider, mead, and/or wine`;
+  const dailyHospitalityCost = `${MONASTERY_HOSPITALITY_HONEY_PER_DAY.toFixed(1)} honey + ${MONASTERY_HOSPITALITY_DRINK_PER_DAY.toFixed(1)} cider, mead, and/or wine/day`;
+  const archetype = monasteryArchetype(0, 0);
   const vineyards = [...(context.gameState.vineyardParcels?.values() ?? [])]
     .filter((parcel) => parcel.monasteryId === building.id);
   const vineyardArea = vineyards.reduce((sum, parcel) => sum + Math.max(0, parcel.area), 0);
@@ -1898,21 +1875,13 @@ function renderMonasteryPolicyPanel(building: BuildingState, context: InspectorR
   const nextExtension = building.monasteryNextExtension ?? 0;
   return `
     <div class="inspector-action-panel">
-      <p class="inspector-action-panel__hint"><strong>${archetype.name}</strong> · ${archetype.payoff}. Assign residents to the eight-cell community; without a monk on site the estate and every service remain dormant. Ordinary surplus is sold outside the map, while vineyard wine uniquely enters the town through its granary and food stalls.</p>
-      <div class="city-admin-panel__slider-label"><span>Orchard parcel</span><strong>${MONASTERY_ORCHARD_PLANTINGS[orchardPlanting].output}</strong></div>
-      <p class="inspector-action-panel__hint">The enclosed perennial parcel is the monastery's apple orchard. Wine comes only from its separate, player-drawn vineyard parcels.</p>
+      <p class="inspector-action-panel__hint"><strong>${archetype.name}</strong> · ${archetype.payoff}. Assign residents to the eight-cell community; without a monk on site the estate and every service remain dormant. The fixed estate is intentionally non-granular: mixed apples and pears, kitchen gardens, apiary, cattle and sheep, and workshops resolve into abstract proceeds.</p>
+      <div class="city-admin-panel__slider-label"><span>Enclosed estate</span><strong>Mixed orchard and kitchen gardens</strong></div>
+      <p class="inspector-action-panel__hint">There are no apple-versus-pear or cabbage-versus-carrot choices. The visual estate canonically grows a useful mixture; its orchard also supplies one house-cider output, while ordinary regional activity is presented as gold-in/gold-out administration.</p>
       <div class="resource-action-row">
         <button type="button" class="resource-action-button resource-action-button--icon" data-land-parcel="vineyard"><span class="inspector-action-icon" data-action-icon="field-parcel" aria-hidden="true"></span><span>${vineyards.length > 0 ? `Add vineyard parcel · ${vineyards.length} laid out (${Math.round(vineyardArea)} m²)` : 'Lay out vineyard parcel'}</span></button>
       </div>
-      <p class="inspector-action-panel__hint">Lay out as many free-form vineyard parcels as fit inside the monastery’s work extent. Nearby boundaries snap together while every parcel may use its own orientation. Monks harvest them in September–October, ferment the combined grapes in the cellar, and one onsite monk handcarts only true hospitality surplus to the nearest accepting granary.</p>
-      <div class="city-admin-panel__slider-label"><span>Enclosed croft</span><strong>${MONASTERY_CROFT_PLANTINGS[croftPlanting].output}</strong></div>
-      <div class="monastery-planting-grid" role="group" aria-label="Choose the monastery croft planting">
-        ${MONASTERY_CROFT_PLANTINGS.map((planting) => `<button type="button" class="monastery-planting-choice${planting.value === croftPlanting ? ' is-selected' : ''}" data-monastery-croft-choice="${planting.value}" aria-pressed="${planting.value === croftPlanting ? 'true' : 'false'}" title="${planting.output}" ${!croftWindow || planting.value === croftPlanting ? 'disabled' : ''}>
-          <span class="monastery-planting-choice__icon" data-monastery-planting-icon="croft-${planting.value}" aria-hidden="true"></span>
-          <span class="monastery-planting-choice__copy"><strong>${planting.label}</strong><small>${planting.output}</small></span>
-        </button>`).join('')}
-      </div>
-      <p class="inspector-action-panel__hint">The annual croft may be changed once in January or February before sowing; its commitment then lasts through the agricultural year. An estate workshop strengthens whichever planting pair you chose and unlocks cider for apple houses.</p>
+      <p class="inspector-action-panel__hint">Vineyards are the one deliberate physical exception. Lay out free-form parcels inside the work extent; monks harvest them in September–October, then report to the separate visible vintner and wine cellar to press and ferment grapes into actual wine.</p>
       <div class="city-admin-panel__slider-label"><span>Next reserved extension</span><strong>${monasteryExtensionCount(extensions)} / 4 complete</strong></div>
       ${availableExtensions.length > 0
         ? `<div class="monastery-extension-grid" role="group" aria-label="Choose the next monastery extension">
@@ -1922,9 +1891,9 @@ function renderMonasteryPolicyPanel(building: BuildingState, context: InspectorR
             </button>`).join('')}
           </div>`
         : '<p class="inspector-action-panel__hint monastery-extension-grid__complete">Estate fully developed · all four extensions complete.</p>'}
-      <p class="inspector-action-panel__hint">The monks keep their own purse and begin the selected project automatically when its cost and the working reserve are secured. Order determines which benefit arrives first; all four can eventually be built. ${availableExtensions.map((extension) => `${extension.label}: ${extension.payoff}`).join(' · ')}</p>
+      <p class="inspector-action-panel__hint">These are four independent extensions, not upgrade tiers: they add visible buildings and services inside the already reserved precinct without enlarging or subdividing its plots. The monks begin the selected project automatically when its cost and working reserve are secured. ${availableExtensions.map((extension) => `${extension.label}: ${extension.payoff}`).join(' · ')}</p>
       <label class="city-admin-panel__toggle"><input type="checkbox" data-policy-monastery-feasts ${policy.feastsEnabled ? 'checked' : ''} /><span>Provision hospitality and feast days</span></label>
-      <p class="inspector-action-panel__hint">Enabled houses protect ${feastBatchCost}. Any estate drink qualifies: ale stretches the common table, wine increases offering prestige, cider favours export income, and a mixed cellar earns a smaller lavish-hospitality bonus. Tiny liturgical wine is ordinary overhead and never dictates planting. Feast crowds still gather visibly; ordinary pilgrims and infirmary patients remain abstract service simulation. Daily hospitality uses ${dailyHospitalityCost}.</p>
+      <p class="inspector-action-panel__hint">Enabled houses protect ${feastBatchCost}. Orchard cider and apiary mead stretch the common table, while vintner-made wine increases offering prestige; any mixed cellar earns a modest lavish-hospitality bonus. When available, estate meat, cheese, and milk are all served before the rest of the pantry completes the feast. Feast crowds still gather visibly; ordinary pilgrims and infirmary patients remain abstract service simulation. Daily hospitality uses ${dailyHospitalityCost}.</p>
       <label class="city-admin-panel__slider-label"><span>Parish tithe share</span><strong data-policy-monastery-tithe-value>${Math.round(policy.titheShare * 100)}%</strong></label>
       <input class="city-admin-panel__slider" type="range" data-policy-monastery-tithe min="0" max="80" step="5" value="${Math.round(policy.titheShare * 100)}" />
       <div class="city-admin-panel__range-hints"><span>Church keeps all</span><span>Monastery-led</span></div>

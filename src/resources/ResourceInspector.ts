@@ -157,11 +157,6 @@ type ResourceInspectorOptions = {
   onSetChapelParishPolicy?: (sabbathObservanceEnabled: boolean) => void | Promise<void>;
   onSetMonasteryPolicy?: (titheShare: number, feastsEnabled: boolean) => void | Promise<void>;
   onSetMonasteryCharter?: (levyRate: number) => void | Promise<void>;
-  onSetMonasteryPlanting?: (
-    buildingId: string,
-    orchardPlanting: number,
-    croftPlanting: number,
-  ) => void | Promise<void>;
   onSetMonasteryNextExtension?: (buildingId: string, extension: number) => void | Promise<void>;
   onSetNightPolicies?: (
     watch: NightPolicyCode,
@@ -1311,17 +1306,6 @@ export class ResourceInspector {
       this.selectedTarget?.kind === 'building'
       && this.selectedTarget.building.kind === 'monastery'
     ) {
-      const croftValue = (event.target as HTMLElement)
-        .closest<HTMLElement>('[data-monastery-croft-choice]')
-        ?.dataset.monasteryCroftChoice;
-      if (croftValue != null) {
-        void this.options.onSetMonasteryPlanting?.(
-          this.selectedTarget.building.id,
-          this.selectedTarget.building.monasteryOrchardPlanting === 1 ? 1 : 0,
-          Number(croftValue),
-        );
-        return;
-      }
       const extensionValue = (event.target as HTMLElement)
         .closest<HTMLElement>('[data-monastery-extension-choice]')
         ?.dataset.monasteryExtensionChoice;

@@ -305,89 +305,6 @@
   gap: 6px;
 }
 
-.monastery-planting-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 6px;
-}
-
-.monastery-planting-choice {
-  display: grid;
-  grid-template-columns: 38px minmax(0, 1fr);
-  align-items: center;
-  gap: 7px;
-  min-width: 0;
-  min-height: 50px;
-  padding: 5px;
-  color: #e7d9bc;
-  text-align: left;
-  background: rgba(196, 167, 99, 0.08);
-  border: 1px solid rgba(210, 177, 99, 0.32);
-  border-radius: 2px;
-  cursor: pointer;
-}
-
-.monastery-planting-choice:hover:not(:disabled),
-.monastery-planting-choice:focus-visible {
-  color: #fff1ce;
-  background: rgba(207, 160, 72, 0.16);
-  border-color: rgba(237, 203, 121, 0.66);
-  outline: none;
-}
-
-.monastery-planting-choice.is-selected {
-  color: #fff1ce;
-  background: rgba(207, 160, 72, 0.18);
-  border-color: var(--accent);
-}
-
-.monastery-planting-choice:disabled {
-  opacity: 0.74;
-  cursor: default;
-}
-
-.monastery-planting-choice__icon {
-  width: 38px;
-  height: 38px;
-  background-position: center;
-  background-repeat: no-repeat;
-  background-size: contain;
-  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.72));
-  pointer-events: none;
-}
-
-.monastery-planting-choice__icon[data-monastery-planting-icon='orchard-0'] {
-  background-image: url('/assets/ui/icons/backyards/orchard.png');
-}
-
-.monastery-planting-choice__icon[data-monastery-planting-icon='croft-0'] {
-  background-image: url('/assets/ui/icons/backyards/vegetable-garden.png');
-}
-
-.monastery-planting-choice__icon[data-monastery-planting-icon='croft-1'] {
-  background-image: url('/assets/ui/icons/provisions/barley-sheaves.png');
-}
-
-.monastery-planting-choice__copy {
-  display: grid;
-  min-width: 0;
-  gap: 2px;
-  pointer-events: none;
-}
-
-.monastery-planting-choice__copy strong {
-  overflow-wrap: anywhere;
-  font-family: var(--ui-display);
-  font-size: 10px;
-  line-height: 1.15;
-}
-
-.monastery-planting-choice__copy small {
-  color: #a99e88;
-  font-size: 8px;
-  line-height: 1.15;
-}
-
 .inspector-jump-button--demolish {
   display: inline-flex;
   align-items: center;
@@ -443,26 +360,25 @@
   height: 42px;
   background-position: center;
   background-repeat: no-repeat;
-  background-size: cover;
-  border: 1px solid rgba(237, 203, 121, 0.22);
-  box-shadow: inset 0 0 0 1px rgba(9, 12, 9, 0.36);
+  background-size: contain;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.72));
   pointer-events: none;
 }
 
 .monastery-extension-choice__icon[data-monastery-extension-icon='1'] {
-  background-image: url('/assets/ui/build-menu/cards/foragers-hut.webp');
+  background-image: url('/assets/ui/icons/monastery/infirmary-wing.png');
 }
 
 .monastery-extension-choice__icon[data-monastery-extension-icon='2'] {
-  background-image: url('/assets/ui/build-menu/cards/monastery.webp');
+  background-image: url('/assets/ui/icons/monastery/scriptorium-archive.png');
 }
 
 .monastery-extension-choice__icon[data-monastery-extension-icon='4'] {
-  background-image: url('/assets/ui/build-menu/cards/residence.webp');
+  background-image: url('/assets/ui/icons/monastery/guesthouse.png');
 }
 
 .monastery-extension-choice__icon[data-monastery-extension-icon='8'] {
-  background-image: url('/assets/ui/build-menu/cards/carpenter.webp');
+  background-image: url('/assets/ui/icons/monastery/estate-workshop.png');
 }
 
 .monastery-extension-choice__copy {

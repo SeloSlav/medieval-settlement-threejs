@@ -28,6 +28,21 @@ export const GRANARY_PROVISION_VISUAL_SEGMENTS = 3;
 export const WATERMILL_GRAIN_VISUAL_SEGMENTS = 3;
 export const WATERMILL_FLOUR_VISUAL_SEGMENTS = 3;
 
+function breweryBeverageStock(building: BuildingState): number {
+  return building.ale
+    + (building.cider ?? 0)
+    + (building.pearCider ?? 0)
+    + (building.mead ?? 0);
+}
+
+function breweryBeverageVisualCapacity(): number {
+  return Math.max(
+    BUILDING_STORAGE_CAPS.brewery.ale,
+    BUILDING_STORAGE_CAPS.brewery.cider ?? 0,
+    BUILDING_STORAGE_CAPS.brewery.mead ?? 0,
+  );
+}
+
 export function foodStockpileVisualSignature(building: BuildingState): string {
   if (building.constructionComplete === false) return '';
   switch (building.kind) {
@@ -72,8 +87,8 @@ export function foodStockpileVisualSignature(building: BuildingState): string {
         )
       }:${
         stockpileVisualLevel(
-          building.ale,
-          BUILDING_STORAGE_CAPS.brewery.ale,
+          breweryBeverageStock(building),
+          breweryBeverageVisualCapacity(),
           BREWERY_ALE_VISUAL_SEGMENTS,
         )
       }`;
@@ -211,8 +226,8 @@ export function syncFoodStockpileVisuals(
         marker,
         'BreweryAleStockpile',
         'BreweryAleSegment',
-        building.ale,
-        BUILDING_STORAGE_CAPS.brewery.ale,
+        breweryBeverageStock(building),
+        breweryBeverageVisualCapacity(),
       );
       break;
     case 'smokehouse':

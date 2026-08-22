@@ -40,10 +40,10 @@ import {
   THRESHING_GRAIN_VISUAL_SEGMENTS,
 } from '../seasonalStockpileVisuals.ts';
 import {
-  MONASTERY_ALE_VISUAL_SEGMENTS,
   MONASTERY_CIDER_VISUAL_SEGMENTS,
   MONASTERY_FOOD_VISUAL_SEGMENTS,
   MONASTERY_HONEY_VISUAL_SEGMENTS,
+  MONASTERY_MEAD_VISUAL_SEGMENTS,
   MONASTERY_WINE_VISUAL_SEGMENTS,
 } from '../monasteryStockpileVisuals.ts';
 import { STOREHOUSE_HAUL_PER_WORKER } from '../../generated/gameBalance.ts';
@@ -576,25 +576,25 @@ export function createMonasteryMesh(
   );
   addSegmentedStockProps(
     group,
-    'MonasteryAleStockpile',
-    'MonasteryAleSegment',
+    'MonasteryCiderStockpile',
+    'MonasteryCiderSegment',
     ([
-      [2.05, 0, 4.95, 0.9],
-      [2.7, 0, 4.92, 0.78],
-      [2.35, 0, 5.55, 0.7],
-    ] as const).slice(0, MONASTERY_ALE_VISUAL_SEGMENTS),
+      [3.45, 0, 4.95, 0.9],
+      [4.1, 0, 4.92, 0.78],
+      [3.75, 0, 5.55, 0.7],
+    ] as const).slice(0, MONASTERY_CIDER_VISUAL_SEGMENTS),
     (segment, scale) => addBarrel(segment, 0, 0, scale),
   );
   addSegmentedStockProps(
     group,
-    'MonasteryCiderStockpile',
-    'MonasteryCiderSegment',
+    'MonasteryMeadStockpile',
+    'MonasteryMeadSegment',
     ([
-      [3.25, 0, 4.95, 0.9],
-      [3.9, 0, 4.92, 0.78],
-      [3.55, 0, 5.55, 0.7],
-    ] as const).slice(0, MONASTERY_CIDER_VISUAL_SEGMENTS),
-    (segment, scale) => addWineCask(segment, scale),
+      [2.05, 0, 4.95, 0.9],
+      [2.7, 0, 4.92, 0.78],
+      [2.35, 0, 5.55, 0.7],
+    ] as const).slice(0, MONASTERY_MEAD_VISUAL_SEGMENTS),
+    (segment, scale) => addBarrel(segment, 0, 0, scale),
   );
   addSegmentedStockProps(
     group,

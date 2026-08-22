@@ -465,11 +465,10 @@ export const MARKET_SPECIALTY_EXPORT_PER_BROKER_PER_SECOND = 0.45;
 export const MONASTERY_PILGRIMAGE_GOLD_PER_DAY = 2;
 export const MONASTERY_HOSPITALITY_BONUS_GOLD_PER_DAY = 1.5;
 export const MONASTERY_HOSPITALITY_HONEY_PER_DAY = 0.8;
-export const MONASTERY_HOSPITALITY_WINE_PER_DAY = 0.5;
+export const MONASTERY_HOSPITALITY_DRINK_PER_DAY = 0.5;
 export const MONASTERY_FEAST_FOOD = 18;
-export const MONASTERY_FEAST_ALE = 10;
+export const MONASTERY_FEAST_DRINK = 10;
 export const MONASTERY_FEAST_HONEY = 4;
-export const MONASTERY_FEAST_WINE = 3;
 export const MONASTERY_UNLINKED_PRODUCTIVITY = 0.45;
 export const MONASTERY_COVERAGE_RADIUS = 520;
 export const MONASTERY_TITHE_SHARE_DEFAULT = 0.3;
@@ -1691,14 +1690,14 @@ export const BUILDING_STORAGE_CAPS = {
   marketplace: { timber: 0, firewood: 80, stone: 0, food: 96, grain: 96, ale: 140, preservedFood: 120, honey: 48, wine: 72, cloth: 120, charcoal: 80, pottery: 96, hides: 80, leather: 96, shoes: 96, remedies: 48 },
   trading_post: { timber: 180, firewood: 120, stone: 180, water: 72, food: 160, grain: 120, barley: 120, malt: 120, flour: 120, ale: 180, preservedFood: 120, honey: 140, wine: 160, wool: 120, flax: 120, cloth: 160, ironwork: 96, polearms: 48, iron: 96, clay: 120, salt: 120, charcoal: 120, pottery: 144, hides: 160, leather: 160, shoes: 160, roofTiles: 120, manure: 160, remedies: 72 },
   town_hall: { timber: 0, firewood: 0, stone: 0 },
-  village_storehouse: { timber: 360, firewood: 280, stone: 360, cloth: 180, iron: 180, clay: 180, salt: 144, charcoal: 280, pottery: 180, hides: 180, leather: 180, shoes: 180 },
+  village_storehouse: { timber: 360, firewood: 280, stone: 360, cloth: 180, iron: 180, clay: 180, salt: 144, charcoal: 280, pottery: 180, hides: 180, leather: 180, shoes: 180, remedies: 96 },
   watchtower: { timber: 0, firewood: 0, stone: 0 },
   guardhouse: { timber: 0, firewood: 0, stone: 0, food: 72, polearms: 12 },
   palisaded_refuge: { timber: 0, firewood: 0, stone: 0 },
   threshing_barn: { timber: 0, firewood: 0, stone: 0, grain: 240, barley: 180, flax: 180, ironwork: 3, manure: 120 },
   pastoral_farmstead: { timber: 0, firewood: 0, stone: 0, food: 120, grain: 90, preservedFood: 70, wool: 120, salt: 6, manure: 160 },
   swineherd: { timber: 0, firewood: 0, stone: 0, food: 150, grain: 120 },
-  monastery: { timber: 0, firewood: 0, stone: 0, food: 180, grain: 180, ale: 120, cider: 80, preservedFood: 80, honey: 160, wine: 120 },
+  monastery: { timber: 0, firewood: 0, stone: 0, food: 180, grain: 180, cider: 80, mead: 120, preservedFood: 80, honey: 160, wine: 120 },
   brewery: { timber: 0, firewood: 40, stone: 0, water: 120, food: 96, barley: 96, malt: 48, ale: 200, cider: 200, pearCider: 200, mead: 200, honey: 72 },
   tavern: { timber: 0, firewood: 0, stone: 0, ale: 180, cider: 180, mead: 180 },
   smokehouse: { timber: 0, firewood: 40, stone: 0, food: 120, preservedFood: 180, salt: 24, pottery: 12 },

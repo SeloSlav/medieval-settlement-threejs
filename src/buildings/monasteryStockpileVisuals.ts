@@ -8,8 +8,8 @@ import {
 } from './buildingStockpileVisuals.ts';
 
 export const MONASTERY_FOOD_VISUAL_SEGMENTS = 3;
-export const MONASTERY_ALE_VISUAL_SEGMENTS = 3;
 export const MONASTERY_CIDER_VISUAL_SEGMENTS = 3;
+export const MONASTERY_MEAD_VISUAL_SEGMENTS = 3;
 export const MONASTERY_HONEY_VISUAL_SEGMENTS = 3;
 export const MONASTERY_WINE_VISUAL_SEGMENTS = 3;
 
@@ -37,9 +37,9 @@ export function monasteryStockpileVisualSignature(
     )
   }:${
     stockpileVisualLevel(
-      building.ale,
-      BUILDING_STORAGE_CAPS.monastery.ale,
-      MONASTERY_ALE_VISUAL_SEGMENTS,
+      building.mead ?? 0,
+      BUILDING_STORAGE_CAPS.monastery.mead,
+      MONASTERY_MEAD_VISUAL_SEGMENTS,
     )
   }:${
     stockpileVisualLevel(
@@ -63,13 +63,6 @@ export function syncMonasteryStockpileVisuals(
   if (building.kind !== 'monastery') return;
   syncNamedStockpile(
     marker,
-    'MonasteryCiderStockpile',
-    'MonasteryCiderSegment',
-    building.cider ?? 0,
-    BUILDING_STORAGE_CAPS.monastery.cider,
-  );
-  syncNamedStockpile(
-    marker,
     'MonasteryFoodStockpile',
     'MonasteryFoodSegment',
     monasteryMealStock(building),
@@ -77,10 +70,17 @@ export function syncMonasteryStockpileVisuals(
   );
   syncNamedStockpile(
     marker,
-    'MonasteryAleStockpile',
-    'MonasteryAleSegment',
-    building.ale,
-    BUILDING_STORAGE_CAPS.monastery.ale,
+    'MonasteryCiderStockpile',
+    'MonasteryCiderSegment',
+    building.cider ?? 0,
+    BUILDING_STORAGE_CAPS.monastery.cider,
+  );
+  syncNamedStockpile(
+    marker,
+    'MonasteryMeadStockpile',
+    'MonasteryMeadSegment',
+    building.mead ?? 0,
+    BUILDING_STORAGE_CAPS.monastery.mead,
   );
   syncNamedStockpile(
     marker,

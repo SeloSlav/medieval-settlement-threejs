@@ -14,7 +14,8 @@ use crate::db::*;
 use crate::economy::{
     credit_marketplace_receipt_gold, credit_residence_wealth, deposit_building_commodity,
     deposit_residence_commodity, player_economic_activity_tax_rate, residence_edible_food_stock,
-    taxed_economic_activity, town_hall_tax_collection_multiplier, CommodityKind,
+    storage_accepts_commodity, taxed_economic_activity, town_hall_tax_collection_multiplier,
+    CommodityKind,
 };
 use crate::season_policy::EnvironmentState;
 use crate::simulation::game_calendar::GameClock;
@@ -48,9 +49,10 @@ pub fn step_backyard_gardens(
         if residence.population == 0 || tick.residence_disabled_by_fire(ctx, residence.id) {
             continue;
         }
-        // Gardens never claim their own table or worker. Saleable overflow
-        // reuses an already staffed Marketplace group; flower gardens have no
-        // commodity and therefore need no stall at all.
+        // Gardens never claim their own table or worker. Saleable overflow is
+        // accepted only by the Granary or Storehouse already assigned to the
+        // nearest Marketplace group; that depot later carts stock to its stall.
+        // Flower gardens have no commodity and therefore need no stall at all.
         let marketplace_id = backyard_market_stall_need(kind).and_then(|stall_need| {
             tick.local_marketplace_for_residence_deposit(
                 ctx,
@@ -120,6 +122,7 @@ fn step_one_garden(
     ) {
         return step_livestock_pen(
             ctx,
+            tick,
             garden,
             kind,
             residence,
@@ -163,6 +166,7 @@ fn step_one_garden(
         if let Some(commodity) = commodity {
             market_food_sold += distribute_backyard_food(
                 ctx,
+                tick,
                 residence,
                 marketplace_id,
                 commodity,
@@ -177,9 +181,11 @@ fn step_one_garden(
             / CALENDAR_SECONDS_PER_DAY;
         let kept_remedies = deposit_herb_remedies(ctx, residence, remedies);
         if let Some(marketplace_id) = marketplace_id {
-            market_remedies_sold = deposit_market_commodity(
+            market_remedies_sold = deposit_backyard_depot_commodity(
                 ctx,
+                tick,
                 marketplace_id,
+                ResidenceNeedKind::Cloth,
                 CommodityKind::Remedies,
                 (remedies - kept_remedies).max(0.0),
             );
@@ -189,8 +195,14 @@ fn step_one_garden(
     if def.jam_per_person_per_sec > 1e-9 {
         let jam = population * def.jam_per_person_per_sec * seasonal_multiplier * TICK_DT;
         if let Some(commodity) = backyard_jam_commodity(kind) {
-            market_food_sold +=
-                distribute_backyard_food(ctx, residence, marketplace_id, commodity, jam);
+            market_food_sold += distribute_backyard_food(
+                ctx,
+                tick,
+                residence,
+                marketplace_id,
+                commodity,
+                jam,
+            );
         }
     }
 
@@ -270,6 +282,7 @@ fn backyard_jam_commodity(kind: BackyardGardenKind) -> Option<CommodityKind> {
 
 fn step_livestock_pen(
     ctx: &ReducerContext,
+    tick: &SimTickContext,
     garden: &BackyardGarden,
     kind: BackyardGardenKind,
     residence: &Residence,
@@ -305,6 +318,7 @@ fn step_livestock_pen(
         if let Some(commodity) = livestock_primary_commodity(kind) {
             market_food_sold += distribute_backyard_food(
                 ctx,
+                tick,
                 residence,
                 marketplace_id,
                 commodity,
@@ -342,6 +356,7 @@ fn step_livestock_pen(
         );
         market_food_sold += distribute_backyard_food(
             ctx,
+            tick,
             residence,
             marketplace_id,
             CommodityKind::Meat,
@@ -367,12 +382,12 @@ fn step_livestock_pen(
         }
     }
 
-    // Goat hides remain on the household row until a real local market has
-    // room. Once staged there, ordinary physical commodity trips carry them
-    // to a tannery; a full market therefore back-pressures the pen.
+    // Goat hides remain on the household row until the Storehouse that owns a
+    // real local goods stall has room. Industry then draws from that depot;
+    // Marketplace storage is never used as an upstream warehouse.
     if kind == BackyardGardenKind::GoatPen {
         if let Some(marketplace_id) = marketplace_id {
-            transfer_backyard_hides_to_market(ctx, garden.id, marketplace_id);
+            transfer_backyard_hides_to_storehouse(ctx, tick, garden.id, marketplace_id);
         }
     }
 
@@ -389,8 +404,9 @@ fn step_livestock_pen(
     tax
 }
 
-fn transfer_backyard_hides_to_market(
+fn transfer_backyard_hides_to_storehouse(
     ctx: &ReducerContext,
+    tick: &SimTickContext,
     garden_id: u64,
     marketplace_id: u64,
 ) -> f64 {
@@ -401,9 +417,11 @@ fn transfer_backyard_hides_to_market(
     if available <= 1e-9 {
         return 0.0;
     }
-    let deposited = deposit_market_commodity(
+    let deposited = deposit_backyard_depot_commodity(
         ctx,
+        tick,
         marketplace_id,
+        ResidenceNeedKind::Cloth,
         CommodityKind::Hides,
         available,
     );
@@ -425,6 +443,7 @@ fn livestock_primary_commodity(kind: BackyardGardenKind) -> Option<CommodityKind
 
 fn distribute_backyard_food(
     ctx: &ReducerContext,
+    tick: &SimTickContext,
     residence: &Residence,
     marketplace_id: Option<u64>,
     commodity: CommodityKind,
@@ -448,7 +467,20 @@ fn distribute_backyard_food(
     let Some(marketplace_id) = marketplace_id else {
         return 0.0;
     };
-    deposit_market_commodity(ctx, marketplace_id, commodity, (total_food - kept).max(0.0))
+    let offered = (total_food - kept).max(0.0);
+    let sold = deposit_backyard_depot_commodity(
+        ctx,
+        tick,
+        marketplace_id,
+        ResidenceNeedKind::Food,
+        commodity,
+        offered,
+    );
+    let rejected = (offered - sold).max(0.0);
+    if rejected > 1e-9 {
+        deposit_self_food(ctx, residence.id, commodity, rejected);
+    }
+    sold
 }
 
 fn deposit_self_food(
@@ -480,18 +512,41 @@ fn deposit_self_food(
     deposited
 }
 
-fn deposit_market_commodity(
+fn deposit_backyard_depot_commodity(
     ctx: &ReducerContext,
+    tick: &SimTickContext,
     marketplace_id: u64,
+    stall_need: ResidenceNeedKind,
     commodity: CommodityKind,
     amount: f64,
 ) -> f64 {
-    let Some(mut marketplace) = ctx.db.building().id().find(&marketplace_id) else {
+    if amount <= 1e-9 {
+        return 0.0;
+    }
+    let Some(marketplace) = ctx.db.building().id().find(&marketplace_id) else {
         return 0.0;
     };
-    let deposited = deposit_building_commodity(&mut marketplace, commodity, amount);
+    let Some(depot_id) = tick.marketplace_stall_workplace_id_for_deposit(
+        ctx,
+        &marketplace,
+        stall_need,
+    ) else {
+        return 0.0;
+    };
+    let Some(mut depot) = ctx.db.building().id().find(&depot_id) else {
+        return 0.0;
+    };
+    if depot.owner != marketplace.owner
+        || !depot.construction_complete
+        || depot.assigned_labor == 0
+        || tick.building_disabled_by_fire(ctx, depot.id)
+        || !storage_accepts_commodity(&depot, commodity)
+    {
+        return 0.0;
+    }
+    let deposited = deposit_building_commodity(&mut depot, commodity, amount);
     if deposited > 1e-9 {
-        ctx.db.building().id().update(marketplace);
+        ctx.db.building().id().update(depot);
     }
     deposited
 }

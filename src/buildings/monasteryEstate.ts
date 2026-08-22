@@ -15,7 +15,7 @@ export const MONASTERY_ESTATE_EDGE_BAND = 60;
 export type MonasteryEstateLevel = 0 | 1 | 2 | 3;
 export type MonasteryEstatePoint = { x: number; z: number };
 export type MonasteryOrchardPlanting = 0;
-export type MonasteryCroftPlanting = 0 | 1;
+export type MonasteryCroftPlanting = 0;
 export type MonasteryOrchardMaturity = 0 | 1 | 2;
 
 export const MONASTERY_EXTENSION_INFIRMARY = 1;
@@ -29,16 +29,15 @@ export const MONASTERY_EXTENSIONS = [
   { value: MONASTERY_EXTENSION_INFIRMARY, label: 'Infirmary wing', cost: 24, payoff: 'Eight additional funded beds and stronger disease recovery' },
   { value: MONASTERY_EXTENSION_SCRIPTORIUM, label: 'Scriptorium and archive', cost: 28, payoff: 'Larger seed reserve and stronger fire-reconstruction records' },
   { value: MONASTERY_EXTENSION_GUESTHOUSE, label: 'Guesthouse', cost: 20, payoff: 'More pilgrims, gifts, and dependable hospitality' },
-  { value: MONASTERY_EXTENSION_WORKSHOP, label: 'Estate workshop', cost: 30, payoff: 'Crop-specific press, cellar, brewhouse, or root cellar' },
+  { value: MONASTERY_EXTENSION_WORKSHOP, label: 'Estate workshop', cost: 30, payoff: 'Expanded storage, dairy, craft work, and stronger estate proceeds' },
 ] as const;
 
 export const MONASTERY_ORCHARD_PLANTINGS = [
-  { value: 0, label: 'Apple orchard', output: 'Perennial apples · cider with an estate workshop' },
+  { value: 0, label: 'Mixed apple and pear orchard', output: 'Estate fruit and preserves · folded into abstract proceeds' },
 ] as const;
 
 export const MONASTERY_CROFT_PLANTINGS = [
-  { value: 0, label: 'Kitchen vegetables', output: 'Vegetables' },
-  { value: 1, label: 'Brewing barley', output: 'Ale' },
+  { value: 0, label: 'Kitchen gardens', output: 'Household provisions · folded into abstract proceeds' },
 ] as const;
 
 function estateWorldPoint(
@@ -156,11 +155,12 @@ export function monasteryArchetype(
   orchardPlanting: number | null | undefined,
   croftPlanting: number | null | undefined,
 ): { name: string; payoff: string } {
-  const orchard = normalizeMonasteryOrchardPlanting(orchardPlanting);
-  const croft = normalizeMonasteryCroftPlanting(croftPlanting);
-  void orchard;
-  if (croft === 0) return { name: 'Hospitaller grange', payoff: 'Food security, infirmary support, and late cider' };
-  return { name: 'Commercial estate', payoff: 'Ale and cider exports with the strongest eventual income' };
+  void orchardPlanting;
+  void croftPlanting;
+  return {
+    name: 'Pauline monastic estate',
+    payoff: 'Abstract estate proceeds, parish services, orchard cider, monastic mead, and physical vineyard wine',
+  };
 }
 
 export function normalizeMonasteryOrchardPlanting(
@@ -173,7 +173,8 @@ export function normalizeMonasteryOrchardPlanting(
 export function normalizeMonasteryCroftPlanting(
   planting: number | null | undefined,
 ): MonasteryCroftPlanting {
-  return planting === 1 ? 1 : 0;
+  void planting;
+  return 0;
 }
 
 export function monasteryOrchardReplantingAllowed(month: number): boolean {
@@ -181,7 +182,8 @@ export function monasteryOrchardReplantingAllowed(month: number): boolean {
 }
 
 export function monasteryCroftChoiceAllowed(month: number): boolean {
-  return month === 1 || month === 2;
+  void month;
+  return false;
 }
 
 export const MONASTERY_ESTATE_YIELD_MULTIPLIERS = [1, 1.15, 1.3, 1.5, 1.75] as const;
@@ -243,6 +245,7 @@ export function monasteryEstateYields(
   orchardMaturity: number | null | undefined = 2,
 ): {
   apples: number;
+  pears: number;
   vegetables: number;
   eggs: number;
   milk: number;
@@ -250,6 +253,7 @@ export function monasteryEstateYields(
   honey: number;
   ale: number;
   cider: number;
+  mead: number;
   wine: number;
   cheese: number;
 } {
@@ -259,16 +263,18 @@ export function monasteryEstateYields(
   const orchardMultiplier = maturity === 0 ? 0 : maturity === 1 ? 0.55 : 1;
   const workshop = monasteryHasExtension(normalizedExtensions, MONASTERY_EXTENSION_WORKSHOP);
   void orchardPlanting;
-  const vegetablesPlanted = normalizeMonasteryCroftPlanting(croftPlanting) === 0;
+  void croftPlanting;
   return {
-    apples: 0.75 * multiplier * orchardMultiplier,
-    vegetables: vegetablesPlanted ? 0.5 * multiplier : 0,
+    apples: 0.45 * multiplier * orchardMultiplier,
+    pears: 0.3 * multiplier * orchardMultiplier,
+    vegetables: 0.5 * multiplier,
     eggs: 0.42 * multiplier,
     milk: 0.45 * multiplier,
     meat: 0.16 * multiplier,
     honey: 0.22 * multiplier,
-    ale: vegetablesPlanted ? 0 : 0.32 * multiplier * (workshop ? 1.25 : 1),
-    cider: workshop ? 0.16 * multiplier * orchardMultiplier : 0,
+    ale: 0,
+    cider: 0.16 * multiplier * orchardMultiplier * (workshop ? 1.25 : 1),
+    mead: 0.18 * multiplier * (workshop ? 1.25 : 1),
     wine: 0,
     cheese: 0.18 * multiplier,
   };

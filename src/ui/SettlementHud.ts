@@ -521,7 +521,7 @@ const SETTLEMENT_HUD_HTML = `
         <strong class="settlement-hud__value" data-stockpile="preservedFood">0</strong>
         <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="preservedFood" hidden></span>
       </div>
-      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="honey" data-tooltip="Food for households and monastery hospitality.">
+      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="honey" data-tooltip="Physical food and Tier-4 luxury good; Mead-selected Brewhouses can ferment it into mead.">
         <span class="settlement-hud__label">Honey</span>
         <strong class="settlement-hud__value" data-stockpile="honey">0</strong>
         <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="honey" hidden></span>

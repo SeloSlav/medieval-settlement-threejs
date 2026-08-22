@@ -17,6 +17,7 @@ export const STORAGE_COMMODITY_CODES = {
   salt: 21,
   charcoal: 22,
   pottery: 23,
+  remedies: 25,
   meat: 28,
   fish: 29,
   berries: 30,
@@ -75,6 +76,7 @@ export const STORAGE_COMMODITY_LABELS: Record<StorageCommodity, string> = {
   salt: 'Salt',
   charcoal: 'Charcoal',
   pottery: 'Pottery',
+  remedies: 'Remedies',
   meat: 'Fresh meat',
   fish: 'Fresh fish',
   berries: 'Berries',
@@ -117,7 +119,7 @@ export const STORAGE_COMMODITY_LABELS: Record<StorageCommodity, string> = {
 export const STOREHOUSE_STORAGE_GROUPS = [
   { label: 'Building materials', commodities: ['timber', 'stone'] },
   { label: 'Fuel and minerals', commodities: ['firewood', 'charcoal', 'iron', 'clay', 'salt'] },
-  { label: 'Market wares', commodities: ['cloth', 'hides', 'leather', 'shoes', 'pottery'] },
+  { label: 'Market wares', commodities: ['cloth', 'hides', 'leather', 'shoes', 'pottery', 'remedies'] },
 ] as const satisfies ReadonlyArray<{
   label: string;
   commodities: readonly StorageCommodity[];

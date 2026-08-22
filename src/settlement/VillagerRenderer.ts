@@ -4897,6 +4897,17 @@ function describeVillagerActivity(
         return `Gathering wild food near ${workplaceLabel}`;
       }
       if (agent.mode === 'tend') {
+        if (workplace?.kind === 'monastery') {
+          if (agent.workTarget?.id?.endsWith(':vintner')) {
+            return `Pressing and fermenting vineyard grapes at ${workplaceLabel}`;
+          }
+          if (agent.workTarget?.id?.endsWith(':mead-brewhouse')) {
+            return `Brewing monastic mead at ${workplaceLabel}`;
+          }
+          if (agent.workTarget?.id?.endsWith(':cider-press')) {
+            return `Pressing orchard fruit for cider at ${workplaceLabel}`;
+          }
+        }
         switch (workplace?.kind) {
           case 'well': return `Drawing water at ${workplaceLabel}`;
           case 'threshing_barn': return `Working the fields for ${workplaceLabel}`;

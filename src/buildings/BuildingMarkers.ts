@@ -774,8 +774,8 @@ export class BuildingMarkers {
               building.chapelTier ?? 3,
               building.kind === 'monastery'
                   ? {
-                    orchard: building.monasteryOrchardPlanting ?? 0,
-                    croft: building.monasteryCroftPlanting ?? 0,
+                    orchard: 0,
+                    croft: 0,
                     extensions: building.monasteryExtensions ?? 0,
                     orchardMaturity: building.monasteryOrchardMaturity ?? 2,
                   }

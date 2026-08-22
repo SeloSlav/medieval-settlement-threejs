@@ -139,6 +139,7 @@ const tests = [
   'test:civic-logistics',
   'test:storehouse-stock-targets',
   'test:processor-output-targets',
+  'test:mead-economy',
   'test:construction-logistics',
   'test:founding-site',
   'test:starter-camp',

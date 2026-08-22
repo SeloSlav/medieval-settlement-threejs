@@ -462,11 +462,10 @@ pub const MARKET_SPECIALTY_EXPORT_PER_BROKER_PER_SECOND: f64 = 0.45;
 pub const MONASTERY_PILGRIMAGE_GOLD_PER_DAY: f64 = 2.0;
 pub const MONASTERY_HOSPITALITY_BONUS_GOLD_PER_DAY: f64 = 1.5;
 pub const MONASTERY_HOSPITALITY_HONEY_PER_DAY: f64 = 0.8;
-pub const MONASTERY_HOSPITALITY_WINE_PER_DAY: f64 = 0.5;
+pub const MONASTERY_HOSPITALITY_DRINK_PER_DAY: f64 = 0.5;
 pub const MONASTERY_FEAST_FOOD: f64 = 18.0;
-pub const MONASTERY_FEAST_ALE: f64 = 10.0;
+pub const MONASTERY_FEAST_DRINK: f64 = 10.0;
 pub const MONASTERY_FEAST_HONEY: f64 = 4.0;
-pub const MONASTERY_FEAST_WINE: f64 = 3.0;
 pub const MONASTERY_UNLINKED_PRODUCTIVITY: f64 = 0.45;
 pub const MONASTERY_COVERAGE_RADIUS: f64 = 520.0;
 pub const MONASTERY_TITHE_SHARE_DEFAULT: f64 = 0.3;
@@ -2154,7 +2153,7 @@ const VILLAGE_STOREHOUSE: BuildingDef = BuildingDef {
     storage_pottery: 180.0,
     storage_roof_tiles: 0.0,
     storage_manure: 0.0,
-    storage_remedies: 0.0,
+    storage_remedies: 96.0,
     accepts_labor: true,
     max_labor: 2,
     work_radius: 0.0,
@@ -2519,9 +2518,9 @@ const MONASTERY: BuildingDef = BuildingDef {
     storage_malt: 0.0,
     storage_flax: 0.0,
     storage_flour: 0.0,
-    storage_ale: 120.0,
+    storage_ale: 0.0,
     storage_cider: 80.0,
-    storage_mead: 0.0,
+    storage_mead: 120.0,
     storage_preserved_food: 80.0,
     storage_honey: 160.0,
     storage_wine: 120.0,

@@ -81,6 +81,20 @@ assertVisibleSegments(breweryMarker, 'BreweryBarleyStockpile', 'BreweryBarleySeg
 assertVisibleSegments(breweryMarker, 'BreweryMaltStockpile', 'BreweryMaltSegment', 1);
 assertVisibleSegments(breweryMarker, 'BreweryAleStockpile', 'BreweryAleSegment', 2);
 
+const meadBrewery = building('brewery', { mead: 67 });
+syncFoodStockpileVisuals(breweryMarker, meadBrewery);
+assertVisibleSegments(
+  breweryMarker,
+  'BreweryAleStockpile',
+  'BreweryAleSegment',
+  2,
+);
+assert.notEqual(
+  foodStockpileVisualSignature(meadBrewery),
+  foodStockpileVisualSignature(building('brewery')),
+  'mead in the shared Brewery beverage cellar must remain visible',
+);
+
 const smokehouse = building('smokehouse', {
   firewood: 14,
   food: 61,

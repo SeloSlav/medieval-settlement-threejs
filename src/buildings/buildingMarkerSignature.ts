@@ -53,7 +53,7 @@ import { buildingUsesCompletedMesh } from './buildingVisualState.ts';
 export function buildingMeshSignature(building: BuildingState): string {
   if (buildingUsesCompletedMesh(building)) {
     const monasteryPlanting = building.kind === 'monastery'
-      ? `:orchard-${building.monasteryOrchardPlanting ?? 0}:maturity-${building.monasteryOrchardMaturity ?? 2}:croft-${building.monasteryCroftPlanting ?? 0}:extensions-${building.monasteryExtensions ?? 0}`
+      ? `:mixed-estate:maturity-${building.monasteryOrchardMaturity ?? 2}:extensions-${building.monasteryExtensions ?? 0}`
       : '';
     return `complete:${building.kind}${building.kind === 'chapel' || building.kind === 'monastery' ? `:tier-${building.chapelTier ?? (building.kind === 'monastery' ? 0 : 3)}` : ''}${monasteryPlanting}`;
   }

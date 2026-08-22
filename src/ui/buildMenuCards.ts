@@ -111,7 +111,7 @@ const DETAILS: Record<PlacementArtKey, BuildCardDetail> = {
   brewery: ['Brewhouse', 'Brews ale, presses distinct apple or pear cider, or ferments mead.', flow(['barley', 'apples', 'pears', 'honey', 'water', 'firewood'], ['ale', 'cider', 'pearCider', 'mead'])],
   tavern: ['Tavern', 'Serves ale, apple cider, pear cider, and mead to satisfy household thirst.', flow(['ale', 'cider', 'pearCider', 'mead'], [])],
   smokehouse: ['Smokehouse', 'Preserves fresh food with firewood, salt, and pottery.', flow(['food', 'firewood', 'salt', 'pottery'], ['preservedFood'])],
-  apiary: ['Forest apiary', 'Keeps bees for honey throughout the warm season.', flow([], ['honey'])],
+  apiary: ['Forest apiary', 'Keeps bees for food, luxury honey, and mead throughout the warm season.', flow([], ['honey'])],
   carpenter: ['Carpenter & wheelwright', 'Crafts frames and carts that lower building costs and hasten deliveries.'],
   weaver: ["Weaver's workshop", 'Weaves wool into cloth and prepares flax with water for linen.', flow(['wool', 'flax', 'water'], ['cloth'])],
   tannery: ['Tannery', 'Tans goat and game hides with water and bark-fired heat into workable leather.', flow(['hides', 'water', 'firewood'], ['leather'])],

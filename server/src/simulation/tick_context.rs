@@ -804,7 +804,8 @@ impl SimTickContext {
     }
 
     /// Producer-side market claim. Unlike consumer availability, an empty
-    /// staffed stall is a valid destination so the first garden can seed it.
+    /// staffed stall is a valid destination so its owning depot can receive
+    /// the first backyard lot before a later stall-restocking trip.
     pub fn local_marketplace_for_residence_deposit(
         &self,
         ctx: &ReducerContext,
@@ -1156,6 +1157,9 @@ impl SimTickContext {
         marketplace: &Building,
         commodity: CommodityKind,
     ) -> Option<u64> {
+        if commodity == CommodityKind::Remedies {
+            return self.marketplace_any_goods_stall_workplace_id(ctx, marketplace);
+        }
         let need_kind = stall_need_for_commodity(commodity)?;
         if marketplace.kind != "marketplace" {
             return None;
@@ -1167,6 +1171,32 @@ impl SimTickContext {
             .workplace_by_market_need
             .get(&(marketplace.id, need_kind))
             .copied()
+    }
+
+    pub(crate) fn marketplace_stall_workplace_id_for_deposit(
+        &self,
+        ctx: &ReducerContext,
+        marketplace: &Building,
+        need_kind: ResidenceNeedKind,
+    ) -> Option<u64> {
+        let group = stall_group_for_need(need_kind)?;
+        if marketplace.kind != "marketplace" {
+            return None;
+        }
+        self.ensure_marketplace_stall_roster(ctx, marketplace.owner);
+        let rosters = self.marketplace_stall_rosters.borrow();
+        let roster = rosters.get(&marketplace.owner)?;
+        roster
+            .workplace_by_market_need
+            .get(&(marketplace.id, need_kind))
+            .copied()
+            .or_else(|| {
+                roster
+                    .workers_by_market_group
+                    .get(&(marketplace.id, group))
+                    .and_then(|workers| workers.first())
+                    .copied()
+            })
     }
 
     pub(crate) fn marketplace_any_goods_stall_workplace_id(
@@ -1204,6 +1234,22 @@ impl SimTickContext {
         workplace_id: u64,
         commodity: CommodityKind,
     ) -> bool {
+        if commodity == CommodityKind::Remedies {
+            if marketplace.kind != "marketplace" {
+                return false;
+            }
+            self.ensure_marketplace_stall_roster(ctx, marketplace.owner);
+            return self
+                .marketplace_stall_rosters
+                .borrow()
+                .get(&marketplace.owner)
+                .and_then(|roster| {
+                    roster
+                        .workers_by_market_group
+                        .get(&(marketplace.id, MARKET_STALL_GROUP_GOODS))
+                })
+                .is_some_and(|workers| workers.contains(&workplace_id));
+        }
         self.marketplace_stall_workplace_id_for_commodity(ctx, marketplace, commodity)
             == Some(workplace_id)
     }

@@ -6,9 +6,7 @@ import {
   FARM_CROP_KINDS,
 } from '../src/generated/gameBalance.ts';
 import {
-  MONASTERY_CROFT_PLANTINGS,
   MONASTERY_EXTENSIONS,
-  MONASTERY_ORCHARD_PLANTINGS,
 } from '../src/buildings/monasteryEstate.ts';
 import { BUILD_MENU_CATEGORIES } from '../src/ui/buildMenuCards.ts';
 
@@ -206,10 +204,10 @@ assert.match(iconography, /gk-icon--construction[\s\S]*construction-actions\.png
 assert.match(iconography, /gk-icon--camp \{ background-position: 100% 100%; \}/);
 
 const monasteryExtensionArtwork = new Map([
-  [1, 'foragers-hut.webp'],
-  [2, 'monastery.webp'],
-  [4, 'residence.webp'],
-  [8, 'carpenter.webp'],
+  [1, 'infirmary-wing.png'],
+  [2, 'scriptorium-archive.png'],
+  [4, 'guesthouse.png'],
+  [8, 'estate-workshop.png'],
 ] as const);
 assert.deepEqual(
   [...monasteryExtensionArtwork.keys()].sort((a, b) => a - b),
@@ -217,12 +215,12 @@ assert.deepEqual(
   'every monastery extension must have an icon-card contract',
 );
 for (const [value, asset] of monasteryExtensionArtwork) {
-  const path = `public/assets/ui/build-menu/cards/${asset}`;
+  const path = `public/assets/ui/icons/monastery/${asset}`;
   assert.ok(existsSync(path), `${asset} must exist for monastery extension ${value}`);
-  assert.ok(statSync(path).size > 20_000, `${asset} must be substantive generated artwork`);
+  assert.ok(statSync(path).size > 80_000, `${asset} must be substantive custom woodcut artwork`);
   assert.match(
     actionCss,
-    new RegExp(`data-monastery-extension-icon='${value}'[\\s\\S]{0,180}build-menu/cards/${escapeRegex(asset)}`),
+    new RegExp(`data-monastery-extension-icon='${value}'[\\s\\S]{0,180}icons/monastery/${escapeRegex(asset)}`),
     `monastery extension ${value} should use ${asset}`,
   );
 }
@@ -230,24 +228,10 @@ assert.match(expandedBuildingRenderer, /class="monastery-extension-grid"[\s\S]*d
 assert.doesNotMatch(expandedBuildingRenderer, /id="monastery-next-extension" data-monastery-next-extension/);
 assert.match(resourceInspector, /data-monastery-extension-choice[\s\S]{0,500}onSetMonasteryNextExtension/);
 
-const monasteryPlantingArtwork = new Map([
-  ['orchard-0', 'icons/backyards/orchard.png'],
-  ['croft-0', 'icons/backyards/vegetable-garden.png'],
-  ['croft-1', 'icons/provisions/barley-sheaves.png'],
-] as const);
-assert.equal(monasteryPlantingArtwork.size, MONASTERY_ORCHARD_PLANTINGS.length + MONASTERY_CROFT_PLANTINGS.length);
-for (const [planting, asset] of monasteryPlantingArtwork) {
-  assert.match(
-    actionCss,
-    new RegExp(`data-monastery-planting-icon='${planting}'[\\s\\S]{0,220}ui/${escapeRegex(asset)}`),
-    `${planting} should use ${asset}`,
-  );
-  assert.ok(existsSync(`public/assets/ui/${asset}`));
-}
-assert.match(expandedBuildingRenderer, /class="monastery-planting-grid"[\s\S]*data-monastery-croft-choice="\$\{planting\.value\}"/);
-assert.doesNotMatch(expandedBuildingRenderer, /data-monastery-(?:orchard|croft)-planting/);
-assert.doesNotMatch(expandedBuildingRenderer, /data-monastery-orchard-choice/);
-assert.match(resourceInspector, /data-monastery-croft-choice[\s\S]{0,650}onSetMonasteryPlanting/);
+assert.doesNotMatch(expandedBuildingRenderer, /monastery-planting-grid|data-monastery-(?:orchard|croft)-choice/);
+assert.doesNotMatch(resourceInspector, /data-monastery-croft-choice/);
+assert.match(expandedBuildingRenderer, /Mixed orchard and kitchen gardens/);
+assert.match(expandedBuildingRenderer, /no apple-versus-pear or cabbage-versus-carrot choices/i);
 
 console.log('Complete backyard, upgrade, monastery, commodity, crop, livestock, land-project, demolition, recovery, and build-category icon contracts passed.');
 

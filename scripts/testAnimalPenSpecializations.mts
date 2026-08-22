@@ -143,7 +143,11 @@ assert.match(simulationSource, /GoatPen => Some\(CommodityKind::Milk\)/);
 assert.match(simulationSource, /PigPen => Some\(CommodityKind::Meat\)/);
 assert.match(simulationSource, /secondary_food_per_person_per_sec[\s\S]*CommodityKind::Meat/);
 assert.match(simulationSource, /hide_per_person_per_secondary_harvest[\s\S]*hide_capacity/);
-assert.match(simulationSource, /deposit_self_food[\s\S]*deposit_market_commodity/);
+assert.match(
+  simulationSource,
+  /deposit_self_food[\s\S]*deposit_backyard_depot_commodity[\s\S]*ResidenceNeedKind::Food/,
+);
+assert.match(simulationSource, /transfer_backyard_hides_to_storehouse/);
 assert.match(commoditySource, /tier == 3[\s\S]*land_animal_food/);
 assert.match(commoditySource, /FoodCategory::AnimalProduce\.bit\(\)[\s\S]*FoodCategory::Meats\.bit\(\)/);
 assert.match(commoditySource, /3 => 4,[\s\S]*_ => 5/);

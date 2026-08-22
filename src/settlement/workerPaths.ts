@@ -190,7 +190,9 @@ const MONASTERY_WORKSTATIONS = [
   { id: 'scriptorium', localX: -11.7, localZ: 0.7, activity: 'tend', requiredExtension: MONASTERY_EXTENSION_SCRIPTORIUM },
   { id: 'infirmary', localX: 7.1, localZ: 0.4, activity: 'tend', requiredExtension: MONASTERY_EXTENSION_INFIRMARY },
   { id: 'guesthouse', localX: 27, localZ: 0.2, activity: 'tend', requiredExtension: MONASTERY_EXTENSION_GUESTHOUSE },
-  { id: 'brewhouse', localX: -17.8, localZ: -12, activity: 'tend' },
+  { id: 'mead-brewhouse', localX: -17.8, localZ: -12, activity: 'tend' },
+  { id: 'cider-press', localX: -22.8, localZ: -11.8, activity: 'tend' },
+  { id: 'vintner', localX: -17, localZ: -23.5, activity: 'tend', requiresVineyard: true },
   { id: 'orchard', localX: -23, localZ: -35.25, activity: 'gather' },
   { id: 'apiary', localX: -26, localZ: -22, activity: 'gather' },
   { id: 'croft', localX: -7, localZ: -18.75, activity: 'tend' },
@@ -207,6 +209,7 @@ const MONASTERY_WORKSTATIONS = [
   localZ: number;
   activity: WorkerActivityKind;
   requiredExtension?: number;
+  requiresVineyard?: boolean;
 }[];
 
 export function isProductionWorkplaceKind(kind: BuildingKind): boolean {
@@ -803,11 +806,16 @@ function collectMonasteryWorkstations(
   vineyardParcels: Iterable<VineyardParcelState>,
   targets: WorkerTarget[],
 ): void {
+  const linkedVineyards = Array.from(vineyardParcels)
+    .filter((parcel) => parcel.monasteryId === building.id);
   for (const workstation of MONASTERY_WORKSTATIONS) {
     if (
       'requiredExtension' in workstation
       && !monasteryHasExtension(building.monasteryExtensions, workstation.requiredExtension)
     ) continue;
+    if ('requiresVineyard' in workstation && workstation.requiresVineyard && linkedVineyards.length === 0) {
+      continue;
+    }
     targets.push({
       id: `${building.id}:monastery:${workstation.id}`,
       kind: 'workstation',
@@ -820,8 +828,7 @@ function collectMonasteryWorkstations(
       ),
     });
   }
-  for (const parcel of vineyardParcels) {
-    if (parcel.monasteryId !== building.id) continue;
+  for (const parcel of linkedVineyards) {
     const center = polygonCenter(parcel.corners);
     targets.push({
       id: `${building.id}:monastery:vineyard:${parcel.id}:center`,

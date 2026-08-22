@@ -24,12 +24,13 @@ const storehouse = {
   storehouseAcceptsSalt: true,
 } as BuildingState;
 
-assert.equal(STOREHOUSE_STORAGE_COMMODITIES.length, 12);
+assert.equal(STOREHOUSE_STORAGE_COMMODITIES.length, 13);
 assert.ok(STOREHOUSE_STORAGE_COMMODITIES.includes('cloth'));
 assert.ok(STOREHOUSE_STORAGE_COMMODITIES.includes('hides'));
 assert.ok(STOREHOUSE_STORAGE_COMMODITIES.includes('leather'));
 assert.ok(STOREHOUSE_STORAGE_COMMODITIES.includes('shoes'));
 assert.ok(STOREHOUSE_STORAGE_COMMODITIES.includes('pottery'));
+assert.ok(STOREHOUSE_STORAGE_COMMODITIES.includes('remedies'));
 assert.equal(GRANARY_STORAGE_COMMODITIES.length, 41);
 for (const commodity of [
   'pears', 'aronia', 'rosehips', 'cabbage', 'carrots', 'beetroot',
@@ -38,6 +39,7 @@ for (const commodity of [
   assert.ok(GRANARY_STORAGE_COMMODITIES.includes(commodity));
 }
 assert.equal(storageAcceptsCommodity(storehouse, 'charcoal'), true);
+assert.equal(storageAcceptsCommodity(storehouse, 'remedies'), true);
 assert.equal(
   storageAcceptsCommodity({
     ...storehouse,
@@ -65,12 +67,13 @@ const storehouseControls = renderStorageAcceptanceControls(
   storehouse,
   STOREHOUSE_STORAGE_GROUPS,
 );
-assert.equal((storehouseControls.match(/data-storage-commodity=/g) ?? []).length, 12);
+assert.equal((storehouseControls.match(/data-storage-commodity=/g) ?? []).length, 13);
 assert.match(storehouseControls, /data-storage-commodity="cloth"/);
 assert.match(storehouseControls, /data-storage-commodity="hides"/);
 assert.match(storehouseControls, /data-storage-commodity="leather"/);
 assert.match(storehouseControls, /data-storage-commodity="shoes"/);
 assert.match(storehouseControls, /data-storage-commodity="pottery"/);
+assert.match(storehouseControls, /data-storage-commodity="remedies"/);
 assert.match(storehouseControls, /data-storage-accept-all="true"/);
 assert.match(storehouseControls, /data-storage-accept-all="false"/);
 

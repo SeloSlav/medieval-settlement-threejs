@@ -9,10 +9,10 @@ import { createBuildingMesh } from '../src/buildings/BuildingMeshes.ts';
 import { MONASTERY_EXTENSION_ALL } from '../src/buildings/monasteryEstate.ts';
 import { buildingMarkerSignatures } from '../src/buildings/buildingMarkerSignature.ts';
 import {
-  MONASTERY_ALE_VISUAL_SEGMENTS,
   MONASTERY_CIDER_VISUAL_SEGMENTS,
   MONASTERY_FOOD_VISUAL_SEGMENTS,
   MONASTERY_HONEY_VISUAL_SEGMENTS,
+  MONASTERY_MEAD_VISUAL_SEGMENTS,
   MONASTERY_WINE_VISUAL_SEGMENTS,
   monasteryStockpileVisualSignature,
   syncMonasteryStockpileVisuals,
@@ -263,15 +263,20 @@ for (const estatePart of [
   'Monastery precinct rear wall',
   'Monastery east gatehouse',
   'Monastery southeast round tower',
-  'Monastery protected cattle pasture',
+  'Monastery protected cattle and sheep pasture',
   'Monastery reserved dairy upgrade plot',
-  'Monastery reserved fruit press upgrade plot',
   'Monastery enclosed cloister court',
-  'Monastery brewhouse and cellar yard',
-  'Monastery apple orchard',
+  'Monastery mixed apple and pear orchard',
+  'Monastery apple orchard rows',
+  'Monastery pear orchard rows',
+  'Monastery mead brewhouse and honey cellar',
+  'Monastery orchard cider press and cellar bay',
+  'Monastery vintner and wine cellar',
+  'Monastery vintner screw press',
   'Monastery bee garden',
   'Monastery chicken yard',
   'Monastery dairy cow',
+  'Monastery pasture sheep',
   'Monastery pig',
   'Monastery infirmary wing',
 ]) {
@@ -279,8 +284,8 @@ for (const estatePart of [
 }
 const pantryGroups = [
   ['MonasteryFoodStockpile', 'MonasteryFoodSegment', MONASTERY_FOOD_VISUAL_SEGMENTS],
-  ['MonasteryAleStockpile', 'MonasteryAleSegment', MONASTERY_ALE_VISUAL_SEGMENTS],
   ['MonasteryCiderStockpile', 'MonasteryCiderSegment', MONASTERY_CIDER_VISUAL_SEGMENTS],
+  ['MonasteryMeadStockpile', 'MonasteryMeadSegment', MONASTERY_MEAD_VISUAL_SEGMENTS],
   ['MonasteryHoneyStockpile', 'MonasteryHoneySegment', MONASTERY_HONEY_VISUAL_SEGMENTS],
   ['MonasteryWineStockpile', 'MonasteryWineSegment', MONASTERY_WINE_VISUAL_SEGMENTS],
 ] as const;
@@ -298,16 +303,16 @@ const stockedMonastery = building({
   id: 'stocked-monastery',
   constructionComplete: true,
   food: 61,
-  ale: 41,
-  cider: 31,
+  cider: 41,
+  mead: 41,
   honey: 81,
   wine: 41,
 });
 syncMonasteryStockpileVisuals(monasteryMarker, stockedMonastery);
 for (const [containerName, segmentName, expectedVisible] of [
   ['MonasteryFoodStockpile', 'MonasteryFoodSegment', 2],
-  ['MonasteryAleStockpile', 'MonasteryAleSegment', 2],
   ['MonasteryCiderStockpile', 'MonasteryCiderSegment', 2],
+  ['MonasteryMeadStockpile', 'MonasteryMeadSegment', 2],
   ['MonasteryHoneyStockpile', 'MonasteryHoneySegment', 2],
   ['MonasteryWineStockpile', 'MonasteryWineSegment', 2],
 ] as const) {
@@ -351,8 +356,8 @@ for (let index = 0; index < 100_000; index += 1) {
   visualChecksum += monasteryStockpileVisualSignature(building({
     constructionComplete: true,
     food: index % 320,
-    ale: index % 160,
     cider: index % 80,
+    mead: index % 120,
     honey: index % 160,
     wine: index % 120,
   })).length;

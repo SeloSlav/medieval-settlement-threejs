@@ -1,12 +1,12 @@
 import {
   CALENDAR_DAYS_PER_MONTH,
   CALENDAR_MONTHS_PER_YEAR,
-  MONASTERY_FEAST_ALE,
+  MONASTERY_FEAST_DRINK,
   MONASTERY_FEAST_FOOD,
   MONASTERY_FEAST_HONEY,
   MONASTERY_HOSPITALITY_BONUS_GOLD_PER_DAY,
   MONASTERY_HOSPITALITY_HONEY_PER_DAY,
-  MONASTERY_HOSPITALITY_WINE_PER_DAY,
+  MONASTERY_HOSPITALITY_DRINK_PER_DAY,
   MONASTERY_PILGRIMAGE_GOLD_PER_DAY,
 } from '../generated/gameBalance.ts';
 import type { BuildingState } from '../resources/types.ts';
@@ -69,7 +69,7 @@ export function monasteryFeastReserve(
     case 'food':
       return MONASTERY_FEAST_FOOD;
     case 'drink':
-      return MONASTERY_FEAST_ALE;
+      return MONASTERY_FEAST_DRINK;
     case 'honey':
       return MONASTERY_FEAST_HONEY;
   }
@@ -94,34 +94,34 @@ export function monasteryHospitalityRunwayDays(
 }
 
 export function monasteryHospitalityPlan(
-  monastery: Pick<BuildingState, 'honey' | 'ale' | 'cider' | 'wine' | 'monasteryExtensions' | 'monasteryServiceFunding'>,
+  monastery: Pick<BuildingState, 'honey' | 'cider' | 'mead' | 'wine' | 'monasteryExtensions' | 'monasteryServiceFunding'>,
   enabled: boolean,
 ): MonasteryHospitalityPlan {
   const serviceFunding = enabled
     ? Math.max(0, Math.min(1, monastery.monasteryServiceFunding ?? 1))
     : 0;
   const honeyPerDay = MONASTERY_HOSPITALITY_HONEY_PER_DAY * serviceFunding;
-  const drinkPerDay = MONASTERY_HOSPITALITY_WINE_PER_DAY * serviceFunding;
+  const drinkPerDay = MONASTERY_HOSPITALITY_DRINK_PER_DAY * serviceFunding;
   const dailyHoney = monasteryFeastSurplus(
     monastery.honey,
     MONASTERY_FEAST_HONEY,
     enabled,
   );
   const drinks = [
-    ['ale', finiteStock(monastery.ale)],
-    ['cider', finiteStock(monastery.cider ?? 0)],
+    ['cider', finiteStock(monastery.cider)],
+    ['mead', finiteStock(monastery.mead)],
     ['wine', finiteStock(monastery.wine)],
   ] as const;
   const totalDrink = drinks.reduce((sum, [, stock]) => sum + stock, 0);
-  const dailyDrink = monasteryFeastSurplus(totalDrink, MONASTERY_FEAST_ALE, enabled);
+  const dailyDrink = monasteryFeastSurplus(totalDrink, MONASTERY_FEAST_DRINK, enabled);
   const availableDrinks = drinks.filter(([, stock]) => stock > 1e-6);
   const drinkMix = availableDrinks.map(([label]) => label).join(' + ') || 'none';
   const total = Math.max(1e-9, totalDrink);
-  const aleShare = drinks[0][1] / total;
+  const commonDrinkShare = (drinks[0][1] + drinks[1][1]) / total;
   const wineShare = drinks[2][1] / total;
   const mixedCellar = availableDrinks.length >= 2;
   const prestigeMultiplier = 1 + 0.25 * wineShare + (mixedCellar ? 0.1 : 0);
-  const commonTableMultiplier = 1 + 0.25 * aleShare;
+  const commonTableMultiplier = 1 + 0.25 * commonDrinkShare;
   const resourceSupplyRatio = enabled
     ? (
         stockSupplyRatio(dailyHoney)
@@ -150,11 +150,11 @@ export function monasteryHospitalityPlan(
       + (enabled ? MONASTERY_FEAST_HONEY * MONASTERY_FEASTS_PER_YEAR : 0),
     drinkPerYear:
       drinkPerDay * daysPerYear
-      + (enabled ? MONASTERY_FEAST_ALE * MONASTERY_FEASTS_PER_YEAR : 0),
+      + (enabled ? MONASTERY_FEAST_DRINK * MONASTERY_FEASTS_PER_YEAR : 0),
     feastFoodPerYear:
       enabled ? MONASTERY_FEAST_FOOD * MONASTERY_FEASTS_PER_YEAR : 0,
     feastDrinkPerYear:
-      enabled ? MONASTERY_FEAST_ALE * MONASTERY_FEASTS_PER_YEAR : 0,
+      enabled ? MONASTERY_FEAST_DRINK * MONASTERY_FEASTS_PER_YEAR : 0,
     prestigeMultiplier,
     commonTableMultiplier,
     mixedCellar,
@@ -163,18 +163,18 @@ export function monasteryHospitalityPlan(
 }
 
 export function monasteryFeastReadiness(
-  monastery: Pick<BuildingState, 'ale' | 'cider' | 'honey' | 'wine'> & FoodInventoryLike,
+  monastery: Pick<BuildingState, 'cider' | 'mead' | 'honey' | 'wine'> & FoodInventoryLike,
 ): MonasteryFeastReadiness {
   const mealStock = Math.max(0, edibleFoodStock(monastery) - finiteStock(monastery.honey));
   const missingFood = Math.max(0, MONASTERY_FEAST_FOOD - mealStock);
   const missingHoney = Math.max(0, MONASTERY_FEAST_HONEY - finiteStock(monastery.honey));
   const drinks = [
-    ['ale', finiteStock(monastery.ale)],
-    ['cider', finiteStock(monastery.cider ?? 0)],
+    ['cider', finiteStock(monastery.cider)],
+    ['mead', finiteStock(monastery.mead)],
     ['wine', finiteStock(monastery.wine)],
   ] as const;
   const drinkStock = drinks.reduce((sum, [, stock]) => sum + stock, 0);
-  const missingDrink = Math.max(0, MONASTERY_FEAST_ALE - drinkStock);
+  const missingDrink = Math.max(0, MONASTERY_FEAST_DRINK - drinkStock);
   const drinkMix = drinks.filter(([, stock]) => stock > 1e-6).map(([label]) => label).join(' + ') || 'none';
   return {
     ready:
@@ -224,7 +224,7 @@ export function formatMonasteryFeastReadiness(
   readiness: MonasteryFeastReadiness,
 ): string {
   if (readiness.ready) {
-    return `Ready · ${MONASTERY_FEAST_FOOD} food + ${MONASTERY_FEAST_HONEY} honey + ${MONASTERY_FEAST_ALE} any estate drink secured (${readiness.drinkMix})`;
+    return `Ready · ${MONASTERY_FEAST_FOOD} food + ${MONASTERY_FEAST_HONEY} honey + ${MONASTERY_FEAST_DRINK} cider, mead, and/or wine secured (${readiness.drinkMix})`;
   }
   const missing = [
     ['food', readiness.missingFood],
@@ -252,8 +252,8 @@ export function formatHospitalityRunway(days: number): string {
   return `${days.toFixed(days < 10 ? 1 : 0)} days`;
 }
 
-function finiteStock(value: number): number {
-  return Number.isFinite(value) ? Math.max(0, value) : 0;
+function finiteStock(value: number | null | undefined): number {
+  return typeof value === 'number' && Number.isFinite(value) ? Math.max(0, value) : 0;
 }
 
 function formatAmount(amount: number): string {

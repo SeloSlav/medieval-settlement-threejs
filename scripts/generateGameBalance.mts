@@ -660,11 +660,10 @@ export type GameBalance = {
     monasteryPilgrimageGoldPerDay: number;
     monasteryHospitalityBonusGoldPerDay: number;
     monasteryHospitalityHoneyPerDay: number;
-    monasteryHospitalityWinePerDay: number;
+    monasteryHospitalityDrinkPerDay: number;
     monasteryFeastFood: number;
-    monasteryFeastAle: number;
+    monasteryFeastDrink: number;
     monasteryFeastHoney: number;
-    monasteryFeastWine: number;
     monasteryUnlinkedProductivity: number;
     monasteryCoverageRadius: number;
     monasteryTitheShareDefault: number;
@@ -1277,11 +1276,10 @@ function generateRust(): string {
     `pub const MONASTERY_PILGRIMAGE_GOLD_PER_DAY: f64 = ${rustF64(b.production.monasteryPilgrimageGoldPerDay)};`,
     `pub const MONASTERY_HOSPITALITY_BONUS_GOLD_PER_DAY: f64 = ${rustF64(b.production.monasteryHospitalityBonusGoldPerDay)};`,
     `pub const MONASTERY_HOSPITALITY_HONEY_PER_DAY: f64 = ${rustF64(b.production.monasteryHospitalityHoneyPerDay)};`,
-    `pub const MONASTERY_HOSPITALITY_WINE_PER_DAY: f64 = ${rustF64(b.production.monasteryHospitalityWinePerDay)};`,
+    `pub const MONASTERY_HOSPITALITY_DRINK_PER_DAY: f64 = ${rustF64(b.production.monasteryHospitalityDrinkPerDay)};`,
     `pub const MONASTERY_FEAST_FOOD: f64 = ${rustF64(b.production.monasteryFeastFood)};`,
-    `pub const MONASTERY_FEAST_ALE: f64 = ${rustF64(b.production.monasteryFeastAle)};`,
+    `pub const MONASTERY_FEAST_DRINK: f64 = ${rustF64(b.production.monasteryFeastDrink)};`,
     `pub const MONASTERY_FEAST_HONEY: f64 = ${rustF64(b.production.monasteryFeastHoney)};`,
-    `pub const MONASTERY_FEAST_WINE: f64 = ${rustF64(b.production.monasteryFeastWine)};`,
     `pub const MONASTERY_UNLINKED_PRODUCTIVITY: f64 = ${rustF64(b.production.monasteryUnlinkedProductivity)};`,
     `pub const MONASTERY_COVERAGE_RADIUS: f64 = ${rustF64(b.production.monasteryCoverageRadius)};`,
     `pub const MONASTERY_TITHE_SHARE_DEFAULT: f64 = ${rustF64(b.production.monasteryTitheShareDefault)};`,
@@ -2253,11 +2251,10 @@ function generateTypeScript(): string {
     `export const MONASTERY_PILGRIMAGE_GOLD_PER_DAY = ${b.production.monasteryPilgrimageGoldPerDay};`,
     `export const MONASTERY_HOSPITALITY_BONUS_GOLD_PER_DAY = ${b.production.monasteryHospitalityBonusGoldPerDay};`,
     `export const MONASTERY_HOSPITALITY_HONEY_PER_DAY = ${b.production.monasteryHospitalityHoneyPerDay};`,
-    `export const MONASTERY_HOSPITALITY_WINE_PER_DAY = ${b.production.monasteryHospitalityWinePerDay};`,
+    `export const MONASTERY_HOSPITALITY_DRINK_PER_DAY = ${b.production.monasteryHospitalityDrinkPerDay};`,
     `export const MONASTERY_FEAST_FOOD = ${b.production.monasteryFeastFood};`,
-    `export const MONASTERY_FEAST_ALE = ${b.production.monasteryFeastAle};`,
+    `export const MONASTERY_FEAST_DRINK = ${b.production.monasteryFeastDrink};`,
     `export const MONASTERY_FEAST_HONEY = ${b.production.monasteryFeastHoney};`,
-    `export const MONASTERY_FEAST_WINE = ${b.production.monasteryFeastWine};`,
     `export const MONASTERY_UNLINKED_PRODUCTIVITY = ${b.production.monasteryUnlinkedProductivity};`,
     `export const MONASTERY_COVERAGE_RADIUS = ${b.production.monasteryCoverageRadius};`,
     `export const MONASTERY_TITHE_SHARE_DEFAULT = ${b.production.monasteryTitheShareDefault};`,

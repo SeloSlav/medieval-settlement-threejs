@@ -10,6 +10,7 @@ pub const STOREHOUSE_ACCEPTANCE_MASK: u64 = bit(0) // firewood
     | bit(21) // salt
     | bit(22) // charcoal
     | bit(23) // pottery
+    | bit(25) // remedies
     | bit(58) // hides
     | bit(59) // leather
     | bit(60); // shoes
@@ -106,6 +107,7 @@ mod tests {
     #[test]
     fn storage_masks_are_specialized_and_default_open() {
         assert!(storage_kind_supports_commodity("village_storehouse", 22));
+        assert!(storage_kind_supports_commodity("village_storehouse", 25));
         assert!(!storage_kind_supports_commodity("village_storehouse", 28));
         assert!(storage_kind_supports_commodity("granary", 28));
         assert!(storage_kind_supports_commodity("granary", 9));

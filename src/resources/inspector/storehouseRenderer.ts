@@ -158,7 +158,7 @@ export function renderStorehouseInspector(
     labor: buildingLaborView(building, context.populationStats, context.worldQueries),
     supplementalPanelHtml: `
       <div class="inspector-action-panel">
-        <p class="inspector-action-panel__hint">Choose exactly which goods this Storehouse may receive. Disabled goods stay at producers or route to another compatible depot; stock already here remains safe and may still be dispatched. Each assigned keeper can set up one stocked fuel, cloth, or pottery table at one nearest connected Marketplace.</p>
+        <p class="inspector-action-panel__hint">Choose exactly which goods this Storehouse may receive. Disabled goods stay at producers or route to another compatible depot; stock already here remains safe and may still be dispatched. Each assigned keeper can set up one stocked goods table at one nearest connected Marketplace, including the remedy-care route.</p>
         ${renderStorageAcceptanceControls(building, STOREHOUSE_STORAGE_GROUPS)}
         <p class="inspector-action-panel__hint">Collection targets distribute producer overflow between depots. Charcoal is a transit buffer: an accepting depot fills toward this target when its road branch has uncovered Marketplace fuel demand or a Trading Post exporting charcoal. Other targets cap incoming overflow carts; material already above a lowered target remains available.</p>
         ${renderStorehouseStockTargetControls(building)}

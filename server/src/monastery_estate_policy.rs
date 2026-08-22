@@ -10,7 +10,6 @@ pub const MONASTERY_ESTATE_EXPORT_LOT: f64 = 6.0;
 pub const MONASTERY_INFIRMARY_FOOD_PER_BED_DAY: f64 = 0.6;
 pub const MONASTERY_ORCHARD_APPLES: u8 = 0;
 pub const MONASTERY_CROFT_VEGETABLES: u8 = 0;
-pub const MONASTERY_CROFT_BARLEY: u8 = 1;
 pub const MONASTERY_EXTENSION_INFIRMARY: u8 = 1;
 pub const MONASTERY_EXTENSION_SCRIPTORIUM: u8 = 2;
 pub const MONASTERY_EXTENSION_GUESTHOUSE: u8 = 4;
@@ -35,6 +34,7 @@ pub struct EstatePoint {
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct MonasteryEstateYields {
     pub apples: f64,
+    pub pears: f64,
     pub vegetables: f64,
     pub eggs: f64,
     pub milk: f64,
@@ -42,6 +42,7 @@ pub struct MonasteryEstateYields {
     pub honey: f64,
     pub ale: f64,
     pub cider: f64,
+    pub mead: f64,
     pub wine: f64,
     pub cheese: f64,
 }
@@ -265,7 +266,8 @@ pub fn monastery_orchard_replanting_allowed(month: u32) -> bool {
 }
 
 pub fn monastery_croft_choice_allowed(month: u32) -> bool {
-    matches!(month, 1 | 2)
+    let _ = month;
+    false
 }
 
 pub fn normalize_monastery_orchard_planting(planting: u8) -> u8 {
@@ -274,11 +276,8 @@ pub fn normalize_monastery_orchard_planting(planting: u8) -> u8 {
 }
 
 pub fn normalize_monastery_croft_planting(planting: u8) -> u8 {
-    if planting == MONASTERY_CROFT_BARLEY {
-        MONASTERY_CROFT_BARLEY
-    } else {
-        MONASTERY_CROFT_VEGETABLES
-    }
+    let _ = planting;
+    MONASTERY_CROFT_VEGETABLES
 }
 
 pub fn monastery_estate_yields(
@@ -291,29 +290,20 @@ pub fn monastery_estate_yields(
     let orchard_multiplier = monastery_orchard_yield_multiplier(orchard_maturity);
     let workshop = monastery_has_extension(extensions, MONASTERY_EXTENSION_WORKSHOP);
     let _ = orchard_planting;
-    let vegetables_planted =
-        normalize_monastery_croft_planting(croft_planting) == MONASTERY_CROFT_VEGETABLES;
+    let _ = croft_planting;
     MonasteryEstateYields {
-        apples: 0.75 * multiplier * orchard_multiplier,
-        vegetables: if vegetables_planted {
-            0.5 * multiplier
-        } else {
-            0.0
-        },
+        apples: 0.45 * multiplier * orchard_multiplier,
+        pears: 0.30 * multiplier * orchard_multiplier,
+        vegetables: 0.5 * multiplier,
         eggs: 0.42 * multiplier,
         milk: 0.45 * multiplier,
         meat: 0.16 * multiplier,
         honey: 0.22 * multiplier,
-        ale: if vegetables_planted {
-            0.0
-        } else {
-            0.32 * multiplier * if workshop { 1.25 } else { 1.0 }
-        },
-        cider: if workshop {
-            0.16 * multiplier * orchard_multiplier
-        } else {
-            0.0
-        },
+        ale: 0.0,
+        // The fixed mixed orchard supplies a modest apple-and-pear house cider.
+        // It is one canonical output, not a player-selected fruit recipe.
+        cider: 0.16 * multiplier * orchard_multiplier * if workshop { 1.25 } else { 1.0 },
+        mead: 0.18 * multiplier * if workshop { 1.25 } else { 1.0 },
         // Wine is produced only by the player-drawn vineyard parcels.
         wine: 0.0,
         cheese: 0.18 * multiplier,
@@ -395,25 +385,33 @@ mod tests {
     }
 
     #[test]
-    fn orchard_yields_apples_and_cider_needs_the_press() {
-        let kitchen = monastery_estate_yields(
+    fn fixed_estate_yields_mixed_fruit_house_cider_and_monastic_mead() {
+        let base = monastery_estate_yields(
             MONASTERY_EXTENSION_INFIRMARY | MONASTERY_EXTENSION_SCRIPTORIUM,
             MONASTERY_ORCHARD_APPLES,
             MONASTERY_CROFT_VEGETABLES,
             MONASTERY_ORCHARD_MATURITY_MATURE,
         );
-        assert!(kitchen.apples > 0.0 && kitchen.vegetables > 0.0);
-        assert_eq!(kitchen.ale, 0.0);
-        assert_eq!(kitchen.wine, 0.0);
-        assert_eq!(kitchen.cider, 0.0);
+        assert!(base.apples > 0.0 && base.pears > 0.0 && base.vegetables > 0.0);
+        assert!(base.cider > 0.0);
+        assert!(base.mead > 0.0);
+        assert_eq!(base.ale, 0.0);
+        assert_eq!(base.wine, 0.0);
 
-        let cider = monastery_estate_yields(
+        let workshop = monastery_estate_yields(
             MONASTERY_EXTENSION_WORKSHOP,
             MONASTERY_ORCHARD_APPLES,
-            MONASTERY_CROFT_BARLEY,
+            MONASTERY_CROFT_VEGETABLES,
             MONASTERY_ORCHARD_MATURITY_MATURE,
         );
-        assert!(cider.cider > 0.0);
+        let workshop_without_extension = monastery_estate_yields(
+            0,
+            MONASTERY_ORCHARD_APPLES,
+            MONASTERY_CROFT_VEGETABLES,
+            MONASTERY_ORCHARD_MATURITY_MATURE,
+        );
+        assert!(workshop.cider > workshop_without_extension.cider);
+        assert!(workshop.mead > workshop_without_extension.mead);
     }
 
     #[test]
@@ -440,7 +438,7 @@ mod tests {
         );
         assert!(monastery_orchard_replanting_allowed(12));
         assert!(!monastery_orchard_replanting_allowed(6));
-        assert!(monastery_croft_choice_allowed(2));
+        assert!(!monastery_croft_choice_allowed(2));
         assert!(!monastery_croft_choice_allowed(3));
     }
 

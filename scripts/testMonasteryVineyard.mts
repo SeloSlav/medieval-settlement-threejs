@@ -52,7 +52,11 @@ const cargo = source('server/src/simulation/delivery_cargo.rs');
 const tavernCargo = cargo.match(/for beverage in \[[\s\S]*?\] \{/)?.[0] ?? '';
 assert.match(tavernCargo, /CommodityKind::Cider[\s\S]*CommodityKind::PearCider[\s\S]*CommodityKind::Ale/);
 assert.doesNotMatch(tavernCargo, /CommodityKind::Wine/);
-assert.match(cargo, /ResidenceNeedKind::Luxury => building\.wine/);
+assert.match(cargo, /ResidenceNeedKind::Luxury => building\.wine \+ building\.honey/);
+assert.match(
+  cargo,
+  /ResidenceNeedKind::Luxury => \{[\s\S]*CommodityKind::Wine[\s\S]*CommodityKind::Honey/,
+);
 
 const householdDistribution = source('server/src/simulation/household_distribution.rs');
 assert.match(householdDistribution, /MARKET_NEEDS[\s\S]*ResidenceNeedKind::Luxury/);
@@ -66,15 +70,19 @@ assert.doesNotMatch(buildMenu, /entry\('vineyard'\)/);
 const inspector = source('src/resources/inspector/expandedBuildingRenderer.ts');
 assert.match(inspector, /data-land-parcel="vineyard"/);
 assert.match(inspector, /Add vineyard parcel/);
-assert.match(inspector, /as many free-form vineyard parcels/);
-assert.match(inspector, /nearest accepting granary/);
+assert.match(inspector, /Vineyards are the one deliberate physical exception/);
+assert.match(inspector, /separate visible vintner and wine cellar/);
+assert.match(inspector, /grapes into actual wine/);
 assert.doesNotMatch(inspector, /data-vineyard-production-policy/);
+assert.doesNotMatch(inspector, /data-monastery-croft-choice|apple-versus-pear[^<]*button/);
 const app = source('src/app/appBootstrap.ts');
 assert.match(app, /beginLinkedLandParcelPlacement\('vineyard', monasteryId\)/);
 
 const workers = source('src/settlement/workerPaths.ts');
 assert.match(workers, /vineyardParcels\?: Iterable<VineyardParcelState>/);
-assert.match(workers, /parcel\.monasteryId !== building\.id/);
+assert.match(workers, /parcel\.monasteryId === building\.id/);
 assert.match(workers, /:monastery:vineyard:\$\{parcel\.id\}:center/);
+assert.match(workers, /id: 'mead-brewhouse'/);
+assert.match(workers, /id: 'vintner'[\s\S]*requiresVineyard: true/);
 
 console.log('monastery vineyard extension, monk cart, market wine, and Tier 4 luxury checks passed');

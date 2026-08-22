@@ -74,7 +74,7 @@ assert.equal(granaryFreshFoodTarget(-10, 75), 0);
 assert.equal(granaryFreshFoodTarget(Number.NaN, 75), 0);
 
 const legacyPanel = renderGranaryPolicyPanel(makeGranary());
-assert.match(legacyPanel, /Collect fresh and cured surplus/);
+assert.match(legacyPanel, /Choose exactly which harvests and provisions this Granary may receive/);
 assert.match(legacyPanel, /Cured provisions retain best in their smokehouse loft/);
 assert.match(legacyPanel, /Fresh-food intake target/);
 assert.match(

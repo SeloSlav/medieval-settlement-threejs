@@ -222,6 +222,13 @@ pub fn step_storehouse_market_stalls(
                 TIMBER_DELIVERY_UNLOAD_SEC,
                 2.0,
             ),
+            (
+                CommodityKind::Remedies,
+                storehouse.remedies,
+                TIMBER_DELIVERY_SPEED_MPS,
+                TIMBER_DELIVERY_UNLOAD_SEC,
+                2.0,
+            ),
         ] {
             if stock <= 1e-6 || building_has_active_trip(ctx, storehouse.id) {
                 continue;

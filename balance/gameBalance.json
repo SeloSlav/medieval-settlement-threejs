@@ -783,11 +783,10 @@
     "monasteryPilgrimageGoldPerDay": 2,
     "monasteryHospitalityBonusGoldPerDay": 1.5,
     "monasteryHospitalityHoneyPerDay": 0.8,
-    "monasteryHospitalityWinePerDay": 0.5,
+    "monasteryHospitalityDrinkPerDay": 0.5,
     "monasteryFeastFood": 18,
-    "monasteryFeastAle": 10,
+    "monasteryFeastDrink": 10,
     "monasteryFeastHoney": 4,
-    "monasteryFeastWine": 3,
     "monasteryUnlinkedProductivity": 0.45,
     "monasteryCoverageRadius": 520,
     "monasteryTitheShareDefault": 0.3,
@@ -1512,7 +1511,8 @@
         "hides": 180,
         "leather": 180,
         "shoes": 180,
-        "pottery": 180
+        "pottery": 180,
+        "remedies": 96
       },
       "workRadius": 0,
       "pickRadius": 10,
@@ -1644,7 +1644,7 @@
     "monastery": {
       "label": "Pauline monastery",
       "cost": { "timber": 90, "stone": 150, "ironwork": 8, "roofTiles": 72 },
-      "storage": { "timber": 0, "firewood": 0, "stone": 0, "grain": 180, "ale": 120, "cider": 80, "food": 180, "preservedFood": 80, "honey": 160, "wine": 120 },
+      "storage": { "timber": 0, "firewood": 0, "stone": 0, "grain": 180, "cider": 80, "mead": 120, "food": 180, "preservedFood": 80, "honey": 160, "wine": 120 },
       "workRadius": 0,
       "pickRadius": 15,
       "harvestInterval": 12,

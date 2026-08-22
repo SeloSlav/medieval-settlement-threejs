@@ -5,7 +5,6 @@ import {
   MONASTERY_EXTENSION_WORKSHOP,
   monasteryHasExtension,
   monasteryVisualEstateLevel,
-  normalizeMonasteryCroftPlanting,
 } from '../monasteryEstate.ts';
 import {
   addMesh,
@@ -31,7 +30,6 @@ const grass = sharedBuildingDetailMaterial('foliage');
 const earth = sharedBuildingDetailMaterial('earth');
 const foliage = sharedBuildingDetailMaterial('foliage');
 const copper = sharedBuildingDetailMaterial('brass');
-const crop = sharedBuildingDetailMaterial('crop');
 
 function addStoneWallRun(
   parent: THREE.Group,
@@ -297,9 +295,11 @@ function addCirculation(parent: THREE.Group, plan: MonasteryPrecinctPlan): void 
 
 function addPasture(parent: THREE.Group, zone: MonasteryPlanRect, level: number): void {
   const pasture = new THREE.Group();
-  pasture.name = 'Monastery protected cattle pasture';
+  pasture.name = 'Monastery protected cattle and sheep pasture';
   pasture.userData.architectureModule = zone.id;
   pasture.userData.reservedArea = zone.width * zone.depth;
+  pasture.userData.canonicalLivestock = ['cattle', 'sheep'];
+  pasture.userData.canonicalOutputs = ['meat', 'milk', 'cheese'];
   addMesh(
     pasture,
     new THREE.BoxGeometry(zone.width, 0.035, zone.depth),
@@ -365,7 +365,7 @@ function addReservedUpgradePlot(
 
 function placeGarden(
   parent: THREE.Group,
-  kind: 'apple_orchard' | 'vegetable_garden' | 'herb_garden' | 'flower_garden' | 'chicken_pen' | 'goat_pen' | 'backyard_apiary',
+  kind: 'apple_orchard' | 'pear_orchard' | 'vegetable_garden' | 'herb_garden' | 'flower_garden' | 'chicken_pen' | 'goat_pen' | 'backyard_apiary',
   name: string,
   zone: MonasteryPlanRect,
   seed: number,
@@ -378,46 +378,65 @@ function placeGarden(
   return garden;
 }
 
-function placeBarleyCroft(parent: THREE.Group, zone: MonasteryPlanRect): void {
-  const croft = new THREE.Group();
-  croft.name = 'Monastery brewing barley croft';
-  croft.userData.architectureModule = zone.id;
-  addMesh(
-    croft,
-    new THREE.BoxGeometry(zone.width - 0.3, 0.05, zone.depth - 0.3),
-    earth,
-    new THREE.Vector3(zone.centerX, 0.045, zone.centerZ),
-  ).name = 'Monastery barley soil';
-  const geometry = new THREE.CylinderGeometry(0.018, 0.03, 0.72, 5);
-  const barley = new THREE.InstancedMesh(geometry, crop, 112);
-  barley.name = 'Monastery planted barley';
-  barley.userData.staticFixtureBatchExclude = true;
-  const transform = new THREE.Matrix4();
-  let instance = 0;
-  for (let row = 0; row < 8; row += 1) {
-    for (let column = 0; column < 14; column += 1) {
-      const x = zone.centerX - zone.width * 0.43 + column * (zone.width * 0.86 / 13);
-      const z = zone.centerZ - zone.depth * 0.4 + row * (zone.depth * 0.8 / 7);
-      transform.makeTranslation(x, 0.4 + ((row + column) % 3) * 0.025, z);
-      barley.setMatrixAt(instance, transform);
-      instance += 1;
-    }
-  }
-  barley.instanceMatrix.needsUpdate = true;
-  croft.add(barley);
-  parent.add(croft);
+function placeMixedOrchard(
+  parent: THREE.Group,
+  zone: MonasteryPlanRect,
+): THREE.Group {
+  const orchard = new THREE.Group();
+  orchard.name = 'Monastery mixed apple and pear orchard';
+  orchard.userData.architectureModule = zone.id;
+  orchard.userData.canonicalOutputs = ['apples', 'pears', 'cider'];
+  const rowWidth = (zone.width - 0.6) * 0.5;
+  const rowOffset = rowWidth * 0.5 + 0.15;
+  const appleZone = { ...zone, centerX: -rowOffset, centerZ: 0, width: rowWidth };
+  const pearZone = { ...zone, centerX: rowOffset, centerZ: 0, width: rowWidth };
+  placeGarden(orchard, 'apple_orchard', 'Monastery apple orchard rows', appleZone, 8301);
+  placeGarden(orchard, 'pear_orchard', 'Monastery pear orchard rows', pearZone, 8308);
+  orchard.position.set(zone.centerX, 0, zone.centerZ);
+  parent.add(orchard);
+  return orchard;
 }
 
 function addAnimal(
   parent: THREE.Group,
-  species: 'cow' | 'pig',
+  species: 'cow' | 'sheep' | 'pig',
   x: number,
   z: number,
   heading: number,
   variant: number,
 ): void {
   const animal = new THREE.Group();
-  animal.name = species === 'cow' ? 'Monastery dairy cow' : 'Monastery pig';
+  animal.name = species === 'cow'
+    ? 'Monastery dairy cow'
+    : species === 'sheep'
+      ? 'Monastery pasture sheep'
+      : 'Monastery pig';
+  if (species === 'sheep') {
+    const wool = residenceFacadeMaterial(variant % 3 === 0 ? 'yellow' : 'white');
+    const dark = timberMaterial('dark');
+    for (const zOffset of [-0.34, 0, 0.34]) {
+      addMesh(
+        animal,
+        new THREE.SphereGeometry(0.48, 9, 7),
+        wool,
+        new THREE.Vector3(0, 0.67, zOffset),
+        new THREE.Euler(),
+        new THREE.Vector3(0.9, 0.92, 1.05),
+      );
+    }
+    addMesh(animal, new THREE.SphereGeometry(0.3, 9, 6), dark, new THREE.Vector3(0, 0.72, 0.77), new THREE.Euler(), new THREE.Vector3(0.76, 0.9, 1.0));
+    for (const xSign of [-1, 1] as const) {
+      addMesh(animal, new THREE.ConeGeometry(0.11, 0.3, 5), dark, new THREE.Vector3(xSign * 0.28, 0.86, 0.74), new THREE.Euler(0, 0, xSign * 0.9));
+    }
+    for (const legX of [-0.26, 0.26]) for (const legZ of [-0.32, 0.32]) {
+      addMesh(animal, new THREE.CylinderGeometry(0.055, 0.07, 0.45, 6), dark, new THREE.Vector3(legX, 0.23, legZ));
+    }
+    animal.userData.canonicalProducts = ['meat', 'milk', 'cheese'];
+    animal.position.set(x, 0, z);
+    animal.rotation.y = heading;
+    parent.add(animal);
+    return;
+  }
   const bodyMaterial = species === 'cow'
     ? residenceFacadeMaterial(variant % 2 === 0 ? 'white' : 'orange')
     : residenceFacadeMaterial('lightOrange');
@@ -428,16 +447,20 @@ function addAnimal(
   for (const legX of [-0.34, 0.34]) for (const legZ of [-0.48, 0.48]) {
     addMesh(animal, new THREE.CylinderGeometry(0.075, 0.09, species === 'cow' ? 0.72 : 0.38, 6), bodyMaterial, new THREE.Vector3(legX, species === 'cow' ? 0.36 : 0.2, legZ));
   }
+  animal.userData.canonicalProducts = species === 'cow'
+    ? ['meat', 'milk', 'cheese']
+    : ['meat'];
   animal.position.set(x, 0, z);
   animal.rotation.y = heading;
   parent.add(animal);
 }
 
-function addBrewhouse(parent: THREE.Group, level: number, zone: MonasteryPlanRect): void {
+function addMeadBrewhouse(parent: THREE.Group, level: number, zone: MonasteryPlanRect): void {
   const yard = new THREE.Group();
-  yard.name = 'Monastery brewhouse and cellar yard';
+  yard.name = 'Monastery mead brewhouse and honey cellar';
   yard.position.set(zone.centerX, 0, zone.centerZ);
   yard.userData.architectureModule = zone.id;
+  yard.userData.canonicalOutput = 'monastic mead from the estate apiary';
   const shell = addGableShell(yard, {
     width: zone.width,
     depth: zone.depth,
@@ -456,14 +479,66 @@ function addBrewhouse(parent: THREE.Group, level: number, zone: MonasteryPlanRec
     position: new THREE.Vector3(5.0, 2.35, 0.2),
     pitch: 0.12,
     highEdge: 'negativeX',
-    name: 'Monastery open brewing bay',
+    name: 'Monastery open mead brewing bay',
   });
   addMesh(yard, new THREE.SphereGeometry(0.82, 12, 8), copper, new THREE.Vector3(5.0, 0.95, 0.2), new THREE.Euler(), new THREE.Vector3(1, 1.1, 1));
   addMesh(yard, new THREE.CylinderGeometry(0.14, 0.14, 1.55, 8), copper, new THREE.Vector3(5.0, 1.95, 0.2));
+  const ciderPress = new THREE.Group();
+  ciderPress.name = 'Monastery orchard cider press and cellar bay';
+  ciderPress.position.set(-5.0, 0, 0.2);
+  ciderPress.userData.physicalProduction = 'mixed apple and pear orchard fruit to house cider';
+  addLeanToRoof(ciderPress, {
+    width: 3.8,
+    depth: 3.0,
+    thickness: 0.14,
+    material: shingleMaterial(),
+    position: new THREE.Vector3(0, 2.2, 0),
+    pitch: 0.12,
+    highEdge: 'positiveX',
+    name: 'Monastery open orchard pressing bay',
+  });
+  for (const postX of [-1.55, 1.55]) for (const postZ of [-1.15, 1.15]) {
+    addMesh(ciderPress, new THREE.BoxGeometry(0.16, 2.15, 0.16), timberMaterial('dark'), new THREE.Vector3(postX, 1.08, postZ));
+  }
+  addMesh(ciderPress, new THREE.CylinderGeometry(0.72, 0.72, 0.34, 12), timberMaterial('weathered'), new THREE.Vector3(0, 0.27, 0));
+  addMesh(ciderPress, new THREE.CylinderGeometry(0.12, 0.12, 1.7, 8), timberMaterial('dark'), new THREE.Vector3(0, 1.28, 0));
+  addMesh(ciderPress, new THREE.BoxGeometry(2.25, 0.18, 0.22), timberMaterial('weathered'), new THREE.Vector3(0.38, 2.02, 0), new THREE.Euler(0, 0, -0.12));
+  addBarrel(ciderPress, -1.15, 0.72, 0.72);
+  yard.add(ciderPress);
   for (let index = 0; index < 3 + level * 2; index += 1) {
     addBarrel(yard, -3.2 + (index % 4) * 1.05, 4.0 + Math.floor(index / 4) * 1.0, 0.92);
   }
   parent.add(yard);
+}
+
+function addVintner(parent: THREE.Group, zone: MonasteryPlanRect): void {
+  const vintner = new THREE.Group();
+  vintner.name = 'Monastery vintner and wine cellar';
+  vintner.position.set(zone.centerX, 0, zone.centerZ);
+  vintner.userData.architectureModule = zone.id;
+  vintner.userData.physicalProduction = 'vineyard grapes to wine';
+  const shell = addGableShell(vintner, {
+    width: zone.width,
+    depth: zone.depth,
+    stoneHeight: 1.0,
+    wallHeight: 2.5,
+    ridgeHeight: 1.9,
+    wallMaterial: residenceFacadeMaterial('white'),
+    roofMaterial: shingleMaterial(),
+  });
+  addPlankDoor(vintner, 0, 1.0, shell.frontZ + 0.03, 1.0, 1.8);
+  const press = new THREE.Group();
+  press.name = 'Monastery vintner screw press';
+  press.position.set(1.45, 0, shell.frontZ + 0.9);
+  addMesh(press, new THREE.CylinderGeometry(0.92, 0.92, 0.42, 12), timberMaterial('weathered'), new THREE.Vector3(0, 0.32, 0));
+  addMesh(press, new THREE.CylinderGeometry(0.15, 0.15, 2.15, 8), timberMaterial('dark'), new THREE.Vector3(0, 1.45, 0));
+  addMesh(press, new THREE.BoxGeometry(2.7, 0.2, 0.26), timberMaterial('weathered'), new THREE.Vector3(0.45, 2.35, 0), new THREE.Euler(0, 0, -0.12));
+  addMesh(press, new THREE.CylinderGeometry(0.36, 0.44, 0.62, 10), metalMaterial('iron'), new THREE.Vector3(0, 0.8, 0));
+  vintner.add(press);
+  for (let index = 0; index < 3; index += 1) {
+    addBarrel(vintner, -1.45 + index * 1.0, shell.frontZ + 0.9, 0.84);
+  }
+  parent.add(vintner);
 }
 
 function addAgriculturalArchive(parent: THREE.Group, level: number, zone: MonasteryPlanRect): void {
@@ -513,7 +588,6 @@ function addAgriculturalArchive(parent: THREE.Group, level: number, zone: Monast
 function addInvestmentBuildings(
   parent: THREE.Group,
   plan: MonasteryPrecinctPlan,
-  croftPlanting: 0 | 1,
   extensions: number,
 ): void {
   const { level } = plan;
@@ -522,9 +596,7 @@ function addInvestmentBuildings(
   const dairyZone = monasteryPlanZone(plan, 'dairy-upgrade');
   {
     const dairy = new THREE.Group();
-    dairy.name = croftPlanting === 0
-      ? 'Monastery estate root cellar'
-      : 'Monastery expanded brewhouse and malt store';
+    dairy.name = 'Monastery estate workshop and root cellar';
     dairy.position.set(dairyZone.centerX, 0, dairyZone.centerZ);
     dairy.userData.architectureModule = dairyZone.id;
     const shell = addGableShell(dairy, {
@@ -537,20 +609,8 @@ function addInvestmentBuildings(
       roofMaterial: shingleMaterial(),
     });
     addPlankDoor(dairy, 0, 0.95, shell.frontZ + 0.03, 1.0, 1.75);
+    addMesh(dairy, new THREE.BoxGeometry(2.8, 0.18, 0.86), timberMaterial('weathered'), new THREE.Vector3(1.3, 0.92, shell.frontZ + 0.7)).name = 'Monastery estate workshop bench';
     parent.add(dairy);
-  }
-
-  const pressZone = monasteryPlanZone(plan, 'apple-press-upgrade');
-  {
-    const press = new THREE.Group();
-    press.name = 'Monastery invested cider press';
-    press.position.set(pressZone.centerX, 0, pressZone.centerZ);
-    press.userData.architectureModule = pressZone.id;
-    addMesh(press, new THREE.CylinderGeometry(1.2, 1.2, 0.5, 12), stoneMaterial('mid'), new THREE.Vector3(0, 0.25, 0));
-    addMesh(press, new THREE.CylinderGeometry(0.18, 0.18, 2.6, 8), timberMaterial('dark'), new THREE.Vector3(0, 1.55, 0));
-    addMesh(press, new THREE.BoxGeometry(3.3, 0.22, 0.28), timberMaterial('weathered'), new THREE.Vector3(0.65, 2.55, 0), new THREE.Euler(0, 0, -0.18));
-    addMesh(press, new THREE.CylinderGeometry(0.42, 0.5, 0.7, 10), metalMaterial('iron'), new THREE.Vector3(0, 0.8, 0));
-    parent.add(press);
   }
 }
 
@@ -574,8 +634,9 @@ export function createMonasteryEstateMesh(
   const extensions = Math.max(0, Math.floor(rawExtensions));
   const level = monasteryVisualEstateLevel(extensions);
   void rawOrchardPlanting;
+  void rawCroftPlanting;
   const orchardPlanting = 0 as const;
-  const croftPlanting = normalizeMonasteryCroftPlanting(rawCroftPlanting);
+  const croftPlanting = 0 as const;
   const orchardMaturity = Math.max(0, Math.min(2, Math.floor(rawOrchardMaturity)));
   const plan = createMonasteryPrecinctPlan(level);
   const group = new THREE.Group();
@@ -598,19 +659,16 @@ export function createMonasteryEstateMesh(
       monasteryHasExtension(extensions, MONASTERY_EXTENSION_WORKSHOP) ? 3 : 0,
     );
   }
-  addBrewhouse(group, level, monasteryPlanZone(plan, 'brewhouse'));
-  const orchard = placeGarden(group, 'apple_orchard', 'Monastery apple orchard', monasteryPlanZone(plan, 'orchard'), 8301);
+  addMeadBrewhouse(group, level, monasteryPlanZone(plan, 'brewhouse'));
+  addVintner(group, monasteryPlanZone(plan, 'vintner'));
+  const orchard = placeMixedOrchard(group, monasteryPlanZone(plan, 'orchard'));
   orchard.traverse((object) => {
-    if (!object.name.startsWith('AppleTree:')) return;
+    if (object.userData.backyardMaturityAnchor !== true) return;
     const scale = orchardMaturity === 0 ? 0.35 : orchardMaturity === 1 ? 0.68 : 1;
     object.scale.multiplyScalar(scale);
   });
   placeGarden(group, 'backyard_apiary', 'Monastery bee garden', monasteryPlanZone(plan, 'apiary'), 8302);
-  if (croftPlanting === 0) {
-    placeGarden(group, 'vegetable_garden', 'Monastery kitchen vegetable garden', monasteryPlanZone(plan, 'vegetable-garden'), 8303);
-  } else {
-    placeBarleyCroft(group, monasteryPlanZone(plan, 'vegetable-garden'));
-  }
+  placeGarden(group, 'vegetable_garden', 'Monastery kitchen gardens', monasteryPlanZone(plan, 'vegetable-garden'), 8303);
   placeGarden(group, 'herb_garden', 'Monastery physic herb garden', monasteryPlanZone(plan, 'herb-garden'), 8304);
   placeGarden(group, 'flower_garden', 'Monastery pollinator garden', monasteryPlanZone(plan, 'flower-garden'), 8305);
   placeGarden(group, 'chicken_pen', 'Monastery chicken yard', monasteryPlanZone(plan, 'hen-yard'), 8306);
@@ -624,6 +682,16 @@ export function createMonasteryEstateMesh(
       'cow',
       pasture.centerX - pasture.width * 0.38 + random() * pasture.width * 0.76,
       pasture.centerZ - pasture.depth * 0.34 + random() * pasture.depth * 0.68,
+      random() * Math.PI * 2,
+      index,
+    );
+  }
+  for (let index = 0; index < 4 + level * 2; index += 1) {
+    addAnimal(
+      group,
+      'sheep',
+      pasture.centerX - pasture.width * 0.4 + random() * pasture.width * 0.8,
+      pasture.centerZ - pasture.depth * 0.36 + random() * pasture.depth * 0.72,
       random() * Math.PI * 2,
       index,
     );
@@ -643,7 +711,7 @@ export function createMonasteryEstateMesh(
   for (let index = 0; index < 4 + level * 2; index += 1) {
     addMesh(group, new THREE.SphereGeometry(0.16, 7, 5), foliage, new THREE.Vector3(orchardGround.centerX - 4 + random() * 8, 0.18, orchardGround.centerZ + 1 + random() * 8));
   }
-  addInvestmentBuildings(group, plan, croftPlanting, extensions);
+  addInvestmentBuildings(group, plan, extensions);
   addPerimeterPrecinct(group, plan);
   plan.diagnostics.estateMeshTriangles = countTriangles(group);
   group.userData.architectureDiagnostics = plan.diagnostics;

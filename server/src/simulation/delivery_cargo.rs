@@ -164,7 +164,7 @@ pub fn building_delivery_stock(building: &Building, kind: ResidenceNeedKind) -> 
         ResidenceNeedKind::Cloth => building.cloth,
         ResidenceNeedKind::Shoes => building.shoes,
         ResidenceNeedKind::Pottery => building.pottery,
-        ResidenceNeedKind::Luxury => building.wine,
+        ResidenceNeedKind::Luxury => building.wine + building.honey,
         ResidenceNeedKind::Church | ResidenceNeedKind::FoodVariety => 0.0,
     }
 }
@@ -226,7 +226,11 @@ pub fn withdraw_delivery_cargo(
             withdraw_building_commodity(building, CommodityKind::Pottery, amount)
         }
         ResidenceNeedKind::Luxury => {
-            withdraw_building_commodity(building, CommodityKind::Wine, amount)
+            let mut remaining = amount.max(0.0);
+            let wine_used = withdraw_building_commodity(building, CommodityKind::Wine, remaining);
+            remaining = (remaining - wine_used).max(0.0);
+            let honey_used = withdraw_building_commodity(building, CommodityKind::Honey, remaining);
+            wine_used + honey_used
         }
         ResidenceNeedKind::Church | ResidenceNeedKind::FoodVariety => 0.0,
     }

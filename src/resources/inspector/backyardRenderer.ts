@@ -425,7 +425,7 @@ function renderAnimalPenSpecializationPicker(
       <li><span>Construction</span><span>Complete · no builder assigned</span></li>
       <li><span>Livestock</span><span>Unselected · no production yet</span></li>
     `,
-    supplementalPanelHtml: `<p class="resource-inspector-note">Stocking is permanent until demolition. Chickens favor quick eggs, goats combine milk with occasional meat and hides, and pigs delay all value for a larger pork harvest. Their products retain typed food identity through household storage, Marketplace overflow, spoilage, cheese-making, and meat curing.</p><ul class="backyard-picker-list">${options}</ul>`,
+    supplementalPanelHtml: `<p class="resource-inspector-note">Stocking is permanent until demolition. Chickens favor quick eggs, goats combine milk with occasional meat and hides, and pigs delay all value for a larger pork harvest. Their products retain typed identity through household storage, assigned Granary or Storehouse staging, later Marketplace stocking, spoilage, cheese-making, and meat curing.</p><ul class="backyard-picker-list">${options}</ul>`,
     demolish: {
       visible: true,
       label: 'Demolish animal pen',

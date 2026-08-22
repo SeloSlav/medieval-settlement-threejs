@@ -784,6 +784,16 @@ assert.match(serverStepSource, /_ => Some\(ResidenceNeedKind::Food\)/);
 assert.match(serverStepSource, /CommodityKind::Remedies/);
 assert.match(
   serverStepSource,
+  /fn deposit_backyard_depot_commodity[\s\S]*marketplace_stall_workplace_id_for_deposit[\s\S]*storage_accepts_commodity[\s\S]*deposit_building_commodity\(&mut depot/,
+  'backyard goods must enter the Granary or Storehouse that owns the staffed stall before reaching the square',
+);
+assert.doesNotMatch(
+  serverStepSource,
+  /deposit_building_commodity\(&mut marketplace/,
+  'backyard production must never write commodity stock directly into a Marketplace',
+);
+assert.match(
+  serverStepSource,
   /market_tolls\.sort_by_key[\s\S]*for \(marketplace_id, toll\) in market_tolls/,
   'tax receipts should aggregate and update each serving market once in stable order',
 );
