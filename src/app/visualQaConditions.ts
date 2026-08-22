@@ -104,6 +104,7 @@ export function applyVisualQaEnvironment(
         conditions.season,
         conditions.weather,
       ),
+    groundwaterMultiplier: 1,
     watermillThroughputMultiplier: watermillThroughputForWeather(
       conditions.weather,
     ),
@@ -124,6 +125,7 @@ export function standaloneVisualQaEnvironment(
     snowCoverage: 0,
     deciduousFoliage: deciduousFoliageForSeasonPreview('summer'),
     cropGrowthMultiplier: 1,
+    groundwaterMultiplier: 1,
     firewoodDemandMultiplier: 1,
     pastureCapacityMultiplier: 1,
     freshFoodSpoilageFractionPerDay: 0,

@@ -6,7 +6,12 @@ use crate::balance_generated::{
     FARM_FIELD_SETUP_WORK_PER_STAGE, FARM_FIELD_TRAVEL_WORK_PER_METER_PER_STAGE,
     FARM_HARVEST_WORK_PER_SQUARE_METER, FARM_MANURE_FERTILITY_BONUS, FARM_MANURE_PER_SQUARE_METER,
     FARM_PLOUGH_WORK_PER_SQUARE_METER, FARM_SHARED_LABOR_MIN_PRIORITY,
-    FARM_SLOPE_PENALTY_PER_DEGREE, FARM_SOW_WORK_PER_SQUARE_METER,
+    FARM_REGIONAL_AFFINITY_FLOOR, FARM_REGIONAL_ASPECT_RATIO,
+    FARM_REGIONAL_CENTER_RADIUS_RATIO, FARM_REGIONAL_CORE_RADIUS_RATIO,
+    FARM_REGIONAL_PRIME_CROPS_LARGE, FARM_REGIONAL_PRIME_CROPS_MEDIUM,
+    FARM_REGIONAL_PRIME_CROPS_SMALL, FARM_REGIONAL_UNREPRESENTED_CEILING,
+    FARM_REGIONAL_YIELD_FLOOR, FARM_SLOPE_PENALTY_PER_DEGREE,
+    FARM_SOW_WORK_PER_SQUARE_METER,
 };
 use crate::burgage::{Point2, ZoneCorners};
 
@@ -187,6 +192,17 @@ pub struct ArableLandConditions {
     pub depth: f64,
 }
 
+#[derive(Clone, Copy, Debug)]
+pub struct CropRegionalProfile {
+    pub rank: i32,
+    pub represented: bool,
+    pub center_x: f64,
+    pub center_z: f64,
+    pub province_strength: f64,
+    pub affinity: f64,
+    pub yield_multiplier: f64,
+}
+
 /// Broad deterministic soil pockets mirrored by the client placement overlay.
 pub fn arable_land_conditions(x: f64, z: f64) -> ArableLandConditions {
     let texture = (0.5
@@ -232,6 +248,99 @@ pub fn crop_soil_suitability(crop: u8, x: f64, z: f64) -> f64 {
     (texture_suitability * depth_suitability).clamp(0.0, 1.0)
 }
 
+/// Seeded map-scale comparative advantage layered over physical land quality.
+/// Small, medium, and large maps expose 3, 4, and 5 genuinely prime crops;
+/// absent specialties remain possible at inefficient subsistence output.
+pub fn crop_regional_profile(
+    crop: u8,
+    x: f64,
+    z: f64,
+    world_seed: u64,
+    map_size: u8,
+) -> CropRegionalProfile {
+    let crop_index = match crop {
+        CROP_RYE => 0_i32,
+        CROP_OATS => 1_i32,
+        CROP_BARLEY => 2_i32,
+        CROP_FLAX => 3_i32,
+        CROP_WHEAT => 4_i32,
+        _ => {
+            return CropRegionalProfile {
+                rank: -1,
+                represented: true,
+                center_x: 0.0,
+                center_z: 0.0,
+                province_strength: 1.0,
+                affinity: 1.0,
+                yield_multiplier: 1.0,
+            }
+        }
+    };
+    let layout_hash = regional_seed_hash(world_seed, 0xa511_e9b3);
+    let rotation = (layout_hash % 5) as i32;
+    let direction = if layout_hash & 0x100 == 0 { 1_i32 } else { -1_i32 };
+    let rank = (direction * (crop_index - rotation)).rem_euclid(5);
+    let generation_half = generation_half_for_map_size(map_size);
+    let base_angle = regional_seed_hash(world_seed, 0x63d8_35f1) as f64
+        / 4_294_967_296.0
+        * std::f64::consts::TAU;
+    let province_angle = if rank == 0 {
+        base_angle
+    } else {
+        base_angle + (rank - 1) as f64 * std::f64::consts::FRAC_PI_2
+    };
+    let center_distance = if rank == 0 {
+        0.0
+    } else {
+        generation_half * FARM_REGIONAL_CENTER_RADIUS_RATIO
+    };
+    let center_x = province_angle.cos() * center_distance;
+    let center_z = province_angle.sin() * center_distance;
+    let long_axis_angle = if rank == 0 {
+        base_angle
+    } else {
+        province_angle + std::f64::consts::FRAC_PI_2
+    };
+    let dx = if x.is_finite() { x } else { 0.0 } - center_x;
+    let dz = if z.is_finite() { z } else { 0.0 } - center_z;
+    let along = dx * long_axis_angle.cos() + dz * long_axis_angle.sin();
+    let across = -dx * long_axis_angle.sin() + dz * long_axis_angle.cos();
+    let core_radius = (generation_half * FARM_REGIONAL_CORE_RADIUS_RATIO).max(1.0);
+    let scaled_distance = ((along / (core_radius * FARM_REGIONAL_ASPECT_RATIO)).powi(2)
+        + (across / core_radius).powi(2))
+    .sqrt();
+    let province_strength = 1.0 - smoothstep(0.22, 1.15, scaled_distance);
+    let represented = rank < i32::from(regional_prime_crop_count(map_size));
+    let affinity_ceiling = if represented {
+        1.0
+    } else {
+        FARM_REGIONAL_UNREPRESENTED_CEILING
+    };
+    let affinity = FARM_REGIONAL_AFFINITY_FLOOR
+        + (affinity_ceiling - FARM_REGIONAL_AFFINITY_FLOOR) * province_strength;
+    let yield_multiplier = FARM_REGIONAL_YIELD_FLOOR
+        + (1.0 - FARM_REGIONAL_YIELD_FLOOR) * affinity;
+    CropRegionalProfile {
+        rank,
+        represented,
+        center_x,
+        center_z,
+        province_strength,
+        affinity,
+        yield_multiplier,
+    }
+}
+
+pub fn crop_regional_suitability(
+    crop: u8,
+    x: f64,
+    z: f64,
+    world_seed: u64,
+    map_size: u8,
+) -> f64 {
+    crop_regional_profile(crop, x, z, world_seed, map_size).affinity
+}
+
 pub fn crop_slope_suitability(crop: u8, average_slope_degrees: f64) -> f64 {
     (1.0 - average_slope_degrees.max(0.0)
         * FARM_SLOPE_PENALTY_PER_DEGREE
@@ -239,13 +348,21 @@ pub fn crop_slope_suitability(crop: u8, average_slope_degrees: f64) -> f64 {
         .clamp(0.35, 1.0)
 }
 
-pub fn crop_environmental_suitability(crop: u8, groundwater: f64, x: f64, z: f64) -> f64 {
+pub fn crop_environmental_suitability(
+    crop: u8,
+    groundwater: f64,
+    x: f64,
+    z: f64,
+    world_seed: u64,
+    map_size: u8,
+) -> f64 {
     if crop_definition(crop).produce == FarmCropProduce::None {
         return 1.0;
     }
     let moisture = moisture_suitability(crop, effective_field_moisture(groundwater, x, z));
     let soil = crop_soil_suitability(crop, x, z);
-    moisture * 0.42 + soil * 0.58
+    let local_suitability = moisture * 0.42 + soil * 0.58;
+    local_suitability * crop_regional_profile(crop, x, z, world_seed, map_size).yield_multiplier
 }
 
 /// Predicts the soil quality of newly cleared arable land from the same
@@ -271,8 +388,10 @@ pub fn yield_suitability(
     shape: f64,
     x: f64,
     z: f64,
+    world_seed: u64,
+    map_size: u8,
 ) -> f64 {
-    crop_environmental_suitability(crop, moisture, x, z)
+    crop_environmental_suitability(crop, moisture, x, z, world_seed, map_size)
         * fertility.clamp(0.2, 1.0)
         * crop_slope_suitability(crop, average_slope_degrees)
         * shape.clamp(0.72, 1.0)
@@ -287,6 +406,8 @@ pub fn expected_grain_yield(
     shape: f64,
     x: f64,
     z: f64,
+    world_seed: u64,
+    map_size: u8,
 ) -> f64 {
     let definition = crop_definition(crop);
     if definition.produce == FarmCropProduce::None {
@@ -303,7 +424,37 @@ pub fn expected_grain_yield(
             shape,
             x,
             z,
+            world_seed,
+            map_size,
         )
+}
+
+fn regional_seed_hash(seed: u64, salt: u32) -> u32 {
+    let mut hash = seed as u32 ^ salt;
+    hash = (hash ^ (hash >> 16)).wrapping_mul(0x7feb_352d);
+    hash = (hash ^ (hash >> 15)).wrapping_mul(0x846c_a68b);
+    hash ^ (hash >> 16)
+}
+
+fn generation_half_for_map_size(map_size: u8) -> f64 {
+    match map_size {
+        0 => 310.0,
+        2 => 876.812_408_671_318_9,
+        _ => 620.0,
+    }
+}
+
+fn regional_prime_crop_count(map_size: u8) -> u8 {
+    match map_size {
+        0 => FARM_REGIONAL_PRIME_CROPS_SMALL,
+        2 => FARM_REGIONAL_PRIME_CROPS_LARGE,
+        _ => FARM_REGIONAL_PRIME_CROPS_MEDIUM,
+    }
+}
+
+fn smoothstep(edge0: f64, edge1: f64, value: f64) -> f64 {
+    let t = ((value - edge0) / (edge1 - edge0).max(1e-9)).clamp(0.0, 1.0);
+    t * t * (3.0 - 2.0 * t)
 }
 
 pub fn work_required(
@@ -492,6 +643,8 @@ mod tests {
             1.0,
             0.0,
             0.0,
+            0x071a_2e0d,
+            1,
         );
         let large_area = small_area * 2.0;
         let large_yield = expected_grain_yield(
@@ -503,6 +656,8 @@ mod tests {
             1.0,
             0.0,
             0.0,
+            0x071a_2e0d,
+            1,
         );
         assert!((large_yield - small_yield * 2.0).abs() < 1e-9);
 
@@ -568,8 +723,12 @@ mod tests {
             (190.0, 240.0),
             (320.0, -140.0),
         ];
-        let rye_scores = sites.map(|(x, z)| crop_environmental_suitability(CROP_RYE, 0.0, x, z));
-        let oats_scores = sites.map(|(x, z)| crop_environmental_suitability(CROP_OATS, 0.0, x, z));
+        let rye_scores = sites.map(|(x, z)| {
+            crop_environmental_suitability(CROP_RYE, 0.0, x, z, 0x071a_2e0d, 1)
+        });
+        let oats_scores = sites.map(|(x, z)| {
+            crop_environmental_suitability(CROP_OATS, 0.0, x, z, 0x071a_2e0d, 1)
+        });
         assert_ne!(rye_scores, oats_scores);
         assert!(
             rye_scores.iter().copied().fold(f64::MIN, f64::max)
@@ -582,13 +741,51 @@ mod tests {
                 > 0.08
         );
         assert!(
-            crop_environmental_suitability(CROP_OATS, 0.7, 0.0, 0.0)
-                > crop_environmental_suitability(CROP_OATS, 0.0, 0.0, 0.0)
+            crop_environmental_suitability(CROP_OATS, 0.7, 0.0, 0.0, 0x071a_2e0d, 1)
+                > crop_environmental_suitability(CROP_OATS, 0.0, 0.0, 0.0, 0x071a_2e0d, 1)
         );
         assert!(
-            crop_environmental_suitability(CROP_RYE, 0.0, 0.0, 0.0)
-                > crop_environmental_suitability(CROP_RYE, 0.7, 0.0, 0.0)
+            crop_environmental_suitability(CROP_RYE, 0.0, 0.0, 0.0, 0x071a_2e0d, 1)
+                > crop_environmental_suitability(CROP_RYE, 0.7, 0.0, 0.0, 0x071a_2e0d, 1)
         );
+    }
+
+    #[test]
+    fn map_size_progressively_unlocks_distinct_prime_crop_provinces() {
+        let crops = [CROP_RYE, CROP_OATS, CROP_BARLEY, CROP_FLAX, CROP_WHEAT];
+        for (map_size, expected_prime_crops) in [(0, 3), (1, 4), (2, 5)] {
+            let profiles = crops.map(|crop| {
+                let placement = crop_regional_profile(crop, 0.0, 0.0, 0x071a_2e0d, map_size);
+                crop_regional_profile(
+                    crop,
+                    placement.center_x,
+                    placement.center_z,
+                    0x071a_2e0d,
+                    map_size,
+                )
+            });
+            assert_eq!(
+                profiles.iter().filter(|profile| profile.represented).count(),
+                expected_prime_crops
+            );
+            for profile in profiles {
+                assert!(profile.province_strength > 0.999_999);
+                if profile.represented {
+                    assert!(profile.affinity > 0.999_999);
+                    assert!(profile.yield_multiplier > 0.999_999);
+                } else {
+                    assert!(profile.affinity <= FARM_REGIONAL_UNREPRESENTED_CEILING + 1e-9);
+                    assert!(profile.yield_multiplier < 0.71);
+                }
+            }
+        }
+
+        let parity_fixture =
+            crop_regional_profile(CROP_FLAX, 123.5, -87.25, 0x071a_2e0d, 2);
+        assert_eq!(parity_fixture.rank, 0);
+        assert!((parity_fixture.province_strength - 0.871_211_802_324_760_8).abs() < 1e-12);
+        assert!((parity_fixture.affinity - 0.884_090_622_092_284_7).abs() < 1e-12);
+        assert!((parity_fixture.yield_multiplier - 0.932_772_560_813_525_1).abs() < 1e-12);
     }
 
     #[test]

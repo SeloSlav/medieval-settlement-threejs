@@ -286,7 +286,7 @@ export class BuildToolbar {
           <header class="construction-menu__header">
             <span>Build</span>
             <strong data-build-category-title>Civic</strong>
-            <small data-build-category-hint>Water and settlement government</small>
+            <small data-build-category-hint>Homes, water, and settlement government</small>
           </header>
           <button type="button" class="construction-menu__scroll construction-menu__scroll--previous" data-build-menu-scroll="previous" aria-label="Scroll buildings left" disabled><span aria-hidden="true">&#8249;</span></button>
           <div class="construction-menu__viewport" data-build-menu-viewport>
@@ -313,7 +313,7 @@ export class BuildToolbar {
           <div class="map-overlay-menu__modes">
             <button type="button" class="map-overlay-option" data-overlay-mode="water" aria-pressed="false">
               <span class="map-overlay-option__icon map-overlay-option__icon--water" aria-hidden="true"></span>
-              <span><strong>Water</strong><small>Wells &amp; watermills</small></span>
+              <span><strong>Groundwater</strong><small>Well aquifers</small></span>
             </button>
             <button type="button" class="map-overlay-option" data-overlay-mode="wind" aria-pressed="false">
               <span class="map-overlay-option__icon map-overlay-option__icon--wind" aria-hidden="true"></span>
@@ -321,7 +321,7 @@ export class BuildToolbar {
             </button>
             <button type="button" class="map-overlay-option" data-overlay-mode="fertility" aria-pressed="false">
               <span class="map-overlay-option__icon map-overlay-option__icon--fertility" aria-hidden="true"></span>
-              <span><strong>Fertility</strong><small>Crop-specific potential</small></span>
+              <span><strong>Fertility</strong><small>Soil &amp; crop provinces</small></span>
             </button>
           </div>
           <div class="map-overlay-crops" data-overlay-crop-picker hidden aria-label="Fertility crop">
@@ -620,15 +620,15 @@ export class BuildToolbar {
       this.cropSuitabilityTitle.textContent = `${cropLabel(crop)} suitability`;
       this.cropSuitabilitySubtitle.textContent = 'first-crop site potential';
       this.cropSuitabilityLabels.innerHTML = '<span>Poor</span><span>Marginal</span><span>Good</span><span>Prime</span>';
-      this.cropSuitabilityDescription.textContent = `${cropLabel(crop)} prefers ${cropDefinition(crop).sitePreference}. Soil texture, depth, water retention, groundwater, and slope all affect real yield.`;
+      this.cropSuitabilityDescription.textContent = `${cropLabel(crop)} prefers ${cropDefinition(crop).sitePreference}. Broad crop provinces create regional advantages; soil, groundwater, and slope still decide the real yield within them.`;
       this.cropSuitabilityLegend.dataset.overlay = 'fertility';
       return;
     }
     if (selection.mode === 'water') {
-      this.cropSuitabilityTitle.textContent = 'Water availability';
-      this.cropSuitabilitySubtitle.textContent = 'groundwater & stream power';
+      this.cropSuitabilityTitle.textContent = 'Groundwater availability';
+      this.cropSuitabilitySubtitle.textContent = 'subsurface aquifer network';
       this.cropSuitabilityLabels.innerHTML = '<span>Dry</span><span>Limited</span><span>Good</span><span>Abundant</span>';
-      this.cropSuitabilityDescription.textContent = 'Broad aquifer pockets and map wetness set well reliability; bright channels also show stream power for watermills.';
+      this.cropSuitabilityDescription.textContent = 'This is the authoritative well-water network. Rivers, sea, ponds, and lakes are intentionally excluded.';
       this.cropSuitabilityLegend.dataset.overlay = 'water';
       return;
     }

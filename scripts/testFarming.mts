@@ -10,6 +10,7 @@ import {
   FARM_EARLY_HARVEST_RIPENESS_FACTOR,
   FARM_MIN_FIELD_AREA,
   FARM_MIN_FIELD_EDGE,
+  FARM_REGIONAL_UNREPRESENTED_CEILING,
   FARM_SHARED_LABOR_MIN_PRIORITY,
   FARMSTEAD_STARTER_SEED_GRAIN,
   FARMSTEAD_STARTER_BARLEY_SEED,
@@ -40,6 +41,7 @@ import {
   fieldEdgeLengths,
   fieldShapeEfficiency,
   cropEnvironmentalSuitability,
+  cropRegionalProfile,
   cropSiteSuitability,
   initialFieldFertility,
   isValidFarmFieldCorners,
@@ -87,12 +89,13 @@ import {
   threshingTaskRank,
 } from '../src/farming/threshingPriority.ts';
 import { gameClockAtElapsedSeconds } from '../src/world/gameCalendar.ts';
+import { resolveWorldDimensions } from '../src/world/worldGenerationSettings.ts';
 import type {
   BuildingState,
   FarmFieldState,
   LivestockHerdState,
 } from '../src/resources/types.ts';
-import { sampleAuthoritativeHydrologyScore } from '../src/hydrology/sampleAuthoritativeHydrology.ts';
+import { sampleAuthoritativeGroundwaterScore } from '../src/hydrology/sampleAuthoritativeHydrology.ts';
 import {
   AGRICULTURE_BUILD_MENU_ENTRIES,
   renderBuildMenuCards,
@@ -108,8 +111,8 @@ assert.equal(fieldArea(rectangle), 400);
 assert.deepEqual(fieldEdgeLengths(rectangle).map(Math.round), [20, 20, 20, 20]);
 assert.equal(fieldShapeEfficiency(rectangle), 1);
 assert.equal(sampleAverageSlopeDegrees(rectangle, () => 10), 0);
-assert.ok(sampleAuthoritativeHydrologyScore(0, 0) >= 0 && sampleAuthoritativeHydrologyScore(0, 0) <= 1);
-assert.equal(sampleAuthoritativeHydrologyScore(10_000, 10_000), 0);
+assert.ok(sampleAuthoritativeGroundwaterScore(0, 0) >= 0 && sampleAuthoritativeGroundwaterScore(0, 0) <= 1);
+assert.equal(sampleAuthoritativeGroundwaterScore(10_000, 10_000), 0);
 
 const openingClock = gameClockAtElapsedSeconds(0);
 assert.ok(
@@ -208,6 +211,74 @@ assert.ok(
   'rye should create a strategic dry-upland alternative to river fields',
 );
 const strategicCrops = ['rye', 'oats', 'barley', 'flax', 'wheat'] as const;
+const expectedPrimeCropCount = { small: 3, medium: 4, large: 5 } as const;
+for (const mapSize of ['small', 'medium', 'large'] as const) {
+  const context = { worldSeed: 0x071a_2e0d, mapSize };
+  const profiles = strategicCrops.map((crop) => {
+    const placement = cropRegionalProfile(crop, 0, 0, context);
+    return cropRegionalProfile(crop, placement.centerX, placement.centerZ, context);
+  });
+  assert.equal(
+    profiles.filter((profile) => profile.represented).length,
+    expectedPrimeCropCount[mapSize],
+    `${mapSize} maps should expose the intended number of prime crop provinces`,
+  );
+  for (const profile of profiles) {
+    assert.ok(profile.provinceStrength > 0.999_999);
+    if (profile.represented) {
+      assert.ok(profile.affinity > 0.999_999);
+      assert.ok(profile.yieldMultiplier > 0.999_999);
+    } else {
+      assert.ok(profile.affinity <= FARM_REGIONAL_UNREPRESENTED_CEILING + 1e-9);
+      assert.ok(profile.yieldMultiplier < 0.71);
+    }
+  }
+  const generationHalf = resolveWorldDimensions(mapSize).generationHalf;
+  for (const crop of strategicCrops) {
+    const represented = cropRegionalProfile(crop, 0, 0, context).represented;
+    let primeSamples = 0;
+    let totalSamples = 0;
+    for (let zIndex = 0; zIndex <= 40; zIndex += 1) {
+      for (let xIndex = 0; xIndex <= 40; xIndex += 1) {
+        const x = -generationHalf + generationHalf * 2 * xIndex / 40;
+        const z = -generationHalf + generationHalf * 2 * zIndex / 40;
+        if (cropRegionalProfile(crop, x, z, context).affinity >= 0.75) {
+          primeSamples += 1;
+        }
+        totalSamples += 1;
+      }
+    }
+    const primeCoverage = primeSamples / totalSamples;
+    if (represented) {
+      assert.ok(
+        primeCoverage >= 0.02 && primeCoverage <= 0.06,
+        `${crop} should have limited but meaningful prime coverage on ${mapSize} maps`,
+      );
+    } else {
+      assert.equal(primeCoverage, 0, `${crop} should have no prime province on ${mapSize} maps`);
+    }
+  }
+}
+const parityFixture = cropRegionalProfile(
+  'flax',
+  123.5,
+  -87.25,
+  { worldSeed: 0x071a_2e0d, mapSize: 'large' },
+);
+assert.equal(parityFixture.rank, 0);
+assert.ok(Math.abs(parityFixture.provinceStrength - 0.8712118023247608) < 1e-12);
+assert.ok(Math.abs(parityFixture.affinity - 0.8840906220922847) < 1e-12);
+assert.ok(Math.abs(parityFixture.yieldMultiplier - 0.9327725608135251) < 1e-12);
+const smallMapSpecialtySets = new Set<string>();
+for (const worldSeed of [1, 2, 3, 4, 5, 0x071a_2e0d]) {
+  smallMapSpecialtySets.add(strategicCrops
+    .filter((crop) => cropRegionalProfile(crop, 0, 0, { worldSeed, mapSize: 'small' }).represented)
+    .join(','));
+}
+assert.ok(
+  smallMapSpecialtySets.size > 1,
+  'changing the world seed should change a small map\'s comparative advantages',
+);
 const dryLandSites = [] as Array<{ x: number; z: number }>;
 for (let z = -360; z <= 360; z += 60) {
   for (let x = -360; x <= 360; x += 60) dryLandSites.push({ x, z });
@@ -242,6 +313,7 @@ const suitabilityRaster = rasterizeCropSuitability({
   bounds: { minX: -410, maxX: 410, minZ: -410, maxZ: 410 },
   sampleMoisture: (x, z) => 0.38 + Math.sin(x * 0.01) * Math.cos(z * 0.01) * 0.1,
   sampleSlopeDegrees: (x, z) => Math.abs(x + z) * 0.005,
+  regionContext: { worldSeed: 0x071a_2e0d, mapSize: 'small' },
 });
 assert.equal(
   suitabilityRaster.length,
@@ -412,7 +484,7 @@ const planningField: FarmFieldState = {
   priority: 1,
   harvestCount: 0,
   lastYield: 0,
-  currentYield: 6,
+  currentYield: 1,
   manureApplied: 0,
 };
 assert.ok(currentFieldWorkRemaining(planningField) > 0);
@@ -919,7 +991,7 @@ const sceneManager = fs.readFileSync('src/scene/SceneManager.ts', 'utf8');
 const appSource = fs.readFileSync('src/app/App.ts', 'utf8');
 const buildToolbar = fs.readFileSync('src/ui/BuildToolbar.ts', 'utf8');
 assert.match(cropSuitabilityOverlay, /createDrapedOverlayGeometry/);
-assert.match(cropSuitabilityOverlay, /sampleAuthoritativeHydrologyScore/);
+assert.match(cropSuitabilityOverlay, /sampleAuthoritativeGroundwaterScore/);
 assert.match(cropSuitabilityOverlay, /private readonly textures = new Map/);
 assert.match(sceneManager, /setCropSuitabilityOverlayCrop/);
 assert.match(sceneManager, /setVineyardSuitabilityOverlayVisible/);
@@ -966,6 +1038,9 @@ assert.match(farmFieldInspector, /data-field-early-harvest/);
 assert.match(farmFieldInspector, /Waiting until \$\{harvestMonthLabel\} keeps 100% yield/);
 assert.match(farmFieldInspector, /Days until harvest/);
 assert.match(farmFieldInspector, /Projected yield/);
+assert.match(farmFieldInspector, /Crop province/);
+assert.match(farmFieldInspector, /No prime.*province on this map/);
+assert.match(farmFieldInspector, /regional yield factor/);
 assert.match(farmFieldInspector, /Farmstead distance/);
 assert.match(farmFieldInspector, /Parcel boundary/);
 assert.doesNotMatch(farmFieldInspector, /Size efficiency/);

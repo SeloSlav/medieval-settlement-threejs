@@ -32,9 +32,6 @@ pub mod roads {
     pub use crate::road_network::{RoadNetwork, RoadPathRoute};
 }
 
-#[path = "../../src/hydrology_grid_generated.rs"]
-pub mod hydrology_grid_generated;
-
 #[path = "../../src/holiday_calendar.rs"]
 pub mod holiday_calendar;
 

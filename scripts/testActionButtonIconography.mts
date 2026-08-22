@@ -173,7 +173,6 @@ for (const [crop, asset] of Object.entries(cropArtwork)) {
 
 const buildCategoryArtwork = new Map([
   ['civic', 'town-hall.webp'],
-  ['housing', 'residence.webp'],
   ['trade', 'trading-post.webp'],
   ['gathering', 'foragers-hut.webp'],
   ['agriculture', 'grain-field.webp'],

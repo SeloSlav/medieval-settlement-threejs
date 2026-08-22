@@ -312,6 +312,74 @@
   background: rgba(0, 0, 0, 0.14);
 }
 
+.world-setup-hazard-option {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 76px;
+  padding: 12px 14px;
+  color: var(--ink);
+  text-align: left;
+  border: 1px solid rgba(238, 232, 220, 0.14);
+  border-radius: 3px;
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.02));
+  cursor: pointer;
+  transition: border-color 150ms ease, background 150ms ease, transform 150ms ease;
+}
+
+.world-setup-hazard-option:hover,
+.world-setup-hazard-option:focus-visible {
+  background: rgba(255, 255, 255, 0.08);
+  outline: none;
+  transform: translateY(-1px);
+}
+
+.world-setup-hazard-option.is-selected {
+  border-color: rgba(206, 126, 70, 0.78);
+  background: linear-gradient(145deg, rgba(139, 62, 34, 0.32), rgba(215, 180, 99, 0.06));
+  box-shadow: inset 3px 0 rgba(206, 126, 70, 0.82);
+}
+
+.world-setup-hazard-option__marker {
+  color: #d7b463;
+  font-size: 25px;
+  line-height: 1;
+}
+
+.world-setup-hazard-option__copy {
+  display: grid;
+  gap: 4px;
+}
+
+.world-setup-hazard-option__copy strong {
+  font-size: 14px;
+}
+
+.world-setup-hazard-option__copy > span {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.world-setup-hazard-option__state {
+  color: rgba(171, 201, 145, 0.9);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.035em;
+  text-align: right;
+  text-transform: uppercase;
+}
+
+.world-setup-hazard-option.is-selected .world-setup-hazard-option__state {
+  color: #e1ab78;
+}
+
+.world-setup-hazard-hint {
+  margin-top: 7px;
+}
+
 .world-setup-size-option:hover,
 .world-setup-size-option:focus-visible {
   background: rgba(255, 255, 255, 0.08);

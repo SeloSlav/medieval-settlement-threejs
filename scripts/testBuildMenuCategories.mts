@@ -35,11 +35,10 @@ assert.deepEqual(keys(INDUSTRY_BUILD_MENU_ENTRIES), [
 ]);
 
 assert.deepEqual(BUILD_MENU_CATEGORIES.map((category) => category.id), [
-  'civic', 'housing', 'trade', 'gathering', 'agriculture',
+  'civic', 'trade', 'gathering', 'agriculture',
   'food', 'industry', 'faith', 'decorations', 'military',
 ]);
-assert.deepEqual(categoryKeys('civic'), ['well', 'town_hall']);
-assert.deepEqual(categoryKeys('housing'), ['residences']);
+assert.deepEqual(categoryKeys('civic'), ['residences', 'well', 'town_hall']);
 assert.deepEqual(categoryKeys('trade'), ['marketplace', 'trading_post', 'village_storehouse', 'granary']);
 assert.deepEqual(categoryKeys('gathering'), [
   'lumber_mill', 'reforester', 'stone_quarry', 'large_quarry', 'hunters_hall', 'foragers_shed', 'fishing_camp',

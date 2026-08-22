@@ -148,6 +148,7 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
     let world_map_size = config.map_size;
     let world_hydrology = config.hydrology;
     let world_resource_abundance = config.resource_abundance;
+    let severe_weather_enabled = config.severe_weather_enabled;
     let conflict_enabled = config.conflict_enabled;
     let enemy_pressure = config.enemy_pressure;
     ctx.db.world_config().id().update(WorldConfig {
@@ -172,7 +173,12 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
     }
     let previous_clock = crate::simulation::game_clock(sim_tick.saturating_sub(1));
     step_night_cycle(ctx, &previous_clock, &clock, world_seed);
-    let environment = crate::season_policy::environment_for(world_seed, world_hydrology, &clock);
+    let environment = crate::season_policy::environment_for(
+        world_seed,
+        world_hydrology,
+        severe_weather_enabled,
+        &clock,
+    );
     step_seasonal_labor_stewards(ctx, sim_tick, clock.month);
     // Time-critical seasonal work has first claim on the day's free labor.
     // Target-governed production then rotates its safe surplus before
@@ -193,7 +199,14 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
     );
     let tick = SimTickContext::with_road_networks(road_networks);
     step_natural_tree_regrowth(ctx, sim_tick);
-    step_fires(ctx, &clock, environment, world_seed, sim_tick);
+    step_fires(
+        ctx,
+        &clock,
+        environment,
+        severe_weather_enabled,
+        world_seed,
+        sim_tick,
+    );
     step_workforce_commutes(ctx, &tick, sim_tick);
     step_construction_sites(ctx, &tick, &clock);
     step_residence_upgrades(ctx, &tick, &clock);
@@ -416,7 +429,15 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
         };
         match sim_kind {
             crate::building_defs::BuildingSimKind::ThreshingBarn => {
-                step_threshing_barn(ctx, &tick, &clock, environment, building)
+                step_threshing_barn(
+                    ctx,
+                    &tick,
+                    &clock,
+                    environment,
+                    world_seed,
+                    world_map_size,
+                    building,
+                )
             }
             crate::building_defs::BuildingSimKind::Monastery => {
                 step_monastery(ctx, &tick, &clock, building)

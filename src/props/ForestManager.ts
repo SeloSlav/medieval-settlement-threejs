@@ -765,6 +765,7 @@ export class ForestManager {
   }
 
   private commitTreeInstanceUpdates(): void {
+    this.canopyOcclusion?.commit();
     if (this.seedThreeForest) {
       this.seedThreeForest.commit();
     } else {
@@ -779,7 +780,7 @@ export class ForestManager {
   }
 
   private setTreeForestFloorActive(treeIndex: number, active: boolean): void {
-    this.canopyOcclusion?.setTreeActive(treeIndex, active);
+    this.canopyOcclusion?.setTreeActive(treeIndex, active, true);
     this.forestFloorIvy?.setTreeActive(treeIndex, active);
   }
 

@@ -158,6 +158,7 @@ export function precipitationPreviewEnvironment(
       weather: 'rain',
       snowCoverage: 0,
       deciduousFoliage: deciduousFoliageForSeasonPreview('spring'),
+      groundwaterMultiplier: 1,
       preservedFoodDemandMultiplier:
         preservedFoodDemandMultiplierForSeason('spring'),
       preservedFoodSpoilageFractionPerDay:
@@ -175,6 +176,7 @@ export function precipitationPreviewEnvironment(
       weather: 'frost',
       snowCoverage: 1,
       deciduousFoliage: deciduousFoliageForSeasonPreview('winter'),
+      groundwaterMultiplier: 1,
       preservedFoodDemandMultiplier:
         preservedFoodDemandMultiplierForSeason('winter'),
       preservedFoodSpoilageFractionPerDay:
@@ -192,6 +194,7 @@ export function precipitationPreviewEnvironment(
       weather: 'fair',
       snowCoverage: 0,
       deciduousFoliage: deciduousFoliageForSeasonPreview('autumn'),
+      groundwaterMultiplier: 1,
       preservedFoodDemandMultiplier:
         preservedFoodDemandMultiplierForSeason('autumn'),
       preservedFoodSpoilageFractionPerDay:
@@ -206,6 +209,7 @@ export function precipitationPreviewEnvironment(
       ...environment,
       weather: 'fair',
       snowCoverage: 0,
+      groundwaterMultiplier: 1,
       preservedFoodSpoilageFractionPerDay:
         preservedFoodSpoilageFractionPerDayFor(environment.season, 'fair'),
       watermillThroughputMultiplier: 1,
@@ -227,6 +231,7 @@ export function standalonePrecipitationPreview(
     snowCoverage: 0,
     deciduousFoliage: deciduousFoliageForSeasonPreview('spring'),
     cropGrowthMultiplier: 1,
+    groundwaterMultiplier: 1,
     firewoodDemandMultiplier: 1,
     pastureCapacityMultiplier: 1,
     freshFoodSpoilageFractionPerDay: FRESH_FOOD_SPOILAGE_SPRING_PER_DAY,

@@ -24,7 +24,6 @@
     "generate:game-balance": "node --experimental-strip-types scripts/generateGameBalance.mts",
     "generate:orchard-species-assets": "node scripts/generateOrchardSpeciesAssets.mjs",
     "generate:celestial-catalog": "node scripts/generateCelestialCatalog.mjs",
-    "generate:hydrology-grid": "node --experimental-strip-types scripts/generateHydrologyGrid.mts",
     "test:hydrology": "npx tsx scripts/testHydrology.mts",
     "audio:generate": "node --experimental-strip-types scripts/generateElevenLabsAudio.mts",
     "audio:validate": "node --experimental-strip-types scripts/testAudioPipeline.mts",

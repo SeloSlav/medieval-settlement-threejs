@@ -310,6 +310,8 @@ export async function bootstrapAppSession(
     getRoadNetwork: () => roadNetwork,
     getTreeRegistry: () => liveContext.treeRegistry,
     getWorldHydrology: () => spacetimeStore.snapshot.worldGeneration?.hydrology ?? 50,
+    getSevereWeatherEnabled: () =>
+      spacetimeStore.snapshot.worldGeneration?.severeWeatherEnabled ?? false,
   });
   const buildingMarkers = new BuildingMarkers({
     terrain: sceneManager.terrain,
@@ -1001,6 +1003,8 @@ export async function bootstrapAppSession(
       && spacetimeStore.snapshot.worldGeneration.conflictMode === 'frontier',
     getEnemyPressure: () => spacetimeStore.snapshot.worldGeneration?.enemyPressure ?? 0,
     getWorldHydrology: () => spacetimeStore.snapshot.worldGeneration?.hydrology ?? 50,
+    getSevereWeatherEnabled: () =>
+      spacetimeStore.snapshot.worldGeneration?.severeWeatherEnabled ?? false,
     getWorldResourceAbundance: () =>
       spacetimeStore.snapshot.worldGeneration?.resourceAbundance ?? 50,
     getWorksiteCommuteSummary: (buildingId) =>

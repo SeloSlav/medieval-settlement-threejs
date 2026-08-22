@@ -48,6 +48,7 @@ export function worldConfigRowToGeneration(row: WorldConfig): AuthoritativeWorld
       resourceVariety: row.resourceVariety,
       conflictMode: row.conflictEnabled ? 'frontier' : 'peaceful',
       enemyPressure: row.enemyPressure,
+      severeWeatherEnabled: row.severeWeatherEnabled,
     }),
     configured: row.configured,
   };
@@ -67,7 +68,8 @@ export function generationMatchesServer(
     && server.resourceAbundance === normalizedLocal.resourceAbundance
     && server.resourceVariety === normalizedLocal.resourceVariety
     && server.conflictMode === normalizedLocal.conflictMode
-    && server.enemyPressure === normalizedLocal.enemyPressure;
+    && server.enemyPressure === normalizedLocal.enemyPressure
+    && server.severeWeatherEnabled === normalizedLocal.severeWeatherEnabled;
 }
 
 export type WorldGenerationAuthorityResolution =
@@ -136,5 +138,6 @@ export function settingsToConfigurePayload(settings: WorldGenerationSettings) {
     resourceVariety: normalized.resourceVariety,
     conflictEnabled: normalized.conflictMode === 'frontier',
     enemyPressure: normalized.enemyPressure,
+    severeWeatherEnabled: normalized.severeWeatherEnabled,
   };
 }

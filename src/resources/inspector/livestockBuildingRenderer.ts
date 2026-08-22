@@ -89,7 +89,12 @@ export function renderLivestockBuildingInspector(
   const overCapacity = herd ? herd.headCount > herd.suppliedCapacity : false;
   const clock = gameClock(context.gameState.tick);
   const month = clock.month;
-  const environment = environmentFor(context.gameState.seed, context.worldHydrology, clock);
+  const environment = environmentFor(
+    context.gameState.seed,
+    context.worldHydrology,
+    clock,
+    context.severeWeatherEnabled ?? false,
+  );
   const cullSeason = isLivestockCullMonth(month);
   const shearingWindow = isSheepShearingMonth(month);
   const shornThisYear = herd?.species === 'sheep'

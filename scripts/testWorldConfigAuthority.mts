@@ -35,6 +35,7 @@ const row = {
   resourceVariety: 80,
   conflictEnabled: true,
   enemyPressure: 70,
+  severeWeatherEnabled: true,
   configured: true,
 } satisfies WorldConfig;
 
@@ -46,6 +47,7 @@ assert.equal(generation.resourceAbundance, 35);
 assert.equal(generation.resourceVariety, 80);
 assert.equal(generation.conflictMode, 'frontier');
 assert.equal(generation.enemyPressure, 70);
+assert.equal(generation.severeWeatherEnabled, true);
 assert.equal(generation.configured, true);
 
 assert.equal(
@@ -60,6 +62,7 @@ assert.equal(payload.resourceAbundance, 50);
 assert.equal(payload.resourceVariety, 50);
 assert.equal(payload.conflictEnabled, false);
 assert.equal(payload.enemyPressure, 0);
+assert.equal(payload.severeWeatherEnabled, false);
 
 const frontierPayload = settingsToConfigurePayload({
   ...DEFAULT_WORLD_GENERATION_SETTINGS,
@@ -68,6 +71,13 @@ const frontierPayload = settingsToConfigurePayload({
 });
 assert.equal(frontierPayload.conflictEnabled, true);
 assert.equal(frontierPayload.enemyPressure, 65);
+assert.equal(frontierPayload.severeWeatherEnabled, false);
+
+const severeWeatherPayload = settingsToConfigurePayload({
+  ...DEFAULT_WORLD_GENERATION_SETTINGS,
+  severeWeatherEnabled: true,
+});
+assert.equal(severeWeatherPayload.severeWeatherEnabled, true);
 
 assert.throws(
   () => assertWorldGenerationCompatible(
@@ -116,6 +126,7 @@ assert.deepEqual(
       resourceVariety: generation.resourceVariety,
       conflictMode: generation.conflictMode,
       enemyPressure: generation.enemyPressure,
+      severeWeatherEnabled: generation.severeWeatherEnabled,
     },
   },
 );
@@ -157,6 +168,7 @@ assert.deepEqual(
 await testTerminalMismatchDoesNotRetryOnEverySnapshot();
 await testReducerLockBecomesTerminalMismatch();
 await testStartupAlwaysReconfirmsWorldConfiguration();
+await testSevereWeatherSetupContract();
 
 console.log('world config authority tests passed');
 
@@ -331,6 +343,25 @@ async function testStartupAlwaysReconfirmsWorldConfiguration(): Promise<void> {
     /await resetWorld\(\);\s*await waitForWorldResetReplication\(\);/,
     'new-world reload must wait until configured=false and sim_tick=0 are replicated',
   );
+}
+
+async function testSevereWeatherSetupContract(): Promise<void> {
+  const setupSource = await readFile(
+    new URL('../src/ui/WorldSetupPanel.ts', import.meta.url),
+    'utf8',
+  );
+  const settingsSource = await readFile(
+    new URL('../src/world/worldGenerationSettings.ts', import.meta.url),
+    'utf8',
+  );
+  const serverConfigSource = await readFile(
+    new URL('../server/src/reducers/world_configuration.rs', import.meta.url),
+    'utf8',
+  );
+  assert.match(setupSource, /data-severe-weather[\s\S]*Off · beginner friendly/);
+  assert.match(setupSource, /Summer droughts, lightning ignition, accidental structure fires, and fire spread/);
+  assert.match(settingsSource, /severeWeatherEnabled:\s*false/);
+  assert.match(serverConfigSource, /severe_weather_enabled:\s*false/);
 }
 
 type FakeSnapshot = {

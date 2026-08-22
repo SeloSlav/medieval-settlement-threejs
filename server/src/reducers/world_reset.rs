@@ -194,6 +194,7 @@ fn reset_world_progress(ctx: &ReducerContext) {
             game_speed: 1,
             conflict_enabled: false,
             enemy_pressure: 0,
+            severe_weather_enabled: false,
             configured: false,
             ..config
         });

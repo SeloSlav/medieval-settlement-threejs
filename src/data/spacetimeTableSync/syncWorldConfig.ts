@@ -36,5 +36,6 @@ function sameGeneration(
     && current.resourceVariety === next.resourceVariety
     && current.conflictMode === next.conflictMode
     && current.enemyPressure === next.enemyPressure
+    && current.severeWeatherEnabled === next.severeWeatherEnabled
     && current.configured === next.configured;
 }

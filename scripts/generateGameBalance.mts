@@ -217,6 +217,7 @@ export type GameBalance = {
     droughtCropGrowthMultiplier: number;
     droughtForageRegrowthMultiplier: number;
     droughtWellRefillMultiplier: number;
+    droughtGroundwaterMultiplier: number;
     droughtFishLossFractionPerDay: number;
     droughtWatermillThroughputMultiplier: number;
     droughtCharcoalBurnerThroughputMultiplier: number;
@@ -702,6 +703,15 @@ export type GameBalance = {
     harvestWorkPerSquareMeter: number;
     growthSeconds: number;
     baseGrainPerSquareMeter: number;
+    regionalPrimeCropsSmall: number;
+    regionalPrimeCropsMedium: number;
+    regionalPrimeCropsLarge: number;
+    regionalYieldFloor: number;
+    regionalAffinityFloor: number;
+    regionalUnrepresentedCeiling: number;
+    regionalCenterRadiusRatio: number;
+    regionalCoreRadiusRatio: number;
+    regionalAspectRatio: number;
     manurePerSquareMeter: number;
     manureFertilityBonus: number;
     farmsteadStarterSeedGrain: number;
@@ -846,6 +856,7 @@ function generateRust(): string {
     `pub const DROUGHT_CROP_GROWTH_MULTIPLIER: f64 = ${rustF64(b.seasons.droughtCropGrowthMultiplier)};`,
     `pub const DROUGHT_FORAGE_REGROWTH_MULTIPLIER: f64 = ${rustF64(b.seasons.droughtForageRegrowthMultiplier)};`,
     `pub const DROUGHT_WELL_REFILL_MULTIPLIER: f64 = ${rustF64(b.seasons.droughtWellRefillMultiplier)};`,
+    `pub const DROUGHT_GROUNDWATER_MULTIPLIER: f64 = ${rustF64(b.seasons.droughtGroundwaterMultiplier)};`,
     `pub const DROUGHT_FISH_LOSS_FRACTION_PER_DAY: f64 = ${rustF64(b.seasons.droughtFishLossFractionPerDay)};`,
     `pub const DROUGHT_WATERMILL_THROUGHPUT_MULTIPLIER: f64 = ${rustF64(b.seasons.droughtWatermillThroughputMultiplier)};`,
     `pub const DROUGHT_CHARCOAL_BURNER_THROUGHPUT_MULTIPLIER: f64 = ${rustF64(b.seasons.droughtCharcoalBurnerThroughputMultiplier)};`,
@@ -1318,6 +1329,15 @@ function generateRust(): string {
     `pub const FARM_HARVEST_WORK_PER_SQUARE_METER: f64 = ${rustF64(b.farming.harvestWorkPerSquareMeter)};`,
     `pub const FARM_GROWTH_SECONDS: f64 = ${rustF64(b.farming.growthSeconds)};`,
     `pub const FARM_BASE_GRAIN_PER_SQUARE_METER: f64 = ${rustF64(b.farming.baseGrainPerSquareMeter)};`,
+    `pub const FARM_REGIONAL_PRIME_CROPS_SMALL: u8 = ${b.farming.regionalPrimeCropsSmall};`,
+    `pub const FARM_REGIONAL_PRIME_CROPS_MEDIUM: u8 = ${b.farming.regionalPrimeCropsMedium};`,
+    `pub const FARM_REGIONAL_PRIME_CROPS_LARGE: u8 = ${b.farming.regionalPrimeCropsLarge};`,
+    `pub const FARM_REGIONAL_YIELD_FLOOR: f64 = ${rustF64(b.farming.regionalYieldFloor)};`,
+    `pub const FARM_REGIONAL_AFFINITY_FLOOR: f64 = ${rustF64(b.farming.regionalAffinityFloor)};`,
+    `pub const FARM_REGIONAL_UNREPRESENTED_CEILING: f64 = ${rustF64(b.farming.regionalUnrepresentedCeiling)};`,
+    `pub const FARM_REGIONAL_CENTER_RADIUS_RATIO: f64 = ${rustF64(b.farming.regionalCenterRadiusRatio)};`,
+    `pub const FARM_REGIONAL_CORE_RADIUS_RATIO: f64 = ${rustF64(b.farming.regionalCoreRadiusRatio)};`,
+    `pub const FARM_REGIONAL_ASPECT_RATIO: f64 = ${rustF64(b.farming.regionalAspectRatio)};`,
     `pub const FARM_MANURE_PER_SQUARE_METER: f64 = ${rustF64(b.farming.manurePerSquareMeter)};`,
     `pub const FARM_MANURE_FERTILITY_BONUS: f64 = ${rustF64(b.farming.manureFertilityBonus)};`,
     `pub const FARMSTEAD_STARTER_SEED_GRAIN: f64 = ${rustF64(b.farming.farmsteadStarterSeedGrain)};`,
@@ -1821,6 +1841,7 @@ function generateTypeScript(): string {
     `export const DROUGHT_CROP_GROWTH_MULTIPLIER = ${b.seasons.droughtCropGrowthMultiplier};`,
     `export const DROUGHT_FORAGE_REGROWTH_MULTIPLIER = ${b.seasons.droughtForageRegrowthMultiplier};`,
     `export const DROUGHT_WELL_REFILL_MULTIPLIER = ${b.seasons.droughtWellRefillMultiplier};`,
+    `export const DROUGHT_GROUNDWATER_MULTIPLIER = ${b.seasons.droughtGroundwaterMultiplier};`,
     `export const DROUGHT_FISH_LOSS_FRACTION_PER_DAY = ${b.seasons.droughtFishLossFractionPerDay};`,
     `export const DROUGHT_WATERMILL_THROUGHPUT_MULTIPLIER = ${b.seasons.droughtWatermillThroughputMultiplier};`,
     `export const DROUGHT_CHARCOAL_BURNER_THROUGHPUT_MULTIPLIER = ${b.seasons.droughtCharcoalBurnerThroughputMultiplier};`,
@@ -2294,6 +2315,15 @@ function generateTypeScript(): string {
     `export const FARM_HARVEST_WORK_PER_SQUARE_METER = ${b.farming.harvestWorkPerSquareMeter};`,
     `export const FARM_GROWTH_SECONDS = ${b.farming.growthSeconds};`,
     `export const FARM_BASE_GRAIN_PER_SQUARE_METER = ${b.farming.baseGrainPerSquareMeter};`,
+    `export const FARM_REGIONAL_PRIME_CROPS_SMALL = ${b.farming.regionalPrimeCropsSmall};`,
+    `export const FARM_REGIONAL_PRIME_CROPS_MEDIUM = ${b.farming.regionalPrimeCropsMedium};`,
+    `export const FARM_REGIONAL_PRIME_CROPS_LARGE = ${b.farming.regionalPrimeCropsLarge};`,
+    `export const FARM_REGIONAL_YIELD_FLOOR = ${b.farming.regionalYieldFloor};`,
+    `export const FARM_REGIONAL_AFFINITY_FLOOR = ${b.farming.regionalAffinityFloor};`,
+    `export const FARM_REGIONAL_UNREPRESENTED_CEILING = ${b.farming.regionalUnrepresentedCeiling};`,
+    `export const FARM_REGIONAL_CENTER_RADIUS_RATIO = ${b.farming.regionalCenterRadiusRatio};`,
+    `export const FARM_REGIONAL_CORE_RADIUS_RATIO = ${b.farming.regionalCoreRadiusRatio};`,
+    `export const FARM_REGIONAL_ASPECT_RATIO = ${b.farming.regionalAspectRatio};`,
     `export const FARM_MANURE_PER_SQUARE_METER = ${b.farming.manurePerSquareMeter};`,
     `export const FARM_MANURE_FERTILITY_BONUS = ${b.farming.manureFertilityBonus};`,
     `export const FARMSTEAD_STARTER_SEED_GRAIN = ${b.farming.farmsteadStarterSeedGrain};`,

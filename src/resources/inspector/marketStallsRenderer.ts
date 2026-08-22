@@ -122,6 +122,7 @@ export function renderMarketStallsInspector(
     context.gameState.seed,
     context.worldHydrology,
     gameClock(context.gameState.tick),
+    context.severeWeatherEnabled ?? false,
   );
   const fuelEquivalent = combinedFuelEquivalent(
     building.firewood,

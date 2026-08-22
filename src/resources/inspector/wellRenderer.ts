@@ -18,7 +18,10 @@ import {
   formatTripPhaseLabel,
 } from '../../logistics/deliveryTrips.ts';
 import { hydrologyGradeLabel, wellCapacityFromHydrology } from '../../hydrology/sampleHydrology.ts';
-import { sampleAuthoritativeHydrologyScore } from '../../hydrology/sampleAuthoritativeHydrology.ts';
+import {
+  droughtGroundwaterScore,
+  sampleAuthoritativeGroundwaterScore,
+} from '../../hydrology/sampleAuthoritativeHydrology.ts';
 import {
   industrialWaterTarget,
   wellRefillPerSecond,
@@ -34,7 +37,7 @@ export function renderWellInspector(
   const { building } = target;
   const label = context.worldQueries.getBuildingLabel(building.kind);
   const cost = getBuildingCost(building.kind);
-  const hydrology = sampleAuthoritativeHydrologyScore(building.x, building.z);
+  const hydrology = sampleAuthoritativeGroundwaterScore(building.x, building.z);
   const capacity = building.waterCapacity > 0
     ? building.waterCapacity
     : wellCapacityFromHydrology(BUILDING_STORAGE_CAPS.well.water ?? 100, hydrology);
@@ -50,7 +53,7 @@ export function renderWellInspector(
   const refillPerSec = wellRefillPerSecond(hydrology);
   const sustainableHomes = wellSustainableHomeCapacity(hydrology);
   const droughtHomeCapacity = wellSustainableHomeCapacity(
-    hydrology,
+    droughtGroundwaterScore(hydrology),
     DROUGHT_WELL_REFILL_MULTIPLIER,
   );
   const capacityLabel = `~${sustainableHomes}-home fair-weather yield`;

@@ -982,6 +982,7 @@ export function renderExpandedBuildingInspector(
     context.gameState.seed,
     context.worldHydrology,
     clock,
+    context.severeWeatherEnabled ?? false,
   );
   const windSiteThroughput = windSiteThroughputMultiplier(
     context.gameState.seed,
@@ -1152,7 +1153,7 @@ export function renderExpandedBuildingInspector(
               && trip.phase !== 'inbound',
           )
           .reduce((sum, trip) => sum + trip.amount, 0);
-        return `<li><span>Reserved estate</span><span>68 × 53 m inside a complete stone precinct wall · founded in the outer 60 m of the map</span></li>
+        return `<li><span>Reserved estate</span><span>68 × 53 m inside a complete stone precinct wall · frontier belt is at least 200 m deep and scales with map size</span></li>
           <li><span>Monastery identity</span><span><strong>${archetype.name}</strong> · ${archetype.payoff}</span></li>
           <li><span>Enclosed estate</span><span>Mixed apples and pears · kitchen vegetables · apiary · cattle and sheep pasture · no crop-by-crop player choices</span></li>
           <li><span>Estate development</span><span>${extensionCount} / 4 extensions · ${builtExtensions.join(' · ') || 'founding house only'}</span></li>

@@ -3,6 +3,8 @@ import { readFileSync } from 'node:fs';
 import * as THREE from 'three';
 import {
   MONASTERY_ESTATE_DEPTH,
+  MONASTERY_ESTATE_EDGE_BAND,
+  MONASTERY_ESTATE_EDGE_BAND_RADIUS_RATIO,
   MONASTERY_ESTATE_WIDTH,
   MONASTERY_EXTENSION_ALL,
   MONASTERY_EXTENSION_GUESTHOUSE,
@@ -10,6 +12,7 @@ import {
   MONASTERY_EXTENSION_SCRIPTORIUM,
   MONASTERY_EXTENSION_WORKSHOP,
   monasteryCroftChoiceAllowed,
+  monasteryEstateEdgeBand,
   monasteryEstateFitsMap,
   monasteryEstateFootprintCorners,
   monasteryEstateIsNearMapEdge,
@@ -35,6 +38,8 @@ import {
 
 assert.equal(MONASTERY_ESTATE_WIDTH, 68);
 assert.equal(MONASTERY_ESTATE_DEPTH, 53);
+assert.equal(MONASTERY_ESTATE_EDGE_BAND, 200);
+assert.equal(MONASTERY_ESTATE_EDGE_BAND_RADIUS_RATIO, 0.45);
 assert.deepEqual(monasteryEstateFootprintCorners(0, 0, 0), [
   { x: -34, z: -45.5 },
   { x: 34, z: -45.5 },
@@ -43,10 +48,19 @@ assert.deepEqual(monasteryEstateFootprintCorners(0, 0, 0), [
 ]);
 
 const smallBounds = { minX: -408.5, maxX: 408.5, minZ: -408.5, maxZ: 408.5 };
+assert.equal(monasteryEstateEdgeBand(smallBounds), 200);
 assert.equal(monasteryEstateFitsMap(0, 350, 0, smallBounds), true);
 assert.equal(monasteryEstateIsNearMapEdge(0, 350, 0, smallBounds), true);
+assert.equal(monasteryEstateFitsMap(0, 220, 0, smallBounds), true);
+assert.equal(monasteryEstateIsNearMapEdge(0, 220, 0, smallBounds), true);
+assert.equal(monasteryEstateIsNearMapEdge(0, 200, 0, smallBounds), false);
 assert.equal(monasteryEstateIsNearMapEdge(0, 0, 0, smallBounds), false);
 assert.equal(monasteryEstateFitsMap(0, 405, 0, smallBounds), false);
+
+const largeBounds = { minX: -1155.412, maxX: 1155.412, minZ: -1155.412, maxZ: 1155.412 };
+assert.ok(monasteryEstateEdgeBand(largeBounds) > 500);
+assert.equal(monasteryEstateIsNearMapEdge(0, 630, 0, largeBounds), true);
+assert.equal(monasteryEstateIsNearMapEdge(0, 600, 0, largeBounds), false);
 
 assert.equal(monasteryEstateNextInvestmentCost(0, MONASTERY_EXTENSION_INFIRMARY), 24);
 assert.equal(monasteryEstateNextInvestmentCost(0, MONASTERY_EXTENSION_SCRIPTORIUM), 28);
@@ -204,6 +218,8 @@ assert.equal(legacyPlantingValuesAreIgnored.getObjectByName('Monastery brewing b
 
 const serverPolicy = readFileSync(new URL('../server/src/monastery_estate_policy.rs', import.meta.url), 'utf8');
 assert.match(serverPolicy, /MONASTERY_ESTATE_HALF_WIDTH: f64 = 34\.0/);
+assert.match(serverPolicy, /MONASTERY_ESTATE_EDGE_BAND: f64 = 200\.0/);
+assert.match(serverPolicy, /MONASTERY_ESTATE_EDGE_BAND_RADIUS_RATIO: f64 = 0\.45/);
 assert.match(serverPolicy, /MONASTERY_ESTATE_EXPORT_LOT: f64 = 6\.0/);
 assert.match(serverPolicy, /MONASTERY_EXTENSION_INFIRMARY: u8 = 1/);
 assert.match(serverPolicy, /MONASTERY_EXTENSION_SCRIPTORIUM: u8 = 2/);

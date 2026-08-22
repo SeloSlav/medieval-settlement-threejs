@@ -399,6 +399,7 @@ export function renderResidenceInspector(
     context.gameState.seed,
     context.worldHydrology,
     currentClock,
+    context.severeWeatherEnabled ?? false,
   );
   const preservedFoodDemandMultiplier =
     environment.preservedFoodDemandMultiplier;

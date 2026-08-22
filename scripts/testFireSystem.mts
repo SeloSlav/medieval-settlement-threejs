@@ -360,6 +360,11 @@ assert.match(
   /const FIRE_IGNITION_CHECK_INTERVAL_TICKS: u64 = 5;/,
   'idle ignition polling should scan structures once per simulated second',
 );
+assert.match(
+  fireSource,
+  /let ignition_due = severe_weather_enabled[\s\S]*if severe_weather_enabled \{[\s\S]*maybe_spread_fires/,
+  'ambient lightning, accidents, and spread must remain behind the opt-in severe-weather rule',
+);
 assert.match(fireSource, /pub const FIRE_SOURCE_RAID: u8 = 3;/);
 assert.match(
   firePolicySource,

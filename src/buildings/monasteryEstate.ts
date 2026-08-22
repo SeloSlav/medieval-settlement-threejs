@@ -10,7 +10,9 @@ export const MONASTERY_ESTATE_FRONT_DEPTH = 7.5;
 export const MONASTERY_ESTATE_WIDTH = MONASTERY_ESTATE_HALF_WIDTH * 2;
 export const MONASTERY_ESTATE_DEPTH = MONASTERY_ESTATE_REAR_DEPTH + MONASTERY_ESTATE_FRONT_DEPTH;
 export const MONASTERY_ESTATE_MAP_INSET = 8;
-export const MONASTERY_ESTATE_EDGE_BAND = 60;
+/** Small-map floor for the frontier belt; larger maps scale the belt by radius. */
+export const MONASTERY_ESTATE_EDGE_BAND = 200;
+export const MONASTERY_ESTATE_EDGE_BAND_RADIUS_RATIO = 0.45;
 
 export type MonasteryEstateLevel = 0 | 1 | 2 | 3;
 export type MonasteryEstatePoint = { x: number; z: number };
@@ -104,7 +106,16 @@ export function monasteryEstateFitsMap(
   );
 }
 
-/** The complete fenced parcel, rather than the abbey centre, must sit in the frontier band. */
+export function monasteryEstateEdgeBand(bounds: TerrainBounds): number {
+  const halfWidth = Math.max(0, bounds.maxX - bounds.minX) * 0.5;
+  const halfDepth = Math.max(0, bounds.maxZ - bounds.minZ) * 0.5;
+  return Math.max(
+    MONASTERY_ESTATE_EDGE_BAND,
+    Math.min(halfWidth, halfDepth) * MONASTERY_ESTATE_EDGE_BAND_RADIUS_RATIO,
+  );
+}
+
+/** Measure the frontier rule from the complete fenced parcel, not the abbey centre. */
 export function monasteryEstateIsNearMapEdge(
   x: number,
   z: number,
@@ -122,7 +133,7 @@ export function monasteryEstateIsNearMapEdge(
     minZ - bounds.minZ,
     bounds.maxZ - maxZ,
   );
-  return nearestBoundaryGap <= MONASTERY_ESTATE_EDGE_BAND;
+  return nearestBoundaryGap <= monasteryEstateEdgeBand(bounds);
 }
 
 export function normalizeMonasteryEstateLevel(level: number | null | undefined): MonasteryEstateLevel {

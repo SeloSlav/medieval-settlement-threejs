@@ -174,6 +174,7 @@ function multiplierByKind(
 function horizonMultipliers(input: {
   seed: number;
   hydrology: number;
+  severeWeatherEnabled: boolean;
   clock: GameClock;
   sabbathObserved: boolean;
   days: number;
@@ -187,6 +188,7 @@ function horizonMultipliers(input: {
       input.seed,
       input.hydrology,
       dayClock,
+      input.severeWeatherEnabled,
     );
     const multipliers = multiplierByKind(
       dayClock,
@@ -214,6 +216,7 @@ export function computeSettlementBackyardEconomyPlan(input: {
   > & Partial<Pick<GameState, 'fireIncidents'>>;
   clock: GameClock;
   hydrology: number;
+  severeWeatherEnabled?: boolean;
   taxRate: number;
   taxCollectionMultiplier: number;
   sabbathObserved: boolean;
@@ -225,6 +228,7 @@ export function computeSettlementBackyardEconomyPlan(input: {
     input.state.seed,
     input.hydrology,
     input.clock,
+    input.severeWeatherEnabled ?? false,
   );
   const currentSabbathPause = input.sabbathObserved && input.clock.isSunday;
   const currentMultipliers = multiplierByKind(
@@ -239,6 +243,7 @@ export function computeSettlementBackyardEconomyPlan(input: {
   const futureMultipliers = horizonMultipliers({
     seed: input.state.seed,
     hydrology: input.hydrology,
+    severeWeatherEnabled: input.severeWeatherEnabled ?? false,
     clock: input.clock,
     sabbathObserved: input.sabbathObserved,
     days: horizonDays,

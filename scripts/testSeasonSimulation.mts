@@ -6,6 +6,7 @@ import {
   CALENDAR_MONTHS_PER_YEAR,
   CALENDAR_SECONDS_PER_DAY,
   DROUGHT_CHARCOAL_BURNER_THROUGHPUT_MULTIPLIER,
+  DROUGHT_GROUNDWATER_MULTIPLIER,
   DROUGHT_WATERMILL_THROUGHPUT_MULTIPLIER,
   PRESERVED_FOOD_SPOILAGE_PER_DAY,
   RESIDENCE_PRESERVED_FOOD_AUTUMN_MULTIPLIER,
@@ -180,11 +181,18 @@ for (let year = 1; year <= 20 && !droughtFound; year += 1) {
       + (6 - 3) * CALENDAR_DAYS_PER_MONTH
       + summerDay;
     const clock = gameClock(elapsedDays * dayTicks);
-    const environment = environmentFor(12345, 35, clock);
+    const safeEnvironment = environmentFor(12345, 35, clock);
+    assert.notEqual(
+      safeEnvironment.weather,
+      'drought',
+      'default worlds must suppress severe summer droughts',
+    );
+    const environment = environmentFor(12345, 35, clock, true);
     if (environment.weather !== 'drought') continue;
     droughtFound = true;
     assert.ok(environment.cropGrowthMultiplier < 1);
     assert.ok(environment.pastureCapacityMultiplier < 1);
+    assert.equal(environment.groundwaterMultiplier, DROUGHT_GROUNDWATER_MULTIPLIER);
     assert.equal(
       environment.watermillThroughputMultiplier,
       DROUGHT_WATERMILL_THROUGHPUT_MULTIPLIER,

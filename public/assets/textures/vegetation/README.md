@@ -4,9 +4,12 @@
 SeedThree broad woodland-floor ivy batch. The source was generated from the
 supplied Manor Lords forest-floor references as a low, horizontally spreading
 European ivy clump on a uniform magenta extraction field, then converted with
-the Seloslav/SeedThree `chroma-key.mjs` pipeline. Runtime geometry tilts seven
-overlapping cards close to the terrain so the asset reads as connected ground
-coverage rather than an upright shrub.
+the Seloslav/SeedThree `chroma-key.mjs` pipeline. Runtime geometry crops to the
+asset's visible alpha bounds and maps each colony onto an 8x6 tessellated ground
+drape. Every vertex samples the terrain independently; the visible perimeter
+sits 1.4 cm above the litter while a multi-lobed 12-22 cm interior relief keeps
+the overlapping leaves dimensional without turning the colony into a shrub or
+a hovering billboard.
 
 Final generation prompt summary: a single botanically convincing carpet of
 small overlapping five-lobed ivy leaves, broad irregular perimeter, restrained

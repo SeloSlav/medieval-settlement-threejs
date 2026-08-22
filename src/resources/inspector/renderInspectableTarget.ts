@@ -59,6 +59,7 @@ export type InspectorRenderContext = {
   populationStats: PopulationStats;
   resourceTotals: ResourceTotals;
   worldHydrology: number;
+  severeWeatherEnabled?: boolean;
   worldResourceAbundance?: number;
   conflictEnabled?: boolean;
   enemyPressure?: number;

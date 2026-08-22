@@ -25,4 +25,5 @@ export default __t.row({
   configured: __t.bool(),
   resourceAbundance: __t.u8().name("resource_abundance"),
   resourceVariety: __t.u8().name("resource_variety"),
+  severeWeatherEnabled: __t.bool().name("severe_weather_enabled"),
 });

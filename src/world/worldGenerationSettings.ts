@@ -24,6 +24,8 @@ export type WorldGenerationSettings = {
   conflictMode: WorldConflictMode;
   /** 0 = disabled, 100 = severe frontier pressure. */
   enemyPressure: number;
+  /** Enables ambient fires, lightning ignition, fire spread, and summer droughts. */
+  severeWeatherEnabled: boolean;
 };
 
 export type WorldDimensions = {
@@ -84,6 +86,7 @@ export const DEFAULT_WORLD_GENERATION_SETTINGS: WorldGenerationSettings = {
   resourceVariety: 50,
   conflictMode: 'peaceful',
   enemyPressure: 0,
+  severeWeatherEnabled: false,
 };
 
 const STORAGE_KEY = 'medieval-road-system:world-generation';
@@ -185,6 +188,7 @@ export function normalizeWorldGenerationSettings(
     enemyPressure: conflictMode === 'frontier'
       ? Math.max(1, clampPercent(partial.enemyPressure ?? 50))
       : 0,
+    severeWeatherEnabled: partial.severeWeatherEnabled === true,
   };
 }
 

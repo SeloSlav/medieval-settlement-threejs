@@ -1,11 +1,25 @@
 import {
   FARM_BASE_GRAIN_PER_SQUARE_METER,
   FARM_CROP_DEFINITIONS,
+  FARM_REGIONAL_AFFINITY_FLOOR,
+  FARM_REGIONAL_ASPECT_RATIO,
+  FARM_REGIONAL_CENTER_RADIUS_RATIO,
+  FARM_REGIONAL_CORE_RADIUS_RATIO,
+  FARM_REGIONAL_PRIME_CROPS_LARGE,
+  FARM_REGIONAL_PRIME_CROPS_MEDIUM,
+  FARM_REGIONAL_PRIME_CROPS_SMALL,
+  FARM_REGIONAL_UNREPRESENTED_CEILING,
+  FARM_REGIONAL_YIELD_FLOOR,
   FARM_SLOPE_PENALTY_PER_DEGREE,
   type FarmCropDefinition,
   type FarmCropProduce,
 } from '../generated/gameBalance.ts';
 import type { FarmCrop, FarmFieldState } from '../resources/types.ts';
+import { getActiveWorldGeneration } from '../world/worldGenerationContext.ts';
+import {
+  resolveWorldDimensions,
+  type WorldMapSize,
+} from '../world/worldGenerationSettings.ts';
 import {
   cross2,
   isConvexQuad2,
@@ -14,6 +28,29 @@ import {
 } from '../utils/polygonGeometry.ts';
 
 export type FarmFieldCorners = [Point2, Point2, Point2, Point2];
+
+export type CropRegionContext = {
+  worldSeed: number;
+  mapSize: WorldMapSize;
+};
+
+export type CropRegionalProfile = {
+  /** Crop position in the seed-specific comparative-advantage order. */
+  rank: number;
+  /** Whether this map size gives the crop a genuinely prime province. */
+  represented: boolean;
+  centerX: number;
+  centerZ: number;
+  /** Broad province mask before map-size availability is applied. */
+  provinceStrength: number;
+  /** Regional affinity consumed by the real yield calculation. */
+  affinity: number;
+  yieldMultiplier: number;
+};
+
+const REGIONAL_CROPS: readonly FarmCrop[] = ['rye', 'oats', 'barley', 'flax', 'wheat'];
+const UINT32_RANGE = 0x1_0000_0000;
+const FULL_TURN = Math.PI * 2;
 
 export function rectangleFromBaseline(a: Point2, b: Point2, depthPoint: Point2): FarmFieldCorners | null {
   const dx = b.x - a.x;
@@ -175,6 +212,90 @@ export function cropSoilSuitability(crop: FarmCrop, x: number, z: number): numbe
   return clamp01(textureSuitability * depthSuitability);
 }
 
+/**
+ * Seeded, map-scale agricultural provinces layered over physical soil causes.
+ *
+ * Rank zero owns the central province; the remaining crops occupy four broad
+ * outer provinces. Map size controls how many of those crops can reach prime
+ * affinity (3/4/5), while every crop remains growable at a deliberately
+ * inefficient subsistence floor. This is shared with the authoritative server.
+ */
+export function cropRegionalProfile(
+  crop: FarmCrop,
+  x: number,
+  z: number,
+  context: CropRegionContext = activeCropRegionContext(),
+): CropRegionalProfile {
+  const cropIndex = REGIONAL_CROPS.indexOf(crop);
+  if (cropIndex < 0) {
+    return {
+      rank: -1,
+      represented: true,
+      centerX: 0,
+      centerZ: 0,
+      provinceStrength: 1,
+      affinity: 1,
+      yieldMultiplier: 1,
+    };
+  }
+
+  const layoutHash = regionalSeedHash(context.worldSeed, 0xa511_e9b3);
+  const rotation = layoutHash % REGIONAL_CROPS.length;
+  const direction = (layoutHash & 0x100) === 0 ? 1 : -1;
+  const rank = positiveModulo(
+    direction * (cropIndex - rotation),
+    REGIONAL_CROPS.length,
+  );
+  const dimensions = resolveWorldDimensions(context.mapSize);
+  const generationHalf = dimensions.generationHalf;
+  const baseAngle = regionalSeedHash(context.worldSeed, 0x63d8_35f1)
+    / UINT32_RANGE * FULL_TURN;
+  const provinceAngle = rank === 0
+    ? baseAngle
+    : baseAngle + (rank - 1) * Math.PI * 0.5;
+  const centerDistance = rank === 0
+    ? 0
+    : generationHalf * FARM_REGIONAL_CENTER_RADIUS_RATIO;
+  const centerX = Math.cos(provinceAngle) * centerDistance;
+  const centerZ = Math.sin(provinceAngle) * centerDistance;
+  const longAxisAngle = rank === 0 ? baseAngle : provinceAngle + Math.PI * 0.5;
+  const dx = (Number.isFinite(x) ? x : 0) - centerX;
+  const dz = (Number.isFinite(z) ? z : 0) - centerZ;
+  const along = dx * Math.cos(longAxisAngle) + dz * Math.sin(longAxisAngle);
+  const across = -dx * Math.sin(longAxisAngle) + dz * Math.cos(longAxisAngle);
+  const coreRadius = Math.max(1, generationHalf * FARM_REGIONAL_CORE_RADIUS_RATIO);
+  const scaledDistance = Math.hypot(
+    along / (coreRadius * FARM_REGIONAL_ASPECT_RATIO),
+    across / coreRadius,
+  );
+  const provinceStrength = 1 - smoothstep(0.22, 1.15, scaledDistance);
+  const represented = rank < regionalPrimeCropCount(context.mapSize);
+  const affinityCeiling = represented ? 1 : FARM_REGIONAL_UNREPRESENTED_CEILING;
+  const affinity = FARM_REGIONAL_AFFINITY_FLOOR
+    + (affinityCeiling - FARM_REGIONAL_AFFINITY_FLOOR) * provinceStrength;
+  const yieldMultiplier = FARM_REGIONAL_YIELD_FLOOR
+    + (1 - FARM_REGIONAL_YIELD_FLOOR) * affinity;
+
+  return {
+    rank,
+    represented,
+    centerX,
+    centerZ,
+    provinceStrength,
+    affinity,
+    yieldMultiplier,
+  };
+}
+
+export function cropRegionalSuitability(
+  crop: FarmCrop,
+  x: number,
+  z: number,
+  context: CropRegionContext = activeCropRegionContext(),
+): number {
+  return cropRegionalProfile(crop, x, z, context).affinity;
+}
+
 export function cropSlopeSuitability(
   crop: FarmCrop,
   averageSlopeDegrees: number,
@@ -196,11 +317,13 @@ export function cropEnvironmentalSuitability(
   groundwater: number,
   x: number,
   z: number,
+  regionContext: CropRegionContext = activeCropRegionContext(),
 ): number {
   if (cropProduce(crop) === 'none') return 1;
   const moisture = moistureSuitability(crop, effectiveFieldMoisture(groundwater, x, z));
   const soil = cropSoilSuitability(crop, x, z);
-  return moisture * 0.42 + soil * 0.58;
+  const localSuitability = moisture * 0.42 + soil * 0.58;
+  return localSuitability * cropRegionalProfile(crop, x, z, regionContext).yieldMultiplier;
 }
 
 /** Mirrors the authoritative starting-fertility rule used when a field is placed. */
@@ -235,6 +358,7 @@ export function cropSiteSuitability(
   averageSlopeDegrees: number,
   x: number,
   z: number,
+  regionContext: CropRegionContext = activeCropRegionContext(),
 ): number {
   const fertility = initialFieldFertility(groundwater, averageSlopeDegrees, x, z);
   if (cropProduce(crop) === 'none') return fertility / 0.95;
@@ -242,21 +366,30 @@ export function cropSiteSuitability(
     0,
     Math.min(
       1,
-      cropEnvironmentalSuitability(crop, groundwater, x, z)
+      cropEnvironmentalSuitability(crop, groundwater, x, z, regionContext)
         * (fertility / 0.95)
         * cropSlopeSuitability(crop, averageSlopeDegrees),
     ),
   );
 }
 
-export function expectedFieldYield(field: Pick<FarmFieldState, 'area' | 'crop' | 'moisture' | 'fertility' | 'averageSlopeDegrees' | 'corners'>): number {
+export function expectedFieldYield(
+  field: Pick<FarmFieldState, 'area' | 'crop' | 'moisture' | 'fertility' | 'averageSlopeDegrees' | 'corners'>,
+  regionContext: CropRegionContext = activeCropRegionContext(),
+): number {
   const definition = cropDefinition(field.crop);
   if (definition.produce === 'none') return 0;
   const center = fieldCentroid(field.corners);
   return field.area
     * FARM_BASE_GRAIN_PER_SQUARE_METER
     * definition.yieldMultiplier
-    * cropEnvironmentalSuitability(field.crop, field.moisture, center.x, center.z)
+    * cropEnvironmentalSuitability(
+      field.crop,
+      field.moisture,
+      center.x,
+      center.z,
+      regionContext,
+    )
     * Math.max(0.2, Math.min(1, field.fertility))
     * cropSlopeSuitability(field.crop, field.averageSlopeDegrees)
     * fieldShapeEfficiency(field.corners);
@@ -264,6 +397,35 @@ export function expectedFieldYield(field: Pick<FarmFieldState, 'area' | 'crop' |
 
 function clamp01(value: number): number {
   return Math.max(0, Math.min(1, Number.isFinite(value) ? value : 0));
+}
+
+function activeCropRegionContext(): CropRegionContext {
+  const settings = getActiveWorldGeneration();
+  return { worldSeed: settings.seed, mapSize: settings.mapSize };
+}
+
+function regionalPrimeCropCount(mapSize: WorldMapSize): number {
+  switch (mapSize) {
+    case 'small': return FARM_REGIONAL_PRIME_CROPS_SMALL;
+    case 'large': return FARM_REGIONAL_PRIME_CROPS_LARGE;
+    default: return FARM_REGIONAL_PRIME_CROPS_MEDIUM;
+  }
+}
+
+function regionalSeedHash(seed: number, salt: number): number {
+  let hash = ((Number.isFinite(seed) ? Math.trunc(seed) : 0) >>> 0) ^ (salt >>> 0);
+  hash = Math.imul(hash ^ (hash >>> 16), 0x7feb_352d) >>> 0;
+  hash = Math.imul(hash ^ (hash >>> 15), 0x846c_a68b) >>> 0;
+  return (hash ^ (hash >>> 16)) >>> 0;
+}
+
+function positiveModulo(value: number, divisor: number): number {
+  return ((value % divisor) + divisor) % divisor;
+}
+
+function smoothstep(edge0: number, edge1: number, value: number): number {
+  const t = clamp01((value - edge0) / Math.max(1e-9, edge1 - edge0));
+  return t * t * (3 - 2 * t);
 }
 
 export function sampleAverageSlopeDegrees(

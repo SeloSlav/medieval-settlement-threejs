@@ -1,4 +1,4 @@
-import { sampleAuthoritativeHydrologyScore } from '../hydrology/sampleAuthoritativeHydrology.ts';
+import { sampleAuthoritativeGroundwaterScore } from '../hydrology/sampleAuthoritativeHydrology.ts';
 import type { VineyardParcelState } from '../resources/types.ts';
 import type { Point2 } from '../utils/polygonGeometry.ts';
 import {
@@ -116,7 +116,7 @@ export function samplePointVineyardSuitability(
   sampleSouthExposure: (x: number, z: number) => number,
 ): number {
   return vineyardSiteSuitability(
-    sampleAuthoritativeHydrologyScore(point.x, point.z),
+    sampleAuthoritativeGroundwaterScore(point.x, point.z),
     sampleSlopeDegrees(point.x, point.z),
     sampleSouthExposure(point.x, point.z),
     point.x,

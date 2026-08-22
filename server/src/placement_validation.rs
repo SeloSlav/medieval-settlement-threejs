@@ -7,7 +7,6 @@ use crate::burgage::{
     zone_overlaps_oriented_footprint, Point2, ZoneCorners,
 };
 use crate::db::*;
-use crate::hydrology::sample_hydrology_score;
 use crate::monastery_estate_policy::{
     monastery_estate_corners, MONASTERY_ESTATE_DEPTH, MONASTERY_ESTATE_HALF_WIDTH,
     MONASTERY_ESTATE_REAR_DEPTH, MONASTERY_ESTATE_WIDTH,
@@ -26,7 +25,6 @@ const MUSHROOM_PATCH_PROTECTION_RADIUS: f64 = 7.2;
 const FOOTPRINT_SAMPLE_FRACTIONS: [f64; 4] = [0.0, 0.55, 0.82, 1.0];
 const BUILDING_FOOTPRINT_SCALE: f64 = 0.92;
 const ROAD_FACING_SNAP_DISTANCE: f64 = 24.0;
-const OPEN_WATER_THRESHOLD: f64 = 0.999;
 const MAX_ROAD_FRONTAGE_DISTANCE: f64 = 16.0;
 const BUILDING_SITE_CLEAR_MARGIN: f64 = 0.75;
 const BUILDING_EDGE_CLEARANCE: f64 = 0.65;
@@ -61,10 +59,6 @@ pub fn building_site_contains_point(
     let normalized_distance = (local_x / pad.radius_x).hypot(local_z / pad.radius_z);
     let margin = BUILDING_SITE_CLEAR_MARGIN / pad.radius_x.min(pad.radius_z);
     normalized_distance <= pad.outer_fade * 1.04 + margin
-}
-
-pub fn is_open_water(x: f64, z: f64) -> bool {
-    sample_hydrology_score(x, z) >= OPEN_WATER_THRESHOLD
 }
 
 pub fn burgage_frontage_edge_distance(

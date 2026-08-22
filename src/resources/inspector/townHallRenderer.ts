@@ -1801,6 +1801,7 @@ export function renderTownHallInspector(
     gameState: context.gameState,
     worldQueries: context.worldQueries,
     worldHydrology: context.worldHydrology,
+    severeWeatherEnabled: context.severeWeatherEnabled ?? false,
     taxRate,
     parishPolicy,
   });
@@ -1836,11 +1837,17 @@ export function renderTownHallInspector(
         clock.month,
         context.enemyPressure ?? 0,
       );
-  const environment = environmentFor(context.gameState.seed, context.worldHydrology, clock);
+  const environment = environmentFor(
+    context.gameState.seed,
+    context.worldHydrology,
+    clock,
+    context.severeWeatherEnabled ?? false,
+  );
   const environmentOutlook = nextDayEnvironmentOutlook(
     context.gameState.seed,
     context.worldHydrology,
     clock,
+    context.severeWeatherEnabled ?? false,
   );
   const nextDawnOutlook = describeNextDayEnvironmentOutlook(
     environment,

@@ -1055,11 +1055,13 @@ export class App {
       state.seed,
       snapshot.worldGeneration?.hydrology ?? 50,
       clock,
+      snapshot.worldGeneration?.severeWeatherEnabled ?? false,
     );
     const environmentOutlook = nextDayEnvironmentOutlook(
       state.seed,
       snapshot.worldGeneration?.hydrology ?? 50,
       clock,
+      snapshot.worldGeneration?.severeWeatherEnabled ?? false,
     );
     const sabbathObserved = snapshot.parishPolicy.sabbathObservanceEnabled
       && settlementHasStaffedChapel(state);
@@ -1273,6 +1275,7 @@ export class App {
         state.seed,
         snapshot.worldGeneration?.hydrology ?? 50,
         clock,
+        snapshot.worldGeneration?.severeWeatherEnabled ?? false,
       ).roadTravelSpeedMultiplier;
       const refugePlan = enabled
         ? computeRefugeShelterPlan(state)

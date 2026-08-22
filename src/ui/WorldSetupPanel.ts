@@ -74,6 +74,24 @@ export class WorldSetupPanel {
             </div>
             </section>
 
+            <section class="world-setup-section" aria-label="Severe weather">
+              <h2 class="world-setup-section__title">Severe weather</h2>
+              <button
+                type="button"
+                class="world-setup-hazard-option"
+                data-severe-weather
+                aria-pressed="false"
+              >
+                <span class="world-setup-hazard-option__marker" aria-hidden="true">⚡</span>
+                <span class="world-setup-hazard-option__copy">
+                  <strong>Enable severe weather events</strong>
+                  <span>Summer droughts, lightning ignition, accidental structure fires, and fire spread.</span>
+                </span>
+                <span class="world-setup-hazard-option__state" data-severe-weather-state>Off · beginner friendly</span>
+              </button>
+              <p class="world-setup-slider-hint world-setup-hazard-hint">Ordinary spring rain and winter frost remain part of every world. Frontier raid arson stays tied to Contested frontier mode.</p>
+            </section>
+
             <section class="world-setup-section world-setup-landscape" aria-label="Landscape">
               <div class="world-setup-section-heading">
                 <h2 class="world-setup-section__title">Landscape</h2>
@@ -176,6 +194,8 @@ export class WorldSetupPanel {
     const pressureControls = this.backdrop.querySelector<HTMLElement>('[data-pressure-controls]')!;
     const pressureSlider = this.backdrop.querySelector<HTMLInputElement>('#world-setup-pressure')!;
     const pressureValue = this.backdrop.querySelector<HTMLElement>('[data-pressure-value]')!;
+    const severeWeatherButton = this.backdrop.querySelector<HTMLButtonElement>('[data-severe-weather]')!;
+    const severeWeatherState = this.backdrop.querySelector<HTMLElement>('[data-severe-weather-state]')!;
     const landscapeGrid = this.backdrop.querySelector<HTMLElement>('[data-landscape-grid]')!;
     const landscapeNote = this.backdrop.querySelector<HTMLElement>('[data-landscape-note]')!;
     const customLandscapeControls = this.backdrop.querySelector<HTMLElement>('[data-custom-landscape-controls]')!;
@@ -227,6 +247,14 @@ export class WorldSetupPanel {
     pressureSlider.addEventListener('input', () => {
       this.draft.enemyPressure = Number(pressureSlider.value);
       pressureValue.textContent = pressureSlider.value;
+    });
+    severeWeatherButton.addEventListener('click', () => {
+      this.draft.severeWeatherEnabled = !this.draft.severeWeatherEnabled;
+      severeWeatherButton.classList.toggle('is-selected', this.draft.severeWeatherEnabled);
+      severeWeatherButton.setAttribute('aria-pressed', String(this.draft.severeWeatherEnabled));
+      severeWeatherState.textContent = this.draft.severeWeatherEnabled
+        ? 'On · severe events'
+        : 'Off · beginner friendly';
     });
 
     topographySlider.addEventListener('input', () => {

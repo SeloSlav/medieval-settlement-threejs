@@ -13,7 +13,7 @@ import {
   LIVESTOCK_MIN_PASTURE_EDGE,
   SHEEP_MAX_SLOPE_DEGREES,
 } from '../generated/gameBalance.ts';
-import { sampleAuthoritativeHydrologyScore } from '../hydrology/sampleAuthoritativeHydrology.ts';
+import { sampleAuthoritativeGroundwaterScore } from '../hydrology/sampleAuthoritativeHydrology.ts';
 import { buildingFootprintPolygonFromState, burgageZonePolygon } from '../placement/placementConflicts.ts';
 import { FARM_CROPS, type BuildingState, type FarmCrop, type GameState } from '../resources/types.ts';
 import type { FarmFieldState } from '../resources/types.ts';
@@ -130,7 +130,7 @@ function isTypingTarget(target: EventTarget | null): boolean {
   return tag === 'INPUT' || tag === 'TEXTAREA' || Boolean(element?.isContentEditable);
 }
 
-/** Shared four-corner authoring lifecycle for every player-drawn land parcel. */
+/** Shared four independent corners authoring lifecycle for every player-drawn land parcel. */
 export class FarmFieldTool {
   private readonly options: FarmFieldToolOptions;
   private readonly preview: FarmFieldPreview;
@@ -646,7 +646,7 @@ export class FarmFieldTool {
 
     const slope = sampleAverageSlopeDegrees(corners, this.options.getHeightAt);
     const center = fieldCentroid(corners);
-    const moisture = sampleAuthoritativeHydrologyScore(center.x, center.z);
+    const moisture = sampleAuthoritativeGroundwaterScore(center.x, center.z);
     const southExposure = sampleAverageSouthExposure(corners, this.options.getHeightAt);
     const state = this.options.getState();
     const farmstead = this.farmsteadId ? state.buildings.get(this.farmsteadId) ?? null : null;

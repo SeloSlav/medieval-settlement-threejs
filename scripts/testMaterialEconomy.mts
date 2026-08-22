@@ -95,8 +95,8 @@ import {
 import { renderProcessorOutputTargetPanel } from '../src/resources/inspector/expandedBuildingRenderer.ts';
 import { renderBuildMenuCards } from '../src/ui/buildMenuCards.ts';
 
-const leanClayBank = { x: -12.7559, z: -140.315 };
-const richClayBank = { x: 4.252, z: -131.811 };
+const leanClayBank = { x: -360, z: 260 };
+const richClayBank = { x: 280, z: 220 };
 assert.equal(clayBankRegionalYieldMultiplier(50), 1);
 assert.equal(clayBankRegionalYieldMultiplier(Number.NaN), 1);
 assert.equal(clayBankSiteYieldMultiplier(Number.NEGATIVE_INFINITY), CLAY_BANK_SITE_YIELD_MIN);
@@ -110,7 +110,7 @@ assert.match(clayBankYieldGrade(explicitRichClayYield), /Rich clay deposit/);
 assert.ok(
   clayBankYieldAt(richClayBank.x, richClayBank.z)
     > clayBankYieldAt(leanClayBank.x, leanClayBank.z),
-  'broader alluvial pockets must outperform narrow clay margins',
+  'groundwater-rich clay ground must outperform dry clay margins',
 );
 assert.ok(
   clayBankYieldAt(richClayBank.x, richClayBank.z, 100)
@@ -1294,14 +1294,14 @@ const expandedInspectorSource = readFileSync(
   'utf8',
 );
 const townHallSource = readFileSync('src/resources/inspector/townHallRenderer.ts', 'utf8');
-assert.match(clayBankPolicySource, /sampleAuthoritativeHydrologyScore/);
-assert.match(
+assert.match(clayBankPolicySource, /sampleAuthoritativeGroundwaterScore/);
+assert.doesNotMatch(
   hydrologySamplerSource,
-  /hydrology_grid\.json' with \{ type: 'json' \}/,
-  'direct Node test runners and Vite must share an explicit JSON module boundary',
+  /import[^\n]*(?:RiverField|rivers)|hydrology_grid\.json/,
+  'authoritative groundwater must not depend on surface-water representations',
 );
-assert.match(hydrologySamplerSource, /applyWorldGroundwaterVariation/);
-assert.match(hydrologySource, /sample_world_hydrology_score/);
+assert.match(hydrologySamplerSource, /sampleWorldGroundwaterScore/);
+assert.match(hydrologySource, /sample_world_groundwater_score/);
 assert.match(clayPitStep, /fn clay_bank_yield_multiplier_at_deposit/);
 assert.doesNotMatch(
   buildingToolSource,

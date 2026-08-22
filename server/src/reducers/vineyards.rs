@@ -6,7 +6,7 @@ use crate::farming::{
     centroid, corners_from_values, edge_lengths, is_valid_convex_quadrilateral, point_in_field,
     polygon_area, shape_efficiency,
 };
-use crate::hydrology::sample_world_hydrology_score;
+use crate::hydrology::sample_world_groundwater_score;
 use crate::placement_validation::{
     zone_overlaps_building_footprint, zone_overlaps_resource_deposit,
 };
@@ -202,7 +202,8 @@ pub fn place_vineyard(
         .id()
         .find(&0)
         .ok_or_else(|| "World not initialized.".to_string())?;
-    let moisture = sample_world_hydrology_score(center.x, center.z, config.seed, config.hydrology);
+    let moisture =
+        sample_world_groundwater_score(center.x, center.z, config.seed, config.hydrology);
     let suitability = site_suitability(moisture, slope, exposure, center.x, center.z);
     let shape = shape_efficiency(&corners);
 

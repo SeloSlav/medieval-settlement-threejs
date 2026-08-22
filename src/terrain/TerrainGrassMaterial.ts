@@ -63,8 +63,12 @@ export const TERRAIN_SHORE_RAIN_FADE_START = 0.08;
 export const TERRAIN_SHORE_RAIN_FADE_END = 0.72;
 export const TERRAIN_SHORE_BLEND_FLOOR = 0.045;
 export const TERRAIN_ROAD_WEAR_BLEND_FLOOR = 0.055;
-export const FOREST_CANOPY_GROUND_SHADE_MIN = 0.58;
-export const FOREST_CANOPY_GROUND_AO_MIN = 0.76;
+export const FOREST_CANOPY_GROUND_SHADE_MIN = 0.52;
+export const FOREST_CANOPY_GROUND_AO_MIN = 0.84;
+export const FOREST_CANOPY_SUN_OPENING_RELIEF = 0.72;
+export const FOREST_CANOPY_SUN_OPENING_FAR_VISIBILITY = 0.14;
+export const FOREST_CANOPY_SUN_OPENING_FADE_START_METERS = 110;
+export const FOREST_CANOPY_SUN_OPENING_FADE_END_METERS = 260;
 
 export function stableTerrainBlendWeight(
   raw: number,
@@ -1199,26 +1203,38 @@ export function createTerrainGrassMaterialWithRiverShore(
   const forestSurfaceBlend = blendNodes.forestBlend.mul(
     sub(float(1) as TslNode, wornMask) as TslNode,
   ) as TslNode;
-  const canopyCoverage = smoothstep(
-    float(0.035) as TslNode,
-    float(0.78) as TslNode,
-    attribute('forestCanopyOcclusion', 'float') as TslNode,
+  const canopyField = attribute('forestCanopyOcclusion', 'vec4') as TslNode;
+  const canopyCoverage = canopyField.r;
+  const canopyInterior = canopyField.g;
+  const canopySunAccess = canopyField.b;
+  const canopyWorld = positionWorld as TslNode;
+  const canopyCamera = cameraPosition as TslNode;
+  const canopyCameraHeight = max(
+    sub(canopyCamera.y, canopyWorld.y) as TslNode,
+    float(0) as TslNode,
   ) as TslNode;
-  // Tree-owned coverage supplies the broad shade body; the established macro
-  // ecology field opens soft light wells through it. Real directional shadows
-  // remain responsible for the smaller, sharper sun patches.
-  const canopyMottle = canopyCoverage.mul(
-    mix(
-      float(0.62) as TslNode,
-      float(1) as TslNode,
-      smoothstep(
-        float(0.24) as TslNode,
-        float(0.78) as TslNode,
-        blendNodes.macro,
-      ) as TslNode,
+  // Near and design views retain a few coherent light wells. At strategic
+  // height their contribution becomes nearly uniform so the woodland reads as
+  // one continuous dark mass instead of a constellation of terrain pinholes.
+  const canopyOpeningNearWeight = sub(
+    float(1) as TslNode,
+    smoothstep(
+      float(FOREST_CANOPY_SUN_OPENING_FADE_START_METERS) as TslNode,
+      float(FOREST_CANOPY_SUN_OPENING_FADE_END_METERS) as TslNode,
+      canopyCameraHeight,
     ) as TslNode,
   ) as TslNode;
-  const canopyGroundShade = canopyMottle.mul(forestSurfaceBlend) as TslNode;
+  const canopyOpeningVisibility = mix(
+    float(FOREST_CANOPY_SUN_OPENING_FAR_VISIBILITY) as TslNode,
+    float(1) as TslNode,
+    canopyOpeningNearWeight,
+  ) as TslNode;
+  const canopyOpeningRelief = canopySunAccess
+    .mul(canopyOpeningVisibility)
+    .mul(float(FOREST_CANOPY_SUN_OPENING_RELIEF) as TslNode) as TslNode;
+  const canopyGroundShade = canopyInterior
+    .mul(sub(float(1) as TslNode, canopyOpeningRelief) as TslNode)
+    .mul(forestSurfaceBlend) as TslNode;
   const canopyColorFactor = mix(
     float(1) as TslNode,
     float(FOREST_CANOPY_GROUND_SHADE_MIN) as TslNode,
@@ -1359,9 +1375,14 @@ export function createTerrainGrassMaterialWithRiverShore(
     float(1) as TslNode,
     canopyDebugMode,
   ) as TslNode;
-  const mottleDebugGate = smoothstep(
+  const interiorDebugGate = smoothstep(
     float(1.5) as TslNode,
     float(2) as TslNode,
+    canopyDebugMode,
+  ) as TslNode;
+  const sunAccessDebugGate = smoothstep(
+    float(2.5) as TslNode,
+    float(3) as TslNode,
     canopyDebugMode,
   ) as TslNode;
   const coverageDebugColor = vec3(
@@ -1369,15 +1390,24 @@ export function createTerrainGrassMaterialWithRiverShore(
     canopyCoverage,
     canopyCoverage,
   ) as TslNode;
-  const mottleDebugColor = vec3(
-    canopyGroundShade,
-    canopyMottle,
-    forestSurfaceBlend,
+  const interiorDebugColor = vec3(
+    canopyInterior,
+    canopyInterior,
+    canopyInterior,
+  ) as TslNode;
+  const sunAccessDebugColor = vec3(
+    canopySunAccess,
+    canopySunAccess.mul(float(0.82) as TslNode),
+    canopySunAccess.mul(float(0.18) as TslNode),
   ) as TslNode;
   const colorNode = mix(
-    mix(finalColorNode, coverageDebugColor, coverageDebugGate) as TslNode,
-    mottleDebugColor,
-    mottleDebugGate,
+    mix(
+      mix(finalColorNode, coverageDebugColor, coverageDebugGate) as TslNode,
+      interiorDebugColor,
+      interiorDebugGate,
+    ) as TslNode,
+    sunAccessDebugColor,
+    sunAccessDebugGate,
   ) as TslNode;
 
   const roadRoughness = (texture(roadTextures.roughness, blendNodes.grassUv) as TslNode).r;

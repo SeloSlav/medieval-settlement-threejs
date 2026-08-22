@@ -20,4 +20,5 @@ export default {
   resourceVariety: __t.u8(),
   conflictEnabled: __t.bool(),
   enemyPressure: __t.u8(),
+  severeWeatherEnabled: __t.bool(),
 };

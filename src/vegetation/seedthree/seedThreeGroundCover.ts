@@ -41,6 +41,9 @@ export type SeedThreeGroundCoverInstanceAttributes = {
   wind: THREE.InstancedBufferAttribute;
 };
 
+export type SeedThreeGroundCoverPositionNode =
+  ReturnType<typeof createRootedFoliageWindPosition>;
+
 export function loadSeedThreeGroundCoverTextures(
   sources: SeedThreeGroundCoverTextureSources,
   maxAnisotropy: number,
@@ -58,7 +61,7 @@ export function createSeedThreeGroundCoverMaterial(
   rendererBackend: RendererBackendKind,
   transmitRGB: [number, number, number],
   windAmount = 0.16,
-  positionNode?: ReturnType<typeof createRootedFoliageWindPosition>,
+  positionNode?: SeedThreeGroundCoverPositionNode,
 ): THREE.Material {
   if (rendererBackend !== 'webgpu') {
     const material = new THREE.MeshStandardMaterial({

@@ -1785,7 +1785,12 @@ fn insert_trip(
         .id()
         .find(&0)
         .map(|config| {
-            environment_for(config.seed, config.hydrology, &game_clock(config.sim_tick))
+            environment_for(
+                config.seed,
+                config.hydrology,
+                config.severe_weather_enabled,
+                &game_clock(config.sim_tick),
+            )
                 .road_speed_multiplier()
         })
         .unwrap_or(1.0);

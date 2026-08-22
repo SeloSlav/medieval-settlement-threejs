@@ -6,6 +6,7 @@ import {
   CALENDAR_SECONDS_PER_DAY,
   DROUGHT_CROP_GROWTH_MULTIPLIER,
   DROUGHT_CHARCOAL_BURNER_THROUGHPUT_MULTIPLIER,
+  DROUGHT_GROUNDWATER_MULTIPLIER,
   DROUGHT_PASTURE_CAPACITY_MULTIPLIER,
   DROUGHT_WATERMILL_THROUGHPUT_MULTIPLIER,
   FRESH_FOOD_SPOILAGE_AUTUMN_PER_DAY,
@@ -62,6 +63,8 @@ export type EnvironmentState = {
   /** Presentation-only color and leaf-retention state for deciduous foliage. */
   deciduousFoliage: DeciduousFoliagePresentation;
   cropGrowthMultiplier: number;
+  /** Usable share of the seeded aquifer after temporary seasonal drawdown. */
+  groundwaterMultiplier: number;
   firewoodDemandMultiplier: number;
   pastureCapacityMultiplier: number;
   freshFoodSpoilageFractionPerDay: number;
@@ -176,11 +179,12 @@ export function environmentFor(
   seed: number,
   hydrology: number,
   clock: GameClock,
+  severeWeatherEnabled = false,
 ): EnvironmentState {
   const season = seasonForMonth(clock.month);
   const weather: WeatherKind = season === 'spring' && springRain(seed, hydrology, clock)
     ? 'rain'
-    : season === 'summer' && summerDrought(seed, hydrology, clock)
+    : season === 'summer' && severeWeatherEnabled && summerDrought(seed, hydrology, clock)
       ? 'drought'
       : season === 'winter'
         ? 'frost'
@@ -196,6 +200,9 @@ export function environmentFor(
       : weather === 'drought'
         ? DROUGHT_CROP_GROWTH_MULTIPLIER
         : 1,
+    groundwaterMultiplier: weather === 'drought'
+      ? DROUGHT_GROUNDWATER_MULTIPLIER
+      : 1,
     firewoodDemandMultiplier: {
       spring: SPRING_FIREWOOD_DEMAND_MULTIPLIER,
       summer: SUMMER_FIREWOOD_DEMAND_MULTIPLIER,
@@ -240,13 +247,14 @@ export function nextDayEnvironmentOutlook(
   seed: number,
   hydrology: number,
   clock: GameClock,
+  severeWeatherEnabled = false,
 ): NextDayEnvironmentOutlook {
   const nextClock = gameClock(
     clock.simTick + CALENDAR_SECONDS_PER_DAY / SIM_TICK_SECONDS,
   );
   return {
     clock: nextClock,
-    environment: environmentFor(seed, hydrology, nextClock),
+    environment: environmentFor(seed, hydrology, nextClock, severeWeatherEnabled),
   };
 }
 
@@ -309,7 +317,7 @@ export function describeEnvironment(environment: EnvironmentState): {
   if (environment.weather === 'drought') {
     return {
       title: 'Summer drought',
-      detail: `Crops and forage grow slowly; ponds lose fish; wells refill slowly; fresh food spoils faster, and warm stores age cured provisions fastest. Low streams hold watermills to ${Math.round(environment.watermillThroughputMultiplier * 100)}% throughput, while hardened riverbank clay limits pits to ${Math.round(environment.clayPitThroughputMultiplier * 100)}%. Dry billets raise covered charcoal-clamp pace to ${Math.round(environment.charcoalBurnerThroughputMultiplier * 100)}%, but drought also makes these hot yards most dangerous to surrounding buildings.`,
+      detail: `Crops and forage grow slowly; the usable aquifer falls to ${Math.round(environment.groundwaterMultiplier * 100)}%, reducing well refill and field moisture; ponds lose fish; fresh food spoils faster, and warm stores age cured provisions fastest. Low streams hold watermills to ${Math.round(environment.watermillThroughputMultiplier * 100)}% throughput, while hardened riverbank clay limits pits to ${Math.round(environment.clayPitThroughputMultiplier * 100)}%. Dry billets raise covered charcoal-clamp pace to ${Math.round(environment.charcoalBurnerThroughputMultiplier * 100)}%, but drought also makes these hot yards most dangerous to surrounding buildings.`,
       symbol: '☀',
     };
   }

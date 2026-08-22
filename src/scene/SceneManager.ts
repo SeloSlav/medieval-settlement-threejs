@@ -760,6 +760,10 @@ export class SceneManager {
         this.cropSuitabilityOverlay = new CropSuitabilityOverlay({
           terrain: this.terrain,
           parent: this.scene,
+          regionContext: {
+            worldSeed: this.worldLayout.seed,
+            mapSize: this.worldLayout.settings.mapSize,
+          },
         });
       }
       if (this.vineyardSuitabilityActive && fieldCrop === null) {

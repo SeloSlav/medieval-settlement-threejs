@@ -107,6 +107,7 @@ type ResourceInspectorOptions = {
   getConflictEnabled?: () => boolean;
   getEnemyPressure?: () => number;
   getWorldHydrology?: () => number;
+  getSevereWeatherEnabled?: () => boolean;
   getWorldResourceAbundance?: () => number;
   getWorksiteCommuteSummary?: (buildingId: string) => WorksiteCommuteSummary | null;
   onDemolishBuilding?: (buildingId: string) => void | Promise<void>;
@@ -1936,6 +1937,7 @@ export class ResourceInspector {
           gameState.seed,
           this.options.getWorldHydrology?.() ?? 50,
           gameClock(gameState.tick),
+          this.options.getSevereWeatherEnabled?.() ?? false,
         )
       : null;
     const productionRouteTargets = needsProductionForecast
@@ -1987,6 +1989,7 @@ export class ResourceInspector {
       populationStats: this.populationStats,
       resourceTotals,
       worldHydrology: this.options.getWorldHydrology?.() ?? 50,
+      severeWeatherEnabled: this.options.getSevereWeatherEnabled?.() ?? false,
       worldResourceAbundance: this.options.getWorldResourceAbundance?.() ?? 50,
       conflictEnabled: this.options.getConflictEnabled?.() ?? false,
       enemyPressure: this.options.getEnemyPressure?.() ?? 0,

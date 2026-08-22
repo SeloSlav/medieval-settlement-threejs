@@ -28,7 +28,7 @@ use crate::balance_generated::{
     SMOKEHOUSE_FOOD_PER_CYCLE, SMOKEHOUSE_POTTERY_PER_CYCLE, SMOKEHOUSE_PRESERVED_FOOD_PER_CYCLE,
     SMOKEHOUSE_SALT_PER_CYCLE, TANNERY_FIREWOOD_PER_CYCLE, TANNERY_HIDES_PER_CYCLE,
     TANNERY_LEATHER_PER_CYCLE, TANNERY_WATER_PER_CYCLE, TEXTILE_TRANSFER_PER_TRIP,
-    THRESHING_GRAIN_PER_CYCLE, THRESHING_SHEAVES_PER_CYCLE, TICK_DT, TIMBER_DELIVERY_SPEED_MPS,
+    SUMMER_DROUGHT_DURATION_DAYS, THRESHING_GRAIN_PER_CYCLE, THRESHING_SHEAVES_PER_CYCLE, TICK_DT, TIMBER_DELIVERY_SPEED_MPS,
     TIMBER_DELIVERY_UNLOAD_SEC, VINEYARD_FERMENTATION_SECONDS,
     VINEYARD_GRAPES_PER_FERMENTATION_BATCH, VINEYARD_GRAPES_PER_HARVEST_CYCLE,
     VINEYARD_WINE_PER_FERMENTATION_BATCH, WATERMILL_GRAIN_PER_CYCLE,
@@ -78,7 +78,10 @@ use crate::fuel_reserve_policy::{
     combined_fuel_equivalent, marketplace_fuel_reserve_target, smithy_charcoal_refill_target,
 };
 use crate::granary_policy::granary_fresh_food_target;
-use crate::hydrology::{clay_bank_yield_multiplier_with_richness, sample_world_hydrology_score};
+use crate::hydrology::{
+    clay_bank_yield_multiplier_with_richness, drought_groundwater_score,
+    sample_world_groundwater_score,
+};
 use crate::livestock_policy::{
     farmhouse_cheese_salt_staging_cycles, normalize_milk_use_policy, MILK_USE_FRESH,
 };
@@ -435,6 +438,8 @@ pub fn step_threshing_barn(
     tick: &SimTickContext,
     clock: &GameClock,
     environment: EnvironmentState,
+    world_seed: u64,
+    map_size: u8,
     mut building: Building,
 ) {
     let fields: Vec<FarmField> = ctx
@@ -451,6 +456,8 @@ pub fn step_threshing_barn(
         &mut building,
         clock,
         environment,
+        world_seed,
+        map_size,
         work_allowed,
         onsite_labor,
         fields,
@@ -1940,6 +1947,8 @@ fn apply_farm_field_work(
     worker_z: f64,
     plough_multiplier: f64,
     available_work: f64,
+    world_seed: u64,
+    map_size: u8,
 ) -> f64 {
     let corners = field_corners(field);
     let field_center = centroid(&corners);
@@ -1966,6 +1975,8 @@ fn apply_farm_field_work(
                 shape,
                 field_center.x,
                 field_center.z,
+                world_seed,
+                map_size,
             ) * field.harvest_yield_multiplier.clamp(0.0, 1.0),
         )
     } else {
@@ -2006,8 +2017,11 @@ fn apply_farm_field_work(
     if field.stage == STAGE_PLOUGHING {
         let manure_needed =
             field_manure_required(field.area) * (field.stage_progress - previous_progress);
-        let manure_spread =
-            withdraw_building_commodity(resource_farmstead, CommodityKind::Manure, manure_needed);
+        let manure_spread = withdraw_building_commodity(
+            resource_farmstead,
+            CommodityKind::Manure,
+            manure_needed,
+        );
         field.manure_applied += manure_spread;
     }
     if seed_required > 1e-9 {
@@ -2071,6 +2085,8 @@ fn step_farmstead_fields(
     farmstead: &mut Building,
     clock: &GameClock,
     environment: EnvironmentState,
+    world_seed: u64,
+    map_size: u8,
     work_allowed: bool,
     onsite_labor: u32,
     mut fields: Vec<FarmField>,
@@ -2079,7 +2095,11 @@ fn step_farmstead_fields(
     for field in &mut fields {
         let moisture_change_per_day = match environment.weather {
             WeatherKind::Rain => 0.012,
-            WeatherKind::Drought => -0.035,
+            WeatherKind::Drought => {
+                let drought_level = drought_groundwater_score(field.moisture);
+                -(field.moisture - drought_level)
+                    / f64::from(SUMMER_DROUGHT_DURATION_DAYS.max(1))
+            }
             _ => 0.0,
         };
         field.moisture = (field.moisture
@@ -2248,6 +2268,8 @@ fn step_farmstead_fields(
                 farmstead.z,
                 plough_multiplier,
                 work_budget,
+                world_seed,
+                map_size,
             )
         } else {
             let Some(mut resource_farmstead) = ctx.db.building().id().find(&field.farmstead_id)
@@ -2261,6 +2283,8 @@ fn step_farmstead_fields(
                 farmstead.z,
                 plough_multiplier,
                 work_budget,
+                world_seed,
+                map_size,
             );
             if spent > 1e-9 {
                 ctx.db.building().id().update(resource_farmstead);
@@ -2875,7 +2899,7 @@ fn clay_bank_yield_multiplier_at_deposit(
         0.0
     };
     clay_bank_yield_multiplier_with_richness(
-        sample_world_hydrology_score(x, z, world_seed, world_hydrology),
+        sample_world_groundwater_score(x, z, world_seed, world_hydrology),
         resource_abundance,
         richness,
     )

@@ -88,6 +88,7 @@ export function renderBackyardInspector(
     context.gameState.seed,
     context.worldHydrology,
     clock,
+    context.severeWeatherEnabled ?? false,
   );
   const season = backyardGardenSeasonStatus(
     garden.kind,

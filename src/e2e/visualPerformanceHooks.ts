@@ -6,6 +6,7 @@ import type {
   SupportedRenderer,
 } from '../scene/RendererBackend.ts';
 import type { GrassStreamTelemetry } from '../grass/GrassBladeField.ts';
+import type { ForestCanopyOcclusionDebugMode } from '../terrain/ForestCanopyOcclusion.ts';
 import type { SeedThreeForestProfileBreakdown } from '../vegetation/seedthree/seedThreeForestTypes.ts';
 import {
   createVisualGpuTimestampProfiler,
@@ -51,6 +52,7 @@ type RuntimeSceneManager = {
   forestManager: {
     group: THREE.Group;
     getSeedThreeProfileBreakdown(): SeedThreeForestProfileBreakdown | null;
+    setForestFloorDebugMode?(mode: ForestCanopyOcclusionDebugMode): void;
   } | null;
   getRendererAdapterEvidence(): RendererAdapterEvidence;
   getVisualGpuFrameTiming?(frameTimestampMs: number): VisualGpuFrameTiming;
@@ -482,6 +484,7 @@ export type VisualPerformanceHooks = {
   stopFrameCollection(): void;
   reset(): void;
   setEnabled(subsystem: ProfileSubsystem, enabled: boolean): void;
+  setForestFloorDebugMode(mode: ForestCanopyOcclusionDebugMode): void;
 };
 
 export type VisualPerformanceDomPublicationEvidence = {
@@ -1437,6 +1440,9 @@ export function installVisualPerformanceHooksIfRequested(
     stopFrameCollection: () => stopFrameCollection(),
     reset,
     setEnabled,
+    setForestFloorDebugMode: (mode) => {
+      manager.forestManager?.setForestFloorDebugMode?.(mode);
+    },
   };
   (window as typeof window & { __visualPerf?: VisualPerformanceHooks })
     .__visualPerf = installedHooks;

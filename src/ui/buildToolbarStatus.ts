@@ -52,7 +52,7 @@ const PLACEMENT_STATUS_HINTS: Partial<Record<BuildingKind, string>> = {
   fishing_camp: ' — keep the camp on land; the finite shoal must be inside its work extent',
   town_hall: ' — requires 24 people, a church, a marketplace, and road access',
   village_storehouse: ' — road-linked haulers collect producer overflow',
-  well: ' — use the water map for best spots',
+  well: ' — use the groundwater map for the best aquifer sites',
   hunters_hall: ' — click near a game trail',
   foragers_shed: ' — place within 48 m of berries or mushrooms without covering the patch',
   chapel: ' — place near a road',

@@ -2,8 +2,7 @@ import * as THREE from 'three';
 import type { RiverField } from '../rivers/RiverField.ts';
 import type { Terrain } from '../terrain/Terrain.ts';
 import { forEachRiverFieldSample, mapRiverFieldRowForPlaneGeometry } from '../map/rasterizeRiverFieldBounds.ts';
-import { sampleHydrologyMapScore } from './sampleHydrology.ts';
-import { sampleAuthoritativeHydrologyScore } from './sampleAuthoritativeHydrology.ts';
+import { sampleAuthoritativeGroundwaterScore } from './sampleAuthoritativeHydrology.ts';
 
 const OVERLAY_RESOLUTION = 512;
 const OVERLAY_MESH_SEGMENTS = 96;
@@ -92,18 +91,27 @@ function createHydrologyTexture(riverField: RiverField): THREE.DataTexture {
   const data = new Uint8Array(resolution * resolution * 4);
 
   forEachRiverFieldSample(riverField, resolution, ({ x, z, row, column }) => {
-    const groundwater = sampleAuthoritativeHydrologyScore(x, z);
-    const riverPower = sampleHydrologyMapScore(riverField, x, z);
-    // Inland colors now show the full authoritative well score. Open water
-    // and strong banks remain bright for watermill placement on the same map.
-    const score = Math.max(groundwater, riverPower);
-    const color = hydrologyColor(score);
     const dataRow = mapRiverFieldRowForPlaneGeometry(row, resolution);
     const index = (dataRow * resolution + column) * 4;
+    // RiverField is consulted only as a surface-water exclusion mask. The
+    // overlay must never tint rivers, the sea, ponds, or lakes: those features
+    // are unrelated to the underground network used by wells.
+    const surfaceWater = riverField.isRenderedWetAt(x, z);
+    const groundwater = surfaceWater ? 0 : sampleAuthoritativeGroundwaterScore(x, z);
+    const alpha = groundwaterOverlayAlpha(surfaceWater, groundwater);
+    if (alpha === 0) {
+      data[index] = 0;
+      data[index + 1] = 0;
+      data[index + 2] = 0;
+      data[index + 3] = 0;
+      return;
+    }
+
+    const color = hydrologyColor(groundwater);
     data[index] = color.r;
     data[index + 1] = color.g;
     data[index + 2] = color.b;
-    data[index + 3] = Math.round(180 + score * 55);
+    data[index + 3] = alpha;
   });
 
   const texture = new THREE.DataTexture(data, resolution, resolution, THREE.RGBAFormat, THREE.UnsignedByteType);
@@ -116,6 +124,12 @@ function createHydrologyTexture(riverField: RiverField): THREE.DataTexture {
   texture.flipY = false;
   texture.needsUpdate = true;
   return texture;
+}
+
+export function groundwaterOverlayAlpha(surfaceWater: boolean, groundwaterScore: number): number {
+  if (surfaceWater) return 0;
+  const score = Math.max(0, Math.min(1, groundwaterScore));
+  return Math.round(180 + score * 55);
 }
 
 function hydrologyColor(score: number): { r: number; g: number; b: number } {

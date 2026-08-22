@@ -43,7 +43,7 @@ use crate::harvest_reserve_policy::{
     default_harvest_reserve_percent, harvestable_wild_stock,
     normalize_harvest_reserve_percent,
 };
-use crate::hydrology::{sample_world_hydrology_score, well_capacity_from_hydrology};
+use crate::hydrology::{sample_world_groundwater_score, well_capacity_from_hydrology};
 use crate::labor_steward_policy::steward_deployable_labor;
 use crate::lifecycle::ensure_player_resources;
 use crate::marketplace_procurement_policy::{
@@ -489,10 +489,8 @@ pub(crate) fn place_building_internal(
 
     // Surface-water and shoreline placement is validated by the placement
     // client against the active world's seed-aware rendered river mask. The
-    // server hydrology grid is deliberately retained only as a groundwater and
-    // moisture proxy for wells, crops, and production. It represents one fixed
-    // layout, so using it here rejects visibly dry ground (including waterless
-    // maps) and can accept water from a different generated layout.
+    // server's authoritative groundwater network is deliberately separate from
+    // that visible mask, so it must never be used as an open-water proxy here.
 
     // Parsing and indexing the serialized road graph is one of the more expensive
     // placement checks. Reuse one snapshot for overlap, landmark, and carpenter checks.
@@ -570,7 +568,7 @@ pub(crate) fn place_building_internal(
         }
         if !monastery_estate_is_near_map_edge(x, z, yaw, playable_half) {
             return Err(
-                "The monastery estate must be founded within 60 metres of the map edge."
+                "The monastery's complete estate must reach the map-size-scaled frontier belt near an edge."
                     .to_string(),
             );
         }
@@ -803,7 +801,7 @@ pub(crate) fn place_building_internal(
         .ok_or_else(|| "World not initialized.".to_string())?;
 
     let hydrology = if kind == "well" {
-        sample_world_hydrology_score(x, z, config.seed, config.hydrology)
+        sample_world_groundwater_score(x, z, config.seed, config.hydrology)
     } else {
         0.0
     };

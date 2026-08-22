@@ -162,7 +162,6 @@ export const MILITARY_BUILD_MENU_ENTRIES: readonly BuildMenuEntry[] = [
 
 export type BuildMenuCategoryId =
   | 'civic'
-  | 'housing'
   | 'trade'
   | 'gathering'
   | 'agriculture'
@@ -181,8 +180,7 @@ export type BuildMenuCategory = {
   conflictOnly?: boolean;
 };
 
-const HOUSING_BUILD_MENU_ENTRIES = [entry('residences')] as const;
-const CIVIC_SERVICES_BUILD_MENU_ENTRIES = [entry('well'), entry('town_hall')] as const;
+const CIVIC_SERVICES_BUILD_MENU_ENTRIES = [entry('residences'), entry('well'), entry('town_hall')] as const;
 const TRADE_BUILD_MENU_ENTRIES = [
   entry('marketplace'), entry('trading_post'), entry('village_storehouse'), entry('granary'),
 ] as const;
@@ -197,8 +195,7 @@ const DECORATION_BUILD_MENU_ENTRIES = [entry('wayside_shrine'), entry('dry_stone
 
 /** The single build palette's icon-driven, deliberately granular category model. */
 export const BUILD_MENU_CATEGORIES: readonly BuildMenuCategory[] = [
-  { id: 'civic', label: 'Civic', hint: 'Water and settlement government', icon: 'civic', entries: CIVIC_SERVICES_BUILD_MENU_ENTRIES },
-  { id: 'housing', label: 'Housing', hint: 'Road-fronted residence plots', icon: 'housing', entries: HOUSING_BUILD_MENU_ENTRIES },
+  { id: 'civic', label: 'Civic', hint: 'Homes, water, and settlement government', icon: 'civic', entries: CIVIC_SERVICES_BUILD_MENU_ENTRIES },
   { id: 'trade', label: 'Trade & storage', hint: 'Markets, exchange, and shared stores', icon: 'trade', entries: TRADE_BUILD_MENU_ENTRIES },
   { id: 'gathering', label: 'Gathering', hint: 'Wood, stone, game, forage, and fish', icon: 'gathering', entries: GATHERING_BUILD_MENU_ENTRIES },
   { id: 'agriculture', label: 'Agriculture', hint: 'Fields, orchards, and livestock', icon: 'agriculture', entries: AGRICULTURE_BUILD_MENU_ENTRIES },

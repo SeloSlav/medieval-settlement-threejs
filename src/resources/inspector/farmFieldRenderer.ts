@@ -8,6 +8,7 @@ import {
   cropHarvestUnit,
   cropLabel,
   cropProduce,
+  cropRegionalProfile,
   cropSoilSuitability,
   effectiveFieldMoisture,
   expectedFieldYield,
@@ -101,6 +102,17 @@ export function renderFarmFieldInspector(
   const environmentalFit = Math.round(
     cropEnvironmentalSuitability(field.crop, field.moisture, center.x, center.z) * 100,
   );
+  const regionalProfile = cropRegionalProfile(field.crop, center.x, center.z);
+  const regionalFit = Math.round(regionalProfile.yieldMultiplier * 100);
+  const regionalFitLabel = cropProduce(field.crop) === 'none'
+    ? 'Worked fallow is region-neutral'
+    : !regionalProfile.represented
+      ? `No prime ${cropLabel(field.crop).toLowerCase()} province on this map · ${regionalFit}% regional yield factor`
+      : regionalProfile.affinity >= 0.75
+        ? `Prime ${cropLabel(field.crop).toLowerCase()} province · ${regionalFit}% regional yield factor`
+        : regionalProfile.affinity >= 0.4
+          ? `${cropLabel(field.crop)} province fringe · ${regionalFit}% regional yield factor`
+          : `Outside the ${cropLabel(field.crop).toLowerCase()} province · ${regionalFit}% regional yield factor`;
   const cattleSupport = computeCattleFieldSupport(context.gameState).get(field.id);
   const manureRequired = fieldManureRequirement(field);
   const manureApplied = fieldManureApplied(field);
@@ -262,6 +274,7 @@ export function renderFarmFieldInspector(
       <li><span>Farmstead</span><span>${farmstead ? `${onsiteLabor} on site / ${farmstead.assignedLabor} assigned · ${Math.round(breadGrainStock(farmstead))} threshed grain (${Math.round(farmstead.ryeGrain ?? 0)} rye / ${Math.round(farmstead.oatGrain ?? 0)} oats / ${Math.round(farmstead.maslinGrain ?? 0)} maslin) · ${Math.round(farmstead.manure ?? 0)} manure stored` : 'Missing'}</span></li>
       <li><span>Field tools</span><span>${toolThroughputMultiplier > 1 ? `Maintained · ${Math.round((toolThroughputMultiplier - 1) * 100)}% faster field work` : 'Baseline hand tools · farmstead needs smith-forged ironwork for faster work'}</span></li>
       <li><span>Land fit</span><span>${environmentalFit}% for ${cropLabel(field.crop).toLowerCase()} · ${soilFit}% soil / ${moistureFit}% moisture</span></li>
+      <li><span>Crop province</span><span>${regionalFitLabel}</span></li>
       <li><span>Water</span><span>${Math.round(field.moisture * 100)}% groundwater · ${Math.round(effectiveMoisture * 100)}% after soil retention</span></li>
       <li><span>Current-cycle soil</span><span>${Math.round(field.fertility * 100)}% → ${projectedFertility}% fertility</span></li>
       <li><span>Year 2 soil</span><span>${projectedFertility}% → ${Math.round(plannedFertility * 100)}% after ${cropLabel(field.nextCrop).toLowerCase()}</span></li>

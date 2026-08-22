@@ -60,6 +60,10 @@ pub struct WorldConfig {
     /// Appended so established development worlds migrate without a reset.
     #[default(50)]
     pub resource_variety: u8,
+    /// Enables ambient fires, lightning ignition, fire spread, and summer droughts.
+    /// Appended and disabled so existing and new settlements get the safer ruleset.
+    #[default(false)]
+    pub severe_weather_enabled: bool,
 }
 
 #[spacetimedb::table(accessor = player_resources, public)]

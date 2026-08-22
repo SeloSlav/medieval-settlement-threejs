@@ -26,7 +26,7 @@ export const TOAST_MESSAGES = {
   'building.placement.no_trees_in_range': 'No mature trees within work range',
   'building.placement.on_road': 'Cannot build on a road',
   'building.placement.outside_map': 'The monastery’s complete 68 × 53 m fenced estate must fit inside the map boundary',
-  'building.placement.requires_map_edge': 'The monastery estate must be founded in the outer 60 m of the map',
+  'building.placement.requires_map_edge': 'The complete monastery estate must reach the map-size-scaled frontier belt near an edge',
   'building.placement.insufficient_resources': 'Not enough timber or stone',
   'building.placement.requires_completed_watchtower': 'Complete a frontier watchtower before establishing a paid guardhouse',
   'building.placement.requires_completed_guardhouse': 'Complete a frontier guardhouse before enclosing a palisaded refuge',

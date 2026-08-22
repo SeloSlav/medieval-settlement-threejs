@@ -203,6 +203,7 @@ export class WorldQueries {
   private readonly getRoadNetwork: () => RoadNetwork;
   private readonly getTreeRegistry: () => TreeRegistry | null;
   private readonly getWorldHydrology: () => number;
+  private readonly getSevereWeatherEnabled: () => boolean;
 
   constructor(options: {
     terrain: Terrain;
@@ -212,6 +213,7 @@ export class WorldQueries {
     getRoadNetwork: () => RoadNetwork;
     getTreeRegistry: () => TreeRegistry | null;
     getWorldHydrology?: () => number;
+    getSevereWeatherEnabled?: () => boolean;
   }) {
     this.terrain = options.terrain;
     this.riverField = options.riverField;
@@ -220,6 +222,7 @@ export class WorldQueries {
     this.getRoadNetwork = options.getRoadNetwork;
     this.getTreeRegistry = options.getTreeRegistry;
     this.getWorldHydrology = options.getWorldHydrology ?? (() => 50);
+    this.getSevereWeatherEnabled = options.getSevereWeatherEnabled ?? (() => false);
   }
 
   getHeightAt(x: number, z: number): number {
@@ -715,6 +718,7 @@ export class WorldQueries {
       state.seed,
       this.getWorldHydrology(),
       gameClock(state.tick),
+      this.getSevereWeatherEnabled(),
     ).roadTravelSpeedMultiplier;
   }
 

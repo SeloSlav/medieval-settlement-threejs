@@ -1,8 +1,3 @@
-use crate::hydrology_grid_generated::{
-    HYDROLOGY_GRID_MAX_X, HYDROLOGY_GRID_MAX_Z, HYDROLOGY_GRID_MIN_X, HYDROLOGY_GRID_MIN_Z,
-    HYDROLOGY_GRID_RESOLUTION, HYDROLOGY_GRID_SCORES,
-};
-
 pub const CLAY_BANK_SCORE_FLOOR: f64 = 0.15;
 pub const CLAY_BANK_SCORE_CEILING: f64 = 0.53;
 pub const CLAY_BANK_SITE_YIELD_MIN: f64 = 0.82;
@@ -15,52 +10,25 @@ pub const CLAY_BANK_RICH_YIELD_MIN: f64 = 1.28;
 pub const CLAY_BANK_TOTAL_YIELD_MAX: f64 = 1.42;
 const MAX_SUPPORTED_WORLD_HALF: f64 = 672.0;
 
-/// Samples the embedded valley and alluvial-ground proxy.
-pub fn sample_hydrology_score(x: f64, z: f64) -> f64 {
-    if !hydrology_grid_contains(x, z) {
-        return 0.0;
-    }
-
-    let span_x = HYDROLOGY_GRID_MAX_X - HYDROLOGY_GRID_MIN_X;
-    let span_z = HYDROLOGY_GRID_MAX_Z - HYDROLOGY_GRID_MIN_Z;
-    let gx = ((x - HYDROLOGY_GRID_MIN_X) / span_x) * (HYDROLOGY_GRID_RESOLUTION as f64 - 1.0);
-    let gz = ((z - HYDROLOGY_GRID_MIN_Z) / span_z) * (HYDROLOGY_GRID_RESOLUTION as f64 - 1.0);
-
-    let ix0 = gx
-        .floor()
-        .clamp(0.0, (HYDROLOGY_GRID_RESOLUTION - 2) as f64) as usize;
-    let iz0 = gz
-        .floor()
-        .clamp(0.0, (HYDROLOGY_GRID_RESOLUTION - 2) as f64) as usize;
-    let ix1 = ix0 + 1;
-    let iz1 = iz0 + 1;
-    let tx = gx - ix0 as f64;
-    let tz = gz - iz0 as f64;
-
-    let s00 = grid_at(ix0, iz0);
-    let s10 = grid_at(ix1, iz0);
-    let s01 = grid_at(ix0, iz1);
-    let s11 = grid_at(ix1, iz1);
-
-    let top = s00 * (1.0 - tx) + s10 * tx;
-    let bottom = s01 * (1.0 - tx) + s11 * tx;
-    (top * (1.0 - tz) + bottom * tz).clamp(0.0, 1.0)
-}
-
 /// Authoritative map-specific groundwater used by wells, fields, pastures, and clay.
-/// Broad seeded aquifers create inland variation while the world hydrology control
-/// raises or lowers the regional water table. Keep this in parity with the client
-/// `applyWorldGroundwaterVariation` implementation.
-pub fn sample_world_hydrology_score(x: f64, z: f64, world_seed: u64, world_hydrology: u8) -> f64 {
+/// This seeded underground network is deliberately independent of rivers, the sea,
+/// ponds, lakes, shore distance, and every other surface-water representation. Keep
+/// this in parity with the client `sampleWorldGroundwaterScore` implementation.
+pub fn sample_world_groundwater_score(x: f64, z: f64, world_seed: u64, world_hydrology: u8) -> f64 {
     if x.abs() > MAX_SUPPORTED_WORLD_HALF || z.abs() > MAX_SUPPORTED_WORLD_HALF {
         return 0.0;
     }
-    let base_score = sample_hydrology_score(x, z);
     let aquifer = sample_aquifer_potential(x, z, world_seed as u32);
-    let subsurface_score = 0.06 + aquifer * 0.72;
-    let local_potential = (base_score.clamp(0.0, 1.0) * 0.94).max(subsurface_score);
+    let local_potential = 0.06 + aquifer * 0.72;
     let wetness = f64::from(world_hydrology.min(100)) / 100.0;
     (local_potential * (0.72 + wetness * 0.56) + (wetness - 0.5) * 0.18).clamp(0.0, 1.0)
+}
+
+/// Severe summer drought lowers the usable water table without rewriting the
+/// seeded aquifer map. Wells and fields can therefore share one drawdown rule
+/// while recovering naturally after the event ends.
+pub fn drought_groundwater_score(groundwater_score: f64) -> f64 {
+    groundwater_score.clamp(0.0, 1.0) * DROUGHT_GROUNDWATER_MULTIPLIER
 }
 
 pub fn well_capacity_from_hydrology(base_capacity: f64, hydrology_score: f64) -> f64 {
@@ -108,18 +76,6 @@ pub fn clay_bank_yield_multiplier_with_richness(
     let rich_yield =
         (ordinary_yield * 1.3).clamp(CLAY_BANK_RICH_YIELD_MIN, CLAY_BANK_TOTAL_YIELD_MAX);
     ordinary_yield + (rich_yield - ordinary_yield) * richness
-}
-
-fn grid_at(ix: usize, iz: usize) -> f64 {
-    let index = iz * HYDROLOGY_GRID_RESOLUTION + ix;
-    HYDROLOGY_GRID_SCORES[index] as f64
-}
-
-fn hydrology_grid_contains(x: f64, z: f64) -> bool {
-    x >= HYDROLOGY_GRID_MIN_X
-        && x <= HYDROLOGY_GRID_MAX_X
-        && z >= HYDROLOGY_GRID_MIN_Z
-        && z <= HYDROLOGY_GRID_MAX_Z
 }
 
 fn sample_aquifer_potential(x: f64, z: f64, seed: u32) -> f64 {
@@ -175,37 +131,48 @@ mod tests {
     use super::{
         clay_bank_regional_yield_multiplier, clay_bank_site_yield_multiplier,
         clay_bank_yield_multiplier, clay_bank_yield_multiplier_with_richness,
-        sample_hydrology_score, sample_world_hydrology_score, CLAY_BANK_ORDINARY_YIELD_MAX,
+        drought_groundwater_score, sample_world_groundwater_score, CLAY_BANK_ORDINARY_YIELD_MAX,
         CLAY_BANK_RICH_YIELD_MIN, CLAY_BANK_SITE_YIELD_MAX, CLAY_BANK_SITE_YIELD_MIN,
+        DROUGHT_GROUNDWATER_MULTIPLIER,
     };
 
     #[test]
-    fn hydrology_score_is_bounded() {
-        let score = sample_hydrology_score(0.0, 0.0);
+    fn groundwater_score_is_bounded() {
+        let score = sample_world_groundwater_score(0.0, 0.0, 0x071a_2e0d, 50);
         assert!((0.0..=1.0).contains(&score));
+    }
+
+    #[test]
+    fn drought_draws_down_the_same_seeded_aquifer_used_by_wells_and_fields() {
+        let fair = sample_world_groundwater_score(120.0, -80.0, 0x071a_2e0d, 50);
+        let drought = drought_groundwater_score(fair);
+        assert!(drought >= 0.0);
+        assert!(drought < fair);
+        assert!((drought / fair - DROUGHT_GROUNDWATER_MULTIPLIER).abs() < 1e-9);
     }
 
     #[test]
     fn inland_groundwater_varies_by_site_seed_and_world_wetness() {
         let seed = 0x071a_2e0d;
-        let site_a = sample_world_hydrology_score(-360.0, 260.0, seed, 50);
-        let site_b = sample_world_hydrology_score(280.0, 220.0, seed, 50);
+        let site_a = sample_world_groundwater_score(-360.0, 260.0, seed, 50);
+        let site_b = sample_world_groundwater_score(280.0, 220.0, seed, 50);
         assert!((site_a - site_b).abs() > 0.12);
 
-        let dry_world = sample_world_hydrology_score(280.0, 220.0, seed, 0);
-        let wet_world = sample_world_hydrology_score(280.0, 220.0, seed, 100);
+        let dry_world = sample_world_groundwater_score(280.0, 220.0, seed, 0);
+        let wet_world = sample_world_groundwater_score(280.0, 220.0, seed, 100);
         assert!(dry_world < site_b && site_b < wet_world);
+        assert!((site_b - 0.777_495_960_595_806_5).abs() < 1e-12);
 
-        let seeded_site = sample_world_hydrology_score(-200.0, -200.0, seed, 50);
-        let other_seed = sample_world_hydrology_score(-200.0, -200.0, 0x6b71_2345, 50);
+        let seeded_site = sample_world_groundwater_score(-200.0, -200.0, seed, 50);
+        let other_seed = sample_world_groundwater_score(-200.0, -200.0, 0x6b71_2345, 50);
         assert!((other_seed - seeded_site).abs() > 0.04);
 
-        assert!(sample_world_hydrology_score(650.0, 620.0, seed, 50) > 0.0);
-        assert_eq!(sample_world_hydrology_score(700.0, 0.0, seed, 50), 0.0);
+        assert!(sample_world_groundwater_score(650.0, 620.0, seed, 50) > 0.0);
+        assert_eq!(sample_world_groundwater_score(700.0, 0.0, seed, 50), 0.0);
     }
 
     #[test]
-    fn broader_alluvial_pockets_raise_clay_yield_without_hard_stops() {
+    fn groundwater_rich_clay_ground_raises_yield_without_hard_stops() {
         assert_eq!(
             clay_bank_site_yield_multiplier(0.0),
             CLAY_BANK_SITE_YIELD_MIN
@@ -241,9 +208,13 @@ mod tests {
     }
 
     #[test]
-    fn coordinate_sampler_drives_authoritative_clay_bank_quality() {
-        let leaner = clay_bank_yield_multiplier(sample_hydrology_score(-12.7559, -140.315), 50);
-        let richer = clay_bank_yield_multiplier(sample_hydrology_score(4.252, -131.811), 50);
+    fn groundwater_network_drives_authoritative_clay_bank_quality() {
+        let seed = 0x071a_2e0d;
+        let leaner =
+            clay_bank_yield_multiplier(sample_world_groundwater_score(-360.0, 260.0, seed, 50), 50);
+        let richer =
+            clay_bank_yield_multiplier(sample_world_groundwater_score(280.0, 220.0, seed, 50), 50);
         assert!(richer > leaner);
     }
 }
+use crate::balance_generated::DROUGHT_GROUNDWATER_MULTIPLIER;

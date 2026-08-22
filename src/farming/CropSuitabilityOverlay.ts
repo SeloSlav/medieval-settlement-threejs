@@ -1,8 +1,11 @@
 import * as THREE from 'three';
-import { sampleAuthoritativeHydrologyScore } from '../hydrology/sampleAuthoritativeHydrology.ts';
+import { sampleAuthoritativeGroundwaterScore } from '../hydrology/sampleAuthoritativeHydrology.ts';
 import type { Terrain, TerrainBounds } from '../terrain/Terrain.ts';
 import type { FarmCrop } from '../resources/types.ts';
-import { cropSiteSuitability } from './farmFieldMath.ts';
+import {
+  cropSiteSuitability,
+  type CropRegionContext,
+} from './farmFieldMath.ts';
 import { vineyardSiteSuitability } from '../vineyards/vineyardSuitability.ts';
 
 export const CROP_SUITABILITY_OVERLAY_RESOLUTION = 192;
@@ -15,6 +18,7 @@ export type CropSuitabilityRasterOptions = {
   bounds: TerrainBounds;
   sampleMoisture: (x: number, z: number) => number;
   sampleSlopeDegrees: (x: number, z: number) => number;
+  regionContext?: CropRegionContext;
 };
 
 export type VineyardSuitabilityRasterOptions = Omit<CropSuitabilityRasterOptions, 'crop'> & {
@@ -24,6 +28,7 @@ export type VineyardSuitabilityRasterOptions = Omit<CropSuitabilityRasterOptions
 export type CropSuitabilityOverlayOptions = {
   terrain: Terrain;
   parent: THREE.Object3D;
+  regionContext: CropRegionContext;
 };
 
 /**
@@ -32,6 +37,7 @@ export type CropSuitabilityOverlayOptions = {
  */
 export class CropSuitabilityOverlay {
   private readonly terrain: Terrain;
+  private readonly regionContext: CropRegionContext;
   private readonly material: THREE.MeshBasicMaterial;
   private readonly mesh: THREE.Mesh;
   private readonly textures = new Map<FarmCrop | 'grapes', THREE.DataTexture>();
@@ -40,6 +46,7 @@ export class CropSuitabilityOverlay {
 
   constructor(options: CropSuitabilityOverlayOptions) {
     this.terrain = options.terrain;
+    this.regionContext = options.regionContext;
     this.material = new THREE.MeshBasicMaterial({
       transparent: true,
       opacity: 0.68,
@@ -62,7 +69,7 @@ export class CropSuitabilityOverlay {
     this.crop = crop;
     let texture = this.textures.get(crop);
     if (!texture) {
-      texture = createCropSuitabilityTexture(this.terrain, crop);
+      texture = createCropSuitabilityTexture(this.terrain, crop, this.regionContext);
       this.textures.set(crop, texture);
     }
     this.material.map = texture;
@@ -120,6 +127,7 @@ export function rasterizeCropSuitability(
         options.sampleSlopeDegrees(x, z),
         x,
         z,
+        options.regionContext,
       );
       const color = cropSuitabilityColor(score);
       const index = (dataRow * resolution + column) * 4;
@@ -182,13 +190,15 @@ export function rasterizeVineyardSuitability(
 function createCropSuitabilityTexture(
   terrain: Terrain,
   crop: FarmCrop,
+  regionContext: CropRegionContext,
 ): THREE.DataTexture {
   const data = rasterizeCropSuitability({
     crop,
     resolution: CROP_SUITABILITY_OVERLAY_RESOLUTION,
     bounds: terrain.bounds,
-    sampleMoisture: sampleAuthoritativeHydrologyScore,
+    sampleMoisture: sampleAuthoritativeGroundwaterScore,
     sampleSlopeDegrees: (x, z) => sampleTerrainSlopeDegrees(terrain, x, z),
+    regionContext,
   });
   const texture = new THREE.DataTexture(
     data,
@@ -213,7 +223,7 @@ function createVineyardSuitabilityTexture(terrain: Terrain): THREE.DataTexture {
   const data = rasterizeVineyardSuitability({
     resolution: CROP_SUITABILITY_OVERLAY_RESOLUTION,
     bounds: terrain.bounds,
-    sampleMoisture: sampleAuthoritativeHydrologyScore,
+    sampleMoisture: sampleAuthoritativeGroundwaterScore,
     sampleSlopeDegrees: (x, z) => sampleTerrainSlopeDegrees(terrain, x, z),
     sampleSouthExposure: (x, z) => sampleTerrainSouthExposure(terrain, x, z),
   });

@@ -1,4 +1,4 @@
-import { sampleAuthoritativeHydrologyScore } from '../hydrology/sampleAuthoritativeHydrology.ts';
+import { sampleAuthoritativeGroundwaterScore } from '../hydrology/sampleAuthoritativeHydrology.ts';
 import type { ClayDepositLayout } from '../clay/ClayDepositLayout.ts';
 
 export const CLAY_BANK_SCORE_FLOOR = 0.15;
@@ -22,9 +22,9 @@ export function setActiveClayDepositLayout(layout: ClayDepositLayout | null): vo
 }
 
 /**
- * Local bank quality inferred from the same hydrology field used by the
- * authority. Narrow, drier margins stay workable while broader alluvial
- * pockets reward careful shoreline placement.
+ * Local bank quality inferred from the same groundwater network used by the
+ * authority. Drier margins stay workable while saturated clay-bearing ground
+ * rewards careful deposit placement.
  */
 export function clayBankSiteYieldMultiplier(hydrologyScore: number): number {
   const normalized = clamp01(
@@ -37,7 +37,7 @@ export function clayBankSiteYieldMultiplier(hydrologyScore: number): number {
 
 /**
  * World resource abundance modestly changes regional clay richness without
- * turning a lean shoreline into a hard placement failure.
+ * turning a lean site into a hard placement failure.
  */
 export function clayBankRegionalYieldMultiplier(resourceAbundance: number): number {
   const normalized = clamp01(finiteOr(resourceAbundance, 50) / 100);
@@ -75,7 +75,7 @@ export function clayBankYieldAt(
   resourceAbundance = 50,
 ): number {
   return clayBankYieldMultiplier(
-    sampleAuthoritativeHydrologyScore(x, z),
+    sampleAuthoritativeGroundwaterScore(x, z),
     resourceAbundance,
     activeClayDepositLayout?.richnessAt(x, z) ?? 0,
   );
@@ -83,7 +83,7 @@ export function clayBankYieldAt(
 
 export function clayBankSiteYieldAt(x: number, z: number): number {
   return clayBankYieldMultiplier(
-    sampleAuthoritativeHydrologyScore(x, z),
+    sampleAuthoritativeGroundwaterScore(x, z),
     50,
     activeClayDepositLayout?.richnessAt(x, z) ?? 0,
   );

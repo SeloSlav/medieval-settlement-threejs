@@ -45,6 +45,7 @@ export function buildVillageAdminReadout(input: {
   gameState: GameState | null;
   worldQueries: WorldQueries | null;
   worldHydrology?: number;
+  severeWeatherEnabled?: boolean;
   taxRate: number;
   parishPolicy: ParishPolicyState;
 }): VillageAdminReadout {
@@ -54,6 +55,7 @@ export function buildVillageAdminReadout(input: {
     taxRate,
     parishPolicy,
     worldHydrology = 50,
+    severeWeatherEnabled = false,
   } = input;
 
   if (!gameState) {
@@ -102,6 +104,7 @@ export function buildVillageAdminReadout(input: {
     state: gameState,
     clock: gameClock(gameState.tick),
     hydrology: worldHydrology,
+    severeWeatherEnabled,
     taxRate,
     taxCollectionMultiplier,
     sabbathObserved,

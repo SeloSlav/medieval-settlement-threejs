@@ -10,7 +10,7 @@ use crate::farming::{
     edge_lengths, initial_field_fertility, is_valid_convex_quadrilateral, point_in_field,
     polygon_area, valid_crop, NO_FOLLOWING_CROP, STAGE_HARVESTING, STAGE_PLOUGHING,
 };
-use crate::hydrology::sample_world_hydrology_score;
+use crate::hydrology::sample_world_groundwater_score;
 use crate::placement_validation::{
     zone_overlaps_building_footprint, zone_overlaps_resource_deposit,
 };
@@ -199,7 +199,8 @@ pub fn place_farm_field(
         .id()
         .find(&0)
         .ok_or_else(|| "World not initialized.".to_string())?;
-    let moisture = sample_world_hydrology_score(center.x, center.z, config.seed, config.hydrology);
+    let moisture =
+        sample_world_groundwater_score(center.x, center.z, config.seed, config.hydrology);
     let initial_fertility = initial_field_fertility(moisture, slope, center.x, center.z);
     ctx.db.farm_field().insert(FarmField {
         id: 0,

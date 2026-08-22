@@ -4,7 +4,9 @@ pub const MONASTERY_ESTATE_FRONT_DEPTH: f64 = 7.5;
 pub const MONASTERY_ESTATE_WIDTH: f64 = MONASTERY_ESTATE_HALF_WIDTH * 2.0;
 pub const MONASTERY_ESTATE_DEPTH: f64 = MONASTERY_ESTATE_REAR_DEPTH + MONASTERY_ESTATE_FRONT_DEPTH;
 pub const MONASTERY_ESTATE_MAP_INSET: f64 = 8.0;
-pub const MONASTERY_ESTATE_EDGE_BAND: f64 = 60.0;
+/// Small-map floor for the frontier belt; larger maps scale the belt by radius.
+pub const MONASTERY_ESTATE_EDGE_BAND: f64 = 200.0;
+pub const MONASTERY_ESTATE_EDGE_BAND_RADIUS_RATIO: f64 = 0.45;
 pub const MONASTERY_ESTATE_GOLD_RESERVE: f64 = 6.0;
 pub const MONASTERY_ESTATE_EXPORT_LOT: f64 = 6.0;
 pub const MONASTERY_INFIRMARY_FOOD_PER_BED_DAY: f64 = 0.6;
@@ -104,6 +106,10 @@ pub fn monastery_estate_fits_map(x: f64, z: f64, yaw: f64, playable_half: f64) -
         .all(|corner| corner.x.abs() <= limit && corner.z.abs() <= limit)
 }
 
+pub fn monastery_estate_edge_band(playable_half: f64) -> f64 {
+    MONASTERY_ESTATE_EDGE_BAND.max(playable_half.max(0.0) * MONASTERY_ESTATE_EDGE_BAND_RADIUS_RATIO)
+}
+
 pub fn monastery_estate_is_near_map_edge(x: f64, z: f64, yaw: f64, playable_half: f64) -> bool {
     let corners = monastery_estate_corners(x, z, yaw);
     let min_x = corners
@@ -126,7 +132,7 @@ pub fn monastery_estate_is_near_map_edge(x: f64, z: f64, yaw: f64, playable_half
         .min(playable_half - max_x)
         .min(min_z + playable_half)
         .min(playable_half - max_z);
-    nearest_gap <= MONASTERY_ESTATE_EDGE_BAND
+    nearest_gap <= monastery_estate_edge_band(playable_half)
 }
 
 pub fn normalize_monastery_extensions(extensions: u8) -> u8 {
@@ -341,10 +347,23 @@ mod tests {
     #[test]
     fn whole_parcel_must_fit_and_reach_the_edge_band() {
         let half = playable_half_for_monastery_map_size(0);
+        assert_eq!(monastery_estate_edge_band(half), 200.0);
         assert!(monastery_estate_fits_map(0.0, 350.0, 0.0, half));
         assert!(monastery_estate_is_near_map_edge(0.0, 350.0, 0.0, half));
+        assert!(monastery_estate_fits_map(0.0, 220.0, 0.0, half));
+        assert!(monastery_estate_is_near_map_edge(0.0, 220.0, 0.0, half));
+        assert!(!monastery_estate_is_near_map_edge(0.0, 200.0, 0.0, half));
         assert!(!monastery_estate_is_near_map_edge(0.0, 0.0, 0.0, half));
         assert!(!monastery_estate_fits_map(0.0, 405.0, 0.0, half));
+
+        let large_half = playable_half_for_monastery_map_size(2);
+        assert!(monastery_estate_edge_band(large_half) > 500.0);
+        assert!(monastery_estate_is_near_map_edge(
+            0.0, 630.0, 0.0, large_half
+        ));
+        assert!(!monastery_estate_is_near_map_edge(
+            0.0, 600.0, 0.0, large_half
+        ));
     }
 
     #[test]

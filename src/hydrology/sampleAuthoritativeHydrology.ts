@@ -1,60 +1,46 @@
-import hydrologyGrid from '../../server/generated/hydrology_grid.json' with { type: 'json' };
 import { getActiveWorldGeneration } from '../world/worldGenerationContext.ts';
+import { DROUGHT_GROUNDWATER_MULTIPLIER } from '../generated/gameBalance.ts';
 
-type HydrologyGrid = {
-  resolution: number;
-  minX: number;
-  maxX: number;
-  minZ: number;
-  maxZ: number;
-  scores: number[];
-};
-
-const grid = hydrologyGrid as HydrologyGrid;
 const MAX_SUPPORTED_WORLD_HALF = 672;
 
-/** Matches the bilinear sampler used by the authoritative SpacetimeDB simulation. */
-export function sampleAuthoritativeHydrologyScore(x: number, z: number): number {
-  if (Math.abs(x) > MAX_SUPPORTED_WORLD_HALF || Math.abs(z) > MAX_SUPPORTED_WORLD_HALF) return 0;
-  const baseScore = sampleEmbeddedHydrologyGrid(x, z);
+/**
+ * Authoritative groundwater available to wells at this world position.
+ *
+ * This deliberately has no dependency on RiverField, shore distance, ponds,
+ * or the sea. The server runs the same seeded subsurface-network sampler.
+ */
+export function sampleAuthoritativeGroundwaterScore(x: number, z: number): number {
   const settings = getActiveWorldGeneration();
-  return applyWorldGroundwaterVariation(baseScore, x, z, settings.seed, settings.hydrology);
+  return sampleWorldGroundwaterScore(x, z, settings.seed, settings.hydrology);
 }
 
-function sampleEmbeddedHydrologyGrid(x: number, z: number): number {
-  if (x < grid.minX || x > grid.maxX || z < grid.minZ || z > grid.maxZ) return 0;
-  const gx = ((x - grid.minX) / (grid.maxX - grid.minX)) * (grid.resolution - 1);
-  const gz = ((z - grid.minZ) / (grid.maxZ - grid.minZ)) * (grid.resolution - 1);
-  const ix0 = Math.max(0, Math.min(grid.resolution - 2, Math.floor(gx)));
-  const iz0 = Math.max(0, Math.min(grid.resolution - 2, Math.floor(gz)));
-  const tx = gx - ix0;
-  const tz = gz - iz0;
-  const at = (ix: number, iz: number): number => grid.scores[iz * grid.resolution + ix] ?? 0;
-  const top = at(ix0, iz0) * (1 - tx) + at(ix0 + 1, iz0) * tx;
-  const bottom = at(ix0, iz0 + 1) * (1 - tx) + at(ix0 + 1, iz0 + 1) * tx;
-  return clamp01(top * (1 - tz) + bottom * tz);
-}
+/** Compatibility alias for systems that still use the broader hydrology name. */
+export const sampleAuthoritativeHydrologyScore = sampleAuthoritativeGroundwaterScore;
 
 /**
- * Adds the broad, seed-aware aquifer field used by the server simulation.
- * The embedded grid contributes valleys and alluvial ground; this field makes
- * inland wells depend on subsurface geology and the world's overall wetness.
+ * Seeded underground aquifer score used by both client planning and server
+ * simulation. World hydrology raises or lowers this network's water table;
+ * it never injects visible surface-water features into the result.
  */
-export function applyWorldGroundwaterVariation(
-  baseScore: number,
+export function sampleWorldGroundwaterScore(
   x: number,
   z: number,
   worldSeed: number,
   worldHydrology: number,
 ): number {
+  if (Math.abs(x) > MAX_SUPPORTED_WORLD_HALF || Math.abs(z) > MAX_SUPPORTED_WORLD_HALF) return 0;
   const aquifer = sampleAquiferPotential(x, z, worldSeed);
-  const subsurfaceScore = 0.06 + aquifer * 0.72;
-  const localPotential = Math.max(clamp01(baseScore) * 0.94, subsurfaceScore);
+  const localPotential = 0.06 + aquifer * 0.72;
   const wetness = clamp01(worldHydrology / 100);
   return clamp01(localPotential * (0.72 + wetness * 0.56) + (wetness - 0.5) * 0.18);
 }
 
-/** Broad pockets rather than speckled noise, so players can plan well sites. */
+/** Mirrors the server's temporary severe-summer aquifer drawdown. */
+export function droughtGroundwaterScore(groundwaterScore: number): number {
+  return clamp01(groundwaterScore) * DROUGHT_GROUNDWATER_MULTIPLIER;
+}
+
+/** Broad basins crossed by sinuous seams, forming a readable well-water network. */
 export function sampleAquiferPotential(x: number, z: number, worldSeed: number): number {
   const seed = worldSeed >>> 0;
   const broad = valueNoise(x / 145 + 11.7, z / 145 - 8.3, seed ^ 0x68bc21eb);

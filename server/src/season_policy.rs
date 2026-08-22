@@ -214,11 +214,18 @@ pub fn season_for_month(month: u32) -> Season {
     }
 }
 
-pub fn environment_for(seed: u64, hydrology: u8, clock: &GameClock) -> EnvironmentState {
+pub fn environment_for(
+    seed: u64,
+    hydrology: u8,
+    severe_weather_enabled: bool,
+    clock: &GameClock,
+) -> EnvironmentState {
     let season = season_for_month(clock.month);
     let weather = match season {
         Season::Spring if spring_rain(seed, hydrology, clock) => WeatherKind::Rain,
-        Season::Summer if summer_drought(seed, hydrology, clock) => WeatherKind::Drought,
+        Season::Summer if severe_weather_enabled && summer_drought(seed, hydrology, clock) => {
+            WeatherKind::Drought
+        }
         Season::Winter => WeatherKind::Frost,
         _ => WeatherKind::Fair,
     };
@@ -273,6 +280,27 @@ mod tests {
         assert_eq!(season_for_month(8), Season::Summer);
         assert_eq!(season_for_month(10), Season::Autumn);
         assert_eq!(season_for_month(1), Season::Winter);
+    }
+
+    #[test]
+    fn summer_drought_requires_the_opt_in_severe_weather_rule() {
+        let day_ticks = (CALENDAR_SECONDS_PER_DAY / crate::balance_generated::TICK_DT) as u64;
+        let mut severe_drought_found = false;
+        for year in 1_u64..=20 {
+            for summer_day in 0_u64..u64::from(CALENDAR_DAYS_PER_MONTH * 3) {
+                let elapsed_days = (year - 1) * u64::from(CALENDAR_DAYS_PER_MONTH * 12)
+                    + u64::from(CALENDAR_DAYS_PER_MONTH * 3)
+                    + summer_day;
+                let clock = crate::game_calendar::game_clock(elapsed_days * day_ticks);
+                assert_ne!(
+                    environment_for(12_345, 35, false, &clock).weather,
+                    WeatherKind::Drought
+                );
+                severe_drought_found |=
+                    environment_for(12_345, 35, true, &clock).weather == WeatherKind::Drought;
+            }
+        }
+        assert!(severe_drought_found);
     }
 
     #[test]

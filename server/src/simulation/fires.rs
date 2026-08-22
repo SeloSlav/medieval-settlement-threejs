@@ -62,6 +62,7 @@ pub fn step_fires(
     ctx: &ReducerContext,
     clock: &GameClock,
     environment: EnvironmentState,
+    severe_weather_enabled: bool,
     world_seed: u64,
     sim_tick: u64,
 ) {
@@ -111,7 +112,8 @@ pub fn step_fires(
         }
     }
 
-    let ignition_due = sim_tick % FIRE_IGNITION_CHECK_INTERVAL_TICKS == 0;
+    let ignition_due = severe_weather_enabled
+        && sim_tick % FIRE_IGNITION_CHECK_INTERVAL_TICKS == 0;
     if active_after_step.is_empty() && !ignition_due {
         return;
     }
@@ -143,15 +145,17 @@ pub fn step_fires(
             &mut active_after_step,
         );
     }
-    maybe_spread_fires(
-        ctx,
-        &candidates,
-        environment,
-        world_seed,
-        sim_tick,
-        &mut occupied_targets,
-        &active_after_step,
-    );
+    if severe_weather_enabled {
+        maybe_spread_fires(
+            ctx,
+            &candidates,
+            environment,
+            world_seed,
+            sim_tick,
+            &mut occupied_targets,
+            &active_after_step,
+        );
+    }
 
     let _ = clock;
 }
