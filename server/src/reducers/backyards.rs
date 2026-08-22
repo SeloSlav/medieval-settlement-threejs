@@ -419,8 +419,10 @@ pub fn upgrade_flower_garden_luxury(ctx: &ReducerContext, residence_id: u64) -> 
     if residence.owner != owner {
         return Err("You do not own this residence.".to_string());
     }
-    if residence.tier < 4 {
-        return Err("Only a tier-4 household can cultivate luxury cut flowers.".to_string());
+    if residence.tier < 3 {
+        return Err(
+            "Only a tier-3 or tier-4 household can cultivate luxury cut flowers.".to_string(),
+        );
     }
     let mut garden = ctx
         .db

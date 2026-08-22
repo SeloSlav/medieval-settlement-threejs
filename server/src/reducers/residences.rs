@@ -1,7 +1,7 @@
 use spacetimedb::{reducer, ReducerContext, Table};
 
 use crate::balance_generated::{
-    RESIDENCE_TIER2_CAPACITY, RESIDENCE_TIER2_GOLD_COST, RESIDENCE_TIER2_STONE_COST,
+    BackyardGardenKind, RESIDENCE_TIER2_CAPACITY, RESIDENCE_TIER2_GOLD_COST, RESIDENCE_TIER2_STONE_COST,
     RESIDENCE_TIER2_TIMBER_COST, RESIDENCE_TIER3_CAPACITY, RESIDENCE_TIER3_GOLD_COST,
     RESIDENCE_TIER3_STONE_COST, RESIDENCE_TIER3_TIMBER_COST, RESIDENCE_TIER4_CAPACITY,
     RESIDENCE_TIER4_GOLD_COST, RESIDENCE_TIER4_STONE_COST, RESIDENCE_TIER4_TIMBER_COST,
@@ -62,6 +62,7 @@ enum ResidenceUpgradeService {
     StorehouseStalls,
     Church(u8),
     FoodVariety(u8),
+    Luxury,
 }
 
 #[reducer]
@@ -411,7 +412,7 @@ pub fn upgrade_residence(ctx: &ReducerContext, residence_id: u64) -> Result<(), 
             &[
                 ResidenceUpgradeService::Firewood,
                 ResidenceUpgradeService::Water,
-                ResidenceUpgradeService::Church(2),
+                ResidenceUpgradeService::Church(1),
                 ResidenceUpgradeService::FoodVariety(2),
                 ResidenceUpgradeService::Beverage,
                 ResidenceUpgradeService::Cloth,
@@ -454,6 +455,7 @@ pub fn upgrade_residence(ctx: &ReducerContext, residence_id: u64) -> Result<(), 
                 ResidenceUpgradeService::Pottery,
                 ResidenceUpgradeService::Church(3),
                 ResidenceUpgradeService::FoodVariety(4),
+                ResidenceUpgradeService::Luxury,
                 ResidenceUpgradeService::Marketplace,
                 ResidenceUpgradeService::GranaryStalls,
                 ResidenceUpgradeService::StorehouseStalls,
@@ -464,11 +466,11 @@ pub fn upgrade_residence(ctx: &ReducerContext, residence_id: u64) -> Result<(), 
 
     if !has_connected_services(ctx, &residence, required_services) {
         return Err(if next_tier == 2 {
-            "Tier 2 requires fuel and well supply, a staffed road-linked level-2 church, a grain staple plus one other food group, ale, clothing, and staffed market stalls.".to_string()
+            "Tier 2 requires fuel and well supply, a staffed road-linked basic church, a grain staple plus one other food group, ale, clothing, and staffed market stalls.".to_string()
         } else if next_tier == 3 {
             "Tier 3 requires fuel and well supply, grain, produce or forage, meat or animal produce, fish, a level-2 church, ale, clothing, shoes, and staffed market stalls.".to_string()
         } else {
-            "Tier 4 requires fuel and well supply, a level-3 church, cured provisions, pottery, the complete grain/produce/animal/fish diet and services, and staffed market supply.".to_string()
+            "Tier 4 requires fuel and well supply, a level-3 church, cured provisions, pottery, the complete grain/produce/animal/fish diet and services, plus a stocked luxury market route or household luxury source.".to_string()
         });
     }
     let physical_economy = ctx
@@ -773,6 +775,11 @@ fn has_connected_services(
         if let ResidenceUpgradeService::FoodVariety(required) = service {
             return residence_food_progression_met(residence, *required);
         }
+        if matches!(service, ResidenceUpgradeService::Luxury)
+            && residence_has_household_luxury_option(ctx, residence)
+        {
+            return true;
+        }
         buildings.iter().any(|building| {
             let Some(_distance) =
                 local_delivery_distance(&network, building.x, building.z, residence.x, residence.z)
@@ -855,10 +862,37 @@ fn has_connected_services(
                         && building.assigned_labor > 0
                         && building.chapel_tier.max(1) >= *required_tier
                 }
+                ResidenceUpgradeService::Luxury => {
+                    building.kind == "marketplace"
+                        && building.construction_complete
+                        && building_commodity_stock(building, CommodityKind::Wine)
+                            + building_commodity_stock(building, CommodityKind::Honey)
+                            > 1e-6
+                }
                 ResidenceUpgradeService::FoodVariety(_) => false,
             }
         })
     })
+}
+
+fn residence_has_household_luxury_option(ctx: &ReducerContext, residence: &Residence) -> bool {
+    if residence.aronia_jam + residence.rosehip_jam > 1e-6 {
+        return true;
+    }
+    let Some(garden) = ctx
+        .db
+        .backyard_garden()
+        .residence_id()
+        .filter(&residence.id)
+        .next()
+    else {
+        return false;
+    };
+    garden.flower_luxury_upgraded
+        || matches!(
+            BackyardGardenKind::from_id(garden.kind),
+            Some(BackyardGardenKind::AroniaOrchard | BackyardGardenKind::RosehipOrchard)
+        )
 }
 
 #[reducer]
