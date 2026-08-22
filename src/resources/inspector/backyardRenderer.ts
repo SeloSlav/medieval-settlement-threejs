@@ -23,7 +23,7 @@ import {
 import {
   backyardFoodReserveDays,
   backyardFoodReserveTarget,
-  backyardGardenMarketChannel,
+  backyardGardenMarketChannels,
   backyardGardenSeasonStatus,
 } from '../../economy/backyardGardenTick.ts';
 import { edibleFoodStock } from '../../economy/foodInventory.ts';
@@ -73,11 +73,16 @@ export function renderBackyardInspector(
   const isLivestockPen = def.specializationOf === 'animal_pen';
   const isSelectedVegetable = def.specializationOf === 'vegetable_garden';
   const producesFood = def.foodPerPersonPerSec > 0;
-  const marketChannel = backyardGardenMarketChannel(garden.kind);
+  const marketChannels = backyardGardenMarketChannels(garden.kind);
+  const marketChannel = marketChannels[0] ?? null;
   const foodStock = edibleFoodStock(residence);
   const taxRate = context.getEconomicActivityTaxRate?.() ?? ECONOMIC_ACTIVITY_TAX_RATE_DEFAULT;
   const hasMarketAccess = marketChannel !== null
     && context.worldQueries.isResidenceConnectedToMarketplace(residence, marketChannel);
+  const connectedMarketChannels = marketChannels.filter((channel) =>
+    context.worldQueries.isResidenceConnectedToMarketplace(residence, channel));
+  const hasAnyMarketAccess = connectedMarketChannels.length > 0;
+  const hasAllMarketAccess = connectedMarketChannels.length === marketChannels.length;
   const clock = gameClock(context.gameState.tick);
   const environment = environmentFor(
     context.gameState.seed,
@@ -117,8 +122,10 @@ export function renderBackyardInspector(
       currentFoodStock: foodStock,
     },
   );
-  const stallLabel = marketChannel === 'food'
-    ? 'Granary-run food group'
+  const stallLabel = marketChannels.length > 1
+    ? 'Granary-run food group + Storehouse-run hide route'
+    : marketChannel === 'food'
+      ? 'Granary-run food group'
     : marketChannel === 'goods'
       ? 'Storehouse-run goods group'
       : null;
@@ -127,9 +134,11 @@ export function renderBackyardInspector(
       : garden.kind === 'flower_garden' && season.growing
         ? 'Flowering — no market stall needed'
         : season.harvestable
-          ? marketChannel === null || hasMarketAccess
+          ? marketChannel === null || hasAllMarketAccess
             ? 'Harvestable — household collection active'
-            : 'Harvestable — surplus sharing unavailable'
+            : hasAnyMarketAccess
+              ? 'Harvestable — some surplus routes unavailable'
+              : 'Harvestable — surplus sharing unavailable'
           : season.growing
             ? 'Growing — not harvestable yet'
             : season.phase === 'post_harvest'
@@ -137,7 +146,7 @@ export function renderBackyardInspector(
               : 'Dormant — no harvest';
   const statusState = sabbathPaused
     ? 'idle'
-    : season.harvestable && marketChannel !== null && !hasMarketAccess
+    : season.harvestable && marketChannel !== null && !hasAllMarketAccess
       ? 'warning'
       : season.growing || season.harvestable
         ? 'ok'
@@ -208,8 +217,10 @@ export function renderBackyardInspector(
       <li><span>Household labor</span><span>No assigned labor slot. Occupied households tend and harvest automatically; off-duty residents visibly act out garden work, while production remains household-tick based.</span></li>
       <li><span>Market stall use</span><span>${marketChannel === null
         ? 'None — this garden has no saleable commodity and claims no table'
-        : hasMarketAccess
+        : hasAllMarketAccess
           ? `${stallLabel} connected · reuses the staffed group and claims no extra Marketplace table or depot worker`
+          : hasAnyMarketAccess
+            ? `Partial surplus sharing — ${connectedMarketChannels.includes('food') ? 'Granary food route connected' : 'Storehouse goods route connected'}; ${connectedMarketChannels.includes('food') ? 'the Storehouse hide/remedy route' : 'the Granary food route'} is unavailable`
           : `Surplus sharing unavailable — needs a road-connected Marketplace with a staffed ${marketChannel === 'food' ? 'Granary food group' : 'Storehouse goods group'}; household production continues`}</span></li>
       ${marketChannel === null
         ? ''
@@ -229,7 +240,7 @@ export function renderBackyardInspector(
       : garden.kind === 'flower_garden' && garden.flowerLuxuryUpgraded
         ? '<p class="resource-inspector-note">Luxury cut flowers are active: this home satisfies its tier-4 luxury-comfort need without consuming jam.</p>'
         : ''}<p class="resource-inspector-note">${producesFood
-      ? `The household keeps edible output until its ${reserveDays}-day reserve is filled. Only physical overflow becomes Marketplace inventory. Gardens do not compete for a fourth food slot: they share the existing Granary-staffed food group, its inventory capacity, and its throughput.`
+      ? `The household keeps edible output until its ${reserveDays}-day reserve is filled. Only physical overflow becomes Marketplace inventory. Gardens do not compete for a fourth food slot: they share the existing Granary-staffed food group, its inventory capacity, and its throughput.${garden.kind === 'goat_pen' ? ' Cull hides independently remain at the household until a staffed Storehouse accepts them for a Tannery or Trading Post.' : ''}`
       : marketChannel === 'goods'
         ? 'The household fills its remedy store first. Surplus uses the existing Storehouse-staffed goods group without reserving another table; it still shares Marketplace inventory capacity and throughput.'
         : 'This is a household amenity and pollinator forage. It needs no Marketplace staffing and creates no passive sale or levy.'}</p>`,

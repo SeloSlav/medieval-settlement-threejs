@@ -13,6 +13,7 @@ import {
 } from '../src/generated/gameBalance.ts';
 import {
   backyardGardenMarketChannel,
+  backyardGardenMarketChannels,
   backyardGardenPhenology,
   backyardGardenSeasonalMultiplier,
 } from '../src/economy/backyardGardenTick.ts';
@@ -212,6 +213,9 @@ assert.equal(backyardGardenPhenology('herb_garden', 1).growing, false);
 assert.equal(backyardGardenPhenology('herb_garden', 1).harvestable, false);
 assert.equal(backyardGardenMarketChannel('flower_garden'), null);
 assert.equal(backyardGardenMarketChannel('herb_garden'), 'goods');
+assert.deepEqual(backyardGardenMarketChannels('goat_pen'), ['food', 'goods']);
+assert.deepEqual(backyardGardenMarketChannels('backyard_apiary'), ['food']);
+assert.deepEqual(backyardGardenMarketChannels('flower_garden'), []);
 
 const september = nonSundayClockInMonth(9);
 const westHome = residence('west-home', 0, 3, HOUSEHOLD_MAX_WEALTH);
@@ -777,10 +781,14 @@ assert.doesNotMatch(
 assert.match(serverStepSource, /market_tolls_by_market/);
 assert.match(serverStepSource, /local_marketplace_for_residence/);
 assert.match(serverStepSource, /credit_marketplace_receipt_gold/);
-assert.match(serverStepSource, /fn backyard_market_stall_need/);
-assert.match(serverStepSource, /BackyardGardenKind::FlowerGarden[\s\S]*BackyardGardenKind::AnimalPen => None/);
-assert.match(serverStepSource, /HerbGarden => Some\(ResidenceNeedKind::Cloth\)/);
-assert.match(serverStepSource, /_ => Some\(ResidenceNeedKind::Food\)/);
+assert.match(serverStepSource, /fn backyard_has_food_output/);
+assert.match(serverStepSource, /fn backyard_has_goods_output/);
+assert.match(serverStepSource, /HerbGarden \| BackyardGardenKind::GoatPen/);
+assert.match(
+  serverStepSource,
+  /food_marketplace_id[\s\S]*ResidenceNeedKind::Food[\s\S]*goods_marketplace_id[\s\S]*ResidenceNeedKind::Cloth/,
+  'each backyard output class must resolve its responsible depot and stall independently',
+);
 assert.match(serverStepSource, /CommodityKind::Remedies/);
 assert.match(
   serverStepSource,

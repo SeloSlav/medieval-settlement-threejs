@@ -46,6 +46,7 @@ export type BackyardGardenPhenology = Omit<
 };
 
 export type BackyardGardenMarketChannel = 'food' | 'goods' | null;
+export type ActiveBackyardGardenMarketChannel = Exclude<BackyardGardenMarketChannel, null>;
 
 export type BackyardFoodAllocation = {
   selfFood: number;
@@ -85,19 +86,27 @@ export function allocateBackyardFood(
 }
 
 /**
- * Backyard production reuses an already staffed Marketplace group. It never
- * reserves another table or depot worker of its own. Flowers have no saleable
- * stock, so they do not require a market channel at all.
+ * Every physical output channel used by a backyard. A Goat Pen is deliberately
+ * dual-routed: milk and meat use the food group while hides use the goods
+ * group's Storehouse. No extension reserves a table or depot worker of its own.
  */
-export function backyardGardenMarketChannel(
+export function backyardGardenMarketChannels(
   kind: BackyardGardenKind,
-): BackyardGardenMarketChannel {
+): readonly ActiveBackyardGardenMarketChannel[] {
   if (kind === 'flower_garden'
     || kind === 'orchard'
     || kind === 'vegetable_garden'
-    || kind === 'animal_pen') return null;
-  if (kind === 'herb_garden') return 'goods';
-  return 'food';
+    || kind === 'animal_pen') return [];
+  if (kind === 'herb_garden') return ['goods'];
+  if (kind === 'goat_pen') return ['food', 'goods'];
+  return ['food'];
+}
+
+/** Primary sale channel retained for household-income projections. */
+export function backyardGardenMarketChannel(
+  kind: BackyardGardenKind,
+): BackyardGardenMarketChannel {
+  return backyardGardenMarketChannels(kind)[0] ?? null;
 }
 
 function calendarMonth(month: number): number {

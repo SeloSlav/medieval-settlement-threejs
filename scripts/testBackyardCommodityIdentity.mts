@@ -8,6 +8,7 @@ import {
 import {
   GRANARY_STORAGE_COMMODITIES,
   STORAGE_COMMODITY_CODES,
+  STOREHOUSE_STORAGE_COMMODITIES,
 } from '../src/economy/storageAcceptancePolicy.ts';
 import {
   BREWERY_RECIPE_CIDER,
@@ -22,6 +23,11 @@ const freshIdentities = [
 ] as const;
 const preservedIdentities = ['aroniaJam', 'rosehipJam'] as const;
 const allIdentities = [...freshIdentities, ...preservedIdentities, 'cider', 'pearCider'] as const;
+const backyardGranaryOutputs = [
+  'apples', 'cherries', 'pears', 'aronia', 'rosehips', 'cabbage', 'carrots',
+  'beetroot', 'eggs', 'milk', 'meat', 'honey', 'aroniaJam', 'rosehipJam',
+] as const;
+const backyardStorehouseOutputs = ['remedies', 'hides'] as const;
 
 for (const commodity of freshIdentities) {
   assert.ok(FRESH_FOOD_KINDS.includes(commodity));
@@ -35,6 +41,40 @@ for (const commodity of allIdentities) {
   assert.ok(TRADE_RESOURCE_KINDS.includes(commodity));
   assert.ok(Number.isInteger(STORAGE_COMMODITY_CODES[commodity]));
 }
+for (const commodity of backyardGranaryOutputs) {
+  assert.ok(
+    GRANARY_STORAGE_COMMODITIES.includes(commodity),
+    `${commodity} must be accepted by Granaries as backyard surplus`,
+  );
+}
+for (const commodity of backyardStorehouseOutputs) {
+  assert.ok(
+    STOREHOUSE_STORAGE_COMMODITIES.includes(commodity),
+    `${commodity} must be accepted by Village Storehouses as backyard surplus`,
+  );
+}
+
+const storagePolicySource = readFileSync('server/src/storage_acceptance_policy.rs', 'utf8');
+const storehouseMask = storagePolicySource.match(
+  /STOREHOUSE_ACCEPTANCE_MASK: u64 =([\s\S]*?)pub const GRANARY_ACCEPTANCE_MASK/,
+)?.[1] ?? '';
+const granaryMask = storagePolicySource.match(
+  /GRANARY_ACCEPTANCE_MASK: u64 =([\s\S]*?)const fn bit/,
+)?.[1] ?? '';
+for (const commodity of backyardGranaryOutputs) {
+  assert.match(
+    granaryMask,
+    new RegExp(`bit\\(${STORAGE_COMMODITY_CODES[commodity]}\\)`),
+    `the authoritative Granary mask must accept backyard ${commodity}`,
+  );
+}
+for (const commodity of backyardStorehouseOutputs) {
+  assert.match(
+    storehouseMask,
+    new RegExp(`bit\\(${STORAGE_COMMODITY_CODES[commodity]}\\)`),
+    `the authoritative Storehouse mask must accept backyard ${commodity}`,
+  );
+}
 
 assert.equal(NAMED_FOOD_LABELS.aroniaJam, 'Aronia jam');
 assert.equal(NAMED_FOOD_LABELS.rosehipJam, 'Rosehip jam');
@@ -45,17 +85,63 @@ assert.equal(breweryPolicyOutput(BREWERY_RECIPE_PEAR_CIDER), 'pearCider');
 
 const backyardSimulation = readFileSync('server/src/simulation/backyard_garden.rs', 'utf8');
 for (const mapping of [
+  /AppleOrchard => Some\(CommodityKind::Apples\)/,
+  /CherryOrchard => Some\(CommodityKind::Cherries\)/,
   /PearOrchard => Some\(CommodityKind::Pears\)/,
   /AroniaOrchard => Some\(CommodityKind::Aronia\)/,
   /RosehipOrchard => Some\(CommodityKind::Rosehips\)/,
   /CabbageGarden => Some\(CommodityKind::Cabbage\)/,
   /CarrotGarden => Some\(CommodityKind::Carrots\)/,
   /BeetrootGarden => Some\(CommodityKind::Beetroot\)/,
+  /ChickenPen => Some\(CommodityKind::Eggs\)/,
+  /GoatPen => Some\(CommodityKind::Milk\)/,
+  /PigPen => Some\(CommodityKind::Meat\)/,
+  /BackyardApiary => Some\(CommodityKind::Honey\)/,
   /AroniaOrchard => Some\(CommodityKind::AroniaJam\)/,
   /RosehipOrchard => Some\(CommodityKind::RosehipJam\)/,
 ]) {
   assert.match(backyardSimulation, mapping);
 }
+assert.match(backyardSimulation, /HerbGarden \| BackyardGardenKind::GoatPen/);
+assert.match(backyardSimulation, /CommodityKind::Remedies/);
+assert.match(backyardSimulation, /CommodityKind::Hides/);
+assert.match(
+  backyardSimulation,
+  /food_marketplace_id[\s\S]*ResidenceNeedKind::Food[\s\S]*goods_marketplace_id[\s\S]*ResidenceNeedKind::Cloth/,
+  'mixed-output backyards must resolve Granary and Storehouse market assignments independently',
+);
+assert.match(
+  backyardSimulation,
+  /GoatPen[\s\S]*goods_marketplace_id[\s\S]*transfer_backyard_hides_to_storehouse/,
+  'goat hides must not depend on the pen having a food-stall assignment',
+);
+
+const expandedEconomy = readFileSync('server/src/simulation/expanded_economy.rs', 'utf8');
+const granaryHouseholdDuty = expandedEconomy.match(
+  /GranaryDispatchDuty::Households => \{([\s\S]*?)GranaryDispatchDuty::Preservation/,
+)?.[1] ?? '';
+for (const commodity of [
+  'Apples', 'Cherries', 'Pears', 'Aronia', 'Rosehips', 'Cabbage', 'Carrots',
+  'Beetroot', 'Eggs', 'Milk', 'Meat', 'Honey', 'AroniaJam', 'RosehipJam',
+]) {
+  assert.match(
+    granaryHouseholdDuty,
+    new RegExp(`CommodityKind::${commodity}`),
+    `${commodity} must remain eligible for the Granary's physical Marketplace cart`,
+  );
+}
+
+const storehouseSimulation = readFileSync('server/src/simulation/village_storehouse.rs', 'utf8');
+assert.match(
+  storehouseSimulation,
+  /step_storehouse_market_stalls[\s\S]*CommodityKind::Remedies/,
+  'backyard Remedies must remain eligible for a Storehouse goods-stall cart',
+);
+assert.match(
+  expandedEconomy,
+  /\("village_storehouse", CommodityKind::Hides\) => Some\(&\["tannery", "trading_post"\]\)/,
+  'raw backyard hides must leave the Storehouse through industry or regional trade, not household retail',
+);
 
 const needSimulation = readFileSync('server/src/simulation/residence_needs/mod.rs', 'utf8');
 assert.match(needSimulation, /residence\.tier >= 4[\s\S]*RESIDENCE_LUXURY_JAM_PER_PERSON_PER_SEC/);

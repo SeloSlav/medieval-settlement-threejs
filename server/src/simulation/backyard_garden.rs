@@ -7,8 +7,7 @@ use crate::backyard_garden_policy::{
 };
 use crate::balance_generated::{
     backyard_garden_def, BackyardGardenKind, CALENDAR_SECONDS_PER_DAY, FOOD_SALE_GOLD_PER_UNIT,
-    HERB_REMEDIES_PER_PERSON_DAY, HERB_REMEDY_CAPACITY, HERB_REMEDY_SALE_GOLD_PER_UNIT,
-    TICK_DT,
+    HERB_REMEDIES_PER_PERSON_DAY, HERB_REMEDY_CAPACITY, HERB_REMEDY_SALE_GOLD_PER_UNIT, TICK_DT,
 };
 use crate::db::*;
 use crate::economy::{
@@ -49,18 +48,38 @@ pub fn step_backyard_gardens(
         if residence.population == 0 || tick.residence_disabled_by_fire(ctx, residence.id) {
             continue;
         }
-        // Gardens never claim their own table or worker. Saleable overflow is
-        // accepted only by the Granary or Storehouse already assigned to the
-        // nearest Marketplace group; that depot later carts stock to its stall.
-        // Flower gardens have no commodity and therefore need no stall at all.
-        let marketplace_id = backyard_market_stall_need(kind).and_then(|stall_need| {
-            tick.local_marketplace_for_residence_deposit(
-                ctx,
-                garden.owner,
-                residence.id,
-                stall_need,
-            )
-        });
+        // Gardens never claim their own table or worker. Resolve food and goods
+        // independently because one extension can produce both: a Goat Pen's
+        // milk/meat use its Granary route while its hides use its Storehouse
+        // route. Either depot later carts retail stock to its own stall.
+        let food_marketplace_id = backyard_has_food_output(kind)
+            .then(|| {
+                tick.local_marketplace_for_residence_deposit(
+                    ctx,
+                    garden.owner,
+                    residence.id,
+                    ResidenceNeedKind::Food,
+                )
+            })
+            .flatten();
+        let goods_marketplace_id = backyard_has_goods_output(kind)
+            .then(|| {
+                tick.local_marketplace_for_residence_deposit(
+                    ctx,
+                    garden.owner,
+                    residence.id,
+                    ResidenceNeedKind::Cloth,
+                )
+            })
+            .flatten();
+        // Every saleable extension currently earns through exactly one retail
+        // channel. Goat hides are an industrial by-product, so the food sale
+        // remains the receipt source while the hides follow the goods route.
+        let receipt_marketplace_id = if kind == BackyardGardenKind::HerbGarden {
+            goods_marketplace_id
+        } else {
+            food_marketplace_id
+        };
         let (tax_rate, collection_multiplier) =
             *tax_policy_by_owner.entry(garden.owner).or_insert_with(|| {
                 (
@@ -74,13 +93,14 @@ pub fn step_backyard_gardens(
             &garden,
             kind,
             &residence,
-            marketplace_id,
+            food_marketplace_id,
+            goods_marketplace_id,
             tax_rate,
             collection_multiplier,
             clock,
             environment,
         );
-        if let Some(marketplace_id) = marketplace_id {
+        if let Some(marketplace_id) = receipt_marketplace_id {
             if toll > 1e-9 {
                 *market_tolls_by_market.entry(marketplace_id).or_default() += toll;
             }
@@ -104,7 +124,8 @@ fn step_one_garden(
     garden: &BackyardGarden,
     kind: BackyardGardenKind,
     residence: &Residence,
-    marketplace_id: Option<u64>,
+    food_marketplace_id: Option<u64>,
+    goods_marketplace_id: Option<u64>,
     tax_rate: f64,
     collection_multiplier: f64,
     clock: &GameClock,
@@ -116,9 +137,7 @@ fn step_one_garden(
     }
     if matches!(
         kind,
-        BackyardGardenKind::ChickenPen
-            | BackyardGardenKind::GoatPen
-            | BackyardGardenKind::PigPen
+        BackyardGardenKind::ChickenPen | BackyardGardenKind::GoatPen | BackyardGardenKind::PigPen
     ) {
         return step_livestock_pen(
             ctx,
@@ -126,7 +145,8 @@ fn step_one_garden(
             garden,
             kind,
             residence,
-            marketplace_id,
+            food_marketplace_id,
+            goods_marketplace_id,
             tax_rate,
             collection_multiplier,
             clock,
@@ -168,7 +188,7 @@ fn step_one_garden(
                 ctx,
                 tick,
                 residence,
-                marketplace_id,
+                food_marketplace_id,
                 commodity,
                 total_food,
             );
@@ -180,7 +200,7 @@ fn step_one_garden(
         let remedies = population * HERB_REMEDIES_PER_PERSON_DAY * seasonal_multiplier * TICK_DT
             / CALENDAR_SECONDS_PER_DAY;
         let kept_remedies = deposit_herb_remedies(ctx, residence, remedies);
-        if let Some(marketplace_id) = marketplace_id {
+        if let Some(marketplace_id) = goods_marketplace_id {
             market_remedies_sold = deposit_backyard_depot_commodity(
                 ctx,
                 tick,
@@ -195,19 +215,9 @@ fn step_one_garden(
     if def.jam_per_person_per_sec > 1e-9 {
         let jam = population * def.jam_per_person_per_sec * seasonal_multiplier * TICK_DT;
         if let Some(commodity) = backyard_jam_commodity(kind) {
-            market_food_sold += distribute_backyard_food(
-                ctx,
-                tick,
-                residence,
-                marketplace_id,
-                commodity,
-                jam,
-            );
+            market_food_sold +=
+                distribute_backyard_food(ctx, tick, residence, food_marketplace_id, commodity, jam);
         }
-    }
-
-    if marketplace_id.is_none() {
-        return 0.0;
     }
 
     let economic_activity = market_food_sold * FOOD_SALE_GOLD_PER_UNIT
@@ -239,15 +249,15 @@ fn deposit_herb_remedies(ctx: &ReducerContext, residence: &Residence, amount: f6
     deposited
 }
 
-fn backyard_market_stall_need(kind: BackyardGardenKind) -> Option<ResidenceNeedKind> {
-    match kind {
-        BackyardGardenKind::FlowerGarden
-        | BackyardGardenKind::Orchard
-        | BackyardGardenKind::VegetableGarden
-        | BackyardGardenKind::AnimalPen => None,
-        BackyardGardenKind::HerbGarden => Some(ResidenceNeedKind::Cloth),
-        _ => Some(ResidenceNeedKind::Food),
-    }
+fn backyard_has_food_output(kind: BackyardGardenKind) -> bool {
+    backyard_food_commodity(kind).is_some() || backyard_jam_commodity(kind).is_some()
+}
+
+fn backyard_has_goods_output(kind: BackyardGardenKind) -> bool {
+    matches!(
+        kind,
+        BackyardGardenKind::HerbGarden | BackyardGardenKind::GoatPen
+    )
 }
 
 fn backyard_food_commodity(kind: BackyardGardenKind) -> Option<CommodityKind> {
@@ -286,7 +296,8 @@ fn step_livestock_pen(
     garden: &BackyardGarden,
     kind: BackyardGardenKind,
     residence: &Residence,
-    marketplace_id: Option<u64>,
+    food_marketplace_id: Option<u64>,
+    goods_marketplace_id: Option<u64>,
     tax_rate: f64,
     collection_multiplier: f64,
     clock: &GameClock,
@@ -320,7 +331,7 @@ fn step_livestock_pen(
                 ctx,
                 tick,
                 residence,
-                marketplace_id,
+                food_marketplace_id,
                 commodity,
                 total_food,
             );
@@ -358,7 +369,7 @@ fn step_livestock_pen(
             ctx,
             tick,
             residence,
-            marketplace_id,
+            food_marketplace_id,
             CommodityKind::Meat,
             total_food,
         );
@@ -386,12 +397,12 @@ fn step_livestock_pen(
     // real local goods stall has room. Industry then draws from that depot;
     // Marketplace storage is never used as an upstream warehouse.
     if kind == BackyardGardenKind::GoatPen {
-        if let Some(marketplace_id) = marketplace_id {
+        if let Some(marketplace_id) = goods_marketplace_id {
             transfer_backyard_hides_to_storehouse(ctx, tick, garden.id, marketplace_id);
         }
     }
 
-    if marketplace_id.is_none() || market_food_sold <= 1e-9 {
+    if food_marketplace_id.is_none() || market_food_sold <= 1e-9 {
         return 0.0;
     }
     let economic_activity = market_food_sold * FOOD_SALE_GOLD_PER_UNIT;
@@ -526,11 +537,9 @@ fn deposit_backyard_depot_commodity(
     let Some(marketplace) = ctx.db.building().id().find(&marketplace_id) else {
         return 0.0;
     };
-    let Some(depot_id) = tick.marketplace_stall_workplace_id_for_deposit(
-        ctx,
-        &marketplace,
-        stall_need,
-    ) else {
+    let Some(depot_id) =
+        tick.marketplace_stall_workplace_id_for_deposit(ctx, &marketplace, stall_need)
+    else {
         return 0.0;
     };
     let Some(mut depot) = ctx.db.building().id().find(&depot_id) else {

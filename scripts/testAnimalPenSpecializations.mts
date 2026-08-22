@@ -148,6 +148,11 @@ assert.match(
   /deposit_self_food[\s\S]*deposit_backyard_depot_commodity[\s\S]*ResidenceNeedKind::Food/,
 );
 assert.match(simulationSource, /transfer_backyard_hides_to_storehouse/);
+assert.match(
+  simulationSource,
+  /let food_marketplace_id[\s\S]*let goods_marketplace_id[\s\S]*GoatPen[\s\S]*goods_marketplace_id[\s\S]*transfer_backyard_hides_to_storehouse/,
+  'a Goat Pen must route food and hides independently so either compatible depot can accept its surplus',
+);
 assert.match(commoditySource, /tier == 3[\s\S]*land_animal_food/);
 assert.match(commoditySource, /FoodCategory::AnimalProduce\.bit\(\)[\s\S]*FoodCategory::Meats\.bit\(\)/);
 assert.match(commoditySource, /3 => 4,[\s\S]*_ => 5/);
