@@ -173,7 +173,7 @@ assert.match(
 );
 assert.match(
   discretionaryTrade,
-  /HOUSEHOLD_DISCRETIONARY_BUDGET_PER_PERSON_DAY[\s\S]*spending_multiplier[\s\S]*HOUSEHOLD_DISCRETIONARY_UNITS_PER_PERSON_DAY[\s\S]*spending_multiplier/,
+  /HOUSEHOLD_DISCRETIONARY_BUDGET_PER_PERSON_DAY[\s\S]*HOUSEHOLD_DISCRETIONARY_UNITS_PER_PERSON_DAY[\s\S]*scale_discretionary_limits\(spendable, unit_limit, spending_multiplier\)/,
   'the shortage multiplier must cap both optional spend and taxable purchase volume',
 );
 for (const commodity of ['Ale', 'Wine', 'Honey', 'Cheese', 'Cloth', 'Pottery']) {

@@ -47,8 +47,8 @@ tenure, and it cannot cause abandonment. A vital food, water, or firewood
 shortage still pauses optional shopping until the household's survival buffers
 recover.
 
-The timings and multiplier live under `population` in
-`balance/gameBalance.json` and are generated into both Rust and TypeScript.
+The timings live under `population` and the spending multiplier under `economy`
+in `balance/gameBalance.json`; both are generated into Rust and TypeScript.
 
 ## Illness and herbs
 

@@ -16,6 +16,7 @@ import type { ResidenceState } from '../resources/types.ts';
 export type ResidenceServiceState = {
   deficitTicks: number;
   deficitDays: number;
+  vitalDeficitTicks: number;
   nonVitalDeficitTicks: number;
   discretionarySpendingMultiplier: number;
   warning: boolean;
@@ -33,7 +34,14 @@ export function residenceServiceState(
     maxActiveNeedDeficitTicks(residence.needs, residence.tier),
   );
   const deficitDays = deficitTicks / Math.max(1, TICKS_PER_DAY);
-  const nonVitalDeficitTicks = activeResidenceNeedKinds(residence.tier)
+  const activeNeedKinds = activeResidenceNeedKinds(residence.tier);
+  const vitalDeficitTicks = activeNeedKinds
+    .filter((kind) => VITAL_NEEDS.has(kind))
+    .reduce(
+      (max, kind) => Math.max(max, getNeedDeficitTicks(residence.needs, kind)),
+      0,
+    );
+  const nonVitalDeficitTicks = activeNeedKinds
     .filter((kind) => !VITAL_NEEDS.has(kind))
     .reduce(
       (max, kind) => Math.max(max, getNeedDeficitTicks(residence.needs, kind)),
@@ -47,6 +55,7 @@ export function residenceServiceState(
   return {
     deficitTicks,
     deficitDays,
+    vitalDeficitTicks,
     nonVitalDeficitTicks,
     discretionarySpendingMultiplier,
     warning: deficitDays + 1e-9 >= RESIDENCE_SERVICE_WARNING_DAYS,
@@ -60,10 +69,15 @@ export function formatResidenceServiceConsequence(
 ): string {
   if (!state.warning) return 'Needs stable · promotion eligible';
   const serviceStatus = state.upgradeBlocked
-    ? 'Sustained shortages · upgrades blocked · work continues normally'
-    : 'Needs pressure · approval affected · work continues normally';
-  if (state.discretionarySpendingMultiplier >= 1) return serviceStatus;
+    ? 'Sustained shortages · upgrades blocked'
+    : 'Needs pressure · approval affected';
+  if (state.discretionarySpendingMultiplier >= 1) {
+    return `${serviceStatus} · work continues normally`;
+  }
+  if (state.vitalDeficitTicks > 0) {
+    return `${serviceStatus} · optional spending paused until vital buffers recover · work continues normally`;
+  }
 
   const reduction = Math.round((1 - state.discretionarySpendingMultiplier) * 100);
-  return `${serviceStatus} · optional spending and local market tax reduced ${reduction}%`;
+  return `${serviceStatus} · optional spending and local market tax reduced ${reduction}% · work continues normally`;
 }

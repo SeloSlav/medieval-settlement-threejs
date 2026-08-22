@@ -34,6 +34,18 @@ pub fn tier_four_non_vital_discretionary_multiplier(
     HOUSEHOLD_TIER4_SHORTAGE_DISCRETIONARY_MULTIPLIER.clamp(0.0, 1.0)
 }
 
+pub fn scale_discretionary_limits(
+    spendable: f64,
+    unit_limit: f64,
+    spending_multiplier: f64,
+) -> (f64, f64) {
+    let multiplier = spending_multiplier.clamp(0.0, 1.0);
+    (
+        spendable.max(0.0) * multiplier,
+        unit_limit.max(0.0) * multiplier,
+    )
+}
+
 pub fn required_chapel_tier(residence_tier: u8) -> u8 {
     if residence_tier >= 4 {
         3
@@ -70,11 +82,25 @@ mod tests {
     #[test]
     fn only_sustained_tier_four_status_shortages_reduce_optional_spending() {
         let warning = ticks_for_days(RESIDENCE_SERVICE_WARNING_DAYS);
-        assert_eq!(tier_four_non_vital_discretionary_multiplier(3, warning), 1.0);
-        assert_eq!(tier_four_non_vital_discretionary_multiplier(4, warning - 1), 1.0);
+        assert_eq!(
+            tier_four_non_vital_discretionary_multiplier(3, warning),
+            1.0
+        );
+        assert_eq!(
+            tier_four_non_vital_discretionary_multiplier(4, warning - 1),
+            1.0
+        );
         assert_eq!(
             tier_four_non_vital_discretionary_multiplier(4, warning),
             HOUSEHOLD_TIER4_SHORTAGE_DISCRETIONARY_MULTIPLIER,
         );
+
+        let (spendable, units) = scale_discretionary_limits(
+            0.1,
+            0.48,
+            HOUSEHOLD_TIER4_SHORTAGE_DISCRETIONARY_MULTIPLIER,
+        );
+        assert!((spendable - 0.075).abs() < 1e-9);
+        assert!((units - 0.36).abs() < 1e-9);
     }
 }

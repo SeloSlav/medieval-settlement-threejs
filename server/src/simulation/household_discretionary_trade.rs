@@ -16,7 +16,9 @@ use crate::economy::{
     building_commodity_room, building_commodity_stock, credit_local_purchase_receipt,
     debit_residence_wealth, deposit_building_commodity, withdraw_building_commodity, CommodityKind,
 };
-use crate::residence_service_policy::tier_four_non_vital_discretionary_multiplier;
+use crate::residence_service_policy::{
+    scale_discretionary_limits, tier_four_non_vital_discretionary_multiplier,
+};
 use crate::residence_settlement_policy::settlement_buffers_ready;
 use crate::simulation::chapel_community::recovery_stock_min;
 use crate::simulation::game_calendar::GameClock;
@@ -85,14 +87,11 @@ pub fn step_household_discretionary_trade(
     }
 }
 
-fn discretionary_spending_multiplier(
-    ctx: &ReducerContext,
-    residence: &Residence,
-) -> Option<f64> {
+fn discretionary_spending_multiplier(ctx: &ReducerContext, residence: &Residence) -> Option<f64> {
     let needs = load_needs(ctx, residence.id);
-    let vital_deficit = needs.iter().any(|need| {
-        need.kind.is_vital_for_tier(residence.tier, true) && need.deficit_ticks > 0
-    });
+    let vital_deficit = needs
+        .iter()
+        .any(|need| need.kind.is_vital_for_tier(residence.tier, true) && need.deficit_ticks > 0);
     if vital_deficit {
         return None;
     }
@@ -198,18 +197,11 @@ fn try_purchase_one_good(
 }
 
 fn discretionary_limits(wealth: f64, population: u32, spending_multiplier: f64) -> (f64, f64) {
-    let spending_multiplier = spending_multiplier.clamp(0.0, 1.0);
     let spendable = (wealth - HOUSEHOLD_DISCRETIONARY_WEALTH_RESERVE)
         .max(0.0)
-        .min(
-            HOUSEHOLD_DISCRETIONARY_BUDGET_PER_PERSON_DAY
-                * population as f64
-                * spending_multiplier,
-        );
-    let unit_limit = HOUSEHOLD_DISCRETIONARY_UNITS_PER_PERSON_DAY
-        * population as f64
-        * spending_multiplier;
-    (spendable, unit_limit)
+        .min(HOUSEHOLD_DISCRETIONARY_BUDGET_PER_PERSON_DAY * population as f64);
+    let unit_limit = HOUSEHOLD_DISCRETIONARY_UNITS_PER_PERSON_DAY * population as f64;
+    scale_discretionary_limits(spendable, unit_limit, spending_multiplier)
 }
 
 fn local_unit_price(commodity: CommodityKind) -> f64 {

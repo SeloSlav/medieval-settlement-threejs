@@ -36,7 +36,7 @@ assert.equal(
 );
 assert.match(
   formatResidenceServiceConsequence(tierFourLuxuryPressure),
-  /optional spending and local market tax reduced 25%/,
+  /optional spending and local market tax reduced 25% · work continues normally/,
 );
 assert.equal(
   tierFourLuxuryStateAtDays(RESIDENCE_SERVICE_WARNING_DAYS - 0.01)
