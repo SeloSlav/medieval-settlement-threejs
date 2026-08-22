@@ -8,7 +8,10 @@ import {
   loadGroundCoverTextures,
 } from '@seedthree/core/ground-cover.js';
 import { applyFoliageDoubleSideNormals } from '../../scene/foliageDoubleSideNormals.ts';
-import type { RendererBackendKind } from '../../scene/RendererBackend.ts';
+import {
+  supportsNodeMaterials,
+  type RendererBackendKind,
+} from '../../scene/RendererBackend.ts';
 import { createRootedFoliageWindPosition } from './seedThreeFoliageWind.ts';
 
 export type SeedThreeGroundCoverTextureSources = {
@@ -63,7 +66,7 @@ export function createSeedThreeGroundCoverMaterial(
   windAmount = 0.16,
   positionNode?: SeedThreeGroundCoverPositionNode,
 ): THREE.Material {
-  if (rendererBackend !== 'webgpu') {
+  if (!supportsNodeMaterials(rendererBackend)) {
     const material = new THREE.MeshStandardMaterial({
       name,
       map: textures.albedo,

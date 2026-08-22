@@ -17,6 +17,7 @@ import {
   QUARRY_ICON_HTML,
   SALT_ICON_HTML,
 } from './resourceMapIconArt.ts';
+import { MAP_ART_RESOLUTION, mapStampArtSize } from './illustratedMapGeometry.ts';
 
 type QuarryMapIconsOptions = {
   uiRoot: HTMLElement;
@@ -29,6 +30,8 @@ type QuarryMapIconsOptions = {
   onQuarrySelect: (quarryId: string) => void;
   isBlocked: () => boolean;
   isVisibilityBlocked?: () => boolean;
+  isIllustratedMapActive?: () => boolean;
+  getIllustratedMapY?: () => number;
 };
 
 type QuarryIconEntry = {
@@ -70,7 +73,11 @@ export class QuarryMapIcons {
   }
 
   update(getFrameRect?: () => DOMRect): void {
+    const illustratedMapActive = this.options.isIllustratedMapActive?.() ?? false;
+    const visibilityBlocked = this.options.isVisibilityBlocked?.()
+      ?? this.options.isBlocked();
     const interactionBlocked = this.options.isBlocked();
+    toggleClassIfChanged(this.root, 'is-illustrated-map', illustratedMapActive);
     toggleClassIfChanged(this.root, 'is-interaction-blocked', interactionBlocked);
     const frame = beginMapIconFrame(
       this.root,
@@ -78,8 +85,9 @@ export class QuarryMapIcons {
       this.options.terrain,
       this.options.getCamera,
       this.options.getZoomPercent,
-      this.options.isVisibilityBlocked ?? this.options.isBlocked,
+      () => visibilityBlocked,
       getFrameRect,
+      illustratedMapActive,
     );
     if (!frame) return;
 
@@ -87,6 +95,9 @@ export class QuarryMapIcons {
     for (const entry of this.entries) {
       const { marker, button, worldPoint } = entry;
       const node = geologicalNodeForMapMarker(marker, nodes);
+      const stampArtSize = illustratedMapActive
+        ? mapStampArtSize(marker, node?.isRich === true)
+        : 0;
       syncResourceStockRing(button, node, {
         hideWhenEmpty: node?.isRich === true,
       });
@@ -127,6 +138,11 @@ export class QuarryMapIcons {
         node?.z ?? marker.z,
         worldPoint,
         frame,
+        illustratedMapActive ? this.options.getIllustratedMapY?.() : undefined,
+        stampArtSize / MAP_ART_RESOLUTION
+          * (this.options.terrain.bounds.maxX - this.options.terrain.bounds.minX),
+        stampArtSize / MAP_ART_RESOLUTION
+          * (this.options.terrain.bounds.maxZ - this.options.terrain.bounds.minZ),
       );
     }
   }

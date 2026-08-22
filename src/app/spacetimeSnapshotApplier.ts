@@ -163,6 +163,7 @@ export class SpacetimeSnapshotApplier {
       deps.sceneManager?.syncForagingNodes(state.foragingNodes.values(), state.tick);
     }
     const treesChanged = !previous || !mapEntriesShareValues(state.trees, previous.trees);
+    let syncTreeVisuals: (() => void) | null = null;
     if (treesChanged) {
       const changedTreeIds: string[] = [];
       const removedTreeLayoutIndices: number[] = [];
@@ -187,16 +188,16 @@ export class SpacetimeSnapshotApplier {
         }
       }
 
-      if (!previous) {
-        deps.forestVisualSync?.syncAll(state.trees);
-      } else {
-        if (removedTreeLayoutIndices.length > 0) {
-          deps.forestVisualSync?.removeTreeLayouts(removedTreeLayoutIndices);
-        }
-        if (changedTreeIds.length > 0) {
-          deps.forestVisualSync?.syncTrees(state.trees, changedTreeIds);
-        }
-      }
+      syncTreeVisuals = !previous
+        ? () => deps.forestVisualSync?.syncAll(state.trees)
+        : () => {
+            if (removedTreeLayoutIndices.length > 0) {
+              deps.forestVisualSync?.removeTreeLayouts(removedTreeLayoutIndices);
+            }
+            if (changedTreeIds.length > 0) {
+              deps.forestVisualSync?.syncTrees(state.trees, changedTreeIds);
+            }
+          };
     }
 
     if (buildingsChanged || livestockHerdsChanged || issuedGuardPolearmsChanged) {
@@ -256,12 +257,23 @@ export class SpacetimeSnapshotApplier {
       );
     }
 
+    let forestClearanceChanged = false;
     if (buildingsChanged || residencesChanged || farmFieldsChanged || backyardCollidersChanged) {
       const forestSignature = getForestClearanceSignature(state);
       if (forestSignature !== this.lastForestClearanceSignature) {
         this.lastForestClearanceSignature = forestSignature;
-        deps.onForestClearanceChanged?.();
+        forestClearanceChanged = true;
       }
+    }
+
+    if (syncTreeVisuals && forestClearanceChanged && deps.forestVisualSync) {
+      deps.forestVisualSync.batchUpdates(() => {
+        syncTreeVisuals?.();
+        deps.onForestClearanceChanged?.();
+      });
+    } else {
+      syncTreeVisuals?.();
+      if (forestClearanceChanged) deps.onForestClearanceChanged?.();
     }
 
     if (

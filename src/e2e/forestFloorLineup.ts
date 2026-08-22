@@ -1,20 +1,21 @@
 import * as THREE from 'three';
-import { normalViewGeometry, positionLocal } from 'three/tsl';
+import { windSpeed, windStrength } from '@seedthree/core/wind.js';
 import { WebGPURenderer } from 'three/webgpu';
 import {
+  FOREST_FLOOR_IVY_ANIMATED_LEAVES_PER_PATCH,
   FOREST_FLOOR_IVY_CANOPY_HEIGHT_MAX,
   FOREST_FLOOR_IVY_LAYER_COUNT,
   FOREST_FLOOR_IVY_SEED,
   FOREST_FLOOR_IVY_TEXTURE_PATH,
+  createForestFloorIvyMaterial,
   createTerrainConformingIvyGeometry,
   type ForestFloorIvyPlacement,
 } from '../props/ForestFloorIvy.ts';
 import {
-  createSeedThreeGroundCoverMaterial,
   disposeSeedThreeGroundCoverTextures,
   loadSeedThreeGroundCoverTextures,
-  type SeedThreeGroundCoverPositionNode,
 } from '../vegetation/seedthree/seedThreeGroundCover.ts';
+import { setWorldAnimationTime } from '../scene/worldAnimationTime.ts';
 
 declare global {
   interface Window {
@@ -27,6 +28,11 @@ if (!root) throw new Error('Forest-floor lineup host is missing.');
 
 const query = new URLSearchParams(window.location.search);
 const view = query.get('view') ?? 'design';
+const requestedTimeValue = query.get('time');
+const requestedTime = Number(requestedTimeValue);
+const fixedAnimationTime = requestedTimeValue !== null && Number.isFinite(requestedTime)
+  ? requestedTime
+  : null;
 document.body.dataset.clean = String(query.get('clean') === '1');
 
 const renderer = new WebGPURenderer({ antialias: true, alpha: false });
@@ -73,16 +79,13 @@ const ivyTextures = await loadSeedThreeGroundCoverTextures(
   { albedo: FOREST_FLOOR_IVY_TEXTURE_PATH },
   renderer.getMaxAnisotropy(),
 );
-const ivyMaterial = createSeedThreeGroundCoverMaterial(
+const ivyMaterial = createForestFloorIvyMaterial(
   'SeedThree layered forest-floor ivy lineup',
   ivyTextures,
   'webgpu',
-  [0.07, 0.13, 0.04],
-  0,
-  positionLocal as SeedThreeGroundCoverPositionNode,
 );
-ivyMaterial.alphaTest = 0.31;
-(ivyMaterial as THREE.Material & { normalNode: typeof normalViewGeometry }).normalNode = normalViewGeometry;
+windStrength.value = 0.5;
+windSpeed.value = 0.84;
 const ivy = new THREE.Mesh(ivyGeometry, ivyMaterial);
 ivy.name = 'Four-strata terrain-conforming ivy lineup';
 ivy.frustumCulled = false;
@@ -158,8 +161,12 @@ if (view === 'near') {
 }
 
 let running = true;
-function render(): void {
+const animationStartedAt = performance.now();
+function render(now = performance.now()): void {
   if (!running) return;
+  setWorldAnimationTime(
+    fixedAnimationTime ?? Math.max(0, (now - animationStartedAt) / 1_000),
+  );
   const width = root!.clientWidth;
   const height = root!.clientHeight;
   renderer.setSize(width, height, false);
@@ -176,6 +183,9 @@ document.body.dataset.ready = 'true';
 document.body.dataset.view = view;
 document.body.dataset.ivyLayers = String(FOREST_FLOOR_IVY_LAYER_COUNT);
 document.body.dataset.ivyPatches = String(placements.length);
+document.body.dataset.ivyAnimatedLeaves = String(
+  placements.length * FOREST_FLOOR_IVY_ANIMATED_LEAVES_PER_PATCH,
+);
 document.body.dataset.ivyDrawCalls = '1';
 document.body.dataset.ivyMaxHeight = FOREST_FLOOR_IVY_CANOPY_HEIGHT_MAX.toFixed(2);
 

@@ -1,7 +1,9 @@
 import * as THREE from 'three';
-import { normalViewGeometry, positionLocal } from 'three/tsl';
 import { applyGroundCoverShadowPolicy } from '@seedthree/core/ground-cover-shadows.js';
-import type { RendererBackendKind } from '../scene/RendererBackend.ts';
+import {
+  supportsNodeMaterials,
+  type RendererBackendKind,
+} from '../scene/RendererBackend.ts';
 import type { Terrain } from '../terrain/Terrain.ts';
 import { sampleTerrainMeshAttributeX } from '../terrain/TerrainMeshHeight.ts';
 import { mulberry32 } from '../utils/random.ts';
@@ -10,9 +12,12 @@ import {
   createSeedThreeGroundCoverMaterial,
   disposeSeedThreeGroundCoverTextures,
   loadSeedThreeGroundCoverTextures,
-  type SeedThreeGroundCoverPositionNode,
   type SeedThreeGroundCoverTextures,
 } from '../vegetation/seedthree/seedThreeGroundCover.ts';
+import {
+  applyIvyLeafHingeWebGLWind,
+  createIvyLeafHingeWindNodes,
+} from '../vegetation/seedthree/seedThreeFoliageWind.ts';
 
 export const FOREST_FLOOR_IVY_TEXTURE_PATH =
   '/assets/textures/vegetation/forest-floor-ivy-card.png';
@@ -26,6 +31,30 @@ export const FOREST_FLOOR_IVY_UV_BOUNDS = {
   minV: 1 - 957 / 1254,
   maxV: 1 - 263 / 1254,
 } as const;
+
+/**
+ * A clean peripheral leaf already present in the authored colony texture.
+ * Explicit geometry traces this source shape, so animated leaves reuse the
+ * existing artwork/material/atlas instead of introducing another draw.
+ */
+const FOREST_FLOOR_IVY_LEAF_UV_BOUNDARY_PIXELS = [
+  [1031, 351],
+  [1028, 337],
+  [1021, 330],
+  [1021, 324],
+  [1029, 322],
+  [1029, 314],
+  [1038, 322],
+  [1052, 321],
+  [1061, 329],
+  [1048, 335],
+  [1042, 340],
+  [1034, 338],
+] as const;
+const FOREST_FLOOR_IVY_LEAF_UV_CENTER_PIXEL = [1038, 328] as const;
+const FOREST_FLOOR_IVY_LEAF_ROOT_PIXEL = FOREST_FLOOR_IVY_LEAF_UV_BOUNDARY_PIXELS[0];
+const FOREST_FLOOR_IVY_LEAF_PIXEL_LENGTH = 37;
+const FOREST_FLOOR_IVY_LEAF_PIXEL_HALF_WIDTH = 40;
 
 export type ForestFloorIvyLayerKind = 'ground' | 'lower' | 'upper' | 'crown';
 
@@ -176,10 +205,30 @@ export const FOREST_FLOOR_IVY_LAYER_SPECS = [
 ] as const satisfies readonly ForestFloorIvyLayerSpec[];
 
 export const FOREST_FLOOR_IVY_LAYER_COUNT = FOREST_FLOOR_IVY_LAYER_SPECS.length;
-export const FOREST_FLOOR_IVY_VERTICES_PER_PATCH = FOREST_FLOOR_IVY_LAYER_SPECS
+export const FOREST_FLOOR_IVY_SHEET_VERTICES_PER_PATCH = FOREST_FLOOR_IVY_LAYER_SPECS
   .reduce((total, layer) => total + (layer.segmentsX + 1) * (layer.segmentsZ + 1), 0);
-export const FOREST_FLOOR_IVY_TRIANGLES_PER_PATCH = FOREST_FLOOR_IVY_LAYER_SPECS
+export const FOREST_FLOOR_IVY_SHEET_TRIANGLES_PER_PATCH = FOREST_FLOOR_IVY_LAYER_SPECS
   .reduce((total, layer) => total + layer.segmentsX * layer.segmentsZ * 2, 0);
+/** Sparse real leaves animate above the dense baked colony without moving it. */
+export const FOREST_FLOOR_IVY_ANIMATED_LEAVES_PER_PATCH = 18;
+export const FOREST_FLOOR_IVY_LEAF_VERTICES =
+  FOREST_FLOOR_IVY_LEAF_UV_BOUNDARY_PIXELS.length + 1;
+export const FOREST_FLOOR_IVY_LEAF_TRIANGLES =
+  FOREST_FLOOR_IVY_LEAF_UV_BOUNDARY_PIXELS.length;
+export const FOREST_FLOOR_IVY_VERTICES_PER_PATCH =
+  FOREST_FLOOR_IVY_SHEET_VERTICES_PER_PATCH
+  + FOREST_FLOOR_IVY_ANIMATED_LEAVES_PER_PATCH * FOREST_FLOOR_IVY_LEAF_VERTICES;
+export const FOREST_FLOOR_IVY_TRIANGLES_PER_PATCH =
+  FOREST_FLOOR_IVY_SHEET_TRIANGLES_PER_PATCH
+  + FOREST_FLOOR_IVY_ANIMATED_LEAVES_PER_PATCH * FOREST_FLOOR_IVY_LEAF_TRIANGLES;
+export const FOREST_FLOOR_IVY_ANIMATION_MAX_TIP_DISPLACEMENT = 0.07;
+
+const FOREST_FLOOR_IVY_LEAF_LAYER_SEQUENCE = [
+  0, 0,
+  1, 2, 1, 2, 1, 2,
+  3, 4, 3, 4, 3, 4,
+  5, 6, 5, 6,
+] as const;
 
 /** The perimeter almost touches the litter; only a small depth-safe lift remains. */
 export const FOREST_FLOOR_IVY_GROUND_CLEARANCE = 0.014;
@@ -215,6 +264,15 @@ export type ForestFloorIvyLayerVertexRange = ForestFloorIvyVertexRange & {
   tier: 0 | 1 | 2 | 3;
 };
 
+export type ForestFloorIvyAnimatedLeafVertexRange = ForestFloorIvyVertexRange & {
+  placementIndex: number;
+  leafIndex: number;
+  layerIndex: number;
+  tier: 0 | 1 | 2 | 3;
+  rootVertex: number;
+  tipVertex: number;
+};
+
 export type ForestFloorIvyStats = {
   instances: number;
   verticesPerInstance: number;
@@ -223,6 +281,8 @@ export type ForestFloorIvyStats = {
   triangles: number;
   layersPerInstance: number;
   layers: number;
+  animatedLeavesPerInstance: number;
+  animatedLeaves: number;
   drawCalls: number;
   maximumRelief: number;
   maximumCanopyHeight: number;
@@ -234,6 +294,7 @@ export type CompiledForestFloorIvyGeometry = {
   originalPositions: Float32Array;
   placementVertexRangesByTree: ForestFloorIvyVertexRange[][];
   layerVertexRanges: ForestFloorIvyLayerVertexRange[];
+  animatedLeafVertexRanges: ForestFloorIvyAnimatedLeafVertexRange[];
 };
 
 export type ForestFloorIvyInstances = {
@@ -248,12 +309,40 @@ export type ForestFloorIvyInstances = {
   dispose: () => void;
 };
 
+export function createForestFloorIvyMaterial(
+  name: string,
+  textures: SeedThreeGroundCoverTextures,
+  rendererBackend: RendererBackendKind,
+): THREE.Material {
+  const hingeWind = createIvyLeafHingeWindNodes();
+  const material = createSeedThreeGroundCoverMaterial(
+    name,
+    textures,
+    rendererBackend,
+    [0.07, 0.13, 0.04],
+    0,
+    hingeWind.positionNode,
+  );
+  material.alphaTest = 0.31;
+  if (supportsNodeMaterials(rendererBackend)) {
+    // The same rigid petiole rotation drives lighting as well as position;
+    // otherwise close leaves visibly brighten/darken against a static normal.
+    (material as THREE.Material & { normalNode: unknown }).normalNode =
+      hingeWind.normalNode;
+  } else {
+    applyIvyLeafHingeWebGLWind(material);
+  }
+  return material;
+}
+
 /**
  * Manor-Lords-style ivy is a layered leaf canopy resting on litter, not a
  * crossed billboard clump or one embossed sheet. Every patch compiles a broad
- * ground-contact drape plus paired lower, paired upper, and crown shelves. Each shelf samples
- * the rendered terrain and the strata beneath it, so its alpha perimeter lands
- * on supporting leaves while its interior rises into real grazing-view depth.
+ * ground-contact drape plus paired lower, paired upper, and crown shelves, then
+ * roots sparse cambered hero leaves into those supports. The dense sheets stay
+ * welded to litter while each real leaf hinges independently in SeedThree wind.
+ * Every support samples the rendered terrain and the strata beneath it, so the
+ * alpha perimeter lands on foliage while the interior has grazing-view depth.
  */
 export async function createForestFloorIvyInstances(
   trees: readonly ForestTreePlacement[],
@@ -278,20 +367,11 @@ export async function createForestFloorIvyInstances(
     trees.length,
     seed,
   );
-  const material = createSeedThreeGroundCoverMaterial(
+  const material = createForestFloorIvyMaterial(
     'SeedThree terrain-conforming woodland ivy',
     textures,
     rendererBackend ?? 'webgl',
-    [0.07, 0.13, 0.04],
-    0,
-    positionLocal as SeedThreeGroundCoverPositionNode,
   );
-  material.alphaTest = 0.31;
-  if (rendererBackend === 'webgpu') {
-    // SeedThree card materials normally force an upward normal. This carrier
-    // is a real draped surface, so retain its computed relief/terrain normals.
-    (material as THREE.Material & { normalNode: typeof normalViewGeometry }).normalNode = normalViewGeometry;
-  }
 
   const mesh = new THREE.Mesh(compiled.geometry, material);
   mesh.name = 'SeedThree tessellated terrain-conforming forest-floor ivy';
@@ -322,6 +402,8 @@ export async function createForestFloorIvyInstances(
       triangles: FOREST_FLOOR_IVY_TRIANGLES_PER_PATCH * placements.length,
       layersPerInstance: FOREST_FLOOR_IVY_LAYER_COUNT,
       layers: FOREST_FLOOR_IVY_LAYER_COUNT * placements.length,
+      animatedLeavesPerInstance: FOREST_FLOOR_IVY_ANIMATED_LEAVES_PER_PATCH,
+      animatedLeaves: FOREST_FLOOR_IVY_ANIMATED_LEAVES_PER_PATCH * placements.length,
       drawCalls: placements.length > 0 ? 1 : 0,
       maximumRelief: placements.reduce(
         (maximum, placement) => Math.max(maximum, placement.reliefHeight),
@@ -389,12 +471,15 @@ export function createTerrainConformingIvyGeometry(
   const uvs = new Float32Array(vertexCount * 2);
   const tintValues = new Float32Array(vertexCount * 3);
   const layerValues = new Uint8Array(vertexCount);
+  const rootPhaseValues = new Float32Array(vertexCount * 4);
+  const hingeValues = new Float32Array(vertexCount * 4);
   const indices = new Uint32Array(indexCount);
   const placementVertexRangesByTree = Array.from(
     { length: treeCount },
     () => [] as ForestFloorIvyVertexRange[],
   );
   const layerVertexRanges: ForestFloorIvyLayerVertexRange[] = [];
+  const animatedLeafVertexRanges: ForestFloorIvyAnimatedLeafVertexRange[] = [];
   const color = new THREE.Color();
   const layerColor = new THREE.Color();
   const tintWhite = new THREE.Color(0xffffff);
@@ -508,10 +593,37 @@ export function createTerrainConformingIvyGeometry(
       vertexOffset += layerCount;
     }
 
+    const leafWrite = appendAnimatedIvyLeaves({
+      placement,
+      placementIndex,
+      layerPlans,
+      terrain,
+      seed,
+      baseColor: color,
+      positions,
+      uvs,
+      tintValues,
+      layerValues,
+      rootPhaseValues,
+      hingeValues,
+      indices,
+      vertexOffset,
+      indexOffset,
+      animatedLeafVertexRanges,
+    });
+    vertexOffset = leafWrite.vertexOffset;
+    indexOffset = leafWrite.indexOffset;
+
     placementVertexRangesByTree[placement.sourceTreeIndex]?.push({
       start: placementStart,
       count: vertexOffset - placementStart,
     });
+  }
+
+  if (vertexOffset !== vertexCount || indexOffset !== indexCount) {
+    throw new Error(
+      `Forest-floor ivy compiler wrote ${vertexOffset}/${vertexCount} vertices and ${indexOffset}/${indexCount} indices.`,
+    );
   }
 
   const geometry = new THREE.BufferGeometry();
@@ -519,6 +631,8 @@ export function createTerrainConformingIvyGeometry(
   geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
   geometry.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
   geometry.setAttribute('ivyLayer', new THREE.Uint8BufferAttribute(layerValues, 1));
+  geometry.setAttribute('aIvyRootPhase', new THREE.BufferAttribute(rootPhaseValues, 4));
+  geometry.setAttribute('aIvyHinge', new THREE.BufferAttribute(hingeValues, 4));
   const tint = new THREE.BufferAttribute(tintValues, 3);
   // SeedThree's WebGPU material consumes aTint; the WebGL fallback consumes
   // Three's conventional color semantic. Both share one immutable buffer.
@@ -528,12 +642,19 @@ export function createTerrainConformingIvyGeometry(
     geometry.computeVertexNormals();
     geometry.computeBoundingBox();
     geometry.computeBoundingSphere();
+    geometry.boundingBox?.expandByScalar(
+      FOREST_FLOOR_IVY_ANIMATION_MAX_TIP_DISPLACEMENT,
+    );
+    if (geometry.boundingSphere) {
+      geometry.boundingSphere.radius += FOREST_FLOOR_IVY_ANIMATION_MAX_TIP_DISPLACEMENT;
+    }
   }
   return {
     geometry,
     originalPositions: positions.slice(),
     placementVertexRangesByTree,
     layerVertexRanges,
+    animatedLeafVertexRanges,
   };
 }
 
@@ -589,6 +710,229 @@ function createIvyLayerPlans(
       flipU: upperLayer && rng() < 0.5,
     };
   });
+}
+
+type AnimatedIvyLeafWriteArgs = {
+  placement: ForestFloorIvyPlacement;
+  placementIndex: number;
+  layerPlans: readonly CompiledIvyLayerPlan[];
+  terrain: IvyTerrainSurface;
+  seed: number;
+  baseColor: THREE.Color;
+  positions: Float32Array;
+  uvs: Float32Array;
+  tintValues: Float32Array;
+  layerValues: Uint8Array;
+  rootPhaseValues: Float32Array;
+  hingeValues: Float32Array;
+  indices: Uint32Array;
+  vertexOffset: number;
+  indexOffset: number;
+  animatedLeafVertexRanges: ForestFloorIvyAnimatedLeafVertexRange[];
+};
+
+function appendAnimatedIvyLeaves(
+  args: AnimatedIvyLeafWriteArgs,
+): { vertexOffset: number; indexOffset: number } {
+  const {
+    placement,
+    placementIndex,
+    layerPlans,
+    terrain,
+    seed,
+    baseColor,
+    positions,
+    uvs,
+    tintValues,
+    layerValues,
+    rootPhaseValues,
+    hingeValues,
+    indices,
+    animatedLeafVertexRanges,
+  } = args;
+  const rng = mulberry32(
+    (seed ^ Math.imul(placementIndex + 1, 0x165667b1)) >>> 0,
+  );
+  const sourcePixels = [
+    ...FOREST_FLOOR_IVY_LEAF_UV_BOUNDARY_PIXELS,
+    FOREST_FLOOR_IVY_LEAF_UV_CENTER_PIXEL,
+  ] as const;
+  const boundaryCount = FOREST_FLOOR_IVY_LEAF_UV_BOUNDARY_PIXELS.length;
+  const centerLocalIndex = FOREST_FLOOR_IVY_LEAF_VERTICES - 1;
+  const rootPixelX = FOREST_FLOOR_IVY_LEAF_ROOT_PIXEL[0];
+  const rootPixelY = FOREST_FLOOR_IVY_LEAF_ROOT_PIXEL[1];
+  const tierLengthRanges = [
+    [0.18, 0.25],
+    [0.21, 0.3],
+    [0.23, 0.34],
+    [0.25, 0.37],
+  ] as const;
+  const tierHingeRanges = [
+    [0.025, 0.04],
+    [0.04, 0.058],
+    [0.065, 0.09],
+    [0.085, 0.115],
+  ] as const;
+  const tierTiltRanges = [
+    [8, 16],
+    [12, 22],
+    [16, 28],
+    [18, 32],
+  ] as const;
+  const placementScale = THREE.MathUtils.clamp(placement.scale, 0.82, 1.25);
+  const leafColor = new THREE.Color();
+  let vertexOffset = args.vertexOffset;
+  let indexOffset = args.indexOffset;
+
+  for (
+    let leafIndex = 0;
+    leafIndex < FOREST_FLOOR_IVY_ANIMATED_LEAVES_PER_PATCH;
+    leafIndex++
+  ) {
+    const layerIndex = FOREST_FLOOR_IVY_LEAF_LAYER_SEQUENCE[leafIndex]!;
+    const layer = layerPlans[layerIndex]!;
+    const tier = layer.spec.tier;
+    const radialAngle = rng() * Math.PI * 2;
+    const radialMinimum = tier === 0 ? 0.56 : 0.18;
+    const radialMaximum = tier === 0 ? 0.86 : 0.78;
+    const radial = THREE.MathUtils.lerp(
+      radialMinimum,
+      radialMaximum,
+      Math.sqrt(rng()),
+    );
+    const normalizedX = Math.cos(radialAngle) * radial;
+    const normalizedZ = Math.sin(radialAngle) * radial;
+    const localX = normalizedX * layer.radiusX;
+    const localZ = normalizedZ * layer.radiusZ;
+    const rootX = layer.centerX + localX * layer.cos - localZ * layer.sin;
+    const rootZ = layer.centerZ + localX * layer.sin + localZ * layer.cos;
+    const supportHeight = layerIndex === 0
+      ? 0
+      : ivyStackHeightAtWorld(
+        rootX,
+        rootZ,
+        placement,
+        layerPlans,
+        layerIndex,
+      );
+    const shelfHeight = Math.min(
+      FOREST_FLOOR_IVY_CANOPY_HEIGHT_MAX,
+      supportHeight + ivyLayerOwnElevation(
+        normalizedX,
+        normalizedZ,
+        placement,
+        layer,
+      ),
+    );
+    const rootY = terrain.getHeightAt(rootX, rootZ)
+      + FOREST_FLOOR_IVY_GROUND_CLEARANCE
+      + shelfHeight
+      + 0.003;
+
+    const outwardYaw = Math.atan2(rootZ - layer.centerZ, rootX - layer.centerX);
+    const forwardYaw = outwardYaw + (rng() - 0.5) * 1.35;
+    const forwardX = Math.cos(forwardYaw);
+    const forwardZ = Math.sin(forwardYaw);
+    const hingeX = -forwardZ;
+    const hingeZ = forwardX;
+    const lengthRange = tierLengthRanges[tier];
+    const length = THREE.MathUtils.lerp(lengthRange[0], lengthRange[1], rng())
+      * placementScale;
+    const width = length * THREE.MathUtils.lerp(0.76, 0.94, rng());
+    const tiltRange = tierTiltRanges[tier];
+    const tilt = THREE.MathUtils.degToRad(
+      THREE.MathUtils.lerp(tiltRange[0], tiltRange[1], rng()),
+    );
+    const forwardHorizontal = Math.cos(tilt);
+    const forwardVertical = Math.sin(tilt);
+    const camber = length * THREE.MathUtils.lerp(0.035, 0.065, rng());
+    const twist = length * (rng() - 0.5) * 0.055;
+    const hingeRange = tierHingeRanges[tier];
+    const hingeAmplitude = THREE.MathUtils.lerp(
+      hingeRange[0],
+      hingeRange[1],
+      rng(),
+    );
+    const phase = placement.reliefPhase
+      + leafIndex * 0.73
+      + (rng() - 0.5) * 0.62;
+    const mirror = rng() < 0.5 ? -1 : 1;
+    leafColor.copy(baseColor).multiplyScalar(
+      layer.spec.tintScale * THREE.MathUtils.lerp(0.94, 1.075, rng()),
+    );
+
+    const leafStart = vertexOffset;
+    for (let localIndex = 0; localIndex < sourcePixels.length; localIndex++) {
+      const sourcePixel = sourcePixels[localIndex]!;
+      const localForward = THREE.MathUtils.clamp(
+        (rootPixelY - sourcePixel[1]) / FOREST_FLOOR_IVY_LEAF_PIXEL_LENGTH,
+        0,
+        1,
+      );
+      const localWidth = mirror
+        * (sourcePixel[0] - rootPixelX)
+        / FOREST_FLOOR_IVY_LEAF_PIXEL_HALF_WIDTH;
+      const edgeDistance = Math.min(1, Math.abs(localWidth));
+      const foldLift = Math.sin(localForward * Math.PI)
+        * camber
+        * (1 - edgeDistance * 0.48);
+      const twistLift = localWidth * localForward * twist;
+      const along = localForward * length;
+      const across = localWidth * width;
+      const vertexIndex = vertexOffset + localIndex;
+      const positionOffset = vertexIndex * 3;
+      positions[positionOffset] = rootX
+        + forwardX * along * forwardHorizontal
+        + hingeX * across;
+      positions[positionOffset + 1] = rootY
+        + along * forwardVertical
+        + foldLift
+        + twistLift;
+      positions[positionOffset + 2] = rootZ
+        + forwardZ * along * forwardHorizontal
+        + hingeZ * across;
+      const uvOffset = vertexIndex * 2;
+      uvs[uvOffset] = sourcePixel[0] / 1254;
+      uvs[uvOffset + 1] = 1 - sourcePixel[1] / 1254;
+      tintValues[positionOffset] = leafColor.r;
+      tintValues[positionOffset + 1] = leafColor.g;
+      tintValues[positionOffset + 2] = leafColor.b;
+      layerValues[vertexIndex] = layerIndex;
+      const motionOffset = vertexIndex * 4;
+      rootPhaseValues[motionOffset] = rootX;
+      rootPhaseValues[motionOffset + 1] = rootY;
+      rootPhaseValues[motionOffset + 2] = rootZ;
+      rootPhaseValues[motionOffset + 3] = phase;
+      hingeValues[motionOffset] = hingeX;
+      hingeValues[motionOffset + 1] = 0;
+      hingeValues[motionOffset + 2] = hingeZ;
+      hingeValues[motionOffset + 3] = hingeAmplitude;
+    }
+
+    for (let boundaryIndex = 0; boundaryIndex < boundaryCount; boundaryIndex++) {
+      indices[indexOffset++] = leafStart + centerLocalIndex;
+      if (mirror > 0) {
+        indices[indexOffset++] = leafStart + (boundaryIndex + 1) % boundaryCount;
+        indices[indexOffset++] = leafStart + boundaryIndex;
+      } else {
+        indices[indexOffset++] = leafStart + boundaryIndex;
+        indices[indexOffset++] = leafStart + (boundaryIndex + 1) % boundaryCount;
+      }
+    }
+    animatedLeafVertexRanges.push({
+      start: leafStart,
+      count: FOREST_FLOOR_IVY_LEAF_VERTICES,
+      placementIndex,
+      leafIndex,
+      layerIndex,
+      tier,
+      rootVertex: leafStart,
+      tipVertex: leafStart + 5,
+    });
+    vertexOffset += FOREST_FLOOR_IVY_LEAF_VERTICES;
+  }
+
+  return { vertexOffset, indexOffset };
 }
 
 function ivyStackHeightAtWorld(

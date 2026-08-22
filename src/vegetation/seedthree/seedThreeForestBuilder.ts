@@ -67,6 +67,7 @@ import {
   createSeedThreeStableRtsShadowSlotSelection,
   configureSeedThreeForestPassMesh,
   partitionSeedThreeSelectionByStaticLod,
+  patchSeedThreeLodSlotVisibility,
   runSeedThreeBucketMatrixWriteSlices,
   seedThreeColorSelectionCoversView,
   seedThreeResidentSelectionCoversView,
@@ -149,6 +150,7 @@ export type SeedThreeForestInstances = {
     } | null;
   } | null;
   visibilityDirty: boolean;
+  dirtyVisibilitySlotsByBucket: Map<number, Set<number>>;
   cameraInteractionActive: boolean;
   overviewBillboardFade: SeedThreeOverviewBillboardFadeState;
   ownedOverviewFadeMaterials: THREE.Material[];
@@ -669,6 +671,7 @@ export async function createSeedThreeForest(
     );
     const slot: TreeSlot = {
       layoutIndex,
+      authoredMatrix: matrix.clone(),
       matrix,
       pos: new THREE.Vector3(placement.x, rootY, placement.z),
       visibilityCenter,
@@ -804,6 +807,7 @@ export async function createSeedThreeForest(
     },
     pendingLodWork: null,
     visibilityDirty: false,
+    dirtyVisibilitySlotsByBucket: new Map(),
     cameraInteractionActive: false,
     overviewBillboardFade: { enabled: false, opacity: 0 },
     ownedOverviewFadeMaterials: [...ownedOverviewFadeMaterials],
@@ -823,32 +827,49 @@ export function setSeedThreeTreeVisible(
   const slot = bucket.slots[mapping.slotIndex];
   if (!slot) return;
   if (slot.enabled === visible) return;
+  if (visible) {
+    if (slot.authoredMatrix) slot.matrix.copy(slot.authoredMatrix);
+  } else {
+    slot.authoredMatrix ??= slot.matrix.clone();
+    slot.matrix.copy(forest.hiddenMatrix);
+  }
   slot.enabled = visible;
   forest.visibilityDirty = true;
+  const dirtySlots = forest.dirtyVisibilitySlotsByBucket.get(mapping.bucketIndex)
+    ?? new Set<number>();
+  dirtySlots.add(mapping.slotIndex);
+  forest.dirtyVisibilitySlotsByBucket.set(mapping.bucketIndex, dirtySlots);
 }
 
 export function commitSeedThreeForestMatrices(forest: SeedThreeForestInstances): void {
   if (forest.visibilityDirty === false) return;
-  for (const bucket of forest.buckets) {
-    const job = createSeedThreeBucketMatrixWriteJob(
+  let matrixWrites = 0;
+  for (const [bucketIndex, dirtySlotIndices] of forest.dirtyVisibilitySlotsByBucket) {
+    const bucket = forest.buckets[bucketIndex];
+    if (!bucket) continue;
+    matrixWrites += patchSeedThreeLodSlotVisibility(
       bucket.nearSet,
-      bucket.overviewSet,
       bucket.slots,
       bucket.nearViewSlotIndices,
-      bucket.overviewViewSlotIndices,
-      {
-        lodSet: bucket.nearShadowSet,
-        selectedSlotIndices: bucket.nearSlotIndices,
-        overviewSelectedSlotIndices: bucket.overviewSlotIndices,
-      },
+      dirtySlotIndices,
     );
-    runSeedThreeBucketMatrixWriteSlices(job, {
-      deadlineMs: Number.POSITIVE_INFINITY,
-      maxMatrixWritesPerChunk: Number.POSITIVE_INFINITY,
-    });
+    matrixWrites += patchSeedThreeLodSlotVisibility(
+      bucket.overviewSet,
+      bucket.slots,
+      bucket.overviewViewSlotIndices,
+      dirtySlotIndices,
+    );
+    matrixWrites += patchSeedThreeLodSlotVisibility(
+      bucket.nearShadowSet,
+      bucket.slots,
+      bucket.nearSlotIndices,
+      dirtySlotIndices,
+    );
   }
   forest.pendingLodWork = null;
+  forest.dirtyVisibilitySlotsByBucket.clear();
   forest.visibilityDirty = false;
+  forest.updateTelemetry.matrixWrites += matrixWrites;
   refreshSeedThreeRenderStats(forest);
 }
 
@@ -1117,6 +1138,7 @@ export function updateSeedThreeForestCameraBudgeted(
                       writeColor,
                       writeShadow,
                       realignColorAttributes,
+                      preserveDisabledSlots: true,
                     },
                   ),
                 };

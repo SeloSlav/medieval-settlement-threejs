@@ -7,6 +7,7 @@ import {
   createSeedThreeStableRtsShadowSlotSelection,
   configureSeedThreeForestPassMesh,
   enabledSeedThreeTreeCountInPrefix,
+  patchSeedThreeLodSlotVisibility,
   partitionSeedThreeSelectionByStaticLod,
   runSeedThreeBucketMatrixWriteChunk,
   runSeedThreeBucketMatrixWriteSlices,
@@ -842,6 +843,68 @@ assert.equal(nearSet.branches.count, 1, 'restored tree should return to its sele
 nearSet.branches.getMatrixAt(0, matrix);
 assert.equal(matrix.elements[12], 10, 'restored tree should recover its exact source transform');
 
+const stablePatchSet = makeLodSet(3);
+const stablePatchShadowSet = makeLodSet(3);
+const stablePatchSlots = [slot(0, 10), slot(1, 20), slot(2, 30)];
+const stablePatchJob = createSeedThreeBucketMatrixWriteJob(
+  stablePatchSet,
+  { branches: null, cards: [] },
+  stablePatchSlots,
+  [0, 1, 2],
+  [],
+  {
+    lodSet: stablePatchShadowSet,
+    selectedSlotIndices: [0, 1, 2],
+    preserveDisabledSlots: true,
+  },
+);
+runSeedThreeBucketMatrixWriteSlices(stablePatchJob, {
+  deadlineMs: Number.POSITIVE_INFINITY,
+  maxMatrixWritesPerChunk: Number.POSITIVE_INFINITY,
+});
+const untouchedThirdBranch = Array.from(
+  stablePatchSet.branches.instanceMatrix.array.slice(32, 48),
+);
+stablePatchSet.branches.instanceMatrix.clearUpdateRanges();
+stablePatchSet.cards[0].instanceMatrix.clearUpdateRanges();
+stablePatchShadowSet.branches.instanceMatrix.clearUpdateRanges();
+stablePatchShadowSet.cards[0].instanceMatrix.clearUpdateRanges();
+stablePatchSlots[1]!.enabled = false;
+patchSeedThreeLodSlotVisibility(stablePatchSet, stablePatchSlots, [0, 1, 2], [1]);
+patchSeedThreeLodSlotVisibility(stablePatchShadowSet, stablePatchSlots, [0, 1, 2], [1]);
+assert.equal(stablePatchSet.branches.count, 3,
+  'hiding one tree must preserve stable instance ranks and draw identity');
+stablePatchSet.branches.getMatrixAt(1, matrix);
+assert.equal(matrix.determinant(), 0,
+  'the changed tree alone should receive a zero-scale visibility matrix');
+assert.deepEqual(
+  Array.from(stablePatchSet.branches.instanceMatrix.array.slice(32, 48)),
+  untouchedThirdBranch,
+  'a sparse visibility patch must not rewrite a later unaffected tree',
+);
+assert.deepEqual(
+  stablePatchSet.branches.instanceMatrix.updateRanges,
+  [{ start: 16, count: 16 }],
+  'the color branch upload must contain only the changed tree matrix',
+);
+assert.deepEqual(
+  stablePatchSet.cards[0].instanceMatrix.updateRanges,
+  [{ start: 16, count: 16 }],
+  'the color card upload must contain only the changed tree cards',
+);
+assert.deepEqual(
+  stablePatchShadowSet.branches.instanceMatrix.updateRanges,
+  [{ start: 16, count: 16 }],
+  'the exact-shadow upload must contain only the changed tree matrix',
+);
+stablePatchSet.branches.instanceMatrix.clearUpdateRanges();
+stablePatchSet.cards[0].instanceMatrix.clearUpdateRanges();
+stablePatchSlots[1]!.enabled = true;
+patchSeedThreeLodSlotVisibility(stablePatchSet, stablePatchSlots, [0, 1, 2], [1]);
+stablePatchSet.branches.getMatrixAt(1, matrix);
+assert.equal(matrix.elements[12], 20,
+  'restoring a stable tree slot must recover its authored transform exactly');
+
 const companionSet = makeLodSet(1);
 const companion: SeedThreeTreeSlot = {
   ...slot(0, 14),
@@ -870,6 +933,8 @@ for (const set of [
   genericParitySet,
   exactColorSource,
   exactShadowClone,
+  stablePatchSet,
+  stablePatchShadowSet,
 ]) {
   set.branches.geometry.dispose();
   (set.branches.material as THREE.Material).dispose();

@@ -11,6 +11,7 @@ type WindowLike = EventEmitter & {
 function ensureBrowserGlobals(): void {
   if (typeof globalThis.window !== 'undefined') return;
   const windowLike = new EventEmitter() as WindowLike;
+  windowLike.setMaxListeners(0);
   windowLike.addEventListener = (type, listener) => {
     windowLike.on(type, listener);
   };
@@ -36,6 +37,24 @@ function ensureBrowserGlobals(): void {
 ensureBrowserGlobals();
 
 const { CameraController } = await import('../src/camera/CameraController.ts');
+const {
+  DEFAULT_FOV,
+  ILLUSTRATED_MAP_OUTWARD_ZOOM_TIER_COUNT,
+  RTS_ORBIT_PITCH,
+  computeIllustratedMapFarPlane,
+  computeIllustratedMapTerminalDistance,
+  computeIllustratedMapZoomStops,
+} = await import('../src/camera/CameraCurves.ts');
+const {
+  illustratedMapDeskMetrics,
+} = await import('../src/map/illustratedMapDeskSurface.ts');
+
+const DEFAULT_TEST_BOUNDS = {
+  minX: -500,
+  maxX: 500,
+  minZ: -500,
+  maxZ: 500,
+};
 
 function createDomElement(): HTMLElement {
   const listeners = new Map<string, Set<EventListener>>();
@@ -65,21 +84,25 @@ function createController(
   onViewChanged?: () => void,
   continuousRenderLoop = false,
   onIllustratedMapModeChanged?: (active: boolean) => void,
+  bounds = DEFAULT_TEST_BOUNDS,
+  cameraFar = 2600,
+  isIllustratedMapReady: () => boolean = () => true,
 ): {
   controller: CameraController;
   camera: THREE.PerspectiveCamera;
   target: THREE.Vector3;
   domElement: HTMLElement;
 } {
-  const camera = new THREE.PerspectiveCamera(60, 1, 0.1, 2600);
+  const camera = new THREE.PerspectiveCamera(60, 1, 0.1, cameraFar);
   const target = new THREE.Vector3(0, 0, 0);
   const domElement = createDomElement();
   const controller = new CameraController({
     camera,
     target,
     domElement,
-    bounds: { minX: -500, maxX: 500, minZ: -500, maxZ: 500 },
+    bounds,
     getHeightAt: () => 0,
+    isIllustratedMapReady,
     onViewChanged,
     continuousRenderLoop,
     onIllustratedMapModeChanged,
@@ -105,11 +128,16 @@ function mouseEvent(init: {
   } as MouseEvent;
 }
 
-function wheelEvent(init: { deltaY?: number }): WheelEvent {
+function wheelEvent(init: {
+  deltaY?: number;
+  deltaX?: number;
+  deltaMode?: number;
+}): WheelEvent {
   return {
     type: 'wheel',
     deltaY: init.deltaY ?? 0,
-    deltaX: 0,
+    deltaX: init.deltaX ?? 0,
+    deltaMode: init.deltaMode ?? 0,
     bubbles: true,
     cancelable: true,
     preventDefault() {},
@@ -160,6 +188,41 @@ function releaseMouse(button: number): void {
     type: 'mouseup',
     button,
   }));
+}
+
+function scrollToLiveWorldMaximum(
+  controller: CameraController,
+  domElement: HTMLElement,
+): void {
+  for (let step = 0; step < 40 && controller.getZoomPercent() > 30; step += 1) {
+    domElement.dispatch('wheel', wheelEvent({ deltaY: 120 }));
+  }
+}
+
+function assertDeskCornersInsideFrustum(
+  camera: THREE.PerspectiveCamera,
+  target: THREE.Vector3,
+  bounds = DEFAULT_TEST_BOUNDS,
+): void {
+  const desk = illustratedMapDeskMetrics(bounds);
+  const minX = desk.centerX - desk.width * 0.5;
+  const maxX = desk.centerX + desk.width * 0.5;
+  const minZ = desk.centerZ - desk.depth * 0.5;
+  const maxZ = desk.centerZ + desk.depth * 0.5;
+  camera.updateMatrixWorld(true);
+  for (const yOffset of [-0.08, 0, 0.12]) {
+    for (const x of [minX, maxX]) {
+      for (const z of [minZ, maxZ]) {
+        const projected = new THREE.Vector3(x, target.y + yOffset, z).project(camera);
+        assert.ok(Math.abs(projected.x) <= 1 + 1e-6,
+          `desk corner x=${projected.x} should fit the horizontal frustum`);
+        assert.ok(Math.abs(projected.y) <= 1 + 1e-6,
+          `desk corner y=${projected.y} should fit the vertical frustum`);
+        assert.ok(projected.z >= -1 && projected.z <= 1,
+          `desk corner z=${projected.z} should fit the owned depth range`);
+      }
+    }
+  }
 }
 
 {
@@ -247,6 +310,46 @@ function releaseMouse(button: number): void {
 }
 
 {
+  const { controller, domElement } = createController();
+  const distanceBefore = controller.getOrbitDistance();
+  for (let index = 0; index < 7; index += 1) {
+    domElement.dispatch('wheel', wheelEvent({ deltaY: 10 }));
+  }
+  assert.equal(controller.getOrbitDistance(), distanceBefore,
+    'trackpad micro-deltas should not zoom before the accumulated threshold');
+  domElement.dispatch('wheel', wheelEvent({ deltaY: 10 }));
+  assert.ok(controller.getOrbitDistance() > distanceBefore,
+    'same-direction trackpad micro-deltas should zoom at the threshold');
+
+  const afterOutwardStep = controller.getOrbitDistance();
+  domElement.dispatch('wheel', wheelEvent({ deltaY: 40 }));
+  domElement.dispatch('wheel', wheelEvent({ deltaY: -40 }));
+  assert.equal(controller.getOrbitDistance(), afterOutwardStep,
+    'reversing a partial trackpad gesture should reset its prior accumulation');
+  domElement.dispatch('wheel', wheelEvent({ deltaY: -40 }));
+  assert.ok(controller.getOrbitDistance() < afterOutwardStep,
+    'the reversed gesture should zoom only after reaching its own threshold');
+}
+
+{
+  const { controller, domElement } = createController();
+  const distanceBefore = controller.getOrbitDistance();
+  domElement.dispatch('wheel', wheelEvent({ deltaY: 4000 }));
+  assert.ok(
+    Math.abs(controller.getOrbitDistance() - distanceBefore * 1.18) < 1e-9,
+    'one coarse wheel event must advance at most one live-world zoom step',
+  );
+}
+
+{
+  const { controller, domElement } = createController();
+  const distanceBefore = controller.getOrbitDistance();
+  domElement.dispatch('wheel', wheelEvent({ deltaY: 3, deltaMode: 1 }));
+  assert.ok(controller.getOrbitDistance() > distanceBefore,
+    'line-mode mouse wheels should normalize into one thresholded zoom step');
+}
+
+{
   const { controller } = createController();
   const navigationKeys = [
     'w',
@@ -275,40 +378,137 @@ function releaseMouse(button: number): void {
 }
 
 {
+  let mapReady = false;
+  const mapModeChanges: boolean[] = [];
+  const { controller, camera, target, domElement } = createController(
+    undefined,
+    false,
+    (active) => mapModeChanges.push(active),
+    DEFAULT_TEST_BOUNDS,
+    2600,
+    () => mapReady,
+  );
+  scrollToLiveWorldMaximum(controller, domElement);
+  const liveWorldDistance = controller.getOrbitDistance();
+  const liveWorldFar = camera.far;
+  domElement.dispatch('wheel', wheelEvent({ deltaY: 120 }));
+  assert.equal(controller.isIllustratedMapActive(), false,
+    'the camera must not hand render ownership to an unready illustrated plane');
+  assert.equal(controller.getOrbitDistance(), liveWorldDistance,
+    'a denied map handoff should remain at the live-world overview boundary');
+  assert.equal(camera.far, liveWorldFar,
+    'a denied map handoff must not take projection ownership');
+  assert.deepEqual(mapModeChanges, []);
+
+  mapReady = true;
+  domElement.dispatch('wheel', wheelEvent({ deltaY: 4000 }));
+  assert.equal(controller.isIllustratedMapActive(), true,
+    'one coarse event should enter, but not skip beyond, the map handoff tier');
+  assert.equal(controller.getOrbitDistance(), liveWorldDistance,
+    'the coarse entry event must retain the continuity stop');
+  assert.deepEqual(mapModeChanges, [true]);
+  const readyStops = computeIllustratedMapZoomStops(
+    DEFAULT_TEST_BOUNDS,
+    DEFAULT_FOV,
+    liveWorldDistance,
+    {
+      aspect: camera.aspect,
+      yaw: controller.getYaw(),
+      pitch: RTS_ORBIT_PITCH,
+      targetX: target.x,
+      targetZ: target.z,
+    },
+  );
+  domElement.dispatch('wheel', wheelEvent({ deltaY: 4000 }));
+  assert.ok(Math.abs(controller.getOrbitDistance() - readyStops[1]) < 1e-9,
+    'one coarse map event must advance exactly one illustrated tier');
+  controller.dispose();
+}
+
+{
   const mapModeChanges: boolean[] = [];
   const { controller, camera, target, domElement } = createController(
     undefined,
     false,
     (active) => mapModeChanges.push(active),
   );
-  for (let step = 0; step < 40 && controller.getZoomPercent() > 30; step += 1) {
-    domElement.dispatch('wheel', wheelEvent({ deltaY: 120 }));
-  }
+  scrollToLiveWorldMaximum(controller, domElement);
   assert.ok(
     Math.abs(controller.getZoomPercent() - 30) < 1e-9,
     'the live 3D world should still stop at the existing 30% overview',
   );
   assert.equal(controller.isIllustratedMapActive(), false);
   const liveWorldDistance = controller.getOrbitDistance();
+  const liveWorldCameraPosition = camera.position.clone();
+  const liveWorldCameraQuaternion = camera.quaternion.clone();
   const liveWorldFarPlane = camera.far;
+  const liveWorldNearPlane = camera.near;
+  const liveWorldFov = camera.fov;
+  const expectedMapStops = computeIllustratedMapZoomStops(
+    DEFAULT_TEST_BOUNDS,
+    DEFAULT_FOV,
+    liveWorldDistance,
+    {
+      aspect: camera.aspect,
+      yaw: controller.getYaw(),
+      pitch: RTS_ORBIT_PITCH,
+      targetX: target.x,
+      targetZ: target.z,
+    },
+  );
+  const expectedMapFarPlane = computeIllustratedMapFarPlane(
+    DEFAULT_TEST_BOUNDS,
+    expectedMapStops[expectedMapStops.length - 1],
+    liveWorldFarPlane,
+  );
 
   domElement.dispatch('wheel', wheelEvent({ deltaY: 120 }));
   assert.equal(controller.isIllustratedMapActive(), true,
     'one additional outward wheel step should enter the illustrated map tier');
   assert.equal(controller.getOrbitDistance(), liveWorldDistance,
     'the map handoff should retain the existing maximum overview distance');
+  assert.ok(camera.position.distanceTo(liveWorldCameraPosition) < 1e-9,
+    'the render-owner handoff must not introduce a camera-position cut');
+  assert.ok(camera.quaternion.angleTo(liveWorldCameraQuaternion) < 1e-7,
+    'the render-owner handoff must not introduce a camera-orientation cut');
   assert.ok(Math.abs(controller.getZoomPercent() - 30) < 1e-9,
     'the actual camera zoom should remain at the live overview scale');
   assert.equal(controller.getHudZoomPercent(), 29,
     'the HUD should still identify the render-owner handoff as MAP');
-  assert.equal(camera.far, liveWorldFarPlane,
-    'the map handoff should retain the existing overview projection');
+  assert.ok(Math.abs(camera.far - expectedMapFarPlane) < 1e-9,
+    'map mode should expand the far plane for its scale-derived maximum tier');
+  assert.equal(camera.near, liveWorldNearPlane,
+    'map projection ownership must not alter the world near plane');
+  assert.equal(camera.fov, liveWorldFov,
+    'map projection ownership must not alter the world lens');
   assert.deepEqual(mapModeChanges, [true]);
 
-  const mapDistance = controller.getOrbitDistance();
+  const visitedMapStops = [controller.getOrbitDistance()];
+  for (let tier = 1; tier <= ILLUSTRATED_MAP_OUTWARD_ZOOM_TIER_COUNT; tier += 1) {
+    domElement.dispatch('wheel', wheelEvent({ deltaY: 120 }));
+    visitedMapStops.push(controller.getOrbitDistance());
+    assert.equal(controller.isIllustratedMapActive(), true,
+      `outward illustrated-map tier ${tier} should retain map render ownership`);
+    assert.ok(
+      Math.abs(controller.getOrbitDistance() - expectedMapStops[tier]) < 1e-9,
+      `outward illustrated-map tier ${tier} should use its authored geometric stop`,
+    );
+    assert.ok(
+      visitedMapStops[tier] > visitedMapStops[tier - 1],
+      `outward illustrated-map tier ${tier} should be meaningfully farther out`,
+    );
+  }
+  const tierRatios = visitedMapStops.slice(1).map(
+    (distance, index) => distance / visitedMapStops[index],
+  );
+  assert.ok(
+    Math.max(...tierRatios) - Math.min(...tierRatios) < 1e-9,
+    'illustrated-map stops should be geometrically spaced',
+  );
+  const fullMapDistance = controller.getOrbitDistance();
   domElement.dispatch('wheel', wheelEvent({ deltaY: 120 }));
-  assert.equal(controller.getOrbitDistance(), mapDistance,
-    'the illustrated map is one explicit final zoom tier');
+  assert.equal(controller.getOrbitDistance(), fullMapDistance,
+    'outward scrolling should clamp at the full-map/desk tier');
 
   const yawBefore = controller.getYaw();
   mmbOrbit(domElement, 100, 100, 140, 100);
@@ -320,19 +520,207 @@ function releaseMouse(button: number): void {
   assert.ok(!target.equals(targetBeforePan),
     'ordinary world-space panning should remain active over the illustrated map');
   releaseMouse(2);
+  const adjustedMapStops = computeIllustratedMapZoomStops(
+    DEFAULT_TEST_BOUNDS,
+    DEFAULT_FOV,
+    liveWorldDistance,
+    {
+      aspect: camera.aspect,
+      yaw: controller.getYaw(),
+      pitch: RTS_ORBIT_PITCH,
+      targetX: target.x,
+      targetZ: target.z,
+    },
+  );
+  const adjustedMapFarPlane = computeIllustratedMapFarPlane(
+    DEFAULT_TEST_BOUNDS,
+    adjustedMapStops[adjustedMapStops.length - 1],
+    liveWorldFarPlane,
+  );
+  assert.ok(
+    Math.abs(controller.getOrbitDistance()
+      - adjustedMapStops[adjustedMapStops.length - 1]) < 1e-9,
+    'the active terminal tier should recompute after orbit and pan input',
+  );
+  assertDeskCornersInsideFrustum(camera, target);
 
+  for (let tier = ILLUSTRATED_MAP_OUTWARD_ZOOM_TIER_COUNT - 1; tier >= 0; tier -= 1) {
+    domElement.dispatch('wheel', wheelEvent({ deltaY: -120 }));
+    assert.equal(controller.isIllustratedMapActive(), true,
+      `returning to illustrated-map tier ${tier} should retain map render ownership`);
+    assert.ok(
+      Math.abs(controller.getOrbitDistance() - adjustedMapStops[tier]) < 1e-9,
+      `inward scrolling should revisit illustrated-map tier ${tier}`,
+    );
+    assert.equal(camera.far, adjustedMapFarPlane,
+      'the map far plane should remain owned until the render-owner handoff ends');
+  }
   domElement.dispatch('wheel', wheelEvent({ deltaY: -120 }));
   assert.equal(controller.isIllustratedMapActive(), false,
-    'scrolling inward should return to the live 30% overview');
+    'scrolling inward from the entry map tier should return to the live 30% overview');
   assert.ok(Math.abs(controller.getZoomPercent() - 30) < 1e-9);
   assert.ok(Math.abs(controller.getHudZoomPercent() - 30) < 1e-9);
   assert.equal(camera.far, liveWorldFarPlane,
-    'leaving the illustrated map should preserve the unchanged projection far plane');
+    'leaving the illustrated map should restore the exact world far plane');
+  assert.equal(camera.near, liveWorldNearPlane);
+  assert.equal(camera.fov, liveWorldFov);
   assert.deepEqual(
     mapModeChanges,
     [true, false],
     'the render owner should receive one callback for each map handoff',
   );
+}
+
+{
+  const { controller, camera, target, domElement } = createController();
+  camera.aspect = 1.8;
+  camera.updateProjectionMatrix();
+  const authoredPitch = THREE.MathUtils.degToRad(18);
+  controller.applyShowcaseView(
+    430,
+    -470,
+    THREE.MathUtils.degToRad(23),
+    authoredPitch,
+    100_000,
+  );
+  domElement.dispatch('wheel', wheelEvent({ deltaY: 120 }));
+  for (let tier = 0; tier < ILLUSTRATED_MAP_OUTWARD_ZOOM_TIER_COUNT; tier += 1) {
+    domElement.dispatch('wheel', wheelEvent({ deltaY: 120 }));
+  }
+  const expectedWideTerminal = computeIllustratedMapTerminalDistance(
+    DEFAULT_TEST_BOUNDS,
+    DEFAULT_FOV,
+    {
+      aspect: camera.aspect,
+      yaw: controller.getYaw(),
+      pitch: authoredPitch,
+      targetX: target.x,
+      targetZ: target.z,
+    },
+  );
+  assert.ok(Math.abs(controller.getOrbitDistance() - expectedWideTerminal) < 1e-9,
+    'the terminal tier should solve the current aspect, pose, and panned target');
+  assertDeskCornersInsideFrustum(camera, target);
+
+  const wideTerminal = controller.getOrbitDistance();
+  camera.aspect = 0.62;
+  camera.updateProjectionMatrix();
+  window.dispatchEvent({ type: 'resize' } as Event);
+  await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+  const expectedPortraitTerminal = computeIllustratedMapTerminalDistance(
+    DEFAULT_TEST_BOUNDS,
+    DEFAULT_FOV,
+    {
+      aspect: camera.aspect,
+      yaw: controller.getYaw(),
+      pitch: authoredPitch,
+      targetX: target.x,
+      targetZ: target.z,
+    },
+  );
+  assert.ok(controller.getOrbitDistance() > wideTerminal,
+    'a portrait resize should move the active terminal tier far enough to retain the desk');
+  assert.ok(Math.abs(controller.getOrbitDistance() - expectedPortraitTerminal) < 1e-9,
+    'resize recomputation should use the exact current-aspect terminal solve');
+  assertDeskCornersInsideFrustum(camera, target);
+
+  mmbOrbit(domElement, 100, 100, 160, 170);
+  releaseMouse(1);
+  const rotatedPitch = THREE.MathUtils.clamp(
+    authoredPitch + 70 * 0.004,
+    THREE.MathUtils.degToRad(5),
+    THREE.MathUtils.degToRad(70),
+  );
+  const expectedRotatedTerminal = computeIllustratedMapTerminalDistance(
+    DEFAULT_TEST_BOUNDS,
+    DEFAULT_FOV,
+    {
+      aspect: camera.aspect,
+      yaw: controller.getYaw(),
+      pitch: rotatedPitch,
+      targetX: target.x,
+      targetZ: target.z,
+    },
+  );
+  assert.ok(Math.abs(controller.getOrbitDistance() - expectedRotatedTerminal) < 1e-9,
+    'orbit input should recompute the active terminal desk fit');
+  assertDeskCornersInsideFrustum(camera, target);
+
+  const targetBeforePan = target.clone();
+  rmbPan(domElement, 100, 100, -100, -40);
+  releaseMouse(2);
+  assert.ok(!target.equals(targetBeforePan),
+    'the containment regression should exercise a newly panned target');
+  const expectedPannedTerminal = computeIllustratedMapTerminalDistance(
+    DEFAULT_TEST_BOUNDS,
+    DEFAULT_FOV,
+    {
+      aspect: camera.aspect,
+      yaw: controller.getYaw(),
+      pitch: rotatedPitch,
+      targetX: target.x,
+      targetZ: target.z,
+    },
+  );
+  assert.ok(Math.abs(controller.getOrbitDistance() - expectedPannedTerminal) < 1e-9,
+    'pan input should recompute the active terminal desk fit');
+  assertDeskCornersInsideFrustum(camera, target);
+  controller.dispose();
+}
+
+{
+  const mapSideLengths = [817, 1634, 817 * Math.sqrt(8)];
+  const fullMapDistances: number[] = [];
+  for (const sideLength of mapSideLengths) {
+    const half = sideLength * 0.5;
+    const bounds = { minX: -half, maxX: half, minZ: -half, maxZ: half };
+    const stops = computeIllustratedMapZoomStops(
+      bounds,
+      DEFAULT_FOV,
+      88 / 0.3,
+      {
+        aspect: 16 / 9,
+        yaw: -Math.PI / 2,
+        pitch: RTS_ORBIT_PITCH,
+        targetX: 0,
+        targetZ: 0,
+      },
+    );
+    assert.equal(
+      stops.length,
+      ILLUSTRATED_MAP_OUTWARD_ZOOM_TIER_COUNT + 1,
+      'each supported map scale should have the continuity stop plus three outward tiers',
+    );
+    for (let tier = 1; tier < stops.length; tier += 1) {
+      assert.ok(stops[tier] > stops[tier - 1],
+        'supported world sizes should produce strictly increasing map tiers');
+    }
+    fullMapDistances.push(stops[stops.length - 1]);
+  }
+  assert.ok(fullMapDistances[1] > fullMapDistances[0],
+    'medium-map desk fit should sit farther out than small-map desk fit');
+  assert.ok(fullMapDistances[2] > fullMapDistances[1],
+    'large-map desk fit should sit farther out than medium-map desk fit');
+}
+
+{
+  const mapModeChanges: boolean[] = [];
+  const { controller, camera, domElement } = createController(
+    undefined,
+    false,
+    (active) => mapModeChanges.push(active),
+    DEFAULT_TEST_BOUNDS,
+    1400,
+  );
+  scrollToLiveWorldMaximum(controller, domElement);
+  domElement.dispatch('wheel', wheelEvent({ deltaY: 120 }));
+  assert.ok(camera.far > 1400,
+    'entering the map should expand an undersized world far plane');
+  controller.dispose();
+  assert.equal(camera.far, 1400,
+    'disposing during map mode should restore the projection owner snapshot');
+  assert.deepEqual(mapModeChanges, [true, false],
+    'disposing during map mode should release map render ownership once');
 }
 
 {

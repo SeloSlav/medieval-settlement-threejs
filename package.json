@@ -154,6 +154,8 @@
     "test:camera-controller": "npx tsx scripts/testCameraController.mts",
     "test:first-person-mode": "node --experimental-strip-types scripts/testFirstPersonMode.mts",
     "test:world-map": "node --experimental-strip-types scripts/testWorldMapCoordinates.mts",
+    "test:illustrated-map-terrain": "node --experimental-strip-types scripts/testIllustratedTerrainFields.mts",
+    "test:map-desk": "node --experimental-strip-types scripts/testIllustratedMapDesk.mts",
     "test:first-person-collision": "node --experimental-strip-types scripts/testFirstPersonCollision.mts",
     "test:first-person-collision-performance": "node --experimental-strip-types scripts/testFirstPersonCollisionPerformance.mts",
     "test:client-sync": "npx tsx scripts/testClientSyncScheduling.mts",

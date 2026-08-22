@@ -8,10 +8,14 @@ import {
 } from '../src/terrain/ForestCanopyOcclusion.ts';
 import {
   createTerrainConformingIvyGeometry,
+  FOREST_FLOOR_IVY_ANIMATED_LEAVES_PER_PATCH,
+  FOREST_FLOOR_IVY_ANIMATION_MAX_TIP_DISPLACEMENT,
   FOREST_FLOOR_IVY_CANOPY_HEIGHT_MAX,
   FOREST_FLOOR_IVY_GROUND_CLEARANCE,
+  FOREST_FLOOR_IVY_LEAF_VERTICES,
   FOREST_FLOOR_IVY_LAYER_COUNT,
   FOREST_FLOOR_IVY_LAYER_SPECS,
+  FOREST_FLOOR_IVY_SHEET_VERTICES_PER_PATCH,
   FOREST_FLOOR_IVY_TRIANGLES_PER_PATCH,
   FOREST_FLOOR_IVY_UV_BOUNDS,
   FOREST_FLOOR_IVY_VERTICES_PER_PATCH,
@@ -20,6 +24,14 @@ import {
 
 const projectRoot = fileURLToPath(new URL('../', import.meta.url));
 const ivySource = readFileSync(`${projectRoot}src/props/ForestFloorIvy.ts`, 'utf8');
+const ivyWindSource = readFileSync(
+  `${projectRoot}src/vegetation/seedthree/seedThreeFoliageWind.ts`,
+  'utf8',
+);
+const groundCoverSource = readFileSync(
+  `${projectRoot}src/vegetation/seedthree/seedThreeGroundCover.ts`,
+  'utf8',
+);
 const managerSource = readFileSync(`${projectRoot}src/props/ForestManager.ts`, 'utf8');
 const terrainSource = readFileSync(`${projectRoot}src/terrain/TerrainGrassMaterial.ts`, 'utf8');
 const fieldSource = readFileSync(`${projectRoot}src/props/forestField.ts`, 'utf8');
@@ -36,6 +48,75 @@ const sources = [
   { x: 1.2, z: 0.4, canopyRadius: 4.3 },
   { x: 0.2, z: -1.1, canopyRadius: 3.8 },
 ] as const;
+
+function countPositionReads(
+  position: THREE.BufferAttribute,
+  action: () => void,
+): { x: number; z: number } {
+  const originalGetX = position.getX.bind(position);
+  const originalGetZ = position.getZ.bind(position);
+  let x = 0;
+  let z = 0;
+  position.getX = (index: number): number => {
+    x += 1;
+    return originalGetX(index);
+  };
+  position.getZ = (index: number): number => {
+    z += 1;
+    return originalGetZ(index);
+  };
+  try {
+    action();
+  } finally {
+    position.getX = originalGetX;
+    position.getZ = originalGetZ;
+  }
+  return { x, z };
+}
+
+function assertTerrainCanopyAttributeMatchesField(
+  canopyMap: ForestCanopyOcclusionMap,
+  geometry: THREE.BufferGeometry,
+): void {
+  const position = geometry.getAttribute('position') as THREE.BufferAttribute;
+  const attribute = geometry.getAttribute(
+    'forestCanopyOcclusion',
+  ) as THREE.BufferAttribute;
+  const values = attribute.array as Uint8Array;
+  for (let index = 0; index < position.count; index++) {
+    const expected = canopyMap.sampleFieldWorld(
+      position.getX(index),
+      position.getZ(index),
+    );
+    const offset = index * 4;
+    assert.deepEqual(
+      Array.from(values.subarray(offset, offset + 4)),
+      [expected.coverage, expected.interior, expected.sunAccess, expected.shade]
+        .map((value) => Math.round(value * 255)),
+      `terrain canopy bytes must exactly match the resolved field at vertex ${index}`,
+    );
+  }
+}
+
+function createRowMajorTerrainGrid(
+  resolution: number,
+  size: number,
+): THREE.BufferGeometry {
+  const positions = new Float32Array(resolution * resolution * 3);
+  const step = size / (resolution - 1);
+  const half = size * 0.5;
+  for (let row = 0; row < resolution; row++) {
+    for (let column = 0; column < resolution; column++) {
+      const offset = (row * resolution + column) * 3;
+      positions[offset] = -half + column * step;
+      positions[offset + 2] = -half + row * step;
+    }
+  }
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  return geometry;
+}
+
 const map = new ForestCanopyOcclusionMap(64, 128);
 const terrainGeometry = new THREE.PlaneGeometry(64, 64, 16, 16);
 terrainGeometry.rotateX(-Math.PI * 0.5);
@@ -85,6 +166,79 @@ assert.equal(
   'restoring tree ownership should reproduce the original shade deterministically',
 );
 assert.ok(Math.abs(terrainCoverage.getW(terrainCenterIndex!) - covered) <= 1 / 255);
+
+const terrainPosition = terrainGeometry.getAttribute('position') as THREE.BufferAttribute;
+const localGridReads = countPositionReads(terrainPosition, () => {
+  map.setTreeActive(0, false);
+});
+assert.ok(
+  localGridReads.x < terrainPosition.count / 2
+    && localGridReads.z < terrainPosition.count / 2,
+  `a local canopy edit should visit only its grid rectangle, not all ${terrainPosition.count} vertices`,
+);
+assertTerrainCanopyAttributeMatchesField(map, terrainGeometry);
+map.setTreeActive(0, true);
+
+const irregularGeometry = new THREE.BufferGeometry();
+irregularGeometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array([
+  -9, 0, -7,
+  -2, 0, -7,
+  6, 0, -3,
+  -7, 0, 2,
+  1, 0, 1,
+  8, 0, 7,
+]), 3));
+const irregularMap = new ForestCanopyOcclusionMap(64, 128);
+irregularMap.rebuild(sources);
+irregularMap.bindTerrainGeometry(irregularGeometry);
+const irregularPosition = irregularGeometry.getAttribute('position') as THREE.BufferAttribute;
+const irregularReads = countPositionReads(irregularPosition, () => {
+  irregularMap.setTreeActive(0, false);
+});
+assert.equal(
+  irregularReads.x,
+  irregularPosition.count,
+  'non-grid geometry must retain the generic full-scan correctness path',
+);
+assert.equal(irregularReads.z, irregularPosition.count);
+assertTerrainCanopyAttributeMatchesField(irregularMap, irregularGeometry);
+
+const productionTerrainResolution = 769;
+const productionTerrainGeometry = createRowMajorTerrainGrid(
+  productionTerrainResolution,
+  1_080,
+);
+const productionCanopyMap = new ForestCanopyOcclusionMap(1_080, 128);
+productionCanopyMap.rebuild([
+  { x: 0, z: 0, canopyRadius: 4.2 },
+  { x: 8, z: 1, canopyRadius: 3.8 },
+]);
+productionCanopyMap.bindTerrainGeometry(productionTerrainGeometry);
+const productionPosition = productionTerrainGeometry.getAttribute(
+  'position',
+) as THREE.BufferAttribute;
+const productionAttribute = productionTerrainGeometry.getAttribute(
+  'forestCanopyOcclusion',
+) as THREE.BufferAttribute;
+const productionGridReads = countPositionReads(productionPosition, () => {
+  productionCanopyMap.setTreeActive(0, false);
+});
+assert.ok(
+  productionGridReads.x < productionPosition.count / 100
+    && productionGridReads.z < productionPosition.count / 100,
+  `the 769x769 terrain update must stay local (read ${productionGridReads.x} of ${productionPosition.count} vertices)`,
+);
+const uploadedComponents = productionAttribute.updateRanges.reduce(
+  (total, range) => total + range.count,
+  0,
+);
+assert.ok(
+  uploadedComponents < (productionPosition.count * 4) / 20,
+  `the local canopy upload must remain bounded (uploaded ${uploadedComponents} of ${productionPosition.count * 4} components)`,
+);
+
+productionTerrainGeometry.dispose();
+irregularGeometry.dispose();
 
 const secondMap = new ForestCanopyOcclusionMap(64, 128);
 secondMap.rebuild(sources);
@@ -176,6 +330,10 @@ const ivyNormal = compiledIvy.geometry.getAttribute('normal') as THREE.BufferAtt
 const ivyUv = compiledIvy.geometry.getAttribute('uv') as THREE.BufferAttribute;
 const ivyLayer = compiledIvy.geometry.getAttribute('ivyLayer') as THREE.BufferAttribute;
 const ivyTint = compiledIvy.geometry.getAttribute('aTint') as THREE.BufferAttribute;
+const ivyRootPhase = compiledIvy.geometry.getAttribute(
+  'aIvyRootPhase',
+) as THREE.BufferAttribute;
+const ivyHinge = compiledIvy.geometry.getAttribute('aIvyHinge') as THREE.BufferAttribute;
 assert.equal(ivyPosition.count, FOREST_FLOOR_IVY_VERTICES_PER_PATCH);
 assert.equal(
   compiledIvy.geometry.index!.count / 3,
@@ -203,7 +361,23 @@ for (const [layerIndex, range] of compiledIvy.layerVertexRanges.entries()) {
   }
   expectedLayerStart += range.count;
 }
-assert.equal(expectedLayerStart, FOREST_FLOOR_IVY_VERTICES_PER_PATCH);
+assert.equal(expectedLayerStart, FOREST_FLOOR_IVY_SHEET_VERTICES_PER_PATCH);
+assert.equal(
+  compiledIvy.animatedLeafVertexRanges.length,
+  FOREST_FLOOR_IVY_ANIMATED_LEAVES_PER_PATCH,
+);
+for (const [leafIndex, range] of compiledIvy.animatedLeafVertexRanges.entries()) {
+  assert.equal(
+    range.start,
+    FOREST_FLOOR_IVY_SHEET_VERTICES_PER_PATCH
+      + leafIndex * FOREST_FLOOR_IVY_LEAF_VERTICES,
+  );
+  assert.equal(range.count, FOREST_FLOOR_IVY_LEAF_VERTICES);
+  assert.equal(range.leafIndex, leafIndex);
+  assert.equal(range.placementIndex, 0);
+  assert.equal(range.rootVertex, range.start);
+  assert.ok(range.tipVertex >= range.start && range.tipVertex < range.start + range.count);
+}
 
 const ivyIndices = compiledIvy.geometry.index!.array;
 for (let index = 0; index < ivyIndices.length; index += 3) {
@@ -211,6 +385,137 @@ for (let index = 0; index < ivyIndices.length; index += 3) {
   assert.equal(ivyLayer.getX(ivyIndices[index + 1]!), aLayer);
   assert.equal(ivyLayer.getX(ivyIndices[index + 2]!), aLayer);
 }
+
+for (let index = 0; index < FOREST_FLOOR_IVY_SHEET_VERTICES_PER_PATCH; index++) {
+  assert.equal(ivyHinge.getW(index), 0, 'broad carrier sheets must remain terrain-welded');
+  assert.equal(ivyRootPhase.getX(index), 0);
+  assert.equal(ivyRootPhase.getY(index), 0);
+  assert.equal(ivyRootPhase.getZ(index), 0);
+  assert.equal(ivyRootPhase.getW(index), 0);
+}
+
+function smootherstep(edge0: number, edge1: number, value: number): number {
+  const t = THREE.MathUtils.clamp((value - edge0) / (edge1 - edge0), 0, 1);
+  return t * t * t * (t * (t * 6 - 15) + 10);
+}
+
+function ivyAngleAt(
+  root: THREE.Vector3,
+  phase: number,
+  hingeAmplitude: number,
+  seconds: number,
+  strength: number,
+  distanceToCamera: number,
+): number {
+  const time = seconds * 0.84;
+  const spatialPhase = root.x * 0.35 + root.z * 0.27;
+  const gust = Math.sin(time * 1.15 + spatialPhase) * 0.72
+    + Math.sin(time * 2.63 + spatialPhase * 1.9) * 0.28;
+  const macroFade = 1 - smootherstep(22, 44, distanceToCamera) * 0.85;
+  const flutterFade = 1 - smootherstep(8, 28, distanceToCamera);
+  const flutterGate = smootherstep(0.05, 0.12, hingeAmplitude);
+  const flutter = Math.sin(time * 5.2 + phase)
+    * 0.18 * flutterGate * flutterFade;
+  return THREE.MathUtils.clamp(
+    (gust * macroFade + flutter) * strength * hingeAmplitude,
+    -0.12,
+    0.28,
+  );
+}
+
+const motionSampleTimes = [0, 1.25, 2.5, 5, 8, 12];
+const leafPhases = new Set<string>();
+const motionSignatures = new Set<string>();
+let movingLeafCount = 0;
+for (const range of compiledIvy.animatedLeafVertexRanges) {
+  const root = new THREE.Vector3(
+    ivyRootPhase.getX(range.rootVertex),
+    ivyRootPhase.getY(range.rootVertex),
+    ivyRootPhase.getZ(range.rootVertex),
+  );
+  const phase = ivyRootPhase.getW(range.rootVertex);
+  const axis = new THREE.Vector3(
+    ivyHinge.getX(range.rootVertex),
+    ivyHinge.getY(range.rootVertex),
+    ivyHinge.getZ(range.rootVertex),
+  );
+  const hingeAmplitude = ivyHinge.getW(range.rootVertex);
+  const leafNormalYs = Array.from(
+    { length: range.count },
+    (_, index) => ivyNormal.getY(range.start + index),
+  );
+  assert.ok(
+    Math.min(...leafNormalYs) > 0.08,
+    `leaf ${range.leafIndex} must keep its authored face normals above the litter (observed ${Math.min(...leafNormalYs).toFixed(3)})`,
+  );
+  assert.ok(Math.abs(axis.length() - 1) < 1e-6, 'every leaf needs a unit hinge axis');
+  assert.ok(hingeAmplitude > 0, 'every explicit leaf needs non-zero flexibility');
+  assert.ok(
+    new THREE.Vector3(
+      ivyPosition.getX(range.rootVertex),
+      ivyPosition.getY(range.rootVertex),
+      ivyPosition.getZ(range.rootVertex),
+    ).distanceTo(root) < 1e-6,
+    'the petiole vertex must lie exactly on its rotation root',
+  );
+  for (let index = range.start; index < range.start + range.count; index++) {
+    assert.equal(ivyRootPhase.getX(index), root.x);
+    assert.equal(ivyRootPhase.getY(index), root.y);
+    assert.equal(ivyRootPhase.getZ(index), root.z);
+    assert.equal(ivyRootPhase.getW(index), phase);
+    assert.equal(ivyHinge.getX(index), axis.x);
+    assert.equal(ivyHinge.getY(index), axis.y);
+    assert.equal(ivyHinge.getZ(index), axis.z);
+    assert.equal(ivyHinge.getW(index), hingeAmplitude);
+  }
+  leafPhases.add(phase.toFixed(5));
+
+  const restTip = new THREE.Vector3(
+    ivyPosition.getX(range.tipVertex),
+    ivyPosition.getY(range.tipVertex),
+    ivyPosition.getZ(range.tipVertex),
+  );
+  const rootRelativeTip = restTip.clone().sub(root);
+  let maximumMotion = 0;
+  const signature: number[] = [];
+  for (const seconds of motionSampleTimes) {
+    const angle = ivyAngleAt(root, phase, hingeAmplitude, seconds, 1, 4);
+    const animatedRoot = new THREE.Vector3()
+      .applyAxisAngle(axis, angle)
+      .add(root);
+    assert.ok(
+      animatedRoot.distanceTo(root) < 1e-9,
+      'rigid hinge rotation must keep every petiole root invariant',
+    );
+    const animatedTip = rootRelativeTip.clone().applyAxisAngle(axis, angle).add(root);
+    const motion = animatedTip.distanceTo(restTip);
+    maximumMotion = Math.max(maximumMotion, motion);
+    signature.push(Number(motion.toFixed(5)));
+  }
+  assert.ok(
+    Math.abs(ivyAngleAt(root, phase, hingeAmplitude, 5, 0, 4)) === 0,
+    'zero SeedThree wind strength must reproduce the authored rest pose',
+  );
+  assert.ok(
+    maximumMotion <= FOREST_FLOOR_IVY_ANIMATION_MAX_TIP_DISPLACEMENT + 1e-6,
+    `leaf ${range.leafIndex} exceeded the sheltered groundcover motion cap`,
+  );
+  if (maximumMotion > 0.001) movingLeafCount += 1;
+  motionSignatures.add(signature.join(','));
+}
+assert.equal(
+  movingLeafCount,
+  FOREST_FLOOR_IVY_ANIMATED_LEAVES_PER_PATCH,
+  'every explicit leaf should visibly respond over a complete gust sample',
+);
+assert.ok(
+  leafPhases.size >= FOREST_FLOOR_IVY_ANIMATED_LEAVES_PER_PATCH * 0.9,
+  'individual leaves need deterministic non-lockstep phases',
+);
+assert.ok(
+  motionSignatures.size >= FOREST_FLOOR_IVY_ANIMATED_LEAVES_PER_PATCH * 0.75,
+  'individual leaves must not animate as one rocking card',
+);
 
 const clearanceByLayer = compiledIvy.layerVertexRanges.map(() => [] as number[]);
 const normalYByLayer = compiledIvy.layerVertexRanges.map(() => [] as number[]);
@@ -306,11 +611,23 @@ assert.deepEqual(
   Array.from(compiledIvy.geometry.index!.array),
   'fixed inputs should reproduce layered topology exactly',
 );
+assert.deepEqual(
+  Array.from(repeatedIvy.geometry.getAttribute('aIvyRootPhase').array),
+  Array.from(ivyRootPhase.array),
+  'fixed inputs should reproduce every petiole root and leaf phase',
+);
+assert.deepEqual(
+  Array.from(repeatedIvy.geometry.getAttribute('aIvyHinge').array),
+  Array.from(ivyHinge.array),
+  'fixed inputs should reproduce every leaf hinge and amplitude',
+);
 
+assert.match(ivySource, /loadSeedThreeGroundCoverTextures/);
+assert.match(ivySource, /createTerrainConformingIvyGeometry/);
 assert.match(
   ivySource,
-  /loadSeedThreeGroundCoverTextures[\s\S]*?createTerrainConformingIvyGeometry[\s\S]*?createSeedThreeGroundCoverMaterial/,
-  'ivy must retain Seloslav SeedThree texture and material ownership around its terrain compiler',
+  /createSeedThreeGroundCoverMaterial/,
+  'ivy must retain Seloslav SeedThree material ownership around its terrain compiler',
 );
 assert.doesNotMatch(
   ivySource,
@@ -320,8 +637,27 @@ assert.doesNotMatch(
 assert.match(ivySource, /terrain\.getHeightAt\(worldX, worldZ\)/);
 assert.match(ivySource, /sourceTreeIndex:[\s\S]*?placementVertexRangesByTree/);
 assert.match(ivySource, /new THREE\.Mesh\(compiled\.geometry, material\)/);
-assert.match(ivySource, /normalNode = normalViewGeometry/);
-assert.match(ivySource, /positionLocal as SeedThreeGroundCoverPositionNode/);
+assert.match(ivySource, /createIvyLeafHingeWindNodes/);
+assert.match(ivySource, /hingeWind\.normalNode/);
+assert.match(ivySource, /applyIvyLeafHingeWebGLWind\(material\)/);
+assert.match(ivySource, /geometry\.setAttribute\('aIvyRootPhase'/);
+assert.match(ivySource, /geometry\.setAttribute\('aIvyHinge'/);
+assert.match(ivySource, /appendAnimatedIvyLeaves/);
+assert.match(ivyWindSource, /worldAnimationTime[\s\S]*?windSpeed[\s\S]*?windStrength/);
+assert.match(ivyWindSource, /rotateAroundAxis[\s\S]*?rootPhase[\s\S]*?hinge/);
+assert.match(ivyWindSource, /transformNormalToView\(rotatedNormal\)/);
+assert.match(ivyWindSource, /IVY_HINGE_ACTIVE_Y_THRESHOLD[\s\S]*?step/);
+assert.match(ivyWindSource, /uIvyTime[\s\S]*?uIvyWindSpeed[\s\S]*?uIvyWindStrength/);
+assert.doesNotMatch(
+  ivyWindSource,
+  /createIvyLeafHingeWindNodes[\s\S]*?tsl\.uv\(\)\.y/,
+  'ivy roots must be explicit petiole attributes rather than texture-V weighting',
+);
+assert.match(
+  groundCoverSource,
+  /supportsNodeMaterials\(rendererBackend\)/,
+  'the SeedThree node path must cover native WebGPU and WebGL2 node backends',
+);
 assert.match(ivySource, /FOREST_FLOOR_IVY_HIDDEN_Y[\s\S]*?position\.addUpdateRange/);
 assert.match(
   ivySource,

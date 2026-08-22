@@ -823,6 +823,10 @@ export class SceneManager {
     return this.illustratedMapActive;
   }
 
+  isIllustratedMapReady(): boolean {
+    return this.illustratedMap.ready;
+  }
+
   setIllustratedMapDebugMode(mode: IllustratedMapDebugMode): void {
     this.illustratedMap.setDebugMode(mode);
   }

@@ -31,6 +31,11 @@ assert.match(
   /onMenuOpenChange\(open: boolean\)[\s\S]{0,260}exitPointerLock\(\)[\s\S]{0,180}requestPointerLock\(\)/,
   'the settings menu must temporarily release and then restore first-person pointer ownership',
 );
+assert.match(
+  controller,
+  /onModeChange\?\.\(true\);[\s\S]{0,180}camera\.fov = fpLocomotionConstants\.cameraFovDeg;[\s\S]{0,220}updateProjectionMatrix\(\)/,
+  'first-person activation must claim its authored lens after the RTS/map hand-off completes',
+);
 
 assert.match(
   placement,

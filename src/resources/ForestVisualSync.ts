@@ -8,9 +8,15 @@ export class ForestVisualSync {
     this.forestManager = forestManager;
   }
 
+  batchUpdates<T>(applyUpdates: () => T): T {
+    return this.forestManager.batchTreeInstanceUpdates(applyUpdates);
+  }
+
   syncAll(trees: Map<string, TreeEntityState>): void {
-    this.syncAuthoritativeTreeLayouts(trees);
-    this.forestManager.applyTreePhases(trees.values());
+    this.batchUpdates(() => {
+      this.syncAuthoritativeTreeLayouts(trees);
+      this.forestManager.applyTreePhases(trees.values());
+    });
   }
 
   syncAuthoritativeTreeLayouts(trees: Map<string, TreeEntityState>): void {

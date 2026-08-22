@@ -116,6 +116,8 @@ const tests = [
   'test:camera-controller',
   'test:first-person-mode',
   'test:world-map',
+  'test:illustrated-map-terrain',
+  'test:map-desk',
   'test:first-person-collision',
   'test:first-person-collision-performance',
   'test:client-sync',

@@ -18,6 +18,10 @@ import {
 } from './illustratedMapGeometry.ts';
 import type { WorldMapMarker } from './worldMapMarkers.ts';
 import {
+  createIllustratedMapDeskCanvas,
+  ILLUSTRATED_MAP_DESK_TEXTURE_SEED,
+} from './illustratedMapDeskSurface.ts';
+import {
   riverFieldBounds,
   worldDirectionToMapRotation,
   worldToMapPercent,
@@ -30,7 +34,7 @@ export type MinimapFocus = {
   forwardZ: number;
 };
 
-export type TerrainMinimapLayerImage = TerrainMinimapImage & {
+export type TerrainMinimapLayerImage = Pick<TerrainMinimapImage, 'canvas' | 'bounds'> & {
   stampCanvas: HTMLCanvasElement;
 };
 
@@ -52,6 +56,7 @@ type TerrainMinimapOverlayOptions = {
 export class TerrainMinimapOverlay {
   private readonly options: TerrainMinimapOverlayOptions;
   private readonly root: HTMLElement;
+  private readonly deskCanvas: HTMLCanvasElement;
   private readonly mapSurface: HTMLElement;
   private readonly focusMarker: HTMLElement;
   private readonly bounds: TerrainBounds;
@@ -71,22 +76,27 @@ export class TerrainMinimapOverlay {
     this.root.className = 'terrain-minimap';
     this.root.hidden = true;
     this.root.setAttribute('aria-hidden', 'true');
+    this.root.dataset.mapPresentation = 'parchment-on-procedural-dark-oak';
+    this.root.dataset.renderPath = 'dom-no-post';
+    this.root.dataset.deskTextureSeed = String(ILLUSTRATED_MAP_DESK_TEXTURE_SEED);
 
     this.root.innerHTML = `
       <div class="terrain-minimap__panel">
-        <div class="terrain-minimap__header">
-          <span class="terrain-minimap__title">World map</span>
-          <span class="terrain-minimap__hint">Hold G</span>
-        </div>
         <div class="terrain-minimap__map-wrap">
-          <div class="terrain-minimap__map-surface"></div>
-          <div class="terrain-minimap__focus" aria-hidden="true"></div>
+          <div class="terrain-minimap__map-surface">
+            <div class="terrain-minimap__focus" aria-hidden="true"></div>
+          </div>
         </div>
       </div>
     `;
 
     this.mapSurface = this.root.querySelector<HTMLElement>('.terrain-minimap__map-surface')!;
     this.focusMarker = this.root.querySelector<HTMLElement>('.terrain-minimap__focus')!;
+    this.deskCanvas = createIllustratedMapDeskCanvas();
+    this.deskCanvas.className = 'terrain-minimap__desk-canvas';
+    this.deskCanvas.setAttribute('aria-hidden', 'true');
+    this.root.querySelector<HTMLElement>('.terrain-minimap__map-wrap')!
+      .prepend(this.deskCanvas);
 
     // Mount outside the ordinary UI stacking context so the held map always
     // covers menus, HUD chrome, inspectors, and setup overlays.
@@ -161,7 +171,9 @@ export class TerrainMinimapOverlay {
       this.stampCanvas.dataset.mapLayer = 'resource-stamps';
       this.stampCanvas.setAttribute('aria-hidden', 'true');
       this.redrawMap();
-      this.mapSurface.replaceChildren(this.mapCanvas, this.stampCanvas);
+      // All world-coordinate layers, including the focus arrow, live inside
+      // the same inset parchment surface. The desk is purely presentational.
+      this.mapSurface.replaceChildren(this.mapCanvas, this.stampCanvas, this.focusMarker);
       this.options.onTerrainImageReady?.({
         canvas: this.mapCanvas,
         stampCanvas: this.stampCanvas,

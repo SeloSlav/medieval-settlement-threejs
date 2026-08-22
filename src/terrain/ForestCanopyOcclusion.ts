@@ -62,6 +62,18 @@ type PixelBounds = {
   maxZ: number;
 };
 
+type TerrainGridLayout = {
+  columnCount: number;
+  rowCount: number;
+  fieldPixelXByColumn: Int32Array;
+  fieldPixelZByRow: Int32Array;
+};
+
+type IndexRange = {
+  min: number;
+  max: number;
+};
+
 type DebugUniform = { value: number };
 
 const DEBUG_MODE_VALUES: Record<ForestCanopyOcclusionDebugMode, number> = {
@@ -109,6 +121,7 @@ export class ForestCanopyOcclusionMap {
   private debugUniform: DebugUniform | null = null;
   private terrainGeometry: THREE.BufferGeometry | null = null;
   private terrainAttribute: THREE.BufferAttribute | null = null;
+  private terrainGridLayout: TerrainGridLayout | null = null;
 
   constructor(
     worldSize: number,
@@ -139,6 +152,7 @@ export class ForestCanopyOcclusionMap {
     geometry.setAttribute('forestCanopyOcclusion', attribute);
     this.terrainGeometry = geometry;
     this.terrainAttribute = attribute;
+    this.terrainGridLayout = this.detectTerrainGridLayout(position);
     this.updateTerrainAttribute();
   }
 
@@ -214,6 +228,7 @@ export class ForestCanopyOcclusionMap {
   dispose(): void {
     this.terrainGeometry = null;
     this.terrainAttribute = null;
+    this.terrainGridLayout = null;
   }
 
   private createStamp(
@@ -409,29 +424,61 @@ export class ForestCanopyOcclusionMap {
     const values = this.terrainAttribute.array as Uint8Array;
     let firstUpdatedVertex = Number.POSITIVE_INFINITY;
     let lastUpdatedVertex = -1;
-    for (let index = 0; index < position.count; index++) {
-      if (bounds) {
-        const coordinate = this.worldToPixelCoordinate(
-          position.getX(index),
-          position.getZ(index),
-        );
-        if (
-          coordinate.x0 < bounds.minX - 1
-          || coordinate.x0 > bounds.maxX
-          || coordinate.z0 < bounds.minZ - 1
-          || coordinate.z0 > bounds.maxZ
-        ) {
-          continue;
+
+    if (bounds && this.terrainGridLayout) {
+      const xRange = findPixelIndexRange(
+        this.terrainGridLayout.fieldPixelXByColumn,
+        Math.max(0, bounds.minX - 1),
+        bounds.maxX,
+      );
+      const zRange = findPixelIndexRange(
+        this.terrainGridLayout.fieldPixelZByRow,
+        Math.max(0, bounds.minZ - 1),
+        bounds.maxZ,
+      );
+      if (!xRange || !zRange) return;
+
+      for (let row = zRange.min; row <= zRange.max; row++) {
+        const rowOffset = row * this.terrainGridLayout.columnCount;
+        for (let column = xRange.min; column <= xRange.max; column++) {
+          const index = rowOffset + column;
+          this.sampleFieldBytesInto(
+            position.getX(index),
+            position.getZ(index),
+            values,
+            index * FIELD_CHANNELS,
+          );
         }
       }
-      this.sampleFieldBytesInto(
-        position.getX(index),
-        position.getZ(index),
-        values,
-        index * FIELD_CHANNELS,
-      );
-      firstUpdatedVertex = Math.min(firstUpdatedVertex, index);
-      lastUpdatedVertex = Math.max(lastUpdatedVertex, index);
+      firstUpdatedVertex = zRange.min * this.terrainGridLayout.columnCount + xRange.min;
+      lastUpdatedVertex = zRange.max * this.terrainGridLayout.columnCount + xRange.max;
+    } else {
+      // Unknown or non-grid geometry keeps the generic correctness path. The
+      // production terrain is detected once in bindTerrainGeometry, so local
+      // canopy edits never enter this full vertex scan.
+      for (let index = 0; index < position.count; index++) {
+        const x = position.getX(index);
+        const z = position.getZ(index);
+        if (bounds) {
+          const coordinate = this.worldToPixelCoordinate(x, z);
+          if (
+            coordinate.x0 < bounds.minX - 1
+            || coordinate.x0 > bounds.maxX
+            || coordinate.z0 < bounds.minZ - 1
+            || coordinate.z0 > bounds.maxZ
+          ) {
+            continue;
+          }
+        }
+        this.sampleFieldBytesInto(
+          x,
+          z,
+          values,
+          index * FIELD_CHANNELS,
+        );
+        firstUpdatedVertex = Math.min(firstUpdatedVertex, index);
+        lastUpdatedVertex = Math.max(lastUpdatedVertex, index);
+      }
     }
     if (lastUpdatedVertex < 0) return;
     this.terrainAttribute.clearUpdateRanges();
@@ -446,6 +493,83 @@ export class ForestCanopyOcclusionMap {
       this.terrainAttribute.addUpdateRange(0, values.length);
     }
     this.terrainAttribute.needsUpdate = true;
+  }
+
+  /**
+   * Recognizes a rectilinear row-major X/Z heightfield. Equality is deliberate:
+   * accepting even a subtly warped grid could omit a vertex that crosses a
+   * canopy-field pixel boundary. Unknown layouts retain the generic scan.
+   */
+  private detectTerrainGridLayout(
+    position: THREE.BufferAttribute,
+  ): TerrainGridLayout | null {
+    if (position.count < 4) return null;
+    const firstZ = position.getZ(0);
+    let columnCount = 1;
+    while (columnCount < position.count && position.getZ(columnCount) === firstZ) {
+      columnCount += 1;
+    }
+    if (
+      columnCount < 2
+      || columnCount === position.count
+      || position.count % columnCount !== 0
+    ) {
+      return null;
+    }
+
+    const rowCount = position.count / columnCount;
+    if (rowCount < 2) return null;
+    const xByColumn = new Float64Array(columnCount);
+    const zByRow = new Float64Array(rowCount);
+    for (let column = 0; column < columnCount; column++) {
+      const x = position.getX(column);
+      if (!Number.isFinite(x) || position.getZ(column) !== firstZ) return null;
+      xByColumn[column] = x;
+    }
+    for (let row = 0; row < rowCount; row++) {
+      const index = row * columnCount;
+      const z = position.getZ(index);
+      if (!Number.isFinite(z) || position.getX(index) !== xByColumn[0]) return null;
+      zByRow[row] = z;
+    }
+    if (!isStrictlyMonotonic(xByColumn) || !isStrictlyMonotonic(zByRow)) {
+      return null;
+    }
+
+    for (let row = 0; row < rowCount; row++) {
+      const rowOffset = row * columnCount;
+      for (let column = 0; column < columnCount; column++) {
+        const index = rowOffset + column;
+        if (
+          position.getX(index) !== xByColumn[column]
+          || position.getZ(index) !== zByRow[row]
+        ) {
+          return null;
+        }
+      }
+    }
+
+    const fieldPixelXByColumn = new Int32Array(columnCount);
+    const fieldPixelZByRow = new Int32Array(rowCount);
+    for (let column = 0; column < columnCount; column++) {
+      fieldPixelXByColumn[column] = this.worldToPixelCoordinate(
+        xByColumn[column]!,
+        firstZ,
+      ).x0;
+    }
+    const firstX = xByColumn[0]!;
+    for (let row = 0; row < rowCount; row++) {
+      fieldPixelZByRow[row] = this.worldToPixelCoordinate(
+        firstX,
+        zByRow[row]!,
+      ).z0;
+    }
+    return {
+      columnCount,
+      rowCount,
+      fieldPixelXByColumn,
+      fieldPixelZByRow,
+    };
   }
 
   private sampleChannelWorld(x: number, z: number, channel: number): number {
@@ -559,6 +683,33 @@ function expandPixelBounds(
     minZ: Math.max(0, bounds.minZ - radius),
     maxZ: Math.min(resolution - 1, bounds.maxZ + radius),
   };
+}
+
+function isStrictlyMonotonic(values: Float64Array): boolean {
+  const direction = Math.sign(values[values.length - 1]! - values[0]!);
+  if (direction === 0) return false;
+  for (let index = 1; index < values.length; index++) {
+    if ((values[index]! - values[index - 1]!) * direction <= 0) return false;
+  }
+  return true;
+}
+
+function findPixelIndexRange(
+  pixelByIndex: Int32Array,
+  minimumPixel: number,
+  maximumPixel: number,
+): IndexRange | null {
+  let minimumIndex = -1;
+  let maximumIndex = -1;
+  for (let index = 0; index < pixelByIndex.length; index++) {
+    const pixel = pixelByIndex[index]!;
+    if (pixel < minimumPixel || pixel > maximumPixel) continue;
+    if (minimumIndex < 0) minimumIndex = index;
+    maximumIndex = index;
+  }
+  return minimumIndex < 0
+    ? null
+    : { min: minimumIndex, max: maximumIndex };
 }
 
 function smoothstep01(edge0: number, edge1: number, value: number): number {

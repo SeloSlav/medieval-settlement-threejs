@@ -262,13 +262,16 @@ export class FirstPersonController {
       },
     );
 
+    // Leaving the illustrated map can restore the RTS projection. Complete
+    // that hand-off before claiming the lens for first person so the authored
+    // walk-mode FOV is always the final projection written during activation.
+    this.config.onModeChange?.(true);
     this.config.camera.fov = fpLocomotionConstants.cameraFovDeg;
     this.config.camera.near = Math.max(
       this.savedNear,
       FIRST_PERSON_CAMERA_NEAR_METERS,
     );
     this.config.camera.updateProjectionMatrix();
-    this.config.onModeChange?.(true);
     this.requestPointerLock();
     this.applyCameraTransform(this.lastEyeLine);
     this.syncReticuleVisibility();

@@ -154,6 +154,8 @@ export class ForestManager {
   private treeGrowthProgress = new Map<number, number>();
   private collisionVersion = 0;
   private undergrowthVisible = true;
+  private treeUpdateBatchDepth = 0;
+  private treeInstanceUpdatesPending = false;
 
   constructor(
     root: THREE.Group,
@@ -284,6 +286,19 @@ export class ForestManager {
 
   setForestFloorDebugMode(mode: ForestCanopyOcclusionDebugMode): void {
     this.canopyOcclusion?.setDebugMode(mode);
+  }
+
+  batchTreeInstanceUpdates<T>(applyUpdates: () => T): T {
+    this.treeUpdateBatchDepth += 1;
+    try {
+      return applyUpdates();
+    } finally {
+      this.treeUpdateBatchDepth -= 1;
+      if (this.treeUpdateBatchDepth === 0 && this.treeInstanceUpdatesPending) {
+        this.treeInstanceUpdatesPending = false;
+        this.flushTreeInstanceUpdates();
+      }
+    }
   }
 
   applyTreePhase(layoutIndex: number, phase: TreePhase, growthProgress: number): void {
@@ -765,6 +780,14 @@ export class ForestManager {
   }
 
   private commitTreeInstanceUpdates(): void {
+    if (this.treeUpdateBatchDepth > 0) {
+      this.treeInstanceUpdatesPending = true;
+      return;
+    }
+    this.flushTreeInstanceUpdates();
+  }
+
+  private flushTreeInstanceUpdates(): void {
     this.canopyOcclusion?.commit();
     if (this.seedThreeForest) {
       this.seedThreeForest.commit();

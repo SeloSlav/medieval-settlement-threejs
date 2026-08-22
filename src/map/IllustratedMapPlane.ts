@@ -1,6 +1,16 @@
 import * as THREE from 'three';
 import type { TerrainBounds } from '../terrain/Terrain.ts';
 import { disposeObject3D } from '../utils/dispose.ts';
+import {
+  createIllustratedMapDeskCanvas,
+  illustratedMapDeskMetrics,
+  ILLUSTRATED_MAP_DESK_ALPHA_FADE_START,
+  ILLUSTRATED_MAP_DESK_FADE_START,
+  ILLUSTRATED_MAP_DESK_MARGIN_RATIO,
+  ILLUSTRATED_MAP_DESK_TEXTURE_SEED,
+} from './illustratedMapDeskSurface.ts';
+
+export const ILLUSTRATED_MAP_STAMP_LIFT = 0.12;
 
 export type IllustratedMapDebugMode = 'final' | 'plane';
 
@@ -13,11 +23,14 @@ export class IllustratedMapPlane {
   readonly scene = new THREE.Scene();
   private readonly root = new THREE.Group();
   private readonly maxAnisotropy: number;
+  private deskTexture: THREE.CanvasTexture | null = null;
   private mapTexture: THREE.CanvasTexture | null = null;
   private stampTexture: THREE.CanvasTexture | null = null;
+  private deskMaterial: THREE.MeshBasicMaterial | null = null;
   private mapMaterial: THREE.MeshBasicMaterial | null = null;
   private stampMaterial: THREE.MeshBasicMaterial | null = null;
   private frameMaterial: THREE.MeshBasicMaterial | null = null;
+  private desk: THREE.Mesh<THREE.PlaneGeometry, THREE.MeshBasicMaterial> | null = null;
   private plane: THREE.Mesh<THREE.PlaneGeometry, THREE.MeshBasicMaterial> | null = null;
   private stampPlane: THREE.Mesh<THREE.PlaneGeometry, THREE.MeshBasicMaterial> | null = null;
   private frame: THREE.Mesh<THREE.PlaneGeometry, THREE.MeshBasicMaterial> | null = null;
@@ -26,7 +39,7 @@ export class IllustratedMapPlane {
   constructor(maxAnisotropy: number) {
     this.maxAnisotropy = maxAnisotropy;
     this.scene.name = 'Illustrated strategic map scene';
-    this.scene.background = new THREE.Color(0x241f16);
+    this.scene.background = new THREE.Color(0x000000);
     this.root.name = 'World-aligned illustrated map';
     this.scene.add(this.root);
   }
@@ -47,6 +60,18 @@ export class IllustratedMapPlane {
     const centerX = (bounds.minX + bounds.maxX) * 0.5;
     const centerZ = (bounds.minZ + bounds.maxZ) * 0.5;
     const border = Math.max(width, depth) * 0.018;
+    const deskMetrics = illustratedMapDeskMetrics(bounds);
+
+    this.deskTexture = new THREE.CanvasTexture(createIllustratedMapDeskCanvas());
+    this.deskTexture.name = 'Illustrated map procedural dark oak desk';
+    this.deskTexture.colorSpace = THREE.SRGBColorSpace;
+    this.deskTexture.anisotropy = this.maxAnisotropy;
+    this.deskTexture.magFilter = THREE.LinearFilter;
+    this.deskTexture.minFilter = THREE.LinearMipmapLinearFilter;
+    this.deskTexture.generateMipmaps = true;
+    this.deskTexture.wrapS = THREE.ClampToEdgeWrapping;
+    this.deskTexture.wrapT = THREE.ClampToEdgeWrapping;
+    this.deskTexture.needsUpdate = true;
 
     this.mapTexture = new THREE.CanvasTexture(canvas);
     this.mapTexture.name = 'Illustrated strategic map parchment';
@@ -82,6 +107,18 @@ export class IllustratedMapPlane {
       depthTest: false,
       depthWrite: false,
     });
+    this.deskMaterial = new THREE.MeshBasicMaterial({
+      map: this.deskTexture,
+      color: 0xffffff,
+      side: THREE.DoubleSide,
+      // Keep the desk in the opaque render list with the parchment so its
+      // negative renderOrder is honoured across WebGL and WebGPU. The canvas
+      // also fades its RGB to black; its alpha fade is used by the DOM map.
+      transparent: false,
+      toneMapped: false,
+      depthTest: false,
+      depthWrite: false,
+    });
     this.stampMaterial = new THREE.MeshBasicMaterial({
       map: this.stampTexture,
       color: 0xffffff,
@@ -96,10 +133,22 @@ export class IllustratedMapPlane {
       depthWrite: false,
     });
     this.frameMaterial = new THREE.MeshBasicMaterial({
-      color: 0x332819,
+      color: 0x120b07,
       side: THREE.DoubleSide,
+      transparent: false,
       toneMapped: false,
+      depthTest: false,
+      depthWrite: false,
     });
+
+    this.desk = new THREE.Mesh(
+      new THREE.PlaneGeometry(deskMetrics.width, deskMetrics.depth),
+      this.deskMaterial,
+    );
+    this.desk.name = 'Illustrated map procedural dark oak desk surround';
+    this.desk.rotation.x = -Math.PI / 2;
+    this.desk.position.set(deskMetrics.centerX, -0.08, deskMetrics.centerZ);
+    this.desk.renderOrder = -1;
 
     this.frame = new THREE.Mesh(
       new THREE.PlaneGeometry(width + border * 2, depth + border * 2),
@@ -125,18 +174,29 @@ export class IllustratedMapPlane {
     );
     this.stampPlane.name = 'Illustrated map resource stamp layer';
     this.stampPlane.rotation.x = -Math.PI / 2;
-    this.stampPlane.position.set(centerX, 0.12, centerZ);
+    this.stampPlane.position.set(centerX, ILLUSTRATED_MAP_STAMP_LIFT, centerZ);
     this.stampPlane.renderOrder = 2;
 
-    this.root.add(this.frame, this.plane, this.stampPlane);
+    this.root.add(this.desk, this.frame, this.plane, this.stampPlane);
     this.applyDebugMode();
     this.scene.userData.illustratedMapContract = {
       bounds: { ...bounds },
       coordinateFrame: 'world-xz',
       renderPath: 'direct-no-post',
+      background: 'black',
       resolution: `${canvas.width}x${canvas.height}`,
       stampResolution: `${stampCanvas.width}x${stampCanvas.height}`,
-      layers: ['frame', 'parchment', 'resource-stamps'],
+      desk: {
+        source: 'deterministic-procedural-canvas',
+        textureSeed: ILLUSTRATED_MAP_DESK_TEXTURE_SEED,
+        marginRatio: ILLUSTRATED_MAP_DESK_MARGIN_RATIO,
+        fadeStart: ILLUSTRATED_MAP_DESK_FADE_START,
+        alphaFadeStart: ILLUSTRATED_MAP_DESK_ALPHA_FADE_START,
+        edgeComposite: 'colour-to-black-opaque-plane',
+        width: deskMetrics.width,
+        depth: deskMetrics.depth,
+      },
+      layers: ['desk-surround', 'parchment-shadow', 'parchment', 'resource-stamps'],
     };
   }
 
@@ -161,13 +221,15 @@ export class IllustratedMapPlane {
   }
 
   private applyDebugMode(): void {
-    if (!this.mapMaterial || !this.frameMaterial || !this.stampMaterial) return;
+    if (!this.deskMaterial || !this.mapMaterial || !this.frameMaterial || !this.stampMaterial) return;
     const diagnostic = this.debugMode === 'plane';
+    this.deskMaterial.color.setHex(diagnostic ? 0x6d3f27 : 0xffffff);
     this.mapMaterial.wireframe = diagnostic;
     this.mapMaterial.color.setHex(diagnostic ? 0xd7b86d : 0xffffff);
-    this.frameMaterial.color.setHex(diagnostic ? 0x6d2418 : 0x332819);
+    this.frameMaterial.color.setHex(diagnostic ? 0x6d2418 : 0x120b07);
     this.stampMaterial.opacity = diagnostic ? 0.58 : 1;
-    this.scene.background = new THREE.Color(diagnostic ? 0x101010 : 0x241f16);
+    this.scene.background = new THREE.Color(diagnostic ? 0x101010 : 0x000000);
+    this.deskMaterial.needsUpdate = true;
     this.mapMaterial.needsUpdate = true;
     this.stampMaterial.needsUpdate = true;
   }
@@ -188,13 +250,22 @@ export class IllustratedMapPlane {
       disposeObject3D(this.frame);
       this.frame = null;
     }
+    if (this.desk) {
+      this.root.remove(this.desk);
+      disposeObject3D(this.desk);
+      this.desk = null;
+    }
+    this.deskMaterial?.dispose();
     this.mapMaterial?.dispose();
     this.stampMaterial?.dispose();
     this.frameMaterial?.dispose();
+    this.deskTexture?.dispose();
     this.mapTexture?.dispose();
     this.stampTexture?.dispose();
+    this.deskTexture = null;
     this.mapTexture = null;
     this.stampTexture = null;
+    this.deskMaterial = null;
     this.mapMaterial = null;
     this.stampMaterial = null;
     this.frameMaterial = null;

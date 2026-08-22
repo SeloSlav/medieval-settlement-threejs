@@ -261,3 +261,29 @@
   width: 23px;
   height: 23px;
 }
+
+/* The illustrated stamps own map-mode visuals. These projected buttons only
+   supply exact, non-intercepting bounds for the shared hover-card system. */
+.quarry-map-icons.is-illustrated-map .quarry-map-icon,
+.foraging-map-icons.is-illustrated-map .foraging-map-icon {
+  color: transparent;
+  background: transparent;
+  border-color: transparent;
+  border-radius: 0;
+  box-shadow: none;
+  backdrop-filter: none;
+  filter: none;
+  opacity: 1;
+  pointer-events: none;
+  transform: none;
+  transition: none;
+}
+
+.quarry-map-icons.is-illustrated-map .quarry-map-icon::before,
+.quarry-map-icons.is-illustrated-map .quarry-map-icon::after,
+.foraging-map-icons.is-illustrated-map .foraging-map-icon::before,
+.foraging-map-icons.is-illustrated-map .foraging-map-icon::after,
+.quarry-map-icons.is-illustrated-map .map-resource-icon-glyph,
+.foraging-map-icons.is-illustrated-map .map-resource-icon-glyph {
+  display: none;
+}

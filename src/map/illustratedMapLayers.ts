@@ -10,7 +10,9 @@ import { getBuildingFootprintCorners } from '../buildings/BuildingTerrainLayout.
 import { buildingPlacementYaw } from '../buildings/buildingPlacement.ts';
 import { geologicalNodeForMapMarker } from './geologicalMapMarkerState.ts';
 import {
+  MAP_ART_RESOLUTION,
   mapStampKey,
+  mapStampArtSize,
   residenceFootprintCorners,
   worldToMapPixels,
   type MapStampKey,
@@ -24,8 +26,6 @@ const MAP_INK = 'rgba(52, 36, 21, 0.88)';
 const MAP_INK_SOFT = 'rgba(75, 50, 25, 0.42)';
 const BUILDING_WASH = 'rgba(86, 56, 27, 0.28)';
 const RESIDENCE_WASH = 'rgba(99, 67, 33, 0.22)';
-const MAP_ART_RESOLUTION = 512;
-
 function mapArtScale(context: CanvasRenderingContext2D): number {
   return Math.min(context.canvas.width, context.canvas.height) / MAP_ART_RESOLUTION;
 }
@@ -232,7 +232,7 @@ function drawResourceStamps(
       context.canvas.height,
     );
     const rich = node?.isRich === true;
-    const size = (rich ? 42 : marker.quarryKind === 'large' ? 31 : 27) * drawScale;
+    const size = mapStampArtSize(marker, rich) * drawScale;
     context.globalAlpha = node && node.remaining <= 0 ? 0.38 : rich ? 0.96 : 0.86;
     context.drawImage(image, point.x - size * 0.5, point.y - size * 0.5, size, size);
   }

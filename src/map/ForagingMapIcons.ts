@@ -23,6 +23,7 @@ import {
   GAME_ICON_HTML,
   MUSHROOM_ICON_HTML,
 } from './resourceMapIconArt.ts';
+import { MAP_ART_RESOLUTION, mapStampArtSize } from './illustratedMapGeometry.ts';
 
 type ForagingMapIconsOptions = {
   uiRoot: HTMLElement;
@@ -37,6 +38,8 @@ type ForagingMapIconsOptions = {
   onClaySelect?: (x: number, z: number) => void;
   isBlocked: () => boolean;
   isVisibilityBlocked?: () => boolean;
+  isIllustratedMapActive?: () => boolean;
+  getIllustratedMapY?: () => number;
 };
 
 type ForagingIconEntry = {
@@ -78,7 +81,11 @@ export class ForagingMapIcons {
   }
 
   update(getFrameRect?: () => DOMRect): void {
+    const illustratedMapActive = this.options.isIllustratedMapActive?.() ?? false;
+    const visibilityBlocked = this.options.isVisibilityBlocked?.()
+      ?? this.options.isBlocked();
     const interactionBlocked = this.options.isBlocked();
+    toggleClassIfChanged(this.root, 'is-illustrated-map', illustratedMapActive);
     toggleClassIfChanged(this.root, 'is-interaction-blocked', interactionBlocked);
     const frame = beginMapIconFrame(
       this.root,
@@ -86,8 +93,9 @@ export class ForagingMapIcons {
       this.options.terrain,
       this.options.getCamera,
       this.options.getZoomPercent,
-      this.options.isVisibilityBlocked ?? this.options.isBlocked,
+      () => visibilityBlocked,
       getFrameRect,
+      illustratedMapActive,
     );
     if (!frame) return;
 
@@ -104,6 +112,9 @@ export class ForagingMapIcons {
       const node = marker.kind === 'clay'
         ? geologicalNodeForMapMarker(marker, geologicalNodes)
         : nodes.get(marker.id);
+      const stampArtSize = illustratedMapActive
+        ? mapStampArtSize(marker, node?.isRich === true)
+        : 0;
       syncResourceStockRing(button, node, {
         hideWhenEmpty: marker.kind === 'clay' && node?.isRich === true,
       });
@@ -159,6 +170,11 @@ export class ForagingMapIcons {
         node?.z ?? marker.z,
         worldPoint,
         frame,
+        illustratedMapActive ? this.options.getIllustratedMapY?.() : undefined,
+        stampArtSize / MAP_ART_RESOLUTION
+          * (this.options.terrain.bounds.maxX - this.options.terrain.bounds.minX),
+        stampArtSize / MAP_ART_RESOLUTION
+          * (this.options.terrain.bounds.maxZ - this.options.terrain.bounds.minZ),
       );
     }
   }

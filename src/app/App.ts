@@ -684,9 +684,7 @@ export class App {
     this.sessionLifecycle?.dispose();
     this.connectionOverlay?.dispose();
     this.resourceInspector?.dispose();
-    this.worldMapUi?.quarry.dispose();
-    this.worldMapUi?.foraging.dispose();
-    this.worldMapUi?.minimap.dispose();
+    this.worldMapUi?.dispose();
     this.toastManager?.dispose();
     this.tutorialOverlay?.dispose();
     this.disposeTooltips?.();

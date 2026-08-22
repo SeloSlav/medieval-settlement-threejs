@@ -10,9 +10,13 @@ import {
 import { TREE_SHADOW_CAST_LAYER } from '../../scene/SceneLayers.ts';
 
 const DECIDUOUS_TREE_ORIGIN_Y_OFFSET = 2048;
+const HIDDEN_TREE_MATRIX = new THREE.Matrix4().makeScale(0, 0, 0);
 
 export type SeedThreeTreeSlot = {
   layoutIndex: number;
+  /** Immutable authored transform used to restore a stable hidden slot. */
+  authoredMatrix?: THREE.Matrix4;
+  /** Runtime transform; zero-scaled while gameplay-hidden. */
   matrix: THREE.Matrix4;
   pos: THREE.Vector3;
   visibilityCenter: THREE.Vector3;
@@ -174,6 +178,7 @@ export type SeedThreeBucketMatrixWriteJob = {
   readonly writeColor: boolean;
   readonly writeShadow: boolean;
   readonly realignColorAttributes: boolean;
+  readonly preserveDisabledSlots: boolean;
   readonly attributeVersions: Map<THREE.BufferAttribute, number>;
   completed: boolean;
   uploadRangesPublished: boolean;
@@ -203,11 +208,18 @@ export function createSeedThreeBucketMatrixWriteJob(
     writeColor?: boolean;
     writeShadow?: boolean;
     realignColorAttributes?: boolean;
+    /**
+     * Keep every selected tree at a stable instance rank and represent
+     * gameplay-hidden trees with a zero-scale matrix. This makes later
+     * visibility changes sparse buffer patches instead of full compactions.
+     */
+    preserveDisabledSlots?: boolean;
   },
 ): SeedThreeBucketMatrixWriteJob {
   const writeColor = shadow?.writeColor !== false;
   const writeShadow = shadow !== undefined && shadow.writeShadow !== false;
   const realignColorAttributes = shadow?.realignColorAttributes ?? writeColor;
+  const preserveDisabledSlots = shadow?.preserveDisabledSlots === true;
   const core = createInstanceMatrixWriteJob(
     writeColor ? nearSet : EMPTY_LOD_SET,
     writeColor ? overviewSet : EMPTY_LOD_SET,
@@ -218,9 +230,9 @@ export function createSeedThreeBucketMatrixWriteJob(
       // These attributes are zero-filled at mesh creation and this compactor is
       // their sole writer; only the Y wind weight varies per packed instance.
       windXZInitializedZero: true,
-      isSlotVisible: (slot) => (
-        slot.enabled && slot.visibilityParent?.enabled !== false
-      ),
+      isSlotVisible: preserveDisabledSlots
+        ? () => true
+        : (slot) => slotIsVisible(slot),
       resolveTreeOriginY: (slot) => (
         slot.pos.y + (slot.seasonalDeciduous
           ? DECIDUOUS_TREE_ORIGIN_Y_OFFSET
@@ -246,6 +258,7 @@ export function createSeedThreeBucketMatrixWriteJob(
     writeColor,
     writeShadow,
     realignColorAttributes,
+    preserveDisabledSlots,
     attributeVersions: snapshotLodAttributeVersions(
       writeColor ? nearSet : EMPTY_LOD_SET,
       writeColor ? overviewSet : EMPTY_LOD_SET,
@@ -302,6 +315,102 @@ export function writeSeedThreeLodMatrices(
     deadlineMs: Number.POSITIVE_INFINITY,
     maxMatrixWrites: Number.POSITIVE_INFINITY,
   });
+}
+
+/**
+ * Patch only the instance matrices owned by changed gameplay trees.
+ *
+ * Forest runtime buffers use stable selected-slot ranks. Hidden trees keep
+ * their rank and receive a zero-scale transform, so removing a handful of
+ * trees never shifts or rewrites the rest of a species bucket. Per-instance
+ * wind/origin attributes remain valid and do not need to be uploaded again.
+ */
+export function patchSeedThreeLodSlotVisibility(
+  lodSet: SeedThreeInstancedLodSet,
+  slots: readonly SeedThreeTreeSlot[],
+  selectedSlotIndices: readonly number[],
+  dirtySlotIndices: Iterable<number>,
+): number {
+  const dirtyRanks: Array<{ rank: number; slot: SeedThreeTreeSlot }> = [];
+  for (const slotIndex of dirtySlotIndices) {
+    const rank = sortedIndicesIndexOf(selectedSlotIndices, slotIndex);
+    const slot = slots[slotIndex];
+    if (rank < 0 || !slot) continue;
+    dirtyRanks.push({ rank, slot });
+  }
+  if (dirtyRanks.length === 0) return 0;
+  dirtyRanks.sort((left, right) => left.rank - right.rank);
+
+  let matrixWrites = 0;
+  if (lodSet.branches) {
+    const target = lodSet.branches.instanceMatrix.array as Float32Array;
+    for (const { rank, slot } of dirtyRanks) {
+      const matrix = slotIsVisible(slot) ? slot.matrix : HIDDEN_TREE_MATRIX;
+      target.set(matrix.elements, rank * 16);
+      matrixWrites += 1;
+    }
+    publishSparseMatrixRanges(
+      lodSet.branches.instanceMatrix,
+      dirtyRanks.map(({ rank }) => rank),
+      1,
+    );
+  }
+
+  const sourceMatrix = new THREE.Matrix4();
+  const composedMatrix = new THREE.Matrix4();
+  for (const mesh of lodSet.cards) {
+    const cardsPerTree = Math.max(0, Math.floor(Number(mesh.userData.k) || 0));
+    if (cardsPerTree === 0) continue;
+    const target = mesh.instanceMatrix.array as Float32Array;
+    const sourceMatrices = mesh.userData.srcMatrices as Float32Array | undefined;
+    if (!sourceMatrices) continue;
+    for (const { rank, slot } of dirtyRanks) {
+      const targetStart = rank * cardsPerTree;
+      if (!slotIsVisible(slot)) {
+        for (let cardIndex = 0; cardIndex < cardsPerTree; cardIndex += 1) {
+          target.set(HIDDEN_TREE_MATRIX.elements, (targetStart + cardIndex) * 16);
+        }
+      } else {
+        for (let cardIndex = 0; cardIndex < cardsPerTree; cardIndex += 1) {
+          sourceMatrix.fromArray(sourceMatrices, cardIndex * 16);
+          composedMatrix.multiplyMatrices(slot.matrix, sourceMatrix);
+          target.set(composedMatrix.elements, (targetStart + cardIndex) * 16);
+        }
+      }
+      matrixWrites += cardsPerTree;
+    }
+    publishSparseMatrixRanges(
+      mesh.instanceMatrix,
+      dirtyRanks.map(({ rank }) => rank),
+      cardsPerTree,
+    );
+  }
+  return matrixWrites;
+}
+
+function publishSparseMatrixRanges(
+  attribute: THREE.InstancedBufferAttribute,
+  sortedTreeRanks: readonly number[],
+  instancesPerTree: number,
+): void {
+  if (sortedTreeRanks.length === 0) return;
+  let rangeStart = sortedTreeRanks[0]!;
+  let previousRank = rangeStart;
+  for (let index = 1; index <= sortedTreeRanks.length; index += 1) {
+    const rank = sortedTreeRanks[index];
+    if (rank === previousRank + 1) {
+      previousRank = rank;
+      continue;
+    }
+    attribute.addUpdateRange(
+      rangeStart * instancesPerTree * 16,
+      (previousRank - rangeStart + 1) * instancesPerTree * 16,
+    );
+    if (rank === undefined) break;
+    rangeStart = rank;
+    previousRank = rank;
+  }
+  attribute.needsUpdate = true;
 }
 
 /**
@@ -468,16 +577,20 @@ function mergeSortedUniqueIndices(
 }
 
 function sortedIndicesInclude(indices: readonly number[], value: number): boolean {
+  return sortedIndicesIndexOf(indices, value) >= 0;
+}
+
+function sortedIndicesIndexOf(indices: readonly number[], value: number): number {
   let low = 0;
   let high = indices.length - 1;
   while (low <= high) {
     const middle = (low + high) >>> 1;
     const candidate = indices[middle]!;
-    if (candidate === value) return true;
+    if (candidate === value) return middle;
     if (candidate < value) low = middle + 1;
     else high = middle - 1;
   }
-  return false;
+  return -1;
 }
 
 function updateMeshPassInstanceCounts(
@@ -544,6 +657,7 @@ function alignColorCardInstanceAttributes(job: SeedThreeBucketMatrixWriteJob): v
     job.slots,
     job.nearViewSlotIndices,
     job.nearResidentSlotIndices,
+    job.preserveDisabledSlots,
   );
   alignLodCardInstanceAttributes(
     job.overviewSet,
@@ -551,6 +665,7 @@ function alignColorCardInstanceAttributes(job: SeedThreeBucketMatrixWriteJob): v
     job.slots,
     job.overviewViewSlotIndices,
     job.overviewResidentSlotIndices,
+    job.preserveDisabledSlots,
   );
 }
 
@@ -560,10 +675,11 @@ function alignLodCardInstanceAttributes(
   slots: readonly SeedThreeTreeSlot[],
   viewSlotIndices: readonly number[],
   residentSlotIndices: readonly number[],
+  preserveDisabledSlots: boolean,
 ): void {
   if (lodSet.cards.length === 0) return;
   const residentRankBySlot = canonicalLodSet
-    ? buildVisibleRankBySlot(slots, residentSlotIndices)
+    ? buildResidentRankBySlot(slots, residentSlotIndices, preserveDisabledSlots)
     : null;
   for (const mesh of lodSet.cards) {
     const cardsPerTree = Math.max(0, Number(mesh.userData.k) || 0);
@@ -583,7 +699,7 @@ function alignLodCardInstanceAttributes(
     let viewRank = 0;
     for (const slotIndex of viewSlotIndices) {
       const slot = slots[slotIndex];
-      if (!slot || !slotIsVisible(slot)) continue;
+      if (!slot || (!preserveDisabledSlots && !slotIsVisible(slot))) continue;
       const sourceTreeRank = residentRankBySlot
         ? residentRankBySlot[slotIndex]
         : slotIndex;
@@ -605,16 +721,17 @@ function alignLodCardInstanceAttributes(
   }
 }
 
-function buildVisibleRankBySlot(
+function buildResidentRankBySlot(
   slots: readonly SeedThreeTreeSlot[],
   residentSlotIndices: readonly number[],
+  preserveDisabledSlots: boolean,
 ): Int32Array {
   const residentRankBySlot = new Int32Array(slots.length);
   residentRankBySlot.fill(-1);
   let residentRank = 0;
   for (const slotIndex of residentSlotIndices) {
     const slot = slots[slotIndex];
-    if (!slot || !slotIsVisible(slot)) continue;
+    if (!slot || (!preserveDisabledSlots && !slotIsVisible(slot))) continue;
     residentRankBySlot[slotIndex] = residentRank++;
   }
   return residentRankBySlot;

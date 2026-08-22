@@ -26,12 +26,15 @@ import type { Terrain } from '../terrain/Terrain.ts';
 import type { ClayDepositSite } from '../clay/ClayDepositLayout.ts';
 import type { ForestCore } from '../props/forestField.ts';
 import type { RoadNetwork } from '../roads/RoadNetwork.ts';
+import { ILLUSTRATED_MAP_STAMP_LIFT } from '../map/IllustratedMapPlane.ts';
+import { IllustratedMapResourceHover } from '../map/IllustratedMapResourceHover.ts';
 
 export type WorldMapUiBundle = {
   quarry: QuarryMapIcons;
   foraging: ForagingMapIcons;
   minimap: TerrainMinimapOverlay;
   update(): void;
+  dispose(): void;
 };
 
 export function createWorldMapUi(options: {
@@ -46,6 +49,7 @@ export function createWorldMapUi(options: {
   getCamera: () => PerspectiveCamera | null;
   getZoomPercent: () => number;
   isIllustratedMapActive: () => boolean;
+  getIllustratedMapElevation: () => number;
   getGameState: () => GameState;
   getRoadNetwork: () => RoadNetwork;
   getFocus: () => MinimapFocus;
@@ -68,6 +72,7 @@ export function createWorldMapUi(options: {
     getCamera,
     getZoomPercent,
     isIllustratedMapActive,
+    getIllustratedMapElevation,
     getGameState,
     getRoadNetwork,
     getFocus,
@@ -93,8 +98,11 @@ export function createWorldMapUi(options: {
     getZoomPercent,
     onQuarrySelect,
     isBlocked: () => isWorldInspectionBlocked(placementGate),
+    isIllustratedMapActive,
+    getIllustratedMapY: () => getIllustratedMapElevation() + ILLUSTRATED_MAP_STAMP_LIFT,
     isVisibilityBlocked: () => isIllustratedMapActive()
-      || isWorldResourceIconVisibilityBlocked(placementGate),
+      ? isOverlayBlocked(placementGate)
+      : isWorldResourceIconVisibilityBlocked(placementGate),
   });
 
   const foraging = new ForagingMapIcons({
@@ -109,8 +117,11 @@ export function createWorldMapUi(options: {
     onForagingSelect,
     onClaySelect,
     isBlocked: () => isWorldInspectionBlocked(placementGate),
+    isIllustratedMapActive,
+    getIllustratedMapY: () => getIllustratedMapElevation() + ILLUSTRATED_MAP_STAMP_LIFT,
     isVisibilityBlocked: () => isIllustratedMapActive()
-      || isWorldResourceIconVisibilityBlocked(placementGate),
+      ? isOverlayBlocked(placementGate)
+      : isWorldResourceIconVisibilityBlocked(placementGate),
   });
 
   const minimap = TerrainMinimapOverlay.create({
@@ -132,6 +143,12 @@ export function createWorldMapUi(options: {
     sharedFrameRect ??= domElement.getBoundingClientRect();
     return sharedFrameRect;
   };
+  const illustratedResourceHover = new IllustratedMapResourceHover({
+    uiRoot,
+    domElement,
+    isActive: isIllustratedMapActive,
+    isBlocked: () => isOverlayBlocked(placementGate),
+  });
 
   return {
     quarry,
@@ -141,6 +158,13 @@ export function createWorldMapUi(options: {
       sharedFrameRect = null;
       quarry.update(getFrameRect);
       foraging.update(getFrameRect);
+      illustratedResourceHover.update();
+    },
+    dispose(): void {
+      illustratedResourceHover.dispose();
+      quarry.dispose();
+      foraging.dispose();
+      minimap.dispose();
     },
   };
 }

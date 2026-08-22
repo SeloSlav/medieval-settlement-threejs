@@ -1,6 +1,10 @@
 import * as THREE from 'three';
 import type { Terrain } from '../terrain/Terrain.ts';
 import { resolveResourceIconOpacity } from './resourceMapIconPreference.ts';
+import {
+  clearProjectedMapButtonHitBounds,
+  setProjectedMapButtonHitBounds,
+} from './projectedMapButtonHitBounds.ts';
 
 const WORLD_ICON_LIFT = 2.4;
 
@@ -26,11 +30,14 @@ type ProjectedButtonState = {
   worldX: number;
   worldY: number;
   worldZ: number;
+  hitWorldWidth: number;
+  hitWorldDepth: number;
   visible: boolean;
 };
 
 const frameStates = new WeakMap<HTMLElement, MapIconFrameState>();
 const projectedButtonStates = new WeakMap<HTMLButtonElement, ProjectedButtonState>();
+const projectedHitCorner = new THREE.Vector3();
 
 export function beginMapIconFrame(
   root: HTMLElement,
@@ -40,6 +47,7 @@ export function beginMapIconFrame(
   getZoomPercent: () => number,
   isBlocked: () => boolean,
   getFrameRect?: () => DOMRect,
+  forceVisible = false,
 ): MapIconFrame | null {
   const camera = getCamera();
   if (!camera) {
@@ -52,7 +60,11 @@ export function beginMapIconFrame(
   // previous frame's view matrix while middle-mouse rotation was active.
   camera.updateMatrixWorld();
 
-  const reveal = isBlocked() ? 0 : resolveResourceIconOpacity(getZoomPercent());
+  const reveal = isBlocked()
+    ? 0
+    : forceVisible
+      ? 1
+      : resolveResourceIconOpacity(getZoomPercent());
   const show = reveal > 0.02;
   setHiddenIfChanged(root, !show);
   const opacity = reveal.toFixed(3);
@@ -106,8 +118,12 @@ export function placeProjectedMapButton(
   worldZ: number,
   worldPoint: THREE.Vector3,
   frame: MapIconFrame,
+  worldYOverride?: number,
+  hitWorldWidth = 0,
+  hitWorldDepth = 0,
 ): boolean {
-  const worldY = frame.terrain.getHeightAt(worldX, worldZ) + WORLD_ICON_LIFT;
+  const worldY = worldYOverride
+    ?? frame.terrain.getHeightAt(worldX, worldZ) + WORLD_ICON_LIFT;
   const previous = projectedButtonStates.get(button);
   if (
     previous
@@ -115,6 +131,8 @@ export function placeProjectedMapButton(
     && previous.worldX === worldX
     && previous.worldY === worldY
     && previous.worldZ === worldZ
+    && previous.hitWorldWidth === hitWorldWidth
+    && previous.hitWorldDepth === hitWorldDepth
     && button.hidden === !previous.visible
   ) {
     return previous.visible;
@@ -128,12 +146,15 @@ export function placeProjectedMapButton(
 
   if (worldPoint.z < -1 || worldPoint.z > 1) {
     setHiddenIfChanged(button, true);
+    clearProjectedMapButtonHitBounds(button);
     updateProjectedButtonState(
       button,
       frame.projectionRevision,
       worldX,
       worldY,
       worldZ,
+      hitWorldWidth,
+      hitWorldDepth,
       false,
     );
     return false;
@@ -146,12 +167,25 @@ export function placeProjectedMapButton(
   const top = `${clientY}px`;
   if (button.style.left !== left) button.style.left = left;
   if (button.style.top !== top) button.style.top = top;
+  syncProjectedButtonHitArea(
+    button,
+    worldX,
+    worldY,
+    worldZ,
+    hitWorldWidth,
+    hitWorldDepth,
+    frame,
+    clientX,
+    clientY,
+  );
   updateProjectedButtonState(
     button,
     frame.projectionRevision,
     worldX,
     worldY,
     worldZ,
+    hitWorldWidth,
+    hitWorldDepth,
     true,
   );
   return true;
@@ -163,6 +197,8 @@ function updateProjectedButtonState(
   worldX: number,
   worldY: number,
   worldZ: number,
+  hitWorldWidth: number,
+  hitWorldDepth: number,
   visible: boolean,
 ): void {
   const state = projectedButtonStates.get(button);
@@ -171,6 +207,8 @@ function updateProjectedButtonState(
     state.worldX = worldX;
     state.worldY = worldY;
     state.worldZ = worldZ;
+    state.hitWorldWidth = hitWorldWidth;
+    state.hitWorldDepth = hitWorldDepth;
     state.visible = visible;
   } else {
     projectedButtonStates.set(button, {
@@ -178,8 +216,67 @@ function updateProjectedButtonState(
       worldX,
       worldY,
       worldZ,
+      hitWorldWidth,
+      hitWorldDepth,
       visible,
     });
+  }
+}
+
+function syncProjectedButtonHitArea(
+  button: HTMLButtonElement,
+  worldX: number,
+  worldY: number,
+  worldZ: number,
+  hitWorldWidth: number,
+  hitWorldDepth: number,
+  frame: MapIconFrame,
+  clientX: number,
+  clientY: number,
+): void {
+  if (hitWorldWidth <= 0 || hitWorldDepth <= 0) {
+    clearProjectedMapButtonHitBounds(button);
+    for (const property of ['width', 'height', 'margin-left', 'margin-top']) {
+      button.style.removeProperty(property);
+    }
+    return;
+  }
+
+  let minX = Number.POSITIVE_INFINITY;
+  let maxX = Number.NEGATIVE_INFINITY;
+  let minY = Number.POSITIVE_INFINITY;
+  let maxY = Number.NEGATIVE_INFINITY;
+  const halfWidth = hitWorldWidth * 0.5;
+  const halfDepth = hitWorldDepth * 0.5;
+  for (const offsetX of [-halfWidth, halfWidth]) {
+    for (const offsetZ of [-halfDepth, halfDepth]) {
+      projectedHitCorner.set(worldX + offsetX, worldY, worldZ + offsetZ);
+      projectedHitCorner.project(frame.camera);
+      const clientX = (projectedHitCorner.x * 0.5 + 0.5) * frame.rect.width;
+      const clientY = (-projectedHitCorner.y * 0.5 + 0.5) * frame.rect.height;
+      minX = Math.min(minX, clientX);
+      maxX = Math.max(maxX, clientX);
+      minY = Math.min(minY, clientY);
+      maxY = Math.max(maxY, clientY);
+    }
+  }
+
+  const width = Math.max(24, maxX - minX + 8);
+  const height = Math.max(24, maxY - minY + 8);
+  setStyleIfChanged(button, 'width', `${width}px`);
+  setStyleIfChanged(button, 'height', `${height}px`);
+  setStyleIfChanged(button, 'margin-left', `${-width * 0.5}px`);
+  setStyleIfChanged(button, 'margin-top', `${-height * 0.5}px`);
+  setProjectedMapButtonHitBounds(button, clientX, clientY, width, height);
+}
+
+function setStyleIfChanged(
+  element: HTMLElement,
+  property: string,
+  value: string,
+): void {
+  if (element.style.getPropertyValue(property) !== value) {
+    element.style.setProperty(property, value);
   }
 }
 

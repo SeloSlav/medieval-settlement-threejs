@@ -19,6 +19,8 @@ export type MapStampKey = `${MapStampResourceKind}-${MapStampVariant}`;
 export type MapPoint = { x: number; y: number };
 export type WorldPoint = { x: number; z: number };
 
+export const MAP_ART_RESOLUTION = 512;
+
 const RESIDENCE_WIDTH = 6.6;
 const RESIDENCE_DEPTH = 7.4;
 
@@ -40,6 +42,14 @@ export function mapStampKey(
 ): MapStampKey | null {
   const resource = resourceKindForMapMarker(marker);
   return resource ? `${resource}-${isRich ? 'rich' : 'normal'}` : null;
+}
+
+export function mapStampArtSize(
+  marker: WorldMapMarker,
+  isRich: boolean,
+): number {
+  if (isRich) return 42;
+  return marker.quarryKind === 'large' ? 31 : 27;
 }
 
 export function worldToMapPixels(

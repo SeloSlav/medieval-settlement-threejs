@@ -8,6 +8,8 @@
     this.domElement = domElement;
     window.addEventListener('keydown', this.onKeyDown);
     window.addEventListener('keyup', this.onKeyUp);
+    window.addEventListener('blur', this.onWindowBlur);
+    document.addEventListener('visibilitychange', this.onVisibilityChange);
     domElement.addEventListener('pointermove', this.onPointerMove);
   }
 
@@ -22,6 +24,8 @@
   dispose(): void {
     window.removeEventListener('keydown', this.onKeyDown);
     window.removeEventListener('keyup', this.onKeyUp);
+    window.removeEventListener('blur', this.onWindowBlur);
+    document.removeEventListener('visibilitychange', this.onVisibilityChange);
     this.domElement.removeEventListener('pointermove', this.onPointerMove);
     this.keys.clear();
   }
@@ -35,6 +39,14 @@
 
   private readonly onKeyUp = (event: KeyboardEvent): void => {
     this.keys.delete(event.key.toLowerCase());
+  };
+
+  private readonly onWindowBlur = (): void => {
+    this.keys.clear();
+  };
+
+  private readonly onVisibilityChange = (): void => {
+    if (document.hidden) this.keys.clear();
   };
 
   private readonly onPointerMove = (event: PointerEvent): void => {

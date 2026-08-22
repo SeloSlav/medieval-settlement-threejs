@@ -7,6 +7,7 @@ import {
 
 const VIEWPORT_MARGIN = 12;
 const TOOLTIP_GAP = 8;
+export const UI_TOOLTIP_REPOSITION_EVENT = 'ui-tooltip-reposition';
 
 type TooltipResourceItem = {
   kind: ResourceCostKind;
@@ -136,6 +137,7 @@ export function mountTooltips(root: HTMLElement): () => void {
   root.addEventListener('mouseout', onMouseOut);
   root.addEventListener('focusin', onFocusIn);
   root.addEventListener('focusout', onFocusOut);
+  root.addEventListener(UI_TOOLTIP_REPOSITION_EVENT, onReposition);
   window.addEventListener('resize', onReposition);
   window.addEventListener('scroll', onReposition, true);
 
@@ -146,6 +148,7 @@ export function mountTooltips(root: HTMLElement): () => void {
     root.removeEventListener('mouseout', onMouseOut);
     root.removeEventListener('focusin', onFocusIn);
     root.removeEventListener('focusout', onFocusOut);
+    root.removeEventListener(UI_TOOLTIP_REPOSITION_EVENT, onReposition);
     window.removeEventListener('resize', onReposition);
     window.removeEventListener('scroll', onReposition, true);
   };

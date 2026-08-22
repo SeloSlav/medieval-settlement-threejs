@@ -2845,27 +2845,6 @@ select:focus-visible {
   box-shadow: none;
 }
 
-.terrain-minimap__header {
-  margin: 0;
-  padding: 9px 12px;
-}
-
-.terrain-minimap__title {
-  color: #dfd3bb;
-  font-family: var(--ui-display);
-  font-size: 14px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: none;
-}
-
-.terrain-minimap__hint {
-  color: #8c8474;
-  font-size: 9px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-
 .terrain-minimap__map-wrap {
   border: 0;
   border-radius: 0;

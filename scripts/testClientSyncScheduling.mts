@@ -586,6 +586,7 @@ function testTreeVisualSyncSkipsUnchangedSnapshots(): void {
   let fenceSyncCalls = 0;
   let forestClearanceCalls = 0;
   let collisionInvalidations = 0;
+  let forestBatchCalls = 0;
   const deps = {
     sceneManager: null,
     buildingMarkers: {
@@ -600,6 +601,10 @@ function testTreeVisualSyncSkipsUnchangedSnapshots(): void {
       },
     },
     forestVisualSync: {
+      batchUpdates: <T>(applyUpdates: () => T): T => {
+        forestBatchCalls += 1;
+        return applyUpdates();
+      },
       syncAll: () => {
         syncAllCalls += 1;
       },
@@ -640,6 +645,8 @@ function testTreeVisualSyncSkipsUnchangedSnapshots(): void {
   assert.equal(buildingSyncCalls, 0);
   assert.equal(fenceSyncCalls, 1);
   assert.equal(forestClearanceCalls, 1);
+  assert.equal(forestBatchCalls, 1,
+    'initial tree ownership and placement clearance should share one forest flush');
   assert.equal(collisionInvalidations, 1);
 
   const tickOnly = { ...first, tick: 1 };
@@ -810,6 +817,24 @@ function testTreeVisualSyncSkipsUnchangedSnapshots(): void {
   assert.equal(removeLayoutCalls, 1, 'tree deletion should issue one incremental visual batch');
   assert.deepEqual(removedLayouts, [1]);
   assert.equal(syncTreeCalls, 1);
+
+  const campTrees = new Map(treeCleared.trees);
+  campTrees.delete('tree-2');
+  const campBuildings = new Map(treeCleared.buildings);
+  campBuildings.set('founders-camp', {
+    ...campBuildings.get('building-1')!,
+    id: 'founders-camp',
+    kind: 'founders_camp',
+  });
+  applier.apply(
+    deps as never,
+    { ...treeCleared, tick: 9, trees: campTrees, buildings: campBuildings },
+    treeCleared,
+  );
+  assert.equal(forestBatchCalls, 2,
+    'a camp building and its authoritative tree removals must share one forest flush');
+  assert.equal(removeLayoutCalls, 2);
+  assert.deepEqual(removedLayouts, [2]);
 }
 
 function testQuantizedStockVisualSignatures(): void {

@@ -393,6 +393,7 @@ export async function bootstrapAppSession(
       || (buildingTool?.shouldBlockCameraInput(event) ?? false)
       || (burgageTool?.shouldBlockCameraInput(event) ?? false)
       || (farmFieldTool?.shouldBlockCameraInput(event) ?? false),
+    isIllustratedMapReady: () => sceneManager.isIllustratedMapReady(),
     continuousRenderLoop: import.meta.env.VITE_E2E_TEST !== '1',
     onViewChanged: () => {
       if (firstPersonController?.isActive()) return;
@@ -1367,6 +1368,7 @@ export async function bootstrapAppSession(
     getCamera: () => sceneManager.camera,
     getZoomPercent: () => cameraController.getZoomPercent(),
     isIllustratedMapActive: () => cameraController.isIllustratedMapActive(),
+    getIllustratedMapElevation: () => cameraController.getTargetPosition().y,
     getGameState: () => liveContext.gameState,
     getRoadNetwork: () => roadNetwork,
     getFocus: () => resolveWorldMapFocus(cameraController, firstPersonController),

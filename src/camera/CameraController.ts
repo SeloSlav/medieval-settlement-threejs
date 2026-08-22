@@ -12,6 +12,8 @@ import {
   CLOSE_PAN_SPEED_SCALE,
   RTS_ORBIT_DISTANCE,
   RTS_ORBIT_PITCH,
+  computeIllustratedMapFarPlane,
+  computeIllustratedMapZoomStops,
   computeMaxOrbitDistance,
   evalCloseBlendFromDistance,
 } from './CameraCurves.ts';
@@ -25,6 +27,10 @@ const MIN_DISTANCE = BASELINE_ORBIT_DISTANCE / (MAX_ZOOM_PERCENT / BASELINE_ZOOM
 const LIVE_WORLD_MAX_DISTANCE = BASELINE_ORBIT_DISTANCE
   / (LIVE_WORLD_MIN_ZOOM_PERCENT / BASELINE_ZOOM_PERCENT);
 const ZOOM_MULTIPLIER = 1.18;
+const WHEEL_ZOOM_STEP_DELTA = 80;
+const WHEEL_LINE_PIXEL_SCALE = 32;
+const WHEEL_PAGE_PIXEL_FALLBACK = 800;
+const WHEEL_ACCUMULATION_TIMEOUT_MS = 240;
 const DISTANCE_EPSILON = 0.01;
 const ROTATE_SENSITIVITY = 0.005;
 const PITCH_SENSITIVITY = 0.004;
@@ -55,6 +61,7 @@ export type CameraControllerConfig = {
   getHeightAt: (x: number, z: number) => number;
   getCursorOverride?: () => string | null;
   shouldIgnoreInput?: (event: MouseEvent | WheelEvent) => boolean;
+  isIllustratedMapReady?: () => boolean;
   onViewChanged?: () => void;
   onIllustratedMapModeChanged?: (active: boolean) => void;
   /** The owner already renders every animation frame, so view changes only invalidate that frame. */
@@ -64,6 +71,8 @@ export type CameraControllerConfig = {
 export class CameraController {
   private readonly config: CameraControllerConfig;
   private readonly liveWorldMaxDistance: number;
+  private illustratedMapZoomStops: readonly number[] = [];
+  private illustratedMapFarPlane = 0;
   private currentDistance = RTS_ORBIT_DISTANCE;
   private currentYaw = -Math.PI / 2;
   private currentPitch = RTS_ORBIT_PITCH;
@@ -84,8 +93,18 @@ export class CameraController {
   private pendingRotateY = 0;
   private activeCursor = '';
   private viewChangeFrame = 0;
+  private viewportChangeFrame = 0;
   private wheelNavigationUntilMs = 0;
+  private accumulatedWheelDeltaY = 0;
+  private lastWheelDeltaTimeMs = Number.NEGATIVE_INFINITY;
   private illustratedMapActive = false;
+  private illustratedMapZoomTier = 0;
+  private worldFarBeforeIllustratedMap: number | null = null;
+  private framedAspect = Number.NaN;
+  private framedYaw = Number.NaN;
+  private framedPitch = Number.NaN;
+  private framedTargetX = Number.NaN;
+  private framedTargetZ = Number.NaN;
 
   constructor(config: CameraControllerConfig) {
     this.config = config;
@@ -98,6 +117,7 @@ export class CameraController {
       ),
     );
     this.config.target.set(0, config.getHeightAt(0, 0), 0);
+    this.refreshIllustratedMapFraming(true);
     this.applyRtsOrbitView();
     config.domElement.addEventListener('mousedown', this.onMouseDown, { capture: true });
     config.domElement.addEventListener('wheel', this.onWheel, { passive: false, capture: true });
@@ -106,6 +126,7 @@ export class CameraController {
     window.addEventListener('mouseup', this.onMouseUp);
     window.addEventListener('keydown', this.onKeyDown);
     window.addEventListener('keyup', this.onKeyUp);
+    window.addEventListener('resize', this.onViewportResize);
   }
 
   getZoomPercent(): number {
@@ -168,6 +189,7 @@ export class CameraController {
     this.pendingPanY = 0;
     this.pendingRotateX = 0;
     this.pendingRotateY = 0;
+    this.resetWheelAccumulator();
     this.keys.clear();
   }
 
@@ -248,6 +270,10 @@ export class CameraController {
       cancelAnimationFrame(this.viewChangeFrame);
       this.viewChangeFrame = 0;
     }
+    if (this.viewportChangeFrame !== 0) {
+      cancelAnimationFrame(this.viewportChangeFrame);
+      this.viewportChangeFrame = 0;
+    }
     const el = this.config.domElement;
     el.removeEventListener('mousedown', this.onMouseDown, true);
     el.removeEventListener('wheel', this.onWheel, true);
@@ -256,10 +282,9 @@ export class CameraController {
     window.removeEventListener('mouseup', this.onMouseUp);
     window.removeEventListener('keydown', this.onKeyDown);
     window.removeEventListener('keyup', this.onKeyUp);
-    if (this.illustratedMapActive) {
-      this.illustratedMapActive = false;
-      this.config.onIllustratedMapModeChanged?.(false);
-    }
+    window.removeEventListener('resize', this.onViewportResize);
+    if (this.illustratedMapActive) this.exitIllustratedMap();
+    else this.restoreWorldProjection();
     el.style.cursor = '';
     document.body.style.cursor = '';
   }
@@ -329,39 +354,81 @@ export class CameraController {
     if (!this.inputEnabled) return;
     if (this.config.shouldIgnoreInput?.(event)) return;
     event.preventDefault();
-    if (event.deltaY !== 0) {
-      const steps = Math.max(1, Math.floor(Math.abs(event.deltaY) / 80));
-      if (event.deltaY > 0) {
-        for (let i = 0; i < steps; i++) {
-          if (this.illustratedMapActive) break;
-          if (this.currentDistance >= this.liveWorldMaxDistance - DISTANCE_EPSILON) {
-            this.enterIllustratedMap();
-            break;
-          }
-          this.currentDistance = THREE.MathUtils.clamp(
-            this.currentDistance * ZOOM_MULTIPLIER,
-            this.getMinDistance(),
-            this.liveWorldMaxDistance,
-          );
+    const distanceBefore = this.currentDistance;
+    const mapActiveBefore = this.illustratedMapActive;
+    const zoomDirection = this.consumeWheelZoomDirection(event);
+    if (zoomDirection > 0) {
+      if (this.illustratedMapActive) {
+        this.stepIllustratedMapZoom(1);
+      } else if (this.currentDistance >= this.liveWorldMaxDistance - DISTANCE_EPSILON) {
+        this.enterIllustratedMap();
+      } else {
+        this.currentDistance = THREE.MathUtils.clamp(
+          this.currentDistance * ZOOM_MULTIPLIER,
+          this.getMinDistance(),
+          this.liveWorldMaxDistance,
+        );
+      }
+    } else if (zoomDirection < 0) {
+      if (this.illustratedMapActive) {
+        if (this.illustratedMapZoomTier > 0) {
+          this.stepIllustratedMapZoom(-1);
+        } else {
+          this.exitIllustratedMap();
         }
       } else {
-        for (let i = 0; i < steps; i++) {
-          if (this.illustratedMapActive) {
-            this.exitIllustratedMap();
-            continue;
-          }
-          this.currentDistance = this.clampDistance(
-            this.currentDistance / ZOOM_MULTIPLIER,
-          );
-        }
+        this.currentDistance = this.clampDistance(
+          this.currentDistance / ZOOM_MULTIPLIER,
+        );
       }
     }
+    let viewChanged = this.currentDistance !== distanceBefore
+      || this.illustratedMapActive !== mapActiveBefore;
     if (event.deltaX !== 0) {
       this.pan(event.deltaX * 0.03, 0);
+      viewChanged = true;
     }
+    if (!viewChanged) return;
     this.wheelNavigationUntilMs = performance.now() + WHEEL_NAVIGATION_GRACE_MS;
     this.commitViewChange();
   };
+
+  private consumeWheelZoomDirection(event: WheelEvent): -1 | 0 | 1 {
+    const deltaY = this.normalizeWheelDelta(event.deltaY, event.deltaMode);
+    if (!Number.isFinite(deltaY) || deltaY === 0) return 0;
+    const now = performance.now();
+    const directionChanged = this.accumulatedWheelDeltaY !== 0
+      && Math.sign(deltaY) !== Math.sign(this.accumulatedWheelDeltaY);
+    if (
+      directionChanged
+      || now - this.lastWheelDeltaTimeMs > WHEEL_ACCUMULATION_TIMEOUT_MS
+    ) {
+      this.accumulatedWheelDeltaY = 0;
+    }
+    this.lastWheelDeltaTimeMs = now;
+    this.accumulatedWheelDeltaY += deltaY;
+    if (Math.abs(this.accumulatedWheelDeltaY) < WHEEL_ZOOM_STEP_DELTA) return 0;
+
+    const direction = Math.sign(this.accumulatedWheelDeltaY) as -1 | 1;
+    // Discard excess from this event: even a coarse wheel/page delta owns at
+    // most one zoom transition, while trackpad micro-deltas still accumulate.
+    this.accumulatedWheelDeltaY = 0;
+    return direction;
+  }
+
+  private normalizeWheelDelta(delta: number, deltaMode: number): number {
+    if (deltaMode === 1) return delta * WHEEL_LINE_PIXEL_SCALE;
+    if (deltaMode === 2) {
+      const pagePixels = this.config.domElement.clientHeight || WHEEL_PAGE_PIXEL_FALLBACK;
+      return delta * pagePixels;
+    }
+    return delta;
+  }
+
+  private resetWheelAccumulator(): void {
+    this.accumulatedWheelDeltaY = 0;
+    this.lastWheelDeltaTimeMs = Number.NEGATIVE_INFINITY;
+  }
 
   private readonly onKeyDown = (event: KeyboardEvent): void => {
     if (!this.inputEnabled) return;
@@ -375,6 +442,18 @@ export class CameraController {
 
   private readonly onKeyUp = (event: KeyboardEvent): void => {
     this.keys.delete(event.key.toLowerCase());
+  };
+
+  private readonly onViewportResize = (): void => {
+    if (this.viewportChangeFrame !== 0) return;
+    this.viewportChangeFrame = requestAnimationFrame(() => {
+      this.viewportChangeFrame = 0;
+      if (!this.illustratedMapActive) return;
+      // SceneManager's synchronous resize listener owns camera.aspect. Run on
+      // the following frame so listener ordering cannot leave us using the old
+      // projection while recomputing the terminal desk fit.
+      this.commitViewChange();
+    });
   };
 
   private readonly onContextMenu = (event: Event): void => event.preventDefault();
@@ -421,25 +500,110 @@ export class CameraController {
   }
 
   private clampDistance(value: number): number {
-    if (this.illustratedMapActive) return this.liveWorldMaxDistance;
+    if (this.illustratedMapActive) {
+      return THREE.MathUtils.clamp(
+        value,
+        this.illustratedMapZoomStops[0],
+        this.illustratedMapZoomStops[this.illustratedMapZoomStops.length - 1],
+      );
+    }
     return THREE.MathUtils.clamp(value, this.getMinDistance(), this.liveWorldMaxDistance);
   }
 
   private enterIllustratedMap(): void {
     if (this.illustratedMapActive) return;
+    if (this.config.isIllustratedMapReady?.() === false) return;
+    this.refreshIllustratedMapFraming(true);
     this.illustratedMapActive = true;
+    this.illustratedMapZoomTier = 0;
     // This is a render-owner handoff, not another camera move. Keeping the
     // exact overview pose makes the parchment feel as though it unfolded over
     // the terrain and preserves the established readable map scale.
-    this.currentDistance = this.liveWorldMaxDistance;
+    this.currentDistance = this.illustratedMapZoomStops[0];
+    this.worldFarBeforeIllustratedMap = this.config.camera.far;
+    this.updateIllustratedMapProjection();
     this.config.onIllustratedMapModeChanged?.(true);
   }
 
   private exitIllustratedMap(): void {
     if (!this.illustratedMapActive) return;
     this.illustratedMapActive = false;
+    this.illustratedMapZoomTier = 0;
     this.currentDistance = this.liveWorldMaxDistance;
+    this.restoreWorldProjection();
     this.config.onIllustratedMapModeChanged?.(false);
+  }
+
+  private stepIllustratedMapZoom(direction: -1 | 1): void {
+    if (!this.illustratedMapActive) return;
+    const lastTier = this.illustratedMapZoomStops.length - 1;
+    this.illustratedMapZoomTier = THREE.MathUtils.clamp(
+      this.illustratedMapZoomTier + direction,
+      0,
+      lastTier,
+    );
+    this.currentDistance = this.illustratedMapZoomStops[this.illustratedMapZoomTier];
+  }
+
+  private refreshIllustratedMapFraming(force = false): void {
+    const camera = this.config.camera;
+    const aspect = Number.isFinite(camera.aspect) && camera.aspect > 0
+      ? camera.aspect
+      : 1;
+    const target = this.config.target;
+    if (
+      !force
+      && aspect === this.framedAspect
+      && this.currentYaw === this.framedYaw
+      && this.currentPitch === this.framedPitch
+      && target.x === this.framedTargetX
+      && target.z === this.framedTargetZ
+    ) return;
+
+    this.framedAspect = aspect;
+    this.framedYaw = this.currentYaw;
+    this.framedPitch = this.currentPitch;
+    this.framedTargetX = target.x;
+    this.framedTargetZ = target.z;
+    this.illustratedMapZoomStops = computeIllustratedMapZoomStops(
+      this.config.bounds,
+      DEFAULT_FOV,
+      this.liveWorldMaxDistance,
+      {
+        aspect,
+        yaw: this.currentYaw,
+        pitch: this.currentPitch,
+        targetX: target.x,
+        targetZ: target.z,
+      },
+    );
+    this.illustratedMapFarPlane = computeIllustratedMapFarPlane(
+      this.config.bounds,
+      this.illustratedMapZoomStops[this.illustratedMapZoomStops.length - 1],
+    );
+    if (!this.illustratedMapActive) return;
+    this.currentDistance = this.illustratedMapZoomStops[this.illustratedMapZoomTier];
+    this.updateIllustratedMapProjection();
+  }
+
+  private updateIllustratedMapProjection(): void {
+    if (this.worldFarBeforeIllustratedMap === null) return;
+    const mapFar = Math.max(
+      this.worldFarBeforeIllustratedMap,
+      this.illustratedMapFarPlane,
+    );
+    if (Math.abs(this.config.camera.far - mapFar) <= DISTANCE_EPSILON) return;
+    this.config.camera.far = mapFar;
+    this.config.camera.updateProjectionMatrix();
+  }
+
+  private restoreWorldProjection(): void {
+    if (this.worldFarBeforeIllustratedMap === null) return;
+    const worldFar = this.worldFarBeforeIllustratedMap;
+    this.worldFarBeforeIllustratedMap = null;
+    if (Math.abs(this.config.camera.far - worldFar) <= DISTANCE_EPSILON) return;
+    this.config.camera.far = worldFar;
+    this.config.camera.updateProjectionMatrix();
   }
 
   private clampTarget(): void {
@@ -455,6 +619,7 @@ export class CameraController {
   }
 
   private updateCamera(): void {
+    if (this.illustratedMapActive) this.refreshIllustratedMapFraming();
     const target = this.config.target;
     const closeBlend = this.getCloseBlend();
 

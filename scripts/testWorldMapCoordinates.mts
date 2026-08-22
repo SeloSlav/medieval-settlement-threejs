@@ -11,8 +11,17 @@ import {
   SETTLEMENT_RESIDENCE_LINK_RADIUS,
 } from '../src/map/settlementMapMarker.ts';
 import { SETTLEMENT_MAP_ICON_HTML } from '../src/map/settlementMapIconArt.ts';
+import { InputManager } from '../src/input/InputManager.ts';
+import { IllustratedMapResourceHover } from '../src/map/IllustratedMapResourceHover.ts';
+import { UI_TOOLTIP_REPOSITION_EVENT } from '../src/ui/tooltips.ts';
+import {
+  clearProjectedMapButtonHitBounds,
+  projectedMapButtonHitDistanceSquared,
+  setProjectedMapButtonHitBounds,
+} from '../src/map/projectedMapButtonHitBounds.ts';
 import {
   MAP_STAMP_RESOURCE_KINDS,
+  mapStampArtSize,
   mapStampKey,
   residenceFootprintCorners,
   worldToMapPixels,
@@ -20,6 +29,150 @@ import {
 
 const EPSILON = 1e-12;
 const bounds = { minX: -100, maxX: 100, minZ: -200, maxZ: 200 };
+
+type FakeListener = (event: Record<string, unknown>) => void;
+
+class FakeDomEventTarget {
+  private readonly listeners = new Map<string, Set<FakeListener>>();
+
+  addEventListener(type: string, listener: FakeListener): void {
+    const listeners = this.listeners.get(type) ?? new Set<FakeListener>();
+    listeners.add(listener);
+    this.listeners.set(type, listeners);
+  }
+
+  removeEventListener(type: string, listener: FakeListener): void {
+    this.listeners.get(type)?.delete(listener);
+  }
+
+  dispatch(type: string, event: Record<string, unknown> = {}): void {
+    for (const listener of this.listeners.get(type) ?? []) listener(event);
+  }
+}
+
+const previousWindow = Object.getOwnPropertyDescriptor(globalThis, 'window');
+const previousDocument = Object.getOwnPropertyDescriptor(globalThis, 'document');
+const fakeWindow = new FakeDomEventTarget();
+const fakeDocument = Object.assign(new FakeDomEventTarget(), { hidden: false });
+const fakeCanvas = new FakeDomEventTarget();
+Object.defineProperty(globalThis, 'window', {
+  configurable: true,
+  value: fakeWindow,
+});
+Object.defineProperty(globalThis, 'document', {
+  configurable: true,
+  value: fakeDocument,
+});
+try {
+  const input = new InputManager(fakeCanvas as unknown as HTMLElement);
+  fakeWindow.dispatch('keydown', {
+    key: 'g',
+    target: { tagName: 'DIV', isContentEditable: false },
+  });
+  assert.equal(input.isDown('g'), true, 'the held-map key should register while focused');
+  fakeWindow.dispatch('blur');
+  assert.equal(input.isDown('g'), false, 'window blur must release a held map key');
+  fakeWindow.dispatch('keydown', {
+    key: 'g',
+    target: { tagName: 'DIV', isContentEditable: false },
+  });
+  fakeDocument.hidden = true;
+  fakeDocument.dispatch('visibilitychange');
+  assert.equal(input.isDown('g'), false, 'hiding the page must release a held map key');
+  input.dispose();
+} finally {
+  if (previousWindow) Object.defineProperty(globalThis, 'window', previousWindow);
+  else delete (globalThis as { window?: unknown }).window;
+  if (previousDocument) Object.defineProperty(globalThis, 'document', previousDocument);
+  else delete (globalThis as { document?: unknown }).document;
+}
+
+class FakeMouseEvent extends Event {
+  readonly relatedTarget: EventTarget | null;
+
+  constructor(type: string, init: EventInit & { relatedTarget?: EventTarget | null } = {}) {
+    super(type, init);
+    this.relatedTarget = init.relatedTarget ?? null;
+  }
+}
+
+class HoverAnchor extends EventTarget {
+  hidden = false;
+
+  getBoundingClientRect(): DOMRect {
+    return {
+      x: 80,
+      y: 80,
+      left: 80,
+      top: 80,
+      right: 120,
+      bottom: 120,
+      width: 40,
+      height: 40,
+      toJSON: () => ({}),
+    } as DOMRect;
+  }
+}
+
+const hoverAnchor = new HoverAnchor();
+const hoverRenderer = new EventTarget();
+const hoverWindow = new EventTarget() as EventTarget & { MouseEvent: typeof FakeMouseEvent };
+hoverWindow.MouseEvent = FakeMouseEvent;
+const hoverUiRoot = new EventTarget() as EventTarget & {
+  ownerDocument: { defaultView: typeof hoverWindow };
+  querySelectorAll: () => HoverAnchor[];
+};
+hoverUiRoot.ownerDocument = { defaultView: hoverWindow };
+hoverUiRoot.querySelectorAll = () => [hoverAnchor];
+let illustratedMapActive = true;
+let hoverBlocked = false;
+let mouseOverCount = 0;
+let mouseOutCount = 0;
+let repositionCount = 0;
+hoverAnchor.addEventListener('mouseover', () => { mouseOverCount += 1; });
+hoverAnchor.addEventListener('mouseout', () => { mouseOutCount += 1; });
+hoverUiRoot.addEventListener(UI_TOOLTIP_REPOSITION_EVENT, () => { repositionCount += 1; });
+const illustratedHover = new IllustratedMapResourceHover({
+  uiRoot: hoverUiRoot as unknown as HTMLElement,
+  domElement: hoverRenderer as unknown as HTMLElement,
+  isActive: () => illustratedMapActive,
+  isBlocked: () => hoverBlocked,
+});
+setProjectedMapButtonHitBounds(
+  hoverAnchor as unknown as HTMLButtonElement,
+  100,
+  100,
+  40,
+  40,
+);
+assert.equal(
+  projectedMapButtonHitDistanceSquared(
+    hoverAnchor as unknown as HTMLButtonElement,
+    100,
+    100,
+  ),
+  0,
+  'the projected hit cache should resolve the stamp center without a layout read',
+);
+const pointerMove = new Event('pointermove');
+Object.defineProperties(pointerMove, {
+  clientX: { value: 100 },
+  clientY: { value: 100 },
+});
+hoverRenderer.dispatchEvent(pointerMove);
+illustratedHover.update();
+assert.equal(mouseOverCount, 1, 'a renderer-side stamp hit should activate its tooltip anchor');
+illustratedHover.update();
+assert.equal(repositionCount, 1, 'an active card should follow its projected stamp each frame');
+assert.equal(pointerMove.defaultPrevented, false, 'hover hit testing must not consume camera input');
+hoverBlocked = true;
+illustratedHover.update();
+assert.equal(mouseOutCount, 1, 'a blocking overlay should close the active resource card');
+hoverBlocked = false;
+illustratedMapActive = false;
+illustratedHover.update();
+illustratedHover.dispose();
+clearProjectedMapButtonHitBounds(hoverAnchor as unknown as HTMLButtonElement);
 
 assert.deepEqual(
   worldToMapPercent(0, 0, bounds),
@@ -99,6 +252,18 @@ const worldMapUiSource = readFileSync(
   new URL('../src/app/worldMapIcons.ts', import.meta.url),
   'utf8',
 );
+const illustratedResourceHoverSource = readFileSync(
+  new URL('../src/map/IllustratedMapResourceHover.ts', import.meta.url),
+  'utf8',
+);
+const mapIconProjectionSource = readFileSync(
+  new URL('../src/map/mapIconProjection.ts', import.meta.url),
+  'utf8',
+);
+const mapIconCss = readFileSync(
+  new URL('../src/ui/mapIcons.css', import.meta.url),
+  'utf8',
+);
 
 assert.match(
   terrainMinimapSource,
@@ -107,8 +272,10 @@ assert.match(
 );
 for (const renderer of [
   'drawReliefLines',
+  'drawMountainRanges',
   'drawGrassGlyphs',
   'drawForestGlyphs',
+  'drawWoodlandClump',
   'drawWaterHatching',
 ] as const) {
   assert.match(
@@ -121,6 +288,36 @@ assert.match(
   terrainMinimapSource,
   /forestDensityAt\(/,
   'forest ink should follow the generated forest density field',
+);
+assert.match(
+  terrainMinimapSource,
+  /dataset\.terrainFieldContract = ILLUSTRATED_TERRAIN_FIELD_CONTRACT/,
+  'the terrain canvas should expose the stable world-space field contract used for its ink',
+);
+assert.match(
+  terrainMinimapSource,
+  /dataset\.mountainRanges = String\(diagnostics\.elevation\.mountainRangeCount\)/,
+  'the one-time terrain bake should publish its mountain-range diagnostic count',
+);
+assert.match(
+  terrainMinimapSource,
+  /findStrongestGuaranteedMountainCandidate\(/,
+  'the one-time terrain bake should exhaustively audit sampled summits beyond its sparse glyph lattice',
+);
+assert.match(
+  terrainMinimapSource,
+  /forcedMountainRangeCount = 1/,
+  'an uncovered prominent summit should receive one deterministic non-random mountain range',
+);
+assert.match(
+  terrainMinimapSource,
+  /dataset\.mountainSummitCovered = String\(diagnostics\.elevation\.summitCoverageGuaranteed\)/,
+  'the terrain canvas should expose whether its highest eligible summit was covered',
+);
+assert.match(
+  terrainMinimapSource,
+  /dataset\.woodlandClumps = String\(diagnostics\.woodland\.clumpCount\)/,
+  'the one-time terrain bake should publish its woodland-clump diagnostic count',
 );
 assert.match(
   terrainMinimapOverlaySource,
@@ -166,13 +363,43 @@ assert.match(
 );
 assert.match(
   illustratedPlaneSource,
-  /stampPlane\.position\.set\(centerX, 0\.12, centerZ\)/,
+  /stampPlane\.position\.set\(centerX, ILLUSTRATED_MAP_STAMP_LIFT, centerZ\)/,
   'the 3D stamp plane should sit physically above the parchment',
 );
 assert.match(
   worldMapUiSource,
-  /isVisibilityBlocked: \(\) => isIllustratedMapActive\(\)/,
-  'legacy projected resource markers should be hidden while woodcut stamps own map mode',
+  /getIllustratedMapY: \(\) => getIllustratedMapElevation\(\) \+ ILLUSTRATED_MAP_STAMP_LIFT/,
+  'illustrated-map hover targets should project onto the resource stamp plane',
+);
+assert.match(
+  worldMapUiSource,
+  /isIllustratedMapActive\(\)[\s\S]*?\? isOverlayBlocked\(placementGate\)[\s\S]*?: isWorldResourceIconVisibilityBlocked\(placementGate\)/,
+  'map-mode hover targets should remain available unless a real overlay blocks them',
+);
+assert.match(
+  illustratedResourceHoverSource,
+  /domElement\.addEventListener\('pointermove'/,
+  'illustrated resource hover should be hit-tested from the renderer input surface',
+);
+assert.match(
+  illustratedResourceHoverSource,
+  /dispatchEvent\(new MouseEventConstructor\('mouseover'/,
+  'illustrated resource hits should reuse the shared tooltip anchors',
+);
+assert.match(
+  mapIconProjectionSource,
+  /syncProjectedButtonHitArea\(/,
+  'projected hover bounds should follow each stamp through camera movement',
+);
+assert.match(
+  mapIconCss,
+  /\.quarry-map-icons\.is-illustrated-map[\s\S]*?pointer-events:\s*none;/,
+  'transparent map hover bounds must not swallow wheel, pan, or orbit controls',
+);
+assert.doesNotMatch(
+  terrainMinimapOverlaySource,
+  /terrain-minimap__(?:header|title|hint)|>World map<|>Hold G</,
+  'the held first-person map should show only the map presentation',
 );
 assert.doesNotMatch(
   terrainMinimapSource,
@@ -212,6 +439,29 @@ assert.equal(
   }, false),
   'stone-normal',
 );
+assert.equal(
+  mapStampArtSize({
+    id: 'rich-game',
+    kind: 'game',
+    label: 'Rich game',
+    x: 0,
+    z: 0,
+  }, true),
+  42,
+  'rich hover bounds should use the same art size as rich figure stamps',
+);
+assert.equal(
+  mapStampArtSize({
+    id: 'large-stone',
+    kind: 'quarry',
+    quarryKind: 'large',
+    label: 'Large stone',
+    x: 0,
+    z: 0,
+  }, false),
+  31,
+  'large normal quarry hover bounds should use the same art size as their stamp',
+);
 const residenceCorners = residenceFootprintCorners({ x: 10, z: 20, yaw: 0 });
 assert.deepEqual(
   residenceCorners,
@@ -239,8 +489,13 @@ assert.match(
 );
 assert.match(
   terrainMinimapCss,
+  /\.terrain-minimap__map-surface\s*\{[\s\S]*?top:\s*50%;[\s\S]*?left:\s*50%;[\s\S]*?width:\s*min\([\s\S]*?aspect-ratio:\s*1\s*\/\s*1;[\s\S]*?transform:\s*translate\(-50%,\s*-50%\);/,
+  'the held-G parchment should remain a centered square rather than stretch with the viewport',
+);
+assert.doesNotMatch(
+  terrainMinimapCss,
   /\.terrain-minimap__map-surface canvas\s*\{[\s\S]*?object-fit:\s*fill;/,
-  'the terrain canvas must share the fullscreen coordinate frame used by marker percentages',
+  'the held-G parchment canvases must not be stretched independently',
 );
 assert.match(
   terrainMinimapCss,
