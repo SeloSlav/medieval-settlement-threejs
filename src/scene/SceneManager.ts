@@ -803,12 +803,16 @@ export class SceneManager {
     this.sky.updateResolution(width * pixelRatio, height * pixelRatio);
   }
 
-  setIllustratedMapImage(canvas: HTMLCanvasElement, bounds: TerrainBounds): void {
-    this.illustratedMap.setCanvas(canvas, bounds);
+  setIllustratedMapImage(
+    canvas: HTMLCanvasElement,
+    stampCanvas: HTMLCanvasElement,
+    bounds: TerrainBounds,
+  ): void {
+    this.illustratedMap.setCanvases(canvas, stampCanvas, bounds);
   }
 
   invalidateIllustratedMapImage(): void {
-    this.illustratedMap.invalidateTexture();
+    this.illustratedMap.invalidateTextures();
   }
 
   setIllustratedMapActive(active: boolean): void {

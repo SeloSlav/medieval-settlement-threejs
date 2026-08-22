@@ -403,6 +403,7 @@ export async function bootstrapAppSession(
       document.documentElement.dataset.cameraView = active
         ? 'illustrated-map'
         : 'world';
+      toolbar?.setZoomPercent(cameraController.getHudZoomPercent());
     },
   });
 
@@ -1372,12 +1373,13 @@ export async function bootstrapAppSession(
     clayDepositSites: sceneManager.worldLayout.clayDepositLayout.sites,
     getCamera: () => sceneManager.camera,
     getZoomPercent: () => cameraController.getZoomPercent(),
+    isIllustratedMapActive: () => cameraController.isIllustratedMapActive(),
     getGameState: () => liveContext.gameState,
     getRoadNetwork: () => roadNetwork,
     getFocus: () => resolveWorldMapFocus(cameraController, firstPersonController),
     placementGate,
-    onTerrainImageReady: ({ canvas, bounds }) => {
-      sceneManager.setIllustratedMapImage(canvas, bounds);
+    onTerrainImageReady: ({ canvas, stampCanvas, bounds }) => {
+      sceneManager.setIllustratedMapImage(canvas, stampCanvas, bounds);
     },
     onTerrainImageUpdated: () => sceneManager.invalidateIllustratedMapImage(),
     onQuarrySelect: (quarryId) => resourceInspector.selectQuarry(quarryId),

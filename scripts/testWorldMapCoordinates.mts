@@ -91,6 +91,14 @@ const illustratedLayersSource = readFileSync(
   new URL('../src/map/illustratedMapLayers.ts', import.meta.url),
   'utf8',
 );
+const illustratedPlaneSource = readFileSync(
+  new URL('../src/map/IllustratedMapPlane.ts', import.meta.url),
+  'utf8',
+);
+const worldMapUiSource = readFileSync(
+  new URL('../src/app/worldMapIcons.ts', import.meta.url),
+  'utf8',
+);
 
 assert.match(
   terrainMinimapSource,
@@ -145,6 +153,26 @@ assert.match(
   terrainMinimapOverlaySource,
   /onTerrainImageUpdated\?\.\(\)/,
   'live map changes should invalidate the shared 3D canvas texture',
+);
+assert.match(
+  terrainMinimapOverlaySource,
+  /stampCanvas\.dataset\.mapLayer = 'resource-stamps'/,
+  'resource stamps should own a transparent canvas above the terrain canvas',
+);
+assert.match(
+  illustratedPlaneSource,
+  /stampPlane\.renderOrder = 2/,
+  'the 3D stamp plane should render after the parchment plane',
+);
+assert.match(
+  illustratedPlaneSource,
+  /stampPlane\.position\.set\(centerX, 0\.12, centerZ\)/,
+  'the 3D stamp plane should sit physically above the parchment',
+);
+assert.match(
+  worldMapUiSource,
+  /isVisibilityBlocked: \(\) => isIllustratedMapActive\(\)/,
+  'legacy projected resource markers should be hidden while woodcut stamps own map mode',
 );
 assert.doesNotMatch(
   terrainMinimapSource,
@@ -213,6 +241,11 @@ assert.match(
   terrainMinimapCss,
   /\.terrain-minimap__map-surface canvas\s*\{[\s\S]*?object-fit:\s*fill;/,
   'the terrain canvas must share the fullscreen coordinate frame used by marker percentages',
+);
+assert.match(
+  terrainMinimapCss,
+  /\.terrain-minimap__stamp-canvas\s*\{[\s\S]*?z-index:\s*1;[\s\S]*?opacity:\s*0\.98;/,
+  'the held-map resource canvas should stay visibly above the parchment terrain',
 );
 
 const foundersMarker = deriveSettlementMapMarker({

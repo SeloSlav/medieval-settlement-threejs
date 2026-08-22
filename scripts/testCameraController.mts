@@ -295,10 +295,14 @@ function releaseMouse(button: number): void {
   domElement.dispatch('wheel', wheelEvent({ deltaY: 120 }));
   assert.equal(controller.isIllustratedMapActive(), true,
     'one additional outward wheel step should enter the illustrated map tier');
-  assert.ok(controller.getOrbitDistance() > liveWorldDistance,
-    'the illustrated map tier should use its scale-aware full-world camera distance');
-  assert.ok(camera.far > liveWorldFarPlane,
-    'the illustrated map tier should expand projection depth for the full plane');
+  assert.equal(controller.getOrbitDistance(), liveWorldDistance,
+    'the map handoff should retain the existing maximum overview distance');
+  assert.ok(Math.abs(controller.getZoomPercent() - 30) < 1e-9,
+    'the actual camera zoom should remain at the live overview scale');
+  assert.equal(controller.getHudZoomPercent(), 29,
+    'the HUD should still identify the render-owner handoff as MAP');
+  assert.equal(camera.far, liveWorldFarPlane,
+    'the map handoff should retain the existing overview projection');
   assert.deepEqual(mapModeChanges, [true]);
 
   const mapDistance = controller.getOrbitDistance();
@@ -321,8 +325,9 @@ function releaseMouse(button: number): void {
   assert.equal(controller.isIllustratedMapActive(), false,
     'scrolling inward should return to the live 30% overview');
   assert.ok(Math.abs(controller.getZoomPercent() - 30) < 1e-9);
+  assert.ok(Math.abs(controller.getHudZoomPercent() - 30) < 1e-9);
   assert.equal(camera.far, liveWorldFarPlane,
-    'leaving the illustrated map must restore the prior projection far plane');
+    'leaving the illustrated map should preserve the unchanged projection far plane');
   assert.deepEqual(
     mapModeChanges,
     [true, false],

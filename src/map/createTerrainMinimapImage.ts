@@ -37,7 +37,8 @@ export type TerrainMinimapImage = {
 /**
  * Draws the first-person field map as deterministic parchment-and-ink art.
  * It intentionally contains geography rather than any inferred settlement or
- * town boundary; live resource/building markers remain separate DOM overlays.
+ * town boundary; the live compositor adds roads, real building footprints,
+ * and resource woodcuts to a shared canvas after this base layer is complete.
  */
 export async function createTerrainMinimapImage(
   options: TerrainMinimapImageOptions,

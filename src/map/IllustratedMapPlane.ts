@@ -14,9 +14,12 @@ export class IllustratedMapPlane {
   private readonly root = new THREE.Group();
   private readonly maxAnisotropy: number;
   private mapTexture: THREE.CanvasTexture | null = null;
+  private stampTexture: THREE.CanvasTexture | null = null;
   private mapMaterial: THREE.MeshBasicMaterial | null = null;
+  private stampMaterial: THREE.MeshBasicMaterial | null = null;
   private frameMaterial: THREE.MeshBasicMaterial | null = null;
   private plane: THREE.Mesh<THREE.PlaneGeometry, THREE.MeshBasicMaterial> | null = null;
+  private stampPlane: THREE.Mesh<THREE.PlaneGeometry, THREE.MeshBasicMaterial> | null = null;
   private frame: THREE.Mesh<THREE.PlaneGeometry, THREE.MeshBasicMaterial> | null = null;
   private debugMode: IllustratedMapDebugMode = 'final';
 
@@ -32,7 +35,11 @@ export class IllustratedMapPlane {
     return this.plane !== null;
   }
 
-  setCanvas(canvas: HTMLCanvasElement, bounds: TerrainBounds): void {
+  setCanvases(
+    canvas: HTMLCanvasElement,
+    stampCanvas: HTMLCanvasElement,
+    bounds: TerrainBounds,
+  ): void {
     this.clearPlane();
 
     const width = bounds.maxX - bounds.minX;
@@ -49,6 +56,14 @@ export class IllustratedMapPlane {
     this.mapTexture.wrapT = THREE.ClampToEdgeWrapping;
     this.mapTexture.needsUpdate = true;
 
+    this.stampTexture = new THREE.CanvasTexture(stampCanvas);
+    this.stampTexture.name = 'Illustrated strategic map resource stamps';
+    this.stampTexture.colorSpace = THREE.SRGBColorSpace;
+    this.stampTexture.anisotropy = this.maxAnisotropy;
+    this.stampTexture.wrapS = THREE.ClampToEdgeWrapping;
+    this.stampTexture.wrapT = THREE.ClampToEdgeWrapping;
+    this.stampTexture.needsUpdate = true;
+
     this.mapMaterial = new THREE.MeshBasicMaterial({
       map: this.mapTexture,
       color: 0xffffff,
@@ -58,6 +73,19 @@ export class IllustratedMapPlane {
       // At kilometer-scale map distances a tiny coplanar Y offset is not
       // representable reliably in the depth buffer, so make that ownership
       // explicit instead of inviting z-fighting.
+      depthTest: false,
+      depthWrite: false,
+    });
+    this.stampMaterial = new THREE.MeshBasicMaterial({
+      map: this.stampTexture,
+      color: 0xffffff,
+      side: THREE.DoubleSide,
+      transparent: true,
+      alphaTest: 0.01,
+      toneMapped: false,
+      // Stamps deliberately render over the parchment regardless of the
+      // terrain ink beneath them. A separate transparent plane also keeps
+      // their alpha crisp instead of baking it into the terrain texture.
       depthTest: false,
       depthWrite: false,
     });
@@ -85,13 +113,24 @@ export class IllustratedMapPlane {
     this.plane.position.set(centerX, 0, centerZ);
     this.plane.renderOrder = 1;
 
-    this.root.add(this.frame, this.plane);
+    this.stampPlane = new THREE.Mesh(
+      new THREE.PlaneGeometry(width, depth),
+      this.stampMaterial,
+    );
+    this.stampPlane.name = 'Illustrated map resource stamp layer';
+    this.stampPlane.rotation.x = -Math.PI / 2;
+    this.stampPlane.position.set(centerX, 0.12, centerZ);
+    this.stampPlane.renderOrder = 2;
+
+    this.root.add(this.frame, this.plane, this.stampPlane);
     this.applyDebugMode();
     this.scene.userData.illustratedMapContract = {
       bounds: { ...bounds },
       coordinateFrame: 'world-xz',
       renderPath: 'direct-no-post',
       resolution: `${canvas.width}x${canvas.height}`,
+      stampResolution: `${stampCanvas.width}x${stampCanvas.height}`,
+      layers: ['frame', 'parchment', 'resource-stamps'],
     };
   }
 
@@ -99,8 +138,9 @@ export class IllustratedMapPlane {
     this.root.position.y = elevation;
   }
 
-  invalidateTexture(): void {
+  invalidateTextures(): void {
     if (this.mapTexture) this.mapTexture.needsUpdate = true;
+    if (this.stampTexture) this.stampTexture.needsUpdate = true;
   }
 
   setDebugMode(mode: IllustratedMapDebugMode): void {
@@ -115,16 +155,23 @@ export class IllustratedMapPlane {
   }
 
   private applyDebugMode(): void {
-    if (!this.mapMaterial || !this.frameMaterial) return;
+    if (!this.mapMaterial || !this.frameMaterial || !this.stampMaterial) return;
     const diagnostic = this.debugMode === 'plane';
     this.mapMaterial.wireframe = diagnostic;
     this.mapMaterial.color.setHex(diagnostic ? 0xd7b86d : 0xffffff);
     this.frameMaterial.color.setHex(diagnostic ? 0x6d2418 : 0x332819);
+    this.stampMaterial.opacity = diagnostic ? 0.58 : 1;
     this.scene.background = new THREE.Color(diagnostic ? 0x101010 : 0x241f16);
     this.mapMaterial.needsUpdate = true;
+    this.stampMaterial.needsUpdate = true;
   }
 
   private clearPlane(): void {
+    if (this.stampPlane) {
+      this.root.remove(this.stampPlane);
+      disposeObject3D(this.stampPlane);
+      this.stampPlane = null;
+    }
     if (this.plane) {
       this.root.remove(this.plane);
       disposeObject3D(this.plane);
@@ -136,10 +183,14 @@ export class IllustratedMapPlane {
       this.frame = null;
     }
     this.mapMaterial?.dispose();
+    this.stampMaterial?.dispose();
     this.frameMaterial?.dispose();
     this.mapTexture?.dispose();
+    this.stampTexture?.dispose();
     this.mapTexture = null;
+    this.stampTexture = null;
     this.mapMaterial = null;
+    this.stampMaterial = null;
     this.frameMaterial = null;
   }
 }

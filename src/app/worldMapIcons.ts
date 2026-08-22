@@ -1,7 +1,10 @@
 import { ForagingMapIcons } from '../map/ForagingMapIcons.ts';
 import { QuarryMapIcons } from '../map/QuarryMapIcons.ts';
 import { TerrainMinimapOverlay } from '../map/TerrainMinimapOverlay.ts';
-import type { MinimapFocus } from '../map/TerrainMinimapOverlay.ts';
+import type {
+  MinimapFocus,
+  TerrainMinimapLayerImage,
+} from '../map/TerrainMinimapOverlay.ts';
 import {
   buildLayoutWorldMapMarkers,
   filterWorldMapForagingMarkers,
@@ -22,7 +25,6 @@ import type { PerspectiveCamera } from 'three';
 import type { Terrain } from '../terrain/Terrain.ts';
 import type { ClayDepositSite } from '../clay/ClayDepositLayout.ts';
 import type { ForestCore } from '../props/forestField.ts';
-import type { TerrainMinimapImage } from '../map/createTerrainMinimapImage.ts';
 import type { RoadNetwork } from '../roads/RoadNetwork.ts';
 
 export type WorldMapUiBundle = {
@@ -43,11 +45,12 @@ export function createWorldMapUi(options: {
   clayDepositSites?: readonly ClayDepositSite[];
   getCamera: () => PerspectiveCamera | null;
   getZoomPercent: () => number;
+  isIllustratedMapActive: () => boolean;
   getGameState: () => GameState;
   getRoadNetwork: () => RoadNetwork;
   getFocus: () => MinimapFocus;
   placementGate: PlacementInteractionGate;
-  onTerrainImageReady?: (image: TerrainMinimapImage) => void;
+  onTerrainImageReady?: (image: TerrainMinimapLayerImage) => void;
   onTerrainImageUpdated?: () => void;
   onQuarrySelect: (quarryId: string) => void;
   onForagingSelect: (nodeId: string) => void;
@@ -64,6 +67,7 @@ export function createWorldMapUi(options: {
     clayDepositSites,
     getCamera,
     getZoomPercent,
+    isIllustratedMapActive,
     getGameState,
     getRoadNetwork,
     getFocus,
@@ -89,7 +93,8 @@ export function createWorldMapUi(options: {
     getZoomPercent,
     onQuarrySelect,
     isBlocked: () => isWorldInspectionBlocked(placementGate),
-    isVisibilityBlocked: () => isWorldResourceIconVisibilityBlocked(placementGate),
+    isVisibilityBlocked: () => isIllustratedMapActive()
+      || isWorldResourceIconVisibilityBlocked(placementGate),
   });
 
   const foraging = new ForagingMapIcons({
@@ -104,7 +109,8 @@ export function createWorldMapUi(options: {
     onForagingSelect,
     onClaySelect,
     isBlocked: () => isWorldInspectionBlocked(placementGate),
-    isVisibilityBlocked: () => isWorldResourceIconVisibilityBlocked(placementGate),
+    isVisibilityBlocked: () => isIllustratedMapActive()
+      || isWorldResourceIconVisibilityBlocked(placementGate),
   });
 
   const minimap = TerrainMinimapOverlay.create({

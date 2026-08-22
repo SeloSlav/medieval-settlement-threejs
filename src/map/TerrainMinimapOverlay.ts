@@ -9,6 +9,7 @@ import {
 } from './createTerrainMinimapImage.ts';
 import {
   drawIllustratedMapLayers,
+  drawIllustratedResourceStampLayer,
   type IllustratedMapStampImages,
 } from './illustratedMapLayers.ts';
 import {
@@ -29,6 +30,10 @@ export type MinimapFocus = {
   forwardZ: number;
 };
 
+export type TerrainMinimapLayerImage = TerrainMinimapImage & {
+  stampCanvas: HTMLCanvasElement;
+};
+
 type TerrainMinimapOverlayOptions = {
   uiRoot: HTMLElement;
   riverField: RiverField;
@@ -40,7 +45,7 @@ type TerrainMinimapOverlayOptions = {
   getGameState: () => GameState;
   getFocus: () => MinimapFocus;
   isBlocked: () => boolean;
-  onTerrainImageReady?: (image: TerrainMinimapImage) => void;
+  onTerrainImageReady?: (image: TerrainMinimapLayerImage) => void;
   onTerrainImageUpdated?: () => void;
 };
 
@@ -53,6 +58,7 @@ export class TerrainMinimapOverlay {
   private readonly stampImages = new Map<MapStampKey, HTMLImageElement>();
   private baseCanvas: HTMLCanvasElement | null = null;
   private mapCanvas: HTMLCanvasElement | null = null;
+  private stampCanvas: HTMLCanvasElement | null = null;
   private visible = false;
   private redrawQueued = false;
   private disposed = false;
@@ -142,14 +148,25 @@ export class TerrainMinimapOverlay {
       this.mapCanvas.width = image.canvas.width;
       this.mapCanvas.height = image.canvas.height;
       this.mapCanvas.dataset.terrainStyle = 'medieval-parchment-live-map';
+      this.mapCanvas.className = 'terrain-minimap__terrain-canvas';
       this.mapCanvas.setAttribute('role', 'img');
       this.mapCanvas.setAttribute(
         'aria-label',
         'Illustrated parchment map with ink roads, true building footprints, and resource woodcuts',
       );
+      this.stampCanvas = document.createElement('canvas');
+      this.stampCanvas.width = image.canvas.width;
+      this.stampCanvas.height = image.canvas.height;
+      this.stampCanvas.className = 'terrain-minimap__stamp-canvas';
+      this.stampCanvas.dataset.mapLayer = 'resource-stamps';
+      this.stampCanvas.setAttribute('aria-hidden', 'true');
       this.redrawMap();
-      this.mapSurface.replaceChildren(this.mapCanvas);
-      this.options.onTerrainImageReady?.({ canvas: this.mapCanvas, bounds: image.bounds });
+      this.mapSurface.replaceChildren(this.mapCanvas, this.stampCanvas);
+      this.options.onTerrainImageReady?.({
+        canvas: this.mapCanvas,
+        stampCanvas: this.stampCanvas,
+        bounds: image.bounds,
+      });
     } catch (error) {
       console.error('Terrain minimap image failed to load:', error);
     }
@@ -166,14 +183,16 @@ export class TerrainMinimapOverlay {
         const image = new Image();
         image.decoding = 'async';
         const loaded = new Promise<void>((resolve) => {
-          image.addEventListener('load', () => resolve(), { once: true });
+          image.addEventListener('load', () => {
+            this.stampImages.set(key, image);
+            resolve();
+          }, { once: true });
           image.addEventListener('error', () => {
             console.error(`Map stamp failed to load: ${key}`);
             resolve();
           }, { once: true });
         });
         image.src = `${baseUrl}assets/ui/map-stamps/${key}.png`;
-        this.stampImages.set(key, image);
         loads.push(loaded);
       }
     }
@@ -191,15 +210,22 @@ export class TerrainMinimapOverlay {
   }
 
   private redrawMap(): void {
-    if (!this.baseCanvas || !this.mapCanvas) return;
+    if (!this.baseCanvas || !this.mapCanvas || !this.stampCanvas) return;
     const context = this.mapCanvas.getContext('2d');
-    if (!context) return;
+    const stampContext = this.stampCanvas.getContext('2d');
+    if (!context || !stampContext) return;
     context.clearRect(0, 0, this.mapCanvas.width, this.mapCanvas.height);
     context.drawImage(this.baseCanvas, 0, 0);
     drawIllustratedMapLayers({
       context,
       bounds: this.bounds,
       roadNetwork: this.options.getRoadNetwork(),
+      state: this.options.getGameState(),
+    });
+    stampContext.clearRect(0, 0, this.stampCanvas.width, this.stampCanvas.height);
+    drawIllustratedResourceStampLayer({
+      context: stampContext,
+      bounds: this.bounds,
       state: this.options.getGameState(),
       layoutMarkers: this.options.layoutMarkers,
       stampImages: this.stampImages as IllustratedMapStampImages,

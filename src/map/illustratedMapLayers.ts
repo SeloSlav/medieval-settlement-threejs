@@ -29,10 +29,8 @@ export function drawIllustratedMapLayers(options: {
   bounds: TerrainBounds;
   roadNetwork: RoadNetwork;
   state: GameState;
-  layoutMarkers: readonly WorldMapMarker[];
-  stampImages: IllustratedMapStampImages;
 }): void {
-  const { context, bounds, roadNetwork, state, layoutMarkers, stampImages } = options;
+  const { context, bounds, roadNetwork, state } = options;
   const { width, height } = context.canvas;
 
   context.save();
@@ -43,8 +41,23 @@ export function drawIllustratedMapLayers(options: {
   drawRoadInk(context, bounds, roadNetwork.edges.values());
   drawBuildingFootprints(context, bounds, state.buildings.values(), roadNetwork);
   drawResidenceFootprints(context, bounds, state.residences.values());
-  drawResourceStamps(context, bounds, layoutMarkers, state, stampImages);
 
+  context.restore();
+}
+
+export function drawIllustratedResourceStampLayer(options: {
+  context: CanvasRenderingContext2D;
+  bounds: TerrainBounds;
+  state: GameState;
+  layoutMarkers: readonly WorldMapMarker[];
+  stampImages: IllustratedMapStampImages;
+}): void {
+  const { context, bounds, state, layoutMarkers, stampImages } = options;
+  context.save();
+  context.beginPath();
+  context.rect(5, 5, context.canvas.width - 10, context.canvas.height - 10);
+  context.clip();
+  drawResourceStamps(context, bounds, layoutMarkers, state, stampImages);
   context.restore();
 }
 
@@ -185,7 +198,6 @@ function drawResourceStamps(
   stampImages: IllustratedMapStampImages,
 ): void {
   context.save();
-  context.globalCompositeOperation = 'multiply';
 
   for (const marker of markers) {
     const geologicalNode = geologicalNodeForMapMarker(marker, state.quarries);

@@ -25,7 +25,6 @@ const MIN_DISTANCE = BASELINE_ORBIT_DISTANCE / (MAX_ZOOM_PERCENT / BASELINE_ZOOM
 const LIVE_WORLD_MAX_DISTANCE = BASELINE_ORBIT_DISTANCE
   / (LIVE_WORLD_MIN_ZOOM_PERCENT / BASELINE_ZOOM_PERCENT);
 const ZOOM_MULTIPLIER = 1.18;
-const ILLUSTRATED_MAP_FIT_MARGIN = 1.42;
 const DISTANCE_EPSILON = 0.01;
 const ROTATE_SENSITIVITY = 0.005;
 const PITCH_SENSITIVITY = 0.004;
@@ -65,8 +64,6 @@ export type CameraControllerConfig = {
 export class CameraController {
   private readonly config: CameraControllerConfig;
   private readonly liveWorldMaxDistance: number;
-  private readonly illustratedMapDistance: number;
-  private readonly illustratedMapFarPlane: number;
   private currentDistance = RTS_ORBIT_DISTANCE;
   private currentYaw = -Math.PI / 2;
   private currentPitch = RTS_ORBIT_PITCH;
@@ -89,7 +86,6 @@ export class CameraController {
   private viewChangeFrame = 0;
   private wheelNavigationUntilMs = 0;
   private illustratedMapActive = false;
-  private projectionFarBeforeIllustratedMap: number | null = null;
 
   constructor(config: CameraControllerConfig) {
     this.config = config;
@@ -101,20 +97,6 @@ export class CameraController {
         RTS_ORBIT_PITCH,
       ),
     );
-    this.illustratedMapDistance = Math.max(
-      this.liveWorldMaxDistance * ZOOM_MULTIPLIER,
-      computeMaxOrbitDistance(
-        config.bounds,
-        DEFAULT_FOV,
-        RTS_ORBIT_PITCH,
-        ILLUSTRATED_MAP_FIT_MARGIN,
-      ),
-    );
-    const mapDiagonal = Math.hypot(
-      config.bounds.maxX - config.bounds.minX,
-      config.bounds.maxZ - config.bounds.minZ,
-    );
-    this.illustratedMapFarPlane = this.illustratedMapDistance + mapDiagonal * 1.6;
     this.config.target.set(0, config.getHeightAt(0, 0), 0);
     this.applyRtsOrbitView();
     config.domElement.addEventListener('mousedown', this.onMouseDown, { capture: true });
@@ -128,6 +110,12 @@ export class CameraController {
 
   getZoomPercent(): number {
     return (BASELINE_ORBIT_DISTANCE / this.currentDistance) * BASELINE_ZOOM_PERCENT;
+  }
+
+  getHudZoomPercent(): number {
+    return this.illustratedMapActive
+      ? LIVE_WORLD_MIN_ZOOM_PERCENT - 1
+      : this.getZoomPercent();
   }
 
   getOrbitDistance(): number {
@@ -268,7 +256,6 @@ export class CameraController {
     window.removeEventListener('mouseup', this.onMouseUp);
     window.removeEventListener('keydown', this.onKeyDown);
     window.removeEventListener('keyup', this.onKeyUp);
-    this.restoreProjectionAfterIllustratedMap();
     if (this.illustratedMapActive) {
       this.illustratedMapActive = false;
       this.config.onIllustratedMapModeChanged?.(false);
@@ -434,19 +421,17 @@ export class CameraController {
   }
 
   private clampDistance(value: number): number {
-    if (this.illustratedMapActive) return this.illustratedMapDistance;
+    if (this.illustratedMapActive) return this.liveWorldMaxDistance;
     return THREE.MathUtils.clamp(value, this.getMinDistance(), this.liveWorldMaxDistance);
   }
 
   private enterIllustratedMap(): void {
     if (this.illustratedMapActive) return;
     this.illustratedMapActive = true;
-    this.currentDistance = this.illustratedMapDistance;
-    this.projectionFarBeforeIllustratedMap = this.config.camera.far;
-    if (this.config.camera.far < this.illustratedMapFarPlane) {
-      this.config.camera.far = this.illustratedMapFarPlane;
-      this.config.camera.updateProjectionMatrix();
-    }
+    // This is a render-owner handoff, not another camera move. Keeping the
+    // exact overview pose makes the parchment feel as though it unfolded over
+    // the terrain and preserves the established readable map scale.
+    this.currentDistance = this.liveWorldMaxDistance;
     this.config.onIllustratedMapModeChanged?.(true);
   }
 
@@ -454,17 +439,7 @@ export class CameraController {
     if (!this.illustratedMapActive) return;
     this.illustratedMapActive = false;
     this.currentDistance = this.liveWorldMaxDistance;
-    this.restoreProjectionAfterIllustratedMap();
     this.config.onIllustratedMapModeChanged?.(false);
-  }
-
-  private restoreProjectionAfterIllustratedMap(): void {
-    if (this.projectionFarBeforeIllustratedMap === null) return;
-    if (this.config.camera.far !== this.projectionFarBeforeIllustratedMap) {
-      this.config.camera.far = this.projectionFarBeforeIllustratedMap;
-      this.config.camera.updateProjectionMatrix();
-    }
-    this.projectionFarBeforeIllustratedMap = null;
   }
 
   private clampTarget(): void {

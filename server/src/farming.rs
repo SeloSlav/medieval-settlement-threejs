@@ -193,14 +193,20 @@ pub struct ArableLandConditions {
 }
 
 #[derive(Clone, Copy, Debug)]
-pub struct CropRegionalProfile {
+struct CropRegionalProfile {
+    #[cfg(test)]
     pub rank: i32,
+    #[cfg(test)]
     pub represented: bool,
+    #[cfg(test)]
     pub center_x: f64,
+    #[cfg(test)]
     pub center_z: f64,
+    #[cfg(test)]
     pub province_strength: f64,
+    #[cfg(test)]
     pub affinity: f64,
-    pub yield_multiplier: f64,
+    yield_multiplier: f64,
 }
 
 /// Broad deterministic soil pockets mirrored by the client placement overlay.
@@ -251,7 +257,7 @@ pub fn crop_soil_suitability(crop: u8, x: f64, z: f64) -> f64 {
 /// Seeded map-scale comparative advantage layered over physical land quality.
 /// Small, medium, and large maps expose 3, 4, and 5 genuinely prime crops;
 /// absent specialties remain possible at inefficient subsistence output.
-pub fn crop_regional_profile(
+fn crop_regional_profile(
     crop: u8,
     x: f64,
     z: f64,
@@ -266,11 +272,17 @@ pub fn crop_regional_profile(
         CROP_WHEAT => 4_i32,
         _ => {
             return CropRegionalProfile {
+                #[cfg(test)]
                 rank: -1,
+                #[cfg(test)]
                 represented: true,
+                #[cfg(test)]
                 center_x: 0.0,
+                #[cfg(test)]
                 center_z: 0.0,
+                #[cfg(test)]
                 province_strength: 1.0,
+                #[cfg(test)]
                 affinity: 1.0,
                 yield_multiplier: 1.0,
             }
@@ -321,24 +333,20 @@ pub fn crop_regional_profile(
     let yield_multiplier = FARM_REGIONAL_YIELD_FLOOR
         + (1.0 - FARM_REGIONAL_YIELD_FLOOR) * affinity;
     CropRegionalProfile {
+        #[cfg(test)]
         rank,
+        #[cfg(test)]
         represented,
+        #[cfg(test)]
         center_x,
+        #[cfg(test)]
         center_z,
+        #[cfg(test)]
         province_strength,
+        #[cfg(test)]
         affinity,
         yield_multiplier,
     }
-}
-
-pub fn crop_regional_suitability(
-    crop: u8,
-    x: f64,
-    z: f64,
-    world_seed: u64,
-    map_size: u8,
-) -> f64 {
-    crop_regional_profile(crop, x, z, world_seed, map_size).affinity
 }
 
 pub fn crop_slope_suitability(crop: u8, average_slope_degrees: f64) -> f64 {

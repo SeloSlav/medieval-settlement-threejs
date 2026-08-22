@@ -469,7 +469,7 @@ export class App {
       this.applyInitialSettlementView(this.gameState);
     }
     session.cameraController.update(0);
-    this.toolbar?.setZoomPercent(session.cameraController.getZoomPercent());
+    this.toolbar?.setZoomPercent(session.cameraController.getHudZoomPercent());
     this.lastTime = performance.now();
     this.fpsSampleStart = this.lastTime;
     if (!this.visualQaConditions) {
@@ -750,7 +750,7 @@ export class App {
       this.cameraController?.update(dt);
       this.firstPersonController?.updatePlacement();
       this.toolbar?.setFirstPersonMode(false);
-      this.toolbar?.setZoomPercent(this.cameraController?.getZoomPercent() ?? 100);
+      this.toolbar?.setZoomPercent(this.cameraController?.getHudZoomPercent() ?? 100);
       this.roadTool?.update(dt);
       this.buildingTool?.update();
       this.burgageTool?.update();
