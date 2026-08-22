@@ -312,15 +312,15 @@ export class BuildToolbar {
           </header>
           <div class="map-overlay-menu__modes">
             <button type="button" class="map-overlay-option" data-overlay-mode="water" aria-pressed="false">
-              <span class="map-overlay-option__icon map-overlay-option__icon--water" aria-hidden="true"></span>
+              <span class="map-overlay-option__icon" data-map-overlay-icon="water" aria-hidden="true"></span>
               <span><strong>Groundwater</strong><small>Well aquifers</small></span>
             </button>
             <button type="button" class="map-overlay-option" data-overlay-mode="wind" aria-pressed="false">
-              <span class="map-overlay-option__icon map-overlay-option__icon--wind" aria-hidden="true"></span>
+              <span class="map-overlay-option__icon" data-map-overlay-icon="wind" aria-hidden="true"></span>
               <span><strong>Wind</strong><small>Windmill exposure</small></span>
             </button>
             <button type="button" class="map-overlay-option" data-overlay-mode="fertility" aria-pressed="false">
-              <span class="map-overlay-option__icon map-overlay-option__icon--fertility" aria-hidden="true"></span>
+              <span class="map-overlay-option__icon" data-map-overlay-icon="fertility" aria-hidden="true"></span>
               <span><strong>Fertility</strong><small>Soil &amp; crop provinces</small></span>
             </button>
           </div>

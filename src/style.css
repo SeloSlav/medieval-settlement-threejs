@@ -105,6 +105,41 @@ button {
   pointer-events: auto;
 }
 
+/* The strategic parchment is the primary interface while its render owner is
+ * active. Reuse the camera's existing root dataset so entering and leaving the
+ * map has no additional HUD lifecycle or per-frame work. The lord and clock
+ * are fixed descendants of the resource ribbon and deliberately stay live. */
+html[data-camera-view='illustrated-map'] [data-settlement-hud] {
+  width: 0;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  box-shadow: none;
+  backdrop-filter: none;
+  pointer-events: none;
+}
+
+html[data-camera-view='illustrated-map'] [data-settlement-hud]::before,
+html[data-camera-view='illustrated-map'] [data-settlement-hud]::after,
+html[data-camera-view='illustrated-map'] [data-settlement-hud]
+  > :not(.noble-hud):not(.settlement-vitals) {
+  display: none;
+}
+
+html[data-camera-view='illustrated-map'] [data-settlement-hud] > .noble-hud,
+html[data-camera-view='illustrated-map'] [data-settlement-hud] > .settlement-vitals {
+  pointer-events: auto;
+}
+
+html[data-camera-view='illustrated-map'] [data-ui-root] .hud-bottom-center,
+html[data-camera-view='illustrated-map'] [data-ui-root] .road-tools,
+html[data-camera-view='illustrated-map'] [data-ui-root] .floating-build-button,
+html[data-camera-view='illustrated-map'] [data-ui-root] .burgage-layout-hud,
+html[data-camera-view='illustrated-map'] [data-ui-root] .delete-popup {
+  display: none;
+}
+
 .scene-root {
   position: absolute;
   inset: 0;

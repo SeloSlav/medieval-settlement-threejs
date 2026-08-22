@@ -4,6 +4,7 @@ const tests = [
   'test:rust',
   'test:opening-balance',
   'test:build-menus',
+  'test:action-button-iconography',
   'test:lodge-logistics',
   'test:industrial-firewood',
   'test:service-territories',

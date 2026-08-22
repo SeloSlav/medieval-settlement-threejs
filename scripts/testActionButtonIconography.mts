@@ -24,6 +24,7 @@ const farmFieldTool = readFileSync('src/farming/FarmFieldTool.ts', 'utf8');
 const appBootstrap = readFileSync('src/app/appBootstrap.ts', 'utf8');
 const toolbar = readFileSync('src/ui/BuildToolbar.ts', 'utf8');
 const iconography = readFileSync('src/ui/iconography.css', 'utf8');
+const constructionDock = readFileSync('src/ui/constructionDock.css', 'utf8');
 
 const backyardArtwork: Record<string, string> = {
   orchard: 'backyards/orchard.png',
@@ -198,6 +199,31 @@ for (const [category, asset] of buildCategoryArtwork) {
   assert.ok(existsSync(`public/assets/ui/build-menu/cards/${asset}`));
 }
 
+const mapOverlayArtwork = new Map([
+  ['water', 'water-well.webp'],
+  ['wind', 'windmill.webp'],
+  ['fertility', 'grain-field.webp'],
+] as const);
+for (const [overlay, asset] of mapOverlayArtwork) {
+  assert.match(
+    toolbar,
+    new RegExp(`data-map-overlay-icon="${overlay}"`),
+    `${overlay} overlay should render a decorative woodcut-art slot`,
+  );
+  assert.match(
+    constructionDock,
+    new RegExp(`data-map-overlay-icon='${overlay}'[\\s\\S]{0,220}build-menu/cards/${escapeRegex(asset)}`),
+    `${overlay} overlay should use ${asset}`,
+  );
+  assert.ok(existsSync(`public/assets/ui/build-menu/cards/${asset}`));
+}
+assert.doesNotMatch(toolbar, /map-overlay-option__icon--(?:water|wind|fertility)/);
+assert.doesNotMatch(
+  constructionDock,
+  /map-overlay-option__icon--(?:water|wind|fertility)/,
+  'map overlay choices should not fall back to generic CSS line drawings',
+);
+
 assert.match(toolbar, /gk-icon--construction gk-icon--camp/);
 assert.match(iconography, /gk-icon--construction[\s\S]*construction-actions\.png/);
 assert.match(iconography, /gk-icon--camp \{ background-position: 100% 100%; \}/);
@@ -232,7 +258,7 @@ assert.doesNotMatch(resourceInspector, /data-monastery-croft-choice/);
 assert.match(expandedBuildingRenderer, /Mixed orchard and kitchen gardens/);
 assert.match(expandedBuildingRenderer, /no apple-versus-pear or cabbage-versus-carrot choices/i);
 
-console.log('Complete backyard, upgrade, monastery, commodity, crop, livestock, land-project, demolition, recovery, and build-category icon contracts passed.');
+console.log('Complete backyard, upgrade, monastery, commodity, crop, livestock, land-project, demolition, recovery, build-category, and map-overlay icon contracts passed.');
 
 function escapeRegex(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');

@@ -45,9 +45,6 @@ const {
   computeIllustratedMapTerminalDistance,
   computeIllustratedMapZoomStops,
 } = await import('../src/camera/CameraCurves.ts');
-const {
-  illustratedMapDeskMetrics,
-} = await import('../src/map/illustratedMapDeskSurface.ts');
 
 const DEFAULT_TEST_BOUNDS = {
   minX: -500,
@@ -196,32 +193,6 @@ function scrollToLiveWorldMaximum(
 ): void {
   for (let step = 0; step < 40 && controller.getZoomPercent() > 30; step += 1) {
     domElement.dispatch('wheel', wheelEvent({ deltaY: 120 }));
-  }
-}
-
-function assertDeskCornersInsideFrustum(
-  camera: THREE.PerspectiveCamera,
-  target: THREE.Vector3,
-  bounds = DEFAULT_TEST_BOUNDS,
-): void {
-  const desk = illustratedMapDeskMetrics(bounds);
-  const minX = desk.centerX - desk.width * 0.5;
-  const maxX = desk.centerX + desk.width * 0.5;
-  const minZ = desk.centerZ - desk.depth * 0.5;
-  const maxZ = desk.centerZ + desk.depth * 0.5;
-  camera.updateMatrixWorld(true);
-  for (const yOffset of [-0.08, 0, 0.12]) {
-    for (const x of [minX, maxX]) {
-      for (const z of [minZ, maxZ]) {
-        const projected = new THREE.Vector3(x, target.y + yOffset, z).project(camera);
-        assert.ok(Math.abs(projected.x) <= 1 + 1e-6,
-          `desk corner x=${projected.x} should fit the horizontal frustum`);
-        assert.ok(Math.abs(projected.y) <= 1 + 1e-6,
-          `desk corner y=${projected.y} should fit the vertical frustum`);
-        assert.ok(projected.z >= -1 && projected.z <= 1,
-          `desk corner z=${projected.z} should fit the owned depth range`);
-      }
-    }
   }
 }
 
@@ -505,10 +476,10 @@ function assertDeskCornersInsideFrustum(
     Math.max(...tierRatios) - Math.min(...tierRatios) < 1e-9,
     'illustrated-map stops should be geometrically spaced',
   );
-  const fullMapDistance = controller.getOrbitDistance();
+  const outerRegionalDistance = controller.getOrbitDistance();
   domElement.dispatch('wheel', wheelEvent({ deltaY: 120 }));
-  assert.equal(controller.getOrbitDistance(), fullMapDistance,
-    'outward scrolling should clamp at the full-map/desk tier');
+  assert.equal(controller.getOrbitDistance(), outerRegionalDistance,
+    'outward scrolling should clamp at the outer regional tier');
 
   const yawBefore = controller.getYaw();
   mmbOrbit(domElement, 100, 100, 140, 100);
@@ -539,10 +510,9 @@ function assertDeskCornersInsideFrustum(
   );
   assert.ok(
     Math.abs(controller.getOrbitDistance()
-      - adjustedMapStops[adjustedMapStops.length - 1]) < 1e-9,
-    'the active terminal tier should recompute after orbit and pan input',
+      - adjustedMapStops.at(-1)!) < 1e-9,
+    'the active outer regional tier should recompute after orbit and pan input',
   );
-  assertDeskCornersInsideFrustum(camera, target);
 
   for (let tier = ILLUSTRATED_MAP_OUTWARD_ZOOM_TIER_COUNT - 1; tier >= 0; tier -= 1) {
     domElement.dispatch('wheel', wheelEvent({ deltaY: -120 }));
@@ -583,46 +553,63 @@ function assertDeskCornersInsideFrustum(
     authoredPitch,
     100_000,
   );
+  const mapEntryDistance = controller.getOrbitDistance();
   domElement.dispatch('wheel', wheelEvent({ deltaY: 120 }));
   for (let tier = 0; tier < ILLUSTRATED_MAP_OUTWARD_ZOOM_TIER_COUNT; tier += 1) {
     domElement.dispatch('wheel', wheelEvent({ deltaY: 120 }));
   }
-  const expectedWideTerminal = computeIllustratedMapTerminalDistance(
+  const wideFrame = {
+    aspect: camera.aspect,
+    yaw: controller.getYaw(),
+    pitch: authoredPitch,
+    targetX: target.x,
+    targetZ: target.z,
+  };
+  const expectedWideOuterStop = computeIllustratedMapZoomStops(
     DEFAULT_TEST_BOUNDS,
     DEFAULT_FOV,
-    {
-      aspect: camera.aspect,
-      yaw: controller.getYaw(),
-      pitch: authoredPitch,
-      targetX: target.x,
-      targetZ: target.z,
-    },
+    mapEntryDistance,
+    wideFrame,
+  ).at(-1)!;
+  const wideFullDeskFit = computeIllustratedMapTerminalDistance(
+    DEFAULT_TEST_BOUNDS,
+    DEFAULT_FOV,
+    wideFrame,
   );
-  assert.ok(Math.abs(controller.getOrbitDistance() - expectedWideTerminal) < 1e-9,
-    'the terminal tier should solve the current aspect, pose, and panned target');
-  assertDeskCornersInsideFrustum(camera, target);
+  assert.ok(Math.abs(controller.getOrbitDistance() - expectedWideOuterStop) < 1e-9,
+    'the outer regional tier should solve the current aspect, pose, and panned target');
+  assert.ok(controller.getOrbitDistance() < wideFullDeskFit,
+    'the outer regional tier should stop before the removed full-desk fit');
 
-  const wideTerminal = controller.getOrbitDistance();
+  const wideOuterStop = controller.getOrbitDistance();
   camera.aspect = 0.62;
   camera.updateProjectionMatrix();
   window.dispatchEvent({ type: 'resize' } as Event);
   await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
-  const expectedPortraitTerminal = computeIllustratedMapTerminalDistance(
+  const portraitFrame = {
+    aspect: camera.aspect,
+    yaw: controller.getYaw(),
+    pitch: authoredPitch,
+    targetX: target.x,
+    targetZ: target.z,
+  };
+  const expectedPortraitOuterStop = computeIllustratedMapZoomStops(
     DEFAULT_TEST_BOUNDS,
     DEFAULT_FOV,
-    {
-      aspect: camera.aspect,
-      yaw: controller.getYaw(),
-      pitch: authoredPitch,
-      targetX: target.x,
-      targetZ: target.z,
-    },
+    mapEntryDistance,
+    portraitFrame,
+  ).at(-1)!;
+  const portraitFullDeskFit = computeIllustratedMapTerminalDistance(
+    DEFAULT_TEST_BOUNDS,
+    DEFAULT_FOV,
+    portraitFrame,
   );
-  assert.ok(controller.getOrbitDistance() > wideTerminal,
-    'a portrait resize should move the active terminal tier far enough to retain the desk');
-  assert.ok(Math.abs(controller.getOrbitDistance() - expectedPortraitTerminal) < 1e-9,
-    'resize recomputation should use the exact current-aspect terminal solve');
-  assertDeskCornersInsideFrustum(camera, target);
+  assert.ok(controller.getOrbitDistance() > wideOuterStop,
+    'a portrait resize should rescale the active outer regional tier');
+  assert.ok(Math.abs(controller.getOrbitDistance() - expectedPortraitOuterStop) < 1e-9,
+    'resize recomputation should use the exact current-aspect outer regional stop');
+  assert.ok(controller.getOrbitDistance() < portraitFullDeskFit,
+    'portrait recomputation should remain below the removed full-desk fit');
 
   mmbOrbit(domElement, 100, 100, 160, 170);
   releaseMouse(1);
@@ -631,46 +618,62 @@ function assertDeskCornersInsideFrustum(
     THREE.MathUtils.degToRad(5),
     THREE.MathUtils.degToRad(70),
   );
-  const expectedRotatedTerminal = computeIllustratedMapTerminalDistance(
+  const rotatedFrame = {
+    aspect: camera.aspect,
+    yaw: controller.getYaw(),
+    pitch: rotatedPitch,
+    targetX: target.x,
+    targetZ: target.z,
+  };
+  const expectedRotatedOuterStop = computeIllustratedMapZoomStops(
     DEFAULT_TEST_BOUNDS,
     DEFAULT_FOV,
-    {
-      aspect: camera.aspect,
-      yaw: controller.getYaw(),
-      pitch: rotatedPitch,
-      targetX: target.x,
-      targetZ: target.z,
-    },
+    mapEntryDistance,
+    rotatedFrame,
+  ).at(-1)!;
+  const rotatedFullDeskFit = computeIllustratedMapTerminalDistance(
+    DEFAULT_TEST_BOUNDS,
+    DEFAULT_FOV,
+    rotatedFrame,
   );
-  assert.ok(Math.abs(controller.getOrbitDistance() - expectedRotatedTerminal) < 1e-9,
-    'orbit input should recompute the active terminal desk fit');
-  assertDeskCornersInsideFrustum(camera, target);
+  assert.ok(Math.abs(controller.getOrbitDistance() - expectedRotatedOuterStop) < 1e-9,
+    'orbit input should recompute the active outer regional stop');
+  assert.ok(controller.getOrbitDistance() < rotatedFullDeskFit,
+    'rotated recomputation should remain below the removed full-desk fit');
 
   const targetBeforePan = target.clone();
   rmbPan(domElement, 100, 100, -100, -40);
   releaseMouse(2);
   assert.ok(!target.equals(targetBeforePan),
-    'the containment regression should exercise a newly panned target');
-  const expectedPannedTerminal = computeIllustratedMapTerminalDistance(
+    'the regional-stop regression should exercise a newly panned target');
+  const pannedFrame = {
+    aspect: camera.aspect,
+    yaw: controller.getYaw(),
+    pitch: rotatedPitch,
+    targetX: target.x,
+    targetZ: target.z,
+  };
+  const expectedPannedOuterStop = computeIllustratedMapZoomStops(
     DEFAULT_TEST_BOUNDS,
     DEFAULT_FOV,
-    {
-      aspect: camera.aspect,
-      yaw: controller.getYaw(),
-      pitch: rotatedPitch,
-      targetX: target.x,
-      targetZ: target.z,
-    },
+    mapEntryDistance,
+    pannedFrame,
+  ).at(-1)!;
+  const pannedFullDeskFit = computeIllustratedMapTerminalDistance(
+    DEFAULT_TEST_BOUNDS,
+    DEFAULT_FOV,
+    pannedFrame,
   );
-  assert.ok(Math.abs(controller.getOrbitDistance() - expectedPannedTerminal) < 1e-9,
-    'pan input should recompute the active terminal desk fit');
-  assertDeskCornersInsideFrustum(camera, target);
+  assert.ok(Math.abs(controller.getOrbitDistance() - expectedPannedOuterStop) < 1e-9,
+    'pan input should recompute the active outer regional stop');
+  assert.ok(controller.getOrbitDistance() < pannedFullDeskFit,
+    'panned recomputation should remain below the removed full-desk fit');
   controller.dispose();
 }
 
 {
   const mapSideLengths = [817, 1634, 817 * Math.sqrt(8)];
-  const fullMapDistances: number[] = [];
+  const outerRegionalDistances: number[] = [];
   for (const sideLength of mapSideLengths) {
     const half = sideLength * 0.5;
     const bounds = { minX: -half, maxX: half, minZ: -half, maxZ: half };
@@ -689,18 +692,18 @@ function assertDeskCornersInsideFrustum(
     assert.equal(
       stops.length,
       ILLUSTRATED_MAP_OUTWARD_ZOOM_TIER_COUNT + 1,
-      'each supported map scale should have the continuity stop plus three outward tiers',
+      'each supported map scale should have the continuity stop plus two outward tiers',
     );
     for (let tier = 1; tier < stops.length; tier += 1) {
       assert.ok(stops[tier] > stops[tier - 1],
         'supported world sizes should produce strictly increasing map tiers');
     }
-    fullMapDistances.push(stops[stops.length - 1]);
+    outerRegionalDistances.push(stops.at(-1)!);
   }
-  assert.ok(fullMapDistances[1] > fullMapDistances[0],
-    'medium-map desk fit should sit farther out than small-map desk fit');
-  assert.ok(fullMapDistances[2] > fullMapDistances[1],
-    'large-map desk fit should sit farther out than medium-map desk fit');
+  assert.ok(outerRegionalDistances[1] > outerRegionalDistances[0],
+    'medium-map outer regional tier should sit farther out than the small-map tier');
+  assert.ok(outerRegionalDistances[2] > outerRegionalDistances[1],
+    'large-map outer regional tier should sit farther out than the medium-map tier');
 }
 
 {

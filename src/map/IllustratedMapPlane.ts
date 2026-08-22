@@ -4,10 +4,9 @@ import { disposeObject3D } from '../utils/dispose.ts';
 import {
   createIllustratedMapDeskCanvas,
   illustratedMapDeskMetrics,
-  ILLUSTRATED_MAP_DESK_ALPHA_FADE_START,
   ILLUSTRATED_MAP_DESK_FADE_START,
   ILLUSTRATED_MAP_DESK_MARGIN_RATIO,
-  ILLUSTRATED_MAP_DESK_TEXTURE_SEED,
+  ILLUSTRATED_MAP_DESK_TEXTURE_ASSET,
 } from './illustratedMapDeskSurface.ts';
 
 export const ILLUSTRATED_MAP_STAMP_LIFT = 0.12;
@@ -15,7 +14,7 @@ export const ILLUSTRATED_MAP_STAMP_LIFT = 0.12;
 export type IllustratedMapDebugMode = 'final' | 'plane';
 
 /**
- * A deliberately separate, no-post scene for the final strategic camera tier.
+ * A deliberately separate, no-post scene for the strategic map camera tiers.
  * The map keeps the world's X/Z coordinate ownership, so the ordinary RTS
  * orbit and pan rig can view it without a second set of controls.
  */
@@ -62,8 +61,16 @@ export class IllustratedMapPlane {
     const border = Math.max(width, depth) * 0.018;
     const deskMetrics = illustratedMapDeskMetrics(bounds);
 
-    this.deskTexture = new THREE.CanvasTexture(createIllustratedMapDeskCanvas());
-    this.deskTexture.name = 'Illustrated map procedural dark oak desk';
+    const deskCanvas = createIllustratedMapDeskCanvas({
+      aspect: deskMetrics.width / Math.max(deskMetrics.depth, 0.001),
+      onReady: (readyCanvas) => {
+        if (this.deskTexture?.image === readyCanvas) {
+          this.deskTexture.needsUpdate = true;
+        }
+      },
+    });
+    this.deskTexture = new THREE.CanvasTexture(deskCanvas);
+    this.deskTexture.name = 'Illustrated map continuous aged oak tabletop';
     this.deskTexture.colorSpace = THREE.SRGBColorSpace;
     this.deskTexture.anisotropy = this.maxAnisotropy;
     this.deskTexture.magFilter = THREE.LinearFilter;
@@ -113,7 +120,7 @@ export class IllustratedMapPlane {
       side: THREE.DoubleSide,
       // Keep the desk in the opaque render list with the parchment so its
       // negative renderOrder is honoured across WebGL and WebGPU. The canvas
-      // also fades its RGB to black; its alpha fade is used by the DOM map.
+      // also fades its RGB all the way to the scene's exact black background.
       transparent: false,
       toneMapped: false,
       depthTest: false,
@@ -145,7 +152,7 @@ export class IllustratedMapPlane {
       new THREE.PlaneGeometry(deskMetrics.width, deskMetrics.depth),
       this.deskMaterial,
     );
-    this.desk.name = 'Illustrated map procedural dark oak desk surround';
+    this.desk.name = 'Illustrated map continuous aged oak tabletop surround';
     this.desk.rotation.x = -Math.PI / 2;
     this.desk.position.set(deskMetrics.centerX, -0.08, deskMetrics.centerZ);
     this.desk.renderOrder = -1;
@@ -187,12 +194,11 @@ export class IllustratedMapPlane {
       resolution: `${canvas.width}x${canvas.height}`,
       stampResolution: `${stampCanvas.width}x${stampCanvas.height}`,
       desk: {
-        source: 'deterministic-procedural-canvas',
-        textureSeed: ILLUSTRATED_MAP_DESK_TEXTURE_SEED,
+        source: 'real-texture-canvas',
+        textureAsset: ILLUSTRATED_MAP_DESK_TEXTURE_ASSET,
         marginRatio: ILLUSTRATED_MAP_DESK_MARGIN_RATIO,
         fadeStart: ILLUSTRATED_MAP_DESK_FADE_START,
-        alphaFadeStart: ILLUSTRATED_MAP_DESK_ALPHA_FADE_START,
-        edgeComposite: 'colour-to-black-opaque-plane',
+        edgeComposite: 'gradual-colour-to-exact-black-opaque-plane',
         width: deskMetrics.width,
         depth: deskMetrics.depth,
       },
@@ -205,6 +211,7 @@ export class IllustratedMapPlane {
   }
 
   invalidateTextures(): void {
+    if (this.deskTexture) this.deskTexture.needsUpdate = true;
     if (this.mapTexture) this.mapTexture.needsUpdate = true;
     if (this.stampTexture) this.stampTexture.needsUpdate = true;
   }

@@ -436,10 +436,10 @@
 
 .map-overlay-option {
   display: grid;
-  grid-template-columns: 32px minmax(0, 1fr);
+  grid-template-columns: 38px minmax(0, 1fr);
   align-items: center;
   gap: 8px;
-  min-height: 52px;
+  min-height: 58px;
   padding: 7px 9px;
   color: #ded6c7;
   text-align: left;
@@ -478,60 +478,75 @@
 }
 
 .map-overlay-option__icon {
-  position: relative;
-  display: block;
-  width: 28px;
-  height: 28px;
-  border: 1px solid currentColor;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  overflow: hidden;
+  border: 1px solid rgba(213, 190, 139, 0.34);
   border-radius: 50%;
-  opacity: 0.86;
+  background:
+    radial-gradient(circle at 38% 28%, rgba(255, 245, 216, 0.1), transparent 44%),
+    rgba(46, 47, 39, 0.74);
+  box-shadow:
+    inset 0 1px rgba(255, 247, 219, 0.08),
+    0 3px 8px rgba(0, 0, 0, 0.26);
+  transition: border-color 130ms ease, box-shadow 130ms ease, transform 130ms ease;
 }
 
-.map-overlay-option__icon--water::before {
+.map-overlay-option__icon::before {
   content: '';
-  position: absolute;
-  inset: 8px 5px;
-  border-top: 2px solid currentColor;
-  border-bottom: 2px solid currentColor;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
-  transform: rotate(-8deg);
+  background-image: var(--map-overlay-art);
+  background-position: var(--map-overlay-art-position, center);
+  background-repeat: no-repeat;
+  background-size: var(--map-overlay-art-size, cover);
+  filter: saturate(0.72) sepia(0.16) contrast(1.06) brightness(0.9);
+  transition: filter 130ms ease, transform 130ms ease;
 }
 
-.map-overlay-option__icon--wind::before,
-.map-overlay-option__icon--wind::after {
-  content: '';
-  position: absolute;
-  left: 5px;
-  width: 17px;
-  height: 6px;
-  border-top: 2px solid currentColor;
-  border-radius: 50%;
+.map-overlay-option__icon[data-map-overlay-icon='water'] {
+  --map-overlay-art: url('/assets/ui/build-menu/cards/water-well.webp');
+  --map-overlay-art-position: center 43%;
+  --map-overlay-art-size: 190% auto;
 }
 
-.map-overlay-option__icon--wind::before { top: 7px; }
-.map-overlay-option__icon--wind::after { top: 14px; left: 8px; width: 14px; }
-
-.map-overlay-option__icon--fertility::before {
-  content: '';
-  position: absolute;
-  left: 13px;
-  top: 5px;
-  width: 2px;
-  height: 18px;
-  background: currentColor;
-  transform: rotate(-12deg);
+.map-overlay-option__icon[data-map-overlay-icon='wind'] {
+  --map-overlay-art: url('/assets/ui/build-menu/cards/windmill.webp');
+  --map-overlay-art-position: center 38%;
+  --map-overlay-art-size: 180% auto;
 }
 
-.map-overlay-option__icon--fertility::after {
-  content: '';
-  position: absolute;
-  left: 7px;
-  top: 8px;
-  width: 13px;
-  height: 13px;
-  border-top: 2px solid currentColor;
-  border-right: 2px solid currentColor;
-  transform: rotate(25deg) skew(-12deg);
+.map-overlay-option__icon[data-map-overlay-icon='fertility'] {
+  --map-overlay-art: url('/assets/ui/build-menu/cards/grain-field.webp');
+  --map-overlay-art-position: center 61%;
+  --map-overlay-art-size: 185% auto;
+}
+
+.map-overlay-option:hover .map-overlay-option__icon,
+.map-overlay-option:focus-visible .map-overlay-option__icon {
+  border-color: rgba(235, 204, 127, 0.78);
+  transform: translateY(-1px);
+}
+
+.map-overlay-option:hover .map-overlay-option__icon::before,
+.map-overlay-option:focus-visible .map-overlay-option__icon::before {
+  filter: saturate(0.8) sepia(0.12) contrast(1.08) brightness(1.04);
+  transform: scale(1.04);
+}
+
+.map-overlay-option.is-active .map-overlay-option__icon {
+  border-color: rgba(67, 47, 21, 0.72);
+  box-shadow:
+    inset 0 1px rgba(255, 250, 222, 0.34),
+    0 0 0 2px rgba(255, 238, 189, 0.24),
+    0 3px 8px rgba(50, 31, 8, 0.28);
+}
+
+.map-overlay-option.is-active .map-overlay-option__icon::before {
+  filter: saturate(0.82) sepia(0.1) contrast(1.08) brightness(1.03);
 }
 
 .map-overlay-crops {

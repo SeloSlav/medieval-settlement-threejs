@@ -264,6 +264,14 @@ const mapIconCss = readFileSync(
   new URL('../src/ui/mapIcons.css', import.meta.url),
   'utf8',
 );
+const appStyles = readFileSync(
+  new URL('../src/style.css', import.meta.url),
+  'utf8',
+);
+const appBootstrapSource = readFileSync(
+  new URL('../src/app/appBootstrap.ts', import.meta.url),
+  'utf8',
+);
 
 assert.match(
   terrainMinimapSource,
@@ -395,6 +403,26 @@ assert.match(
   mapIconCss,
   /\.quarry-map-icons\.is-illustrated-map[\s\S]*?pointer-events:\s*none;/,
   'transparent map hover bounds must not swallow wheel, pan, or orbit controls',
+);
+assert.match(
+  appBootstrapSource,
+  /document\.documentElement\.dataset\.cameraView = active[\s\S]*?\? 'illustrated-map'[\s\S]*?: 'world'/,
+  'map render ownership should expose one synchronous root visibility signal',
+);
+assert.match(
+  appStyles,
+  /html\[data-camera-view='illustrated-map'\] \[data-settlement-hud\][\s\S]*?width:\s*0;[\s\S]*?background:\s*none;/,
+  'the illustrated map should remove the resource-ribbon frame without HUD lifecycle work',
+);
+assert.match(
+  appStyles,
+  /> :not\(\.noble-hud\):not\(\.settlement-vitals\)[\s\S]*?display:\s*none;/,
+  'the top resource menu should disappear while exempting the lord and time panels',
+);
+assert.match(
+  appStyles,
+  /html\[data-camera-view='illustrated-map'\] \[data-ui-root\] \.hud-bottom-center,[\s\S]*?\.floating-build-button,[\s\S]*?\.burgage-layout-hud,[\s\S]*?\.delete-popup[\s\S]*?display:\s*none;/,
+  'all bottom construction controls should disappear for the illustrated map',
 );
 assert.doesNotMatch(
   terrainMinimapOverlaySource,

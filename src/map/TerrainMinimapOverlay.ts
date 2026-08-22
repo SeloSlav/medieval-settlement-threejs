@@ -19,7 +19,7 @@ import {
 import type { WorldMapMarker } from './worldMapMarkers.ts';
 import {
   createIllustratedMapDeskCanvas,
-  ILLUSTRATED_MAP_DESK_TEXTURE_SEED,
+  ILLUSTRATED_MAP_DESK_TEXTURE_ASSET,
 } from './illustratedMapDeskSurface.ts';
 import {
   riverFieldBounds,
@@ -76,9 +76,9 @@ export class TerrainMinimapOverlay {
     this.root.className = 'terrain-minimap';
     this.root.hidden = true;
     this.root.setAttribute('aria-hidden', 'true');
-    this.root.dataset.mapPresentation = 'parchment-on-procedural-dark-oak';
+    this.root.dataset.mapPresentation = 'parchment-on-real-dark-oak';
     this.root.dataset.renderPath = 'dom-no-post';
-    this.root.dataset.deskTextureSeed = String(ILLUSTRATED_MAP_DESK_TEXTURE_SEED);
+    this.root.dataset.deskTextureAsset = ILLUSTRATED_MAP_DESK_TEXTURE_ASSET;
 
     this.root.innerHTML = `
       <div class="terrain-minimap__panel">
@@ -92,7 +92,10 @@ export class TerrainMinimapOverlay {
 
     this.mapSurface = this.root.querySelector<HTMLElement>('.terrain-minimap__map-surface')!;
     this.focusMarker = this.root.querySelector<HTMLElement>('.terrain-minimap__focus')!;
-    this.deskCanvas = createIllustratedMapDeskCanvas();
+    const view = options.uiRoot.ownerDocument.defaultView;
+    this.deskCanvas = createIllustratedMapDeskCanvas({
+      aspect: Math.max(1, view?.innerWidth ?? 1) / Math.max(1, view?.innerHeight ?? 1),
+    });
     this.deskCanvas.className = 'terrain-minimap__desk-canvas';
     this.deskCanvas.setAttribute('aria-hidden', 'true');
     this.root.querySelector<HTMLElement>('.terrain-minimap__map-wrap')!

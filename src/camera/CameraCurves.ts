@@ -28,10 +28,17 @@ export const RTS_ORBIT_PITCH = THREE.MathUtils.degToRad(68);
 
 /**
  * The illustrated map owns one continuity stop at the live-world overview,
- * followed by three authored outward stops. Keeping the count explicit makes
+ * followed by two authored outward stops. Keeping the count explicit makes
  * wheel navigation predictable while the stop distances remain map-scaled.
  */
-export const ILLUSTRATED_MAP_OUTWARD_ZOOM_TIER_COUNT = 3;
+export const ILLUSTRATED_MAP_OUTWARD_ZOOM_TIER_COUNT = 2;
+
+/**
+ * Retain the original three-step geometric rhythm while omitting its distant
+ * full-desk endpoint. This keeps the two useful regional stops exactly where
+ * they were instead of redistributing them across the larger range.
+ */
+const ILLUSTRATED_MAP_FULL_FIT_SPACING_TIER_COUNT = 3;
 
 /** Keep the desk's terminal black edge slightly inside the viewport. */
 export const ILLUSTRATED_MAP_VIEWPORT_PADDING = 1.04;
@@ -59,9 +66,10 @@ export function computeMaxOrbitDistance(
 }
 
 /**
- * Four illustrated-map stops: the unchanged live-world handoff, two regional
- * overviews, and a full-map/desk composition. Geometric spacing gives every
- * wheel step comparable visual weight across small, medium, and large maps.
+ * Three illustrated-map stops: the unchanged live-world handoff and the two
+ * existing regional overviews. The former full-map/desk endpoint is still
+ * used only as a scale-aware spacing reference so these retained stops do not
+ * move when the unnecessary final tier is omitted.
  */
 export type IllustratedMapCameraFrame = {
   aspect: number;
@@ -142,10 +150,9 @@ export function computeIllustratedMapZoomStops(
     { length: ILLUSTRATED_MAP_OUTWARD_ZOOM_TIER_COUNT + 1 },
     (_, tier) => {
       if (tier === 0) return safeEntryDistance;
-      if (tier === ILLUSTRATED_MAP_OUTWARD_ZOOM_TIER_COUNT) return fitDistance;
       return safeEntryDistance * Math.pow(
         totalRatio,
-        tier / ILLUSTRATED_MAP_OUTWARD_ZOOM_TIER_COUNT,
+        tier / ILLUSTRATED_MAP_FULL_FIT_SPACING_TIER_COUNT,
       );
     },
   );
