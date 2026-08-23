@@ -339,7 +339,7 @@ test('connects, places a reforester, and updates settlement HUD timber', async (
   const foodSummary = foodStores.locator('> summary');
   await foodSummary.hover();
   await expect(foodStores).toHaveAttribute('open', '');
-  await expect(foodStores.getByRole('heading', { name: 'Food stores' })).toBeVisible();
+  await expect(foodStores.getByRole('heading', { name: 'Food supply' })).toBeVisible();
   await expect(foodStores.locator('[data-food-stores-mode-label]')).toHaveText(
     'Available surplus',
   );

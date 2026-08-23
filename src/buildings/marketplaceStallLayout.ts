@@ -8,7 +8,8 @@ import type {
 export const MARKETPLACE_STALL_WORKER_ANCHOR_NAME = 'MarketStallWorkerAnchor';
 export const MARKETPLACE_STALL_DISPLAY_PREFIX = 'MarketStallDisplay:';
 
-export const MARKETPLACE_STALL_X_POSITIONS = [-2.35, 0, 2.35] as const;
+export const MARKETPLACE_FOOD_STALL_X_POSITIONS = [-2.35, 0, 2.35] as const;
+export const MARKETPLACE_GOODS_STALL_X_POSITIONS = [-2.7, -0.9, 0.9, 2.7] as const;
 
 export const MARKETPLACE_STALL_DISPLAY_NEEDS = {
   food: ['food', 'preservedFood'],
@@ -41,17 +42,21 @@ export type MarketplaceStallLayout = {
   x: number;
   z: number;
   rotation: number;
+  tableWidth: number;
+  legX: number;
 };
 
 export function marketplaceStallLayout(
   group: MarketStallGroup,
   slotIndex: number,
 ): MarketplaceStallLayout | null {
-  const x = MARKETPLACE_STALL_X_POSITIONS[slotIndex];
+  const x = group === 'food'
+    ? MARKETPLACE_FOOD_STALL_X_POSITIONS[slotIndex]
+    : MARKETPLACE_GOODS_STALL_X_POSITIONS[slotIndex];
   if (x === undefined) return null;
   return group === 'food'
-    ? { x, z: -0.82, rotation: 0 }
-    : { x, z: 1.02, rotation: Math.PI };
+    ? { x, z: -0.82, rotation: 0, tableWidth: 2, legX: 0.72 }
+    : { x, z: 1.02, rotation: Math.PI, tableWidth: 1.45, legX: 0.5 };
 }
 
 /**
@@ -91,7 +96,7 @@ export function marketplaceStallWorkerApproach(
   const layout = marketplaceStallLayout(group, slotIndex);
   if (!layout) return null;
   const side = group === 'food' ? -1 : 1;
-  const entranceX = slotIndex === 1 ? 0.74 : layout.x;
+  const entranceX = group === 'food' && slotIndex === 1 ? 0.74 : layout.x;
   return {
     outside: marketplaceLocalToWorld(
       marketplace,

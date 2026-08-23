@@ -12,11 +12,21 @@ import {
 } from '../src/economy/tradingPostTrade.ts';
 import {
   CALENDAR_SECONDS_PER_DAY,
-  FOOD_CATEGORY_QUALIFYING_DAYS,
+  NATURAL_TREE_MATURATION_DAYS,
   RESIDENCE_SERVICE_WARNING_DAYS,
   SIM_TICK_SECONDS,
+  TREE_REGROWTH_UPDATE_INTERVAL_SEC,
   type TradeResourceKind,
 } from '../src/generated/gameBalance.ts';
+import {
+  foodProgressionStatus,
+  householdFoodPerDay,
+} from '../src/economy/foodInventory.ts';
+import {
+  activeResidenceNeedKinds,
+  requiredChapelTierForResidence,
+  RESIDENCE_NEED_KIND_IDS,
+} from '../src/residences/residenceNeedState.ts';
 import {
   DEFAULT_SPACETIME_URI,
   assertSpacetimeServerAvailable,
@@ -31,6 +41,11 @@ const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 const PROJECT_ROOT = resolve(SCRIPT_DIR, '..');
 const MODULE_PATH = join(PROJECT_ROOT, 'server');
 const DATABASE_PREFIX = 'selo-economy-progression-';
+const FOUNDERS_COUNT = 10;
+const TIER_TWO_GRAIN_BUFFER_DAYS = 7;
+const TIER_TWO_GRAIN_IMPORT_TARGET = Math.ceil(
+  householdFoodPerDay(FOUNDERS_COUNT) * TIER_TWO_GRAIN_BUFFER_DAYS,
+);
 const uri = process.env.SELO_ECONOMY_TEST_URI?.trim() || DEFAULT_SPACETIME_URI;
 const suppliedDatabase = process.argv[2]?.trim()
   || process.env.SELO_ECONOMY_TEST_DB?.trim();
@@ -226,6 +241,8 @@ async function runProgressionScenario(connection: DbConnection): Promise<Record<
     const started = performance.now();
     const startedTick = Number(worldConfig(connection)?.simTick ?? 0n);
     await callReducer(connection, 'placeBuilding', 'place_building', { kind, x, z });
+    await waitUntil(() => buildingByKind(connection, kind) != null, `${kind} worksite replication`);
+    await assignConstructionBuilderWhenNeeded(connection, requiredBuilding(connection, kind));
     await waitUntil(
       () => Boolean(buildingByKind(connection, kind)?.constructionComplete),
       `${kind} construction completion`,
@@ -338,20 +355,30 @@ async function runProgressionScenario(connection: DbConnection): Promise<Record<
     recoveringTreesBeforeReforester.size > 0,
     'normal timber extraction must leave at least one physical tree available for managed regrowth',
   );
-  const reforesterRecoveryStartedTick = Number(worldConfig(connection)?.simTick ?? 0n);
+  const reforesterConstructionStartedTick = Number(worldConfig(connection)?.simTick ?? 0n);
   await placeCompleteAndStaffBuilding(connection, 'reforester', 9_040, 14, 1);
+  const managedRecoveryBaseline = new Map(
+    [...connection.db.tree_entity.iter()]
+      .filter((row) => recoveringTreesBeforeReforester.has(row.treeId) && row.phase !== 'mature')
+      .map((row) => [row.treeId, row.growthProgress]),
+  );
+  assert(managedRecoveryBaseline.size > 0, 'reforester must retain at least one recovering tree in range');
+  const reforesterRecoveryStartedTick = Number(worldConfig(connection)?.simTick ?? 0n);
+  const naturalGrowthPerUpdate = TREE_REGROWTH_UPDATE_INTERVAL_SEC
+    / (NATURAL_TREE_MATURATION_DAYS * CALENDAR_SECONDS_PER_DAY);
   await waitUntil(
     () => [...connection.db.tree_entity.iter()].some((row) => {
-      const baseline = recoveringTreesBeforeReforester.get(row.treeId);
-      return baseline != null && row.growthProgress > baseline + 1e-6;
+      const baseline = managedRecoveryBaseline.get(row.treeId);
+      return baseline != null && row.growthProgress - baseline > naturalGrowthPerUpdate + 1e-6;
     }),
-    'staffed reforester advances a felled tree toward renewable timber',
+    'staffed reforester advances a felled tree faster than natural succession',
     {
       timeoutMs: 90_000,
-      describe: () => describeTreeRecovery(connection, recoveringTreesBeforeReforester),
+      describe: () => `${describeTreeRecovery(connection, managedRecoveryBaseline)}; naturalFiveSecondDelta=${naturalGrowthPerUpdate.toFixed(6)}`,
     },
   );
   const reforesterRecoveryObservedTick = Number(worldConfig(connection)?.simTick ?? 0n);
+  const reforesterManagedGrowthDelta = maxTreeGrowthDelta(connection, managedRecoveryBaseline);
 
   // The quarry has already proved local stone extraction and accumulated the
   // opening material buffer. Rotate that worker into services/building so the
@@ -379,11 +406,17 @@ async function runProgressionScenario(connection: DbConnection): Promise<Record<
   ] as const) {
     await setTradingPostRule(connection, tradingPost.id, resource, TRADE_MODE_EXPORT, reserve);
   }
-  await setTradingPostRule(connection, tradingPost.id, 'ryeBread', TRADE_MODE_IMPORT, 6);
+  await setTradingPostRule(
+    connection,
+    tradingPost.id,
+    'ryeBread',
+    TRADE_MODE_IMPORT,
+    TIER_TWO_GRAIN_IMPORT_TARGET,
+  );
 
   await waitUntil(
     () => newResidences(connection, beforeResidenceIds)
-      .reduce((total, row) => total + row.population, 0) >= 10,
+      .reduce((total, row) => total + row.population, 0) >= FOUNDERS_COUNT,
     'all ten founders housed through normal settlement',
     {
       timeoutMs: 120_000,
@@ -508,9 +541,12 @@ async function runProgressionScenario(connection: DbConnection): Promise<Record<
       berriesUsed: berriesBefore
         - (foragingNode(connection, 'economy-progression-berries')?.remaining ?? berriesBefore),
       treesHarvested: matureTreesBefore - matureTreeCount(connection),
+      reforesterConstructionStartedTick,
       reforesterRecoveryStartedTick,
       reforesterRecoveryObservedTick,
       reforesterRecoveryTicks: reforesterRecoveryObservedTick - reforesterRecoveryStartedTick,
+      naturalGrowthPerUpdate,
+      reforesterManagedGrowthDelta,
     },
     futureTierGoodsAbsentAtPromotion: ['ale', 'cloth', 'shoes'],
     remainingAuthoritativeStages: [
@@ -529,6 +565,8 @@ async function placeCompleteAndStaffBuilding(
   labor: number,
 ): Promise<void> {
   await callReducer(connection, 'placeBuilding', 'place_building', { kind, x, z });
+  await waitUntil(() => buildingByKind(connection, kind) != null, `${kind} worksite replication`);
+  await assignConstructionBuilderWhenNeeded(connection, requiredBuilding(connection, kind));
   await waitUntil(
     () => Boolean(buildingByKind(connection, kind)?.constructionComplete),
     `${kind} construction completion`,
@@ -537,11 +575,39 @@ async function placeCompleteAndStaffBuilding(
       describe: () => describeBuilding(buildingByKind(connection, kind)),
     },
   );
-  await assignLaborWhenAvailable(connection, requiredBuilding(connection, kind), labor);
+  if (labor > 0) {
+    await assignLaborWhenAvailable(connection, requiredBuilding(connection, kind), labor);
+  }
   await waitUntil(
     () => buildingByKind(connection, kind)?.assignedLabor === labor,
     `${kind} staffing replication`,
   );
+}
+
+async function assignConstructionBuilderWhenNeeded(
+  connection: DbConnection,
+  worksite: Building,
+): Promise<void> {
+  const current = buildingById(connection, worksite.id);
+  if (!current || current.constructionComplete || current.assignedLabor > 0) return;
+  const waitStarted = performance.now();
+  const waitStartedTick = Number(worldConfig(connection)?.simTick ?? 0n);
+  await assignLaborWhenAvailable(connection, current, 1);
+  await waitUntil(
+    () => {
+      const replicated = buildingById(connection, worksite.id);
+      return Boolean(replicated?.constructionComplete || (replicated?.assignedLabor ?? 0) > 0);
+    },
+    `${current.kind} construction-builder assignment replication`,
+  );
+  const waitEndedTick = Number(worldConfig(connection)?.simTick ?? 0n);
+  console.log(JSON.stringify({
+    checkpoint: `${current.kind} construction builder remedy`,
+    startTick: waitStartedTick,
+    endTick: waitEndedTick,
+    tickDelta: waitEndedTick - waitStartedTick,
+    realSeconds: roundSeconds(performance.now() - waitStarted),
+  }));
 }
 
 async function setTradingPostRule(
@@ -693,17 +759,12 @@ function tierTwoFoodPreparationReady(
   const residence = residenceById(connection, residenceId);
   const marketplace = buildingByKind(connection, 'marketplace');
   if (!residence || !marketplace) return false;
-  const qualifyingMeals = Math.max(1, residence.population) / 3 * FOOD_CATEGORY_QUALIFYING_DAYS;
-  const grainUnits = residence.food + residence.oatGrain + residence.ryeBread
-    + residence.maslinBread + marketplace.food + marketplace.oatGrain
-    + marketplace.ryeBread + marketplace.maslinBread;
-  // The authoritative need row remains the final category/meal-value proof.
-  // Requiring twice the meal threshold in raw local forage units here avoids
-  // treating a trace delivery as meaningful Tier-2 preparation.
-  const localForageUnits = residence.berries + residence.mushrooms
-    + residence.aronia + residence.rosehips;
-  return grainUnits + 1e-6 >= qualifyingMeals
-    && localForageUnits + 1e-6 >= qualifyingMeals * 2;
+  const household = foodProgressionStatus(residence, residence.population, 2);
+  // This deterministic scenario has one Marketplace and a single connected
+  // straight-road component. Keep the serving outlet's inventory whole: food
+  // categories may not be combined across the household and Marketplace.
+  const servingOutlet = foodProgressionStatus(marketplace, residence.population, 2);
+  return household.ready || servingOutlet.ready;
 }
 
 function describeTierTwoFoodPreparation(
@@ -713,8 +774,22 @@ function describeTierTwoFoodPreparation(
   const residence = residenceById(connection, residenceId);
   const marketplace = buildingByKind(connection, 'marketplace');
   const post = buildingByKind(connection, 'trading_post');
-  if (!residence || !marketplace || !post) return 'required pantry or serving outlet absent';
-  return `home[pop=${residence.population},food=${residence.food.toFixed(2)},oats=${residence.oatGrain.toFixed(2)},ryeBread=${residence.ryeBread.toFixed(2)},maslinBread=${residence.maslinBread.toFixed(2)},berries=${residence.berries.toFixed(2)},mushrooms=${residence.mushrooms.toFixed(2)},aronia=${residence.aronia.toFixed(2)},rosehips=${residence.rosehips.toFixed(2)}], market[food=${marketplace.food.toFixed(2)},oats=${marketplace.oatGrain.toFixed(2)},ryeBread=${marketplace.ryeBread.toFixed(2)},maslinBread=${marketplace.maslinBread.toFixed(2)}], post[gold=${post.gold.toFixed(2)},ryeBread=${post.ryeBread.toFixed(2)}]`;
+  const granary = buildingByKind(connection, 'granary');
+  if (!residence || !marketplace || !post || !granary) {
+    return 'required pantry, serving outlet, trade post, or granary absent';
+  }
+  const household = foodProgressionStatus(residence, residence.population, 2);
+  const servingOutlet = foodProgressionStatus(marketplace, residence.population, 2);
+  const watchedFoodCargoKinds = new Set<number>([
+    TRADE_RESOURCE_COMMODITY_CODES.ryeBread,
+    TRADE_RESOURCE_COMMODITY_CODES.berries,
+    TRADE_RESOURCE_COMMODITY_CODES.mushrooms,
+  ]);
+  const foodTrips = [...connection.db.delivery_trip.iter()]
+    .filter((trip) => watchedFoodCargoKinds.has(trip.cargoKind))
+    .map((trip) => `#${trip.id}:${trip.buildingId}->${trip.targetBuildingId}/kind${trip.cargoKind}/${deliveryPhase(trip.phase)}/${trip.amount.toFixed(2)}`)
+    .join(',');
+  return `grainTarget=${TIER_TWO_GRAIN_IMPORT_TARGET} (${TIER_TWO_GRAIN_BUFFER_DAYS} settlement days); homeFood=${JSON.stringify(household)}; marketFood=${JSON.stringify(servingOutlet)}; home[pop=${residence.population},food=${residence.food.toFixed(2)},oats=${residence.oatGrain.toFixed(2)},ryeBread=${residence.ryeBread.toFixed(2)},maslinBread=${residence.maslinBread.toFixed(2)},berries=${residence.berries.toFixed(2)},mushrooms=${residence.mushrooms.toFixed(2)},aronia=${residence.aronia.toFixed(2)},rosehips=${residence.rosehips.toFixed(2)}], market[food=${marketplace.food.toFixed(2)},oats=${marketplace.oatGrain.toFixed(2)},ryeBread=${marketplace.ryeBread.toFixed(2)},maslinBread=${marketplace.maslinBread.toFixed(2)},berries=${marketplace.berries.toFixed(2)},mushrooms=${marketplace.mushrooms.toFixed(2)}], granary[food=${granary.food.toFixed(2)},oats=${granary.oatGrain.toFixed(2)},ryeBread=${granary.ryeBread.toFixed(2)},maslinBread=${granary.maslinBread.toFixed(2)},berries=${granary.berries.toFixed(2)},mushrooms=${granary.mushrooms.toFixed(2)}], post[gold=${post.gold.toFixed(2)},ryeBread=${post.ryeBread.toFixed(2)}], foodTrips=${foodTrips || 'none'}`;
 }
 
 function tierNeedRecoveryState(
@@ -726,37 +801,56 @@ function tierNeedRecoveryState(
   description: string;
   evidence: Record<string, unknown>;
 } {
-  const activeNeedIds = tier === 2
-    ? [0, 1, 2, 6, 14, 42, 43]
-    : tier === 3
-      ? [0, 1, 2, 6, 14, 42, 43, 60]
-      : [0, 1, 2, 6, 7, 14, 23, 42, 43, 57, 60];
+  const activeNeedKinds = activeResidenceNeedKinds(tier);
+  const activeNeedIds = activeNeedKinds.map((kind) => RESIDENCE_NEED_KIND_IDS[kind]);
   const needs = [...connection.db.residence_need.iter()]
     .filter((row) => row.residenceId === residenceId);
   const byKind = new Map(needs.map((row) => [row.needKind, row]));
   const missingNeedIds = activeNeedIds.filter((kind) => !byKind.has(kind));
   const deficitNeedIds = activeNeedIds.filter((kind) => (byKind.get(kind)?.deficitTicks ?? 1) > 0);
-  const requiredFoodSlots = tier === 2 ? 2 : tier === 3 ? 4 : 5;
-  const foodVarietyStock = byKind.get(43)?.stock ?? 0;
-  const churchTier = byKind.get(42)?.stock ?? 0;
-  const requiredChurchTier = tier <= 2 ? 1 : tier === 3 ? 2 : 3;
+  const requiredFoodSlots = foodProgressionStatus({}, 1, tier).requiredSlots.length;
+  const foodVarietyStock = byKind.get(RESIDENCE_NEED_KIND_IDS.foodVariety)?.stock ?? 0;
+  const churchTier = byKind.get(RESIDENCE_NEED_KIND_IDS.church)?.stock ?? 0;
+  const requiredChurchTier = requiredChapelTierForResidence(tier);
   const tavern = buildingByKind(connection, 'tavern');
   const marketplace = buildingByKind(connection, 'marketplace');
-  const aleNeedStock = byKind.get(6)?.stock ?? 0;
-  const clothNeedStock = byKind.get(14)?.stock ?? 0;
+  const aleNeedStock = byKind.get(RESIDENCE_NEED_KIND_IDS.ale)?.stock ?? 0;
+  const clothNeedStock = byKind.get(RESIDENCE_NEED_KIND_IDS.cloth)?.stock ?? 0;
+  const shoesNeedStock = byKind.get(RESIDENCE_NEED_KIND_IDS.shoes)?.stock ?? 0;
+  const preservedNeedStock = byKind.get(RESIDENCE_NEED_KIND_IDS.preservedFood)?.stock ?? 0;
+  const potteryNeedStock = byKind.get(RESIDENCE_NEED_KIND_IDS.pottery)?.stock ?? 0;
+  const luxuryNeedStock = byKind.get(RESIDENCE_NEED_KIND_IDS.luxury)?.stock ?? 0;
   const aleOutletStock = tavern
     ? tavern.ale + tavern.cider + tavern.pearCider + tavern.mead
     : 0;
   const clothOutletStock = marketplace?.cloth ?? 0;
+  const shoesOutletStock = marketplace?.shoes ?? 0;
+  const preservedOutletStock = marketplace
+    ? marketplace.preservedFood + marketplace.curedMeat + marketplace.smokedFish
+      + marketplace.cheese + marketplace.aroniaJam + marketplace.rosehipJam
+    : 0;
+  const potteryOutletStock = marketplace?.pottery ?? 0;
+  const luxuryOutletStock = marketplace ? marketplace.wine + marketplace.honey : 0;
   const physicalTierTwoNeedsReady = (aleNeedStock > 1e-6 || aleOutletStock > 1e-6)
     && (clothNeedStock > 1e-6 || clothOutletStock > 1e-6);
+  const physicalTierThreeNeedsReady = tier < 3
+    || shoesNeedStock > 1e-6
+    || shoesOutletStock > 1e-6;
+  const physicalTierFourNeedsReady = tier < 4
+    || ((preservedNeedStock > 1e-6 || preservedOutletStock > 1e-6)
+      && (potteryNeedStock > 1e-6 || potteryOutletStock > 1e-6)
+      && (luxuryNeedStock > 1e-6 || luxuryOutletStock > 1e-6));
   const ready = missingNeedIds.length === 0
     && deficitNeedIds.length === 0
     && foodVarietyStock + 1e-6 >= requiredFoodSlots
     && churchTier + 1e-6 >= requiredChurchTier
-    && physicalTierTwoNeedsReady;
+    && physicalTierTwoNeedsReady
+    && physicalTierThreeNeedsReady
+    && physicalTierFourNeedsReady;
   const evidence = {
     tier,
+    activeNeedKinds,
+    activeNeedIds,
     missingNeedIds,
     deficitNeedIds,
     foodVarietyStock,
@@ -767,6 +861,14 @@ function tierNeedRecoveryState(
     aleOutletStock,
     clothNeedStock,
     clothOutletStock,
+    shoesNeedStock,
+    shoesOutletStock,
+    preservedNeedStock,
+    preservedOutletStock,
+    potteryNeedStock,
+    potteryOutletStock,
+    luxuryNeedStock,
+    luxuryOutletStock,
   };
   return {
     ready,
@@ -789,6 +891,18 @@ function describeTreeRecovery(
     0,
   );
   return `tracked=${tracked.length}, progressed=${progressed.length}, maxDelta=${maxDelta.toFixed(4)}, phases=${tracked.map((row) => `${row.treeId}:${row.phase}/${row.growthProgress.toFixed(3)}`).join(',')}`;
+}
+
+function maxTreeGrowthDelta(
+  connection: DbConnection,
+  baseline: ReadonlyMap<string, number>,
+): number {
+  return [...connection.db.tree_entity.iter()]
+    .filter((row) => baseline.has(row.treeId))
+    .reduce(
+      (maximum, row) => Math.max(maximum, row.growthProgress - (baseline.get(row.treeId) ?? 0)),
+      0,
+    );
 }
 
 function describeResidenceWithNeeds(connection: DbConnection, residenceId: bigint): string {

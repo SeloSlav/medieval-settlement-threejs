@@ -118,7 +118,14 @@ export function renderConstructionInspector(
     statusText = `${settlementSchedule.laborPauseLabel ?? 'Scheduled labor pause'} — builders and material carts resume during work hours`;
     statusState = 'warning';
   } else if (building.assignedLabor <= 0) {
-    statusText = 'Waiting for builders';
+    const availableBuilders = Math.max(0, context.populationStats.available);
+    const directRemedy = availableBuilders > 0
+      ? `use Workforce + to assign one (${availableBuilders} available)`
+      : 'release a worker from another assignment or wait for a reserved cart to return, then use Workforce +';
+    const stewardGuidance = context.getConstructionLaborStewardEnabled?.()
+      ? 'The enabled Town Hall steward also reviews ready sites at dawn while the hall is staffed.'
+      : 'Staffing is manual; a staffed Town Hall can enable daily construction rotation.';
+    statusText = `Waiting for builders — ${directRemedy}. ${stewardGuidance}`;
     statusState = 'warning';
   } else if (inbound) {
     const sourceLabel = origin ? getBuildingDefinition(origin.kind).label : 'material source';

@@ -37,6 +37,14 @@ export type SeedThreeBranchCardStartupTiming = {
 
 const CARD_RES = 512;
 const CARD_VARIANTS = 3;
+/**
+ * LOD4 is the distant whole-limb footprint. One deterministic atlas exemplar
+ * per species keeps every rooted limb/crossed instance while avoiding three
+ * material submissions for geometry whose silhouette is already scale-owned.
+ * Near LOD2 and intermediate LOD3 retain all three authored exemplars.
+ */
+export const SEEDTHREE_LOD4_CARD_VARIANTS = 1;
+export const SEEDTHREE_LOD4_CARD_SUBMISSION_REVISION = 1;
 const cardCache = new Map<string, SeedThreeBranchCards>();
 const cardBuildPromiseCache = new Map<string, Promise<SeedThreeBranchCards | null>>();
 const cardRestorePromiseCache = new Map<string, Promise<SeedThreeBranchCards | null>>();
@@ -63,6 +71,8 @@ export function seedThreeBranchCardCacheKey(
     species.params?.levels ?? '',
     CARD_RES,
     CARD_VARIANTS,
+    `l4v${SEEDTHREE_LOD4_CARD_VARIANTS}`,
+    `l4s${SEEDTHREE_LOD4_CARD_SUBMISSION_REVISION}`,
     mobileTarget ? 'm' : 'd',
     `b${SEEDTHREE_BRANCH_CARD_BAKE_REVISION}`,
   ].join('|');
@@ -186,7 +196,11 @@ async function ensureSeedThreeBranchCardsUncached(
     }
     if (mobileTarget) {
       jobs.push({ level: maxLevel, foliageOnly: false });
-      jobs.push({ level: Math.max(1, maxLevel - 1), foliageOnly: false });
+      jobs.push({
+        level: Math.max(1, maxLevel - 1),
+        foliageOnly: false,
+        variants: SEEDTHREE_LOD4_CARD_VARIANTS,
+      });
     }
     const byLevel = new Map<string, BranchCardsSet>();
     const noFlutterByLevel = new Map<string, boolean>();

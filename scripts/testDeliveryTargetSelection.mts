@@ -127,6 +127,7 @@ assert.doesNotMatch(
 );
 
 const tickContext = read('server/src/simulation/tick_context.rs');
+const marketStallPolicy = read('server/src/marketplace_stall_policy.rs');
 assert.match(
   tickContext,
   /building_index:\s*RefCell<Option<HashMap<Identity,\s*OwnerBuildingIndex>>>/,
@@ -151,10 +152,11 @@ assert.match(
   'household fuel allocation must originate from local Marketplace inventory only',
 );
 assert.match(
-  tickContext,
-  /MARKET_GOODS_STALL_NEEDS[\s\S]*?ResidenceNeedKind::Firewood[\s\S]*?MARKET_STALL_GROUP_GOODS[\s\S]*?"village_storehouse"/,
+  marketStallPolicy,
+  /MARKET_GOODS_STALL_NEEDS[\s\S]*?ResidenceNeedKind::Firewood[\s\S]*?MARKET_STALL_GROUP_GOODS/,
   'household fuel stalls must be operated by staffed village storehouses',
 );
+assert.match(tickContext, /MARKET_STALL_GROUP_GOODS[\s\S]*?"village_storehouse"/);
 assert.match(tickContext, /building_ids_for_kinds\(ctx, owner, &\["well"\]\)/);
 assert.match(
   deliveryTrips,

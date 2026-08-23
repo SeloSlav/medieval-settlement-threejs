@@ -129,6 +129,8 @@ export type GrassStreamTelemetry = {
   wildflowerFootprintInstances?: number;
   wildflowerLodReclassifications?: number;
   wildflowerLodCompactions?: number;
+  wildflowerLodGpuFlagUpdates?: number;
+  wildflowerLodGpuUpdateRanges?: number;
   wildflowerLodCompactionBytesUploaded?: number;
   wildflowerMaxLodReclassificationsPerCompaction?: number;
 };
@@ -538,6 +540,8 @@ export async function createGrassBladeField(
     wildflowerFootprintInstances: 0,
     wildflowerLodReclassifications: 0,
     wildflowerLodCompactions: 0,
+    wildflowerLodGpuFlagUpdates: 0,
+    wildflowerLodGpuUpdateRanges: 0,
     wildflowerLodCompactionBytesUploaded: 0,
     wildflowerMaxLodReclassificationsPerCompaction: 0,
   };
@@ -755,6 +759,12 @@ export async function createGrassBladeField(
         attribute.needsUpdate = true;
         streamTelemetry.gpuFlagUpdates += 1;
         streamTelemetry.gpuUpdateRanges += 1;
+        if (wildflowerLodRepackDirty) {
+          streamTelemetry.wildflowerLodGpuFlagUpdates =
+            (streamTelemetry.wildflowerLodGpuFlagUpdates ?? 0) + 1;
+          streamTelemetry.wildflowerLodGpuUpdateRanges =
+            (streamTelemetry.wildflowerLodGpuUpdateRanges ?? 0) + 1;
+        }
         streamTelemetry.bytesUploaded +=
           count * attribute.itemSize * attribute.array.BYTES_PER_ELEMENT;
         streamTelemetry.wildflowerCompactionBytesUploaded =

@@ -159,6 +159,9 @@ pub mod residence_upgrade_policy;
 #[path = "../../src/marketplace_procurement_policy.rs"]
 pub mod marketplace_procurement_policy;
 
+#[path = "../../src/marketplace_stall_policy.rs"]
+pub mod marketplace_stall_policy;
+
 #[path = "../../src/fire_policy.rs"]
 pub mod fire_policy;
 

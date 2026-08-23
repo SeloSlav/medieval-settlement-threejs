@@ -298,6 +298,7 @@ assert.equal(
 );
 
 const tickContext = fs.readFileSync('server/src/simulation/tick_context.rs', 'utf8');
+const marketStallPolicy = fs.readFileSync('server/src/marketplace_stall_policy.rs', 'utf8');
 assert.doesNotMatch(
   tickContext,
   /specialty_claims:\s*RefCell|fn build_specialty_claims|pub fn specialty_supplier_for/,
@@ -305,20 +306,22 @@ assert.doesNotMatch(
 );
 const marketplaceCaravan = fs.readFileSync('server/src/simulation/marketplace_caravan.rs', 'utf8');
 assert.match(
-  tickContext,
-  /MARKET_FOOD_STALL_NEEDS[\s\S]*ResidenceNeedKind::PreservedFood[\s\S]*MARKET_STALL_GROUP_FOOD[\s\S]*"granary"/,
+  marketStallPolicy,
+  /MARKET_FOOD_STALL_NEEDS[\s\S]*ResidenceNeedKind::PreservedFood[\s\S]*MARKET_STALL_GROUP_FOOD/,
   'fresh and preserved food carts must reserve granary-run Marketplace stall workers',
 );
+assert.match(tickContext, /MARKET_STALL_GROUP_FOOD[\s\S]*"granary"/);
 assert.match(
   tickContext,
   /stall_need == ResidenceNeedKind::Ale[\s\S]*?"tavern"[\s\S]*?building\.assigned_labor > 0/,
   'Beverage claims must resolve to staffed Taverns without consuming a Marketplace stall worker',
 );
 assert.match(
-  tickContext,
-  /MARKET_GOODS_STALL_NEEDS[\s\S]*ResidenceNeedKind::Cloth[\s\S]*ResidenceNeedKind::Shoes[\s\S]*ResidenceNeedKind::Pottery[\s\S]*MARKET_STALL_GROUP_GOODS[\s\S]*"village_storehouse"/,
+  marketStallPolicy,
+  /MARKET_GOODS_STALL_NEEDS[\s\S]*ResidenceNeedKind::Cloth[\s\S]*ResidenceNeedKind::Shoes[\s\S]*ResidenceNeedKind::Pottery[\s\S]*MARKET_STALL_GROUP_GOODS/,
   'cloth, shoes, and pottery carts must reserve storehouse-run Marketplace stall workers',
 );
+assert.match(tickContext, /MARKET_STALL_GROUP_GOODS[\s\S]*"village_storehouse"/);
 assert.match(marketplaceCaravan, /marketplace_stall_workplace_id/);
 const potter = { ...building('potter', 'potter_kiln', 4), pottery: 12 };
 assert.equal(

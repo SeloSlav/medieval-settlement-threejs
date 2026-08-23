@@ -13,6 +13,7 @@ import {
   MARKETPLACE_STALL_DISPLAY_KINDS,
   MARKETPLACE_STALL_WORKER_ANCHOR_NAME,
   marketStallDisplayName,
+  marketplaceStallLayout,
   marketplaceStallWorkerApproach,
   marketplaceStallWorkerPosition,
 } from '../src/buildings/marketplaceStallLayout.ts';
@@ -40,7 +41,7 @@ assert.ok(TOWN_HALL_UNSTAFFED_TAX_COLLECTION_MULTIPLIER > 0 && TOWN_HALL_UNSTAFF
 assert.ok(STOREHOUSE_OVERFLOW_THRESHOLD >= 0.5 && STOREHOUSE_OVERFLOW_THRESHOLD < 1);
 assert.ok(STOREHOUSE_HAUL_PER_WORKER > 0);
 assert.equal(MARKETPLACE_FOOD_STALL_SLOTS, 3);
-assert.equal(MARKETPLACE_GOODS_STALL_SLOTS, 3);
+assert.equal(MARKETPLACE_GOODS_STALL_SLOTS, 4);
 
 assert.equal(BUILDING_DEFINITIONS.town_hall.workRadius, 0, 'Town Hall is governance, not an area-of-effect producer');
 assert.equal(BUILDING_DEFINITIONS.village_storehouse.workRadius, 0, 'Storehouse uses roads rather than a ground ring');
@@ -253,8 +254,22 @@ assert.deepEqual(
 const rotatedGoodsSeller = marketplaceStallWorkerPosition(nearMarket, Math.PI * 0.5, 'goods', 2);
 assert.ok(rotatedGoodsSeller);
 assert.ok(Math.abs(rotatedGoodsSeller.x - 11.88) < 1e-9);
-assert.ok(Math.abs(rotatedGoodsSeller.z + 2.35) < 1e-9);
+assert.ok(Math.abs(rotatedGoodsSeller.z + 0.9) < 1e-9);
 assert.ok(Math.abs(rotatedGoodsSeller.yaw + Math.PI * 0.5) < 1e-9);
+assert.deepEqual(
+  marketplaceStallLayout('goods', 3),
+  { x: 2.7, z: 1.02, rotation: Math.PI, tableWidth: 1.45, legX: 0.5 },
+  'the fourth goods counter must have an authored, post-safe physical bay',
+);
+assert.deepEqual(
+  marketplaceStallWorkerApproach(nearMarket, 0, 'goods', 1),
+  {
+    outside: { x: 9.1, z: 3.38 },
+    inside: { x: 9.1, z: 2.28 },
+  },
+  'the inner-left goods seller should approach its own bay instead of the food-row center-post detour',
+);
+assert.equal(marketplaceStallLayout('goods', 4), null);
 const oneWorkerRoster = assignMarketplaceStalls(
   [nearMarket, farMarket, { ...stockedGranary, assignedLabor: 1 }],
   (ax, az, bx, bz) => Math.hypot(bx - ax, bz - az),
@@ -282,6 +297,44 @@ assert.deepEqual(
     ['20', null],
   ],
   'empty depot workers should reserve nearest tables up to physical capacity so producers can seed them',
+);
+
+const tierFourGoodsStock = {
+  firewood: 40,
+  cloth: 12,
+  shoes: 12,
+  pottery: 12,
+};
+const tierFourGoodsRoster = assignMarketplaceStallRoster(
+  [
+    nearMarket,
+    farMarket,
+    stallTestBuilding('40', 'village_storehouse', 0, 2, tierFourGoodsStock),
+    stallTestBuilding('41', 'village_storehouse', 1, 2, tierFourGoodsStock),
+  ],
+  (ax, az, bx, bz) => Math.hypot(bx - ax, bz - az),
+);
+assert.deepEqual(
+  tierFourGoodsRoster.stalls.map((stall) => [
+    stall.marketplaceId,
+    stall.needKind,
+    stall.workplaceId,
+  ]),
+  [
+    ['10', 'firewood', '41'],
+    ['10', 'cloth', '41'],
+    ['10', 'shoes', '40'],
+    ['10', 'pottery', '40'],
+  ],
+  'one connected Marketplace must expose every stocked Tier-4 goods need; a second market must not inherit another ranked fuel stall while pottery is stranded',
+);
+assert.ok(
+  tierFourGoodsRoster.stalls
+    .filter((stall) => stall.marketplaceId === nearMarket.id && stall.group === 'goods')
+    .every((stall, index, stalls) =>
+      index === 0 || stalls[index - 1]?.needKind !== stall.needKind
+    ),
+  'the four physical tables must retain one exact category each',
 );
 
 const placement = fs.readFileSync('server/src/reducers/buildings.rs', 'utf8');
@@ -326,10 +379,12 @@ const marketCaravans = fs.readFileSync('server/src/simulation/marketplace_carava
 assert.match(marketCaravans, /marketplace_stall_workplace_id/);
 assert.match(marketCaravans, /then_some\(\(workplace_id, 1\)\)/, 'one rostered depot worker must own each stall trip');
 const marketRoster = fs.readFileSync('server/src/simulation/tick_context.rs', 'utf8');
-assert.match(marketRoster, /struct MarketplaceStallRoster/);
-assert.match(marketRoster, /workplace_by_market_need/);
+const marketStallPolicy = fs.readFileSync('server/src/marketplace_stall_policy.rs', 'utf8');
+assert.match(marketStallPolicy, /struct MarketplaceStallRoster/);
+assert.match(marketStallPolicy, /workplace_by_market_need/);
 assert.match(marketRoster, /road_path_distance/);
-assert.match(marketRoster, /source_has_stock/);
+assert.match(marketStallPolicy, /source_has_stock/);
+assert.match(marketRoster, /assign_marketplace_stall_candidates/);
 assert.match(marketRoster, /marketplace_stall_accepts_commodity_from/);
 assert.match(marketRoster, /marketplace_stall_workplace_id_for_commodity/);
 assert.doesNotMatch(
@@ -343,6 +398,11 @@ assert.match(marketDistribution, /left\.distance[\s\S]{0,120}residence_id/);
 const marketInspector = fs.readFileSync('src/resources/inspector/marketStallsRenderer.ts', 'utf8');
 assert.match(marketInspector, /Every road-connected home is eligible/);
 assert.match(marketInspector, /exact road length chooses the nearest stocked Marketplace/);
+assert.match(
+  marketInspector,
+  /goodsAssignments\.length\}\/\$\{MARKETPLACE_GOODS_STALL_SLOTS\}/,
+  'the inspector must show the generated authoritative goods-table capacity',
+);
 
 const inspector = fs.readFileSync('src/resources/ResourceInspector.ts', 'utf8');
 assert.match(inspector, /data-policy-tax-rate/);

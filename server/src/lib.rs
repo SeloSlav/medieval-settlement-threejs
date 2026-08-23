@@ -33,6 +33,7 @@ mod labor_steward_policy;
 mod lifecycle;
 mod livestock_policy;
 mod marketplace_procurement_policy;
+mod marketplace_stall_policy;
 mod monastery_estate_policy;
 mod monastery_hospitality_policy;
 mod night_policy;

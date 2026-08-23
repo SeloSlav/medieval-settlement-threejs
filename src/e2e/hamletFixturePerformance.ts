@@ -411,6 +411,11 @@ export type HamletRouteLodSkyUpdateSummary = {
       gpuFlagUpdates: number;
       gpuUpdateRanges: number;
       bytesUploaded: number;
+      wildflowerLodCompactions: number;
+      wildflowerLodGpuFlagUpdates: number;
+      wildflowerLodGpuUpdateRanges: number;
+      wildflowerLodBytesUploaded: number;
+      wildflowerLodReclassifications: number;
       completedSlots: number;
       cancelledSlots: number;
       maxPendingSlots: number;
@@ -1290,6 +1295,11 @@ function createHamletRouteLodSkyUpdateAccumulator(): {
       gpuFlagUpdates: 0,
       gpuUpdateRanges: 0,
       bytesUploaded: 0,
+      wildflowerLodCompactions: 0,
+      wildflowerLodGpuFlagUpdates: 0,
+      wildflowerLodGpuUpdateRanges: 0,
+      wildflowerLodBytesUploaded: 0,
+      wildflowerLodReclassifications: 0,
       completedSlots: 0,
       cancelledSlots: 0,
       maxPendingSlots: 0,
@@ -1323,6 +1333,11 @@ function createHamletRouteLodSkyUpdateAccumulator(): {
         update.groundcoverDelta.gpuFlagUpdates,
         update.groundcoverDelta.gpuUpdateRanges,
         update.groundcoverDelta.bytesUploaded,
+        update.groundcoverDelta.wildflowerLodCompactions,
+        update.groundcoverDelta.wildflowerLodGpuFlagUpdates,
+        update.groundcoverDelta.wildflowerLodGpuUpdateRanges,
+        update.groundcoverDelta.wildflowerLodBytesUploaded,
+        update.groundcoverDelta.wildflowerLodReclassifications,
         update.groundcoverDelta.completedSlots,
         update.groundcoverDelta.cancelledSlots,
         update.groundcoverDelta.pendingSlots,
@@ -1394,6 +1409,16 @@ function createHamletRouteLodSkyUpdateAccumulator(): {
         update.groundcoverDelta.gpuUpdateRanges;
       frozenVegetationWork.groundcover.bytesUploaded +=
         update.groundcoverDelta.bytesUploaded;
+      frozenVegetationWork.groundcover.wildflowerLodCompactions +=
+        update.groundcoverDelta.wildflowerLodCompactions;
+      frozenVegetationWork.groundcover.wildflowerLodGpuFlagUpdates +=
+        update.groundcoverDelta.wildflowerLodGpuFlagUpdates;
+      frozenVegetationWork.groundcover.wildflowerLodGpuUpdateRanges +=
+        update.groundcoverDelta.wildflowerLodGpuUpdateRanges;
+      frozenVegetationWork.groundcover.wildflowerLodBytesUploaded +=
+        update.groundcoverDelta.wildflowerLodBytesUploaded;
+      frozenVegetationWork.groundcover.wildflowerLodReclassifications +=
+        update.groundcoverDelta.wildflowerLodReclassifications;
       frozenVegetationWork.groundcover.completedSlots +=
         update.groundcoverDelta.completedSlots;
       frozenVegetationWork.groundcover.cancelledSlots +=
@@ -1783,6 +1808,21 @@ function doesHamletRouteLodSkyUpdateSummaryMatch(
   const counts = summary.updateCounts;
   const forestWork = summary.frozenVegetationWork.forest;
   const groundcoverWork = summary.frozenVegetationWork.groundcover;
+  const nonPresentationGpuFlagUpdates = Math.max(
+    0,
+    groundcoverWork.gpuFlagUpdates
+      - groundcoverWork.wildflowerLodGpuFlagUpdates,
+  );
+  const nonPresentationGpuUpdateRanges = Math.max(
+    0,
+    groundcoverWork.gpuUpdateRanges
+      - groundcoverWork.wildflowerLodGpuUpdateRanges,
+  );
+  const nonPresentationBytesUploaded = Math.max(
+    0,
+    groundcoverWork.bytesUploaded
+      - groundcoverWork.wildflowerLodBytesUploaded,
+  );
   const phaseCountTotal = Object.values(summary.phaseFrameCounts).reduce(
     (total, count) => total + count,
     0,
@@ -1807,9 +1847,17 @@ function doesHamletRouteLodSkyUpdateSummaryMatch(
     && groundcoverWork.generationSubsteps === 0
     && groundcoverWork.clearWriteSubsteps === 0
     && groundcoverWork.refreshes === 0
-    && groundcoverWork.gpuFlagUpdates === 0
-    && groundcoverWork.gpuUpdateRanges === 0
-    && groundcoverWork.bytesUploaded === 0
+    && nonPresentationGpuFlagUpdates === 0
+    && nonPresentationGpuUpdateRanges === 0
+    && nonPresentationBytesUploaded === 0
+    && groundcoverWork.wildflowerLodCompactions
+      <= Math.ceil(sampleCount / 3)
+    && groundcoverWork.wildflowerLodGpuFlagUpdates
+      <= groundcoverWork.wildflowerLodCompactions * 20
+    && groundcoverWork.wildflowerLodGpuUpdateRanges
+      <= groundcoverWork.wildflowerLodCompactions * 20
+    && groundcoverWork.wildflowerLodBytesUploaded
+      <= groundcoverWork.wildflowerLodCompactions * 1_000_000
     && groundcoverWork.completedSlots === 0
     && groundcoverWork.cancelledSlots === 0
     && groundcoverWork.maxPendingSlots === 0;

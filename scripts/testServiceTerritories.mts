@@ -217,6 +217,7 @@ assert.match(residenceInspector, /Heating supplier/);
 assert.match(residenceInspector, /Connected Marketplace checks/);
 assert.match(residenceInspector, /Beverage service/);
 const tickContext = fs.readFileSync('server/src/simulation/tick_context.rs', 'utf8');
+const marketStallPolicy = fs.readFileSync('server/src/marketplace_stall_policy.rs', 'utf8');
 assert.match(tickContext, /water_claims: RefCell/);
 assert.match(tickContext, /pub fn well_supplier_for/);
 assert.match(tickContext, /fn build_water_claims/);
@@ -239,10 +240,11 @@ const marketplaceCaravan = fs.readFileSync(
   'utf8',
 );
 assert.match(
-  tickContext,
-  /MARKET_GOODS_STALL_NEEDS[\s\S]*ResidenceNeedKind::Firewood[\s\S]*MARKET_STALL_GROUP_GOODS[\s\S]*"village_storehouse"/,
+  marketStallPolicy,
+  /MARKET_GOODS_STALL_NEEDS[\s\S]*ResidenceNeedKind::Firewood[\s\S]*MARKET_STALL_GROUP_GOODS/,
   'storehouse workers must own Marketplace firewood stalls',
 );
+assert.match(tickContext, /MARKET_STALL_GROUP_GOODS[\s\S]*"village_storehouse"/);
 assert.match(marketplaceCaravan, /marketplace_stall_workplace_id/);
 assert.match(
   lodgeServer,

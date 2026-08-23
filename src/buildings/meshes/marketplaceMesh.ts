@@ -56,11 +56,11 @@ function addMarketTable(
   table.rotation.y = layout.rotation;
   addMesh(
     table,
-    new THREE.BoxGeometry(2.0, 0.16, 0.86),
+    new THREE.BoxGeometry(layout.tableWidth, 0.16, 0.86),
     timberMaterial('light'),
     new THREE.Vector3(0, 0.98, 0),
   );
-  for (const px of [-0.72, 0.72]) {
+  for (const px of [-layout.legX, layout.legX]) {
     for (const pz of [-0.27, 0.27]) {
       addMesh(
         table,

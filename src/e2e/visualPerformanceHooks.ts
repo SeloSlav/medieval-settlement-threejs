@@ -177,6 +177,11 @@ export type VisualSlowFrameContext = {
     gpuFlagUpdates: number;
     gpuUpdateRanges: number;
     bytesUploaded: number;
+    wildflowerLodCompactions: number;
+    wildflowerLodGpuFlagUpdates: number;
+    wildflowerLodGpuUpdateRanges: number;
+    wildflowerLodBytesUploaded: number;
+    wildflowerLodReclassifications: number;
     completedSlots: number;
     cancelledSlots: number;
     pendingSlots: number;
@@ -248,6 +253,11 @@ function createVisualSlowFrameContextScratch(): VisualSlowFrameContext {
       gpuFlagUpdates: 0,
       gpuUpdateRanges: 0,
       bytesUploaded: 0,
+      wildflowerLodCompactions: 0,
+      wildflowerLodGpuFlagUpdates: 0,
+      wildflowerLodGpuUpdateRanges: 0,
+      wildflowerLodBytesUploaded: 0,
+      wildflowerLodReclassifications: 0,
       completedSlots: 0,
       cancelledSlots: 0,
       pendingSlots: 0,
@@ -366,6 +376,26 @@ export function createRuntimeAppFrameAttribution(
       delta.bytesUploaded = counterDelta(
         groundcoverEnd.bytesUploaded,
         groundcoverStart.bytesUploaded,
+      );
+      delta.wildflowerLodCompactions = counterDelta(
+        groundcoverEnd.wildflowerLodCompactions ?? 0,
+        groundcoverStart.wildflowerLodCompactions ?? 0,
+      );
+      delta.wildflowerLodGpuFlagUpdates = counterDelta(
+        groundcoverEnd.wildflowerLodGpuFlagUpdates ?? 0,
+        groundcoverStart.wildflowerLodGpuFlagUpdates ?? 0,
+      );
+      delta.wildflowerLodGpuUpdateRanges = counterDelta(
+        groundcoverEnd.wildflowerLodGpuUpdateRanges ?? 0,
+        groundcoverStart.wildflowerLodGpuUpdateRanges ?? 0,
+      );
+      delta.wildflowerLodBytesUploaded = counterDelta(
+        groundcoverEnd.wildflowerLodCompactionBytesUploaded ?? 0,
+        groundcoverStart.wildflowerLodCompactionBytesUploaded ?? 0,
+      );
+      delta.wildflowerLodReclassifications = counterDelta(
+        groundcoverEnd.wildflowerLodReclassifications ?? 0,
+        groundcoverStart.wildflowerLodReclassifications ?? 0,
       );
       delta.completedSlots = counterDelta(
         groundcoverEnd.completedSlots,

@@ -1111,6 +1111,45 @@ const constructionContext = (
 };
 const siteTarget = { kind: 'building' as const, building: site };
 
+const unstaffedSite = {
+  ...site,
+  id: 'unstaffed-site',
+  assignedLabor: 0,
+};
+const unstaffedContext = constructionContext([stoneSource], 2, 30);
+unstaffedContext.populationStats = {
+  ...unstaffedContext.populationStats,
+  total: 12,
+  assigned: 8,
+  cartAssigned: 2,
+  available: 2,
+};
+const manualUnstaffedView = renderConstructionInspector(
+  { kind: 'building', building: unstaffedSite },
+  unstaffedContext as never,
+);
+assert.equal(
+  manualUnstaffedView.statusText,
+  'Waiting for builders — use Workforce + to assign one (2 available). Staffing is manual; a staffed Town Hall can enable daily construction rotation.',
+  'a zero-builder site must name the immediately attainable manual staffing remedy',
+);
+assert.equal(
+  manualUnstaffedView.labor.increaseDisabled,
+  false,
+  'the keyboard-operable Workforce + must be enabled when free labor exists',
+);
+assert.equal(
+  renderConstructionInspector(
+    { kind: 'building', building: unstaffedSite },
+    {
+      ...unstaffedContext,
+      getConstructionLaborStewardEnabled: () => true,
+    } as never,
+  ).statusText,
+  'Waiting for builders — use Workforce + to assign one (2 available). The enabled Town Hall steward also reviews ready sites at dawn while the hall is staffed.',
+  'an enabled steward must be distinguished from the default manual staffing policy',
+);
+
 const nightPauseContext = constructionContext([stoneSource], 5, 30);
 nightPauseContext.gameState.tick = 300;
 assert.equal(

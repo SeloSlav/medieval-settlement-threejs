@@ -137,6 +137,7 @@ export type SeedThreeForestInstances = {
   renderStats: SeedThreeForestRenderStats;
   pendingLodWork: {
     desired: PassPartitionedBucketSelection[];
+    queuedDesired: PassPartitionedBucketSelection[] | null;
     pendingBucketIndices: number[];
     activeBucketJob: {
       bucketIndex: number;
@@ -190,6 +191,49 @@ export type SeedThreeForestRenderStats = {
   overviewTrees: number;
   culledTrees: number;
   revision: number;
+};
+
+export type SeedThreeForestSpatialLodDiagnostic = {
+  cameraPosition: readonly [number, number, number];
+  totalItems: number;
+  criticalViewItems: number;
+  eligibleCriticalViewItems: number;
+  currentNearViewItems: number;
+  currentOverviewViewItems: number;
+  buckets: ReadonlyArray<{
+    preset: SeedThreePresetKey;
+    treeSlots: number;
+    currentNearViewItems: number;
+    currentOverviewViewItems: number;
+    detail: SeedThreeForestLodGeometryDiagnostic;
+    footprint: SeedThreeForestLodGeometryDiagnostic;
+  }>;
+  criticalDistanceMeters: {
+    min: number | null;
+    p10: number | null;
+    p25: number | null;
+    p50: number | null;
+    p75: number | null;
+    p90: number | null;
+    max: number | null;
+  };
+  countsWithinDistance: ReadonlyArray<{
+    distanceMeters: number;
+    criticalView: number;
+    eligibleCriticalView: number;
+    allItems: number;
+    eligibleItems: number;
+  }>;
+};
+
+export type SeedThreeForestLodGeometryDiagnostic = {
+  draws: number;
+  branchDraws: number;
+  cardDraws: number;
+  branchTrianglesPerTree: number;
+  cardInstancesPerTree: number;
+  cardTrianglesPerTree: number;
+  totalTrianglesPerTree: number;
 };
 
 export type SeedThreeForestSpeciesStartupTiming = {
@@ -454,11 +498,11 @@ function createSpeciesBucket(
   ownedOverviewFadeMaterials: Set<THREE.Material>,
 ): SpeciesBucket {
   const nearLevel = findLodLevel(prototype, 'LOD2');
-  // LOD4's crossed whole-limb cards read as flat green triangles from the
-  // settlement camera. LOD3 retains real primary branches and overlapping
-  // terminal-twig cards, spending available headroom on a volumetric silhouette.
-  const overviewLevel = findLodLevel(prototype, 'LOD3')
-    ?? findLodLevel(prototype, 'LOD4')
+  // LOD4 is SeedThree's rooted whole-limb footprint rung. It preserves the
+  // authored species crown and wind hinge beyond the close LOD2 footprint
+  // without submitting LOD3's primary-branch volume for every distant tree.
+  const overviewLevel = findLodLevel(prototype, 'LOD4')
+    ?? findLodLevel(prototype, 'LOD3')
     ?? nearLevel;
   const overviewTone = OVERVIEW_CANOPY_TONE[presetKey];
   const seasonalDeciduous = slots.some((slot) => slot.seasonalDeciduous);
@@ -746,8 +790,8 @@ export async function createSeedThreeForest(
     frustumPadding: FOREST_VISIBILITY_PADDING,
     nearDistance: FOREST_NEAR_DISTANCE,
     lodHysteresis: SEEDTHREE_FOREST_LOD_HYSTERESIS_METERS,
-    minimumCameraMove: 2.25,
-    minimumDirectionAngle: THREE.MathUtils.degToRad(1),
+    minimumCameraMove: 8,
+    minimumDirectionAngle: THREE.MathUtils.degToRad(2.5),
   });
   const nearTrees = buckets.reduce((count, bucket) => count + bucket.nearSlotIndices.length, 0);
   const overviewTrees = buckets.reduce(
@@ -985,11 +1029,19 @@ export function updateSeedThreeForestCameraBudgeted(
       firstPersonActive,
       options.presentationOnly === true,
     );
-    forest.pendingLodWork = {
-      desired,
-      pendingBucketIndices: forest.pendingLodWork?.pendingBucketIndices ?? [],
-      activeBucketJob: forest.pendingLodWork?.activeBucketJob ?? null,
-    };
+    if (forest.pendingLodWork) {
+      // Finish the currently published prefix before accepting the latest
+      // camera target. Replacing a half-written bucket repeatedly during a pan
+      // rewrote the same large live prefix without ever publishing it.
+      forest.pendingLodWork.queuedDesired = desired;
+    } else {
+      forest.pendingLodWork = {
+        desired,
+        queuedDesired: null,
+        pendingBucketIndices: [],
+        activeBucketJob: null,
+      };
+    }
   }
 
   const work = forest.pendingLodWork;
@@ -1198,7 +1250,34 @@ export function updateSeedThreeForestCameraBudgeted(
     ) {
       work.activeBucketJob = null;
     }
-    if (work.pendingBucketIndices.length === 0) forest.pendingLodWork = null;
+    if (work.pendingBucketIndices.length === 0) {
+      const queued = work.queuedDesired;
+      if (queued) {
+        const currentSelections = forest.buckets.map((bucket) => ({
+          near: bucket.nearSlotIndices,
+          overview: bucket.overviewSlotIndices,
+          viewNear: bucket.nearViewSlotIndices,
+          viewOverview: bucket.overviewViewSlotIndices,
+          nearViewSlotCount: bucket.nearViewSlotCount,
+          overviewViewSlotCount: bucket.overviewViewSlotCount,
+        }));
+        const pendingBucketIndices = queued.flatMap((desired, bucketIndex) =>
+          sameBucketSelection(currentSelections[bucketIndex]!, desired)
+            ? []
+            : [bucketIndex],
+        );
+        forest.pendingLodWork = pendingBucketIndices.length > 0
+          ? {
+              desired: queued,
+              queuedDesired: null,
+              pendingBucketIndices,
+              activeBucketJob: null,
+            }
+          : null;
+      } else {
+        forest.pendingLodWork = null;
+      }
+    }
   }
 
   if (bucketCompactions > 0) refreshSeedThreeRenderStats(forest);
@@ -1392,6 +1471,114 @@ export function getSeedThreeForestStructuralStats(
   };
 }
 
+/**
+ * Read-only camera/placement evidence for reviewing the spatial LOD bands.
+ * This measures the same conservative tree centres owned by the production
+ * selector and never forces a selection or fixture-only presentation state.
+ */
+export function getSeedThreeForestSpatialLodDiagnostic(
+  forest: SeedThreeForestInstances,
+  camera: THREE.Camera,
+  distancesMeters: readonly number[] = [44, 48, 56, 64, 72, 80, 96, 112],
+): SeedThreeForestSpatialLodDiagnostic {
+  const cameraPosition = camera.getWorldPosition(new THREE.Vector3());
+  const criticalView = new Set(forest.visibilitySelector.criticalViewIndices);
+  const measured = forest.visibilitySelector.items.map((item, index) => ({
+    distance: cameraPosition.distanceTo(
+      new THREE.Vector3(item.x, item.y, item.z),
+    ),
+    critical: criticalView.has(index),
+    eligible: item.forceOverview !== true,
+  }));
+  const criticalDistances = measured
+    .filter((item) => item.critical)
+    .map((item) => item.distance)
+    .sort((left, right) => left - right);
+  const quantile = (fraction: number): number | null => {
+    if (criticalDistances.length === 0) return null;
+    const rank = Math.round((criticalDistances.length - 1) * fraction);
+    return Number(criticalDistances[rank]!.toFixed(3));
+  };
+  return {
+    cameraPosition: cameraPosition.toArray() as [number, number, number],
+    totalItems: measured.length,
+    criticalViewItems: criticalDistances.length,
+    eligibleCriticalViewItems: measured.filter(
+      (item) => item.critical && item.eligible,
+    ).length,
+    currentNearViewItems: forest.buckets.reduce(
+      (sum, bucket) => sum + bucket.nearViewSlotCount,
+      0,
+    ),
+    currentOverviewViewItems: forest.buckets.reduce(
+      (sum, bucket) => sum + bucket.overviewViewSlotCount,
+      0,
+    ),
+    buckets: forest.buckets.map((bucket) => ({
+      preset: bucket.preset,
+      treeSlots: bucket.slots.length,
+      currentNearViewItems: bucket.nearViewSlotCount,
+      currentOverviewViewItems: bucket.overviewViewSlotCount,
+      detail: seedThreeLodGeometryDiagnostic(bucket.nearSet),
+      footprint: seedThreeLodGeometryDiagnostic(bucket.overviewSet),
+    })),
+    criticalDistanceMeters: {
+      min: quantile(0),
+      p10: quantile(0.1),
+      p25: quantile(0.25),
+      p50: quantile(0.5),
+      p75: quantile(0.75),
+      p90: quantile(0.9),
+      max: quantile(1),
+    },
+    countsWithinDistance: [...new Set(distancesMeters)]
+      .filter((distance) => Number.isFinite(distance) && distance >= 0)
+      .sort((left, right) => left - right)
+      .map((distanceMeters) => ({
+        distanceMeters,
+        criticalView: measured.filter(
+          (item) => item.critical && item.distance <= distanceMeters,
+        ).length,
+        eligibleCriticalView: measured.filter(
+          (item) => item.critical && item.eligible && item.distance <= distanceMeters,
+        ).length,
+        allItems: measured.filter((item) => item.distance <= distanceMeters).length,
+        eligibleItems: measured.filter(
+          (item) => item.eligible && item.distance <= distanceMeters,
+        ).length,
+      })),
+  };
+}
+
+function seedThreeLodGeometryDiagnostic(
+  lodSet: InstancedLodSet,
+): SeedThreeForestLodGeometryDiagnostic {
+  const branchTrianglesPerTree = lodSet.branches
+    ? seedThreeGeometryTriangles(lodSet.branches.geometry)
+    : 0;
+  let cardInstancesPerTree = 0;
+  let cardTrianglesPerTree = 0;
+  for (const card of lodSet.cards) {
+    const instancesPerTree = Math.max(0, Number(card.userData.k) || 0);
+    cardInstancesPerTree += instancesPerTree;
+    cardTrianglesPerTree += seedThreeGeometryTriangles(card.geometry)
+      * instancesPerTree;
+  }
+  return {
+    draws: (lodSet.branches ? 1 : 0) + lodSet.cards.length,
+    branchDraws: lodSet.branches ? 1 : 0,
+    cardDraws: lodSet.cards.length,
+    branchTrianglesPerTree,
+    cardInstancesPerTree,
+    cardTrianglesPerTree,
+    totalTrianglesPerTree: branchTrianglesPerTree + cardTrianglesPerTree,
+  };
+}
+
+function seedThreeGeometryTriangles(geometry: THREE.BufferGeometry): number {
+  return (geometry.index?.count ?? geometry.attributes.position.count) / 3;
+}
+
 export function getSeedThreeForestProfileBreakdown(
   forest: SeedThreeForestInstances,
 ): SeedThreeForestProfileBreakdown {
@@ -1421,6 +1608,10 @@ export function getSeedThreeForestProfileBreakdown(
     paddedColorTrees += enabledSeedThreeTreeCount(
       bucket.slots,
       bucket.nearViewSlotIndices,
+    );
+    paddedColorTrees += enabledSeedThreeTreeCount(
+      bucket.slots,
+      bucket.overviewViewSlotIndices,
     );
     for (const mesh of lodSetMeshes(bucket.nearSet)) {
       accumulateSubmission(residentColor, mesh, mesh.count);

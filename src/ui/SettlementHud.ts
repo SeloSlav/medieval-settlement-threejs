@@ -306,12 +306,14 @@ const SETTLEMENT_HUD_HTML = `
           aria-label="Household fuel stores"
         >
           <div class="settlement-hud__stores-grid-header" role="heading" aria-level="2">
-            <strong>Fuel reserves</strong>
+            <strong>Fuel supply</strong>
             <span data-fuel-stores-mode-label>Available surplus</span>
           </div>
-          <div class="settlement-hud__supply-summary" data-fuel-supply-summary>
+          <div class="settlement-hud__supply-summary" data-supply-kind="fuel" data-fuel-supply-summary>
             <strong data-fuel-supply-months>--</strong>
-            <span data-fuel-supply-detail>No heated households yet</span>
+            <span class="settlement-hud__supply-line" data-supply-icon="housing" data-fuel-supply-use>No occupied residences are using fuel yet.</span>
+            <span class="settlement-hud__supply-line" data-supply-icon="firewood" data-fuel-supply-total>Firewood and charcoal available to residences set this estimate.</span>
+            <span class="settlement-hud__supply-line settlement-hud__supply-line--note" data-supply-icon="labor">Workplaces can also draw from shared fuel stores, so fuel may run out sooner.</span>
           </div>
           <div class="settlement-hud__stat settlement-hud__stat--store" data-resource="firewood" data-fuel-resource="firewood" data-tooltip-title="Firewood" data-tooltip="One unit provides one household fuel-equivalent.">
             <span class="settlement-hud__label">Firewood</span>
@@ -343,12 +345,13 @@ const SETTLEMENT_HUD_HTML = `
           aria-label="Food stores by commodity"
         >
           <div class="settlement-hud__stores-grid-header" role="heading" aria-level="2">
-            <strong>Food stores</strong>
+            <strong>Food supply</strong>
             <span data-food-stores-mode-label>Available surplus</span>
           </div>
-          <div class="settlement-hud__supply-summary" data-food-supply-summary>
+          <div class="settlement-hud__supply-summary" data-supply-kind="food" data-food-supply-summary>
             <strong data-food-supply-months>--</strong>
-            <span data-food-supply-detail>No residents to feed yet</span>
+            <span class="settlement-hud__supply-line" data-supply-icon="population" data-food-supply-use>No occupied residences are using food yet.</span>
+            <span class="settlement-hud__supply-line" data-supply-icon="food" data-food-supply-total>All usable food across stores and residence pantries sets this estimate.</span>
           </div>
           ${FOOD_RESOURCE_KINDS.map((kind) => `
             <div
@@ -592,12 +595,14 @@ export class SettlementHud {
   private readonly foodStores: HTMLDetailsElement;
   private readonly foodRunwayValue: HTMLElement;
   private readonly foodSupplyMonths: HTMLElement;
-  private readonly foodSupplyDetail: HTMLElement;
+  private readonly foodSupplyUse: HTMLElement;
+  private readonly foodSupplyTotal: HTMLElement;
   private readonly fuelStat: HTMLElement;
   private readonly fuelStores: HTMLDetailsElement;
   private readonly fuelRunwayValue: HTMLElement;
   private readonly fuelSupplyMonths: HTMLElement;
-  private readonly fuelSupplyDetail: HTMLElement;
+  private readonly fuelSupplyUse: HTMLElement;
+  private readonly fuelSupplyTotal: HTMLElement;
   private readonly goldStat: HTMLElement;
   private readonly polearmsStat: HTMLElement;
   private readonly specialtyStores: HTMLDetailsElement;
@@ -689,12 +694,14 @@ export class SettlementHud {
     this.foodStores = this.mustDetails('[data-food-stores]');
     this.foodRunwayValue = this.mustElement('[data-food-runway]');
     this.foodSupplyMonths = this.mustElement('[data-food-supply-months]');
-    this.foodSupplyDetail = this.mustElement('[data-food-supply-detail]');
+    this.foodSupplyUse = this.mustElement('[data-food-supply-use]');
+    this.foodSupplyTotal = this.mustElement('[data-food-supply-total]');
     this.fuelStat = this.mustElement('[data-resource="firewood"]');
     this.fuelStores = this.mustDetails('[data-fuel-stores]');
     this.fuelRunwayValue = this.mustElement('[data-fuel-runway]');
     this.fuelSupplyMonths = this.mustElement('[data-fuel-supply-months]');
-    this.fuelSupplyDetail = this.mustElement('[data-fuel-supply-detail]');
+    this.fuelSupplyUse = this.mustElement('[data-fuel-supply-use]');
+    this.fuelSupplyTotal = this.mustElement('[data-fuel-supply-total]');
     this.goldStat = this.mustElement('[data-resource="gold"]');
     this.polearmsStat = this.mustElement('[data-resource="polearms"]');
     this.specialtyStores = this.mustDetails('[data-specialty-stores]');
@@ -727,12 +734,18 @@ export class SettlementHud {
     }
     this.foodStat.setAttribute('aria-controls', 'settlement-food-breakdown');
     this.foodStat.setAttribute('aria-expanded', 'false');
-    this.foodStat.setAttribute('aria-label', 'Food: hover or focus to show commodity breakdown');
+    this.foodStat.setAttribute(
+      'aria-label',
+      'Food supply: hover or focus for the current-use forecast and commodity breakdown',
+    );
     delete this.foodStat.dataset.tooltipTitle;
     delete this.foodStat.dataset.tooltip;
     this.fuelStat.setAttribute('aria-controls', 'settlement-fuel-breakdown');
     this.fuelStat.setAttribute('aria-expanded', 'false');
-    this.fuelStat.setAttribute('aria-label', 'Fuel: hover or focus to show firewood and charcoal reserves');
+    this.fuelStat.setAttribute(
+      'aria-label',
+      'Fuel supply: hover or focus for the current residence-use forecast and fuel breakdown',
+    );
     delete this.fuelStat.dataset.tooltipTitle;
     delete this.fuelStat.dataset.tooltip;
     this.panel.addEventListener('click', this.onResourceRowClick);
@@ -966,34 +979,42 @@ export class SettlementHud {
 
   setProvisioningState(provisioning: SettlementProvisioning, _month: number): void {
     this.setWelfareState(provisioning);
+    const foodHasDemand = provisioning.foodConsumers > 0 || provisioning.armedGuards > 0;
     this.setSupplyRunway(
       this.foodStat,
       this.foodRunwayValue,
       this.foodSupplyMonths,
       provisioning.foodRunwayDays,
-      provisioning.foodConsumers > 0 || provisioning.armedGuards > 0,
+      foodHasDemand,
     );
-    this.foodSupplyDetail.textContent = provisioning.foodConsumers > 0
-      ? `${formatSupplyAmount(provisioning.usableFoodStock)} meal-equivalents usable · ${formatSupplyAmount(provisioning.grossFoodDemandPerDay)} needed/day · nutrition, storage, and spoilage included`
-      : 'No residents to feed yet';
+    this.foodSupplyUse.textContent = foodHasDemand
+      ? `${formatFoodDemandSource(provisioning)} currently use ${formatSupplyAmount(provisioning.grossFoodDemandPerDay)} meal-equivalents per day.`
+      : 'No occupied residences or armed guards are using food yet.';
+    this.foodSupplyTotal.textContent = foodHasDemand
+      ? `${formatSupplyAmount(provisioning.usableFoodStock)} usable meal-equivalents are forecast against that rate; nutrition, storage, and spoilage are included.`
+      : `${formatSupplyAmount(provisioning.usableFoodStock)} usable meal-equivalents are stored. A runway appears once food is being consumed.`;
     this.foodStat.setAttribute(
       'aria-label',
-      `Food supply: ${formatSupplyMonths(provisioning.foodRunwayDays, provisioning.foodConsumers > 0 || provisioning.armedGuards > 0)}. Hover or focus for commodity breakdown.`,
+      `Food supply: ${formatSupplyMonthsRemaining(provisioning.foodRunwayDays, foodHasDemand)}. Hover or focus for the current-use forecast and commodity breakdown.`,
     );
 
+    const fuelHasDemand = provisioning.heatedResidents > 0;
     this.setSupplyRunway(
       this.fuelStat,
       this.fuelRunwayValue,
       this.fuelSupplyMonths,
       provisioning.currentFirewoodRunwayDays,
-      provisioning.heatedResidents > 0,
+      fuelHasDemand,
     );
-    this.fuelSupplyDetail.textContent = provisioning.heatedResidents > 0
-      ? `${formatSupplyAmount(provisioning.householdFirewoodStock)} firewood + ${formatSupplyAmount(provisioning.householdCharcoalStock)} charcoal (${formatSupplyAmount(provisioning.firewoodStock)} fuel-equivalents) · ${formatSupplyAmount(provisioning.currentFirewoodPerDay)} needed/day now`
-      : 'No heated households yet';
+    this.fuelSupplyUse.textContent = fuelHasDemand
+      ? `${formatResidenceResidents(provisioning.heatedResidents)} currently use ${formatSupplyAmount(provisioning.currentFirewoodPerDay)} fuel-equivalents per day at the seasonal rate.`
+      : 'No occupied residences are using fuel yet.';
+    this.fuelSupplyTotal.textContent = fuelHasDemand
+      ? `${formatSupplyAmount(provisioning.householdFirewoodStock)} firewood + ${formatSupplyAmount(provisioning.householdCharcoalStock)} charcoal = ${formatSupplyAmount(provisioning.firewoodStock)} fuel-equivalents owned; ${formatSupplyAmount(provisioning.usableFirewoodStock)} are currently usable by residences. Charcoal counts double.`
+      : `${formatSupplyAmount(provisioning.usableFirewoodStock)} usable fuel-equivalents are available to residences. A runway appears once heating begins.`;
     this.fuelStat.setAttribute(
       'aria-label',
-      `Fuel supply: ${formatSupplyMonths(provisioning.currentFirewoodRunwayDays, provisioning.heatedResidents > 0)}. Hover or focus for firewood and charcoal reserves.`,
+      `Fuel supply: ${formatSupplyMonthsRemaining(provisioning.currentFirewoodRunwayDays, fuelHasDemand)}. Hover or focus for the current residence-use forecast and fuel breakdown.`,
     );
     this.goldStat.dataset.tooltip = provisioning.armedGuards > 0
       ? `Guard wages cost ${provisioning.guardWagePerDay.toFixed(1)} gold per day; current funds cover ${formatProvisionRunway(provisioning.guardWageRunwayDays)}.`
@@ -1009,7 +1030,7 @@ export class SettlementHud {
   ): void {
     const label = formatSupplyMonths(days, hasDemand);
     compactValue.textContent = label;
-    panelValue.textContent = hasDemand ? `${label} of supply` : label;
+    panelValue.textContent = formatSupplyMonthsRemaining(days, hasDemand);
     const level = supplyRunwayLevel(days, hasDemand);
     stat.dataset.supplyLevel = level;
     stat.closest<HTMLDetailsElement>('details')?.setAttribute('data-supply-level', level);
@@ -1583,6 +1604,33 @@ function formatSupplyMonths(days: number, hasDemand: boolean): string {
   if (months < 0.05) return '<0.1 mo';
   if (months < 10) return `${months.toFixed(1)} mo`;
   return `${Math.floor(months)} mo`;
+}
+
+function formatSupplyMonthsRemaining(days: number, hasDemand: boolean): string {
+  if (!hasDemand) return 'No current consumption';
+  if (!Number.isFinite(days)) return 'No projected shortage';
+  const months = Math.max(0, days) / CALENDAR_DAYS_PER_MONTH;
+  if (months < 0.05) return 'Less than 0.1 month remaining';
+  const value = months < 10
+    ? Number(months.toFixed(1)).toString()
+    : Math.floor(months).toString();
+  return `About ${value} ${value === '1' ? 'month' : 'months'} remaining`;
+}
+
+function formatResidenceResidents(residents: number): string {
+  return residents === 1
+    ? '1 resident in an occupied residence'
+    : `${residents} residents in occupied residences`;
+}
+
+function formatFoodDemandSource(provisioning: SettlementProvisioning): string {
+  const residences = provisioning.foodConsumers > 0
+    ? formatResidenceResidents(provisioning.foodConsumers)
+    : '';
+  const guards = provisioning.armedGuards > 0
+    ? `${provisioning.armedGuards} armed ${provisioning.armedGuards === 1 ? 'guard' : 'guards'}`
+    : '';
+  return residences && guards ? `${residences} plus ${guards}` : residences || guards;
 }
 
 function supplyRunwayLevel(

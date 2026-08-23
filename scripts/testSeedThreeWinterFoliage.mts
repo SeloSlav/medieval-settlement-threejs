@@ -184,8 +184,8 @@ for (const preset of deciduous) {
   const cacheKey = seedThreeBranchCardCacheKey(species, true);
   assert.ok(
     cacheKey.includes(`|r2|u1x${deciduousUnderlayScale[preset]}|`)
-      && cacheKey.endsWith(`|512|3|m|b${BRANCH_CARD_BAKE_REVISION}`),
-    `${preset} cache identity must retain radial coverage, crown underlay, and bake revision`,
+      && cacheKey.endsWith(`|512|3|l4v1|l4s1|m|b${BRANCH_CARD_BAKE_REVISION}`),
+    `${preset} cache identity must retain radial coverage, crown underlay, LOD4 consolidation, and bake revision`,
   );
 }
 for (const preset of ['douglasFir', 'loblolly', 'pine'] as const) {
@@ -574,8 +574,8 @@ assert.match(
 );
 assert.match(
   builderSource,
-  /findLodLevel\(prototype, 'LOD3'\)[\s\S]*?\?\? findLodLevel\(prototype, 'LOD4'\)/,
-  'overview forests must prefer the branch-bearing authored LOD3 rung over flat LOD4 limbs',
+  /findLodLevel\(prototype, 'LOD4'\)[\s\S]*?\?\? findLodLevel\(prototype, 'LOD3'\)/,
+  'overview forests must prefer the rooted crossed-limb LOD4 footprint while retaining LOD3 fallback',
 );
 assert.match(
   builderSource,

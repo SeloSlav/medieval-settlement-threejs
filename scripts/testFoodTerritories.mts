@@ -202,6 +202,7 @@ assert.equal(splitClaims.get(west.id), westGranary.id);
 assert.equal(splitClaims.get(east.id), eastSwineherd.id);
 
 const tickContext = fs.readFileSync('server/src/simulation/tick_context.rs', 'utf8');
+const marketStallPolicy = fs.readFileSync('server/src/marketplace_stall_policy.rs', 'utf8');
 assert.match(tickContext, /food_claims:\s*RefCell/);
 assert.match(tickContext, /pub fn food_claim_count_for_supplier/);
 assert.doesNotMatch(
@@ -219,12 +220,13 @@ assert.match(
   /is_food_supplier_operational\([\s\S]*?marketplace_has_stall_workers\([\s\S]*?ResidenceNeedKind::Food/,
   'authoritative food claims must require a Marketplace backed by granary stall workers',
 );
-assert.match(tickContext, /struct MarketplaceStallRoster/);
+assert.match(marketStallPolicy, /struct MarketplaceStallRoster/);
 assert.match(
-  tickContext,
-  /MARKET_STALL_GROUP_FOOD[\s\S]*?"granary"[\s\S]*?workplace_by_market_need/,
+  marketStallPolicy,
+  /MARKET_STALL_GROUP_FOOD[\s\S]*?workplace_by_market_need/,
   'each food category must be owned by one rostered Granary worker',
 );
+assert.match(tickContext, /MARKET_STALL_GROUP_FOOD[\s\S]*?"granary"/);
 assert.match(
   foodClaimsSource,
   /!self\.building_disabled_by_fire\(ctx, building\.id\)[\s\S]*!self\.residence_disabled_by_fire\(ctx, residence\.id\)/,

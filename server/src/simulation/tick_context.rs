@@ -6,15 +6,17 @@ use std::sync::Arc;
 
 use spacetimedb::{Identity, ReducerContext};
 
-use crate::balance_generated::{
-    CATTLE_PLOUGH_WORK_MULTIPLIER, MARKETPLACE_FOOD_STALL_SLOTS, MARKETPLACE_GOODS_STALL_SLOTS,
-    MONASTERY_COVERAGE_RADIUS,
-};
+use crate::balance_generated::{CATTLE_PLOUGH_WORK_MULTIPLIER, MONASTERY_COVERAGE_RADIUS};
 use crate::db::*;
 use crate::economy::{building_edible_food_stock, building_preserved_food_stock, CommodityKind};
 use crate::farming::{
     field_manure_required, field_seed_crop, field_seed_grain_remaining, CROP_OATS, CROP_RYE,
     CROP_WHEAT,
+};
+use crate::marketplace_stall_policy::{
+    assign_marketplace_stall_candidates, stall_group_for_need, stall_needs_for_group,
+    stall_slots_for_group, MarketplaceStallCandidate, MarketplaceStallRoster,
+    MARKET_GOODS_STALL_NEEDS, MARKET_STALL_GROUP_FOOD, MARKET_STALL_GROUP_GOODS,
 };
 use crate::raid_agent_policy::combat_agent_is_active_raider_threat;
 use crate::residence_service_policy::required_chapel_tier;
@@ -41,35 +43,6 @@ struct FarmsteadSeedReserves {
     rye: f64,
     oats: f64,
     maslin: f64,
-}
-
-const MARKET_STALL_GROUP_FOOD: u8 = 0;
-const MARKET_STALL_GROUP_GOODS: u8 = 1;
-const MARKET_FOOD_STALL_NEEDS: [ResidenceNeedKind; 3] = [
-    ResidenceNeedKind::Food,
-    ResidenceNeedKind::PreservedFood,
-    ResidenceNeedKind::Luxury,
-];
-const MARKET_GOODS_STALL_NEEDS: [ResidenceNeedKind; 4] = [
-    ResidenceNeedKind::Firewood,
-    ResidenceNeedKind::Cloth,
-    ResidenceNeedKind::Shoes,
-    ResidenceNeedKind::Pottery,
-];
-
-#[derive(Default)]
-struct MarketplaceStallRoster {
-    workplace_by_market_need: HashMap<(u64, ResidenceNeedKind), u64>,
-    workers_by_market_group: HashMap<(u64, u8), Vec<u64>>,
-}
-
-#[derive(Clone, Copy)]
-struct MarketplaceStallCandidate {
-    marketplace_id: u64,
-    workplace_id: u64,
-    need_kind: ResidenceNeedKind,
-    distance: f64,
-    source_has_stock: bool,
 }
 
 impl FarmsteadSeedReserves {
@@ -1357,45 +1330,13 @@ impl SimTickContext {
                 }
             }
 
-            candidates.sort_by(|left, right| {
-                left.distance
-                    .total_cmp(&right.distance)
-                    .then_with(|| right.source_has_stock.cmp(&left.source_has_stock))
-                    .then_with(|| {
-                        stall_need_rank(left.need_kind).cmp(&stall_need_rank(right.need_kind))
-                    })
-                    .then_with(|| left.marketplace_id.cmp(&right.marketplace_id))
-                    .then_with(|| left.workplace_id.cmp(&right.workplace_id))
-            });
-            for candidate in candidates {
-                let source_workers = workers_remaining
-                    .get(&candidate.workplace_id)
-                    .copied()
-                    .unwrap_or(0);
-                let market_slots = slots_remaining
-                    .get(&candidate.marketplace_id)
-                    .copied()
-                    .unwrap_or(0);
-                if source_workers == 0
-                    || market_slots == 0
-                    || roster
-                        .workplace_by_market_need
-                        .contains_key(&(candidate.marketplace_id, candidate.need_kind))
-                {
-                    continue;
-                }
-                roster.workplace_by_market_need.insert(
-                    (candidate.marketplace_id, candidate.need_kind),
-                    candidate.workplace_id,
-                );
-                roster
-                    .workers_by_market_group
-                    .entry((candidate.marketplace_id, group))
-                    .or_default()
-                    .push(candidate.workplace_id);
-                workers_remaining.insert(candidate.workplace_id, source_workers - 1);
-                slots_remaining.insert(candidate.marketplace_id, market_slots - 1);
-            }
+            assign_marketplace_stall_candidates(
+                &mut roster,
+                group,
+                candidates,
+                &mut workers_remaining,
+                &mut slots_remaining,
+            );
 
             workplace_market_pairs.sort_by(|left, right| {
                 left.0
@@ -1421,52 +1362,6 @@ impl SimTickContext {
         }
 
         roster
-    }
-}
-
-fn stall_group_for_need(need_kind: ResidenceNeedKind) -> Option<u8> {
-    match need_kind {
-        ResidenceNeedKind::Food
-        | ResidenceNeedKind::PreservedFood
-        | ResidenceNeedKind::Ale
-        | ResidenceNeedKind::Luxury => Some(MARKET_STALL_GROUP_FOOD),
-        ResidenceNeedKind::Firewood
-        | ResidenceNeedKind::Cloth
-        | ResidenceNeedKind::Shoes
-        | ResidenceNeedKind::Pottery => {
-            Some(MARKET_STALL_GROUP_GOODS)
-        }
-        ResidenceNeedKind::Water
-        | ResidenceNeedKind::Church
-        | ResidenceNeedKind::FoodVariety => None,
-    }
-}
-
-fn stall_needs_for_group(group: u8) -> &'static [ResidenceNeedKind] {
-    if group == MARKET_STALL_GROUP_FOOD {
-        &MARKET_FOOD_STALL_NEEDS
-    } else {
-        &MARKET_GOODS_STALL_NEEDS
-    }
-}
-
-fn stall_slots_for_group(group: u8) -> u32 {
-    if group == MARKET_STALL_GROUP_FOOD {
-        MARKETPLACE_FOOD_STALL_SLOTS
-    } else {
-        MARKETPLACE_GOODS_STALL_SLOTS
-    }
-}
-
-fn stall_need_rank(need_kind: ResidenceNeedKind) -> u8 {
-    match need_kind {
-        ResidenceNeedKind::Food | ResidenceNeedKind::Firewood => 0,
-        ResidenceNeedKind::PreservedFood | ResidenceNeedKind::Cloth => 1,
-        ResidenceNeedKind::Shoes => 2,
-        ResidenceNeedKind::Ale | ResidenceNeedKind::Pottery | ResidenceNeedKind::Luxury => 2,
-        ResidenceNeedKind::Water
-        | ResidenceNeedKind::Church
-        | ResidenceNeedKind::FoodVariety => 3,
     }
 }
 

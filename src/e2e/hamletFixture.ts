@@ -58,12 +58,15 @@ import {
 import {
   createSeedThreeForest,
   getSeedThreeForestProfileBreakdown,
+  getSeedThreeForestSpatialLodDiagnostic,
+  getSeedThreeForestStartupTiming,
   getSeedThreeForestStructuralStats,
   setSeedThreeForestShadows,
   updateSeedThreeForestCamera,
   updateSeedThreeForestCameraBudgeted,
   ensureSeedThreeSpatialForestLodGroupsVisible,
   type SeedThreeForestInstances,
+  type SeedThreeForestSpatialLodDiagnostic,
 } from '../vegetation/seedthree/seedThreeForestBuilder.ts';
 import {
   executeVisualProfileRenderPath,
@@ -292,6 +295,9 @@ declare global {
     __HAMLET_FIXTURE_ABLATION__?: HamletFixtureAblation;
     __HAMLET_FIXTURE_FOREST_WORK__?: HamletForestRouteWorkTelemetry;
     __HAMLET_FIXTURE_FOREST_PRESENTATION_WORK__?: HamletForestPresentationWork;
+    __HAMLET_FIXTURE_GET_FOREST_SPATIAL_LOD__?: (
+      distancesMeters?: readonly number[],
+    ) => SeedThreeForestSpatialLodDiagnostic;
     __HAMLET_FIXTURE_GROUNDCOVER_WORK__?: GrassStreamTelemetry;
     __HAMLET_FIXTURE_COMPLETED_ROUTES__?: number;
     __HAMLET_FIXTURE_ROUTE_WARMUP__?: HamletFixtureRouteWarmupEvidence;
@@ -875,6 +881,11 @@ let latestGroundcoverFrameDelta: VisualSlowFrameContext['groundcoverDelta'] = {
   gpuFlagUpdates: 0,
   gpuUpdateRanges: 0,
   bytesUploaded: 0,
+  wildflowerLodCompactions: 0,
+  wildflowerLodGpuFlagUpdates: 0,
+  wildflowerLodGpuUpdateRanges: 0,
+  wildflowerLodBytesUploaded: 0,
+  wildflowerLodReclassifications: 0,
   completedSlots: 0,
   cancelledSlots: 0,
   pendingSlots: 0,
@@ -1041,6 +1052,7 @@ const grassFieldPromise = createGrassBladeField(terrainAdapter, {
   lodFadeMode: groundcoverLodFadeMode,
 });
 setBootStage('forest', 'running');
+const forestStartupPromiseStartedAtMs = performance.now();
 const forestPromise = createSeedThreeForest(
     forestPlacements,
     terrainAdapter,
@@ -1048,8 +1060,20 @@ const forestPromise = createSeedThreeForest(
     HAMLET_FIXTURE_SEED,
     renderer as WebGPURenderer,
   );
+void forestPromise.then(
+  () => {
+    document.documentElement.dataset.hamletForestStartupTiming = JSON.stringify({
+      fixtureElapsedMs: performance.now() - forestStartupPromiseStartedAtMs,
+      detail: getSeedThreeForestStartupTiming(),
+    });
+  },
+  () => undefined,
+);
 const [forestResult, grassFieldResult] = await Promise.all([
-  waitForBootStage('forest', forestPromise, 9_000),
+  // A first-ever visual-profile load may need to bake deterministic per-species
+  // card atlases. Evidence must wait for the real forest, while ordinary fixture
+  // and production startup retain their intentional 9 s fallback boundary.
+  waitForBootStage('forest', forestPromise, requestedVisualProfile ? 30_000 : 9_000),
   waitForBootStage('groundcover', grassFieldPromise, 9_000),
 ]);
 const forest: SeedThreeForestInstances = forestResult.ok
@@ -1136,6 +1160,10 @@ fixtureReady = true;
 window.__HAMLET_FIXTURE_READY__ = true;
 refreshFullVisualReadiness();
 window.__HAMLET_FIXTURE_SET_VIEW__ = (view) => applyView(view, true);
+window.__HAMLET_FIXTURE_GET_FOREST_SPATIAL_LOD__ = (distancesMeters) => (
+  getSeedThreeForestSpatialLodDiagnostic(forest, camera, distancesMeters)
+);
+installForestSpatialLodEvidenceBridge();
 installMotionContract();
 document.body.dataset.ready = 'true';
 document.body.dataset.fixture = HAMLET_FIXTURE_ID;
@@ -1211,7 +1239,9 @@ const hamletVisualPerformanceApp = {
     forestManager: {
       group: forest.group,
       getSeedThreeProfileBreakdown: () =>
-        getSeedThreeForestProfileBreakdown(forest),
+        forestRuntimeReady
+          ? getSeedThreeForestProfileBreakdown(forest)
+          : null,
     },
     getRendererAdapterEvidence: () => ({
       ...rendererBackend.adapterEvidence,
@@ -1952,6 +1982,11 @@ function updateSceneLods(
     gpuFlagUpdates: 0,
     gpuUpdateRanges: 0,
     bytesUploaded: 0,
+    wildflowerLodCompactions: 0,
+    wildflowerLodGpuFlagUpdates: 0,
+    wildflowerLodGpuUpdateRanges: 0,
+    wildflowerLodBytesUploaded: 0,
+    wildflowerLodReclassifications: 0,
     completedSlots: 0,
     cancelledSlots: 0,
     pendingSlots: previousGroundcoverWork?.pendingSlots ?? 0,
@@ -1986,6 +2021,26 @@ function updateSceneLods(
       bytesUploaded: counterDelta(
         groundcoverWork.bytesUploaded,
         previous.bytesUploaded,
+      ),
+      wildflowerLodCompactions: counterDelta(
+        groundcoverWork.wildflowerLodCompactions ?? 0,
+        previous.wildflowerLodCompactions ?? 0,
+      ),
+      wildflowerLodGpuFlagUpdates: counterDelta(
+        groundcoverWork.wildflowerLodGpuFlagUpdates ?? 0,
+        previous.wildflowerLodGpuFlagUpdates ?? 0,
+      ),
+      wildflowerLodGpuUpdateRanges: counterDelta(
+        groundcoverWork.wildflowerLodGpuUpdateRanges ?? 0,
+        previous.wildflowerLodGpuUpdateRanges ?? 0,
+      ),
+      wildflowerLodBytesUploaded: counterDelta(
+        groundcoverWork.wildflowerLodCompactionBytesUploaded ?? 0,
+        previous.wildflowerLodCompactionBytesUploaded ?? 0,
+      ),
+      wildflowerLodReclassifications: counterDelta(
+        groundcoverWork.wildflowerLodReclassifications ?? 0,
+        previous.wildflowerLodReclassifications ?? 0,
       ),
       completedSlots: counterDelta(
         groundcoverWork.completedSlots,
@@ -2791,6 +2846,41 @@ function installMotionContract(): void {
   }
 }
 
+function installForestSpatialLodEvidenceBridge(): void {
+  const request = document.createElement('input');
+  request.type = 'text';
+  request.inputMode = 'decimal';
+  request.autocomplete = 'off';
+  request.tabIndex = -1;
+  request.setAttribute('aria-hidden', 'true');
+  request.setAttribute('data-testid', 'hamlet-forest-spatial-lod-request');
+  request.style.position = 'fixed';
+  request.style.left = '0';
+  request.style.top = '0';
+  request.style.width = '2px';
+  request.style.height = '2px';
+  request.style.padding = '0';
+  request.style.margin = '0';
+  request.style.border = '0';
+  request.style.opacity = '0';
+  request.style.pointerEvents = 'auto';
+  const publish = (): void => {
+    const distances = request.value
+      .split(',')
+      .map((value) => Number(value.trim()))
+      .filter((value) => Number.isFinite(value) && value >= 0);
+    document.documentElement.dataset.hamletForestSpatialLodDiagnostic =
+      JSON.stringify(getSeedThreeForestSpatialLodDiagnostic(
+        forest,
+        camera,
+        distances.length > 0 ? distances : undefined,
+      ));
+    document.documentElement.dataset.hamletForestSpatialLodStatus = 'ready';
+  };
+  request.addEventListener('input', publish);
+  document.body.append(request);
+}
+
 function hasTerminalRouteFrameSequenceEvidence(): boolean {
   return requestedGroundcoverTransitionEvidence
     || finalizedFixtureEvidence?.routeLodSkyDirectRender !== undefined
@@ -3309,6 +3399,11 @@ function resetMeasuredRouteTelemetry(): void {
     gpuFlagUpdates: 0,
     gpuUpdateRanges: 0,
     bytesUploaded: 0,
+    wildflowerLodCompactions: 0,
+    wildflowerLodGpuFlagUpdates: 0,
+    wildflowerLodGpuUpdateRanges: 0,
+    wildflowerLodBytesUploaded: 0,
+    wildflowerLodReclassifications: 0,
     completedSlots: 0,
     cancelledSlots: 0,
     pendingSlots: previousGroundcoverWork.pendingSlots,

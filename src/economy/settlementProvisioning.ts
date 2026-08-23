@@ -499,6 +499,7 @@ export function computeSettlementProvisioning(input: {
   let fireQuarantinedFoodStock = 0;
   let fireQuarantinedFirewoodStock = 0;
   let fireQuarantinedPreservedFoodStock = 0;
+  let householdFirewoodStock = 0;
   let householdCharcoalStock = state.physicalFoundingSiteEnabled === true
     ? 0
     : finiteStock(state.stockpile.charcoal);
@@ -538,17 +539,19 @@ export function computeSettlementProvisioning(input: {
     const householdEdibleStock = householdFreshStock
       + householdPreservedStock
       + householdHoneyStock;
+    const residenceFirewoodStock = finiteStock(
+      getNeedStock(residence.needs, 'firewood'),
+    );
     const fireDisabled = fireDisabledResidences.has(residence.id);
     householdPantryFoodStock += householdEdibleStock;
+    householdFirewoodStock += residenceFirewoodStock;
     accumulateResidenceWelfare(
       welfareAccumulator,
       residence,
       fireDisabled,
     );
     if (fireDisabled) {
-      fireQuarantinedFirewoodStock += finiteStock(
-        getNeedStock(residence.needs, 'firewood'),
-      );
+      fireQuarantinedFirewoodStock += residenceFirewoodStock;
       fireQuarantinedFoodStock += householdEdibleStock;
       fireQuarantinedPreservedFoodStock += householdPreservedStock;
       if (!residence.abandoned && residence.population > 0) {
@@ -631,11 +634,9 @@ export function computeSettlementProvisioning(input: {
           * RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC
           * CALENDAR_SECONDS_PER_DAY
           * WINTER_FIREWOOD_DEMAND_MULTIPLIER;
-        roadBranch.firewoodStock += finiteStock(
-          getNeedStock(residence.needs, 'firewood'),
-        );
+        roadBranch.firewoodStock += residenceFirewoodStock;
       }
-      if (getNeedStock(residence.needs, 'firewood') + 1e-6 < firewoodNeeded) {
+      if (residenceFirewoodStock + 1e-6 < firewoodNeeded) {
         householdBufferFirewoodShortHomes += 1;
         householdBufferReady = false;
       }
@@ -1019,7 +1020,8 @@ export function computeSettlementProvisioning(input: {
     foodPreservation.usableSpoilageFractionPerDay;
   const usableFreshFoodSpoilagePerDay =
     usableFreshFoodStock * usableFreshFoodSpoilageFractionPerDay;
-  const householdHeatingStock = totals.firewood
+  const householdHeatingFirewoodStock = totals.firewood + householdFirewoodStock;
+  const householdHeatingStock = householdHeatingFirewoodStock
     + householdCharcoalStock * CHARCOAL_HOUSEHOLD_FUEL_VALUE;
   const usableFirewoodStock = Math.max(
     0,
@@ -1076,7 +1078,7 @@ export function computeSettlementProvisioning(input: {
     usableFoodStock,
     fireQuarantinedFoodStock,
     firewoodStock: householdHeatingStock,
-    householdFirewoodStock: totals.firewood,
+    householdFirewoodStock: householdHeatingFirewoodStock,
     householdCharcoalStock,
     usableFirewoodStock,
     fireQuarantinedFirewoodStock,

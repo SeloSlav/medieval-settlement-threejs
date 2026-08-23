@@ -143,8 +143,11 @@ assert.doesNotMatch(
 assert.match(settlementHud, /data-food-runway/);
 assert.match(settlementHud, /data-fuel-stores/);
 assert.match(settlementHud, /data-fuel-runway/);
-assert.match(settlementHud, /meal-equivalents usable/);
-assert.match(settlementHud, /firewood \+.*charcoal.*fuel-equivalents/);
+assert.match(settlementHud, /usable meal-equivalents are forecast against that rate/);
+assert.match(settlementHud, /firewood \+.*charcoal =.*fuel-equivalents owned;.*usable by residences/);
+assert.match(settlementHud, /occupied residences/);
+assert.match(settlementHud, /Workplaces can also draw from shared fuel stores/);
+assert.doesNotMatch(settlementHud, /burgage/i);
 assert.match(
   householdDistribution,
   /fn market_issue_cycle[\s\S]*MARKETPLACE_HOUSEHOLD_ISSUE_CHECKS_PER_DAY[\s\S]*ticks_per_check[\s\S]*sim_tick % ticks_per_check[\s\S]*Some\(MarketIssueCycle::Routine\)/,

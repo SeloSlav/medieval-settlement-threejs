@@ -527,8 +527,8 @@ assert.match(
 );
 assert.match(
   fieldSource,
-  /wildflowerCompactions[\s\S]*?wildflowerMaxCompactionDurationMs[\s\S]*?wildflowerCompactionBytesUploaded/,
-  'camera-pan regressions must expose compaction count, maximum duration, and uploaded bytes',
+  /wildflowerCompactions[\s\S]*?wildflowerMaxCompactionDurationMs[\s\S]*?wildflowerCompactionBytesUploaded[\s\S]*?wildflowerLodGpuFlagUpdates[\s\S]*?wildflowerLodGpuUpdateRanges/,
+  'camera-pan regressions must expose compaction count, maximum duration, upload ranges, and bytes',
 );
 
 function applyGeneratedPrefix(buffer: number[], count: number): void {

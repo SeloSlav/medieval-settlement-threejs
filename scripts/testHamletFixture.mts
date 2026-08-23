@@ -992,6 +992,11 @@ function createZeroWorkRouteLodSkyFrameUpdate(
       gpuFlagUpdates: 0,
       gpuUpdateRanges: 0,
       bytesUploaded: 0,
+      wildflowerLodCompactions: 0,
+      wildflowerLodGpuFlagUpdates: 0,
+      wildflowerLodGpuUpdateRanges: 0,
+      wildflowerLodBytesUploaded: 0,
+      wildflowerLodReclassifications: 0,
       completedSlots: 0,
       cancelledSlots: 0,
       pendingSlots: 0,
@@ -1125,12 +1130,17 @@ assert.deepEqual(
       gpuFlagUpdates: 0,
       gpuUpdateRanges: 0,
       bytesUploaded: 0,
+      wildflowerLodCompactions: 0,
+      wildflowerLodGpuFlagUpdates: 0,
+      wildflowerLodGpuUpdateRanges: 0,
+      wildflowerLodBytesUploaded: 0,
+      wildflowerLodReclassifications: 0,
       completedSlots: 0,
       cancelledSlots: 0,
       maxPendingSlots: 0,
     },
   },
-  'forest and groundcover work must stay frozen across every restored update',
+  'generation/caster work must stay frozen while presentation LOD remains separately attributable',
 );
 assert.deepEqual(
   routeLodSkyDirectRenderCaptureReport.routeFrameSequence,
@@ -1980,6 +1990,11 @@ const frozenDirectRendererRecord = {
     gpuFlagUpdates: 0,
     gpuUpdateRanges: 0,
     bytesUploaded: 0,
+    wildflowerLodCompactions: 0,
+    wildflowerLodGpuFlagUpdates: 0,
+    wildflowerLodGpuUpdateRanges: 0,
+    wildflowerLodBytesUploaded: 0,
+    wildflowerLodReclassifications: 0,
     completedSlots: 0,
     cancelledSlots: 0,
     pendingSlots: 0,
@@ -3620,6 +3635,21 @@ for (const sharedSystem of [
 ]) {
   assert.ok(fixtureSource.includes(sharedSystem), `fixture must exercise ${sharedSystem}`);
 }
+assert.match(
+  fixtureSource,
+  /waitForBootStage\('forest', forestPromise, requestedVisualProfile \? 30_000 : 9_000\)/,
+  'a cold-cache visual profile must wait for real deterministic forest atlases without delaying ordinary fallback startup',
+);
+assert.match(
+  fixtureSource,
+  /getSeedThreeProfileBreakdown: \(\) =>[\s\S]*?forestRuntimeReady[\s\S]*?getSeedThreeForestProfileBreakdown\(forest\)[\s\S]*?: null/,
+  'the intentional empty-forest fallback must remain safe under profiler polling',
+);
+assert.match(
+  fixtureSource,
+  /forestStartupPromiseStartedAtMs[\s\S]*?hamletForestStartupTiming[\s\S]*?getSeedThreeForestStartupTiming\(\)/,
+  'the QA fixture must publish actual cold/warm forest hydration duration outside the render loop',
+);
 for (const runtimeContract of [
   'getPointAt(',
   'getPointAtInto(',

@@ -515,7 +515,7 @@
     "charcoalHouseholdFuelValue": 2,
     "marketplaceFuelReserveDays": 21,
     "marketplaceFoodStallSlots": 3,
-    "marketplaceGoodsStallSlots": 3,
+    "marketplaceGoodsStallSlots": 4,
     "marketplaceHouseholdIssueChecksPerDay": 4,
     "residenceFirewoodPriorityWinterDays": 0.5,
     "residenceWaterCapacity": 24,
