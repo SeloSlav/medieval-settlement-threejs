@@ -12,13 +12,29 @@ import {
 } from '../src/economy/tradingPostTrade.ts';
 import {
   CALENDAR_SECONDS_PER_DAY,
+  CHAPEL_TIER2_UPGRADE_IRONWORK,
+  CHAPEL_TIER2_UPGRADE_ROOF_TILES,
+  CHAPEL_TIER2_UPGRADE_STONE,
+  CHAPEL_TIER2_UPGRADE_TIMBER,
+  CHAPEL_TIER3_UPGRADE_IRONWORK,
+  CHAPEL_TIER3_UPGRADE_ROOF_TILES,
+  CHAPEL_TIER3_UPGRADE_STONE,
+  CHAPEL_TIER3_UPGRADE_TIMBER,
   NATURAL_TREE_MATURATION_DAYS,
+  RESIDENCE_TIER3_GOLD_COST,
+  RESIDENCE_TIER3_STONE_COST,
+  RESIDENCE_TIER3_TIMBER_COST,
+  RESIDENCE_TIER4_GOLD_COST,
+  RESIDENCE_TIER4_STONE_COST,
+  RESIDENCE_TIER4_TIMBER_COST,
   RESIDENCE_SERVICE_WARNING_DAYS,
+  RESIDENCE_TILE_ROOF_TILE_COST,
   SIM_TICK_SECONDS,
   TREE_REGROWTH_UPDATE_INTERVAL_SEC,
   type TradeResourceKind,
 } from '../src/generated/gameBalance.ts';
 import {
+  foodMealValue,
   foodProgressionStatus,
   householdFoodPerDay,
 } from '../src/economy/foodInventory.ts';
@@ -45,6 +61,15 @@ const FOUNDERS_COUNT = 10;
 const TIER_TWO_GRAIN_BUFFER_DAYS = 7;
 const TIER_TWO_GRAIN_IMPORT_TARGET = Math.ceil(
   householdFoodPerDay(FOUNDERS_COUNT) * TIER_TWO_GRAIN_BUFFER_DAYS,
+);
+const TIER_FOOD_IMPORT_TARGETS = {
+  ryeBread: TIER_TWO_GRAIN_IMPORT_TARGET,
+  meat: settlementFoodBufferTarget('meat'),
+  fish: settlementFoodBufferTarget('fish'),
+  milk: settlementFoodBufferTarget('milk'),
+} as const;
+const MAX_RESIDENCE_UPGRADE_TICKS = Math.ceil(
+  3 * CALENDAR_SECONDS_PER_DAY / SIM_TICK_SECONDS,
 );
 const uri = process.env.SELO_ECONOMY_TEST_URI?.trim() || DEFAULT_SPACETIME_URI;
 const suppliedDatabase = process.argv[2]?.trim()
@@ -438,7 +463,7 @@ async function runProgressionScenario(connection: DbConnection): Promise<Record<
     'recurring grain staple and local foraged category prepared for Tier 2',
     {
       timeoutMs: 120_000,
-      describe: () => describeTierTwoFoodPreparation(connection, promotionCandidate.id),
+      describe: () => describeTierFoodPreparation(connection, promotionCandidate.id, 2),
     },
   );
   assert.equal(totalPhysicalCommodity(connection, 'ale'), 0, 'Tier 2 ale must be absent before Tier 1 promotion');
@@ -468,6 +493,10 @@ async function runProgressionScenario(connection: DbConnection): Promise<Record<
     gameDays: constructionTicks.tier1ToTier2 * SIM_TICK_SECONDS / CALENDAR_SECONDS_PER_DAY,
     realSeconds: constructionSeconds.tier1ToTier2,
   }));
+  assert(
+    constructionTicks.tier1ToTier2 <= MAX_RESIDENCE_UPGRADE_TICKS,
+    `Tier 1 to Tier 2 took ${constructionTicks.tier1ToTier2} ticks; expected at most ${MAX_RESIDENCE_UPGRADE_TICKS}`,
+  );
   assert.equal(totalPhysicalCommodity(connection, 'ale'), 0, 'promotion must not invent future-tier ale');
   assert.equal(totalPhysicalCommodity(connection, 'cloth'), 0, 'promotion must not invent future-tier cloth');
 
@@ -499,6 +528,39 @@ async function runProgressionScenario(connection: DbConnection): Promise<Record<
     ...tierNeedRecoveryState(connection, promotionCandidate.id, 2).evidence,
   }));
 
+  await setTradingPostRule(
+    connection,
+    tradingPost.id,
+    'ironwork',
+    TRADE_MODE_IMPORT,
+    CHAPEL_TIER2_UPGRADE_IRONWORK,
+  );
+  await setTradingPostRule(
+    connection,
+    tradingPost.id,
+    'roofTiles',
+    TRADE_MODE_IMPORT,
+    CHAPEL_TIER2_UPGRADE_ROOF_TILES,
+  );
+  await assignLaborWhenAvailable(connection, requiredBuilding(connection, 'stone_quarry'), 1);
+  await waitUntil(
+    () => tierThreeTransitionFundingReady(connection)
+      && tierNeedRecoveryState(connection, promotionCandidate.id, 2).ready,
+    'Tier-3 project and post-promotion chapel funding while current Tier-2 needs remain met',
+    {
+      timeoutMs: 180_000,
+      describe: () => `${describeProgressionFunding(connection)}; ${tierNeedRecoveryState(connection, promotionCandidate.id, 2).description}`,
+    },
+  );
+  await callReducer(connection, 'assignBuildingLabor', 'assign_building_labor', {
+    buildingId: requiredBuilding(connection, 'stone_quarry').id,
+    labor: 0,
+  });
+  await waitUntil(
+    () => requiredBuilding(connection, 'stone_quarry').assignedLabor === 0,
+    'quarry labor release before Tier-3 project',
+  );
+
   assert.equal(totalPhysicalCommodity(connection, 'shoes'), 0, 'Tier 3 shoes must be absent before Tier 2 promotion');
   const tierTwoPromotionStarted = performance.now();
   const tierTwoPromotionStartedTick = Number(worldConfig(connection)?.simTick ?? 0n);
@@ -524,11 +586,204 @@ async function runProgressionScenario(connection: DbConnection): Promise<Record<
     gameDays: constructionTicks.tier2ToTier3 * SIM_TICK_SECONDS / CALENDAR_SECONDS_PER_DAY,
     realSeconds: constructionSeconds.tier2ToTier3,
   }));
+  assert(
+    constructionTicks.tier2ToTier3 <= MAX_RESIDENCE_UPGRADE_TICKS,
+    `Tier 2 to Tier 3 took ${constructionTicks.tier2ToTier3} ticks; expected at most ${MAX_RESIDENCE_UPGRADE_TICKS}`,
+  );
+  assert.equal(totalPhysicalCommodity(connection, 'shoes'), 0, 'promotion must not invent future-tier shoes');
+  assert.equal(
+    requiredBuilding(connection, 'chapel').chapelTier,
+    1,
+    'Tier 2 promotion must not require or create the future Tier-2 chapel',
+  );
+
+  // Tier-3 needs activate only after the project completes. Import food and
+  // shoes through ordinary recurring rules, then fund the level-2 chapel from
+  // physically stored materials. Imported food must coexist at one serving
+  // outlet and is never credited by global aggregate alone.
+  for (const [resource, target] of [
+    ['shoes', 12],
+    ['meat', TIER_FOOD_IMPORT_TARGETS.meat],
+    ['fish', TIER_FOOD_IMPORT_TARGETS.fish],
+  ] as const) {
+    await setTradingPostRule(connection, tradingPost.id, resource, TRADE_MODE_IMPORT, target);
+  }
+  await waitUntil(
+    () => chapelUpgradeFundingReady(connection, 2),
+    'pre-staged physical materials for the level-2 chapel after Tier-3 completion',
+    {
+      timeoutMs: 30_000,
+      describe: () => describeProgressionFunding(connection),
+    },
+  );
+  await callReducer(connection, 'upgradeChapel', 'upgrade_chapel', {
+    buildingId: requiredBuilding(connection, 'chapel').id,
+  });
+  await waitUntil(
+    () => requiredBuilding(connection, 'chapel').chapelTier === 2,
+    'level-2 chapel replication',
+  );
+
+  const tierThreeNeedsActivatedTick = tierTwoPromotionEndedTick;
+  await waitUntil(
+    () => tierNeedRecoveryState(connection, promotionCandidate.id, 3).ready,
+    'all newly active Tier-3 needs recover physically',
+    {
+      timeoutMs: 240_000,
+      describe: () => tierNeedRecoveryState(connection, promotionCandidate.id, 3).description,
+    },
+  );
+  const tierThreeNeedsRecoveredTick = Number(worldConfig(connection)?.simTick ?? 0n);
+  assert(
+    tierThreeNeedsRecoveredTick - tierThreeNeedsActivatedTick <= serviceWarningTicks,
+    `Tier-3 needs recovered in ${tierThreeNeedsRecoveredTick - tierThreeNeedsActivatedTick} ticks, after the ${serviceWarningTicks}-tick warning window`,
+  );
+  console.log(JSON.stringify({
+    checkpoint: 'Tier-3 active-need recovery',
+    activatedTick: tierThreeNeedsActivatedTick,
+    recoveredTick: tierThreeNeedsRecoveredTick,
+    tickDelta: tierThreeNeedsRecoveredTick - tierThreeNeedsActivatedTick,
+    warningTicks: serviceWarningTicks,
+    ...tierNeedRecoveryState(connection, promotionCandidate.id, 3).evidence,
+  }));
+
+  assert.equal(totalPhysicalCommodity(connection, 'preservedFood'), 0, 'Tier 4 preserved food must be absent before Tier 3 promotion');
+  assert.equal(totalPhysicalCommodity(connection, 'pottery'), 0, 'Tier 4 pottery must be absent before Tier 3 promotion');
+  assert.equal(totalPhysicalCommodity(connection, 'honey'), 0, 'Tier 4 honey luxury must be absent before Tier 3 promotion');
+  assert.equal(totalPhysicalCommodity(connection, 'wine'), 0, 'Tier 4 wine luxury must be absent before Tier 3 promotion');
+  assert.equal(
+    requiredBuilding(connection, 'chapel').chapelTier,
+    2,
+    'Tier 3 promotion must use the current Tier-3 level-2 chapel standard',
+  );
+
+  // Build the normal physical funding buffer for Tier 4. Stone labor is
+  // rotated back only while the buffer is short, then released before the
+  // residence click so one builder/cart slot remains attainable.
+  await setTradingPostRule(
+    connection,
+    tradingPost.id,
+    'roofTiles',
+    TRADE_MODE_IMPORT,
+    RESIDENCE_TILE_ROOF_TILE_COST + CHAPEL_TIER3_UPGRADE_ROOF_TILES,
+  );
+  await setTradingPostRule(
+    connection,
+    tradingPost.id,
+    'ironwork',
+    TRADE_MODE_IMPORT,
+    CHAPEL_TIER3_UPGRADE_IRONWORK,
+  );
+  await assignLaborWhenAvailable(connection, requiredBuilding(connection, 'stone_quarry'), 1);
+  await waitUntil(
+    () => tierFourTransitionFundingReady(connection)
+      && tierNeedRecoveryState(connection, promotionCandidate.id, 3).ready,
+    'Tier-4 project and post-promotion chapel funding while current Tier-3 needs remain met',
+    {
+      timeoutMs: 240_000,
+      describe: () => `${describeProgressionFunding(connection)}; ${tierNeedRecoveryState(connection, promotionCandidate.id, 3).description}`,
+    },
+  );
+  await callReducer(connection, 'assignBuildingLabor', 'assign_building_labor', {
+    buildingId: requiredBuilding(connection, 'stone_quarry').id,
+    labor: 0,
+  });
+  await waitUntil(
+    () => requiredBuilding(connection, 'stone_quarry').assignedLabor === 0,
+    'quarry labor release before Tier-4 project',
+  );
+
+  const tierThreePromotionStarted = performance.now();
+  const tierThreePromotionStartedTick = Number(worldConfig(connection)?.simTick ?? 0n);
+  await callReducer(connection, 'upgradeResidence', 'upgrade_residence', {
+    residenceId: promotionCandidate.id,
+  });
+  await waitUntil(
+    () => residenceById(connection, promotionCandidate.id)?.tier === 4,
+    'Tier 3 to Tier 4 residence promotion',
+    {
+      timeoutMs: 180_000,
+      describe: () => describeResidenceWithNeeds(connection, promotionCandidate.id),
+    },
+  );
+  constructionSeconds.tier3ToTier4 = roundSeconds(performance.now() - tierThreePromotionStarted);
+  const tierThreePromotionEndedTick = Number(worldConfig(connection)?.simTick ?? 0n);
+  constructionTicks.tier3ToTier4 = tierThreePromotionEndedTick - tierThreePromotionStartedTick;
+  console.log(JSON.stringify({
+    checkpoint: 'Tier 3 to Tier 4 residence promotion',
+    startTick: tierThreePromotionStartedTick,
+    endTick: tierThreePromotionEndedTick,
+    tickDelta: constructionTicks.tier3ToTier4,
+    gameDays: constructionTicks.tier3ToTier4 * SIM_TICK_SECONDS / CALENDAR_SECONDS_PER_DAY,
+    realSeconds: constructionSeconds.tier3ToTier4,
+  }));
+  assert(
+    constructionTicks.tier3ToTier4 <= MAX_RESIDENCE_UPGRADE_TICKS,
+    `Tier 3 to Tier 4 took ${constructionTicks.tier3ToTier4} ticks; expected at most ${MAX_RESIDENCE_UPGRADE_TICKS}`,
+  );
+  for (const commodity of ['preservedFood', 'pottery', 'honey', 'wine'] as const) {
+    assert.equal(
+      totalPhysicalCommodity(connection, commodity),
+      0,
+      `Tier 3 promotion must not invent future-tier ${commodity}`,
+    );
+  }
+
+  // Activate the Tier-4 supply graph only after construction. Milk completes
+  // the split animal-produce slot; preserved food, pottery, and honey cover
+  // the distinct future-tier service rows. The level-3 chapel consumes its
+  // own physically accumulated material upgrade through the public reducer.
+  for (const [resource, target] of [
+    ['milk', TIER_FOOD_IMPORT_TARGETS.milk],
+    ['preservedFood', TIER_TWO_GRAIN_IMPORT_TARGET],
+    ['pottery', 12],
+    ['honey', 12],
+  ] as const) {
+    await setTradingPostRule(connection, tradingPost.id, resource, TRADE_MODE_IMPORT, target);
+  }
+  await waitUntil(
+    () => chapelUpgradeFundingReady(connection, 3),
+    'pre-staged physical materials for the level-3 chapel after Tier-4 completion',
+    {
+      timeoutMs: 30_000,
+      describe: () => describeProgressionFunding(connection),
+    },
+  );
+  await callReducer(connection, 'upgradeChapel', 'upgrade_chapel', {
+    buildingId: requiredBuilding(connection, 'chapel').id,
+  });
+  await waitUntil(
+    () => requiredBuilding(connection, 'chapel').chapelTier === 3,
+    'level-3 chapel replication',
+  );
+
+  const tierFourNeedsActivatedTick = tierThreePromotionEndedTick;
+  await waitUntil(
+    () => tierNeedRecoveryState(connection, promotionCandidate.id, 4).ready,
+    'all newly active Tier-4 needs recover physically',
+    {
+      timeoutMs: 300_000,
+      describe: () => tierNeedRecoveryState(connection, promotionCandidate.id, 4).description,
+    },
+  );
+  const tierFourNeedsRecoveredTick = Number(worldConfig(connection)?.simTick ?? 0n);
+  assert(
+    tierFourNeedsRecoveredTick - tierFourNeedsActivatedTick <= serviceWarningTicks,
+    `Tier-4 needs recovered in ${tierFourNeedsRecoveredTick - tierFourNeedsActivatedTick} ticks, after the ${serviceWarningTicks}-tick warning window`,
+  );
+  console.log(JSON.stringify({
+    checkpoint: 'Tier-4 active-need recovery',
+    activatedTick: tierFourNeedsActivatedTick,
+    recoveredTick: tierFourNeedsRecoveredTick,
+    tickDelta: tierFourNeedsRecoveredTick - tierFourNeedsActivatedTick,
+    warningTicks: serviceWarningTicks,
+    ...tierNeedRecoveryState(connection, promotionCandidate.id, 4).evidence,
+  }));
 
   assertFiniteNonNegativeState(connection);
   const finalResidences = newResidences(connection, beforeResidenceIds);
   return {
-    stage: 'fresh world through legitimate Tier 3',
+    stage: 'fresh world through legitimate Tier 4 and physical new-need recovery',
     simTick: Number(worldConfig(connection)?.simTick ?? 0n),
     constructionSeconds,
     constructionTicks,
@@ -548,11 +803,18 @@ async function runProgressionScenario(connection: DbConnection): Promise<Record<
       naturalGrowthPerUpdate,
       reforesterManagedGrowthDelta,
     },
-    futureTierGoodsAbsentAtPromotion: ['ale', 'cloth', 'shoes'],
+    futureTierGoodsAbsentAtPromotion: [
+      'ale',
+      'cloth',
+      'shoes',
+      'preservedFood',
+      'pottery',
+      'honey',
+      'wine',
+    ],
     remainingAuthoritativeStages: [
-      'satisfy Tier-3 shoes, expanded diet, and level-2 church needs',
-      'prove Tier 3 -> Tier 4 succeeds while preserved food, pottery, and luxury are absent',
       'sustain the Tier-4 household through a complete seasonal cycle',
+      'repeat fixed constrained/trade-fallback and seasonal-distance configurations',
     ],
   };
 }
@@ -700,6 +962,106 @@ async function waitUntil(
   });
 }
 
+function settlementFoodBufferTarget(
+  commodity: 'meat' | 'fish' | 'milk',
+): number {
+  return Math.ceil(
+    householdFoodPerDay(FOUNDERS_COUNT)
+      * TIER_TWO_GRAIN_BUFFER_DAYS
+      / foodMealValue(commodity),
+  );
+}
+
+type ProgressionMaterial = 'timber' | 'stone' | 'ironwork' | 'roofTiles';
+
+function availableProgressionMaterial(
+  connection: DbConnection,
+  commodity: ProgressionMaterial,
+): number {
+  const buildings = [...connection.db.building.iter()];
+  const ledger = [...connection.db.player_resources.iter()]
+    .reduce((total, row) => total + row[commodity], 0);
+  const stored = buildings.reduce((total, row) => total + row[commodity], ledger);
+  const constructionReserved = buildings.reduce((total, row) => {
+    if (row.constructionComplete) return total;
+    if (commodity === 'timber') return total + row.constructionReservedTimber;
+    if (commodity === 'stone') return total + row.constructionReservedStone;
+    if (commodity === 'ironwork') return total + row.constructionReservedIronwork;
+    return total + row.constructionReservedRoofTiles;
+  }, 0);
+  const residenceReserved = [...connection.db.residence.iter()].reduce((total, row) => {
+    if (commodity === 'timber') return total + row.upgradeReservedTimber;
+    if (commodity === 'stone') return total + row.upgradeReservedStone;
+    if (commodity === 'roofTiles') return total + row.upgradeReservedRoofTiles;
+    return total;
+  }, 0);
+  return Math.max(0, stored - constructionReserved - residenceReserved);
+}
+
+function progressionTreasuryGold(connection: DbConnection): number {
+  const resources = [...connection.db.player_resources.iter()][0];
+  const ledgerGold = resources && !resources.physicalFoundingSiteEnabled
+    ? Math.max(0, resources.gold)
+    : 0;
+  const physicalGold = [...connection.db.building.iter()]
+    .filter((building) => building.constructionComplete
+      && ['founders_camp', 'salvage_pile', 'town_hall'].includes(building.kind))
+    .reduce((total, building) => total + Math.max(0, building.gold), ledgerGold);
+  const reserved = [...connection.db.residence.iter()]
+    .reduce((total, residence) => total + Math.max(0, residence.upgradeReservedGold), 0);
+  return Math.max(0, physicalGold - reserved);
+}
+
+function chapelUpgradeFundingReady(
+  connection: DbConnection,
+  targetTier: 2 | 3,
+): boolean {
+  const costs = targetTier === 2
+    ? {
+        timber: CHAPEL_TIER2_UPGRADE_TIMBER,
+        stone: CHAPEL_TIER2_UPGRADE_STONE,
+        ironwork: CHAPEL_TIER2_UPGRADE_IRONWORK,
+        roofTiles: CHAPEL_TIER2_UPGRADE_ROOF_TILES,
+      }
+    : {
+        timber: CHAPEL_TIER3_UPGRADE_TIMBER,
+        stone: CHAPEL_TIER3_UPGRADE_STONE,
+        ironwork: CHAPEL_TIER3_UPGRADE_IRONWORK,
+        roofTiles: CHAPEL_TIER3_UPGRADE_ROOF_TILES,
+      };
+  return (Object.entries(costs) as [ProgressionMaterial, number][])
+    .every(([commodity, required]) =>
+      availableProgressionMaterial(connection, commodity) + 1e-6 >= required);
+}
+
+function tierThreeTransitionFundingReady(connection: DbConnection): boolean {
+  return availableProgressionMaterial(connection, 'timber') + 1e-6
+      >= RESIDENCE_TIER3_TIMBER_COST + CHAPEL_TIER2_UPGRADE_TIMBER
+    && availableProgressionMaterial(connection, 'stone') + 1e-6
+      >= RESIDENCE_TIER3_STONE_COST + CHAPEL_TIER2_UPGRADE_STONE
+    && availableProgressionMaterial(connection, 'ironwork') + 1e-6
+      >= CHAPEL_TIER2_UPGRADE_IRONWORK
+    && availableProgressionMaterial(connection, 'roofTiles') + 1e-6
+      >= CHAPEL_TIER2_UPGRADE_ROOF_TILES
+    && progressionTreasuryGold(connection) + 1e-6 >= RESIDENCE_TIER3_GOLD_COST;
+}
+
+function tierFourTransitionFundingReady(connection: DbConnection): boolean {
+  return availableProgressionMaterial(connection, 'timber') + 1e-6
+      >= RESIDENCE_TIER4_TIMBER_COST + CHAPEL_TIER3_UPGRADE_TIMBER
+    && availableProgressionMaterial(connection, 'stone') + 1e-6
+      >= RESIDENCE_TIER4_STONE_COST + CHAPEL_TIER3_UPGRADE_STONE
+    && availableProgressionMaterial(connection, 'ironwork') + 1e-6
+      >= CHAPEL_TIER3_UPGRADE_IRONWORK
+    && availableProgressionMaterial(connection, 'roofTiles') + 1e-6
+      >= RESIDENCE_TILE_ROOF_TILE_COST + CHAPEL_TIER3_UPGRADE_ROOF_TILES
+    && progressionTreasuryGold(connection) + 1e-6 >= RESIDENCE_TIER4_GOLD_COST;
+}
+
+function describeProgressionFunding(connection: DbConnection): string {
+  return `funding[timber=${availableProgressionMaterial(connection, 'timber').toFixed(2)},stone=${availableProgressionMaterial(connection, 'stone').toFixed(2)},ironwork=${availableProgressionMaterial(connection, 'ironwork').toFixed(2)},roofTiles=${availableProgressionMaterial(connection, 'roofTiles').toFixed(2)},treasuryGold=${progressionTreasuryGold(connection).toFixed(2)}], chapelTier=${buildingByKind(connection, 'chapel')?.chapelTier ?? 'missing'}`;
+}
+
 function worldConfig(connection: DbConnection) {
   return [...connection.db.world_config.iter()][0];
 }
@@ -767,9 +1129,10 @@ function tierTwoFoodPreparationReady(
   return household.ready || servingOutlet.ready;
 }
 
-function describeTierTwoFoodPreparation(
+function describeTierFoodPreparation(
   connection: DbConnection,
   residenceId: bigint,
+  tier: 2 | 3 | 4,
 ): string {
   const residence = residenceById(connection, residenceId);
   const marketplace = buildingByKind(connection, 'marketplace');
@@ -778,18 +1141,22 @@ function describeTierTwoFoodPreparation(
   if (!residence || !marketplace || !post || !granary) {
     return 'required pantry, serving outlet, trade post, or granary absent';
   }
-  const household = foodProgressionStatus(residence, residence.population, 2);
-  const servingOutlet = foodProgressionStatus(marketplace, residence.population, 2);
+  const household = foodProgressionStatus(residence, residence.population, tier);
+  const servingOutlet = foodProgressionStatus(marketplace, residence.population, tier);
   const watchedFoodCargoKinds = new Set<number>([
     TRADE_RESOURCE_COMMODITY_CODES.ryeBread,
     TRADE_RESOURCE_COMMODITY_CODES.berries,
     TRADE_RESOURCE_COMMODITY_CODES.mushrooms,
+    TRADE_RESOURCE_COMMODITY_CODES.meat,
+    TRADE_RESOURCE_COMMODITY_CODES.fish,
+    TRADE_RESOURCE_COMMODITY_CODES.milk,
+    TRADE_RESOURCE_COMMODITY_CODES.preservedFood,
   ]);
   const foodTrips = [...connection.db.delivery_trip.iter()]
     .filter((trip) => watchedFoodCargoKinds.has(trip.cargoKind))
     .map((trip) => `#${trip.id}:${trip.buildingId}->${trip.targetBuildingId}/kind${trip.cargoKind}/${deliveryPhase(trip.phase)}/${trip.amount.toFixed(2)}`)
     .join(',');
-  return `grainTarget=${TIER_TWO_GRAIN_IMPORT_TARGET} (${TIER_TWO_GRAIN_BUFFER_DAYS} settlement days); homeFood=${JSON.stringify(household)}; marketFood=${JSON.stringify(servingOutlet)}; home[pop=${residence.population},food=${residence.food.toFixed(2)},oats=${residence.oatGrain.toFixed(2)},ryeBread=${residence.ryeBread.toFixed(2)},maslinBread=${residence.maslinBread.toFixed(2)},berries=${residence.berries.toFixed(2)},mushrooms=${residence.mushrooms.toFixed(2)},aronia=${residence.aronia.toFixed(2)},rosehips=${residence.rosehips.toFixed(2)}], market[food=${marketplace.food.toFixed(2)},oats=${marketplace.oatGrain.toFixed(2)},ryeBread=${marketplace.ryeBread.toFixed(2)},maslinBread=${marketplace.maslinBread.toFixed(2)},berries=${marketplace.berries.toFixed(2)},mushrooms=${marketplace.mushrooms.toFixed(2)}], granary[food=${granary.food.toFixed(2)},oats=${granary.oatGrain.toFixed(2)},ryeBread=${granary.ryeBread.toFixed(2)},maslinBread=${granary.maslinBread.toFixed(2)},berries=${granary.berries.toFixed(2)},mushrooms=${granary.mushrooms.toFixed(2)}], post[gold=${post.gold.toFixed(2)},ryeBread=${post.ryeBread.toFixed(2)}], foodTrips=${foodTrips || 'none'}`;
+  return `foodTier=${tier}, grainTarget=${TIER_TWO_GRAIN_IMPORT_TARGET} (${TIER_TWO_GRAIN_BUFFER_DAYS} settlement days); homeFood=${JSON.stringify(household)}; marketFood=${JSON.stringify(servingOutlet)}; home[pop=${residence.population},food=${residence.food.toFixed(2)},oats=${residence.oatGrain.toFixed(2)},ryeBread=${residence.ryeBread.toFixed(2)},maslinBread=${residence.maslinBread.toFixed(2)},berries=${residence.berries.toFixed(2)},mushrooms=${residence.mushrooms.toFixed(2)},meat=${residence.meat.toFixed(2)},fish=${residence.fish.toFixed(2)},milk=${residence.milk.toFixed(2)},aronia=${residence.aronia.toFixed(2)},rosehips=${residence.rosehips.toFixed(2)}], market[food=${marketplace.food.toFixed(2)},oats=${marketplace.oatGrain.toFixed(2)},ryeBread=${marketplace.ryeBread.toFixed(2)},maslinBread=${marketplace.maslinBread.toFixed(2)},berries=${marketplace.berries.toFixed(2)},mushrooms=${marketplace.mushrooms.toFixed(2)},meat=${marketplace.meat.toFixed(2)},fish=${marketplace.fish.toFixed(2)},milk=${marketplace.milk.toFixed(2)}], granary[food=${granary.food.toFixed(2)},oats=${granary.oatGrain.toFixed(2)},ryeBread=${granary.ryeBread.toFixed(2)},maslinBread=${granary.maslinBread.toFixed(2)},berries=${granary.berries.toFixed(2)},mushrooms=${granary.mushrooms.toFixed(2)},meat=${granary.meat.toFixed(2)},fish=${granary.fish.toFixed(2)},milk=${granary.milk.toFixed(2)}], post[gold=${post.gold.toFixed(2)},ryeBread=${post.ryeBread.toFixed(2)},meat=${post.meat.toFixed(2)},fish=${post.fish.toFixed(2)},milk=${post.milk.toFixed(2)}], foodTrips=${foodTrips || 'none'}`;
 }
 
 function tierNeedRecoveryState(
@@ -872,7 +1239,7 @@ function tierNeedRecoveryState(
   };
   return {
     ready,
-    description: `${JSON.stringify(evidence)}; ${describeResidenceWithNeeds(connection, residenceId)}; ${describeTierTwoFoodPreparation(connection, residenceId)}`,
+    description: `${JSON.stringify(evidence)}; ${describeResidenceWithNeeds(connection, residenceId)}; ${describeTierFoodPreparation(connection, residenceId, tier)}`,
     evidence,
   };
 }
@@ -915,28 +1282,63 @@ function describeResidenceWithNeeds(connection: DbConnection, residenceId: bigin
 }
 
 function assertFiniteNonNegativeState(connection: DbConnection): void {
-  for (const building of connection.db.building.iter()) {
-    assertFiniteNonNegative(`building ${building.id} constructionProgress`, building.constructionProgress);
-    assertFiniteNonNegative(`building ${building.id} timber`, building.timber);
-    assertFiniteNonNegative(`building ${building.id} stone`, building.stone);
-    assertFiniteNonNegative(`building ${building.id} firewood`, building.firewood);
-    assertFiniteNonNegative(`building ${building.id} food`, building.food);
-    assertFiniteNonNegative(`building ${building.id} assignedLabor`, building.assignedLabor);
+  type AuthoritativeTable = {
+    iter(): Iterable<Record<string, unknown>>;
+  };
+  const tables: readonly (readonly [string, AuthoritativeTable])[] = [
+    ['world_config', connection.db.world_config as unknown as AuthoritativeTable],
+    ['player_resources', connection.db.player_resources as unknown as AuthoritativeTable],
+    ['market_state', connection.db.market_state as unknown as AuthoritativeTable],
+    ['trading_post_trade_rule', connection.db.trading_post_trade_rule as unknown as AuthoritativeTable],
+    ['quarry', connection.db.quarry as unknown as AuthoritativeTable],
+    ['foraging_node', connection.db.foraging_node as unknown as AuthoritativeTable],
+    ['tree_entity', connection.db.tree_entity as unknown as AuthoritativeTable],
+    ['building', connection.db.building as unknown as AuthoritativeTable],
+    ['farm_field', connection.db.farm_field as unknown as AuthoritativeTable],
+    ['pasture', connection.db.pasture as unknown as AuthoritativeTable],
+    ['vineyard_parcel', connection.db.vineyard_parcel as unknown as AuthoritativeTable],
+    ['graveyard', connection.db.graveyard as unknown as AuthoritativeTable],
+    ['corpse', connection.db.corpse as unknown as AuthoritativeTable],
+    ['livestock_herd', connection.db.livestock_herd as unknown as AuthoritativeTable],
+    ['burgage_zone', connection.db.burgage_zone as unknown as AuthoritativeTable],
+    ['residence', connection.db.residence as unknown as AuthoritativeTable],
+    ['backyard_garden', connection.db.backyard_garden as unknown as AuthoritativeTable],
+    ['residence_need', connection.db.residence_need as unknown as AuthoritativeTable],
+    ['delivery_trip', connection.db.delivery_trip as unknown as AuthoritativeTable],
+    ['fire_incident', connection.db.fire_incident as unknown as AuthoritativeTable],
+    ['combat_agent', connection.db.combat_agent as unknown as AuthoritativeTable],
+    ['active_raid', connection.db.active_raid as unknown as AuthoritativeTable],
+    ['settlement_security', connection.db.settlement_security as unknown as AuthoritativeTable],
+    ['road_network_state', connection.db.road_network_state as unknown as AuthoritativeTable],
+  ];
+
+  for (const [tableName, table] of tables) {
+    let rowIndex = 0;
+    for (const row of table.iter()) {
+      for (const [field, value] of Object.entries(row)) {
+        const label = `${tableName}[${rowIndex}].${field}`;
+        if (typeof value === 'number') {
+          assert(Number.isFinite(value), `${label} must be finite, got ${value}`);
+          if (!signedAuthoritativeNumericField(field)) {
+            assert(value >= -1e-6, `${label} must be non-negative, got ${value}`);
+          }
+        } else if (typeof value === 'bigint') {
+          assert(value >= 0n, `${label} must be non-negative, got ${value}`);
+        }
+      }
+      rowIndex += 1;
+    }
   }
-  for (const residence of connection.db.residence.iter()) {
-    assertFiniteNonNegative(`residence ${residence.id} population`, residence.population);
-    assertFiniteNonNegative(`residence ${residence.id} upgradeProgress`, residence.upgradeProgress);
-    assertFiniteNonNegative(`residence ${residence.id} householdWealth`, residence.householdWealth);
-    assertFiniteNonNegative(`residence ${residence.id} food`, residence.food);
-  }
-  for (const need of connection.db.residence_need.iter()) {
-    assertFiniteNonNegative(`need ${need.id} stock`, need.stock);
-    assertFiniteNonNegative(`need ${need.id} deficitTicks`, need.deficitTicks);
-  }
-  for (const trip of connection.db.delivery_trip.iter()) {
-    assertFiniteNonNegative(`trip ${trip.id} amount`, trip.amount);
-    assertFiniteNonNegative(`trip ${trip.id} progress`, trip.progress);
-  }
+}
+
+function signedAuthoritativeNumericField(field: string): boolean {
+  // World/cart geometry is intentionally signed and is not an economy stock,
+  // timer, capacity, reservation, rate, population, or progress value.
+  return field === 'yaw'
+    || field === 'raidApproachOffset'
+    || field === 'x'
+    || field === 'z'
+    || /(?:X|Z|Ax|Az|Bx|Bz|Cx|Cz|Dx|Dz)$/.test(field);
 }
 
 function describeScenarioState(
