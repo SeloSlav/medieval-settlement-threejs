@@ -75,13 +75,26 @@ function buildingStateFromRow(
     beetroot: number;
     aroniaJam: number;
     rosehipJam: number;
+    treeWorkAreaX: number;
+    treeWorkAreaZ: number;
+    treeWorkAreaRadius: number;
   }>;
+  const treeWorkAreaX = Number(materialRow.treeWorkAreaX ?? 0);
+  const treeWorkAreaZ = Number(materialRow.treeWorkAreaZ ?? 0);
+  const treeWorkAreaRadius = Number(materialRow.treeWorkAreaRadius ?? 0);
+  const treeWorkArea = treeWorkAreaRadius > 0
+    && Number.isFinite(treeWorkAreaX)
+    && Number.isFinite(treeWorkAreaZ)
+    && Number.isFinite(treeWorkAreaRadius)
+    ? { x: treeWorkAreaX, z: treeWorkAreaZ, radius: treeWorkAreaRadius }
+    : undefined;
   return {
     id,
     kind: row.kind,
     x: row.x,
     z: row.z,
     workRadius: row.workRadius,
+    treeWorkArea,
     actionCooldown: row.actionCooldown,
     timber: wholeResourceUnits(row.timber),
     firewood: wholeResourceUnits(row.firewood),

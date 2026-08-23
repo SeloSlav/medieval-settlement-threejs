@@ -13,13 +13,17 @@ import {
 import { DEFAULT_REGIONAL_MARKET_STATE } from '../src/economy/regionalMarket.ts';
 import {
   buildingTradeStock,
+  fairImportGoldBudget,
   formatRegionalExchangeCountdown,
+  importTargetFulfillment,
+  tradingPostServiceRouteOrder,
   regionalExchangeRealSecondsAt4x,
   regionalExchangeSecondsUntilNext,
   regionalExchangeSequence,
   settlementTradeStock,
   tradingPostRule,
   tradingPostExchangeDue,
+  tradingPostImportFundingOrder,
   tradingPostRuleId,
   tradingPostUnitPrices,
   TRADE_MODE_EXPORT,
@@ -30,6 +34,7 @@ import {
   type TradingPostTradeRuleState,
 } from '../src/economy/tradingPostTrade.ts';
 import { renderMarketplaceTradePanel } from '../src/resources/inspector/marketplaceTradeRenderer.ts';
+import { marketplaceManualTradeStatus } from '../src/economy/marketplaceTrade.ts';
 import type { BuildingState, GameState } from '../src/resources/types.ts';
 
 function building(
@@ -123,6 +128,12 @@ const state = {
   tradingPostTradeRules: new Map([[exportFirewood.id, exportFirewood]]),
 } as GameState;
 
+assert.equal(
+  marketplaceManualTradeStatus({ ...post, actionCooldown: 7 }, true).ready,
+  true,
+  'the saved Trading Post service-route cursor must never masquerade as a timed regional cooldown',
+);
+
 assert.equal(buildingTradeStock(post, 'firewood'), 11);
 assert.equal(settlementTradeStock(state, 'firewood'), 53);
 assert.equal(settlementTradeStock(state, 'firewood', false), 42);
@@ -134,10 +145,73 @@ assert.equal(tradingPostExchangeDue(
   regionalExchangeTicks,
 ), true);
 
+const importRules = [
+  {
+    ...exportFirewood,
+    id: tradingPostRuleId(post.id, 'ale'),
+    commodityKind: TRADE_RESOURCE_COMMODITY_CODES.ale,
+    commodity: 'ale' as const,
+    mode: 1 as const,
+    lastSettledMonth: 0,
+  },
+  {
+    ...exportFirewood,
+    id: tradingPostRuleId(post.id, 'cloth'),
+    commodityKind: TRADE_RESOURCE_COMMODITY_CODES.cloth,
+    commodity: 'cloth' as const,
+    mode: 1 as const,
+    lastSettledMonth: 0,
+  },
+];
+assert.deepEqual(
+  tradingPostImportFundingOrder(importRules, regionalExchangeTicks),
+  ['cloth', 'ale'],
+  'the next exchange must rotate its first-funded import away from the stable lowest commodity code',
+);
+assert.deepEqual(
+  tradingPostImportFundingOrder(
+    importRules.map((rule) => ({ ...rule, lastSettledMonth: 1 })),
+    regionalExchangeTicks,
+  ),
+  ['ale', 'cloth'],
+  'after the current boundary settles, the inspector must forecast the following server rotation',
+);
+assert.deepEqual(
+  tradingPostImportFundingOrder(importRules, regionalExchangeTicks * 2),
+  ['ale', 'cloth'],
+  'a due second exchange must use that current server settlement sequence',
+);
+assert.deepEqual(
+  tradingPostImportFundingOrder(
+    [importRules[0], { ...importRules[1], lastSettledMonth: 1 }],
+    regionalExchangeTicks,
+  ),
+  ['ale'],
+  'the inspector must rotate only the currently due cohort when a newer rule is staggered',
+);
+assert.equal(importTargetFulfillment(0, 12), 0);
+assert.equal(importTargetFulfillment(3, 12), 0.25);
+assert.equal(importTargetFulfillment(20, 12), 1);
+assert.equal(fairImportGoldBudget(1, 3), 0.33);
+assert.equal(fairImportGoldBudget(0.67, 2), 0.33);
+assert.deepEqual(tradingPostServiceRouteOrder(4, 12).slice(0, 5), [4, 5, 6, 7, 8]);
+assert.deepEqual(tradingPostServiceRouteOrder(Number.NaN, 3), [0, 1, 2]);
+assert.deepEqual(
+  tradingPostImportFundingOrder(
+    importRules,
+    regionalExchangeTicks,
+    (resource) => resource === 'cloth' ? 4.85 : 0,
+  ),
+  ['ale', 'cloth'],
+  'an unserved import must outrank the rotated tie-break that previously starved it',
+);
+
 const panel = renderMarketplaceTradePanel(post, state, DEFAULT_REGIONAL_MARKET_STATE);
 assert.match(panel, /Regional trade ledger/);
 assert.match(panel, /In 30 simulation seconds.*10 real seconds at 4×/);
 assert.match(panel, /staged exports sell before imports/);
+assert.match(panel, /shared in conserved partial tranches across every due import/);
+assert.match(panel, /successful local cart advances a saved fair route cursor/);
 assert.match(panel, /regional exchange is abstract/i);
 assert.match(panel, /only local collection and distribution use visible haulers/i);
 assert.match(panel, /data-trading-post-scroll/);
@@ -176,6 +250,21 @@ assert.match(
   /sort_by_key\(\|rule\| trade_rule_settlement_key\(rule\.mode, rule\.commodity_kind\)\)/,
   'exports must settle before imports so real export proceeds can fund the same exchange',
 );
+assert.match(
+  serverLoop,
+  /fair_import_gold_budget\([\s\S]*?treasury_gold\(ctx, post\.owner\)[\s\S]*?remaining_imports/,
+  'each due import must receive a conserved share of the real treasury rather than a first-rule monopoly',
+);
+assert.match(
+  serverLoop,
+  /import_rule_rotation_offset\(current_exchange, import_count\)[\s\S]*?rotate_left\(rotation\)/,
+  'authority must rotate the first-funded import every exchange when civic gold is constrained',
+);
+assert.match(
+  serverLoop,
+  /imports\.sort_by[\s\S]*?import_rule_fulfillment/,
+  'authority must fund the least-fulfilled due import before applying its rotated tie-break',
+);
 assert.match(serverLoop, /stage_one_export/);
 assert.match(serverLoop, /credit_treasury_gold/);
 assert.match(serverLoop, /spend_treasury_gold/);
@@ -200,6 +289,11 @@ assert.match(tradeRuleReducer, /regional_exchange_sequence\(config\.sim_tick\)/)
 assert.match(tradeRuleReducer, /last_settled_month: current_exchange/);
 
 const localDistribution = readFileSync('server/src/simulation/marketplace_caravan.rs', 'utf8');
+assert.match(
+  localDistribution,
+  /trading_post_service_route_order\([\s\S]*?trading_post\.action_cooldown[\s\S]*?trading_post_service_cursor_after_success/,
+  'Trading Post last-mile carts must advance a saved cursor only after a successful physical dispatch',
+);
 assert.match(
   localDistribution,
   /ResidenceNeedKind::Ale, Some\(CommodityKind::Ale\)[\s\S]*ResidenceNeedKind::Ale, Some\(CommodityKind::Cider\)[\s\S]*ResidenceNeedKind::Ale, Some\(CommodityKind::PearCider\)/,

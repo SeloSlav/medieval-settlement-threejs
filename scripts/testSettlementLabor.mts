@@ -6,7 +6,10 @@ import {
   CONSTRUCTION_MAX_BUILDERS,
   type BuildingKind,
 } from '../src/generated/gameBalance.ts';
-import type { DeliveryTripState } from '../src/logistics/deliveryTrips.ts';
+import {
+  EMPTY_CART_SPEED_MULTIPLIER,
+  type DeliveryTripState,
+} from '../src/logistics/deliveryTrips.ts';
 import { computeSettlementLaborPlan } from '../src/economy/settlementLabor.ts';
 import { computeSettlementHaulagePlan } from '../src/economy/settlementHaulage.ts';
 import { renderTownHallInspector } from '../src/resources/inspector/townHallRenderer.ts';
@@ -53,7 +56,13 @@ const permanentCapacity = [
   'marketplace',
   'chapel',
   'town_hall',
+  'monastery',
 ] satisfies BuildingKind[];
+assert.equal(
+  BUILDING_DEFINITIONS.monastery.maxLabor,
+  8,
+  'the completed Monastery fixture must contribute its eight legitimate permanent posts',
+);
 const expectedCapacity = permanentCapacity.reduce(
   (sum, kind) => sum + BUILDING_DEFINITIONS[kind].maxLabor,
   0,
@@ -61,14 +70,14 @@ const expectedCapacity = permanentCapacity.reduce(
 assert.equal(plan.permanentAssigned, 3);
 assert.equal(plan.permanentCapacity, expectedCapacity);
 assert.equal(plan.openPermanentPosts, expectedCapacity - 3);
-assert.equal(plan.unstaffedWorksites, 2);
-assert.equal(plan.firstUnstaffedBuildingId, '10');
+assert.equal(plan.unstaffedWorksites, 3);
+assert.equal(plan.firstUnstaffedBuildingId, '8');
 assert.equal(plan.sectors.provisions.assigned, 0);
 assert.equal(plan.sectors.provisions.capacity, BUILDING_DEFINITIONS.well.maxLabor);
 assert.equal(plan.sectors.materials.assigned, 2);
 assert.equal(plan.sectors.logistics.unstaffedWorksites, 0);
 assert.equal(plan.sectors.defense.unstaffedWorksites, 1);
-assert.equal(plan.sectors.civic.unstaffedWorksites, 1);
+assert.equal(plan.sectors.civic.unstaffedWorksites, 2);
 assert.equal(plan.constructionAssigned, 3);
 assert.equal(plan.constructionCapacity, CONSTRUCTION_MAX_BUILDERS);
 assert.equal(plan.activeConstructionSites, 1);
@@ -113,10 +122,26 @@ assert.equal(haulage.measuredTrips, 5);
 assert.equal(haulage.unresolvedTrips, 1);
 assert.equal(haulage.totalOneWayDistance, 890);
 assert.equal(haulage.averageOneWayDistance, 178);
-assert.equal(haulage.totalRemainingTripSeconds, 755);
-assert.equal(haulage.totalRemainingWorkerSeconds, 830);
+const loadedFirewoodSeconds = 200 + 30 + 300;
+const emptyTimberReturnSeconds = 50 / EMPTY_CART_SPEED_MULTIPLIER;
+const twoWorkerFoodUnloadSeconds = 15 + 120 / 2;
+const emptyFoodReturnSeconds = 100 / EMPTY_CART_SPEED_MULTIPLIER;
+assert.equal(
+  haulage.totalRemainingTripSeconds,
+  loadedFirewoodSeconds
+    + emptyTimberReturnSeconds
+    + twoWorkerFoodUnloadSeconds
+    + emptyFoodReturnSeconds,
+);
+assert.equal(
+  haulage.totalRemainingWorkerSeconds,
+  loadedFirewoodSeconds
+    + emptyTimberReturnSeconds
+    + twoWorkerFoodUnloadSeconds * 2
+    + emptyFoodReturnSeconds,
+);
 assert.equal(haulage.longestRoute?.tripId, '2');
-assert.equal(haulage.longestRoute?.remainingSeconds, 50);
+assert.equal(haulage.longestRoute?.remainingSeconds, emptyTimberReturnSeconds);
 const inTransit = computeInTransitResourceTotals(haulageTrips.values());
 assert.equal(inTransit.firewood, 8);
 assert.equal(inTransit.food, 4);
@@ -344,7 +369,11 @@ const appBootstrap = readFileSync(
 );
 assert.match(townHallInspector, /Workforce/);
 assert.match(townHallInspector, /Sector staffing/);
-assert.match(townHallInspector, /Staffing priorities/);
+assert.match(townHallInspector, /Dawn labor review/);
+assert.match(townHallInspector, /Automatic labor reserve/);
+assert.match(townHallInspector, /data-policy-seasonal-labor-steward/);
+assert.match(townHallInspector, /data-policy-production-labor-steward/);
+assert.match(townHallInspector, /data-policy-construction-labor-steward/);
 assert.match(townHallInspector, /At full housing labor/);
 assert.match(townHallInspector, /Work in motion/);
 assert.match(townHallInspector, /Haulage posture/);
@@ -368,10 +397,15 @@ assert.match(settlementHud, /data-stockpile="housing">0<\/strong>/);
 assert.doesNotMatch(settlementHud, /data-stockpile="housing-sub"/);
 assert.match(
   resourceInspector,
-  /Math\.max\(0, population\.total - population\.housed\)\.toString\(\)/,
+  /const displayedHomeless = starterCampCreated[\s\S]*Math\.max\(0, population\.total - population\.housed\)[\s\S]*this\.housingValue\.textContent = displayedHomeless\.toString\(\)/,
+  'the HUD must hide pre-founding population noise, then show the finite non-negative homeless count',
 );
 assert.match(settlementHud, /data-stockpile-transit="timber"/);
-assert.match(settlementHud, /Loaded carts are shown separately/);
+assert.match(
+  resourceInspector,
+  /Loaded carts remain listed separately until unloading/,
+  'the totals-mode tooltip must keep in-transit cargo separate from physically stored stock',
+);
 assert.match(resourceInspector, /closest<HTMLElement>\('\[data-inspect-delivery-trip\]'\)/);
 assert.match(resourceInspector, /en route/);
 assert.match(resourceInspector, /awaiting collection/);

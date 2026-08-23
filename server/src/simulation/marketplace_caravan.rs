@@ -37,6 +37,9 @@ use crate::simulation::road_logistics::{
 use crate::simulation::tick_context::SimTickContext;
 use crate::simulation::trading_post_exports_commodity;
 use crate::tables::{Building, Residence};
+use crate::trading_post_policy::{
+    trading_post_service_cursor_after_success, trading_post_service_route_order,
+};
 
 #[derive(Clone, Copy, Debug, Default)]
 pub struct MarketCaravanDispatch {
@@ -268,10 +271,12 @@ fn try_dispatch_trading_post_stock_to_local_service(
         return false;
     }
 
-    let start = (clock.sim_tick as usize) % TRADING_POST_SERVICE_ROUTES.len();
-    for offset in 0..TRADING_POST_SERVICE_ROUTES.len() {
+    for route_index in trading_post_service_route_order(
+        trading_post.action_cooldown,
+        TRADING_POST_SERVICE_ROUTES.len(),
+    ) {
         let (need_kind, routed_commodity) =
-            TRADING_POST_SERVICE_ROUTES[(start + offset) % TRADING_POST_SERVICE_ROUTES.len()];
+            TRADING_POST_SERVICE_ROUTES[route_index];
         let commodity = routed_commodity.or_else(|| match need_kind {
             ResidenceNeedKind::Food | ResidenceNeedKind::PreservedFood => {
                 selected_food_delivery_commodity(trading_post, need_kind)
@@ -383,6 +388,10 @@ fn try_dispatch_trading_post_stock_to_local_service(
             per_worker,
             needed,
         ) {
+            trading_post.action_cooldown = trading_post_service_cursor_after_success(
+                route_index,
+                TRADING_POST_SERVICE_ROUTES.len(),
+            );
             return true;
         }
     }

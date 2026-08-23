@@ -168,4 +168,7 @@ export default __t.row({
   aroniaJam: __t.f64().name("aronia_jam"),
   rosehipJam: __t.f64().name("rosehip_jam"),
   pearCider: __t.f64().name("pear_cider"),
+  treeWorkAreaX: __t.f64().name("tree_work_area_x"),
+  treeWorkAreaZ: __t.f64().name("tree_work_area_z"),
+  treeWorkAreaRadius: __t.f64().name("tree_work_area_radius"),
 });

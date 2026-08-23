@@ -64,6 +64,7 @@ export type InspectorRenderContext = {
   worldResourceAbundance?: number;
   conflictEnabled?: boolean;
   enemyPressure?: number;
+  pendingTreeWorkAreaBuildingId?: string | null;
   settlementProduction?: SettlementProductionCapacity;
   getEconomicActivityTaxRate?: () => number;
   getPantrySafeguardPolicy?: () => PantrySafeguardPolicyCode;

@@ -1,0 +1,91 @@
+{
+  "model": "fal-ai/patina/material",
+  "label": "Medieval compacted dirt road",
+  "source": "public/assets/textures/roads/medieval_dirt/albedo.png",
+  "requestId": "01a02fa9-1fbd-7af2-b551-ddf42c27d92b",
+  "requestedInput": {
+    "prompt": "Flat top-down seamless material of a compacted medieval rural dirt-road surface in Gorski Kotar, Croatia. Cool grey-brown and restrained ochre fine earth with embedded pea-sized gravel, tiny angular stones, subtle irregular compression and crumbly soil variation at millimeter to 4 centimeter scale, dry matte dielectric ground that can be tinted and weathered by a game shader. No road edges, wheel ruts, parallel tracks, puddles, mud gloss, grass clumps, footprints, large stones, directional lighting, cast shadows, perspective, horizon, borders, text, or obvious repeating motifs.",
+    "image_size": "square_hd",
+    "num_inference_steps": 8,
+    "seed": 431026,
+    "num_images": 1,
+    "enable_prompt_expansion": true,
+    "enable_safety_checker": true,
+    "tiling_mode": "both",
+    "tile_size": 128,
+    "tile_stride": 64,
+    "maps": [
+      "basecolor",
+      "normal",
+      "roughness",
+      "metalness",
+      "height"
+    ],
+    "upscale_factor": 0,
+    "output_format": "png",
+    "image_url": "[data URI from public/assets/textures/roads/medieval_dirt/albedo.png]",
+    "strength": 0.55
+  },
+  "returnedSeed": 431026,
+  "returnedPrompt": "High-resolution 4k photograph of a flat, top-down compacted medieval rural dirt-road surface. The material consists of cool grey-brown and restrained ochre fine earth with embedded pea-sized gravel and tiny angular stones. The texture features subtle irregular compression and crumbly soil variations ranging from millimeter to 4-centimeter scales. The surface is a dry, matte dielectric ground with uniform ambient lighting and soft, diffuse shadows. The composition is a perfectly flat orthographic view, showcasing an even distribution of fine grains and small pebbles without any ruts, tracks, or vegetation. High-quality PBR base color texture, extremely detailed soil micro-texture, neutral color palette, consistent density, smooth albedo.",
+  "timings": {
+    "texture_generation": 8.10284030699404,
+    "pbr_prediction": 21.70222292401013
+  },
+  "images": [
+    {
+      "url": "https://v3b.fal.media/files/b/0aa78488/Hj0EMzCyxfvmS5DHEE0RT_XW9DeOJy.png",
+      "content_type": "image/png",
+      "file_name": "Hj0EMzCyxfvmS5DHEE0RT_XW9DeOJy.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "url": "https://v3b.fal.media/files/b/0aa7848a/uR8d0YbQL-Fjzd89yyp2m_xTOgoGLL.png",
+      "content_type": "image/png",
+      "file_name": "uR8d0YbQL-Fjzd89yyp2m_xTOgoGLL.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024,
+      "map_type": "basecolor"
+    },
+    {
+      "url": "https://v3b.fal.media/files/b/0aa7848a/qQj5JjeqkMwzIXXKVLMTd_yY1LOdNO.png",
+      "content_type": "image/png",
+      "file_name": "qQj5JjeqkMwzIXXKVLMTd_yY1LOdNO.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024,
+      "map_type": "normal"
+    },
+    {
+      "url": "https://v3b.fal.media/files/b/0aa7849e/08xbgpJ9vA2Yb48ysg14__f7y9F9an.png",
+      "content_type": "image/png",
+      "file_name": "08xbgpJ9vA2Yb48ysg14__f7y9F9an.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024,
+      "map_type": "roughness"
+    },
+    {
+      "url": "https://v3b.fal.media/files/b/0aa7849e/0NoElMT_bNoBZxv0h3ELx_G3UySKwR.png",
+      "content_type": "image/png",
+      "file_name": "0NoElMT_bNoBZxv0h3ELx_G3UySKwR.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024,
+      "map_type": "metalness"
+    },
+    {
+      "url": "https://v3b.fal.media/files/b/0aa7848a/F6u7PY_T4bAcSUYZ7Pozq_K44uF0WY.png",
+      "content_type": "image/png",
+      "file_name": "F6u7PY_T4bAcSUYZ7Pozq_K44uF0WY.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024,
+      "map_type": "height"
+    }
+  ],
+  "generatedAt": "2026-08-23T17:27:12.550Z"
+}

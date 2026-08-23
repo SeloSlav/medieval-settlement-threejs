@@ -5,7 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Building Art Direction Lineup</title>
     <style>
-      :root { color-scheme: dark; font-family: Inter, ui-sans-serif, system-ui, sans-serif; }
+      :root {
+        color-scheme: dark;
+        font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+        --lineup-label-band-height: 38px;
+      }
       * { box-sizing: border-box; }
       html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; background: #151912; }
       body { display: grid; grid-template-rows: 74px 1fr; }
@@ -22,13 +26,19 @@
         position: absolute; inset: 0; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr));
         grid-template-rows: repeat(4, minmax(0, 1fr)); pointer-events: none;
       }
-      .cell { position: relative; border-right: 1px solid rgba(229,214,176,.12); border-bottom: 1px solid rgba(229,214,176,.12); }
+      .cell {
+        position: relative; display: grid;
+        grid-template-rows: minmax(0, 1fr) var(--lineup-label-band-height);
+        border-right: 1px solid rgba(229,214,176,.12);
+        border-bottom: 1px solid rgba(229,214,176,.12);
+      }
       .label {
-        position: absolute; left: 12px; right: 12px; bottom: 8px; padding: 5px 8px;
-        border: 1px solid rgba(25,24,18,.42); border-radius: 3px;
-        background: rgba(28,29,22,.78); color: #f0e7d2; text-align: center;
-        font-family: Georgia, serif; font-size: 13px; letter-spacing: .035em;
-        box-shadow: 0 2px 7px rgba(0,0,0,.18); backdrop-filter: blur(3px);
+        position: relative; grid-row: 2; min-width: 0; padding: 4px 8px;
+        display: flex; align-items: center; justify-content: center;
+        border-top: 1px solid rgba(229,214,176,.18);
+        background: rgba(24,26,20,.96); color: #f0e7d2; text-align: center;
+        font-family: Georgia, serif; font-size: clamp(10px, .8vw, 13px);
+        line-height: 1.08; letter-spacing: .025em;
       }
     </style>
   </head>

@@ -13,10 +13,13 @@ import {
   buildingDemolishHint,
   buildingLaborView,
   buildingStorageRows,
-  buildingExtentRow,
   treeCountRows,
 } from './buildingCommon.ts';
 import type { InspectorRenderContext, InspectorView } from './renderInspectableTarget.ts';
+import {
+  forestryWorkAreaDetailRow,
+  renderForestryWorkAreaPanel,
+} from './treeWorkAreaRenderer.ts';
 
 export function renderReforesterInspector(
   target: Extract<InspectableTarget, { kind: 'building' }>,
@@ -49,7 +52,7 @@ export function renderReforesterInspector(
     statusState: regrowing ? 'active' : building.assignedLabor === 0 ? 'idle' : 'draft',
     detailsHtml: `
       ${buildingCostRows(cost)}
-      ${buildingExtentRow(building.kind)}
+      ${forestryWorkAreaDetailRow(building)}
       <li><span>Managed capacity</span><span>${building.assignedLabor > 0 ? `${managedTreesPerWorkday.toFixed(1)} trees/workday` : `${(definition.regrowRatePerSecond * workdaySeconds).toFixed(1)} trees/workday per worker`}</span></li>
       <li><span>Natural succession</span><span>about ${NATURAL_TREE_MATURATION_DAYS} days</span></li>
       ${treeCountRows(matureTrees, stumpTrees, growingTrees)}
@@ -60,5 +63,8 @@ export function renderReforesterInspector(
       hint: buildingDemolishHint(building.kind),
     },
     labor: buildingLaborView(building, context.populationStats, context.worldQueries),
+    supplementalPanelHtml: renderForestryWorkAreaPanel(building, {
+      pending: context.pendingTreeWorkAreaBuildingId === building.id,
+    }),
   };
 }

@@ -96,6 +96,7 @@ import { buildingKindLabel, findNearestBuilding as findBuilding } from './WorldL
 import { countTreesNearBuilding } from './ForestVisualSync.ts';
 import { computePopulationStats } from './resourceTotals.ts';
 import type { TreeRegistry } from './TreeRegistry.ts';
+import { effectiveTreeWorkArea } from './treeWorkArea.ts';
 import { RESIDENCE_PICK_RADIUS } from '../residences/burgageLayout.ts';
 import { isPointInPolygon2 } from '../utils/polygonGeometry.ts';
 import {
@@ -280,8 +281,9 @@ export class WorldQueries {
 
     if (building && residenceTarget) {
       const treeRegistry = this.getTreeRegistry();
+      const workArea = effectiveTreeWorkArea(building);
       const counts = treeRegistry && buildingNeedsInspectableTreeCounts(state, building)
-        ? countTreesNearBuilding(state, treeRegistry, building.x, building.z, building.workRadius)
+        ? countTreesNearBuilding(state, treeRegistry, workArea.x, workArea.z, workArea.radius)
         : { matureTrees: 0, stumpTrees: 0, growingTrees: 0 };
       return pickCloserTarget(
         {
@@ -304,8 +306,9 @@ export class WorldQueries {
 
     if (building) {
       const treeRegistry = this.getTreeRegistry();
+      const workArea = effectiveTreeWorkArea(building);
       const counts = treeRegistry && buildingNeedsInspectableTreeCounts(state, building)
-        ? countTreesNearBuilding(state, treeRegistry, building.x, building.z, building.workRadius)
+        ? countTreesNearBuilding(state, treeRegistry, workArea.x, workArea.z, workArea.radius)
         : { matureTrees: 0, stumpTrees: 0, growingTrees: 0 };
       return {
         kind: 'building',
@@ -347,8 +350,9 @@ export class WorldQueries {
     const building = state.buildings.get(buildingId);
     if (!building) return null;
     const treeRegistry = this.getTreeRegistry();
+    const workArea = effectiveTreeWorkArea(building);
     const counts = treeRegistry && buildingNeedsInspectableTreeCounts(state, building)
-      ? countTreesNearBuilding(state, treeRegistry, building.x, building.z, building.workRadius)
+      ? countTreesNearBuilding(state, treeRegistry, workArea.x, workArea.z, workArea.radius)
       : { matureTrees: 0, stumpTrees: 0, growingTrees: 0 };
     return {
       kind: 'building',

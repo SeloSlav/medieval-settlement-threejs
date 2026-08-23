@@ -41,6 +41,55 @@ pub fn trade_rule_settlement_key(mode: u8, commodity_kind: u8) -> (u8, u8) {
     (priority, commodity_kind)
 }
 
+/// Imports share one civic treasury, so a stable commodity-code ordering can
+/// otherwise let the first recurring deficit consume every exchange's coin
+/// forever. Keep the ordering deterministic for replay/save compatibility,
+/// but rotate which import gets the first funding opportunity each window.
+pub fn import_rule_rotation_offset(current_exchange: u64, import_count: usize) -> usize {
+    if import_count == 0 {
+        return 0;
+    }
+    (current_exchange % import_count as u64) as usize
+}
+
+/// Compare recurring imports by how much of their requested public buffer is
+/// already present. The least-served rule receives the next real-gold funding
+/// opportunity; a value of one means the target is already satisfied.
+pub fn import_target_fulfillment(public_stock: f64, target_surplus: f64) -> f64 {
+    let target = clamp_trade_surplus(target_surplus);
+    if target <= 1e-9 {
+        return 1.0;
+    }
+    (public_stock.max(0.0) / target).clamp(0.0, 1.0)
+}
+
+/// Trading Posts reuse their otherwise idle `Building::action_cooldown` as a
+/// saved route cursor. Advancing it only after a successful dispatch prevents
+/// cart travel time from phase-locking one commodity to `sim_tick % routes`.
+pub fn trading_post_service_route_order(cursor: f64, route_count: usize) -> Vec<usize> {
+    if route_count == 0 {
+        return Vec::new();
+    }
+    let start = if cursor.is_finite() && cursor >= 0.0 {
+        cursor.floor() as usize % route_count
+    } else {
+        0
+    };
+    (0..route_count)
+        .map(|offset| (start + offset) % route_count)
+        .collect()
+}
+
+pub fn trading_post_service_cursor_after_success(
+    dispatched_route_index: usize,
+    route_count: usize,
+) -> f64 {
+    if route_count == 0 {
+        return 0.0;
+    }
+    ((dispatched_route_index + 1) % route_count) as f64
+}
+
 pub fn exportable_surplus(public_stock_outside_post: f64, target_surplus: f64) -> f64 {
     (public_stock_outside_post.max(0.0) - clamp_trade_surplus(target_surplus))
         .floor()
@@ -60,8 +109,19 @@ pub fn affordable_import_units(deficit: f64, room: f64, gold: f64, unit_price: f
     deficit
         .max(0.0)
         .min(room.max(0.0))
-        .min((gold.max(0.0) / unit_price).floor())
-        .floor()
+        .min(gold.max(0.0) / unit_price)
+}
+
+/// Split the actually available treasury among the due import rules that have
+/// not yet had their turn. Cents are floored, so no rule can overspend its
+/// tranche through price rounding; unused coin automatically flows into the
+/// larger tranches calculated for later rules.
+pub fn fair_import_gold_budget(remaining_gold: f64, remaining_rules: usize) -> f64 {
+    if remaining_rules == 0 || !remaining_gold.is_finite() {
+        return 0.0;
+    }
+    let available_cents = (remaining_gold.max(0.0) * 100.0).floor();
+    ((available_cents / remaining_rules as f64).floor()) / 100.0
 }
 
 pub fn trade_gold(units: f64, unit_price: f64) -> f64 {
@@ -86,7 +146,9 @@ mod tests {
     fn imports_are_partial_when_storage_or_gold_is_short() {
         let deficit = import_deficit(18.0, 50.0);
         assert_eq!(deficit, 32.0);
-        assert_eq!(affordable_import_units(deficit, 20.0, 17.0, 2.0), 8.0);
+        assert_eq!(affordable_import_units(deficit, 20.0, 17.0, 2.0), 8.5);
+        assert_eq!(fair_import_gold_budget(1.0, 3), 0.33);
+        assert_eq!(fair_import_gold_budget(0.67, 2), 0.33);
     }
 
     #[test]
@@ -116,5 +178,91 @@ mod tests {
         );
         let export_revenue = trade_gold(10.0, 1.0);
         assert_eq!(affordable_import_units(10.0, 10.0, export_revenue, 2.0), 5.0);
+    }
+
+    #[test]
+    fn recurring_imports_rotate_the_first_funding_opportunity() {
+        assert_eq!(import_rule_rotation_offset(0, 0), 0);
+        assert_eq!(import_rule_rotation_offset(0, 3), 0);
+        assert_eq!(import_rule_rotation_offset(1, 3), 1);
+        assert_eq!(import_rule_rotation_offset(2, 3), 2);
+        assert_eq!(import_rule_rotation_offset(3, 3), 0);
+
+        let sorted_commodity_codes = [6_u8, 14, 60];
+        let count = sorted_commodity_codes.len();
+        let mut exchange_one = sorted_commodity_codes;
+        exchange_one.rotate_left(import_rule_rotation_offset(1, count));
+        assert_eq!(exchange_one, [14, 60, 6]);
+        let mut exchange_two = sorted_commodity_codes;
+        exchange_two.rotate_left(import_rule_rotation_offset(2, count));
+        assert_eq!(exchange_two, [60, 6, 14]);
+    }
+
+
+    #[test]
+    fn the_least_fulfilled_import_gets_first_claim_on_real_coin() {
+        assert_eq!(import_target_fulfillment(0.0, 12.0), 0.0);
+        assert_eq!(import_target_fulfillment(3.0, 12.0), 0.25);
+        assert_eq!(import_target_fulfillment(12.0, 12.0), 1.0);
+        assert_eq!(import_target_fulfillment(20.0, 12.0), 1.0);
+        assert_eq!(import_target_fulfillment(0.0, 0.0), 1.0);
+
+        let ale_fulfillment = import_target_fulfillment(0.0, 12.0);
+        let cloth_fulfillment = import_target_fulfillment(4.85, 12.0);
+        assert!(ale_fulfillment < cloth_fulfillment);
+
+    }
+
+    #[test]
+    fn successful_local_carts_advance_a_saved_starvation_free_route_cursor() {
+        let mut eligible = [false; 12];
+        for index in [4_usize, 7, 8, 9] {
+            eligible[index] = true;
+        }
+        let mut cursor = 0.0;
+        let mut selected = Vec::new();
+        for _ in 0..8 {
+            let route = trading_post_service_route_order(cursor, eligible.len())
+                .into_iter()
+                .find(|index| eligible[*index])
+                .expect("one imported service route remains eligible");
+            selected.push(route);
+            cursor = trading_post_service_cursor_after_success(route, eligible.len());
+        }
+        assert_eq!(selected, [4, 7, 8, 9, 4, 7, 8, 9]);
+        assert_eq!(trading_post_service_route_order(f64::NAN, 3), [0, 1, 2]);
+        assert_eq!(trading_post_service_route_order(8.0, 0), Vec::<usize>::new());
+    }
+
+
+    #[test]
+    fn treasury_limited_repeated_exchanges_fund_every_recurring_import() {
+        let unit_prices = [1.5_f64, 2.75, 3.25];
+        let mut imported = [0.0_f64; 3];
+        let mut treasury = 0.0_f64;
+        let mut total_export_revenue = 0.0_f64;
+        let mut total_spent = 0.0_f64;
+
+        for _exchange in 0..6 {
+            // Real staged exports add only three gold each window. Treat all
+            // imported stock as consumed before the next exchange, reproducing
+            // recurring zero-public-stock demand rather than a one-shot fill.
+            treasury += 3.0;
+            total_export_revenue += 3.0;
+            for index in 0..unit_prices.len() {
+                let remaining = unit_prices.len() - index;
+                let budget = fair_import_gold_budget(treasury, remaining);
+                let units = affordable_import_units(12.0, 100.0, budget, unit_prices[index]);
+                let expense = trade_gold(units, unit_prices[index]);
+                assert!(expense <= budget + 1e-9);
+                treasury = (treasury - expense).max(0.0);
+                total_spent += expense;
+                imported[index] += units;
+            }
+        }
+
+        assert!(imported.into_iter().all(|units| units > 0.0));
+        assert!(total_spent <= total_export_revenue + 1e-9);
+        assert!((total_export_revenue - total_spent - treasury).abs() < 1e-9);
     }
 }

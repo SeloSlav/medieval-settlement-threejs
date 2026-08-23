@@ -7,6 +7,7 @@ import type { RoadTool } from '../roads/RoadTool.ts';
 import type { BuildingTool } from '../buildings/BuildingTool.ts';
 import type { BurgageTool } from '../residences/BurgageTool.ts';
 import type { FarmFieldTool } from '../farming/FarmFieldTool.ts';
+import type { ForestryWorkAreaTool } from '../resources/ForestryWorkAreaTool.ts';
 import type { FirstPersonController } from '../camera/FirstPersonController.ts';
 import {
   formatBootstrapFailure,
@@ -24,6 +25,7 @@ export type SessionLifecycleDeps = {
   buildingTool: BuildingTool | null;
   burgageTool: BurgageTool | null;
   farmFieldTool: FarmFieldTool | null;
+  forestryWorkAreaTool?: ForestryWorkAreaTool | null;
   firstPersonController: FirstPersonController | null;
   recoverSession?: () => void;
   beginNewWorld?: () => void;
@@ -234,6 +236,7 @@ export class SessionLifecycleController {
     this.deps.buildingTool?.setMode('off');
     this.deps.burgageTool?.setEnabled(false);
     this.deps.farmFieldTool?.setEnabled(false);
+    this.deps.forestryWorkAreaTool?.setEnabled(false);
     if (this.deps.firstPersonController?.isActive()) {
       this.deps.firstPersonController.deactivate();
     }

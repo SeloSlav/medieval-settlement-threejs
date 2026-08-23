@@ -1,89 +1,140 @@
 # Building Card Art Direction
 
-## Gorski Kotar frontier folio
+## Functional woodcut emblems
 
-The building-card set depicts Gorski Kotar around 1550 as a cold, wet Croatian mountain frontier. It combines local stone-and-timber construction with the visual language of a hand-colored Central European military survey or settlement register.
+Building cards communicate **what happens at a place**, not what its building
+looks like. Each card is a compact action emblem: one dominant period object or
+process, supported by one or two attached cues, rendered in the same colored
+woodcut language as the illustrated-map resource icons.
 
-This replaces the earlier coastal Venetian manuscript direction. The cards must feel documentary, practical, and tied to the same settlement as the in-world buildings.
+This direction supersedes the former architectural survey illustrations. The
+3D building lineup remains the source of truth for in-world architecture, but
+the cards intentionally use symbolic process art so they remain distinctive at
+their actual `122x184` desktop display size.
 
 ### Locked visual contract
 
-- Portrait `2:3` composition, delivered as `320x480` WebP.
-- Cool aged parchment continues uninterrupted to all four edges.
-- No border, frame, decorative margin, cartouche, medallion, badge, vignette, corner flourish, heraldry, rounded panel, or card mockup.
-- No people or human figures.
-- No text, letters, numerals, logos, or watermarks.
-- Late-sixteenth-century Gorski Kotar materials: fieldstone, limewash, dark oak, weathered timber, hand-split shingles, iron, wet earth, and moss. Fired terracotta roofing is reserved for the Monastery card and non-card elite upgrades.
-- Compact footprints, steep weather roofs, deep eaves, strong silhouettes, and function-defining equipment.
-- Documentary dark-brown linework and crosshatching with restrained transparent tempera washes.
-- Cool mountain daylight, mist, karst limestone, and restrained fir, spruce, and beech woodland.
-- No coastal villas, Mediterranean loggias, fantasy castles, modern machinery, or generic Tudor architecture.
+- Portrait `2:3`, shipped as `320x480` WebP.
+- One centered, interlocked functional-emblem cluster filling roughly 68–72%
+  of the canvas height. Keep essential details inside the central 82% so the
+  inspector and circular category crops remain useful.
+- Warm aged parchment continues uninterrupted to all four edges.
+- Near-black hand-inked carved contours, deliberate woodcut hatching, flat
+  transparent tempera washes, and subtly imperfect artisan registration.
+- Small mineral-and-plant pigment palette: parchment ivory, charcoal, dark
+  oak, muted ochre, moss olive, dull lapis, and restrained vermilion.
+- Strong silhouette and restrained internal detail. The emblem must still read
+  when reduced to the build menu's real `122x184` footprint.
+- No people, human figures, faces, hands, or arms.
+- No building portrait, room, landscape, horizon, or distant settlement.
+  Essential functional structures such as a well curb, oven mouth, kiln mouth,
+  wall section, devotional image, gate bar, or palisade stakes are allowed.
+- No text, letters, numerals, labels, banners, logos, or watermarks.
+- No border, frame, rounded panel, medallion, shield-shaped canvas,
+  decorative margin, cartouche, vignette, heraldry, or card mockup. The card
+  frame belongs to CSS.
+- No modern machinery, modern symbols, generic fantasy ornament, or glossy
+  app-icon rendering.
+
+### Emblem grammar
+
+1. Start with the verb: cutting, planting, lifting, firing, storing, trading,
+   warning, sheltering, praying, or processing.
+2. Choose one dominant object that carries the silhouette.
+3. Attach at most two supporting cues so the result reads as one cluster, not
+   a row of inventory icons.
+4. Use material and action to separate neighboring concepts. A frame saw
+   cutting a squared log is the Lumber Mill; an axe splitting a round on a
+   stump is the Woodcutter. A hoist lifting stone is the Quarry; an ore tub,
+   pick, and lamp is the Mine.
+5. Do not add architecture merely to fill space. Clean parchment is part of
+   the system.
 
 ### Shared generation prompt
 
 ```text
-Use case: stylized-concept
-Asset type: portrait game building card illustration in a cohesive Gorski Kotar building set
-Primary request: <BUILDING-SPECIFIC SUBJECT BRIEF>
-Scene/backdrop: cool aged parchment extending fully to every edge; late-sixteenth-century Gorski Kotar, mountainous western Croatia; damp karst terrain, restrained spruce, fir and beech silhouettes, mossy limestone and pale mist
-Style/medium: hand-colored late-sixteenth-century Central European frontier survey folio and Croatian military-register illustration; precise dark-brown woodcut-like architectural linework and crosshatching; restrained transparent tempera washes on fibrous parchment; subtle handmade irregularity; documentary, not ornate
-Composition/framing: vertical 2:3 orientation; centered three-quarter survey view; complete subject clearly readable with generous breathing room; slight elevated viewpoint; low forested horizon; image and parchment texture continue uninterrupted to all four edges
-Lighting/mood: cool diffuse mountain daylight; sober, resilient, remote forest-frontier atmosphere
-Color palette: parchment ivory, spruce green, charcoal brown, slate gray, moss, muted ochre; deep terracotta red only when depicting an explicitly elite tiled building
-Constraints: NO PEOPLE OR HUMAN FIGURES; no text; no letters; no numerals; no logos; no watermark; no modern objects; no fantasy; no Mediterranean coastal villa elements; no UI overlay
-Avoid: ANY BORDER, frame, outline around the canvas, ornamental edge, decorative margin, illuminated initial, cartouche, medallion, badge, vignette, corner flourish, heraldry, stylized border, darkened edge, rounded panel, card mockup
+Use case: style-transfer
+Asset type: portrait 2:3 medieval game building card
+Input images: approved Hunter's Hall, Smithy, and Watermill functional-emblem
+anchors control parchment, composition scale, line weight, simplicity,
+saturation, and finish; the colored paper-map resource atlas reinforces the
+pigment language
+Primary request: create one compact functional emblem for <CARD>. Do not
+depict the building. <SUBJECT BRIEF>
+Scene/backdrop: uninterrupted warm aged parchment to all four edges, with only
+a faint irregular pigment wash immediately beneath the emblem; no scene or
+horizon
+Style/medium: late-Renaissance Croatian colored woodcut; thick near-black
+hand-inked carved contours; deliberate hatching; flat transparent tempera
+washes; imperfect artisan registration; bold small-size readability
+Composition/framing: vertical 2:3; one centered interlocked emblem cluster
+filling 68–72% of the canvas height; generous parchment; essential details
+inside the central 82%
+Constraints: NO PEOPLE, HANDS, ARMS, OR FACES; no building portrait; no text,
+letters, numerals, labels, logos, or watermark; no border, frame, medallion,
+decorative margin, or card mockup; exactly one compact functional cluster
+Avoid: disconnected inventory icons, architectural illustration, realistic
+painting, sepia-only drawing, detailed scenery, fantasy ornament, UI chrome
 ```
 
-### Subject briefs
+### Active card briefs
 
-| Asset | Signature subject |
+| Asset | Functional emblem |
 | --- | --- |
-| `apiary.webp` | Ordered skep hives beneath a low shelter with a small honey shed. |
-| `bakery.webp` | Stone bakehouse, oven mass, chimney, firewood, flour, and cooling racks. |
-| `brewery.webp` | Warm-walled brewhouse, malt kiln, brewing porch, vats, and barrels. |
-| `carpenter.webp` | Enclosed shop with deep working bay, joinery, wheels, and handcart. |
-| `cobbler.webp` | Compact limewashed road workshop with deep porch, broad work window, shoe lasts, leather rolls, finished shoes, and a boot-shaped sign. |
-| `chapel.webp` | Limewashed parish nave with an open oak belfry and a steep hand-split shingle roof. |
-| `wayside-shrine.webp` | Tiny limewashed roadside poklonac with an arched Marian niche, limestone plinth, shingle cap, and iron cross. |
-| `charcoal-burner.webp` | Earth-covered charcoal clamp, billet ring, and tiny watch shelter. |
-| `clay-pit.webp` | Shallow ochre clay bank, puddling trough, cut blocks, and baskets. |
-| `fishing-camp.webp` | River hut, plank landing, empty skiff, nets, and traps. |
-| `foragers-hut.webp` | Light woodland shed with baskets, herb racks, and drying bundles. |
-| `grain-field.webp` | Irregular upland crop strips, stone boundaries, sheaves, and field shelter. |
-| `granary.webp` | Long low timber store on continuous stone foundation with paired vents. |
-| `guardhouse.webp` | Compact fortified barracks, fighting gallery, loopholes, and palisade. |
-| `hunter-hall.webp` | Low forest hall with equipment shed, bow rack, and empty game poles. |
-| `iron-mine.webp` | Timber-braced hillside adit, sorting shelter, ore, and support stacks. |
-| `large-quarry.webp` | Centered underground shaft, headframe, hoist, and timber chamber supports. |
-| `lumber-mill.webp` | Long low saw hall, frame saw, intake bay, logs, and squared beams. |
-| `market.webp` | Broad empty market canopy with stalls, scales, barrels, and baskets. |
-| `monastery.webp` | L-shaped pale Pauline complex with fired-clay tile roofs, restrained belfry, and cloister garden. |
-| `palisaded-refuge.webp` | Terrain-following palisade, ditch, gatehouse, shelter, and stores. |
-| `pastoral-farmstead.webp` | Upland byre, hay barn, milking shelter, meadow, sheep, and cattle. |
-| `pasture.webp` | Fenced mountain meadow, open shelter, trough, hayrack, and livestock. |
-| `potter-kiln.webp` | Potter shed, updraft kiln, clay trough, firewood, vessels, and roof tiles. |
-| `reforester.webp` | Woodland keeper hut, fenced nursery beds, and fir/beech saplings. |
-| `residence.webp` | Stone lower storey, timber upper storey, steep shingle roof, and woodpile. |
-| `smithy-bloomery.webp` | Forest bloomery furnace, forge shed, anvil, bellows, and charcoal store. |
-| `smithy.webp` | Legacy compact village forge with chimney, anvil, quench trough, and tools. |
-| `smokehouse.webp` | Tall vented timber smoke chamber, flue, firewood, salt, and pottery. |
-| `stonecutters-camp.webp` | Unified shallow Mining Pit with visible material bands and sorting shelter. |
-| `swineherd.webp` | Woodland pannage shelter, rail enclosure, feed bins, wallow, and pigs. |
-| `tannery.webp` | Long low wet-work shed with a louvered drying loft, deep yard roof, bark-liquor vats, trough, bark, and a clean hide frame. |
-| `threshing-barn.webp` | High-roofed through-barn, broad doors, stone plinth, and grain sheaves. |
-| `town-hall.webp` | Vertical but compact civic house with modest bell turret and notice porch. |
-| `trading-post.webp` | Secure road depot, covered loading porch, weighing beam, cart, and goods. |
-| `village-storehouse.webp` | Communal stone-and-timber store with deep cart porch and material stacks. |
-| `vineyard.webp` | Small sheltered karst terrace, vine rows, vintner shelter, press, and casks. |
-| `watchtower.webp` | Square timber lookout on stone base with signal basket and ridge sightline. |
-| `water-well.webp` | Timber canopy, circular stone curb, hand winch, bucket, and drainage trough. |
-| `watermill.webp` | Limewashed stream mill with a full-height overshot wheel and millrace. |
-| `weaver.webp` | Workshop with broad work windows, visible loom, fibres, and cloth. |
-| `windmill.webp` | Compact wooden post mill in a rare open mountain clearing. |
-| `woodcutters-lodge.webp` | Sturdy splitting lodge, chopping blocks, axes, cart, and firewood walls. |
+| `residence.webp` | Lit household hearth interlocked with a large iron house key, split firewood, and a folded blanket. |
+| `water-well.webp` | Bucket and rope on a timber windlass over a circular limestone curb with visible blue water. |
+| `town-hall.webp` | Open blank ledger, quill, wax seal, civic handbell, and a restrained stack of coins. |
+| `market.webp` | Hanging balance scale interlocked with a produce basket, small barrel, and trade coins. |
+| `trading-post.webp` | Packed merchant chest and tied cargo bale against a wagon wheel, finished with a sealing stamp. |
+| `village-storehouse.webp` | Locked cluster of crate, barrel, and sack with stored timber and stone visible. |
+| `granary.webp` | Lidded wooden grain bin, overflowing grain scoop, and tied cereal sheaves. |
+| `lumber-mill.webp` | Stout frame saw visibly biting through a horizontal squared log with curled shavings. |
+| `reforester.webp` | Rooted young fir sapling with a seed cone, planting dibble, and small protective wattle ring. |
+| `stonecutters-camp.webp` | Mason's mallet and iron chisel actively splitting a pale rectangular stone block. |
+| `large-quarry.webp` | Timber pulley and windlass lifting a huge pale cut-stone block from a dark circular shaft rim. |
+| `iron-mine.webp` | Dark iron ore heaped in a period wooden ore tub with a pick and small oil lamp. |
+| `clay-pit.webp` | Layered wet ochre and red clay bank with wooden spade and a small blue puddle. |
+| `hunter-hall.webp` | Dressed deer haunch turning on a wooden spit over embers, backed by antlers and a hunting bow. |
+| `foragers-hut.webp` | Wicker basket overflowing with mushrooms, berries, and herb bundles plus a small gathering knife. |
+| `fishing-camp.webp` | Silver trout caught in a spread net, interlocked with a wicker fish trap and simple hook. |
+| `threshing-barn.webp` | Crossed wooden flails striking a tied grain sheaf with a few bold chaff marks. |
+| `apiary.webp` | Straw skep with bees, honeycomb, and a small honey jar. |
+| `pastoral-farmstead.webp` | Milk pail and butter churn interlocked with a cowbell, wool fleece, and hay tuft. |
+| `swineherd.webp` | Sturdy pig or boar head rooting into an acorn-filled wooden trough with oak leaves. |
+| `watermill.webp` | Large oak waterwheel driven by a bold lapis water ribbon, with grain sheaf and open flour sack. |
+| `windmill.webp` | Four lattice sails turning around a large hub, interlocked with a grain sheaf and flour sack. |
+| `bakery.webp` | Round loaves on a long wooden peel emerging from a compact ember-lit masonry oven mouth. |
+| `brewery.webp` | Copper brew kettle with steam, mash paddle, barley ears, and foaming wooden tankard. |
+| `tavern.webp` | Two interlocked foaming wooden mugs with a loaf and small coin or key beneath. |
+| `smokehouse.webp` | Cured meat and smoked fish hanging over smoldering split logs with bold curling smoke. |
+| `woodcutters-lodge.webp` | Heavy axe actively splitting a round log on a stump with wedges and stacked firewood. |
+| `carpenter.webp` | Wooden hand plane cutting a board with one large curled shaving, backed by a cartwheel and joinery square. |
+| `weaver.webp` | Broad wooden shuttle crossing taut colored warp threads with a rolled-cloth edge. |
+| `tannery.webp` | Clean hide stretched on a timber frame, interlocked with a bark-liquor vat, bark strips, and scraper. |
+| `cobbler.webp` | Leather boot on a wooden last with awl, thread, and pegs. |
+| `charcoal-burner.webp` | Black charcoal in a wicker basket beside a compact smoldering earth clamp and billet ring. |
+| `smithy-bloomery.webp` | Massive iron anvil, glowing billet, striking hammer, carved sparks, bellows, and forge flame. |
+| `potter-kiln.webp` | Terracotta jug and roof tiles emerging from a compact flaming kiln mouth with a clay coil. |
+| `chapel.webp` | Bronze bell, lit candle, simple cross, and prayer book with a blank cover. |
+| `monastery.webp` | Prayer beads encircling a bound blank book, loaf, herb bundle, and honey jar. |
+| `wayside-shrine.webp` | Small blue-robed Marian devotional image with halo, votive candle, and prayer beads. |
+| `dry-stone-wall.webp` | Compact fitted limestone wall section with heavy coping stone and a mason's wooden mallet. |
+| `watchtower.webp` | Warning bell interlocked with a flaming signal basket and curved alarm horn. |
+| `guardhouse.webp` | Crossed period polearms behind a stout round shield and simple iron helmet. |
+| `palisaded-refuge.webp` | Large protective shield and closed oak gate bar sheltering a locked chest, loaf, and folded blanket, backed by a short arc of stakes. |
 
-### Output pipeline
+### Production pipeline
 
-The 2026-08-20 set was generated with the built-in image-generation tool at `1024x1536`, visually reviewed as a contact sheet, then converted with ImageMagick to `320x480` WebP at quality 90. The Lumber Mill, Chapel, Town Hall, Threshing Barn, Brewhouse, Watermill, and Carpenter cards received a second material-parity pass replacing ordinary terracotta roofs with hand-split shingles. Existing filenames were intentionally preserved so menu and inspector mappings required no code changes.
-
-The 2026-08-21 leather-chain additions used the same `1024x1536` to `320x480` WebP pipeline. Their generation prompts explicitly locked a no-people/no-text/no-border architectural three-quarter view: the tannery prompt prioritized its louvered loft, three bark-liquor vats, hide frame, trough, bark, barrels, and firewood; the cobbler prompt prioritized its deep work porch, broad window, cutting bench, shoe lasts, leather rolls, finished shoes, and letterless boot sign.
+- Generate every distinct card with a separate built-in image-generation call.
+- Use the approved `hunter-hall.webp`, `smithy-bloomery.webp`, and
+  `watermill.webp` results as the primary style anchors, with
+  `public/assets/ui/icons/map-resources.png` as pigment-language support.
+- Generate at portrait high resolution, then resize to exactly `320x480`, strip
+  metadata, and encode WebP at quality 88.
+- Review a labeled contact sheet at both source size and the actual `122x184`
+  build-menu footprint. Regenerate ambiguous, architectural, overly detailed,
+  person-containing, framed, or duplicate-looking results.
+- Preserve the existing filenames so build-menu, inspector, category, and map
+  overlay mappings require no code changes.
+- Verify with `npm run test:building-art`, `npm run test:build-menus`,
+  `npm run test:action-button-iconography`, and `npm run build`.

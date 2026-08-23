@@ -934,6 +934,15 @@ pub struct Building {
     pub rosehip_jam: f64,
     #[default(0.0)]
     pub pear_cider: f64,
+    /// Optional player-authored tree-work circle center and radius. A zero
+    /// radius preserves the building-centered balance-defined work extent.
+    /// Appended together for additive save compatibility.
+    #[default(0.0)]
+    pub tree_work_area_x: f64,
+    #[default(0.0)]
+    pub tree_work_area_z: f64,
+    #[default(0.0)]
+    pub tree_work_area_radius: f64,
 }
 
 /// One persistent import/export instruction for one Trading Post commodity.

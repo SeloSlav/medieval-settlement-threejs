@@ -12,6 +12,10 @@ import {
   MONASTERY_EXTENSIONS,
 } from '../src/buildings/monasteryEstate.ts';
 import { BUILD_MENU_CATEGORIES } from '../src/ui/buildMenuCards.ts';
+import {
+  forestryWorkAreaDetailRow,
+  renderForestryWorkAreaPanel,
+} from '../src/resources/inspector/treeWorkAreaRenderer.ts';
 
 type SharpDecodeResult = {
   data: Uint8Array;
@@ -55,6 +59,8 @@ const appBootstrap = readFileSync('src/app/appBootstrap.ts', 'utf8');
 const toolbar = readFileSync('src/ui/BuildToolbar.ts', 'utf8');
 const iconography = readFileSync('src/ui/iconography.css', 'utf8');
 const constructionDock = readFileSync('src/ui/constructionDock.css', 'utf8');
+const lumberMillRenderer = readFileSync('src/resources/inspector/lumberMillRenderer.ts', 'utf8');
+const reforesterRenderer = readFileSync('src/resources/inspector/reforesterRenderer.ts', 'utf8');
 
 const inspectorArtBlock = resourceInspector.match(
   /const BUILDING_INSPECTOR_ART = \{([\s\S]*?)\}\s+satisfies Record<BuildingKind, string>;/,
@@ -216,6 +222,57 @@ assert.match(inspectorResourceTokens, /inspector-resource-strip[\s\S]{0,520}role
 assert.match(chapelRenderer, /data-action="upgrade-chapel" data-upgrade-tier="\$\{upgrade\.targetTier\}"[\s\S]*data-action-icon="church-tier-\$\{upgrade\.targetTier\}"/);
 assert.match(campRenderer, /data-begin-remote-work-camp[\s\S]*data-action-icon="overnight-work-camp"|data-action-icon="overnight-work-camp"[\s\S]*data-begin-remote-work-camp/);
 assert.match(campRenderer, /data-work-camp-action[\s\S]*Inspect overnight camp/);
+
+const forestryBuilding = {
+  id: 'lumber-1',
+  kind: 'lumber_mill' as const,
+  x: 10,
+  z: 20,
+  workRadius: 210,
+};
+const defaultWorkAreaPanel = renderForestryWorkAreaPanel(forestryBuilding);
+assert.match(defaultWorkAreaPanel, /data-inspector-pinned-action/);
+assert.match(defaultWorkAreaPanel, /data-tree-work-area-action/);
+assert.match(defaultWorkAreaPanel, /data-action-icon="tree-work-area"/);
+assert.match(defaultWorkAreaPanel, /aria-pressed="false"/);
+assert.match(defaultWorkAreaPanel, /Hold Ctrl and use the mouse wheel/);
+assert.match(forestryWorkAreaDetailRow(forestryBuilding), /Default extent · 210 m/);
+
+const activeWorkAreaBuilding = {
+  ...forestryBuilding,
+  treeWorkArea: { x: 40, z: 60, radius: 48 },
+};
+const activeWorkAreaPanel = renderForestryWorkAreaPanel(activeWorkAreaBuilding);
+assert.match(activeWorkAreaPanel, /data-tree-work-area-state="active"/);
+assert.match(activeWorkAreaPanel, /aria-pressed="true"/);
+assert.match(activeWorkAreaPanel, /Limited work area · 48 m/);
+assert.match(activeWorkAreaPanel, /Click to remove the limit/);
+assert.doesNotMatch(activeWorkAreaPanel, / disabled(?:[\s>])/);
+assert.match(forestryWorkAreaDetailRow(activeWorkAreaBuilding), /Limited circle · 48 m/);
+
+const pendingWorkAreaPanel = renderForestryWorkAreaPanel(forestryBuilding, { pending: true });
+assert.match(pendingWorkAreaPanel, /data-tree-work-area-state="pending"/);
+assert.match(pendingWorkAreaPanel, /resource-action-button--toggle is-pending/);
+assert.match(pendingWorkAreaPanel, /Press Escape to cancel/);
+for (const renderer of [lumberMillRenderer, reforesterRenderer]) {
+  assert.match(renderer, /renderForestryWorkAreaPanel\(building/);
+  assert.match(renderer, /pendingTreeWorkAreaBuildingId === building\.id/);
+  assert.match(renderer, /forestryWorkAreaDetailRow\(building\)/);
+}
+assert.match(resourceInspector, /onBeginTreeWorkAreaPlacement\?:/);
+assert.match(resourceInspector, /onClearTreeWorkArea\?:/);
+assert.match(
+  resourceInspector,
+  /hasCustomTreeWorkArea\(building\)[\s\S]{0,180}onClearTreeWorkArea\?\.[\s\S]{0,180}onBeginTreeWorkAreaPlacement\?\./,
+);
+assert.match(
+  resourceInspector,
+  /classList\.contains\('inspector-action-panel'\)[\s\S]{0,120}!element\.hasAttribute\('data-inspector-pinned-action'\)/,
+);
+assert.match(actionCss, /data-action-icon='tree-work-area'[\s\S]{0,520}linear-gradient/);
+assert.match(actionCss, /background-size:\s*6px 6px, 6px 6px, 100% 100%/);
+assert.match(backyardCss, /resource-action-button--toggle\[aria-pressed='true'\]/);
+assert.match(backyardCss, /resource-action-button--toggle\.is-pending/);
 
 for (const [resource, asset] of [
   ['roofTiles', 'materials/roof-tiles.png'],

@@ -2,25 +2,25 @@ use spacetimedb::ReducerContext;
 
 use crate::db::*;
 use crate::harvest_reserve_policy::protected_wild_stock;
+use crate::tree_work_area_policy::{tree_work_area_contains, TreeWorkArea};
 
 pub fn find_nearest_mature_tree(
     ctx: &ReducerContext,
-    x: f64,
-    z: f64,
-    radius: f64,
+    origin_x: f64,
+    origin_z: f64,
+    area: TreeWorkArea,
 ) -> Option<crate::tables::TreeEntity> {
-    let radius_sq = radius * radius;
     let mut best: Option<crate::tables::TreeEntity> = None;
     let mut best_dist = f64::INFINITY;
 
     for tree in ctx.db.tree_entity().iter() {
-        if tree.phase != "mature" {
+        if tree.phase != "mature" || !tree_work_area_contains(area, tree.x, tree.z) {
             continue;
         }
-        let dx = tree.x - x;
-        let dz = tree.z - z;
+        let dx = tree.x - origin_x;
+        let dz = tree.z - origin_z;
         let dist_sq = dx * dx + dz * dz;
-        if dist_sq > radius_sq || dist_sq >= best_dist {
+        if dist_sq >= best_dist {
             continue;
         }
         best_dist = dist_sq;

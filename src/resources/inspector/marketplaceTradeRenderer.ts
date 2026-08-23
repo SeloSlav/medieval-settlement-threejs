@@ -5,6 +5,7 @@ import {
   settlementTradeStock,
   tradingPostRule,
   tradingPostExchangeDue,
+  tradingPostImportFundingOrder,
   tradingPostUnitPrices,
   TRADE_MODE_EXPORT,
   TRADE_MODE_IMPORT,
@@ -38,6 +39,12 @@ export function renderMarketplaceTradePanel(
     .filter((rule) => rule.mode === TRADE_MODE_EXPORT)
     .reduce((total, rule) => total + buildingTradeStock(building, rule.commodity), 0);
   const haulers = Math.max(0, Math.min(2, Math.floor(building.assignedLabor)));
+  const importFundingOrder = tradingPostImportFundingOrder(
+    activeRules,
+    gameState.tick,
+    (resource) => settlementTradeStock(gameState, resource),
+  );
+  const nextImportPriority = importFundingOrder[0];
 
   return `
     <div class="trading-post-ledger">
@@ -48,12 +55,15 @@ export function renderMarketplaceTradePanel(
         </div>
         <span class="trading-post-ledger__settlement">${exchangeCountdown}</span>
       </header>
-      <p class="trading-post-ledger__intro">Set one desired settlement surplus for every commodity. Export haulers continuously stage only stock above that floor in this Trading Post. Every ${REGIONAL_EXCHANGE_INTERVAL_SECONDS}-simulation-second window (~${intervalAt4x} real seconds at 4×), staged exports sell before imports buy enough to reach their floor, limited by storage and civic gold. This lets genuine export proceeds fund a later rule without making imports free. The regional exchange is abstract—only local collection and distribution use visible haulers. Imported ironwork held here can supply construction, but Trading Post carts do not refill civilian tool racks; keep a staffed road-linked smithy to deliver replacement tools.</p>
+      <p class="trading-post-ledger__intro">Set one desired settlement surplus for every commodity. Export haulers continuously stage only stock above that floor in this Trading Post. Every ${REGIONAL_EXCHANGE_INTERVAL_SECONDS}-simulation-second window (~${intervalAt4x} real seconds at 4×), staged exports sell before imports buy enough to reach their floor, limited by storage and civic gold. Available coin is shared in conserved partial tranches across every due import: the least-filled target is considered first, while equally filled targets rotate each window. This lets genuine export proceeds fund every recurring shortage without making imports free. Each successful local cart advances a saved fair route cursor, so staged goods take bounded turns reaching their eligible Marketplace, Tavern, Well, or other serving outlet. The regional exchange is abstract—only local collection and distribution use visible haulers. Imported ironwork held here can supply construction, but Trading Post carts do not refill civilian tool racks; keep a staffed road-linked smithy to deliver replacement tools.</p>
       <div class="trading-post-ledger__summary">
         <span><strong>${activeRules.length}</strong> active rules</span>
         <span><strong>${Math.floor(stagedUnits)}</strong> export units staged</span>
         <span><strong>${haulers}/2</strong> cart haulers</span>
         <span><strong>${haulers * STOREHOUSE_HAUL_PER_WORKER}</strong> units per collection cart</span>
+        ${nextImportPriority
+          ? `<span><strong>${TRADE_RESOURCE_LABELS[nextImportPriority]}</strong> first import next settlement</span>`
+          : '<span><strong>None</strong> awaiting import funding</span>'}
       </div>
       <div class="trading-post-ledger__scroll" data-trading-post-scroll>
         ${TRADING_POST_TRADE_CATEGORIES.map((category) => `

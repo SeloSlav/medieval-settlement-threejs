@@ -2892,7 +2892,7 @@ export type HamletFixtureEvidenceEnvelope = {
       | 'continuous-alpha-hash'
       | 'legacy-pipeline-cutover';
     groundcoverSubmission:
-      'three-whole-field-instanced-meshes';
+      'two-grass-plus-ten-spatial-wildflower-lod-meshes';
     forestRenderer: HamletRouteForestRenderer;
     forestEdgeLayout?: HamletForestEdgeLayout;
     forestUpdates: 'frozen-after-settled-warmup';
@@ -3220,7 +3220,7 @@ function doesHamletRoutePresentationMatchCapture(
     && edgeLayoutMatches
     && presentation.groundcoverFadeMode === 'continuous-alpha-coverage'
     && presentation.groundcoverSubmission
-      === 'three-whole-field-instanced-meshes';
+      === 'two-grass-plus-ten-spatial-wildflower-lod-meshes';
 }
 
 function doesHamletForestEdgeLayerSatisfyBudget(

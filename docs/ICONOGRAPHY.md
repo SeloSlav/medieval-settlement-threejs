@@ -103,11 +103,12 @@ inspector-symbol fallback remains visible; broken-image chrome is never shown.
 
 ## Generation brief
 
-Use the existing Town Hall build card as the style reference. Ask for bold
-late-Renaissance Croatian woodcut pictograms with hand-inked near-black carved
-contours, restrained parchment/ochre/vermilion/lapis/iron fills, irregular
-artisan edges, period accuracy, strong small-size silhouettes, equal cell
-weight, and generous padding. Require a perfectly flat `#ff00ff` background
-with no shadows, gradients, frames, medallions, text, scene, watermark, or
-magenta inside the subjects. Generate the fixed atlas grid, remove the key to
-alpha, then validate the result at its actual in-game size.
+Use `map-resources.png` and the approved Hunter's Hall, Smithy, and Watermill
+functional-emblem cards as style references. Ask for bold late-Renaissance
+Croatian woodcut pictograms with hand-inked near-black carved contours,
+restrained parchment/ochre/vermilion/lapis/iron fills, irregular artisan edges,
+period accuracy, strong small-size silhouettes, equal cell weight, and generous
+padding. Require a perfectly flat `#ff00ff` background with no shadows,
+gradients, frames, medallions, text, scene, watermark, or magenta inside the
+subjects. Generate the fixed atlas grid, remove the key to alpha, then validate
+the result at its actual in-game size.

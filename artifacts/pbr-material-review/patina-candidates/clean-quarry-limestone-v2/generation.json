@@ -1,0 +1,89 @@
+{
+  "model": "fal-ai/patina/material",
+  "label": "Clean freshly fractured quarry limestone v2",
+  "source": null,
+  "requestId": "01a02fb4-9111-74c2-bab4-cf411eedf074",
+  "requestedInput": {
+    "prompt": "Flat orthographic seamless micro-material of clean freshly broken Gorski Kotar limestone from a working quarry. Warm pale grey-beige dense limestone, fine chalky crystalline grain, tiny angular chips, powdery break variation, and sparse subtle calcite flecks at 1 millimeter to 4 centimeter scale; dry rough non-metallic stone. The mesh geometry will own large fracture planes, cracks, edges, and silhouette, so keep this texture motif-neutral. No long veins, marble pattern, branching white cracks, large facets, moss, lichen, algae, soil, leaves, gravel, ore, tool marks, wet gloss, directional lighting, cast shadows, perspective, horizon, borders, text, or repeating motifs.",
+    "image_size": "square_hd",
+    "num_inference_steps": 8,
+    "seed": 431032,
+    "num_images": 1,
+    "enable_prompt_expansion": true,
+    "enable_safety_checker": true,
+    "tiling_mode": "both",
+    "tile_size": 128,
+    "tile_stride": 64,
+    "maps": [
+      "basecolor",
+      "normal",
+      "roughness",
+      "metalness",
+      "height"
+    ],
+    "upscale_factor": 0,
+    "output_format": "png"
+  },
+  "returnedSeed": 431032,
+  "returnedPrompt": "High-resolution 4k photograph of a flat orthographic micro-material texture featuring clean, freshly broken Gorski Kotar limestone. The surface is a warm pale grey-beige dense stone with a fine chalky crystalline grain and tiny angular chips. Detailed powdery break variations and sparse, subtle calcite flecks ranging from 1 millimeter to 4 centimeters. The texture is a dry, rough, non-metallic stone surface with uniform flat lighting to eliminate cast shadows and perspective. The composition is motif-neutral and homogenous, focusing on the consistent mineral surface without large veins, marble patterns, or directional features. High-quality macro detail, sharp focus, professional geological documentation style.",
+  "timings": {
+    "texture_generation": 9.936006957985228,
+    "pbr_prediction": 102.83416573700379
+  },
+  "images": [
+    {
+      "url": "https://v3b.fal.media/files/b/0aa784d3/m_Pho1-ykEGRI38Q0picB_TEeQgPnn.png",
+      "content_type": "image/png",
+      "file_name": "m_Pho1-ykEGRI38Q0picB_TEeQgPnn.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "url": "https://v3b.fal.media/files/b/0aa784db/tYmztRkutlPn5rCpbmZn5_Bk9RBLgI.png",
+      "content_type": "image/png",
+      "file_name": "tYmztRkutlPn5rCpbmZn5_Bk9RBLgI.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024,
+      "map_type": "basecolor"
+    },
+    {
+      "url": "https://v3b.fal.media/files/b/0aa784db/QqdRpdNSahjVn-TJrGf_Y_jfVbKLFf.png",
+      "content_type": "image/png",
+      "file_name": "QqdRpdNSahjVn-TJrGf_Y_jfVbKLFf.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024,
+      "map_type": "normal"
+    },
+    {
+      "url": "https://v3b.fal.media/files/b/0aa784db/yA8SU69U3fOlW5gKFV4UW_l4bJblla.png",
+      "content_type": "image/png",
+      "file_name": "yA8SU69U3fOlW5gKFV4UW_l4bJblla.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024,
+      "map_type": "roughness"
+    },
+    {
+      "url": "https://v3b.fal.media/files/b/0aa784db/EIQR3gX1RkP1HGmWwK9mi_xk5XeDO9.png",
+      "content_type": "image/png",
+      "file_name": "EIQR3gX1RkP1HGmWwK9mi_xk5XeDO9.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024,
+      "map_type": "metalness"
+    },
+    {
+      "url": "https://v3b.fal.media/files/b/0aa784db/VE3p92GaD7bqeHc_Gshnt_zKQ9b45s.png",
+      "content_type": "image/png",
+      "file_name": "VE3p92GaD7bqeHc_Gshnt_zKQ9b45s.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024,
+      "map_type": "height"
+    }
+  ],
+  "generatedAt": "2026-08-23T17:41:06.130Z"
+}

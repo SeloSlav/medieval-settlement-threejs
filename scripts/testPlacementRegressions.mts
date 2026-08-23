@@ -49,9 +49,17 @@ import {
 import { PlacementClearanceSpatialIndex } from '../src/placement/PlacementClearanceSpatialIndex.ts';
 import {
   polygonSegments,
+  updateTerrainCircleFillGeometry,
   updateTerrainQuadGeometry,
   updateTerrainRibbonGeometry,
 } from '../src/placement/TerrainOverlayGeometry.ts';
+import {
+  circleGridSegments,
+  clampForestryWorkAreaRadius,
+  FORESTRY_WORK_AREA_MAX_RADIUS,
+  FORESTRY_WORK_AREA_MIN_RADIUS,
+  resizeForestryWorkAreaRadius,
+} from '../src/resources/ForestryWorkAreaTool.ts';
 import { QuarryLayout, quarrySiteOverlapsRiver } from '../src/quarries/QuarryLayout.ts';
 import {
   burgageZoneTouchesWater,
@@ -860,8 +868,63 @@ function testPlacementOverlaysFollowTerrainHeight(): void {
   );
   assert.equal(borderGeometry.getIndex(), null);
 
+  const workAreaCenter = { x: 13, z: -17 };
+  const workAreaRadius = 40;
+  const circleGeometry = new THREE.BufferGeometry();
+  updateTerrainCircleFillGeometry(
+    circleGeometry,
+    workAreaCenter,
+    workAreaRadius,
+    heightAt,
+    { lift: 0.105, radialSpacing: 7, segmentCount: 48 },
+  );
+  const circlePositions = circleGeometry.getAttribute('position') as THREE.BufferAttribute;
+  assert.equal(
+    circleGeometry.getIndex(),
+    null,
+    'the forestry work-area fill must remain WebGPU-safe and non-indexed',
+  );
+  assert.ok(circlePositions.count > 48, 'the work-area fill should use terrain-sampled rings');
+  for (let index = 0; index < circlePositions.count; index += 1) {
+    const x = circlePositions.getX(index);
+    const y = circlePositions.getY(index);
+    const z = circlePositions.getZ(index);
+    assert.ok(
+      Math.hypot(x - workAreaCenter.x, z - workAreaCenter.z) <= workAreaRadius + 1e-4,
+      'work-area fill vertices must stay inside the authored circle',
+    );
+    assert.ok(
+      Math.abs(y - (heightAt(x, z) + 0.105)) < 1e-5,
+      'work-area fill vertices must hug the sampled terrain',
+    );
+  }
+
+  const grid = circleGridSegments(workAreaCenter, workAreaRadius, 10);
+  assert.ok(grid.length >= 14, 'the forestry circle should contain a readable two-axis grid');
+  for (const segment of grid) {
+    for (const point of segment) {
+      assert.ok(
+        Math.abs(Math.hypot(point.x - workAreaCenter.x, point.z - workAreaCenter.z) - workAreaRadius) < 1e-6,
+        'every planning-grid chord must terminate exactly on the circle',
+      );
+    }
+  }
+  assert.equal(clampForestryWorkAreaRadius(-100), FORESTRY_WORK_AREA_MIN_RADIUS);
+  assert.equal(clampForestryWorkAreaRadius(9_999), FORESTRY_WORK_AREA_MAX_RADIUS);
+  assert.equal(
+    resizeForestryWorkAreaRadius(70, -120),
+    80,
+    'Ctrl + wheel up should enlarge the forestry circle by one step',
+  );
+  assert.equal(
+    resizeForestryWorkAreaRadius(70, 120),
+    60,
+    'Ctrl + wheel down should shrink the forestry circle by one step',
+  );
+
   fillGeometry.dispose();
   borderGeometry.dispose();
+  circleGeometry.dispose();
 }
 
 function localPlacementPoint(

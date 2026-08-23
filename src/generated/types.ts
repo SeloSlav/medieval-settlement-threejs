@@ -203,6 +203,9 @@ export const Building = __t.object("Building", {
   aroniaJam: __t.f64(),
   rosehipJam: __t.f64(),
   pearCider: __t.f64(),
+  treeWorkAreaX: __t.f64(),
+  treeWorkAreaZ: __t.f64(),
+  treeWorkAreaRadius: __t.f64(),
 });
 export type Building = __Infer<typeof Building>;
 

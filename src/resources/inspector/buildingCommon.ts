@@ -31,7 +31,6 @@ import {
   normalizeConstructionPriority,
 } from '../../logistics/constructionPriority.ts';
 import {
-  onsiteBuildingLabor,
   rosteredCartWorkers,
   type DeliveryTripState,
 } from '../../logistics/deliveryTrips.ts';
@@ -232,7 +231,7 @@ export function buildingLaborView(
   building: BuildingState,
   populationStats: PopulationStats,
   worldQueries?: WorldQueries,
-  laborTrip?: DeliveryTripState | null,
+  laborTrips?: Iterable<DeliveryTripState> | null,
 ): InspectorLaborView {
   if (building.constructionComplete !== false && !buildingAcceptsLabor(building.kind)) {
     return {
@@ -262,16 +261,33 @@ export function buildingLaborView(
     : CONSTRUCTION_MAX_BUILDERS;
   const dedicatedCartHaulers = building.constructionComplete !== false
     && (building.kind === 'village_storehouse' || building.kind === 'trading_post');
-  const activeTrip = laborTrip ?? worldQueries?.getActiveDeliveryTrip?.(building) ?? null;
-  const cartWorkers = Math.max(0, activeTrip?.deliveryWorkers ?? 0);
-  const reservedOutsideRoster = Math.max(0, activeTrip?.freeHaulerWorkers ?? 0);
-  const rosteredWorkersAway = rosteredCartWorkers(building, activeTrip);
-  const onsiteWorkers = onsiteBuildingLabor(building, activeTrip);
+  const activeTrips = laborTrips == null
+    ? [worldQueries?.getActiveDeliveryTrip?.(building) ?? null].filter(
+        (trip): trip is DeliveryTripState => trip != null,
+      )
+    : [...laborTrips];
+  const cartWorkers = activeTrips.reduce(
+    (total, trip) => total + Math.max(0, trip.deliveryWorkers),
+    0,
+  );
+  const reservedOutsideRoster = activeTrips.reduce(
+    (total, trip) => total + Math.max(0, trip.freeHaulerWorkers),
+    0,
+  );
+  const rosteredWorkersAway = Math.min(
+    Math.max(0, building.assignedLabor),
+    activeTrips.reduce(
+      (total, trip) => total + rosteredCartWorkers(building, trip),
+      0,
+    ),
+  );
+  const onsiteWorkers = Math.max(0, building.assignedLabor - rosteredWorkersAway);
+  const cartCount = activeTrips.length;
   const cartLaborHint = cartWorkers <= 0
     ? ''
     : rosteredWorkersAway > 0
-      ? ` ${cartWorkers} ${cartWorkers === 1 ? 'worker is' : 'workers are'} traveling with this cart; ${rosteredWorkersAway} ${rosteredWorkersAway === 1 ? 'rostered worker is' : 'rostered workers are'} away, leaving ${onsiteWorkers} on site. Only the on-site crew performs this building's role until return${reservedOutsideRoster > 0 ? ` (${reservedOutsideRoster} additional ${reservedOutsideRoster === 1 ? 'hauler is' : 'haulers are'} reserved outside the roster)` : ''}.`
-      : ` ${cartWorkers} ${cartWorkers === 1 ? 'worker is' : 'workers are'} traveling with this cart and already reserved outside this roster.`;
+      ? ` ${cartWorkers} ${cartWorkers === 1 ? 'worker is' : 'workers are'} traveling with ${cartCount === 1 ? 'this cart' : `${cartCount} carts`}; ${rosteredWorkersAway} ${rosteredWorkersAway === 1 ? 'rostered worker is' : 'rostered workers are'} away, leaving ${onsiteWorkers} on site. Only the on-site crew performs this building's role until return${reservedOutsideRoster > 0 ? ` (${reservedOutsideRoster} additional ${reservedOutsideRoster === 1 ? 'hauler is' : 'haulers are'} reserved outside the roster)` : ''}.`
+      : ` ${cartWorkers} ${cartWorkers === 1 ? 'worker is' : 'workers are'} traveling with ${cartCount === 1 ? 'this cart' : `${cartCount} carts`} and already reserved outside this roster.`;
   const workforceNoun = building.kind === 'monastery'
     ? 'monks assigned'
     : dedicatedCartHaulers
@@ -287,7 +303,7 @@ export function buildingLaborView(
     count: building.assignedLabor,
     hint: building.constructionComplete !== false
       ? `${building.assignedLabor}/${buildingCap} ${workforceNoun} · ${populationStats.available} available (${populationStats.total} population, ${populationStats.assigned} committed${populationStats.cartAssigned > 0 ? `, including ${populationStats.cartAssigned} in-transit reservations` : ''}).${cartLaborHint}`
-      : `${building.assignedLabor}/${buildingCap} builders · ${populationStats.available} available.${cartLaborHint} Builders construct while onsite; if no hauler is free once work reaches its material limit, one builder operates the site cart until return.`,
+      : `${building.assignedLabor}/${buildingCap} builders · ${populationStats.available} available.${cartLaborHint} Builders construct while onsite; if no hauler is free at a material limit, idle builders may operate distinctly reserved carts while one remains ready for the first load. A lone builder may haul to break a bootstrap deadlock.`,
     decreaseDisabled: building.assignedLabor <= 0,
     increaseDisabled: building.assignedLabor >= maxLabor,
   };

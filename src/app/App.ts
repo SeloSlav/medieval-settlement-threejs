@@ -21,6 +21,7 @@ import type { SpacetimeGameSnapshot } from '../data/spacetimeGameStore.ts';
 import type { BuildingState, GameState } from '../resources/types.ts';
 import { ForestVisualSync } from '../resources/ForestVisualSync.ts';
 import type { ResourceInspector } from '../resources/ResourceInspector.ts';
+import type { ForestryWorkAreaTool } from '../resources/ForestryWorkAreaTool.ts';
 import {
   computeInTransitResourceTotals,
   computeGoldAwaitingCollection,
@@ -155,6 +156,7 @@ export class App {
   private buildingTool: BuildingTool | null = null;
   private burgageTool: BurgageTool | null = null;
   private farmFieldTool: FarmFieldTool | null = null;
+  private forestryWorkAreaTool: ForestryWorkAreaTool | null = null;
   private buildingMarkers: BuildingMarkers | null = null;
   private residenceMarkers: ResidenceMarkers | null = null;
   private backyardGardenMarkers: BackyardGardenMarkers | null = null;
@@ -271,6 +273,7 @@ export class App {
     this.buildingTool = session.buildingTool;
     this.burgageTool = session.burgageTool;
     this.farmFieldTool = session.farmFieldTool;
+    this.forestryWorkAreaTool = session.forestryWorkAreaTool;
     this.buildingMarkers = session.buildingMarkers;
     this.buildingMarkers.setEnvironment(weatherPreview);
     this.deliveryAgents = session.deliveryAgents;
@@ -384,6 +387,7 @@ export class App {
       buildingTool: session.buildingTool,
       burgageTool: session.burgageTool,
       farmFieldTool: session.farmFieldTool,
+      forestryWorkAreaTool: session.forestryWorkAreaTool,
       firstPersonController: session.firstPersonController,
       recoverSession: () => this.gameRuntime?.recoverSession(),
       beginNewWorld: () => {
@@ -668,6 +672,7 @@ export class App {
     this.buildingTool?.dispose();
     this.burgageTool?.dispose();
     this.farmFieldTool?.dispose();
+    this.forestryWorkAreaTool?.dispose();
     this.buildingMarkers?.dispose();
     this.frontierRiskMarkers?.dispose();
     this.villagerInspector?.dispose();
@@ -742,6 +747,7 @@ export class App {
       this.buildingTool?.update();
       this.burgageTool?.update();
       this.farmFieldTool?.update();
+      this.forestryWorkAreaTool?.update();
       this.updateBuildButtonPosition();
       this.worldMapUi?.update();
       this.sceneManager?.render(
@@ -760,6 +766,7 @@ export class App {
       this.buildingTool?.update();
       this.burgageTool?.update();
       this.farmFieldTool?.update();
+      this.forestryWorkAreaTool?.update();
       this.updateBuildButtonPosition();
       this.worldMapUi?.update();
       this.sceneManager?.render(
@@ -870,6 +877,7 @@ export class App {
     const placementEconomy = this.buildingTool.getPlacementEconomy();
     const burgageEnabled = this.burgageTool.isEnabled();
     const farmFieldEnabled = this.farmFieldTool.isEnabled();
+    const forestryWorkAreaEnabled = this.forestryWorkAreaTool?.isEnabled() ?? false;
     const fieldPlacementEnabled = farmFieldEnabled
       && this.farmFieldTool.getMode() === 'field';
     const vineyardPlacementEnabled = farmFieldEnabled
@@ -929,7 +937,9 @@ export class App {
           : buildingMode === 'off'
             ? 'idle'
             : buildingMode,
-      statusDetail: farmFieldEnabled
+      statusDetail: forestryWorkAreaEnabled
+        ? this.forestryWorkAreaTool!.getStatusDetail()
+        : farmFieldEnabled
         ? this.farmFieldTool.getStatusDetail()
         : burgageEnabled
           ? this.burgageTool.getStatusDetail()
@@ -968,7 +978,10 @@ export class App {
     const burgageDraft = Boolean(this.burgageTool?.isEnabled() && this.burgageTool.hasDraft());
     const farmFieldDraft = Boolean(this.farmFieldTool?.isEnabled() && this.farmFieldTool.hasDraft());
     const buildingActive = Boolean(this.buildingTool?.isEnabled());
-    this.sceneManager?.setBuildInteractionActive(splineDraft || burgageDraft || farmFieldDraft || buildingActive);
+    const forestryWorkAreaActive = Boolean(this.forestryWorkAreaTool?.isEnabled());
+    this.sceneManager?.setBuildInteractionActive(
+      splineDraft || burgageDraft || farmFieldDraft || buildingActive || forestryWorkAreaActive,
+    );
     this.sceneManager?.setRoadDraftActive(roadDraft);
   }
 

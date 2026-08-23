@@ -63,9 +63,9 @@ import type {
 import {
   createSeedThreeBucketMatrixWriteJob,
   createSeedThreeExactShadowLodSet,
-  createSeedThreeStableColorSlotSelection,
   createSeedThreeStableRtsShadowSlotSelection,
   configureSeedThreeForestPassMesh,
+  partitionSeedThreeSelectionByDistanceLod,
   partitionSeedThreeSelectionByStaticLod,
   patchSeedThreeLodSlotVisibility,
   runSeedThreeBucketMatrixWriteSlices,
@@ -86,11 +86,6 @@ import {
   setSeedThreeOverviewBillboardFadeOpacity,
   stabilizeSeedThreeForestCardMaterial,
 } from './seedThreeForestMaterial.ts';
-import { BASELINE_ORBIT_DISTANCE } from '../../camera/CameraCurves.ts';
-import {
-  updateSeedThreeOverviewBillboardFade,
-  type SeedThreeOverviewBillboardFadeState,
-} from './seedThreeOverviewBillboardFade.ts';
 import {
   SEEDTHREE_FOREST_WIND_SPEED,
   shouldShowSeedThreeCrownUnderlay,
@@ -152,7 +147,7 @@ export type SeedThreeForestInstances = {
   visibilityDirty: boolean;
   dirtyVisibilitySlotsByBucket: Map<number, Set<number>>;
   cameraInteractionActive: boolean;
-  overviewBillboardFade: SeedThreeOverviewBillboardFadeState;
+  overviewBillboardFade: { enabled: boolean; opacity: number };
   ownedOverviewFadeMaterials: THREE.Material[];
   updateTelemetry: SeedThreeForestUpdateTelemetry;
 };
@@ -233,11 +228,16 @@ const FOREST_LOD_OPTS = {
   lod2Pct: 14,
 };
 
-const FOREST_NEAR_DISTANCE = 108;
+/** Full authored LOD2 belongs only to a genuinely close per-tree footprint. */
+export const SEEDTHREE_FOREST_DETAIL_DISTANCE_METERS = 44;
+export const SEEDTHREE_FOREST_FIRST_PERSON_DETAIL_DISTANCE_METERS = 48;
+export const SEEDTHREE_FOREST_LOD_HYSTERESIS_METERS = 14;
+const FOREST_NEAR_DISTANCE = SEEDTHREE_FOREST_DETAIL_DISTANCE_METERS;
 // On steep maps, mountaintop trees can be physically close to the elevated orbit
 // camera even at strategic zoom. Keep their foliage-thickening overview cards
 // once their crown center rises into this camera-relative altitude band.
-const FOREST_FIRST_PERSON_NEAR_DISTANCE = 132;
+const FOREST_FIRST_PERSON_NEAR_DISTANCE =
+  SEEDTHREE_FOREST_FIRST_PERSON_DETAIL_DISTANCE_METERS;
 const FOREST_VISIBILITY_PADDING = 26;
 const FOREST_UPDATE_BOOKKEEPING_HEADROOM_MS = 0.35;
 const FOREST_CONTINUOUS_UPDATE_BUDGET_MS = 2.75;
@@ -587,7 +587,7 @@ export async function createSeedThreeForest(
   group.name = 'SeedThree Gorski Kotar forest';
   const overviewBillboardGroup = new THREE.Group();
   overviewBillboardGroup.name = 'SeedThree overview tree billboards';
-  overviewBillboardGroup.visible = false;
+  overviewBillboardGroup.visible = true;
   group.add(overviewBillboardGroup);
 
   const assetsByPreset = new Map<SeedThreePresetKey, SeedThreeSpeciesAssets>();
@@ -745,7 +745,7 @@ export async function createSeedThreeForest(
     cellSize: 48,
     frustumPadding: FOREST_VISIBILITY_PADDING,
     nearDistance: FOREST_NEAR_DISTANCE,
-    lodHysteresis: 14,
+    lodHysteresis: SEEDTHREE_FOREST_LOD_HYSTERESIS_METERS,
     minimumCameraMove: 2.25,
     minimumDirectionAngle: THREE.MathUtils.degToRad(1),
   });
@@ -776,7 +776,7 @@ export async function createSeedThreeForest(
     if (startup) startup.seedThree = lastStartupTiming;
   }
   console.info('[Startup] SeedThree forest stages', lastStartupTiming);
-  setSeedThreeOverviewBillboardFadeOpacity(0);
+  setSeedThreeOverviewBillboardFadeOpacity(1);
   return {
     group,
     overviewBillboardGroup,
@@ -809,7 +809,7 @@ export async function createSeedThreeForest(
     visibilityDirty: false,
     dirtyVisibilitySlotsByBucket: new Map(),
     cameraInteractionActive: false,
-    overviewBillboardFade: { enabled: false, opacity: 0 },
+    overviewBillboardFade: { enabled: true, opacity: 1 },
     ownedOverviewFadeMaterials: [...ownedOverviewFadeMaterials],
     updateTelemetry: createSeedThreeUpdateTelemetry(),
   };
@@ -939,6 +939,8 @@ export function updateSeedThreeForestCameraBudgeted(
     minimumCasterBoundsChange?: number;
     stabilizeDuringInteraction?: boolean;
     cameraInteractionActive?: boolean;
+    /** Update color presentation prefixes without mutating the frozen caster set. */
+    presentationOnly?: boolean;
   },
 ): SeedThreeForestBudgetedUpdateResult {
   const startedAt = performance.now();
@@ -977,7 +979,12 @@ export function updateSeedThreeForestCameraBudgeted(
   }
   if (selection.changed) {
     forest.updateTelemetry.selectionChanges += 1;
-    const desired = selectionsByBucket(forest, selection, firstPersonActive);
+    const desired = selectionsByBucket(
+      forest,
+      selection,
+      firstPersonActive,
+      options.presentationOnly === true,
+    );
     forest.pendingLodWork = {
       desired,
       pendingBucketIndices: forest.pendingLodWork?.pendingBucketIndices ?? [],
@@ -1264,12 +1271,10 @@ function selectionsByBucket(
     viewIndices: readonly number[];
   },
   firstPersonActive: boolean,
+  presentationOnly = false,
 ): PassPartitionedBucketSelection[] {
+  const distanceLod = partitionSeedThreeSelectionByDistanceLod(selection);
   const desired = forest.buckets.map((bucket) => {
-    // Color trees are a stable world layer. Keeping every LOD2 instance
-    // resident prevents camera pans, turns, zooms, and first-person movement
-    // from changing the live color-buffer identities.
-    const color = createSeedThreeStableColorSlotSelection(bucket.slots);
     const rtsShadow = createSeedThreeStableRtsShadowSlotSelection(bucket.slots);
     return {
       // Strategic views keep the same committed tree caster identities across
@@ -1277,16 +1282,34 @@ function selectionsByBucket(
       // the cached atlas visibly rebuild the entire forest shadow field.
       // First-person retains the smaller spatial set where its continuous
       // refresh policy already provides stable close shadow motion.
-      near: firstPersonActive ? [] : rtsShadow.near,
-      overview: firstPersonActive ? [] : rtsShadow.overview,
-      viewNear: color.near,
-      viewOverview: color.overview,
-      nearViewSlotCount: color.near.length,
-      overviewViewSlotCount: color.overview.length,
+      near: presentationOnly
+        ? bucket.nearSlotIndices
+        : firstPersonActive ? [] : rtsShadow.near,
+      overview: presentationOnly
+        ? bucket.overviewSlotIndices
+        : firstPersonActive ? [] : rtsShadow.overview,
+      viewNear: [] as number[],
+      viewOverview: [] as number[],
+      nearViewSlotCount: 0,
+      overviewViewSlotCount: 0,
     };
   });
-  if (!firstPersonActive) return desired;
-  const staticLodPartition = partitionSeedThreeSelectionByStaticLod(
+  for (const layoutIndex of distanceLod.nearViewIndices) {
+    const mapping = forest.slotByLayoutIndex[layoutIndex];
+    if (!mapping) continue;
+    desired[mapping.bucketIndex]?.viewNear.push(mapping.slotIndex);
+  }
+  for (const layoutIndex of distanceLod.overviewViewIndices) {
+    const mapping = forest.slotByLayoutIndex[layoutIndex];
+    if (!mapping) continue;
+    desired[mapping.bucketIndex]?.viewOverview.push(mapping.slotIndex);
+  }
+  for (const bucket of desired) {
+    bucket.nearViewSlotCount = bucket.viewNear.length;
+    bucket.overviewViewSlotCount = bucket.viewOverview.length;
+  }
+  if (!firstPersonActive || presentationOnly) return desired;
+  const staticShadowPartition = partitionSeedThreeSelectionByStaticLod(
     selection,
     (layoutIndex) => {
       const mapping = forest.slotByLayoutIndex[layoutIndex];
@@ -1296,12 +1319,12 @@ function selectionsByBucket(
     },
     true,
   );
-  for (const layoutIndex of staticLodPartition.nearIndices) {
+  for (const layoutIndex of staticShadowPartition.nearIndices) {
     const mapping = forest.slotByLayoutIndex[layoutIndex];
     if (!mapping) continue;
     desired[mapping.bucketIndex]?.near.push(mapping.slotIndex);
   }
-  for (const layoutIndex of staticLodPartition.overviewIndices) {
+  for (const layoutIndex of staticShadowPartition.overviewIndices) {
     const mapping = forest.slotByLayoutIndex[layoutIndex];
     if (!mapping) continue;
     desired[mapping.bucketIndex]?.overview.push(mapping.slotIndex);
@@ -1335,7 +1358,7 @@ export function getSeedThreeForestStructuralStats(
   let draws = 0;
   let triangles = 0;
   let instances = 0;
-  forest.group.traverse((object: THREE.Object3D) => {
+  forest.group.traverseVisible((object: THREE.Object3D) => {
     const mesh = object as THREE.InstancedMesh;
     if (
       !mesh.isInstancedMesh
@@ -1574,22 +1597,14 @@ export function setSeedThreeForestSnowCoverage(
   }
 }
 
-export function updateSeedThreeForestOverviewBillboardFade(
+export function ensureSeedThreeSpatialForestLodGroupsVisible(
   forest: SeedThreeForestInstances,
-  cameraDistance: number,
-  firstPersonActive: boolean,
-  deltaSeconds: number,
 ): boolean {
   const previous = forest.overviewBillboardFade;
-  const zoomPercent = Number.isFinite(cameraDistance) && cameraDistance > 0
-    ? (BASELINE_ORBIT_DISTANCE / cameraDistance) * 100
-    : 100;
-  const next = updateSeedThreeOverviewBillboardFade(
-    previous,
-    zoomPercent,
-    deltaSeconds,
-    firstPersonActive,
-  );
+  // Color geometry is owned by the selector's per-tree distance bands.
+  // Both exact compact prefixes must remain renderable at every camera scale;
+  // there is no camera-wide handoff that can blanket-downgrade close trees.
+  const next = { enabled: true, opacity: 1, visible: true, targetOpacity: 1 };
   forest.overviewBillboardFade = {
     enabled: next.enabled,
     opacity: next.opacity,
@@ -1597,10 +1612,21 @@ export function updateSeedThreeForestOverviewBillboardFade(
   setSeedThreeOverviewBillboardFadeOpacity(next.opacity);
   const visibilityChanged = forest.overviewBillboardGroup.visible !== next.visible;
   forest.overviewBillboardGroup.visible = next.visible;
+  const nearColorVisible = true;
+  let nearColorVisibilityChanged = false;
+  for (const bucket of forest.buckets) {
+    for (const mesh of lodSetMeshes(bucket.nearSet)) {
+      if (mesh.userData.crownUnderlay === true) continue;
+      if (mesh.visible === nearColorVisible) continue;
+      mesh.visible = nearColorVisible;
+      nearColorVisibilityChanged = true;
+    }
+  }
   forest.overviewBillboardGroup.userData.fadeEnabled = next.enabled;
   forest.overviewBillboardGroup.userData.fadeOpacity = next.opacity;
   forest.overviewBillboardGroup.userData.fadeTargetOpacity = next.targetOpacity;
   return visibilityChanged
+    || nearColorVisibilityChanged
     || previous.enabled !== next.enabled
     || Math.abs(previous.opacity - next.opacity) > 1e-4;
 }
@@ -1628,20 +1654,17 @@ export function createSeedThreeForestController(forest: SeedThreeForestInstances
       cameraInteractionActive,
       deltaSeconds = 1 / 60,
     ) => {
-      // Color LOD2 trees remain resident across the whole world. The selector
-      // now scopes only exact shadow casters; zoom changes only card opacity.
-      const fadeChanged = updateSeedThreeForestOverviewBillboardFade(
-        forest,
-        cameraDistance,
-        firstPersonActive,
-        deltaSeconds,
-      );
+      void cameraDistance;
+      void deltaSeconds;
       const cameraUpdate = updateSeedThreeForestCamera(
         forest,
         camera,
         firstPersonActive,
         casterBounds,
         cameraInteractionActive,
+      );
+      const fadeChanged = ensureSeedThreeSpatialForestLodGroupsVisible(
+        forest,
       );
       return {
         presentationChanged: fadeChanged

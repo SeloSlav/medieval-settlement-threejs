@@ -755,6 +755,30 @@ export async function setCarpenterPolearmReserve(
   });
 }
 
+export async function setTreeWorkArea(
+  buildingId: string,
+  x: number,
+  z: number,
+  radius: number,
+): Promise<void> {
+  const serverId = parseBuildingServerId(buildingId);
+  if (serverId === null) throw new Error('Invalid forestry building id.');
+  await callReducer('setTreeWorkArea', 'set_tree_work_area', {
+    buildingId: serverId,
+    x,
+    z,
+    radius,
+  });
+}
+
+export async function clearTreeWorkArea(buildingId: string): Promise<void> {
+  const serverId = parseBuildingServerId(buildingId);
+  if (serverId === null) throw new Error('Invalid forestry building id.');
+  await callReducer('clearTreeWorkArea', 'clear_tree_work_area', {
+    buildingId: serverId,
+  });
+}
+
 export async function setCarpenterCartServiceTarget(
   buildingId: string,
   targetTrips: number,

@@ -9,13 +9,24 @@ import {
 } from '../vegetation/seedthree/seedThreeGrass.ts';
 import type { RendererBackendKind } from '../scene/RendererBackend.ts';
 import {
-  createSeedThreeWildflowerGeometry,
+  createSeedThreeWildflowerFootprintGeometries,
+  createSeedThreeWildflowerVariantGeometries,
   createSeedThreeWildflowerMaterial,
   disposeSeedThreeWildflowerTextureCache,
   loadSeedThreeWildflowerAtlas,
   SEEDTHREE_WILDFLOWER_HEAD_SCALE,
   SEEDTHREE_WILDFLOWER_VARIANTS,
 } from '../vegetation/seedthree/seedThreeWildflowers.ts';
+import {
+  estimateWildflowerSubmittedTriangles,
+  resolveWildflowerGeometryLod,
+  resolveWildflowerLodSubmission,
+  WILDFLOWER_SLOT_CAPACITIES,
+  WILDFLOWER_SPECIES_COUNT,
+  WILDFLOWER_TOTAL_SLOT_CAPACITY,
+  type WildflowerGeometryLod,
+  type WildflowerGeometryLodSummary,
+} from './wildflowerStreamBudget.ts';
 import type { Terrain } from '../terrain/Terrain.ts';
 import type { RoadNetwork } from '../roads/RoadNetwork.ts';
 import { RoadSpatialIndex } from '../roads/roadSpatialIndex.ts';
@@ -103,15 +114,30 @@ export type GrassStreamTelemetry = {
   lastUpdateDurationMs: number;
   maxUpdateDurationMs: number;
   converged: boolean;
+  wildflowerMeshCount?: number;
+  wildflowerLiveInstances?: number;
+  wildflowerSubmittedInstances?: number;
+  wildflowerLodCulledInstances?: number;
+  wildflowerSubmittedTriangles?: number;
+  wildflowerAllocatedInstances?: number;
+  wildflowerCompactions?: number;
+  wildflowerCompactionDurationMs?: number;
+  wildflowerMaxCompactionDurationMs?: number;
+  wildflowerCompactionBytesUploaded?: number;
+  wildflowerGeometryLod?: WildflowerGeometryLodSummary;
+  wildflowerDetailInstances?: number;
+  wildflowerFootprintInstances?: number;
+  wildflowerLodReclassifications?: number;
+  wildflowerLodCompactions?: number;
+  wildflowerLodCompactionBytesUploaded?: number;
+  wildflowerMaxLodReclassificationsPerCompaction?: number;
 };
 
 const ROAD_CLEAR_MARGIN = 1.05;
 const TAU = Math.PI * 2;
 const GRID_SIDE = GRASS_STREAM_CHUNK_RADIUS * 2 + 1;
 const GRASS_SLOT_CAPACITY = 240;
-const WILDFLOWER_SLOT_CAPACITY = 144;
 const MAX_GRASS_STREAM_INSTANCES = GRID_SIDE * GRID_SIDE * GRASS_SLOT_CAPACITY;
-const MAX_WILDFLOWER_STREAM_INSTANCES = GRID_SIDE * GRID_SIDE * WILDFLOWER_SLOT_CAPACITY;
 const MIN_TUFT_SPACING_SQ = 0.2 * 0.2;
 const MIN_MICRO_TUFT_SPACING_SQ = 0.12 * 0.12;
 const MIN_WILDFLOWER_STEM_SPACING_SQ = 0.13 * 0.13;
@@ -150,6 +176,14 @@ type SlotRecord = {
   worldChunkX: number;
   worldChunkZ: number;
   meshCounts: number[];
+  compactData: Array<CompactWildflowerSlotData | null>;
+  wildflowerGeometryLod: WildflowerGeometryLod;
+};
+
+type CompactWildflowerSlotData = {
+  matrices: Float32Array;
+  anchors: Float32Array;
+  count: number;
 };
 
 type GeneratedGrassInstance = {
@@ -178,7 +212,12 @@ type GrassStreamMesh = {
   mesh: THREE.InstancedMesh;
   slotCapacity: number;
   variant?: SeedThreeTuftVariant;
-  wildflowers?: true;
+  wildflowerVariantIndex?: number;
+  compactLivePrefix?: true;
+  wildflowerDetailGeometry?: THREE.BufferGeometry;
+  wildflowerFootprintGeometry?: THREE.BufferGeometry;
+  wildflowerFootprintMesh?: THREE.InstancedMesh;
+  wildflowerFootprintAnchorAttr?: THREE.InstancedBufferAttribute;
   tintAttr?: THREE.InstancedBufferAttribute;
   anchorAttr?: THREE.InstancedBufferAttribute;
 };
@@ -198,6 +237,9 @@ export type GrassBladeLodFadeMode =
 const GRASS_STREAM_UPDATE_BUDGET_MS = 2;
 const GRASS_STREAM_MINIMUM_HEADROOM_MS = 0.2;
 const GRASS_STREAM_MAX_SUBSTEPS = 8;
+const WILDFLOWER_COMPACTION_COMMIT_BATCH = 8;
+const WILDFLOWER_COMPACTION_MAX_LATENCY_MS = 100;
+const WILDFLOWER_LOD_FOCUS_MINIMUM_MOVE_METERS = 1;
 
 export async function createGrassBladeField(
   terrain: Terrain,
@@ -252,49 +294,105 @@ export async function createGrassBladeField(
       '/assets/textures/vegetation/grass/close-meadow-tuft-greener.png';
     return { mesh, slotCapacity: GRASS_SLOT_CAPACITY, variant, tintAttr, anchorAttr };
   });
-  const wildflowerGeometry = createSeedThreeWildflowerGeometry(SEEDTHREE_WILDFLOWER_HEAD_SCALE);
-  const wildflowerAnchorAttr = new THREE.InstancedBufferAttribute(
-    new Float32Array(MAX_WILDFLOWER_STREAM_INSTANCES * 4),
-    4,
+  const wildflowerGeometries = createSeedThreeWildflowerVariantGeometries(
+    SEEDTHREE_WILDFLOWER_HEAD_SCALE,
   );
-  wildflowerGeometry.setAttribute('aAnchorPos', wildflowerAnchorAttr);
+  const wildflowerFootprintGeometries =
+    createSeedThreeWildflowerFootprintGeometries(
+      SEEDTHREE_WILDFLOWER_HEAD_SCALE,
+    );
   const wildflowerMaterial = createSeedThreeWildflowerMaterial(
     wildflowerAtlas,
     'Gorski Kotar wildflower atlas',
   );
   applyGrassDepthOffset(wildflowerMaterial);
-  const wildflowerMesh = new THREE.InstancedMesh(
-    wildflowerGeometry,
-    wildflowerMaterial,
-    MAX_WILDFLOWER_STREAM_INSTANCES,
-  );
-  wildflowerMesh.name = 'SeedThree streamed Gorski Kotar wildflowers';
-  wildflowerMesh.count = 0;
-  applyGroundCoverShadowPolicy(wildflowerMesh, {
-    terrainReceivesShadow: true,
+  wildflowerGeometries.forEach((geometry, variantIndex) => {
+    const footprintGeometry = wildflowerFootprintGeometries[variantIndex]!;
+    const slotCapacity = WILDFLOWER_SLOT_CAPACITIES[variantIndex]!;
+    const maxInstances = GRID_SIDE * GRID_SIDE * slotCapacity;
+    const detailAnchorAttr = new THREE.InstancedBufferAttribute(
+      new Float32Array(maxInstances * 4),
+      4,
+    );
+    const footprintAnchorAttr = new THREE.InstancedBufferAttribute(
+      new Float32Array(maxInstances * 4),
+      4,
+    );
+    geometry.setAttribute('aAnchorPos', detailAnchorAttr);
+    footprintGeometry.setAttribute('aAnchorPos', footprintAnchorAttr);
+    const variant = SEEDTHREE_WILDFLOWER_VARIANTS[variantIndex]!;
+    const detailMesh = new THREE.InstancedMesh(
+      geometry,
+      wildflowerMaterial,
+      maxInstances,
+    );
+    detailMesh.name = `SeedThree streamed ${variant.label} detail`;
+    detailMesh.count = 0;
+    applyGroundCoverShadowPolicy(detailMesh, {
+      terrainReceivesShadow: true,
+    });
+    detailMesh.frustumCulled = false;
+    detailMesh.renderOrder = 3;
+    detailMesh.visible = false;
+    detailMesh.userData.texturePath =
+      '/assets/textures/vegetation/wildflowers/gorski-kotar-wildflower-atlas-v2.png';
+    detailMesh.userData.wildflowerVariant = variant.id;
+    detailMesh.userData.slotCapacity = slotCapacity;
+    detailMesh.userData.liveInstances = 0;
+    detailMesh.userData.geometryLod = 'detail';
+
+    const footprintMesh = new THREE.InstancedMesh(
+      footprintGeometry,
+      wildflowerMaterial,
+      maxInstances,
+    );
+    footprintMesh.name = `SeedThree streamed ${variant.label} footprint`;
+    footprintMesh.count = 0;
+    applyGroundCoverShadowPolicy(footprintMesh, {
+      terrainReceivesShadow: true,
+    });
+    footprintMesh.frustumCulled = false;
+    footprintMesh.renderOrder = 3;
+    footprintMesh.visible = false;
+    footprintMesh.userData.texturePath = detailMesh.userData.texturePath;
+    footprintMesh.userData.wildflowerVariant = variant.id;
+    footprintMesh.userData.slotCapacity = slotCapacity;
+    footprintMesh.userData.liveInstances = 0;
+    footprintMesh.userData.geometryLod = 'footprint';
+    streamMeshes.push({
+      mesh: detailMesh,
+      slotCapacity,
+      wildflowerVariantIndex: variantIndex,
+      compactLivePrefix: true,
+      wildflowerDetailGeometry: geometry,
+      wildflowerFootprintGeometry: footprintGeometry,
+      wildflowerFootprintMesh: footprintMesh,
+      wildflowerFootprintAnchorAttr: footprintAnchorAttr,
+      anchorAttr: detailAnchorAttr,
+    });
   });
-  wildflowerMesh.frustumCulled = false;
-  wildflowerMesh.renderOrder = 3;
-  wildflowerMesh.visible = false;
-  wildflowerMesh.userData.texturePath =
-    '/assets/textures/vegetation/wildflowers/gorski-kotar-wildflower-atlas-v2.png';
-  streamMeshes.push({
-    mesh: wildflowerMesh,
-    slotCapacity: WILDFLOWER_SLOT_CAPACITY,
-    wildflowers: true,
-    anchorAttr: wildflowerAnchorAttr,
-  });
-  // The streamed buffers are sparse: committing a later grid slot raises the
-  // mesh draw count across any earlier, still-unwritten slots. Three.js
-  // initializes those matrices to all zeroes, which collapses every unused
-  // grass card into a dense black clump at the world origin. Park the complete
-  // buffers below the terrain before the first slot is made visible.
+  // Grass keeps fixed toroidal slots. Park only those sparse, low-poly tuft
+  // buffers before first use; wildflowers use exact compact live prefixes.
   for (const entry of streamMeshes) {
-    clearSlotRange(entry.mesh, 0, entry.mesh.instanceMatrix.count);
+    if (!entry.compactLivePrefix) {
+      clearSlotRange(entry.mesh, 0, entry.mesh.instanceMatrix.count);
+    }
   }
   displayMaterials = [grassMaterial, wildflowerMaterial];
   disposeResources = () => {
-    for (const entry of streamMeshes) entry.mesh.geometry.dispose();
+    const geometries = new Set<THREE.BufferGeometry>();
+    for (const entry of streamMeshes) {
+      geometries.add(entry.mesh.geometry);
+      if (entry.wildflowerDetailGeometry) {
+        geometries.add(entry.wildflowerDetailGeometry);
+      }
+      if (entry.wildflowerFootprintGeometry) {
+        geometries.add(entry.wildflowerFootprintGeometry);
+      }
+      entry.mesh.dispose();
+      entry.wildflowerFootprintMesh?.dispose();
+    }
+    for (const geometry of geometries) geometry.dispose();
     for (const material of displayMaterials) material.dispose();
     disposeSeedThreeGrassTextureCache();
     disposeSeedThreeWildflowerTextureCache();
@@ -302,8 +400,37 @@ export async function createGrassBladeField(
 
   const group = new THREE.Group();
   group.name = 'SeedThree grass field';
-  for (const entry of streamMeshes) group.add(entry.mesh);
-  group.userData.groundcoverSubmission = 'three-whole-field-instanced-meshes';
+  for (const entry of streamMeshes) {
+    group.add(entry.mesh);
+    if (entry.wildflowerFootprintMesh) group.add(entry.wildflowerFootprintMesh);
+  }
+  group.userData.groundcoverSubmission =
+    'two-grass-plus-ten-spatial-wildflower-lod-meshes';
+  group.userData.wildflowerStream = {
+    allocatedInstances: wildflowerGeometries.reduce(
+      (total, _geometry, variantIndex) => (
+        total + 2 * GRID_SIDE * GRID_SIDE * WILDFLOWER_SLOT_CAPACITIES[variantIndex]!
+      ),
+      0,
+    ),
+    logicalCapacity: GRID_SIDE * GRID_SIDE * WILDFLOWER_TOTAL_SLOT_CAPACITY,
+    liveInstances: 0,
+    detailInstances: 0,
+    footprintInstances: 0,
+    submittedInstances: 0,
+    submittedTriangles: 0,
+    lodCulledInstances: 0,
+    geometryLod: 'footprint',
+    species: SEEDTHREE_WILDFLOWER_VARIANTS.map((variant, variantIndex) => ({
+      id: variant.id,
+      liveInstances: 0,
+      slotCapacity: WILDFLOWER_SLOT_CAPACITIES[variantIndex]!,
+      trianglesPerInstance:
+        (wildflowerGeometries[variantIndex]!.index?.count ?? 0) / 3,
+      footprintTrianglesPerInstance:
+        (wildflowerFootprintGeometries[variantIndex]!.index?.count ?? 0) / 3,
+    })),
+  };
   const lodFadeMode =
     options?.lodFadeMode ?? 'continuous-alpha-coverage';
   group.userData.lodFadeMode = lodFadeMode;
@@ -342,6 +469,8 @@ export async function createGrassBladeField(
     worldChunkX: Number.NaN,
     worldChunkZ: Number.NaN,
     meshCounts: Array.from({ length: streamMeshes.length }, () => 0),
+    compactData: Array.from({ length: streamMeshes.length }, () => null),
+    wildflowerGeometryLod: 'footprint',
   }));
 
   let anchorChunkX = Number.NaN;
@@ -353,8 +482,19 @@ export async function createGrassBladeField(
   let grassZoomVisible = false;
   let wasFirstPerson = false;
   let wasGrassVisible = false;
+  let wildflowerGeometryLod: WildflowerGeometryLodSummary = 'footprint';
+  const wildflowerLodFocus = new THREE.Vector3(
+    Number.POSITIVE_INFINITY,
+    0,
+    Number.POSITIVE_INFINITY,
+  );
+  let wildflowerLodRepackDirty = false;
+  let wildflowerLodReclassificationsSinceRepack = 0;
   let streamNearRadius = GRASS_BLADE_NEAR_RADIUS;
   let activeSlotJob: GrassSlotGenerationJob | null = null;
+  let compactRepackDirty = false;
+  let compactCommitsSinceRepack = 0;
+  let lastCompactRepackAtMs = performance.now();
   let frozenPrime: {
     cameraPosition: THREE.Vector3;
     cameraTarget: THREE.Vector3;
@@ -382,6 +522,24 @@ export async function createGrassBladeField(
     lastUpdateDurationMs: 0,
     maxUpdateDurationMs: 0,
     converged: false,
+    wildflowerMeshCount: 2 * WILDFLOWER_SPECIES_COUNT,
+    wildflowerLiveInstances: 0,
+    wildflowerSubmittedInstances: 0,
+    wildflowerLodCulledInstances: 0,
+    wildflowerSubmittedTriangles: 0,
+    wildflowerAllocatedInstances:
+      2 * GRID_SIDE * GRID_SIDE * WILDFLOWER_TOTAL_SLOT_CAPACITY,
+    wildflowerCompactions: 0,
+    wildflowerCompactionDurationMs: 0,
+    wildflowerMaxCompactionDurationMs: 0,
+    wildflowerCompactionBytesUploaded: 0,
+    wildflowerGeometryLod,
+    wildflowerDetailInstances: 0,
+    wildflowerFootprintInstances: 0,
+    wildflowerLodReclassifications: 0,
+    wildflowerLodCompactions: 0,
+    wildflowerLodCompactionBytesUploaded: 0,
+    wildflowerMaxLodReclassificationsPerCompaction: 0,
   };
 
   const chunkInStreamRange = (
@@ -412,16 +570,257 @@ export async function createGrassBladeField(
     return dx * dx + dz * dz;
   };
 
-  const refreshMeshCount = (): void => {
+  const updateWildflowerSpatialLods = (
+    cameraPosition: THREE.Vector3,
+  ): number => {
+    if (!Number.isFinite(cameraPosition.x) || !Number.isFinite(cameraPosition.z)) {
+      return 0;
+    }
+    const focusMovedSq = Number.isFinite(wildflowerLodFocus.x)
+      ? wildflowerLodFocus.distanceToSquared(cameraPosition)
+      : Number.POSITIVE_INFINITY;
+    if (focusMovedSq < WILDFLOWER_LOD_FOCUS_MINIMUM_MOVE_METERS ** 2) return 0;
+    wildflowerLodFocus.copy(cameraPosition);
+    let reclassified = 0;
+    for (const record of slotRecords) {
+      if (!Number.isFinite(record.worldChunkX) || !Number.isFinite(record.worldChunkZ)) {
+        continue;
+      }
+      const distance = Math.sqrt(slotDistanceSq(
+        record.worldChunkX,
+        record.worldChunkZ,
+        cameraPosition.x,
+        cameraPosition.z,
+      ));
+      const nextLod = resolveWildflowerGeometryLod(
+        record.wildflowerGeometryLod,
+        distance,
+      );
+      if (nextLod === record.wildflowerGeometryLod) continue;
+      record.wildflowerGeometryLod = nextLod;
+      reclassified += 1;
+    }
+    if (reclassified > 0) {
+      compactRepackDirty = true;
+      wildflowerLodRepackDirty = true;
+      wildflowerLodReclassificationsSinceRepack += reclassified;
+      streamTelemetry.wildflowerLodReclassifications =
+        (streamTelemetry.wildflowerLodReclassifications ?? 0) + reclassified;
+    }
+    return reclassified;
+  };
+
+  const refreshWildflowerDiagnostics = (): void => {
+    const wildflowerEntries = streamMeshes.filter(
+      (entry) => entry.compactLivePrefix,
+    );
+    const speciesDetailInstances = wildflowerEntries.map((entry) => entry.mesh.count);
+    const speciesFootprintInstances = wildflowerEntries.map(
+      (entry) => entry.wildflowerFootprintMesh?.count ?? 0,
+    );
+    const speciesLiveInstances = speciesDetailInstances.map(
+      (count, index) => count + (speciesFootprintInstances[index] ?? 0),
+    );
+    const liveInstances = speciesLiveInstances.reduce(
+      (total, count) => total + count,
+      0,
+    );
+    const detailInstances = speciesDetailInstances.reduce(
+      (total, count) => total + count,
+      0,
+    );
+    const footprintInstances = speciesFootprintInstances.reduce(
+      (total, count) => total + count,
+      0,
+    );
+    const lod = resolveWildflowerLodSubmission(
+      liveInstances,
+      grassZoomVisible,
+    );
+    const detailTrianglesPerInstance = wildflowerEntries.map(
+      (entry) => (entry.wildflowerDetailGeometry?.index?.count ?? 0) / 3,
+    );
+    const footprintTrianglesPerInstance = wildflowerEntries.map(
+      (entry) => (entry.wildflowerFootprintGeometry?.index?.count ?? 0) / 3,
+    );
+    const submittedTriangles = grassZoomVisible
+      ? estimateWildflowerSubmittedTriangles(
+          speciesDetailInstances,
+          detailTrianglesPerInstance,
+        ) + estimateWildflowerSubmittedTriangles(
+          speciesFootprintInstances,
+          footprintTrianglesPerInstance,
+        )
+      : 0;
+    wildflowerGeometryLod = detailInstances > 0 && footprintInstances > 0
+      ? 'mixed'
+      : detailInstances > 0
+        ? 'detail'
+        : 'footprint';
+    streamTelemetry.wildflowerLiveInstances = liveInstances;
+    streamTelemetry.wildflowerSubmittedInstances = lod.submittedInstances;
+    streamTelemetry.wildflowerLodCulledInstances = lod.culledInstances;
+    streamTelemetry.wildflowerSubmittedTriangles = submittedTriangles;
+    streamTelemetry.wildflowerGeometryLod = wildflowerGeometryLod;
+    streamTelemetry.wildflowerDetailInstances = detailInstances;
+    streamTelemetry.wildflowerFootprintInstances = footprintInstances;
+
+    const diagnostic = group.userData.wildflowerStream as {
+      liveInstances: number;
+      detailInstances: number;
+      footprintInstances: number;
+      submittedInstances: number;
+      submittedTriangles: number;
+      lodCulledInstances: number;
+      geometryLod: WildflowerGeometryLodSummary;
+      species: Array<{
+        liveInstances: number;
+        trianglesPerInstance: number;
+        detailInstances?: number;
+        footprintInstances?: number;
+      }>;
+    };
+    diagnostic.liveInstances = liveInstances;
+    diagnostic.detailInstances = detailInstances;
+    diagnostic.footprintInstances = footprintInstances;
+    diagnostic.submittedInstances = lod.submittedInstances;
+    diagnostic.submittedTriangles = submittedTriangles;
+    diagnostic.lodCulledInstances = lod.culledInstances;
+    diagnostic.geometryLod = wildflowerGeometryLod;
+    for (let index = 0; index < diagnostic.species.length; index++) {
+      diagnostic.species[index]!.liveInstances = speciesLiveInstances[index] ?? 0;
+      diagnostic.species[index]!.detailInstances = speciesDetailInstances[index] ?? 0;
+      diagnostic.species[index]!.footprintInstances =
+        speciesFootprintInstances[index] ?? 0;
+      diagnostic.species[index]!.trianglesPerInstance =
+        (speciesDetailInstances[index] ?? 0) > 0
+          ? detailTrianglesPerInstance[index] ?? 0
+          : footprintTrianglesPerInstance[index] ?? 0;
+    }
+  };
+
+  const repackCompactMesh = (
+    entry: GrassStreamMesh,
+    meshIndex: number,
+  ): number => {
+    const footprintMesh = entry.wildflowerFootprintMesh;
+    const detailMatrixArray = entry.mesh.instanceMatrix.array as Float32Array;
+    const detailAnchorArray = entry.anchorAttr?.array as Float32Array | undefined;
+    const footprintMatrixArray = footprintMesh?.instanceMatrix.array as Float32Array | undefined;
+    const footprintAnchorArray = entry.wildflowerFootprintAnchorAttr?.array as
+      | Float32Array
+      | undefined;
+    if (!footprintMesh || !footprintMatrixArray || !footprintAnchorArray) {
+      throw new Error('Spatial wildflower LOD requires a footprint mesh and anchor prefix.');
+    }
+    let detailCount = 0;
+    let footprintCount = 0;
+    for (const record of slotRecords) {
+      const data = record.compactData[meshIndex];
+      if (!data || data.count <= 0) continue;
+      if (record.wildflowerGeometryLod === 'detail') {
+        detailMatrixArray.set(data.matrices, detailCount * 16);
+        detailAnchorArray?.set(data.anchors, detailCount * 4);
+        detailCount += data.count;
+      } else {
+        footprintMatrixArray.set(data.matrices, footprintCount * 16);
+        footprintAnchorArray.set(data.anchors, footprintCount * 4);
+        footprintCount += data.count;
+      }
+    }
+    if (
+      detailCount > entry.mesh.instanceMatrix.count
+      || footprintCount > footprintMesh.instanceMatrix.count
+    ) {
+      throw new Error(
+        `Wildflower LOD prefixes ${detailCount}/${footprintCount} exceed allocation.`,
+      );
+    }
+    entry.mesh.count = detailCount;
+    entry.mesh.userData.liveInstances = detailCount;
+    footprintMesh.count = footprintCount;
+    footprintMesh.userData.liveInstances = footprintCount;
+
+    const publishPrefix = (
+      count: number,
+      matrix: THREE.InstancedBufferAttribute,
+      anchor: THREE.InstancedBufferAttribute | undefined,
+    ): void => {
+      if (count <= 0) return;
+      const attributes = [matrix, anchor]
+        .filter((attribute): attribute is THREE.InstancedBufferAttribute => !!attribute);
+      for (const attribute of attributes) {
+        attribute.clearUpdateRanges();
+        attribute.addUpdateRange(0, count * attribute.itemSize);
+        attribute.needsUpdate = true;
+        streamTelemetry.gpuFlagUpdates += 1;
+        streamTelemetry.gpuUpdateRanges += 1;
+        streamTelemetry.bytesUploaded +=
+          count * attribute.itemSize * attribute.array.BYTES_PER_ELEMENT;
+        streamTelemetry.wildflowerCompactionBytesUploaded =
+          (streamTelemetry.wildflowerCompactionBytesUploaded ?? 0)
+          + count * attribute.itemSize * attribute.array.BYTES_PER_ELEMENT;
+      }
+    };
+    publishPrefix(detailCount, entry.mesh.instanceMatrix, entry.anchorAttr);
+    publishPrefix(
+      footprintCount,
+      footprintMesh.instanceMatrix,
+      entry.wildflowerFootprintAnchorAttr,
+    );
+    return detailCount + footprintCount;
+  };
+
+  const refreshMeshCount = (repackCompact = false): void => {
+    const compactionStartedAt = repackCompact ? performance.now() : 0;
+    const lodDrivenRepack = repackCompact && wildflowerLodRepackDirty;
+    const bytesBeforeRepack = streamTelemetry.wildflowerCompactionBytesUploaded ?? 0;
     for (let meshIndex = 0; meshIndex < streamMeshes.length; meshIndex++) {
+      const entry = streamMeshes[meshIndex]!;
+      if (entry.compactLivePrefix) {
+        if (repackCompact) repackCompactMesh(entry, meshIndex);
+        continue;
+      }
       let maxExclusive = 0;
       for (let gridIdx = 0; gridIdx < slotRecords.length; gridIdx++) {
         const count = slotRecords[gridIdx]!.meshCounts[meshIndex] ?? 0;
         if (count <= 0) continue;
-        maxExclusive = Math.max(maxExclusive, gridIdx * streamMeshes[meshIndex]!.slotCapacity + count);
+        maxExclusive = Math.max(maxExclusive, gridIdx * entry.slotCapacity + count);
       }
-      streamMeshes[meshIndex]!.mesh.count = maxExclusive;
+      entry.mesh.count = maxExclusive;
     }
+    if (repackCompact) {
+      const durationMs = performance.now() - compactionStartedAt;
+      streamTelemetry.wildflowerCompactions =
+        (streamTelemetry.wildflowerCompactions ?? 0) + 1;
+      streamTelemetry.wildflowerCompactionDurationMs =
+        (streamTelemetry.wildflowerCompactionDurationMs ?? 0) + durationMs;
+      streamTelemetry.wildflowerMaxCompactionDurationMs = Math.max(
+        streamTelemetry.wildflowerMaxCompactionDurationMs ?? 0,
+        durationMs,
+      );
+      compactRepackDirty = false;
+      compactCommitsSinceRepack = 0;
+      lastCompactRepackAtMs = performance.now();
+      if (lodDrivenRepack) {
+        streamTelemetry.wildflowerLodCompactions =
+          (streamTelemetry.wildflowerLodCompactions ?? 0) + 1;
+        streamTelemetry.wildflowerLodCompactionBytesUploaded =
+          (streamTelemetry.wildflowerLodCompactionBytesUploaded ?? 0)
+          + Math.max(
+            0,
+            (streamTelemetry.wildflowerCompactionBytesUploaded ?? 0)
+              - bytesBeforeRepack,
+          );
+        streamTelemetry.wildflowerMaxLodReclassificationsPerCompaction = Math.max(
+          streamTelemetry.wildflowerMaxLodReclassificationsPerCompaction ?? 0,
+          wildflowerLodReclassificationsSinceRepack,
+        );
+        wildflowerLodRepackDirty = false;
+        wildflowerLodReclassificationsSinceRepack = 0;
+      }
+    }
+    refreshWildflowerDiagnostics();
   };
 
   const commitSlot = (job: GrassSlotGenerationJob): {
@@ -439,10 +838,19 @@ export async function createGrassBladeField(
       { length: streamMeshes.length },
       () => 0,
     );
+    let compactDataChanged = false;
     for (let meshIndex = 0; meshIndex < streamMeshes.length; meshIndex++) {
       const entry = streamMeshes[meshIndex]!;
-      const startIndex = slotIndex * entry.slotCapacity;
       const generated = job.generatedByMesh[meshIndex] ?? [];
+      if (entry.compactLivePrefix) {
+        const wildflowers = generated as GeneratedWildflowerInstance[];
+        record.compactData[meshIndex] = encodeCompactWildflowerSlot(wildflowers);
+        record.meshCounts[meshIndex] = wildflowers.length;
+        written += wildflowers.length;
+        compactDataChanged = true;
+        continue;
+      }
+      const startIndex = slotIndex * entry.slotCapacity;
       const rewrite = resolveGroundcoverSlotRewrite(
         initialized,
         record.meshCounts[meshIndex] ?? 0,
@@ -465,9 +873,6 @@ export async function createGrassBladeField(
           writeColor.setRGB(...grass.tint);
           entry.mesh.setColorAt(instanceIndex, writeColor);
           entry.anchorAttr?.setXYZ(instanceIndex, ...grass.anchor);
-        } else if (entry.wildflowers) {
-          const wildflower = instance as GeneratedWildflowerInstance;
-          entry.anchorAttr?.setXYZW(instanceIndex, ...wildflower.anchor);
         }
         written += 1;
       }
@@ -476,6 +881,28 @@ export async function createGrassBladeField(
     }
     record.worldChunkX = worldChunkX;
     record.worldChunkZ = worldChunkZ;
+    const slotLod = Number.isFinite(wildflowerLodFocus.x)
+      ? resolveWildflowerGeometryLod(
+          'footprint',
+          Math.sqrt(slotDistanceSq(
+            worldChunkX,
+            worldChunkZ,
+            wildflowerLodFocus.x,
+            wildflowerLodFocus.z,
+          )),
+        )
+      : 'footprint';
+    if (record.wildflowerGeometryLod !== slotLod) {
+      record.wildflowerGeometryLod = slotLod;
+      wildflowerLodRepackDirty = true;
+      wildflowerLodReclassificationsSinceRepack += 1;
+      streamTelemetry.wildflowerLodReclassifications =
+        (streamTelemetry.wildflowerLodReclassifications ?? 0) + 1;
+    }
+    if (compactDataChanged) {
+      compactRepackDirty = true;
+      compactCommitsSinceRepack += 1;
+    }
     return {
       cleared,
       written,
@@ -491,11 +918,13 @@ export async function createGrassBladeField(
     nearRadius: number,
   ): void => {
     const newestRequests: PendingSlot[] = [];
+    const desiredSlotIndices = new Set<number>();
     for (let localZ = 0; localZ < GRID_SIDE; localZ++) {
       for (let localX = 0; localX < GRID_SIDE; localX++) {
         const { chunkX, chunkZ } = worldChunkAt(centerChunkX, centerChunkZ, localX, localZ);
         if (!chunkInStreamRange(chunkX, chunkZ, focusX, focusZ, nearRadius)) continue;
         const gridIdx = resolveGrassStreamSlotIndex(chunkX, chunkZ, GRID_SIDE);
+        desiredSlotIndices.add(gridIdx);
         const existing = slotRecords[gridIdx]!;
         if (existing.worldChunkX === chunkX && existing.worldChunkZ === chunkZ) continue;
         newestRequests.push({
@@ -505,6 +934,29 @@ export async function createGrassBladeField(
           sortKey: slotDistanceSq(chunkX, chunkZ, focusX, focusZ),
         });
       }
+    }
+    let compactSlotsInvalidated = false;
+    for (let gridIdx = 0; gridIdx < slotRecords.length; gridIdx++) {
+      if (desiredSlotIndices.has(gridIdx)) continue;
+      const record = slotRecords[gridIdx]!;
+      let recordChanged = false;
+      for (let meshIndex = 0; meshIndex < streamMeshes.length; meshIndex++) {
+        if (!streamMeshes[meshIndex]!.compactLivePrefix) continue;
+        if ((record.meshCounts[meshIndex] ?? 0) <= 0) continue;
+        record.meshCounts[meshIndex] = 0;
+        record.compactData[meshIndex] = null;
+        recordChanged = true;
+      }
+      if (recordChanged) {
+        record.worldChunkX = Number.NaN;
+        record.worldChunkZ = Number.NaN;
+        record.wildflowerGeometryLod = 'footprint';
+        compactSlotsInvalidated = true;
+      }
+    }
+    if (compactSlotsInvalidated) {
+      compactRepackDirty = true;
+      refreshMeshCount(true);
     }
     const coalesced = coalesceStreamSlotRequests(pendingSlots, newestRequests);
     pendingSlots = coalesced.pending;
@@ -587,9 +1039,15 @@ export async function createGrassBladeField(
       },
     });
     pendingSlots = result.pending;
+    const shouldFlushCompactPrefix = compactRepackDirty && (
+      pendingSlots.length === 0
+      || compactCommitsSinceRepack >= WILDFLOWER_COMPACTION_COMMIT_BATCH
+      || performance.now() - lastCompactRepackAtMs
+        >= WILDFLOWER_COMPACTION_MAX_LATENCY_MS
+    );
     if (changedSlots.length > 0) {
       const refreshStartedAt = performance.now();
-      refreshMeshCount();
+      refreshMeshCount(shouldFlushCompactPrefix);
       streamTelemetry.refreshCount += 1;
       streamTelemetry.refreshDurationMs += performance.now() - refreshStartedAt;
       applyStreamMeshUpdateRanges(
@@ -597,6 +1055,11 @@ export async function createGrassBladeField(
         changedSlots,
         streamTelemetry,
       );
+    } else if (shouldFlushCompactPrefix) {
+      const refreshStartedAt = performance.now();
+      refreshMeshCount(true);
+      streamTelemetry.refreshCount += 1;
+      streamTelemetry.refreshDurationMs += performance.now() - refreshStartedAt;
     }
     const durationMs = performance.now() - updateStartedAt;
     streamTelemetry.updates += 1;
@@ -613,7 +1076,9 @@ export async function createGrassBladeField(
       durationMs,
     );
     streamTelemetry.converged =
-      streamTelemetry.pendingSlots === 0 && !needsFullStream;
+      streamTelemetry.pendingSlots === 0
+      && !needsFullStream
+      && !compactRepackDirty;
     if (
       streamTelemetry.mode === 'priming-frozen'
       && streamTelemetry.converged
@@ -703,6 +1168,7 @@ export async function createGrassBladeField(
 
       const { grassOpacity } = resolveCloseGroundLod(cameraDistance, firstPersonActive);
       const displayOpacity = firstPersonActive ? 1 : grassBladeLodOpacity(grassOpacity);
+      updateWildflowerSpatialLods(cameraPosition);
       grassZoomVisible = resolveStreamVisibilityHysteresis(
         grassZoomVisible,
         displayOpacity,
@@ -730,7 +1196,20 @@ export async function createGrassBladeField(
         }
       }
 
-      for (const entry of streamMeshes) entry.mesh.visible = grassZoomVisible;
+      for (const entry of streamMeshes) {
+        entry.mesh.visible = grassZoomVisible;
+        if (entry.wildflowerFootprintMesh) {
+          entry.wildflowerFootprintMesh.visible = grassZoomVisible;
+        }
+      }
+      if (
+        wildflowerLodRepackDirty
+        && performance.now() - lastCompactRepackAtMs
+          >= WILDFLOWER_COMPACTION_MAX_LATENCY_MS
+      ) {
+        refreshMeshCount(true);
+      }
+      refreshWildflowerDiagnostics();
       const settledViewTransition = resolveGrassStreamViewTransition({
         mode: streamTelemetry.mode,
         firstPersonActive: streamFirstPerson,
@@ -804,6 +1283,16 @@ function createDisabledGrassBladeField(): GrassBladeField {
     lastUpdateDurationMs: 0,
     maxUpdateDurationMs: 0,
     converged: true,
+    wildflowerMeshCount: 0,
+    wildflowerLiveInstances: 0,
+    wildflowerSubmittedInstances: 0,
+    wildflowerLodCulledInstances: 0,
+    wildflowerSubmittedTriangles: 0,
+    wildflowerAllocatedInstances: 0,
+    wildflowerCompactions: 0,
+    wildflowerCompactionDurationMs: 0,
+    wildflowerMaxCompactionDurationMs: 0,
+    wildflowerCompactionBytesUploaded: 0,
   };
   return {
     group,
@@ -843,6 +1332,7 @@ function applyStreamMeshUpdateRanges(
 ): void {
   for (let meshIndex = 0; meshIndex < streamMeshes.length; meshIndex++) {
     const entry = streamMeshes[meshIndex]!;
+    if (entry.compactLivePrefix) continue;
     const attributes = [
       entry.mesh.instanceMatrix,
       entry.mesh.instanceColor,
@@ -877,6 +1367,19 @@ function clearSlotRange(mesh: THREE.InstancedMesh, startIndex: number, capacity:
     hiddenMatrixBlock(capacity),
     startIndex * 16,
   );
+}
+
+function encodeCompactWildflowerSlot(
+  instances: readonly GeneratedWildflowerInstance[],
+): CompactWildflowerSlotData {
+  const matrices = new Float32Array(instances.length * 16);
+  const anchors = new Float32Array(instances.length * 4);
+  for (let index = 0; index < instances.length; index++) {
+    const instance = instances[index]!;
+    matrices.set(instance.matrix.elements, index * 16);
+    anchors.set(instance.anchor, index * 4);
+  }
+  return { matrices, anchors, count: instances.length };
 }
 
 const hiddenMatrixBlocks = new Map<number, Float32Array>();
@@ -933,6 +1436,9 @@ function* generateSeedThreeSlotInstances(
   void
 > {
   const grassEntries = streamMeshes.filter((entry) => entry.variant);
+  const wildflowerEntries = streamMeshes.filter(
+    (entry) => entry.compactLivePrefix,
+  );
   const grassInstances = yield* generateSeedThreeChunkInstances(
     grassEntries,
     request.worldChunkX,
@@ -940,21 +1446,24 @@ function* generateSeedThreeSlotInstances(
     context,
     GRASS_SLOT_CAPACITY,
   );
+  const wildflowerInstances = yield* generateSeedThreeWildflowerChunkInstances(
+    request.worldChunkX,
+    request.worldChunkZ,
+    context,
+    wildflowerEntries.map((entry) => entry.slotCapacity),
+  );
   let grassCountIndex = 0;
+  let wildflowerCountIndex = 0;
   const generatedByMesh: Array<
     GeneratedGrassInstance[] | GeneratedWildflowerInstance[]
   > = [];
   for (const entry of streamMeshes) {
     if (entry.variant) {
       generatedByMesh.push(grassInstances[grassCountIndex++] ?? []);
-    } else if (entry.wildflowers) {
-      generatedByMesh.push(yield* generateSeedThreeWildflowerChunkInstances(
-        entry,
-        request.worldChunkX,
-        request.worldChunkZ,
-        context,
-        entry.slotCapacity,
-      ));
+    } else if (entry.compactLivePrefix) {
+      generatedByMesh.push(
+        wildflowerInstances[wildflowerCountIndex++] ?? [],
+      );
     } else {
       generatedByMesh.push([]);
     }
@@ -1098,14 +1607,12 @@ function* generateSeedThreeChunkInstances(
 }
 
 function* generateSeedThreeWildflowerChunkInstances(
-  entry: GrassStreamMesh,
   chunkX: number,
   chunkZ: number,
   context: GrassFieldContext,
-  maxInstances: number,
-): Generator<number, GeneratedWildflowerInstance[], void> {
+  maxInstancesByVariant: readonly number[],
+): Generator<number, GeneratedWildflowerInstance[][], void> {
   const { terrain, extent, roadSpatialIndex } = context;
-  if (!entry.wildflowers || !entry.anchorAttr) return [];
 
   const seed = (chunkSeed(chunkX, chunkZ) ^ 0x7f4a7c15) >>> 0;
   const rng = mulberry32(seed);
@@ -1130,7 +1637,10 @@ function* generateSeedThreeWildflowerChunkInstances(
     sameSpeciesSpacingSq: number;
     radialPower: number;
   }> = [];
-  const instances: GeneratedWildflowerInstance[] = [];
+  const instancesByVariant = Array.from(
+    { length: WILDFLOWER_SPECIES_COUNT },
+    () => [] as GeneratedWildflowerInstance[],
+  );
   const patchCellOffset = seed & 3;
 
   for (let patchIndex = 0; patchIndex < patchCount; patchIndex++) {
@@ -1184,7 +1694,9 @@ function* generateSeedThreeWildflowerChunkInstances(
   for (const cohort of cohorts) {
     for (
       let flowerIndex = 0;
-      flowerIndex < cohort.count && instances.length < maxInstances;
+      flowerIndex < cohort.count
+        && instancesByVariant[cohort.variantIndex]!.length
+          < (maxInstancesByVariant[cohort.variantIndex] ?? 0);
       flowerIndex++
     ) {
       let placed = false;
@@ -1240,7 +1752,7 @@ function* generateSeedThreeWildflowerChunkInstances(
         writeScale.set(widthScale, heightScale, widthScale);
         writeMatrix.compose(writePosition, writeQuaternion, writeScale);
 
-        instances.push({
+        instancesByVariant[cohort.variantIndex]!.push({
           matrix: writeMatrix.clone(),
           anchor: [x, rootY, z, variant.atlasOffset[0]],
         });
@@ -1250,7 +1762,7 @@ function* generateSeedThreeWildflowerChunkInstances(
     }
   }
 
-  return instances;
+  return instancesByVariant;
 }
 
 function composeSeedThreeTuftMatrix(

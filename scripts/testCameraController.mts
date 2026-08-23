@@ -37,6 +37,7 @@ function ensureBrowserGlobals(): void {
 ensureBrowserGlobals();
 
 const { CameraController } = await import('../src/camera/CameraController.ts');
+const { shouldDismissVillagerSelection } = await import('../src/ui/VillagerInspector.ts');
 const {
   DEFAULT_FOV,
   ILLUSTRATED_MAP_OUTWARD_ZOOM_TIER_COUNT,
@@ -45,6 +46,32 @@ const {
   computeIllustratedMapTerminalDistance,
   computeIllustratedMapZoomStops,
 } = await import('../src/camera/CameraCurves.ts');
+
+assert.equal(
+  shouldDismissVillagerSelection(2, false, true),
+  false,
+  'RMB camera panning should preserve the selected villager route',
+);
+assert.equal(
+  shouldDismissVillagerSelection(1, false, true),
+  false,
+  'middle-button camera rotation should preserve the selected villager route',
+);
+assert.equal(
+  shouldDismissVillagerSelection(0, false, true),
+  true,
+  'left-clicking elsewhere should dismiss the selected villager route',
+);
+assert.equal(
+  shouldDismissVillagerSelection(0, true, true),
+  false,
+  'outside clicks should be ignored when no villager panel is open',
+);
+assert.equal(
+  shouldDismissVillagerSelection(0, false, false),
+  false,
+  'clicking inside the villager panel should preserve the selected route',
+);
 
 const DEFAULT_TEST_BOUNDS = {
   minX: -500,

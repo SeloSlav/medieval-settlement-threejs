@@ -1,0 +1,89 @@
+{
+  "model": "fal-ai/patina/material",
+  "label": "Mossy karst rock surface",
+  "source": null,
+  "requestId": "01a02fad-0a68-7051-bf2e-69b41f6cb017",
+  "requestedInput": {
+    "prompt": "Flat orthographic seamless material of weathered pale grey-beige karst limestone from Gorski Kotar, Croatia. Fine porous mineral grain, shallow irregular pits and hairline mineral fissures, softened weathered edges, restrained scattered low dark-olive moss and faint lichen patches covering roughly fifteen percent of the surface, natural rough non-metallic stone detail at 1 millimeter to 12 centimeter scale for game rocks and boulders. No separate stones, pebbles, gravel bed, soil, leaves, plants, thick moss carpet, dramatic cracks, wet gloss, directional lighting, cast shadows, perspective, horizon, borders, text, or obvious repeating motifs.",
+    "image_size": "square_hd",
+    "num_inference_steps": 8,
+    "seed": 431028,
+    "num_images": 1,
+    "enable_prompt_expansion": true,
+    "enable_safety_checker": true,
+    "tiling_mode": "both",
+    "tile_size": 128,
+    "tile_stride": 64,
+    "maps": [
+      "basecolor",
+      "normal",
+      "roughness",
+      "metalness",
+      "height"
+    ],
+    "upscale_factor": 0,
+    "output_format": "png"
+  },
+  "returnedSeed": 431028,
+  "returnedPrompt": "High-resolution 4k photograph of a flat orthographic seamless material featuring weathered pale grey-beige karst limestone. The surface displays a fine porous mineral grain with shallow irregular pits and delicate hairline mineral fissures. Softened weathered edges characterize the stone texture, accented by restrained, scattered patches of low dark-olive moss and faint crustose lichen covering fifteen percent of the area. Natural rough non-metallic stone details are captured at a 1 millimeter to 12 centimeter scale. The lighting is uniform and diffuse to eliminate cast shadows and directional highlights, ensuring a consistent flat texture map. The composition is a continuous, solid stone surface with a matte finish and rich geological detail, ideal for environmental game assets and large-scale boulder surfaces.",
+  "timings": {
+    "texture_generation": 12.294996297016041,
+    "pbr_prediction": 50.952567547996296
+  },
+  "images": [
+    {
+      "url": "https://v3b.fal.media/files/b/0aa784a2/1HxMtQEKrA_S112CTmamb_nNtxKpUu.png",
+      "content_type": "image/png",
+      "file_name": "1HxMtQEKrA_S112CTmamb_nNtxKpUu.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "url": "https://v3b.fal.media/files/b/0aa784a8/X4Sgn_9X4vpf6ea1prnOP_IDjLh3vE.png",
+      "content_type": "image/png",
+      "file_name": "X4Sgn_9X4vpf6ea1prnOP_IDjLh3vE.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024,
+      "map_type": "basecolor"
+    },
+    {
+      "url": "https://v3b.fal.media/files/b/0aa784a8/8ZSApM9GmEneRjaQTYC0K_0x89KE8z.png",
+      "content_type": "image/png",
+      "file_name": "8ZSApM9GmEneRjaQTYC0K_0x89KE8z.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024,
+      "map_type": "normal"
+    },
+    {
+      "url": "https://v3b.fal.media/files/b/0aa784a8/CtaDLicT8XQpY6FRhxYlr_JQBDGy5A.png",
+      "content_type": "image/png",
+      "file_name": "CtaDLicT8XQpY6FRhxYlr_JQBDGy5A.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024,
+      "map_type": "roughness"
+    },
+    {
+      "url": "https://v3b.fal.media/files/b/0aa784bc/rBf-U3cDhRpZAOIsvb25Y_UubUZaPk.png",
+      "content_type": "image/png",
+      "file_name": "rBf-U3cDhRpZAOIsvb25Y_UubUZaPk.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024,
+      "map_type": "metalness"
+    },
+    {
+      "url": "https://v3b.fal.media/files/b/0aa784a8/FTf16HCHJAopCLlGtXwM8_h5SZMvrm.png",
+      "content_type": "image/png",
+      "file_name": "FTf16HCHJAopCLlGtXwM8_h5SZMvrm.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024,
+      "map_type": "height"
+    }
+  ],
+  "generatedAt": "2026-08-23T17:32:01.881Z"
+}

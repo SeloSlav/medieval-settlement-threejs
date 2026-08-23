@@ -728,6 +728,19 @@ export class SpacetimeGameStore {
     return spacetimeReducers.setWoodcutterTimberReserve(buildingId, timberReserve);
   }
 
+  setTreeWorkArea(
+    buildingId: string,
+    x: number,
+    z: number,
+    radius: number,
+  ): Promise<void> {
+    return spacetimeReducers.setTreeWorkArea(buildingId, x, z, radius);
+  }
+
+  clearTreeWorkArea(buildingId: string): Promise<void> {
+    return spacetimeReducers.clearTreeWorkArea(buildingId);
+  }
+
   setCarpenterPolearmReserve(buildingId: string, polearmReserve: number): Promise<void> {
     return spacetimeReducers.setCarpenterPolearmReserve(buildingId, polearmReserve);
   }

@@ -287,15 +287,6 @@ pub fn construction_source_cart_busy(ctx: &ReducerContext, source: &Building) ->
     source.kind != "founders_camp" && building_has_active_trip(ctx, source.id)
 }
 
-fn construction_site_builder_cart_busy(ctx: &ReducerContext, site_id: u64) -> bool {
-    ctx.db
-        .delivery_trip()
-        .labor_building_id()
-        .filter(&site_id)
-        .next()
-        .is_some()
-}
-
 pub fn building_has_inbound_supply_trip(ctx: &ReducerContext, building_id: u64) -> bool {
     ctx.db
         .delivery_trip()
@@ -1612,10 +1603,11 @@ pub fn try_start_fire_response_trip(
 
 /// Loads reserved construction stock from any completed source and sends it to
 /// a construction site. A staffed storehouse supplies its own crew, otherwise
-/// a free villager hauls the load. If neither is available, one builder may
-/// temporarily leave a material-blocked site to operate its cart; the trip's
-/// labor-building ownership keeps that builder reserved until return. The
-/// reservation is reduced at loading time; if the trip is recalled, it is
+/// a free villager hauls the load. If neither is available, each still-onsite
+/// builder at a material-blocked site may temporarily operate a distinct cart.
+/// Live onsite labor excludes builders already traveling, while the trip's
+/// labor-building ownership keeps every borrowed builder reserved until return.
+/// Each reservation is reduced at loading time; if a trip is recalled, it is
 /// restored while the load physically returns.
 pub fn try_start_construction_supply_trip(
     ctx: &ReducerContext,
@@ -1675,12 +1667,13 @@ pub fn try_start_construction_supply_trip(
         site.construction_delivered_roof_tiles,
         site.construction_treasury_roof_tiles,
     );
+    let onsite_builders = onsite_building_labor(ctx, site);
     let crew = construction_supply_crew(
         storehouse_workers,
         available_free_haulers,
-        onsite_building_labor(ctx, site),
+        onsite_builders,
+        site.assigned_labor.saturating_sub(onsite_builders),
         site_work_ready,
-        construction_site_builder_cart_busy(ctx, site.id),
     );
     let (workers, haul_per_worker, labor_source) = match crew {
         Some(ConstructionSupplyCrew::Storehouse(workers)) => (

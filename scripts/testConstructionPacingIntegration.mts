@@ -9,9 +9,12 @@ import type { Building, DeliveryTrip } from '../src/generated/types.ts';
 import { GAME_TABLE_SUBSCRIPTIONS } from '../src/data/gameTableSubscriptions.ts';
 import {
   CALENDAR_SECONDS_PER_DAY,
+  CONSTRUCTION_HAUL_PER_WORKER,
+  CONSTRUCTION_MAX_BUILDERS,
   SIM_REALTIME_RATE,
   SIM_TICK_SECONDS,
 } from '../src/generated/gameBalance.ts';
+import { gameClock, isLaborPaused, laborPauseLabel } from '../src/world/gameCalendar.ts';
 import {
   DEFAULT_SPACETIME_URI,
   assertSpacetimeServerAvailable,
@@ -33,6 +36,10 @@ const suppliedDatabase = cliArgs.find((value) => !value.startsWith('--'))?.trim(
 const ownsDatabase = !suppliedDatabase;
 const databaseName = suppliedDatabase || disposableDatabaseName();
 const keepDatabase = process.env.SELO_CONSTRUCTION_BENCHMARK_KEEP_DB === '1';
+const summaryOnly = cliArgs.includes('--summary-only');
+const isolatedCoreOnly = cliArgs.includes('--isolated-core-only');
+const matrixOnly = cliArgs.includes('--matrix-only');
+assert(!(isolatedCoreOnly && matrixOnly), '--isolated-core-only and --matrix-only are mutually exclusive');
 const repetitions = boundedInteger(
   cliValue('samples') ?? process.env.SELO_CONSTRUCTION_BENCHMARK_SAMPLES,
   3,
@@ -62,6 +69,7 @@ const PROJECTS = [
 type Speed = (typeof SPEEDS)[number];
 type RouteCase = (typeof ROUTES)[number];
 type ProjectCase = (typeof PROJECTS)[number];
+type BenchmarkScenario = 'paired-contention' | 'isolated-core';
 
 const selectedSpeeds = selectCases(
   SPEEDS,
@@ -75,6 +83,8 @@ const selectedRoutes = selectCases(
   (route) => route.id,
   'route',
 );
+const includesNearRoute = selectedRoutes.some((route) => route.id === 'near');
+const includeIsolatedCore = isolatedCoreOnly || (!matrixOnly && includesNearRoute);
 
 type Moment = {
   tick: number;
@@ -88,6 +98,7 @@ type LedgerEvent = Moment & {
   deliveredStone: number;
   deliveredIronwork: number;
   deliveredRoofTiles: number;
+  borrowedBuilderWorkers: number;
 };
 
 type TripTrace = {
@@ -96,6 +107,8 @@ type TripTrace = {
   amountAtDispatch: number;
   pathDistance: number;
   deliveryWorkers: number;
+  laborBuildingId: bigint;
+  freeHaulerWorkers: number;
   phase: number;
   currentAmount: number;
   dispatched: Moment;
@@ -106,6 +119,7 @@ type TripTrace = {
 
 type SiteTrace = {
   key: string;
+  scenario: BenchmarkScenario;
   repetition: number;
   seed: bigint;
   speed: Speed;
@@ -124,10 +138,14 @@ type SiteTrace = {
   ledger: LedgerEvent[];
   peakActiveCarts: number;
   peakApproachingCarts: number;
+  peakBorrowedBuilderCarts: number;
+  peakBorrowedBuilderWorkers: number;
+  activity: Moment[];
 };
 
 type SiteResult = {
   key: string;
+  scenario: BenchmarkScenario;
   repetition: number;
   seed: string;
   speed: Speed;
@@ -158,17 +176,28 @@ type SiteResult = {
   routeMetersMin: number | null;
   routeMetersP50: number | null;
   routeMetersMax: number | null;
+  expectedRouteMeters: number;
   tripCount: number;
   peakActiveCarts: number;
   peakApproachingCarts: number;
+  peakBorrowedBuilderCarts: number;
+  peakBorrowedBuilderWorkers: number;
+  longestActivityGapRealSeconds: number;
+  longestActivityGapTicks: number;
+  longestActivityGapReason: string;
+  maxEligibleProgressGapTicks: number;
   meanTravelTicks: number | null;
   meanUnloadTicks: number | null;
   cargoLoads: Array<{ cargoKind: number; amount: number }>;
+  requiredMaterialTotal: number;
+  deliveredMaterialTotal: number;
+  dispatchedCargoTotal: number;
   atomicCompletion: boolean;
   gateMisses: string[];
 };
 
 type FailureResult = {
+  scenario: BenchmarkScenario;
   repetition: number;
   seed: string;
   speed: Speed;
@@ -211,89 +240,106 @@ try {
   const observer = new ConstructionBenchmarkObserver(connection);
   let aborted = false;
 
-  for (const speed of selectedSpeeds) {
-    if (aborted) break;
-    for (const route of selectedRoutes) {
+  if (!isolatedCoreOnly) {
+    for (const speed of selectedSpeeds) {
       if (aborted) break;
-      for (let repetition = 1; repetition <= repetitions; repetition += 1) {
+      for (const route of selectedRoutes) {
         if (aborted) break;
-        const seed = BigInt(530_000 + speed * 1_000 + route.alongRoadMeters + repetition);
-        await prepareFreshWorld(connection, speed, seed, repetition);
-        observer.beginRun();
-        const runStarted = performance.now();
+        for (let repetition = 1; repetition <= repetitions; repetition += 1) {
+          if (aborted) break;
+          const seed = BigInt(530_000 + route.alongRoadMeters * 10 + repetition);
+          await prepareFreshWorld(connection, speed, seed, repetition);
+          observer.beginRun();
+          const runStarted = performance.now();
 
-        try {
-          const traces: SiteTrace[] = [];
-          for (const project of PROJECTS) {
-            const trace = observer.expectPlacement({
-              repetition,
-              seed,
-              speed,
-              route,
-              project,
-            });
-            traces.push(trace);
-            await callReducer(connection, 'placeBuilding', 'place_building', {
-              kind: project.kind,
-              x: 8_650 + route.alongRoadMeters,
-              z: project.z,
-            });
-            await waitUntil(
-              () => trace.siteId != null,
-              `${trace.key} site insertion`,
-              { timeoutMs: 5_000, describe: () => observer.describe(trace) },
+          try {
+            const traces: SiteTrace[] = [];
+            for (const project of PROJECTS) {
+              const trace = observer.expectPlacement({
+                scenario: 'paired-contention',
+                repetition,
+                seed,
+                speed,
+                route,
+                project,
+              });
+              traces.push(trace);
+              await callReducer(connection, 'placeBuilding', 'place_building', {
+                kind: project.kind,
+                x: 8_650 + route.alongRoadMeters,
+                z: project.z,
+              });
+              await waitUntil(
+                () => trace.siteId != null,
+                `${trace.key} site insertion`,
+                { timeoutMs: 5_000, describe: () => observer.describe(trace) },
+              );
+            }
+
+            await waitForAtomicCompletion(
+              connection,
+              traces,
+              `${route.id}/${speed}x/repetition-${repetition} paired atomic completion`,
+              sampleTimeoutMs(speed),
             );
+
+            const runResults = traces.map((trace) => observer.result(trace));
+            results.push(...runResults);
+            console.log(JSON.stringify({
+              checkpoint: 'construction-pacing-sample',
+              scenario: 'paired-contention',
+              repetition,
+              sampleCount: repetitions,
+              seed: seed.toString(),
+              speed,
+              route: route.id,
+              elapsedRealSeconds: round((performance.now() - runStarted) / 1_000),
+              projects: runResults.map(compactSampleLog),
+            }));
+          } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            const diagnostics = observer.describeRun();
+            failures.push({
+              scenario: 'paired-contention',
+              repetition,
+              seed: seed.toString(),
+              speed,
+              route: route.id,
+              message,
+              diagnostics,
+            });
+            console.error(JSON.stringify({
+              checkpoint: 'construction-pacing-failure',
+              scenario: 'paired-contention',
+              repetition,
+              seed: seed.toString(),
+              speed,
+              route: route.id,
+              message,
+              diagnostics,
+            }));
+            // One truthful timeout is enough to invalidate percentile coverage;
+            // avoid spending further minutes pretending the remaining matrix is valid.
+            aborted = true;
+          } finally {
+            observer.endRun();
           }
-
-          await waitForPairedCompletion(
-            connection,
-            traces,
-            `${route.id}/${speed}x/repetition-${repetition} paired atomic completion`,
-            sampleTimeoutMs(speed),
-          );
-
-          const runResults = traces.map((trace) => observer.result(trace));
-          results.push(...runResults);
-          console.log(JSON.stringify({
-            checkpoint: 'construction-pacing-sample',
-            repetition,
-            sampleCount: repetitions,
-            seed: seed.toString(),
-            speed,
-            route: route.id,
-            elapsedRealSeconds: round((performance.now() - runStarted) / 1_000),
-            projects: runResults.map(compactSampleLog),
-          }));
-        } catch (error) {
-          const message = error instanceof Error ? error.message : String(error);
-          const diagnostics = observer.describeRun();
-          failures.push({
-            repetition,
-            seed: seed.toString(),
-            speed,
-            route: route.id,
-            message,
-            diagnostics,
-          });
-          console.error(JSON.stringify({
-            checkpoint: 'construction-pacing-failure',
-            repetition,
-            seed: seed.toString(),
-            speed,
-            route: route.id,
-            message,
-            diagnostics,
-          }));
-          // One truthful timeout is enough to invalidate percentile coverage;
-          // avoid spending further minutes pretending the remaining matrix is valid.
-          aborted = true;
-        } finally {
-          observer.endRun();
         }
       }
     }
   }
 
+  if (!aborted && includeIsolatedCore) {
+    aborted = !(await runIsolatedCoreCases(connection, observer));
+  }
+
+  const pairedExpectedSamples = isolatedCoreOnly
+    ? 0
+    : selectedSpeeds.length * selectedRoutes.length * PROJECTS.length * repetitions;
+  const isolatedExpectedSamples = includeIsolatedCore
+    ? selectedSpeeds.length * repetitions
+    : 0;
+  const expectedResults = pairedExpectedSamples + isolatedExpectedSamples;
   const summaries = summarizeResults(results);
   const evidence = {
     databaseName,
@@ -310,15 +356,41 @@ try {
         'enter_world',
       ],
       noDirectStockOrTableMutation: true,
-      pairedProjects: PROJECTS.map(({ kind, class: projectClass }) => ({ kind, projectClass })),
-      pairingTradeoff: 'Well and Village Storehouse are clicked back-to-back in each fresh world. This halves benchmark runtime and deliberately measures realistic shared cart/builder contention; it is not an isolated-project lower bound.',
+      pairedProjects: isolatedCoreOnly
+        ? []
+        : PROJECTS.map(({ kind, class: projectClass }) => ({ kind, projectClass })),
+      pairingTradeoff: isolatedCoreOnly
+        ? null
+        : 'Well and Village Storehouse are clicked back-to-back in each fresh world. This halves benchmark runtime and deliberately measures realistic shared cart/builder contention; it is not an isolated-project lower bound.',
+      isolatedCoreGate: includeIsolatedCore
+        ? {
+            kind: 'well',
+            route: 'near',
+            dayAlignedClickTick: 0,
+            dayAlignedClock: '08:00 (configured calendar start, within work hours)',
+            staffing: `${CONSTRUCTION_MAX_BUILDERS}/${CONSTRUCTION_MAX_BUILDERS} builders plus all remaining founders available to haul`,
+            source: 'normal physically stocked Founders’ Camp; no direct stock mutation',
+            gate: `atomic completion within ${CALENDAR_SECONDS_PER_DAY} simulation seconds / one calendar day`,
+          }
+        : null,
       percentileMethod: 'nearest-rank; with the default three deterministic repetitions P95 is the observed worst sample',
-      assertionPolicy: 'Missing/invalid authoritative transitions, non-atomic completion, absent carts/routes, and observation-ceiling failures are fatal. Product pacing-gate misses are emitted as evidence and intentionally remain non-fatal until the tuning checkpoint.',
+      dispatchCycle: {
+        authority: 'one scheduler heartbeat; generated SIM_REALTIME_RATE mirrors server BASE_SPEED_NUMERATOR / BASE_SPEED_DENOMINATOR',
+        observerBoundary: 'click is captured before the placement reducer; dispatch is captured in the next eligible scheduler transaction',
+        maxObservedSimTicksBySpeed: Object.fromEntries(
+          selectedSpeeds.map((speed) => [speed, dispatchCycleTickBudget(speed)]),
+        ),
+      },
+      assertionPolicy: 'Missing/invalid authoritative transitions, non-atomic completion, absent carts/routes, blocked-crew release or one-onsite-builder violations, observation-ceiling failures, scheduler-cycle dispatch misses, eligible-work stalls, one-day unexplained inactivity, 4x passive gaps, and every scenario-appropriate product pacing-gate miss are fatal. The isolated day-aligned Well owns the one-day core-service gate; paired Well timings remain the explicit simultaneous-contention distribution.',
       observationCeiling: '900 simulated seconds by default, enforced from the authoritative sim tick equally at every speed; the derived wall timeout adds 30 seconds only as a paused-server safety guard',
       repetitions,
       selectedSpeeds,
-      selectedRoutes: selectedRoutes.map((route) => route.id),
-      expectedCompletedSamples: selectedSpeeds.length * selectedRoutes.length * PROJECTS.length * repetitions,
+      selectedRoutes: isolatedCoreOnly ? [] : selectedRoutes.map((route) => route.id),
+      selectedScenarios: [
+        ...(!isolatedCoreOnly ? ['paired-contention'] : []),
+        ...(includeIsolatedCore ? ['isolated-core'] : []),
+      ],
+      expectedCompletedSamples: expectedResults,
       maxSampleSimSeconds,
       maxSampleRealSecondsBySpeed: Object.fromEntries(
         selectedSpeeds.map((speed) => [speed, round(sampleTimeoutMs(speed) / 1_000)]),
@@ -331,9 +403,20 @@ try {
     failures,
     samples: results,
   };
-  console.log(JSON.stringify(evidence, null, 2));
+  console.log(JSON.stringify(
+    summaryOnly
+      ? {
+          databaseName: evidence.databaseName,
+          contract: evidence.contract,
+          summaries: evidence.summaries,
+          gateMisses: evidence.gateMisses,
+          failures: evidence.failures,
+        }
+      : evidence,
+    null,
+    2,
+  ));
 
-  const expectedResults = selectedSpeeds.length * selectedRoutes.length * PROJECTS.length * repetitions;
   assert.equal(failures.length, 0, `construction benchmark failures:\n${formatFailures(failures)}`);
   assert.equal(
     results.length,
@@ -344,11 +427,79 @@ try {
     assert(result.atomicCompletion, `${result.key} did not finish atomically`);
     assert(result.tripCount > 0, `${result.key} completed without a physical construction cart`);
     assert(result.routeMetersMin != null && result.routeMetersMin > 0, `${result.key} has no route length`);
+    for (const [label, routeMeters] of [
+      ['minimum', result.routeMetersMin],
+      ['median', result.routeMetersP50],
+      ['maximum', result.routeMetersMax],
+    ] as const) {
+      assert(
+        routeMeters != null && Math.abs(routeMeters - result.expectedRouteMeters) <= 0.1,
+        `${result.key} ${label} route ${routeMeters}m does not match the ${result.expectedRouteMeters}m authority fixture route`,
+      );
+    }
+    assert(
+      result.peakBorrowedBuilderWorkers <= CONSTRUCTION_MAX_BUILDERS,
+      `${result.key} borrowed ${result.peakBorrowedBuilderWorkers} builders from a ${CONSTRUCTION_MAX_BUILDERS}-builder site`,
+    );
+    if (result.scenario === 'paired-contention') {
+      assert.equal(
+        result.peakBorrowedBuilderWorkers,
+        CONSTRUCTION_MAX_BUILDERS - 1,
+        `${result.key} did not release every blocked builder except the one kept onsite`,
+      );
+      assert.equal(
+        result.peakBorrowedBuilderCarts,
+        CONSTRUCTION_MAX_BUILDERS - 1,
+        `${result.key} did not preserve one distinct cart reservation per borrowed builder`,
+      );
+    } else {
+      assert.equal(
+        result.peakBorrowedBuilderWorkers,
+        0,
+        `${result.key} borrowed builders despite enough genuinely free founding haulers`,
+      );
+    }
+    for (const cargo of result.cargoLoads) {
+      assert(
+        cargo.amount > 0 && cargo.amount <= CONSTRUCTION_HAUL_PER_WORKER + 1e-6,
+        `${result.key} cart load ${cargo.amount} violates the ${CONSTRUCTION_HAUL_PER_WORKER}-unit one-worker cart bound`,
+      );
+    }
+    assertApproxEqual(
+      `${result.key} dispatched cargo conservation`,
+      result.dispatchedCargoTotal,
+      result.requiredMaterialTotal,
+    );
+    assertApproxEqual(
+      `${result.key} delivered material conservation`,
+      result.deliveredMaterialTotal,
+      result.requiredMaterialTotal,
+    );
     assertFiniteNonNegative(`${result.key} real completion`, result.clickToCompletionRealSeconds);
     assertFiniteNonNegative(`${result.key} sim completion`, result.clickToCompletionSimSeconds);
+    assert(
+      result.clickToDispatchTicks != null
+        && result.clickToDispatchTicks <= dispatchCycleTickBudget(result.speed),
+      `${result.key} did not dispatch stocked reachable material within one authoritative scheduler cycle`,
+    );
+    assert(
+      result.maxEligibleProgressGapTicks <= dispatchCycleTickBudget(result.speed),
+      `${result.key} left a supplied, staffed work frame unchanged for ${result.maxEligibleProgressGapTicks} eligible ticks`,
+    );
+    assert(
+      result.longestActivityGapTicks * SIM_TICK_SECONDS <= CALENDAR_SECONDS_PER_DAY,
+      `${result.key} remained unchanged for more than one game-day without a cart, unload, labor, material, or work event; reported blocker: ${result.longestActivityGapReason}`,
+    );
+    if (result.speed === 4) {
+      assert(
+        result.longestActivityGapRealSeconds <= 30,
+        `${result.key} imposed ${result.longestActivityGapRealSeconds}s at 4x without visible construction activity`,
+      );
+    }
+    assert.deepEqual(result.gateMisses, [], `${result.key} pacing gates:\n${result.gateMisses.join('\n')}`);
   }
   console.log(
-    `authoritative construction pacing benchmark passed (${results.length} project samples; ${repetitions} repetitions per route/speed/project cell)`,
+    `authoritative construction pacing benchmark passed (${results.length} project samples; ${repetitions} repetitions per selected scenario cell)`,
   );
 } finally {
   try {
@@ -389,6 +540,7 @@ class ConstructionBenchmarkObserver {
   }
 
   expectPlacement(input: {
+    scenario: BenchmarkScenario;
     repetition: number;
     seed: bigint;
     speed: Speed;
@@ -396,13 +548,16 @@ class ConstructionBenchmarkObserver {
     project: ProjectCase;
   }): SiteTrace {
     const trace: SiteTrace = {
-      key: `${input.project.kind}/${input.route.id}/${input.speed}x/r${input.repetition}`,
+      key: `${input.scenario}/${input.project.kind}/${input.route.id}/${input.speed}x/r${input.repetition}`,
       ...input,
       click: this.moment(),
       trips: new Map(),
       ledger: [],
       peakActiveCarts: 0,
       peakApproachingCarts: 0,
+      peakBorrowedBuilderCarts: 0,
+      peakBorrowedBuilderWorkers: 0,
+      activity: [],
     };
     this.active.push(trace);
     return trace;
@@ -451,6 +606,8 @@ class ConstructionBenchmarkObserver {
     const firstArrival = earliestMoment(trips.map((trip) => trip.arrived));
     const firstUnload = earliestMoment(trips.map((trip) => trip.unloaded));
     const materialWork = trace.firstWorkAfterMaterialReady;
+    const activityMoments = [trace.click, ...trace.activity, trace.completion];
+    const longestActivityGap = longestMomentGap(activityMoments);
     const clickToCompletionTicks = trace.completion.tick - trace.click.tick;
     const clickToCompletionSimSeconds = clickToCompletionTicks * SIM_TICK_SECONDS;
     const atomicCompletion = Boolean(finalRow.constructionComplete)
@@ -458,15 +615,18 @@ class ConstructionBenchmarkObserver {
       && constructionMaterialsReady(finalRow);
     const gateMisses: string[] = [];
 
+    const dispatchCycleTicks = dispatchCycleTickBudget(trace.speed);
     if (!trace.firstDispatch) {
       gateMisses.push('no stocked-source construction dispatch was observed');
-    } else if (trace.firstDispatch.tick - trace.click.tick > 5) {
+    } else if (trace.firstDispatch.tick - trace.click.tick > dispatchCycleTicks) {
       gateMisses.push(
-        `first dispatch took ${trace.firstDispatch.tick - trace.click.tick} ticks (>5 ticks / one simulation second)`,
+        `first dispatch took ${trace.firstDispatch.tick - trace.click.tick} ticks (> ${dispatchCycleTicks}-tick scheduler dispatch cycle at ${trace.speed}x)`,
       );
     }
     if (!atomicCompletion) gateMisses.push('completion was not atomic with delivered material and progress');
-    if (trace.route.id === 'near') {
+    const ownsNearGate = trace.route.id === 'near'
+      && (trace.project.kind !== 'well' || trace.scenario === 'isolated-core');
+    if (ownsNearGate) {
       const gateSeconds = trace.project.nearGateDays * CALENDAR_SECONDS_PER_DAY;
       if (clickToCompletionSimSeconds > gateSeconds + 1e-6) {
         gateMisses.push(
@@ -477,6 +637,7 @@ class ConstructionBenchmarkObserver {
 
     return {
       key: trace.key,
+      scenario: trace.scenario,
       repetition: trace.repetition,
       seed: trace.seed.toString(),
       speed: trace.speed,
@@ -507,15 +668,32 @@ class ConstructionBenchmarkObserver {
       routeMetersMin: routes.length > 0 ? round(Math.min(...routes)) : null,
       routeMetersP50: percentile(routes, 0.5),
       routeMetersMax: routes.length > 0 ? round(Math.max(...routes)) : null,
+      expectedRouteMeters: expectedRouteMeters(trace.route, trace.project),
       tripCount: trips.length,
       peakActiveCarts: trace.peakActiveCarts,
       peakApproachingCarts: trace.peakApproachingCarts,
+      peakBorrowedBuilderCarts: trace.peakBorrowedBuilderCarts,
+      peakBorrowedBuilderWorkers: trace.peakBorrowedBuilderWorkers,
+      longestActivityGapRealSeconds: longestActivityGap == null
+        ? 0
+        : round((longestActivityGap.end.realMs - longestActivityGap.start.realMs) / 1_000),
+      longestActivityGapTicks: longestActivityGap == null
+        ? 0
+        : longestActivityGap.end.tick - longestActivityGap.start.tick,
+      longestActivityGapReason: constructionGapReason(trace, finalRow, longestActivityGap),
+      maxEligibleProgressGapTicks: maxEligibleProgressGapTicks(trace, finalRow),
       meanTravelTicks: mean(travelTicks),
       meanUnloadTicks: mean(unloadTicks),
       cargoLoads: trips.map((trip) => ({
         cargoKind: trip.cargoKind,
         amount: round(trip.amountAtDispatch),
       })),
+      requiredMaterialTotal: constructionRequiredTotal(finalRow),
+      deliveredMaterialTotal: constructionDeliveredTotal(finalRow),
+      dispatchedCargoTotal: round(trips.reduce(
+        (total, trip) => total + trip.amountAtDispatch,
+        0,
+      )),
       atomicCompletion,
       gateMisses,
     };
@@ -563,11 +741,14 @@ class ConstructionBenchmarkObserver {
       amountAtDispatch: row.amount,
       pathDistance: row.pathDistance,
       deliveryWorkers: row.deliveryWorkers,
+      laborBuildingId: row.laborBuildingId,
+      freeHaulerWorkers: row.freeHaulerWorkers,
       phase: row.phase,
       currentAmount: row.amount,
       dispatched,
     });
-    this.refreshCartPeaks(trace);
+    trace.activity.push(dispatched);
+    this.scheduleCartPeaks(trace);
   }
 
   private onTripUpdate(oldRow: DeliveryTrip, row: DeliveryTrip): void {
@@ -579,17 +760,20 @@ class ConstructionBenchmarkObserver {
     if (!trip.unloaded && oldRow.amount > 1e-6 && row.amount <= 1e-6) trip.unloaded = moment;
     trip.phase = row.phase;
     trip.currentAmount = row.amount;
-    this.refreshCartPeaks(trace);
+    trace.activity.push(moment);
+    this.scheduleCartPeaks(trace);
   }
 
   private onTripDelete(row: DeliveryTrip): void {
     const trace = this.active.find((candidate) => candidate.trips.has(row.id));
     const trip = trace?.trips.get(row.id);
     if (!trace || !trip) return;
-    trip.returned = this.moment();
+    const returned = this.moment();
+    trip.returned = returned;
     trip.currentAmount = 0;
     trip.phase = 3;
-    this.refreshCartPeaks(trace);
+    trace.activity.push(returned);
+    this.scheduleCartPeaks(trace);
   }
 
   private recordBuilding(trace: SiteTrace, row: Building, moment = this.moment()): void {
@@ -601,15 +785,56 @@ class ConstructionBenchmarkObserver {
       deliveredStone: row.constructionDeliveredStone,
       deliveredIronwork: row.constructionDeliveredIronwork,
       deliveredRoofTiles: row.constructionDeliveredRoofTiles,
+      borrowedBuilderWorkers: Math.min(
+        row.assignedLabor,
+        this.borrowedBuilderWorkers(trace),
+      ),
     });
+    trace.activity.push(moment);
   }
 
   private refreshCartPeaks(trace: SiteTrace): void {
-    const trips = [...trace.trips.values()];
-    const active = trips.filter((trip) => !trip.returned).length;
-    const approaching = trips.filter((trip) => !trip.unloaded).length;
+    if (trace.siteId == null) return;
+    const trips = [...this.connection.db.delivery_trip.iter()].filter(
+      (trip) => trip.targetBuildingId === trace.siteId,
+    );
+    const active = trips.length;
+    const approaching = trips.filter((trip) => trip.phase !== 2 && trip.amount > 1e-6).length;
     trace.peakActiveCarts = Math.max(trace.peakActiveCarts, active);
     trace.peakApproachingCarts = Math.max(trace.peakApproachingCarts, approaching);
+    const borrowed = trips.filter((trip) =>
+      trip.laborBuildingId === trace.siteId,
+    );
+    const borrowedWorkers = borrowed.reduce(
+      (total, trip) => total + Math.max(0, trip.deliveryWorkers - trip.freeHaulerWorkers),
+      0,
+    );
+    trace.peakBorrowedBuilderCarts = Math.max(
+      trace.peakBorrowedBuilderCarts,
+      borrowed.length,
+    );
+    trace.peakBorrowedBuilderWorkers = Math.max(
+      trace.peakBorrowedBuilderWorkers,
+      borrowedWorkers,
+    );
+  }
+
+  private scheduleCartPeaks(trace: SiteTrace): void {
+    // Spacetime table events from one transaction may notify an insert before
+    // a same-transaction return deletion. Sample after the event batch so a
+    // transient client callback order cannot manufacture a fifth builder from
+    // a four-person authoritative roster.
+    queueMicrotask(() => this.refreshCartPeaks(trace));
+  }
+
+  private borrowedBuilderWorkers(trace: SiteTrace): number {
+    if (trace.siteId == null) return 0;
+    return [...this.connection.db.delivery_trip.iter()]
+      .filter((trip) => trip.laborBuildingId === trace.siteId)
+      .reduce(
+        (total, trip) => total + Math.max(0, trip.deliveryWorkers - trip.freeHaulerWorkers),
+        0,
+      );
   }
 
   private moment(): Moment {
@@ -625,6 +850,7 @@ async function prepareFreshWorld(
   speed: Speed,
   seed: bigint,
   repetition: number,
+  startClock = true,
 ): Promise<void> {
   await callReducer(connection, 'resetWorld', 'reset_world', {});
   await waitUntil(
@@ -711,6 +937,13 @@ async function prepareFreshWorld(
   assert.equal(resources.timber, 0);
   assert.equal(resources.stone, 0);
 
+  if (startClock) await startAuthoritativeClock(connection, speed);
+}
+
+async function startAuthoritativeClock(
+  connection: DbConnection,
+  speed: Speed,
+): Promise<void> {
   await callReducer(connection, 'setGameSpeed', 'set_game_speed', { speed });
   await waitUntil(
     () => worldConfig(connection)?.gameSpeed === speed,
@@ -725,7 +958,110 @@ async function prepareFreshWorld(
   );
 }
 
-async function waitForPairedCompletion(
+async function runIsolatedCoreCases(
+  connection: DbConnection,
+  observer: ConstructionBenchmarkObserver,
+): Promise<boolean> {
+  const route = ROUTES[0];
+  const project = PROJECTS[0];
+  for (const speed of selectedSpeeds) {
+    for (let repetition = 1; repetition <= repetitions; repetition += 1) {
+      const seed = BigInt(540_000 + repetition);
+      await prepareFreshWorld(connection, speed, seed, repetition, false);
+      observer.beginRun();
+      const runStarted = performance.now();
+      try {
+        const trace = observer.expectPlacement({
+          scenario: 'isolated-core',
+          repetition,
+          seed,
+          speed,
+          route,
+          project,
+        });
+        await callReducer(connection, 'placeBuilding', 'place_building', {
+          kind: project.kind,
+          x: 8_650 + route.alongRoadMeters,
+          z: project.z,
+        });
+        await waitUntil(
+          () => trace.siteId != null,
+          `${trace.key} site insertion before clock start`,
+          { timeoutMs: 5_000, describe: () => observer.describe(trace) },
+        );
+        assert.equal(trace.click.tick, 0, `${trace.key} must click at the fresh-world tick-zero boundary`);
+        const clickClock = gameClock(trace.click.tick);
+        assert(
+          clickClock.isWorkHours && clickClock.hour === 8,
+          `${trace.key} expected the configured 08:00 workday start, received hour ${clickClock.hour}`,
+        );
+        const site = buildingById(connection, trace.siteId!);
+        const camp = buildingByKind(connection, 'founders_camp');
+        assert(site, `${trace.key} site row disappeared before clock start`);
+        assert(camp, `${trace.key} Founders’ Camp disappeared before clock start`);
+        assert.equal(
+          site.assignedLabor,
+          CONSTRUCTION_MAX_BUILDERS,
+          `${trace.key} must begin with a full ${CONSTRUCTION_MAX_BUILDERS}-builder roster`,
+        );
+        assert(
+          camp.timber + 1e-6 >= site.constructionRequiredTimber
+            && camp.stone + 1e-6 >= site.constructionRequiredStone,
+          `${trace.key} must begin against physically stocked normal Founders’ Camp material`,
+        );
+
+        await startAuthoritativeClock(connection, speed);
+        await waitForAtomicCompletion(
+          connection,
+          [trace],
+          `${route.id}/${speed}x/repetition-${repetition} isolated core-service atomic completion`,
+          sampleTimeoutMs(speed),
+        );
+        const result = observer.result(trace);
+        results.push(result);
+        console.log(JSON.stringify({
+          checkpoint: 'construction-pacing-sample',
+          scenario: 'isolated-core',
+          repetition,
+          sampleCount: repetitions,
+          seed: seed.toString(),
+          speed,
+          route: route.id,
+          elapsedRealSeconds: round((performance.now() - runStarted) / 1_000),
+          projects: [compactSampleLog(result)],
+        }));
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        const diagnostics = observer.describeRun();
+        failures.push({
+          scenario: 'isolated-core',
+          repetition,
+          seed: seed.toString(),
+          speed,
+          route: route.id,
+          message,
+          diagnostics,
+        });
+        console.error(JSON.stringify({
+          checkpoint: 'construction-pacing-failure',
+          scenario: 'isolated-core',
+          repetition,
+          seed: seed.toString(),
+          speed,
+          route: route.id,
+          message,
+          diagnostics,
+        }));
+        return false;
+      } finally {
+        observer.endRun();
+      }
+    }
+  }
+  return true;
+}
+
+async function waitForAtomicCompletion(
   connection: DbConnection,
   traces: readonly SiteTrace[],
   label: string,
@@ -751,7 +1087,7 @@ async function waitForPairedCompletion(
 function summarizeResults(results: readonly SiteResult[]) {
   const groups = new Map<string, SiteResult[]>();
   for (const result of results) {
-    const key = `${result.project}/${result.route}/${result.speed}x`;
+    const key = `${result.scenario}/${result.project}/${result.route}/${result.speed}x`;
     const group = groups.get(key) ?? [];
     group.push(result);
     groups.set(key, group);
@@ -773,6 +1109,12 @@ function summarizeResults(results: readonly SiteResult[]) {
       tripCount: percentilePair(group.map((row) => row.tripCount)),
       peakActiveCarts: percentilePair(group.map((row) => row.peakActiveCarts)),
       peakApproachingCarts: percentilePair(group.map((row) => row.peakApproachingCarts)),
+      peakBorrowedBuilderCarts: percentilePair(group.map((row) => row.peakBorrowedBuilderCarts)),
+      peakBorrowedBuilderWorkers: percentilePair(group.map((row) => row.peakBorrowedBuilderWorkers)),
+      longestActivityGapRealSeconds: percentilePair(group.map((row) => row.longestActivityGapRealSeconds)),
+      longestActivityGapTicks: percentilePair(group.map((row) => row.longestActivityGapTicks)),
+      longestActivityGapReasons: [...new Set(group.map((row) => row.longestActivityGapReason))],
+      maxEligibleProgressGapTicks: percentilePair(group.map((row) => row.maxEligibleProgressGapTicks)),
       gateMisses: group.flatMap((row) => row.gateMisses),
     }),
   );
@@ -780,6 +1122,7 @@ function summarizeResults(results: readonly SiteResult[]) {
 
 function compactSampleLog(result: SiteResult) {
   return {
+    scenario: result.scenario,
     project: result.project,
     ticks: result.clickToCompletionTicks,
     simSeconds: result.clickToCompletionSimSeconds,
@@ -792,6 +1135,10 @@ function compactSampleLog(result: SiteResult) {
     workTicks: result.firstWorkToCompletionTicks,
     trips: result.tripCount,
     peakCarts: result.peakActiveCarts,
+    borrowedBuilderCarts: result.peakBorrowedBuilderCarts,
+    maxActivityGapRealSeconds: result.longestActivityGapRealSeconds,
+    maxActivityGapReason: result.longestActivityGapReason,
+    maxEligibleProgressGapTicks: result.maxEligibleProgressGapTicks,
     gateMisses: result.gateMisses,
   };
 }
@@ -801,6 +1148,132 @@ function constructionMaterialsReady(row: Building): boolean {
     && row.constructionDeliveredStone + 1e-6 >= row.constructionRequiredStone
     && row.constructionDeliveredIronwork + 1e-6 >= row.constructionRequiredIronwork
     && row.constructionDeliveredRoofTiles + 1e-6 >= row.constructionRequiredRoofTiles;
+}
+
+function constructionRequiredTotal(row: Building): number {
+  return round(
+    row.constructionRequiredTimber
+      + row.constructionRequiredStone
+      + row.constructionRequiredIronwork
+      + row.constructionRequiredRoofTiles,
+  );
+}
+
+function constructionDeliveredTotal(row: Building): number {
+  return round(
+    row.constructionDeliveredTimber
+      + row.constructionDeliveredStone
+      + row.constructionDeliveredIronwork
+      + row.constructionDeliveredRoofTiles,
+  );
+}
+
+function expectedRouteMeters(route: RouteCase, project: ProjectCase): number {
+  // The Founders' Camp is 14m north of the straight fixture road. A project
+  // travels that first mile, the requested along-road case, then its own
+  // signed last mile back off the road. This makes route geometry independent
+  // of scheduler speed and turns near/medium/far into exact authority checks.
+  return route.alongRoadMeters + 14 + Math.abs(project.z);
+}
+
+function dispatchCycleTickBudget(speed: Speed): number {
+  // The authoritative scheduler runs one heartbeat per real-time tick and
+  // accrues `speed * BASE_SPEED_NUMERATOR / BASE_SPEED_DENOMINATOR` economy
+  // substeps. SIM_REALTIME_RATE is the generated client mirror of that 3/4
+  // ratio. The placement click is observed before the next scheduler
+  // transaction, so 8x/4x/1x legitimately expose at most 6/3/1 sim ticks
+  // between click and the first eligible dispatch—not a fixed five-tick wall.
+  return Math.max(1, Math.ceil(speed * SIM_REALTIME_RATE));
+}
+
+function longestMomentGap(
+  moments: readonly Moment[],
+): { start: Moment; end: Moment } | null {
+  const ordered = [...moments].sort((left, right) => left.realMs - right.realMs);
+  let longest: { start: Moment; end: Moment } | null = null;
+  for (let index = 1; index < ordered.length; index += 1) {
+    const candidate = { start: ordered[index - 1], end: ordered[index] };
+    if (
+      longest == null
+      || candidate.end.realMs - candidate.start.realMs
+        > longest.end.realMs - longest.start.realMs
+    ) longest = candidate;
+  }
+  return longest;
+}
+
+function constructionGapReason(
+  trace: SiteTrace,
+  row: Building,
+  gap: { start: Moment; end: Moment } | null,
+): string {
+  if (gap == null) return 'No interval between construction events';
+  const pauseLabels = new Set<string>();
+  let eligibleTicks = 0;
+  for (let tick = gap.start.tick + 1; tick <= gap.end.tick; tick += 1) {
+    const clock = gameClock(tick);
+    const pause = laborPauseLabel(clock, false, false);
+    if (pause) pauseLabels.add(pause);
+    else eligibleTicks += 1;
+  }
+  if (eligibleTicks === 0 && pauseLabels.size > 0) {
+    return `${[...pauseLabels].join(' / ')} — worksite inspector and HUD show the scheduled pause`;
+  }
+
+  const state = [...trace.ledger]
+    .filter((event) => event.tick <= gap.start.tick)
+    .sort((left, right) => right.tick - left.tick)[0];
+  if (!state) return 'Placement is awaiting its first authoritative site snapshot';
+  const requiredTotal = constructionRequiredTotal(row);
+  const deliveredTotal = state.deliveredTimber
+    + state.deliveredStone
+    + state.deliveredIronwork
+    + state.deliveredRoofTiles;
+  const materialReadiness = requiredTotal <= 1e-6
+    ? 1
+    : Math.min(1, deliveredTotal / requiredTotal);
+  const onsiteBuilders = Math.max(0, state.labor - state.borrowedBuilderWorkers);
+  if (state.labor <= 0) return 'No builders assigned — assign labor in the worksite inspector';
+  if (onsiteBuilders <= 0) {
+    return 'Assigned builders are hauling reserved supplies; inbound carts and returning crew are shown in the worksite inspector';
+  }
+  if (state.progress + 1e-6 >= materialReadiness && materialReadiness < 1) {
+    return 'Frame is at the delivered-material limit; the worksite inspector reports the next reserved source, cart, or attainable hauling remedy';
+  }
+  return 'No authoritative blocker — a supplied, staffed site must advance within the next eligible scheduler cycle';
+}
+
+function maxEligibleProgressGapTicks(trace: SiteTrace, row: Building): number {
+  const requiredTotal = row.constructionRequiredTimber
+    + row.constructionRequiredStone
+    + row.constructionRequiredIronwork
+    + row.constructionRequiredRoofTiles;
+  if (requiredTotal <= 1e-6) return 0;
+  const byTick = new Map<number, LedgerEvent>();
+  for (const event of trace.ledger) byTick.set(event.tick, event);
+  const events = [...byTick.values()].sort((left, right) => left.tick - right.tick);
+  let longest = 0;
+  for (let index = 0; index < events.length - 1; index += 1) {
+    const event = events[index];
+    const deliveredTotal = event.deliveredTimber
+      + event.deliveredStone
+      + event.deliveredIronwork
+      + event.deliveredRoofTiles;
+    const materialReadiness = Math.min(1, deliveredTotal / requiredTotal);
+    const onsiteBuilders = Math.max(0, event.labor - event.borrowedBuilderWorkers);
+    if (onsiteBuilders <= 0 || event.progress + 1e-6 >= materialReadiness) continue;
+    const nextProgress = events.slice(index + 1).find(
+      (candidate) => candidate.progress > event.progress + 1e-9,
+    );
+    if (nextProgress) {
+      let eligibleTicks = 0;
+      for (let tick = event.tick + 1; tick <= nextProgress.tick; tick += 1) {
+        if (!isLaborPaused(gameClock(tick), false, false)) eligibleTicks += 1;
+      }
+      longest = Math.max(longest, eligibleTicks);
+    }
+  }
+  return longest;
 }
 
 function buildingTraceChanged(oldRow: Building, row: Building): boolean {
@@ -922,6 +1395,13 @@ function assertFiniteNonNegative(label: string, value: number): void {
   assert(value >= 0, `${label} must be non-negative (received ${value})`);
 }
 
+function assertApproxEqual(label: string, actual: number, expected: number): void {
+  assert(
+    Number.isFinite(actual) && Math.abs(actual - expected) <= 1e-6,
+    `${label} expected ${expected}, received ${actual}`,
+  );
+}
+
 function boundedInteger(
   value: string | undefined,
   fallback: number,
@@ -959,7 +1439,7 @@ function selectCases<T>(
 
 function formatFailures(failures: readonly FailureResult[]): string {
   return failures.map((failure) =>
-    `${failure.route}/${failure.speed}x/r${failure.repetition}: ${failure.message}; ${failure.diagnostics}`,
+    `${failure.scenario}/${failure.route}/${failure.speed}x/r${failure.repetition}: ${failure.message}; ${failure.diagnostics}`,
   ).join('\n');
 }
 

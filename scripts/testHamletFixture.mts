@@ -2820,13 +2820,13 @@ assert.equal(
 const routeLodSkyDirectRendererEnvelope = {
   ...frozenDirectRendererEnvelope,
   presentationTreatment: {
-    id: 'groundcover-continuous-alpha-coverage-whole-field-route',
+    id: 'groundcover-continuous-alpha-coverage-live-wildflower-route',
     rendererTreatment:
       HAMLET_ROUTE_LOD_SKY_DIRECT_RENDER_TREATMENT,
     disabledSubsystems: ['forest', 'post', 'shadows'],
     groundcoverFadeMode: 'continuous-alpha-coverage' as const,
     groundcoverSubmission:
-      'three-whole-field-instanced-meshes' as const,
+      'two-grass-plus-ten-spatial-wildflower-lod-meshes' as const,
     forestRenderer: HAMLET_ROUTE_FOREST_RENDERER_DISABLED,
     forestUpdates: 'frozen-after-settled-warmup' as const,
     postProcessing: 'disabled' as const,
@@ -3648,6 +3648,8 @@ for (const runtimeContract of [
   'resolveHamletFixtureAblation',
   'canFinalizeHamletFixtureEvidence',
   'updateSeedThreeForestCameraBudgeted',
+  'ensureSeedThreeSpatialForestLodGroupsVisible',
+  '__HAMLET_FIXTURE_FOREST_PRESENTATION_WORK__',
   'primeAndFreezeStream',
   'forestUpdatesFrozenForMeasurement',
   'frozen-after-settled-warmup',
@@ -3975,7 +3977,7 @@ assert.match(
 );
 assert.match(
   fixtureSource,
-  /presentationTreatment:[\s\S]*?requestedVisualRouteLodSkyDirectRender[\s\S]*?disabledSubsystems:[\s\S]*?requestedVisualDisabledSubsystems[\s\S]*?groundcoverSubmission:[\s\S]*?'three-whole-field-instanced-meshes'[\s\S]*?forestRenderer:[\s\S]*?requestedVisualRouteForestRenderer[\s\S]*?forestUpdates:[\s\S]*?'frozen-after-settled-warmup'[\s\S]*?postProcessing:[\s\S]*?'disabled'[\s\S]*?shadowSubsystem:[\s\S]*?requestedVisualRouteShadowSubsystem/,
+  /presentationTreatment:[\s\S]*?requestedVisualRouteLodSkyDirectRender[\s\S]*?disabledSubsystems:[\s\S]*?requestedVisualDisabledSubsystems[\s\S]*?groundcoverSubmission:[\s\S]*?'two-grass-plus-ten-spatial-wildflower-lod-meshes'[\s\S]*?forestRenderer:[\s\S]*?requestedVisualRouteForestRenderer[\s\S]*?forestUpdates:[\s\S]*?'frozen-after-settled-warmup'[\s\S]*?postProcessing:[\s\S]*?'disabled'[\s\S]*?shadowSubsystem:[\s\S]*?requestedVisualRouteShadowSubsystem/,
   'route evidence must serialize groundcover identity plus forest on/off, frozen forest updates, post off, and shadow state',
 );
 assert.match(
@@ -3987,6 +3989,16 @@ assert.match(
   fixtureSource,
   /renderer\.domElement\.setAttribute\(\s*'data-testid',\s*'hamlet-native-render-capture-surface',\s*\);/,
   'the exact native renderer surface must be addressable without viewport screenshot inference',
+);
+assert.match(
+  fixtureSource,
+  /configureRendererFrameStats\(renderer\.info as unknown as RendererInfoLike\);[\s\S]*?getPerformanceStats: \(\) => \{[\s\S]*?calls: structural\.draws,[\s\S]*?renderPasses: lastRendererFrameStats\.renderPasses,[\s\S]*?triangles: structural\.triangles/,
+  'schema-5 fixture evidence must measure each renderer frame boundary and publish its real render-pass count',
+);
+assert.match(
+  fixtureSource,
+  /function render\([\s\S]*?const rendererFrameBoundary = beginRendererFrame\(rendererInfo\);[\s\S]*?lastRendererFrameStats = readRendererFrameStats\([\s\S]*?rendererFrameBoundary,[\s\S]*?\);/,
+  'each fixture render must reset and sample the shared renderer-frame statistics contract',
 );
 assert.match(
   fixtureSource,

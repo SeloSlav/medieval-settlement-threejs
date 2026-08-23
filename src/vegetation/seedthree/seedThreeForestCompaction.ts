@@ -509,6 +509,35 @@ export function partitionSeedThreeSelectionByStaticLod(
 }
 
 /**
+ * Preserve SeedThree's per-tree distance classification while restricting the
+ * submitted color prefixes to the padded camera view. The selector already
+ * owns the near/overview hysteresis state, so this adapter only intersects its
+ * stable, sorted layout-index lists. It never invents a camera-wide LOD.
+ */
+export function partitionSeedThreeSelectionByDistanceLod(
+  selection: {
+    nearIndices: readonly number[];
+    overviewIndices: readonly number[];
+    viewIndices: readonly number[];
+  },
+): {
+  nearViewIndices: number[];
+  overviewViewIndices: number[];
+  nearViewCount: number;
+  overviewViewCount: number;
+} {
+  const view = new Set(selection.viewIndices);
+  const nearViewIndices = selection.nearIndices.filter((index) => view.has(index));
+  const overviewViewIndices = selection.overviewIndices.filter((index) => view.has(index));
+  return {
+    nearViewIndices,
+    overviewViewIndices,
+    nearViewCount: nearViewIndices.length,
+    overviewViewCount: overviewViewIndices.length,
+  };
+}
+
+/**
  * Test actual view identities against the complete conservative resident set.
  * A tree already packed for the shadow envelope also covers the color view in
  * the immutable-count WebGPU path, regardless of its position in the buffer.

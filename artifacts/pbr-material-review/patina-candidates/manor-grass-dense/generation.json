@@ -1,0 +1,91 @@
+{
+  "model": "fal-ai/patina/material",
+  "label": "Dense shaded grass",
+  "source": "public/assets/textures/terrain/manor_grass_dense/albedo.png",
+  "requestId": "01a02fa7-7566-79b1-afd4-a97a4444c93d",
+  "requestedInput": {
+    "prompt": "Flat top-down seamless material of dense short shaded forest-edge grass in Gorski Kotar, Croatia. Closely interwoven fine blades, low soft turf, a trace of moss between blades, deep muted forest green and olive variation without crushed blacks, evenly distributed detail at 1 to 5 centimeter scale, natural matte dielectric ground for close and distant game terrain. No fallen leaves, flowers, stones, bare dirt, paths, footprints, long standing stalks, directional lighting, cast shadows, perspective, horizon, borders, text, or obvious repeating motifs.",
+    "image_size": "square_hd",
+    "num_inference_steps": 8,
+    "seed": 431022,
+    "num_images": 1,
+    "enable_prompt_expansion": true,
+    "enable_safety_checker": true,
+    "tiling_mode": "both",
+    "tile_size": 128,
+    "tile_stride": 64,
+    "maps": [
+      "basecolor",
+      "normal",
+      "roughness",
+      "metalness",
+      "height"
+    ],
+    "upscale_factor": 0,
+    "output_format": "png",
+    "image_url": "[data URI from public/assets/textures/terrain/manor_grass_dense/albedo.png]",
+    "strength": 0.56
+  },
+  "returnedSeed": 431022,
+  "returnedPrompt": "A high-resolution, 4k photograph of a top-down, flat terrain material featuring dense, short forest-edge grass from Gorski Kotar. The texture consists of closely interwoven fine blades of low, soft turf with subtle traces of dark moss nestled between them. The color palette is a rich, muted forest green with olive variations, maintaining a natural matte appearance with uniform lighting and no harsh shadows. The detail is evenly distributed across a 1 to 5 centimeter scale, creating a consistent dielectric surface ideal for game environments. This clean, organic ground cover is free of debris, stalks, or paths, focusing entirely on a lush, homogeneous grassy expanse with a professional, high-quality finish.",
+  "timings": {
+    "texture_generation": 9.928692379005952,
+    "pbr_prediction": 89.2788407279877
+  },
+  "images": [
+    {
+      "url": "https://v3b.fal.media/files/b/0aa7847e/-W2bRcG3Lyj_MMq-b4wW0_WHDSDhcd.png",
+      "content_type": "image/png",
+      "file_name": "-W2bRcG3Lyj_MMq-b4wW0_WHDSDhcd.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "url": "https://v3b.fal.media/files/b/0aa78487/GBNsx4yZr6ipn2qDva17j_wBKSprCW.png",
+      "content_type": "image/png",
+      "file_name": "GBNsx4yZr6ipn2qDva17j_wBKSprCW.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024,
+      "map_type": "basecolor"
+    },
+    {
+      "url": "https://v3b.fal.media/files/b/0aa78487/4irXZeVd-gJQcaCxwdNXo_ZyKnQdyG.png",
+      "content_type": "image/png",
+      "file_name": "4irXZeVd-gJQcaCxwdNXo_ZyKnQdyG.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024,
+      "map_type": "normal"
+    },
+    {
+      "url": "https://v3b.fal.media/files/b/0aa78487/zREEHM7oF73iRIJdoBqub_6cANwXoA.png",
+      "content_type": "image/png",
+      "file_name": "zREEHM7oF73iRIJdoBqub_6cANwXoA.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024,
+      "map_type": "roughness"
+    },
+    {
+      "url": "https://v3b.fal.media/files/b/0aa78487/fZMRc6RphKU4SIR_BNEQW_vkbyXgGK.png",
+      "content_type": "image/png",
+      "file_name": "fZMRc6RphKU4SIR_BNEQW_vkbyXgGK.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024,
+      "map_type": "metalness"
+    },
+    {
+      "url": "https://v3b.fal.media/files/b/0aa78487/N8DskZL37Is9AgKwpXA61_xJXjfAKB.png",
+      "content_type": "image/png",
+      "file_name": "N8DskZL37Is9AgKwpXA61_xJXjfAKB.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024,
+      "map_type": "height"
+    }
+  ],
+  "generatedAt": "2026-08-23T17:26:32.900Z"
+}

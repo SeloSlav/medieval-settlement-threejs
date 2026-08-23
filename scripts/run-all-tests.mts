@@ -1,9 +1,33 @@
 import { spawnSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 
 type PackageManifest = { scripts?: Record<string, string> };
 
 const manifest = JSON.parse(readFileSync('package.json', 'utf8')) as PackageManifest;
+const intentionallyExternalTestFiles = new Set([
+  // Optional/generated audio verification has its own audio:* workflow and is
+  // deliberately outside the ordinary gameplay/CI suite.
+  'testAudioBrowserDecode.mts',
+  'testAudioPipeline.mts',
+]);
+const ciCommands = Object.entries(manifest.scripts ?? {})
+  .filter(([scriptName]) => scriptName.startsWith('test:'))
+  .map(([, command]) => command);
+const unregisteredTestFiles = readdirSync('scripts')
+  .filter((fileName) => /^test.*\.(?:mts|mjs|ts|js)$/i.test(fileName))
+  .filter((fileName) => !intentionallyExternalTestFiles.has(fileName))
+  .filter((fileName) => !ciCommands.some((command) => {
+    const normalized = command.replaceAll('\\', '/');
+    return normalized.includes(`scripts/${fileName}`);
+  }));
+
+if (unregisteredTestFiles.length > 0) {
+  throw new Error(
+    'Every gameplay scripts/test* file must have a test:* package entry so test:ci can discover it. Missing: '
+      + unregisteredTestFiles.join(', '),
+  );
+}
+
 const discovered = Object.keys(manifest.scripts ?? {})
   .filter((script) => script.startsWith('test:') && script !== 'test:ci');
 const broadSuites = new Set(['test:e2e']);

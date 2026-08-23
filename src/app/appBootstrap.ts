@@ -25,6 +25,7 @@ import {
   isBurgagePlacementBlocked,
   isBuildingPlacementBlocked,
   isFarmFieldPlacementBlocked,
+  isForestryWorkAreaPlacementBlocked,
   isRoadPlacementBlocked,
   isWorldInspectionBlocked,
   type PlacementInteractionGate,
@@ -34,6 +35,10 @@ import { createInitialGameState } from '../resources/GameState.ts';
 import type { GameState } from '../resources/types.ts';
 import { countTreesNearBuilding } from '../resources/ForestVisualSync.ts';
 import type { ResourceInspector } from '../resources/ResourceInspector.ts';
+import {
+  ForestryWorkAreaTool,
+  FORESTRY_WORK_AREA_INITIAL_RADIUS,
+} from '../resources/ForestryWorkAreaTool.ts';
 import {
   formatLocatedResourceAmount,
   locatePhysicalResource,
@@ -126,6 +131,7 @@ export type BootstrappedSession = {
   buildingTool: BuildingTool;
   burgageTool: BurgageTool;
   farmFieldTool: FarmFieldTool;
+  forestryWorkAreaTool: ForestryWorkAreaTool;
   buildingMarkers: BuildingMarkers;
   deliveryAgents: DeliveryAgentRenderer;
   fireEffects: FireEffectsRenderer;
@@ -265,6 +271,7 @@ export async function bootstrapAppSession(
   let buildingTool: BuildingTool;
   let burgageTool: BurgageTool;
   let farmFieldTool: FarmFieldTool;
+  let forestryWorkAreaTool: ForestryWorkAreaTool;
   let toolbar: BuildToolbar;
   let toastManager: ToastManager;
   let tutorialOverlay: TutorialOverlay;
@@ -367,6 +374,7 @@ export async function bootstrapAppSession(
     isStarterCampPlacementActive: () => false,
     isBurgageToolEnabled: () => false,
     isFarmFieldToolEnabled: () => false,
+    isForestryWorkAreaToolEnabled: () => false,
     isFirstPersonActive: () => false,
     isIllustratedMapActive: () => cameraController?.isIllustratedMapActive() ?? false,
     isMenuOpen: () => false,
@@ -386,6 +394,7 @@ export async function bootstrapAppSession(
       if (firstPersonController?.isActive()) return 'default';
       return burgageTool?.getCursor()
         ?? farmFieldTool?.getCursor()
+        ?? forestryWorkAreaTool?.getCursor()
         ?? roadTool?.getCursor()
         ?? null;
     },
@@ -393,7 +402,8 @@ export async function bootstrapAppSession(
       (roadTool?.shouldBlockCameraInput(event) ?? false)
       || (buildingTool?.shouldBlockCameraInput(event) ?? false)
       || (burgageTool?.shouldBlockCameraInput(event) ?? false)
-      || (farmFieldTool?.shouldBlockCameraInput(event) ?? false),
+      || (farmFieldTool?.shouldBlockCameraInput(event) ?? false)
+      || (forestryWorkAreaTool?.shouldBlockCameraInput(event) ?? false),
     isIllustratedMapReady: () => sceneManager.isIllustratedMapReady(),
     continuousRenderLoop: import.meta.env.VITE_E2E_TEST !== '1',
     onViewChanged: () => {
@@ -433,6 +443,7 @@ export async function bootstrapAppSession(
       return;
     }
     const enableRoad = !roadTool.isEnabled() || roadTool.getMode() !== 'road';
+    if (enableRoad) forestryWorkAreaTool?.setEnabled(false);
     roadTool.setEnabled(enableRoad);
     if (roadTool.isEnabled()) {
       buildingTool.setMode('off');
@@ -706,6 +717,31 @@ export async function bootstrapAppSession(
   });
   farmFieldTool.attachTo(sceneManager.previewGroup);
 
+  forestryWorkAreaTool = new ForestryWorkAreaTool({
+    domElement: sceneManager.renderer.domElement,
+    terrainProjector: sceneManager.terrainProjector,
+    getHeightAt: (x, z) => sceneManager.terrain.getHeightAt(x, z),
+    onCommit: async ({ buildingId, x, z, radius }) => {
+      requireSessionReady();
+      await spacetimeStore.setTreeWorkArea(buildingId, x, z, radius);
+      ambientAudio.playUiSound('confirm');
+      toastManager?.show(
+        `Forestry work area set · ${Math.round(radius)} m radius.`,
+        { variant: 'info', durationMs: 2600 },
+      );
+    },
+    onModeChanged: () => {
+      resourceInspector?.refreshSelection();
+      bridge.syncToolbar();
+    },
+    onCommitFailed: (message) => {
+      ambientAudio.playUiSound('error');
+      toastManager?.show(message, { variant: 'error' });
+    },
+    isBlocked: () => isForestryWorkAreaPlacementBlocked(placementGate),
+  });
+  forestryWorkAreaTool.attachTo(sceneManager.previewGroup);
+
   const residenceMarkers = new ResidenceMarkers(
     sceneManager.selectionGroup,
     () => sceneManager.invalidateStaticShadows(),
@@ -751,6 +787,7 @@ export async function bootstrapAppSession(
       return;
     }
 
+    forestryWorkAreaTool.setEnabled(false);
     const wasEnabled = farmFieldTool.isEnabled()
       && farmFieldTool.getMode() === mode
       && farmFieldTool.getFarmsteadId() === farmsteadId;
@@ -776,6 +813,65 @@ export async function bootstrapAppSession(
     bridge.syncToolbar();
   };
 
+  const beginTreeWorkAreaPlacement = (buildingId: string): void => {
+    if (!sessionGate.isReady()) {
+      toastManager?.show('SpacetimeDB is not connected.', { variant: 'error' });
+      return;
+    }
+    const building = liveContext.gameState.buildings.get(buildingId);
+    if (
+      !building
+      || (building.kind !== 'lumber_mill' && building.kind !== 'reforester')
+      || building.constructionComplete === false
+    ) {
+      toastManager?.show('That forestry building can no longer set a work area.', { variant: 'error' });
+      return;
+    }
+    if (
+      forestryWorkAreaTool.isEnabled()
+      && forestryWorkAreaTool.getBuildingId() === buildingId
+    ) {
+      forestryWorkAreaTool.setEnabled(false);
+      return;
+    }
+
+    roadTool.setEnabled(false);
+    buildingTool.setMode('off');
+    burgageTool.setEnabled(false);
+    farmFieldTool.setEnabled(false);
+    forestryWorkAreaTool.begin(
+      buildingId,
+      { x: building.x, z: building.z },
+      FORESTRY_WORK_AREA_INITIAL_RADIUS,
+    );
+    if (!forestryWorkAreaTool.isEnabled()) return;
+    villagerInspector?.clearSelection();
+    toastManager?.show(
+      'Move the forestry circle anywhere on the map. Hold Ctrl and scroll to resize, then click to set it. Right-click or press Esc to cancel.',
+      { variant: 'info', durationMs: 7000 },
+    );
+    bridge.syncToolbar();
+  };
+
+  const clearTreeWorkArea = async (buildingId: string): Promise<void> => {
+    forestryWorkAreaTool.setEnabled(false);
+    try {
+      requireSessionReady();
+      await spacetimeStore.clearTreeWorkArea(buildingId);
+      ambientAudio.playUiSound('confirm');
+      toastManager?.show(
+        'Limited forestry area cleared · default building extent restored.',
+        { variant: 'info', durationMs: 3000 },
+      );
+    } catch (error) {
+      ambientAudio.playUiSound('error');
+      toastManager?.show(
+        error instanceof Error ? error.message : 'Could not restore the default forestry extent.',
+        { variant: 'error' },
+      );
+    }
+  };
+
   toolbar = new BuildToolbar(uiRoot, {
     onOpenRoads: toggleRoadTool,
     onSetRoadSnap: (enabled) => buildingTool.setRoadSnapEnabled(enabled),
@@ -795,12 +891,14 @@ export async function bootstrapAppSession(
       buildingTool.setMode('off');
       burgageTool.setEnabled(false);
       farmFieldTool.setEnabled(false);
+      forestryWorkAreaTool.setEnabled(false);
     },
     onPlaceStarterCamp: () => {
       if (!sessionGate.isReady()) {
         toastManager?.show('SpacetimeDB is not connected.', { variant: 'error' });
         return;
       }
+      forestryWorkAreaTool.setEnabled(false);
       buildingTool.setMode('founders_camp');
       if (buildingTool.getMode() !== 'founders_camp') return;
       roadTool.setEnabled(false);
@@ -815,6 +913,7 @@ export async function bootstrapAppSession(
         toastManager?.show('SpacetimeDB is not connected.', { variant: 'error' });
         return;
       }
+      forestryWorkAreaTool.setEnabled(false);
       buildingTool.setMode(kind);
       if (buildingTool.getMode() === kind) {
         roadTool.setEnabled(false);
@@ -835,6 +934,7 @@ export async function bootstrapAppSession(
         return;
       }
       const wasEnabled = roadTool.getMode() === 'dry-stone-wall';
+      forestryWorkAreaTool.setEnabled(false);
       buildingTool.setMode('off');
       burgageTool.setEnabled(false);
       farmFieldTool.setEnabled(false);
@@ -857,6 +957,7 @@ export async function bootstrapAppSession(
         return;
       }
       const wasEnabled = burgageTool.isEnabled();
+      forestryWorkAreaTool.setEnabled(false);
       burgageTool.setEnabled(true);
       if (burgageTool.isEnabled()) {
         roadTool.setEnabled(false);
@@ -945,6 +1046,7 @@ export async function bootstrapAppSession(
       && !buildingTool.isEnabled()
       && !burgageTool.isEnabled()
       && !farmFieldTool.isEnabled()
+      && !forestryWorkAreaTool.isEnabled()
       && !uiRoot.querySelector('.alert-dialog-backdrop:not([hidden])')
       && !tutorialOverlay.isGameplayBlocking(),
     onNewWorld: () => {
@@ -1030,6 +1132,9 @@ export async function bootstrapAppSession(
     getWorksiteCommuteSummary: (buildingId) =>
       villagers.getWorksiteCommuteSummary(buildingId),
     ...inspectorActions,
+    getPendingTreeWorkAreaBuildingId: () => forestryWorkAreaTool.getBuildingId(),
+    onBeginTreeWorkAreaPlacement: beginTreeWorkAreaPlacement,
+    onClearTreeWorkArea: (buildingId) => clearTreeWorkArea(buildingId),
     onBeginFarmFieldPlacement: (farmsteadId, crop) => {
       farmFieldTool.setCrop(crop);
       beginLinkedLandParcelPlacement('field', farmsteadId);
@@ -1042,6 +1147,7 @@ export async function bootstrapAppSession(
         toastManager.show('SpacetimeDB is not connected.', { variant: 'error' });
         return;
       }
+      forestryWorkAreaTool.setEnabled(false);
       buildingTool.beginLinkedRemoteWorkCampPlacement(worksiteId);
       if (buildingTool.getMode() !== 'remote_work_camp') return;
       roadTool.setEnabled(false);
@@ -1307,6 +1413,7 @@ export async function bootstrapAppSession(
         if (buildingTool.isEnabled()) buildingTool.setMode('off');
         if (burgageTool.isEnabled()) burgageTool.setEnabled(false);
         if (farmFieldTool.isEnabled()) farmFieldTool.setEnabled(false);
+        if (forestryWorkAreaTool.isEnabled()) forestryWorkAreaTool.setEnabled(false);
       }
     },
     onModeChange: (active) => {
@@ -1324,6 +1431,7 @@ export async function bootstrapAppSession(
         if (buildingTool.isEnabled()) buildingTool.setMode('off');
         if (burgageTool.isEnabled()) burgageTool.setEnabled(false);
         if (farmFieldTool.isEnabled()) farmFieldTool.setEnabled(false);
+        if (forestryWorkAreaTool.isEnabled()) forestryWorkAreaTool.setEnabled(false);
         return;
       }
       const pos = firstPersonController.getPosition();
@@ -1348,6 +1456,7 @@ export async function bootstrapAppSession(
   );
   placementGate.isBurgageToolEnabled = () => burgageTool.isEnabled();
   placementGate.isFarmFieldToolEnabled = () => farmFieldTool.isEnabled();
+  placementGate.isForestryWorkAreaToolEnabled = () => forestryWorkAreaTool.isEnabled();
   placementGate.isFirstPersonActive = () => firstPersonController.isInteractionActive();
   placementGate.isMenuOpen = () => toolbar.isGameMenuOpen();
 
@@ -1403,6 +1512,7 @@ export async function bootstrapAppSession(
     buildingTool,
     burgageTool,
     farmFieldTool,
+    forestryWorkAreaTool,
     buildingMarkers,
     deliveryAgents,
     fireEffects,

@@ -1,0 +1,91 @@
+{
+  "model": "fal-ai/patina/material",
+  "label": "Dry late-summer grass v2",
+  "source": "public/assets/textures/terrain/manor_grass_dry/albedo.png",
+  "requestId": "01a02fc0-99d9-76a2-b764-372afd60ab47",
+  "requestedInput": {
+    "prompt": "Flat top-down seamless material of very short late-summer upland meadow turf in Gorski Kotar, Croatia. Dense ground-hugging brittle cropped blades and tiny broken thatch fragments from 0.5 to 3 centimeters long, mixed with sparse short muted sage-green grass, restrained straw beige olive and dusty green variation, fine isotropic matte dry dielectric detail suitable for medieval game terrain. No long continuous fibers, hair-like strands, loops, scribbles, hay mat, twigs, cut rows, flowers, stones, bare holes, paths, footprints, standing stalks, directional lighting, shadows, perspective, borders, text, or repeating motifs.",
+    "image_size": "square_hd",
+    "num_inference_steps": 8,
+    "seed": 431034,
+    "num_images": 1,
+    "enable_prompt_expansion": true,
+    "enable_safety_checker": true,
+    "tiling_mode": "both",
+    "tile_size": 128,
+    "tile_stride": 64,
+    "maps": [
+      "basecolor",
+      "normal",
+      "roughness",
+      "metalness",
+      "height"
+    ],
+    "upscale_factor": 0,
+    "output_format": "png",
+    "image_url": "[data URI from public/assets/textures/terrain/manor_grass_dry/albedo.png]",
+    "strength": 0.35
+  },
+  "returnedSeed": 431034,
+  "returnedPrompt": "A high-resolution 4k photograph of a flat, top-down upland meadow turf from Gorski Kotar. The texture consists of dense, ground-hugging, brittle cropped grass blades and tiny broken thatch fragments. The color palette is a muted late-summer blend of sage-green, straw beige, olive, and dusty green. The surface is an isotropic matte dry dielectric material with uniform diffuse lighting and no shadows. Every blade is extremely short, ranging from 0.5 to 3 centimeters. The texture is completely uniform, featuring fine, realistic organic detail suitable for high-quality game environment terrain, with a seamless and consistent distribution of organic debris across the entire frame.",
+  "timings": {
+    "texture_generation": 10.048718793987064,
+    "pbr_prediction": 50.84684805100551
+  },
+  "images": [
+    {
+      "url": "https://v3b.fal.media/files/b/0aa78522/TX2fapOfjOJmFVmK89RYH_jQXCiKhT.png",
+      "content_type": "image/png",
+      "file_name": "TX2fapOfjOJmFVmK89RYH_jQXCiKhT.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "url": "https://v3b.fal.media/files/b/0aa78527/aYzvvvB4BPR-4oP_4pMwV_7ltyLXiu.png",
+      "content_type": "image/png",
+      "file_name": "aYzvvvB4BPR-4oP_4pMwV_7ltyLXiu.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024,
+      "map_type": "basecolor"
+    },
+    {
+      "url": "https://v3b.fal.media/files/b/0aa78527/-UAdC6w3YNvN3hLdbPadP_Y0IxT5pJ.png",
+      "content_type": "image/png",
+      "file_name": "-UAdC6w3YNvN3hLdbPadP_Y0IxT5pJ.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024,
+      "map_type": "normal"
+    },
+    {
+      "url": "https://v3b.fal.media/files/b/0aa78527/zp8UQGrBdtmhNilODmbdB_qF2CurpL.png",
+      "content_type": "image/png",
+      "file_name": "zp8UQGrBdtmhNilODmbdB_qF2CurpL.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024,
+      "map_type": "roughness"
+    },
+    {
+      "url": "https://v3b.fal.media/files/b/0aa78527/WXoGVKlRwKoRLUlyO9FT2_iB8Sc0UH.png",
+      "content_type": "image/png",
+      "file_name": "WXoGVKlRwKoRLUlyO9FT2_iB8Sc0UH.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024,
+      "map_type": "metalness"
+    },
+    {
+      "url": "https://v3b.fal.media/files/b/0aa78527/fZ86nXq0nZksm8yy8unp7_essgr7E9.png",
+      "content_type": "image/png",
+      "file_name": "fZ86nXq0nZksm8yy8unp7_essgr7E9.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024,
+      "map_type": "height"
+    }
+  ],
+  "generatedAt": "2026-08-23T17:53:21.839Z"
+}

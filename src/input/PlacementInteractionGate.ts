@@ -6,6 +6,7 @@ export type PlacementInteractionGate = {
   isStarterCampPlacementActive: () => boolean;
   isBurgageToolEnabled: () => boolean;
   isFarmFieldToolEnabled: () => boolean;
+  isForestryWorkAreaToolEnabled?: () => boolean;
   isFirstPersonActive: () => boolean;
   isIllustratedMapActive?: () => boolean;
   isMenuOpen: () => boolean;
@@ -22,6 +23,7 @@ export function isBuildingPlacementBlocked(gate: PlacementInteractionGate): bool
     || gate.isRoadToolEnabled()
     || gate.isBurgageToolEnabled()
     || gate.isFarmFieldToolEnabled()
+    || (gate.isForestryWorkAreaToolEnabled?.() ?? false)
     || gate.isFirstPersonActive()
     || gate.isMenuOpen()
     || (gate.isTutorialOpen?.() ?? false);
@@ -34,6 +36,7 @@ export function isBurgagePlacementBlocked(gate: PlacementInteractionGate): boole
     || gate.isRoadToolEnabled()
     || gate.isBuildingToolEnabled()
     || gate.isFarmFieldToolEnabled()
+    || (gate.isForestryWorkAreaToolEnabled?.() ?? false)
     || gate.isFirstPersonActive()
     || gate.isMenuOpen()
     || (gate.isTutorialOpen?.() ?? false);
@@ -46,6 +49,7 @@ export function isRoadPlacementBlocked(gate: PlacementInteractionGate): boolean 
     || gate.isBuildingToolEnabled()
     || gate.isBurgageToolEnabled()
     || gate.isFarmFieldToolEnabled()
+    || (gate.isForestryWorkAreaToolEnabled?.() ?? false)
     || gate.isFirstPersonActive()
     || gate.isMenuOpen()
     || (gate.isTutorialOpen?.() ?? false);
@@ -58,6 +62,7 @@ export function isFarmFieldPlacementBlocked(gate: PlacementInteractionGate): boo
     || gate.isRoadToolEnabled()
     || gate.isBuildingToolEnabled()
     || gate.isBurgageToolEnabled()
+    || (gate.isForestryWorkAreaToolEnabled?.() ?? false)
     || gate.isFirstPersonActive()
     || gate.isMenuOpen()
     || (gate.isTutorialOpen?.() ?? false);
@@ -66,6 +71,20 @@ export function isFarmFieldPlacementBlocked(gate: PlacementInteractionGate): boo
 export function isWorldInspectionBlocked(gate: PlacementInteractionGate): boolean {
   return isSessionGameplayBlocked(gate)
     || (gate.isIllustratedMapActive?.() ?? false)
+    || gate.isRoadToolEnabled()
+    || gate.isBuildingToolEnabled()
+    || gate.isBurgageToolEnabled()
+    || gate.isFarmFieldToolEnabled()
+    || (gate.isForestryWorkAreaToolEnabled?.() ?? false)
+    || gate.isFirstPersonActive()
+    || gate.isMenuOpen()
+    || (gate.isTutorialOpen?.() ?? false);
+}
+
+export function isForestryWorkAreaPlacementBlocked(gate: PlacementInteractionGate): boolean {
+  return isSessionGameplayBlocked(gate)
+    || (gate.isIllustratedMapActive?.() ?? false)
+    || !gate.isSettlementFounded()
     || gate.isRoadToolEnabled()
     || gate.isBuildingToolEnabled()
     || gate.isBurgageToolEnabled()

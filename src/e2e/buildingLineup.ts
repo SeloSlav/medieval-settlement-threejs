@@ -160,13 +160,16 @@ const COLS = compareServiceCoverage
     ? 4
     : selectedKinds.length === 1
       ? 1
-      : 7;
+      : 9;
 const ROWS = comparisonMode || selectedKinds.length === 1
   ? 1
   : Math.ceil((selectedKinds.length + 1) / COLS);
 const root = document.querySelector<HTMLElement>('#lineup-root');
 const labels = document.querySelector<HTMLElement>('#labels');
 if (!root || !labels) throw new Error('Building lineup host is missing.');
+const labelBandHeight = Number.parseFloat(
+  getComputedStyle(document.documentElement).getPropertyValue('--lineup-label-band-height'),
+) || 38;
 if (compareServiceCoverage) {
   const heading = document.querySelector('h1');
   const subtitle = document.querySelector('header p');
@@ -414,17 +417,20 @@ function render(): void {
     const col = index % COLS;
     const row = Math.floor(index / COLS);
     const x = Math.floor(col * cellWidth);
+    const cellRight = Math.floor((col + 1) * cellWidth);
+    const cellTop = Math.floor(row * cellHeight);
+    const cellBottom = Math.floor((row + 1) * cellHeight);
+    const w = Math.max(1, cellRight - x);
+    const h = Math.max(1, cellBottom - cellTop - labelBandHeight);
     // WebGPURenderer (including its WebGL2 node backend) owns a top-left
     // viewport origin. Only the legacy WebGLRenderer path uses bottom-left.
     // Applying the WebGL flip unconditionally rendered the correct meshes in
     // vertically reversed label rows.
     const y = Math.floor(
       rendererBackend.kind === 'webgl'
-        ? height - (row + 1) * cellHeight
-        : row * cellHeight,
+        ? height - cellBottom + labelBandHeight
+        : cellTop,
     );
-    const w = Math.ceil(cellWidth);
-    const h = Math.ceil(cellHeight);
     view.camera.aspect = w / h;
     view.camera.updateProjectionMatrix();
     renderer.setViewport(x, y, w, h);

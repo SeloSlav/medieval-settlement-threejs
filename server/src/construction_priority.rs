@@ -33,14 +33,18 @@ pub enum ConstructionSupplyCrew {
 
 /// Chooses the labor owner for one physical construction cart. Dedicated
 /// storehouse crews and genuinely free villagers retain priority. A builder is
-/// eligible only when the frame cannot advance and its site does not already
-/// own a cart trip.
+/// eligible only when the frame cannot advance. The caller passes the live
+/// on-site count, which already excludes every rostered builder traveling with
+/// another cart, so repeated dispatches can release the rest of a blocked crew
+/// without double-assigning anybody. Once a crew has a cart out, one builder
+/// remains onsite to start work as the first load arrives; a one-builder crew
+/// may still lend its only worker to break a true bootstrap deadlock.
 pub fn construction_supply_crew(
     storehouse_workers: u32,
     free_haulers: u32,
     onsite_builders: u32,
+    borrowed_builders: u32,
     site_work_ready: bool,
-    site_builder_cart_busy: bool,
 ) -> Option<ConstructionSupplyCrew> {
     if storehouse_workers > 0 {
         return Some(ConstructionSupplyCrew::Storehouse(storehouse_workers));
@@ -48,7 +52,9 @@ pub fn construction_supply_crew(
     if free_haulers > 0 {
         return Some(ConstructionSupplyCrew::Free);
     }
-    if onsite_builders > 0 && !site_work_ready && !site_builder_cart_busy {
+    let builder_can_leave = onsite_builders > 1
+        || (onsite_builders == 1 && borrowed_builders == 0);
+    if builder_can_leave && !site_work_ready {
         return Some(ConstructionSupplyCrew::SiteBuilder);
     }
     None
@@ -214,32 +220,46 @@ mod tests {
     #[test]
     fn construction_supply_prefers_dedicated_and_free_crews_before_a_builder() {
         assert_eq!(
-            construction_supply_crew(2, 1, 3, false, false),
+            construction_supply_crew(2, 1, 3, 0, false),
             Some(ConstructionSupplyCrew::Storehouse(2))
         );
         assert_eq!(
-            construction_supply_crew(0, 1, 3, false, false),
+            construction_supply_crew(0, 1, 3, 0, false),
             Some(ConstructionSupplyCrew::Free)
         );
     }
 
     #[test]
-    fn one_blocked_site_builder_can_break_a_hauler_deadlock() {
+    fn blocked_crew_lends_idle_builders_but_keeps_one_ready_for_the_first_load() {
+        for (onsite, borrowed) in [(4, 0), (3, 1), (2, 2)] {
+            assert_eq!(
+                construction_supply_crew(0, 0, onsite, borrowed, false),
+                Some(ConstructionSupplyCrew::SiteBuilder),
+                "the blocked four-builder fixture must release builder {} while {} are already hauling",
+                borrowed + 1,
+                borrowed,
+            );
+        }
         assert_eq!(
-            construction_supply_crew(0, 0, 2, false, false),
-            Some(ConstructionSupplyCrew::SiteBuilder)
-        );
-        assert_eq!(
-            construction_supply_crew(0, 0, 2, false, true),
+            construction_supply_crew(0, 0, 1, 3, false),
             None,
-            "an existing site-owned cart must prevent a second borrowed-builder trip"
+            "one builder must remain onsite after three distinct borrowed carts leave"
         );
         assert_eq!(
-            construction_supply_crew(0, 0, 2, true, false),
+            construction_supply_crew(0, 0, 1, 0, false),
+            Some(ConstructionSupplyCrew::SiteBuilder),
+            "a lone builder may still break a true no-hauler bootstrap deadlock"
+        );
+        assert_eq!(
+            construction_supply_crew(0, 0, 2, 0, true),
             None,
             "builders who can advance the frame must remain onsite"
         );
-        assert_eq!(construction_supply_crew(0, 0, 0, false, false), None);
+        assert_eq!(
+            construction_supply_crew(0, 0, 0, 2, false),
+            None,
+            "once every assigned builder is on a cart, no worker can be double-booked"
+        );
     }
 
     #[test]

@@ -31,6 +31,13 @@ import { RoadMeshBuilder } from '../roads/RoadMeshBuilder.ts';
 import { RoadNetwork } from '../roads/RoadNetwork.ts';
 import { createPreferredRenderer } from '../scene/RendererBackend.ts';
 import { createPostProcessor } from '../scene/PostProcessing.ts';
+import {
+  beginRendererFrame,
+  configureRendererFrameStats,
+  readRendererFrameStats,
+  type RendererFrameStats,
+  type RendererInfoLike,
+} from '../scene/rendererFrameStats.ts';
 import { TREE_SHADOW_CAST_LAYER } from '../scene/SceneLayers.ts';
 import { SkyCloudMesh, loadSkyPerlinTexture } from '../sky/SkyCloudMesh.ts';
 import type { Terrain } from '../terrain/Terrain.ts';
@@ -55,6 +62,7 @@ import {
   setSeedThreeForestShadows,
   updateSeedThreeForestCamera,
   updateSeedThreeForestCameraBudgeted,
+  ensureSeedThreeSpatialForestLodGroupsVisible,
   type SeedThreeForestInstances,
 } from '../vegetation/seedthree/seedThreeForestBuilder.ts';
 import {
@@ -221,6 +229,19 @@ type HamletFixtureSystems = {
   degraded: readonly string[];
 };
 
+type HamletForestPresentationWork = {
+  updates: number;
+  selectorEvaluations: number;
+  selectorSkips: number;
+  selectionChanges: number;
+  bucketCompactions: number;
+  workChunks: number;
+  matrixWrites: number;
+  pendingBuckets: number;
+  maxPendingBuckets: number;
+  maxUpdateDurationMs: number;
+};
+
 type HamletFixtureBootStageState = {
   status: 'pending' | 'running' | 'ready' | 'timed-out' | 'failed';
   elapsedMs?: number;
@@ -270,6 +291,7 @@ declare global {
     __HAMLET_FIXTURE_PERFORMANCE_PROTOCOL__?: HamletFixturePerformanceProtocol;
     __HAMLET_FIXTURE_ABLATION__?: HamletFixtureAblation;
     __HAMLET_FIXTURE_FOREST_WORK__?: HamletForestRouteWorkTelemetry;
+    __HAMLET_FIXTURE_FOREST_PRESENTATION_WORK__?: HamletForestPresentationWork;
     __HAMLET_FIXTURE_GROUNDCOVER_WORK__?: GrassStreamTelemetry;
     __HAMLET_FIXTURE_COMPLETED_ROUTES__?: number;
     __HAMLET_FIXTURE_ROUTE_WARMUP__?: HamletFixtureRouteWarmupEvidence;
@@ -595,6 +617,7 @@ const rendererBackend = await createPreferredRenderer().then((backend) => {
   throw error;
 });
 const renderer = rendererBackend.renderer;
+configureRendererFrameStats(renderer.info as unknown as RendererInfoLike);
 const visualGpuTimestampProfiler: VisualGpuTimestampProfiler | null =
   requestedVisualProfile
     ? requestedVisualNoRender
@@ -680,6 +703,11 @@ setBootStage('sky-perlin', 'running');
 const skyPerlinPromise = loadSkyPerlinTexture();
 
 let renderedFrameCount = 0;
+let lastRendererFrameStats: RendererFrameStats = {
+  drawCalls: 0,
+  renderPasses: 0,
+  triangles: 0,
+};
 let motionAnimationFrame: number | null = null;
 let motionStartNowMs = 0;
 let motionStartOffsetMs = 0;
@@ -827,6 +855,19 @@ let latestForestFrameWork: VisualSlowFrameContext['forest'] = {
   bucketUploads: 0,
   pendingBuckets: 0,
 };
+const forestPresentationWork: HamletForestPresentationWork = {
+  updates: 0,
+  selectorEvaluations: 0,
+  selectorSkips: 0,
+  selectionChanges: 0,
+  bucketCompactions: 0,
+  workChunks: 0,
+  matrixWrites: 0,
+  pendingBuckets: 0,
+  maxPendingBuckets: 0,
+  maxUpdateDurationMs: 0,
+};
+window.__HAMLET_FIXTURE_FOREST_PRESENTATION_WORK__ = forestPresentationWork;
 let latestGroundcoverFrameDelta: VisualSlowFrameContext['groundcoverDelta'] = {
   generationSubsteps: 0,
   clearWriteSubsteps: 0,
@@ -1237,6 +1278,7 @@ const hamletVisualPerformanceApp = {
         backend: rendererBackend.kind,
         frames: renderedFrameCount,
         calls: structural.draws,
+        renderPasses: lastRendererFrameStats.renderPasses,
         triangles: structural.triangles,
         pixelRatio: renderer.getPixelRatio(),
       };
@@ -1276,7 +1318,7 @@ if (routeUpdatePairCoordinator) {
 }
 if (requestedGroundcoverTransitionEvidence) {
   document.documentElement.dataset.visualGroundcoverEvidenceTreatment =
-    `three-whole-field-instanced-meshes:${groundcoverLodFadeMode}:`
+    `two-grass-plus-ten-spatial-wildflower-lod-meshes:${groundcoverLodFadeMode}:`
     + HAMLET_ROUTE_LOD_SKY_DIRECT_RENDER_TREATMENT;
   document.documentElement.dataset.visualRouteFrameSequenceStatus =
     'waiting-for-settled-groundcover';
@@ -1971,6 +2013,54 @@ function updateSceneLods(
   if (forestRuntimeReady && advanceForest) {
     const casterBounds = { minX: -90, maxX: 90, minZ: -80, maxZ: 80 };
     if (forestUpdatesFrozenForMeasurement && forestLodPrimed) {
+      const presentation = updateSeedThreeForestCameraBudgeted(
+        forest,
+        camera,
+        firstPerson,
+        casterBounds,
+        {
+          maxBucketCompactions:
+            HAMLET_FOREST_ROUTE_WORK_BUDGET.maxBucketCompactionsPerFrame,
+          maxUpdateDurationMs:
+            HAMLET_FOREST_ROUTE_WORK_BUDGET.maxUpdateDurationMs,
+          maxMatrixWritesPerChunk:
+            HAMLET_FOREST_ROUTE_WORK_BUDGET.maxMatrixWritesPerChunk,
+          stabilizeDuringInteraction: false,
+          minimumCameraMove:
+            HAMLET_FOREST_ROUTE_WORK_BUDGET.minimumCameraMoveMeters,
+          minimumDirectionAngle: THREE.MathUtils.degToRad(
+            HAMLET_FOREST_ROUTE_WORK_BUDGET.minimumDirectionAngleDegrees,
+          ),
+          minimumProjectionChange:
+            HAMLET_FOREST_ROUTE_WORK_BUDGET.minimumProjectionChange,
+          minimumCasterBoundsChange:
+            HAMLET_FOREST_ROUTE_WORK_BUDGET.minimumCasterBoundsChangeMeters,
+          cameraInteractionActive: routeElapsedMs !== undefined,
+          presentationOnly: true,
+        },
+      );
+      forestPresentationWork.updates += 1;
+      forestPresentationWork.selectorEvaluations += presentation.selectorSkipped ? 0 : 1;
+      forestPresentationWork.selectorSkips += presentation.selectorSkipped ? 1 : 0;
+      forestPresentationWork.selectionChanges += presentation.selectionChanged ? 1 : 0;
+      forestPresentationWork.bucketCompactions += presentation.bucketCompactions;
+      forestPresentationWork.workChunks += presentation.workChunks;
+      forestPresentationWork.matrixWrites += presentation.matrixWrites;
+      forestPresentationWork.pendingBuckets = presentation.pendingBuckets;
+      forestPresentationWork.maxPendingBuckets = Math.max(
+        forestPresentationWork.maxPendingBuckets,
+        presentation.pendingBuckets,
+      );
+      forestPresentationWork.maxUpdateDurationMs = Math.max(
+        forestPresentationWork.maxUpdateDurationMs,
+        presentation.durationMs,
+      );
+      window.__HAMLET_FIXTURE_FOREST_PRESENTATION_WORK__ = {
+        ...forestPresentationWork,
+      };
+      document.body.dataset.forestPresentationPending = String(
+        presentation.pendingBuckets,
+      );
       recordForestRouteWork(distanceMeters, {
         selectionChanged: false,
         bucketCompactions: 0,
@@ -2002,6 +2092,14 @@ function updateSceneLods(
       updateSeedThreeForestCamera(forest, camera, firstPerson, casterBounds);
       forestLodPrimed = true;
     }
+  }
+  if (forestRuntimeReady) {
+    // Presentation LOD remains camera-owned even while matrix selection is
+    // deliberately frozen for the exact profiler treatment. This swaps only
+    // submitted authored geometry; it does not regenerate or compact trees.
+    ensureSeedThreeSpatialForestLodGroupsVisible(
+      forest,
+    );
   }
   const lod = resolveFixtureLodState(distanceMeters);
   settlementRoot.userData.reviewLodBand = lod.building;
@@ -2256,7 +2354,7 @@ function publishFixtureEvidence(): HamletFixtureEvidenceEnvelope | null {
       requestedVisualRouteLodSkyDirectRender
         ? {
             id:
-              `groundcover-${groundcoverLodFadeMode}-whole-field-route`,
+              `groundcover-${groundcoverLodFadeMode}-live-wildflower-route`,
             rendererTreatment:
               HAMLET_ROUTE_LOD_SKY_DIRECT_RENDER_TREATMENT,
             disabledSubsystems: [
@@ -2264,7 +2362,7 @@ function publishFixtureEvidence(): HamletFixtureEvidenceEnvelope | null {
             ].sort(),
             groundcoverFadeMode: groundcoverLodFadeMode,
             groundcoverSubmission:
-              'three-whole-field-instanced-meshes',
+              'two-grass-plus-ten-spatial-wildflower-lod-meshes',
             forestRenderer:
               requestedVisualRouteForestRenderer,
             forestEdgeLayout: requestedForestEdgeLayout,
@@ -2297,6 +2395,75 @@ function maybeFinalizeFixtureEvidence(): void {
     return;
   }
   const envelope = publishFixtureEvidence();
+  if (
+    envelope
+    && !document.documentElement.dataset.hamletFixtureRuntimeEvidence
+  ) {
+    const rendererMemory = (
+      renderer.info as unknown as {
+        memory?: Record<string, number>;
+      }
+    ).memory;
+    const browserMemory = (
+      performance as Performance & {
+        memory?: {
+          usedJSHeapSize: number;
+          totalJSHeapSize: number;
+          jsHeapSizeLimit: number;
+        };
+      }
+    ).memory;
+    document.documentElement.dataset.hamletFixtureRuntimeEvidence =
+      JSON.stringify({
+        bootStatus: bootState.status,
+        protocol: {
+          requested: envelope.protocol.requested,
+          valid: envelope.protocol.valid,
+          viewport: performanceReport.context.viewport,
+          devicePixelRatio: performanceReport.context.devicePixelRatio,
+          rendererPixelRatio: performanceReport.context.rendererPixelRatio,
+        },
+        route: envelope.route,
+        routeWarmup: envelope.route.warmup,
+        ablation: envelope.ablation,
+        content: envelope.content,
+        presentationTreatment: envelope.presentationTreatment ?? null,
+        groundcoverWork: envelope.groundcoverWork,
+        forestWork: envelope.forestWork,
+        forestPresentationWork: {
+          ...forestPresentationWork,
+        },
+        renderer: {
+          ...performanceReport.renderer,
+          lastFrame: { ...lastRendererFrameStats },
+          memoryCounters: rendererMemory
+            ? Object.fromEntries(
+                Object.entries(rendererMemory).filter(
+                  (entry): entry is [string, number] =>
+                    Number.isFinite(entry[1]),
+                ),
+              )
+            : null,
+          renderTargets: {
+            drawingBuffer: 1,
+            activePostProcessingTargets: requestedVisualDisabledSubsystems
+              .includes('post')
+              ? 0
+              : null,
+            allocatedShadowMaps: sun.shadow.map ? 1 : 0,
+            limitation:
+              'The active Three.js backend does not expose exact render-target allocation or GPU byte totals.',
+          },
+        },
+        browserMemory: browserMemory
+          ? {
+              usedJSHeapSize: browserMemory.usedJSHeapSize,
+              totalJSHeapSize: browserMemory.totalJSHeapSize,
+              jsHeapSizeLimit: browserMemory.jsHeapSizeLimit,
+            }
+          : null,
+      });
+  }
   if (requestedVisualRouteUpdatePair) {
     if (
       !routeUpdatePairCoordinator
@@ -3121,6 +3288,19 @@ function resetMeasuredRouteTelemetry(): void {
     bucketUploads: 0,
     pendingBuckets: forestRouteWork.pendingBuckets,
   };
+  forestPresentationWork.updates = 0;
+  forestPresentationWork.selectorEvaluations = 0;
+  forestPresentationWork.selectorSkips = 0;
+  forestPresentationWork.selectionChanges = 0;
+  forestPresentationWork.bucketCompactions = 0;
+  forestPresentationWork.workChunks = 0;
+  forestPresentationWork.matrixWrites = 0;
+  forestPresentationWork.pendingBuckets = 0;
+  forestPresentationWork.maxPendingBuckets = 0;
+  forestPresentationWork.maxUpdateDurationMs = 0;
+  window.__HAMLET_FIXTURE_FOREST_PRESENTATION_WORK__ = {
+    ...forestPresentationWork,
+  };
   previousGroundcoverWork = grassField.getStreamTelemetry();
   latestGroundcoverFrameDelta = {
     generationSubsteps: 0,
@@ -3587,6 +3767,8 @@ function render(
   skipProfilePostProcessorRender = false,
   directColorSceneRender = false,
 ): number | null {
+  const rendererInfo = renderer.info as unknown as RendererInfoLike;
+  const rendererFrameBoundary = beginRendererFrame(rendererInfo);
   const width = root!.clientWidth;
   const height = Math.max(1, root!.clientHeight);
   if (width !== lastRenderWidth || height !== lastRenderHeight) {
@@ -3636,6 +3818,10 @@ function render(
     renderPathCompletedAtMs = result.renderPathCompletedAtMs;
   }
   if (postProcessorRendered) renderedFrameCount += 1;
+  lastRendererFrameStats = readRendererFrameStats(
+    rendererInfo,
+    rendererFrameBoundary,
+  );
 
   const forestStats = getSeedThreeForestStructuralStats(forest);
   const structural = countFixtureStructuralSubmissions(scene, camera);

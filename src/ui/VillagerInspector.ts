@@ -33,6 +33,14 @@ type VillagerInspectorOptions = {
   onSelectionChange?: (selected: boolean) => void;
 };
 
+export function shouldDismissVillagerSelection(
+  button: number,
+  panelHidden: boolean,
+  targetIsOutsidePanel: boolean,
+): boolean {
+  return button === 0 && !panelHidden && targetIsOutsidePanel;
+}
+
 export class VillagerInspector {
   private readonly options: VillagerInspectorOptions;
   private readonly panel: HTMLElement;
@@ -237,11 +245,12 @@ export class VillagerInspector {
 
   private readonly onOutsidePointerDown = (event: PointerEvent): void => {
     const target = event.target;
-    if (
-      this.panel.hidden
-      || !(target instanceof Node)
-      || this.panel.contains(target)
-    ) {
+    const targetIsOutsidePanel = target instanceof Node && !this.panel.contains(target);
+    if (!shouldDismissVillagerSelection(
+      event.button,
+      this.panel.hidden !== false,
+      targetIsOutsidePanel,
+    )) {
       return;
     }
     this.clearSelection(true);

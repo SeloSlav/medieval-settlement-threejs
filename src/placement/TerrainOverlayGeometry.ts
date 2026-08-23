@@ -15,6 +15,14 @@ export type TerrainCircleRibbonOptions = TerrainRibbonOptions & {
   segmentCount?: number;
 };
 
+export type TerrainCircleFillOptions = {
+  lift: number;
+  /** Approximate spacing between concentric terrain-sampled rings. */
+  radialSpacing?: number;
+  /** Optional fixed angular resolution; otherwise derived from circumference. */
+  segmentCount?: number;
+};
+
 export function clearOverlayGeometry(geometry: THREE.BufferGeometry): void {
   if (geometry.getIndex() || geometry.getAttribute('position')) {
     // WebGPU caches GPU buffers by BufferAttribute identity. Invalidate that
@@ -211,6 +219,71 @@ export function updateTerrainCircleRibbonGeometry(
     getHeightAt,
     options,
   );
+}
+
+/**
+ * Builds a terrain-following disk from concentric rings. A simple perimeter
+ * fan is not sufficient for work areas that can span hills: its large central
+ * triangles would visibly cut through relief instead of hugging the ground.
+ */
+export function updateTerrainCircleFillGeometry(
+  geometry: THREE.BufferGeometry,
+  center: Point2,
+  radius: number,
+  getHeightAt: (x: number, z: number) => number,
+  options: TerrainCircleFillOptions,
+): void {
+  if (!Number.isFinite(radius) || radius <= 0) {
+    clearOverlayGeometry(geometry);
+    return;
+  }
+
+  const radialSpacing = Math.max(2.5, options.radialSpacing ?? 7);
+  const ringCount = Math.max(1, Math.ceil(radius / radialSpacing));
+  const circumference = Math.PI * 2 * radius;
+  const segmentCount = Math.max(
+    32,
+    Math.floor(options.segmentCount ?? Math.min(160, Math.ceil(circumference / 6))),
+  );
+  const positions = new Float32Array((1 + ringCount * segmentCount) * 3);
+  const indices: number[] = [];
+
+  positions[0] = center.x;
+  positions[1] = getHeightAt(center.x, center.z) + options.lift;
+  positions[2] = center.z;
+
+  for (let ring = 1; ring <= ringCount; ring += 1) {
+    const ringRadius = radius * ring / ringCount;
+    for (let segment = 0; segment < segmentCount; segment += 1) {
+      const angle = segment / segmentCount * Math.PI * 2;
+      const x = center.x + Math.cos(angle) * ringRadius;
+      const z = center.z + Math.sin(angle) * ringRadius;
+      const vertex = 1 + (ring - 1) * segmentCount + segment;
+      const offset = vertex * 3;
+      positions[offset] = x;
+      positions[offset + 1] = getHeightAt(x, z) + options.lift;
+      positions[offset + 2] = z;
+    }
+  }
+
+  for (let segment = 0; segment < segmentCount; segment += 1) {
+    const next = (segment + 1) % segmentCount;
+    indices.push(0, 1 + segment, 1 + next);
+  }
+  for (let ring = 2; ring <= ringCount; ring += 1) {
+    const innerStart = 1 + (ring - 2) * segmentCount;
+    const outerStart = 1 + (ring - 1) * segmentCount;
+    for (let segment = 0; segment < segmentCount; segment += 1) {
+      const next = (segment + 1) % segmentCount;
+      const inner = innerStart + segment;
+      const innerNext = innerStart + next;
+      const outer = outerStart + segment;
+      const outerNext = outerStart + next;
+      indices.push(inner, outer, innerNext, innerNext, outer, outerNext);
+    }
+  }
+
+  updateOverlayGeometry(geometry, positions, indices);
 }
 
 export function polygonSegments(

@@ -15,6 +15,7 @@ use crate::simulation::spatial::find_nearest_mature_tree;
 use crate::simulation::tick_context::SimTickContext;
 use crate::simulation::{commute_adjusted_labor, labor_and_logistics_paused};
 use crate::tables::{Building, TreeEntity};
+use crate::tree_work_area_policy::effective_tree_work_area;
 
 pub fn step_lumber_mill(
     ctx: &ReducerContext,
@@ -30,7 +31,6 @@ pub fn step_lumber_mill(
         return;
     };
     let interval = def.action_interval;
-    let work_radius = def.work_radius;
 
     let onsite_labor = onsite_building_labor(ctx, &building);
     let productive_labor = commute_adjusted_labor(ctx, tick, &building, onsite_labor);
@@ -70,7 +70,15 @@ pub fn step_lumber_mill(
         return;
     }
 
-    let Some(target) = find_nearest_mature_tree(ctx, mill.x, mill.z, work_radius) else {
+    let work_area = effective_tree_work_area(
+        mill.x,
+        mill.z,
+        def.work_radius,
+        mill.tree_work_area_x,
+        mill.tree_work_area_z,
+        mill.tree_work_area_radius,
+    );
+    let Some(target) = find_nearest_mature_tree(ctx, mill.x, mill.z, work_area) else {
         ctx.db.building().id().update(Building {
             action_cooldown: labor_interval,
             ..mill

@@ -177,6 +177,9 @@ pub mod woodcutter_policy;
 #[path = "../../src/tree_regrowth_policy.rs"]
 pub mod tree_regrowth_policy;
 
+#[path = "../../src/tree_work_area_policy.rs"]
+pub mod tree_work_area_policy;
+
 #[path = "../../src/year_round_labor_policy.rs"]
 pub mod year_round_labor_policy;
 

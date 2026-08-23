@@ -187,8 +187,12 @@ assert.equal(split.inTransitToMarkets, 3);
 assert.equal(split.projectedMarketQueueUnits, 147);
 assert.equal(split.activeMarketQueueUnits, 147);
 assert.equal(split.blockedMarketQueueUnits, 0);
-assert.equal(split.exportWorkers, 3);
-assert.ok(Math.abs(split.exportRatePerSecond - 1.35) < 1e-9);
+assert.equal(
+  split.exportWorkers,
+  4,
+  'the saved route cursor must not subtract a Trading Post export worker',
+);
+assert.ok(Math.abs(split.exportRatePerSecond - 1.8) < 1e-9);
 assert.equal(split.commodities.cloth.producerStock, 2);
 assert.equal(split.commodities.cloth.inTransitToMarkets, 3);
 assert.equal(split.commodities.cloth.projectedMarketQueue, 3);
@@ -212,10 +216,10 @@ assert.ok(
 
 const splitRows = renderSettlementSpecialtyExportRows(split);
 assert.match(splitRows, /Specialty pipeline/);
-assert.match(splitRows, /10\.0 at sources with labor, a free cart, receiving room, and a market route/);
+assert.match(splitRows, /10 at sources with labor, a free cart, receiving room, and a market route/);
 assert.match(splitRows, /2 \/ 3 producer branches reach a completed market/);
-assert.match(splitRows, /8\.0 stranded by topology/);
-assert.match(splitRows, /9\.0 behind full destination stores/);
+assert.match(splitRows, /8 stranded by topology/);
+assert.match(splitRows, /9 behind full destination stores/);
 assert.match(splitRows, /3 \/ 3 completed markets actively selling/);
 assert.match(splitRows, /data-inspect-building="remote-brewery"/);
 const physicalSplitRows = renderSettlementSpecialtyExportRows(split, true);
@@ -332,6 +336,16 @@ const manualMarket = building('manual-market', 'trading_post', 20, {
   actionCooldown: 5,
   ale: 3,
 });
+const cursorOnly = computeSettlementSpecialtyExportPlan({
+  state: {
+    buildings: new Map([[manualMarket.id, manualMarket]]),
+    deliveryTrips: new Map(),
+  },
+  marketRate: 1,
+  roadComponentFor: () => 1,
+});
+assert.equal(cursorOnly.activeBrokerMarkets, 1);
+assert.equal(cursorOnly.exportWorkers, 1);
 const roadlessMarket = building('roadless-market', 'trading_post', 30, {
   assignedLabor: 1,
   honey: 4,
@@ -350,13 +364,25 @@ const held = computeSettlementSpecialtyExportPlan({
       [roadlessMarket.id, roadlessMarket],
       [unfinishedMarket.id, unfinishedMarket],
     ]),
-    deliveryTrips: new Map(),
+    deliveryTrips: new Map([
+      ['manual-service-cart', trip(
+        'manual-service-cart',
+        manualMarket.id,
+        'ale',
+        1,
+        null,
+      )],
+    ]),
   },
   marketRate: 1,
   roadComponentFor: (candidate) =>
     candidate.id === roadlessMarket.id ? null : 1,
 });
-assert.equal(held.activeBrokerMarkets, 0);
+assert.equal(
+  held.activeBrokerMarkets,
+  0,
+  'an actual one-worker local cart must consume the Trading Post broker while its saved cursor alone does not',
+);
 assert.equal(held.policyHeldMarketQueueUnits, 5);
 assert.equal(held.laborBlockedMarketQueueUnits, 7);
 assert.equal(held.manualTradeBlockedMarketQueueUnits, 3);

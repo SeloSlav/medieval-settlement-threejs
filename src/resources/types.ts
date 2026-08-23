@@ -69,12 +69,20 @@ export type TreeEntityState = {
   growthProgress: number;
 };
 
+export type TreeWorkArea = {
+  x: number;
+  z: number;
+  radius: number;
+};
+
 export type BuildingState = {
   id: string;
   kind: BuildingKind;
   x: number;
   z: number;
   workRadius: number;
+  /** Optional player-authored forestry circle; absent restores the default building extent. */
+  treeWorkArea?: TreeWorkArea;
   actionCooldown: number;
   timber: number;
   firewood: number;

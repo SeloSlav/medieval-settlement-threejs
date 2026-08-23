@@ -15,6 +15,7 @@ import CallUpActiveSeasonalLaborReducer from "../call_up_active_seasonal_labor_r
 import CallUpTargetReadyProcessorLaborReducer from "../call_up_target_ready_processor_labor_reducer";
 import CallUpYearRoundLaborReducer from "../call_up_year_round_labor_reducer";
 import CancelMarketplaceTradeOrderReducer from "../cancel_marketplace_trade_order_reducer";
+import ClearTreeWorkAreaReducer from "../clear_tree_work_area_reducer";
 import ClientConnectedReducer from "../client_connected_reducer";
 import ClientDisconnectedReducer from "../client_disconnected_reducer";
 import CollectChapelCofferReducer from "../collect_chapel_coffer_reducer";
@@ -93,6 +94,7 @@ import SetStorehousePolicyReducer from "../set_storehouse_policy_reducer";
 import SetStorehouseStockTargetReducer from "../set_storehouse_stock_target_reducer";
 import SetThreshingPriorityReducer from "../set_threshing_priority_reducer";
 import SetTradingPostTradeRuleReducer from "../set_trading_post_trade_rule_reducer";
+import SetTreeWorkAreaReducer from "../set_tree_work_area_reducer";
 import SetWeaverInputPolicyReducer from "../set_weaver_input_policy_reducer";
 import SetWoodcutterTimberReserveReducer from "../set_woodcutter_timber_reserve_reducer";
 import SpecializeAnimalPenReducer from "../specialize_animal_pen_reducer";
@@ -114,6 +116,7 @@ export type CallUpActiveSeasonalLaborParams = __Infer<typeof CallUpActiveSeasona
 export type CallUpTargetReadyProcessorLaborParams = __Infer<typeof CallUpTargetReadyProcessorLaborReducer>;
 export type CallUpYearRoundLaborParams = __Infer<typeof CallUpYearRoundLaborReducer>;
 export type CancelMarketplaceTradeOrderParams = __Infer<typeof CancelMarketplaceTradeOrderReducer>;
+export type ClearTreeWorkAreaParams = __Infer<typeof ClearTreeWorkAreaReducer>;
 export type ClientConnectedParams = __Infer<typeof ClientConnectedReducer>;
 export type ClientDisconnectedParams = __Infer<typeof ClientDisconnectedReducer>;
 export type CollectChapelCofferParams = __Infer<typeof CollectChapelCofferReducer>;
@@ -192,6 +195,7 @@ export type SetStorehousePolicyParams = __Infer<typeof SetStorehousePolicyReduce
 export type SetStorehouseStockTargetParams = __Infer<typeof SetStorehouseStockTargetReducer>;
 export type SetThreshingPriorityParams = __Infer<typeof SetThreshingPriorityReducer>;
 export type SetTradingPostTradeRuleParams = __Infer<typeof SetTradingPostTradeRuleReducer>;
+export type SetTreeWorkAreaParams = __Infer<typeof SetTreeWorkAreaReducer>;
 export type SetWeaverInputPolicyParams = __Infer<typeof SetWeaverInputPolicyReducer>;
 export type SetWoodcutterTimberReserveParams = __Infer<typeof SetWoodcutterTimberReserveReducer>;
 export type SpecializeAnimalPenParams = __Infer<typeof SpecializeAnimalPenReducer>;

@@ -24,8 +24,9 @@ use crate::simulation::delivery_trips::{
 use crate::simulation::{labor_and_logistics_paused, GameClock, SimTickContext};
 use crate::tables::{Building, TradingPostTradeRule};
 use crate::trading_post_policy::{
-    affordable_import_units, exportable_surplus, import_deficit, regional_exchange_sequence,
-    trade_gold, trade_rule_settlement_key, TRADE_MODE_EXPORT, TRADE_MODE_IMPORT,
+    affordable_import_units, exportable_surplus, fair_import_gold_budget, import_deficit,
+    import_rule_rotation_offset, import_target_fulfillment, regional_exchange_sequence, trade_gold,
+    trade_rule_settlement_key, TRADE_MODE_EXPORT, TRADE_MODE_IMPORT,
 };
 
 pub fn trading_post_exports_commodity(
@@ -98,7 +99,35 @@ fn settle_due_rules(ctx: &ReducerContext, post: &Building, current_exchange: u64
         .filter(|rule| rule.last_settled_month < current_exchange)
         .collect();
     rules.sort_by_key(|rule| trade_rule_settlement_key(rule.mode, rule.commodity_kind));
+    let mut import_count = 0;
+    if let Some(import_start) = rules.iter().position(|rule| rule.mode == TRADE_MODE_IMPORT) {
+        import_count = rules[import_start..]
+            .iter()
+            .take_while(|rule| rule.mode == TRADE_MODE_IMPORT)
+            .count();
+        let import_end = import_start + import_count;
+        let rotation = import_rule_rotation_offset(current_exchange, import_count);
+        let imports = &mut rules[import_start..import_end];
+        imports.rotate_left(rotation);
+        // `sort_by` is stable, so the exchange rotation remains the exact
+        // deterministic tie-break among equally fulfilled targets.
+        imports.sort_by(|left, right| {
+            import_rule_fulfillment(ctx, post.owner, left)
+                .total_cmp(&import_rule_fulfillment(ctx, post.owner, right))
+        });
+    }
+    let mut remaining_imports = import_count;
     for mut rule in rules {
+        let import_gold_budget = if rule.mode == TRADE_MODE_IMPORT {
+            let budget = fair_import_gold_budget(
+                treasury_gold(ctx, post.owner),
+                remaining_imports,
+            );
+            remaining_imports = remaining_imports.saturating_sub(1);
+            budget
+        } else {
+            0.0
+        };
         let Some(commodity) = CommodityKind::from_u8(rule.commodity_kind) else {
             rule.last_settled_month = current_exchange;
             ctx.db.trading_post_trade_rule().id().update(rule);
@@ -107,7 +136,14 @@ fn settle_due_rules(ctx: &ReducerContext, post: &Building, current_exchange: u64
         let (amount, gold) = match rule.mode {
             TRADE_MODE_EXPORT => settle_export(ctx, post.id, post.owner, commodity),
             TRADE_MODE_IMPORT => {
-                settle_import(ctx, post.id, post.owner, commodity, rule.target_surplus)
+                settle_import(
+                    ctx,
+                    post.id,
+                    post.owner,
+                    commodity,
+                    rule.target_surplus,
+                    import_gold_budget,
+                )
             }
             _ => (0.0, 0.0),
         };
@@ -116,6 +152,17 @@ fn settle_due_rules(ctx: &ReducerContext, post: &Building, current_exchange: u64
         rule.last_trade_gold = gold;
         ctx.db.trading_post_trade_rule().id().update(rule);
     }
+}
+
+fn import_rule_fulfillment(
+    ctx: &ReducerContext,
+    owner: Identity,
+    rule: &TradingPostTradeRule,
+) -> f64 {
+    let Some(commodity) = CommodityKind::from_u8(rule.commodity_kind) else {
+        return 1.0;
+    };
+    import_target_fulfillment(owner_public_stock(ctx, owner, commodity), rule.target_surplus)
 }
 
 fn settle_export(
@@ -163,6 +210,7 @@ fn settle_import(
     owner: Identity,
     commodity: CommodityKind,
     target_surplus: f64,
+    gold_budget: f64,
 ) -> (f64, f64) {
     let Some(resource) = trade_resource_for_commodity(commodity) else {
         return (0.0, 0.0);
@@ -188,16 +236,20 @@ fn settle_import(
     let deficit = import_deficit(public_stock, target_surplus);
     let multiplier = current_price_multiplier(ctx, owner, resource);
     let unit_price = gold_cost / lot_amount * multiplier;
+    let available_gold = treasury_gold(ctx, owner).min(gold_budget.max(0.0));
     let units = affordable_import_units(
         deficit,
         building_commodity_room(&post, commodity),
-        treasury_gold(ctx, owner),
+        available_gold,
         unit_price,
     );
     if units <= 1e-6 {
         return (0.0, 0.0);
     }
     let expense = trade_gold(units, unit_price);
+    if expense <= 1e-9 || expense > available_gold + 1e-6 {
+        return (0.0, 0.0);
+    }
     if spend_treasury_gold(ctx, owner, expense).is_err() {
         return (0.0, 0.0);
     }

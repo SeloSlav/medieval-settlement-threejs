@@ -9,7 +9,10 @@ import {
 } from '../generated/gameBalance.ts';
 import { fireDisabledBuildingIds } from '../fires/fireIncident.ts';
 import { compareStableEntityIds } from '../logistics/roadLogistics.ts';
-import type { DeliveryCargoKind } from '../logistics/deliveryTrips.ts';
+import {
+  rosteredCartWorkersByBuilding,
+  type DeliveryCargoKind,
+} from '../logistics/deliveryTrips.ts';
 import type { BuildingKind, BuildingState, GameState } from '../resources/types.ts';
 import {
   marketplaceSpecialtyExportRate,
@@ -407,6 +410,10 @@ export function computeSettlementSpecialtyExportPlan(input: {
   const markets = new Map<string, MarketRecord>();
   const producers: ProducerRecord[] = [];
   const activeSourceIds = new Set<string>();
+  const rosteredWorkersAway = rosteredCartWorkersByBuilding(
+    input.state.buildings,
+    input.state.deliveryTrips.values(),
+  );
   const fireDisabled = fireDisabledBuildingIds(
     input.state.fireIncidents?.values() ?? [],
   );
@@ -534,8 +541,9 @@ export function computeSettlementSpecialtyExportPlan(input: {
       0,
     );
     const projectedQueue = queue + inbound;
-    const workers = marketplaceSpecialtyExportWorkers(building);
-    const rate = marketplaceSpecialtyExportRate(building);
+    const cartWorkersAway = rosteredWorkersAway.get(building.id) ?? 0;
+    const workers = marketplaceSpecialtyExportWorkers(building, cartWorkersAway);
+    const rate = marketplaceSpecialtyExportRate(building, cartWorkersAway);
     const familyAllows = (family: SpecialtyMarketFamily): boolean =>
       specialtyExportPolicyAllows(
         marketplaceFamilyPolicy(building, family),

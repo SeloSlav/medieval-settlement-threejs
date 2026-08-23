@@ -182,15 +182,30 @@ export function seasonalProducerOutputBlocker(
   return null;
 }
 
-export function marketplaceSpecialtyExportWorkers(building: BuildingState): number {
+export function marketplaceSpecialtyExportWorkers(
+  building: BuildingState,
+  rosteredCartWorkersAway = 0,
+): number {
+  // Trading Posts persist their next successful local-service route index in
+  // this legacy field; it is not elapsed broker work. Marketplace saves retain
+  // the historical cooldown interpretation until that retired flow is removed.
+  const workersBusyOnLegacyTrade = building.kind !== 'trading_post'
+    && building.actionCooldown > 1e-6;
+  const workersAway = Math.max(
+    workersBusyOnLegacyTrade ? 1 : 0,
+    Math.max(0, Math.floor(rosteredCartWorkersAway)),
+  );
   return Math.max(
     0,
-    Math.floor(building.assignedLabor) - (building.actionCooldown > 1e-6 ? 1 : 0),
+    Math.floor(building.assignedLabor) - workersAway,
   );
 }
 
-export function marketplaceSpecialtyExportRate(building: BuildingState): number {
-  return marketplaceSpecialtyExportWorkers(building)
+export function marketplaceSpecialtyExportRate(
+  building: BuildingState,
+  rosteredCartWorkersAway = 0,
+): number {
+  return marketplaceSpecialtyExportWorkers(building, rosteredCartWorkersAway)
     * MARKET_SPECIALTY_EXPORT_PER_BROKER_PER_SECOND;
 }
 

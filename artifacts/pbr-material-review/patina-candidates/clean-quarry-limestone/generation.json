@@ -1,0 +1,89 @@
+{
+  "model": "fal-ai/patina/material",
+  "label": "Clean freshly fractured quarry limestone",
+  "source": null,
+  "requestId": "01a02fb2-155b-7573-b37b-999f466d1f70",
+  "requestedInput": {
+    "prompt": "Flat orthographic seamless material of clean freshly fractured karst limestone from a Croatian quarry. Pale neutral grey-beige mineral body, crisp fine crystalline grain, small angular fracture steps, subtle calcite veins and fresh chalky break variation at 1 millimeter to 8 centimeter scale, dry rough non-metallic stone for deliberately placed harvestable quarry boulders and exposed faces. No moss, lichen, algae, soil, leaves, separate rocks, gravel bed, ore crystals, tool marks, wet gloss, directional lighting, cast shadows, perspective, horizon, borders, text, or obvious repeating motifs.",
+    "image_size": "square_hd",
+    "num_inference_steps": 8,
+    "seed": 431030,
+    "num_images": 1,
+    "enable_prompt_expansion": true,
+    "enable_safety_checker": true,
+    "tiling_mode": "both",
+    "tile_size": 128,
+    "tile_stride": 64,
+    "maps": [
+      "basecolor",
+      "normal",
+      "roughness",
+      "metalness",
+      "height"
+    ],
+    "upscale_factor": 0,
+    "output_format": "png"
+  },
+  "returnedSeed": 431030,
+  "returnedPrompt": "High-resolution 4k photograph of a flat orthographic seamless material featuring clean freshly fractured karst limestone. The surface displays a pale neutral grey-beige mineral body with a crisp fine crystalline grain and small angular fracture steps. Subtle white calcite veins and fresh chalky break variations range from millimeter to centimeter scale. The texture is a dry, rough, non-metallic stone surface suitable for quarry faces. The composition features uniform lighting to eliminate cast shadows and perspective, ensuring a perfectly flat and even distribution of mineral details. The aesthetic is clean and geological, focusing on the raw, unweathered characteristics of high-quality Croatian limestone with a matte finish.",
+  "timings": {
+    "texture_generation": 8.870880260015838,
+    "pbr_prediction": 57.173202967998805
+  },
+  "images": [
+    {
+      "url": "https://v3b.fal.media/files/b/0aa784c3/Ek7X6tUdqrngODrICvVa2_2tE7eM3d.png",
+      "content_type": "image/png",
+      "file_name": "Ek7X6tUdqrngODrICvVa2_2tE7eM3d.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "url": "https://v3b.fal.media/files/b/0aa784c8/jUwEFVFIeInROzfBsgxzK_wwD1IVRU.png",
+      "content_type": "image/png",
+      "file_name": "jUwEFVFIeInROzfBsgxzK_wwD1IVRU.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024,
+      "map_type": "basecolor"
+    },
+    {
+      "url": "https://v3b.fal.media/files/b/0aa784c8/70tuTHNSfMly85zfHtWwS_ogcDaxFE.png",
+      "content_type": "image/png",
+      "file_name": "70tuTHNSfMly85zfHtWwS_ogcDaxFE.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024,
+      "map_type": "normal"
+    },
+    {
+      "url": "https://v3b.fal.media/files/b/0aa784c8/-l0KijhvvTWIwPunPC_BZ_jNpBVwa1.png",
+      "content_type": "image/png",
+      "file_name": "-l0KijhvvTWIwPunPC_BZ_jNpBVwa1.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024,
+      "map_type": "roughness"
+    },
+    {
+      "url": "https://v3b.fal.media/files/b/0aa784c8/AUkMLGd_R8BIx2FXfu6BG_o1QlAgME.png",
+      "content_type": "image/png",
+      "file_name": "AUkMLGd_R8BIx2FXfu6BG_o1QlAgME.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024,
+      "map_type": "metalness"
+    },
+    {
+      "url": "https://v3b.fal.media/files/b/0aa784c8/OgPNbOdBcgJW9UDJJuXI8_YyIxhXqB.png",
+      "content_type": "image/png",
+      "file_name": "OgPNbOdBcgJW9UDJJuXI8_YyIxhXqB.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024,
+      "map_type": "height"
+    }
+  ],
+  "generatedAt": "2026-08-23T17:37:36.885Z"
+}

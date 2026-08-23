@@ -414,6 +414,59 @@ const reforesterPlan = Array.from({ length: 32 }, (_, seed) =>
 assert.ok(reforesterPlan, 'reforesters should stop and plant at regrowing tree targets');
 assert.equal(reforesterPlan.target?.id, 'tree-stump');
 
+const remoteTreeEntries: TreeLayoutEntry[] = [
+  treeEntry('tree-default-mature', 20, 0),
+  treeEntry('tree-remote-mature', 240, 0),
+  treeEntry('tree-remote-stump', 244, 0),
+  treeEntry('tree-outside-circle', 265, 0),
+];
+const remoteTrees = new Map<string, TreeEntityState>([
+  ['tree-default-mature', treeState('tree-default-mature', 'mature')],
+  ['tree-remote-mature', treeState('tree-remote-mature', 'mature')],
+  ['tree-remote-stump', treeState('tree-remote-stump', 'stump')],
+  ['tree-outside-circle', treeState('tree-outside-circle', 'mature')],
+]);
+const remoteTargetInputs = {
+  ...targetInputs,
+  trees: remoteTrees,
+  treeRegistry: {
+    treesInRadius: (x: number, z: number, radius: number) => remoteTreeEntries.filter(
+      (tree) => Math.hypot(tree.x - x, tree.z - z) <= radius,
+    ),
+  },
+};
+const limitedLumberMill = {
+  ...building('limited-lumber', 'lumber_mill', 0, 0, 1, 60),
+  treeWorkArea: { x: 240, z: 0, radius: 20 },
+};
+assert.deepEqual(
+  collectWorkerTargets(limitedLumberMill, remoteTargetInputs).map((target) => target.id),
+  ['tree-remote-mature'],
+  'a limited lumber area should ignore default-range and out-of-circle mature trees',
+);
+const limitedReforester = {
+  ...building('limited-reforester', 'reforester', 0, 0, 1, 60),
+  treeWorkArea: { x: 240, z: 0, radius: 20 },
+};
+assert.deepEqual(
+  collectWorkerTargets(limitedReforester, remoteTargetInputs).map((target) => target.id),
+  ['tree-remote-stump'],
+  'a limited reforester area should manage only recovering trees inside its circle',
+);
+const remoteLumberPlan = Array.from({ length: 32 }, (_, seed) =>
+  pickWorkerWalkPlan(
+    limitedLumberMill,
+    0,
+    collectWorkerTargets(limitedLumberMill, remoteTargetInputs),
+    seed,
+  )
+).find((plan) => plan?.activity === 'chop');
+assert.ok(remoteLumberPlan, 'a worker should accept a tree area far beyond the default extent');
+assert.ok(
+  remoteLumberPlan.path.some((point) => Math.hypot(point.x - 240, point.z) < 4),
+  'a remote tree-work route must reach its target rather than clamp to the default extent',
+);
+
 const quarryCamp = building('building-6', 'stone_quarry', 0, 0, 1, 55);
 const quarryTarget = resourceNode('quarry-near', 'quarry', 30, 0, 80);
 const depletedTarget = resourceNode('quarry-empty', 'quarry', 20, 0, 0);

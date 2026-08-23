@@ -289,14 +289,6 @@ export function marketplaceManualTradeStatus(
       reason: 'Wait for an import or export merchant to complete its round trip and free a trader route slot.',
     };
   }
-  if (building.actionCooldown > 1e-6) {
-    return {
-      ...timing,
-      ready: false,
-      label: `Regional traders settling caravan · ${building.actionCooldown.toFixed(1)}s`,
-      reason: `The regional traders need another ${building.actionCooldown.toFixed(1)} seconds.`,
-    };
-  }
   if (marketplacePendingTradeOffer(building.marketplacePendingTradeCode)) {
     return {
       ...timing,

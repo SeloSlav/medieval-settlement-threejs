@@ -12,6 +12,10 @@ import type {
 } from '../resources/types.ts';
 import { getBuildingDefinition } from '../resources/buildings.ts';
 import {
+  effectiveTreeWorkArea,
+  hasCustomTreeWorkArea,
+} from '../resources/treeWorkArea.ts';
+import {
   roadPathDistancesFrom,
   roadPathRoute,
 } from '../logistics/roadLogistics.ts';
@@ -471,12 +475,23 @@ export function collectWorkerTargets(
     return targets;
   }
 
-  if (building.kind === 'lumber_mill' || building.kind === 'swineherd') {
-    collectTreeTargets(building, radius, inputs, (phase) => phase === 'mature', targets);
+  if (building.kind === 'lumber_mill') {
+    collectTreeTargets(
+      effectiveTreeWorkArea(building),
+      inputs,
+      (phase) => phase === 'mature',
+      targets,
+    );
+  } else if (building.kind === 'swineherd') {
+    collectTreeTargets(
+      { x: building.x, z: building.z, radius },
+      inputs,
+      (phase) => phase === 'mature',
+      targets,
+    );
   } else if (building.kind === 'reforester') {
     collectTreeTargets(
-      building,
-      radius,
+      effectiveTreeWorkArea(building),
       inputs,
       (phase) => phase === 'stump' || phase === 'growing',
       targets,
@@ -750,14 +765,13 @@ export function pickWorkerCommutePath(
 }
 
 function collectTreeTargets(
-  building: BuildingState,
-  radius: number,
+  area: PointXZ & { radius: number },
   inputs: WorkerTargetInputs,
   acceptsPhase: (phase: TreeEntityState['phase']) => boolean,
   targets: WorkerTarget[],
 ): void {
-  if (!inputs.treeRegistry || radius <= 0) return;
-  for (const tree of inputs.treeRegistry.treesInRadius(building.x, building.z, radius)) {
+  if (!inputs.treeRegistry || area.radius <= 0) return;
+  for (const tree of inputs.treeRegistry.treesInRadius(area.x, area.z, area.radius)) {
     const entity = inputs.trees.get(tree.id);
     if (!entity || !acceptsPhase(entity.phase)) continue;
     targets.push({ id: tree.id, kind: 'tree', x: tree.x, z: tree.z });
@@ -913,7 +927,7 @@ function resourceWorkLoop(
   const normalX = -dz / length;
   const normalZ = dx / length;
   const bend = (rng() - 0.5) * Math.min(10, length * 0.24);
-  const midpoint = clampToWorkExtent(building, {
+  const midpoint = clampResourceWorkPoint(building, target, {
     x: (start.x + target.x) * 0.5 + normalX * bend,
     z: (start.z + target.z) * 0.5 + normalZ * bend,
   });
@@ -923,12 +937,12 @@ function resourceWorkLoop(
     : target.kind === 'workstation'
       ? 1.15
       : 2.4;
-  const approach = clampToWorkExtent(building, {
+  const approach = clampResourceWorkPoint(building, target, {
     x: target.x + Math.sin(approachAngle) * approachRadius,
     z: target.z + Math.cos(approachAngle) * approachRadius,
   });
   const workStep = 1.6 + rng() * 1.4;
-  const around = clampToWorkExtent(building, {
+  const around = clampResourceWorkPoint(building, target, {
     x: target.x + Math.sin(approachAngle + Math.PI * 0.62) * workStep,
     z: target.z + Math.cos(approachAngle + Math.PI * 0.62) * workStep,
   });
@@ -941,6 +955,15 @@ function resourceWorkLoop(
     midpoint,
     start,
   ];
+}
+
+function clampResourceWorkPoint(
+  building: BuildingState,
+  target: WorkerTarget,
+  point: PointXZ,
+): PointXZ {
+  if (target.kind === 'tree' && hasCustomTreeWorkArea(building)) return point;
+  return clampToWorkExtent(building, point);
 }
 
 function workplaceLoop(

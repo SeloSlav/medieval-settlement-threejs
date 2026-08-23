@@ -441,10 +441,15 @@ assert.match(
   /ConstructionSupplyCrew::SiteBuilder[\s\S]*DeliveryLaborSource::Building\(site\.id\)/,
   'a blocked site must own the labor reservation when it lends one builder to its cart',
 );
-assert.match(
+assert.doesNotMatch(
   deliveryTripServer,
-  /construction_site_builder_cart_busy[\s\S]*labor_building_id\(\)[\s\S]*filter\(&site_id\)/,
-  'a site-owned cart must block duplicate borrowed-builder trips until it returns',
+  /construction_site_builder_cart_busy/,
+  'one borrowed-builder cart must not strand the rest of a material-blocked crew onsite',
+);
+assert.match(
+  constructionTrip,
+  /let onsite_builders = onsite_building_labor\(ctx, site\)[\s\S]*site\.assigned_labor\.saturating_sub\(onsite_builders\)/,
+  'each borrowed-builder dispatch must use the live onsite count so workers already on carts cannot be double-booked',
 );
 assert.match(
   constructionTrip,
@@ -486,6 +491,7 @@ assert.match(constructionInspector, /Site builder returning with the cart/);
 assert.match(constructionInspector, /No usable haul route to/);
 assert.match(constructionInspector, /Material source/);
 assert.match(constructionInspector, /routeDistance/);
+assert.match(constructionInspector, /Raid shelter/);
 assert.doesNotMatch(
   constructionInspector,
   /countActiveFreeConstructionHaulers/,
@@ -1053,18 +1059,20 @@ const constructionContext = (
     | number
     | null
     | ((ax: number, az: number, bx: number, bz: number) => number | null),
-  inbound: DeliveryTripState | null = null,
+  inbound: DeliveryTripState | readonly DeliveryTripState[] | null = null,
   fireIncidents = new Map<string, FireIncidentState>(),
 ) => {
+  const trips = inbound == null ? [] : Array.isArray(inbound) ? inbound : [inbound];
   const buildings = new Map(sources.concat(site).map((building) => [building.id, building]));
   return {
     gameState: {
+      tick: 0,
       buildings,
-      deliveryTrips: new Map(inbound ? [[inbound.id, inbound]] : []),
+      deliveryTrips: new Map(trips.map((trip) => [trip.id, trip])),
       fireIncidents,
     },
     worldQueries: {
-      getInboundSupplyTrip: () => inbound?.phase === 'inbound' ? null : inbound,
+      getInboundSupplyTrip: () => trips.find((trip) => trip.phase !== 'inbound') ?? null,
       getBuilding: (id: string) => buildings.get(id) ?? null,
       getRoadPathDistance: (
         ax: number,
@@ -1102,6 +1110,23 @@ const constructionContext = (
   };
 };
 const siteTarget = { kind: 'building' as const, building: site };
+
+const nightPauseContext = constructionContext([stoneSource], 5, 30);
+nightPauseContext.gameState.tick = 300;
+assert.equal(
+  renderConstructionInspector(siteTarget, nightPauseContext as never).statusText,
+  'Night hours — builders and material carts resume during work hours',
+  'the worksite inspector must explain a schedule-stalled ready job',
+);
+const raidPauseContext = {
+  ...constructionContext([stoneSource], 5, 30),
+  combatAgents: [{ faction: 'raider', health: 1, status: 'advancing' }],
+};
+assert.equal(
+  renderConstructionInspector(siteTarget, raidPauseContext as never).statusText,
+  'Raid shelter — builders and material carts resume when hostile raiders are cleared',
+  'the worksite inspector must explain an ordinary-labor raid pause and its attainable remedy',
+);
 
 const fittingsInspector = renderConstructionInspector(
   { kind: 'building', building: fittingsSite },
@@ -1438,8 +1463,26 @@ assert.equal(
     siteTarget,
     constructionContext([stoneSource], 0, 30, builderReturning) as never,
   ).statusText,
-  'Site builder returning with the cart — next load is 15 stone at Mining Pit',
-  'a returning site cart must expose the bounded reason before another builder can haul',
+  'Site builder fetching 15 stone from Mining Pit',
+  'one returning site cart must not strand the other three material-blocked builders',
+);
+const haulingCrewReturning = Array.from({ length: 3 }, (_, index) => ({
+  ...builderReturning,
+  id: `builder-returning-trip-${index}`,
+}));
+const haulingCrewReturningView = renderConstructionInspector(
+  siteTarget,
+  constructionContext([stoneSource], 0, 30, haulingCrewReturning) as never,
+);
+assert.equal(
+  haulingCrewReturningView.statusText,
+  'Hauling crew returning — one builder remains onsite for arriving loads; next load is 15 stone at Mining Pit',
+  'after three builders leave, the fourth must remain onsite for the first arriving load',
+);
+assert.match(
+  haulingCrewReturningView.labor.hint,
+  /3 workers are traveling with 3 carts; 3 rostered workers are away, leaving 1 on site/,
+  'the inspector must aggregate every borrowed-builder cart instead of showing one arbitrary trip',
 );
 
 const placementServer = read('server/src/reducers/buildings.rs');

@@ -532,6 +532,199 @@ export function createSeedThreeWildflowerGeometry(headScale: number): THREE.Buff
   return geometry;
 }
 
+/**
+ * The authored source geometry contains every species so the lineup and atlas
+ * diagnostics can still inspect the complete botanical kit. Runtime meadow
+ * instances are species-owned: filtering the indexed triangles here prevents
+ * every stem from executing the vertex work for four invisible plants.
+ */
+export function createSeedThreeWildflowerVariantGeometries(
+  headScale: number,
+): THREE.BufferGeometry[] {
+  const combined = createSeedThreeWildflowerGeometry(headScale);
+  const variants = SEEDTHREE_WILDFLOWER_VARIANTS.map((variant, variantIndex) => {
+    const geometry = extractWildflowerVariantGeometry(combined, variantIndex);
+    geometry.name = `SeedThree ${variant.label} geometry`;
+    geometry.userData.wildflowerVariant = variant.id;
+    geometry.userData.trianglesPerInstance = (geometry.index?.count ?? 0) / 3;
+    return geometry;
+  });
+  combined.dispose();
+  return variants;
+}
+
+/**
+ * Strategic/settlement footprint LOD. It keeps the same atlas cell, rooted
+ * wind weights, terrain anchor, height envelope, and species-owned silhouette
+ * while replacing botanical tubes and close-inspection foliage with crossed
+ * stem ribbons plus the few heads that define the plant at screen scale.
+ */
+export function createSeedThreeWildflowerFootprintGeometries(
+  headScale: number,
+): THREE.BufferGeometry[] {
+  const headRadii = [0.038, 0.038, 0.029, 0.044, 0.022] as const;
+  const headYaws = [0.25, 0.18, 0.52, 0.66, 0.28] as const;
+  const headTilts = [0.24, 0.08, 0.16, 0.34, 0.24] as const;
+  const accentHeads: ReadonlyArray<readonly {
+    splitHeight: number;
+    tip: readonly [number, number, number];
+    yaw: number;
+    radius: number;
+  }[]> = [
+    [
+      { splitHeight: 0.17, tip: [0.086, 0.325, 0.044], yaw: 0.52, radius: 0.022 },
+      { splitHeight: 0.2, tip: [-0.082, 0.35, -0.038], yaw: 3.68, radius: 0.021 },
+    ],
+    [],
+    [],
+    [
+      { splitHeight: 0.235, tip: [0.052, 0.365, 0.028], yaw: 0.9, radius: 0.031 },
+      { splitHeight: 0.25, tip: [-0.05, 0.35, -0.025], yaw: 3.94, radius: 0.028 },
+    ],
+    [
+      { splitHeight: 0.205, tip: [0.054, 0.335, 0.03], yaw: 0.72, radius: 0.018 },
+      { splitHeight: 0.225, tip: [-0.052, 0.35, -0.028], yaw: 3.82, radius: 0.017 },
+    ],
+  ];
+
+  return SEEDTHREE_WILDFLOWER_VARIANTS.map((variant, variantIndex) => {
+    const buffers: WildflowerBuffers = {
+      positions: [],
+      normals: [],
+      colors: [],
+      uvs: [],
+      flowerMasks: [],
+      windWeights: [],
+      indices: [],
+    };
+    const structureMask = variantIndex + 1;
+    const centralTip = new THREE.Vector3(0.008, 0.36, -0.004);
+    appendStemCrossRibbon(
+      buffers,
+      new THREE.Vector3(0, 0, 0),
+      centralTip,
+      0.0036,
+      headYaws[variantIndex]!,
+      STEM_COLORS[variantIndex % STEM_COLORS.length]!,
+      structureMask,
+    );
+    appendFlowerHeadCard(
+      buffers,
+      centralTip,
+      headYaws[variantIndex]!,
+      headRadii[variantIndex]! * headScale,
+      structureMask,
+      headTilts[variantIndex]!,
+    );
+    for (const accent of accentHeads[variantIndex]!) {
+      const splitFraction = accent.splitHeight / centralTip.y;
+      const split = centralTip.clone().multiplyScalar(splitFraction);
+      const tip = new THREE.Vector3(...accent.tip);
+      appendStemCrossRibbon(
+        buffers,
+        split,
+        tip,
+        0.0022,
+        accent.yaw,
+        STEM_COLORS[(variantIndex + 1) % STEM_COLORS.length]!,
+        structureMask,
+        splitFraction,
+      );
+      appendFlowerHeadCard(
+        buffers,
+        tip,
+        accent.yaw,
+        accent.radius * headScale,
+        structureMask,
+      );
+    }
+
+    const geometry = createWildflowerBufferGeometry(buffers);
+    geometry.name = `SeedThree ${variant.label} footprint LOD`;
+    geometry.userData.wildflowerVariant = variant.id;
+    geometry.userData.geometryLod = 'footprint';
+    geometry.userData.trianglesPerInstance = (geometry.index?.count ?? 0) / 3;
+    geometry.computeBoundingBox();
+    return geometry;
+  });
+}
+
+function createWildflowerBufferGeometry(
+  buffers: WildflowerBuffers,
+): THREE.BufferGeometry {
+  const geometry = new THREE.BufferGeometry();
+  geometry.setIndex(buffers.indices);
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(buffers.positions, 3));
+  geometry.setAttribute('normal', new THREE.Float32BufferAttribute(buffers.normals, 3));
+  geometry.setAttribute('color', new THREE.Float32BufferAttribute(buffers.colors, 3));
+  geometry.setAttribute('uv', new THREE.Float32BufferAttribute(buffers.uvs, 2));
+  geometry.setAttribute('flowerMask', new THREE.Float32BufferAttribute(buffers.flowerMasks, 1));
+  geometry.setAttribute('windWeight', new THREE.Float32BufferAttribute(buffers.windWeights, 1));
+  geometry.computeBoundingSphere();
+  return geometry;
+}
+
+function extractWildflowerVariantGeometry(
+  combined: THREE.BufferGeometry,
+  variantIndex: number,
+): THREE.BufferGeometry {
+  const sourceIndex = combined.index;
+  const packedMask = combined.getAttribute('flowerMask');
+  if (!sourceIndex || !packedMask) {
+    throw new Error('Wildflower variant extraction requires indexed flowerMask geometry.');
+  }
+
+  const structureLow = (variantIndex + 1) * 2 - 0.5;
+  const structureHigh = (variantIndex + 1) * 2 + 1.5;
+  const selectedOldIndices: number[] = [];
+  for (let offset = 0; offset < sourceIndex.count; offset += 3) {
+    const oldIndex = sourceIndex.getX(offset);
+    const mask = packedMask.getX(oldIndex);
+    if (mask < 1.5 || (mask >= structureLow && mask < structureHigh)) {
+      selectedOldIndices.push(
+        oldIndex,
+        sourceIndex.getX(offset + 1),
+        sourceIndex.getX(offset + 2),
+      );
+    }
+  }
+
+  const oldToNew = new Map<number, number>();
+  const newToOld: number[] = [];
+  const remappedIndex = selectedOldIndices.map((oldIndex) => {
+    const existing = oldToNew.get(oldIndex);
+    if (existing !== undefined) return existing;
+    const next = newToOld.length;
+    oldToNew.set(oldIndex, next);
+    newToOld.push(oldIndex);
+    return next;
+  });
+
+  const geometry = new THREE.BufferGeometry();
+  geometry.setIndex(remappedIndex);
+  for (const [name, source] of Object.entries(combined.attributes)) {
+    if ('isInterleavedBufferAttribute' in source) {
+      throw new Error(`Wildflower variant extraction cannot copy interleaved ${name}.`);
+    }
+    const values = new Float32Array(newToOld.length * source.itemSize);
+    const sourceValues = source.array as ArrayLike<number>;
+    for (let newIndex = 0; newIndex < newToOld.length; newIndex++) {
+      const oldIndex = newToOld[newIndex]!;
+      for (let component = 0; component < source.itemSize; component++) {
+        values[newIndex * source.itemSize + component] =
+          sourceValues[oldIndex * source.itemSize + component] ?? 0;
+      }
+    }
+    geometry.setAttribute(
+      name,
+      new THREE.Float32BufferAttribute(values, source.itemSize, source.normalized),
+    );
+  }
+  geometry.computeBoundingBox();
+  geometry.computeBoundingSphere();
+  return geometry;
+}
+
 export function createSeedThreeWildflowerMaterial(
   texture: THREE.Texture,
   label: string,
@@ -769,6 +962,92 @@ function appendStalk(
   const stemColor = STEM_COLORS[colorIndex % STEM_COLORS.length]!;
 
   appendStemTube(buffers, root, tip, radius, stalk.yaw, stemColor);
+}
+
+function appendStemCrossRibbon(
+  buffers: WildflowerBuffers,
+  root: THREE.Vector3,
+  tip: THREE.Vector3,
+  halfWidth: number,
+  yaw: number,
+  color: THREE.Color,
+  structureMask: number,
+  windWeightStart = 0,
+): void {
+  appendStemRibbon(
+    buffers,
+    root,
+    tip,
+    halfWidth,
+    yaw,
+    color,
+    structureMask,
+    windWeightStart,
+  );
+  appendStemRibbon(
+    buffers,
+    root,
+    tip,
+    halfWidth,
+    yaw + Math.PI * 0.5,
+    color,
+    structureMask,
+    windWeightStart,
+  );
+}
+
+function appendStemRibbon(
+  buffers: WildflowerBuffers,
+  root: THREE.Vector3,
+  tip: THREE.Vector3,
+  halfWidth: number,
+  yaw: number,
+  color: THREE.Color,
+  structureMask: number,
+  windWeightStart: number,
+): void {
+  const side = new THREE.Vector3(Math.cos(yaw), 0, Math.sin(yaw))
+    .multiplyScalar(halfWidth);
+  const axis = tip.clone().sub(root).normalize();
+  const normal = new THREE.Vector3().crossVectors(side, axis).normalize();
+  const base = buffers.positions.length / 3;
+  appendVertex(buffers, vertex(
+    root.clone().sub(side),
+    normal,
+    color,
+    [0, 0],
+    0,
+    windWeightStart,
+    structureMask,
+  ));
+  appendVertex(buffers, vertex(
+    root.clone().add(side),
+    normal,
+    color,
+    [1, 0],
+    0,
+    windWeightStart,
+    structureMask,
+  ));
+  appendVertex(buffers, vertex(
+    tip.clone().sub(side),
+    normal,
+    color,
+    [0, 3.25],
+    0,
+    1,
+    structureMask,
+  ));
+  appendVertex(buffers, vertex(
+    tip.clone().add(side),
+    normal,
+    color,
+    [1, 3.25],
+    0,
+    1,
+    structureMask,
+  ));
+  buffers.indices.push(base, base + 1, base + 2, base + 1, base + 3, base + 2);
 }
 
 function appendStemTube(

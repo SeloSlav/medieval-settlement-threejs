@@ -214,6 +214,40 @@
   background-image: url('/assets/ui/icons/actions/overnight-work-camp.png');
 }
 
+.inspector-action-icon[data-action-icon='tree-work-area'] {
+  box-sizing: border-box;
+  overflow: hidden;
+  border: 2px solid rgba(247, 245, 235, 0.92);
+  border-radius: 50%;
+  background-color: rgba(234, 237, 224, 0.18);
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.28) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.28) 1px, transparent 1px),
+    radial-gradient(circle, rgba(215, 220, 201, 0.2) 0 66%, rgba(17, 22, 16, 0.12) 67% 100%);
+  background-position: center;
+  background-repeat: repeat, repeat, no-repeat;
+  background-size: 6px 6px, 6px 6px, 100% 100%;
+  box-shadow:
+    0 0 0 1px rgba(11, 14, 10, 0.72),
+    inset 0 0 8px rgba(255, 255, 255, 0.12);
+}
+
+.resource-action-button--toggle[aria-pressed='true']
+  .inspector-action-icon[data-action-icon='tree-work-area'] {
+  border-color: #fff;
+  background-color: rgba(245, 226, 164, 0.34);
+  box-shadow:
+    0 0 0 1px rgba(11, 14, 10, 0.72),
+    0 0 8px rgba(241, 212, 133, 0.38),
+    inset 0 0 8px rgba(255, 255, 255, 0.18);
+}
+
+.resource-action-button--toggle.is-pending
+  .inspector-action-icon[data-action-icon='tree-work-area'] {
+  border-style: dashed;
+  background-color: rgba(255, 255, 255, 0.24);
+}
+
 .inspector-action-icon[data-action-icon='luxury-flowers'] {
   background-image: url('/assets/ui/icons/actions/luxury-flowers.png');
 }

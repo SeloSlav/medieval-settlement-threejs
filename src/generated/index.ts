@@ -43,6 +43,7 @@ import CallUpActiveSeasonalLaborReducer from "./call_up_active_seasonal_labor_re
 import CallUpTargetReadyProcessorLaborReducer from "./call_up_target_ready_processor_labor_reducer";
 import CallUpYearRoundLaborReducer from "./call_up_year_round_labor_reducer";
 import CancelMarketplaceTradeOrderReducer from "./cancel_marketplace_trade_order_reducer";
+import ClearTreeWorkAreaReducer from "./clear_tree_work_area_reducer";
 import CollectChapelCofferReducer from "./collect_chapel_coffer_reducer";
 import ConfigureWorldReducer from "./configure_world_reducer";
 import DemolishBackyardGardenReducer from "./demolish_backyard_garden_reducer";
@@ -119,6 +120,7 @@ import SetStorehousePolicyReducer from "./set_storehouse_policy_reducer";
 import SetStorehouseStockTargetReducer from "./set_storehouse_stock_target_reducer";
 import SetThreshingPriorityReducer from "./set_threshing_priority_reducer";
 import SetTradingPostTradeRuleReducer from "./set_trading_post_trade_rule_reducer";
+import SetTreeWorkAreaReducer from "./set_tree_work_area_reducer";
 import SetWeaverInputPolicyReducer from "./set_weaver_input_policy_reducer";
 import SetWoodcutterTimberReserveReducer from "./set_woodcutter_timber_reserve_reducer";
 import SpecializeAnimalPenReducer from "./specialize_animal_pen_reducer";
@@ -602,6 +604,7 @@ const reducersSchema = __reducers(
   __reducerSchema("call_up_target_ready_processor_labor", CallUpTargetReadyProcessorLaborReducer),
   __reducerSchema("call_up_year_round_labor", CallUpYearRoundLaborReducer),
   __reducerSchema("cancel_marketplace_trade_order", CancelMarketplaceTradeOrderReducer),
+  __reducerSchema("clear_tree_work_area", ClearTreeWorkAreaReducer),
   __reducerSchema("collect_chapel_coffer", CollectChapelCofferReducer),
   __reducerSchema("configure_world", ConfigureWorldReducer),
   __reducerSchema("demolish_backyard_garden", DemolishBackyardGardenReducer),
@@ -678,6 +681,7 @@ const reducersSchema = __reducers(
   __reducerSchema("set_storehouse_stock_target", SetStorehouseStockTargetReducer),
   __reducerSchema("set_threshing_priority", SetThreshingPriorityReducer),
   __reducerSchema("set_trading_post_trade_rule", SetTradingPostTradeRuleReducer),
+  __reducerSchema("set_tree_work_area", SetTreeWorkAreaReducer),
   __reducerSchema("set_weaver_input_policy", SetWeaverInputPolicyReducer),
   __reducerSchema("set_woodcutter_timber_reserve", SetWoodcutterTimberReserveReducer),
   __reducerSchema("specialize_animal_pen", SpecializeAnimalPenReducer),

@@ -113,6 +113,7 @@ import {
   windSiteThroughputMultiplier,
   windWeatherThroughputMultiplier,
 } from '../wind/windField.ts';
+import { MarketplaceSupplyLinks } from './MarketplaceSupplyLinks.ts';
 
 type BuildingMarkersOptions = {
   terrain: Terrain;
@@ -144,6 +145,7 @@ export class BuildingMarkers {
     THREE.BoxGeometry,
     THREE.MeshBasicMaterial
   >;
+  private readonly marketplaceSupplyLinks: MarketplaceSupplyLinks;
   private guardhouseMusterSignature = '';
   private previewBuilding: THREE.Group | null = null;
   private previewKind: BuildingKind | null = null;
@@ -169,6 +171,10 @@ export class BuildingMarkers {
     );
     this.guardhouseMusterRoute = createGuardhouseMusterRoute();
     this.group.add(this.guardhouseMusterRoute);
+    this.marketplaceSupplyLinks = new MarketplaceSupplyLinks({
+      parent: this.group,
+      terrain: this.terrain,
+    });
     options.parent.add(this.group);
   }
 
@@ -180,6 +186,7 @@ export class BuildingMarkers {
       gameState?.fireIncidents.values() ?? [],
     );
     this.syncGuardhouseMusterRoute(building, gameState, fireDisabled);
+    this.syncMarketplaceSupplyLinks(building, gameState, fireDisabled);
   }
 
   syncBuildings(
@@ -629,6 +636,7 @@ export class BuildingMarkers {
       this.previewKind = null;
     }
     disposeObject3D(this.guardhouseMusterRoute);
+    this.marketplaceSupplyLinks.dispose();
     for (const id of [...this.buildingMeshes.keys()]) {
       this.removeBuilding(id);
     }
@@ -714,6 +722,37 @@ export class BuildingMarkers {
       this.guardhouseMusterRoute,
       route.polyline,
       this.terrain,
+    );
+  }
+
+  private syncMarketplaceSupplyLinks(
+    building: BuildingState | null,
+    gameState: GameState | undefined,
+    fireDisabled: ReadonlySet<string>,
+  ): void {
+    const network = this.getRoadNetwork?.() ?? null;
+    if (
+      !gameState
+      || !network
+      || (
+        building?.kind !== 'granary'
+        && building?.kind !== 'village_storehouse'
+        && building?.kind !== 'marketplace'
+      )
+    ) {
+      this.marketplaceSupplyLinks.sync(null, [], []);
+      return;
+    }
+
+    const roster = assignMarketplaceStallRoster(
+      gameState.buildings.values(),
+      (ax, az, bx, bz) => network.getPathfinder().roadPathDistance(ax, az, bx, bz),
+      fireDisabled,
+    );
+    this.marketplaceSupplyLinks.sync(
+      building,
+      gameState.buildings.values(),
+      roster.stalls,
     );
   }
 

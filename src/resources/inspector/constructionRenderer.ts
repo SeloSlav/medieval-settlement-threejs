@@ -4,6 +4,10 @@ import {
   selectConstructionRouteSource,
 } from '../../logistics/constructionLogistics.ts';
 import { constructionLaborReady } from '../../economy/constructionLabor.ts';
+import { DEFAULT_PARISH_POLICY } from '../../economy/chapelParish.ts';
+import { deliveryTripHasPendingCargo } from '../../logistics/deliveryTrips.ts';
+import { hasActiveRaiderThreat } from '../../security/combatAgents.ts';
+import { deriveSettlementSchedule } from '../../world/settlementSchedule.ts';
 import { getBuildingDefinition } from '../buildings.ts';
 import type { BuildingState, InspectableTarget } from '../types.ts';
 import { buildingLaborView, buildingRoadAccessRow } from './buildingCommon.ts';
@@ -24,6 +28,7 @@ type SupplyResolution = {
     | 'ready-builder'
     | 'busy'
     | 'builder-returning'
+    | 'builder-crew-returning'
     | 'no-hauler'
     | 'unreachable'
     | 'fire-disabled'
@@ -38,7 +43,12 @@ export function renderConstructionInspector(
 ): InspectorView {
   const { building } = target;
   const definition = getBuildingDefinition(building.kind);
-  const inbound = context.worldQueries.getInboundSupplyTrip(building);
+  const inboundTrips = [...context.gameState.deliveryTrips.values()].filter(
+    (trip) => trip.destinationKind === 'building'
+      && trip.targetBuildingId === building.id
+      && deliveryTripHasPendingCargo(trip),
+  );
+  const inbound = inboundTrips[0] ?? null;
   const progress = Math.round(building.constructionProgress * 100);
   const priority = normalizeConstructionPriority(building.constructionPriority);
   const held = priority === CONSTRUCTION_PRIORITY_HOLD;
@@ -84,14 +94,28 @@ export function renderConstructionInspector(
     ? resolveConstructionSupply(context, building, pendingMaterial)
     : null;
   const origin = inbound ? context.worldQueries.getBuilding(inbound.buildingId) : null;
-  const siteBuilderTrip = [...context.gameState.deliveryTrips.values()].find(
+  const siteBuilderTrips = [...context.gameState.deliveryTrips.values()].filter(
     (trip) => trip.laborBuildingId === building.id,
-  ) ?? null;
+  );
+  const settlementSchedule = deriveSettlementSchedule(
+    {
+      simTick: context.gameState.tick,
+      parishPolicy: context.getParishPolicy?.() ?? DEFAULT_PARISH_POLICY,
+    },
+    context.gameState,
+  );
+  const raiderPause = hasActiveRaiderThreat(context.combatAgents ?? []);
 
   let statusText = `${progress}% built`;
   let statusState = 'active';
   if (held) {
     statusText = 'Construction held — reservations retained';
+    statusState = 'warning';
+  } else if (raiderPause) {
+    statusText = 'Raid shelter — builders and material carts resume when hostile raiders are cleared';
+    statusState = 'warning';
+  } else if (settlementSchedule.laborPaused) {
+    statusText = `${settlementSchedule.laborPauseLabel ?? 'Scheduled labor pause'} — builders and material carts resume during work hours`;
     statusState = 'warning';
   } else if (building.assignedLabor <= 0) {
     statusText = 'Waiting for builders';
@@ -111,6 +135,9 @@ export function renderConstructionInspector(
       statusText = `Storehouse crew bringing ${amount}`;
     } else {
       statusText = `${sourceLabel} crew bringing ${amount}`;
+    }
+    if (inboundTrips.length > 1) {
+      statusText = `${inboundTrips.length} material carts active — ${statusText}`;
     }
   } else if (pendingMaterial && supply) {
     const sourceLabel = supply.source
@@ -136,6 +163,9 @@ export function renderConstructionInspector(
       case 'builder-returning':
         statusText = `Site builder returning with the cart — next load is ${amount} at ${sourceLabel}`;
         break;
+      case 'builder-crew-returning':
+        statusText = `Hauling crew returning — one builder remains onsite for arriving loads; next load is ${amount} at ${sourceLabel}`;
+        break;
       case 'no-hauler':
         statusText = `Waiting for an unassigned hauler — ${amount} is at ${sourceLabel}`;
         statusState = 'warning';
@@ -160,7 +190,9 @@ export function renderConstructionInspector(
   }
 
   const incomingLabel = inbound
-    ? `${formatAmount(inbound.amount)} ${inbound.cargoKind} from ${
+    ? `${inboundTrips.length > 1 ? `${inboundTrips.length} carts · ` : ''}${formatAmount(
+        inboundTrips.reduce((total, trip) => total + trip.amount, 0),
+      )} total material approaching; next ${formatAmount(inbound.amount)} ${inbound.cargoKind} from ${
         origin ? getBuildingDefinition(origin.kind).label : 'material source'
       }`
     : 'None';
@@ -204,7 +236,7 @@ export function renderConstructionInspector(
       building,
       context.populationStats,
       context.worldQueries,
-      siteBuilderTrip,
+      siteBuilderTrips,
     ),
     supplementalPanelHtml: priorityControls,
   };
@@ -228,13 +260,25 @@ function resolveConstructionSupply(
   // freeHaulerWorkers reservation. Subtracting visible carts again makes the
   // inspector hide a genuinely available second founding hauler.
   const freeHaulers = Math.max(0, context.populationStats.available);
-  const siteBuilderCartActive = [...context.gameState.deliveryTrips.values()].some(
+  const siteBuilderTrips = [...context.gameState.deliveryTrips.values()].filter(
     (trip) => trip.laborBuildingId === site.id,
   );
+  const siteBuilderWorkersAway = Math.min(
+    Math.max(0, site.assignedLabor),
+    siteBuilderTrips.reduce(
+      (total, trip) => total + Math.max(
+        0,
+        trip.deliveryWorkers - trip.freeHaulerWorkers,
+      ),
+      0,
+    ),
+  );
+  const onsiteBuilders = Math.max(0, site.assignedLabor - siteBuilderWorkersAway);
+  const builderCanLeave = onsiteBuilders > 1
+    || (onsiteBuilders === 1 && siteBuilderWorkersAway === 0);
   const siteBuilderCanHaul = freeHaulers <= 0
-    && site.assignedLabor > 0
-    && !constructionLaborReady(site)
-    && !siteBuilderCartActive;
+    && builderCanLeave
+    && !constructionLaborReady(site);
   const sources = [...context.gameState.buildings.values()].filter((source) =>
     source.id !== site.id
     && source.constructionComplete !== false
@@ -305,8 +349,12 @@ function resolveConstructionSupply(
   const waiting = selectConstructionRouteSource(waitingForLabor, routeDistanceFor);
   if (waiting) {
     return {
-      state: siteBuilderCartActive && !constructionLaborReady(site)
-        ? 'builder-returning'
+      state: siteBuilderTrips.length > 0 && !constructionLaborReady(site)
+        ? onsiteBuilders === 0
+          ? 'builder-returning'
+          : !builderCanLeave
+            ? 'builder-crew-returning'
+            : 'no-hauler'
         : 'no-hauler',
       source: waiting.source,
       routeDistance: waiting.routeDistance,

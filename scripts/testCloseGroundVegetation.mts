@@ -19,6 +19,14 @@ import {
   resolveGroundcoverSlotRewrite,
   type GroundcoverSlotUpdate,
 } from '../src/grass/groundcoverSlotUpdates.ts';
+import {
+  countLiveWildflowerInstances,
+  estimateWildflowerSubmittedTriangles,
+  resolveWildflowerGeometryLod,
+  resolveWildflowerLodSubmission,
+  WILDFLOWER_SLOT_CAPACITIES,
+  WILDFLOWER_TOTAL_SLOT_CAPACITY,
+} from '../src/grass/wildflowerStreamBudget.ts';
 import { resolveGroundCoverShadowPolicy } from '../vendor/seedthree/src/core/ground-cover-shadows.js';
 import { resolveStreamVisibilityHysteresis } from '../vendor/seedthree/src/core/stream-slot-budget.js';
 
@@ -194,10 +202,11 @@ assert.doesNotMatch(
   /createForestCores\(mulberry32\(/,
   'groundcover must not generate a separate forest mask that can drift from the terrain',
 );
-assert.match(
-  fieldSource,
-  /WILDFLOWER_SLOT_CAPACITY = 144/,
-  'the streamed wildflower slot should hold the doubled individual-stem meadow population',
+assert.deepEqual(WILDFLOWER_SLOT_CAPACITIES, [48, 32, 48, 8, 8]);
+assert.equal(
+  WILDFLOWER_TOTAL_SLOT_CAPACITY,
+  144,
+  'species-owned slots must preserve the complete authored per-chunk population',
 );
 assert.match(
   fieldSource,
@@ -228,6 +237,11 @@ assert.match(
   fieldSource,
   /GRASS_STREAM_UPDATE_BUDGET_MS = 2[\s\S]*runStreamSlotUpdateChunk/,
   'groundcover generation and commits must use the reusable two-millisecond deadline scheduler',
+);
+assert.match(
+  fieldSource,
+  /WILDFLOWER_COMPACTION_COMMIT_BATCH = 8[\s\S]*WILDFLOWER_COMPACTION_MAX_LATENCY_MS = 100/,
+  'compact wildflower uploads must batch slot commits while retaining bounded visibility latency',
 );
 assert.match(
   fieldSource,
@@ -263,13 +277,23 @@ assert.doesNotMatch(
 );
 assert.match(
   fieldSource,
-  /MAX_GRASS_STREAM_INSTANCES = GRID_SIDE \* GRID_SIDE \* GRASS_SLOT_CAPACITY[\s\S]*?streamMeshes = variants\.map\([\s\S]*?new THREE\.InstancedMesh\(geometry, grassMaterial, MAX_GRASS_STREAM_INSTANCES\)[\s\S]*?new THREE\.InstancedMesh\([\s\S]*?MAX_WILDFLOWER_STREAM_INSTANCES[\s\S]*?group\.add\(entry\.mesh\)/,
-  'groundcover should retain the three whole-field InstancedMesh submissions',
+  /createSeedThreeWildflowerVariantGeometries[\s\S]*?createSeedThreeWildflowerFootprintGeometries[\s\S]*?wildflowerGeometries\.forEach[\s\S]*?compactLivePrefix: true,[\s\S]*?wildflowerDetailGeometry: geometry,[\s\S]*?wildflowerFootprintGeometry: footprintGeometry,[\s\S]*?wildflowerFootprintMesh: footprintMesh/,
+  'runtime wildflowers must own exact detail and footprint prefixes per species',
 );
 assert.match(
   fieldSource,
-  /mesh\.frustumCulled = false;[\s\S]*?wildflowerMesh\.frustumCulled = false;/,
-  'the restored whole-field submissions must not use the rejected spatial culling path',
+  /wildflowerMeshCount: 2 \* WILDFLOWER_SPECIES_COUNT/,
+  'telemetry must report all ten physical detail and footprint meshes',
+);
+assert.match(
+  fieldSource,
+  /const updateWildflowerSpatialLods[\s\S]*?record\.wildflowerGeometryLod = nextLod;[\s\S]*?const repackCompactMesh[\s\S]*?record\.wildflowerGeometryLod === 'detail'[\s\S]*?detailCount[\s\S]*?footprintCount/,
+  'camera movement must classify whole stream chunks with hysteresis and compact both exact prefixes',
+);
+assert.match(
+  fieldSource,
+  /if \(!entry\.compactLivePrefix\) \{\s*clearSlotRange/,
+  'parked hidden matrices must remain exclusive to the cheap grass slot stream',
 );
 assert.doesNotMatch(
   fieldSource,
@@ -301,12 +325,17 @@ assert.match(
 );
 assert.match(
   fieldSource,
-  /applyGroundCoverShadowPolicy\(wildflowerMesh, \{[\s\S]*?terrainReceivesShadow: true,[\s\S]*?\}\)/,
+  /wildflowerGeometries\.forEach[\s\S]*?applyGroundCoverShadowPolicy\(detailMesh, \{[\s\S]*?terrainReceivesShadow: true,[\s\S]*?\}\)[\s\S]*?applyGroundCoverShadowPolicy\(footprintMesh, \{[\s\S]*?terrainReceivesShadow: true,[\s\S]*?\}\)/,
   'streamed wildflowers must use the same terrain-shadow policy as grass',
 );
 assert.doesNotMatch(
   fieldSource,
-  /(?:mesh|wildflowerMesh)\.receiveShadow = true/,
+  /wildflowerLodRepackDirty[\s\S]{0,180}streamTelemetry\.mode === 'frozen'/,
+  'frozen presentation must still batch camera-driven LOD prefix uploads',
+);
+assert.doesNotMatch(
+  fieldSource,
+  /mesh\.receiveShadow = true/,
   'close groundcover must not restore redundant per-fragment shadow sampling',
 );
 assert.match(
@@ -345,7 +374,6 @@ function plannedGroundcoverUploadBytes(update: GroundcoverSlotUpdate): number {
   const meshSpecs = [
     { capacity: 240, itemSizes: [16, 3, 3, 3] },
     { capacity: 240, itemSizes: [16, 3, 3, 3] },
-    { capacity: 144, itemSizes: [16, 4] },
   ];
   let bytes = 0;
   for (let meshIndex = 0; meshIndex < meshSpecs.length; meshIndex++) {
@@ -365,17 +393,17 @@ function plannedGroundcoverUploadBytes(update: GroundcoverSlotUpdate): number {
 assert.equal(
   plannedGroundcoverUploadBytes({
     slotIndex: 3,
-    dirtyInstanceCounts: [240, 240, 144],
+    dirtyInstanceCounts: [240, 240],
   }),
-  59_520,
-  'a first-time slot must upload the complete expanded wildflower slot',
+  48_000,
+  'a first-time fixed grass slot must upload only its two exact tuft buffers',
 );
 assert.equal(
   plannedGroundcoverUploadBytes({
     slotIndex: 3,
-    dirtyInstanceCounts: [70, 45, 52],
+    dirtyInstanceCounts: [70, 45],
   }),
-  15_660,
+  11_500,
   'a representative recycled slot must publish only exact dirty components',
 );
 assert.deepEqual(
@@ -415,15 +443,15 @@ assert.match(
 );
 
 const recycledCountSequence = [
-  [70, 45, 52],
-  [78, 50, 61],
-  [62, 41, 46],
-  [0, 0, 0],
-  [69, 44, 54],
+  [70, 45],
+  [78, 50],
+  [62, 41],
+  [0, 0],
+  [69, 44],
 ] as const;
-const slotCapacities = [240, 240, 144] as const;
+const slotCapacities = [240, 240] as const;
 let initialized = false;
-let previousCounts = [0, 0, 0];
+let previousCounts = [0, 0];
 let exactUploadBytes = 0;
 let exactClearWrites = 0;
 for (const nextCounts of recycledCountSequence) {
@@ -445,7 +473,7 @@ for (const nextCounts of recycledCountSequence) {
   previousCounts = [...nextCounts];
   initialized = true;
 }
-const fullCapacityUploadBytes = recycledCountSequence.length * 59_520;
+const fullCapacityUploadBytes = recycledCountSequence.length * 48_000;
 const fullCapacityClearWrites = recycledCountSequence.length
   * slotCapacities.reduce((sum, capacity) => sum + capacity, 0);
 assert.ok(
@@ -455,6 +483,52 @@ assert.ok(
 assert.ok(
   exactClearWrites < fullCapacityClearWrites * 0.35,
   'tail-only hiding should remove at least 65% of redundant clear writes',
+);
+
+const representativeWildflowerSlots = [
+  [42, 26, 39, 5, 4],
+  [35, 24, 40, 6, 5],
+  [0, 0, 0, 0, 0],
+] as const;
+const representativeWildflowerLive = countLiveWildflowerInstances(
+  representativeWildflowerSlots,
+);
+assert.equal(representativeWildflowerLive, 226);
+assert.deepEqual(
+  resolveWildflowerLodSubmission(representativeWildflowerLive, true),
+  { submittedInstances: 226, culledInstances: 0 },
+  'near/design views must submit exactly the live compact prefix',
+);
+assert.deepEqual(
+  resolveWildflowerLodSubmission(representativeWildflowerLive, false),
+  { submittedInstances: 0, culledInstances: 226 },
+  'far views must cull every live flower through the shared LOD gate',
+);
+assert.equal(resolveWildflowerGeometryLod('detail', 15, false), 'footprint');
+assert.equal(resolveWildflowerGeometryLod('footprint', 4, true), 'detail');
+assert.equal(resolveWildflowerGeometryLod('detail', 20, true), 'footprint');
+assert.equal(resolveWildflowerGeometryLod('footprint', 11, false), 'footprint');
+const speciesTriangles = [132, 96, 118, 486, 164] as const;
+const speciesCounts = [77, 50, 79, 11, 9] as const;
+const splitTriangleSubmission = estimateWildflowerSubmittedTriangles(
+  speciesCounts,
+  speciesTriangles,
+);
+const mergedTriangleSubmission = speciesCounts.reduce((sum, count) => sum + count, 0)
+  * speciesTriangles.reduce((sum, triangles) => sum + triangles, 0);
+assert.ok(
+  splitTriangleSubmission < mergedTriangleSubmission * 0.3,
+  'species-owned geometry must remove at least 70% of merged-kit vertex/triangle work',
+);
+assert.match(
+  fieldSource,
+  /entry\.mesh\.count = detailCount;[\s\S]*?footprintMesh\.count = footprintCount;[\s\S]*?publishPrefix\(detailCount[\s\S]*?publishPrefix\([\s\S]*?footprintCount/,
+  'both wildflower LOD submissions and uploads must end at exact compact live prefixes',
+);
+assert.match(
+  fieldSource,
+  /wildflowerCompactions[\s\S]*?wildflowerMaxCompactionDurationMs[\s\S]*?wildflowerCompactionBytesUploaded/,
+  'camera-pan regressions must expose compaction count, maximum duration, and uploaded bytes',
 );
 
 function applyGeneratedPrefix(buffer: number[], count: number): void {
@@ -654,8 +728,13 @@ assert.match(
 );
 assert.match(
   fieldSource,
-  /createSeedThreeWildflowerGeometry\(SEEDTHREE_WILDFLOWER_HEAD_SCALE\)/,
-  'the streamed meadow should use the shared enlarged wildflower-head scale',
+  /createSeedThreeWildflowerVariantGeometries\([\s\S]*?SEEDTHREE_WILDFLOWER_HEAD_SCALE/,
+  'the streamed meadow should split the shared enlarged botanical kit by species',
+);
+assert.match(
+  wildflowerSource,
+  /extractWildflowerVariantGeometry[\s\S]*?mask < 1\.5[\s\S]*?structureLow[\s\S]*?remappedIndex/,
+  'each runtime species geometry must retain the common stem and only its own indexed structure',
 );
 assert.match(
   wildflowerSource,

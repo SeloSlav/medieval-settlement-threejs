@@ -97,6 +97,7 @@ use crate::tables::graveyard;
 use crate::tables::{
     farm_field, livestock_herd, pasture, Building, ForagingNode, Quarry, WorldConfig,
 };
+use crate::tree_work_area_policy::{supports_tree_work_area, validate_tree_work_area};
 use crate::weaver_input_policy::is_valid_weaver_input_policy;
 use crate::woodcutter_policy::normalize_woodcutter_timber_reserve;
 use crate::worksite_stall_policy::{
@@ -859,6 +860,9 @@ pub(crate) fn place_building_internal(
         x,
         z,
         work_radius: def.work_radius,
+        tree_work_area_x: 0.0,
+        tree_work_area_z: 0.0,
+        tree_work_area_radius: 0.0,
         action_cooldown: 0.0,
         timber: 0.0,
         firewood: 0.0,
@@ -2471,6 +2475,60 @@ pub fn set_woodcutter_timber_reserve(
         return Err("You do not own this completed woodcutter's lodge.".to_string());
     }
     building.woodcutter_timber_reserve = normalize_woodcutter_timber_reserve(timber_reserve);
+    ctx.db.building().id().update(building);
+    Ok(())
+}
+
+#[reducer]
+pub fn set_tree_work_area(
+    ctx: &ReducerContext,
+    building_id: u64,
+    x: f64,
+    z: f64,
+    radius: f64,
+) -> Result<(), String> {
+    validate_tree_work_area(x, z, radius).map_err(str::to_string)?;
+
+    let owner = ctx.sender();
+    let mut building = ctx
+        .db
+        .building()
+        .id()
+        .find(&building_id)
+        .ok_or_else(|| "Tree-work building not found.".to_string())?;
+    if building.owner != owner
+        || !building.construction_complete
+        || !supports_tree_work_area(&building.kind)
+    {
+        return Err("You do not own this completed tree-work building.".to_string());
+    }
+
+    building.tree_work_area_x = x;
+    building.tree_work_area_z = z;
+    building.tree_work_area_radius = radius;
+    ctx.db.building().id().update(building);
+    Ok(())
+}
+
+#[reducer]
+pub fn clear_tree_work_area(ctx: &ReducerContext, building_id: u64) -> Result<(), String> {
+    let owner = ctx.sender();
+    let mut building = ctx
+        .db
+        .building()
+        .id()
+        .find(&building_id)
+        .ok_or_else(|| "Tree-work building not found.".to_string())?;
+    if building.owner != owner
+        || !building.construction_complete
+        || !supports_tree_work_area(&building.kind)
+    {
+        return Err("You do not own this completed tree-work building.".to_string());
+    }
+
+    building.tree_work_area_x = 0.0;
+    building.tree_work_area_z = 0.0;
+    building.tree_work_area_radius = 0.0;
     ctx.db.building().id().update(building);
     Ok(())
 }

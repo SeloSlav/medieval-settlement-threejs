@@ -10,6 +10,7 @@ use crate::tree_regrowth_policy::{
     natural_tree_growth_per_second, reforester_growth_per_tree_per_second,
     tree_regrowth_step_seconds, tree_regrowth_update_due, TREE_SAPLING_PHASE_THRESHOLD,
 };
+use crate::tree_work_area_policy::{effective_tree_work_area, tree_work_area_contains};
 
 pub fn step_natural_tree_regrowth(ctx: &ReducerContext, sim_tick: u64) {
     if !tree_regrowth_update_due(sim_tick) {
@@ -50,7 +51,14 @@ pub fn step_reforester(
         return;
     }
 
-    let radius_sq = def.work_radius * def.work_radius;
+    let work_area = effective_tree_work_area(
+        building.x,
+        building.z,
+        def.work_radius,
+        building.tree_work_area_x,
+        building.tree_work_area_z,
+        building.tree_work_area_radius,
+    );
     let recovering_trees: Vec<TreeEntity> = ctx
         .db
         .tree_entity()
@@ -59,9 +67,7 @@ pub fn step_reforester(
             if !matches!(tree.phase.as_str(), "stump" | "growing") {
                 return false;
             }
-            let dx = tree.x - building.x;
-            let dz = tree.z - building.z;
-            dx * dx + dz * dz <= radius_sq
+            tree_work_area_contains(work_area, tree.x, tree.z)
         })
         .collect();
     let growth_increment =

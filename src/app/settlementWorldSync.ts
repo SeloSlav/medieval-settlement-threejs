@@ -97,6 +97,9 @@ export function syncSettlementWorld(
       && current.x === prior.x
       && current.z === prior.z
       && current.workRadius === prior.workRadius
+      && current.treeWorkArea?.x === prior.treeWorkArea?.x
+      && current.treeWorkArea?.z === prior.treeWorkArea?.z
+      && current.treeWorkArea?.radius === prior.treeWorkArea?.radius
       && current.assignedLabor === prior.assignedLabor,
   );
   const workerResourcesChanged = !previous

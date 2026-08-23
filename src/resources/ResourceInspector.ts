@@ -85,6 +85,7 @@ import {
   type FoodInventoryKind,
 } from '../economy/foodInventory.ts';
 import { AlertDialog } from '../ui/AlertDialog.ts';
+import { hasCustomTreeWorkArea } from './treeWorkArea.ts';
 
 const BUILDING_SUMMARY_LIMIT = 4;
 
@@ -115,6 +116,7 @@ type ResourceInspectorOptions = {
   getWellAquiferNetworksEnabled?: () => boolean;
   getWorldResourceAbundance?: () => number;
   getWorksiteCommuteSummary?: (buildingId: string) => WorksiteCommuteSummary | null;
+  getPendingTreeWorkAreaBuildingId?: () => string | null;
   onDemolishBuilding?: (buildingId: string) => void | Promise<void>;
   onDemolishResidence?: (residenceId: string) => void | Promise<void>;
   onUpgradeResidence?: (residenceId: string) => void | Promise<void>;
@@ -308,6 +310,8 @@ type ResourceInspectorOptions = {
   onBeginGraveyardPlacement?: (chapelId: string) => void;
   onBeginVineyardPlacement?: (monasteryId: string) => void;
   onBeginRemoteWorkCampPlacement?: (worksiteId: string) => void;
+  onBeginTreeWorkAreaPlacement?: (buildingId: string) => void;
+  onClearTreeWorkArea?: (buildingId: string) => void | Promise<void>;
   onInspectDeliveryTrip?: (tripId: string) => void;
   onFocusWorldPosition?: (x: number, z: number) => void;
   onServiceCoverageChange?: (
@@ -912,6 +916,17 @@ export class ResourceInspector {
     }
     if (this.selectedTarget?.kind === 'building') {
       const building = this.selectedTarget.building;
+      if (
+        (event.target as HTMLElement).closest('[data-tree-work-area-action]')
+        && (building.kind === 'lumber_mill' || building.kind === 'reforester')
+      ) {
+        if (hasCustomTreeWorkArea(building)) {
+          void this.options.onClearTreeWorkArea?.(building.id);
+        } else {
+          this.options.onBeginTreeWorkAreaPlacement?.(building.id);
+        }
+        return;
+      }
       const threshingPriority = (event.target as HTMLElement)
         .closest<HTMLElement>('[data-threshing-priority]')
         ?.dataset.threshingPriority;
@@ -2037,6 +2052,8 @@ export class ResourceInspector {
       worldResourceAbundance: this.options.getWorldResourceAbundance?.() ?? 50,
       conflictEnabled: this.options.getConflictEnabled?.() ?? false,
       enemyPressure: this.options.getEnemyPressure?.() ?? 0,
+      pendingTreeWorkAreaBuildingId:
+        this.options.getPendingTreeWorkAreaBuildingId?.() ?? null,
       ...(this.options.getWorksiteCommuteSummary
         ? { getWorksiteCommuteSummary: this.options.getWorksiteCommuteSummary }
         : {}),
@@ -2500,7 +2517,8 @@ export class ResourceInspector {
     const panels = [...this.supplementalPanelSection.children]
       .filter((element): element is HTMLElement =>
         element instanceof HTMLElement
-        && element.classList.contains('inspector-action-panel'));
+        && element.classList.contains('inspector-action-panel')
+        && !element.hasAttribute('data-inspector-pinned-action'));
 
     for (const panel of panels) {
       const controls = [...panel.querySelectorAll<HTMLElement>(

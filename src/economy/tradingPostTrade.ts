@@ -127,6 +127,65 @@ export function tradingPostExchangeDue(
     && rule.lastSettledMonth < currentExchange);
 }
 
+/**
+ * Mirrors the authority's deterministic fair ordering for imports that share
+ * a limited civic treasury. Exports always settle first; this order only
+ * describes which active import receives the first funding opportunity.
+ */
+export function tradingPostImportFundingOrder(
+  rules: readonly TradingPostTradeRuleState[],
+  simTick: number,
+  publicStock: (resource: TradeResourceKind) => number = () => 0,
+): TradeResourceKind[] {
+  const imports = rules
+    .filter((rule) => rule.mode === TRADE_MODE_IMPORT)
+    .sort((left, right) => left.commodityKind - right.commodityKind);
+  if (imports.length === 0) return [];
+  const currentExchange = regionalExchangeSequence(simTick);
+  const currentCohort = imports.filter((rule) => rule.lastSettledMonth < currentExchange);
+  const settlementExchange = currentCohort.length > 0 ? currentExchange : currentExchange + 1;
+  const cohort = currentCohort.length > 0
+    ? currentCohort
+    : imports.filter((rule) => rule.lastSettledMonth < settlementExchange);
+  if (cohort.length === 0) return [];
+  const offset = settlementExchange % cohort.length;
+  return [...cohort.slice(offset), ...cohort.slice(0, offset)]
+    .sort((left, right) => importTargetFulfillment(
+      publicStock(left.commodity),
+      left.targetSurplus,
+    ) - importTargetFulfillment(
+      publicStock(right.commodity),
+      right.targetSurplus,
+    ))
+    .map((rule) => rule.commodity);
+}
+
+export function importTargetFulfillment(publicStock: number, targetSurplus: number): number {
+  const target = Math.max(0, Math.min(9_999, Math.round(
+    Number.isFinite(targetSurplus) ? targetSurplus : 0,
+  )));
+  if (target <= 1e-9) return 1;
+  return Math.max(0, Math.min(1, publicStock / target));
+}
+
+export function fairImportGoldBudget(remainingGold: number, remainingRules: number): number {
+  if (!Number.isFinite(remainingGold) || remainingRules <= 0) return 0;
+  const availableCents = Math.floor(Math.max(0, remainingGold) * 100);
+  return Math.floor(availableCents / Math.floor(remainingRules)) / 100;
+}
+
+export function tradingPostServiceRouteOrder(
+  actionCooldown: number,
+  routeCount: number,
+): number[] {
+  const count = Math.max(0, Math.floor(routeCount));
+  if (count === 0) return [];
+  const start = Number.isFinite(actionCooldown) && actionCooldown >= 0
+    ? Math.floor(actionCooldown) % count
+    : 0;
+  return Array.from({ length: count }, (_, offset) => (start + offset) % count);
+}
+
 export function buildingTradeStock(building: BuildingState, resource: TradeResourceKind): number {
   return Math.max(0, Number(
     (building as unknown as Partial<Record<TradeResourceKind, number>>)[resource] ?? 0,

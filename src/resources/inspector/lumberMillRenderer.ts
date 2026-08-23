@@ -9,13 +9,16 @@ import {
   buildingLaborView,
   buildingRoadAccessRow,
   buildingStorageRows,
-  buildingExtentRow,
   treeCountRows,
 } from './buildingCommon.ts';
 import { getBuildingProcessorStatus } from './buildingProcessorStatus.ts';
 import type { InspectorRenderContext, InspectorView } from './renderInspectableTarget.ts';
 import { onsiteBuildingLabor } from '../../logistics/deliveryTrips.ts';
 import { civilianToolThroughputMultiplier } from '../../economy/civilianToolPolicy.ts';
+import {
+  forestryWorkAreaDetailRow,
+  renderForestryWorkAreaPanel,
+} from './treeWorkAreaRenderer.ts';
 
 export function renderLumberMillInspector(
   target: Extract<InspectableTarget, { kind: 'building' }>,
@@ -43,7 +46,7 @@ export function renderLumberMillInspector(
       ${buildingRoadAccessRow(context.worldQueries, building)}
       ${processorStatus?.waterDetailHtml ?? ''}
       ${civilianToolRows(building, context.worldQueries)}
-      ${buildingExtentRow(building.kind)}
+      ${forestryWorkAreaDetailRow(building)}
       <li><span>Harvest interval</span><span>${onsiteLabor > 0 ? `${cycleSeconds.toFixed(1)}s` : 'paused'} (${onsiteLabor} on site / ${building.assignedLabor} assigned)</span></li>
       ${treeCountRows(matureTrees, stumpTrees, growingTrees)}
       ${buildingStorageRows(building, building.kind)}
@@ -53,5 +56,8 @@ export function renderLumberMillInspector(
       hint: buildingDemolishHint(building.kind),
     },
     labor: buildingLaborView(building, context.populationStats, context.worldQueries),
+    supplementalPanelHtml: renderForestryWorkAreaPanel(building, {
+      pending: context.pendingTreeWorkAreaBuildingId === building.id,
+    }),
   };
 }

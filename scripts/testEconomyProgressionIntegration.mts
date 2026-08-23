@@ -10,7 +10,13 @@ import {
   TRADE_MODE_IMPORT,
   TRADE_RESOURCE_COMMODITY_CODES,
 } from '../src/economy/tradingPostTrade.ts';
-import type { TradeResourceKind } from '../src/generated/gameBalance.ts';
+import {
+  CALENDAR_SECONDS_PER_DAY,
+  FOOD_CATEGORY_QUALIFYING_DAYS,
+  RESIDENCE_SERVICE_WARNING_DAYS,
+  SIM_TICK_SECONDS,
+  type TradeResourceKind,
+} from '../src/generated/gameBalance.ts';
 import {
   DEFAULT_SPACETIME_URI,
   assertSpacetimeServerAvailable,
@@ -233,6 +239,13 @@ async function runProgressionScenario(connection: DbConnection): Promise<Record<
     constructionSeconds[kind] = roundSeconds(performance.now() - started);
     const endedTick = Number(worldConfig(connection)?.simTick ?? 0n);
     constructionTicks[kind] = endedTick - startedTick;
+    console.log(JSON.stringify({
+      checkpoint: `${kind} construction`,
+      startTick: startedTick,
+      endTick: endedTick,
+      tickDelta: endedTick - startedTick,
+      realSeconds: constructionSeconds[kind],
+    }));
     if (kind === 'village_storehouse') {
       console.log(JSON.stringify({
         checkpoint: 'village_storehouse construction',
@@ -316,6 +329,58 @@ async function runProgressionScenario(connection: DbConnection): Promise<Record<
     },
   );
 
+  const recoveringTreesBeforeReforester = new Map(
+    [...connection.db.tree_entity.iter()]
+      .filter((row) => row.treeId.startsWith('economy-progression-tree-') && row.phase !== 'mature')
+      .map((row) => [row.treeId, row.growthProgress]),
+  );
+  assert(
+    recoveringTreesBeforeReforester.size > 0,
+    'normal timber extraction must leave at least one physical tree available for managed regrowth',
+  );
+  const reforesterRecoveryStartedTick = Number(worldConfig(connection)?.simTick ?? 0n);
+  await placeCompleteAndStaffBuilding(connection, 'reforester', 9_040, 14, 1);
+  await waitUntil(
+    () => [...connection.db.tree_entity.iter()].some((row) => {
+      const baseline = recoveringTreesBeforeReforester.get(row.treeId);
+      return baseline != null && row.growthProgress > baseline + 1e-6;
+    }),
+    'staffed reforester advances a felled tree toward renewable timber',
+    {
+      timeoutMs: 90_000,
+      describe: () => describeTreeRecovery(connection, recoveringTreesBeforeReforester),
+    },
+  );
+  const reforesterRecoveryObservedTick = Number(worldConfig(connection)?.simTick ?? 0n);
+
+  // The quarry has already proved local stone extraction and accumulated the
+  // opening material buffer. Rotate that worker into services/building so the
+  // renewable timber path remains staffed while one founder stays available
+  // for a physical residence project or cart.
+  await callReducer(connection, 'assignBuildingLabor', 'assign_building_labor', {
+    buildingId: requiredBuilding(connection, 'stone_quarry').id,
+    labor: 0,
+  });
+  await waitUntil(
+    () => requiredBuilding(connection, 'stone_quarry').assignedLabor === 0,
+    'quarry worker release for Tier-2 preparation',
+  );
+
+  // Building the service outlet before promotion is legitimate preparation;
+  // its Tier-2 goods remain physically absent at the promotion click. The
+  // grain import is also valid Tier-1 food, and recurring renewable timber and
+  // firewood exports pay for it before the future ale/cloth rules are enabled.
+  await placeCompleteAndStaffBuilding(connection, 'tavern', 9_020, 14, 1);
+  const tradingPost = requiredBuilding(connection, 'trading_post');
+  for (const [resource, reserve] of [
+    ['timber', 36],
+    ['stone', 28],
+    ['firewood', 18],
+  ] as const) {
+    await setTradingPostRule(connection, tradingPost.id, resource, TRADE_MODE_EXPORT, reserve);
+  }
+  await setTradingPostRule(connection, tradingPost.id, 'ryeBread', TRADE_MODE_IMPORT, 6);
+
   await waitUntil(
     () => newResidences(connection, beforeResidenceIds)
       .reduce((total, row) => total + row.population, 0) >= 10,
@@ -335,10 +400,19 @@ async function runProgressionScenario(connection: DbConnection): Promise<Record<
     .filter((row) => row.tier === 1 && row.population >= 3)
     .sort((a, b) => Number(a.id - b.id))[0];
   assert(promotionCandidate, 'at least one occupied tier-one residence must fund its own first promotion');
+  await waitUntil(
+    () => tierTwoFoodPreparationReady(connection, promotionCandidate.id),
+    'recurring grain staple and local foraged category prepared for Tier 2',
+    {
+      timeoutMs: 120_000,
+      describe: () => describeTierTwoFoodPreparation(connection, promotionCandidate.id),
+    },
+  );
   assert.equal(totalPhysicalCommodity(connection, 'ale'), 0, 'Tier 2 ale must be absent before Tier 1 promotion');
   assert.equal(totalPhysicalCommodity(connection, 'cloth'), 0, 'Tier 2 cloth must be absent before Tier 1 promotion');
 
   const promotionStarted = performance.now();
+  const promotionStartedTick = Number(worldConfig(connection)?.simTick ?? 0n);
   await callReducer(connection, 'upgradeResidence', 'upgrade_residence', {
     residenceId: promotionCandidate.id,
   });
@@ -351,34 +425,50 @@ async function runProgressionScenario(connection: DbConnection): Promise<Record<
     },
   );
   constructionSeconds.tier1ToTier2 = roundSeconds(performance.now() - promotionStarted);
+  const promotionEndedTick = Number(worldConfig(connection)?.simTick ?? 0n);
+  constructionTicks.tier1ToTier2 = promotionEndedTick - promotionStartedTick;
+  console.log(JSON.stringify({
+    checkpoint: 'Tier 1 to Tier 2 residence promotion',
+    startTick: promotionStartedTick,
+    endTick: promotionEndedTick,
+    tickDelta: constructionTicks.tier1ToTier2,
+    gameDays: constructionTicks.tier1ToTier2 * SIM_TICK_SECONDS / CALENDAR_SECONDS_PER_DAY,
+    realSeconds: constructionSeconds.tier1ToTier2,
+  }));
   assert.equal(totalPhysicalCommodity(connection, 'ale'), 0, 'promotion must not invent future-tier ale');
   assert.equal(totalPhysicalCommodity(connection, 'cloth'), 0, 'promotion must not invent future-tier cloth');
 
-  await placeCompleteAndStaffBuilding(connection, 'tavern', 9_020, 14, 1);
-  const tradingPost = requiredBuilding(connection, 'trading_post');
-  for (const [resource, reserve] of [
-    ['timber', 36],
-    ['stone', 28],
-    ['firewood', 18],
-    ['berries', 8],
-    ['mushrooms', 8],
-  ] as const) {
-    await setTradingPostRule(connection, tradingPost.id, resource, TRADE_MODE_EXPORT, reserve);
-  }
-  await setTradingPostRule(connection, tradingPost.id, 'ale', TRADE_MODE_IMPORT, 12);
-  await setTradingPostRule(connection, tradingPost.id, 'cloth', TRADE_MODE_IMPORT, 12);
+  await setTradingPostRule(connection, tradingPost.id, 'ale', TRADE_MODE_IMPORT, 6);
+  await setTradingPostRule(connection, tradingPost.id, 'cloth', TRADE_MODE_IMPORT, 6);
+  const tierTwoNeedsActivatedTick = promotionEndedTick;
   await waitUntil(
-    () => (buildingByKind(connection, 'tavern')?.ale ?? 0) > 1e-6
-      && (buildingByKind(connection, 'marketplace')?.cloth ?? 0) > 1e-6,
-    'physical Tier-2 beverage and cloth service stock',
+    () => tierNeedRecoveryState(connection, promotionCandidate.id, 2).ready,
+    'all newly active Tier-2 needs recover physically',
     {
       timeoutMs: 120_000,
-      describe: () => `post[gold=${requiredBuilding(connection, 'trading_post').gold.toFixed(2)},ale=${requiredBuilding(connection, 'trading_post').ale.toFixed(2)},cloth=${requiredBuilding(connection, 'trading_post').cloth.toFixed(2)}], tavernAle=${requiredBuilding(connection, 'tavern').ale.toFixed(2)}, marketCloth=${requiredBuilding(connection, 'marketplace').cloth.toFixed(2)}`,
+      describe: () => tierNeedRecoveryState(connection, promotionCandidate.id, 2).description,
     },
   );
+  const tierTwoNeedsRecoveredTick = Number(worldConfig(connection)?.simTick ?? 0n);
+  const serviceWarningTicks = Math.ceil(
+    RESIDENCE_SERVICE_WARNING_DAYS * CALENDAR_SECONDS_PER_DAY / SIM_TICK_SECONDS,
+  );
+  assert(
+    tierTwoNeedsRecoveredTick - tierTwoNeedsActivatedTick <= serviceWarningTicks,
+    `Tier-2 needs recovered in ${tierTwoNeedsRecoveredTick - tierTwoNeedsActivatedTick} ticks, after the ${serviceWarningTicks}-tick warning window`,
+  );
+  console.log(JSON.stringify({
+    checkpoint: 'Tier-2 active-need recovery',
+    activatedTick: tierTwoNeedsActivatedTick,
+    recoveredTick: tierTwoNeedsRecoveredTick,
+    tickDelta: tierTwoNeedsRecoveredTick - tierTwoNeedsActivatedTick,
+    warningTicks: serviceWarningTicks,
+    ...tierNeedRecoveryState(connection, promotionCandidate.id, 2).evidence,
+  }));
 
   assert.equal(totalPhysicalCommodity(connection, 'shoes'), 0, 'Tier 3 shoes must be absent before Tier 2 promotion');
   const tierTwoPromotionStarted = performance.now();
+  const tierTwoPromotionStartedTick = Number(worldConfig(connection)?.simTick ?? 0n);
   await callReducer(connection, 'upgradeResidence', 'upgrade_residence', {
     residenceId: promotionCandidate.id,
   });
@@ -391,6 +481,16 @@ async function runProgressionScenario(connection: DbConnection): Promise<Record<
     },
   );
   constructionSeconds.tier2ToTier3 = roundSeconds(performance.now() - tierTwoPromotionStarted);
+  const tierTwoPromotionEndedTick = Number(worldConfig(connection)?.simTick ?? 0n);
+  constructionTicks.tier2ToTier3 = tierTwoPromotionEndedTick - tierTwoPromotionStartedTick;
+  console.log(JSON.stringify({
+    checkpoint: 'Tier 2 to Tier 3 residence promotion',
+    startTick: tierTwoPromotionStartedTick,
+    endTick: tierTwoPromotionEndedTick,
+    tickDelta: constructionTicks.tier2ToTier3,
+    gameDays: constructionTicks.tier2ToTier3 * SIM_TICK_SECONDS / CALENDAR_SECONDS_PER_DAY,
+    realSeconds: constructionSeconds.tier2ToTier3,
+  }));
 
   assertFiniteNonNegativeState(connection);
   const finalResidences = newResidences(connection, beforeResidenceIds);
@@ -408,6 +508,9 @@ async function runProgressionScenario(connection: DbConnection): Promise<Record<
       berriesUsed: berriesBefore
         - (foragingNode(connection, 'economy-progression-berries')?.remaining ?? berriesBefore),
       treesHarvested: matureTreesBefore - matureTreeCount(connection),
+      reforesterRecoveryStartedTick,
+      reforesterRecoveryObservedTick,
+      reforesterRecoveryTicks: reforesterRecoveryObservedTick - reforesterRecoveryStartedTick,
     },
     futureTierGoodsAbsentAtPromotion: ['ale', 'cloth', 'shoes'],
     remainingAuthoritativeStages: [
@@ -581,6 +684,111 @@ function totalPhysicalCommodity(
     .filter((row) => row.cargoKind === cargoKind)
     .reduce((total, row) => total + row.amount, 0);
   return buildingStock + resourceStock + cartStock;
+}
+
+function tierTwoFoodPreparationReady(
+  connection: DbConnection,
+  residenceId: bigint,
+): boolean {
+  const residence = residenceById(connection, residenceId);
+  const marketplace = buildingByKind(connection, 'marketplace');
+  if (!residence || !marketplace) return false;
+  const qualifyingMeals = Math.max(1, residence.population) / 3 * FOOD_CATEGORY_QUALIFYING_DAYS;
+  const grainUnits = residence.food + residence.oatGrain + residence.ryeBread
+    + residence.maslinBread + marketplace.food + marketplace.oatGrain
+    + marketplace.ryeBread + marketplace.maslinBread;
+  // The authoritative need row remains the final category/meal-value proof.
+  // Requiring twice the meal threshold in raw local forage units here avoids
+  // treating a trace delivery as meaningful Tier-2 preparation.
+  const localForageUnits = residence.berries + residence.mushrooms
+    + residence.aronia + residence.rosehips;
+  return grainUnits + 1e-6 >= qualifyingMeals
+    && localForageUnits + 1e-6 >= qualifyingMeals * 2;
+}
+
+function describeTierTwoFoodPreparation(
+  connection: DbConnection,
+  residenceId: bigint,
+): string {
+  const residence = residenceById(connection, residenceId);
+  const marketplace = buildingByKind(connection, 'marketplace');
+  const post = buildingByKind(connection, 'trading_post');
+  if (!residence || !marketplace || !post) return 'required pantry or serving outlet absent';
+  return `home[pop=${residence.population},food=${residence.food.toFixed(2)},oats=${residence.oatGrain.toFixed(2)},ryeBread=${residence.ryeBread.toFixed(2)},maslinBread=${residence.maslinBread.toFixed(2)},berries=${residence.berries.toFixed(2)},mushrooms=${residence.mushrooms.toFixed(2)},aronia=${residence.aronia.toFixed(2)},rosehips=${residence.rosehips.toFixed(2)}], market[food=${marketplace.food.toFixed(2)},oats=${marketplace.oatGrain.toFixed(2)},ryeBread=${marketplace.ryeBread.toFixed(2)},maslinBread=${marketplace.maslinBread.toFixed(2)}], post[gold=${post.gold.toFixed(2)},ryeBread=${post.ryeBread.toFixed(2)}]`;
+}
+
+function tierNeedRecoveryState(
+  connection: DbConnection,
+  residenceId: bigint,
+  tier: 2 | 3 | 4,
+): {
+  ready: boolean;
+  description: string;
+  evidence: Record<string, unknown>;
+} {
+  const activeNeedIds = tier === 2
+    ? [0, 1, 2, 6, 14, 42, 43]
+    : tier === 3
+      ? [0, 1, 2, 6, 14, 42, 43, 60]
+      : [0, 1, 2, 6, 7, 14, 23, 42, 43, 57, 60];
+  const needs = [...connection.db.residence_need.iter()]
+    .filter((row) => row.residenceId === residenceId);
+  const byKind = new Map(needs.map((row) => [row.needKind, row]));
+  const missingNeedIds = activeNeedIds.filter((kind) => !byKind.has(kind));
+  const deficitNeedIds = activeNeedIds.filter((kind) => (byKind.get(kind)?.deficitTicks ?? 1) > 0);
+  const requiredFoodSlots = tier === 2 ? 2 : tier === 3 ? 4 : 5;
+  const foodVarietyStock = byKind.get(43)?.stock ?? 0;
+  const churchTier = byKind.get(42)?.stock ?? 0;
+  const requiredChurchTier = tier <= 2 ? 1 : tier === 3 ? 2 : 3;
+  const tavern = buildingByKind(connection, 'tavern');
+  const marketplace = buildingByKind(connection, 'marketplace');
+  const aleNeedStock = byKind.get(6)?.stock ?? 0;
+  const clothNeedStock = byKind.get(14)?.stock ?? 0;
+  const aleOutletStock = tavern
+    ? tavern.ale + tavern.cider + tavern.pearCider + tavern.mead
+    : 0;
+  const clothOutletStock = marketplace?.cloth ?? 0;
+  const physicalTierTwoNeedsReady = (aleNeedStock > 1e-6 || aleOutletStock > 1e-6)
+    && (clothNeedStock > 1e-6 || clothOutletStock > 1e-6);
+  const ready = missingNeedIds.length === 0
+    && deficitNeedIds.length === 0
+    && foodVarietyStock + 1e-6 >= requiredFoodSlots
+    && churchTier + 1e-6 >= requiredChurchTier
+    && physicalTierTwoNeedsReady;
+  const evidence = {
+    tier,
+    missingNeedIds,
+    deficitNeedIds,
+    foodVarietyStock,
+    requiredFoodSlots,
+    churchTier,
+    requiredChurchTier,
+    aleNeedStock,
+    aleOutletStock,
+    clothNeedStock,
+    clothOutletStock,
+  };
+  return {
+    ready,
+    description: `${JSON.stringify(evidence)}; ${describeResidenceWithNeeds(connection, residenceId)}; ${describeTierTwoFoodPreparation(connection, residenceId)}`,
+    evidence,
+  };
+}
+
+function describeTreeRecovery(
+  connection: DbConnection,
+  baseline: ReadonlyMap<string, number>,
+): string {
+  const tracked = [...connection.db.tree_entity.iter()]
+    .filter((row) => baseline.has(row.treeId));
+  const progressed = tracked.filter((row) =>
+    row.growthProgress > (baseline.get(row.treeId) ?? row.growthProgress) + 1e-6,
+  );
+  const maxDelta = tracked.reduce(
+    (maximum, row) => Math.max(maximum, row.growthProgress - (baseline.get(row.treeId) ?? 0)),
+    0,
+  );
+  return `tracked=${tracked.length}, progressed=${progressed.length}, maxDelta=${maxDelta.toFixed(4)}, phases=${tracked.map((row) => `${row.treeId}:${row.phase}/${row.growthProgress.toFixed(3)}`).join(',')}`;
 }
 
 function describeResidenceWithNeeds(connection: DbConnection, residenceId: bigint): string {
