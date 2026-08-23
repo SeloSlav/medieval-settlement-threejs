@@ -5,12 +5,11 @@ use crate::balance_generated::{
     FARM_EARLY_HARVEST_RIPENESS_FACTOR, FARM_FIELD_BOUNDARY_WORK_PER_METER_PER_STAGE,
     FARM_FIELD_SETUP_WORK_PER_STAGE, FARM_FIELD_TRAVEL_WORK_PER_METER_PER_STAGE,
     FARM_HARVEST_WORK_PER_SQUARE_METER, FARM_MANURE_FERTILITY_BONUS, FARM_MANURE_PER_SQUARE_METER,
-    FARM_PLOUGH_WORK_PER_SQUARE_METER, FARM_SHARED_LABOR_MIN_PRIORITY,
-    FARM_REGIONAL_AFFINITY_FLOOR, FARM_REGIONAL_ASPECT_RATIO,
+    FARM_PLOUGH_WORK_PER_SQUARE_METER, FARM_REGIONAL_AFFINITY_FLOOR, FARM_REGIONAL_ASPECT_RATIO,
     FARM_REGIONAL_CENTER_RADIUS_RATIO, FARM_REGIONAL_CORE_RADIUS_RATIO,
     FARM_REGIONAL_PRIME_CROPS_LARGE, FARM_REGIONAL_PRIME_CROPS_MEDIUM,
     FARM_REGIONAL_PRIME_CROPS_SMALL, FARM_REGIONAL_UNREPRESENTED_CEILING,
-    FARM_REGIONAL_YIELD_FLOOR, FARM_SLOPE_PENALTY_PER_DEGREE,
+    FARM_REGIONAL_YIELD_FLOOR, FARM_SHARED_LABOR_MIN_PRIORITY, FARM_SLOPE_PENALTY_PER_DEGREE,
     FARM_SOW_WORK_PER_SQUARE_METER,
 };
 use crate::burgage::{Point2, ZoneCorners};
@@ -290,11 +289,14 @@ fn crop_regional_profile(
     };
     let layout_hash = regional_seed_hash(world_seed, 0xa511_e9b3);
     let rotation = (layout_hash % 5) as i32;
-    let direction = if layout_hash & 0x100 == 0 { 1_i32 } else { -1_i32 };
+    let direction = if layout_hash & 0x100 == 0 {
+        1_i32
+    } else {
+        -1_i32
+    };
     let rank = (direction * (crop_index - rotation)).rem_euclid(5);
     let generation_half = generation_half_for_map_size(map_size);
-    let base_angle = regional_seed_hash(world_seed, 0x63d8_35f1) as f64
-        / 4_294_967_296.0
+    let base_angle = regional_seed_hash(world_seed, 0x63d8_35f1) as f64 / 4_294_967_296.0
         * std::f64::consts::TAU;
     let province_angle = if rank == 0 {
         base_angle
@@ -330,8 +332,7 @@ fn crop_regional_profile(
     };
     let affinity = FARM_REGIONAL_AFFINITY_FLOOR
         + (affinity_ceiling - FARM_REGIONAL_AFFINITY_FLOOR) * province_strength;
-    let yield_multiplier = FARM_REGIONAL_YIELD_FLOOR
-        + (1.0 - FARM_REGIONAL_YIELD_FLOOR) * affinity;
+    let yield_multiplier = FARM_REGIONAL_YIELD_FLOOR + (1.0 - FARM_REGIONAL_YIELD_FLOOR) * affinity;
     CropRegionalProfile {
         #[cfg(test)]
         rank,
@@ -731,12 +732,10 @@ mod tests {
             (190.0, 240.0),
             (320.0, -140.0),
         ];
-        let rye_scores = sites.map(|(x, z)| {
-            crop_environmental_suitability(CROP_RYE, 0.0, x, z, 0x071a_2e0d, 1)
-        });
-        let oats_scores = sites.map(|(x, z)| {
-            crop_environmental_suitability(CROP_OATS, 0.0, x, z, 0x071a_2e0d, 1)
-        });
+        let rye_scores =
+            sites.map(|(x, z)| crop_environmental_suitability(CROP_RYE, 0.0, x, z, 0x071a_2e0d, 1));
+        let oats_scores = sites
+            .map(|(x, z)| crop_environmental_suitability(CROP_OATS, 0.0, x, z, 0x071a_2e0d, 1));
         assert_ne!(rye_scores, oats_scores);
         assert!(
             rye_scores.iter().copied().fold(f64::MIN, f64::max)
@@ -773,7 +772,10 @@ mod tests {
                 )
             });
             assert_eq!(
-                profiles.iter().filter(|profile| profile.represented).count(),
+                profiles
+                    .iter()
+                    .filter(|profile| profile.represented)
+                    .count(),
                 expected_prime_crops
             );
             for profile in profiles {
@@ -788,8 +790,7 @@ mod tests {
             }
         }
 
-        let parity_fixture =
-            crop_regional_profile(CROP_FLAX, 123.5, -87.25, 0x071a_2e0d, 2);
+        let parity_fixture = crop_regional_profile(CROP_FLAX, 123.5, -87.25, 0x071a_2e0d, 2);
         assert_eq!(parity_fixture.rank, 0);
         assert!((parity_fixture.province_strength - 0.871_211_802_324_760_8).abs() < 1e-12);
         assert!((parity_fixture.affinity - 0.884_090_622_092_284_7).abs() < 1e-12);

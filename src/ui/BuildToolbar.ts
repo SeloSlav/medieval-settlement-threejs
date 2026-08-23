@@ -21,6 +21,7 @@ import {
   hydrateBuildMenuImages,
   renderBuildMenuCards,
   runBuildMenuAction,
+  syncBuildMenuCardAffordability,
 } from './buildMenuCards.ts';
 import { toolbarModeToMenuAction } from './buildMenuMapping.ts';
 import type { PlacementBuildMenuAction } from './buildMenuCards.ts';
@@ -37,6 +38,7 @@ import type {
 } from '../world/seasonPolicy.ts';
 import { resolveGameSpeedHotkey, type GameSpeed } from '../world/gameSpeed.ts';
 import { cropDefinition, cropLabel } from '../farming/farmFieldMath.ts';
+import type { ResourceCostAmounts } from './resourceCost.ts';
 
 export type { ToolbarStats };
 
@@ -161,6 +163,7 @@ export class BuildToolbar {
   private cropSuitabilityActive = false;
   private vineyardSuitabilityActive = false;
   private currentFarmCrop: MapOverlaySelection['crop'] = 'wheat';
+  private availableResourceCosts: ResourceCostAmounts | null = null;
   private readonly requestGameSpeed: (speed: GameSpeed) => void;
   private readonly onKeyDown = (event: KeyboardEvent): void => {
     if (isTypingTarget(event.target) || this.isGameMenuOpen()) return;
@@ -641,6 +644,8 @@ export class BuildToolbar {
 
   setStats(stats: ToolbarStats): void {
     this.hudMode = stats.mode;
+    this.availableResourceCosts = stats.availableResources ?? null;
+    syncBuildMenuCardAffordability(this.buildMenu, this.availableResourceCosts);
     const placingStarterCamp = stats.mode === 'founders_camp';
     this.starterCampButton.classList.toggle('is-active', placingStarterCamp);
     this.starterCampButton.setAttribute('aria-pressed', String(placingStarterCamp));
@@ -655,7 +660,7 @@ export class BuildToolbar {
     this.buildButton.setAttribute('aria-label', wallMode ? 'Build dry-stone wall' : 'Build road');
     this.buildButton.classList.toggle('is-ready', stats.canBuild);
     this.buildButton.classList.toggle('has-draft', stats.hasDraft);
-    const statusState = stats.placementBlocked
+    const statusState = stats.placementBlocked && !stats.placementResourceShortfall
       ? 'warning'
       : stats.placementReady
         ? 'ready'
@@ -942,6 +947,7 @@ export class BuildToolbar {
     const viewport = this.mustElement(this.buildMenu, '[data-build-menu-viewport]');
     viewport.scrollLeft = 0;
     hydrateBuildMenuImages(this.buildMenuCards);
+    syncBuildMenuCardAffordability(this.buildMenuCards, this.availableResourceCosts);
     for (const button of this.buildMenuCategoryButtons) {
       const active = button.dataset.buildCategory === category.id;
       button.classList.toggle('is-active', active);

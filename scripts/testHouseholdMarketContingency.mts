@@ -598,7 +598,13 @@ const residenceInspector = readFileSync(
 );
 assert.match(residenceInspector, /Town Hall safeguard/);
 assert.match(residenceInspector, /getPantrySafeguardPolicy/);
+assert.match(residenceInspector, /one-day lot every day/);
 assert.match(residenceInspector, /no household cart or player prompt/);
+const marketStallsInspector = readFileSync(
+  'src/resources/inspector/marketStallsRenderer.ts',
+  'utf8',
+);
+assert.match(marketStallsInspector, /one-day household issue every day/);
 const marketplaceInspector = readFileSync(
   'src/resources/inspector/marketplaceInspector.ts',
   'utf8',
@@ -615,13 +621,36 @@ assert.match(townHallInspector, /automatic private household contingency imports
 assert.match(townHallInspector, /data-inspect-residence/);
 assert.match(townHallInspector, /Household market issues/);
 assert.match(townHallInspector, /data-pantry-safeguard-policy/);
+assert.match(townHallInspector, /ordinary one-day issue[\s\S]*every day/);
 assert.match(townHallInspector, /Parish poor relief remains separate/);
+const pantrySafeguardPolicy = readFileSync(
+  'src/economy/pantrySafeguardPolicy.ts',
+  'utf8',
+);
+assert.match(pantrySafeguardPolicy, /label: 'Daily issue only'/);
+assert.match(pantrySafeguardPolicy, /There is no extra food or fuel buffer/);
+assert.doesNotMatch(pantrySafeguardPolicy, /weekly issue|Market day only/i);
+const inspectorActions = readFileSync(
+  'src/app/inspectorSpacetimeActions.ts',
+  'utf8',
+);
+assert.match(
+  inspectorActions,
+  /Pantry safeguard posted\. Daily issues continue; critical food and heat will use the new buffer\./,
+);
 
 const householdDistribution = readFileSync(
   'server/src/simulation/household_distribution.rs',
   'utf8',
 );
-assert.match(householdDistribution, /emergency_pantry_rule\(pantry_policy\)/);
+const pantrySafeguardPolicyServer = readFileSync(
+  'server/src/pantry_safeguard_policy.rs',
+  'utf8',
+);
+assert.match(
+  pantrySafeguardPolicyServer,
+  /pub fn daily_market_issue_target_days[\s\S]*emergency_pantry_rule\(pantry_policy\)/,
+);
 assert.match(
   householdDistribution,
   /ResidenceNeedKind::Firewood[\s\S]*ResidenceNeedKind::Food[\s\S]*ResidenceNeedKind::PreservedFood/,
@@ -629,8 +658,8 @@ assert.match(
 );
 assert.match(
   householdDistribution,
-  /MarketIssueCycle::Weekly => f64::from\(CALENDAR_DAYS_PER_WEEK\.max\(1\)\)/,
-  'ordinary household issues should remain weekly pantry lots',
+  /MarketIssueCycle::Daily[\s\S]*daily_market_issue_target_days/,
+  'ordinary household issues should replenish one day of every active need each day',
 );
 
 console.log(

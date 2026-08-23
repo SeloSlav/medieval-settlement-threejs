@@ -423,6 +423,7 @@ export type GameBalance = {
     residencePotteryPerPersonPerSec: number;
     residenceLuxuryCapacity: number;
     residenceLuxuryJamPerPersonPerSec: number;
+    approvalNeedPressureRampDays: number;
     hungerWarningDays: number;
     malnutritionDays: number;
     starvationDeathStartDays: number;
@@ -1054,6 +1055,7 @@ function generateRust(): string {
     `pub const RESIDENCE_POTTERY_PER_PERSON_PER_SEC: f64 = ${rustF64(b.population.residencePotteryPerPersonPerSec)};`,
     `pub const RESIDENCE_LUXURY_CAPACITY: f64 = ${rustF64(b.population.residenceLuxuryCapacity)};`,
     `pub const RESIDENCE_LUXURY_JAM_PER_PERSON_PER_SEC: f64 = ${rustF64(b.population.residenceLuxuryJamPerPersonPerSec)};`,
+    `pub const APPROVAL_NEED_PRESSURE_RAMP_DAYS: f64 = ${rustF64(b.population.approvalNeedPressureRampDays)};`,
     `pub const HUNGER_WARNING_DAYS: f64 = ${rustF64(b.population.hungerWarningDays)};`,
     `pub const MALNUTRITION_DAYS: f64 = ${rustF64(b.population.malnutritionDays)};`,
     `pub const STARVATION_DEATH_START_DAYS: f64 = ${rustF64(b.population.starvationDeathStartDays)};`,
@@ -2040,6 +2042,7 @@ function generateTypeScript(): string {
     `export const RESIDENCE_POTTERY_PER_PERSON_PER_SEC = ${b.population.residencePotteryPerPersonPerSec};`,
     `export const RESIDENCE_LUXURY_CAPACITY = ${b.population.residenceLuxuryCapacity};`,
     `export const RESIDENCE_LUXURY_JAM_PER_PERSON_PER_SEC = ${b.population.residenceLuxuryJamPerPersonPerSec};`,
+    `export const APPROVAL_NEED_PRESSURE_RAMP_DAYS = ${b.population.approvalNeedPressureRampDays};`,
     `export const HUNGER_WARNING_DAYS = ${b.population.hungerWarningDays};`,
     `export const MALNUTRITION_DAYS = ${b.population.malnutritionDays};`,
     `export const STARVATION_DEATH_START_DAYS = ${b.population.starvationDeathStartDays};`,

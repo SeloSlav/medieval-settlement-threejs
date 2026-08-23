@@ -1,8 +1,10 @@
 import type { NightPolicyState } from './nightPolicy.ts';
 import type { SettlementProvisioning } from './settlementProvisioning.ts';
 import type { SettlementSecurityState } from '../security/frontierSecurity.ts';
+import { APPROVAL_NEED_PRESSURE_RAMP_DAYS } from '../generated/gameBalance.ts';
 
 export const APPROVAL_BASE_SCORE = 50;
+const MAX_COMBINED_NEED_PENALTY = 40;
 
 export type SettlementApprovalTier =
   | 'beloved'
@@ -49,11 +51,14 @@ export function computeSettlementApproval(input: ApprovalInput): SettlementAppro
   const { provisioning, nightPolicy } = input;
   const welfare = provisioning.welfare;
   const factors: SettlementApprovalFactor[] = [];
+  let rawHungerPenalty = 0;
+  let rawServicePenalty = 0;
+  const needPressureDetails: string[] = [];
 
   const bufferedHomes = Math.max(0, provisioning.householdBufferHouseholds);
   const bufferCoverage = finiteUnit(provisioning.householdBufferCoverage);
   if (bufferedHomes > 0) {
-    factors.push({
+    const factor: SettlementApprovalFactor = {
       key: 'household-provisions',
       label: 'Household provisions',
       impact: clampInteger(Math.round((bufferCoverage - 0.65) * 24), -16, 8),
@@ -61,18 +66,29 @@ export function computeSettlementApproval(input: ApprovalInput): SettlementAppro
         `${provisioning.householdBufferReadyHouseholds}/${bufferedHomes} established homes hold their local food, water, and fuel buffers.`,
         formatHouseholdShortfalls(provisioning),
       ].filter(Boolean).join(' '),
-    });
+    };
+    // Empty buffers are already represented by the independently-aged hunger,
+    // food-confidence, service, and warmth pressures below. Keeping this as a
+    // second negative would both double-count the shortage and let an old
+    // service clock instantly mature a brand-new food-buffer failure (or vice
+    // versa). Well-provisioned homes still earn the positive confidence bonus.
+    if (factor.impact > 0) {
+      factors.push(factor);
+    }
   }
 
   const activeResidents = Math.max(0, welfare.activeResidents);
   if (activeResidents > 0) {
     const stableShare = finiteUnit(welfare.stableResidents / activeResidents);
-    factors.push({
-      key: 'resident-welfare',
-      label: 'Resident welfare',
-      impact: clampInteger(Math.round((stableShare - 0.5) * 20), -10, 10),
-      detail: `${welfare.stableResidents}/${activeResidents} residents live without a current health or comfort warning.`,
-    });
+    const stableSupport = clampInteger(Math.round(stableShare * 10), 0, 10);
+    if (stableSupport > 0) {
+      factors.push({
+        key: 'resident-welfare',
+        label: 'Resident welfare',
+        impact: stableSupport,
+        detail: `${welfare.stableResidents}/${activeResidents} residents live without a current health or comfort warning.`,
+      });
+    }
 
     const distressedResidents = Math.min(
       activeResidents,
@@ -82,16 +98,14 @@ export function computeSettlementApproval(input: ApprovalInput): SettlementAppro
     );
     if (distressedResidents > 0) {
       const distressShare = distressedResidents / activeResidents;
-      factors.push({
-        key: 'hunger',
-        label: 'Hunger',
-        impact: -clampInteger(
-          Math.round(distressShare * 16) + (welfare.starvingResidents > 0 ? 4 : 0),
-          2,
-          20,
-        ),
-        detail: `${distressedResidents} residents are hungry, malnourished, or starving; restore household food deliveries first.`,
-      });
+      rawHungerPenalty += clampInteger(
+        Math.round(distressShare * 16) + (welfare.starvingResidents > 0 ? 4 : 0),
+        2,
+        20,
+      );
+      needPressureDetails.push(
+        `${distressedResidents} residents are hungry, malnourished, or starving; restore household food deliveries first.`,
+      );
     }
 
     if (welfare.sickResidents > 0) {
@@ -119,13 +133,74 @@ export function computeSettlementApproval(input: ApprovalInput): SettlementAppro
       welfare.upgradeBlockedHouseholds / welfare.activeHouseholds,
     );
     const servicePenalty = Math.round(warningShare * 8 + blockedShare * 8);
+    if (servicePenalty > 0) {
+      rawServicePenalty += clampInteger(servicePenalty, 1, 16);
+      needPressureDetails.push(
+        `${welfare.serviceWarningHouseholds} homes have sustained unmet needs; ${welfare.upgradeBlockedHouseholds} cannot be promoted until service recovers. Household work and taxable market activity continue normally.`,
+      );
+    } else {
+      factors.push({
+        key: 'household-services',
+        label: 'Household services',
+        impact: 4,
+        detail: 'Every occupied home has stable need service.',
+      });
+    }
+  }
+
+  if (provisioning.foodConsumers > 0) {
+    const factor = foodReserveFactor(provisioning.foodRunwayDays);
+    if (factor.impact < 0) {
+      rawHungerPenalty += -factor.impact;
+      needPressureDetails.push(factor.detail);
+    } else {
+      factors.push(factor);
+    }
+  }
+
+  const winterRelevant = input.month >= 9 || input.month <= 2;
+  if (winterRelevant && provisioning.heatedResidents > 0) {
+    const winterCoverage = finiteUnit(provisioning.winterFirewoodCoverage);
+    const factor: SettlementApprovalFactor = {
+      key: 'winter-firewood',
+      label: 'Winter warmth',
+      impact: clampInteger(Math.round((winterCoverage - 0.65) * 12), -8, 4),
+      detail: `${Math.round(winterCoverage * 100)}% of the full winter hearth reserve is stored. Keep every heated road branch supplied.`,
+    };
+    if (factor.impact < 0) {
+      rawServicePenalty += -factor.impact;
+      needPressureDetails.push(factor.detail);
+    } else {
+      factors.push(factor);
+    }
+  }
+
+  const hungerExposureDays = finitePositive(welfare.longestHungerDays);
+  const serviceExposureDays = finitePositive(welfare.longestServiceDeficitDays);
+  const hungerPressureProgress = approvalNeedPressureProgress(hungerExposureDays);
+  const servicePressureProgress = approvalNeedPressureProgress(serviceExposureDays);
+  const longestNeedPressureProgress = Math.max(
+    hungerPressureProgress,
+    servicePressureProgress,
+  );
+  const maturedRawPenalty =
+    rawHungerPenalty * hungerPressureProgress
+      + rawServicePenalty * servicePressureProgress;
+  // Cap after each pressure family has aged. Normalizing the current raw
+  // factors first would let a brand-new shortage dilute an older, mature one.
+  // The exposure cap also guarantees the full -40 cannot land before at least
+  // one persisted shortage clock completes the configured ramp.
+  const exposureCap = MAX_COMBINED_NEED_PENALTY * longestNeedPressureProgress;
+  const maturedPenalty = Math.floor(Math.min(maturedRawPenalty, exposureCap));
+  if (maturedPenalty > 0) {
     factors.push({
-      key: 'household-services',
-      label: 'Household services',
-      impact: servicePenalty > 0 ? -clampInteger(servicePenalty, 1, 16) : 4,
-      detail: servicePenalty > 0
-        ? `${welfare.serviceWarningHouseholds} homes have sustained unmet needs; ${welfare.upgradeBlockedHouseholds} cannot be promoted until service recovers. Household work and taxable market activity continue normally.`
-        : 'Every occupied home has stable need service.',
+      key: 'household-hardship',
+      label: 'Sustained household hardship',
+      impact: -maturedPenalty,
+      detail: [
+        `Persisted shortage clocks ramp this pressure gradually: hunger ${formatExposureDays(hungerExposureDays)} (${Math.round(hungerPressureProgress * 100)}%); unmet services ${formatExposureDays(serviceExposureDays)} (${Math.round(servicePressureProgress * 100)}%). Full severity takes ${APPROVAL_NEED_PRESSURE_RAMP_DAYS} shortage-days.`,
+        ...needPressureDetails,
+      ].join(' '),
     });
   }
 
@@ -144,21 +219,6 @@ export function computeSettlementApproval(input: ApprovalInput): SettlementAppro
       label: 'Night-work fatigue',
       impact: -clampInteger(Math.round(fatigue * 8), 1, 8),
       detail: `${Math.round(fatigue * 100)}% accumulated fatigue is weighing on household confidence. Reduce staffed night shifts to recover.`,
-    });
-  }
-
-  if (provisioning.foodConsumers > 0) {
-    factors.push(foodReserveFactor(provisioning.foodRunwayDays));
-  }
-
-  const winterRelevant = input.month >= 9 || input.month <= 2;
-  if (winterRelevant && provisioning.heatedResidents > 0) {
-    const winterCoverage = finiteUnit(provisioning.winterFirewoodCoverage);
-    factors.push({
-      key: 'winter-firewood',
-      label: 'Winter warmth',
-      impact: clampInteger(Math.round((winterCoverage - 0.65) * 12), -8, 4),
-      detail: `${Math.round(winterCoverage * 100)}% of the full winter hearth reserve is stored. Keep every heated road branch supplied.`,
     });
   }
 
@@ -235,6 +295,13 @@ export function approvalTier(score: number): SettlementApprovalTier {
   if (normalized >= 40) return 'uneasy';
   if (normalized >= 25) return 'disliked';
   return 'crisis';
+}
+
+export function approvalNeedPressureProgress(exposureDays: number): number {
+  const rampDays = Math.max(1, APPROVAL_NEED_PRESSURE_RAMP_DAYS);
+  const exposure = finitePositive(exposureDays);
+  if (exposure === Number.POSITIVE_INFINITY) return 1;
+  return finiteUnit(exposure / rampDays);
 }
 
 export function approvalTierLabel(tier: SettlementApprovalTier): string {
@@ -344,6 +411,13 @@ function formatRunway(days: number): string {
   if (!Number.isFinite(days)) return 'an unlimited runway';
   if (days < 1) return 'less than one day';
   return `${days < 10 ? days.toFixed(1) : Math.floor(days)} days`;
+}
+
+function formatExposureDays(days: number): string {
+  const exposure = finitePositive(days);
+  if (!Number.isFinite(exposure)) return 'More than the full ramp';
+  if (exposure < 1) return 'Less than one day';
+  return `${exposure < 10 ? exposure.toFixed(1) : Math.floor(exposure)} days`;
 }
 
 function finitePositive(value: number): number {

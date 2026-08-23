@@ -94,7 +94,7 @@ type BuildingPlacementContext = {
   quarries: Iterable<ResourceNodeState>;
   foragingNodes: Iterable<ForagingNodeState>;
   clayDepositSites?: readonly ClayDepositSite[];
-  stockpile: Pick<ResourceTotals, 'timber' | 'stone' | 'ironwork'>;
+  stockpile: Pick<ResourceTotals, 'timber' | 'stone' | 'ironwork' | 'roofTiles'>;
   isWaterAt: (x: number, z: number) => boolean;
   isResourceDepositAt?: (x: number, z: number) => boolean;
   getNaturalHeightAt: (x: number, z: number) => number;
@@ -342,6 +342,12 @@ export function validateBuildingPlacement(
     }
   }
 
+  for (const building of buildings) {
+    if (buildingFootprintsTooClose(kind, x, z, building, context.roadNetwork)) {
+      return { ok: false, reason: 'too_close' };
+    }
+  }
+
   const carpenterSupported = hasRoadLinkedCarpenter(
     buildings,
     context.roadNetwork,
@@ -353,14 +359,9 @@ export function validateBuildingPlacement(
     context.stockpile.timber + 1e-6 < cost.timber
     || context.stockpile.stone + 1e-6 < cost.stone
     || context.stockpile.ironwork + 1e-6 < (cost.ironwork ?? 0)
+    || context.stockpile.roofTiles + 1e-6 < (cost.roofTiles ?? 0)
   ) {
     return { ok: false, reason: 'insufficient_resources' };
-  }
-
-  for (const building of buildings) {
-    if (buildingFootprintsTooClose(kind, x, z, building, context.roadNetwork)) {
-      return { ok: false, reason: 'too_close' };
-    }
   }
 
   return { ok: true };

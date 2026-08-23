@@ -560,7 +560,7 @@ function testBurgageFrontageDirectionAndRoadSideSelection(): void {
   assert(curved.every((point) => point.z > 0), 'reverse-drawn frontage must stay on its selected road side');
 }
 
-function testRoadFacingBuildingsSnapToRoadSides(): void {
+function testMovableBuildingsSnapToRoadSides(): void {
   const roads = new RoadNetwork();
   roads.addRoadPath([
     new THREE.Vector3(-40, 0, 0),
@@ -589,10 +589,6 @@ function testRoadFacingBuildingsSnapToRoadSides(): void {
     resolveRoadsideBuildingPlacement('well', 4, 5, roads).z > 5,
     'road-dependent utility buildings should also settle onto the road verge',
   );
-  assert(
-    resolveRoadsideBuildingPlacement('foragers_shed', 4, 5, roads).z > 5,
-    'gathering buildings should still honor the separate road-snap toggle',
-  );
   const reclamationPile = resolveRoadsideBuildingPlacement('salvage_pile', 13, 6, roads);
   assert(
     Math.abs(Math.abs(
@@ -601,16 +597,56 @@ function testRoadFacingBuildingsSnapToRoadSides(): void {
     'every road-snapped footprint should face the road even without an authored facade flag',
   );
 
-  assert.deepEqual(
-    resolveRoadsideBuildingPlacement('hunters_hall', 4, 6, roads),
-    { x: 4, z: 6 },
-    'remote buildings without a road dependency should retain free placement',
-  );
-  assert.deepEqual(
-    resolveRoadsideBuildingPlacement('watermill', 4, 6, roads),
-    { x: 4, z: 6 },
-    'shore-anchored buildings should retain precise shoreline placement',
-  );
+  const anchoredKinds = new Set<BuildingKind>([
+    'large_quarry',
+    'mine',
+    'clay_pit',
+    'watermill',
+  ]);
+  for (const kind of BUILDING_KINDS) {
+    const cursor = { x: 4, z: 6 };
+    const candidates = resolveRoadsideBuildingPlacementCandidates(
+      kind,
+      cursor.x,
+      cursor.z,
+      roads,
+    );
+    if (anchoredKinds.has(kind)) {
+      assert.deepEqual(
+        candidates,
+        [cursor],
+        `${kind} should retain its exact shore or deposit anchor`,
+      );
+      continue;
+    }
+
+    assert.equal(candidates.length, 2, `${kind} should expose both road verges`);
+    assert(
+      candidates.every((candidate) => Math.abs(candidate.x - cursor.x) < 0.01),
+      `${kind} should preserve the cursor's position along the road`,
+    );
+    assert(
+      candidates[0].z > 0 && candidates[1].z < 0,
+      `${kind} should prefer the cursor side and retain the opposite verge fallback`,
+    );
+    assert(
+      candidates.every((candidate) =>
+        !buildingFootprintOverlapsRoadSurface(kind, candidate.x, candidate.z, roads)
+      ),
+      `${kind} should clear the road on both snapped verges`,
+    );
+    assert(
+      Math.abs(Math.abs(
+        buildingPlacementYaw(kind, candidates[0].x, candidates[0].z, roads),
+      ) - Math.PI) < 0.01,
+      `${kind} should face the road from the preferred verge`,
+    );
+    assert.deepEqual(
+      resolveRoadsideBuildingPlacement(kind, cursor.x, cursor.z, null),
+      cursor,
+      `${kind} should retain free placement when road snapping is disabled`,
+    );
+  }
   assert.deepEqual(
     resolveRoadsideBuildingPlacement('smithy', 4, 40, roads),
     { x: 4, z: 40 },
@@ -1573,7 +1609,7 @@ function testTerrainPointerPickingUsesBoundedHeightfieldWork(): void {
 }
 
 testClearanceSpatialIndexKeepsNearbyCandidates();
-testRoadFacingBuildingsSnapToRoadSides();
+testMovableBuildingsSnapToRoadSides();
 testQuarryFootprintsAvoidRivers();
 testBurgageWaterValidationSamplesTheWholeZone();
 testBurgageTerrainRulesAreLotFriendly();

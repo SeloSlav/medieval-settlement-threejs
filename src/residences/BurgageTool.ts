@@ -158,6 +158,30 @@ export class BurgageTool {
     return this.placementStage >= 4 && this.draftValidation.ok;
   }
 
+  getPlacementCost(): { timber: number; stone: number } | null {
+    return this.previewLayout?.totalCost ?? null;
+  }
+
+  isPlacementResourceShortfall(): boolean {
+    return !this.draftValidation.ok
+      && this.draftValidation.reason === 'insufficient_resources';
+  }
+
+  revalidatePreview(): void {
+    if (!this.enabled || this.placementStage < 4) return;
+    this.validationDirty = true;
+    this.lastValidationTime = 0;
+    this.runValidation(false);
+  }
+
+  markPlacementResourceShortfall(): void {
+    if (!this.enabled || this.placementStage < 4 || !this.previewLayout) return;
+    this.draftValidation = { ok: false, reason: 'insufficient_resources' };
+    this.validationDirty = false;
+    this.lastValidationTime = performance.now();
+    this.preview.setValidity(false);
+  }
+
   setEnabled(enabled: boolean): void {
     if (enabled && this.options.isBlocked()) return;
     if (this.enabled === enabled) return;
@@ -221,31 +245,33 @@ export class BurgageTool {
       return 'Click the other back corner to shape the angled rear boundary';
     }
     const validation = this.draftValidation;
+    let layout: BurgageLayoutResult;
     if (!validation.ok) {
       if (validation.reason === 'too_small') return `Plot too shallow — pull the back edge farther from the road (~${Math.round(MIN_ZONE_DEPTH)}m min)`;
       if (validation.reason === 'no_fit') return 'Too many plots for this frontage — press − to reduce plot count';
       if (validation.reason === 'insufficient_resources') {
-        const cost = this.previewLayout?.totalCost;
-        return cost
-          ? `Need ${cost.timber} timber and ${cost.stone} stone — shorten deep plots or gather materials`
-          : 'Not enough timber or stone in available stores';
+        if (!this.previewLayout) return 'Adjust plot shape or plot count';
+        layout = this.previewLayout;
+      } else {
+        if (validation.reason === 'no_road_frontage') return 'Frontage must face a connected road';
+        if (validation.reason === 'overlaps_existing') return 'Overlaps an existing residence zone — adjust shape or plot count';
+        if (validation.reason === 'overlaps_building') return 'Overlaps a building — choose a different spot';
+        if (validation.reason === 'overlaps_farm_field') return 'Overlaps cultivated farmland — choose a different spot';
+        return 'Adjust plot shape or plot count';
       }
-      if (validation.reason === 'no_road_frontage') return 'Frontage must face a connected road';
-      if (validation.reason === 'overlaps_existing') return 'Overlaps an existing residence zone — adjust shape or plot count';
-      if (validation.reason === 'overlaps_building') return 'Overlaps a building — choose a different spot';
-      if (validation.reason === 'overlaps_farm_field') return 'Overlaps cultivated farmland — choose a different spot';
-      return 'Adjust plot shape or plot count';
+    } else {
+      layout = validation.layout;
     }
-    const count = validation.layout.residences.length;
-    const cost = validation.layout.totalCost;
+    const count = layout.residences.length;
     const frontageOptions = this.cachedFrontageOptionCount;
     const frontageHint = frontageOptions > 1
       ? ` · frontage ${frontageEdgeLabel(this.frontageEdge)} (F to rotate)`
       : '';
-    const depthCostHint = validation.layout.depthCostMultiplier > 1.001
-      ? ` · deep-lot site works ×${validation.layout.depthCostMultiplier.toFixed(1)}`
+    const depthCostHint = layout.depthCostMultiplier > 1.001
+      ? ` · deep-lot site works ×${layout.depthCostMultiplier.toFixed(1)}`
       : '';
-    return `${count} cottage ${count === 1 ? 'worksite' : 'worksites'} queued — ${cost.timber} timber, ${cost.stone} stone reserved${depthCostHint}${frontageHint} · hammer or Enter to place`;
+    const placementHint = validation.ok ? ' · hammer or Enter to place' : '';
+    return `${count} cottage ${count === 1 ? 'worksite' : 'worksites'} planned${depthCostHint}${frontageHint}${placementHint}`;
   }
 
   getLayoutHudState(target?: BurgageLayoutHudState): BurgageLayoutHudState | null {

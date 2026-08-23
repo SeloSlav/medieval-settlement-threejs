@@ -1294,6 +1294,10 @@
   max-width: min(420px, calc(100vw - 24px));
 }
 
+.ui-tooltip.has-cost {
+  min-width: min(220px, calc(100vw - 24px));
+}
+
 .ui-tooltip__amount {
   display: flex;
   align-items: baseline;
@@ -1350,6 +1354,31 @@
 .ui-tooltip__label {
   color: #eee3cf;
   font-weight: 750;
+}
+
+.ui-tooltip__construction-cost {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding-top: 7px;
+  border-top: 1px solid rgba(226, 199, 139, 0.18);
+  color: #f1dfb4;
+}
+
+.ui-tooltip__construction-cost-label {
+  color: #b8ad98;
+  font-size: 0.9em;
+  white-space: nowrap;
+}
+
+.ui-tooltip__construction-cost.is-unaffordable,
+.ui-tooltip__construction-cost.is-unaffordable .ui-tooltip__construction-cost-label {
+  color: #f09a82;
+}
+
+.ui-tooltip__construction-cost .resource-cost {
+  justify-content: flex-end;
 }
 
 .ui-tooltip__resource-flow {

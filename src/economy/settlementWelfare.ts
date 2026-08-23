@@ -28,6 +28,7 @@ export type SettlementWelfare = {
   malnourishedResidents: number;
   starvingHouseholds: number;
   starvingResidents: number;
+  longestHungerDays: number;
   sickHouseholds: number;
   sickResidents: number;
   untreatedSickHouseholds: number;
@@ -39,6 +40,7 @@ export type SettlementWelfare = {
   remedyRunwayDays: number;
   serviceWarningHouseholds: number;
   upgradeBlockedHouseholds: number;
+  longestServiceDeficitDays: number;
   totalDeaths: number;
   waitingBodies: number;
   outboundEmptyCarts: number;
@@ -94,6 +96,7 @@ export function createSettlementWelfareAccumulator(): SettlementWelfareAccumulat
     malnourishedResidents: 0,
     starvingHouseholds: 0,
     starvingResidents: 0,
+    longestHungerDays: 0,
     sickHouseholds: 0,
     sickResidents: 0,
     untreatedSickHouseholds: 0,
@@ -101,6 +104,7 @@ export function createSettlementWelfareAccumulator(): SettlementWelfareAccumulat
     remedyDemandPerDay: 0,
     serviceWarningHouseholds: 0,
     upgradeBlockedHouseholds: 0,
+    longestServiceDeficitDays: 0,
     totalDeaths: 0,
     vacantHomes: 0,
     firstAttentionResidenceId: null,
@@ -128,6 +132,10 @@ export function accumulateResidenceWelfare(
   accumulator.activeHouseholds += 1;
   accumulator.activeResidents += population;
   const hungerDays = ticksToDays(residence.hungerTicks);
+  accumulator.longestHungerDays = Math.max(
+    accumulator.longestHungerDays,
+    hungerDays,
+  );
   const malnutrition = finiteUnit(residence.malnutrition);
   let hungerRank = 3;
   if (hungerDays >= STARVATION_DEATH_START_DAYS) {
@@ -161,6 +169,10 @@ export function accumulateResidenceWelfare(
   }
 
   const service = residenceServiceState(residence);
+  accumulator.longestServiceDeficitDays = Math.max(
+    accumulator.longestServiceDeficitDays,
+    service.deficitDays,
+  );
   if (service.warning) {
     accumulator.serviceWarningHouseholds += 1;
     updateWelfareAttention(accumulator, residence.id, 6);
@@ -273,6 +285,7 @@ export function finalizeSettlementWelfare(
     malnourishedResidents: accumulator.malnourishedResidents,
     starvingHouseholds: accumulator.starvingHouseholds,
     starvingResidents: accumulator.starvingResidents,
+    longestHungerDays: accumulator.longestHungerDays,
     sickHouseholds: accumulator.sickHouseholds,
     sickResidents: accumulator.sickResidents,
     untreatedSickHouseholds: accumulator.untreatedSickHouseholds,
@@ -284,6 +297,7 @@ export function finalizeSettlementWelfare(
     remedyRunwayDays,
     serviceWarningHouseholds: accumulator.serviceWarningHouseholds,
     upgradeBlockedHouseholds: accumulator.upgradeBlockedHouseholds,
+    longestServiceDeficitDays: accumulator.longestServiceDeficitDays,
     totalDeaths: accumulator.totalDeaths,
     waitingBodies,
     outboundEmptyCarts,

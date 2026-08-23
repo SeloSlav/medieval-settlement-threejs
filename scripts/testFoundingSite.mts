@@ -57,6 +57,8 @@ import {
   BUILDING_COSTS,
   BUILDING_STORAGE_CAPS,
   STARTING_POPULATION,
+  STARTING_STONE,
+  STARTING_TIMBER,
 } from '../src/generated/gameBalance.ts';
 import { resolveWorldDimensions } from '../src/world/worldGenerationSettings.ts';
 import { BuildingMarkers } from '../src/buildings/BuildingMarkers.ts';
@@ -439,7 +441,7 @@ assert.deepEqual(
     timber: computeResourceTotals(visualQaPresentationState).timber,
     stone: computeResourceTotals(visualQaPresentationState).stone,
   },
-  { timber: 160, stone: 140 },
+  { timber: STARTING_TIMBER, stone: STARTING_STONE },
   'visual-QA HUD totals must include the presentation-only camp supplies',
 );
 const authoritativeState = gameState(true, 0);

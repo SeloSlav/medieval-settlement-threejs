@@ -120,9 +120,9 @@ select:focus-visible {
   z-index: 4;
   isolation: isolate;
   display: grid;
-  grid-template-columns: 168px;
+  grid-template-columns: 58px 168px;
   align-items: stretch;
-  width: 178px;
+  width: 238px;
   min-height: 68px;
   padding: 4px 5px;
   overflow: visible;
@@ -172,7 +172,58 @@ select:focus-visible {
   min-width: 0;
   padding: 2px 8px 0 3px;
   border: 0;
+}
+
+.settlement-vitals__zoom {
+  position: relative;
+  display: grid;
+  grid-template-rows: 16px 9px 17px;
+  place-items: center;
+  align-content: center;
+  min-width: 0;
+  padding: 5px 4px 4px;
   border-right: 1px solid rgba(218, 194, 139, 0.18);
+  color: #bfa76f;
+  cursor: help;
+  transition: background 130ms ease, box-shadow 130ms ease, color 130ms ease;
+}
+
+.settlement-vitals__zoom:hover,
+.settlement-vitals__zoom:focus-visible {
+  color: var(--ui-brass-bright);
+  background: rgba(224, 198, 135, 0.06);
+  box-shadow: inset 0 -2px rgba(210, 171, 81, 0.45);
+}
+
+.settlement-vitals__zoom-icon {
+  width: 15px;
+  height: 15px;
+  overflow: visible;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-width: 1.4;
+}
+
+.settlement-vitals__zoom-label {
+  color: #8f8675;
+  font-size: 6px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.settlement-vitals__zoom-value {
+  color: #d7e3e8;
+  font-family: var(--ui-display);
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
+  line-height: 1;
+  text-shadow: 0 1px 8px rgba(89, 139, 168, 0.2);
+  white-space: nowrap;
 }
 
 .settlement-hud__approval-shell {
@@ -2233,6 +2284,11 @@ select:focus-visible {
 .construction-card__cost .resource-cost {
   color: #cbb47f;
   font-size: 10px;
+}
+
+.construction-card__cost .resource-cost--unaffordable,
+.construction-card.is-unaffordable .construction-card__cost .resource-cost {
+  color: #f09a82;
 }
 
 .construction-card__cost .resource-cost__suffix {

@@ -9,34 +9,83 @@ import {
  * stable world XZ
  *   -> primary forest density + normalized elevation + slope/ridge
  *   -> derived woodland clump eligibility + mountain prominence
- *   -> overlapping tree clusters + layered ridge marks
+ *   -> irregular tree groves with an overlap budget + layered ridge marks
  *
  * Keep these perceptual constants together so visual tuning does not become a
  * collection of unrelated thresholds hidden in the canvas renderer.
  */
 export const ILLUSTRATED_TERRAIN_FIELDS = {
   woodland: {
-    clumpSpacingAuthorPixels: 24,
+    clumpSpacingAuthorPixels: 28,
     neighbourhoodRadiusMapFraction: 0.032,
     densityStart: 0.24,
     densityFull: 0.72,
     neighbourSupportStart: 0.18,
     neighbourSupportFull: 0.5,
-    minimumClumpMass: 0.11,
-    maximumTreeGlyphsPerClump: 8,
+    minimumClumpMass: 0.14,
+    maximumTreeGlyphsPerClump: 5,
   },
   elevation: {
     contourQuantiles: [0.38, 0.53, 0.66, 0.77, 0.86, 0.93],
     lowQuantile: 0.12,
     shoulderQuantile: 0.62,
     summitQuantile: 0.95,
-    mountainSpacingAuthorPixels: 35,
-    mountainStart: 0.2,
+    mountainSpacingAuthorPixels: 52,
+    mountainStart: 0.28,
     guaranteedSummitElevation: 0.9,
     guaranteedCoverageRadiusSpacing: 0.68,
     reliefGateStartMeters: 7,
     reliefGateFullMeters: 30,
     narrowSummitReliefWeight: 0.55,
+  },
+} as const;
+
+/**
+ * Presentation constants are grouped by perceptual role so the quiet terrain
+ * layer cannot accidentally compete with live roads, footprints, or stamps.
+ * Values are authored for the farthest illustrated-map mip, where repeated
+ * dark strokes otherwise merge into solid badges.
+ */
+export const ILLUSTRATED_TERRAIN_STYLE = {
+  paper: {
+    base: { r: 216, g: 209, b: 194 },
+    waterWash: { r: 147, g: 158, b: 155 },
+    terrainInk: { r: 73, g: 68, b: 59 },
+    grainAmplitude: 8,
+    fibreAmplitude: 1.2,
+    stain: { r: 96, g: 90, b: 80 },
+    stainAlphaMin: 0.012,
+    stainAlphaRange: 0.018,
+  },
+  contours: {
+    ink: { r: 74, g: 69, b: 60 },
+    alpha: 0.09,
+    lineWidthAuthorPixels: 0.52,
+  },
+  grassland: {
+    glyphSpacingAuthorPixels: 24,
+    ink: { r: 79, g: 74, b: 63 },
+    alpha: 0.1,
+    lineWidthAuthorPixels: 0.52,
+  },
+  mountains: {
+    outlineAlphaMin: 0.18,
+    outlineAlphaProminence: 0.08,
+    fillAlphaMin: 0.008,
+    fillAlphaProminence: 0.012,
+    baselineAlphaMin: 0.1,
+    baselineAlphaProminence: 0.07,
+    scaleBase: 0.48,
+    scaleProminence: 0.22,
+    scaleVariation: 0.08,
+  },
+  woodland: {
+    outlineAlpha: 0.3,
+    lineWidthAuthorPixels: 0.58,
+    washAlphaMin: 0.01,
+    washAlphaMass: 0.016,
+    baselineAlphaMin: 0.1,
+    baselineAlphaMass: 0.08,
   },
 } as const;
 

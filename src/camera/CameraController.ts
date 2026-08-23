@@ -27,6 +27,10 @@ const MIN_DISTANCE = BASELINE_ORBIT_DISTANCE / (MAX_ZOOM_PERCENT / BASELINE_ZOOM
 const LIVE_WORLD_MAX_DISTANCE = BASELINE_ORBIT_DISTANCE
   / (LIVE_WORLD_MIN_ZOOM_PERCENT / BASELINE_ZOOM_PERCENT);
 const ZOOM_MULTIPLIER = 1.18;
+/** A short exponential glide removes wheel-step pops without adding floaty inertia. */
+const ZOOM_DAMPING = 16;
+/** End the invisible tail of the glide once it is within 0.1% of its stop. */
+const ZOOM_SETTLE_RATIO = 0.001;
 const WHEEL_ZOOM_STEP_DELTA = 80;
 const WHEEL_LINE_PIXEL_SCALE = 32;
 const WHEEL_PAGE_PIXEL_FALLBACK = 800;
@@ -74,6 +78,7 @@ export class CameraController {
   private illustratedMapZoomStops: readonly number[] = [];
   private illustratedMapFarPlane = 0;
   private currentDistance = RTS_ORBIT_DISTANCE;
+  private targetDistance = RTS_ORBIT_DISTANCE;
   private currentYaw = -Math.PI / 2;
   private currentPitch = RTS_ORBIT_PITCH;
   private readonly orbitPosition = new THREE.Vector3();
@@ -94,9 +99,12 @@ export class CameraController {
   private activeCursor = '';
   private viewChangeFrame = 0;
   private viewportChangeFrame = 0;
+  private zoomAnimationFrame = 0;
+  private lastZoomAnimationTimeMs = Number.NaN;
   private wheelNavigationUntilMs = 0;
   private accumulatedWheelDeltaY = 0;
   private lastWheelDeltaTimeMs = Number.NEGATIVE_INFINITY;
+  private illustratedMapEntryPending = false;
   private illustratedMapActive = false;
   private illustratedMapZoomTier = 0;
   private worldFarBeforeIllustratedMap: number | null = null;
@@ -134,9 +142,7 @@ export class CameraController {
   }
 
   getHudZoomPercent(): number {
-    return this.illustratedMapActive
-      ? LIVE_WORLD_MIN_ZOOM_PERCENT - 1
-      : this.getZoomPercent();
+    return this.getZoomPercent();
   }
 
   getOrbitDistance(): number {
@@ -153,6 +159,7 @@ export class CameraController {
 
   isNavigationActive(): boolean {
     if (this.isPanning || this.isRotating) return true;
+    if (!this.isZoomSettled() || this.illustratedMapEntryPending) return true;
     if (performance.now() < this.wheelNavigationUntilMs) return true;
     for (const key of NAVIGATION_KEYS) {
       if (this.keys.has(key)) return true;
@@ -175,6 +182,9 @@ export class CameraController {
     this.currentDistance = this.clampDistance(
       Math.min(this.currentDistance, maxDistance),
     );
+    this.targetDistance = this.currentDistance;
+    this.illustratedMapEntryPending = false;
+    this.cancelZoomAnimation();
     this.updateCamera();
     this.notifyViewChanged();
   }
@@ -189,6 +199,9 @@ export class CameraController {
     this.pendingPanY = 0;
     this.pendingRotateX = 0;
     this.pendingRotateY = 0;
+    this.targetDistance = this.currentDistance;
+    this.illustratedMapEntryPending = false;
+    this.cancelZoomAnimation();
     this.resetWheelAccumulator();
     this.keys.clear();
   }
@@ -201,6 +214,9 @@ export class CameraController {
       this.getMinDistance(),
       this.liveWorldMaxDistance,
     );
+    this.targetDistance = this.currentDistance;
+    this.illustratedMapEntryPending = false;
+    this.cancelZoomAnimation();
     this.updateCamera();
   }
 
@@ -217,6 +233,9 @@ export class CameraController {
     this.currentYaw = this.normalizeAngle(yaw);
     this.currentPitch = THREE.MathUtils.clamp(pitch, MIN_PITCH, MAX_PITCH);
     this.currentDistance = this.clampDistance(distance);
+    this.targetDistance = this.currentDistance;
+    this.illustratedMapEntryPending = false;
+    this.cancelZoomAnimation();
     this.updateCamera();
     this.notifyViewChanged();
   }
@@ -231,6 +250,7 @@ export class CameraController {
 
   update(dt: number): void {
     if (!this.inputEnabled) return;
+    const zoomChanged = this.updateZoom(dt);
     const scale = this.getPanScale();
     if (this.pendingPanX !== 0 || this.pendingPanY !== 0) {
       this.pan(
@@ -263,6 +283,7 @@ export class CameraController {
 
     this.updateCamera();
     this.applyCursor();
+    if (zoomChanged) this.notifyViewChanged();
   }
 
   dispose(): void {
@@ -274,6 +295,7 @@ export class CameraController {
       cancelAnimationFrame(this.viewportChangeFrame);
       this.viewportChangeFrame = 0;
     }
+    this.cancelZoomAnimation();
     const el = this.config.domElement;
     el.removeEventListener('mousedown', this.onMouseDown, true);
     el.removeEventListener('wheel', this.onWheel, true);
@@ -354,17 +376,24 @@ export class CameraController {
     if (!this.inputEnabled) return;
     if (this.config.shouldIgnoreInput?.(event)) return;
     event.preventDefault();
-    const distanceBefore = this.currentDistance;
+    const distanceBefore = this.targetDistance;
+    const renderedDistanceBefore = this.currentDistance;
     const mapActiveBefore = this.illustratedMapActive;
+    const mapEntryPendingBefore = this.illustratedMapEntryPending;
     const zoomDirection = this.consumeWheelZoomDirection(event);
     if (zoomDirection > 0) {
       if (this.illustratedMapActive) {
         this.stepIllustratedMapZoom(1);
-      } else if (this.currentDistance >= this.liveWorldMaxDistance - DISTANCE_EPSILON) {
-        this.enterIllustratedMap();
+      } else if (this.targetDistance >= this.liveWorldMaxDistance - DISTANCE_EPSILON) {
+        if (this.config.isIllustratedMapReady?.() !== false) {
+          if (this.isZoomSettled()) this.enterIllustratedMap();
+          // Treat a burst beyond the live maximum as one deliberate map-entry
+          // detent; authored map tiers begin only after the exact handoff.
+          else this.illustratedMapEntryPending = true;
+        }
       } else {
-        this.currentDistance = THREE.MathUtils.clamp(
-          this.currentDistance * ZOOM_MULTIPLIER,
+        this.targetDistance = THREE.MathUtils.clamp(
+          this.targetDistance * ZOOM_MULTIPLIER,
           this.getMinDistance(),
           this.liveWorldMaxDistance,
         );
@@ -377,20 +406,32 @@ export class CameraController {
           this.exitIllustratedMap();
         }
       } else {
-        this.currentDistance = this.clampDistance(
-          this.currentDistance / ZOOM_MULTIPLIER,
-        );
+        if (this.illustratedMapEntryPending) {
+          // The pending outward event only requested the map handoff. Its
+          // reciprocal inward event cancels that request at the same 30% stop.
+          this.illustratedMapEntryPending = false;
+        } else {
+          this.targetDistance = this.clampDistance(
+            this.targetDistance / ZOOM_MULTIPLIER,
+          );
+        }
       }
     }
-    let viewChanged = this.currentDistance !== distanceBefore
-      || this.illustratedMapActive !== mapActiveBefore;
+    let viewChanged = this.targetDistance !== distanceBefore
+      || this.illustratedMapActive !== mapActiveBefore
+      || this.illustratedMapEntryPending !== mapEntryPendingBefore;
     if (event.deltaX !== 0) {
       this.pan(event.deltaX * 0.03, 0);
       viewChanged = true;
     }
     if (!viewChanged) return;
     this.wheelNavigationUntilMs = performance.now() + WHEEL_NAVIGATION_GRACE_MS;
-    this.commitViewChange();
+    const renderedViewChanged = this.currentDistance !== renderedDistanceBefore
+      || this.illustratedMapActive !== mapActiveBefore
+      || event.deltaX !== 0;
+    if (renderedViewChanged) this.commitViewChange();
+    else this.applyCursor();
+    this.ensureZoomAnimation();
   };
 
   private consumeWheelZoomDirection(event: WheelEvent): -1 | 0 | 1 {
@@ -429,6 +470,99 @@ export class CameraController {
     this.accumulatedWheelDeltaY = 0;
     this.lastWheelDeltaTimeMs = Number.NEGATIVE_INFINITY;
   }
+
+  private updateZoom(dt: number): boolean {
+    if (this.illustratedMapActive) return false;
+    this.targetDistance = this.clampDistance(this.targetDistance);
+    if (this.isZoomSettled()) {
+      const distanceChanged = this.currentDistance !== this.targetDistance;
+      this.currentDistance = this.targetDistance;
+      if (this.illustratedMapEntryPending) {
+        this.illustratedMapEntryPending = false;
+        this.enterIllustratedMap();
+        return true;
+      }
+      this.cancelZoomAnimation();
+      return distanceChanged;
+    }
+
+    const safeDt = Number.isFinite(dt) ? Math.max(0, dt) : 0;
+    if (safeDt <= 0) return false;
+    this.currentDistance = Math.exp(THREE.MathUtils.damp(
+      Math.log(this.currentDistance),
+      Math.log(this.targetDistance),
+      ZOOM_DAMPING,
+      safeDt,
+    ));
+    const settled = this.isZoomSettled();
+    if (settled) this.currentDistance = this.targetDistance;
+    if (this.illustratedMapEntryPending && settled) {
+      this.illustratedMapEntryPending = false;
+      this.enterIllustratedMap();
+    } else if (settled) {
+      this.cancelZoomAnimation();
+    }
+    return true;
+  }
+
+  private isZoomSettled(): boolean {
+    const settleDistance = Math.max(
+      DISTANCE_EPSILON,
+      Math.abs(this.targetDistance) * ZOOM_SETTLE_RATIO,
+    );
+    return Math.abs(this.currentDistance - this.targetDistance) <= settleDistance;
+  }
+
+  private ensureZoomAnimation(): void {
+    if (this.config.continuousRenderLoop) return;
+    if (!this.inputEnabled) return;
+    if (this.isZoomSettled() && !this.illustratedMapEntryPending) return;
+    // This frame will render the combined pan/orbit/zoom pose, so replace any
+    // earlier demand-render invalidation instead of drawing twice.
+    if (this.viewChangeFrame !== 0) {
+      cancelAnimationFrame(this.viewChangeFrame);
+      this.viewChangeFrame = 0;
+    }
+    if (this.zoomAnimationFrame !== 0) return;
+    this.lastZoomAnimationTimeMs = performance.now();
+    this.zoomAnimationFrame = requestAnimationFrame(this.onZoomAnimationFrame);
+  }
+
+  private cancelZoomAnimation(): void {
+    if (this.zoomAnimationFrame !== 0) {
+      cancelAnimationFrame(this.zoomAnimationFrame);
+      this.zoomAnimationFrame = 0;
+    }
+    this.lastZoomAnimationTimeMs = Number.NaN;
+  }
+
+  private readonly onZoomAnimationFrame = (time: number): void => {
+    this.zoomAnimationFrame = 0;
+    if (!this.inputEnabled || this.config.continuousRenderLoop) {
+      this.lastZoomAnimationTimeMs = Number.NaN;
+      return;
+    }
+    const previousTime = Number.isFinite(this.lastZoomAnimationTimeMs)
+      ? this.lastZoomAnimationTimeMs
+      : time;
+    const dt = THREE.MathUtils.clamp((time - previousTime) / 1000, 0.001, 0.05);
+    this.lastZoomAnimationTimeMs = time;
+    const zoomChanged = this.updateZoom(dt);
+    if (zoomChanged) {
+      this.updateCamera();
+      this.applyCursor();
+      if (this.viewChangeFrame !== 0) {
+        cancelAnimationFrame(this.viewChangeFrame);
+        this.viewChangeFrame = 0;
+      }
+      this.config.onViewChanged?.();
+    }
+    if (!this.isZoomSettled() || this.illustratedMapEntryPending) {
+      this.zoomAnimationFrame = requestAnimationFrame(this.onZoomAnimationFrame);
+    } else {
+      this.lastZoomAnimationTimeMs = Number.NaN;
+    }
+  };
 
   private readonly onKeyDown = (event: KeyboardEvent): void => {
     if (!this.inputEnabled) return;
@@ -515,11 +649,14 @@ export class CameraController {
     if (this.config.isIllustratedMapReady?.() === false) return;
     this.refreshIllustratedMapFraming(true);
     this.illustratedMapActive = true;
+    this.illustratedMapEntryPending = false;
     this.illustratedMapZoomTier = 0;
     // This is a render-owner handoff, not another camera move. Keeping the
     // exact overview pose makes the parchment feel as though it unfolded over
     // the terrain and preserves the established readable map scale.
     this.currentDistance = this.illustratedMapZoomStops[0];
+    this.targetDistance = this.currentDistance;
+    this.cancelZoomAnimation();
     this.worldFarBeforeIllustratedMap = this.config.camera.far;
     this.updateIllustratedMapProjection();
     this.config.onIllustratedMapModeChanged?.(true);
@@ -528,8 +665,10 @@ export class CameraController {
   private exitIllustratedMap(): void {
     if (!this.illustratedMapActive) return;
     this.illustratedMapActive = false;
+    this.illustratedMapEntryPending = false;
     this.illustratedMapZoomTier = 0;
     this.currentDistance = this.liveWorldMaxDistance;
+    this.targetDistance = this.currentDistance;
     this.restoreWorldProjection();
     this.config.onIllustratedMapModeChanged?.(false);
   }
@@ -542,7 +681,10 @@ export class CameraController {
       0,
       lastTier,
     );
+    // These are authored map-composition tiers, not free camera zoom. Keeping
+    // them exact also protects the world/map render-owner continuity stop.
     this.currentDistance = this.illustratedMapZoomStops[this.illustratedMapZoomTier];
+    this.targetDistance = this.currentDistance;
   }
 
   private refreshIllustratedMapFraming(force = false): void {
@@ -583,6 +725,7 @@ export class CameraController {
     );
     if (!this.illustratedMapActive) return;
     this.currentDistance = this.illustratedMapZoomStops[this.illustratedMapZoomTier];
+    this.targetDistance = this.currentDistance;
     this.updateIllustratedMapProjection();
   }
 

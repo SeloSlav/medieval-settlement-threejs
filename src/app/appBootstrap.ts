@@ -99,6 +99,7 @@ import {
   roadPlacementReasonToToastId,
   buildingPlacementReasonToToastId,
   burgagePlacementReasonToToastId,
+  isConstructionResourceShortfallMessage,
 } from '../ui/toastMessages.ts';
 
 export type AppBootstrapBridge = {
@@ -543,10 +544,16 @@ export async function bootstrapAppSession(
     onPlacementPreviewChanged: () => bridge.syncToolbar(),
     describePlacementFailure: describeBuildingPlacementBlocker,
     onPlacementRejected: (reason) => {
+      if (reason === 'insufficient_resources') return;
       ambientAudio.playUiSound('error');
       toastManager?.showMessageId(buildingPlacementReasonToToastId(reason), { variant: 'error' });
     },
-    onPlacementFailed: (message) => {
+    onPlacementFailed: (message, kind) => {
+      if (isConstructionResourceShortfallMessage(message)) {
+        buildingTool.markPlacementResourceShortfall(kind);
+        bridge.syncToolbar();
+        return;
+      }
       ambientAudio.playUiSound('error');
       toastManager?.show(message, { variant: 'error' });
     },
@@ -594,10 +601,16 @@ export async function bootstrapAppSession(
     },
     onModeChanged: () => bridge.syncToolbar(),
     onPlacementRejected: (reason) => {
+      if (reason === 'insufficient_resources') return;
       ambientAudio.playUiSound('error');
       toastManager?.showMessageId(burgagePlacementReasonToToastId(reason), { variant: 'error' });
     },
     onPlacementFailed: (message) => {
+      if (isConstructionResourceShortfallMessage(message)) {
+        burgageTool.markPlacementResourceShortfall();
+        bridge.syncToolbar();
+        return;
+      }
       toastManager?.show(message, { variant: 'error' });
     },
     onUndoFailed: (message) => {

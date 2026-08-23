@@ -165,7 +165,10 @@ export function validateBurgagePlacement(context: BurgagePlacementContext): Burg
   }
 
   const cost = layout.totalCost;
-  if (context.stockpile.timber < cost.timber || context.stockpile.stone < cost.stone) {
+  if (
+    context.stockpile.timber + 1e-6 < cost.timber
+    || context.stockpile.stone + 1e-6 < cost.stone
+  ) {
     return { ok: false, reason: 'insufficient_resources' };
   }
 

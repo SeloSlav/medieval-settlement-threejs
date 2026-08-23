@@ -57,7 +57,10 @@ assert.ok(
 );
 assert.match(hudSource, /data-welfare-alert/);
 assert.match(hudSource, /Burial response blocked/);
-assert.match(hudSource, /residents cannot work while ill/);
+assert.match(hudSource, /Review affected homes/);
+assert.match(hudSource, /Open the Town Hall ledger for details\./);
+assert.doesNotMatch(hudSource, /residents cannot work while ill/);
+assert.doesNotMatch(hudSource, /remedies in homes/);
 assert.match(hudCss, /settlement-hud__welfare-alert\[data-level='critical'\]/);
 for (const label of [
   'Household health',
@@ -140,6 +143,7 @@ assert.equal(welfare.malnourishedHouseholds, 1);
 assert.equal(welfare.malnourishedResidents, 3);
 assert.equal(welfare.starvingHouseholds, 1);
 assert.equal(welfare.starvingResidents, 4);
+assert.ok(Math.abs(welfare.longestHungerDays - STARVATION_DEATH_START_DAYS) < 1e-9);
 assert.equal(welfare.sickHouseholds, 2);
 assert.equal(welfare.sickResidents, 3);
 assert.equal(welfare.untreatedSickHouseholds, 1);
@@ -148,6 +152,10 @@ assert.equal(welfare.remedyDemandPerDay, 3 * HERB_TREATMENT_PER_SICK_DAY);
 assert.ok(Math.abs(welfare.remedyRunwayDays - 3 / (3 * HERB_TREATMENT_PER_SICK_DAY)) < 1e-9);
 assert.equal(welfare.serviceWarningHouseholds, 1);
 assert.equal(welfare.upgradeBlockedHouseholds, 1);
+assert.ok(
+  Math.abs(welfare.longestServiceDeficitDays - RESIDENCE_UPGRADE_SERVICE_BLOCK_DAYS)
+    < 1e-9,
+);
 assert.equal(welfare.totalDeaths, 3);
 assert.equal(welfare.waitingBodies, 1);
 assert.equal(welfare.outboundEmptyCarts, 1);

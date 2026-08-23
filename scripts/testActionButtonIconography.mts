@@ -132,16 +132,21 @@ for (const [resource, asset] of [
   );
 }
 assert.doesNotMatch(iconography, /\.svg(?:['")])/i, 'active commodity mappings must not use SVG artwork');
+assert.match(iconography, /\.resource-cost--unaffordable\s*\{[\s\S]{0,120}color:\s*#f09a82/);
 
 assert.match(resourceInspector, /data-fire-recovery[\s\S]{0,240}data-action-icon="fire-recovery"|data-action-icon="fire-recovery"[\s\S]{0,240}data-fire-recovery/);
-assert.match(expandedBuildingRenderer, /FARM_CROPS\.map\(\(crop\)[\s\S]{0,420}data-land-parcel="field"[\s\S]{0,220}data-field-layout-crop="\$\{crop\}"[\s\S]{0,240}data-field-crop-icon="\$\{crop\}"/);
+assert.match(expandedBuildingRenderer, /FARM_CROPS\.map\(\(crop\)[\s\S]{0,520}data-land-parcel="field"[\s\S]{0,260}data-field-layout-crop="\$\{crop\}"[\s\S]{0,620}data-field-crop-icon="\$\{crop\}"/);
+assert.match(expandedBuildingRenderer, /data-land-parcel="field"[^>]*data-tooltip-cost="\$\{FREE_CONSTRUCTION_COST_TOOLTIP\}"/);
+assert.match(expandedBuildingRenderer, /data-land-parcel="vineyard"[^>]*data-tooltip-cost="\$\{FREE_CONSTRUCTION_COST_TOOLTIP\}"/);
 assert.match(resourceInspector, /data-field-layout-crop[\s\S]{0,420}onBeginFarmFieldPlacement\?\.\(building\.id, crop\)/);
 assert.match(farmFieldTool, /setCrop\(crop: FarmCrop\)[\s\S]{0,420}this\.crop = crop/);
 assert.match(appBootstrap, /onBeginFarmFieldPlacement: \(farmsteadId, crop\)[\s\S]{0,240}farmFieldTool\.setCrop\(crop\)[\s\S]{0,240}beginLinkedLandParcelPlacement\('field', farmsteadId\)/);
-assert.match(chapelRenderer, /data-land-parcel="graveyard"[\s\S]{0,260}data-action-icon="graveyard"|data-action-icon="graveyard"[\s\S]{0,260}data-land-parcel="graveyard"/);
+assert.match(chapelRenderer, /data-land-parcel="graveyard"[\s\S]{0,760}data-action-icon="graveyard"|data-action-icon="graveyard"[\s\S]{0,760}data-land-parcel="graveyard"/);
+assert.match(chapelRenderer, /data-land-parcel="graveyard"[^>]*data-tooltip-cost="\$\{FREE_CONSTRUCTION_COST_TOOLTIP\}"/);
 assert.match(livestockBuildingRenderer, /data-livestock-species="cattle"[\s\S]{0,260}data-action-icon="cattle-herd"|data-action-icon="cattle-herd"[\s\S]{0,260}data-livestock-species="cattle"/);
 assert.match(livestockBuildingRenderer, /data-livestock-species="sheep"[\s\S]{0,260}data-action-icon="sheep-flock"|data-action-icon="sheep-flock"[\s\S]{0,260}data-livestock-species="sheep"/);
-assert.match(livestockBuildingRenderer, /data-land-parcel="pasture"[\s\S]{0,260}data-action-icon="pasture-parcel"|data-action-icon="pasture-parcel"[\s\S]{0,260}data-land-parcel="pasture"/);
+assert.match(livestockBuildingRenderer, /data-land-parcel="pasture"[\s\S]{0,760}data-action-icon="pasture-parcel"|data-action-icon="pasture-parcel"[\s\S]{0,760}data-land-parcel="pasture"/);
+assert.match(livestockBuildingRenderer, /data-land-parcel="pasture"[^>]*data-tooltip-cost="\$\{FREE_CONSTRUCTION_COST_TOOLTIP\}"/);
 assert.match(farmFieldRenderer, /data-field-early-harvest[\s\S]{0,260}data-action-icon="early-harvest"|data-action-icon="early-harvest"[\s\S]{0,260}data-field-early-harvest/);
 assert.match(backyardCss, /resource-inspector-demolish::before[\s\S]{0,240}actions\/demolish\.png/);
 

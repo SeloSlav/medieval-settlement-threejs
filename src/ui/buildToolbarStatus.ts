@@ -7,6 +7,7 @@ import type { BuildingResourceCost } from '../resources/buildingEconomy.ts';
 import { getBuildingDefinition } from '../resources/buildings.ts';
 import { buildingPlacementReasonToToastId, getToastMessage } from './toastMessages.ts';
 import { renderBuildingResourceCost } from './resourceCost.ts';
+import type { ResourceCostAmounts } from './resourceCost.ts';
 
 export type ToolbarStats = {
   canBuild: boolean;
@@ -18,6 +19,10 @@ export type ToolbarStats = {
   farmCrop?: FarmCrop;
   vineyardSuitability?: boolean;
   buildingCost?: BuildingResourceCost;
+  placementCost?: BuildingResourceCost;
+  placementCostAffordable?: boolean;
+  placementResourceShortfall?: boolean;
+  availableResources?: ResourceCostAmounts;
   carpenterSupported?: boolean;
   carpenterCartServiceEnabled?: boolean;
   carpenterCartServiceReady?: boolean;
@@ -26,6 +31,7 @@ export type ToolbarStats = {
 export function describeBuildingPlacementBlocker(
   reason: BuildingPlacementFailureReason,
 ): string {
+  if (reason === 'insufficient_resources') return 'Site clear';
   return `Blocked: ${getToastMessage(buildingPlacementReasonToToastId(reason))}`;
 }
 
@@ -80,7 +86,10 @@ export function describeToolbarStatus(stats: ToolbarStats): string {
     return `Click terrain to place a ${label.toLowerCase()} (${formatBuildingCost(cost)})${support}${hint}`;
   }
   if (stats.mode === 'residences') {
-    return stats.statusDetail ?? 'Set a road frontage, then shape two independent back corners';
+    const detail = stats.statusDetail ?? 'Set a road frontage, then shape two independent back corners';
+    return stats.placementCost
+      ? `${detail} | Construction cost ${formatBuildingCost(stats.placementCost)}`
+      : detail;
   }
   if (stats.mode === 'farm-fields') {
     return stats.statusDetail ?? "Shape four free-form field corners inside a farmstead's work extent";
@@ -114,27 +123,39 @@ export function describeToolbarStatus(stats: ToolbarStats): string {
 }
 
 export function renderToolbarStatus(stats: ToolbarStats): string {
-  if (!isBuildingToolMode(stats.mode)) {
-    return escapeHtml(describeToolbarStatus(stats));
+  if (isBuildingToolMode(stats.mode)) {
+    const cost = stats.buildingCost ?? getBuildingCost(stats.mode);
+    const costMarkup = renderBuildingResourceCost(cost, {
+      compact: true,
+      unaffordable: stats.placementCostAffordable === false,
+    });
+    if (stats.statusDetail) {
+      const hasMaterialCost = cost.timber > 0 || cost.stone > 0 || (cost.ironwork ?? 0) > 0;
+      return `${escapeHtml(stats.statusDetail)}${hasMaterialCost ? ` <span aria-hidden="true">|</span> Cost ${costMarkup}` : ''}`;
+    }
+
+    const hint = PLACEMENT_STATUS_HINTS[stats.mode] ?? '';
+    const label = getBuildingDefinition(stats.mode).label;
+    const support = stats.carpenterSupported
+      ? stats.carpenterCartServiceReady
+        ? ' — carpenter-supported: 10% less timber; stocked wheelwright gives road carts +18% speed'
+        : stats.carpenterCartServiceEnabled
+          ? ' — carpenter-supported: 10% less timber; cart speed awaits repair timber and ironwork'
+          : ' — carpenter-supported: 10% less timber; cart service disabled to conserve fittings'
+      : '';
+    return `Click terrain to place a ${escapeHtml(label.toLowerCase())} (${costMarkup})${escapeHtml(support)}${escapeHtml(hint)}`;
   }
 
-  const cost = stats.buildingCost ?? getBuildingCost(stats.mode);
-  const costMarkup = renderBuildingResourceCost(cost, { compact: true });
-  if (stats.statusDetail) {
-    const hasMaterialCost = cost.timber > 0 || cost.stone > 0 || (cost.ironwork ?? 0) > 0;
-    return `${escapeHtml(stats.statusDetail)}${hasMaterialCost ? ` <span aria-hidden="true">|</span> Cost ${costMarkup}` : ''}`;
+  if (stats.mode === 'residences' && stats.placementCost) {
+    const detail = stats.statusDetail ?? 'Set a road frontage, then shape two independent back corners';
+    const costMarkup = renderBuildingResourceCost(stats.placementCost, {
+      compact: true,
+      unaffordable: stats.placementCostAffordable === false,
+    });
+    return `${escapeHtml(detail)} <span aria-hidden="true">|</span> Construction cost ${costMarkup}`;
   }
 
-  const hint = PLACEMENT_STATUS_HINTS[stats.mode] ?? '';
-  const label = getBuildingDefinition(stats.mode).label;
-  const support = stats.carpenterSupported
-    ? stats.carpenterCartServiceReady
-      ? ' — carpenter-supported: 10% less timber; stocked wheelwright gives road carts +18% speed'
-      : stats.carpenterCartServiceEnabled
-        ? ' — carpenter-supported: 10% less timber; cart speed awaits repair timber and ironwork'
-        : ' — carpenter-supported: 10% less timber; cart service disabled to conserve fittings'
-    : '';
-  return `Click terrain to place a ${escapeHtml(label.toLowerCase())} (${costMarkup})${escapeHtml(support)}${escapeHtml(hint)}`;
+  return escapeHtml(describeToolbarStatus(stats));
 }
 
 function escapeHtml(value: string): string {

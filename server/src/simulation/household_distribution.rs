@@ -9,12 +9,11 @@ use std::collections::{BTreeMap, HashMap};
 use spacetimedb::{Identity, ReducerContext};
 
 use crate::balance_generated::{
-    CALENDAR_DAYS_PER_WEEK, CALENDAR_HOURS_PER_DAY, CALENDAR_SECONDS_PER_DAY,
-    CALENDAR_WORK_END_HOUR, CALENDAR_WORK_START_HOUR, RESIDENCE_ALE_PER_PERSON_PER_SEC,
-    RESIDENCE_CLOTH_PER_PERSON_PER_SEC, RESIDENCE_SHOES_PER_PERSON_PER_SEC,
-    RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC,
-    RESIDENCE_LUXURY_JAM_PER_PERSON_PER_SEC,
-    RESIDENCE_POTTERY_PER_PERSON_PER_SEC, RESIDENCE_PRESERVED_FOOD_PER_PERSON_PER_SEC, TICK_DT,
+    CALENDAR_HOURS_PER_DAY, CALENDAR_SECONDS_PER_DAY, CALENDAR_WORK_END_HOUR,
+    CALENDAR_WORK_START_HOUR, RESIDENCE_ALE_PER_PERSON_PER_SEC, RESIDENCE_CLOTH_PER_PERSON_PER_SEC,
+    RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC, RESIDENCE_LUXURY_JAM_PER_PERSON_PER_SEC,
+    RESIDENCE_POTTERY_PER_PERSON_PER_SEC, RESIDENCE_PRESERVED_FOOD_PER_PERSON_PER_SEC,
+    RESIDENCE_SHOES_PER_PERSON_PER_SEC, TICK_DT,
 };
 use crate::db::*;
 use crate::economy::{
@@ -22,7 +21,8 @@ use crate::economy::{
     household_food_per_day, withdraw_building_commodity,
 };
 use crate::pantry_safeguard_policy::{
-    emergency_pantry_rule, normalize_pantry_safeguard_policy, PANTRY_SAFEGUARD_DEFAULT,
+    daily_market_issue_target_days, emergency_pantry_rule, normalize_pantry_safeguard_policy,
+    PANTRY_SAFEGUARD_DEFAULT,
 };
 use crate::season_policy::EnvironmentState;
 use crate::simulation::delivery_cargo::{
@@ -61,26 +61,25 @@ struct DistributionTarget {
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum MarketIssueCycle {
-    Weekly,
-    Emergency,
+    Daily,
 }
 
 impl MarketIssueCycle {
     fn ration_rounds(self, pantry_policy: u8) -> usize {
         match self {
-            Self::Weekly => CALENDAR_DAYS_PER_WEEK.max(1) as usize,
-            Self::Emergency => emergency_pantry_rule(pantry_policy)
+            Self::Daily => emergency_pantry_rule(pantry_policy)
                 .map(|rule| rule.target_days.ceil() as usize)
-                .unwrap_or(0),
+                .unwrap_or(1)
+                .max(1),
         }
     }
 }
 
-/// Issue a week of household lots from stock held at local markets. An optional
-/// daily Town Hall safeguard rescues critically low food and fuel without
-/// turning every meal into a separate haul. Replenishment remains physical,
-/// and scarce stock is shared one household-day at a time before any pantry
-/// receives a full week.
+/// Issue household lots from stock held at local markets once per day. An
+/// optional Town Hall safeguard adds a deeper buffer for critically low food
+/// and fuel without turning every meal into a separate haul. Replenishment
+/// remains physical, and scarce stock is shared one household-day at a time
+/// before any pantry receives an extra safeguard day.
 pub fn step_market_household_distribution(
     ctx: &ReducerContext,
     tick: &SimTickContext,
@@ -223,7 +222,7 @@ pub fn step_market_household_distribution(
 
             // Allocate one household-day per pass. When stock is scarce this
             // gives every connected home some cover before any one pantry is
-            // filled for the whole week.
+            // receives extra safeguard cover.
             for _ in 0..issue_cycle.ration_rounds(pantry_policy) {
                 for target in &targets {
                     let current = need_stock(&load_needs(ctx, target.residence_id), need_kind);
@@ -288,12 +287,7 @@ fn market_issue_cycle(sim_tick: u64) -> Option<MarketIssueCycle> {
     if sim_tick == 0 || sim_tick % ticks_per_day != 0 {
         return None;
     }
-    let day = sim_tick / ticks_per_day;
-    Some(if day % u64::from(CALENDAR_DAYS_PER_WEEK.max(1)) == 1 {
-        MarketIssueCycle::Weekly
-    } else {
-        MarketIssueCycle::Emergency
-    })
+    Some(MarketIssueCycle::Daily)
 }
 
 fn household_issue_target(
@@ -334,33 +328,26 @@ fn household_issue_target(
         ResidenceNeedKind::Luxury => {
             population * RESIDENCE_LUXURY_JAM_PER_PERSON_PER_SEC * workday_seconds
         }
-        ResidenceNeedKind::Water
-        | ResidenceNeedKind::Church
-        | ResidenceNeedKind::FoodVariety => return None,
+        ResidenceNeedKind::Water | ResidenceNeedKind::Church | ResidenceNeedKind::FoodVariety => {
+            return None
+        }
     };
     if daily_lot <= 1e-9 {
         return None;
     }
     let stock = need_stock(&load_needs(ctx, residence.id), need_kind);
     let days = match issue_cycle {
-        MarketIssueCycle::Weekly => f64::from(CALENDAR_DAYS_PER_WEEK.max(1)),
-        MarketIssueCycle::Emergency => {
-            // Daily intervention is reserved for calories and heat. Ale,
-            // clothing, and pottery wait for the next ordinary market day.
-            if !matches!(
+        MarketIssueCycle::Daily => daily_market_issue_target_days(
+            matches!(
                 need_kind,
                 ResidenceNeedKind::Firewood
                     | ResidenceNeedKind::Food
                     | ResidenceNeedKind::PreservedFood
-            ) {
-                return None;
-            }
-            let rule = emergency_pantry_rule(pantry_policy)?;
-            if stock + 1e-9 >= daily_lot * rule.trigger_days {
-                return None;
-            }
-            rule.target_days
-        }
+            ),
+            stock,
+            daily_lot,
+            pantry_policy,
+        ),
     };
     let capacity = delivery_stock_room(need_kind, 0.0);
     let target_stock = (daily_lot * days).min(capacity);
@@ -566,9 +553,12 @@ mod tests {
     use super::{
         market_issue_cycle, sort_distribution_targets, DistributionTarget, MarketIssueCycle,
     };
+    use crate::pantry_safeguard_policy::{
+        PANTRY_DAILY_ISSUE_ONLY, PANTRY_ONE_DAY_SAFEGUARD, PANTRY_TWO_DAY_SAFEGUARD,
+    };
 
     #[test]
-    fn household_market_issues_weekly_with_daily_emergency_checks() {
+    fn household_market_issues_once_every_day() {
         let ticks_per_day = (crate::balance_generated::CALENDAR_SECONDS_PER_DAY
             / crate::balance_generated::TICK_DT)
             .round() as u64;
@@ -576,16 +566,32 @@ mod tests {
         assert_eq!(market_issue_cycle(ticks_per_day - 1), None);
         assert_eq!(
             market_issue_cycle(ticks_per_day),
-            Some(MarketIssueCycle::Weekly)
+            Some(MarketIssueCycle::Daily)
         );
         assert_eq!(market_issue_cycle(ticks_per_day + 1), None);
         assert_eq!(
             market_issue_cycle(ticks_per_day * 2),
-            Some(MarketIssueCycle::Emergency)
+            Some(MarketIssueCycle::Daily)
         );
         assert_eq!(
             market_issue_cycle(ticks_per_day * 8),
-            Some(MarketIssueCycle::Weekly)
+            Some(MarketIssueCycle::Daily)
+        );
+    }
+
+    #[test]
+    fn daily_issue_rations_base_lots_before_safeguard_buffers() {
+        assert_eq!(
+            MarketIssueCycle::Daily.ration_rounds(PANTRY_DAILY_ISSUE_ONLY),
+            1,
+        );
+        assert_eq!(
+            MarketIssueCycle::Daily.ration_rounds(PANTRY_ONE_DAY_SAFEGUARD),
+            2,
+        );
+        assert_eq!(
+            MarketIssueCycle::Daily.ration_rounds(PANTRY_TWO_DAY_SAFEGUARD),
+            3,
         );
     }
 

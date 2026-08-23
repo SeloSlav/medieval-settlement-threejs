@@ -183,7 +183,10 @@ import {
   clayBankYieldGrade,
 } from '../../economy/clayBankPolicy.ts';
 import { renderExtractionStockTargetPanel } from './extractionStockTargetRenderer.ts';
-import { renderResourceCost } from '../../ui/resourceCost.ts';
+import {
+  FREE_CONSTRUCTION_COST_TOOLTIP,
+  renderResourceCost,
+} from '../../ui/resourceCost.ts';
 import {
   APIARY_HARVEST_POLICIES,
   apiaryHarvestPolicy,
@@ -1841,7 +1844,7 @@ function renderFarmsteadFieldPanel(building: BuildingState): string {
       <p class="inspector-action-panel__hint">Automatic restores linked-field seed and one dispatch load after High/Urgent fieldwork but before Normal fieldwork. Fields first leaves threshing until field jobs are quiet; Thresh first pre-empts every non-harvest field job.</p>
       <p class="inspector-action-panel__hint">Lay out as many cultivated parcels as fit inside this farmstead’s work extent. Nearby linked boundaries snap together while each field keeps its own orientation. Choose the first crop now; its suitability map opens with the drawing tool. Linked fields always enter this farmstead’s queue, while nearby High/Urgent fields may also request its crew.</p>
       <div class="resource-action-row" role="group" aria-label="Choose the new field's first crop">
-        ${FARM_CROPS.map((crop) => `<button type="button" class="resource-action-button resource-action-button--crop" data-land-parcel="field" data-field-layout-crop="${crop}" title="Lay out a ${cropLabel(crop).toLowerCase()} field"><span class="farm-crop-choice__icon" data-field-crop-icon="${crop}" aria-hidden="true"></span><span>${cropLabel(crop)} field</span></button>`).join('')}
+        ${FARM_CROPS.map((crop) => `<button type="button" class="resource-action-button resource-action-button--crop" data-land-parcel="field" data-field-layout-crop="${crop}" data-tooltip-title="${cropLabel(crop)} field" data-tooltip="Lay out a cultivated parcel inside this farmstead’s work extent." data-tooltip-cost="${FREE_CONSTRUCTION_COST_TOOLTIP}" data-tooltip-cost-affordable="true"><span class="farm-crop-choice__icon" data-field-crop-icon="${crop}" aria-hidden="true"></span><span>${cropLabel(crop)} field</span></button>`).join('')}
       </div>
       <p class="inspector-action-panel__hint">The selected crop becomes both the first planting and the initial Year 2 plan. Press C during layout only if you want to change it before committing the parcel.</p>
     </div>
@@ -1880,7 +1883,7 @@ function renderMonasteryPolicyPanel(building: BuildingState, context: InspectorR
       <div class="city-admin-panel__slider-label"><span>Enclosed estate</span><strong>Mixed orchard and kitchen gardens</strong></div>
       <p class="inspector-action-panel__hint">There are no apple-versus-pear or cabbage-versus-carrot choices. The visual estate canonically grows a useful mixture; its orchard also supplies one house-cider output, while ordinary regional activity is presented as gold-in/gold-out administration.</p>
       <div class="resource-action-row">
-        <button type="button" class="resource-action-button resource-action-button--icon" data-land-parcel="vineyard"><span class="inspector-action-icon" data-action-icon="field-parcel" aria-hidden="true"></span><span>${vineyards.length > 0 ? `Add vineyard parcel · ${vineyards.length} laid out (${Math.round(vineyardArea)} m²)` : 'Lay out vineyard parcel'}</span></button>
+        <button type="button" class="resource-action-button resource-action-button--icon" data-land-parcel="vineyard" data-tooltip-title="Vineyard parcel" data-tooltip="Lay out a grape-growing parcel inside this monastery’s work extent." data-tooltip-cost="${FREE_CONSTRUCTION_COST_TOOLTIP}" data-tooltip-cost-affordable="true"><span class="inspector-action-icon" data-action-icon="field-parcel" aria-hidden="true"></span><span>${vineyards.length > 0 ? `Add vineyard parcel · ${vineyards.length} laid out (${Math.round(vineyardArea)} m²)` : 'Lay out vineyard parcel'}</span></button>
       </div>
       <p class="inspector-action-panel__hint">Vineyards are the one deliberate physical exception. Lay out free-form parcels inside the work extent; monks harvest them in September–October, then report to the separate visible vintner and wine cellar to press and ferment grapes into actual wine.</p>
       <div class="city-admin-panel__slider-label"><span>Next reserved extension</span><strong>${monasteryExtensionCount(extensions)} / 4 complete</strong></div>

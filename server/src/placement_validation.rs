@@ -460,9 +460,7 @@ pub fn building_overlaps_road_surface(network: &RoadNetwork, kind: &str, x: f64,
 fn road_aware_building_placement_yaw(network: &RoadNetwork, kind: &str, x: f64, z: f64) -> f64 {
     let uses_road_facing_yaw = building_def(kind).is_some_and(|def| {
         def.faces_road
-            || ((def.requires_road || kind == "foragers_shed")
-                && !def.requires_water_shore
-                && !matches!(kind, "large_quarry" | "mine" | "clay_pit"))
+            || (!def.requires_water_shore && !matches!(kind, "large_quarry" | "mine" | "clay_pit"))
     });
     if uses_road_facing_yaw {
         if let Some((road_x, road_z)) = network.nearest_point(x, z, ROAD_FACING_SNAP_DISTANCE) {
@@ -748,7 +746,8 @@ mod tests {
     use super::{
         building_overlaps_road_surface, building_site_contains_point,
         clay_deposit_protection_radius, minimum_polygon_distance, polygon_overlaps_circle,
-        quarry_deposit_protection_radius, static_foraging_resource_protection_radius,
+        quarry_deposit_protection_radius, road_aware_building_placement_yaw,
+        static_foraging_resource_protection_radius,
     };
     use crate::burgage::Point2;
     use crate::roads::RoadNetwork;
@@ -782,6 +781,39 @@ mod tests {
             x,
             z
         ));
+    }
+
+    #[test]
+    fn movable_rural_buildings_without_a_road_requirement_still_face_the_road() {
+        let snapshot = r#"{
+            "nodes": [
+                {"id":"node-1","position":[-30.0,0.0,0.0]},
+                {"id":"node-2","position":[30.0,0.0,0.0]}
+            ],
+            "edges": [{
+                "startNodeId":"node-1",
+                "endNodeId":"node-2",
+                "width":4.2,
+                "sampledPath":[[-30.0,0.0,0.0],[30.0,0.0,0.0]]
+            }]
+        }"#;
+        let network = RoadNetwork::from_snapshot_json(snapshot).expect("valid straight road");
+
+        for kind in [
+            "reforester",
+            "stone_quarry",
+            "hunters_hall",
+            "foragers_shed",
+            "fishing_camp",
+            "swineherd",
+            "apiary",
+        ] {
+            let yaw = road_aware_building_placement_yaw(&network, kind, 4.0, 8.0);
+            assert!(
+                (yaw.abs() - std::f64::consts::PI).abs() < 1e-9,
+                "{kind} should face back toward the road after roadside snapping"
+            );
+        }
     }
 
     #[test]

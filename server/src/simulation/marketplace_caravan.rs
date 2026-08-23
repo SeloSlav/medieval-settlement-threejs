@@ -223,8 +223,8 @@ fn marketplace_stall_workplace(
 
 /// Stage routine imported household goods at a local Marketplace. The Trading
 /// Post trip is building-to-building and may carry a useful batch; individual
-/// homes receive their ordinary share on market day, with separate daily
-/// emergency checks for critical food and heat when Town Hall policy allows.
+/// homes receive an ordinary one-day issue each day, while Town Hall policy may
+/// add a deeper buffer for critical food and heat already staged at the market.
 fn try_dispatch_trading_post_stock_to_marketplace(
     ctx: &ReducerContext,
     tick: &SimTickContext,

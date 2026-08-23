@@ -67,5 +67,4 @@ mod tests {
         );
         assert_eq!(area_efficiency(1_000_000.0), 2.6);
     }
-
 }

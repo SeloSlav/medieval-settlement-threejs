@@ -1,6 +1,6 @@
 export type PantrySafeguardPolicyCode = 0 | 1 | 2;
 
-export const PANTRY_MARKET_DAY_ONLY: PantrySafeguardPolicyCode = 0;
+export const PANTRY_DAILY_ISSUE_ONLY: PantrySafeguardPolicyCode = 0;
 export const PANTRY_ONE_DAY_SAFEGUARD: PantrySafeguardPolicyCode = 1;
 export const PANTRY_TWO_DAY_SAFEGUARD: PantrySafeguardPolicyCode = 2;
 export const DEFAULT_PANTRY_SAFEGUARD_POLICY = PANTRY_ONE_DAY_SAFEGUARD;
@@ -13,9 +13,9 @@ export type PantrySafeguardPolicyOption = {
 
 export const PANTRY_SAFEGUARD_POLICY_OPTIONS: readonly PantrySafeguardPolicyOption[] = [
   {
-    value: PANTRY_MARKET_DAY_ONLY,
-    label: 'Market day only',
-    hint: 'Homes receive their ordinary weekly issue. There is no daily food or fuel safeguard.',
+    value: PANTRY_DAILY_ISSUE_ONLY,
+    label: 'Daily issue only',
+    hint: 'Homes receive one ordinary day of goods. There is no extra food or fuel buffer.',
   },
   {
     value: PANTRY_ONE_DAY_SAFEGUARD,
@@ -32,7 +32,7 @@ export const PANTRY_SAFEGUARD_POLICY_OPTIONS: readonly PantrySafeguardPolicyOpti
 export function normalizePantrySafeguardPolicy(
   value: number | null | undefined,
 ): PantrySafeguardPolicyCode {
-  return value === PANTRY_MARKET_DAY_ONLY || value === PANTRY_TWO_DAY_SAFEGUARD
+  return value === PANTRY_DAILY_ISSUE_ONLY || value === PANTRY_TWO_DAY_SAFEGUARD
     ? value
     : DEFAULT_PANTRY_SAFEGUARD_POLICY;
 }

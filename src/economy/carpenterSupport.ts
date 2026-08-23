@@ -113,9 +113,8 @@ export function buildingCostWithCarpenterSupport(
 ): BuildingResourceCost {
   const cost = getBuildingCost(kind);
   return {
+    ...cost,
     timber: cost.timber * (supported ? CARPENTER_TIMBER_COST_MULTIPLIER : 1),
-    stone: cost.stone,
-    ironwork: cost.ironwork,
   };
 }
 

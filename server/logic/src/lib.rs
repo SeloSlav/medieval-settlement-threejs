@@ -85,6 +85,9 @@ pub mod storage_acceptance_policy;
 #[path = "../../src/processor_output_policy.rs"]
 pub mod processor_output_policy;
 
+#[path = "../../src/pantry_safeguard_policy.rs"]
+pub mod pantry_safeguard_policy;
+
 #[path = "../../src/preserved_food_policy.rs"]
 pub mod preserved_food_policy;
 

@@ -356,8 +356,8 @@ pub struct PlayerResources {
     pub rye_bread: f64,
     #[default(0.0)]
     pub maslin_bread: f64,
-    /// Town Hall market-issue doctrine: 0 = weekly market day only,
-    /// 1 = safeguard below one household day, 2 = safeguard below two days.
+    /// Town Hall market-issue doctrine: 0 = daily issue only, 1 = safeguard
+    /// below one household day, 2 = safeguard below two days.
     /// Appended for additive save compatibility; established settlements keep
     /// the former automatic one-day emergency behavior.
     #[default(1u8)]

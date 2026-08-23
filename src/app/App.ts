@@ -53,6 +53,10 @@ import { BuildToolbar, type ToolbarStats } from '../ui/BuildToolbar.ts';
 import { ToastManager } from '../ui/ToastManager.ts';
 import type { VillagerInspector } from '../ui/VillagerInspector.ts';
 import {
+  buildingResourceCostAmounts,
+  isResourceCostAffordable,
+} from '../ui/resourceCost.ts';
+import {
   SettlementPresentationController,
   type SettlementPresentationTargets,
 } from './settlementSchedulePresentation.ts';
@@ -217,6 +221,7 @@ export class App {
   private lastSeenNightReportDay: number | null = null;
   private raidProjectionSignature = '';
   private combatInspectorSignature = '';
+  private constructionResourceSignature = '';
   private projectedRaidTargets: ProjectedRaidTarget[] = [];
   private visualFrameProfiler: AppFrameProfiler | null = null;
   private disposed = false;
@@ -865,6 +870,40 @@ export class App {
     const vineyardPlacementEnabled = farmFieldEnabled
       && this.farmFieldTool.getMode() === 'vineyard';
     const farmCrop = fieldPlacementEnabled ? this.farmFieldTool.getCrop() : null;
+    const availableResources = this.gameState
+      ? computeResourceTotals(this.gameState)
+      : undefined;
+    const constructionResourceSignature = availableResources
+      ? [
+          availableResources.timber,
+          availableResources.stone,
+          availableResources.ironwork,
+          availableResources.roofTiles,
+          availableResources.gold,
+        ].join('|')
+      : '';
+    if (constructionResourceSignature !== this.constructionResourceSignature) {
+      this.constructionResourceSignature = constructionResourceSignature;
+      this.buildingTool.revalidatePreview();
+      this.burgageTool.revalidatePreview();
+    }
+    const placementCost = burgageEnabled
+      ? this.burgageTool.getPlacementCost() ?? undefined
+      : placementEconomy?.cost;
+    const placementResourceShortfall = burgageEnabled
+      ? this.burgageTool.isPlacementResourceShortfall()
+      : buildingMode !== 'off'
+        && this.buildingTool.isPlacementResourceShortfall();
+    const placementCostAffordable = placementCost
+      ? placementResourceShortfall
+        ? false
+        : availableResources
+          ? isResourceCostAffordable(
+              availableResources,
+              buildingResourceCostAmounts(placementCost),
+            )
+          : undefined
+      : undefined;
     const stats: ToolbarStats = {
       canBuild: farmFieldEnabled ? this.farmFieldTool.isDraftBuildable() : burgageEnabled ? this.burgageTool.isDraftBuildable() : this.roadTool.isDraftBuildable(),
       hasDraft: farmFieldEnabled ? this.farmFieldTool.hasDraft() : burgageEnabled ? this.burgageTool.hasDraft() : this.roadTool.hasDraft(),
@@ -897,6 +936,10 @@ export class App {
       farmCrop: farmCrop ?? undefined,
       vineyardSuitability: vineyardPlacementEnabled,
       buildingCost: placementEconomy?.cost,
+      placementCost: burgageEnabled ? placementCost : undefined,
+      placementCostAffordable,
+      placementResourceShortfall,
+      availableResources,
       carpenterSupported: placementEconomy?.carpenterSupported,
       carpenterCartServiceEnabled:
         placementEconomy?.carpenterCartServiceEnabled,

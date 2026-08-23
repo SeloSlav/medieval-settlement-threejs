@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import {
   ILLUSTRATED_TERRAIN_FIELD_CONTRACT,
   ILLUSTRATED_TERRAIN_FIELDS,
+  ILLUSTRATED_TERRAIN_STYLE,
   isGuaranteedIllustratedMountainSummit,
   resolveIllustratedElevationStats,
   sampleIllustratedElevationField,
@@ -135,8 +136,29 @@ assert.ok(
   'high, sloped, locally prominent terrain should read as a mountain range',
 );
 assert.ok(
-  ILLUSTRATED_TERRAIN_FIELDS.woodland.maximumTreeGlyphsPerClump >= 6,
-  'dense woods should have enough glyphs to overlap into a mass',
+  ILLUSTRATED_TERRAIN_FIELDS.woodland.maximumTreeGlyphsPerClump <= 5,
+  'far-map groves should stay below the dark-badge overlap threshold',
+);
+assert.ok(
+  ILLUSTRATED_TERRAIN_FIELDS.woodland.clumpSpacingAuthorPixels >= 28,
+  'woodland clumps should leave breathing room at the farthest map mip',
+);
+assert.ok(
+  ILLUSTRATED_TERRAIN_FIELDS.elevation.mountainSpacingAuthorPixels >= 50,
+  'mountain ranges should not occupy adjacent legacy grid slots',
+);
+assert.ok(
+  ILLUSTRATED_TERRAIN_STYLE.paper.base.b >= 190
+    && ILLUSTRATED_TERRAIN_STYLE.paper.base.r
+      - ILLUSTRATED_TERRAIN_STYLE.paper.base.b <= 24,
+  'paper should stay a desaturated faded ivory rather than yellow parchment',
+);
+assert.ok(
+  ILLUSTRATED_TERRAIN_STYLE.woodland.outlineAlpha <= 0.35
+    && ILLUSTRATED_TERRAIN_STYLE.mountains.outlineAlphaMin
+      + ILLUSTRATED_TERRAIN_STYLE.mountains.outlineAlphaProminence <= 0.28
+    && ILLUSTRATED_TERRAIN_STYLE.grassland.alpha <= 0.12,
+  'terrain ink must remain subordinate to live roads, buildings, and stamps',
 );
 
 console.log('test:illustrated-map-terrain passed');

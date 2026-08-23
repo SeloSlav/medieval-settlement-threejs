@@ -211,6 +211,38 @@ assert.ok(
   'seeds must vary which geological and wild-food families receive the fixed rich rolls',
 );
 
+const smallMapRichFoodPlans = [0, 50, 100].flatMap((resourceAbundance) =>
+  [0, 50, 100].flatMap((resourceVariety) =>
+    Array.from({ length: 256 }, (_, index) => createRegionalResourcePlan(settings({
+      seed: index + 1,
+      mapSize: 'small',
+      resourceAbundance,
+      resourceVariety,
+    })))
+  )
+);
+assert.ok(
+  smallMapRichFoodPlans.every((plan) =>
+    Object.values(plan.foragingRichNodeCounts).reduce((sum, count) => sum + count, 0) >= 1
+  ),
+  'every small-map seed and setup extreme must include at least one rich wild-food node',
+);
+for (const plan of smallMapRichFoodPlans) assertPlanBudgets(plan);
+
+for (let index = 0; index < 64; index++) {
+  const seed = index + 1;
+  const smallLayout = createWorldLayout(settings({
+    seed,
+    mapSize: 'small',
+    resourceAbundance: [0, 50, 100][index % 3],
+    resourceVariety: [0, 50, 100][Math.floor(index / 3) % 3],
+  }));
+  assert.ok(
+    smallLayout.foragingLayout.sites.some((site) => site.isRich === true),
+    `small map seed ${seed} must physically place its reserved rich wild-food node`,
+  );
+}
+
 for (const mapSize of mapSizes) {
   const foodRolls = Array.from({ length: 512 }, (_, index) =>
     createRegionalResourcePlan(settings({
@@ -292,6 +324,18 @@ for (const mapSize of mapSizes) {
           actualGuaranteedFoodNodes >= layout.resourcePlan.minimumFoodNodeCount,
           `${variant} missed its game, berry, or mushroom floor`,
         );
+        if (mapSize === 'small') {
+          assert.ok(
+            nodes.some((node) =>
+              (node.kind === 'game'
+                || node.kind === 'berries'
+                || node.kind === 'mushrooms'
+                || node.kind === 'fish')
+              && node.isRich === true
+            ),
+            `${variant} must place at least one rich wild-food node`,
+          );
+        }
 
         assert.equal(
           stoneQuarries.filter((node) => node.isRich).length,

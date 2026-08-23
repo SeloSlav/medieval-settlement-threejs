@@ -3,10 +3,14 @@ import type { BuildingKind } from '../generated/gameBalance.ts';
 import { buildingFacesRoad } from '../resources/buildingPlacementPolicy.ts';
 import { getBuildingDefinition } from '../resources/buildings.ts';
 import type { RoadNetwork } from '../roads/RoadNetwork.ts';
+import {
+  BUILDING_LOCAL_VISUAL_BOUNDS,
+  getConstructionSiteLocalVisualBounds,
+} from './BuildingVisualBounds.ts';
 
 const ROAD_FACING_SNAP_DISTANCE = 24;
 const ROADSIDE_CURSOR_LEEWAY = 6;
-const ROADSIDE_FOOTPRINT_SCALE = 0.6;
+const ROADSIDE_MINIMUM_PICK_RADIUS_SCALE = 0.6;
 const ROADSIDE_CLEARANCE = 0.65;
 
 function pseudoRandomYaw(x: number, z: number): number {
@@ -14,15 +18,20 @@ function pseudoRandomYaw(x: number, z: number): number {
 }
 
 /**
- * Buildings whose placement is pulled onto a road verge must also inherit the
- * road-facing yaw. A few utility/yard definitions intentionally have no
- * authored `facesRoad` facade, but leaving those at a random angle made the
- * default-on snap appear broken even after their footprint moved to the road.
+ * Road snapping is a placement preference, while `requiresRoad` controls
+ * construction logistics. Keep those policies separate so rural buildings
+ * such as hunters' halls can still use the shared snap toggle. Only buildings
+ * whose center is fixed to an exact shore or deposit site retain free
+ * placement.
+ *
+ * Buildings pulled onto a road verge must also inherit the road-facing yaw.
+ * Several utility and rural definitions intentionally have no authored
+ * `facesRoad` facade, but leaving those at a random angle makes the positional
+ * snap appear broken.
  */
 function buildingUsesRoadsideSnap(kind: BuildingKind): boolean {
   const definition = getBuildingDefinition(kind);
-  return (definition.requiresRoad || kind === 'foragers_shed')
-    && !definition.requiresWaterShore
+  return !definition.requiresWaterShore
     && kind !== 'large_quarry'
     && kind !== 'mine'
     && kind !== 'clay_pit';
@@ -51,10 +60,10 @@ export function buildingPlacementYaw(
 }
 
 /**
- * Pull ordinary road-dependent buildings onto the nearest road verge while
- * preserving the cursor's position along the road and its chosen side.
- * Shore and deposit-anchored buildings keep free placement because their
- * terrain alignment is more important than a roadside magnet.
+ * Pull movable buildings onto the nearest road verge while preserving the
+ * cursor's position along the road and its chosen side. Shore and
+ * deposit-centered buildings keep their exact placement because moving their
+ * center would invalidate the site selected by the player.
  */
 export function resolveRoadsideBuildingPlacement(
   kind: BuildingKind,
@@ -84,7 +93,14 @@ export function resolveRoadsideBuildingPlacementCandidates(
     return [{ x, z }];
   }
 
-  const footprintDepth = definition.pickRadius * ROADSIDE_FOOTPRINT_SCALE;
+  // Local +Z is the road-facing side. Use the complete authored envelopes so
+  // deep footprints such as the mining pit clear the road instead of snapping
+  // to a position that authoritative validation immediately rejects.
+  const footprintDepth = Math.max(
+    definition.pickRadius * ROADSIDE_MINIMUM_PICK_RADIUS_SCALE,
+    BUILDING_LOCAL_VISUAL_BOUNDS[kind].maxZ,
+    getConstructionSiteLocalVisualBounds(kind).maxZ,
+  );
   const maxDistance = Math.min(
     ROAD_FACING_SNAP_DISTANCE,
     footprintDepth + ROADSIDE_CLEARANCE + ROADSIDE_CURSOR_LEEWAY + 3,

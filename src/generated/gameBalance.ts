@@ -105,10 +105,10 @@ export const FIRE_MINIMUM_REPAIR_COST_FRACTION = 0.1;
 export const FIRE_DAMAGE_REPAIR_COST_MULTIPLIER = 0.65;
 export const FIRE_DESTROYED_REBUILD_COST_FRACTION = 0.7;
 
-export const STARTING_TIMBER = 160;
-export const STARTING_STONE = 140;
-export const STARTING_FIREWOOD = 160;
-export const STARTING_BREAD = 160;
+export const STARTING_TIMBER = 400;
+export const STARTING_STONE = 240;
+export const STARTING_FIREWOOD = 240;
+export const STARTING_BREAD = 240;
 export const STARTING_IRONWORK = 9000;
 export const STARTING_GOLD = 0;
 export const STONE_SALVAGE_FRACTION = 0.92;
@@ -232,6 +232,7 @@ export const RESIDENCE_POTTERY_CAPACITY = 6;
 export const RESIDENCE_POTTERY_PER_PERSON_PER_SEC = 0.001;
 export const RESIDENCE_LUXURY_CAPACITY = 6;
 export const RESIDENCE_LUXURY_JAM_PER_PERSON_PER_SEC = 0.0005;
+export const APPROVAL_NEED_PRESSURE_RAMP_DAYS = 60;
 export const HUNGER_WARNING_DAYS = 2;
 export const MALNUTRITION_DAYS = 5;
 export const STARVATION_DEATH_START_DAYS = 14;
@@ -1679,7 +1680,7 @@ export const BUILDING_COSTS = {
 } as const satisfies Record<BuildingKind, BuildingResourceCost>;
 
 export const BUILDING_STORAGE_CAPS = {
-  founders_camp: { timber: 320, firewood: 160, stone: 280, water: 120, food: 160, grain: 160, barley: 120, malt: 80, flour: 120, ale: 80, preservedFood: 120, honey: 80, wine: 80, wool: 120, flax: 120, cloth: 80, ironwork: 9000, polearms: 80, iron: 80, clay: 80, salt: 80, charcoal: 80, pottery: 80, hides: 80, leather: 80, shoes: 80, roofTiles: 80 },
+  founders_camp: { timber: 400, firewood: 240, stone: 280, water: 120, food: 240, grain: 160, barley: 120, malt: 80, flour: 120, ale: 80, preservedFood: 120, honey: 80, wine: 80, wool: 120, flax: 120, cloth: 80, ironwork: 9000, polearms: 80, iron: 80, clay: 80, salt: 80, charcoal: 80, pottery: 80, hides: 80, leather: 80, shoes: 80, roofTiles: 80 },
   salvage_pile: { timber: 2000, firewood: 2000, stone: 2000, water: 2000, food: 2000, grain: 2000, barley: 2000, malt: 2000, flour: 2000, ale: 2000, preservedFood: 2000, honey: 2000, wine: 2000, wool: 2000, flax: 2000, cloth: 2000, ironwork: 2000, polearms: 2000, iron: 2000, clay: 2000, salt: 2000, charcoal: 2000, pottery: 2000, hides: 2000, leather: 2000, shoes: 2000, roofTiles: 2000, manure: 2000, remedies: 2000 },
   lumber_mill: { timber: 240, firewood: 0, stone: 0, water: 48, ironwork: 3 },
   reforester: { timber: 0, firewood: 0, stone: 0 },

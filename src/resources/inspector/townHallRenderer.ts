@@ -2611,7 +2611,7 @@ export function renderTownHallInspector(
       </div>
       <div class="inspector-action-panel">
         <h4 class="inspector-action-panel__title">Household market issues</h4>
-        <p class="inspector-action-panel__hint">Covered homes receive ordinary food, fuel, and household goods once each week. This doctrine controls only automatic daily checks for critical food and heat already staged at connected markets; it never opens a prompt, spends gold, or creates a door-to-door cart.</p>
+        <p class="inspector-action-panel__hint">Covered homes receive an ordinary one-day issue of food, fuel, and household goods every day. This doctrine controls only the extra buffer for critical food and heat already staged at connected markets; it never opens a prompt, spends gold, or creates a door-to-door cart.</p>
         <label class="city-admin-panel__slider-label" for="town-hall-pantry-safeguard"><span>Pantry safeguard</span></label>
         <select class="inspector-policy-select" id="town-hall-pantry-safeguard"
           data-pantry-safeguard-policy ${staffedTownHallAvailable ? '' : 'disabled'}>

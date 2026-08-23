@@ -13,26 +13,43 @@ import {
   FIRE_ACCIDENT_IGNITION_CHANCE_PER_STRUCTURE_DAY,
   FIRE_LIGHTNING_IGNITION_CHANCE_PER_RAIN_DAY,
   FIRE_SPREAD_CHANCE_PER_SECOND,
+  RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC,
   RESIDENCE_STONE_COST,
   RESIDENCE_TIER1_CAPACITY,
   RESIDENCE_TIMBER_COST,
+  SIM_REALTIME_RATE,
+  SPRING_FIREWOOD_DEMAND_MULTIPLIER,
   STARTING_POPULATION,
   STARTING_BREAD,
   STARTING_FIREWOOD,
   STARTING_IRONWORK,
   STARTING_STONE,
   STARTING_TIMBER,
+  WINTER_FIREWOOD_DEMAND_MULTIPLIER,
 } from '../src/generated/gameBalance.ts';
+import { householdFoodPerDay } from '../src/economy/foodInventory.ts';
 import { FOOD_SUPPLIER_KINDS } from '../src/logistics/roadLogistics.ts';
 
-const starterProducers = [
+const basicProducerStaffingSites = [
   'lumber_mill',
   'woodcutters_lodge',
   'stone_quarry',
   'foragers_shed',
 ] as const;
+const recoverySafeOpeningSites = [
+  'lumber_mill',
+  'village_storehouse',
+  'granary',
+  'woodcutters_lodge',
+  'marketplace',
+  'well',
+  'stone_quarry',
+  'hunters_hall',
+  'fishing_camp',
+  'chapel',
+] as const;
 const starterHomes = Math.ceil(STARTING_POPULATION / RESIDENCE_TIER1_CAPACITY);
-const starterCost = starterProducers.reduce(
+const starterCost = recoverySafeOpeningSites.reduce(
   (total, kind) => ({
     timber: total.timber + BUILDING_COSTS[kind].timber,
     stone: total.stone + BUILDING_COSTS[kind].stone,
@@ -44,16 +61,16 @@ const starterCost = starterProducers.reduce(
 );
 
 assert.ok(
-  STARTING_POPULATION >= starterProducers.length * 2 + 2,
+  STARTING_POPULATION >= basicProducerStaffingSites.length * 2 + 2,
   'the opening needs two workers per basic producer plus two free builders/haulers',
 );
 assert.ok(
   STARTING_TIMBER - starterCost.timber >= 40,
-  'starter timber must fund all four basic producers, housing every founder, and a recovery cushion',
+  'starter timber must fund logistics, utilities, church access, housing, quarrying, two food camps, and a recovery cushion',
 );
 assert.ok(
   STARTING_STONE - starterCost.stone >= 40,
-  'starter stone must fund all four basic producers, housing every founder, and a recovery cushion',
+  'starter stone must fund logistics, utilities, church access, housing, quarrying, two food camps, and a recovery cushion',
 );
 
 const earlyToolSites = ['lumber_mill', 'woodcutters_lodge', 'stone_quarry'] as const;
@@ -70,9 +87,32 @@ assert.ok(
   STARTING_IRONWORK >= fiveYearEarlyToolWear,
   'starter ironwork must cover roughly five years of the three opening heavy-tool sites',
 );
-assert.ok(STARTING_BREAD > 0, 'the founding camp must begin with ready-to-eat bread');
-assert.ok(STARTING_FIREWOOD > 0, 'the founding camp must begin with heating fuel');
+const twoRealTimeHoursInGameDays = 2 * 60 * 60
+  * SIM_REALTIME_RATE
+  / CALENDAR_SECONDS_PER_DAY;
+assert.ok(
+  STARTING_BREAD / householdFoodPerDay(STARTING_POPULATION) >= twoRealTimeHoursInGameDays,
+  'starter bread must cover at least two real-time hours while food production and market hauling come online',
+);
+const worstSeasonStarterFirewoodPerDay = STARTING_POPULATION
+  * RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC
+  * CALENDAR_SECONDS_PER_DAY
+  * WINTER_FIREWOOD_DEMAND_MULTIPLIER;
+assert.ok(
+  STARTING_FIREWOOD / worstSeasonStarterFirewoodPerDay >= 30,
+  'starter firewood must cover at least 30 winter household-days while fuel production and market hauling come online',
+);
+const openingSeasonStarterFirewoodPerDay = STARTING_POPULATION
+  * RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC
+  * CALENDAR_SECONDS_PER_DAY
+  * SPRING_FIREWOOD_DEMAND_MULTIPLIER;
+assert.ok(
+  STARTING_FIREWOOD / openingSeasonStarterFirewoodPerDay >= twoRealTimeHoursInGameDays,
+  'starter firewood must cover at least two real-time hours in the opening season while fuel production and market hauling come online',
+);
 assert.ok(BUILDING_STORAGE_CAPS.founders_camp.ironwork >= STARTING_IRONWORK);
+assert.ok(BUILDING_STORAGE_CAPS.founders_camp.timber >= STARTING_TIMBER);
+assert.ok(BUILDING_STORAGE_CAPS.founders_camp.stone >= STARTING_STONE);
 assert.ok(BUILDING_STORAGE_CAPS.founders_camp.food >= STARTING_BREAD);
 assert.ok(BUILDING_STORAGE_CAPS.founders_camp.firewood >= STARTING_FIREWOOD);
 
@@ -90,7 +130,7 @@ const foundingSite = readFileSync(
 );
 assert.match(
   foundingSite,
-  /starter_supplies_only[\s\S]*CommodityKind::Firewood \| CommodityKind::Bread \| CommodityKind::Ironwork/,
+  /starter_supplies_only[\s\S]*CommodityKind::Firewood[\s\S]*CommodityKind::RyeBread[\s\S]*CommodityKind::MaslinBread[\s\S]*CommodityKind::Ironwork/,
   'starter bread, firewood, and tool ironwork must be physically movable before every founder is housed',
 );
 

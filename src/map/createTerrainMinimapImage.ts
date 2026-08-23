@@ -12,6 +12,7 @@ import { yieldToMain } from '../utils/yieldToMain.ts';
 import {
   ILLUSTRATED_TERRAIN_FIELD_CONTRACT,
   ILLUSTRATED_TERRAIN_FIELDS,
+  ILLUSTRATED_TERRAIN_STYLE,
   isGuaranteedIllustratedMountainSummit,
   resolveIllustratedElevationStats,
   sampleGeneratedWoodlandField,
@@ -27,11 +28,12 @@ const MINIMAP_RESOLUTION = 2048;
 const MAP_ART_SCALE = MINIMAP_RESOLUTION / MAP_ART_RESOLUTION;
 const ROWS_PER_YIELD = 32 * MAP_ART_SCALE;
 const RELIEF_GRID_RESOLUTION = 82;
-const GRASS_GLYPH_SPACING = 22 * MAP_ART_SCALE;
+const GRASS_GLYPH_SPACING = ILLUSTRATED_TERRAIN_STYLE.grassland
+  .glyphSpacingAuthorPixels * MAP_ART_SCALE;
 
-const PARCHMENT_COLOR = { r: 214, g: 193, b: 147 } as const;
-const WATER_WASH_COLOR = { r: 129, g: 151, b: 146 } as const;
-const INK_COLOR = { r: 55, g: 43, b: 27 } as const;
+const PARCHMENT_COLOR = ILLUSTRATED_TERRAIN_STYLE.paper.base;
+const WATER_WASH_COLOR = ILLUSTRATED_TERRAIN_STYLE.paper.waterWash;
+const INK_COLOR = ILLUSTRATED_TERRAIN_STYLE.paper.terrainInk;
 
 type TerrainMinimapTerrain = Pick<Terrain, 'getHeightAt' | 'generationSize' | 'size'>;
 
@@ -90,21 +92,29 @@ export async function createTerrainMinimapImage(
   drawParchmentMottling(context, seed);
   drawGrassGlyphs(context, options, bounds, waterMask);
   await yieldToMain();
-  const reliefDiagnostics = await drawReliefLines(context, terrain, bounds, waterMask, seed);
-  const woodlandDiagnostics = await drawForestGlyphs(context, options, bounds, waterMask);
+  const relief = await drawReliefLines(context, terrain, bounds, waterMask, seed);
+  const woodlandDiagnostics = await drawForestGlyphs(
+    context,
+    options,
+    bounds,
+    waterMask,
+    relief.mountainFootprints,
+  );
   drawWaterHatching(context, waterMask, seed);
   drawInkBorder(context);
 
   const diagnostics: IllustratedTerrainMapDiagnostics = {
     fieldContract: ILLUSTRATED_TERRAIN_FIELD_CONTRACT,
     seed,
-    elevation: reliefDiagnostics,
+    elevation: relief.diagnostics,
     woodland: woodlandDiagnostics,
   };
 
   canvas.dataset.terrainStyle = 'medieval-parchment';
   canvas.dataset.terrainFieldContract = ILLUSTRATED_TERRAIN_FIELD_CONTRACT;
   canvas.dataset.terrainSeed = String(seed >>> 0);
+  canvas.dataset.palette = 'desaturated-faded-ivory';
+  canvas.dataset.terrainHierarchy = 'roads-buildings-stamps-over-relief';
   canvas.dataset.mountainRanges = String(diagnostics.elevation.mountainRangeCount);
   canvas.dataset.mountainSummitCovered = String(diagnostics.elevation.summitCoverageGuaranteed);
   canvas.dataset.woodlandClumps = String(diagnostics.woodland.clumpCount);
@@ -150,18 +160,19 @@ async function createParchmentRaster(
         (column / MAP_ART_SCALE) * 0.071
           + (row / MAP_ART_SCALE) * 0.017
           + seed * 0.0017,
-      ) * 1.7;
+      ) * ILLUSTRATED_TERRAIN_STYLE.paper.fibreAmplitude;
       const base = isWater
         ? blendColors(PARCHMENT_COLOR, WATER_WASH_COLOR, 0.66 + grain * 0.08)
         : PARCHMENT_COLOR;
       const edgeStrength = waterBoundaryStrength(waterMask, column, row);
       const inkMix = edgeStrength * (0.72 + mapHash(column + 91, row - 37, seed) * 0.18);
-      const paperVariation = grain * 12 + longFiber;
+      const paperVariation = grain * ILLUSTRATED_TERRAIN_STYLE.paper.grainAmplitude
+        + longFiber;
       const color = blendColors(
         {
           r: base.r + paperVariation,
-          g: base.g + paperVariation * 0.82,
-          b: base.b + paperVariation * 0.52,
+          g: base.g + paperVariation * 0.96,
+          b: base.b + paperVariation * 0.9,
         },
         INK_COLOR,
         inkMix,
@@ -210,11 +221,28 @@ function drawParchmentMottling(context: CanvasRenderingContext2D, seed: number):
     const y = rng() * MINIMAP_RESOLUTION;
     const radius = (22 + rng() * 74) * MAP_ART_SCALE;
     const gradient = context.createRadialGradient(x, y, 0, x, y, radius);
-    gradient.addColorStop(0, `rgba(101, 72, 34, ${0.018 + rng() * 0.025})`);
-    gradient.addColorStop(1, 'rgba(101, 72, 34, 0)');
+    const stain = ILLUSTRATED_TERRAIN_STYLE.paper.stain;
+    const stainAlpha = ILLUSTRATED_TERRAIN_STYLE.paper.stainAlphaMin
+      + rng() * ILLUSTRATED_TERRAIN_STYLE.paper.stainAlphaRange;
+    gradient.addColorStop(0, `rgba(${stain.r}, ${stain.g}, ${stain.b}, ${stainAlpha})`);
+    gradient.addColorStop(1, `rgba(${stain.r}, ${stain.g}, ${stain.b}, 0)`);
     context.fillStyle = gradient;
     context.beginPath();
     context.ellipse(x, y, radius, radius * (0.42 + rng() * 0.48), rng() * Math.PI, 0, Math.PI * 2);
+    context.fill();
+  }
+
+  context.globalCompositeOperation = 'screen';
+  for (let index = 0; index < 12; index++) {
+    const x = rng() * MINIMAP_RESOLUTION;
+    const y = rng() * MINIMAP_RESOLUTION;
+    const radius = (34 + rng() * 92) * MAP_ART_SCALE;
+    const gradient = context.createRadialGradient(x, y, 0, x, y, radius);
+    gradient.addColorStop(0, `rgba(231, 227, 216, ${0.018 + rng() * 0.022})`);
+    gradient.addColorStop(1, 'rgba(231, 227, 216, 0)');
+    context.fillStyle = gradient;
+    context.beginPath();
+    context.ellipse(x, y, radius, radius * (0.4 + rng() * 0.5), rng() * Math.PI, 0, Math.PI * 2);
     context.fill();
   }
 
@@ -235,13 +263,25 @@ type ReliefDrawingDiagnostics = IllustratedElevationStats & {
   summitCoverageGuaranteed: boolean;
 };
 
+type IllustratedFeatureFootprint = {
+  x: number;
+  y: number;
+  radiusX: number;
+  radiusY: number;
+};
+
+type ReliefDrawingResult = {
+  diagnostics: ReliefDrawingDiagnostics;
+  mountainFootprints: IllustratedFeatureFootprint[];
+};
+
 async function drawReliefLines(
   context: CanvasRenderingContext2D,
   terrain: TerrainMinimapTerrain,
   bounds: TerrainBounds,
   waterMask: Uint8Array,
   seed: number,
-): Promise<ReliefDrawingDiagnostics> {
+): Promise<ReliefDrawingResult> {
   const heights = new Float32Array(RELIEF_GRID_RESOLUTION * RELIEF_GRID_RESOLUTION);
   const sortedHeights: number[] = [];
   const denominator = RELIEF_GRID_RESOLUTION - 1;
@@ -264,8 +304,10 @@ async function drawReliefLines(
   const stats = resolveIllustratedElevationStats(heights);
 
   context.save();
-  context.strokeStyle = 'rgba(66, 49, 29, 0.18)';
-  context.lineWidth = 0.62 * MAP_ART_SCALE;
+  const contourInk = ILLUSTRATED_TERRAIN_STYLE.contours.ink;
+  context.strokeStyle = `rgba(${contourInk.r}, ${contourInk.g}, ${contourInk.b}, ${ILLUSTRATED_TERRAIN_STYLE.contours.alpha})`;
+  context.lineWidth = ILLUSTRATED_TERRAIN_STYLE.contours.lineWidthAuthorPixels
+    * MAP_ART_SCALE;
   context.lineCap = 'round';
   context.lineJoin = 'round';
   context.setLineDash([2 * MAP_ART_SCALE, 3.1 * MAP_ART_SCALE]);
@@ -327,9 +369,16 @@ async function drawReliefLines(
     seed,
   );
   return {
-    ...stats,
-    contourLevelCount: levels.length,
-    ...mountainDiagnostics,
+    diagnostics: {
+      ...stats,
+      contourLevelCount: levels.length,
+      mountainRangeCount: mountainDiagnostics.mountainRangeCount,
+      mountainPeakCount: mountainDiagnostics.mountainPeakCount,
+      forcedMountainRangeCount: mountainDiagnostics.forcedMountainRangeCount,
+      strongestMountainProminence: mountainDiagnostics.strongestMountainProminence,
+      summitCoverageGuaranteed: mountainDiagnostics.summitCoverageGuaranteed,
+    },
+    mountainFootprints: mountainDiagnostics.footprints,
   };
 }
 
@@ -344,6 +393,7 @@ async function drawMountainRanges(
   forcedMountainRangeCount: number;
   strongestMountainProminence: number;
   summitCoverageGuaranteed: boolean;
+  footprints: IllustratedFeatureFootprint[];
 }> {
   const spacing = ILLUSTRATED_TERRAIN_FIELDS.elevation.mountainSpacingAuthorPixels
     * MAP_ART_SCALE;
@@ -351,7 +401,7 @@ async function drawMountainRanges(
   let mountainRangeCount = 0;
   let mountainPeakCount = 0;
   let rowIndex = 0;
-  const drawnRanges: Array<{ x: number; y: number }> = [];
+  const drawnRanges: IllustratedFeatureFootprint[] = [];
 
   context.save();
   context.lineCap = 'round';
@@ -389,6 +439,16 @@ async function drawMountainRanges(
       const rangeScale = resolveMountainRangeScale(prominence, columnIndex, rowIndex, seed);
       const footprintRadiusX = 14 * rangeScale;
       const footprintRadiusY = 8.5 * rangeScale;
+      if (intersectsFeatureFootprints(
+        pixelX,
+        pixelY,
+        footprintRadiusX,
+        footprintRadiusY,
+        drawnRanges,
+      )) {
+        columnIndex++;
+        continue;
+      }
       if (!isLandFootprintClear(
         waterMask,
         pixelX,
@@ -412,7 +472,12 @@ async function drawMountainRanges(
       );
       mountainRangeCount++;
       mountainPeakCount += peakCount;
-      drawnRanges.push({ x: pixelX, y: pixelY });
+      drawnRanges.push({
+        x: pixelX,
+        y: pixelY,
+        radiusX: footprintRadiusX,
+        radiusY: footprintRadiusY,
+      });
       columnIndex++;
     }
     rowIndex++;
@@ -457,6 +522,12 @@ async function drawMountainRanges(
       mountainRangeCount++;
       mountainPeakCount += peakCount;
       forcedMountainRangeCount = 1;
+      drawnRanges.push({
+        x: strongestSummit.x,
+        y: strongestSummit.y,
+        radiusX: 14 * strongestSummit.rangeScale,
+        radiusY: 8.5 * strongestSummit.rangeScale,
+      });
     }
     summitCoverageGuaranteed = true;
   }
@@ -468,6 +539,7 @@ async function drawMountainRanges(
     forcedMountainRangeCount,
     strongestMountainProminence: strongestSummit?.prominence ?? 0,
     summitCoverageGuaranteed,
+    footprints: drawnRanges,
   };
 }
 
@@ -547,9 +619,10 @@ function resolveMountainRangeScale(
   seed: number,
 ): number {
   return (
-    0.74
-      + prominence * 0.5
-      + mapHash(gridColumn - 19, gridRow + 31, seed) * 0.12
+    ILLUSTRATED_TERRAIN_STYLE.mountains.scaleBase
+      + prominence * ILLUSTRATED_TERRAIN_STYLE.mountains.scaleProminence
+      + mapHash(gridColumn - 19, gridRow + 31, seed)
+        * ILLUSTRATED_TERRAIN_STYLE.mountains.scaleVariation
   ) * MAP_ART_SCALE;
 }
 
@@ -560,9 +633,9 @@ function resolveMountainPeakCount(
   seed: number,
 ): number {
   return Math.min(
-    4,
+    3,
     2 + Math.floor(
-      prominence * 2.2 + mapHash(gridColumn, gridRow, seed ^ 0x33f1),
+      prominence * 0.85 + mapHash(gridColumn, gridRow, seed ^ 0x33f1) * 0.5,
     ),
   );
 }
@@ -577,8 +650,10 @@ function drawGrassGlyphs(
   const extent = terrain.generationSize * 0.5;
   const terrainExtent = terrain.size * 0.5;
   context.save();
-  context.strokeStyle = 'rgba(72, 55, 32, 0.46)';
-  context.lineWidth = 0.72 * MAP_ART_SCALE;
+  const grassInk = ILLUSTRATED_TERRAIN_STYLE.grassland.ink;
+  context.strokeStyle = `rgba(${grassInk.r}, ${grassInk.g}, ${grassInk.b}, ${ILLUSTRATED_TERRAIN_STYLE.grassland.alpha})`;
+  context.lineWidth = ILLUSTRATED_TERRAIN_STYLE.grassland.lineWidthAuthorPixels
+    * MAP_ART_SCALE;
   context.lineCap = 'round';
 
   const inset = 8 * MAP_ART_SCALE;
@@ -607,6 +682,7 @@ function drawGrassGlyphs(
         pixelY,
         (1.3 + mapHash(column - 31, row + 42, seed) * 1.3) * MAP_ART_SCALE,
         (mapHash(column, row, seed ^ 0x51a4) - 0.5) * MAP_ART_SCALE,
+        mapHash(column + 57, row - 22, seed ^ 0x81a7),
       );
     }
   }
@@ -619,6 +695,7 @@ async function drawForestGlyphs(
   options: TerrainMinimapImageOptions,
   bounds: TerrainBounds,
   waterMask: Uint8Array,
+  mountainFootprints: readonly IllustratedFeatureFootprint[],
 ): Promise<{ candidateCount: number; clumpCount: number; treeGlyphCount: number }> {
   const { terrain, forestCores, seed } = options;
   const extent = terrain.generationSize * 0.5;
@@ -631,10 +708,13 @@ async function drawForestGlyphs(
   let candidateCount = 0;
   let clumpCount = 0;
   let treeGlyphCount = 0;
+  const woodlandFootprints: IllustratedFeatureFootprint[] = [];
   context.save();
-  context.strokeStyle = 'rgba(49, 40, 25, 0.7)';
-  context.fillStyle = 'rgba(72, 83, 48, 0.075)';
-  context.lineWidth = 0.76 * MAP_ART_SCALE;
+  const woodlandInk = ILLUSTRATED_TERRAIN_STYLE.paper.terrainInk;
+  context.strokeStyle = `rgba(${woodlandInk.r}, ${woodlandInk.g}, ${woodlandInk.b}, ${ILLUSTRATED_TERRAIN_STYLE.woodland.outlineAlpha})`;
+  context.fillStyle = `rgba(83, 86, 72, ${ILLUSTRATED_TERRAIN_STYLE.woodland.washAlphaMin})`;
+  context.lineWidth = ILLUSTRATED_TERRAIN_STYLE.woodland.lineWidthAuthorPixels
+    * MAP_ART_SCALE;
   context.lineCap = 'round';
   context.lineJoin = 'round';
 
@@ -675,6 +755,26 @@ async function drawForestGlyphs(
       const footprintRadius = (
         5.8 + field.clumpMass * 7.2
       ) * MAP_ART_SCALE;
+      if (intersectsFeatureFootprints(
+        pixelX,
+        pixelY,
+        footprintRadius,
+        footprintRadius * 0.7,
+        mountainFootprints,
+      )) {
+        columnIndex++;
+        continue;
+      }
+      if (intersectsFeatureFootprints(
+        pixelX,
+        pixelY,
+        footprintRadius,
+        footprintRadius * 0.7,
+        woodlandFootprints,
+      )) {
+        columnIndex++;
+        continue;
+      }
       if (!isLandFootprintClear(
         waterMask,
         pixelX,
@@ -698,6 +798,12 @@ async function drawForestGlyphs(
       );
       clumpCount++;
       treeGlyphCount += glyphs;
+      woodlandFootprints.push({
+        x: pixelX,
+        y: pixelY,
+        radiusX: footprintRadius,
+        radiusY: footprintRadius * 0.7,
+      });
       columnIndex++;
     }
     rowIndex++;
@@ -789,9 +895,11 @@ function drawMountainRangeGlyph(
   const rangeWidth = (17 + peakCount * 3.8 + prominence * 5) * scale;
   const peakSpacing = rangeWidth / Math.max(peakCount - 0.25, 1);
   context.save();
-  context.strokeStyle = `rgba(58, 43, 26, ${0.46 + prominence * 0.2})`;
-  context.fillStyle = `rgba(116, 94, 55, ${0.026 + prominence * 0.035})`;
-  context.lineWidth = (0.72 + prominence * 0.16) * MAP_ART_SCALE;
+  const mountainStyle = ILLUSTRATED_TERRAIN_STYLE.mountains;
+  const mountainInk = ILLUSTRATED_TERRAIN_STYLE.paper.terrainInk;
+  context.strokeStyle = `rgba(${mountainInk.r}, ${mountainInk.g}, ${mountainInk.b}, ${mountainStyle.outlineAlphaMin + prominence * mountainStyle.outlineAlphaProminence})`;
+  context.fillStyle = `rgba(111, 105, 91, ${mountainStyle.fillAlphaMin + prominence * mountainStyle.fillAlphaProminence})`;
+  context.lineWidth = (0.54 + prominence * 0.1) * MAP_ART_SCALE;
 
   for (let peakIndex = 0; peakIndex < peakCount; peakIndex++) {
     const horizontal = peakCount <= 1
@@ -822,8 +930,8 @@ function drawMountainRangeGlyph(
     );
   }
 
-  context.strokeStyle = `rgba(58, 43, 26, ${0.28 + prominence * 0.16})`;
-  context.lineWidth = 0.55 * MAP_ART_SCALE;
+  context.strokeStyle = `rgba(${mountainInk.r}, ${mountainInk.g}, ${mountainInk.b}, ${mountainStyle.baselineAlphaMin + prominence * mountainStyle.baselineAlphaProminence})`;
+  context.lineWidth = 0.46 * MAP_ART_SCALE;
   context.beginPath();
   context.moveTo(x - rangeWidth * 0.47, y + 1.3 * scale);
   context.quadraticCurveTo(
@@ -924,17 +1032,17 @@ function drawWoodlandClump(
   const maximumGlyphs = ILLUSTRATED_TERRAIN_FIELDS.woodland.maximumTreeGlyphsPerClump;
   const glyphCount = Math.min(
     maximumGlyphs,
-    3 + Math.floor(clumpMass * 4.4 + mapHash(13, 7, seed) * 1.15),
+    2 + Math.floor(clumpMass * 2.8 + mapHash(13, 7, seed) * 0.85),
   );
   const radiusX = (
-    4.1 + clumpMass * 6.6 - boundary * 0.8
+    4.5 + clumpMass * 7.2 - boundary * 0.9
   ) * MAP_ART_SCALE;
   const radiusY = (
-    1.9 + clumpMass * 3.1
+    2.1 + clumpMass * 3.4
   ) * MAP_ART_SCALE;
 
   context.save();
-  context.fillStyle = `rgba(73, 87, 48, ${0.038 + clumpMass * 0.035})`;
+  context.fillStyle = `rgba(83, 86, 72, ${ILLUSTRATED_TERRAIN_STYLE.woodland.washAlphaMin + clumpMass * ILLUSTRATED_TERRAIN_STYLE.woodland.washAlphaMass})`;
   context.beginPath();
   context.ellipse(
     x,
@@ -956,15 +1064,15 @@ function drawWoodlandClump(
     );
     const radial = glyphIndex === 0
       ? 0
-      : (0.28 + Math.sqrt(mapHash(glyphIndex, 41, seed)) * 0.32)
+      : (0.36 + Math.sqrt(mapHash(glyphIndex, 41, seed)) * 0.46)
         * (0.9 + boundary * 0.16);
     placements.push({
       x: x + Math.cos(angle) * radiusX * radial,
       y: y + Math.sin(angle) * radiusY * radial,
       scale: (
-        0.72
-          + clumpMass * 0.16
-          + mapHash(glyphIndex, 59, seed) * 0.25
+        0.52
+          + clumpMass * 0.08
+          + mapHash(glyphIndex, 59, seed) * 0.14
       ) * MAP_ART_SCALE,
       lean: (mapHash(glyphIndex, 73, seed) - 0.5) * 0.72 * MAP_ART_SCALE,
       conifer: mapHash(glyphIndex, 89, seed) < coniferBias,
@@ -981,7 +1089,7 @@ function drawWoodlandClump(
   }
 
   context.save();
-  context.strokeStyle = `rgba(49, 40, 25, ${0.24 + clumpMass * 0.18})`;
+  context.strokeStyle = `rgba(${ILLUSTRATED_TERRAIN_STYLE.paper.terrainInk.r}, ${ILLUSTRATED_TERRAIN_STYLE.paper.terrainInk.g}, ${ILLUSTRATED_TERRAIN_STYLE.paper.terrainInk.b}, ${ILLUSTRATED_TERRAIN_STYLE.woodland.baselineAlphaMin + clumpMass * ILLUSTRATED_TERRAIN_STYLE.woodland.baselineAlphaMass})`;
   context.lineWidth = 0.48 * MAP_ART_SCALE;
   context.beginPath();
   context.moveTo(x - radiusX * 0.72, y + 1.1 * MAP_ART_SCALE);
@@ -1004,6 +1112,23 @@ function isLandFootprintClear(
     && !isWaterPixel(waterMask, x + radiusX * 0.72, y)
     && !isWaterPixel(waterMask, x, y - radiusY * 0.72)
     && !isWaterPixel(waterMask, x, y + radiusY * 0.72);
+}
+
+function intersectsFeatureFootprints(
+  x: number,
+  y: number,
+  radiusX: number,
+  radiusY: number,
+  footprints: readonly IllustratedFeatureFootprint[],
+): boolean {
+  for (const footprint of footprints) {
+    const combinedX = Math.max(1, radiusX + footprint.radiusX);
+    const combinedY = Math.max(1, radiusY + footprint.radiusY);
+    const dx = (x - footprint.x) / combinedX;
+    const dy = (y - footprint.y) / combinedY;
+    if (dx * dx + dy * dy < 1) return true;
+  }
+  return false;
 }
 
 function drawWaterHatching(
@@ -1047,14 +1172,29 @@ function drawGrassTuft(
   y: number,
   height: number,
   lean: number,
+  variant: number,
 ): void {
+  const width = height * (0.68 + variant * 0.2);
+  const baseY = y + MAP_ART_SCALE * 0.55;
   context.beginPath();
-  context.moveTo(x, y + MAP_ART_SCALE);
-  context.lineTo(x + lean, y - height);
-  context.moveTo(x, y + MAP_ART_SCALE);
-  context.lineTo(x - height * 0.7, y - height * 0.45);
-  context.moveTo(x, y + MAP_ART_SCALE);
-  context.lineTo(x + height * 0.72, y - height * 0.55);
+  context.moveTo(x - width, baseY);
+  context.quadraticCurveTo(
+    x - width * 0.56,
+    y - height * (0.25 + variant * 0.16),
+    x - width * 0.12 + lean * 0.32,
+    baseY - height * 0.08,
+  );
+  context.moveTo(x - width * 0.08, baseY - height * 0.03);
+  context.quadraticCurveTo(
+    x + width * 0.42 + lean * 0.45,
+    y - height * (0.38 + (1 - variant) * 0.12),
+    x + width,
+    baseY - height * 0.02,
+  );
+  if (variant > 0.68) {
+    context.moveTo(x + width * 1.18, baseY - height * 0.02);
+    context.lineTo(x + width * 1.42, baseY - height * 0.08);
+  }
   context.stroke();
 }
 

@@ -9,8 +9,26 @@ import {
   INDUSTRY_BUILD_MENU_ENTRIES,
   MILITARY_BUILD_MENU_ENTRIES,
   renderBuildMenuCards,
+  syncBuildMenuCardAffordability,
   type BuildMenuEntry,
 } from '../src/ui/buildMenuCards.ts';
+import { residenceZoneCost } from '../src/resources/buildingEconomy.ts';
+import { buildingCostWithCarpenterSupport } from '../src/economy/carpenterSupport.ts';
+import { BuildingTool } from '../src/buildings/BuildingTool.ts';
+import { BurgageTool } from '../src/residences/BurgageTool.ts';
+import {
+  describeBuildingPlacementBlocker,
+  renderToolbarStatus,
+} from '../src/ui/buildToolbarStatus.ts';
+import {
+  buildingResourceCostAmounts,
+  decodeResourceCostTooltip,
+  FREE_CONSTRUCTION_COST_TOOLTIP,
+  isResourceCostAffordable,
+  renderResourceCost,
+  resourceCostEntries,
+} from '../src/ui/resourceCost.ts';
+import { isConstructionResourceShortfallMessage } from '../src/ui/toastMessages.ts';
 import { resolveTooltipPosition } from '../src/ui/tooltips.ts';
 
 assert.deepEqual(keys(CIVIC_BUILD_MENU_ENTRIES), [
@@ -60,6 +78,138 @@ assert.equal(
 );
 
 const renderedCards = renderBuildMenuCards();
+const renderedCardTags = [...renderedCards.matchAll(/<button[^>]*class="construction-card"[^>]*>/g)]
+  .map((match) => match[0]);
+assert.equal(renderedCardTags.length, BUILD_MENU_ENTRIES.length);
+for (const card of renderedCardTags) {
+  assert.match(card, /data-tooltip-cost="[^"]+"/, 'every build-card hover tooltip must list its construction cost');
+  assert.match(card, /data-tooltip-cost-affordable="true"/, 'every build card must expose a live affordability state');
+}
+const residenceCardTag = renderedCardTags.find((card) => card.includes('data-action="residences"')) ?? '';
+const residenceTooltipCost = decodeResourceCostTooltip(
+  residenceCardTag.match(/data-tooltip-cost="([^"]+)"/)?.[1] ?? '',
+);
+assert.deepEqual(residenceTooltipCost, {
+  items: resourceCostEntries(buildingResourceCostAmounts(residenceZoneCost(1))),
+  suffix: 'per home',
+});
+assert.deepEqual(
+  decodeResourceCostTooltip(FREE_CONSTRUCTION_COST_TOOLTIP),
+  { items: [], suffix: '' },
+  'a no-charge land parcel must render a truthful Free construction cost',
+);
+assert.equal(
+  isResourceCostAffordable({ timber: 4, stone: 6 }, buildingResourceCostAmounts(residenceZoneCost(1))),
+  false,
+  'a one-home burgage cost must become unaffordable when any required material is short',
+);
+assert.equal(
+  isResourceCostAffordable(
+    { timber: residenceZoneCost(1).timber - 5e-7, stone: residenceZoneCost(1).stone },
+    buildingResourceCostAmounts(residenceZoneCost(1)),
+  ),
+  true,
+  'client affordability must share the authority’s floating-point tolerance',
+);
+assert.equal(
+  buildingCostWithCarpenterSupport('monastery', false).roofTiles,
+  72,
+  'the active Monastery placement cost must retain its fired roof tiles',
+);
+assert.match(
+  renderResourceCost({ timber: 5 }, { unaffordable: true }),
+  /aria-label="Not enough resources\. 5 timber"/,
+  'the red affordability state must also be announced without relying on color',
+);
+assert.match(
+  renderToolbarStatus({
+    canBuild: false,
+    hasDraft: true,
+    mode: 'residences',
+    statusDetail: '1 cottage worksite planned',
+    placementCost: residenceZoneCost(1),
+    placementCostAffordable: false,
+    placementResourceShortfall: true,
+  }),
+  /Construction cost <span class="resource-cost resource-cost--compact resource-cost--unaffordable"/,
+  'an unaffordable burgage should keep its ordinary status copy and make only the cost red',
+);
+assert.equal(isConstructionResourceShortfallMessage('Not enough timber (need 5 timber).'), true);
+assert.equal(isConstructionResourceShortfallMessage('Not enough stone (need 6 stone).'), true);
+assert.equal(isConstructionResourceShortfallMessage('Not enough ironwork fittings (need 4 ironwork).'), true);
+assert.equal(isConstructionResourceShortfallMessage('Not enough fired roof tiles (need 72 roof tiles).'), true);
+assert.equal(isConstructionResourceShortfallMessage('Not enough resources for this building.'), true);
+assert.equal(isConstructionResourceShortfallMessage('Not enough workers are available.'), false);
+assert.equal(isConstructionResourceShortfallMessage('Placement overlaps a road.'), false);
+assert.equal(describeBuildingPlacementBlocker('insufficient_resources'), 'Site clear');
+
+const unaffordableCard = fakeBuildMenuCard('residences');
+syncBuildMenuCardAffordability(
+  fakeBuildMenu(unaffordableCard),
+  { timber: 0, stone: 0 },
+);
+assert.equal(unaffordableCard.dataset.tooltipCostAffordable, 'false');
+assert.equal(unaffordableCard.classList.contains('is-unaffordable'), true);
+assert.match(unaffordableCard.getAttribute('aria-label') ?? '', /Not enough resources/);
+syncBuildMenuCardAffordability(
+  fakeBuildMenu(unaffordableCard),
+  buildingResourceCostAmounts(residenceZoneCost(1)),
+);
+assert.equal(unaffordableCard.dataset.tooltipCostAffordable, 'true');
+assert.equal(unaffordableCard.classList.contains('is-unaffordable'), false);
+assert.doesNotMatch(unaffordableCard.getAttribute('aria-label') ?? '', /Not enough resources/);
+const freeCard = fakeBuildMenuCard('dry-stone-wall');
+syncBuildMenuCardAffordability(fakeBuildMenu(freeCard), {});
+assert.equal(freeCard.dataset.tooltipCostAffordable, 'true');
+assert.equal(freeCard.classList.contains('is-unaffordable'), false);
+
+const buildingPreviewValidity: boolean[] = [];
+const stationaryBuildingTool = Object.assign(Object.create(BuildingTool.prototype), {
+  mode: 'well',
+  lastPreviewX: 12,
+  lastPreviewZ: 24,
+  lastValidatedX: 12,
+  lastValidatedZ: 24,
+  lastPreviewValidation: { ok: true },
+  lastValidationTime: 0,
+  validationDirty: false,
+  placementStatusDetail: 'Ready: site clear',
+  options: {
+    markers: {
+      setPlacementPreview: (_kind: string, _x: number, _z: number, valid: boolean) => {
+        buildingPreviewValidity.push(valid);
+      },
+    },
+  },
+  validate: () => ({ ok: true }),
+}) as BuildingTool;
+stationaryBuildingTool.markPlacementResourceShortfall('well');
+assert.equal(stationaryBuildingTool.isPlacementResourceShortfall(), true);
+assert.equal(buildingPreviewValidity.at(-1), false);
+stationaryBuildingTool.revalidatePreview();
+assert.equal(stationaryBuildingTool.isPlacementReady(), true);
+assert.equal(buildingPreviewValidity.at(-1), true);
+
+const burgagePreviewValidity: boolean[] = [];
+const stationaryBurgageTool = Object.assign(Object.create(BurgageTool.prototype), {
+  enabled: true,
+  placementStage: 4,
+  previewLayout: {},
+  draftValidation: { ok: true, layout: {} },
+  validationDirty: false,
+  lastValidationTime: 0,
+  preview: {
+    setValidity: (valid: boolean) => burgagePreviewValidity.push(valid),
+  },
+  runValidation(this: { draftValidation: { ok: true; layout: object } }) {
+    this.draftValidation = { ok: true, layout: {} };
+  },
+}) as BurgageTool;
+stationaryBurgageTool.markPlacementResourceShortfall();
+assert.equal(stationaryBurgageTool.isPlacementResourceShortfall(), true);
+assert.equal(burgagePreviewValidity.at(-1), false);
+stationaryBurgageTool.revalidatePreview();
+assert.equal(stationaryBurgageTool.isDraftBuildable(), true);
 assert.doesNotMatch(renderedCards, /data-hotkey=/, 'build cards must no longer expose sub-hotkeys');
 assert.doesNotMatch(renderedCards, /construction-card__hotkey/, 'build cards must not render hotkey badges');
 assert.match(renderedCards, />Mining Pit</);
@@ -166,6 +316,25 @@ assert.match(toolbarSource, /setBuildMenuCategory\(DEFAULT_BUILD_MENU_CATEGORY, 
 assert.doesNotMatch(toolbarSource, /resolveBuildMenuHotkey/);
 assert.doesNotMatch(toolbarSource, /data-action="(?:civic|gathering|agriculture|industry|military)-build-menu"/);
 
+const tooltipSource = fs.readFileSync('src/ui/tooltips.ts', 'utf8');
+assert.match(tooltipSource, /label\.textContent = 'Construction cost'/);
+assert.match(tooltipSource, /tooltipCostAffordable !== 'false'/);
+const burgageToolSource = fs.readFileSync('src/residences/BurgageTool.ts', 'utf8');
+assert.doesNotMatch(
+  burgageToolSource,
+  /\b(?:Need|Not enough)\b/,
+  'burgage resource shortfalls must be represented by the cost color, not long status prose',
+);
+const bootstrapSource = fs.readFileSync('src/app/appBootstrap.ts', 'utf8');
+assert.match(bootstrapSource, /buildingTool\.markPlacementResourceShortfall\(kind\)/);
+assert.match(bootstrapSource, /burgageTool\.markPlacementResourceShortfall\(\)/);
+assert.match(bootstrapSource, /if \(reason === 'insufficient_resources'\) return;/);
+const appSource = fs.readFileSync('src/app/App.ts', 'utf8');
+assert.match(appSource, /constructionResourceSignature[\s\S]{0,800}buildingTool\.revalidatePreview\(\)[\s\S]{0,120}burgageTool\.revalidatePreview\(\)/);
+const burgageValidationSource = fs.readFileSync('src/residences/burgagePlacementValidation.ts', 'utf8');
+assert.match(burgageValidationSource, /stockpile\.timber \+ 1e-6 < cost\.timber/);
+assert.match(burgageValidationSource, /stockpile\.stone \+ 1e-6 < cost\.stone/);
+
 console.log('Build menu category tests passed.');
 
 function keys(entries: readonly BuildMenuEntry[]): string[] {
@@ -176,4 +345,30 @@ function categoryKeys(id: string): string[] {
   const category = BUILD_MENU_CATEGORIES.find((candidate) => candidate.id === id);
   assert.ok(category, `missing build category ${id}`);
   return keys(category.entries);
+}
+
+function fakeBuildMenuCard(action: string): HTMLButtonElement {
+  const classes = new Set(['construction-card']);
+  const attributes = new Map([['aria-label', `${action} cost`]]);
+  return {
+    dataset: { action },
+    classList: {
+      contains: (token: string) => classes.has(token),
+      remove: (...tokens: string[]) => tokens.forEach((token) => classes.delete(token)),
+      toggle: (token: string, force?: boolean) => {
+        const enabled = force ?? !classes.has(token);
+        if (enabled) classes.add(token);
+        else classes.delete(token);
+        return enabled;
+      },
+    },
+    getAttribute: (name: string) => attributes.get(name) ?? null,
+    setAttribute: (name: string, value: string) => { attributes.set(name, value); },
+  } as unknown as HTMLButtonElement;
+}
+
+function fakeBuildMenu(...cards: HTMLButtonElement[]): ParentNode {
+  return {
+    querySelectorAll: () => cards,
+  } as unknown as ParentNode;
 }

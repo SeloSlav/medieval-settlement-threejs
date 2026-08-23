@@ -1,7 +1,9 @@
 import {
+  decodeResourceCostTooltip,
   formatResourceCostAmount,
   isResourceCostKind,
   resourceCostLabel,
+  type ResourceCostEntry,
   type ResourceCostKind,
 } from './resourceCost.ts';
 
@@ -82,6 +84,8 @@ export function mountTooltips(root: HTMLElement): () => void {
         'data-tooltip-amount',
         'data-tooltip-amount-label',
         'data-tooltip-flow',
+        'data-tooltip-cost',
+        'data-tooltip-cost-affordable',
         'data-tooltip-placement',
         'data-tooltip-variant',
         'data-tooltip-season',
@@ -287,6 +291,18 @@ function renderTooltipContent(
     bodyElement.appendChild(list);
   }
 
+  const resourceCost = anchor.dataset.tooltipCost
+    ? decodeResourceCostTooltip(anchor.dataset.tooltipCost)
+    : null;
+  tooltip.classList.toggle('has-cost', resourceCost !== null);
+  if (resourceCost) {
+    bodyElement.appendChild(createTooltipConstructionCost(
+      resourceCost.items,
+      resourceCost.suffix,
+      anchor.dataset.tooltipCostAffordable !== 'false',
+    ));
+  }
+
   fragment.appendChild(bodyElement);
   tooltip.replaceChildren(fragment);
 }
@@ -376,7 +392,57 @@ function renderSeasonAlmanacTooltip(
   fragment.appendChild(list);
 
   tooltip.classList.remove('has-amount');
+  tooltip.classList.remove('has-cost');
   tooltip.replaceChildren(fragment);
+}
+
+function createTooltipConstructionCost(
+  items: readonly ResourceCostEntry[],
+  suffix: string,
+  affordable: boolean,
+): HTMLDivElement {
+  const row = document.createElement('div');
+  row.className = 'ui-tooltip__construction-cost';
+  row.classList.toggle('is-unaffordable', !affordable);
+
+  const label = document.createElement('span');
+  label.className = 'ui-tooltip__construction-cost-label';
+  label.textContent = 'Construction cost';
+
+  const cost = document.createElement('span');
+  cost.className = `resource-cost resource-cost--compact${affordable ? '' : ' resource-cost--unaffordable'}`;
+  if (items.length === 0) {
+    cost.classList.add('resource-cost--free');
+    cost.textContent = 'Free';
+  } else {
+    cost.setAttribute('role', 'img');
+    cost.setAttribute('aria-label', `${affordable ? '' : 'Not enough resources. '}${items
+      .map(({ kind, amount }) => `${formatResourceCostAmount(amount)} ${resourceCostLabel(kind)}`)
+      .join(', ')}${suffix ? ` ${suffix}` : ''}`);
+    for (const item of items) {
+      const identity = document.createElement('span');
+      identity.className = 'resource-cost__item';
+      identity.dataset.resourceCost = item.kind;
+
+      const icon = document.createElement('span');
+      icon.className = 'resource-cost__icon';
+      icon.setAttribute('aria-hidden', 'true');
+      const amount = document.createElement('span');
+      amount.className = 'resource-cost__value';
+      amount.textContent = formatResourceCostAmount(item.amount);
+      identity.append(icon, amount);
+      cost.appendChild(identity);
+    }
+  }
+  if (suffix) {
+    const suffixElement = document.createElement('span');
+    suffixElement.className = 'resource-cost__suffix';
+    suffixElement.textContent = suffix;
+    cost.appendChild(suffixElement);
+  }
+
+  row.append(label, cost);
+  return row;
 }
 
 function readTooltipResourceFlow(anchor: HTMLElement): TooltipResourceFlow | null {

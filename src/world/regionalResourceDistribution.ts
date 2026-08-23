@@ -21,7 +21,7 @@ export type RegionalResourcePlan = {
   /** Supporting finite iron-or-salt deposits. */
   ordinaryMineralDepositCount: number;
   foragingNodeCounts: ForagingNodeCounts;
-  /** Rich grades rolled independently across the generated wild-food nodes. */
+  /** Rich grades assigned across wild food, with one reserved on small maps. */
   foragingRichNodeCounts: ForagingNodeCounts;
   presentForagingKinds: ForagingNodeKind[];
   totalForagingNodes: number;
@@ -98,7 +98,9 @@ const MAX_NODES_PER_FORAGING_KIND = 6;
  * mushrooms join on broader regional mixes. Fish may supplement the wild-food
  * roster, but never substitutes for the requested game/berry/mushroom minimum.
  * Rich grades are then rolled across every physical node, including every wild
- * food family.
+ * food family. Small maps reserve one of their rich rolls for wild food so a
+ * lean geological roll cannot leave the opening settlement without a strong
+ * renewable food source.
  */
 export function createRegionalResourcePlan(
   settings: WorldGenerationSettings,
@@ -333,16 +335,30 @@ function allocateRichCounts(
     geological: { stone: 0, clay: 0, minerals: 0 },
     foraging: { game: 0, berries: 0, mushrooms: 0, fish: 0 },
   };
-  slots
+  const selectedSlots = slots
     .sort((a, b) => b.score - a.score)
-    .slice(0, richTarget)
-    .forEach((slot) => {
-      if (slot.family === 'geological') {
-        richAllocation.geological[slot.category] += 1;
-      } else {
-        richAllocation.foraging[slot.category] += 1;
-      }
-    });
+    .slice(0, richTarget);
+
+  if (
+    settings.mapSize === 'small'
+    && richTarget > 0
+    && foragingSlots.length > 0
+    && !selectedSlots.some((slot) => slot.family === 'foraging')
+  ) {
+    const bestForagingSlot = [...foragingSlots]
+      .sort((a, b) => b.score - a.score)[0];
+    // selectedSlots is still score-ordered, so the final entry is the weakest
+    // winning geological roll. Replacing it retains the exact rich-node budget.
+    selectedSlots[selectedSlots.length - 1] = bestForagingSlot;
+  }
+
+  selectedSlots.forEach((slot) => {
+    if (slot.family === 'geological') {
+      richAllocation.geological[slot.category] += 1;
+    } else {
+      richAllocation.foraging[slot.category] += 1;
+    }
+  });
   return richAllocation;
 }
 

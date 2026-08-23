@@ -1,7 +1,14 @@
 import type { BuildingKind } from '../generated/gameBalance.ts';
 import { formatBuildingCost, getBuildingCost, residenceZoneCost } from '../resources/buildingEconomy.ts';
 import { MENU_ACTION_TO_BUILDING_KIND } from './buildMenuMapping.ts';
-import { renderBuildingResourceCost, type ResourceCostKind } from './resourceCost.ts';
+import {
+  buildingResourceCostAmounts,
+  encodeResourceCostTooltip,
+  isResourceCostAffordable,
+  renderBuildingResourceCost,
+  type ResourceCostAmounts,
+  type ResourceCostKind,
+} from './resourceCost.ts';
 
 export type PlacementBuildMenuAction =
   | 'lumber-mill' | 'stone-quarry' | 'large-quarry' | 'mine' | 'reforester' | 'woodcutters-lodge'
@@ -210,6 +217,8 @@ export const BUILD_MENU_ENTRIES: readonly BuildMenuEntry[] = [
   ...BUILD_MENU_CATEGORIES.flatMap((category) => category.entries),
 ];
 
+const BUILD_MENU_CARD_ARIA_LABELS = new WeakMap<HTMLButtonElement, string>();
+
 export type BuildMenuHandlers = {
   onSelectBuilding: (kind: BuildingKind) => void;
   onSelectResidences: () => void;
@@ -219,26 +228,63 @@ export type BuildMenuHandlers = {
 export function renderBuildMenuCards(entries: readonly BuildMenuEntry[] = BUILD_MENU_ENTRIES): string {
   return entries.map((entry) => {
     const [title, description, resourceFlow] = DETAILS[entry.artKey];
-    const resourceCost = entry.artKey === 'residences'
-      ? residenceZoneCost(1)
-      : entry.artKey === 'dry_stone_wall'
-        ? { timber: 0, stone: 0, ironwork: 0 }
-        : getBuildingCost(entry.artKey as BuildingKind);
+    const resourceCost = buildMenuEntryCost(entry);
     const costSuffix = entry.artKey === 'residences' ? 'per home' : '';
     const costText = `${formatBuildingCost(resourceCost)}${costSuffix ? ` ${costSuffix}` : ''}`;
     const costMarkup = renderBuildingResourceCost(resourceCost, {
       compact: true,
       suffix: costSuffix,
     });
+    const tooltipCost = encodeResourceCostTooltip(
+      buildingResourceCostAmounts(resourceCost),
+      { suffix: costSuffix },
+    );
     const flowAttribute = resourceFlow
       ? ` data-tooltip-flow="${encodeURIComponent(JSON.stringify({ inputs: resourceFlow[0], outputs: resourceFlow[1] }))}"`
       : '';
-    return `<button type="button" class="construction-card" data-action="${entry.action}" data-tooltip-placement="above" data-tooltip-title="${title}" data-tooltip="${description}"${flowAttribute} aria-label="${title}. ${description} Cost: ${costText}">
+    return `<button type="button" class="construction-card" data-action="${entry.action}" data-tooltip-placement="above" data-tooltip-title="${title}" data-tooltip="${description}" data-tooltip-cost="${tooltipCost}" data-tooltip-cost-affordable="true"${flowAttribute} aria-label="${title}. ${description} Cost: ${costText}">
       <img class="construction-card__art" data-src="${BUILD_CARD_ART[entry.artKey]}" alt="" width="320" height="480" loading="lazy" decoding="async" draggable="false" />
       <span class="construction-card__caption" aria-hidden="true"><strong>${title}</strong><span class="construction-card__cost">${costMarkup}</span></span>
       <span class="construction-card__tooltip" role="tooltip"><span class="construction-card__tooltip-title">${title}</span><span class="construction-card__tooltip-desc">${description}</span><span class="construction-card__tooltip-cost">Cost: ${costMarkup}</span></span>
     </button>`;
   }).join('');
+}
+
+export function syncBuildMenuCardAffordability(
+  menu: ParentNode,
+  available: ResourceCostAmounts | null,
+): void {
+  for (const button of menu.querySelectorAll<HTMLButtonElement>('.construction-card[data-action]')) {
+    const entry = BUILD_MENU_ENTRIES.find((candidate) => candidate.action === button.dataset.action);
+    const baseAriaLabel = BUILD_MENU_CARD_ARIA_LABELS.get(button)
+      ?? button.getAttribute('aria-label')
+      ?? '';
+    BUILD_MENU_CARD_ARIA_LABELS.set(button, baseAriaLabel);
+    if (!entry || !available) {
+      button.classList.remove('is-unaffordable');
+      delete button.dataset.tooltipCostAffordable;
+      button.setAttribute('aria-label', baseAriaLabel);
+      continue;
+    }
+    const affordable = isResourceCostAffordable(
+      available,
+      buildingResourceCostAmounts(buildMenuEntryCost(entry)),
+    );
+    button.classList.toggle('is-unaffordable', !affordable);
+    button.dataset.tooltipCostAffordable = String(affordable);
+    button.setAttribute(
+      'aria-label',
+      affordable ? baseAriaLabel : `${baseAriaLabel}. Not enough resources.`,
+    );
+  }
+}
+
+function buildMenuEntryCost(entry: BuildMenuEntry) {
+  return entry.artKey === 'residences'
+    ? residenceZoneCost(1)
+    : entry.artKey === 'dry_stone_wall'
+      ? { timber: 0, stone: 0, ironwork: 0 }
+      : getBuildingCost(entry.artKey as BuildingKind);
 }
 
 export function hydrateBuildMenuImages(menu: ParentNode): void {

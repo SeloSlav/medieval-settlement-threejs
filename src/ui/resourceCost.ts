@@ -68,6 +68,15 @@ export const RESOURCE_COST_KINDS = [
 
 export type ResourceCostKind = (typeof RESOURCE_COST_KINDS)[number];
 export type ResourceCostAmounts = Partial<Record<ResourceCostKind, number>>;
+export type ResourceCostEntry = {
+  kind: ResourceCostKind;
+  amount: number;
+};
+
+export type ResourceCostTooltipData = {
+  items: ResourceCostEntry[];
+  suffix: string;
+};
 
 const RESOURCE_COST_LABELS: Record<ResourceCostKind, string> = {
   timber: 'timber',
@@ -146,6 +155,7 @@ export function resourceCostLabel(kind: ResourceCostKind): string {
 export type ResourceCostMarkupOptions = {
   compact?: boolean;
   suffix?: string;
+  unaffordable?: boolean;
 };
 
 export function buildingResourceCostAmounts(
@@ -184,23 +194,23 @@ export function renderResourceCost(
   amounts: ResourceCostAmounts,
   options: ResourceCostMarkupOptions = {},
 ): string {
-  const entries = RESOURCE_COST_KINDS.flatMap((kind) => {
-    const amount = amounts[kind];
-    return amount != null && Number.isFinite(amount) && amount > 1e-9
-      ? [{ kind, amount }]
-      : [];
-  });
+  const entries = resourceCostEntries(amounts);
   if (entries.length === 0) {
-    return '<span class="resource-cost resource-cost--free">Free</span>';
+    const classes = options.unaffordable
+      ? 'resource-cost resource-cost--free resource-cost--unaffordable'
+      : 'resource-cost resource-cost--free';
+    return `<span class="${classes}">Free</span>`;
   }
 
   const suffix = options.suffix?.trim() ?? '';
-  const accessibleLabel = `${entries
+  const accessibleLabel = `${options.unaffordable ? 'Not enough resources. ' : ''}${entries
     .map(({ kind, amount }) => `${formatResourceCostAmount(amount)} ${RESOURCE_COST_LABELS[kind]}`)
     .join(', ')}${suffix ? ` ${suffix}` : ''}`;
-  const classes = options.compact
-    ? 'resource-cost resource-cost--compact'
-    : 'resource-cost';
+  const classes = [
+    'resource-cost',
+    options.compact ? 'resource-cost--compact' : '',
+    options.unaffordable ? 'resource-cost--unaffordable' : '',
+  ].filter(Boolean).join(' ');
   const items = entries.map(({ kind, amount }) => {
     const label = RESOURCE_COST_LABELS[kind];
     return `<span class="resource-cost__item" data-resource-cost="${kind}" title="${capitalize(label)}"><span class="resource-cost__icon" aria-hidden="true"></span><span class="resource-cost__value">${formatResourceCostAmount(amount)}</span></span>`;
@@ -210,6 +220,63 @@ export function renderResourceCost(
     : '';
 
   return `<span class="${classes}" role="img" aria-label="${escapeHtml(accessibleLabel)}">${items}${visibleSuffix}</span>`;
+}
+
+export function resourceCostEntries(amounts: ResourceCostAmounts): ResourceCostEntry[] {
+  return RESOURCE_COST_KINDS.flatMap((kind) => {
+    const amount = amounts[kind];
+    return amount != null && Number.isFinite(amount) && amount > 1e-9
+      ? [{ kind, amount }]
+      : [];
+  });
+}
+
+export function isResourceCostAffordable(
+  available: ResourceCostAmounts,
+  required: ResourceCostAmounts,
+): boolean {
+  return resourceCostEntries(required).every(
+    ({ kind, amount }) => (available[kind] ?? 0) + 1e-6 >= amount,
+  );
+}
+
+export function encodeResourceCostTooltip(
+  amounts: ResourceCostAmounts,
+  options: Pick<ResourceCostMarkupOptions, 'suffix'> = {},
+): string {
+  return encodeURIComponent(JSON.stringify({
+    items: resourceCostEntries(amounts),
+    suffix: options.suffix?.trim() ?? '',
+  } satisfies ResourceCostTooltipData));
+}
+
+export const FREE_CONSTRUCTION_COST_TOOLTIP = encodeResourceCostTooltip({});
+
+export function decodeResourceCostTooltip(source: string): ResourceCostTooltipData | null {
+  try {
+    const decoded: unknown = JSON.parse(decodeURIComponent(source));
+    if (decoded == null || typeof decoded !== 'object') return null;
+    const items = 'items' in decoded && Array.isArray(decoded.items)
+      ? decoded.items.flatMap((candidate): ResourceCostEntry[] => {
+          if (candidate == null || typeof candidate !== 'object') return [];
+          const kind = 'kind' in candidate ? candidate.kind : null;
+          const amount = 'amount' in candidate ? candidate.amount : null;
+          return typeof kind === 'string'
+            && isResourceCostKind(kind)
+            && typeof amount === 'number'
+            && Number.isFinite(amount)
+            && amount > 1e-9
+            ? [{ kind, amount }]
+            : [];
+        })
+      : [];
+    const suffix = 'suffix' in decoded && typeof decoded.suffix === 'string'
+      ? decoded.suffix.trim()
+      : '';
+    return { items, suffix };
+  } catch {
+    return null;
+  }
 }
 
 export function formatResourceCostAmount(amount: number): string {

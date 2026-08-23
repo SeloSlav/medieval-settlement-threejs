@@ -70,6 +70,10 @@ const householdDistribution = readFileSync(
   new URL('../server/src/simulation/household_distribution.rs', import.meta.url),
   'utf8',
 );
+const pantrySafeguardPolicy = readFileSync(
+  new URL('../server/src/pantry_safeguard_policy.rs', import.meta.url),
+  'utf8',
+);
 const deliveryCargo = readFileSync(
   new URL('../server/src/simulation/delivery_cargo.rs', import.meta.url),
   'utf8',
@@ -131,18 +135,23 @@ assert.match(settlementHud, /meal-equivalents usable/);
 assert.match(settlementHud, /firewood \+.*charcoal.*fuel-equivalents/);
 assert.match(
   householdDistribution,
-  /MarketIssueCycle::Weekly[\s\S]*CALENDAR_DAYS_PER_WEEK[\s\S]*MarketIssueCycle::Emergency/,
-  'markets must issue weekly pantry lots while retaining daily emergency checks',
+  /fn market_issue_cycle[\s\S]*sim_tick % ticks_per_day[\s\S]*Some\(MarketIssueCycle::Daily\)/,
+  'markets must issue ordinary household lots once every day',
 );
 assert.match(
   householdDistribution,
-  /emergency_pantry_rule\(pantry_policy\)[\s\S]*rule\.trigger_days[\s\S]*rule\.target_days/,
+  /MarketIssueCycle::Daily[\s\S]*daily_market_issue_target_days\([\s\S]*ResidenceNeedKind::Firewood[\s\S]*ResidenceNeedKind::Food[\s\S]*ResidenceNeedKind::PreservedFood/,
+  'the Town Hall safeguard must add a critical-food and heat buffer on top of universal daily issues',
+);
+assert.match(
+  pantrySafeguardPolicy,
+  /pub fn daily_market_issue_target_days[\s\S]*emergency_pantry_rule\(pantry_policy\)[\s\S]*rule\.trigger_days[\s\S]*rule\.target_days/,
   'emergency distribution must be automatic and governed by the Town Hall pantry policy',
 );
 assert.match(
   householdDistribution,
   /Allocate one household-day per pass/,
-  'scarce weekly market stock must be rationed fairly across connected homes',
+  'scarce daily market stock must be rationed fairly across connected homes',
 );
 assert.match(
   deliveryCargo,

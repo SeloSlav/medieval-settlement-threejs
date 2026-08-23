@@ -143,6 +143,22 @@ const SETTLEMENT_HUD_HTML = `
       </button>
     </aside>
     <div class="settlement-vitals" data-settlement-vitals aria-label="Time and settlement status">
+    <div
+      class="settlement-vitals__zoom"
+      tabindex="0"
+      data-stat-row="zoom"
+      data-tooltip-title="Camera zoom"
+      data-tooltip="Current camera zoom. Scroll the mouse wheel over the world to zoom in and out."
+      aria-label="Camera zoom: 100 percent"
+      aria-live="off"
+    >
+      <svg class="settlement-vitals__zoom-icon" viewBox="0 0 18 18" aria-hidden="true">
+        <circle cx="7.5" cy="7.5" r="4.75"></circle>
+        <path d="m11 11 4 4"></path>
+      </svg>
+      <span class="settlement-vitals__zoom-label">Zoom</span>
+      <strong class="settlement-vitals__zoom-value" data-stat="zoom">100%</strong>
+    </div>
     <div class="settlement-hud__clock" data-settlement-clock>
       <span class="settlement-hud__clock-date" data-clock-date>Year 1</span>
       <span class="settlement-hud__clock-time" data-clock-time>08:00</span>
@@ -276,16 +292,6 @@ const SETTLEMENT_HUD_HTML = `
       >
         <span class="settlement-hud__label">FPS</span>
         <strong class="settlement-hud__value settlement-hud__value--fps" data-stat="fps">--</strong>
-      </div>
-      <div
-        class="settlement-hud__stat settlement-hud__stat--perf"
-        tabindex="0"
-        data-stat-row="zoom"
-        data-tooltip-title="Camera zoom"
-        data-tooltip="Camera zoom level. Scroll the mouse wheel to zoom in and out on the map."
-      >
-        <span class="settlement-hud__label">Zoom</span>
-        <strong class="settlement-hud__value settlement-hud__value--zoom" data-stat="zoom">100%</strong>
       </div>
     </div>
     <button
@@ -1237,48 +1243,8 @@ export class SettlementHud {
               ? 'Household services'
               : 'Welfare watch';
     this.welfareAlert.dataset.tooltipTitle = this.welfareLabel.textContent;
-    this.welfareDetail.textContent = [
-      welfare.starvingResidents > 0
-        ? `${welfare.starvingResidents} starving`
-        : null,
-      welfare.malnourishedResidents > 0
-        ? `${welfare.malnourishedResidents} malnourished`
-        : welfare.hungryResidents > 0
-          ? `${welfare.hungryResidents} hungry`
-          : null,
-      welfare.sickResidents > 0
-        ? `${welfare.sickResidents} sick`
-        : null,
-      welfare.sickResidents > 0
-        ? `herbs ${formatWelfareRunway(welfare.remedyRunwayDays)}`
-        : null,
-      welfare.uncollectedBodiesAtHomes > 0
-        ? `${welfare.uncollectedBodiesAtHomes} at ${welfare.uncollectedBodiesAtHomes === 1 ? 'a home' : 'homes'}`
-        : null,
-      welfare.uncollectedBodiesAtHomes > 0 || welfare.burialGrounds > 0
-        ? `${welfare.openGraves} graves open`
-        : null,
-      welfare.upgradeBlockedHouseholds > 0
-        ? `${welfare.upgradeBlockedHouseholds} upgrades blocked`
-        : null,
-    ].filter(Boolean).join(' · ');
-    this.welfareAlert.dataset.tooltip = [
-      `${welfare.stableResidents} / ${welfare.activeResidents} residents live in households without a current health or service warning.`,
-      welfare.sickResidents > 0
-        ? `${welfare.sickResidents} residents cannot work while ill. The settlement holds ${Math.round(welfare.householdRemedyStock)} remedies in homes, ${Math.round(welfare.preparedRemedyStock)} at sheds, and ${Math.round(welfare.remediesInTransit)} on carts against ${welfare.remedyDemandPerDay.toFixed(2)} per day; ${welfare.untreatedSickHouseholds} sick homes are not yet supplied for a full day.`
-        : 'No resident is currently unable to work through illness.',
-      welfare.uncollectedBodiesAtHomes > 0
-        ? `${welfare.uncollectedBodiesAtHomes} bodies still remain at homes and add local disease pressure. ${welfare.outboundEmptyCarts} empty burial carts are outbound and ${welfare.loadedBurialCarts} loaded carts are returning.`
-        : 'No body currently remains at a household.',
-      welfare.burialGrounds > 0
-        ? `${welfare.occupiedGraves} graves are occupied, ${welfare.reservedGraves} reserved by moving carts, and ${welfare.openGraves} remain open across ${welfare.burialGrounds} grounds.`
-        : 'No consecrated burial ground has been laid out.',
-      welfare.serviceWarningHouseholds > 0
-        ? `${welfare.serviceWarningHouseholds} households have sustained unmet needs and ${welfare.upgradeBlockedHouseholds} cannot be promoted; household work and taxable market activity continue normally.`
-        : 'Household services are stable and residence promotion remains available.',
-      `${welfare.vacantHomes} empty ${welfare.vacantHomes === 1 ? 'home remains' : 'homes remain'} permanently reusable for arriving settlers.`,
-      'Open the Town Hall ledger to inspect the highest-risk household.',
-    ].join(' · ');
+    this.welfareDetail.textContent = 'Review affected homes';
+    this.welfareAlert.dataset.tooltip = 'Open the Town Hall ledger for details.';
   }
 
   clearProvisioningState(): void {
@@ -1343,12 +1309,10 @@ export class SettlementHud {
 
   setZoomPercent(zoomPercent: number): void {
     const displayZoom = Math.max(0, Math.round(zoomPercent));
-    const illustratedMapActive = zoomPercent < 30;
-    const displayKey = illustratedMapActive ? -1 : displayZoom;
-    if (displayKey === this.displayedZoom) return;
-    this.zoomValue.textContent = illustratedMapActive ? 'MAP' : `${displayZoom}%`;
-    this.zoomStat.dataset.cameraMode = illustratedMapActive ? 'map' : 'world';
-    this.displayedZoom = displayKey;
+    if (displayZoom === this.displayedZoom) return;
+    this.zoomValue.textContent = `${displayZoom}%`;
+    this.zoomStat.setAttribute('aria-label', `Camera zoom: ${displayZoom} percent`);
+    this.displayedZoom = displayZoom;
   }
 
   private readonly onResourceRowClick = (event: MouseEvent): void => {
@@ -1764,13 +1728,6 @@ function formatSupplyAmount(amount: number): string {
   if (!Number.isFinite(amount)) return '0';
   if (Math.abs(amount) < 10) return amount.toFixed(1);
   return Math.round(amount).toString();
-}
-
-function formatWelfareRunway(days: number): string {
-  if (!Number.isFinite(days)) return 'not needed';
-  if (days < 1) return '<1d';
-  if (days < 10) return `${days.toFixed(1)}d`;
-  return `${Math.floor(days)}d`;
 }
 
 function geologyResourceLabel(

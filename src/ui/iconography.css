@@ -487,6 +487,10 @@
   font-weight: 650;
 }
 
+.resource-cost--unaffordable {
+  color: #f09a82;
+}
+
 .resource-cost__item[data-resource-cost='timber'] .resource-cost__icon,
 .resource-cost__item[data-resource-cost='stone'] .resource-cost__icon,
 .resource-cost__item[data-resource-cost='firewood'] .resource-cost__icon,

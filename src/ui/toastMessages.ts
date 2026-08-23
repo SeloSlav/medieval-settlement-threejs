@@ -60,6 +60,11 @@ export function getToastMessage(id: ToastMessageId): string {
   return TOAST_MESSAGES[id];
 }
 
+export function isConstructionResourceShortfallMessage(message: string): boolean {
+  return /^Not enough (?:resources\b|timber\b|stone\b|ironwork\b|(?:fired )?roof tiles\b)/i
+    .test(message.trim());
+}
+
 export function roadPlacementReasonToToastId(reason: RoadPlacementFailureReason): ToastMessageId | null {
   switch (reason) {
     case 'too_steep':

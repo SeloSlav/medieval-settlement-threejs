@@ -2,9 +2,8 @@ use crate::balance_generated::{
     BERRIES_REGROW_PER_DAY, CALENDAR_SECONDS_PER_DAY, FISH_REPRODUCTION_RATE_PER_DAY,
     GAME_MIN_BREEDING_POPULATION, GAME_REPRODUCTION_RATE_PER_DAY, MUSHROOMS_REGROW_PER_DAY,
     MUSHROOM_AUTUMN_REGROWTH_MULTIPLIER, RICH_BERRY_REGROWTH_MULTIPLIER,
-    RICH_BERRY_YIELD_MULTIPLIER, RICH_FISH_REGROWTH_MULTIPLIER,
-    RICH_FISH_YIELD_MULTIPLIER, RICH_GAME_REGROWTH_MULTIPLIER,
-    RICH_GAME_YIELD_MULTIPLIER, RICH_MUSHROOM_REGROWTH_MULTIPLIER,
+    RICH_BERRY_YIELD_MULTIPLIER, RICH_FISH_REGROWTH_MULTIPLIER, RICH_FISH_YIELD_MULTIPLIER,
+    RICH_GAME_REGROWTH_MULTIPLIER, RICH_GAME_YIELD_MULTIPLIER, RICH_MUSHROOM_REGROWTH_MULTIPLIER,
     RICH_MUSHROOM_YIELD_MULTIPLIER,
 };
 
@@ -47,9 +46,7 @@ pub fn harvest_yield_multiplier(node_kind: &str, max_yield: f64) -> f64 {
     match node_kind {
         "game" if max_yield > ORDINARY_GAME_CAPACITY => RICH_GAME_YIELD_MULTIPLIER,
         "berries" if max_yield > ORDINARY_BERRY_CAPACITY => RICH_BERRY_YIELD_MULTIPLIER,
-        "mushrooms" if max_yield > ORDINARY_MUSHROOM_CAPACITY => {
-            RICH_MUSHROOM_YIELD_MULTIPLIER
-        }
+        "mushrooms" if max_yield > ORDINARY_MUSHROOM_CAPACITY => RICH_MUSHROOM_YIELD_MULTIPLIER,
         "fish" if max_yield > ORDINARY_FISH_CAPACITY => RICH_FISH_YIELD_MULTIPLIER,
         _ => 1.0,
     }
@@ -59,9 +56,7 @@ pub fn population_regrowth_multiplier(node_kind: &str, max_yield: f64) -> f64 {
     match node_kind {
         "game" if max_yield > ORDINARY_GAME_CAPACITY => RICH_GAME_REGROWTH_MULTIPLIER,
         "berries" if max_yield > ORDINARY_BERRY_CAPACITY => RICH_BERRY_REGROWTH_MULTIPLIER,
-        "mushrooms" if max_yield > ORDINARY_MUSHROOM_CAPACITY => {
-            RICH_MUSHROOM_REGROWTH_MULTIPLIER
-        }
+        "mushrooms" if max_yield > ORDINARY_MUSHROOM_CAPACITY => RICH_MUSHROOM_REGROWTH_MULTIPLIER,
         "fish" if max_yield > ORDINARY_FISH_CAPACITY => RICH_FISH_REGROWTH_MULTIPLIER,
         _ => 1.0,
     }
@@ -89,20 +84,16 @@ pub fn population_growth_per_second(
             MUSHROOMS_REGROW_PER_DAY * MUSHROOM_AUTUMN_REGROWTH_MULTIPLIER * richness
                 / CALENDAR_SECONDS_PER_DAY
         }
-        "fish" if is_spring(month) && remaining > 0.0 => {
-            logistic_growth_per_second(
-                remaining,
-                max_yield,
-                FISH_REPRODUCTION_RATE_PER_DAY * richness,
-            )
-        }
-        "game" if remaining >= GAME_MIN_BREEDING_POPULATION => {
-            logistic_growth_per_second(
-                remaining,
-                max_yield,
-                GAME_REPRODUCTION_RATE_PER_DAY * richness,
-            )
-        }
+        "fish" if is_spring(month) && remaining > 0.0 => logistic_growth_per_second(
+            remaining,
+            max_yield,
+            FISH_REPRODUCTION_RATE_PER_DAY * richness,
+        ),
+        "game" if remaining >= GAME_MIN_BREEDING_POPULATION => logistic_growth_per_second(
+            remaining,
+            max_yield,
+            GAME_REPRODUCTION_RATE_PER_DAY * richness,
+        ),
         _ => 0.0,
     }
 }

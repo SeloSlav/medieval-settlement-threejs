@@ -665,7 +665,7 @@ export function renderResidenceInspector(
       <li data-inspector-primary><span>Active needs</span><span>${displayedNeedsLabel}</span></li>
       ${residence.tier > 0 && residence.population > 0 ? `<li><span>Approval & economy</span><span>${formatResidenceServiceConsequence(service)}</span></li>` : ''}
       ${residence.tier > 0 ? `<li><span>Household prosperity</span><span>${formatHouseholdProsperity(residence.householdWealth)}</span></li>` : ''}
-      ${residence.tier > 0 ? `<li><span>Local supply cycle</span><span>Connected Marketplace goods issue as a seven-day pantry lot each week · Town Hall safeguard: ${pantrySafeguard.label} — ${pantrySafeguard.hint} · well water draws automatically in radius · no household cart or player prompt</span></li>` : ''}
+      ${residence.tier > 0 ? `<li><span>Local supply cycle</span><span>Connected Marketplace goods issue as a one-day lot every day · Town Hall safeguard: ${pantrySafeguard.label} — ${pantrySafeguard.hint} · well water draws automatically in radius · no household cart or player prompt</span></li>` : ''}
       ${fireDisabled
         ? '<li><span>Parish economy</span><span>Paused · no tithe, alms, or relief claim until structural recovery</span></li>'
         : parishEconomy.hasChapelAccess

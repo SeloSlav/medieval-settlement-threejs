@@ -79,7 +79,7 @@ type BuildingToolOptions = {
   onPlacementPreviewChanged?: () => void;
   describePlacementFailure?: (reason: BuildingPlacementFailureReason) => string;
   onPlacementRejected?: (reason: BuildingPlacementFailureReason) => void;
-  onPlacementFailed?: (message: string) => void;
+  onPlacementFailed?: (message: string, kind: BuildingKind) => void;
   onBuildingPlaced?: (kind: BuildingKind, buildingId: string) => void;
   onUndoFailed?: (message: string) => void;
   onRedoFailed?: (message: string) => void;
@@ -366,7 +366,6 @@ export class BuildingTool {
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Building placement failed.';
       console.error('Building placement failed:', error);
-      this.options.onPlacementFailed?.(message);
       this.placementPending = false;
       this.options.markers.clearPendingPlacement();
       if (!this.options.isBlocked() && this.placementIntentVersion === placementIntentVersion) {
@@ -376,6 +375,7 @@ export class BuildingTool {
           this.setMode(kind);
         }
       }
+      this.options.onPlacementFailed?.(message, kind);
       return;
     }
   }
@@ -478,6 +478,11 @@ export class BuildingTool {
     return this.lastPreviewValidation?.ok === true;
   }
 
+  isPlacementResourceShortfall(): boolean {
+    return this.lastPreviewValidation?.ok === false
+      && this.lastPreviewValidation.reason === 'insufficient_resources';
+  }
+
   invalidatePreview(): void {
     if (
       this.mode === 'off'
@@ -488,6 +493,50 @@ export class BuildingTool {
     }
     this.validationDirty = true;
     this.lastValidationTime = 0;
+  }
+
+  revalidatePreview(): void {
+    if (
+      this.mode === 'off'
+      || !Number.isFinite(this.lastPreviewX)
+      || !Number.isFinite(this.lastPreviewZ)
+    ) {
+      return;
+    }
+    const kind = this.mode;
+    const validation = this.runPreviewValidation(
+      this.lastPreviewX,
+      this.lastPreviewZ,
+      false,
+    );
+    this.options.markers.setPlacementPreview(
+      kind,
+      this.lastPreviewX,
+      this.lastPreviewZ,
+      validation.ok,
+      true,
+    );
+  }
+
+  markPlacementResourceShortfall(kind: BuildingKind): void {
+    if (this.mode !== kind) return;
+    const validation: BuildingPlacementResult = {
+      ok: false,
+      reason: 'insufficient_resources',
+    };
+    this.lastPreviewValidation = validation;
+    this.validationDirty = false;
+    this.lastValidationTime = performance.now();
+    this.updatePlacementStatusDetail(this.mode, validation, false);
+    if (Number.isFinite(this.lastPreviewX) && Number.isFinite(this.lastPreviewZ)) {
+      this.options.markers.setPlacementPreview(
+        this.mode,
+        this.lastPreviewX,
+        this.lastPreviewZ,
+        false,
+        true,
+      );
+    }
   }
 
   private getPreviewValidation(x: number, z: number): BuildingPlacementResult {
@@ -508,14 +557,22 @@ export class BuildingTool {
     return this.runPreviewValidation(x, z);
   }
 
-  private runPreviewValidation(x: number, z: number): BuildingPlacementResult {
+  private runPreviewValidation(
+    x: number,
+    z: number,
+    notifyStatusChange = true,
+  ): BuildingPlacementResult {
     const result = this.validate(this.mode as BuildingKind, x, z);
     this.lastValidatedX = x;
     this.lastValidatedZ = z;
     this.lastPreviewValidation = result;
     this.lastValidationTime = performance.now();
     this.validationDirty = false;
-    this.updatePlacementStatusDetail(this.mode as BuildingKind, result);
+    this.updatePlacementStatusDetail(
+      this.mode as BuildingKind,
+      result,
+      notifyStatusChange,
+    );
     return result;
   }
 
@@ -560,16 +617,21 @@ export class BuildingTool {
   private updatePlacementStatusDetail(
     kind: BuildingKind,
     validation: BuildingPlacementResult,
+    notify = true,
   ): void {
     if (kind === 'founders_camp') {
-      this.setPlacementStatusDetail(null);
+      this.setPlacementStatusDetail(null, notify);
       return;
     }
     if (!validation.ok) {
+      if (validation.reason === 'insufficient_resources') {
+        this.setPlacementStatusDetail('Site clear', notify);
+        return;
+      }
       const detail = this.options.describePlacementFailure?.(
         validation.reason,
       ) ?? `Placement blocked: ${validation.reason}`;
-      this.setPlacementStatusDetail(detail);
+      this.setPlacementStatusDetail(detail, notify);
       return;
     }
     this.setPlacementStatusDetail(
@@ -578,13 +640,14 @@ export class BuildingTool {
         : kind === 'guardhouse'
           ? 'Ready: completed watchtower confirmed'
           : 'Ready: site clear',
+      notify,
     );
   }
 
-  private setPlacementStatusDetail(detail: string | null): void {
+  private setPlacementStatusDetail(detail: string | null, notify = true): void {
     if (detail === this.placementStatusDetail) return;
     this.placementStatusDetail = detail;
-    this.options.onPlacementPreviewChanged?.();
+    if (notify) this.options.onPlacementPreviewChanged?.();
   }
 
   private validate(kind: BuildingKind, x: number, z: number) {

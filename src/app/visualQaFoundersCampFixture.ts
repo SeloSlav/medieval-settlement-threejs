@@ -1,6 +1,7 @@
 import type { BuildingState, GameState } from '../resources/types.ts';
 import type { WorldLayout } from '../resources/WorldLayout.ts';
 import { selectFoundingSite } from '../world/worldBootstrapData.ts';
+import { STARTING_STONE, STARTING_TIMBER } from '../generated/gameBalance.ts';
 
 export const VISUAL_QA_FOUNDERS_CAMP_ID = 'visual-qa-founders-camp-fixture';
 
@@ -20,9 +21,9 @@ export function createVisualQaFoundersCampFixture(
     z: site.z,
     workRadius: 0,
     actionCooldown: 0,
-    timber: 160,
+    timber: STARTING_TIMBER,
     firewood: 24,
-    stone: 140,
+    stone: STARTING_STONE,
     water: 0,
     food: 0,
     ale: 0,

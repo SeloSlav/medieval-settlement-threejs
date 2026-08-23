@@ -182,11 +182,7 @@ pub fn backyard_garden_seasonal_multiplier(
         },
         ChickenPen | GoatPen | PigPen => {
             let def = backyard_garden_def(kind);
-            if !backyard_month_in_window(
-                month,
-                def.harvest_start_month,
-                def.harvest_end_month,
-            ) {
+            if !backyard_month_in_window(month, def.harvest_start_month, def.harvest_end_month) {
                 0.0
             } else if environment.season == Season::Winter {
                 0.75 * def.yield_efficiency
@@ -360,11 +356,8 @@ mod tests {
     fn drought_spares_stocked_pens_but_cuts_exposed_plants() {
         let drought = environment(Season::Summer, WeatherKind::Drought);
         assert!(
-            (backyard_garden_seasonal_multiplier(
-                BackyardGardenKind::CabbageGarden,
-                7,
-                drought,
-            ) - 0.6325)
+            (backyard_garden_seasonal_multiplier(BackyardGardenKind::CabbageGarden, 7, drought,)
+                - 0.6325)
                 .abs()
                 < 1e-9
         );

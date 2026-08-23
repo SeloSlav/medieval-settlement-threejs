@@ -187,12 +187,28 @@ function releaseMouse(button: number): void {
   }));
 }
 
+function advanceController(
+  controller: CameraController,
+  seconds: number,
+  frameDt = 1 / 60,
+): void {
+  const frameCount = Math.ceil(seconds / frameDt);
+  for (let frame = 0; frame < frameCount; frame += 1) {
+    controller.update(frameDt);
+  }
+}
+
+function settleZoom(controller: CameraController): void {
+  advanceController(controller, 0.6);
+}
+
 function scrollToLiveWorldMaximum(
   controller: CameraController,
   domElement: HTMLElement,
 ): void {
   for (let step = 0; step < 40 && controller.getZoomPercent() > 30; step += 1) {
     domElement.dispatch('wheel', wheelEvent({ deltaY: 120 }));
+    settleZoom(controller);
   }
 }
 
@@ -269,15 +285,118 @@ function scrollToLiveWorldMaximum(
   const { controller, domElement } = createController();
   const distanceBefore = controller.getOrbitDistance();
   domElement.dispatch('wheel', wheelEvent({ deltaY: 120 }));
-  assert.notEqual(controller.getOrbitDistance(), distanceBefore, 'wheel zoom should apply immediately');
+  assert.equal(controller.getOrbitDistance(), distanceBefore,
+    'wheel input should set a destination instead of teleporting the camera');
   assert.equal(controller.isNavigationActive(), true,
     'wheel zoom should hold the resident forest set while the input burst settles');
-  const afterWheel = controller.getOrbitDistance();
-  controller.update(0.5);
-  assert.equal(controller.getOrbitDistance(), afterWheel, 'zoom must not ease after wheel input');
+  controller.update(1 / 60);
+  const firstFrameDistance = controller.getOrbitDistance();
+  assert.ok(firstFrameDistance > distanceBefore,
+    'outward zoom should begin moving on the next render frame');
+  assert.ok(firstFrameDistance < distanceBefore * 1.18,
+    'the first frame should remain between the old and requested zoom stops');
+  settleZoom(controller);
+  assert.ok(Math.abs(controller.getOrbitDistance() - distanceBefore * 1.18) < 1e-9,
+    'the damped zoom should converge exactly to its requested stop');
+  await new Promise<void>((resolve) => setTimeout(resolve, 230));
+  assert.equal(controller.isNavigationActive(), false,
+    'navigation activity should clear after the glide and wheel grace both settle');
+  domElement.dispatch('wheel', wheelEvent({ deltaY: -120 }));
   controller.setInputEnabled(false);
   assert.equal(controller.isNavigationActive(), false,
     'disabling camera input should clear the wheel navigation grace period');
+  const disabledDistance = controller.getOrbitDistance();
+  controller.update(0.5);
+  assert.equal(controller.getOrbitDistance(), disabledDistance,
+    'disabling input mid-glide should cancel the queued zoom motion');
+}
+
+{
+  const coarse = createController(undefined, true);
+  const fine = createController(undefined, true);
+  coarse.domElement.dispatch('wheel', wheelEvent({ deltaY: 120 }));
+  fine.domElement.dispatch('wheel', wheelEvent({ deltaY: 120 }));
+  coarse.controller.update(0.1);
+  for (let frame = 0; frame < 10; frame += 1) fine.controller.update(0.01);
+  assert.ok(
+    Math.abs(coarse.controller.getOrbitDistance() - fine.controller.getOrbitDistance()) < 1e-9,
+    'zoom damping should produce the same response across different frame rates',
+  );
+  coarse.controller.dispose();
+  fine.controller.dispose();
+}
+
+{
+  const { controller, domElement } = createController(undefined, true);
+  const distanceBefore = controller.getOrbitDistance();
+  domElement.dispatch('wheel', wheelEvent({ deltaY: 120 }));
+  controller.update(0.05);
+  const outwardDistance = controller.getOrbitDistance();
+  domElement.dispatch('wheel', wheelEvent({ deltaY: -120 }));
+  controller.update(0.05);
+  const reversedDistance = controller.getOrbitDistance();
+  assert.ok(outwardDistance > distanceBefore,
+    'the reversal regression should begin during an outward glide');
+  assert.ok(reversedDistance < outwardDistance,
+    'reversing the wheel should redirect the in-flight glide without overshoot');
+  assert.ok(reversedDistance >= distanceBefore,
+    'a reversed glide should stay inside its newly requested stop');
+  settleZoom(controller);
+  assert.ok(Math.abs(controller.getOrbitDistance() - distanceBefore) < 1e-9,
+    'the reversed glide should converge to the reciprocal starting stop');
+}
+
+{
+  const { controller, domElement } = createController(undefined, true);
+  const distanceBefore = controller.getOrbitDistance();
+  domElement.dispatch('wheel', wheelEvent({ deltaY: -120 }));
+  domElement.dispatch('wheel', wheelEvent({ deltaY: -120 }));
+  assert.equal(controller.getOrbitDistance(), distanceBefore,
+    'rapid wheel input should keep composing destinations without moving between events');
+  controller.update(1 / 60);
+  assert.ok(controller.getOrbitDistance() < distanceBefore,
+    'a rapid inward burst should begin as one continuous glide');
+  settleZoom(controller);
+  assert.ok(
+    Math.abs(controller.getOrbitDistance() - distanceBefore / (1.18 * 1.18)) < 1e-9,
+    'rapid wheel steps should compose from the requested target, not the in-flight distance',
+  );
+}
+
+{
+  const outward = createController(undefined, true);
+  const inward = createController(undefined, true);
+  outward.controller.applyShowcaseView(0, 0, undefined, undefined, 100);
+  inward.controller.applyShowcaseView(0, 0, undefined, undefined, 118);
+  outward.domElement.dispatch('wheel', wheelEvent({ deltaY: 120 }));
+  inward.domElement.dispatch('wheel', wheelEvent({ deltaY: -120 }));
+  outward.controller.update(0.05);
+  inward.controller.update(0.05);
+  const outwardLogProgress = Math.log(outward.controller.getOrbitDistance() / 100)
+    / Math.log(1.18);
+  const inwardLogProgress = Math.log(118 / inward.controller.getOrbitDistance())
+    / Math.log(1.18);
+  assert.ok(Math.abs(outwardLogProgress - inwardLogProgress) < 1e-9,
+    'reciprocal zoom directions should cover equal logarithmic distance per frame');
+  outward.controller.dispose();
+  inward.controller.dispose();
+}
+
+{
+  let viewChangeCount = 0;
+  const { controller, domElement } = createController(() => {
+    viewChangeCount += 1;
+  });
+  const distanceBefore = controller.getOrbitDistance();
+  rmbPan(domElement, 0, 0, 20, 0);
+  releaseMouse(2);
+  domElement.dispatch('wheel', wheelEvent({ deltaY: 120 }));
+  await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+  assert.ok(controller.getOrbitDistance() > distanceBefore,
+    'non-continuous camera owners should receive an internal zoom animation frame');
+  assert.equal(viewChangeCount, 1,
+    'pan and zoom should coalesce into one non-continuous render frame');
+  controller.setInputEnabled(false);
 }
 
 {
@@ -289,23 +408,28 @@ function scrollToLiveWorldMaximum(
   assert.equal(controller.getOrbitDistance(), distanceBefore,
     'trackpad micro-deltas should not zoom before the accumulated threshold');
   domElement.dispatch('wheel', wheelEvent({ deltaY: 10 }));
+  controller.update(1 / 60);
   assert.ok(controller.getOrbitDistance() > distanceBefore,
     'same-direction trackpad micro-deltas should zoom at the threshold');
 
+  settleZoom(controller);
   const afterOutwardStep = controller.getOrbitDistance();
   domElement.dispatch('wheel', wheelEvent({ deltaY: 40 }));
   domElement.dispatch('wheel', wheelEvent({ deltaY: -40 }));
   assert.equal(controller.getOrbitDistance(), afterOutwardStep,
     'reversing a partial trackpad gesture should reset its prior accumulation');
   domElement.dispatch('wheel', wheelEvent({ deltaY: -40 }));
+  controller.update(1 / 60);
   assert.ok(controller.getOrbitDistance() < afterOutwardStep,
     'the reversed gesture should zoom only after reaching its own threshold');
+  settleZoom(controller);
 }
 
 {
   const { controller, domElement } = createController();
   const distanceBefore = controller.getOrbitDistance();
   domElement.dispatch('wheel', wheelEvent({ deltaY: 4000 }));
+  settleZoom(controller);
   assert.ok(
     Math.abs(controller.getOrbitDistance() - distanceBefore * 1.18) < 1e-9,
     'one coarse wheel event must advance at most one live-world zoom step',
@@ -316,6 +440,7 @@ function scrollToLiveWorldMaximum(
   const { controller, domElement } = createController();
   const distanceBefore = controller.getOrbitDistance();
   domElement.dispatch('wheel', wheelEvent({ deltaY: 3, deltaMode: 1 }));
+  controller.update(1 / 60);
   assert.ok(controller.getOrbitDistance() > distanceBefore,
     'line-mode mouse wheels should normalize into one thresholded zoom step');
 }
@@ -346,6 +471,64 @@ function scrollToLiveWorldMaximum(
   assert.equal(controller.isNavigationActive(), false,
     'non-navigation shortcuts should not hold forest interaction work');
   window.dispatchEvent(keyboardEvent('keyup', 'f'));
+}
+
+{
+  const mapModeChanges: boolean[] = [];
+  const { controller, domElement } = createController(
+    undefined,
+    true,
+    (active) => mapModeChanges.push(active),
+  );
+  const distanceBefore = controller.getOrbitDistance();
+  domElement.dispatch('wheel', wheelEvent({ deltaY: 120 }));
+  domElement.dispatch('wheel', wheelEvent({ deltaY: 120 }));
+  domElement.dispatch('wheel', wheelEvent({ deltaY: 120 }));
+  domElement.dispatch('wheel', wheelEvent({ deltaY: 120 }));
+  assert.equal(controller.getOrbitDistance(), distanceBefore,
+    'a rapid map-entry burst should remain on the rendered live-world glide');
+  assert.equal(controller.isIllustratedMapActive(), false,
+    'map render ownership should wait for the camera to reach the continuity stop');
+  controller.update(0.05);
+  assert.equal(controller.isIllustratedMapActive(), false,
+    'the map handoff must remain pending while the live camera is still moving');
+  settleZoom(controller);
+  assert.equal(controller.isIllustratedMapActive(), true,
+    'the queued map handoff should complete once the 30% live view is exact');
+  assert.ok(Math.abs(controller.getZoomPercent() - 30) < 1e-9,
+    'the queued handoff should preserve the exact live/map continuity pose');
+  assert.deepEqual(mapModeChanges, [true]);
+}
+
+{
+  const { controller, domElement } = createController(undefined, true);
+  domElement.dispatch('wheel', wheelEvent({ deltaY: -120 }));
+  controller.update(0.05);
+  controller.applyShowcaseView(30, -40, undefined, undefined, 70);
+  assert.ok(Math.abs(controller.getOrbitDistance() - 70) < 1e-9,
+    'a scripted view should replace an in-flight wheel destination immediately');
+  settleZoom(controller);
+  assert.ok(Math.abs(controller.getOrbitDistance() - 70) < 1e-9,
+    'a stale wheel destination must not pull after a scripted camera reset');
+}
+
+{
+  const mapModeChanges: boolean[] = [];
+  const { controller, domElement } = createController(
+    undefined,
+    true,
+    (active) => mapModeChanges.push(active),
+  );
+  domElement.dispatch('wheel', wheelEvent({ deltaY: 120 }));
+  domElement.dispatch('wheel', wheelEvent({ deltaY: 120 }));
+  domElement.dispatch('wheel', wheelEvent({ deltaY: 120 }));
+  domElement.dispatch('wheel', wheelEvent({ deltaY: -120 }));
+  settleZoom(controller);
+  assert.equal(controller.isIllustratedMapActive(), false,
+    'one reciprocal step should cancel a pending map handoff');
+  assert.ok(Math.abs(controller.getZoomPercent() - 30) < 1e-9,
+    'cancelling the pending handoff should remain at the live overview stop');
+  assert.deepEqual(mapModeChanges, []);
 }
 
 {
@@ -444,8 +627,8 @@ function scrollToLiveWorldMaximum(
     'the render-owner handoff must not introduce a camera-orientation cut');
   assert.ok(Math.abs(controller.getZoomPercent() - 30) < 1e-9,
     'the actual camera zoom should remain at the live overview scale');
-  assert.equal(controller.getHudZoomPercent(), 29,
-    'the HUD should still identify the render-owner handoff as MAP');
+  assert.ok(Math.abs(controller.getHudZoomPercent() - 30) < 1e-9,
+    'the HUD should retain the actual zoom percentage across the map handoff');
   assert.ok(Math.abs(camera.far - expectedMapFarPlane) < 1e-9,
     'map mode should expand the far plane for its scale-derived maximum tier');
   assert.equal(camera.near, liveWorldNearPlane,

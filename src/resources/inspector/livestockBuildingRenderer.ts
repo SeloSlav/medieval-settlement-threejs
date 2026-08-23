@@ -66,7 +66,10 @@ import {
   buildingRoadAccessRow,
 } from './buildingCommon.ts';
 import type { InspectorRenderContext, InspectorView } from './renderInspectableTarget.ts';
-import { renderResourceAmount } from '../../ui/resourceCost.ts';
+import {
+  FREE_CONSTRUCTION_COST_TOOLTIP,
+  renderResourceAmount,
+} from '../../ui/resourceCost.ts';
 
 const SPECIES_LABEL = {
   cattle: 'Cattle',
@@ -317,7 +320,7 @@ export function renderLivestockBuildingInspector(
   const pastureControls = `<div class="inspector-action-panel">
       <p class="resource-inspector-note">${pastureHint}</p>
       <div class="resource-action-row">
-        <button type="button" class="resource-action-button resource-action-button--icon" data-land-parcel="pasture" ${building.kind === 'pastoral_farmstead' && !herd ? 'disabled' : ''}><span class="inspector-action-icon" data-action-icon="pasture-parcel" aria-hidden="true"></span><span>${pastureLabel}</span></button>
+        <button type="button" class="resource-action-button resource-action-button--icon" data-land-parcel="pasture" data-tooltip-title="${pastureLabel}" data-tooltip="Lay out a fenced parcel inside this holding’s work extent." data-tooltip-cost="${FREE_CONSTRUCTION_COST_TOOLTIP}" data-tooltip-cost-affordable="true" ${building.kind === 'pastoral_farmstead' && !herd ? 'disabled' : ''}><span class="inspector-action-icon" data-action-icon="pasture-parcel" aria-hidden="true"></span><span>${pastureLabel}</span></button>
       </div>
     </div>`;
   const reserveControls = herd

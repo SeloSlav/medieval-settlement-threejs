@@ -547,7 +547,7 @@ export function createInspectorSpacetimeActions(
         'Could not update the Town Hall pantry safeguard.',
       );
       if (updated) {
-        toastManager.show('Pantry safeguard posted. Weekly issues and automatic market checks will follow the new rule.');
+        toastManager.show('Pantry safeguard posted. Daily issues continue; critical food and heat will use the new buffer.');
       }
     },
     onSetFiscalPolicy: async (landLevyRate, importDutyRate, exportDutyRate) => {

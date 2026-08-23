@@ -118,6 +118,47 @@ test('keeps at least three specialty digits visible before truncation', async ({
   });
 });
 
+test('keeps the camera zoom percentage visible beside settlement time', async ({ page }) => {
+  await page.setContent(`
+    <div class="settlement-hud">
+      <div class="settlement-vitals" data-settlement-vitals>
+        <div class="settlement-vitals__zoom" data-stat-row="zoom">
+          <svg class="settlement-vitals__zoom-icon" viewBox="0 0 18 18" aria-hidden="true">
+            <circle cx="7.5" cy="7.5" r="4.75"></circle>
+            <path d="m11 11 4 4"></path>
+          </svg>
+          <span class="settlement-vitals__zoom-label">Zoom</span>
+          <strong class="settlement-vitals__zoom-value" data-stat="zoom">37%</strong>
+        </div>
+        <div class="settlement-hud__clock" data-settlement-clock>
+          <span class="settlement-hud__clock-date">27 March, Year 1</span>
+          <span class="settlement-hud__clock-time">11:16</span>
+          <span class="settlement-hud__season">Spring rain</span>
+        </div>
+      </div>
+    </div>
+  `);
+  await page.addStyleTag({ path: 'src/ui/settlementHud.css' });
+  await page.addStyleTag({ path: 'src/ui/polishedGameUi.css' });
+
+  const zoom = page.locator('[data-stat-row="zoom"]');
+  const zoomValue = page.locator('[data-stat="zoom"]');
+  const clock = page.locator('[data-settlement-clock]');
+  await expect(zoom).toBeVisible();
+  await expect(zoomValue).toHaveText('37%');
+  const layout = await page.locator('[data-settlement-vitals]').evaluate((vitals) => {
+    const zoomBox = vitals.querySelector<HTMLElement>('[data-stat-row="zoom"]')!.getBoundingClientRect();
+    const clockBox = vitals.querySelector<HTMLElement>('[data-settlement-clock]')!.getBoundingClientRect();
+    return {
+      zoomWidth: zoomBox.width,
+      separated: zoomBox.right <= clockBox.left,
+    };
+  });
+  expect(layout.zoomWidth).toBeGreaterThanOrEqual(56);
+  expect(layout.separated).toBe(true);
+  await expect(clock).toBeVisible();
+});
+
 test('connects, places a reforester, and updates settlement HUD timber', async ({ page }) => {
   await page.goto('/?new');
 
