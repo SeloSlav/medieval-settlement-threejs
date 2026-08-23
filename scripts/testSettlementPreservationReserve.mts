@@ -401,7 +401,7 @@ const residenceNeedAuthority = readFileSync(
 );
 assert.match(
   residenceNeedAuthority,
-  /food_unmet = consume_food_with_preserved/,
+  /\(food_unmet, backyard_jam_meal\)\s*=\s*consume_food_with_preserved/,
   'the planner target must remain tied to the authoritative fallback meal path',
 );
 assert.match(

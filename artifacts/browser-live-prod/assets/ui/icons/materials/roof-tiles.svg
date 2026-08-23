@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="Fired roof tiles">
+  <defs>
+    <linearGradient id="parchment" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#d8c49a"/>
+      <stop offset="1" stop-color="#ad8b5d"/>
+    </linearGradient>
+  </defs>
+  <rect x="4" y="4" width="120" height="120" rx="13" fill="url(#parchment)" stroke="#241b16" stroke-width="7"/>
+  <path d="M21 95h86M25 70h78M31 45h66" fill="none" stroke="#35251d" stroke-width="6" stroke-linecap="round"/>
+  <g fill="#a94e34" stroke="#2b1b17" stroke-width="4" stroke-linejoin="round">
+    <path d="M28 42h25l-3 25H24z"/>
+    <path d="M53 42h25l-2 25H50z"/>
+    <path d="M78 42h22l4 25H76z"/>
+    <path d="M22 67h27l-4 25H18z"/>
+    <path d="M49 67h28v25H45z"/>
+    <path d="M77 67h27l6 25H77z"/>
+  </g>
+  <g fill="none" stroke="#e19a61" stroke-width="3" opacity=".8">
+    <path d="M35 47l-2 15M60 47l-1 15M85 47l3 15"/>
+    <path d="M30 72l-2 15M58 72v15M87 72l4 15"/>
+  </g>
+  <path d="M17 101c21 7 73 7 94 0" fill="none" stroke="#762f25" stroke-width="6" stroke-linecap="round"/>
+</svg>

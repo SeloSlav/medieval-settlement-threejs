@@ -26,6 +26,7 @@ export type MarketplaceBarterOffer = {
 
 export type MarketplaceTradeBalance = {
   bulkTradeCooldownSeconds: number;
+  regionalExchangeIntervalSeconds: number;
   resourceSpendScopes: Record<MarketplaceTradeResource, 'marketAccessible' | 'treasury'>;
   offers: Array<
     | {
@@ -82,10 +83,15 @@ function pendingTradeCodes(offers: MarketplaceTradeBalance['offers']): Map<strin
 
 export function generateMarketplaceTradeRust(balance: BalanceWithMarketplaceTrade): string[] {
   const trade = balance.marketplaceTrade;
+  if (!Number.isFinite(trade.regionalExchangeIntervalSeconds)
+    || trade.regionalExchangeIntervalSeconds <= 0) {
+    throw new Error('Regional exchange interval must be a positive number of simulation seconds.');
+  }
   const offers = trade.offers;
   const contractCodes = pendingTradeCodes(offers);
   const lines: string[] = [
     `pub const MARKETPLACE_BULK_TRADE_COOLDOWN_SECONDS: f64 = ${rustF64(trade.bulkTradeCooldownSeconds)};`,
+    `pub const REGIONAL_EXCHANGE_INTERVAL_SECONDS: f64 = ${rustF64(trade.regionalExchangeIntervalSeconds)};`,
     '',
     '#[derive(Clone, Copy, Debug, PartialEq, Eq)]',
     'pub enum TradeResource {',
@@ -209,6 +215,7 @@ export function generateMarketplaceTradeTypeScript(balance: BalanceWithMarketpla
   const contractCodes = pendingTradeCodes(offers);
   const lines: string[] = [
     `export const MARKETPLACE_BULK_TRADE_COOLDOWN_SECONDS = ${trade.bulkTradeCooldownSeconds};`,
+    `export const REGIONAL_EXCHANGE_INTERVAL_SECONDS = ${trade.regionalExchangeIntervalSeconds};`,
     '',
     `export const TRADE_RESOURCE_KINDS = ${JSON.stringify(MARKETPLACE_TRADE_RESOURCES)} as const;`,
     'export type TradeResourceKind = (typeof TRADE_RESOURCE_KINDS)[number];',

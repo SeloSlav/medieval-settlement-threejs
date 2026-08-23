@@ -27,6 +27,7 @@ import { toolbarModeToMenuAction } from './buildMenuMapping.ts';
 import type { PlacementBuildMenuAction } from './buildMenuCards.ts';
 import type { BuildingKind } from '../generated/gameBalance.ts';
 import {
+  describeToolbarStatus,
   isBuilderHudMode,
   renderToolbarStatus,
   type ToolbarStats,
@@ -671,8 +672,12 @@ export class BuildToolbar {
     this.syncBuildMenuCardActiveState(stats.mode);
     this.buildButton.disabled = !stats.canBuild;
     const wallMode = stats.mode === 'dry-stone-wall';
-    this.buildButton.title = wallMode ? 'Build dry-stone wall (Enter)' : 'Build road (Enter)';
-    this.buildButton.setAttribute('aria-label', wallMode ? 'Build dry-stone wall' : 'Build road');
+    const buildActionLabel = wallMode ? 'Build dry-stone wall' : 'Build road';
+    const buildActionGuidance = stats.canBuild
+      ? `${buildActionLabel} (Enter)`
+      : `${buildActionLabel} unavailable. ${describeToolbarStatus(stats)}`;
+    this.buildButton.title = buildActionGuidance;
+    this.buildButton.setAttribute('aria-label', buildActionGuidance);
     this.buildButton.classList.toggle('is-ready', stats.canBuild);
     this.buildButton.classList.toggle('has-draft', stats.hasDraft);
     const statusState = stats.placementBlocked && !stats.placementResourceShortfall

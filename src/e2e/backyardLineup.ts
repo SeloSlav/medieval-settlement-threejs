@@ -27,6 +27,12 @@ import {
 } from '../residences/backyardPigAssets.ts';
 import { mulberry32 } from '../utils/random.ts';
 import { loadBackyardPlantCatalog } from '../vegetation/seedthree/backyardPlantAssets.ts';
+import {
+  beginRendererFrame,
+  configureRendererFrameStats,
+  readRendererFrameStats,
+  type RendererFrameStats,
+} from '../scene/rendererFrameStats.ts';
 
 declare global {
   interface Window {
@@ -34,6 +40,12 @@ declare global {
     __BACKYARD_LINEUP_DIAGNOSTICS__?: {
       gardenCount: number;
       triangleCount: number;
+      submittedTriangles: number;
+      renderObjects: number;
+      instances: number;
+      geometryBytes: number;
+      drawCalls: number;
+      renderPasses: number;
       animalPlanKinds: string[];
       vegetableCropKinds: string[][];
     };
@@ -50,6 +62,12 @@ renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.05;
 await renderer.init();
+configureRendererFrameStats(renderer.info);
+let lastRendererFrameStats: RendererFrameStats = {
+  drawCalls: 0,
+  renderPasses: 0,
+  triangles: 0,
+};
 root.prepend(renderer.domElement);
 
 const view = new URLSearchParams(window.location.search).get('view');
@@ -332,6 +350,7 @@ if (focusFlower) {
 let running = true;
 let previousElapsedSeconds = performance.now() * 0.001;
 function render(): void {
+  const frameBoundary = beginRendererFrame(renderer.info);
   if (!running) return;
   const elapsedSeconds = performance.now() * 0.001;
   const dtSeconds = Math.min(0.08, Math.max(0, elapsedSeconds - previousElapsedSeconds));
@@ -345,25 +364,59 @@ function render(): void {
   camera.updateProjectionMatrix();
   renderer.setClearColor(0x1a1e16, 1);
   renderer.render(scene, camera);
+  lastRendererFrameStats = readRendererFrameStats(renderer.info, frameBoundary);
   requestAnimationFrame(render);
 }
 
 render();
 await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
 let triangleCount = 0;
+let submittedTriangles = 0;
+let renderObjects = 0;
+let instances = 0;
+const liveGeometries = new Set<THREE.BufferGeometry>();
 for (const garden of gardens) {
-  garden.traverse((object) => {
+  garden.traverseVisible((object) => {
     const mesh = object as THREE.Mesh;
     if (!mesh.isMesh) return;
+    liveGeometries.add(mesh.geometry);
     const count = mesh.geometry.index?.count
       ?? mesh.geometry.getAttribute('position')?.count
       ?? 0;
     triangleCount += count / 3;
+    const instanceCount = (mesh as THREE.InstancedMesh).isInstancedMesh
+      ? (mesh as THREE.InstancedMesh).count
+      : 1;
+    if (instanceCount <= 0) return;
+    const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+    const groups = Array.isArray(mesh.material) && mesh.geometry.groups.length > 0
+      ? mesh.geometry.groups
+      : [{ count, materialIndex: 0 }];
+    for (const group of groups) {
+      const material = materials[group.materialIndex ?? 0];
+      if (!material?.visible || group.count <= 0) continue;
+      renderObjects += 1;
+      submittedTriangles += group.count / 3 * instanceCount;
+    }
+    instances += instanceCount;
   });
 }
+const geometryBytes = [...liveGeometries].reduce((total, geometry) => {
+  let bytes = geometry.index?.array.byteLength ?? 0;
+  for (const attribute of Object.values(geometry.attributes)) {
+    bytes += attribute.array.byteLength;
+  }
+  return total + bytes;
+}, 0);
 window.__BACKYARD_LINEUP_DIAGNOSTICS__ = {
   gardenCount: gardens.length,
   triangleCount,
+  submittedTriangles,
+  renderObjects,
+  instances,
+  geometryBytes,
+  drawCalls: lastRendererFrameStats.drawCalls,
+  renderPasses: lastRendererFrameStats.renderPasses,
   animalPlanKinds: gardens
     .filter((garden) => garden.userData.animalPenPlan)
     .map((garden) => garden.userData.gardenKind as string),

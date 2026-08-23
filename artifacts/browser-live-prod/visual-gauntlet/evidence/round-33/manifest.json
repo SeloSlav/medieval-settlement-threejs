@@ -1,0 +1,103 @@
+{
+  "round": 33,
+  "evidenceType": "same-document paired degraded-no-render then bare-rAF control",
+  "sceneStatus": "diagnostic-only",
+  "qualityGatesProven": 1,
+  "protocolValidity": {
+    "pairing": "valid",
+    "degradedAggregateWitness": "valid",
+    "bareAggregateWitness": "incomplete",
+    "sequence": "degraded-no-render-then-bare-raf",
+    "runUuid": "fc8e2730-d4ef-458b-aa4a-c96fafb3e91a",
+    "performanceTimeOriginMs": 1785433280214.1,
+    "transitionGapMs": -2.200000011922384,
+    "transitionGapSemantics": "next bare callback rAF frame timestamp minus degraded callback completion performance.now timestamp; negative value does not imply overlap",
+    "backend": "webgpu",
+    "viewport": "1280x720",
+    "drawingBuffer": "1280x720",
+    "rendererPixelRatio": 1,
+    "adapter": "nvidia/lovelace",
+    "fallbackStatus": "non-fallback",
+    "route": "gorski-kotar-lod-traverse-v1",
+    "ablation": "groundcover-stream-forest-update-frozen",
+    "control": "visualDisable=forest,post,shadows&visualNoRender=1&visualBareRafPair=1",
+    "windowSecondsPerArm": 30
+  },
+  "degradedNoRender": {
+    "medianFps": 163.9344262295473,
+    "meanFps": 133.6586471478378,
+    "onePercentLowFps": 53.57376192342903,
+    "p99FrameMs": 18.665853658536477,
+    "maxFrameMs": 24.19999999999709,
+    "framesOver25Ms": 0,
+    "framesOver50Ms": 0,
+    "sampleCount": 4010,
+    "expectedWorstOnePercentRecords": 41,
+    "actualWorstOnePercentRecords": 41,
+    "worstOnePercentRecordSumMs": 765.2999999999956,
+    "worstOnePercentRecordMeanMs": 18.665853658536477,
+    "exactAggregateWitness": true,
+    "tailEntryLatenessMeanMs": 0.7073170778954901,
+    "tailCpuDurationMeanMs": 0.285365855184997,
+    "tailRenderBranchMeanMs": 0.0073170730980431165,
+    "medianDrawCalls": 0,
+    "medianFrameCalls": 0,
+    "medianTriangles": 0,
+    "gpuAttemptedFrames": 0,
+    "gpuSubmittedFrames": 0,
+    "gpuResolvedFrames": 0,
+    "measuredForestWork": 0,
+    "measuredGroundcoverWork": 0
+  },
+  "bareRaf": {
+    "startedAtRafTimestampMs": 64496.1,
+    "completedAtRafTimestampMs": 94497.9,
+    "elapsedMs": 30001.799999999996,
+    "medianFps": 163.93442622974285,
+    "meanFps": 146.9245178622616,
+    "onePercentLowFps": 52.50262513125621,
+    "p99FrameMs": 19.046666666666795,
+    "maxFrameMs": 30.30000000000291,
+    "framesOver25Ms": 2,
+    "framesOver50Ms": 0,
+    "sampleCount": 4408,
+    "routeSceneUpdates": 0,
+    "rendererCalls": 0,
+    "perFrameDomTelemetryWrites": 0,
+    "orderedFrameTimesSerialized": false,
+    "exactAggregateWitness": false
+  },
+  "comparison": {
+    "medianFpsDelta": 1.9554136088117957e-10,
+    "onePercentLowFpsDelta": -1.0711367921728197,
+    "p99FrameMsDelta": 0.38081300813031836,
+    "maxFrameMsDelta": 6.100000000005821,
+    "framesOver25MsDelta": 2,
+    "finding": "Route, scene, renderer, per-frame DOM, and callback performance.now work are not necessary for the observed tail."
+  },
+  "critic": {
+    "pairingIntegrity": "pass",
+    "degradedWitnessIntegrity": "pass",
+    "bareWitnessIntegrity": "fail-incomplete",
+    "targetPerformance": "fail",
+    "largestGap": "The complete ordered bare-rAF interval cohort is absent, so its reported distribution and threshold metrics cannot be independently recomputed.",
+    "requiredNext": "Repeat the unchanged pair once while serializing the complete ordered bare-rAF frameTimesMs array.",
+    "causalCaveat": "Fixed arm order and variable browser/OS scheduling prevent naming a unique source of the bare-rAF tail.",
+    "forbiddenWorkCaveat": "The zero forbidden-work values are literals backed by the early-return source contract and tests, not runtime-measured counters.",
+    "visualCaveat": "The JPEG is a retained pre-skip frame and cannot prove measured visual quality, hitch perception, or LOD continuity."
+  },
+  "files": [
+    {
+      "file": "same-document-degraded-no-render-then-bare-raf.json",
+      "source": "in-app browser terminal paired evidence envelope",
+      "bytes": 138205,
+      "sha256": "7A7A39FA39311C4D02673DAB678A5250AAB383172012023CAA54D4A009CDE28F"
+    },
+    {
+      "file": "same-document-paired-control-final-frame.jpg",
+      "source": "in-app browser 1280x720 JPEG screenshot after both paired arms reached terminal ready",
+      "bytes": 163347,
+      "sha256": "857B5BFE7CD956AC3C5FB5C567CB15956091F24974B25732B8ECAA7D434A875C"
+    }
+  ]
+}

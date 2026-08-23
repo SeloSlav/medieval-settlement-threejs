@@ -17,35 +17,32 @@ import {
   type BackyardGardenKind,
 } from '../generated/gameBalance.ts';
 import type { ResourceTotals } from '../resources/resourceTotals.ts';
-import type {
-  BackyardGardenState,
-  BuildingState,
-  ResidenceState,
+import {
+  residenceHasActiveProject,
+  type BackyardGardenState,
+  type BuildingState,
+  type ResidenceState,
 } from '../resources/types.ts';
+import {
+  activeResidenceNeedKinds,
+  getNeedStock,
+  requiredChapelTierForResidence,
+  type ResidenceNeedKind,
+} from '../residences/residenceNeedState.ts';
 import type { DeliveryTripState } from '../logistics/deliveryTrips.ts';
 import {
   constructionPriorityLabel,
   normalizeConstructionPriority,
   type ConstructionPriority,
 } from '../logistics/constructionPriority.ts';
+import { foodProgressionStatus, preservedFoodStock } from './foodInventory.ts';
 import { residenceServiceState } from './residenceSatisfaction.ts';
 
-export type ResidenceUpgradeServiceKind =
-  | 'firewood'
-  | 'water'
-  | 'preservedFood'
-  | 'ale'
-  | 'cloth'
-  | 'shoes'
-  | 'pottery'
-  | 'luxury'
-  | 'church'
-  | 'foodVariety';
+export type ResidenceUpgradeServiceKind = ResidenceNeedKind;
 
 export type ResidenceUpgradeServiceInput = {
   supplier: BuildingState | null;
   stocked: boolean;
-  ready?: boolean;
 };
 
 export type ResidenceUpgradeServices = Record<
@@ -56,6 +53,8 @@ export type ResidenceUpgradeServices = Record<
 export type ResidenceUpgradeServiceCheck = ResidenceUpgradeServiceInput & {
   kind: ResidenceUpgradeServiceKind;
   label: string;
+  householdReady: boolean;
+  outletReady: boolean;
   ready: boolean;
 };
 
@@ -69,6 +68,7 @@ export type ResidenceUpgradeResourceCheck = {
 };
 
 export type ResidenceUpgradePlan = {
+  currentTier: 1 | 2 | 3;
   nextTier: 2 | 3 | 4;
   populationCapacity: number;
   addedCapacity: number;
@@ -150,6 +150,7 @@ export type ResidenceFireRepairProject = ResidenceMaterialProject;
 export type ResidenceRoofTileProject = ResidenceMaterialProject;
 
 type UpgradeDefinition = {
+  currentTier: 1 | 2 | 3;
   nextTier: 2 | 3 | 4;
   populationCapacity: number;
   timber: number;
@@ -164,47 +165,51 @@ type UpgradeDefinition = {
 function definitionForTier(tier: ResidenceState['tier']): UpgradeDefinition | null {
   if (tier === 1) {
     return {
+      currentTier: 1,
       nextTier: 2,
       populationCapacity: RESIDENCE_TIER2_CAPACITY,
       timber: RESIDENCE_TIER2_TIMBER_COST,
       stone: RESIDENCE_TIER2_STONE_COST,
       gold: RESIDENCE_TIER2_GOLD_COST,
       roofTiles: 0,
-      requiredChapelTier: 1,
-      serviceKinds: ['firewood', 'water', 'church', 'foodVariety', 'ale', 'cloth'],
-      addedNeeds: 'Adds a grain staple, one other food group, ale, and clothing while retaining the basic-church standard',
+      requiredChapelTier: requiredChapelTierForResidence(tier),
+      serviceKinds: activeResidenceNeedKinds(tier),
+      addedNeeds: 'a grain staple plus another food group, beverages, and cloth; the level-1 church standard remains',
     };
   }
   if (tier === 2) {
     return {
+      currentTier: 2,
       nextTier: 3,
       populationCapacity: RESIDENCE_TIER3_CAPACITY,
       timber: RESIDENCE_TIER3_TIMBER_COST,
       stone: RESIDENCE_TIER3_STONE_COST,
       gold: RESIDENCE_TIER3_GOLD_COST,
       roofTiles: 0,
-      requiredChapelTier: 2,
-      serviceKinds: ['firewood', 'water', 'ale', 'cloth', 'shoes', 'church', 'foodVariety'],
-      addedNeeds: 'Adds footwear, produce or forage, land-animal food, fish, and a level-2 stone-church standard while retaining grain',
+      requiredChapelTier: requiredChapelTierForResidence(tier),
+      serviceKinds: activeResidenceNeedKinds(tier),
+      addedNeeds: 'shoes, an expanded grain/produce-or-forage/animal/fish food standard, and a level-2 church standard',
     };
   }
   if (tier === 3) {
     return {
+      currentTier: 3,
       nextTier: 4,
       populationCapacity: RESIDENCE_TIER4_CAPACITY,
       timber: RESIDENCE_TIER4_TIMBER_COST,
       stone: RESIDENCE_TIER4_STONE_COST,
       gold: RESIDENCE_TIER4_GOLD_COST,
       roofTiles: RESIDENCE_TILE_ROOF_TILE_COST,
-      requiredChapelTier: 3,
-      serviceKinds: ['firewood', 'water', 'preservedFood', 'ale', 'cloth', 'shoes', 'pottery', 'luxury', 'church', 'foodVariety'],
-      addedNeeds: 'Adds cured provisions, pottery, a viable luxury source, a level-3 church standard, and a finished fired-tile house',
+      requiredChapelTier: requiredChapelTierForResidence(tier),
+      serviceKinds: activeResidenceNeedKinds(tier),
+      addedNeeds: 'cured provisions, pottery, luxury goods, the complete food standard, and a level-3 church standard; the house gains its fired-tile roof',
     };
   }
   return null;
 }
 
 const SERVICE_LABELS: Record<ResidenceUpgradeServiceKind, string> = {
+  food: 'Food supply',
   firewood: 'Firewood',
   water: 'Water',
   preservedFood: 'Cured provisions',
@@ -217,7 +222,7 @@ const SERVICE_LABELS: Record<ResidenceUpgradeServiceKind, string> = {
   foodVariety: 'Food variety',
 };
 
-/** Mirrors the household alternatives accepted by the authoritative Tier-4 gate. */
+/** Options a Tier-3 household can prepare for the future Tier-4 luxury need. */
 export function residenceHasHouseholdLuxuryOption(
   residence: Pick<ResidenceState, 'aroniaJam' | 'rosehipJam'>,
   garden: Pick<BackyardGardenState, 'kind' | 'flowerLuxuryUpgraded'> | null | undefined,
@@ -226,6 +231,112 @@ export function residenceHasHouseholdLuxuryOption(
     || garden?.flowerLuxuryUpgraded === true
     || garden?.kind === 'aronia_orchard'
     || garden?.kind === 'rosehip_orchard';
+}
+
+function householdPromotionNeedReady(
+  residence: ResidenceState,
+  kind: ResidenceUpgradeServiceKind,
+  currentTier: 1 | 2 | 3,
+): boolean {
+  const stock = getNeedStock(residence.needs, kind);
+  switch (kind) {
+    // These are continuing infrastructure services. A leftover bucket or the
+    // replicated chapel-level row must not conceal a broken route.
+    case 'water':
+    case 'church':
+      return false;
+    case 'food':
+      return foodProgressionStatus(residence, residence.population, 1).ready
+        || stock > 1e-6;
+    case 'foodVariety':
+      return foodProgressionStatus(residence, residence.population, currentTier).ready;
+    case 'preservedFood':
+      return preservedFoodStock(residence) > 1e-6 || stock > 1e-6;
+    case 'luxury':
+      return Math.max(0, residence.aroniaJam ?? 0)
+        + Math.max(0, residence.rosehipJam ?? 0) > 1e-6
+        || stock > 1e-6;
+    case 'firewood':
+    case 'ale':
+    case 'cloth':
+    case 'shoes':
+    case 'pottery':
+      return stock > 1e-6;
+  }
+}
+
+function promotionOutletReady(
+  kind: ResidenceUpgradeServiceKind,
+  input: ResidenceUpgradeServiceInput,
+  requiredChapelTier: 1 | 2 | 3,
+  residence: ResidenceState,
+  currentTier: 1 | 2 | 3,
+): boolean {
+  const supplier = input.supplier;
+  if (kind === 'church') {
+    return supplier?.kind === 'chapel'
+      && supplier.constructionComplete !== false
+      && supplier.assignedLabor > 0
+      && (supplier.chapelTier ?? 1) >= requiredChapelTier;
+  }
+  if (kind === 'water') {
+    return supplier?.kind === 'well' && supplier.constructionComplete !== false;
+  }
+  if (kind === 'food' || kind === 'firewood') {
+    return supplier?.kind === 'marketplace'
+      && supplier.constructionComplete !== false
+      && input.stocked;
+  }
+  if (kind === 'foodVariety') {
+    return supplier?.kind === 'marketplace'
+      && supplier.constructionComplete !== false
+      && foodProgressionStatus(supplier, residence.population, currentTier).ready;
+  }
+  if (kind === 'ale') {
+    return supplier?.kind === 'tavern'
+      && supplier.constructionComplete !== false
+      && supplier.assignedLabor > 0
+      && input.stocked;
+  }
+  if (
+    kind === 'preservedFood'
+    || kind === 'cloth'
+    || kind === 'shoes'
+    || kind === 'pottery'
+    || kind === 'luxury'
+  ) {
+    return supplier?.kind === 'marketplace'
+      && supplier.constructionComplete !== false
+      && input.stocked;
+  }
+  return false;
+}
+
+function promotionNeedBlocker(kind: ResidenceUpgradeServiceKind, label: string): string {
+  switch (kind) {
+    case 'water':
+      return 'water route missing — connect a completed well within service radius';
+    case 'church':
+      return `${label.toLowerCase()} route missing — staff the required reachable church`;
+    case 'foodVariety':
+      return `${label.toLowerCase()} unmet — stock the missing groups in the household pantry or one reachable Marketplace`;
+    case 'ale':
+      return 'beverages unmet — stock the household or a staffed reachable Tavern';
+    case 'food':
+      return 'food supply unmet — stock the household pantry or a reachable Marketplace';
+    case 'firewood':
+      return 'firewood unmet — stock the household or a reachable Marketplace';
+    case 'preservedFood':
+      return 'cured provisions unmet — stock the household or a reachable Marketplace';
+    case 'cloth':
+      return 'cloth unmet — stock the household or a reachable Marketplace goods stall';
+    case 'shoes':
+      return 'shoes unmet — stock the household or a reachable Marketplace goods stall';
+    case 'pottery':
+      return 'pottery unmet — stock the household or a reachable Marketplace goods stall';
+    case 'luxury':
+      return 'luxury unmet — stock the household or a reachable Marketplace';
+  }
 }
 
 export function evaluateResidenceUpgrade(
@@ -239,21 +350,32 @@ export function evaluateResidenceUpgrade(
 
   const services = definition.serviceKinds.map((kind): ResidenceUpgradeServiceCheck => {
     const input = serviceInputs[kind];
+    const householdReady = householdPromotionNeedReady(
+      residence,
+      kind,
+      definition.currentTier,
+    );
+    const outletReady = promotionOutletReady(
+      kind,
+      input,
+      definition.requiredChapelTier,
+      residence,
+      definition.currentTier,
+    );
     return {
       kind,
       label: kind === 'church'
         ? `Level ${definition.requiredChapelTier} church`
         : kind === 'foodVariety'
-          ? definition.nextTier >= 3
-            ? 'Grain, produce/forage, animal foods, and fish'
-            : 'Grain staple and one other food group'
+          ? definition.currentTier >= 3
+            ? 'Current grain, produce/forage, animal-food, and fish standard'
+            : 'Current grain staple and second food group'
           : SERVICE_LABELS[kind],
       supplier: input.supplier,
       stocked: input.stocked,
-      ready: kind === 'church'
-        ? input.supplier != null
-          && (input.supplier.chapelTier ?? 1) >= definition.requiredChapelTier
-        : input.ready ?? input.supplier != null,
+      householdReady,
+      outletReady,
+      ready: householdReady || outletReady,
     };
   });
   const physicalEconomy = context.physicalEconomy === true;
@@ -281,21 +403,23 @@ export function evaluateResidenceUpgrade(
   );
   const occupied = residence.population > 0;
   const serviceState = residenceServiceState(residence);
+  const activeProject = residenceHasActiveProject(residence);
   const blockers = [
     ...(!occupied ? ['occupied household required'] : []),
     ...(serviceState.upgradeBlocked
       ? ['sustained household needs must recover before promotion']
       : []),
     ...(context.fireDisabled ? ['repair fire damage before upgrading'] : []),
-    ...services.filter((service) => !service.ready).map(
-      (service) => `${service.label.toLowerCase()} route missing`,
-    ),
+    ...(activeProject ? ['finish or cancel the active household project'] : []),
+    ...services.filter((service) => !service.ready).map((service) =>
+      promotionNeedBlocker(service.kind, service.label)),
     ...resources.filter((resource) => !resource.ready).map(
       (resource) => `${formatAmount(resource.shortfall)} ${resource.label.toLowerCase()} short`,
     ),
   ];
 
   return {
+    currentTier: definition.currentTier,
     nextTier: definition.nextTier,
     populationCapacity: definition.populationCapacity,
     addedCapacity: Math.max(0, definition.populationCapacity - residence.populationCapacity),

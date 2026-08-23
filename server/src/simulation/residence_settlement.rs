@@ -4,9 +4,11 @@ use crate::balance_generated::{
     backyard_garden_def, BackyardGardenKind, HOUSEHOLD_INITIAL_WEALTH_PER_SETTLER,
 };
 use crate::db::*;
-use crate::residence_settlement_policy::settlement_buffers_ready;
-use crate::simulation::chapel_community::{effective_settle_ticks, recovery_stock_min};
-use crate::simulation::residence_needs::state::NeedState;
+use crate::residence_settlement_policy::{
+    residence_settlement_buffer_min, settlement_buffers_ready, ResidenceSettlementVitalNeed,
+};
+use crate::simulation::chapel_community::effective_settle_ticks;
+use crate::simulation::residence_needs::{state::NeedState, ResidenceNeedKind};
 use crate::tables::Residence;
 
 pub fn step_residence_settlement(
@@ -24,15 +26,25 @@ pub fn step_residence_settlement(
         return;
     }
 
-    let buffers = needs
-        .iter()
-        .filter(|need| need.kind.is_vital_for_tier(residence.tier, true))
-        .map(|need| {
-            (
-                need.stock,
-                recovery_stock_min(need.kind, has_chapel_access, has_monastery_coverage),
-            )
-        });
+    let buffers = needs.iter().filter_map(|need| {
+        let kind = match need.kind {
+            ResidenceNeedKind::Food => ResidenceSettlementVitalNeed::Food,
+            ResidenceNeedKind::Firewood => {
+                ResidenceSettlementVitalNeed::Firewood
+            }
+            ResidenceNeedKind::Water => ResidenceSettlementVitalNeed::Water,
+            _ => return None,
+        };
+        Some((
+            need.stock,
+            residence_settlement_buffer_min(
+                kind,
+                residence.population,
+                has_chapel_access,
+                has_monastery_coverage,
+            ),
+        ))
+    });
     if !settlement_buffers_ready(residence.population, buffers) {
         return;
     }

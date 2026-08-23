@@ -16,7 +16,7 @@ use crate::reducers::livestock::{starter_herd, SPECIES_SWINE};
 use crate::roads::RoadNetwork;
 use crate::simulation::delivery_trips::{
     available_free_haulers, building_has_inbound_supply_trip, construction_source_cart_busy,
-    try_start_construction_supply_trip, DELIVERY_DESTINATION_BUILDING,
+    onsite_building_labor, try_start_construction_supply_trip,
 };
 use crate::simulation::road_logistics::local_delivery_distance;
 use crate::simulation::{labor_and_logistics_paused, GameClock, SimTickContext};
@@ -63,14 +63,15 @@ fn transfer_treasury_reserve(
     clock: &GameClock,
     site: &mut Building,
 ) {
-    if site.assigned_labor == 0 || labor_and_logistics_paused(ctx, tick, site.owner, clock) {
+    let onsite_labor = onsite_building_labor(ctx, site);
+    if onsite_labor == 0 || labor_and_logistics_paused(ctx, tick, site.owner, clock) {
         return;
     }
     let Some(mut treasury) = ctx.db.player_resources().owner().find(&site.owner) else {
         return;
     };
     let mut transfer_budget =
-        CONSTRUCTION_TREASURY_TRANSFER_PER_SEC * site.assigned_labor as f64 * TICK_DT;
+        CONSTRUCTION_TREASURY_TRANSFER_PER_SEC * onsite_labor as f64 * TICK_DT;
 
     let stone = transfer_budget
         .min(site.construction_treasury_stone)
@@ -143,7 +144,11 @@ fn dispatch_reserved_stock(
         }
         _ => 0.0,
     };
-    if physical_reserved <= 1e-6 || site_has_inbound_cargo(ctx, site.id, commodity) {
+    // Every departure atomically withdraws stock and reduces this physical
+    // reservation before its trip is inserted. Do not serialize an entire
+    // material stream behind one distant cart: distinct available crews may
+    // carry distinct reserved loads concurrently without double spending.
+    if physical_reserved <= 1e-6 {
         return;
     }
     if labor_and_logistics_paused(ctx, tick, site.owner, clock) {
@@ -234,7 +239,8 @@ fn advance_builder_work(
     clock: &GameClock,
     mut site: Building,
 ) {
-    if site.assigned_labor == 0 || labor_and_logistics_paused(ctx, tick, site.owner, clock) {
+    let onsite_labor = onsite_building_labor(ctx, &site);
+    if onsite_labor == 0 || labor_and_logistics_paused(ctx, tick, site.owner, clock) {
         return;
     }
     let required_total = site.construction_required_timber
@@ -253,7 +259,7 @@ fn advance_builder_work(
     let work_step = if required_total <= 1e-6 {
         1.0
     } else {
-        CONSTRUCTION_WORK_PER_WORKER_PER_SEC * site.assigned_labor as f64 * TICK_DT / required_total
+        CONSTRUCTION_WORK_PER_WORKER_PER_SEC * onsite_labor as f64 * TICK_DT / required_total
     };
     site.construction_progress = (site.construction_progress + work_step).min(material_readiness);
 
@@ -317,15 +323,4 @@ fn complete_site(ctx: &ReducerContext, site: &mut Building) {
             .livestock_herd()
             .insert(starter_herd(site.id, site.owner, SPECIES_SWINE));
     }
-}
-
-fn site_has_inbound_cargo(ctx: &ReducerContext, site_id: u64, commodity: CommodityKind) -> bool {
-    ctx.db
-        .delivery_trip()
-        .target_building_id()
-        .filter(&site_id)
-        .any(|trip| {
-            trip.destination_kind == DELIVERY_DESTINATION_BUILDING
-                && trip.cargo_kind == commodity.as_u8()
-        })
 }

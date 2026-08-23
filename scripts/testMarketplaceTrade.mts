@@ -2,15 +2,24 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
   BUILDING_DEFINITIONS,
+  BUILDING_STORAGE_CAPS,
   MARKETPLACE_TRADE_OFFERS,
+  REGIONAL_EXCHANGE_INTERVAL_SECONDS,
+  SIM_REALTIME_RATE,
+  SIM_TICK_SECONDS,
   TRADE_RESOURCE_KINDS,
   type TradeResourceKind,
 } from '../src/generated/gameBalance.ts';
 import { DEFAULT_REGIONAL_MARKET_STATE } from '../src/economy/regionalMarket.ts';
 import {
   buildingTradeStock,
+  formatRegionalExchangeCountdown,
+  regionalExchangeRealSecondsAt4x,
+  regionalExchangeSecondsUntilNext,
+  regionalExchangeSequence,
   settlementTradeStock,
   tradingPostRule,
+  tradingPostExchangeDue,
   tradingPostRuleId,
   tradingPostUnitPrices,
   TRADE_MODE_EXPORT,
@@ -40,13 +49,17 @@ function building(
 assert.equal(
   validateTradingPostCommodityCatalog(),
   true,
-  'the monthly ledger must categorize every tradeable commodity exactly once',
+  'the regional ledger must categorize every tradeable commodity exactly once',
 );
 assert.equal(
   BUILDING_DEFINITIONS.trading_post.maxLabor,
   2,
   'Trading Posts use two dedicated cart-hauler slots',
 );
+assert.equal(BUILDING_STORAGE_CAPS.trading_post.cider, 180);
+assert.equal(BUILDING_STORAGE_CAPS.trading_post.pearCider, 180);
+assert.equal(BUILDING_STORAGE_CAPS.tavern.cider, 180);
+assert.equal(BUILDING_STORAGE_CAPS.tavern.pearCider, 180);
 
 const categorized = TRADING_POST_TRADE_CATEGORIES.flatMap((section) => section.resources);
 assert.deepEqual(
@@ -67,8 +80,8 @@ for (const resource of TRADE_RESOURCE_KINDS) {
   const sell = MARKETPLACE_TRADE_OFFERS.find(
     (offer) => offer.kind === 'goldSell' && offer.resource === resource,
   );
-  assert.ok(buy, `${resource} needs a monthly import price`);
-  assert.ok(sell, `${resource} needs a monthly export price`);
+  assert.ok(buy, `${resource} needs a regional import price`);
+  assert.ok(sell, `${resource} needs a regional export price`);
   assert.ok(
     buy.goldCost / buy.amount > sell.goldYield / sell.amount,
     `${resource} needs a positive merchant spread`,
@@ -76,6 +89,20 @@ for (const resource of TRADE_RESOURCE_KINDS) {
   const prices = tradingPostUnitPrices(resource, DEFAULT_REGIONAL_MARKET_STATE);
   assert.ok(prices.importGold > prices.exportGold && prices.exportGold > 0);
 }
+
+const regionalExchangeTicks = Math.ceil(
+  REGIONAL_EXCHANGE_INTERVAL_SECONDS / SIM_TICK_SECONDS,
+);
+assert.equal(regionalExchangeSequence(regionalExchangeTicks - 1), 0);
+assert.equal(regionalExchangeSequence(regionalExchangeTicks), 1);
+assert.equal(regionalExchangeSecondsUntilNext(0), REGIONAL_EXCHANGE_INTERVAL_SECONDS);
+assert.equal(regionalExchangeSecondsUntilNext(regionalExchangeTicks), REGIONAL_EXCHANGE_INTERVAL_SECONDS);
+assert.equal(regionalExchangeRealSecondsAt4x(REGIONAL_EXCHANGE_INTERVAL_SECONDS), 10);
+assert.ok(
+  2 * REGIONAL_EXCHANGE_INTERVAL_SECONDS / (SIM_REALTIME_RATE * 4) < 30,
+  'two exchange opportunities must fit inside 30 real seconds at 4×',
+);
+assert.match(formatRegionalExchangeCountdown(0), /30 simulation seconds.*10 real seconds at 4×/);
 
 const post = building('building-9', 'trading_post', { firewood: 11, charcoal: 4 });
 const storehouse = building('building-10', 'village_storehouse', { firewood: 42, charcoal: 8 });
@@ -101,9 +128,16 @@ assert.equal(settlementTradeStock(state, 'firewood'), 53);
 assert.equal(settlementTradeStock(state, 'firewood', false), 42);
 assert.equal(tradingPostRule(state.tradingPostTradeRules, post.id, 'firewood'), exportFirewood);
 assert.equal(tradingPostRule(state.tradingPostTradeRules, post.id, 'charcoal'), null);
+assert.equal(tradingPostExchangeDue([exportFirewood], state.tick), false);
+assert.equal(tradingPostExchangeDue(
+  [{ ...exportFirewood, lastSettledMonth: 0 }],
+  regionalExchangeTicks,
+), true);
 
 const panel = renderMarketplaceTradePanel(post, state, DEFAULT_REGIONAL_MARKET_STATE);
-assert.match(panel, /Monthly trade ledger/);
+assert.match(panel, /Regional trade ledger/);
+assert.match(panel, /In 30 simulation seconds.*10 real seconds at 4×/);
+assert.match(panel, /staged exports sell before imports/);
 assert.match(panel, /regional exchange is abstract/i);
 assert.match(panel, /only local collection and distribution use visible haulers/i);
 assert.match(panel, /data-trading-post-scroll/);
@@ -135,8 +169,13 @@ for (const section of TRADING_POST_TRADE_CATEGORIES) {
 }
 
 const serverLoop = readFileSync('server/src/simulation/trading_post_trade.rs', 'utf8');
-assert.match(serverLoop, /absolute_calendar_month/);
+assert.match(serverLoop, /regional_exchange_sequence/);
 assert.match(serverLoop, /settle_due_rules/);
+assert.match(
+  serverLoop,
+  /sort_by_key\(\|rule\| trade_rule_settlement_key\(rule\.mode, rule\.commodity_kind\)\)/,
+  'exports must settle before imports so real export proceeds can fund the same exchange',
+);
 assert.match(serverLoop, /stage_one_export/);
 assert.match(serverLoop, /credit_treasury_gold/);
 assert.match(serverLoop, /spend_treasury_gold/);
@@ -153,7 +192,28 @@ assert.match(
 assert.doesNotMatch(
   serverLoop,
   /start_regional_market_export_trip|regional_market_export_route/,
-  'monthly regional settlement must not create an off-map caravan unit',
+  'bounded abstract regional settlement must not create an off-map caravan unit',
+);
+
+const tradeRuleReducer = readFileSync('server/src/reducers/trading_post_trade.rs', 'utf8');
+assert.match(tradeRuleReducer, /regional_exchange_sequence\(config\.sim_tick\)/);
+assert.match(tradeRuleReducer, /last_settled_month: current_exchange/);
+
+const localDistribution = readFileSync('server/src/simulation/marketplace_caravan.rs', 'utf8');
+assert.match(
+  localDistribution,
+  /ResidenceNeedKind::Ale, Some\(CommodityKind::Ale\)[\s\S]*ResidenceNeedKind::Ale, Some\(CommodityKind::Cider\)[\s\S]*ResidenceNeedKind::Ale, Some\(CommodityKind::PearCider\)/,
+  'all imported beverage identities must remain distinct in local routing',
+);
+assert.match(
+  localDistribution,
+  /ResidenceNeedKind::Ale => Some\("tavern"\)[\s\S]*market\.kind != "tavern" \|\| onsite_building_labor\(ctx, market\) > 0/,
+  'imported beverages must use a staffed reachable Tavern, not a Marketplace',
+);
+assert.match(
+  localDistribution,
+  /building\.ale > 1e-6[\s\S]*building\.cider > 1e-6[\s\S]*building\.pear_cider > 1e-6/,
+  'a cider-only Trading Post must remain eligible for local distribution',
 );
 
 const simulationReducer = readFileSync('server/src/reducers/simulation.rs', 'utf8');
@@ -173,5 +233,5 @@ assert.match(legacyReducer, /Immediate regional trade has been retired/);
 assert.doesNotMatch(legacyReducer, /execute_marketplace_trade/);
 
 console.log(
-  `Marketplace trade tests passed (${TRADE_RESOURCE_KINDS.length} commodities, monthly abstract settlement, local export staging).`,
+  `Marketplace trade tests passed (${TRADE_RESOURCE_KINDS.length} commodities, bounded abstract exchange, local export staging and Tavern beverage routing).`,
 );

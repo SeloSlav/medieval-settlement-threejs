@@ -1,0 +1,125 @@
+{
+  "round": 20,
+  "evidenceType": "causally paired CPU subspans plus truthful full-post-processing WebGPU queue timestamps",
+  "sceneStatus": "rejected",
+  "qualityGatesProven": 1,
+  "protocolValidity": {
+    "run": "valid",
+    "backend": "webgpu",
+    "viewport": "1280x720",
+    "rendererPixelRatio": 1,
+    "adapter": "nvidia/lovelace",
+    "fallbackStatus": "non-fallback",
+    "route": "gorski-kotar-lod-traverse-v1",
+    "warmup": {
+      "discardedRoutes": 1,
+      "strategicPendingAtReset": 0,
+      "collectorReset": true,
+      "measuredRouteCompleted": true,
+      "measuredPhasesTraversed": 3
+    },
+    "windowSeconds": 30
+  },
+  "run": {
+    "medianFps": 82.64462809918349,
+    "meanFps": 92.8758522784076,
+    "onePercentLowFps": 53.598774885137864,
+    "p99FrameMs": 18.65714285714551,
+    "maxFrameMs": 24.299999999995634,
+    "framesOver25Ms": 0,
+    "framesOver50Ms": 0,
+    "sampleCount": 2787,
+    "medianDrawCalls": 157,
+    "medianFrameCalls": 15,
+    "medianTriangles": 3337145,
+    "forestTotalTrees": 1651,
+    "forestVisibleTrees": 980,
+    "forestDraws": 20,
+    "forestPendingBucketsAtFreeze": 0,
+    "forestConvergedAtFreeze": true,
+    "measuredForestWork": 0,
+    "groundcoverMode": "frozen",
+    "groundcoverPendingSlots": 0,
+    "groundcoverConverged": true
+  },
+  "gpuTiming": {
+    "status": "available",
+    "source": "webgpu-timestamp-query",
+    "feature": "timestamp-query",
+    "api": "compute-pass-timestamp-writes",
+    "span": "full-post-processing-queue-bookends",
+    "unit": "milliseconds",
+    "slotCount": 32,
+    "attemptedFrames": 5592,
+    "submittedFrames": 5592,
+    "resolvedFrames": 5589,
+    "pendingFrames": 3,
+    "droppedFrames": 0,
+    "failedFrames": 0,
+    "limitations": [
+      "Includes queue-idle gaps or intervening GPU work inside the bracket and excludes display presentation latency.",
+      "Adds two profile-only empty compute-pass marker submissions per measured frame.",
+      "The beginning marker is inside the render CPU span; ending-marker resolve and readback initiation are inside the post-render CPU span."
+    ]
+  },
+  "worstOnePercent": {
+    "contract": "ceil(sampleCount * 0.01), capped at 64, sorted worst-first",
+    "expectedRecords": 28,
+    "actualRecords": 28,
+    "meanFrameMs": 18.65714285714551,
+    "recordsWithForestWork": 0,
+    "recordsWithGroundcoverDelta": 0,
+    "recordsWithAvailableGpuTiming": 28,
+    "uniqueGpuQueryIds": 28,
+    "recordsWithGpuLimitation": 0,
+    "causalIdentity": {
+      "precedingFrameRafTimestampEqualsIntervalStart": true,
+      "precedingFrameGpuRafTimestampEqualsIntervalStart": true,
+      "maximumIntervalArithmeticErrorMs": 3.6e-15,
+      "maximumCpuSubspanSumErrorMs": 4.4e-16
+    },
+    "precedingFrameGpuDurationMs": {
+      "minimum": 3.145728,
+      "maximum": 15.794176,
+      "mean": 4.894134857142857
+    },
+    "precedingFrameCpuDurationMs": {
+      "minimum": 3.9000000059604645,
+      "maximum": 24.599999994039536,
+      "mean": 6.403571428464992
+    },
+    "precedingFrameRenderSubmissionDurationMs": {
+      "minimum": 3.5999999940395355,
+      "maximum": 24.200000002980232,
+      "mean": 6.092857142644269
+    },
+    "precedingFrameUpdatePreRenderMaximumMs": 0.20000000298023224,
+    "precedingFramePostRenderMaximumMs": 0.30000001192092896
+  },
+  "performanceCritic": {
+    "status": "fail",
+    "passes": [
+      "Warmed capture protocol is valid",
+      "Worst-one-percent count, order, mean, reciprocal 1% low, CPU/GPU identities, and CPU subspan sums agree",
+      "All selected GPU timings are available with unique query identities and no record limitation",
+      "Timestamp values are integer-nanosecond-derived milliseconds",
+      "Forest stays rendered and both reusable update paths remain frozen and converged",
+      "Every retained record has zero forest and groundcover deltas",
+      "Median remains in the 60 to 90 FPS band",
+      "Frames over 25 ms and over 50 ms are both zero"
+    ],
+    "largestGap": "The run records a 53.60 FPS 1% low. Twenty-six of 28 retained intervals form an 18.2 to 18.3 ms band despite modest CPU and GPU durations.",
+    "inference": "Two isolated GPU or queue-backpressure spikes exist, but the broad failure is presentation or rAF cadence rather than normal scene execution. Optimizing those two spikes cannot reach 60 FPS while the cadence band remains.",
+    "requiredNext": "Record actual callback-entry performance.now() and entryLatenessMs relative to the browser rAF timestamp for each causally paired slow record, then repeat the same frozen run once.",
+    "comparisonCaveat": "The better observed tail relative to Round 19 is not a proven improvement from one run with added timestamp-query overhead and slightly different visible content.",
+    "visualCaveat": "JSON cannot prove visible smoothness, absence of popping, or rendered visual correctness."
+  },
+  "files": [
+    {
+      "file": "groundcover-forest-frozen-gpu-timestamps-warm.json",
+      "source": "C:\\Users\\Asus\\AppData\\Local\\Temp\\hamlet-round20-gpu-timestamps-warm.json",
+      "bytes": 35705,
+      "sha256": "F9E43563D73B5FE8EAB64A42B3E8C2E0A99751168004E373AF678E55B8544CD2"
+    }
+  ]
+}

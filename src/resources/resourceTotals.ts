@@ -284,6 +284,13 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
   let gold = ledger?.gold ?? 0;
   let reservedTimber = 0;
   let reservedStone = 0;
+  let reservedFirewood = 0;
+  let reservedWater = 0;
+  let reservedAle = 0;
+  let reservedCloth = 0;
+  let reservedShoes = 0;
+  let reservedPottery = 0;
+  let reservedRemedies = 0;
   let reservedIronwork = 0;
   let reservedGold = 0;
   let reservedRoofTiles = 0;
@@ -430,8 +437,12 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
       reservedGold += Math.max(0, residence.upgradeReservedGold ?? 0);
       reservedRoofTiles += Math.max(0, residence.upgradeReservedRoofTiles ?? 0);
     }
-    firewood += getNeedStock(residence.needs, 'firewood');
-    water += getNeedStock(residence.needs, 'water');
+    const householdFirewood = Math.max(0, getNeedStock(residence.needs, 'firewood'));
+    const householdWater = Math.max(0, getNeedStock(residence.needs, 'water'));
+    firewood += householdFirewood;
+    water += householdWater;
+    reservedFirewood += householdFirewood;
+    reservedWater += householdWater;
     const pantryLegacyFood = Math.max(0, residence.food ?? 0);
     const pantryLegacyPreserved = Math.max(0, residence.preservedFood ?? 0);
     const pantryHoney = Math.max(0, residence.honey ?? 0);
@@ -510,10 +521,21 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
     reservedCheese += pantryCheese;
     reservedAroniaJam += pantryAroniaJam;
     reservedRosehipJam += pantryRosehipJam;
-    ale += getNeedStock(residence.needs, 'ale');
-    cloth += getNeedStock(residence.needs, 'cloth');
-    pottery += getNeedStock(residence.needs, 'pottery');
-    remedies += Math.max(0, residence.remedyStock ?? 0);
+    const householdAle = Math.max(0, getNeedStock(residence.needs, 'ale'));
+    const householdCloth = Math.max(0, getNeedStock(residence.needs, 'cloth'));
+    const householdShoes = Math.max(0, getNeedStock(residence.needs, 'shoes'));
+    const householdPottery = Math.max(0, getNeedStock(residence.needs, 'pottery'));
+    const householdRemedies = Math.max(0, residence.remedyStock ?? 0);
+    ale += householdAle;
+    cloth += householdCloth;
+    shoes += householdShoes;
+    pottery += householdPottery;
+    remedies += householdRemedies;
+    reservedAle += householdAle;
+    reservedCloth += householdCloth;
+    reservedShoes += householdShoes;
+    reservedPottery += householdPottery;
+    reservedRemedies += householdRemedies;
   }
 
   const storedPreservedFood = legacyPreservedFood * foodMealValue('preservedFood')
@@ -670,6 +692,13 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
     ...cachedStoredTotals,
     timber: Math.max(0, timber - reservedTimber),
     stone: Math.max(0, stone - reservedStone),
+    firewood: Math.max(0, firewood - reservedFirewood),
+    water: Math.max(0, water - reservedWater),
+    ale: Math.max(0, ale - reservedAle),
+    cloth: Math.max(0, cloth - reservedCloth),
+    shoes: Math.max(0, shoes - reservedShoes),
+    pottery: Math.max(0, pottery - reservedPottery),
+    remedies: Math.max(0, remedies - reservedRemedies),
     ironwork: Math.max(0, ironwork - reservedIronwork),
     gold: Math.max(0, gold - reservedGold),
     roofTiles: Math.max(0, roofTiles - reservedRoofTiles),

@@ -1,0 +1,1 @@
+import{ti as e}from"./seedthree-vendor-DlI6mVJ-.js";var t=e(0);function n(e){t.value=Math.max(0,e)}export{t as n,n as t};

@@ -1,0 +1,104 @@
+{
+  "schemaVersion": 1,
+  "round": 56,
+  "purpose": "pre-blind same-archive comparison of accepted tapered woodland terrain versus modest shadowed under-canopy terrain weighting",
+  "createdAtUtc": "2026-07-31T04:36:52.8679043Z",
+  "hashAlgorithm": "SHA-256",
+  "hashPreimage": "the exact UTF-8 bytes of this file, including its final LF",
+  "nonce": "997d253a98af4bd290f12cccd3f6936e",
+  "sourceCheckpoint": "7d1f2e5e40ce7ebe875a463088b070651b28d7e9",
+  "seedThreeCommit": "4182accfc1fb7a66815e963b5355ca4996418cf3",
+  "seedThreeScope": {
+    "status": "hamlet-specific-terrain-weighting",
+    "reason": "The treatment reweights the existing Hamlet terrain color buffer from accepted edge placements and Hamlet road, parcel, field, landmark, and clearance geometry; it adds no reusable SeedThree behavior."
+  },
+  "captureOrigin": "http://127.0.0.1:4187",
+  "archivePath": "artifacts/visual-gauntlet/round-56/captured-build",
+  "entryHtml": "hamlet-fixture.html",
+  "predecessor": {
+    "round": 55,
+    "status": "complete-valid-evidence-blind-tie",
+    "winner": "tie",
+    "confidencePercent": 82,
+    "biggestRemainingGap": "Bright exposed turf prevented the forest edge from reading as one shadowed, irregular woodland volume."
+  },
+  "arms": {
+    "control": {
+      "forestEdgeLayout": "tapered-shrub-sapling-belt-256",
+      "forestGround": "existing-terrain",
+      "pathAndQuery": "/hamlet-fixture.html?clean=1&view=strategic&route=gorski-kotar-lod-traverse-v1&visualProfile=1&ablation=groundcover-stream-forest-update-frozen&visualDisable=post&visualRouteLodSkyDirectRender=1&visualGpuTimestampMarkers=1&forestEdgeLayout=tapered-shrub-sapling-belt-256&forestGround=existing-terrain"
+    },
+    "treatment": {
+      "forestEdgeLayout": "tapered-shrub-sapling-belt-256",
+      "forestGround": "shadowed-under-canopy",
+      "pathAndQuery": "/hamlet-fixture.html?clean=1&view=strategic&route=gorski-kotar-lod-traverse-v1&visualProfile=1&ablation=groundcover-stream-forest-update-frozen&visualDisable=post&visualRouteLodSkyDirectRender=1&visualGpuTimestampMarkers=1&forestEdgeLayout=tapered-shrub-sapling-belt-256&forestGround=shadowed-under-canopy"
+    }
+  },
+  "soleArmQueryDifference": {
+    "parameter": "forestGround",
+    "controlValue": "existing-terrain",
+    "treatmentValue": "shadowed-under-canopy"
+  },
+  "randomization": {
+    "mappingDrawHex": "0277c98decce44c5a53f925ca6f12d74",
+    "mappingRule": "least-significant hex bit 0 => blind-A control; 1 => blind-A treatment",
+    "captureOrderDrawHex": "d0dcfe4e2ea1435bbaf302a5c198ff9b",
+    "captureOrderRule": "least-significant hex bit 0 => blind-B first; 1 => blind-A first",
+    "blindAssignment": {
+      "blind-A": "control",
+      "blind-B": "treatment"
+    },
+    "captureOrder": [
+      "blind-A",
+      "blind-B"
+    ]
+  },
+  "captureSurfaceSelector": "[data-testid=\"hamlet-route-frame-sequence-native-png-output\"]",
+  "captureSurface": "gpu-synchronized-native-renderer-drawing-buffer-png-data-url",
+  "perFrameProtocol": {
+    "clearRequestBeforeEverySeek": true,
+    "primeCaptureDiscarded": true,
+    "immediateRepeatRequired": true,
+    "primeAndRepeatPngSha256MustMatch": true,
+    "cameraPoseIdentityMustMatchAcrossArms": true
+  },
+  "terminalEvidenceBeforeFrameSeeks": true,
+  "frameIndices": [
+    0,
+    180,
+    276,
+    277,
+    278,
+    279,
+    330,
+    375,
+    480
+  ],
+  "hardPerformanceBar": {
+    "onePercentLowFpsAtLeast": 60,
+    "maxFrameMsAtMost": 25,
+    "framesOver25Ms": 0,
+    "framesOver50Ms": 0
+  },
+  "structuralBudget": {
+    "residenceRoof": "wood-shingle",
+    "vegetationSlots": 1651,
+    "acceptedEdgeSlots": 256,
+    "terrainVertices": 50369,
+    "modifiedTerrainVertices": 1250,
+    "modifiedTerrainPercent": 2.4816851634934185,
+    "weightedCoverageSquareMeters": 5981.060473869973,
+    "meanStableLuminanceReductionPercent": 5.9080105973370545,
+    "guaranteedRoadFragmentMinimumMeters": 10.065936602802706,
+    "guaranteedSettlementFragmentMinimumMeters": 8.194368429569451,
+    "forestDrawDelta": 0,
+    "terrainDrawDelta": 0,
+    "newTextures": 0,
+    "newMeshes": 0,
+    "newMaterials": 0,
+    "geometryVertexDelta": 0,
+    "vertexAttributeDelta": 0,
+    "colorBufferByteDelta": 0,
+    "perFrameWorkDelta": 0
+  }
+}

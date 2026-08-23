@@ -5,6 +5,12 @@ import type { RoadNetwork } from './RoadNetwork.ts';
 type RoadPoint = { x: number; z: number };
 type WeightedEdge = { id: string; weight: number };
 type HeapEntry = { cost: number; id: string };
+type EdgeProjection = {
+  point: RoadPoint;
+  segmentIndex: number;
+  distanceFromStart: number;
+  accessDistance: number;
+};
 
 function distance(ax: number, az: number, bx: number, bz: number): number {
   return Math.hypot(ax - bx, az - bz);
@@ -120,11 +126,21 @@ export class RoadPathfinder {
     bz: number,
   ): { distance: number; polyline: RoadPoint[] } | null {
     const solve = this.shortestPathSolve(ax, az, bx, bz);
-    if (!solve) return null;
-    const polyline = this.materializePolyline(ax, az, bx, bz, solve.nodePath);
-    const travelDistance = polylineLength(polyline);
-    if (travelDistance <= 1e-6) return null;
-    return { distance: travelDistance, polyline };
+    const graphRoute = solve
+      ? (() => {
+          const polyline = this.materializePolyline(ax, az, bx, bz, solve.nodePath);
+          const travelDistance = polylineLength(polyline);
+          return travelDistance > 1e-6
+            ? { distance: travelDistance, polyline }
+            : null;
+        })()
+      : null;
+    const interiorEdgeRoute = this.sameEdgeRoadRoute(ax, az, bx, bz);
+    if (!graphRoute) return interiorEdgeRoute;
+    if (!interiorEdgeRoute) return graphRoute;
+    return interiorEdgeRoute.distance <= graphRoute.distance + 1e-6
+      ? interiorEdgeRoute
+      : graphRoute;
   }
 
   roadPathDistance(ax: number, az: number, bx: number, bz: number): number | null {
@@ -143,23 +159,145 @@ export class RoadPathfinder {
   ): Array<number | null> {
     if (targets.length === 0) return [];
     const distances = this.shortestNodeDistancesFrom(ax, az);
-    if (!distances) return targets.map(() => null);
 
     return targets.map((target) => {
+      let graphDistance = Infinity;
       const targetNodes = this.snapNodes(target.x, target.z);
-      if (!targetNodes) return null;
-      let best = Infinity;
-      for (const nodeId of targetNodes) {
-        const roadCost = distances.get(nodeId);
-        const node = this.network.nodes.get(nodeId);
-        if (roadCost == null || !node) continue;
-        best = Math.min(
-          best,
-          roadCost + distance(target.x, target.z, node.position.x, node.position.z),
-        );
+      if (distances && targetNodes) {
+        for (const nodeId of targetNodes) {
+          const roadCost = distances.get(nodeId);
+          const node = this.network.nodes.get(nodeId);
+          if (roadCost == null || !node) continue;
+          graphDistance = Math.min(
+            graphDistance,
+            roadCost + distance(target.x, target.z, node.position.x, node.position.z),
+          );
+        }
       }
+      const interiorDistance = this.sameEdgeRoadRoute(
+        ax,
+        az,
+        target.x,
+        target.z,
+      )?.distance ?? Infinity;
+      const best = Math.min(graphDistance, interiorDistance);
       return Number.isFinite(best) && best > 1e-6 ? best : null;
     });
+  }
+
+  /**
+   * Long edges are valid road entrances along their whole centerline. Route
+   * two buildings fronting the same edge through their nearest projections,
+   * rather than forcing both access legs through a distant endpoint node.
+   */
+  private sameEdgeRoadRoute(
+    ax: number,
+    az: number,
+    bx: number,
+    bz: number,
+  ): { distance: number; polyline: RoadPoint[] } | null {
+    if (![ax, az, bx, bz].every(Number.isFinite)) return null;
+    const maxSnap = BUILDING_ROAD_ACCESS_DISTANCE;
+    const originCandidates = this.network
+      .getSpatialIndex()
+      .collectSnapCandidates(ax, az, maxSnap);
+    const targetCandidates = this.network
+      .getSpatialIndex()
+      .collectSnapCandidates(bx, bz, maxSnap);
+    const targetEdgeIds = new Set(targetCandidates.edges.map(({ edgeId }) => edgeId));
+    const sharedEdgeIds = [...new Set(
+      originCandidates.edges
+        .map(({ edgeId }) => edgeId)
+        .filter((edgeId) => targetEdgeIds.has(edgeId)),
+    )].sort();
+
+    let best: { distance: number; polyline: RoadPoint[] } | null = null;
+    for (const edgeId of sharedEdgeIds) {
+      const edge = this.network.edges.get(edgeId);
+      if (!edge || edge.sampledPath.length < 2) continue;
+      const origin = this.projectPointToEdge(ax, az, edge.sampledPath);
+      const target = this.projectPointToEdge(bx, bz, edge.sampledPath);
+      if (
+        !origin
+        || !target
+        || origin.accessDistance > maxSnap + 1e-6
+        || target.accessDistance > maxSnap + 1e-6
+      ) {
+        continue;
+      }
+      const polyline: RoadPoint[] = [{ x: ax, z: az }];
+      this.appendPoint(polyline, origin.point);
+      this.appendProjectedEdgeSpan(polyline, edge.sampledPath, origin, target);
+      this.appendPoint(polyline, { x: bx, z: bz });
+      const travelDistance = polylineLength(polyline);
+      if (
+        travelDistance > 1e-6
+        && Number.isFinite(travelDistance)
+        && (!best || travelDistance + 1e-6 < best.distance)
+      ) {
+        best = { distance: travelDistance, polyline };
+      }
+    }
+    return best;
+  }
+
+  private projectPointToEdge(
+    x: number,
+    z: number,
+    path: readonly { x: number; z: number }[],
+  ): EdgeProjection | null {
+    let best: EdgeProjection | null = null;
+    let distanceFromStart = 0;
+    for (let segmentIndex = 0; segmentIndex < path.length - 1; segmentIndex++) {
+      const start = path[segmentIndex];
+      const end = path[segmentIndex + 1];
+      const dx = end.x - start.x;
+      const dz = end.z - start.z;
+      const lengthSquared = dx * dx + dz * dz;
+      const t = lengthSquared <= 1e-9
+        ? 0
+        : Math.max(0, Math.min(1, ((x - start.x) * dx + (z - start.z) * dz) / lengthSquared));
+      const point = { x: start.x + dx * t, z: start.z + dz * t };
+      const segmentLength = Math.sqrt(lengthSquared);
+      const accessDistance = distance(x, z, point.x, point.z);
+      const candidate: EdgeProjection = {
+        point,
+        segmentIndex,
+        distanceFromStart: distanceFromStart + segmentLength * t,
+        accessDistance,
+      };
+      if (
+        !best
+        || accessDistance + 1e-6 < best.accessDistance
+        || (
+          Math.abs(accessDistance - best.accessDistance) <= 1e-6
+          && candidate.distanceFromStart < best.distanceFromStart
+        )
+      ) {
+        best = candidate;
+      }
+      distanceFromStart += segmentLength;
+    }
+    return best;
+  }
+
+  private appendProjectedEdgeSpan(
+    output: RoadPoint[],
+    edgePath: readonly { x: number; z: number }[],
+    from: EdgeProjection,
+    to: EdgeProjection,
+  ): void {
+    this.appendPoint(output, from.point);
+    if (from.distanceFromStart <= to.distanceFromStart) {
+      for (let index = from.segmentIndex + 1; index <= to.segmentIndex; index++) {
+        this.appendPoint(output, edgePath[index]);
+      }
+    } else {
+      for (let index = from.segmentIndex; index > to.segmentIndex; index--) {
+        this.appendPoint(output, edgePath[index]);
+      }
+    }
+    this.appendPoint(output, to.point);
   }
 
   private shortestNodeDistancesFrom(ax: number, az: number): Map<string, number> | null {

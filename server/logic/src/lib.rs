@@ -7,6 +7,9 @@ pub mod balance_generated;
 #[path = "../../src/backyard_garden_policy.rs"]
 pub mod backyard_garden_policy;
 
+#[path = "../../src/brewery_recipe_policy.rs"]
+pub mod brewery_recipe_policy;
+
 #[path = "../../src/apiary_policy.rs"]
 pub mod apiary_policy;
 
@@ -54,7 +57,11 @@ pub mod hydrology;
 pub mod game_calendar;
 
 pub mod simulation {
-    pub use crate::game_calendar::GameClock;
+    pub use crate::game_calendar::{game_clock, GameClock};
+
+    pub mod residence_needs {
+        pub use crate::residence_need_kinds::ResidenceNeedKind;
+    }
 }
 
 #[path = "../../src/labor_steward_policy.rs"]

@@ -1075,6 +1075,24 @@ pub fn residence_food_category_mask(residence: &Residence) -> u8 {
     })
 }
 
+fn building_food_category_mask(building: &Building, population: u32) -> u8 {
+    let qualifying_stock = food_category_qualifying_stock(population);
+    FoodCategory::ALL.into_iter().fold(0_u8, |mask, category| {
+        let stock = EDIBLE_COMMODITIES
+            .into_iter()
+            .filter(|commodity| food_category(*commodity) == Some(category))
+            .map(|commodity| {
+                building_commodity_stock(building, commodity).max(0.0) * commodity.meal_value()
+            })
+            .sum::<f64>();
+        if stock + 1e-6 >= qualifying_stock {
+            mask | category.bit()
+        } else {
+            mask
+        }
+    })
+}
+
 /// Count the food goals that matter at a residence tier. Tier 1 can live on
 /// any qualifying food. Tier 2 establishes grain as the staple alongside one
 /// other category. Tier 3+ keeps that staple and asks for produce/forage,
@@ -1084,14 +1102,16 @@ pub fn residence_food_category_mask(residence: &Residence) -> u8 {
 /// PreservedFood need.
 pub fn residence_food_progression_slots(residence: &Residence, tier: u8) -> u8 {
     let categories = residence_food_category_mask(residence);
+    food_progression_slots(categories, residence_grain_food_ready(residence), tier)
+}
+
+fn food_progression_slots(categories: u8, grain_ready: bool, tier: u8) -> u8 {
     if tier == 0 {
         return 0;
     }
     if tier == 1 {
         return u8::from(categories != 0);
     }
-
-    let grain_ready = residence_grain_food_ready(residence);
 
     if tier == 2 {
         let other_food_ready = categories & !FoodCategory::Grains.bit() != 0;
@@ -1115,6 +1135,25 @@ pub fn residence_food_progression_slots(residence: &Residence, tier: u8) -> u8 {
         + u8::from(categories & FoodCategory::AnimalProduce.bit() != 0)
         + u8::from(categories & FoodCategory::Meats.bit() != 0)
         + u8::from(categories & FoodCategory::Fishes.bit() != 0)
+}
+
+/// Whether one serving outlet holds every food slot required by a household's
+/// current tier. Regional imports and local output share the same physical
+/// Marketplace inventory, so promotion must not distinguish their origin.
+pub fn building_food_progression_met(building: &Building, population: u32, tier: u8) -> bool {
+    let categories = building_food_category_mask(building, population);
+    let qualifying_stock = food_category_qualifying_stock(population);
+    let grain_stock = [
+        CommodityKind::Food,
+        CommodityKind::OatGrain,
+        CommodityKind::RyeBread,
+        CommodityKind::MaslinBread,
+    ]
+    .into_iter()
+    .map(|kind| building_commodity_stock(building, kind).max(0.0) * kind.meal_value())
+    .sum::<f64>();
+    food_progression_slots(categories, grain_stock + 1e-6 >= qualifying_stock, tier)
+        >= residence_food_progression_required_slots(tier)
 }
 
 pub fn residence_food_progression_required_slots(tier: u8) -> u8 {

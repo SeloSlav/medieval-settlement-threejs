@@ -100,7 +100,8 @@ use crate::tables::{
 use crate::weaver_input_policy::is_valid_weaver_input_policy;
 use crate::woodcutter_policy::normalize_woodcutter_timber_reserve;
 use crate::worksite_stall_policy::{
-    is_production_labor_kind, stalled_labor_target, SpatialBuckets, RICH_DEPOSIT_CENTER_TOLERANCE,
+    alternative_processor_recipe_ready, is_production_labor_kind, stalled_labor_target,
+    ProcessorRecipeAvailability, SpatialBuckets, RICH_DEPOSIT_CENTER_TOLERANCE,
 };
 use crate::year_round_labor_policy::{
     is_year_round_labor_kind, year_round_labor_rotation, YearRoundLaborSite,
@@ -1294,61 +1295,59 @@ fn processor_input_commodity(kind: ProcessorInputKind) -> CommodityKind {
     }
 }
 
+fn processor_recipe_availability(
+    ctx: &ReducerContext,
+    building: &Building,
+    include_inbound: bool,
+) -> ProcessorRecipeAvailability {
+    let available = |commodity| {
+        building_commodity_stock(building, commodity) > 1e-6
+            || (include_inbound
+                && building_has_inbound_commodity_trip(ctx, building.id, commodity))
+    };
+    ProcessorRecipeAvailability {
+        rye_grain: available(CommodityKind::RyeGrain),
+        maslin_grain: available(CommodityKind::MaslinGrain),
+        rye_flour: available(CommodityKind::RyeFlour),
+        maslin_flour: available(CommodityKind::MaslinFlour),
+        barley: available(CommodityKind::Barley),
+        malt: available(CommodityKind::Malt),
+        water: available(CommodityKind::Water),
+        firewood: available(CommodityKind::Firewood),
+        apples: available(CommodityKind::Apples),
+        pears: available(CommodityKind::Pears),
+        honey: available(CommodityKind::Honey),
+        food: available(CommodityKind::Food),
+        meat: available(CommodityKind::Meat),
+        fish: available(CommodityKind::Fish),
+        milk: available(CommodityKind::Milk),
+        salt: available(CommodityKind::Salt),
+        pottery: available(CommodityKind::Pottery),
+        wool: available(CommodityKind::Wool),
+        flax: available(CommodityKind::Flax),
+    }
+}
+
 fn processor_stall_and_recovery(ctx: &ReducerContext, building: &Building) -> (bool, bool) {
     if processor_output_room(building).is_some_and(|headroom| headroom <= 1e-6) {
         return (true, false);
     }
 
-    if building.kind == "weaver" {
-        let has_wool = building.wool > 1e-6;
-        let has_flax = building.flax > 1e-6;
-        let has_water = building.water > 1e-6;
-        if has_wool || (has_flax && has_water) {
-            return (false, false);
-        }
-        let wool_en_route =
-            building_has_inbound_commodity_trip(ctx, building.id, CommodityKind::Wool);
-        let flax_available =
-            has_flax || building_has_inbound_commodity_trip(ctx, building.id, CommodityKind::Flax);
-        let water_available = has_water
-            || building_has_inbound_commodity_trip(ctx, building.id, CommodityKind::Water);
-        return (true, wool_en_route || (flax_available && water_available));
-    }
-
-    if building.kind == "brewery" {
-        let policy = normalize_brewery_recipe_policy(building.brewery_recipe_policy);
-        let ale_ready = (building.barley > 1e-6 || building.malt > 1e-6)
-            && building.water > 1e-6
-            && building.firewood > 1e-6;
-        let cider_ready = building.apples > 1e-6;
-        let pear_cider_ready = building.pears > 1e-6;
-        let mead_ready = building.honey > 1e-6;
-        let ready = match policy {
-            BREWERY_RECIPE_CIDER => cider_ready,
-            BREWERY_RECIPE_PEAR_CIDER => pear_cider_ready,
-            BREWERY_RECIPE_MEAD => mead_ready,
-            BREWERY_RECIPE_AUTO => ale_ready || cider_ready || pear_cider_ready || mead_ready,
-            _ => ale_ready,
-        };
+    let brewery_policy = normalize_brewery_recipe_policy(building.brewery_recipe_policy);
+    if let Some(ready) = alternative_processor_recipe_ready(
+        &building.kind,
+        brewery_policy,
+        processor_recipe_availability(ctx, building, false),
+    ) {
         if ready {
             return (false, false);
         }
-        let inbound = |commodity| building_has_inbound_commodity_trip(ctx, building.id, commodity);
-        let ale_recovering = (inbound(CommodityKind::Barley) || inbound(CommodityKind::Malt))
-            && (building.water > 1e-6 || inbound(CommodityKind::Water))
-            && (building.firewood > 1e-6 || inbound(CommodityKind::Firewood));
-        let recovering = match policy {
-            BREWERY_RECIPE_CIDER => inbound(CommodityKind::Apples),
-            BREWERY_RECIPE_PEAR_CIDER => inbound(CommodityKind::Pears),
-            BREWERY_RECIPE_MEAD => inbound(CommodityKind::Honey),
-            BREWERY_RECIPE_AUTO => {
-                ale_recovering
-                    || inbound(CommodityKind::Apples)
-                    || inbound(CommodityKind::Pears)
-                    || inbound(CommodityKind::Honey)
-            }
-            _ => ale_recovering,
-        };
+        let recovering = alternative_processor_recipe_ready(
+            &building.kind,
+            brewery_policy,
+            processor_recipe_availability(ctx, building, true),
+        )
+        .unwrap_or(false);
         return (true, recovering);
     }
 

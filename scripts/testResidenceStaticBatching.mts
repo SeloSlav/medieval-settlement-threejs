@@ -250,6 +250,7 @@ console.log(
   `residence static batching passed (${denseBeforeDraws} -> ${denseNativeDraws} native draws / `
     + `${denseAfter.draws} render objects; `
     + `${denseBeforeBytes} -> ${denseAfter.geometryBytes} rendered geometry bytes; `
+    + `${denseAfter.triangles} visible triangles; ${denseStats.instances} batch instances; `
     + `${denseRawGeometry.geometries} -> ${denseFinalGeometry.geometries} live geometries `
     + `for 100 homes)`,
 );

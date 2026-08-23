@@ -443,14 +443,18 @@ assert.match(
 );
 assert.match(
   expandedEconomy,
-  /"granary" if target\.granary_accepts_fresh_food[\s\S]*granary_fresh_food_target/,
-  'enabled granaries must expose their selected intake target to producer-owned carts',
+  /"granary" if storage_accepts_commodity\(target, commodity\)[\s\S]*granary_fresh_food_target/,
+  'granaries accepting the concrete fresh-food commodity must expose their selected intake target to producer-owned carts',
 );
 assert.match(buildingTable, /#\[default\(true\)\][\s\S]*pub granary_accepts_fresh_food: bool/);
 assert.match(buildingReducers, /pub fn set_granary_policy\(/);
 assert.match(generatedBuilding, /granaryAcceptsFreshFood:[\s\S]*granary_accepts_fresh_food/);
 assert.match(clientReducers, /callReducer\('setGranaryPolicy', 'set_granary_policy'/);
-assert.match(granaryInspector, /data-granary-accepts-fresh-food/);
+assert.match(
+  granaryInspector,
+  /renderStorageAcceptanceControls\(building, GRANARY_STORAGE_GROUPS\)/,
+  'granary fresh-food intake must use the granular accepted-goods controls rather than the removed all-or-nothing toggle',
+);
 assert.match(
   townHallInspector,
   /const freshFoodPreservationRows = renderFreshFoodPreservationRows\([\s\S]*\$\{freshFoodPreservationRows\}/,

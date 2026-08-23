@@ -6,6 +6,7 @@ import {
   CALENDAR_SECONDS_PER_DAY,
   HOUSEHOLD_AUTO_BUY_COOLDOWN_TICKS,
   HOUSEHOLD_AUTO_BUY_RUNWAY_DAYS,
+  MARKETPLACE_HOUSEHOLD_ISSUE_CHECKS_PER_DAY,
   SIM_TICK_SECONDS,
 } from '../src/generated/gameBalance.ts';
 import { householdFoodPerDay } from '../src/economy/foodInventory.ts';
@@ -598,13 +599,15 @@ const residenceInspector = readFileSync(
 );
 assert.match(residenceInspector, /Town Hall safeguard/);
 assert.match(residenceInspector, /getPantrySafeguardPolicy/);
-assert.match(residenceInspector, /one-day lot every day/);
+assert.match(residenceInspector, /MARKETPLACE_HOUSEHOLD_ISSUE_CHECKS_PER_DAY/);
+assert.match(residenceInspector, /one-day target when needed/);
 assert.match(residenceInspector, /no household cart or player prompt/);
 const marketStallsInspector = readFileSync(
   'src/resources/inspector/marketStallsRenderer.ts',
   'utf8',
 );
-assert.match(marketStallsInspector, /one-day household issue every day/);
+assert.match(marketStallsInspector, /MARKETPLACE_HOUSEHOLD_ISSUE_CHECKS_PER_DAY/);
+assert.match(marketStallsInspector, /one-day target when needed/);
 const marketplaceInspector = readFileSync(
   'src/resources/inspector/marketplaceInspector.ts',
   'utf8',
@@ -621,7 +624,12 @@ assert.match(townHallInspector, /automatic private household contingency imports
 assert.match(townHallInspector, /data-inspect-residence/);
 assert.match(townHallInspector, /Household market issues/);
 assert.match(townHallInspector, /data-pantry-safeguard-policy/);
-assert.match(townHallInspector, /ordinary one-day issue[\s\S]*every day/);
+assert.match(townHallInspector, /MARKETPLACE_HOUSEHOLD_ISSUE_CHECKS_PER_DAY/);
+assert.match(townHallInspector, /ordinary one-day target when needed/);
+assert.ok(
+  MARKETPLACE_HOUSEHOLD_ISSUE_CHECKS_PER_DAY > 1,
+  'household restocking must be checked often enough to recover within a day',
+);
 assert.match(townHallInspector, /Parish poor relief remains separate/);
 const pantrySafeguardPolicy = readFileSync(
   'src/economy/pantrySafeguardPolicy.ts',

@@ -18,11 +18,15 @@ import {
   isPreservedFoodCargo,
   preservedFoodStock,
 } from '../economy/foodInventory.ts';
-import { BUILDING_STORAGE_CAPS } from '../generated/gameBalance.ts';
+import {
+  BUILDING_STORAGE_CAPS,
+  STOREHOUSE_HAUL_PER_WORKER,
+} from '../generated/gameBalance.ts';
 import type {
   DeliveryCargoKind,
   DeliveryTripState,
 } from './deliveryTrips.ts';
+import { inboundSupplyTripConflicts } from './deliveryTrips.ts';
 
 export type FoundingStockyardBlocker =
   | 'active-trip'
@@ -47,6 +51,7 @@ export type FoundingStockyardRelocationPlan = {
   commodity: FoundingRelocationCommodity | null;
   targetBuildingId: string | null;
   targetRoom: number;
+  loadAmount: number;
   routeDistance: number | null;
 };
 
@@ -109,6 +114,34 @@ export const FOUNDING_RELOCATION_COMMODITIES = [
   'smokedFish',
   'cheese',
 ] as const satisfies readonly FoundingRelocationCommodity[];
+
+export const OCCUPIED_SHELTER_RELOCATION_COMMODITIES = [
+  'food',
+  'ryeBread',
+  'maslinBread',
+  'firewood',
+  'ironwork',
+] as const satisfies readonly FoundingRelocationCommodity[];
+
+function foundingRelocationCommodities(
+  shelterActive: boolean,
+): readonly FoundingRelocationCommodity[] {
+  return shelterActive
+    ? OCCUPIED_SHELTER_RELOCATION_COMMODITIES
+    : FOUNDING_RELOCATION_COMMODITIES;
+}
+
+export function foundingRelocationLoadAmount(
+  relocatable: number,
+  targetRoom: number,
+): number {
+  if (!Number.isFinite(relocatable) || !Number.isFinite(targetRoom)) return 0;
+  return Math.min(
+    Math.max(0, relocatable),
+    Math.max(0, targetRoom),
+    STOREHOUSE_HAUL_PER_WORKER,
+  );
+}
 
 function finiteStock(value: number | undefined): number {
   return Number.isFinite(value) ? Math.max(0, value as number) : 0;
@@ -353,6 +386,7 @@ function emptyPlan(
     commodity,
     targetBuildingId: null,
     targetRoom: 0,
+    loadAmount: 0,
     routeDistance: null,
   };
 }
@@ -373,11 +407,17 @@ export function planFoundingStockyardRelocation(
   if (input.activeTrip) {
     return emptyPlan('active-trip', pendingAmount, 0);
   }
-  if (input.camp.foundingShelterActive !== false) {
-    return emptyPlan('shelters', pendingAmount, 0);
-  }
   if (pendingAmount <= EPSILON) {
     return emptyPlan('empty', 0, 0);
+  }
+  const shelterActive = input.camp.foundingShelterActive !== false;
+  const relocationCommodities = foundingRelocationCommodities(shelterActive);
+  const eligiblePendingAmount = relocationCommodities.reduce(
+    (sum, commodity) => sum + materialStock(input.camp, commodity),
+    0,
+  );
+  if (shelterActive && eligiblePendingAmount <= EPSILON) {
+    return emptyPlan('shelters', pendingAmount, 0);
   }
 
   const destinations = Array.from(input.state.buildings.values()).filter(
@@ -388,10 +428,12 @@ export function planFoundingStockyardRelocation(
       && building.constructionComplete !== false,
   );
 
-  const inboundTargets = new Set<string>();
+  const inboundTripsByTarget = new Map<string, DeliveryTripState[]>();
   for (const trip of input.state.deliveryTrips.values()) {
     if (trip.destinationKind === 'building' && trip.targetBuildingId) {
-      inboundTargets.add(trip.targetBuildingId);
+      const inbound = inboundTripsByTarget.get(trip.targetBuildingId) ?? [];
+      inbound.push(trip);
+      inboundTripsByTarget.set(trip.targetBuildingId, inbound);
     }
   }
   const fireDisabled = fireDisabledBuildingIds(input.state.fireIncidents.values());
@@ -406,7 +448,7 @@ export function planFoundingStockyardRelocation(
   let hasReceivingAvailableRoom = false;
   let hasRoadRoute = false;
 
-  for (const commodity of FOUNDING_RELOCATION_COMMODITIES) {
+  for (const commodity of relocationCommodities) {
     const stock = materialStock(input.camp, commodity);
     if (stock <= EPSILON) continue;
     firstPendingCommodity ??= commodity;
@@ -439,7 +481,11 @@ export function planFoundingStockyardRelocation(
       hasTargetRoom = true;
       if (fireDisabled.has(destination.id)) continue;
       hasFireAvailableRoom = true;
-      if (inboundTargets.has(destination.id)) continue;
+      if (
+        (inboundTripsByTarget.get(destination.id) ?? []).some((trip) =>
+          inboundSupplyTripConflicts(destination.kind, commodity, trip)
+        )
+      ) continue;
       hasReceivingAvailableRoom = true;
       const distance = input.roadPathDistance(
         input.camp.x,
@@ -475,6 +521,7 @@ export function planFoundingStockyardRelocation(
         commodity,
         targetBuildingId: best.building.id,
         targetRoom: Math.min(relocatable, best.room),
+        loadAmount: foundingRelocationLoadAmount(relocatable, best.room),
         routeDistance: best.distance,
       };
     }

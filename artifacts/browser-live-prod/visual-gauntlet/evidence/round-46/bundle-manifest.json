@@ -1,0 +1,112 @@
+{
+  "schemaVersion": 1,
+  "round": 46,
+  "archivedAtUtc": "2026-07-30T23:54:24.693Z",
+  "sourceCommit": "25ccd2286e2208fae4e2eb51e6e6b2e768bd70e6",
+  "buildCommand": "npm.cmd run build",
+  "entryHtml": "hamlet-fixture.html",
+  "entryModule": "hamlet-fixture-DBRNfyUl.js",
+  "dependencyDiscovery": {
+    "source": "dist/hamlet-fixture.html",
+    "rule": "entry module plus every emitted modulepreload href",
+    "javascriptFiles": 18,
+    "totalArchiveBytes": 1872343
+  },
+  "files": [
+    {
+      "file": "burgageZoneLayout-D36bqJd_.js",
+      "bytes": 167110,
+      "sha256": "75F180065018BDF8E76C0CCE2755716056AC7433D25EB1061FE25CB20CF8ACB6"
+    },
+    {
+      "file": "hamlet-fixture.html",
+      "bytes": 4122,
+      "sha256": "AB61C4B1E5EF3130BB519DA90F3900FA2F7BB49CB79D992606BAEEAB26E2244F"
+    },
+    {
+      "file": "hamletFixtureConfig-K2tHveYM.js",
+      "bytes": 5395,
+      "sha256": "92C8E007FE993FC2654FAA52FAC1168147C895F9F234ADE278C7180F16AF9EA7"
+    },
+    {
+      "file": "hamlet-fixture-DBRNfyUl.js",
+      "bytes": 101382,
+      "sha256": "ECB42A429D294E143ACA153ECAD5F427FCEC3661B517B21EEBE169AD4D275967"
+    },
+    {
+      "file": "modulepreload-polyfill-Dezn_h7o.js",
+      "bytes": 698,
+      "sha256": "785597BCA2E7DD97A652A20A197C077079E635A5663433448E0E1D9FD8C98A64"
+    },
+    {
+      "file": "PostProcessing-CUp0fx0a.js",
+      "bytes": 209880,
+      "sha256": "55BC8B24C2927D2E56684979D3F268F696A60401CD5C62738EB2B9E9440C0358"
+    },
+    {
+      "file": "ResidenceMarkers-Cb-vPa2E.js",
+      "bytes": 34597,
+      "sha256": "482B9B181E29E64D8BED4F17214320DCCF1FE2683F961DAC3A1D6A3707070927"
+    },
+    {
+      "file": "seedThreeAssets-BlifPRUC.js",
+      "bytes": 1409,
+      "sha256": "A3D4068865F784D7BACFE2E5DF465130B4388C845D616D5C28B5204CB007FD4B"
+    },
+    {
+      "file": "seedThreeBranchCards-W51yCPdA.js",
+      "bytes": 4920,
+      "sha256": "E09FB963762E00D73C21762BD26C16108D647E3CC8208C4AA9EB51E57E97308E"
+    },
+    {
+      "file": "seedThreeForestBuilder-C0wbXi-3.js",
+      "bytes": 17459,
+      "sha256": "B327E57AB3D17DB898519C98A515F5C016ECFBF57F520181D7474922DA244F1D"
+    },
+    {
+      "file": "seedThreeGroundCover-DWXrMTs6.js",
+      "bytes": 2087,
+      "sha256": "561F004DFF8E09FC8894FE138CCB4FEEC30A89D09C698BCF13B603D1B6D7B075"
+    },
+    {
+      "file": "seedThreeTextures-Dn4m57N8.js",
+      "bytes": 10314,
+      "sha256": "FABEDBF4793EB510930BF98CB2E3772F1D562F7A917C3A4A910B3F91216CCE24"
+    },
+    {
+      "file": "seedthree-vendor--BaV3WQw.js",
+      "bytes": 1021166,
+      "sha256": "96B1C62208052654EA4C726F846876F99265300533996903A2F5BBB91180DFB2"
+    },
+    {
+      "file": "sky-vendor-aDw7V7wR.js",
+      "bytes": 30568,
+      "sha256": "C751D80053EE20B4D3C7D31421850242DB3F08DCB024A95A043D79A6BD6AA472"
+    },
+    {
+      "file": "spacetime-Cy3UZ6Vu.js",
+      "bytes": 94134,
+      "sha256": "849E64453459312A4CB9081643B9BD1B2760B4BCB6ABF71B25C31B17E0435825"
+    },
+    {
+      "file": "spacetime-generated-BDNycebA.js",
+      "bytes": 67950,
+      "sha256": "800B2C3111D9B616696E6AC15E0F206B4544B069CCBE761D7CA2A2B8CCCC99E0"
+    },
+    {
+      "file": "three-CX1475S3.js",
+      "bytes": 82243,
+      "sha256": "B4B1F822D41E35ACE1110C1F8DE97C816591FDEF86128FB318E3F81920991A1A"
+    },
+    {
+      "file": "visualPerformanceHooks-xDClN1ft.js",
+      "bytes": 16741,
+      "sha256": "AE9DB6C2DC9F5216C4C1DEA024FA3AF1F6BDE279B048C006B150583D946842B4"
+    },
+    {
+      "file": "yieldToMain-CKkYsSyO.js",
+      "bytes": 168,
+      "sha256": "657844EFDCC579491D020D5837428FAD90DDCF2325867D357FF2C4ADC7588185"
+    }
+  ]
+}

@@ -1,0 +1,1 @@
+Pine foliage albedo generated with Codex built-in image generation, then locally cropped, downsampled to 512px, and color-graded for muted medieval evergreen foliage. The runtime uses it as one shared texture on the instanced pine foliage material for performance.

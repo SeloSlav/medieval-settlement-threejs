@@ -1,0 +1,1 @@
+Medieval dirt road PBR texture set. Albedo was generated with Codex built-in image generation for this prototype; normal, roughness, AO, height, edge_mask, and rut_mask were derived locally by scripts/derive_pbr_maps.py.

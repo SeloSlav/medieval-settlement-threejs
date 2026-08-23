@@ -1,0 +1,43 @@
+Livestock model assets
+======================
+
+The GLB files in this directory are Quaternius models distributed under
+Creative Commons Zero v1.0 Universal (CC0 1.0):
+https://creativecommons.org/publicdomain/zero/1.0/
+
+Assets and source pages:
+
+- quaternius-cow.glb
+  "Cow" by Quaternius
+  https://poly.pizza/m/26zM1outCr
+
+- quaternius-bull.glb
+  "Bull" by Quaternius
+  https://poly.pizza/m/a8PIIYwF7r
+
+- quaternius-sheep.glb
+  "Sheep" by Quaternius
+  https://poly.pizza/m/rgJXF570ZK
+
+- quaternius-pig.glb
+  "Pig" by Quaternius
+  https://poly.pizza/m/u35l6uP5vj
+
+- quaternius-chicken.glb
+  "Chicken" by Quaternius
+  https://poly.pizza/m/ineV9pU5VL
+
+The backyard goat visual reuses `quaternius-sheep.glb` from the same CC0 Farm
+Animal Pack. The game creates the goat variant at runtime with a leaner scale,
+goat-colored material clones, and procedural horns and beard while retaining
+the source rig and animations. The published Farm Animal Pack does not include
+a separate goat file; this derivative keeps the requested pack provenance and
+CC0 terms without importing a differently licensed model.
+
+Collection pages:
+
+- Farm Animal Pack: https://quaternius.com/packs/farmanimal.html
+- Animated Animal Pack: https://poly.pizza/bundle/Animated-Animal-Pack-ILAPXeUYiS
+
+The original author does not require attribution under CC0. This file is kept
+with the game so that the provenance and reuse terms remain easy to audit.

@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import type { BuildingKind } from '../generated/gameBalance.ts';
 import type { TerrainProjector } from '../terrain/TerrainProjector.ts';
 import type { SceneManager } from '../scene/SceneManager.ts';
 import { disposeObject3D } from '../utils/dispose.ts';
@@ -323,6 +324,8 @@ const TOTAL_RESOURCE_TOOLTIPS: Partial<Record<HudResourceKind, string>> = {
   stone: 'All stone stored at physical quarry yards and depots, including stock committed to active construction and home projects. Material loaded on carts remains separate until unloading.',
   gold: 'All civic gold secured in the founders’ lockbox, reclamation chests, or Town Hall treasury, including coin committed to active home projects. Market working cash, company pay chests, and moving lockboxes remain separate.',
 };
+const DEFAULT_TOTAL_RESOURCE_TOOLTIP =
+  'All physically stored stock for this resource, including household reserves and goods committed to active projects. Loaded carts remain listed separately until unloading.';
 
 const NON_SPECIALTY_HUD_RESOURCE_KINDS = new Set<HudResourceKind>([
   'timber',
@@ -345,6 +348,7 @@ export class ResourceInspector {
   private readonly title: HTMLElement;
   private readonly status: HTMLElement;
   private readonly heroArt: HTMLElement;
+  private readonly heroImage: HTMLImageElement;
   private readonly heroSymbol: HTMLElement;
   private readonly serviceCoverageButton: HTMLButtonElement;
   private readonly closeButton: HTMLButtonElement;
@@ -429,6 +433,7 @@ export class ResourceInspector {
       <aside class="resource-inspector-panel" data-resource-inspector hidden aria-label="Resource inspector">
         <header class="road-controls-header resource-inspector-header">
           <div class="resource-inspector-hero-art" data-inspector-hero aria-hidden="true">
+            <img class="resource-inspector-hero-image" data-inspector-hero-image alt="" decoding="async" draggable="false" hidden />
             <span class="resource-inspector-hero-symbol" data-inspector-symbol>◆</span>
           </div>
           <div class="resource-inspector-heading">
@@ -485,6 +490,10 @@ export class ResourceInspector {
     this.title = this.mustElement(options.uiRoot, '[data-inspector-title]');
     this.status = this.mustElement(options.uiRoot, '[data-inspector-status]');
     this.heroArt = this.mustElement(options.uiRoot, '[data-inspector-hero]');
+    this.heroImage = this.mustElement(
+      options.uiRoot,
+      '[data-inspector-hero-image]',
+    ) as HTMLImageElement;
     this.heroSymbol = this.mustElement(options.uiRoot, '[data-inspector-symbol]');
     this.serviceCoverageButton = this.mustButton(
       options.uiRoot,
@@ -688,7 +697,7 @@ export class ResourceInspector {
       if (!stat) continue;
       const tooltip = showingTotal
         ? TOTAL_RESOURCE_TOOLTIPS[resource]
-          ?? this.surplusResourceTooltips.get(resource)
+          ?? DEFAULT_TOTAL_RESOURCE_TOOLTIP
         : this.surplusResourceTooltips.get(resource);
       if (tooltip) stat.dataset.tooltip = tooltip;
     }
@@ -2340,10 +2349,37 @@ export class ResourceInspector {
     this.panel.dataset.inspectorTarget = target.kind;
     this.panel.dataset.inspectorKind = presentation.kind;
     this.heroSymbol.textContent = presentation.symbol;
-    this.heroArt.style.backgroundImage = presentation.image
-      ? `linear-gradient(90deg, rgba(15, 17, 13, 0.06), rgba(15, 17, 13, 0.64)), url("${presentation.image}")`
-      : '';
-    this.heroArt.classList.toggle('has-art', Boolean(presentation.image));
+    this.heroArt.classList.remove('has-art', 'is-art-unavailable');
+    this.heroImage.hidden = true;
+    this.heroImage.onload = null;
+    this.heroImage.onerror = null;
+    this.heroImage.removeAttribute('src');
+
+    const source = presentation.image;
+    if (!source) return;
+
+    this.heroArt.dataset.artState = 'loading';
+    const markArtAvailable = () => {
+      if (this.heroImage.getAttribute('src') !== source) return;
+      this.heroImage.hidden = false;
+      this.heroArt.classList.add('has-art');
+      this.heroArt.classList.remove('is-art-unavailable');
+      this.heroArt.dataset.artState = 'ready';
+    };
+    const markArtUnavailable = () => {
+      if (this.heroImage.getAttribute('src') !== source) return;
+      this.heroImage.onload = null;
+      this.heroImage.onerror = null;
+      this.heroImage.removeAttribute('src');
+      this.heroImage.hidden = true;
+      this.heroArt.classList.remove('has-art');
+      this.heroArt.classList.add('is-art-unavailable');
+      this.heroArt.dataset.artState = 'fallback';
+    };
+    this.heroImage.onload = markArtAvailable;
+    this.heroImage.onerror = markArtUnavailable;
+    this.heroImage.src = source;
+    void this.heroImage.decode().then(markArtAvailable).catch(markArtUnavailable);
   }
 
   private renderDetails(detailsHtml: string): void {
@@ -2638,40 +2674,50 @@ type InspectorPresentation = {
   image?: string;
 };
 
-const BUILDING_INSPECTOR_ART: Partial<Record<string, string>> = {
-  apiary: 'apiary.webp',
-  brewery: 'brewery.webp',
-  carpenter: 'carpenter.webp',
-  chapel: 'chapel.webp',
-  fishing_camp: 'fishing-camp.webp',
-  foragers_shed: 'foragers-hut.webp',
-  founders_camp: 'residence.webp',
-  granary: 'granary.webp',
-  bakery: 'granary.webp',
-  guardhouse: 'guardhouse.webp',
-  hunters_hall: 'hunter-hall.webp',
-  large_quarry: 'large-quarry.webp',
-  lumber_mill: 'lumber-mill.webp',
-  marketplace: 'market.webp',
-  monastery: 'monastery.webp',
-  pastoral_farmstead: 'pastoral-farmstead.webp',
-  reforester: 'reforester.webp',
-  salvage_pile: 'village-storehouse.webp',
-  smokehouse: 'smokehouse.webp',
-  stone_quarry: 'stonecutters-camp.webp',
-  swineherd: 'swineherd.webp',
-  threshing_barn: 'threshing-barn.webp',
-  town_hall: 'town-hall.webp',
-  village_storehouse: 'village-storehouse.webp',
-  watchtower: 'watchtower.webp',
-  watermill: 'watermill.webp',
-  windmill: 'windmill.webp',
-  weaver: 'weaver.webp',
-  tannery: 'tannery.webp',
-  cobbler: 'cobbler.webp',
-  well: 'water-well.webp',
-  woodcutters_lodge: 'woodcutters-lodge.webp',
-};
+const BUILDING_INSPECTOR_ART = {
+  founders_camp: '/assets/ui/build-menu/cards/residence.webp',
+  salvage_pile: '/assets/ui/build-menu/cards/village-storehouse.webp',
+  lumber_mill: '/assets/ui/build-menu/cards/lumber-mill.webp',
+  reforester: '/assets/ui/build-menu/cards/reforester.webp',
+  woodcutters_lodge: '/assets/ui/build-menu/cards/woodcutters-lodge.webp',
+  stone_quarry: '/assets/ui/build-menu/cards/stonecutters-camp.webp',
+  large_quarry: '/assets/ui/build-menu/cards/large-quarry.webp',
+  remote_work_camp: '/assets/ui/icons/actions/overnight-work-camp.png',
+  mine: '/assets/ui/build-menu/cards/iron-mine.webp',
+  clay_pit: '/assets/ui/build-menu/cards/clay-pit.webp',
+  charcoal_burner: '/assets/ui/build-menu/cards/charcoal-burner.webp',
+  smithy: '/assets/ui/build-menu/cards/smithy-bloomery.webp',
+  potter_kiln: '/assets/ui/build-menu/cards/potter-kiln.webp',
+  well: '/assets/ui/build-menu/cards/water-well.webp',
+  hunters_hall: '/assets/ui/build-menu/cards/hunter-hall.webp',
+  foragers_shed: '/assets/ui/build-menu/cards/foragers-hut.webp',
+  fishing_camp: '/assets/ui/build-menu/cards/fishing-camp.webp',
+  chapel: '/assets/ui/build-menu/cards/chapel.webp',
+  wayside_shrine: '/assets/ui/build-menu/cards/wayside-shrine.webp',
+  marketplace: '/assets/ui/build-menu/cards/market.webp',
+  trading_post: '/assets/ui/build-menu/cards/trading-post.webp',
+  town_hall: '/assets/ui/build-menu/cards/town-hall.webp',
+  village_storehouse: '/assets/ui/build-menu/cards/village-storehouse.webp',
+  watchtower: '/assets/ui/build-menu/cards/watchtower.webp',
+  guardhouse: '/assets/ui/build-menu/cards/guardhouse.webp',
+  palisaded_refuge: '/assets/ui/build-menu/cards/palisaded-refuge.webp',
+  threshing_barn: '/assets/ui/build-menu/cards/threshing-barn.webp',
+  pastoral_farmstead: '/assets/ui/build-menu/cards/pastoral-farmstead.webp',
+  swineherd: '/assets/ui/build-menu/cards/swineherd.webp',
+  monastery: '/assets/ui/build-menu/cards/monastery.webp',
+  brewery: '/assets/ui/build-menu/cards/brewery.webp',
+  tavern: '/assets/ui/build-menu/cards/tavern.webp',
+  smokehouse: '/assets/ui/build-menu/cards/smokehouse.webp',
+  granary: '/assets/ui/build-menu/cards/granary.webp',
+  bakery: '/assets/ui/build-menu/cards/bakery.webp',
+  apiary: '/assets/ui/build-menu/cards/apiary.webp',
+  watermill: '/assets/ui/build-menu/cards/watermill.webp',
+  windmill: '/assets/ui/build-menu/cards/windmill.webp',
+  carpenter: '/assets/ui/build-menu/cards/carpenter.webp',
+  weaver: '/assets/ui/build-menu/cards/weaver.webp',
+  tannery: '/assets/ui/build-menu/cards/tannery.webp',
+  cobbler: '/assets/ui/build-menu/cards/cobbler.webp',
+} satisfies Record<BuildingKind, string>;
 
 function inspectableIdentity(target: InspectableTarget | null): string {
   if (!target) return '';
@@ -2689,7 +2735,7 @@ function inspectableIdentity(target: InspectableTarget | null): string {
 
 function inspectablePresentation(target: InspectableTarget): InspectorPresentation {
   if (target.kind === 'building') {
-    const file = BUILDING_INSPECTOR_ART[target.building.kind];
+    const image = BUILDING_INSPECTOR_ART[target.building.kind];
     const civic = target.building.kind === 'town_hall'
       || target.building.kind === 'chapel'
       || target.building.kind === 'monastery';
@@ -2703,7 +2749,7 @@ function inspectablePresentation(target: InspectableTarget): InspectorPresentati
     return {
       kind: civic ? 'civic' : agricultural ? 'agriculture' : storage ? 'storage' : 'building',
       symbol: civic ? '\u269C' : agricultural ? '\u2748' : storage ? '\u25A3' : '\u2692',
-      ...(file ? { image: `/assets/ui/build-menu/cards/${file}` } : {}),
+      image,
     };
   }
   if (target.kind === 'residence' || target.kind === 'backyard') {

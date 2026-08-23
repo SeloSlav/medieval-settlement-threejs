@@ -91,13 +91,13 @@ and [Roman-canonical feast-day work rules](https://hrcak.srce.hr/file/455439).
 
 | Speed | Day | Month | Season | Year |
 | --- | ---: | ---: | ---: | ---: |
-| Normal, 1× | 5 min | 2 hr 30 min | 7 hr 30 min | 30 hr |
-| Fast, 4× | 75 sec | 37 min 30 sec | 1 hr 52 min 30 sec | 7 hr 30 min |
-| Fastest, 8× | 37.5 sec | 18 min 45 sec | 56 min 15 sec | 3 hr 45 min |
+| Normal, 1× | 2 min 40 sec | 1 hr 20 min | 4 hr | 16 hr |
+| Fast, 4× | 40 sec | 20 min | 1 hr | 4 hr |
+| Fastest, 8× | 20 sec | 10 min | 30 min | 2 hr |
 
 The scheduler still fires every 200 milliseconds and every completed substep retains
-its established 0.2-second meaning. At 1× the fixed-point scheduler advances 0.4 simulation
-seconds per real second, making a complete day-night cycle last five minutes. Faster
+its established 0.2-second meaning. At 1× the fixed-point scheduler advances 0.75 simulation
+seconds per real second, making a complete day-night cycle last two minutes forty seconds. Faster
 modes receive four or eight times that budget. They accelerate movement,
 labor, construction, production, deliveries, consumption, regrowth, reproduction,
 weather damage, and the calendar together.
@@ -381,6 +381,33 @@ again. The client uses the same batched route claim, offer order, capacity rules
 and stable tie breaks; its read-only test projection evaluates 100,000 homes
 across eight markets in about 170 ms. Existing saves already contain the last
 successful order tick, and older client fixtures default it to zero.
+
+## Trading Post regional exchange windows
+
+A staffed, completed, fire-safe, road-connected Trading Post evaluates its
+persistent import and export rules every 30 simulation seconds: six displayed
+game hours, about 10 real seconds at 4× under the authoritative 0.75 base
+simulation rate. The interval comes from `balance/gameBalance.json`; the client
+countdown and Rust scheduler use the generated constant. A newly configured
+rule waits for the next window rather than executing instantly. If work or
+logistics is paused, the due window remains ready and executes when the post can
+operate instead of silently skipping the order.
+
+Local export carts continuously stage only reachable public stock above the
+configured settlement floor. At each window all exports resolve before any
+imports, so a settlement with no civic gold can legitimately sell a staged
+surplus and use those proceeds for an import during the same exchange. Imports
+remain limited by live regional prices, civic treasury gold, the configured
+target deficit, and actual Trading Post storage room; they are neither free nor
+instant. The regional counterparty is abstract, but local movement is not:
+provisions and wares leave the post on conserved carts for Marketplaces, water
+for wells, and imported ale, apple cider, or pear cider for a staffed reachable
+Tavern. Homes receive Beverage service only through that Tavern.
+
+For save and schema compatibility the persistent column remains named
+`last_settled_month`; new code stores the monotonic exchange-window sequence in
+that existing `u64`. Older monthly values are safely treated as overdue once,
+then advance under the bounded cadence.
 
 ## Parish alms and Monday poor relief
 

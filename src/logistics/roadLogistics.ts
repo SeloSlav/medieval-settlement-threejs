@@ -235,7 +235,8 @@ export function claimResidencesForFirewoodSuppliers(
   residences: readonly ResidenceState[],
 ): Map<string, string> {
   const distributors = suppliers.filter(
-    (supplier) => isOperationalFirewoodSupplier(supplier) && supplier.firewood > 1e-6,
+    (supplier) => isOperationalFirewoodSupplier(supplier)
+      && supplier.firewood + Math.max(0, supplier.charcoal ?? 0) > 1e-6,
   );
   return claimResidencesByNearestSupplier(
     network,

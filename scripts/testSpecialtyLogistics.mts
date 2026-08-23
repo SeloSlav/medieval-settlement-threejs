@@ -8,7 +8,6 @@ import {
   SHOES_SUPPLIER_KINDS,
   compareResidencesForSpecialtyDelivery,
   findRoadLinkedSupplierForResidence,
-  findRoadLinkedUpgradeSupplierForResidence,
   peekNextSpecialtyDeliveryTarget,
   PRESERVED_FOOD_PRODUCER_KINDS,
   PRESERVED_FOOD_SUPPLIER_KINDS,
@@ -185,17 +184,6 @@ assert.equal(
   foodMarket.id,
   'a stocked Marketplace must redistribute preserved food from granary stalls',
 );
-assert.equal(
-  findRoadLinkedUpgradeSupplierForResidence(
-    home,
-    [granary, smokehouse, farmstead, foodMarket],
-    network,
-    'preservedFood',
-  )?.id,
-  farmstead.id,
-  'a depot must not unlock prosperous housing without an actual producer',
-);
-
 const monastery = building('monastery', 'monastery', 5);
 const brewery = building('brewery', 'brewery', 18);
 const tavern = {
@@ -232,11 +220,6 @@ assert.equal(
   findRoadLinkedSupplierForResidence(home, [cobbler, goodsMarket], network, 'shoes')?.id,
   goodsMarket.id,
   'only a stocked Marketplace goods stall should claim household footwear service',
-);
-assert.equal(
-  findRoadLinkedUpgradeSupplierForResidence(home, [cobbler, goodsMarket], network, 'shoes')?.id,
-  cobbler.id,
-  'a staffed Cobbler must unlock Tier 3 footwear service',
 );
 const emptySmokehouse = { ...building('empty-smokehouse', 'smokehouse', 2), preservedFood: 0 };
 const emptyGranary = { ...granary, preservedFood: 0 };
@@ -374,11 +357,12 @@ assert.match(
   'new kiln output must move to the storehouse before a goods stall serves it',
 );
 const residenceUpgrades = fs.readFileSync('server/src/reducers/residences.rs', 'utf8');
-assert.match(residenceUpgrades, /PRESERVED_FOOD_PRODUCER_KINDS/);
 assert.doesNotMatch(
   residenceUpgrades,
-  /ResidenceUpgradeService::PreservedFood[\s\S]{0,180}PRESERVED_FOOD_SUPPLIER_KINDS/,
+  /PRESERVED_FOOD_PRODUCER_KINDS|CLOTH_PRODUCER_KINDS|SHOES_PRODUCER_KINDS|POTTERY_PRODUCER_KINDS/,
+  'residence promotion must not require a local producer for future-tier goods',
 );
+assert.match(residenceUpgrades, /residence_promotion_needs\(residence\.tier\)/);
 const livestock = fs.readFileSync('server/src/simulation/livestock.rs', 'utf8');
 assert.match(
   livestock,
@@ -392,7 +376,11 @@ const expandedInspector = fs.readFileSync(
 assert.match(expandedInspector, /Cured-food territory/);
 assert.match(expandedInspector, /Physical cured route/);
 assert.match(expandedInspector, /no routine home cart/);
-assert.match(expandedInspector, /A staffed granary collects fresh stock/);
+assert.match(
+  expandedInspector,
+  /disabling a good stops new intake but leaves existing stock usable/,
+  'the granary must explain that closing intake does not strand stock already stored there',
+);
 const residenceInspector = fs.readFileSync('src/resources/inspector/residenceRenderer.ts', 'utf8');
 assert.match(
   residenceInspector,

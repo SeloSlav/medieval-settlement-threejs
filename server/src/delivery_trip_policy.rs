@@ -23,6 +23,35 @@ impl DeliveryTripPhase {
     }
 }
 
+const PENDING_CARGO_EPSILON: f64 = 1e-6;
+
+/// Only a positive load still traveling toward, or unloading at, its target
+/// suppresses another dispatch. An empty cart on its return leg has already
+/// completed delivery and must not extend the target's queue latency.
+pub fn delivery_cargo_is_approaching(phase: u8, amount: f64) -> bool {
+    amount.is_finite()
+        && amount > PENDING_CARGO_EPSILON
+        && matches!(
+            DeliveryTripPhase::from_u8(phase),
+            Some(DeliveryTripPhase::Outbound | DeliveryTripPhase::Unloading)
+        )
+}
+
+/// A normal destination receives one supply cart at a time. A Marketplace is
+/// different: its independent food and goods tables may receive distinct
+/// commodities concurrently, while a second load of the same commodity must
+/// still wait so source-side requests cannot reserve the same empty room twice.
+pub fn inbound_supply_trip_conflicts(
+    target_is_marketplace: bool,
+    requested_cargo_kind: u8,
+    inbound_cargo_kind: u8,
+    phase: u8,
+    amount: f64,
+) -> bool {
+    delivery_cargo_is_approaching(phase, amount)
+        && (!target_is_marketplace || requested_cargo_kind == inbound_cargo_kind)
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum RaidCartPosture {
     /// No capable raider is present, or this is an emergency fire cart.
@@ -49,7 +78,53 @@ pub fn raid_cart_posture(
 
 #[cfg(test)]
 mod tests {
-    use super::{raid_cart_posture, DeliveryTripPhase, RaidCartPosture};
+    use super::{
+        delivery_cargo_is_approaching, inbound_supply_trip_conflicts, raid_cart_posture,
+        DeliveryTripPhase, RaidCartPosture,
+    };
+
+    #[test]
+    fn only_nonempty_outbound_or_unloading_cargo_suppresses_another_dispatch() {
+        assert!(delivery_cargo_is_approaching(
+            DeliveryTripPhase::Outbound.as_u8(),
+            8.0,
+        ));
+        assert!(delivery_cargo_is_approaching(
+            DeliveryTripPhase::Unloading.as_u8(),
+            8.0,
+        ));
+        assert!(!delivery_cargo_is_approaching(
+            DeliveryTripPhase::Inbound.as_u8(),
+            8.0,
+        ));
+        assert!(!delivery_cargo_is_approaching(
+            DeliveryTripPhase::Inbound.as_u8(),
+            0.0,
+        ));
+        assert!(!delivery_cargo_is_approaching(
+            DeliveryTripPhase::Outbound.as_u8(),
+            0.0,
+        ));
+        assert!(!delivery_cargo_is_approaching(u8::MAX, 8.0));
+        assert!(!delivery_cargo_is_approaching(
+            DeliveryTripPhase::Outbound.as_u8(),
+            f64::NAN,
+        ));
+    }
+
+    #[test]
+    fn marketplace_parallelism_is_distinct_by_commodity_without_duplicate_reservations() {
+        let outbound = DeliveryTripPhase::Outbound.as_u8();
+        let unloading = DeliveryTripPhase::Unloading.as_u8();
+        let returning = DeliveryTripPhase::Inbound.as_u8();
+
+        assert!(inbound_supply_trip_conflicts(true, 55, 55, outbound, 24.0));
+        assert!(inbound_supply_trip_conflicts(true, 55, 55, unloading, 24.0));
+        assert!(!inbound_supply_trip_conflicts(true, 55, 0, outbound, 24.0));
+        assert!(inbound_supply_trip_conflicts(false, 55, 0, outbound, 24.0));
+        assert!(!inbound_supply_trip_conflicts(true, 55, 55, returning, 24.0));
+        assert!(!inbound_supply_trip_conflicts(true, 55, 55, outbound, 0.0));
+    }
 
     #[test]
     fn ordinary_loaded_carts_reverse_when_hostiles_are_physically_active() {

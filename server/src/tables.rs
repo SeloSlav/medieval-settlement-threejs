@@ -954,7 +954,8 @@ pub struct TradingPostTradeRule {
     pub commodity_kind: u8,
     pub mode: u8,
     pub target_surplus: f64,
-    /// Absolute rational-calendar month last considered by settlement.
+    /// Regional exchange window last considered. The legacy field name is
+    /// retained for save/schema compatibility.
     pub last_settled_month: u64,
     /// Positive units imported or exported in the most recent settlement.
     pub last_trade_amount: f64,

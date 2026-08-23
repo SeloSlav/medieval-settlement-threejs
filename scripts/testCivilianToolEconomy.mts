@@ -269,7 +269,11 @@ const priorityTarget = selectDirectProcessorInputTarget(
   'ironwork',
   (candidate) => candidate.id === 'quarry' ? 30 : candidate.id === 'clay' ? 80 : 10,
 );
-assert.equal(priorityTarget?.target.id, 'clay');
+assert.equal(
+  priorityTarget?.target.id,
+  'quarry',
+  'a completed workplace must use the nearest equally empty rack; its retired construction priority must not hijack supply routing',
+);
 assert.equal(priorityTarget?.duty, 'working-buffer');
 assert.equal(priorityTarget?.desiredStock, 3);
 

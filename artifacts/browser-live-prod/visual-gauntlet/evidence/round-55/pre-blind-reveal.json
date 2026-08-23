@@ -1,0 +1,96 @@
+{
+  "schemaVersion": 1,
+  "round": 55,
+  "purpose": "pre-blind same-archive comparison of tapered woodland edge versus interlocking mixed-height mid-story thickets",
+  "createdAtUtc": "2026-07-31T03:45:49.320Z",
+  "hashAlgorithm": "SHA-256",
+  "hashPreimage": "the exact UTF-8 bytes of this file, including its final LF",
+  "nonce": "0ff3115aad151ed5437b9291e9f9e7a9",
+  "sourceCheckpoint": "3829ebe6d7634ff81f068d76338381c4b3d0871e",
+  "seedThreeCommit": "4182accfc1fb7a66815e963b5355ca4996418cf3",
+  "seedThreeScope": {
+    "status": "existing-generic-primitive-reused",
+    "reason": "Round 55 depth staggering composes createForestEdgeBandReallocation with Hamlet-specific boundary samples, road and parcel clearance geometry, and a fixture-specific 3/3/2 visual mix; no new reusable SeedThree primitive was introduced."
+  },
+  "captureOrigin": "http://127.0.0.1:4186",
+  "archivePath": "artifacts/visual-gauntlet/round-55/captured-build",
+  "entryHtml": "hamlet-fixture.html",
+  "predecessor": {
+    "round": 54,
+    "status": "complete-valid-evidence-blind-tie",
+    "winner": "tie",
+    "confidencePercent": 95,
+    "biggestRemainingGap": "The forest did not read as a continuous dark ecological mass; bright ground showed through sparse, similarly scaled trees."
+  },
+  "arms": {
+    "control": {
+      "layout": "tapered-shrub-sapling-belt-256",
+      "pathAndQuery": "/hamlet-fixture.html?clean=1&view=strategic&route=gorski-kotar-lod-traverse-v1&visualProfile=1&ablation=groundcover-stream-forest-update-frozen&visualDisable=post&visualRouteLodSkyDirectRender=1&visualGpuTimestampMarkers=1&forestEdgeLayout=tapered-shrub-sapling-belt-256"
+    },
+    "treatment": {
+      "layout": "interlocking-midstory-thicket-256",
+      "pathAndQuery": "/hamlet-fixture.html?clean=1&view=strategic&route=gorski-kotar-lod-traverse-v1&visualProfile=1&ablation=groundcover-stream-forest-update-frozen&visualDisable=post&visualRouteLodSkyDirectRender=1&visualGpuTimestampMarkers=1&forestEdgeLayout=interlocking-midstory-thicket-256"
+    }
+  },
+  "soleArmQueryDifference": {
+    "parameter": "forestEdgeLayout",
+    "controlValue": "tapered-shrub-sapling-belt-256",
+    "treatmentValue": "interlocking-midstory-thicket-256"
+  },
+  "randomization": {
+    "mappingDrawHex": "6f645796f5106794459020e0006282f4",
+    "mappingRule": "least-significant hex bit 0 => blind-A control; 1 => blind-A treatment",
+    "captureOrderDrawHex": "c08bbe112b169a07434576ce33fb189d",
+    "captureOrderRule": "least-significant hex bit 0 => blind-B first; 1 => blind-A first",
+    "blindAssignment": {
+      "blind-A": "control",
+      "blind-B": "treatment"
+    },
+    "captureOrder": [
+      "blind-A",
+      "blind-B"
+    ]
+  },
+  "captureSurfaceSelector": "[data-testid=\"hamlet-route-frame-sequence-native-png-output\"]",
+  "captureSurface": "gpu-synchronized-native-renderer-drawing-buffer-png-data-url",
+  "perFrameProtocol": {
+    "clearRequestBeforeEverySeek": true,
+    "primeCaptureDiscarded": true,
+    "immediateRepeatRequired": true,
+    "primeAndRepeatPngSha256MustMatch": true,
+    "cameraPoseIdentityMustMatchAcrossArms": true
+  },
+  "terminalEvidenceBeforeFrameSeeks": true,
+  "frameIndices": [
+    0,
+    180,
+    276,
+    277,
+    278,
+    279,
+    330,
+    375,
+    480
+  ],
+  "hardPerformanceBar": {
+    "onePercentLowFpsAtLeast": 60,
+    "maxFrameMsAtMost": 25,
+    "framesOver25Ms": 0,
+    "framesOver50Ms": 0
+  },
+  "structuralBudget": {
+    "treeSlots": 1651,
+    "reallocatedSlots": 256,
+    "retainedSlots": 1395,
+    "thickets": 32,
+    "slotsPerThicket": 8,
+    "shrubs": 96,
+    "saplings": 96,
+    "crowns": 64,
+    "maximumForestDraws": 20,
+    "newTextures": 0,
+    "newMeshes": 0,
+    "newPresets": 0,
+    "residenceRoof": "wood-shingle"
+  }
+}

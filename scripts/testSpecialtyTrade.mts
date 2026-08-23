@@ -53,4 +53,4 @@ assert.match(tradingPostTrade, /TRADE_MODE_EXPORT/);
 assert.match(tradingPostTrade, /settle_export/);
 assert.doesNotMatch(tradingPostTrade, /specialty_export_capacity|manual_trade_cooldown/);
 
-console.log('seasonal specialty production and monthly Trading Post export checks passed');
+console.log('seasonal specialty production and bounded Trading Post exchange checks passed');

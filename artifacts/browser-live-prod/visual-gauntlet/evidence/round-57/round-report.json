@@ -1,0 +1,88 @@
+{
+  "schemaVersion": 1,
+  "round": 57,
+  "status": "complete-valid-evidence-blind-tie",
+  "winner": "tie",
+  "confidencePercent": 98,
+  "acceptedAsNewVisualDefault": false,
+  "defaultForestGroundAfterVerdict": "existing-terrain",
+  "mappingRevealedAfterVerdict": {
+    "blind-A": "treatment",
+    "blind-B": "control"
+  },
+  "comparison": {
+    "control": "existing-terrain",
+    "treatment": "mottled-dense-crown-floor",
+    "soleQueryParameter": "forestGround",
+    "forestEdgeLayout": "tapered-shrub-sapling-belt-256"
+  },
+  "treatment": {
+    "terrainVertices": 50369,
+    "candidateVertices": 1639,
+    "densityQualifiedVertices": 856,
+    "modifiedVertices": 682,
+    "modifiedPercent": 1.3540074252020091,
+    "weightedCoverageSquareMeters": 2176.9650015205907,
+    "observedMinimumAdjoiningCrowns": 3,
+    "meanStableLuminanceReductionPercent": 13.965192485585554,
+    "maximumStableLuminanceReductionPercent": 30.068781687160374,
+    "stableLuminanceReductionStandardDeviationPercent": 7.45920874785387,
+    "darkBasinVertices": 177,
+    "leafLitterVertices": 177,
+    "lighterChannelVertices": 161,
+    "guaranteedRoadFragmentMinimumMeters": 11.214328166754143,
+    "guaranteedSettlementFragmentMinimumMeters": 9.207812169432728,
+    "roadContaminationVertices": 0,
+    "parcelContaminationVertices": 0,
+    "roadContaminationTriangles": 0,
+    "parcelContaminationTriangles": 0,
+    "forestDrawDelta": 0,
+    "terrainDrawDelta": 0,
+    "textureAssetDelta": 0,
+    "meshDelta": 0,
+    "materialDelta": 0,
+    "geometryVertexDelta": 0,
+    "vertexAttributeDelta": 0,
+    "colorBufferByteDelta": 0,
+    "shaderDelta": 0,
+    "perFrameWorkDelta": 0,
+    "startupColorWrites": 682
+  },
+  "performance": {
+    "control": {
+      "onePercentLowFps": 77.63975155277475,
+      "maxFrameMs": 24.200000000004366,
+      "framesOver25Ms": 0,
+      "framesOver50Ms": 0,
+      "hardBarPassed": true
+    },
+    "treatment": {
+      "onePercentLowFps": 78.27788649704857,
+      "maxFrameMs": 24.19999999999709,
+      "framesOver25Ms": 0,
+      "framesOver50Ms": 0,
+      "hardBarPassed": true
+    }
+  },
+  "visualVerdict": {
+    "control": "fail",
+    "treatment": "fail",
+    "shadowedWoodlandVolumeMaterial": false,
+    "roadParcelReadability": "pass",
+    "frames276To279Pop": "pass",
+    "circularBlobHaloRingRegression": "pass"
+  },
+  "biggestRemainingGap": "A continuous crown-density-driven shadowed woodland floor that suppresses the olive base into one deep forest volume, leaving only restrained irregular leaf-litter openings and feathering naturally before roads and parcels.",
+  "smallestNextImprovement": "Broaden and strengthen the low-frequency connected-crown floor response until frames 000 and 480 visibly lose olive holes, without changing road and parcel clearance or temporal stability.",
+  "seedThreeAudit": {
+    "classification": "Hamlet-specific terrain weighting",
+    "seedThreeCommit": "4182accfc1fb7a66815e963b5355ca4996418cf3",
+    "gitlinkChanged": false,
+    "reusableSeedThreeBehaviorAdded": false,
+    "reason": "The treatment derives from Hamlet terrain colors, accepted interior crowns, and Hamlet road, parcel, field, landmark, and clearance geometry; no reusable SeedThree behavior was added."
+  },
+  "scopeNotes": {
+    "people": "excluded",
+    "residenceRoof": "wood-shingle"
+  }
+}

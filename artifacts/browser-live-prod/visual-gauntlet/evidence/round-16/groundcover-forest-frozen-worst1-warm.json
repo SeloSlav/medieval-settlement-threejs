@@ -1,0 +1,1081 @@
+{
+  "schemaVersion": 1,
+  "fixtureId": "gorski-kotar-parish-lane-1550",
+  "routeId": "gorski-kotar-lod-traverse-v1",
+  "routeDurationMs": 21000,
+  "ablation": {
+    "id": "groundcover-stream-forest-update-frozen",
+    "disabledSubsystems": [],
+    "forestSelection": "budgeted",
+    "forestUpdates": "frozen-after-settled-warmup",
+    "groundcoverStreaming": "frozen",
+    "routeWarmup": "full-route"
+  },
+  "protocol": {
+    "requested": true,
+    "valid": true,
+    "cssViewport": {
+      "width": 1280,
+      "height": 720
+    },
+    "drawingBuffer": {
+      "width": 1280,
+      "height": 720
+    },
+    "rendererPixelRatio": 1,
+    "expected": "1280x720@renderer-pr1"
+  },
+  "performanceReport": {
+    "status": "ready",
+    "elapsedSeconds": 30,
+    "sampleCount": 2746,
+    "metrics": {
+      "medianFps": 82.64462809918349,
+      "onePercentLowFps": 48.52686308491712,
+      "meanFps": 91.52784166283358,
+      "p99FrameMs": 20.607142857144936,
+      "maxFrameMs": 42.39999999999418,
+      "framesOver25Ms": 3,
+      "framesOver50Ms": 0
+    },
+    "renderer": {
+      "medianDrawCalls": 157,
+      "medianFrameCalls": 15,
+      "medianTriangles": 3353713
+    },
+    "slowFrames": [
+      {
+        "dtMs": 42.39999999999418,
+        "traceMs": 9315.699999999997,
+        "renderer": {
+          "drawCalls": 148,
+          "frameCalls": 15,
+          "triangles": 4433289
+        },
+        "routeElapsedMs": 9298.300000001487,
+        "routeCycle": 0,
+        "phase": "settlement",
+        "forest": {
+          "selectionChanged": false,
+          "selectorSkipped": true,
+          "workChunks": 0,
+          "matrixWrites": 0,
+          "bucketUploads": 0,
+          "pendingBuckets": 0
+        },
+        "groundcoverDelta": {
+          "generationSubsteps": 0,
+          "clearWriteSubsteps": 0,
+          "refreshes": 0,
+          "gpuFlagUpdates": 0,
+          "gpuUpdateRanges": 0,
+          "bytesUploaded": 0,
+          "completedSlots": 0,
+          "cancelledSlots": 0,
+          "pendingSlots": 0
+        }
+      },
+      {
+        "dtMs": 30.299999999995634,
+        "traceMs": 9012.599999999999,
+        "renderer": {
+          "drawCalls": 151,
+          "frameCalls": 15,
+          "triangles": 4433861
+        },
+        "routeElapsedMs": 8995.200000001489,
+        "routeCycle": 0,
+        "phase": "settlement",
+        "forest": {
+          "selectionChanged": false,
+          "selectorSkipped": true,
+          "workChunks": 0,
+          "matrixWrites": 0,
+          "bucketUploads": 0,
+          "pendingBuckets": 0
+        },
+        "groundcoverDelta": {
+          "generationSubsteps": 0,
+          "clearWriteSubsteps": 0,
+          "refreshes": 0,
+          "gpuFlagUpdates": 0,
+          "gpuUpdateRanges": 0,
+          "bytesUploaded": 0,
+          "completedSlots": 0,
+          "cancelledSlots": 0,
+          "pendingSlots": 0
+        }
+      },
+      {
+        "dtMs": 30.200000000004366,
+        "traceMs": 22958.800000000003,
+        "renderer": {
+          "drawCalls": 158,
+          "frameCalls": 15,
+          "triangles": 3353713
+        },
+        "routeElapsedMs": 1941.400000001493,
+        "routeCycle": 1,
+        "phase": "strategic",
+        "forest": {
+          "selectionChanged": false,
+          "selectorSkipped": true,
+          "workChunks": 0,
+          "matrixWrites": 0,
+          "bucketUploads": 0,
+          "pendingBuckets": 0
+        },
+        "groundcoverDelta": {
+          "generationSubsteps": 0,
+          "clearWriteSubsteps": 0,
+          "refreshes": 0,
+          "gpuFlagUpdates": 0,
+          "gpuUpdateRanges": 0,
+          "bytesUploaded": 0,
+          "completedSlots": 0,
+          "cancelledSlots": 0,
+          "pendingSlots": 0
+        }
+      },
+      {
+        "dtMs": 24.30000000000291,
+        "traceMs": 9036.900000000001,
+        "renderer": {
+          "drawCalls": 151,
+          "frameCalls": 15,
+          "triangles": 4433861
+        },
+        "routeElapsedMs": 9019.500000001492,
+        "routeCycle": 0,
+        "phase": "settlement",
+        "forest": {
+          "selectionChanged": false,
+          "selectorSkipped": true,
+          "workChunks": 0,
+          "matrixWrites": 0,
+          "bucketUploads": 0,
+          "pendingBuckets": 0
+        },
+        "groundcoverDelta": {
+          "generationSubsteps": 0,
+          "clearWriteSubsteps": 0,
+          "refreshes": 0,
+          "gpuFlagUpdates": 0,
+          "gpuUpdateRanges": 0,
+          "bytesUploaded": 0,
+          "completedSlots": 0,
+          "cancelledSlots": 0,
+          "pendingSlots": 0
+        }
+      },
+      {
+        "dtMs": 24.19999999999709,
+        "traceMs": 13782.599999999999,
+        "renderer": {
+          "drawCalls": 148,
+          "frameCalls": 15,
+          "triangles": 4433289
+        },
+        "routeElapsedMs": 13765.200000001489,
+        "routeCycle": 0,
+        "phase": "settlement",
+        "forest": {
+          "selectionChanged": false,
+          "selectorSkipped": true,
+          "workChunks": 0,
+          "matrixWrites": 0,
+          "bucketUploads": 0,
+          "pendingBuckets": 0
+        },
+        "groundcoverDelta": {
+          "generationSubsteps": 0,
+          "clearWriteSubsteps": 0,
+          "refreshes": 0,
+          "gpuFlagUpdates": 0,
+          "gpuUpdateRanges": 0,
+          "bytesUploaded": 0,
+          "completedSlots": 0,
+          "cancelledSlots": 0,
+          "pendingSlots": 0
+        }
+      },
+      {
+        "dtMs": 24.19999999999709,
+        "traceMs": 28298.6,
+        "renderer": {
+          "drawCalls": 157,
+          "frameCalls": 15,
+          "triangles": 3353677
+        },
+        "routeElapsedMs": 7281.200000001489,
+        "routeCycle": 1,
+        "phase": "settlement",
+        "forest": {
+          "selectionChanged": false,
+          "selectorSkipped": true,
+          "workChunks": 0,
+          "matrixWrites": 0,
+          "bucketUploads": 0,
+          "pendingBuckets": 0
+        },
+        "groundcoverDelta": {
+          "generationSubsteps": 0,
+          "clearWriteSubsteps": 0,
+          "refreshes": 0,
+          "gpuFlagUpdates": 0,
+          "gpuUpdateRanges": 0,
+          "bytesUploaded": 0,
+          "completedSlots": 0,
+          "cancelledSlots": 0,
+          "pendingSlots": 0
+        }
+      },
+      {
+        "dtMs": 18.30000000000291,
+        "traceMs": 1872.9000000000015,
+        "renderer": {
+          "drawCalls": 158,
+          "frameCalls": 15,
+          "triangles": 3353713
+        },
+        "routeElapsedMs": 1855.5000000014916,
+        "routeCycle": 0,
+        "phase": "strategic",
+        "forest": {
+          "selectionChanged": false,
+          "selectorSkipped": true,
+          "workChunks": 0,
+          "matrixWrites": 0,
+          "bucketUploads": 0,
+          "pendingBuckets": 0
+        },
+        "groundcoverDelta": {
+          "generationSubsteps": 0,
+          "clearWriteSubsteps": 0,
+          "refreshes": 0,
+          "gpuFlagUpdates": 0,
+          "gpuUpdateRanges": 0,
+          "bytesUploaded": 0,
+          "completedSlots": 0,
+          "cancelledSlots": 0,
+          "pendingSlots": 0
+        }
+      },
+      {
+        "dtMs": 18.30000000000291,
+        "traceMs": 5097.300000000003,
+        "renderer": {
+          "drawCalls": 158,
+          "frameCalls": 15,
+          "triangles": 3353713
+        },
+        "routeElapsedMs": 5079.900000001493,
+        "routeCycle": 0,
+        "phase": "strategic",
+        "forest": {
+          "selectionChanged": false,
+          "selectorSkipped": true,
+          "workChunks": 0,
+          "matrixWrites": 0,
+          "bucketUploads": 0,
+          "pendingBuckets": 0
+        },
+        "groundcoverDelta": {
+          "generationSubsteps": 0,
+          "clearWriteSubsteps": 0,
+          "refreshes": 0,
+          "gpuFlagUpdates": 0,
+          "gpuUpdateRanges": 0,
+          "bytesUploaded": 0,
+          "completedSlots": 0,
+          "cancelledSlots": 0,
+          "pendingSlots": 0
+        }
+      },
+      {
+        "dtMs": 18.30000000000291,
+        "traceMs": 6594.4000000000015,
+        "renderer": {
+          "drawCalls": 157,
+          "frameCalls": 15,
+          "triangles": 3353677
+        },
+        "routeElapsedMs": 6577.000000001492,
+        "routeCycle": 0,
+        "phase": "settlement",
+        "forest": {
+          "selectionChanged": false,
+          "selectorSkipped": true,
+          "workChunks": 0,
+          "matrixWrites": 0,
+          "bucketUploads": 0,
+          "pendingBuckets": 0
+        },
+        "groundcoverDelta": {
+          "generationSubsteps": 0,
+          "clearWriteSubsteps": 0,
+          "refreshes": 0,
+          "gpuFlagUpdates": 0,
+          "gpuUpdateRanges": 0,
+          "bytesUploaded": 0,
+          "completedSlots": 0,
+          "cancelledSlots": 0,
+          "pendingSlots": 0
+        }
+      },
+      {
+        "dtMs": 18.30000000000291,
+        "traceMs": 10109.800000000003,
+        "renderer": {
+          "drawCalls": 144,
+          "frameCalls": 15,
+          "triangles": 4326165
+        },
+        "routeElapsedMs": 10092.400000001493,
+        "routeCycle": 0,
+        "phase": "settlement",
+        "forest": {
+          "selectionChanged": false,
+          "selectorSkipped": true,
+          "workChunks": 0,
+          "matrixWrites": 0,
+          "bucketUploads": 0,
+          "pendingBuckets": 0
+        },
+        "groundcoverDelta": {
+          "generationSubsteps": 0,
+          "clearWriteSubsteps": 0,
+          "refreshes": 0,
+          "gpuFlagUpdates": 0,
+          "gpuUpdateRanges": 0,
+          "bytesUploaded": 0,
+          "completedSlots": 0,
+          "cancelledSlots": 0,
+          "pendingSlots": 0
+        }
+      },
+      {
+        "dtMs": 18.30000000000291,
+        "traceMs": 10261.300000000003,
+        "renderer": {
+          "drawCalls": 144,
+          "frameCalls": 15,
+          "triangles": 4326165
+        },
+        "routeElapsedMs": 10243.900000001493,
+        "routeCycle": 0,
+        "phase": "settlement",
+        "forest": {
+          "selectionChanged": false,
+          "selectorSkipped": true,
+          "workChunks": 0,
+          "matrixWrites": 0,
+          "bucketUploads": 0,
+          "pendingBuckets": 0
+        },
+        "groundcoverDelta": {
+          "generationSubsteps": 0,
+          "clearWriteSubsteps": 0,
+          "refreshes": 0,
+          "gpuFlagUpdates": 0,
+          "gpuUpdateRanges": 0,
+          "bytesUploaded": 0,
+          "completedSlots": 0,
+          "cancelledSlots": 0,
+          "pendingSlots": 0
+        }
+      },
+      {
+        "dtMs": 18.30000000000291,
+        "traceMs": 15995,
+        "renderer": {
+          "drawCalls": 157,
+          "frameCalls": 15,
+          "triangles": 3353677
+        },
+        "routeElapsedMs": 15977.60000000149,
+        "routeCycle": 0,
+        "phase": "settlement",
+        "forest": {
+          "selectionChanged": false,
+          "selectorSkipped": true,
+          "workChunks": 0,
+          "matrixWrites": 0,
+          "bucketUploads": 0,
+          "pendingBuckets": 0
+        },
+        "groundcoverDelta": {
+          "generationSubsteps": 0,
+          "clearWriteSubsteps": 0,
+          "refreshes": 0,
+          "gpuFlagUpdates": 0,
+          "gpuUpdateRanges": 0,
+          "bytesUploaded": 0,
+          "completedSlots": 0,
+          "cancelledSlots": 0,
+          "pendingSlots": 0
+        }
+      },
+      {
+        "dtMs": 18.30000000000291,
+        "traceMs": 20716.4,
+        "renderer": {
+          "drawCalls": 158,
+          "frameCalls": 15,
+          "triangles": 3353713
+        },
+        "routeElapsedMs": 20699.00000000149,
+        "routeCycle": 0,
+        "phase": "strategic",
+        "forest": {
+          "selectionChanged": false,
+          "selectorSkipped": true,
+          "workChunks": 0,
+          "matrixWrites": 0,
+          "bucketUploads": 0,
+          "pendingBuckets": 0
+        },
+        "groundcoverDelta": {
+          "generationSubsteps": 0,
+          "clearWriteSubsteps": 0,
+          "refreshes": 0,
+          "gpuFlagUpdates": 0,
+          "gpuUpdateRanges": 0,
+          "bytesUploaded": 0,
+          "completedSlots": 0,
+          "cancelledSlots": 0,
+          "pendingSlots": 0
+        }
+      },
+      {
+        "dtMs": 18.30000000000291,
+        "traceMs": 21468,
+        "renderer": {
+          "drawCalls": 158,
+          "frameCalls": 15,
+          "triangles": 3353713
+        },
+        "routeElapsedMs": 450.6000000014901,
+        "routeCycle": 1,
+        "phase": "strategic",
+        "forest": {
+          "selectionChanged": false,
+          "selectorSkipped": true,
+          "workChunks": 0,
+          "matrixWrites": 0,
+          "bucketUploads": 0,
+          "pendingBuckets": 0
+        },
+        "groundcoverDelta": {
+          "generationSubsteps": 0,
+          "clearWriteSubsteps": 0,
+          "refreshes": 0,
+          "gpuFlagUpdates": 0,
+          "gpuUpdateRanges": 0,
+          "bytesUploaded": 0,
+          "completedSlots": 0,
+          "cancelledSlots": 0,
+          "pendingSlots": 0
+        }
+      },
+      {
+        "dtMs": 18.299999999995634,
+        "traceMs": 13673.599999999999,
+        "renderer": {
+          "drawCalls": 148,
+          "frameCalls": 15,
+          "triangles": 4433289
+        },
+        "routeElapsedMs": 13656.200000001489,
+        "routeCycle": 0,
+        "phase": "settlement",
+        "forest": {
+          "selectionChanged": false,
+          "selectorSkipped": true,
+          "workChunks": 0,
+          "matrixWrites": 0,
+          "bucketUploads": 0,
+          "pendingBuckets": 0
+        },
+        "groundcoverDelta": {
+          "generationSubsteps": 0,
+          "clearWriteSubsteps": 0,
+          "refreshes": 0,
+          "gpuFlagUpdates": 0,
+          "gpuUpdateRanges": 0,
+          "bytesUploaded": 0,
+          "completedSlots": 0,
+          "cancelledSlots": 0,
+          "pendingSlots": 0
+        }
+      },
+      {
+        "dtMs": 18.299999999995634,
+        "traceMs": 14085.699999999997,
+        "renderer": {
+          "drawCalls": 152,
+          "frameCalls": 15,
+          "triangles": 4433897
+        },
+        "routeElapsedMs": 14068.300000001487,
+        "routeCycle": 0,
+        "phase": "settlement",
+        "forest": {
+          "selectionChanged": false,
+          "selectorSkipped": true,
+          "workChunks": 0,
+          "matrixWrites": 0,
+          "bucketUploads": 0,
+          "pendingBuckets": 0
+        },
+        "groundcoverDelta": {
+          "generationSubsteps": 0,
+          "clearWriteSubsteps": 0,
+          "refreshes": 0,
+          "gpuFlagUpdates": 0,
+          "gpuUpdateRanges": 0,
+          "bytesUploaded": 0,
+          "completedSlots": 0,
+          "cancelledSlots": 0,
+          "pendingSlots": 0
+        }
+      },
+      {
+        "dtMs": 18.200000000004366,
+        "traceMs": 8430.800000000003,
+        "renderer": {
+          "drawCalls": 150,
+          "frameCalls": 15,
+          "triangles": 3353125
+        },
+        "routeElapsedMs": 8413.400000001493,
+        "routeCycle": 0,
+        "phase": "settlement",
+        "forest": {
+          "selectionChanged": false,
+          "selectorSkipped": true,
+          "workChunks": 0,
+          "matrixWrites": 0,
+          "bucketUploads": 0,
+          "pendingBuckets": 0
+        },
+        "groundcoverDelta": {
+          "generationSubsteps": 0,
+          "clearWriteSubsteps": 0,
+          "refreshes": 0,
+          "gpuFlagUpdates": 0,
+          "gpuUpdateRanges": 0,
+          "bytesUploaded": 0,
+          "completedSlots": 0,
+          "cancelledSlots": 0,
+          "pendingSlots": 0
+        }
+      },
+      {
+        "dtMs": 18.200000000004366,
+        "traceMs": 9133.900000000001,
+        "renderer": {
+          "drawCalls": 151,
+          "frameCalls": 15,
+          "triangles": 4433861
+        },
+        "routeElapsedMs": 9116.500000001492,
+        "routeCycle": 0,
+        "phase": "settlement",
+        "forest": {
+          "selectionChanged": false,
+          "selectorSkipped": true,
+          "workChunks": 0,
+          "matrixWrites": 0,
+          "bucketUploads": 0,
+          "pendingBuckets": 0
+        },
+        "groundcoverDelta": {
+          "generationSubsteps": 0,
+          "clearWriteSubsteps": 0,
+          "refreshes": 0,
+          "gpuFlagUpdates": 0,
+          "gpuUpdateRanges": 0,
+          "bytesUploaded": 0,
+          "completedSlots": 0,
+          "cancelledSlots": 0,
+          "pendingSlots": 0
+        }
+      },
+      {
+        "dtMs": 18.200000000004366,
+        "traceMs": 9188.400000000001,
+        "renderer": {
+          "drawCalls": 150,
+          "frameCalls": 15,
+          "triangles": 4433861
+        },
+        "routeElapsedMs": 9171.000000001492,
+        "routeCycle": 0,
+        "phase": "settlement",
+        "forest": {
+          "selectionChanged": false,
+          "selectorSkipped": true,
+          "workChunks": 0,
+          "matrixWrites": 0,
+          "bucketUploads": 0,
+          "pendingBuckets": 0
+        },
+        "groundcoverDelta": {
+          "generationSubsteps": 0,
+          "clearWriteSubsteps": 0,
+          "refreshes": 0,
+          "gpuFlagUpdates": 0,
+          "gpuUpdateRanges": 0,
+          "bytesUploaded": 0,
+          "completedSlots": 0,
+          "cancelledSlots": 0,
+          "pendingSlots": 0
+        }
+      },
+      {
+        "dtMs": 18.200000000004366,
+        "traceMs": 9388.400000000001,
+        "renderer": {
+          "drawCalls": 148,
+          "frameCalls": 15,
+          "triangles": 4433289
+        },
+        "routeElapsedMs": 9371.000000001492,
+        "routeCycle": 0,
+        "phase": "settlement",
+        "forest": {
+          "selectionChanged": false,
+          "selectorSkipped": true,
+          "workChunks": 0,
+          "matrixWrites": 0,
+          "bucketUploads": 0,
+          "pendingBuckets": 0
+        },
+        "groundcoverDelta": {
+          "generationSubsteps": 0,
+          "clearWriteSubsteps": 0,
+          "refreshes": 0,
+          "gpuFlagUpdates": 0,
+          "gpuUpdateRanges": 0,
+          "bytesUploaded": 0,
+          "completedSlots": 0,
+          "cancelledSlots": 0,
+          "pendingSlots": 0
+        }
+      },
+      {
+        "dtMs": 18.200000000004366,
+        "traceMs": 10812.800000000003,
+        "renderer": {
+          "drawCalls": 140,
+          "frameCalls": 15,
+          "triangles": 4251609
+        },
+        "routeElapsedMs": 10795.400000001493,
+        "routeCycle": 0,
+        "phase": "settlement",
+        "forest": {
+          "selectionChanged": false,
+          "selectorSkipped": true,
+          "workChunks": 0,
+          "matrixWrites": 0,
+          "bucketUploads": 0,
+          "pendingBuckets": 0
+        },
+        "groundcoverDelta": {
+          "generationSubsteps": 0,
+          "clearWriteSubsteps": 0,
+          "refreshes": 0,
+          "gpuFlagUpdates": 0,
+          "gpuUpdateRanges": 0,
+          "bytesUploaded": 0,
+          "completedSlots": 0,
+          "cancelledSlots": 0,
+          "pendingSlots": 0
+        }
+      },
+      {
+        "dtMs": 18.200000000004366,
+        "traceMs": 11158.300000000003,
+        "renderer": {
+          "drawCalls": 140,
+          "frameCalls": 15,
+          "triangles": 4251609
+        },
+        "routeElapsedMs": 11140.900000001493,
+        "routeCycle": 0,
+        "phase": "road-eye",
+        "forest": {
+          "selectionChanged": false,
+          "selectorSkipped": true,
+          "workChunks": 0,
+          "matrixWrites": 0,
+          "bucketUploads": 0,
+          "pendingBuckets": 0
+        },
+        "groundcoverDelta": {
+          "generationSubsteps": 0,
+          "clearWriteSubsteps": 0,
+          "refreshes": 0,
+          "gpuFlagUpdates": 0,
+          "gpuUpdateRanges": 0,
+          "bytesUploaded": 0,
+          "completedSlots": 0,
+          "cancelledSlots": 0,
+          "pendingSlots": 0
+        }
+      },
+      {
+        "dtMs": 18.200000000004366,
+        "traceMs": 11327.900000000001,
+        "renderer": {
+          "drawCalls": 140,
+          "frameCalls": 15,
+          "triangles": 4251609
+        },
+        "routeElapsedMs": 11310.500000001492,
+        "routeCycle": 0,
+        "phase": "road-eye",
+        "forest": {
+          "selectionChanged": false,
+          "selectorSkipped": true,
+          "workChunks": 0,
+          "matrixWrites": 0,
+          "bucketUploads": 0,
+          "pendingBuckets": 0
+        },
+        "groundcoverDelta": {
+          "generationSubsteps": 0,
+          "clearWriteSubsteps": 0,
+          "refreshes": 0,
+          "gpuFlagUpdates": 0,
+          "gpuUpdateRanges": 0,
+          "bytesUploaded": 0,
+          "completedSlots": 0,
+          "cancelledSlots": 0,
+          "pendingSlots": 0
+        }
+      },
+      {
+        "dtMs": 18.200000000004366,
+        "traceMs": 12358.300000000003,
+        "renderer": {
+          "drawCalls": 140,
+          "frameCalls": 15,
+          "triangles": 4251609
+        },
+        "routeElapsedMs": 12340.900000001493,
+        "routeCycle": 0,
+        "phase": "road-eye",
+        "forest": {
+          "selectionChanged": false,
+          "selectorSkipped": true,
+          "workChunks": 0,
+          "matrixWrites": 0,
+          "bucketUploads": 0,
+          "pendingBuckets": 0
+        },
+        "groundcoverDelta": {
+          "generationSubsteps": 0,
+          "clearWriteSubsteps": 0,
+          "refreshes": 0,
+          "gpuFlagUpdates": 0,
+          "gpuUpdateRanges": 0,
+          "bytesUploaded": 0,
+          "completedSlots": 0,
+          "cancelledSlots": 0,
+          "pendingSlots": 0
+        }
+      },
+      {
+        "dtMs": 18.200000000004366,
+        "traceMs": 12503.800000000003,
+        "renderer": {
+          "drawCalls": 140,
+          "frameCalls": 15,
+          "triangles": 4251609
+        },
+        "routeElapsedMs": 12486.400000001493,
+        "routeCycle": 0,
+        "phase": "road-eye",
+        "forest": {
+          "selectionChanged": false,
+          "selectorSkipped": true,
+          "workChunks": 0,
+          "matrixWrites": 0,
+          "bucketUploads": 0,
+          "pendingBuckets": 0
+        },
+        "groundcoverDelta": {
+          "generationSubsteps": 0,
+          "clearWriteSubsteps": 0,
+          "refreshes": 0,
+          "gpuFlagUpdates": 0,
+          "gpuUpdateRanges": 0,
+          "bytesUploaded": 0,
+          "completedSlots": 0,
+          "cancelledSlots": 0,
+          "pendingSlots": 0
+        }
+      },
+      {
+        "dtMs": 18.200000000004366,
+        "traceMs": 12558.300000000003,
+        "renderer": {
+          "drawCalls": 140,
+          "frameCalls": 15,
+          "triangles": 4251609
+        },
+        "routeElapsedMs": 12540.900000001493,
+        "routeCycle": 0,
+        "phase": "road-eye",
+        "forest": {
+          "selectionChanged": false,
+          "selectorSkipped": true,
+          "workChunks": 0,
+          "matrixWrites": 0,
+          "bucketUploads": 0,
+          "pendingBuckets": 0
+        },
+        "groundcoverDelta": {
+          "generationSubsteps": 0,
+          "clearWriteSubsteps": 0,
+          "refreshes": 0,
+          "gpuFlagUpdates": 0,
+          "gpuUpdateRanges": 0,
+          "bytesUploaded": 0,
+          "completedSlots": 0,
+          "cancelledSlots": 0,
+          "pendingSlots": 0
+        }
+      },
+      {
+        "dtMs": 18.200000000004366,
+        "traceMs": 13261.400000000001,
+        "renderer": {
+          "drawCalls": 143,
+          "frameCalls": 15,
+          "triangles": 4326129
+        },
+        "routeElapsedMs": 13244.000000001492,
+        "routeCycle": 0,
+        "phase": "settlement",
+        "forest": {
+          "selectionChanged": false,
+          "selectorSkipped": true,
+          "workChunks": 0,
+          "matrixWrites": 0,
+          "bucketUploads": 0,
+          "pendingBuckets": 0
+        },
+        "groundcoverDelta": {
+          "generationSubsteps": 0,
+          "clearWriteSubsteps": 0,
+          "refreshes": 0,
+          "gpuFlagUpdates": 0,
+          "gpuUpdateRanges": 0,
+          "bytesUploaded": 0,
+          "completedSlots": 0,
+          "cancelledSlots": 0,
+          "pendingSlots": 0
+        }
+      },
+      {
+        "dtMs": 18.200000000004366,
+        "traceMs": 13558.400000000001,
+        "renderer": {
+          "drawCalls": 143,
+          "frameCalls": 15,
+          "triangles": 4326129
+        },
+        "routeElapsedMs": 13541.000000001492,
+        "routeCycle": 0,
+        "phase": "settlement",
+        "forest": {
+          "selectionChanged": false,
+          "selectorSkipped": true,
+          "workChunks": 0,
+          "matrixWrites": 0,
+          "bucketUploads": 0,
+          "pendingBuckets": 0
+        },
+        "groundcoverDelta": {
+          "generationSubsteps": 0,
+          "clearWriteSubsteps": 0,
+          "refreshes": 0,
+          "gpuFlagUpdates": 0,
+          "gpuUpdateRanges": 0,
+          "bytesUploaded": 0,
+          "completedSlots": 0,
+          "cancelledSlots": 0,
+          "pendingSlots": 0
+        }
+      }
+    ],
+    "context": {
+      "backend": "webgpu",
+      "viewport": {
+        "width": 1280,
+        "height": 720
+      },
+      "devicePixelRatio": 1.5,
+      "rendererPixelRatio": 1,
+      "visibility": "visible",
+      "adapter": {
+        "source": "webgpu-adapter-info",
+        "identityStatus": "available",
+        "fallbackStatus": "non-fallback",
+        "vendor": "nvidia",
+        "architecture": "lovelace",
+        "device": null,
+        "description": null,
+        "isFallbackAdapter": false,
+        "limitations": []
+      },
+      "subsystems": {
+        "post": true,
+        "sky": true,
+        "shadows": true,
+        "river": false,
+        "riverSimulation": false,
+        "riverRender": false,
+        "precipitation": false,
+        "selection": false,
+        "preview": false,
+        "terrain": true,
+        "groundcover": true,
+        "forest": true,
+        "ui": true
+      }
+    },
+    "schemaVersion": 1,
+    "windowSeconds": 30
+  },
+  "forestWork": {
+    "mode": "frozen-after-settled-warmup",
+    "updateAblation": {
+      "requestedMode": "frozen-after-settled-warmup",
+      "state": "frozen",
+      "pendingBucketsAtFreeze": 0,
+      "convergedAtFreeze": true
+    },
+    "configuredMaxBucketCompactionsPerFrame": 1,
+    "maxBucketCompactionsPerFrame": 0,
+    "maxUpdateDurationBudgetMs": 2,
+    "minimumCameraMoveMeters": 8,
+    "minimumDirectionAngleDegrees": 2.5,
+    "minimumProjectionChange": 0.005,
+    "minimumCasterBoundsChangeMeters": 0.75,
+    "totalBucketCompactions": 0,
+    "totalBucketUploads": 0,
+    "totalWorkChunks": 0,
+    "totalMatrixWrites": 0,
+    "selectorEvaluations": 0,
+    "selectorSkips": 2790,
+    "triggerReasons": {},
+    "selectionChanges": 0,
+    "pendingBuckets": 0,
+    "maxUpdateDurationMs": 0,
+    "phases": {
+      "strategic": {
+        "frames": 1523,
+        "selectionChanges": 0,
+        "bucketCompactions": 0,
+        "bucketUploads": 0,
+        "workChunks": 0,
+        "matrixWrites": 0,
+        "maxBucketCompactionsPerFrame": 0,
+        "maxUpdateDurationMs": 0,
+        "triggerReasons": {}
+      },
+      "settlement": {
+        "frames": 1110,
+        "selectionChanges": 0,
+        "bucketCompactions": 0,
+        "bucketUploads": 0,
+        "workChunks": 0,
+        "matrixWrites": 0,
+        "maxBucketCompactionsPerFrame": 0,
+        "maxUpdateDurationMs": 0,
+        "triggerReasons": {}
+      },
+      "road-eye": {
+        "frames": 157,
+        "selectionChanges": 0,
+        "bucketCompactions": 0,
+        "bucketUploads": 0,
+        "workChunks": 0,
+        "matrixWrites": 0,
+        "maxBucketCompactionsPerFrame": 0,
+        "maxUpdateDurationMs": 0,
+        "triggerReasons": {}
+      }
+    },
+    "settledKeyframes": {
+      "strategic-settled": {
+        "observations": 2,
+        "pendingBuckets": 0,
+        "maxPendingBuckets": 0,
+        "converged": true,
+        "sampledAtMs": 990.0000000014916,
+        "sampleTiming": "pre-departure-dwell"
+      },
+      "road-eye-settled": {
+        "observations": 1,
+        "pendingBuckets": 0,
+        "maxPendingBuckets": 0,
+        "converged": true,
+        "sampledAtMs": 12498.400000001493,
+        "sampleTiming": "pre-departure-dwell"
+      }
+    },
+    "converged": true,
+    "settledKeyframesConverged": true
+  },
+  "groundcoverWork": {
+    "mode": "frozen",
+    "maxUpdateDurationBudgetMs": 2,
+    "updates": 120,
+    "generationSubsteps": 253,
+    "generationDurationMs": 216.90000013262033,
+    "clearWriteSubsteps": 135,
+    "clearWriteDurationMs": 4.100000001490116,
+    "refreshCount": 110,
+    "refreshDurationMs": 0,
+    "gpuFlagUpdates": 1100,
+    "gpuUpdateRanges": 1350,
+    "bytesUploaded": 3013200,
+    "boundsScans": 0,
+    "completedSlots": 135,
+    "cancelledSlots": 0,
+    "pendingSlots": 0,
+    "maxPendingSlots": 135,
+    "lastUpdateDurationMs": 0.30000000447034836,
+    "maxUpdateDurationMs": 2.7999999970197678,
+    "converged": true
+  },
+  "route": {
+    "completedRoutes": 1,
+    "phasesTraversed": {
+      "strategic": true,
+      "settlement": true,
+      "road-eye": true
+    },
+    "warmup": {
+      "required": true,
+      "stage": "complete",
+      "completedRoutes": 1,
+      "completed": true,
+      "strategicPendingAtReset": 0,
+      "collectorReset": true
+    }
+  },
+  "content": {
+    "residences": 17,
+    "residenceRoof": "wood-shingle",
+    "trees": 1651,
+    "visibleTrees": 978,
+    "forestDraws": 20
+  }
+}

@@ -388,6 +388,7 @@ const townHallSource = readFileSync(
 );
 const appSource = readFileSync('src/app/App.ts', 'utf8');
 const serverSimulationSource = readFileSync('server/src/reducers/simulation.rs', 'utf8');
+const seasonsAndTimeDocs = readFileSync('docs/SEASONS_AND_TIME.md', 'utf8');
 const sceneManagerSource = readFileSync('src/scene/SceneManager.ts', 'utf8');
 const riverWaterMaterialSource = readFileSync('src/rivers/RiverWaterMaterial.ts', 'utf8');
 const grassWindSource = readFileSync(
@@ -475,6 +476,27 @@ assert.ok(Math.abs(durations.normal.yearMinutes - 960) < 1e-9);
 assert.ok(Math.abs(durations.fastMonthMinutes - 20) < 1e-9);
 assert.ok(Math.abs(durations.fastestDaySeconds - 20) < 1e-9);
 assert.ok(Math.abs(durations.fastestYearMinutes - 120) < 1e-9);
+assert.match(
+  seasonsAndTimeDocs,
+  new RegExp(`At 1× the fixed-point scheduler advances ${SIM_REALTIME_RATE} simulation\\s+seconds per real second`),
+  'calendar documentation must quote the generated base real-time rate',
+);
+assert.match(
+  seasonsAndTimeDocs,
+  /\| Normal, 1× \| 2 min 40 sec \| 1 hr 20 min \| 4 hr \| 16 hr \|/,
+  'normal-speed documentation must match the authority-derived duration calculation',
+);
+assert.match(
+  seasonsAndTimeDocs,
+  /\| Fast, 4× \| 40 sec \| 20 min \| 1 hr \| 4 hr \|/,
+  '4x documentation must match the authority-derived duration calculation',
+);
+assert.match(
+  seasonsAndTimeDocs,
+  /\| Fastest, 8× \| 20 sec \| 10 min \| 30 min \| 2 hr \|/,
+  '8x documentation must match the authority-derived duration calculation',
+);
+assert.doesNotMatch(seasonsAndTimeDocs, /advances 0\.4 simulation|\| Normal, 1× \| 5 min/);
 
 console.log(
   `season and simulation-speed tests passed (${outlookElapsedMs.toFixed(1)} ms for 100,000 outlooks)`,

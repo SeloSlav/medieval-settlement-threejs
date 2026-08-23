@@ -23,9 +23,15 @@ import {
   processorInputCommodities,
   processorOutputCommodity,
   processorOutputHeadroom,
-  type ProcessorInputCommodity,
   type ProcessorOutputTargetKind,
 } from './processorOutputPolicy.ts';
+import {
+  BREWERY_RECIPE_AUTO,
+  BREWERY_RECIPE_CIDER,
+  BREWERY_RECIPE_MEAD,
+  BREWERY_RECIPE_PEAR_CIDER,
+  normalizeBreweryRecipePolicy,
+} from './breweryRecipePolicy.ts';
 import { largeQuarrySupportsReady } from './largeQuarrySupportPolicy.ts';
 import { richMineSupportsReady } from './mineSupportPolicy.ts';
 import { freshFoodStock } from './foodInventory.ts';
@@ -165,13 +171,15 @@ function sourceStateWithinRadius<T extends Positioned>(
 
 function inputAmount(
   building: BuildingState,
-  commodity: ProcessorInputCommodity,
+  commodity: DeliveryCargoKind,
 ): number {
-  return Math.max(0, building[commodity] ?? 0);
+  const inventory = building as unknown as Partial<Record<DeliveryCargoKind, number>>;
+  return Math.max(0, Number(inventory[commodity] ?? 0));
 }
 
-function inputLabel(commodity: ProcessorInputCommodity): string {
-  return commodity === 'food' ? 'fresh food' : commodity;
+function inputLabel(commodity: DeliveryCargoKind): string {
+  if (commodity === 'food') return 'mixed fresh food';
+  return commodity.replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase();
 }
 
 function outputLabel(kind: ProcessorOutputTargetKind): string {
@@ -240,11 +248,106 @@ function outputStock(building: BuildingState): number {
   return 0;
 }
 
-function missingProcessorInputs(
+type ProcessorInputRequirement = readonly DeliveryCargoKind[];
+type ProcessorInputRecipe = readonly ProcessorInputRequirement[];
+
+function processorInputRecipes(
   building: BuildingState & { kind: ProcessorOutputTargetKind },
-): ProcessorInputCommodity[] {
-  return processorInputCommodities(building.kind)
-    .filter((commodity) => inputAmount(building, commodity) <= 1e-6);
+): readonly ProcessorInputRecipe[] {
+  switch (building.kind) {
+    case 'watermill':
+    case 'windmill':
+      return [[['ryeGrain', 'maslinGrain']]];
+    case 'bakery':
+      return [[
+        ['ryeFlour', 'maslinFlour'],
+        ['water'],
+        ['firewood'],
+      ]];
+    case 'brewery': {
+      const ale: ProcessorInputRecipe = [
+        ['barley', 'malt'],
+        ['water'],
+        ['firewood'],
+      ];
+      const cider: ProcessorInputRecipe = [['apples']];
+      const pearCider: ProcessorInputRecipe = [['pears']];
+      const mead: ProcessorInputRecipe = [['honey']];
+      switch (normalizeBreweryRecipePolicy(building.breweryRecipePolicy)) {
+        case BREWERY_RECIPE_CIDER:
+          return [cider];
+        case BREWERY_RECIPE_PEAR_CIDER:
+          return [pearCider];
+        case BREWERY_RECIPE_MEAD:
+          return [mead];
+        case BREWERY_RECIPE_AUTO:
+          return [ale, cider, pearCider, mead];
+        default:
+          return [ale];
+      }
+    }
+    case 'smokehouse':
+      return [[
+        ['food', 'meat', 'fish', 'milk'],
+        ['firewood'],
+        ['salt'],
+        ['pottery'],
+      ]];
+    default:
+      return [[...processorInputCommodities(building.kind).map(
+        (commodity): ProcessorInputRequirement => [commodity],
+      )]];
+  }
+}
+
+function requirementAvailable(
+  requirement: ProcessorInputRequirement,
+  building: BuildingState,
+  inboundCargo?: ReadonlySet<DeliveryCargoKind>,
+): boolean {
+  return requirement.some((commodity) =>
+    inputAmount(building, commodity) > 1e-6
+      || inboundCargo?.has(commodity) === true
+  );
+}
+
+function recipeAvailable(
+  recipe: ProcessorInputRecipe,
+  building: BuildingState,
+  inboundCargo?: ReadonlySet<DeliveryCargoKind>,
+): boolean {
+  return recipe.every((requirement) =>
+    requirementAvailable(requirement, building, inboundCargo)
+  );
+}
+
+function missingRecipeRequirements(
+  recipe: ProcessorInputRecipe,
+  building: BuildingState,
+): ProcessorInputRequirement[] {
+  return recipe.filter((requirement) =>
+    !requirementAvailable(requirement, building)
+  );
+}
+
+function requirementLabel(requirement: ProcessorInputRequirement): string {
+  if (
+    requirement.length === 4
+    && requirement.includes('food')
+    && requirement.includes('meat')
+    && requirement.includes('fish')
+    && requirement.includes('milk')
+  ) {
+    return 'fresh meat, fish, milk, or mixed food';
+  }
+  return requirement.map(inputLabel).join(' or ');
+}
+
+function joinRequirements(requirements: readonly ProcessorInputRequirement[]): string {
+  const labels = requirements.map(requirementLabel);
+  if (labels.length === 1) return `no ${labels[0]} on site`;
+  if (labels.length === 2) return `missing ${labels[0]} and ${labels[1]} on site`;
+  return `missing ${labels.slice(0, -1).join(', ')}, and ${labels.at(-1)} on site`;
 }
 
 function buildInboundCargoByBuilding(
@@ -318,16 +421,28 @@ function processorStall(
     };
   }
 
-  const missingInputs = missingProcessorInputs(building);
-  if (missingInputs.length === 0) return null;
-  const inputsWithoutCart = missingInputs.filter(
-    (commodity) => !inboundCargo?.has(commodity),
-  );
-  if (inputsWithoutCart.length === 0) return 'supply_en_route';
+  const recipes = processorInputRecipes(building);
+  if (recipes.some((recipe) => recipeAvailable(recipe, building))) return null;
+  if (recipes.some((recipe) => recipeAvailable(recipe, building, inboundCargo))) {
+    return 'supply_en_route';
+  }
+  if (
+    building.kind === 'brewery'
+    && normalizeBreweryRecipePolicy(building.breweryRecipePolicy) === BREWERY_RECIPE_AUTO
+  ) {
+    return {
+      ...base,
+      reason: 'input_empty',
+      detail: 'no complete beverage recipe on site (ale needs barley or malt, water, and firewood; cider needs apples or pears; mead needs honey)',
+    };
+  }
+  const missingRequirements = recipes
+    .map((recipe) => missingRecipeRequirements(recipe, building))
+    .reduce((best, missing) => missing.length < best.length ? missing : best);
   return {
     ...base,
     reason: 'input_empty',
-    detail: `no ${inputsWithoutCart.map(inputLabel).join(' or ')} on site`,
+    detail: joinRequirements(missingRequirements),
   };
 }
 

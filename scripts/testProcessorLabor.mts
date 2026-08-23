@@ -49,7 +49,7 @@ smokehouse.processorOutputTargetPercent = 50;
 smokehouse.preservedFood = 20;
 const bakery = building('40', 'bakery', 3);
 bakery.processorOutputTargetPercent = 25;
-bakery.bread = 85;
+bakery.ryeBread = 25;
 const carpenter = building('50', 'carpenter', 4);
 for (const site of [brewery, weaver, smokehouse, bakery, carpenter]) {
   recallState.buildings.set(site.id, site);
@@ -365,7 +365,7 @@ const cappedStewardBrewery = building('brewery', 'brewery', 3);
 cappedStewardBrewery.processorOutputTargetPercent = 50;
 cappedStewardBrewery.ale = 100;
 const suppliedStewardMill = building('mill', 'watermill', 0);
-suppliedStewardMill.grain = 20;
+suppliedStewardMill.ryeGrain = 20;
 for (const site of [cappedStewardBrewery, suppliedStewardMill]) {
   stewardState.buildings.set(site.id, site);
 }
@@ -409,8 +409,8 @@ const recoveringState = emptyGameState();
 const recoveringMill = building('recovering-mill', 'watermill', 2);
 recoveringState.buildings.set(recoveringMill.id, recoveringMill);
 recoveringState.deliveryTrips.set(
-  'grain-cart',
-  deliveryTrip('grain-cart', 'supplier', recoveringMill.id, 'grain'),
+  'rye-grain-cart',
+  deliveryTrip('rye-grain-cart', 'supplier', recoveringMill.id, 'ryeGrain'),
 );
 const recoveringPlan = computeSettlementProductionStewardPlan(
   recoveringState,
@@ -451,7 +451,7 @@ pausedBrewery.processorOutputTargetPercent = 50;
 pausedBrewery.ale = 100;
 const readyMill = building('mill', 'watermill', 0);
 readyMill.constructionPriority = 3;
-readyMill.grain = 20;
+readyMill.ryeGrain = 20;
 for (const site of [townHall, pausedBrewery, readyMill]) {
   renderedState.buildings.set(site.id, site);
 }
@@ -587,7 +587,7 @@ for (let index = 0; index < 50_000; index += 1) {
   capped.ale = 50;
   stewardPerfState.buildings.set(capped.id, capped);
   const supplied = building(`supplied-${index}`, 'watermill', 0);
-  supplied.grain = 20;
+  supplied.ryeGrain = 20;
   stewardPerfState.buildings.set(supplied.id, supplied);
 }
 const stewardStarted = performance.now();

@@ -38,6 +38,7 @@ import {
   POTTER_ROOF_TILES_PER_CYCLE,
   POTTER_WATER_PER_CYCLE,
   SMITHY_CHARCOAL_PER_CYCLE,
+  SMITHY_CHARCOAL_TARGET_CYCLES,
   SMITHY_IRON_PER_CYCLE,
   SMITHY_IRONWORK_PER_CYCLE,
   SMITHY_WATER_PER_CYCLE,
@@ -298,7 +299,11 @@ assert.equal(
   lowPriorityNearSmithy.id,
   'forge-fuel carts must ignore legacy completed-building priority and use route order after runway',
 );
-assert.equal(charcoalTarget?.desiredStock, SMITHY_CHARCOAL_PER_CYCLE * 3);
+assert.equal(
+  charcoalTarget?.desiredStock,
+  SMITHY_CHARCOAL_PER_CYCLE * SMITHY_CHARCOAL_TARGET_CYCLES,
+  'forge-fuel staging must follow the generated balance authority',
+);
 
 const materialMarket = building('trading_post', {
   id: 'material-market',
@@ -358,10 +363,10 @@ let marketMaterialTarget = selectMarketplaceMaterialInputTarget(
 );
 assert.equal(
   marketMaterialTarget?.target.id,
-  highPrioritySaltTarget.id,
-  'a later-built high-priority smokehouse must beat an older nearby low-priority smithy',
+  lowPriorityIronTarget.id,
+  'completed-workplace legacy priority must not beat the shorter route at equal runway',
 );
-assert.equal(marketMaterialTarget?.commodity, 'salt');
+assert.equal(marketMaterialTarget?.commodity, 'iron');
 assert.equal(marketMaterialTarget?.duty, 'working-buffer');
 assert.equal(
   materialRouteSolves,
@@ -380,7 +385,7 @@ marketMaterialTarget = selectMarketplaceMaterialInputTarget(
 assert.equal(
   marketMaterialTarget?.commodity,
   'salt',
-  'equal-priority imported inputs must serve the lower cycle runway before the shorter road',
+  'imported inputs must serve the lower cycle runway before the shorter road',
 );
 
 highPrioritySaltTarget.salt = SMOKEHOUSE_SALT_PER_CYCLE * 3;
@@ -547,8 +552,8 @@ assert.deepEqual(
     storehouseAcceptsClay: false,
     storehouseAcceptsSalt: true,
   }),
-  ['iron', 'salt'],
-  'each depot intake gate must also govern which physically stored material it dispatches',
+  ['iron', 'clay', 'salt'],
+  'an intake gate must stop new deliveries without stranding material already stored',
 );
 const olderRemoteClayPit = building('clay_pit', {
   id: 'older-remote-clay-pit',
@@ -638,11 +643,11 @@ const depotAssignments = assignLocalMaterialInputTargets(
   () => 20,
 );
 assert.equal(depotAssignments.size, 1, 'one staffed depot has one physical cart per pass');
-assert.equal(depotAssignments.get(mixedMaterialDepot.id)?.commodity, 'clay');
+assert.equal(depotAssignments.get(mixedMaterialDepot.id)?.commodity, 'iron');
 assert.equal(
   depotAssignments.get(mixedMaterialDepot.id)?.target.id,
-  'urgent-depot-potter',
-  'a mixed depot must send its single cart to the highest-priority starved workshop',
+  'depot-smithy',
+  'a mixed depot must ignore legacy workplace priority and resolve equal starved claims deterministically',
 );
 const reserveIronMine = building('mine', {
   id: 'reserve-iron-mine',
@@ -1057,7 +1062,7 @@ assert.notEqual(
 assert.notEqual(
   bulkStockpileVisualSignature(building('smithy', { water: 1 })),
   bulkStockpileVisualSignature(building('smithy')),
-  'the first carted quench-water unit must raise the visible tub surface',
+  'the first staged quench-water unit must raise the visible tub surface',
 );
 assert.notEqual(
   bulkStockpileVisualSignature(building('potter_kiln', { firewood: 1 })),
@@ -1067,7 +1072,7 @@ assert.notEqual(
 assert.notEqual(
   bulkStockpileVisualSignature(building('potter_kiln', { water: 1 })),
   bulkStockpileVisualSignature(building('potter_kiln')),
-  'the first carted puddling-water unit must raise the visible pit surface',
+  'the first staged puddling-water unit must raise the visible pit surface',
 );
 const emptySmithy = building('smithy');
 const stockedSmithy = building('smithy', { charcoal: 1 });
@@ -1123,7 +1128,7 @@ assert.match(
 );
 assert.match(
   marketplaceMaterialDispatchStep,
-  /DISPATCHABLE_INPUTS[\s\S]*CommodityKind::Grain[\s\S]*CommodityKind::Iron[\s\S]*CommodityKind::Salt[\s\S]*CommodityKind::Manure[\s\S]*CommodityKind::Polearms[\s\S]*CommodityKind::Wine/,
+  /DISPATCHABLE_INPUTS[\s\S]*CommodityKind::RyeGrain[\s\S]*CommodityKind::Iron[\s\S]*CommodityKind::Salt[\s\S]*CommodityKind::Manure[\s\S]*CommodityKind::Polearms[\s\S]*CommodityKind::Wine/,
   'the Trading Post must route imported provisions, workshop inputs, and civic supplies',
 );
 assert.match(
@@ -1204,8 +1209,13 @@ assert.match(
 );
 assert.match(
   localMaterialDispatchStep,
-  /"village_storehouse", CommodityKind::Iron[\s\S]*storehouse_accepts_iron[\s\S]*"village_storehouse", CommodityKind::Clay[\s\S]*storehouse_accepts_clay[\s\S]*"village_storehouse", CommodityKind::Salt[\s\S]*storehouse_accepts_salt/,
-  'staffed depots must re-dispatch only the raw materials allowed by their physical intake policy',
+  /"village_storehouse", CommodityKind::Iron[\s\S]*"village_storehouse", CommodityKind::Clay[\s\S]*"village_storehouse", CommodityKind::Salt/,
+  'staffed depots must re-dispatch every supported raw material already in physical storage',
+);
+assert.doesNotMatch(
+  localMaterialDispatchStep,
+  /"village_storehouse", CommodityKind::Iron[\s\S]{0,200}storehouse_accepts_iron|"village_storehouse", CommodityKind::Clay[\s\S]{0,200}storehouse_accepts_clay|"village_storehouse", CommodityKind::Salt[\s\S]{0,200}storehouse_accepts_salt/,
+  'intake policy must not strand existing depot stock',
 );
 assert.match(
   localMaterialDispatchStep,
@@ -1374,7 +1384,11 @@ const largeSettlementMaterialTarget = selectMarketplaceMaterialInputTarget(
   (candidate) => candidate.x,
 );
 const materialDispatchElapsedMs = performance.now() - materialDispatchStartedAt;
-assert.equal(largeSettlementMaterialTarget?.target.id, 'urgent-material-target');
+assert.equal(
+  largeSettlementMaterialTarget?.target.id,
+  'material-target-99999',
+  'legacy workplace priority must not beat the nearest equal-runway material claim',
+);
 assert.ok(
   materialDispatchElapsedMs < 250,
   `100,001 imported-material dispatch candidates took ${materialDispatchElapsedMs.toFixed(1)} ms`,

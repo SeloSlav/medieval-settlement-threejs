@@ -1,0 +1,46 @@
+Worker tool model assets
+========================
+
+The GLB files and shared colormap texture in this directory are from Kenney's
+Survival Kit 2.0, distributed under Creative Commons Zero v1.0 Universal
+(CC0 1.0):
+https://creativecommons.org/publicdomain/zero/1.0/
+
+Creator and source:
+
+- Kenney (https://kenney.nl/)
+- Survival Kit (https://kenney.nl/assets/survival-kit)
+- Release date: 2024-04-03
+
+Files used by this project:
+
+- kenney-tool-hatchet.glb
+  Renamed from `Models/GLB format/tool-axe.glb`.
+- kenney-tool-pickaxe.glb
+  Renamed from `Models/GLB format/tool-pickaxe.glb`.
+- kenney-tool-hammer.glb
+  Renamed from `Models/GLB format/tool-hammer.glb`.
+- kenney-tool-hoe.glb
+  Renamed from `Models/GLB format/tool-hoe.glb`.
+- kenney-tool-shovel.glb
+  Renamed from `Models/GLB format/tool-shovel.glb`.
+- Textures/colormap.png
+  Shared palette texture referenced by the GLB files.
+
+Kenney permits personal, educational, and commercial use. Attribution is not
+required by CC0, but this record is kept with the assets so their provenance
+and reuse terms remain auditable.
+
+Frontier spear
+--------------
+
+`quaternius-spear.glb` is the low-poly Spear by Quaternius, downloaded from
+Poly Pizza and distributed under Creative Commons Zero v1.0 Universal
+(CC0 1.0):
+
+- Creator: Quaternius (https://quaternius.com/)
+- Asset page: https://poly.pizza/m/3zA9NtYBEi
+- Direct GLB: https://static.poly.pizza/6a63e2ad-5260-4ace-9245-7bfffdfd9695.glb
+
+The spear remains unmodified at source; the game scales and attaches it to the
+existing Quaternius villager rig at runtime.

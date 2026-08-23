@@ -1,7 +1,7 @@
 use spacetimedb::{reducer, ReducerContext, Table};
 
 use crate::balance_generated::{
-    BackyardGardenKind, RESIDENCE_TIER2_CAPACITY, RESIDENCE_TIER2_GOLD_COST, RESIDENCE_TIER2_STONE_COST,
+    RESIDENCE_TIER2_CAPACITY, RESIDENCE_TIER2_GOLD_COST, RESIDENCE_TIER2_STONE_COST,
     RESIDENCE_TIER2_TIMBER_COST, RESIDENCE_TIER3_CAPACITY, RESIDENCE_TIER3_GOLD_COST,
     RESIDENCE_TIER3_STONE_COST, RESIDENCE_TIER3_TIMBER_COST, RESIDENCE_TIER4_CAPACITY,
     RESIDENCE_TIER4_GOLD_COST, RESIDENCE_TIER4_STONE_COST, RESIDENCE_TIER4_TIMBER_COST,
@@ -17,53 +17,34 @@ use crate::construction_priority::{
 };
 use crate::db::*;
 use crate::economy::{
-    available_building_labor, building_commodity_stock, credit_settlement_household_income,
-    credit_treasury_commodity, credit_treasury_stone, credit_treasury_timber,
-    reconcile_building_labor, residence_food_progression_met, residence_population_for_parcel,
-    residence_zone_cost, residence_zone_cost_for_units, spend_aggregate_roof_tiles,
-    spend_aggregate_stone, spend_aggregate_timber, spend_treasury_gold, total_roof_tiles,
-    total_stone, total_timber, treasury_gold, CommodityKind, ResourceAmount,
+    available_building_labor, building_commodity_stock, building_edible_food_stock,
+    building_food_progression_met, credit_settlement_household_income, credit_treasury_commodity,
+    credit_treasury_stone, credit_treasury_timber, reconcile_building_labor,
+    residence_food_progression_met, residence_population_for_parcel,
+    residence_preserved_food_stock, residence_zone_cost, residence_zone_cost_for_units,
+    spend_aggregate_roof_tiles, spend_aggregate_stone, spend_aggregate_timber, spend_treasury_gold,
+    total_roof_tiles, total_stone, total_timber, treasury_gold, CommodityKind, ResourceAmount,
     STONE_SALVAGE_FRACTION, TIMBER_SALVAGE_FRACTION,
 };
 use crate::lifecycle::ensure_player_resources;
 use crate::placement_validation::{
     burgage_zone_has_road_frontage, burgage_zone_overlaps_buildings, zone_overlaps_resource_deposit,
 };
-use crate::residence_service_policy::service_shortage_blocks_upgrade;
+use crate::residence_service_policy::{required_chapel_tier, service_shortage_blocks_upgrade};
 use crate::residence_upgrade_policy::{
-    residence_project_active, residence_upgrade_household_contribution,
+    household_stock_satisfies_promotion_need, residence_project_active, residence_promotion_needs,
+    residence_upgrade_household_contribution,
 };
 use crate::roads::{load_owner_road_network, RoadNetwork};
-use crate::simulation::residence_needs::load_needs;
+use crate::simulation::residence_needs::{load_needs, need_stock, ResidenceNeedKind};
 use crate::simulation::{
     building_fire_state, cancel_trips_for_residence, clear_backyard_garden_for_residence,
     clear_fire_for_target, clear_residence_needs, ensure_residence_needs, insert_reclamation_pile,
     local_delivery_distance, residence_fire_state, ReclamationStock, FIRE_TARGET_RESIDENCE,
 };
-use crate::supply_policy::{
-    is_firewood_supplier_operational, is_specialty_supplier_operational,
-    is_well_supplier_operational, BEVERAGE_SERVICE_KINDS, CLOTH_PRODUCER_KINDS,
-    POTTERY_PRODUCER_KINDS, PRESERVED_FOOD_PRODUCER_KINDS, SHOES_PRODUCER_KINDS,
-};
+use crate::supply_policy::is_well_supplier_operational;
 use crate::tables::{farm_field, BurgageZone, Residence};
 use crate::well_policy::position_within_well_service_radius;
-
-#[derive(Clone, Copy)]
-enum ResidenceUpgradeService {
-    Firewood,
-    Water,
-    PreservedFood,
-    Beverage,
-    Cloth,
-    Shoes,
-    Pottery,
-    Marketplace,
-    GranaryStalls,
-    StorehouseStalls,
-    Church(u8),
-    FoodVariety(u8),
-    Luxury,
-}
 
 #[reducer]
 pub fn place_burgage_zone(
@@ -395,30 +376,13 @@ pub fn upgrade_residence(ctx: &ReducerContext, residence_id: u64) -> Result<(), 
     }
 
     let next_tier = residence.tier.saturating_add(1);
-    let (timber, stone, gold, roof_tiles, capacity, required_services): (
-        f64,
-        f64,
-        f64,
-        f64,
-        u32,
-        &[ResidenceUpgradeService],
-    ) = match next_tier {
+    let (timber, stone, gold, roof_tiles, capacity): (f64, f64, f64, f64, u32) = match next_tier {
         2 => (
             RESIDENCE_TIER2_TIMBER_COST,
             RESIDENCE_TIER2_STONE_COST,
             RESIDENCE_TIER2_GOLD_COST,
             0.0,
             RESIDENCE_TIER2_CAPACITY,
-            &[
-                ResidenceUpgradeService::Firewood,
-                ResidenceUpgradeService::Water,
-                ResidenceUpgradeService::Church(1),
-                ResidenceUpgradeService::FoodVariety(2),
-                ResidenceUpgradeService::Beverage,
-                ResidenceUpgradeService::Cloth,
-                ResidenceUpgradeService::Marketplace,
-                ResidenceUpgradeService::StorehouseStalls,
-            ],
         ),
         3 => (
             RESIDENCE_TIER3_TIMBER_COST,
@@ -426,18 +390,6 @@ pub fn upgrade_residence(ctx: &ReducerContext, residence_id: u64) -> Result<(), 
             RESIDENCE_TIER3_GOLD_COST,
             0.0,
             RESIDENCE_TIER3_CAPACITY,
-            &[
-                ResidenceUpgradeService::Firewood,
-                ResidenceUpgradeService::Water,
-                ResidenceUpgradeService::Beverage,
-                ResidenceUpgradeService::Cloth,
-                ResidenceUpgradeService::Shoes,
-                ResidenceUpgradeService::Church(2),
-                ResidenceUpgradeService::FoodVariety(3),
-                ResidenceUpgradeService::Marketplace,
-                ResidenceUpgradeService::GranaryStalls,
-                ResidenceUpgradeService::StorehouseStalls,
-            ],
         ),
         4 => (
             RESIDENCE_TIER4_TIMBER_COST,
@@ -445,33 +397,17 @@ pub fn upgrade_residence(ctx: &ReducerContext, residence_id: u64) -> Result<(), 
             RESIDENCE_TIER4_GOLD_COST,
             RESIDENCE_TILE_ROOF_TILE_COST,
             RESIDENCE_TIER4_CAPACITY,
-            &[
-                ResidenceUpgradeService::Firewood,
-                ResidenceUpgradeService::Water,
-                ResidenceUpgradeService::PreservedFood,
-                ResidenceUpgradeService::Beverage,
-                ResidenceUpgradeService::Cloth,
-                ResidenceUpgradeService::Shoes,
-                ResidenceUpgradeService::Pottery,
-                ResidenceUpgradeService::Church(3),
-                ResidenceUpgradeService::FoodVariety(4),
-                ResidenceUpgradeService::Luxury,
-                ResidenceUpgradeService::Marketplace,
-                ResidenceUpgradeService::GranaryStalls,
-                ResidenceUpgradeService::StorehouseStalls,
-            ],
         ),
         _ => return Err("This residence is already at tier 4.".to_string()),
     };
 
-    if !has_connected_services(ctx, &residence, required_services) {
-        return Err(if next_tier == 2 {
-            "Tier 2 requires fuel and well supply, a staffed road-linked basic church, a grain staple plus one other food group, ale, clothing, and staffed market stalls.".to_string()
-        } else if next_tier == 3 {
-            "Tier 3 requires fuel and well supply, grain, produce or forage, meat or animal produce, fish, a level-2 church, ale, clothing, shoes, and staffed market stalls.".to_string()
-        } else {
-            "Tier 4 requires fuel and well supply, a level-3 church, cured provisions, pottery, the complete grain/produce/animal/fish diet and services, plus a stocked luxury market route or household luxury source.".to_string()
-        });
+    if let Some(unmet_need) = first_unmet_current_tier_promotion_need(ctx, &residence) {
+        return Err(format!(
+            "Current Tier {} need unmet: {}. Tier {} needs activate only after construction completes.",
+            residence.tier,
+            current_tier_promotion_remedy(unmet_need, residence.tier),
+            next_tier,
+        ));
     }
     let physical_economy = ctx
         .db
@@ -756,14 +692,12 @@ pub(crate) fn ensure_upgrade_source_route(
     }
 }
 
-fn has_connected_services(
+fn first_unmet_current_tier_promotion_need(
     ctx: &ReducerContext,
     residence: &Residence,
-    required_services: &[ResidenceUpgradeService],
-) -> bool {
-    let Some(network) = crate::roads::load_owner_road_network(ctx, residence.owner) else {
-        return false;
-    };
+) -> Option<ResidenceNeedKind> {
+    let needs = load_needs(ctx, residence.id);
+    let network = crate::roads::load_owner_road_network(ctx, residence.owner);
     let buildings: Vec<_> = ctx
         .db
         .building()
@@ -771,128 +705,160 @@ fn has_connected_services(
         .filter(&residence.owner)
         .filter(|building| building_fire_state(ctx, building.id).is_none())
         .collect();
-    required_services.iter().all(|service| {
-        if let ResidenceUpgradeService::FoodVariety(required) = service {
-            return residence_food_progression_met(residence, *required);
-        }
-        if matches!(service, ResidenceUpgradeService::Luxury)
-            && residence_has_household_luxury_option(ctx, residence)
-        {
-            return true;
-        }
-        buildings.iter().any(|building| {
-            let Some(_distance) =
-                local_delivery_distance(&network, building.x, building.z, residence.x, residence.z)
-            else {
+    residence_promotion_needs(residence.tier)
+        .into_iter()
+        .find(|need| {
+            if household_stock_satisfies_promotion_need(
+                *need,
+                need_stock(&needs, *need),
+                residence_food_progression_met(residence, 1),
+                residence_food_progression_met(residence, residence.tier),
+                residence_preserved_food_stock(residence),
+                residence.aronia_jam + residence.rosehip_jam,
+            ) {
                 return false;
-            };
-            match service {
-                ResidenceUpgradeService::Firewood => is_firewood_supplier_operational(
-                    &building.kind,
-                    building.construction_complete,
-                    building.assigned_labor,
-                    building.storehouse_accepts_firewood,
-                ),
-                ResidenceUpgradeService::Water => {
-                    is_well_supplier_operational(
-                        &building.kind,
-                        building.construction_complete,
-                        building.assigned_labor,
-                    ) && position_within_well_service_radius(
-                        building.x,
-                        building.z,
-                        building.work_radius,
-                        residence.x,
-                        residence.z,
-                    )
-                }
-                ResidenceUpgradeService::PreservedFood => {
-                    PRESERVED_FOOD_PRODUCER_KINDS.contains(&building.kind.as_str())
-                        && is_specialty_supplier_operational(
-                            &building.kind,
-                            building.construction_complete,
-                            building.assigned_labor,
-                        )
-                }
-                ResidenceUpgradeService::Beverage => {
-                    BEVERAGE_SERVICE_KINDS.contains(&building.kind.as_str())
-                        && building.construction_complete
-                        && building.assigned_labor > 0
-                }
-                ResidenceUpgradeService::Cloth => {
-                    CLOTH_PRODUCER_KINDS.contains(&building.kind.as_str())
-                        && is_specialty_supplier_operational(
-                            &building.kind,
-                            building.construction_complete,
-                            building.assigned_labor,
-                        )
-                }
-                ResidenceUpgradeService::Shoes => {
-                    SHOES_PRODUCER_KINDS.contains(&building.kind.as_str())
-                        && is_specialty_supplier_operational(
-                            &building.kind,
-                            building.construction_complete,
-                            building.assigned_labor,
-                        )
-                }
-                ResidenceUpgradeService::Pottery => {
-                    POTTERY_PRODUCER_KINDS.contains(&building.kind.as_str())
-                        && is_specialty_supplier_operational(
-                            &building.kind,
-                            building.construction_complete,
-                            building.assigned_labor,
-                        )
-                }
-                ResidenceUpgradeService::Marketplace => {
-                    building.kind == "marketplace" && building.construction_complete
-                }
-                ResidenceUpgradeService::GranaryStalls => {
-                    building.kind == "granary"
-                        && building.construction_complete
-                        && building.assigned_labor > 0
-                }
-                ResidenceUpgradeService::StorehouseStalls => {
-                    building.kind == "village_storehouse"
-                        && building.construction_complete
-                        && building.assigned_labor > 0
-                }
-                ResidenceUpgradeService::Church(required_tier) => {
-                    building.kind == "chapel"
-                        && building.construction_complete
-                        && building.assigned_labor > 0
-                        && building.chapel_tier.max(1) >= *required_tier
-                }
-                ResidenceUpgradeService::Luxury => {
-                    building.kind == "marketplace"
-                        && building.construction_complete
-                        && building_commodity_stock(building, CommodityKind::Wine)
-                            + building_commodity_stock(building, CommodityKind::Honey)
-                            > 1e-6
-                }
-                ResidenceUpgradeService::FoodVariety(_) => false,
             }
+            !buildings.iter().any(|building| {
+                let Some(network) = network.as_ref() else {
+                    return false;
+                };
+                let Some(_distance) = local_delivery_distance(
+                    network,
+                    building.x,
+                    building.z,
+                    residence.x,
+                    residence.z,
+                ) else {
+                    return false;
+                };
+                match need {
+                    ResidenceNeedKind::Firewood => {
+                        building.kind == "marketplace"
+                            && building.construction_complete
+                            && building_commodity_stock(building, CommodityKind::Firewood)
+                                + building_commodity_stock(building, CommodityKind::Charcoal)
+                                > 1e-6
+                    }
+                    ResidenceNeedKind::Water => {
+                        is_well_supplier_operational(
+                            &building.kind,
+                            building.construction_complete,
+                            building.assigned_labor,
+                        ) && position_within_well_service_radius(
+                            building.x,
+                            building.z,
+                            building.work_radius,
+                            residence.x,
+                            residence.z,
+                        )
+                    }
+                    ResidenceNeedKind::Food => {
+                        building.kind == "marketplace"
+                            && building.construction_complete
+                            && building_edible_food_stock(building) > 1e-6
+                    }
+                    ResidenceNeedKind::Ale => {
+                        building.kind == "tavern"
+                            && building.construction_complete
+                            && building.assigned_labor > 0
+                            && building_commodity_stock(building, CommodityKind::Ale)
+                                + building_commodity_stock(building, CommodityKind::Cider)
+                                + building_commodity_stock(building, CommodityKind::PearCider)
+                                + building_commodity_stock(building, CommodityKind::Mead)
+                                > 1e-6
+                    }
+                    ResidenceNeedKind::PreservedFood => {
+                        building.kind == "marketplace"
+                            && building.construction_complete
+                            && crate::economy::building_preserved_food_stock(building) > 1e-6
+                    }
+                    ResidenceNeedKind::Cloth => {
+                        building.kind == "marketplace"
+                            && building.construction_complete
+                            && building_commodity_stock(building, CommodityKind::Cloth) > 1e-6
+                    }
+                    ResidenceNeedKind::Shoes => {
+                        building.kind == "marketplace"
+                            && building.construction_complete
+                            && building_commodity_stock(building, CommodityKind::Shoes) > 1e-6
+                    }
+                    ResidenceNeedKind::Pottery => {
+                        building.kind == "marketplace"
+                            && building.construction_complete
+                            && building_commodity_stock(building, CommodityKind::Pottery) > 1e-6
+                    }
+                    ResidenceNeedKind::Church => {
+                        building.kind == "chapel"
+                            && building.construction_complete
+                            && building.assigned_labor > 0
+                            && building.chapel_tier.max(1) >= required_chapel_tier(residence.tier)
+                    }
+                    ResidenceNeedKind::Luxury => {
+                        building.kind == "marketplace"
+                            && building.construction_complete
+                            && building_commodity_stock(building, CommodityKind::Wine)
+                                + building_commodity_stock(building, CommodityKind::Honey)
+                                > 1e-6
+                    }
+                    ResidenceNeedKind::FoodVariety => {
+                        building.kind == "marketplace"
+                            && building.construction_complete
+                            && building_food_progression_met(
+                                building,
+                                residence.population,
+                                residence.tier,
+                            )
+                    }
+                }
+            })
         })
-    })
 }
 
-fn residence_has_household_luxury_option(ctx: &ReducerContext, residence: &Residence) -> bool {
-    if residence.aronia_jam + residence.rosehip_jam > 1e-6 {
-        return true;
+fn current_tier_promotion_remedy(kind: ResidenceNeedKind, current_tier: u8) -> String {
+    match kind {
+        ResidenceNeedKind::Firewood => {
+            "stock the household with firewood or charcoal, or stage it at a reachable Marketplace"
+                .to_string()
+        }
+        ResidenceNeedKind::Water => {
+            "connect the home to a completed well within its service radius".to_string()
+        }
+        ResidenceNeedKind::Food => {
+            "stock qualifying food in the household pantry or a reachable Marketplace".to_string()
+        }
+        ResidenceNeedKind::Ale => {
+            "stock the household with beverages, or stage ale, cider, or mead at a staffed reachable Tavern"
+                .to_string()
+        }
+        ResidenceNeedKind::PreservedFood => {
+            "stock the household with cured provisions, or stage them at a reachable Marketplace"
+                .to_string()
+        }
+        ResidenceNeedKind::Cloth => {
+            "stock the household with cloth, or stage it at a reachable Marketplace goods stall"
+                .to_string()
+        }
+        ResidenceNeedKind::Shoes => {
+            "stock the household with shoes, or stage them at a reachable Marketplace goods stall"
+                .to_string()
+        }
+        ResidenceNeedKind::Pottery => {
+            "stock the household with pottery, or stage it at a reachable Marketplace goods stall"
+                .to_string()
+        }
+        ResidenceNeedKind::Church => format!(
+            "staff a reachable level-{} church",
+            required_chapel_tier(current_tier),
+        ),
+        ResidenceNeedKind::FoodVariety => {
+            format!(
+                "meet the Tier {current_tier} food standard in the household pantry or one reachable Marketplace"
+            )
+        }
+        ResidenceNeedKind::Luxury => {
+            "stock wine or honey at a reachable Marketplace or in the household".to_string()
+        }
     }
-    let Some(garden) = ctx
-        .db
-        .backyard_garden()
-        .residence_id()
-        .filter(&residence.id)
-        .next()
-    else {
-        return false;
-    };
-    garden.flower_luxury_upgraded
-        || matches!(
-            BackyardGardenKind::from_id(garden.kind),
-            Some(BackyardGardenKind::AroniaOrchard | BackyardGardenKind::RosehipOrchard)
-        )
 }
 
 #[reducer]

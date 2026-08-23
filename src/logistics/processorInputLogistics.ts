@@ -448,8 +448,8 @@ export function localMaterialInputCommodity(
 /**
  * One Trading Post cart chooses between imported iron, salt, and uncommitted
  * pottery returned from export stock. This mirrors the authoritative
- * source-side pass, so a later-built urgent workshop can beat an older target
- * instead of losing to update order.
+ * source-side pass, so the lowest-runway workshop wins before route distance
+ * and stable identity without reviving legacy completed-building priorities.
  */
 export function selectMarketplaceMaterialInputTarget<
   T extends ProcessorInputDestinationLike,

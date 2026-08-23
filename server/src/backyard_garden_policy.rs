@@ -13,6 +13,27 @@ pub struct BackyardFoodAllocation {
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct BackyardOrchardHarvest {
+    pub fresh_fruit: f64,
+    pub jam: f64,
+}
+
+/// Converts a bounded share of one physical fruit harvest into preserves.
+/// `jam_target` is not extra output: every jar removes the same amount from
+/// the fresh-fruit basket, while occupied-household labor performs the work.
+pub fn split_backyard_orchard_harvest(
+    gross_fruit: f64,
+    jam_target: f64,
+) -> BackyardOrchardHarvest {
+    let gross_fruit = finite_nonnegative(gross_fruit);
+    let jam = finite_nonnegative(jam_target).min(gross_fruit);
+    BackyardOrchardHarvest {
+        fresh_fruit: (gross_fruit - jam).max(0.0),
+        jam,
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct BackyardJamMealAllocation {
     /// Physical jars opened during this household meal. A jar is withdrawn
     /// once even when it contributes to both food and tier-4 luxury comfort.
@@ -282,6 +303,22 @@ mod tests {
         assert_eq!(scarce.food_used, 0.1);
         assert!(!scarce.luxury_met);
         assert_eq!(scarce.remaining_stock, 0.0);
+    }
+
+    #[test]
+    fn jam_is_converted_from_the_same_finite_orchard_harvest() {
+        let harvest = split_backyard_orchard_harvest(10.0, 4.0);
+        assert_eq!(harvest.fresh_fruit, 6.0);
+        assert_eq!(harvest.jam, 4.0);
+        assert_eq!(harvest.fresh_fruit + harvest.jam, 10.0);
+
+        let capped = split_backyard_orchard_harvest(2.0, 8.0);
+        assert_eq!(capped.fresh_fruit, 0.0);
+        assert_eq!(capped.jam, 2.0);
+        assert_eq!(
+            split_backyard_orchard_harvest(f64::NAN, f64::INFINITY),
+            BackyardOrchardHarvest::default(),
+        );
     }
 
     #[test]

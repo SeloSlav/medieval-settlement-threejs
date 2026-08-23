@@ -1,0 +1,4807 @@
+{
+  "schemaVersion": 2,
+  "round": 51,
+  "archivedAtUtc": "2026-07-31T01:57:08.453Z",
+  "sourceCommit": "ba977d1182d07b13dd337d07437a6a4e263fdc73",
+  "sourceStatusSha256": "AC09B1B00238C586D46108F2D5963A4BFCB2983EF708635DEF47CD94B590447B",
+  "buildCommand": "npm.cmd run build -- --manifest",
+  "preBlindCommitment": {
+    "algorithm": "SHA-256",
+    "sha256": "740BCC29CE8FB9B7A389CC978586766E32AF44110F0E8AE6334E6CA2747A890A"
+  },
+  "sourceDirectory": "dist",
+  "archiveDirectory": "artifacts/visual-gauntlet/round-51/captured-build",
+  "entryHtml": "hamlet-fixture.html",
+  "viteManifest": ".vite/manifest.json",
+  "snapshotRule": {
+    "mode": "complete-built-tree-except-unrelated-prior-evidence",
+    "excludedPrefixes": [
+      "visual-gauntlet/evidence/"
+    ],
+    "sourceFileCount": 434,
+    "sourceBytes": 375646652
+  },
+  "archiveSentinel": {
+    "file": "_round-51-archive-origin.json",
+    "archiveId": "24628A8E82919C86DA49EE42B0753CE650C5285FCE98017D2A08A8DD9526E4F2",
+    "bytes": 575,
+    "sha256": "2E8238B4C45D201E4C0AEAA55C224F90595F9C9B605B861EDDE32B01C464AA69"
+  },
+  "dependencyClosure": {
+    "source": ".vite/manifest.json plus recursive emitted local-reference walk",
+    "entryManifestKey": "hamlet-fixture.html",
+    "manifestRecords": [
+      "_burgageZoneLayout-mfIGLleE.js",
+      "_hamletFixtureConfig-tSIWgjGJ.js",
+      "_modulepreload-polyfill-Dezn_h7o.js",
+      "_PostProcessing-BnUdDpuz.js",
+      "_ResidenceMarkers-Ddyy5toc.js",
+      "_seedthree-vendor-BVNVYMT3.js",
+      "_seedThreeAssets-CYls1btT.js",
+      "_seedThreeBranchCards-x9xhiIw0.js",
+      "_seedThreeForestBuilder-HCfcHy45.js",
+      "_seedThreeGroundCover-wU937pHL.js",
+      "_seedThreeTextures-B2kmBTZd.js",
+      "_sky-vendor-CDzM-iFv.js",
+      "_spacetime-Cy3UZ6Vu.js",
+      "_spacetime-generated-BDNycebA.js",
+      "_three-BfZLYfxL.js",
+      "_visualPerformanceHooks-xDClN1ft.js",
+      "_yieldToMain-CKkYsSyO.js",
+      "hamlet-fixture.html",
+      "src/sky/CelestialStarMap.ts"
+    ],
+    "dynamicManifestRecords": [
+      "_seedThreeGroundCover-wU937pHL.js",
+      "src/sky/CelestialStarMap.ts"
+    ],
+    "files": [
+      ".vite/manifest.json",
+      "assets/american_beech_albedo-hC3zpFRY.png",
+      "assets/american_beech_normal-DSvvVobF.png",
+      "assets/american_beech_roughness-lrHOWwcC.png",
+      "assets/american_beech_single_albedo-CWGJdq3M.png",
+      "assets/american_beech_single_normal-jy7rPjmm.png",
+      "assets/american_beech_single_roughness-mIh2H55F.png",
+      "assets/american_beech_single_translucency-wnmnqN3O.png",
+      "assets/apple_bark_albedo-BvvWWx0w.png",
+      "assets/apple_bark_normal-8ZN5MccF.png",
+      "assets/apple_bark_roughness-DLXj6uhL.png",
+      "assets/backyardPlantAssets-tZBCK4Ur.js",
+      "assets/baseline-day-overview-Bs0SzNsL.png",
+      "assets/baseline-night-overview-ByoPq2uA.png",
+      "assets/bilberry_albedo-BU5ZkfPw.png",
+      "assets/bilberry_normal-DgPELm8H.png",
+      "assets/bilberry_roughness-BmHVWHwP.png",
+      "assets/bilberry_translucency-CqJuQBrx.png",
+      "assets/blackbrush_albedo-UmIPF9Z1.png",
+      "assets/blackbrush_branch_albedo-BGX_gSt7.png",
+      "assets/blackbrush_branch_height-Ct156IdP.png",
+      "assets/blackbrush_branch_normal-BUGI0CmK.png",
+      "assets/blackbrush_branch_roughness-D7Fza3lc.png",
+      "assets/blackbrush_normal-3G8VP6vt.png",
+      "assets/blackbrush_roughness-BlmJ2eTk.png",
+      "assets/blackbrush_translucency-BONtQZqY.png",
+      "assets/burgageZoneLayout-mfIGLleE.js",
+      "assets/cattail_reed_card_normal-Coipf9Iw.png",
+      "assets/cattail_reed_card_roughness-2vXhmeXf.png",
+      "assets/cattail_reed_card_translucency-_3g3FPmQ.png",
+      "assets/cattail_reed_card-C0nOB5y6.png",
+      "assets/CelestialStarMap-CACmAniz.js",
+      "assets/cherry_bark_albedo-C3NgqPjR.png",
+      "assets/cherry_bark_normal-hUI-Ua7R.png",
+      "assets/cherry_bark_roughness-DrhKxf6C.png",
+      "assets/creosote_albedo-DUou5z-l.png",
+      "assets/creosote_branch_albedo-BTBn0B7S.png",
+      "assets/creosote_branch_height-CeLLDow-.png",
+      "assets/creosote_branch_normal-DvsB5jkf.png",
+      "assets/creosote_branch_roughness-CoeMABWC.png",
+      "assets/creosote_normal-DrYE99J0.png",
+      "assets/creosote_roughness-lPxOjXko.png",
+      "assets/creosote_translucency-DIOlTuM_.png",
+      "assets/crowdView-C_xOHxFV.js",
+      "assets/deferredSettlementPresentation-DULBaTZm.js",
+      "assets/douglas_fir_albedo-CE4Oktsr.png",
+      "assets/douglas_fir_needle_albedo-Bf_-_BsK.png",
+      "assets/douglas_fir_needle_normal-CGndtNkg.png",
+      "assets/douglas_fir_needle_roughness-OyXPaSoc.png",
+      "assets/douglas_fir_needle_translucency-DegGJJnN.png",
+      "assets/douglas_fir_normal-rrGa-27p.png",
+      "assets/douglas_fir_roughness-BLx3LhLn.png",
+      "assets/fern_albedo-Bq7zhgkY.png",
+      "assets/fern_normal-crAmMcXe.png",
+      "assets/fern_roughness-BrDd4X4H.png",
+      "assets/fern_translucency-BYY_A0hq.png",
+      "assets/game-63-Y7IaK.css",
+      "assets/game-DIiVOrpP.js",
+      "assets/grass_tuft_normal-wJxxakbE.png",
+      "assets/grass_tuft_roughness-B6OL5Mw-.png",
+      "assets/grass_tuft-rVYgOkMa.png",
+      "assets/hamlet-fixture-CQ-hmVd-.js",
+      "assets/hamletFixtureConfig-tSIWgjGJ.js",
+      "assets/joshua_thatch_albedo-C2iRCthh.png",
+      "assets/joshua_thatch_normal-pBd-zCQb.png",
+      "assets/joshua_thatch_roughness-D7yt8ypn.png",
+      "assets/joshua_tree_albedo-BrJT0FXJ.png",
+      "assets/joshua_tree_normal-DKoGA6W4.png",
+      "assets/joshua_tree_roughness-C5lZF4Yn.png",
+      "assets/juniper_scrub_albedo-kCJ3bJiW.png",
+      "assets/juniper_scrub_normal-C-UbMg-5.png",
+      "assets/juniper_scrub_roughness-D6sKRu6a.png",
+      "assets/juniper_scrub_translucency-BU_hnSXD.png",
+      "assets/loblolly_albedo-ClHtdG66.png",
+      "assets/loblolly_needle_albedo-R6WuTs6l.png",
+      "assets/loblolly_needle_normal-D4qX6-ON.png",
+      "assets/loblolly_needle_roughness-BSmvSZ8x.png",
+      "assets/loblolly_needle_translucency-CNYZJCm2.png",
+      "assets/loblolly_normal-Yif7qxhr.png",
+      "assets/loblolly_roughness-CCbB-TPB.png",
+      "assets/models/deer/LICENSE.txt",
+      "assets/models/deer/quaternius-deer.glb",
+      "assets/models/deer/quaternius-stag.glb",
+      "assets/models/delivery-cart/LICENSE.txt",
+      "assets/models/delivery-cart/quaternius-medieval-cart.glb",
+      "assets/models/fish/LICENSE.txt",
+      "assets/models/fish/quaternius-fish.glb",
+      "assets/models/livestock/LICENSE.txt",
+      "assets/models/livestock/quaternius-bull.glb",
+      "assets/models/livestock/quaternius-chicken.glb",
+      "assets/models/livestock/quaternius-cow.glb",
+      "assets/models/livestock/quaternius-pig.glb",
+      "assets/models/livestock/quaternius-sheep.glb",
+      "assets/models/villagers/LICENSE.txt",
+      "assets/models/villagers/quaternius-villager-man.glb",
+      "assets/models/villagers/quaternius-villager-woman.glb",
+      "assets/models/worker-tools/kenney-tool-hammer.glb",
+      "assets/models/worker-tools/kenney-tool-hatchet.glb",
+      "assets/models/worker-tools/kenney-tool-hoe.glb",
+      "assets/models/worker-tools/kenney-tool-pickaxe.glb",
+      "assets/models/worker-tools/kenney-tool-shovel.glb",
+      "assets/models/worker-tools/LICENSE.txt",
+      "assets/models/worker-tools/quaternius-spear.glb",
+      "assets/models/worker-tools/Textures/colormap.png",
+      "assets/modulepreload-polyfill-Dezn_h7o.js",
+      "assets/perlin256-BaNpOCP4.png",
+      "assets/pine_albedo-BFVladqW.png",
+      "assets/pine_needle_albedo-BJcyrax7.png",
+      "assets/pine_needle_normal-CzO3YAjJ.png",
+      "assets/pine_needle_roughness-B7Zc1FdL.png",
+      "assets/pine_needle_translucency-BfMW-uZr.png",
+      "assets/pine_normal-BmMp2U_o.png",
+      "assets/pine_roughness-9WC5a4hp.png",
+      "assets/polished-close-world-Bgdr2nuG.png",
+      "assets/polished-day-overview-BPwbM4Q4.png",
+      "assets/polished-world-initial-Dgwluo8q.png",
+      "assets/polished-world-setup-DeRsm0iT.png",
+      "assets/PostProcessing-BnUdDpuz.js",
+      "assets/red_maple_albedo-OqQimSM1.png",
+      "assets/red_maple_normal-BedmdJTG.png",
+      "assets/red_maple_roughness-e-WFj0aF.png",
+      "assets/red_maple_single_albedo-QghF3ipp.png",
+      "assets/red_maple_single_normal-B7LKvBBU.png",
+      "assets/red_maple_single_roughness-CeSgve8F.png",
+      "assets/red_maple_single_translucency-wEjnjPKk.png",
+      "assets/ResidenceMarkers-Ddyy5toc.js",
+      "assets/sagebrush_albedo-DkCNWICt.png",
+      "assets/sagebrush_branch_albedo-CLCP0vzt.png",
+      "assets/sagebrush_branch_height-DT7C0iFR.png",
+      "assets/sagebrush_branch_normal-DB1mgtzc.png",
+      "assets/sagebrush_branch_roughness-CvTttVqG.png",
+      "assets/sagebrush_normal-CtPqyL5H.png",
+      "assets/sagebrush_roughness-SsugSjc_.png",
+      "assets/sagebrush_translucency-BIMIeESX.png",
+      "assets/saguaro_skin_albedo-htmhUN4u.png",
+      "assets/saguaro_skin_clean_albedo-BxoXkuEa.png",
+      "assets/saguaro_skin_clean_normal-C1EZo2gn.png",
+      "assets/saguaro_skin_clean_roughness-C7qq8m0_.png",
+      "assets/saguaro_skin_normal-BA4KoGE7.png",
+      "assets/saguaro_skin_roughness-yTRKpta4.png",
+      "assets/saguaro_spines_albedo-DuER0JfZ.png",
+      "assets/saguaro_spines_normal-CTbMkHgX.png",
+      "assets/saguaro_spines_roughness-hjY3U9L4.png",
+      "assets/saguaro_spines_translucency-DZKq_ARs.png",
+      "assets/seedthree-vendor-BVNVYMT3.js",
+      "assets/seedThreeAssets-CQYV4CH_.js",
+      "assets/seedThreeAssets-CYls1btT.js",
+      "assets/seedThreeBranchCards-_42pX0W9.js",
+      "assets/seedThreeBranchCards-x9xhiIw0.js",
+      "assets/seedThreeForestBuilder-BB3xNn7J.js",
+      "assets/seedThreeForestBuilder-HCfcHy45.js",
+      "assets/seedThreeGroundCover-C1i_qO5q.js",
+      "assets/seedThreeGroundCover-wU937pHL.js",
+      "assets/seedThreeTextures-B2kmBTZd.js",
+      "assets/sky-vendor-CDzM-iFv.js",
+      "assets/spacetime-Cy3UZ6Vu.js",
+      "assets/spacetime-generated-BDNycebA.js",
+      "assets/sweetgum_albedo-1pRgWQVE.png",
+      "assets/sweetgum_normal-D2nM9g-h.png",
+      "assets/sweetgum_roughness-BI0FT0tz.png",
+      "assets/sweetgum_single_albedo-DoqiWvli.png",
+      "assets/sweetgum_single_normal-ClZ1jt6J.png",
+      "assets/sweetgum_single_roughness-K8emh0Pa.png",
+      "assets/sweetgum_single_translucency--hZ-fvWC.png",
+      "assets/terrainStartup.worker-CapIL2oL.js",
+      "assets/textures/props/mossy_rock/albedo.png",
+      "assets/textures/props/mossy_rock/normal.png",
+      "assets/textures/props/mossy_rock/roughness.png",
+      "assets/textures/props/oak_bark/albedo.png",
+      "assets/textures/props/oak_bark/normal.png",
+      "assets/textures/props/oak_bark/roughness.png",
+      "assets/textures/props/pine_foliage/albedo.png",
+      "assets/textures/props/pine_foliage/README.md",
+      "assets/textures/props/pine_foliage/roughness.png",
+      "assets/textures/roads/medieval_dirt/albedo.png",
+      "assets/textures/roads/medieval_dirt/ao.png",
+      "assets/textures/roads/medieval_dirt/edge_mask.png",
+      "assets/textures/roads/medieval_dirt/height.png",
+      "assets/textures/roads/medieval_dirt/normal.png",
+      "assets/textures/roads/medieval_dirt/README.md",
+      "assets/textures/roads/medieval_dirt/roughness.png",
+      "assets/textures/roads/medieval_dirt/rut_mask.png",
+      "assets/textures/roads/wood_logs/albedo.png",
+      "assets/textures/roads/wood_logs/ao.png",
+      "assets/textures/roads/wood_logs/edge_mask.png",
+      "assets/textures/roads/wood_logs/height.png",
+      "assets/textures/roads/wood_logs/normal.png",
+      "assets/textures/roads/wood_logs/README.md",
+      "assets/textures/roads/wood_logs/roughness.png",
+      "assets/textures/terrain/grass_ground/albedo.png",
+      "assets/textures/terrain/grass_ground/ao.png",
+      "assets/textures/terrain/grass_ground/height.png",
+      "assets/textures/terrain/grass_ground/normal.png",
+      "assets/textures/terrain/grass_ground/README.md",
+      "assets/textures/terrain/grass_ground/roughness.png",
+      "assets/textures/terrain/mammoth_dead_grass_ground/albedo.png",
+      "assets/textures/terrain/mammoth_dead_grass_ground/height.png",
+      "assets/textures/terrain/mammoth_dead_grass_ground/metalness.png",
+      "assets/textures/terrain/mammoth_dead_grass_ground/normal.png",
+      "assets/textures/terrain/mammoth_dead_grass_ground/roughness.png",
+      "assets/textures/terrain/mammoth_grass_ground/albedo.png",
+      "assets/textures/terrain/mammoth_grass_ground/height.png",
+      "assets/textures/terrain/mammoth_grass_ground/metalness.png",
+      "assets/textures/terrain/mammoth_grass_ground/normal.png",
+      "assets/textures/terrain/mammoth_grass_ground/roughness.png",
+      "assets/textures/terrain/mammoth_terrain_dirt/albedo.png",
+      "assets/textures/terrain/mammoth_terrain_dirt/height.png",
+      "assets/textures/terrain/mammoth_terrain_dirt/metalness.png",
+      "assets/textures/terrain/mammoth_terrain_dirt/normal.png",
+      "assets/textures/terrain/mammoth_terrain_dirt/roughness.png",
+      "assets/textures/terrain/mammoth_terrain_gravel/albedo.png",
+      "assets/textures/terrain/mammoth_terrain_gravel/height.png",
+      "assets/textures/terrain/mammoth_terrain_gravel/metalness.png",
+      "assets/textures/terrain/mammoth_terrain_gravel/normal.png",
+      "assets/textures/terrain/mammoth_terrain_gravel/roughness.png",
+      "assets/textures/terrain/manor_grass_blend/albedo.png",
+      "assets/textures/terrain/manor_grass_blend/ao.png",
+      "assets/textures/terrain/manor_grass_blend/height.png",
+      "assets/textures/terrain/manor_grass_blend/metalness.png",
+      "assets/textures/terrain/manor_grass_blend/normal.png",
+      "assets/textures/terrain/manor_grass_blend/README.md",
+      "assets/textures/terrain/manor_grass_blend/roughness.png",
+      "assets/textures/terrain/manor_grass_dense/albedo.png",
+      "assets/textures/terrain/manor_grass_dense/ao.png",
+      "assets/textures/terrain/manor_grass_dense/height.png",
+      "assets/textures/terrain/manor_grass_dense/metalness.png",
+      "assets/textures/terrain/manor_grass_dense/normal.png",
+      "assets/textures/terrain/manor_grass_dense/README.md",
+      "assets/textures/terrain/manor_grass_dense/roughness.png",
+      "assets/textures/terrain/manor_grass_dry/albedo.png",
+      "assets/textures/terrain/manor_grass_dry/ao.png",
+      "assets/textures/terrain/manor_grass_dry/height.png",
+      "assets/textures/terrain/manor_grass_dry/metalness.png",
+      "assets/textures/terrain/manor_grass_dry/normal.png",
+      "assets/textures/terrain/manor_grass_dry/README.md",
+      "assets/textures/terrain/manor_grass_dry/roughness.png",
+      "assets/textures/terrain/manor_grass_dry/snow_albedo_atlas.png",
+      "assets/textures/terrain/manor_grass_meadow/albedo.png",
+      "assets/textures/terrain/manor_grass_meadow/ao.png",
+      "assets/textures/terrain/manor_grass_meadow/height.png",
+      "assets/textures/terrain/manor_grass_meadow/metalness.png",
+      "assets/textures/terrain/manor_grass_meadow/normal.png",
+      "assets/textures/terrain/manor_grass_meadow/README.md",
+      "assets/textures/terrain/manor_grass_meadow/roughness.png",
+      "assets/textures/terrain/snow_ground/albedo.png",
+      "assets/textures/terrain/snow_ground/ao.png",
+      "assets/textures/terrain/snow_ground/height.png",
+      "assets/textures/terrain/snow_ground/normal.png",
+      "assets/textures/terrain/snow_ground/README.md",
+      "assets/textures/terrain/snow_ground/roughness.png",
+      "assets/textures/vegetation/cattail_reed_card.png",
+      "assets/textures/vegetation/grass/close-meadow-tuft.png",
+      "assets/textures/vegetation/grass/README.md",
+      "assets/textures/vegetation/kitchen_crops/bean_vine.png",
+      "assets/textures/vegetation/kitchen_crops/cabbage_leaf.png",
+      "assets/textures/vegetation/kitchen_crops/carrot_frond.png",
+      "assets/textures/vegetation/kitchen_crops/turnip_leaf.png",
+      "assets/textures/vegetation/kitchen_herbs/parsley_clump.png",
+      "assets/textures/vegetation/kitchen_herbs/rosemary_clump.png",
+      "assets/textures/vegetation/kitchen_herbs/sage_clump.png",
+      "assets/textures/vegetation/raspberry_patch_albedo.png",
+      "assets/textures/vegetation/README.md",
+      "assets/textures/vegetation/rose_blossom_card.png",
+      "assets/textures/vegetation/wildflowers/bulbiferous-lily-head.png",
+      "assets/textures/vegetation/wildflowers/clusius-gentian-head.png",
+      "assets/textures/vegetation/wildflowers/daisy-star-aster-head.png",
+      "assets/textures/vegetation/wildflowers/gorski-kotar-wildflower-atlas.png",
+      "assets/textures/vegetation/wildflowers/grey-hawkbit-head.png",
+      "assets/textures/vegetation/wildflowers/red-campion-head.png",
+      "assets/third-party/d3-celestial-LICENSE.txt",
+      "assets/third-party/game-icons-LICENSE.txt",
+      "assets/third-party/sky-cloud-3d-LICENSE.txt",
+      "assets/three-BfZLYfxL.js",
+      "assets/tulip_poplar_albedo-8TSY0Wjg.png",
+      "assets/tulip_poplar_normal-BuuTedNJ.png",
+      "assets/tulip_poplar_roughness-B5Aa1Myt.png",
+      "assets/tulip_poplar_single_albedo-BGIhr6Rp.png",
+      "assets/tulip_poplar_single_normal-DoBurOaI.png",
+      "assets/tulip_poplar_single_roughness-CvXMyhUM.png",
+      "assets/tulip_poplar_single_translucency-v-4uVZqY.png",
+      "assets/ui/build-menu/cards/apiary.webp",
+      "assets/ui/build-menu/cards/brewery.webp",
+      "assets/ui/build-menu/cards/carpenter.webp",
+      "assets/ui/build-menu/cards/chapel.webp",
+      "assets/ui/build-menu/cards/charcoal-burner.webp",
+      "assets/ui/build-menu/cards/clay-pit.webp",
+      "assets/ui/build-menu/cards/ferry-landing.webp",
+      "assets/ui/build-menu/cards/fishing-camp.webp",
+      "assets/ui/build-menu/cards/foragers-hut.webp",
+      "assets/ui/build-menu/cards/grain-field.webp",
+      "assets/ui/build-menu/cards/granary.webp",
+      "assets/ui/build-menu/cards/guardhouse.webp",
+      "assets/ui/build-menu/cards/hunter-hall.webp",
+      "assets/ui/build-menu/cards/iron-mine.webp",
+      "assets/ui/build-menu/cards/large-quarry.webp",
+      "assets/ui/build-menu/cards/lumber-mill.webp",
+      "assets/ui/build-menu/cards/market.webp",
+      "assets/ui/build-menu/cards/monastery.webp",
+      "assets/ui/build-menu/cards/palisaded-refuge.webp",
+      "assets/ui/build-menu/cards/pastoral-farmstead.webp",
+      "assets/ui/build-menu/cards/pasture.webp",
+      "assets/ui/build-menu/cards/potter-kiln.webp",
+      "assets/ui/build-menu/cards/reforester.webp",
+      "assets/ui/build-menu/cards/residence.webp",
+      "assets/ui/build-menu/cards/smithy-bloomery.webp",
+      "assets/ui/build-menu/cards/smithy.webp",
+      "assets/ui/build-menu/cards/smokehouse.webp",
+      "assets/ui/build-menu/cards/stonecutters-camp.webp",
+      "assets/ui/build-menu/cards/swineherd.webp",
+      "assets/ui/build-menu/cards/threshing-barn.webp",
+      "assets/ui/build-menu/cards/town-hall.webp",
+      "assets/ui/build-menu/cards/village-storehouse.webp",
+      "assets/ui/build-menu/cards/vineyard.webp",
+      "assets/ui/build-menu/cards/watchtower.webp",
+      "assets/ui/build-menu/cards/water-well.webp",
+      "assets/ui/build-menu/cards/watermill.webp",
+      "assets/ui/build-menu/cards/weaver.webp",
+      "assets/ui/build-menu/cards/woodcutters-lodge.webp",
+      "assets/ui/icons/construction-actions.png",
+      "assets/ui/icons/hud-resources-core.png",
+      "assets/ui/icons/hud-resources-goods-a.png",
+      "assets/ui/icons/hud-resources-goods-b.png",
+      "assets/ui/icons/map-resources.png",
+      "assets/ui/icons/materials/charcoal.png",
+      "assets/ui/icons/materials/clay.png",
+      "assets/ui/icons/materials/iron.png",
+      "assets/ui/icons/materials/pottery.png",
+      "assets/ui/icons/materials/roof-tiles.svg",
+      "assets/ui/icons/materials/salt.png",
+      "assets/ui/selo-empire-logo.png",
+      "assets/ui/selo-empire-splash-naive.webp",
+      "assets/ui/selo-empire-splash.webp",
+      "assets/ui/world-setup-gorski-kotar-1550.webp",
+      "assets/visual-gauntlet-C4pQlWJx.css",
+      "assets/visual-gauntlet-CW2bDVF9.js",
+      "assets/visualPerformanceHooks-DIYWHXuU.js",
+      "assets/visualPerformanceHooks-xDClN1ft.js",
+      "assets/white_oak_albedo-Dl-_yQE1.png",
+      "assets/white_oak_normal-DC8IoX6Q.png",
+      "assets/white_oak_roughness-CVNX7hXh.png",
+      "assets/white_oak_single_albedo-DOren19T.png",
+      "assets/white_oak_single_height-DX6828sQ.png",
+      "assets/white_oak_single_normal-seSyOz_A.png",
+      "assets/white_oak_single_roughness-C0NJ9RxG.png",
+      "assets/white_oak_single_translucency-BM6OMyEw.png",
+      "assets/yieldToMain-CKkYsSyO.js",
+      "assets/yucca_rosette_albedo-sidC850Q.png",
+      "assets/yucca_rosette_dry_albedo-DOhNgNaM.png",
+      "assets/yucca_rosette_dryest_albedo-DZQKGr_s.png",
+      "assets/yucca_rosette_normal-B6e7yE6b.png",
+      "assets/yucca_rosette_roughness-CzGlnX5T.png",
+      "assets/yucca_rosette_translucency-CPUGiLgC.png",
+      "hamlet-fixture.html",
+      "sounds/ambient/birds_wind_day.mp3",
+      "sounds/ambient/church_bells.mp3",
+      "sounds/ambient/farm_workers_singing.mp3",
+      "sounds/ambient/fire_crackle.mp3",
+      "sounds/ambient/light_rain.mp3",
+      "sounds/ambient/night_insects.mp3",
+      "sounds/ambient/open_wind_overview.mp3",
+      "sounds/ambient/river_water_rushing.mp3",
+      "sounds/ambient/village_day.mp3",
+      "sounds/combat/angry_fighting_1.mp3",
+      "sounds/combat/angry_fighting_2.mp3",
+      "sounds/combat/angry_fighting_3.mp3",
+      "sounds/combat/angry_fighting_4.mp3",
+      "sounds/combat/pike_melee_1.mp3",
+      "sounds/combat/pike_melee_2.mp3",
+      "sounds/combat/pike_melee_3.mp3",
+      "sounds/combat/pike_melee_4.mp3",
+      "sounds/music/roads_and_rooftops.mp3",
+      "sounds/music/valley_at_first_light.mp3",
+      "sounds/music/vespers_over_the_valley.mp3",
+      "sounds/music/winter_hearth.mp3",
+      "sounds/ui/building_place.mp3",
+      "sounds/ui/confirm.mp3",
+      "sounds/ui/error.mp3",
+      "sounds/ui/road_place.mp3",
+      "sounds/workers/chop_wood_1.mp3",
+      "sounds/workers/chop_wood_2.mp3",
+      "sounds/workers/chop_wood_3.mp3",
+      "sounds/workers/chop_wood_4.mp3",
+      "sounds/workers/cut_crop_1.mp3",
+      "sounds/workers/cut_crop_2.mp3",
+      "sounds/workers/cut_crop_3.mp3",
+      "sounds/workers/dig_soil_1.mp3",
+      "sounds/workers/dig_soil_2.mp3",
+      "sounds/workers/dig_soil_3.mp3",
+      "sounds/workers/fishing_1.mp3",
+      "sounds/workers/fishing_2.mp3",
+      "sounds/workers/fishing_3.mp3",
+      "sounds/workers/forage_1.mp3",
+      "sounds/workers/forage_2.mp3",
+      "sounds/workers/forage_3.mp3",
+      "sounds/workers/hammer_wood_1.mp3",
+      "sounds/workers/hammer_wood_2.mp3",
+      "sounds/workers/hammer_wood_3.mp3",
+      "sounds/workers/hammer_wood_4.mp3",
+      "sounds/workers/livestock_1.mp3",
+      "sounds/workers/livestock_2.mp3",
+      "sounds/workers/livestock_3.mp3",
+      "sounds/workers/mine_stone_1.mp3",
+      "sounds/workers/mine_stone_2.mp3",
+      "sounds/workers/mine_stone_3.mp3",
+      "sounds/workers/mine_stone_4.mp3",
+      "sounds/workers/README.txt",
+      "textures/buildings/clay_tiles_diff.jpg",
+      "textures/buildings/clay_tiles_nor_gl.png",
+      "textures/buildings/clay_tiles_rough.jpg",
+      "textures/buildings/masonry_diff.jpg",
+      "textures/buildings/masonry_nor_gl.png",
+      "textures/buildings/masonry_rough.jpg",
+      "textures/buildings/plaster_diff.jpg",
+      "textures/buildings/plaster_nor_gl.png",
+      "textures/buildings/plaster_rough.jpg",
+      "textures/buildings/wood_planks_diff.jpg",
+      "textures/buildings/wood_planks_nor_gl.png",
+      "textures/buildings/wood_planks_rough.jpg",
+      "visual-gauntlet/references/manifest.json",
+      "visual-gauntlet/references/manor-lords-01.png",
+      "visual-gauntlet/references/manor-lords-02.png",
+      "visual-gauntlet/references/manor-lords-03.png",
+      "visual-gauntlet/references/manor-lords-04.png",
+      "visual-gauntlet/references/manor-lords-05.png",
+      "visual-gauntlet/references/manor-lords-06.png",
+      "visual-gauntlet/references/manor-lords-07.png",
+      "visual-gauntlet/references/manor-lords-08.png",
+      "visual-gauntlet/references/manor-lords-09.png",
+      "visual-gauntlet/references/manor-lords-10.png"
+    ],
+    "emittedJavaScriptFiles": 30,
+    "localAssetFiles": 397
+  },
+  "portability": {
+    "serveAsOriginRoot": true,
+    "limitation": "The archived HTML retains absolute same-origin resource URLs and must be served as the origin root. Unrelated prior-round visual-gauntlet evidence is intentionally excluded; remote services are not vendored.",
+    "suggestedServeCommand": "npx vite preview --outDir artifacts/visual-gauntlet/round-51/captured-build --host 127.0.0.1 --port 4177"
+  },
+  "treeSha256": "92CE6C71B8DE7C32045227C755D129A3A338BB157FC3CC0C46B883896E8724E9",
+  "files": [
+    {
+      "file": "_round-51-archive-origin.json",
+      "bytes": 575,
+      "sha256": "2E8238B4C45D201E4C0AEAA55C224F90595F9C9B605B861EDDE32B01C464AA69",
+      "roles": [
+        "archive-origin-sentinel"
+      ]
+    },
+    {
+      "file": ".vite/manifest.json",
+      "bytes": 41470,
+      "sha256": "F7315344FCEFA96014853EA43977AAA547D1C83389FFF2D9DE6D18F31E203AC0",
+      "roles": [
+        "captured-build-snapshot",
+        "vite-build-manifest"
+      ]
+    },
+    {
+      "file": "assets/american_beech_albedo-hC3zpFRY.png",
+      "bytes": 1189705,
+      "sha256": "D9D01DEE9AC81A470E9E5462065D39221704D2C0B07E86BBB45F7A5697337896",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory",
+        "manifest-asset"
+      ]
+    },
+    {
+      "file": "assets/american_beech_normal-DSvvVobF.png",
+      "bytes": 3042580,
+      "sha256": "DF1F4E2649C2960F06024BC466BFB7D5B497812A2787389EFE0EF68D36D31177",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory",
+        "manifest-asset"
+      ]
+    },
+    {
+      "file": "assets/american_beech_roughness-lrHOWwcC.png",
+      "bytes": 294106,
+      "sha256": "7D25B948ED2344C73264F90F8AD0B80A510AA353043CE5BCBEE8162FE67CDFFC",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory",
+        "manifest-asset"
+      ]
+    },
+    {
+      "file": "assets/american_beech_single_albedo-CWGJdq3M.png",
+      "bytes": 1147778,
+      "sha256": "FE1594F66411285C581A5BE6AEE2AF3B6DA22F283AD55875094318E64A89CB3B",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory",
+        "manifest-asset"
+      ]
+    },
+    {
+      "file": "assets/american_beech_single_normal-jy7rPjmm.png",
+      "bytes": 1151265,
+      "sha256": "CEE10804DBEFF42675EE8376DDD9AC2C9543927BE14EE9F92D0F07101DF276BF",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory",
+        "manifest-asset"
+      ]
+    },
+    {
+      "file": "assets/american_beech_single_roughness-mIh2H55F.png",
+      "bytes": 405645,
+      "sha256": "CA73511AE98F63C2AEC58C4209CDD051F21F7D022DB10E2163F32DCE6F07C697",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory",
+        "manifest-asset"
+      ]
+    },
+    {
+      "file": "assets/american_beech_single_translucency-wnmnqN3O.png",
+      "bytes": 481273,
+      "sha256": "DA11367EACAEA3309105266099EBB3D30D0E36AD9DDF8A9FC4E91BEEF4D876B8",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory",
+        "manifest-asset"
+      ]
+    },
+    {
+      "file": "assets/apple_bark_albedo-BvvWWx0w.png",
+      "bytes": 2542352,
+      "sha256": "87368C175EA462A8079FA35AE96C3DBC1AA90031070EB83A03D51032724D21CC",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory",
+        "manifest-asset"
+      ]
+    },
+    {
+      "file": "assets/apple_bark_normal-8ZN5MccF.png",
+      "bytes": 3079593,
+      "sha256": "297ED505E7D8ACA3C1457475095804ED84DC8912C20F87BC72043A30F1DE467E",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory",
+        "manifest-asset"
+      ]
+    },
+    {
+      "file": "assets/apple_bark_roughness-DLXj6uhL.png",
+      "bytes": 725740,
+      "sha256": "0A30409881087D285026ADBADB2641EB1330275930B4E8BBECDF34CF33ACE621",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory",
+        "manifest-asset"
+      ]
+    },
+    {
+      "file": "assets/backyardPlantAssets-tZBCK4Ur.js",
+      "bytes": 2011,
+      "sha256": "76EE85373153CCE8C96B7FD738E3055B21C0384EA3F8C59145A35CEB6ABB539E",
+      "roles": [
+        "captured-build-snapshot",
+        "emitted-js-local-reference",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/baseline-day-overview-Bs0SzNsL.png",
+      "bytes": 81219,
+      "sha256": "A2D14CC505F5409001B7AA22CA212DB98435BBDC1D8FFB2507F4FBC675AE6DA9",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/baseline-night-overview-ByoPq2uA.png",
+      "bytes": 53603,
+      "sha256": "8D256CD8B1BB6588B6F347B06519B8BD9762A42D47DAC9FF9C1C28F4B759AE32",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/bilberry_albedo-BU5ZkfPw.png",
+      "bytes": 2283449,
+      "sha256": "3A991937B1A259832EDDDF08EEADE1BD85DA3031E551F71C5BBA974403A7DD8F",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory",
+        "manifest-asset"
+      ]
+    },
+    {
+      "file": "assets/bilberry_normal-DgPELm8H.png",
+      "bytes": 1378857,
+      "sha256": "F1A6ABA3F74128324A81670DDE702A2DD182DF1D681BB42A2DBB031B8B5E2F45",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory",
+        "manifest-asset"
+      ]
+    },
+    {
+      "file": "assets/bilberry_roughness-BmHVWHwP.png",
+      "bytes": 412715,
+      "sha256": "62CF1CD9E2634674E47CF5D7A04BB98BEB580D15E61DAD5BC3D8166554DBC7EF",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory",
+        "manifest-asset"
+      ]
+    },
+    {
+      "file": "assets/bilberry_translucency-CqJuQBrx.png",
+      "bytes": 263556,
+      "sha256": "A152BF2AB91C6B298E84FD0F9C6CB152704663456BB36CFED06FF9C48E285F8E",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory",
+        "manifest-asset"
+      ]
+    },
+    {
+      "file": "assets/blackbrush_albedo-UmIPF9Z1.png",
+      "bytes": 947029,
+      "sha256": "6A872ED892DEC1E45BCEFC6B95462F7DB22C4271C89153C75F8060C768D029B2",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory",
+        "manifest-asset"
+      ]
+    },
+    {
+      "file": "assets/blackbrush_branch_albedo-BGX_gSt7.png",
+      "bytes": 2334028,
+      "sha256": "5A2290F848D7F8A0E92D71C119D1D64D4C31BBD9FDF04297BED61F0376DA8149",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory",
+        "manifest-asset"
+      ]
+    },
+    {
+      "file": "assets/blackbrush_branch_height-Ct156IdP.png",
+      "bytes": 1989893,
+      "sha256": "180259F45723D0763469063FD1FDA12B8A1A3C7698826909A8606C9262423D12",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory",
+        "manifest-asset"
+      ]
+    },
+    {
+      "file": "assets/blackbrush_branch_normal-BUGI0CmK.png",
+      "bytes": 3051200,
+      "sha256": "247573EB99E4076EFF69DCA750E92763B89E8D7E664E913EC0647AFD974675F0",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory",
+        "manifest-asset"
+      ]
+    },
+    {
+      "file": "assets/blackbrush_branch_roughness-D7Fza3lc.png",
+      "bytes": 668935,
+      "sha256": "AFFDDBF86933A2ECF0F7AE8807FDE124C366A67A99AB2113C9978358C41C212E",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory",
+        "manifest-asset"
+      ]
+    },
+    {
+      "file": "assets/blackbrush_normal-3G8VP6vt.png",
+      "bytes": 334744,
+      "sha256": "2E5ED8F771CBD668BADBC6EE2D20810561C18CDD079C9564B79AA8713ECA1E06",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory",
+        "manifest-asset"
+      ]
+    },
+    {
+      "file": "assets/blackbrush_roughness-BlmJ2eTk.png",
+      "bytes": 131676,
+      "sha256": "876151B2A042F49545E16B0B91A66BA16BC50C159765F3C08A223AB6EB180569",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory",
+        "manifest-asset"
+      ]
+    },
+    {
+      "file": "assets/blackbrush_translucency-BONtQZqY.png",
+      "bytes": 88449,
+      "sha256": "327E9D53D6D0D36D079F49BB58EA849CAA9636161DC3E2C98379DAD0471F9196",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory",
+        "manifest-asset"
+      ]
+    },
+    {
+      "file": "assets/burgageZoneLayout-mfIGLleE.js",
+      "bytes": 169736,
+      "sha256": "979C64A7A3AE2ECF6FA0F4DA4B4D0FD3C23B66BBA6F659B3FA4F2F9739AC38FC",
+      "roles": [
+        "captured-build-snapshot",
+        "emitted-js-local-reference",
+        "local-reference-directory",
+        "manifest-static-import"
+      ]
+    },
+    {
+      "file": "assets/cattail_reed_card_normal-Coipf9Iw.png",
+      "bytes": 541204,
+      "sha256": "CDB68FADBB8CA1F5BCAD4E7A5C019DB0C952D5A95DCE866766AD7170B9C28ABD",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory",
+        "manifest-asset"
+      ]
+    },
+    {
+      "file": "assets/cattail_reed_card_roughness-2vXhmeXf.png",
+      "bytes": 216803,
+      "sha256": "DBAD288FD9DAE050C65E907729D838ED322655D07B88AAF7B1FCDC26676626A4",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory",
+        "manifest-asset"
+      ]
+    },
+    {
+      "file": "assets/cattail_reed_card_translucency-_3g3FPmQ.png",
+      "bytes": 101202,
+      "sha256": "9F9720DBEA39B402EC223AC9B6534E27CEE3BF84E1DAF70D9DA60A0BDEFD1E7A",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory",
+        "manifest-asset"
+      ]
+    },
+    {
+      "file": "assets/cattail_reed_card-C0nOB5y6.png",
+      "bytes": 570498,
+      "sha256": "1AF482079AB33CAD325CC91F4DF2A6E66B26297AFEA039F7A9A32B554130DB39",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory",
+        "manifest-asset"
+      ]
+    },
+    {
+      "file": "assets/CelestialStarMap-CACmAniz.js",
+      "bytes": 150984,
+      "sha256": "C0D2CD1A2DF967CEF7181FCBB63B8AE027390F9FF57C56E82A4B1F1BE5571C32",
+      "roles": [
+        "captured-build-snapshot",
+        "emitted-js-local-reference",
+        "local-reference-directory",
+        "manifest-dynamic-import"
+      ]
+    },
+    {
+      "file": "assets/cherry_bark_albedo-C3NgqPjR.png",
+      "bytes": 2668800,
+      "sha256": "2FB2BDA3A0B473E4765183244382E67CA836F9C5042C5BE862104C57D6D101EB",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory",
+        "manifest-asset"
+      ]
+    },
+    {
+      "file": "assets/cherry_bark_normal-hUI-Ua7R.png",
+      "bytes": 2697481,
+      "sha256": "7F3534DE0E2416214D8CF983AD5AA38F75E7EF5CD6C53D57EC83DA1F910C63A9",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory",
+        "manifest-asset"
+      ]
+    },
+    {
+      "file": "assets/cherry_bark_roughness-DrhKxf6C.png",
+      "bytes": 616672,
+      "sha256": "DA98A2136E1F0583092E71D58A0AAF823292634A2BF65C028D398EA8AE77CBCD",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory",
+        "manifest-asset"
+      ]
+    },
+    {
+      "file": "assets/creosote_albedo-DUou5z-l.png",
+      "bytes": 1031794,
+      "sha256": "A59CD3FD964EEBB26132CF5009F38A5CDA3DBFC33E6FE97705A2E1D06BB1BDE5",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory",
+        "manifest-asset"
+      ]
+    },
+    {
+      "file": "assets/creosote_branch_albedo-BTBn0B7S.png",
+      "bytes": 2597034,
+      "sha256": "ACD10EFF52CF0A1069ED24CD591EC64DBD67098582680DF86655C84610BCD55A",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory",
+        "manifest-asset"
+      ]
+    },
+    {
+      "file": "assets/creosote_branch_height-CeLLDow-.png",
+      "bytes": 1524934,
+      "sha256": "00B75A8D47D32779FC0DADC131F7A881173FE45BB7A1D71FE1B7E6EF6F87E95C",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory",
+        "manifest-asset"
+      ]
+    },
+    {
+      "file": "assets/creosote_branch_normal-DvsB5jkf.png",
+      "bytes": 3076365,
+      "sha256": "CB359CB56D4F223A0E7410D9B612212F2FC8E82402E3D916F0A63DFF8358E358",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory",
+        "manifest-asset"
+      ]
+    },
+    {
+      "file": "assets/creosote_branch_roughness-CoeMABWC.png",
+      "bytes": 686613,
+      "sha256": "BD60E8815A62838703092EF7E0B77D1F2B78089CB5FA81608DB3B700E89A749C",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory",
+        "manifest-asset"
+      ]
+    },
+    {
+      "file": "assets/creosote_normal-DrYE99J0.png",
+      "bytes": 368315,
+      "sha256": "C89ED42BC3FFCF80618CB4CA2D1E845F38AF6545C6DFF665FC3D1C79B3916BD9",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory",
+        "manifest-asset"
+      ]
+    },
+    {
+      "file": "assets/creosote_roughness-lPxOjXko.png",
+      "bytes": 141576,
+      "sha256": "26B73AFB1469E0024EFF6864C985F65AAE91F95CD6C065111F17C14BC23A0B17",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory",
+        "manifest-asset"
+      ]
+    },
+    {
+      "file": "assets/creosote_translucency-DIOlTuM_.png",
+      "bytes": 133881,
+      "sha256": "82133EBAD784C1121BCB4843ACD00DCB993EEEDD2C2182B7579611599469EE17",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory",
+        "manifest-asset"
+      ]
+    },
+    {
+      "file": "assets/crowdView-C_xOHxFV.js",
+      "bytes": 182039,
+      "sha256": "FB97F99683710917410AA91DF7BE229FAE2859FE956FFE07A3B20277C5017FE3",
+      "roles": [
+        "captured-build-snapshot",
+        "emitted-js-local-reference",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/deferredSettlementPresentation-DULBaTZm.js",
+      "bytes": 740415,
+      "sha256": "8EBDC2670243CF922E03156D9B488D975CE0B963AB08061F2FF62BE6CA3CA65E",
+      "roles": [
+        "captured-build-snapshot",
+        "emitted-js-local-reference",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/douglas_fir_albedo-CE4Oktsr.png",
+      "bytes": 2117356,
+      "sha256": "6A4BDC1B737CB5886C64495B3C9B7CD2A1AE568550C87594537319EDC66819C6",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory",
+        "manifest-asset"
+      ]
+    },
+    {
+      "file": "assets/douglas_fir_needle_albedo-Bf_-_BsK.png",
+      "bytes": 1827841,
+      "sha256": "BF6E8F81DD8656742F219D2E82DE0EBD35900BF3FF044CFA14571DC40BDE2EE4",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory",
+        "manifest-asset"
+      ]
+    },
+    {
+      "file": "assets/douglas_fir_needle_normal-CGndtNkg.png",
+      "bytes": 1044419,
+      "sha256": "797C664C5CC6E16431FB4033F064D7183401FD8DC02A4864665A9D9681CD93CA",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory",
+        "manifest-asset"
+      ]
+    },
+    {
+      "file": "assets/douglas_fir_needle_roughness-OyXPaSoc.png",
+      "bytes": 366707,
+      "sha256": "02B9738696044A4262A10EAC64C5631FEFCE9A3F12E6746EFDD508474584C7BB",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory",
+        "manifest-asset"
+      ]
+    },
+    {
+      "file": "assets/douglas_fir_needle_translucency-DegGJJnN.png",
+      "bytes": 319580,
+      "sha256": "ECFF98232E66C020AA28EB8E7175BBD8EBB0C391DC3614709703067CAA68D964",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory",
+        "manifest-asset"
+      ]
+    },
+    {
+      "file": "assets/douglas_fir_normal-rrGa-27p.png",
+      "bytes": 5508537,
+      "sha256": "EFC1CC84FBBE018651A8B57147B7078A1E316CBEEBF42BA6572CA7786A4771F9",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory",
+        "manifest-asset"
+      ]
+    },
+    {
+      "file": "assets/douglas_fir_roughness-BLx3LhLn.png",
+      "bytes": 763384,
+      "sha256": "0675F21938DFCA7DB5632745E6AE42B3D38BD518ECFF7D16E86C42F853BF90F1",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory",
+        "manifest-asset"
+      ]
+    },
+    {
+      "file": "assets/fern_albedo-Bq7zhgkY.png",
+      "bytes": 1909901,
+      "sha256": "20031C5948C05B43D5C5CE583DAE3C6C14B0FDE3B8D1C10EB025F1C80E971B95",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory",
+        "manifest-asset"
+      ]
+    },
+    {
+      "file": "assets/fern_normal-crAmMcXe.png",
+      "bytes": 991543,
+      "sha256": "2DFD7C740EBBB174B43538C7DB228A22C4A2299F466333BC6007306E562DDFBA",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory",
+        "manifest-asset"
+      ]
+    },
+    {
+      "file": "assets/fern_roughness-BrDd4X4H.png",
+      "bytes": 318348,
+      "sha256": "115730D179A706B5A70CC035B8C29C5D0EC4967A1442CB432A1C9211B8AA02BE",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory",
+        "manifest-asset"
+      ]
+    },
+    {
+      "file": "assets/fern_translucency-BYY_A0hq.png",
+      "bytes": 269318,
+      "sha256": "60EC64995B93AC95F2E212F8D4C441D7BD67F0988FD8149E6FAC33EC83643198",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory",
+        "manifest-asset"
+      ]
+    },
+    {
+      "file": "assets/game-63-Y7IaK.css",
+      "bytes": 124140,
+      "sha256": "8A171C3AC1B626AE2031EE20789138F2C55EC1727FB7E6B2B7728029721670CF",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/game-DIiVOrpP.js",
+      "bytes": 698973,
+      "sha256": "A4B7B703FE9922F693E08C365E083DFAC8283962AA3AC041B7864E96B5F821CA",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/grass_tuft_normal-wJxxakbE.png",
+      "bytes": 726697,
+      "sha256": "5B9A9C01C5C3E4677B8982848C93A233407731029B8559C27C2F753ED4C4BF85",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory",
+        "manifest-asset"
+      ]
+    },
+    {
+      "file": "assets/grass_tuft_roughness-B6OL5Mw-.png",
+      "bytes": 228166,
+      "sha256": "4675D03AD9B26406286A0E5E9B4D00124CBB7BCF840BAE9E977C9F274C8DC890",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory",
+        "manifest-asset"
+      ]
+    },
+    {
+      "file": "assets/grass_tuft-rVYgOkMa.png",
+      "bytes": 1332761,
+      "sha256": "7FF1F4A96116064518BBA2B336A87DBE8DC6F127A76D78EDB40B8BD7C90C4BD3",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory",
+        "manifest-asset"
+      ]
+    },
+    {
+      "file": "assets/hamlet-fixture-CQ-hmVd-.js",
+      "bytes": 110620,
+      "sha256": "20CF9A2E15566682252AB1EDC20CF5CBCA630F21B4B70D10C4BCECB14E707C3D",
+      "roles": [
+        "captured-build-snapshot",
+        "emitted-js-local-reference",
+        "local-reference-directory",
+        "manifest-entry-module"
+      ]
+    },
+    {
+      "file": "assets/hamletFixtureConfig-tSIWgjGJ.js",
+      "bytes": 5395,
+      "sha256": "625C20C9C1FD47B9CC0DCA253D85CB66FF5A3CA90C491B0FE4FE055DB2C555B4",
+      "roles": [
+        "captured-build-snapshot",
+        "emitted-js-local-reference",
+        "local-reference-directory",
+        "manifest-static-import"
+      ]
+    },
+    {
+      "file": "assets/joshua_thatch_albedo-C2iRCthh.png",
+      "bytes": 2872594,
+      "sha256": "7D4C4D6D877D88673E45D78D4E5F2EF62432BCFF6CF261A983F98053956FCF9B",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory",
+        "manifest-asset"
+      ]
+    },
+    {
+      "file": "assets/joshua_thatch_normal-pBd-zCQb.png",
+      "bytes": 3083714,
+      "sha256": "FBC7DD9646A982D4BAC0EB484975CFBCAA87C98D29687A3FB38148ABE325EC33",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory",
+        "manifest-asset"
+      ]
+    },
+    {
+      "file": "assets/joshua_thatch_roughness-D7yt8ypn.png",
+      "bytes": 832044,
+      "sha256": "EEA02AD0F4C1C39C3EC9EE9E5584F71D030F64D39E3A7BA26F74CD817084D91B",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory",
+        "manifest-asset"
+      ]
+    },
+    {
+      "file": "assets/joshua_tree_albedo-BrJT0FXJ.png",
+      "bytes": 2883244,
+      "sha256": "B640306958EE40E9C3EE166B528F535A74C464BC9F84C04EB2C44D2A73C76023",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory",
+        "manifest-asset"
+      ]
+    },
+    {
+      "file": "assets/joshua_tree_normal-DKoGA6W4.png",
+      "bytes": 3121525,
+      "sha256": "BB65C7C1D8075B623AA29E76424C5679E0E7FFCCE8FF5A06541BF2BB7FF33D6A",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory",
+        "manifest-asset"
+      ]
+    },
+    {
+      "file": "assets/joshua_tree_roughness-C5lZF4Yn.png",
+      "bytes": 846110,
+      "sha256": "23CD3649E202A2FD02113150909D3180864FAA4E86B06E12FD05043B48B5EC25",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory",
+        "manifest-asset"
+      ]
+    },
+    {
+      "file": "assets/juniper_scrub_albedo-kCJ3bJiW.png",
+      "bytes": 2615997,
+      "sha256": "8B39855D69ABE93464EFE02D9EF906FE9C85BB899E29E5D0F7D792B6EAFC83DC",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory",
+        "manifest-asset"
+      ]
+    },
+    {
+      "file": "assets/juniper_scrub_normal-C-UbMg-5.png",
+      "bytes": 1588875,
+      "sha256": "CBA4103D5A497116EA728B22C7E341EF78D9166162789E3E4EB4201B2A994450",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory",
+        "manifest-asset"
+      ]
+    },
+    {
+      "file": "assets/juniper_scrub_roughness-D6sKRu6a.png",
+      "bytes": 503947,
+      "sha256": "19C1437E69A300172B16CA66D529B0795DF49A89F9EDA463235CEEA62941909E",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory",
+        "manifest-asset"
+      ]
+    },
+    {
+      "file": "assets/juniper_scrub_translucency-BU_hnSXD.png",
+      "bytes": 424962,
+      "sha256": "C505980E5DB73E817B5F97B4D85958F4340E495E46011407AC53D671D81B9BE9",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory",
+        "manifest-asset"
+      ]
+    },
+    {
+      "file": "assets/loblolly_albedo-ClHtdG66.png",
+      "bytes": 2794901,
+      "sha256": "4782AB7B389ED2B362C8A37CF717D391B00C761A74FCA8DCD3C2EB24222E9DC1",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory",
+        "manifest-asset"
+      ]
+    },
+    {
+      "file": "assets/loblolly_needle_albedo-R6WuTs6l.png",
+      "bytes": 1796853,
+      "sha256": "5CA8B4B458FFAF850265521665B24181089457D380C8477E269002B28091364F",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory",
+        "manifest-asset"
+      ]
+    },
+    {
+      "file": "assets/loblolly_needle_normal-D4qX6-ON.png",
+      "bytes": 731707,
+      "sha256": "869E1CDBBC04E9E9592F148D6E35A6D35DCD6A4F3B4EFC156BBB2AF81B9A8388",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory",
+        "manifest-asset"
+      ]
+    },
+    {
+      "file": "assets/loblolly_needle_roughness-BSmvSZ8x.png",
+      "bytes": 286665,
+      "sha256": "F440BD2556A88CE659D4FB42D398664D405E76BA720E34E8E68BBA7DAFE621C3",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory",
+        "manifest-asset"
+      ]
+    },
+    {
+      "file": "assets/loblolly_needle_translucency-CNYZJCm2.png",
+      "bytes": 324418,
+      "sha256": "DEF0EB8506B7037D25F1430559E91656C5189462ED806404AC6AEA35963C5B71",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory",
+        "manifest-asset"
+      ]
+    },
+    {
+      "file": "assets/loblolly_normal-Yif7qxhr.png",
+      "bytes": 3114595,
+      "sha256": "99EB9EB7E8ED789465223DC14D8191E33B5A3995C20031D0E16B64875DC08D55",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory",
+        "manifest-asset"
+      ]
+    },
+    {
+      "file": "assets/loblolly_roughness-CCbB-TPB.png",
+      "bytes": 815439,
+      "sha256": "7536C315EB8F0CCDD92047418041CE05496C04A5174689D1FDAD61666659AB26",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory",
+        "manifest-asset"
+      ]
+    },
+    {
+      "file": "assets/models/deer/LICENSE.txt",
+      "bytes": 853,
+      "sha256": "5DF648ECA1B290C79B0FF32B6106924C82A3E7371155764BD36F830E7EBC9C1C",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/models/deer/quaternius-deer.glb",
+      "bytes": 1007564,
+      "sha256": "FABF360B22EACCCCD056EE99D698A9562D15AA245821F96E4FBAD6DB3751604E",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/models/deer/quaternius-stag.glb",
+      "bytes": 1044172,
+      "sha256": "3C2DF7C13A3D37C8660684E46AA1E5A2BF7E91A9B279983921D48BD93D0B67ED",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/models/delivery-cart/LICENSE.txt",
+      "bytes": 660,
+      "sha256": "849E4A4292DD23503D802E895B6099571D2B460C56BFA4ABC7D06599A993DCE3",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/models/delivery-cart/quaternius-medieval-cart.glb",
+      "bytes": 108660,
+      "sha256": "C98EEE1D2A91A1A894BBBE5B54F0B262BFCFC268D4EAB17FBBDE5B0A40885F53",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/models/fish/LICENSE.txt",
+      "bytes": 698,
+      "sha256": "59ACD7EBF803AB9CAD95724489C9AFA3F886886502A0095278D7DE6A533B4B6C",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/models/fish/quaternius-fish.glb",
+      "bytes": 190904,
+      "sha256": "CD4A8651FB0EEA5EC23EFECCD9A9ADEEEF927863BCEEEB0655FEF5C742B8E552",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/models/livestock/LICENSE.txt",
+      "bytes": 969,
+      "sha256": "D896A8834D8E4CB6F6FFA0960428D1D6FCCDC57006118232F84CA9E1816B3268",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/models/livestock/quaternius-bull.glb",
+      "bytes": 1038360,
+      "sha256": "545642D15D4D062EFB45915AC6E776C2B5921FF89DE3544F65E450BBFD16CE16",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/models/livestock/quaternius-chicken.glb",
+      "bytes": 140112,
+      "sha256": "3390F6F6944210ED9F612BD0010165D1C443C6186638F9FC4380574BD9E5FCE1",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/models/livestock/quaternius-cow.glb",
+      "bytes": 1028584,
+      "sha256": "AA0DFBD619BC14838B48F6DB02A56C2EE96F055930D957FCC5EF63AF567B21CE",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/models/livestock/quaternius-pig.glb",
+      "bytes": 300940,
+      "sha256": "39A6187A43130B6D758090294FF4292C06A113DF6B03243E124644EB8C71AEE4",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/models/livestock/quaternius-sheep.glb",
+      "bytes": 223324,
+      "sha256": "0B259E1A5DBF4463901667E11529F229193A6F3869CECF30508F8CB5BBE3131F",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/models/villagers/LICENSE.txt",
+      "bytes": 1095,
+      "sha256": "C1804BB925CC68EDE41FEC3BDD806978DD83DD526382322E2FB88060A82A20BA",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/models/villagers/quaternius-villager-man.glb",
+      "bytes": 498160,
+      "sha256": "40C62848350DF6D13CC6EED20F30C3406A7761542236D8A9F6C3A4060D005E97",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/models/villagers/quaternius-villager-woman.glb",
+      "bytes": 481600,
+      "sha256": "53DB49BA84193BEB60173E94396764C86F7805752582A81DFDFD7F0889A10783",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/models/worker-tools/kenney-tool-hammer.glb",
+      "bytes": 6520,
+      "sha256": "9B27F03C26DABD49A7EA358615E63FE65E1C3D0157887D4EE1ECDFA1F0E688F3",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/models/worker-tools/kenney-tool-hatchet.glb",
+      "bytes": 8612,
+      "sha256": "DE5C6CC51CDB5BCFAD8BD7128B7FF0E37A34E6F4F8DEDDEC82BB8634C25CC20D",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/models/worker-tools/kenney-tool-hoe.glb",
+      "bytes": 6628,
+      "sha256": "5286BD677D5CF5266AC1A8F06EF034E1D30D442C4387BFC1B7E0DEA6BCB34686",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/models/worker-tools/kenney-tool-pickaxe.glb",
+      "bytes": 8152,
+      "sha256": "2B77A238B8666338094D83FC5561984643C335C49CCACD9E0E0A50FB2849C542",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/models/worker-tools/kenney-tool-shovel.glb",
+      "bytes": 11656,
+      "sha256": "20ABB2420F0215C59694287207B7A6324114552B9F59846AB2A2673E3A7C1147",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/models/worker-tools/LICENSE.txt",
+      "bytes": 1564,
+      "sha256": "F79C42B7BDDE3A6BF9EBAB8B8DB5190ACC3B9DB547FB3FAA333A49969A114952",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/models/worker-tools/quaternius-spear.glb",
+      "bytes": 152028,
+      "sha256": "849DD95DB71CE13E52C2ECD53C118012B45A6EDF8B8F019F9F2EBB51BFA27BB1",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/models/worker-tools/Textures/colormap.png",
+      "bytes": 7440,
+      "sha256": "6CA023BE9F12E8C2358FCF94320C8A894B4C05A3DD0BAD1F5C268312053CACA1",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/modulepreload-polyfill-Dezn_h7o.js",
+      "bytes": 698,
+      "sha256": "785597BCA2E7DD97A652A20A197C077079E635A5663433448E0E1D9FD8C98A64",
+      "roles": [
+        "captured-build-snapshot",
+        "emitted-js-local-reference",
+        "local-reference-directory",
+        "manifest-static-import"
+      ]
+    },
+    {
+      "file": "assets/perlin256-BaNpOCP4.png",
+      "bytes": 34763,
+      "sha256": "9A8B56668ABB548D406E441545D7E94A699289ACAA18CE2156DD5C670750632E",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory",
+        "manifest-asset"
+      ]
+    },
+    {
+      "file": "assets/pine_albedo-BFVladqW.png",
+      "bytes": 2816014,
+      "sha256": "6D82B6744346FEB2BB9B449223D9B4701421C96D355A86EE0CA7461C3A868947",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory",
+        "manifest-asset"
+      ]
+    },
+    {
+      "file": "assets/pine_needle_albedo-BJcyrax7.png",
+      "bytes": 1414094,
+      "sha256": "57EDD15D037B1BD7C6E4D38AA67A4D234749892DC0C1A100401B85D7825EF62A",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory",
+        "manifest-asset"
+      ]
+    },
+    {
+      "file": "assets/pine_needle_normal-CzO3YAjJ.png",
+      "bytes": 723047,
+      "sha256": "A83A1A6A1BD9B62E54AEFD7DB6267050B5FB944FD5F6D11CC7A1201D439AD229",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory",
+        "manifest-asset"
+      ]
+    },
+    {
+      "file": "assets/pine_needle_roughness-B7Zc1FdL.png",
+      "bytes": 226705,
+      "sha256": "8BF0E1D7124E0809C36C9625CF97698AA87E19DB2BB695C3F11C16A860FEA759",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory",
+        "manifest-asset"
+      ]
+    },
+    {
+      "file": "assets/pine_needle_translucency-BfMW-uZr.png",
+      "bytes": 230000,
+      "sha256": "AE302C8D0DC8658C8EDBB141D2C43A288348258BCDE26D22BFCDAEFAFD326174",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory",
+        "manifest-asset"
+      ]
+    },
+    {
+      "file": "assets/pine_normal-BmMp2U_o.png",
+      "bytes": 3106194,
+      "sha256": "A238016364794DBD9A25C54B0444617D48372C2A6F5EEA0387675BB496D84423",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory",
+        "manifest-asset"
+      ]
+    },
+    {
+      "file": "assets/pine_roughness-9WC5a4hp.png",
+      "bytes": 774592,
+      "sha256": "DCAD54C6451B8626827E0511EFBCE970FE430E158E1BF18CADA382914257317F",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory",
+        "manifest-asset"
+      ]
+    },
+    {
+      "file": "assets/polished-close-world-Bgdr2nuG.png",
+      "bytes": 68043,
+      "sha256": "7CBD76C10925451A0300D2A2C6EB6C9B958AFE4C3823D827DB1D321A3D6247D3",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/polished-day-overview-BPwbM4Q4.png",
+      "bytes": 43974,
+      "sha256": "1B8B1781CDF6674D97F76775860769417DB76175DEB6ED90C5C8BB41F1B2C844",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/polished-world-initial-Dgwluo8q.png",
+      "bytes": 40998,
+      "sha256": "A56782462B153A77D300D8D7CC3BBED75E28F2ECE4D053BD67E9AAE99113E7F8",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/polished-world-setup-DeRsm0iT.png",
+      "bytes": 109061,
+      "sha256": "0826ACD277012F2C7A4140E86147B9B20D159B2F4D7F3756E5DC9063741B5A63",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/PostProcessing-BnUdDpuz.js",
+      "bytes": 210248,
+      "sha256": "28BBB747262B3EADC081C1140FA921EFEAB4BCA592EB639A0925A19C172F1D3B",
+      "roles": [
+        "captured-build-snapshot",
+        "emitted-js-local-reference",
+        "local-reference-directory",
+        "manifest-static-import"
+      ]
+    },
+    {
+      "file": "assets/red_maple_albedo-OqQimSM1.png",
+      "bytes": 2454279,
+      "sha256": "869F190328107F8953A54B9C5A1FC617EBB4C8B75C7EDA7CF1FD8B9D144B46BD",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory",
+        "manifest-asset"
+      ]
+    },
+    {
+      "file": "assets/red_maple_normal-BedmdJTG.png",
+      "bytes": 3086545,
+      "sha256": "E0DDB2660D5E6FBB8A016BF0CC388B495E0EC97BFBB2A09F212A4BB59781AF28",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory",
+        "manifest-asset"
+      ]
+    },
+    {
+      "file": "assets/red_maple_roughness-e-WFj0aF.png",
+      "bytes": 737423,
+      "sha256": "21D1009A6F98A06F3737216E24873D97D25C2A081BC03B40EAD764810C7945BD",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory",
+        "manifest-asset"
+      ]
+    },
+    {
+      "file": "assets/red_maple_single_albedo-QghF3ipp.png",
+      "bytes": 1088731,
+      "sha256": "7BB3D5957DFA457E6FC63CD982A27B98ACB59475FEEBABCD2EEBC3929DB7157C",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory",
+        "manifest-asset"
+      ]
+    },
+    {
+      "file": "assets/red_maple_single_normal-B7LKvBBU.png",
+      "bytes": 1117864,
+      "sha256": "810DF921CF0A4ECC3B341CF4737BF826984501CB4D4EC4B1710A3AF66535BB8D",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory",
+        "manifest-asset"
+      ]
+    },
+    {
+      "file": "assets/red_maple_single_roughness-CeSgve8F.png",
+      "bytes": 252535,
+      "sha256": "C9420E72799EBDC8CCB56C49440FDC6ADA2D1551E92CBB68A19A757F27173718",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory",
+        "manifest-asset"
+      ]
+    },
+    {
+      "file": "assets/red_maple_single_translucency-wEjnjPKk.png",
+      "bytes": 337226,
+      "sha256": "7B4F8932C924D61B0859F9A04D6B1C7F1598A7D18ADC1D04054CCFA73A77BDC7",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory",
+        "manifest-asset"
+      ]
+    },
+    {
+      "file": "assets/ResidenceMarkers-Ddyy5toc.js",
+      "bytes": 34822,
+      "sha256": "83A9892F9B61876533CB23E448581CF46B3C037DD2FB4221BF60AD0EB51D0DFF",
+      "roles": [
+        "captured-build-snapshot",
+        "emitted-js-local-reference",
+        "local-reference-directory",
+        "manifest-static-import"
+      ]
+    },
+    {
+      "file": "assets/sagebrush_albedo-DkCNWICt.png",
+      "bytes": 1325185,
+      "sha256": "EF6296294057754752AE3B3F6765F5EBCB26EB156D58DD1F0A8045FB0AB9CEC1",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory",
+        "manifest-asset"
+      ]
+    },
+    {
+      "file": "assets/sagebrush_branch_albedo-CLCP0vzt.png",
+      "bytes": 2771580,
+      "sha256": "03BBFAA4EE356E37400A6564C45C2A1803F61696BBF4FF850163241BAC99505E",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory",
+        "manifest-asset"
+      ]
+    },
+    {
+      "file": "assets/sagebrush_branch_height-DT7C0iFR.png",
+      "bytes": 1945853,
+      "sha256": "C9D5684A9AE29E588FD9601CEFF88163DAAB1986EC9C019DE1CA452491AC57D2",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory",
+        "manifest-asset"
+      ]
+    },
+    {
+      "file": "assets/sagebrush_branch_normal-DB1mgtzc.png",
+      "bytes": 3105287,
+      "sha256": "3DCBA90847DD804993261F2180DE13684B31CA88CB05FACB65064B782A96B06B",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory",
+        "manifest-asset"
+      ]
+    },
+    {
+      "file": "assets/sagebrush_branch_roughness-CvTttVqG.png",
+      "bytes": 823889,
+      "sha256": "B4FBC95472A4003FCA8B6237CEA6275AAB7410CA11DFEC71F32B8263EE02CE0D",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory",
+        "manifest-asset"
+      ]
+    },
+    {
+      "file": "assets/sagebrush_normal-CtPqyL5H.png",
+      "bytes": 784185,
+      "sha256": "A3D8FBD11DA913EC4EEEDF80E98A5D468B6011C4C43C09256049C7B0CB213A68",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory",
+        "manifest-asset"
+      ]
+    },
+    {
+      "file": "assets/sagebrush_roughness-SsugSjc_.png",
+      "bytes": 244454,
+      "sha256": "DCC79203275E87731DF81B8B25E1AC1D6248F75E91D5F82243BA02A9AB3073DC",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory",
+        "manifest-asset"
+      ]
+    },
+    {
+      "file": "assets/sagebrush_translucency-BIMIeESX.png",
+      "bytes": 159631,
+      "sha256": "39B889F2797511287DF4A795BEB4EF777A567D9EE08395342EFE4FD267E6E0A3",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory",
+        "manifest-asset"
+      ]
+    },
+    {
+      "file": "assets/saguaro_skin_albedo-htmhUN4u.png",
+      "bytes": 2260932,
+      "sha256": "000AD840DA834EF05C01164BED84795954A2591F0525A14965DA167D0ADAC18B",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory",
+        "manifest-asset"
+      ]
+    },
+    {
+      "file": "assets/saguaro_skin_clean_albedo-BxoXkuEa.png",
+      "bytes": 1906401,
+      "sha256": "D1C54DB90852F271C3537EC4BD6D5229DF78BC2CC5DBA5DD63AF0F75A4369758",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory",
+        "manifest-asset"
+      ]
+    },
+    {
+      "file": "assets/saguaro_skin_clean_normal-C1EZo2gn.png",
+      "bytes": 2865879,
+      "sha256": "EC0D984D6CC87749B7AFF600781A54951583A1C218C054E77DE3BE1A4596CA45",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory",
+        "manifest-asset"
+      ]
+    },
+    {
+      "file": "assets/saguaro_skin_clean_roughness-C7qq8m0_.png",
+      "bytes": 306856,
+      "sha256": "F153758A9A5414D5F95F93C026D3B1196C5BAA199A35229FB1D8E0BBB338D8B4",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory",
+        "manifest-asset"
+      ]
+    },
+    {
+      "file": "assets/saguaro_skin_normal-BA4KoGE7.png",
+      "bytes": 2927869,
+      "sha256": "9BBB532BCA311BCA997258929C09E6BEDBDF7A03723B7E32FAAEAAC2CAD1332F",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory",
+        "manifest-asset"
+      ]
+    },
+    {
+      "file": "assets/saguaro_skin_roughness-yTRKpta4.png",
+      "bytes": 351804,
+      "sha256": "DC99F7AF547771E0597C17C1CC3A2FA28A01A9FAEA9AC5225AEEF272006E841D",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory",
+        "manifest-asset"
+      ]
+    },
+    {
+      "file": "assets/saguaro_spines_albedo-DuER0JfZ.png",
+      "bytes": 686018,
+      "sha256": "A31A767FD94DBC570BBC5626E39C828A7229E76E4910E591B4BAD4636C65ED11",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory",
+        "manifest-asset"
+      ]
+    },
+    {
+      "file": "assets/saguaro_spines_normal-CTbMkHgX.png",
+      "bytes": 581802,
+      "sha256": "59BC4727EC843008ABCFC6F95A973333A51D9BBCA480FD7F4812A17EBE75A235",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory",
+        "manifest-asset"
+      ]
+    },
+    {
+      "file": "assets/saguaro_spines_roughness-hjY3U9L4.png",
+      "bytes": 193321,
+      "sha256": "198AACEB72219398400A2EEC64B7C8A14BB929EE97348741C41201024E689F25",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory",
+        "manifest-asset"
+      ]
+    },
+    {
+      "file": "assets/saguaro_spines_translucency-DZKq_ARs.png",
+      "bytes": 133249,
+      "sha256": "DD2D699769A63E918D53E0C0A07474F9FA11E3792BBBEF4B293F84AFBC6C36FE",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory",
+        "manifest-asset"
+      ]
+    },
+    {
+      "file": "assets/seedthree-vendor-BVNVYMT3.js",
+      "bytes": 1024953,
+      "sha256": "EA081BA6C467B6ACAC8170CD2282E4360B89C85EFBB52900CFD8326B81A0DDD1",
+      "roles": [
+        "captured-build-snapshot",
+        "emitted-js-local-reference",
+        "local-reference-directory",
+        "manifest-static-import"
+      ]
+    },
+    {
+      "file": "assets/seedThreeAssets-CQYV4CH_.js",
+      "bytes": 90,
+      "sha256": "A7934BEBA323FD599276E9B92339582DCD2CB7997D022AEE3471871254B060D2",
+      "roles": [
+        "captured-build-snapshot",
+        "emitted-js-local-reference",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/seedThreeAssets-CYls1btT.js",
+      "bytes": 1409,
+      "sha256": "EDAD026BEDE91D20963199F69EE7ED77052F346D58D7DABD38D50EF29460064D",
+      "roles": [
+        "captured-build-snapshot",
+        "emitted-js-local-reference",
+        "local-reference-directory",
+        "manifest-static-import"
+      ]
+    },
+    {
+      "file": "assets/seedThreeBranchCards-_42pX0W9.js",
+      "bytes": 100,
+      "sha256": "51BCF928EAFB7A9C248974089D710811E363FB2DE55D8669A9D819515066D936",
+      "roles": [
+        "captured-build-snapshot",
+        "emitted-js-local-reference",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/seedThreeBranchCards-x9xhiIw0.js",
+      "bytes": 4920,
+      "sha256": "510063FD9B2FC45E1A474218CC76F4B51A53B9E254B0E680EC141652DB7145E0",
+      "roles": [
+        "captured-build-snapshot",
+        "emitted-js-local-reference",
+        "local-reference-directory",
+        "manifest-static-import"
+      ]
+    },
+    {
+      "file": "assets/seedThreeForestBuilder-BB3xNn7J.js",
+      "bytes": 463,
+      "sha256": "BA2AE3CAF7B46E8475280BDFCC48FFB02E6899B1269D6F032BEBC549C6543BB6",
+      "roles": [
+        "captured-build-snapshot",
+        "emitted-js-local-reference",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/seedThreeForestBuilder-HCfcHy45.js",
+      "bytes": 17512,
+      "sha256": "32A874524CF48C7C47014AFC9A49EAF2DA19B90FE666504C32AB26DBA2E310D3",
+      "roles": [
+        "captured-build-snapshot",
+        "emitted-js-local-reference",
+        "local-reference-directory",
+        "manifest-static-import"
+      ]
+    },
+    {
+      "file": "assets/seedThreeGroundCover-C1i_qO5q.js",
+      "bytes": 148,
+      "sha256": "09461775EA6E4941780B7C3C5870D1F06F5034CE9C1B7736EC58EC5D84725283",
+      "roles": [
+        "captured-build-snapshot",
+        "emitted-js-local-reference",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/seedThreeGroundCover-wU937pHL.js",
+      "bytes": 2087,
+      "sha256": "E1C77206A25B9E2249FC4EFE54342ECF93578A44E60CCB5A34C80212A5662F4C",
+      "roles": [
+        "captured-build-snapshot",
+        "emitted-js-local-reference",
+        "local-reference-directory",
+        "manifest-static-import"
+      ]
+    },
+    {
+      "file": "assets/seedThreeTextures-B2kmBTZd.js",
+      "bytes": 10316,
+      "sha256": "AC9046953A257C2826C6D7D82FBB1D9DF431647C7B6FE899D5A471D0892BFA64",
+      "roles": [
+        "captured-build-snapshot",
+        "emitted-js-local-reference",
+        "local-reference-directory",
+        "manifest-static-import"
+      ]
+    },
+    {
+      "file": "assets/sky-vendor-CDzM-iFv.js",
+      "bytes": 30569,
+      "sha256": "8D8EFDE74818852C7F50EBBFB31A95CEFC3942D41FBEF3DFB21CB9BACBBFB1F9",
+      "roles": [
+        "captured-build-snapshot",
+        "emitted-js-local-reference",
+        "local-reference-directory",
+        "manifest-static-import"
+      ]
+    },
+    {
+      "file": "assets/spacetime-Cy3UZ6Vu.js",
+      "bytes": 94134,
+      "sha256": "849E64453459312A4CB9081643B9BD1B2760B4BCB6ABF71B25C31B17E0435825",
+      "roles": [
+        "captured-build-snapshot",
+        "emitted-js-local-reference",
+        "local-reference-directory",
+        "manifest-static-import"
+      ]
+    },
+    {
+      "file": "assets/spacetime-generated-BDNycebA.js",
+      "bytes": 67950,
+      "sha256": "800B2C3111D9B616696E6AC15E0F206B4544B069CCBE761D7CA2A2B8CCCC99E0",
+      "roles": [
+        "captured-build-snapshot",
+        "emitted-js-local-reference",
+        "local-reference-directory",
+        "manifest-static-import"
+      ]
+    },
+    {
+      "file": "assets/sweetgum_albedo-1pRgWQVE.png",
+      "bytes": 2733382,
+      "sha256": "8B11A1592AA9EA068D8A0270A733506013ACB38039A9A42C17E5770324C09278",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory",
+        "manifest-asset"
+      ]
+    },
+    {
+      "file": "assets/sweetgum_normal-D2nM9g-h.png",
+      "bytes": 3107214,
+      "sha256": "E7DCAA32BFE421EA983131DB1D7F628EC1920F9D8049882704415C0D0209CAA1",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory",
+        "manifest-asset"
+      ]
+    },
+    {
+      "file": "assets/sweetgum_roughness-BI0FT0tz.png",
+      "bytes": 790038,
+      "sha256": "13CBD82F65C5CC7127D987877B7F50404B13C0F58AFC75AEC490605075F253D5",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory",
+        "manifest-asset"
+      ]
+    },
+    {
+      "file": "assets/sweetgum_single_albedo-DoqiWvli.png",
+      "bytes": 873726,
+      "sha256": "0F6C160AF227B6089A1B91E94BC79864D4A92CF6F6A22DA99CD7B2860BC02CDE",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory",
+        "manifest-asset"
+      ]
+    },
+    {
+      "file": "assets/sweetgum_single_normal-ClZ1jt6J.png",
+      "bytes": 903004,
+      "sha256": "0B120B2B268DA71E83AC611EE4441D118C9D77AB871B3FE1A61223DB5F3FB1F2",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory",
+        "manifest-asset"
+      ]
+    },
+    {
+      "file": "assets/sweetgum_single_roughness-K8emh0Pa.png",
+      "bytes": 200581,
+      "sha256": "5E540EE425B200D94B1971AA287743E990B66D4ED52E97B137615F4DB4D33FCB",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory",
+        "manifest-asset"
+      ]
+    },
+    {
+      "file": "assets/sweetgum_single_translucency--hZ-fvWC.png",
+      "bytes": 318337,
+      "sha256": "93BDB862409D0002BE46EBB2C3C1553A6897FCA4F4CF6080F6F13888EFF847F7",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory",
+        "manifest-asset"
+      ]
+    },
+    {
+      "file": "assets/terrainStartup.worker-CapIL2oL.js",
+      "bytes": 132171,
+      "sha256": "AC358B2B24D3882476652CA25085CA06C1438950D186BAB849DF61D8753B6CBA",
+      "roles": [
+        "captured-build-snapshot",
+        "emitted-js-local-reference",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/textures/props/mossy_rock/albedo.png",
+      "bytes": 349452,
+      "sha256": "550D373C59FE927AA310DA641762AFA313E9A439C42DFBD18A420071ECAE0D03",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/textures/props/mossy_rock/normal.png",
+      "bytes": 413274,
+      "sha256": "2DB00E789C915F355F30882D92D82CF870737C17AB141ED1A4E4CBC5934BED35",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/textures/props/mossy_rock/roughness.png",
+      "bytes": 103045,
+      "sha256": "B4CAAB20C20FA102E3BD3F5FD309461370F5BD1D9A023CA578F999081D1AC17E",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/textures/props/oak_bark/albedo.png",
+      "bytes": 346135,
+      "sha256": "96BB3677E60FCF7A2F626FF4C7F0127EE88FD3AA92B02327B9F703C097830A05",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/textures/props/oak_bark/normal.png",
+      "bytes": 599735,
+      "sha256": "A05C0A526280860299698E8E101FF6BFACF8080BFA9F8F02BB8DF92D98F40DF7",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/textures/props/oak_bark/roughness.png",
+      "bytes": 156732,
+      "sha256": "E4065D56FDC9C8FD9E233B1FAE6B1B46AB48A6F3D1B442F0C703DB2D94947DC8",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/textures/props/pine_foliage/albedo.png",
+      "bytes": 668973,
+      "sha256": "DC2D11B304426FE7B580A9C14218FD4D9635C169750C8F2ABBB217517412EDD4",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/textures/props/pine_foliage/README.md",
+      "bytes": 266,
+      "sha256": "6B161F5E0532BCC325EE3241CB6E7C4E21C18C7EAC4D24DA5F6A6869E9419E32",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/textures/props/pine_foliage/roughness.png",
+      "bytes": 123016,
+      "sha256": "89255849C240BCCDB5996778A00EA88054705FC9B7AC59F1BC040C4C3F977799",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/textures/roads/medieval_dirt/albedo.png",
+      "bytes": 2090602,
+      "sha256": "0A380A9BA93545392D8A56EA277B0A7F5ADB61533D01EC8B5EDD67780BE6E1C2",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/textures/roads/medieval_dirt/ao.png",
+      "bytes": 262408,
+      "sha256": "B3288BA82AE2B51DA1D0B72C74C4494D39CEA84CDFFA7CD1C05FD134B9DFC20D",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/textures/roads/medieval_dirt/edge_mask.png",
+      "bytes": 63883,
+      "sha256": "9020A46513D829434CA96FD0D14B06607971C64B2FE7D2E48059791B59B1246D",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/textures/roads/medieval_dirt/height.png",
+      "bytes": 576300,
+      "sha256": "C63D6B76B766233AD0939500A5DDAE594FE899A91F67F98728EC8FF8EC5D2723",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/textures/roads/medieval_dirt/normal.png",
+      "bytes": 2124412,
+      "sha256": "CF4DFB6959F02C6A6EACA6AD724B01F641E373B4028ECDE1988493626241C170",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/textures/roads/medieval_dirt/README.md",
+      "bytes": 222,
+      "sha256": "8342DA6A93E0119AAC51683ECE9316965C2CF14289637567783A8FD672EBE256",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/textures/roads/medieval_dirt/roughness.png",
+      "bytes": 527095,
+      "sha256": "BCB8BAC6E7070B6BA34B1F36A38330B4D6C11BE5020AD2568CB833AA2405D43D",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/textures/roads/medieval_dirt/rut_mask.png",
+      "bytes": 31792,
+      "sha256": "DC8E010F1704A0841AAA3961AE7EBE5979BE2A859B7D0D3C239F75C5D651B39E",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/textures/roads/wood_logs/albedo.png",
+      "bytes": 28198,
+      "sha256": "AA74A7AC0999D5A3B004CFE24AACAABD68A37489B42D89DAF567B4F7B0F42879",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/textures/roads/wood_logs/ao.png",
+      "bytes": 32417,
+      "sha256": "05D0F645756509E041DD12D3CA76EB6CA23B87D0BD3EAC29E3EE728CCDBDBBF3",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/textures/roads/wood_logs/edge_mask.png",
+      "bytes": 63883,
+      "sha256": "9020A46513D829434CA96FD0D14B06607971C64B2FE7D2E48059791B59B1246D",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/textures/roads/wood_logs/height.png",
+      "bytes": 20709,
+      "sha256": "862F21BEF9808E609EC8B87E7897BE6BE96545428976B5A8DCB5CB311B165B49",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/textures/roads/wood_logs/normal.png",
+      "bytes": 55052,
+      "sha256": "A1CC0AEF9576B79451CF0A628A098E67AB7F0B29A088DFD785F87624D4B59A70",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/textures/roads/wood_logs/README.md",
+      "bytes": 118,
+      "sha256": "483AB89411A99F3C58479A663D25D5E8F7A3477A5B2B8073E84C6AA1D5B07BB8",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/textures/roads/wood_logs/roughness.png",
+      "bytes": 16694,
+      "sha256": "7F8E9796844E120F125E70EFBF8EA38A7BD72E0F94AA830BEFF4E528FC6876AE",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/textures/terrain/grass_ground/albedo.png",
+      "bytes": 2517066,
+      "sha256": "B13771F0D9BDF29C77CC19907E079DA56E288D586DB5E492E985586EE5C8723C",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/textures/terrain/grass_ground/ao.png",
+      "bytes": 233609,
+      "sha256": "5B7D1EB90E036EDD2D9514535E543980259590AB29E91FC8CC4F2774EEACB1F6",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/textures/terrain/grass_ground/height.png",
+      "bytes": 481439,
+      "sha256": "B7C0409AEE0D975A391F8515BAF83AD53B628BCFA32E753F8507623B57405E6E",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/textures/terrain/grass_ground/normal.png",
+      "bytes": 1535827,
+      "sha256": "3E493BDCDC5FB6531F534B35BFFB6CA9F184D6EF25D647D5C00ADB570A989F7F",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/textures/terrain/grass_ground/README.md",
+      "bytes": 195,
+      "sha256": "A981194553733D9D743FCF30A2A08712294D5CC998554864C2DA78BA01ED0045",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/textures/terrain/grass_ground/roughness.png",
+      "bytes": 585712,
+      "sha256": "FB07DF891C379E37A90FFA3F87A56C6382E43577ACE7960ACC034843E2081521",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/textures/terrain/mammoth_dead_grass_ground/albedo.png",
+      "bytes": 2929750,
+      "sha256": "8F65AF0BFE45050D05A0763A919A8AAAF5CC7B4750BE95446EE03F9634658CD6",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/textures/terrain/mammoth_dead_grass_ground/height.png",
+      "bytes": 998724,
+      "sha256": "433942309D44F42F3BF028D96128E5803ABD14ECA2F2E74B64C291BA16B3A066",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/textures/terrain/mammoth_dead_grass_ground/metalness.png",
+      "bytes": 1097,
+      "sha256": "C8B6BB3E837F846489438B47AE42F3960B820A17095EA66DF3C5FA00FCD60665",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/textures/terrain/mammoth_dead_grass_ground/normal.png",
+      "bytes": 2750066,
+      "sha256": "16876485FD8AE5E058DF1203DF08940A268B371461161EEBBC53A3E8030E3A21",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/textures/terrain/mammoth_dead_grass_ground/roughness.png",
+      "bytes": 901597,
+      "sha256": "9BFA4366AD7C75A96055D75B9BB8B69CA616C45AC3AA19CA64C78499871AB627",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/textures/terrain/mammoth_grass_ground/albedo.png",
+      "bytes": 2644197,
+      "sha256": "6FB9D0BC496B12D41296AB09565D862C34CD9D4F120504EE9DD463FFDFC90F83",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/textures/terrain/mammoth_grass_ground/height.png",
+      "bytes": 839579,
+      "sha256": "AB67B34FD7063B4FB8F8EC61E50150BEC74DE0E71BC425E46F3137E2B10033F8",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/textures/terrain/mammoth_grass_ground/metalness.png",
+      "bytes": 1097,
+      "sha256": "C8B6BB3E837F846489438B47AE42F3960B820A17095EA66DF3C5FA00FCD60665",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/textures/terrain/mammoth_grass_ground/normal.png",
+      "bytes": 2758118,
+      "sha256": "C6F3E7BA17DE4746B623B2FCCD093D60090F899075C44B85D1DEEF64AB912469",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/textures/terrain/mammoth_grass_ground/roughness.png",
+      "bytes": 911510,
+      "sha256": "47909E4C40173285E3B835DB3E44D91AD66D48946709E41C48EFB07227810B8A",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/textures/terrain/mammoth_terrain_dirt/albedo.png",
+      "bytes": 2512042,
+      "sha256": "235DE21872BD540EDE2F883ABF6A99BE647AA860C02F2616C3FBACBD88299BF3",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/textures/terrain/mammoth_terrain_dirt/height.png",
+      "bytes": 746167,
+      "sha256": "02DDCE65DE64A2ECDAB0E14A1368E9717FF530E867478207E91F3BC34D346232",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/textures/terrain/mammoth_terrain_dirt/metalness.png",
+      "bytes": 1097,
+      "sha256": "C8B6BB3E837F846489438B47AE42F3960B820A17095EA66DF3C5FA00FCD60665",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/textures/terrain/mammoth_terrain_dirt/normal.png",
+      "bytes": 2492769,
+      "sha256": "79A85FB02E8AFA36C5AE6CDB0FF124869F509F2B2113D355A75879260690577C",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/textures/terrain/mammoth_terrain_dirt/roughness.png",
+      "bytes": 913526,
+      "sha256": "64AC7BDEEA70675A3538BE4610F6248387FF246D5B7F0ACD2781C5C85559FC2C",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/textures/terrain/mammoth_terrain_gravel/albedo.png",
+      "bytes": 2459317,
+      "sha256": "8F475CF02269685AD4A6922ED03ED9475D2C7A98A5A88B025A18878ED3286A8F",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/textures/terrain/mammoth_terrain_gravel/height.png",
+      "bytes": 486232,
+      "sha256": "2F6CFAA28FAA9DDF44528C0524196586165BE3D03A471CD2E40EC80CD68C30FD",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/textures/terrain/mammoth_terrain_gravel/metalness.png",
+      "bytes": 1097,
+      "sha256": "C8B6BB3E837F846489438B47AE42F3960B820A17095EA66DF3C5FA00FCD60665",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/textures/terrain/mammoth_terrain_gravel/normal.png",
+      "bytes": 2149280,
+      "sha256": "6E1E880519093360D9B3BA046CD158645F1EBEC8A98728C90DBBFCD8B6E5B716",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/textures/terrain/mammoth_terrain_gravel/roughness.png",
+      "bytes": 711479,
+      "sha256": "83229A8254670307211A10E1A9FDF7EE8BD12B0EA7CA55D40C2DEEB72E76C88B",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/textures/terrain/manor_grass_blend/albedo.png",
+      "bytes": 2388841,
+      "sha256": "ACACA17FBA30F88A6824BCA98CD3D90B783EE3A9FA2C7F931DD17AAEF08914CE",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/textures/terrain/manor_grass_blend/ao.png",
+      "bytes": 161476,
+      "sha256": "6AEB49F9C9C62F9B0B00D8B3FDCC5697984C2E99D0D3003D0B7E174D2D5BBB20",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/textures/terrain/manor_grass_blend/height.png",
+      "bytes": 646561,
+      "sha256": "85B2DE108855B0FF36CEFC8D696A40D07D75D8F5B47B957BCFBA3852B3E33C9D",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/textures/terrain/manor_grass_blend/metalness.png",
+      "bytes": 1097,
+      "sha256": "0F4B1668D119F77CEB6B86645573F088AB2341D7B284314D5DF0BE7226EA5D91",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/textures/terrain/manor_grass_blend/normal.png",
+      "bytes": 2073010,
+      "sha256": "B673304A8878ACB45A0C51232D4AC9CF35A2AB435A8477F68315B9BB7147F5EB",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/textures/terrain/manor_grass_blend/README.md",
+      "bytes": 287,
+      "sha256": "B9F336F6A5F82D8C7358E1CF4660EB1833DF77C1611969B418385A653B42AA69",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/textures/terrain/manor_grass_blend/roughness.png",
+      "bytes": 535975,
+      "sha256": "1723DADE7CD82C3B7112AA603B3CCEE1499F5D1027F59AB52F2D02155556E204",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/textures/terrain/manor_grass_dense/albedo.png",
+      "bytes": 2400169,
+      "sha256": "3FFE46B233B290F33D4E756089D5138250E9DE8DF4A21435D70D8B86C7957367",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/textures/terrain/manor_grass_dense/ao.png",
+      "bytes": 163070,
+      "sha256": "C2BB13A7526A9F1971F847EEA0A5EB190893D2E068482F7D2A4CE04F259A35EB",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/textures/terrain/manor_grass_dense/height.png",
+      "bytes": 643615,
+      "sha256": "B269C6C7AF220C39AD1AE620C8A87BFFB83C0756994B2FA746DFDC7781D4ECCF",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/textures/terrain/manor_grass_dense/metalness.png",
+      "bytes": 1097,
+      "sha256": "0F4B1668D119F77CEB6B86645573F088AB2341D7B284314D5DF0BE7226EA5D91",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/textures/terrain/manor_grass_dense/normal.png",
+      "bytes": 2051562,
+      "sha256": "CCB4DA67832D2AE9D4C1159786E7F2FE68A661492C67109F941955D1D4AC7F85",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/textures/terrain/manor_grass_dense/README.md",
+      "bytes": 287,
+      "sha256": "B9F336F6A5F82D8C7358E1CF4660EB1833DF77C1611969B418385A653B42AA69",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/textures/terrain/manor_grass_dense/roughness.png",
+      "bytes": 517256,
+      "sha256": "1472D7C36609DA85B9AC38DB2D83422929C8832897CA63C981A642E5FB44894D",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/textures/terrain/manor_grass_dry/albedo.png",
+      "bytes": 2669093,
+      "sha256": "6EE9E3FF3635920132916E22CAC8C3A7AA29977FFA34455A7D1DB83DCDEA5F4B",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/textures/terrain/manor_grass_dry/ao.png",
+      "bytes": 212543,
+      "sha256": "0D709EF407F88DD586DF892C9605DC522F11BE416A81E14C627F9926732E77BC",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/textures/terrain/manor_grass_dry/height.png",
+      "bytes": 704717,
+      "sha256": "9C3981BC792037637B44765DE500C11EAF72AA2E688B1D7089E82BD4E8836ECA",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/textures/terrain/manor_grass_dry/metalness.png",
+      "bytes": 1097,
+      "sha256": "0F4B1668D119F77CEB6B86645573F088AB2341D7B284314D5DF0BE7226EA5D91",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/textures/terrain/manor_grass_dry/normal.png",
+      "bytes": 2275506,
+      "sha256": "3232748DBF6DC442CBC999E4FD230A92D06C08322C699E40A787450E6A6AA185",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/textures/terrain/manor_grass_dry/README.md",
+      "bytes": 287,
+      "sha256": "B9F336F6A5F82D8C7358E1CF4660EB1833DF77C1611969B418385A653B42AA69",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/textures/terrain/manor_grass_dry/roughness.png",
+      "bytes": 563709,
+      "sha256": "1152A8AAD00FBC2F683A56530C14952707494B90418C62BB8E27488FFD8E8B8A",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/textures/terrain/manor_grass_dry/snow_albedo_atlas.png",
+      "bytes": 4560684,
+      "sha256": "91128EC8D5B19EE736536D461C695958CB539A5EF0E74F2E60CADE38A3C20BD2",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/textures/terrain/manor_grass_meadow/albedo.png",
+      "bytes": 2593308,
+      "sha256": "E68CC431C8B75DB1C4F20F8D37DFF325119DD35E202EC40297F4650BEAF3066B",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/textures/terrain/manor_grass_meadow/ao.png",
+      "bytes": 182247,
+      "sha256": "24661116481C97AEA815FFCE34A1194A6C6078EFFF9CF7957F0866FD5A8402F2",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/textures/terrain/manor_grass_meadow/height.png",
+      "bytes": 686837,
+      "sha256": "888C72FCF7650BB4492BEF4BBFEA7901A9B410CF8954440794231D25B823E120",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/textures/terrain/manor_grass_meadow/metalness.png",
+      "bytes": 1097,
+      "sha256": "0F4B1668D119F77CEB6B86645573F088AB2341D7B284314D5DF0BE7226EA5D91",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/textures/terrain/manor_grass_meadow/normal.png",
+      "bytes": 2214084,
+      "sha256": "300F642D4C6751FE322BB032C78AEA4A29E81656A63251FFB1D11E54BC8BC24D",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/textures/terrain/manor_grass_meadow/README.md",
+      "bytes": 287,
+      "sha256": "B9F336F6A5F82D8C7358E1CF4660EB1833DF77C1611969B418385A653B42AA69",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/textures/terrain/manor_grass_meadow/roughness.png",
+      "bytes": 540813,
+      "sha256": "9554F6C6025F033CFE934685E74A539D5E02DC921D05C148ABCE6B12A7421C74",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/textures/terrain/snow_ground/albedo.png",
+      "bytes": 1890672,
+      "sha256": "CD1A54A394739C8AE59E27FD60F3DC5687F4690C2C446D069406C234F1E51F2A",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/textures/terrain/snow_ground/ao.png",
+      "bytes": 188687,
+      "sha256": "797A880094378F3200E224AF9194A526CC167D58E1F7B8CF7967C3C1C3927A2F",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/textures/terrain/snow_ground/height.png",
+      "bytes": 432270,
+      "sha256": "9C0E247F43CC5C2B398F811EA74B17B8FFEDD9984E583D4692C1834109520B86",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/textures/terrain/snow_ground/normal.png",
+      "bytes": 1148796,
+      "sha256": "2D0E3B93338005EF057D3B03EDBF88C83DA030E64EEFAE5129C8669A3C1E1C94",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/textures/terrain/snow_ground/README.md",
+      "bytes": 388,
+      "sha256": "3743D03DE2386C151846EA6871E089DDC7AAE31A86951E7DED377333D3F35766",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/textures/terrain/snow_ground/roughness.png",
+      "bytes": 502310,
+      "sha256": "1CEF033FE664F42242F924F89027D82893A6DACA241E78795A2D477D8A1DB255",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/textures/vegetation/cattail_reed_card.png",
+      "bytes": 570498,
+      "sha256": "1AF482079AB33CAD325CC91F4DF2A6E66B26297AFEA039F7A9A32B554130DB39",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/textures/vegetation/grass/close-meadow-tuft.png",
+      "bytes": 682784,
+      "sha256": "BB5480C128A2A242887FDFBE23FDB5C71F5D8563E5B55B657D3217A99C2D8D04",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/textures/vegetation/grass/README.md",
+      "bytes": 735,
+      "sha256": "22D5B2799F291E485ACE4F174FBECF9DBF3031C21284552D6A2BB0DFFCFC08F3",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/textures/vegetation/kitchen_crops/bean_vine.png",
+      "bytes": 672217,
+      "sha256": "3BA7C9A2B5F3AAC267489E287492CDF9AFA4F0DB063A4E6E4FBB8DFDB7463A79",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/textures/vegetation/kitchen_crops/cabbage_leaf.png",
+      "bytes": 1416888,
+      "sha256": "9BAD94401F241AE2B7B0979EC13F198E5A8D8CC930DAC0E169E97447965D5BF5",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/textures/vegetation/kitchen_crops/carrot_frond.png",
+      "bytes": 950380,
+      "sha256": "49BCA93B67D47F17829F18439C3ACB62BA684BD9F2234DEDDF2C6F51623C4051",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/textures/vegetation/kitchen_crops/turnip_leaf.png",
+      "bytes": 792191,
+      "sha256": "8D8FC7BC829327A596A3101B0DA0A01A9508B5A9F2A0B2E7C3F110C97A02AE43",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/textures/vegetation/kitchen_herbs/parsley_clump.png",
+      "bytes": 1836026,
+      "sha256": "E07EDD447FC94A6A79C9A7131D05B466A2D5409EABA05BCE1786A45A5DBC53FB",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/textures/vegetation/kitchen_herbs/rosemary_clump.png",
+      "bytes": 2061431,
+      "sha256": "2B6C0129CEF1D6145FB2455354B2B6D1B60FE1BECAE127F083BDAEDE8C9214CB",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/textures/vegetation/kitchen_herbs/sage_clump.png",
+      "bytes": 1749937,
+      "sha256": "037DA17524CDACBBECA08F929096AAE5556CCDE4B0D70D4383F195688730EABE",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/textures/vegetation/raspberry_patch_albedo.png",
+      "bytes": 1417428,
+      "sha256": "16C10B3D193E1DB437328A41B321579123C6DB781893409A4BDE8A0A8C135F00",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/textures/vegetation/README.md",
+      "bytes": 8511,
+      "sha256": "EEEEB64E7177314322CE468FB8CEC784B7620A1C893791165C846A61C1ABA709",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/textures/vegetation/rose_blossom_card.png",
+      "bytes": 1538750,
+      "sha256": "920F0709DABC62B6A50970EAD1F19DAC2076CCB99C43F19E7214BE2F11E05DD5",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/textures/vegetation/wildflowers/bulbiferous-lily-head.png",
+      "bytes": 215607,
+      "sha256": "286D0E89B2995DCD1DF0ADF371CF809A0F8DA38F0F78A6198E98E8A2184E0166",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/textures/vegetation/wildflowers/clusius-gentian-head.png",
+      "bytes": 273609,
+      "sha256": "4C3909271B1D5553D4818E996558F047B5BF2DCA051AA28F5712D4D4D82E3DC2",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/textures/vegetation/wildflowers/daisy-star-aster-head.png",
+      "bytes": 256884,
+      "sha256": "889C733D2EE41EF8F2EA783BAA8244BEE96DF019E844965D7DC75F6212B19B9E",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/textures/vegetation/wildflowers/gorski-kotar-wildflower-atlas.png",
+      "bytes": 420520,
+      "sha256": "0059492813DD675C40AEC736DCB4A5D42F76CC28F74BB6B9665994D41287BB0F",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/textures/vegetation/wildflowers/grey-hawkbit-head.png",
+      "bytes": 264198,
+      "sha256": "DF990BD7F66DA10B7EDF3182AAA252D2D9D8352F6966D976A811A05CB1CF7D93",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/textures/vegetation/wildflowers/red-campion-head.png",
+      "bytes": 266293,
+      "sha256": "803649D1A3C1DE54026B35B4BD54174CC31FB2FC8EE2B733477235F7D58B7DAB",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/third-party/d3-celestial-LICENSE.txt",
+      "bytes": 1523,
+      "sha256": "08646B896D1E61D9EB3F636D9110341FB2E136B41AC0B6EEB757421B0D435EE6",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/third-party/game-icons-LICENSE.txt",
+      "bytes": 1018,
+      "sha256": "5D335109EBEE6BEFF533D636A90836E3B6019FE5DE7F3BECCF48B00B84D290D2",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/third-party/sky-cloud-3d-LICENSE.txt",
+      "bytes": 1247,
+      "sha256": "81555C844FC2892553CC384B3193A20AFF037BF97D8104DCABD8481D3A14B80A",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/three-BfZLYfxL.js",
+      "bytes": 82246,
+      "sha256": "270B5FCF7C95B8C3256BB80C1F2158C5B0B8E0E08962237F8AF5904867008179",
+      "roles": [
+        "captured-build-snapshot",
+        "emitted-js-local-reference",
+        "local-reference-directory",
+        "manifest-static-import"
+      ]
+    },
+    {
+      "file": "assets/tulip_poplar_albedo-8TSY0Wjg.png",
+      "bytes": 2626077,
+      "sha256": "FE3A49B8BD653F7357A3561F20DDDB66194EC5CEC81D8D3C0C67411DFB59E32F",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory",
+        "manifest-asset"
+      ]
+    },
+    {
+      "file": "assets/tulip_poplar_normal-BuuTedNJ.png",
+      "bytes": 3100454,
+      "sha256": "BD8ADC7C85798498B1664E939B29FEE01905B1F8017604C90444F8B4173823EB",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory",
+        "manifest-asset"
+      ]
+    },
+    {
+      "file": "assets/tulip_poplar_roughness-B5Aa1Myt.png",
+      "bytes": 751511,
+      "sha256": "286ACC7F1DB4159388D442E687FC3E566FCA81922DB0707564E7E85DA1007766",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory",
+        "manifest-asset"
+      ]
+    },
+    {
+      "file": "assets/tulip_poplar_single_albedo-BGIhr6Rp.png",
+      "bytes": 894411,
+      "sha256": "9F6A86912C0DC6B75C96AC329928535BDD4049A5B41EEE773B27DB0AE1DA2A1E",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory",
+        "manifest-asset"
+      ]
+    },
+    {
+      "file": "assets/tulip_poplar_single_normal-DoBurOaI.png",
+      "bytes": 1234614,
+      "sha256": "818A95C954E48CD69453019CA07ED2F221736FC0F57BECD6F70275163F7A428E",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory",
+        "manifest-asset"
+      ]
+    },
+    {
+      "file": "assets/tulip_poplar_single_roughness-CvXMyhUM.png",
+      "bytes": 314938,
+      "sha256": "3B2D75BC0CBDE1AE21346A560A1D051437B9817538F6E5763484A234153B4256",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory",
+        "manifest-asset"
+      ]
+    },
+    {
+      "file": "assets/tulip_poplar_single_translucency-v-4uVZqY.png",
+      "bytes": 407594,
+      "sha256": "546457A44DE26B5EF523813149FA27F6CE41B05533643415E628FDFC60335775",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory",
+        "manifest-asset"
+      ]
+    },
+    {
+      "file": "assets/ui/build-menu/cards/apiary.webp",
+      "bytes": 58930,
+      "sha256": "FF6AA7F5FA617CC2297D536CD632191D6E24906FEEF47F80FE1DE023DD23356F",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/ui/build-menu/cards/brewery.webp",
+      "bytes": 52816,
+      "sha256": "12E762A9D28A506A850C1F78D53C1DA57CD7987440CAC6EB2978341063294FAD",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/ui/build-menu/cards/carpenter.webp",
+      "bytes": 53828,
+      "sha256": "9F955E5AE5EB76B7A798BE460566DA1875CE186D02853B361AD507EEE465BD45",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/ui/build-menu/cards/chapel.webp",
+      "bytes": 54368,
+      "sha256": "55D2AE9E7E1DFA816FB3A9519685C807282EB9C0D52F244DA826067362B580D1",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/ui/build-menu/cards/charcoal-burner.webp",
+      "bytes": 56530,
+      "sha256": "E3839A9349A322D4A0073705475A3B5A9A821CD79C55B584FD5FBF69EC5B0723",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/ui/build-menu/cards/clay-pit.webp",
+      "bytes": 49234,
+      "sha256": "B34BB5BCC469E7B9B0D448146A5AC5AA4A75B8DE684E1211A5B407223E353269",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/ui/build-menu/cards/ferry-landing.webp",
+      "bytes": 53678,
+      "sha256": "82678243E8C1F5CF8F20493105F7F464E6C22F732447200EBD04782D59C5ADD8",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/ui/build-menu/cards/fishing-camp.webp",
+      "bytes": 65096,
+      "sha256": "E51ABA1DB33F0EF5AD6FBBED0180C049714ED3143BEBF7A700EA4E87B280C214",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/ui/build-menu/cards/foragers-hut.webp",
+      "bytes": 64770,
+      "sha256": "F6641E8072F932393C8387C1402E52DF964C113B4B3AEAEF99FCE3C8267C09BB",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/ui/build-menu/cards/grain-field.webp",
+      "bytes": 56594,
+      "sha256": "DD56EA741895022DBA009BE76F78DDF9A61A2D98FEACF012ECB8887E7D75A4C6",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/ui/build-menu/cards/granary.webp",
+      "bytes": 52514,
+      "sha256": "9011DC279404A900260F9471BB97CF61C6B96AFDEA1B7D1DE1C71C33F14F8F9A",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/ui/build-menu/cards/guardhouse.webp",
+      "bytes": 63530,
+      "sha256": "93F3DBB21B7D1DE768F9637C0021BF482419C17A79D5A0454B95C8E543BFFE7A",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/ui/build-menu/cards/hunter-hall.webp",
+      "bytes": 56002,
+      "sha256": "E9C58795D88FB50297CEF3EF40735D33CBA01C63D6DA0C1084328E042C18ED62",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/ui/build-menu/cards/iron-mine.webp",
+      "bytes": 75680,
+      "sha256": "DCED48F13E2A3D2DC301E153BB8B1C6AB5BA4E546D1F34619BFAB10FDD0E75D3",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/ui/build-menu/cards/large-quarry.webp",
+      "bytes": 58868,
+      "sha256": "EEC5C33E349AB5259EB9A232EE2172C65655BEA93B6A17D8A06D47B6BE66451C",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/ui/build-menu/cards/lumber-mill.webp",
+      "bytes": 49230,
+      "sha256": "F44B7CCFD511A6069A123B123E3C6114D1940D01AA1D1E827366A79196A7E209",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/ui/build-menu/cards/market.webp",
+      "bytes": 53906,
+      "sha256": "3CCBBA65AF4274499A65A750D4ADD8B5CB8E9217C3AF0612CDB032DDFA054B5A",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/ui/build-menu/cards/monastery.webp",
+      "bytes": 50054,
+      "sha256": "8B008ECCCCE321E1CF0218711CFD0CE837595DA4A4721BE713706C4E12615BF7",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/ui/build-menu/cards/palisaded-refuge.webp",
+      "bytes": 59828,
+      "sha256": "104D03F17E114F92B7EE6F8FD9B8AA7CDFE802ED1E97AE5F681DB71D0C4DED5C",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/ui/build-menu/cards/pastoral-farmstead.webp",
+      "bytes": 58552,
+      "sha256": "11F24FEDD4252AA7A5F477EC0BDA855A54C85794CF14EAD0C4C4A30EF3B87C34",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/ui/build-menu/cards/pasture.webp",
+      "bytes": 56494,
+      "sha256": "02C3EF07FC186C3D62B8F6B03FCB0964F2FB4596E025762E6A3F28756E682D1A",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/ui/build-menu/cards/potter-kiln.webp",
+      "bytes": 49672,
+      "sha256": "87719002CC43022C100F930214B2B59BCD9198F196D4CCE327882C731A903D99",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/ui/build-menu/cards/reforester.webp",
+      "bytes": 54616,
+      "sha256": "F8668D2B1A7769766F530E8EAA99A1258D37AFCEC8A3D985831AB6C9ABA1FFCF",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/ui/build-menu/cards/residence.webp",
+      "bytes": 50286,
+      "sha256": "F12FBB7BEC05FE01CB18D858B4958F552CBF937608DDD1D9FCB394A3CA61CC76",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/ui/build-menu/cards/smithy-bloomery.webp",
+      "bytes": 47898,
+      "sha256": "0D509B9B0C3866179AE8C2F0F3585BDE58A6C694AA253D8790FC7B1B6D0E0F52",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/ui/build-menu/cards/smithy.webp",
+      "bytes": 55370,
+      "sha256": "36F0CB083BB4BD3272253A849482C769397CCE467FC5808794357A5C27188381",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/ui/build-menu/cards/smokehouse.webp",
+      "bytes": 50624,
+      "sha256": "1BA6E1286C87034C9FA361C6BA730E97115DAB7A4A08C802D82D12A312F16602",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/ui/build-menu/cards/stonecutters-camp.webp",
+      "bytes": 57180,
+      "sha256": "7B50FAF9592FEF6E804F509C6A6232070DB7FED67AB28E662093AF0584228808",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/ui/build-menu/cards/swineherd.webp",
+      "bytes": 63968,
+      "sha256": "F3DCBAC3599C4A56093BF473F637603C8A85B4150C9C9899EBE364F3F7533003",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/ui/build-menu/cards/threshing-barn.webp",
+      "bytes": 55786,
+      "sha256": "4ADF691A00D4843BA3C2239F6DF66309A60E12D832F1BC57116D91A0A07D3E45",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/ui/build-menu/cards/town-hall.webp",
+      "bytes": 49194,
+      "sha256": "101B491F5969F201BB24B2137B5B170FF4E8E5E4B072A1D6234C756D1BF8D233",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/ui/build-menu/cards/village-storehouse.webp",
+      "bytes": 54210,
+      "sha256": "66108805ED5067F18034A7355441F00A635722C7C6E43970B3EB9808AC329E75",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/ui/build-menu/cards/vineyard.webp",
+      "bytes": 59236,
+      "sha256": "D3044B3A77F710AC76A993F01D66B8523E0A3B15A70A2A0AD5061A57BB553179",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/ui/build-menu/cards/watchtower.webp",
+      "bytes": 60174,
+      "sha256": "AF0117414C90485D740D98B65F92C8B1A197758B82D1B049AFD873164818756E",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/ui/build-menu/cards/water-well.webp",
+      "bytes": 54738,
+      "sha256": "7CD00622A26877727690F775A367C995CE4698C507C95DE2A139EDEE432C07EE",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/ui/build-menu/cards/watermill.webp",
+      "bytes": 54354,
+      "sha256": "0A0C95F257A1AA12D7EEAD0FE6B3334FD21120A189A617C296442D3418D40CFB",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/ui/build-menu/cards/weaver.webp",
+      "bytes": 43738,
+      "sha256": "1A98CC189A7C7C327E6FAA52678D7841AB6336C150F32F71EE8C2DD5E27E6ADD",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/ui/build-menu/cards/woodcutters-lodge.webp",
+      "bytes": 60374,
+      "sha256": "B967D84F5CD46358159541A3A55942E742D4FB1A691A4333E1CCFF825905359C",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/ui/icons/construction-actions.png",
+      "bytes": 572314,
+      "sha256": "FF8F4DBBD5FC14BDF500DC8D57763D01D30D5ED381E0D2FDD712AEF9FE793BEF",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/ui/icons/hud-resources-core.png",
+      "bytes": 608429,
+      "sha256": "E8B76BAE624FC9661803AC1FB1D40F61A73F7CFD003D3FA3BF831022C8CB3222",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/ui/icons/hud-resources-goods-a.png",
+      "bytes": 739548,
+      "sha256": "6D2E130DDCEB27726DAC2EB8461526CDF248C6B582B26A0384BCC6E3385448A6",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/ui/icons/hud-resources-goods-b.png",
+      "bytes": 259825,
+      "sha256": "5512A50DE44E4C7BFEC48356CEAA76DF1124F33BCE6DCBEFFBDC9078F165BF58",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/ui/icons/map-resources.png",
+      "bytes": 406395,
+      "sha256": "AA2BA4BE5E8AE704C8AE3E61B318759DA779BE0215C4FD45C2D54D84F5BF664E",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/ui/icons/materials/charcoal.png",
+      "bytes": 91075,
+      "sha256": "7F3A60E87469960994B84C55EC98779A0A1696DFA9329D1C31246C5572F870F6",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/ui/icons/materials/clay.png",
+      "bytes": 93536,
+      "sha256": "1175B71416EC70DEF527B0566426F53CD1CDE875D0E1D3EA398421FABE9E5F22",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/ui/icons/materials/iron.png",
+      "bytes": 73508,
+      "sha256": "420BCC055ECB0EB9F568985B0B27E206705994E0887947CF47AA625CAA0FDF94",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/ui/icons/materials/pottery.png",
+      "bytes": 81229,
+      "sha256": "07EF8EE4F4FCC3C5DC5582AB01F7A06F732958ACC0186A2FD8AC7E9F553EF1D4",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/ui/icons/materials/roof-tiles.svg",
+      "bytes": 1107,
+      "sha256": "1C9D3A8689F6DB03D1FD06F851F6EDF83B22374F074A83213BD19AAEC285FE7A",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/ui/icons/materials/salt.png",
+      "bytes": 87570,
+      "sha256": "8CF7A24E1082386874644F62C3075FAC5F46B29FC1F34ABAA4922A98C828D213",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/ui/selo-empire-logo.png",
+      "bytes": 796459,
+      "sha256": "E10DE88112C20BDEDD50B1EEB9B18325743C988E6842BB434769C3C346B400AA",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/ui/selo-empire-splash-naive.webp",
+      "bytes": 603282,
+      "sha256": "A42F46F9632E735A5C4E99F07F0B3CF7AEAA0FA70071FFEECFFABE1B5A8F39F4",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/ui/selo-empire-splash.webp",
+      "bytes": 544666,
+      "sha256": "223660A62317B1D6EEE58F6E30486F8349676562D15048A3F3F8BC4DC729E1F3",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/ui/world-setup-gorski-kotar-1550.webp",
+      "bytes": 344158,
+      "sha256": "2351A8B24A2195FA57536EBE137EFC6BE3110B92A79AB2439650AC1F32214BB7",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/visual-gauntlet-C4pQlWJx.css",
+      "bytes": 32100,
+      "sha256": "7D631B69D40F1059E75E105B9412FDAA1851BB1F9CBD1C71218C722D2A231AC7",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/visual-gauntlet-CW2bDVF9.js",
+      "bytes": 10240,
+      "sha256": "E357F05B645026B20512C781DCEEA62948EE5ABC57FBFBC63128F5EA99A07695",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/visualPerformanceHooks-DIYWHXuU.js",
+      "bytes": 1019,
+      "sha256": "1B7B2572F8D3F4D9B80356C54CEFB58E912A1773A9E33660283B25E5D3598ED7",
+      "roles": [
+        "captured-build-snapshot",
+        "emitted-js-local-reference",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "assets/visualPerformanceHooks-xDClN1ft.js",
+      "bytes": 16741,
+      "sha256": "AE9DB6C2DC9F5216C4C1DEA024FA3AF1F6BDE279B048C006B150583D946842B4",
+      "roles": [
+        "captured-build-snapshot",
+        "emitted-js-local-reference",
+        "local-reference-directory",
+        "manifest-static-import"
+      ]
+    },
+    {
+      "file": "assets/white_oak_albedo-Dl-_yQE1.png",
+      "bytes": 2402080,
+      "sha256": "D8094AE1EED2E89F85A6CF8A8774BD62D94B9860452A8161C0295D98EA619A2E",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory",
+        "manifest-asset"
+      ]
+    },
+    {
+      "file": "assets/white_oak_normal-DC8IoX6Q.png",
+      "bytes": 5986788,
+      "sha256": "F7ADF61942487F1AE8F4B00A95550BBBE18AF60A1076700F3BA187B652C41435",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory",
+        "manifest-asset"
+      ]
+    },
+    {
+      "file": "assets/white_oak_roughness-CVNX7hXh.png",
+      "bytes": 676664,
+      "sha256": "9669D1FB8AE4F1ABD08903763B95AD2810858F5C4675BCE3145529EF426F5A9B",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory",
+        "manifest-asset"
+      ]
+    },
+    {
+      "file": "assets/white_oak_single_albedo-DOren19T.png",
+      "bytes": 1093862,
+      "sha256": "447D98303A9115E9158055636DD9140B19699D24C18AA5D302C11309D79CEAFC",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory",
+        "manifest-asset"
+      ]
+    },
+    {
+      "file": "assets/white_oak_single_height-DX6828sQ.png",
+      "bytes": 384383,
+      "sha256": "75610C3219754A0932A098BFE5596AA2C291FCB058F527964A66BACB2E4BC0FB",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory",
+        "manifest-asset"
+      ]
+    },
+    {
+      "file": "assets/white_oak_single_normal-seSyOz_A.png",
+      "bytes": 1007662,
+      "sha256": "FAAA376A3FD5CE88FB91B75FDF91243AA510CCDEE4602224DA5D570CF598B72A",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory",
+        "manifest-asset"
+      ]
+    },
+    {
+      "file": "assets/white_oak_single_roughness-C0NJ9RxG.png",
+      "bytes": 257168,
+      "sha256": "57F92337B1AB4CF84F95126C6D800BABDAB65FB32858668D51B4023B9827F266",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory",
+        "manifest-asset"
+      ]
+    },
+    {
+      "file": "assets/white_oak_single_translucency-BM6OMyEw.png",
+      "bytes": 381309,
+      "sha256": "71C2BC03F3D1F30665DC8B80178499B0BF0D9ACB01D1E9293632A8623B78FFF0",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory",
+        "manifest-asset"
+      ]
+    },
+    {
+      "file": "assets/yieldToMain-CKkYsSyO.js",
+      "bytes": 168,
+      "sha256": "657844EFDCC579491D020D5837428FAD90DDCF2325867D357FF2C4ADC7588185",
+      "roles": [
+        "captured-build-snapshot",
+        "emitted-js-local-reference",
+        "local-reference-directory",
+        "manifest-static-import"
+      ]
+    },
+    {
+      "file": "assets/yucca_rosette_albedo-sidC850Q.png",
+      "bytes": 1010926,
+      "sha256": "46AB82A61E32D760E46B62BF384FF88A2E797CC9B486ADDE206C884A8DA9A29F",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory",
+        "manifest-asset"
+      ]
+    },
+    {
+      "file": "assets/yucca_rosette_dry_albedo-DOhNgNaM.png",
+      "bytes": 1240973,
+      "sha256": "10329C61B4C6A5DEBAC73004C222830C2ECAE934A048E3FC3E271CFFDE930B2A",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory",
+        "manifest-asset"
+      ]
+    },
+    {
+      "file": "assets/yucca_rosette_dryest_albedo-DZQKGr_s.png",
+      "bytes": 1094922,
+      "sha256": "F8CCBD3EFC7093D97A4EAA0278ED4E935639048C153C4C4E6B7884D08B4F1A42",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory",
+        "manifest-asset"
+      ]
+    },
+    {
+      "file": "assets/yucca_rosette_normal-B6e7yE6b.png",
+      "bytes": 1934631,
+      "sha256": "47B7074C2CE102A94B7329A2168C2AFCFBE4F78C44F853E7434B3BA668EC9547",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory",
+        "manifest-asset"
+      ]
+    },
+    {
+      "file": "assets/yucca_rosette_roughness-CzGlnX5T.png",
+      "bytes": 1319003,
+      "sha256": "E373112725DC7EA4068AA591F1BA96C4118560DC8F6AACC0803245648AC5F204",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory",
+        "manifest-asset"
+      ]
+    },
+    {
+      "file": "assets/yucca_rosette_translucency-CPUGiLgC.png",
+      "bytes": 1427799,
+      "sha256": "64105331A693D024F17BD93ED9C9E569B4BC66A209B3D9A23F57D0993996A1E0",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference",
+        "local-reference-directory",
+        "manifest-asset"
+      ]
+    },
+    {
+      "file": "hamlet-fixture.html",
+      "bytes": 4122,
+      "sha256": "248DBDD48D4D66431E4FCF0C4EA40B3B1B206BBB42C45D0B9AB656A303A75903",
+      "roles": [
+        "captured-build-snapshot",
+        "entry-html",
+        "local-asset-reference"
+      ]
+    },
+    {
+      "file": "index.html",
+      "bytes": 11398,
+      "sha256": "57BF4F9DABE3A1334CFC44DE46E7261B9F1BCC899E2823F21820CBEFF1F05970",
+      "roles": [
+        "captured-build-snapshot"
+      ]
+    },
+    {
+      "file": "sounds/ambient/birds_wind_day.mp3",
+      "bytes": 481115,
+      "sha256": "1755DE6B27E42909FDBCAF7215ABF55B422B0CC0E6384B28287C6F6CD23D1EA7",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference"
+      ]
+    },
+    {
+      "file": "sounds/ambient/church_bells.mp3",
+      "bytes": 384984,
+      "sha256": "94677BDF6A7D2E4E09666F4029D1E3869971F7C83C6B4E85E137C2A1FD3BE6AB",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference"
+      ]
+    },
+    {
+      "file": "sounds/ambient/farm_workers_singing.mp3",
+      "bytes": 811814,
+      "sha256": "4C7639F2ABCBDAD954DB703744A0866B3E81AFA4D2F27D6BD51907819E26F1C5",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference"
+      ]
+    },
+    {
+      "file": "sounds/ambient/fire_crackle.mp3",
+      "bytes": 481115,
+      "sha256": "1C47FF2C4438B2EF1AC0CE0C012BAC861BDDCDFF6FAF9C39FEBC45204F064991",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference"
+      ]
+    },
+    {
+      "file": "sounds/ambient/light_rain.mp3",
+      "bytes": 481115,
+      "sha256": "1E741A58654CE9C26F8DA44892763863D347CC95BE43146517D8E3275ABC6B50",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference"
+      ]
+    },
+    {
+      "file": "sounds/ambient/night_insects.mp3",
+      "bytes": 481115,
+      "sha256": "1B8E8A9AA2A74190B86069AD7C6B044B492DFAF7DE6212E39BC6C9991A0125E2",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference"
+      ]
+    },
+    {
+      "file": "sounds/ambient/open_wind_overview.mp3",
+      "bytes": 721197,
+      "sha256": "388CDC56F19EA6D106AF8D46C78B5D6BFA3CB6EA860542998F3190129A2D8305",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference"
+      ]
+    },
+    {
+      "file": "sounds/ambient/river_water_rushing.mp3",
+      "bytes": 481115,
+      "sha256": "04D516DE7FB96CA8DDE67E30461F4172FAB46EC985842DBE4A415206BBBD7DD8",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference"
+      ]
+    },
+    {
+      "file": "sounds/ambient/village_day.mp3",
+      "bytes": 481115,
+      "sha256": "0285B9433D26832AFBD7A895A83FEB1B8AFC6FEACFB1D9FEC1C8DCFFFF05C17E",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference"
+      ]
+    },
+    {
+      "file": "sounds/combat/angry_fighting_1.mp3",
+      "bytes": 24703,
+      "sha256": "D830A816BE05EEA282E80F48167DE645123724701D492E5CAB1CD9B8FC814FBA",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "sounds/combat/angry_fighting_2.mp3",
+      "bytes": 24703,
+      "sha256": "AD0ECE83765CE7F53CB4EBF03DDBF5D92FCF0E0EEC2846AF3B6BC7D29A2E3A8A",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "sounds/combat/angry_fighting_3.mp3",
+      "bytes": 24703,
+      "sha256": "35A4C0A552F3DEC211703CF1384540B936612B006897FFB2C82FCC1DCAAF4269",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "sounds/combat/angry_fighting_4.mp3",
+      "bytes": 24703,
+      "sha256": "3FD6009DE6BABBD2DA89076D0F6F1A701EEB4C8C23C438D992126CE286EF3D77",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "sounds/combat/pike_melee_1.mp3",
+      "bytes": 21359,
+      "sha256": "D1F8538943D658208E123038F49DFA686C8DE15E4A26CBA04083AFE4267C4456",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "sounds/combat/pike_melee_2.mp3",
+      "bytes": 21359,
+      "sha256": "A4AFBC280A0E69A516F45854B66C8A508CC8D407DF61620177E5C9D3673EBD5D",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "sounds/combat/pike_melee_3.mp3",
+      "bytes": 21359,
+      "sha256": "899590A8F94F3D1B35566F006655CC1E87CAF9319EDB5B49BA83805D06F8FC5E",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "sounds/combat/pike_melee_4.mp3",
+      "bytes": 21359,
+      "sha256": "A571940ED5C38CF13EB709C1DF0ED80DD853A6836E4DA858D3D652E6B5AF6B09",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "sounds/elevenlabs-generation.json",
+      "bytes": 15846,
+      "sha256": "8D9DA75CFC07C21EEA4B819F689902BE07F483DEB14B4F5F420252DF747D904D",
+      "roles": [
+        "captured-build-snapshot"
+      ]
+    },
+    {
+      "file": "sounds/music/roads_and_rooftops.mp3",
+      "bytes": 2897261,
+      "sha256": "EF213F53C9188F55D00EBC6BAFA927C8A9837DEBDB2B2CEC0C1657DA32A34353",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference"
+      ]
+    },
+    {
+      "file": "sounds/music/valley_at_first_light.mp3",
+      "bytes": 2897261,
+      "sha256": "A8A1403957B352C1230C5902A3691C1BBBC4527465FD6A4AE45D2189795B32D5",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference"
+      ]
+    },
+    {
+      "file": "sounds/music/vespers_over_the_valley.mp3",
+      "bytes": 2897261,
+      "sha256": "D5319AAACF8E86433864C5B82462E9357336C78F232574D8FD978D02EDCB676A",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference"
+      ]
+    },
+    {
+      "file": "sounds/music/winter_hearth.mp3",
+      "bytes": 2897261,
+      "sha256": "CA5B41F841A933595B4EDA52419FAE2FDE732F2CB7E91744C5314A320985402C",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference"
+      ]
+    },
+    {
+      "file": "sounds/README.md",
+      "bytes": 968,
+      "sha256": "96268ED8E02AE753350F2A062F8C64264BBB044BEE2473BA1AE48E9C3978B01E",
+      "roles": [
+        "captured-build-snapshot"
+      ]
+    },
+    {
+      "file": "sounds/ui/building_place.mp3",
+      "bytes": 15090,
+      "sha256": "55AC41D8E7FE7AB8C638A8A7C18E5738E340277612E4B68C5356FBC348DD43CC",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference"
+      ]
+    },
+    {
+      "file": "sounds/ui/confirm.mp3",
+      "bytes": 10493,
+      "sha256": "40AFB80F3FCE6D793439EE597FF557D1445517EDA7D321937F88D45F576DA9C7",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference"
+      ]
+    },
+    {
+      "file": "sounds/ui/error.mp3",
+      "bytes": 12164,
+      "sha256": "CFB6414D0E989DF115B2D976D1F3107AE3AD4739F69E7D5FEDBDD714902ACB5E",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference"
+      ]
+    },
+    {
+      "file": "sounds/ui/road_place.mp3",
+      "bytes": 13836,
+      "sha256": "ABDB3F30EF12131B5F1DF45F22D63B86D11CC857287CAB386F1D26E926E80E33",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference"
+      ]
+    },
+    {
+      "file": "sounds/workers/chop_wood_1.mp3",
+      "bytes": 25389,
+      "sha256": "81E8604DD3FFA9D5551671E0A5D3A969FC659714FB167E26538F6FC9DFD9C095",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "sounds/workers/chop_wood_2.mp3",
+      "bytes": 25389,
+      "sha256": "EF81A3820BBEB88D05E32F18866E5C6BF29F6D59EB4E20AB3C69B6F04565D2B0",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "sounds/workers/chop_wood_3.mp3",
+      "bytes": 25389,
+      "sha256": "F9A51191F9E8EDCE412CE56AFF73450B15D1936AD25D9CFFE0E16F08D2D3FCAC",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "sounds/workers/chop_wood_4.mp3",
+      "bytes": 25389,
+      "sha256": "2EDC9B40290BA630EA0AF0BB1DE5C1CB41F4C5FC124389BD5A3138C9817A40AD",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "sounds/workers/cut_crop_1.mp3",
+      "bytes": 20106,
+      "sha256": "B7BC14689995CC119AB356905F0748199E6ABD26EBDB1C310B81F61F37B68C65",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "sounds/workers/cut_crop_2.mp3",
+      "bytes": 20106,
+      "sha256": "E46522F69098B667DAB6AC0D21A59C6857975510F9A917FC9A83322994BF06A4",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "sounds/workers/cut_crop_3.mp3",
+      "bytes": 20106,
+      "sha256": "34073422F4E8007749A2DCA65D809D1C2433CE09C668BC4351D8770B51B03D1D",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "sounds/workers/dig_soil_1.mp3",
+      "bytes": 21359,
+      "sha256": "D6586B85E535E35ECEE359163309443E4694339697BA42718778DFCD5899FA97",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "sounds/workers/dig_soil_2.mp3",
+      "bytes": 21359,
+      "sha256": "6B2CCBCEECFD42B622BB0163F17D509FECA91A29C8B51C40015EF5FE086FEECC",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "sounds/workers/dig_soil_3.mp3",
+      "bytes": 21359,
+      "sha256": "AF06C57804C419BB9FE353598B0654DD659FD61C84C8A33C88D7D3331774AC8E",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "sounds/workers/fishing_1.mp3",
+      "bytes": 33062,
+      "sha256": "133AE5F0CFF543A9A6B2C3C729E70DF83E028AD125F251AF2FED15C465E69D26",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "sounds/workers/fishing_2.mp3",
+      "bytes": 33062,
+      "sha256": "96F6C6C84453C1D04FFED800853D4CD738DD9E20B8A89B49CF90F3F23312DA8E",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "sounds/workers/fishing_3.mp3",
+      "bytes": 29301,
+      "sha256": "8C4061F8BC1BEE54C1BEA20C1EDC6659FE62EE58456217F372361931EB20EC6C",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "sounds/workers/forage_1.mp3",
+      "bytes": 28047,
+      "sha256": "96854F03D673F2E62244582D6BF193D290328C29F9AF53361730178231DA89C8",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "sounds/workers/forage_2.mp3",
+      "bytes": 28047,
+      "sha256": "7C8BAAE6691B16BFEFB7DEF7CB921AC4C6852C1F9C32C2AA6DEECDC8C515C1ED",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "sounds/workers/forage_3.mp3",
+      "bytes": 28047,
+      "sha256": "A97BAA5025AB44C3A2B8D7795087006CC48BF1B87AB98A0B01215F69BA976C5B",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "sounds/workers/hammer_wood_1.mp3",
+      "bytes": 17181,
+      "sha256": "C7426072BEC480FA355C7930C4A935A2E3B79AF1A231953CFFB5595A29250D7C",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "sounds/workers/hammer_wood_2.mp3",
+      "bytes": 17181,
+      "sha256": "960D94ED830953A1B5C3BF3D901B5878FE66C7D9F8A1FDA5FAC326D7C0044E7C",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "sounds/workers/hammer_wood_3.mp3",
+      "bytes": 33481,
+      "sha256": "870EEA4478E61A7B6A8C405A0DAEB9BBBF05326F249C4638133D883A853C9EC7",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "sounds/workers/hammer_wood_4.mp3",
+      "bytes": 17181,
+      "sha256": "B6C30122B80B2B26952EDA1E8CCE0E1516A8CA1FFBB0EA510859C3285A4A55C1",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "sounds/workers/livestock_1.mp3",
+      "bytes": 36406,
+      "sha256": "9ACA6B8192068A5FB662CEC99D9BE464D1F1DE77DFF6E7CF39137C2749E67943",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "sounds/workers/livestock_2.mp3",
+      "bytes": 36406,
+      "sha256": "A5D477C752F8AD346D4166679B5008BC305F2B34C4A007CCEF7D237B9382FE05",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "sounds/workers/livestock_3.mp3",
+      "bytes": 36406,
+      "sha256": "A40A2FADBF77C6675F6A2A305F7247D2177E4ABDAAC98731B8A7A45646969381",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "sounds/workers/mine_stone_1.mp3",
+      "bytes": 25389,
+      "sha256": "CC3E6D100E5A9139F5933A1C934DEC112829B5159563DA07C8A0D47C8F2A735B",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "sounds/workers/mine_stone_2.mp3",
+      "bytes": 25389,
+      "sha256": "4E70E4FA43A3DC530EFAFABDD507BA0DD8BF102EB14F02C67D1853D71D9003A6",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "sounds/workers/mine_stone_3.mp3",
+      "bytes": 25389,
+      "sha256": "F522709E70F16C475A307D2FF9C197744CB01928F7A0A226A8F4D8ACD0BE49A1",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "sounds/workers/mine_stone_4.mp3",
+      "bytes": 25389,
+      "sha256": "7B3DBEE8C169269FFE1927BD0B0A4E4F88D33FCADBA976CC7A7D3E0D26F86B75",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "sounds/workers/README.txt",
+      "bytes": 1003,
+      "sha256": "9C77F5CA17D0A4EBB48A334BBDF7D8B33FED2F92631224BFF0A24FA7D926ABB0",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "textures/buildings/clay_tiles_diff.jpg",
+      "bytes": 878367,
+      "sha256": "AAC0F4E742A2CCE21AFB5DFB523B47C720C6A8E2782A312B823608FE3F80EAE6",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference"
+      ]
+    },
+    {
+      "file": "textures/buildings/clay_tiles_nor_gl.png",
+      "bytes": 5756083,
+      "sha256": "C36ACA4343B0E223CA7B4BC0F6600946C11A2E80EA995BC73ABF30A109651956",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference"
+      ]
+    },
+    {
+      "file": "textures/buildings/clay_tiles_rough.jpg",
+      "bytes": 306665,
+      "sha256": "9DBDDFDA928EA582E520D5E6FE7FADCFB886A169DF9AA8ECAEFA689363679B58",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference"
+      ]
+    },
+    {
+      "file": "textures/buildings/masonry_diff.jpg",
+      "bytes": 759153,
+      "sha256": "C3123E0512B784DBFBB000FBE2CD7B5779C4B577EA2F221DB6D59F3DBFF2FD10",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference"
+      ]
+    },
+    {
+      "file": "textures/buildings/masonry_nor_gl.png",
+      "bytes": 6695421,
+      "sha256": "87D4E2F19FCFF8B8B41B4585926610A072E6B2B6549D4BF87EFD367892BA96D0",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference"
+      ]
+    },
+    {
+      "file": "textures/buildings/masonry_rough.jpg",
+      "bytes": 489661,
+      "sha256": "F0B4EF673A7D94C2013C5700EC0AD8AC7B1F96D4B1481106A7E9620C5A7EF883",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference"
+      ]
+    },
+    {
+      "file": "textures/buildings/plaster_diff.jpg",
+      "bytes": 680077,
+      "sha256": "B86E9A408AAC5B493C31A4EC221E5022B0B704D2F51596006F7D6840A6A3300A",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference"
+      ]
+    },
+    {
+      "file": "textures/buildings/plaster_nor_gl.png",
+      "bytes": 6487453,
+      "sha256": "BD3F5CE5E747E23054F5B3F8BDC2CEE688856BC507BCC39F4CCF520BF55B6820",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference"
+      ]
+    },
+    {
+      "file": "textures/buildings/plaster_rough.jpg",
+      "bytes": 508548,
+      "sha256": "978BD1D9F8D4132564D40375F705975E897CA588C2D756E6257F68946651BAB0",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference"
+      ]
+    },
+    {
+      "file": "textures/buildings/README.md",
+      "bytes": 1960,
+      "sha256": "E973C3D1A72FD40082C270EE2102679C5F4428BCFE67E777D8AE6D58F0BACE0A",
+      "roles": [
+        "captured-build-snapshot"
+      ]
+    },
+    {
+      "file": "textures/buildings/wood_planks_diff.jpg",
+      "bytes": 609525,
+      "sha256": "3B0669F683E4BF10F5A55A381CFA9669A7B8DFD921901829DAA3B35ACC2BBDEC",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference"
+      ]
+    },
+    {
+      "file": "textures/buildings/wood_planks_nor_gl.png",
+      "bytes": 5880709,
+      "sha256": "F0B8C0E78A28F0E4AA962921F508A232B42A1F787A9B10CDB37AA1050E6E845D",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference"
+      ]
+    },
+    {
+      "file": "textures/buildings/wood_planks_rough.jpg",
+      "bytes": 299757,
+      "sha256": "1B7F115BFA25619B0A2DB554EB1AB88A6FC5EF0B74BA4890611EAE04D00B9829",
+      "roles": [
+        "captured-build-snapshot",
+        "local-asset-reference"
+      ]
+    },
+    {
+      "file": "visual-gauntlet.html",
+      "bytes": 285665,
+      "sha256": "6DB054340DB2B6B8C311C039192CE2989F62FD7C650DEEF93B424F2BAD6E6629",
+      "roles": [
+        "captured-build-snapshot"
+      ]
+    },
+    {
+      "file": "visual-gauntlet/references/manifest.json",
+      "bytes": 2542,
+      "sha256": "3F8013BA1E4CDF33D774E55FD1B4C63BCD4DC4E282ACC4B9DDA8524D48065761",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "visual-gauntlet/references/manor-lords-01.png",
+      "bytes": 4485664,
+      "sha256": "4514B9C63D2CF1619CB1728095315094990248A000935FC44298850115FBB5C3",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "visual-gauntlet/references/manor-lords-02.png",
+      "bytes": 6382274,
+      "sha256": "3C897E6A28E5E9E82FC1EA554B4BFB6F916D5606BD8B9641A45A9086E1C91715",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "visual-gauntlet/references/manor-lords-03.png",
+      "bytes": 7472372,
+      "sha256": "AB5EDEE0F29B3F04585CE89C089786D298E72A750F9AC746896F30122D854127",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "visual-gauntlet/references/manor-lords-04.png",
+      "bytes": 6988951,
+      "sha256": "5C0F65919A9A332640E52C346409CA179CF64FDD63B4851662E5C95CE0B9A752",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "visual-gauntlet/references/manor-lords-05.png",
+      "bytes": 5973443,
+      "sha256": "F40415B4B2813C4E2FEFAACADCDFBDA37CD13969DDDC8ECC6C1C163F4C61D333",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "visual-gauntlet/references/manor-lords-06.png",
+      "bytes": 5383905,
+      "sha256": "4CA23CE351E4E54AC2577659D61FBC33F4D39E772A5532F0C81C45FEA2794F1D",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "visual-gauntlet/references/manor-lords-07.png",
+      "bytes": 5519593,
+      "sha256": "381C67F850C725D0AE95CA149390984582585ED5577191E49EB994BFFDC8FE30",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "visual-gauntlet/references/manor-lords-08.png",
+      "bytes": 2925531,
+      "sha256": "D980389B6FA223434C563AA4D236AC681A407B405FE74271000D7775ACC3423C",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "visual-gauntlet/references/manor-lords-09.png",
+      "bytes": 2976818,
+      "sha256": "D09E45501268E8FEE792828937C29B75F94387999B79669C56F520C6DF821601",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    },
+    {
+      "file": "visual-gauntlet/references/manor-lords-10.png",
+      "bytes": 1342684,
+      "sha256": "063D300CA3889069F7A844E01DB9EA2892366FD94C8E6D539BF388D5C12B6877",
+      "roles": [
+        "captured-build-snapshot",
+        "local-reference-directory"
+      ]
+    }
+  ]
+}

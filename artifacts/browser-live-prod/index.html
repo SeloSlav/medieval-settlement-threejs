@@ -1,0 +1,424 @@
+﻿<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#171512" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="application-name" content="Selo Empire" />
+    <meta name="apple-mobile-web-app-title" content="Selo Empire" />
+    <meta name="robots" content="index, follow, max-image-preview:large" />
+    <link rel="icon" href="data:," />
+    <link rel="preload" as="image" href="/assets/ui/selo-empire-monastery-1550-4k.webp" type="image/webp" />
+    <title>Selo Empire — Medieval City Builder &amp; Settlement Sim</title>
+    <meta
+      name="description"
+      content="Selo Empire is a medieval city-building and settlement simulation set in 1550 Croatia. Shape roads, manage a physical economy, guide families, and face the seasons."
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Selo Empire" />
+    <meta property="og:title" content="Selo Empire — Medieval City Builder &amp; Settlement Sim" />
+    <meta
+      property="og:description"
+      content="Selo Empire is a medieval city-building and settlement simulation set in 1550 Croatia. Shape roads, manage a physical economy, guide families, and face the seasons."
+    />
+    <meta property="og:image" content="/assets/ui/selo-empire-social-card.jpg" />
+    <meta property="og:image:type" content="image/jpeg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta
+      property="og:image:alt"
+      content="Selo Empire medieval city-building game overlooking a mountain settlement in 1550 Croatia"
+    />
+    <meta property="og:locale" content="en_US" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Selo Empire — Medieval City Builder &amp; Settlement Sim" />
+    <meta
+      name="twitter:description"
+      content="Selo Empire is a medieval city-building and settlement simulation set in 1550 Croatia. Shape roads, manage a physical economy, guide families, and face the seasons."
+    />
+    <meta name="twitter:image" content="/assets/ui/selo-empire-social-card.jpg" />
+    <meta
+      name="twitter:image:alt"
+      content="Selo Empire medieval city-building game overlooking a mountain settlement in 1550 Croatia"
+    />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "VideoGame",
+        "name": "Selo Empire",
+        "description": "Selo Empire is a medieval city-building and settlement simulation set in 1550 Croatia. Shape roads, manage a physical economy, guide families, and face the seasons.",
+        "image": "/assets/ui/selo-empire-social-card.jpg",
+        "genre": [
+          "Medieval city builder",
+          "Settlement simulation",
+          "Resource management",
+          "Strategy"
+        ],
+        "keywords": "medieval city builder, settlement simulation, resource management game, historical strategy game",
+        "gamePlatform": "Web browser",
+        "applicationCategory": "Game",
+        "applicationSubCategory": "Medieval city-building game",
+        "operatingSystem": "Any"
+      }
+    </script>
+    <style>
+      html,
+      body {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        overflow: hidden;
+        background: #171a15;
+        color: #eee8dc;
+      }
+
+      #app-loading {
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        display: grid;
+        place-items: end start;
+        padding: clamp(24px, 4.5vw, 68px);
+        background:
+          linear-gradient(90deg, rgba(12, 11, 9, 0.34) 0%, rgba(12, 11, 9, 0.1) 46%, rgba(12, 11, 9, 0) 70%),
+          linear-gradient(0deg, rgba(12, 11, 9, 0.3) 0%, rgba(12, 11, 9, 0.02) 50%),
+          url('/assets/ui/selo-empire-monastery-1550-4k.webp') center / cover no-repeat,
+          #171512;
+        transition: opacity 420ms ease, visibility 420ms ease;
+      }
+
+      #app-loading.is-dismissed {
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+      }
+
+      .app-loading-layout {
+        display: grid;
+        gap: 14px;
+        justify-items: center;
+        width: min(520px, calc(100vw - 48px));
+      }
+
+      .app-loading-logo {
+        display: block;
+        width: min(520px, 100%);
+        height: auto;
+        margin: 0;
+        filter:
+          drop-shadow(0 2px 1px rgba(0, 0, 0, 0.82))
+          drop-shadow(0 14px 30px rgba(0, 0, 0, 0.5));
+      }
+
+      .app-loading-card {
+        display: grid;
+        gap: 10px;
+        justify-items: start;
+        box-sizing: border-box;
+        width: min(410px, 100%);
+        padding: 18px 22px 20px;
+        overflow: hidden;
+        text-align: left;
+        font-family: Georgia, 'Times New Roman', serif;
+        color: #2f291d;
+        border: 1px solid rgba(91, 65, 28, 0.36);
+        border-radius: 3px;
+        background:
+          linear-gradient(135deg, rgba(250, 243, 221, 0.95), rgba(224, 207, 169, 0.92)),
+          rgba(239, 226, 194, 0.92);
+        box-shadow:
+          0 22px 60px rgba(30, 35, 20, 0.32),
+          inset 3px 0 0 rgba(139, 93, 31, 0.78),
+          inset 0 1px 0 rgba(255, 255, 255, 0.55);
+        backdrop-filter: blur(14px) saturate(0.88);
+      }
+
+      .app-loading-kicker {
+        margin: 0 0 2px;
+        color: #73501d;
+        font-family: Inter, ui-sans-serif, system-ui, Segoe UI, Roboto, Arial, sans-serif;
+        font-size: 10px;
+        font-weight: 750;
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+      }
+
+      .app-loading-spinner {
+        width: 34px;
+        height: 34px;
+        border-radius: 50%;
+        border: 2px solid rgba(238, 232, 220, 0.14);
+        border-top-color: #d7b463;
+        animation: app-loading-spin 900ms linear infinite;
+      }
+
+      .visually-hidden {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
+      }
+
+      #app-loading .app-loading-spinner {
+        border-color: rgba(82, 65, 35, 0.18);
+        border-top-color: #8e6428;
+      }
+
+      .app-loading-percent {
+        margin: 0;
+        color: #75511d;
+        font-family: Inter, ui-sans-serif, system-ui, Segoe UI, Roboto, Arial, sans-serif;
+        font-size: 15px;
+        font-weight: 700;
+        font-variant-numeric: tabular-nums;
+        letter-spacing: 0.02em;
+      }
+
+      .app-loading-progress {
+        width: 100%;
+        height: 3px;
+        border-radius: 999px;
+        background: rgba(72, 57, 31, 0.16);
+        overflow: hidden;
+      }
+
+      .app-loading-progress__fill {
+        display: block;
+        width: var(--loading-progress, 0%);
+        height: 100%;
+        border-radius: inherit;
+        background: linear-gradient(90deg, #7d5720 0%, #b98b3d 100%);
+        transition: width 180ms ease;
+      }
+
+      .app-loading-label {
+        margin: 0;
+        font-size: 20px;
+        font-weight: 650;
+        letter-spacing: 0.01em;
+      }
+
+      #app-loading .app-loading-label {
+        color: #2f291d;
+      }
+
+      .app-loading-detail {
+        margin: 0;
+        min-height: 1.2em;
+        color: #bcb29c;
+        font-family: Inter, ui-sans-serif, system-ui, Segoe UI, Roboto, Arial, sans-serif;
+        font-size: 12px;
+        font-weight: 500;
+        line-height: 1.35;
+      }
+
+      #app-loading .app-loading-detail {
+        color: #5d5545;
+      }
+
+      .app-loading-recovery-hint {
+        margin: 0;
+        color: #9a927d;
+        font-family: Inter, ui-sans-serif, system-ui, Segoe UI, Roboto, Arial, sans-serif;
+        font-size: 11px;
+        font-weight: 500;
+        line-height: 1.45;
+      }
+
+      #app-loading .app-loading-recovery-hint {
+        color: #6e6553;
+      }
+
+      .app-loading-recovery-hint[hidden],
+      .app-loading-recovery[hidden] {
+        display: none !important;
+      }
+
+      .app-loading-spinner.is-hidden {
+        display: none;
+      }
+
+      .app-loading-retry {
+        margin-top: 4px;
+        padding: 10px 18px;
+        border: 1px solid rgba(112, 76, 26, 0.46);
+        border-radius: 8px;
+        background: rgba(138, 94, 33, 0.1);
+        color: #3d301c;
+        font: inherit;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+      }
+
+      .app-loading-retry:hover {
+        background: rgba(138, 94, 33, 0.18);
+      }
+
+      .app-loading-recovery {
+        margin-top: 2px;
+        padding: 10px 18px;
+        border: 1px solid rgba(92, 79, 56, 0.25);
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.22);
+        color: #554b3b;
+        font: inherit;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+      }
+
+      .app-loading-recovery:hover {
+        background: rgba(255, 255, 255, 0.38);
+      }
+
+      .session-connection-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 9000;
+        display: grid;
+        place-items: center;
+        background: rgba(23, 26, 21, 0.82);
+        backdrop-filter: blur(4px);
+        font-family: Inter, ui-sans-serif, system-ui, Segoe UI, Roboto, Arial, sans-serif;
+      }
+
+      .session-connection-overlay[hidden] {
+        display: none !important;
+      }
+
+      .session-connection-card {
+        display: grid;
+        gap: 14px;
+        justify-items: center;
+        width: min(320px, calc(100vw - 48px));
+        padding: 28px 30px;
+        border: 1px solid rgba(229, 214, 171, 0.28);
+        border-radius: 16px;
+        background:
+          linear-gradient(150deg, rgba(64, 62, 47, 0.92), rgba(28, 31, 25, 0.96));
+        box-shadow:
+          0 24px 70px rgba(0, 0, 0, 0.42),
+          inset 0 1px 0 rgba(255, 255, 255, 0.08);
+        text-align: center;
+      }
+
+      .session-connection-card .app-loading-retry {
+        min-width: 132px;
+        margin-top: 2px;
+      }
+
+      @keyframes app-loading-spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      @media (max-width: 640px) {
+        #app-loading {
+          place-items: end stretch;
+          padding: 16px;
+          background-position: 60% center;
+        }
+
+        .app-loading-layout {
+          width: 100%;
+          justify-items: stretch;
+        }
+
+        .app-loading-logo {
+          width: min(88vw, 460px);
+          margin: 0 auto;
+        }
+
+        .app-loading-card {
+          width: 100%;
+        }
+      }
+
+      @media (max-height: 620px) {
+        .app-loading-layout {
+          gap: 8px;
+        }
+
+        .app-loading-logo {
+          width: min(360px, 58vw);
+        }
+
+        .app-loading-card {
+          gap: 7px;
+          padding: 13px 18px 15px;
+        }
+      }
+    </style>
+    <script type="module" crossorigin src="/assets/game-CgzEXCtw.js"></script>
+    <link rel="modulepreload" crossorigin href="/assets/modulepreload-polyfill-P2Xu9kJm.js">
+    <link rel="modulepreload" crossorigin href="/assets/rolldown-runtime-hePW80VL.js">
+    <link rel="modulepreload" crossorigin href="/assets/seedthree-vendor-DlI6mVJ-.js">
+    <link rel="modulepreload" crossorigin href="/assets/CameraCurves-B-Dzy5I0.js">
+    <link rel="modulepreload" crossorigin href="/assets/settlement-hud-BzEOfZkr.js">
+    <link rel="modulepreload" crossorigin href="/assets/dispose-Dq_YAqIn.js">
+    <link rel="modulepreload" crossorigin href="/assets/three-B0ollQVT.js">
+    <link rel="modulepreload" crossorigin href="/assets/worldAnimationTime-CvrhegUe.js">
+    <link rel="modulepreload" crossorigin href="/assets/pathGeometry-DLr4cHDt.js">
+    <link rel="modulepreload" crossorigin href="/assets/audioPreferences-BHvZqCdc.js">
+    <link rel="modulepreload" crossorigin href="/assets/combatRiverNavigation-CU4x6_Ap.js">
+    <link rel="modulepreload" crossorigin href="/assets/foliageDoubleSideNormals-DBABKdc-.js">
+    <link rel="modulepreload" crossorigin href="/assets/seedThreeGroundCover-C4HzR0Yp.js">
+    <link rel="modulepreload" crossorigin href="/assets/gorskiKotarCelestial-CUcGqpgi.js">
+    <link rel="modulepreload" crossorigin href="/assets/PostProcessing-DrT2pq4-.js">
+    <link rel="modulepreload" crossorigin href="/assets/deliveryTrips-CeLttV75.js">
+    <link rel="modulepreload" crossorigin href="/assets/spacetime-DF9M1OzB.js">
+    <link rel="modulepreload" crossorigin href="/assets/spacetime-generated-BxRH_eN6.js">
+    <link rel="modulepreload" crossorigin href="/assets/seedThreeTextures-_YVMbtw2.js">
+    <link rel="modulepreload" crossorigin href="/assets/gorskiShrubPrototypes-B7OHHFxc.js">
+    <link rel="modulepreload" crossorigin href="/assets/ForestUndergrowth-05TXH7pc.js">
+    <link rel="modulepreload" crossorigin href="/assets/forestWindRules-ByP7sQAp.js">
+    <link rel="modulepreload" crossorigin href="/assets/crowdView-DNBnjzHY.js">
+    <link rel="stylesheet" crossorigin href="/assets/game-Bqw_p-xd.css">
+  </head>
+  <body>
+    <div id="app-loading" aria-live="polite" aria-busy="true">
+      <h1 class="visually-hidden">Selo Empire — Medieval City Builder &amp; Settlement Sim</h1>
+      <div class="app-loading-layout">
+        <img
+          class="app-loading-logo"
+          src="/assets/ui/selo-empire-logo-serious.png"
+          alt="Selo Empire"
+          width="1643"
+          height="957"
+          fetchpriority="high"
+          decoding="sync"
+        />
+        <div class="app-loading-card">
+          <p class="app-loading-kicker">Medieval city builder · Gorski Kotar, 1550</p>
+          <div class="app-loading-spinner" aria-hidden="true"></div>
+          <p class="app-loading-percent" data-loading-percent aria-hidden="true">0%</p>
+          <p class="app-loading-label" data-loading-label>Starting world…</p>
+          <p class="app-loading-detail" data-loading-detail>Preparing renderer</p>
+          <p class="app-loading-recovery-hint" data-loading-recovery-hint hidden></p>
+          <div
+            class="app-loading-progress"
+            role="progressbar"
+            aria-label="Overall loading progress"
+            aria-valuemin="0"
+            aria-valuemax="100"
+            aria-valuenow="0"
+            data-loading-bar
+          >
+            <span class="app-loading-progress__fill" aria-hidden="true"></span>
+          </div>
+          <button type="button" class="app-loading-retry" data-loading-retry hidden>Retry connection</button>
+          <button type="button" class="app-loading-recovery" data-loading-recovery hidden>Start new world…</button>
+        </div>
+      </div>
+    </div>
+    <div id="app"></div>
+  </body>
+</html>

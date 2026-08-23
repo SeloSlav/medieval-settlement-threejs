@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "round": 53,
+  "createdAtUtc": "2026-07-31T02:34:31.954Z",
+  "algorithm": "SHA-256",
+  "preimageByteLength": 2717,
+  "preimageSha256": "C92DB2DD2A6BF13636455BBAF8C02365D65AC3D02C4475DFBE200A65B7F24A2D",
+  "seedThreeCommit": "4182accfc1fb7a66815e963b5355ca4996418cf3",
+  "committedInvariants": {
+    "soleArmQueryDifference": "forestEdgeLayout",
+    "frameIndices": [
+      0,
+      180,
+      276,
+      277,
+      278,
+      279,
+      330,
+      375,
+      480
+    ],
+    "captureSurface": "gpu-synchronized-native-renderer-drawing-buffer-png-data-url",
+    "cameraPoseSignatureMustMatchAcrossArms": true,
+    "neverOverwriteAnyAttempt": true
+  }
+}

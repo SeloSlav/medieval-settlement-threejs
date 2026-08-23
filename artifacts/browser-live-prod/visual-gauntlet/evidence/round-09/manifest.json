@@ -1,0 +1,54 @@
+{
+  "round": 9,
+  "evidenceType": "matched baseline versus groundcover-off ablation",
+  "sceneStatus": "rejected",
+  "qualityGatesProven": 0,
+  "protocolValidity": {
+    "status": "valid",
+    "backend": "webgpu",
+    "viewport": "1280x720",
+    "rendererPixelRatio": 1,
+    "adapter": "nvidia/lovelace",
+    "fallbackStatus": "non-fallback",
+    "route": "gorski-kotar-lod-traverse-v1",
+    "windowSeconds": 30
+  },
+  "runs": {
+    "baseline": {
+      "medianFps": 82.64462809918349,
+      "meanFps": 82.01,
+      "onePercentLowFps": 16.63,
+      "p99FrameMs": 60.13,
+      "maxFrameMs": 230.3,
+      "framesOver25Ms": 31,
+      "framesOver50Ms": 14
+    },
+    "groundcover-off": {
+      "medianFps": 82.64462809918349,
+      "meanFps": 83.36,
+      "onePercentLowFps": 36.32,
+      "p99FrameMs": 27.53,
+      "maxFrameMs": 60.6,
+      "framesOver25Ms": 7,
+      "framesOver50Ms": 1
+    }
+  },
+  "critic": {
+    "status": "fail",
+    "largestGap": "Groundcover streaming caused 24 of 31 frames above 25 ms and 13 of 14 frames above 50 ms.",
+    "requiredNext": "Keep groundcover visible, isolate its streaming work, remove unused bounds scans, and replace count bursts with deadline-bounded resumable generation plus changed-slot upload ranges."
+  },
+  "upstreamFirstConstraint": {
+    "repository": "SeloSlav/SeedThree",
+    "schedulerCommit": "f3c5877",
+    "followupReusablePrimitivesRequired": true
+  },
+  "files": [
+    {
+      "file": "baseline-groundcover-ablation.json",
+      "source": "C:\\Users\\Asus\\AppData\\Local\\Temp\\hamlet-round9-baseline-groundcover.json",
+      "bytes": 9489,
+      "sha256": "A71220D1CE07FE18D141E9519E561D9F71C6F3E61380465EA42E70093CAC8168"
+    }
+  ]
+}

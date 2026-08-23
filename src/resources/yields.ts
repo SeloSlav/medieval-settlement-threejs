@@ -146,6 +146,10 @@ export function formatResourceAmount(kind: ResourceKind, amount: number): string
       return `${Math.round(amount)} charcoal`;
     case 'pottery':
       return `${Math.round(amount)} pottery`;
+    case 'manure':
+      return `${Math.round(amount)} manure`;
+    case 'remedies':
+      return `${Math.round(amount)} remedies`;
     case 'roofTiles':
       return `${Math.round(amount)} roof tiles`;
     case 'gold':

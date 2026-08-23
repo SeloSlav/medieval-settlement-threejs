@@ -81,7 +81,7 @@ depend on the order below.
 
 | Atlas | Grid order |
 | --- | --- |
-| `map-resources.png` | quarry, game, berries / mushrooms, fish, empty |
+| `map-resources.png` | stone, game, berries / mushrooms, fish, clay |
 | `construction-actions.png` | road, hammer, agriculture / industry, defense, water / town hall, settings, camp |
 | `hud-resources-core.png` | timber, stone, firewood / water, food, gold / population, housing, labor |
 | `hud-resources-goods-a.png` | grain, barley, malt / flour, ale, preserved food / honey, wine, wool |
@@ -90,6 +90,16 @@ depend on the order below.
 
 The generation sources used a flat magenta removal key. Only alpha-matted
 atlases ship with the game.
+
+Iron and salt map markers intentionally reuse their dedicated transparent
+commodity silhouettes (`materials/iron.png` and `materials/salt.png`) rather
+than recoloring the stone cell. The illustrated strategic map has a matching
+normal/rich pair for every resource under `public/assets/ui/map-stamps/`.
+
+Build-card illustrations are decorative: the containing button owns the full
+accessible name, description, and cost. If a card or inspector illustration
+cannot load or decode, the failed bitmap is removed and the labeled hammer or
+inspector-symbol fallback remains visible; broken-image chrome is never shown.
 
 ## Generation brief
 

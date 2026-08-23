@@ -2875,7 +2875,7 @@ export type HamletFixtureEvidenceEnvelope = {
   };
   content: {
     residences: number;
-    residenceRoof: 'wood-shingle';
+    residenceRoof: 'tier-1-bundled-thatch';
     trees: number;
     visibleTrees: number;
     forestDraws: number;

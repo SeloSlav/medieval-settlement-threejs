@@ -15,7 +15,10 @@ import { onsiteBuildingLabor } from '../../logistics/deliveryTrips.ts';
 import { getBuildingCost } from '../buildingEconomy.ts';
 import { getBuildingDefinition } from '../buildings.ts';
 import { laborScaledInterval } from '../resourceTotals.ts';
-import { renderResourceAmount } from '../../ui/resourceCost.ts';
+import {
+  formatResourceCostAmount,
+  renderResourceAmount,
+} from '../../ui/resourceCost.ts';
 import type {
   InspectableTarget,
 } from '../types.ts';
@@ -89,11 +92,11 @@ export function renderMineralMineInspector(
     inboundSupportTimber,
   );
   const supportRows = deposit?.isRich
-    ? `<li><span>Deep shaft supports</span><span>${Math.round(Math.max(0, building.timber))} onsite${
+    ? `<li><span>Deep shaft supports</span><span>${formatResourceCostAmount(Math.max(0, building.timber))} onsite${
         inboundSupportTimber > 1e-6
-          ? ` + ${Math.round(inboundSupportTimber)} inbound`
+          ? ` + ${formatResourceCostAmount(inboundSupportTimber)} inbound`
           : ''
-      } / ${Math.ceil(RICH_MINE_SUPPORT_TARGET)} timber target · ${supportRunway.toFixed(1)} cycles</span></li>
+      } / ${formatResourceCostAmount(RICH_MINE_SUPPORT_TARGET)} timber target · ${supportRunway.toFixed(1)} cycles</span></li>
       <li><span>Timber crib wear</span><span>${renderResourceAmount('timber', MINE_TIMBER_SUPPORT_PER_CYCLE, { compact: true, suffix: 'per completed deep batch' })} · nearest lumber mill or village storehouse supplies it; roads make the haul faster</span></li>`
     : '<li><span>Shaft timber</span><span>Ordinary surface seam · no recurring deep-support cost</span></li>';
 

@@ -66,6 +66,7 @@ import {
 } from './remoteWorkCamp.ts';
 import { disposeFireEffect } from '../fires/FireEffect.ts';
 import {
+  constructionDeliveredRatio,
   createConstructionSiteMesh,
 } from './ConstructionSiteMesh.ts';
 import { buildingMeshSignature } from './buildingMarkerSignature.ts';
@@ -724,19 +725,19 @@ export class BuildingMarkers {
     let marker = this.buildingMeshes.get(building.id);
     let markerNeedsRegistration = false;
     let adoptedPendingFoundersCamp = false;
-    const timberRatio = ratio(
+    const timberRatio = constructionDeliveredRatio(
       building.constructionDeliveredTimber,
       building.constructionRequiredTimber,
     );
-    const stoneRatio = ratio(
+    const stoneRatio = constructionDeliveredRatio(
       building.constructionDeliveredStone,
       building.constructionRequiredStone,
     );
-    const ironworkRatio = ratio(
+    const ironworkRatio = constructionDeliveredRatio(
       building.constructionDeliveredIronwork ?? 0,
       building.constructionRequiredIronwork ?? 0,
     );
-    const roofTilesRatio = ratio(
+    const roofTilesRatio = constructionDeliveredRatio(
       building.constructionDeliveredRoofTiles ?? 0,
       building.constructionRequiredRoofTiles ?? 0,
     );
@@ -949,10 +950,6 @@ export class BuildingMarkers {
     const sails = marker.getObjectByName('Windmill sails');
     if (sails instanceof THREE.Group) this.windmillSails.delete(sails);
   }
-}
-
-function ratio(value: number, required: number): number {
-  return required <= 1e-6 ? 1 : THREE.MathUtils.clamp(value / required, 0, 1);
 }
 
 function setsEqual<T>(left: ReadonlySet<T>, right: ReadonlySet<T>): boolean {

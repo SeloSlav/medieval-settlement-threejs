@@ -3,7 +3,7 @@ use std::collections::HashMap;
 
 use crate::backyard_garden_policy::{
     allocate_backyard_food, backyard_garden_seasonal_multiplier, backyard_interval_food_batch,
-    backyard_interval_harvest_due, backyard_month_in_window,
+    backyard_interval_harvest_due, backyard_month_in_window, split_backyard_orchard_harvest,
 };
 use crate::balance_generated::{
     backyard_garden_def, BackyardGardenKind, CALENDAR_SECONDS_PER_DAY, FOOD_SALE_GOLD_PER_UNIT,
@@ -175,24 +175,27 @@ fn step_one_garden(
         }
         _ => 1.0,
     };
+    let gross_fruit = def.food_per_person_per_sec
+        * population
+        * seasonal_multiplier
+        * pollination_multiplier
+        * TICK_DT;
+    let jam_target = def.jam_per_person_per_sec
+        * population
+        * seasonal_multiplier
+        * pollination_multiplier
+        * TICK_DT;
+    let orchard_harvest = split_backyard_orchard_harvest(gross_fruit, jam_target);
     let mut market_food_sold = 0.0;
-    if def.food_per_person_per_sec > 1e-9 {
-        let total_food = def.food_per_person_per_sec
-            * population
-            * seasonal_multiplier
-            * pollination_multiplier
-            * TICK_DT;
-        let commodity = backyard_food_commodity(kind);
-        if let Some(commodity) = commodity {
-            market_food_sold += distribute_backyard_food(
-                ctx,
-                tick,
-                residence,
-                food_marketplace_id,
-                commodity,
-                total_food,
-            );
-        }
+    if let Some(commodity) = backyard_food_commodity(kind) {
+        market_food_sold += distribute_backyard_food(
+            ctx,
+            tick,
+            residence,
+            food_marketplace_id,
+            commodity,
+            orchard_harvest.fresh_fruit,
+        );
     }
 
     let mut market_remedies_sold = 0.0;
@@ -212,12 +215,15 @@ fn step_one_garden(
         }
     }
 
-    if def.jam_per_person_per_sec > 1e-9 {
-        let jam = population * def.jam_per_person_per_sec * seasonal_multiplier * TICK_DT;
-        if let Some(commodity) = backyard_jam_commodity(kind) {
-            market_food_sold +=
-                distribute_backyard_food(ctx, tick, residence, food_marketplace_id, commodity, jam);
-        }
+    if let Some(commodity) = backyard_jam_commodity(kind) {
+        market_food_sold += distribute_backyard_food(
+            ctx,
+            tick,
+            residence,
+            food_marketplace_id,
+            commodity,
+            orchard_harvest.jam,
+        );
     }
 
     let economic_activity = market_food_sold * FOOD_SALE_GOLD_PER_UNIT

@@ -1,14 +1,40 @@
 import assert from 'node:assert/strict';
+import { createRequire } from 'node:module';
 import { existsSync, readFileSync, statSync } from 'node:fs';
+import { resolve } from 'node:path';
 import {
   BACKYARD_GARDEN_DEFINITIONS,
   BACKYARD_GARDEN_KINDS,
+  BUILDING_KINDS,
   FARM_CROP_KINDS,
 } from '../src/generated/gameBalance.ts';
 import {
   MONASTERY_EXTENSIONS,
 } from '../src/buildings/monasteryEstate.ts';
 import { BUILD_MENU_CATEGORIES } from '../src/ui/buildMenuCards.ts';
+
+type SharpDecodeResult = {
+  data: Uint8Array;
+  info: { width: number; height: number; channels: number };
+};
+type SharpImage = {
+  raw(): {
+    toBuffer(options: { resolveWithObject: true }): Promise<SharpDecodeResult>;
+  };
+};
+const vendorRequire = createRequire(resolve('vendor/seedthree/package.json'));
+const sharp = vendorRequire('sharp') as (input: string) => SharpImage;
+
+async function assertRasterDecodes(path: string, label: string): Promise<void> {
+  const decoded = await sharp(path).raw().toBuffer({ resolveWithObject: true });
+  assert.ok(decoded.info.width > 0 && decoded.info.height > 0, `${label} must decode at nonzero dimensions`);
+  assert.ok(decoded.info.channels >= 3, `${label} must decode as RGB or RGBA`);
+  assert.equal(
+    decoded.data.byteLength,
+    decoded.info.width * decoded.info.height * decoded.info.channels,
+    `${label} must decode every raster pixel`,
+  );
+}
 
 const backyardCss = readFileSync('src/ui/polishedGameUi.css', 'utf8');
 const actionCss = readFileSync('src/ui/inspectorSupplemental.css', 'utf8');
@@ -29,6 +55,55 @@ const appBootstrap = readFileSync('src/app/appBootstrap.ts', 'utf8');
 const toolbar = readFileSync('src/ui/BuildToolbar.ts', 'utf8');
 const iconography = readFileSync('src/ui/iconography.css', 'utf8');
 const constructionDock = readFileSync('src/ui/constructionDock.css', 'utf8');
+
+const inspectorArtBlock = resourceInspector.match(
+  /const BUILDING_INSPECTOR_ART = \{([\s\S]*?)\}\s+satisfies Record<BuildingKind, string>;/,
+)?.[1] ?? '';
+const inspectorArtwork = new Map(
+  [...inspectorArtBlock.matchAll(/^\s{2}([a-z0-9_]+): '([^']+)',?$/gm)]
+    .map((match) => [match[1], match[2]] as const),
+);
+assert.deepEqual(
+  [...inspectorArtwork.keys()].sort(),
+  [...BUILDING_KINDS].sort(),
+  'every authoritative building kind must have explicit inspector artwork',
+);
+for (const [kind, url] of inspectorArtwork) {
+  const path = `public${url}`;
+  assert.ok(existsSync(path), `${kind} inspector art must resolve: ${url}`);
+  assert.ok(statSync(path).size > 20_000, `${kind} inspector art must be nonblank: ${url}`);
+  await assertRasterDecodes(path, `${kind} inspector art`);
+}
+for (const [kind, expectedUrl] of Object.entries({
+  remote_work_camp: '/assets/ui/icons/actions/overnight-work-camp.png',
+  mine: '/assets/ui/build-menu/cards/iron-mine.webp',
+  clay_pit: '/assets/ui/build-menu/cards/clay-pit.webp',
+  charcoal_burner: '/assets/ui/build-menu/cards/charcoal-burner.webp',
+  smithy: '/assets/ui/build-menu/cards/smithy-bloomery.webp',
+  potter_kiln: '/assets/ui/build-menu/cards/potter-kiln.webp',
+  wayside_shrine: '/assets/ui/build-menu/cards/wayside-shrine.webp',
+  trading_post: '/assets/ui/build-menu/cards/trading-post.webp',
+  palisaded_refuge: '/assets/ui/build-menu/cards/palisaded-refuge.webp',
+  tavern: '/assets/ui/build-menu/cards/tavern.webp',
+  bakery: '/assets/ui/build-menu/cards/bakery.webp',
+})) {
+  assert.equal(inspectorArtwork.get(kind), expectedUrl, `${kind} must use the intended inspector art`);
+}
+assert.match(resourceInspector, /data-inspector-hero-image alt="" decoding="async"/);
+assert.match(resourceInspector, /this\.heroImage\.onerror = markArtUnavailable/);
+assert.match(resourceInspector, /this\.heroImage\.decode\(\)\.then\(markArtAvailable\)\.catch\(markArtUnavailable\)/);
+assert.match(
+  resourceInspector,
+  /DEFAULT_TOTAL_RESOURCE_TOOLTIP[\s\S]{0,260}household reserves and goods committed to active projects/,
+  'total-mode resource tooltips must describe committed and household stock instead of retaining surplus-only copy',
+);
+assert.match(
+  resourceInspector,
+  /TOTAL_RESOURCE_TOOLTIPS\[resource\][\s\S]{0,100}\?\? DEFAULT_TOTAL_RESOURCE_TOOLTIP/,
+  'every HUD resource without a tailored total tooltip must receive the truthful total-mode fallback',
+);
+assert.match(backyardCss, /\.resource-inspector-hero-image\[hidden\]\s*\{\s*display:\s*none/);
+assert.match(backyardCss, /\.resource-inspector-hero-art\.is-art-unavailable\s*\{/);
 
 const backyardArtwork: Record<string, string> = {
   orchard: 'backyards/orchard.png',
@@ -93,6 +168,7 @@ for (const asset of generatedAssets) {
   const path = `public/assets/ui/icons/${asset}`;
   assert.ok(existsSync(path), `${asset} must exist`);
   assert.ok(statSync(path).size > 20_000, `${asset} must be a substantive generated raster asset`);
+  await assertRasterDecodes(path, asset);
   const png = readFileSync(path);
   assert.equal(png.readUInt32BE(16), 256, `${asset} must be 256 pixels wide`);
   assert.equal(png.readUInt32BE(20), 256, `${asset} must be 256 pixels tall`);
@@ -153,6 +229,22 @@ for (const [resource, asset] of [
   );
 }
 assert.doesNotMatch(iconography, /\.svg(?:['")])/i, 'active commodity mappings must not use SVG artwork');
+for (const [resource, asset] of [
+  ['iron', 'materials/iron.png'],
+  ['salt', 'materials/salt.png'],
+] as const) {
+  assert.match(
+    iconography,
+    new RegExp(`map-resource-icon-glyph--${resource}[\\s\\S]{0,220}${escapeRegex(asset)}`),
+    `${resource} map markers must use their dedicated commodity silhouette`,
+  );
+  assert.ok(statSync(`public/assets/ui/icons/${asset}`).size > 20_000);
+}
+assert.doesNotMatch(
+  iconography,
+  /map-resource-icon-glyph--iron,\s*\n\.map-resource-icon-glyph--salt\s*\{\s*background-position:\s*0 0/,
+  'iron and salt must not be color-shifted copies of the stone quarry cell',
+);
 assert.match(iconography, /\.resource-cost--unaffordable\s*\{[\s\S]{0,120}color:\s*#f09a82/);
 
 assert.match(resourceInspector, /data-fire-recovery[\s\S]{0,520}data-action-icon="fire-recovery"|data-action-icon="fire-recovery"[\s\S]{0,520}data-fire-recovery/);

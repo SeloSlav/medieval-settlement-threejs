@@ -1,0 +1,284 @@
+{
+  "schemaVersion": 1,
+  "round": 55,
+  "status": "passed-before-blind-verdict",
+  "protocol": "prime-discard-immediate-repeat",
+  "allPrimeRepeatPngsExact": true,
+  "allCrossArmCameraPosesExact": true,
+  "framePairs": [
+    {
+      "blindLabel": "blind-A",
+      "frameIndex": 0,
+      "primeAttempt": 3,
+      "repeatAttempt": 4,
+      "bytesExact": true,
+      "sha256Exact": true,
+      "cameraPoseSignatureExact": true,
+      "sha256": "DC802ED0A17A731D62F3FFBB79767F282FD57AA5DBCF4D6ECA34BB31529B0BDA"
+    },
+    {
+      "blindLabel": "blind-A",
+      "frameIndex": 180,
+      "primeAttempt": 5,
+      "repeatAttempt": 6,
+      "bytesExact": true,
+      "sha256Exact": true,
+      "cameraPoseSignatureExact": true,
+      "sha256": "6C8E5FAC39C99774BF080271CBFB3317EEBA3EE521E313A332F5406A48425C12"
+    },
+    {
+      "blindLabel": "blind-A",
+      "frameIndex": 276,
+      "primeAttempt": 7,
+      "repeatAttempt": 8,
+      "bytesExact": true,
+      "sha256Exact": true,
+      "cameraPoseSignatureExact": true,
+      "sha256": "004166B69100A9D6321D549DBA90A73C866F81A537328983B435209D58D1A6D5"
+    },
+    {
+      "blindLabel": "blind-A",
+      "frameIndex": 277,
+      "primeAttempt": 9,
+      "repeatAttempt": 10,
+      "bytesExact": true,
+      "sha256Exact": true,
+      "cameraPoseSignatureExact": true,
+      "sha256": "9EC20E204F51AE2D627BCBA8C467B86DE4D2ADC06FAC1578BD2C63085B228C21"
+    },
+    {
+      "blindLabel": "blind-A",
+      "frameIndex": 278,
+      "primeAttempt": 11,
+      "repeatAttempt": 12,
+      "bytesExact": true,
+      "sha256Exact": true,
+      "cameraPoseSignatureExact": true,
+      "sha256": "C21893C9B3EA7CEACC17B733BBC5F7328A63568D20F4C24C537EAED516B5DA7A"
+    },
+    {
+      "blindLabel": "blind-A",
+      "frameIndex": 279,
+      "primeAttempt": 13,
+      "repeatAttempt": 14,
+      "bytesExact": true,
+      "sha256Exact": true,
+      "cameraPoseSignatureExact": true,
+      "sha256": "20E2213C688840FB4CDA0C563BDF80C89B911FECC3304252BBB7BBEF156BB36F"
+    },
+    {
+      "blindLabel": "blind-A",
+      "frameIndex": 330,
+      "primeAttempt": 15,
+      "repeatAttempt": 16,
+      "bytesExact": true,
+      "sha256Exact": true,
+      "cameraPoseSignatureExact": true,
+      "sha256": "E5B7B0827426FBBB315AE78B1B700EC474BF427C27A410DF9D7CC37EF655E202"
+    },
+    {
+      "blindLabel": "blind-A",
+      "frameIndex": 375,
+      "primeAttempt": 17,
+      "repeatAttempt": 18,
+      "bytesExact": true,
+      "sha256Exact": true,
+      "cameraPoseSignatureExact": true,
+      "sha256": "866C7BF005891EB0FE79414CE21E60430907A1E5A9766AACEBD9217787084581"
+    },
+    {
+      "blindLabel": "blind-A",
+      "frameIndex": 480,
+      "primeAttempt": 19,
+      "repeatAttempt": 20,
+      "bytesExact": true,
+      "sha256Exact": true,
+      "cameraPoseSignatureExact": true,
+      "sha256": "EACEF690C7D27A6A342A2F6B8DD5174A254D09C4D22CE8BF5AE6FA918B894096"
+    },
+    {
+      "blindLabel": "blind-B",
+      "frameIndex": 0,
+      "primeAttempt": 22,
+      "repeatAttempt": 23,
+      "bytesExact": true,
+      "sha256Exact": true,
+      "cameraPoseSignatureExact": true,
+      "sha256": "8304B875B5BC2F6F8922D41D56A6C44E7DF72E0F1E5022A2B266164F65085227"
+    },
+    {
+      "blindLabel": "blind-B",
+      "frameIndex": 180,
+      "primeAttempt": 24,
+      "repeatAttempt": 25,
+      "bytesExact": true,
+      "sha256Exact": true,
+      "cameraPoseSignatureExact": true,
+      "sha256": "B7021C5199DB22DB2A0801D663FA25E91A64DD9E407DAC7A31935CDC932CDC4D"
+    },
+    {
+      "blindLabel": "blind-B",
+      "frameIndex": 276,
+      "primeAttempt": 26,
+      "repeatAttempt": 27,
+      "bytesExact": true,
+      "sha256Exact": true,
+      "cameraPoseSignatureExact": true,
+      "sha256": "32CCD69C15D88736432C32D0AA583A7D8DBBFB87398DF1509C9CE71B0E7BC848"
+    },
+    {
+      "blindLabel": "blind-B",
+      "frameIndex": 277,
+      "primeAttempt": 28,
+      "repeatAttempt": 29,
+      "bytesExact": true,
+      "sha256Exact": true,
+      "cameraPoseSignatureExact": true,
+      "sha256": "7862B67FC7D293DEB6CD7C082BAD5DE85B9854BBFF0DC58DA885CC521B7A9682"
+    },
+    {
+      "blindLabel": "blind-B",
+      "frameIndex": 278,
+      "primeAttempt": 30,
+      "repeatAttempt": 31,
+      "bytesExact": true,
+      "sha256Exact": true,
+      "cameraPoseSignatureExact": true,
+      "sha256": "55364F61996F3BFE032BCF7C3FDF9903B8854F342231731E41682048BEA9A715"
+    },
+    {
+      "blindLabel": "blind-B",
+      "frameIndex": 279,
+      "primeAttempt": 32,
+      "repeatAttempt": 33,
+      "bytesExact": true,
+      "sha256Exact": true,
+      "cameraPoseSignatureExact": true,
+      "sha256": "34690422B6B909ADDC886322E93FA5E5A9074395953594A92BE8B464369B021C"
+    },
+    {
+      "blindLabel": "blind-B",
+      "frameIndex": 330,
+      "primeAttempt": 34,
+      "repeatAttempt": 35,
+      "bytesExact": true,
+      "sha256Exact": true,
+      "cameraPoseSignatureExact": true,
+      "sha256": "26269846F4A0277AAC1EE7EEF68333E41606ABC2797A2A74969EE840D875A9A6"
+    },
+    {
+      "blindLabel": "blind-B",
+      "frameIndex": 375,
+      "primeAttempt": 36,
+      "repeatAttempt": 37,
+      "bytesExact": true,
+      "sha256Exact": true,
+      "cameraPoseSignatureExact": true,
+      "sha256": "4F82462CD771CEF1A4CB94E2EAC1B4ABC722569BE532C4EFF7E1D043DC5A3E79"
+    },
+    {
+      "blindLabel": "blind-B",
+      "frameIndex": 480,
+      "primeAttempt": 38,
+      "repeatAttempt": 39,
+      "bytesExact": true,
+      "sha256Exact": true,
+      "cameraPoseSignatureExact": true,
+      "sha256": "1827F7DCE4412634BCFB1D4DDB2D5EBF3FAA89B194DF4F2AEAD0247125A3F18A"
+    }
+  ],
+  "crossArmCameraPoses": [
+    {
+      "frameIndex": 0,
+      "exact": true,
+      "cameraPoseSignature": "gorski-kotar-lod-traverse-v1|0|0.000|128.158569|148.921039|-138.211756|0.000000|3.200000|3.000000|-0.115443|0.883665|0.298977|0.341206|overview|hidden|strategic"
+    },
+    {
+      "frameIndex": 180,
+      "exact": true,
+      "cameraPoseSignature": "gorski-kotar-lod-traverse-v1|180|6000.000|49.268962|50.364114|-53.704459|-1.000000|3.200000|1.000000|-0.101326|0.894737|0.260019|0.348668|near|hidden|settlement"
+    },
+    {
+      "frameIndex": 276,
+      "exact": true,
+      "cameraPoseSignature": "gorski-kotar-lod-traverse-v1|276|9200.000|12.960743|14.434070|-40.377634|-0.250897|2.450897|-23.720389|-0.083513|0.913396|0.239685|0.318253|near|transition|settlement"
+    },
+    {
+      "frameIndex": 277,
+      "exact": true,
+      "cameraPoseSignature": "gorski-kotar-lod-traverse-v1|277|9233.333|12.450380|13.929023|-40.190306|-0.240368|2.440368|-24.067869|-0.082625|0.914318|0.238552|0.316683|near|transition|settlement"
+    },
+    {
+      "frameIndex": 278,
+      "exact": true,
+      "cameraPoseSignature": "gorski-kotar-lod-traverse-v1|278|9266.667|11.948679|13.432547|-40.006158|-0.230017|2.430017|-24.409451|-0.081689|0.915290|0.237345|0.315021|near|transition|settlement"
+    },
+    {
+      "frameIndex": 279,
+      "exact": true,
+      "cameraPoseSignature": "gorski-kotar-lod-traverse-v1|279|9300.000|11.455954|12.944955|-39.825305|-0.219851|2.419851|-24.744922|-0.080702|0.916313|0.236058|0.313263|near|full|settlement"
+    },
+    {
+      "frameIndex": 330,
+      "exact": true,
+      "cameraPoseSignature": "gorski-kotar-lod-traverse-v1|330|11000.000|0.800015|2.400004|-35.914074|0.000000|2.200000|-32.000000|-0.002517|0.994612|0.024881|0.100607|near|full|road-eye"
+    },
+    {
+      "frameIndex": 375,
+      "exact": true,
+      "cameraPoseSignature": "gorski-kotar-lod-traverse-v1|375|12500.000|0.800015|2.400004|-35.914074|0.000000|2.200000|-32.000000|-0.002517|0.994612|0.024881|0.100607|near|full|road-eye"
+    },
+    {
+      "frameIndex": 480,
+      "exact": true,
+      "cameraPoseSignature": "gorski-kotar-lod-traverse-v1|480|16000.000|49.268962|50.364114|-53.704459|-1.000000|3.200000|1.000000|-0.101326|0.894737|0.260019|0.348668|near|hidden|settlement"
+    }
+  ],
+  "performance": {
+    "blind-A": {
+      "status": "ready",
+      "sampleCount": 4835,
+      "metrics": {
+        "medianFps": 163.9344262295473,
+        "onePercentLowFps": 81.78935069270791,
+        "meanFps": 161.15699724683185,
+        "p99FrameMs": 12.226530612244572,
+        "maxFrameMs": 12.799999999995634,
+        "framesOver25Ms": 0,
+        "framesOver50Ms": 0
+      },
+      "renderer": {
+        "medianDrawCalls": 82,
+        "medianFrameCalls": 2,
+        "medianTriangles": 1811301
+      },
+      "hardBarPassed": true
+    },
+    "blind-B": {
+      "status": "ready",
+      "sampleCount": 4836,
+      "metrics": {
+        "medianFps": 163.9344262295473,
+        "onePercentLowFps": 75.87488386496649,
+        "meanFps": 161.18979131321683,
+        "p99FrameMs": 13.179591836735941,
+        "maxFrameMs": 24.19999999999709,
+        "framesOver25Ms": 0,
+        "framesOver50Ms": 0
+      },
+      "renderer": {
+        "medianDrawCalls": 82,
+        "medianFrameCalls": 2,
+        "medianTriangles": 1793077
+      },
+      "hardBarPassed": true
+    }
+  },
+  "hardPerformanceBar": {
+    "onePercentLowFpsMinimum": 60,
+    "maxFrameMsMaximum": 25,
+    "framesOver25MsMaximum": 0,
+    "framesOver50MsMaximum": 0
+  },
+  "bothArmsPassedHardPerformanceBar": true
+}

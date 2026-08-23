@@ -9,6 +9,7 @@ import {
   STOREHOUSE_STORAGE_GROUPS,
   storageAcceptsCommodity,
 } from '../src/economy/storageAcceptancePolicy.ts';
+import { BUILDING_STORAGE_CAPS } from '../src/generated/gameBalance.ts';
 import type { BuildingState } from '../src/resources/types.ts';
 
 const all = (1n << 64n) - 1n;
@@ -37,6 +38,10 @@ for (const commodity of [
   'aroniaJam', 'rosehipJam', 'cider', 'pearCider', 'wine',
 ] as const) {
   assert.ok(GRANARY_STORAGE_COMMODITIES.includes(commodity));
+}
+for (const kind of ['granary', 'trading_post', 'tavern'] as const) {
+  assert.equal(BUILDING_STORAGE_CAPS[kind].cider, 180);
+  assert.equal(BUILDING_STORAGE_CAPS[kind].pearCider, 180);
 }
 assert.equal(storageAcceptsCommodity(storehouse, 'charcoal'), true);
 assert.equal(storageAcceptsCommodity(storehouse, 'remedies'), true);

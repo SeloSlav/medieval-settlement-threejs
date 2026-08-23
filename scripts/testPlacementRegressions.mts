@@ -1922,6 +1922,12 @@ const firstPersonController = readFileSync('src/camera/FirstPersonController.ts'
 const cameraController = readFileSync('src/camera/CameraController.ts', 'utf8');
 const roadTool = readFileSync('src/roads/RoadTool.ts', 'utf8');
 
+assert.match(
+  buildToolbar,
+  /const buildActionGuidance = stats\.canBuild[\s\S]{0,260}describeToolbarStatus\(stats\)[\s\S]{0,180}setAttribute\('aria-label', buildActionGuidance\)/,
+  'a disabled commit control must expose the same specific blocker or next placement step as the visible builder status',
+);
+
 assert.doesNotMatch(
   terrainProjector,
   /intersectObject\(this\.terrain\.mesh/,
@@ -1965,9 +1971,13 @@ assert.match(
   /civic_landmarks[\s\S]*road_path_distances_from\(x, z, &civic_points\)[\s\S]*linked_chapel[\s\S]*linked_marketplace/,
   'authoritative Town Hall placement should batch every completed civic landmark and accept any linked chapel and market',
 );
+const buildingResourceDepositGate = buildingReducer.slice(
+  buildingReducer.indexOf('let on_mineral_deposit'),
+  buildingReducer.indexOf('// A fresh world has no roads'),
+);
 assert.match(
-  buildingReducer,
-  /let on_mineral_deposit[\s\S]{0,260}kind != "large_quarry"[\s\S]{0,180}!on_mineral_deposit[\s\S]{0,180}is_on_resource_deposit/,
+  buildingResourceDepositGate,
+  /let on_mineral_deposit = kind == "mine" && has_mineral_deposit_at_center\(ctx, x, z\);[\s\S]*?if kind != "large_quarry"\s*&& !on_mineral_deposit[\s\S]*?&& building_overlaps_resource_deposit\(ctx, owner, &kind, x, z\)/,
   'the authority must allow a mine to occupy the mineral pit it is required to cover',
 );
 for (const [source, label] of [

@@ -9,15 +9,23 @@ import {
   CALENDAR_SECONDS_PER_DAY,
   CALENDAR_WORK_END_HOUR,
   CALENDAR_WORK_START_HOUR,
-  CIVILIAN_TOOL_IRONWORK_PER_CYCLE,
+  CHAPEL_TIER2_UPGRADE_IRONWORK,
+  CHAPEL_TIER3_UPGRADE_IRONWORK,
+  CHARCOAL_BURNER_CHARCOAL_PER_CYCLE,
   FIRE_ACCIDENT_IGNITION_CHANCE_PER_STRUCTURE_DAY,
   FIRE_LIGHTNING_IGNITION_CHANCE_PER_RAIN_DAY,
   FIRE_SPREAD_CHANCE_PER_SECOND,
+  MARKETPLACE_TRADE_OFFERS,
+  MINE_IRON_PER_CYCLE,
   RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC,
   RESIDENCE_STONE_COST,
   RESIDENCE_TIER1_CAPACITY,
   RESIDENCE_TIMBER_COST,
   SIM_REALTIME_RATE,
+  SMITHY_CHARCOAL_PER_CYCLE,
+  SMITHY_IRONWORK_PER_CYCLE,
+  SMITHY_IRON_PER_CYCLE,
+  SMITHY_WATER_PER_CYCLE,
   SPRING_FIREWOOD_DEMAND_MULTIPLIER,
   STARTING_POPULATION,
   STARTING_BREAD,
@@ -25,6 +33,7 @@ import {
   STARTING_IRONWORK,
   STARTING_STONE,
   STARTING_TIMBER,
+  WELL_BASE_REFILL_PER_SEC,
   WINTER_FIREWOOD_DEMAND_MULTIPLIER,
 } from '../src/generated/gameBalance.ts';
 import { householdFoodPerDay } from '../src/economy/foodInventory.ts';
@@ -73,19 +82,52 @@ assert.ok(
   'starter stone must fund logistics, utilities, church access, housing, quarrying, two food camps, and a recovery cushion',
 );
 
-const earlyToolSites = ['lumber_mill', 'woodcutters_lodge', 'stone_quarry'] as const;
 const workSecondsPerDay = CALENDAR_SECONDS_PER_DAY
   * (CALENDAR_WORK_END_HOUR - CALENDAR_WORK_START_HOUR)
   / CALENDAR_HOURS_PER_DAY;
-const fiveYearEarlyToolWear = earlyToolSites.reduce(
-  (total, kind) => total
-    + workSecondsPerDay / BUILDING_DEFINITIONS[kind].harvestInterval
-      * CIVILIAN_TOOL_IRONWORK_PER_CYCLE * 360 * 5,
-  0,
+const mineIronwork = BUILDING_COSTS.mine.ironwork ?? 0;
+const tradingPostIronwork = BUILDING_COSTS.trading_post.ironwork ?? 0;
+const bootstrapContingency = Math.max(mineIronwork, tradingPostIronwork);
+assert.equal(
+  STARTING_IRONWORK,
+  mineIronwork + tradingPostIronwork + bootstrapContingency,
+  'starter ironwork should establish both recovery branches plus one bounded four-unit contingency',
 );
+for (const kind of ['charcoal_burner', 'smithy', 'well'] as const) {
+  assert.equal(
+    BUILDING_COSTS[kind].ironwork ?? 0,
+    0,
+    `${kind} must not circularly consume the ironwork it helps replace`,
+  );
+}
+for (const kind of ['mine', 'charcoal_burner', 'smithy'] as const) {
+  assert.equal(BUILDING_DEFINITIONS[kind].acceptsLabor, true, `${kind} must accept production labor`);
+}
+assert.equal(BUILDING_DEFINITIONS.well.acceptsLabor, false, 'well refill is intentionally passive');
+assert.ok(WELL_BASE_REFILL_PER_SEC > 0, 'the zero-ironwork well must still replace Smithy water');
+assert.ok(MINE_IRON_PER_CYCLE >= SMITHY_IRON_PER_CYCLE);
+assert.ok(CHARCOAL_BURNER_CHARCOAL_PER_CYCLE >= SMITHY_CHARCOAL_PER_CYCLE);
+assert.ok(SMITHY_WATER_PER_CYCLE > 0 && BUILDING_STORAGE_CAPS.smithy.water! > 0);
+assert.ok(SMITHY_IRONWORK_PER_CYCLE > 0);
+const smithyReplacementCycles = Math.ceil(STARTING_IRONWORK / SMITHY_IRONWORK_PER_CYCLE);
+const smithyReplacementSeconds = smithyReplacementCycles * BUILDING_DEFINITIONS.smithy.harvestInterval;
 assert.ok(
-  STARTING_IRONWORK >= fiveYearEarlyToolWear,
-  'starter ironwork must cover roughly five years of the three opening heavy-tool sites',
+  smithyReplacementSeconds <= workSecondsPerDay,
+  'a supplied one-worker Smithy must replace the complete starter reserve within one workday',
+);
+const tierFourChurchIronwork = CHAPEL_TIER2_UPGRADE_IRONWORK + CHAPEL_TIER3_UPGRADE_IRONWORK;
+assert.ok(
+  Math.ceil(tierFourChurchIronwork / SMITHY_IRONWORK_PER_CYCLE)
+    * BUILDING_DEFINITIONS.smithy.harvestInterval <= workSecondsPerDay,
+  'the post-bootstrap Smithy must replace the chapel ironwork needed along the Tier-4 service path within one workday',
+);
+const ironworkImport = MARKETPLACE_TRADE_OFFERS.find(
+  (offer) => offer.kind === 'goldBuy' && offer.resource === 'ironwork',
+);
+assert.ok(ironworkImport && ironworkImport.amount > 0 && ironworkImport.goldCost > 0);
+assert.ok(
+  BUILDING_STORAGE_CAPS.trading_post.ironwork! >= ironworkImport.amount,
+  'the constrained-world Trading Post fallback must have room for an imported ironwork lot',
 );
 const twoRealTimeHoursInGameDays = 2 * 60 * 60
   * SIM_REALTIME_RATE
@@ -110,7 +152,11 @@ assert.ok(
   STARTING_FIREWOOD / openingSeasonStarterFirewoodPerDay >= twoRealTimeHoursInGameDays,
   'starter firewood must cover at least two real-time hours in the opening season while fuel production and market hauling come online',
 );
-assert.ok(BUILDING_STORAGE_CAPS.founders_camp.ironwork >= STARTING_IRONWORK);
+assert.equal(
+  BUILDING_STORAGE_CAPS.founders_camp.ironwork,
+  STARTING_IRONWORK * 2,
+  'Founders Camp keeps one replacement reserve of headroom for salvage/recovery without masking production',
+);
 assert.ok(BUILDING_STORAGE_CAPS.founders_camp.timber >= STARTING_TIMBER);
 assert.ok(BUILDING_STORAGE_CAPS.founders_camp.stone >= STARTING_STONE);
 assert.ok(BUILDING_STORAGE_CAPS.founders_camp.food >= STARTING_BREAD);

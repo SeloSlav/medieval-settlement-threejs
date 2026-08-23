@@ -1,15 +1,19 @@
 import { fireDisabledBuildingIds } from '../../fires/fireIncident.ts';
 import {
-  CALENDAR_DAYS_PER_MONTH,
+  REGIONAL_EXCHANGE_INTERVAL_SECONDS,
+  SIM_REALTIME_RATE,
   STOREHOUSE_HAUL_PER_WORKER,
 } from '../../generated/gameBalance.ts';
+import {
+  formatRegionalExchangeCountdown,
+  tradingPostExchangeDue,
+} from '../../economy/tradingPostTrade.ts';
 import { cargoKindLabel, formatTripPhaseLabel } from '../../logistics/deliveryTrips.ts';
 import {
   DEFAULT_PANTRY_SAFEGUARD_POLICY,
   normalizePantrySafeguardPolicy,
   pantrySafeguardPolicyOption,
 } from '../../economy/pantrySafeguardPolicy.ts';
-import { gameClock } from '../../world/gameCalendar.ts';
 import { getBuildingCost } from '../buildingEconomy.ts';
 import type { InspectableTarget } from '../types.ts';
 import {
@@ -36,8 +40,6 @@ export function renderMarketplaceInspector(
   const hasRoadAccess = context.worldQueries.hasRoadAccess(building.x, building.z);
   const fireDisabled = fireDisabledBuildingIds(context.gameState.fireIncidents.values())
     .has(building.id);
-  const clock = gameClock(context.gameState.tick);
-  const daysUntilSettlement = CALENDAR_DAYS_PER_MONTH - clock.monthDay + 1;
   const pantrySafeguard = pantrySafeguardPolicyOption(
     normalizePantrySafeguardPolicy(
       context.getPantrySafeguardPolicy?.() ?? DEFAULT_PANTRY_SAFEGUARD_POLICY,
@@ -45,6 +47,12 @@ export function renderMarketplaceInspector(
   );
   const rules = Array.from(context.gameState.tradingPostTradeRules?.values() ?? [])
     .filter((rule) => rule.buildingId === building.id && rule.mode !== 0);
+  const exchangeDue = tradingPostExchangeDue(rules, context.gameState.tick);
+  const exchangeCountdown = formatRegionalExchangeCountdown(
+    context.gameState.tick,
+    exchangeDue,
+  );
+  const intervalAt4x = Math.ceil(REGIONAL_EXCHANGE_INTERVAL_SECONDS / (SIM_REALTIME_RATE * 4));
   const localTrip = Array.from(context.gameState.deliveryTrips.values())
     .find((trip) => trip.buildingId === building.id || trip.targetBuildingId === building.id);
   const localTripLabel = localTrip
@@ -53,12 +61,12 @@ export function renderMarketplaceInspector(
       ? 'Paused until a hauler is assigned'
       : 'Waiting for configured surplus or local demand';
 
-  let statusText = `${rules.length} monthly trade rule${rules.length === 1 ? '' : 's'} active`;
+  let statusText = `${rules.length} regional trade rule${rules.length === 1 ? '' : 's'} active`;
   if (building.constructionComplete === false) statusText = 'Trading Post under construction';
   else if (fireDisabled) statusText = 'Trade suspended by fire damage';
   else if (building.assignedLabor <= 0) statusText = 'Trade suspended — assign a local hauler';
   else if (!hasRoadAccess) statusText = 'Trade suspended — connect the local road network';
-  else if (daysUntilSettlement === 1) statusText = 'Monthly settlement due today';
+  else if (exchangeDue) statusText = 'Regional exchange ready';
 
   return {
     eyebrow: 'Building',
@@ -74,8 +82,8 @@ export function renderMarketplaceInspector(
       ${buildingCostRows(cost)}
       ${buildingRoadAccessRow(context.worldQueries, building)}
       ${buildingStorageRows(building, building.kind, context.conflictEnabled ?? false)}
-      <li><span>Purpose</span><span>Dedicated Trading Post for monthly import and export rules</span></li>
-      <li><span>Settlement</span><span>${daysUntilSettlement === 1 ? 'Today' : `In ${daysUntilSettlement} days`} · one abstract regional exchange per month</span></li>
+      <li><span>Purpose</span><span>Dedicated Trading Post for recurring import and export rules</span></li>
+      <li><span>Next exchange</span><span>${exchangeCountdown} · repeats every ${REGIONAL_EXCHANGE_INTERVAL_SECONDS} simulation seconds (~${intervalAt4x} real seconds at 4×) while operational</span></li>
       <li><span>Regional transit</span><span>No caravan unit — approved imports and staged exports settle directly</span></li>
       <li><span>Local hauling</span><span>${localTripLabel}</span></li>
       <li><span>Hauler slots</span><span>${building.assignedLabor}/2 dedicated · the first enables trade; the optional second raises a collection cart from ${STOREHOUSE_HAUL_PER_WORKER} to ${STOREHOUSE_HAUL_PER_WORKER * 2} units</span></li>
@@ -84,7 +92,7 @@ export function renderMarketplaceInspector(
       <li><span>Town Hall safeguard</span><span>${pantrySafeguard.label} · ${pantrySafeguard.hint} This controls local Marketplace issues only and never opens a regional order.</span></li>
       <li><span>Import ownership</span><span>Public Trading Post procurement follows player settlement rules and spends civic treasury gold; automatic private household contingency imports are separate and spend household wealth.</span></li>
       <li><span>Import funding</span><span>Civic treasury gold · partial orders are allowed when coin or Trading Post room is short</span></li>
-      <li><span>Local supply</span><span>Imported household goods still move from this store to covered Marketplaces and wells by local hauler</span></li>
+      <li><span>Local supply</span><span>Imported goods still move by physical hauler: provisions and wares to Marketplaces, water to wells, and ale or cider to a staffed Tavern</span></li>
     `,
     demolish: {
       visible: true,

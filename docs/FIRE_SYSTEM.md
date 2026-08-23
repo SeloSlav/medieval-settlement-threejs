@@ -78,7 +78,7 @@ A well can respond only when all of the following are true:
   otherwise;
 - at least one unassigned villager remains available for each bucket trip.
 
-Fire calls take priority over household water delivery, industrial water carts, and the
+Fire calls take priority over automatic household and industrial well service and the
 normal work schedule. A covered well reserves newly drawn water while a fire remains active,
 so household demand cannot repeatedly consume a dry well's sub-bucket refill before it can
 respond.

@@ -157,9 +157,9 @@ function permanentStorageStatus(
     case 'disconnected':
       return `No usable haul route to ${storageNeed(plan)}`;
     case 'labor':
-      return `${plan.targetRoom.toFixed(0)} ${materialLabel(plan).toLowerCase()} ready · awaiting one free hauler for ${plannedTargetLabel}`;
+      return `${plan.loadAmount.toFixed(0)} ${materialLabel(plan).toLowerCase()} ready · awaiting one free hauler for ${plannedTargetLabel}`;
     case 'ready':
-      return `${plan.targetRoom.toFixed(0)} ${materialLabel(plan).toLowerCase()} next · ${plannedTargetLabel} ${plan.routeDistance?.toFixed(0) ?? '?'} m travel equivalent`;
+      return `${plan.loadAmount.toFixed(0)} ${materialLabel(plan).toLowerCase()} next · ${plannedTargetLabel} ${plan.routeDistance?.toFixed(0) ?? '?'} m travel equivalent`;
     default: {
       const unreachable: never = plan.blocker;
       return unreachable;
@@ -229,7 +229,7 @@ export function renderFoundersCampInspector(
       <li><span>Founding safeguard</span><span>The one-time camp cannot burn or be demolished; portable goods remain exposed to later raids</span></li>
       <li><span>Construction supply</span><span>Free workers carry reserved loads by handcart; the founding stockyard can begin off-road</span></li>
       <li><span>Permanent storage</span><span>${permanentStorageStatus(relocationPlan, activeTrip, context)}</span></li>
-      <li><span>Clearance order</span><span>Construction materials move first; provisions, drink, textiles, armaments, and water follow to compatible permanent stores</span></li>
+      <li><span>Clearance order</span><span>${shelterActive ? 'Starter food moves before bulk fuel; other committed stores remain until every founder is housed' : 'Construction materials move first; provisions, drink, textiles, armaments, and water follow to compatible permanent stores'}</span></li>
       <li><span>Active cart</span><span>${activeTrip ? formatTripPhaseLabel(activeTrip.phase) : 'None'}</span></li>
       <li><span>Lockbox</span><span>${lockboxStatus}</span></li>
       ${buildingStorageRows(building, building.kind)}

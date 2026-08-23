@@ -3,9 +3,10 @@ use spacetimedb::{reducer, ReducerContext};
 use crate::db::*;
 use crate::economy::{trade_resource_for_commodity, CommodityKind};
 use crate::lifecycle::ensure_player_resources;
-use crate::simulation::game_clock;
 use crate::tables::TradingPostTradeRule;
-use crate::trading_post_policy::{absolute_calendar_month, clamp_trade_surplus, valid_trade_mode};
+use crate::trading_post_policy::{
+    clamp_trade_surplus, regional_exchange_sequence, valid_trade_mode,
+};
 
 #[reducer]
 pub fn set_trading_post_trade_rule(
@@ -40,12 +41,12 @@ pub fn set_trading_post_trade_rule(
     }
 
     let id = format!("{}:{}", building_id, commodity.as_u8());
-    let current_month = ctx
+    let current_exchange = ctx
         .db
         .world_config()
         .id()
         .find(&0)
-        .map(|config| absolute_calendar_month(game_clock(config.sim_tick).total_days))
+        .map(|config| regional_exchange_sequence(config.sim_tick))
         .unwrap_or(0);
     let next = TradingPostTradeRule {
         id: id.clone(),
@@ -54,8 +55,9 @@ pub fn set_trading_post_trade_rule(
         commodity_kind: commodity.as_u8(),
         mode,
         target_surplus: clamp_trade_surplus(target_surplus),
-        // A newly changed rule begins with the following monthly settlement.
-        last_settled_month: current_month,
+        // A newly changed rule begins with the following bounded exchange.
+        // Keep the legacy field name so existing save/schema rows remain valid.
+        last_settled_month: current_exchange,
         last_trade_amount: 0.0,
         last_trade_gold: 0.0,
     };

@@ -275,8 +275,8 @@ assert.doesNotMatch(
 );
 assert.match(
   server,
-  /step_apiary[\s\S]*?apiary_honey_reserve[\s\S]*?&\["brewery"\][\s\S]*?&\["marketplace"\][\s\S]*?&\["trading_post"\]/,
-  'apiaries must protect their hive reserve, then serve the ordinary town economy',
+  /step_apiary[\s\S]*?apiary_honey_reserve[\s\S]*?&\["brewery"\][\s\S]*?&\["granary"\][\s\S]*?storage_accepts_commodity\(target, CommodityKind::Honey\)[\s\S]*?&\["trading_post"\]/,
+  'apiaries must protect their hive reserve, then serve brewing, opted-in storage, and trade',
 );
 assert.match(
   server,

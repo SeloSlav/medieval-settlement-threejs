@@ -68,6 +68,8 @@ mod tests {
     };
     use crate::balance_generated::{
         CHAPEL_RECOVERY_STOCK_MULTIPLIER, MONASTERY_RECOVERY_STOCK_MULTIPLIER,
+        RESIDENCE_RECOVERY_FIREWOOD_MIN, RESIDENCE_RECOVERY_FOOD_MIN,
+        RESIDENCE_RECOVERY_WATER_MIN,
     };
     use crate::food_demand_policy::household_food_per_day;
     use std::time::{Duration, Instant};
@@ -150,6 +152,37 @@ mod tests {
         assert!((parish - ordinary * CHAPEL_RECOVERY_STOCK_MULTIPLIER).abs() < 1e-9);
         assert!((monastery - parish * MONASTERY_RECOVERY_STOCK_MULTIPLIER).abs() < 1e-9);
         assert!(monastery > 0.0 && monastery < parish && parish < ordinary);
+    }
+
+    #[test]
+    fn ordinary_market_buffers_unlock_growth_below_legacy_fixed_recovery_stockpiles() {
+        let population = 1;
+        let food = residence_settlement_buffer_min(
+            ResidenceSettlementVitalNeed::Food,
+            population,
+            false,
+            false,
+        );
+        let firewood = residence_settlement_buffer_min(
+            ResidenceSettlementVitalNeed::Firewood,
+            population,
+            false,
+            false,
+        );
+        let water = residence_settlement_buffer_min(
+            ResidenceSettlementVitalNeed::Water,
+            population,
+            false,
+            false,
+        );
+
+        assert!(food < RESIDENCE_RECOVERY_FOOD_MIN);
+        assert!(firewood < RESIDENCE_RECOVERY_FIREWOOD_MIN);
+        assert!(water < RESIDENCE_RECOVERY_WATER_MIN);
+        assert!(settlement_buffers_ready(
+            population,
+            [(food, food), (firewood, firewood), (water, water)],
+        ));
     }
 
     #[test]

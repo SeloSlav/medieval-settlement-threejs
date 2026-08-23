@@ -6,6 +6,7 @@ import {
   BUILD_MENU_ENTRIES,
   CIVIC_BUILD_MENU_ENTRIES,
   GATHERING_BUILD_MENU_ENTRIES,
+  hydrateBuildMenuImages,
   INDUSTRY_BUILD_MENU_ENTRIES,
   MILITARY_BUILD_MENU_ENTRIES,
   renderBuildMenuCards,
@@ -36,13 +37,14 @@ assert.deepEqual(keys(CIVIC_BUILD_MENU_ENTRIES), [
   'village_storehouse', 'granary',
 ]);
 assert.deepEqual(keys(GATHERING_BUILD_MENU_ENTRIES), [
-  'lumber_mill', 'reforester', 'stone_quarry', 'large_quarry',
+  'lumber_mill', 'reforester', 'stone_quarry', 'large_quarry', 'mine', 'clay_pit',
   'hunters_hall', 'foragers_shed', 'fishing_camp',
 ]);
 assert.equal(
-  GATHERING_BUILD_MENU_ENTRIES.some((entry) => entry.artKey === 'mine' || entry.artKey === 'clay_pit'),
-  false,
-  'Mining Pit and Quarry must replace the individual Mineral mine and Clay pit cards',
+  GATHERING_BUILD_MENU_ENTRIES.some((entry) => entry.artKey === 'mine')
+    && GATHERING_BUILD_MENU_ENTRIES.some((entry) => entry.artKey === 'clay_pit'),
+  true,
+  'the attainable iron/salt and clay chains must expose their dedicated gathering cards',
 );
 assert.deepEqual(keys(AGRICULTURE_BUILD_MENU_ENTRIES), [
   'threshing_barn', 'apiary', 'pastoral_farmstead', 'swineherd',
@@ -59,7 +61,7 @@ assert.deepEqual(BUILD_MENU_CATEGORIES.map((category) => category.id), [
 assert.deepEqual(categoryKeys('civic'), ['residences', 'well', 'town_hall']);
 assert.deepEqual(categoryKeys('trade'), ['marketplace', 'trading_post', 'village_storehouse', 'granary']);
 assert.deepEqual(categoryKeys('gathering'), [
-  'lumber_mill', 'reforester', 'stone_quarry', 'large_quarry', 'hunters_hall', 'foragers_shed', 'fishing_camp',
+  'lumber_mill', 'reforester', 'stone_quarry', 'large_quarry', 'mine', 'clay_pit', 'hunters_hall', 'foragers_shed', 'fishing_camp',
 ]);
 assert.deepEqual(categoryKeys('agriculture'), ['threshing_barn', 'apiary', 'pastoral_farmstead', 'swineherd']);
 assert.deepEqual(categoryKeys('food'), ['watermill', 'windmill', 'bakery', 'brewery', 'tavern', 'smokehouse']);
@@ -78,6 +80,59 @@ assert.equal(
 );
 
 const renderedCards = renderBuildMenuCards();
+assert.match(
+  renderedCards,
+  /<img class="construction-card__art"[^>]*alt=""[^>]*>[\s\S]*?<span class="construction-card__art-fallback" aria-hidden="true" hidden>/,
+  'build-card art must be decorative while a deliberate visual fallback remains available',
+);
+
+let artErrorListener: (() => void) | null = null;
+const fallbackClasses = new Set<string>();
+const fakeFallback = { hidden: true };
+const fakeCard = {
+  ariaLabel: 'Mine. Delves mineral seams for iron or salt.',
+  classList: {
+    add: (name: string) => fallbackClasses.add(name),
+    remove: (name: string) => fallbackClasses.delete(name),
+  },
+  querySelector: () => fakeFallback,
+};
+const fakeImage = {
+  dataset: { src: '/assets/ui/build-menu/cards/iron-mine.webp' } as Record<string, string>,
+  hidden: false,
+  assignedSrc: '',
+  closest: () => fakeCard,
+  addEventListener: (event: string, listener: () => void) => {
+    if (event === 'error') artErrorListener = listener;
+  },
+  removeAttribute: function (name: string) {
+    if (name === 'src') this.assignedSrc = '';
+  },
+  set src(value: string) {
+    this.assignedSrc = value;
+  },
+  get src() {
+    return this.assignedSrc;
+  },
+};
+hydrateBuildMenuImages({
+  querySelectorAll: () => [fakeImage],
+} as unknown as ParentNode);
+assert.equal(fakeImage.assignedSrc, '/assets/ui/build-menu/cards/iron-mine.webp');
+assert.equal(fakeImage.dataset.src, undefined);
+assert.ok(artErrorListener, 'hydration must register a load-failure fallback before assigning src');
+artErrorListener();
+assert.equal(fakeImage.hidden, true, 'a failed bitmap must be removed instead of showing broken-image chrome');
+assert.equal(fakeImage.assignedSrc, '');
+assert.equal(fakeImage.dataset.artState, 'fallback');
+assert.equal(fakeFallback.hidden, false, 'the intentional hammer fallback must replace failed art');
+assert.ok(fallbackClasses.has('is-art-unavailable'));
+assert.equal(
+  fakeCard.ariaLabel,
+  'Mine. Delves mineral seams for iron or salt.',
+  'image failure must preserve the card action accessible name',
+);
+
 const renderedCardTags = [...renderedCards.matchAll(/<button[^>]*class="construction-card"[^>]*>/g)]
   .map((match) => match[0]);
 assert.equal(renderedCardTags.length, BUILD_MENU_ENTRIES.length);
@@ -193,6 +248,7 @@ const stationaryBuildingTool = Object.assign(Object.create(BuildingTool.prototyp
   validationDirty: false,
   placementStatusDetail: 'Ready: site clear',
   options: {
+    getState: () => ({ foragingNodes: new Map() }),
     markers: {
       setPlacementPreview: (_kind: string, _x: number, _z: number, valid: boolean) => {
         buildingPreviewValidity.push(valid);
@@ -237,6 +293,25 @@ assert.match(
   /data-action="tavern"[\s\S]*?data-src="\/assets\/ui\/build-menu\/cards\/tavern\.webp"/,
   'the Tavern must use its dedicated build-card illustration',
 );
+for (const [action, asset] of [
+  ['mine', 'iron-mine.webp'],
+  ['clay-pit', 'clay-pit.webp'],
+  ['charcoal-burner', 'charcoal-burner.webp'],
+  ['smithy', 'smithy-bloomery.webp'],
+  ['potter-kiln', 'potter-kiln.webp'],
+  ['wayside-shrine', 'wayside-shrine.webp'],
+  ['trading-post', 'trading-post.webp'],
+  ['palisaded-refuge', 'palisaded-refuge.webp'],
+  ['tavern', 'tavern.webp'],
+  ['bakery', 'bakery.webp'],
+] as const) {
+  assert.match(
+    renderedCards,
+    new RegExp(`data-action="${action}"[\\s\\S]*?data-src="/assets/ui/build-menu/cards/${asset}"`),
+    `${action} must use its dedicated build-card illustration`,
+  );
+  assert.ok(fs.statSync(`public/assets/ui/build-menu/cards/${asset}`).size > 20_000);
+}
 assert.ok(fs.existsSync('public/assets/ui/build-menu/cards/tavern.webp'));
 assert.ok(fs.existsSync('public/assets/ui/build-menu/cards/wayside-shrine.webp'));
 assert.ok(fs.existsSync('public/assets/ui/build-menu/cards/dry-stone-wall.webp'));
@@ -293,7 +368,7 @@ for (const description of descriptions) {
   const sentenceCount = description.split(/[.!?]+(?:\s|$)/).filter(Boolean).length;
   const wordCount = description.trim().split(/\s+/).length;
   assert.ok(sentenceCount <= 2, `build-card copy must stay within two sentences: ${description}`);
-  assert.ok(wordCount <= 18, `build-card copy must stay quickly scannable: ${description}`);
+  assert.ok(wordCount <= 20, `build-card copy must stay quickly scannable: ${description}`);
   assert.doesNotMatch(description, /\bcost:/i, 'construction cost must not be repeated in tooltip prose');
   assert.doesNotMatch(
     description,

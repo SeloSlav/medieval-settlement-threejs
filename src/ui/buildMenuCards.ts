@@ -97,22 +97,22 @@ const DETAILS: Record<PlacementArtKey, BuildCardDetail> = {
   watchtower: ['Frontier watchtower', 'Spots approaching raiders and warns nearby homes and stores.'],
   guardhouse: ['Frontier guardhouse', 'Musters armed guards to defend the settlement once a watchtower stands.'],
   palisaded_refuge: ['Palisaded refuge', 'Shelters warned families and their coin once a guardhouse stands.'],
-  lumber_mill: ['Lumber mill', 'Fells mature trees and saws them into building timber.', flow([], ['timber'])],
-  stone_quarry: ['Mining Pit', 'Gathers stone, iron, salt, or clay from shallow surface deposits.', flow([], ['stone', 'iron', 'salt', 'clay'])],
-  large_quarry: ['Quarry', 'Works rich deposits with timber supports for a lasting supply of stone or minerals.', flow(['timber'], ['stone', 'iron', 'salt', 'clay'])],
-  mine: ['Mine', 'Delves mineral seams for iron or salt.', flow([], ['iron', 'salt'])],
-  clay_pit: ['Clay pit', 'Digs workable clay for pottery and roof tiles.', flow([], ['clay'])],
+  lumber_mill: ['Lumber mill', 'Fells mature trees and saws them into building timber; replacement axes raise output but wear each cycle.', flow([], ['timber'])],
+  stone_quarry: ['Mining Pit', 'Gathers stone, iron, salt, or clay from shallow surface deposits; picks and hammer heads raise output but wear each cycle.', flow([], ['stone', 'iron', 'salt', 'clay'])],
+  large_quarry: ['Quarry', 'Works rich deposits with timber supports; picks and hammer heads raise output but wear each cycle.', flow(['timber'], ['stone', 'iron', 'salt', 'clay'])],
+  mine: ['Mine', 'Delves mineral seams for iron or salt; picks and hammer heads raise output but wear each cycle.', flow([], ['iron', 'salt'])],
+  clay_pit: ['Clay pit', 'Digs workable clay; picks and hammer heads raise output but wear each cycle.', flow([], ['clay'])],
   charcoal_burner: ["Charcoal burner's yard", 'Slow-burns firewood into charcoal for the smithy.', flow(['firewood'], ['charcoal'])],
   smithy: ['Forest bloomery & smithy', 'Forges ironwork, tools, fittings, and weapons from iron and charcoal.', flow(['iron', 'charcoal', 'water'], ['ironwork'])],
   potter_kiln: ["Potter's kiln", 'Fires clay into household pottery or sturdy roof tiles.', flow(['clay', 'water', 'firewood'], ['pottery', 'roofTiles'])],
   reforester: ['Reforester', 'Restores felled woodland with young native trees.'],
-  woodcutters_lodge: ["Woodcutter's lodge", 'Splits timber into firewood for settlement hearths.', flow(['timber'], ['firewood'])],
+  woodcutters_lodge: ["Woodcutter's lodge", 'Splits timber into firewood for settlement hearths; replacement axes raise output but wear each cycle.', flow(['timber'], ['firewood'])],
   hunters_hall: ["Hunter's hall", 'Hunts nearby game and dresses the catch for meat and hides.', flow([], ['meat', 'hides'])],
   foragers_shed: ["Forager's shed", 'Gathers woodland berries, mushrooms, and healing remedies.', flow([], ['berries', 'mushrooms', 'remedies'])],
   fishing_camp: ['Fishing camp', 'Catches fish from nearby waters through the warmer seasons.', flow([], ['fish'])],
-  threshing_barn: ['Farmstead', 'Harvests and threshes rye, oats, barley, maslin, and flax.', flow(['ryeSheaves', 'oatSheaves', 'barleySheaves', 'maslinSheaves'], ['ryeGrain', 'oatGrain', 'barley', 'maslinGrain', 'flax'])],
-  watermill: ['Grain watermill', 'Uses seasonal river power to grind rye and maslin into flour.', flow(['ryeGrain', 'maslinGrain'], ['ryeFlour', 'maslinFlour'])],
-  windmill: ['Grain windmill', 'Uses strong winds to grind rye and maslin into flour.', flow(['ryeGrain', 'maslinGrain'], ['ryeFlour', 'maslinFlour'])],
+  threshing_barn: ['Farmstead', 'Harvests rye, oats, barley, maslin, and flax; maintained ploughshares, hoes, sickles, and scythes raise field output.', flow(['ryeSheaves', 'oatSheaves', 'barleySheaves', 'maslinSheaves'], ['ryeGrain', 'oatGrain', 'barley', 'maslinGrain', 'flax'])],
+  watermill: ['Grain watermill', 'Uses seasonal river power to grind rye and maslin. Smith-dressed millstones and maintained iron fittings raise output.', flow(['ryeGrain', 'maslinGrain'], ['ryeFlour', 'maslinFlour'])],
+  windmill: ['Grain windmill', 'Uses strong winds to grind rye and maslin. Smith-dressed millstones and maintained iron fittings raise output.', flow(['ryeGrain', 'maslinGrain'], ['ryeFlour', 'maslinFlour'])],
   granary: ['Granary', 'Stores grain, fresh food, and preserved provisions for the settlement.'],
   bakery: ['Bakery', 'Bakes rye or maslin flour into bread for the settlement.', flow(['ryeFlour', 'maslinFlour', 'water', 'firewood'], ['ryeBread', 'maslinBread'])],
   brewery: ['Brewhouse', 'Brews ale, presses distinct apple or pear cider, or ferments mead.', flow(['barley', 'apples', 'pears', 'honey', 'water', 'firewood'], ['ale', 'cider', 'pearCider', 'mead'])],
@@ -146,7 +146,7 @@ export const CIVIC_BUILD_MENU_ENTRIES: readonly BuildMenuEntry[] = [
 
 /** Sites whose crews gather raw resources from the landscape. */
 export const GATHERING_BUILD_MENU_ENTRIES: readonly BuildMenuEntry[] = [
-  entry('lumber_mill'), entry('reforester'), entry('stone_quarry'), entry('large_quarry'),
+  entry('lumber_mill'), entry('reforester'), entry('stone_quarry'), entry('large_quarry'), entry('mine'), entry('clay_pit'),
   entry('hunters_hall'), entry('foragers_shed'), entry('fishing_camp'),
 ];
 
@@ -244,6 +244,7 @@ export function renderBuildMenuCards(entries: readonly BuildMenuEntry[] = BUILD_
       : '';
     return `<button type="button" class="construction-card" data-action="${entry.action}" data-tooltip-placement="above" data-tooltip-title="${title}" data-tooltip="${description}" data-tooltip-cost="${tooltipCost}" data-tooltip-cost-affordable="true"${flowAttribute} aria-label="${title}. ${description} Cost: ${costText}">
       <img class="construction-card__art" data-src="${BUILD_CARD_ART[entry.artKey]}" alt="" width="320" height="480" loading="lazy" decoding="async" draggable="false" />
+      <span class="construction-card__art-fallback" aria-hidden="true" hidden></span>
       <span class="construction-card__caption" aria-hidden="true"><strong>${title}</strong><span class="construction-card__cost">${costMarkup}</span></span>
       <span class="construction-card__tooltip" role="tooltip"><span class="construction-card__tooltip-title">${title}</span><span class="construction-card__tooltip-desc">${description}</span><span class="construction-card__tooltip-cost">Cost: ${costMarkup}</span></span>
     </button>`;
@@ -291,8 +292,32 @@ export function hydrateBuildMenuImages(menu: ParentNode): void {
   for (const image of menu.querySelectorAll<HTMLImageElement>('img[data-src]')) {
     const source = image.dataset.src;
     if (!source) continue;
+    const card = image.closest<HTMLButtonElement>('.construction-card');
+    const fallback = card?.querySelector<HTMLElement>('.construction-card__art-fallback');
+    const markArtAvailable = () => {
+      if (image.dataset.artSource !== source) return;
+      image.hidden = false;
+      image.dataset.artState = 'ready';
+      card?.classList.remove('is-art-unavailable');
+      if (fallback) fallback.hidden = true;
+    };
+    const markArtUnavailable = () => {
+      if (image.dataset.artSource !== source) return;
+      image.hidden = true;
+      image.removeAttribute('src');
+      image.dataset.artState = 'fallback';
+      card?.classList.add('is-art-unavailable');
+      if (fallback) fallback.hidden = false;
+    };
+    image.addEventListener('load', markArtAvailable, { once: true });
+    image.addEventListener('error', markArtUnavailable, { once: true });
+    image.dataset.artSource = source;
+    image.dataset.artState = 'loading';
     image.src = source;
     delete image.dataset.src;
+    if (typeof image.decode === 'function') {
+      void image.decode().then(markArtAvailable).catch(markArtUnavailable);
+    }
   }
 }
 

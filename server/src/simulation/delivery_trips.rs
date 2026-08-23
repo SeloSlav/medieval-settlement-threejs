@@ -13,9 +13,15 @@ use crate::balance_generated::{
     REMEDY_DELIVERY_SPEED_MPS, REMEDY_DELIVERY_TARGET_DAYS, REMEDY_DELIVERY_UNLOAD_SEC,
     STOREHOUSE_HAUL_PER_WORKER, TIMBER_DELIVERY_SPEED_MPS, TIMBER_DELIVERY_UNLOAD_SEC,
 };
+use crate::construction_priority::{
+    construction_labor_ready, construction_supply_crew, ConstructionSupplyCrew,
+};
 use crate::db::*;
 pub use crate::delivery_trip_policy::DeliveryTripPhase;
-use crate::delivery_trip_policy::{raid_cart_posture, RaidCartPosture};
+use crate::delivery_trip_policy::{
+    delivery_cargo_is_approaching, inbound_supply_trip_conflicts, raid_cart_posture,
+    RaidCartPosture,
+};
 use crate::economy::{
     adriatic_trade_entry_point, available_building_labor, building_commodity_room,
     building_commodity_stock, chapel_coffer_gold, chapel_monastery_tithe_due,
@@ -281,13 +287,45 @@ pub fn construction_source_cart_busy(ctx: &ReducerContext, source: &Building) ->
     source.kind != "founders_camp" && building_has_active_trip(ctx, source.id)
 }
 
+fn construction_site_builder_cart_busy(ctx: &ReducerContext, site_id: u64) -> bool {
+    ctx.db
+        .delivery_trip()
+        .labor_building_id()
+        .filter(&site_id)
+        .next()
+        .is_some()
+}
+
 pub fn building_has_inbound_supply_trip(ctx: &ReducerContext, building_id: u64) -> bool {
     ctx.db
         .delivery_trip()
         .target_building_id()
         .filter(&building_id)
-        .next()
-        .is_some()
+        .any(|trip| delivery_cargo_is_approaching(trip.phase, trip.amount))
+}
+
+/// Marketplaces may receive different table commodities at the same time, but
+/// every other building keeps the single-inbound-cart rule. In both cases a
+/// matching approaching load suppresses a duplicate reservation.
+pub fn building_has_conflicting_inbound_supply_trip(
+    ctx: &ReducerContext,
+    target: &Building,
+    commodity: CommodityKind,
+) -> bool {
+    ctx.db
+        .delivery_trip()
+        .target_building_id()
+        .filter(&target.id)
+        .any(|trip| {
+            trip.destination_kind == DELIVERY_DESTINATION_BUILDING
+                && inbound_supply_trip_conflicts(
+                    target.kind == "marketplace",
+                    commodity.as_u8(),
+                    trip.cargo_kind,
+                    trip.phase,
+                    trip.amount,
+                )
+        })
 }
 
 /// Free settlement labor still available to operate carts. Freelance crews are
@@ -446,7 +484,7 @@ pub fn building_has_inbound_commodity_trip(
         .any(|trip| {
             trip.destination_kind == DELIVERY_DESTINATION_BUILDING
                 && trip.cargo_kind == commodity.as_u8()
-                && DeliveryTripPhase::from_u8(trip.phase) != Some(DeliveryTripPhase::Inbound)
+                && delivery_cargo_is_approaching(trip.phase, trip.amount)
         })
 }
 
@@ -1327,6 +1365,7 @@ fn try_start_building_supply_trip_with_labor(
         || tick.building_disabled_by_fire(ctx, origin.id)
         || tick.building_disabled_by_fire(ctx, target.id)
         || building_has_active_trip(ctx, origin.id)
+        || building_has_conflicting_inbound_supply_trip(ctx, target, commodity)
     {
         return false;
     }
@@ -1572,8 +1611,10 @@ pub fn try_start_fire_response_trip(
 }
 
 /// Loads reserved construction stock from any completed source and sends it to
-/// a construction site. Construction always reserves one flexible villager;
-/// production and storage rosters remain at their assigned jobs. The
+/// a construction site. A staffed storehouse supplies its own crew, otherwise
+/// a free villager hauls the load. If neither is available, one builder may
+/// temporarily leave a material-blocked site to operate its cart; the trip's
+/// labor-building ownership keeps that builder reserved until return. The
 /// reservation is reduced at loading time; if the trip is recalled, it is
 /// restored while the load physically returns.
 pub fn try_start_construction_supply_trip(
@@ -1619,22 +1660,44 @@ pub fn try_start_construction_supply_trip(
     } else {
         0
     };
-    let (workers, haul_per_worker, labor_source) = if storehouse_workers > 0 {
-        (
-            storehouse_workers,
+    let site_work_ready = construction_labor_ready(
+        site.construction_required_timber,
+        site.construction_required_stone,
+        site.construction_required_ironwork,
+        site.construction_delivered_timber,
+        site.construction_delivered_stone,
+        site.construction_delivered_ironwork,
+        site.construction_progress,
+        site.construction_treasury_timber,
+        site.construction_treasury_stone,
+        site.construction_treasury_ironwork,
+        site.construction_required_roof_tiles,
+        site.construction_delivered_roof_tiles,
+        site.construction_treasury_roof_tiles,
+    );
+    let crew = construction_supply_crew(
+        storehouse_workers,
+        available_free_haulers,
+        onsite_building_labor(ctx, site),
+        site_work_ready,
+        construction_site_builder_cart_busy(ctx, site.id),
+    );
+    let (workers, haul_per_worker, labor_source) = match crew {
+        Some(ConstructionSupplyCrew::Storehouse(workers)) => (
+            workers,
             STOREHOUSE_HAUL_PER_WORKER,
             DeliveryLaborSource::Building(origin.id),
-        )
-    } else {
-        (
-            available_free_haulers.min(1),
+        ),
+        Some(ConstructionSupplyCrew::Free) => {
+            (1, CONSTRUCTION_HAUL_PER_WORKER, DeliveryLaborSource::Free)
+        }
+        Some(ConstructionSupplyCrew::SiteBuilder) => (
+            1,
             CONSTRUCTION_HAUL_PER_WORKER,
-            DeliveryLaborSource::Free,
-        )
+            DeliveryLaborSource::Building(site.id),
+        ),
+        None => return false,
     };
-    if workers == 0 {
-        return false;
-    }
     let commodity_name = match commodity {
         CommodityKind::Timber => "timber",
         CommodityKind::Stone => "stone",

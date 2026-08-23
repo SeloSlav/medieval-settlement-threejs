@@ -1,0 +1,30 @@
+Map resource icons adapted from Game-icons.net
+https://game-icons.net/
+
+Icons:
+
+- "Stone pile" by Delapouite
+  https://game-icons.net/1x1/delapouite/stone-pile.html
+- "Deer head" by Caro Asercion
+  https://game-icons.net/1x1/caro-asercion/deer-head.html
+- "Berry bush" by Delapouite
+  https://game-icons.net/1x1/delapouite/berry-bush.html
+
+Changes made for Medieval Road System:
+
+- Removed the original square background.
+- Changed the foreground to inherit the UI marker color.
+- Redrew the quarry and berry artwork as low-detail silhouettes.
+- Cropped the deer SVG view box for legibility at small map-marker sizes.
+
+The icons are licensed under the Creative Commons Attribution 3.0 Unported
+license:
+
+https://creativecommons.org/licenses/by/3.0/
+
+The Game-icons.net source archive states:
+
+  Icons provided under the Creative Commons 3.0 BY or CC0 if mentioned below.
+  Please, include a mention "Icons made by {author}" in your derivative work.
+
+More information and icons are available at https://game-icons.net/

@@ -20,7 +20,7 @@ export const WEAVER_INPUT_POLICY_PRESETS = [
   {
     policy: WEAVER_INPUT_POLICY_AUTO,
     label: 'Auto',
-    hint: 'Shares fibre and well-water carts normally and uses the route with the most complete cycles already staged.',
+    hint: 'Shares fibre carts and automatic well service normally, using the route with the most complete cycles already staged.',
   },
   {
     policy: WEAVER_INPUT_POLICY_WOOL_FIRST,
@@ -30,7 +30,7 @@ export const WEAVER_INPUT_POLICY_PRESETS = [
   {
     policy: WEAVER_INPUT_POLICY_FLAX_FIRST,
     label: 'Flax first',
-    hint: 'Prioritizes flax and well-water carts while preserving wool when a complete wet cycle is ready.',
+    hint: 'Prioritizes flax carts and automatic well service while preserving wool when a complete wet cycle is ready.',
   },
 ] as const;
 

@@ -415,9 +415,7 @@ pub fn specialty_family_for_commodity(commodity: CommodityKind) -> Option<Specia
         CommodityKind::Ale
         | CommodityKind::Cider
         | CommodityKind::PearCider
-        | CommodityKind::Wine => {
-            Some(SpecialtyMarketFamily::Drink)
-        }
+        | CommodityKind::Wine => Some(SpecialtyMarketFamily::Drink),
         CommodityKind::Honey
         | CommodityKind::Cheese
         | CommodityKind::AroniaJam

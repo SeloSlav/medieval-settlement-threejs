@@ -163,7 +163,9 @@ for (const kind of kinds) {
     ? 7
     : kind === 'vegetable_garden'
       ? 5
-      : 12;
+      : BACKYARD_GARDEN_DEFINITIONS[kind]?.specializationOf === 'vegetable_garden'
+        ? 6
+        : 12;
   assert.ok(
     meshCount >= minimumMeshCountWithoutStreamedPlants,
     `${kind} should be a composed scene, not a placeholder prop`,
@@ -332,8 +334,13 @@ for (const contract of [
   const names: string[] = [];
   const cropGroups: THREE.Object3D[] = [];
   const cropKinds = new Set<string>();
+  let authoredDetailCount = 0;
   garden.traverse((object) => {
     if (object.name) names.push(object.name);
+    const sourceLeafNameCounts = object.userData.sourceLeafNameCounts as
+      | Record<string, number>
+      | undefined;
+    authoredDetailCount += sourceLeafNameCounts?.[contract.detail] ?? 0;
     if (!object.userData.backyardCropKind) return;
     cropGroups.push(object);
     cropKinds.add(object.userData.backyardCropKind as string);
@@ -345,8 +352,13 @@ for (const contract of [
     `${contract.kind} should fill all three prepared beds with the selected seed`,
   );
   assert.ok(
-    names.filter((name) => name === contract.detail).length >= contract.minimumDetail,
+    authoredDetailCount >= contract.minimumDetail,
     `${contract.kind} should retain its existing authored crop detail`,
+  );
+  assert.equal(
+    names.filter((name) => name === `Batched ${contract.crop} crop leaves`).length,
+    3,
+    `${contract.kind} should submit one pooled leaf mesh per seasonal bed`,
   );
   for (const forbidden of ['CabbageRows:', 'CarrotRows:', 'BeetrootRows:'].filter(
     (prefix) => prefix !== contract.rowPrefix,
@@ -431,7 +443,7 @@ const extremeBackyardVegetables = createBackyardGardenMesh('cabbage_garden', {
 });
 let extremeCropCount = 0;
 extremeBackyardVegetables.traverse((object) => {
-  if (/^Cabbage plant$/.test(object.name)) extremeCropCount += 1;
+  extremeCropCount += Number(object.userData.sourcePlantCount ?? 0);
 });
 assert.deepEqual(extremeBackyardVegetables.userData.footprint, { width: 30, depth: 40 });
 assert.ok(

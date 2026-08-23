@@ -12,7 +12,10 @@ import { totalChapelCofferGold } from '../resources/chapelCoffer.ts';
 import { payableChapelTithePerDay } from './householdWealth.ts';
 import { chapelTitheMultiplier } from './chapelUpgrade.ts';
 import { gardenMarketActivity } from './gardenMarketActivity.ts';
-import { allocateBackyardFood } from './backyardGardenTick.ts';
+import {
+  allocateBackyardFood,
+  splitBackyardOrchardHarvest,
+} from './backyardGardenTick.ts';
 import { edibleFoodStock } from './foodInventory.ts';
 import { taxedEconomicActivity } from './villageEconomy.ts';
 
@@ -48,10 +51,16 @@ export function backyardGardenEconomyPerDay(
     ? Math.max(0, requestedSeasonalMultiplier)
     : 0;
   const marketLinked = options.hasMarketAccess ?? true;
-  const totalFood = def.foodPerPersonPerSec
+  const grossHarvest = def.foodPerPersonPerSec
     * Math.max(0, population)
     * BACKYARD_WORKDAY_SECONDS
     * seasonalMultiplier;
+  const jamTarget = def.jamPerPersonPerSec
+    * Math.max(0, population)
+    * BACKYARD_WORKDAY_SECONDS
+    * seasonalMultiplier;
+  const harvest = splitBackyardOrchardHarvest(grossHarvest, jamTarget);
+  const totalFood = harvest.freshFruit + harvest.jam;
   const { selfFood, marketFood } = allocateBackyardFood(
     totalFood,
     marketLinked,
@@ -91,9 +100,14 @@ export function backyardGardenActivityPerDay(
   currentFoodStock = 0,
 ): number {
   const def = BACKYARD_GARDEN_DEFINITIONS[kind];
-  const totalFood = def.foodPerPersonPerSec
+  const grossHarvest = def.foodPerPersonPerSec
     * Math.max(0, population)
     * BACKYARD_WORKDAY_SECONDS;
+  const jamTarget = def.jamPerPersonPerSec
+    * Math.max(0, population)
+    * BACKYARD_WORKDAY_SECONDS;
+  const harvest = splitBackyardOrchardHarvest(grossHarvest, jamTarget);
+  const totalFood = harvest.freshFruit + harvest.jam;
   return gardenMarketActivity(
     allocateBackyardFood(totalFood, true, tier, population, currentFoodStock).marketFood,
   );

@@ -228,7 +228,8 @@ const windmill = processor('windmill', 'windmill', 25);
 assert.equal(processorOutputTargetForBuilding(windmill), 65);
 assert.deepEqual(
   processorInputCommodities('windmill'),
-  ['ryeGrain', 'oatGrain', 'maslinGrain'],
+  ['ryeGrain', 'maslinGrain'],
+  'mills expose only their two genuinely millable alternative grains',
 );
 mill.ryeFlour = 65;
 assert.equal(processorOutputHeadroom(mill), 0);
@@ -250,7 +251,7 @@ assert.equal(
 assert.equal(
   processorAcceptsInput(bakery, 'water'),
   false,
-  'well carts should stop supplying a paused bakery',
+  'automatic well service should stop supplying a paused bakery',
 );
 assert.equal(
   processorAcceptsInput(processor('granary', 'granary', 25), 'food'),

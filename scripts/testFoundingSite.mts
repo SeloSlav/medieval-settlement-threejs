@@ -28,9 +28,12 @@ import {
 import { constructionSourcePriority } from '../src/logistics/constructionLogistics.ts';
 import {
   FOUNDING_RELOCATION_COMMODITIES,
+  OCCUPIED_SHELTER_RELOCATION_COMMODITIES,
+  foundingRelocationLoadAmount,
   planFoundingStockyardRelocation,
   type FoundingRelocationCommodity,
 } from '../src/logistics/foundingStockyardLogistics.ts';
+import type { DeliveryTripState } from '../src/logistics/deliveryTrips.ts';
 import { createWorldLayout } from '../src/resources/WorldLayout.ts';
 import {
   createEmptyStockpile,
@@ -59,6 +62,7 @@ import {
   STARTING_POPULATION,
   STARTING_STONE,
   STARTING_TIMBER,
+  STOREHOUSE_HAUL_PER_WORKER,
 } from '../src/generated/gameBalance.ts';
 import { resolveWorldDimensions } from '../src/world/worldGenerationSettings.ts';
 import { BuildingMarkers } from '../src/buildings/BuildingMarkers.ts';
@@ -609,7 +613,23 @@ assert.equal(relocation.blocker, 'ready');
 assert.equal(relocation.commodity, 'timber');
 assert.equal(relocation.targetBuildingId, nearStorehouse.id);
 assert.equal(relocation.targetRoom, 48);
+assert.equal(relocation.loadAmount, STOREHOUSE_HAUL_PER_WORKER);
 assert.equal(relocation.routeDistance, 24);
+
+assert.deepEqual(
+  OCCUPIED_SHELTER_RELOCATION_COMMODITIES,
+  ['food', 'ryeBread', 'maslinBread', 'firewood', 'ironwork'],
+  'occupied shelters must stage edible starter stock before draining bulk fuel',
+);
+const boundedFoundingLoad = foundingRelocationLoadAmount(240, 100);
+assert.equal(boundedFoundingLoad, STOREHOUSE_HAUL_PER_WORKER);
+assert.equal(
+  240 - boundedFoundingLoad + boundedFoundingLoad,
+  240,
+  'loading a founding cart must move stock into transit without creating or deleting it',
+);
+assert.equal(foundingRelocationLoadAmount(10, 4), 4);
+assert.equal(foundingRelocationLoadAmount(Number.NaN, 4), 0);
 
 assert.deepEqual(
   FOUNDING_RELOCATION_COMMODITIES,
@@ -907,6 +927,145 @@ assert.equal(
 );
 assert.equal(breadWithGranary.targetRoom, 17);
 
+const occupiedStarterCamp = {
+  ...emptyClearedCamp,
+  foundingShelterActive: true,
+  food: 9,
+  ryeBread: 17,
+  firewood: 200,
+} satisfies BuildingState;
+const occupiedStarterState = {
+  ...relocationState,
+  buildings: new Map([
+    [occupiedStarterCamp.id, occupiedStarterCamp],
+    [breadGranary.id, breadGranary],
+    [nearStorehouse.id, nearStorehouse],
+  ]),
+} satisfies GameState;
+const occupiedLegacyFoodPlan = planFoundingStockyardRelocation({
+  state: occupiedStarterState,
+  camp: occupiedStarterCamp,
+  availableLabor: 1,
+  roadPathDistance: (ax, _az, bx) => Math.abs(bx - ax),
+});
+assert.equal(occupiedLegacyFoodPlan.blocker, 'ready');
+assert.equal(occupiedLegacyFoodPlan.commodity, 'food');
+assert.equal(occupiedLegacyFoodPlan.targetBuildingId, breadGranary.id);
+assert.equal(occupiedLegacyFoodPlan.loadAmount, 9);
+
+const occupiedBreadCamp = { ...occupiedStarterCamp, food: 0 } satisfies BuildingState;
+const occupiedBreadPlan = planFoundingStockyardRelocation({
+  state: {
+    ...occupiedStarterState,
+    buildings: new Map([
+      [occupiedBreadCamp.id, occupiedBreadCamp],
+      [breadGranary.id, breadGranary],
+      [nearStorehouse.id, nearStorehouse],
+    ]),
+  },
+  camp: occupiedBreadCamp,
+  availableLabor: 1,
+  roadPathDistance: (ax, _az, bx) => Math.abs(bx - ax),
+});
+assert.equal(occupiedBreadPlan.commodity, 'ryeBread');
+assert.equal(occupiedBreadPlan.loadAmount, 17);
+
+const occupiedFuelCamp = {
+  ...occupiedBreadCamp,
+  ryeBread: 0,
+} satisfies BuildingState;
+const occupiedFuelPlan = planFoundingStockyardRelocation({
+  state: {
+    ...occupiedStarterState,
+    buildings: new Map([
+      [occupiedFuelCamp.id, occupiedFuelCamp],
+      [breadGranary.id, breadGranary],
+      [nearStorehouse.id, nearStorehouse],
+    ]),
+  },
+  camp: occupiedFuelCamp,
+  availableLabor: 1,
+  roadPathDistance: (ax, _az, bx) => Math.abs(bx - ax),
+});
+assert.equal(occupiedFuelPlan.commodity, 'firewood');
+assert.equal(occupiedFuelPlan.targetBuildingId, nearStorehouse.id);
+assert.equal(occupiedFuelPlan.loadAmount, STOREHOUSE_HAUL_PER_WORKER);
+assert.equal(
+  occupiedFuelCamp.firewood - occupiedFuelPlan.loadAmount + occupiedFuelPlan.loadAmount,
+  occupiedFuelCamp.firewood,
+  'the planned occupied-shelter cart preserves exact physical fuel stock',
+);
+
+const marketplaceReceivingTrip: DeliveryTripState = {
+  id: 'market-inbound',
+  buildingId: 'supplier',
+  residenceId: null,
+  destinationKind: 'building',
+  targetBuildingId: 'clearance-market',
+  cargoKind: 'firewood',
+  amount: STOREHOUSE_HAUL_PER_WORKER,
+  phase: 'outbound',
+  x: 0,
+  z: 0,
+  progress: 0,
+  speedMps: 1,
+  unloadSeconds: 6,
+  unloadRemaining: 0,
+  deliveryWorkers: 1,
+  freeHaulerWorkers: 0,
+  pathDistance: 10,
+  travelSpeedMultiplier: 1,
+  routePolylineJson: '',
+};
+const clearanceMarket = {
+  ...nearStorehouse,
+  id: 'clearance-market',
+  kind: 'marketplace',
+  x: 12,
+} satisfies BuildingState;
+const marketClothCamp = {
+  ...emptyClearedCamp,
+  cloth: 12,
+} satisfies BuildingState;
+const marketClearanceState = {
+  ...relocationState,
+  buildings: new Map([
+    [marketClothCamp.id, marketClothCamp],
+    [clearanceMarket.id, clearanceMarket],
+  ]),
+  deliveryTrips: new Map([[marketplaceReceivingTrip.id, marketplaceReceivingTrip]]),
+} satisfies GameState;
+const distinctMarketClearance = planFoundingStockyardRelocation({
+  state: marketClearanceState,
+  camp: marketClothCamp,
+  availableLabor: 1,
+  roadPathDistance: (ax, _az, bx) => Math.abs(bx - ax),
+});
+assert.equal(distinctMarketClearance.blocker, 'ready');
+assert.equal(distinctMarketClearance.commodity, 'cloth');
+assert.equal(
+  distinctMarketClearance.targetBuildingId,
+  clearanceMarket.id,
+  'a Marketplace fuel cart must not block a distinct goods-table delivery',
+);
+const duplicateMarketClearance = planFoundingStockyardRelocation({
+  state: {
+    ...marketClearanceState,
+    deliveryTrips: new Map([[
+      marketplaceReceivingTrip.id,
+      { ...marketplaceReceivingTrip, cargoKind: 'cloth' },
+    ]]),
+  },
+  camp: marketClothCamp,
+  availableLabor: 1,
+  roadPathDistance: (ax, _az, bx) => Math.abs(bx - ax),
+});
+assert.equal(
+  duplicateMarketClearance.blocker,
+  'receiving',
+  'a duplicate cloth cart must keep the same Marketplace room reserved',
+);
+
 const strandedClothCamp = {
   ...emptyClearedCamp,
   cloth: 12,
@@ -940,8 +1099,24 @@ const occupiedCampPlan = planFoundingStockyardRelocation({
 });
 assert.equal(
   occupiedCampPlan.blocker,
+  'ready',
+  'occupied founders must be able to stage the eligible starter supply chain',
+);
+assert.equal(occupiedCampPlan.commodity, 'firewood');
+const occupiedNonstarterPlan = planFoundingStockyardRelocation({
+  state: relocationState,
+  camp: {
+    ...emptyClearedCamp,
+    foundingShelterActive: true,
+    cloth: 12,
+  },
+  availableLabor: 1,
+  roadPathDistance: () => 1,
+});
+assert.equal(
+  occupiedNonstarterPlan.blocker,
   'shelters',
-  'founding goods should remain at the occupied camp until its people are rehoused',
+  'non-starter clearance must still wait until every founder is rehoused',
 );
 
 const targetFullStorehouse = {
@@ -1069,7 +1244,7 @@ assert.match(foundingLifecycle, /try_start_free_building_supply_trip/);
 assert.match(foundingLifecycle, /CommodityKind::Gold/);
 assert.match(foundingLifecycle, /try_start_stockyard_relocation/);
 assert.match(foundingLifecycle, /storehouse_filtered_collection_headroom/);
-assert.match(foundingLifecycle, /building_has_inbound_supply_trip/);
+assert.match(foundingLifecycle, /building_has_conflicting_inbound_supply_trip/);
 assert.match(foundingLifecycle, /relocatable_stock/);
 assert.match(
   foundingLifecycle,

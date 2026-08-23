@@ -61,7 +61,7 @@ assert.ok(BUILDING_STORAGE_CAPS.granary.flour > 0, 'granary must shelter flour')
 assert.equal(BUILDING_STORAGE_CAPS.granary.firewood ?? 0, 0, 'granary must not keep bakery fuel');
 assert.ok(BUILDING_STORAGE_CAPS.bakery.flour > 0, 'bakery must stage flour for bread');
 assert.ok(BUILDING_STORAGE_CAPS.bakery.firewood > 0, 'bakery must stage oven fuel');
-assert.ok(BUILDING_STORAGE_CAPS.bakery.water > 0, 'bakery must stage carted well water');
+assert.ok(BUILDING_STORAGE_CAPS.bakery.water > 0, 'bakery must stage conserved automatic well service');
 assert.ok(BUILDING_STORAGE_CAPS.village_storehouse.timber >= 300);
 assert.ok(BUILDING_STORAGE_CAPS.village_storehouse.stone >= 300);
 
@@ -215,10 +215,10 @@ assert.deepEqual(
   ]),
   [
     ['10', '30', 'food'],
-    ['10', '30', 'ale'],
     ['10', '40', 'pottery'],
+    ['20', '30', 'food'],
   ],
-  'each depot laborer should open one stocked category at the nearest Marketplace only',
+  'each depot laborer should occupy one reachable table; beverages remain Tavern-only',
 );
 assert.deepEqual(
   indexMarketplaceStallWorkers(assignMarketplaceStallRoster(
@@ -232,8 +232,8 @@ assert.deepEqual(
   ]),
   [
     ['30', 0, 'food', 0],
-    ['30', 1, 'food', 1],
     ['40', 0, 'goods', 0],
+    ['30', 1, 'food', 0],
   ],
   'the same stable depot labor slots should own the same physical counters',
 );
@@ -341,8 +341,8 @@ const marketDistribution = fs.readFileSync('server/src/simulation/household_dist
 assert.match(marketDistribution, /sort_distribution_targets/);
 assert.match(marketDistribution, /left\.distance[\s\S]{0,120}residence_id/);
 const marketInspector = fs.readFileSync('src/resources/inspector/marketStallsRenderer.ts', 'utf8');
-assert.match(marketInspector, /no distance radius/);
-assert.match(marketInspector, /nearest stocked Marketplace by exact road length/);
+assert.match(marketInspector, /Every road-connected home is eligible/);
+assert.match(marketInspector, /exact road length chooses the nearest stocked Marketplace/);
 
 const inspector = fs.readFileSync('src/resources/ResourceInspector.ts', 'utf8');
 assert.match(inspector, /data-policy-tax-rate/);

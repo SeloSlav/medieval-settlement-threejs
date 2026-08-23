@@ -1,0 +1,235 @@
+{
+  "round": 46,
+  "evidenceType": "blind matched-frame shadow on/off pair plus single-active-tab moving-route traces",
+  "sceneStatus": "diagnostic-rendered",
+  "qualityGatesProven": 1,
+  "randomization": {
+    "source": "node-crypto-randomBytes-uint32-low-bit",
+    "drawUint32": 1500729994,
+    "orderBit": 0,
+    "blindA": "shadow-on",
+    "blindB": "shadow-off",
+    "blindCopies": "byte-identical to the corresponding shadow-on-frames and shadow-off-frames files"
+  },
+  "blindVisual": {
+    "verdict": "A-wins-decisively",
+    "winnerAfterMapping": "shadow-on",
+    "continuityVerdict": "pass-for-tested-0276-to-0279-slice-and-route-anchors",
+    "finding": "Existing shadows materially ground houses, fences, and the well without visible acne, detachment, cascade jumps, or discontinuity in the supplied sequence."
+  },
+  "controlledPair": {
+    "verdict": "internally-controlled",
+    "entryModule": "hamlet-fixture-DBRNfyUl.js",
+    "entryBytes": 101382,
+    "entrySha256": "ECB42A429D294E143ACA153ECAD5F427FCEC3661B517B21EEBE169AD4D275967",
+    "onlyUrlDifference": "visualDisable=forest,post versus visualDisable=forest,post,shadows",
+    "viewport": "1280x720",
+    "rendererPixelRatio": 1,
+    "backend": "webgpu",
+    "adapter": "nvidia/lovelace",
+    "fallbackAdapter": false,
+    "gpuTimestamps": "available"
+  },
+  "evidenceIntegrity": {
+    "verdict": "fail",
+    "strength": "strong-internal-on-off-pair",
+    "invalidatingGaps": [
+      "Round 45 to Round 46 is not provably shadows-only because the Round 45 entry bundle was not retained and its URL also enabled groundcoverTransitionEvidence.",
+      "Round 46 shadow-off visibly changes scaffold and stockpile content relative to Round 45, with normalized RMSE 0.03968 to 0.04168 and median base workload changing from 67 draws and 409825 triangles to 62 draws and 383763 triangles.",
+      "The archived file hashes and sizes are exact, but the archive is not dependency-closed: the HTML uses external /assets paths and emitted code references missing CelestialStarMap-D9jt50Ra.js, seedThreeGroundCover-CMqrlAD0.js, perlin256 PNG, and other textures.",
+      "Disabled-forest hidden state differs slightly between the pair at 982 versus 985 visible trees.",
+      "The single-active-tab environment record remains self-attested."
+    ]
+  },
+  "performance": {
+    "shadowOn": {
+      "verdict": "pass",
+      "runUuid": "a8aee976-c9b9-4729-b1e1-388d5ee62ef5",
+      "sampleCount": 4899,
+      "elapsedMs": 30001.800000000003,
+      "worstOnePercentCount": 49,
+      "medianFps": 163.9344262295473,
+      "meanFps": 163.290203,
+      "onePercentLowFps": 80.938223,
+      "p99FrameMs": 12.355102,
+      "maxFrameMs": 24.2,
+      "framesOver25Ms": 0,
+      "framesOver50Ms": 0,
+      "rendererMedian": {
+        "drawCalls": 99,
+        "frameCalls": 3,
+        "triangles": 487329
+      },
+      "gpuTimestamps": {
+        "attempted": 9958,
+        "submitted": 9958,
+        "resolved": 9951,
+        "dropped": 0,
+        "failed": 0
+      }
+    },
+    "shadowOffControl": {
+      "verdict": "control-only",
+      "runUuid": "3de60b70-fe80-4893-b306-21c01f4c98c4",
+      "sampleCount": 4930,
+      "elapsedMs": 30001.8,
+      "worstOnePercentCount": 50,
+      "onePercentLowFps": 113.947129,
+      "p99FrameMs": 8.776,
+      "maxFrameMs": 30.2,
+      "framesOver25Ms": 1,
+      "framesOver50Ms": 0,
+      "rendererMedian": {
+        "drawCalls": 62,
+        "frameCalls": 2,
+        "triangles": 383763
+      },
+      "note": "The control hitch does not invalidate treatment acceptance."
+    },
+    "coverage": {
+      "routePhases": [
+        "strategic",
+        "settlement",
+        "road-eye"
+      ],
+      "forestLods": [
+        "overview",
+        "near"
+      ],
+      "groundcoverLods": [
+        "hidden",
+        "transition",
+        "full"
+      ],
+      "buildingLods": [
+        "strategic",
+        "settlement",
+        "road-eye"
+      ],
+      "judgedVegetationWork": 0
+    }
+  },
+  "critic": {
+    "shadowsMateriallyImproveBar": true,
+    "genuineControlledBarWin": "visual-and-performance-pass-with-evidence-integrity-fail",
+    "biggestGap": "Sparse forest-disabled environmental fabric and stippled verge make the world read as a prototype.",
+    "requiredNext": "Re-enable only the existing forest renderer, keeping forest update work frozen, post-processing off, and shadows on."
+  },
+  "files": [
+    {
+      "file": "browser-environment.json",
+      "bytes": 1470,
+      "sha256": "96FEDB739BC7EA6F5E7045F110A78273F70209CB0572D64F36EA8268AF9F0A98"
+    },
+    {
+      "file": "capture-protocol.json",
+      "bytes": 2772,
+      "sha256": "B2C2FA6693952AB3E54A2671C8A184D2C25C4276D6228B2796914B4FA7DAA390"
+    },
+    {
+      "file": "bundle-manifest.json",
+      "bytes": 3593,
+      "sha256": "9D562A52D1C9A8FD2740ECB03C9B97FE77B7B987F750D97965D7D41DEBB75D16"
+    },
+    {
+      "file": "shadow-on-route-evidence.json",
+      "bytes": 198543,
+      "sha256": "FC8017FE61FF977D5B6EF0E69588FB090D82613BBCD071210CFF3F84822BA334"
+    },
+    {
+      "file": "shadow-off-control-route-evidence.json",
+      "bytes": 201177,
+      "sha256": "F39402DD875E9425CB7C05C6D266BB7C67F7F3023FA9CB2DDDD1527D2037D41E"
+    },
+    {
+      "file": "shadow-on-frames/route-0000.jpg",
+      "bytes": 43634,
+      "sha256": "7B943A218ECEB3AA80CB842E59700F67ADA753FD32FE1B3D1B461ACB9B86B68D"
+    },
+    {
+      "file": "shadow-on-frames/route-0180.jpg",
+      "bytes": 101357,
+      "sha256": "B5942BAF564A203936EA9189D6CA67C2803F346473D0D28FBCA21D4C07B86470"
+    },
+    {
+      "file": "shadow-on-frames/route-0276.jpg",
+      "bytes": 212853,
+      "sha256": "6B0EA7D73E227AE428843564FDBC79C724B2171EDBADDE8D0F779AEC529440E7"
+    },
+    {
+      "file": "shadow-on-frames/route-0277.jpg",
+      "bytes": 213841,
+      "sha256": "B3C3DABB16C4B153F2CD8B4C9A1266BC38648F635E37CEC3B0BE07CCDD42E4AE"
+    },
+    {
+      "file": "shadow-on-frames/route-0278.jpg",
+      "bytes": 214795,
+      "sha256": "2326603B1D80097D1E7F5A7E12D72BDA71D71652E90D44368306F3F701226E2C"
+    },
+    {
+      "file": "shadow-on-frames/route-0279.jpg",
+      "bytes": 215201,
+      "sha256": "FE112086D8580B16013648041991FD0B41947D4C5D470C1ABC4137226ECD4A9D"
+    },
+    {
+      "file": "shadow-on-frames/route-0330.jpg",
+      "bytes": 165418,
+      "sha256": "EB7573155814DC074F47E6F1962FFFF605576D96E748C0E8987568DC9A087BCC"
+    },
+    {
+      "file": "shadow-on-frames/route-0375.jpg",
+      "bytes": 165418,
+      "sha256": "EB7573155814DC074F47E6F1962FFFF605576D96E748C0E8987568DC9A087BCC"
+    },
+    {
+      "file": "shadow-on-frames/route-0480.jpg",
+      "bytes": 101357,
+      "sha256": "B5942BAF564A203936EA9189D6CA67C2803F346473D0D28FBCA21D4C07B86470"
+    },
+    {
+      "file": "shadow-off-frames/route-0000.jpg",
+      "bytes": 41871,
+      "sha256": "12E638C0525CD6DE3DC572A5BDC34812C31B22A68920AAC3A6D2EA97BFF09937"
+    },
+    {
+      "file": "shadow-off-frames/route-0180.jpg",
+      "bytes": 99851,
+      "sha256": "85D4175393A81096053BCB9DA70C114C863CAF0C0D9B118DEA9914D4F8C86597"
+    },
+    {
+      "file": "shadow-off-frames/route-0276.jpg",
+      "bytes": 216146,
+      "sha256": "7E3F10BDE926A78977C41A02D65A573B252952963B72BAF3465ED0725A13D789"
+    },
+    {
+      "file": "shadow-off-frames/route-0277.jpg",
+      "bytes": 216997,
+      "sha256": "F66B1BC9ED36906BDD635D42E0EC4C1CF13A24CD67A072E574B8CA214C113D83"
+    },
+    {
+      "file": "shadow-off-frames/route-0278.jpg",
+      "bytes": 218074,
+      "sha256": "572A4AFFF8A564AAB108E7825514DF9575EC183D2F180374726BB2152F60F515"
+    },
+    {
+      "file": "shadow-off-frames/route-0279.jpg",
+      "bytes": 218464,
+      "sha256": "750A5DA10693A653876014E21114AB07A4CCC6A5500FCD1D38EF0D2A21F3ED8D"
+    },
+    {
+      "file": "shadow-off-frames/route-0330.jpg",
+      "bytes": 168469,
+      "sha256": "0448B050BB61FF640225F70A7D90DF7045F1C6D9667033FD7BBEC4C186FF2208"
+    },
+    {
+      "file": "shadow-off-frames/route-0375.jpg",
+      "bytes": 168469,
+      "sha256": "0448B050BB61FF640225F70A7D90DF7045F1C6D9667033FD7BBEC4C186FF2208"
+    },
+    {
+      "file": "shadow-off-frames/route-0480.jpg",
+      "bytes": 99851,
+      "sha256": "85D4175393A81096053BCB9DA70C114C863CAF0C0D9B118DEA9914D4F8C86597"
+    }
+  ]
+}

@@ -1,0 +1,65 @@
+{
+  "schemaVersion": 1,
+  "round": 46,
+  "controlledDifferenceFromRound45": {
+    "onlyChange": "existing-shadow-subsystem",
+    "round45": "disabled",
+    "round46": "enabled",
+    "unchanged": [
+      "canonical-gorski-kotar-route",
+      "direct-color-scene-render",
+      "post-disabled",
+      "forest-render-disabled",
+      "groundcover-and-forest-update-work-frozen",
+      "continuous-alpha-hash-groundcover-fade",
+      "three-whole-field-groundcover-meshes",
+      "1280x720-css-and-drawing-buffer",
+      "renderer-pixel-ratio-1",
+      "gpu-timestamp-markers"
+    ]
+  },
+  "preview": {
+    "origin": "http://127.0.0.1:4176",
+    "pathAndQuery": "/hamlet-fixture.html?clean=1&view=strategic&route=gorski-kotar-lod-traverse-v1&visualProfile=1&ablation=groundcover-stream-forest-update-frozen&visualDisable=forest%2Cpost&visualRouteLodSkyDirectRender=1&visualGpuTimestampMarkers=1",
+    "terminalSelector": "html[data-visual-route-lod-sky-direct-render-status=\"ready\"][data-visual-route-frame-sequence-status=\"ready\"][data-visual-route-shadow-subsystem=\"existing-shadow-subsystem-enabled\"][data-visual-profile-status=\"ready\"][data-hamlet-fixture-evidence]"
+  },
+  "browserHygiene": {
+    "singleActiveAnimatedTabRequired": true,
+    "instruction": "Park or close every prior animated fixture tab before navigation and keep this as the only active animated tab until terminal evidence is copied.",
+    "captureTerminalEvidenceBeforeDeterministicFrameSeeks": true
+  },
+  "terminalAssertions": {
+    "protocol": "1280x720@renderer-pr1",
+    "presentationShadowSubsystem": "existing-shadow-subsystem-enabled",
+    "captureShadowSubsystem": "existing-shadow-subsystem-enabled",
+    "routeFrameSequenceShadowSubsystem": "existing-shadow-subsystem-enabled",
+    "routeFrameSequenceSignature": "gorski-kotar-lod-traverse-v1|21000ms|30fps|631frames|direct-color|frozen-vegetation|forest-post-disabled-shadows-on",
+    "runtimeSubsystems": {
+      "shadows": true,
+      "forest": false,
+      "post": false,
+      "groundcover": true,
+      "sky": true
+    },
+    "frozenJudgedVegetationWork": true
+  },
+  "matchedFrameReplay": {
+    "control": "[data-testid=\"hamlet-route-frame-sequence-request\"]",
+    "interaction": "Clear the text control before filling each canonical frame index.",
+    "round45ComparisonIndices": [
+      276,
+      277,
+      278,
+      279
+    ],
+    "captureSurface": "[data-testid=\"hamlet-native-render-capture-surface\"]",
+    "expectedDimensions": "1280x720"
+  },
+  "archivedBuild": {
+    "manifest": "bundle-manifest.json",
+    "directory": "bundle",
+    "entryModule": "hamlet-fixture-DBRNfyUl.js",
+    "entryModuleBytes": 101382,
+    "entryModuleSha256": "ECB42A429D294E143ACA153ECAD5F427FCEC3661B517B21EEBE169AD4D275967"
+  }
+}

@@ -1,0 +1,132 @@
+{
+  "schemaVersion": 1,
+  "round": 44,
+  "role": "builder",
+  "requestedChange": "Replace whole-field groundcover submission with coarse spatial batching, analytic conservative bounds, and frustum culling while preserving Round 43 fade and hysteresis.",
+  "implementation": {
+    "seedThree": {
+      "repository": "https://github.com/SeloSlav/SeedThree.git",
+      "commit": "3d5cf93",
+      "pushed": true,
+      "primitive": "src/core/spatial-batch-grid.js"
+    },
+    "game": {
+      "batchChunkSide": 4,
+      "batchGridSide": 6,
+      "batchesPerSpecies": 36,
+      "speciesStreams": 3,
+      "boundSource": "generated per-slot anchor envelopes with conservative geometry and wind padding",
+      "instanceBoundRescans": 0,
+      "frustumCulled": true,
+      "fadeMode": "continuous-alpha-hash",
+      "visibilityHysteresis": "unchanged"
+    },
+    "evidenceIntegrity": {
+      "rendererTreatment": "profiled-canonical-route-lod-scene-sky-direct-color-render",
+      "disabledSubsystems": [
+        "forest",
+        "post",
+        "shadows"
+      ],
+      "groundcoverStreaming": "frozen",
+      "groundcoverPresentation": "enabled",
+      "explicitPresentationTreatmentSerialized": true,
+      "schema5CollectorAgreement": true,
+      "gpuTimestamps": "available"
+    }
+  },
+  "tests": [
+    {
+      "command": "node vendor/seedthree/scripts/test-spatial-batch-grid.mjs",
+      "status": "pass"
+    },
+    {
+      "command": "npm run test:close-ground-vegetation",
+      "status": "pass"
+    },
+    {
+      "command": "npm run test:visual-performance-hooks",
+      "status": "pass"
+    },
+    {
+      "command": "npx tsc --noEmit",
+      "status": "pass"
+    },
+    {
+      "command": "npm run build",
+      "status": "pass"
+    },
+    {
+      "command": "npm run test:hamlet-fixture",
+      "status": "blocked-by-unrelated-shared-worktree-failure",
+      "detail": "pre-tile residence seed 0 must contain only wood roof surfaces (actual tile surfaces: 2)"
+    }
+  ],
+  "capture": {
+    "evidence": "spatial-batched-route-evidence.json",
+    "frames": [
+      "frames/route-0276.jpg",
+      "frames/route-0277.jpg",
+      "frames/route-0278.jpg",
+      "frames/route-0279.jpg"
+    ],
+    "frameDimensions": "1280x720",
+    "presentationSettleMs": 350,
+    "sampleCount": 2101,
+    "elapsedMs": 30062.600000000006,
+    "metrics": {
+      "medianFps": 82.64462809918349,
+      "meanFps": 69.88750141371669,
+      "onePercentLowFps": 15.12339313947896,
+      "p99FrameMs": 66.12272727272715,
+      "maxFrameMs": 91,
+      "framesOver25Ms": 193,
+      "framesOver50Ms": 24
+    },
+    "rendererMedian": {
+      "drawCalls": 68,
+      "frameCalls": 2,
+      "triangles": 409825
+    },
+    "largestObservedFrame": {
+      "routeElapsedMs": 8612.699999997763,
+      "phase": "settlement",
+      "frameMs": 91,
+      "cpuMs": 2.099999997764826,
+      "gpuMs": 34.603008,
+      "drawCalls": 90,
+      "triangles": 746221
+    },
+    "verdict": "performance-fail"
+  },
+  "comparisonToRound43": {
+    "round43": {
+      "onePercentLowFps": 53.469581749049055,
+      "maxFrameMs": 30.299999999995634,
+      "framesOver25Ms": 1,
+      "framesOver50Ms": 0,
+      "medianDrawCalls": 66,
+      "medianTriangles": 403297
+    },
+    "round44": {
+      "onePercentLowFps": 15.12339313947896,
+      "maxFrameMs": 91,
+      "framesOver25Ms": 193,
+      "framesOver50Ms": 24,
+      "medianDrawCalls": 68,
+      "medianTriangles": 409825
+    },
+    "builderInterpretation": "The requested batching implementation is a severe regression on the measured route. It adds submission variability without reducing the median triangle load and produces a GPU-heavy settlement tail."
+  },
+  "visualInspection": {
+    "fadeContinuity": "The accepted coverage fade remains continuous through matched frames 0276-0279.",
+    "artifact": "Red triangular surface artifacts are visible in the Round 44 matched frames. This report does not assign causality."
+  },
+  "residualRisks": [
+    "The implementation creates up to 108 groundcover batch mesh objects and can reach 90 total scene draw calls in retained frames.",
+    "Median triangles are 6528 higher than Round 43 and some retained frames reach 746221 triangles.",
+    "The browser run proves the current batch granularity and buffer layout do not achieve the intended off-view submission reduction.",
+    "The visual artifact must be separated from concurrent shared-worktree residence/roof changes before attribution."
+  ],
+  "nextChange": "deferred-to-fresh-critic"
+}

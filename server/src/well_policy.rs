@@ -33,9 +33,9 @@ pub fn industrial_water_requirement(building_kind: &str) -> f64 {
     }
 }
 
-/// Loom fibre policy doubles as its water-cart preference because only the
-/// flax route consumes water. Other wet workshops and automatic looms occupy
-/// the neutral middle tier.
+/// Loom fibre policy doubles as its automatic well-service preference because
+/// only the flax route consumes water. Other wet workshops and automatic
+/// looms occupy the neutral middle tier.
 pub fn industrial_water_input_preference_rank(building_kind: &str, weaver_input_policy: u8) -> u8 {
     if building_kind == "weaver" {
         weaver_fibre_delivery_preference_rank(weaver_input_policy, true)
@@ -61,8 +61,8 @@ pub fn industrial_water_target(building_kind: &str, processor_output_target_perc
 }
 
 /// Select the highest-priority workshop, then its input preference, least
-/// water runway, and shortest cart route, using building id as a deterministic
-/// final tie-break.
+/// water runway, and shortest road-equivalent service route, using building id
+/// as a deterministic final tie-break.
 pub fn select_industrial_water_candidate(
     candidates: impl IntoIterator<Item = IndustrialWaterCandidate>,
 ) -> Option<IndustrialWaterCandidate> {

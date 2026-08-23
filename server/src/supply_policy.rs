@@ -16,8 +16,9 @@ use crate::balance_generated::{
     POTTER_WATER_PER_CYCLE, SMITHY_CHARCOAL_PER_CYCLE, SMITHY_IRON_PER_CYCLE,
     SMITHY_WATER_PER_CYCLE, SMOKEHOUSE_FIREWOOD_PER_CYCLE, SMOKEHOUSE_FOOD_PER_CYCLE,
     SMOKEHOUSE_POTTERY_PER_CYCLE, SMOKEHOUSE_SALT_PER_CYCLE, TANNERY_FIREWOOD_PER_CYCLE,
-    TANNERY_HIDES_PER_CYCLE, TANNERY_WATER_PER_CYCLE, WATERMILL_GRAIN_PER_CYCLE,
-    WEAVER_FLAX_PER_CYCLE, WEAVER_FLAX_WATER_PER_CYCLE, WEAVER_WOOL_PER_CYCLE,
+    TANNERY_HIDES_PER_CYCLE, TANNERY_WATER_PER_CYCLE, THRESHING_SHEAVES_PER_CYCLE,
+    WATERMILL_GRAIN_PER_CYCLE, WEAVER_FLAX_PER_CYCLE, WEAVER_FLAX_WATER_PER_CYCLE,
+    WEAVER_WOOL_PER_CYCLE,
 };
 use crate::civilian_tool_policy::{civilian_tool_refill_due, is_civilian_tool_site};
 use crate::processor_output_policy::processor_input_staging_cycles;
@@ -504,6 +505,9 @@ pub fn directly_dispatched_processor_input_per_cycle(target_kind: &str, commodit
         ("charcoal_burner", "firewood") => CHARCOAL_BURNER_FIREWOOD_PER_CYCLE,
         ("potter_kiln", "firewood") => POTTER_FIREWOOD_PER_CYCLE,
         ("watermill" | "windmill", "ryeGrain" | "maslinGrain") => WATERMILL_GRAIN_PER_CYCLE,
+        ("threshing_barn", "ryeSheaves" | "oatSheaves" | "barleySheaves" | "maslinSheaves") => {
+            THRESHING_SHEAVES_PER_CYCLE
+        }
         ("bakery", "ryeFlour" | "maslinFlour") => BAKERY_FLOUR_PER_CYCLE,
         ("smokehouse", "food" | "meat" | "fish" | "milk") => SMOKEHOUSE_FOOD_PER_CYCLE,
         ("smokehouse", "pottery") => SMOKEHOUSE_POTTERY_PER_CYCLE,
@@ -1212,6 +1216,12 @@ mod tests {
             directly_dispatched_processor_input_per_cycle("watermill", "ryeGrain"),
             super::WATERMILL_GRAIN_PER_CYCLE,
         );
+        for sheaves in ["ryeSheaves", "oatSheaves", "barleySheaves", "maslinSheaves"] {
+            assert_eq!(
+                directly_dispatched_processor_input_per_cycle("threshing_barn", sheaves),
+                super::THRESHING_SHEAVES_PER_CYCLE,
+            );
+        }
         assert_eq!(
             directly_dispatched_processor_input_per_cycle("bakery", "water"),
             super::BAKERY_WATER_PER_CYCLE,

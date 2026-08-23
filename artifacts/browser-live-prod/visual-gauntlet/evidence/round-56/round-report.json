@@ -1,0 +1,76 @@
+{
+  "schemaVersion": 1,
+  "round": 56,
+  "status": "complete-valid-evidence-blind-tie",
+  "winner": "tie",
+  "confidencePercent": 97,
+  "acceptedAsNewVisualDefault": false,
+  "defaultForestGroundAfterVerdict": "existing-terrain",
+  "mappingRevealedAfterVerdict": {
+    "blind-A": "control",
+    "blind-B": "treatment"
+  },
+  "comparison": {
+    "control": "existing-terrain",
+    "treatment": "shadowed-under-canopy",
+    "soleQueryParameter": "forestGround",
+    "forestEdgeLayout": "tapered-shrub-sapling-belt-256"
+  },
+  "treatment": {
+    "terrainVertices": 50369,
+    "candidateVertices": 1377,
+    "modifiedVertices": 1250,
+    "modifiedPercent": 2.4816851634934185,
+    "weightedCoverageSquareMeters": 5981.060473869973,
+    "meanStableLuminanceReductionPercent": 5.9080105973370545,
+    "guaranteedRoadFragmentMinimumMeters": 10.065936602802706,
+    "guaranteedSettlementFragmentMinimumMeters": 8.194368429569451,
+    "roadContaminationVertices": 0,
+    "parcelContaminationVertices": 0,
+    "forestDrawDelta": 0,
+    "terrainDrawDelta": 0,
+    "textureAssetDelta": 0,
+    "meshDelta": 0,
+    "materialDelta": 0,
+    "geometryVertexDelta": 0,
+    "vertexAttributeDelta": 0,
+    "colorBufferByteDelta": 0,
+    "perFrameWorkDelta": 0
+  },
+  "performance": {
+    "control": {
+      "onePercentLowFps": 81.86510055167288,
+      "maxFrameMs": 12.30000000000291,
+      "framesOver25Ms": 0,
+      "framesOver50Ms": 0,
+      "hardBarPassed": true
+    },
+    "treatment": {
+      "onePercentLowFps": 81.10014104369588,
+      "maxFrameMs": 18,
+      "framesOver25Ms": 0,
+      "framesOver50Ms": 0,
+      "hardBarPassed": true
+    }
+  },
+  "visualVerdict": {
+    "control": "fail",
+    "treatment": "fail",
+    "underCanopyDarknessMaterial": false,
+    "roadParcelReadability": "pass",
+    "frames276To279Pop": "pass"
+  },
+  "biggestRemainingGap": "The forest still reads as isolated repetitive trees planted over uniform bright turf rather than one shadowed, irregular woodland volume.",
+  "smallestNextImprovement": "Restrained mottled value reduction beneath the densest adjoining crowns, feathered to zero before roads and parcels.",
+  "seedThreeAudit": {
+    "classification": "Hamlet-specific terrain weighting",
+    "seedThreeCommit": "4182accfc1fb7a66815e963b5355ca4996418cf3",
+    "gitlinkChanged": false,
+    "reusableSeedThreeBehaviorAdded": false,
+    "reason": "The footprint and clearance proof depend on Hamlet road, parcel, field, landmark, and accepted edge-placement geometry; no reusable SeedThree behavior was added."
+  },
+  "scopeNotes": {
+    "people": "excluded",
+    "residenceRoof": "wood-shingle"
+  }
+}

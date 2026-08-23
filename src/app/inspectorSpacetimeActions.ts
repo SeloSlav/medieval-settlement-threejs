@@ -372,7 +372,7 @@ export function createInspectorSpacetimeActions(
       if (!store) return;
       await runReducer(
         () => store.setTradingPostTradeRule(buildingId, commodityKind, mode, targetSurplus),
-        'Could not update the monthly trade rule.',
+        'Could not update the regional trade rule.',
       );
     },
     onSpecializeOrchard: async (residenceId, kind) => {

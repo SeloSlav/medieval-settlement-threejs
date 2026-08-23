@@ -96,6 +96,10 @@ export function syncPlayerResources(rows: Iterable<PlayerResources>, state: Game
       salt: wholeResourceUnits(row.salt),
       charcoal: wholeResourceUnits(row.charcoal),
       pottery: wholeResourceUnits(row.pottery),
+      // These goods are authoritative physical inventories (building/residence
+      // stocks), not fields on the legacy aggregate player-resources row.
+      manure: 0,
+      remedies: 0,
       roofTiles: wholeResourceUnits(
         (row as typeof row & Partial<{ roofTiles: number }>).roofTiles,
       ),

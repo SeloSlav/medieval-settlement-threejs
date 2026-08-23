@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "round": 52,
+  "status": "independent-blind-verdict-recorded-after-primary-verdict",
+  "selectedBlindArm": null,
+  "selection": "tie",
+  "confidence": 0.95,
+  "mappingKnownAtVerdict": false,
+  "reviewedFrameIndices": [
+    0,
+    180,
+    276,
+    277,
+    278,
+    279,
+    330,
+    375,
+    480
+  ],
+  "referenceFilesReviewed": 10,
+  "assessment": {
+    "visualResult": "No independently visible forest-edge advantage appears in either anonymous arm.",
+    "transitionContinuity": "Frames 276 through 279 remain stable in both arms with no visible foliage insertion, loss, or LOD pop.",
+    "settlementReadability": "Both arms preserve the road and settlement clearing.",
+    "largestGap": "Both lack a convincing multi-tier shrub-to-sapling-to-canopy transition and darker forest interior mass.",
+    "performance": "Both anonymous arms pass the sealed hard performance bar."
+  }
+}

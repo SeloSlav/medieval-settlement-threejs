@@ -1,0 +1,1 @@
+Grass-only medieval terrain PBR texture set generated with Codex built-in image generation. Albedo was processed locally for seamless tiling and muted Manor Lords-style olive/sage color; normal, roughness, AO, height, and metalness maps were derived locally. No dirt layer is included.

@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "round": 56,
+  "createdAtUtc": "2026-07-31T04:36:52.8679043Z",
+  "sealedBeforeBuild": true,
+  "sealedBeforeArchive": true,
+  "sealedBeforeCapture": true,
+  "sealedBeforeBlindReview": true,
+  "algorithm": "SHA-256",
+  "preimageByteLength": 4241,
+  "preimageSha256": "8553DB93B87BD4F46D66A90F11ED25D4696FBEEB1D6FABD7BE319959D3CB97BD",
+  "preimageLocation": "artifacts/visual-gauntlet/round-56/pre-blind-reveal.json",
+  "publicRevealLocation": "public/visual-gauntlet/evidence/round-56/pre-blind-reveal.json",
+  "sourceCheckpoint": "7d1f2e5e40ce7ebe875a463088b070651b28d7e9",
+  "seedThreeCommit": "4182accfc1fb7a66815e963b5355ca4996418cf3",
+  "committedComparison": {
+    "soleArmQueryDifference": "forestGround",
+    "controlValue": "existing-terrain",
+    "treatmentValue": "shadowed-under-canopy",
+    "forestEdgeLayout": "tapered-shrub-sapling-belt-256",
+    "frameIndices": [
+      0,
+      180,
+      276,
+      277,
+      278,
+      279,
+      330,
+      375,
+      480
+    ],
+    "captureSurface": "gpu-synchronized-native-renderer-drawing-buffer-png-data-url",
+    "primeAndRepeatPngSha256MustMatch": true,
+    "crossArmCameraPoseSignatureMustMatch": true,
+    "neverOverwriteAnyAttempt": true
+  }
+}

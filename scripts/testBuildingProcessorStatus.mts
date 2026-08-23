@@ -180,7 +180,7 @@ assert.equal(
 );
 assert.equal(
   getBuildingProcessorStatus(smithy, readyQueries)?.statusText,
-  'Waiting for well cart — 0 / 1 stored',
+  'Awaiting automatic well service — 0 / 1 stored',
 );
 smithy.water = 1;
 assert.equal(
@@ -207,7 +207,7 @@ assert.equal(
 );
 assert.equal(
   getBuildingProcessorStatus(potter, readyQueries)?.statusText,
-  'Waiting for well cart — 0 / 1 stored',
+  'Awaiting automatic well service — 0 / 1 stored',
 );
 potter.water = 1;
 assert.equal(

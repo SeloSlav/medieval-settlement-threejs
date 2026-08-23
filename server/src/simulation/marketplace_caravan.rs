@@ -47,6 +47,36 @@ pub struct MarketCaravanDispatch {
     pub exact_load_amount: Option<f64>,
 }
 
+const TRADING_POST_SERVICE_ROUTES: [(ResidenceNeedKind, Option<CommodityKind>); 12] = [
+    (ResidenceNeedKind::Food, None),
+    (ResidenceNeedKind::PreservedFood, None),
+    (ResidenceNeedKind::Firewood, None),
+    (ResidenceNeedKind::Water, None),
+    (ResidenceNeedKind::Ale, Some(CommodityKind::Ale)),
+    (ResidenceNeedKind::Ale, Some(CommodityKind::Cider)),
+    (ResidenceNeedKind::Ale, Some(CommodityKind::PearCider)),
+    (ResidenceNeedKind::Cloth, None),
+    (ResidenceNeedKind::Shoes, None),
+    (ResidenceNeedKind::Pottery, None),
+    (ResidenceNeedKind::Luxury, Some(CommodityKind::Wine)),
+    (ResidenceNeedKind::Luxury, Some(CommodityKind::Honey)),
+];
+
+fn trading_post_service_destination_kind(need_kind: ResidenceNeedKind) -> Option<&'static str> {
+    match need_kind {
+        ResidenceNeedKind::Water => Some("well"),
+        ResidenceNeedKind::Ale => Some("tavern"),
+        ResidenceNeedKind::Food
+        | ResidenceNeedKind::Firewood
+        | ResidenceNeedKind::PreservedFood
+        | ResidenceNeedKind::Cloth
+        | ResidenceNeedKind::Shoes
+        | ResidenceNeedKind::Pottery
+        | ResidenceNeedKind::Luxury => Some("marketplace"),
+        ResidenceNeedKind::Church | ResidenceNeedKind::FoodVariety => None,
+    }
+}
+
 pub fn try_dispatch_marketplace_caravan(
     ctx: &ReducerContext,
     clock: &GameClock,
@@ -221,11 +251,10 @@ fn marketplace_stall_workplace(
     (onsite_building_labor(ctx, &workplace) > 0).then_some((workplace_id, 1))
 }
 
-/// Stage routine imported household goods at a local Marketplace. The Trading
-/// Post trip is building-to-building and may carry a useful batch; individual
-/// homes receive an ordinary one-day issue each day, while Town Hall policy may
-/// add a deeper buffer for critical food and heat already staged at the market.
-fn try_dispatch_trading_post_stock_to_marketplace(
+/// Stage routine imported household goods at their local serving outlet. Food
+/// and wares go to a Marketplace, water to a well, and distinct beverages to a
+/// staffed Tavern. Every leg remains a conserved building-to-building cart.
+fn try_dispatch_trading_post_stock_to_local_service(
     ctx: &ReducerContext,
     tick: &SimTickContext,
     clock: &GameClock,
@@ -239,20 +268,11 @@ fn try_dispatch_trading_post_stock_to_marketplace(
         return false;
     }
 
-    let needs = [
-        ResidenceNeedKind::Food,
-        ResidenceNeedKind::PreservedFood,
-        ResidenceNeedKind::Firewood,
-        ResidenceNeedKind::Water,
-        ResidenceNeedKind::Ale,
-        ResidenceNeedKind::Cloth,
-        ResidenceNeedKind::Shoes,
-        ResidenceNeedKind::Pottery,
-    ];
-    let start = (clock.sim_tick as usize) % needs.len();
-    for offset in 0..needs.len() {
-        let need_kind = needs[(start + offset) % needs.len()];
-        let commodity = match need_kind {
+    let start = (clock.sim_tick as usize) % TRADING_POST_SERVICE_ROUTES.len();
+    for offset in 0..TRADING_POST_SERVICE_ROUTES.len() {
+        let (need_kind, routed_commodity) =
+            TRADING_POST_SERVICE_ROUTES[(start + offset) % TRADING_POST_SERVICE_ROUTES.len()];
+        let commodity = routed_commodity.or_else(|| match need_kind {
             ResidenceNeedKind::Food | ResidenceNeedKind::PreservedFood => {
                 selected_food_delivery_commodity(trading_post, need_kind)
             }
@@ -268,17 +288,15 @@ fn try_dispatch_trading_post_stock_to_marketplace(
             ResidenceNeedKind::Shoes => Some(CommodityKind::Shoes),
             ResidenceNeedKind::Pottery => Some(CommodityKind::Pottery),
             _ => None,
-        };
+        });
         let Some(commodity) = commodity.filter(|commodity| {
             building_commodity_stock(trading_post, *commodity) > 1e-6
                 && !trading_post_exports_commodity(ctx, trading_post.id, *commodity)
         }) else {
             continue;
         };
-        let destination_kind = if need_kind == ResidenceNeedKind::Water {
-            "well"
-        } else {
-            "marketplace"
+        let Some(destination_kind) = trading_post_service_destination_kind(need_kind) else {
+            continue;
         };
         let target = tick
             .building_ids_for_kinds(ctx, trading_post.owner, &[destination_kind])
@@ -287,6 +305,7 @@ fn try_dispatch_trading_post_stock_to_marketplace(
             .filter(|market| {
                 market.construction_complete
                     && !tick.building_disabled_by_fire(ctx, market.id)
+                    && (market.kind != "tavern" || onsite_building_labor(ctx, market) > 0)
                     && !building_has_inbound_commodity_trip(ctx, market.id, commodity)
                     && building_commodity_room(market, commodity) > 1e-6
             })
@@ -315,7 +334,9 @@ fn try_dispatch_trading_post_stock_to_marketplace(
                 FIREWOOD_DELIVERY_UNLOAD_SEC,
                 crate::balance_generated::MARKET_CARAVAN_FIREWOOD_PER_DELIVERY,
             ),
-            ResidenceNeedKind::Food | ResidenceNeedKind::PreservedFood => (
+            ResidenceNeedKind::Food
+            | ResidenceNeedKind::PreservedFood
+            | ResidenceNeedKind::Luxury => (
                 FOOD_DELIVERY_SPEED_MPS,
                 FOOD_DELIVERY_UNLOAD_SEC,
                 MARKET_CARAVAN_FOOD_PER_DELIVERY,
@@ -445,9 +466,12 @@ pub fn step_marketplace_caravans(
                             || building.firewood > 1e-6
                             || building.remedies > 1e-6
                             || building.ale > 1e-6
+                            || building.cider > 1e-6
+                            || building.pear_cider > 1e-6
                             || building.honey > 1e-6
                             || building.wine > 1e-6
                             || building.cloth > 1e-6
+                            || building.shoes > 1e-6
                             || building.cheese > 1e-6
                             || building.pottery > 1e-6
                             || building.gold > 1e-6)))
@@ -472,13 +496,13 @@ pub fn step_marketplace_caravans(
             changed |= try_dispatch_marketplace_remedies(ctx, tick, clock, &mut building);
         }
         // Imported household goods move in useful building-to-building lots
-        // from the Trading Post to a local Marketplace; imported water can
-        // replenish a connected well. No cart targets an individual home.
+        // to their serving outlet: markets, wells, and staffed Taverns. No cart
+        // targets an individual home.
         if is_trading_post && !building_has_active_trip(ctx, building.id) {
             changed |=
-                try_dispatch_trading_post_stock_to_marketplace(ctx, tick, clock, &mut building);
+                try_dispatch_trading_post_stock_to_local_service(ctx, tick, clock, &mut building);
         }
-        // The regional exchange is monthly and abstract. Only local stock
+        // The regional exchange is bounded and abstract. Only local stock
         // movement and local receipts create visible trips here.
         if is_trading_post && private_export_proceeds(&building) > 1e-6 {
             changed |= try_dispatch_private_export_income(ctx, tick, clock, &mut building);
@@ -614,4 +638,43 @@ fn try_dispatch_private_export_income(
         &residence,
         PRIVATE_EXPORT_INCOME_CART_LOAD,
     ) > 1e-6
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn imported_household_goods_have_their_serving_outlet_route() {
+        for route in [
+            (ResidenceNeedKind::Food, None),
+            (ResidenceNeedKind::PreservedFood, None),
+            (ResidenceNeedKind::Firewood, None),
+            (ResidenceNeedKind::Water, None),
+            (ResidenceNeedKind::Ale, Some(CommodityKind::Ale)),
+            (ResidenceNeedKind::Ale, Some(CommodityKind::Cider)),
+            (ResidenceNeedKind::Ale, Some(CommodityKind::PearCider)),
+            (ResidenceNeedKind::Cloth, None),
+            (ResidenceNeedKind::Shoes, None),
+            (ResidenceNeedKind::Pottery, None),
+        ] {
+            assert!(TRADING_POST_SERVICE_ROUTES.contains(&route));
+        }
+        for commodity in [CommodityKind::Wine, CommodityKind::Honey] {
+            assert!(TRADING_POST_SERVICE_ROUTES
+                .contains(&(ResidenceNeedKind::Luxury, Some(commodity),)));
+        }
+        assert_eq!(
+            trading_post_service_destination_kind(ResidenceNeedKind::Luxury),
+            Some("marketplace")
+        );
+        assert_eq!(
+            trading_post_service_destination_kind(ResidenceNeedKind::Ale),
+            Some("tavern")
+        );
+        assert_eq!(
+            trading_post_service_destination_kind(ResidenceNeedKind::Water),
+            Some("well")
+        );
+    }
 }

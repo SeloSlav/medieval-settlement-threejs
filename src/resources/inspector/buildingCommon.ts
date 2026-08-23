@@ -30,7 +30,11 @@ import {
   CONSTRUCTION_PRIORITY_HOLD,
   normalizeConstructionPriority,
 } from '../../logistics/constructionPriority.ts';
-import { onsiteBuildingLabor, rosteredCartWorkers } from '../../logistics/deliveryTrips.ts';
+import {
+  onsiteBuildingLabor,
+  rosteredCartWorkers,
+  type DeliveryTripState,
+} from '../../logistics/deliveryTrips.ts';
 import {
   civilianToolPlan,
   farmToolWorkerDayRunway,
@@ -228,6 +232,7 @@ export function buildingLaborView(
   building: BuildingState,
   populationStats: PopulationStats,
   worldQueries?: WorldQueries,
+  laborTrip?: DeliveryTripState | null,
 ): InspectorLaborView {
   if (building.constructionComplete !== false && !buildingAcceptsLabor(building.kind)) {
     return {
@@ -257,7 +262,7 @@ export function buildingLaborView(
     : CONSTRUCTION_MAX_BUILDERS;
   const dedicatedCartHaulers = building.constructionComplete !== false
     && (building.kind === 'village_storehouse' || building.kind === 'trading_post');
-  const activeTrip = worldQueries?.getActiveDeliveryTrip?.(building) ?? null;
+  const activeTrip = laborTrip ?? worldQueries?.getActiveDeliveryTrip?.(building) ?? null;
   const cartWorkers = Math.max(0, activeTrip?.deliveryWorkers ?? 0);
   const reservedOutsideRoster = Math.max(0, activeTrip?.freeHaulerWorkers ?? 0);
   const rosteredWorkersAway = rosteredCartWorkers(building, activeTrip);
@@ -282,7 +287,7 @@ export function buildingLaborView(
     count: building.assignedLabor,
     hint: building.constructionComplete !== false
       ? `${building.assignedLabor}/${buildingCap} ${workforceNoun} · ${populationStats.available} available (${populationStats.total} population, ${populationStats.assigned} committed${populationStats.cartAssigned > 0 ? `, including ${populationStats.cartAssigned} in-transit reservations` : ''}).${cartLaborHint}`
-      : `${building.assignedLabor}/${buildingCap} builders · ${populationStats.available} available. Builders construct; unassigned workers fetch every reserved material cart from the best reachable source.`,
+      : `${building.assignedLabor}/${buildingCap} builders · ${populationStats.available} available.${cartLaborHint} Builders construct while onsite; if no hauler is free once work reaches its material limit, one builder operates the site cart until return.`,
     decreaseDisabled: building.assignedLabor <= 0,
     increaseDisabled: building.assignedLabor >= maxLabor,
   };

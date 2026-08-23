@@ -1,4 +1,4 @@
-use crate::balance_generated::CALENDAR_DAYS_PER_MONTH;
+use crate::balance_generated::{REGIONAL_EXCHANGE_INTERVAL_SECONDS, TICK_DT};
 
 pub const TRADE_MODE_NONE: u8 = 0;
 pub const TRADE_MODE_IMPORT: u8 = 1;
@@ -19,8 +19,26 @@ pub fn clamp_trade_surplus(value: f64) -> f64 {
     value.round().clamp(0.0, MAX_TRADE_SURPLUS)
 }
 
-pub fn absolute_calendar_month(total_days: u64) -> u64 {
-    total_days / CALENDAR_DAYS_PER_MONTH as u64
+/// Monotonic regional-exchange window derived from authoritative simulation
+/// time. `TradingPostTradeRule::last_settled_month` retains its established
+/// field name and storage type for save compatibility, but now stores this
+/// bounded window sequence rather than a calendar-month number.
+pub fn regional_exchange_sequence(sim_tick: u64) -> u64 {
+    let interval_ticks = (REGIONAL_EXCHANGE_INTERVAL_SECONDS / TICK_DT)
+        .ceil()
+        .max(1.0) as u64;
+    sim_tick / interval_ticks
+}
+
+/// Export proceeds are civic funding for imports, so every exchange resolves
+/// exports before imports regardless of stable commodity code.
+pub fn trade_rule_settlement_key(mode: u8, commodity_kind: u8) -> (u8, u8) {
+    let priority = match mode {
+        TRADE_MODE_EXPORT => 0,
+        TRADE_MODE_IMPORT => 1,
+        _ => 2,
+    };
+    (priority, commodity_kind)
 }
 
 pub fn exportable_surplus(public_stock_outside_post: f64, target_surplus: f64) -> f64 {
@@ -56,6 +74,7 @@ pub fn trade_gold(units: f64, unit_price: f64) -> f64 {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::balance_generated::{BASE_SPEED_DENOMINATOR, BASE_SPEED_NUMERATOR};
 
     #[test]
     fn export_never_crosses_the_player_floor() {
@@ -75,5 +94,27 @@ mod tests {
         assert_eq!(clamp_trade_surplus(12.6), 13.0);
         assert_eq!(clamp_trade_surplus(20_000.0), MAX_TRADE_SURPLUS);
         assert_eq!(clamp_trade_surplus(f64::NAN), 0.0);
+    }
+
+    #[test]
+    fn regional_exchange_repeats_twice_inside_thirty_real_seconds_at_four_x() {
+        let real_seconds_per_exchange = REGIONAL_EXCHANGE_INTERVAL_SECONDS
+            / (4.0 * BASE_SPEED_NUMERATOR as f64 / BASE_SPEED_DENOMINATOR as f64);
+        assert!(real_seconds_per_exchange * 2.0 < 30.0);
+
+        let interval_ticks = (REGIONAL_EXCHANGE_INTERVAL_SECONDS / TICK_DT).round() as u64;
+        assert_eq!(regional_exchange_sequence(interval_ticks - 1), 0);
+        assert_eq!(regional_exchange_sequence(interval_ticks), 1);
+        assert_eq!(regional_exchange_sequence(interval_ticks * 2), 2);
+    }
+
+    #[test]
+    fn exports_can_fund_imports_in_the_same_exchange() {
+        assert!(
+            trade_rule_settlement_key(TRADE_MODE_EXPORT, u8::MAX)
+                < trade_rule_settlement_key(TRADE_MODE_IMPORT, 0)
+        );
+        let export_revenue = trade_gold(10.0, 1.0);
+        assert_eq!(affordable_import_units(10.0, 10.0, export_revenue, 2.0), 5.0);
     }
 }

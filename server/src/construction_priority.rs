@@ -24,6 +24,36 @@ pub struct ConstructionLaborRotation {
     pub called_workers: u32,
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ConstructionSupplyCrew {
+    Storehouse(u32),
+    Free,
+    SiteBuilder,
+}
+
+/// Chooses the labor owner for one physical construction cart. Dedicated
+/// storehouse crews and genuinely free villagers retain priority. A builder is
+/// eligible only when the frame cannot advance and its site does not already
+/// own a cart trip.
+pub fn construction_supply_crew(
+    storehouse_workers: u32,
+    free_haulers: u32,
+    onsite_builders: u32,
+    site_work_ready: bool,
+    site_builder_cart_busy: bool,
+) -> Option<ConstructionSupplyCrew> {
+    if storehouse_workers > 0 {
+        return Some(ConstructionSupplyCrew::Storehouse(storehouse_workers));
+    }
+    if free_haulers > 0 {
+        return Some(ConstructionSupplyCrew::Free);
+    }
+    if onsite_builders > 0 && !site_work_ready && !site_builder_cart_busy {
+        return Some(ConstructionSupplyCrew::SiteBuilder);
+    }
+    None
+}
+
 pub fn construction_priority_bucket(priority: u8) -> usize {
     priority.min(CONSTRUCTION_PRIORITY_URGENT) as usize
 }
@@ -176,10 +206,41 @@ mod tests {
     use super::{
         construction_labor_ready, construction_labor_rotation,
         construction_labor_rotation_with_reserve, construction_priority_bucket,
-        is_valid_construction_priority, ConstructionLaborSite, CONSTRUCTION_PRIORITY_HOLD,
-        CONSTRUCTION_PRIORITY_LEVELS, CONSTRUCTION_PRIORITY_LOW, CONSTRUCTION_PRIORITY_NORMAL,
-        CONSTRUCTION_PRIORITY_URGENT,
+        construction_supply_crew, is_valid_construction_priority, ConstructionLaborSite,
+        ConstructionSupplyCrew, CONSTRUCTION_PRIORITY_HOLD, CONSTRUCTION_PRIORITY_LEVELS,
+        CONSTRUCTION_PRIORITY_LOW, CONSTRUCTION_PRIORITY_NORMAL, CONSTRUCTION_PRIORITY_URGENT,
     };
+
+    #[test]
+    fn construction_supply_prefers_dedicated_and_free_crews_before_a_builder() {
+        assert_eq!(
+            construction_supply_crew(2, 1, 3, false, false),
+            Some(ConstructionSupplyCrew::Storehouse(2))
+        );
+        assert_eq!(
+            construction_supply_crew(0, 1, 3, false, false),
+            Some(ConstructionSupplyCrew::Free)
+        );
+    }
+
+    #[test]
+    fn one_blocked_site_builder_can_break_a_hauler_deadlock() {
+        assert_eq!(
+            construction_supply_crew(0, 0, 2, false, false),
+            Some(ConstructionSupplyCrew::SiteBuilder)
+        );
+        assert_eq!(
+            construction_supply_crew(0, 0, 2, false, true),
+            None,
+            "an existing site-owned cart must prevent a second borrowed-builder trip"
+        );
+        assert_eq!(
+            construction_supply_crew(0, 0, 2, true, false),
+            None,
+            "builders who can advance the frame must remain onsite"
+        );
+        assert_eq!(construction_supply_crew(0, 0, 0, false, false), None);
+    }
 
     #[test]
     fn construction_priority_is_a_small_bounded_bucket_domain() {

@@ -186,7 +186,7 @@ export function renderBackyardInspector(
              : ''}`
         : ''}
       ${BACKYARD_GARDEN_DEFINITIONS[garden.kind].jamPerPersonPerSec > 0
-        ? `<li><span>${garden.kind === 'aronia_orchard' ? 'Aronia jam' : 'Rosehip jam'}</span><span>${Math.max(0, garden.kind === 'aronia_orchard' ? residence.aroniaJam ?? 0 : residence.rosehipJam ?? 0).toFixed(1)} jars in the household pantry · transferable preserved food at every tier${residence.tier >= 4 ? ' and luxury comfort from the same serving' : '; gains luxury value at tier 4'}</span></li>`
+        ? `<li><span>${garden.kind === 'aronia_orchard' ? 'Aronia jam' : 'Rosehip jam'}</span><span>${Math.max(0, garden.kind === 'aronia_orchard' ? residence.aroniaJam ?? 0 : residence.rosehipJam ?? 0).toFixed(1)} jars in the household pantry · household labor preserves this share of the harvested fruit rather than creating extra output · transferable food at every tier${residence.tier >= 4 ? ' and luxury comfort from the same serving' : '; gains luxury value at tier 4'}</span></li>`
         : ''}
       ${producesFood
         ? `<li><span>${isLivestockPen ? 'Average primary home food/day' : 'Home food today'}</span><span>${economy.selfFoodPerDay.toFixed(1)} (${hasMarketAccess ? `fills the tier ${residence.tier} ${reserveDays}-day reserve first` : '100% kept without a staffed stall'})</span></li>
@@ -374,7 +374,7 @@ function renderOrchardSpecializationPicker(
         <span class="backyard-picker-option__icon" aria-hidden="true"></span>
         <span class="backyard-picker-option__title">${backyardGardenLabel(kind)}</span>
         <span class="backyard-picker-option__cost">${plantingGold} gold · first harvest ${def.firstHarvestDays} days</span>
-        <span class="backyard-picker-option__funding">${harvestMonths} · ${Math.round(def.yieldEfficiency * 100)}% efficiency${def.jamPerPersonPerSec > 0 ? ' · makes jam' : ''}</span>
+        <span class="backyard-picker-option__funding">${harvestMonths} · ${Math.round(def.yieldEfficiency * 100)}% efficiency${def.jamPerPersonPerSec > 0 ? ' · preserves part of its harvest as jam' : ''}</span>
       </button>
     </li>`;
   }).join('');

@@ -118,7 +118,9 @@
   filter: drop-shadow(0 1px 1px rgba(7, 6, 4, 0.78));
 }
 
-/* Map atlas: quarry, game, berries / mushrooms, fish, empty. */
+/* Map atlas: stone, game, berries / mushrooms, fish, clay. Iron and salt use
+ * their dedicated commodity silhouettes below so mineral markers never become
+ * color-shifted copies of the stone quarry. */
 .map-resource-icon-glyph {
   width: 27px;
   height: 27px;
@@ -132,15 +134,19 @@
 .map-resource-icon-glyph--mushrooms { background-position: 0 100%; }
 .map-resource-icon-glyph--fish { background-position: 50% 100%; }
 .map-resource-icon-glyph--clay { background-position: 100% 100%; }
-.map-resource-icon-glyph--iron,
-.map-resource-icon-glyph--salt { background-position: 0 0; }
 
 .map-resource-icon-glyph--iron {
-  filter: sepia(0.8) saturate(1.8) hue-rotate(330deg) brightness(0.78);
+  background-image: url('/assets/ui/icons/materials/iron.png');
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: contain;
 }
 
 .map-resource-icon-glyph--salt {
-  filter: grayscale(0.8) brightness(1.45);
+  background-image: url('/assets/ui/icons/materials/salt.png');
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: contain;
 }
 
 .quarry-map-icon,

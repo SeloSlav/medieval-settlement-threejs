@@ -1,5 +1,8 @@
 import {
   MARKETPLACE_TRADE_OFFERS,
+  REGIONAL_EXCHANGE_INTERVAL_SECONDS,
+  SIM_REALTIME_RATE,
+  SIM_TICK_SECONDS,
   TRADE_RESOURCE_KINDS,
   type TradeResourceKind,
 } from '../generated/gameBalance.ts';
@@ -86,6 +89,42 @@ export function tradingPostRule(
   resource: TradeResourceKind,
 ): TradingPostTradeRuleState | null {
   return rules?.get(tradingPostRuleId(buildingId, resource)) ?? null;
+}
+
+const REGIONAL_EXCHANGE_INTERVAL_TICKS = Math.max(
+  1,
+  Math.ceil(REGIONAL_EXCHANGE_INTERVAL_SECONDS / SIM_TICK_SECONDS),
+);
+
+export function regionalExchangeSequence(simTick: number): number {
+  return Math.floor(Math.max(0, Math.floor(simTick)) / REGIONAL_EXCHANGE_INTERVAL_TICKS);
+}
+
+export function regionalExchangeSecondsUntilNext(simTick: number): number {
+  const tick = Math.max(0, Math.floor(simTick));
+  const ticksRemaining = REGIONAL_EXCHANGE_INTERVAL_TICKS
+    - (tick % REGIONAL_EXCHANGE_INTERVAL_TICKS);
+  return ticksRemaining * SIM_TICK_SECONDS;
+}
+
+export function regionalExchangeRealSecondsAt4x(simSeconds: number): number {
+  return Math.max(0, simSeconds) / (SIM_REALTIME_RATE * 4);
+}
+
+export function formatRegionalExchangeCountdown(simTick: number, dueNow = false): string {
+  if (dueNow) return 'Ready now';
+  const simSeconds = Math.ceil(regionalExchangeSecondsUntilNext(simTick));
+  const realSeconds = Math.ceil(regionalExchangeRealSecondsAt4x(simSeconds));
+  return `In ${simSeconds} simulation seconds (~${realSeconds} real seconds at 4×)`;
+}
+
+export function tradingPostExchangeDue(
+  rules: readonly TradingPostTradeRuleState[],
+  simTick: number,
+): boolean {
+  const currentExchange = regionalExchangeSequence(simTick);
+  return rules.some((rule) => rule.mode !== TRADE_MODE_NONE
+    && rule.lastSettledMonth < currentExchange);
 }
 
 export function buildingTradeStock(building: BuildingState, resource: TradeResourceKind): number {

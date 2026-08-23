@@ -9,7 +9,10 @@ import { onsiteBuildingLabor } from '../../logistics/deliveryTrips.ts';
 import { getBuildingCost } from '../buildingEconomy.ts';
 import { getBuildingDefinition } from '../buildings.ts';
 import { laborScaledInterval } from '../resourceTotals.ts';
-import { renderResourceAmount } from '../../ui/resourceCost.ts';
+import {
+  formatResourceCostAmount,
+  renderResourceAmount,
+} from '../../ui/resourceCost.ts';
 import type { InspectableTarget } from '../types.ts';
 import {
   buildingCostRows,
@@ -99,11 +102,11 @@ export function renderLargeQuarryInspector(
       ${civilianToolRows(building, context.worldQueries)}
       <li><span>Source</span><span>Rich underground ${resource} · does not deplete</span></li>
       <li><span>Surface reserve</span><span>Separate · ${Math.round(richDeposit?.remaining ?? 0)} / ${Math.round(richDeposit?.maxYield ?? 0)} ${resource} remaining</span></li>
-      <li><span>Chamber supports</span><span>${Math.round(Math.max(0, building.timber))} onsite${
+      <li><span>Chamber supports</span><span>${formatResourceCostAmount(Math.max(0, building.timber))} onsite${
         inboundSupportTimber > 1e-6
-          ? ` + ${Math.round(inboundSupportTimber)} inbound`
+          ? ` + ${formatResourceCostAmount(inboundSupportTimber)} inbound`
           : ''
-      } / ${Math.ceil(LARGE_QUARRY_SUPPORT_TARGET)} timber target · ${supportRunway.toFixed(1)} batches</span></li>
+      } / ${formatResourceCostAmount(LARGE_QUARRY_SUPPORT_TARGET)} timber target · ${supportRunway.toFixed(1)} batches</span></li>
       <li><span>Support wear</span><span>${renderResourceAmount('timber', LARGE_QUARRY_TIMBER_SUPPORT_PER_CYCLE, { compact: true, suffix: 'per completed underground batch' })} · nearest lumber mill or village storehouse supplies it; roads make the haul faster</span></li>
       <li><span>Yard ceiling</span><span>${stock.toFixed(0)} / ${yardTarget.toFixed(0)} ${resource} · ${outputHeadroom.toFixed(0)} headroom</span></li>
       <li><span>Production interval</span><span>${active ? `${cycleSeconds.toFixed(1)}s` : 'paused'} (${onsiteLabor} on site / ${building.assignedLabor} assigned)</span></li>

@@ -486,7 +486,7 @@ assert.doesNotMatch(
 );
 assert.match(
   buildingTool,
-  /if \(kind === 'founders_camp'\) \{\s*this\.setPlacementStatusDetail\(null\);\s*return;/,
+  /if \(kind === 'founders_camp'\) \{\s*this\.setPlacementStatusDetail\(null, notify\);\s*return;/,
   'the camp preview should communicate placement validity without status-bar copy',
 );
 assert.doesNotMatch(buildingTool, /Ready: click to establish the camp/);

@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { createRequire } from 'node:module';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import * as THREE from 'three';
@@ -9,9 +10,25 @@ import {
   setBuildingIndirectLightIntensity,
 } from '../src/buildings/buildingMaterials.ts';
 import { BUILDING_KINDS } from '../src/generated/gameBalance.ts';
+import {
+  getBackyardGardenMaterialLibraryStats,
+  isSharedBackyardGardenMaterial,
+} from '../src/residences/backyardGardenMesh.ts';
 import { createResidenceMesh } from '../src/residences/ResidenceMarkers.ts';
 import { BUILD_MENU_ENTRIES, renderBuildMenuCards } from '../src/ui/buildMenuCards.ts';
 import { disposeObject3D } from '../src/utils/dispose.ts';
+
+type SharpDecodeResult = {
+  data: Uint8Array;
+  info: { width: number; height: number; channels: number };
+};
+type SharpImage = {
+  raw(): {
+    toBuffer(options: { resolveWithObject: true }): Promise<SharpDecodeResult>;
+  };
+};
+const vendorRequire = createRequire(resolve('vendor/seedthree/package.json'));
+const sharp = vendorRequire('sharp') as (input: Uint8Array) => SharpImage;
 
 const html = renderBuildMenuCards();
 const urls = [...html.matchAll(/<img class="construction-card__art" data-src="([^"]+)"/g)].map((match) => match[1]);
@@ -33,6 +50,15 @@ for (const url of urls) {
     throw new Error(`${url} is not a WebP.`);
   }
   if (bytes.length > 100_000) throw new Error(`${url} is too large for lazy menu art (${bytes.length} bytes).`);
+  const decoded = await sharp(bytes).raw().toBuffer({ resolveWithObject: true });
+  if (
+    decoded.info.width !== 320
+    || decoded.info.height !== 480
+    || decoded.info.channels < 3
+    || decoded.data.byteLength !== decoded.info.width * decoded.info.height * decoded.info.channels
+  ) {
+    throw new Error(`${url} does not decode as a complete 320x480 RGB/RGBA card.`);
+  }
 
   const hash = createHash('sha256').update(bytes).digest('hex');
   const duplicate = hashes.get(hash);
@@ -48,6 +74,8 @@ if (/<img class="construction-card__art" src=/.test(html)) {
 
 const modelNames = new Set<string>();
 const sharedMaterials = new Set<THREE.Material>();
+const pooledBackyardMaterials = new Set<THREE.Material>();
+const monasteryBackyardMaterials = new Set<THREE.Material>();
 let texturedMeshCount = 0;
 let largestMetricUvSpan = 0;
 let churchHeight = 0;
@@ -195,13 +223,16 @@ const expectedLeanToRoofs = new Map<string, number>([
   ['guardhouse', 1],
   ['palisaded_refuge', 1],
   ['pastoral_farmstead', 1],
-  ['monastery', 5],
+  // Four cloister walks plus the mead bay and the later orchard-cider press.
+  ['monastery', 6],
   ['windmill', 1],
   ['brewery', 1],
   ['tavern', 1],
   ['smokehouse', 1],
   ['carpenter', 1],
   ['weaver', 1],
+  ['tannery', 1],
+  ['cobbler', 1],
   ['clay_pit', 1],
   ['charcoal_burner', 1],
   ['smithy', 1],
@@ -238,7 +269,7 @@ for (const kind of BUILDING_KINDS) {
     } | undefined;
     if (
       plan?.typology !== 'fortified-rural-monastery'
-      || plan.reservedUpgradeZoneIds?.length !== 2
+      || plan.reservedUpgradeZoneIds?.length !== 1
       || (plan.diagnostics?.pastureArea ?? 0) < 350
       || plan.diagnostics?.outOfBoundsZoneIds?.length !== 0
       || plan.diagnostics?.overlappingZonePairs?.length !== 0
@@ -329,10 +360,14 @@ for (const kind of BUILDING_KINDS) {
     }
     const materials = Array.isArray(object.material) ? object.material : [object.material];
     for (const material of materials) {
-      if (material.userData.sharedBuildingMaterial !== true) {
+      if (material.userData.sharedBuildingMaterial === true) {
+        sharedMaterials.add(material);
+      } else if (isSharedBackyardGardenMaterial(material)) {
+        pooledBackyardMaterials.add(material);
+        if (kind === 'monastery') monasteryBackyardMaterials.add(material);
+      } else {
         throw new Error(`${kind} contains a per-instance building material (${material.name || material.type}).`);
       }
-      sharedMaterials.add(material);
       if (typeof material.userData.metricUvMeters !== 'number') continue;
       const uv = object.geometry.getAttribute('uv');
       if (!uv || uv.count === 0) throw new Error(`${kind} has a textured mesh without UVs.`);
@@ -501,9 +536,18 @@ if (stats.constructionMaterials > 20) {
 if (stats.detailMaterials > 10) {
   throw new Error(`Shared building-detail palette grew beyond 10 materials (${stats.detailMaterials}).`);
 }
-// The founding camp's feathered ground and the well's node water each need one
-// global material outside the opaque construction library.
-const externalSharedMaterialAllowance = 2;
+const backyardMaterialStats = getBackyardGardenMaterialLibraryStats();
+if (backyardMaterialStats.meshMaterials > 34 || backyardMaterialStats.spriteMaterials > 3) {
+  throw new Error(
+    `Shared backyard palette grew beyond 34 mesh + 3 sprite materials (${backyardMaterialStats.meshMaterials} + ${backyardMaterialStats.spriteMaterials}).`,
+  );
+}
+if (monasteryBackyardMaterials.size === 0) {
+  throw new Error('Monastery must identify its embedded backyard palette as pooled module-owned materials.');
+}
+// The founding camp's feathered ground and pooled fire sparks plus the well's
+// node water are three global materials outside the opaque construction library.
+const externalSharedMaterialAllowance = 3;
 const buildingMaterialCeiling =
   stats.constructionMaterials + stats.detailMaterials + externalSharedMaterialAllowance;
 if (sharedMaterials.size > buildingMaterialCeiling) {
@@ -515,15 +559,30 @@ if (texturedMeshCount === 0 || largestMetricUvSpan <= 1.5) {
 
 for (const kind of BUILDING_KINDS) {
   const duplicate = createBuildingMesh(kind);
+  const duplicateMonasteryBackyardMaterials = new Set<THREE.Material>();
   duplicate.traverse((object) => {
     if (!(object instanceof THREE.Mesh)) return;
     const materials = Array.isArray(object.material) ? object.material : [object.material];
     for (const material of materials) {
-      if (!sharedMaterials.has(material)) {
+      if (!sharedMaterials.has(material) && !pooledBackyardMaterials.has(material)) {
         throw new Error(`${kind} allocated a different material on its second construction.`);
+      }
+      if (kind === 'monastery' && isSharedBackyardGardenMaterial(material)) {
+        duplicateMonasteryBackyardMaterials.add(material);
       }
     }
   });
+  if (
+    kind === 'monastery'
+    && (
+      duplicateMonasteryBackyardMaterials.size !== monasteryBackyardMaterials.size
+      || [...duplicateMonasteryBackyardMaterials].some(
+        (material) => !monasteryBackyardMaterials.has(material),
+      )
+    )
+  ) {
+    throw new Error('Monastery allocated a different embedded backyard palette on its second construction.');
+  }
   disposeObject3D(duplicate);
 }
 
@@ -602,4 +661,4 @@ if (indirectConstructionMaterials.some((material) => material.emissiveIntensity 
   throw new Error('Day/night lighting must update every shared construction material.');
 }
 
-console.log(`building art-direction tests passed (${urls.length} cards, ${BUILDING_KINDS.length} models, ${residenceCount} residence variants, ${sharedMaterials.size} shared materials, ${texturedMeshCount} metric-UV meshes)`);
+console.log(`building art-direction tests passed (${urls.length} cards, ${BUILDING_KINDS.length} models, ${residenceCount} residence variants, ${sharedMaterials.size} shared building materials, ${monasteryBackyardMaterials.size} pooled monastery backyard materials reused by identity, ${texturedMeshCount} metric-UV meshes)`);

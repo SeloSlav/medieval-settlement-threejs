@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "round": 48,
+  "status": "ready",
+  "checkedAtUtc": "2026-07-31T01:16:09.788Z",
+  "origin": "http://127.0.0.1:4179",
+  "archiveRoot": "artifacts/visual-gauntlet/round-48/captured-build",
+  "preview": {
+    "launcherProcessId": 15548,
+    "launcherProcessName": "cmd",
+    "command": "npm exec vite -- preview --outDir artifacts/visual-gauntlet/round-48/captured-build --host 127.0.0.1 --port 4179 --strictPort"
+  },
+  "archiveVerification": {
+    "command": "npx tsx scripts/archiveVisualGauntletBuild.mts verify --round 48 --source dist --archive artifacts/visual-gauntlet/round-48/captured-build --manifest public/visual-gauntlet/evidence/round-48/bundle-manifest.json",
+    "files": 435,
+    "sourceBytes": 375643819,
+    "treeSha256": "2866F378F038DCCB222BF0E02CA40FBE7FDAC5B0FC000DFDAB1AA754B4ED35AC"
+  },
+  "sentinelRequest": {
+    "path": "/_round-48-archive-origin.json",
+    "status": 200,
+    "contentType": "application/json",
+    "bytes": 575,
+    "archiveId": "1253830F3B03905157DE428B4A28DFF47B30CAEE06B77DDEFDA6E969449CDFF7",
+    "preBlindCommitmentSha256": "CF99EA2CFDADAACF0447D0495E8ACEF15796A314CCC6F57DB64727C757A47BC6"
+  },
+  "entryRequest": {
+    "path": "/hamlet-fixture.html",
+    "status": 200,
+    "bytes": 4122,
+    "entryModule": "assets/hamlet-fixture-BZC6e5tr.js",
+    "entryModuleSha256": "48DC7523B836A1AF4E03CF950B15F5A8F4C4127F6198A8E01D205F33DE824FFA"
+  }
+}

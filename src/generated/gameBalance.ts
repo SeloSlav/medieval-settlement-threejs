@@ -109,7 +109,7 @@ export const STARTING_TIMBER = 400;
 export const STARTING_STONE = 240;
 export const STARTING_FIREWOOD = 240;
 export const STARTING_BREAD = 240;
-export const STARTING_IRONWORK = 9000;
+export const STARTING_IRONWORK = 12;
 export const STARTING_GOLD = 0;
 export const STONE_SALVAGE_FRACTION = 0.92;
 export const TIMBER_SALVAGE_FRACTION = 0.7;
@@ -1682,7 +1682,7 @@ export const BUILDING_COSTS = {
 } as const satisfies Record<BuildingKind, BuildingResourceCost>;
 
 export const BUILDING_STORAGE_CAPS = {
-  founders_camp: { timber: 400, firewood: 240, stone: 280, water: 120, food: 240, grain: 160, barley: 120, malt: 80, flour: 120, ale: 80, preservedFood: 120, honey: 80, wine: 80, wool: 120, flax: 120, cloth: 80, ironwork: 9000, polearms: 80, iron: 80, clay: 80, salt: 80, charcoal: 80, pottery: 80, hides: 80, leather: 80, shoes: 80, roofTiles: 80 },
+  founders_camp: { timber: 400, firewood: 240, stone: 280, water: 120, food: 240, grain: 160, barley: 120, malt: 80, flour: 120, ale: 80, preservedFood: 120, honey: 80, wine: 80, wool: 120, flax: 120, cloth: 80, ironwork: 24, polearms: 80, iron: 80, clay: 80, salt: 80, charcoal: 80, pottery: 80, hides: 80, leather: 80, shoes: 80, roofTiles: 80 },
   salvage_pile: { timber: 2000, firewood: 2000, stone: 2000, water: 2000, food: 2000, grain: 2000, barley: 2000, malt: 2000, flour: 2000, ale: 2000, preservedFood: 2000, honey: 2000, wine: 2000, wool: 2000, flax: 2000, cloth: 2000, ironwork: 2000, polearms: 2000, iron: 2000, clay: 2000, salt: 2000, charcoal: 2000, pottery: 2000, hides: 2000, leather: 2000, shoes: 2000, roofTiles: 2000, manure: 2000, remedies: 2000 },
   lumber_mill: { timber: 240, firewood: 0, stone: 0, water: 48, ironwork: 3 },
   reforester: { timber: 0, firewood: 0, stone: 0 },
@@ -1702,7 +1702,7 @@ export const BUILDING_STORAGE_CAPS = {
   chapel: { timber: 0, firewood: 0, stone: 0 },
   wayside_shrine: { timber: 0, firewood: 0, stone: 0 },
   marketplace: { timber: 0, firewood: 80, stone: 0, food: 96, grain: 96, ale: 140, preservedFood: 120, honey: 48, wine: 72, cloth: 120, charcoal: 80, pottery: 96, hides: 80, leather: 96, shoes: 96, remedies: 48 },
-  trading_post: { timber: 180, firewood: 120, stone: 180, water: 72, food: 160, grain: 120, barley: 120, malt: 120, flour: 120, ale: 180, preservedFood: 120, honey: 140, wine: 160, wool: 120, flax: 120, cloth: 160, ironwork: 96, polearms: 48, iron: 96, clay: 120, salt: 120, charcoal: 120, pottery: 144, hides: 160, leather: 160, shoes: 160, roofTiles: 120, manure: 160, remedies: 72 },
+  trading_post: { timber: 180, firewood: 120, stone: 180, water: 72, food: 160, grain: 120, barley: 120, malt: 120, flour: 120, ale: 180, cider: 180, pearCider: 180, preservedFood: 120, honey: 140, wine: 160, wool: 120, flax: 120, cloth: 160, ironwork: 96, polearms: 48, iron: 96, clay: 120, salt: 120, charcoal: 120, pottery: 144, hides: 160, leather: 160, shoes: 160, roofTiles: 120, manure: 160, remedies: 72 },
   town_hall: { timber: 0, firewood: 0, stone: 0 },
   village_storehouse: { timber: 360, firewood: 280, stone: 360, cloth: 180, iron: 180, clay: 180, salt: 144, charcoal: 280, pottery: 180, hides: 180, leather: 180, shoes: 180, remedies: 96 },
   watchtower: { timber: 0, firewood: 0, stone: 0 },
@@ -1713,9 +1713,9 @@ export const BUILDING_STORAGE_CAPS = {
   swineherd: { timber: 0, firewood: 0, stone: 0, food: 150, grain: 120 },
   monastery: { timber: 0, firewood: 0, stone: 0, food: 180, grain: 180, cider: 80, mead: 120, preservedFood: 80, honey: 160, wine: 120 },
   brewery: { timber: 0, firewood: 40, stone: 0, water: 120, food: 96, barley: 96, malt: 48, ale: 200, cider: 200, pearCider: 200, mead: 200, honey: 72 },
-  tavern: { timber: 0, firewood: 0, stone: 0, ale: 180, cider: 180, mead: 180 },
+  tavern: { timber: 0, firewood: 0, stone: 0, ale: 180, cider: 180, pearCider: 180, mead: 180 },
   smokehouse: { timber: 0, firewood: 40, stone: 0, food: 120, preservedFood: 180, salt: 24, pottery: 12 },
-  granary: { timber: 0, firewood: 0, stone: 0, food: 340, grain: 360, barley: 240, flour: 260, ale: 180, preservedFood: 180, honey: 96, wine: 180, flax: 180 },
+  granary: { timber: 0, firewood: 0, stone: 0, food: 340, grain: 360, barley: 240, flour: 260, ale: 180, cider: 180, pearCider: 180, preservedFood: 180, honey: 96, wine: 180, flax: 180 },
   bakery: { timber: 0, firewood: 36, stone: 0, water: 48, food: 100, flour: 96 },
   apiary: { timber: 0, firewood: 0, stone: 0, food: 40, honey: 140 },
   watermill: { timber: 0, firewood: 0, stone: 0, water: 80, grain: 180, flour: 260, ironwork: 3 },
@@ -2168,6 +2168,7 @@ export const BACKYARD_GARDEN_COSTS = {
 } as const satisfies Record<BackyardGardenKind, BuildingResourceCost>;
 
 export const MARKETPLACE_BULK_TRADE_COOLDOWN_SECONDS = 8;
+export const REGIONAL_EXCHANGE_INTERVAL_SECONDS = 30;
 
 export const TRADE_RESOURCE_KINDS = ["timber","stone","firewood","water","food","ryeGrain","oatGrain","maslinGrain","ryeFlour","maslinFlour","ryeBread","maslinBread","ale","cider","pearCider","preservedFood","honey","wine","ironwork","polearms","wool","cloth","hides","leather","shoes","barley","malt","flax","iron","clay","salt","charcoal","pottery","manure","remedies","roofTiles","meat","fish","berries","mushrooms","milk","apples","pears","cherries","aronia","rosehips","vegetables","cabbage","carrots","beetroot","eggs","grapes","curedMeat","smokedFish","cheese","aroniaJam","rosehipJam","ryeSheaves","oatSheaves","barleySheaves","maslinSheaves"] as const;
 export type TradeResourceKind = (typeof TRADE_RESOURCE_KINDS)[number];

@@ -143,7 +143,7 @@
     "startingStone": 240,
     "startingFirewood": 240,
     "startingBread": 240,
-    "startingIronwork": 9000,
+    "startingIronwork": 12,
     "startingGold": 0,
     "stoneSalvageFraction": 0.92,
     "timberSalvageFraction": 0.7,
@@ -226,6 +226,7 @@
   },
   "marketplaceTrade": {
     "bulkTradeCooldownSeconds": 8,
+    "regionalExchangeIntervalSeconds": 30,
     "resourceSpendScopes": {
         "timber": "marketAccessible",
         "stone": "marketAccessible",
@@ -1082,7 +1083,7 @@
         "preservedFood": 120,
         "honey": 80,
         "wine": 80,
-        "ironwork": 9000,
+        "ironwork": 24,
         "polearms": 80,
         "iron": 80,
         "clay": 80,
@@ -1477,7 +1478,7 @@
     "trading_post": {
       "label": "Trading Post",
       "cost": { "timber": 64, "stone": 42, "ironwork": 4 },
-      "storage": { "timber": 180, "firewood": 120, "stone": 180, "water": 72, "food": 160, "preservedFood": 120, "grain": 120, "barley": 120, "malt": 120, "flax": 120, "flour": 120, "ale": 180, "honey": 140, "wine": 160, "wool": 120, "cloth": 160, "hides": 160, "leather": 160, "shoes": 160, "ironwork": 96, "polearms": 48, "iron": 96, "clay": 120, "salt": 120, "charcoal": 120, "pottery": 144, "roofTiles": 120, "manure": 160, "remedies": 72 },
+      "storage": { "timber": 180, "firewood": 120, "stone": 180, "water": 72, "food": 160, "preservedFood": 120, "grain": 120, "barley": 120, "malt": 120, "flax": 120, "flour": 120, "ale": 180, "cider": 180, "pearCider": 180, "honey": 140, "wine": 160, "wool": 120, "cloth": 160, "hides": 160, "leather": 160, "shoes": 160, "ironwork": 96, "polearms": 48, "iron": 96, "clay": 120, "salt": 120, "charcoal": 120, "pottery": 144, "roofTiles": 120, "manure": 160, "remedies": 72 },
       "workRadius": 0,
       "pickRadius": 10,
       "harvestInterval": 0,
@@ -1695,7 +1696,7 @@
     "tavern": {
       "label": "Tavern",
       "cost": { "timber": 42, "stone": 28, "ironwork": 2 },
-      "storage": { "timber": 0, "firewood": 0, "stone": 0, "ale": 180, "cider": 180, "mead": 180 },
+      "storage": { "timber": 0, "firewood": 0, "stone": 0, "ale": 180, "cider": 180, "pearCider": 180, "mead": 180 },
       "workRadius": 0,
       "pickRadius": 9,
       "harvestInterval": 0,
@@ -1732,7 +1733,7 @@
     "granary": {
       "label": "Village granary",
       "cost": { "timber": 50, "stone": 28, "ironwork": 3 },
-      "storage": { "timber": 0, "firewood": 0, "stone": 0, "grain": 360, "barley": 240, "flax": 180, "flour": 260, "food": 340, "preservedFood": 180, "honey": 96, "ale": 180, "wine": 180 },
+      "storage": { "timber": 0, "firewood": 0, "stone": 0, "grain": 360, "barley": 240, "flax": 180, "flour": 260, "food": 340, "preservedFood": 180, "honey": 96, "ale": 180, "cider": 180, "pearCider": 180, "wine": 180 },
       "workRadius": 0,
       "pickRadius": 9,
       "harvestInterval": 4,

@@ -26,8 +26,11 @@ import {
   createConstructionSiteMesh,
 } from '../src/buildings/ConstructionSiteMesh.ts';
 import {
+  deliveryTripHasPendingCargo,
   deliveryWorkerPersonIdentity,
+  findConflictingInboundSupplyTripForBuilding,
   findInboundSupplyTripForBuilding,
+  inboundSupplyTripConflicts,
   type DeliveryTripState,
 } from '../src/logistics/deliveryTrips.ts';
 import {
@@ -262,8 +265,13 @@ assert.ok(
   'delivered fittings should appear as a named construction-site crate',
 );
 assert.ok(
+  fittedSite.getObjectByName('Construction iron strap 1'),
+  'the last unconsumed fittings should remain visible late in construction',
+);
+assert.equal(
   fittedSite.getObjectByName('Construction iron strap 2'),
-  'the fittings crate should visibly fill as more ironwork arrives',
+  undefined,
+  'fittings already incorporated into the frame must leave the site pile',
 );
 assert.notEqual(
   constructionVisualSignature(0.65, 1, 1, 0),
@@ -333,6 +341,39 @@ const constructionDispatch = constructionServer.slice(
   constructionServer.indexOf('fn dispatch_reserved_stock'),
   constructionServer.indexOf('fn advance_builder_work'),
 );
+const constructionTreasuryTransfer = constructionServer.slice(
+  constructionServer.indexOf('fn transfer_treasury_reserve'),
+  constructionServer.indexOf('fn dispatch_reserved_stock'),
+);
+const constructionBuilderWork = constructionServer.slice(
+  constructionServer.indexOf('fn advance_builder_work'),
+  constructionServer.indexOf('fn complete_site'),
+);
+assert.doesNotMatch(
+  constructionDispatch,
+  /site_has_inbound_cargo/,
+  'an approaching cart must not serialize other independently reserved construction loads',
+);
+assert.match(
+  constructionDispatch,
+  /physical_reserved[\s\S]*distinct reserved loads concurrently without double spending/,
+  'construction dispatch must document why concurrent carts remain conservative',
+);
+assert.match(
+  deliveryTripServer,
+  /pub fn building_has_inbound_supply_trip[\s\S]*delivery_cargo_is_approaching\(trip\.phase, trip\.amount\)/,
+  'labor rotation and source status must ignore empty returning carts',
+);
+assert.match(
+  constructionTreasuryTransfer,
+  /onsite_building_labor\(ctx, site\)[\s\S]*CONSTRUCTION_TREASURY_TRANSFER_PER_SEC \* onsite_labor as f64/,
+  'a builder traveling with the site cart must not transfer treasury material while away',
+);
+assert.match(
+  constructionBuilderWork,
+  /onsite_building_labor\(ctx, &site\)[\s\S]*CONSTRUCTION_WORK_PER_WORKER_PER_SEC \* onsite_labor as f64/,
+  'only builders physically onsite may advance the construction frame',
+);
 assert.doesNotMatch(
   constructionDispatch,
   /source\.assigned_labor\s*>\s*0/,
@@ -394,7 +435,17 @@ assert.doesNotMatch(
   /\|\|\s*origin\.assigned_labor\s*==\s*0/,
   'construction pickup must not require workers assigned to the material source',
 );
-assert.match(constructionTrip, /available_free_haulers\.min\(1\)/);
+assert.match(constructionTrip, /construction_supply_crew/);
+assert.match(
+  constructionTrip,
+  /ConstructionSupplyCrew::SiteBuilder[\s\S]*DeliveryLaborSource::Building\(site\.id\)/,
+  'a blocked site must own the labor reservation when it lends one builder to its cart',
+);
+assert.match(
+  deliveryTripServer,
+  /construction_site_builder_cart_busy[\s\S]*labor_building_id\(\)[\s\S]*filter\(&site_id\)/,
+  'a site-owned cart must block duplicate borrowed-builder trips until it returns',
+);
 assert.match(
   constructionTrip,
   /construction_source_cart_busy\(ctx, origin\)/,
@@ -412,6 +463,11 @@ assert.match(
 );
 assert.match(
   constructionTrip,
+  /withdraw_building_commodity[\s\S]*construction_reserved_timber[\s\S]*insert_trip/,
+  'every concurrent cart must withdraw its own cargo and reduce the reservation before insertion',
+);
+assert.match(
+  constructionTrip,
   /STOREHOUSE_HAUL_PER_WORKER/,
   'staffed storehouses should retain a batch-hauling advantage',
 );
@@ -424,6 +480,9 @@ assert.match(
 const constructionInspector = read('src/resources/inspector/constructionRenderer.ts');
 assert.doesNotMatch(constructionInspector, /Waiting for a staffed material source/);
 assert.match(constructionInspector, /Unassigned hauler bringing/);
+assert.match(constructionInspector, /Site builder bringing/);
+assert.match(constructionInspector, /Site builder fetching/);
+assert.match(constructionInspector, /Site builder returning with the cart/);
 assert.match(constructionInspector, /No usable haul route to/);
 assert.match(constructionInspector, /Material source/);
 assert.match(constructionInspector, /routeDistance/);
@@ -471,6 +530,60 @@ assert.equal(
 );
 const outboundTrip: DeliveryTripState = { ...returningTrip, amount: 8, phase: 'outbound' };
 assert.equal(findInboundSupplyTripForBuilding([outboundTrip], 'building-2'), outboundTrip);
+const unloadingTrip: DeliveryTripState = { ...outboundTrip, phase: 'unloading' };
+assert.equal(findInboundSupplyTripForBuilding([unloadingTrip], 'building-2'), unloadingTrip);
+const emptyOutboundTrip: DeliveryTripState = { ...outboundTrip, amount: 0 };
+assert.equal(
+  findInboundSupplyTripForBuilding([emptyOutboundTrip], 'building-2'),
+  null,
+  'an empty pre-return row cannot suppress a replacement load',
+);
+const loadedReturningTrip: DeliveryTripState = { ...returningTrip, amount: 8 };
+assert.equal(
+  findInboundSupplyTripForBuilding([loadedReturningTrip], 'building-2'),
+  null,
+  'cargo physically returning to its origin is no longer inbound to the worksite',
+);
+assert.equal(deliveryTripHasPendingCargo(outboundTrip), true);
+assert.equal(deliveryTripHasPendingCargo(unloadingTrip), true);
+assert.equal(deliveryTripHasPendingCargo(returningTrip), false);
+assert.equal(deliveryTripHasPendingCargo(emptyOutboundTrip), false);
+const marketplaceTarget = { id: 'building-2', kind: 'marketplace' } as const;
+const incomingBread = { ...outboundTrip, cargoKind: 'ryeBread' as const };
+const incomingFirewood = { ...outboundTrip, cargoKind: 'firewood' as const };
+assert.equal(
+  inboundSupplyTripConflicts('marketplace', 'ryeBread', incomingBread),
+  true,
+  'a second bread request must not reserve Marketplace room already claimed by bread in transit',
+);
+assert.equal(
+  inboundSupplyTripConflicts('marketplace', 'ryeBread', incomingFirewood),
+  false,
+  'a food table may receive bread while a distinct fuel load approaches the Marketplace',
+);
+assert.equal(
+  inboundSupplyTripConflicts('granary', 'ryeBread', incomingFirewood),
+  true,
+  'ordinary storage retains its single-inbound-cart rule across commodities',
+);
+assert.equal(
+  findConflictingInboundSupplyTripForBuilding(
+    [incomingFirewood, incomingBread],
+    marketplaceTarget,
+    'ryeBread',
+  ),
+  incomingBread,
+  'Marketplace conflict lookup must skip a distinct load but find the duplicate commodity',
+);
+assert.equal(
+  findConflictingInboundSupplyTripForBuilding(
+    [{ ...incomingBread, phase: 'inbound' }],
+    marketplaceTarget,
+    'ryeBread',
+  ),
+  null,
+  'a returning bread cart must release the same-commodity reservation',
+);
 assert.equal(
   deliveryWorkerPersonIdentity({ ...outboundTrip, id: 'the-next-trip' }),
   deliveryWorkerPersonIdentity(outboundTrip),
@@ -951,7 +1064,7 @@ const constructionContext = (
       fireIncidents,
     },
     worldQueries: {
-      getInboundSupplyTrip: () => inbound,
+      getInboundSupplyTrip: () => inbound?.phase === 'inbound' ? null : inbound,
       getBuilding: (id: string) => buildings.get(id) ?? null,
       getRoadPathDistance: (
         ax: number,
@@ -994,7 +1107,11 @@ const fittingsInspector = renderConstructionInspector(
   { kind: 'building', building: fittingsSite },
   constructionContext([fittingsSource], 5, 30) as never,
 );
-assert.match(fittingsInspector.statusText, /preparing 5 ironwork/);
+assert.equal(
+  fittingsInspector.statusText,
+  'Unassigned worker fetching 5 ironwork from Forest bloomery & smithy',
+  'a staffed producer keeps producing while a free settlement hauler moves its fittings',
+);
 assert.match(fittingsInspector.detailsHtml, /Ironwork fittings delivered/);
 assert.match(fittingsInspector.detailsHtml, /1 \/ 6/);
 
@@ -1010,7 +1127,21 @@ assert.equal(
     siteTarget,
     constructionContext([stoneSource], 0, 30) as never,
   ).statusText,
+  'Site builder fetching 15 stone from Mining Pit',
+  'a material-blocked crew must lend one builder to the site cart when no free hauler exists',
+);
+const workReadySite = {
+  ...site,
+  id: 'work-ready-site',
+  constructionProgress: 0.5,
+};
+assert.equal(
+  renderConstructionInspector(
+    { kind: 'building', building: workReadySite },
+    constructionContext([stoneSource], 0, 30) as never,
+  ).statusText,
   'Waiting for an unassigned hauler — 15 stone is at Mining Pit',
+  'builders who can still advance the frame must not leave it to haul',
 );
 assert.equal(
   renderConstructionInspector(
@@ -1091,7 +1222,7 @@ const routeAwareView = renderConstructionInspector(
 );
 assert.equal(
   routeAwareView.statusText,
-  'Quarry crew preparing 15 stone',
+  'Unassigned worker fetching 15 stone from Quarry',
   'the source with the shorter road route must beat the source that looks nearer in a straight line',
 );
 assert.match(routeAwareView.detailsHtml, /Quarry · 20m haul/);
@@ -1277,6 +1408,38 @@ assert.equal(
     constructionContext([stoneSource], 5, 30, visibleInbound) as never,
   ).statusText,
   'Unassigned hauler bringing 8 stone from Mining Pit',
+);
+const builderInbound = {
+  ...visibleInbound,
+  id: 'builder-supply-trip',
+  laborBuildingId: site.id,
+};
+const builderInboundView = renderConstructionInspector(
+  siteTarget,
+  constructionContext([stoneSource], 0, 30, builderInbound) as never,
+);
+assert.equal(
+  builderInboundView.statusText,
+  'Site builder bringing 8 stone from Mining Pit',
+);
+assert.match(
+  builderInboundView.labor.hint,
+  /1 rostered worker is away, leaving 3 on site/,
+  'the inspector must not count a borrowed cart operator as an onsite builder',
+);
+const builderReturning = {
+  ...builderInbound,
+  id: 'builder-returning-trip',
+  phase: 'inbound' as const,
+  amount: 0,
+};
+assert.equal(
+  renderConstructionInspector(
+    siteTarget,
+    constructionContext([stoneSource], 0, 30, builderReturning) as never,
+  ).statusText,
+  'Site builder returning with the cart — next load is 15 stone at Mining Pit',
+  'a returning site cart must expose the bounded reason before another builder can haul',
 );
 
 const placementServer = read('server/src/reducers/buildings.rs');

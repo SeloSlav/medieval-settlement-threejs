@@ -5,8 +5,82 @@
 
 use std::collections::HashMap;
 
+use crate::brewery_recipe_policy::{
+    normalize_brewery_recipe_policy, BREWERY_RECIPE_AUTO, BREWERY_RECIPE_CIDER,
+    BREWERY_RECIPE_MEAD, BREWERY_RECIPE_PEAR_CIDER,
+};
+
 pub const WORKSITE_SPATIAL_BUCKET_SIZE: f64 = 96.0;
 pub const RICH_DEPOSIT_CENTER_TOLERANCE: f64 = 2.5;
+
+/// Stock-or-inbound availability for processors whose valid recipes contain
+/// alternatives. Keeping this policy outside the reducer makes authoritative
+/// labor recall testable without SpacetimeDB host imports.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct ProcessorRecipeAvailability {
+    pub rye_grain: bool,
+    pub maslin_grain: bool,
+    pub rye_flour: bool,
+    pub maslin_flour: bool,
+    pub barley: bool,
+    pub malt: bool,
+    pub water: bool,
+    pub firewood: bool,
+    pub apples: bool,
+    pub pears: bool,
+    pub honey: bool,
+    pub food: bool,
+    pub meat: bool,
+    pub fish: bool,
+    pub milk: bool,
+    pub salt: bool,
+    pub pottery: bool,
+    pub wool: bool,
+    pub flax: bool,
+}
+
+/// Returns `Some` for processors with alternative recipes and `None` for
+/// ordinary all-input recipes. A processor is ready when any complete recipe
+/// can run; a reducer can call this once for on-site stock and again after
+/// merging matching inbound carts to distinguish a stall from recovery.
+pub fn alternative_processor_recipe_ready(
+    kind: &str,
+    brewery_recipe_policy: u8,
+    available: ProcessorRecipeAvailability,
+) -> Option<bool> {
+    let ale_ready = (available.barley || available.malt)
+        && available.water
+        && available.firewood;
+    let cider_ready = available.apples;
+    let pear_cider_ready = available.pears;
+    let mead_ready = available.honey;
+
+    match kind {
+        "watermill" | "windmill" => Some(available.rye_grain || available.maslin_grain),
+        "bakery" => Some(
+            (available.rye_flour || available.maslin_flour)
+                && available.water
+                && available.firewood,
+        ),
+        "brewery" => Some(match normalize_brewery_recipe_policy(brewery_recipe_policy) {
+            BREWERY_RECIPE_CIDER => cider_ready,
+            BREWERY_RECIPE_PEAR_CIDER => pear_cider_ready,
+            BREWERY_RECIPE_MEAD => mead_ready,
+            BREWERY_RECIPE_AUTO => {
+                ale_ready || cider_ready || pear_cider_ready || mead_ready
+            }
+            _ => ale_ready,
+        }),
+        "smokehouse" => Some(
+            (available.food || available.meat || available.fish || available.milk)
+                && available.firewood
+                && available.salt
+                && available.pottery,
+        ),
+        "weaver" => Some(available.wool || (available.flax && available.water)),
+        _ => None,
+    }
+}
 
 pub fn is_production_labor_kind(kind: &str) -> bool {
     matches!(
@@ -170,6 +244,9 @@ pub fn stalled_labor_target(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::brewery_recipe_policy::{
+        BREWERY_RECIPE_ALE, BREWERY_RECIPE_AUTO, BREWERY_RECIPE_CIDER,
+    };
     use std::cell::Cell;
 
     #[derive(Clone, Copy)]
@@ -265,6 +342,104 @@ mod tests {
             .expect("a usable source must be selected");
         assert_eq!(nearest.remaining, 7.0);
         assert_eq!(distance_sq, 400.0);
+    }
+
+    #[test]
+    fn alternative_recipes_require_one_complete_attainable_path() {
+        let maslin_mill = ProcessorRecipeAvailability {
+            maslin_grain: true,
+            ..Default::default()
+        };
+        assert_eq!(
+            alternative_processor_recipe_ready("watermill", 0, maslin_mill),
+            Some(true),
+        );
+        assert_eq!(
+            alternative_processor_recipe_ready(
+                "watermill",
+                0,
+                ProcessorRecipeAvailability::default(),
+            ),
+            Some(false),
+        );
+
+        let maslin_bakery = ProcessorRecipeAvailability {
+            maslin_flour: true,
+            water: true,
+            firewood: true,
+            ..Default::default()
+        };
+        assert_eq!(
+            alternative_processor_recipe_ready("bakery", 0, maslin_bakery),
+            Some(true),
+        );
+        assert_eq!(
+            alternative_processor_recipe_ready(
+                "bakery",
+                0,
+                ProcessorRecipeAvailability {
+                    rye_flour: true,
+                    water: true,
+                    ..Default::default()
+                },
+            ),
+            Some(false),
+        );
+
+        let typed_smokehouse = ProcessorRecipeAvailability {
+            meat: true,
+            firewood: true,
+            salt: true,
+            pottery: true,
+            ..Default::default()
+        };
+        assert_eq!(
+            alternative_processor_recipe_ready("smokehouse", 0, typed_smokehouse),
+            Some(true),
+        );
+        assert_eq!(
+            alternative_processor_recipe_ready(
+                "weaver",
+                0,
+                ProcessorRecipeAvailability {
+                    flax: true,
+                    water: true,
+                    ..Default::default()
+                },
+            ),
+            Some(true),
+        );
+    }
+
+    #[test]
+    fn brewery_recipe_policy_does_not_invent_future_inputs() {
+        let apples_only = ProcessorRecipeAvailability {
+            apples: true,
+            ..Default::default()
+        };
+        assert_eq!(
+            alternative_processor_recipe_ready("brewery", BREWERY_RECIPE_CIDER, apples_only),
+            Some(true),
+        );
+        assert_eq!(
+            alternative_processor_recipe_ready("brewery", BREWERY_RECIPE_AUTO, apples_only),
+            Some(true),
+        );
+        assert_eq!(
+            alternative_processor_recipe_ready("brewery", BREWERY_RECIPE_ALE, apples_only),
+            Some(false),
+        );
+
+        let malt_ale = ProcessorRecipeAvailability {
+            malt: true,
+            water: true,
+            firewood: true,
+            ..Default::default()
+        };
+        assert_eq!(
+            alternative_processor_recipe_ready("brewery", BREWERY_RECIPE_ALE, malt_ale),
+            Some(true),
+        );
     }
 
     #[test]

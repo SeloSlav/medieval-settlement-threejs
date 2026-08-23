@@ -1207,7 +1207,7 @@ assert.deepEqual(
     },
   ),
   {
-    label: 'Rich clay deposit · 360 / 720 surface clay remaining · underground clay does not deplete · center a Quarry on this node',
+    label: 'Rich clay deposit · 720 / 720 surface clay remaining · underground clay does not deplete · center a Quarry on this node',
     level: 'deep',
   },
 );
@@ -1400,7 +1400,7 @@ assert.match(mineInspector.detailsHtml, /Ordinary iron-bearing ore seam - finite
 assert.match(mineInspector.detailsHtml, /75 \/ 300 iron-bearing ore/);
 assert.match(mineInspector.detailsHtml, /Mine carts serve road-linked smithies/);
 assert.match(mineInspector.detailsHtml, /Baseline hand tools/);
-assert.match(mineInspector.detailsHtml, /refill to 3\.00 \(30 cycles\)/);
+assert.match(mineInspector.detailsHtml, /refill to 3 \(30 cycles\)/);
 
 const richSaltDeposit = mineralNode(
   'deposit-salt-rich-inspector',
@@ -1418,7 +1418,7 @@ mineInspector = renderMineralMineInspector(
 );
 assert.equal(mineInspector.eyebrow, 'Rich salt mine');
 assert.match(mineInspector.statusText, /awaits timber supports/);
-assert.match(mineInspector.detailsHtml, /0.0 onsite \/ 1.5 timber target/);
+assert.match(mineInspector.detailsHtml, /0 onsite \/ 1.5 timber target/);
 const recalledUnsupportedMine = {
   ...inspectorMine,
   id: 'mine-recalled-without-supports',
@@ -1516,10 +1516,12 @@ const largeQuarryInspector = renderLargeQuarryInspector(
   buildingTarget(largeQuarryBuilding),
   inspectorContext(largeQuarryState),
 );
+assert.equal(largeQuarryInspector.eyebrow, 'Deep salt quarry');
+assert.match(largeQuarryInspector.statusText, /await prepared timber supports/);
 assert.match(
-  largeQuarryInspector.statusText,
-  /no rich underground source beneath the shaft/,
-  'a rich mineral deposit must not masquerade as a rich stone source in the inspector',
+  largeQuarryInspector.detailsHtml,
+  /Rich underground salt · does not deplete/,
+  'the shared Quarry inspector must identify the actual rich material under its shaft',
 );
 const richStoneAtQuarry: ResourceNodeState = {
   ...richSaltNearQuarry,
@@ -1540,7 +1542,7 @@ assert.match(
 );
 assert.match(
   supportedLargeQuarryInspector.detailsHtml,
-  /0.00 onsite \/ 1.50 timber target/,
+  /0 onsite \/ 1.5 timber target/,
 );
 const quarrySupportTrip: DeliveryTripState = {
   ...inboundSupportTrip,
@@ -1572,7 +1574,7 @@ assert.match(
 );
 assert.match(
   supportedLargeQuarryInspector.detailsHtml,
-  /0.25 timber per completed stone batch/,
+  /0.25 timber per completed underground batch/,
 );
 const recalledUnsupportedLargeQuarry = {
   ...largeQuarryBuilding,
@@ -1642,7 +1644,7 @@ stoneCampInspector = renderStoneQuarryInspector(
   buildingTarget(recalledSourceLessStoneCamp),
   inspectorContext(inspectorGameState(recalledSourceLessStoneCamp, [])),
 );
-assert.match(stoneCampInspector.statusText, /no unexhausted surface stone in range/);
+assert.match(stoneCampInspector.statusText, /no unexhausted surface deposit in range/);
 assert.equal(stoneCampInspector.statusState, 'warning');
 
 const nearbySalt = mineralNode('deposit-salt-nearby', 'salt', 0, 0, 90, 90, false);
@@ -1688,8 +1690,8 @@ const quarryMapIconSource = readFileSync(
   'src/map/QuarryMapIcons.ts',
   'utf8',
 );
-const minimapSource = readFileSync(
-  'src/map/TerrainMinimapOverlay.ts',
+const minimapResourceLayerSource = readFileSync(
+  'src/map/illustratedMapLayers.ts',
   'utf8',
 );
 const worldMapUiSource = readFileSync(
@@ -1702,8 +1704,8 @@ assert.match(
   'stone, iron, and salt projected icons must refresh from live geological rows',
 );
 assert.match(
-  minimapSource,
-  /geologicalNodeForMapMarker\([\s\S]*state\.quarries[\s\S]*describeGeologicalMapMarker/,
+  minimapResourceLayerSource,
+  /geologicalNodeForMapMarker\(marker, state\.quarries\)[\s\S]*geologicalNode \?\? state\.foragingNodes/,
   'the minimap must resolve quarry and clay markers from geological rows rather than the foraging table',
 );
 assert.match(
@@ -1723,18 +1725,18 @@ assert.match(
 );
 assert.match(
   uiSurfaces,
-  /Stone, clay, iron, and salt are all physical local deposits/,
-  'world setup must state the four guaranteed physical deposit families directly',
+  /Missing local materials can be imported through a staffed Trading Post/,
+  'world setup must expose the attainable trade remedy when a regional roll omits a material',
 );
 assert.match(
   uiSurfaces,
-  /Rich stone and clay roll independently; iron and salt share up to one rich-mineral opportunity on small or medium maps and two on large maps/,
-  'world setup must explain the shared regional rich-mineral budget',
+  /Rich grades roll separately across every node/,
+  'world setup must explain how rich grades are assigned in the current regional-resource model',
 );
 assert.match(
   uiSurfaces,
-  /This seed's physical deposits/,
-  'world setup must present the seed result as physical geology rather than a trade forecast',
+  /This seed's resource roll/,
+  'world setup must present the selected seed result before world creation',
 );
 assert.match(
   uiSurfaces,
@@ -1750,23 +1752,23 @@ for (const resource of ['stone', 'clay', 'iron', 'salt']) {
 }
 assert.match(
   uiSurfaces,
-  /trade supplements physical geology rather than replacing it/,
-  'Adriatic salt guidance must not imply that trade replaces local deposits',
+  /No local deposit in this roll; regional trade can supply it/,
+  'every absent local deposit card must state its regional-trade recovery path',
 );
 assert.match(
   uiSurfaces,
-  /Every region has finite physical iron seams/,
-  'the HUD must teach the guaranteed physical iron source',
+  /Delves mineral seams for iron or salt/,
+  'the Mine card must identify both of its physical mineral outputs',
 );
 assert.match(
   uiSurfaces,
-  /Every region has finite physical salt deposits/,
-  'the HUD must teach the guaranteed physical salt source',
+  /Gathers stone, iron, salt, or clay from shallow surface deposits/,
+  'the Mining Pit card must identify all supported finite surface materials',
 );
 assert.match(
   uiSurfaces,
-  /Rich deep workings are faster and inexhaustible, but consume road-hauled shaft supports/,
-  'the mine card must expose the recurring forestry and road-logistics cost of rich deposits',
+  /Works rich deposits with timber supports for a lasting supply of stone or minerals/,
+  'the Quarry card must expose the recurring support input and lasting rich source',
 );
 assert.doesNotMatch(
   uiSurfaces,
@@ -1918,6 +1920,21 @@ function inspectorContext(
         (deposit) =>
           deposit.resource === 'stone'
           && deposit.remaining > 1e-6
+          && Math.hypot(deposit.x - x, deposit.z - z) <= radius,
+      )
+      .sort(
+        (a, b) =>
+          Math.hypot(a.x - x, a.z - z)
+          - Math.hypot(b.x - x, b.z - z),
+      )[0] ?? null,
+    findNearestSurfaceDepositWithRemaining: (
+      x: number,
+      z: number,
+      radius: number,
+    ) => [...state.quarries.values()]
+      .filter(
+        (deposit) =>
+          deposit.remaining > 1e-6
           && Math.hypot(deposit.x - x, deposit.z - z) <= radius,
       )
       .sort(

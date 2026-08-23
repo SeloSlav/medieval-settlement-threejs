@@ -13,8 +13,8 @@ use crate::economy::{
 };
 use crate::residence_upgrade_policy::residence_project_active;
 use crate::simulation::delivery_trips::{
-    available_free_haulers, building_has_active_trip, building_has_inbound_supply_trip,
-    try_start_free_building_supply_trip,
+    available_free_haulers, building_has_active_trip,
+    building_has_conflicting_inbound_supply_trip, try_start_free_building_supply_trip,
 };
 use crate::simulation::reclamation::reclamation_destination_priority;
 use crate::simulation::road_logistics::local_delivery_distance;
@@ -65,6 +65,35 @@ const FOUNDING_RELOCATION_COMMODITIES: [CommodityKind; 40] = [
     CommodityKind::SmokedFish,
     CommodityKind::Cheese,
 ];
+
+/// While founders still occupy the shelter, move a household food load before
+/// draining the much larger fuel pile. Ironwork remains eligible so the
+/// maintenance chain can bootstrap before every founder is housed.
+const OCCUPIED_SHELTER_RELOCATION_COMMODITIES: [CommodityKind; 5] = [
+    CommodityKind::Food,
+    CommodityKind::RyeBread,
+    CommodityKind::MaslinBread,
+    CommodityKind::Firewood,
+    CommodityKind::Ironwork,
+];
+
+fn founding_relocation_commodities(starter_supplies_only: bool) -> &'static [CommodityKind] {
+    if starter_supplies_only {
+        &OCCUPIED_SHELTER_RELOCATION_COMMODITIES
+    } else {
+        &FOUNDING_RELOCATION_COMMODITIES
+    }
+}
+
+fn founding_relocation_load_amount(relocatable: f64, target_room: f64) -> f64 {
+    if !relocatable.is_finite() || !target_room.is_finite() {
+        return 0.0;
+    }
+    relocatable
+        .max(0.0)
+        .min(target_room.max(0.0))
+        .min(STOREHOUSE_HAUL_PER_WORKER)
+}
 
 pub fn step_founding_sites(ctx: &ReducerContext, tick: &SimTickContext, clock: &GameClock) {
     let site_ids = ctx
@@ -166,18 +195,7 @@ fn try_start_stockyard_relocation(
         return false;
     };
 
-    for commodity in FOUNDING_RELOCATION_COMMODITIES {
-        if starter_supplies_only
-            && !matches!(
-                commodity,
-                CommodityKind::Firewood
-                    | CommodityKind::RyeBread
-                    | CommodityKind::MaslinBread
-                    | CommodityKind::Ironwork
-            )
-        {
-            continue;
-        }
+    for &commodity in founding_relocation_commodities(starter_supplies_only) {
         let relocatable = relocatable_stock(ctx, site, commodity);
         if relocatable <= EPSILON {
             continue;
@@ -192,7 +210,7 @@ fn try_start_stockyard_relocation(
                 candidate.id != site.id
                     && candidate.construction_complete
                     && !tick.building_disabled_by_fire(ctx, candidate.id)
-                    && !building_has_inbound_supply_trip(ctx, candidate.id)
+                    && !building_has_conflicting_inbound_supply_trip(ctx, candidate, commodity)
             })
             .filter_map(|candidate| {
                 let (priority, room) =
@@ -210,7 +228,7 @@ fn try_start_stockyard_relocation(
         let Some((target, target_room)) = target else {
             continue;
         };
-        let requested = relocatable.min(target_room);
+        let requested = founding_relocation_load_amount(relocatable, target_room);
         if try_start_free_building_supply_trip(
             ctx,
             tick,
@@ -467,5 +485,35 @@ mod tests {
                 );
             }
         }
+    }
+
+    #[test]
+    fn occupied_shelter_moves_edible_stock_before_bulk_fuel() {
+        assert_eq!(
+            founding_relocation_commodities(true),
+            &[
+                CommodityKind::Food,
+                CommodityKind::RyeBread,
+                CommodityKind::MaslinBread,
+                CommodityKind::Firewood,
+                CommodityKind::Ironwork,
+            ],
+        );
+        assert_eq!(
+            founding_relocation_commodities(false),
+            &FOUNDING_RELOCATION_COMMODITIES,
+        );
+    }
+
+    #[test]
+    fn founding_cart_load_is_bounded_and_conservative() {
+        let stock = 240.0;
+        let load = founding_relocation_load_amount(stock, 100.0);
+        let remaining = stock - load;
+        assert_eq!(load, STOREHOUSE_HAUL_PER_WORKER);
+        assert!(load <= stock && load <= 100.0);
+        assert!((remaining + load - stock).abs() <= EPSILON);
+        assert_eq!(founding_relocation_load_amount(10.0, 4.0), 4.0);
+        assert_eq!(founding_relocation_load_amount(f64::NAN, 4.0), 0.0);
     }
 }

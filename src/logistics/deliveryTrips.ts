@@ -110,11 +110,54 @@ export type DeliveryTripState = {
 
 export const VISIBLE_CART_CARGO_EPSILON = 0.05;
 export const EMPTY_CART_SPEED_MULTIPLIER = 1.3;
+const PENDING_DELIVERY_CARGO_EPSILON = 1e-6;
 
 export function deliveryTripHasVisibleCargo(
   trip: Pick<DeliveryTripState, 'amount'>,
 ): boolean {
   return trip.amount > VISIBLE_CART_CARGO_EPSILON;
+}
+
+export function deliveryTripHasPendingCargo(
+  trip: Pick<DeliveryTripState, 'amount' | 'phase'>,
+): boolean {
+  return Number.isFinite(trip.amount)
+    && trip.amount > PENDING_DELIVERY_CARGO_EPSILON
+    && trip.phase !== 'inbound';
+}
+
+/**
+ * Mirrors server `inbound_supply_trip_conflicts`. Ordinary buildings receive
+ * one supply cart at a time; independent Marketplace tables may receive
+ * distinct commodities concurrently, but never duplicate the same cargo.
+ */
+export function inboundSupplyTripConflicts(
+  targetKind: BuildingState['kind'],
+  requestedCargoKind: DeliveryCargoKind,
+  trip: Pick<
+    DeliveryTripState,
+    'amount' | 'phase' | 'destinationKind' | 'cargoKind'
+  >,
+): boolean {
+  return trip.destinationKind === 'building'
+    && deliveryTripHasPendingCargo(trip)
+    && (targetKind !== 'marketplace' || trip.cargoKind === requestedCargoKind);
+}
+
+export function findConflictingInboundSupplyTripForBuilding(
+  trips: Iterable<DeliveryTripState>,
+  target: Pick<BuildingState, 'id' | 'kind'>,
+  requestedCargoKind: DeliveryCargoKind,
+): DeliveryTripState | null {
+  for (const trip of trips) {
+    if (
+      trip.targetBuildingId === target.id
+      && inboundSupplyTripConflicts(target.kind, requestedCargoKind, trip)
+    ) {
+      return trip;
+    }
+  }
+  return null;
 }
 
 export function deliveryTripTravelSpeed(
@@ -684,7 +727,7 @@ export function findInboundSupplyTripForBuilding(
 ): DeliveryTripState | null {
   for (const trip of trips) {
     if (
-      trip.phase !== 'inbound'
+      deliveryTripHasPendingCargo(trip)
       && trip.destinationKind === 'building'
       && trip.targetBuildingId === buildingId
     ) {

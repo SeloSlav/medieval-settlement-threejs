@@ -629,7 +629,10 @@ assert.doesNotMatch(watermillStep, /CommodityKind::OatFlour/);
 assert.match(watermillStep, /CommodityKind::MaslinFlour/);
 assert.doesNotMatch(watermillStep, /CommodityKind::Flour\b/);
 
-const breweryStep = functionSection('step_brewery', 'step_smokehouse');
+const breweryStepStart = expandedSimulation.indexOf('pub fn step_brewery');
+const breweryStepEnd = expandedSimulation.indexOf('\nfn brewery_output_headroom', breweryStepStart);
+assert.ok(breweryStepStart >= 0 && breweryStepEnd > breweryStepStart);
+const breweryStep = expandedSimulation.slice(breweryStepStart, breweryStepEnd);
 assert.doesNotMatch(
   breweryStep,
   /request_connected_commodity[\s\S]*CommodityKind::Firewood/,
@@ -673,7 +676,7 @@ assert.match(
 
 assert.match(expandedInspector, /Central grain reserve/);
 assert.match(expandedInspector, /data-granary-grain-reserve/);
-assert.match(expandedInspector, /Linked farmsteads may still take this grain/);
+assert.match(expandedInspector, /Linked farmsteads may draw through the floor/);
 assert.match(expandedInspector, /Grain working buffer/);
 assert.match(expandedInspector, /edibleFoodStock\(building\) > 0[\s\S]*granaryExportableGrain/);
 assert.match(expandedInspector, /getNextFarmGrainDispatch/);

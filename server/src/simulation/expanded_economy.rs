@@ -106,8 +106,9 @@ use crate::processor_output_policy::{
 };
 use crate::season_policy::{EnvironmentState, WeatherKind};
 use crate::simulation::delivery_trips::{
-    building_has_active_trip, building_has_inbound_commodity_trip,
-    building_has_inbound_supply_trip, building_has_regional_market_trip, onsite_building_labor,
+    building_has_active_trip, building_has_conflicting_inbound_supply_trip,
+    building_has_inbound_commodity_trip, building_has_inbound_supply_trip,
+    building_has_regional_market_trip, onsite_building_labor,
     regional_market_export_route, start_regional_market_export_trip,
     try_start_building_supply_trip, try_start_origin_rostered_building_supply_trip,
 };
@@ -939,7 +940,11 @@ pub fn step_marketplace_material_dispatch(
         let Some(network) = tick.road_network(marketplace.owner) else {
             continue;
         };
-        const DISPATCHABLE_INPUTS: [CommodityKind; 27] = [
+        const DISPATCHABLE_INPUTS: [CommodityKind; 31] = [
+            CommodityKind::RyeSheaves,
+            CommodityKind::OatSheaves,
+            CommodityKind::BarleySheaves,
+            CommodityKind::MaslinSheaves,
             CommodityKind::RyeGrain,
             CommodityKind::OatGrain,
             CommodityKind::MaslinGrain,
@@ -1504,13 +1509,13 @@ fn local_material_target_kinds(
         ("trading_post", CommodityKind::Hides) => Some(&["tannery", "village_storehouse"]),
         ("trading_post", CommodityKind::Leather) => Some(&["cobbler", "village_storehouse"]),
         ("trading_post", CommodityKind::Shoes) => Some(&["village_storehouse"]),
+        // Intake policy blocks new arrivals; it never strands material already
+        // held by the depot, so every supported stored input remains dispatchable.
         ("village_storehouse", CommodityKind::Iron) => Some(&["smithy", "trading_post"]),
         ("village_storehouse", CommodityKind::Clay) => Some(&["potter_kiln"]),
         ("village_storehouse", CommodityKind::Salt) => {
             Some(&["smokehouse", "pastoral_farmstead", "trading_post"])
         }
-        // Existing depot charcoal always remains dispatchable even when new
-        // charcoal intake is disabled, so changing policy cannot strand stock.
         ("village_storehouse", CommodityKind::Charcoal) => Some(&["smithy"]),
         ("village_storehouse", CommodityKind::Hides) => Some(&["tannery", "trading_post"]),
         ("village_storehouse", CommodityKind::Leather) => Some(&["cobbler", "trading_post"]),
@@ -4718,7 +4723,7 @@ fn dispatch_to_building_where_limited(
                         ))
                     || !processor_accepts_input(&target, commodity)
                     || building_commodity_room(&target, commodity) <= 1e-6
-                    || building_has_inbound_supply_trip(ctx, target.id)
+                    || building_has_conflicting_inbound_supply_trip(ctx, &target, commodity)
                 {
                     return None;
                 }
@@ -4860,6 +4865,10 @@ fn processor_input_target_for_building(
 
 fn directly_dispatched_commodity_name(commodity: CommodityKind) -> Option<&'static str> {
     match commodity {
+        CommodityKind::RyeSheaves => Some("ryeSheaves"),
+        CommodityKind::OatSheaves => Some("oatSheaves"),
+        CommodityKind::BarleySheaves => Some("barleySheaves"),
+        CommodityKind::MaslinSheaves => Some("maslinSheaves"),
         CommodityKind::RyeGrain => Some("ryeGrain"),
         CommodityKind::OatGrain => Some("oatGrain"),
         CommodityKind::MaslinGrain => Some("maslinGrain"),

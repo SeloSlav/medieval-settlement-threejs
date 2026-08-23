@@ -553,11 +553,11 @@ assert.match(splitTextileRows, /8\.0 cloth\/year stranded/);
 assert.match(splitTextileRows, /16\.0 local shortfall/);
 assert.match(splitTextileRows, /data-inspect-residence="east-home"/);
 assert.match(splitTextileRows, /1 \/ 2 current household branches/);
-assert.match(splitTextileRows, /9\.0 cloth in local cupboards/);
+assert.match(splitTextileRows, /9 cloth in local cupboards/);
 assert.match(splitTextileRows, /weakest reserve 90 days/);
 assert.match(
   splitTextileRows,
-  /11\.0 in treasury, export, fire quarantine, idle, or disconnected stores/,
+  /11 in treasury, export, fire quarantine, idle, or disconnected stores/,
 );
 
 const fireAwareTextiles = computeSettlementTextilePlan({
@@ -613,7 +613,7 @@ assert.equal(fireAwareTextiles.householdClothStock, 2);
 assert.equal(fireAwareTextiles.householdClothInTransit, 0);
 assert.equal(fireAwareTextiles.roadPlan?.householdBranches, 1);
 assert.match(renderSettlementTextileRows(fireAwareTextiles), /Textile fire outages/);
-assert.match(renderSettlementTextileRows(fireAwareTextiles), /7\.0 cloth/);
+assert.match(renderSettlementTextileRows(fireAwareTextiles), /7 cloth/);
 assert.match(renderSettlementTextileRows(fireAwareTextiles), /first fire-disabled sheep holding/);
 
 const joinedRoadTextiles = computeSettlementTextilePlan({
@@ -778,6 +778,10 @@ const marketplaceCaravan = readFileSync(
   'server/src/simulation/marketplace_caravan.rs',
   'utf8',
 );
+const marketplaceTrade = readFileSync(
+  'server/src/economy/marketplace_trade.rs',
+  'utf8',
+);
 const commodities = readFileSync('server/src/economy/commodities.rs', 'utf8');
 const residenceNeedState = readFileSync(
   'server/src/simulation/residence_needs/state.rs',
@@ -828,7 +832,11 @@ assert.doesNotMatch(
   /dispatch_need\([\s\S]*ResidenceNeedKind::Cloth|invalidate_specialty_claims[\s\S]*ResidenceNeedKind::Cloth/,
   'weavers must stay at production instead of serving residences directly',
 );
-assert.match(marketplaceCaravan, /CommodityKind::Cloth, SPECIALTY_EXPORT_GOLD_PER_CLOTH/);
+assert.match(
+  marketplaceTrade,
+  /CommodityKind::Cloth => Some\(SPECIALTY_EXPORT_GOLD_PER_CLOTH\)/,
+  'regional cloth exports must retain their specialty price in the authoritative trade settlement',
+);
 assert.match(commodities, /Self::Wool => 13/);
 assert.match(commodities, /Self::Cloth => 14/);
 assert.match(commodities, /Self::Flax => 18/);

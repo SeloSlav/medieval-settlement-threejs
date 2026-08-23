@@ -4,6 +4,7 @@ import {
   CIVILIAN_TOOL_IRONWORK_PER_CYCLE,
   CIVILIAN_TOOL_REORDER_CYCLES,
   LIVESTOCK_WINTER_FODDER_RESERVE_DAYS,
+  MARKETPLACE_HOUSEHOLD_ISSUE_CHECKS_PER_DAY,
   RESIDENCE_FIREWOOD_PRIORITY_WINTER_DAYS,
   TOWN_HALL_UNSTAFFED_TAX_COLLECTION_MULTIPLIER,
 } from '../../generated/gameBalance.ts';
@@ -2611,7 +2612,7 @@ export function renderTownHallInspector(
       </div>
       <div class="inspector-action-panel">
         <h4 class="inspector-action-panel__title">Household market issues</h4>
-        <p class="inspector-action-panel__hint">Covered homes receive an ordinary one-day issue of food, fuel, and household goods every day. This doctrine controls only the extra buffer for critical food and heat already staged at connected markets; it never opens a prompt, spends gold, or creates a door-to-door cart.</p>
+        <p class="inspector-action-panel__hint">Covered homes are checked ${MARKETPLACE_HOUSEHOLD_ISSUE_CHECKS_PER_DAY} times per day and refilled up to their ordinary one-day target when needed. This doctrine controls only the extra buffer for critical food and heat already staged at connected markets; it never opens a prompt, spends gold, or creates a door-to-door cart.</p>
         <label class="city-admin-panel__slider-label" for="town-hall-pantry-safeguard"><span>Pantry safeguard</span></label>
         <select class="inspector-policy-select" id="town-hall-pantry-safeguard"
           data-pantry-safeguard-policy ${staffedTownHallAvailable ? '' : 'disabled'}>

@@ -37,6 +37,7 @@ import {
   MARKETPLACE_FOOD_STALL_SLOTS,
   MARKETPLACE_FUEL_RESERVE_DAYS,
   MARKETPLACE_GOODS_STALL_SLOTS,
+  MARKETPLACE_HOUSEHOLD_ISSUE_CHECKS_PER_DAY,
 } from '../../generated/gameBalance.ts';
 import { gameClock } from '../../world/gameCalendar.ts';
 import { environmentFor } from '../../world/seasonPolicy.ts';
@@ -285,6 +286,7 @@ export function renderMarketStallsInspector(
       <li data-inspector-primary data-inspector-resource-strip><span>Marketplace stock</span>${renderInspectorResourceStrip(resourceTokens, { ariaLabel: 'Marketplace stock' })}</li>
       <li data-inspector-primary data-inspector-detail="Food and goods tables are staffed by road-linked Granary and Village Storehouse workers."><span>Stalls</span><span>${foodAssignments.length}/${MARKETPLACE_FOOD_STALL_SLOTS} food · ${goodsAssignments.length}/${MARKETPLACE_GOODS_STALL_SLOTS} goods${standbyWorkers > 0 ? ` · ${standbyWorkers} standby` : ''}</span></li>
       <li data-inspector-primary data-inspector-detail="Every road-connected home is eligible; exact road length chooses the nearest stocked Marketplace."><span>Reach</span><span>${roadConnectedHomes} homes · ${roadConnectedPopulation} residents</span></li>
+      <li data-inspector-primary><span>Household issues</span><span>Checks ${MARKETPLACE_HOUSEHOLD_ISSUE_CHECKS_PER_DAY} times per day and refills each connected household up to its one-day target when needed</span></li>
       <li data-inspector-primary data-inspector-detail="Seasonal target: ${MARKETPLACE_FUEL_RESERVE_DAYS} days at ${fuelDemandPerDay.toFixed(1)} fuel-equivalents per day for ${coveredPopulation} covered residents."><span>Fuel runway</span><span>${fuelEquivalent.toFixed(0)}/${fuelTarget.toFixed(0)} eq · ${formatFuelRunway(fuelRunway, coveredPopulation)}</span></li>
       <li data-inspector-secondary><span>Cart</span><span>${cartLabel}</span></li>
     `,

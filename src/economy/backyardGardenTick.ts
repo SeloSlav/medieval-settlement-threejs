@@ -53,6 +53,22 @@ export type BackyardFoodAllocation = {
   marketFood: number;
 };
 
+export type BackyardOrchardHarvest = {
+  freshFruit: number;
+  jam: number;
+};
+
+/** A jar is converted from this same harvest, never created beside it. */
+export function splitBackyardOrchardHarvest(
+  grossFruit: number,
+  jamTarget: number,
+): BackyardOrchardHarvest {
+  const gross = Number.isFinite(grossFruit) ? Math.max(0, grossFruit) : 0;
+  const requestedJam = Number.isFinite(jamTarget) ? Math.max(0, jamTarget) : 0;
+  const jam = Math.min(gross, requestedJam);
+  return { freshFruit: Math.max(0, gross - jam), jam };
+}
+
 export function backyardFoodReserveDays(tier: number): number {
   if (tier >= 3) return BACKYARD_FOOD_RESERVE_TIER3_DAYS;
   if (tier >= 2) return BACKYARD_FOOD_RESERVE_TIER2_DAYS;

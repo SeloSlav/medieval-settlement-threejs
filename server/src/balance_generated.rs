@@ -106,7 +106,7 @@ pub const STARTING_TIMBER: f64 = 400.0;
 pub const STARTING_STONE: f64 = 240.0;
 pub const STARTING_FIREWOOD: f64 = 240.0;
 pub const STARTING_BREAD: f64 = 240.0;
-pub const STARTING_IRONWORK: f64 = 9000.0;
+pub const STARTING_IRONWORK: f64 = 12.0;
 pub const STARTING_GOLD: f64 = 0.0;
 pub const STONE_SALVAGE_FRACTION: f64 = 0.92;
 pub const TIMBER_SALVAGE_FRACTION: f64 = 0.7;
@@ -948,7 +948,7 @@ const FOUNDERS_CAMP: BuildingDef = BuildingDef {
     storage_hides: 80.0,
     storage_leather: 80.0,
     storage_shoes: 80.0,
-    storage_ironwork: 9000.0,
+    storage_ironwork: 24.0,
     storage_polearms: 80.0,
     storage_iron: 80.0,
     storage_clay: 80.0,
@@ -2038,7 +2038,7 @@ const TRADING_POST: BuildingDef = BuildingDef {
     storage_flax: 120.0,
     storage_flour: 120.0,
     storage_ale: 180.0,
-    storage_cider: 0.0,
+    storage_cider: 180.0,
     storage_mead: 0.0,
     storage_preserved_food: 120.0,
     storage_honey: 140.0,
@@ -2753,7 +2753,7 @@ const GRANARY: BuildingDef = BuildingDef {
     storage_flax: 180.0,
     storage_flour: 260.0,
     storage_ale: 180.0,
-    storage_cider: 0.0,
+    storage_cider: 180.0,
     storage_mead: 0.0,
     storage_preserved_food: 180.0,
     storage_honey: 96.0,
@@ -3789,6 +3789,7 @@ pub fn backyard_garden_def_by_slug(slug: &str) -> Option<&'static BackyardGarden
 }
 
 pub const MARKETPLACE_BULK_TRADE_COOLDOWN_SECONDS: f64 = 8.0;
+pub const REGIONAL_EXCHANGE_INTERVAL_SECONDS: f64 = 30.0;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum TradeResource {

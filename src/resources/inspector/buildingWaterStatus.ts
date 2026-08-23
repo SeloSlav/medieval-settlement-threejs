@@ -72,7 +72,7 @@ export function wellWaterStatusIssue(assessment: WellWaterAssessment | null): st
     return `Water cart inbound — ${Math.round(assessment.storedWater)} / ${Math.round(assessment.required)} stored`;
   }
   if (assessment.wellsWithWater > 0) {
-    return `Waiting for well cart — ${Math.round(assessment.storedWater)} / ${Math.round(assessment.required)} stored`;
+    return `Awaiting automatic well service — ${Math.round(assessment.storedWater)} / ${Math.round(assessment.required)} stored`;
   }
   return `Waiting for water — all linked wells are dry (${assessment.required} needed)`;
 }

@@ -5,7 +5,10 @@ import {
 import { edibleFoodStock } from '../economy/foodInventory.ts';
 import { breadGrainStock, flourStock, grainSheafStock } from '../economy/cropGoods.ts';
 import type { BuildingState, LivestockHerdState } from '../resources/types.ts';
-import { constructionVisualSignature } from './ConstructionSiteMesh.ts';
+import {
+  constructionDeliveredRatio,
+  constructionVisualSignature,
+} from './ConstructionSiteMesh.ts';
 import {
   MARKET_RECEIPT_VISUAL_CAPACITY,
   MARKET_RECEIPT_VISUAL_SEGMENTS,
@@ -59,13 +62,19 @@ export function buildingMeshSignature(building: BuildingState): string {
   }
   return constructionVisualSignature(
     building.constructionProgress,
-    ratio(building.constructionDeliveredTimber, building.constructionRequiredTimber),
-    ratio(building.constructionDeliveredStone, building.constructionRequiredStone),
-    ratio(
+    constructionDeliveredRatio(
+      building.constructionDeliveredTimber,
+      building.constructionRequiredTimber,
+    ),
+    constructionDeliveredRatio(
+      building.constructionDeliveredStone,
+      building.constructionRequiredStone,
+    ),
+    constructionDeliveredRatio(
       building.constructionDeliveredIronwork ?? 0,
       building.constructionRequiredIronwork ?? 0,
     ),
-    ratio(
+    constructionDeliveredRatio(
       building.constructionDeliveredRoofTiles ?? 0,
       building.constructionRequiredRoofTiles ?? 0,
     ),
@@ -320,11 +329,6 @@ export function buildingMarkerCollectionSignature(
     livestockHerds,
     issuedGuardPolearms,
   ).visual;
-}
-
-function ratio(value: number, required: number): number {
-  if (required <= 1e-6) return 1;
-  return Math.min(1, Math.max(0, value / required));
 }
 
 function marketplaceVisualState(building: BuildingState): string {

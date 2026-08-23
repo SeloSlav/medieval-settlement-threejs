@@ -1,0 +1,57 @@
+{
+  "status": "ready",
+  "elapsedSeconds": 30,
+  "sampleCount": 708,
+  "metrics": {
+    "medianFps": 55.24861878451262,
+    "onePercentLowFps": 6.344674438892847,
+    "meanFps": 23.555636883868715,
+    "p99FrameMs": 157.61250000000018,
+    "maxFrameMs": 175.8000000000029,
+    "framesOver25Ms": 261,
+    "framesOver50Ms": 249
+  },
+  "renderer": {
+    "medianDrawCalls": 178,
+    "medianFrameCalls": 15,
+    "medianTriangles": 3305965
+  },
+  "context": {
+    "backend": "webgpu",
+    "viewport": {
+      "width": 1280,
+      "height": 720
+    },
+    "devicePixelRatio": 1.5,
+    "rendererPixelRatio": 1,
+    "visibility": "visible",
+    "adapter": {
+      "source": "webgpu-adapter-info",
+      "identityStatus": "available",
+      "fallbackStatus": "non-fallback",
+      "vendor": "nvidia",
+      "architecture": "lovelace",
+      "device": null,
+      "description": null,
+      "isFallbackAdapter": false,
+      "limitations": []
+    },
+    "subsystems": {
+      "post": true,
+      "sky": true,
+      "shadows": true,
+      "river": false,
+      "riverSimulation": false,
+      "riverRender": false,
+      "precipitation": false,
+      "selection": false,
+      "preview": false,
+      "terrain": true,
+      "groundcover": true,
+      "forest": true,
+      "ui": true
+    }
+  },
+  "schemaVersion": 1,
+  "windowSeconds": 30
+}

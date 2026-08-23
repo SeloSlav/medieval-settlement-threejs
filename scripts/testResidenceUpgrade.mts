@@ -34,7 +34,6 @@ import {
 import type { DeliveryTripState } from '../src/logistics/deliveryTrips.ts';
 import {
   findRoadLinkedSupplierForResidence,
-  findRoadLinkedUpgradeSupplierForResidence,
 } from '../src/logistics/specialtyLogistics.ts';
 import { isResidenceInWellRange } from '../src/logistics/waterLogistics.ts';
 import type { RoadNetwork } from '../src/roads/RoadNetwork.ts';
@@ -58,27 +57,36 @@ import {
   residenceUpgradeWorkplaces,
 } from '../src/settlement/residenceUpgradeWorkplaces.ts';
 
-const lodge = building('lodge', 'woodcutters_lodge', 2);
+const householdMarket = building('household-market', 'marketplace', 2);
+Object.assign(householdMarket, {
+  firewood: 12,
+  food: 100,
+  berries: 100,
+  cloth: 12,
+  shoes: 12,
+});
 const well = building('well', 'well', 3);
 well.workRadius = 80;
 const smokehouse = building('smokehouse', 'smokehouse', 4);
-const brewery = building('brewery', 'brewery', 5);
+const tavern = building('tavern', 'tavern', 5);
+tavern.ale = 12;
 const weaver = building('weaver', 'weaver', 6);
 const potter = building('potter', 'potter_kiln', 7);
 const cobbler = building('cobbler', 'cobbler', 8);
 const chapel = building('chapel', 'chapel', 9);
 chapel.chapelTier = 1;
 const allServices: ResidenceUpgradeServices = {
-  firewood: { supplier: lodge, stocked: false },
+  food: { supplier: householdMarket, stocked: true },
+  firewood: { supplier: householdMarket, stocked: true },
   water: { supplier: well, stocked: false },
   preservedFood: { supplier: smokehouse, stocked: false },
-  ale: { supplier: brewery, stocked: false },
-  cloth: { supplier: weaver, stocked: false },
-  shoes: { supplier: cobbler, stocked: false },
+  ale: { supplier: tavern, stocked: true },
+  cloth: { supplier: householdMarket, stocked: true },
+  shoes: { supplier: householdMarket, stocked: true },
   pottery: { supplier: potter, stocked: false },
-  luxury: { supplier: null, stocked: false, ready: false },
-  church: { supplier: chapel, stocked: false, ready: true },
-  foodVariety: { supplier: null, stocked: false, ready: true },
+  luxury: { supplier: null, stocked: false },
+  church: { supplier: chapel, stocked: false },
+  foodVariety: { supplier: null, stocked: false },
 };
 const richTotals = {
   ...createEmptyStockpile(),
@@ -101,7 +109,8 @@ assert.equal(
 );
 assert.deepEqual(
   tierTwoPlan.services.map((service) => service.kind),
-  ['firewood', 'water', 'church', 'foodVariety', 'ale', 'cloth'],
+  ['food', 'firewood', 'water', 'church'],
+  'Tier 1→2 must use only needs active for the current Tier-1 household',
 );
 assert.deepEqual(
   tierTwoPlan.resources.map((resource) => resource.required),
@@ -112,10 +121,12 @@ assert.deepEqual(
   ],
 );
 assert.equal(
-  tierTwoPlan.services.every((service) => !service.stocked && service.ready),
+  tierTwoPlan.services.every((service) => service.ready),
   true,
-  'an operational but temporarily empty route should remain upgrade-eligible',
+  'all current Tier-1 needs should be ready',
 );
+assert.equal(tierTwoPlan.services.some((service) => service.kind === 'ale'), false);
+assert.equal(tierTwoPlan.services.some((service) => service.kind === 'cloth'), false);
 
 const householdFundedResidence = residence('household-funded', 1, 3);
 householdFundedResidence.householdWealth = HOUSEHOLD_PROJECT_WEALTH_RESERVE
@@ -188,6 +199,55 @@ assert.ok(noWaterPlan);
 assert.equal(noWaterPlan.ready, false);
 assert.match(noWaterPlan.blockers.join(' '), /water route missing/);
 
+const storedWaterWithoutWell = residence('stored-water-without-well', 1, 3);
+storedWaterWithoutWell.needs.water.stock = 12;
+const storedWaterWithoutWellPlan = evaluateResidenceUpgrade(storedWaterWithoutWell, richTotals, {
+  ...allServices,
+  water: { supplier: null, stocked: false },
+});
+assert.ok(storedWaterWithoutWellPlan);
+assert.equal(
+  storedWaterWithoutWellPlan.ready,
+  false,
+  'stored buckets must not replace an ongoing well service route',
+);
+
+const storedFaithWithoutChapel = residence('stored-faith-without-chapel', 1, 3);
+storedFaithWithoutChapel.needs.church.stock = 1;
+const storedFaithWithoutChapelPlan = evaluateResidenceUpgrade(storedFaithWithoutChapel, richTotals, {
+  ...allServices,
+  church: { supplier: null, stocked: false },
+});
+assert.ok(storedFaithWithoutChapelPlan);
+assert.equal(
+  storedFaithWithoutChapelPlan.ready,
+  false,
+  'a replicated chapel-level row must not replace an ongoing church route',
+);
+
+const householdStockedTierOne = residence('household-stocked-tier-one', 1, 3);
+householdStockedTierOne.needs.food.stock = 4;
+householdStockedTierOne.needs.firewood.stock = 4;
+const householdStockedTierOnePlan = evaluateResidenceUpgrade(
+  householdStockedTierOne,
+  richTotals,
+  {
+    ...allServices,
+    food: { supplier: null, stocked: false },
+    firewood: { supplier: null, stocked: false },
+  },
+);
+assert.ok(householdStockedTierOnePlan);
+assert.equal(
+  householdStockedTierOnePlan.ready,
+  true,
+  'actual household food and firewood stock must qualify without a currently stocked Marketplace',
+);
+assert.equal(
+  householdStockedTierOnePlan.services.find((service) => service.kind === 'firewood')?.householdReady,
+  true,
+);
+
 const poorPlan = evaluateResidenceUpgrade(
   tierOne,
   {
@@ -209,6 +269,13 @@ assert.ok(vacantPlan);
 assert.equal(vacantPlan.ready, false);
 assert.match(vacantPlan.blockers.join(' '), /occupied household required/);
 
+const projectBusy = residence('project-busy', 1, 3);
+projectBusy.backyardProjectKind = 1;
+const projectBusyPlan = evaluateResidenceUpgrade(projectBusy, richTotals, allServices);
+assert.ok(projectBusyPlan);
+assert.equal(projectBusyPlan.ready, false);
+assert.match(projectBusyPlan.blockers.join(' '), /active household project/);
+
 const serviceStrained = residence('service-strained', 1, 3);
 serviceStrained.needs.food.deficitTicks = Math.ceil(
   RESIDENCE_UPGRADE_SERVICE_BLOCK_DAYS
@@ -225,25 +292,43 @@ assert.equal(serviceStrainedPlan.ready, false);
 assert.match(serviceStrainedPlan.blockers.join(' '), /sustained household needs/);
 
 const tierTwo = residence('tier-two', 2, 6);
+tierTwo.food = 100;
+tierTwo.berries = 100;
+tierTwo.foodInventoryMigrated = true;
 const basicChurchTierThreePlan = evaluateResidenceUpgrade(tierTwo, richTotals, allServices);
 assert.ok(basicChurchTierThreePlan);
-assert.equal(basicChurchTierThreePlan.ready, false);
-assert.match(
-  basicChurchTierThreePlan.blockers.join(' '),
-  /level 2 church route missing/,
-  'Tier 3 promotion must introduce the level-2 church requirement',
+assert.equal(
+  basicChurchTierThreePlan.ready,
+  true,
+  'Tier 2→3 must retain the current level-1 church standard and must not pre-require shoes',
+);
+const marketplaceFedTierTwo = residence('marketplace-fed-tier-two', 2, 6);
+const marketplaceFedTierTwoPlan = evaluateResidenceUpgrade(
+  marketplaceFedTierTwo,
+  richTotals,
+  {
+    ...allServices,
+    foodVariety: { supplier: householdMarket, stocked: true },
+  },
+);
+assert.ok(marketplaceFedTierTwoPlan);
+assert.equal(
+  marketplaceFedTierTwoPlan.ready,
+  true,
+  'grain and a second food group staged at one Marketplace must count regardless of local or imported origin',
 );
 const levelTwoChapel = { ...chapel, chapelTier: 2 };
 const tierThreePlan = evaluateResidenceUpgrade(tierTwo, richTotals, {
   ...allServices,
-  church: { supplier: levelTwoChapel, stocked: false, ready: true },
+  church: { supplier: levelTwoChapel, stocked: false },
 });
 assert.ok(tierThreePlan);
 assert.equal(tierThreePlan.nextTier, 3);
 assert.equal(tierThreePlan.addedCapacity, 4);
 assert.deepEqual(
   tierThreePlan.services.map((service) => service.kind),
-  ['firewood', 'water', 'ale', 'cloth', 'shoes', 'church', 'foodVariety'],
+  ['food', 'firewood', 'water', 'church', 'foodVariety', 'cloth', 'ale'],
+  'Tier 2→3 must check only Tier-2 active needs',
 );
 assert.deepEqual(
   tierThreePlan.resources.map((resource) => resource.required),
@@ -254,32 +339,108 @@ assert.deepEqual(
   ],
 );
 assert.equal(tierThreePlan.ready, true);
+assert.equal(tierThreePlan.services.some((service) => service.kind === 'shoes'), false);
+assert.match(tierThreePlan.addedNeeds, /shoes/i);
+
+const localWeaverOnlyPlan = evaluateResidenceUpgrade(tierTwo, richTotals, {
+  ...allServices,
+  cloth: { supplier: weaver, stocked: true },
+});
+assert.ok(localWeaverOnlyPlan);
+assert.equal(localWeaverOnlyPlan.ready, false);
+assert.match(localWeaverOnlyPlan.blockers.join(' '), /cloth unmet/);
+const importedClothAtMarketPlan = evaluateResidenceUpgrade(tierTwo, richTotals, {
+  ...allServices,
+  cloth: { supplier: householdMarket, stocked: true },
+});
+assert.ok(importedClothAtMarketPlan);
+assert.equal(
+  importedClothAtMarketPlan.ready,
+  true,
+  'cloth staged at the proper Marketplace must qualify without a local Weaver',
+);
+const householdClothPlan = evaluateResidenceUpgrade(tierTwo, richTotals, {
+  ...allServices,
+  cloth: { supplier: null, stocked: false },
+});
+assert.ok(householdClothPlan);
+assert.equal(householdClothPlan.ready, false);
+tierTwo.needs.cloth.stock = 2;
+const stockedHouseholdClothPlan = evaluateResidenceUpgrade(tierTwo, richTotals, {
+  ...allServices,
+  cloth: { supplier: null, stocked: false },
+});
+assert.ok(stockedHouseholdClothPlan);
+assert.equal(
+  stockedHouseholdClothPlan.ready,
+  true,
+  'cloth already delivered to the household must qualify without requiring remaining outlet stock',
+);
+
 const tierThree = residence('tier-three', 3, 10);
-const levelThreeChapel = { ...levelTwoChapel, chapelTier: 3 };
+tierThree.food = 100;
+tierThree.berries = 100;
+tierThree.meat = 100;
+tierThree.fish = 100;
+tierThree.foodInventoryMigrated = true;
+const householdStockedTierThree = residence('household-stocked-tier-three', 3, 10);
+Object.assign(householdStockedTierThree, {
+  food: 100,
+  berries: 100,
+  meat: 100,
+  fish: 100,
+  foodInventoryMigrated: true,
+});
+householdStockedTierThree.needs.firewood.stock = 3;
+householdStockedTierThree.needs.ale.stock = 3;
+householdStockedTierThree.needs.cloth.stock = 3;
+householdStockedTierThree.needs.shoes.stock = 3;
+const householdStockedTierThreePlan = evaluateResidenceUpgrade(
+  householdStockedTierThree,
+  richTotals,
+  {
+    ...allServices,
+    firewood: { supplier: null, stocked: false },
+    ale: { supplier: null, stocked: false },
+    cloth: { supplier: null, stocked: false },
+    shoes: { supplier: null, stocked: false },
+    church: { supplier: levelTwoChapel, stocked: false },
+  },
+);
+assert.ok(householdStockedTierThreePlan);
+assert.equal(
+  householdStockedTierThreePlan.ready,
+  true,
+  'delivered Tier-3 fuel, beverages, cloth, and shoes must remain valid after their outlets empty',
+);
+const basicChurchTierFourPlan = evaluateResidenceUpgrade(tierThree, richTotals, allServices);
+assert.ok(basicChurchTierFourPlan);
+assert.equal(basicChurchTierFourPlan.ready, false);
+assert.match(basicChurchTierFourPlan.blockers.join(' '), /level 2 church route missing/);
 const tierFourWithoutLuxury = evaluateResidenceUpgrade(tierThree, richTotals, {
   ...allServices,
-  church: { supplier: levelThreeChapel, stocked: false, ready: true },
+  church: { supplier: levelTwoChapel, stocked: false },
 });
 assert.ok(tierFourWithoutLuxury);
-assert.equal(tierFourWithoutLuxury.ready, false);
-assert.match(
-  tierFourWithoutLuxury.blockers.join(' '),
-  /luxury source route missing/,
-  'Tier 4 promotion must not activate luxury demand without a viable source',
+assert.equal(
+  tierFourWithoutLuxury.ready,
+  true,
+  'Tier 3→4 must not pre-require cured food, pottery, luxury, or a level-3 church',
 );
 const luxuryMarketplace = building('luxury-market', 'marketplace', 10);
 luxuryMarketplace.honey = 4;
 const tierFourPlan = evaluateResidenceUpgrade(tierThree, richTotals, {
   ...allServices,
-  luxury: { supplier: luxuryMarketplace, stocked: true, ready: true },
-  church: { supplier: levelThreeChapel, stocked: false, ready: true },
+  luxury: { supplier: luxuryMarketplace, stocked: true },
+  church: { supplier: levelTwoChapel, stocked: false },
 });
 assert.ok(tierFourPlan);
 assert.equal(tierFourPlan.nextTier, 4);
 assert.equal(tierFourPlan.populationCapacity, RESIDENCE_TIER4_CAPACITY);
 assert.deepEqual(
   tierFourPlan.services.map((service) => service.kind),
-  ['firewood', 'water', 'preservedFood', 'ale', 'cloth', 'shoes', 'pottery', 'luxury', 'church', 'foodVariety'],
+  ['food', 'firewood', 'water', 'church', 'foodVariety', 'cloth', 'shoes', 'ale'],
+  'Tier 3→4 must check only Tier-3 active needs',
 );
 assert.deepEqual(
   tierFourPlan.resources.map((resource) => resource.required),
@@ -291,6 +452,12 @@ assert.deepEqual(
   ],
 );
 assert.equal(tierFourPlan.ready, true);
+for (const futureNeed of ['preservedFood', 'pottery', 'luxury'] as const) {
+  assert.equal(tierFourPlan.services.some((service) => service.kind === futureNeed), false);
+}
+assert.match(tierFourPlan.addedNeeds, /cured provisions/i);
+assert.match(tierFourPlan.addedNeeds, /pottery/i);
+assert.match(tierFourPlan.addedNeeds, /luxury/i);
 assert.equal(
   residenceHasHouseholdLuxuryOption(
     { aroniaJam: 0, rosehipJam: 0 },
@@ -317,14 +484,14 @@ assert.equal(
 );
 const tierFourHouseholdLuxuryPlan = evaluateResidenceUpgrade(tierThree, richTotals, {
   ...allServices,
-  luxury: { supplier: null, stocked: true, ready: true },
-  church: { supplier: levelThreeChapel, stocked: false, ready: true },
+  luxury: { supplier: null, stocked: false },
+  church: { supplier: levelTwoChapel, stocked: false },
 });
 assert.ok(tierFourHouseholdLuxuryPlan);
 assert.equal(
   tierFourHouseholdLuxuryPlan.ready,
   true,
-  'a viable household luxury source must unlock Tier 4 without a Marketplace supplier',
+  'future Tier-4 luxury must remain a preview instead of a Tier-3 promotion blocker',
 );
 assert.equal(
   evaluateResidenceUpgrade(residence('tier-four', 4, 15), richTotals, allServices),
@@ -353,17 +520,6 @@ assert.equal(
   stockedMarketplace.id,
   'live deliveries must use stocked Marketplace inventory',
 );
-assert.equal(
-  findRoadLinkedUpgradeSupplierForResidence(
-    tierTwo,
-    [emptyNearbySmokehouse, stockedDistantSmokehouse],
-    network,
-    'preservedFood',
-  )?.id,
-  emptyNearbySmokehouse.id,
-  'upgrade eligibility should recognize an empty but operational route',
-);
-
 const nearHome = residence('near-home', 1, 3);
 nearHome.x = well.x + well.workRadius;
 assert.equal(isResidenceInWellRange(well, nearHome), true);
@@ -616,6 +772,53 @@ assert.deepEqual(
 );
 assert.equal(computePopulationStats(physicalState).assigned, 2);
 
+const stockedHousehold = residence('hud-stocked-household', 4, 3);
+stockedHousehold.needs.firewood.stock = 2;
+stockedHousehold.needs.water.stock = 3;
+stockedHousehold.needs.ale.stock = 4;
+stockedHousehold.needs.cloth.stock = 1;
+stockedHousehold.needs.shoes.stock = 2;
+stockedHousehold.needs.pottery.stock = 2;
+stockedHousehold.remedyStock = 1;
+const publicStore = Object.assign(building('hud-public-store', 'village_storehouse', 0), {
+  firewood: 9,
+  water: 7,
+  ale: 6,
+  cloth: 5,
+  shoes: 4,
+  pottery: 3,
+  remedies: 2,
+});
+const hudAccountingState = emptyGameState([publicStore], [stockedHousehold], []);
+const availableHudStock = computeResourceTotals(hudAccountingState);
+const totalHudStock = computeStoredResourceTotals(hudAccountingState);
+assert.deepEqual(
+  {
+    firewood: availableHudStock.firewood,
+    water: availableHudStock.water,
+    ale: availableHudStock.ale,
+    cloth: availableHudStock.cloth,
+    shoes: availableHudStock.shoes,
+    pottery: availableHudStock.pottery,
+    remedies: availableHudStock.remedies,
+  },
+  { firewood: 9, water: 7, ale: 6, cloth: 5, shoes: 4, pottery: 3, remedies: 2 },
+  'the default Surplus HUD must not promise private household reserves as spendable town stock',
+);
+assert.deepEqual(
+  {
+    firewood: totalHudStock.firewood,
+    water: totalHudStock.water,
+    ale: totalHudStock.ale,
+    cloth: totalHudStock.cloth,
+    shoes: totalHudStock.shoes,
+    pottery: totalHudStock.pottery,
+    remedies: totalHudStock.remedies,
+  },
+  { firewood: 11, water: 10, ale: 10, cloth: 6, shoes: 6, pottery: 5, remedies: 3 },
+  'the opt-in Total HUD must retain the same physically owned household reserves',
+);
+
 const performanceStarted = performance.now();
 for (let index = 0; index < 100_000; index += 1) {
   residenceUpgradeProject(activeUpgrade);
@@ -629,7 +832,20 @@ assert.ok(
 const residenceReducer = source('../server/src/reducers/residences.rs');
 assert.match(
   residenceReducer,
-  /ResidenceUpgradeService::Water[\s\S]*?position_within_well_service_radius/,
+  /ResidenceNeedKind::Water[\s\S]*?position_within_well_service_radius/,
+);
+assert.match(residenceReducer, /residence_promotion_needs\(residence\.tier\)/);
+assert.match(residenceReducer, /required_chapel_tier\(residence\.tier\)/);
+assert.doesNotMatch(residenceReducer, /CLOTH_PRODUCER_KINDS|SHOES_PRODUCER_KINDS|PRESERVED_FOOD_PRODUCER_KINDS|POTTERY_PRODUCER_KINDS/);
+assert.match(
+  residenceReducer,
+  /ResidenceNeedKind::Cloth[\s\S]*building\.kind == "marketplace"[\s\S]*CommodityKind::Cloth/,
+  'authoritative promotion must accept staged Marketplace cloth instead of demanding a Weaver',
+);
+assert.match(
+  residenceReducer,
+  /ResidenceNeedKind::FoodVariety[\s\S]*building\.kind == "marketplace"[\s\S]*building_food_progression_met/,
+  'authoritative promotion must accept a complete current-tier diet staged at one Marketplace',
 );
 assert.match(residenceReducer, /residence_upgrade_household_contribution/);
 assert.match(residenceReducer, /physical_founding_site_enabled/);
@@ -691,7 +907,8 @@ assert.match(
 );
 
 const residenceInspector = source('../src/resources/inspector/residenceRenderer.ts');
-assert.match(residenceInspector, /Tier \$\{plan\.nextTier\} services/);
+assert.match(residenceInspector, /Current Tier \$\{plan\.currentTier\} readiness/);
+assert.match(residenceInspector, /Tier \$\{plan\.nextTier\} adds after completion/);
 assert.match(residenceInspector, /Upgrade resources/);
 assert.match(residenceInspector, /Project funding/);
 assert.match(residenceInspector, /household contribution/);
@@ -886,7 +1103,11 @@ function residence(
       preservedFood: { stock: 0, deficitTicks: 0 },
       ale: { stock: 0, deficitTicks: 0 },
       cloth: { stock: 0, deficitTicks: 0 },
+      shoes: { stock: 0, deficitTicks: 0 },
       pottery: { stock: 0, deficitTicks: 0 },
+      church: { stock: 0, deficitTicks: 0 },
+      foodVariety: { stock: 0, deficitTicks: 0 },
+      luxury: { stock: 0, deficitTicks: 0 },
     },
     abandoned: false,
     householdWealth: 0,

@@ -330,6 +330,55 @@ const ROSE_CARD_MATERIALS = FLOWER_MATERIALS.slice(0, 3).map((flowerMaterial) =>
   return material;
 });
 
+/**
+ * Backyard plots need a wider botanical palette than the structural building
+ * library. These materials are nevertheless module-owned singletons: every
+ * residence or landmark garden reuses the same identities. Keep that ownership
+ * explicit instead of marking them as structural building materials, because
+ * they deliberately do not participate in building weathering/indirect-light
+ * updates.
+ */
+const sharedBackyardGardenMaterials = new Set<THREE.Material>();
+
+for (const [key, material] of Object.entries(MATERIALS)) {
+  if (material.userData.sharedBuildingMaterial === true) continue;
+  if (!material.name) material.name = `Shared backyard garden material: ${key}`;
+  material.userData.sharedBackyardGardenMaterial = true;
+  sharedBackyardGardenMaterials.add(material);
+}
+for (const [index, material] of FLOWER_MATERIALS.entries()) {
+  if (!material.name) material.name = `Shared backyard flower material: ${index}`;
+  material.userData.sharedBackyardGardenMaterial = true;
+  sharedBackyardGardenMaterials.add(material);
+}
+for (const material of ROSE_CARD_MATERIALS) {
+  material.userData.sharedBackyardGardenMaterial = true;
+  sharedBackyardGardenMaterials.add(material);
+}
+
+export function isSharedBackyardGardenMaterial(material: THREE.Material): boolean {
+  return sharedBackyardGardenMaterials.has(material)
+    && material.userData.sharedBackyardGardenMaterial === true;
+}
+
+export function getBackyardGardenMaterialLibraryStats(): {
+  materials: number;
+  meshMaterials: number;
+  spriteMaterials: number;
+} {
+  let meshMaterials = 0;
+  let spriteMaterials = 0;
+  for (const material of sharedBackyardGardenMaterials) {
+    if (material instanceof THREE.SpriteMaterial) spriteMaterials += 1;
+    else meshMaterials += 1;
+  }
+  return {
+    materials: sharedBackyardGardenMaterials.size,
+    meshMaterials,
+    spriteMaterials,
+  };
+}
+
 type BackyardSwayBinding = {
   object: THREE.Object3D;
   basePosition: THREE.Vector3;
@@ -1061,6 +1110,56 @@ function addBeetroot(group: THREE.Group, x: number, z: number, seed: number): vo
   }
 }
 
+function batchVegetableCropLeaves(
+  cropGroup: THREE.Group,
+  crop: VegetableCropKind,
+): void {
+  cropGroup.updateWorldMatrix(true, true);
+  const inverseCropWorld = cropGroup.matrixWorld.clone().invert();
+  const relativeMatrix = new THREE.Matrix4();
+  const parts: THREE.BufferGeometry[] = [];
+  const sourceGeometries: THREE.BufferGeometry[] = [];
+  const sourceLeafNameCounts: Record<string, number> = {};
+  let sourcePlantCount = 0;
+  let cropMaterial: THREE.Material | null = null;
+
+  cropGroup.traverse((object) => {
+    if (/^(?:Cabbage|Carrot|Beetroot) plant$/.test(object.name)) {
+      sourcePlantCount += 1;
+    }
+    const mesh = object as THREE.Mesh;
+    if (!mesh.isMesh) return;
+    if (Array.isArray(mesh.material)) {
+      throw new Error(`${crop} crop leaves must retain one shared material.`);
+    }
+    if (cropMaterial && cropMaterial !== mesh.material) {
+      throw new Error(`${crop} crop leaves cannot batch across material identities.`);
+    }
+    cropMaterial = mesh.material;
+    sourceLeafNameCounts[mesh.name] = (sourceLeafNameCounts[mesh.name] ?? 0) + 1;
+    mesh.updateWorldMatrix(true, false);
+    relativeMatrix.multiplyMatrices(inverseCropWorld, mesh.matrixWorld);
+    parts.push(mesh.geometry.clone().applyMatrix4(relativeMatrix));
+    sourceGeometries.push(mesh.geometry);
+  });
+
+  if (!cropMaterial || parts.length === 0) return;
+  const geometry = mergeGeometries(parts, false);
+  for (const part of parts) part.dispose();
+  if (!geometry) throw new Error(`Could not merge ${crop} crop leaf geometry.`);
+  cropGroup.clear();
+  for (const source of sourceGeometries) source.dispose();
+  const cropLeaves = new THREE.Mesh(geometry, cropMaterial);
+  cropLeaves.name = `Batched ${crop} crop leaves`;
+  cropLeaves.castShadow = true;
+  cropLeaves.receiveShadow = true;
+  cropLeaves.userData.sourceLeafCount = sourceGeometries.length;
+  cropLeaves.userData.sourceLeafNameCounts = sourceLeafNameCounts;
+  cropGroup.userData.sourcePlantCount = sourcePlantCount;
+  cropGroup.userData.cropLeafBatchCount = 1;
+  cropGroup.add(cropLeaves);
+}
+
 type VegetableCropKind = 'cabbage' | 'carrot' | 'beetroot';
 
 function addVegetableGarden(
@@ -1114,6 +1213,7 @@ function addVegetableGarden(
         );
       }
     }
+    batchVegetableCropLeaves(cropGroup, crop);
   }
   if (!crop) {
     const markerX = width * 0.38;

@@ -84,6 +84,14 @@ struct ShortestPathSolve {
     node_path: Vec<String>,
 }
 
+#[derive(Debug, Clone, Copy)]
+struct EdgeProjection {
+    point: [f64; 2],
+    segment_index: usize,
+    distance_from_start: f64,
+    access_distance: f64,
+}
+
 impl RoadNetwork {
     pub fn from_snapshot_json(json: &str) -> Option<Self> {
         let snapshot: RoadSnapshot = serde_json::from_str(json).ok()?;
@@ -370,8 +378,18 @@ impl RoadNetwork {
 
     /// Shortest travel distance along the road graph, including off-road access legs.
     pub fn road_path_distance(&self, ax: f64, az: f64, bx: f64, bz: f64) -> Option<f64> {
-        let solve = self.shortest_path_solve(ax, az, bx, bz)?;
-        Some(self.route_distance(ax, az, bx, bz, &solve.node_path))
+        let graph_distance = self
+            .shortest_path_solve(ax, az, bx, bz)
+            .map(|solve| self.route_distance(ax, az, bx, bz, &solve.node_path));
+        let interior_edge_distance = self
+            .same_edge_road_route(ax, az, bx, bz)
+            .map(|route| route.distance);
+        match (graph_distance, interior_edge_distance) {
+            (Some(graph), Some(interior)) => Some(graph.min(interior)),
+            (Some(graph), None) => Some(graph),
+            (None, Some(interior)) => Some(interior),
+            (None, None) => None,
+        }
     }
 
     /// Shortest travel distance from one origin to every target, including
@@ -390,23 +408,32 @@ impl RoadNetwork {
         if targets.is_empty() {
             return Vec::new();
         }
-        let Some(distances) = self.shortest_node_distances_from(ax, az) else {
-            return vec![None; targets.len()];
-        };
+        let distances = self.shortest_node_distances_from(ax, az);
 
         targets
             .iter()
             .map(|&(tx, tz)| {
-                let target_nodes = self.snap_nodes(tx, tz)?;
-                target_nodes
-                    .iter()
-                    .filter_map(|node_id| {
-                        let road_cost = distances.get(node_id)?;
-                        let &(nx, nz) = self.nodes.get(node_id)?;
-                        Some(*road_cost + distance(tx, tz, nx, nz))
-                    })
-                    .filter(|total| total.is_finite())
-                    .min_by(f64::total_cmp)
+                let graph_distance = distances.as_ref().and_then(|distances| {
+                    let target_nodes = self.snap_nodes(tx, tz)?;
+                    target_nodes
+                        .iter()
+                        .filter_map(|node_id| {
+                            let road_cost = distances.get(node_id)?;
+                            let &(nx, nz) = self.nodes.get(node_id)?;
+                            Some(*road_cost + distance(tx, tz, nx, nz))
+                        })
+                        .filter(|total| total.is_finite())
+                        .min_by(f64::total_cmp)
+                });
+                let interior_edge_distance = self
+                    .same_edge_road_route(ax, az, tx, tz)
+                    .map(|route| route.distance);
+                match (graph_distance, interior_edge_distance) {
+                    (Some(graph), Some(interior)) => Some(graph.min(interior)),
+                    (Some(graph), None) => Some(graph),
+                    (None, Some(interior)) => Some(interior),
+                    (None, None) => None,
+                }
             })
             .collect()
     }
@@ -492,12 +519,92 @@ impl RoadNetwork {
 
     /// Canonical shortest route — distance matches sampled polyline length for movement.
     pub fn road_path_route(&self, ax: f64, az: f64, bx: f64, bz: f64) -> Option<RoadPathRoute> {
-        let solve = self.shortest_path_solve(ax, az, bx, bz)?;
-        let polyline = self.materialize_polyline(ax, az, bx, bz, &solve.node_path);
-        Some(RoadPathRoute {
-            distance: Self::polyline_length_xz(&polyline),
-            polyline,
-        })
+        let graph_route = self.shortest_path_solve(ax, az, bx, bz).map(|solve| {
+            let polyline = self.materialize_polyline(ax, az, bx, bz, &solve.node_path);
+            RoadPathRoute {
+                distance: Self::polyline_length_xz(&polyline),
+                polyline,
+            }
+        });
+        let interior_edge_route = self.same_edge_road_route(ax, az, bx, bz);
+        match (graph_route, interior_edge_route) {
+            (Some(graph), Some(interior)) if interior.distance <= graph.distance + 1e-6 => {
+                Some(interior)
+            }
+            (Some(graph), _) => Some(graph),
+            (None, Some(interior)) => Some(interior),
+            (None, None) => None,
+        }
+    }
+
+    /// When both endpoints front the same long road edge, enter at their
+    /// nearest interior projections instead of detouring to a distant graph
+    /// node. Reservations and trip movement then use the same materialized
+    /// polyline and the road remains faster than the off-road fallback.
+    fn same_edge_road_route(
+        &self,
+        ax: f64,
+        az: f64,
+        bx: f64,
+        bz: f64,
+    ) -> Option<RoadPathRoute> {
+        if !ax.is_finite() || !az.is_finite() || !bx.is_finite() || !bz.is_finite() {
+            return None;
+        }
+        let max_snap = BUILDING_ROAD_ACCESS_DISTANCE;
+        let mut target_edges = HashSet::new();
+        for key in surface_cell_keys(bx, bz, max_snap) {
+            if let Some(indices) = self.surface_edge_cells.get(&key) {
+                target_edges.extend(indices.iter().copied());
+            }
+        }
+
+        let mut origin_edges = HashSet::new();
+        for key in surface_cell_keys(ax, az, max_snap) {
+            if let Some(indices) = self.surface_edge_cells.get(&key) {
+                origin_edges.extend(indices.iter().copied());
+            }
+        }
+        let mut candidates = origin_edges
+            .into_iter()
+            .filter(|index| target_edges.contains(index))
+            .collect::<Vec<_>>();
+        candidates.sort_unstable();
+
+        let mut best: Option<RoadPathRoute> = None;
+        for index in candidates {
+            let Some(edge) = self.edges.get(index) else {
+                continue;
+            };
+            let Some(origin) = project_point_to_polyline(ax, az, &edge.sampled_path) else {
+                continue;
+            };
+            let Some(target) = project_point_to_polyline(bx, bz, &edge.sampled_path) else {
+                continue;
+            };
+            if origin.access_distance > max_snap + 1e-6
+                || target.access_distance > max_snap + 1e-6
+            {
+                continue;
+            }
+
+            let mut polyline = Vec::with_capacity(edge.sampled_path.len() + 4);
+            append_point(&mut polyline, ax, az);
+            append_point(&mut polyline, origin.point[0], origin.point[1]);
+            append_projected_edge_span(&mut polyline, &edge.sampled_path, origin, target);
+            append_point(&mut polyline, bx, bz);
+            let distance = Self::polyline_length_xz(&polyline);
+            if !distance.is_finite() || distance <= 1e-6 {
+                continue;
+            }
+            if best
+                .as_ref()
+                .is_none_or(|selected| distance + 1e-6 < selected.distance)
+            {
+                best = Some(RoadPathRoute { distance, polyline });
+            }
+        }
+        best
     }
 
     /// Route an off-network approach into the road component that serves the
@@ -1114,6 +1221,64 @@ fn project_point_to_segment(px: f64, pz: f64, ax: f64, az: f64, bx: f64, bz: f64
     (cx, cz)
 }
 
+fn project_point_to_polyline(
+    x: f64,
+    z: f64,
+    path: &[[f64; 3]],
+) -> Option<EdgeProjection> {
+    if path.len() < 2 {
+        return None;
+    }
+    let mut best: Option<EdgeProjection> = None;
+    let mut distance_from_start = 0.0;
+    for (segment_index, segment) in path.windows(2).enumerate() {
+        let ax = segment[0][0];
+        let az = segment[0][2];
+        let bx = segment[1][0];
+        let bz = segment[1][2];
+        let segment_length = distance(ax, az, bx, bz);
+        let (point_x, point_z) = project_point_to_segment(x, z, ax, az, bx, bz);
+        let access_distance = distance(x, z, point_x, point_z);
+        let along_segment = distance(ax, az, point_x, point_z).min(segment_length);
+        let candidate = EdgeProjection {
+            point: [point_x, point_z],
+            segment_index,
+            distance_from_start: distance_from_start + along_segment,
+            access_distance,
+        };
+        if best.as_ref().is_none_or(|selected| {
+            access_distance + 1e-6 < selected.access_distance
+                || ((access_distance - selected.access_distance).abs() <= 1e-6
+                    && candidate.distance_from_start < selected.distance_from_start)
+        }) {
+            best = Some(candidate);
+        }
+        distance_from_start += segment_length;
+    }
+    best
+}
+
+fn append_projected_edge_span(
+    output: &mut Vec<[f64; 2]>,
+    edge_path: &[[f64; 3]],
+    from: EdgeProjection,
+    to: EdgeProjection,
+) {
+    append_point(output, from.point[0], from.point[1]);
+    if from.distance_from_start <= to.distance_from_start {
+        for point_index in (from.segment_index + 1)..=to.segment_index {
+            let point = edge_path[point_index];
+            append_point(output, point[0], point[2]);
+        }
+    } else {
+        for point_index in ((to.segment_index + 1)..=from.segment_index).rev() {
+            let point = edge_path[point_index];
+            append_point(output, point[0], point[2]);
+        }
+    }
+    append_point(output, to.point[0], to.point[1]);
+}
+
 fn polyline_length(path: &[[f64; 3]]) -> f64 {
     if path.len() < 2 {
         return 0.0;
@@ -1176,6 +1341,39 @@ mod tests {
         assert!((x - 3.0).abs() < 1e-9);
         assert!((z - 3.0).abs() < 1e-9);
         assert_eq!(network.nearest_point(-2.0, 40.0, 4.0), None);
+    }
+
+    #[test]
+    fn roadside_routes_enter_a_long_edge_at_interior_projections() {
+        let network = RoadNetwork::from_snapshot_json(
+            r#"{
+                "nodes": [
+                    {"id":"west","position":[8600.0,0.0,0.0]},
+                    {"id":"east","position":[9000.0,0.0,0.0]}
+                ],
+                "edges": [{
+                    "startNodeId":"west",
+                    "endNodeId":"east",
+                    "width":4.2,
+                    "sampledPath":[[8600.0,0.0,0.0],[9000.0,0.0,0.0]]
+                }]
+            }"#,
+        )
+        .expect("long roadside edge should parse");
+
+        let route = network
+            .road_path_route(8650.0, 14.0, 8785.0, 14.0)
+            .expect("both roadside buildings should connect");
+        assert!((route.distance - 163.0).abs() < 1e-9);
+        assert_eq!(
+            route.polyline,
+            vec![[8650.0, 14.0], [8650.0, 0.0], [8785.0, 0.0], [8785.0, 14.0]]
+        );
+        assert!((network.road_path_distance(8650.0, 14.0, 8785.0, 14.0).unwrap() - 163.0).abs() < 1e-9);
+        assert_eq!(
+            network.road_path_distances_from(8650.0, 14.0, &[(8785.0, 14.0)]),
+            vec![Some(163.0)]
+        );
     }
 
     fn wet_row_hex(resolution: usize, wet_row: usize) -> String {

@@ -196,7 +196,7 @@ type HamletFixtureMetrics = {
   view: HamletViewId;
   renderer: string;
   residences: number;
-  residenceRoof: 'wood-shingle';
+  residenceRoof: 'tier-1-bundled-thatch';
   roadArms: number;
   fields: number;
   trees: number;
@@ -3645,7 +3645,7 @@ function render(
     view: activeViewId,
     renderer: rendererBackend.kind,
     residences: residences.length,
-    residenceRoof: 'wood-shingle',
+    residenceRoof: 'tier-1-bundled-thatch',
     roadArms: HAMLET_ROAD_ARMS.length,
     fields: HAMLET_FIELD_SPECS.length,
     trees: forestStats.trees.totalTrees,

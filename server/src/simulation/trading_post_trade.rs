@@ -1,5 +1,5 @@
-//! Manor-Lords-style Trading Post: local carts stage exports continuously,
-//! while the regional leg settles abstractly once per calendar month.
+//! Trading Post rules: local carts stage exports continuously, while the
+//! regional leg settles on a short balance-authoritative abstract cadence.
 
 use spacetimedb::{Identity, ReducerContext};
 
@@ -24,8 +24,8 @@ use crate::simulation::delivery_trips::{
 use crate::simulation::{labor_and_logistics_paused, GameClock, SimTickContext};
 use crate::tables::{Building, TradingPostTradeRule};
 use crate::trading_post_policy::{
-    absolute_calendar_month, affordable_import_units, exportable_surplus, import_deficit,
-    trade_gold, TRADE_MODE_EXPORT, TRADE_MODE_IMPORT,
+    affordable_import_units, exportable_surplus, import_deficit, regional_exchange_sequence,
+    trade_gold, trade_rule_settlement_key, TRADE_MODE_EXPORT, TRADE_MODE_IMPORT,
 };
 
 pub fn trading_post_exports_commodity(
@@ -50,7 +50,7 @@ pub fn step_trading_post_trade(ctx: &ReducerContext, tick: &SimTickContext, cloc
         .map(|building| building.id)
         .collect();
     post_ids.sort_unstable();
-    let current_month = absolute_calendar_month(clock.total_days);
+    let current_exchange = regional_exchange_sequence(clock.sim_tick);
 
     for post_id in post_ids {
         let Some(mut post) = ctx.db.building().id().find(&post_id) else {
@@ -64,7 +64,7 @@ pub fn step_trading_post_trade(ctx: &ReducerContext, tick: &SimTickContext, cloc
         if !trading_post_operational(ctx, tick, clock, &post) {
             continue;
         }
-        settle_due_rules(ctx, &post, current_month);
+        settle_due_rules(ctx, &post, current_exchange);
         if clock.sim_tick % 5 == post.id % 5 {
             stage_one_export(ctx, tick, clock, &post);
         }
@@ -89,18 +89,18 @@ fn trading_post_operational(
     })
 }
 
-fn settle_due_rules(ctx: &ReducerContext, post: &Building, current_month: u64) {
+fn settle_due_rules(ctx: &ReducerContext, post: &Building, current_exchange: u64) {
     let mut rules: Vec<TradingPostTradeRule> = ctx
         .db
         .trading_post_trade_rule()
         .building_id()
         .filter(&post.id)
-        .filter(|rule| rule.last_settled_month < current_month)
+        .filter(|rule| rule.last_settled_month < current_exchange)
         .collect();
-    rules.sort_by_key(|rule| rule.commodity_kind);
+    rules.sort_by_key(|rule| trade_rule_settlement_key(rule.mode, rule.commodity_kind));
     for mut rule in rules {
         let Some(commodity) = CommodityKind::from_u8(rule.commodity_kind) else {
-            rule.last_settled_month = current_month;
+            rule.last_settled_month = current_exchange;
             ctx.db.trading_post_trade_rule().id().update(rule);
             continue;
         };
@@ -111,7 +111,7 @@ fn settle_due_rules(ctx: &ReducerContext, post: &Building, current_month: u64) {
             }
             _ => (0.0, 0.0),
         };
-        rule.last_settled_month = current_month;
+        rule.last_settled_month = current_exchange;
         rule.last_trade_amount = amount;
         rule.last_trade_gold = gold;
         ctx.db.trading_post_trade_rule().id().update(rule);

@@ -190,13 +190,13 @@ materialBuildings[6].gold = 28;
 
 const leanClayState = emptyGameState();
 const leanClayPit = building('lean-clay-bank', 'clay_pit', 1);
-leanClayPit.x = 0;
-leanClayPit.z = 0;
+leanClayPit.x = -256;
+leanClayPit.z = 136;
 leanClayState.buildings.set(leanClayPit.id, leanClayPit);
 const richClayState = emptyGameState();
 const richClayPit = building('rich-clay-bank', 'clay_pit', 1);
-richClayPit.x = 4.252;
-richClayPit.z = -131.811;
+richClayPit.x = -256;
+richClayPit.z = -256;
 richClayState.buildings.set(richClayPit.id, richClayPit);
 const leanClayProduction = computeSettlementProductionCapacity(
   leanClayState,

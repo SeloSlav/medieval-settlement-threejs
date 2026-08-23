@@ -147,7 +147,7 @@ assert.match(
 assert.match(
   inspectorSource,
   /residence\.tier < 3[\s\S]*Requires a tier-3 residence/,
-  'Tier-3 households must be able to prepare cut flowers before Tier-4 promotion',
+  'Tier-3 households must be able to prepare cut flowers before the Tier-4 luxury need activates',
 );
 assert.match(reducerSource, /garden\.flower_luxury_upgraded = true/);
 assert.match(simulationSource, /first_harvest_day > clock\.total_days/);

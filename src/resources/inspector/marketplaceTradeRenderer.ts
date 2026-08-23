@@ -1,8 +1,10 @@
 import type { RegionalMarketState } from '../../economy/regionalMarket.ts';
 import {
   buildingTradeStock,
+  formatRegionalExchangeCountdown,
   settlementTradeStock,
   tradingPostRule,
+  tradingPostExchangeDue,
   tradingPostUnitPrices,
   TRADE_MODE_EXPORT,
   TRADE_MODE_IMPORT,
@@ -13,11 +15,11 @@ import {
   type TradingPostTradeMode,
 } from '../../economy/tradingPostTrade.ts';
 import {
-  CALENDAR_DAYS_PER_MONTH,
+  REGIONAL_EXCHANGE_INTERVAL_SECONDS,
+  SIM_REALTIME_RATE,
   STOREHOUSE_HAUL_PER_WORKER,
   type TradeResourceKind,
 } from '../../generated/gameBalance.ts';
-import { gameClock } from '../../world/gameCalendar.ts';
 import type { BuildingState, GameState } from '../types.ts';
 import { renderInspectorResourceToken } from './inspectorResourceTokens.ts';
 
@@ -26,11 +28,12 @@ export function renderMarketplaceTradePanel(
   gameState: GameState,
   marketState: RegionalMarketState,
 ): string {
-  const clock = gameClock(gameState.tick);
-  const daysUntilSettlement = CALENDAR_DAYS_PER_MONTH - clock.monthDay + 1;
   const rules = gameState.tradingPostTradeRules;
   const activeRules = Array.from(rules?.values() ?? [])
     .filter((rule) => rule.buildingId === building.id && rule.mode !== TRADE_MODE_NONE);
+  const exchangeDue = tradingPostExchangeDue(activeRules, gameState.tick);
+  const exchangeCountdown = formatRegionalExchangeCountdown(gameState.tick, exchangeDue);
+  const intervalAt4x = Math.ceil(REGIONAL_EXCHANGE_INTERVAL_SECONDS / (SIM_REALTIME_RATE * 4));
   const stagedUnits = activeRules
     .filter((rule) => rule.mode === TRADE_MODE_EXPORT)
     .reduce((total, rule) => total + buildingTradeStock(building, rule.commodity), 0);
@@ -40,14 +43,12 @@ export function renderMarketplaceTradePanel(
     <div class="trading-post-ledger">
       <header class="trading-post-ledger__header">
         <div>
-          <p class="trading-post-ledger__eyebrow">Monthly trade ledger</p>
+          <p class="trading-post-ledger__eyebrow">Regional trade ledger</p>
           <h3>Import and export rules</h3>
         </div>
-        <span class="trading-post-ledger__settlement">${daysUntilSettlement === 1
-          ? 'Settlement today'
-          : `${daysUntilSettlement} days to settlement`}</span>
+        <span class="trading-post-ledger__settlement">${exchangeCountdown}</span>
       </header>
-      <p class="trading-post-ledger__intro">Set one desired settlement surplus for every commodity. Export haulers continuously stage only stock above that floor in this Trading Post; all staged exports are sold at month end. Imports arrive directly into this store at month end and buy only enough to reach the floor, limited by storage and civic gold. The regional exchange is abstract—only local collection and distribution use visible haulers.</p>
+      <p class="trading-post-ledger__intro">Set one desired settlement surplus for every commodity. Export haulers continuously stage only stock above that floor in this Trading Post. Every ${REGIONAL_EXCHANGE_INTERVAL_SECONDS}-simulation-second window (~${intervalAt4x} real seconds at 4×), staged exports sell before imports buy enough to reach their floor, limited by storage and civic gold. This lets genuine export proceeds fund a later rule without making imports free. The regional exchange is abstract—only local collection and distribution use visible haulers. Imported ironwork held here can supply construction, but Trading Post carts do not refill civilian tool racks; keep a staffed road-linked smithy to deliver replacement tools.</p>
       <div class="trading-post-ledger__summary">
         <span><strong>${activeRules.length}</strong> active rules</span>
         <span><strong>${Math.floor(stagedUnits)}</strong> export units staged</span>
@@ -87,7 +88,7 @@ function renderCommodityRow(
   const status = mode === TRADE_MODE_EXPORT
     ? `Eligible: ${Math.max(0, Math.floor(outsideStock - target))} · Staged: ${Math.floor(postStock)}`
     : mode === TRADE_MODE_IMPORT
-      ? `Monthly deficit: ${Math.max(0, Math.floor(target - outsideStock - postStock))}`
+      ? `Target deficit: ${Math.max(0, Math.floor(target - outsideStock - postStock))}`
       : 'Trade mode: off';
   const resourceLabel = TRADE_RESOURCE_LABELS[resource];
   const hoverDetail = [

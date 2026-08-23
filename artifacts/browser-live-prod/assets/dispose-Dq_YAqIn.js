@@ -1,0 +1,1 @@
+function e(e,t=!1){e.traverse(e=>{let n=e;if(n.geometry&&n.geometry.dispose(),!t)return;let r=n.material;Array.isArray(r)?r.forEach(e=>e.dispose()):r&&r.dispose()})}export{e as t};

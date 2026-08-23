@@ -1,0 +1,256 @@
+{
+  "schemaVersion": 1,
+  "round": 57,
+  "status": "complete-valid-evidence-blind-tie",
+  "mappingRevealSha256": "8C13E88129B5BA039437748D530D0C68A2573A22573B421ECA7F54D1A164BB69",
+  "winner": "tie",
+  "confidencePercent": 98,
+  "acceptedAsNewVisualDefault": false,
+  "files": [
+    {
+      "path": "public/visual-gauntlet/evidence/round-57/blind-A/frame-000.png",
+      "bytes": 1911309,
+      "sha256": "41AEC18670C727AEBCCE26374E50A859279896F1CFF6C5FFC10F09E8241CD332"
+    },
+    {
+      "path": "public/visual-gauntlet/evidence/round-57/blind-A/frame-180.png",
+      "bytes": 2099326,
+      "sha256": "7224A5CB2EE6838CC7A3B3C743FB39F413942C2B86C053F77C22253F508EF2DA"
+    },
+    {
+      "path": "public/visual-gauntlet/evidence/round-57/blind-A/frame-276.png",
+      "bytes": 2273229,
+      "sha256": "DB922D2332AF20A6AE2C4C422EB06C897738A77A9F14E595B36F3B65B8042DC0"
+    },
+    {
+      "path": "public/visual-gauntlet/evidence/round-57/blind-A/frame-277.png",
+      "bytes": 2272135,
+      "sha256": "1B7EC48DEE9AD39D9BB71F3953FF3F9818C48DBD0F02247068BDF5957C17072B"
+    },
+    {
+      "path": "public/visual-gauntlet/evidence/round-57/blind-A/frame-278.png",
+      "bytes": 2272501,
+      "sha256": "25AA3DF29FF0AEE24A13EE9DD89FAB86E09A84F8131B2E951D490EDF413AA0E7"
+    },
+    {
+      "path": "public/visual-gauntlet/evidence/round-57/blind-A/frame-279.png",
+      "bytes": 2271913,
+      "sha256": "3A5410E6D5499C2A40D810D04B7FB202CE2356ACBF4673C3C87567782EA37C3A"
+    },
+    {
+      "path": "public/visual-gauntlet/evidence/round-57/blind-A/frame-330.png",
+      "bytes": 1747987,
+      "sha256": "88A09F8D77008605D3D8AC0CC652E9D60FDCB8828429823714F1D0B88D509933"
+    },
+    {
+      "path": "public/visual-gauntlet/evidence/round-57/blind-A/frame-375.png",
+      "bytes": 1747949,
+      "sha256": "761A5C4A89E9C009A755FEAB616E4471AF81481BC017E0E038DA172D07E7D409"
+    },
+    {
+      "path": "public/visual-gauntlet/evidence/round-57/blind-A/frame-480.png",
+      "bytes": 2100204,
+      "sha256": "9C0A90770B72AC6DA765CF68EA58673510B658C9DB32ADBF406840A82336FCB2"
+    },
+    {
+      "path": "public/visual-gauntlet/evidence/round-57/blind-A/terminal-evidence.json",
+      "bytes": 396269,
+      "sha256": "55A4B3AE8404953EB10ABB2F68EA82B9E9832239BA733A955B4B8E8E4467D904"
+    },
+    {
+      "path": "public/visual-gauntlet/evidence/round-57/blind-B/frame-000.png",
+      "bytes": 1910761,
+      "sha256": "8866FF1FD4544170BF351343D7667F4DD2B248F900D2EC510FB24A6B19B67E1B"
+    },
+    {
+      "path": "public/visual-gauntlet/evidence/round-57/blind-B/frame-180.png",
+      "bytes": 2100146,
+      "sha256": "C676533FA5C16AB0771E289750FEA8D34DDFA6C6445D2A2B55A95A0912DA6567"
+    },
+    {
+      "path": "public/visual-gauntlet/evidence/round-57/blind-B/frame-276.png",
+      "bytes": 2273284,
+      "sha256": "6E3E0E2D45C7EFD4ABE778B140EA194B496D21AF44875D68A3374B35209C8E99"
+    },
+    {
+      "path": "public/visual-gauntlet/evidence/round-57/blind-B/frame-277.png",
+      "bytes": 2272260,
+      "sha256": "45F7C89BB090B242C67BFD286442A0F7A7097615292022EDA14A25C99BCE2D4F"
+    },
+    {
+      "path": "public/visual-gauntlet/evidence/round-57/blind-B/frame-278.png",
+      "bytes": 2272465,
+      "sha256": "9047E00E5A4D513020EEE9707ED83330972619C500E786DD99B34E169D137A5E"
+    },
+    {
+      "path": "public/visual-gauntlet/evidence/round-57/blind-B/frame-279.png",
+      "bytes": 2272163,
+      "sha256": "36A94B067A8E165F257F138256412252A4541F69E9F136FD31E9AE0DEF19F95A"
+    },
+    {
+      "path": "public/visual-gauntlet/evidence/round-57/blind-B/frame-330.png",
+      "bytes": 1748406,
+      "sha256": "424172016E6D11A1DCA404E9AC2FEDD740843F858BC70A360F77C48E03CC9E7A"
+    },
+    {
+      "path": "public/visual-gauntlet/evidence/round-57/blind-B/frame-375.png",
+      "bytes": 1748413,
+      "sha256": "AE499A48AC3F6E8FB7262297416B976A6B7C88A0996D10285260BEC5DD73EC1B"
+    },
+    {
+      "path": "public/visual-gauntlet/evidence/round-57/blind-B/frame-480.png",
+      "bytes": 2100057,
+      "sha256": "7224457D123AEF102EE994C87658C9179D249973DC8D55E2C60ECD8B45FE6F85"
+    },
+    {
+      "path": "public/visual-gauntlet/evidence/round-57/blind-B/terminal-evidence.json",
+      "bytes": 399875,
+      "sha256": "855D2C2B92702B7F5D4550F3422BCE17DA0EA2BE7628A5E02EF7CF293A259570"
+    },
+    {
+      "path": "public/visual-gauntlet/evidence/round-57/blind-critique.md",
+      "bytes": 1150,
+      "sha256": "806D9C0F5B6DD899FFFBC2F5A2ED33C86304111C1AE5CDB349C64B527A984B50"
+    },
+    {
+      "path": "public/visual-gauntlet/evidence/round-57/blind-verdict.json",
+      "bytes": 4146,
+      "sha256": "2BFCD5E0A176F89EB9E8F6ABD013D77CAC176DC0A3BF10154D2EFC485511A91C"
+    },
+    {
+      "path": "public/visual-gauntlet/evidence/round-57/bundle-manifest.json",
+      "bytes": 156798,
+      "sha256": "5657F35803E9F4559B265D61459B00D264BC701EC9581EFBE2D4C703009FFD54"
+    },
+    {
+      "path": "public/visual-gauntlet/evidence/round-57/capture-ledger.json",
+      "bytes": 31271,
+      "sha256": "A7A0773737B28BCA2C24BA2C636298A2804A5286CF37B75FD924CFAE4CB1F689"
+    },
+    {
+      "path": "public/visual-gauntlet/evidence/round-57/capture-protocol.json",
+      "bytes": 1942,
+      "sha256": "5B8796BD42A67BCE4D725FCADEC9458A8676FB856CD2B8898C5C9AA063483286"
+    },
+    {
+      "path": "public/visual-gauntlet/evidence/round-57/capture-validation.json",
+      "bytes": 24608,
+      "sha256": "91C3FA02DA30874B70A3B5A546F9FEF9214B5E775EFA88A41BBD23785DBE81E7"
+    },
+    {
+      "path": "public/visual-gauntlet/evidence/round-57/control/route-0000.png",
+      "bytes": 1910761,
+      "sha256": "8866FF1FD4544170BF351343D7667F4DD2B248F900D2EC510FB24A6B19B67E1B"
+    },
+    {
+      "path": "public/visual-gauntlet/evidence/round-57/control/route-0180.png",
+      "bytes": 2100146,
+      "sha256": "C676533FA5C16AB0771E289750FEA8D34DDFA6C6445D2A2B55A95A0912DA6567"
+    },
+    {
+      "path": "public/visual-gauntlet/evidence/round-57/control/route-0276.png",
+      "bytes": 2273284,
+      "sha256": "6E3E0E2D45C7EFD4ABE778B140EA194B496D21AF44875D68A3374B35209C8E99"
+    },
+    {
+      "path": "public/visual-gauntlet/evidence/round-57/control/route-0277.png",
+      "bytes": 2272260,
+      "sha256": "45F7C89BB090B242C67BFD286442A0F7A7097615292022EDA14A25C99BCE2D4F"
+    },
+    {
+      "path": "public/visual-gauntlet/evidence/round-57/control/route-0278.png",
+      "bytes": 2272465,
+      "sha256": "9047E00E5A4D513020EEE9707ED83330972619C500E786DD99B34E169D137A5E"
+    },
+    {
+      "path": "public/visual-gauntlet/evidence/round-57/control/route-0279.png",
+      "bytes": 2272163,
+      "sha256": "36A94B067A8E165F257F138256412252A4541F69E9F136FD31E9AE0DEF19F95A"
+    },
+    {
+      "path": "public/visual-gauntlet/evidence/round-57/control/route-0330.png",
+      "bytes": 1748406,
+      "sha256": "424172016E6D11A1DCA404E9AC2FEDD740843F858BC70A360F77C48E03CC9E7A"
+    },
+    {
+      "path": "public/visual-gauntlet/evidence/round-57/control/route-0375.png",
+      "bytes": 1748413,
+      "sha256": "AE499A48AC3F6E8FB7262297416B976A6B7C88A0996D10285260BEC5DD73EC1B"
+    },
+    {
+      "path": "public/visual-gauntlet/evidence/round-57/control/route-0480.png",
+      "bytes": 2100057,
+      "sha256": "7224457D123AEF102EE994C87658C9179D249973DC8D55E2C60ECD8B45FE6F85"
+    },
+    {
+      "path": "public/visual-gauntlet/evidence/round-57/control/terminal-evidence.json",
+      "bytes": 399875,
+      "sha256": "855D2C2B92702B7F5D4550F3422BCE17DA0EA2BE7628A5E02EF7CF293A259570"
+    },
+    {
+      "path": "public/visual-gauntlet/evidence/round-57/pre-blind-commitment.json",
+      "bytes": 1064,
+      "sha256": "F70B77B3EB4DDEDB85896D23164884BF88BBB96E70D1E26B6884F600B6C95615"
+    },
+    {
+      "path": "public/visual-gauntlet/evidence/round-57/pre-blind-reveal.json",
+      "bytes": 4691,
+      "sha256": "8C13E88129B5BA039437748D530D0C68A2573A22573B421ECA7F54D1A164BB69"
+    },
+    {
+      "path": "public/visual-gauntlet/evidence/round-57/round-report.json",
+      "bytes": 3318,
+      "sha256": "A3B11162074416485392C80C1FC1D5FB284BE15F78601C59C6B89DCEB53D53F7"
+    },
+    {
+      "path": "public/visual-gauntlet/evidence/round-57/treatment/route-0000.png",
+      "bytes": 1911309,
+      "sha256": "41AEC18670C727AEBCCE26374E50A859279896F1CFF6C5FFC10F09E8241CD332"
+    },
+    {
+      "path": "public/visual-gauntlet/evidence/round-57/treatment/route-0180.png",
+      "bytes": 2099326,
+      "sha256": "7224A5CB2EE6838CC7A3B3C743FB39F413942C2B86C053F77C22253F508EF2DA"
+    },
+    {
+      "path": "public/visual-gauntlet/evidence/round-57/treatment/route-0276.png",
+      "bytes": 2273229,
+      "sha256": "DB922D2332AF20A6AE2C4C422EB06C897738A77A9F14E595B36F3B65B8042DC0"
+    },
+    {
+      "path": "public/visual-gauntlet/evidence/round-57/treatment/route-0277.png",
+      "bytes": 2272135,
+      "sha256": "1B7EC48DEE9AD39D9BB71F3953FF3F9818C48DBD0F02247068BDF5957C17072B"
+    },
+    {
+      "path": "public/visual-gauntlet/evidence/round-57/treatment/route-0278.png",
+      "bytes": 2272501,
+      "sha256": "25AA3DF29FF0AEE24A13EE9DD89FAB86E09A84F8131B2E951D490EDF413AA0E7"
+    },
+    {
+      "path": "public/visual-gauntlet/evidence/round-57/treatment/route-0279.png",
+      "bytes": 2271913,
+      "sha256": "3A5410E6D5499C2A40D810D04B7FB202CE2356ACBF4673C3C87567782EA37C3A"
+    },
+    {
+      "path": "public/visual-gauntlet/evidence/round-57/treatment/route-0330.png",
+      "bytes": 1747987,
+      "sha256": "88A09F8D77008605D3D8AC0CC652E9D60FDCB8828429823714F1D0B88D509933"
+    },
+    {
+      "path": "public/visual-gauntlet/evidence/round-57/treatment/route-0375.png",
+      "bytes": 1747949,
+      "sha256": "761A5C4A89E9C009A755FEAB616E4471AF81481BC017E0E038DA172D07E7D409"
+    },
+    {
+      "path": "public/visual-gauntlet/evidence/round-57/treatment/route-0480.png",
+      "bytes": 2100204,
+      "sha256": "9C0A90770B72AC6DA765CF68EA58673510B658C9DB32ADBF406840A82336FCB2"
+    },
+    {
+      "path": "public/visual-gauntlet/evidence/round-57/treatment/terminal-evidence.json",
+      "bytes": 396269,
+      "sha256": "55A4B3AE8404953EB10ABB2F68EA82B9E9832239BA733A955B4B8E8E4467D904"
+    }
+  ]
+}

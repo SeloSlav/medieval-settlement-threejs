@@ -2,19 +2,65 @@ import * as THREE from 'three';
 import { getBuildingDefinition } from '../resources/buildings.ts';
 import type { BuildingKind } from '../resources/types.ts';
 
-const STONE = new THREE.MeshStandardMaterial({ color: 0x77746c, roughness: 0.94 });
-const PALE_STONE = new THREE.MeshStandardMaterial({ color: 0x9a9588, roughness: 0.96 });
-const TIMBER = new THREE.MeshStandardMaterial({ color: 0x6d4527, roughness: 0.9 });
-const CUT_WOOD = new THREE.MeshStandardMaterial({ color: 0xc39158, roughness: 0.86 });
-const ROPE = new THREE.MeshStandardMaterial({ color: 0x9a8057, roughness: 1 });
-const IRON = new THREE.MeshStandardMaterial({
-  color: 0x343b3b,
-  roughness: 0.62,
-  metalness: 0.48,
-});
-const FIRED_CLAY = new THREE.MeshStandardMaterial({ color: 0x9b4f35, roughness: 0.9 });
+const CONSTRUCTION_SITE_MATERIALS = {
+  stone: new THREE.MeshStandardMaterial({ color: 0x77746c, roughness: 0.94 }),
+  paleStone: new THREE.MeshStandardMaterial({ color: 0x9a9588, roughness: 0.96 }),
+  timber: new THREE.MeshStandardMaterial({ color: 0x6d4527, roughness: 0.9 }),
+  cutWood: new THREE.MeshStandardMaterial({ color: 0xc39158, roughness: 0.86 }),
+  rope: new THREE.MeshStandardMaterial({ color: 0x9a8057, roughness: 1 }),
+  iron: new THREE.MeshStandardMaterial({
+    color: 0x343b3b,
+    roughness: 0.62,
+    metalness: 0.48,
+  }),
+  firedClay: new THREE.MeshStandardMaterial({ color: 0x9b4f35, roughness: 0.9 }),
+} as const;
+
+for (const [key, material] of Object.entries(CONSTRUCTION_SITE_MATERIALS)) {
+  material.name = `Shared construction-site material: ${key}`;
+  material.userData.sharedConstructionSiteMaterial = true;
+}
+
+const STONE = CONSTRUCTION_SITE_MATERIALS.stone;
+const PALE_STONE = CONSTRUCTION_SITE_MATERIALS.paleStone;
+const TIMBER = CONSTRUCTION_SITE_MATERIALS.timber;
+const CUT_WOOD = CONSTRUCTION_SITE_MATERIALS.cutWood;
+const ROPE = CONSTRUCTION_SITE_MATERIALS.rope;
+const IRON = CONSTRUCTION_SITE_MATERIALS.iron;
+const FIRED_CLAY = CONSTRUCTION_SITE_MATERIALS.firedClay;
 const ROOF_PLATE_Y = 4.25;
 const ROOF_RIDGE_Y = 5.45;
+
+export function isSharedConstructionSiteMaterial(material: THREE.Material): boolean {
+  return material.userData.sharedConstructionSiteMaterial === true
+    && Object.values(CONSTRUCTION_SITE_MATERIALS).includes(
+      material as (typeof CONSTRUCTION_SITE_MATERIALS)[keyof typeof CONSTRUCTION_SITE_MATERIALS],
+    );
+}
+
+export function getConstructionSiteMaterialLibraryStats(): { materials: number } {
+  return { materials: Object.keys(CONSTRUCTION_SITE_MATERIALS).length };
+}
+
+export function constructionMaterialPileRatio(
+  progress: number,
+  deliveredRatio: number,
+): number {
+  return THREE.MathUtils.clamp(deliveredRatio, 0, 1)
+    - Math.min(
+      THREE.MathUtils.clamp(deliveredRatio, 0, 1),
+      THREE.MathUtils.clamp(progress, 0, 1),
+    );
+}
+
+export function constructionDeliveredRatio(
+  delivered: number,
+  required: number,
+): number {
+  return required <= 1e-6
+    ? 0
+    : THREE.MathUtils.clamp(delivered / required, 0, 1);
+}
 
 export function constructionVisualSignature(
   progress: number,
@@ -23,11 +69,24 @@ export function constructionVisualSignature(
   ironworkRatio = 0,
   roofTilesRatio = 0,
 ): string {
-  const stage = Math.min(4, Math.floor(Math.max(0, progress) * 5));
-  const timberPile = Math.min(3, Math.ceil(Math.max(0, timberRatio) * 3));
-  const stonePile = Math.min(3, Math.ceil(Math.max(0, stoneRatio) * 3));
-  const fittings = Math.min(3, Math.ceil(Math.max(0, ironworkRatio) * 3));
-  const roofTiles = Math.min(3, Math.ceil(Math.max(0, roofTilesRatio) * 3));
+  const clampedProgress = THREE.MathUtils.clamp(progress, 0, 1);
+  const stage = Math.min(4, Math.floor(clampedProgress * 5));
+  const timberPile = Math.min(
+    3,
+    Math.ceil(constructionMaterialPileRatio(clampedProgress, timberRatio) * 3),
+  );
+  const stonePile = Math.min(
+    3,
+    Math.ceil(constructionMaterialPileRatio(clampedProgress, stoneRatio) * 3),
+  );
+  const fittings = Math.min(
+    3,
+    Math.ceil(constructionMaterialPileRatio(clampedProgress, ironworkRatio) * 3),
+  );
+  const roofTiles = Math.min(
+    3,
+    Math.ceil(constructionMaterialPileRatio(clampedProgress, roofTilesRatio) * 3),
+  );
   return `site:${stage}:${timberPile}:${stonePile}:${fittings}:${roofTiles}`;
 }
 
@@ -44,17 +103,32 @@ export function createConstructionSiteMesh(
   const definition = getBuildingDefinition(kind);
   const halfWidth = THREE.MathUtils.clamp(definition.pickRadius * 0.62, 3.4, 8.8);
   const halfDepth = THREE.MathUtils.clamp(definition.pickRadius * 0.48, 2.8, 7.2);
-  const stage = Math.min(4, Math.floor(THREE.MathUtils.clamp(progress, 0, 1) * 5));
+  const clampedProgress = THREE.MathUtils.clamp(progress, 0, 1);
+  const stage = Math.min(4, Math.floor(clampedProgress * 5));
+  const remainingTimberRatio = constructionMaterialPileRatio(clampedProgress, timberRatio);
+  const remainingStoneRatio = constructionMaterialPileRatio(clampedProgress, stoneRatio);
+  const remainingIronworkRatio = constructionMaterialPileRatio(clampedProgress, ironworkRatio);
+  const remainingRoofTilesRatio = constructionMaterialPileRatio(clampedProgress, roofTilesRatio);
+
+  root.userData.constructionVisualContract = 'construction-site-lifecycle-v1';
+  root.userData.constructionProgress = clampedProgress;
+  root.userData.constructionStage = stage;
+  root.userData.constructionMaterialPileRatios = {
+    timber: remainingTimberRatio,
+    stone: remainingStoneRatio,
+    ironwork: remainingIronworkRatio,
+    roofTiles: remainingRoofTilesRatio,
+  };
 
   addStakeLine(root, halfWidth, halfDepth);
-  addFoundation(root, halfWidth, halfDepth, Math.max(stage > 0 ? 0.35 : 0.12, stoneRatio));
+  addFoundation(root, halfWidth, halfDepth, Math.min(1, clampedProgress * 5));
   if (stage >= 1) addWallFrames(root, halfWidth, halfDepth, stage);
   if (stage >= 3) addRoofRafters(root, halfWidth, halfDepth);
   addScaffolding(root, halfWidth, halfDepth, stage);
-  addTimberPile(root, halfWidth + 1.25, -halfDepth * 0.45, timberRatio);
-  addStonePile(root, -halfWidth - 1.25, halfDepth * 0.42, stoneRatio);
-  addFittingsCrate(root, halfWidth + 1.15, halfDepth * 0.62, ironworkRatio);
-  addRoofTileStack(root, -halfWidth - 1.2, -halfDepth * 0.55, roofTilesRatio);
+  addTimberPile(root, halfWidth + 1.25, -halfDepth * 0.45, remainingTimberRatio);
+  addStonePile(root, -halfWidth - 1.25, halfDepth * 0.42, remainingStoneRatio);
+  addFittingsCrate(root, halfWidth + 1.15, halfDepth * 0.62, remainingIronworkRatio);
+  addRoofTileStack(root, -halfWidth - 1.2, -halfDepth * 0.55, remainingRoofTilesRatio);
 
   root.traverse((object) => {
     if (object instanceof THREE.Mesh) {
@@ -93,14 +167,18 @@ function addFoundation(
   halfDepth: number,
   stoneRatio: number,
 ): void {
-  const courses = Math.max(1, Math.ceil(THREE.MathUtils.clamp(stoneRatio, 0, 1) * 3));
+  const courses = Math.ceil(THREE.MathUtils.clamp(stoneRatio, 0, 1) * 3);
   for (let course = 0; course < courses; course += 1) {
     const y = 0.14 + course * 0.22;
     const inset = course * 0.08;
-    addBeam(root, halfWidth * 2 - inset, 0.2, 0.36, 0, y, -halfDepth + inset, STONE);
-    addBeam(root, halfWidth * 2 - inset, 0.2, 0.36, 0, y, halfDepth - inset, STONE);
-    addBeam(root, 0.36, 0.2, halfDepth * 2 - inset, -halfWidth + inset, y, 0, STONE);
-    addBeam(root, 0.36, 0.2, halfDepth * 2 - inset, halfWidth - inset, y, 0, STONE);
+    for (const beam of [
+      addBeam(root, halfWidth * 2 - inset, 0.2, 0.36, 0, y, -halfDepth + inset, STONE),
+      addBeam(root, halfWidth * 2 - inset, 0.2, 0.36, 0, y, halfDepth - inset, STONE),
+      addBeam(root, 0.36, 0.2, halfDepth * 2 - inset, -halfWidth + inset, y, 0, STONE),
+      addBeam(root, 0.36, 0.2, halfDepth * 2 - inset, halfWidth - inset, y, 0, STONE),
+    ]) {
+      beam.name = `Construction installed foundation course ${course + 1}`;
+    }
   }
 }
 
@@ -186,10 +264,12 @@ function addTimberPile(root: THREE.Group, x: number, z: number, ratio: number): 
   const count = Math.min(9, Math.ceil(THREE.MathUtils.clamp(ratio, 0, 1) * 9));
   for (let index = 0; index < count; index += 1) {
     const log = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.19, 2.3, 8), TIMBER);
+    log.name = 'Construction timber pile log';
     log.rotation.z = Math.PI / 2;
     log.position.set(x, 0.25 + Math.floor(index / 3) * 0.32, z + (index % 3 - 1) * 0.42);
     root.add(log);
     const end = new THREE.Mesh(new THREE.CircleGeometry(0.165, 8), CUT_WOOD);
+    end.name = 'Construction timber pile cut end';
     end.rotation.y = Math.PI / 2;
     end.position.set(x + 1.16, log.position.y, log.position.z);
     root.add(end);
@@ -201,6 +281,7 @@ function addStonePile(root: THREE.Group, x: number, z: number, ratio: number): v
   for (let index = 0; index < count; index += 1) {
     const size = 0.34 + (index % 3) * 0.08;
     const stone = new THREE.Mesh(new THREE.DodecahedronGeometry(size, 0), index % 2 ? STONE : PALE_STONE);
+    stone.name = 'Construction stone pile piece';
     stone.scale.y = 0.65 + (index % 2) * 0.18;
     stone.rotation.set(index * 0.3, index * 0.71, index * 0.19);
     stone.position.set(
@@ -253,8 +334,9 @@ function addBeam(
   y: number,
   z: number,
   material: THREE.Material,
-): void {
+): THREE.Mesh {
   const beam = new THREE.Mesh(new THREE.BoxGeometry(width, height, depth), material);
   beam.position.set(x, y, z);
   root.add(beam);
+  return beam;
 }

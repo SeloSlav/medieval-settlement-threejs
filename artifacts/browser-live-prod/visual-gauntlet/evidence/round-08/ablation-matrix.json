@@ -1,0 +1,841 @@
+{
+  "baseline": {
+    "schemaVersion": 1,
+    "fixtureId": "gorski-kotar-parish-lane-1550",
+    "routeId": "gorski-kotar-lod-traverse-v1",
+    "routeDurationMs": 21000,
+    "ablation": {
+      "id": "baseline",
+      "disabledSubsystems": [],
+      "forestSelection": "budgeted"
+    },
+    "protocol": {
+      "requested": true,
+      "valid": true,
+      "cssViewport": {
+        "width": 1280,
+        "height": 720
+      },
+      "drawingBuffer": {
+        "width": 1280,
+        "height": 720
+      },
+      "rendererPixelRatio": 1,
+      "expected": "1280x720@renderer-pr1"
+    },
+    "performanceReport": {
+      "status": "ready",
+      "elapsedSeconds": 30,
+      "sampleCount": 1559,
+      "metrics": {
+        "medianFps": 55.24861878451262,
+        "onePercentLowFps": 10.8636610537751,
+        "meanFps": 51.963548853735446,
+        "p99FrameMs": 92.05000000000018,
+        "maxFrameMs": 230.10000000000218,
+        "framesOver25Ms": 307,
+        "framesOver50Ms": 19
+      },
+      "renderer": {
+        "medianDrawCalls": 189,
+        "medianFrameCalls": 15,
+        "medianTriangles": 2670117
+      },
+      "context": {
+        "backend": "webgpu",
+        "viewport": {
+          "width": 1280,
+          "height": 720
+        },
+        "devicePixelRatio": 1.5,
+        "rendererPixelRatio": 1,
+        "visibility": "visible",
+        "adapter": {
+          "source": "webgpu-adapter-info",
+          "identityStatus": "available",
+          "fallbackStatus": "non-fallback",
+          "vendor": "nvidia",
+          "architecture": "lovelace",
+          "device": null,
+          "description": null,
+          "isFallbackAdapter": false,
+          "limitations": []
+        },
+        "subsystems": {
+          "post": true,
+          "sky": true,
+          "shadows": true,
+          "river": false,
+          "riverSimulation": false,
+          "riverRender": false,
+          "precipitation": false,
+          "selection": false,
+          "preview": false,
+          "terrain": true,
+          "groundcover": true,
+          "forest": true,
+          "ui": true
+        }
+      },
+      "schemaVersion": 1,
+      "windowSeconds": 30
+    },
+    "forestWork": {
+      "mode": "budgeted-one-species",
+      "maxBucketCompactionsPerFrame": 1,
+      "minimumCameraMoveMeters": 8,
+      "minimumDirectionAngleDegrees": 2.5,
+      "totalBucketCompactions": 704,
+      "selectionChanges": 692,
+      "pendingBuckets": 4,
+      "maxUpdateDurationMs": 21.600000001490116,
+      "phases": {
+        "strategic": {
+          "frames": 863,
+          "selectionChanges": 425,
+          "bucketCompactions": 456,
+          "maxUpdateDurationMs": 16.30000000447035
+        },
+        "settlement": {
+          "frames": 724,
+          "selectionChanges": 267,
+          "bucketCompactions": 248,
+          "maxUpdateDurationMs": 12.299999997019768
+        },
+        "road-eye": {
+          "frames": 0,
+          "selectionChanges": 0,
+          "bucketCompactions": 0,
+          "maxUpdateDurationMs": 0
+        }
+      },
+      "converged": false
+    },
+    "content": {
+      "residences": 17,
+      "residenceRoof": "wood-shingle",
+      "trees": 1651
+    }
+  },
+  "forest-selection-frozen": {
+    "schemaVersion": 1,
+    "fixtureId": "gorski-kotar-parish-lane-1550",
+    "routeId": "gorski-kotar-lod-traverse-v1",
+    "routeDurationMs": 21000,
+    "ablation": {
+      "id": "forest-selection-frozen",
+      "disabledSubsystems": [],
+      "forestSelection": "frozen"
+    },
+    "protocol": {
+      "requested": true,
+      "valid": true,
+      "cssViewport": {
+        "width": 1280,
+        "height": 720
+      },
+      "drawingBuffer": {
+        "width": 1280,
+        "height": 720
+      },
+      "rendererPixelRatio": 1,
+      "expected": "1280x720@renderer-pr1"
+    },
+    "performanceReport": {
+      "status": "ready",
+      "elapsedSeconds": 30,
+      "sampleCount": 2482,
+      "metrics": {
+        "medianFps": 82.64462809918349,
+        "onePercentLowFps": 15.988743924277232,
+        "meanFps": 82.71182825798626,
+        "p99FrameMs": 62.5440000000003,
+        "maxFrameMs": 193.8000000000029,
+        "framesOver25Ms": 28,
+        "framesOver50Ms": 13
+      },
+      "renderer": {
+        "medianDrawCalls": 156,
+        "medianFrameCalls": 15,
+        "medianTriangles": 2187625
+      },
+      "context": {
+        "backend": "webgpu",
+        "viewport": {
+          "width": 1280,
+          "height": 720
+        },
+        "devicePixelRatio": 1.5,
+        "rendererPixelRatio": 1,
+        "visibility": "visible",
+        "adapter": {
+          "source": "webgpu-adapter-info",
+          "identityStatus": "available",
+          "fallbackStatus": "non-fallback",
+          "vendor": "nvidia",
+          "architecture": "lovelace",
+          "device": null,
+          "description": null,
+          "isFallbackAdapter": false,
+          "limitations": []
+        },
+        "subsystems": {
+          "post": true,
+          "sky": true,
+          "shadows": true,
+          "river": false,
+          "riverSimulation": false,
+          "riverRender": false,
+          "precipitation": false,
+          "selection": false,
+          "preview": false,
+          "terrain": true,
+          "groundcover": true,
+          "forest": true,
+          "ui": true
+        }
+      },
+      "schemaVersion": 1,
+      "windowSeconds": 30
+    },
+    "forestWork": {
+      "mode": "frozen",
+      "maxBucketCompactionsPerFrame": 1,
+      "minimumCameraMoveMeters": 8,
+      "minimumDirectionAngleDegrees": 2.5,
+      "totalBucketCompactions": 0,
+      "selectionChanges": 0,
+      "pendingBuckets": 0,
+      "maxUpdateDurationMs": 0,
+      "phases": {
+        "strategic": {
+          "frames": 1465,
+          "selectionChanges": 0,
+          "bucketCompactions": 0,
+          "maxUpdateDurationMs": 0
+        },
+        "settlement": {
+          "frames": 1019,
+          "selectionChanges": 0,
+          "bucketCompactions": 0,
+          "maxUpdateDurationMs": 0
+        },
+        "road-eye": {
+          "frames": 0,
+          "selectionChanges": 0,
+          "bucketCompactions": 0,
+          "maxUpdateDurationMs": 0
+        }
+      },
+      "converged": true
+    },
+    "content": {
+      "residences": 17,
+      "residenceRoof": "wood-shingle",
+      "trees": 1651
+    }
+  },
+  "groundcover-off": {
+    "schemaVersion": 1,
+    "fixtureId": "gorski-kotar-parish-lane-1550",
+    "routeId": "gorski-kotar-lod-traverse-v1",
+    "routeDurationMs": 21000,
+    "ablation": {
+      "id": "groundcover-off",
+      "disabledSubsystems": [
+        "groundcover"
+      ],
+      "forestSelection": "budgeted"
+    },
+    "protocol": {
+      "requested": true,
+      "valid": true,
+      "cssViewport": {
+        "width": 1280,
+        "height": 720
+      },
+      "drawingBuffer": {
+        "width": 1280,
+        "height": 720
+      },
+      "rendererPixelRatio": 1,
+      "expected": "1280x720@renderer-pr1"
+    },
+    "performanceReport": {
+      "status": "ready",
+      "elapsedSeconds": 30,
+      "sampleCount": 1508,
+      "metrics": {
+        "medianFps": 54.94505494505824,
+        "onePercentLowFps": 15.797788309636719,
+        "meanFps": 49.99088362533358,
+        "p99FrameMs": 63.29999999999973,
+        "maxFrameMs": 188,
+        "framesOver25Ms": 336,
+        "framesOver50Ms": 9
+      },
+      "renderer": {
+        "medianDrawCalls": 188,
+        "medianFrameCalls": 15,
+        "medianTriangles": 2569785
+      },
+      "context": {
+        "backend": "webgpu",
+        "viewport": {
+          "width": 1280,
+          "height": 720
+        },
+        "devicePixelRatio": 1.5,
+        "rendererPixelRatio": 1,
+        "visibility": "visible",
+        "adapter": {
+          "source": "webgpu-adapter-info",
+          "identityStatus": "available",
+          "fallbackStatus": "non-fallback",
+          "vendor": "nvidia",
+          "architecture": "lovelace",
+          "device": null,
+          "description": null,
+          "isFallbackAdapter": false,
+          "limitations": []
+        },
+        "subsystems": {
+          "post": true,
+          "sky": true,
+          "shadows": true,
+          "river": false,
+          "riverSimulation": false,
+          "riverRender": false,
+          "precipitation": false,
+          "selection": false,
+          "preview": false,
+          "terrain": true,
+          "groundcover": false,
+          "forest": true,
+          "ui": true
+        }
+      },
+      "schemaVersion": 1,
+      "windowSeconds": 30
+    },
+    "forestWork": {
+      "mode": "budgeted-one-species",
+      "maxBucketCompactionsPerFrame": 1,
+      "minimumCameraMoveMeters": 8,
+      "minimumDirectionAngleDegrees": 2.5,
+      "totalBucketCompactions": 703,
+      "selectionChanges": 704,
+      "pendingBuckets": 2,
+      "maxUpdateDurationMs": 18.200000002980232,
+      "phases": {
+        "strategic": {
+          "frames": 756,
+          "selectionChanges": 395,
+          "bucketCompactions": 413,
+          "maxUpdateDurationMs": 18.200000002980232
+        },
+        "settlement": {
+          "frames": 755,
+          "selectionChanges": 309,
+          "bucketCompactions": 290,
+          "maxUpdateDurationMs": 12.5
+        },
+        "road-eye": {
+          "frames": 0,
+          "selectionChanges": 0,
+          "bucketCompactions": 0,
+          "maxUpdateDurationMs": 0
+        }
+      },
+      "converged": false
+    },
+    "content": {
+      "residences": 17,
+      "residenceRoof": "wood-shingle",
+      "trees": 1651
+    }
+  },
+  "post-off": {
+    "schemaVersion": 1,
+    "fixtureId": "gorski-kotar-parish-lane-1550",
+    "routeId": "gorski-kotar-lod-traverse-v1",
+    "routeDurationMs": 21000,
+    "ablation": {
+      "id": "post-off",
+      "disabledSubsystems": [
+        "post"
+      ],
+      "forestSelection": "budgeted"
+    },
+    "protocol": {
+      "requested": true,
+      "valid": true,
+      "cssViewport": {
+        "width": 1280,
+        "height": 720
+      },
+      "drawingBuffer": {
+        "width": 1280,
+        "height": 720
+      },
+      "rendererPixelRatio": 1,
+      "expected": "1280x720@renderer-pr1"
+    },
+    "performanceReport": {
+      "status": "ready",
+      "elapsedSeconds": 30,
+      "sampleCount": 1497,
+      "metrics": {
+        "medianFps": 55.24861878452372,
+        "onePercentLowFps": 8.87049083382612,
+        "meanFps": 49.89700617962923,
+        "p99FrameMs": 112.73333333333358,
+        "maxFrameMs": 236.40000000000146,
+        "framesOver25Ms": 353,
+        "framesOver50Ms": 30
+      },
+      "renderer": {
+        "medianDrawCalls": 176,
+        "medianFrameCalls": 3,
+        "medianTriangles": 2668921
+      },
+      "context": {
+        "backend": "webgpu",
+        "viewport": {
+          "width": 1280,
+          "height": 720
+        },
+        "devicePixelRatio": 1.5,
+        "rendererPixelRatio": 1,
+        "visibility": "visible",
+        "adapter": {
+          "source": "webgpu-adapter-info",
+          "identityStatus": "available",
+          "fallbackStatus": "non-fallback",
+          "vendor": "nvidia",
+          "architecture": "lovelace",
+          "device": null,
+          "description": null,
+          "isFallbackAdapter": false,
+          "limitations": []
+        },
+        "subsystems": {
+          "post": false,
+          "sky": true,
+          "shadows": true,
+          "river": false,
+          "riverSimulation": false,
+          "riverRender": false,
+          "precipitation": false,
+          "selection": false,
+          "preview": false,
+          "terrain": true,
+          "groundcover": true,
+          "forest": true,
+          "ui": true
+        }
+      },
+      "schemaVersion": 1,
+      "windowSeconds": 30
+    },
+    "forestWork": {
+      "mode": "budgeted-one-species",
+      "maxBucketCompactionsPerFrame": 1,
+      "minimumCameraMoveMeters": 8,
+      "minimumDirectionAngleDegrees": 2.5,
+      "totalBucketCompactions": 639,
+      "selectionChanges": 630,
+      "pendingBuckets": 2,
+      "maxUpdateDurationMs": 19.600000001490116,
+      "phases": {
+        "strategic": {
+          "frames": 807,
+          "selectionChanges": 395,
+          "bucketCompactions": 424,
+          "maxUpdateDurationMs": 19.600000001490116
+        },
+        "settlement": {
+          "frames": 692,
+          "selectionChanges": 235,
+          "bucketCompactions": 215,
+          "maxUpdateDurationMs": 13.899999998509884
+        },
+        "road-eye": {
+          "frames": 0,
+          "selectionChanges": 0,
+          "bucketCompactions": 0,
+          "maxUpdateDurationMs": 0
+        }
+      },
+      "converged": false
+    },
+    "content": {
+      "residences": 17,
+      "residenceRoof": "wood-shingle",
+      "trees": 1651
+    }
+  },
+  "shadows-off": {
+    "schemaVersion": 1,
+    "fixtureId": "gorski-kotar-parish-lane-1550",
+    "routeId": "gorski-kotar-lod-traverse-v1",
+    "routeDurationMs": 21000,
+    "ablation": {
+      "id": "shadows-off",
+      "disabledSubsystems": [
+        "shadows"
+      ],
+      "forestSelection": "budgeted"
+    },
+    "protocol": {
+      "requested": true,
+      "valid": true,
+      "cssViewport": {
+        "width": 1280,
+        "height": 720
+      },
+      "drawingBuffer": {
+        "width": 1280,
+        "height": 720
+      },
+      "rendererPixelRatio": 1,
+      "expected": "1280x720@renderer-pr1"
+    },
+    "performanceReport": {
+      "status": "ready",
+      "elapsedSeconds": 30,
+      "sampleCount": 1699,
+      "metrics": {
+        "medianFps": 55.24861878453483,
+        "onePercentLowFps": 11.174653257082749,
+        "meanFps": 56.63012429295673,
+        "p99FrameMs": 89.48823529411771,
+        "maxFrameMs": 200.10000000000218,
+        "framesOver25Ms": 244,
+        "framesOver50Ms": 21
+      },
+      "renderer": {
+        "medianDrawCalls": 110,
+        "medianFrameCalls": 14,
+        "medianTriangles": 1482561
+      },
+      "context": {
+        "backend": "webgpu",
+        "viewport": {
+          "width": 1280,
+          "height": 720
+        },
+        "devicePixelRatio": 1.5,
+        "rendererPixelRatio": 1,
+        "visibility": "visible",
+        "adapter": {
+          "source": "webgpu-adapter-info",
+          "identityStatus": "available",
+          "fallbackStatus": "non-fallback",
+          "vendor": "nvidia",
+          "architecture": "lovelace",
+          "device": null,
+          "description": null,
+          "isFallbackAdapter": false,
+          "limitations": []
+        },
+        "subsystems": {
+          "post": true,
+          "sky": true,
+          "shadows": false,
+          "river": false,
+          "riverSimulation": false,
+          "riverRender": false,
+          "precipitation": false,
+          "selection": false,
+          "preview": false,
+          "terrain": true,
+          "groundcover": true,
+          "forest": true,
+          "ui": true
+        }
+      },
+      "schemaVersion": 1,
+      "windowSeconds": 30
+    },
+    "forestWork": {
+      "mode": "budgeted-one-species",
+      "maxBucketCompactionsPerFrame": 1,
+      "minimumCameraMoveMeters": 8,
+      "minimumDirectionAngleDegrees": 2.5,
+      "totalBucketCompactions": 722,
+      "selectionChanges": 724,
+      "pendingBuckets": 2,
+      "maxUpdateDurationMs": 21,
+      "phases": {
+        "strategic": {
+          "frames": 941,
+          "selectionChanges": 452,
+          "bucketCompactions": 477,
+          "maxUpdateDurationMs": 14.700000002980232
+        },
+        "settlement": {
+          "frames": 764,
+          "selectionChanges": 272,
+          "bucketCompactions": 245,
+          "maxUpdateDurationMs": 10.799999997019768
+        },
+        "road-eye": {
+          "frames": 0,
+          "selectionChanges": 0,
+          "bucketCompactions": 0,
+          "maxUpdateDurationMs": 0
+        }
+      },
+      "converged": false
+    },
+    "content": {
+      "residences": 17,
+      "residenceRoof": "wood-shingle",
+      "trees": 1651
+    }
+  },
+  "forest-render-off": {
+    "schemaVersion": 1,
+    "fixtureId": "gorski-kotar-parish-lane-1550",
+    "routeId": "gorski-kotar-lod-traverse-v1",
+    "routeDurationMs": 21000,
+    "ablation": {
+      "id": "forest-render-off",
+      "disabledSubsystems": [
+        "forest"
+      ],
+      "forestSelection": "disabled"
+    },
+    "protocol": {
+      "requested": true,
+      "valid": true,
+      "cssViewport": {
+        "width": 1280,
+        "height": 720
+      },
+      "drawingBuffer": {
+        "width": 1280,
+        "height": 720
+      },
+      "rendererPixelRatio": 1,
+      "expected": "1280x720@renderer-pr1"
+    },
+    "performanceReport": {
+      "status": "ready",
+      "elapsedSeconds": 30,
+      "sampleCount": 2641,
+      "metrics": {
+        "medianFps": 82.64462809918349,
+        "onePercentLowFps": 22.033621674555384,
+        "meanFps": 88.02805165023432,
+        "p99FrameMs": 45.3851851851849,
+        "maxFrameMs": 103.09999999999854,
+        "framesOver25Ms": 23,
+        "framesOver50Ms": 9
+      },
+      "renderer": {
+        "medianDrawCalls": 115,
+        "medianFrameCalls": 15,
+        "medianTriangles": 460997
+      },
+      "context": {
+        "backend": "webgpu",
+        "viewport": {
+          "width": 1280,
+          "height": 720
+        },
+        "devicePixelRatio": 1.5,
+        "rendererPixelRatio": 1,
+        "visibility": "visible",
+        "adapter": {
+          "source": "webgpu-adapter-info",
+          "identityStatus": "available",
+          "fallbackStatus": "non-fallback",
+          "vendor": "nvidia",
+          "architecture": "lovelace",
+          "device": null,
+          "description": null,
+          "isFallbackAdapter": false,
+          "limitations": []
+        },
+        "subsystems": {
+          "post": true,
+          "sky": true,
+          "shadows": true,
+          "river": false,
+          "riverSimulation": false,
+          "riverRender": false,
+          "precipitation": false,
+          "selection": false,
+          "preview": false,
+          "terrain": true,
+          "groundcover": true,
+          "forest": false,
+          "ui": true
+        }
+      },
+      "schemaVersion": 1,
+      "windowSeconds": 30
+    },
+    "forestWork": {
+      "mode": "disabled",
+      "maxBucketCompactionsPerFrame": 1,
+      "minimumCameraMoveMeters": 8,
+      "minimumDirectionAngleDegrees": 2.5,
+      "totalBucketCompactions": 0,
+      "selectionChanges": 0,
+      "pendingBuckets": 0,
+      "maxUpdateDurationMs": 0,
+      "phases": {
+        "strategic": {
+          "frames": 1567,
+          "selectionChanges": 0,
+          "bucketCompactions": 0,
+          "maxUpdateDurationMs": 0
+        },
+        "settlement": {
+          "frames": 1114,
+          "selectionChanges": 0,
+          "bucketCompactions": 0,
+          "maxUpdateDurationMs": 0
+        },
+        "road-eye": {
+          "frames": 0,
+          "selectionChanges": 0,
+          "bucketCompactions": 0,
+          "maxUpdateDurationMs": 0
+        }
+      },
+      "converged": true
+    },
+    "content": {
+      "residences": 17,
+      "residenceRoof": "wood-shingle",
+      "trees": 1651
+    }
+  },
+  "heavy-render-off": {
+    "schemaVersion": 1,
+    "fixtureId": "gorski-kotar-parish-lane-1550",
+    "routeId": "gorski-kotar-lod-traverse-v1",
+    "routeDurationMs": 21000,
+    "ablation": {
+      "id": "heavy-render-off",
+      "disabledSubsystems": [
+        "groundcover",
+        "post",
+        "shadows",
+        "forest"
+      ],
+      "forestSelection": "disabled"
+    },
+    "protocol": {
+      "requested": true,
+      "valid": true,
+      "cssViewport": {
+        "width": 1280,
+        "height": 720
+      },
+      "drawingBuffer": {
+        "width": 1280,
+        "height": 720
+      },
+      "rendererPixelRatio": 1,
+      "expected": "1280x720@renderer-pr1"
+    },
+    "performanceReport": {
+      "status": "ready",
+      "elapsedSeconds": 30,
+      "sampleCount": 3146,
+      "metrics": {
+        "medianFps": 163.93442622935177,
+        "onePercentLowFps": 39.40886699507442,
+        "meanFps": 104.83905904778409,
+        "p99FrameMs": 25.37499999999966,
+        "maxFrameMs": 30.400000000001455,
+        "framesOver25Ms": 6,
+        "framesOver50Ms": 0
+      },
+      "renderer": {
+        "medianDrawCalls": 64,
+        "medianFrameCalls": 2,
+        "medianTriangles": 370555
+      },
+      "context": {
+        "backend": "webgpu",
+        "viewport": {
+          "width": 1280,
+          "height": 720
+        },
+        "devicePixelRatio": 1.5,
+        "rendererPixelRatio": 1,
+        "visibility": "visible",
+        "adapter": {
+          "source": "webgpu-adapter-info",
+          "identityStatus": "available",
+          "fallbackStatus": "non-fallback",
+          "vendor": "nvidia",
+          "architecture": "lovelace",
+          "device": null,
+          "description": null,
+          "isFallbackAdapter": false,
+          "limitations": []
+        },
+        "subsystems": {
+          "post": false,
+          "sky": true,
+          "shadows": false,
+          "river": false,
+          "riverSimulation": false,
+          "riverRender": false,
+          "precipitation": false,
+          "selection": false,
+          "preview": false,
+          "terrain": true,
+          "groundcover": false,
+          "forest": false,
+          "ui": true
+        }
+      },
+      "schemaVersion": 1,
+      "windowSeconds": 30
+    },
+    "forestWork": {
+      "mode": "disabled",
+      "maxBucketCompactionsPerFrame": 1,
+      "minimumCameraMoveMeters": 8,
+      "minimumDirectionAngleDegrees": 2.5,
+      "totalBucketCompactions": 0,
+      "selectionChanges": 0,
+      "pendingBuckets": 0,
+      "maxUpdateDurationMs": 0,
+      "phases": {
+        "strategic": {
+          "frames": 1778,
+          "selectionChanges": 0,
+          "bucketCompactions": 0,
+          "maxUpdateDurationMs": 0
+        },
+        "settlement": {
+          "frames": 1399,
+          "selectionChanges": 0,
+          "bucketCompactions": 0,
+          "maxUpdateDurationMs": 0
+        },
+        "road-eye": {
+          "frames": 0,
+          "selectionChanges": 0,
+          "bucketCompactions": 0,
+          "maxUpdateDurationMs": 0
+        }
+      },
+      "converged": true
+    },
+    "content": {
+      "residences": 17,
+      "residenceRoof": "wood-shingle",
+      "trees": 1651
+    }
+  }
+}

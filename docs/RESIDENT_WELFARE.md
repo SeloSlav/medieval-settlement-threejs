@@ -11,9 +11,18 @@ housing capacity.
   first, with charcoal accepted as a household fallback after smithy buffers
   are supplied. Food shortage advances through hungry, malnourished, and
   starving stages. Water and cold exposure increase illness risk.
-- Tier 2 continues those needs and adds cloth plus a second food category.
-  Tier 3 requires three food categories, preserved food, ale, pottery, and a
-  tier-2 stone church while retaining the lower-tier obligations.
+- Tier 2 continues those needs and adds a grain staple plus another food
+  category, beverages, and cloth while retaining the level-1 church standard.
+  Tier 3 adds shoes, expands the food standard to grain, produce or forage,
+  land-animal food, and fish, and requires a level-2 stone church. Tier 4 adds
+  cured provisions, pottery, luxury goods, the complete food standard, and a
+  level-3 church while retaining the lower-tier obligations.
+- Promotion checks only the needs active at the household's current tier. New
+  target-tier needs activate after the physical improvement works complete and
+  receive the normal three-day logistics grace period before warnings. Goods
+  staged at the proper Marketplace or Tavern count regardless of whether they
+  were made locally or imported; promotion never requires a named local
+  producer building.
 - Food variety counts categories rather than labels in the pantry: grains,
   vegetables, fruits, animal produce, meats, fish, foraged foods, and honey.
   Apples and legacy cherries therefore do not count twice, nor do milk, eggs,

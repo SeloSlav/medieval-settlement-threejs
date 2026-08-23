@@ -102,7 +102,7 @@ assert.ok(residenceView, 'the fixed residence material judge must retain the res
 assert.equal(HAMLET_RESIDENCE_VIEW_SUBJECT_ID, 'west-lane-south-residence-1');
 assert.deepEqual(residenceView.position, [-25.2, 3, 23]);
 assert.deepEqual(residenceView.target, [-22.3, 3.5, 35.9]);
-assert.equal(residenceView.fov, 43);
+assert.equal(residenceView.fov, 39.8);
 assert.equal(residenceView.firstPerson, true);
 const residenceViewPosition = new THREE.Vector3(...residenceView.position);
 const residenceViewTarget = new THREE.Vector3(...residenceView.target);
@@ -1871,7 +1871,7 @@ const sampleEnvelope = createHamletFixtureEvidenceEnvelope({
   routeWarmup: sampleRouteWarmup,
   content: {
     residences: 17,
-    residenceRoof: 'wood-shingle',
+    residenceRoof: 'tier-1-bundled-thatch',
     trees: 10_000,
     visibleTrees: 2_000,
     forestDraws: 12,
@@ -2756,7 +2756,7 @@ const noUpdateEnvelope = createHamletFixtureEvidenceEnvelope({
   routeWarmup: sampleRouteWarmup,
   content: {
     residences: 17,
-    residenceRoof: 'wood-shingle',
+    residenceRoof: 'tier-1-bundled-thatch',
     trees: 10_000,
     visibleTrees: 2_000,
     forestDraws: 12,
@@ -3080,7 +3080,7 @@ const frozenForestUpdateEnvelope = createHamletFixtureEvidenceEnvelope({
   routeWarmup: sampleRouteWarmup,
   content: {
     residences: 17,
-    residenceRoof: 'wood-shingle',
+    residenceRoof: 'tier-1-bundled-thatch',
     trees: 10_000,
     visibleTrees: 2_000,
     forestDraws: 12,
@@ -3244,7 +3244,7 @@ const warmRouteEnvelope = createHamletFixtureEvidenceEnvelope({
   },
   content: {
     residences: 17,
-    residenceRoof: 'wood-shingle',
+    residenceRoof: 'tier-1-bundled-thatch',
     trees: 10_000,
     visibleTrees: 2_000,
     forestDraws: 12,
@@ -3303,7 +3303,7 @@ const pendingEnvelope = createHamletFixtureEvidenceEnvelope({
   routeWarmup: sampleRouteWarmup,
   content: {
     residences: 17,
-    residenceRoof: 'wood-shingle',
+    residenceRoof: 'tier-1-bundled-thatch',
     trees: 10_000,
     visibleTrees: 2_000,
     forestDraws: 12,
@@ -3340,7 +3340,7 @@ const unsettledCheckpointEnvelope = createHamletFixtureEvidenceEnvelope({
   routeWarmup: sampleRouteWarmup,
   content: {
     residences: 17,
-    residenceRoof: 'wood-shingle',
+    residenceRoof: 'tier-1-bundled-thatch',
     trees: 10_000,
     visibleTrees: 2_000,
     forestDraws: 12,
@@ -3470,9 +3470,9 @@ assert.ok(
 );
 assert.ok(
   batchedHamlet.group.children.some((object) => (
-    (object as THREE.Mesh).material?.name === 'Shared building material: shingle'
+    (object as THREE.Mesh).material?.name === 'Shared building material: thatch'
   )),
-  'the batched 17-home fabric must retain its wooden shingle material',
+  'the batched 17-home Tier-1 fabric must retain its bundled-thatch material',
 );
 assert.ok(
   batchedHamlet.group.children.every((object) => (
@@ -3860,11 +3860,39 @@ assert.match(
   /routeUpdatePairCanonicalUpdatesEnabled =\s*currentTreatment\s*!== HAMLET_FROZEN_UPDATE_DIRECT_RENDER_TREATMENT;/,
   'the randomized treatment identity must control only one canonical update gate',
 );
-assert.match(
-  fixtureSource,
-  /const canonicalSceneUpdateBlockEnabled =\s*!routeUpdatePairTreatmentActive\s*\|\| routeUpdatePairCanonicalUpdatesEnabled;\s*if \(canonicalSceneUpdateBlockEnabled\) \{[\s\S]*?sampleHamletMotionRoute\(elapsed\)[\s\S]*?updateSceneLods\([\s\S]*?sky\.updateCamera\(camera\);\s*sky\.updateSun\(sunDirection\);\s*sky\.updateTime\(fixtureTimeSeconds\);[\s\S]*?routeUpdatePairCoordinator!\.recordCompletedCanonicalUpdateBlock\(\{[\s\S]*?\n    \}\s*if \(frameCpuStartedAtMs === null\)/,
-  'only the complete canonical route/LOD/scene/sky update block may differ between paired arms',
+const canonicalSceneUpdateStart = fixtureSource.indexOf(
+  'const canonicalSceneUpdateBlockEnabled =',
 );
+const canonicalSceneUpdateEnd = fixtureSource.indexOf(
+  'if (frameCpuStartedAtMs === null) {',
+  canonicalSceneUpdateStart,
+);
+assert.ok(
+  canonicalSceneUpdateStart >= 0 && canonicalSceneUpdateEnd > canonicalSceneUpdateStart,
+  'the canonical route/LOD/scene/sky update block must remain inspectable',
+);
+const canonicalSceneUpdateBlock = fixtureSource.slice(
+  canonicalSceneUpdateStart,
+  canonicalSceneUpdateEnd,
+);
+assert.match(
+  canonicalSceneUpdateBlock,
+  /const canonicalSceneUpdateBlockEnabled =\s*!routeUpdatePairTreatmentActive\s*\|\| routeUpdatePairCanonicalUpdatesEnabled;\s*if \(canonicalSceneUpdateBlockEnabled\) \{/,
+  'the randomized route-update treatment must own the complete canonical update gate',
+);
+for (const requiredCanonicalUpdate of [
+  'sampleHamletMotionRoute(elapsed)',
+  'updateSceneLods(',
+  'sky.updateCamera(camera)',
+  'sky.updateSun(sunDirection)',
+  'sky.updateTime(fixtureTimeSeconds)',
+  'routeUpdatePairCoordinator!.recordCompletedCanonicalUpdateBlock({',
+]) {
+  assert.ok(
+    canonicalSceneUpdateBlock.includes(requiredCanonicalUpdate),
+    `the canonical paired block must retain ${requiredCanonicalUpdate}`,
+  );
+}
 const routeLodSkyDirectRenderTickBranch = fixtureSource.slice(
   fixtureSource.indexOf('if (routeLodSkyTreatmentActive) {'),
   fixtureSource.indexOf('if (frameCpuStartedAtMs === null) {'),
@@ -4106,11 +4134,15 @@ assert.match(
 const packageSource = readFileSync('package.json', 'utf8');
 const runAllSource = readFileSync('scripts/run-all-tests.mts', 'utf8');
 assert.ok(packageSource.includes('"test:hamlet-fixture"'));
-assert.ok(runAllSource.includes("'test:hamlet-fixture'"));
+assert.match(
+  runAllSource,
+  /Object\.keys\(manifest\.scripts \?\? \{\}\)[\s\S]*?script\.startsWith\('test:'\)/,
+  'the exhaustive dynamic aggregator must discover the Hamlet fixture from package scripts',
+);
 
 console.log(
   `hamlet fixture tests passed (${HAMLET_VIEW_IDS.length} views, `
-  + `${HAMLET_ZONE_SPECS.reduce((sum, zone) => sum + zone.plotCount, 0)} wood-roof residences, `
+  + `${HAMLET_ZONE_SPECS.reduce((sum, zone) => sum + zone.plotCount, 0)} bundled-thatch residences, `
   + `${HAMLET_FIELD_SPECS.length} fields)`,
 );
 

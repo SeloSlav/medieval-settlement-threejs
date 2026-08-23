@@ -3,6 +3,7 @@ import {
   constructionSourceAvailableStock,
   selectConstructionRouteSource,
 } from '../../logistics/constructionLogistics.ts';
+import { constructionLaborReady } from '../../economy/constructionLabor.ts';
 import { getBuildingDefinition } from '../buildings.ts';
 import type { BuildingState, InspectableTarget } from '../types.ts';
 import { buildingLaborView, buildingRoadAccessRow } from './buildingCommon.ts';
@@ -20,7 +21,9 @@ type SupplyResolution = {
   state:
     | 'ready-free'
     | 'ready-staffed'
+    | 'ready-builder'
     | 'busy'
+    | 'builder-returning'
     | 'no-hauler'
     | 'unreachable'
     | 'fire-disabled'
@@ -81,6 +84,9 @@ export function renderConstructionInspector(
     ? resolveConstructionSupply(context, building, pendingMaterial)
     : null;
   const origin = inbound ? context.worldQueries.getBuilding(inbound.buildingId) : null;
+  const siteBuilderTrip = [...context.gameState.deliveryTrips.values()].find(
+    (trip) => trip.laborBuildingId === building.id,
+  ) ?? null;
 
   let statusText = `${progress}% built`;
   let statusState = 'active';
@@ -93,7 +99,11 @@ export function renderConstructionInspector(
   } else if (inbound) {
     const sourceLabel = origin ? getBuildingDefinition(origin.kind).label : 'material source';
     const amount = `${formatAmount(inbound.amount)} ${inbound.cargoKind}`;
-    if (inbound.phase === 'unloading') {
+    if (inbound.laborBuildingId === building.id && inbound.phase === 'unloading') {
+      statusText = `Site builder unloading ${amount} from ${sourceLabel}`;
+    } else if (inbound.laborBuildingId === building.id) {
+      statusText = `Site builder bringing ${amount} from ${sourceLabel}`;
+    } else if (inbound.phase === 'unloading') {
       statusText = `Unloading ${amount} from ${sourceLabel}`;
     } else if (origin?.assignedLabor === 0) {
       statusText = `Unassigned hauler bringing ${amount} from ${sourceLabel}`;
@@ -116,9 +126,15 @@ export function renderConstructionInspector(
           ? `Storehouse crew preparing ${amount}`
           : `${sourceLabel} crew preparing ${amount}`;
         break;
+      case 'ready-builder':
+        statusText = `Site builder fetching ${amount} from ${sourceLabel}`;
+        break;
       case 'busy':
         statusText = `Waiting for a free cart at ${sourceLabel}`;
         statusState = 'warning';
+        break;
+      case 'builder-returning':
+        statusText = `Site builder returning with the cart — next load is ${amount} at ${sourceLabel}`;
         break;
       case 'no-hauler':
         statusText = `Waiting for an unassigned hauler — ${amount} is at ${sourceLabel}`;
@@ -184,7 +200,12 @@ export function renderConstructionInspector(
       label: 'Cancel construction',
       hint: 'Cancels the worksite. Undelivered reservations are released; used materials remain here at the usual salvage rate, and carts already en route finish at the reclamation pile.',
     },
-    labor: buildingLaborView(building, context.populationStats, context.worldQueries),
+    labor: buildingLaborView(
+      building,
+      context.populationStats,
+      context.worldQueries,
+      siteBuilderTrip,
+    ),
     supplementalPanelHtml: priorityControls,
   };
 }
@@ -207,6 +228,13 @@ function resolveConstructionSupply(
   // freeHaulerWorkers reservation. Subtracting visible carts again makes the
   // inspector hide a genuinely available second founding hauler.
   const freeHaulers = Math.max(0, context.populationStats.available);
+  const siteBuilderCartActive = [...context.gameState.deliveryTrips.values()].some(
+    (trip) => trip.laborBuildingId === site.id,
+  );
+  const siteBuilderCanHaul = freeHaulers <= 0
+    && site.assignedLabor > 0
+    && !constructionLaborReady(site)
+    && !siteBuilderCartActive;
   const sources = [...context.gameState.buildings.values()].filter((source) =>
     source.id !== site.id
     && source.constructionComplete !== false
@@ -249,7 +277,11 @@ function resolveConstructionSupply(
       busy.push(source);
       continue;
     }
-    if (source.assignedLabor > 0 || freeHaulers > 0) readySources.push(source);
+    if (
+      (source.kind === 'village_storehouse' && source.assignedLabor > 0)
+      || freeHaulers > 0
+      || siteBuilderCanHaul
+    ) readySources.push(source);
     else waitingForLabor.push(source);
   }
 
@@ -257,8 +289,14 @@ function resolveConstructionSupply(
     routeDistances.get(source.id) ?? null;
   const ready = selectConstructionRouteSource(readySources, routeDistanceFor);
   if (ready) {
+    const staffedStorehouse = ready.source.kind === 'village_storehouse'
+      && ready.source.assignedLabor > 0;
     return {
-      state: ready.source.assignedLabor > 0 ? 'ready-staffed' : 'ready-free',
+      state: staffedStorehouse
+        ? 'ready-staffed'
+        : freeHaulers > 0
+          ? 'ready-free'
+          : 'ready-builder',
       source: ready.source,
       routeDistance: ready.routeDistance,
     };
@@ -267,7 +305,9 @@ function resolveConstructionSupply(
   const waiting = selectConstructionRouteSource(waitingForLabor, routeDistanceFor);
   if (waiting) {
     return {
-      state: 'no-hauler',
+      state: siteBuilderCartActive && !constructionLaborReady(site)
+        ? 'builder-returning'
+        : 'no-hauler',
       source: waiting.source,
       routeDistance: waiting.routeDistance,
     };

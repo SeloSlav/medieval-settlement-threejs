@@ -16,6 +16,7 @@ import {
   backyardGardenMarketChannels,
   backyardGardenPhenology,
   backyardGardenSeasonalMultiplier,
+  splitBackyardOrchardHarvest,
 } from '../src/economy/backyardGardenTick.ts';
 import {
   computeSettlementBackyardEconomyPlan,
@@ -68,6 +69,15 @@ function residence(
     food: 20,
   };
 }
+
+const conservedJamHarvest = splitBackyardOrchardHarvest(10, 4);
+assert.deepEqual(conservedJamHarvest, { freshFruit: 6, jam: 4 });
+assert.equal(conservedJamHarvest.freshFruit + conservedJamHarvest.jam, 10);
+assert.deepEqual(splitBackyardOrchardHarvest(2, 8), { freshFruit: 0, jam: 2 });
+assert.deepEqual(splitBackyardOrchardHarvest(Number.NaN, Number.POSITIVE_INFINITY), {
+  freshFruit: 0,
+  jam: 0,
+});
 
 function garden(
   id: string,
@@ -811,7 +821,11 @@ assert.match(
   /backyard_garden_seasonal_multiplier\(kind, clock\.month, environment\)/,
 );
 assert.match(serverStepSource, /garden\.first_harvest_day > clock\.total_days/);
-assert.match(serverStepSource, /def\.jam_per_person_per_sec[\s\S]*backyard_jam_commodity[\s\S]*distribute_backyard_food/);
+assert.match(
+  serverStepSource,
+  /gross_fruit[\s\S]*jam_target[\s\S]*split_backyard_orchard_harvest[\s\S]*backyard_jam_commodity[\s\S]*orchard_harvest\.jam/,
+  'jam must consume a bounded share of the same physical fruit harvest',
+);
 assert.match(serverStepSource, /AroniaOrchard => Some\(CommodityKind::AroniaJam\)/);
 assert.match(serverStepSource, /RosehipOrchard => Some\(CommodityKind::RosehipJam\)/);
 assert.match(serverPolicySource, /AppleOrchard \| CherryOrchard \| PearOrchard/);

@@ -291,7 +291,7 @@ mod tests {
                 let elapsed_days = (year - 1) * u64::from(CALENDAR_DAYS_PER_MONTH * 12)
                     + u64::from(CALENDAR_DAYS_PER_MONTH * 3)
                     + summer_day;
-                let clock = crate::game_calendar::game_clock(elapsed_days * day_ticks);
+                let clock = crate::simulation::game_clock(elapsed_days * day_ticks);
                 assert_ne!(
                     environment_for(12_345, 35, false, &clock).weather,
                     WeatherKind::Drought

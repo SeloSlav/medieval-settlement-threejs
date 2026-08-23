@@ -160,7 +160,7 @@ assert.equal(connectedQueries.isResidenceInMonasteryCoverage(home), true);
 assert.equal(
   connectedQueries.getLuxuryUpgradeSupplierForResidence(home),
   null,
-  'an empty Marketplace must not unlock Tier-4 luxury demand',
+  'an empty Marketplace must not appear as a future Tier-4 luxury preparation route',
 );
 const luxuryMarketplace = { ...marketplace, honey: 2 };
 const luxuryMarketState = {
@@ -173,7 +173,7 @@ const luxuryMarketState = {
 assert.equal(
   new StubWorldQueries(true, luxuryMarketState).getLuxuryUpgradeSupplierForResidence(home)?.id,
   luxuryMarketplace.id,
-  'a stocked reachable luxury Marketplace must qualify for Tier-4 promotion',
+  'a stocked reachable luxury Marketplace should appear in the future Tier-4 preparation preview',
 );
 
 const unstaffedState = {

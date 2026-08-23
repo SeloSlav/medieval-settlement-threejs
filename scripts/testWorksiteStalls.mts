@@ -6,6 +6,11 @@ import {
   computeSettlementWorksiteStallPlan,
 } from '../src/economy/settlementWorksiteStalls.ts';
 import {
+  BREWERY_RECIPE_ALE,
+  BREWERY_RECIPE_AUTO,
+  BREWERY_RECIPE_CIDER,
+} from '../src/economy/breweryRecipePolicy.ts';
+import {
   BUILDING_DEFINITIONS,
   type BuildingKind,
 } from '../src/generated/gameBalance.ts';
@@ -32,7 +37,7 @@ cappedBrewery.ale = 50;
 const starvedWeaver = building('20', 'weaver', 2, 20, 0);
 starvedWeaver.constructionPriority = 3;
 const partialMill = building('30', 'watermill', 1, 40, 0);
-partialMill.grain = 0.1;
+partialMill.ryeGrain = 0.1;
 const suppliedMill = building('40', 'watermill', 2, 60, 0);
 const fullQuarry = building('50', 'stone_quarry', 4, 100, 0);
 fullQuarry.processorOutputTargetPercent = 25;
@@ -71,7 +76,7 @@ for (const site of [
 
 state.deliveryTrips.set(
   'grain-inbound',
-  trip('grain-inbound', 'granary-source', suppliedMill.id, 'grain'),
+  trip('grain-inbound', 'granary-source', suppliedMill.id, 'ryeGrain'),
 );
 state.deliveryTrips.set(
   'stone-outbound',
@@ -99,8 +104,8 @@ assert.equal(winterPlan.auditedSites, 10);
 assert.equal(winterPlan.stalledSites, 6);
 assert.equal(winterPlan.stalledWorkers, 21);
 assert.equal(winterPlan.inputStalledSites, 1);
-assert.equal(winterPlan.outputStalledSites, 2);
-assert.equal(winterPlan.sourceStalledSites, 2);
+assert.equal(winterPlan.outputStalledSites, 1);
+assert.equal(winterPlan.sourceStalledSites, 3);
 assert.equal(winterPlan.reserveStalledSites, 1);
 assert.equal(winterPlan.dispatchDutySites, 2);
 assert.equal(winterPlan.reclaimableSites, 6);
@@ -108,9 +113,9 @@ assert.equal(winterPlan.reclaimableWorkers, 21);
 assert.equal(winterPlan.retainedDispatchers, 0);
 assert.equal(winterPlan.supplyEnRouteSites, 1);
 assert.equal(winterPlan.supplyEnRouteWorkers, 2);
-assert.equal(winterPlan.firstReclaimableBuildingId, starvedWeaver.id);
-assert.equal(winterPlan.firstAttention?.buildingId, starvedWeaver.id);
-assert.equal(winterPlan.firstAttention?.detail, 'no wool or flax on site');
+assert.equal(winterPlan.firstReclaimableBuildingId, cappedBrewery.id);
+assert.equal(winterPlan.firstAttention?.buildingId, cappedBrewery.id);
+assert.equal(winterPlan.firstAttention?.detail, 'ale output target reached');
 assert.equal(
   winterPlan.sites.find((site) => site.buildingId === reserveHunter.id)?.assignedWorkers,
   3,
@@ -129,7 +134,7 @@ assert.equal(
 assert.equal(
   winterPlan.sites.find((site) => site.buildingId === fullQuarry.id)?.targetLabor,
   0,
-  'a quarry cart already on the road must not retain a producer',
+  'stored stone and a quarry cart already on the road must not retain a producer after the workface is exhausted',
 );
 const recalled = applyWorksiteStallRecall(state.buildings, winterPlan);
 assert.equal(recalled.get(cappedBrewery.id)?.assignedLabor, 0);
@@ -144,7 +149,7 @@ assert.equal(state.buildings.get(fullQuarry.id)?.assignedLabor, 4);
 const summerPlan = computeSettlementWorksiteStallPlan(state, 7);
 assert.equal(summerPlan.auditedSites, 11);
 assert.equal(summerPlan.stalledSites, 7);
-assert.equal(summerPlan.sourceStalledSites, 3);
+assert.equal(summerPlan.sourceStalledSites, 4);
 assert.equal(
   summerPlan.sites.find((site) => site.buildingId === winterFishingCamp.id)?.detail,
   'no fish population lies within the work area',
@@ -197,7 +202,7 @@ assert.equal(
   materialPlan.sites.find(
     (site) => site.buildingId === saltAndPotteryStarvedSmokehouse.id,
   )?.detail,
-  'no salt or pottery on site',
+  'missing salt and pottery on site',
   'the labor steward must not treat fresh food and firewood as a complete preservation recipe',
 );
 assert.equal(
@@ -251,6 +256,108 @@ assert.equal(
   ),
   false,
   'every missing preservation input approaching by cart must protect the crew',
+);
+
+const recipeState = emptyGameState();
+const maslinMill = building('recipe-maslin-mill', 'watermill', 1, 0, 0);
+maslinMill.maslinGrain = 0.1;
+const oatOnlyMill = building('recipe-oat-mill', 'windmill', 1, 20, 0);
+oatOnlyMill.oatGrain = 8;
+const maslinBakery = building('recipe-maslin-bakery', 'bakery', 1, 40, 0);
+maslinBakery.maslinFlour = 0.1;
+maslinBakery.water = 0.1;
+maslinBakery.firewood = 0.1;
+const recoveringBakery = building('recipe-recovering-bakery', 'bakery', 1, 60, 0);
+recoveringBakery.ryeFlour = 0.1;
+recoveringBakery.firewood = 0.1;
+const ciderBrewery = building('recipe-cider-brewery', 'brewery', 1, 80, 0);
+ciderBrewery.breweryRecipePolicy = BREWERY_RECIPE_CIDER;
+ciderBrewery.apples = 0.1;
+const aleBrewery = building('recipe-ale-brewery', 'brewery', 1, 100, 0);
+aleBrewery.breweryRecipePolicy = BREWERY_RECIPE_ALE;
+aleBrewery.malt = 0.1;
+aleBrewery.water = 0.1;
+aleBrewery.firewood = 0.1;
+const autoBrewery = building('recipe-auto-brewery', 'brewery', 1, 120, 0);
+autoBrewery.breweryRecipePolicy = BREWERY_RECIPE_AUTO;
+autoBrewery.pears = 0.1;
+const typedSmokehouse = building('recipe-typed-smokehouse', 'smokehouse', 1, 140, 0);
+typedSmokehouse.meat = 0.1;
+typedSmokehouse.firewood = 0.1;
+typedSmokehouse.salt = 0.1;
+typedSmokehouse.pottery = 0.1;
+const recoveringTypedSmokehouse = building(
+  'recipe-recovering-smokehouse',
+  'smokehouse',
+  1,
+  160,
+  0,
+);
+recoveringTypedSmokehouse.fish = 0.1;
+for (const site of [
+  maslinMill,
+  oatOnlyMill,
+  maslinBakery,
+  recoveringBakery,
+  ciderBrewery,
+  aleBrewery,
+  autoBrewery,
+  typedSmokehouse,
+  recoveringTypedSmokehouse,
+]) {
+  recipeState.buildings.set(site.id, site);
+}
+recipeState.deliveryTrips.set(
+  'recipe-bakery-water',
+  trip('recipe-bakery-water', 'well', recoveringBakery.id, 'water'),
+);
+for (const commodity of ['firewood', 'salt', 'pottery'] as const) {
+  recipeState.deliveryTrips.set(
+    `recipe-smokehouse-${commodity}`,
+    trip(
+      `recipe-smokehouse-${commodity}`,
+      `source-${commodity}`,
+      recoveringTypedSmokehouse.id,
+      commodity,
+    ),
+  );
+}
+const recipePlan = computeSettlementWorksiteStallPlan(recipeState, 7);
+assert.equal(recipePlan.auditedSites, 9);
+assert.equal(recipePlan.stalledSites, 1);
+assert.equal(recipePlan.inputStalledSites, 1);
+assert.equal(recipePlan.supplyEnRouteSites, 2);
+assert.equal(recipePlan.supplyEnRouteWorkers, 2);
+assert.equal(
+  recipePlan.sites.find((site) => site.buildingId === oatOnlyMill.id)?.detail,
+  'no rye grain or maslin grain on site',
+  'edible oats must not masquerade as millable bread grain',
+);
+for (const ready of [
+  maslinMill,
+  maslinBakery,
+  ciderBrewery,
+  aleBrewery,
+  autoBrewery,
+  typedSmokehouse,
+]) {
+  assert.equal(
+    recipePlan.sites.some((site) => site.buildingId === ready.id),
+    false,
+    `${ready.id} should have one complete authoritative recipe`,
+  );
+}
+assert.equal(
+  recipePlan.sites.some((site) => site.buildingId === recoveringBakery.id),
+  false,
+  'one matching inbound common input protects a bakery whose alternative flour is already staged',
+);
+assert.equal(
+  recipePlan.sites.some(
+    (site) => site.buildingId === recoveringTypedSmokehouse.id,
+  ),
+  false,
+  'typed fish plus all matching inbound preservation materials is a complete recovering recipe',
 );
 
 const mineralState = emptyGameState();
@@ -326,7 +433,7 @@ assert.equal(
   mineralPlan.sites.find(
     (site) => site.buildingId === mineralOnlyStoneCamp.id,
   )?.detail,
-  'no surface stone lies within the work area',
+  'no unexhausted surface deposit lies within the work area',
   'mineral deposits must not masquerade as usable stone outcrops',
 );
 
@@ -511,7 +618,7 @@ assert.match(expandedEconomy, /building_commodity_stock\(building, \*kind\) \/ a
 assert.match(expandedEconomy, /processor_output_headroom/);
 assert.match(stoneQuarrySimulation, /processor_output_headroom/);
 assert.match(stoneQuarrySimulation, /\.min\(output_headroom\)/);
-assert.match(stoneQuarrySimulation, /find_nearest_quarry/);
+assert.match(stoneQuarrySimulation, /nearest_surface_deposit/);
 assert.match(largeQuarrySimulation, /RICH_DEPOSIT_CENTER_TOLERANCE: f64 = 2\.5/);
 assert.match(largeQuarrySimulation, /request_connected_commodity/);
 assert.match(largeQuarrySimulation, /large_quarry_supports_ready/);
@@ -522,6 +629,7 @@ assert.match(
 );
 assert.match(foodSupplierSimulation, /find_nearest_harvestable_foraging_node/);
 assert.match(serverReducer, /stalled_labor_target/);
+assert.match(serverReducer, /alternative_processor_recipe_ready/);
 assert.match(serverReducer, /processor_input_kinds/);
 assert.match(serverReducer, /fn extraction_output_blocked/);
 assert.match(serverReducer, /"clay_pit" => \(/);
@@ -533,6 +641,7 @@ assert.match(serverReducer, /SpatialBuckets::<Quarry>::new/);
 assert.match(serverReducer, /harvestable_wild_stock/);
 assert.match(deliveryTrips, /building_has_inbound_commodity_trip/);
 assert.match(serverPolicy, /supply_en_route/);
+assert.match(serverPolicy, /ProcessorRecipeAvailability/);
 
 console.log(
   `worksite stall ledger tests passed (100,000 staffed sites: ${elapsedMs.toFixed(1)} ms; 20,000 spatial sources: ${spatialElapsedMs.toFixed(1)} ms)`,

@@ -261,7 +261,11 @@ const processorWaterStatus = fs.readFileSync(
   'utf8',
 );
 
-assert.match(wellSimulation, /try_start_building_supply_trip/);
+assert.doesNotMatch(
+  wellSimulation,
+  /try_start_building_supply_trip/,
+  'routine well service is a conserved direct transfer and must not reserve a cart crew',
+);
 assert.match(wellSimulation, /CommodityKind::Water/);
 assert.match(wellSimulation, /building_has_inbound_supply_trip/);
 assert.match(wellSimulation, /tick\.building_disabled_by_fire\(ctx, candidate\.id\)/);
@@ -283,30 +287,30 @@ assert.doesNotMatch(
 );
 assert.match(
   wellSimulation,
-  /distribute_well_water\(ctx, tick, &mut well\)[\s\S]*select_industrial_water_target/,
-  'abstract household allocation must remain ahead of routine workshop carts',
+  /distribute_well_water\(ctx, tick, &mut well\)[\s\S]*distribute_industrial_water\(ctx, tick, network, &mut well\)/,
+  'household allocation must remain ahead of automatic workshop service',
 );
 assert.match(
   wellSimulation,
-  /let routine_logistics_paused = labor_and_logistics_paused[\s\S]*distribute_well_water\(ctx, tick, &mut well\)[\s\S]*!routine_logistics_paused/,
-  'labor-free household water should keep allocating while Sabbath or work-hour rules pause carts',
+  /deposit_building_commodity\(&mut target, CommodityKind::Water, needed\.min\(well\.water\)\)[\s\S]*well\.water = \(well\.water - supplied\)\.max\(0\.0\)/,
+  'automatic workshop service must conserve water between the well and the target buffer',
 );
 assert.doesNotMatch(expandedEconomy, /ensure_(?:building_)?water/);
 assert.doesNotMatch(simulationModules, /mod water_logistics/);
 assert.equal(
   fs.existsSync('server/src/simulation/water_logistics.rs'),
   false,
-  'instant target-side water transfer must stay removed',
+  'duplicate target-side water logistics must stay removed; the well owns the direct transfer',
 );
 assert.match(
   wellInspector,
-  /Connected homes draw directly from storage\. Workshops receive physical cart deliveries according to their input policy and buffer\./,
+  /No cart — homes and workshops draw automatically within this well's radius and road branch/,
 );
 assert.doesNotMatch(wellInspector, /staffingPriorityLabel|staffing priority/i);
 assert.match(wellInspector, /weaverFibreDeliveryPreferenceLabel/);
 assert.match(wellInspector, /industrialWaterTarget/);
 assert.match(wellInspector, /staged water/);
-assert.match(wellInspector, /Workshops receive physical cart deliveries/);
+assert.doesNotMatch(wellInspector, /Workshops receive physical cart deliveries/);
 assert.match(wellInspector, /Sustainable capacity/);
 assert.match(wellInspector, /Homes connected now/);
 assert.match(wellInspector, /\['weaver',[\s\S]*item\.kind === 'weaver'/);
@@ -336,7 +340,7 @@ assert.match(
 assert.doesNotMatch(
   smithyStep,
   /request_connected_commodity/,
-  'smithies must wait for the well-side cart arbitration rather than pulling water instantly',
+  'smithies must wait for conserved well-side service arbitration rather than pulling water independently',
 );
 const potterStep = expandedEconomy.slice(
   expandedEconomy.indexOf('pub fn step_potter_kiln'),
@@ -350,9 +354,10 @@ assert.match(
 assert.doesNotMatch(
   potterStep,
   /request_connected_commodity/,
-  'potters must wait for well-side cart arbitration rather than pulling water instantly',
+  'potters must wait for conserved well-side service arbitration rather than pulling water independently',
 );
 assert.match(processorWaterStatus, /Water cart inbound/);
-assert.match(processorWaterStatus, /Waiting for well cart/);
+assert.match(processorWaterStatus, /Awaiting automatic well service/);
+assert.doesNotMatch(processorWaterStatus, /Waiting for well cart/);
 
 console.log('industrial water logistics tests passed');

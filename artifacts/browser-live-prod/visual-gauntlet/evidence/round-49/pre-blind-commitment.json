@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 1,
+  "round": 49,
+  "status": "sealed-before-build-archive-and-before-capture",
+  "createdAtUtc": "2026-07-31T01:29:07.193Z",
+  "hashAlgorithm": "SHA-256",
+  "preimageByteLength": 4382,
+  "preimageSha256": "46CDAEB315DE8F351A290F062B3BFF7323FC2D141BFADD948F08439AE6616513",
+  "privatePreimagePath": "artifacts/visual-gauntlet/round-49/pre-blind-reveal.json",
+  "revealRule": "publish the byte-identical preimage only after the blind visual verdict",
+  "committedInvariants": {
+    "sameExactArchive": true,
+    "soleArmQueryDifference": "forestEdgeLayout",
+    "controlLayout": "legacy-perimeter",
+    "treatmentLayout": "clustered-sapling-shrub-256",
+    "forestRenderer": "existing-forest-renderer-enabled",
+    "shadowSubsystem": "existing-shadow-subsystem-enabled",
+    "postProcessing": "disabled",
+    "vegetationUpdates": "frozen-after-settled-warmup",
+    "frameIndices": [
+      0,
+      180,
+      276,
+      277,
+      278,
+      279,
+      330,
+      375,
+      480
+    ],
+    "blindArmCount": 2,
+    "terminalEvidenceBeforeFrameSeeks": true,
+    "captureSurface": "renderer-drawing-buffer",
+    "neverOverwriteAnyAttempt": true,
+    "discardLedgerRequiredEvenWhenEmpty": true
+  },
+  "seedThreeCommit": "4182accfc1fb7a66815e963b5355ca4996418cf3",
+  "archiveBinding": {
+    "required": true,
+    "mechanism": "the Round 49 archive ID and origin sentinel include this commitment SHA-256"
+  },
+  "predecessor": {
+    "round": 48,
+    "status": "invalid-before-frame-capture",
+    "visualFramesCaptured": 0
+  }
+}

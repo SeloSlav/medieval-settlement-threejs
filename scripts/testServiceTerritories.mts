@@ -92,6 +92,15 @@ assert.equal(
   marketplace.id,
   'only staged Marketplace fuel should participate in household delivery claims',
 );
+const charcoalMarketplace = building('charcoal-market', 'marketplace', 4, 0, {
+  firewood: 0,
+  charcoal: 8,
+});
+assert.equal(
+  claimResidencesForFirewoodSuppliers(network, [charcoalMarketplace], [home]).get(home.id),
+  charcoalMarketplace.id,
+  'Marketplace charcoal must provide the same household-fuel route accepted by authority',
+);
 
 const depot = building('depot', 'village_storehouse', 5, 2);
 assert.equal(
@@ -162,15 +171,16 @@ assert.equal(
   'stored cured food must be delivered from a Marketplace food stall',
 );
 const autonomousMonastery = building('monastery', 'monastery', 7, 0);
+const staffedTavern = building('tavern', 'tavern', 12, 1);
 assert.equal(
   findRoadLinkedSupplierForResidence(
     home,
-    [building('idle-brewery', 'brewery', 2, 0), autonomousMonastery, marketplace],
+    [building('idle-brewery', 'brewery', 2, 0), autonomousMonastery, marketplace, staffedTavern],
     network,
     'ale',
   )?.id,
-  marketplace.id,
-  'stored ale must be delivered from a Marketplace food stall',
+  staffedTavern.id,
+  'finished beverages must be served from a staffed Tavern, not a Marketplace stall',
 );
 
 assert.equal(STOREHOUSE_FIREWOOD_PER_DELIVERY, 8);
@@ -190,8 +200,13 @@ assert.match(
   'one storehouse crew must not run an inbound collection and construction cart simultaneously',
 );
 const upgrades = fs.readFileSync('server/src/reducers/residences.rs', 'utf8');
-assert.match(upgrades, /is_firewood_supplier_operational/);
-assert.match(upgrades, /PRESERVED_FOOD_PRODUCER_KINDS/);
+assert.match(upgrades, /residence_promotion_needs\(residence\.tier\)/);
+assert.match(
+  upgrades,
+  /ResidenceNeedKind::Firewood[\s\S]*building\.kind == "marketplace"/,
+  'promotion should use the same stocked Marketplace firewood outlet as live household service',
+);
+assert.doesNotMatch(upgrades, /PRESERVED_FOOD_PRODUCER_KINDS/);
 assert.doesNotMatch(upgrades, /"smokehouse",\s*"granary",\s*"monastery"/);
 const storehouseInspector = fs.readFileSync('src/resources/inspector/storehouseRenderer.ts', 'utf8');
 assert.match(storehouseInspector, /Duty priority/);
@@ -199,7 +214,8 @@ assert.match(storehouseInspector, /Fuel territory/);
 assert.match(storehouseInspector, /winter-night fuel floor/);
 const residenceInspector = fs.readFileSync('src/resources/inspector/residenceRenderer.ts', 'utf8');
 assert.match(residenceInspector, /Heating supplier/);
-assert.match(residenceInspector, /staffed goods stall/);
+assert.match(residenceInspector, /Connected Marketplace checks/);
+assert.match(residenceInspector, /Beverage service/);
 const tickContext = fs.readFileSync('server/src/simulation/tick_context.rs', 'utf8');
 assert.match(tickContext, /water_claims: RefCell/);
 assert.match(tickContext, /pub fn well_supplier_for/);
@@ -275,6 +291,48 @@ assert.ok(
 );
 
 const lineNodeCount = 180;
+const longEdgeNetwork = new RoadNetwork();
+longEdgeNetwork.restore({
+  nextNodeId: 3,
+  nextEdgeId: 2,
+  nodes: [
+    { id: 'west', position: [8_600, 0, 0] },
+    { id: 'east', position: [9_000, 0, 0] },
+  ],
+  edges: [{
+    id: 'long-edge',
+    startNodeId: 'west',
+    endNodeId: 'east',
+    width: 4.2,
+    controlPoints: [[8_600, 0, 0], [9_000, 0, 0]],
+    sampledPath: [[8_600, 0, 0], [9_000, 0, 0]],
+    length: 400,
+    revision: 1,
+  }],
+});
+const interiorRoute = longEdgeNetwork.getPathfinder().roadPathRoute(
+  8_650,
+  14,
+  8_785,
+  14,
+);
+assert.equal(interiorRoute?.distance, 163);
+assert.deepEqual(interiorRoute?.polyline, [
+  { x: 8_650, z: 14 },
+  { x: 8_650, z: 0 },
+  { x: 8_785, z: 0 },
+  { x: 8_785, z: 14 },
+]);
+assert.deepEqual(
+  longEdgeNetwork.getPathfinder().roadPathDistancesFrom(
+    8_650,
+    14,
+    [{ x: 8_785, z: 14 }],
+  ),
+  [163],
+  'batched client forecasts must use the same interior-edge route as authoritative carts',
+);
+
 const lineNetwork = new RoadNetwork();
 lineNetwork.restore({
   nextNodeId: lineNodeCount + 1,

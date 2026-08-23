@@ -82,7 +82,6 @@ import {
   evaluateResidenceUpgrade,
   residenceBackyardProject,
   residenceFireRepairProject,
-  residenceHasHouseholdLuxuryOption,
   residenceRoofTileProject,
   residenceUpgradeProject,
   type ResidenceFireRepairProject,
@@ -238,12 +237,6 @@ export function renderResidenceInspector(
   const servingWell = context.worldQueries.getServingWellForResidence(residence);
   const servingFoodSupplier = context.worldQueries.getServingFoodSupplierForResidence(residence);
   const servingChapel = context.worldQueries.getServingChapelForResidence(residence);
-  const upgradeChapel = residence.tier >= 1 && residence.tier < 4
-    ? context.worldQueries.getServingChapelForResidence(
-        residence,
-        requiredChapelTierForResidence(residence.tier + 1),
-      )
-    : servingChapel;
   const servingPreservedFoodSupplier = residence.tier >= 4
     ? context.worldQueries.getServingPreservedFoodSupplierForResidence(residence)
     : null;
@@ -259,33 +252,6 @@ export function renderResidenceInspector(
   const servingPotterySupplier = residence.tier >= 4
     ? context.worldQueries.getServingPotterySupplierForResidence(residence)
     : null;
-  const preservedFoodUpgradeSupplier = residence.tier === 3
-    ? servingPreservedFoodSupplier
-      ?? context.worldQueries.getPreservedFoodUpgradeSupplierForResidence(residence)
-    : servingPreservedFoodSupplier;
-  const aleUpgradeSupplier = residence.tier === 1
-    ? servingAleSupplier
-      ?? context.worldQueries.getAleUpgradeSupplierForResidence(residence)
-    : servingAleSupplier;
-  const clothUpgradeSupplier = residence.tier === 1
-    ? servingClothSupplier
-      ?? context.worldQueries.getClothUpgradeSupplierForResidence(residence)
-    : servingClothSupplier;
-  const shoesUpgradeSupplier = residence.tier === 2
-    ? servingShoesSupplier
-      ?? context.worldQueries.getShoesUpgradeSupplierForResidence(residence)
-    : servingShoesSupplier;
-  const potteryUpgradeSupplier = residence.tier === 3
-    ? servingPotterySupplier
-      ?? context.worldQueries.getPotteryUpgradeSupplierForResidence(residence)
-    : servingPotterySupplier;
-  const luxuryUpgradeSupplier = residence.tier === 3
-    ? context.worldQueries.getLuxuryUpgradeSupplierForResidence(residence)
-    : null;
-  const householdLuxuryOption = residenceHasHouseholdLuxuryOption(
-    residence,
-    context.gameState.backyardGardens.get(residence.id),
-  );
   const upgradeProject = residenceUpgradeProject(
     residence,
     context.gameState.deliveryTrips.values(),
@@ -320,6 +286,10 @@ export function renderResidenceInspector(
       residence,
       context.resourceTotals,
       {
+      food: {
+        supplier: servingFoodSupplier,
+        stocked: servingFoodSupplier != null,
+      },
       firewood: {
         supplier: servingFirewoodSupplier,
         stocked: upgradeSupplierHasStock('firewood', servingFirewoodSupplier),
@@ -329,42 +299,41 @@ export function renderResidenceInspector(
         stocked: upgradeSupplierHasStock('water', servingWell),
       },
       preservedFood: {
-        supplier: preservedFoodUpgradeSupplier,
+        supplier: servingPreservedFoodSupplier,
         stocked: servingPreservedFoodSupplier != null,
       },
       ale: {
-        supplier: aleUpgradeSupplier,
+        supplier: servingAleSupplier,
         stocked: servingAleSupplier != null,
       },
       cloth: {
-        supplier: clothUpgradeSupplier,
+        supplier: servingClothSupplier,
         stocked: servingClothSupplier != null,
       },
       shoes: {
-        supplier: shoesUpgradeSupplier,
+        supplier: servingShoesSupplier,
         stocked: servingShoesSupplier != null,
       },
       pottery: {
-        supplier: potteryUpgradeSupplier,
+        supplier: servingPotterySupplier,
         stocked: servingPotterySupplier != null,
       },
       luxury: {
-        supplier: luxuryUpgradeSupplier,
-        stocked: luxuryUpgradeSupplier != null || householdLuxuryOption,
-        ready: luxuryUpgradeSupplier != null || householdLuxuryOption,
+        supplier: null,
+        stocked: false,
       },
       church: {
-        supplier: upgradeChapel,
-        stocked: upgradeChapel != null,
+        supplier: servingChapel,
+        stocked: servingChapel != null,
       },
       foodVariety: {
-        supplier: null,
-        stocked: presentFoodCategories(residence, residence.population).length > 0,
-        ready: foodProgressionStatus(
-          residence,
-          residence.population,
-          Math.min(4, residence.tier + 1) as 1 | 2 | 3 | 4,
-        ).ready,
+        supplier: servingFoodSupplier,
+        stocked: servingFoodSupplier != null
+          && foodProgressionStatus(
+            servingFoodSupplier,
+            residence.population,
+            Math.max(1, residence.tier) as 1 | 2 | 3 | 4,
+          ).ready,
       },
       },
       {
@@ -926,9 +895,15 @@ function residenceUpgradeRows(
   buildingLabel: (kind: BuildingState['kind']) => string,
 ): string {
   const services = plan.services.map((service) =>
-    `${service.label}: ${service.supplier
-      ? `${buildingLabel(service.supplier.kind)} route${service.stocked ? '' : ' · currently empty'}`
-      : 'missing'}`,
+    `${service.label}: ${service.householdReady
+      ? `satisfied at household${service.outletReady && service.supplier
+        ? ` · ${buildingLabel(service.supplier.kind)} reserve also ready`
+        : ''}`
+      : service.outletReady && service.supplier
+        ? `${buildingLabel(service.supplier.kind)} route ready`
+        : service.supplier
+          ? `${buildingLabel(service.supplier.kind)} route · currently unable to serve`
+          : 'missing'}`,
   ).join(' · ');
   const resources = plan.resources.map((resource) =>
     `<span class="resource-requirement${resource.ready ? '' : ' resource-requirement--short'}">${renderResourceCost(
@@ -937,7 +912,8 @@ function residenceUpgradeRows(
     )}<span class="resource-requirement__available">${formatUpgradeAmount(resource.available)} available</span></span>`,
   ).join('');
   return `
-    <li><span>Tier ${plan.nextTier} services</span><span>${services}</span></li>
+    <li><span>Current Tier ${plan.currentTier} readiness</span><span>${services}</span></li>
+    <li><span>Tier ${plan.nextTier} adds after completion</span><span>${plan.addedNeeds}</span></li>
     <li><span>Upgrade resources</span><span>${resources}</span></li>
     ${plan.physicalEconomy
       ? `<li><span>Project funding</span><span>${formatUpgradeAmount(plan.householdContribution)} household contribution · ${formatUpgradeAmount(plan.civicGoldRequired)} treasury grant</span></li>`
@@ -1043,8 +1019,8 @@ function residenceUpgradePanel(
     ? `${projection.limitingLabel} · ${projection.immediateSustainable ? 'ready' : 'short'}`
     : '';
   const detail = plan.ready
-    ? `${capacity}${production ? ` · ${production}` : ''}`
-    : `Blocked · ${plan.blockers.join(' · ')}`;
+    ? `${capacity}${production ? ` · ${production}` : ''} · After completion: ${plan.addedNeeds}`
+    : `Blocked · ${plan.blockers.join(' · ')} · After completion: ${plan.addedNeeds}`;
   return `<button type="button" class="resource-action-button resource-action-button--icon" data-action="upgrade-residence" data-upgrade-tier="${plan.nextTier}" data-tooltip-title="Tier ${plan.nextTier}" data-tooltip="${detail}" ${plan.ready ? '' : 'aria-disabled="true"'}><span class="inspector-action-icon" data-action-icon="residence-tier-${plan.nextTier}" aria-hidden="true"></span><span>Upgrade · Tier ${plan.nextTier}</span>${resourceCost}</button>`;
 }
 
@@ -1084,8 +1060,11 @@ function upgradeSupplierHasStock(
   supplier: BuildingState | null,
 ): boolean {
   if (!supplier) return false;
-  if (kind === 'firewood') return supplier.firewood > 1e-6;
+  if (kind === 'firewood') {
+    return supplier.firewood > 1e-6 || (supplier.charcoal ?? 0) > 1e-6;
+  }
   if (kind === 'water') return supplier.water > 1e-6;
+  if (kind === 'food') return edibleFoodStock(supplier) > 1e-6;
   if (kind === 'preservedFood') return preservedFoodStock(supplier) > 1e-6;
   if (kind === 'ale') {
     return supplier.ale
@@ -1093,7 +1072,13 @@ function upgradeSupplierHasStock(
       + (supplier.pearCider ?? 0)
       + (supplier.mead ?? 0) > 1e-6;
   }
-  return (supplier.cloth ?? 0) > 1e-6;
+  if (kind === 'cloth') return (supplier.cloth ?? 0) > 1e-6;
+  if (kind === 'shoes') return (supplier.shoes ?? 0) > 1e-6;
+  if (kind === 'pottery') return (supplier.pottery ?? 0) > 1e-6;
+  if (kind === 'luxury') {
+    return (supplier.wine ?? 0) + (supplier.honey ?? 0) > 1e-6;
+  }
+  return false;
 }
 
 function householdFoodContentsRow(

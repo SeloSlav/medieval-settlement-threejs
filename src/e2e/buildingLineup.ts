@@ -26,6 +26,12 @@ import {
   type CrowdRenderAgent,
   type VillagerModelVariant,
 } from '../settlement/SettlementCrowdRenderer.ts';
+import {
+  beginRendererFrame,
+  configureRendererFrameStats,
+  readRendererFrameStats,
+  type RendererFrameStats,
+} from '../scene/rendererFrameStats.ts';
 
 declare global {
   interface Window {
@@ -179,6 +185,12 @@ labels.style.gridTemplateRows = `repeat(${ROWS}, minmax(0, 1fr))`;
 
 const rendererBackend = await createPreferredRenderer();
 const renderer = rendererBackend.renderer as unknown as THREE.WebGLRenderer;
+configureRendererFrameStats(renderer.info);
+let lastRendererFrameStats: RendererFrameStats = {
+  drawCalls: 0,
+  renderPasses: 0,
+  triangles: 0,
+};
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = presentationMode === 'no-post'
@@ -387,6 +399,7 @@ for (let index = views.length; index < COLS * ROWS; index++) {
 }
 
 function render(): void {
+  const frameBoundary = beginRendererFrame(renderer.info);
   const width = root!.clientWidth;
   const height = root!.clientHeight;
   renderer.setSize(width, height, false);
@@ -419,6 +432,7 @@ function render(): void {
     renderer.render(view.scene, view.camera);
   }
   renderer.setScissorTest(false);
+  lastRendererFrameStats = readRendererFrameStats(renderer.info, frameBoundary);
 }
 
 await initializeBuildingMaterialLibrary(rendererBackend.maxAnisotropy);
@@ -444,8 +458,8 @@ window.__BUILDING_LINEUP_METRICS__ = {
   rendererBackend: rendererBackend.kind,
   viewport: [root.clientWidth, root.clientHeight],
   dpr: renderer.getPixelRatio(),
-  drawCalls: renderer.info.render.calls,
-  triangles: renderer.info.render.triangles,
+  drawCalls: lastRendererFrameStats.drawCalls,
+  triangles: lastRendererFrameStats.triangles,
 };
 document.body.dataset.ready = 'true';
 document.body.dataset.rendererBackend = rendererBackend.kind;

@@ -1,0 +1,123 @@
+{
+  "round": 45,
+  "evidenceType": "blind matched-frame topology reversion plus clean single-active-tab route trace",
+  "sceneStatus": "diagnostic-rendered",
+  "qualityGatesProven": 1,
+  "randomization": {
+    "source": "node-crypto-randomBytes-uint32-low-bit",
+    "drawUint32": 3564572155,
+    "orderBit": 1,
+    "blindA": "round44-spatial-batches",
+    "blindB": "round45-three-whole-field-meshes"
+  },
+  "blindVisual": {
+    "verdict": "tie",
+    "normalizedRmseRange": [0.00029, 0.00037],
+    "continuityVerdict": "pass-for-tested-9200-to-9300ms-window",
+    "finding": "The sequences are perceptually identical with no new pop, seam, hole, or band."
+  },
+  "reversion": {
+    "verdict": "verified",
+    "groundcoverSubmission": "three-whole-field-instanced-meshes",
+    "fade": "continuous-alpha-hash",
+    "visibilityHysteresis": "preserved",
+    "seedThreeCommit": "ca734ca988c1ddc5abcb73847efd1a3aa2970299",
+    "spatialBatchImport": "absent"
+  },
+  "evidenceIntegrity": {
+    "verdict": "fail",
+    "internalTrace": "schema-5 exact",
+    "invalidatingGaps": [
+      "The manifest and hashes were added only after the critic review.",
+      "The captured hamlet-fixture-QANCoWOp.js bundle was not retained and the current dist bundle differs.",
+      "browser-environment.json self-attests the tab state rather than independently proving it.",
+      "The contaminated and clean traces differ slightly in disabled-forest visibleTrees, 978 versus 985."
+    ]
+  },
+  "performance": {
+    "verdict": "pass-for-clean-trace",
+    "runUuid": "a3e0a38b-a890-4751-b4d1-7da87caedfba",
+    "sampleCount": 4917,
+    "elapsedMs": 30001.800000000003,
+    "medianFps": 163.9344262295473,
+    "meanFps": 163.89016659000458,
+    "onePercentLowFps": 98.17396426467224,
+    "p99FrameMs": 10.186000000000496,
+    "maxFrameMs": 12.200000000004366,
+    "framesOver25Ms": 0,
+    "framesOver50Ms": 0,
+    "rendererMedian": {
+      "drawCalls": 67,
+      "frameCalls": 2,
+      "triangles": 409825
+    },
+    "coverage": {
+      "routePhases": ["strategic", "settlement", "road-eye"],
+      "forestLods": ["overview", "near"],
+      "groundcoverLods": ["hidden", "transition", "full"],
+      "buildingLods": ["strategic", "settlement", "road-eye"],
+      "judgedVegetationWork": 0
+    },
+    "runtime": {
+      "backend": "webgpu",
+      "adapter": "nvidia/lovelace",
+      "viewport": "1280x720",
+      "rendererPixelRatio": 1,
+      "gpuTimestamps": "available"
+    }
+  },
+  "contaminationDiagnostic": {
+    "verdict": "strongly-supported-not-proven",
+    "contaminatedOnePercentLowFps": 8.326137905513727,
+    "contaminatedMaxFrameMs": 272.70000000000437,
+    "contaminatedFramesOver25Ms": 101,
+    "contaminatedFramesOver50Ms": 47,
+    "finding": "The contaminated tail contains 85 to 273ms frame gaps despite roughly 1.5ms CPU and 1 to 16ms retained GPU spans, then disappears in the clean trace."
+  },
+  "critic": {
+    "genuineControlledBarWin": "not-yet-auditable",
+    "biggestGap": "Flat, ungrounded lighting and material depth; stippled groundcover reads as noise rather than a lived-in verge.",
+    "requiredNext": "Re-enable only the existing shadow subsystem for the same controlled route and recapture it."
+  },
+  "files": [
+    {
+      "file": "browser-environment.json",
+      "bytes": 1582,
+      "sha256": "18A14E103DDB548074906DADAE4E7266E41A0D3AD64B6042B8FB411A18618C92"
+    },
+    {
+      "file": "clean-single-active-tab-route-evidence.json",
+      "bytes": 199872,
+      "sha256": "B8BFBA024CD0BF13B6651E243696DB9EE75B4AA2FA0E648E96EDCFA93A8BD928"
+    },
+    {
+      "file": "multi-tab-contaminated-route-evidence.json",
+      "bytes": 123407,
+      "sha256": "6F3052F34CE1A6487F1FB86D0A5672DD11A198C7C58798B8D92CD23F38DAC0CE"
+    },
+    {
+      "file": "frames/route-0276.jpg",
+      "dimensions": "1280x720",
+      "bytes": 218389,
+      "sha256": "007AE12C5F24E0FA16401DF375D51BC46F9DD6AA25DF5B08411631AF1D4B36F2"
+    },
+    {
+      "file": "frames/route-0277.jpg",
+      "dimensions": "1280x720",
+      "bytes": 219136,
+      "sha256": "7417E57685871F81C47C699B2BC6874A16D6299D0B15EC714330F8F534AC15A7"
+    },
+    {
+      "file": "frames/route-0278.jpg",
+      "dimensions": "1280x720",
+      "bytes": 220323,
+      "sha256": "48CE8B469A7AF463AF2695DB6CD67BBF52C0E58C4849341D1B9C63F38566D9FC"
+    },
+    {
+      "file": "frames/route-0279.jpg",
+      "dimensions": "1280x720",
+      "bytes": 220447,
+      "sha256": "08946DDFFE29CB00F2EB42FF8A6CCB2FA3D700B3B0D5EA0553B3CDA39F0B0BA9"
+    }
+  ]
+}

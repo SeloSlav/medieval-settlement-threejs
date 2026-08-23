@@ -6,6 +6,7 @@ use crate::balance_generated::HOUSEHOLD_PROJECT_WEALTH_RESERVE;
 use crate::construction_priority::{
     construction_priority_bucket, CONSTRUCTION_PRIORITY_HOLD, CONSTRUCTION_PRIORITY_LEVELS,
 };
+use crate::simulation::residence_needs::ResidenceNeedKind;
 
 const EPSILON: f64 = 1e-6;
 
@@ -22,6 +23,41 @@ pub fn residence_project_active(
         || fire_repair_active
         || decay_repair_active
         || roof_tile_retrofit_active
+}
+
+/// Promotion proves the standards the household lives under today. Needs
+/// introduced by the target tier do not become active until the physical
+/// improvement works complete.
+pub fn residence_promotion_needs(current_tier: u8) -> Vec<ResidenceNeedKind> {
+    ResidenceNeedKind::ALL
+        .into_iter()
+        .filter(|kind| kind.is_active_for_tier(current_tier))
+        .collect()
+}
+
+/// Physical goods already delivered to a household remain valid promotion
+/// evidence even when the serving outlet has since emptied. Water and church
+/// access deliberately stay route-backed ongoing services.
+pub fn household_stock_satisfies_promotion_need(
+    kind: ResidenceNeedKind,
+    need_stock: f64,
+    tier_one_food_ready: bool,
+    current_food_standard_ready: bool,
+    preserved_food_stock: f64,
+    household_luxury_stock: f64,
+) -> bool {
+    match kind {
+        ResidenceNeedKind::Water | ResidenceNeedKind::Church => false,
+        ResidenceNeedKind::Food => tier_one_food_ready || need_stock > 1e-6,
+        ResidenceNeedKind::FoodVariety => current_food_standard_ready,
+        ResidenceNeedKind::PreservedFood => preserved_food_stock > 1e-6 || need_stock > 1e-6,
+        ResidenceNeedKind::Luxury => household_luxury_stock > 1e-6 || need_stock > 1e-6,
+        ResidenceNeedKind::Firewood
+        | ResidenceNeedKind::Ale
+        | ResidenceNeedKind::Cloth
+        | ResidenceNeedKind::Shoes
+        | ResidenceNeedKind::Pottery => need_stock > 1e-6,
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -219,6 +255,112 @@ mod tests {
     }
 
     #[test]
+    fn promotion_checks_only_needs_active_at_the_current_tier() {
+        assert_eq!(
+            residence_promotion_needs(1),
+            vec![
+                ResidenceNeedKind::Firewood,
+                ResidenceNeedKind::Water,
+                ResidenceNeedKind::Food,
+                ResidenceNeedKind::Church,
+            ],
+        );
+        assert_eq!(
+            residence_promotion_needs(2),
+            vec![
+                ResidenceNeedKind::Firewood,
+                ResidenceNeedKind::Water,
+                ResidenceNeedKind::Food,
+                ResidenceNeedKind::Ale,
+                ResidenceNeedKind::Cloth,
+                ResidenceNeedKind::Church,
+                ResidenceNeedKind::FoodVariety,
+            ],
+        );
+        assert_eq!(
+            residence_promotion_needs(3),
+            vec![
+                ResidenceNeedKind::Firewood,
+                ResidenceNeedKind::Water,
+                ResidenceNeedKind::Food,
+                ResidenceNeedKind::Ale,
+                ResidenceNeedKind::Cloth,
+                ResidenceNeedKind::Shoes,
+                ResidenceNeedKind::Church,
+                ResidenceNeedKind::FoodVariety,
+            ],
+        );
+        assert!(!residence_promotion_needs(1).contains(&ResidenceNeedKind::Ale));
+        assert!(!residence_promotion_needs(2).contains(&ResidenceNeedKind::Shoes));
+        assert!(!residence_promotion_needs(3).contains(&ResidenceNeedKind::PreservedFood));
+        assert!(!residence_promotion_needs(3).contains(&ResidenceNeedKind::Pottery));
+        assert!(!residence_promotion_needs(3).contains(&ResidenceNeedKind::Luxury));
+    }
+
+    #[test]
+    fn delivered_household_goods_remain_valid_promotion_evidence() {
+        for kind in [
+            ResidenceNeedKind::Firewood,
+            ResidenceNeedKind::Food,
+            ResidenceNeedKind::Ale,
+            ResidenceNeedKind::PreservedFood,
+            ResidenceNeedKind::Cloth,
+            ResidenceNeedKind::Shoes,
+            ResidenceNeedKind::Pottery,
+            ResidenceNeedKind::Luxury,
+        ] {
+            assert!(household_stock_satisfies_promotion_need(
+                kind, 1.0, false, false, 0.0, 0.0,
+            ));
+        }
+    }
+
+    #[test]
+    fn typed_food_and_virtual_food_standard_are_authoritative() {
+        assert!(household_stock_satisfies_promotion_need(
+            ResidenceNeedKind::Food,
+            0.0,
+            true,
+            false,
+            0.0,
+            0.0,
+        ));
+        assert!(household_stock_satisfies_promotion_need(
+            ResidenceNeedKind::FoodVariety,
+            0.0,
+            false,
+            true,
+            0.0,
+            0.0,
+        ));
+        assert!(household_stock_satisfies_promotion_need(
+            ResidenceNeedKind::PreservedFood,
+            0.0,
+            false,
+            false,
+            1.0,
+            0.0,
+        ));
+        assert!(household_stock_satisfies_promotion_need(
+            ResidenceNeedKind::Luxury,
+            0.0,
+            false,
+            false,
+            0.0,
+            1.0,
+        ));
+    }
+
+    #[test]
+    fn pantry_rows_do_not_replace_well_or_church_service() {
+        for kind in [ResidenceNeedKind::Water, ResidenceNeedKind::Church] {
+            assert!(!household_stock_satisfies_promotion_need(
+                kind, 10.0, true, true, 10.0, 10.0,
+            ));
+        }
+    }
+
+    #[test]
     fn unpaid_or_unstaffed_works_do_not_advance() {
         let mut work = ready_work();
         work.delivered_gold = 7.9;
@@ -263,7 +405,10 @@ mod tests {
             work_ready: true,
             ..blocked
         };
-        assert_eq!(residence_project_labor_targets(&[supplied], 1), vec![(1, 1)]);
+        assert_eq!(
+            residence_project_labor_targets(&[supplied], 1),
+            vec![(1, 1)]
+        );
 
         let cart_approaching = ResidenceProjectLaborSite {
             assigned_labor: 1,
