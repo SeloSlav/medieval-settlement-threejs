@@ -30,6 +30,24 @@ for (let tier = 1; tier <= 4; tier += 1) {
       home.position.set(seed * 0.003, tier * 0.07, -seed * 0.002);
       home.rotation.set(0.02, seed * 0.001, -0.015);
       const windowMaterial = home.userData.windowMaterial as THREE.MeshStandardMaterial;
+      assertResidenceWindowSurfaceContract(
+        home,
+        tier as 1 | 2 | 3 | 4,
+        windowMaterial,
+        label('authored window surfaces'),
+      );
+      const smokeAnchor = home.getObjectByName('ChimneyEmitter');
+      assert.ok(smokeAnchor, label('smoke anchor exists'));
+      assert.equal(
+        isDynamicResidenceBatchBoundary(smokeAnchor, windowMaterial),
+        true,
+        label('smoke anchor remains a dynamic batching boundary'),
+      );
+      assert.equal(
+        smokeAnchor.userData.residenceSmokeExit,
+        tier === 1 ? 'through-thatch' : 'chimney',
+        label('smoke anchor retains its authored exit'),
+      );
       const dynamic = collectDynamic(home, windowMaterial);
       const before = snapshot(home);
       const colliderBefore = aggregateResidenceBounds(home);
@@ -56,6 +74,19 @@ for (let tier = 1; tier <= 4; tier += 1) {
       const windows = visibleMeshesWithMaterial(home, windowMaterial);
       assert.ok(windows.length > 0, label('window meshes retained'));
       assert.equal(
+        windows.reduce(
+          (count, window) => count + Number(window.userData.sourceMeshCount ?? 1),
+          0,
+        ),
+        windowDrawsBefore,
+        label('dynamic window surfaces retained through local merging'),
+      );
+      assert.strictEqual(
+        home.getObjectByName('ChimneyEmitter'),
+        smokeAnchor,
+        label('smoke anchor identity retained'),
+      );
+      assert.equal(
         after.draws,
         before.draws
           - stats.sourceDraws
@@ -64,7 +95,12 @@ for (let tier = 1; tier <= 4; tier += 1) {
           + windows.length,
         label('submission accounting'),
       );
+      const darkEmissiveIntensity = windowMaterial.emissiveIntensity;
       applyResidenceWindowGlow(windowMaterial, 0.537, true);
+      assert.ok(
+        windowMaterial.emissiveIntensity > darkEmissiveIntensity,
+        label('dynamic window material responds to household light'),
+      );
       for (const window of windows) {
         assert.strictEqual(window.material, windowMaterial, label('window material control'));
       }
@@ -167,8 +203,8 @@ assert.ok(
   `100-home batching must remove at least 97% of render objects (${denseBeforeDraws} -> ${denseAfter.draws})`,
 );
 assert.ok(
-  denseNativeDraws <= 1_400,
-  `100 completed homes must remain at or below 1,400 native WebGPU draws (got ${denseNativeDraws})`,
+  denseNativeDraws <= 1_450,
+  `100 completed homes with distinct plaster cottage envelopes must remain at or below 1,450 native WebGPU draws (got ${denseNativeDraws})`,
 );
 assert.ok(
   denseNativeDraws <= denseBeforeDraws * 0.2,
@@ -184,8 +220,8 @@ assert.ok(
 );
 assert.ok(denseStats.instances >= 100, 'dense fixture must retain per-home batch instances');
 assert.ok(
-  denseRawGeometry.geometries <= 9_000,
-  `100 authored homes must remain at or below 9,000 live geometries (${denseRawGeometry.geometries})`,
+  denseRawGeometry.geometries <= 9_500,
+  `100 authored homes with true cottage apertures must remain at or below 9,500 live geometries (${denseRawGeometry.geometries})`,
 );
 assert.ok(
   denseFinalGeometry.geometries <= 1_300,
@@ -250,6 +286,88 @@ function visibleMeshesWithMaterial(
     if (mesh.isMesh && mesh.material === material) meshes.push(mesh);
   });
   return meshes;
+}
+
+function assertResidenceWindowSurfaceContract(
+  root: THREE.Group,
+  tier: 1 | 2 | 3 | 4,
+  windowMaterial: THREE.Material,
+  message: string,
+): void {
+  const openings: THREE.Object3D[] = [];
+  const panes: THREE.Mesh[] = [];
+  const interiors: THREE.Mesh[] = [];
+  root.traverse((object) => {
+    if (object.userData.facadeOpeningKind === 'window') openings.push(object);
+    const mesh = object as THREE.Mesh;
+    if (!mesh.isMesh) return;
+    if (mesh.userData.facadeOpeningRole === 'window-pane') panes.push(mesh);
+    if (mesh.userData.facadeOpeningRole === 'window-interior') interiors.push(mesh);
+  });
+
+  assert.ok(openings.length > 0, `${message}: residence needs authored windows`);
+  for (const opening of openings) {
+    assert.equal(
+      opening.userData.residenceWallCutThrough,
+      tier === 1,
+      `${message}: only open cottage windows may claim a physical wall cut-through`,
+    );
+  }
+
+  if (tier === 1) {
+    assert.equal(openings.length, 3, `${message}: cottage needs one front and two side apertures`);
+    assert.equal(panes.length, 0, `${message}: cottage apertures must not retain glazing`);
+    assert.equal(
+      interiors.length,
+      openings.length,
+      `${message}: every cottage aperture needs one recessed lit interior`,
+    );
+    for (const opening of openings) {
+      assert.equal(
+        opening.userData.residenceWindowGlazing,
+        'open-aperture',
+        `${message}: cottage opening must identify as unglazed`,
+      );
+    }
+    for (const interior of interiors) {
+      assert.strictEqual(
+        interior.material,
+        windowMaterial,
+        `${message}: recessed interior must share the per-residence light material`,
+      );
+      assert.equal(
+        interior.userData.residenceWindowInteriorDepthMeters,
+        0.34,
+        `${message}: lit interior must remain visibly recessed`,
+      );
+      assert.ok(
+        interior.position.z < -0.3,
+        `${message}: lit interior must sit behind the wall opening`,
+      );
+    }
+    return;
+  }
+
+  assert.equal(interiors.length, 0, `${message}: higher tiers must not use open cottage interiors`);
+  assert.equal(
+    panes.length,
+    openings.length,
+    `${message}: every higher-tier opening needs one glazed pane`,
+  );
+  for (const opening of openings) {
+    assert.equal(
+      opening.userData.residenceWindowGlazing,
+      'glazed-pane',
+      `${message}: higher-tier opening must identify as glazed`,
+    );
+  }
+  for (const pane of panes) {
+    assert.strictEqual(
+      pane.material,
+      windowMaterial,
+      `${message}: glazed pane must share the per-residence light material`,
+    );
+  }
 }
 
 function snapshot(root: THREE.Object3D): Snapshot {

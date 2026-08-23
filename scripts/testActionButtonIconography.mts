@@ -19,7 +19,10 @@ const campRenderer = readFileSync('src/resources/inspector/remoteWorkCampRendere
 const expandedBuildingRenderer = readFileSync('src/resources/inspector/expandedBuildingRenderer.ts', 'utf8');
 const farmFieldRenderer = readFileSync('src/resources/inspector/farmFieldRenderer.ts', 'utf8');
 const livestockBuildingRenderer = readFileSync('src/resources/inspector/livestockBuildingRenderer.ts', 'utf8');
+const inspectorResourceTokens = readFileSync('src/resources/inspector/inspectorResourceTokens.ts', 'utf8');
 const resourceInspector = readFileSync('src/resources/ResourceInspector.ts', 'utf8');
+const alertDialog = readFileSync('src/ui/AlertDialog.ts', 'utf8');
+const alertDialogCss = readFileSync('src/ui/alertDialog.css', 'utf8');
 const farmFieldTool = readFileSync('src/farming/FarmFieldTool.ts', 'utf8');
 const appBootstrap = readFileSync('src/app/appBootstrap.ts', 'utf8');
 const toolbar = readFileSync('src/ui/BuildToolbar.ts', 'utf8');
@@ -116,6 +119,23 @@ for (const [icon, asset] of [
 
 assert.match(backyardRenderer, /data-action="upgrade-flower-luxury"[\s\S]*data-action-icon="luxury-flowers"/);
 assert.match(residenceRenderer, /data-action="upgrade-residence" data-upgrade-tier="\$\{plan\.nextTier\}"[\s\S]*data-action-icon="residence-tier-\$\{plan\.nextTier\}"/);
+assert.match(residenceRenderer, /data-residence-summary/);
+assert.match(
+  residenceRenderer,
+  /data-residence-summary data-inspector-primary data-inspector-resource-strip data-inspector-section="Materials"[\s\S]{0,240}renderInspectorResourceStrip\(worksiteTokens/,
+  'residence worksites should summarize materials as an icon strip',
+);
+assert.match(
+  residenceRenderer,
+  /data-residence-summary data-inspector-primary data-inspector-resource-strip data-inspector-section="Stores"[\s\S]{0,240}renderInspectorResourceStrip\(householdTokens/,
+  'occupied residences should summarize household stores as an icon strip',
+);
+assert.match(inspectorResourceTokens, /tabindex="0" data-resource-token="\$\{options\.kind\}"/);
+assert.match(inspectorResourceTokens, /data-tooltip-title="\$\{escapeHtml\(title\)\}" data-tooltip="\$\{escapeHtml\(detail\)\}"/);
+assert.match(inspectorResourceTokens, /data-tooltip-amount="\$\{escapeHtml\(formattedAmount\)\}" data-tooltip-amount-label="\$\{escapeHtml\(amountLabel\)\}"/);
+assert.match(inspectorResourceTokens, /data-tooltip-resources="\$\{escapeHtml\(tooltipResources\)\}"/);
+assert.match(inspectorResourceTokens, /resource-cost__item" data-resource-cost="\$\{options\.kind\}"[\s\S]{0,120}resource-cost__icon/);
+assert.match(inspectorResourceTokens, /inspector-resource-strip[\s\S]{0,520}role="group" aria-label=/);
 assert.match(chapelRenderer, /data-action="upgrade-chapel" data-upgrade-tier="\$\{upgrade\.targetTier\}"[\s\S]*data-action-icon="church-tier-\$\{upgrade\.targetTier\}"/);
 assert.match(campRenderer, /data-begin-remote-work-camp[\s\S]*data-action-icon="overnight-work-camp"|data-action-icon="overnight-work-camp"[\s\S]*data-begin-remote-work-camp/);
 assert.match(campRenderer, /data-work-camp-action[\s\S]*Inspect overnight camp/);
@@ -134,7 +154,33 @@ for (const [resource, asset] of [
 assert.doesNotMatch(iconography, /\.svg(?:['")])/i, 'active commodity mappings must not use SVG artwork');
 assert.match(iconography, /\.resource-cost--unaffordable\s*\{[\s\S]{0,120}color:\s*#f09a82/);
 
-assert.match(resourceInspector, /data-fire-recovery[\s\S]{0,240}data-action-icon="fire-recovery"|data-action-icon="fire-recovery"[\s\S]{0,240}data-fire-recovery/);
+assert.match(resourceInspector, /data-fire-recovery[\s\S]{0,520}data-action-icon="fire-recovery"|data-action-icon="fire-recovery"[\s\S]{0,520}data-fire-recovery/);
+assert.match(
+  resourceInspector,
+  /row\.hasAttribute\('data-residence-summary'\)[\s\S]{0,260}this\.panel\.dataset\.inspectorTarget === 'residence'[\s\S]{0,180}replaceChildren/,
+  'the residence inspector should display only explicitly compact summary rows',
+);
+assert.match(resourceInspector, /this\.demolishHint\.hidden = target\.kind === 'residence'/);
+assert.match(resourceInspector, /this\.demolishSecondaryHint\.hidden = target\.kind === 'residence'/);
+assert.match(
+  resourceInspector,
+  /onDemolishSecondaryClick[\s\S]{0,420}confirmDestructiveAction\([\s\S]{0,260}onDemolishBurgageZone/,
+  'plot removal must use the shared destructive-action confirmation path',
+);
+assert.match(
+  resourceInspector,
+  /const confirmed = await this\.deleteDialog\.confirm\([\s\S]{0,320}if \(!confirmed\) return;[\s\S]{0,80}await action\(\)/,
+  'destructive reducers must run only after explicit confirmation',
+);
+assert.match(resourceInspector, /this\.deleteDialog = new AlertDialog\(options\.uiRoot\)/);
+assert.match(resourceInspector, /this\.deleteDialog\.dispose\(\)/);
+assert.match(alertDialog, /export class AlertDialog/);
+assert.match(alertDialog, /role="alertdialog"[\s\S]{0,180}aria-modal="true"[\s\S]{0,180}aria-labelledby=/);
+assert.match(alertDialog, /this\.cancelButton\.focus\(\{ preventScroll: true \}\)/);
+assert.match(alertDialog, /event\.key === 'Escape'[\s\S]{0,120}this\.settle\(false\)/);
+assert.match(alertDialog, /event\.key === 'Tab'\) this\.trapFocus\(event\)/);
+assert.match(alertDialogCss, /\.alert-dialog-backdrop\s*\{/);
+assert.match(alertDialogCss, /\.alert-dialog\s*\{/);
 assert.match(expandedBuildingRenderer, /FARM_CROPS\.map\(\(crop\)[\s\S]{0,520}data-land-parcel="field"[\s\S]{0,260}data-field-layout-crop="\$\{crop\}"[\s\S]{0,620}data-field-crop-icon="\$\{crop\}"/);
 assert.match(expandedBuildingRenderer, /data-land-parcel="field"[^>]*data-tooltip-cost="\$\{FREE_CONSTRUCTION_COST_TOOLTIP\}"/);
 assert.match(expandedBuildingRenderer, /data-land-parcel="vineyard"[^>]*data-tooltip-cost="\$\{FREE_CONSTRUCTION_COST_TOOLTIP\}"/);

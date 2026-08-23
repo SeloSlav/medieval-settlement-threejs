@@ -375,14 +375,19 @@ const inspector = readFileSync('src/resources/inspector/residenceRenderer.ts', '
 assert.match(inspector, /Settlement prosperity/);
 assert.match(inspector, /Promotion load/);
 assert.match(inspector, /Local prosperity branch/);
-assert.match(inspector, /this road branch/);
+assert.doesNotMatch(inspector, /this road branch/);
 assert.match(inspector, /Prosperity planning load/);
 assert.match(inspector, /winter-peak preserved ration/);
-assert.match(inspector, /Warning: promoting the current occupants immediately exceeds/);
+assert.doesNotMatch(inspector, /Warning: promoting the current occupants immediately exceeds/);
 assert.match(
   inspector,
-  /plan\.ready \? '' : 'disabled'/,
-  'throughput must warn without replacing the authoritative route and resource gate',
+  /const production = prosperity && projection[\s\S]{0,180}\$\{projection\.limitingLabel\} · \$\{projection\.immediateSustainable \? 'ready' : 'short'\}/,
+  'prosperity readiness should be reduced to compact upgrade tooltip metadata',
+);
+assert.match(
+  inspector,
+  /data-tooltip-title="Tier \$\{plan\.nextTier\}" data-tooltip="\$\{detail\}" \$\{plan\.ready \? '' : 'disabled'\}[\s\S]{0,240}<span>Upgrade · Tier \$\{plan\.nextTier\}<\/span>/,
+  'the compact Upgrade control must retain tooltip context and the authoritative route/resource gate',
 );
 
 const townHall = readFileSync('src/resources/inspector/townHallRenderer.ts', 'utf8');

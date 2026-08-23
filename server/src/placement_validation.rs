@@ -227,6 +227,26 @@ pub fn building_footprint_polygon(
     )
 }
 
+/// Tests the exact road-aware/yawed placement footprint against a circular
+/// world-space area. Keeping this beside `building_footprint_polygon` makes
+/// simulation effects use the same authored rectangle/estate as placement.
+pub fn building_footprint_overlaps_circle(
+    kind: &str,
+    x: f64,
+    z: f64,
+    network: Option<&RoadNetwork>,
+    center_x: f64,
+    center_z: f64,
+    radius: f64,
+) -> bool {
+    polygon_overlaps_circle(
+        &building_footprint_polygon(kind, x, z, network),
+        center_x,
+        center_z,
+        radius,
+    )
+}
+
 pub fn is_on_resource_deposit(ctx: &ReducerContext, x: f64, z: f64) -> bool {
     ctx.db.quarry().iter().any(|deposit| {
         point_overlaps_circle(
@@ -744,11 +764,13 @@ fn building_placement_yaw(x: f64, z: f64) -> f64 {
 #[cfg(test)]
 mod tests {
     use super::{
-        building_overlaps_road_surface, building_site_contains_point,
-        clay_deposit_protection_radius, minimum_polygon_distance, polygon_overlaps_circle,
-        quarry_deposit_protection_radius, road_aware_building_placement_yaw,
-        static_foraging_resource_protection_radius,
+        building_footprint_overlaps_circle, building_overlaps_road_surface,
+        building_site_contains_point, clay_deposit_protection_radius, minimum_polygon_distance,
+        polygon_overlaps_circle, quarry_deposit_protection_radius,
+        road_aware_building_placement_yaw, static_foraging_resource_protection_radius,
+        BUILDING_FOOTPRINT_SCALE,
     };
+    use crate::balance_generated::GAME_HABITAT_DISRUPTION_RADIUS;
     use crate::burgage::Point2;
     use crate::roads::RoadNetwork;
 
@@ -814,6 +836,54 @@ mod tests {
                 "{kind} should face back toward the road after roadside snapping"
             );
         }
+    }
+
+    #[test]
+    fn habitat_overlap_uses_the_road_yawed_visible_footprint() {
+        let snapshot = r#"{
+            "nodes": [
+                {"id":"node-1","position":[10.0,0.0,-30.0]},
+                {"id":"node-2","position":[10.0,0.0,30.0]}
+            ],
+            "edges": [{
+                "startNodeId":"node-1",
+                "endNodeId":"node-2",
+                "width":4.2,
+                "sampledPath":[[10.0,0.0,-30.0],[10.0,0.0,30.0]]
+            }]
+        }"#;
+        let network = RoadNetwork::from_snapshot_json(snapshot).expect("valid vertical road");
+        let half_width = 4.6 * 0.88 * BUILDING_FOOTPRINT_SCALE;
+        let half_depth = 4.1 * 0.88 * BUILDING_FOOTPRINT_SCALE;
+        let yaw_sensitive_z = GAME_HABITAT_DISRUPTION_RADIUS + (half_width + half_depth) * 0.5;
+
+        assert!(!building_footprint_overlaps_circle(
+            "smithy",
+            0.0,
+            0.0,
+            None,
+            0.0,
+            yaw_sensitive_z,
+            GAME_HABITAT_DISRUPTION_RADIUS,
+        ));
+        assert!(building_footprint_overlaps_circle(
+            "smithy",
+            0.0,
+            0.0,
+            Some(&network),
+            0.0,
+            yaw_sensitive_z,
+            GAME_HABITAT_DISRUPTION_RADIUS,
+        ));
+        assert!(!building_footprint_overlaps_circle(
+            "smithy",
+            0.0,
+            0.0,
+            None,
+            GAME_HABITAT_DISRUPTION_RADIUS + half_width + 0.1,
+            0.0,
+            GAME_HABITAT_DISRUPTION_RADIUS,
+        ));
     }
 
     #[test]

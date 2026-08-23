@@ -114,6 +114,17 @@ assert.match(panel, /data-trade-surplus-delta="-1"/);
 assert.match(panel, /data-trade-surplus-delta="1"/);
 assert.match(panel, /Keep in settlement/);
 assert.match(panel, /last sold 9 for 4\.5g/);
+assert.match(panel, /data-resource-token="firewood"/);
+assert.match(panel, /data-tooltip-title="Firewood"/);
+assert.match(panel, /data-tooltip="Settlement: 42 · Trading Post: 11 · Buy:/);
+assert.doesNotMatch(panel, /title="Current regional unit prices"/);
+assert.doesNotMatch(panel, /trading-post-ledger__rates/);
+assert.doesNotMatch(panel, /trading-post-ledger__status/);
+assert.equal(
+  (panel.match(/trading-post-ledger__resource-anchor/g) ?? []).length,
+  TRADE_RESOURCE_KINDS.length,
+  'every commodity row must expose one resource-icon hover anchor',
+);
 assert.equal(
   (panel.match(/data-trade-rule-row/g) ?? []).length,
   TRADE_RESOURCE_KINDS.length,

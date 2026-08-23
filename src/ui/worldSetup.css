@@ -336,6 +336,11 @@
   transform: translateY(-1px);
 }
 
+.world-setup-hazard-option:focus-visible {
+  outline: 2px solid rgba(232, 205, 138, 0.9);
+  outline-offset: 2px;
+}
+
 .world-setup-hazard-option.is-selected {
   border-color: rgba(206, 126, 70, 0.78);
   background: linear-gradient(145deg, rgba(139, 62, 34, 0.32), rgba(215, 180, 99, 0.06));
@@ -376,7 +381,21 @@
   color: #e1ab78;
 }
 
-.world-setup-hazard-hint {
+.world-setup-hazard-option--aquifer.is-selected {
+  border-color: rgba(103, 165, 184, 0.8);
+  background: linear-gradient(145deg, rgba(40, 96, 116, 0.34), rgba(118, 177, 185, 0.06));
+  box-shadow: inset 3px 0 rgba(103, 165, 184, 0.86);
+}
+
+.world-setup-hazard-option--aquifer .world-setup-hazard-option__marker {
+  color: #8bc4cf;
+}
+
+.world-setup-hazard-option--aquifer.is-selected .world-setup-hazard-option__state {
+  color: #abd8df;
+}
+
+.world-setup-slider-hint.world-setup-hazard-hint {
   margin-top: 7px;
 }
 
@@ -646,6 +665,15 @@
 
   .world-setup-mode-grid {
     grid-template-columns: 1fr;
+  }
+
+  .world-setup-hazard-option {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .world-setup-hazard-option__state {
+    grid-column: 2;
+    text-align: left;
   }
 
   .world-setup-landscape-grid {

@@ -14,7 +14,10 @@ import {
   WorldGenerationMismatchError,
   worldConfigRowToGeneration,
 } from '../src/world/worldConfigAuthority.ts';
-import { DEFAULT_WORLD_GENERATION_SETTINGS } from '../src/world/worldGenerationSettings.ts';
+import {
+  DEFAULT_WORLD_GENERATION_SETTINGS,
+  normalizeWorldGenerationSettings,
+} from '../src/world/worldGenerationSettings.ts';
 
 assert.equal(encodeMapSize('medium'), MAP_SIZE_CODES.medium);
 assert.equal(decodeMapSize(2), MAP_SIZE_BY_CODE[2]);
@@ -36,6 +39,7 @@ const row = {
   conflictEnabled: true,
   enemyPressure: 70,
   severeWeatherEnabled: true,
+  wellAquiferNetworksEnabled: true,
   configured: true,
 } satisfies WorldConfig;
 
@@ -48,6 +52,7 @@ assert.equal(generation.resourceVariety, 80);
 assert.equal(generation.conflictMode, 'frontier');
 assert.equal(generation.enemyPressure, 70);
 assert.equal(generation.severeWeatherEnabled, true);
+assert.equal(generation.wellAquiferNetworksEnabled, true);
 assert.equal(generation.configured, true);
 
 assert.equal(
@@ -63,6 +68,7 @@ assert.equal(payload.resourceVariety, 50);
 assert.equal(payload.conflictEnabled, false);
 assert.equal(payload.enemyPressure, 0);
 assert.equal(payload.severeWeatherEnabled, false);
+assert.equal(payload.wellAquiferNetworksEnabled, false);
 
 const frontierPayload = settingsToConfigurePayload({
   ...DEFAULT_WORLD_GENERATION_SETTINGS,
@@ -72,12 +78,25 @@ const frontierPayload = settingsToConfigurePayload({
 assert.equal(frontierPayload.conflictEnabled, true);
 assert.equal(frontierPayload.enemyPressure, 65);
 assert.equal(frontierPayload.severeWeatherEnabled, false);
+assert.equal(frontierPayload.wellAquiferNetworksEnabled, false);
 
 const severeWeatherPayload = settingsToConfigurePayload({
   ...DEFAULT_WORLD_GENERATION_SETTINGS,
   severeWeatherEnabled: true,
 });
 assert.equal(severeWeatherPayload.severeWeatherEnabled, true);
+assert.equal(severeWeatherPayload.wellAquiferNetworksEnabled, false);
+
+const aquiferPayload = settingsToConfigurePayload({
+  ...DEFAULT_WORLD_GENERATION_SETTINGS,
+  wellAquiferNetworksEnabled: true,
+});
+assert.equal(aquiferPayload.wellAquiferNetworksEnabled, true);
+assert.equal(
+  normalizeWorldGenerationSettings({}).wellAquiferNetworksEnabled,
+  false,
+  'legacy browser settings without the appended rule must keep even well groundwater',
+);
 
 assert.throws(
   () => assertWorldGenerationCompatible(
@@ -127,6 +146,7 @@ assert.deepEqual(
       conflictMode: generation.conflictMode,
       enemyPressure: generation.enemyPressure,
       severeWeatherEnabled: generation.severeWeatherEnabled,
+      wellAquiferNetworksEnabled: generation.wellAquiferNetworksEnabled,
     },
   },
 );
@@ -146,6 +166,14 @@ const matchingResolution = resolveWorldGenerationAuthority(
   DEFAULT_WORLD_GENERATION_SETTINGS,
 );
 assert.equal(matchingResolution.kind, 'use-local');
+assert.equal(
+  generationMatchesServer(matchingGeneration, {
+    ...DEFAULT_WORLD_GENERATION_SETTINGS,
+    wellAquiferNetworksEnabled: true,
+  }),
+  false,
+  'a well-aquifer rule mismatch must not reuse stale local world semantics',
+);
 assert.equal(
   matchingResolution.kind === 'use-local'
     ? matchingResolution.settings
@@ -169,6 +197,7 @@ await testTerminalMismatchDoesNotRetryOnEverySnapshot();
 await testReducerLockBecomesTerminalMismatch();
 await testStartupAlwaysReconfirmsWorldConfiguration();
 await testSevereWeatherSetupContract();
+await testAquiferSetupContract();
 
 console.log('world config authority tests passed');
 
@@ -362,6 +391,27 @@ async function testSevereWeatherSetupContract(): Promise<void> {
   assert.match(setupSource, /Summer droughts, lightning ignition, accidental structure fires, and fire spread/);
   assert.match(settingsSource, /severeWeatherEnabled:\s*false/);
   assert.match(serverConfigSource, /severe_weather_enabled:\s*false/);
+}
+
+async function testAquiferSetupContract(): Promise<void> {
+  const setupSource = await readFile(
+    new URL('../src/ui/WorldSetupPanel.ts', import.meta.url),
+    'utf8',
+  );
+  const settingsSource = await readFile(
+    new URL('../src/world/worldGenerationSettings.ts', import.meta.url),
+    'utf8',
+  );
+  const serverConfigSource = await readFile(
+    new URL('../server/src/reducers/world_configuration.rs', import.meta.url),
+    'utf8',
+  );
+  assert.match(setupSource, /data-aquifer-networks[\s\S]*Off · even groundwater/);
+  assert.match(setupSource, /Enable aquifer networks/);
+  assert.match(setupSource, /Well yield varies by location/);
+  assert.match(setupSource, /On · placement matters/);
+  assert.match(settingsSource, /wellAquiferNetworksEnabled:\s*false/);
+  assert.match(serverConfigSource, /well_aquifer_networks_enabled:\s*false/);
 }
 
 type FakeSnapshot = {

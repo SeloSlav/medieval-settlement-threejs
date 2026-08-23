@@ -82,11 +82,13 @@ const buildingsExpectedToHaveOpenings = new Set<string>([
   'weaver',
 ]);
 const legacyOpeningCrossPart = /Small window (?:vertical mullion|horizontal transom)|Residence (?:front|side) window (?:vertical mullion|horizontal transom)|Residence door cross brace/;
+type WindowOpeningContract = 'generic-glazed' | 'residence-open' | 'residence-glazed';
 
 function auditFacadeOpenings(
   root: THREE.Object3D,
   label: string,
   openingRequired: boolean,
+  windowContract: WindowOpeningContract = 'generic-glazed',
 ): void {
   let openingCount = 0;
   root.traverse((object) => {
@@ -111,11 +113,35 @@ function auditFacadeOpenings(
       if (typeof role === 'string') roles.add(role);
     });
     if (kind === 'window') {
-      if (!roles.has('window-pane')) {
-        throw new Error(`${label} window is missing its glazed pane.`);
+      const openResidenceAperture = windowContract === 'residence-open';
+      if (openResidenceAperture) {
+        if (roles.has('window-pane')) {
+          throw new Error(`${label} tier-one aperture must not retain a glazed pane.`);
+        }
+        if (!roles.has('window-interior')) {
+          throw new Error(`${label} tier-one aperture is missing its recessed lit interior.`);
+        }
+      } else {
+        if (!roles.has('window-pane')) {
+          throw new Error(`${label} window is missing its glazed pane.`);
+        }
+        if (roles.has('window-interior')) {
+          throw new Error(`${label} glazed window must not use the open-cottage interior surface.`);
+        }
       }
       if (!roles.has('window-frame') && !roles.has('window-jamb')) {
         throw new Error(`${label} window is missing its perimeter frame.`);
+      }
+      if (windowContract !== 'generic-glazed') {
+        if (object.userData.residenceWallCutThrough !== openResidenceAperture) {
+          throw new Error(
+            `${label} residence window wall-cut metadata does not match its authored construction.`,
+          );
+        }
+        const expectedGlazing = openResidenceAperture ? 'open-aperture' : 'glazed-pane';
+        if (object.userData.residenceWindowGlazing !== expectedGlazing) {
+          throw new Error(`${label} residence window must identify as ${expectedGlazing}.`);
+        }
       }
     } else {
       for (const requiredRole of ['door-leaf', 'door-hinge', 'door-latch']) {
@@ -127,6 +153,35 @@ function auditFacadeOpenings(
   });
   if (openingRequired && openingCount === 0) {
     throw new Error(`${label} must use the shared procedural façade-opening kit.`);
+  }
+}
+
+function auditResidenceDynamicWindowSurfaces(
+  root: THREE.Object3D,
+  tier: 1 | 2 | 3,
+  windowMaterial: THREE.Material,
+  label: string,
+): void {
+  const expectedRole = tier === 1 ? 'window-interior' : 'window-pane';
+  let surfaceCount = 0;
+  root.traverse((object) => {
+    const mesh = object as THREE.Mesh;
+    if (!mesh.isMesh || mesh.userData.facadeOpeningRole !== expectedRole) return;
+    surfaceCount += 1;
+    if (mesh.material !== windowMaterial) {
+      throw new Error(`${label} ${expectedRole} does not share the per-residence light material.`);
+    }
+    if (tier === 1) {
+      if (
+        mesh.userData.residenceWindowInteriorDepthMeters !== 0.34
+        || mesh.position.z >= -0.3
+      ) {
+        throw new Error(`${label} open aperture does not retain its 0.34 m recessed interior.`);
+      }
+    }
+  });
+  if (surfaceCount === 0) {
+    throw new Error(`${label} is missing its dynamic ${expectedRole} surfaces.`);
   }
 }
 
@@ -477,11 +532,18 @@ let tallestResidenceHeight = 0;
 for (const tier of [1, 2, 3] as const) {
   for (let seed = 0; seed < 18; seed++) {
     const residence = createResidenceMesh(seed, tier);
-    auditFacadeOpenings(residence, `residence ${seed}/${tier}`, true);
+    const residenceLabel = `residence ${seed}/${tier}`;
+    auditFacadeOpenings(
+      residence,
+      residenceLabel,
+      true,
+      tier === 1 ? 'residence-open' : 'residence-glazed',
+    );
     const windowMaterial = residence.userData.windowMaterial as THREE.Material | undefined;
     if (!windowMaterial || windowMaterial.userData.sharedBuildingMaterial !== false) {
       throw new Error(`Residence ${seed}/${tier} is missing its independently animated window material.`);
     }
+    auditResidenceDynamicWindowSurfaces(residence, tier, windowMaterial, residenceLabel);
     residence.traverse((object) => {
       if (!(object instanceof THREE.Mesh)) return;
       const materials = Array.isArray(object.material) ? object.material : [object.material];

@@ -24,7 +24,7 @@ import type { RiverField } from '../rivers/RiverField.ts';
 import type { PerspectiveCamera } from 'three';
 import type { Terrain } from '../terrain/Terrain.ts';
 import type { ClayDepositSite } from '../clay/ClayDepositLayout.ts';
-import type { ForestCore } from '../props/forestField.ts';
+import type { ForestTreeLayout } from '../props/ForestManager.ts';
 import type { RoadNetwork } from '../roads/RoadNetwork.ts';
 import { ILLUSTRATED_MAP_STAMP_LIFT } from '../map/IllustratedMapPlane.ts';
 import { IllustratedMapResourceHover } from '../map/IllustratedMapResourceHover.ts';
@@ -42,7 +42,7 @@ export function createWorldMapUi(options: {
   domElement: HTMLElement;
   terrain: Terrain;
   riverField: RiverField;
-  forestCores: readonly ForestCore[];
+  treePlacements: Promise<readonly ForestTreeLayout[]>;
   worldSeed: number;
   registry: WorldLayoutRegistry;
   clayDepositSites?: readonly ClayDepositSite[];
@@ -65,7 +65,7 @@ export function createWorldMapUi(options: {
     domElement,
     terrain,
     riverField,
-    forestCores,
+    treePlacements,
     worldSeed,
     registry,
     clayDepositSites,
@@ -128,7 +128,7 @@ export function createWorldMapUi(options: {
     uiRoot,
     riverField,
     terrain,
-    forestCores,
+    treePlacements,
     worldSeed,
     layoutMarkers,
     getRoadNetwork,

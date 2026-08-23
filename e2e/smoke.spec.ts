@@ -162,6 +162,16 @@ test('keeps the camera zoom percentage visible beside settlement time', async ({
 test('connects, places a reforester, and updates settlement HUD timber', async ({ page }) => {
   await page.goto('/?new');
 
+  const aquiferToggle = page.locator('[data-aquifer-networks]');
+  const aquiferState = page.locator('[data-aquifer-networks-state]');
+  await expect(aquiferToggle).toHaveAttribute('aria-pressed', 'false');
+  await expect(aquiferState).toHaveText('Off · even groundwater');
+  await aquiferToggle.click();
+  await expect(aquiferToggle).toHaveAttribute('aria-pressed', 'true');
+  await expect(aquiferState).toHaveText('On · placement matters');
+  await aquiferToggle.click();
+  await expect(aquiferToggle).toHaveAttribute('aria-pressed', 'false');
+
   const timberHud = page.locator('[data-stockpile="timber"]');
   const startWorld = page.getByRole('button', { name: 'Start world' });
   await startWorld.click();
@@ -254,11 +264,12 @@ test('connects, places a reforester, and updates settlement HUD timber', async (
     '(December–February)',
   ]);
   await expect(tooltip.locator('.ui-tooltip__season-description')).toHaveText([
-    /Rain quickens crops and refills wells/,
-    /drought can drain wells, pasture, fish, and fresh stores/,
-    /Harvest grain and orchards in September/,
-    /homes burn twice the usual firewood/,
+    /improves shallow-well recharge/,
+    /Crops mature while haymaking and shearing peak/,
+    /Finish the late harvest/,
+    /heated homes need twice their normal fuel/,
   ]);
+  await expect(tooltip.locator('.ui-tooltip__season-description').nth(1)).not.toContainText(/drought/i);
   await expect(totalsMode).toHaveAttribute(
     'aria-label',
     'Showing surplus goods. Show total goods stored.',

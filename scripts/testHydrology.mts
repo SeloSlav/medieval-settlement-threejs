@@ -3,10 +3,15 @@ import {
   droughtGroundwaterScore,
   sampleAquiferPotential,
   sampleAuthoritativeGroundwaterScore,
+  sampleAuthoritativeWellGroundwaterScore,
+  sampleWellGroundwaterScoreForWorldRules,
   sampleWorldGroundwaterScore,
+  UNIFORM_GROUNDWATER_SCORE,
 } from '../src/hydrology/sampleAuthoritativeHydrology.ts';
 import { DROUGHT_GROUNDWATER_MULTIPLIER } from '../src/generated/gameBalance.ts';
 import { groundwaterOverlayAlpha } from '../src/hydrology/HydrologyOverlay.ts';
+import { setDraftWorldGeneration } from '../src/world/worldGenerationContext.ts';
+import { DEFAULT_WORLD_GENERATION_SETTINGS } from '../src/world/worldGenerationSettings.ts';
 
 const seed = 0x071a2e0d;
 const inlandScores: number[] = [];
@@ -39,6 +44,31 @@ assert.ok(
 const alternateSeed = sampleWorldGroundwaterScore(280, 220, 0x6b712345, 50);
 assert.ok(Math.abs(normalWorld - alternateSeed) > 0.25, 'world seeds should move inland aquifer pockets');
 
+const uniformWellA = sampleWellGroundwaterScoreForWorldRules(-360, 260, seed, 50, false);
+const uniformWellB = sampleWellGroundwaterScoreForWorldRules(900, -900, seed, 0, false);
+assert.equal(uniformWellA, UNIFORM_GROUNDWATER_SCORE);
+assert.equal(uniformWellB, UNIFORM_GROUNDWATER_SCORE);
+assert.equal(
+  sampleWellGroundwaterScoreForWorldRules(280, 220, seed, 50, true),
+  normalWorld,
+  'enabled well aquifers must use the seeded groundwater network',
+);
+assert.equal(sampleWellGroundwaterScoreForWorldRules(10_000, 10_000, seed, 50, false), 0);
+assert.equal(
+  sampleAuthoritativeWellGroundwaterScore(-360, 260),
+  UNIFORM_GROUNDWATER_SCORE,
+  'the default world must give every valid well site the same reliable yield',
+);
+setDraftWorldGeneration({
+  ...DEFAULT_WORLD_GENERATION_SETTINGS,
+  wellAquiferNetworksEnabled: true,
+});
+assert.equal(
+  sampleAuthoritativeWellGroundwaterScore(280, 220),
+  sampleWorldGroundwaterScore(280, 220, DEFAULT_WORLD_GENERATION_SETTINGS.seed, 50),
+);
+setDraftWorldGeneration(DEFAULT_WORLD_GENERATION_SETTINGS);
+
 assert.equal(groundwaterOverlayAlpha(true, 1), 0, 'surface water must be transparent on the groundwater overlay');
 assert.ok(groundwaterOverlayAlpha(false, 0) > 0, 'dry land should retain a readable overlay grade');
 
@@ -49,6 +79,7 @@ for (const [x, z] of [[-650, 620], [-540, -540], [0, 0], [539, 411], [280, 220]]
   assert.ok(authoritative >= 0 && authoritative <= 1);
 }
 assert.ok(sampleAuthoritativeGroundwaterScore(650, 620) > 0, 'large-map edges should retain aquifer variation');
+assert.ok(sampleAuthoritativeGroundwaterScore(1_100, -1_100) > 0, 'current large-map edges should remain sampled');
 assert.equal(sampleAuthoritativeGroundwaterScore(10_000, 10_000), 0);
 
 console.log('Groundwater network and overlay exclusion checks passed.');

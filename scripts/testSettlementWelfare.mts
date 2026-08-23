@@ -40,6 +40,10 @@ const hudCss = readFileSync(
   new URL('../src/ui/settlementHud.css', import.meta.url),
   'utf8',
 );
+const polishedHudCss = readFileSync(
+  new URL('../src/ui/polishedGameUi.css', import.meta.url),
+  'utf8',
+);
 const townHallSource = readFileSync(
   new URL('../src/resources/inspector/townHallRenderer.ts', import.meta.url),
   'utf8',
@@ -57,11 +61,29 @@ assert.ok(
 );
 assert.match(hudSource, /data-welfare-alert/);
 assert.match(hudSource, /Burial response blocked/);
-assert.match(hudSource, /Review affected homes/);
-assert.match(hudSource, /Open the Town Hall ledger for details\./);
+assert.match(
+  hudSource,
+  /data-welfare-alert[\s\S]{0,100}data-tooltip-placement="above"/,
+  'the welfare tooltip should open above its alert instead of covering the clock',
+);
+assert.match(hudSource, /Some homes need attention/);
+assert.match(hudSource, /Inspect affected homes for unmet needs\./);
+assert.doesNotMatch(hudSource, /Open the Town Hall ledger/);
 assert.doesNotMatch(hudSource, /residents cannot work while ill/);
 assert.doesNotMatch(hudSource, /remedies in homes/);
 assert.match(hudCss, /settlement-hud__welfare-alert\[data-level='critical'\]/);
+assert.match(
+  polishedHudCss,
+  /--settlement-vitals-width:\s*min\(310px,\s*calc\(100vw - 28px\)\)/,
+);
+assert.match(
+  polishedHudCss,
+  /\.settlement-vitals\s*\{[\s\S]*?width:\s*var\(--settlement-vitals-width\)/,
+);
+assert.match(
+  polishedHudCss,
+  /\.settlement-vitals__alerts\s*\{[\s\S]*?width:\s*var\(--settlement-vitals-width\)/,
+);
 for (const label of [
   'Household health',
   'Illness and remedies',

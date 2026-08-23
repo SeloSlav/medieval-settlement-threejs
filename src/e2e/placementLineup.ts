@@ -3,6 +3,7 @@ import {
   createBuildingPreviewMesh,
   updateBuildingPreviewGeometry,
 } from '../buildings/BuildingPlacementPreview.ts';
+import { resolveBuildingPlacementWildlifePreview } from '../buildings/buildingPlacementWildlifePreview.ts';
 import { getBuildingDefinition } from '../resources/buildings.ts';
 import { BUILDING_KINDS, type BuildingKind } from '../resources/types.ts';
 import { FarmFieldPreview } from '../farming/FarmFieldMarkers.ts';
@@ -39,6 +40,7 @@ const root: HTMLElement = placementRoot;
 const lineupParams = new URLSearchParams(window.location.search);
 const alignmentView = lineupParams.get('view') === 'residence-alignment';
 const buildingPreviewView = lineupParams.get('view') === 'building-preview';
+const wildlifePreviewView = lineupParams.get('view') === 'wildlife-preview';
 const buildingPreviewDistance = lineupParams.get('distance');
 const previewYawParam = lineupParams.get('yaw');
 const requestedPreviewYaw = previewYawParam === null ? Number.NaN : Number(previewYawParam);
@@ -51,6 +53,11 @@ const buildingKind: BuildingKind = requestedBuilding
   ? requestedBuilding as BuildingKind
   : 'village_storehouse';
 const buildingDefinition = getBuildingDefinition(buildingKind);
+const wildlifeLineupScale = wildlifePreviewView && buildingKind === 'lumber_mill'
+  ? 5.2
+  : wildlifePreviewView
+    ? 2.1
+    : 1;
 
 const renderer = new THREE.WebGLRenderer({
   antialias: true,
@@ -67,7 +74,11 @@ root.prepend(renderer.domElement);
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x85927c);
-scene.fog = new THREE.Fog(0x85927c, 78, 155);
+scene.fog = new THREE.Fog(
+  0x85927c,
+  78 * wildlifeLineupScale,
+  155 * wildlifeLineupScale,
+);
 
 function getHeightAt(x: number, z: number): number {
   if (alignmentView) return 0;
@@ -76,7 +87,12 @@ function getHeightAt(x: number, z: number): number {
     + Math.sin((x + z) * 0.055) * 0.58;
 }
 
-const terrainGeometry = new THREE.PlaneGeometry(112, 68, 140, 92);
+const terrainGeometry = new THREE.PlaneGeometry(
+  112 * wildlifeLineupScale,
+  68 * wildlifeLineupScale,
+  140,
+  92,
+);
 terrainGeometry.rotateX(-Math.PI * 0.5);
 const terrainPositions = terrainGeometry.getAttribute('position') as THREE.BufferAttribute;
 for (let index = 0; index < terrainPositions.count; index += 1) {
@@ -120,15 +136,91 @@ scene.add(road);
 const buildingPreview = createBuildingPreviewMesh(buildingKind);
 scene.add(buildingPreview);
 buildingPreview.visible = !alignmentView;
-let buildingX = buildingPreviewView ? 0 : -31;
-let buildingZ = buildingPreviewView ? 0 : 1;
+let buildingX = buildingPreviewView || wildlifePreviewView ? 0 : -31;
+let buildingZ = buildingPreviewView || wildlifePreviewView ? 0 : 1;
+const wildlifeFixtureNodes = wildlifePreviewView
+  ? buildingKind === 'lumber_mill'
+    ? [
+        {
+          nodeId: 'visual-game-logging-overlap',
+          kind: 'game' as const,
+          resource: 'game' as const,
+          remaining: 12,
+          maxYield: 12,
+          x: 190,
+          z: 0,
+        },
+        {
+          nodeId: 'visual-game-building-overlap',
+          kind: 'game' as const,
+          resource: 'game' as const,
+          remaining: 12,
+          maxYield: 12,
+          x: 42,
+          z: -10,
+        },
+      ]
+    : [
+        {
+          nodeId: 'visual-game-direct-risk',
+          kind: 'game' as const,
+          resource: 'game' as const,
+          remaining: 12,
+          maxYield: 12,
+          x: 35,
+          z: -10,
+        },
+        {
+          nodeId: 'visual-game-safe-hunting-reach',
+          kind: 'game' as const,
+          resource: 'game' as const,
+          remaining: 12,
+          maxYield: 12,
+          x: -61,
+          z: 12,
+        },
+      ]
+  : [];
+const wildlifePreview = wildlifePreviewView
+  ? resolveBuildingPlacementWildlifePreview(
+      buildingKind,
+      buildingX,
+      buildingZ,
+      buildingPreviewYaw,
+      wildlifeFixtureNodes,
+    )
+  : undefined;
+
+if (wildlifePreviewView) {
+  const markerScale = buildingKind === 'lumber_mill' ? 1.8 : 1;
+  for (const node of wildlifeFixtureNodes) {
+    const marker = new THREE.Group();
+    marker.name = `Visible game resource ${node.nodeId}`;
+    const groundY = getHeightAt(node.x, node.z);
+    const base = new THREE.Mesh(
+      new THREE.CylinderGeometry(2.4 * markerScale, 2.8 * markerScale, 0.42, 24),
+      new THREE.MeshBasicMaterial({ color: 0x4b2f1e, fog: false, toneMapped: false }),
+    );
+    base.position.set(node.x, groundY + 0.22, node.z);
+    marker.add(base);
+    const gameGlyph = new THREE.Mesh(
+      new THREE.OctahedronGeometry(2.1 * markerScale, 0),
+      new THREE.MeshBasicMaterial({ color: 0xf0d49a, fog: false, toneMapped: false }),
+    );
+    gameGlyph.position.set(node.x, groundY + 2.7 * markerScale, node.z);
+    gameGlyph.scale.set(1.35, 1.65, 0.72);
+    marker.add(gameGlyph);
+    scene.add(marker);
+  }
+}
 updateBuildingPreviewGeometry(
   buildingPreview,
   buildingKind,
   buildingX,
   buildingZ,
-  buildingPreviewView ? buildingPreviewYaw : -0.18,
+  buildingPreviewView || wildlifePreviewView ? buildingPreviewYaw : -0.18,
   getHeightAt,
+  wildlifePreview,
 );
 
 const burgageCorners = (alignmentView
@@ -158,7 +250,7 @@ burgagePreview.update(
   null,
 );
 burgagePreview.group.visible = !alignmentView;
-if (buildingPreviewView) burgagePreview.group.visible = false;
+if (buildingPreviewView || wildlifePreviewView) burgagePreview.group.visible = false;
 
 if (alignmentView && burgageZoneCorners && burgageLayout) {
   const residenceRoot = new THREE.Group();
@@ -216,7 +308,7 @@ const fieldPreview = new FarmFieldPreview(getHeightAt);
 scene.add(fieldPreview.group);
 fieldPreview.show(fieldCorners, true, 'rye');
 fieldPreview.group.visible = !alignmentView;
-if (buildingPreviewView) fieldPreview.group.visible = false;
+if (buildingPreviewView || wildlifePreviewView) fieldPreview.group.visible = false;
 
 scene.add(new THREE.HemisphereLight(0xe4ebe0, 0x3f392d, 2.15));
 const sun = new THREE.DirectionalLight(0xffefd0, 3.4);
@@ -229,7 +321,12 @@ sun.shadow.camera.top = 45;
 sun.shadow.camera.bottom = -45;
 scene.add(sun);
 
-const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 220);
+const camera = new THREE.PerspectiveCamera(
+  38,
+  1,
+  0.1,
+  220 * wildlifeLineupScale,
+);
 if (alignmentView) {
   camera.position.set(0, 43, 38);
   camera.lookAt(0, 0, 6);
@@ -241,6 +338,14 @@ if (alignmentView) {
       : 1;
   camera.position.set(20 * cameraScale, 24 * cameraScale, 27 * cameraScale);
   camera.lookAt(0, 2.8, 0);
+} else if (wildlifePreviewView) {
+  if (buildingKind === 'lumber_mill') {
+    camera.position.set(260, 330, 345);
+    camera.lookAt(35, 0, 0);
+  } else {
+    camera.position.set(86, 112, 108);
+    camera.lookAt(-4, 0, 0);
+  }
 } else {
   camera.position.set(13, 51, 63);
   camera.lookAt(7, 0, 0);
@@ -259,7 +364,7 @@ renderer.domElement.dataset.lastUpdateMs = '0';
 renderer.domElement.dataset.worstUpdateMs = '0';
 
 renderer.domElement.addEventListener('pointermove', (event) => {
-  if (alignmentView || buildingPreviewView) return;
+  if (alignmentView || buildingPreviewView || wildlifePreviewView) return;
   const rect = renderer.domElement.getBoundingClientRect();
   pointer.set(
     ((event.clientX - rect.left) / rect.width) * 2 - 1,
@@ -366,6 +471,19 @@ if (alignmentView) {
   labels[0]!.style.left = '50%';
   labels[1]!.hidden = true;
   labels[2]!.hidden = true;
+} else if (wildlifePreviewView) {
+  document.querySelector('h1')!.textContent = 'Wildlife Placement Warning QA';
+  document.querySelector('header p')!.textContent = buildingKind === 'lumber_mill'
+    ? 'Red grazing habitat · dashed logging extent · advisory overlap'
+    : buildingKind === 'hunters_hall'
+      ? 'Red grazing habitat · safe hunting reach · placement remains allowed'
+      : 'Red grazing habitat · direct footprint risk · placement remains allowed';
+  const labels = document.querySelectorAll<HTMLElement>('.label');
+  labels[0]!.textContent = '38 m game grazing area';
+  labels[1]!.textContent = buildingKind === 'lumber_mill'
+    ? '210 m logging work extent'
+    : `${buildingDefinition.label} footprint`;
+  labels[2]!.textContent = 'Advisory — never a placement blocker';
 } else {
   document.querySelector<HTMLElement>('.label')!.textContent = `${buildingDefinition.label} footprint`;
 }

@@ -49,6 +49,24 @@ const sources = [
   { x: 0.2, z: -1.1, canopyRadius: 3.8 },
 ] as const;
 
+const isolatedMap = new ForestCanopyOcclusionMap(64, 128);
+isolatedMap.rebuild([{ x: 0, z: 0, canopyRadius: 4.1 }]);
+const isolatedField = isolatedMap.sampleFieldWorld(0, 0);
+assert.ok(
+  isolatedField.coverage > 0.25,
+  'an isolated live crown should remain visible in the raw coverage diagnostic',
+);
+assert.equal(
+  isolatedField.interior,
+  0,
+  'one isolated tree must not qualify as a forest interior',
+);
+assert.equal(
+  isolatedField.shade,
+  0,
+  'one isolated tree must leave terrain to its real directional shadow only',
+);
+
 function countPositionReads(
   position: THREE.BufferAttribute,
   action: () => void,
@@ -146,10 +164,21 @@ assert.ok(
   'felling one tree should remove its owned optical depth',
 );
 assert.ok(
-  oneTreeRemoved.interior > 0.9 && oneTreeRemoved.shade > 0.9,
-  'neighbouring crowns should keep a narrow felled-tree gap inside the continuous forest shadow body',
+  oneTreeRemoved.interior > 0.5 && oneTreeRemoved.shade > 0.5,
+  'a close surviving pair should keep a softer continuous forest-interior body',
 );
 map.setTreeActive(1, false);
+const isolatedSurvivor = map.sampleFieldWorld(0, 0);
+assert.ok(
+  isolatedSurvivor.coverage > 0.1,
+  'the final surviving crown should retain inspectable raw coverage',
+);
+assert.equal(
+  isolatedSurvivor.interior,
+  0,
+  'felling a stand down to one tree should remove its synthetic forest interior',
+);
+assert.equal(isolatedSurvivor.shade, 0);
 map.setTreeActive(2, false);
 assert.equal(
   map.sampleFieldWorld(0, 0).shade,
@@ -233,8 +262,8 @@ const uploadedComponents = productionAttribute.updateRanges.reduce(
   0,
 );
 assert.ok(
-  uploadedComponents < (productionPosition.count * 4) / 20,
-  `the local canopy upload must remain bounded (uploaded ${uploadedComponents} of ${productionPosition.count * 4} components)`,
+  uploadedComponents < productionPosition.count * 4 * 0.06,
+  `the local crown-plus-stand upload must remain below 6% (uploaded ${uploadedComponents} of ${productionPosition.count * 4} components)`,
 );
 
 productionTerrainGeometry.dispose();
@@ -258,8 +287,8 @@ closureMap.rebuild([
 const closedGap = closureMap.sampleFieldWorld(0, 0);
 assert.equal(closedGap.coverage, 0, 'the contract gap should remain outside literal crown coverage');
 assert.ok(
-  closedGap.interior > 0.75 && closedGap.shade > 0.75,
-  'a narrow space between neighbouring crowns should be filled by forest-scale closure',
+  closedGap.interior > 0.25 && closedGap.shade > 0.25,
+  'a narrow space between a close pair should receive partial stand-gated closure',
 );
 
 const denseMap = new ForestCanopyOcclusionMap(64, 128);
@@ -289,6 +318,11 @@ assert.ok(
 );
 assert.ok(maximumSunAccess > 0.6, 'at least one coherent opening should admit legible direct sun');
 assert.equal(FOREST_CANOPY_FIELD_PARAMETERS.closure.radiusMeters, 5.5);
+assert.equal(FOREST_CANOPY_FIELD_PARAMETERS.stand.radiusMeters, 12);
+assert.ok(
+  FOREST_CANOPY_FIELD_PARAMETERS.stand.densityStart > 1,
+  'the stand gate must remain above the maximum contribution of one isolated tree',
+);
 
 const debugUniform = { value: -1 };
 map.attachDebugUniform(debugUniform);
@@ -711,6 +745,7 @@ assert.equal(ivyTexture.subarray(1, 4).toString('ascii'), 'PNG');
 assert.equal(ivyTexture[25], 6, 'forest ivy should retain RGBA transparency');
 
 map.dispose();
+isolatedMap.dispose();
 secondMap.dispose();
 closureMap.dispose();
 denseMap.dispose();

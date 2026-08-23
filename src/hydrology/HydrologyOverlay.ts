@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import type { RiverField } from '../rivers/RiverField.ts';
 import type { Terrain } from '../terrain/Terrain.ts';
 import { forEachRiverFieldSample, mapRiverFieldRowForPlaneGeometry } from '../map/rasterizeRiverFieldBounds.ts';
-import { sampleAuthoritativeGroundwaterScore } from './sampleAuthoritativeHydrology.ts';
+import { sampleAuthoritativeWellGroundwaterScore } from './sampleAuthoritativeHydrology.ts';
 
 const OVERLAY_RESOLUTION = 512;
 const OVERLAY_MESH_SEGMENTS = 96;
@@ -97,7 +97,7 @@ function createHydrologyTexture(riverField: RiverField): THREE.DataTexture {
     // overlay must never tint rivers, the sea, ponds, or lakes: those features
     // are unrelated to the underground network used by wells.
     const surfaceWater = riverField.isRenderedWetAt(x, z);
-    const groundwater = surfaceWater ? 0 : sampleAuthoritativeGroundwaterScore(x, z);
+    const groundwater = surfaceWater ? 0 : sampleAuthoritativeWellGroundwaterScore(x, z);
     const alpha = groundwaterOverlayAlpha(surfaceWater, groundwater);
     if (alpha === 0) {
       data[index] = 0;

@@ -26,4 +26,5 @@ export default __t.row({
   resourceAbundance: __t.u8().name("resource_abundance"),
   resourceVariety: __t.u8().name("resource_variety"),
   severeWeatherEnabled: __t.bool().name("severe_weather_enabled"),
+  wellAquiferNetworksEnabled: __t.bool().name("well_aquifer_networks_enabled"),
 });

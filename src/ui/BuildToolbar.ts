@@ -162,6 +162,7 @@ export class BuildToolbar {
   private conflictEnabled = false;
   private cropSuitabilityActive = false;
   private vineyardSuitabilityActive = false;
+  private wellAquiferNetworksEnabled = false;
   private currentFarmCrop: MapOverlaySelection['crop'] = 'wheat';
   private availableResourceCosts: ResourceCostAmounts | null = null;
   private readonly requestGameSpeed: (speed: GameSpeed) => void;
@@ -316,7 +317,7 @@ export class BuildToolbar {
           <div class="map-overlay-menu__modes">
             <button type="button" class="map-overlay-option" data-overlay-mode="water" aria-pressed="false">
               <span class="map-overlay-option__icon" data-map-overlay-icon="water" aria-hidden="true"></span>
-              <span><strong>Groundwater</strong><small>Well aquifers</small></span>
+              <span><strong>Groundwater</strong><small>Even well water</small></span>
             </button>
             <button type="button" class="map-overlay-option" data-overlay-mode="wind" aria-pressed="false">
               <span class="map-overlay-option__icon" data-map-overlay-icon="wind" aria-hidden="true"></span>
@@ -629,9 +630,15 @@ export class BuildToolbar {
     }
     if (selection.mode === 'water') {
       this.cropSuitabilityTitle.textContent = 'Groundwater availability';
-      this.cropSuitabilitySubtitle.textContent = 'subsurface aquifer network';
-      this.cropSuitabilityLabels.innerHTML = '<span>Dry</span><span>Limited</span><span>Good</span><span>Abundant</span>';
-      this.cropSuitabilityDescription.textContent = 'This is the authoritative well-water network. Rivers, sea, ponds, and lakes are intentionally excluded.';
+      this.cropSuitabilitySubtitle.textContent = this.wellAquiferNetworksEnabled
+        ? 'subsurface aquifer network'
+        : 'even at every well site';
+      this.cropSuitabilityLabels.innerHTML = this.wellAquiferNetworksEnabled
+        ? '<span>Dry</span><span>Limited</span><span>Good</span><span>Abundant</span>'
+        : '<span>Same reliable yield everywhere</span>';
+      this.cropSuitabilityDescription.textContent = this.wellAquiferNetworksEnabled
+        ? 'This is the authoritative well-water network. Rivers, sea, ponds, and lakes are intentionally excluded.'
+        : 'Aquifer networks are off, so well placement does not change capacity or refill. Surface water remains separate.';
       this.cropSuitabilityLegend.dataset.overlay = 'water';
       return;
     }
@@ -644,6 +651,14 @@ export class BuildToolbar {
 
   setStats(stats: ToolbarStats): void {
     this.hudMode = stats.mode;
+    this.wellAquiferNetworksEnabled = stats.wellAquiferNetworksEnabled === true;
+    const groundwaterOption = this.overlayModeButtons.find((button) => button.dataset.overlayMode === 'water');
+    const groundwaterSubtitle = groundwaterOption?.querySelector<HTMLElement>('small');
+    if (groundwaterSubtitle) {
+      groundwaterSubtitle.textContent = this.wellAquiferNetworksEnabled
+        ? 'Well aquifers'
+        : 'Even well water';
+    }
     this.availableResourceCosts = stats.availableResources ?? null;
     syncBuildMenuCardAffordability(this.buildMenu, this.availableResourceCosts);
     const placingStarterCamp = stats.mode === 'founders_camp';
@@ -985,8 +1000,14 @@ export class BuildToolbar {
     speed: GameSpeed,
     environment: EnvironmentState,
     outlook?: NextDayEnvironmentOutlook,
+    severeWeatherEnabled = false,
   ): void {
-    this.settlementHud.setSimulationState(speed, environment, outlook);
+    this.settlementHud.setSimulationState(
+      speed,
+      environment,
+      outlook,
+      severeWeatherEnabled,
+    );
   }
 
   private syncBuildMenuButton(

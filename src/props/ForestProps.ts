@@ -61,6 +61,8 @@ export type ForestPropsOptions = {
   treeSeed?: number;
   densityScale?: number;
   forestCores?: ForestCore[];
+  /** Shared accepted layout used by both the 3D forest and illustrated map. */
+  treePlacements?: readonly ForestTreePlacement[];
 };
 
 type TreePlacement = ForestTreePlacement;
@@ -106,16 +108,18 @@ export async function createForestProps(
   );
   const forest = new THREE.Group();
   forest.name = 'Road-scale forest props';
-  const allTreePlacements = computeForestTreePlacements(
-    terrain.generationSize,
-    terrain.size,
-    isBlockedAt,
-    {
-      treeSeed: options?.treeSeed,
-      densityScale: options?.densityScale,
-      forestCores: options?.forestCores,
-    },
-  );
+  const allTreePlacements = options?.treePlacements
+    ? [...options.treePlacements]
+    : computeForestTreePlacements(
+        terrain.generationSize,
+        terrain.size,
+        isBlockedAt,
+        {
+          treeSeed: options?.treeSeed,
+          densityScale: options?.densityScale,
+          forestCores: options?.forestCores,
+        },
+      );
   const forestCores = options?.forestCores ?? createForestCores(rng, spawnConfig);
   const rockPlacements = createRockPlacements(rng, forestCores, allTreePlacements, spawnConfig, isBlockedAt);
   const undergrowthPlacements = createUndergrowthPlacements(rng, forestCores, spawnConfig, isBlockedAt);

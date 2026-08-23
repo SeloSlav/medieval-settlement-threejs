@@ -8,7 +8,7 @@ use crate::constants::{
 use crate::construction_priority::CONSTRUCTION_PRIORITY_NORMAL;
 use crate::db::*;
 use crate::economy::{deposit_building_commodity, CommodityKind};
-use crate::hydrology::{drought_groundwater_score, sample_world_groundwater_score};
+use crate::hydrology::{drought_groundwater_score, sample_world_well_groundwater_score};
 use crate::roads::RoadNetwork;
 use crate::season_policy::{EnvironmentState, WeatherKind};
 use crate::simulation::delivery_trips::{available_free_haulers, building_has_inbound_supply_trip};
@@ -33,6 +33,7 @@ pub fn step_well(
     sim_tick: u64,
     world_seed: u64,
     world_hydrology: u8,
+    well_aquifer_networks_enabled: bool,
     _clock: &GameClock,
     environment: EnvironmentState,
     building: Building,
@@ -52,18 +53,19 @@ pub fn step_well(
     let mut well = building;
     // Compatibility for saves created while wells exposed worker slots.
     well.assigned_labor = 0;
-    let base_hydrology =
-        sample_world_groundwater_score(well.x, well.z, world_seed, world_hydrology);
+    let base_hydrology = sample_world_well_groundwater_score(
+        well.x,
+        well.z,
+        world_seed,
+        world_hydrology,
+        well_aquifer_networks_enabled,
+    );
     let hydrology = if environment.weather == WeatherKind::Drought {
         drought_groundwater_score(base_hydrology)
     } else {
         base_hydrology
     };
-    let capacity = if well.water_capacity > 0.0 {
-        well.water_capacity
-    } else {
-        crate::hydrology::well_capacity_from_hydrology(def.storage_water, base_hydrology)
-    };
+    let capacity = crate::hydrology::well_capacity_from_hydrology(def.storage_water, base_hydrology);
 
     well.water_capacity = capacity;
     well.action_cooldown = (well.action_cooldown - TICK_DT).max(0.0);

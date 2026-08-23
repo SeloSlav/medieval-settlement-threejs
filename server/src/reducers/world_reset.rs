@@ -195,6 +195,7 @@ fn reset_world_progress(ctx: &ReducerContext) {
             conflict_enabled: false,
             enemy_pressure: 0,
             severe_weather_enabled: false,
+            well_aquifer_networks_enabled: false,
             configured: false,
             ..config
         });

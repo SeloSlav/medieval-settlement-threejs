@@ -1,391 +1,234 @@
 # Ages and historical progression
 
-**Status:** Concept — planning only; no implementation is authorized by this document  
-**Last updated:** 2026-08-22  
+**Status:** Concept — planning only; no implementation is authorized by this document
+**Last updated:** 2026-08-23
 **Project:** Selo Empire
 
 ## Decision
 
-Selo Empire should grow vertically through historical **Ages** instead of expanding the late Medieval game indefinitely with more parallel industries.
+Selo Empire should progress through a small number of visually distinct historical **Ages**. An Age is not completed by filling a separate technology tree or proving an abstract list of supply chains. It is completed by building a meaningful cohort of that Age's best residences and continuously satisfying the needs those residences already expose to the player.
 
-The current Gorski Kotar settlement is **Age I — Medieval Frontier**. The player completes that age by proving that every core supply-chain family works in the physical economy and can sustainably support a meaningful cohort of Tier 4 homes. The player then chooses when to begin a generational transition into the next age.
+For the current Medieval game, the capstone residence is the **Tier 4 home**. Supplying and maintaining enough occupied Tier 4 homes is itself proof that the settlement has built as much farming, processing, distribution, trade, infrastructure, and institutional capacity as it needs to advance. Optional industries and unused production routes do not become hidden blockers.
 
-The intended campaign spine is:
+The campaign has four playable Ages:
 
-1. Medieval Frontier;
-2. Imperial Borderlands;
-3. Reform and National Movements;
-4. Railways, Industry, and Mass Politics;
-5. First Yugoslavia and Interwar Modernity;
-6. Socialist Yugoslavia;
-7. Post-Yugoslav Reconstruction and Contested Nationhood.
+1. **Medieval Frontier**;
+2. **Railway and Industrial Municipality**;
+3. **Socialist Yugoslavia**;
+4. **Post-Yugoslav Reconstruction and Contemporary Life**.
 
-The World Wars and the wars accompanying Yugoslavia's dissolution are **historical ruptures between ages**, not prosperous production ages the player is rewarded for reaching.
+Four Ages are enough. They create large, legible changes in architecture, transport, utilities, public space, residence forms, clothing, props, and production. Intermediate centuries and political periods still matter, but they are handled through the generational time jumps, chronicles, inherited conditions, and optional historical scenarios rather than becoming three additional progression ladders.
 
-An entered age is a permanent historical achievement. A severe and sustained collapse can make an advanced settlement operate on the footing of an earlier age, but it cannot erase knowledge, delete buildings, demote homes, or make the calendar run backward.
+The World Wars and the wars accompanying Yugoslavia's dissolution are **historical ruptures between Ages**, not prosperous production Ages the player is rewarded for reaching.
+
+An entered Age is permanent. Shortages can make households lose welfare and stop progress toward the next Age, but they cannot make the calendar run backward, delete knowledge, demote structures, or revoke an Age already reached.
 
 ## Geographic scope
 
 The current sandbox is Gorski Kotar, Croatia, circa 1500–1600. The first campaign should therefore remain locally grounded and follow the history of lands that later formed Yugoslavia. It should not claim that one Yugoslav sequence represents the whole Balkans: Albania, Bulgaria, Greece, Romania, and European Turkey require their own branches if they ever become playable.
 
-The label **Medieval Frontier** is retained because it is the existing game's identity. Historically, the circa-1550 setting is early modern, although medieval institutions and material practices persist. Dates below are navigational frames for content and art direction, not claims that every locality changed age in the same year.
+The label **Medieval Frontier** is retained because it is the existing game's identity. Historically, the circa-1550 setting is early modern, although medieval institutions and material practices persist. Dates below are navigational frames for content and art direction, not claims that every locality changed at the same moment.
 
 ## Design principles
 
-- **Production is proven through use.** A building card or warehouse pile is not mastery. Goods must be produced, routed, delivered, and consumed where they are needed.
-- **The weakest physical link matters.** An aggregate surplus must not conceal a disconnected road branch, dry well, idle workshop, or unfunded trade route.
-- **Ages are the main progression axis.** Within-age choices can add character, but they must not turn the project back into endless horizontal feature growth.
-- **Advancement is earned, previewed, and player-triggered.** The game must never change age automatically during a harvest failure, fire, raid, or other crisis.
-- **History accumulates.** Roads, parcels, institutions, workshops, ruins, and earlier production methods remain visible and useful as the settlement changes.
-- **Regression is functional, not chronological.** Ordinary shortages create strain. Only deep, sustained collapse suspends advanced capacity, and recovery is easier than first advancement.
-- **Residence Tier and Age are separate.** Tier describes household prosperity inside an age; Age describes the settlement's historical and institutional standard.
+- **Residences are the progression gate.** The current Age ends when enough occupied capstone residences have had all of their declared needs maintained for the required window.
+- **Household needs are the economy test.** Goods and services count only when they actually reach the qualifying residences through the authoritative simulation.
+- **No parallel economy exam.** There is no separate requirement to operate every possible supply family. A chain matters to advancement only when it supplies a declared capstone-residence need.
+- **A cohort prevents showcase-house exploits.** One mansion surrounded by deprivation cannot advance the settlement.
+- **Ages are rare visual transformations.** Each Age must justify itself with a strongly different built environment and residence path. Historical periods that do not warrant that production scope are crossed in a time jump.
+- **Advancement is earned, previewed, and player-triggered.** Eligibility produces an announcement and confirmation screen; the game never changes Age without the player's choice.
+- **History accumulates.** Roads, parcels, landmarks, workshops, ruins, and selected older production methods remain visible as the settlement changes.
+- **Residence Tier and Age are separate.** Tier describes prosperity within a residence family. Age determines which residence forms, upgrades, services, and visual language are available.
 - **Historical politics are systems, not stereotypes.** Identity, religion, nationalism, class, and state power act through institutions, media, policy, and material conditions—not inherent population traits.
 
 ## Player-facing vocabulary
 
-| Term                   | Meaning                                                                                                                        |
-| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| **Historical Age**     | The highest age formally entered. It is permanent and never decreases.                                                         |
-| **Age Standard**       | The services, infrastructure, and household expectations introduced by an age.                                                 |
-| **Chain Mastery**      | Permanent evidence that one required dependency family worked reliably through real production and delivery.                   |
-| **Age Readiness**      | The settlement's current ability to operate its age-standard economy and institutions. This can rise and fall.                 |
-| **Adoption Maturity**  | Adopted or Consolidated. Consolidation is a permanent achievement even if the live economy later fails.                        |
-| **Live Health**        | Stable, Strained, or Crisis. This is reversible and responds to current conditions.                                            |
-| **Functional Footing** | The newest age standard whose systems currently function at settlement scale. It may temporarily sit below the Historical Age. |
-| **Legacy System**      | An earlier-age building, recipe, institution, or practice that remains available as heritage or emergency capacity.            |
-| **Historical Rupture** | A war, dissolution, occupation, or systemic break handled as a transition/scenario rather than an advancement tier.            |
+| Term | Meaning |
+| --- | --- |
+| **Historical Age** | The highest Age entered. It is permanent and never decreases. |
+| **Age Standard** | The residence needs, services, infrastructure, and visual language introduced by an Age. |
+| **Capstone Residence** | The highest residence upgrade or residence form whose sustained needs complete the current Age. |
+| **Completion Cohort** | The required group of occupied capstone residences that must pass together. |
+| **Maintenance Window** | The rolling period during which every counted residence must remain at its complete, player-visible standard. |
+| **Legacy Building** | An earlier-Age building that remains as working fallback, adaptive reuse, heritage, or ruin. |
+| **Historical Rupture** | A war, dissolution, occupation, or systemic break handled as a transition/scenario rather than an advancement tier. |
 
 Do not call Ages “settlement tiers.” Residence tiers, Approval tiers, and the map's Hamlet/Village/Town labels already have separate meanings.
 
 ## Core progression loop
 
-1. Build and physically connect the age's required supply-chain families.
-2. Operate each family long enough to earn permanent Chain Mastery.
-3. Sustain the required cohort of prosperous, current-standard homes.
-4. Keep the settlement's present economy and institutions healthy through the shared Age Exit Proof Window.
-5. Review exact blockers and next-age consequences in the Town Hall.
-6. Deliberately choose **Convene the Council** and begin an age-transition project.
-7. Complete that modest civic project, then cross a generational time jump while preserving the existing map and community history.
-8. Retrofit old infrastructure and phase in the next age's needs rather than instantly replacing everything.
-9. Consolidate the new age by building headroom beyond its minimum operating standard.
+1. Build the current Age's economy and services as needed during ordinary play.
+2. Unlock and build the Age's capstone residence upgrade or residence form.
+3. Establish the required occupied Completion Cohort.
+4. Keep every declared need of those residences satisfied through one shared Maintenance Window.
+5. Use the residence panel or Town Hall summary to find any failing home, need, or road branch.
+6. When the cohort passes, receive an **Age Ready** announcement and review the next Age's time jump, new needs, unlocks, and visual changes.
+7. Choose when to advance. The confirmation crosses the generational time jump; it does not start another resource-delivery project.
+8. Begin the new Age with new residence upgrades and building options while older districts remain usable.
 
-Reaching the final chronological age opens its endgame; it does not force the campaign to end.
+Reaching the final Age opens its endgame and leaves the sandbox running.
 
-Consolidation is required before the settlement can enter the following age. Its evaluation begins automatically during ordinary play after adoption and is recorded when the next Age Exit Proof Window succeeds; it is not a second ceremony or a separate waiting exercise.
+## Residence completion contract
 
-## Age I exit contract
+### The only advancement proof
 
-### Master every core supply-chain family
+Age completion is derived from the same authoritative household state the player already manages. If a requirement does not appear as a need or service on the relevant capstone residence, it cannot silently block advancement.
 
-This should mean every **core dependency family**, not every mutually substitutable recipe, orchard species, export good, or cosmetic variant. The age contract must be explicit and versioned so a later content patch cannot silently add a new blocker to an established save.
+A qualifying residence must:
 
-The proposed Age I mastery inventory should begin with the following. The middle column records current mechanics; the right column proposes a new age-exit proof and is not a description of existing Tier 4 gates. The authoritative server and current build menu must be re-audited when the contract is locked because the economy continues to evolve.
+- be the current Age's declared capstone residence or final upgrade;
+- be occupied rather than an empty shell;
+- meet a minimum meaningful occupancy so nearly empty prestige buildings cannot carry the gate;
+- have every declared food, water, fuel, goods, utility, institution, access, and comfort need satisfied;
+- receive those goods and services through the real road, distribution, utility, or service network;
+- remain free of a sustained household warning throughout its Maintenance Window.
 
-| Core family                                 | Current mechanics represented                                                                                                                                                                     | Proposed Age I proof                                                                                                                                                                                                                |
-| ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Water, forestry, and basic construction** | Wells; trees → Lumber Mill → timber; timber → Woodcutter's Lodge → firewood; stone extraction and construction hauling                                                                            | Tier 4 branches have sustainable water and winter fuel, while timber and stone can reach active work sites.                                                                                                                         |
-| **Soil, seed, and mixed food**              | Fields, seed grain, manure, produce/forage, animal produce, meat, fish, and household food                                                                                                        | The settlement can maintain the complete late-tier diet without consuming seed, breeding, or winter-fodder reserves.                                                                                                                |
-| **Grain and bread**                         | Field sheaves → Farmstead grain → mill flour → Bakery with water/firewood → Granary → Marketplace → homes                                                                                         | Same-branch milling and baking capacity meets demand and survives a seasonal stress period.                                                                                                                                         |
-| **Drinks and household comfort**            | Barley, fruit, or honey → Brewhouse with water/firewood → staffed Tavern → homes; market wine or honey, aronia/rosehip orchard preserves, or an upgraded flower garden can satisfy Tier 4 luxury  | A valid beverage path and at least one sustainable, specifically eligible luxury path reach the prosperous cohort.                                                                                                                  |
-| **Preservation and winter reserve**         | Fresh provisions + salt + firewood + pottery → Smokehouse → cured provisions → Granary → Marketplace → Tier 4 homes                                                                               | The road-matched winter reserve and ongoing replacement throughput are both adequate; a one-time cured-food pile is insufficient.                                                                                                   |
-| **Clay, pottery, and roof tiles**           | Clay + well water + firewood → Potter's Kiln → household pottery, preservation vessels, and fired roof tiles                                                                                      | Pottery replacement, smokehouse competition, and Tier 4 roof construction are all covered on the branches that use them.                                                                                                            |
-| **Textiles**                                | Sheep wool or flax + water → Weaver → cloth → staffed Village Storehouse → Marketplace → Tier 2+ homes                                                                                            | Annual/seasonal raw-fibre supply and workshop throughput cover existing and full-capacity late-tier demand.                                                                                                                         |
-| **Leather and footwear**                    | Goats or game → hides → Tannery with water/firewood → leather → Cobbler → staffed Village Storehouse → Marketplace → Tier 3+ homes                                                                | At least one complete, staffed route replaces footwear without relying on a stranded finished-goods cache.                                                                                                                          |
-| **Charcoal, ironwork, and tools**           | Firewood → charcoal; iron + charcoal + quench water → Smithy → civilian tools and other ironwork                                                                                                  | Extraction or reliable import, forge inputs, and distribution support real working tools; an empty forge or emergency iron lot does not count.                                                                                      |
-| **Local distribution and regional trade**   | Producers → staffed Granary or Village Storehouse → Marketplace; connected homes then receive authoritative abstract availability. Trading Posts handle regional imports/exports and working cash | Local service territories are functional, carts can reach the distribution point, household allocation is valid, and any import-dependent link has repeated, funded deliveries plus the correct physical-to-abstract service route. |
+The residence need list is the contract. It may contain substitutable goods, but the player needs only one valid path for each substitutable need. Optional orchards, exports, recipes, workshops, military systems, or institutions do not block an Age unless the chosen scenario makes their output an explicit residence need visible before the window begins.
 
-Monastery estates, specialty exports, orchard variants, and other elective systems can award legacies or mastery distinctions without blocking the basic age transition unless they become part of an age's declared core contract.
+Transient cart timing or a one-tick service refresh should use the household system's normal grace behavior. A sustained failure stops that residence's qualifying timer. The UI must show which home failed, which need failed, and how much maintained time was lost; it must not expose an opaque civilization progress percentage.
 
-### Institutional Readiness
+### Medieval completion cohort
 
-Institutions are a separate gate rather than pretend supply chains. Medieval Institutional Readiness should include the Town Hall, the current Catholic Gorski scenario's level-3 Church serving the qualifying cohort, working parish/welfare capacity, and the recovery services enabled by the selected ruleset. Future regional branches must substitute locally appropriate faith and civic institutions instead of treating the Church as universal.
+For **Age I — Medieval Frontier**, the capstone is the existing **Tier 4 home**.
 
-Contested mode tests defense supply, warning, refuge, and recovery. Peaceful mode instead tests continuity through food, water, fuel, relief reserves, and route redundancy. Severe-weather settings test their enabled hazards. A disabled hazard must never create either an impossible requirement or a free automatic pass; every world proves a declared, comparably demanding institutional-resilience contract.
+The provisional cohort target remains scaled and capped:
 
-### Chain Mastery test
-
-A core family earns mastery only when all applicable parts pass:
-
-1. **Topology** — the source, processors, storage/distribution point, and consumers have valid physical routes.
-2. **Capability** — at least one valid producer or recurring regional contract exists for every non-substitutable input.
-3. **Throughput** — staffed capacity meets the family manifest's configured fulfillment target for relevant rolling demand.
-4. **Delivery proof** — real output has completed the path and reached a consumer; predicted capacity alone is not enough.
-5. **Reliability** — no outage exceeds the family manifest's maximum continuous interruption.
-6. **Resilience** — the chain meets its declared reserve horizon or funded-import runway rather than running from one perfect delivery.
-7. **Coverage** — the prosperous cohort's actual road branches are served. Surplus on a disconnected branch remains visible but cannot count.
-
-Use a weakest-link test, not an average that allows a perfect pottery chain to conceal a broken food network. Seasonal producers are evaluated during their real work window and through the reserves they are expected to create; they are not penalized for intended winter dormancy.
-
-“Delivery to consumers” respects the game's existing abstraction boundary: carts physically move goods to a staffed Granary or Village Storehouse and then to the Marketplace, after which authoritative availability serves connected homes without inventing a second door-to-door cart.
-
-Mastery is permanent evidence. A later fire, empty shift, or drought changes current Age Readiness but does not make the player repeat an already demonstrated tutorial. Imports may contribute when they are a durable physical strategy with repeated deliveries, sufficient working cash, storage, and route capacity. One emergency purchase never establishes mastery.
-
-Mastery proves that the settlement understands and has successfully operated a family; it does not prove present scale. The exit gate revalidates every family concurrently against normative demand for all occupied homes plus full-capacity demand for the qualifying cohort.
-
-A family with no current consumption does not need to manufacture waste to remain ready. Historical delivery proves its mastery; live readiness checks maintained capability, reserved inputs, available labor, route health, and the ability to resume within the declared outage limit.
-
-Before implementation, every age manifest must replace qualitative gate language with versioned values. Vital water, food, and winter-heat routes should require 100% capability for counted homes. Each non-vital family needs an explicit fulfillment ratio, maximum outage, and reserve or funded-import runway. The values can be tuned, but the live gate must be deterministic.
-
-### Tier 4 household cohort
-
-The first age ends around a real prosperous community rather than one showcase house. The provisional target is:
-
-`required Tier 4 homes = min(24, max(world-size floor, ceil(20% × peak occupied homes during the Age Exit Proof Window)))`
+`required Tier 4 homes = min(24, max(world-size floor, ceil(20% × peak occupied homes during the Maintenance Window)))`
 
 Suggested starting floors are 8 homes on a Small world, 12 on a Medium world, and 16 on a Large world. These are balance targets, not final constants. Using the trailing peak prevents demolition or short-term depopulation from lowering the target during proof.
 
-Every counted home must:
+Every counted Medieval home must:
 
-- be occupied;
-- average at least the current Tier 1 household baseline of three residents across the proof window;
+- average at least the current Tier 1 household baseline of three residents across the window;
 - be at structural Tier 4;
-- have no sustained service warning;
-- have working water, fuel, the current scenario's Church, Granary, Storehouse, and Marketplace routes;
-- receive the complete Tier 4 diet, cured provisions, beverage, cloth, shoes, pottery, and luxury service;
-- have its full-capacity demand included in the readiness forecast.
+- maintain every need shown for a Tier 4 household, including its complete diet, cured provisions, beverage, cloth, shoes, pottery, luxury, water, fuel, faith/civic service, storage, and marketplace access where those remain part of the authoritative Tier 4 contract.
 
-The minimum household baseline prevents one-resident mansions from carrying the count. The separate capacity test prevents a lightly occupied cohort from hiding its future demand. Under the current balance, a Tier 4 home can hold 15 residents, so the network forecast must cover the housing pipeline rather than only today's occupancy.
+Maintaining that cohort demonstrates all supply capacity actually necessary for Medieval completion. There are no additional permanent chain badges and no second checklist for unused industries.
 
-### Shared Age Exit Proof Window
+### Later-Age capstones
 
-The cohort, live chain revalidation, Institutional Readiness, and settlement stability use one concurrent **Age Exit Proof Window**, provisionally 120 in-game days. They are not consecutive timers.
+Each later Age declares one visually and mechanically clear capstone residence path. It may be an upgrade to an older home, a new detached or row-house family, or a multi-household apartment building. Dense buildings count their actually occupied, fully serviced dwelling units, not their exterior shell as dozens of free completions.
 
-Seasonal ledgers and conservative full-cycle forecasts prove crop, winter, and other dormant-season resilience. The player should not need to wait for a second winter merely because the last non-seasonal blocker was repaired just after the first one. Exact duration and forecast margins belong to playtesting; the intent is to reject a one-tick stockpile spike without turning the end of every age into idle waiting.
+Later Ages should reuse the same rule:
 
-### Current Age Readiness
+`build the capstone cohort + maintain all declared capstone needs = Age complete`
 
-Permanent mastery badges and homes are necessary but not sufficient. To expose **Convene the Council**, the settlement must currently have:
+The exact cohort size and Maintenance Window may vary with dwelling capacity and game pace, but the underlying rule must not change between Ages.
 
-- every required Chain Mastery;
-- current Institutional Readiness;
-- the qualifying Tier 4 cohort;
-- complete vital-route capability plus the declared non-vital fulfillment and reserve targets;
-- no widespread vital-service, fire, burial, or security crisis;
-- enough labor and civic capacity to operate existing systems without a hidden staffing collapse;
-- every branch containing a qualifying home at the complete Tier 4 standard;
-- branches serving at least 90% of occupied population at the general age-service floor, with no omitted branch containing 10% or more of the population left in vital crisis;
-- a completed shared Age Exit Proof Window.
+### Maintenance Window
 
-Readiness is one simultaneous resource plan. A worker, cart, unit of stock, input reserve, production cycle, or unit of working cash may satisfy only one committed claim at a time. Sequentially staffing every workshop, or promising the same water, salt, pottery, cart, and trade coffer to several chains, cannot pass the gate.
+Use one concurrent rolling window for the whole cohort. A provisional Age I target is **120 in-game days**, subject to playtesting. The purpose is only to prove sustained household operation rather than a one-day stockpile spike.
 
-The age ledger should always identify the exact weakest chain, branch, household, institution, or missing reserve. It must reuse the same conceptual truths as the Town Hall's existing road-matched ledgers; it must not introduce a second set of opaque economy rules.
+Seasonal requirements remain ordinary residence needs. The system must not add a hidden forecast, reserve-horizon score, or separate winter exam. If testing shows 120 days is too long or too easy to schedule around, tune the visible duration or the residence's seasonal needs rather than restoring a second progression system.
 
-### Advancement ceremony
+## Soft Age transition
 
-Eligibility does not advance the game automatically. The Town Hall offers **Convene the Council**, which previews:
+Eligibility does not immediately change the world. It raises a prominent but non-blocking **Age Ready** announcement. The player can keep playing in the current Age and open the transition screen when convenient.
 
-- the new age and its historical frame;
-- new household standards and infrastructure dependencies;
-- which existing buildings remain current, become legacy systems, or can be retrofitted;
-- the transition project and material/labor commitment;
-- the approximate generational time jump;
-- any chosen campaign rules for the next historical period.
+The confirmation screen previews:
 
-The player confirms only when ready. This creates a **Committed Transition**, not an instant age change. The transition project is a modest civic commitment and presentation device; the readiness proof is the substantive cost, so the project must not become another giant stockpile checklist.
+- the next Age and the approximate historical time skipped;
+- the new residence upgrades and residence forms that will unlock;
+- the new needs that future current-standard homes will introduce;
+- new buildings, utilities, transport, policies, and institutions;
+- which existing building visuals will update, remain historic, or gain a retrofit option;
+- how population records, stock, treasury, carts, and unfinished work are treated across the time jump;
+- any locality-specific historical rupture or campaign choice crossed during the jump.
 
-Historical Age increments only when the transition project completes. During construction, a lower retention threshold replaces the strict entry threshold: brief shortages do nothing, while sustained Strain or Crisis pauses the project without cancelling it or destroying delivered materials. Recovery resumes work. The transition can then be presented through a chronicle, map montage, and visible construction/retrofit work rather than an unexplained flash and a fully replaced build menu.
+Confirming plays a short chronicle, announcement, or map montage and then enters the new Age. There is no additional civic megaproject or resource checklist after the residence cohort has already qualified.
 
-## Hysteresis and soft regression
+Age entry should feel soft in simulation terms and strong in presentation:
 
-### Separate historical, maturity, health, and footing state
+- new residence upgrades and Age-owned build cards unlock;
+- a declared set of continuing buildings can swap to new Age-appropriate meshes, materials, props, or frontage treatments where the change is purely visual and preserves function and footprint;
+- functional improvements such as electricity, sewerage, heating, rail access, or modern logistics require explicit player-built retrofits;
+- important older buildings and coherent historic districts remain as legacy architecture instead of being universally reskinned;
+- newly introduced household needs apply to new or upgraded current-standard residences and then phase into the wider settlement through a visible grace policy.
 
-The save should eventually distinguish:
+The Age manifest must list every automatic mesh replacement. A visual swap may not change capacity, inventory, staffing, service area, or upkeep behind the player's back.
 
-- **Highest Historical Age Reached** — monotonic and permanent;
-- **Adoption Maturity** — Adopted or permanently Consolidated;
-- **Live Health** — Stable, Strained, or Crisis, derived from live supply, services, institutions, and route health;
-- **Functional Footing** — the newest age standard currently functioning at settlement scale.
+## Residences across Ages
 
-This allows the UI to say, for example, **“Industrial settlement — systems operating on an Early Modern footing”**. It must never say the settlement traveled back into the Medieval period.
+Do not add a generic Tier 5, Tier 6, and Tier 7 merely to mirror chronology. There are only four Ages, and each later Age can introduce a specific residence upgrade path or new housing family when that produces a genuinely different settlement shape.
 
-### Provisional maturity model
+- A Tier 4 Medieval home is never demoted merely by an Age transition or shortage.
+- In a later Age it may remain a maintained historic home, receive a current-standard retrofit, or become the base for a newly unlocked upgrade.
+- New row houses, workers' housing, villas, and apartment blocks can express later standards without stretching one Medieval cottage mesh across five centuries.
+- Old homes remain occupied under the persistent-home philosophy; missing modern services reduce welfare and opportunity but do not erase tenure.
+- Only homes or dwelling units at the current Age's declared capstone standard count toward the next transition.
 
-| Maturity         | Starting trigger                                                                                                                                                                                              | Consequence                                                                                                                             |
-| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| **Adopted**      | The settlement enters a new age at its minimum requirements.                                                                                                                                                  | New institutions and retrofits unlock, but the age is still vulnerable and has little reserve headroom.                                 |
-| **Consolidated** | Complete current-standard demand plus meaningful contingency in every vital family passes the Age Exit Proof Window. Contingency may be spare throughput, a secondary source, or an adequate reserve horizon. | A permanent legacy is secured, grace periods lengthen, and recovery becomes easier. Consolidation remains recorded during later crises. |
-
-### Provisional live-health transitions
-
-| Transition            | Starting trigger                                                                                                                                                   | Consequence                                                                                                                              |
-| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| **Stable → Strained** | Essential capacity remains below roughly 70% for 30 days across branches exposing the configured warning share, or a qualifying-home branch fails.                 | Warnings, weaker attraction, lower discretionary activity, and targeted recovery tools appear.                                           |
-| **Strained → Crisis** | Essential capacity remains below roughly 45% for 60 days across the configured crisis exposure share, or defined vital failures expose a large share of residents. | Elective advanced expansion, promotions, and age-wide growth bonuses pause; the settlement leans on legacy systems and emergency policy. |
-| **Crisis → Strained** | Essential capacity recovers above roughly 55% for 30 days.                                                                                                         | Crisis restrictions lift in stages while recovery remains visible.                                                                       |
-| **Strained → Stable** | Essential capacity recovers above roughly 75% for 30 days.                                                                                                         | Normal operation resumes without repeating the original age-entry checklist.                                                             |
-
-These values express the desired hysteresis and are deliberately far apart:
-
-- **advance high**;
-- **retain generously**;
-- **regress functionally only after deep, sustained failure**;
-- **recover at a middle threshold**.
-
-The percentages are balance hypotheses. Age Readiness should be based on the weakest normalized essential systems and exposed population, not a single settlement average. A non-vital luxury failure alone cannot trigger Crisis; Crisis requires a vital failure or a declared share of exposed population.
-
-Health is evaluated first per system and road branch. Settlement Live Health is then derived from population-weighted exposure and the stricter rules for qualifying-home branches. A tiny failed satellite remains locally Strained or in Crisis but cannot collapse the global state by itself.
-
-Functional Footing can fall by at most one age after each completed Crisis window and recover by at most one step after each recovery window. This prevents a single tick from cascading through centuries in either direction.
-
-### What Crisis means
-
-During Crisis:
-
-- the Historical Age, technologies, buildings, records, and structural residence tiers remain;
-- advanced buildings operate whenever their real inputs and labor reach them;
-- bonuses that assume an integrated age-wide system may switch off;
-- new advanced districts, immigration incentives, or institutional promotions may pause;
-- repairs, replacement capacity, emergency infrastructure, and retrofits required for recovery never pause;
-- old wells, workshops, local food plots, roads, and manual recipes regain emergency importance;
-- rationing, public works, emergency imports, labor mobilization, and targeted repair can become available;
-- effects begin on the failed road branches and become settlement-wide only when enough of the population is exposed.
-
-One failed harvest or short firewood winter must not cause functional regression. A neglected multi-season collapse can. A further drop to an even older operating footing should require another long crisis window, never occur as a chain reaction in one tick.
-
-Consolidation is the “blow past the minimum” milestone. It requires useful contingency rather than a literal 125% surplus from every slow or seasonal good. It does not make the settlement immune, but creates the comfortable hysteresis buffer the age needs to feel earned and sticky.
-
-## Residences across ages
-
-Do not add Tier 5, Tier 6, and Tier 7 homes merely to mirror the age count.
-
-Keep the four structural prosperity tiers, then add an **Age Standard** to the residence:
-
-- an extant Tier 4 Medieval home is never demoted merely by an age transition or service shortage;
-- in a later age it may be a well-kept legacy home, a retrofitted current-standard home, or a neglected home missing modern services;
-- sanitation, electricity, heat networks, communications, or later expectations are retrofits/services rather than structural demotions;
-- a later age's household cohort counts only homes that meet that age's standard;
-- shortages follow the existing persistent-home philosophy: they reduce welfare and opportunity but do not erase tenure or automatically empty the parcel.
-
-New apartment blocks or other later housing forms may use the same four prosperity/service states at a district scale. That decision should be made per age rather than by extending one medieval cottage mesh into every century.
-
-New-age needs must phase in through a grace period, neighborhood rollout, and explicit retrofit program. Advancing should create a new planning challenge, not make every household fail on the first simulation tick.
-
-That rollout must be finite and eventually designate a prescribed current-standard household cohort. The player cannot avoid an age's living-standard obligations forever by refusing every voluntary retrofit.
+New-Age residence needs must phase in through a grace period and explicit upgrade program. Advancing should unlock the next planning challenge, not make every existing household fail on the first simulation tick.
 
 ## Continuity of the physical settlement
 
-An age transition is a generational jump, not a new map.
+An Age transition is a generational jump, not a new map.
 
-Every existing asset should fall into one of four categories:
+Every existing asset belongs to one of four categories:
 
-1. **Continuing** — still works substantially as built, such as a durable road alignment or food plot.
-2. **Retrofittable** — can gain the new age's utility, safety, power, or logistics connections.
+1. **Visual continuation** — keeps its function and footprint but may receive an automatic Age-appropriate mesh/material variant.
+2. **Retrofittable** — can gain a new utility, safety, power, frontage, or logistics connection through player action.
 3. **Adaptively reusable** — can become a school, workshop, cooperative store, clinic, cultural site, or other later use.
 4. **Legacy/obsolete** — remains as low-throughput fallback, heritage, ruin, or a candidate for deliberate demolition.
 
-Earlier infrastructure must not be dead content. Historic roads can shape later streets, rail approaches, and utility corridors. Traditional production can provide low-throughput crisis resilience. Preserved buildings and districts can later create civic, cultural, educational, or visitor value.
+Earlier infrastructure must not be dead content. Historic roads can shape later streets, rail approaches, and utility corridors. Traditional production can provide low-throughput resilience. Preserved buildings and districts can later create civic, cultural, educational, or visitor value.
 
-The current day/month simulation cannot simply run for five hundred literal years. An age transition should advance macro-history by decades or generations while ordinary seasonal simulation continues inside each age. Household identities may become family lines or community records so continuity survives even though individuals do not live across the whole campaign.
+The day/month simulation cannot run for five hundred literal years. Transitions advance macro-history by decades or generations while ordinary seasonal simulation continues inside each Age. Household identities may become family lines or community records so continuity survives even though individuals do not live across the whole campaign.
 
-Before confirmation, the transition preview must state exactly how perishables, durable stock, active carts, unfinished projects, population records, and treasury balances survive or are normalized across the time jump. A generational montage must not silently duplicate, destroy, or preserve impossible physical state.
+Before confirmation, the transition preview must state exactly how perishables, durable stock, active carts, unfinished projects, population records, and treasury balances survive or are normalized. A montage must not silently duplicate, destroy, or preserve impossible physical state.
 
-## Historical age ladder
+## Four-Age historical ladder
 
-This is the recommended spine for a Croatia/Yugoslav-region campaign. The dates overlap intentionally because borders, institutions, and industrial change did not arrive uniformly.
+This is the recommended spine for a Croatia/Yugoslav-region campaign. It is deliberately a visual-production ladder, not a claim that the centuries between its entries were historically empty.
 
 ### Age I — Medieval Frontier
 
 **Frame:** the current circa 1500–1600 Gorski Kotar sandbox, using the game's established Medieval label.
 
-**Identity:** seasonal rural production, physical handcart logistics, household plots, craft workshops, Church and civic institutions, frontier pressure, and Adriatic-facing regional trade.
+**Visual identity:** timber and masonry houses, shingle and tile roofs, household plots, handcart roads, mills, craft yards, Church and civic landmarks, frontier works, and an Adriatic-facing rural market network.
 
-**Capstone:** mastery of every declared Medieval core family plus a sustained Tier 4 household cohort.
+**Capstone:** a maintained cohort of occupied Tier 4 Medieval homes.
 
-This age is complete when its capstone works. Afterward, new Medieval work should prioritize polish, balance, resilience, historical texture, and readability rather than an unlimited succession of new industries.
+Once that cohort qualifies, further Medieval work should prioritize polish, balance, resilience, historical texture, and readability rather than adding unrelated industries solely to delay advancement.
 
-### Age II — Imperial Borderlands
+### Generational jump — imperial centuries, reform, and national movements
 
-**Frame:** approximately 1600–early 1800s, with Ottoman, Habsburg, Venetian, Ragusan, and local municipal systems varying by locality.
+The first jump can cross much of the seventeenth through nineteenth centuries. Its chronicle records locality-specific changes in Ottoman, Habsburg, Venetian, Ragusan, and municipal rule; military-frontier obligations; trade; cadastral and property reform; literacy; schooling; print; migration; and national movements.
 
-**New vertical pressures:**
+Those histories shape the inherited map, population record, institutions, and transition choices. They do not each require their own full building ladder. Political overlays must change institutions, obligations, markets, and opportunities without assigning immutable bonuses to ethnic or religious groups.
 
-- customs and layered jurisdiction;
-- postal and coaching roads;
-- guild regulation and larger manufactories;
-- public grain reserves and stronger fiscal administration;
-- paper, print, record keeping, and schooling foundations;
-- cash crops, caravan/Adriatic trade, and state procurement;
-- larger water-powered production and fortified logistics;
-- religious and municipal plurality.
+### Age II — Railway and Industrial Municipality
 
-**Mastery character:** reliably connect the local settlement to wider administrative and commercial networks without losing food security or branch-level resilience.
+**Frame:** approximately 1870–1941, with locally appropriate entry dates and an interwar chapter.
 
-Do not reduce this age to a single “Ottoman” or “Habsburg” skin. Political overlays should change taxes, institutions, obligations, markets, and opportunities; they must not assign immutable bonuses to ethnic or religious groups.
+**Visual identity:** engineered roads, rail corridors and stations, denser plastered streets, factories and depots, civic schools and offices, worker housing, early motor traffic, street lighting, piped utilities, and a visibly expanded town center.
 
-### Age III — Reform and National Movements
+**New pressures:** bulk logistics, coal and machine maintenance, industrial employment, food supply for a denser town, sanitation, municipal finance, pollution, literacy, labor organization, electrification, uneven development, and interwar market shocks.
 
-**Frame:** approximately 1780–1878/1912, varying across the region.
+**Capstone direction:** a maintained cohort of the Age's highest current-standard urban and/or upgraded household residences, supplied with the declared industrial-era utilities, goods, access, and civic services.
 
-**New vertical pressures:**
-
-- schools, literacy, newspapers, and political associations;
-- cadastral administration, property reform, and municipal budgets;
-- improved roads, postal service, and early mechanization;
-- sanitation, public health, and denser towns;
-- peasant emancipation, cooperatives, wage labor, and migration;
-- imperial reforms, autonomy movements, and competing ideas of political community.
-
-**Mastery character:** turn a prosperous settlement into a literate, administratively capable municipality whose new institutions are materially funded and broadly accessible.
-
-National movements enter as contested institutional and political forces. There is no “culture point” or ethnic-purity meter.
-
-### Age IV — Railways, Industry, and Mass Politics
-
-**Frame:** approximately 1860–1918, with 1878 as an important political hinge rather than the universal beginning of industrial change.
-
-**New vertical pressures:**
-
-- rail corridors, stations, and bulk logistics;
-- coal, steam, machine parts, factories, and industrial maintenance;
-- electricity, municipal water, sewerage, and public health;
-- banks, insurance, mass schooling, and bureaucratic reach;
-- rural-to-urban migration, worker housing, labor organization, and pollution;
-- uneven regional development and increasingly powerful nation-states.
-
-**Mastery character:** operate interdependent utility, transport, industrial, and food networks while preserving worker welfare and feeding the growing town.
-
-### Historical rupture — Balkan Wars and First World War
-
-**Frame:** 1912–1918, with participation and consequences varying by locality.
-
-These conflicts are a transition rather than a productive age. Mobilization, requisition, shortages, refugees, casualties, damaged transport, and political collapse may shape a historically bounded campaign, but conquest and mass suffering are not mastery objectives. Gorski kotar's First World War experience and areas directly affected by the Balkan Wars require different event content.
-
-### Age V — First Yugoslavia and Interwar Modernity
-
-**Frame:** 1918–1941. The state was the Kingdom of Serbs, Croats and Slovenes until it was renamed the Kingdom of Yugoslavia in 1929.
-
-**New vertical pressures:**
-
-- integration of inherited laws, currencies, rail systems, and regional markets;
-- electrification, motor transport, communications, and urban planning;
-- agrarian cooperatives, industrial employment, and unemployment;
-- central state authority versus municipal and regional interests;
-- mass parties, public administration, legitimacy, and censorship;
-- unequal development and depression-era shocks.
-
-**Mastery character:** keep a modernizing municipality functional across uneven markets, state demands, unemployment, and contested political legitimacy. Yugoslavia must not collapse into a single “unity” score.
+The 1912–1918 Balkan Wars and First World War are a historical rupture inside this broad frame or an authored scenario at its edge, depending on locality. Mobilization, requisition, shortages, refugees, casualties, and damaged transport are consequences to survive and remember, not optimization objectives.
 
 ### Historical rupture — occupation, resistance, and war
 
 **Frame:** 1941–1945.
 
-This is a transition or carefully authored scenario, never an age with an economic mastery ladder. If represented, its focus is civilian survival, disrupted utilities, food and medical relief, displacement, destroyed networks, documentation, and remembrance.
+This is a transition or carefully authored scenario, never an Age with an economic completion ladder. If represented, its focus is civilian survival, disrupted utilities, food and medical relief, displacement, destroyed networks, documentation, and remembrance.
 
 Occupation, genocide, collaboration, forced removal, and mass killing must never become rewarding optimization loops. A historical campaign requires precise local research; a broader sandbox may abstract the rupture but must not present the real violence as inevitable or morally interchangeable.
 
-### Age VI — Socialist Yugoslavia
+### Age III — Socialist Yugoslavia
 
 **Frame:** 1945–1991, with internal chapters rather than one frozen version of the state.
 
-The postwar federation was the Federal People's Republic of Yugoslavia from late 1945 to 1963 and the Socialist Federal Republic of Yugoslavia thereafter, through the 1991–1992 dissolution process.
+**Visual identity:** postwar reconstruction, electrified villages, mechanized agriculture, social housing and apartment districts, industrial plants, buses and paved streets, schools and clinics, civic monuments, tourism facilities, and late-century consumer modernization.
 
 **Chapter A — Reconstruction:** rebuilding, confiscation and nationalization, the collectivization drive and retreat, electrification, mechanized agriculture, heavy industry, public housing, health, education, and rapid urbanization. Postwar reprisals, displacement, and political repression must appear where locally relevant rather than being hidden by development totals.
 
-**Chapter B — Self-management and Non-Alignment:** worker self-management beginning in 1950, social ownership, decentralized municipalities, Non-Aligned diplomacy including the first summit in 1961, trade with both Cold War blocs, consumer industry, tourism, and guest-worker remittances.
+**Chapter B — Self-management and Non-Alignment:** worker self-management, social ownership, decentralized municipalities, Non-Aligned diplomacy, trade with both Cold War blocs, consumer industry, tourism, and guest-worker remittances.
 
-**Late-age pressure, especially 1980–1991:** regional inequality, debt, inflation, unemployment, pollution, strikes, republican bargaining, media capture, and weakening federal legitimacy.
+**Late-Age pressures:** regional inequality, debt, inflation, unemployment, pollution, strikes, republican bargaining, media capture, and weakening federal legitimacy.
 
-**Mastery character:** balance productive enterprises, worker institutions, public services, housing, regional exchange, environmental cost, and external trade. Raw heavy-industry output alone cannot complete the age.
+**Capstone direction:** a maintained cohort of fully serviced contemporary family homes and/or apartment dwellings, supported by utilities, public services, transport access, consumer supply, and a functioning local economy. Raw heavy-industry output alone cannot complete the Age.
 
 The game should represent both real social development and the limits of one-party rule; neither nostalgia nor blanket caricature is an adequate design model.
 
@@ -393,41 +236,23 @@ The game should represent both real social development and the limits of one-par
 
 **Frame:** 1991–2001, with different dates and experiences by locality.
 
-This is also a transition or separately reviewed scenario rather than an age to “win.” Appropriate systems include utility continuity, shelters, humanitarian supply, refugees and displaced households, ceasefires, documentation, return, repair, and institutional survival.
+This is a transition or separately reviewed scenario rather than an Age to “win.” Appropriate systems include utility continuity, shelters, humanitarian supply, refugees and displaced households, ceasefires, documentation, return, repair, and institutional survival.
 
-Campaigns set in Gorski kotar/Croatia, Bosnia and Herzegovina, Serbia, or Kosovo cannot share one generic event script. Any playable treatment needs precise place names, sourced facts, and review by historians and sensitivity readers from multiple successor societies.
+Campaigns set in Gorski Kotar/Croatia, Bosnia and Herzegovina, Serbia, or Kosovo cannot share one generic event script. Any playable treatment needs precise place names, sourced facts, and review by historians and sensitivity readers from multiple successor societies.
 
-### Age VII — Post-Yugoslav Reconstruction and Contested Nationhood
+### Age IV — Post-Yugoslav Reconstruction and Contemporary Life
 
 **Frame:** beginning after the relevant locality's conflict or peaceful separation and continuing into the 2000s and beyond.
 
-This is the requested final post-Yugoslav era, with reconstruction and nationalist mobilization framed as contested political challenges rather than historical advancement.
+**Visual identity:** repaired and reused historic fabric beside postwar housing, new private construction, renovated public space, modern roads and vehicles, telecommunications, tourism and service buildings, deindustrialized sites, logistics yards, renewable infrastructure, and contemporary domestic extensions.
 
-**New vertical pressures:**
+**New pressures:** reconstruction, privatization and deindustrialization, unemployment and new enterprise, international finance, diaspora and remittances, demographic decline, tourism, digital infrastructure, institutional trust, media ownership, minority rights, refugee return, memory politics, regional trade, and European integration where appropriate.
 
-- damaged-infrastructure reconstruction and utility reform;
-- privatization, deindustrialization, unemployment, and new private enterprise;
-- international aid, sanctions where historically relevant, and conditional finance;
-- diaspora, remittances, return migration, and demographic decline;
-- tourism, services, telecommunications, and digital infrastructure;
-- decentralization, corruption, institutional trust, and media ownership;
-- minority rights, refugee return, memory politics, identity representation, and nationalist mobilization;
-- regional trade and European integration where appropriate to the selected locality and date.
+**Capstone direction:** a maintained cohort of contemporary homes whose utilities, communications, access, public services, and material needs are reliable without concealing displacement, exclusion, or a collapsed local livelihood base.
 
-**Mastery character:** preserve livelihoods, functional public services, rights, plural community life, and regional exchange while rebuilding under political fragmentation and contested identity.
+Nationalist mobilization is a political process shaped and amplified by parties and elites, institutions, media, insecurity, material conditions, and historical claims. It is never an inherent behavior attached to an ethnicity. Reaching this Age is the chronological campaign goal; maximizing nationalism, homogeneity, displacement, or territorial expansion is not a victory condition.
 
-Nationalist mobilization is a political process shaped and amplified by parties and elites, institutions, media, insecurity, material conditions, and historical claims. It is never an inherent behavior attached to an ethnicity. Reaching this era is the chronological campaign goal; maximizing nationalism, homogeneity, displacement, or territorial expansion is not a victory condition.
-
-Possible final legacy outcomes should describe how the community endured, such as:
-
-- resilient public services;
-- productive local enterprise;
-- safe return and reintegration;
-- civic pluralism and trusted institutions;
-- diaspora connection without total dependency;
-- ecological repair and regional cooperation.
-
-The final sandbox remains open after an outcome is recorded.
+Possible final outcomes describe how the community endured, such as resilient public services, productive local enterprise, safe return and reintegration, civic pluralism, diaspora connection, ecological repair, and regional cooperation. The sandbox remains open after an outcome is recorded.
 
 ## Historical and ethical guardrails
 
@@ -441,108 +266,92 @@ The final sandbox remains open after an outcome is recorded.
 - Commission regional historians and sensitivity readers before locking any 1941–1945 or 1991–2001 scenario.
 - Preserve an explicit distinction between a historically bounded campaign and any counterfactual sandbox path.
 
-## Legacies
-
-Every Consolidated age may grant one modest legacy based on how it was sustained. Legacies should alter recovery options or institutional rules rather than stack permanent percentage bonuses forever.
-
-Possible Medieval examples:
-
-- **Guild Network** — disrupted workshops can reorganize with less institutional delay once their physical inputs return.
-- **Common Lands** — household food and livestock fallback systems remain more resilient during a crisis.
-- **Merchant Roads** — recurring emergency trade is easier to finance and restart, but goods still travel physically.
-- **Parish Relief** — welfare and local recovery institutions coordinate shortages more effectively.
-- **Monastic Learning** — archives and education institutions begin the next age with stronger continuity.
-
-Legacy selection should preferably be earned from observed play, with a clear preview before transition. No legacy creates resources from nothing or bypasses the road network.
-
 ## Avoiding grind and exploits
 
-- Award mastery for reliable outcomes, not “produce 10,000 pottery.”
-- Group recipe substitutes inside dependency families.
-- Record demonstrated Chain Mastery permanently.
-- Keep current readiness separate so a dead mastered economy cannot advance.
-- Scale and cap the Tier 4 home requirement.
-- Forecast every counted home at full capacity.
-- Count only goods and services that can reach the relevant road branches.
-- Let reliable, funded regional trade count; reject emergency-lot exploits.
-- Evaluate seasonal chains in their season and through the reserves they create.
-- Phase in new-age needs and retrofit existing assets.
-- Freeze an age's declared core manifest for established saves or explicitly grandfather new requirements.
-- Make peaceful and contested worlds prove equally demanding but mode-appropriate resilience.
-- Never require the full age-entry checklist again after a collapse.
+- Count sustained, occupied capstone residences rather than production totals.
+- Use the residence's real need satisfaction; do not duplicate those rules in a hidden Age ledger.
+- Scale and cap the cohort so one showcase home cannot pass and large worlds do not become punitive.
+- Apply meaningful minimum occupancy and count serviced dwelling units inside dense housing.
+- Count only goods and services that actually reach the relevant residence.
+- Let any valid local or trade-supported route satisfy a substitutable residence need.
+- Keep the Maintenance Window visible and use ordinary household warning grace.
+- Freeze an Age's capstone need contract for established saves or explicitly grandfather new requirements.
+- Never require an Age-entry checklist again after a later shortage.
 
 ## Player-facing presentation
 
-The Town Hall should eventually gain an **Age and Institutions** ledger showing:
+The Town Hall should eventually gain a compact **Age** panel showing:
 
-- Historical Age, Adoption Maturity, Live Health, and Functional Footing;
-- whether the age is Adopted or Consolidated;
-- mastered and unmastered core families;
-- live health of already mastered chains;
-- the qualifying current-standard household cohort;
-- stability-window progress;
-- the weakest exact road branch, dependency, household, or institution;
-- precise advancement blockers;
-- next-age demands, retrofits, and transition consequences;
-- recovery actions during Strain or Crisis.
+- the current Historical Age;
+- the current Age's capstone residence or residence options;
+- required cohort size and currently qualifying count;
+- maintained time and remaining time for each candidate residence;
+- the exact failing residence, need, service, or route;
+- the next Age's major residence, building, utility, and visual unlocks;
+- the **Enter the Next Age** action after qualification.
 
-Avoid one opaque civilization progress bar. A compact summary is useful, but every failed line must open the physical place that explains it.
+Most diagnosis should link back to the existing residence and network interfaces. Do not build a second encyclopedic supply-chain screen for Age progression.
 
-Age changes should also be visible in the world:
+Age changes must also be visible in the world:
 
+- selected common structures receive declared Age-appropriate mesh/material variants;
+- new residence upgrade silhouettes reshape streets and skylines;
 - old routes become street, rail, and utility corridors;
-- materials and rooflines change through actual retrofit work;
 - institutions occupy adapted older buildings as well as new architecture;
 - historic districts survive beside later construction;
-- the Croatian naïve-art interface treatment can remain a cross-age visual thread while each age receives its own architecture and object language.
+- the Croatian naïve-art interface treatment remains a cross-Age thread while each Age receives its own architecture and object language.
 
 ## Scope-control rule for future features
 
-Once the Medieval exit contract is complete, every proposed system should answer:
+Once the Medieval capstone residence contract is complete, every proposed system should answer:
 
-1. Which Age owns this system?
-2. Does it complete a required dependency, establish an age-defining network, or deepen a central tension?
-3. Is it necessary to prove mastery, useful as an elective legacy, or merely decorative?
-4. Can an existing physical system be transformed or retrofitted instead of adding another parallel subsystem?
-5. What existing horizontal feature will be deferred if this enters the current Age?
+1. Which of the four Ages owns this system?
+2. Does it satisfy a declared residence need, establish an Age-defining network, or deepen a central historical tension?
+3. Is it required for the capstone residence, an elective strategy, or visual texture?
+4. Can an existing physical system be transformed or retrofitted instead of adding a parallel subsystem?
+5. Is its world art distinct enough to help justify a playable Age rather than a chronicle transition?
+6. What existing horizontal feature will be deferred if this enters the current Age?
 
-Medieval can continue receiving fixes, polish, regional texture, balance, accessibility, performance work, and missing core dependencies. It should stop absorbing unrelated industries that belong to a later age.
+Medieval can continue receiving fixes, polish, regional texture, balance, accessibility, performance work, and anything needed by Tier 4 residences. It should stop absorbing unrelated industries that belong to a later Age.
 
 ## Future delivery sequence
 
 This is a planning order, not an implementation commitment.
 
-1. **Lock the Age I content manifest.** Reconcile current README/document drift against the authoritative server and decide which existing families are core versus elective.
-2. **Validate snapshot eligibility in shadow mode.** Existing Town Hall projections can report what a settlement would pass at the present moment without unlocking or changing gameplay. They cannot award permanent mastery or prove a 120-day window.
-3. **Define authoritative evidence.** Only after the design is accepted, define server-authoritative, versioned per-age mastery evidence, proof-window state, maturity, live health, and Functional Footing. The client must never invent or persist Age progress.
-4. **Playtest thresholds.** Tune mastery windows, map-size home floors, full-capacity demand, import treatment, and peaceful/contested equivalence.
-5. **Design time and continuity.** Decide how generations, family records, calendar jumps, holidays, building age, and map persistence work.
-6. **Build one vertical slice only.** Medieval → Imperial Borderlands must prove transition presentation, retrofits, legacy systems, new standards, and hysteresis before later ages are produced.
-7. **Parameterize art and world rules by Age.** The current architecture, build cards, iconography, holiday calendar, and celestial framing are deliberately 1550-specific and need age-owned content rather than global replacement.
-8. **Add later ages one at a time.** Each receives its own core manifest, household standard, crisis behavior, visual contract, historical review, and acceptance tests.
-9. **Require specialist review for rupture/final-era content.** No wartime or post-Yugoslav scenario ships on systems design alone.
+1. **Lock the Medieval Tier 4 need contract.** Reconcile document drift against the authoritative server and define exactly which currently visible needs must remain satisfied.
+2. **Tune the Completion Cohort.** Playtest map-size floors, minimum occupancy, cap, and the provisional 120-day Maintenance Window.
+3. **Add authoritative residence timers.** The server records qualifying time per residence; the client only displays it.
+4. **Prototype the Age Ready screen.** Preview the large time jump, unlocks, mesh changes, stock normalization, and historical choices without changing gameplay yet.
+5. **Build one vertical slice.** Medieval → Railway and Industrial Municipality must prove map continuity, new residence upgrades, declared mesh replacements, retrofit rules, and the announcement transition.
+6. **Parameterize art and world rules by Age.** Build cards, architecture, props, residents, vehicles, roads, iconography, holidays, and environmental framing need Age-owned variants.
+7. **Add the two later Ages one at a time.** Each receives a capstone residence contract, visual manifest, historical review, and acceptance tests.
+8. **Require specialist review for rupture and final-era content.** No wartime or post-Yugoslav scenario ships on systems design alone.
 
 ## Acceptance criteria for the eventual system
 
-- A disconnected stockpile cannot complete Chain Mastery or Age Readiness.
-- Empty or one-resident Tier 4 shells cannot carry the household gate.
-- A short seasonal shortage cannot revoke an age or destroy its benefits.
-- A deep, neglected multi-season collapse has visible functional consequences.
-- Recovery requires real repair but is materially easier than first advancement.
-- Earlier buildings and roads remain useful and visually present.
+- The campaign contains four playable Ages, each with a clearly different world silhouette and residence path.
+- The current Age completes only through a maintained cohort of its capstone residences.
+- Medieval completion is based on occupied Tier 4 homes and their actual authoritative needs.
+- No unused industry or separate supply-family badge can block advancement.
+- Empty, nearly empty, disconnected, or briefly supplied residence shells cannot carry the cohort.
+- Every failure is explained through a specific residence need or route the player already understands.
+- Qualification produces an announcement and player-controlled confirmation, not an automatic transition.
+- Confirmation performs a soft time jump and immediately unlocks the next residence upgrades and Age-owned build options.
+- Declared visual-only mesh replacements preserve building state and gameplay values exactly.
+- Earlier buildings and roads remain useful and visually present unless the player replaces them.
 - Advancing never surprises the player with immediate universal household failure.
-- Peaceful worlds do not need military construction, and contested worlds cannot ignore defense logistics.
-- The first new age feels like a transformation of the same settlement, not a new game loaded on top of it.
-- The final era represents nationalism as contested politics and pressure, not a collectible resource or civilizational achievement.
-- Every age gate is inspectable, deterministic from authoritative state, and explainable in plain language.
-- Reducing population or demolishing housing cannot lower the gate inside its proof window, and no shared worker, cart, input, stockpile, production cycle, or treasury reserve can satisfy multiple simultaneous readiness claims.
+- Historical rupture content cannot be treated as an economic Age or victory ladder.
+- The first new Age feels like a transformation of the same settlement, not a new game loaded on top of it.
 
 ## Non-goals
 
-- A generic Civilization-style technology tree detached from the physical economy.
+- Five, six, or seven playable Ages that split chronology more finely than the art and mechanics justify.
+- A generic Civilization-style technology tree detached from household life.
+- A parallel Chain Mastery checklist in addition to residence needs.
 - Literal simulation of every day from 1550 to the present.
-- Automatic age advancement at a calendar date.
-- Tier 5+ residences as a substitute for age-specific living standards.
+- Automatic Age advancement at a calendar date or the instant eligibility is reached.
+- Generic Tier 5+ residences added only to mirror chronology.
+- Automatically replacing every old building with a modern mesh.
 - Deleting or auto-demolishing obsolete buildings during transition.
 - Revoking historical knowledge after an ordinary shortage.
 - Making every commodity variant mandatory.
@@ -551,16 +360,14 @@ This is a planning order, not an implementation commitment.
 
 ## Open design decisions
 
+- What are the final map-size cohort floors, cap, occupancy rule, and Maintenance Window?
+- What capstone residence forms and needs define Ages II–IV?
+- Which existing meshes receive an automatic visual continuation at each transition, and which require a retrofit or remain historic?
 - Is the player a continuous settlement institution, a family line, a municipality, or an abstract civic stewardship across generations?
 - Does the main campaign stay in Gorski Kotar, expand to a regional map, or allow locality-specific campaign modules?
-- Are Socialist Reconstruction and Self-Management one Age with chapters or two full Ages?
 - How much historical contingency is allowed around Yugoslav formation, survival, and dissolution?
 - Are rupture periods chronicle transitions, survival scenarios, optional modules, or a mixture by campaign mode?
-- What are the final map-size Tier 4 floors and qualifying duration?
-- Which current supply families are core, elective, or valid substitutes?
-- Can a fully trade-supported strategy master a family, or must every age require some local transformation capacity?
-- How do dense apartment districts reuse the four-tier residence vocabulary?
-- Which legacy choices are selected, and which are inferred from how the settlement was actually built?
+- How do dense apartment districts count occupied dwelling units without becoming an easy cohort exploit?
 - What late-game outcome best expresses success without declaring one contested political program universally correct?
 
 ## Historical research baseline

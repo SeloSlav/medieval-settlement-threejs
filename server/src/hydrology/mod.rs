@@ -8,9 +8,29 @@ pub const CLAY_BANK_TOTAL_YIELD_MIN: f64 = 0.78;
 pub const CLAY_BANK_ORDINARY_YIELD_MAX: f64 = 1.14;
 pub const CLAY_BANK_RICH_YIELD_MIN: f64 = 1.28;
 pub const CLAY_BANK_TOTAL_YIELD_MAX: f64 = 1.42;
-const MAX_SUPPORTED_WORLD_HALF: f64 = 672.0;
+// Covers the current large-map playable half (about 1,155.4 m) with a small guard margin.
+const MAX_SUPPORTED_WORLD_HALF: f64 = 1_156.0;
+pub const UNIFORM_GROUNDWATER_SCORE: f64 = 1.0;
 
-/// Authoritative map-specific groundwater used by wells, fields, pastures, and clay.
+/// Applies the opt-in spatial-aquifer rule used by the authoritative simulation.
+/// Without networks, every supported well site receives the same reliable score.
+pub fn sample_world_well_groundwater_score(
+    x: f64,
+    z: f64,
+    world_seed: u64,
+    world_hydrology: u8,
+    well_aquifer_networks_enabled: bool,
+) -> f64 {
+    if x.abs() > MAX_SUPPORTED_WORLD_HALF || z.abs() > MAX_SUPPORTED_WORLD_HALF {
+        return 0.0;
+    }
+    if !well_aquifer_networks_enabled {
+        return UNIFORM_GROUNDWATER_SCORE;
+    }
+    sample_world_groundwater_score(x, z, world_seed, world_hydrology)
+}
+
+/// Seeded map-specific groundwater used by land systems, and by wells when networks are enabled.
 /// This seeded underground network is deliberately independent of rivers, the sea,
 /// ponds, lakes, shore distance, and every other surface-water representation. Keep
 /// this in parity with the client `sampleWorldGroundwaterScore` implementation.
@@ -131,9 +151,10 @@ mod tests {
     use super::{
         clay_bank_regional_yield_multiplier, clay_bank_site_yield_multiplier,
         clay_bank_yield_multiplier, clay_bank_yield_multiplier_with_richness,
-        drought_groundwater_score, sample_world_groundwater_score, CLAY_BANK_ORDINARY_YIELD_MAX,
-        CLAY_BANK_RICH_YIELD_MIN, CLAY_BANK_SITE_YIELD_MAX, CLAY_BANK_SITE_YIELD_MIN,
-        DROUGHT_GROUNDWATER_MULTIPLIER,
+        drought_groundwater_score, sample_world_well_groundwater_score,
+        sample_world_groundwater_score, CLAY_BANK_ORDINARY_YIELD_MAX, CLAY_BANK_RICH_YIELD_MIN,
+        CLAY_BANK_SITE_YIELD_MAX, CLAY_BANK_SITE_YIELD_MIN, DROUGHT_GROUNDWATER_MULTIPLIER,
+        UNIFORM_GROUNDWATER_SCORE,
     };
 
     #[test]
@@ -143,7 +164,7 @@ mod tests {
     }
 
     #[test]
-    fn drought_draws_down_the_same_seeded_aquifer_used_by_wells_and_fields() {
+    fn drought_draws_down_the_seeded_aquifer_used_by_fields_and_opt_in_wells() {
         let fair = sample_world_groundwater_score(120.0, -80.0, 0x071a_2e0d, 50);
         let drought = drought_groundwater_score(fair);
         assert!(drought >= 0.0);
@@ -168,7 +189,25 @@ mod tests {
         assert!((other_seed - seeded_site).abs() > 0.04);
 
         assert!(sample_world_groundwater_score(650.0, 620.0, seed, 50) > 0.0);
-        assert_eq!(sample_world_groundwater_score(700.0, 0.0, seed, 50), 0.0);
+        assert!(sample_world_groundwater_score(1_100.0, -1_100.0, seed, 50) > 0.0);
+        assert_eq!(sample_world_groundwater_score(10_000.0, 0.0, seed, 50), 0.0);
+    }
+
+    #[test]
+    fn well_aquifer_rule_defaults_to_even_reliable_yield() {
+        let seed = 0x071a_2e0d;
+        let even_a = sample_world_well_groundwater_score(-360.0, 260.0, seed, 0, false);
+        let even_b = sample_world_well_groundwater_score(900.0, -900.0, seed, 100, false);
+        assert_eq!(even_a, UNIFORM_GROUNDWATER_SCORE);
+        assert_eq!(even_b, UNIFORM_GROUNDWATER_SCORE);
+        assert_eq!(
+            sample_world_well_groundwater_score(280.0, 220.0, seed, 50, true),
+            sample_world_groundwater_score(280.0, 220.0, seed, 50)
+        );
+        assert_eq!(
+            sample_world_well_groundwater_score(10_000.0, 0.0, seed, 50, false),
+            0.0
+        );
     }
 
     #[test]

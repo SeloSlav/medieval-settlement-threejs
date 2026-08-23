@@ -4,6 +4,7 @@ import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js
 import { mulberry32 } from '../props/forestField.ts';
 import type { Terrain } from '../terrain/Terrain.ts';
 import type { ForagingSite } from './ForagingLayout.ts';
+import type { GameHabitatDisturbanceSource } from './gameHabitatDisturbance.ts';
 import {
   displayedGameAnimalCount,
   gamePatchMaxYield,
@@ -13,10 +14,13 @@ import type { ForagingNodeState } from '../resources/types.ts';
 import { TREE_SHADOW_CAST_LAYER } from '../scene/SceneLayers.ts';
 import { AGENT_ANIMAL_RENDER_MAX_ORBIT_DISTANCE } from '../settlement/crowdView.ts';
 import {
+  beginDeerMigration,
   chooseInitialDeerMode,
   chooseRestDuration,
   createHerdSexDistribution,
   herdSexCounts,
+  snapDeerMigration,
+  DEER_ROAM_RADIUS,
   type DeerBehaviorMode,
   type DeerMotionState,
   type DeerObserver,
@@ -41,6 +45,8 @@ type DeerVisual = {
   actions: DeerAnimationSet;
   activeMode: DeerBehaviorMode;
   motion: DeerMotionState;
+  migrationOffsetX: number;
+  migrationOffsetZ: number;
 };
 
 type DeerCasterLayer = {
@@ -78,6 +84,7 @@ export type DeerWildlifeVisuals = {
     dtSeconds: number,
     firstPersonObserver: DeerObserver | null,
     cameraDistance: number,
+    loggingSources?: readonly GameHabitatDisturbanceSource[],
   ) => boolean;
   sync: (nodes: Iterable<ForagingNodeState>) => void;
   dispose: () => void;
@@ -113,6 +120,19 @@ export async function createDeerWildlifeVisuals(
   obstacles: DeerWildlifeObstacleQueries = {},
 ): Promise<DeerWildlifeVisuals> {
   const gameSites = sites.filter((site) => site.kind === 'game');
+  const habitatCenters = new Map<string, { x: number; z: number }>(
+    gameSites.map((site, index) => [
+      `foraging-game-${index}`,
+      { x: site.x, z: site.z },
+    ] as const),
+  );
+  const authoritativeSyncedNodeIds = new Set<string>();
+  const loggingSourcesByHabitat = new Map<string, GameHabitatDisturbanceSource[]>(
+    Array.from(habitatCenters.keys(), (nodeId) => [
+      nodeId,
+      [] as GameHabitatDisturbanceSource[],
+    ] as const),
+  );
   const group = new THREE.Group();
   group.name = 'Animated deer at game resource sites';
   group.userData.gameResourceCenters = gameSites.map((site, index) => ({
@@ -196,6 +216,8 @@ export async function createDeerWildlifeVisuals(
         mode: initialMode,
         modeTimer: chooseRestDuration(rng),
         fleeBias: THREE.MathUtils.lerp(-0.2, 0.2, rng()),
+        migrationTargetX: null,
+        migrationTargetZ: null,
       };
 
       const firstAction = actions[initialMode];
@@ -213,6 +235,8 @@ export async function createDeerWildlifeVisuals(
         actions,
         activeMode: initialMode,
         motion,
+        migrationOffsetX: spawn.x - site.x,
+        migrationOffsetZ: spawn.z - site.z,
       });
       if (sex === 'stag') stagCount++;
       else doeCount++;
@@ -230,6 +254,7 @@ export async function createDeerWildlifeVisuals(
     dtSeconds: number,
     firstPersonObserver: DeerObserver | null,
     cameraDistance: number,
+    loggingSources: readonly GameHabitatDisturbanceSource[] = [],
   ): boolean => {
     const shouldShow = firstPersonObserver !== null
       || cameraDistance <= AGENT_ANIMAL_RENDER_MAX_ORBIT_DISTANCE;
@@ -237,25 +262,46 @@ export async function createDeerWildlifeVisuals(
       || group.visible !== shouldShow;
     pendingShadowCastersChanged = false;
     group.visible = shouldShow;
-    if (!shouldShow) return shadowCastersChanged;
+    if (!shouldShow) {
+      for (const visual of deer) {
+        if (!snapDeerMigration(visual.motion, rng)) continue;
+        if (visual.motion.mode !== visual.activeMode) {
+          transitionAnimation(visual, visual.motion.mode);
+        }
+        syncDeerVisualTransform(visual, terrain);
+      }
+      return shadowCastersChanged;
+    }
+
+    for (const sources of loggingSourcesByHabitat.values()) sources.length = 0;
+    const radiusSq = DEER_ROAM_RADIUS * DEER_ROAM_RADIUS;
+    for (const source of loggingSources) {
+      if (!Number.isFinite(source.x) || !Number.isFinite(source.z)) continue;
+      for (const [nodeId, center] of habitatCenters) {
+        const dx = source.x - center.x;
+        const dz = source.z - center.z;
+        if (dx * dx + dz * dz > radiusSq) continue;
+        loggingSourcesByHabitat.get(nodeId)?.push(source);
+      }
+    }
+    for (const sources of loggingSourcesByHabitat.values()) {
+      sources.sort((left, right) => left.id.localeCompare(right.id));
+    }
 
     for (const visual of deer) {
-      if (!visual.root.visible) continue;
-      if (dtSeconds > 0) shadowCastersChanged = true;
+      if (visual.root.visible && dtSeconds > 0) shadowCastersChanged = true;
       updateDeerMotion(visual.motion, dtSeconds, {
         observer: firstPersonObserver,
+        forcedThreats: loggingSourcesByHabitat.get(visual.nodeId) ?? [],
         random: rng,
         isBlockedAt: obstacles.isMovementBlockedAt,
       });
       if (visual.motion.mode !== visual.activeMode) transitionAnimation(visual, visual.motion.mode);
 
-      visual.root.position.set(
-        visual.motion.x,
-        terrain.getHeightAt(visual.motion.x, visual.motion.z),
-        visual.motion.z,
-      );
-      visual.root.rotation.y = visual.motion.heading;
-      visual.mixer.update(Math.min(Math.max(dtSeconds, 0), 0.1));
+      syncDeerVisualTransform(visual, terrain);
+      if (visual.root.visible) {
+        visual.mixer.update(Math.min(Math.max(dtSeconds, 0), 0.1));
+      }
     }
     return shadowCastersChanged;
   };
@@ -273,17 +319,38 @@ export async function createDeerWildlifeVisuals(
         : visual.sexIndex < visibleSexCounts.doeCount;
       if (visual.root.visible !== visible) pendingShadowCastersChanged = true;
       visual.root.visible = visible;
+    }
+
+    for (const [nodeId, previousCenter] of habitatCenters) {
+      const node = byId.get(nodeId);
       if (!node) continue;
-      const dx = node.x - visual.motion.homeX;
-      const dz = node.z - visual.motion.homeZ;
-      if (Math.hypot(dx, dz) <= 0.01) continue;
+      const dx = node.x - previousCenter.x;
+      const dz = node.z - previousCenter.z;
+      const moved = Math.hypot(dx, dz) > 0.01;
+      const firstAuthoritativeSync = !authoritativeSyncedNodeIds.has(nodeId);
+      authoritativeSyncedNodeIds.add(nodeId);
+      if (!moved) continue;
+
       pendingShadowCastersChanged = true;
-      visual.motion.x += dx;
-      visual.motion.z += dz;
-      visual.motion.homeX = node.x;
-      visual.motion.homeZ = node.z;
-      visual.motion.targetX += dx;
-      visual.motion.targetZ += dz;
+      for (const visual of deer) {
+        if (visual.nodeId !== nodeId) continue;
+        if (firstAuthoritativeSync) {
+          rebaseDeerMotion(visual.motion, dx, dz);
+          continue;
+        }
+
+        beginDeerMigration(
+          visual.motion,
+          node.x + visual.migrationOffsetX,
+          node.z + visual.migrationOffsetZ,
+          node.x,
+          node.z,
+        );
+        if (!group.visible || !visual.root.visible) {
+          snapDeerMigration(visual.motion, rng);
+        }
+      }
+      habitatCenters.set(nodeId, { x: node.x, z: node.z });
     }
     group.userData.gameResourceCenters = gameSites.map((site, index) => {
       const nodeId = `foraging-game-${index}`;
@@ -315,6 +382,59 @@ export async function createDeerWildlifeVisuals(
       disposeModelResources(stagSource.scene);
     },
   };
+}
+
+/**
+ * Selects one stable herd-wide logging threat. Distance wins first and source
+ * id resolves an exact tie, so retained source arrays and subscription order
+ * cannot change the direction in which a herd initially breaks.
+ */
+export function nearestGameHabitatDisturbanceSource(
+  habitat: Readonly<{ x: number; z: number }>,
+  sources: readonly GameHabitatDisturbanceSource[],
+): GameHabitatDisturbanceSource | null {
+  const radiusSq = DEER_ROAM_RADIUS * DEER_ROAM_RADIUS;
+  let nearest: GameHabitatDisturbanceSource | null = null;
+  let nearestDistanceSq = Number.POSITIVE_INFINITY;
+  for (const source of sources) {
+    if (!Number.isFinite(source.x) || !Number.isFinite(source.z)) continue;
+    const dx = source.x - habitat.x;
+    const dz = source.z - habitat.z;
+    const distanceSq = dx * dx + dz * dz;
+    if (distanceSq > radiusSq) continue;
+    if (
+      distanceSq < nearestDistanceSq
+      || (
+        distanceSq === nearestDistanceSq
+        && nearest !== null
+        && source.id.localeCompare(nearest.id) < 0
+      )
+    ) {
+      nearest = source;
+      nearestDistanceSq = distanceSq;
+    }
+  }
+  return nearest;
+}
+
+function rebaseDeerMotion(state: DeerMotionState, dx: number, dz: number): void {
+  state.x += dx;
+  state.z += dz;
+  state.homeX += dx;
+  state.homeZ += dz;
+  state.targetX += dx;
+  state.targetZ += dz;
+  if (state.migrationTargetX !== null) state.migrationTargetX += dx;
+  if (state.migrationTargetZ !== null) state.migrationTargetZ += dz;
+}
+
+function syncDeerVisualTransform(visual: DeerVisual, terrain: Terrain): void {
+  visual.root.position.set(
+    visual.motion.x,
+    terrain.getHeightAt(visual.motion.x, visual.motion.z),
+    visual.motion.z,
+  );
+  visual.root.rotation.y = visual.motion.heading;
 }
 
 async function loadDeerModel(

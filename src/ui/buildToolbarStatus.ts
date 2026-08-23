@@ -26,6 +26,7 @@ export type ToolbarStats = {
   carpenterSupported?: boolean;
   carpenterCartServiceEnabled?: boolean;
   carpenterCartServiceReady?: boolean;
+  wellAquiferNetworksEnabled?: boolean;
 };
 
 export function describeBuildingPlacementBlocker(
@@ -57,12 +58,23 @@ const PLACEMENT_STATUS_HINTS: Partial<Record<BuildingKind, string>> = {
   fishing_camp: ' — keep the camp on land; the finite shoal must be inside its work extent',
   town_hall: ' — requires 24 people, a church, a marketplace, and road access',
   village_storehouse: ' — road-linked haulers collect producer overflow',
-  well: ' — use the groundwater map for the best aquifer sites',
   hunters_hall: ' — click near a game trail',
   foragers_shed: ' — place within 48 m of berries or mushrooms without covering the patch',
   chapel: ' — place near a road',
   marketplace: ' — place near a road',
 };
+
+function placementStatusHint(
+  mode: BuildingKind,
+  wellAquiferNetworksEnabled: boolean,
+): string {
+  if (mode === 'well') {
+    return wellAquiferNetworksEnabled
+      ? ' — use the groundwater map for the best aquifer sites'
+      : ' — every well site has the same reliable yield';
+  }
+  return PLACEMENT_STATUS_HINTS[mode] ?? '';
+}
 
 export function describeToolbarStatus(stats: ToolbarStats): string {
   if (isBuildingToolMode(stats.mode)) {
@@ -73,7 +85,7 @@ export function describeToolbarStatus(stats: ToolbarStats): string {
         : '';
       return `${stats.statusDetail}${materialCost}`;
     }
-    const hint = PLACEMENT_STATUS_HINTS[stats.mode] ?? '';
+    const hint = placementStatusHint(stats.mode, stats.wellAquiferNetworksEnabled === true);
     const label = getBuildingDefinition(stats.mode).label;
     const cost = stats.buildingCost ?? getBuildingCost(stats.mode);
     const support = stats.carpenterSupported
@@ -134,7 +146,7 @@ export function renderToolbarStatus(stats: ToolbarStats): string {
       return `${escapeHtml(stats.statusDetail)}${hasMaterialCost ? ` <span aria-hidden="true">|</span> Cost ${costMarkup}` : ''}`;
     }
 
-    const hint = PLACEMENT_STATUS_HINTS[stats.mode] ?? '';
+    const hint = placementStatusHint(stats.mode, stats.wellAquiferNetworksEnabled === true);
     const label = getBuildingDefinition(stats.mode).label;
     const support = stats.carpenterSupported
       ? stats.carpenterCartServiceReady

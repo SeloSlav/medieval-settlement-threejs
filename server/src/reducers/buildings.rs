@@ -43,7 +43,7 @@ use crate::harvest_reserve_policy::{
     default_harvest_reserve_percent, harvestable_wild_stock,
     normalize_harvest_reserve_percent,
 };
-use crate::hydrology::{sample_world_groundwater_score, well_capacity_from_hydrology};
+use crate::hydrology::{sample_world_well_groundwater_score, well_capacity_from_hydrology};
 use crate::labor_steward_policy::steward_deployable_labor;
 use crate::lifecycle::ensure_player_resources;
 use crate::marketplace_procurement_policy::{
@@ -801,7 +801,13 @@ pub(crate) fn place_building_internal(
         .ok_or_else(|| "World not initialized.".to_string())?;
 
     let hydrology = if kind == "well" {
-        sample_world_groundwater_score(x, z, config.seed, config.hydrology)
+        sample_world_well_groundwater_score(
+            x,
+            z,
+            config.seed,
+            config.hydrology,
+            config.well_aquifer_networks_enabled,
+        )
     } else {
         0.0
     };

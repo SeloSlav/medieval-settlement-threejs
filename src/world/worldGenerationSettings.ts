@@ -26,6 +26,8 @@ export type WorldGenerationSettings = {
   enemyPressure: number;
   /** Enables ambient fires, lightning ignition, fire spread, and summer droughts. */
   severeWeatherEnabled: boolean;
+  /** Makes well groundwater vary by location instead of using one reliable score at every site. */
+  wellAquiferNetworksEnabled: boolean;
 };
 
 export type WorldDimensions = {
@@ -87,6 +89,7 @@ export const DEFAULT_WORLD_GENERATION_SETTINGS: WorldGenerationSettings = {
   conflictMode: 'peaceful',
   enemyPressure: 0,
   severeWeatherEnabled: false,
+  wellAquiferNetworksEnabled: false,
 };
 
 const STORAGE_KEY = 'medieval-road-system:world-generation';
@@ -189,6 +192,7 @@ export function normalizeWorldGenerationSettings(
       ? Math.max(1, clampPercent(partial.enemyPressure ?? 50))
       : 0,
     severeWeatherEnabled: partial.severeWeatherEnabled === true,
+    wellAquiferNetworksEnabled: partial.wellAquiferNetworksEnabled === true,
   };
 }
 

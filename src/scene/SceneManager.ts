@@ -2,7 +2,8 @@ import * as THREE from 'three';
 import type { BuildingTerrainSource } from '../buildings/BuildingTerrainLayout.ts';
 import { buildingPlacementYaw } from '../buildings/buildingPlacement.ts';
 import { createForestProps } from '../props/ForestProps.ts';
-import type { ForestManager } from '../props/ForestManager.ts';
+import type { ForestManager, ForestTreeLayout } from '../props/ForestManager.ts';
+import { computeForestTreePlacements } from '../props/forestPlacements.ts';
 import {
   createGrassBladeField,
   GRASS_BLADES_ENABLED,
@@ -80,6 +81,7 @@ import {
 import type { LoadingPhase } from '../ui/loadingProgress.ts';
 import { createBerryPatchVisuals, type BerryPatchVisuals } from '../foraging/BerryPatchVisuals.ts';
 import type { DeerWildlifeVisuals } from '../foraging/DeerWildlifeVisuals.ts';
+import type { GameHabitatDisturbanceSource } from '../foraging/gameHabitatDisturbance.ts';
 import type { FishWildlifeVisuals } from '../foraging/FishWildlifeVisuals.ts';
 import {
   createMushroomPatchVisuals,
@@ -183,10 +185,18 @@ export class SceneManager {
   private skyAnimationTime = 0;
   private worldAnimationElapsedSeconds = 0;
   private forestManager: ForestManager | null = null;
+  private forestTreeLayouts: readonly ForestTreeLayout[] | null = null;
+  private resolveForestTreeLayoutsReady: (
+    (layouts: readonly ForestTreeLayout[]) => void
+  ) | null = null;
+  private readonly forestTreeLayoutsReady = new Promise<readonly ForestTreeLayout[]>((resolve) => {
+    this.resolveForestTreeLayoutsReady = resolve;
+  });
   private grassField: GrassBladeField | null = null;
   private berryPatchVisuals: BerryPatchVisuals | null = null;
   private mushroomPatchVisuals: MushroomPatchVisuals | null = null;
   private deerWildlifeVisuals: DeerWildlifeVisuals | null = null;
+  private gameHabitatLoggingDisturbances: readonly GameHabitatDisturbanceSource[] = [];
   private fishWildlifeVisuals: FishWildlifeVisuals | null = null;
   private latestForagingNodes: ForagingNodeState[] = [];
   private latestForagingMonth = 1;
@@ -616,6 +626,7 @@ export class SceneManager {
         treeSeed: this.worldLayout.treeSeed,
         densityScale: forestDensityScale(this.worldLayout.settings.forestDensity),
         forestCores: this.worldLayout.forestCores,
+        treePlacements: this.resolveForestTreePlacements(),
       },
     ));
     const mushroomPatchPromise = startStage('mushrooms', () => (
@@ -946,6 +957,7 @@ export class SceneManager {
       dt,
       firstPersonActive ? this.firstPersonDeerObserver : null,
       cameraDistance,
+      this.gameHabitatLoggingDisturbances,
     ) ?? false;
     if (deerShadowCastersChanged) this.dynamicShadowCastersChanged = true;
     this.fishWildlifeVisuals?.update(dt, cameraDistance, firstPersonActive);
@@ -1202,6 +1214,41 @@ export class SceneManager {
     return this.forestManager;
   }
 
+  /**
+   * The one accepted forest layout shared by SeedThree and the illustrated
+   * map. No downstream renderer is allowed to regenerate approximate trees.
+   */
+  whenForestTreePlacementsReady(): Promise<readonly ForestTreeLayout[]> {
+    return this.forestTreeLayouts
+      ? Promise.resolve(this.forestTreeLayouts)
+      : this.forestTreeLayoutsReady;
+  }
+
+  private resolveForestTreePlacements(): readonly ForestTreeLayout[] {
+    if (this.forestTreeLayouts) return this.forestTreeLayouts;
+    const placements = computeForestTreePlacements(
+      this.terrain.generationSize,
+      this.terrain.size,
+      (x, z) =>
+        this.riverSystem.isBlockedAt(x, z)
+        || this.quarrySystem.isBlockedAt(x, z)
+        || this.clayDepositSystem.isBlockedAt(x, z)
+        || this.mineralDepositSystem.isBlockedAt(x, z),
+      {
+        treeSeed: this.worldLayout.treeSeed,
+        densityScale: forestDensityScale(this.worldLayout.settings.forestDensity),
+        forestCores: this.worldLayout.forestCores,
+      },
+    );
+    this.forestTreeLayouts = placements.map((placement, layoutIndex) => ({
+      layoutIndex,
+      ...placement,
+    }));
+    this.resolveForestTreeLayoutsReady?.(this.forestTreeLayouts);
+    this.resolveForestTreeLayoutsReady = null;
+    return this.forestTreeLayouts;
+  }
+
   syncForagingNodes(nodes: Iterable<ForagingNodeState>, simTick: number): void {
     this.latestForagingNodes = [...nodes];
     this.latestForagingMonth = gameClock(simTick).month;
@@ -1297,6 +1344,12 @@ export class SceneManager {
     const network = this.roadNetworkRef;
     if (!network) return null;
     return sampleRoadSurfaceY(network.edges.values(), x, z);
+  }
+
+  setGameHabitatLoggingDisturbances(
+    sources: readonly GameHabitatDisturbanceSource[] | undefined,
+  ): void {
+    this.gameHabitatLoggingDisturbances = sources ?? [];
   }
 
   getRoadNetwork(): RoadNetwork | null {

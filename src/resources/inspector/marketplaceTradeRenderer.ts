@@ -19,6 +19,7 @@ import {
 } from '../../generated/gameBalance.ts';
 import { gameClock } from '../../world/gameCalendar.ts';
 import type { BuildingState, GameState } from '../types.ts';
+import { renderInspectorResourceToken } from './inspectorResourceTokens.ts';
 
 export function renderMarketplaceTradePanel(
   building: BuildingState,
@@ -84,22 +85,36 @@ function renderCommodityRow(
   const prices = tradingPostUnitPrices(resource, marketState);
   const lastResult = formatLastResult(rule?.lastTradeAmount ?? 0, rule?.lastTradeGold ?? 0);
   const status = mode === TRADE_MODE_EXPORT
-    ? `${Math.max(0, Math.floor(outsideStock - target))} currently eligible · ${Math.floor(postStock)} staged`
+    ? `Eligible: ${Math.max(0, Math.floor(outsideStock - target))} · Staged: ${Math.floor(postStock)}`
     : mode === TRADE_MODE_IMPORT
-      ? `${Math.max(0, Math.floor(target - outsideStock - postStock))} unit monthly deficit`
-      : 'No monthly trade';
+      ? `Monthly deficit: ${Math.max(0, Math.floor(target - outsideStock - postStock))}`
+      : 'Trade mode: off';
+  const resourceLabel = TRADE_RESOURCE_LABELS[resource];
+  const hoverDetail = [
+    `Settlement: ${Math.floor(outsideStock)}`,
+    `Trading Post: ${Math.floor(postStock)}`,
+    `Buy: ${formatGold(prices.importGold)}`,
+    `Sell: ${formatGold(prices.exportGold)}`,
+    status,
+    lastResult,
+  ].filter(Boolean).join(' · ');
+  const resourceAnchor = renderInspectorResourceToken({
+    kind: resource,
+    amount: postStock,
+    title: resourceLabel,
+    detail: hoverDetail,
+    amountLabel: 'Trading Post stock',
+    showAmount: false,
+    ariaLabel: `${resourceLabel}: ${hoverDetail}`,
+    className: 'trading-post-ledger__resource-anchor',
+  });
   return `
     <article class="trading-post-ledger__row${mode === TRADE_MODE_NONE ? '' : ' is-active'}"
       data-trade-rule-row data-trade-mode="${mode}">
       <div class="trading-post-ledger__commodity">
-        <strong>${TRADE_RESOURCE_LABELS[resource]}</strong>
-        <span>Settlement ${Math.floor(outsideStock)} · Post ${Math.floor(postStock)}</span>
+        ${resourceAnchor}
       </div>
-      <div class="trading-post-ledger__rates" title="Current regional unit prices">
-        <span>Buy ${formatGold(prices.importGold)}</span>
-        <span>Sell ${formatGold(prices.exportGold)}</span>
-      </div>
-      <div class="trading-post-ledger__modes" role="group" aria-label="${TRADE_RESOURCE_LABELS[resource]} trade mode">
+      <div class="trading-post-ledger__modes" role="group" aria-label="${resourceLabel} trade mode">
         ${renderModeButton(resource, TRADE_MODE_NONE, mode, 'Off')}
         ${renderModeButton(resource, TRADE_MODE_IMPORT, mode, 'Import')}
         ${renderModeButton(resource, TRADE_MODE_EXPORT, mode, 'Export')}
@@ -115,7 +130,6 @@ function renderCommodityRow(
           <button type="button" data-trade-surplus-delta="1" aria-label="Increase ${TRADE_RESOURCE_LABELS[resource]} kept in settlement">&#x203A;</button>
         </div>
       </div>
-      <p class="trading-post-ledger__status">${status}${lastResult ? ` · ${lastResult}` : ''}</p>
     </article>`;
 }
 

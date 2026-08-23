@@ -2,7 +2,7 @@ import type { RoadNetwork } from '../roads/RoadNetwork.ts';
 import type { GameState } from '../resources/types.ts';
 import type { RiverField } from '../rivers/RiverField.ts';
 import type { Terrain, TerrainBounds } from '../terrain/Terrain.ts';
-import type { ForestCore } from '../props/forestField.ts';
+import type { ForestTreeLayout } from '../props/ForestManager.ts';
 import {
   createTerrainMinimapImage,
   type TerrainMinimapImage,
@@ -42,7 +42,7 @@ type TerrainMinimapOverlayOptions = {
   uiRoot: HTMLElement;
   riverField: RiverField;
   terrain: Terrain;
-  forestCores: readonly ForestCore[];
+  treePlacements: Promise<readonly ForestTreeLayout[]>;
   worldSeed: number;
   layoutMarkers: readonly WorldMapMarker[];
   getRoadNetwork: () => RoadNetwork;
@@ -149,10 +149,12 @@ export class TerrainMinimapOverlay {
 
   private async loadTerrainImage(): Promise<void> {
     try {
+      const treePlacements = await this.options.treePlacements;
+      if (this.disposed) return;
       const image = await createTerrainMinimapImage({
         riverField: this.options.riverField,
         terrain: this.options.terrain,
-        forestCores: this.options.forestCores,
+        treePlacements,
         seed: this.options.worldSeed,
       });
       if (this.disposed) return;
@@ -160,6 +162,7 @@ export class TerrainMinimapOverlay {
       this.mapCanvas = document.createElement('canvas');
       this.mapCanvas.width = image.canvas.width;
       this.mapCanvas.height = image.canvas.height;
+      Object.assign(this.mapCanvas.dataset, image.canvas.dataset);
       this.mapCanvas.dataset.terrainStyle = 'medieval-parchment-live-map';
       this.mapCanvas.className = 'terrain-minimap__terrain-canvas';
       this.mapCanvas.setAttribute('role', 'img');

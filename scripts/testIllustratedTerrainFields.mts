@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import {
   ILLUSTRATED_TERRAIN_FIELD_CONTRACT,
   ILLUSTRATED_TERRAIN_FIELDS,
@@ -8,11 +9,92 @@ import {
   sampleIllustratedElevationField,
   sampleIllustratedWoodlandField,
 } from '../src/map/illustratedTerrainFields.ts';
+import {
+  projectIllustratedWoodland,
+  type IllustratedWoodlandSourceTree,
+} from '../src/map/illustratedWoodlandProjection.ts';
 
 assert.equal(
   ILLUSTRATED_TERRAIN_FIELD_CONTRACT,
-  'world-xz>forest-density,elevation,slope-ridge>woodland-clump,mountain-prominence>glyph-clusters,ridge-marks',
+  'world-xz>accepted-tree-placements,elevation,slope-ridge>exact-tree-glyphs,mountain-prominence>species-glyphs,ridge-marks',
   'the map art should publish its stable-coordinate field contract',
+);
+
+const projectionBounds = { minX: -100, maxX: 100, minZ: -100, maxZ: 100 };
+const sourceTrees: IllustratedWoodlandSourceTree[] = [
+  { layoutIndex: 17, x: -50, z: 25, species: 'beech', form: 'broad', scale: 1 },
+  { layoutIndex: 41, x: 45, z: -60, species: 'silverFir', form: 'narrow', scale: 0.95 },
+  { layoutIndex: 89, x: 12, z: 70, species: 'ash', form: 'midstory', scale: 0.82 },
+];
+const exactProjection = projectIllustratedWoodland(sourceTrees, projectionBounds);
+assert.equal(exactProjection.diagnostics.sourceTreeCount, sourceTrees.length);
+assert.equal(exactProjection.diagnostics.orphanGlyphCount, 0);
+assert.equal(exactProjection.diagnostics.maximumPositionErrorWorld, 0);
+assert.equal(exactProjection.glyphs.length, sourceTrees.length);
+const beechGlyph = exactProjection.glyphs.find((glyph) => glyph.layoutIndex === 17)!;
+assert.equal(beechGlyph.worldX, -50, 'a map tree must retain its accepted world X');
+assert.equal(beechGlyph.worldZ, 25, 'a map tree must retain its accepted world Z');
+assert.equal(beechGlyph.authorX, 128, 'world X should project linearly into the authoring frame');
+assert.equal(beechGlyph.authorY, 320, 'world +Z should project downward into the authoring frame');
+assert.equal(beechGlyph.conifer, false, 'beech placements should use the broadleaf glyph');
+assert.equal(
+  exactProjection.glyphs.find((glyph) => glyph.layoutIndex === 41)?.conifer,
+  true,
+  'silver-fir placements should use the conifer glyph',
+);
+
+const reversedProjection = projectIllustratedWoodland([...sourceTrees].reverse(), projectionBounds);
+assert.equal(
+  reversedProjection.diagnostics.signature,
+  exactProjection.diagnostics.signature,
+  'input order must not alter the accepted-tree far-view sample',
+);
+assert.deepEqual(
+  reversedProjection.glyphs.map((glyph) => glyph.layoutIndex),
+  exactProjection.glyphs.map((glyph) => glyph.layoutIndex),
+  'input order must not alter emitted source indices',
+);
+
+const translatedTrees = sourceTrees.map((tree) => ({ ...tree, x: tree.x + 5, z: tree.z - 7 }));
+const translatedProjection = projectIllustratedWoodland(translatedTrees, projectionBounds);
+for (const glyph of exactProjection.glyphs) {
+  const translated = translatedProjection.glyphs.find((candidate) => (
+    candidate.layoutIndex === glyph.layoutIndex
+  ))!;
+  assert.ok(Math.abs(translated.authorX - glyph.authorX - 12.8) < 1e-9);
+  assert.ok(Math.abs(translated.authorY - glyph.authorY + 17.92) < 1e-9);
+}
+
+const trackedTreeData = JSON.parse(readFileSync(
+  new URL('../server/generated/world_trees.json', import.meta.url),
+  'utf8',
+)) as { trees: Array<{ layoutIndex: number; x: number; z: number }> };
+const trackedSources: IllustratedWoodlandSourceTree[] = trackedTreeData.trees.map((tree) => ({
+  ...tree,
+  species: 'beech',
+  form: 'broad',
+  scale: 1,
+}));
+const defaultWorldProjection = projectIllustratedWoodland(
+  trackedSources,
+  { minX: -817, maxX: 817, minZ: -817, maxZ: 817 },
+);
+assert.equal(defaultWorldProjection.diagnostics.sourceTreeCount, 10_905);
+assert.ok(
+  defaultWorldProjection.diagnostics.treeGlyphCount >= 3_000,
+  'the default paper map should preserve a genuinely dense accepted-tree read',
+);
+assert.ok(
+  defaultWorldProjection.diagnostics.treeGlyphCount
+    <= ILLUSTRATED_TERRAIN_STYLE.woodland.maximumGlyphCount,
+  'the dense grove projection must keep its explicit far-view ceiling',
+);
+assert.equal(
+  defaultWorldProjection.glyphs.every((glyph) => (
+    trackedTreeData.trees[glyph.layoutIndex]?.layoutIndex === glyph.layoutIndex
+  )),
+  true,
+  'every projected default-world glyph must reference a tracked accepted tree',
 );
 
 const denseWoods = sampleIllustratedWoodlandField({
@@ -136,12 +218,12 @@ assert.ok(
   'high, sloped, locally prominent terrain should read as a mountain range',
 );
 assert.ok(
-  ILLUSTRATED_TERRAIN_FIELDS.woodland.maximumTreeGlyphsPerClump <= 5,
-  'far-map groves should stay below the dark-badge overlap threshold',
+  ILLUSTRATED_TERRAIN_STYLE.woodland.minimumGlyphSpacingAuthorPixels >= 3.25,
+  'individual accepted-tree marks should retain a measurable far-view separation',
 );
 assert.ok(
-  ILLUSTRATED_TERRAIN_FIELDS.woodland.clumpSpacingAuthorPixels >= 28,
-  'woodland clumps should leave breathing room at the farthest map mip',
+  ILLUSTRATED_TERRAIN_STYLE.woodland.maximumGlyphCount >= 3_500,
+  'the illustrated forest ceiling should remain dense enough to read as real groves',
 );
 assert.ok(
   ILLUSTRATED_TERRAIN_FIELDS.elevation.mountainSpacingAuthorPixels >= 50,

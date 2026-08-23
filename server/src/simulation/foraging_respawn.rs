@@ -5,8 +5,9 @@ use crate::building_defs::building_def;
 use crate::db::*;
 use crate::foraging_policy::{is_spring, population_growth_per_second};
 use crate::harvest_reserve_policy::protected_wild_stock;
+use crate::placement_validation::building_footprint_overlaps_circle;
 use crate::season_policy::EnvironmentState;
-use crate::simulation::game_calendar::GameClock;
+use crate::simulation::{game_calendar::GameClock, SharedRoadNetworks};
 use crate::tables::{Building, ForagingNode};
 use crate::world_gen;
 
@@ -17,6 +18,7 @@ pub fn step_foraging_lifecycle(
     ctx: &ReducerContext,
     clock: &GameClock,
     environment: EnvironmentState,
+    road_networks: &SharedRoadNetworks,
 ) {
     let nodes: Vec<ForagingNode> = ctx.db.foraging_node().iter().collect();
     for node in nodes {
@@ -54,10 +56,14 @@ pub fn step_foraging_lifecycle(
         });
     }
 
-    migrate_disrupted_game_habitats(ctx, clock.sim_tick);
+    migrate_disrupted_game_habitats(ctx, clock.sim_tick, road_networks);
 }
 
-fn migrate_disrupted_game_habitats(ctx: &ReducerContext, sim_tick: u64) {
+fn migrate_disrupted_game_habitats(
+    ctx: &ReducerContext,
+    sim_tick: u64,
+    road_networks: &SharedRoadNetworks,
+) {
     let buildings: Vec<Building> = ctx.db.building().iter().collect();
     if buildings.is_empty() {
         return;
@@ -72,6 +78,7 @@ fn migrate_disrupted_game_habitats(ctx: &ReducerContext, sim_tick: u64) {
             resource_nodes[node_index].x,
             resource_nodes[node_index].z,
             &buildings,
+            road_networks,
         ) {
             continue;
         }
@@ -79,6 +86,7 @@ fn migrate_disrupted_game_habitats(ctx: &ReducerContext, sim_tick: u64) {
             &resource_nodes[node_index],
             &resource_nodes,
             &buildings,
+            road_networks,
             sim_tick,
         ) else {
             continue;
@@ -104,16 +112,23 @@ fn migrate_disrupted_game_habitats(ctx: &ReducerContext, sim_tick: u64) {
     }
 }
 
-fn habitat_is_disrupted(x: f64, z: f64, buildings: &[Building]) -> bool {
+fn habitat_is_disrupted(
+    x: f64,
+    z: f64,
+    buildings: &[Building],
+    road_networks: &SharedRoadNetworks,
+) -> bool {
     buildings.iter().any(|building| {
-        if building.kind == "hunters_hall" {
-            return false;
-        }
-        let footprint = building_def(&building.kind)
-            .map(|definition| definition.pick_radius)
-            .unwrap_or(0.0);
-        let radius = GAME_HABITAT_DISRUPTION_RADIUS + footprint;
-        (building.x - x) * (building.x - x) + (building.z - z) * (building.z - z) <= radius * radius
+        building_def(&building.kind).is_some()
+            && building_footprint_overlaps_circle(
+                &building.kind,
+                building.x,
+                building.z,
+                road_networks.get(&building.owner),
+                x,
+                z,
+                GAME_HABITAT_DISRUPTION_RADIUS,
+            )
     })
 }
 
@@ -121,6 +136,7 @@ fn choose_migration_target(
     node: &ForagingNode,
     resource_nodes: &[ForagingNode],
     buildings: &[Building],
+    road_networks: &SharedRoadNetworks,
     sim_tick: u64,
 ) -> Option<(f64, f64)> {
     let candidates = world_gen::game_respawn_candidates();
@@ -130,7 +146,7 @@ fn choose_migration_target(
     let start = (sim_tick as usize + node.node_id.len()) % candidates.len();
     for offset in 0..candidates.len() {
         let point = &candidates[(start + offset) % candidates.len()];
-        if habitat_is_disrupted(point.x, point.z, buildings) {
+        if habitat_is_disrupted(point.x, point.z, buildings, road_networks) {
             continue;
         }
         let overlaps_other_resource = resource_nodes.iter().any(|other| {

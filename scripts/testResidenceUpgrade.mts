@@ -698,17 +698,39 @@ assert.match(residenceInspector, /household contribution/);
 assert.match(residenceInspector, /treasury grant/);
 assert.match(residenceInspector, /Household prosperity/);
 assert.doesNotMatch(residenceInspector, /Household wealth/);
-assert.match(residenceInspector, /plan\.ready \? '' : 'disabled'/);
-assert.match(residenceInspector, /Begin tier \$\{plan\.nextTier\} works/);
+assert.match(
+  residenceInspector,
+  /data-action="upgrade-residence" data-upgrade-tier="\$\{plan\.nextTier\}" data-tooltip-title="Tier \$\{plan\.nextTier\}" data-tooltip="\$\{detail\}" \$\{plan\.ready \? '' : 'disabled'\}/,
+  'the compact upgrade control must preserve tooltip context and authoritative disabled gating',
+);
+assert.match(residenceInspector, /<span>Upgrade · Tier \$\{plan\.nextTier\}<\/span>/);
+assert.doesNotMatch(residenceInspector, /Begin tier \$\{plan\.nextTier\} works/);
 assert.match(residenceInspector, /data-residence-upgrade-priority/);
+assert.match(
+  residenceInspector,
+  /function residenceUpgradeProjectPanel\([\s\S]{0,180}return residenceProjectPriorityPanel\(project\.priority\);\s*\}/,
+  'an active residence upgrade should expose controls without explanatory prose',
+);
+assert.match(
+  residenceInspector,
+  /function residenceFireRepairProjectPanel\([\s\S]{0,180}return residenceProjectPriorityPanel\(project\.priority\);\s*\}/,
+  'an active fire repair should expose controls without explanatory prose',
+);
+assert.match(
+  residenceInspector,
+  /function residenceRoofTileProjectPanel\([\s\S]{0,180}return residenceProjectPriorityPanel\(project\.priority\);\s*\}/,
+  'an active roof retrofit should expose controls without explanatory prose',
+);
+assert.match(
+  residenceInspector,
+  /inspector-action-panel inspector-action-panel--compact" aria-label="Priority"/,
+);
 assert.match(residenceInspector, /Inspect incoming \$\{trip\.cargoKind\} cart/);
 assert.match(residenceInspector, /structural recovery required before settlement resumes/);
 assert.match(residenceInspector, /TIMBER_SALVAGE_FRACTION \* 100\)}% timber/);
-assert.match(residenceInspector, /Cottage construction is physical/);
-assert.match(residenceInspector, /founders remain at camp/);
+assert.doesNotMatch(residenceInspector, /Cottage construction is physical/);
 assert.match(residenceInspector, /Cancel cottage works/);
 assert.match(residenceInspector, /Fire recovery worksite/);
-assert.match(residenceInspector, /active fire-recovery sites recover only material already delivered/);
 assert.match(residenceInspector, /Fired-tile roof retrofit/);
 assert.doesNotMatch(residenceInspector, /Roof fire exposure/);
 assert.match(

@@ -813,6 +813,7 @@ export const WorldConfig = __t.object("WorldConfig", {
   resourceAbundance: __t.u8(),
   resourceVariety: __t.u8(),
   severeWeatherEnabled: __t.bool(),
+  wellAquiferNetworksEnabled: __t.bool(),
 });
 export type WorldConfig = __Infer<typeof WorldConfig>;
 

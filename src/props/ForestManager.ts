@@ -45,6 +45,7 @@ import {
   type ForestCanopyOcclusionDebugMode,
   type ForestCanopyOcclusionMap,
 } from '../terrain/ForestCanopyOcclusion.ts';
+import type { ForestTreePlacement } from './forestPlacements.ts';
 
 const ROAD_CLEAR_MARGIN = 1.35;
 const BUILDING_CLEAR_MARGIN = 1.35;
@@ -78,13 +79,7 @@ export type ForestRockInstances = {
   instances: ForestRockInstance[];
 };
 
-type TreePlacement = {
-  x: number;
-  z: number;
-  form: 'narrow' | 'broad' | 'young' | 'midstory';
-  species: string;
-  scale: number;
-};
+type TreePlacement = ForestTreePlacement;
 
 export type ForestTreeLayout = TreePlacement & {
   layoutIndex: number;

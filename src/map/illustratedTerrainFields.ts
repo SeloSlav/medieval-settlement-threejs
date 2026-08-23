@@ -7,23 +7,20 @@ import {
  * Field contract for the one-time 2D illustrated terrain bake:
  *
  * stable world XZ
- *   -> primary forest density + normalized elevation + slope/ridge
- *   -> derived woodland clump eligibility + mountain prominence
- *   -> irregular tree groves with an overlap budget + layered ridge marks
+ *   -> accepted tree placements + normalized elevation + slope/ridge
+ *   -> exact tree-glyph projection + mountain prominence
+ *   -> spatially faithful woodland + layered ridge marks
  *
  * Keep these perceptual constants together so visual tuning does not become a
  * collection of unrelated thresholds hidden in the canvas renderer.
  */
 export const ILLUSTRATED_TERRAIN_FIELDS = {
   woodland: {
-    clumpSpacingAuthorPixels: 28,
     neighbourhoodRadiusMapFraction: 0.032,
     densityStart: 0.24,
     densityFull: 0.72,
     neighbourSupportStart: 0.18,
     neighbourSupportFull: 0.5,
-    minimumClumpMass: 0.14,
-    maximumTreeGlyphsPerClump: 5,
   },
   elevation: {
     contourQuantiles: [0.38, 0.53, 0.66, 0.77, 0.86, 0.93],
@@ -80,17 +77,19 @@ export const ILLUSTRATED_TERRAIN_STYLE = {
     scaleVariation: 0.08,
   },
   woodland: {
-    outlineAlpha: 0.3,
-    lineWidthAuthorPixels: 0.58,
-    washAlphaMin: 0.01,
-    washAlphaMass: 0.016,
-    baselineAlphaMin: 0.1,
-    baselineAlphaMass: 0.08,
+    outlineAlpha: 0.24,
+    fillAlpha: 0.014,
+    lineWidthAuthorPixels: 0.38,
+    minimumGlyphSpacingAuthorPixels: 3.5,
+    maximumGlyphCount: 4_200,
+    canopyDiameterScale: 1.12,
+    minimumSymbolScaleAuthorPixels: 0.22,
+    maximumSymbolScaleAuthorPixels: 0.78,
   },
 } as const;
 
 export const ILLUSTRATED_TERRAIN_FIELD_CONTRACT =
-  'world-xz>forest-density,elevation,slope-ridge>woodland-clump,mountain-prominence>glyph-clusters,ridge-marks';
+  'world-xz>accepted-tree-placements,elevation,slope-ridge>exact-tree-glyphs,mountain-prominence>species-glyphs,ridge-marks';
 
 export type IllustratedWoodlandField = {
   /** Authoritative generated forest density at the requested world point. */

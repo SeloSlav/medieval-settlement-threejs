@@ -8,6 +8,14 @@ export const FOREST_CANOPY_OCCLUSION_TEXTURE_SIZE = 512;
  */
 export const FOREST_CANOPY_FIELD_PARAMETERS = Object.freeze({
   crownExtinction: 0.76,
+  stand: Object.freeze({
+    // Mirrors the authored under-canopy density contract: one tree contributes
+    // at most 1, so a threshold above 1 excludes isolated crowns by design.
+    radiusMeters: 12,
+    innerRadiusRatio: 0.2,
+    densityStart: 1.05,
+    densityFull: 2.65,
+  }),
   closure: Object.freeze({
     radiusMeters: 5.5,
     interiorStart: 0.1,
@@ -55,6 +63,12 @@ type ForestCanopyStamp = {
   bounds: PixelBounds;
 };
 
+type ForestCanopyTreeStamp = {
+  crown: ForestCanopyStamp;
+  stand: ForestCanopyStamp;
+  bounds: PixelBounds;
+};
+
 type PixelBounds = {
   minX: number;
   maxX: number;
@@ -95,9 +109,10 @@ const SHADE_CHANNEL = 3;
  * Low-resolution world-space canopy-light field consumed by the terrain
  * material. Individual crowns own additive optical-depth stamps so felling
  * remains reversible. A neighbourhood envelope is derived from their summed
- * coverage, closing incidental crown gaps into one forest interior. Sparse
- * deterministic light wells are then cut only through genuine local canopy
- * openings.
+ * coverage, closing incidental crown gaps into one forest interior. A broader
+ * live-tree density field gates that interior so a lone crown never paints a
+ * synthetic woodland-floor shadow. Sparse deterministic light wells are then
+ * cut only through genuine local canopy openings.
  *
  * RGBA field channels:
  *   R = live crown coverage
@@ -110,10 +125,11 @@ export class ForestCanopyOcclusionMap {
   readonly resolution: number;
 
   private readonly accumulation: Float32Array;
+  private readonly standDensity: Float32Array;
   private readonly crownCoverage: Float32Array;
   private readonly neighbourhoodCoverage: Float32Array;
   private readonly pixels: Uint8Array;
-  private stamps: ForestCanopyStamp[] = [];
+  private stamps: ForestCanopyTreeStamp[] = [];
   private active: boolean[] = [];
   private derivedFieldsDirty = false;
   private fullRebuildDirty = false;
@@ -131,6 +147,7 @@ export class ForestCanopyOcclusionMap {
     this.resolution = Math.max(8, Math.floor(resolution));
     const pixelCount = this.resolution * this.resolution;
     this.accumulation = new Float32Array(pixelCount);
+    this.standDensity = new Float32Array(pixelCount);
     this.crownCoverage = new Float32Array(pixelCount);
     this.neighbourhoodCoverage = new Float32Array(pixelCount);
     this.pixels = new Uint8Array(pixelCount * FIELD_CHANNELS);
@@ -158,9 +175,13 @@ export class ForestCanopyOcclusionMap {
 
   rebuild(sources: readonly ForestCanopyOcclusionSource[]): void {
     this.accumulation.fill(0);
-    this.stamps = sources.map((source, index) => this.createStamp(source, index));
+    this.standDensity.fill(0);
+    this.stamps = sources.map((source, index) => this.createTreeStamp(source, index));
     this.active = sources.map(() => true);
-    for (const stamp of this.stamps) this.applyStamp(stamp, 1);
+    for (const stamp of this.stamps) {
+      this.applyStamp(this.accumulation, stamp.crown, 1);
+      this.applyStamp(this.standDensity, stamp.stand, 1);
+    }
     this.derivedFieldsDirty = true;
     this.fullRebuildDirty = true;
     this.pendingDirtyBounds = null;
@@ -176,7 +197,8 @@ export class ForestCanopyOcclusionMap {
     const stamp = this.stamps[treeIndex];
     if (!stamp || this.active[treeIndex] === active) return false;
     this.active[treeIndex] = active;
-    this.applyStamp(stamp, active ? 1 : -1);
+    this.applyStamp(this.accumulation, stamp.crown, active ? 1 : -1);
+    this.applyStamp(this.standDensity, stamp.stand, active ? 1 : -1);
     this.derivedFieldsDirty = true;
     this.pendingDirtyBounds = unionPixelBounds(
       this.pendingDirtyBounds,
@@ -231,7 +253,20 @@ export class ForestCanopyOcclusionMap {
     this.terrainGridLayout = null;
   }
 
-  private createStamp(
+  private createTreeStamp(
+    source: ForestCanopyOcclusionSource,
+    sourceIndex: number,
+  ): ForestCanopyTreeStamp {
+    const crown = this.createCrownStamp(source, sourceIndex);
+    const stand = this.createStandStamp(source);
+    return {
+      crown,
+      stand,
+      bounds: unionPixelBounds(crown.bounds, stand.bounds),
+    };
+  }
+
+  private createCrownStamp(
     source: ForestCanopyOcclusionSource,
     sourceIndex: number,
   ): ForestCanopyStamp {
@@ -297,12 +332,59 @@ export class ForestCanopyOcclusionMap {
     };
   }
 
-  private applyStamp(stamp: ForestCanopyStamp, direction: 1 | -1): void {
+  private createStandStamp(
+    source: ForestCanopyOcclusionSource,
+  ): ForestCanopyStamp {
+    const parameters = FOREST_CANOPY_FIELD_PARAMETERS.stand;
+    const radius = parameters.radiusMeters;
+    const minX = this.worldToPixelUnclamped(source.x - radius);
+    const maxX = this.worldToPixelUnclamped(source.x + radius);
+    const minZ = this.worldToPixelUnclamped(source.z - radius);
+    const maxZ = this.worldToPixelUnclamped(source.z + radius);
+    const bounds: PixelBounds = {
+      minX: THREE.MathUtils.clamp(minX, 0, this.resolution - 1),
+      maxX: THREE.MathUtils.clamp(maxX, 0, this.resolution - 1),
+      minZ: THREE.MathUtils.clamp(minZ, 0, this.resolution - 1),
+      maxZ: THREE.MathUtils.clamp(maxZ, 0, this.resolution - 1),
+    };
+    const indices: number[] = [];
+    const weights: number[] = [];
+
+    for (let pixelZ = Math.max(0, minZ); pixelZ <= Math.min(this.resolution - 1, maxZ); pixelZ++) {
+      for (let pixelX = Math.max(0, minX); pixelX <= Math.min(this.resolution - 1, maxX); pixelX++) {
+        const distance = Math.hypot(
+          this.pixelToWorld(pixelX) - source.x,
+          this.pixelToWorld(pixelZ) - source.z,
+        );
+        if (distance >= radius) continue;
+        const weight = 1 - smootherstep01(
+          parameters.innerRadiusRatio,
+          1,
+          distance / radius,
+        );
+        if (weight <= 0.002) continue;
+        indices.push(pixelZ * this.resolution + pixelX);
+        weights.push(weight);
+      }
+    }
+
+    return {
+      indices: Uint32Array.from(indices),
+      weights: Float32Array.from(weights),
+      bounds,
+    };
+  }
+
+  private applyStamp(
+    target: Float32Array,
+    stamp: ForestCanopyStamp,
+    direction: 1 | -1,
+  ): void {
     for (let index = 0; index < stamp.indices.length; index++) {
       const pixelIndex = stamp.indices[index]!;
-      this.accumulation[pixelIndex] = Math.max(
+      target[pixelIndex] = Math.max(
         0,
-        this.accumulation[pixelIndex]! + stamp.weights[index]! * direction,
+        target[pixelIndex]! + stamp.weights[index]! * direction,
       );
     }
   }
@@ -347,7 +429,12 @@ export class ForestCanopyOcclusionMap {
           parameters.closure.interiorFull,
           this.neighbourhoodCoverage[index]!,
         );
-        const interior = Math.max(coverage, closure);
+        const standWeight = smoothstep01(
+          parameters.stand.densityStart,
+          parameters.stand.densityFull,
+          this.standDensity[index]!,
+        );
+        const interior = Math.max(coverage, closure) * standWeight;
         const worldX = this.pixelToWorld(pixelX);
         const worldZ = this.pixelToWorld(pixelZ);
         const along = (worldX * cos + worldZ * sin) / opening.alongScaleMeters;
@@ -715,6 +802,11 @@ function findPixelIndexRange(
 function smoothstep01(edge0: number, edge1: number, value: number): number {
   const t = THREE.MathUtils.clamp((value - edge0) / (edge1 - edge0), 0, 1);
   return t * t * (3 - 2 * t);
+}
+
+function smootherstep01(edge0: number, edge1: number, value: number): number {
+  const t = THREE.MathUtils.clamp((value - edge0) / (edge1 - edge0), 0, 1);
+  return t * t * t * (t * (t * 6 - 15) + 10);
 }
 
 function toByte(value: number): number {

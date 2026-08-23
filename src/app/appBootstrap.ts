@@ -945,6 +945,7 @@ export async function bootstrapAppSession(
       && !buildingTool.isEnabled()
       && !burgageTool.isEnabled()
       && !farmFieldTool.isEnabled()
+      && !uiRoot.querySelector('.alert-dialog-backdrop:not([hidden])')
       && !tutorialOverlay.isGameplayBlocking(),
     onNewWorld: () => {
       void beginNewWorld(() => sessionGate.isReady());
@@ -1021,6 +1022,9 @@ export async function bootstrapAppSession(
     getWorldHydrology: () => spacetimeStore.snapshot.worldGeneration?.hydrology ?? 50,
     getSevereWeatherEnabled: () =>
       spacetimeStore.snapshot.worldGeneration?.severeWeatherEnabled ?? false,
+    getWellAquiferNetworksEnabled: () =>
+      spacetimeStore.snapshot.worldGeneration?.wellAquiferNetworksEnabled
+      ?? getDraftWorldGeneration().wellAquiferNetworksEnabled,
     getWorldResourceAbundance: () =>
       spacetimeStore.snapshot.worldGeneration?.resourceAbundance ?? 50,
     getWorksiteCommuteSummary: (buildingId) =>
@@ -1374,7 +1378,7 @@ export async function bootstrapAppSession(
     domElement: sceneManager.renderer.domElement,
     terrain: sceneManager.terrain,
     riverField: sceneManager.riverField,
-    forestCores: sceneManager.worldLayout.forestCores,
+    treePlacements: sceneManager.whenForestTreePlacementsReady(),
     worldSeed: sceneManager.worldLayout.seed,
     registry: layoutRegistry,
     clayDepositSites: sceneManager.worldLayout.clayDepositLayout.sites,

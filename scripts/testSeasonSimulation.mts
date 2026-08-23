@@ -48,10 +48,23 @@ import {
   snowCoverageForClock,
 } from '../src/world/seasonPolicy.ts';
 import { GAME_CONTROL_SECTIONS } from '../src/ui/gameControlsReference.ts';
+import { seasonAlmanacTooltip } from '../src/ui/seasonAlmanac.ts';
 
 assert.equal(CALENDAR_SECONDS_PER_DAY, 120);
 assert.equal(CALENDAR_DAYS_PER_MONTH, 30);
 assert.equal(CALENDAR_MONTHS_PER_YEAR, 12);
+assert.doesNotMatch(
+  seasonAlmanacTooltip(false),
+  /drought|lightning/i,
+  'safe-world almanac copy must not advertise disabled severe weather',
+);
+assert.match(
+  seasonAlmanacTooltip(true),
+  /Drought may slow crops, cut well recharge/i,
+  'severe-weather almanac copy should retain its conditional drought warning',
+);
+assert.doesNotMatch(seasonAlmanacTooltip(false), /Harvest grain and orchards in September/);
+assert.doesNotMatch(seasonAlmanacTooltip(false), /Foraging, fishing, wool/);
 
 const start = gameClock(0);
 assert.deepEqual(
@@ -236,6 +249,7 @@ for (let springDay = 0; springDay < CALENDAR_DAYS_PER_MONTH * 3; springDay += 1)
     SPRING_RAIN_CHARCOAL_BURNER_THROUGHPUT_MULTIPLIER,
   );
   assert.match(describeEnvironment(environment).detail, /carts travel 18% slower/i);
+  assert.match(describeEnvironment(environment).detail, /shallow groundwater recharges more quickly/i);
   assert.match(describeEnvironment(environment).detail, /mill streams reach 115% power/i);
   assert.match(describeEnvironment(environment).detail, /charcoal clamps to 80%/i);
   break;
@@ -254,6 +268,16 @@ assert.equal(
 assert.match(describeEnvironment(autumnEnvironment).detail, /carts travel 10% slower/i);
 
 const lastSummerDay = gameClock((CALENDAR_DAYS_PER_MONTH * 6 - 1) * dayTicks);
+const safeSummerEnvironment = environmentFor(12345, 50, lastSummerDay);
+assert.equal(safeSummerEnvironment.season, 'summer');
+assert.doesNotMatch(
+  describeEnvironment(safeSummerEnvironment, false).detail,
+  /drought|lightning/i,
+);
+assert.match(
+  describeEnvironment(safeSummerEnvironment, true).detail,
+  /drought that cuts crop growth, well yield/i,
+);
 const autumnOutlook = nextDayEnvironmentOutlook(12345, 50, lastSummerDay);
 assert.equal(autumnOutlook.clock.month, 9);
 assert.equal(autumnOutlook.clock.monthDay, 1);
@@ -374,7 +398,7 @@ const foliageWindSource = readFileSync(
   'src/vegetation/seedthree/seedThreeFoliageWind.ts',
   'utf8',
 );
-assert.match(settlementHudSource, /describeNextDayEnvironmentOutlook/);
+assert.match(settlementHudSource, /seasonAlmanacTooltip/);
 assert.match(settlementHudSource, /GAME_SPEEDS\.map/);
 assert.match(
   settlementHudSource,

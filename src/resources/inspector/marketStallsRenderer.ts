@@ -1,6 +1,11 @@
 import { getBuildingCost } from '../buildingEconomy.ts';
 import type { InspectableTarget } from '../types.ts';
-import { freshFoodStock, preservedFoodStock } from '../../economy/foodInventory.ts';
+import {
+  FRESH_FOOD_KINDS,
+  PRESERVED_FOOD_KINDS,
+  freshFoodStock,
+  preservedFoodStock,
+} from '../../economy/foodInventory.ts';
 import {
   assignMarketplaceStallRoster,
   marketStallLabel,
@@ -16,7 +21,6 @@ import {
   buildingCostRows,
   buildingDemolishHint,
   buildingRoadAccessRow,
-  buildingStorageRows,
 } from './buildingCommon.ts';
 import {
   hiddenLabor,
@@ -36,6 +40,12 @@ import {
 } from '../../generated/gameBalance.ts';
 import { gameClock } from '../../world/gameCalendar.ts';
 import { environmentFor } from '../../world/seasonPolicy.ts';
+import { cargoKindLabel, formatTripPhaseLabel } from '../../logistics/deliveryTrips.ts';
+import { buildingLocalStorageItems } from './buildingLocalStorageRenderer.ts';
+import {
+  renderInspectorResourceStrip,
+  type InspectorResourceTokenOptions,
+} from './inspectorResourceTokens.ts';
 
 export function renderMarketStallsInspector(
   target: Extract<InspectableTarget, { kind: 'building' }>,
@@ -143,48 +153,140 @@ export function renderMarketStallsInspector(
   const stockedNeeds = [
     freshFoodStock(building) + Math.max(0, building.honey),
     preservedFoodStock(building),
-    building.ale,
     fuelEquivalent,
     building.cloth,
+    building.shoes,
     building.pottery,
     building.remedies,
   ].filter((stock) => (stock ?? 0) > 1e-6).length;
   const taxCartActive = activeTrip?.cargoKind === 'gold'
     && activeTrip.destinationKind === 'building';
   const heldTax = Math.max(0, building.gold ?? 0);
+  const localStorageItems = buildingLocalStorageItems(building);
+  const freshKinds = new Set<string>([...FRESH_FOOD_KINDS, 'honey']);
+  const preservedKinds = new Set<string>(PRESERVED_FOOD_KINDS);
+  const fuelKinds = new Set<string>(['firewood', 'charcoal']);
+  const representedKinds = new Set<string>([
+    ...freshKinds,
+    ...preservedKinds,
+    ...fuelKinds,
+    'cloth',
+    'shoes',
+    'pottery',
+    'remedies',
+    'gold',
+  ]);
+  const resourcesIn = (kinds: ReadonlySet<string>) =>
+    localStorageItems.filter((item) => kinds.has(item.kind));
+  const assignmentDetail = (
+    needKind: MarketStallAssignment['needKind'],
+    slots: number,
+    emptyText: string,
+  ) => {
+    const assignments = marketAssignments.filter((assignment) => assignment.needKind === needKind);
+    return `Tables: ${assignments.length}/${slots} · Source: ${formatStallAssignments(assignments, context, emptyText)}`;
+  };
+  const resourceTokens: InspectorResourceTokenOptions[] = [
+    {
+      kind: 'food',
+      amount: freshFoodStock(building) + Math.max(0, building.honey),
+      title: 'Fresh food',
+      detail: assignmentDetail('food', MARKETPLACE_FOOD_STALL_SLOTS, 'No stocked Granary table'),
+      amountLabel: 'On site',
+      resources: resourcesIn(freshKinds),
+    },
+    {
+      kind: 'preservedFood',
+      amount: preservedFoodStock(building),
+      title: 'Preserved food',
+      detail: assignmentDetail(
+        'preservedFood',
+        MARKETPLACE_FOOD_STALL_SLOTS,
+        'No stocked Granary table',
+      ),
+      amountLabel: 'On site',
+      resources: resourcesIn(preservedKinds),
+    },
+    {
+      kind: 'firewood',
+      amount: fuelEquivalent,
+      title: 'Household fuel',
+      detail: `${assignmentDetail('firewood', MARKETPLACE_GOODS_STALL_SLOTS, 'No stocked Storehouse table')} · Target: ${fuelTarget.toFixed(0)} equivalents · Runway: ${formatFuelRunway(fuelRunway, coveredPopulation)}`,
+      amountLabel: 'Fuel equivalents',
+      resources: resourcesIn(fuelKinds),
+    },
+    {
+      kind: 'cloth',
+      amount: Math.max(0, building.cloth ?? 0),
+      detail: assignmentDetail('cloth', MARKETPLACE_GOODS_STALL_SLOTS, 'No stocked Storehouse table'),
+      amountLabel: 'On site',
+    },
+    {
+      kind: 'shoes',
+      amount: Math.max(0, building.shoes ?? 0),
+      detail: assignmentDetail('shoes', MARKETPLACE_GOODS_STALL_SLOTS, 'No stocked Storehouse table'),
+      amountLabel: 'On site',
+    },
+    {
+      kind: 'pottery',
+      amount: Math.max(0, building.pottery ?? 0),
+      detail: assignmentDetail('pottery', MARKETPLACE_GOODS_STALL_SLOTS, 'No stocked Storehouse table'),
+      amountLabel: 'On site',
+    },
+    {
+      kind: 'remedies',
+      amount: Math.max(0, building.remedies ?? 0),
+      detail: 'Targeted care-cart stock',
+      amountLabel: 'On site',
+    },
+    {
+      kind: 'gold',
+      amount: heldTax,
+      title: 'Tax lockbox',
+      detail: taxCartActive
+        ? 'Collection: cart active'
+        : heldTax + 1e-6 >= LOCAL_MARKET_TAX_CART_THRESHOLD
+          ? 'Collection: awaiting free hauler'
+          : heldTax > 1e-6
+            ? `Collection: batching toward ${Math.ceil(LOCAL_MARKET_TAX_CART_THRESHOLD)}`
+            : 'Collection: empty',
+      amountLabel: 'Held here',
+    },
+    ...localStorageItems
+      .filter((item) => !representedKinds.has(item.kind))
+      .map((item): InspectorResourceTokenOptions => ({
+        ...item,
+        detail: 'Marketplace stock',
+        amountLabel: 'On site',
+      })),
+  ];
+  const cartLabel = activeTrip
+    ? `${cargoKindLabel(activeTrip.cargoKind)} · ${formatTripPhaseLabel(activeTrip.phase)}`
+    : 'Idle';
 
   return {
     eyebrow: 'Building',
     title: context.worldQueries.getBuildingLabel(building.kind),
     statusText: totalStalls <= 0
       ? standbyWorkers > 0
-        ? `${standbyWorkers} depot ${standbyWorkers === 1 ? 'worker is' : 'workers are'} standing by for compatible stock`
+        ? `${standbyWorkers} standby · stock matching`
         : stockedNeeds > 0
-          ? `Stock waiting — assign a matching Granary or Storehouse worker to open a table`
-          : 'Empty square — staff a road-linked Granary or Storehouse to open tables'
+          ? 'Stocked · no matching stall'
+          : 'Empty · no active stalls'
       : taxCartActive
-        ? `${Math.round(heldTax)} tax gold remains — a free hauler is carrying the current lockbox load`
-      : activeTrip
-        ? `${totalStalls} active stalls — a remedy or lockbox cart is on the road`
-        : `${totalStalls} active commodity stalls · ${stockedNeeds} stocked household need ${stockedNeeds === 1 ? 'category' : 'categories'} on site`,
+        ? `${totalStalls} stalls · lockbox cart`
+        : activeTrip
+          ? `${totalStalls} stalls · service cart`
+          : `${totalStalls} stalls · ${stockedNeeds} stocked needs`,
     statusState: totalStalls > 0 || standbyWorkers > 0 ? 'active' : 'idle',
     detailsHtml: `
       ${buildingCostRows(getBuildingCost(building.kind))}
       ${buildingRoadAccessRow(context.worldQueries, building)}
-      ${buildingStorageRows(building, building.kind, context.conflictEnabled ?? false)}
-      <li><span>Purpose</span><span>Shared local household exchange — it has no employees of its own</span></li>
-      <li><span>Service reach</span><span>${roadConnectedHomes} road-connected ${roadConnectedHomes === 1 ? 'home' : 'homes'} · ${roadConnectedPopulation} residents · no distance radius</span></li>
-      <li><span>Food stalls</span><span>${foodAssignments.length}/${MARKETPLACE_FOOD_STALL_SLOTS} active${standbyFoodWorkers > 0 ? ` · ${standbyFoodWorkers} worker${standbyFoodWorkers === 1 ? '' : 's'} awaiting stock` : ''} · ${formatStallAssignments(foodAssignments, context, 'no Granary worker has a stocked food category')}</span></li>
-      <li><span>Goods stalls</span><span>${goodsAssignments.length}/${MARKETPLACE_GOODS_STALL_SLOTS} active${standbyGoodsWorkers > 0 ? ` · ${standbyGoodsWorkers} worker${standbyGoodsWorkers === 1 ? '' : 's'} awaiting stock` : ''} · ${formatStallAssignments(goodsAssignments, context, 'no Village Storehouse worker has a stocked goods category')}</span></li>
-      <li><span>Fuel reserve</span><span>${building.firewood.toFixed(0)} firewood + ${(building.charcoal ?? 0).toFixed(0)} charcoal = ${fuelEquivalent.toFixed(0)} fuel-equivalents / ${fuelTarget.toFixed(0)} target · ${formatFuelRunway(fuelRunway, coveredPopulation)}</span></li>
-      <li><span>Fuel demand</span><span>${coveredPopulation} covered residents · ${fuelDemandPerDay.toFixed(1)} equivalents/day in ${environment.season} · ${MARKETPLACE_FUEL_RESERVE_DAYS}-day seasonal runway target</span></li>
-      <li><span>Distribution</span><span>Every home on the same road network is eligible regardless of distance · nearest stocked Marketplace by exact road length · one-day household issue every day · Town Hall policy may add a deeper critical-food and heat buffer · scarce stock goes one household-day per pass, nearest first, with stable household ID as the tie-break</span></li>
-      <li><span>Capacity rule</span><span>${MARKETPLACE_FOOD_STALL_SLOTS + MARKETPLACE_GOODS_STALL_SLOTS} tables fit here: ${MARKETPLACE_FOOD_STALL_SLOTS} food + ${MARKETPLACE_GOODS_STALL_SLOTS} goods · one depot worker occupies one table at one nearest Marketplace and sells one stocked need category · backyard surplus first enters that worker's Granary or Storehouse, then waits for the same physical restocking cart as every other good · available depot and stall stock still limit each issue</span></li>
-      <li><span>Roster order</span><span>Exact road distance fills nearest markets first · food priority is fresh, preserved, then ale · goods priority is fuel, cloth, then pottery · stable building IDs break ties · a worker may switch category only after both depot and stall run out</span></li>
-      <li><span>Backyard exchange</span><span>Edible surplus is pooled at the assigned Granary before its food-stall cart brings it here · remedies and hides enter the assigned Storehouse first · herb remedies retain targeted care carts after reaching the square</span></li>
-      <li><span>Local tax lockbox</span><span>${Math.round(heldTax)} gold held${taxCartActive ? ' · collection cart active' : heldTax + 1e-6 >= LOCAL_MARKET_TAX_CART_THRESHOLD ? ' · waiting for a free hauler to the civic treasury' : heldTax > 1e-6 ? ` · batching toward ${Math.ceil(LOCAL_MARKET_TAX_CART_THRESHOLD)} gold or the evening sweep` : ''}</span></li>
-      <li><span>Water</span><span>Supplied independently from unstaffed wells</span></li>
-      <li><span>Regional trade</span><span>Handled only by a staffed Trading Post</span></li>
+      <li data-inspector-primary data-inspector-resource-strip><span>Marketplace stock</span>${renderInspectorResourceStrip(resourceTokens, { ariaLabel: 'Marketplace stock' })}</li>
+      <li data-inspector-primary data-inspector-detail="Food and goods tables are staffed by road-linked Granary and Village Storehouse workers."><span>Stalls</span><span>${foodAssignments.length}/${MARKETPLACE_FOOD_STALL_SLOTS} food · ${goodsAssignments.length}/${MARKETPLACE_GOODS_STALL_SLOTS} goods${standbyWorkers > 0 ? ` · ${standbyWorkers} standby` : ''}</span></li>
+      <li data-inspector-primary data-inspector-detail="Every road-connected home is eligible; exact road length chooses the nearest stocked Marketplace."><span>Reach</span><span>${roadConnectedHomes} homes · ${roadConnectedPopulation} residents</span></li>
+      <li data-inspector-primary data-inspector-detail="Seasonal target: ${MARKETPLACE_FUEL_RESERVE_DAYS} days at ${fuelDemandPerDay.toFixed(1)} fuel-equivalents per day for ${coveredPopulation} covered residents."><span>Fuel runway</span><span>${fuelEquivalent.toFixed(0)}/${fuelTarget.toFixed(0)} eq · ${formatFuelRunway(fuelRunway, coveredPopulation)}</span></li>
+      <li data-inspector-secondary><span>Cart</span><span>${cartLabel}</span></li>
     `,
     demolish: {
       visible: true,

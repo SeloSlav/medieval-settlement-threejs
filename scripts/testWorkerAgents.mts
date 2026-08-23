@@ -73,6 +73,8 @@ import {
   SELECTED_AGENT_ROUTE_COLOR,
   updateSelectedAgentRoute,
 } from '../src/scene/SelectedAgentRoute.ts';
+import { VillagerRenderer } from '../src/settlement/VillagerRenderer.ts';
+import type { GameHabitatDisturbanceSource } from '../src/foraging/gameHabitatDisturbance.ts';
 
 const selectedWorkerRoute = createSelectedAgentRoute('Selected worker route test');
 assert.equal(selectedWorkerRoute.material.color.getHex(), SELECTED_AGENT_ROUTE_COLOR);
@@ -768,6 +770,94 @@ assert.match(
   villagerRendererSource,
   /workerSoundSourcePool[\s\S]*farmSongSourcePool[\s\S]*combatAudioFighterPool/,
   'per-frame villager audio sources should use retained record pools',
+);
+
+const loggingAgent = {
+  id: 'worker:lumber:0',
+  workplaceId: 'lumber',
+  pathPurpose: 'worker_work_loop' as string | null,
+  workActivity: 'chop',
+  mode: 'walk',
+  workTarget: { id: 'tree-edge', x: 22, z: -3 },
+  x: 14,
+  z: -6,
+};
+const loggingCollectorFixture = {
+  agents: new Map([
+    [loggingAgent.id, loggingAgent],
+    ['idle-lumber', {
+      id: 'idle-lumber',
+      workplaceId: 'lumber',
+      pathPurpose: null,
+      workActivity: 'chop',
+      x: 4,
+      z: 5,
+    }],
+    ['non-chopping-lumber', {
+      id: 'non-chopping-lumber',
+      workplaceId: 'lumber',
+      pathPurpose: 'worker_work_loop',
+      workActivity: 'gather',
+      x: 6,
+      z: 7,
+    }],
+    ['yard-woodcutter', {
+      id: 'yard-woodcutter',
+      workplaceId: 'woodcutters',
+      pathPurpose: 'worker_work_loop',
+      workActivity: 'chop',
+      x: 8,
+      z: 9,
+    }],
+  ]),
+  buildings: new Map([
+    ['lumber', { kind: 'lumber_mill' }],
+    ['woodcutters', { kind: 'woodcutters_lodge' }],
+  ]),
+  activeLoggingDisturbances: [] as GameHabitatDisturbanceSource[],
+  loggingDisturbancePool: [] as GameHabitatDisturbanceSource[],
+};
+const collectLoggingDisturbances = VillagerRenderer.prototype.getActiveLoggingDisturbances as (
+  this: typeof loggingCollectorFixture,
+) => readonly GameHabitatDisturbanceSource[];
+const firstLoggingDisturbances = collectLoggingDisturbances.call(loggingCollectorFixture);
+assert.deepEqual(
+  firstLoggingDisturbances,
+  [{ id: loggingAgent.id, x: loggingAgent.x, z: loggingAgent.z }],
+  'only a lumber-mill worker on a live chopping loop should disturb game',
+);
+const retainedLoggingDisturbance = firstLoggingDisturbances[0];
+loggingAgent.x = 18;
+loggingAgent.z = -2;
+const movedLoggingDisturbances = collectLoggingDisturbances.call(loggingCollectorFixture);
+assert.strictEqual(
+  movedLoggingDisturbances,
+  firstLoggingDisturbances,
+  'logging disturbance collection should retain its frame array',
+);
+assert.strictEqual(
+  movedLoggingDisturbances[0],
+  retainedLoggingDisturbance,
+  'moving logging workers should reuse retained disturbance records',
+);
+assert.deepEqual(
+  movedLoggingDisturbances,
+  [{ id: loggingAgent.id, x: 18, z: -2 }],
+  'logging disturbances should follow the worker live until the work loop ends',
+);
+loggingAgent.mode = 'chop';
+assert.deepEqual(
+  collectLoggingDisturbances.call(loggingCollectorFixture),
+  [{ id: loggingAgent.id, x: 22, z: -3 }],
+  'active chopping should use the tree location when the worker stops just outside a habitat boundary',
+);
+loggingAgent.pathPurpose = null;
+const endedLoggingDisturbances = collectLoggingDisturbances.call(loggingCollectorFixture);
+assert.strictEqual(endedLoggingDisturbances, firstLoggingDisturbances);
+assert.deepEqual(
+  endedLoggingDisturbances,
+  [],
+  'the disturbance should clear as soon as the lumber worker leaves the work loop',
 );
 assert.match(
   villagerRendererSource,

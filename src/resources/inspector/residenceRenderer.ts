@@ -101,6 +101,10 @@ import {
   renderResourceCost,
 } from '../../ui/resourceCost.ts';
 import {
+  renderInspectorResourceStrip,
+  type InspectorResourceTokenOptions,
+} from './inspectorResourceTokens.ts';
+import {
   computeSettlementProsperityPlan,
   projectTierFourUpgrade,
   type SettlementProsperityPlan,
@@ -594,18 +598,177 @@ export function renderResidenceInspector(
   const service = residenceServiceState(residence);
   const householdCorpses = Array.from((context.gameState.corpses ?? new Map()).values())
     .filter((corpse) => corpse.residenceId === residence.id);
+  const compactHealthLabel = hungerDays >= STARVATION_DEATH_START_DAYS
+    ? `Starving · ${hungerDays.toFixed(1)}d`
+    : coldExposureDays >= COLD_EXPOSURE_DEATH_START_DAYS
+      ? `Freezing · ${coldExposureDays.toFixed(1)}d`
+      : hungerDays >= MALNUTRITION_DAYS
+        ? `Malnourished · ${hungerDays.toFixed(1)}d`
+        : coldExposureDays >= COLD_EXPOSURE_WARNING_DAYS
+          ? `Cold · ${coldExposureDays.toFixed(1)}d`
+          : hungerDays >= HUNGER_WARNING_DAYS
+            ? `Hungry · ${hungerDays.toFixed(1)}d`
+            : (residence.sickPopulation ?? 0) > 0
+              ? `Sick · ${residence.sickPopulation}`
+              : 'Well';
+  const shortageNeedLabels = activeResidenceNeedKinds(residence.tier)
+    .filter((kind) => getNeed(residence.needs, kind).deficitTicks > 0)
+    .map(compactNeedLabel);
   const statusText = roofTileProject
-    ? roofTileProject.blockers[0]
-      ?? `Roof retrofit ${Math.round(roofTileProject.progress * 100)}% complete`
+    ? `Roof retrofit · ${Math.round(roofTileProject.progress * 100)}%${roofTileProject.blockers.length > 0 ? ' · blocked' : ''}`
     : structuralRepairProject
-    ? structuralRepairProject.blockers[0]
-      ?? `Structural recovery ${Math.round(structuralRepairProject.progress * 100)}% complete`
-    : initialConstruction && upgradeProject
-    ? upgradeProject.blockers[0]
-      ?? `Cottage frame ${Math.round(upgradeProject.progress * 100)}% complete`
-    : healthWarning
-      ? healthLabel
-      : needs.label;
+      ? `Repair · ${Math.round(structuralRepairProject.progress * 100)}%${structuralRepairProject.blockers.length > 0 ? ' · blocked' : ''}`
+      : initialConstruction && upgradeProject
+        ? `Cottage works · ${Math.round(upgradeProject.progress * 100)}%${upgradeProject.blockers.length > 0 ? ' · blocked' : ''}`
+        : healthWarning
+          ? compactHealthLabel
+          : shortageNeedLabels.length > 0
+            ? `Shortage · ${shortageNeedLabels.join(' · ')}`
+            : 'Needs met';
+  const foodStandard = foodProgressionStatus(
+    residence,
+    residence.population,
+    Math.max(1, residence.tier) as 1 | 2 | 3 | 4,
+  );
+  const pantryResources = NAMED_FOOD_KINDS.flatMap((kind) => {
+    const amount = Math.max(0, residence[kind] ?? 0);
+    return amount > 1e-6 ? [{ kind, amount }] : [];
+  });
+  const householdTokens: InspectorResourceTokenOptions[] = residence.tier <= 0
+    ? []
+    : [
+        {
+          kind: 'food',
+          amount: householdFreshMeals,
+          title: 'Fresh food',
+          amountLabel: `Stock · cap ${RESIDENCE_FOOD_CAPACITY}`,
+          detail: `${foodRunwayLabel} runway · ${foodSupplierLabel} · standard ${foodStandard.satisfiedSlots.length}/${foodStandard.requiredSlots.length}`,
+          resources: pantryResources,
+          className: getNeed(residence.needs, 'food').deficitTicks > 0 ? 'is-warning' : '',
+        },
+        ...(residence.tier >= 4
+          ? [{
+              kind: 'preservedFood' as const,
+              amount: householdPreservedFood,
+              title: 'Cured provisions',
+              amountLabel: `Stock · cap ${RESIDENCE_PRESERVED_FOOD_CAPACITY}`,
+              detail: `${preservedFoodRunwayLabel} runway · ${preservedFoodSupplierLabel}`,
+              className: getNeed(residence.needs, 'preservedFood').deficitTicks > 0 ? 'is-warning' : '',
+            }]
+          : []),
+        ...(residence.tier >= 2
+          ? [{
+              kind: 'ale' as const,
+              amount: getNeedStock(residence.needs, 'ale'),
+              title: 'Beverages',
+              amountLabel: `Stock · cap ${RESIDENCE_ALE_CAPACITY}`,
+              detail: `${aleRunwayLabel} runway · ${aleSupplierLabel}`,
+              className: getNeed(residence.needs, 'ale').deficitTicks > 0 ? 'is-warning' : '',
+            }]
+          : []),
+        {
+          kind: 'firewood',
+          amount: getNeedStock(residence.needs, 'firewood'),
+          title: 'Firewood',
+          amountLabel: `Stock · cap ${RESIDENCE_FIREWOOD_CAPACITY}`,
+          detail: `${firewoodRunwayLabel} runway · ${firewoodSupplierLabel}`,
+          className: getNeed(residence.needs, 'firewood').deficitTicks > 0 ? 'is-warning' : '',
+        },
+        {
+          kind: 'water',
+          amount: getNeedStock(residence.needs, 'water'),
+          title: 'Water',
+          amountLabel: `Stock · cap ${RESIDENCE_WATER_CAPACITY}`,
+          detail: `${waterRunwayLabel} runway · ${wellLabel}`,
+          className: getNeed(residence.needs, 'water').deficitTicks > 0 ? 'is-warning' : '',
+        },
+        ...(residence.tier >= 2
+          ? [{
+              kind: 'cloth' as const,
+              amount: getNeedStock(residence.needs, 'cloth'),
+              title: 'Household textiles',
+              amountLabel: `Stock · cap ${RESIDENCE_CLOTH_CAPACITY}`,
+              detail: `${clothRunwayLabel} runway · ${clothSupplierLabel}`,
+              className: getNeed(residence.needs, 'cloth').deficitTicks > 0 ? 'is-warning' : '',
+            }]
+          : []),
+        ...(residence.tier >= 3
+          ? [{
+              kind: 'shoes' as const,
+              amount: getNeedStock(residence.needs, 'shoes'),
+              title: 'Footwear',
+              amountLabel: `Stock · cap ${RESIDENCE_SHOES_CAPACITY}`,
+              detail: `${shoesRunwayLabel} runway · ${shoesSupplierLabel}`,
+              className: getNeed(residence.needs, 'shoes').deficitTicks > 0 ? 'is-warning' : '',
+            }]
+          : []),
+        ...(residence.tier >= 4
+          ? [{
+              kind: 'pottery' as const,
+              amount: getNeedStock(residence.needs, 'pottery'),
+              title: 'Household pottery',
+              amountLabel: `Stock · cap ${RESIDENCE_POTTERY_CAPACITY}`,
+              detail: `${potteryRunwayLabel} runway · ${potterySupplierLabel}`,
+              className: getNeed(residence.needs, 'pottery').deficitTicks > 0 ? 'is-warning' : '',
+            }]
+          : []),
+        ...((residence.sickPopulation ?? 0) > 0 || (residence.remedyStock ?? 0) > 0
+          ? [{
+              kind: 'remedies' as const,
+              amount: residence.remedyStock ?? 0,
+              title: 'Herbal remedies',
+              amountLabel: 'At home',
+              detail: remedySupplyLabel,
+              className: (residence.sickPopulation ?? 0) > 0 && (residence.remedyStock ?? 0) <= 0
+                ? 'is-warning'
+                : '',
+            }]
+          : []),
+      ];
+  const activeMaterialProject = roofTileProject
+    ?? structuralRepairProject
+    ?? upgradeProject
+    ?? backyardProject;
+  const worksiteTokens: InspectorResourceTokenOptions[] = activeMaterialProject
+    ? (['timber', 'stone', 'gold', 'roofTiles'] as const).flatMap((kind) => {
+        const required = activeMaterialProject.required[kind];
+        if (required <= 1e-6) return [];
+        const delivered = activeMaterialProject.delivered[kind];
+        const reserved = activeMaterialProject.reserved[kind];
+        const incoming = activeMaterialProject.incoming[kind];
+        return [{
+          kind,
+          amount: delivered,
+          amountLabel: `On site · need ${formatUpgradeAmount(required)}`,
+          detail: `${formatUpgradeAmount(reserved)} reserved · ${formatUpgradeAmount(incoming)} incoming`,
+          className: delivered + incoming + 1e-6 < required ? 'is-warning' : '',
+        }];
+      })
+    : [];
+  const projectTargetLabel = roofTileProject
+    ? 'Fired-tile roof'
+    : structuralRepairProject
+      ? `Tier ${residence.tier} homestead`
+      : upgradeProject
+        ? `Tier ${upgradeProject.targetTier}`
+        : backyardProject
+          ? backyardGardenLabel(backyardProject.kind)
+          : '';
+  const residenceSummaryHtml = activeMaterialProject
+    ? `
+      <li data-residence-summary data-inspector-primary><span>Progress</span><span>${Math.round(activeMaterialProject.progress * 100)}%</span></li>
+      <li data-residence-summary data-inspector-primary><span>Target</span><span>${projectTargetLabel}</span></li>
+      <li data-residence-summary data-inspector-primary><span>Priority</span><span>${activeMaterialProject.priorityLabel}</span></li>
+      <li data-residence-summary data-inspector-primary><span>Builder</span><span>${activeMaterialProject.assignedLabor > 0 ? '1 / 1' : '0 / 1'}</span></li>
+      <li data-residence-summary data-inspector-primary data-inspector-resource-strip data-inspector-section="Materials"><span>Materials</span>${renderInspectorResourceStrip(worksiteTokens, { ariaLabel: 'Worksite materials' })}</li>
+    `
+    : `
+      <li data-residence-summary data-inspector-primary data-inspector-detail="Parcel #${residence.parcelIndex + 1} · ${residenceCount} residence${residenceCount === 1 ? '' : 's'} · ${settlersRemaining} vacancies"><span>Population</span><span>${residence.population} / ${capacity}</span></li>
+      <li data-residence-summary data-inspector-primary data-inspector-detail="Malnutrition ${Math.round((residence.malnutrition ?? 0) * 100)}% · sick ${residence.sickPopulation ?? 0} · deaths ${residence.deathsTotal ?? 0}"><span>Health</span><span>${compactHealthLabel}</span></li>
+      <li data-residence-summary data-inspector-primary data-inspector-detail="${residence.tier >= 4 ? 'Fired clay tile' : residence.tier === 1 ? 'Bundled thatch' : 'Split wooden shingle'} · ${roadAccess}"><span>House tier</span><span>${residence.tier} / 4</span></li>
+      <li data-residence-summary data-inspector-primary data-inspector-detail="Required level ${residence.tier >= 4 ? 3 : residence.tier >= 2 ? 2 : 1} · ${community.hasMonasteryCoverage ? 'monastery linked' : 'no monastery'}"><span>Church</span><span>${community.hasChapelAccess ? `L${community.chapelTier ?? 1}` : 'Missing'}</span></li>
+      <li data-residence-summary data-inspector-primary data-inspector-resource-strip data-inspector-section="Stores"><span>Stores</span>${renderInspectorResourceStrip(householdTokens, { ariaLabel: 'Household stores' })}</li>
+    `;
 
   return {
     eyebrow: roofTileProject
@@ -623,9 +786,7 @@ export function renderResidenceInspector(
         : 'Homestead repairs'
       : initialConstruction
       ? 'Cottage construction'
-      : residenceCount === 1
-        ? 'Residence'
-        : `Residence plot (${residenceCount} residences)`,
+      : 'Residence',
     statusText,
     statusState: roofTileProject
       ? roofTileProject.blockers.length === 0 ? 'ok' : 'warning'
@@ -635,6 +796,7 @@ export function renderResidenceInspector(
         ? upgradeProject.blockers.length === 0 ? 'ok' : 'warning'
         : healthWarning ? 'warning' : needs.state,
     detailsHtml: `
+      ${residenceSummaryHtml}
       <li><span>Plots</span><span>${zone.plotCount}</span></li>
       <li><span>Residences</span><span>${residenceCount}</span></li>
       <li><span>Parcel</span><span>#${residence.parcelIndex + 1}</span></li>
@@ -739,10 +901,10 @@ export function renderResidenceInspector(
       : upgradeProject
       ? residenceUpgradeProjectPanel(upgradeProject, initialConstruction)
       : backyardProject
-        ? `<p class="resource-inspector-note">${backyardGardenLabel(backyardProject.kind)} works are using this household's builder slot. Select the backyard marker to inspect carts, materials, priority, or cancel the project.</p>`
+        ? ''
       : upgradePlan
         ? residenceUpgradePanel(upgradePlan, prosperityPlan, tierThreeProjection)
-        : '<p class="resource-inspector-note">This household has reached tier 4.</p>'}`,
+        : ''}`,
   };
 }
 
@@ -857,67 +1019,44 @@ function residenceUpgradePanel(
   prosperity: SettlementProsperityPlan | null,
   projection: TierFourUpgradeProjection | null,
 ): string {
-  const status = plan.ready
-    ? `Ready · adds ${plan.addedCapacity} resident capacity (${plan.populationCapacity} total) · ${plan.addedNeeds.toLowerCase()}.`
-    : `Blocked · ${plan.blockers.join(' · ')}.`;
-  const guidance = plan.nextTier === 2
-    ? 'Tier 2 needs a one-day grain staple plus one other stocked food group, a staffed basic church, a staffed road-connected Tavern, and a staffed weaver in addition to fuel and well access.'
-    : plan.nextTier === 3
-      ? 'Tier 3 needs separate one-day stocks of grain, produce or forage, meat or animal produce, and fish, plus a staffed level-2 church while retaining fuel, well, and Tier 2 services.'
-      : 'Tier 4 needs cured provisions, pottery, a staffed level-3 church, physical fired roof tiles, and either a stocked road-reachable Marketplace with honey or wine or a household preserve/flower source while retaining the complete lower-tier diet and services.';
-  const throughput = prosperity && projection
-    ? projection.immediateSustainable
-      ? projection.fullPipelineSustainable
-        ? ` Installed capacity on ${projection.roadBranchScoped ? 'this road branch' : 'the settlement'} can sustain the current occupants and this house at full occupancy; ${projection.limitingLabel} is the tightest chain.`
-        : ` Current occupants fit, but filling this house would exceed installed ${projection.limitingLabel} capacity on ${projection.roadBranchScoped ? 'this road branch' : 'the settlement'}.`
-      : ` Warning: promoting the current occupants immediately exceeds installed ${projection.limitingLabel} capacity on ${projection.roadBranchScoped ? 'this road branch' : 'the settlement'} by ${Math.abs(projection.immediateHeadroomResidents)} residents.`
+  const resourceCost = plan.resources
+    .map((resource) => renderResourceCost(
+      { [resource.kind]: resource.required },
+      { compact: true, unaffordable: !resource.ready },
+    ))
+    .join('');
+  const capacity = `Capacity +${plan.addedCapacity} · ${plan.populationCapacity} total`;
+  const production = prosperity && projection
+    ? `${projection.limitingLabel} · ${projection.immediateSustainable ? 'ready' : 'short'}`
     : '';
-  const funding = plan.physicalEconomy
-    ? ` The household contributes ${formatUpgradeAmount(plan.householdContribution)} coin from savings above its protected reserve; the treasury grants the remaining ${formatUpgradeAmount(plan.civicGoldRequired)} coin. Exact household savings stay private. Materials remain at their stores until a builder and cart can move them.`
-    : '';
-  return `<button type="button" class="resource-action-button resource-action-button--icon" data-action="upgrade-residence" data-upgrade-tier="${plan.nextTier}" ${plan.ready ? '' : 'disabled'}><span class="inspector-action-icon" data-action-icon="residence-tier-${plan.nextTier}" aria-hidden="true"></span><span>Begin tier ${plan.nextTier} works</span></button><p class="resource-inspector-note">${status}${throughput}${funding} ${guidance}</p>`;
+  const detail = plan.ready
+    ? `${capacity}${production ? ` · ${production}` : ''}`
+    : `Blocked · ${plan.blockers.join(' · ')}`;
+  return `<button type="button" class="resource-action-button resource-action-button--icon" data-action="upgrade-residence" data-upgrade-tier="${plan.nextTier}" data-tooltip-title="Tier ${plan.nextTier}" data-tooltip="${detail}" ${plan.ready ? '' : 'disabled'}><span class="inspector-action-icon" data-action-icon="residence-tier-${plan.nextTier}" aria-hidden="true"></span><span>Upgrade · Tier ${plan.nextTier}</span>${resourceCost}</button>`;
 }
 
 function residenceUpgradeProjectPanel(
   project: ResidenceUpgradeProject,
-  initialConstruction: boolean,
+  _initialConstruction: boolean,
 ): string {
-  const status = project.blockers.length === 0
-    ? 'Supplied and staffed; work advances as delivered material permits.'
-    : project.blockers.join(' · ');
-  return `<div class="inspector-action-panel">
-    <p class="resource-inspector-note">${initialConstruction
-      ? 'Cottage construction is physical: founders remain at camp while one builder raises the frame from onsite timber and stone brought by carts.'
-      : 'Household works are physical: one builder works from onsite timber and stone, while carts bring reserved stores and treasury coin.'} ${status} Hold releases the builder and stops new carts without losing reservations.</p>
-    <div class="resource-action-row">${CONSTRUCTION_PRIORITIES.map((candidate) =>
-      residenceUpgradePriorityButton(candidate, project.priority)).join('')}</div>
-  </div>`;
+  return residenceProjectPriorityPanel(project.priority);
 }
 
 function residenceFireRepairProjectPanel(
   project: ResidenceFireRepairProject,
 ): string {
-  const status = project.blockers.length === 0
-    ? 'Supplied and staffed; recovery advances as delivered material permits.'
-    : project.blockers.join(' · ');
-  return `<div class="inspector-action-panel">
-    <p class="resource-inspector-note">Recovery is physical: the damaged home remains offline while one builder uses timber and stone brought from real stores by cart. ${status} Hold releases the builder and stops new carts without losing reservations.</p>
-    <div class="resource-action-row">${CONSTRUCTION_PRIORITIES.map((candidate) =>
-      residenceUpgradePriorityButton(candidate, project.priority)).join('')}</div>
-  </div>`;
+  return residenceProjectPriorityPanel(project.priority);
 }
 
 function residenceRoofTileProjectPanel(
   project: ResidenceRoofTileProject,
 ): string {
-  const status = project.blockers.length === 0
-    ? 'Supplied and staffed; the covering advances as physical deliveries permit.'
-    : project.blockers.join(' · ');
-  return `<div class="inspector-action-panel">
-    <p class="resource-inspector-note">This is a residence-local worksite: kiln stock is reserved but remains visible at its source until a real cart reaches the house. ${status} Hold releases the builder and stops new carts without losing reservations.</p>
-    <div class="resource-action-row">${CONSTRUCTION_PRIORITIES.map((candidate) =>
-      residenceUpgradePriorityButton(candidate, project.priority)).join('')}</div>
-  </div>`;
+  return residenceProjectPriorityPanel(project.priority);
+}
+
+function residenceProjectPriorityPanel(priority: ConstructionPriority): string {
+  return `<div class="inspector-action-panel inspector-action-panel--compact" aria-label="Priority"><div class="resource-action-row">${CONSTRUCTION_PRIORITIES.map((candidate) =>
+    residenceUpgradePriorityButton(candidate, priority)).join('')}</div></div>`;
 }
 
 function residenceUpgradePriorityButton(
@@ -995,4 +1134,18 @@ function formatSettlementWait(
     (buffer) =>
       `${buffer.label} ${formatUpgradeAmount(buffer.stock)} / ${formatUpgradeAmount(buffer.required)}`,
   ).join(' · ');
+}
+
+function compactNeedLabel(
+  kind: ReturnType<typeof activeResidenceNeedKinds>[number],
+): string {
+  switch (kind) {
+    case 'preservedFood': return 'preserved food';
+    case 'foodVariety': return 'food variety';
+    case 'cloth': return 'textiles';
+    case 'pottery': return 'pottery';
+    case 'church': return 'church';
+    case 'luxury': return 'luxury';
+    default: return kind;
+  }
 }

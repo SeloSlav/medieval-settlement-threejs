@@ -147,6 +147,7 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
     let world_seed = config.seed;
     let world_map_size = config.map_size;
     let world_hydrology = config.hydrology;
+    let well_aquifer_networks_enabled = config.well_aquifer_networks_enabled;
     let world_resource_abundance = config.resource_abundance;
     let severe_weather_enabled = config.severe_weather_enabled;
     let conflict_enabled = config.conflict_enabled;
@@ -185,7 +186,7 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
     // construction claims the remaining pool and blocked builders.
     step_production_labor_stewards(ctx, sim_tick);
     step_construction_labor_stewards(ctx, sim_tick);
-    step_foraging_lifecycle(ctx, &clock, environment);
+    step_foraging_lifecycle(ctx, &clock, environment, &road_networks);
 
     step_settlement_security(
         ctx,
@@ -417,6 +418,7 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
             sim_tick,
             world_seed,
             world_hydrology,
+            well_aquifer_networks_enabled,
             &clock,
             environment,
             building,

@@ -23,13 +23,19 @@ import { fireDisabledBuildingIds } from '../fires/fireIncident.ts';
 import {
   type ClayDepositSite,
 } from '../clay/ClayDepositLayout.ts';
-import { resolveRoadsideBuildingPlacementCandidates } from './buildingPlacement.ts';
+import {
+  buildingPlacementYaw,
+  resolveRoadsideBuildingPlacementCandidates,
+} from './buildingPlacement.ts';
 import { resolveBuildingEdgeSnap } from './BuildingSpacing.ts';
 import {
   linkedRemoteWorkCamp,
   REMOTE_WORK_CAMP_MAX_DISTANCE,
   supportsRemoteWorkCamp,
 } from './remoteWorkCamp.ts';
+import {
+  resolveBuildingPlacementWildlifePreview,
+} from './buildingPlacementWildlifePreview.ts';
 
 export type BuildingToolMode = BuildingKind | 'off';
 
@@ -100,6 +106,7 @@ export class BuildingTool {
   private lastPreviewValidation: BuildingPlacementResult | null = null;
   private lastValidationTime = 0;
   private validationDirty = false;
+  private lastWildlifePreviewSignature = '';
   private placementStatusDetail: string | null = null;
   private readonly previewMoveThreshold = 0.18;
   private readonly undoStack: BuildingPlacementUndoEntry[] = [];
@@ -225,6 +232,7 @@ export class BuildingTool {
       this.processPointerHover();
       return;
     }
+    this.maybeRefreshWildlifePreview();
     this.maybeRefreshDeferredValidation();
   }
 
@@ -457,12 +465,78 @@ export class BuildingTool {
     this.lastPreviewX = point.x;
     this.lastPreviewZ = point.z;
     const validation = this.getPreviewValidation(point.x, point.z);
-    this.options.markers.setPlacementPreview(
+    this.publishPlacementPreview(
       kind,
       point.x,
       point.z,
       validation.ok,
       true,
+    );
+  }
+
+  private publishPlacementPreview(
+    kind: BuildingKind,
+    x: number,
+    z: number,
+    valid: boolean,
+    visible: boolean,
+  ): void {
+    const yaw = buildingPlacementYaw(
+      kind,
+      x,
+      z,
+      this.options.getRoadNetwork?.() ?? null,
+    );
+    const wildlifePreview = resolveBuildingPlacementWildlifePreview(
+      kind,
+      x,
+      z,
+      yaw,
+      this.options.getState().foragingNodes.values(),
+    );
+    this.lastWildlifePreviewSignature = wildlifePreview.signature;
+    this.options.markers.setPlacementPreview(
+      kind,
+      x,
+      z,
+      valid,
+      visible,
+      wildlifePreview,
+    );
+  }
+
+  private maybeRefreshWildlifePreview(): void {
+    if (
+      this.mode === 'off'
+      || !Number.isFinite(this.lastPreviewX)
+      || !Number.isFinite(this.lastPreviewZ)
+      || !this.lastPreviewValidation
+    ) {
+      return;
+    }
+    const yaw = buildingPlacementYaw(
+      this.mode,
+      this.lastPreviewX,
+      this.lastPreviewZ,
+      this.options.getRoadNetwork?.() ?? null,
+    );
+    const wildlifePreview = resolveBuildingPlacementWildlifePreview(
+      this.mode,
+      this.lastPreviewX,
+      this.lastPreviewZ,
+      yaw,
+      this.options.getState().foragingNodes.values(),
+    );
+    if (wildlifePreview.signature === this.lastWildlifePreviewSignature) return;
+
+    this.lastWildlifePreviewSignature = wildlifePreview.signature;
+    this.options.markers.setPlacementPreview(
+      this.mode,
+      this.lastPreviewX,
+      this.lastPreviewZ,
+      this.lastPreviewValidation.ok,
+      true,
+      wildlifePreview,
     );
   }
 
@@ -509,7 +583,7 @@ export class BuildingTool {
       this.lastPreviewZ,
       false,
     );
-    this.options.markers.setPlacementPreview(
+    this.publishPlacementPreview(
       kind,
       this.lastPreviewX,
       this.lastPreviewZ,
@@ -529,7 +603,7 @@ export class BuildingTool {
     this.lastValidationTime = performance.now();
     this.updatePlacementStatusDetail(this.mode, validation, false);
     if (Number.isFinite(this.lastPreviewX) && Number.isFinite(this.lastPreviewZ)) {
-      this.options.markers.setPlacementPreview(
+      this.publishPlacementPreview(
         this.mode,
         this.lastPreviewX,
         this.lastPreviewZ,
@@ -588,7 +662,7 @@ export class BuildingTool {
 
     const kind = this.mode;
     const validation = this.runPreviewValidation(this.lastPreviewX, this.lastPreviewZ);
-    this.options.markers.setPlacementPreview(
+    this.publishPlacementPreview(
       kind,
       this.lastPreviewX,
       this.lastPreviewZ,
@@ -608,6 +682,7 @@ export class BuildingTool {
     this.lastPreviewValidation = null;
     this.lastValidationTime = 0;
     this.validationDirty = false;
+    this.lastWildlifePreviewSignature = '';
     this.placementStatusDetail = null;
     if (hadPreviewState) {
       this.options.onPlacementPreviewChanged?.();

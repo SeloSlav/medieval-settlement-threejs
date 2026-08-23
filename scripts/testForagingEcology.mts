@@ -480,8 +480,37 @@ const lifecycle = readFileSync(
   `${projectRoot}server/src/simulation/foraging_respawn.rs`,
   'utf8',
 );
+const placementAuthority = readFileSync(
+  `${projectRoot}server/src/placement_validation.rs`,
+  'utf8',
+);
 assert.match(lifecycle, /population_growth_per_second/);
 assert.match(lifecycle, /migrate_disrupted_game_habitats/);
+assert.match(
+  lifecycle,
+  /building_footprint_overlaps_circle\([\s\S]{0,320}GAME_HABITAT_DISRUPTION_RADIUS/,
+  'permanent game migration must test the authoritative 38 m habitat against the actual building footprint',
+);
+assert.match(
+  lifecycle,
+  /road_networks\.get\(&building\.owner\)/,
+  'game habitat migration must resolve the same owner road-facing yaw as building placement',
+);
+assert.doesNotMatch(
+  lifecycle,
+  /pick_radius/,
+  'game migration must not substitute the broad interaction radius for the visible footprint',
+);
+assert.match(
+  placementAuthority,
+  /pub fn building_footprint_overlaps_circle[\s\S]{0,520}building_footprint_polygon/,
+  'the habitat predicate must derive from the shared road-aware/yawed building polygon',
+);
+assert.doesNotMatch(
+  lifecycle,
+  /building\.kind == "hunters_hall"/,
+  'a Hunter Hall footprint inside the grazing area must displace game like every other building',
+);
 assert.match(lifecycle, /protected_wild_stock\("game", node\.max_yield, 0\)/);
 assert.match(lifecycle, /protected_wild_stock\("fish", node\.max_yield, 0\)/);
 assert.doesNotMatch(
@@ -660,7 +689,13 @@ const deerVisuals = readFileSync(
 );
 assert.match(deerVisuals, /herdSexCounts\(visiblePopulation\)/);
 assert.match(deerVisuals, /visual\.sexIndex\s*<\s*visibleSexCounts\.(stagCount|doeCount)/);
-assert.match(deerVisuals, /node\.x\s*-\s*visual\.motion\.homeX/);
+assert.match(deerVisuals, /beginDeerMigration\(/);
+assert.match(deerVisuals, /nearestGameHabitatDisturbanceSource/);
+assert.doesNotMatch(
+  deerVisuals,
+  /visual\.motion\.x\s*\+=\s*dx/,
+  'a witnessed authoritative habitat relocation must gallop toward its new home instead of translating every deer',
+);
 
 console.log('foraging ecology tests passed');
 

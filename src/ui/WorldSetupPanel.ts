@@ -92,6 +92,24 @@ export class WorldSetupPanel {
               <p class="world-setup-slider-hint world-setup-hazard-hint">Ordinary spring rain and winter frost remain part of every world. Frontier raid arson stays tied to Contested frontier mode.</p>
             </section>
 
+            <section class="world-setup-section" aria-labelledby="world-setup-groundwater-title">
+              <h2 class="world-setup-section__title" id="world-setup-groundwater-title">Groundwater</h2>
+              <button
+                type="button"
+                class="world-setup-hazard-option world-setup-hazard-option--aquifer"
+                data-aquifer-networks
+                aria-pressed="false"
+              >
+                <span class="world-setup-hazard-option__marker" aria-hidden="true">≋</span>
+                <span class="world-setup-hazard-option__copy">
+                  <strong>Enable aquifer networks</strong>
+                  <span>Well yield varies by location. Use the Groundwater overlay to find strong sites.</span>
+                </span>
+                <span class="world-setup-hazard-option__state" data-aquifer-networks-state>Off · even groundwater</span>
+              </button>
+              <p class="world-setup-slider-hint world-setup-hazard-hint">When off, every well site has the same reliable yield. Rivers and lakes remain separate surface water.</p>
+            </section>
+
             <section class="world-setup-section world-setup-landscape" aria-label="Landscape">
               <div class="world-setup-section-heading">
                 <h2 class="world-setup-section__title">Landscape</h2>
@@ -117,7 +135,7 @@ export class WorldSetupPanel {
               <strong data-hydrology-value>${this.draft.hydrology}</strong>
             </label>
             <input id="world-setup-hydrology" class="world-setup-slider" type="range" min="0" max="100" step="1" value="${this.draft.hydrology}" />
-            <p class="world-setup-slider-hint">Low = drier land with fewer rivers. High = wetter valleys and more waterways.</p>
+            <p class="world-setup-slider-hint">Low = drier land with fewer rivers. High = wetter valleys and more waterways; aquifer networks also follow this water table.</p>
             </section>
 
             <section class="world-setup-section" aria-label="Custom forest density">
@@ -196,6 +214,8 @@ export class WorldSetupPanel {
     const pressureValue = this.backdrop.querySelector<HTMLElement>('[data-pressure-value]')!;
     const severeWeatherButton = this.backdrop.querySelector<HTMLButtonElement>('[data-severe-weather]')!;
     const severeWeatherState = this.backdrop.querySelector<HTMLElement>('[data-severe-weather-state]')!;
+    const aquiferNetworksButton = this.backdrop.querySelector<HTMLButtonElement>('[data-aquifer-networks]')!;
+    const aquiferNetworksState = this.backdrop.querySelector<HTMLElement>('[data-aquifer-networks-state]')!;
     const landscapeGrid = this.backdrop.querySelector<HTMLElement>('[data-landscape-grid]')!;
     const landscapeNote = this.backdrop.querySelector<HTMLElement>('[data-landscape-note]')!;
     const customLandscapeControls = this.backdrop.querySelector<HTMLElement>('[data-custom-landscape-controls]')!;
@@ -255,6 +275,14 @@ export class WorldSetupPanel {
       severeWeatherState.textContent = this.draft.severeWeatherEnabled
         ? 'On · severe events'
         : 'Off · beginner friendly';
+    });
+    aquiferNetworksButton.addEventListener('click', () => {
+      this.draft.wellAquiferNetworksEnabled = !this.draft.wellAquiferNetworksEnabled;
+      aquiferNetworksButton.classList.toggle('is-selected', this.draft.wellAquiferNetworksEnabled);
+      aquiferNetworksButton.setAttribute('aria-pressed', String(this.draft.wellAquiferNetworksEnabled));
+      aquiferNetworksState.textContent = this.draft.wellAquiferNetworksEnabled
+        ? 'On · placement matters'
+        : 'Off · even groundwater';
     });
 
     topographySlider.addEventListener('input', () => {

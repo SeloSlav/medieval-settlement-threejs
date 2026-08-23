@@ -1,0 +1,122 @@
+.inspector-resource-strip {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+}
+
+.inspector-resource-token {
+  display: inline-grid;
+  place-items: center;
+  min-width: 36px;
+  min-height: 30px;
+  padding: 3px 6px;
+  border: 1px solid rgba(218, 190, 126, 0.2);
+  border-radius: 4px;
+  background:
+    linear-gradient(145deg, rgba(174, 128, 44, 0.11), transparent 62%),
+    rgba(10, 11, 9, 0.34);
+  color: #ead9b2;
+  cursor: help;
+}
+
+.inspector-resource-token:hover,
+.inspector-resource-token:focus-visible {
+  border-color: rgba(231, 199, 123, 0.66);
+  background:
+    linear-gradient(145deg, rgba(174, 128, 44, 0.2), transparent 62%),
+    rgba(18, 17, 13, 0.55);
+  outline: none;
+  box-shadow: inset 0 0 0 1px rgba(231, 199, 123, 0.08);
+}
+
+.inspector-resource-token.is-empty {
+  color: rgba(202, 192, 169, 0.5);
+  filter: saturate(0.55);
+}
+
+.inspector-resource-token.is-warning {
+  border-color: rgba(211, 109, 72, 0.48);
+  color: #e3a17e;
+  background:
+    linear-gradient(145deg, rgba(151, 58, 33, 0.2), transparent 62%),
+    rgba(18, 11, 9, 0.48);
+  filter: none;
+}
+
+.inspector-resource-token .resource-cost__item {
+  gap: 4px;
+}
+
+.inspector-resource-token .resource-cost__icon {
+  width: 21px;
+  height: 21px;
+}
+
+.inspector-resource-token__value {
+  color: inherit;
+  font-size: 10px;
+  font-weight: 750;
+  font-variant-numeric: tabular-nums;
+}
+
+.inspector-resource-strip__empty {
+  color: rgba(202, 192, 169, 0.52);
+  font-size: 10px;
+  font-style: italic;
+}
+
+.resource-inspector-details .inspector-resource-strip {
+  justify-content: flex-start;
+}
+
+.resource-inspector-details [data-inspector-details] > li[data-inspector-resource-strip] {
+  display: block;
+  grid-column: 1 / -1;
+  min-height: 0;
+  padding: 5px;
+  overflow: visible;
+}
+
+.resource-inspector-details [data-inspector-details] > li[data-inspector-resource-strip]::after {
+  display: none;
+}
+
+.resource-inspector-details [data-inspector-details] > li[data-inspector-resource-strip] > span:first-child {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.resource-inspector-details [data-inspector-details] > li[data-inspector-resource-strip] > .inspector-resource-strip {
+  width: 100%;
+}
+
+.trading-post-ledger__resource-anchor {
+  min-width: 38px;
+  min-height: 38px;
+  padding: 5px;
+}
+
+.trading-post-ledger__resource-anchor .resource-cost__icon {
+  width: 27px;
+  height: 27px;
+}
+
+.trading-post-ledger__row.is-active .trading-post-ledger__resource-anchor {
+  border-color: rgba(218, 190, 126, 0.48);
+  color: #f1d98e;
+}
+
+@media (max-width: 520px) {
+  .inspector-resource-token {
+    min-width: 34px;
+    padding-inline: 5px;
+  }
+}

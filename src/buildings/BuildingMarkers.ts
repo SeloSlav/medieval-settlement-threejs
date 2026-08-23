@@ -92,6 +92,7 @@ import {
   updateBuildingPreviewAppearance,
   updateBuildingPreviewGeometry,
 } from './BuildingPlacementPreview.ts';
+import type { BuildingPlacementWildlifePreview } from './buildingPlacementWildlifePreview.ts';
 import { syncFoodStockpileVisuals } from './foodStockpileVisuals.ts';
 import { syncBulkStockpileVisuals } from './bulkStockpileVisuals.ts';
 import { syncArmoryStockpileVisuals } from './armoryStockpileVisuals.ts';
@@ -581,8 +582,9 @@ export class BuildingMarkers {
     z: number,
     valid: boolean,
     visible: boolean,
+    wildlifePreview?: BuildingPlacementWildlifePreview,
   ): void {
-    const signature = `${kind}|${x.toFixed(2)}|${z.toFixed(2)}|${valid ? 1 : 0}|${visible ? 1 : 0}`;
+    const signature = `${kind}|${x.toFixed(2)}|${z.toFixed(2)}|${valid ? 1 : 0}|${visible ? 1 : 0}|${wildlifePreview?.signature ?? ''}`;
     if (signature === this.lastPreviewSignature) return;
     this.lastPreviewSignature = signature;
     if (!visible) {
@@ -609,6 +611,7 @@ export class BuildingMarkers {
       z,
       yaw,
       this.terrain.getHeightAt.bind(this.terrain),
+      wildlifePreview,
     );
     this.previewBuilding.visible = true;
   }

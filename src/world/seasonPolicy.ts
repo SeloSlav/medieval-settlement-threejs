@@ -305,7 +305,10 @@ export function describeNextDayEnvironmentOutlook(
   return `Next dawn, ${formatCalendarDate(outlook.clock)}: ${title} · ${road} · ${pressures.join(' · ')}`;
 }
 
-export function describeEnvironment(environment: EnvironmentState): {
+export function describeEnvironment(
+  environment: EnvironmentState,
+  severeWeatherEnabled = environment.weather === 'drought',
+): {
   title: string;
   detail: string;
   symbol: string;
@@ -324,7 +327,7 @@ export function describeEnvironment(environment: EnvironmentState): {
   if (environment.weather === 'rain') {
     return {
       title: 'Spring rain',
-      detail: `Crops grow faster, wells refill faster, berries and mushrooms replenish, and mill streams reach ${Math.round(environment.watermillThroughputMultiplier * 100)}% power. Saturated banks hold clay digging to ${Math.round(environment.clayPitThroughputMultiplier * 100)}%, while damp billets slow covered charcoal clamps to ${Math.round(environment.charcoalBurnerThroughputMultiplier * 100)}%.${roadDetail}`,
+      detail: `Crops grow faster, shallow groundwater recharges more quickly, berries and mushrooms replenish, and mill streams reach ${Math.round(environment.watermillThroughputMultiplier * 100)}% power. Saturated banks hold clay digging to ${Math.round(environment.clayPitThroughputMultiplier * 100)}%, while damp billets slow covered charcoal clamps to ${Math.round(environment.charcoalBurnerThroughputMultiplier * 100)}%.${roadDetail}`,
       symbol: '☂',
     };
   }
@@ -339,20 +342,26 @@ export function describeEnvironment(environment: EnvironmentState): {
   if (environment.season === 'autumn') {
     return {
       title: 'Autumn',
-      detail: `Call farm crews home for the September harvest, then plough and sow during October and November or lose unfinished fields at winter. Gather the last berries, stock firewood, and begin threshing grain and processing the harvest; the first light snow can settle late in November.${roadDetail}`,
+      detail: `Finish the late harvest, then plough and sow winter crops during October and November or lose unfinished fields at winter. Gather the last berries, stock firewood, and begin threshing grain and processing the harvest; the first light snow can settle late in November.${roadDetail}`,
       symbol: '♨',
     };
   }
   if (environment.season === 'summer') {
     return {
       title: 'Summer',
-      detail: 'Crops and forage continue growing while most farm labor is free. Finish manpower-heavy construction and industry, gather remaining berries, and recall distant militia before September; drought can still ruin exposed crops and strain wells, pasture, fish, and mills.',
+      detail: `Crops and forage continue growing while most farm labor is free. Finish manpower-heavy construction and industry, gather remaining berries, and recall distant militia before September.${
+        severeWeatherEnabled
+          ? ' Severe-weather maps can still bring drought that cuts crop growth, well yield, pasture, fish, and mill power.'
+          : ''
+      }`,
       symbol: '☀',
     };
   }
   return {
     title: 'Spring',
-    detail: 'The settled snow has cleared and fresh canopy is returning as berries and mushrooms replenish, fish reproduce, sheep shearing resumes, and autumn-sown crops grow again. March and April are the emergency window for spring oats; frequent rain helps growth and wells but slows dirt roads, threatens exposed supplies, and can bring lightning fires.',
+    detail: `The settled snow has cleared and fresh canopy is returning as berries and mushrooms replenish, fish reproduce, sheep shearing resumes, and autumn-sown crops grow again. March and April are the emergency window for spring oats; frequent rain boosts crop growth and shallow-groundwater recharge but slows dirt roads and threatens exposed supplies${
+      severeWeatherEnabled ? ', while severe storms can bring lightning fires' : ''
+    }.`,
     symbol: '❀',
   };
 }

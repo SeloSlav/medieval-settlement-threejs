@@ -1,7 +1,9 @@
 ﻿@import url('./ui/inspectorSupplemental.css');
+@import url('./ui/inspectorResourceTokens.css');
 @import url('./ui/marketplaceTrade.css');
 @import url('./ui/gameMenu.css');
 @import url('./ui/gameControls.css');
+@import url('./ui/alertDialog.css');
 @import url('./ui/settlementHud.css');
 @import url('./ui/resourceInspector.css');
 @import url('./ui/villagerInspector.css');
@@ -96,6 +98,7 @@ button {
 [data-ui-root] .resource-inspector-panel,
 [data-ui-root] .game-menu-backdrop,
 [data-ui-root] .game-controls-backdrop,
+[data-ui-root] .alert-dialog-backdrop,
 [data-ui-root] .city-admin-backdrop,
 [data-ui-root] .tutorial-overlay,
 [data-ui-root] .quarry-map-icon,

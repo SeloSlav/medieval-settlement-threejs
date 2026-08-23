@@ -134,6 +134,24 @@ assert.match(
   /Construction cost <span class="resource-cost resource-cost--compact resource-cost--unaffordable"/,
   'an unaffordable burgage should keep its ordinary status copy and make only the cost red',
 );
+assert.match(
+  renderToolbarStatus({
+    canBuild: false,
+    hasDraft: false,
+    mode: 'well',
+    wellAquiferNetworksEnabled: false,
+  }),
+  /every well site has the same reliable yield/,
+);
+assert.match(
+  renderToolbarStatus({
+    canBuild: false,
+    hasDraft: false,
+    mode: 'well',
+    wellAquiferNetworksEnabled: true,
+  }),
+  /use the groundwater map for the best aquifer sites/,
+);
 assert.equal(isConstructionResourceShortfallMessage('Not enough timber (need 5 timber).'), true);
 assert.equal(isConstructionResourceShortfallMessage('Not enough stone (need 6 stone).'), true);
 assert.equal(isConstructionResourceShortfallMessage('Not enough ironwork fittings (need 4 ironwork).'), true);

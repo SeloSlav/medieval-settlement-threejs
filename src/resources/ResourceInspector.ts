@@ -83,6 +83,7 @@ import {
   foodSpoilageMultiplier,
   type FoodInventoryKind,
 } from '../economy/foodInventory.ts';
+import { AlertDialog } from '../ui/AlertDialog.ts';
 
 type ResourceInspectorOptions = {
   domElement: HTMLElement;
@@ -108,6 +109,7 @@ type ResourceInspectorOptions = {
   getEnemyPressure?: () => number;
   getWorldHydrology?: () => number;
   getSevereWeatherEnabled?: () => boolean;
+  getWellAquiferNetworksEnabled?: () => boolean;
   getWorldResourceAbundance?: () => number;
   getWorksiteCommuteSummary?: (buildingId: string) => WorksiteCommuteSummary | null;
   onDemolishBuilding?: (buildingId: string) => void | Promise<void>;
@@ -389,6 +391,7 @@ export class ResourceInspector {
   private readonly laborDecrease: HTMLButtonElement;
   private readonly laborIncrease: HTMLButtonElement;
   private readonly supplementalPanelSection: HTMLElement;
+  private readonly deleteDialog: AlertDialog;
   private readonly marker: THREE.Mesh;
   private readonly hoverOutline: PlayerAuthoredHoverOutline;
   private selectedTarget: InspectableTarget | null = null;
@@ -485,6 +488,7 @@ export class ResourceInspector {
     );
 
     this.panel = this.mustElement(options.uiRoot, '[data-resource-inspector]');
+    this.deleteDialog = new AlertDialog(options.uiRoot);
     this.eyebrow = this.mustElement(options.uiRoot, '[data-inspector-eyebrow]');
     this.title = this.mustElement(options.uiRoot, '[data-inspector-title]');
     this.status = this.mustElement(options.uiRoot, '[data-inspector-status]');
@@ -699,26 +703,34 @@ export class ResourceInspector {
   }
 
   private readonly onDemolishPrimaryClick = (): void => {
-    if (!this.selectedTarget) return;
-    if (this.selectedTarget.kind === 'building') {
-      void this.options.onDemolishBuilding?.(this.selectedTarget.building.id);
-      return;
-    }
-    if (this.selectedTarget.kind === 'residence') {
-      void this.options.onDemolishResidence?.(this.selectedTarget.residence.id);
-      return;
-    }
-    if (this.selectedTarget.kind === 'backyard' && this.selectedTarget.garden) {
-      void this.options.onDemolishBackyardGarden?.(this.selectedTarget.residence.id);
-      return;
-    }
-    if (this.selectedTarget.kind === 'farm-field') {
-      void this.options.onDemolishFarmField?.(this.selectedTarget.field.id);
-      return;
-    }
-    if (this.selectedTarget.kind === 'pasture') {
-      void this.options.onDemolishPasture?.(this.selectedTarget.pasture.id);
-    }
+    const target = this.selectedTarget;
+    if (!target) return;
+    const actionLabel = this.demolishButton.textContent?.trim() || 'Demolish';
+    void this.confirmDestructiveAction(
+      actionLabel,
+      this.destructiveTargetLabel(target),
+      async () => {
+        if (target.kind === 'building') {
+          await this.options.onDemolishBuilding?.(target.building.id);
+          return;
+        }
+        if (target.kind === 'residence') {
+          await this.options.onDemolishResidence?.(target.residence.id);
+          return;
+        }
+        if (target.kind === 'backyard' && target.garden) {
+          await this.options.onDemolishBackyardGarden?.(target.residence.id);
+          return;
+        }
+        if (target.kind === 'farm-field') {
+          await this.options.onDemolishFarmField?.(target.field.id);
+          return;
+        }
+        if (target.kind === 'pasture') {
+          await this.options.onDemolishPasture?.(target.pasture.id);
+        }
+      },
+    );
   };
 
   private readonly onPanelClick = (event: MouseEvent): void => {
@@ -808,7 +820,11 @@ export class ResourceInspector {
       .closest<HTMLElement>('[data-demolish-graveyard]')
       ?.dataset.demolishGraveyard;
     if (demolishGraveyardId) {
-      void this.options.onDemolishGraveyard?.(demolishGraveyardId);
+      void this.confirmDestructiveAction(
+        'Remove burial ground',
+        'Empty burial ground',
+        () => this.options.onDemolishGraveyard?.(demolishGraveyardId),
+      );
       return;
     }
     if (
@@ -1332,9 +1348,51 @@ export class ResourceInspector {
   };
 
   private readonly onDemolishSecondaryClick = (): void => {
-    if (this.selectedTarget?.kind !== 'residence') return;
-    void this.options.onDemolishBurgageZone?.(this.selectedTarget.zone.id);
+    const target = this.selectedTarget;
+    if (target?.kind !== 'residence') return;
+    const actionLabel = this.demolishSecondaryButton.textContent?.trim()
+      || 'Remove entire plot';
+    void this.confirmDestructiveAction(
+      actionLabel,
+      `${target.residenceCount} residence${target.residenceCount === 1 ? '' : 's'}`,
+      () => this.options.onDemolishBurgageZone?.(target.zone.id),
+    );
   };
+
+  private async confirmDestructiveAction(
+    actionLabel: string,
+    targetLabel: string,
+    action: () => void | Promise<void> | undefined,
+  ): Promise<void> {
+    const confirmed = await this.deleteDialog.confirm({
+      eyebrow: 'Confirm removal',
+      title: actionLabel,
+      description: `${targetLabel} · irreversible`,
+      confirmLabel: actionLabel,
+      cancelLabel: 'Cancel',
+    });
+    if (!confirmed) return;
+    await action();
+  }
+
+  private destructiveTargetLabel(target: InspectableTarget): string {
+    switch (target.kind) {
+      case 'building':
+        return this.options.worldQueries.getBuildingLabel(target.building.kind);
+      case 'residence':
+        return `Residence · parcel ${target.residence.parcelIndex + 1}`;
+      case 'backyard':
+        return 'Backyard holding';
+      case 'farm-field':
+        return 'Farm field';
+      case 'pasture':
+        return 'Pasture';
+      case 'quarry':
+      case 'foraging':
+      case 'river':
+        return 'Selected site';
+    }
+  }
 
   private readonly onSupplementalInput = (event: Event): void => {
     const input = event.target as HTMLInputElement;
@@ -1805,6 +1863,7 @@ export class ResourceInspector {
   dispose(): void {
     this.clearServiceCoverage();
     this.hoverOutline.dispose();
+    this.deleteDialog.dispose();
     this.options.domElement.removeEventListener('mousedown', this.onPointerDown, { capture: true });
     this.demolishButton.removeEventListener('click', this.onDemolishPrimaryClick);
     this.demolishSecondaryButton.removeEventListener('click', this.onDemolishSecondaryClick);
@@ -1990,6 +2049,7 @@ export class ResourceInspector {
       resourceTotals,
       worldHydrology: this.options.getWorldHydrology?.() ?? 50,
       severeWeatherEnabled: this.options.getSevereWeatherEnabled?.() ?? false,
+      wellAquiferNetworksEnabled: this.options.getWellAquiferNetworksEnabled?.() ?? false,
       worldResourceAbundance: this.options.getWorldResourceAbundance?.() ?? 50,
       conflictEnabled: this.options.getConflictEnabled?.() ?? false,
       enemyPressure: this.options.getEnemyPressure?.() ?? 0,
@@ -2097,11 +2157,17 @@ export class ResourceInspector {
         ${view.detailsHtml}
       `;
       if (!residenceRecoveryActive) {
-        view.statusText = fire.status === 'burning'
-          ? 'Burning — production and household activity are suspended until the fire is out.'
-          : fire.status === 'destroyed'
-            ? 'Destroyed by fire — rebuild the surviving foundations or clear the ruin.'
-            : 'Fire out — repair the damage before activity can resume.';
+        view.statusText = target.kind === 'residence'
+          ? fire.status === 'burning'
+            ? 'Burning · activity suspended'
+            : fire.status === 'destroyed'
+              ? 'Destroyed · rebuild or demolish'
+              : 'Fire out · repair required'
+          : fire.status === 'burning'
+            ? 'Burning — production and household activity are suspended until the fire is out.'
+            : fire.status === 'destroyed'
+              ? 'Destroyed by fire — rebuild the surviving foundations or clear the ruin.'
+              : 'Fire out — repair the damage before activity can resume.';
         view.statusState = 'warning';
       }
       if (target.kind === 'building' && view.labor.visible) {
@@ -2114,23 +2180,29 @@ export class ResourceInspector {
         };
       }
       if (!residenceRecoveryActive) {
-        view.supplementalPanelHtml = fire.status === 'burning' || !recovery
-        ? `<div class="inspector-action-panel">
-            <p class="inspector-action-panel__hint">Keep a staffed, supplied well within work extent. Fire calls preempt routine water deliveries.</p>
-          </div>`
-        : `<div class="inspector-action-panel">
-            <p class="inspector-action-panel__hint">${target.kind === 'building'
-              ? 'Recovery reuses the existing site and enters the normal material-hauling and builder-work pipeline.'
-              : 'Fire recovery reuses the surviving homestead footprint; the rebuilt cottage returns vacant and can be settled again.'}</p>
-            <button type="button" class="resource-action-button resource-action-button--icon" data-fire-recovery ${
-              coolingSeconds > 1e-6 || !canAffordRecovery ? 'disabled' : ''
-            }><span class="inspector-action-icon" data-action-icon="fire-recovery" aria-hidden="true"></span><span>${coolingSeconds > 1e-6
-              ? `Cooling (${Math.ceil(coolingSeconds)}s)`
-              : !canAffordRecovery
-                ? `Need ${renderBuildingResourceCost(recovery.cost, { compact: true })}`
-                : `${recoveryLabel} · ${renderBuildingResourceCost(recovery.cost, { compact: true })}`}</span></button>
-            ${recovery.carpenterSupported ? '<p class="inspector-action-panel__hint">A staffed road-linked carpenter reduces the timber requirement by 10%.</p>' : ''}
-          </div>`;
+        const recoveryButton = !recovery || fire.status === 'burning'
+          ? ''
+          : `<button type="button" class="resource-action-button resource-action-button--icon" data-fire-recovery
+              data-tooltip-title="${recoveryLabel}"
+              data-tooltip="${recovery.carpenterSupported ? 'Carpenter support · ' : ''}${recovery.scriptoriumRecoveryMultiplier < 1 ? `Scriptorium ${Math.round((1 - recovery.scriptoriumRecoveryMultiplier) * 100)}% · ` : ''}Existing footprint"
+              ${coolingSeconds > 1e-6 || !canAffordRecovery ? 'disabled' : ''}>
+              <span class="inspector-action-icon" data-action-icon="fire-recovery" aria-hidden="true"></span><span>${coolingSeconds > 1e-6
+                ? `Cooling · ${Math.ceil(coolingSeconds)}s`
+                : !canAffordRecovery
+                  ? renderBuildingResourceCost(recovery.cost, { compact: true })
+                  : `${recoveryLabel} · ${renderBuildingResourceCost(recovery.cost, { compact: true })}`}</span>
+            </button>`;
+        view.supplementalPanelHtml = target.kind === 'residence'
+          ? recoveryButton
+          : fire.status === 'burning' || !recovery
+            ? `<div class="inspector-action-panel">
+                <p class="inspector-action-panel__hint">Keep a staffed, supplied well within work extent. Fire calls preempt routine water deliveries.</p>
+              </div>`
+            : `<div class="inspector-action-panel">
+                <p class="inspector-action-panel__hint">Recovery reuses the existing site and enters the normal material-hauling and builder-work pipeline.</p>
+                ${recoveryButton}
+                ${recovery.carpenterSupported ? '<p class="inspector-action-panel__hint">A staffed road-linked carpenter reduces the timber requirement by 10%.</p>' : ''}
+              </div>`;
       }
     }
 
@@ -2145,16 +2217,20 @@ export class ResourceInspector {
     this.demolishSection.hidden = !view.demolish.visible;
     this.demolishButton.textContent = view.demolish.label ?? 'Demolish';
     this.demolishHint.textContent = view.demolish.hint;
+    this.demolishHint.hidden = target.kind === 'residence'
+      || view.demolish.hint.trim().length === 0;
 
     const secondary = view.demolish.secondary;
     this.demolishSecondaryButton.hidden = !secondary;
-    this.demolishSecondaryHint.hidden = !secondary;
     if (secondary) {
       this.demolishSecondaryButton.textContent = secondary.label;
       this.demolishSecondaryHint.textContent = secondary.hint;
+      this.demolishSecondaryHint.hidden = target.kind === 'residence'
+        || secondary.hint.trim().length === 0;
     } else {
       this.demolishSecondaryButton.textContent = '';
       this.demolishSecondaryHint.textContent = '';
+      this.demolishSecondaryHint.hidden = true;
     }
 
     this.laborSection.hidden = !view.labor.visible;
@@ -2260,6 +2336,16 @@ export class ResourceInspector {
         score: inspectorRowScore(row, label, value, index),
       };
     });
+    const residenceSummaryRows = ranked
+      .filter(({ row }) => row.hasAttribute('data-residence-summary'))
+      .map(({ row }) => row);
+    if (
+      this.panel.dataset.inspectorTarget === 'residence'
+      && residenceSummaryRows.length > 0
+    ) {
+      this.detailList.replaceChildren(...withInspectorSectionHeadings(residenceSummaryRows));
+      return;
+    }
     const pinnedPrimaryRows = ranked
       .filter(({ row }) => row.hasAttribute('data-inspector-primary'))
       .map(({ row }) => row);
@@ -2484,6 +2570,10 @@ function inspectablePresentation(target: InspectableTarget): InspectorPresentati
 }
 
 function decorateInspectorRow(row: HTMLElement, label: string, value: string): void {
+  if (row.hasAttribute('data-inspector-resource-strip')) {
+    row.classList.add('inspector-resource-strip-row');
+    return;
+  }
   const normalized = `${label} ${value}`.toLowerCase();
   const state = inspectorDetailState(label, value);
   const labelElement = row.firstElementChild;

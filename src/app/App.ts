@@ -95,7 +95,10 @@ import { syncPlacedBuildingTerrain } from './placedBuildingTerrainSync.ts';
 import { SessionLifecycleController } from './SessionLifecycleController.ts';
 import { markSpacetimeProtocolHealthy } from '../network/spacetimeProtocolRecovery.ts';
 import { beginNewWorld } from './worldBootstrapFlow.ts';
-import { clearAuthoritativeWorldGeneration } from '../world/worldGenerationContext.ts';
+import {
+  clearAuthoritativeWorldGeneration,
+  getActiveWorldGeneration,
+} from '../world/worldGenerationContext.ts';
 import {
   computeGuardhouseMusterPlan,
   computeRefugeShelterPlan,
@@ -776,6 +779,9 @@ export class App {
         worldDt,
         crowdView,
       );
+      this.sceneManager?.setGameHabitatLoggingDisturbances(
+        this.villagers?.getActiveLoggingDisturbances(),
+      );
       if (dynamicShadowCastersChanged) {
         this.sceneManager?.invalidateDynamicShadows();
       }
@@ -944,6 +950,9 @@ export class App {
       carpenterCartServiceEnabled:
         placementEconomy?.carpenterCartServiceEnabled,
       carpenterCartServiceReady: placementEconomy?.carpenterCartServiceReady,
+      wellAquiferNetworksEnabled:
+        this.spacetimeStore?.snapshot.worldGeneration?.wellAquiferNetworksEnabled
+        ?? getActiveWorldGeneration().wellAquiferNetworksEnabled,
     };
     this.sceneManager?.setCropSuitabilityOverlayCrop(farmCrop);
     this.sceneManager?.setVineyardSuitabilityOverlayVisible(vineyardPlacementEnabled);
@@ -1157,6 +1166,7 @@ export class App {
       snapshot.gameSpeed,
       presentationEnvironment,
       this.visualQaConditions ? undefined : environmentOutlook,
+      snapshot.worldGeneration?.severeWeatherEnabled ?? false,
     );
     this.sceneManager?.setEnvironment(presentationEnvironment);
     this.buildingMarkers?.setEnvironment(presentationEnvironment);

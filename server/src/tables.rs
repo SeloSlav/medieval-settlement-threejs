@@ -64,6 +64,10 @@ pub struct WorldConfig {
     /// Appended and disabled so existing and new settlements get the safer ruleset.
     #[default(false)]
     pub severe_weather_enabled: bool,
+    /// Uses a seeded underground network instead of uniform reliable well groundwater.
+    /// Appended and disabled so existing and new settlements keep forgiving well placement.
+    #[default(false)]
+    pub well_aquifer_networks_enabled: bool,
 }
 
 #[spacetimedb::table(accessor = player_resources, public)]

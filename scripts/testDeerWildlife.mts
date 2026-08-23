@@ -3,17 +3,22 @@ import fs from 'node:fs';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js';
+import { GAME_HABITAT_DISRUPTION_RADIUS } from '../src/generated/gameBalance.ts';
 import {
+  beginDeerMigration,
+  DEER_FLEE_BOUNDARY_RADIUS,
   DEER_FLEE_TRIGGER_DISTANCE,
   DEER_ROAM_RADIUS,
   canDeerDetectObserver,
   createHerdSexDistribution,
+  hasActiveDeerMigration,
   herdSexCounts,
   type DeerMotionState,
   updateDeerMotion,
 } from '../src/foraging/DeerWildlifeBehavior.ts';
 import {
   createGameHerdSpawnPoints,
+  nearestGameHabitatDisturbanceSource,
   skeletonsUseSharedRig,
 } from '../src/foraging/DeerWildlifeVisuals.ts';
 import {
@@ -97,8 +102,37 @@ function createMotion(overrides: Partial<DeerMotionState> = {}): DeerMotionState
     mode: 'idle',
     modeTimer: 4,
     fleeBias: 0,
+    migrationTargetX: null,
+    migrationTargetZ: null,
     ...overrides,
   };
+}
+
+assert.equal(
+  DEER_ROAM_RADIUS,
+  GAME_HABITAT_DISRUPTION_RADIUS,
+  'the visible grazing range must match the authoritative building-disruption radius',
+);
+
+{
+  const boundarySources = [
+    { id: 'logger-z', x: DEER_ROAM_RADIUS, z: 0 },
+    { id: 'logger-a', x: -DEER_ROAM_RADIUS, z: 0 },
+    { id: 'logger-outside', x: DEER_ROAM_RADIUS + 0.01, z: 0 },
+  ];
+  assert.equal(
+    nearestGameHabitatDisturbanceSource({ x: 0, z: 0 }, boundarySources)?.id,
+    'logger-a',
+    'a logger on the grazing boundary should disturb the herd and stable id should break equal-distance ties',
+  );
+  assert.equal(
+    nearestGameHabitatDisturbanceSource(
+      { x: 0, z: 0 },
+      [boundarySources[2]!],
+    ),
+    null,
+    'a logger beyond the grazing boundary should not disturb the herd',
+  );
 }
 
 {
@@ -165,6 +199,137 @@ function createMotion(overrides: Partial<DeerMotionState> = {}): DeerMotionState
 
   updateDeerMotion(motion, 1 / 60, { observer: null, random });
   assert.equal(motion.mode, 'walk', 'deer should return to roaming when the observer is gone');
+}
+
+{
+  const motion = createMotion();
+  const forcedThreat = { x: DEER_ROAM_RADIUS, z: 0 };
+  const random = fixedRandom([0.2, 0.7, 0.4, 0.8]);
+  for (let frame = 0; frame < 120; frame++) {
+    updateDeerMotion(motion, 1 / 60, {
+      observer: null,
+      forcedThreat,
+      random,
+    });
+  }
+  assert.equal(
+    motion.mode,
+    'flee',
+    'a qualifying logging source should force the whole herd to flee beyond individual awareness range',
+  );
+  assert.ok(motion.speed > 6, 'logging disturbance should use the gallop response');
+
+  updateDeerMotion(motion, 1 / 60, {
+    observer: null,
+    forcedThreat: null,
+    random,
+  });
+  assert.equal(
+    motion.mode,
+    'walk',
+    'the deer should start returning to its habitat as soon as the logger leaves',
+  );
+}
+
+{
+  const motion = createMotion();
+  const forcedThreats = [
+    { id: 'logger-west', x: -8, z: 0 },
+    { id: 'logger-east', x: 8, z: 0 },
+  ];
+  const random = fixedRandom([0.2, 0.7, 0.4, 0.8]);
+  for (let frame = 0; frame < 240; frame++) {
+    updateDeerMotion(motion, 1 / 60, {
+      observer: null,
+      forcedThreats,
+      random,
+    });
+  }
+  assert.ok(
+    Math.abs(motion.z) > 8,
+    'equal loggers on opposite sides should produce a perpendicular escape instead of choosing one and running at the other',
+  );
+  assert.ok(
+    forcedThreats.every((source) => Math.hypot(motion.x - source.x, motion.z - source.z) > 8),
+    'aggregate logging repulsion should increase distance from every active crew',
+  );
+}
+
+{
+  const motion = createMotion();
+  const forcedThreats = [{ id: 'logger-center', x: 0, z: 0 }];
+  const random = fixedRandom([0.2, 0.7, 0.4, 0.8]);
+  let escaped = false;
+  let minimumEscapedRadius = Number.POSITIVE_INFINITY;
+  let maximumEscapedRadius = 0;
+  for (let frame = 0; frame < 3_600; frame++) {
+    updateDeerMotion(motion, 1 / 60, {
+      observer: null,
+      forcedThreats,
+      random,
+    });
+    const radius = Math.hypot(motion.x - motion.homeX, motion.z - motion.homeZ);
+    if (radius >= DEER_ROAM_RADIUS + 1) escaped = true;
+    if (!escaped) continue;
+    minimumEscapedRadius = Math.min(minimumEscapedRadius, radius);
+    maximumEscapedRadius = Math.max(maximumEscapedRadius, radius);
+  }
+  assert.equal(escaped, true, 'a persistent logger should drive the herd beyond its grazing area');
+  assert.ok(
+    minimumEscapedRadius >= DEER_ROAM_RADIUS - 0.75,
+    'an active logger must not make the herd ping-pong back through its grazing area',
+  );
+  assert.ok(
+    maximumEscapedRadius <= DEER_FLEE_BOUNDARY_RADIUS + 4,
+    'persistent disturbance should pace deer around a bounded refuge instead of sending them infinitely away',
+  );
+}
+
+{
+  const motion = createMotion();
+  const random = fixedRandom([0.2, 0.7, 0.4, 0.8]);
+  beginDeerMigration(motion, 60, 4, 60, 0);
+  assert.deepEqual(
+    { x: motion.x, z: motion.z },
+    { x: 0, z: 0 },
+    "an authoritative relocation should begin from the deer's current pose instead of translating it",
+  );
+  assert.equal(motion.mode, 'flee', 'relocation should immediately select the gallop animation');
+
+  for (let frame = 0; frame < 120; frame++) {
+    updateDeerMotion(motion, 1 / 60, { observer: null, random });
+  }
+  assert.ok(motion.x > 6, 'a relocating deer should make visible progress toward the new habitat');
+  assert.equal(hasActiveDeerMigration(motion), true);
+
+  for (let frame = 0; frame < 1_200 && hasActiveDeerMigration(motion); frame++) {
+    updateDeerMotion(motion, 1 / 60, { observer: null, random });
+  }
+  assert.equal(hasActiveDeerMigration(motion), false, 'relocation should reach a terminal state');
+  assert.deepEqual(
+    { x: motion.x, z: motion.z, homeX: motion.homeX, homeZ: motion.homeZ },
+    { x: 60, z: 4, homeX: 60, homeZ: 0 },
+    'relocation should lock exactly to its individual arrival point and shared new habitat center',
+  );
+  assert.equal(motion.speed, 0, 'terminal relocation must clear residual gallop velocity');
+}
+
+{
+  const motion = createMotion();
+  const random = fixedRandom([0.2, 0.7, 0.4, 0.8]);
+  beginDeerMigration(motion, 60, 0, 60, 0);
+  for (let frame = 0; frame < 120; frame++) {
+    updateDeerMotion(motion, 1 / 60, {
+      observer: null,
+      forcedThreats: [{ id: 'logger-at-destination', x: 60, z: 0 }],
+      random,
+    });
+  }
+  assert.ok(
+    motion.x < -5,
+    'logging at a migration destination should repel deer instead of letting migration run them into the crew',
+  );
+  assert.equal(hasActiveDeerMigration(motion), true, 'the migration should resume after logging clears');
 }
 
 for (const asset of [

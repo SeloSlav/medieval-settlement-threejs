@@ -1004,10 +1004,17 @@ function testWorldGenerationReferenceStaysStableAcrossTicks(): void {
     seed: 123n,
     nextBuildingId: 1n,
     simTick: 1n,
+    gameSpeed: 1,
     mapSize: 1,
     topography: 50,
     hydrology: 50,
     forestDensity: 50,
+    resourceAbundance: 50,
+    resourceVariety: 50,
+    conflictEnabled: false,
+    enemyPressure: 0,
+    severeWeatherEnabled: false,
+    wellAquiferNetworksEnabled: false,
     configured: false,
   };
 
@@ -1021,6 +1028,14 @@ function testWorldGenerationReferenceStaysStableAcrossTicks(): void {
     firstGeneration,
     'simulation ticks should not replace unchanged world-generation settings',
   );
+
+  syncWorldConfig([{ ...row, simTick: 3n, wellAquiferNetworksEnabled: true }] as never, state as never);
+  assert.notStrictEqual(
+    state.worldGeneration,
+    firstGeneration,
+    'a well-aquifer rule update must replace the cached world-generation contract',
+  );
+  assert.equal(state.worldGeneration?.wellAquiferNetworksEnabled, true);
 }
 
 function emptyGameState(): GameState {

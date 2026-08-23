@@ -159,6 +159,7 @@ function addFrontWindow(
   shutters = true,
   weatheredMaterial: THREE.Material = timberMaterial('weathered'),
   structuralMaterial: THREE.Material = timberMaterial('dark'),
+  glazed = true,
 ): void {
   const parts = addProceduralWindow(group, {
     position: new THREE.Vector3(x, y, z),
@@ -172,7 +173,21 @@ function addFrontWindow(
     shutters,
     namePrefix: 'Residence front',
   });
-  parts.pane.name = 'Residence front window pane';
+  parts.root.userData.residenceWallCutThrough = !glazed;
+  parts.root.userData.residenceWindowGlazing = glazed
+    ? 'glazed-pane'
+    : 'open-aperture';
+  if (glazed) {
+    parts.pane.name = 'Residence front window pane';
+  } else {
+    parts.pane.removeFromParent();
+    parts.pane.geometry.dispose();
+    parts.reveal.position.z = -0.34;
+    parts.reveal.material = windowMaterial;
+    parts.reveal.name = 'Residence front window recessed lit interior';
+    parts.reveal.userData.facadeOpeningRole = 'window-interior';
+    parts.reveal.userData.residenceWindowInteriorDepthMeters = 0.34;
+  }
   for (const framePart of parts.frame) {
     if (framePart.userData.facadeOpeningRole === 'window-jamb') {
       framePart.name = 'Residence front window hewn casing';
@@ -193,6 +208,7 @@ function addSideWindow(
   height = 1.08,
   weatheredMaterial: THREE.Material = timberMaterial('weathered'),
   structuralMaterial: THREE.Material = timberMaterial('dark'),
+  glazed = true,
 ): void {
   const parts = addProceduralWindow(group, {
     position: new THREE.Vector3(x, y, z),
@@ -204,7 +220,21 @@ function addSideWindow(
     sillMaterial: weatheredMaterial,
     namePrefix: 'Residence side',
   });
-  parts.pane.name = 'Residence side window pane';
+  parts.root.userData.residenceWallCutThrough = !glazed;
+  parts.root.userData.residenceWindowGlazing = glazed
+    ? 'glazed-pane'
+    : 'open-aperture';
+  if (glazed) {
+    parts.pane.name = 'Residence side window pane';
+  } else {
+    parts.pane.removeFromParent();
+    parts.pane.geometry.dispose();
+    parts.reveal.position.z = -0.34;
+    parts.reveal.material = windowMaterial;
+    parts.reveal.name = 'Residence side window recessed lit interior';
+    parts.reveal.userData.facadeOpeningRole = 'window-interior';
+    parts.reveal.userData.residenceWindowInteriorDepthMeters = 0.34;
+  }
   for (const framePart of parts.frame) {
     if (framePart.userData.facadeOpeningRole === 'window-jamb') {
       framePart.name = 'Residence side window hewn casing';
@@ -565,6 +595,177 @@ function openBoxFaceFromNormal(
   return z >= 0 ? 'positive-z' : 'negative-z';
 }
 
+type TierOneWallOpening = {
+  center: number;
+  width: number;
+  bottom: number;
+  height: number;
+};
+
+type TierOneWallOpeningPlan = {
+  front: TierOneWallOpening[];
+  sides: TierOneWallOpening[];
+};
+
+function createTierOneWallOpeningPlan(
+  doorX: number,
+  frontWindowX: number,
+  foundationHeight: number,
+  groundHeight: number,
+): TierOneWallOpeningPlan {
+  const windowCenterY = foundationHeight + groundHeight * 0.55;
+  return {
+    front: [
+      {
+        center: doorX,
+        width: 1.14,
+        bottom: foundationHeight + 0.035,
+        height: 2.055,
+      },
+      {
+        center: frontWindowX,
+        width: 0.72,
+        bottom: windowCenterY - 0.42,
+        height: 0.84,
+      },
+    ],
+    sides: [{
+      center: -SIDE_WINDOW_CENTER_OFFSET_METERS,
+      width: 0.7,
+      bottom: windowCenterY - 0.41,
+      height: 0.82,
+    }],
+  };
+}
+
+function addTierOneWallShellWithOpenings(
+  group: THREE.Group,
+  width: number,
+  depth: number,
+  foundationHeight: number,
+  wallTop: number,
+  openings: TierOneWallOpeningPlan,
+  material: THREE.Material,
+): THREE.Mesh {
+  const halfW = width * 0.5;
+  const halfD = depth * 0.5;
+  const thickness = 0.18;
+  const parts: BoxPart[] = [];
+  appendPartitionedWall(
+    parts,
+    'front-back',
+    -halfW + 0.1,
+    halfW - 0.1,
+    foundationHeight,
+    wallTop,
+    halfD - thickness * 0.5,
+    thickness,
+    openings.front,
+  );
+  appendPartitionedWall(
+    parts,
+    'front-back',
+    -halfW + 0.1,
+    halfW - 0.1,
+    foundationHeight,
+    wallTop,
+    -halfD + thickness * 0.5,
+    thickness,
+    [],
+  );
+  for (const side of [-1, 1] as const) {
+    appendPartitionedWall(
+      parts,
+      'side',
+      -halfD + 0.1,
+      halfD - 0.1,
+      foundationHeight,
+      wallTop,
+      side * (halfW - thickness * 0.5),
+      thickness,
+      openings.sides,
+    );
+  }
+  const wall = addMesh(
+    group,
+    mergeBoxParts(parts),
+    material,
+    new THREE.Vector3(),
+  );
+  wall.name = 'Residence tier-one wall shell with true apertures';
+  wall.userData.residenceWallOpeningCount =
+    openings.front.length + openings.sides.length * 2;
+  wall.userData.residenceWallConstruction = 'segmented-around-openings';
+  wall.userData.residenceSurfaceRole = 'lime-plaster';
+  return wall;
+}
+
+function appendPartitionedWall(
+  parts: BoxPart[],
+  orientation: 'front-back' | 'side',
+  horizontalMin: number,
+  horizontalMax: number,
+  verticalMin: number,
+  verticalMax: number,
+  fixedCoordinate: number,
+  thickness: number,
+  openings: readonly TierOneWallOpening[],
+): void {
+  const horizontalCuts = sortedUniqueCuts([
+    horizontalMin,
+    horizontalMax,
+    ...openings.flatMap((opening) => [
+      THREE.MathUtils.clamp(opening.center - opening.width * 0.5, horizontalMin, horizontalMax),
+      THREE.MathUtils.clamp(opening.center + opening.width * 0.5, horizontalMin, horizontalMax),
+    ]),
+  ]);
+  const verticalCuts = sortedUniqueCuts([
+    verticalMin,
+    verticalMax,
+    ...openings.flatMap((opening) => [
+      THREE.MathUtils.clamp(opening.bottom, verticalMin, verticalMax),
+      THREE.MathUtils.clamp(opening.bottom + opening.height, verticalMin, verticalMax),
+    ]),
+  ]);
+
+  for (let horizontalIndex = 0; horizontalIndex < horizontalCuts.length - 1; horizontalIndex += 1) {
+    const start = horizontalCuts[horizontalIndex];
+    const end = horizontalCuts[horizontalIndex + 1];
+    if (end - start <= 1e-4) continue;
+    const horizontalCenter = (start + end) * 0.5;
+    for (let verticalIndex = 0; verticalIndex < verticalCuts.length - 1; verticalIndex += 1) {
+      const bottom = verticalCuts[verticalIndex];
+      const top = verticalCuts[verticalIndex + 1];
+      if (top - bottom <= 1e-4) continue;
+      const verticalCenter = (bottom + top) * 0.5;
+      const insideOpening = openings.some((opening) => (
+        horizontalCenter > opening.center - opening.width * 0.5 + 1e-5
+        && horizontalCenter < opening.center + opening.width * 0.5 - 1e-5
+        && verticalCenter > opening.bottom + 1e-5
+        && verticalCenter < opening.bottom + opening.height - 1e-5
+      ));
+      if (insideOpening) continue;
+      parts.push(orientation === 'front-back'
+        ? {
+            size: [end - start, top - bottom, thickness],
+            position: [horizontalCenter, verticalCenter, fixedCoordinate],
+          }
+        : {
+            size: [thickness, top - bottom, end - start],
+            position: [fixedCoordinate, verticalCenter, horizontalCenter],
+          });
+    }
+  }
+}
+
+function sortedUniqueCuts(values: readonly number[]): number[] {
+  return [...values]
+    .sort((left, right) => left - right)
+    .filter((value, index, sorted) => (
+      index === 0 || Math.abs(value - sorted[index - 1]) > 1e-6
+    ));
+}
+
 function addTierOneTimberConstruction(
   group: THREE.Group,
   width: number,
@@ -579,16 +780,6 @@ function addTierOneTimberConstruction(
   const halfD = depth * 0.5;
   const wallHeight = wallTop - foundationHeight;
   const parts: BoxPart[] = [];
-  const courseCount = 9;
-  for (let course = 1; course < courseCount; course += 1) {
-    const y = foundationHeight + wallHeight * (course / courseCount);
-    parts.push(
-      { size: [width + 0.08, 0.045, 0.08], position: [0, y, halfD + 0.025] },
-      { size: [width + 0.08, 0.045, 0.08], position: [0, y, -halfD - 0.025] },
-      { size: [0.08, 0.045, depth - 0.04], position: [halfW + 0.025, y, 0] },
-      { size: [0.08, 0.045, depth - 0.04], position: [-halfW - 0.025, y, 0] },
-    );
-  }
   for (const x of [-halfW, halfW]) {
     for (const z of [-halfD, halfD]) {
       parts.push({
@@ -603,15 +794,14 @@ function addTierOneTimberConstruction(
     structuralMaterial,
     new THREE.Vector3(),
   );
-  construction.name = 'Residence hand-hewn wall courses and notched corners';
+  construction.name = 'Residence hand-hewn corner posts';
+  construction.userData.residenceFacadeTimberRhythm = 'vertical-corners-only';
 
   const gableParts: BoxPart[] = [];
   for (const zSign of [-1, 1] as const) {
     const z = zSign * (halfD + 0.045);
     gableParts.push(
       { size: [0.15, ridgeHeight - 0.08, 0.12], position: [0, wallTop + ridgeHeight * 0.48, z] },
-      { size: [width * 0.62, 0.13, 0.12], position: [0, wallTop + ridgeHeight * 0.32, z] },
-      { size: [width * 0.34, 0.12, 0.12], position: [0, wallTop + ridgeHeight * 0.63, z] },
     );
   }
   const gableScreen = addMesh(
@@ -620,48 +810,7 @@ function addTierOneTimberConstruction(
     weatheredMaterial,
     new THREE.Vector3(),
   );
-  gableScreen.name = 'Residence ventilated timber gable screen';
-}
-
-function addTierOneLimewashedInfill(
-  group: THREE.Group,
-  width: number,
-  depth: number,
-  foundationHeight: number,
-  wallTop: number,
-  material: THREE.Material,
-): void {
-  const halfW = width * 0.5;
-  const halfD = depth * 0.5;
-  const panelHeight = Math.max(1.5, wallTop - foundationHeight - 0.34);
-  const panelY = foundationHeight + 0.12 + panelHeight * 0.5;
-  const skin = 0.055;
-  const inset = 0.03;
-  const infill = addMesh(
-    group,
-    mergeBoxParts([
-      {
-        size: [width - 0.38, panelHeight, skin],
-        position: [0, panelY, halfD - inset],
-      },
-      {
-        size: [width - 0.38, panelHeight, skin],
-        position: [0, panelY, -halfD + inset],
-      },
-      {
-        size: [skin, panelHeight, depth - 0.38],
-        position: [halfW - inset, panelY, 0],
-      },
-      {
-        size: [skin, panelHeight, depth - 0.38],
-        position: [-halfW + inset, panelY, 0],
-      },
-    ]),
-    material,
-    new THREE.Vector3(),
-  );
-  infill.name = 'Residence limewashed plaster infill shell';
-  infill.userData.residenceSurfaceRole = 'lime-plaster';
+  gableScreen.name = 'Residence ventilated timber gable kingposts';
 }
 
 function addRoofShingleCourses(
@@ -680,12 +829,14 @@ function addRoofShingleCourses(
   const thatched = finish === 'bundled-thatch';
   for (const side of [-1, 1] as const) {
     const parts: BoxPart[] = [];
-    const courseCount = 8;
+    const courseCount = thatched ? 4 : 8;
     const roofDepth = depth + depthOverhang * 2;
-    const boardsAcross = Math.max(thatched ? 9 : 7, Math.ceil(roofDepth / (thatched ? 0.68 : 0.72)));
+    const boardsAcross = thatched
+      ? 1
+      : Math.max(7, Math.ceil(roofDepth / 0.72));
     const boardDepth = roofDepth / boardsAcross;
     const slopeLength = roofHalfSpan / Math.cos(roofPitch);
-    const courseLength = slopeLength / courseCount * (thatched ? 0.9 : 0.74);
+    const courseLength = slopeLength / courseCount * (thatched ? 1.34 : 0.74);
     const normalX = side * Math.sin(roofPitch);
     const normalY = Math.cos(roofPitch);
     for (let row = 0; row < courseCount; row += 1) {
@@ -693,17 +844,19 @@ function addRoofShingleCourses(
       const centerX = side * roofHalfSpan * (1 - t);
       const centerY = wallTop - eaveDrop + (ridgeHeight + eaveDrop) * t;
       for (let board = 0; board < boardsAcross; board += 1) {
-        const stagger = ((row + board + Math.abs(seed)) % 3 - 1) * 0.025;
+        const stagger = thatched
+          ? 0
+          : ((row + board + Math.abs(seed)) % 3 - 1) * 0.025;
         const z = -roofDepth * 0.5 + boardDepth * (board + 0.5) + stagger;
         parts.push({
           size: [
             courseLength * (0.96 + ((row * 5 + board * 3 + Math.abs(seed)) % 5) * 0.012),
-            thatched ? 0.11 : 0.045,
-            Math.max(0.2, boardDepth - 0.025),
+            thatched ? 0.05 : 0.045,
+            Math.max(0.2, boardDepth - (thatched ? 0.012 : 0.025)),
           ],
           position: [
-            centerX + normalX * 0.095,
-            centerY + normalY * 0.095,
+            centerX + normalX * (thatched ? 0.052 : 0.095),
+            centerY + normalY * (thatched ? 0.052 : 0.095),
             z,
           ],
           rotation: [0, 0, side * -roofPitch],
@@ -1315,7 +1468,9 @@ export function createResidenceMesh(
       ? tierOneResidenceMaterial('foundation-cap')
       : stoneMaterial('light');
   const wallMaterial =
-    tier === 1 ? tierOneWeatheredMaterial : residenceFacadeMaterial(facade);
+    tier === 1
+      ? tierOneResidenceMaterial('lime-plaster')
+      : residenceFacadeMaterial(facade);
   const roofFinish: ResidenceRoofFinish = tier === 1
     ? 'bundled-thatch'
     : tier >= 4
@@ -1359,7 +1514,7 @@ export function createResidenceMesh(
     facadeModules: tier === 4
       ? ['stone-ground-storey', 'ashlar-corner-piers', 'dressed-floor-band', 'cross-gable']
       : tier === 1
-        ? ['limewashed-infill', 'hewn-timber-courses']
+        ? ['limewashed-infill', 'true-wall-apertures', 'hewn-corner-posts']
         : ['stone-ground-storey', 'plastered-upper-storey'],
     roofFinish,
   };
@@ -1376,6 +1531,16 @@ export function createResidenceMesh(
   const roofEaveDrop = roofOverhang * Math.tan(roofPitch);
   const slopeLen = roofHalfSpan / Math.cos(roofPitch);
   const frontZ = halfD - 0.075;
+  const doorX = residenceGroundDoorLocalX(appearance);
+  const frontWindowX = -entrySide * 1.38;
+  const tierOneOpenings = tier === 1
+    ? createTierOneWallOpeningPlan(
+        doorX,
+        frontWindowX,
+        foundationHeight,
+        groundHeight,
+      )
+    : null;
   group.userData.residenceRoofPitchDegrees = THREE.MathUtils.radToDeg(roofPitch);
   group.userData.residenceRoofOverhangMeters = roofOverhang;
 
@@ -1404,33 +1569,24 @@ export function createResidenceMesh(
     addStoneStoreyCourses(group, width, depth, foundationHeight, groundHeight);
   }
 
-  const wallCore = addMesh(
-    group,
-    new THREE.BoxGeometry(
-      width - 0.12,
-      tier === 1 ? groundHeight + upperHeight : upperHeight,
-      depth - 0.12,
-    ),
-    wallMaterial,
-    new THREE.Vector3(
-      0,
-      tier === 1
-        ? foundationHeight + (groundHeight + upperHeight) * 0.5
-        : groundTop + upperHeight * 0.5,
-      0,
-    ),
-  );
-  wallCore.name =
-    tier === 1 ? 'Residence hand-hewn timber wall core' : 'Residence upper wall core';
+  const wallCore = tier === 1 && tierOneOpenings
+    ? addTierOneWallShellWithOpenings(
+        group,
+        width,
+        depth,
+        foundationHeight,
+        wallTop,
+        tierOneOpenings,
+        wallMaterial,
+      )
+    : addMesh(
+        group,
+        new THREE.BoxGeometry(width - 0.12, upperHeight, depth - 0.12),
+        wallMaterial,
+        new THREE.Vector3(0, groundTop + upperHeight * 0.5, 0),
+      );
+  if (tier > 1) wallCore.name = 'Residence upper wall core';
   if (tier === 1) {
-    addTierOneLimewashedInfill(
-      group,
-      width,
-      depth,
-      foundationHeight,
-      wallTop,
-      tierOneResidenceMaterial('lime-plaster'),
-    );
     addTierOneTimberConstruction(
       group,
       width,
@@ -1461,7 +1617,6 @@ export function createResidenceMesh(
     addTierFourFacadeFinish(group, width, depth, groundTop, wallTop);
   }
 
-  const doorX = residenceGroundDoorLocalX(appearance);
   addPlankDoor(
     group,
     doorX,
@@ -1475,7 +1630,7 @@ export function createResidenceMesh(
     group,
     windowMaterial,
     shutterMaterial,
-    -entrySide * 1.38,
+    frontWindowX,
     foundationHeight + groundHeight * 0.55,
     frontZ + 0.02,
     tier === 1 ? 0.6 : 0.78,
@@ -1483,6 +1638,7 @@ export function createResidenceMesh(
     false,
     tierOneWeatheredMaterial,
     tierOneStructuralMaterial,
+    tier !== 1,
   );
 
   if (tier > 1 && archetype === 'timber_balcony') {
@@ -1507,6 +1663,7 @@ export function createResidenceMesh(
       tier === 1 ? 0.7 : 0.98,
       tierOneWeatheredMaterial,
       tierOneStructuralMaterial,
+      tier !== 1,
     );
     if (tier > 1) {
       addSideWindow(
@@ -1648,24 +1805,45 @@ export function createResidenceMesh(
   const chimneySide: -1 | 1 = entrySide === -1 ? 1 : -1;
   const chimneyX = chimneySide * (halfW - 0.92);
   const chimneyZ = -halfD + 1.22;
-  const chimneyHeight = 2.02;
-  const chimneyY = wallTop + 0.62 + chimneyHeight * 0.5;
-  addMesh(
-    group,
-    new THREE.BoxGeometry(0.72, chimneyHeight, 0.72),
-    tier === 1 ? tierOneFoundationMaterial : stoneMaterial('mid'),
-    new THREE.Vector3(chimneyX, chimneyY, chimneyZ),
-  );
-  addMesh(
-    group,
-    new THREE.BoxGeometry(0.82, 0.18, 0.82),
-    stoneMaterial('light'),
-    new THREE.Vector3(chimneyX, chimneyY + chimneyHeight * 0.5 + 0.08, chimneyZ),
-  );
-
   const chimneyEmitter = new THREE.Object3D();
   chimneyEmitter.name = 'ChimneyEmitter';
-  chimneyEmitter.position.set(chimneyX, chimneyY + chimneyHeight * 0.5 + 0.22, chimneyZ);
+  if (tier === 1) {
+    const roofExitY =
+      wallTop
+      + ridgeHeight
+      - Math.abs(chimneyX) * Math.tan(roofPitch);
+    chimneyEmitter.position.set(chimneyX, roofExitY + 0.22, chimneyZ);
+    chimneyEmitter.userData.residenceSmokeExit = 'through-thatch';
+    group.userData.residenceSmokeExit = 'through-thatch';
+    group.userData.residenceHasChimney = false;
+  } else {
+    const chimneyHeight = 2.02;
+    const chimneyY = wallTop + 0.62 + chimneyHeight * 0.5;
+    const chimneyBody = addMesh(
+      group,
+      new THREE.BoxGeometry(0.72, chimneyHeight, 0.72),
+      stoneMaterial('mid'),
+      new THREE.Vector3(chimneyX, chimneyY, chimneyZ),
+    );
+    chimneyBody.name = 'Residence masonry chimney body';
+    chimneyBody.userData.residenceChimney = true;
+    const chimneyCap = addMesh(
+      group,
+      new THREE.BoxGeometry(0.82, 0.18, 0.82),
+      stoneMaterial('light'),
+      new THREE.Vector3(chimneyX, chimneyY + chimneyHeight * 0.5 + 0.08, chimneyZ),
+    );
+    chimneyCap.name = 'Residence masonry chimney cap';
+    chimneyCap.userData.residenceChimney = true;
+    chimneyEmitter.position.set(
+      chimneyX,
+      chimneyY + chimneyHeight * 0.5 + 0.22,
+      chimneyZ,
+    );
+    chimneyEmitter.userData.residenceSmokeExit = 'chimney';
+    group.userData.residenceSmokeExit = 'chimney';
+    group.userData.residenceHasChimney = true;
+  }
   group.add(chimneyEmitter);
 
   const firewoodPile = new THREE.Group();

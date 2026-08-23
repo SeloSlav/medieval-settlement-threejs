@@ -84,6 +84,7 @@ export function mountTooltips(root: HTMLElement): () => void {
         'data-tooltip-amount',
         'data-tooltip-amount-label',
         'data-tooltip-flow',
+        'data-tooltip-resources',
         'data-tooltip-cost',
         'data-tooltip-cost-affordable',
         'data-tooltip-placement',

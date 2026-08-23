@@ -272,6 +272,14 @@ const appBootstrapSource = readFileSync(
   new URL('../src/app/appBootstrap.ts', import.meta.url),
   'utf8',
 );
+const sceneManagerSource = readFileSync(
+  new URL('../src/scene/SceneManager.ts', import.meta.url),
+  'utf8',
+);
+const forestPropsSource = readFileSync(
+  new URL('../src/props/ForestProps.ts', import.meta.url),
+  'utf8',
+);
 
 assert.match(
   terrainMinimapSource,
@@ -283,7 +291,6 @@ for (const renderer of [
   'drawMountainRanges',
   'drawGrassGlyphs',
   'drawForestGlyphs',
-  'drawWoodlandClump',
   'drawWaterHatching',
 ] as const) {
   assert.match(
@@ -294,8 +301,13 @@ for (const renderer of [
 }
 assert.match(
   terrainMinimapSource,
+  /projectIllustratedWoodland\(/,
+  'forest ink should project accepted game-tree placements',
+);
+assert.doesNotMatch(
+  terrainMinimapSource,
   /forestDensityAt\(/,
-  'forest ink should follow the generated forest density field',
+  'the paper-map tree layer must not invent groves from the broad density field',
 );
 assert.match(
   terrainMinimapSource,
@@ -324,13 +336,48 @@ assert.match(
 );
 assert.match(
   terrainMinimapSource,
-  /dataset\.woodlandClumps = String\(diagnostics\.woodland\.clumpCount\)/,
-  'the one-time terrain bake should publish its woodland-clump diagnostic count',
+  /dataset\.woodlandSource = 'accepted-tree-placements'/,
+  'the one-time terrain bake should identify its authoritative tree source',
+);
+assert.match(
+  terrainMinimapSource,
+  /dataset\.woodlandSourceTrees = String\(diagnostics\.woodland\.sourceTreeCount\)/,
+  'the terrain bake should publish the accepted source count',
+);
+assert.match(
+  terrainMinimapSource,
+  /dataset\.woodlandGlyphs = String\(diagnostics\.woodland\.drawnTreeGlyphCount\)/,
+  'the terrain bake should publish the number of actually drawn tree marks',
 );
 assert.match(
   terrainMinimapOverlaySource,
-  /forestCores: this\.options\.forestCores/,
-  'the minimap overlay should pass the generated forest cores into the terrain renderer',
+  /const treePlacements = await this\.options\.treePlacements/,
+  'the minimap should wait for deferred forest placement instead of blocking the first frame',
+);
+assert.match(
+  terrainMinimapOverlaySource,
+  /treePlacements,/,
+  'the minimap overlay should pass accepted tree placements into the terrain renderer',
+);
+assert.match(
+  terrainMinimapOverlaySource,
+  /Object\.assign\(this\.mapCanvas\.dataset, image\.canvas\.dataset\)/,
+  'accepted-tree diagnostics should survive the mounted-canvas copy',
+);
+assert.match(
+  appBootstrapSource,
+  /treePlacements: sceneManager\.whenForestTreePlacementsReady\(\)/,
+  'map startup should subscribe to the deferred shared forest layout',
+);
+assert.match(
+  sceneManagerSource,
+  /treePlacements: this\.resolveForestTreePlacements\(\)/,
+  'the 3D forest build should resolve the same accepted layout used by the map',
+);
+assert.match(
+  forestPropsSource,
+  /options\?\.treePlacements[\s\S]*?computeForestTreePlacements\(/,
+  'forest props should consume the shared placements and only generate as a fallback',
 );
 assert.doesNotMatch(
   terrainMinimapOverlaySource,

@@ -37,5 +37,6 @@ function sameGeneration(
     && current.conflictMode === next.conflictMode
     && current.enemyPressure === next.enemyPressure
     && current.severeWeatherEnabled === next.severeWeatherEnabled
+    && current.wellAquiferNetworksEnabled === next.wellAquiferNetworksEnabled
     && current.configured === next.configured;
 }

@@ -138,11 +138,12 @@ export function renderBuildingInspector(
     }
     }
   })();
+  const worksiteView = withWorksiteLodging(view, building, context);
+  const storageView = building.kind === 'marketplace'
+    ? worksiteView
+    : withBuildingLocalStorage(worksiteView, building);
   return withBuildingFireSafety(
-    withBuildingLocalStorage(
-      withWorksiteLodging(view, building, context),
-      building,
-    ),
+    storageView,
     building,
     context,
   );

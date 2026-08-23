@@ -1,10 +1,12 @@
 import { getActiveWorldGeneration } from '../world/worldGenerationContext.ts';
 import { DROUGHT_GROUNDWATER_MULTIPLIER } from '../generated/gameBalance.ts';
 
-const MAX_SUPPORTED_WORLD_HALF = 672;
+// Covers the current large-map playable half (about 1,155.4 m) with a small guard margin.
+const MAX_SUPPORTED_WORLD_HALF = 1_156;
+export const UNIFORM_GROUNDWATER_SCORE = 1;
 
 /**
- * Authoritative groundwater available to wells at this world position.
+ * Authoritative seeded subsurface moisture used by farms, pastures, vineyards, and clay.
  *
  * This deliberately has no dependency on RiverField, shore distance, ponds,
  * or the sea. The server runs the same seeded subsurface-network sampler.
@@ -14,8 +16,34 @@ export function sampleAuthoritativeGroundwaterScore(x: number, z: number): numbe
   return sampleWorldGroundwaterScore(x, z, settings.seed, settings.hydrology);
 }
 
+/** Authoritative well yield after applying the world's optional placement rule. */
+export function sampleAuthoritativeWellGroundwaterScore(x: number, z: number): number {
+  const settings = getActiveWorldGeneration();
+  return sampleWellGroundwaterScoreForWorldRules(
+    x,
+    z,
+    settings.seed,
+    settings.hydrology,
+    settings.wellAquiferNetworksEnabled,
+  );
+}
+
 /** Compatibility alias for systems that still use the broader hydrology name. */
 export const sampleAuthoritativeHydrologyScore = sampleAuthoritativeGroundwaterScore;
+
+/** Applies the world's opt-in well-aquifer rule while preserving map bounds. */
+export function sampleWellGroundwaterScoreForWorldRules(
+  x: number,
+  z: number,
+  worldSeed: number,
+  worldHydrology: number,
+  wellAquiferNetworksEnabled: boolean,
+): number {
+  if (!isSupportedWorldPosition(x, z)) return 0;
+  return wellAquiferNetworksEnabled
+    ? sampleWorldGroundwaterScore(x, z, worldSeed, worldHydrology)
+    : UNIFORM_GROUNDWATER_SCORE;
+}
 
 /**
  * Seeded underground aquifer score used by both client planning and server
@@ -28,7 +56,7 @@ export function sampleWorldGroundwaterScore(
   worldSeed: number,
   worldHydrology: number,
 ): number {
-  if (Math.abs(x) > MAX_SUPPORTED_WORLD_HALF || Math.abs(z) > MAX_SUPPORTED_WORLD_HALF) return 0;
+  if (!isSupportedWorldPosition(x, z)) return 0;
   const aquifer = sampleAquiferPotential(x, z, worldSeed);
   const localPotential = 0.06 + aquifer * 0.72;
   const wetness = clamp01(worldHydrology / 100);
@@ -92,4 +120,8 @@ function smoothstep(edge0: number, edge1: number, value: number): number {
 
 function clamp01(value: number): number {
   return Math.max(0, Math.min(1, value));
+}
+
+function isSupportedWorldPosition(x: number, z: number): boolean {
+  return Math.abs(x) <= MAX_SUPPORTED_WORLD_HALF && Math.abs(z) <= MAX_SUPPORTED_WORLD_HALF;
 }

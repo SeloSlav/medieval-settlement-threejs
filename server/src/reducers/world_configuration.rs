@@ -47,6 +47,7 @@ pub fn configure_world(
     conflict_enabled: bool,
     enemy_pressure: u8,
     severe_weather_enabled: bool,
+    well_aquifer_networks_enabled: bool,
 ) -> Result<(), String> {
     validate_map_size(map_size)?;
     validate_percent(topography, "topography")?;
@@ -77,7 +78,8 @@ pub fn configure_world(
         || config.resource_variety != resource_variety;
     let rules_changed = config.conflict_enabled != conflict_enabled
         || config.enemy_pressure != enemy_pressure
-        || config.severe_weather_enabled != severe_weather_enabled;
+        || config.severe_weather_enabled != severe_weather_enabled
+        || config.well_aquifer_networks_enabled != well_aquifer_networks_enabled;
     let setup_changed = terrain_changed || resources_changed || rules_changed;
 
     // Only lock generation after a client has published settings. The sim scheduler
@@ -102,6 +104,7 @@ pub fn configure_world(
             conflict_enabled,
             enemy_pressure,
             severe_weather_enabled,
+            well_aquifer_networks_enabled,
             configured: true,
             // Repair idle ticks that ran before the first client published settings.
             sim_tick: if !config.configured {
@@ -148,6 +151,7 @@ pub fn default_world_config() -> WorldConfig {
         conflict_enabled: false,
         enemy_pressure: 0,
         severe_weather_enabled: false,
+        well_aquifer_networks_enabled: false,
         configured: false,
     }
 }

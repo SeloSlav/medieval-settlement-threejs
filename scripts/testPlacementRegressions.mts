@@ -1,7 +1,11 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import * as THREE from 'three';
-import { BUILDING_KINDS } from '../src/generated/gameBalance.ts';
+import {
+  BUILDING_DEFINITIONS,
+  BUILDING_KINDS,
+  GAME_HABITAT_DISRUPTION_RADIUS,
+} from '../src/generated/gameBalance.ts';
 import { intersectTerrainHeightfieldRay } from '../src/terrain/TerrainProjector.ts';
 import {
   BuildingTerrainLayout,
@@ -33,6 +37,9 @@ import {
   updateBuildingPreviewAppearance,
   updateBuildingPreviewGeometry,
 } from '../src/buildings/BuildingPlacementPreview.ts';
+import {
+  resolveBuildingPlacementWildlifePreview,
+} from '../src/buildings/buildingPlacementWildlifePreview.ts';
 import {
   buildingFootprintOverlapsRoadSurface,
   chooseRoadClearBuildingPlacement,
@@ -77,6 +84,7 @@ import {
 import type {
   BuildingKind,
   BuildingState,
+  ForagingNodeState,
   GameState,
   ResidenceState,
   ResourceNodeState,
@@ -1026,7 +1034,7 @@ function assertPreviewRoadAttachmentsOutsideModelAndFootprint(
   }
 }
 
-function testPlacementPreviewOmitsRadiusExtents(): void {
+function testPlacementPreviewLimitsRadiusOverlaysToWildlifeWarnings(): void {
   const heightAt = (x: number, z: number) =>
     Math.sin(x * 0.018) * 3.4 + Math.cos(z * 0.021) * 2.6;
   for (const kind of BUILDING_KINDS) {
@@ -1041,6 +1049,17 @@ function testPlacementPreviewOmitsRadiusExtents(): void {
       undefined,
       `${kind} must not expose a fire-planning radius`,
     );
+    const loggingWorkExtent = preview.getObjectByName('Lumber logging work extent warning');
+    if (kind === 'lumber_mill') {
+      assert(loggingWorkExtent instanceof THREE.Mesh);
+      assert.equal(loggingWorkExtent.userData.extentRadius, BUILDING_DEFINITIONS.lumber_mill.workRadius);
+    } else {
+      assert.equal(
+        loggingWorkExtent,
+        undefined,
+        `${kind} must not expose the Lumber Mill's logging extent`,
+      );
+    }
     for (const yaw of [0, 0.42, -1.09]) {
       updateBuildingPreviewGeometry(preview, kind, 35, -48, yaw, heightAt);
       assertPreviewRoadAttachmentsOutsideModelAndFootprint(
@@ -1071,6 +1090,198 @@ function testPlacementPreviewOmitsRadiusExtents(): void {
     updateBuildingPreviewAppearance(preview, false);
     disposeBuildingPreviewMesh(preview);
   }
+}
+
+function gameNode(nodeId: string, x: number, z: number): ForagingNodeState {
+  return {
+    nodeId,
+    kind: 'game',
+    resource: 'game',
+    remaining: 12,
+    maxYield: 12,
+    x,
+    z,
+  };
+}
+
+function testPlacementPreviewShowsAdvisoryWildlifeWarnings(): void {
+  const hunterRelevant = gameNode(
+    'hunter-relevant',
+    BUILDING_DEFINITIONS.hunters_hall.workRadius + GAME_HABITAT_DISRUPTION_RADIUS - 1,
+    0,
+  );
+  const hunterOutside = gameNode(
+    'hunter-outside',
+    BUILDING_DEFINITIONS.hunters_hall.workRadius + GAME_HABITAT_DISRUPTION_RADIUS + 1,
+    0,
+  );
+  const hunterWildlife = resolveBuildingPlacementWildlifePreview(
+    'hunters_hall',
+    0,
+    0,
+    0,
+    [hunterRelevant, hunterOutside],
+  );
+  assert.deepEqual(
+    hunterWildlife.habitats.map((habitat) => habitat.nodeId),
+    ['hunter-relevant'],
+    'Hunter placement should show habitats whose grazing circle reaches its work extent',
+  );
+  assert.equal(hunterWildlife.habitats[0]?.radius, GAME_HABITAT_DISRUPTION_RADIUS);
+  assert.equal(hunterWildlife.habitats[0]?.huntingReach, true);
+  assert.equal(hunterWildlife.habitats[0]?.directBuildingRisk, false);
+
+  const lumberRelevant = gameNode(
+    'lumber-relevant',
+    BUILDING_DEFINITIONS.lumber_mill.workRadius + GAME_HABITAT_DISRUPTION_RADIUS - 1,
+    0,
+  );
+  const lumberOutside = gameNode(
+    'lumber-outside',
+    BUILDING_DEFINITIONS.lumber_mill.workRadius + GAME_HABITAT_DISRUPTION_RADIUS + 1,
+    0,
+  );
+  const lumberWildlife = resolveBuildingPlacementWildlifePreview(
+    'lumber_mill',
+    0,
+    0,
+    0,
+    [lumberRelevant, lumberOutside],
+  );
+  assert.equal(lumberWildlife.loggingWorkRadius, BUILDING_DEFINITIONS.lumber_mill.workRadius);
+  assert.deepEqual(
+    lumberWildlife.habitats.map((habitat) => habitat.nodeId),
+    ['lumber-relevant'],
+    'Lumber placement should show habitats intersected by its logging work extent',
+  );
+  assert.equal(lumberWildlife.habitats[0]?.loggingReach, true);
+  assert.equal(lumberWildlife.habitats[0]?.directBuildingRisk, false);
+
+  const smithyFootprint = getBuildingFootprintHalfExtents('smithy');
+  const smithyRiskDistance = GAME_HABITAT_DISRUPTION_RADIUS
+    + smithyFootprint.halfWidth;
+  const yawSensitiveDistance = GAME_HABITAT_DISRUPTION_RADIUS
+    + (smithyFootprint.halfWidth + smithyFootprint.halfDepth) * 0.5;
+  const smithyWildlife = resolveBuildingPlacementWildlifePreview(
+    'smithy',
+    0,
+    0,
+    0,
+    [
+      gameNode('smithy-direct-risk', smithyRiskDistance - 0.1, 0),
+      gameNode('smithy-clear', smithyRiskDistance + 0.1, 0),
+      gameNode('smithy-yaw-sensitive', 0, yawSensitiveDistance),
+    ],
+  );
+  assert.deepEqual(
+    smithyWildlife.habitats.map((habitat) => habitat.nodeId),
+    ['smithy-direct-risk'],
+    'ordinary buildings should use the exact visible footprint instead of their broad pick radius',
+  );
+  assert.equal(smithyWildlife.habitats[0]?.directBuildingRisk, true);
+
+  const rotatedSmithyWildlife = resolveBuildingPlacementWildlifePreview(
+    'smithy',
+    0,
+    0,
+    Math.PI * 0.5,
+    [gameNode('smithy-yaw-sensitive', 0, yawSensitiveDistance)],
+  );
+  assert.deepEqual(
+    rotatedSmithyWildlife.habitats.map((habitat) => habitat.nodeId),
+    ['smithy-yaw-sensitive'],
+    'the direct habitat warning should rotate with the road-facing building footprint',
+  );
+
+  const heightAt = (x: number, z: number) =>
+    Math.sin(x * 0.017) * 2.1 + Math.cos(z * 0.023) * 1.6;
+  const hunterPreview = createBuildingPreviewMesh('hunters_hall');
+  updateBuildingPreviewGeometry(
+    hunterPreview,
+    'hunters_hall',
+    0,
+    0,
+    0,
+    heightAt,
+    hunterWildlife,
+  );
+  const hunterWarnings = hunterPreview.getObjectByName('Game habitat disturbance warnings');
+  assert(hunterWarnings instanceof THREE.Group);
+  assert.equal(hunterWarnings.children.length, 1);
+  const habitatRing = hunterWarnings.children[0];
+  assert(habitatRing instanceof THREE.Mesh);
+  assert.equal(habitatRing.userData.habitatRadius, GAME_HABITAT_DISRUPTION_RADIUS);
+  const habitatPositions = habitatRing.geometry.getAttribute('position') as THREE.BufferAttribute;
+  assert(habitatPositions.count > 120, 'the game habitat warning should be a readable terrain ribbon');
+  for (let index = 0; index < habitatPositions.count; index += 1) {
+    assert.ok(
+      Math.abs(
+        habitatPositions.getY(index)
+        - (heightAt(habitatPositions.getX(index), habitatPositions.getZ(index)) + 0.19)
+      ) < 1e-5,
+      'game habitat warning vertices must follow the sampled terrain',
+    );
+  }
+  const habitatMaterial = habitatRing.material as THREE.MeshBasicMaterial;
+  const advisoryOpacity = habitatMaterial.opacity;
+  assert.equal(habitatMaterial.color.getHex(), 0xff5d50);
+  updateBuildingPreviewAppearance(hunterPreview, false);
+  assert.equal(
+    habitatMaterial.color.getHex(),
+    0xff5d50,
+    'an advisory habitat warning must stay red independently of placement validity',
+  );
+  assert.equal(habitatMaterial.opacity, advisoryOpacity);
+
+  assert.deepEqual(
+    validateBuildingPlacement('hunters_hall', 0, 0, {
+      buildings: [],
+      residences: [],
+      burgageZones: [],
+      farmFields: [],
+      pastures: [],
+      quarries: [],
+      foragingNodes: [gameNode('overlapped-game', 0, 0)],
+      stockpile: { timber: 10_000, stone: 10_000, ironwork: 10_000, roofTiles: 10_000 },
+      isWaterAt: () => false,
+      getNaturalHeightAt: () => 0,
+    }),
+    { ok: true },
+    'the red habitat warning must not block a Hunter Hall placed inside it',
+  );
+  disposeBuildingPreviewMesh(hunterPreview);
+
+  const lumberPreview = createBuildingPreviewMesh('lumber_mill');
+  updateBuildingPreviewGeometry(
+    lumberPreview,
+    'lumber_mill',
+    0,
+    0,
+    0,
+    heightAt,
+    lumberWildlife,
+  );
+  const loggingRing = lumberPreview.getObjectByName('Lumber logging work extent warning');
+  assert(loggingRing instanceof THREE.Mesh);
+  assert.equal(loggingRing.userData.dashed, true);
+  assert.equal(loggingRing.userData.extentRadius, BUILDING_DEFINITIONS.lumber_mill.workRadius);
+  assert.equal(
+    (loggingRing.material as THREE.MeshBasicMaterial).color.getHex(),
+    0xd7b463,
+    'the logging reach should remain visually distinct from red habitat warnings',
+  );
+  const loggingPositions = loggingRing.geometry.getAttribute('position') as THREE.BufferAttribute;
+  assert(loggingPositions.count > 120, 'the logging work extent should be a terrain-following dashed ribbon');
+  for (let index = 0; index < loggingPositions.count; index += 1) {
+    assert.ok(
+      Math.abs(
+        loggingPositions.getY(index)
+        - (heightAt(loggingPositions.getX(index), loggingPositions.getZ(index)) + 0.18)
+      ) < 1e-5,
+      'logging extent vertices must follow the sampled terrain',
+    );
+  }
+  disposeBuildingPreviewMesh(lumberPreview);
 }
 
 function testPlacementPreviewShowsHatchGhostAndRotatingRoadAttachments(): void {
@@ -1617,7 +1828,8 @@ testBurgageBuildingOverlapUsesVisibleFootprints();
 testOrganicBurgagePlotsAndPreviewIcons();
 testBurgageFrontageDirectionAndRoadSideSelection();
 testPlacementOverlaysFollowTerrainHeight();
-testPlacementPreviewOmitsRadiusExtents();
+testPlacementPreviewLimitsRadiusOverlaysToWildlifeWarnings();
+testPlacementPreviewShowsAdvisoryWildlifeWarnings();
 testPlacementPreviewShowsHatchGhostAndRotatingRoadAttachments();
 testCivicAndFrontierPlacementPrerequisites();
 testDenseBuildingFootprintSpacingAndEdgeSnap();
@@ -1852,8 +2064,18 @@ assert.match(
 );
 assert.doesNotMatch(
   `${buildingPlacementPreview}\n${buildingMarkers}`,
-  /Building placement extent|Selected building extent|Building fire spread range|Selected building fire spread range|updateTerrainCircleRibbonGeometry/,
-  'placement and selection must not render gameplay radius circles',
+  /Building placement extent|Selected building extent|Building fire spread range|Selected building fire spread range/,
+  'placement and selection must keep generic gameplay radius circles absent',
+);
+assert.match(
+  buildingPlacementPreview,
+  /Game habitat disturbance warnings/,
+  'building placement should expose the specific advisory wildlife warning layer',
+);
+assert.match(
+  buildingPlacementPreview,
+  /Lumber logging work extent warning/,
+  'Lumber Mill placement should explain which habitat rings its logging reach intersects',
 );
 assert.doesNotMatch(
   buildingTool,

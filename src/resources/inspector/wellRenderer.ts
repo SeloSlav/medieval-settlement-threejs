@@ -20,7 +20,7 @@ import {
 import { hydrologyGradeLabel, wellCapacityFromHydrology } from '../../hydrology/sampleHydrology.ts';
 import {
   droughtGroundwaterScore,
-  sampleAuthoritativeGroundwaterScore,
+  sampleAuthoritativeWellGroundwaterScore,
 } from '../../hydrology/sampleAuthoritativeHydrology.ts';
 import {
   industrialWaterTarget,
@@ -37,7 +37,8 @@ export function renderWellInspector(
   const { building } = target;
   const label = context.worldQueries.getBuildingLabel(building.kind);
   const cost = getBuildingCost(building.kind);
-  const hydrology = sampleAuthoritativeGroundwaterScore(building.x, building.z);
+  const hydrology = sampleAuthoritativeWellGroundwaterScore(building.x, building.z);
+  const wellAquiferNetworksEnabled = context.wellAquiferNetworksEnabled === true;
   const capacity = building.waterCapacity > 0
     ? building.waterCapacity
     : wellCapacityFromHydrology(BUILDING_STORAGE_CAPS.well.water ?? 100, hydrology);
@@ -125,10 +126,14 @@ export function renderWellInspector(
       ${buildingCostRows(cost)}
       ${buildingRoadAccessRow(context.worldQueries, building)}
       <li data-inspector-secondary data-inspector-detail="Routine water service needs no assigned worker or last-mile cart."><span>Labor</span><span>None</span></li>
-      <li><span>Hydrology</span><span>${hydrologyGradeLabel(hydrology)} (${Math.round(hydrology * 100)}%)</span></li>
+      <li><span>Well groundwater</span><span>${wellAquiferNetworksEnabled
+        ? `${hydrologyGradeLabel(hydrology)} (${Math.round(hydrology * 100)}%)`
+        : 'Even yield at every site'}</span></li>
       <li><span>Stored water</span><span>${Math.round(building.water)} / ${Math.round(capacity)}</span></li>
       <li><span>Refill rate</span><span>${refillPerSec.toFixed(2)} / sec</span></li>
-      <li data-inspector-secondary data-inspector-detail="Capacity uses fully occupied four-person homes. Aquifer quality and weather reduce the best-case fifty-home yield, while connected homes retain priority over workshops."><span>Sustainable capacity</span><span>~${sustainableHomes} full homes in fair weather · ~${droughtHomeCapacity} in drought</span></li>
+      <li data-inspector-secondary data-inspector-detail="${wellAquiferNetworksEnabled
+        ? 'Capacity uses fully occupied four-person homes. Aquifer quality and weather reduce the best-case fifty-home yield, while connected homes retain priority over workshops.'
+        : 'Capacity uses fully occupied four-person homes. Every well site shares the same fair-weather yield; seasonal weather can still reduce refill.'}"><span>Sustainable capacity</span><span>~${sustainableHomes} full homes in fair weather · ~${droughtHomeCapacity} in drought</span></li>
       ${buildingExtentRow(building.kind)}
       <li><span>Homes connected now</span><span>${claimedResidences.length === 0 ? 'None' : claimedResidences.length}</span></li>
       <li><span>Workshop demand</span><span>${workshopDemand || 'None'}</span></li>

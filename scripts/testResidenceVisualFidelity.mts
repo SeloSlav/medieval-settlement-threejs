@@ -6,6 +6,11 @@ import {
   HAMLET_RESIDENCE_VIEW_SUBJECT,
   HAMLET_VIEW_SPECS,
 } from '../src/e2e/hamletFixtureConfig.ts';
+import {
+  disposeBuildingMaterialLibrary,
+  getBuildingMaterialLibraryStats,
+  sharedBuildingMaterial,
+} from '../src/buildings/buildingMaterials.ts';
 import { createResidenceMesh } from '../src/residences/ResidenceMarkers.ts';
 import { pickResidenceAppearance } from '../src/residences/residenceAppearance.ts';
 
@@ -32,10 +37,9 @@ for (const seed of seeds) {
 
   assertNamedPart(residence, 'Residence limestone plinth');
   assertNamedPart(residence, 'Residence limestone plinth cap');
-  assertNamedPart(residence, 'Residence hand-hewn timber wall core');
-  assertNamedPart(residence, 'Residence limewashed plaster infill shell');
-  assertNamedPart(residence, 'Residence hand-hewn wall courses and notched corners');
-  assertNamedPart(residence, 'Residence ventilated timber gable screen');
+  assertNamedPart(residence, 'Residence tier-one wall shell with true apertures');
+  assertNamedPart(residence, 'Residence hand-hewn corner posts');
+  assertNamedPart(residence, 'Residence ventilated timber gable kingposts');
   assertNamedPart(residence, 'Residence shadowed plank door aperture');
   assertNamedPart(residence, 'Residence visible timber plank door leaf');
   assertNamedPart(residence, 'Residence door iron latch');
@@ -59,7 +63,10 @@ for (const seed of seeds) {
   );
   assertResidenceFrontWallHasNoYardDetail(residence);
   assertResidenceYardHasNoChoppingBlock(residence);
-  assertSideWindowClearance(residence, 1);
+  assertSideWindowOpeningClearance(residence, 1);
+  assertTierOneWindowCutouts(residence);
+  assertTierOneFacadeTimbers(residence);
+  assertTierOneRoofSmokeContract(residence);
 
   const roofSurfaces = collectRoofSurfaces(residence);
   const roofFieldSurfaces = collectRoofFieldSurfaces(residence);
@@ -94,6 +101,7 @@ for (const seed of seeds) {
   );
   assertWeatheredRoofEdgeCraft(residence);
   assertResidenceValueSeparation(residence);
+  assertTierOneThatchMaterial(residence);
 
   const budget = visibleBudget(residence);
   assert.ok(
@@ -101,8 +109,8 @@ for (const seed of seeds) {
     `tier-one active draw-bearing mesh budget exceeded (${budget.meshes} > 56)`,
   );
   assert.ok(
-    budget.triangles <= 3_200,
-    `tier-one active triangle budget exceeded (${budget.triangles} > 3,200)`,
+    budget.triangles <= 1_800,
+    `tier-one active triangle budget exceeded (${budget.triangles} > 1,800)`,
   );
   assert.ok(
     budget.materials <= 10,
@@ -133,7 +141,7 @@ for (const tier of [1, 2, 3, 4] as const) {
       'the appearance seed remains deterministic independently of the tier roof contract',
     );
     const residence = createResidenceMesh(seed, tier);
-    assertSideWindowClearance(residence, tier);
+    assertSideWindowOpeningClearance(residence, tier);
     assert.equal(
       residence.userData.residenceRoof,
       'brown',
@@ -176,9 +184,10 @@ for (const tier of [1, 2, 3, 4] as const) {
 }
 
 assertResidenceCameraContract();
+assertBuildingMaterialLifecycle();
 
 console.log(
-  `residence visual-fidelity checks passed (${seeds.length} deterministic cottages, clear front-window walls, isolated 16:9 judge)`,
+  `residence visual-fidelity checks passed (${seeds.length} deterministic cottages, open apertures, grey thatch, roof smoke, isolated 16:9 judge)`,
 );
 
 function assertNamedPart(root: THREE.Object3D, name: string): void {
@@ -228,36 +237,39 @@ function assertNoLegacyOpeningCrosses(root: THREE.Object3D): void {
   });
 }
 
-function assertSideWindowClearance(
+function assertSideWindowOpeningClearance(
   root: THREE.Object3D,
   tier: 1 | 2 | 3 | 4,
 ): void {
-  const panes: THREE.Mesh[] = [];
+  const openings: THREE.Object3D[] = [];
   root.updateMatrixWorld(true);
   root.traverse((object) => {
-    if (object instanceof THREE.Mesh && object.name === 'Residence side window pane') {
-      panes.push(object);
+    if (
+      object.userData.facadeOpeningKind === 'window'
+      && object.userData.facadeOpeningFace !== 'positive-z'
+    ) {
+      openings.push(object);
     }
   });
   assert.equal(
-    panes.length,
+    openings.length,
     tier === 1 ? 2 : 4,
-    `tier-${tier} must retain one side-window pane per wall and storey`,
+    `tier-${tier} must retain one side-window opening per wall and storey`,
   );
   assert.ok(
-    panes.every((pane) => {
-      const worldPosition = pane.getWorldPosition(new THREE.Vector3());
+    openings.every((opening) => {
+      const worldPosition = opening.getWorldPosition(new THREE.Vector3());
       return Math.abs(Math.abs(worldPosition.z) - 1.25) <= 1e-9;
     }),
     'side windows must sit 1.25 m from the center posts',
   );
   assert.deepEqual(
-    new Set(panes.map((pane) => Math.sign(pane.getWorldPosition(new THREE.Vector3()).z))),
+    new Set(openings.map((opening) => Math.sign(opening.getWorldPosition(new THREE.Vector3()).z))),
     tier === 1 ? new Set([-1]) : new Set([-1, 1]),
     'higher tiers must split their lower and upper side windows across the center post',
   );
   const widestPane = Math.max(
-    ...panes.map((pane) => (pane.geometry as THREE.BoxGeometry).parameters.width),
+    ...openings.map((opening) => Number(opening.userData.facadeOpeningWidth)),
   );
   const openShutterClearance = 1.25
     - widestPane * 0.5
@@ -267,6 +279,120 @@ function assertSideWindowClearance(
   assert.ok(
     openShutterClearance >= 0.3,
     `open side shutters need roughly 0.33 m of visual clearance (${openShutterClearance.toFixed(3)} m)`,
+  );
+  assert.ok(
+    openings.every((opening) => (
+      opening.userData.residenceWindowGlazing === (tier === 1 ? 'open-aperture' : 'glazed-pane')
+    )),
+    `tier-${tier} side-window glazing contract must match its construction tier`,
+  );
+}
+
+function assertTierOneWindowCutouts(root: THREE.Object3D): void {
+  const openings: THREE.Object3D[] = [];
+  root.updateMatrixWorld(true);
+  root.traverse((object) => {
+    if (object.userData.facadeOpeningKind === 'window') openings.push(object);
+  });
+  assert.equal(openings.length, 3, 'tier-one cottages need one front and two side window openings');
+  assert.deepEqual(
+    new Set(openings.map((opening) => opening.userData.facadeOpeningFace)),
+    new Set(['positive-z', 'positive-x', 'negative-x']),
+    'tier-one open windows must cover the front and both side walls',
+  );
+
+  const wallShell = namedMesh(root, 'Residence tier-one wall shell with true apertures');
+  for (const opening of openings) {
+    const roles = new Set<string>();
+    opening.traverse((part) => {
+      const role = part.userData.facadeOpeningRole;
+      if (typeof role === 'string') roles.add(role);
+    });
+    assert.equal(roles.has('window-pane'), false, 'tier-one open windows must not contain glass panes');
+    assert.ok(roles.has('window-interior'), 'tier-one openings need a recessed visible interior');
+    assert.equal(opening.userData.residenceWallCutThrough, true);
+    assert.equal(opening.userData.residenceWindowGlazing, 'open-aperture');
+    const interior = opening.children.find(
+      (child) => child.userData.facadeOpeningRole === 'window-interior',
+    );
+    assert.ok(interior, 'open windows must retain a recessed household-light surface');
+    assert.ok(
+      Number(interior.userData.residenceWindowInteriorDepthMeters) >= 0.3,
+      'the visible interior must sit behind the wall rather than masquerading as a pane',
+    );
+
+    const worldCenter = opening.getWorldPosition(new THREE.Vector3());
+    const outward = new THREE.Vector3(0, 0, 1).applyQuaternion(
+      opening.getWorldQuaternion(new THREE.Quaternion()),
+    );
+    const raycaster = new THREE.Raycaster(
+      worldCenter.clone().addScaledVector(outward, 0.32),
+      outward.clone().negate(),
+      0,
+      0.55,
+    );
+    assert.equal(
+      raycaster.intersectObject(wallShell, false).length,
+      0,
+      `${String(opening.userData.facadeOpeningFace)} window must be a true wall cut-through`,
+    );
+  }
+}
+
+function assertTierOneFacadeTimbers(root: THREE.Object3D): void {
+  assert.equal(
+    root.getObjectByName('Residence hand-hewn wall courses and notched corners'),
+    undefined,
+    'tier-one façades must not retain the repeated horizontal timber courses',
+  );
+  const corners = namedMesh(root, 'Residence hand-hewn corner posts');
+  assert.equal(corners.userData.residenceFacadeTimberRhythm, 'vertical-corners-only');
+  assert.deepEqual(
+    root.userData.residenceBuildingPlan.facadeModules,
+    ['limewashed-infill', 'true-wall-apertures', 'hewn-corner-posts'],
+  );
+  root.traverse((object) => {
+    assert.notEqual(
+      object.userData.residenceFacadeTimberRole,
+      'horizontal-course',
+      `${object.name || object.type} must not reintroduce a Tier 1 façade course`,
+    );
+  });
+}
+
+function assertTierOneRoofSmokeContract(root: THREE.Object3D): void {
+  assert.equal(root.userData.residenceHasChimney, false);
+  assert.equal(root.userData.residenceSmokeExit, 'through-thatch');
+  const chimneyMeshes: THREE.Mesh[] = [];
+  root.traverse((object) => {
+    if (object instanceof THREE.Mesh && object.userData.residenceChimney === true) {
+      chimneyMeshes.push(object);
+    }
+  });
+  assert.equal(chimneyMeshes.length, 0, 'tier-one cottages must not emit chimney geometry');
+  const smokeAnchor = root.getObjectByName('ChimneyEmitter');
+  assert.ok(smokeAnchor && !(smokeAnchor instanceof THREE.Mesh), 'roof smoke needs one non-mesh runtime anchor');
+  assert.equal(smokeAnchor.userData.residenceSmokeExit, 'through-thatch');
+
+  root.updateMatrixWorld(true);
+  const roofDirection = new THREE.Vector3(0, -1, 0).applyQuaternion(
+    root.getWorldQuaternion(new THREE.Quaternion()),
+  );
+  const clearanceProbeHeight = 0.5;
+  const hits = new THREE.Raycaster(
+    smokeAnchor.getWorldPosition(new THREE.Vector3()).addScaledVector(
+      roofDirection,
+      -clearanceProbeHeight,
+    ),
+    roofDirection,
+    0,
+    0.75,
+  ).intersectObjects(collectRoofFieldSurfaces(root), false);
+  assert.ok(hits.length > 0, 'the smoke anchor must sit directly above the thatch roof field');
+  const signedClearance = hits[0]!.distance - clearanceProbeHeight;
+  assert.ok(
+    signedClearance >= 0.015 && signedClearance <= 0.12,
+    `roof smoke must emerge just above the visible thatch (${signedClearance.toFixed(3)} m clearance)`,
   );
 }
 
@@ -358,14 +484,14 @@ function assertWeatheredRoofEdgeCraft(root: THREE.Object3D): void {
 }
 
 function assertResidenceValueSeparation(root: THREE.Object3D): void {
-  const plaster = namedMesh(root, 'Residence limewashed plaster infill shell');
+  const plaster = namedMesh(root, 'Residence tier-one wall shell with true apertures');
   const stone = namedMesh(root, 'Residence limestone plinth');
   const aperture = namedMesh(root, 'Residence shadowed plank door aperture');
   const roofPlane = namedMesh(root, 'Residence main roof plane left');
   const exposedRoof = roofMeshContaining(root, 'bundled-thatch courses');
   const structuralTimber = namedMesh(
     root,
-    'Residence hand-hewn wall courses and notched corners',
+    'Residence hand-hewn corner posts',
   );
   const plasterLuma = materialLinearLuma(plaster);
   const stoneLuma = materialLinearLuma(stone);
@@ -378,8 +504,8 @@ function assertResidenceValueSeparation(root: THREE.Object3D): void {
   assert.ok(stoneLuma >= 0.55, `limestone must remain readable under production exposure (${stoneLuma.toFixed(3)})`);
   assert.ok(apertureLuma <= 0.02, `door aperture must read as a deep shadow (${apertureLuma.toFixed(3)})`);
   assert.ok(
-    exposedRoofLuma >= 0.3 && exposedRoofLuma <= 0.4,
-    `bundled thatch needs a warm but restrained middle value (${exposedRoofLuma.toFixed(3)})`,
+    exposedRoofLuma >= 0.24 && exposedRoofLuma <= 0.38,
+    `weathered grey thatch needs a restrained middle value (${exposedRoofLuma.toFixed(3)})`,
   );
   assert.ok(
     Math.abs(roofPlaneLuma - exposedRoofLuma) <= 0.001,
@@ -419,7 +545,7 @@ function assertResidenceValueSeparation(root: THREE.Object3D): void {
     materialName: 'Shared building material: thatch',
     ambientFill: 0.11,
     minimumRoughness: 1,
-    normalScale: 1,
+    normalScale: 0.62,
     usesDiffuseMap: true,
     weatheringProfile: 'thatch',
   });
@@ -428,10 +554,156 @@ function assertResidenceValueSeparation(root: THREE.Object3D): void {
     materialName: 'Shared building material: thatch',
     ambientFill: 0.11,
     minimumRoughness: 1,
-    normalScale: 1,
+    normalScale: 0.62,
     usesDiffuseMap: true,
     weatheringProfile: 'thatch',
   });
+}
+
+function assertTierOneThatchMaterial(root: THREE.Object3D): void {
+  const roof = namedMesh(root, 'Residence main roof plane left');
+  assert.equal(Array.isArray(roof.material), false);
+  const material = roof.material as THREE.MeshStandardMaterial;
+  assert.equal(
+    material.userData.buildingUsesProceduralThatchMap,
+    true,
+    'Tier 1 must use the shared fibrous procedural thatch surface',
+  );
+  assert.equal(material.userData.metricUvMeters, 1.4);
+  assert.deepEqual(
+    material.userData.proceduralThatchPattern,
+    {
+      tileMeters: 1.4,
+      fiberSpacingMeters: 1.4 / 56,
+      courseExposureMeters: 1.4 / 6,
+      direction: 'slope-aligned-reed-fibers',
+      palette: 'weathered-grey-reed',
+      channels: ['fiber-albedo', 'fiber-normal', 'fiber-roughness'],
+    },
+  );
+  const textureContracts: Array<[
+    THREE.Texture | null,
+    string,
+    THREE.ColorSpace,
+  ]> = [
+    [material.map, 'Procedural grey bundled thatch albedo', THREE.SRGBColorSpace],
+    [material.normalMap, 'Procedural grey bundled thatch normal', THREE.NoColorSpace],
+    [material.roughnessMap, 'Procedural grey bundled thatch roughness', THREE.NoColorSpace],
+  ];
+  for (const [texture, name, colorSpace] of textureContracts) {
+    assert.ok(texture instanceof THREE.DataTexture, `${name} must be a shared data texture`);
+    assert.equal(texture.name, name);
+    assert.equal(texture.image.width, 256);
+    assert.equal(texture.image.height, 256);
+    assert.equal(texture.wrapS, THREE.RepeatWrapping);
+    assert.equal(texture.wrapT, THREE.RepeatWrapping);
+    assert.equal(texture.minFilter, THREE.LinearMipmapLinearFilter);
+    assert.equal(texture.colorSpace, colorSpace);
+    assertTextureWrapContinuity(texture, name);
+  }
+
+  const color = material.color;
+  const chroma = Math.max(color.r, color.g, color.b) - Math.min(color.r, color.g, color.b);
+  assert.ok(chroma <= 0.08, `thatch tint must stay neutral grey rather than painted yellow (${chroma.toFixed(3)} chroma)`);
+  const pixels = (material.map as THREE.DataTexture).image.data as Uint8Array;
+  let red = 0;
+  let green = 0;
+  let blue = 0;
+  let minimum = 255;
+  let maximum = 0;
+  const pixelCount = pixels.length / 4;
+  for (let index = 0; index < pixels.length; index += 4) {
+    red += pixels[index]!;
+    green += pixels[index + 1]!;
+    blue += pixels[index + 2]!;
+    minimum = Math.min(minimum, pixels[index]!, pixels[index + 1]!, pixels[index + 2]!);
+    maximum = Math.max(maximum, pixels[index]!, pixels[index + 1]!, pixels[index + 2]!);
+  }
+  const means = [red / pixelCount, green / pixelCount, blue / pixelCount];
+  assert.ok(
+    Math.max(...means) - Math.min(...means) <= 12,
+    `procedural fibres must stay grey-balanced (${means.map((value) => value.toFixed(1)).join('/')})`,
+  );
+  assert.ok(maximum - minimum >= 80, 'the thatch albedo needs visible fibre and course contrast');
+}
+
+function assertTextureWrapContinuity(
+  texture: THREE.DataTexture,
+  label: string,
+): void {
+  const data = texture.image.data as Uint8Array;
+  const width = texture.image.width;
+  const height = texture.image.height;
+  const columnDelta = (left: number, right: number): number => {
+    let total = 0;
+    for (let y = 0; y < height; y += 1) {
+      const leftIndex = (y * width + left) * 4;
+      const rightIndex = (y * width + right) * 4;
+      for (let channel = 0; channel < 3; channel += 1) {
+        total += Math.abs(data[leftIndex + channel]! - data[rightIndex + channel]!);
+      }
+    }
+    return total / (height * 3);
+  };
+  const seamDelta = columnDelta(width - 1, 0);
+  const adjacentEdgeDelta = Math.max(
+    columnDelta(0, 1),
+    columnDelta(width - 2, width - 1),
+  );
+  assert.ok(
+    seamDelta <= adjacentEdgeDelta * 1.5 + 0.5,
+    `${label} must wrap without a repeated vertical seam (${seamDelta.toFixed(2)} vs ${adjacentEdgeDelta.toFixed(2)})`,
+  );
+  const rowDelta = (top: number, bottom: number): number => {
+    let total = 0;
+    for (let x = 0; x < width; x += 1) {
+      const topIndex = (top * width + x) * 4;
+      const bottomIndex = (bottom * width + x) * 4;
+      for (let channel = 0; channel < 3; channel += 1) {
+        total += Math.abs(data[topIndex + channel]! - data[bottomIndex + channel]!);
+      }
+    }
+    return total / (width * 3);
+  };
+  const horizontalSeamDelta = rowDelta(height - 1, 0);
+  const adjacentHorizontalDelta = Math.max(
+    rowDelta(0, 1),
+    rowDelta(height - 2, height - 1),
+  );
+  assert.ok(
+    horizontalSeamDelta <= adjacentHorizontalDelta * 1.5 + 0.5,
+    `${label} must wrap without a repeated horizontal seam (${horizontalSeamDelta.toFixed(2)} vs ${adjacentHorizontalDelta.toFixed(2)})`,
+  );
+}
+
+function assertBuildingMaterialLifecycle(): void {
+  const firstThatch = sharedBuildingMaterial('thatch');
+  const firstShingle = sharedBuildingMaterial('shingle');
+  const firstThatchMap = firstThatch.map;
+  const firstShingleMap = firstShingle.map;
+  assert.ok(firstThatchMap && firstShingleMap);
+  let thatchMapDisposed = false;
+  let shingleMapDisposed = false;
+  firstThatchMap.addEventListener('dispose', () => { thatchMapDisposed = true; });
+  firstShingleMap.addEventListener('dispose', () => { shingleMapDisposed = true; });
+
+  disposeBuildingMaterialLibrary();
+  assert.equal(thatchMapDisposed, true, 'disposing the shared library must release procedural thatch maps');
+  assert.equal(shingleMapDisposed, true, 'disposing the shared library must release procedural shingle maps');
+  assert.deepEqual(getBuildingMaterialLibraryStats(), {
+    constructionMaterials: 0,
+    detailMaterials: 0,
+    textures: 0,
+    loaded: false,
+  });
+
+  const recreatedThatch = sharedBuildingMaterial('thatch');
+  const recreatedShingle = sharedBuildingMaterial('shingle');
+  assert.notStrictEqual(recreatedThatch, firstThatch, 'scene recreation needs a fresh thatch material');
+  assert.notStrictEqual(recreatedShingle, firstShingle, 'scene recreation needs a fresh shingle material');
+  assert.notStrictEqual(recreatedThatch.map, firstThatchMap, 'scene recreation needs fresh thatch textures');
+  assert.notStrictEqual(recreatedShingle.map, firstShingleMap, 'scene recreation needs a fresh shingle texture');
+  disposeBuildingMaterialLibrary();
 }
 
 function assertSplitShingleWeathering(root: THREE.Object3D): void {

@@ -26,6 +26,8 @@ try {
     resourceVariety: 50,
     conflictEnabled: false,
     enemyPressure: 0,
+    severeWeatherEnabled: false,
+    wellAquiferNetworksEnabled: false,
   });
   // A far, finite coordinate avoids the small generated resource cluster. The
   // fresh-world founding reducer intentionally trusts the already validated

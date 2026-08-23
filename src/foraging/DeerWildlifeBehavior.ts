@@ -1,3 +1,5 @@
+import { GAME_HABITAT_DISRUPTION_RADIUS } from '../generated/gameBalance.ts';
+
 export type DeerBehaviorMode = 'idle' | 'graze' | 'walk' | 'flee';
 
 export type DeerSex = 'doe' | 'stag';
@@ -13,6 +15,10 @@ export type DeerObserver = {
   crouching: boolean;
 };
 
+export type DeerForcedThreat = Pick<DeerObserver, 'x' | 'z'> & {
+  id?: string;
+};
+
 export type DeerMotionState = {
   x: number;
   z: number;
@@ -25,25 +31,40 @@ export type DeerMotionState = {
   mode: DeerBehaviorMode;
   modeTimer: number;
   fleeBias: number;
+  migrationTargetX: number | null;
+  migrationTargetZ: number | null;
 };
 
 export type DeerBehaviorContext = {
   observer: DeerObserver | null;
+  /** A non-stealth disturbance that alarms the complete habitat herd. */
+  forcedThreat?: DeerForcedThreat | null;
+  /** All simultaneous non-stealth disturbances affecting this habitat. */
+  forcedThreats?: readonly DeerForcedThreat[];
   random: () => number;
   isBlockedAt?: (x: number, z: number) => boolean;
 };
 
 export const DEER_FLEE_TRIGGER_DISTANCE = 19;
 export const DEER_FLEE_RELEASE_DISTANCE = 32;
-export const DEER_ROAM_RADIUS = 27;
+/** The authoritative habitat-disruption circle is also the herd's grazing area. */
+export const DEER_ROAM_RADIUS = GAME_HABITAT_DISRUPTION_RADIUS;
 export const DEER_FLEE_BOUNDARY_RADIUS = 52;
 export const DEER_CROUCH_DETECTION_HALF_ANGLE = Math.PI * (65 / 180);
 
 const TAU = Math.PI * 2;
 const WALK_SPEED = 1.25;
 const FLEE_SPEED = 7.1;
+const MIGRATION_ARRIVAL_DISTANCE = 0.7;
 const MIN_REST_SECONDS = 2.2;
 const MAX_REST_SECONDS = 6.8;
+
+type DeerThreat = {
+  directionX: number;
+  directionZ: number;
+  distance: number;
+  forced: boolean;
+};
 
 export function updateDeerMotion(
   state: DeerMotionState,
@@ -53,11 +74,24 @@ export function updateDeerMotion(
   const dt = Math.min(Math.max(dtSeconds, 0), 0.1);
   if (dt <= 0) return;
 
+  const forcedThreatActive = Boolean(
+    context.forcedThreat
+    || context.forcedThreats?.length,
+  );
+  if (hasActiveDeerMigration(state) && !forcedThreatActive) {
+    updateMigration(state, dt, context);
+    return;
+  }
+
   const observerDistance = context.observer
     ? Math.hypot(state.x - context.observer.x, state.z - context.observer.z)
     : Number.POSITIVE_INFINITY;
 
-  if (context.observer && canDeerDetectObserver(state, context.observer, observerDistance)) {
+  const observerDetected = Boolean(
+    context.observer
+    && canDeerDetectObserver(state, context.observer, observerDistance),
+  );
+  if (observerDetected || forcedThreatActive) {
     if (state.mode !== 'flee') beginFlee(state);
     state.modeTimer = Math.max(state.modeTimer, 1.15);
   }
@@ -65,7 +99,12 @@ export function updateDeerMotion(
   state.modeTimer -= dt;
 
   if (state.mode === 'flee') {
-    updateFleeing(state, dt, observerDistance, context);
+    updateFleeing(
+      state,
+      dt,
+      selectFleeThreat(state, context, observerDistance, observerDetected),
+      context,
+    );
     return;
   }
 
@@ -84,6 +123,44 @@ export function chooseInitialDeerMode(random: () => number): DeerBehaviorMode {
 
 export function chooseRestDuration(random: () => number): number {
   return lerp(MIN_REST_SECONDS, MAX_REST_SECONDS, random());
+}
+
+/**
+ * Starts a witnessed authoritative habitat relocation without changing the
+ * deer's current world position. Each deer may receive its own arrival point,
+ * while `homeX/homeZ` remain the shared new habitat center.
+ */
+export function beginDeerMigration(
+  state: DeerMotionState,
+  targetX: number,
+  targetZ: number,
+  homeX: number,
+  homeZ: number,
+): void {
+  state.migrationTargetX = targetX;
+  state.migrationTargetZ = targetZ;
+  state.homeX = homeX;
+  state.homeZ = homeZ;
+  state.targetX = targetX;
+  state.targetZ = targetZ;
+  state.mode = 'flee';
+  state.modeTimer = 0;
+}
+
+export function hasActiveDeerMigration(
+  state: Pick<DeerMotionState, 'migrationTargetX' | 'migrationTargetZ'>,
+): boolean {
+  return state.migrationTargetX !== null && state.migrationTargetZ !== null;
+}
+
+/** Completes an unobserved relocation at its exact terminal pose. */
+export function snapDeerMigration(
+  state: DeerMotionState,
+  random: () => number,
+): boolean {
+  if (!hasActiveDeerMigration(state)) return false;
+  finishMigration(state, random);
+  return true;
 }
 
 /**
@@ -165,43 +242,243 @@ function updateWalking(
 function updateFleeing(
   state: DeerMotionState,
   dt: number,
-  observerDistance: number,
+  threat: DeerThreat | null,
   context: DeerBehaviorContext,
 ): void {
-  if (!context.observer || (observerDistance >= DEER_FLEE_RELEASE_DISTANCE && state.modeTimer <= 0)) {
+  if (!threat || (
+    !threat.forced
+    && threat.distance >= DEER_FLEE_RELEASE_DISTANCE
+    && state.modeTimer <= 0
+  )) {
     beginWalk(state, context, true);
     return;
   }
 
-  if (observerDistance < DEER_FLEE_RELEASE_DISTANCE) {
+  if (threat.forced || threat.distance < DEER_FLEE_RELEASE_DISTANCE) {
     state.modeTimer = Math.max(state.modeTimer, 0.35);
   }
 
-  let desiredX = state.x - context.observer.x;
-  let desiredZ = state.z - context.observer.z;
-  const observerVectorLength = Math.hypot(desiredX, desiredZ);
-  if (observerVectorLength < 0.001) {
-    desiredX = Math.sin(state.heading);
-    desiredZ = Math.cos(state.heading);
-  } else {
-    desiredX /= observerVectorLength;
-    desiredZ /= observerVectorLength;
-  }
+  let desiredX = threat.directionX;
+  let desiredZ = threat.directionZ;
 
   const homeDx = state.homeX - state.x;
   const homeDz = state.homeZ - state.z;
   const homeDistance = Math.hypot(homeDx, homeDz);
-  if (homeDistance > DEER_ROAM_RADIUS) {
+  let refugeBlend = 0;
+  if (threat.forced && homeDistance > DEER_ROAM_RADIUS) {
+    const homeLength = Math.max(homeDistance, 0.001);
+    const outwardX = -homeDx / homeLength;
+    const outwardZ = -homeDz / homeLength;
+    const refugeEnvelope = 1 - smoothstep(
+      DEER_FLEE_BOUNDARY_RADIUS + 2,
+      DEER_FLEE_BOUNDARY_RADIUS + 8,
+      homeDistance,
+    );
+    refugeBlend = smoothstep(
+      DEER_FLEE_BOUNDARY_RADIUS - 7,
+      DEER_FLEE_BOUNDARY_RADIUS,
+      homeDistance,
+    ) * refugeEnvelope;
+
+    // Once clear of the grazing circle, keep an alarmed herd pacing around its
+    // refuge boundary. This avoids both unbounded flight and the old behavior
+    // where home steering sent deer back through an active logging crew.
+    let tangentX = outwardZ;
+    let tangentZ = -outwardX;
+    if (tangentX * desiredX + tangentZ * desiredZ < 0) {
+      tangentX = -tangentX;
+      tangentZ = -tangentZ;
+    }
+    desiredX = lerp(desiredX, tangentX, refugeBlend);
+    desiredZ = lerp(desiredZ, tangentZ, refugeBlend);
+
+    const outsideCorrection = smoothstep(
+      DEER_FLEE_BOUNDARY_RADIUS,
+      DEER_FLEE_BOUNDARY_RADIUS + 3,
+      homeDistance,
+    ) * refugeEnvelope;
+    desiredX += (homeDx / homeLength) * outsideCorrection * 1.35;
+    desiredZ += (homeDz / homeLength) * outsideCorrection * 1.35;
+    const desiredLength = Math.hypot(desiredX, desiredZ);
+    if (desiredLength > 0.001) {
+      desiredX /= desiredLength;
+      desiredZ /= desiredLength;
+    }
+  } else if (homeDistance > DEER_ROAM_RADIUS) {
     const homeWeight = smoothstep(DEER_ROAM_RADIUS, DEER_FLEE_BOUNDARY_RADIUS, homeDistance) * 0.88;
     const homeLength = Math.max(homeDistance, 0.001);
     desiredX = lerp(desiredX, homeDx / homeLength, homeWeight);
     desiredZ = lerp(desiredZ, homeDz / homeLength, homeWeight);
   }
 
-  const desiredHeading = Math.atan2(desiredX, desiredZ) + state.fleeBias;
+  const desiredHeading = Math.atan2(desiredX, desiredZ)
+    + state.fleeBias * (threat.forced ? 1 - refugeBlend : 1);
   state.heading = turnToward(state.heading, desiredHeading, 4.6 * dt);
   state.speed = approach(state.speed, FLEE_SPEED, 7.5 * dt);
   tryMove(state, dt, context, true);
+}
+
+function updateMigration(
+  state: DeerMotionState,
+  dt: number,
+  context: DeerBehaviorContext,
+): void {
+  const targetX = state.migrationTargetX;
+  const targetZ = state.migrationTargetZ;
+  if (targetX === null || targetZ === null) return;
+
+  const dx = targetX - state.x;
+  const dz = targetZ - state.z;
+  const distance = Math.hypot(dx, dz);
+  if (distance <= MIGRATION_ARRIVAL_DISTANCE) {
+    finishMigration(state, context.random);
+    return;
+  }
+
+  state.mode = 'flee';
+  state.modeTimer = 0;
+  state.heading = turnToward(state.heading, Math.atan2(dx, dz), 4.6 * dt);
+  state.speed = approach(state.speed, FLEE_SPEED, 7.5 * dt);
+  const travel = Math.min(distance, state.speed * dt);
+  const nextX = state.x + Math.sin(state.heading) * travel;
+  const nextZ = state.z + Math.cos(state.heading) * travel;
+  if (context.isBlockedAt?.(nextX, nextZ)) {
+    const turnDirection = context.random() < 0.5 ? -1 : 1;
+    state.heading = wrapAngle(state.heading + turnDirection * 1.18);
+    return;
+  }
+
+  state.x = nextX;
+  state.z = nextZ;
+  if (travel >= distance - 1e-6) finishMigration(state, context.random);
+}
+
+function finishMigration(state: DeerMotionState, random: () => number): void {
+  const targetX = state.migrationTargetX;
+  const targetZ = state.migrationTargetZ;
+  if (targetX === null || targetZ === null) return;
+  state.x = targetX;
+  state.z = targetZ;
+  state.targetX = targetX;
+  state.targetZ = targetZ;
+  state.migrationTargetX = null;
+  state.migrationTargetZ = null;
+  state.speed = 0;
+  beginRest(state, random);
+}
+
+function selectFleeThreat(
+  state: Pick<DeerMotionState, 'x' | 'z' | 'heading' | 'mode'>,
+  context: DeerBehaviorContext,
+  observerDistance: number,
+  observerDetected: boolean,
+): DeerThreat | null {
+  let forcedDirectionX = 0;
+  let forcedDirectionZ = 0;
+  let forcedDistance = Number.POSITIVE_INFINITY;
+  let closestForcedThreat: DeerForcedThreat | null = null;
+  let forcedCount = 0;
+  const singleForcedThreat = context.forcedThreat ?? null;
+  const forcedThreats = context.forcedThreats ?? [];
+  const singleThreatCount = singleForcedThreat ? 1 : 0;
+  const forcedThreatCount = singleThreatCount + forcedThreats.length;
+  for (let index = 0; index < forcedThreatCount; index += 1) {
+    const source = index < singleThreatCount
+      ? singleForcedThreat
+      : forcedThreats[index - singleThreatCount];
+    if (!source || !Number.isFinite(source.x) || !Number.isFinite(source.z)) continue;
+    const dx = state.x - source.x;
+    const dz = state.z - source.z;
+    const distance = Math.hypot(dx, dz);
+    if (
+      distance < forcedDistance
+      || (
+        distance === forcedDistance
+        && stableThreatId(source).localeCompare(stableThreatId(closestForcedThreat)) < 0
+      )
+    ) {
+      forcedDistance = distance;
+      closestForcedThreat = source;
+    }
+    if (distance > 0.001) {
+      const weight = 1 / Math.max(distance, 1);
+      forcedDirectionX += (dx / distance) * weight;
+      forcedDirectionZ += (dz / distance) * weight;
+    }
+    forcedCount += 1;
+  }
+
+  if (forcedCount > 0 && context.observer && observerDetected && observerDistance > 0.001) {
+    const observerWeight = 1 / Math.max(observerDistance, 1);
+    forcedDirectionX += ((state.x - context.observer.x) / observerDistance) * observerWeight;
+    forcedDirectionZ += ((state.z - context.observer.z) / observerDistance) * observerWeight;
+  }
+
+  if (forcedCount > 0) {
+    let directionLength = Math.hypot(forcedDirectionX, forcedDirectionZ);
+    if (directionLength <= 0.000_001) {
+      // Equal threats on opposite sides cancel. Break that stalemate by taking
+      // a stable perpendicular escape instead of running toward either logger.
+      const source = closestForcedThreat;
+      const dx = source ? state.x - source.x : 0;
+      const dz = source ? state.z - source.z : 0;
+      const distance = Math.hypot(dx, dz);
+      if (distance > 0.001) {
+        const turn = stableThreatTurn(stableThreatId(source));
+        forcedDirectionX = (dz / distance) * turn;
+        forcedDirectionZ = (-dx / distance) * turn;
+      } else {
+        const angle = stableThreatAngle(stableThreatId(source));
+        forcedDirectionX = Math.sin(angle);
+        forcedDirectionZ = Math.cos(angle);
+      }
+      directionLength = 1;
+    }
+    return {
+      directionX: forcedDirectionX / directionLength,
+      directionZ: forcedDirectionZ / directionLength,
+      distance: forcedDistance,
+      forced: true,
+    };
+  }
+
+  const observer = context.observer && (
+    observerDetected
+    || state.mode === 'flee'
+  )
+    ? {
+        directionX: observerDistance > 0.001
+          ? (state.x - context.observer.x) / observerDistance
+          : Math.sin(state.heading),
+        directionZ: observerDistance > 0.001
+          ? (state.z - context.observer.z) / observerDistance
+          : Math.cos(state.heading),
+        distance: observerDistance,
+        forced: false,
+      }
+    : null;
+  return observer;
+}
+
+function stableThreatId(source: DeerForcedThreat | null): string {
+  return source?.id ?? '';
+}
+
+function stableThreatTurn(id: string): -1 | 1 {
+  return stableThreatHash(id) % 2 === 0 ? -1 : 1;
+}
+
+function stableThreatAngle(id: string): number {
+  return (stableThreatHash(id) / 0xffff_ffff) * TAU;
+}
+
+function stableThreatHash(id: string): number {
+  let hash = 0x811c9dc5;
+  for (let index = 0; index < id.length; index += 1) {
+    hash ^= id.charCodeAt(index);
+    hash = Math.imul(hash, 0x01000193);
+  }
+  return hash >>> 0;
 }
 
 function tryMove(

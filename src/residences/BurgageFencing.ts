@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import type { Point2 } from '../utils/polygonGeometry.ts';
 import type { BurgageZoneState } from '../resources/types.ts';
 import { timberMaterial } from '../buildings/buildingMaterials.ts';
-import { hashStringSeed } from '../utils/random.ts';
+import { hashStringSeed, mulberry32 } from '../utils/random.ts';
 import {
   getParcelFenceSegments,
   resolveFenceOpeningOnEdge,
@@ -45,7 +45,10 @@ function createFenceBoxGeometry(): THREE.BoxGeometry {
 }
 
 type FenceSegment = readonly [Point2, Point2];
-type FenceGateway = ResolvedParcelFenceOpening;
+type FenceGateway = ResolvedParcelFenceOpening & {
+  residenceId: string;
+  hasFrame: boolean;
+};
 export type TerrainFenceBay = {
   start: Point2;
   end: Point2;
@@ -73,6 +76,7 @@ type FencedResidence = {
   x: number;
   z: number;
   yaw: number;
+  tier?: number;
 };
 
 function fenceSignature(
@@ -98,6 +102,7 @@ function fenceSignature(
       gateway.end.x.toFixed(2),
       gateway.end.z.toFixed(2),
       gateway.endGroundHeight.toFixed(3),
+      gateway.hasFrame ? 'frame' : 'gap',
     ].join(','))
     .join('|');
   return `${segmentSignature}#${gatewaySignature}`;
@@ -183,7 +188,7 @@ export function resolveResidenceFrontageGateway(
   residence: FencedResidence,
   parcel: BurgageParcelLayout,
 ): FenceGateway | null {
-  return resolveFenceOpeningOnEdge(
+  const gateway = resolveFenceOpeningOnEdge(
     parcel.frontLeft,
     parcel.frontRight,
     {
@@ -191,6 +196,27 @@ export function resolveResidenceFrontageGateway(
       width: FRONT_GATE_WIDTH,
     },
   );
+  return gateway
+    ? {
+        ...gateway,
+        residenceId: residence.id,
+        hasFrame: residenceHasFramedGateway(residence.id, residence.tier ?? 1),
+      }
+    : null;
+}
+
+/**
+ * Tier-one plots alternate deterministically between a full hewn entrance
+ * frame and a literal break in the frontage fence. The independent salted
+ * roll avoids reshuffling the residence appearance sequence for saved games.
+ */
+export function residenceHasFramedGateway(
+  residenceId: string,
+  tier = 1,
+): boolean {
+  if (tier > 1) return true;
+  const rng = mulberry32(hashStringSeed(residenceId) ^ 0x6a09e667);
+  return rng() < 0.46;
 }
 
 function collectFenceLayout(
@@ -363,6 +389,7 @@ export class BurgageFencing {
 
     let gateTimberCount = 0;
     for (const gateway of terrainGateways) {
+      if (!gateway.hasFrame) continue;
       if (gateTimberCount + 3 > MAX_GATE_TIMBERS) break;
 
       gateTimberCount = this.setGatePost(

@@ -1,10 +1,12 @@
 import * as THREE from 'three';
 import {
   polygonSegments,
+  updateTerrainCircleRibbonGeometry,
   updateTerrainQuadGeometry,
   updateTerrainRibbonGeometry,
 } from '../placement/TerrainOverlayGeometry.ts';
 import type { BuildingKind } from '../resources/types.ts';
+import { getBuildingDefinition } from '../resources/buildings.ts';
 import {
   BUILDING_ROAD_CONNECTION_MARKER_INNER_RADIUS,
   BUILDING_ROAD_CONNECTION_MARKER_OUTER_RADIUS,
@@ -13,6 +15,7 @@ import {
 import { disposeObject3D } from '../utils/dispose.ts';
 import { createBuildingMesh } from './BuildingMeshes.ts';
 import { getBuildingFootprintCorners } from './BuildingTerrainLayout.ts';
+import type { BuildingPlacementWildlifePreview } from './buildingPlacementWildlifePreview.ts';
 
 const PREVIEW_COLORS = {
   valid: 0xfffdf5,
@@ -38,6 +41,12 @@ const GHOST_OUTLINE_OPACITY = 0.66;
 const GHOST_OUTLINE_MIN_SPAN = 0.45;
 const GHOST_OUTLINE_MAX_PARTS = 128;
 const PREVIEW_RENDER_ORDER = 12;
+const WILDLIFE_WARNING_COLOR = 0xff5d50;
+const WILDLIFE_WARNING_LIFT = 0.19;
+const WILDLIFE_WARNING_WIDTH = 0.82;
+const LOGGING_WORK_EXTENT_COLOR = 0xd7b463;
+const LOGGING_WORK_EXTENT_LIFT = 0.18;
+const LOGGING_WORK_EXTENT_WIDTH = 0.72;
 
 export function createBuildingPreviewMesh(kind: BuildingKind): THREE.Group {
   const group = new THREE.Group();
@@ -98,6 +107,8 @@ export function createBuildingPreviewMesh(kind: BuildingKind): THREE.Group {
       polygonOffset: true,
       polygonOffsetFactor: -3,
       polygonOffsetUnits: -3,
+      fog: false,
+      toneMapped: false,
     }),
   );
   border.name = 'Building footprint border';
@@ -130,6 +141,24 @@ export function createBuildingPreviewMesh(kind: BuildingKind): THREE.Group {
   }
   group.add(roadAttachments);
 
+  const wildlifeWarnings = new THREE.Group();
+  wildlifeWarnings.name = 'Game habitat disturbance warnings';
+  wildlifeWarnings.renderOrder = PREVIEW_RENDER_ORDER + 4;
+  group.add(wildlifeWarnings);
+
+  if (kind === 'lumber_mill') {
+    const loggingWorkExtent = createTerrainWarningRing(
+      'Lumber logging work extent warning',
+      'logging-work-extent',
+      LOGGING_WORK_EXTENT_COLOR,
+      0.76,
+      PREVIEW_RENDER_ORDER + 3,
+    );
+    loggingWorkExtent.userData.extentRadius = getBuildingDefinition(kind).workRadius;
+    loggingWorkExtent.userData.dashed = true;
+    group.add(loggingWorkExtent);
+  }
+
   group.add(createBuildingGhost(kind));
 
   return group;
@@ -142,6 +171,7 @@ export function updateBuildingPreviewGeometry(
   z: number,
   yaw: number,
   getHeightAt: (x: number, z: number) => number,
+  wildlifePreview?: BuildingPlacementWildlifePreview,
 ): void {
   const corners = getBuildingFootprintCorners(kind, x, z, yaw);
 
@@ -186,6 +216,7 @@ export function updateBuildingPreviewGeometry(
   }
 
   updateRoadAttachmentGeometry(group, kind, x, z, yaw, getHeightAt);
+  updateWildlifeWarningGeometry(group, x, z, getHeightAt, wildlifePreview);
 
   const ghost = group.getObjectByName('Building placement ghost');
   if (ghost instanceof THREE.Group) {
@@ -223,6 +254,14 @@ export function updateBuildingPreviewAppearance(
       case 'model-ghost':
         material.color.setHex(PREVIEW_COLORS.valid);
         material.opacity = GHOST_FILL_OPACITY;
+        break;
+      case 'wildlife-habitat-warning':
+        material.color.setHex(WILDLIFE_WARNING_COLOR);
+        material.opacity = 0.9;
+        break;
+      case 'logging-work-extent':
+        material.color.setHex(LOGGING_WORK_EXTENT_COLOR);
+        material.opacity = 0.76;
         break;
     }
   });
@@ -321,6 +360,104 @@ function updateRoadAttachmentGeometry(
     );
     circle.userData.connectionPoint = [center.x, center.y, center.z];
   }
+}
+
+function updateWildlifeWarningGeometry(
+  group: THREE.Group,
+  x: number,
+  z: number,
+  getHeightAt: (x: number, z: number) => number,
+  wildlifePreview?: BuildingPlacementWildlifePreview,
+): void {
+  const loggingWorkExtent = group.getObjectByName('Lumber logging work extent warning');
+  if (loggingWorkExtent instanceof THREE.Mesh) {
+    const radius = wildlifePreview?.loggingWorkRadius
+      ?? loggingWorkExtent.userData.extentRadius as number;
+    updateTerrainCircleRibbonGeometry(
+      loggingWorkExtent.geometry,
+      { x, z },
+      radius,
+      getHeightAt,
+      {
+        width: LOGGING_WORK_EXTENT_WIDTH,
+        lift: LOGGING_WORK_EXTENT_LIFT,
+        sampleSpacing: 5.5,
+        dashLength: 4.8,
+        gapLength: 3.2,
+      },
+    );
+    loggingWorkExtent.visible = radius > 0;
+  }
+
+  const warnings = group.getObjectByName('Game habitat disturbance warnings');
+  if (!(warnings instanceof THREE.Group)) return;
+  const habitats = wildlifePreview?.habitats ?? [];
+  while (warnings.children.length < habitats.length) {
+    warnings.add(createTerrainWarningRing(
+      'Game habitat disturbance warning',
+      'wildlife-habitat-warning',
+      WILDLIFE_WARNING_COLOR,
+      0.9,
+      PREVIEW_RENDER_ORDER + 4,
+    ));
+  }
+
+  for (let index = 0; index < warnings.children.length; index += 1) {
+    const warning = warnings.children[index];
+    if (!(warning instanceof THREE.Mesh)) continue;
+    const habitat = habitats[index];
+    if (!habitat) {
+      warning.visible = false;
+      continue;
+    }
+
+    warning.name = `Game habitat disturbance warning ${habitat.nodeId}`;
+    warning.userData.nodeId = habitat.nodeId;
+    warning.userData.habitatRadius = habitat.radius;
+    warning.userData.directBuildingRisk = habitat.directBuildingRisk;
+    warning.userData.huntingReach = habitat.huntingReach;
+    warning.userData.loggingReach = habitat.loggingReach;
+    updateTerrainCircleRibbonGeometry(
+      warning.geometry,
+      { x: habitat.x, z: habitat.z },
+      habitat.radius,
+      getHeightAt,
+      {
+        width: WILDLIFE_WARNING_WIDTH,
+        lift: WILDLIFE_WARNING_LIFT,
+        sampleSpacing: 2.8,
+      },
+    );
+    warning.visible = true;
+  }
+}
+
+function createTerrainWarningRing(
+  name: string,
+  role: 'wildlife-habitat-warning' | 'logging-work-extent',
+  color: number,
+  opacity: number,
+  renderOrder: number,
+): THREE.Mesh {
+  const ring = new THREE.Mesh(
+    new THREE.BufferGeometry(),
+    new THREE.MeshBasicMaterial({
+      color,
+      transparent: true,
+      opacity,
+      depthTest: true,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+      polygonOffset: true,
+      polygonOffsetFactor: -3,
+      polygonOffsetUnits: -3,
+    }),
+  );
+  ring.name = name;
+  ring.userData.previewRole = role;
+  ring.renderOrder = renderOrder;
+  ring.frustumCulled = false;
+  return ring;
 }
 
 function createBuildingGhost(kind: BuildingKind): THREE.Group {

@@ -50,6 +50,7 @@ import {
 import { polylineLengthXZ, samplePolylineXZ, type PointXZ } from '../utils/pathGeometry.ts';
 import type { GameClock } from '../world/gameCalendar.ts';
 import type { HolidayObservance } from '../world/holidayCalendar.ts';
+import type { GameHabitatDisturbanceSource } from '../foraging/gameHabitatDisturbance.ts';
 import {
   WorkerActivityAudio,
   type WorkerActivitySoundSource,
@@ -423,6 +424,8 @@ export class VillagerRenderer {
   private readonly renderAgentsById = new Map<string, CrowdRenderAgent>();
   private readonly workerSoundSources: WorkerActivitySoundSource[] = [];
   private readonly workerSoundSourcePool: WorkerActivitySoundSource[] = [];
+  private readonly activeLoggingDisturbances: GameHabitatDisturbanceSource[] = [];
+  private readonly loggingDisturbancePool: GameHabitatDisturbanceSource[] = [];
   private readonly farmSongSources: FarmSongSource[] = [];
   private readonly farmSongSourcePool: FarmSongSource[] = [];
   private readonly combatAudioFighters: CombatAudioFighter[] = [];
@@ -1355,6 +1358,51 @@ export class VillagerRenderer {
     return this.renderer.consumeShadowCastersChanged();
   }
 
+  /**
+   * Returns the live positions of lumber-mill crews while they follow a tree-work
+   * loop. The retained array and records are rewritten on each call so the frame
+   * handoff does not allocate while workers move through a game habitat.
+   */
+  getActiveLoggingDisturbances(): readonly GameHabitatDisturbanceSource[] {
+    const disturbances = this.activeLoggingDisturbances;
+    disturbances.length = 0;
+
+    for (const agent of this.agents.values()) {
+      if (
+        agent.pathPurpose !== 'worker_work_loop'
+        || agent.workActivity !== 'chop'
+        || !agent.workplaceId
+      ) continue;
+      const workplace = this.buildings.get(agent.workplaceId);
+      if (workplace?.kind !== 'lumber_mill') continue;
+
+      // The worker stops short of the trunk to swing the axe. During that
+      // action, use the tree itself as the disturbance point so a trunk just
+      // inside the habitat boundary cannot be missed because the feet are just
+      // outside it. On the journey in and out, the live worker pose takes over.
+      const sourceX = agent.mode === 'chop' && agent.workTarget
+        ? agent.workTarget.x
+        : agent.x;
+      const sourceZ = agent.mode === 'chop' && agent.workTarget
+        ? agent.workTarget.z
+        : agent.z;
+
+      const index = disturbances.length;
+      let source = this.loggingDisturbancePool[index];
+      if (!source) {
+        source = { id: agent.id, x: sourceX, z: sourceZ };
+        this.loggingDisturbancePool.push(source);
+      } else {
+        source.id = agent.id;
+        source.x = sourceX;
+        source.z = sourceZ;
+      }
+      disturbances.push(source);
+    }
+
+    return disturbances;
+  }
+
   pickVillager(
     clientX: number,
     clientY: number,
@@ -1490,6 +1538,8 @@ export class VillagerRenderer {
     this.renderAgentsById.clear();
     this.workerSoundSources.length = 0;
     this.workerSoundSourcePool.length = 0;
+    this.activeLoggingDisturbances.length = 0;
+    this.loggingDisturbancePool.length = 0;
     this.farmSongSources.length = 0;
     this.farmSongSourcePool.length = 0;
     this.combatAudioFighters.length = 0;

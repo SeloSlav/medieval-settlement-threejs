@@ -16,7 +16,7 @@ export const GORSKI_PALETTE = {
   tileRedHighlight: 0xc04a3a,
   shingleWood: 0x5c4636,
   shingleAged: 0x4a382c,
-  thatch: 0xb89a55,
+  thatch: 0x8f928c,
   moss: 0x4d6b3c,
   grassRoof: 0x5f7a44,
   mossDark: 0x3d5530,
@@ -129,7 +129,7 @@ const MATERIAL_DEFINITIONS: Record<BuildingMaterialKey, MaterialDefinition> = {
   // Omitting the broad-plank diffuse prevents the roof from collapsing into
   // a handful of long boards; the darker base keeps it distinct from plaster.
   shingle: { color: 0x928e85, roughness: 0.99, metalness: 0, textureFamily: 'woodPlanks', normalScale: 1.05, weathering: 'shingle', useDiffuseMap: false, uniformIndirectLight: true },
-  thatch: { color: GORSKI_PALETTE.thatch, roughness: 1, metalness: 0, weathering: 'thatch', uniformIndirectLight: true },
+  thatch: { color: GORSKI_PALETTE.thatch, roughness: 1, metalness: 0, normalScale: 0.62, weathering: 'thatch', uniformIndirectLight: true },
   slate: { color: 0x737980, roughness: 0.91, metalness: 0.02, textureFamily: 'masonry', normalScale: 0.48, weathering: 'roof' },
   metalIron: { color: 0x4a4846, roughness: 0.55, metalness: 0.72 },
   glass: { color: 0x3d4747, roughness: 0.4, metalness: 0.03 },
@@ -211,6 +211,7 @@ const detailMaterialCache = new Map<BuildingDetailMaterialKey, THREE.MeshStandar
 let textureSets: Record<TextureFamily, BuildingTextureSet> | null = null;
 let textureLoadPromise: Promise<void> | null = null;
 let splitWoodShingleMap: THREE.DataTexture | null = null;
+let proceduralThatchTextureSet: BuildingTextureSet | null = null;
 
 export function sharedBuildingMaterial(key: BuildingMaterialKey): THREE.MeshStandardMaterial {
   const cached = materialCache.get(key);
@@ -237,6 +238,7 @@ export function sharedBuildingMaterial(key: BuildingMaterialKey): THREE.MeshStan
     material.userData.metricUvMeters = TEXTURE_METERS[definition.textureFamily];
   }
   if (key === 'shingle') configureSplitWoodShingleSurface(material);
+  if (key === 'thatch') configureProceduralThatchSurface(material);
   materialCache.set(key, material);
   applyTextureSet(material, definition);
   return material;
@@ -333,6 +335,8 @@ function preloadBuildingTextureSets(
 export function disposeBuildingMaterialLibrary(): void {
   for (const material of materialCache.values()) material.dispose();
   for (const material of detailMaterialCache.values()) material.dispose();
+  materialCache.clear();
+  detailMaterialCache.clear();
   disposeSharedWellWaterMaterial();
   if (textureSets) {
     const textures = new Set<THREE.Texture>();
@@ -342,6 +346,14 @@ export function disposeBuildingMaterialLibrary(): void {
       textures.add(set.roughnessMap);
     }
     for (const texture of textures) texture.dispose();
+  }
+  splitWoodShingleMap?.dispose();
+  splitWoodShingleMap = null;
+  if (proceduralThatchTextureSet) {
+    proceduralThatchTextureSet.map.dispose();
+    proceduralThatchTextureSet.normalMap.dispose();
+    proceduralThatchTextureSet.roughnessMap.dispose();
+    proceduralThatchTextureSet = null;
   }
   textureSets = null;
   textureLoadPromise = null;
@@ -357,7 +369,10 @@ export function getBuildingMaterialLibraryStats(): { constructionMaterials: numb
   return {
     constructionMaterials: materialCache.size,
     detailMaterials: detailMaterialCache.size,
-    textures: loadedTextureCount + (splitWoodShingleMap ? 1 : 0),
+    textures:
+      loadedTextureCount
+      + (splitWoodShingleMap ? 1 : 0)
+      + (proceduralThatchTextureSet ? 3 : 0),
     loaded: textureSets !== null,
   };
 }
@@ -521,6 +536,216 @@ function getSplitWoodShingleMap(): THREE.DataTexture {
 function stableShingleHash(first: number, second: number): number {
   const value =
     Math.sin(first * 12.9898 + second * 78.233 + 0.137) * 43758.5453;
+  return value - Math.floor(value);
+}
+
+const THATCH_TEXTURE_SIZE = 256;
+const THATCH_TILE_METERS = 1.4;
+const THATCH_FIBERS_ACROSS_TILE = 56;
+const THATCH_BUNDLES_ACROSS_TILE = 11;
+const THATCH_COURSES_PER_TILE = 6;
+
+function configureProceduralThatchSurface(
+  material: THREE.MeshStandardMaterial,
+): void {
+  const textures = getProceduralThatchTextureSet();
+  material.map = textures.map;
+  material.normalMap = textures.normalMap;
+  material.roughnessMap = textures.roughnessMap;
+  material.normalScale.setScalar(0.62);
+  material.userData.metricUvMeters = THATCH_TILE_METERS;
+  material.userData.buildingUsesProceduralThatchMap = true;
+  material.userData.proceduralThatchPattern = {
+    tileMeters: THATCH_TILE_METERS,
+    fiberSpacingMeters: THATCH_TILE_METERS / THATCH_FIBERS_ACROSS_TILE,
+    courseExposureMeters: THATCH_TILE_METERS / THATCH_COURSES_PER_TILE,
+    direction: 'slope-aligned-reed-fibers',
+    palette: 'weathered-grey-reed',
+    channels: ['fiber-albedo', 'fiber-normal', 'fiber-roughness'],
+  };
+}
+
+/**
+ * Produces one deterministic, tileable reed-thatch surface for every Tier 1
+ * residence. Long fibres run down the roof slope, while broader bundles and
+ * restrained course shadows share the same height field across albedo,
+ * normal, and roughness. This keeps thatch legible as a fibrous covering
+ * instead of a flat ochre paint layer.
+ */
+function getProceduralThatchTextureSet(): BuildingTextureSet {
+  if (proceduralThatchTextureSet) return proceduralThatchTextureSet;
+
+  const size = THATCH_TEXTURE_SIZE;
+  const heights = new Float32Array(size * size);
+  const albedo = new Uint8Array(size * size * 4);
+  const normal = new Uint8Array(size * size * 4);
+  const roughness = new Uint8Array(size * size * 4);
+
+  for (let pixelV = 0; pixelV < size; pixelV += 1) {
+    const v = (pixelV + 0.5) / size;
+    for (let pixelU = 0; pixelU < size; pixelU += 1) {
+      const u = (pixelU + 0.5) / size;
+      const broadWeather = periodicThatchValueNoise(u, v, 4, 13);
+      const detailWeather = periodicThatchValueNoise(u, v, 11, 29);
+      const weatherMottle = broadWeather * 0.72 + detailWeather * 0.28;
+      const warpedFiber =
+        v * THATCH_FIBERS_ACROSS_TILE
+        + Math.sin(u * Math.PI * 4 + v * Math.PI * 2) * 0.19
+        + (weatherMottle - 0.5) * 0.58;
+      const fiberIndex = Math.floor(warpedFiber);
+      const fiberT = wrappedUnit(warpedFiber);
+      const fineFiber = Math.pow(Math.max(0, Math.cos((fiberT - 0.5) * Math.PI)), 5);
+      const bundleCoordinate =
+        v * THATCH_BUNDLES_ACROSS_TILE
+        + Math.sin(u * Math.PI * 2 + fiberIndex * 0.73) * 0.08;
+      const bundleT = wrappedUnit(bundleCoordinate);
+      const bundleCrown = Math.pow(Math.max(0, Math.cos((bundleT - 0.5) * Math.PI)), 2);
+      const courseCoordinate =
+        u * THATCH_COURSES_PER_TILE
+        + (stableThatchHash(fiberIndex, 31) - 0.5) * 0.18;
+      const courseT = wrappedUnit(courseCoordinate);
+      const courseShadow =
+        1 - smoothStep01((Math.min(courseT, 1 - courseT) - 0.015) / 0.075);
+      const longitudinalCycles =
+        9 + Math.floor(stableThatchHash(fiberIndex, 47) * 6);
+      const longitudinalGrain =
+        0.5
+        + 0.5 * Math.sin(
+          u * Math.PI * 2 * longitudinalCycles
+          + fiberIndex * 1.91,
+        );
+      const fiberBreakup = 0.57 + longitudinalGrain * 0.43;
+      const fleck = periodicThatchValueNoise(u, v, 32, 53);
+      const darkFleck = smoothStep01((0.31 - fleck) / 0.14);
+      const height =
+        fineFiber * fiberBreakup * 0.34
+        + bundleCrown * 0.28
+        + longitudinalGrain * 0.1
+        + (weatherMottle - 0.5) * 0.12
+        - courseShadow * 0.035;
+      const pixelIndex = pixelV * size + pixelU;
+      heights[pixelIndex] = height;
+
+      const age = (stableThatchHash(fiberIndex, 71) - 0.5) * 16;
+      const brightness =
+        0.88
+        + fineFiber * fiberBreakup * 0.055
+        + bundleCrown * 0.045
+        + (longitudinalGrain - 0.5) * 0.07
+        + (weatherMottle - 0.5) * 0.17
+        - courseShadow * 0.045
+        - darkFleck * 0.1;
+      const dataIndex = pixelIndex * 4;
+      albedo[dataIndex] = Math.round(THREE.MathUtils.clamp((226 + age) * brightness, 82, 244));
+      albedo[dataIndex + 1] = Math.round(THREE.MathUtils.clamp((229 + age * 0.76) * brightness, 86, 246));
+      albedo[dataIndex + 2] = Math.round(THREE.MathUtils.clamp((221 + age * 0.52) * brightness, 80, 240));
+      albedo[dataIndex + 3] = 255;
+
+      const rough = THREE.MathUtils.clamp(
+        246 - fineFiber * 8 - bundleCrown * 5 + courseShadow * 6,
+        224,
+        255,
+      );
+      roughness[dataIndex] = rough;
+      roughness[dataIndex + 1] = rough;
+      roughness[dataIndex + 2] = rough;
+      roughness[dataIndex + 3] = 255;
+    }
+  }
+
+  for (let pixelV = 0; pixelV < size; pixelV += 1) {
+    for (let pixelU = 0; pixelU < size; pixelU += 1) {
+      const left = heights[pixelV * size + ((pixelU - 1 + size) % size)];
+      const right = heights[pixelV * size + ((pixelU + 1) % size)];
+      const down = heights[((pixelV - 1 + size) % size) * size + pixelU];
+      const up = heights[((pixelV + 1) % size) * size + pixelU];
+      const tangentNormal = new THREE.Vector3(
+        (left - right) * 1.35,
+        (down - up) * 2.1,
+        1,
+      ).normalize();
+      const dataIndex = (pixelV * size + pixelU) * 4;
+      normal[dataIndex] = Math.round((tangentNormal.x * 0.5 + 0.5) * 255);
+      normal[dataIndex + 1] = Math.round((tangentNormal.y * 0.5 + 0.5) * 255);
+      normal[dataIndex + 2] = Math.round((tangentNormal.z * 0.5 + 0.5) * 255);
+      normal[dataIndex + 3] = 255;
+    }
+  }
+
+  proceduralThatchTextureSet = {
+    map: createRepeatingBuildingDataTexture(
+      albedo,
+      size,
+      'Procedural grey bundled thatch albedo',
+      true,
+    ),
+    normalMap: createRepeatingBuildingDataTexture(
+      normal,
+      size,
+      'Procedural grey bundled thatch normal',
+    ),
+    roughnessMap: createRepeatingBuildingDataTexture(
+      roughness,
+      size,
+      'Procedural grey bundled thatch roughness',
+    ),
+  };
+  return proceduralThatchTextureSet;
+}
+
+function createRepeatingBuildingDataTexture(
+  data: Uint8Array,
+  size: number,
+  name: string,
+  srgb = false,
+): THREE.DataTexture {
+  const texture = new THREE.DataTexture(data, size, size, THREE.RGBAFormat);
+  texture.name = name;
+  if (srgb) texture.colorSpace = THREE.SRGBColorSpace;
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.wrapT = THREE.RepeatWrapping;
+  texture.magFilter = THREE.LinearFilter;
+  texture.minFilter = THREE.LinearMipmapLinearFilter;
+  texture.generateMipmaps = true;
+  texture.anisotropy = 8;
+  texture.needsUpdate = true;
+  return texture;
+}
+
+function wrappedUnit(value: number): number {
+  return value - Math.floor(value);
+}
+
+function periodicThatchValueNoise(
+  u: number,
+  v: number,
+  cells: number,
+  seed: number,
+): number {
+  const x = wrappedUnit(u) * cells;
+  const y = wrappedUnit(v) * cells;
+  const x0 = Math.floor(x);
+  const y0 = Math.floor(y);
+  const x1 = (x0 + 1) % cells;
+  const y1 = (y0 + 1) % cells;
+  const tx = smoothStep01(x - x0);
+  const ty = smoothStep01(y - y0);
+  const bottom = THREE.MathUtils.lerp(
+    stableThatchHash(x0 + seed * 17, y0 + seed * 31),
+    stableThatchHash(x1 + seed * 17, y0 + seed * 31),
+    tx,
+  );
+  const top = THREE.MathUtils.lerp(
+    stableThatchHash(x0 + seed * 17, y1 + seed * 31),
+    stableThatchHash(x1 + seed * 17, y1 + seed * 31),
+    tx,
+  );
+  return THREE.MathUtils.lerp(bottom, top, ty);
+}
+
+function stableThatchHash(first: number, second: number): number {
+  const value =
+    Math.sin(first * 17.173 + second * 91.733 + 0.419) * 15_731.743;
   return value - Math.floor(value);
 }
 
@@ -700,9 +925,9 @@ function applyBuildingWeatheringVertexColors(
     } else if (profile === 'thatch') {
       const bundle = 0.5 + 0.5 * Math.sin(x * 18.3 + z * 14.7 + y * 4.2);
       const eaveDarkening = lowBand * 0.14;
-      red *= 0.9 + bundle * 0.16 - eaveDarkening;
-      green *= 0.82 + bundle * 0.12 - eaveDarkening * 0.8;
-      blue *= 0.62 + bundle * 0.08 - eaveDarkening * 0.55;
+      red *= 0.88 + bundle * 0.12 - eaveDarkening * 0.82;
+      green *= 0.9 + bundle * 0.11 - eaveDarkening * 0.78;
+      blue *= 0.86 + bundle * 0.1 - eaveDarkening * 0.7;
     } else {
       const roofExposure = up * (0.55 + broadNoise * 0.45);
       const lichen = roofExposure * fineNoise * 0.1;

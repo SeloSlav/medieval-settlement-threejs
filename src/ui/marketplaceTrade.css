@@ -135,7 +135,6 @@
 .trading-post-ledger__header,
 .trading-post-ledger__summary,
 .trading-post-ledger__commodity,
-.trading-post-ledger__rates,
 .trading-post-ledger__target {
   display: flex;
   align-items: center;
@@ -149,8 +148,7 @@
 .trading-post-ledger__header h3,
 .trading-post-ledger__section h4,
 .trading-post-ledger__intro,
-.trading-post-ledger__eyebrow,
-.trading-post-ledger__status {
+.trading-post-ledger__eyebrow {
   margin: 0;
 }
 
@@ -237,7 +235,8 @@
 
 .trading-post-ledger__row {
   display: grid;
-  grid-template-columns: minmax(110px, 1.35fr) minmax(78px, 0.8fr);
+  grid-template-columns: 42px minmax(128px, 1fr) auto;
+  align-items: center;
   gap: 7px 10px;
   padding: 9px;
   border: 1px solid rgba(238, 232, 220, 0.1);
@@ -251,29 +250,19 @@
 }
 
 .trading-post-ledger__commodity,
-.trading-post-ledger__rates,
 .trading-post-ledger__target {
   min-width: 0;
   flex-direction: column;
   align-items: flex-start;
 }
 
-.trading-post-ledger__commodity strong {
-  color: #efe7d7;
-  font-size: 0.8rem;
-}
-
-.trading-post-ledger__commodity span,
-.trading-post-ledger__rates,
-.trading-post-ledger__target > span,
-.trading-post-ledger__status {
+.trading-post-ledger__target > span {
   color: rgba(238, 232, 220, 0.52);
   font-size: 0.66rem;
 }
 
-.trading-post-ledger__rates {
-  align-items: flex-end;
-  color: rgba(225, 202, 149, 0.78);
+.trading-post-ledger__commodity {
+  align-items: center;
 }
 
 .trading-post-ledger__modes {
@@ -343,19 +332,18 @@
   appearance: none;
 }
 
-.trading-post-ledger__status {
-  grid-column: 1 / -1;
-  min-height: 1em;
-  color: rgba(238, 232, 220, 0.58);
-}
-
 @media (max-width: 520px) {
   .trading-post-ledger__row {
-    grid-template-columns: 1fr;
+    grid-template-columns: 40px minmax(0, 1fr);
   }
 
-  .trading-post-ledger__rates,
+  .trading-post-ledger__commodity {
+    grid-row: 1 / span 2;
+  }
+
+  .trading-post-ledger__modes,
   .trading-post-ledger__target {
+    grid-column: 2;
     align-items: flex-start;
   }
 }

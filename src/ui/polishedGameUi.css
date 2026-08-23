@@ -114,15 +114,16 @@ select:focus-visible {
 }
 
 .settlement-vitals {
+  --settlement-vitals-width: min(310px, calc(100vw - 28px));
   position: fixed;
   right: max(14px, env(safe-area-inset-right, 0px));
   bottom: max(14px, env(safe-area-inset-bottom, 0px));
   z-index: 4;
   isolation: isolate;
   display: grid;
-  grid-template-columns: 58px 168px;
+  grid-template-columns: 58px minmax(0, 1fr);
   align-items: stretch;
-  width: 238px;
+  width: var(--settlement-vitals-width);
   min-height: 68px;
   padding: 4px 5px;
   overflow: visible;
@@ -940,7 +941,7 @@ select:focus-visible {
   z-index: 2;
   display: grid;
   gap: 6px;
-  width: min(310px, calc(100vw - 28px));
+  width: var(--settlement-vitals-width);
 }
 
 .settlement-hud__fire-alert[hidden],

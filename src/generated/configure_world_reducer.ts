@@ -21,4 +21,5 @@ export default {
   conflictEnabled: __t.bool(),
   enemyPressure: __t.u8(),
   severeWeatherEnabled: __t.bool(),
+  wellAquiferNetworksEnabled: __t.bool(),
 };

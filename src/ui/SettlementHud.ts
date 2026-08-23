@@ -53,6 +53,7 @@ import {
   CALENDAR_SECONDS_PER_DAY,
   SIM_REALTIME_RATE,
 } from '../generated/gameBalance.ts';
+import { SEASON_ALMANAC, seasonAlmanacTooltip } from './seasonAlmanac.ts';
 import {
   applyHeraldryToElement,
   createHeraldryShield,
@@ -69,46 +70,6 @@ function gameSpeedTimingLabel(speed: GameSpeed): string {
     ? realSeconds.toFixed(0)
     : realSeconds.toFixed(1);
   return `${formatted}-second day`;
-}
-
-const SEASON_ALMANAC = {
-  spring: {
-    label: 'Spring',
-    months: 'March–May',
-    icon: '❀',
-    description: 'Rain quickens crops and refills wells. Forage regrows, fish recover, and livestock breed faster.',
-  },
-  summer: {
-    label: 'Summer',
-    months: 'June–August',
-    icon: '☀',
-    description: 'Crops keep growing and hearth demand eases, but drought can drain wells, pasture, fish, and fresh stores.',
-  },
-  autumn: {
-    label: 'Autumn',
-    months: 'September–November',
-    icon: '❧',
-    description: 'Harvest grain and orchards in September, then plough and sow before winter closes the fields.',
-  },
-  winter: {
-    label: 'Winter',
-    months: 'December–February',
-    icon: '❄',
-    description: 'Foraging, fishing, wool, and garden work pause. Frozen roads slow carts while homes burn twice the usual firewood.',
-  },
-} as const satisfies Record<EnvironmentState['season'], {
-  label: string;
-  months: string;
-  icon: string;
-  description: string;
-}>;
-
-function seasonAlmanacTooltip(): string {
-  return Object.values(SEASON_ALMANAC)
-    .map(({ icon, label, months, description }) => (
-      `${icon} ${label} (${months}) — ${description}`
-    ))
-    .join(' · ');
 }
 
 const SETTLEMENT_HUD_HTML = `
@@ -181,7 +142,12 @@ const SETTLEMENT_HUD_HTML = `
         <strong data-security-label>Frontier watch</strong>
         <span data-security-detail>Awaiting reports</span>
       </button>
-      <div class="settlement-hud__welfare-alert" data-welfare-alert hidden>
+      <div
+        class="settlement-hud__welfare-alert"
+        data-welfare-alert
+        data-tooltip-placement="above"
+        hidden
+      >
         <strong data-welfare-label>Household welfare</strong>
         <span data-welfare-detail>Awaiting parish reports</span>
       </div>
@@ -937,13 +903,15 @@ export class SettlementHud {
     speed: GameSpeed,
     environment: EnvironmentState,
     _outlook?: NextDayEnvironmentOutlook,
+    severeWeatherEnabled = false,
   ): void {
-    const description = describeEnvironment(environment);
+    const severeWeatherPossible = severeWeatherEnabled || environment.weather === 'drought';
+    const description = describeEnvironment(environment, severeWeatherPossible);
     const season = SEASON_ALMANAC[environment.season];
     this.seasonStatus.textContent = description.title;
     this.seasonStatus.dataset.season = environment.season;
     this.seasonStatus.dataset.tooltipTitle = season.label;
-    this.seasonStatus.dataset.tooltip = seasonAlmanacTooltip();
+    this.seasonStatus.dataset.tooltip = seasonAlmanacTooltip(severeWeatherPossible);
     this.seasonStatus.dataset.tooltipVariant = 'season-almanac';
     this.seasonStatus.dataset.tooltipSeason = environment.season;
     this.panel.classList.toggle('is-paused', speed === 0);
@@ -1243,8 +1211,8 @@ export class SettlementHud {
               ? 'Household services'
               : 'Welfare watch';
     this.welfareAlert.dataset.tooltipTitle = this.welfareLabel.textContent;
-    this.welfareDetail.textContent = 'Review affected homes';
-    this.welfareAlert.dataset.tooltip = 'Open the Town Hall ledger for details.';
+    this.welfareDetail.textContent = 'Some homes need attention';
+    this.welfareAlert.dataset.tooltip = 'Inspect affected homes for unmet needs.';
   }
 
   clearProvisioningState(): void {
