@@ -1032,7 +1032,7 @@ function residenceUpgradePanel(
   const detail = plan.ready
     ? `${capacity}${production ? ` · ${production}` : ''}`
     : `Blocked · ${plan.blockers.join(' · ')}`;
-  return `<button type="button" class="resource-action-button resource-action-button--icon" data-action="upgrade-residence" data-upgrade-tier="${plan.nextTier}" data-tooltip-title="Tier ${plan.nextTier}" data-tooltip="${detail}" ${plan.ready ? '' : 'disabled'}><span class="inspector-action-icon" data-action-icon="residence-tier-${plan.nextTier}" aria-hidden="true"></span><span>Upgrade · Tier ${plan.nextTier}</span>${resourceCost}</button>`;
+  return `<button type="button" class="resource-action-button resource-action-button--icon" data-action="upgrade-residence" data-upgrade-tier="${plan.nextTier}" data-tooltip-title="Tier ${plan.nextTier}" data-tooltip="${detail}" ${plan.ready ? '' : 'aria-disabled="true"'}><span class="inspector-action-icon" data-action-icon="residence-tier-${plan.nextTier}" aria-hidden="true"></span><span>Upgrade · Tier ${plan.nextTier}</span>${resourceCost}</button>`;
 }
 
 function residenceUpgradeProjectPanel(

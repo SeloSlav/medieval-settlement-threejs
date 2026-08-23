@@ -1570,17 +1570,25 @@ select:focus-visible {
   cursor: pointer;
 }
 
-.resource-action-button:hover:not(:disabled),
-.inspector-action-panel__button:hover:not(:disabled) {
+.resource-action-button:hover:not(:disabled):not([aria-disabled='true']),
+.inspector-action-panel__button:hover:not(:disabled):not([aria-disabled='true']) {
   border-color: rgba(237, 203, 121, 0.66);
   color: #fff1ce;
   background: rgba(207, 160, 72, 0.16);
 }
 
 .resource-action-button:disabled,
-.inspector-action-panel__button:disabled {
+.resource-action-button[aria-disabled='true'],
+.inspector-action-panel__button:disabled,
+.inspector-action-panel__button[aria-disabled='true'] {
   opacity: 0.38;
   cursor: not-allowed;
+}
+
+.resource-action-button[aria-disabled='true']:focus-visible,
+.inspector-action-panel__button[aria-disabled='true']:focus-visible {
+  outline: 1px solid rgba(237, 203, 121, 0.72);
+  outline-offset: 2px;
 }
 
 .inspector-policy-select {

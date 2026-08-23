@@ -38,6 +38,7 @@ export function handleSupplementalPanelClick(
   }
   const upgradeButton = eventTarget.closest<HTMLElement>('[data-action="upgrade-residence"]');
   if (upgradeButton && target?.kind === 'residence') {
+    if (upgradeButton.getAttribute('aria-disabled') === 'true') return true;
     void handlers.onUpgradeResidence?.(target.residence.id);
     return true;
   }

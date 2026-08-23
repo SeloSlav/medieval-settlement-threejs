@@ -700,8 +700,8 @@ assert.match(residenceInspector, /Household prosperity/);
 assert.doesNotMatch(residenceInspector, /Household wealth/);
 assert.match(
   residenceInspector,
-  /data-action="upgrade-residence" data-upgrade-tier="\$\{plan\.nextTier\}" data-tooltip-title="Tier \$\{plan\.nextTier\}" data-tooltip="\$\{detail\}" \$\{plan\.ready \? '' : 'disabled'\}/,
-  'the compact upgrade control must preserve tooltip context and authoritative disabled gating',
+  /data-action="upgrade-residence" data-upgrade-tier="\$\{plan\.nextTier\}" data-tooltip-title="Tier \$\{plan\.nextTier\}" data-tooltip="\$\{detail\}" \$\{plan\.ready \? '' : 'aria-disabled="true"'\}/,
+  'the compact upgrade control must preserve keyboard-reachable tooltip context and authoritative gating',
 );
 assert.match(residenceInspector, /<span>Upgrade · Tier \$\{plan\.nextTier\}<\/span>/);
 assert.doesNotMatch(residenceInspector, /Begin tier \$\{plan\.nextTier\} works/);

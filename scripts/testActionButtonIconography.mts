@@ -20,6 +20,7 @@ const expandedBuildingRenderer = readFileSync('src/resources/inspector/expandedB
 const farmFieldRenderer = readFileSync('src/resources/inspector/farmFieldRenderer.ts', 'utf8');
 const livestockBuildingRenderer = readFileSync('src/resources/inspector/livestockBuildingRenderer.ts', 'utf8');
 const inspectorResourceTokens = readFileSync('src/resources/inspector/inspectorResourceTokens.ts', 'utf8');
+const supplementalPanel = readFileSync('src/resources/inspector/supplementalPanel.ts', 'utf8');
 const resourceInspector = readFileSync('src/resources/ResourceInspector.ts', 'utf8');
 const alertDialog = readFileSync('src/ui/AlertDialog.ts', 'utf8');
 const alertDialogCss = readFileSync('src/ui/alertDialog.css', 'utf8');
@@ -155,6 +156,10 @@ assert.doesNotMatch(iconography, /\.svg(?:['")])/i, 'active commodity mappings m
 assert.match(iconography, /\.resource-cost--unaffordable\s*\{[\s\S]{0,120}color:\s*#f09a82/);
 
 assert.match(resourceInspector, /data-fire-recovery[\s\S]{0,520}data-action-icon="fire-recovery"|data-action-icon="fire-recovery"[\s\S]{0,520}data-fire-recovery/);
+assert.match(resourceInspector, /recoveryBlocked \? 'aria-disabled="true"' : ''/);
+assert.match(resourceInspector, /if \(fireRecoveryButton\.getAttribute\('aria-disabled'\) === 'true'\) return/);
+assert.match(resourceInspector, /<span>\$\{recoveryLabel\}\$\{coolingSeconds/);
+assert.match(supplementalPanel, /if \(upgradeButton\.getAttribute\('aria-disabled'\) === 'true'\) return true/);
 assert.match(
   resourceInspector,
   /row\.hasAttribute\('data-residence-summary'\)[\s\S]{0,260}this\.panel\.dataset\.inspectorTarget === 'residence'[\s\S]{0,180}replaceChildren/,

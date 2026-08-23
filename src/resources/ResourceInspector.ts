@@ -808,7 +808,10 @@ export class ResourceInspector {
       }
       return;
     }
-    if ((event.target as HTMLElement).closest('[data-fire-recovery]')) {
+    const fireRecoveryButton = (event.target as HTMLElement)
+      .closest<HTMLElement>('[data-fire-recovery]');
+    if (fireRecoveryButton) {
+      if (fireRecoveryButton.getAttribute('aria-disabled') === 'true') return;
       if (this.selectedTarget?.kind === 'building') {
         void this.options.onRepairFireDamage?.('building', this.selectedTarget.building.id);
       } else if (this.selectedTarget?.kind === 'residence') {
@@ -2180,18 +2183,31 @@ export class ResourceInspector {
         };
       }
       if (!residenceRecoveryActive) {
-        const recoveryButton = !recovery || fire.status === 'burning'
-          ? ''
-          : `<button type="button" class="resource-action-button resource-action-button--icon" data-fire-recovery
+        let recoveryButton = '';
+        if (recovery && fire.status !== 'burning') {
+          const recoveryBlocked = coolingSeconds > 1e-6 || !canAffordRecovery;
+          const recoveryAvailability = coolingSeconds > 1e-6
+            ? `Cooling · ${Math.ceil(coolingSeconds)}s`
+            : !canAffordRecovery
+              ? 'Insufficient resources'
+              : '';
+          const recoveryDetail = [
+            recoveryAvailability,
+            recovery.carpenterSupported ? 'Carpenter support' : '',
+            recovery.scriptoriumRecoveryMultiplier < 1
+              ? `Scriptorium ${Math.round((1 - recovery.scriptoriumRecoveryMultiplier) * 100)}%`
+              : '',
+            'Existing footprint',
+          ].filter(Boolean).join(' · ');
+          recoveryButton = `<button type="button" class="resource-action-button resource-action-button--icon" data-fire-recovery
               data-tooltip-title="${recoveryLabel}"
-              data-tooltip="${recovery.carpenterSupported ? 'Carpenter support · ' : ''}${recovery.scriptoriumRecoveryMultiplier < 1 ? `Scriptorium ${Math.round((1 - recovery.scriptoriumRecoveryMultiplier) * 100)}% · ` : ''}Existing footprint"
-              ${coolingSeconds > 1e-6 || !canAffordRecovery ? 'disabled' : ''}>
-              <span class="inspector-action-icon" data-action-icon="fire-recovery" aria-hidden="true"></span><span>${coolingSeconds > 1e-6
-                ? `Cooling · ${Math.ceil(coolingSeconds)}s`
-                : !canAffordRecovery
-                  ? renderBuildingResourceCost(recovery.cost, { compact: true })
-                  : `${recoveryLabel} · ${renderBuildingResourceCost(recovery.cost, { compact: true })}`}</span>
+              data-tooltip="${recoveryDetail}"
+              ${recoveryBlocked ? 'aria-disabled="true"' : ''}>
+              <span class="inspector-action-icon" data-action-icon="fire-recovery" aria-hidden="true"></span><span>${recoveryLabel}${coolingSeconds > 1e-6
+                ? ` · ${Math.ceil(coolingSeconds)}s`
+                : ` · ${renderBuildingResourceCost(recovery.cost, { compact: true })}`}</span>
             </button>`;
+        }
         view.supplementalPanelHtml = target.kind === 'residence'
           ? recoveryButton
           : fire.status === 'burning' || !recovery

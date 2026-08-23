@@ -386,7 +386,7 @@ assert.match(
 );
 assert.match(
   inspector,
-  /data-tooltip-title="Tier \$\{plan\.nextTier\}" data-tooltip="\$\{detail\}" \$\{plan\.ready \? '' : 'disabled'\}[\s\S]{0,240}<span>Upgrade · Tier \$\{plan\.nextTier\}<\/span>/,
+  /data-tooltip-title="Tier \$\{plan\.nextTier\}" data-tooltip="\$\{detail\}" \$\{plan\.ready \? '' : 'aria-disabled="true"'\}[\s\S]{0,240}<span>Upgrade · Tier \$\{plan\.nextTier\}<\/span>/,
   'the compact Upgrade control must retain tooltip context and the authoritative route/resource gate',
 );
 
