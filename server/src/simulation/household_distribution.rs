@@ -10,7 +10,8 @@ use spacetimedb::{Identity, ReducerContext};
 
 use crate::balance_generated::{
     CALENDAR_HOURS_PER_DAY, CALENDAR_SECONDS_PER_DAY, CALENDAR_WORK_END_HOUR,
-    CALENDAR_WORK_START_HOUR, RESIDENCE_ALE_PER_PERSON_PER_SEC, RESIDENCE_CLOTH_PER_PERSON_PER_SEC,
+    CALENDAR_WORK_START_HOUR, MARKETPLACE_HOUSEHOLD_ISSUE_CHECKS_PER_DAY,
+    RESIDENCE_ALE_PER_PERSON_PER_SEC, RESIDENCE_CLOTH_PER_PERSON_PER_SEC,
     RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC, RESIDENCE_LUXURY_JAM_PER_PERSON_PER_SEC,
     RESIDENCE_POTTERY_PER_PERSON_PER_SEC, RESIDENCE_PRESERVED_FOOD_PER_PERSON_PER_SEC,
     RESIDENCE_SHOES_PER_PERSON_PER_SEC, TICK_DT,
@@ -75,7 +76,9 @@ impl MarketIssueCycle {
     }
 }
 
-/// Issue household lots from stock held at local markets once per day. An
+/// Check household lots from stock held at local markets several times per
+/// day. Each check fills only to the same daily target, so frequent checks
+/// reduce the wait after stock arrives without multiplying household demand. An
 /// optional Town Hall safeguard adds a deeper buffer for critically low food
 /// and fuel without turning every meal into a separate haul. Replenishment
 /// remains physical, and scarce stock is shared one household-day at a time
@@ -284,7 +287,9 @@ pub fn step_market_household_distribution(
 
 fn market_issue_cycle(sim_tick: u64) -> Option<MarketIssueCycle> {
     let ticks_per_day = (CALENDAR_SECONDS_PER_DAY / TICK_DT).round().max(1.0) as u64;
-    if sim_tick == 0 || sim_tick % ticks_per_day != 0 {
+    let checks_per_day = u64::from(MARKETPLACE_HOUSEHOLD_ISSUE_CHECKS_PER_DAY.max(1));
+    let ticks_per_check = ticks_per_day.div_ceil(checks_per_day).max(1);
+    if sim_tick == 0 || sim_tick % ticks_per_check != 0 {
         return None;
     }
     Some(MarketIssueCycle::Daily)
@@ -558,23 +563,27 @@ mod tests {
     };
 
     #[test]
-    fn household_market_issues_once_every_day() {
+    fn household_market_checks_repeat_at_the_configured_daily_cadence() {
         let ticks_per_day = (crate::balance_generated::CALENDAR_SECONDS_PER_DAY
             / crate::balance_generated::TICK_DT)
             .round() as u64;
+        let checks_per_day =
+            u64::from(crate::balance_generated::MARKETPLACE_HOUSEHOLD_ISSUE_CHECKS_PER_DAY);
+        let ticks_per_check = ticks_per_day.div_ceil(checks_per_day);
+        assert!(checks_per_day > 1);
         assert_eq!(market_issue_cycle(0), None);
-        assert_eq!(market_issue_cycle(ticks_per_day - 1), None);
+        assert_eq!(market_issue_cycle(ticks_per_check - 1), None);
+        assert_eq!(
+            market_issue_cycle(ticks_per_check),
+            Some(MarketIssueCycle::Daily)
+        );
+        assert_eq!(market_issue_cycle(ticks_per_check + 1), None);
+        assert_eq!(
+            market_issue_cycle(ticks_per_check * 2),
+            Some(MarketIssueCycle::Daily)
+        );
         assert_eq!(
             market_issue_cycle(ticks_per_day),
-            Some(MarketIssueCycle::Daily)
-        );
-        assert_eq!(market_issue_cycle(ticks_per_day + 1), None);
-        assert_eq!(
-            market_issue_cycle(ticks_per_day * 2),
-            Some(MarketIssueCycle::Daily)
-        );
-        assert_eq!(
-            market_issue_cycle(ticks_per_day * 8),
             Some(MarketIssueCycle::Daily)
         );
     }

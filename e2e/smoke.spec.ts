@@ -1,4 +1,8 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
+import {
+  HUD_RESOURCE_KINDS,
+  type HudResourceKind,
+} from '../src/resources/resourceTotals.ts';
 import { RESOURCE_COST_KINDS } from '../src/ui/resourceCost.ts';
 
 const STARTING_TIMBER = 160;
@@ -6,6 +10,63 @@ const REFORESTER_TIMBER_COST = 35;
 const STARTING_POPULATION = 10;
 const STARTUP_TIMEOUT_MS = 90_000;
 const SYNC_TIMEOUT_MS = 45_000;
+const CORE_HUD_RESOURCE_KINDS = new Set<HudResourceKind>([
+  'timber',
+  'stone',
+  'firewood',
+  'water',
+  'food',
+  'gold',
+  'charcoal',
+]);
+const EXPECTED_PROVISION_RESOURCE_KINDS = HUD_RESOURCE_KINDS.filter(
+  (resource) => !CORE_HUD_RESOURCE_KINDS.has(resource),
+);
+
+type ProvisionValueSnapshot = {
+  resource: string;
+  displayedAmount: string;
+  tooltipAmount: string;
+  tooltipAmountLabel: string;
+  isEmpty: boolean;
+};
+
+async function expectProvisionValuesToMatchTooltips(
+  page: Page,
+  expectedAmountLabel: string,
+): Promise<ProvisionValueSnapshot[]> {
+  const snapshots = await page
+    .locator('[data-specialty-stores] [data-resource]')
+    .evaluateAll((rows) => rows.map((row) => {
+      const stat = row as HTMLElement;
+      const value = stat.querySelector<HTMLElement>('[data-stockpile]');
+      return {
+        resource: stat.dataset.resource ?? '',
+        displayedAmount: value?.textContent?.trim() ?? '',
+        tooltipAmount: stat.dataset.tooltipAmount ?? '',
+        tooltipAmountLabel: stat.dataset.tooltipAmountLabel ?? '',
+        isEmpty: stat.classList.contains('is-empty'),
+      };
+  }));
+
+  const numericAmount = (amount: string): number => Number(amount.replace(/[^\d.-]/g, ''));
+  expect(snapshots.map(({ resource }) => resource).sort()).toEqual(
+    [...EXPECTED_PROVISION_RESOURCE_KINDS].sort(),
+  );
+  expect(
+    snapshots.filter(({ tooltipAmountLabel }) => tooltipAmountLabel !== expectedAmountLabel),
+  ).toEqual([]);
+  expect(
+    snapshots.filter(({ displayedAmount, tooltipAmount }) => (
+      numericAmount(displayedAmount) !== numericAmount(tooltipAmount)
+    )),
+  ).toEqual([]);
+  const activeRowCount = snapshots.filter(({ isEmpty }) => !isEmpty).length;
+  await expect(page.locator('[data-specialty-stores-status]')).toHaveText(
+    activeRowCount.toString(),
+  );
+  return snapshots;
+}
 
 test('gives rye, oat, and maslin bread distinct provision icons', async ({ page }) => {
   await page.setContent(`
@@ -305,6 +366,9 @@ test('connects, places a reforester, and updates settlement HUD timber', async (
   await expect(tooltip.locator('.ui-tooltip__title')).toHaveText('Surplus goods (default)');
   await expect(tooltip.locator('.ui-tooltip__label')).toHaveCount(0);
   const specialtyStores = page.locator('[data-specialty-stores]');
+  await expect(page.locator('[data-geology-alert]')).toHaveCount(0);
+  await expect(specialtyStores).not.toHaveClass(/has-geology-alert/);
+  await expect(specialtyStores.locator('[data-specialty-stores-status]')).toBeVisible();
   const specialtySummary = specialtyStores.locator('> summary');
   await specialtySummary.hover();
   await expect(specialtyStores).toHaveAttribute('open', '');
@@ -326,6 +390,12 @@ test('connects, places a reforester, and updates settlement HUD timber', async (
   );
   await page.waitForTimeout(250);
   await expect(specialtyStores).toHaveAttribute('open', '');
+  const surplusProvisionValues = await expectProvisionValuesToMatchTooltips(
+    page,
+    'Available surplus',
+  );
+  const hidesSurplus = surplusProvisionValues.find(({ resource }) => resource === 'hides');
+  expect(Number(hidesSurplus?.tooltipAmount.replace(/[^\d.-]/g, '') ?? 0)).toBeGreaterThan(0);
   const ironworkValue = page.locator('[data-stockpile="ironwork"]');
   await expect(ironworkValue).toHaveText('9000');
   await ironworkValue.hover();
@@ -347,6 +417,7 @@ test('connects, places a reforester, and updates settlement HUD timber', async (
   await expect(specialtyStores.locator('[data-specialty-stores-mode-label]')).toHaveText(
     'Total stored',
   );
+  await expectProvisionValuesToMatchTooltips(page, 'Total stored');
   await ironworkValue.hover();
   await expect(tooltip.locator('.ui-tooltip__amount-label')).toHaveText('Total stored');
   await expect(tooltip.locator('.ui-tooltip__amount-value')).toHaveText('9,000');

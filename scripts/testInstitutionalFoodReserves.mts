@@ -273,12 +273,12 @@ assert.match(livestockInspector, /central surplus/);
 assert.match(livestockInspector, /Next surplus cart/);
 assert.match(granaryInspector, /Household priority/);
 assert.match(granaryInspector, /data-granary-households-first/);
-assert.match(granaryInspector, /Feed households before smokehouses/);
-assert.match(granaryInspector, /falls through/);
+assert.match(granaryInspector, /<span>Households first<\/span>/);
+assert.match(granaryInspector, /Turn on to stock household Marketplace stalls before smokehouses/);
 assert.match(granaryInspector, /critical company before this working batch/);
 assert.match(granaryInspector, /Smokehouse batch → routine company reserve → enabled granary intake/);
 assert.match(granaryInspector, /Producer-owned carts protect local Marketplace reserves/);
-assert.match(granaryInspector, /Sources with no dependent market branch can release their whole surplus/);
+assert.match(granaryInspector, /data-inspector-panel-title="Protected grain/);
 assert.match(guardhouseInspector, /becomes an emergency claim/);
 assert.match(guardhouseInspector, /None until polearms arm the company/);
 

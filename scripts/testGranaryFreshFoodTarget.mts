@@ -74,17 +74,24 @@ assert.equal(granaryFreshFoodTarget(-10, 75), 0);
 assert.equal(granaryFreshFoodTarget(Number.NaN, 75), 0);
 
 const legacyPanel = renderGranaryPolicyPanel(makeGranary());
-assert.match(legacyPanel, /Choose exactly which harvests and provisions this Granary may receive/);
-assert.match(legacyPanel, /Cured provisions retain best in their smokehouse loft/);
-assert.match(legacyPanel, /Fresh-food intake target/);
+assert.equal(
+  (legacyPanel.match(/class="inspector-action-panel"/g) ?? []).length,
+  4,
+  'granary choices must render as four separate policy cards',
+);
+assert.match(legacyPanel, /data-inspector-panel-title="Accepted goods"/);
+assert.match(legacyPanel, /Choose which goods this Granary may collect; disabling a good stops new intake but leaves existing stock usable\./);
+assert.match(legacyPanel, /data-inspector-panel-title="Delivery order · Smokehouses first"/);
+assert.match(legacyPanel, /data-inspector-panel-title="Fresh-food limit · 255"/);
+assert.match(legacyPanel, /data-inspector-panel-title="Protected grain · 0"/);
+assert.doesNotMatch(legacyPanel, /Cured provisions retain best in their smokehouse loft/);
 assert.match(
   legacyPanel,
   /data-granary-fresh-food-target="75"[^>]*disabled/,
   'missing saves must render the legacy 75% policy as selected',
 );
-assert.match(legacyPanel, /Current target 255 food/);
-assert.match(legacyPanel, /lower settings reduce collection-cart pressure/);
-assert.match(legacyPanel, /higher settings shelter more food from spoilage/);
+assert.match(legacyPanel, /Collect up to 255 fresh food \(75% of 340 capacity\); outgoing carts can still use it\./);
+assert.match(legacyPanel, /data-granary-fresh-food-target="75" aria-pressed="true"/);
 const localOnlyPanel = renderGranaryPolicyPanel(makeGranary({
   granaryAcceptsFreshFood: false,
 }));
@@ -92,13 +99,13 @@ assert.doesNotMatch(
   localOnlyPanel,
   /data-granary-accepts-fresh-food[^>]*checked/,
 );
-assert.match(localOnlyPanel, /disabling it stops new cured intake/);
+assert.match(localOnlyPanel, /disabling a good stops new intake but leaves existing stock usable/);
 
 const deepReservePanel = renderGranaryPolicyPanel(makeGranary({
   granaryFreshFoodTargetPercent: 90,
 }));
 assert.match(deepReservePanel, /data-granary-fresh-food-target="90"[^>]*disabled/);
-assert.match(deepReservePanel, /Current target 306 food/);
+assert.match(deepReservePanel, /data-inspector-panel-title="Fresh-food limit · 306"/);
 assert.match(deepReservePanel, /retaining headroom for incoming harvest carts/);
 
 const tableSource = readFileSync('server/src/tables.rs', 'utf8');

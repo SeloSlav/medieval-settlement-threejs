@@ -238,8 +238,8 @@ export function renderStorageAcceptanceControls(
           <span>${active} of ${total} enabled</span>
         </div>
         <div class="storage-acceptance__bulk">
-          <button type="button" data-storage-accept-all="true" ${active === total ? 'disabled' : ''}>Activate all</button>
-          <button type="button" data-storage-accept-all="false" ${active === 0 ? 'disabled' : ''}>Cancel all</button>
+          <button type="button" data-storage-accept-all="true" ${active === total ? 'disabled' : ''}>Accept all</button>
+          <button type="button" data-storage-accept-all="false" ${active === 0 ? 'disabled' : ''}>Accept none</button>
         </div>
       </div>
       ${groups.map((group) => `
@@ -249,7 +249,10 @@ export function renderStorageAcceptanceControls(
             ${group.commodities.map((commodity) => {
               const label = storageCommodityLabel(commodity);
               const accepts = storageAcceptsCommodity(building, commodity);
-              return `<button type="button" class="storage-acceptance__commodity resource-cost__item${accepts ? '' : ' is-blocked'}" data-resource-cost="${commodity}" data-storage-commodity="${commodity}" data-storage-accepts="${accepts}" aria-pressed="${accepts}" title="${label} · ${accepts ? 'accepted' : 'barred'}"><span class="resource-cost__icon" aria-hidden="true"></span><span class="storage-acceptance__commodity-label">${label}</span></button>`;
+              const state = accepts
+                ? `${label}: accepting new deliveries.`
+                : `${label}: new deliveries blocked.`;
+              return `<button type="button" class="storage-acceptance__commodity resource-cost__item${accepts ? '' : ' is-blocked'}" data-resource-cost="${commodity}" data-storage-commodity="${commodity}" data-storage-accepts="${accepts}" aria-pressed="${accepts}" aria-label="${state}" title="${state}"><span class="resource-cost__icon" aria-hidden="true"></span><span class="storage-acceptance__commodity-label">${label}</span></button>`;
             }).join('')}
           </div>
         </section>

@@ -781,46 +781,15 @@ select:focus-visible {
   line-height: 1;
 }
 
-/* Match the shared zero-stock treatment used by the individual HUD resources.
- * A geology warning remains fully emphasized even when no specialty is stocked. */
-.settlement-hud__stores:not(.has-stock):not(.has-geology-alert)
-  > .settlement-hud__stores-summary {
+/* Match the shared zero-stock treatment used by the individual HUD resources. */
+.settlement-hud__stores:not(.has-stock) > .settlement-hud__stores-summary {
   opacity: 0.48;
 }
 
-.settlement-hud__stores:not(.has-stock):not(.has-geology-alert)
-  > .settlement-hud__stores-summary:hover,
-.settlement-hud__stores:not(.has-stock):not(.has-geology-alert)
-  > .settlement-hud__stores-summary:focus-visible,
-.settlement-hud__stores:not(.has-stock):not(.has-geology-alert)[open]
-  > .settlement-hud__stores-summary {
+.settlement-hud__stores:not(.has-stock) > .settlement-hud__stores-summary:hover,
+.settlement-hud__stores:not(.has-stock) > .settlement-hud__stores-summary:focus-visible,
+.settlement-hud__stores:not(.has-stock)[open] > .settlement-hud__stores-summary {
   opacity: 0.85;
-}
-
-.settlement-hud__geology-alert {
-  grid-column: 2;
-  grid-row: 1;
-  align-self: end;
-  justify-self: stretch;
-  min-width: 0;
-  margin: 0;
-  padding: 2px 2px;
-  overflow: hidden;
-  border-radius: 2px;
-  font-size: 7px;
-  line-height: 1.05;
-  letter-spacing: 0;
-  text-align: center;
-  text-overflow: clip;
-  white-space: normal;
-}
-
-.settlement-hud__geology-alert::before {
-  display: none;
-}
-
-.settlement-hud__stores.has-geology-alert > .settlement-hud__stores-summary::before {
-  color: #e5b75f;
 }
 
 .settlement-hud__stores[open] > .settlement-hud__stores-summary::before {
@@ -1652,6 +1621,16 @@ select:focus-visible {
   cursor: not-allowed;
 }
 
+.resource-action-button.is-selected:disabled {
+  opacity: 1;
+  border-color: rgba(237, 203, 121, 0.68);
+  color: #fff0c9;
+  background:
+    linear-gradient(180deg, rgba(207, 160, 72, 0.24), rgba(112, 79, 28, 0.12)),
+    rgba(255, 255, 255, 0.025);
+  cursor: default;
+}
+
 .resource-action-button[aria-disabled='true']:focus-visible,
 .inspector-action-panel__button[aria-disabled='true']:focus-visible {
   outline: 1px solid rgba(237, 203, 121, 0.72);
@@ -1878,6 +1857,52 @@ select:focus-visible {
   clip: rect(0, 0, 0, 0);
   white-space: nowrap;
   border: 0;
+}
+
+.storehouse-stock-target {
+  display: grid;
+  gap: 5px;
+  padding: 7px 0;
+  border-bottom: 1px solid rgba(220, 195, 139, 0.1);
+}
+
+.storehouse-stock-target:first-of-type {
+  padding-top: 2px;
+}
+
+.storehouse-stock-target:last-child {
+  padding-bottom: 2px;
+  border-bottom: 0;
+}
+
+.storehouse-stock-target__heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.storehouse-stock-target__heading strong {
+  color: #dec999;
+  font: 700 10px/1.2 var(--ui-font-sans);
+}
+
+.storehouse-stock-target__heading span {
+  min-width: 0;
+  color: #948b7b;
+  font: 600 9px/1.3 var(--ui-font-sans);
+  text-align: right;
+}
+
+.storehouse-stock-target .resource-action-row {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.storehouse-stock-target .resource-action-button {
+  min-width: 0;
+  padding-inline: 4px;
 }
 
 /* Villagers -------------------------------------------------------------- */

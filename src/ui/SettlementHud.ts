@@ -35,11 +35,6 @@ import type {
   SettlementApproval,
   SettlementApprovalFactor,
 } from '../economy/settlementApproval.ts';
-import {
-  selectSettlementGeologyAlert,
-  type SettlementGeologyAlert,
-  type SettlementGeologyPlan,
-} from '../economy/settlementGeology.ts';
 import type { AuthoritativeWorldGeneration } from '../world/worldConfigAuthority.ts';
 import {
   FOOD_RESOURCE_KINDS,
@@ -413,13 +408,6 @@ const SETTLEMENT_HUD_HTML = `
       >
         <span class="settlement-hud__stores-label">Stores</span>
         <strong class="settlement-hud__stores-status" data-specialty-stores-status>0</strong>
-        <button
-          type="button"
-          class="settlement-hud__geology-alert"
-          data-geology-alert
-          aria-label="Inspect geological reserve warning"
-          hidden
-        ></button>
       </summary>
       <div class="settlement-hud__stores-grid" aria-label="Provisions">
       <div class="settlement-hud__stores-grid-header" role="heading" aria-level="2">
@@ -614,19 +602,12 @@ export class SettlementHud {
   private readonly polearmsStat: HTMLElement;
   private readonly specialtyStores: HTMLDetailsElement;
   private readonly specialtyStoresSummary: HTMLElement;
-  private readonly specialtyStoresStatus: HTMLElement;
-  private readonly geologyAlert: HTMLButtonElement;
-  private readonly geologyResourceRows: Record<
-    SettlementGeologyAlert['resource'],
-    HTMLElement
-  >;
   private readonly speedButtons: HTMLButtonElement[];
   private readonly fpsValue: HTMLElement;
   private readonly zoomValue: HTMLElement;
   private readonly nobleEye: HTMLButtonElement;
   private onToggleFirstPerson: (() => void) | null = null;
   private onLocateResource: ((resource: HudResourceKind) => void) | null = null;
-  private onInspectGeologyAttention: ((buildingId: string) => void) | null = null;
   private onInspectSecurityAttention: ((
     target: ProjectedRaidTarget,
     index: number,
@@ -634,7 +615,6 @@ export class SettlementHud {
   ) => void) | null = null;
   private securityAttentionTargets: readonly ProjectedRaidTarget[] = [];
   private securityAttentionIndex = 0;
-  private geologyAttentionBuildingId: string | null = null;
   private lastApprovalScore: number | null = null;
   private lastApprovalTrend: 'rising' | 'falling' | 'steady' = 'steady';
   private approvalTrendExpiresAt = 0;
@@ -721,14 +701,6 @@ export class SettlementHud {
     this.specialtyStoresSummary = this.mustElement(
       '[data-specialty-stores] > .settlement-hud__stores-summary',
     );
-    this.specialtyStoresStatus = this.mustElement('[data-specialty-stores-status]');
-    this.geologyAlert = this.mustButton('[data-geology-alert]');
-    this.geologyResourceRows = {
-      stone: this.mustElement('[data-resource="stone"]'),
-      clay: this.mustElement('[data-resource="clay"]'),
-      iron: this.mustElement('[data-resource="iron"]'),
-      salt: this.mustElement('[data-resource="salt"]'),
-    };
     this.speedButtons = [...this.panel.querySelectorAll<HTMLButtonElement>('[data-game-speed]')];
     for (const button of this.speedButtons) {
       button.addEventListener('click', () => {
@@ -768,7 +740,6 @@ export class SettlementHud {
     this.nobleHud.addEventListener('click', this.onResourceRowClick);
     this.nobleHud.addEventListener('keydown', this.onResourceRowKeyDown);
     this.securityAlert.addEventListener('click', this.onSecurityAlertClick);
-    this.geologyAlert.addEventListener('click', this.onGeologyAlertClick);
     this.approvalButton.addEventListener('click', this.onApprovalOpen);
     this.approvalButton.addEventListener('focus', this.onApprovalOpen);
     this.approvalButton.addEventListener('blur', this.onApprovalBlur);
@@ -829,12 +800,6 @@ export class SettlementHud {
     this.onLocateResource = handler;
   }
 
-  setGeologyAttentionHandler(
-    handler: ((buildingId: string) => void) | null,
-  ): void {
-    this.onInspectGeologyAttention = handler;
-  }
-
   setSecurityAttentionHandler(
     handler: ((
       target: ProjectedRaidTarget,
@@ -844,59 +809,6 @@ export class SettlementHud {
   ): void {
     this.onInspectSecurityAttention = handler;
     this.refreshSecurityAttentionControl();
-  }
-
-  setGeologyState(plan: SettlementGeologyPlan | null): void {
-    const alert = plan === null ? null : selectSettlementGeologyAlert(plan);
-    this.geologyAttentionBuildingId = alert?.firstAttentionBuildingId ?? null;
-    this.geologyAlert.hidden = alert === null;
-    this.specialtyStoresStatus.hidden = alert !== null;
-    this.specialtyStores.classList.toggle('has-geology-alert', alert !== null);
-    delete this.specialtyStores.dataset.geologyLevel;
-    for (const resource of ['stone', 'clay', 'iron', 'salt'] as const) {
-      const row = this.geologyResourceRows[resource];
-      row.classList.toggle(
-        'has-geology-alert',
-        alert?.resource === resource,
-      );
-      delete row.dataset.geologyLevel;
-    }
-    if (alert === null) {
-      this.geologyAlert.textContent = '';
-      delete this.geologyAlert.dataset.level;
-      delete this.geologyAlert.dataset.tooltipTitle;
-      delete this.geologyAlert.dataset.tooltip;
-      return;
-    }
-
-    const resourceLabel = geologyResourceLabel(alert.resource);
-    const affectedRow = this.geologyResourceRows[alert.resource];
-    this.specialtyStores.dataset.geologyLevel = alert.level;
-    affectedRow.dataset.geologyLevel = alert.level;
-    this.geologyAlert.dataset.level = alert.level;
-    if (alert.reason === 'deep-supports') {
-      const worksiteCount = alert.deepSourcesAwaitingSupports;
-      this.geologyAlert.textContent = `${resourceLabel} supports`;
-      this.geologyAlert.setAttribute(
-        'aria-label',
-        `Inspect ${resourceLabel.toLowerCase()} extraction warning: ${worksiteCount} staffed deep ${
-          worksiteCount === 1 ? 'worksite awaits' : 'worksites await'
-        } timber supports`,
-      );
-    } else {
-      const runway = formatGeologyAlertRunway(alert.runwayDays);
-      this.geologyAlert.textContent = `${resourceLabel} ${runway}`;
-      this.geologyAlert.setAttribute(
-        'aria-label',
-        `Inspect ${resourceLabel.toLowerCase()} extraction warning: shortest staffed finite seam ${runway}`,
-      );
-    }
-    this.geologyAlert.dataset.tooltipTitle = `${resourceLabel} reserves`;
-    this.geologyAlert.dataset.tooltip = geologyAlertTooltip(alert);
-  }
-
-  clearGeologyState(): void {
-    this.setGeologyState(null);
   }
 
   setSimulationState(
@@ -1413,14 +1325,6 @@ export class SettlementHud {
     this.activateResourceRow(event.target);
   };
 
-  private readonly onGeologyAlertClick = (event: MouseEvent): void => {
-    event.preventDefault();
-    event.stopPropagation();
-    if (this.geologyAttentionBuildingId !== null) {
-      this.onInspectGeologyAttention?.(this.geologyAttentionBuildingId);
-    }
-  };
-
   private readonly onSecurityAlertClick = (event: MouseEvent): void => {
     event.preventDefault();
     event.stopPropagation();
@@ -1613,7 +1517,6 @@ export class SettlementHud {
     this.cancelSpecialtyStoresClose();
     this.nobleEye.removeEventListener('click', this.onNobleEyeClick);
     this.securityAlert.removeEventListener('click', this.onSecurityAlertClick);
-    this.geologyAlert.removeEventListener('click', this.onGeologyAlertClick);
     this.approvalButton.removeEventListener('click', this.onApprovalOpen);
     this.approvalButton.removeEventListener('focus', this.onApprovalOpen);
     this.approvalButton.removeEventListener('blur', this.onApprovalBlur);
@@ -1696,55 +1599,6 @@ function formatSupplyAmount(amount: number): string {
   if (!Number.isFinite(amount)) return '0';
   if (Math.abs(amount) < 10) return amount.toFixed(1);
   return Math.round(amount).toString();
-}
-
-function geologyResourceLabel(
-  resource: SettlementGeologyAlert['resource'],
-): string {
-  return resource[0].toUpperCase() + resource.slice(1);
-}
-
-function formatGeologyAlertRunway(days: number): string {
-  if (days <= 0.05) return 'spent';
-  if (days < 1) return '<1d';
-  if (days < 10) return `${days.toFixed(1)}d`;
-  return `${Math.floor(days)}d`;
-}
-
-function geologyAlertTooltip(alert: SettlementGeologyAlert): string {
-  const resource = geologyResourceLabel(alert.resource);
-  if (alert.reason === 'deep-supports') {
-    const worksiteCount = alert.deepSourcesAwaitingSupports;
-    const worksite = `${worksiteCount} staffed deep ${
-      worksiteCount === 1 ? 'worksite is' : 'worksites are'
-    } stopped awaiting timber shoring.`;
-    const supportDemand = alert.deepSupportTimberPerDay > 0.05
-      ? `Once supplied, the installed crews need about ${alert.deepSupportTimberPerDay.toFixed(1)} timber per day for supports.`
-      : 'The installed crews need a complete timber-support batch before work can resume.';
-    const finiteBuffer = alert.runwayDays === null
-      ? alert.finiteReserve > 0.05
-        ? `${alert.finiteReserve.toFixed(0)} finite reserve remains, but no finite seam is currently being worked.`
-        : `No finite ${alert.resource} reserve is available as a fallback.`
-      : alert.runwayDays <= 0.05
-        ? 'The shortest staffed finite seam is already exhausted.'
-        : `The shortest staffed finite seam has about ${formatGeologyAlertRunway(alert.runwayDays)} left.`;
-    const supportedOutput = alert.activeDeepSources > 0
-      ? `${alert.activeDeepSources} other supported deep ${
-          alert.activeDeepSources === 1 ? 'source is' : 'sources are'
-        } still producing ${alert.deepExtractionPerDay.toFixed(1)} ${alert.resource} per day.`
-      : `No supported deep ${alert.resource} source is currently producing.`;
-    return `${resource} support warning. ${worksite} ${supportDemand} ${finiteBuffer} ${supportedOutput} Activate to inspect the blocked worksite and restore its physical timber delivery before keeping labor assigned there.`;
-  }
-  const runwayDays = alert.runwayDays;
-  const runway = alert.runwayDays <= 0.05
-    ? 'The shortest staffed finite seam is exhausted.'
-    : `The shortest staffed finite seam has about ${formatGeologyAlertRunway(runwayDays)} at its current crew and tool condition.`;
-  const deepReplacement = alert.activeDeepSources > 0
-    ? `${alert.activeDeepSources} supported deep ${
-        alert.activeDeepSources === 1 ? 'source is' : 'sources are'
-      } already producing ${alert.deepExtractionPerDay.toFixed(1)} ${alert.resource} per day.`
-    : `No supported deep ${alert.resource} source is currently replacing it.`;
-  return `${resource} geology warning. ${runway} ${alert.finiteReserve.toFixed(0)} aggregate finite reserve remains across the region. ${deepReplacement} Activate to inspect the shortest-runway worksite and reassign labor, open a deep source, or arrange trade before output stops.`;
 }
 
 function renderTextList(parent: HTMLElement, values: readonly string[]): void {

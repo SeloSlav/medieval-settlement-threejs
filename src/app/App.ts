@@ -31,7 +31,6 @@ import {
 } from '../resources/resourceTotals.ts';
 import { computeSettlementProvisioning } from '../economy/settlementProvisioning.ts';
 import { computeSettlementApproval } from '../economy/settlementApproval.ts';
-import { computeSettlementGeologyPlan } from '../economy/settlementGeology.ts';
 import { TreeRegistry } from '../resources/TreeRegistry.ts';
 import { WorldLayoutRegistry } from '../resources/WorldLayoutRegistry.ts';
 import {
@@ -1040,7 +1039,6 @@ export class App {
         snapshot.simTick,
       );
       this.toolbar?.settlementHud.clearProvisioningState();
-      this.toolbar?.settlementHud.clearGeologyState();
       this.syncVisualQaFoundersCampFixture();
       this.syncToolbar();
       return;
@@ -1116,17 +1114,6 @@ export class App {
     );
     const sabbathObserved = snapshot.parishPolicy.sabbathObservanceEnabled
       && settlementHasStaffedChapel(state);
-    this.toolbar?.settlementHud.setGeologyState(
-      computeSettlementGeologyPlan(
-        state,
-        sabbathObserved,
-        {
-          clayPitThroughputMultiplier: environment.clayPitThroughputMultiplier,
-          resourceAbundance:
-            snapshot.worldGeneration?.resourceAbundance ?? 50,
-        },
-      ),
-    );
     const provisioning = computeSettlementProvisioning({
       state,
       totals: computeResourceTotals(state),

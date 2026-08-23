@@ -324,29 +324,19 @@ const TOTAL_RESOURCE_TOOLTIPS: Partial<Record<HudResourceKind, string>> = {
   gold: 'All civic gold secured in the founders’ lockbox, reclamation chests, or Town Hall treasury, including coin committed to active home projects. Market working cash, company pay chests, and moving lockboxes remain separate.',
 };
 
-const SPECIALTY_HUD_RESOURCE_KINDS = [
-  'ryeGrain',
-  'oatGrain',
-  'maslinGrain',
-  'barley',
-  'malt',
-  'ryeFlour',
-  'maslinFlour',
-  'ale',
-  'preservedFood',
-  'honey',
-  'wine',
-  'wool',
-  'flax',
-  'cloth',
-  'ironwork',
-  'polearms',
-  'iron',
-  'clay',
-  'salt',
-  'pottery',
-  'roofTiles',
-] as const satisfies readonly HudResourceKind[];
+const NON_SPECIALTY_HUD_RESOURCE_KINDS = new Set<HudResourceKind>([
+  'timber',
+  'stone',
+  'firewood',
+  'water',
+  'food',
+  'gold',
+  'charcoal',
+]);
+
+const SPECIALTY_HUD_RESOURCE_KINDS = HUD_RESOURCE_KINDS.filter(
+  (resource) => !NON_SPECIALTY_HUD_RESOURCE_KINDS.has(resource),
+);
 
 export class ResourceInspector {
   private readonly options: ResourceInspectorOptions;
@@ -1647,35 +1637,10 @@ export class ResourceInspector {
       : this.surplusTotals;
     if (!totals) return;
 
-    this.stockpileValues.timber.textContent = Math.round(totals.timber).toString();
-    this.stockpileValues.stone.textContent = Math.round(totals.stone).toString();
-    this.stockpileValues.firewood.textContent = Math.round(totals.firewood).toString();
+    for (const resource of HUD_RESOURCE_KINDS) {
+      this.stockpileValues[resource].textContent = Math.round(totals[resource]).toString();
+    }
     this.fuelFirewoodAmount.textContent = Math.round(totals.firewood).toString();
-    this.stockpileValues.water.textContent = Math.round(totals.water).toString();
-    this.stockpileValues.food.textContent = Math.round(totals.food).toString();
-    this.stockpileValues.gold.textContent = Math.round(totals.gold).toString();
-    this.stockpileValues.ryeGrain.textContent = Math.round(totals.ryeGrain).toString();
-    this.stockpileValues.oatGrain.textContent = Math.round(totals.oatGrain).toString();
-    this.stockpileValues.maslinGrain.textContent = Math.round(totals.maslinGrain).toString();
-    this.stockpileValues.barley.textContent = Math.round(totals.barley).toString();
-    this.stockpileValues.malt.textContent = Math.round(totals.malt).toString();
-    this.stockpileValues.ryeFlour.textContent = Math.round(totals.ryeFlour).toString();
-    this.stockpileValues.maslinFlour.textContent = Math.round(totals.maslinFlour).toString();
-    this.stockpileValues.ale.textContent = Math.round(totals.ale).toString();
-    this.stockpileValues.preservedFood.textContent = Math.round(totals.preservedFood).toString();
-    this.stockpileValues.honey.textContent = Math.round(totals.honey).toString();
-    this.stockpileValues.wine.textContent = Math.round(totals.wine).toString();
-    this.stockpileValues.wool.textContent = Math.round(totals.wool).toString();
-    this.stockpileValues.flax.textContent = Math.round(totals.flax).toString();
-    this.stockpileValues.cloth.textContent = Math.round(totals.cloth).toString();
-    this.stockpileValues.ironwork.textContent = Math.round(totals.ironwork).toString();
-    this.stockpileValues.polearms.textContent = Math.round(totals.polearms).toString();
-    this.stockpileValues.iron.textContent = Math.round(totals.iron).toString();
-    this.stockpileValues.clay.textContent = Math.round(totals.clay).toString();
-    this.stockpileValues.salt.textContent = Math.round(totals.salt).toString();
-    this.stockpileValues.charcoal.textContent = Math.round(totals.charcoal).toString();
-    this.stockpileValues.pottery.textContent = Math.round(totals.pottery).toString();
-    this.stockpileValues.roofTiles.textContent = Math.round(totals.roofTiles).toString();
     const amountLabel = this.resourceTotalsPresentation === 'total'
       ? 'Total stored'
       : 'Available surplus';

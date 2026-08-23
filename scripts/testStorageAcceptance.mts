@@ -76,6 +76,9 @@ assert.match(storehouseControls, /data-storage-commodity="pottery"/);
 assert.match(storehouseControls, /data-storage-commodity="remedies"/);
 assert.match(storehouseControls, /data-storage-accept-all="true"/);
 assert.match(storehouseControls, /data-storage-accept-all="false"/);
+assert.match(storehouseControls, />Accept all<\/button>/);
+assert.match(storehouseControls, />Accept none<\/button>/);
+assert.match(storehouseControls, /Timber: accepting new deliveries\./);
 
 const granaryControls = renderStorageAcceptanceControls(
   meatOnlyGranary,

@@ -8,10 +8,10 @@ export const GRANARY_GRAIN_RESERVE_MAX = BUILDING_STORAGE_CAPS.granary.grain ?? 
 export const GRANARY_FRESH_FOOD_TARGET_DEFAULT_PERCENT = 75;
 
 export const GRANARY_GRAIN_RESERVE_PRESETS = [
-  { reserve: 0, label: 'Release all' },
-  { reserve: 60, label: 'Small sowing reserve' },
-  { reserve: 120, label: 'Village sowing reserve' },
-  { reserve: 240, label: 'Long winter reserve' },
+  { reserve: 0, label: 'None' },
+  { reserve: 60, label: 'Small' },
+  { reserve: 120, label: 'Village' },
+  { reserve: 240, label: 'Winter' },
 ] as const;
 
 export const GRANARY_FRESH_FOOD_TARGET_PRESETS = [

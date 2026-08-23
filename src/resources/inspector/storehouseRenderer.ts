@@ -157,10 +157,12 @@ export function renderStorehouseInspector(
     demolish: { visible: true, hint: buildingDemolishHint(building.kind) },
     labor: buildingLaborView(building, context.populationStats, context.worldQueries),
     supplementalPanelHtml: `
-      <div class="inspector-action-panel">
-        <p class="inspector-action-panel__hint">Choose exactly which goods this Storehouse may receive. Disabled goods stay at producers or route to another compatible depot; stock already here remains safe and may still be dispatched. Each assigned keeper can set up one stocked goods table at one nearest connected Marketplace, including the remedy-care route.</p>
+      <div class="inspector-action-panel" data-inspector-panel-title="Accepted goods">
+        <p class="inspector-action-panel__hint">Choose which goods this Storehouse may collect; disabling a good stops new intake but leaves existing stock usable.</p>
         ${renderStorageAcceptanceControls(building, STOREHOUSE_STORAGE_GROUPS)}
-        <p class="inspector-action-panel__hint">Collection targets distribute producer overflow between depots. Charcoal is a transit buffer: an accepting depot fills toward this target when its road branch has uncovered Marketplace fuel demand or a Trading Post exporting charcoal. Other targets cap incoming overflow carts; material already above a lowered target remains available.</p>
+      </div>
+      <div class="inspector-action-panel" data-inspector-panel-title="Collection limits">
+        <p class="inspector-action-panel__hint">Set each material's collection limit; overflow carts use another depot and stored goods remain when a limit is lowered.</p>
         ${renderStorehouseStockTargetControls(building)}
       </div>
     `,
@@ -172,23 +174,32 @@ export function renderStorehouseStockTargetControls(building: BuildingState): st
     const percent = storehouseCommodityTargetPercent(building, commodity);
     const target = storehouseCommodityTarget(building, commodity);
     const stock = Math.max(0, building[commodity] ?? 0);
+    const capacity = BUILDING_STORAGE_CAPS.village_storehouse[commodity] ?? 0;
     const headroom = storehouseCollectionHeadroom(
       stock,
-      BUILDING_STORAGE_CAPS.village_storehouse[commodity] ?? 0,
+      capacity,
       percent,
     );
-    const pressure = headroom > 0.05
+    const status = headroom > 0.05
       ? commodity === 'charcoal'
-        ? `${headroom.toFixed(0)} transit room · linked market or export demand`
-        : `${headroom.toFixed(0)} collection headroom`
+        ? `${headroom.toFixed(0)} room when demanded`
+        : `${headroom.toFixed(0)} room`
       : stock > target + 0.05
-        ? `${(stock - target).toFixed(0)} above target · still available`
-        : 'At collection target';
+        ? `${(stock - target).toFixed(0)} over limit`
+        : 'limit reached';
     return `
-      <p class="resource-inspector-note">${storehouseCommodityLabel(commodity)} target · ${stock.toFixed(0)} stored / ${target.toFixed(0)} selected · ${pressure}</p>
-      <div class="resource-action-row">${STOREHOUSE_STOCK_TARGET_PRESETS
-        .map((preset) => `<button type="button" class="resource-action-button" data-storehouse-stock-kind="${commodity}" data-storehouse-stock-target="${preset.percent}" title="${preset.hint}" ${percent === preset.percent ? 'disabled' : ''}>${preset.label} · ${preset.percent}%</button>`)
-        .join('')}</div>
+      <section class="storehouse-stock-target" aria-label="${storehouseCommodityLabel(commodity)} collection limit">
+        <div class="storehouse-stock-target__heading">
+          <strong>${storehouseCommodityLabel(commodity)}</strong>
+          <span>${stock.toFixed(0)} stored · limit ${target.toFixed(0)} · ${status}</span>
+        </div>
+        <div class="resource-action-row">${STOREHOUSE_STOCK_TARGET_PRESETS
+          .map((preset) => {
+            const selected = percent === preset.percent;
+            return `<button type="button" class="resource-action-button${selected ? ' is-selected' : ''}" data-storehouse-stock-kind="${commodity}" data-storehouse-stock-target="${preset.percent}" aria-pressed="${selected}" title="${preset.percent}% limit: ${preset.hint}" ${selected ? 'disabled' : ''}>${preset.percent}%</button>`;
+          })
+          .join('')}</div>
+      </section>
     `;
   }).join('');
 }

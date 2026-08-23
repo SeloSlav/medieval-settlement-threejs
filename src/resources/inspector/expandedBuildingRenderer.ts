@@ -1684,29 +1684,41 @@ export function renderGranaryPolicyPanel(building: BuildingState): string {
   const freshFoodTargetPercent = normalizeGranaryFreshFoodTargetPercent(
     building.granaryFreshFoodTargetPercent,
   );
+  const freshFoodCapacity = buildingStorageCaps('granary').food ?? 0;
   const freshFoodTarget = granaryFreshFoodTarget(
-    buildingStorageCaps('granary').food ?? 0,
+    freshFoodCapacity,
     freshFoodTargetPercent,
   );
-  const priorityHint = householdsFirst
-    ? 'Household-first stocks fresh and cured Marketplace stalls before the granary falls through to the highest-priority smokehouse working buffer.'
-    : 'Preservation-first restores the highest-priority smokehouse fresh-food buffer before stocking fresh and cured Marketplace stalls.';
+  const deliveryPriority = householdsFirst ? 'Households first' : 'Smokehouses first';
   return `
-    <div class="inspector-action-panel">
-      <p class="inspector-action-panel__hint">Choose exactly which harvests and provisions this Granary may receive. Disabled goods stay at producers or route to another compatible Granary; stock already here remains available. Each assigned keeper can set up one stocked provision table at a connected Marketplace and haul physical institutional routes.</p>
+    <div class="inspector-action-panel" data-inspector-panel-title="Accepted goods">
+      <p class="inspector-action-panel__hint">Choose which goods this Granary may collect; disabling a good stops new intake but leaves existing stock usable.</p>
       ${renderStorageAcceptanceControls(building, GRANARY_STORAGE_GROUPS)}
-      <label class="city-admin-panel__toggle"><input type="checkbox" data-granary-households-first ${householdsFirst ? 'checked' : ''} /><span>Feed households before smokehouses</span></label>
-      <p class="inspector-action-panel__hint">${priorityHint}</p>
-      <p class="resource-inspector-note">Fresh-food intake target — lower settings reduce collection-cart pressure and keep stock near its source territory; higher settings shelter more food from spoilage for winter and preservation.</p>
+    </div>
+    <div class="inspector-action-panel" data-inspector-panel-title="Delivery order · ${deliveryPriority}">
+      <p class="inspector-action-panel__hint">Turn on to stock household Marketplace stalls before smokehouses; turn off to stock smokehouses first.</p>
+      <label class="city-admin-panel__toggle"><input type="checkbox" data-granary-households-first ${householdsFirst ? 'checked' : ''} /><span>Households first</span></label>
+    </div>
+    <div class="inspector-action-panel" data-inspector-panel-title="Fresh-food limit · ${freshFoodTarget.toFixed(0)}">
+      <p class="inspector-action-panel__hint">Collect up to ${freshFoodTarget.toFixed(0)} fresh food (${freshFoodTargetPercent}% of ${freshFoodCapacity.toFixed(0)} capacity); outgoing carts can still use it.</p>
       <div class="resource-action-row">${GRANARY_FRESH_FOOD_TARGET_PRESETS
-        .map((preset) => `<button type="button" class="resource-action-button" data-granary-fresh-food-target="${preset.percent}" title="${preset.hint}" ${freshFoodTargetPercent === preset.percent ? 'disabled' : ''}>${preset.label} · ${preset.percent}%</button>`)
+        .map((preset) => {
+          const selected = freshFoodTargetPercent === preset.percent;
+          return `<button type="button" class="resource-action-button${selected ? ' is-selected' : ''}" data-granary-fresh-food-target="${preset.percent}" aria-pressed="${selected}" title="${preset.hint}" ${selected ? 'disabled' : ''}>${preset.percent}% · ${preset.label}</button>`;
+        })
         .join('')}</div>
-      <p class="inspector-action-panel__hint">Current target ${freshFoodTarget.toFixed(0)} food. Intake stops at this level, but Marketplace-stall, smokehouse, and guard carts may continue drawing stock.</p>
-      <p class="resource-inspector-note">Strategic grain floor — mills, monasteries, and foreign sales cannot draw below it. Linked farmsteads may still take this grain when they need seed. Brewing barley has its own physical reserve.</p>
+    </div>
+    <div class="inspector-action-panel" data-inspector-panel-title="Protected grain · ${grainReserve}">
+      <p class="inspector-action-panel__hint">Reserve this grain for linked farms; mills, monasteries, and foreign trade can use only the rest.</p>
       <div class="resource-action-row">${GRANARY_GRAIN_RESERVE_PRESETS
-        .map((preset) => `<button type="button" class="resource-action-button" data-granary-grain-reserve="${preset.reserve}" ${grainReserve === preset.reserve ? 'disabled' : ''}>${preset.label} · ${preset.reserve}</button>`)
+        .map((preset) => {
+          const selected = grainReserve === preset.reserve;
+          const title = preset.reserve === 0
+            ? 'Do not protect grain from processors or trade.'
+            : `Protect ${preset.reserve} grain for linked farms.`;
+          return `<button type="button" class="resource-action-button${selected ? ' is-selected' : ''}" data-granary-grain-reserve="${preset.reserve}" aria-pressed="${selected}" title="${title}" ${selected ? 'disabled' : ''}>${preset.reserve} · ${preset.label}</button>`;
+        })
         .join('')}</div>
-      <p class="inspector-action-panel__hint">A staffed granary collects fresh stock above local market reserves until its selected target. Sources with no dependent market branch can release their whole surplus. Cured provisions retain best in their smokehouse loft; granary cured storage is still safer than leaving fresh goods exposed. When perishable collection is enabled, cured provisions use separate capacity; disabling it stops new cured intake but assigned granary haulers may still stock Marketplace stalls from goods already here. Baking happens only at a staffed bakery.</p>
     </div>
   `;
 }
