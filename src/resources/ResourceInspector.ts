@@ -2392,6 +2392,8 @@ export class ResourceInspector {
       return {
         row,
         index,
+        label,
+        value,
         score: inspectorRowScore(row, label, value, index),
       };
     });
@@ -2423,9 +2425,7 @@ export class ResourceInspector {
         .filter(({ row }) =>
           row.hasAttribute('data-inspector-primary')
           && !compactRowSet.has(row))
-        .map(({ row }) => {
-          const label = row.querySelector('.inspector-detail-label')?.textContent?.trim() ?? '';
-          const value = row.querySelector('.inspector-detail-value')?.textContent?.trim() ?? '';
+        .map(({ label, value }) => {
           return label && value ? `${label}: ${value}` : '';
         })
         .filter(Boolean)
