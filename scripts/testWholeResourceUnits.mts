@@ -6,6 +6,7 @@ import { syncForagingNodes } from '../src/data/spacetimeTableSync/syncForagingNo
 import { syncPlayerResources } from '../src/data/spacetimeTableSync/syncPlayerResources.ts';
 import { syncResidences } from '../src/data/spacetimeTableSync/syncResidences.ts';
 import {
+  continuousResourceUnits,
   formatResourceUnits,
   isWholeResourceUnits,
   wholeResourceUnits,
@@ -22,6 +23,9 @@ assert.equal(wholeResourceUnits(8.0000001), 8);
 assert.equal(formatResourceUnits(12.9), '12');
 assert.equal(isWholeResourceUnits(12), true);
 assert.equal(isWholeResourceUnits(12.5), false);
+assert.equal(continuousResourceUnits(-4.2), 0);
+assert.equal(continuousResourceUnits(Number.NaN), 0);
+assert.equal(continuousResourceUnits(0.448), 0.448);
 
 function rowWithDefaults<T extends object>(values: T): T {
   return new Proxy(values, {
@@ -122,6 +126,8 @@ const residence = syncResidences(
     zoneId: 4n,
     food: 6.9,
     preservedFood: 3.8,
+    ryeBread: 0.11171,
+    meat: 0.20178,
     householdWealth: 14.5,
     remedyStock: 2.2,
     upgradeDeliveredTimber: 11.75,
@@ -129,16 +135,18 @@ const residence = syncResidences(
   [rowWithDefaults({
     residenceId: 3n,
     needKind: 2,
-    stock: 9.6,
+    stock: 0.448,
   }) as never],
   identityHex,
 ).get('residence-3');
 assert.ok(residence);
-assert.equal(residence.food, 6);
-assert.equal(residence.preservedFood, 3);
+assert.equal(residence.food, 6.9);
+assert.equal(residence.preservedFood, 3.8);
+assert.equal(residence.ryeBread, 0.11171);
+assert.equal(residence.meat, 0.20178);
 assert.equal(residence.householdWealth, 14);
 assert.equal(residence.remedyStock, 2);
 assert.equal(residence.upgradeDeliveredTimber, 11);
-assert.equal(residence.needs.food.stock, 9);
+assert.equal(residence.needs.food.stock, 0.448);
 
-console.log('Whole resource unit tests passed.');
+console.log('Whole resource and continuous household ration tests passed.');

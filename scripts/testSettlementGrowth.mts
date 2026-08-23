@@ -17,13 +17,15 @@ import {
   SIM_TICK_SECONDS,
   WINTER_FIREWOOD_DEMAND_MULTIPLIER,
 } from '../src/generated/gameBalance.ts';
-import { recoveryStockMin } from '../src/economy/chapelCommunity.ts';
 import { computeSettlementGrowthPlan } from '../src/economy/settlementGrowth.ts';
 import { householdFoodPerDay } from '../src/economy/foodInventory.ts';
 import {
+  residenceSettlementBufferMin,
+  type ResidenceSettlementVitalNeedKind,
+} from '../src/economy/residenceSettlement.ts';
+import {
   createDefaultNeeds,
   DEFAULT_RESIDENCE_COMMUNITY_CONTEXT,
-  type ResidenceNeedKind,
 } from '../src/residences/residenceNeedState.ts';
 import type { ResidenceState } from '../src/resources/types.ts';
 import type { FireIncidentState } from '../src/fires/fireIncident.ts';
@@ -67,14 +69,17 @@ assert.equal(
 const tierTwo = residence('tier-two', 2, 3, 6);
 stockToThreshold(tierTwo, 'food');
 stockToThreshold(tierTwo, 'firewood');
-tierTwo.needs.water.stock = recoveryStockMin('water', false, false) - 0.1;
+tierTwo.needs.water.stock = residenceSettlementBufferMin(
+  'water',
+  tierTwo.population,
+) - 0.1;
 const tierTwoPlan = computeSettlementGrowthPlan({ state: stateWith(tierTwo) });
 assert.equal(tierTwoPlan.pausedHomes, 1);
 assert.equal(tierTwoPlan.waitingOnHomes.water, 1);
 assert.equal(tierTwoPlan.waitingOnHomes.food, 0);
 
 const tierThree = residence('tier-four', 4, 11, 15);
-for (const kind of ['food', 'firewood', 'water', 'preservedFood', 'ale', 'cloth'] as const) {
+for (const kind of ['food', 'firewood', 'water'] as const) {
   stockToThreshold(tierThree, kind);
 }
 const tierThreePlan = computeSettlementGrowthPlan({ state: stateWith(tierThree) });
@@ -136,7 +141,7 @@ assert.equal(mixedPlan.fullHomes, 1);
 assert.equal(mixedPlan.candidateHomes, 3);
 
 const fireDisabledGrowthHome = residence('fire-growth-home', 4, 11, 15);
-for (const kind of ['food', 'firewood', 'water', 'preservedFood', 'ale', 'cloth'] as const) {
+for (const kind of ['food', 'firewood', 'water'] as const) {
   stockToThreshold(fireDisabledGrowthHome, kind);
 }
 const fireDisabledGrowthPlan = computeSettlementGrowthPlan({
@@ -171,7 +176,7 @@ for (let index = 0; index < 100_000; index += 1) {
     index % 3 === 0 ? 10 : index % 3 === 1 ? 6 : 3,
   );
   if (index % 2 === 0) {
-    for (const kind of ['food', 'firewood', 'water', 'preservedFood', 'ale', 'cloth'] as const) {
+    for (const kind of ['food', 'firewood', 'water'] as const) {
       stockToThreshold(home, kind);
     }
   }
@@ -268,8 +273,14 @@ function residence(
   };
 }
 
-function stockToThreshold(target: ResidenceState, kind: ResidenceNeedKind): void {
-  target.needs[kind].stock = recoveryStockMin(kind, false, false);
+function stockToThreshold(
+  target: ResidenceState,
+  kind: ResidenceSettlementVitalNeedKind,
+): void {
+  target.needs[kind].stock = residenceSettlementBufferMin(
+    kind,
+    target.population,
+  );
 }
 
 function assertNear(actual: number, expected: number): void {

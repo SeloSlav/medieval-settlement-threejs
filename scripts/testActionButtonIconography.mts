@@ -165,8 +165,43 @@ assert.match(
   /row\.hasAttribute\('data-residence-summary'\)[\s\S]{0,260}this\.panel\.dataset\.inspectorTarget === 'residence'[\s\S]{0,180}replaceChildren/,
   'the residence inspector should display only explicitly compact summary rows',
 );
-assert.match(resourceInspector, /this\.demolishHint\.hidden = target\.kind === 'residence'/);
-assert.match(resourceInspector, /this\.demolishSecondaryHint\.hidden = target\.kind === 'residence'/);
+assert.match(resourceInspector, /const BUILDING_SUMMARY_LIMIT = 4/);
+assert.match(
+  resourceInspector,
+  /this\.panel\.dataset\.inspectorTarget === 'building'[\s\S]{0,1200}\.slice\(0, BUILDING_SUMMARY_LIMIT\);[\s\S]{0,1800}replaceChildren/,
+  'every building inspector should have a hard four-card summary cap',
+);
+assert.match(
+  resourceInspector,
+  /omittedPrimaryDetails[\s\S]{0,900}appendFocusableInspectorTooltip/,
+  'primary details beyond the visible cap should remain keyboard-accessible',
+);
+assert.match(
+  resourceInspector,
+  /const compactDemolition = target\.kind === 'building' \|\| target\.kind === 'residence'[\s\S]{0,220}this\.demolishHint\.hidden = compactDemolition/,
+  'building and residence salvage prose should move off the default card',
+);
+assert.match(resourceInspector, /this\.laborHint\.hidden = target\.kind === 'building'/);
+assert.match(
+  resourceInspector,
+  /compactBuildingSupplementalPanels[\s\S]{0,2200}controls\.length === 0[\s\S]{0,520}panel\.remove\(\)/,
+  'read-only supplemental essays should not occupy building cards',
+);
+assert.match(
+  resourceInspector,
+  /:scope > \.inspector-action-panel__hint, :scope > \.resource-inspector-note, \.trading-post-ledger__intro[\s\S]{0,240}nextElementSibling\?\.matches\('\.resource-action-row'\)/,
+  'building compaction should preserve nested labels inside expanded controls',
+);
+assert.match(resourceInspector, /compactChildren\.length > 1 && compactChildren\.every/);
+assert.match(resourceInspector, /function syncFocusableInspectorTooltip/);
+assert.match(resourceInspector, /this\.laborLabel,[\s\S]{0,120}target\.kind === 'building' \? view\.labor\.hint/);
+assert.match(
+  resourceInspector,
+  /const shouldOrganize = compactBuilding[\s\S]{0,220}inspectorControlCount/,
+  'multi-control building policies should be compact disclosures closed by default',
+);
+assert.match(resourceInspector, /: !compactBuilding && index === 0/);
+assert.match(backyardCss, /\.resource-inspector-demolish\[hidden\]\s*\{\s*display:\s*none/);
 assert.match(
   resourceInspector,
   /onDemolishSecondaryClick[\s\S]{0,420}confirmDestructiveAction\([\s\S]{0,260}onDemolishBurgageZone/,
@@ -177,6 +212,7 @@ assert.match(
   /const confirmed = await this\.deleteDialog\.confirm\([\s\S]{0,320}if \(!confirmed\) return;[\s\S]{0,80}await action\(\)/,
   'destructive reducers must run only after explicit confirmation',
 );
+assert.match(resourceInspector, /\$\{targetLabel\} · irreversible\. \$\{detail\}/);
 assert.match(resourceInspector, /this\.deleteDialog = new AlertDialog\(options\.uiRoot\)/);
 assert.match(resourceInspector, /this\.deleteDialog\.dispose\(\)/);
 assert.match(alertDialog, /export class AlertDialog/);

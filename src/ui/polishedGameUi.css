@@ -1339,6 +1339,23 @@ select:focus-visible {
   line-height: 1.18;
 }
 
+.resource-inspector-panel[data-inspector-target='building'] .resource-inspector-status {
+  max-height: 2.65em;
+  overflow: hidden;
+}
+
+.resource-inspector-panel[data-inspector-target='building'] .resource-inspector-status[data-tooltip],
+.resource-inspector-panel[data-inspector-target='building'] [data-inspector-labor-label][data-tooltip] {
+  cursor: help;
+}
+
+.resource-inspector-panel[data-inspector-target='building'] .resource-inspector-status[data-tooltip]:focus-visible,
+.resource-inspector-panel[data-inspector-target='building'] [data-inspector-labor-label][data-tooltip]:focus-visible {
+  border-radius: 3px;
+  outline: 1px solid rgba(226, 191, 112, 0.86);
+  outline-offset: 2px;
+}
+
 .resource-inspector-details [data-inspector-detail] {
   cursor: help;
 }
@@ -1425,6 +1442,16 @@ select:focus-visible {
   font-size: 10px;
 }
 
+.resource-inspector-panel[data-inspector-target='building'] .resource-inspector-labor {
+  gap: 0;
+  margin-top: 8px;
+  padding: 7px 9px;
+}
+
+.resource-inspector-panel[data-inspector-target='building'] .resource-inspector-labor-label {
+  font-size: 12px;
+}
+
 .resource-inspector-footer {
   margin: 0;
   padding: 8px 12px 10px 14px;
@@ -1456,6 +1483,10 @@ select:focus-visible {
   text-transform: uppercase;
 }
 
+.resource-inspector-demolish[hidden] {
+  display: none;
+}
+
 .resource-inspector-demolish-hint {
   min-width: 0;
   color: #7f7769;
@@ -1471,6 +1502,12 @@ select:focus-visible {
   margin-top: 12px;
   padding-top: 11px;
   border-top: 1px solid rgba(218, 192, 134, 0.13);
+}
+
+.resource-inspector-panel[data-inspector-target='building'] .resource-inspector-supplemental {
+  gap: 5px;
+  margin-top: 8px;
+  padding-top: 8px;
 }
 
 .inspector-policy-card {
@@ -1490,6 +1527,11 @@ select:focus-visible {
   color: #d9cfba;
   list-style: none;
   cursor: pointer;
+}
+
+.resource-inspector-panel[data-inspector-target='building'] .inspector-policy-card > summary {
+  min-height: 36px;
+  padding: 5px 8px;
 }
 
 .inspector-policy-card > summary > :first-child {
@@ -1536,6 +1578,24 @@ select:focus-visible {
   gap: 9px;
 }
 
+.resource-inspector-panel[data-inspector-target='building'] .inspector-action-panel--compact {
+  gap: 5px;
+}
+
+.resource-inspector-panel[data-inspector-target='building'] .inspector-action-panel--button-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.resource-inspector-panel[data-inspector-target='building'] .inspector-action-panel--button-grid > .resource-action-button,
+.resource-inspector-panel[data-inspector-target='building'] .inspector-action-panel--button-grid > .inspector-action-panel__button {
+  width: 100%;
+  min-width: 0;
+}
+
+.resource-inspector-panel[data-inspector-target='building'] .inspector-action-panel--compact .resource-action-row {
+  gap: 4px;
+}
+
 .inspector-action-panel + .inspector-action-panel {
   padding-top: 10px;
   border-top: 1px solid rgba(220, 195, 139, 0.1);
@@ -1568,6 +1628,13 @@ select:focus-visible {
   font-size: 10px;
   font-weight: 750;
   cursor: pointer;
+}
+
+.resource-inspector-panel[data-inspector-target='building'] .inspector-action-panel--compact .resource-action-button,
+.resource-inspector-panel[data-inspector-target='building'] .inspector-action-panel--compact .inspector-action-panel__button {
+  min-height: 30px;
+  padding: 5px 8px;
+  font-size: 9px;
 }
 
 .resource-action-button:hover:not(:disabled):not([aria-disabled='true']),

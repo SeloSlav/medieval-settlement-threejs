@@ -13,6 +13,19 @@ export function wholeResourceUnits(value: number | null | undefined): number {
   return Math.max(0, Math.floor(value + RESOURCE_UNIT_EPSILON));
 }
 
+/**
+ * Preserve continuous simulation quantities at the client boundary.
+ *
+ * Household pantry stocks and residence needs are measured in fractional
+ * daily rations, so rounding them to whole units would make valid supplies
+ * appear empty. Invalid and negative replicated values are still normalized
+ * to zero.
+ */
+export function continuousResourceUnits(value: number | null | undefined): number {
+  if (value == null || !Number.isFinite(value)) return 0;
+  return Math.max(0, value);
+}
+
 export function formatResourceUnits(value: number | null | undefined): string {
   return wholeResourceUnits(value).toLocaleString();
 }

@@ -6,7 +6,10 @@ import {
   needKindFromId,
 } from '../../residences/residenceNeedState.ts';
 import type { ResidenceState } from '../../resources/types.ts';
-import { wholeResourceUnits } from '../../resources/resourceUnits.ts';
+import {
+  continuousResourceUnits,
+  wholeResourceUnits,
+} from '../../resources/resourceUnits.ts';
 
 function buildNeedsByResidence(rows: Iterable<ResidenceNeed>): Map<string, ResidenceState['needs']> {
   const needsByResidence = new Map<string, ResidenceState['needs']>();
@@ -18,7 +21,7 @@ function buildNeedsByResidence(rows: Iterable<ResidenceNeed>): Map<string, Resid
     needsByResidence.set(
       residenceId,
       mergeNeedRow(needs, kind, {
-        stock: wholeResourceUnits(row.stock),
+        stock: continuousResourceUnits(row.stock),
         deficitTicks: Number(row.deficitTicks),
       }),
     );
@@ -92,33 +95,33 @@ export function syncResidences(
       tier: Math.max(0, Math.min(4, Number(row.tier ?? 1))) as 0 | 1 | 2 | 3 | 4,
       settlementTicks: Number(row.settlementTicks ?? 0),
       needs: needsByResidence.get(residenceId) ?? createDefaultNeeds(),
-      food: wholeResourceUnits(row.food),
-      preservedFood: wholeResourceUnits(row.preservedFood),
-      honey: wholeResourceUnits(row.honey),
-      oatGrain: wholeResourceUnits(row.oatGrain),
-      ryeBread: wholeResourceUnits(row.ryeBread),
-      maslinBread: wholeResourceUnits(row.maslinBread),
-      meat: wholeResourceUnits(row.meat),
-      fish: wholeResourceUnits(row.fish),
-      berries: wholeResourceUnits(row.berries),
-      mushrooms: wholeResourceUnits(row.mushrooms),
-      milk: wholeResourceUnits(row.milk),
-      apples: wholeResourceUnits(row.apples),
-      pears: wholeResourceUnits(upgradeRow.pears),
-      cherries: wholeResourceUnits(row.cherries),
-      aronia: wholeResourceUnits(upgradeRow.aronia),
-      rosehips: wholeResourceUnits(upgradeRow.rosehips),
-      vegetables: wholeResourceUnits(row.vegetables),
-      cabbage: wholeResourceUnits(upgradeRow.cabbage),
-      carrots: wholeResourceUnits(upgradeRow.carrots),
-      beetroot: wholeResourceUnits(upgradeRow.beetroot),
-      eggs: wholeResourceUnits(row.eggs),
-      grapes: wholeResourceUnits(row.grapes),
-      curedMeat: wholeResourceUnits(row.curedMeat),
-      smokedFish: wholeResourceUnits(row.smokedFish),
-      cheese: wholeResourceUnits(row.cheese),
-      aroniaJam: wholeResourceUnits(upgradeRow.aroniaJam),
-      rosehipJam: wholeResourceUnits(upgradeRow.rosehipJam),
+      food: continuousResourceUnits(row.food),
+      preservedFood: continuousResourceUnits(row.preservedFood),
+      honey: continuousResourceUnits(row.honey),
+      oatGrain: continuousResourceUnits(row.oatGrain),
+      ryeBread: continuousResourceUnits(row.ryeBread),
+      maslinBread: continuousResourceUnits(row.maslinBread),
+      meat: continuousResourceUnits(row.meat),
+      fish: continuousResourceUnits(row.fish),
+      berries: continuousResourceUnits(row.berries),
+      mushrooms: continuousResourceUnits(row.mushrooms),
+      milk: continuousResourceUnits(row.milk),
+      apples: continuousResourceUnits(row.apples),
+      pears: continuousResourceUnits(upgradeRow.pears),
+      cherries: continuousResourceUnits(row.cherries),
+      aronia: continuousResourceUnits(upgradeRow.aronia),
+      rosehips: continuousResourceUnits(upgradeRow.rosehips),
+      vegetables: continuousResourceUnits(row.vegetables),
+      cabbage: continuousResourceUnits(upgradeRow.cabbage),
+      carrots: continuousResourceUnits(upgradeRow.carrots),
+      beetroot: continuousResourceUnits(upgradeRow.beetroot),
+      eggs: continuousResourceUnits(row.eggs),
+      grapes: continuousResourceUnits(row.grapes),
+      curedMeat: continuousResourceUnits(row.curedMeat),
+      smokedFish: continuousResourceUnits(row.smokedFish),
+      cheese: continuousResourceUnits(row.cheese),
+      aroniaJam: continuousResourceUnits(upgradeRow.aroniaJam),
+      rosehipJam: continuousResourceUnits(upgradeRow.rosehipJam),
       foodInventoryMigrated: row.foodInventoryMigrated,
       // Kept in the replicated schema for old saves only. Completed homes are
       // permanent housing and empty capacity immediately re-enters settlement.

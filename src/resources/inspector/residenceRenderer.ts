@@ -14,6 +14,7 @@ import {
   CALENDAR_SECONDS_PER_DAY,
   HUNGER_WARNING_DAYS,
   MALNUTRITION_DAYS,
+  MARKETPLACE_HOUSEHOLD_ISSUE_CHECKS_PER_DAY,
   PRESERVED_FOOD_STORAGE_RESIDENCE_FACTOR,
   RESIDENCE_CLOTH_CAPACITY,
   RESIDENCE_SHOES_CAPACITY,
@@ -614,6 +615,13 @@ export function renderResidenceInspector(
   const shortageNeedLabels = activeResidenceNeedKinds(residence.tier)
     .filter((kind) => getNeed(residence.needs, kind).deficitTicks > 0)
     .map(compactNeedLabel);
+  const settlersWaitingForVitalSupplies = residence.tier > 0
+    && settlersRemaining > 0
+    && !fireDisabled
+    && !settlementReadiness.ready;
+  const settlementWaitLabels = settlementReadiness.waitingOn
+    .map((buffer) => buffer.label)
+    .join(' · ');
   const statusText = roofTileProject
     ? `Roof retrofit · ${Math.round(roofTileProject.progress * 100)}%${roofTileProject.blockers.length > 0 ? ' · blocked' : ''}`
     : structuralRepairProject
@@ -622,9 +630,11 @@ export function renderResidenceInspector(
         ? `Cottage works · ${Math.round(upgradeProject.progress * 100)}%${upgradeProject.blockers.length > 0 ? ' · blocked' : ''}`
         : healthWarning
           ? compactHealthLabel
-          : shortageNeedLabels.length > 0
-            ? `Shortage · ${shortageNeedLabels.join(' · ')}`
-            : 'Needs met';
+          : settlersWaitingForVitalSupplies
+            ? `Settlers waiting · ${settlementWaitLabels}`
+            : shortageNeedLabels.length > 0
+              ? `Shortage · ${shortageNeedLabels.join(' · ')}`
+              : 'Needs met';
   const foodStandard = foodProgressionStatus(
     residence,
     residence.population,
@@ -766,7 +776,7 @@ export function renderResidenceInspector(
       <li data-residence-summary data-inspector-primary data-inspector-detail="Parcel #${residence.parcelIndex + 1} · ${residenceCount} residence${residenceCount === 1 ? '' : 's'} · ${settlersRemaining} vacancies"><span>Population</span><span>${residence.population} / ${capacity}</span></li>
       <li data-residence-summary data-inspector-primary data-inspector-detail="Malnutrition ${Math.round((residence.malnutrition ?? 0) * 100)}% · sick ${residence.sickPopulation ?? 0} · deaths ${residence.deathsTotal ?? 0}"><span>Health</span><span>${compactHealthLabel}</span></li>
       <li data-residence-summary data-inspector-primary data-inspector-detail="${residence.tier >= 4 ? 'Fired clay tile' : residence.tier === 1 ? 'Bundled thatch' : 'Split wooden shingle'} · ${roadAccess}"><span>House tier</span><span>${residence.tier} / 4</span></li>
-      <li data-residence-summary data-inspector-primary data-inspector-detail="Required level ${residence.tier >= 4 ? 3 : residence.tier >= 2 ? 2 : 1} · ${community.hasMonasteryCoverage ? 'monastery linked' : 'no monastery'}"><span>Church</span><span>${community.hasChapelAccess ? `L${community.chapelTier ?? 1}` : 'Missing'}</span></li>
+      <li data-residence-summary data-inspector-primary data-inspector-detail="Required level ${requiredChapelTierForResidence(residence.tier)} · ${community.hasMonasteryCoverage ? 'monastery linked' : 'no monastery'}"><span>Church</span><span>${community.hasChapelAccess ? `L${community.chapelTier ?? 1}` : 'Missing'}</span></li>
       <li data-residence-summary data-inspector-primary data-inspector-resource-strip data-inspector-section="Stores"><span>Stores</span>${renderInspectorResourceStrip(householdTokens, { ariaLabel: 'Household stores' })}</li>
     `;
 
@@ -794,7 +804,10 @@ export function renderResidenceInspector(
       ? structuralRepairProject.blockers.length === 0 ? 'ok' : 'warning'
       : initialConstruction && upgradeProject
         ? upgradeProject.blockers.length === 0 ? 'ok' : 'warning'
-        : healthWarning ? 'warning' : needs.state,
+        : healthWarning
+          || settlersWaitingForVitalSupplies
+          ? 'warning'
+          : needs.state,
     detailsHtml: `
       ${residenceSummaryHtml}
       <li><span>Plots</span><span>${zone.plotCount}</span></li>
@@ -827,7 +840,7 @@ export function renderResidenceInspector(
       <li data-inspector-primary><span>Active needs</span><span>${displayedNeedsLabel}</span></li>
       ${residence.tier > 0 && residence.population > 0 ? `<li><span>Approval & economy</span><span>${formatResidenceServiceConsequence(service)}</span></li>` : ''}
       ${residence.tier > 0 ? `<li><span>Household prosperity</span><span>${formatHouseholdProsperity(residence.householdWealth)}</span></li>` : ''}
-      ${residence.tier > 0 ? `<li><span>Local supply cycle</span><span>Connected Marketplace goods issue as a one-day lot every day · Town Hall safeguard: ${pantrySafeguard.label} — ${pantrySafeguard.hint} · well water draws automatically in radius · no household cart or player prompt</span></li>` : ''}
+      ${residence.tier > 0 ? `<li><span>Local supply cycle</span><span>Connected Marketplace checks ${MARKETPLACE_HOUSEHOLD_ISSUE_CHECKS_PER_DAY} times per day and issues up to the household's one-day target when needed · Town Hall safeguard: ${pantrySafeguard.label} — ${pantrySafeguard.hint} · well water draws automatically in radius · no household cart or player prompt</span></li>` : ''}
       ${fireDisabled
         ? '<li><span>Parish economy</span><span>Paused · no tithe, alms, or relief claim until structural recovery</span></li>'
         : parishEconomy.hasChapelAccess
@@ -870,7 +883,7 @@ export function renderResidenceInspector(
       ${residence.tier >= 2 ? `<li data-inspector-secondary data-inspector-section="${householdGoodsSection}"><span>Cloth supplier</span><span>${clothSupplierLabel}</span></li>` : ''}
       ${residence.tier >= 3 ? `<li data-inspector-secondary data-inspector-section="${householdGoodsSection}"><span>Shoe supplier</span><span>${shoesSupplierLabel}</span></li>` : ''}
       ${residence.tier >= 4 ? `<li data-inspector-secondary data-inspector-section="${householdGoodsSection}"><span>Pottery supplier</span><span>${potterySupplierLabel}</span></li>` : ''}
-      ${residence.tier > 0 ? `<li data-inspector-primary data-inspector-section="${faithAndCommunitySection}"><span>Church access</span><span>${community.hasChapelAccess ? `Staffed level-${community.chapelTier ?? 1} parish on the road` : `No qualifying parish on branch · level ${residence.tier >= 4 ? 3 : residence.tier >= 2 ? 2 : 1} required`}</span></li>` : ''}
+      ${residence.tier > 0 ? `<li data-inspector-primary data-inspector-section="${faithAndCommunitySection}"><span>Church access</span><span>${community.hasChapelAccess ? `Staffed level-${community.chapelTier ?? 1} parish on the road` : `No qualifying parish on branch · level ${requiredChapelTierForResidence(residence.tier)} required`}</span></li>` : ''}
       ${residence.tier > 0 ? `<li data-inspector-secondary data-inspector-section="${faithAndCommunitySection}"><span>Monastery coverage</span><span>${community.hasMonasteryCoverage ? 'Linked Pauline house within parish radius' : 'None'}</span></li>` : ''}
       <li><span>Road access</span><span>${roadAccess}</span></li>
       <li><span>Build cost</span><span>${renderBuildingResourceCost(singleCost)}</span></li>

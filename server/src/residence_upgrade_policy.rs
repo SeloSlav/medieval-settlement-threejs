@@ -1,6 +1,11 @@
 //! Pure policy for staged residence improvement works.
 
+use std::collections::HashSet;
+
 use crate::balance_generated::HOUSEHOLD_PROJECT_WEALTH_RESERVE;
+use crate::construction_priority::{
+    construction_priority_bucket, CONSTRUCTION_PRIORITY_HOLD, CONSTRUCTION_PRIORITY_LEVELS,
+};
 
 const EPSILON: f64 = 1e-6;
 
@@ -33,6 +38,15 @@ pub struct ResidenceUpgradeWork {
     pub assigned_labor: u32,
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct ResidenceProjectLaborSite {
+    pub residence_id: u64,
+    pub priority: u8,
+    pub assigned_labor: u32,
+    pub work_ready: bool,
+    pub inbound_supply: bool,
+}
+
 fn nonnegative(value: f64) -> f64 {
     if value.is_finite() {
         value.max(0.0)
@@ -62,6 +76,74 @@ pub fn residence_upgrade_material_readiness(work: ResidenceUpgradeWork) -> f64 {
 
 pub fn residence_upgrade_is_paid(work: ResidenceUpgradeWork) -> bool {
     nonnegative(work.delivered_gold) + EPSILON >= nonnegative(work.required_gold)
+}
+
+/// A residence builder should hold a work slot only while paid, delivered
+/// material is ahead of the authored frame. When the frame catches up, the
+/// worker returns to the free pool so the same settlement can run the next
+/// material cart instead of deadlocking with an idle builder.
+pub fn residence_upgrade_work_ready(work: ResidenceUpgradeWork) -> bool {
+    residence_upgrade_is_paid(work)
+        && nonnegative(work.progress).min(1.0) + EPSILON
+            < residence_upgrade_material_readiness(work)
+}
+
+/// Rebalances the one-builder household-project slots without consuming labor
+/// at an empty worksite. Existing productive or inbound-waiting builders are
+/// kept within their priority tier before a new commute starts, while a higher
+/// priority project may still preempt a lower tier.
+pub fn residence_project_labor_targets(
+    sites: &[ResidenceProjectLaborSite],
+    available_labor: u32,
+) -> Vec<(u64, u32)> {
+    let current_builders = sites
+        .iter()
+        .map(|site| site.assigned_labor.min(1))
+        .sum::<u32>();
+    let mut remaining = current_builders.saturating_add(available_labor);
+    let mut selected = HashSet::new();
+    let mut buckets: [Vec<ResidenceProjectLaborSite>; CONSTRUCTION_PRIORITY_LEVELS] =
+        std::array::from_fn(|_| Vec::new());
+
+    for site in sites.iter().copied() {
+        let priority = construction_priority_bucket(site.priority);
+        if priority > CONSTRUCTION_PRIORITY_HOLD as usize {
+            buckets[priority].push(site);
+        }
+    }
+    for bucket in &mut buckets {
+        bucket.sort_unstable_by_key(|site| site.residence_id);
+    }
+
+    for bucket in buckets.iter().skip(1).rev() {
+        for site in bucket {
+            if remaining == 0 {
+                break;
+            }
+            if site.assigned_labor > 0 && (site.work_ready || site.inbound_supply) {
+                selected.insert(site.residence_id);
+                remaining -= 1;
+            }
+        }
+        for site in bucket {
+            if remaining == 0 {
+                break;
+            }
+            if site.work_ready && selected.insert(site.residence_id) {
+                remaining -= 1;
+            }
+        }
+    }
+
+    let mut targets = sites
+        .iter()
+        .filter_map(|site| {
+            let target = u32::from(selected.contains(&site.residence_id));
+            (site.assigned_labor.min(1) != target).then_some((site.residence_id, target))
+        })
+        .collect::<Vec<_>>();
+    targets.sort_unstable_by_key(|(residence_id, _)| *residence_id);
+    targets
 }
 
 pub fn advance_residence_upgrade(
@@ -144,6 +226,74 @@ mod tests {
         work.delivered_gold = 8.0;
         work.assigned_labor = 0;
         assert_eq!(advance_residence_upgrade(work, 1.0, 1.0), 0.0);
+    }
+
+    #[test]
+    fn builders_release_blocked_projects_and_return_when_material_is_ready() {
+        let mut work = ready_work();
+        work.delivered_timber = 0.0;
+        work.delivered_stone = 0.0;
+        assert!(!residence_upgrade_work_ready(work));
+
+        work.delivered_timber = 9.0;
+        work.delivered_stone = 7.0;
+        assert!(residence_upgrade_work_ready(work));
+
+        work.progress = 0.5;
+        assert!(!residence_upgrade_work_ready(work));
+
+        work.progress = 0.0;
+        work.delivered_gold = 7.9;
+        assert!(!residence_upgrade_work_ready(work));
+    }
+
+    #[test]
+    fn lone_cottage_worker_hauls_first_then_returns_to_build() {
+        let blocked = ResidenceProjectLaborSite {
+            residence_id: 1,
+            priority: 3,
+            assigned_labor: 1,
+            work_ready: false,
+            inbound_supply: false,
+        };
+        assert_eq!(residence_project_labor_targets(&[blocked], 0), vec![(1, 0)]);
+
+        let supplied = ResidenceProjectLaborSite {
+            assigned_labor: 0,
+            work_ready: true,
+            ..blocked
+        };
+        assert_eq!(residence_project_labor_targets(&[supplied], 1), vec![(1, 1)]);
+
+        let cart_approaching = ResidenceProjectLaborSite {
+            assigned_labor: 1,
+            work_ready: false,
+            inbound_supply: true,
+            ..blocked
+        };
+        assert!(residence_project_labor_targets(&[cart_approaching], 0).is_empty());
+    }
+
+    #[test]
+    fn ready_urgent_project_can_preempt_a_lower_priority_builder() {
+        let low = ResidenceProjectLaborSite {
+            residence_id: 10,
+            priority: 1,
+            assigned_labor: 1,
+            work_ready: true,
+            inbound_supply: false,
+        };
+        let urgent = ResidenceProjectLaborSite {
+            residence_id: 20,
+            priority: 3,
+            assigned_labor: 0,
+            work_ready: true,
+            inbound_supply: false,
+        };
+        assert_eq!(
+            residence_project_labor_targets(&[low, urgent], 0),
+            vec![(10, 0), (20, 1)],
+        );
     }
 
     #[test]

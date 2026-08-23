@@ -759,10 +759,26 @@ assert.match(residenceMarkers, /Delivered fired roof tile/);
 
 const upgradeSimulation = source('../server/src/simulation/residence_upgrades.rs');
 assert.match(upgradeSimulation, /HashMap<[\s\S]*CONSTRUCTION_PRIORITY_LEVELS/);
-assert.match(upgradeSimulation, /upgrade_assigned_labor == 0[\s\S]*return/);
 assert.match(upgradeSimulation, /try_start_residence_upgrade_supply_trip/);
 assert.match(upgradeSimulation, /ensure_residence_needs\(ctx, residence_id\)/);
 assert.match(upgradeSimulation, /initial_cottage_works/);
+assert.match(upgradeSimulation, /residence_upgrade_work_ready\(upgrade_work\(&residence\)\)/);
+assert.match(upgradeSimulation, /residence_project_labor_targets/);
+assert.match(upgradeSimulation, /has_approaching_upgrade_supply/);
+const upgradeDispatchStart = upgradeSimulation.indexOf('fn dispatch_upgrade_material(');
+const upgradeRouteStart = upgradeSimulation.indexOf('fn upgrade_route_distance(', upgradeDispatchStart);
+assert.ok(upgradeDispatchStart >= 0 && upgradeRouteStart > upgradeDispatchStart);
+const upgradeDispatch = upgradeSimulation.slice(upgradeDispatchStart, upgradeRouteStart);
+assert.doesNotMatch(
+  upgradeDispatch,
+  /upgrade_assigned_labor\s*==\s*0/,
+  'an unstaffed cottage must be able to release its lone worker for material hauling',
+);
+assert.match(
+  upgradeDispatch,
+  /construction_source_cart_busy\(ctx, &source\)/,
+  'the open founders stockyard must not serialize every cottage behind a returning cart',
+);
 assert.match(
   upgradeSimulation,
   /if residence\.roof_tile_retrofit_active[\s\S]*residence\.tiled_roof = true/,
@@ -788,6 +804,28 @@ assert.match(
   deliveryTrips,
   /tick\.residence_disabled_by_fire\(ctx, residence\.id\) && !residence\.fire_repair_active/,
   'only recovery carts may enter a fire-disabled household destination',
+);
+const upgradeTripStart = deliveryTrips.indexOf('pub fn try_start_residence_upgrade_supply_trip(');
+const fireTripStart = deliveryTrips.indexOf('pub fn try_start_fire_response_trip(', upgradeTripStart);
+assert.ok(upgradeTripStart >= 0 && fireTripStart > upgradeTripStart);
+const upgradeTrip = deliveryTrips.slice(upgradeTripStart, fireTripStart);
+assert.match(upgradeTrip, /construction_source_cart_busy\(ctx, origin\)/);
+assert.doesNotMatch(
+  upgradeTrip,
+  /building_has_active_trip\(ctx, origin\.id\)/,
+  'a founders-camp return leg must not block another independently staffed cottage cart',
+);
+
+const upgradePolicy = source('../server/src/residence_upgrade_policy.rs');
+assert.match(
+  upgradePolicy,
+  /pub fn residence_upgrade_work_ready[\s\S]*residence_upgrade_is_paid[\s\S]*residence_upgrade_material_readiness/,
+  'residence builders should hold labor only while paid onsite material is buildable',
+);
+assert.match(
+  upgradePolicy,
+  /pub fn residence_project_labor_targets[\s\S]*site\.work_ready \|\| site\.inbound_supply[\s\S]*site\.work_ready && selected\.insert/,
+  'the native-tested residence labor policy must recall blocked builders while preserving approaching carts',
 );
 
 const residenceBinding = source('../src/generated/residence_table.ts');

@@ -1,11 +1,14 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { recoveryStockMin } from '../src/economy/chapelCommunity.ts';
-import { residenceSettlementReadiness } from '../src/economy/residenceSettlement.ts';
+import { householdFoodPerDay } from '../src/economy/foodInventory.ts';
+import {
+  residenceSettlementBufferMin,
+  residenceSettlementReadiness,
+  type ResidenceSettlementVitalNeedKind,
+} from '../src/economy/residenceSettlement.ts';
 import {
   createDefaultNeeds,
   type ResidenceCommunityContext,
-  type ResidenceNeedKind,
 } from '../src/residences/residenceNeedState.ts';
 import type { ResidenceState } from '../src/resources/types.ts';
 
@@ -27,6 +30,7 @@ assert.deepEqual(hungryReadiness.waitingOn.map((buffer) => buffer.kind), ['food'
 stockToThreshold(tierOne, 'firewood', noParish);
 stockToThreshold(tierOne, 'food', noParish);
 stockToThreshold(tierOne, 'water', noParish);
+tierOne.needs.church.deficitTicks = 10_000;
 assert.equal(residenceSettlementReadiness(tierOne, noParish).ready, true);
 
 const tierTwo = residence(2, 3);
@@ -41,7 +45,7 @@ assert.deepEqual(
 );
 
 const tierThree = residence(3, 6);
-for (const kind of ['food', 'firewood', 'water', 'preservedFood', 'ale', 'cloth'] as const) {
+for (const kind of ['food', 'firewood', 'water'] as const) {
   stockToThreshold(tierThree, kind, noParish);
 }
 assert.equal(residenceSettlementReadiness(tierThree, noParish).ready, true);
@@ -63,9 +67,18 @@ for (const kind of ['food', 'firewood', 'water'] as const) {
 }
 assert.equal(residenceSettlementReadiness(parishHome, parish).ready, true);
 assert.ok(
-  recoveryStockMin('food', parish.hasChapelAccess, parish.hasMonasteryCoverage)
-    < recoveryStockMin('food', false, false),
+  residenceSettlementBufferMin('food', parishHome.population, parish)
+    < residenceSettlementBufferMin('food', parishHome.population, noParish),
   'parish and monastery support should retain their established buffer reduction',
+);
+assert.ok(
+  residenceSettlementBufferMin('food', 1, noParish) < householdFoodPerDay(1),
+  'one ordinary daily food issue must be able to satisfy the settlement buffer',
+);
+assert.ok(
+  residenceSettlementBufferMin('food', 3, noParish)
+    > residenceSettlementBufferMin('food', 1, noParish),
+  'settlement buffers should scale with the population they sustain',
 );
 
 const serverLifecycle = readFileSync(
@@ -76,13 +89,26 @@ const serverSettlement = readFileSync(
   new URL('../server/src/simulation/residence_settlement.rs', import.meta.url),
   'utf8',
 );
+const residenceRenderer = readFileSync(
+  new URL('../src/resources/inspector/residenceRenderer.ts', import.meta.url),
+  'utf8',
+);
 assert.match(
   serverLifecycle,
   /let needs = load_needs[\s\S]*?step_residence_settlement[\s\S]*?&needs[\s\S]*?step_residence_needs[\s\S]*?needs/,
   'growth and consumption must share one authoritative need-row load',
 );
 assert.match(serverSettlement, /settlement_buffers_ready\(residence\.population, buffers\)/);
-assert.match(serverSettlement, /recovery_stock_min/);
+assert.match(serverSettlement, /residence_settlement_buffer_min/);
+assert.match(residenceRenderer, /Settlers waiting · \$\{settlementWaitLabels\}/);
+assert.match(
+  residenceRenderer,
+  /Marketplace checks \$\{MARKETPLACE_HOUSEHOLD_ISSUE_CHECKS_PER_DAY\} times per day/,
+);
+assert.match(
+  residenceRenderer,
+  /Required level \$\{requiredChapelTierForResidence\(residence\.tier\)\}/,
+);
 
 console.log('residence settlement buffer tests passed');
 
@@ -106,12 +132,12 @@ function residence(tier: 1 | 2 | 3, population: number): ResidenceState {
 
 function stockToThreshold(
   target: ResidenceState,
-  kind: ResidenceNeedKind,
+  kind: ResidenceSettlementVitalNeedKind,
   community: ResidenceCommunityContext,
 ): void {
-  target.needs[kind].stock = recoveryStockMin(
+  target.needs[kind].stock = residenceSettlementBufferMin(
     kind,
-    community.hasChapelAccess,
-    community.hasMonasteryCoverage,
+    target.population,
+    community,
   );
 }

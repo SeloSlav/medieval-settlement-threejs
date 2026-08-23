@@ -1407,7 +1407,7 @@ pub fn try_start_residence_upgrade_supply_trip(
         || origin.owner != residence.owner
         || tick.building_disabled_by_fire(ctx, origin.id)
         || (tick.residence_disabled_by_fire(ctx, residence.id) && !residence.fire_repair_active)
-        || building_has_active_trip(ctx, origin.id)
+        || construction_source_cart_busy(ctx, origin)
         || (origin.kind == "village_storehouse" && building_has_inbound_supply_trip(ctx, origin.id))
         || labor_and_logistics_paused(ctx, tick, origin.owner, clock)
     {

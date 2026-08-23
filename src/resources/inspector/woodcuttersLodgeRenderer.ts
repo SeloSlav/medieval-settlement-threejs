@@ -199,7 +199,7 @@ export function renderWoodcuttersLodgeInspector(
     },
     labor: buildingLaborView(building, context.populationStats, context.worldQueries),
     supplementalPanelHtml: `
-      <div class="inspector-action-panel">
+      <div class="inspector-action-panel" data-inspector-panel-title="Timber reserve · ${Math.round(timberReserve)}">
         <p class="inspector-action-panel__hint">This lodge stops hauling and splitting timber before settlement-wide physical stock would fall below its chosen floor. Materials already reserved by active construction sites are protected separately.</p>
         ${WOODCUTTER_TIMBER_RESERVE_PRESETS
           .map((preset) => `<button type="button" class="resource-action-button" data-woodcutter-timber-reserve="${preset.reserve}" ${timberReserve === preset.reserve ? 'disabled' : ''}>${preset.label} · ${preset.reserve}</button>`)

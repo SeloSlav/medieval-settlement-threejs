@@ -91,6 +91,30 @@ pub const MARKETPLACE_MATERIAL_TARGET_KINDS: &[&str] = &[
 /// ordinary household or preservation cart duty.
 pub const GRAIN_CRITICAL_RUNWAY_CYCLES: f64 = 1.0;
 
+/// Marketplace food bays deliberately refill in useful cart batches. Fresh
+/// food spoilage otherwise opens a tiny amount of room every tick and can trap
+/// the only granary worker in an endless sequence of crumb-sized round trips.
+/// An empty market may still accept whatever scarce stock is available.
+pub fn marketplace_refill_request(
+    current_stock: f64,
+    target_stock: f64,
+    cart_capacity: f64,
+    available_stock: f64,
+) -> f64 {
+    let current = current_stock.max(0.0);
+    let target = target_stock.max(0.0);
+    let available = available_stock.max(0.0);
+    let room = (target - current).max(0.0);
+    if room <= 1e-6 || available <= 1e-6 {
+        return 0.0;
+    }
+    let useful_batch = cart_capacity.max(0.0).min(target);
+    if current > 1e-6 && useful_batch > 1e-6 && room + 1e-6 < useful_batch {
+        return 0.0;
+    }
+    room.min(available)
+}
+
 pub const CARPENTER_CART_SERVICE_TARGET_DEFAULT: u8 = CARPENTER_CART_SERVICE_TARGET_TRIPS as u8;
 
 pub fn is_valid_carpenter_cart_service_target(target_trips: u8) -> bool {
@@ -781,6 +805,7 @@ mod tests {
         is_food_supplier_operational, is_specialty_supplier_operational,
         is_well_supplier_operational, large_quarry_support_runway_cycles,
         large_quarry_support_target, large_quarry_supports_ready, local_material_dispatch_target,
+        marketplace_refill_request,
         processor_input_dispatch_duty, processor_input_dispatch_duty_for_target,
         processor_input_runway_cycles, processor_input_target, rich_mine_support_runway_cycles,
         rich_mine_support_target, rich_mine_supports_ready, select_grain_dispatch_candidate,
@@ -802,6 +827,14 @@ mod tests {
         assert_eq!(rich_mine_support_runway_cycles(1.5), 3.0);
         assert!(!rich_mine_supports_ready(0.49));
         assert!(rich_mine_supports_ready(0.5));
+    }
+
+    #[test]
+    fn marketplace_refills_wait_for_a_useful_cart_without_stranding_scarcity() {
+        assert_eq!(marketplace_refill_request(95.92, 96.0, 6.0, 40.0), 0.0);
+        assert!((marketplace_refill_request(90.0, 96.0, 6.0, 40.0) - 6.0).abs() < 1e-9);
+        assert!((marketplace_refill_request(0.0, 96.0, 6.0, 0.2) - 0.2).abs() < 1e-9);
+        assert_eq!(marketplace_refill_request(0.0, 96.0, 6.0, 0.0), 0.0);
     }
 
     #[test]

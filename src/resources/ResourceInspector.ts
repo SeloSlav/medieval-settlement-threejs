@@ -85,6 +85,8 @@ import {
 } from '../economy/foodInventory.ts';
 import { AlertDialog } from '../ui/AlertDialog.ts';
 
+const BUILDING_SUMMARY_LIMIT = 4;
+
 type ResourceInspectorOptions = {
   domElement: HTMLElement;
   uiRoot: HTMLElement;
@@ -730,6 +732,7 @@ export class ResourceInspector {
           await this.options.onDemolishPasture?.(target.pasture.id);
         }
       },
+      this.demolishHint.textContent?.trim() ?? '',
     );
   };
 
@@ -1359,6 +1362,7 @@ export class ResourceInspector {
       actionLabel,
       `${target.residenceCount} residence${target.residenceCount === 1 ? '' : 's'}`,
       () => this.options.onDemolishBurgageZone?.(target.zone.id),
+      this.demolishSecondaryHint.textContent?.trim() ?? '',
     );
   };
 
@@ -1366,11 +1370,14 @@ export class ResourceInspector {
     actionLabel: string,
     targetLabel: string,
     action: () => void | Promise<void> | undefined,
+    detail = '',
   ): Promise<void> {
     const confirmed = await this.deleteDialog.confirm({
       eyebrow: 'Confirm removal',
       title: actionLabel,
-      description: `${targetLabel} · irreversible`,
+      description: detail
+        ? `${targetLabel} · irreversible. ${detail}`
+        : `${targetLabel} · irreversible`,
       confirmLabel: actionLabel,
       cancelLabel: 'Cancel',
     });
@@ -2224,8 +2231,16 @@ export class ResourceInspector {
 
     this.eyebrow.textContent = view.eyebrow;
     this.title.textContent = view.title;
-    this.status.textContent = view.statusText;
+    const compactStatus = target.kind === 'building'
+      ? compactBuildingStatus(view.statusText)
+      : view.statusText;
+    this.status.textContent = compactStatus;
     this.status.dataset.state = view.statusState;
+    syncFocusableInspectorTooltip(
+      this.status,
+      view.title,
+      compactStatus === view.statusText ? '' : view.statusText,
+    );
     this.applyPresentation(target);
     this.syncServiceCoverageButton(target, view.serviceCoverage);
     this.renderDetails(view.detailsHtml);
@@ -2233,38 +2248,66 @@ export class ResourceInspector {
     this.demolishSection.hidden = !view.demolish.visible;
     this.demolishButton.textContent = view.demolish.label ?? 'Demolish';
     this.demolishHint.textContent = view.demolish.hint;
-    this.demolishHint.hidden = target.kind === 'residence'
+    const compactDemolition = target.kind === 'building' || target.kind === 'residence';
+    this.demolishHint.hidden = compactDemolition
       || view.demolish.hint.trim().length === 0;
+    syncInspectorTooltip(
+      this.demolishButton,
+      view.demolish.label ?? 'Demolish',
+      compactDemolition ? view.demolish.hint : '',
+    );
 
     const secondary = view.demolish.secondary;
     this.demolishSecondaryButton.hidden = !secondary;
     if (secondary) {
       this.demolishSecondaryButton.textContent = secondary.label;
       this.demolishSecondaryHint.textContent = secondary.hint;
-      this.demolishSecondaryHint.hidden = target.kind === 'residence'
+      this.demolishSecondaryHint.hidden = compactDemolition
         || secondary.hint.trim().length === 0;
+      syncInspectorTooltip(
+        this.demolishSecondaryButton,
+        secondary.label,
+        compactDemolition ? secondary.hint : '',
+      );
     } else {
       this.demolishSecondaryButton.textContent = '';
       this.demolishSecondaryHint.textContent = '';
       this.demolishSecondaryHint.hidden = true;
+      syncInspectorTooltip(this.demolishSecondaryButton, '', '');
     }
 
     this.laborSection.hidden = !view.labor.visible;
     if (view.labor.visible) {
-      this.laborLabel.textContent = view.labor.label ?? 'Workforce';
+      const laborLabel = view.labor.label ?? 'Workforce';
+      this.laborLabel.textContent = target.kind === 'building'
+        ? `${laborLabel} · ${this.populationStats.available} free`
+        : laborLabel;
       this.laborCount.textContent = view.labor.count.toString();
       this.laborHint.textContent = view.labor.hint;
+      this.laborHint.hidden = target.kind === 'building' || view.labor.hint.trim().length === 0;
+      syncFocusableInspectorTooltip(
+        this.laborLabel,
+        laborLabel,
+        target.kind === 'building' ? view.labor.hint : '',
+      );
       this.laborDecrease.disabled = view.labor.decreaseDisabled;
       this.laborIncrease.disabled = view.labor.increaseDisabled;
+    } else {
+      this.laborHint.hidden = true;
+      syncFocusableInspectorTooltip(this.laborLabel, '', '');
     }
 
     if (view.supplementalPanelHtml) {
-      this.supplementalPanelSection.hidden = false;
       this.supplementalPanelSection.innerHTML = view.supplementalPanelHtml;
-      this.organizeSupplementalPanel(openPolicyIndices, preservePolicyState);
-      const tradingPostScroll = this.supplementalPanelSection
-        .querySelector<HTMLElement>('[data-trading-post-scroll]');
-      if (tradingPostScroll) tradingPostScroll.scrollTop = tradingPostScrollTop;
+      if (target.kind === 'building') this.compactBuildingSupplementalPanels();
+      const hasSupplementalContent = this.supplementalPanelSection.childElementCount > 0;
+      this.supplementalPanelSection.hidden = !hasSupplementalContent;
+      if (hasSupplementalContent) {
+        this.organizeSupplementalPanel(openPolicyIndices, preservePolicyState);
+        const tradingPostScroll = this.supplementalPanelSection
+          .querySelector<HTMLElement>('[data-trading-post-scroll]');
+        if (tradingPostScroll) tradingPostScroll.scrollTop = tradingPostScrollTop;
+      }
     } else {
       this.supplementalPanelSection.hidden = true;
       this.supplementalPanelSection.innerHTML = '';
@@ -2362,6 +2405,44 @@ export class ResourceInspector {
       this.detailList.replaceChildren(...withInspectorSectionHeadings(residenceSummaryRows));
       return;
     }
+    if (this.panel.dataset.inspectorTarget === 'building') {
+      const compactRankedRows = ranked
+        .filter(({ row }) => !row.hasAttribute('data-inspector-secondary'))
+        .sort((a, b) => {
+          const aPriority = a.score
+            + (a.row.hasAttribute('data-inspector-primary') ? 48 : 0)
+            + (a.row.dataset.state === 'warning' ? 96 : 0);
+          const bPriority = b.score
+            + (b.row.hasAttribute('data-inspector-primary') ? 48 : 0)
+            + (b.row.dataset.state === 'warning' ? 96 : 0);
+          return bPriority - aPriority || a.index - b.index;
+        })
+        .slice(0, BUILDING_SUMMARY_LIMIT);
+      const compactRowSet = new Set(compactRankedRows.map(({ row }) => row));
+      const omittedPrimaryDetails = ranked
+        .filter(({ row }) =>
+          row.hasAttribute('data-inspector-primary')
+          && !compactRowSet.has(row))
+        .map(({ row }) => {
+          const label = row.querySelector('.inspector-detail-label')?.textContent?.trim() ?? '';
+          const value = row.querySelector('.inspector-detail-value')?.textContent?.trim() ?? '';
+          return label && value ? `${label}: ${value}` : '';
+        })
+        .filter(Boolean)
+        .join(' · ');
+      if (omittedPrimaryDetails) {
+        appendFocusableInspectorTooltip(
+          this.status,
+          this.title.textContent?.trim() || 'Building status',
+          `Additional at-a-glance details: ${omittedPrimaryDetails}`,
+        );
+      }
+      const compactRows = compactRankedRows
+        .sort((a, b) => a.index - b.index)
+        .map(({ row }) => row);
+      this.detailList.replaceChildren(...withInspectorSectionHeadings(compactRows));
+      return;
+    }
     const pinnedPrimaryRows = ranked
       .filter(({ row }) => row.hasAttribute('data-inspector-primary'))
       .map(({ row }) => row);
@@ -2396,6 +2477,94 @@ export class ResourceInspector {
     this.detailList.replaceChildren(...withInspectorSectionHeadings(visibleRows));
   }
 
+  private compactBuildingSupplementalPanels(): void {
+    const controlSelector = 'button, input, select, textarea, a[href], [contenteditable="true"]';
+    for (const child of [...this.supplementalPanelSection.children]) {
+      if (!(child instanceof HTMLElement)) continue;
+      if (child.matches('.resource-inspector-note, .inspector-action-panel__hint')) {
+        child.remove();
+        continue;
+      }
+      if (child.classList.contains('inspector-action-panel')) continue;
+      if (!child.matches(controlSelector) && !child.querySelector(controlSelector)) continue;
+
+      const wrapper = document.createElement('section');
+      wrapper.className = 'inspector-action-panel';
+      const heading = child.querySelector<HTMLElement>('h2, h3, h4, h5, h6');
+      wrapper.dataset.inspectorPanelTitle = heading?.textContent?.trim() || 'Actions';
+      child.before(wrapper);
+      wrapper.append(child);
+    }
+
+    const panels = [...this.supplementalPanelSection.children]
+      .filter((element): element is HTMLElement =>
+        element instanceof HTMLElement
+        && element.classList.contains('inspector-action-panel'));
+
+    for (const panel of panels) {
+      const controls = [...panel.querySelectorAll<HTMLElement>(
+        controlSelector,
+      )].filter((control) => !control.hasAttribute('hidden'));
+      if (controls.length === 0) {
+        const guidance = panel.textContent?.trim() ?? '';
+        if (guidance && this.status.dataset.state === 'warning') {
+          appendFocusableInspectorTooltip(
+            this.status,
+            this.title.textContent?.trim() || 'Building status',
+            guidance,
+          );
+        }
+        panel.remove();
+        continue;
+      }
+
+      const heading = panel.querySelector<HTMLElement>(
+        '.inspector-action-panel__title, h2, h3, h4, h5, h6, .storage-acceptance__heading strong',
+      );
+      const descriptiveNodes = [...panel.querySelectorAll<HTMLElement>(
+        ':scope > .inspector-action-panel__hint, :scope > .resource-inspector-note, .trading-post-ledger__intro',
+      )].filter((node) =>
+        !node.classList.contains('resource-inspector-note')
+        || !node.nextElementSibling?.matches('.resource-action-row'));
+      const description = descriptiveNodes
+        .map((node) => node.textContent?.trim() ?? '')
+        .filter(Boolean)
+        .join(' ');
+      const selectedControl = panel.querySelector<HTMLElement>(
+        'button[aria-pressed="true"], button.is-selected, button:disabled, option:checked',
+      );
+      const firstControl = controls[0];
+      const title = panel.dataset.inspectorPanelTitle?.trim()
+        || heading?.textContent?.trim()
+        || selectedControl?.textContent?.trim()
+        || firstControl?.textContent?.trim()
+        || 'Actions';
+
+      panel.dataset.inspectorPanelTitle = title;
+      panel.dataset.inspectorControlCount = String(controls.length);
+      panel.classList.add('inspector-action-panel--compact');
+      const compactChildren = [...panel.children].filter((child) =>
+        child instanceof HTMLElement
+        && !child.hasAttribute('hidden')
+        && child !== heading
+        && !descriptiveNodes.includes(child));
+      if (compactChildren.length > 1 && compactChildren.every(
+        (child) => child instanceof HTMLButtonElement,
+      )) {
+        panel.classList.add('inspector-action-panel--button-grid');
+      }
+      syncInspectorTooltip(panel, title, description);
+      heading?.remove();
+      for (const node of descriptiveNodes) node.remove();
+    }
+
+    for (const note of this.supplementalPanelSection.querySelectorAll<HTMLElement>(
+      ':scope > .resource-inspector-note, :scope > .inspector-action-panel__hint',
+    )) {
+      note.remove();
+    }
+  }
+
   private organizeSupplementalPanel(
     openPolicyIndices: ReadonlySet<number>,
     preserveState: boolean,
@@ -2404,7 +2573,27 @@ export class ResourceInspector {
       .filter((element): element is HTMLElement =>
         element instanceof HTMLElement
         && element.classList.contains('inspector-action-panel'));
-    if (panels.length < 3) return;
+    const compactBuilding = this.panel.dataset.inspectorTarget === 'building';
+    const shouldOrganize = compactBuilding
+      ? panels.length > 1
+        || Number(panels[0]?.dataset.inspectorControlCount ?? 0) > 2
+      : panels.length >= 3;
+    if (!shouldOrganize) {
+      for (const panel of panels) {
+        const firstControl = panel.querySelector<HTMLElement>(
+          'button, input, select, textarea, a[href], [contenteditable="true"]',
+        );
+        if (firstControl && panel.dataset.tooltip) {
+          appendInspectorTooltip(
+            firstControl,
+            panel.dataset.tooltipTitle?.trim() || panel.dataset.inspectorPanelTitle || 'Details',
+            panel.dataset.tooltip,
+          );
+        }
+        syncInspectorTooltip(panel, '', '');
+      }
+      return;
+    }
 
     panels.forEach((panel, index) => {
       const titleSource = panel.querySelector(
@@ -2414,14 +2603,25 @@ export class ResourceInspector {
         ?.textContent
         ?.split(/[.!?]/)[0]
         ?.trim();
-      const title = titleSource?.textContent?.trim() || fallback || `Policy ${index + 1}`;
+      const title = panel.dataset.inspectorPanelTitle?.trim()
+        || titleSource?.textContent?.trim()
+        || fallback
+        || `Policy ${index + 1}`;
       const disclosure = document.createElement('details');
       disclosure.className = 'inspector-policy-card';
-      disclosure.open = preserveState ? openPolicyIndices.has(index) : index === 0;
+      disclosure.open = preserveState
+        ? openPolicyIndices.has(index)
+        : !compactBuilding && index === 0;
       const summary = document.createElement('summary');
       summary.innerHTML = `<span aria-hidden="true">${inspectorPolicyIcon(title)}</span><strong></strong><span aria-hidden="true">+</span>`;
       const strong = summary.querySelector('strong');
       if (strong) strong.textContent = title.length > 54 ? `${title.slice(0, 51)}…` : title;
+      syncInspectorTooltip(
+        summary,
+        panel.dataset.tooltipTitle?.trim() || title,
+        panel.dataset.tooltip?.trim() || '',
+      );
+      syncInspectorTooltip(panel, '', '');
       panel.before(disclosure);
       disclosure.append(summary, panel);
     });
@@ -2583,6 +2783,81 @@ function inspectablePresentation(target: InspectableTarget): InspectorPresentati
     symbol: '\u224B',
     image: '/assets/ui/build-menu/cards/fishing-camp.webp',
   };
+}
+
+function compactBuildingStatus(status: string): string {
+  const normalized = status.trim();
+  if (normalized.length <= 72) return normalized;
+  const firstSentence = normalized.split(/(?<=[.!?])\s+/u)[0]?.trim() ?? normalized;
+  if (firstSentence.length <= 72) return firstSentence.replace(/[.!?]+$/u, '');
+  const firstClause = firstSentence.split(/\s+[—–]\s+|\s+·\s+/u)[0]?.trim() ?? firstSentence;
+  if (firstClause.length <= 72) return firstClause;
+  return `${firstClause.slice(0, 69).trimEnd()}…`;
+}
+
+function syncInspectorTooltip(
+  element: HTMLElement,
+  title: string,
+  detail: string,
+): void {
+  const normalizedDetail = detail.trim();
+  if (!normalizedDetail) {
+    delete element.dataset.tooltipTitle;
+    delete element.dataset.tooltip;
+    return;
+  }
+  element.dataset.tooltipTitle = title.trim() || 'Details';
+  element.dataset.tooltip = normalizedDetail;
+}
+
+function appendInspectorTooltip(
+  element: HTMLElement,
+  title: string,
+  detail: string,
+): void {
+  const combinedDetail = [element.dataset.tooltip?.trim() ?? '', detail.trim()]
+    .filter(Boolean)
+    .join(' ');
+  syncInspectorTooltip(
+    element,
+    element.dataset.tooltipTitle?.trim() || title,
+    combinedDetail,
+  );
+}
+
+function syncFocusableInspectorTooltip(
+  element: HTMLElement,
+  title: string,
+  detail: string,
+): void {
+  syncInspectorTooltip(element, title, detail);
+  const normalizedDetail = detail.trim();
+  if (!normalizedDetail) {
+    element.removeAttribute('tabindex');
+    element.removeAttribute('aria-label');
+    return;
+  }
+  const visibleText = element.textContent?.trim() ?? '';
+  element.tabIndex = 0;
+  element.setAttribute(
+    'aria-label',
+    `${title.trim() || 'Details'}${visibleText ? `: ${visibleText}` : ''}. ${normalizedDetail}`,
+  );
+}
+
+function appendFocusableInspectorTooltip(
+  element: HTMLElement,
+  title: string,
+  detail: string,
+): void {
+  const combinedDetail = [element.dataset.tooltip?.trim() ?? '', detail.trim()]
+    .filter(Boolean)
+    .join(' ');
+  syncFocusableInspectorTooltip(
+    element,
+    element.dataset.tooltipTitle?.trim() || title,
+    combinedDetail,
+  );
 }
 
 function decorateInspectorRow(row: HTMLElement, label: string, value: string): void {

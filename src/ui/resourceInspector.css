@@ -219,6 +219,10 @@
   text-align: center;
 }
 
+.resource-inspector-demolish[hidden] {
+  display: none;
+}
+
 .resource-inspector-demolish:hover,
 .resource-inspector-demolish:focus-visible {
   background: rgba(150, 52, 42, 0.58);

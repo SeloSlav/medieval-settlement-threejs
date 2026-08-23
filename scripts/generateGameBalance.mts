@@ -392,6 +392,7 @@ export type GameBalance = {
     marketplaceFuelReserveDays: number;
     marketplaceFoodStallSlots: number;
     marketplaceGoodsStallSlots: number;
+    marketplaceHouseholdIssueChecksPerDay: number;
     residenceFirewoodPriorityWinterDays: number;
     residenceWaterCapacity: number;
     residenceWaterReorderFraction: number;
@@ -460,6 +461,7 @@ export type GameBalance = {
     residenceRecoveryFirewoodMin: number;
     residenceRecoveryWaterMin: number;
     residenceRecoveryFoodMin: number;
+    residenceSettlementBufferDays: number;
     residenceSettleTicks: number;
     chapelSettlementTicksMultiplier: number;
     chapelTitheGoldPerPersonPerDay: number;
@@ -1024,6 +1026,7 @@ function generateRust(): string {
     `pub const MARKETPLACE_FUEL_RESERVE_DAYS: f64 = ${rustF64(b.population.marketplaceFuelReserveDays)};`,
     `pub const MARKETPLACE_FOOD_STALL_SLOTS: u32 = ${b.population.marketplaceFoodStallSlots};`,
     `pub const MARKETPLACE_GOODS_STALL_SLOTS: u32 = ${b.population.marketplaceGoodsStallSlots};`,
+    `pub const MARKETPLACE_HOUSEHOLD_ISSUE_CHECKS_PER_DAY: u32 = ${b.population.marketplaceHouseholdIssueChecksPerDay};`,
     `pub const RESIDENCE_FIREWOOD_PRIORITY_WINTER_DAYS: f64 = ${rustF64(b.population.residenceFirewoodPriorityWinterDays)};`,
     `pub const RESIDENCE_WATER_CAPACITY: f64 = ${rustF64(b.population.residenceWaterCapacity)};`,
     `pub const RESIDENCE_WATER_REORDER_FRACTION: f64 = ${rustF64(b.population.residenceWaterReorderFraction)};`,
@@ -1092,6 +1095,7 @@ function generateRust(): string {
     `pub const RESIDENCE_RECOVERY_FIREWOOD_MIN: f64 = ${rustF64(b.population.residenceRecoveryFirewoodMin)};`,
     `pub const RESIDENCE_RECOVERY_WATER_MIN: f64 = ${rustF64(b.population.residenceRecoveryWaterMin)};`,
     `pub const RESIDENCE_RECOVERY_FOOD_MIN: f64 = ${rustF64(b.population.residenceRecoveryFoodMin)};`,
+    `pub const RESIDENCE_SETTLEMENT_BUFFER_DAYS: f64 = ${rustF64(b.population.residenceSettlementBufferDays)};`,
     `pub const RESIDENCE_SETTLE_TICKS: u32 = ${b.population.residenceSettleTicks};`,
     `pub const CHAPEL_SETTLEMENT_TICKS_MULTIPLIER: f64 = ${rustF64(b.population.chapelSettlementTicksMultiplier)};`,
     `pub const CHAPEL_TITHE_GOLD_PER_PERSON_PER_DAY: f64 = ${rustF64(b.population.chapelTitheGoldPerPersonPerDay)};`,
@@ -2011,6 +2015,7 @@ function generateTypeScript(): string {
     `export const MARKETPLACE_FUEL_RESERVE_DAYS = ${b.population.marketplaceFuelReserveDays};`,
     `export const MARKETPLACE_FOOD_STALL_SLOTS = ${b.population.marketplaceFoodStallSlots};`,
     `export const MARKETPLACE_GOODS_STALL_SLOTS = ${b.population.marketplaceGoodsStallSlots};`,
+    `export const MARKETPLACE_HOUSEHOLD_ISSUE_CHECKS_PER_DAY = ${b.population.marketplaceHouseholdIssueChecksPerDay};`,
     `export const RESIDENCE_FIREWOOD_PRIORITY_WINTER_DAYS = ${b.population.residenceFirewoodPriorityWinterDays};`,
     `export const RESIDENCE_WATER_CAPACITY = ${b.population.residenceWaterCapacity};`,
     `export const RESIDENCE_WATER_REORDER_FRACTION = ${b.population.residenceWaterReorderFraction};`,
@@ -2079,6 +2084,7 @@ function generateTypeScript(): string {
     `export const RESIDENCE_RECOVERY_FIREWOOD_MIN = ${b.population.residenceRecoveryFirewoodMin};`,
     `export const RESIDENCE_RECOVERY_WATER_MIN = ${b.population.residenceRecoveryWaterMin};`,
     `export const RESIDENCE_RECOVERY_FOOD_MIN = ${b.population.residenceRecoveryFoodMin};`,
+    `export const RESIDENCE_SETTLEMENT_BUFFER_DAYS = ${b.population.residenceSettlementBufferDays};`,
     `export const RESIDENCE_SETTLE_TICKS = ${b.population.residenceSettleTicks};`,
     `export const CHAPEL_SETTLEMENT_TICKS_MULTIPLIER = ${b.population.chapelSettlementTicksMultiplier};`,
     `export const CHAPEL_TITHE_GOLD_PER_PERSON_PER_DAY = ${b.population.chapelTitheGoldPerPersonPerDay};`,

@@ -130,7 +130,8 @@ use crate::supply_policy::{
     grain_input_runway_cycles, grain_input_target, granary_dispatch_order,
     institutional_food_surplus, local_material_dispatch_target, processor_input_dispatch_duty,
     processor_input_dispatch_duty_for_target, processor_input_runway_cycles,
-    processor_input_target, rich_mine_support_target, rich_mine_supports_ready,
+    processor_input_target, marketplace_refill_request, rich_mine_support_target,
+    rich_mine_supports_ready,
     select_grain_dispatch_candidate, select_processor_input_dispatch_candidate,
     select_seed_grain_delivery_candidate, select_supply_route_candidate, GranaryDispatchDuty,
     InstitutionalFoodDispatchDuty, ProcessorInputDispatchDuty, GRAIN_CRITICAL_RUNWAY_CYCLES,
@@ -4778,9 +4779,22 @@ fn dispatch_to_building_where_limited(
         return;
     };
     let target = &routed_target.building;
-    let needed = (routed_target.desired_stock - building_commodity_stock(target, commodity))
-        .max(0.0)
-        .min(transferable);
+    let target_stock = building_commodity_stock(target, commodity);
+    let needed = if target.kind == "marketplace" && commodity.is_edible() {
+        marketplace_refill_request(
+            target_stock,
+            routed_target.desired_stock,
+            commodity_transfer_per_trip(commodity),
+            transferable,
+        )
+    } else {
+        (routed_target.desired_stock - target_stock)
+            .max(0.0)
+            .min(transferable)
+    };
+    if needed <= 1e-6 {
+        return;
+    }
     let delivery_workers = if target.kind == "marketplace"
         && matches!(source.kind.as_str(), "granary" | "village_storehouse")
     {

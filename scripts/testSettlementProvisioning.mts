@@ -70,6 +70,18 @@ const householdDistribution = readFileSync(
   new URL('../server/src/simulation/household_distribution.rs', import.meta.url),
   'utf8',
 );
+const supplyPolicy = readFileSync(
+  new URL('../server/src/supply_policy.rs', import.meta.url),
+  'utf8',
+);
+const expandedEconomy = readFileSync(
+  new URL('../server/src/simulation/expanded_economy.rs', import.meta.url),
+  'utf8',
+);
+const tickContext = readFileSync(
+  new URL('../server/src/simulation/tick_context.rs', import.meta.url),
+  'utf8',
+);
 const pantrySafeguardPolicy = readFileSync(
   new URL('../server/src/pantry_safeguard_policy.rs', import.meta.url),
   'utf8',
@@ -135,13 +147,39 @@ assert.match(settlementHud, /meal-equivalents usable/);
 assert.match(settlementHud, /firewood \+.*charcoal.*fuel-equivalents/);
 assert.match(
   householdDistribution,
-  /fn market_issue_cycle[\s\S]*sim_tick % ticks_per_day[\s\S]*Some\(MarketIssueCycle::Daily\)/,
-  'markets must issue ordinary household lots once every day',
+  /fn market_issue_cycle[\s\S]*MARKETPLACE_HOUSEHOLD_ISSUE_CHECKS_PER_DAY[\s\S]*ticks_per_check[\s\S]*sim_tick % ticks_per_check[\s\S]*Some\(MarketIssueCycle::Routine\)/,
+  'markets must check household needs several times per day without increasing the target lot',
 );
 assert.match(
   householdDistribution,
-  /MarketIssueCycle::Daily[\s\S]*daily_market_issue_target_days\([\s\S]*ResidenceNeedKind::Firewood[\s\S]*ResidenceNeedKind::Food[\s\S]*ResidenceNeedKind::PreservedFood/,
-  'the Town Hall safeguard must add a critical-food and heat buffer on top of universal daily issues',
+  /MarketIssueCycle::Routine[\s\S]*daily_market_issue_target_days\([\s\S]*ResidenceNeedKind::Firewood[\s\S]*ResidenceNeedKind::Food[\s\S]*ResidenceNeedKind::PreservedFood/,
+  'routine checks must preserve daily lot targets and the Town Hall critical-food and heat safeguard',
+);
+assert.match(
+  supplyPolicy,
+  /pub fn marketplace_refill_request\([\s\S]*cart_capacity[\s\S]*available_stock/,
+  'market food refills must be governed by the useful-cart request policy',
+);
+assert.match(
+  expandedEconomy,
+  /target\.kind == "marketplace" && commodity\.is_edible\(\)[\s\S]*marketplace_refill_request\(\s*target_stock,\s*routed_target\.desired_stock,\s*commodity_transfer_per_trip\(commodity\),\s*transferable/,
+  'edible marketplace deliveries must use the useful-cart refill policy',
+);
+const stallCandidateSection = tickContext.indexOf('Vec::<MarketplaceStallCandidate>');
+const stallSortStart = tickContext.indexOf(
+  'candidates.sort_by(|left, right| {',
+  stallCandidateSection,
+);
+const stallSortEnd = tickContext.indexOf('            });', stallSortStart);
+assert.ok(stallCandidateSection >= 0 && stallSortStart >= 0 && stallSortEnd >= 0);
+const stallSort = tickContext.slice(stallSortStart, stallSortEnd);
+const needRankSortIndex = stallSort.indexOf('stall_need_rank');
+const sourceStockSortIndex = stallSort.indexOf('source_has_stock');
+assert.ok(
+  needRankSortIndex >= 0
+    && sourceStockSortIndex >= 0
+    && needRankSortIndex < sourceStockSortIndex,
+  'stall need priority must outrank source stock so a sole granary worker serves basic food first',
 );
 assert.match(
   pantrySafeguardPolicy,

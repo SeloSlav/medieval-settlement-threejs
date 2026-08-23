@@ -1,7 +1,7 @@
 //! Physical household improvement works: reservations, carted materials,
 //! visible builders, and staged completion.
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 use spacetimedb::ReducerContext;
 
@@ -17,11 +17,12 @@ use crate::db::*;
 use crate::economy::{available_building_labor, building_commodity_stock, CommodityKind};
 use crate::residence_service_policy::service_shortage_blocks_upgrade;
 use crate::residence_upgrade_policy::{
-    advance_residence_upgrade, residence_project_active, residence_upgrade_complete,
+    advance_residence_upgrade, residence_project_active, residence_project_labor_targets,
+    residence_upgrade_complete, residence_upgrade_work_ready, ResidenceProjectLaborSite,
     ResidenceUpgradeWork,
 };
 use crate::simulation::delivery_trips::{
-    available_free_haulers, building_has_active_trip, building_has_inbound_supply_trip,
+    available_free_haulers, building_has_inbound_supply_trip, construction_source_cart_busy,
     try_start_residence_upgrade_supply_trip, DeliveryTripPhase, DELIVERY_DESTINATION_RESIDENCE,
 };
 use crate::simulation::residence_needs::load_needs;
@@ -111,11 +112,6 @@ fn rebalance_upgrade_builders(
     if active_ids.is_empty() {
         return;
     }
-    let current_builders = active_ids
-        .iter()
-        .filter_map(|id| ctx.db.residence().id().find(id))
-        .map(|residence| residence.upgrade_assigned_labor.min(1))
-        .sum::<u32>();
     let owner = active_ids
         .first()
         .and_then(|id| ctx.db.residence().id().find(id))
@@ -123,42 +119,26 @@ fn rebalance_upgrade_builders(
     let Some(owner) = owner else {
         return;
     };
-    let mut remaining = current_builders.saturating_add(available_building_labor(ctx, owner));
-    let mut selected = HashSet::new();
+    let sites = active_ids
+        .iter()
+        .filter_map(|id| ctx.db.residence().id().find(id))
+        .map(|residence| ResidenceProjectLaborSite {
+            residence_id: residence.id,
+            priority: residence.upgrade_priority,
+            assigned_labor: residence.upgrade_assigned_labor,
+            work_ready: residence_upgrade_work_ready(upgrade_work(&residence)),
+            inbound_supply: has_approaching_upgrade_supply(ctx, residence.id),
+        })
+        .collect::<Vec<_>>();
+    let targets = residence_project_labor_targets(
+        &sites,
+        available_building_labor(ctx, owner),
+    );
 
-    // Keep already-present builders inside each priority tier before starting
-    // another commute; priority can still preempt every lower tier.
-    for ids in buckets.iter().skip(1).rev() {
-        for id in ids {
-            if remaining == 0 {
-                break;
-            }
-            if ctx
-                .db
-                .residence()
-                .id()
-                .find(id)
-                .is_some_and(|residence| residence.upgrade_assigned_labor > 0)
-            {
-                selected.insert(*id);
-                remaining -= 1;
-            }
-        }
-        for id in ids {
-            if remaining == 0 {
-                break;
-            }
-            if selected.insert(*id) {
-                remaining -= 1;
-            }
-        }
-    }
-
-    for id in active_ids {
+    for (id, assigned) in targets {
         let Some(mut residence) = ctx.db.residence().id().find(&id) else {
             continue;
         };
-        let assigned = u32::from(selected.contains(&id));
         if residence.upgrade_assigned_labor != assigned {
             residence.upgrade_assigned_labor = assigned;
             ctx.db.residence().id().update(residence);
@@ -173,12 +153,9 @@ fn dispatch_upgrade_material(
     residence: &mut Residence,
     commodity: CommodityKind,
 ) {
-    // A queued project does not create cart traffic until it has actually won
-    // a builder from the shared labor pool. This bounds route/source work by
-    // available labor and makes priority changes immediately meaningful.
-    if residence.upgrade_assigned_labor == 0 {
-        return;
-    }
+    // Material carts use free settlement labor and may stage a project before
+    // it wins a builder. This is what lets one worker alternate between hauling
+    // and building instead of becoming permanently assigned to an empty site.
     let reserved = match commodity {
         CommodityKind::Timber => residence.upgrade_reserved_timber,
         CommodityKind::Stone => residence.upgrade_reserved_stone,
@@ -211,7 +188,7 @@ fn dispatch_upgrade_material(
             if !source.construction_complete
                 || source.gold <= 1e-6
                 || tick.building_disabled_by_fire(ctx, source.id)
-                || building_has_active_trip(ctx, source.id)
+                || construction_source_cart_busy(ctx, &source)
             {
                 continue;
             }
@@ -238,7 +215,7 @@ fn dispatch_upgrade_material(
         };
         if !source.construction_complete
             || tick.building_disabled_by_fire(ctx, source.id)
-            || building_has_active_trip(ctx, source.id)
+            || construction_source_cart_busy(ctx, &source)
             || (source.kind == "village_storehouse"
                 && building_has_inbound_supply_trip(ctx, source.id))
             || building_commodity_stock(&source, commodity) <= 1e-6
@@ -301,6 +278,41 @@ fn has_inbound_upgrade_material(
         })
 }
 
+fn has_approaching_upgrade_supply(ctx: &ReducerContext, residence_id: u64) -> bool {
+    ctx.db
+        .delivery_trip()
+        .residence_id()
+        .filter(&residence_id)
+        .any(|trip| {
+            trip.destination_kind == DELIVERY_DESTINATION_RESIDENCE
+                && DeliveryTripPhase::from_u8(trip.phase) != Some(DeliveryTripPhase::Inbound)
+                && matches!(
+                    CommodityKind::from_u8(trip.cargo_kind),
+                    Some(
+                        CommodityKind::Timber
+                            | CommodityKind::Stone
+                            | CommodityKind::Gold
+                            | CommodityKind::RoofTiles
+                    )
+                )
+        })
+}
+
+fn upgrade_work(residence: &Residence) -> ResidenceUpgradeWork {
+    ResidenceUpgradeWork {
+        progress: residence.upgrade_progress,
+        required_timber: residence.upgrade_required_timber,
+        required_stone: residence.upgrade_required_stone,
+        required_gold: residence.upgrade_required_gold,
+        required_roof_tiles: residence.upgrade_required_roof_tiles,
+        delivered_timber: residence.upgrade_delivered_timber,
+        delivered_stone: residence.upgrade_delivered_stone,
+        delivered_gold: residence.upgrade_delivered_gold,
+        delivered_roof_tiles: residence.upgrade_delivered_roof_tiles,
+        assigned_labor: residence.upgrade_assigned_labor,
+    }
+}
+
 fn advance_upgrade_work(
     ctx: &ReducerContext,
     tick: &SimTickContext,
@@ -312,18 +324,7 @@ fn advance_upgrade_work(
     {
         return;
     }
-    let work = ResidenceUpgradeWork {
-        progress: residence.upgrade_progress,
-        required_timber: residence.upgrade_required_timber,
-        required_stone: residence.upgrade_required_stone,
-        required_gold: residence.upgrade_required_gold,
-        required_roof_tiles: residence.upgrade_required_roof_tiles,
-        delivered_timber: residence.upgrade_delivered_timber,
-        delivered_stone: residence.upgrade_delivered_stone,
-        delivered_gold: residence.upgrade_delivered_gold,
-        delivered_roof_tiles: residence.upgrade_delivered_roof_tiles,
-        assigned_labor: residence.upgrade_assigned_labor,
-    };
+    let work = upgrade_work(&residence);
     residence.upgrade_progress =
         advance_residence_upgrade(work, TICK_DT, CONSTRUCTION_WORK_PER_WORKER_PER_SEC);
     let completed = residence_upgrade_complete(ResidenceUpgradeWork {
