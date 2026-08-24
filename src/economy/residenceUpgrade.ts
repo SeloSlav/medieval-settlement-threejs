@@ -528,21 +528,28 @@ function residenceMaterialProject(
   const priority = normalizeConstructionPriority(residence.upgradePriority);
   const assignedLabor = Math.max(0, Math.floor(residence.upgradeAssignedLabor ?? 0));
   const paid = delivered.gold + 1e-6 >= required.gold;
+  const missingTimber = Math.max(0, required.timber - delivered.timber - incoming.timber);
+  const missingStone = Math.max(0, required.stone - delivered.stone - incoming.stone);
+  const missingGold = Math.max(0, required.gold - delivered.gold - incoming.gold);
+  const missingRoofTiles = Math.max(
+    0,
+    required.roofTiles - delivered.roofTiles - incoming.roofTiles,
+  );
   const blockers = [
     ...(priority === 0 ? ['works held by player'] : []),
+    ...(missingTimber > 1e-6
+      ? [`${formatAmount(missingTimber)} timber still reserved at source`]
+      : []),
+    ...(missingStone > 1e-6
+      ? [`${formatAmount(missingStone)} stone still reserved at source`]
+      : []),
+    ...(missingGold > 1e-6
+      ? [`${formatAmount(missingGold)} civic lockbox payment still at source`]
+      : []),
+    ...(missingRoofTiles > 1e-6
+      ? [`${formatAmount(missingRoofTiles)} fired roof tiles still reserved at source`]
+      : []),
     ...(assignedLabor === 0 && priority !== 0 ? ['waiting for a free builder'] : []),
-    ...(delivered.timber + incoming.timber + 1e-6 < required.timber
-      ? ['timber still reserved at source']
-      : []),
-    ...(delivered.stone + incoming.stone + 1e-6 < required.stone
-      ? ['stone still reserved at source']
-      : []),
-    ...(delivered.gold + incoming.gold + 1e-6 < required.gold
-      ? ['civic lockbox payment still at source']
-      : []),
-    ...(delivered.roofTiles + incoming.roofTiles + 1e-6 < required.roofTiles
-      ? ['fired roof tiles still reserved at source']
-      : []),
   ];
 
   return {

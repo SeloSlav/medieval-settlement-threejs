@@ -32,8 +32,8 @@ use crate::placement_validation::{
 };
 use crate::residence_service_policy::{required_chapel_tier, service_shortage_blocks_upgrade};
 use crate::residence_upgrade_policy::{
-    household_stock_satisfies_promotion_need, residence_project_active, residence_promotion_needs,
-    residence_upgrade_household_contribution,
+    allocate_whole_residence_project_costs, household_stock_satisfies_promotion_need,
+    residence_project_active, residence_promotion_needs, residence_upgrade_household_contribution,
 };
 use crate::resource_units::{whole_cost, whole_units};
 use crate::roads::{load_owner_road_network, RoadNetwork};
@@ -174,6 +174,10 @@ pub fn place_burgage_zone(
         .collect();
     let total_cost_units = residence_cost_units.iter().sum::<f64>();
     let cost = residence_zone_cost_for_units(total_cost_units);
+    let residence_timber_costs =
+        allocate_whole_residence_project_costs(cost.timber, &residence_cost_units);
+    let residence_stone_costs =
+        allocate_whole_residence_project_costs(cost.stone, &residence_cost_units);
     if total_timber(ctx, owner) + 1e-6 < cost.timber {
         return Err(format!(
             "Not enough timber (need {} timber).",
@@ -226,19 +230,15 @@ pub fn place_burgage_zone(
         .max()
         .ok_or_else(|| "Failed to resolve residence zone id.".to_string())?;
 
-    for (residence, residence_cost_units) in layout
-        .residences
-        .into_iter()
-        .zip(residence_cost_units.into_iter())
-    {
+    for (index, residence) in layout.residences.into_iter().enumerate() {
         let population_capacity = residence_population_for_parcel(residence.parcel_frontage);
         let required_timber = if physical_economy {
-            cost.timber * residence_cost_units / total_cost_units
+            residence_timber_costs[index]
         } else {
             0.0
         };
         let required_stone = if physical_economy {
-            cost.stone * residence_cost_units / total_cost_units
+            residence_stone_costs[index]
         } else {
             0.0
         };

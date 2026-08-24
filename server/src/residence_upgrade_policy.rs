@@ -6,6 +6,7 @@ use crate::balance_generated::HOUSEHOLD_PROJECT_WEALTH_RESERVE;
 use crate::construction_priority::{
     construction_priority_bucket, CONSTRUCTION_PRIORITY_HOLD, CONSTRUCTION_PRIORITY_LEVELS,
 };
+use crate::resource_units::whole_units;
 use crate::simulation::residence_needs::ResidenceNeedKind;
 
 const EPSILON: f64 = 1e-6;
@@ -81,6 +82,51 @@ pub struct ResidenceProjectLaborSite {
     pub assigned_labor: u32,
     pub work_ready: bool,
     pub inbound_supply: bool,
+}
+
+/// Split one already-rounded project total into whole-unit per-residence lots.
+/// Floors are assigned first, then the remaining units go to the largest
+/// fractional shares in stable parcel order. This preserves the zone cost
+/// exactly without leaving a sub-unit reservation that no cart can carry.
+pub fn allocate_whole_residence_project_costs(total_cost: f64, cost_weights: &[f64]) -> Vec<f64> {
+    let total_units = whole_units(total_cost) as u64;
+    if cost_weights.is_empty() {
+        return Vec::new();
+    }
+
+    let weights = cost_weights
+        .iter()
+        .map(|weight| nonnegative(*weight))
+        .collect::<Vec<_>>();
+    let weight_total = weights.iter().sum::<f64>();
+    if total_units == 0 || weight_total <= EPSILON {
+        return vec![0.0; cost_weights.len()];
+    }
+
+    let mut allocated = Vec::with_capacity(weights.len());
+    let mut remainders = Vec::with_capacity(weights.len());
+    let mut allocated_units = 0u64;
+    for (index, weight) in weights.into_iter().enumerate() {
+        let exact = total_units as f64 * weight / weight_total;
+        let base = exact.floor() as u64;
+        allocated.push(base as f64);
+        allocated_units = allocated_units.saturating_add(base);
+        remainders.push((index, exact - base as f64));
+    }
+
+    remainders.sort_unstable_by(|left, right| {
+        right
+            .1
+            .total_cmp(&left.1)
+            .then_with(|| left.0.cmp(&right.0))
+    });
+    for (index, _) in remainders
+        .into_iter()
+        .take(total_units.saturating_sub(allocated_units) as usize)
+    {
+        allocated[index] += 1.0;
+    }
+    allocated
 }
 
 fn nonnegative(value: f64) -> f64 {
@@ -242,6 +288,21 @@ mod tests {
         assert_eq!(residence_upgrade_household_contribution(15.0, 8.0), 3.0);
         assert_eq!(residence_upgrade_household_contribution(20.0, 8.0), 8.0);
         assert_eq!(residence_upgrade_household_contribution(-2.0, 8.0), 0.0);
+    }
+
+    #[test]
+    fn whole_cottage_costs_preserve_the_zone_total_without_fractional_lots() {
+        let lots = allocate_whole_residence_project_costs(28.0, &[1.0, 1.1, 1.2]);
+        assert_eq!(lots, vec![9.0, 9.0, 10.0]);
+        assert_eq!(lots.iter().sum::<f64>(), 28.0);
+        assert!(lots.iter().all(|lot| lot.fract() == 0.0));
+
+        assert_eq!(
+            allocate_whole_residence_project_costs(15.0, &[1.0, 1.0, 1.0]),
+            vec![5.0, 5.0, 5.0],
+            "equal parcels should remain equal and deterministic",
+        );
+        assert!(allocate_whole_residence_project_costs(10.0, &[]).is_empty());
     }
 
     #[test]

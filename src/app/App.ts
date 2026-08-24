@@ -126,7 +126,7 @@ import {
   markFirstPlayableAssetsReady,
   markVegetationReady,
 } from './startupDiagnostics.ts';
-import { formatDawnReport } from '../economy/nightPolicy.ts';
+import { formatDawnReport, isDawnReportRelevant } from '../economy/nightPolicy.ts';
 import { deriveLordReportTransitions } from '../ui/lordReports.ts';
 import { Vector3 } from 'three';
 
@@ -1380,6 +1380,10 @@ export class App {
     }
     if (reportDay <= 0 || reportDay === this.lastSeenNightReportDay) return;
     this.lastSeenNightReportDay = reportDay;
+    if (!isDawnReportRelevant(snapshot.nightPolicy)) {
+      this.resourceInspector?.refreshSelection();
+      return;
+    }
     const troubled =
       snapshot.nightPolicy.lastColdHouseholds > 0
       || snapshot.nightPolicy.lastIncidents > 0

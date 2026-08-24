@@ -4,15 +4,22 @@
 //! floors legacy stock to whole, non-negative units while deliberately leaving
 //! rates, progress, health, terrain, prices, and probabilities untouched.
 
+use std::collections::HashMap;
+
 use spacetimedb::ReducerContext;
 
+use crate::burgage::{compute_burgage_layout, residence_depth_cost_units, Point2, ZoneCorners};
 use crate::db::*;
+use crate::economy::{residence_zone_cost_for_units, CommodityKind};
+use crate::residence_upgrade_policy::allocate_whole_residence_project_costs;
 use crate::resource_units::{whole_signed_units, whole_units};
 use crate::security_policy::RaidPortableStores;
-use crate::tables::ResourceUnitMigration;
+use crate::tables::{Residence, ResourceUnitMigration};
 
 const RESOURCE_UNIT_MIGRATION_ID: u8 = 0;
-const RESOURCE_UNIT_MIGRATION_VERSION: u8 = 2;
+const RESOURCE_UNIT_MIGRATION_VERSION: u8 = 3;
+const DELIVERY_DESTINATION_RESIDENCE: u8 = 0;
+const DELIVERY_PHASE_INBOUND: u8 = 2;
 
 macro_rules! normalize_fields {
     ($row:ident, $($field:ident),+ $(,)?) => {
@@ -20,6 +27,101 @@ macro_rules! normalize_fields {
             $row.$field = whole_units($row.$field);
         )+
     };
+}
+
+fn incoming_cottage_material(
+    ctx: &ReducerContext,
+    residence_id: u64,
+    commodity: CommodityKind,
+) -> f64 {
+    whole_units(
+        ctx.db
+            .delivery_trip()
+            .residence_id()
+            .filter(&residence_id)
+            .filter(|trip| {
+                trip.destination_kind == DELIVERY_DESTINATION_RESIDENCE
+                    && trip.phase != DELIVERY_PHASE_INBOUND
+                    && trip.cargo_kind == commodity.as_u8()
+            })
+            .map(|trip| whole_units(trip.amount))
+            .sum(),
+    )
+}
+
+fn reconcile_fractional_cottage_projects(ctx: &ReducerContext) {
+    let mut residences_by_zone: HashMap<u64, Vec<Residence>> = HashMap::new();
+    for residence in ctx
+        .db
+        .residence()
+        .iter()
+        .filter(|residence| residence.tier == 0 && residence.upgrade_target_tier == 1)
+    {
+        residences_by_zone
+            .entry(residence.zone_id)
+            .or_default()
+            .push(residence);
+    }
+
+    for (zone_id, residences) in residences_by_zone {
+        let Some(zone) = ctx.db.burgage_zone().id().find(&zone_id) else {
+            continue;
+        };
+        let corners = ZoneCorners {
+            a: Point2 {
+                x: zone.corner_ax,
+                z: zone.corner_az,
+            },
+            b: Point2 {
+                x: zone.corner_bx,
+                z: zone.corner_bz,
+            },
+            c: Point2 {
+                x: zone.corner_cx,
+                z: zone.corner_cz,
+            },
+            d: Point2 {
+                x: zone.corner_dx,
+                z: zone.corner_dz,
+            },
+        };
+        let Some(layout) = compute_burgage_layout(&corners, zone.frontage_edge, zone.plot_count)
+        else {
+            continue;
+        };
+        let cost_weights = layout
+            .residences
+            .iter()
+            .map(|placement| residence_depth_cost_units(placement.backyard_depth))
+            .collect::<Vec<_>>();
+        let total_cost = residence_zone_cost_for_units(cost_weights.iter().sum());
+        let timber_lots = allocate_whole_residence_project_costs(total_cost.timber, &cost_weights);
+        let stone_lots = allocate_whole_residence_project_costs(total_cost.stone, &cost_weights);
+
+        for mut residence in residences {
+            let Some(parcel_index) = layout
+                .residences
+                .iter()
+                .position(|placement| placement.parcel_index == residence.parcel_index)
+            else {
+                continue;
+            };
+            let incoming_timber =
+                incoming_cottage_material(ctx, residence.id, CommodityKind::Timber);
+            let incoming_stone = incoming_cottage_material(ctx, residence.id, CommodityKind::Stone);
+            let committed_timber =
+                whole_units(residence.upgrade_delivered_timber) + incoming_timber;
+            let committed_stone = whole_units(residence.upgrade_delivered_stone) + incoming_stone;
+            let required_timber = timber_lots[parcel_index].max(committed_timber);
+            let required_stone = stone_lots[parcel_index].max(committed_stone);
+
+            residence.upgrade_required_timber = required_timber;
+            residence.upgrade_required_stone = required_stone;
+            residence.upgrade_reserved_timber = (required_timber - committed_timber).max(0.0);
+            residence.upgrade_reserved_stone = (required_stone - committed_stone).max(0.0);
+            ctx.db.residence().id().update(residence);
+        }
+    }
 }
 
 pub fn migrate_legacy_fractional_resources(ctx: &ReducerContext) {
@@ -32,6 +134,12 @@ pub fn migrate_legacy_fractional_resources(ctx: &ReducerContext) {
     {
         return;
     }
+
+    // Version 2 made inventory whole but cottages placed afterward could still
+    // split one zone cost into fractional per-parcel reservations. Rebuild the
+    // authoritative lots from saved plot geometry before the generic whole-unit
+    // pass so every existing 97%-stalled frame can receive its final cartload.
+    reconcile_fractional_cottage_projects(ctx);
 
     for mut row in ctx.db.player_resources().iter() {
         normalize_fields!(

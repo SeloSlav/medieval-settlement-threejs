@@ -8,6 +8,11 @@ import type {
 import { createEmptyStockpile } from '../src/resources/types.ts';
 import type { FireIncidentState } from '../src/fires/fireIncident.ts';
 import {
+  DEFAULT_NIGHT_POLICY,
+  dawnReportRelevanceScore,
+  isDawnReportRelevant,
+} from '../src/economy/nightPolicy.ts';
+import {
   deriveLordReportTransitions,
   fullStorageChannels,
   LordReportCollection,
@@ -15,6 +20,46 @@ import {
   storageOccupancyChannels,
   type LordReport,
 } from '../src/ui/lordReports.ts';
+
+const routineDawn = {
+  ...DEFAULT_NIGHT_POLICY,
+  lastReportDay: 2,
+  lastHouseholds: 8,
+  lastWellRestedHouseholds: 7,
+  lastSocialHouseholds: 4,
+  lastWorkers: 2,
+};
+assert.equal(
+  isDawnReportRelevant(routineDawn),
+  false,
+  'an ordinary uneventful night should remain out of the Lord report ledger',
+);
+assert.equal(dawnReportRelevanceScore(routineDawn), 0);
+assert.equal(
+  isDawnReportRelevant({ ...routineDawn, lastColdHouseholds: 1 }),
+  true,
+  'a cold household is relevant to the Lord',
+);
+assert.equal(
+  isDawnReportRelevant({ ...routineDawn, lastIncidents: 1 }),
+  true,
+  'a night incident is relevant to the Lord',
+);
+assert.equal(
+  isDawnReportRelevant({ ...routineDawn, lastLightingFuelShortfall: 0.01 }),
+  true,
+  'a real lighting-fuel shortfall is relevant to the Lord',
+);
+assert.equal(
+  isDawnReportRelevant({ ...routineDawn, lastWildlifeSightings: 1 }),
+  true,
+  'an unusual wildlife sighting is interesting enough for the Lord ledger',
+);
+assert.equal(
+  isDawnReportRelevant({ ...routineDawn, lastLightingFuelShortfall: 0.005 }),
+  false,
+  'rounding noise at the existing fuel epsilon should remain below the threshold',
+);
 
 const aggregatedGranary = building({
   id: 'granary-aggregate',

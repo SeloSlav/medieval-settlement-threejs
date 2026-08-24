@@ -592,11 +592,11 @@ export function renderResidenceInspector(
     .map((buffer) => buffer.label)
     .join(' · ');
   const statusText = roofTileProject
-    ? `Roof retrofit · ${Math.round(roofTileProject.progress * 100)}%${roofTileProject.blockers.length > 0 ? ' · blocked' : ''}`
+    ? residenceProjectStatus('Roof retrofit', roofTileProject)
     : structuralRepairProject
-      ? `Repair · ${Math.round(structuralRepairProject.progress * 100)}%${structuralRepairProject.blockers.length > 0 ? ' · blocked' : ''}`
+      ? residenceProjectStatus('Repair', structuralRepairProject)
       : initialConstruction && upgradeProject
-        ? `Cottage works · ${Math.round(upgradeProject.progress * 100)}%${upgradeProject.blockers.length > 0 ? ' · blocked' : ''}`
+        ? residenceProjectStatus('Cottage works', upgradeProject)
         : healthWarning
           ? compactHealthLabel
           : settlersWaitingForVitalSupplies
@@ -888,6 +888,14 @@ export function renderResidenceInspector(
         ? residenceUpgradePanel(upgradePlan, prosperityPlan, tierThreeProjection)
         : ''}`,
   };
+}
+
+function residenceProjectStatus(
+  label: string,
+  project: Pick<ResidenceUpgradeProject, 'progress' | 'blockers'>,
+): string {
+  const blocker = project.blockers[0];
+  return `${label} · ${Math.round(project.progress * 100)}%${blocker ? ` · ${blocker}` : ''}`;
 }
 
 function residenceUpgradeRows(
