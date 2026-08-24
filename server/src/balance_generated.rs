@@ -104,8 +104,8 @@ pub const FIRE_DESTROYED_REBUILD_COST_FRACTION: f64 = 0.7;
 
 pub const STARTING_TIMBER: f64 = 400.0;
 pub const STARTING_STONE: f64 = 240.0;
-pub const STARTING_FIREWOOD: f64 = 240.0;
-pub const STARTING_BREAD: f64 = 240.0;
+pub const STARTING_FIREWOOD: f64 = 24.0;
+pub const STARTING_BREAD: f64 = 24.0;
 pub const STARTING_IRONWORK: f64 = 12.0;
 pub const STARTING_GOLD: f64 = 0.0;
 pub const STONE_SALVAGE_FRACTION: f64 = 0.92;
@@ -194,6 +194,7 @@ pub const NARROW_PARCEL_FRONTAGE_MAX: f64 = 9.6;
 pub const WIDE_PARCEL_FRONTAGE_MIN: f64 = 14.0;
 pub const RESIDENCE_FIREWOOD_CAPACITY: f64 = 60.0;
 pub const RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC: f64 = 0.002777777777777778;
+pub const RESIDENCE_FIREWOOD_UNITS_PER_MONTH: f64 = 1.0;
 pub const CHARCOAL_HOUSEHOLD_FUEL_VALUE: f64 = 2.0;
 pub const MARKETPLACE_FUEL_RESERVE_DAYS: f64 = 21.0;
 pub const MARKETPLACE_FOOD_STALL_SLOTS: u32 = 3;
@@ -203,8 +204,10 @@ pub const RESIDENCE_FIREWOOD_PRIORITY_WINTER_DAYS: f64 = 0.5;
 pub const RESIDENCE_WATER_CAPACITY: f64 = 24.0;
 pub const RESIDENCE_WATER_REORDER_FRACTION: f64 = 0.3333333333333333;
 pub const RESIDENCE_WATER_PER_PERSON_PER_SEC: f64 = 0.012;
+pub const RESIDENCE_WATER_UNITS_PER_DAY: f64 = 1.0;
 pub const RESIDENCE_FOOD_CAPACITY: f64 = 32.0;
 pub const RESIDENCE_FOOD_PER_PERSON_PER_SEC: f64 = 0.003619047619047619;
+pub const RESIDENCE_FOOD_UNITS_PER_SLOT_PER_MONTH: f64 = 1.0;
 pub const EVENING_MEAL_PER_PERSON: f64 = 0.08;
 pub const FOOD_CATEGORY_QUALIFYING_DAYS: f64 = 1.0;
 pub const BACKYARD_FOOD_RESERVE_TIER1_DAYS: f64 = 3.0;
@@ -222,14 +225,19 @@ pub const RESIDENCE_PRESERVED_FOOD_AUTUMN_MULTIPLIER: f64 = 1.0;
 pub const RESIDENCE_PRESERVED_FOOD_WINTER_MULTIPLIER: f64 = 1.75;
 pub const RESIDENCE_ALE_CAPACITY: f64 = 20.0;
 pub const RESIDENCE_ALE_PER_PERSON_PER_SEC: f64 = 0.0025;
+pub const RESIDENCE_ALE_UNITS_PER_MONTH: f64 = 1.0;
 pub const RESIDENCE_CLOTH_CAPACITY: f64 = 8.0;
 pub const RESIDENCE_CLOTH_PER_PERSON_PER_SEC: f64 = 0.00018;
+pub const RESIDENCE_CLOTH_MONTHS_PER_UNIT: u32 = 3;
 pub const RESIDENCE_SHOES_CAPACITY: f64 = 6.0;
 pub const RESIDENCE_SHOES_PER_PERSON_PER_SEC: f64 = 0.00012;
+pub const RESIDENCE_SHOES_MONTHS_PER_UNIT: u32 = 4;
 pub const RESIDENCE_POTTERY_CAPACITY: f64 = 6.0;
 pub const RESIDENCE_POTTERY_PER_PERSON_PER_SEC: f64 = 0.001;
+pub const RESIDENCE_POTTERY_MONTHS_PER_UNIT: u32 = 3;
 pub const RESIDENCE_LUXURY_CAPACITY: f64 = 6.0;
 pub const RESIDENCE_LUXURY_JAM_PER_PERSON_PER_SEC: f64 = 0.0005;
+pub const RESIDENCE_LUXURY_UNITS_PER_MONTH: f64 = 1.0;
 pub const APPROVAL_BASE_SCORE: i32 = 60;
 pub const APPROVAL_NEED_PRESSURE_RAMP_DAYS: f64 = 60.0;
 pub const APPROVAL_MAX_NEED_PENALTY: i32 = 32;
@@ -346,16 +354,16 @@ pub const GAME_PER_HARVEST: f64 = 4.0;
 pub const GAME_HIDES_PER_ANIMAL: f64 = 1.0;
 pub const BERRIES_PER_HARVEST: f64 = 3.0;
 pub const MUSHROOMS_PER_HARVEST: f64 = 3.0;
-pub const FORAGER_REMEDIES_PER_HARVEST: f64 = 0.6;
+pub const FORAGER_REMEDIES_PER_HARVEST: f64 = 1.0;
 pub const FORAGER_REMEDY_SEASON_START_MONTH: u8 = 4;
 pub const FORAGER_REMEDY_SEASON_END_MONTH: u8 = 10;
 pub const REMEDIES_PER_DELIVERY: f64 = 3.0;
 pub const REMEDY_DELIVERY_TARGET_DAYS: f64 = 10.0;
-pub const FISH_PER_HARVEST: f64 = 3.5;
-pub const RICH_GAME_YIELD_MULTIPLIER: f64 = 1.5;
+pub const FISH_PER_HARVEST: f64 = 4.0;
+pub const RICH_GAME_YIELD_MULTIPLIER: f64 = 2.0;
 pub const RICH_FISH_YIELD_MULTIPLIER: f64 = 1.75;
-pub const RICH_BERRY_YIELD_MULTIPLIER: f64 = 1.5;
-pub const RICH_MUSHROOM_YIELD_MULTIPLIER: f64 = 1.5;
+pub const RICH_BERRY_YIELD_MULTIPLIER: f64 = 2.0;
+pub const RICH_MUSHROOM_YIELD_MULTIPLIER: f64 = 2.0;
 pub const FOOD_PER_DELIVERY: f64 = 6.0;
 pub const BERRIES_REGROW_PER_DAY: f64 = 18.0;
 pub const MUSHROOMS_REGROW_PER_DAY: f64 = 12.0;
@@ -387,21 +395,21 @@ pub const THRESHING_GRAIN_PER_CYCLE: f64 = 3.0;
 pub const WATERMILL_GRAIN_PER_CYCLE: f64 = 3.0;
 pub const WATERMILL_WATER_PER_CYCLE: f64 = 0.0;
 pub const WATERMILL_RYE_FLOUR_PER_CYCLE: f64 = 4.0;
-pub const WATERMILL_MASLIN_FLOUR_PER_CYCLE: f64 = 4.4;
+pub const WATERMILL_MASLIN_FLOUR_PER_CYCLE: f64 = 4.0;
 pub const BAKERY_FLOUR_PER_CYCLE: f64 = 3.0;
 pub const BAKERY_WATER_PER_CYCLE: f64 = 2.0;
 pub const BAKERY_FIREWOOD_PER_CYCLE: f64 = 1.0;
 pub const BAKERY_RYE_BREAD_PER_CYCLE: f64 = 4.0;
-pub const BAKERY_MASLIN_BREAD_PER_CYCLE: f64 = 4.5;
+pub const BAKERY_MASLIN_BREAD_PER_CYCLE: f64 = 4.0;
 pub const HOUSEHOLD_FOOD_RESERVE_PER_CLAIM: f64 = 6.0;
 pub const HOUSEHOLD_FOOD_RESERVE_CAPACITY_FRACTION: f64 = 0.5;
 pub const BREWERY_BARLEY_PER_MALT_CYCLE: f64 = 3.0;
 pub const BREWERY_MALTING_WATER_PER_CYCLE: f64 = 1.0;
-pub const BREWERY_MALTING_FIREWOOD_PER_CYCLE: f64 = 0.5;
+pub const BREWERY_MALTING_FIREWOOD_PER_CYCLE: f64 = 1.0;
 pub const BREWERY_MALT_PER_CYCLE: f64 = 3.0;
 pub const BREWERY_MALT_PER_ALE_CYCLE: f64 = 3.0;
 pub const BREWERY_BREWING_WATER_PER_CYCLE: f64 = 2.0;
-pub const BREWERY_BREWING_FIREWOOD_PER_CYCLE: f64 = 0.5;
+pub const BREWERY_BREWING_FIREWOOD_PER_CYCLE: f64 = 0.0;
 pub const BREWERY_ALE_PER_CYCLE: f64 = 4.0;
 pub const BREWERY_APPLES_PER_CIDER_CYCLE: f64 = 4.0;
 pub const BREWERY_CIDER_PER_CYCLE: f64 = 1.0;
@@ -421,15 +429,15 @@ pub const COBBLER_SHOES_PER_CYCLE: f64 = 2.0;
 pub const LEATHER_TRANSFER_PER_TRIP: f64 = 12.0;
 pub const SMOKEHOUSE_FOOD_PER_CYCLE: f64 = 3.0;
 pub const SMOKEHOUSE_FIREWOOD_PER_CYCLE: f64 = 1.0;
-pub const SMOKEHOUSE_SALT_PER_CYCLE: f64 = 0.5;
-pub const SMOKEHOUSE_POTTERY_PER_CYCLE: f64 = 0.25;
-pub const SMOKEHOUSE_PRESERVED_FOOD_PER_CYCLE: f64 = 4.0;
+pub const SMOKEHOUSE_SALT_PER_CYCLE: f64 = 1.0;
+pub const SMOKEHOUSE_POTTERY_PER_CYCLE: f64 = 0.0;
+pub const SMOKEHOUSE_PRESERVED_FOOD_PER_CYCLE: f64 = 3.0;
 pub const CLAY_PIT_CLAY_PER_CYCLE: f64 = 4.0;
-pub const LARGE_QUARRY_TIMBER_SUPPORT_PER_CYCLE: f64 = 0.25;
+pub const LARGE_QUARRY_TIMBER_SUPPORT_PER_CYCLE: f64 = 1.0;
 pub const LARGE_QUARRY_TIMBER_SUPPORT_BUFFER_CYCLES: f64 = 6.0;
 pub const MINE_IRON_PER_CYCLE: f64 = 2.0;
-pub const MINE_SALT_PER_CYCLE: f64 = 2.5;
-pub const MINE_TIMBER_SUPPORT_PER_CYCLE: f64 = 0.5;
+pub const MINE_SALT_PER_CYCLE: f64 = 2.0;
+pub const MINE_TIMBER_SUPPORT_PER_CYCLE: f64 = 1.0;
 pub const MINE_TIMBER_SUPPORT_BUFFER_CYCLES: f64 = 3.0;
 pub const RICH_MINE_THROUGHPUT_MULTIPLIER: f64 = 1.5;
 pub const CHARCOAL_BURNER_FIREWOOD_PER_CYCLE: f64 = 3.0;
@@ -438,7 +446,7 @@ pub const SMITHY_IRON_PER_CYCLE: f64 = 2.0;
 pub const SMITHY_CHARCOAL_PER_CYCLE: f64 = 1.0;
 pub const SMITHY_WATER_PER_CYCLE: f64 = 1.0;
 pub const SMITHY_IRONWORK_PER_CYCLE: f64 = 2.0;
-pub const CIVILIAN_TOOL_IRONWORK_PER_CYCLE: f64 = 0.1;
+pub const CIVILIAN_TOOL_IRONWORK_PER_CYCLE: f64 = 1.0;
 pub const CIVILIAN_TOOL_REORDER_CYCLES: f64 = 6.0;
 pub const CIVILIAN_TOOL_THROUGHPUT_MULTIPLIER: f64 = 1.2;
 pub const POTTER_CLAY_PER_CYCLE: f64 = 3.0;
@@ -489,8 +497,8 @@ pub const SPECIALTY_EXPORT_GOLD_PER_POTTERY: f64 = 1.35;
 pub const HERB_REMEDY_SALE_GOLD_PER_UNIT: f64 = 2.0;
 pub const CARPENTER_DELIVERY_SPEED_MULTIPLIER: f64 = 1.18;
 pub const CARPENTER_TIMBER_COST_MULTIPLIER: f64 = 0.9;
-pub const CARPENTER_CART_SERVICE_TIMBER_PER_TRIP: f64 = 0.2;
-pub const CARPENTER_CART_SERVICE_IRONWORK_PER_TRIP: f64 = 0.04;
+pub const CARPENTER_CART_SERVICE_TIMBER_PER_TRIP: f64 = 1.0;
+pub const CARPENTER_CART_SERVICE_IRONWORK_PER_TRIP: f64 = 1.0;
 pub const CARPENTER_CART_SERVICE_TARGET_TRIPS: f64 = 15.0;
 pub const STOREHOUSE_OVERFLOW_THRESHOLD: f64 = 0.65;
 pub const STOREHOUSE_HAUL_PER_WORKER: f64 = 24.0;
@@ -951,9 +959,9 @@ pub struct BuildingDef {
 
 const FOUNDERS_CAMP: BuildingDef = BuildingDef {
     kind: "founders_camp",
-    cost_timber: 0.0,
-    cost_stone: 0.0,
-    cost_gold: 0.0,
+    cost_timber: 36.0,
+    cost_stone: 12.0,
+    cost_gold: 120.0,
     cost_ironwork: 0.0,
     cost_roof_tiles: 0.0,
     storage_timber: 400.0,
@@ -1100,7 +1108,7 @@ const LUMBER_MILL: BuildingDef = BuildingDef {
     accepts_labor: true,
     max_labor: 3,
     work_radius: 210.0,
-    action_interval: 9.0,
+    action_interval: 1050.0,
     pick_radius: 8.0,
     requires_road: true,
     faces_road: true,
@@ -1210,7 +1218,7 @@ const WOODCUTTERS_LODGE: BuildingDef = BuildingDef {
     accepts_labor: true,
     max_labor: 2,
     work_radius: 0.0,
-    action_interval: 5.0,
+    action_interval: 525.0,
     pick_radius: 8.0,
     requires_road: true,
     faces_road: true,
@@ -1265,7 +1273,7 @@ const STONE_QUARRY: BuildingDef = BuildingDef {
     accepts_labor: true,
     max_labor: 4,
     work_radius: 80.0,
-    action_interval: 9.0,
+    action_interval: 350.0,
     pick_radius: 10.0,
     requires_road: false,
     faces_road: false,
@@ -1320,7 +1328,7 @@ const LARGE_QUARRY: BuildingDef = BuildingDef {
     accepts_labor: true,
     max_labor: 6,
     work_radius: 0.0,
-    action_interval: 7.0,
+    action_interval: 350.0,
     pick_radius: 13.0,
     requires_road: true,
     faces_road: false,
@@ -1430,7 +1438,7 @@ const MINE: BuildingDef = BuildingDef {
     accepts_labor: true,
     max_labor: 4,
     work_radius: 0.0,
-    action_interval: 9.0,
+    action_interval: 700.0,
     pick_radius: 11.0,
     requires_road: true,
     faces_road: false,
@@ -1485,7 +1493,7 @@ const CLAY_PIT: BuildingDef = BuildingDef {
     accepts_labor: true,
     max_labor: 3,
     work_radius: 0.0,
-    action_interval: 8.0,
+    action_interval: 700.0,
     pick_radius: 10.0,
     requires_road: true,
     faces_road: false,
@@ -1540,7 +1548,7 @@ const CHARCOAL_BURNER: BuildingDef = BuildingDef {
     accepts_labor: true,
     max_labor: 2,
     work_radius: 0.0,
-    action_interval: 8.0,
+    action_interval: 1050.0,
     pick_radius: 9.0,
     requires_road: true,
     faces_road: false,
@@ -1595,7 +1603,7 @@ const SMITHY: BuildingDef = BuildingDef {
     accepts_labor: true,
     max_labor: 3,
     work_radius: 0.0,
-    action_interval: 10.0,
+    action_interval: 4200.0,
     pick_radius: 9.0,
     requires_road: true,
     faces_road: true,
@@ -1650,7 +1658,7 @@ const POTTER_KILN: BuildingDef = BuildingDef {
     accepts_labor: true,
     max_labor: 2,
     work_radius: 0.0,
-    action_interval: 9.0,
+    action_interval: 1050.0,
     pick_radius: 9.0,
     requires_road: true,
     faces_road: true,
@@ -1760,7 +1768,7 @@ const HUNTERS_HALL: BuildingDef = BuildingDef {
     accepts_labor: true,
     max_labor: 3,
     work_radius: 68.0,
-    action_interval: 8.0,
+    action_interval: 1050.0,
     pick_radius: 9.0,
     requires_road: false,
     faces_road: false,
@@ -1815,7 +1823,7 @@ const FORAGERS_SHED: BuildingDef = BuildingDef {
     accepts_labor: true,
     max_labor: 2,
     work_radius: 48.0,
-    action_interval: 6.0,
+    action_interval: 700.0,
     pick_radius: 8.0,
     requires_road: false,
     faces_road: false,
@@ -1870,7 +1878,7 @@ const FISHING_CAMP: BuildingDef = BuildingDef {
     accepts_labor: true,
     max_labor: 3,
     work_radius: 64.0,
-    action_interval: 7.0,
+    action_interval: 1050.0,
     pick_radius: 9.0,
     requires_road: false,
     faces_road: false,
@@ -2420,7 +2428,7 @@ const THRESHING_BARN: BuildingDef = BuildingDef {
     accepts_labor: true,
     max_labor: 8,
     work_radius: 250.0,
-    action_interval: 6.0,
+    action_interval: 700.0,
     pick_radius: 9.0,
     requires_road: true,
     faces_road: true,
@@ -2475,7 +2483,7 @@ const PASTORAL_FARMSTEAD: BuildingDef = BuildingDef {
     accepts_labor: true,
     max_labor: 3,
     work_radius: 110.0,
-    action_interval: 10.0,
+    action_interval: 700.0,
     pick_radius: 10.0,
     requires_road: true,
     faces_road: true,
@@ -2530,7 +2538,7 @@ const SWINEHERD: BuildingDef = BuildingDef {
     accepts_labor: true,
     max_labor: 2,
     work_radius: 120.0,
-    action_interval: 12.0,
+    action_interval: 1050.0,
     pick_radius: 9.0,
     requires_road: false,
     faces_road: false,
@@ -2585,7 +2593,7 @@ const MONASTERY: BuildingDef = BuildingDef {
     accepts_labor: true,
     max_labor: 8,
     work_radius: 0.0,
-    action_interval: 12.0,
+    action_interval: 1050.0,
     pick_radius: 15.0,
     requires_road: true,
     faces_road: true,
@@ -2640,7 +2648,7 @@ const BREWERY: BuildingDef = BuildingDef {
     accepts_labor: true,
     max_labor: 3,
     work_radius: 0.0,
-    action_interval: 7.0,
+    action_interval: 700.0,
     pick_radius: 9.0,
     requires_road: true,
     faces_road: true,
@@ -2750,7 +2758,7 @@ const SMOKEHOUSE: BuildingDef = BuildingDef {
     accepts_labor: true,
     max_labor: 2,
     work_radius: 0.0,
-    action_interval: 6.0,
+    action_interval: 1050.0,
     pick_radius: 8.0,
     requires_road: true,
     faces_road: true,
@@ -2860,7 +2868,7 @@ const BAKERY: BuildingDef = BuildingDef {
     accepts_labor: true,
     max_labor: 2,
     work_radius: 0.0,
-    action_interval: 5.0,
+    action_interval: 700.0,
     pick_radius: 8.0,
     requires_road: true,
     faces_road: true,
@@ -2915,7 +2923,7 @@ const APIARY: BuildingDef = BuildingDef {
     accepts_labor: true,
     max_labor: 1,
     work_radius: 48.0,
-    action_interval: 18.0,
+    action_interval: 1050.0,
     pick_radius: 7.0,
     requires_road: false,
     faces_road: false,
@@ -2970,7 +2978,7 @@ const WATERMILL: BuildingDef = BuildingDef {
     accepts_labor: true,
     max_labor: 3,
     work_radius: 0.0,
-    action_interval: 7.0,
+    action_interval: 700.0,
     pick_radius: 10.0,
     requires_road: true,
     faces_road: true,
@@ -3025,7 +3033,7 @@ const WINDMILL: BuildingDef = BuildingDef {
     accepts_labor: true,
     max_labor: 3,
     work_radius: 0.0,
-    action_interval: 7.0,
+    action_interval: 700.0,
     pick_radius: 11.0,
     requires_road: true,
     faces_road: true,
@@ -3080,7 +3088,7 @@ const CARPENTER: BuildingDef = BuildingDef {
     accepts_labor: true,
     max_labor: 2,
     work_radius: 0.0,
-    action_interval: 8.0,
+    action_interval: 1050.0,
     pick_radius: 9.0,
     requires_road: true,
     faces_road: true,
@@ -3135,7 +3143,7 @@ const WEAVER: BuildingDef = BuildingDef {
     accepts_labor: true,
     max_labor: 2,
     work_radius: 0.0,
-    action_interval: 8.0,
+    action_interval: 1050.0,
     pick_radius: 8.0,
     requires_road: true,
     faces_road: true,
@@ -3190,7 +3198,7 @@ const TANNERY: BuildingDef = BuildingDef {
     accepts_labor: true,
     max_labor: 2,
     work_radius: 0.0,
-    action_interval: 10.0,
+    action_interval: 1050.0,
     pick_radius: 9.0,
     requires_road: true,
     faces_road: true,
@@ -3245,7 +3253,7 @@ const COBBLER: BuildingDef = BuildingDef {
     accepts_labor: true,
     max_labor: 2,
     work_radius: 0.0,
-    action_interval: 9.0,
+    action_interval: 1050.0,
     pick_radius: 8.0,
     requires_road: true,
     faces_road: true,

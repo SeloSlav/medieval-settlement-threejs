@@ -9,21 +9,17 @@ use std::collections::{BTreeMap, HashMap};
 use spacetimedb::{Identity, ReducerContext};
 
 use crate::balance_generated::{
-    CALENDAR_HOURS_PER_DAY, CALENDAR_SECONDS_PER_DAY, CALENDAR_WORK_END_HOUR,
-    CALENDAR_WORK_START_HOUR, MARKETPLACE_HOUSEHOLD_ISSUE_CHECKS_PER_DAY,
-    RESIDENCE_ALE_PER_PERSON_PER_SEC, RESIDENCE_CLOTH_PER_PERSON_PER_SEC,
-    RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC, RESIDENCE_LUXURY_JAM_PER_PERSON_PER_SEC,
-    RESIDENCE_POTTERY_PER_PERSON_PER_SEC, RESIDENCE_PRESERVED_FOOD_PER_PERSON_PER_SEC,
-    RESIDENCE_SHOES_PER_PERSON_PER_SEC, TICK_DT,
+    CALENDAR_SECONDS_PER_DAY, MARKETPLACE_HOUSEHOLD_ISSUE_CHECKS_PER_DAY,
+    RESIDENCE_ALE_UNITS_PER_MONTH, RESIDENCE_FIREWOOD_UNITS_PER_MONTH,
+    RESIDENCE_FOOD_UNITS_PER_SLOT_PER_MONTH, RESIDENCE_LUXURY_UNITS_PER_MONTH, TICK_DT,
 };
 use crate::db::*;
 use crate::economy::{
     building_commodity_stock, deposit_building_commodity, deposit_residence_commodity,
-    household_food_per_day, withdraw_building_commodity,
+    residence_food_progression_required_slots, withdraw_building_commodity,
 };
 use crate::pantry_safeguard_policy::{
-    daily_market_issue_target_days, emergency_pantry_rule, normalize_pantry_safeguard_policy,
-    PANTRY_SAFEGUARD_DEFAULT,
+    emergency_pantry_rule, normalize_pantry_safeguard_policy, PANTRY_SAFEGUARD_DEFAULT,
 };
 use crate::season_policy::EnvironmentState;
 use crate::simulation::delivery_cargo::{
@@ -87,7 +83,7 @@ pub fn step_market_household_distribution(
     ctx: &ReducerContext,
     tick: &SimTickContext,
     sim_tick: u64,
-    environment: EnvironmentState,
+    _environment: EnvironmentState,
 ) {
     let Some(issue_cycle) = market_issue_cycle(sim_tick) else {
         return;
@@ -303,60 +299,27 @@ fn household_issue_target(
     environment: EnvironmentState,
     pantry_policy: u8,
 ) -> Option<(f64, f64)> {
-    let population = residence.population as f64;
-    let workday_seconds = CALENDAR_SECONDS_PER_DAY
-        * f64::from(CALENDAR_WORK_END_HOUR.saturating_sub(CALENDAR_WORK_START_HOUR))
-        / f64::from(CALENDAR_HOURS_PER_DAY.max(1));
-    let daily_lot = match need_kind {
-        ResidenceNeedKind::Food => household_food_per_day(residence.population),
-        ResidenceNeedKind::Firewood => {
-            population
-                * RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC
-                * CALENDAR_SECONDS_PER_DAY
-                * environment.firewood_demand_multiplier()
-        }
-        ResidenceNeedKind::PreservedFood => (population
-            * RESIDENCE_PRESERVED_FOOD_PER_PERSON_PER_SEC
-            * workday_seconds
-            * environment.preserved_food_demand_multiplier())
-        .min(household_food_per_day(residence.population)),
-        ResidenceNeedKind::Ale => population * RESIDENCE_ALE_PER_PERSON_PER_SEC * workday_seconds,
-        ResidenceNeedKind::Cloth => {
-            population * RESIDENCE_CLOTH_PER_PERSON_PER_SEC * workday_seconds
-        }
-        ResidenceNeedKind::Shoes => {
-            population * RESIDENCE_SHOES_PER_PERSON_PER_SEC * workday_seconds
-        }
-        ResidenceNeedKind::Pottery => {
-            population * RESIDENCE_POTTERY_PER_PERSON_PER_SEC * workday_seconds
-        }
-        ResidenceNeedKind::Luxury => {
-            population * RESIDENCE_LUXURY_JAM_PER_PERSON_PER_SEC * workday_seconds
-        }
+    let monthly_lot = match need_kind {
+        ResidenceNeedKind::Food => f64::from(residence_food_progression_required_slots(
+            residence.tier,
+        )) * RESIDENCE_FOOD_UNITS_PER_SLOT_PER_MONTH,
+        ResidenceNeedKind::Firewood => RESIDENCE_FIREWOOD_UNITS_PER_MONTH,
+        ResidenceNeedKind::PreservedFood => f64::from(residence.tier >= 4),
+        ResidenceNeedKind::Ale => RESIDENCE_ALE_UNITS_PER_MONTH,
+        ResidenceNeedKind::Cloth | ResidenceNeedKind::Shoes | ResidenceNeedKind::Pottery => 1.0,
+        ResidenceNeedKind::Luxury => RESIDENCE_LUXURY_UNITS_PER_MONTH,
         ResidenceNeedKind::Water | ResidenceNeedKind::Church | ResidenceNeedKind::FoodVariety => {
             return None
         }
     };
-    if daily_lot <= 1e-9 {
+    if monthly_lot < 1.0 {
         return None;
     }
     let stock = need_stock(&load_needs(ctx, residence.id), need_kind);
-    let days = match issue_cycle {
-        MarketIssueCycle::Daily => daily_market_issue_target_days(
-            matches!(
-                need_kind,
-                ResidenceNeedKind::Firewood
-                    | ResidenceNeedKind::Food
-                    | ResidenceNeedKind::PreservedFood
-            ),
-            stock,
-            daily_lot,
-            pantry_policy,
-        ),
-    };
+    let reserve_months = issue_cycle.ration_rounds(pantry_policy) as f64;
     let capacity = delivery_stock_room(need_kind, 0.0);
-    let target_stock = (daily_lot * days).min(capacity);
-    (stock + 1e-9 < target_stock).then_some((target_stock, daily_lot))
+    let target_stock = (monthly_lot * reserve_months).min(capacity);
+    (stock + 1e-9 < target_stock).then_some((target_stock, monthly_lot))
 }
 
 /// Allocate an operational well's stored water to every home in its service

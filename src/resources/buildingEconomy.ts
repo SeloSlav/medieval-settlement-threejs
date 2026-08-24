@@ -4,6 +4,7 @@ import {
   BACKYARD_GARDEN_COSTS,
   BACKYARD_GARDEN_DEFINITIONS,
   BUILDING_COSTS,
+  GOLD_SALVAGE_FRACTION,
   IRONWORK_SALVAGE_FRACTION,
   RESIDENCE_STONE_COST,
   RESIDENCE_TILE_ROOF_SALVAGE_FRACTION,
@@ -21,6 +22,7 @@ export {
   STONE_SALVAGE_FRACTION,
   TIMBER_SALVAGE_FRACTION,
   IRONWORK_SALVAGE_FRACTION,
+  GOLD_SALVAGE_FRACTION,
 } from '../generated/gameBalance.ts';
 
 export type { BuildingResourceCost };
@@ -59,18 +61,20 @@ export function buildingSalvageRefund(kind: BuildingKind): BuildingResourceCost 
     stone: Math.round(cost.stone * STONE_SALVAGE_FRACTION),
     ironwork: Math.round((cost.ironwork ?? 0) * IRONWORK_SALVAGE_FRACTION),
     roofTiles: Math.round((cost.roofTiles ?? 0) * RESIDENCE_TILE_ROOF_SALVAGE_FRACTION),
+    gold: Math.round((cost.gold ?? 0) * GOLD_SALVAGE_FRACTION),
   };
 }
 
 export function canAffordBuilding(
-  totals: Pick<ResourceTotals, 'timber' | 'stone' | 'ironwork' | 'roofTiles'>,
+  totals: Pick<ResourceTotals, 'timber' | 'stone' | 'ironwork' | 'roofTiles' | 'gold'>,
   kind: BuildingKind,
 ): boolean {
   const cost = getBuildingCost(kind);
   return totals.timber >= cost.timber
     && totals.stone >= cost.stone
     && totals.ironwork >= (cost.ironwork ?? 0)
-    && totals.roofTiles >= (cost.roofTiles ?? 0);
+    && totals.roofTiles >= (cost.roofTiles ?? 0)
+    && totals.gold >= (cost.gold ?? 0);
 }
 
 export function canAffordResidenceZone(

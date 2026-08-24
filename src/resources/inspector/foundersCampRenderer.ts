@@ -8,7 +8,11 @@ import {
   type FoundingStockyardRelocationPlan,
 } from '../../logistics/foundingStockyardLogistics.ts';
 import type { InspectableTarget } from '../types.ts';
-import { buildingStorageRows } from './buildingCommon.ts';
+import {
+  buildingDemolishHint,
+  buildingRoadAccessRow,
+  buildingStorageRows,
+} from './buildingCommon.ts';
 import {
   hiddenDemolish,
   hiddenLabor,
@@ -19,6 +23,18 @@ import {
 function materialLabel(plan: FoundingStockyardRelocationPlan): string {
   if (plan.commodity === null) return 'material';
   return cargoKindLabel(plan.commodity);
+}
+
+function isExpansionCamp(
+  building: Extract<InspectableTarget, { kind: 'building' }>['building'],
+): boolean {
+  return building.kind === 'founders_camp'
+    && (
+      building.constructionRequiredTimber > 1e-6
+      || building.constructionRequiredStone > 1e-6
+      || (building.constructionRequiredIronwork ?? 0) > 1e-6
+      || (building.constructionRequiredRoofTiles ?? 0) > 1e-6
+    );
 }
 
 function storageNeed(plan: FoundingStockyardRelocationPlan): string {
@@ -172,6 +188,26 @@ export function renderFoundersCampInspector(
   context: InspectorRenderContext,
 ): InspectorView {
   const { building } = target;
+  if (isExpansionCamp(building)) {
+    return {
+      eyebrow: 'Civic expansion outpost',
+      title: "Founders' camp",
+      statusText: 'Ready to anchor future settlement expansion',
+      statusState: 'ok',
+      detailsHtml: `
+        <li><span>Role</span><span>Establishes a permanent civic foothold for future regional settlement and logistics</span></li>
+        <li><span>Founding safeguard</span><span>Immune to fire, severe weather, and raids</span></li>
+        <li><span>Camp shelters</span><span>Remain active as an expansion outpost rather than clearing with the original founders</span></li>
+        ${buildingStorageRows(building, building.kind)}
+        ${buildingRoadAccessRow(context.worldQueries, building)}
+      `,
+      demolish: {
+        visible: true,
+        hint: buildingDemolishHint(building.kind),
+      },
+      labor: hiddenLabor(),
+    };
+  }
   const shelterActive = building.foundingShelterActive !== false;
   const unhousedFounders = shelterActive
     ? Math.max(0, STARTING_POPULATION - context.populationStats.housed)

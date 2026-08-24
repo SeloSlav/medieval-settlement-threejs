@@ -36,6 +36,7 @@ import {
 import {
   resolveBuildingPlacementWildlifePreview,
 } from './buildingPlacementWildlifePreview.ts';
+import type { WorldMapSize } from '../world/worldGenerationSettings.ts';
 
 export type BuildingToolMode = BuildingKind | 'off';
 
@@ -79,6 +80,7 @@ type BuildingToolOptions = {
   getNaturalHeightAt: (x: number, z: number) => number;
   countMatureTreesInRadius?: (x: number, z: number, radius: number) => number | null;
   getRoadNetwork?: () => RoadNetwork;
+  getMapSize: () => WorldMapSize;
   mapBounds: TerrainBounds;
   getDeliveryTravelSpeedMultiplier?: (origin: { x: number; z: number }) => number;
   onModeChanged: () => void;
@@ -156,6 +158,8 @@ export class BuildingTool {
     const hasPreview = Number.isFinite(this.lastPreviewX)
       && Number.isFinite(this.lastPreviewZ);
     const state = this.options.getState();
+    const isFoundersCampBootstrap = this.mode === 'founders_camp'
+      && state.physicalFoundingSiteEnabled !== true;
     const disabledBuildingIds = fireDisabledBuildingIds(state.fireIncidents.values());
     const carpenterSupported = hasPreview && hasRoadLinkedCarpenter(
       state.buildings.values(),
@@ -180,7 +184,9 @@ export class BuildingTool {
       ) > 0,
     );
     return {
-      cost: buildingCostWithCarpenterSupport(this.mode, carpenterSupported),
+      cost: isFoundersCampBootstrap
+        ? { timber: 0, stone: 0 }
+        : buildingCostWithCarpenterSupport(this.mode, carpenterSupported),
       carpenterSupported,
       carpenterCartServiceEnabled: cartServiceEnabled,
       carpenterCartServiceReady: cartServiceReady,
@@ -349,7 +355,10 @@ export class BuildingTool {
     linkedWorksiteId: string | null,
     placementIntentVersion: number,
   ): Promise<void> {
-    const beforeIds = new Set(this.options.getState().buildings.keys());
+    const stateBeforePlacement = this.options.getState();
+    const isFoundersCampBootstrap = kind === 'founders_camp'
+      && stateBeforePlacement.physicalFoundingSiteEnabled !== true;
+    const beforeIds = new Set(stateBeforePlacement.buildings.keys());
     this.options.markers.showPendingPlacement(kind, x, z);
     try {
       // Let the optimistic marker reach the screen before network and
@@ -364,7 +373,7 @@ export class BuildingTool {
       this.placementPending = false;
       const buildingId = await waitForPlacedBuilding(this.options.getState, beforeIds, kind, x, z);
       this.options.markers.clearPendingPlacement();
-      if (buildingId && kind !== 'founders_camp') {
+      if (buildingId && !isFoundersCampBootstrap) {
         this.undoStack.push({ buildingId, kind, x, z, linkedWorksiteId });
         this.redoStack.length = 0;
       }
@@ -694,7 +703,10 @@ export class BuildingTool {
     validation: BuildingPlacementResult,
     notify = true,
   ): void {
-    if (kind === 'founders_camp') {
+    if (
+      kind === 'founders_camp'
+      && this.options.getState().physicalFoundingSiteEnabled !== true
+    ) {
       this.setPlacementStatusDetail(null, notify);
       return;
     }
@@ -763,6 +775,8 @@ export class BuildingTool {
       countMatureTreesInRadius: this.options.countMatureTreesInRadius,
       roadNetwork: this.options.getRoadNetwork?.(),
       mapBounds: this.options.mapBounds,
+      mapSize: this.options.getMapSize(),
+      physicalFoundingSiteEnabled: state.physicalFoundingSiteEnabled,
       fireDisabledBuildingIds: fireDisabledBuildingIds(state.fireIncidents.values()),
     });
   }

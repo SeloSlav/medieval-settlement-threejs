@@ -6,6 +6,7 @@ use crate::constants::{
 };
 use crate::db::*;
 use crate::residence_upgrade_policy::residence_project_active;
+use crate::resource_units::{whole_cost, whole_room, whole_transfer, whole_units};
 use crate::tables::{Building, Residence};
 
 use super::commodities::CommodityKind;
@@ -326,12 +327,15 @@ pub fn deposit_building(
     stone: f64,
 ) -> (f64, f64, f64, Building) {
     let mut next = building.clone();
-    let timber_room = (caps.timber - next.timber).max(0.0);
-    let firewood_room = (caps.firewood - next.firewood).max(0.0);
-    let stone_room = (caps.stone - next.stone).max(0.0);
-    let timber_deposited = timber.min(timber_room);
-    let firewood_deposited = firewood.min(firewood_room);
-    let stone_deposited = stone.min(stone_room);
+    next.timber = whole_units(next.timber);
+    next.firewood = whole_units(next.firewood);
+    next.stone = whole_units(next.stone);
+    let timber_room = whole_room(caps.timber, next.timber);
+    let firewood_room = whole_room(caps.firewood, next.firewood);
+    let stone_room = whole_room(caps.stone, next.stone);
+    let timber_deposited = whole_units(timber).min(timber_room);
+    let firewood_deposited = whole_units(firewood).min(firewood_room);
+    let stone_deposited = whole_units(stone).min(stone_room);
     next.timber += timber_deposited;
     next.firewood += firewood_deposited;
     next.stone += stone_deposited;
@@ -345,9 +349,12 @@ pub fn withdraw_building(
     stone: f64,
 ) -> (f64, f64, f64, Building) {
     let mut next = building.clone();
-    let timber_withdrawn = timber.min(next.timber);
-    let firewood_withdrawn = firewood.min(next.firewood);
-    let stone_withdrawn = stone.min(next.stone);
+    next.timber = whole_units(next.timber);
+    next.firewood = whole_units(next.firewood);
+    next.stone = whole_units(next.stone);
+    let timber_withdrawn = whole_transfer(next.timber, timber);
+    let firewood_withdrawn = whole_transfer(next.firewood, firewood);
+    let stone_withdrawn = whole_transfer(next.stone, stone);
     next.timber -= timber_withdrawn;
     next.firewood -= firewood_withdrawn;
     next.stone -= stone_withdrawn;
@@ -356,7 +363,8 @@ pub fn withdraw_building(
 
 pub fn withdraw_building_water(building: &Building, amount: f64) -> (f64, Building) {
     let mut next = building.clone();
-    let withdrawn = amount.min(next.water);
+    next.water = whole_units(next.water);
+    let withdrawn = whole_transfer(next.water, amount);
     next.water -= withdrawn;
     (withdrawn, next)
 }
@@ -388,19 +396,20 @@ pub fn credit_treasury_food(ctx: &ReducerContext, owner: spacetimedb::Identity, 
 }
 
 pub fn credit_treasury_gold(ctx: &ReducerContext, owner: spacetimedb::Identity, amount: f64) {
-    if amount <= 0.0 {
+    let amount = whole_units(amount);
+    if amount < 1.0 {
         return;
     }
     if let Some(mut treasury) = ctx.db.player_resources().owner().find(&owner) {
         let physical = treasury.physical_founding_site_enabled;
         if physical {
             if let Some(mut seat) = physical_treasury_seat(ctx, owner) {
-                seat.gold += amount;
+                seat.gold = whole_units(seat.gold) + amount;
                 ctx.db.building().id().update(seat);
                 return;
             }
         }
-        treasury.gold += amount;
+        treasury.gold = whole_units(treasury.gold) + amount;
         ctx.db.player_resources().owner().update(treasury);
         if physical {
             if let Err(error) = crate::simulation::materialize_physical_resource_ledger(ctx, owner)
@@ -449,7 +458,8 @@ pub fn spend_treasury_gold(
     owner: spacetimedb::Identity,
     amount: f64,
 ) -> Result<(), String> {
-    if amount <= 0.0 {
+    let amount = whole_cost(amount);
+    if amount < 1.0 {
         return Ok(());
     }
     let available = treasury_gold(ctx, owner);
@@ -490,7 +500,8 @@ pub fn spend_treasury_gold(
             )
         });
         for mut seat in seats {
-            let paid = seat.gold.min(remaining);
+            seat.gold = whole_units(seat.gold);
+            let paid = whole_transfer(seat.gold, remaining);
             seat.gold -= paid;
             remaining -= paid;
             ctx.db.building().id().update(seat);
@@ -500,7 +511,7 @@ pub fn spend_treasury_gold(
         }
         return Err("Not enough physically stored gold.".to_string());
     }
-    treasury.gold -= amount;
+    treasury.gold = whole_units(treasury.gold) - amount;
     ctx.db.player_resources().owner().update(treasury);
     Ok(())
 }

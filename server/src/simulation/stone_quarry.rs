@@ -89,38 +89,38 @@ pub fn step_stone_quarry(
         building_commodity_cap(&building.kind, commodity),
         building.processor_output_target_percent,
     );
-    let extracted = base_batch.min(deposit.remaining()).min(output_headroom);
-    if extracted <= 1e-6 {
-        ctx.db.building().id().update(Building {
-            action_cooldown: labor_interval,
-            ..building
-        });
+    let batch = crate::resource_units::whole_cost(base_batch);
+    let available = crate::resource_units::whole_units(deposit.remaining());
+    let room = crate::resource_units::whole_units(output_headroom);
+    if batch < 1.0 || available + 1e-6 < batch || room + 1e-6 < batch {
+        ctx.db.building().id().update(building);
         return;
     }
 
+    let mut updated = building;
+    if deposit_building_commodity(&mut updated, commodity, batch) != batch {
+        return;
+    }
+    if tools_maintained {
+        withdraw_building_commodity(
+            &mut updated,
+            CommodityKind::Ironwork,
+            CIVILIAN_TOOL_IRONWORK_PER_CYCLE,
+        );
+    }
     match deposit {
         SurfaceDeposit::Geological(deposit, _) => {
             ctx.db.quarry().quarry_id().update(Quarry {
-                remaining: (deposit.remaining - extracted).max(0.0),
+                remaining: crate::resource_units::whole_units(deposit.remaining) - batch,
                 ..deposit
             });
         }
         SurfaceDeposit::Clay(deposit) => {
             ctx.db.foraging_node().node_id().update(ForagingNode {
-                remaining: (deposit.remaining - extracted).max(0.0),
+                remaining: crate::resource_units::whole_units(deposit.remaining) - batch,
                 ..deposit
             });
         }
-    }
-
-    let mut updated = building;
-    deposit_building_commodity(&mut updated, commodity, extracted);
-    if tools_maintained {
-        withdraw_building_commodity(
-            &mut updated,
-            CommodityKind::Ironwork,
-            CIVILIAN_TOOL_IRONWORK_PER_CYCLE * extracted / base_batch,
-        );
     }
     updated.action_cooldown = labor_interval;
     ctx.db.building().id().update(updated);

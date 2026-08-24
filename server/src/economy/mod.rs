@@ -28,8 +28,8 @@ pub use commodities::{
     residence_food_progression_required_slots, residence_food_progression_slots,
     residence_fresh_food_stock, residence_preserved_food_stock, storage_accepts_commodity,
     withdraw_building_commodity, withdraw_building_edible_food, withdraw_residence_commodity,
-    withdraw_residence_fresh_food, withdraw_residence_preserved_food, CommodityKind,
-    FRESH_FOOD_COMMODITIES, PRESERVED_FOOD_COMMODITIES,
+    withdraw_residence_fresh_food, withdraw_residence_preserved_food, CommodityKind, FoodCategory,
+    EDIBLE_COMMODITIES, FRESH_FOOD_COMMODITIES, PRESERVED_FOOD_COMMODITIES,
 };
 pub(crate) use marketplace_trade_policy::adriatic_trade_entry_point;
 

@@ -1,7 +1,6 @@
-use crate::constants::{RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC, TICK_DT};
 use crate::economy::residence_firewood_capacity;
+use crate::resource_units::{whole_transfer, whole_units};
 use crate::simulation::residence_needs::state::NeedState;
-use crate::tables::Residence;
 
 #[derive(Clone, Copy, Debug)]
 pub enum ConsumeOutcome {
@@ -9,18 +8,16 @@ pub enum ConsumeOutcome {
     Unmet,
 }
 
-pub fn consume(residence: &Residence, need: &NeedState, demand_multiplier: f64) -> ConsumeOutcome {
-    let demand = residence.population as f64
-        * RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC
-        * demand_multiplier
-        * TICK_DT;
-    if demand <= 1e-9 {
+pub fn consume(need: &NeedState, units: f64) -> ConsumeOutcome {
+    let demand = whole_units(units);
+    if demand < 1.0 {
         return ConsumeOutcome::Met(*need);
     }
 
-    if need.stock + 1e-9 >= demand {
+    let consumed = whole_transfer(need.stock, demand);
+    if consumed >= demand {
         return ConsumeOutcome::Met(NeedState {
-            stock: need.stock - demand,
+            stock: whole_units(need.stock) - consumed,
             ..*need
         });
     }
@@ -37,7 +34,7 @@ pub fn on_unmet(need: &NeedState) -> NeedState {
 
 pub fn apply_delivery(need: &NeedState, delivered: f64) -> NeedState {
     NeedState {
-        stock: need.stock + delivered,
+        stock: whole_units(need.stock) + whole_units(delivered),
         deficit_ticks: 0,
         ..*need
     }

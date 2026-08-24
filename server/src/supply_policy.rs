@@ -782,9 +782,9 @@ mod tests {
         select_processor_input_dispatch_candidate, select_seed_grain_delivery_candidate,
         select_supply_route_candidate, GranaryDispatchDuty, InstitutionalFoodDispatchDuty,
         NeedDeliveryCandidate, ProcessorInputDispatchDuty, FOOD_SUPPLIER_KINDS,
-        GRAIN_CRITICAL_RUNWAY_CYCLES,
-        GRAIN_PROCESSOR_KINDS, INDUSTRIAL_FIREWOOD_TARGET_KINDS, INSTITUTIONAL_FOOD_SOURCE_KINDS,
-        LOCAL_MATERIAL_SOURCE_KINDS, MARKETPLACE_MATERIAL_TARGET_KINDS,
+        GRAIN_CRITICAL_RUNWAY_CYCLES, GRAIN_PROCESSOR_KINDS, INDUSTRIAL_FIREWOOD_TARGET_KINDS,
+        INSTITUTIONAL_FOOD_SOURCE_KINDS, LOCAL_MATERIAL_SOURCE_KINDS,
+        MARKETPLACE_MATERIAL_TARGET_KINDS,
     };
     use std::cmp::Ordering;
     use std::time::{Duration, Instant};

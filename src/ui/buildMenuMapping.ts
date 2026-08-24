@@ -2,7 +2,7 @@ import type { BuildingKind } from '../generated/gameBalance.ts';
 import type { PlacementBuildMenuAction } from './buildMenuCards.ts';
 
 export const BUILDING_KIND_TO_MENU_ACTION: Partial<Record<BuildingKind, PlacementBuildMenuAction>> = {
-  founders_camp: 'village-storehouse',
+  founders_camp: 'founders-camp',
   salvage_pile: 'village-storehouse',
   lumber_mill: 'lumber-mill',
   reforester: 'reforester',
@@ -48,6 +48,7 @@ export const BUILDING_KIND_TO_MENU_ACTION: Partial<Record<BuildingKind, Placemen
 export type BuildingMenuAction = Exclude<PlacementBuildMenuAction, 'residences' | 'dry-stone-wall'>;
 
 export const MENU_ACTION_TO_BUILDING_KIND: Record<BuildingMenuAction, BuildingKind> = {
+  'founders-camp': 'founders_camp',
   'lumber-mill': 'lumber_mill',
   'reforester': 'reforester',
   'stone-quarry': 'stone_quarry',

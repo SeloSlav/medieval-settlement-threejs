@@ -154,7 +154,9 @@ export function syncPlayerResources(rows: Iterable<PlayerResources>, state: Game
     );
     state.parishPolicy = {
       autoSweepEnabled: false,
-      cofferReserveGold: row.chapelCofferReserveGold ?? DEFAULT_PARISH_POLICY.cofferReserveGold,
+      cofferReserveGold: wholeResourceUnits(
+        row.chapelCofferReserveGold ?? DEFAULT_PARISH_POLICY.cofferReserveGold,
+      ),
       sabbathObservanceEnabled: row.sabbathObservanceEnabled ?? DEFAULT_PARISH_POLICY.sabbathObservanceEnabled,
       manualCollectTotal: wholeResourceUnits(row.parishManualCollectTotal),
       autoSweepTotal: wholeResourceUnits(row.parishAutoSweepTotal),

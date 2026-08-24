@@ -82,27 +82,32 @@ pub fn step_large_quarry(
     }
 
     let labor_interval = def.action_interval / productive_labor;
-    if output_headroom <= 1e-6 || source.is_none() {
-        ctx.db.building().id().update(Building {
-            action_cooldown: labor_interval,
-            ..building
-        });
+    let batch = crate::resource_units::whole_cost(base_batch);
+    if source.is_none()
+        || crate::resource_units::whole_units(output_headroom) + 1e-6 < batch
+        || building.timber + 1e-6 < crate::resource_units::whole_cost(LARGE_QUARRY_TIMBER_SUPPORT_PER_CYCLE)
+        || (tools_maintained
+            && building.ironwork + 1e-6
+                < crate::resource_units::whole_cost(CIVILIAN_TOOL_IRONWORK_PER_CYCLE))
+    {
+        ctx.db.building().id().update(building);
         return;
     }
 
-    let produced = base_batch.min(output_headroom);
     let mut updated = building;
-    deposit_building_commodity(&mut updated, commodity, produced);
+    if deposit_building_commodity(&mut updated, commodity, batch) != batch {
+        return;
+    }
     withdraw_building_commodity(
         &mut updated,
         CommodityKind::Timber,
-        LARGE_QUARRY_TIMBER_SUPPORT_PER_CYCLE * produced / base_batch,
+        LARGE_QUARRY_TIMBER_SUPPORT_PER_CYCLE,
     );
     if tools_maintained {
         withdraw_building_commodity(
             &mut updated,
             CommodityKind::Ironwork,
-            CIVILIAN_TOOL_IRONWORK_PER_CYCLE * produced / base_batch,
+            CIVILIAN_TOOL_IRONWORK_PER_CYCLE,
         );
     }
     updated.action_cooldown = labor_interval;

@@ -72,7 +72,11 @@ const read = (path: string) => readFileSync(join(root, path), 'utf8');
 
 assert.equal(BUILDING_DEFINITIONS.founders_camp.acceptsLabor, false);
 assert.equal(BUILDING_DEFINITIONS.founders_camp.requiresRoad, false);
-assert.equal(BUILDING_COSTS.founders_camp.timber, 0);
+assert.deepEqual(
+  BUILDING_COSTS.founders_camp,
+  { timber: 36, stone: 12, gold: 120 },
+  'an established settlement should pay a substantial mixed-resource cost to expand with another camp',
+);
 assert.ok(BUILDING_STORAGE_CAPS.founders_camp.timber >= 100);
 assert.ok(BUILDING_STORAGE_CAPS.founders_camp.stone >= 50);
 assert.equal(

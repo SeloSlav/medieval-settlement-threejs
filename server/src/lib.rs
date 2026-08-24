@@ -47,6 +47,8 @@ mod processor_output_policy;
 mod quarry_balance;
 mod raid_agent_policy;
 mod reducers;
+mod resource_units;
+mod residence_consumption_policy;
 mod residence_service_policy;
 mod residence_settlement_policy;
 mod residence_upgrade_policy;

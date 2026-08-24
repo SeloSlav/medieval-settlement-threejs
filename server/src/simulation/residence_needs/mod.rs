@@ -8,15 +8,18 @@ pub mod water;
 pub use kinds::ResidenceNeedKind;
 pub use state::{load_needs, need_stock, sync_food_need_rows};
 
-use crate::backyard_garden_policy::{allocate_backyard_jam_meal, BackyardJamMealAllocation};
 use crate::balance_generated::{
     BASE_ILLNESS_CHANCE_PER_PERSON_DAY, CALENDAR_SECONDS_PER_DAY, COLD_EXPOSURE_ILLNESS_MULTIPLIER,
     CORPSE_DISEASE_RADIUS, CORPSE_ILLNESS_MULTIPLIER, FRESH_FOOD_STORAGE_RESIDENCE_FACTOR,
     HERB_MORTALITY_MULTIPLIER, HERB_RECOVERY_MULTIPLIER, HERB_TREATMENT_PER_SICK_DAY,
     ILLNESS_MORTALITY_CHANCE_PER_SICK_DAY, ILLNESS_RECOVERY_DAYS, MALNUTRITION_ILLNESS_MULTIPLIER,
-    PRESERVED_FOOD_STORAGE_RESIDENCE_FACTOR, RESIDENCE_LUXURY_JAM_PER_PERSON_PER_SEC, TICK_DT,
+    PRESERVED_FOOD_STORAGE_RESIDENCE_FACTOR, RESIDENCE_FOOD_UNITS_PER_SLOT_PER_MONTH, TICK_DT,
     UNSAFE_WATER_ILLNESS_MULTIPLIER,
 };
+use crate::residence_consumption_policy::{
+    daily_household_bill_due, monthly_household_bill_due, need_units_due,
+};
+use crate::resource_units::whole_units;
 use crate::season_policy::{EnvironmentState, Season};
 use crate::simulation::game_calendar::GameClock;
 use crate::simulation::labor_schedule::is_consumption_paused;
@@ -25,17 +28,15 @@ use spacetimedb::ReducerContext;
 
 use crate::db::*;
 use crate::economy::{
-    building_edible_food_stock, reconcile_building_labor,
-    residence_food_progression_required_slots, residence_food_progression_slots,
-    residence_fresh_food_stock, residence_preserved_food_stock, withdraw_building_edible_food,
-    withdraw_residence_commodity, CommodityKind, FRESH_FOOD_COMMODITIES,
-    PRESERVED_FOOD_COMMODITIES,
+    building_edible_food_stock, food_category, reconcile_building_labor,
+    residence_commodity_stock, residence_food_progression_slots,
+    withdraw_building_edible_food, withdraw_residence_commodity, CommodityKind, FoodCategory,
+    EDIBLE_COMMODITIES, FRESH_FOOD_COMMODITIES, PRESERVED_FOOD_COMMODITIES,
 };
 use crate::monastery_estate_policy::{
     monastery_infirmary_mortality_multiplier, monastery_infirmary_recovery_multiplier,
     MONASTERY_INFIRMARY_FOOD_PER_BED_DAY,
 };
-use crate::preserved_food_policy::allocate_preserved_meal;
 use crate::residence_service_policy::{required_chapel_tier, service_need_clock_active};
 use crate::resident_welfare_policy::{
     cold_exposure_death_chance, deterministic_unit, next_malnutrition, next_service_deficit_ticks,
@@ -66,23 +67,56 @@ pub fn step_residence_needs(
 
     migrate_and_sync_food_inventory(ctx, &mut residence, &mut needs);
     let general_consumption_paused = is_consumption_paused(ctx, residence.owner, clock);
-    spoil_residence_food_inventory(&mut residence, environment);
+    if !general_consumption_paused && daily_household_bill_due(clock) {
+        spoil_residence_food_inventory(
+            &mut residence,
+            environment,
+            world_seed,
+            sim_tick,
+        );
+    }
     migrate_and_sync_food_inventory(ctx, &mut residence, &mut needs);
-    let food_progression_slots = residence_food_progression_slots(&residence, residence.tier);
-    let food_progression_required = residence_food_progression_required_slots(residence.tier);
+    let monthly_bill_due = monthly_household_bill_due(residence.id, clock);
 
     let cold_weather = environment.season == Season::Winter;
     let mut food_unmet = false;
     let mut water_unmet = false;
     let mut cold_unmet = false;
     let mut service_unmet = false;
-    let mut backyard_jam_meal = BackyardJamMealAllocation::default();
-
-    if !general_consumption_paused && ResidenceNeedKind::Food.is_active_for_tier(residence.tier) {
-        (food_unmet, backyard_jam_meal) =
-            consume_food_with_preserved(ctx, &mut residence, &mut needs, environment);
+    if ResidenceNeedKind::Food.is_active_for_tier(residence.tier) {
+        let mut monthly_food = None;
+        if !general_consumption_paused && monthly_bill_due {
+            let tier = residence.tier;
+            monthly_food = Some(consume_monthly_food_slots(&mut residence, tier));
+        }
+        if let Some(need) = find_need_mut(&mut needs, ResidenceNeedKind::Food) {
+            if let Some(result) = monthly_food {
+                need.deficit_ticks = u32::from(!result.all_slots_met);
+            } else if !general_consumption_paused && need.deficit_ticks > 0 {
+                need.deficit_ticks = need.deficit_ticks.saturating_add(1);
+            }
+            food_unmet = need.deficit_ticks > 0;
+        } else {
+            food_unmet = true;
+        }
+        if let Some(result) = monthly_food {
+            if let Some(variety) = find_need_mut(&mut needs, ResidenceNeedKind::FoodVariety) {
+                variety.stock = f64::from(result.slots_consumed);
+                variety.deficit_ticks = u32::from(!result.all_slots_met);
+            }
+            if residence.tier >= 4 {
+                if let Some(preserved) =
+                    find_need_mut(&mut needs, ResidenceNeedKind::PreservedFood)
+                {
+                    preserved.deficit_ticks = u32::from(!result.preserved_slot_met);
+                }
+            }
+        }
+        migrate_and_sync_food_inventory(ctx, &mut residence, &mut needs);
         service_unmet = food_unmet;
     }
+
+    let food_progression_slots = residence_food_progression_slots(&residence, residence.tier);
 
     for kind in ResidenceNeedKind::ALL {
         if kind == ResidenceNeedKind::Food {
@@ -117,24 +151,29 @@ pub fn step_residence_needs(
             }
         } else if kind == ResidenceNeedKind::FoodVariety {
             need.stock = f64::from(food_progression_slots);
-            if food_progression_slots >= food_progression_required {
+            if need.deficit_ticks == 0 {
                 ConsumeResult::Met(*need)
             } else {
                 ConsumeResult::Unmet
             }
-        } else if kind == ResidenceNeedKind::Luxury {
-            consume_backyard_luxury(ctx, &residence, need, backyard_jam_meal)
         } else if kind == ResidenceNeedKind::PreservedFood {
-            // The meal allocator already rotated the seasonal ration without
-            // adding a second calorie demand. Any remainder is the household's
-            // status stock and emergency fallback.
-            if need.stock > 1e-9 {
+            // Tier-four preserved food replaces one matching monthly category
+            // slot; it never adds a sixth calorie charge.
+            if need.deficit_ticks == 0 {
                 ConsumeResult::Met(*need)
             } else {
                 ConsumeResult::Unmet
             }
+        } else if kind == ResidenceNeedKind::Luxury
+            && residence_has_flower_luxury(ctx, &residence)
+        {
+            ConsumeResult::Met(NeedState { stock: 1.0, ..*need })
+        } else if let Some(units) = need_units_due(residence.id, kind, clock) {
+            consume_need(kind, need, units)
+        } else if need.deficit_ticks == 0 {
+            ConsumeResult::Met(*need)
         } else {
-            consume_need(kind, &residence, need, environment)
+            ConsumeResult::Unmet
         };
         match outcome {
             ConsumeResult::Met(updated) => {
@@ -143,15 +182,7 @@ pub fn step_residence_needs(
             }
             ConsumeResult::Unmet => {
                 *need = on_unmet_need(kind, need);
-                // Firewood deficit time doubles as the consecutive winter
-                // exposure clock. Autumn stockpiling pressure still affects
-                // service, but cannot pre-age a household into an immediate
-                // death roll on the first winter morning.
-                if kind == ResidenceNeedKind::Firewood && !cold_weather {
-                    need.deficit_ticks = 0;
-                } else {
-                    need.deficit_ticks = need.deficit_ticks.saturating_add(1);
-                }
+                need.deficit_ticks = need.deficit_ticks.saturating_add(1);
                 service_unmet = true;
                 if kind == ResidenceNeedKind::Water {
                     water_unmet = true;
@@ -209,177 +240,212 @@ pub fn step_residence_needs(
     }
 }
 
-fn consume_backyard_luxury(
-    ctx: &ReducerContext,
-    residence: &Residence,
-    need: &NeedState,
-    jam_meal: BackyardJamMealAllocation,
-) -> ConsumeResult {
-    if jam_meal.luxury_met {
-        return ConsumeResult::Met(NeedState {
-            stock: jam_meal.remaining_stock,
-            ..*need
-        });
-    }
-    let garden = ctx
-        .db
+fn residence_has_flower_luxury(ctx: &ReducerContext, residence: &Residence) -> bool {
+    ctx.db
         .backyard_garden()
         .residence_id()
         .filter(&residence.id)
-        .next();
-    if garden.is_some_and(|garden| garden.flower_luxury_upgraded) {
-        return ConsumeResult::Met(NeedState {
-            stock: 1.0,
-            ..*need
-        });
-    }
-    match provisions::consume_luxury(residence, need) {
-        provisions::ConsumeOutcome::Met(updated) => ConsumeResult::Met(updated),
-        provisions::ConsumeOutcome::Unmet => ConsumeResult::Unmet,
+        .next()
+        .is_some_and(|garden| garden.flower_luxury_upgraded)
+}
+
+#[derive(Clone, Copy)]
+enum MonthlyFoodSlot {
+    Any,
+    Grain,
+    NonGrain,
+    ProduceOrForage,
+    LandAnimal,
+    AnimalProduce,
+    Meat,
+    Fish,
+}
+
+const TIER_1_FOOD_SLOTS: &[MonthlyFoodSlot] = &[MonthlyFoodSlot::Any];
+const TIER_2_FOOD_SLOTS: &[MonthlyFoodSlot] =
+    &[MonthlyFoodSlot::Grain, MonthlyFoodSlot::NonGrain];
+const TIER_3_FOOD_SLOTS: &[MonthlyFoodSlot] = &[
+    MonthlyFoodSlot::Grain,
+    MonthlyFoodSlot::ProduceOrForage,
+    MonthlyFoodSlot::LandAnimal,
+    MonthlyFoodSlot::Fish,
+];
+const TIER_4_FOOD_SLOTS: &[MonthlyFoodSlot] = &[
+    MonthlyFoodSlot::Grain,
+    MonthlyFoodSlot::ProduceOrForage,
+    MonthlyFoodSlot::AnimalProduce,
+    MonthlyFoodSlot::Meat,
+    MonthlyFoodSlot::Fish,
+];
+
+#[derive(Clone, Copy, Default)]
+struct MonthlyFoodResult {
+    all_slots_met: bool,
+    preserved_slot_met: bool,
+    slots_consumed: u8,
+}
+
+fn monthly_food_slots(tier: u8) -> &'static [MonthlyFoodSlot] {
+    match tier {
+        0 => &[],
+        1 => TIER_1_FOOD_SLOTS,
+        2 => TIER_2_FOOD_SLOTS,
+        3 => TIER_3_FOOD_SLOTS,
+        _ => TIER_4_FOOD_SLOTS,
     }
 }
 
-fn consume_food_with_preserved(
-    ctx: &ReducerContext,
-    residence: &mut Residence,
-    needs: &mut [NeedState],
-    environment: EnvironmentState,
-) -> (bool, BackyardJamMealAllocation) {
-    let Some(food_index) = needs
+fn food_matches_slot(commodity: CommodityKind, slot: MonthlyFoodSlot) -> bool {
+    let Some(category) = food_category(commodity) else {
+        return false;
+    };
+    match slot {
+        MonthlyFoodSlot::Any => true,
+        MonthlyFoodSlot::Grain => matches!(
+            commodity,
+            CommodityKind::Food
+                | CommodityKind::OatGrain
+                | CommodityKind::RyeBread
+                | CommodityKind::MaslinBread
+                | CommodityKind::PreservedFood
+        ),
+        MonthlyFoodSlot::NonGrain => category != FoodCategory::Grains,
+        MonthlyFoodSlot::ProduceOrForage => matches!(
+            category,
+            FoodCategory::Vegetables
+                | FoodCategory::Fruits
+                | FoodCategory::Foraged
+                | FoodCategory::Honey
+        ),
+        MonthlyFoodSlot::LandAnimal => {
+            matches!(category, FoodCategory::AnimalProduce | FoodCategory::Meats)
+        }
+        MonthlyFoodSlot::AnimalProduce => category == FoodCategory::AnimalProduce,
+        MonthlyFoodSlot::Meat => category == FoodCategory::Meats,
+        MonthlyFoodSlot::Fish => category == FoodCategory::Fishes,
+    }
+}
+
+fn first_food_for_slot(
+    residence: &Residence,
+    slot: MonthlyFoodSlot,
+    preserved_only: bool,
+) -> Option<CommodityKind> {
+    EDIBLE_COMMODITIES.into_iter().find(|commodity| {
+        (!preserved_only || commodity.is_preserved_food())
+            && food_matches_slot(*commodity, slot)
+            && residence_commodity_stock(residence, *commodity) >= 1.0
+    })
+}
+
+fn consume_monthly_food_slots(residence: &mut Residence, tier: u8) -> MonthlyFoodResult {
+    let slots = monthly_food_slots(tier);
+    let units_per_slot = whole_units(RESIDENCE_FOOD_UNITS_PER_SLOT_PER_MONTH) as u8;
+    if slots.is_empty() || units_per_slot == 0 {
+        return MonthlyFoodResult {
+            all_slots_met: true,
+            preserved_slot_met: tier < 4,
+            slots_consumed: 0,
+        };
+    }
+
+    let mut consumed_for_slot = vec![0_u8; slots.len()];
+    let mut preserved_slot_met = tier < 4;
+    if tier >= 4 {
+        if let Some((slot_index, commodity)) = slots.iter().enumerate().find_map(|(index, slot)| {
+            first_food_for_slot(residence, *slot, true).map(|commodity| (index, commodity))
+        }) {
+            if withdraw_residence_commodity(residence, commodity, 1.0) >= 1.0 {
+                consumed_for_slot[slot_index] = 1;
+                preserved_slot_met = true;
+            }
+        }
+    }
+
+    for (index, slot) in slots.iter().enumerate() {
+        while consumed_for_slot[index] < units_per_slot {
+            let Some(commodity) = first_food_for_slot(residence, *slot, false) else {
+                break;
+            };
+            if withdraw_residence_commodity(residence, commodity, 1.0) < 1.0 {
+                break;
+            }
+            consumed_for_slot[index] += 1;
+        }
+    }
+
+    let slots_consumed = consumed_for_slot
         .iter()
-        .position(|need| need.kind == ResidenceNeedKind::Food)
-    else {
-        return (true, BackyardJamMealAllocation::default());
-    };
-    let demand = food::demand(residence);
-    let jam_meal = consume_household_jam_meal(residence, demand);
-    let remaining_demand = (demand - jam_meal.food_used).max(0.0);
-    let fresh_stock = residence_fresh_food_stock(residence);
-    let preserved_stock = residence_preserved_food_stock(residence);
-    let rotation_demand = (provisions::preserved_food_demand(
-        residence,
-        environment.preserved_food_demand_multiplier(),
-    ) - jam_meal.food_used)
-        .max(0.0);
-    let allocation = allocate_preserved_meal(
-        fresh_stock,
-        preserved_stock,
-        remaining_demand,
-        rotation_demand,
-        residence.tier >= 4,
-    );
-    withdraw_residence_food_group(residence, false, allocation.fresh_used);
-    withdraw_residence_food_group(residence, true, allocation.preserved_used());
-    migrate_and_sync_food_inventory(ctx, residence, needs);
-    if allocation.unmet <= 1e-9 {
-        needs[food_index].deficit_ticks = 0;
-        return (false, jam_meal);
+        .filter(|consumed| **consumed >= units_per_slot)
+        .count() as u8;
+    MonthlyFoodResult {
+        all_slots_met: slots_consumed as usize == slots.len() && preserved_slot_met,
+        preserved_slot_met,
+        slots_consumed,
     }
-    needs[food_index].deficit_ticks = needs[food_index].deficit_ticks.saturating_add(1);
-    (true, jam_meal)
 }
 
-fn consume_household_jam_meal(
+fn whole_daily_spoilage_loss(
+    stock: f64,
+    fraction: f64,
+    world_seed: u64,
+    sim_tick: u64,
+    residence_id: u64,
+    commodity: CommodityKind,
+) -> f64 {
+    let stock = whole_units(stock);
+    let expected = (stock * fraction.max(0.0)).min(stock);
+    let guaranteed = expected.floor();
+    let remainder = expected - guaranteed;
+    let extra = f64::from(
+        deterministic_unit(
+            world_seed,
+            sim_tick,
+            residence_id,
+            0x5A01_u64 + u64::from(commodity.as_u8()),
+        ) < remainder,
+    );
+    (guaranteed + extra).min(stock)
+}
+
+fn spoil_residence_food_inventory(
     residence: &mut Residence,
-    food_demand: f64,
-) -> BackyardJamMealAllocation {
-    let luxury_demand = if residence.tier >= 4 {
-        residence.population as f64 * RESIDENCE_LUXURY_JAM_PER_PERSON_PER_SEC * TICK_DT
-    } else {
-        0.0
-    };
-    let household_jams = residence.aronia_jam.max(0.0) + residence.rosehip_jam.max(0.0);
-    let allocation = allocate_backyard_jam_meal(household_jams, food_demand, luxury_demand);
-    let mut used = (household_jams - allocation.remaining_stock).max(0.0);
-    let aronia_used = residence.aronia_jam.max(0.0).min(used);
-    residence.aronia_jam = (residence.aronia_jam - aronia_used).max(0.0);
-    used = (used - aronia_used).max(0.0);
-    residence.rosehip_jam = (residence.rosehip_jam - used).max(0.0);
-    allocation
-}
-
-fn spoil_residence_food_inventory(residence: &mut Residence, environment: EnvironmentState) {
+    environment: EnvironmentState,
+    world_seed: u64,
+    sim_tick: u64,
+) {
     let fresh_fraction = (environment.fresh_food_spoilage_fraction_per_second()
-        * FRESH_FOOD_STORAGE_RESIDENCE_FACTOR
-        * TICK_DT)
+        * CALENDAR_SECONDS_PER_DAY
+        * FRESH_FOOD_STORAGE_RESIDENCE_FACTOR)
         .clamp(0.0, 1.0);
     let preserved_fraction = (environment.preserved_food_spoilage_fraction_per_second()
-        * PRESERVED_FOOD_STORAGE_RESIDENCE_FACTOR
-        * TICK_DT)
+        * CALENDAR_SECONDS_PER_DAY
+        * PRESERVED_FOOD_STORAGE_RESIDENCE_FACTOR)
         .clamp(0.0, 1.0);
     for commodity in FRESH_FOOD_COMMODITIES {
-        let stock = crate::economy::residence_commodity_stock(residence, commodity);
-        withdraw_residence_commodity(
-            residence,
+        let stock = residence_commodity_stock(residence, commodity);
+        let loss = whole_daily_spoilage_loss(
+            stock,
+            fresh_fraction * commodity.spoilage_multiplier(),
+            world_seed,
+            sim_tick,
+            residence.id,
             commodity,
-            stock * fresh_fraction * commodity.spoilage_multiplier(),
         );
+        withdraw_residence_commodity(residence, commodity, loss);
     }
     for commodity in PRESERVED_FOOD_COMMODITIES {
-        let stock = crate::economy::residence_commodity_stock(residence, commodity);
-        withdraw_residence_commodity(
-            residence,
+        let stock = residence_commodity_stock(residence, commodity);
+        let loss = whole_daily_spoilage_loss(
+            stock,
+            preserved_fraction * commodity.spoilage_multiplier(),
+            world_seed,
+            sim_tick,
+            residence.id,
             commodity,
-            stock * preserved_fraction * commodity.spoilage_multiplier(),
         );
+        withdraw_residence_commodity(residence, commodity, loss);
     }
-    // Honey is already modeled as a durable specialty and does not share the
-    // fresh-food spoilage pass.
-}
-
-fn withdraw_residence_food_group(
-    residence: &mut Residence,
-    preserved: bool,
-    mut amount: f64,
-) -> f64 {
-    let order: &[CommodityKind] = if preserved {
-        &[
-            CommodityKind::AroniaJam,
-            CommodityKind::RosehipJam,
-            CommodityKind::Cheese,
-            CommodityKind::SmokedFish,
-            CommodityKind::CuredMeat,
-            CommodityKind::PreservedFood,
-        ]
-    } else {
-        &[
-            CommodityKind::Meat,
-            CommodityKind::Fish,
-            CommodityKind::Milk,
-            CommodityKind::Aronia,
-            CommodityKind::Rosehips,
-            CommodityKind::Mushrooms,
-            CommodityKind::Berries,
-            CommodityKind::Grapes,
-            CommodityKind::Cherries,
-            CommodityKind::Apples,
-            CommodityKind::Pears,
-            CommodityKind::Cabbage,
-            CommodityKind::Carrots,
-            CommodityKind::Beetroot,
-            CommodityKind::Vegetables,
-            CommodityKind::Eggs,
-            CommodityKind::RyeBread,
-            CommodityKind::MaslinBread,
-            CommodityKind::OatGrain,
-            CommodityKind::Food,
-            CommodityKind::Honey,
-        ]
-    };
-    let mut withdrawn = 0.0;
-    for commodity in order {
-        if amount <= 1e-9 {
-            break;
-        }
-        let used = withdraw_residence_commodity(
-            residence,
-            *commodity,
-            amount / commodity.meal_value().max(1e-9),
-        );
-        withdrawn += used;
-        amount = (amount - used * commodity.meal_value()).max(0.0);
-    }
-    withdrawn
 }
 
 fn update_health(
@@ -652,57 +718,30 @@ enum ConsumeResult {
 
 fn consume_need(
     kind: ResidenceNeedKind,
-    residence: &Residence,
     need: &NeedState,
-    environment: EnvironmentState,
+    units: f64,
 ) -> ConsumeResult {
     match kind {
-        ResidenceNeedKind::Firewood => {
-            match firewood::consume(residence, need, environment.firewood_demand_multiplier()) {
-                firewood::ConsumeOutcome::Met(updated) => ConsumeResult::Met(updated),
-                firewood::ConsumeOutcome::Unmet => ConsumeResult::Unmet,
-            }
-        }
-        ResidenceNeedKind::Water => match water::consume(residence, need) {
+        ResidenceNeedKind::Firewood => match firewood::consume(need, units) {
+            firewood::ConsumeOutcome::Met(updated) => ConsumeResult::Met(updated),
+            firewood::ConsumeOutcome::Unmet => ConsumeResult::Unmet,
+        },
+        ResidenceNeedKind::Water => match water::consume(need, units) {
             water::ConsumeOutcome::Met(updated) => ConsumeResult::Met(updated),
             water::ConsumeOutcome::Unmet => ConsumeResult::Unmet,
         },
-        ResidenceNeedKind::Food => match food::consume(
-            residence,
-            need,
-            environment.fresh_food_spoilage_fraction_per_second()
-                * FRESH_FOOD_STORAGE_RESIDENCE_FACTOR,
-        ) {
-            food::ConsumeOutcome::Met(updated) => ConsumeResult::Met(updated),
-            food::ConsumeOutcome::Unmet => ConsumeResult::Unmet,
-        },
-        ResidenceNeedKind::Ale => match provisions::consume_ale(residence, need) {
+        ResidenceNeedKind::Ale
+        | ResidenceNeedKind::Cloth
+        | ResidenceNeedKind::Shoes
+        | ResidenceNeedKind::Pottery
+        | ResidenceNeedKind::Luxury => match provisions::consume_units(need, units) {
             provisions::ConsumeOutcome::Met(updated) => ConsumeResult::Met(updated),
             provisions::ConsumeOutcome::Unmet => ConsumeResult::Unmet,
         },
-        ResidenceNeedKind::PreservedFood => {
-            match provisions::consume_preserved_food(residence, need) {
-                provisions::ConsumeOutcome::Met(updated) => ConsumeResult::Met(updated),
-                provisions::ConsumeOutcome::Unmet => ConsumeResult::Unmet,
-            }
-        }
-        ResidenceNeedKind::Cloth => match provisions::consume_cloth(residence, need) {
-            provisions::ConsumeOutcome::Met(updated) => ConsumeResult::Met(updated),
-            provisions::ConsumeOutcome::Unmet => ConsumeResult::Unmet,
-        },
-        ResidenceNeedKind::Shoes => match provisions::consume_shoes(residence, need) {
-            provisions::ConsumeOutcome::Met(updated) => ConsumeResult::Met(updated),
-            provisions::ConsumeOutcome::Unmet => ConsumeResult::Unmet,
-        },
-        ResidenceNeedKind::Pottery => match provisions::consume_pottery(residence, need) {
-            provisions::ConsumeOutcome::Met(updated) => ConsumeResult::Met(updated),
-            provisions::ConsumeOutcome::Unmet => ConsumeResult::Unmet,
-        },
-        ResidenceNeedKind::Luxury => match provisions::consume_luxury(residence, need) {
-            provisions::ConsumeOutcome::Met(updated) => ConsumeResult::Met(updated),
-            provisions::ConsumeOutcome::Unmet => ConsumeResult::Unmet,
-        },
-        ResidenceNeedKind::Church | ResidenceNeedKind::FoodVariety => ConsumeResult::Unmet,
+        ResidenceNeedKind::Food
+        | ResidenceNeedKind::PreservedFood
+        | ResidenceNeedKind::Church
+        | ResidenceNeedKind::FoodVariety => ConsumeResult::Unmet,
     }
 }
 

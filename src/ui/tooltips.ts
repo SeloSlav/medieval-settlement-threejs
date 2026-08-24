@@ -80,6 +80,14 @@ export function mountTooltips(root: HTMLElement): () => void {
     const text = anchor.dataset.tooltip?.trim();
     if (!text) return;
 
+    // Delegated mouseover/focus events can fire again while moving between
+    // descendants of the same anchor. Keep the current tooltip visible rather
+    // than restarting its fade on every internal boundary crossing.
+    if (activeAnchor === anchor && !tooltip.hidden) {
+      refresh(anchor);
+      return;
+    }
+
     if (activeAnchor && activeAnchor !== anchor && activeAnchor.getAttribute('aria-describedby') === tooltip.id) {
       activeAnchor.removeAttribute('aria-describedby');
     }

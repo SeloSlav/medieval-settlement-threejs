@@ -107,8 +107,8 @@ export const FIRE_DESTROYED_REBUILD_COST_FRACTION = 0.7;
 
 export const STARTING_TIMBER = 400;
 export const STARTING_STONE = 240;
-export const STARTING_FIREWOOD = 240;
-export const STARTING_BREAD = 240;
+export const STARTING_FIREWOOD = 24;
+export const STARTING_BREAD = 24;
 export const STARTING_IRONWORK = 12;
 export const STARTING_GOLD = 0;
 export const STONE_SALVAGE_FRACTION = 0.92;
@@ -197,6 +197,7 @@ export const NARROW_PARCEL_FRONTAGE_MAX = 9.6;
 export const WIDE_PARCEL_FRONTAGE_MIN = 14;
 export const RESIDENCE_FIREWOOD_CAPACITY = 60;
 export const RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC = 0.002777777777777778;
+export const RESIDENCE_FIREWOOD_UNITS_PER_MONTH = 1;
 export const CHARCOAL_HOUSEHOLD_FUEL_VALUE = 2;
 export const MARKETPLACE_FUEL_RESERVE_DAYS = 21;
 export const MARKETPLACE_FOOD_STALL_SLOTS = 3;
@@ -206,8 +207,10 @@ export const RESIDENCE_FIREWOOD_PRIORITY_WINTER_DAYS = 0.5;
 export const RESIDENCE_WATER_CAPACITY = 24;
 export const RESIDENCE_WATER_REORDER_FRACTION = 0.3333333333333333;
 export const RESIDENCE_WATER_PER_PERSON_PER_SEC = 0.012;
+export const RESIDENCE_WATER_UNITS_PER_DAY = 1;
 export const RESIDENCE_FOOD_CAPACITY = 32;
 export const RESIDENCE_FOOD_PER_PERSON_PER_SEC = 0.003619047619047619;
+export const RESIDENCE_FOOD_UNITS_PER_SLOT_PER_MONTH = 1;
 export const EVENING_MEAL_PER_PERSON = 0.08;
 export const FOOD_CATEGORY_QUALIFYING_DAYS = 1;
 export const BACKYARD_FOOD_RESERVE_TIER1_DAYS = 3;
@@ -225,14 +228,19 @@ export const RESIDENCE_PRESERVED_FOOD_AUTUMN_MULTIPLIER = 1;
 export const RESIDENCE_PRESERVED_FOOD_WINTER_MULTIPLIER = 1.75;
 export const RESIDENCE_ALE_CAPACITY = 20;
 export const RESIDENCE_ALE_PER_PERSON_PER_SEC = 0.0025;
+export const RESIDENCE_ALE_UNITS_PER_MONTH = 1;
 export const RESIDENCE_CLOTH_CAPACITY = 8;
 export const RESIDENCE_CLOTH_PER_PERSON_PER_SEC = 0.00018;
+export const RESIDENCE_CLOTH_MONTHS_PER_UNIT = 3;
 export const RESIDENCE_SHOES_CAPACITY = 6;
 export const RESIDENCE_SHOES_PER_PERSON_PER_SEC = 0.00012;
+export const RESIDENCE_SHOES_MONTHS_PER_UNIT = 4;
 export const RESIDENCE_POTTERY_CAPACITY = 6;
 export const RESIDENCE_POTTERY_PER_PERSON_PER_SEC = 0.001;
+export const RESIDENCE_POTTERY_MONTHS_PER_UNIT = 3;
 export const RESIDENCE_LUXURY_CAPACITY = 6;
 export const RESIDENCE_LUXURY_JAM_PER_PERSON_PER_SEC = 0.0005;
+export const RESIDENCE_LUXURY_UNITS_PER_MONTH = 1;
 export const APPROVAL_BASE_SCORE = 60;
 export const APPROVAL_NEED_PRESSURE_RAMP_DAYS = 60;
 export const APPROVAL_MAX_NEED_PENALTY = 32;
@@ -349,16 +357,16 @@ export const GAME_PER_HARVEST = 4;
 export const GAME_HIDES_PER_ANIMAL = 1;
 export const BERRIES_PER_HARVEST = 3;
 export const MUSHROOMS_PER_HARVEST = 3;
-export const FORAGER_REMEDIES_PER_HARVEST = 0.6;
+export const FORAGER_REMEDIES_PER_HARVEST = 1;
 export const FORAGER_REMEDY_SEASON_START_MONTH = 4;
 export const FORAGER_REMEDY_SEASON_END_MONTH = 10;
 export const REMEDIES_PER_DELIVERY = 3;
 export const REMEDY_DELIVERY_TARGET_DAYS = 10;
-export const FISH_PER_HARVEST = 3.5;
-export const RICH_GAME_YIELD_MULTIPLIER = 1.5;
+export const FISH_PER_HARVEST = 4;
+export const RICH_GAME_YIELD_MULTIPLIER = 2;
 export const RICH_FISH_YIELD_MULTIPLIER = 1.75;
-export const RICH_BERRY_YIELD_MULTIPLIER = 1.5;
-export const RICH_MUSHROOM_YIELD_MULTIPLIER = 1.5;
+export const RICH_BERRY_YIELD_MULTIPLIER = 2;
+export const RICH_MUSHROOM_YIELD_MULTIPLIER = 2;
 export const FOOD_PER_DELIVERY = 6;
 export const BERRIES_REGROW_PER_DAY = 18;
 export const MUSHROOMS_REGROW_PER_DAY = 12;
@@ -390,21 +398,21 @@ export const THRESHING_GRAIN_PER_CYCLE = 3;
 export const WATERMILL_GRAIN_PER_CYCLE = 3;
 export const WATERMILL_WATER_PER_CYCLE = 0;
 export const WATERMILL_RYE_FLOUR_PER_CYCLE = 4;
-export const WATERMILL_MASLIN_FLOUR_PER_CYCLE = 4.4;
+export const WATERMILL_MASLIN_FLOUR_PER_CYCLE = 4;
 export const BAKERY_FLOUR_PER_CYCLE = 3;
 export const BAKERY_WATER_PER_CYCLE = 2;
 export const BAKERY_FIREWOOD_PER_CYCLE = 1;
 export const BAKERY_RYE_BREAD_PER_CYCLE = 4;
-export const BAKERY_MASLIN_BREAD_PER_CYCLE = 4.5;
+export const BAKERY_MASLIN_BREAD_PER_CYCLE = 4;
 export const HOUSEHOLD_FOOD_RESERVE_PER_CLAIM = 6;
 export const HOUSEHOLD_FOOD_RESERVE_CAPACITY_FRACTION = 0.5;
 export const BREWERY_BARLEY_PER_MALT_CYCLE = 3;
 export const BREWERY_MALTING_WATER_PER_CYCLE = 1;
-export const BREWERY_MALTING_FIREWOOD_PER_CYCLE = 0.5;
+export const BREWERY_MALTING_FIREWOOD_PER_CYCLE = 1;
 export const BREWERY_MALT_PER_CYCLE = 3;
 export const BREWERY_MALT_PER_ALE_CYCLE = 3;
 export const BREWERY_BREWING_WATER_PER_CYCLE = 2;
-export const BREWERY_BREWING_FIREWOOD_PER_CYCLE = 0.5;
+export const BREWERY_BREWING_FIREWOOD_PER_CYCLE = 0;
 export const BREWERY_ALE_PER_CYCLE = 4;
 export const BREWERY_APPLES_PER_CIDER_CYCLE = 4;
 export const BREWERY_CIDER_PER_CYCLE = 1;
@@ -424,15 +432,15 @@ export const COBBLER_SHOES_PER_CYCLE = 2;
 export const LEATHER_TRANSFER_PER_TRIP = 12;
 export const SMOKEHOUSE_FOOD_PER_CYCLE = 3;
 export const SMOKEHOUSE_FIREWOOD_PER_CYCLE = 1;
-export const SMOKEHOUSE_SALT_PER_CYCLE = 0.5;
-export const SMOKEHOUSE_POTTERY_PER_CYCLE = 0.25;
-export const SMOKEHOUSE_PRESERVED_FOOD_PER_CYCLE = 4;
+export const SMOKEHOUSE_SALT_PER_CYCLE = 1;
+export const SMOKEHOUSE_POTTERY_PER_CYCLE = 0;
+export const SMOKEHOUSE_PRESERVED_FOOD_PER_CYCLE = 3;
 export const CLAY_PIT_CLAY_PER_CYCLE = 4;
-export const LARGE_QUARRY_TIMBER_SUPPORT_PER_CYCLE = 0.25;
+export const LARGE_QUARRY_TIMBER_SUPPORT_PER_CYCLE = 1;
 export const LARGE_QUARRY_TIMBER_SUPPORT_BUFFER_CYCLES = 6;
 export const MINE_IRON_PER_CYCLE = 2;
-export const MINE_SALT_PER_CYCLE = 2.5;
-export const MINE_TIMBER_SUPPORT_PER_CYCLE = 0.5;
+export const MINE_SALT_PER_CYCLE = 2;
+export const MINE_TIMBER_SUPPORT_PER_CYCLE = 1;
 export const MINE_TIMBER_SUPPORT_BUFFER_CYCLES = 3;
 export const RICH_MINE_THROUGHPUT_MULTIPLIER = 1.5;
 export const CHARCOAL_BURNER_FIREWOOD_PER_CYCLE = 3;
@@ -441,7 +449,7 @@ export const SMITHY_IRON_PER_CYCLE = 2;
 export const SMITHY_CHARCOAL_PER_CYCLE = 1;
 export const SMITHY_WATER_PER_CYCLE = 1;
 export const SMITHY_IRONWORK_PER_CYCLE = 2;
-export const CIVILIAN_TOOL_IRONWORK_PER_CYCLE = 0.1;
+export const CIVILIAN_TOOL_IRONWORK_PER_CYCLE = 1;
 export const CIVILIAN_TOOL_REORDER_CYCLES = 6;
 export const CIVILIAN_TOOL_THROUGHPUT_MULTIPLIER = 1.2;
 export const POTTER_CLAY_PER_CYCLE = 3;
@@ -492,8 +500,8 @@ export const SPECIALTY_EXPORT_GOLD_PER_POTTERY = 1.35;
 export const HERB_REMEDY_SALE_GOLD_PER_UNIT = 2;
 export const CARPENTER_DELIVERY_SPEED_MULTIPLIER = 1.18;
 export const CARPENTER_TIMBER_COST_MULTIPLIER = 0.9;
-export const CARPENTER_CART_SERVICE_TIMBER_PER_TRIP = 0.2;
-export const CARPENTER_CART_SERVICE_IRONWORK_PER_TRIP = 0.04;
+export const CARPENTER_CART_SERVICE_TIMBER_PER_TRIP = 1;
+export const CARPENTER_CART_SERVICE_IRONWORK_PER_TRIP = 1;
 export const CARPENTER_CART_SERVICE_TARGET_TRIPS = 15;
 export const STOREHOUSE_OVERFLOW_THRESHOLD = 0.65;
 export const STOREHOUSE_HAUL_PER_WORKER = 24;
@@ -908,7 +916,7 @@ export const BUILDING_DEFINITIONS = {
     label: "Lumber mill",
     workRadius: 210,
     pickRadius: 8,
-    harvestInterval: 9,
+    harvestInterval: 1050,
     regrowRatePerSecond: 0,
     maxLabor: 3,
     acceptsLabor: true,
@@ -946,7 +954,7 @@ export const BUILDING_DEFINITIONS = {
     label: "Woodcutter's lodge",
     workRadius: 0,
     pickRadius: 8,
-    harvestInterval: 5,
+    harvestInterval: 525,
     regrowRatePerSecond: 0,
     maxLabor: 2,
     acceptsLabor: true,
@@ -965,7 +973,7 @@ export const BUILDING_DEFINITIONS = {
     label: "Mining Pit",
     workRadius: 80,
     pickRadius: 10,
-    harvestInterval: 9,
+    harvestInterval: 350,
     regrowRatePerSecond: 0,
     maxLabor: 4,
     acceptsLabor: true,
@@ -984,7 +992,7 @@ export const BUILDING_DEFINITIONS = {
     label: "Quarry",
     workRadius: 0,
     pickRadius: 13,
-    harvestInterval: 7,
+    harvestInterval: 350,
     regrowRatePerSecond: 0,
     maxLabor: 6,
     acceptsLabor: true,
@@ -1022,7 +1030,7 @@ export const BUILDING_DEFINITIONS = {
     label: "Mineral mine",
     workRadius: 0,
     pickRadius: 11,
-    harvestInterval: 9,
+    harvestInterval: 700,
     regrowRatePerSecond: 0,
     maxLabor: 4,
     acceptsLabor: true,
@@ -1041,7 +1049,7 @@ export const BUILDING_DEFINITIONS = {
     label: "Clay pit",
     workRadius: 0,
     pickRadius: 10,
-    harvestInterval: 8,
+    harvestInterval: 700,
     regrowRatePerSecond: 0,
     maxLabor: 3,
     acceptsLabor: true,
@@ -1060,7 +1068,7 @@ export const BUILDING_DEFINITIONS = {
     label: "Charcoal burner's yard",
     workRadius: 0,
     pickRadius: 9,
-    harvestInterval: 8,
+    harvestInterval: 1050,
     regrowRatePerSecond: 0,
     maxLabor: 2,
     acceptsLabor: true,
@@ -1079,7 +1087,7 @@ export const BUILDING_DEFINITIONS = {
     label: "Forest bloomery & smithy",
     workRadius: 0,
     pickRadius: 9,
-    harvestInterval: 10,
+    harvestInterval: 4200,
     regrowRatePerSecond: 0,
     maxLabor: 3,
     acceptsLabor: true,
@@ -1098,7 +1106,7 @@ export const BUILDING_DEFINITIONS = {
     label: "Potter's kiln",
     workRadius: 0,
     pickRadius: 9,
-    harvestInterval: 9,
+    harvestInterval: 1050,
     regrowRatePerSecond: 0,
     maxLabor: 2,
     acceptsLabor: true,
@@ -1136,7 +1144,7 @@ export const BUILDING_DEFINITIONS = {
     label: "Hunter's hall",
     workRadius: 68,
     pickRadius: 9,
-    harvestInterval: 8,
+    harvestInterval: 1050,
     regrowRatePerSecond: 0,
     maxLabor: 3,
     acceptsLabor: true,
@@ -1155,7 +1163,7 @@ export const BUILDING_DEFINITIONS = {
     label: "Forager's shed",
     workRadius: 48,
     pickRadius: 8,
-    harvestInterval: 6,
+    harvestInterval: 700,
     regrowRatePerSecond: 0,
     maxLabor: 2,
     acceptsLabor: true,
@@ -1174,7 +1182,7 @@ export const BUILDING_DEFINITIONS = {
     label: "Fishing camp",
     workRadius: 64,
     pickRadius: 9,
-    harvestInterval: 7,
+    harvestInterval: 1050,
     regrowRatePerSecond: 0,
     maxLabor: 3,
     acceptsLabor: true,
@@ -1364,7 +1372,7 @@ export const BUILDING_DEFINITIONS = {
     label: "Farmstead and threshing barn",
     workRadius: 250,
     pickRadius: 9,
-    harvestInterval: 6,
+    harvestInterval: 700,
     regrowRatePerSecond: 0,
     maxLabor: 8,
     acceptsLabor: true,
@@ -1383,7 +1391,7 @@ export const BUILDING_DEFINITIONS = {
     label: "Pastoral farmstead",
     workRadius: 110,
     pickRadius: 10,
-    harvestInterval: 10,
+    harvestInterval: 700,
     regrowRatePerSecond: 0,
     maxLabor: 3,
     acceptsLabor: true,
@@ -1402,7 +1410,7 @@ export const BUILDING_DEFINITIONS = {
     label: "Woodland swineherd",
     workRadius: 120,
     pickRadius: 9,
-    harvestInterval: 12,
+    harvestInterval: 1050,
     regrowRatePerSecond: 0,
     maxLabor: 2,
     acceptsLabor: true,
@@ -1421,7 +1429,7 @@ export const BUILDING_DEFINITIONS = {
     label: "Pauline monastery",
     workRadius: 0,
     pickRadius: 15,
-    harvestInterval: 12,
+    harvestInterval: 1050,
     regrowRatePerSecond: 0,
     maxLabor: 8,
     acceptsLabor: true,
@@ -1440,7 +1448,7 @@ export const BUILDING_DEFINITIONS = {
     label: "Brewhouse",
     workRadius: 0,
     pickRadius: 9,
-    harvestInterval: 7,
+    harvestInterval: 700,
     regrowRatePerSecond: 0,
     maxLabor: 3,
     acceptsLabor: true,
@@ -1478,7 +1486,7 @@ export const BUILDING_DEFINITIONS = {
     label: "Smokehouse",
     workRadius: 0,
     pickRadius: 8,
-    harvestInterval: 6,
+    harvestInterval: 1050,
     regrowRatePerSecond: 0,
     maxLabor: 2,
     acceptsLabor: true,
@@ -1516,7 +1524,7 @@ export const BUILDING_DEFINITIONS = {
     label: "Village bakery",
     workRadius: 0,
     pickRadius: 8,
-    harvestInterval: 5,
+    harvestInterval: 700,
     regrowRatePerSecond: 0,
     maxLabor: 2,
     acceptsLabor: true,
@@ -1535,7 +1543,7 @@ export const BUILDING_DEFINITIONS = {
     label: "Forest apiary",
     workRadius: 48,
     pickRadius: 7,
-    harvestInterval: 18,
+    harvestInterval: 1050,
     regrowRatePerSecond: 0,
     maxLabor: 1,
     acceptsLabor: true,
@@ -1554,7 +1562,7 @@ export const BUILDING_DEFINITIONS = {
     label: "Grain watermill",
     workRadius: 0,
     pickRadius: 10,
-    harvestInterval: 7,
+    harvestInterval: 700,
     regrowRatePerSecond: 0,
     maxLabor: 3,
     acceptsLabor: true,
@@ -1573,7 +1581,7 @@ export const BUILDING_DEFINITIONS = {
     label: "Grain windmill",
     workRadius: 0,
     pickRadius: 11,
-    harvestInterval: 7,
+    harvestInterval: 700,
     regrowRatePerSecond: 0,
     maxLabor: 3,
     acceptsLabor: true,
@@ -1592,7 +1600,7 @@ export const BUILDING_DEFINITIONS = {
     label: "Carpenter and wheelwright",
     workRadius: 0,
     pickRadius: 9,
-    harvestInterval: 8,
+    harvestInterval: 1050,
     regrowRatePerSecond: 0,
     maxLabor: 2,
     acceptsLabor: true,
@@ -1611,7 +1619,7 @@ export const BUILDING_DEFINITIONS = {
     label: "Weaver's workshop",
     workRadius: 0,
     pickRadius: 8,
-    harvestInterval: 8,
+    harvestInterval: 1050,
     regrowRatePerSecond: 0,
     maxLabor: 2,
     acceptsLabor: true,
@@ -1630,7 +1638,7 @@ export const BUILDING_DEFINITIONS = {
     label: "Tannery",
     workRadius: 0,
     pickRadius: 9,
-    harvestInterval: 10,
+    harvestInterval: 1050,
     regrowRatePerSecond: 0,
     maxLabor: 2,
     acceptsLabor: true,
@@ -1649,7 +1657,7 @@ export const BUILDING_DEFINITIONS = {
     label: "Cobbler's workshop",
     workRadius: 0,
     pickRadius: 8,
-    harvestInterval: 9,
+    harvestInterval: 1050,
     regrowRatePerSecond: 0,
     maxLabor: 2,
     acceptsLabor: true,
@@ -1666,7 +1674,7 @@ export const BUILDING_DEFINITIONS = {
 } as const satisfies Record<BuildingKind, BuildingDefinition>;
 
 export const BUILDING_COSTS = {
-  founders_camp: { timber: 0, stone: 0 },
+  founders_camp: { timber: 36, stone: 12, gold: 120 },
   salvage_pile: { timber: 0, stone: 0 },
   lumber_mill: { timber: 30, stone: 8 },
   reforester: { timber: 35, stone: 10 },

@@ -81,6 +81,7 @@ painting, sepia-only drawing, detailed scenery, fantasy ornament, UI chrome
 
 | Asset | Functional emblem |
 | --- | --- |
+| `founders-camp.webp` | Vermilion-pennant pavilion sheltering a heavy locked treasury chest, backed by crossed survey stakes and a rolled map. |
 | `residence.webp` | Lit household hearth interlocked with a large iron house key, split firewood, and a folded blanket. |
 | `water-well.webp` | Bucket and rope on a timber windlass over a circular limestone curb with visible blue water. |
 | `town-hall.webp` | Open blank ledger, quill, wax seal, civic handbell, and a restrained stack of coins. |

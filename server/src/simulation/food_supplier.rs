@@ -129,7 +129,7 @@ fn step_food_supplier(
         None
     };
     if harvest_ready {
-        supplier = harvest_from_node(
+        let (harvested, committed) = harvest_from_node(
             ctx,
             supplier,
             node_kinds,
@@ -139,7 +139,10 @@ fn step_food_supplier(
             clock.month,
             gathers_remedies,
         );
-        supplier.action_cooldown = def.action_interval;
+        supplier = harvested;
+        if committed {
+            supplier.action_cooldown = def.action_interval;
+        }
     }
     if delivery_ready {
         if let Some(network) = network {
@@ -169,54 +172,68 @@ fn harvest_from_node(
     workers: u32,
     month: u32,
     gathers_remedies: bool,
-) -> Building {
+) -> (Building, bool) {
     if workers == 0 {
-        return building;
+        return (building, false);
     }
 
     let Some(node) = find_nearest_harvestable_node(ctx, &building, node_kinds, month) else {
-        return building;
+        return (building, false);
     };
     let food_commodity = match node.node_kind.as_str() {
         "game" => CommodityKind::Meat,
         "fish" => CommodityKind::Fish,
         "berries" => CommodityKind::Berries,
         "mushrooms" => CommodityKind::Mushrooms,
-        _ => return building,
+        _ => return (building, false),
     };
     let food_room = building_commodity_room(&building, food_commodity);
     if food_room <= 1e-6 {
-        return building;
+        return (building, false);
     }
 
-    let labor = workers as f64;
+    let labor = f64::from(workers);
     let richness_multiplier = harvest_yield_multiplier(&node.node_kind, node.max_yield);
-    let requested = resource_units_per_harvest * richness_multiplier * labor;
-    let max_resource_for_room = food_room / food_per_resource_unit.max(1e-9);
-    let available = harvestable_wild_stock(
+    let requested = crate::resource_units::whole_units(
+        resource_units_per_harvest * richness_multiplier * labor,
+    );
+    let food_per_resource_unit = crate::resource_units::whole_cost(food_per_resource_unit);
+    let max_resource_for_room = (food_room / food_per_resource_unit.max(1.0)).floor();
+    let available = crate::resource_units::whole_units(harvestable_wild_stock(
         &node.node_kind,
         node.remaining,
         node.max_yield,
         building.harvest_reserve_percent,
-    );
-    let extracted = requested.min(available).min(max_resource_for_room);
-    if extracted <= 0.0 {
-        return building;
+    ));
+    let mut extracted = requested.min(available).min(max_resource_for_room);
+    if node.node_kind == "game" {
+        let hides_per_animal = crate::resource_units::whole_cost(GAME_HIDES_PER_ANIMAL);
+        let hide_room = building_commodity_room(&building, CommodityKind::Hides);
+        extracted = extracted.min((hide_room / hides_per_animal.max(1.0)).floor());
+    }
+    if gathers_remedies
+        && (FORAGER_REMEDY_SEASON_START_MONTH as u32..=FORAGER_REMEDY_SEASON_END_MONTH as u32)
+            .contains(&month)
+    {
+        let harvest_batch = crate::resource_units::whole_cost(resource_units_per_harvest);
+        let remedy_batch = crate::resource_units::whole_cost(FORAGER_REMEDIES_PER_HARVEST);
+        let remedy_room = building_commodity_room(&building, CommodityKind::Remedies);
+        let complete_batches = (extracted / harvest_batch.max(1.0)).floor();
+        let batches_that_fit = (remedy_room / remedy_batch.max(1.0)).floor();
+        extracted = extracted.min(batches_that_fit.min(complete_batches) * harvest_batch);
+    }
+    if extracted < 1.0 {
+        return (building, false);
     }
 
     let harvested_game = node.node_kind == "game";
-    ctx.db.foraging_node().node_id().update(ForagingNode {
-        remaining: (node.remaining - extracted).max(0.0),
-        respawn_cooldown: 0.0,
-        ..node
-    });
-
     let produced_food = extracted * food_per_resource_unit;
+    let original_building = building.clone();
     let mut updated_building = building;
     let deposited =
         deposit_building_commodity(&mut updated_building, food_commodity, produced_food);
-    if deposited <= 0.0 {
-        return updated_building;
+    if deposited != produced_food {
+        return (original_building, false);
     }
     if gathers_remedies
         && (FORAGER_REMEDY_SEASON_START_MONTH as u32..=FORAGER_REMEDY_SEASON_END_MONTH as u32)
@@ -224,20 +241,33 @@ fn harvest_from_node(
     {
         let remedy_output =
             extracted / resource_units_per_harvest.max(1e-9) * FORAGER_REMEDIES_PER_HARVEST;
-        deposit_building_commodity(
+        let remedy_output = crate::resource_units::whole_units(remedy_output);
+        if deposit_building_commodity(
             &mut updated_building,
             CommodityKind::Remedies,
             remedy_output,
-        );
+        ) != remedy_output
+        {
+            return (original_building, false);
+        }
     }
     if harvested_game {
-        deposit_building_commodity(
+        let hide_output = extracted * crate::resource_units::whole_cost(GAME_HIDES_PER_ANIMAL);
+        if deposit_building_commodity(
             &mut updated_building,
             CommodityKind::Hides,
-            extracted * GAME_HIDES_PER_ANIMAL,
-        );
+            hide_output,
+        ) != hide_output
+        {
+            return (original_building, false);
+        }
     }
-    updated_building
+    ctx.db.foraging_node().node_id().update(ForagingNode {
+        remaining: (crate::resource_units::whole_units(node.remaining) - extracted).max(0.0),
+        respawn_cooldown: 0.0,
+        ..node
+    });
+    (updated_building, true)
 }
 
 fn collect_remedy_target(

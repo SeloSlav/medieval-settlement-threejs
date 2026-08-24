@@ -2,7 +2,8 @@ use spacetimedb::{reducer, ReducerContext, Table};
 
 use crate::apiary_policy::is_valid_apiary_harvest_policy;
 use crate::balance_generated::{
-    CARPENTER_TIMBER_COST_MULTIPLIER, CONSTRUCTION_MAX_BUILDERS, TOWN_HALL_POPULATION_REQUIRED,
+    CARPENTER_TIMBER_COST_MULTIPLIER, CONSTRUCTION_MAX_BUILDERS, GOLD_SALVAGE_FRACTION,
+    TOWN_HALL_POPULATION_REQUIRED,
 };
 use crate::brewery_recipe_policy::{
     is_valid_brewery_recipe_policy, normalize_brewery_recipe_policy, BREWERY_RECIPE_AUTO,
@@ -25,8 +26,8 @@ use crate::economy::{
     credit_treasury_food, credit_treasury_gold, credit_treasury_stone, credit_treasury_timber,
     credit_treasury_water, guardhouse_roster_count, guardhouse_roster_floors,
     initial_construction_labor, spend_aggregate_ironwork, spend_aggregate_roof_tiles,
-    spend_aggregate_stone, spend_aggregate_timber, total_ironwork, total_roof_tiles, total_stone,
-    total_timber, CommodityKind,
+    spend_aggregate_stone, spend_aggregate_timber, spend_treasury_gold, total_ironwork,
+    total_roof_tiles, total_stone, total_timber, CommodityKind,
 };
 use crate::farm_work_policy::is_valid_threshing_priority;
 use crate::foraging_policy::harvest_available;
@@ -71,6 +72,7 @@ use crate::processor_output_policy::{
     processor_output_kind, ProcessorInputKind, ProcessorOutputKind,
     PROCESSOR_OUTPUT_TARGET_DEFAULT_PERCENT,
 };
+use crate::resource_units::whole_cost;
 use crate::roads::load_owner_road_network;
 use crate::seasonal_labor_policy::seasonal_production_active;
 use crate::simulation::{
@@ -351,6 +353,52 @@ pub(crate) fn next_available_building_id(
 // Rich stone landmarks reserve up to 67 m around a quarry, so the linked camp
 // needs a placement band beyond the protected deposit footprint.
 const REMOTE_WORK_CAMP_MAX_DISTANCE: f64 = 80.0;
+const MAP_SIZE_SMALL: u8 = 0;
+const CONSTRUCTION_REQUIREMENT_EPSILON: f64 = 1e-6;
+
+fn has_nonzero_construction_requirements(
+    timber: f64,
+    stone: f64,
+    ironwork: f64,
+    roof_tiles: f64,
+) -> bool {
+    [timber, stone, ironwork, roof_tiles]
+        .into_iter()
+        .any(|amount| amount > CONSTRUCTION_REQUIREMENT_EPSILON)
+}
+
+/// Bootstrap camps are the only founder camps with no recorded construction
+/// requirements. Expansion camps retain their paid construction requirements
+/// after completion, giving their lifecycle a persistent, schema-free marker.
+pub(crate) fn is_bootstrap_founders_camp(building: &Building) -> bool {
+    building.kind == "founders_camp"
+        && !has_nonzero_construction_requirements(
+            building.construction_required_timber,
+            building.construction_required_stone,
+            building.construction_required_ironwork,
+            building.construction_required_roof_tiles,
+        )
+}
+
+fn is_expansion_founders_camp(building: &Building) -> bool {
+    building.kind == "founders_camp" && !is_bootstrap_founders_camp(building)
+}
+
+fn founders_camp_gold_refund(
+    cost_gold: f64,
+    construction_complete: bool,
+    fire_damaged: bool,
+) -> f64 {
+    if fire_damaged {
+        return 0.0;
+    }
+    let paid_gold = whole_cost(cost_gold);
+    if construction_complete {
+        (paid_gold * GOLD_SALVAGE_FRACTION).round()
+    } else {
+        paid_gold
+    }
+}
 
 fn supports_buildable_remote_work_camp(kind: &str) -> bool {
     matches!(
@@ -450,18 +498,18 @@ pub(crate) fn place_building_internal(
     let def = building_def_or_err(&kind)?;
     let owner = ctx.sender();
     ensure_player_resources(ctx, owner);
+    let physical_founding_site_enabled = ctx
+        .db
+        .player_resources()
+        .owner()
+        .find(&owner)
+        .is_some_and(|resources| resources.physical_founding_site_enabled);
+    let is_founders_camp_expansion = kind == "founders_camp" && physical_founding_site_enabled;
 
     if kind == "salvage_pile" {
         return Err("This temporary site is created automatically by the settlement.".into());
     }
-    if kind != "founders_camp"
-        && !ctx
-            .db
-            .player_resources()
-            .owner()
-            .find(&owner)
-            .is_some_and(|resources| resources.physical_founding_site_enabled)
-    {
+    if kind != "founders_camp" && !physical_founding_site_enabled {
         return Err("Place the founders' camp before building the settlement.".into());
     }
 
@@ -483,11 +531,24 @@ pub(crate) fn place_building_internal(
     // client. The static server hydrology grid is a groundwater proxy for
     // wells and crops, not the active river layout, so consulting it here can
     // reject visibly dry ground from another world seed. Route the one-time
-    // camp directly after the only server-side spatial conflict that can exist
-    // in a fresh world: a generated physical resource deposit.
-    if kind == "founders_camp" {
+    // bootstrap camp directly after the only server-side spatial conflict that
+    // can exist in a fresh world: a generated physical resource deposit. Later
+    // camps continue through the normal construction pipeline.
+    if kind == "founders_camp" && !physical_founding_site_enabled {
         crate::reducers::bootstrap::place_founding_camp(ctx, x, z)?;
         return Ok(0);
+    }
+
+    if is_founders_camp_expansion {
+        let config = ctx
+            .db
+            .world_config()
+            .id()
+            .find(&0)
+            .ok_or_else(|| "World not initialized.".to_string())?;
+        if config.map_size == MAP_SIZE_SMALL {
+            return Err("Founders' Camp expansions are unavailable on small maps.".to_string());
+        }
     }
 
     // Surface-water and shoreline placement is validated by the placement
@@ -761,6 +822,18 @@ pub(crate) fn place_building_internal(
         } else {
             1.0
         };
+    if is_founders_camp_expansion
+        && !has_nonzero_construction_requirements(
+            timber_cost,
+            cost.stone,
+            cost.ironwork,
+            cost.roof_tiles,
+        )
+    {
+        return Err(
+            "Founders' Camp expansion balance must include construction materials.".to_string(),
+        );
+    }
     if total_timber(ctx, owner) + 1e-6 < timber_cost {
         return Err(format!(
             "Not enough timber (need {} timber).",
@@ -802,6 +875,10 @@ pub(crate) fn place_building_internal(
         .id()
         .find(&0)
         .ok_or_else(|| "World not initialized.".to_string())?;
+
+    if is_founders_camp_expansion {
+        spend_treasury_gold(ctx, owner, def.cost_gold)?;
+    }
 
     let hydrology = if kind == "well" {
         sample_world_well_groundwater_score(
@@ -929,7 +1006,7 @@ pub(crate) fn place_building_internal(
         storehouse_charcoal_target_percent: 25,
         processor_output_target_percent: PROCESSOR_OUTPUT_TARGET_DEFAULT_PERCENT,
         gold: 0.0,
-        founding_shelter_active: false,
+        founding_shelter_active: is_founders_camp_expansion,
         chapel_monastery_tithe_due: 0.0,
         civic_receipts_gold: 0.0,
         private_export_proceeds_gold: 0.0,
@@ -2950,7 +3027,7 @@ pub fn demolish_building(ctx: &ReducerContext, building_id: u64) -> Result<(), S
     if building.owner != owner {
         return Err("You do not own this building.".to_string());
     }
-    if building.kind == "founders_camp" {
+    if is_bootstrap_founders_camp(&building) {
         return Err(
             "The founders' camp clears itself after its people are housed and its stores are moved."
                 .to_string(),
@@ -3025,6 +3102,15 @@ pub fn demolish_building(ctx: &ReducerContext, building_id: u64) -> Result<(), S
 
     let fire_damaged = building_fire_state(ctx, building_id).is_some();
     clear_fire_for_target(ctx, FIRE_TARGET_BUILDING, building_id);
+    let gold_refund = if is_expansion_founders_camp(&building) {
+        founders_camp_gold_refund(
+            building_def_or_err(&building.kind)?.cost_gold,
+            building.construction_complete,
+            fire_damaged,
+        )
+    } else {
+        0.0
+    };
 
     let refund = if fire_damaged {
         crate::economy::ResourceAmount {
@@ -3155,7 +3241,7 @@ pub fn demolish_building(ctx: &ReducerContext, building_id: u64) -> Result<(), S
             maslin_flour: building.maslin_flour * recoverable,
             rye_bread: building.rye_bread * recoverable,
             maslin_bread: building.maslin_bread * recoverable,
-            gold: building.gold * recoverable,
+            gold: gold_refund + building.gold * recoverable,
             water_capacity: 0.0,
             assigned_labor: 0,
             construction_complete: true,
@@ -3216,7 +3302,7 @@ pub fn demolish_building(ctx: &ReducerContext, building_id: u64) -> Result<(), S
         (building.water + trip_cargo.water) * recoverable,
     );
     credit_treasury_food(ctx, owner, (building.food + trip_cargo.food) * recoverable);
-    credit_treasury_gold(ctx, owner, building.gold * recoverable);
+    credit_treasury_gold(ctx, owner, gold_refund + building.gold * recoverable);
     credit_treasury_commodity(
         ctx,
         owner,
@@ -3370,4 +3456,30 @@ pub fn demolish_building(ctx: &ReducerContext, building_id: u64) -> Result<(), S
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn founder_camp_expansion_marker_requires_a_material_cost() {
+        assert!(!has_nonzero_construction_requirements(0.0, 0.0, 0.0, 0.0));
+        assert!(has_nonzero_construction_requirements(1.0, 0.0, 0.0, 0.0));
+        assert!(has_nonzero_construction_requirements(0.0, 1.0, 0.0, 0.0));
+        assert!(has_nonzero_construction_requirements(0.0, 0.0, 1.0, 0.0));
+        assert!(has_nonzero_construction_requirements(0.0, 0.0, 0.0, 1.0));
+    }
+
+    #[test]
+    fn founder_camp_gold_refunds_follow_construction_and_fire_state() {
+        let cost = 100.0;
+        assert_eq!(founders_camp_gold_refund(cost, false, false), cost);
+        assert_eq!(
+            founders_camp_gold_refund(cost, true, false),
+            (cost * GOLD_SALVAGE_FRACTION).round()
+        );
+        assert_eq!(founders_camp_gold_refund(cost, false, true), 0.0);
+        assert_eq!(founders_camp_gold_refund(cost, true, true), 0.0);
+    }
 }

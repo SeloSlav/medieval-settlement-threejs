@@ -12,11 +12,17 @@ import {
   type PlacementInteractionGate,
 } from '../src/input/PlacementInteractionGate.ts';
 import {
+  BUILDING_COSTS,
+  GOLD_SALVAGE_FRACTION,
   STARTING_GOLD,
   STARTING_IRONWORK,
   STARTING_STONE,
   STARTING_TIMBER,
 } from '../src/generated/gameBalance.ts';
+import {
+  buildingSalvageRefund,
+  canAffordBuilding,
+} from '../src/resources/buildingEconomy.ts';
 import type {
   BuildingState,
   ForagingNodeState,
@@ -26,26 +32,105 @@ import {
   assessFoundingSite,
   describeFoundingSiteAssessment,
 } from '../src/settlement/foundingSiteSuitability.ts';
-import { describeToolbarStatus } from '../src/ui/buildToolbarStatus.ts';
+import {
+  describeBuildingPlacementBlocker,
+  describeToolbarStatus,
+} from '../src/ui/buildToolbarStatus.ts';
+import { isConstructionResourceShortfallMessage } from '../src/ui/toastMessages.ts';
 
 const read = (path: string): string => readFileSync(path, 'utf8');
 
+const bootstrapPlacementContext = {
+  buildings: [],
+  residences: [],
+  burgageZones: [],
+  farmFields: [],
+  pastures: [],
+  quarries: [],
+  foragingNodes: [],
+  stockpile: { timber: 0, stone: 0, ironwork: 0, roofTiles: 0, gold: 0 },
+  isWaterAt: () => false,
+  isResourceDepositAt: () => false,
+  getNaturalHeightAt: () => 0,
+  mapSize: 'small' as const,
+  physicalFoundingSiteEnabled: false,
+};
+
+assert.deepEqual(
+  validateBuildingPlacement('founders_camp', 40, -24, bootstrapPlacementContext),
+  { ok: true },
+  'the one-time bootstrap camp must stay free and available on small maps',
+);
+
+assert.deepEqual(
+  BUILDING_COSTS.founders_camp,
+  { timber: 36, stone: 12, gold: 120 },
+  'later founders camps should carry their authored expansion cost',
+);
+const expansionPlacementContext = {
+  ...bootstrapPlacementContext,
+  mapSize: 'medium' as const,
+  physicalFoundingSiteEnabled: true,
+  stockpile: { timber: 36, stone: 12, ironwork: 0, roofTiles: 0, gold: 119 },
+};
+assert.deepEqual(
+  validateBuildingPlacement('founders_camp', 40, -24, expansionPlacementContext),
+  { ok: false, reason: 'insufficient_resources' },
+  'an established settlement must have enough treasury gold for an expansion camp',
+);
 assert.deepEqual(
   validateBuildingPlacement('founders_camp', 40, -24, {
-    buildings: [],
-    residences: [],
-    burgageZones: [],
-    farmFields: [],
-    pastures: [],
-    quarries: [],
-    foragingNodes: [],
-    stockpile: { timber: 0, stone: 0 },
-    isWaterAt: () => false,
-    isResourceDepositAt: () => false,
-    getNaturalHeightAt: () => 0,
+    ...expansionPlacementContext,
+    stockpile: { ...expansionPlacementContext.stockpile, gold: 120 },
   }),
   { ok: true },
-  'the founders camp must use the normal building placement validator',
+  'a medium-map settlement with the full mixed-resource cost may place an expansion camp',
+);
+assert.deepEqual(
+  validateBuildingPlacement('founders_camp', 40, -24, {
+    ...expansionPlacementContext,
+    mapSize: 'small',
+    stockpile: { ...expansionPlacementContext.stockpile, gold: 120 },
+  }),
+  { ok: false, reason: 'founders_camp_disabled_small_map' },
+  'small maps need a dedicated expansion-camp blocker rather than a misleading resource shortfall',
+);
+assert.equal(
+  canAffordBuilding(
+    { timber: 36, stone: 12, ironwork: 0, roofTiles: 0, gold: 119 },
+    'founders_camp',
+  ),
+  false,
+  'shared building affordability must include gold',
+);
+assert.equal(
+  canAffordBuilding(
+    { timber: 36, stone: 12, ironwork: 0, roofTiles: 0, gold: 120 },
+    'founders_camp',
+  ),
+  true,
+);
+assert.equal(
+  buildingSalvageRefund('founders_camp').gold,
+  Math.round(120 * GOLD_SALVAGE_FRACTION),
+  'the client salvage estimate must include recoverable gold',
+);
+assert.equal(
+  describeBuildingPlacementBlocker('founders_camp_disabled_small_map'),
+  "Blocked: Additional Founders' Camps require a medium or large map",
+);
+assert.equal(isConstructionResourceShortfallMessage('Not enough gold (need 120 gold).'), true);
+assert.match(
+  describeToolbarStatus({
+    canBuild: false,
+    hasDraft: false,
+    mode: 'founders_camp',
+    statusDetail: 'Site clear',
+    buildingCost: BUILDING_COSTS.founders_camp,
+    placementResourceShortfall: true,
+  }),
+  /Cost 36 timber, 12 stone, 120 gold/,
+  'the toolbar shortfall status must retain the gold component of an expansion camp cost',
 );
 
 const quarry = {
@@ -103,6 +188,7 @@ assert.equal(
     hasDraft: false,
     mode: 'founders_camp',
     statusDetail: promisingStatus,
+    buildingCost: { timber: 0, stone: 0 },
   }),
   promisingStatus,
   'the status formatter should accept a post-placement founding outlook',
@@ -119,19 +205,7 @@ const demandingSite = assessFoundingSite({
 });
 assert.equal(demandingSite.rating, 'demanding');
 assert.equal(
-  validateBuildingPlacement('founders_camp', 0, 0, {
-    buildings: [],
-    residences: [],
-    burgageZones: [],
-    farmFields: [],
-    pastures: [],
-    quarries: [],
-    foragingNodes: [],
-    stockpile: { timber: 0, stone: 0 },
-    isWaterAt: () => false,
-    isResourceDepositAt: () => false,
-    getNaturalHeightAt: () => 0,
-  }).ok,
+  validateBuildingPlacement('founders_camp', 0, 0, bootstrapPlacementContext).ok,
   true,
   'a demanding founding outlook must remain advisory rather than blocking placement',
 );
@@ -421,8 +495,28 @@ assert.match(
 const buildingReducer = read('server/src/reducers/buildings.rs');
 assert.match(
   buildingReducer,
-  /if kind == "founders_camp" \{\s*crate::reducers::bootstrap::place_founding_camp\(ctx, x, z\)\?;\s*return Ok\(0\);/,
-  'ordinary building placement must route the founders camp to its one-time setup',
+  /kind == "founders_camp" && !physical_founding_site_enabled/,
+  'only the first founders camp should route through one-time settlement bootstrap',
+);
+assert.match(
+  buildingReducer,
+  /let is_founders_camp_expansion = kind == "founders_camp" && physical_founding_site_enabled/,
+  'later founders camps should enter the ordinary construction pipeline as expansions',
+);
+assert.match(
+  buildingReducer,
+  /if is_founders_camp_expansion[\s\S]{0,360}config\.map_size == MAP_SIZE_SMALL/,
+  'the authoritative reducer must reject expansion camps on small maps',
+);
+assert.equal(
+  buildingReducer.match(/spend_treasury_gold\(ctx, owner, def\.cost_gold\)\?/g)?.length,
+  1,
+  'an expansion camp should spend its authored gold cost exactly once before insertion',
+);
+assert.match(
+  buildingReducer,
+  /fn is_bootstrap_founders_camp[\s\S]{0,420}construction_required_timber[\s\S]{0,220}construction_required_roof_tiles/,
+  'the server should persistently distinguish free bootstrap camps from paid expansion camps',
 );
 assert.doesNotMatch(
   buildingReducer,
@@ -476,8 +570,8 @@ assert.match(
 const buildingTool = read('src/buildings/BuildingTool.ts');
 assert.match(
   buildingTool,
-  /buildingId && kind !== 'founders_camp'/,
-  'the one-time founding action must not enter ordinary building undo history',
+  /const isFoundersCampBootstrap = kind === 'founders_camp'[\s\S]{0,140}physicalFoundingSiteEnabled !== true;[\s\S]{0,900}buildingId && !isFoundersCampBootstrap/,
+  'only the one-time bootstrap action should be excluded from ordinary building undo history',
 );
 assert.doesNotMatch(
   buildingTool,
@@ -486,8 +580,8 @@ assert.doesNotMatch(
 );
 assert.match(
   buildingTool,
-  /if \(kind === 'founders_camp'\) \{\s*this\.setPlacementStatusDetail\(null, notify\);\s*return;/,
-  'the camp preview should communicate placement validity without status-bar copy',
+  /kind === 'founders_camp'[\s\S]{0,140}physicalFoundingSiteEnabled !== true[\s\S]{0,140}setPlacementStatusDetail\(null, notify\)/,
+  'only bootstrap-camp placement should suppress status-bar copy',
 );
 assert.doesNotMatch(buildingTool, /Ready: click to establish the camp/);
 assert.match(
@@ -531,6 +625,11 @@ assert.match(
 
 const tutorialOverlay = read('src/ui/TutorialOverlay.ts');
 const buildToolbar = read('src/ui/BuildToolbar.ts');
+assert.match(
+  buildToolbar,
+  /const placingStarterCamp = this\.starterCampRequired && stats\.mode === 'founders_camp'/,
+  'an established expansion camp should retain the ordinary construction status UI',
+);
 assert.match(
   buildToolbar,
   /data-action="tutorials"[\s\S]*?construction-dock-button__question" aria-hidden="true">\?<\/span>[\s\S]*?data-action="settings"[\s\S]*?handlers\.onReplayTutorials\?\.\(\)/,

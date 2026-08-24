@@ -18,7 +18,7 @@ import {
 
 type BuildingBalance = {
   label: string;
-  cost: { timber: number; stone: number; ironwork?: number; roofTiles?: number };
+  cost: { timber: number; stone: number; ironwork?: number; roofTiles?: number; gold?: number };
   storage: {
     timber: number;
     firewood: number;
@@ -393,6 +393,7 @@ export type GameBalance = {
     wideParcelFrontageMin: number;
     residenceFirewoodCapacity: number;
     residenceFirewoodPerPersonPerSec: number;
+    residenceFirewoodUnitsPerMonth: number;
     charcoalHouseholdFuelValue: number;
     marketplaceFuelReserveDays: number;
     marketplaceFoodStallSlots: number;
@@ -402,8 +403,10 @@ export type GameBalance = {
     residenceWaterCapacity: number;
     residenceWaterReorderFraction: number;
     residenceWaterPerPersonPerSec: number;
+    residenceWaterUnitsPerDay: number;
     residenceFoodCapacity: number;
     residenceFoodPerPersonPerSec: number;
+    residenceFoodUnitsPerSlotPerMonth: number;
     eveningMealPerPerson: number;
     foodCategoryQualifyingDays: number;
     backyardFoodReserveTier1Days: number;
@@ -421,14 +424,19 @@ export type GameBalance = {
     residencePreservedFoodWinterMultiplier: number;
     residenceAleCapacity: number;
     residenceAlePerPersonPerSec: number;
+    residenceAleUnitsPerMonth: number;
     residenceClothCapacity: number;
     residenceClothPerPersonPerSec: number;
+    residenceClothMonthsPerUnit: number;
     residenceShoesCapacity: number;
     residenceShoesPerPersonPerSec: number;
+    residenceShoesMonthsPerUnit: number;
     residencePotteryCapacity: number;
     residencePotteryPerPersonPerSec: number;
+    residencePotteryMonthsPerUnit: number;
     residenceLuxuryCapacity: number;
     residenceLuxuryJamPerPersonPerSec: number;
+    residenceLuxuryUnitsPerMonth: number;
     approvalBaseScore: number;
     approvalNeedPressureRampDays: number;
     approvalMaxNeedPenalty: number;
@@ -1040,6 +1048,7 @@ function generateRust(): string {
     `pub const WIDE_PARCEL_FRONTAGE_MIN: f64 = ${rustF64(b.population.wideParcelFrontageMin)};`,
     `pub const RESIDENCE_FIREWOOD_CAPACITY: f64 = ${rustF64(b.population.residenceFirewoodCapacity)};`,
     `pub const RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC: f64 = ${rustF64(b.population.residenceFirewoodPerPersonPerSec)};`,
+    `pub const RESIDENCE_FIREWOOD_UNITS_PER_MONTH: f64 = ${rustF64(b.population.residenceFirewoodUnitsPerMonth)};`,
     `pub const CHARCOAL_HOUSEHOLD_FUEL_VALUE: f64 = ${rustF64(b.population.charcoalHouseholdFuelValue)};`,
     `pub const MARKETPLACE_FUEL_RESERVE_DAYS: f64 = ${rustF64(b.population.marketplaceFuelReserveDays)};`,
     `pub const MARKETPLACE_FOOD_STALL_SLOTS: u32 = ${b.population.marketplaceFoodStallSlots};`,
@@ -1049,8 +1058,10 @@ function generateRust(): string {
     `pub const RESIDENCE_WATER_CAPACITY: f64 = ${rustF64(b.population.residenceWaterCapacity)};`,
     `pub const RESIDENCE_WATER_REORDER_FRACTION: f64 = ${rustF64(b.population.residenceWaterReorderFraction)};`,
     `pub const RESIDENCE_WATER_PER_PERSON_PER_SEC: f64 = ${rustF64(b.population.residenceWaterPerPersonPerSec)};`,
+    `pub const RESIDENCE_WATER_UNITS_PER_DAY: f64 = ${rustF64(b.population.residenceWaterUnitsPerDay)};`,
     `pub const RESIDENCE_FOOD_CAPACITY: f64 = ${rustF64(b.population.residenceFoodCapacity)};`,
     `pub const RESIDENCE_FOOD_PER_PERSON_PER_SEC: f64 = ${rustF64(b.population.residenceFoodPerPersonPerSec)};`,
+    `pub const RESIDENCE_FOOD_UNITS_PER_SLOT_PER_MONTH: f64 = ${rustF64(b.population.residenceFoodUnitsPerSlotPerMonth)};`,
     `pub const EVENING_MEAL_PER_PERSON: f64 = ${rustF64(b.population.eveningMealPerPerson)};`,
     `pub const FOOD_CATEGORY_QUALIFYING_DAYS: f64 = ${rustF64(b.population.foodCategoryQualifyingDays)};`,
     `pub const BACKYARD_FOOD_RESERVE_TIER1_DAYS: f64 = ${rustF64(b.population.backyardFoodReserveTier1Days)};`,
@@ -1068,14 +1079,19 @@ function generateRust(): string {
     `pub const RESIDENCE_PRESERVED_FOOD_WINTER_MULTIPLIER: f64 = ${rustF64(b.population.residencePreservedFoodWinterMultiplier)};`,
     `pub const RESIDENCE_ALE_CAPACITY: f64 = ${rustF64(b.population.residenceAleCapacity)};`,
     `pub const RESIDENCE_ALE_PER_PERSON_PER_SEC: f64 = ${rustF64(b.population.residenceAlePerPersonPerSec)};`,
+    `pub const RESIDENCE_ALE_UNITS_PER_MONTH: f64 = ${rustF64(b.population.residenceAleUnitsPerMonth)};`,
     `pub const RESIDENCE_CLOTH_CAPACITY: f64 = ${rustF64(b.population.residenceClothCapacity)};`,
     `pub const RESIDENCE_CLOTH_PER_PERSON_PER_SEC: f64 = ${rustF64(b.population.residenceClothPerPersonPerSec)};`,
+    `pub const RESIDENCE_CLOTH_MONTHS_PER_UNIT: u32 = ${b.population.residenceClothMonthsPerUnit};`,
     `pub const RESIDENCE_SHOES_CAPACITY: f64 = ${rustF64(b.population.residenceShoesCapacity)};`,
     `pub const RESIDENCE_SHOES_PER_PERSON_PER_SEC: f64 = ${rustF64(b.population.residenceShoesPerPersonPerSec)};`,
+    `pub const RESIDENCE_SHOES_MONTHS_PER_UNIT: u32 = ${b.population.residenceShoesMonthsPerUnit};`,
     `pub const RESIDENCE_POTTERY_CAPACITY: f64 = ${rustF64(b.population.residencePotteryCapacity)};`,
     `pub const RESIDENCE_POTTERY_PER_PERSON_PER_SEC: f64 = ${rustF64(b.population.residencePotteryPerPersonPerSec)};`,
+    `pub const RESIDENCE_POTTERY_MONTHS_PER_UNIT: u32 = ${b.population.residencePotteryMonthsPerUnit};`,
     `pub const RESIDENCE_LUXURY_CAPACITY: f64 = ${rustF64(b.population.residenceLuxuryCapacity)};`,
     `pub const RESIDENCE_LUXURY_JAM_PER_PERSON_PER_SEC: f64 = ${rustF64(b.population.residenceLuxuryJamPerPersonPerSec)};`,
+    `pub const RESIDENCE_LUXURY_UNITS_PER_MONTH: f64 = ${rustF64(b.population.residenceLuxuryUnitsPerMonth)};`,
     `pub const APPROVAL_BASE_SCORE: i32 = ${b.population.approvalBaseScore};`,
     `pub const APPROVAL_NEED_PRESSURE_RAMP_DAYS: f64 = ${rustF64(b.population.approvalNeedPressureRampDays)};`,
     `pub const APPROVAL_MAX_NEED_PENALTY: i32 = ${b.population.approvalMaxNeedPenalty};`,
@@ -2058,6 +2074,7 @@ function generateTypeScript(): string {
     `export const WIDE_PARCEL_FRONTAGE_MIN = ${b.population.wideParcelFrontageMin};`,
     `export const RESIDENCE_FIREWOOD_CAPACITY = ${b.population.residenceFirewoodCapacity};`,
     `export const RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC = ${b.population.residenceFirewoodPerPersonPerSec};`,
+    `export const RESIDENCE_FIREWOOD_UNITS_PER_MONTH = ${b.population.residenceFirewoodUnitsPerMonth};`,
     `export const CHARCOAL_HOUSEHOLD_FUEL_VALUE = ${b.population.charcoalHouseholdFuelValue};`,
     `export const MARKETPLACE_FUEL_RESERVE_DAYS = ${b.population.marketplaceFuelReserveDays};`,
     `export const MARKETPLACE_FOOD_STALL_SLOTS = ${b.population.marketplaceFoodStallSlots};`,
@@ -2067,8 +2084,10 @@ function generateTypeScript(): string {
     `export const RESIDENCE_WATER_CAPACITY = ${b.population.residenceWaterCapacity};`,
     `export const RESIDENCE_WATER_REORDER_FRACTION = ${b.population.residenceWaterReorderFraction};`,
     `export const RESIDENCE_WATER_PER_PERSON_PER_SEC = ${b.population.residenceWaterPerPersonPerSec};`,
+    `export const RESIDENCE_WATER_UNITS_PER_DAY = ${b.population.residenceWaterUnitsPerDay};`,
     `export const RESIDENCE_FOOD_CAPACITY = ${b.population.residenceFoodCapacity};`,
     `export const RESIDENCE_FOOD_PER_PERSON_PER_SEC = ${b.population.residenceFoodPerPersonPerSec};`,
+    `export const RESIDENCE_FOOD_UNITS_PER_SLOT_PER_MONTH = ${b.population.residenceFoodUnitsPerSlotPerMonth};`,
     `export const EVENING_MEAL_PER_PERSON = ${b.population.eveningMealPerPerson};`,
     `export const FOOD_CATEGORY_QUALIFYING_DAYS = ${b.population.foodCategoryQualifyingDays};`,
     `export const BACKYARD_FOOD_RESERVE_TIER1_DAYS = ${b.population.backyardFoodReserveTier1Days};`,
@@ -2086,14 +2105,19 @@ function generateTypeScript(): string {
     `export const RESIDENCE_PRESERVED_FOOD_WINTER_MULTIPLIER = ${b.population.residencePreservedFoodWinterMultiplier};`,
     `export const RESIDENCE_ALE_CAPACITY = ${b.population.residenceAleCapacity};`,
     `export const RESIDENCE_ALE_PER_PERSON_PER_SEC = ${b.population.residenceAlePerPersonPerSec};`,
+    `export const RESIDENCE_ALE_UNITS_PER_MONTH = ${b.population.residenceAleUnitsPerMonth};`,
     `export const RESIDENCE_CLOTH_CAPACITY = ${b.population.residenceClothCapacity};`,
     `export const RESIDENCE_CLOTH_PER_PERSON_PER_SEC = ${b.population.residenceClothPerPersonPerSec};`,
+    `export const RESIDENCE_CLOTH_MONTHS_PER_UNIT = ${b.population.residenceClothMonthsPerUnit};`,
     `export const RESIDENCE_SHOES_CAPACITY = ${b.population.residenceShoesCapacity};`,
     `export const RESIDENCE_SHOES_PER_PERSON_PER_SEC = ${b.population.residenceShoesPerPersonPerSec};`,
+    `export const RESIDENCE_SHOES_MONTHS_PER_UNIT = ${b.population.residenceShoesMonthsPerUnit};`,
     `export const RESIDENCE_POTTERY_CAPACITY = ${b.population.residencePotteryCapacity};`,
     `export const RESIDENCE_POTTERY_PER_PERSON_PER_SEC = ${b.population.residencePotteryPerPersonPerSec};`,
+    `export const RESIDENCE_POTTERY_MONTHS_PER_UNIT = ${b.population.residencePotteryMonthsPerUnit};`,
     `export const RESIDENCE_LUXURY_CAPACITY = ${b.population.residenceLuxuryCapacity};`,
     `export const RESIDENCE_LUXURY_JAM_PER_PERSON_PER_SEC = ${b.population.residenceLuxuryJamPerPersonPerSec};`,
+    `export const RESIDENCE_LUXURY_UNITS_PER_MONTH = ${b.population.residenceLuxuryUnitsPerMonth};`,
     `export const APPROVAL_BASE_SCORE = ${b.population.approvalBaseScore};`,
     `export const APPROVAL_NEED_PRESSURE_RAMP_DAYS = ${b.population.approvalNeedPressureRampDays};`,
     `export const APPROVAL_MAX_NEED_PENALTY = ${b.population.approvalMaxNeedPenalty};`,
@@ -2622,7 +2646,10 @@ function generateTypeScript(): string {
     const roofTiles = def.cost.roofTiles
       ? `, roofTiles: ${def.cost.roofTiles}`
       : '';
-    lines.push(`  ${kind}: { timber: ${def.cost.timber}, stone: ${def.cost.stone}${ironwork}${roofTiles} },`);
+    const gold = def.cost.gold
+      ? `, gold: ${def.cost.gold}`
+      : '';
+    lines.push(`  ${kind}: { timber: ${def.cost.timber}, stone: ${def.cost.stone}${ironwork}${roofTiles}${gold} },`);
   }
 
   lines.push('} as const satisfies Record<BuildingKind, BuildingResourceCost>;');

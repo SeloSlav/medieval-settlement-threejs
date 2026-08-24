@@ -550,6 +550,7 @@ export async function bootstrapAppSession(
       return countTreesNearBuilding(liveContext.gameState, registry, x, z, radius).matureTrees;
     },
     getRoadNetwork: () => roadNetwork,
+    getMapSize: () => sceneManager.worldLayout.settings.mapSize,
     mapBounds: sceneManager.terrain.bounds,
     getDeliveryTravelSpeedMultiplier: (origin) =>
       worldQueries.getDeliveryTravelSpeedMultiplier(origin),
@@ -1065,6 +1066,7 @@ export async function bootstrapAppSession(
       );
     },
   });
+  toolbar.setMapSize(worldSettings.mapSize);
   toolbar.setConflictEnabled(worldSettings.conflictMode === 'frontier');
 
   const disposeTooltips = mountTooltips(uiRoot);

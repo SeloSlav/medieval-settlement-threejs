@@ -1465,6 +1465,27 @@ function scrollToLiveWorldMaximum(
 }
 
 {
+  const { controller, camera, target } = createController();
+  controller.applyShowcaseView(0, 0, 0.42, RTS_ORBIT_PITCH, 70);
+  const yawBefore = controller.getYaw();
+  const orientationBefore = camera.quaternion.clone();
+
+  controller.focusWorldPositionAtZoom(45, -32, 25);
+
+  assert.equal(target.x, 45, 'report focus should center the requested world x');
+  assert.equal(target.z, -32, 'report focus should center the requested world z');
+  assert.ok(
+    Math.abs(controller.getHudZoomPercent() - LIVE_WORLD_MIN_ZOOM_PERCENT) < 1e-9,
+    'report focus should clamp an approximately 25% request to the live-world minimum',
+  );
+  assert.equal(controller.getYaw(), yawBefore,
+    'report focus should preserve the authored orbit yaw');
+  assert.ok(camera.quaternion.angleTo(orientationBefore) < 1e-9,
+    'report focus should preserve the authored orbit orientation');
+  controller.dispose();
+}
+
+{
   let viewChangeCount = 0;
   const { domElement } = createController(() => {
     viewChangeCount += 1;

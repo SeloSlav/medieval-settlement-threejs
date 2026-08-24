@@ -38,6 +38,7 @@ import type {
   NextDayEnvironmentOutlook,
 } from '../world/seasonPolicy.ts';
 import { resolveGameSpeedHotkey, type GameSpeed } from '../world/gameSpeed.ts';
+import type { WorldMapSize } from '../world/worldGenerationSettings.ts';
 import { cropDefinition, cropLabel } from '../farming/farmFieldMath.ts';
 import type { ResourceCostAmounts } from './resourceCost.ts';
 
@@ -105,6 +106,7 @@ export class BuildToolbar {
   private firstPersonActive = false;
   private firstPersonPlacementActive = false;
   private starterCampRequired = false;
+  private mapSize: WorldMapSize = 'medium';
   private buildMenuOpen = false;
   private buildMenuCategory: BuildMenuCategoryId = DEFAULT_BUILD_MENU_CATEGORY;
   private overlayMenuOpen = false;
@@ -296,7 +298,7 @@ export class BuildToolbar {
           <button type="button" class="construction-menu__scroll construction-menu__scroll--previous" data-build-menu-scroll="previous" aria-label="Scroll buildings left" disabled><span aria-hidden="true">&#8249;</span></button>
           <div class="construction-menu__viewport" data-build-menu-viewport>
             <div class="construction-menu__cards" data-build-menu-cards>
-              ${renderBuildMenuCards(BUILD_MENU_CATEGORIES[0].entries)}
+              ${renderBuildMenuCards(BUILD_MENU_CATEGORIES[0].entries, { mapSize: this.mapSize })}
             </div>
           </div>
           <button type="button" class="construction-menu__scroll construction-menu__scroll--next" data-build-menu-scroll="next" aria-label="Scroll buildings right"><span aria-hidden="true">&#8250;</span></button>
@@ -662,7 +664,7 @@ export class BuildToolbar {
     }
     this.availableResourceCosts = stats.availableResources ?? null;
     syncBuildMenuCardAffordability(this.buildMenu, this.availableResourceCosts);
-    const placingStarterCamp = stats.mode === 'founders_camp';
+    const placingStarterCamp = this.starterCampRequired && stats.mode === 'founders_camp';
     this.starterCampButton.classList.toggle('is-active', placingStarterCamp);
     this.starterCampButton.setAttribute('aria-pressed', String(placingStarterCamp));
     const roadMode = stats.mode === 'road';
@@ -963,7 +965,7 @@ export class BuildToolbar {
     this.buildMenuCategory = category.id;
     this.buildMenuCategoryTitle.textContent = category.label;
     this.buildMenuCategoryHint.textContent = category.hint;
-    this.buildMenuCards.innerHTML = renderBuildMenuCards(category.entries);
+    this.buildMenuCards.innerHTML = renderBuildMenuCards(category.entries, { mapSize: this.mapSize });
     const viewport = this.mustElement(this.buildMenu, '[data-build-menu-viewport]');
     viewport.scrollLeft = 0;
     hydrateBuildMenuImages(this.buildMenuCards);
@@ -999,6 +1001,12 @@ export class BuildToolbar {
     if (!enabled && this.buildMenuCategory === 'military') {
       this.setBuildMenuCategory(DEFAULT_BUILD_MENU_CATEGORY, true);
     }
+  }
+
+  setMapSize(mapSize: WorldMapSize): void {
+    if (this.mapSize === mapSize) return;
+    this.mapSize = mapSize;
+    this.setBuildMenuCategory(this.buildMenuCategory, true);
   }
 
   setSimulationState(
@@ -1044,6 +1052,7 @@ export class BuildToolbar {
     menu.addEventListener('click', (event) => {
       const button = (event.target as HTMLElement).closest<HTMLButtonElement>('[data-action]');
       if (!button || !menu.contains(button)) return;
+      if (button.disabled || button.getAttribute('aria-disabled') === 'true') return;
       const action = button.dataset.action as BuildMenuAction | undefined;
       if (!action) return;
       runBuildMenuAction(action, this.toolbarHandlers, closeMenu);

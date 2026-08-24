@@ -2717,7 +2717,7 @@ type InspectorPresentation = {
 };
 
 const BUILDING_INSPECTOR_ART = {
-  founders_camp: '/assets/ui/build-menu/cards/residence.webp',
+  founders_camp: '/assets/ui/build-menu/cards/founders-camp.webp',
   salvage_pile: '/assets/ui/build-menu/cards/village-storehouse.webp',
   lumber_mill: '/assets/ui/build-menu/cards/lumber-mill.webp',
   reforester: '/assets/ui/build-menu/cards/reforester.webp',
@@ -2778,7 +2778,8 @@ function inspectableIdentity(target: InspectableTarget | null): string {
 function inspectablePresentation(target: InspectableTarget): InspectorPresentation {
   if (target.kind === 'building') {
     const image = BUILDING_INSPECTOR_ART[target.building.kind];
-    const civic = target.building.kind === 'town_hall'
+    const civic = target.building.kind === 'founders_camp'
+      || target.building.kind === 'town_hall'
       || target.building.kind === 'chapel'
       || target.building.kind === 'monastery';
     const agricultural = target.building.kind === 'threshing_barn'

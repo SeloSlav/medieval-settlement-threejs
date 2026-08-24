@@ -4,6 +4,10 @@ import {
   type TradingPostTradeMode,
   type TradingPostTradeRuleState,
 } from '../../economy/tradingPostTrade.ts';
+import {
+  wholeResourceUnits,
+  wholeSignedResourceUnits,
+} from '../../resources/resourceUnits.ts';
 import { buildingClientId } from '../spacetimeIds.ts';
 
 export function syncTradingPostTradeRules(
@@ -24,10 +28,10 @@ export function syncTradingPostTradeRules(
       commodityKind: row.commodityKind,
       commodity,
       mode,
-      targetSurplus: row.targetSurplus,
+      targetSurplus: wholeResourceUnits(row.targetSurplus),
       lastSettledMonth: Number(row.lastSettledMonth),
-      lastTradeAmount: row.lastTradeAmount,
-      lastTradeGold: row.lastTradeGold,
+      lastTradeAmount: wholeResourceUnits(row.lastTradeAmount),
+      lastTradeGold: wholeSignedResourceUnits(row.lastTradeGold),
     });
   }
   return rules;

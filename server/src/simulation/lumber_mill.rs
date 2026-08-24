@@ -52,21 +52,15 @@ pub fn step_lumber_mill(
     let labor_interval = interval / productive_labor;
 
     let caps = building_storage_caps(&building.kind);
-    let timber_room = (caps.timber - building.timber).max(0.0);
+    let timber_room = crate::resource_units::whole_room(caps.timber, building.timber);
     if timber_room <= 1e-6 {
-        ctx.db.building().id().update(Building {
-            action_cooldown: labor_interval,
-            ..building
-        });
+        ctx.db.building().id().update(building);
         return;
     }
 
     let mill = building;
     if mill.water + 1e-6 < MILL_WATER_PER_HARVEST {
-        ctx.db.building().id().update(Building {
-            action_cooldown: labor_interval,
-            ..mill
-        });
+        ctx.db.building().id().update(mill);
         return;
     }
 
@@ -79,20 +73,20 @@ pub fn step_lumber_mill(
         mill.tree_work_area_radius,
     );
     let Some(target) = find_nearest_mature_tree(ctx, mill.x, mill.z, work_area) else {
-        ctx.db.building().id().update(Building {
-            action_cooldown: labor_interval,
-            ..mill
-        });
+        ctx.db.building().id().update(mill);
         return;
     };
 
+    let tree_yield = crate::resource_units::whole_units(target.wood_yield);
+    if tree_yield < 1.0 || timber_room + 1e-6 < tree_yield {
+        ctx.db.building().id().update(mill);
+        return;
+    }
+
     let (timber_deposited, _, _, updated) =
-        deposit_building(&mill, caps, target.wood_yield, 0.0, 0.0);
-    if timber_deposited <= 1e-6 {
-        ctx.db.building().id().update(Building {
-            action_cooldown: labor_interval,
-            ..mill
-        });
+        deposit_building(&mill, caps, tree_yield, 0.0, 0.0);
+    if timber_deposited != tree_yield {
+        ctx.db.building().id().update(mill);
         return;
     }
 

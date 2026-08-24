@@ -1056,6 +1056,98 @@
 
 .noble-hud__eye:disabled { cursor: default; opacity: 0.42; }
 
+.noble-hud__dawn-report {
+  position: absolute;
+  top: calc(100% + 14px);
+  right: 0;
+  display: grid;
+  gap: 6px;
+  width: 100%;
+  padding: 13px 38px 14px 15px;
+  border: 1px solid rgba(210, 179, 111, 0.3);
+  border-left: 3px solid #bfa05d;
+  border-radius: 2px;
+  color: #d9cfbb;
+  background:
+    linear-gradient(135deg, rgba(211, 179, 108, 0.07), transparent 52%),
+    rgba(18, 21, 17, 0.96);
+  box-shadow:
+    0 16px 38px rgba(0, 0, 0, 0.38),
+    inset 0 1px rgba(255, 247, 220, 0.06);
+  font-family: var(--ui-display, Georgia, serif);
+  animation: noble-dawn-report-in 220ms ease-out;
+}
+
+.noble-hud__dawn-report[hidden] {
+  display: none;
+}
+
+.noble-hud__dawn-report[data-state='troubled'] {
+  border-color: rgba(201, 112, 85, 0.48);
+  border-left-color: #c97055;
+  background:
+    linear-gradient(135deg, rgba(201, 112, 85, 0.11), transparent 52%),
+    rgba(31, 20, 17, 0.97);
+}
+
+.noble-hud__dawn-report-kicker {
+  color: #d6b96f;
+  font-size: 9px;
+  font-weight: 850;
+  letter-spacing: 0.14em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.noble-hud__dawn-report[data-state='troubled'] .noble-hud__dawn-report-kicker {
+  color: #e1a18e;
+}
+
+.noble-hud__dawn-report-copy {
+  margin: 0;
+  color: #e4dac6;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.45;
+}
+
+.noble-hud__dawn-report-dismiss {
+  position: absolute;
+  top: 8px;
+  right: 9px;
+  display: grid;
+  place-items: center;
+  width: 23px;
+  height: 23px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  color: #998d77;
+  background: transparent;
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.noble-hud__dawn-report-dismiss:hover,
+.noble-hud__dawn-report-dismiss:focus-visible {
+  color: #f0dfba;
+  background: rgba(213, 180, 102, 0.12);
+  outline: none;
+}
+
+@keyframes noble-dawn-report-in {
+  from {
+    opacity: 0;
+    transform: translateY(-5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 @media (max-width: 1320px) {
   .noble-hud {
     top: max(10px, env(safe-area-inset-top, 0px));
@@ -1084,4 +1176,13 @@
   .noble-hud__gold .settlement-hud__value { font-size: 18px; }
   .noble-hud__eye { bottom: 2px; left: -8px; width: 30px; height: 30px; }
   .noble-hud__eye svg { width: 19px; height: 13px; }
+  .noble-hud__dawn-report {
+    top: calc(100% + 12px);
+    padding: 11px 34px 12px 13px;
+  }
+  .noble-hud__dawn-report-copy { font-size: 10px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .noble-hud__dawn-report { animation: none; }
 }

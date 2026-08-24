@@ -80,6 +80,12 @@ pub mod workforce_commute_policy;
 #[path = "../../src/raid_agent_policy.rs"]
 pub mod raid_agent_policy;
 
+#[path = "../../src/resource_units.rs"]
+pub mod resource_units;
+
+#[path = "../../src/residence_consumption_policy.rs"]
+pub mod residence_consumption_policy;
+
 #[path = "../../src/specialty_trade_policy.rs"]
 pub mod specialty_trade_policy;
 

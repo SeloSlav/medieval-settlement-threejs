@@ -2,6 +2,7 @@ import type { BackyardGarden } from '../../generated/types.ts';
 import { backyardGardenKindFromId } from '../../residences/backyardGarden.ts';
 import { gardenClientId, residenceClientId } from '../spacetimeIds.ts';
 import type { BackyardGardenState } from '../../resources/types.ts';
+import { wholeResourceUnits } from '../../resources/resourceUnits.ts';
 
 export function syncBackyardGardens(
   rows: Iterable<BackyardGarden>,
@@ -22,7 +23,7 @@ export function syncBackyardGardens(
       firstHarvestDay: Number(row.firstHarvestDay),
       lastPrimaryProductionDay: Number(row.lastPrimaryProductionDay),
       lastSecondaryProductionDay: Number(row.lastSecondaryProductionDay),
-      hideStock: Number(row.hideStock),
+      hideStock: wholeResourceUnits(row.hideStock),
       flowerLuxuryUpgraded: row.flowerLuxuryUpgraded,
     });
   }

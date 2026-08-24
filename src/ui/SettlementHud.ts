@@ -53,6 +53,11 @@ import {
   getCurrentNobleProfile,
   getNoble,
 } from './nobleProfile.ts';
+import {
+  LordReportLedger,
+  type LordReport,
+  type LordReportTarget,
+} from './lordReports.ts';
 
 const STORES_POINTER_LEAVE_GRACE_MS = 180;
 
@@ -118,7 +123,7 @@ const SETTLEMENT_HUD_HTML = `
       <span class="settlement-hud__clock-time" data-clock-time>08:00</span>
       <span class="settlement-hud__clock-detail" data-clock-detail></span>
       <span class="settlement-hud__season" data-season-status tabindex="0"></span>
-      <div class="settlement-vitals__alerts" aria-label="Settlement alerts">
+      <div class="settlement-vitals__alerts" aria-label="Legacy settlement alerts" aria-hidden="true" hidden>
       <div class="settlement-hud__fire-alert" data-fire-alert hidden>
         <strong data-fire-count>Fire</strong>
         <span data-fire-response>Awaiting a ready well and free hauler</span>
@@ -592,6 +597,7 @@ export class SettlementHud {
   private readonly fpsValue: HTMLElement;
   private readonly zoomValue: HTMLElement;
   private readonly nobleEye: HTMLButtonElement;
+  private readonly lordReportLedger: LordReportLedger;
   private onToggleFirstPerson: (() => void) | null = null;
   private onLocateResource: ((resource: HudResourceKind) => void) | null = null;
   private onInspectSecurityAttention: ((
@@ -643,6 +649,7 @@ export class SettlementHud {
     applyHeraldryToElement(nobleShield, profile.heraldry);
     nobleShieldMount.appendChild(nobleShield);
     this.nobleEye = this.mustButton('[data-noble-eye]');
+    this.lordReportLedger = new LordReportLedger(this.nobleHud);
     this.clockDate = this.mustElement('[data-clock-date]');
     this.clockTime = this.mustElement('[data-clock-time]');
     this.clockDetail = this.mustElement('[data-clock-detail]');
@@ -763,6 +770,20 @@ export class SettlementHud {
     // so their placement remains relative to the viewport.
     const uiRoot = parent.parentElement ?? parent;
     uiRoot.append(this.nobleHud, this.vitals);
+  }
+
+  addLordReport(report: LordReport): void {
+    this.lordReportLedger.add(report);
+  }
+
+  addLordReports(reports: Iterable<LordReport>): void {
+    this.lordReportLedger.addAll(reports);
+  }
+
+  setLordReportTargetHandler(
+    handler: ((target: LordReportTarget) => void) | null,
+  ): void {
+    this.lordReportLedger.setTargetHandler(handler);
   }
 
   setFirstPersonToggle(handler: (() => void) | null): void {
@@ -1494,6 +1515,7 @@ export class SettlementHud {
     this.cancelFuelStoresClose();
     this.cancelSpecialtyStoresClose();
     this.nobleEye.removeEventListener('click', this.onNobleEyeClick);
+    this.lordReportLedger.dispose();
     this.securityAlert.removeEventListener('click', this.onSecurityAlertClick);
     this.approvalButton.removeEventListener('click', this.onApprovalOpen);
     this.approvalButton.removeEventListener('focus', this.onApprovalOpen);

@@ -1,31 +1,48 @@
 import assert from 'node:assert/strict';
 
+import { syncBackyardGardens } from '../src/data/spacetimeTableSync/syncBackyardGardens.ts';
 import { syncBuildings } from '../src/data/spacetimeTableSync/syncBuildings.ts';
 import { syncDeliveryTrips } from '../src/data/spacetimeTableSync/syncDeliveryTrips.ts';
+import { syncFarmFields } from '../src/data/spacetimeTableSync/syncFarmFields.ts';
+import { syncFireIncidents } from '../src/data/spacetimeTableSync/syncFireIncidents.ts';
 import { syncForagingNodes } from '../src/data/spacetimeTableSync/syncForagingNodes.ts';
+import { syncLivestockHerds } from '../src/data/spacetimeTableSync/syncLivestock.ts';
 import { syncPlayerResources } from '../src/data/spacetimeTableSync/syncPlayerResources.ts';
+import { syncQuarries } from '../src/data/spacetimeTableSync/syncQuarries.ts';
 import { syncResidences } from '../src/data/spacetimeTableSync/syncResidences.ts';
+import { syncSettlementSecurity } from '../src/data/spacetimeTableSync/syncSettlementSecurity.ts';
+import { syncTradingPostTradeRules } from '../src/data/spacetimeTableSync/syncTradingPostTradeRules.ts';
 import {
-  continuousResourceUnits,
+  RESIDENCE_NEED_KIND_IDS,
+  RESIDENCE_NEED_KINDS,
+} from '../src/residences/residenceNeedState.ts';
+import {
   formatResourceUnits,
   isWholeResourceUnits,
   wholeResourceUnits,
+  wholeSignedResourceUnits,
 } from '../src/resources/resourceUnits.ts';
+import { RESOURCE_KINDS } from '../src/resources/types.ts';
+import { syncActiveRaid } from '../src/security/activeRaid.ts';
 
 const identityHex = 'whole-unit-test-owner';
 const owner = { toHexString: () => identityHex };
 
 assert.equal(wholeResourceUnits(-4.2), 0);
 assert.equal(wholeResourceUnits(Number.NaN), 0);
+assert.equal(wholeResourceUnits(Number.POSITIVE_INFINITY), 0);
 assert.equal(wholeResourceUnits(0.99), 0);
 assert.equal(wholeResourceUnits(7.75), 7);
+assert.equal(wholeResourceUnits(7.9999999), 8);
 assert.equal(wholeResourceUnits(8.0000001), 8);
+assert.equal(wholeSignedResourceUnits(-7.75), -7);
+assert.equal(wholeSignedResourceUnits(7.75), 7);
+assert.equal(Object.is(wholeSignedResourceUnits(-0.75), -0), false);
 assert.equal(formatResourceUnits(12.9), '12');
 assert.equal(isWholeResourceUnits(12), true);
 assert.equal(isWholeResourceUnits(12.5), false);
-assert.equal(continuousResourceUnits(-4.2), 0);
-assert.equal(continuousResourceUnits(Number.NaN), 0);
-assert.equal(continuousResourceUnits(0.448), 0.448);
+assert.equal(isWholeResourceUnits(12.0000001), false);
+assert.equal(isWholeResourceUnits(-1), false);
 
 function rowWithDefaults<T extends object>(values: T): T {
   return new Proxy(values, {
@@ -36,38 +53,103 @@ function rowWithDefaults<T extends object>(values: T): T {
   });
 }
 
+function assertWholeRecord(
+  record: Record<string, unknown>,
+  fields: readonly string[],
+  label: string,
+): void {
+  for (const field of fields) {
+    const value = record[field];
+    assert.equal(
+      typeof value === 'number' && isWholeResourceUnits(value),
+      true,
+      `${label}.${field} must be a nonnegative whole unit; received ${String(value)}`,
+    );
+  }
+}
+
+const buildingStockFields = RESOURCE_KINDS.filter((kind) => kind !== 'game');
+const buildingStockInput = Object.fromEntries(
+  buildingStockFields.map((field, index) => [field, index + 1.875]),
+);
+const buildingMaterialLedgerFields = [
+  'constructionRequiredTimber',
+  'constructionRequiredStone',
+  'constructionRequiredIronwork',
+  'constructionRequiredRoofTiles',
+  'constructionDeliveredTimber',
+  'constructionDeliveredStone',
+  'constructionDeliveredIronwork',
+  'constructionDeliveredRoofTiles',
+  'constructionReservedTimber',
+  'constructionReservedStone',
+  'constructionReservedIronwork',
+  'constructionReservedRoofTiles',
+  'constructionTreasuryTimber',
+  'constructionTreasuryStone',
+  'constructionTreasuryIronwork',
+  'constructionTreasuryRoofTiles',
+] as const;
+const buildingMaterialLedgerInput = Object.fromEntries(
+  buildingMaterialLedgerFields.map((field, index) => [field, index + 2.8]),
+);
 const buildingRow = rowWithDefaults({
+  ...buildingStockInput,
+  ...buildingMaterialLedgerInput,
   id: 1n,
   owner,
   kind: 'granary',
   guardhouseMusterWatchtowerId: 0n,
   linkedWorksiteId: 0n,
-  timber: 9.9,
-  water: 18.4,
-  gold: 6.75,
-  ryeGrain: 11.5,
-  maslinFlour: 4.99,
-  food: 3.25,
-  constructionReservedTimber: 2.8,
+  actionCooldown: 0.375,
+  constructionProgress: 0.625,
+  commuteEfficiency: 0.45,
+  apiaryColonyHealth: 0.73,
   civicReceiptsGold: 1.9,
+  granaryGrainReserve: 17.8,
+  woodcutterTimberReserve: 18.8,
+  carpenterPolearmReserve: 19.8,
+  guardhouseFoodReserve: 20.8,
+  marketplaceIronworkTarget: 21.8,
+  marketplaceIronTarget: 22.8,
+  marketplaceSaltTarget: 23.8,
+  marketplaceGoldReserveTarget: 24.8,
+  marketplaceSeedGrainTarget: 25.8,
 });
 const building = syncBuildings([buildingRow as never], identityHex).get('building-1');
 assert.ok(building);
-for (const amount of [
-  building.timber,
-  building.water,
-  building.gold,
-  building.ryeGrain,
-  building.maslinFlour,
-  building.food,
-  building.constructionReservedTimber,
-  building.civicReceiptsGold,
-]) {
-  assert.equal(isWholeResourceUnits(amount), true);
+assertWholeRecord(building as unknown as Record<string, unknown>, buildingStockFields, 'building');
+for (const field of buildingStockFields) {
+  assert.equal(
+    (building as unknown as Record<string, number>)[field],
+    wholeResourceUnits(buildingStockInput[field]),
+    `building.${field} should normalize its authoritative row`,
+  );
 }
-assert.equal(building.timber, 9);
-assert.equal(building.ryeGrain, 11);
-assert.equal(building.maslinFlour, 4);
+assertWholeRecord(building as unknown as Record<string, unknown>, [
+  ...buildingMaterialLedgerFields,
+  'civicReceiptsGold',
+  'granaryGrainReserve',
+  'woodcutterTimberReserve',
+  'carpenterPolearmReserve',
+  'guardhouseFoodReserve',
+  'marketplaceIronworkTarget',
+  'marketplaceIronTarget',
+  'marketplaceSaltTarget',
+  'marketplaceGoldReserveTarget',
+  'marketplaceSeedGrainTarget',
+], 'building');
+for (const field of buildingMaterialLedgerFields) {
+  assert.equal(
+    (building as unknown as Record<string, number>)[field],
+    wholeResourceUnits(buildingMaterialLedgerInput[field]),
+    `building.${field} should normalize its authoritative ledger row`,
+  );
+}
+assert.equal(building.actionCooldown, 0.375);
+assert.equal(building.constructionProgress, 0.625);
+assert.equal(building.commuteEfficiency, 0.45);
+assert.equal(building.apiaryColonyHealth, 0.73);
 
 const tripRow = rowWithDefaults({
   id: 2n,
@@ -80,73 +162,296 @@ const tripRow = rowWithDefaults({
   cargoKind: 3,
   amount: 6.8,
   phase: 0,
+  progress: 0.375,
+  speedMps: 2.25,
+  unloadSeconds: 1.75,
+  unloadRemaining: 0.625,
 });
 const trip = syncDeliveryTrips([tripRow as never], identityHex).get('trip-2');
 assert.ok(trip);
 assert.equal(trip.amount, 6);
 assert.equal(isWholeResourceUnits(trip.amount), true);
+assert.equal(trip.progress, 0.375);
+assert.equal(trip.speedMps, 2.25);
+assert.equal(trip.unloadSeconds, 1.75);
+assert.equal(trip.unloadRemaining, 0.625);
 
 const forage = syncForagingNodes([rowWithDefaults({
   nodeId: 'berries-1',
   nodeKind: 'berries',
   remaining: 27.95,
   maxYield: 64.8,
+  x: 12.75,
+  z: -8.25,
 }) as never]).get('berries-1');
 assert.ok(forage);
 assert.equal(forage.remaining, 27);
 assert.equal(forage.maxYield, 64);
+assert.equal(forage.x, 12.75);
+assert.equal(forage.z, -8.25);
+
+const quarry = syncQuarries([rowWithDefaults({
+  quarryId: 'deposit-stone-1',
+  remaining: -4.5,
+  maxYield: 92.8,
+  x: 31.25,
+  z: 44.75,
+}) as never]).get('deposit-stone-1');
+assert.ok(quarry);
+assert.equal(quarry.remaining, 0);
+assert.equal(quarry.maxYield, 92);
+assert.equal(quarry.x, 31.25);
+assert.equal(quarry.z, 44.75);
+
+const field = syncFarmFields([rowWithDefaults({
+  id: 8n,
+  owner,
+  farmsteadId: 1n,
+  crop: 0,
+  nextCrop: 1,
+  followingCrop: 2,
+  stage: 2,
+  lastYield: 31.8,
+  currentYield: 22.8,
+  manureApplied: 5.8,
+  moisture: 0.725,
+  fertility: 0.615,
+  stageProgress: 0.375,
+  harvestYieldMultiplier: 0.825,
+}) as never], identityHex).get('farm-field-8');
+assert.ok(field);
+assert.equal(field.lastYield, 31);
+assert.equal(field.currentYield, 22);
+assert.equal(field.manureApplied, 5);
+assert.equal(field.moisture, 0.725);
+assert.equal(field.fertility, 0.615);
+assert.equal(field.stageProgress, 0.375);
+assert.equal(field.harvestYieldMultiplier, 0.825);
 
 const playerState = { identityHex } as never;
 syncPlayerResources([rowWithDefaults({
   owner,
-  timber: 40.9,
-  water: 17.25,
-  gold: 19.99,
-  ryeSheaves: 8.75,
-  preservedFood: 5.5,
+  ...Object.fromEntries(RESOURCE_KINDS.map((kind, index) => [kind, index + 1.9])),
   landLevyCollectedTotal: 31.8,
   parishCharityPaidTotal: 4.9,
+  chapelCofferReserveGold: 12.9,
   monasteryFoodCharityTotal: 12.1,
-  lastTheftGold: 2.75,
+  lastNightTheftGold: 2.75,
+  lastNightLightingFuelUsed: 3.75,
+  lastNightLightingFuelShortfall: 4.75,
+  economicActivityTaxRate: 0.1375,
+  monasteryTitheShare: 0.275,
+  nightCommunityCohesion: 0.825,
 }) as never], playerState);
-for (const amount of Object.values((playerState as { stockpile: Record<string, number> }).stockpile)) {
-  assert.equal(isWholeResourceUnits(amount), true);
-}
-assert.equal((playerState as { stockpile: { timber: number } }).stockpile.timber, 40);
-assert.equal((playerState as { stockpile: { gold: number } }).stockpile.gold, 19);
+assertWholeRecord(
+  (playerState as { stockpile: Record<string, unknown> }).stockpile,
+  RESOURCE_KINDS,
+  'player stockpile',
+);
+assert.equal((playerState as { stockpile: { timber: number } }).stockpile.timber, 1);
 assert.equal((playerState as { fiscalPolicy: { landLevyCollectedTotal: number } })
   .fiscalPolicy.landLevyCollectedTotal, 31);
+assert.equal((playerState as { parishPolicy: { cofferReserveGold: number } })
+  .parishPolicy.cofferReserveGold, 12);
 assert.equal((playerState as { parishPolicy: { charityPaidTotal: number } })
   .parishPolicy.charityPaidTotal, 4);
+assert.equal((playerState as { nightPolicy: { lastTheftGold: number } })
+  .nightPolicy.lastTheftGold, 2);
+assert.equal((playerState as { economicActivityTaxRate: number }).economicActivityTaxRate, 0.1375);
+assert.equal((playerState as { monasteryPolicy: { titheShare: number } })
+  .monasteryPolicy.titheShare, 0.275);
+assert.equal((playerState as { nightPolicy: { communityCohesion: number } })
+  .nightPolicy.communityCohesion, 0.825);
 
+const residencePantryFields = [
+  'food',
+  'preservedFood',
+  'honey',
+  'oatGrain',
+  'ryeBread',
+  'maslinBread',
+  'meat',
+  'fish',
+  'berries',
+  'mushrooms',
+  'milk',
+  'apples',
+  'pears',
+  'cherries',
+  'aronia',
+  'rosehips',
+  'vegetables',
+  'cabbage',
+  'carrots',
+  'beetroot',
+  'eggs',
+  'grapes',
+  'curedMeat',
+  'smokedFish',
+  'cheese',
+  'aroniaJam',
+  'rosehipJam',
+] as const;
+const residencePantryInput = Object.fromEntries(
+  residencePantryFields.map((field, index) => [field, index === 0 ? -3.25 : index + 1.875]),
+);
 const residence = syncResidences(
   [rowWithDefaults({
+    ...residencePantryInput,
     id: 3n,
     owner,
     zoneId: 4n,
-    food: 6.9,
-    preservedFood: 3.8,
-    ryeBread: 0.11171,
-    meat: 0.20178,
+    x: 5.25,
+    z: -6.75,
+    yaw: 0.325,
     householdWealth: 14.5,
     remedyStock: 2.2,
     upgradeDeliveredTimber: 11.75,
+    upgradeProgress: 0.625,
+    malnutrition: 0.375,
   }) as never],
-  [rowWithDefaults({
+  RESIDENCE_NEED_KINDS.map((kind, index) => rowWithDefaults({
     residenceId: 3n,
-    needKind: 2,
-    stock: 0.448,
-  }) as never],
+    needKind: RESIDENCE_NEED_KIND_IDS[kind],
+    stock: index === 0 ? -2.5 : index + 0.625,
+    deficitTicks: index + 0.75,
+  }) as never),
   identityHex,
 ).get('residence-3');
 assert.ok(residence);
-assert.equal(residence.food, 6.9);
-assert.equal(residence.preservedFood, 3.8);
-assert.equal(residence.ryeBread, 0.11171);
-assert.equal(residence.meat, 0.20178);
+assertWholeRecord(
+  residence as unknown as Record<string, unknown>,
+  residencePantryFields,
+  'residence pantry',
+);
+for (const field of residencePantryFields) {
+  assert.equal(
+    (residence as unknown as Record<string, number>)[field],
+    wholeResourceUnits(residencePantryInput[field]),
+    `residence.${field} should normalize its authoritative pantry row`,
+  );
+}
+for (const kind of RESIDENCE_NEED_KINDS) {
+  assert.equal(
+    isWholeResourceUnits(residence.needs[kind].stock),
+    true,
+    `residence.needs.${kind}.stock must be a nonnegative whole unit`,
+  );
+}
+assert.equal(residence.needs.food.stock, 0);
+assert.equal(residence.needs.firewood.stock, 1);
 assert.equal(residence.householdWealth, 14);
 assert.equal(residence.remedyStock, 2);
 assert.equal(residence.upgradeDeliveredTimber, 11);
-assert.equal(residence.needs.food.stock, 0.448);
+assert.equal(residence.x, 5.25);
+assert.equal(residence.z, -6.75);
+assert.equal(residence.yaw, 0.325);
+assert.equal(residence.upgradeProgress, 0.625);
+assert.equal(residence.malnutrition, 0.375);
 
-console.log('Whole resource and continuous household ration tests passed.');
+const backyard = syncBackyardGardens([rowWithDefaults({
+  id: 5n,
+  owner,
+  residenceId: 3n,
+  kind: 1,
+  hideStock: 7.9,
+}) as never], identityHex).get('residence-3');
+assert.ok(backyard);
+assert.equal(backyard.hideStock, 7);
+
+const herd = syncLivestockHerds([rowWithDefaults({
+  owner,
+  buildingId: 1n,
+  species: 0,
+  headCount: 9.9,
+  health: 0.825,
+  breedingProgress: 0.375,
+  pastureCapacity: 12.75,
+  suppliedCapacity: 8.5,
+  lastFoodOutput: 6.9,
+  lastPreservedOutput: 5.9,
+  lastWoolGold: 4.9,
+  lastWoolOutput: 3.9,
+  breedingReserve: 2.9,
+  lastCulled: 1.9,
+  hayStock: 18.9,
+  lastHayOutput: 7.9,
+}) as never], identityHex).get('building-1');
+assert.ok(herd);
+assert.equal(herd.headCount, 9);
+assert.equal(herd.breedingReserve, 2);
+assert.equal(herd.lastCulled, 1);
+assert.equal(herd.hayStock, 18);
+assert.equal(herd.health, 0.825);
+assert.equal(herd.breedingProgress, 0.375);
+assert.equal(herd.pastureCapacity, 12.75);
+assert.equal(herd.suppliedCapacity, 8.5);
+
+const tradeRule = syncTradingPostTradeRules([rowWithDefaults({
+  id: 'trade-rule-1',
+  owner,
+  buildingId: 1n,
+  commodityKind: 3,
+  mode: 1,
+  targetSurplus: 21.9,
+  lastSettledMonth: 17n,
+  lastTradeAmount: 8.9,
+  lastTradeGold: -6.9,
+}) as never], identityHex).get('building-1:3');
+assert.ok(tradeRule);
+assert.equal(tradeRule.targetSurplus, 21);
+assert.equal(tradeRule.lastTradeAmount, 8);
+assert.equal(tradeRule.lastTradeGold, -6);
+
+const fire = syncFireIncidents([rowWithDefaults({
+  id: 6n,
+  owner,
+  targetKind: 0,
+  targetId: 1n,
+  ignitionSource: 1,
+  state: 0,
+  waterDelivered: 9.9,
+  requiredWater: 14.9,
+  intensity: 0.75,
+  damage: 0.25,
+  extinguishChance: 0.375,
+}) as never], identityHex).get('fire-6');
+assert.ok(fire);
+assert.equal(fire.waterDelivered, 9);
+assert.equal(fire.requiredWater, 14);
+assert.equal(fire.intensity, 0.75);
+assert.equal(fire.damage, 0.25);
+assert.equal(fire.extinguishChance, 0.375);
+
+const securityState = { identityHex } as never;
+syncSettlementSecurity([rowWithDefaults({
+  owner,
+  lastGoodsLost: 11.9,
+  lastWealthLost: 7.9,
+  threat: 0.625,
+  coverage: 0.375,
+  protectedValue: 14.5,
+  totalValue: 21.5,
+}) as never], securityState);
+assert.equal((securityState as { settlementSecurity: { lastGoodsLost: number } })
+  .settlementSecurity.lastGoodsLost, 11);
+assert.equal((securityState as { settlementSecurity: { lastWealthLost: number } })
+  .settlementSecurity.lastWealthLost, 7);
+assert.equal((securityState as { settlementSecurity: { threat: number } })
+  .settlementSecurity.threat, 0.625);
+assert.equal((securityState as { settlementSecurity: { protectedValue: number } })
+  .settlementSecurity.protectedValue, 14.5);
+
+const activeRaid = syncActiveRaid([rowWithDefaults({
+  owner,
+  raidId: 7n,
+  goodsLost: 5.9,
+  wealthLost: 3.9,
+  enemyPressure: 42.5,
+}) as never], identityHex);
+assert.ok(activeRaid);
+assert.equal(activeRaid.goodsLost, 5);
+assert.equal(activeRaid.wealthLost, 3);
+assert.equal(activeRaid.enemyPressure, 42.5);
+
+console.log('Strict whole-resource client sync tests passed.');

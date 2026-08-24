@@ -35,6 +35,7 @@ import {
 import { buildingPlacementYaw } from './buildingPlacement.ts';
 import { buildingFootprintsTooClose } from './BuildingSpacing.ts';
 import type { TerrainBounds } from '../terrain/Terrain.ts';
+import type { WorldMapSize } from '../world/worldGenerationSettings.ts';
 import {
   monasteryEstateFitsMap,
   monasteryEstateIsNearMapEdge,
@@ -64,6 +65,7 @@ export type BuildingPlacementFailureReason =
   | 'on_road'
   | 'outside_map'
   | 'requires_map_edge'
+  | 'founders_camp_disabled_small_map'
   | 'insufficient_resources'
   | 'requires_completed_watchtower'
   | 'requires_completed_guardhouse'
@@ -94,13 +96,15 @@ type BuildingPlacementContext = {
   quarries: Iterable<ResourceNodeState>;
   foragingNodes: Iterable<ForagingNodeState>;
   clayDepositSites?: readonly ClayDepositSite[];
-  stockpile: Pick<ResourceTotals, 'timber' | 'stone' | 'ironwork' | 'roofTiles'>;
+  stockpile: Pick<ResourceTotals, 'timber' | 'stone' | 'ironwork' | 'roofTiles' | 'gold'>;
   isWaterAt: (x: number, z: number) => boolean;
   isResourceDepositAt?: (x: number, z: number) => boolean;
   getNaturalHeightAt: (x: number, z: number) => number;
   countMatureTreesInRadius?: (x: number, z: number, radius: number) => number | null;
   roadNetwork?: RoadNetwork;
   mapBounds?: TerrainBounds;
+  mapSize?: WorldMapSize;
+  physicalFoundingSiteEnabled?: boolean;
   fireDisabledBuildingIds?: ReadonlySet<string>;
 };
 
@@ -116,6 +120,15 @@ export function validateBuildingPlacement(
   const buildings = [...context.buildings];
   const quarries = [...context.quarries];
   const foragingNodes = [...context.foragingNodes];
+  const isFoundersCampBootstrap = kind === 'founders_camp'
+    && context.physicalFoundingSiteEnabled !== true;
+  if (
+    kind === 'founders_camp'
+    && !isFoundersCampBootstrap
+    && context.mapSize === 'small'
+  ) {
+    return { ok: false, reason: 'founders_camp_disabled_small_map' };
+  }
   if (
     kind === 'monastery'
     && buildings.some((building) => building.kind === 'monastery')
@@ -357,10 +370,14 @@ export function validateBuildingPlacement(
   );
   const cost = buildingCostWithCarpenterSupport(kind, carpenterSupported);
   if (
-    context.stockpile.timber + 1e-6 < cost.timber
-    || context.stockpile.stone + 1e-6 < cost.stone
-    || context.stockpile.ironwork + 1e-6 < (cost.ironwork ?? 0)
-    || context.stockpile.roofTiles + 1e-6 < (cost.roofTiles ?? 0)
+    !isFoundersCampBootstrap
+    && (
+      context.stockpile.timber + 1e-6 < cost.timber
+      || context.stockpile.stone + 1e-6 < cost.stone
+      || context.stockpile.ironwork + 1e-6 < (cost.ironwork ?? 0)
+      || context.stockpile.roofTiles + 1e-6 < (cost.roofTiles ?? 0)
+      || context.stockpile.gold + 1e-6 < (cost.gold ?? 0)
+    )
   ) {
     return { ok: false, reason: 'insufficient_resources' };
   }

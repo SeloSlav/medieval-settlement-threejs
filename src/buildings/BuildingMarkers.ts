@@ -895,9 +895,9 @@ export class BuildingMarkers {
         if (!marker.userData.staticBuildingBatchStats) {
           batchCompletedBuildingStaticMeshes(marker);
         }
-        // There is only one founders' camp. Its locally merged, GPU-prewarmed
-        // structure gains nothing from cross-building packing, while adopting
-        // it into those buffers made the placement confirmation visibly hitch.
+        // Founders' camps use a locally merged, GPU-prewarmed structure. Their
+        // small bounded count gains little from cross-building packing, while
+        // adopting one into those buffers made confirmation visibly hitch.
         if (building.kind !== 'founders_camp') {
           this.staticBatches.registerBuilding(building.id, marker);
         }

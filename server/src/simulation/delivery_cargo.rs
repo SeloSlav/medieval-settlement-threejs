@@ -11,6 +11,7 @@ use crate::economy::{
 };
 use crate::simulation::residence_needs::{firewood, food, provisions, water};
 use crate::simulation::residence_needs::{load_needs, need_stock, ResidenceNeedKind};
+use crate::resource_units::whole_units;
 use crate::tables::Building;
 
 #[derive(Clone, Copy, Debug, Default)]
@@ -176,14 +177,16 @@ pub fn withdraw_delivery_cargo(
 ) -> f64 {
     match kind {
         ResidenceNeedKind::Firewood => {
+            let requested_equivalent = whole_units(amount);
+            let charcoal_value = whole_units(CHARCOAL_HOUSEHOLD_FUEL_VALUE).max(1.0);
             let charcoal_withdrawn = withdraw_building_commodity(
                 building,
                 CommodityKind::Charcoal,
-                amount.max(0.0) / CHARCOAL_HOUSEHOLD_FUEL_VALUE.max(1e-9),
+                (requested_equivalent / charcoal_value).floor(),
             );
-            let charcoal_equivalent = charcoal_withdrawn * CHARCOAL_HOUSEHOLD_FUEL_VALUE;
+            let charcoal_equivalent = charcoal_withdrawn * charcoal_value;
             let (_, firewood_withdrawn, _, updated) =
-                withdraw_building(building, 0.0, (amount - charcoal_equivalent).max(0.0), 0.0);
+                withdraw_building(building, 0.0, (requested_equivalent - charcoal_equivalent).max(0.0), 0.0);
             *building = updated;
             charcoal_equivalent + firewood_withdrawn
         }

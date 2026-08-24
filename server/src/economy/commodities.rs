@@ -1,9 +1,9 @@
 use spacetimedb::ReducerContext;
 
-use crate::balance_generated::FOOD_CATEGORY_QUALIFYING_DAYS;
 use crate::building_defs::building_def;
 use crate::db::*;
 pub use crate::food_demand_policy::household_food_per_day;
+use crate::resource_units::{whole_room, whole_transfer, whole_units};
 use crate::tables::{Building, Residence};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
@@ -413,29 +413,38 @@ impl CommodityKind {
         matches!(self, Self::RyeFlour | Self::MaslinFlour)
     }
 
-    /// Ready-to-eat meal equivalents. A unit remains a physical basket, loaf,
-    /// crock, or joint; this value is the nourishment that basket contributes
-    /// to household demand and settlement runway forecasts.
+    /// Every ready-to-eat commodity is one indivisible household ration.
+    /// Different foods still matter through category requirements, spoilage,
+    /// preservation, and recipes—not fractional nourishment multipliers.
     pub fn meal_value(self) -> f64 {
         match self {
-            Self::Food | Self::PreservedFood | Self::RyeBread | Self::Fish => 1.0,
-            Self::Cheese => 0.9,
-            Self::OatGrain => 0.65,
-            Self::MaslinBread | Self::SmokedFish => 1.05,
-            Self::Meat => 1.1,
-            Self::CuredMeat => 1.15,
-            Self::Honey => 1.2,
-            Self::Milk | Self::Eggs => 0.75,
-            Self::Vegetables => 0.7,
-            Self::Mushrooms | Self::Apples | Self::Cherries | Self::Grapes => 0.6,
-            Self::Berries => 0.55,
-            Self::Pears => 0.62,
-            Self::Aronia => 0.5,
-            Self::Rosehips => 0.52,
-            Self::Cabbage => 0.75,
-            Self::Carrots => 0.68,
-            Self::Beetroot => 0.7,
-            Self::AroniaJam | Self::RosehipJam => 1.0,
+            Self::Food
+            | Self::PreservedFood
+            | Self::Honey
+            | Self::Meat
+            | Self::Fish
+            | Self::Berries
+            | Self::Mushrooms
+            | Self::Milk
+            | Self::Apples
+            | Self::Cherries
+            | Self::Vegetables
+            | Self::Eggs
+            | Self::Grapes
+            | Self::CuredMeat
+            | Self::SmokedFish
+            | Self::Cheese
+            | Self::OatGrain
+            | Self::RyeBread
+            | Self::MaslinBread
+            | Self::Pears
+            | Self::Aronia
+            | Self::Rosehips
+            | Self::Cabbage
+            | Self::Carrots
+            | Self::Beetroot
+            | Self::AroniaJam
+            | Self::RosehipJam => 1.0,
             _ => 0.0,
         }
     }
@@ -652,7 +661,7 @@ pub fn building_commodity_room(building: &Building, kind: CommodityKind) -> f64 
     } else {
         building_commodity_stock(building, kind)
     };
-    (building_commodity_cap(&building.kind, kind) - occupied).max(0.0)
+    whole_room(building_commodity_cap(&building.kind, kind), occupied)
 }
 
 /// True when a completed storage building may receive a new physical cart of
@@ -758,7 +767,7 @@ pub fn withdraw_building_commodity(
     kind: CommodityKind,
     amount: f64,
 ) -> f64 {
-    let withdrawn = building_commodity_stock(building, kind).min(amount.max(0.0));
+    let withdrawn = whole_transfer(building_commodity_stock(building, kind), amount);
     match kind {
         CommodityKind::Firewood => building.firewood -= withdrawn,
         CommodityKind::Water => building.water -= withdrawn,
@@ -832,7 +841,7 @@ pub fn deposit_building_commodity(
     kind: CommodityKind,
     amount: f64,
 ) -> f64 {
-    let deposited = building_commodity_room(building, kind).min(amount.max(0.0));
+    let deposited = building_commodity_room(building, kind).min(whole_units(amount));
     match kind {
         CommodityKind::Firewood => building.firewood += deposited,
         CommodityKind::Water => building.water += deposited,
@@ -907,7 +916,8 @@ pub fn credit_treasury_commodity(
     kind: CommodityKind,
     amount: f64,
 ) {
-    if amount <= 1e-6 {
+    let amount = whole_units(amount);
+    if amount < 1.0 {
         return;
     }
     if kind == CommodityKind::Gold {
@@ -1046,8 +1056,8 @@ pub fn residence_edible_food_stock(residence: &Residence) -> f64 {
     residence_fresh_food_stock(residence) + residence_preserved_food_stock(residence)
 }
 
-pub fn food_category_qualifying_stock(population: u32) -> f64 {
-    household_food_per_day(population) * FOOD_CATEGORY_QUALIFYING_DAYS.max(0.0)
+pub fn food_category_qualifying_stock(_population: u32) -> f64 {
+    1.0
 }
 
 pub fn residence_food_category_stock(residence: &Residence, category: FoodCategory) -> f64 {
@@ -1237,7 +1247,7 @@ pub fn withdraw_residence_commodity(
     kind: CommodityKind,
     amount: f64,
 ) -> f64 {
-    let withdrawn = residence_commodity_stock(residence, kind).min(amount.max(0.0));
+    let withdrawn = whole_transfer(residence_commodity_stock(residence, kind), amount);
     match kind {
         CommodityKind::Food => residence.food -= withdrawn,
         CommodityKind::PreservedFood => residence.preserved_food -= withdrawn,
@@ -1321,7 +1331,7 @@ pub fn deposit_residence_commodity(
     } else {
         return 0.0;
     };
-    let deposited = (room / kind.meal_value().max(1e-9)).min(amount.max(0.0));
+    let deposited = whole_units(room / kind.meal_value().max(1e-9)).min(whole_units(amount));
     match kind {
         CommodityKind::Food => residence.food += deposited,
         CommodityKind::PreservedFood => residence.preserved_food += deposited,

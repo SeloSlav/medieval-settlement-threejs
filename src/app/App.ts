@@ -74,7 +74,7 @@ import {
 import { SpacetimeSnapshotApplier, type SpacetimeSnapshotApplierDeps } from './spacetimeSnapshotApplier.ts';
 import { bootstrapAppSession, type BootstrappedSession, type SessionLiveContext } from './appBootstrap.ts';
 import { WorldGenerationMismatchError } from '../world/worldConfigAuthority.ts';
-import { gameClock } from '../world/gameCalendar.ts';
+import { formatSettlementClock, gameClock } from '../world/gameCalendar.ts';
 import { worldAnimationDelta } from '../world/gameSpeed.ts';
 import {
   environmentFor,
@@ -127,6 +127,7 @@ import {
   markVegetationReady,
 } from './startupDiagnostics.ts';
 import { formatDawnReport } from '../economy/nightPolicy.ts';
+import { deriveLordReportTransitions } from '../ui/lordReports.ts';
 import { Vector3 } from 'three';
 
 export type AppFrameProfilePhase = 'strategic' | 'settlement' | 'road-eye';
@@ -1087,7 +1088,7 @@ export class App {
       snapshot.combatAgents.values(),
     );
     this.syncVisualQaFoundersCampFixture();
-    this.notifyFireChanges(state, previous);
+    this.notifyLordReportChanges(state, previous);
     this.notifySecurityChanges(snapshot);
     this.notifyNightReport(snapshot);
     const projectedTargets = this.syncFrontierRiskFeedback(
@@ -1167,6 +1168,9 @@ export class App {
         active: snapshot.gameSpeed > 0,
       },
     ));
+    this.toolbar?.setMapSize(
+      snapshot.worldGeneration?.mapSize ?? getActiveWorldGeneration().mapSize,
+    );
     this.toolbar?.setConflictEnabled(conflictEnabled);
     const presentationEnvironment = import.meta.env.DEV
       ? this.visualQaConditions
@@ -1212,42 +1216,15 @@ export class App {
     this.spacetimeSnapshotApplier.syncForestClearance(this.snapshotApplierDeps, this.gameState);
   }
 
-  private notifyFireChanges(state: GameState, previous: GameState | null): void {
+  private notifyLordReportChanges(state: GameState, previous: GameState | null): void {
     const newlyReportedFire = [...state.fireIncidents.values()].some((incident) => (
       incident.status === 'burning'
       && (!previous || !previous.fireIncidents.has(incident.id))
     ));
     if (newlyReportedFire) this.tutorialOverlay?.notifyFireStarted();
-    if (!previous) return;
-    for (const incident of state.fireIncidents.values()) {
-      const prior = previous.fireIncidents.get(incident.id);
-      if (!prior && incident.status === 'burning') {
-        this.toastManager?.show(
-          'Structure fire reported. Covered wells reserve their water, and every useful free hauler can join the bucket response.',
-          { variant: 'error', durationMs: 7000 },
-        );
-        continue;
-      }
-      if (!prior && incident.status === 'destroyed') {
-        this.toastManager?.show(
-          'A structure fire went undiscovered until the building was lost. Recoverable remnants, if any, were left beside the ruin.',
-          { variant: 'error', durationMs: 7000 },
-        );
-        continue;
-      }
-      if (!prior || prior.status === incident.status) continue;
-      if (incident.status === 'extinguished') {
-        this.toastManager?.show(
-          `Fire extinguished after ${incident.waterDelivered.toFixed(1)} water. Damage: ${Math.round(incident.damage * 100)}%.`,
-          { variant: 'info', durationMs: 5200 },
-        );
-      } else if (incident.status === 'destroyed') {
-        this.toastManager?.show(
-          'A structure has been destroyed by fire. Most stores were lost; free haulers can recover any durable remnants from a nearby salvage pile.',
-          { variant: 'error', durationMs: 7000 },
-        );
-      }
-    }
+    this.toolbar?.settlementHud.addLordReports(
+      deriveLordReportTransitions(state, previous),
+    );
   }
 
   private notifySecurityChanges(snapshot: SpacetimeGameSnapshot): void {
@@ -1407,10 +1384,14 @@ export class App {
       snapshot.nightPolicy.lastColdHouseholds > 0
       || snapshot.nightPolicy.lastIncidents > 0
       || snapshot.nightPolicy.lastLightingFuelShortfall > 0.005;
-    this.toastManager?.show(
-      `Dawn report: ${formatDawnReport(snapshot.nightPolicy)}`,
-      { variant: troubled ? 'error' : 'info', durationMs: 9_000 },
-    );
+    this.toolbar?.settlementHud.addLordReport({
+      id: `dawn:${reportDay}`,
+      kind: 'dawn',
+      tone: troubled ? 'warning' : 'settled',
+      title: troubled ? 'Troubled dawn report' : 'Dawn report',
+      detail: formatDawnReport(snapshot.nightPolicy),
+      timeLabel: formatSettlementClock(snapshot.simTick),
+    });
     this.resourceInspector?.refreshSelection();
   }
 

@@ -1,5 +1,6 @@
 import type { BuildingKind } from '../generated/gameBalance.ts';
 import { formatBuildingCost, getBuildingCost, residenceZoneCost } from '../resources/buildingEconomy.ts';
+import type { WorldMapSize } from '../world/worldGenerationSettings.ts';
 import { MENU_ACTION_TO_BUILDING_KIND } from './buildMenuMapping.ts';
 import {
   buildingResourceCostAmounts,
@@ -11,6 +12,7 @@ import {
 } from './resourceCost.ts';
 
 export type PlacementBuildMenuAction =
+  | 'founders-camp'
   | 'lumber-mill' | 'stone-quarry' | 'large-quarry' | 'mine' | 'reforester' | 'woodcutters-lodge'
   | 'well' | 'hunters-hall' | 'foragers-shed' | 'fishing-camp' | 'chapel' | 'wayside-shrine' | 'marketplace' | 'trading-post'
   | 'threshing-barn' | 'monastery' | 'brewery' | 'tavern' | 'smokehouse'
@@ -27,12 +29,13 @@ export type PlacementBuildMenuAction =
   | 'dry-stone-wall';
 
 export type BuildMenuAction = PlacementBuildMenuAction;
-type PlayerPlaceableBuildingKind = Exclude<BuildingKind, 'founders_camp' | 'salvage_pile' | 'remote_work_camp'>;
+type PlayerPlaceableBuildingKind = Exclude<BuildingKind, 'salvage_pile' | 'remote_work_camp'>;
 type DecorationArtKey = 'dry_stone_wall';
 type PlacementArtKey = PlayerPlaceableBuildingKind | 'residences' | DecorationArtKey;
 export type BuildMenuEntry = { kind: 'placement'; action: PlacementBuildMenuAction; artKey: PlacementArtKey };
 
 const BUILD_CARD_ART: Record<PlacementArtKey, string> = {
+  founders_camp: '/assets/ui/build-menu/cards/founders-camp.webp',
   lumber_mill: '/assets/ui/build-menu/cards/lumber-mill.webp', reforester: '/assets/ui/build-menu/cards/reforester.webp',
   woodcutters_lodge: '/assets/ui/build-menu/cards/woodcutters-lodge.webp', stone_quarry: '/assets/ui/build-menu/cards/stonecutters-camp.webp',
   large_quarry: '/assets/ui/build-menu/cards/large-quarry.webp',
@@ -84,6 +87,7 @@ const flow = (
 ): BuildCardResourceFlow => [inputs, outputs];
 
 const DETAILS: Record<PlacementArtKey, BuildCardDetail> = {
+  founders_camp: ["Founders' camp", 'Establishes a costly civic foothold for future settlement expansion.'],
   residences: ['Residence', 'Raises road-fronted homes that grow as their families prosper.'],
   well: ['Well', 'Draws water for nearby homes along the roads.', flow([], ['water'])],
   chapel: ['Church', 'Tends parish life, gathers tithes, and strengthens nearby households.'],
@@ -141,7 +145,7 @@ const entry = (artKey: PlacementArtKey): BuildMenuEntry => ({
 
 /** Compatibility collection for systems that need the complete non-production civic set. */
 export const CIVIC_BUILD_MENU_ENTRIES: readonly BuildMenuEntry[] = [
-  entry('residences'), entry('well'), entry('chapel'), entry('wayside_shrine'), entry('dry_stone_wall'), entry('monastery'), entry('marketplace'), entry('tavern'), entry('trading_post'), entry('town_hall'), entry('village_storehouse'), entry('granary'),
+  entry('residences'), entry('well'), entry('founders_camp'), entry('chapel'), entry('wayside_shrine'), entry('dry_stone_wall'), entry('monastery'), entry('marketplace'), entry('tavern'), entry('trading_post'), entry('town_hall'), entry('village_storehouse'), entry('granary'),
 ];
 
 /** Sites whose crews gather raw resources from the landscape. */
@@ -187,7 +191,9 @@ export type BuildMenuCategory = {
   conflictOnly?: boolean;
 };
 
-const CIVIC_SERVICES_BUILD_MENU_ENTRIES = [entry('residences'), entry('well'), entry('town_hall')] as const;
+const CIVIC_SERVICES_BUILD_MENU_ENTRIES = [
+  entry('residences'), entry('well'), entry('founders_camp'), entry('town_hall'),
+] as const;
 const TRADE_BUILD_MENU_ENTRIES = [
   entry('marketplace'), entry('trading_post'), entry('village_storehouse'), entry('granary'),
 ] as const;
@@ -225,9 +231,26 @@ export type BuildMenuHandlers = {
   onSelectDryStoneWall: () => void;
 };
 
-export function renderBuildMenuCards(entries: readonly BuildMenuEntry[] = BUILD_MENU_ENTRIES): string {
+export type BuildMenuRenderOptions = {
+  mapSize?: WorldMapSize;
+};
+
+export const FOUNDERS_CAMP_SMALL_MAP_DISABLED_REASON =
+  "Additional Founders' Camps require a medium or large map.";
+
+export function renderBuildMenuCards(
+  entries: readonly BuildMenuEntry[] = BUILD_MENU_ENTRIES,
+  options: BuildMenuRenderOptions = {},
+): string {
+  const mapSize = options.mapSize ?? 'medium';
   return entries.map((entry) => {
     const [title, description, resourceFlow] = DETAILS[entry.artKey];
+    const disabledReason = entry.artKey === 'founders_camp' && mapSize === 'small'
+      ? FOUNDERS_CAMP_SMALL_MAP_DISABLED_REASON
+      : null;
+    const tooltipDescription = disabledReason
+      ? `${description} ${disabledReason}`
+      : description;
     const resourceCost = buildMenuEntryCost(entry);
     const costSuffix = entry.artKey === 'residences' ? 'per home' : '';
     const costText = `${formatBuildingCost(resourceCost)}${costSuffix ? ` ${costSuffix}` : ''}`;
@@ -242,7 +265,11 @@ export function renderBuildMenuCards(entries: readonly BuildMenuEntry[] = BUILD_
     const flowAttribute = resourceFlow
       ? ` data-tooltip-flow="${encodeURIComponent(JSON.stringify({ inputs: resourceFlow[0], outputs: resourceFlow[1] }))}"`
       : '';
-    return `<button type="button" class="construction-card" data-action="${entry.action}" data-tooltip-placement="above" data-tooltip-title="${title}" data-tooltip="${description}" data-tooltip-cost="${tooltipCost}" data-tooltip-cost-affordable="true"${flowAttribute} aria-label="${title}. ${description} Cost: ${costText}">
+    const disabledAttributes = disabledReason
+      ? ` disabled aria-disabled="true" title="${disabledReason}" data-build-disabled-reason="${disabledReason}"`
+      : '';
+    const ariaDisabledReason = disabledReason ? ` ${disabledReason}` : '';
+    return `<button type="button" class="construction-card" data-action="${entry.action}" data-tooltip-placement="above" data-tooltip-title="${title}" data-tooltip="${tooltipDescription}" data-tooltip-cost="${tooltipCost}" data-tooltip-cost-affordable="true"${flowAttribute}${disabledAttributes} aria-label="${title}. ${description} Cost: ${costText}.${ariaDisabledReason}">
       <img class="construction-card__art" data-src="${BUILD_CARD_ART[entry.artKey]}" alt="" width="320" height="480" loading="lazy" decoding="async" draggable="false" />
       <span class="construction-card__art-fallback" aria-hidden="true" hidden></span>
       <span class="construction-card__caption" aria-hidden="true"><strong>${title}</strong><span class="construction-card__cost">${costMarkup}</span></span>

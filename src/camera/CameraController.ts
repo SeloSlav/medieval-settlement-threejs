@@ -196,11 +196,37 @@ export class CameraController {
     maxDistance = INSPECT_FOCUS_DISTANCE,
   ): void {
     this.exitIllustratedMap();
-    this.config.target.set(x, this.config.getHeightAt(x, z), z);
-    this.clampTarget();
-    this.currentDistance = this.clampDistance(
+    this.applyWorldFocus(
+      x,
+      z,
       Math.min(this.currentDistance, maxDistance),
     );
+  }
+
+  /**
+   * Centers a world point at a requested HUD zoom without changing the current
+   * orbit orientation. Requests outside the live-world zoom envelope settle at
+   * its nearest bound rather than handing render ownership to the paper map.
+   */
+  focusWorldPositionAtZoom(x: number, z: number, zoomPercent: number): void {
+    this.exitIllustratedMap();
+    const requestedZoom = Number.isFinite(zoomPercent)
+      ? zoomPercent
+      : BASELINE_ZOOM_PERCENT;
+    const clampedZoom = THREE.MathUtils.clamp(
+      requestedZoom,
+      LIVE_WORLD_MIN_ZOOM_PERCENT,
+      MAX_ZOOM_PERCENT,
+    );
+    const distance = BASELINE_ORBIT_DISTANCE
+      / (clampedZoom / BASELINE_ZOOM_PERCENT);
+    this.applyWorldFocus(x, z, distance);
+  }
+
+  private applyWorldFocus(x: number, z: number, distance: number): void {
+    this.config.target.set(x, this.config.getHeightAt(x, z), z);
+    this.clampTarget();
+    this.currentDistance = this.clampDistance(distance);
     this.targetDistance = this.currentDistance;
     this.illustratedMapEntryPending = false;
     this.illustratedMapExitPending = false;

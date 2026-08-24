@@ -67,8 +67,12 @@ pub fn step_woodcutters_lodge(
             onsite_labor,
             available_timber,
         );
-        lodge = process_timber_to_firewood(lodge, onsite_labor, available_timber, tools_maintained);
-        lodge.action_cooldown = def.action_interval;
+        let (processed, committed) =
+            process_timber_to_firewood(lodge, onsite_labor, available_timber, tools_maintained);
+        lodge = processed;
+        if committed {
+            lodge.action_cooldown = def.action_interval;
+        }
     }
     ctx.db.building().id().update(lodge);
 }
@@ -145,47 +149,46 @@ fn process_timber_to_firewood(
     processing_workers: u32,
     available_unreserved_timber: f64,
     tools_maintained: bool,
-) -> Building {
+) -> (Building, bool) {
     if processing_workers == 0 {
-        return lodge;
+        return (lodge, false);
     }
 
     let caps = building_storage_caps(&lodge.kind);
     if lodge.firewood >= caps.firewood - 1e-6 {
-        return lodge;
+        return (lodge, false);
     }
 
     let labor = processing_workers as f64;
     let full_timber_needed = LODGE_TIMBER_PER_CYCLE * labor;
     let full_firewood_output = LODGE_FIREWOOD_PER_CYCLE * labor;
-    let output_room = (caps.firewood - lodge.firewood).max(0.0);
-    let cycle_share = (output_room / full_firewood_output).clamp(0.0, 1.0);
-    let timber_needed = full_timber_needed * cycle_share;
-    let firewood_output = full_firewood_output * cycle_share;
+    let timber_needed = crate::resource_units::whole_cost(full_timber_needed);
+    let firewood_output = crate::resource_units::whole_cost(full_firewood_output);
+    let output_room = crate::resource_units::whole_room(caps.firewood, lodge.firewood);
 
-    if lodge.timber + 1e-6 < timber_needed
+    if output_room + 1e-6 < firewood_output
+        || lodge.timber + 1e-6 < timber_needed
         || !woodcutter_can_process(
             available_unreserved_timber,
             lodge.woodcutter_timber_reserve,
             timber_needed,
         )
     {
-        return lodge;
+        return (lodge, false);
     }
 
     let (_, _, _, lodge_after_withdraw) = withdraw_building(&lodge, timber_needed, 0.0, 0.0);
     let (_, firewood_added, _, mut processed) =
         deposit_building(&lodge_after_withdraw, caps, 0.0, firewood_output, 0.0);
     if firewood_added <= 0.0 {
-        return lodge;
+        return (lodge, false);
     }
     if tools_maintained {
         withdraw_building_commodity(
             &mut processed,
             CommodityKind::Ironwork,
-            CIVILIAN_TOOL_IRONWORK_PER_CYCLE
-                * (firewood_added / full_firewood_output).clamp(0.0, 1.0),
+            CIVILIAN_TOOL_IRONWORK_PER_CYCLE,
         );
     }
-    processed
+    (processed, true)
 }

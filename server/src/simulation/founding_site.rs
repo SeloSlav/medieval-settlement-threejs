@@ -11,6 +11,7 @@ use crate::economy::{
     building_commodity_cap, building_commodity_room, building_commodity_stock,
     storage_accepts_commodity, CommodityKind,
 };
+use crate::reducers::buildings::is_bootstrap_founders_camp;
 use crate::residence_upgrade_policy::residence_project_active;
 use crate::simulation::delivery_trips::{
     available_free_haulers, building_has_active_trip, building_has_conflicting_inbound_supply_trip,
@@ -100,7 +101,7 @@ pub fn step_founding_sites(ctx: &ReducerContext, tick: &SimTickContext, clock: &
         .db
         .building()
         .iter()
-        .filter(|building| building.kind == "founders_camp")
+        .filter(is_bootstrap_founders_camp)
         .map(|building| building.id)
         .collect::<Vec<_>>();
 

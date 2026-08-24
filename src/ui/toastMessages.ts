@@ -28,7 +28,8 @@ export const TOAST_MESSAGES = {
   'building.placement.on_road': 'Cannot build on a road',
   'building.placement.outside_map': 'The monastery’s complete 68 × 53 m fenced estate must fit inside the map boundary',
   'building.placement.requires_map_edge': 'The complete monastery estate must reach the map-size-scaled frontier belt near an edge',
-  'building.placement.insufficient_resources': 'Not enough timber or stone',
+  'building.placement.founders_camp_disabled_small_map': "Additional Founders' Camps require a medium or large map",
+  'building.placement.insufficient_resources': 'Not enough construction resources',
   'building.placement.requires_completed_watchtower': 'Complete a frontier watchtower before establishing a paid guardhouse',
   'building.placement.requires_completed_guardhouse': 'Complete a frontier guardhouse before enclosing a palisaded refuge',
   'building.placement.requires_staffed_chapel': 'A staffed church is required before founding a monastery',
@@ -62,7 +63,7 @@ export function getToastMessage(id: ToastMessageId): string {
 }
 
 export function isConstructionResourceShortfallMessage(message: string): boolean {
-  return /^Not enough (?:resources\b|timber\b|stone\b|ironwork\b|(?:fired )?roof tiles\b)/i
+  return /^Not enough (?:resources\b|construction resources\b|timber\b|stone\b|ironwork\b|(?:fired )?roof tiles\b|gold\b)/i
     .test(message.trim());
 }
 
@@ -156,6 +157,8 @@ export function buildingPlacementReasonToToastId(reason: BuildingPlacementFailur
       return 'building.placement.outside_map';
     case 'requires_map_edge':
       return 'building.placement.requires_map_edge';
+    case 'founders_camp_disabled_small_map':
+      return 'building.placement.founders_camp_disabled_small_map';
     case 'insufficient_resources':
       return 'building.placement.insufficient_resources';
     case 'requires_completed_watchtower':

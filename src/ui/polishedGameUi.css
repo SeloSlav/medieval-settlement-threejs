@@ -2392,7 +2392,7 @@ select:focus-visible {
   border-radius: 2px;
   background: #25281f;
   box-shadow: 0 8px 18px rgba(0, 0, 0, 0.22);
-  transition: border-color 140ms ease, transform 140ms ease, box-shadow 140ms ease;
+  transition: border-color 140ms ease, box-shadow 140ms ease;
 }
 
 .construction-card:hover,
@@ -2400,7 +2400,20 @@ select:focus-visible {
   z-index: 2;
   border-color: rgba(235, 204, 127, 0.72);
   box-shadow: 0 13px 28px rgba(0, 0, 0, 0.38);
-  transform: translateY(-4px);
+}
+
+.construction-card:disabled,
+.construction-card[aria-disabled='true'] {
+  cursor: not-allowed;
+  filter: saturate(0.38) brightness(0.72);
+  opacity: 0.58;
+}
+
+.construction-card:disabled:hover,
+.construction-card[aria-disabled='true']:hover {
+  z-index: auto;
+  border-color: rgba(231, 207, 153, 0.12);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.22);
 }
 
 .construction-card__art {

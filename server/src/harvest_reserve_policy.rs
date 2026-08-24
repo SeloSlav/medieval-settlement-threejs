@@ -32,11 +32,13 @@ pub fn protected_wild_stock(node_kind: &str, max_yield: f64, percent: u8) -> f64
         "fish" if capacity > ORDINARY_FISH_CAPACITY => RICH_FISH_BREEDING_POPULATION.min(capacity),
         _ => 0.0,
     };
-    policy_floor.max(renewable_floor)
+    policy_floor.max(renewable_floor).ceil()
 }
 
 pub fn harvestable_wild_stock(node_kind: &str, remaining: f64, max_yield: f64, percent: u8) -> f64 {
-    (remaining.max(0.0) - protected_wild_stock(node_kind, max_yield, percent)).max(0.0)
+    (remaining.max(0.0).floor() - protected_wild_stock(node_kind, max_yield, percent))
+        .max(0.0)
+        .floor()
 }
 
 #[cfg(test)]

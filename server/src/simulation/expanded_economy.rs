@@ -3806,7 +3806,9 @@ fn step_simple_producer_at_rate(
     };
     if uses_extraction_target {
         let target_percent = building.processor_output_target_percent;
-        process_batch(&mut building, &[], outputs, 1.0, Some(target_percent));
+        if !process_batch(&mut building, &[], outputs, Some(target_percent)) {
+            return building;
+        }
     } else {
         for (kind, amount) in outputs {
             deposit_building_commodity(&mut building, *kind, *amount);
@@ -3851,13 +3853,14 @@ fn step_processor_with_labor(
         return building;
     }
     let output_target_percent = building.processor_output_target_percent;
-    process_batch(
+    if !process_batch(
         &mut building,
         inputs,
         outputs,
-        1.0,
         Some(output_target_percent),
-    );
+    ) {
+        return building;
+    }
     reset_cycle(&mut building, productive_labor);
     building
 }
@@ -3882,13 +3885,14 @@ fn step_processor_at_rate(
         return building;
     };
     let output_target_percent = building.processor_output_target_percent;
-    process_batch(
+    if !process_batch(
         &mut building,
         inputs,
         outputs,
-        1.0,
         Some(output_target_percent),
-    );
+    ) {
+        return building;
+    }
     reset_cycle(&mut building, labor);
     building
 }
@@ -3897,17 +3901,17 @@ fn process_batch(
     building: &mut Building,
     inputs: &[(CommodityKind, f64)],
     outputs: &[(CommodityKind, f64)],
-    labor: f64,
     output_target_percent: Option<u8>,
-) {
-    let mut scale = labor;
+) -> bool {
     for (kind, amount) in inputs {
-        if *amount > 1e-6 {
-            scale = scale.min(building_commodity_stock(building, *kind) / amount);
+        let required = crate::resource_units::whole_cost(*amount);
+        if required > 0.0 && building_commodity_stock(building, *kind) + 1e-6 < required {
+            return false;
         }
     }
     for (kind, amount) in outputs {
-        if *amount > 1e-6 {
+        let produced = crate::resource_units::whole_cost(*amount);
+        if produced > 0.0 {
             let room = if output_target_percent.is_some()
                 && production_output_target_applies(&building.kind, *kind)
             {
@@ -3923,18 +3927,18 @@ fn process_batch(
             } else {
                 building_commodity_room(building, *kind)
             };
-            scale = scale.min(room / amount);
+            if room + 1e-6 < produced {
+                return false;
+            }
         }
     }
-    if scale <= 1e-6 {
-        return;
-    }
     for (kind, amount) in inputs {
-        withdraw_building_commodity(building, *kind, amount * scale);
+        withdraw_building_commodity(building, *kind, crate::resource_units::whole_cost(*amount));
     }
     for (kind, amount) in outputs {
-        deposit_building_commodity(building, *kind, amount * scale);
+        deposit_building_commodity(building, *kind, crate::resource_units::whole_cost(*amount));
     }
+    true
 }
 
 fn processor_output_commodity(kind: &str) -> Option<CommodityKind> {

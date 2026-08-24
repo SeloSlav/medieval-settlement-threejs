@@ -1,4 +1,5 @@
 import type { ActiveRaid } from '../generated/types.ts';
+import { wholeResourceUnits } from '../resources/resourceUnits.ts';
 
 export type ActiveRaidState = {
   raidId: string;
@@ -31,8 +32,8 @@ export function syncActiveRaid(
       enemyPressure: Number(row.enemyPressure),
       initialRaiders: Number(row.initialRaiders),
       initialGuards: Number(row.initialGuards),
-      goodsLost: Math.max(0, row.goodsLost),
-      wealthLost: Math.max(0, row.wealthLost),
+      goodsLost: wholeResourceUnits(row.goodsLost),
+      wealthLost: wholeResourceUnits(row.wealthLost),
       arsonStarted: row.arsonStarted,
       raidersDowned: Math.max(0, Number(row.raidersDowned)),
       routStarted: row.routStarted,

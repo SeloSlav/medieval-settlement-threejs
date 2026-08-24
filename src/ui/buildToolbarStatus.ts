@@ -64,6 +64,14 @@ const PLACEMENT_STATUS_HINTS: Partial<Record<BuildingKind, string>> = {
   marketplace: ' — place near a road',
 };
 
+function hasBuildingResourceCost(cost: BuildingResourceCost): boolean {
+  return cost.timber > 0
+    || cost.stone > 0
+    || (cost.ironwork ?? 0) > 0
+    || (cost.roofTiles ?? 0) > 0
+    || (cost.gold ?? 0) > 0;
+}
+
 function placementStatusHint(
   mode: BuildingKind,
   wellAquiferNetworksEnabled: boolean,
@@ -80,7 +88,7 @@ export function describeToolbarStatus(stats: ToolbarStats): string {
   if (isBuildingToolMode(stats.mode)) {
     if (stats.statusDetail) {
       const cost = stats.buildingCost ?? getBuildingCost(stats.mode);
-      const materialCost = cost.timber > 0 || cost.stone > 0 || (cost.ironwork ?? 0) > 0
+      const materialCost = hasBuildingResourceCost(cost)
         ? ` | Cost ${formatBuildingCost(cost)}`
         : '';
       return `${stats.statusDetail}${materialCost}`;
@@ -142,7 +150,7 @@ export function renderToolbarStatus(stats: ToolbarStats): string {
       unaffordable: stats.placementCostAffordable === false,
     });
     if (stats.statusDetail) {
-      const hasMaterialCost = cost.timber > 0 || cost.stone > 0 || (cost.ironwork ?? 0) > 0;
+      const hasMaterialCost = hasBuildingResourceCost(cost);
       return `${escapeHtml(stats.statusDetail)}${hasMaterialCost ? ` <span aria-hidden="true">|</span> Cost ${costMarkup}` : ''}`;
     }
 

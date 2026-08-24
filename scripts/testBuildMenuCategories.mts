@@ -13,6 +13,10 @@ import {
   syncBuildMenuCardAffordability,
   type BuildMenuEntry,
 } from '../src/ui/buildMenuCards.ts';
+import {
+  BUILDING_KIND_TO_MENU_ACTION,
+  MENU_ACTION_TO_BUILDING_KIND,
+} from '../src/ui/buildMenuMapping.ts';
 import { residenceZoneCost } from '../src/resources/buildingEconomy.ts';
 import { buildingCostWithCarpenterSupport } from '../src/economy/carpenterSupport.ts';
 import { BuildingTool } from '../src/buildings/BuildingTool.ts';
@@ -33,7 +37,7 @@ import { isConstructionResourceShortfallMessage } from '../src/ui/toastMessages.
 import { resolveTooltipPosition } from '../src/ui/tooltips.ts';
 
 assert.deepEqual(keys(CIVIC_BUILD_MENU_ENTRIES), [
-  'residences', 'well', 'chapel', 'wayside_shrine', 'dry_stone_wall', 'monastery', 'marketplace', 'tavern', 'trading_post', 'town_hall',
+  'residences', 'well', 'founders_camp', 'chapel', 'wayside_shrine', 'dry_stone_wall', 'monastery', 'marketplace', 'tavern', 'trading_post', 'town_hall',
   'village_storehouse', 'granary',
 ]);
 assert.deepEqual(keys(GATHERING_BUILD_MENU_ENTRIES), [
@@ -58,7 +62,7 @@ assert.deepEqual(BUILD_MENU_CATEGORIES.map((category) => category.id), [
   'civic', 'trade', 'gathering', 'agriculture',
   'food', 'industry', 'faith', 'decorations', 'military',
 ]);
-assert.deepEqual(categoryKeys('civic'), ['residences', 'well', 'town_hall']);
+assert.deepEqual(categoryKeys('civic'), ['residences', 'well', 'founders_camp', 'town_hall']);
 assert.deepEqual(categoryKeys('trade'), ['marketplace', 'trading_post', 'village_storehouse', 'granary']);
 assert.deepEqual(categoryKeys('gathering'), [
   'lumber_mill', 'reforester', 'stone_quarry', 'large_quarry', 'mine', 'clay_pit', 'hunters_hall', 'foragers_shed', 'fishing_camp',
@@ -70,6 +74,8 @@ assert.deepEqual(categoryKeys('faith'), ['chapel', 'monastery']);
 assert.deepEqual(categoryKeys('decorations'), ['wayside_shrine', 'dry_stone_wall']);
 assert.deepEqual(categoryKeys('military'), ['watchtower', 'guardhouse', 'palisaded_refuge']);
 assert.equal(BUILD_MENU_CATEGORIES.at(-1)?.conflictOnly, true);
+assert.equal(BUILDING_KIND_TO_MENU_ACTION.founders_camp, 'founders-camp');
+assert.equal(MENU_ACTION_TO_BUILDING_KIND['founders-camp'], 'founders_camp');
 
 const allActions = BUILD_MENU_ENTRIES.map((entry) => entry.action);
 assert.equal(new Set(allActions).size, allActions.length, 'each build action must belong to exactly one menu');
@@ -80,6 +86,11 @@ assert.equal(
 );
 
 const renderedCards = renderBuildMenuCards();
+assert.match(
+  renderedCards,
+  /data-action="founders-camp"[\s\S]*?data-src="\/assets\/ui\/build-menu\/cards\/founders-camp\.webp"/,
+  'the founders camp must have a dedicated civic build card and art asset',
+);
 assert.match(
   renderedCards,
   /<img class="construction-card__art"[^>]*alt=""[^>]*>[\s\S]*?<span class="construction-card__art-fallback" aria-hidden="true" hidden>/,
@@ -140,6 +151,28 @@ for (const card of renderedCardTags) {
   assert.match(card, /data-tooltip-cost="[^"]+"/, 'every build-card hover tooltip must list its construction cost');
   assert.match(card, /data-tooltip-cost-affordable="true"/, 'every build card must expose a live affordability state');
 }
+const smallMapCards = renderBuildMenuCards(BUILD_MENU_ENTRIES, { mapSize: 'small' });
+const smallMapFoundersCard = [...smallMapCards.matchAll(/<button[^>]*class="construction-card"[^>]*>/g)]
+  .map((match) => match[0])
+  .find((card) => card.includes('data-action="founders-camp"')) ?? '';
+assert.match(smallMapFoundersCard, /\sdisabled(?:\s|>)/, 'small maps must natively disable the founders camp card');
+assert.match(smallMapFoundersCard, /aria-disabled="true"/);
+assert.match(
+  smallMapFoundersCard,
+  /title="Additional Founders' Camps require a medium or large map\."/,
+  'the disabled founders camp card must explain its map-size requirement',
+);
+assert.match(
+  smallMapFoundersCard,
+  /aria-label="[^"]*Additional Founders' Camps require a medium or large map\."/,
+  'the small-map reason must be available to assistive technology',
+);
+const mediumMapCards = renderBuildMenuCards(BUILD_MENU_ENTRIES, { mapSize: 'medium' });
+const mediumMapFoundersCard = [...mediumMapCards.matchAll(/<button[^>]*class="construction-card"[^>]*>/g)]
+  .map((match) => match[0])
+  .find((card) => card.includes('data-action="founders-camp"')) ?? '';
+assert.doesNotMatch(mediumMapFoundersCard, /\sdisabled(?:\s|>)/, 'medium maps must enable founders camps');
+assert.doesNotMatch(mediumMapFoundersCard, /aria-disabled="true"/);
 const residenceCardTag = renderedCardTags.find((card) => card.includes('data-action="residences"')) ?? '';
 const residenceTooltipCost = decodeResourceCostTooltip(
   residenceCardTag.match(/data-tooltip-cost="([^"]+)"/)?.[1] ?? '',
@@ -406,12 +439,43 @@ assert.match(
 assert.match(toolbarSource, /data-build-menu-cards/);
 assert.match(toolbarSource, /class="build-menu-categories"/);
 assert.match(toolbarSource, /setBuildMenuCategory\(DEFAULT_BUILD_MENU_CATEGORY, true\)/);
+assert.match(toolbarSource, /setMapSize\(mapSize: WorldMapSize\): void/);
+assert.match(
+  toolbarSource,
+  /renderBuildMenuCards\(category\.entries, \{ mapSize: this\.mapSize \}\)/,
+  'changing the authoritative map size must flow into every category render',
+);
+assert.match(
+  toolbarSource,
+  /if \(button\.disabled \|\| button\.getAttribute\('aria-disabled'\) === 'true'\) return;/,
+  'disabled build cards must be guarded even when actions are invoked through delegated clicks',
+);
+assert.match(
+  toolbarSource,
+  /const placingStarterCamp = this\.starterCampRequired && stats\.mode === 'founders_camp';/,
+  'expansion camps must keep their normal builder status while only the initial starter flow is suppressed',
+);
 assert.doesNotMatch(toolbarSource, /resolveBuildMenuHotkey/);
 assert.doesNotMatch(toolbarSource, /data-action="(?:civic|gathering|agriculture|industry|military)-build-menu"/);
 
 const tooltipSource = fs.readFileSync('src/ui/tooltips.ts', 'utf8');
 assert.match(tooltipSource, /label\.textContent = 'Construction cost'/);
 assert.match(tooltipSource, /tooltipCostAffordable !== 'false'/);
+assert.match(
+  tooltipSource,
+  /if \(activeAnchor === anchor && !tooltip\.hidden\) \{\s*refresh\(anchor\);\s*return;/,
+  'repeated events inside one tooltip anchor must not restart its visibility transition',
+);
+const polishedGameUiSource = fs.readFileSync('src/ui/polishedGameUi.css', 'utf8');
+const constructionCardHoverRule = polishedGameUiSource.match(
+  /\.construction-card:hover,\s*\.construction-card:focus-visible\s*\{[^}]*\}/,
+)?.[0] ?? '';
+assert.ok(constructionCardHoverRule, 'the polished build-card hover rule must exist');
+assert.doesNotMatch(
+  constructionCardHoverRule,
+  /\btransform\s*:/,
+  'hover must not move the build-card hitbox out from under the pointer',
+);
 const burgageToolSource = fs.readFileSync('src/residences/BurgageTool.ts', 'utf8');
 assert.doesNotMatch(
   burgageToolSource,
