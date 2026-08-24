@@ -1,5 +1,6 @@
 import { ForagingMapIcons } from '../map/ForagingMapIcons.ts';
 import { QuarryMapIcons } from '../map/QuarryMapIcons.ts';
+import { SettlementMapIcons } from '../map/SettlementMapIcons.ts';
 import { TerrainMinimapOverlay } from '../map/TerrainMinimapOverlay.ts';
 import type {
   MinimapFocus,
@@ -28,10 +29,13 @@ import type { ForestTreeLayout } from '../props/ForestManager.ts';
 import type { RoadNetwork } from '../roads/RoadNetwork.ts';
 import { ILLUSTRATED_MAP_STAMP_LIFT } from '../map/IllustratedMapPlane.ts';
 import { IllustratedMapResourceHover } from '../map/IllustratedMapResourceHover.ts';
+import { TownReportPanel } from '../ui/TownReportPanel.ts';
 
 export type WorldMapUiBundle = {
   quarry: QuarryMapIcons;
   foraging: ForagingMapIcons;
+  settlement: SettlementMapIcons;
+  townReport: TownReportPanel;
   minimap: TerrainMinimapOverlay;
   update(): void;
   dispose(): void;
@@ -59,6 +63,9 @@ export function createWorldMapUi(options: {
   onQuarrySelect: (quarryId: string) => void;
   onForagingSelect: (nodeId: string) => void;
   onClaySelect?: (nodeId: string) => void;
+  onSettlementSelect?: (settlementId: string) => void;
+  onSettlementFocus?: (x: number, z: number) => void;
+  onTownHallSelect?: (buildingId: string) => void;
 }): WorldMapUiBundle {
   const {
     uiRoot,
@@ -82,6 +89,9 @@ export function createWorldMapUi(options: {
     onQuarrySelect,
     onForagingSelect,
     onClaySelect,
+    onSettlementSelect,
+    onSettlementFocus,
+    onTownHallSelect,
   } = options;
 
   const layoutMarkers = buildLayoutWorldMapMarkers(registry, clayDepositSites);
@@ -124,6 +134,27 @@ export function createWorldMapUi(options: {
       : isWorldResourceIconVisibilityBlocked(placementGate),
   });
 
+  const townReport = new TownReportPanel({
+    uiRoot,
+    getState: getGameState,
+    onFocus: onSettlementFocus,
+    onInspectTownHall: onTownHallSelect,
+  });
+  const settlement = new SettlementMapIcons({
+    uiRoot,
+    domElement,
+    terrain,
+    getState: getGameState,
+    getCamera,
+    getZoomPercent,
+    onSettlementSelect: (settlementId) => {
+      townReport.open(settlementId);
+      onSettlementSelect?.(settlementId);
+    },
+    isBlocked: () => isWorldInspectionBlocked(placementGate),
+    isVisibilityBlocked: () => isOverlayBlocked(placementGate),
+  });
+
   const minimap = TerrainMinimapOverlay.create({
     uiRoot,
     riverField,
@@ -153,17 +184,23 @@ export function createWorldMapUi(options: {
   return {
     quarry,
     foraging,
+    settlement,
+    townReport,
     minimap,
     update(): void {
       sharedFrameRect = null;
       quarry.update(getFrameRect);
       foraging.update(getFrameRect);
+      settlement.update(getFrameRect);
+      townReport.refresh();
       illustratedResourceHover.update();
     },
     dispose(): void {
       illustratedResourceHover.dispose();
       quarry.dispose();
       foraging.dispose();
+      settlement.dispose();
+      townReport.dispose();
       minimap.dispose();
     },
   };

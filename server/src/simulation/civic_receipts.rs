@@ -5,8 +5,8 @@ use crate::balance_generated::{
 };
 use crate::civic_receipts_policy::civic_receipt_cart_load;
 use crate::economy::{
-    local_civic_receipts, mark_local_civic_receipts_dispatched, physical_treasury_seat,
-    CommodityKind,
+    local_civic_receipts, mark_local_civic_receipts_dispatched,
+    physical_treasury_seat_for_settlement, CommodityKind,
 };
 use crate::simulation::delivery_trips::{
     available_free_haulers, building_has_active_trip, try_start_building_supply_trip,
@@ -36,7 +36,9 @@ pub fn try_dispatch_local_civic_receipts(
     if available_free_haulers(ctx, source.owner) == 0 {
         return false;
     }
-    let Some(target) = physical_treasury_seat(ctx, source.owner) else {
+    let Some(target) =
+        physical_treasury_seat_for_settlement(ctx, source.owner, source.settlement_id)
+    else {
         return false;
     };
     if target.id == source.id {

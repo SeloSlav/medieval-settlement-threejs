@@ -23,7 +23,14 @@ import {
 } from '../minerals/MineralDepositSystem.ts';
 import { setActiveClayDepositLayout } from '../economy/clayBankPolicy.ts';
 import { createWorldLayout, type WorldLayout } from '../resources/WorldLayout.ts';
-import type { FarmCrop, ForagingNodeState, ResourceNodeState } from '../resources/types.ts';
+import type {
+  BuildingState,
+  FarmCrop,
+  ForagingNodeState,
+  ResidenceState,
+  ResourceNodeState,
+  SettlementState,
+} from '../resources/types.ts';
 import type { WorldGenerationSettings } from '../world/worldGenerationSettings.ts';
 import { resolveWorldDimensions } from '../world/worldGenerationSettings.ts';
 import { forestDensityScale } from '../world/worldGenerationSettings.ts';
@@ -74,6 +81,7 @@ import {
   type MapOverlaySelection,
 } from './mapOverlayPreference.ts';
 import { WindOverlay } from '../wind/WindOverlay.ts';
+import { CommunityReachOverlay } from '../settlement/CommunityReachOverlay.ts';
 import {
   areConstellationGuidesEnabled,
   subscribeConstellationPreference,
@@ -220,6 +228,10 @@ export class SceneManager {
   private hydrologyOverlay: HydrologyOverlay | null = null;
   private windOverlay: WindOverlay | null = null;
   private cropSuitabilityOverlay: CropSuitabilityOverlay | null = null;
+  private communityReachOverlay: CommunityReachOverlay | null = null;
+  private communitySettlements: ReadonlyMap<string, SettlementState> = new Map();
+  private communityBuildings: ReadonlyMap<string, BuildingState> = new Map();
+  private communityResidences: ReadonlyMap<string, ResidenceState> = new Map();
   private cropSuitabilityCrop: FarmCrop | null = null;
   private vineyardSuitabilityActive = false;
   private mapOverlaySelection: MapOverlaySelection = getMapOverlaySelection();
@@ -757,6 +769,21 @@ export class SceneManager {
     this.applyMapOverlayVisibility();
   }
 
+  syncCommunityReach(
+    settlements: ReadonlyMap<string, SettlementState>,
+    buildings: ReadonlyMap<string, BuildingState>,
+    residences: ReadonlyMap<string, ResidenceState>,
+  ): void {
+    this.communitySettlements = settlements;
+    this.communityBuildings = buildings;
+    this.communityResidences = residences;
+    this.communityReachOverlay?.setState(
+      this.communitySettlements.values(),
+      this.communityBuildings.values(),
+      this.communityResidences.values(),
+    );
+  }
+
   setVineyardSuitabilityOverlayVisible(visible: boolean): void {
     if (visible === this.vineyardSuitabilityActive) return;
     this.vineyardSuitabilityActive = visible;
@@ -799,10 +826,22 @@ export class SceneManager {
         this.cropSuitabilityOverlay.setCrop(crop);
       }
     }
+    if (mode === 'communities' && !this.communityReachOverlay) {
+      this.communityReachOverlay = new CommunityReachOverlay({
+        terrain: this.terrain,
+        parent: this.scene,
+      });
+      this.communityReachOverlay.setState(
+        this.communitySettlements.values(),
+        this.communityBuildings.values(),
+        this.communityResidences.values(),
+      );
+    }
 
     this.hydrologyOverlay?.setVisible(mode === 'water');
     this.windOverlay?.setVisible(mode === 'wind');
     this.cropSuitabilityOverlay?.setVisible(mode === 'fertility');
+    this.communityReachOverlay?.setVisible(mode === 'communities');
   }
 
   resize(): void {
@@ -1486,6 +1525,8 @@ export class SceneManager {
     this.windOverlay = null;
     this.cropSuitabilityOverlay?.dispose();
     this.cropSuitabilityOverlay = null;
+    this.communityReachOverlay?.dispose();
+    this.communityReachOverlay = null;
     this.cropSuitabilityCrop = null;
     this.vineyardSuitabilityActive = false;
     this.buildingAccessSpurs.dispose();

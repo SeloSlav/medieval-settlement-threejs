@@ -42,6 +42,57 @@
   box-shadow: 0 10px 26px rgba(0, 0, 0, 0.34);
 }
 
+.settlement-map-icons {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+  transition: opacity 0.18s ease;
+}
+
+.settlement-map-icon {
+  position: fixed;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 54px;
+  height: 38px;
+  margin: -19px 0 0 -22px;
+  padding: 3px 9px 3px 4px;
+  color: #f3ead7;
+  border: 1px solid color-mix(in srgb, var(--settlement-color) 72%, #f1dfaa 28%);
+  border-radius: 999px;
+  background: rgba(30, 33, 27, 0.88);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.34), 0 0 0 2px color-mix(in srgb, var(--settlement-color) 18%, transparent);
+  backdrop-filter: blur(10px);
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.settlement-map-icon:hover,
+.settlement-map-icon:focus-visible {
+  outline: none;
+  transform: translateY(-1px) scale(1.035);
+  border-color: #f0d48b;
+}
+
+.settlement-map-icon__art {
+  display: grid;
+  place-items: center;
+  width: 31px;
+  height: 31px;
+  flex: 0 0 31px;
+  color: var(--settlement-color);
+}
+
+.settlement-map-icon__art .settlement-map-icon-art { width: 31px; height: 27px; }
+.settlement-map-icon strong { max-width: 132px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 700 11px/1.1 Georgia, serif; }
+.settlement-map-icon[data-tier='founders'] { border-style: dashed; }
+
+.settlement-map-icons[hidden] .settlement-map-icon,
+.settlement-map-icons.is-interaction-blocked .settlement-map-icon { pointer-events: none; }
+
 .quarry-map-icon::before,
 .foraging-map-icon::before {
   position: absolute;

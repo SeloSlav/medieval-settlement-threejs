@@ -221,6 +221,52 @@ function tableStatePopulation(state: GameTableSyncState): number {
     : Math.max(STARTING_POPULATION, housed);
 }
 
+function scopedTownHallPlanningState(
+  state: GameTableSyncState,
+  townHallId: string,
+): GameTableSyncState {
+  const hall = state.buildings.get(townHallId);
+  if (!hall || hall.kind !== 'town_hall') throw new Error('Select a valid Town Hall.');
+  const settlementId = hall.settlementId;
+  // Legacy schema rows had no settlement id and retain the former realm-wide
+  // preview until their additive migration assigns durable membership.
+  if (!settlementId) return state;
+  const buildings = filterMap(state.buildings, (building) =>
+    building.settlementId === settlementId);
+  const residences = filterMap(state.residences, (residence) =>
+    residence.settlementId === settlementId);
+  const burgageZones = filterMap(state.burgageZones, (zone) =>
+    zone.settlementId === settlementId);
+  const localBuildingIds = new Set(buildings.keys());
+  const localResidenceIds = new Set(residences.keys());
+  const farmFields = filterMap(state.farmFields, (field) =>
+    localBuildingIds.has(field.farmsteadId));
+  const deliveryTrips = filterMap(state.deliveryTrips, (trip) =>
+    localBuildingIds.has(trip.buildingId)
+    || (trip.laborBuildingId != null && localBuildingIds.has(trip.laborBuildingId))
+    || (trip.targetBuildingId != null && localBuildingIds.has(trip.targetBuildingId))
+    || (trip.residenceId != null && localResidenceIds.has(trip.residenceId)));
+  return {
+    ...state,
+    buildings,
+    residences,
+    burgageZones,
+    farmFields,
+    deliveryTrips,
+  };
+}
+
+function filterMap<K, V>(
+  source: ReadonlyMap<K, V>,
+  predicate: (value: V, key: K) => boolean,
+): Map<K, V> {
+  const filtered = new Map<K, V>();
+  for (const [key, value] of source) {
+    if (predicate(value, key)) filtered.set(key, value);
+  }
+  return filtered;
+}
+
 export class SpacetimeGameStore {
   private connection: DbConnection | null = null;
   private readonly tableState = createEmptyTableState();
@@ -565,36 +611,45 @@ export class SpacetimeGameStore {
     return spacetimeReducers.setLivestockHaymakingPercent(buildingId, haymakingPercent);
   }
 
-  setEconomicActivityTaxRate(taxRate: number): Promise<void> {
-    return spacetimeReducers.setEconomicActivityTaxRate(taxRate);
+  setEconomicActivityTaxRate(townHallId: string, taxRate: number): Promise<void> {
+    return spacetimeReducers.setEconomicActivityTaxRate(townHallId, taxRate);
   }
 
-  setPantrySafeguardPolicy(policy: PantrySafeguardPolicyCode): Promise<void> {
-    return spacetimeReducers.setPantrySafeguardPolicy(policy);
+  setPantrySafeguardPolicy(
+    townHallId: string,
+    policy: PantrySafeguardPolicyCode,
+  ): Promise<void> {
+    return spacetimeReducers.setPantrySafeguardPolicy(townHallId, policy);
   }
 
   setFiscalPolicy(
+    townHallId: string,
     landLevyRate: number,
     importDutyRate: number,
     exportDutyRate: number,
   ): Promise<void> {
-    return spacetimeReducers.setFiscalPolicy(landLevyRate, importDutyRate, exportDutyRate);
+    return spacetimeReducers.setFiscalPolicy(
+      townHallId,
+      landLevyRate,
+      importDutyRate,
+      exportDutyRate,
+    );
   }
 
-  setSeasonalLaborSteward(enabled: boolean): Promise<void> {
-    return spacetimeReducers.setSeasonalLaborSteward(enabled);
+  setSeasonalLaborSteward(townHallId: string, enabled: boolean): Promise<void> {
+    return spacetimeReducers.setSeasonalLaborSteward(townHallId, enabled);
   }
 
-  setConstructionLaborSteward(enabled: boolean): Promise<void> {
-    return spacetimeReducers.setConstructionLaborSteward(enabled);
+  setConstructionLaborSteward(townHallId: string, enabled: boolean): Promise<void> {
+    return spacetimeReducers.setConstructionLaborSteward(townHallId, enabled);
   }
 
-  setProductionLaborSteward(enabled: boolean): Promise<void> {
-    return spacetimeReducers.setProductionLaborSteward(enabled);
+  setProductionLaborSteward(townHallId: string, enabled: boolean): Promise<void> {
+    return spacetimeReducers.setProductionLaborSteward(townHallId, enabled);
   }
 
-  setLaborStewardReserve(laborReserve: number): Promise<void> {
-    return spacetimeReducers.setLaborStewardReserve(laborReserve);
+  setLaborStewardReserve(townHallId: string, laborReserve: number): Promise<void> {
+    return spacetimeReducers.setLaborStewardReserve(townHallId, laborReserve);
   }
 
   setChapelParishPolicy(sabbathObservanceEnabled: boolean): Promise<void> {
@@ -626,13 +681,21 @@ export class SpacetimeGameStore {
   }
 
   setNightPolicies(
+    townHallId: string,
     watch: NightPolicyCode,
     gathering: NightPolicyCode,
     work: NightPolicyCode,
     lighting: NightPolicyCode,
     curfew: NightPolicyCode,
   ): Promise<void> {
-    return spacetimeReducers.setNightPolicies(watch, gathering, work, lighting, curfew);
+    return spacetimeReducers.setNightPolicies(
+      townHallId,
+      watch,
+      gathering,
+      work,
+      lighting,
+      curfew,
+    );
   }
 
   setStorehousePolicy(
@@ -847,7 +910,7 @@ export class SpacetimeGameStore {
     }
   }
 
-  async rotateConstructionLabor(): Promise<{
+  async rotateConstructionLabor(townHallId: string): Promise<{
     recalledWorkers: number;
     calledWorkers: number;
   }> {
@@ -856,8 +919,9 @@ export class SpacetimeGameStore {
       (total, building) => total + building.assignedLabor,
       0,
     );
+    const planningState = scopedTownHallPlanningState(this.tableState, townHallId);
     const plan = computeSettlementConstructionLaborPlan(
-      this.tableState,
+      planningState,
       Math.max(0, totalPopulation - assignedLabor),
     );
     if (plan.assignments.length === 0) {
@@ -867,7 +931,7 @@ export class SpacetimeGameStore {
     this.tableState.buildings = applyConstructionLaborRotation(previousBuildings, plan);
     this.emit();
     try {
-      await spacetimeReducers.rotateConstructionLabor();
+      await spacetimeReducers.rotateConstructionLabor(townHallId);
       const connection = getConnection();
       if (connection) this.tableSync.syncBuildings(connection);
       return {
@@ -881,9 +945,10 @@ export class SpacetimeGameStore {
     }
   }
 
-  async recallIdleSeasonalLabor(): Promise<number> {
+  async recallIdleSeasonalLabor(townHallId: string): Promise<number> {
+    const planningState = scopedTownHallPlanningState(this.tableState, townHallId);
     const plan = computeSettlementSeasonalLaborPlan(
-      this.tableState,
+      planningState,
       gameClock(this.tableState.simTick).month,
     );
     if (plan.reclaimableWorkers <= 0) return 0;
@@ -891,7 +956,7 @@ export class SpacetimeGameStore {
     this.tableState.buildings = applySeasonalLaborRecall(previousBuildings, plan);
     this.emit();
     try {
-      await spacetimeReducers.recallIdleSeasonalLabor();
+      await spacetimeReducers.recallIdleSeasonalLabor(townHallId);
       const connection = getConnection();
       if (connection) this.tableSync.syncBuildings(connection);
       return plan.reclaimableWorkers;
@@ -902,14 +967,15 @@ export class SpacetimeGameStore {
     }
   }
 
-  async callUpActiveSeasonalLabor(): Promise<number> {
+  async callUpActiveSeasonalLabor(townHallId: string): Promise<number> {
     const totalPopulation = tableStatePopulation(this.tableState);
     const assignedLabor = Array.from(this.tableState.buildings.values()).reduce(
       (total, building) => total + building.assignedLabor,
       0,
     );
+    const planningState = scopedTownHallPlanningState(this.tableState, townHallId);
     const plan = computeSettlementSeasonalCallupPlan(
-      this.tableState,
+      planningState,
       gameClock(this.tableState.simTick).month,
       Math.max(0, totalPopulation - assignedLabor),
     );
@@ -918,7 +984,7 @@ export class SpacetimeGameStore {
     this.tableState.buildings = applySeasonalLaborCallup(previousBuildings, plan);
     this.emit();
     try {
-      await spacetimeReducers.callUpActiveSeasonalLabor();
+      await spacetimeReducers.callUpActiveSeasonalLabor(townHallId);
       const connection = getConnection();
       if (connection) this.tableSync.syncBuildings(connection);
       return plan.callupWorkers;
@@ -929,9 +995,10 @@ export class SpacetimeGameStore {
     }
   }
 
-  async recallTargetIdleProcessorLabor(): Promise<number> {
+  async recallTargetIdleProcessorLabor(townHallId: string): Promise<number> {
+    const planningState = scopedTownHallPlanningState(this.tableState, townHallId);
     const plan = computeSettlementWorksiteStallPlan(
-      this.tableState,
+      planningState,
       gameClock(this.tableState.simTick).month,
     );
     if (plan.reclaimableWorkers <= 0) return 0;
@@ -939,7 +1006,7 @@ export class SpacetimeGameStore {
     this.tableState.buildings = applyWorksiteStallRecall(previousBuildings, plan);
     this.emit();
     try {
-      await spacetimeReducers.recallTargetIdleProcessorLabor();
+      await spacetimeReducers.recallTargetIdleProcessorLabor(townHallId);
       const connection = getConnection();
       if (connection) this.tableSync.syncBuildings(connection);
       return plan.reclaimableWorkers;
@@ -950,14 +1017,15 @@ export class SpacetimeGameStore {
     }
   }
 
-  async callUpTargetReadyProcessorLabor(): Promise<number> {
+  async callUpTargetReadyProcessorLabor(townHallId: string): Promise<number> {
     const totalPopulation = tableStatePopulation(this.tableState);
     const assignedLabor = Array.from(this.tableState.buildings.values()).reduce(
       (total, building) => total + building.assignedLabor,
       0,
     );
+    const planningState = scopedTownHallPlanningState(this.tableState, townHallId);
     const plan = computeSettlementProcessorLaborCallupPlan(
-      this.tableState,
+      planningState,
       Math.max(0, totalPopulation - assignedLabor),
     );
     if (plan.callupWorkers <= 0) return 0;
@@ -965,7 +1033,7 @@ export class SpacetimeGameStore {
     this.tableState.buildings = applyProcessorLaborCallup(previousBuildings, plan);
     this.emit();
     try {
-      await spacetimeReducers.callUpTargetReadyProcessorLabor();
+      await spacetimeReducers.callUpTargetReadyProcessorLabor(townHallId);
       const connection = getConnection();
       if (connection) this.tableSync.syncBuildings(connection);
       return plan.callupWorkers;
@@ -976,7 +1044,7 @@ export class SpacetimeGameStore {
     }
   }
 
-  async balanceYearRoundLabor(): Promise<{
+  async balanceYearRoundLabor(townHallId: string): Promise<{
     recalledWorkers: number;
     calledWorkers: number;
   }> {
@@ -985,8 +1053,9 @@ export class SpacetimeGameStore {
       (total, building) => total + building.assignedLabor,
       0,
     );
+    const planningState = scopedTownHallPlanningState(this.tableState, townHallId);
     const plan = computeSettlementYearRoundLaborRotation(
-      this.tableState,
+      planningState,
       Math.max(0, totalPopulation - assignedLabor),
     );
     if (plan.assignments.length === 0) {
@@ -996,7 +1065,7 @@ export class SpacetimeGameStore {
     this.tableState.buildings = applyYearRoundLaborRotation(previousBuildings, plan);
     this.emit();
     try {
-      await spacetimeReducers.callUpYearRoundLabor();
+      await spacetimeReducers.callUpYearRoundLabor(townHallId);
       const connection = getConnection();
       if (connection) this.tableSync.syncBuildings(connection);
       return {

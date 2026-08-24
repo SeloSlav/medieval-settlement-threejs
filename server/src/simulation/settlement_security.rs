@@ -181,22 +181,20 @@ fn step_owner_security(
     let scheduled_raid_is_at_night = state.next_raid_tick > 0
         && !crate::simulation::game_clock(state.next_raid_tick).is_work_hours;
     if scheduled_raid_is_at_night {
-        let night_watch_policy = ctx
-            .db
-            .player_resources()
-            .owner()
-            .find(&owner)
-            .map(|resources| resources.night_watch_policy)
-            .unwrap_or(crate::night_policy::WATCH_STANDARD);
-        if night_watch_policy == crate::night_policy::WATCH_STAND_DOWN {
-            towers.clear();
-        } else {
-            let radius_multiplier =
-                crate::night_policy::warning_policy_multiplier(night_watch_policy);
-            for tower in &mut towers {
-                tower.radius *= radius_multiplier;
+        towers.retain_mut(|tower| {
+            let settlement_id = buildings
+                .iter()
+                .find(|building| building.id == tower.source_id)
+                .map(|building| building.settlement_id)
+                .unwrap_or(0);
+            let night_watch_policy =
+                crate::settlement_policy::night(ctx, owner, settlement_id).watch;
+            if night_watch_policy == crate::night_policy::WATCH_STAND_DOWN {
+                return false;
             }
-        }
+            tower.radius *= crate::night_policy::warning_policy_multiplier(night_watch_policy);
+            true
+        });
     }
     let watch_index = WatchCoverageIndex::new(&towers);
     let refuges = active_palisaded_refuge_coverage(&buildings, &fire_disabled_buildings);

@@ -111,8 +111,9 @@ pub(crate) use residence_upgrades::clear_residence_project;
 pub use residence_upgrades::step_residence_upgrades;
 pub(crate) use road_logistics::local_delivery_distance;
 pub use seasonal_labor_steward::{
-    call_up_active_seasonal_labor_for_owner, owner_has_staffed_town_hall,
-    recall_idle_seasonal_labor_for_owner, reconcile_seasonal_labor_for_owner,
+    call_up_active_seasonal_labor_for_owner, call_up_active_seasonal_labor_for_settlement,
+    owner_has_staffed_town_hall, recall_idle_seasonal_labor_for_owner,
+    recall_idle_seasonal_labor_for_settlement, reconcile_seasonal_labor_for_owner,
     reconcile_seasonal_labor_for_settlement, settlement_has_staffed_town_hall,
     step_seasonal_labor_stewards,
 };

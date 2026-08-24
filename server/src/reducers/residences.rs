@@ -169,7 +169,7 @@ pub fn place_burgage_zone(
     crate::settlements::ensure_owner_settlements(ctx, owner);
     let settlement_x = (corner_ax + corner_bx + corner_cx + corner_dx) * 0.25;
     let settlement_z = (corner_az + corner_bz + corner_cz + corner_dz) * 0.25;
-    let settlement_id = crate::settlements::settlement_for_position(
+    let settlement_id = crate::settlements::residential_settlement_for_position(
         ctx,
         owner,
         settlement_x,

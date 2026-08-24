@@ -76,6 +76,12 @@ async function callReducer(
   }
 }
 
+function requireTownHallServerId(townHallId: string): bigint {
+  const serverId = parseBuildingServerId(townHallId);
+  if (serverId === null) throw new Error('Invalid Town Hall id.');
+  return serverId;
+}
+
 export async function enterWorld(): Promise<void> {
   await callReducer('enterWorld', 'enter_world', {});
 }
@@ -407,36 +413,47 @@ export async function setLivestockHaymakingPercent(
   });
 }
 
-export async function setEconomicActivityTaxRate(taxRate: number): Promise<void> {
+export async function setEconomicActivityTaxRate(townHallId: string, taxRate: number): Promise<void> {
+  const serverId = requireTownHallServerId(townHallId);
   await callReducer('setEconomicActivityTaxRate', 'set_economic_activity_tax_rate', {
+    townHallId: serverId,
     taxRate,
   });
 }
 
-export async function setSeasonalLaborSteward(enabled: boolean): Promise<void> {
+export async function setSeasonalLaborSteward(townHallId: string, enabled: boolean): Promise<void> {
+  const serverId = requireTownHallServerId(townHallId);
   await callReducer('setSeasonalLaborSteward', 'set_seasonal_labor_steward', {
+    townHallId: serverId,
     enabled,
   });
 }
 
-export async function setConstructionLaborSteward(enabled: boolean): Promise<void> {
+export async function setConstructionLaborSteward(townHallId: string, enabled: boolean): Promise<void> {
+  const serverId = requireTownHallServerId(townHallId);
   await callReducer('setConstructionLaborSteward', 'set_construction_labor_steward', {
+    townHallId: serverId,
     enabled,
   });
 }
 
-export async function setPantrySafeguardPolicy(policy: number): Promise<void> {
+export async function setPantrySafeguardPolicy(townHallId: string, policy: number): Promise<void> {
+  const serverId = requireTownHallServerId(townHallId);
   await callReducer('setPantrySafeguardPolicy', 'set_pantry_safeguard_policy', {
+    townHallId: serverId,
     policy,
   });
 }
 
 export async function setFiscalPolicy(
+  townHallId: string,
   landLevyRate: number,
   importDutyRate: number,
   exportDutyRate: number,
 ): Promise<void> {
+  const serverId = requireTownHallServerId(townHallId);
   await callReducer('setFiscalPolicy', 'set_fiscal_policy', {
+    townHallId: serverId,
     landLevyRate,
     importDutyRate,
     exportDutyRate,
@@ -475,14 +492,18 @@ export async function demolishGraveyard(graveyardId: string): Promise<void> {
   });
 }
 
-export async function setProductionLaborSteward(enabled: boolean): Promise<void> {
+export async function setProductionLaborSteward(townHallId: string, enabled: boolean): Promise<void> {
+  const serverId = requireTownHallServerId(townHallId);
   await callReducer('setProductionLaborSteward', 'set_production_labor_steward', {
+    townHallId: serverId,
     enabled,
   });
 }
 
-export async function setLaborStewardReserve(laborReserve: number): Promise<void> {
+export async function setLaborStewardReserve(townHallId: string, laborReserve: number): Promise<void> {
+  const serverId = requireTownHallServerId(townHallId);
   await callReducer('setLaborStewardReserve', 'set_labor_steward_reserve', {
+    townHallId: serverId,
     laborReserve: normalizeLaborStewardReserve(laborReserve),
   });
 }
@@ -641,6 +662,7 @@ export async function setThreshingPriority(
 }
 
 export async function setNightPolicies(
+  townHallId: string,
   watch: NightPolicyCode,
   gathering: NightPolicyCode,
   work: NightPolicyCode,
@@ -648,6 +670,7 @@ export async function setNightPolicies(
   curfew: NightPolicyCode,
 ): Promise<void> {
   await callReducer('setNightPolicies', 'set_night_policies', {
+    townHallId: requireTownHallServerId(townHallId),
     watchPolicy: watch,
     gatheringPolicy: gathering,
     workPolicy: work,
@@ -949,36 +972,44 @@ export async function assignBuildingLabor(buildingId: string, labor: number): Pr
   });
 }
 
-export async function rotateConstructionLabor(): Promise<void> {
-  await callReducer('rotateConstructionLabor', 'rotate_construction_labor', {});
+export async function rotateConstructionLabor(townHallId: string): Promise<void> {
+  await callReducer('rotateConstructionLabor', 'rotate_construction_labor', {
+    townHallId: requireTownHallServerId(townHallId),
+  });
 }
 
-export async function recallIdleSeasonalLabor(): Promise<void> {
-  await callReducer('recallIdleSeasonalLabor', 'recall_idle_seasonal_labor', {});
+export async function recallIdleSeasonalLabor(townHallId: string): Promise<void> {
+  await callReducer('recallIdleSeasonalLabor', 'recall_idle_seasonal_labor', {
+    townHallId: requireTownHallServerId(townHallId),
+  });
 }
 
-export async function callUpActiveSeasonalLabor(): Promise<void> {
-  await callReducer('callUpActiveSeasonalLabor', 'call_up_active_seasonal_labor', {});
+export async function callUpActiveSeasonalLabor(townHallId: string): Promise<void> {
+  await callReducer('callUpActiveSeasonalLabor', 'call_up_active_seasonal_labor', {
+    townHallId: requireTownHallServerId(townHallId),
+  });
 }
 
-export async function recallTargetIdleProcessorLabor(): Promise<void> {
+export async function recallTargetIdleProcessorLabor(townHallId: string): Promise<void> {
   await callReducer(
     'recallTargetIdleProcessorLabor',
     'recall_target_idle_processor_labor',
-    {},
+    { townHallId: requireTownHallServerId(townHallId) },
   );
 }
 
-export async function callUpTargetReadyProcessorLabor(): Promise<void> {
+export async function callUpTargetReadyProcessorLabor(townHallId: string): Promise<void> {
   await callReducer(
     'callUpTargetReadyProcessorLabor',
     'call_up_target_ready_processor_labor',
-    {},
+    { townHallId: requireTownHallServerId(townHallId) },
   );
 }
 
-export async function callUpYearRoundLabor(): Promise<void> {
-  await callReducer('callUpYearRoundLabor', 'call_up_year_round_labor', {});
+export async function callUpYearRoundLabor(townHallId: string): Promise<void> {
+  await callReducer('callUpYearRoundLabor', 'call_up_year_round_labor', {
+    townHallId: requireTownHallServerId(townHallId),
+  });
 }
 
 export async function setConstructionPriority(

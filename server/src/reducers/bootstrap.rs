@@ -150,7 +150,8 @@ fn validate_founding_site_coordinates(x: f64, z: f64) -> Result<(), String> {
 }
 
 fn owner_has_existing_settlement(ctx: &ReducerContext, owner: spacetimedb::Identity) -> bool {
-    ctx.db.building().owner().filter(&owner).next().is_some()
+    ctx.db.settlement().owner().filter(&owner).next().is_some()
+        || ctx.db.building().owner().filter(&owner).next().is_some()
         || ctx.db.residence().owner().filter(&owner).next().is_some()
         || ctx
             .db
@@ -212,8 +213,7 @@ pub(crate) fn place_founding_camp(ctx: &ReducerContext, x: f64, z: f64) -> Resul
         .find(&0)
         .ok_or_else(|| "World not initialized.".to_string())?;
     let building_id = next_available_building_id(ctx, config.next_building_id)?;
-    let settlement =
-        crate::settlements::create_initial_settlement(ctx, owner, building_id, x, z)?;
+    let settlement = crate::settlements::create_initial_settlement(ctx, owner, building_id, x, z)?;
     ctx.db.building().insert(Building {
         id: building_id,
         owner,

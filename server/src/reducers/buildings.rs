@@ -76,9 +76,11 @@ use crate::seasonal_labor_policy::seasonal_production_active;
 use crate::simulation::{
     building_fire_state, building_has_active_trip, building_has_inbound_commodity_trip,
     building_has_inbound_supply_trip, call_up_active_seasonal_labor_for_owner,
+    call_up_active_seasonal_labor_for_settlement,
     cancel_inbound_construction_trips_for_site, clear_fire_for_target, drain_trips_for_building,
     game_clock, local_delivery_distance, owner_has_staffed_town_hall,
     preserve_in_transit_cart_labor, recall_idle_seasonal_labor_for_owner,
+    recall_idle_seasonal_labor_for_settlement,
     staffed_cart_workers_by_building, ReclamationStock, FIRE_TARGET_BUILDING,
 };
 use crate::specialty_trade_policy::{is_valid_specialty_export_policy, SpecialtyMarketFamily};
@@ -1199,17 +1201,51 @@ pub fn assign_building_labor(
     set_building_labor(ctx, owner, building_id, labor)
 }
 
+fn require_staffed_town_hall_settlement(
+    ctx: &ReducerContext,
+    owner: spacetimedb::Identity,
+    town_hall_id: u64,
+) -> Result<u64, String> {
+    let hall = ctx
+        .db
+        .building()
+        .id()
+        .find(&town_hall_id)
+        .ok_or_else(|| "Town Hall not found.".to_string())?;
+    if hall.owner != owner
+        || hall.kind != "town_hall"
+        || !hall.construction_complete
+        || hall.assigned_labor == 0
+        || hall.settlement_id == 0
+    {
+        return Err("A staffed Town Hall is required for this local order.".to_string());
+    }
+    let valid_jurisdiction = ctx
+        .db
+        .settlement()
+        .id()
+        .find(&hall.settlement_id)
+        .is_some_and(|settlement| {
+            settlement.owner == owner && settlement.town_hall_id == hall.id
+        });
+    if !valid_jurisdiction {
+        return Err("This Town Hall has no active civic jurisdiction.".to_string());
+    }
+    Ok(hall.settlement_id)
+}
+
 /// Releases builders from supply-blocked sites that have no approaching cart,
 /// then deploys free crews to sites where material or founders' reserves make
 /// immediate progress possible. Existing productive and inbound-waiting crews
 /// are never displaced.
 #[reducer]
-pub fn rotate_construction_labor(ctx: &ReducerContext) -> Result<(), String> {
+pub fn rotate_construction_labor(
+    ctx: &ReducerContext,
+    town_hall_id: u64,
+) -> Result<(), String> {
     let owner = ctx.sender();
-    if !owner_has_staffed_town_hall(ctx, owner) {
-        return Err("A staffed Town Hall is required to rotate construction crews.".to_string());
-    }
-    rotate_construction_labor_for_owner(ctx, owner);
+    let settlement_id = require_staffed_town_hall_settlement(ctx, owner, town_hall_id)?;
+    rotate_construction_labor_for_settlement_with_reserve(ctx, owner, settlement_id, 0);
     Ok(())
 }
 
@@ -1311,11 +1347,12 @@ fn rotate_construction_labor_for_scope(
 /// Stored output remains available to logistics labor. Restaffing remains an
 /// explicit player decision.
 #[reducer]
-pub fn recall_idle_seasonal_labor(ctx: &ReducerContext) -> Result<(), String> {
+pub fn recall_idle_seasonal_labor(
+    ctx: &ReducerContext,
+    town_hall_id: u64,
+) -> Result<(), String> {
     let owner = ctx.sender();
-    if !owner_has_staffed_town_hall(ctx, owner) {
-        return Err("A staffed Town Hall is required to recall seasonal crews.".to_string());
-    }
+    let settlement_id = require_staffed_town_hall_settlement(ctx, owner, town_hall_id)?;
 
     let sim_tick = ctx
         .db
@@ -1325,7 +1362,7 @@ pub fn recall_idle_seasonal_labor(ctx: &ReducerContext) -> Result<(), String> {
         .map(|config| config.sim_tick)
         .unwrap_or(0);
     let month = game_clock(sim_tick).month;
-    recall_idle_seasonal_labor_for_owner(ctx, owner, month);
+    recall_idle_seasonal_labor_for_settlement(ctx, owner, settlement_id, month);
     Ok(())
 }
 
@@ -1333,11 +1370,12 @@ pub fn recall_idle_seasonal_labor(ctx: &ReducerContext) -> Result<(), String> {
 /// receive one worker per stable-order pass so scarce labor is shared across
 /// the active harvest window.
 #[reducer]
-pub fn call_up_active_seasonal_labor(ctx: &ReducerContext) -> Result<(), String> {
+pub fn call_up_active_seasonal_labor(
+    ctx: &ReducerContext,
+    town_hall_id: u64,
+) -> Result<(), String> {
     let owner = ctx.sender();
-    if !owner_has_staffed_town_hall(ctx, owner) {
-        return Err("A staffed Town Hall is required to call up seasonal crews.".to_string());
-    }
+    let settlement_id = require_staffed_town_hall_settlement(ctx, owner, town_hall_id)?;
     let sim_tick = ctx
         .db
         .world_config()
@@ -1346,7 +1384,7 @@ pub fn call_up_active_seasonal_labor(ctx: &ReducerContext) -> Result<(), String>
         .map(|config| config.sim_tick)
         .unwrap_or(0);
     let month = game_clock(sim_tick).month;
-    call_up_active_seasonal_labor_for_owner(ctx, owner, month);
+    call_up_active_seasonal_labor_for_settlement(ctx, owner, settlement_id, month);
     Ok(())
 }
 
@@ -1919,14 +1957,13 @@ fn recall_target_idle_processor_labor_for_scope(
 }
 
 #[reducer]
-pub fn recall_target_idle_processor_labor(ctx: &ReducerContext) -> Result<(), String> {
+pub fn recall_target_idle_processor_labor(
+    ctx: &ReducerContext,
+    town_hall_id: u64,
+) -> Result<(), String> {
     let owner = ctx.sender();
-    if !owner_has_staffed_town_hall(ctx, owner) {
-        return Err(
-            "A staffed Town Hall is required to recall stalled production crews.".to_string(),
-        );
-    }
-    recall_target_idle_processor_labor_for_owner(ctx, owner);
+    let settlement_id = require_staffed_town_hall_settlement(ctx, owner, town_hall_id)?;
+    recall_target_idle_processor_labor_for_settlement(ctx, owner, settlement_id);
     Ok(())
 }
 
@@ -2021,6 +2058,20 @@ pub fn call_up_target_ready_processor_labor_for_owner(
     call_up_target_ready_processor_labor_for_owner_with_policy(ctx, owner, None, false, 0)
 }
 
+pub fn call_up_target_ready_processor_labor_for_settlement(
+    ctx: &ReducerContext,
+    owner: spacetimedb::Identity,
+    settlement_id: u64,
+) -> u32 {
+    call_up_target_ready_processor_labor_for_owner_with_policy(
+        ctx,
+        owner,
+        Some(settlement_id),
+        false,
+        0,
+    )
+}
+
 /// Daily automation is deliberately stricter: it never recalls an input-starved
 /// crew and immediately hires it back. Capacity-open workshops must have their
 /// current inputs or matching inbound carts before they claim free labor.
@@ -2054,12 +2105,13 @@ pub fn call_up_operational_production_labor_for_settlement(
 }
 
 #[reducer]
-pub fn call_up_target_ready_processor_labor(ctx: &ReducerContext) -> Result<(), String> {
+pub fn call_up_target_ready_processor_labor(
+    ctx: &ReducerContext,
+    town_hall_id: u64,
+) -> Result<(), String> {
     let owner = ctx.sender();
-    if !owner_has_staffed_town_hall(ctx, owner) {
-        return Err("A staffed Town Hall is required to deploy production crews.".to_string());
-    }
-    call_up_target_ready_processor_labor_for_owner(ctx, owner);
+    let settlement_id = require_staffed_town_hall_settlement(ctx, owner, town_hall_id)?;
+    call_up_target_ready_processor_labor_for_settlement(ctx, owner, settlement_id);
     Ok(())
 }
 
@@ -2068,11 +2120,12 @@ pub fn call_up_target_ready_processor_labor(ctx: &ReducerContext) -> Result<(), 
 /// from strictly lower tiers. Specialized crews and Town Hall clerks are never
 /// displaced by this order.
 #[reducer]
-pub fn call_up_year_round_labor(ctx: &ReducerContext) -> Result<(), String> {
+pub fn call_up_year_round_labor(
+    ctx: &ReducerContext,
+    town_hall_id: u64,
+) -> Result<(), String> {
     let owner = ctx.sender();
-    if !owner_has_staffed_town_hall(ctx, owner) {
-        return Err("A staffed Town Hall is required to balance year-round crews.".to_string());
-    }
+    let settlement_id = require_staffed_town_hall_settlement(ctx, owner, town_hall_id)?;
 
     let mut available_labor = available_building_labor(ctx, owner);
     let mut sites = Vec::new();
@@ -2084,7 +2137,9 @@ pub fn call_up_year_round_labor(ctx: &ReducerContext) -> Result<(), String> {
         .building()
         .owner()
         .filter(&owner)
-        .filter(|building| building.construction_complete)
+        .filter(|building| {
+            building.construction_complete && building.settlement_id == settlement_id
+        })
     {
         let Some(def) = building_def(&building.kind) else {
             continue;
@@ -2123,7 +2178,10 @@ pub fn call_up_year_round_labor(ctx: &ReducerContext) -> Result<(), String> {
         let Some(mut building) = ctx.db.building().id().find(&building_id) else {
             continue;
         };
-        if building.owner != owner || building.assigned_labor == 0 {
+        if building.owner != owner
+            || building.settlement_id != settlement_id
+            || building.assigned_labor == 0
+        {
             continue;
         }
         let roster_floor = roster_floors.get(&building.id).copied().unwrap_or(0);
@@ -2135,7 +2193,10 @@ pub fn call_up_year_round_labor(ctx: &ReducerContext) -> Result<(), String> {
         let Some(mut building) = ctx.db.building().id().find(&building_id) else {
             continue;
         };
-        if building.owner != owner || target_labor == building.assigned_labor {
+        if building.owner != owner
+            || building.settlement_id != settlement_id
+            || target_labor == building.assigned_labor
+        {
             continue;
         }
         if target_labor < building.assigned_labor {
@@ -3119,7 +3180,7 @@ pub fn demolish_building(ctx: &ReducerContext, building_id: u64) -> Result<(), S
     let owner = ctx.sender();
     ensure_player_resources(ctx, owner);
 
-    let building = ctx
+    let mut building = ctx
         .db
         .building()
         .id()
@@ -3129,11 +3190,22 @@ pub fn demolish_building(ctx: &ReducerContext, building_id: u64) -> Result<(), S
     if building.owner != owner {
         return Err("You do not own this building.".to_string());
     }
-    if is_bootstrap_founders_camp(&building) {
+    if building.kind == "founders_camp" && building.construction_complete {
         return Err(
             "The founders' camp clears itself after its people are housed and its stores are moved."
                 .to_string(),
         );
+    }
+    if building.kind == "founders_camp" {
+        building.settlement_id = crate::settlements::cancel_planned_settlement(
+            ctx,
+            owner,
+            building.settlement_id,
+            building.id,
+            building.x,
+            building.z,
+        )?
+        .unwrap_or(0);
     }
     if building.kind == "salvage_pile" {
         return Err(
@@ -3202,6 +3274,9 @@ pub fn demolish_building(ctx: &ReducerContext, building_id: u64) -> Result<(), S
         return Err("This chapel still has consecrated burial ground attached.".to_string());
     }
 
+    if building.kind == "town_hall" {
+        crate::settlements::unlink_town_hall(ctx, building.settlement_id, building.id);
+    }
     let fire_damaged = building_fire_state(ctx, building_id).is_some();
     clear_fire_for_target(ctx, FIRE_TARGET_BUILDING, building_id);
     let gold_refund = if is_expansion_founders_camp(&building) {

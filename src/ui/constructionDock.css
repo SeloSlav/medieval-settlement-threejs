@@ -430,7 +430,7 @@
 
 .map-overlay-menu__modes {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 7px;
 }
 
@@ -523,6 +523,12 @@
   --map-overlay-art: url('/assets/ui/build-menu/cards/grain-field.webp');
   --map-overlay-art-position: center 61%;
   --map-overlay-art-size: 185% auto;
+}
+
+.map-overlay-option__icon[data-map-overlay-icon='communities'] {
+  --map-overlay-art: url('/assets/ui/build-menu/cards/town-hall.webp');
+  --map-overlay-art-position: center 42%;
+  --map-overlay-art-size: 180% auto;
 }
 
 .map-overlay-option:hover .map-overlay-option__icon,

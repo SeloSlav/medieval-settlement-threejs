@@ -6,28 +6,28 @@
 
 use spacetimedb::{Identity, ReducerContext};
 
-use crate::balance_generated::STARTING_POPULATION;
+use crate::balance_generated::{OFFROAD_DELIVERY_SPEED_MULTIPLIER, STARTING_POPULATION};
 use crate::db::*;
 use crate::roads::{load_owner_road_network, RoadNetwork};
 use crate::tables::{Building, PlayerResources, Settlement};
 
 const EPSILON: f64 = 1e-6;
+/// New residential frontage must remain within a practical walk/road catchment
+/// of an existing community source. Occupied homes then extend that catchment
+/// organically; a distant cluster needs its own Founders' Camp seed.
+pub const RESIDENTIAL_SETTLEMENT_REACH: f64 = 260.0;
 
 fn direct_distance(ax: f64, az: f64, bx: f64, bz: f64) -> f64 {
     (bx - ax).hypot(bz - az)
 }
 
-fn travel_effort(
-    network: Option<&RoadNetwork>,
-    ax: f64,
-    az: f64,
-    bx: f64,
-    bz: f64,
-) -> f64 {
+fn travel_effort(network: Option<&RoadNetwork>, ax: f64, az: f64, bx: f64, bz: f64) -> f64 {
     network
         .and_then(|roads| roads.road_path_distance(ax, az, bx, bz))
         .filter(|distance| distance.is_finite())
-        .unwrap_or_else(|| direct_distance(ax, az, bx, bz))
+        .unwrap_or_else(|| {
+            direct_distance(ax, az, bx, bz) / OFFROAD_DELIVERY_SPEED_MULTIPLIER.max(EPSILON)
+        })
 }
 
 fn current_sim_tick(ctx: &ReducerContext) -> u64 {
@@ -140,9 +140,10 @@ pub fn create_planned_settlement(
     z: f64,
 ) -> Result<Settlement, String> {
     let resources = owner_resources(ctx, owner)?;
-    Ok(ctx.db.settlement().insert(settlement_row(
-        ctx, &resources, owner, x, z, 0, false, 0, 0,
-    )))
+    Ok(ctx
+        .db
+        .settlement()
+        .insert(settlement_row(ctx, &resources, owner, x, z, 0, false, 0, 0)))
 }
 
 pub fn attach_founding_camp(
@@ -220,11 +221,7 @@ pub fn active_settlement_founder_origins(
         .filter(&owner)
         .filter(|settlement| settlement.active && settlement.unhoused_founders > 0)
         .filter_map(|settlement| {
-            let camp = ctx
-                .db
-                .building()
-                .id()
-                .find(&settlement.founding_camp_id)?;
+            let camp = ctx.db.building().id().find(&settlement.founding_camp_id)?;
             (camp.kind == "founders_camp" && camp.construction_complete).then_some((
                 settlement.id,
                 camp.x,
@@ -255,6 +252,32 @@ pub fn settlement_for_position(
     x: f64,
     z: f64,
 ) -> Option<u64> {
+    scored_settlements_for_position(ctx, owner, x, z)
+        .into_iter()
+        .next()
+        .map(|(_, settlement_id)| settlement_id)
+}
+
+/// Residential claims use the same deterministic influence field as ordinary
+/// affiliation but reject neutral wilderness beyond practical community reach.
+pub fn residential_settlement_for_position(
+    ctx: &ReducerContext,
+    owner: Identity,
+    x: f64,
+    z: f64,
+) -> Option<u64> {
+    scored_settlements_for_position(ctx, owner, x, z)
+        .into_iter()
+        .find(|(effort, _)| *effort <= RESIDENTIAL_SETTLEMENT_REACH + EPSILON)
+        .map(|(_, settlement_id)| settlement_id)
+}
+
+fn scored_settlements_for_position(
+    ctx: &ReducerContext,
+    owner: Identity,
+    x: f64,
+    z: f64,
+) -> Vec<(f64, u64)> {
     let mut settlements = ctx
         .db
         .settlement()
@@ -263,11 +286,11 @@ pub fn settlement_for_position(
         .collect::<Vec<_>>();
     settlements.sort_by_key(|settlement| settlement.id);
     if settlements.is_empty() {
-        return None;
+        return Vec::new();
     }
 
     let network = load_owner_road_network(ctx, owner);
-    settlements
+    let mut scored = settlements
         .into_iter()
         .map(|settlement| {
             let mut best = travel_effort(
@@ -309,8 +332,9 @@ pub fn settlement_for_position(
             }
             (best, settlement.id)
         })
-        .min_by(|a, b| a.0.total_cmp(&b.0).then_with(|| a.1.cmp(&b.1)))
-        .map(|(_, settlement_id)| settlement_id)
+        .collect::<Vec<_>>();
+    scored.sort_by(|a, b| a.0.total_cmp(&b.0).then_with(|| a.1.cmp(&b.1)));
+    scored
 }
 
 fn paid_founding_camp(building: &Building) -> bool {
@@ -339,12 +363,7 @@ pub fn ensure_owner_settlements(ctx: &ReducerContext, owner: Identity) {
         .owner()
         .filter(&owner)
         .collect::<Vec<_>>();
-    let buildings = ctx
-        .db
-        .building()
-        .owner()
-        .filter(&owner)
-        .collect::<Vec<_>>();
+    let buildings = ctx.db.building().owner().filter(&owner).collect::<Vec<_>>();
     let has_residences = ctx.db.residence().owner().filter(&owner).next().is_some();
     if settlements.is_empty() && buildings.is_empty() && !has_residences {
         return;
@@ -354,7 +373,9 @@ pub fn ensure_owner_settlements(ctx: &ReducerContext, owner: Identity) {
         let Ok(resources) = owner_resources(ctx, owner) else {
             return;
         };
-        let bootstrap = buildings.iter().find(|building| bootstrap_founding_camp(building));
+        let bootstrap = buildings
+            .iter()
+            .find(|building| bootstrap_founding_camp(building));
         let anchor = bootstrap
             .map(|camp| (camp.x, camp.z))
             .or_else(|| {
@@ -381,13 +402,12 @@ pub fn ensure_owner_settlements(ctx: &ReducerContext, owner: Identity) {
             .filter(|residence| !residence.abandoned)
             .map(|residence| residence.population)
             .sum();
-        let inferred_unhoused = if bootstrap.is_some()
-            && !resources.legacy_unhoused_population_bonus_enabled
-        {
-            STARTING_POPULATION.saturating_sub(housed)
-        } else {
-            0
-        };
+        let inferred_unhoused =
+            if bootstrap.is_some() && !resources.legacy_unhoused_population_bonus_enabled {
+                STARTING_POPULATION.saturating_sub(housed)
+            } else {
+                0
+            };
         let base = ctx.db.settlement().insert(settlement_row(
             ctx,
             &resources,
@@ -431,12 +451,7 @@ pub fn ensure_owner_settlements(ctx: &ReducerContext, owner: Identity) {
         if settlement.founding_camp_id == 0 {
             continue;
         }
-        if let Some(mut camp) = ctx
-            .db
-            .building()
-            .id()
-            .find(&settlement.founding_camp_id)
-        {
+        if let Some(mut camp) = ctx.db.building().id().find(&settlement.founding_camp_id) {
             if camp.settlement_id == 0 {
                 camp.settlement_id = settlement.id;
                 ctx.db.building().id().update(camp);
@@ -493,6 +508,21 @@ pub fn ensure_owner_settlements(ctx: &ReducerContext, owner: Identity) {
             ctx.db.residence().id().update(residence);
         }
     }
+
+    let completed_halls = ctx
+        .db
+        .building()
+        .owner()
+        .filter(&owner)
+        .filter(|building| {
+            building.kind == "town_hall"
+                && building.construction_complete
+                && building.settlement_id != 0
+        })
+        .collect::<Vec<_>>();
+    for hall in completed_halls {
+        link_completed_town_hall(ctx, &hall);
+    }
 }
 
 pub fn retire_founding_camp(ctx: &ReducerContext, settlement_id: u64, camp_id: u64) {
@@ -506,8 +536,60 @@ pub fn retire_founding_camp(ctx: &ReducerContext, settlement_id: u64, camp_id: u
     ctx.db.settlement().id().update(settlement);
 }
 
+/// Cancels an unfinished paid expedition without leaving a ghost community.
+/// Once any other row has joined it, cancellation is rejected rather than
+/// silently transferring sticky household membership.
+pub fn cancel_planned_settlement(
+    ctx: &ReducerContext,
+    owner: Identity,
+    settlement_id: u64,
+    camp_id: u64,
+    x: f64,
+    z: f64,
+) -> Result<Option<u64>, String> {
+    let settlement = ctx
+        .db
+        .settlement()
+        .id()
+        .find(&settlement_id)
+        .ok_or_else(|| "The planned community is unavailable.".to_string())?;
+    if settlement.owner != owner || settlement.active || settlement.founding_camp_id != camp_id {
+        return Err("An active Founders' Camp disbands only after its people are housed and its stock is moved.".to_string());
+    }
+    let has_other_buildings = ctx
+        .db
+        .building()
+        .settlement_id()
+        .filter(&settlement_id)
+        .any(|building| building.id != camp_id);
+    let has_homes = ctx
+        .db
+        .residence()
+        .settlement_id()
+        .filter(&settlement_id)
+        .next()
+        .is_some()
+        || ctx
+            .db
+            .burgage_zone()
+            .settlement_id()
+            .filter(&settlement_id)
+            .next()
+            .is_some();
+    if has_other_buildings || has_homes {
+        return Err(
+            "Remove this planned community's other buildings and homes before cancelling its expedition."
+                .to_string(),
+        );
+    }
+    ctx.db.settlement().id().delete(settlement_id);
+    Ok(settlement_for_position(ctx, owner, x, z))
+}
+
 pub fn link_completed_town_hall(ctx: &ReducerContext, building: &Building) {
-    if building.kind != "town_hall" || !building.construction_complete || building.settlement_id == 0
+    if building.kind != "town_hall"
+        || !building.construction_complete
+        || building.settlement_id == 0
     {
         return;
     }
@@ -518,12 +600,32 @@ pub fn link_completed_town_hall(ctx: &ReducerContext, building: &Building) {
     ctx.db.settlement().id().update(settlement);
 }
 
+pub fn unlink_town_hall(ctx: &ReducerContext, settlement_id: u64, building_id: u64) {
+    let Some(mut settlement) = ctx.db.settlement().id().find(&settlement_id) else {
+        return;
+    };
+    if settlement.town_hall_id != building_id {
+        return;
+    }
+    settlement.town_hall_id = 0;
+    ctx.db.settlement().id().update(settlement);
+}
+
 #[cfg(test)]
 mod tests {
-    use super::direct_distance;
+    use super::{direct_distance, travel_effort};
+    use crate::balance_generated::OFFROAD_DELIVERY_SPEED_MULTIPLIER;
 
     #[test]
     fn direct_distance_is_deterministic() {
         assert_eq!(direct_distance(0.0, 0.0, 3.0, 4.0), 5.0);
+    }
+
+    #[test]
+    fn open_ground_reach_uses_the_same_time_weight_as_local_logistics() {
+        assert_eq!(
+            travel_effort(None, 0.0, 0.0, 3.0, 4.0),
+            5.0 / OFFROAD_DELIVERY_SPEED_MULTIPLIER,
+        );
     }
 }

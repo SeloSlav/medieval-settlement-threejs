@@ -12,9 +12,9 @@ use crate::economy::{
     assign_building_labor, available_unreserved_building_ironwork,
     available_unreserved_building_roof_tiles, available_unreserved_building_stone,
     available_unreserved_building_timber, building_commodity_room, building_commodity_stock,
-    credit_treasury_gold, deposit_building_commodity, ensure_market_state, price_multiplier_for,
-    record_market_trade, spend_treasury_gold, trade_resource_for_commodity, treasury_gold,
-    withdraw_building_commodity, CommodityKind, MarketTradeDirection,
+    credit_treasury_gold_for_settlement, deposit_building_commodity, ensure_market_state,
+    price_multiplier_for, record_market_trade, spend_treasury_gold, trade_resource_for_commodity,
+    treasury_gold, withdraw_building_commodity, CommodityKind, MarketTradeDirection,
 };
 use crate::granary_policy::granary_exportable_grain;
 use crate::resource_units::{whole_cost, whole_signed_units, whole_units};
@@ -210,8 +210,17 @@ fn settle_export(
         return (0.0, 0.0);
     }
     let revenue = whole_units(sold * unit_price);
+    let settlement_id = post.settlement_id;
     ctx.db.building().id().update(post);
-    credit_treasury_gold(ctx, owner, revenue);
+    credit_treasury_gold_for_settlement(ctx, owner, settlement_id, revenue);
+    let duty = whole_cost(
+        revenue
+            * crate::fiscal_policy::clamp_export_duty_rate(
+                crate::settlement_policy::export_duty_rate(ctx, owner, settlement_id),
+            ),
+    )
+    .min(revenue);
+    record_customs_receipt(ctx, owner, settlement_id, 0.0, duty);
     record_market_trade(ctx, owner, resource, MarketTradeDirection::Export, sold);
     (sold, revenue)
 }
@@ -241,6 +250,7 @@ fn settle_import(
     let Some(mut post) = ctx.db.building().id().find(&post_id) else {
         return (0.0, 0.0);
     };
+    let settlement_id = post.settlement_id;
     if lot_amount <= 1e-9 {
         return (0.0, 0.0);
     }
@@ -267,16 +277,61 @@ fn settle_import(
     }
     let imported = deposit_building_commodity(&mut post, commodity, units);
     if imported <= 1e-6 {
-        credit_treasury_gold(ctx, owner, expense);
+        credit_treasury_gold_for_settlement(ctx, owner, settlement_id, expense);
         return (0.0, 0.0);
     }
     let actual_expense = whole_cost(imported * unit_price);
     if actual_expense + 1e-6 < expense {
-        credit_treasury_gold(ctx, owner, expense - actual_expense);
+        credit_treasury_gold_for_settlement(
+            ctx,
+            owner,
+            settlement_id,
+            expense - actual_expense,
+        );
     }
     ctx.db.building().id().update(post);
     record_market_trade(ctx, owner, resource, MarketTradeDirection::Import, imported);
+    let duty = whole_cost(
+        actual_expense
+            * crate::fiscal_policy::clamp_import_duty_rate(
+                crate::settlement_policy::import_duty_rate(ctx, owner, settlement_id),
+            ),
+    );
+    record_customs_receipt(ctx, owner, settlement_id, duty, 0.0);
     (imported, -actual_expense)
+}
+
+/// Customs on public Trading Post orders are a classification within the one
+/// realm treasury, not a second town wallet. The local and realm ledgers both
+/// record the same coins; no additional gold is created or destroyed.
+fn record_customs_receipt(
+    ctx: &ReducerContext,
+    owner: Identity,
+    settlement_id: u64,
+    import_duty: f64,
+    export_duty: f64,
+) {
+    let import_duty = whole_units(import_duty);
+    let export_duty = whole_units(export_duty);
+    if import_duty < 1.0 && export_duty < 1.0 {
+        return;
+    }
+    if let Some(mut resources) = ctx.db.player_resources().owner().find(&owner) {
+        resources.import_duty_collected_total =
+            whole_units(resources.import_duty_collected_total) + import_duty;
+        resources.export_duty_collected_total =
+            whole_units(resources.export_duty_collected_total) + export_duty;
+        ctx.db.player_resources().owner().update(resources);
+    }
+    if let Some(mut settlement) = ctx.db.settlement().id().find(&settlement_id) {
+        if settlement.owner == owner {
+            settlement.import_duty_collected_total =
+                whole_units(settlement.import_duty_collected_total) + import_duty;
+            settlement.export_duty_collected_total =
+                whole_units(settlement.export_duty_collected_total) + export_duty;
+            ctx.db.settlement().id().update(settlement);
+        }
+    }
 }
 
 fn current_price_multiplier(

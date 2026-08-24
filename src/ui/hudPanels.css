@@ -149,6 +149,30 @@
 .map-overlay-legend[data-overlay='wind'] .crop-suitability-scale__good { background: rgb(80, 163, 165); }
 .map-overlay-legend[data-overlay='wind'] .crop-suitability-scale__prime { background: rgb(215, 224, 177); }
 
+.map-overlay-legend[data-overlay='communities'] .crop-suitability-scale { display: none; }
+.map-overlay-legend[data-overlay='communities'] .crop-suitability-labels {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  gap: 6px;
+}
+.community-legend-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 7px;
+  border: 1px solid rgba(238, 232, 220, 0.13);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.035);
+}
+.community-legend-chip i {
+  width: 9px;
+  height: 9px;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  border-radius: 50%;
+  background: var(--community-color);
+}
+
 html[data-camera-view='illustrated-map'] .map-overlay-legend {
   display: none !important;
 }

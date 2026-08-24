@@ -56,6 +56,7 @@ export class SpacetimeSnapshotApplier {
     combatAgents: Iterable<CombatAgentState> = [],
   ): void {
     const buildingsChanged = !previous || state.buildings !== previous.buildings;
+    const settlementsChanged = !previous || state.settlements !== previous.settlements;
     const issuedGuardPolearms = issuedGuardPolearmsByCompany(
       combatAgents,
       this.issuedGuardPolearms,
@@ -76,6 +77,13 @@ export class SpacetimeSnapshotApplier {
     const livestockHerdsChanged = !previous
       || state.livestockHerds !== previous.livestockHerds;
     const residencesChanged = !previous || state.residences !== previous.residences;
+    if (settlementsChanged || buildingsChanged || residencesChanged) {
+      deps.sceneManager?.syncCommunityReach(
+        state.settlements,
+        state.buildings,
+        state.residences,
+      );
+    }
     const fireIncidentsChanged = !previous || !mapEntriesShareValues(
       state.fireIncidents,
       previous.fireIncidents,

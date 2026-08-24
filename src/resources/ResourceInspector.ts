@@ -98,16 +98,16 @@ type ResourceInspectorOptions = {
   terrainProjector: TerrainProjector;
   worldQueries: WorldQueries;
   getState: () => GameState;
-  getEconomicActivityTaxRate?: () => number;
-  getPantrySafeguardPolicy?: () => PantrySafeguardPolicyCode;
-  getFiscalPolicy?: () => FiscalPolicyState;
-  getSeasonalLaborStewardEnabled?: () => boolean;
-  getConstructionLaborStewardEnabled?: () => boolean;
-  getProductionLaborStewardEnabled?: () => boolean;
-  getLaborStewardReserve?: () => number;
+  getEconomicActivityTaxRate?: (settlementId?: string) => number;
+  getPantrySafeguardPolicy?: (settlementId?: string) => PantrySafeguardPolicyCode;
+  getFiscalPolicy?: (settlementId?: string) => FiscalPolicyState;
+  getSeasonalLaborStewardEnabled?: (settlementId?: string) => boolean;
+  getConstructionLaborStewardEnabled?: (settlementId?: string) => boolean;
+  getProductionLaborStewardEnabled?: (settlementId?: string) => boolean;
+  getLaborStewardReserve?: (settlementId?: string) => number;
   getParishPolicy?: () => ParishPolicyState;
   getMonasteryPolicy?: () => MonasteryPolicyState;
-  getNightPolicy?: () => NightPolicyState;
+  getNightPolicy?: (settlementId?: string) => NightPolicyState;
   getMarketState?: () => RegionalMarketState;
   getSettlementSecurity?: () => SettlementSecurityState;
   getCombatAgents?: () => Iterable<CombatAgentState>;
@@ -139,12 +139,12 @@ type ResourceInspectorOptions = {
   onUpgradeFlowerGardenLuxury?: (residenceId: string) => void | Promise<void>;
   onDemolishBackyardGarden?: (residenceId: string) => void | Promise<void>;
   onAssignBuildingLabor?: (buildingId: string, labor: number) => void | Promise<void>;
-  onRotateConstructionLabor?: () => void | Promise<void>;
-  onRecallIdleSeasonalLabor?: () => void | Promise<void>;
-  onCallUpActiveSeasonalLabor?: () => void | Promise<void>;
-  onRecallTargetIdleProcessorLabor?: () => void | Promise<void>;
-  onCallUpTargetReadyProcessorLabor?: () => void | Promise<void>;
-  onBalanceYearRoundLabor?: () => void | Promise<void>;
+  onRotateConstructionLabor?: (townHallId: string) => void | Promise<void>;
+  onRecallIdleSeasonalLabor?: (townHallId: string) => void | Promise<void>;
+  onCallUpActiveSeasonalLabor?: (townHallId: string) => void | Promise<void>;
+  onRecallTargetIdleProcessorLabor?: (townHallId: string) => void | Promise<void>;
+  onCallUpTargetReadyProcessorLabor?: (townHallId: string) => void | Promise<void>;
+  onBalanceYearRoundLabor?: (townHallId: string) => void | Promise<void>;
   onSetConstructionPriority?: (buildingId: string, priority: number) => void | Promise<void>;
   onSetTradingPostTradeRule?: (
     buildingId: string,
@@ -153,22 +153,27 @@ type ResourceInspectorOptions = {
     targetSurplus: number,
   ) => void | Promise<void>;
   onUpgradeChapel?: (buildingId: string) => void | Promise<void>;
-  onSetEconomicActivityTaxRate?: (taxRate: number) => void | Promise<void>;
-  onSetPantrySafeguardPolicy?: (policy: PantrySafeguardPolicyCode) => void | Promise<void>;
+  onSetEconomicActivityTaxRate?: (townHallId: string, taxRate: number) => void | Promise<void>;
+  onSetPantrySafeguardPolicy?: (
+    townHallId: string,
+    policy: PantrySafeguardPolicyCode,
+  ) => void | Promise<void>;
   onSetFiscalPolicy?: (
+    townHallId: string,
     landLevyRate: number,
     importDutyRate: number,
     exportDutyRate: number,
   ) => void | Promise<void>;
-  onSetSeasonalLaborSteward?: (enabled: boolean) => void | Promise<void>;
-  onSetConstructionLaborSteward?: (enabled: boolean) => void | Promise<void>;
-  onSetProductionLaborSteward?: (enabled: boolean) => void | Promise<void>;
-  onSetLaborStewardReserve?: (laborReserve: number) => void | Promise<void>;
+  onSetSeasonalLaborSteward?: (townHallId: string, enabled: boolean) => void | Promise<void>;
+  onSetConstructionLaborSteward?: (townHallId: string, enabled: boolean) => void | Promise<void>;
+  onSetProductionLaborSteward?: (townHallId: string, enabled: boolean) => void | Promise<void>;
+  onSetLaborStewardReserve?: (townHallId: string, laborReserve: number) => void | Promise<void>;
   onSetChapelParishPolicy?: (sabbathObservanceEnabled: boolean) => void | Promise<void>;
   onSetMonasteryPolicy?: (titheShare: number, feastsEnabled: boolean) => void | Promise<void>;
   onSetMonasteryCharter?: (levyRate: number) => void | Promise<void>;
   onSetMonasteryNextExtension?: (buildingId: string, extension: number) => void | Promise<void>;
   onSetNightPolicies?: (
+    townHallId: string,
     watch: NightPolicyCode,
     gathering: NightPolicyCode,
     work: NightPolicyCode,
@@ -683,16 +688,16 @@ export class ResourceInspector {
     this.resourceTotalsModeButton.setAttribute(
       'aria-label',
       showingTotal
-        ? 'Showing total goods stored. Show surplus goods.'
-        : 'Showing surplus goods. Show total goods stored.',
+        ? 'Showing total realm holdings. Show realm surplus goods.'
+        : 'Showing realm-wide surplus goods. Show total realm holdings.',
     );
     this.resourceTotalsModeButton.dataset.tooltip = showingTotal
-      ? 'All stored goods, including goods committed to active construction and home projects. Activate to show surplus goods.'
-      : 'Stored goods available for use after active construction and home-project commitments are deducted. Activate to show total goods.';
+      ? 'All physical goods across every community, including goods committed to active construction and home projects. Activate to show realm surplus.'
+      : 'Goods available across every community after active construction and home-project commitments are deducted. Activate to show all realm holdings.';
     this.resourceTotalsModeButton.dataset.tooltipTitle = showingTotal
-      ? 'Total goods'
-      : 'Surplus goods (default)';
-    this.resourceTotalsModeLabel.textContent = showingTotal ? 'Total' : 'Surplus';
+      ? 'Total realm holdings'
+      : 'Realm surplus (default)';
+    this.resourceTotalsModeLabel.textContent = showingTotal ? 'Realm · Total' : 'Realm · Surplus';
     const panelModeLabel = showingTotal ? 'Total stored' : 'Available surplus';
     this.foodStoresModeLabel.textContent = panelModeLabel;
     this.fuelStoresModeLabel.textContent = panelModeLabel;

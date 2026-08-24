@@ -251,13 +251,13 @@ const SETTLEMENT_HUD_HTML = `
       class="settlement-hud__totals-mode"
       data-resource-totals-mode
       data-mode="surplus"
-      data-tooltip-title="Surplus goods (default)"
-      data-tooltip="Stored goods available for use after active construction and home-project commitments are deducted. Activate to show total goods."
-      aria-label="Showing surplus goods. Show total goods stored."
+      data-tooltip-title="Realm surplus (default)"
+      data-tooltip="Available goods across every community after active construction and home-project commitments. Activate to show all realm holdings."
+      aria-label="Showing realm-wide surplus goods. Show total realm holdings."
       aria-pressed="false"
     >
       <span class="settlement-hud__totals-mode-icon" aria-hidden="true">⇄</span>
-      <span class="settlement-hud__totals-mode-label" data-resource-totals-mode-label>Surplus</span>
+      <span class="settlement-hud__totals-mode-label" data-resource-totals-mode-label>Realm · Surplus</span>
     </button>
     <div class="settlement-hud__body">
       <div class="settlement-hud__stat" tabindex="0" data-resource="labor" data-tooltip-title="Workers free to assign" data-tooltip="People currently available for a new work assignment.">
@@ -265,7 +265,7 @@ const SETTLEMENT_HUD_HTML = `
         <strong class="settlement-hud__value" data-stockpile="labor">0</strong>
         <span class="settlement-hud__sub" data-stockpile="labor-sub">available</span>
       </div>
-      <div class="settlement-hud__stat" tabindex="0" data-resource="population" data-tooltip-title="Total population" data-tooltip="All townsfolk currently living in the settlement.">
+      <div class="settlement-hud__stat" tabindex="0" data-resource="population" data-tooltip-title="Total population" data-tooltip="All townsfolk across every community in the realm.">
         <span class="settlement-hud__label">Population</span>
         <strong class="settlement-hud__value" data-stockpile="population">0</strong>
       </div>
@@ -1014,7 +1014,7 @@ export class SettlementHud {
     );
     this.goldStat.dataset.tooltip = provisioning.armedGuards > 0
       ? `Guard wages cost ${provisioning.guardWagePerDay.toFixed(1)} gold per day; current funds cover ${formatProvisionRunway(provisioning.guardWageRunwayDays)}.`
-      : 'Spendable gold in settlement lockboxes and the Town Hall treasury.';
+      : 'Spendable gold across every community lockbox and Town Hall treasury.';
   }
 
   private setSupplyRunway(

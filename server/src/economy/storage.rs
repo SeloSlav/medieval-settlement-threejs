@@ -408,6 +408,35 @@ pub fn credit_treasury_gold(ctx: &ReducerContext, owner: spacetimedb::Identity, 
     }
 }
 
+/// Credits coin to the local civic seat when an earning has a physical town
+/// of origin. The treasury remains realm-wide: spending may still draw from
+/// every seat, and the global Total/Surplus ledger sums them all.
+pub fn credit_treasury_gold_for_settlement(
+    ctx: &ReducerContext,
+    owner: spacetimedb::Identity,
+    settlement_id: u64,
+    amount: f64,
+) {
+    let amount = whole_units(amount);
+    if amount < 1.0 {
+        return;
+    }
+    let physical = ctx
+        .db
+        .player_resources()
+        .owner()
+        .find(&owner)
+        .is_some_and(|resources| resources.physical_founding_site_enabled);
+    if physical {
+        if let Some(mut seat) = physical_treasury_seat_for_settlement(ctx, owner, settlement_id) {
+            seat.gold = whole_units(seat.gold) + amount;
+            ctx.db.building().id().update(seat);
+            return;
+        }
+    }
+    credit_treasury_gold(ctx, owner, amount);
+}
+
 /// Return coin that was withdrawn for a payment but could not be accepted by
 /// its recipient. This is a refund to the original public purse, not income.
 pub fn restore_treasury_gold(ctx: &ReducerContext, owner: spacetimedb::Identity, amount: f64) {
@@ -526,6 +555,31 @@ pub(crate) fn physical_treasury_seat(
                     "founders_camp" => 1,
                     _ => 2,
                 },
+                building.id,
+            )
+        })
+}
+
+pub(crate) fn physical_treasury_seat_for_settlement(
+    ctx: &ReducerContext,
+    owner: spacetimedb::Identity,
+    settlement_id: u64,
+) -> Option<Building> {
+    if settlement_id == 0 {
+        return physical_treasury_seat(ctx, owner);
+    }
+    ctx.db
+        .building()
+        .owner()
+        .filter(&owner)
+        .filter(|building| {
+            building.settlement_id == settlement_id
+                && building.construction_complete
+                && matches!(building.kind.as_str(), "founders_camp" | "town_hall")
+        })
+        .min_by_key(|building| {
+            (
+                if building.kind == "town_hall" { 0_u8 } else { 1_u8 },
                 building.id,
             )
         })

@@ -1,8 +1,9 @@
-import type { BuildingState, ResidenceState } from '../resources/types.ts';
+import type { BuildingState, ResidenceState, SettlementState } from '../resources/types.ts';
 
 export type SettlementMapMarkerTier = 'founders' | 'hamlet' | 'village' | 'town';
 
 export type SettlementMapMarker = {
+  settlementId?: string;
   x: number;
   z: number;
   tier: SettlementMapMarkerTier;
@@ -11,7 +12,15 @@ export type SettlementMapMarker = {
   population: number;
 };
 
-type SettlementResidence = Pick<ResidenceState, 'id' | 'x' | 'z' | 'tier' | 'population'>;
+export type PersistentSettlementMapMarker = SettlementMapMarker & {
+  settlementId: string;
+  name: string;
+};
+
+type SettlementResidence = Pick<
+  ResidenceState,
+  'id' | 'settlementId' | 'x' | 'z' | 'tier' | 'population'
+>;
 type SettlementBuilding = Pick<
   BuildingState,
   'id' | 'kind' | 'x' | 'z' | 'constructionComplete'
@@ -21,6 +30,68 @@ export type SettlementMapMarkerInput = {
   residences: Iterable<SettlementResidence>;
   buildings: Iterable<SettlementBuilding>;
 };
+
+export type PersistentSettlementMapMarkerInput = SettlementMapMarkerInput & {
+  settlements: Iterable<SettlementState>;
+};
+
+/** One stable emblem per authoritative community; camps may disappear, towns do not. */
+export function deriveSettlementMapMarkers(
+  input: PersistentSettlementMapMarkerInput,
+): PersistentSettlementMapMarker[] {
+  const residences = [...input.residences];
+  const buildings = [...input.buildings];
+  return [...input.settlements]
+    .filter((settlement) => settlement.active)
+    .sort((a, b) => a.id.localeCompare(b.id))
+    .map((settlement) => {
+      const memberHomes = residences.filter((residence) =>
+        residence.settlementId === settlement.id && residence.tier > 0);
+      const population = memberHomes.reduce(
+        (sum, residence) => sum + Math.max(0, residence.population),
+        0,
+      );
+      const tier = memberHomes.length === 0
+        ? 'founders'
+        : settlementTier(memberHomes.length, population);
+      const memberCenter = weightedMemberCenter(memberHomes);
+      const camp = settlement.foundingCampId
+        ? buildings.find((building) => building.id === settlement.foundingCampId)
+        : undefined;
+      const x = memberCenter?.x ?? camp?.x ?? settlement.anchorX;
+      const z = memberCenter?.z ?? camp?.z ?? settlement.anchorZ;
+      const homeLabel = memberHomes.length === 1 ? 'home' : 'homes';
+      const residentLabel = population === 1 ? 'resident' : 'residents';
+      return {
+        settlementId: settlement.id,
+        name: settlement.name,
+        x,
+        z,
+        tier,
+        label: tier === 'founders'
+          ? `${settlement.name} · founding community · ${settlement.unhousedFounders} at camp`
+          : `${settlement.name} · ${memberHomes.length} ${homeLabel} · ${population} ${residentLabel}`,
+        residenceCount: memberHomes.length,
+        population,
+      };
+    });
+}
+
+function weightedMemberCenter(
+  residences: readonly SettlementResidence[],
+): { x: number; z: number } | null {
+  if (residences.length === 0) return null;
+  let x = 0;
+  let z = 0;
+  let weight = 0;
+  for (const residence of residences) {
+    const residenceWeight = 1 + residence.tier * 0.38 + Math.max(0, residence.population) * 0.11;
+    x += residence.x * residenceWeight;
+    z += residence.z * residenceWeight;
+    weight += residenceWeight;
+  }
+  return { x: x / weight, z: z / weight };
+}
 
 /** Nearby completed homes belong to one readable residential settlement. */
 export const SETTLEMENT_RESIDENCE_LINK_RADIUS = 115;

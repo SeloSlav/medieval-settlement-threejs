@@ -41,6 +41,11 @@ import { resolveGameSpeedHotkey, type GameSpeed } from '../world/gameSpeed.ts';
 import type { WorldMapSize } from '../world/worldGenerationSettings.ts';
 import { cropDefinition, cropLabel } from '../farming/farmFieldMath.ts';
 import type { ResourceCostAmounts } from './resourceCost.ts';
+import type { SettlementState } from '../resources/types.ts';
+import {
+  COMMUNITY_REACH_PALETTE,
+  stableCommunityPaletteIndex,
+} from '../settlement/CommunityReachRaster.ts';
 
 export type { ToolbarStats };
 
@@ -51,6 +56,12 @@ const BUILD_MENU_ACTION_CATEGORY = new Map(
 
 function renderBuildMenuCategoryIcon(category: BuildMenuCategoryId): string {
   return `<span class="build-menu-category__icon" data-build-category-icon="${category}" aria-hidden="true"></span>`;
+}
+
+function escapeToolbarHtml(value: string): string {
+  return value.replace(/[&<>'"]/g, (character) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;',
+  })[character] ?? character);
 }
 
 type DeletePopupOptions = {
@@ -98,6 +109,8 @@ export class BuildToolbar {
   private readonly cropSuitabilitySubtitle: HTMLElement;
   private readonly cropSuitabilityLabels: HTMLElement;
   private readonly cropSuitabilityDescription: HTMLElement;
+  private communityLegendEntries: Array<{ id: string; name: string; color: string }> = [];
+  private communityLegendSignature = '';
   private readonly builderStatusBar: HTMLElement;
   private readonly buildMenuScrollCleanups: Array<() => void> = [];
   private readonly root: HTMLElement;
@@ -272,7 +285,7 @@ export class BuildToolbar {
             <strong data-crop-suitability-title>Crop suitability</strong>
             <span data-map-overlay-subtitle>first-crop site potential</span>
           </header>
-          <div class="crop-suitability-scale" aria-hidden="true">
+          <div class="crop-suitability-scale" data-map-overlay-scale aria-hidden="true">
             <span class="crop-suitability-scale__poor"></span>
             <span class="crop-suitability-scale__marginal"></span>
             <span class="crop-suitability-scale__good"></span>
@@ -329,6 +342,10 @@ export class BuildToolbar {
             <button type="button" class="map-overlay-option" data-overlay-mode="fertility" aria-pressed="false">
               <span class="map-overlay-option__icon" data-map-overlay-icon="fertility" aria-hidden="true"></span>
               <span><strong>Fertility</strong><small>Soil &amp; crop provinces</small></span>
+            </button>
+            <button type="button" class="map-overlay-option" data-overlay-mode="communities" aria-pressed="false">
+              <span class="map-overlay-option__icon" data-map-overlay-icon="communities" aria-hidden="true"></span>
+              <span><strong>Communities</strong><small>Porous local reach</small></span>
             </button>
           </div>
           <div class="map-overlay-crops" data-overlay-crop-picker hidden aria-label="Fertility crop">
@@ -553,6 +570,25 @@ export class BuildToolbar {
     this.applyMapOverlaySelection(selection, false);
   }
 
+  setCommunitySettlements(settlements: Iterable<SettlementState>): void {
+    const entries = [...settlements]
+      .filter((settlement) => settlement.active)
+      .sort((a, b) => a.id.localeCompare(b.id))
+      .map((settlement) => {
+        const color = COMMUNITY_REACH_PALETTE[stableCommunityPaletteIndex(settlement.id)];
+        return {
+          id: settlement.id,
+          name: settlement.name,
+          color: `rgb(${color[0]}, ${color[1]}, ${color[2]})`,
+        };
+      });
+    const signature = entries.map((entry) => `${entry.id}:${entry.name}:${entry.color}`).join('|');
+    if (signature === this.communityLegendSignature) return;
+    this.communityLegendSignature = signature;
+    this.communityLegendEntries = entries;
+    this.syncMapOverlayLegend();
+  }
+
   setGameplayEnabled(enabled: boolean): void {
     if (this.gameplayEnabled === enabled) return;
     this.gameplayEnabled = enabled;
@@ -618,6 +654,19 @@ export class BuildToolbar {
       this.cropSuitabilityLabels.innerHTML = '<span>Poor</span><span>Marginal</span><span>Good</span><span>Prime</span>';
       this.cropSuitabilityDescription.textContent = 'Grapes favor sunny, well-drained slopes with lighter, reasonably deep soil. Wet flat frost pockets and heavy ground reduce real grape and wine output.';
       this.cropSuitabilityLegend.dataset.overlay = 'fertility';
+      return;
+    }
+    if (!this.cropSuitabilityActive && selection.mode === 'communities') {
+      this.cropSuitabilityTitle.textContent = 'Community reach';
+      this.cropSuitabilitySubtitle.textContent = 'local identity, porous borders';
+      this.cropSuitabilityLabels.innerHTML = this.communityLegendEntries.length > 0
+        ? this.communityLegendEntries.map((entry) => (
+            `<span class="community-legend-chip" data-settlement-id="${escapeToolbarHtml(entry.id)}">`
+            + `<i style="--community-color:${entry.color}"></i>${escapeToolbarHtml(entry.name)}</span>`
+          )).join('')
+        : '<span>Found a community to establish local reach</span>';
+      this.cropSuitabilityDescription.textContent = 'Homes and civic anchors shape these administrative communities. Workers, carts, roads, goods, and the realm ledger may cross every boundary.';
+      this.cropSuitabilityLegend.dataset.overlay = 'communities';
       return;
     }
     if (this.cropSuitabilityActive || selection.mode === 'fertility') {

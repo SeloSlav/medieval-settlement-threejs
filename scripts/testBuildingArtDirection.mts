@@ -501,6 +501,28 @@ for (const kind of BUILDING_KINDS) {
     if (!hasContinuousFoundation) {
       throw new Error('Granary must have a continuous ground-contact foundation.');
     }
+
+    const roofSilo = groundedStore.getObjectByName('Granary roof grain silo');
+    const siloBody = groundedStore.getObjectByName('Granary roof silo body');
+    const siloCap = groundedStore.getObjectByName('Granary roof silo shingle cap');
+    if (
+      !(roofSilo instanceof THREE.Group)
+      || roofSilo.userData.architectureRole !== 'roof-grain-silo'
+      || !(siloBody instanceof THREE.Mesh)
+      || !(siloCap instanceof THREE.Mesh)
+    ) {
+      throw new Error('Granary must expose its authored roof-breaking grain-silo mass.');
+    }
+    const siloBodyBounds = new THREE.Box3().setFromObject(siloBody);
+    const siloBounds = new THREE.Box3().setFromObject(roofSilo);
+    if (
+      siloBodyBounds.min.y > 4.2
+      || siloBodyBounds.max.y < 7.2
+      || siloBounds.max.y < 8.8
+      || Math.abs(roofSilo.position.x) < 1.2
+    ) {
+      throw new Error('Granary roof silo must intersect the roof and hold an offset skyline silhouette.');
+    }
   }
   if (kind === 'chapel') churchHeight = size.y;
 }

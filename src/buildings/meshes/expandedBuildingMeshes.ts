@@ -900,14 +900,25 @@ function addGranaryRoofSilo(group: THREE.Group): void {
     post.name = 'Granary roof silo corner stave';
   }
 
+  const ventY = plan.bodyBaseY + plan.bodyHeight * 0.62;
+  const ventZ = plan.bodyRadiusTop + 0.08;
   addDarkOpening(
     silo,
     0,
-    plan.bodyBaseY + plan.bodyHeight * 0.62,
-    plan.bodyRadiusTop + 0.08,
+    ventY,
+    ventZ,
     0.62,
     0.78,
   );
+  for (const yOffset of [-0.22, 0, 0.22]) {
+    const slat = addMesh(
+      silo,
+      new THREE.BoxGeometry(0.54, 0.055, 0.08),
+      timberMaterial('dark'),
+      new THREE.Vector3(0, ventY + yOffset, ventZ + 0.15),
+    );
+    slat.name = 'Granary roof silo vent louver';
+  }
 
   const cap = addMesh(
     silo,

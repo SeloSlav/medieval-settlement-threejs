@@ -1400,7 +1400,11 @@ pub fn deposit_residence_commodity(
 
 #[cfg(test)]
 mod tests {
-    use super::{food_category, food_category_qualifying_stock, CommodityKind, FoodCategory};
+    use std::collections::HashSet;
+
+    use super::{
+        food_category, food_category_qualifying_stock, CommodityKind, FoodCategory, ALL_COMMODITIES,
+    };
 
     #[test]
     fn commodity_ids_remain_stable_and_round_trip() {
@@ -1410,6 +1414,19 @@ mod tests {
             assert_eq!(commodity.as_u8(), id);
         }
         assert_eq!(CommodityKind::from_u8(63), None);
+    }
+
+    #[test]
+    fn all_commodities_is_exhaustive_and_unique() {
+        let ids = ALL_COMMODITIES
+            .iter()
+            .copied()
+            .map(CommodityKind::as_u8)
+            .collect::<HashSet<_>>();
+        assert_eq!(ids.len(), 63);
+        for id in 0_u8..=62 {
+            assert!(ids.contains(&id), "ALL_COMMODITIES omits commodity id {id}");
+        }
     }
 
     #[test]

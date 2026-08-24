@@ -982,13 +982,27 @@ export async function bootstrapAppSession(
       bridge.syncToolbar();
     },
     onToggleCityAdministration: () => {
-      const townHall = [...liveContext.gameState.buildings.values()]
-        .find((building) => building.kind === 'town_hall');
-      if (!townHall) {
-        toastManager?.show('Build a Town Hall to open settlement administration.', { variant: 'info' });
+      const communities = [...liveContext.gameState.settlements.values()]
+        .filter((settlement) => settlement.active);
+      if (communities.length > 0) {
+        const focus = cameraController.getTargetPosition();
+        communities.sort((a, b) => (
+          Math.hypot(a.anchorX - focus.x, a.anchorZ - focus.z)
+          - Math.hypot(b.anchorX - focus.x, b.anchorZ - focus.z)
+          || a.id.localeCompare(b.id)
+        ));
+        resourceInspector.clearSelection();
+        villagerInspector.clearSelection();
+        worldMapUi.townReport.open(communities[0].id);
         return;
       }
-      resourceInspector.selectBuilding(townHall.id);
+      const legacyTownHall = [...liveContext.gameState.buildings.values()]
+        .find((building) => building.kind === 'town_hall');
+      if (legacyTownHall) {
+        resourceInspector.selectBuilding(legacyTownHall.id);
+      } else {
+        toastManager?.show('Found a community to open local administration.', { variant: 'info' });
+      }
     },
     onBurgagePlotDecrease: () => {
       burgageTool.adjustPlotCount(-1);
@@ -1212,6 +1226,7 @@ export async function bootstrapAppSession(
     },
     onSelectionChange: (target) => {
       if (target) villagerInspector.clearSelection();
+      if (target) worldMapUi.townReport.close();
       toolbar.setCityAdministrationOpen(target?.kind === 'building' && target.building.kind === 'town_hall');
       if (target?.kind === 'building') {
         tutorialOverlay.notifyBuildingSelected(target.building.kind);
@@ -1534,6 +1549,23 @@ export async function bootstrapAppSession(
     onQuarrySelect: (quarryId) => resourceInspector.selectQuarry(quarryId),
     onForagingSelect: (nodeId) => resourceInspector.selectForaging(nodeId),
     onClaySelect: (nodeId) => resourceInspector.selectQuarry(nodeId),
+    onSettlementSelect: (settlementId) => {
+      resourceInspector.clearSelection();
+      villagerInspector.clearSelection();
+      buildingMarkers.setBuildingSelectionOverlays(null);
+      const settlement = liveContext.gameState.settlements.get(settlementId);
+      if (settlement && !firstPersonController.isActive()) {
+        cameraController.focusWorldPositionAtZoom(settlement.anchorX, settlement.anchorZ, 25);
+      }
+    },
+    onSettlementFocus: (x, z) => {
+      if (!firstPersonController.isActive()) cameraController.focusWorldPositionAtZoom(x, z, 25);
+    },
+    onTownHallSelect: (buildingId) => {
+      worldMapUi.townReport.close();
+      villagerInspector.clearSelection();
+      resourceInspector.selectBuilding(buildingId);
+    },
   });
   worldMapUi.minimap.syncBuildings(buildBuildingWorldMapMarkers(liveContext.gameState.buildings.values()));
 

@@ -13,7 +13,8 @@ use crate::db::*;
 use crate::economy::{
     building_commodity_room, building_commodity_stock, building_edible_food_stock,
     building_preserved_food_stock, mark_local_civic_receipts_dispatched,
-    marketplace_proceeds_cart_load, physical_treasury_seat, private_export_proceeds, CommodityKind,
+    marketplace_proceeds_cart_load, physical_treasury_seat_for_settlement,
+    private_export_proceeds, CommodityKind,
 };
 use crate::resource_units::whole_units;
 use crate::season_policy::EnvironmentState;
@@ -560,7 +561,11 @@ fn try_dispatch_marketplace_proceeds(
     if load < 1.0 {
         return false;
     }
-    let Some(target) = physical_treasury_seat(ctx, marketplace.owner) else {
+    let Some(target) = physical_treasury_seat_for_settlement(
+        ctx,
+        marketplace.owner,
+        marketplace.settlement_id,
+    ) else {
         return false;
     };
     if target.id == marketplace.id {

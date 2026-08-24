@@ -1062,6 +1062,7 @@ export class App {
 
     const previous = this.gameState;
     this.gameState = state;
+    this.toolbar?.setCommunitySettlements(state.settlements.values());
     const nextCombatInspectorSignature = combatInspectorSignature(
       snapshot.combatAgents.values(),
       snapshot.simTick,

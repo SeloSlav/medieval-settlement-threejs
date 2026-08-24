@@ -169,6 +169,15 @@ fn recall_idle_seasonal_labor_for_scope(
     recalled
 }
 
+pub fn recall_idle_seasonal_labor_for_settlement(
+    ctx: &ReducerContext,
+    owner: Identity,
+    settlement_id: u64,
+    month: u32,
+) -> u32 {
+    recall_idle_seasonal_labor_for_scope(ctx, owner, Some(settlement_id), month)
+}
+
 /// Fills active seasonal sites from the free labor pool. Existing staffing
 /// priorities and round-robin sharing remain authoritative.
 pub fn call_up_active_seasonal_labor_for_owner(
@@ -258,6 +267,15 @@ fn call_up_active_seasonal_labor_for_scope(
         ctx.db.building().id().update(building);
     }
     called_up
+}
+
+pub fn call_up_active_seasonal_labor_for_settlement(
+    ctx: &ReducerContext,
+    owner: Identity,
+    settlement_id: u64,
+    month: u32,
+) -> u32 {
+    call_up_active_seasonal_labor_for_scope(ctx, owner, Some(settlement_id), month, 0)
 }
 
 /// Ordering matters: dormant crews return first, then the same day's active

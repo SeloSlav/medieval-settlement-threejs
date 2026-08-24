@@ -48,6 +48,7 @@ assert.match(
 const foundingSite = source('server/src/simulation/founding_site.rs');
 const population = source('server/src/economy/population.rs');
 const residenceSettlement = source('server/src/simulation/residence_settlement.rs');
+const settlementAuthority = source('server/src/settlements.rs');
 assert.match(
   foundingSite,
   /settlement_id|founding_camp_id/,
@@ -75,8 +76,13 @@ assert.match(
 );
 assert.match(
   residenceSettlement,
-  /settlement_id[\s\S]*unhoused_founders/,
+  /take_unhoused_founder\(ctx, residence\.settlement_id\)/,
   'a home must consume founders only from its own community before attracting a new migrant',
+);
+assert.match(
+  settlementAuthority,
+  /fn take_unhoused_founder[\s\S]{0,900}settlement\.unhoused_founders -= 1/,
+  'the same-community founder claim must atomically reduce that cohort',
 );
 
 const buildingReducer = source('server/src/reducers/buildings.rs');
@@ -87,25 +93,36 @@ assert.match(
 );
 assert.match(
   buildingReducer,
-  /building\.kind == "town_hall"[\s\S]{0,260}building\.settlement_id/,
+  /if kind == "town_hall"[\s\S]{0,1600}building\.settlement_id == settlement_id/,
   'Town Hall uniqueness must be scoped to one community rather than the whole owner',
 );
 
 const villageAdmin = source('server/src/reducers/village_admin.rs');
-for (const reducer of [
-  'set_night_policies',
-  'set_economic_activity_tax_rate',
-  'set_pantry_safeguard_policy',
-  'set_fiscal_policy',
-  'set_seasonal_labor_steward',
-  'set_construction_labor_steward',
-  'set_production_labor_steward',
-  'set_labor_steward_reserve',
+const clientReducers = source('src/data/spacetimeReducers.ts');
+for (const [reducer, clientReducer] of [
+  ['set_night_policies', 'setNightPolicies'],
+  ['set_economic_activity_tax_rate', 'setEconomicActivityTaxRate'],
+  ['set_pantry_safeguard_policy', 'setPantrySafeguardPolicy'],
+  ['set_fiscal_policy', 'setFiscalPolicy'],
+  ['set_seasonal_labor_steward', 'setSeasonalLaborSteward'],
+  ['set_construction_labor_steward', 'setConstructionLaborSteward'],
+  ['set_production_labor_steward', 'setProductionLaborSteward'],
+  ['set_labor_steward_reserve', 'setLaborStewardReserve'],
 ] as const) {
   assert.match(
     villageAdmin,
     new RegExp(`pub fn ${reducer}\\([\\s\\S]{0,260}(town_hall_id|settlement_id)`),
     `${reducer} must identify the selected local administration`,
+  );
+  assert.match(
+    source(`src/generated/${reducer}_reducer.ts`),
+    /townHallId:\s*__t\.u64\(\)/,
+    `${reducer} generated binding must carry the exact Hall id`,
+  );
+  assert.match(
+    clientReducers,
+    new RegExp(`function ${clientReducer}\\([\\s\\S]{0,140}townHallId: string[\\s\\S]{0,900}townHallId: serverId`),
+    `${clientReducer} must parse and transmit the exact Hall id`,
   );
 }
 assert.match(
@@ -113,6 +130,51 @@ assert.match(
   /ctx\.db\.settlement\(\)/,
   'Town Hall policy changes must update community policy rather than only PlayerResources',
 );
+
+const gameStore = source('src/data/spacetimeGameStore.ts');
+const resourceInspector = source('src/resources/ResourceInspector.ts');
+const inspectorActions = source('src/app/inspectorSpacetimeActions.ts');
+const exactHallLaborReducers = [
+  ['rotate_construction_labor', 'rotateConstructionLabor', 'rotateConstructionLabor'],
+  ['recall_idle_seasonal_labor', 'recallIdleSeasonalLabor', 'recallIdleSeasonalLabor'],
+  ['call_up_active_seasonal_labor', 'callUpActiveSeasonalLabor', 'callUpActiveSeasonalLabor'],
+  ['recall_target_idle_processor_labor', 'recallTargetIdleProcessorLabor', 'recallTargetIdleProcessorLabor'],
+  ['call_up_target_ready_processor_labor', 'callUpTargetReadyProcessorLabor', 'callUpTargetReadyProcessorLabor'],
+  ['call_up_year_round_labor', 'callUpYearRoundLabor', 'balanceYearRoundLabor'],
+] as const;
+for (const [serverName, reducerName, actionName] of exactHallLaborReducers) {
+  assert.match(
+    buildingReducer,
+    new RegExp(`pub fn ${serverName}\\([\\s\\S]{0,180}town_hall_id: u64`),
+    `${serverName} must administer the exact selected Town Hall jurisdiction`,
+  );
+  const generatedReducer = source(`src/generated/${serverName}_reducer.ts`);
+  assert.match(
+    generatedReducer,
+    /townHallId:\s*__t\.u64\(\)/,
+    `${serverName} generated binding must carry townHallId`,
+  );
+  assert.match(
+    clientReducers,
+    new RegExp(`function ${reducerName}\\([\\s\\S]{0,120}townHallId: string[\\s\\S]{0,520}townHallId: serverId`),
+    `${reducerName} must parse and transmit the exact Hall id`,
+  );
+  assert.match(
+    gameStore,
+    new RegExp(`async ${actionName}\\([\\s\\S]{0,120}townHallId: string[\\s\\S]{0,4000}spacetimeReducers\\.${reducerName}\\(townHallId\\)`),
+    `${actionName} optimistic planning must target the same Hall sent to authority`,
+  );
+  assert.match(
+    resourceInspector,
+    new RegExp(`on${actionName[0]!.toUpperCase()}${actionName.slice(1)}[\\s\\S]{0,120}townHallId: string`),
+    `${actionName} inspector callback must expose the selected Hall id`,
+  );
+  assert.match(
+    inspectorActions,
+    new RegExp(`on${actionName[0]!.toUpperCase()}${actionName.slice(1)}[\\s\\S]{0,180}townHallId[\\s\\S]{0,1400}store\\.${actionName}\\(townHallId\\)`),
+    `${actionName} action must not fall back to an arbitrary owner-wide Hall`,
+  );
+}
 
 const resourceTotals = source('src/resources/resourceTotals.ts');
 const workforceCommute = source('server/src/simulation/workforce_commute.rs');
@@ -289,21 +351,136 @@ const overlayPreference = source('src/scene/mapOverlayPreference.ts');
 const toolbar = source('src/ui/BuildToolbar.ts');
 const sceneManager = source('src/scene/SceneManager.ts');
 const communityOverlay = source('src/settlement/CommunityReachOverlay.ts');
+const communityRaster = source('src/settlement/CommunityReachRaster.ts');
 assert.match(overlayPreference, /'communities'/);
 assert.match(toolbar, /data-overlay-mode="communities"/);
 assert.match(sceneManager, /CommunityReachOverlay/);
 assert.match(sceneManager, /mode === 'communities'/);
-assert.match(communityOverlay, /SettlementState/);
-assert.match(communityOverlay, /ResidenceState/);
+assert.match(communityOverlay, /rasterizeCommunityReach/);
+assert.match(communityRaster, /SettlementState/);
+assert.match(communityRaster, /ResidenceState/);
 assert.match(
-  communityOverlay,
+  communityRaster,
   /founders_camp|foundingCampId/,
   'a live founding camp should seed reach without becoming permanent government',
 );
-assert.match(
-  communityOverlay,
-  /remote_work_camp/,
-  'remote industrial camps must be explicitly classified so they do not grow residential reach',
+
+const {
+  communityReachSettlementAt,
+  rasterizeCommunityReach,
+} = await import('../src/settlement/CommunityReachRaster.ts');
+const communityBounds = { minX: -200, maxX: 200, minZ: -200, maxZ: 200 };
+const communitySettlement = (
+  id: string,
+  anchorX: number,
+  anchorZ: number,
+  active = true,
+) => ({ id, anchorX, anchorZ, active });
+const townA = communitySettlement('settlement-a', -100, 0);
+const townB = communitySettlement('settlement-b', 100, 0);
+const dormantTown = communitySettlement('settlement-dormant', 0, -120, false);
+const reachResidence = (id: string, settlementId: string, x: number, z: number) => ({
+  id,
+  settlementId,
+  x,
+  z,
+  tier: 2,
+  abandoned: false,
+  population: 4,
+});
+const reachBuilding = (
+  id: string,
+  settlementId: string,
+  kind: string,
+  x: number,
+  z: number,
+) => ({ id, settlementId, kind, x, z, constructionComplete: true });
+const baseReach = rasterizeCommunityReach({
+  resolution: 41,
+  bounds: communityBounds,
+  // Reversed input proves array order cannot decide an equal-influence boundary.
+  settlements: [townB, dormantTown, townA] as never,
+  buildings: [],
+  residences: [],
+});
+assert.deepEqual(baseReach.settlementIds, ['settlement-a', 'settlement-b']);
+assert.equal(communityReachSettlementAt(baseReach, communityBounds, -100, 0), townA.id);
+assert.equal(communityReachSettlementAt(baseReach, communityBounds, 100, 0), townB.id);
+assert.equal(communityReachSettlementAt(baseReach, communityBounds, -30, 0), null);
+assert.equal(communityReachSettlementAt(baseReach, communityBounds, 0, -120), null);
+assert.equal(communityReachSettlementAt(baseReach, communityBounds, -200, -200), null);
+
+const grownReach = rasterizeCommunityReach({
+  resolution: 41,
+  bounds: communityBounds,
+  settlements: [townA, townB] as never,
+  buildings: [],
+  residences: [reachResidence('a-home', townA.id, -30, 0)] as never,
+});
+assert.equal(
+  communityReachSettlementAt(grownReach, communityBounds, -30, 0),
+  townA.id,
+  'a completed local home must grow visible community reach after the temporary camp is gone',
 );
+
+const tieReach = rasterizeCommunityReach({
+  resolution: 41,
+  bounds: communityBounds,
+  settlements: [townB, townA] as never,
+  buildings: [],
+  residences: [
+    reachResidence('a-home', townA.id, -30, 0),
+    reachResidence('b-home', townB.id, 30, 0),
+  ] as never,
+});
+assert.equal(
+  communityReachSettlementAt(tieReach, communityBounds, 0, 0),
+  townA.id,
+  'an equal-influence seam must resolve by stable community id, not replication order',
+);
+
+const remoteCampReach = rasterizeCommunityReach({
+  resolution: 41,
+  bounds: communityBounds,
+  settlements: [townA, townB] as never,
+  buildings: [reachBuilding('remote', townA.id, 'remote_work_camp', 0, 160)] as never,
+  residences: [],
+});
+assert.equal(
+  communityReachSettlementAt(remoteCampReach, communityBounds, 0, 160),
+  null,
+  'an industrial overnight camp is a commute solution, not a new residential community seed',
+);
+const localStoreReach = rasterizeCommunityReach({
+  resolution: 41,
+  bounds: communityBounds,
+  settlements: [townA, townB] as never,
+  buildings: [reachBuilding('local-store', townA.id, 'village_storehouse', 0, 160)] as never,
+  residences: [],
+});
+assert.equal(
+  communityReachSettlementAt(localStoreReach, communityBounds, 0, 160),
+  townA.id,
+  'a permanent local Storehouse should help make the serviced town footprint legible',
+);
+const liveFoundingCampReach = rasterizeCommunityReach({
+  resolution: 41,
+  bounds: communityBounds,
+  settlements: [townA, townB] as never,
+  buildings: [reachBuilding('founders', townA.id, 'founders_camp', 0, 160)] as never,
+  residences: [],
+});
+assert.equal(
+  communityReachSettlementAt(liveFoundingCampReach, communityBounds, 0, 160),
+  townA.id,
+  'a live founding expedition should make its emerging town legible before permanent homes exist',
+);
+const alphaValues = Array.from(
+  { length: tieReach.rgba.length / 4 },
+  (_, index) => tieReach.rgba[index * 4 + 3],
+);
+assert.ok(alphaValues.includes(0), 'neutral wilderness must remain visually transparent');
+assert.ok(alphaValues.includes(98), 'community interiors must remain softly translucent');
+assert.ok(alphaValues.includes(205), 'organic seams must remain legible without becoming hard borders');
 
 console.log('Durable, porous town-community contracts passed.');

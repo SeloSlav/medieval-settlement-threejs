@@ -33,7 +33,10 @@ import {
   planFoundingStockyardRelocation,
   type FoundingRelocationCommodity,
 } from '../src/logistics/foundingStockyardLogistics.ts';
-import type { DeliveryTripState } from '../src/logistics/deliveryTrips.ts';
+import {
+  DELIVERY_CARGO_KINDS,
+  type DeliveryTripState,
+} from '../src/logistics/deliveryTrips.ts';
 import { createWorldLayout } from '../src/resources/WorldLayout.ts';
 import {
   createEmptyStockpile,
@@ -636,49 +639,8 @@ assert.equal(foundingRelocationLoadAmount(10, 4), 4);
 assert.equal(foundingRelocationLoadAmount(Number.NaN, 4), 0);
 
 assert.deepEqual(
-  FOUNDING_RELOCATION_COMMODITIES,
-  [
-    'timber',
-    'stone',
-    'firewood',
-    'food',
-    'ryeSheaves',
-    'oatSheaves',
-    'barleySheaves',
-    'maslinSheaves',
-    'ryeGrain',
-    'oatGrain',
-    'maslinGrain',
-    'barley',
-    'malt',
-    'ryeFlour',
-    'maslinFlour',
-    'preservedFood',
-    'ale',
-    'honey',
-    'wine',
-    'cloth',
-    'wool',
-    'flax',
-    'ironwork',
-    'polearms',
-    'water',
-    'ryeBread',
-    'maslinBread',
-    'meat',
-    'fish',
-    'berries',
-    'mushrooms',
-    'milk',
-    'apples',
-    'cherries',
-    'vegetables',
-    'eggs',
-    'grapes',
-    'curedMeat',
-    'smokedFish',
-    'cheese',
-  ],
+  new Set(FOUNDING_RELOCATION_COMMODITIES),
+  new Set(DELIVERY_CARGO_KINDS.filter((commodity) => commodity !== 'gold')),
   'every portable non-gold commodity must leave a cleared founding yard by physical cart',
 );
 
@@ -1239,9 +1201,21 @@ assert.match(
   'returning saves must repair old reservation shares once even when their ledger was already cleared',
 );
 const foundingLifecycle = read('server/src/simulation/founding_site.rs');
-assert.match(foundingLifecycle, /housed >= STARTING_POPULATION/);
-assert.match(foundingLifecycle, /"town_hall"/);
-assert.match(foundingLifecycle, /"village_storehouse"/);
+assert.match(
+  foundingLifecycle,
+  /settlement_id[\s\S]*unhoused_founders|unhoused_founders[\s\S]*settlement_id/,
+  'each camp shelter must retire against its own founder cohort, never owner-wide housing',
+);
+assert.doesNotMatch(
+  foundingLifecycle,
+  /filter\(is_bootstrap_founders_camp\)/,
+  'paid expansion camps must enter the same temporary-camp lifecycle as the first camp',
+);
+assert.doesNotMatch(
+  foundingLifecycle,
+  /\|\|\s*!has_town_hall|\|\|\s*!has_storehouse/,
+  'an empty, vacated camp must not survive merely because a blanket civic prerequisite is absent',
+);
 assert.match(foundingLifecycle, /building_has_active_trip/);
 assert.match(foundingLifecycle, /available_free_haulers/);
 assert.match(foundingLifecycle, /try_start_free_building_supply_trip/);
@@ -1252,53 +1226,9 @@ assert.match(foundingLifecycle, /building_has_conflicting_inbound_supply_trip/);
 assert.match(foundingLifecycle, /relocatable_stock/);
 assert.match(
   foundingLifecycle,
-  /FOUNDING_RELOCATION_COMMODITIES:\s*\[CommodityKind;\s*40\]/,
-  'all portable non-gold commodities must participate in founding-yard clearance',
+  /ALL_COMMODITIES/,
+  'founding-yard clearance must derive from the canonical commodity catalog so new goods cannot strand a camp',
 );
-for (const variant of [
-  'Food',
-  'RyeSheaves',
-  'OatSheaves',
-  'BarleySheaves',
-  'MaslinSheaves',
-  'RyeGrain',
-  'OatGrain',
-  'MaslinGrain',
-  'Barley',
-  'Malt',
-  'RyeFlour',
-  'MaslinFlour',
-  'PreservedFood',
-  'Ale',
-  'Honey',
-  'Wine',
-  'Cloth',
-  'Wool',
-  'Ironwork',
-  'Polearms',
-  'Water',
-  'RyeBread',
-  'MaslinBread',
-  'Meat',
-  'Fish',
-  'Berries',
-  'Mushrooms',
-  'Milk',
-  'Apples',
-  'Cherries',
-  'Vegetables',
-  'Eggs',
-  'Grapes',
-  'CuredMeat',
-  'SmokedFish',
-  'Cheese',
-]) {
-  assert.match(
-    foundingLifecycle,
-    new RegExp(`CommodityKind::${variant}`),
-    `${variant} must leave the founding yard through the physical relocation loop`,
-  );
-}
 assert.match(
   foundingLifecycle,
   /founding_destination_priority\(commodity,\s*&candidate\.kind,\s*starter_supplies_only\)/,

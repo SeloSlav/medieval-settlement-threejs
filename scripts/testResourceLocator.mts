@@ -168,9 +168,9 @@ assert.deepEqual(
   ],
   'stored holdings should be largest-first, with loaded carts after stores',
 );
-assert.equal(foodLocations[0]?.label, 'Village granary');
+assert.equal(foodLocations[0]?.label, 'Granary');
 assert.equal(foodLocations[1]?.label, 'Household · parcel 4');
-assert.match(foodLocations[3]?.detail ?? '', /travelling from Village granary/);
+assert.match(foodLocations[3]?.detail ?? '', /travelling from Granary/);
 
 household.needs.pottery.stock = 3;
 const potteryLocations = locatePhysicalResource(physicalFoodState, 'pottery');
