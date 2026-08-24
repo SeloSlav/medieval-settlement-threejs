@@ -326,7 +326,7 @@ select:focus-visible {
   overflow: hidden;
   color: #d3c6aa;
   font-family: var(--ui-display);
-  font-size: 8px;
+  font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.025em;
   line-height: 1.05;

@@ -1,6 +1,7 @@
 import type { SettlementSchedule } from '../world/settlementSchedule.ts';
 import {
   formatCalendarDate,
+  formatCalendarMonthDay,
   formatClockTime,
   formatWeekday,
   gameClock,
@@ -45,7 +46,7 @@ import {
   CALENDAR_SECONDS_PER_DAY,
   SIM_REALTIME_RATE,
 } from '../generated/gameBalance.ts';
-import { SEASON_ALMANAC, seasonAlmanacTooltip } from './seasonAlmanac.ts';
+import { seasonAlmanacTooltip } from './seasonAlmanac.ts';
 import {
   applyHeraldryToElement,
   createHeraldryShield,
@@ -609,6 +610,7 @@ export class SettlementHud {
   private fuelStoresCloseTimer: number | null = null;
   private specialtyStoresCloseTimer: number | null = null;
   private displayedClockDate: string | null = null;
+  private displayedClockFullDate: string | null = null;
   private displayedClockTime: string | null = null;
   private displayedClockDetail: string | null = null;
   private displayedSabbath: boolean | null = null;
@@ -807,10 +809,8 @@ export class SettlementHud {
   ): void {
     const severeWeatherPossible = severeWeatherEnabled || environment.weather === 'drought';
     const description = describeEnvironment(environment, severeWeatherPossible);
-    const season = SEASON_ALMANAC[environment.season];
     this.seasonStatus.textContent = description.title;
     this.seasonStatus.dataset.season = environment.season;
-    this.seasonStatus.dataset.tooltipTitle = season.label;
     this.seasonStatus.dataset.tooltip = seasonAlmanacTooltip(severeWeatherPossible);
     this.seasonStatus.dataset.tooltipVariant = 'season-almanac';
     this.seasonStatus.dataset.tooltipSeason = environment.season;
@@ -1119,7 +1119,8 @@ export class SettlementHud {
   }
 
   setSettlementClock(schedule: SettlementSchedule): void {
-    const date = formatCalendarDate(schedule.clock);
+    const date = formatCalendarMonthDay(schedule.clock);
+    const fullDate = formatCalendarDate(schedule.clock);
     const time = formatClockTime(schedule.clock);
     const pauseLabel = schedule.laborPauseLabel;
     const detail = pauseLabel
@@ -1130,6 +1131,10 @@ export class SettlementHud {
     if (date !== this.displayedClockDate) {
       this.clockDate.textContent = date;
       this.displayedClockDate = date;
+    }
+    if (fullDate !== this.displayedClockFullDate) {
+      this.seasonStatus.dataset.tooltipTitle = fullDate;
+      this.displayedClockFullDate = fullDate;
     }
     if (time !== this.displayedClockTime) {
       this.clockTime.textContent = time;

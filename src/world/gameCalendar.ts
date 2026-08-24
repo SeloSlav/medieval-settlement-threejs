@@ -119,9 +119,13 @@ export function formatClockTime(clock: GameClock): string {
   return `${hours}:${minutes}`;
 }
 
-export function formatCalendarDate(clock: GameClock): string {
+export function formatCalendarMonthDay(clock: GameClock): string {
   const monthName = MONTH_NAMES[clock.month - 1] ?? `Month ${clock.month}`;
-  return `${clock.monthDay} ${monthName}, Year ${clock.year}`;
+  return `${clock.monthDay} ${monthName}`;
+}
+
+export function formatCalendarDate(clock: GameClock): string {
+  return `${formatCalendarMonthDay(clock)}, Year ${clock.year}`;
 }
 
 export function formatWeekday(clock: GameClock): string {
