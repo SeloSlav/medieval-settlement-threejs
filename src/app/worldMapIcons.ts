@@ -58,7 +58,7 @@ export function createWorldMapUi(options: {
   onTerrainImageUpdated?: () => void;
   onQuarrySelect: (quarryId: string) => void;
   onForagingSelect: (nodeId: string) => void;
-  onClaySelect?: (x: number, z: number) => void;
+  onClaySelect?: (nodeId: string) => void;
 }): WorldMapUiBundle {
   const {
     uiRoot,

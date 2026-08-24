@@ -15,7 +15,9 @@ export function renderQuarryInspector(
     ? 'iron ore'
     : definition.resource === 'salt'
       ? 'salt'
-      : 'stone';
+      : definition.resource === 'clay'
+        ? 'clay'
+        : 'stone';
 
   return {
     eyebrow: state.isRich

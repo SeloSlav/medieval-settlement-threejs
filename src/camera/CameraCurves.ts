@@ -26,6 +26,19 @@ export const BASELINE_ORBIT_DISTANCE = 88;
 export const RTS_ORBIT_DISTANCE = 240;
 export const RTS_ORBIT_PITCH = THREE.MathUtils.degToRad(68);
 
+/** Every wheel detent advances one logarithmically even orbit-distance tier. */
+export const CAMERA_ZOOM_STEP_MULTIPLIER = 1.18;
+
+/** Established live-world overview retained as an exact navigation stop. */
+export const LIVE_WORLD_OVERVIEW_ZOOM_PERCENT = 30;
+
+/**
+ * Outermost live-world view. This is one full wheel tier beyond the established
+ * 30% overview; the following outward detent hands render ownership to paper.
+ */
+export const LIVE_WORLD_MIN_ZOOM_PERCENT = LIVE_WORLD_OVERVIEW_ZOOM_PERCENT
+  / CAMERA_ZOOM_STEP_MULTIPLIER;
+
 /**
  * Keep the physical paper and its table surround legible during map-only
  * orbiting. The live world deliberately retains its much lower 5-degree

@@ -35,7 +35,7 @@ type ForagingMapIconsOptions = {
   getCamera: () => THREE.PerspectiveCamera | null;
   getZoomPercent: () => number;
   onForagingSelect: (nodeId: string) => void;
-  onClaySelect?: (x: number, z: number) => void;
+  onClaySelect?: (nodeId: string) => void;
   isBlocked: () => boolean;
   isVisibilityBlocked?: () => boolean;
   isIllustratedMapActive?: () => boolean;
@@ -215,7 +215,7 @@ export class ForagingMapIcons {
       event.preventDefault();
       event.stopPropagation();
       if (marker.kind === 'clay') {
-        this.options.onClaySelect?.(marker.x, marker.z);
+        this.options.onClaySelect?.(marker.id);
       } else {
         this.options.onForagingSelect(marker.id);
       }

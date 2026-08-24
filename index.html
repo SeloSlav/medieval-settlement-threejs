@@ -2,6 +2,11 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <script>
+      // Install this before the loading screen is parsed so the native browser
+      // menu can never appear over any part of the game or its startup UI.
+      document.addEventListener('contextmenu', (event) => event.preventDefault(), true);
+    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#171512" />
     <meta name="color-scheme" content="dark" />

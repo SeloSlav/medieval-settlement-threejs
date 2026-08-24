@@ -7,6 +7,7 @@ import {
 } from '../src/buildings/BuildingPlacementValidation.ts';
 import {
   clayDepositAtCenter,
+  clayDepositDefinition,
   clayDepositMaxYield,
   clayDepositNodeId,
   COASTAL_CLAY_DEPOSIT_MAX_YIELD,
@@ -80,6 +81,12 @@ const delniceOrdinaryClay = delniceClayLayout.clayDepositLayout.sites.find(
 );
 assert.ok(delniceOrdinaryClay);
 assert.equal(clayDepositMaxYield(delniceOrdinaryClay), INLAND_CLAY_DEPOSIT_MAX_YIELD);
+const inlandClayDefinition = clayDepositDefinition(delniceOrdinaryClay, 0);
+assert.equal(inlandClayDefinition.kind, 'quarry');
+assert.equal(inlandClayDefinition.resource, 'clay');
+assert.equal(inlandClayDefinition.label, 'Inland clay deposit');
+assert.equal(inlandClayDefinition.id, 'clay-ordinary-0');
+assert.equal(inlandClayDefinition.maxYield, INLAND_CLAY_DEPOSIT_MAX_YIELD);
 assert.ok(
   delniceOrdinaryClay.radiusX < ordinaryClay.radiusX
     && delniceOrdinaryClay.radiusZ < ordinaryClay.radiusZ,
@@ -419,11 +426,13 @@ assert.equal(
   'all physical clay deposits must reach the projected far-zoom resource layer',
 );
 assert.ok(CLAY_ICON_HTML.includes('map-resource-icon-glyph--clay'));
-const atlas = readFileSync('public/assets/ui/icons/map-resources.png');
-assert.ok(
-  atlas.byteLength > 350_000,
-  'the clay sprite cell must be populated rather than pointing at the old blank atlas slot',
-);
+for (const variant of ['normal', 'rich'] as const) {
+  const portrait = readFileSync(`public/assets/ui/map-stamps/clay-${variant}.png`);
+  assert.ok(
+    portrait.byteLength > 90_000,
+    `the ${variant} clay map marker must use the detailed inspector portrait`,
+  );
+}
 
 const generatedForaging = JSON.parse(
   readFileSync('server/generated/world_foraging.json', 'utf8'),

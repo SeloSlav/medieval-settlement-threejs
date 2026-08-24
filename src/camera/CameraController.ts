@@ -12,6 +12,9 @@ import {
   CLOSE_PAN_SPEED_SCALE,
   RTS_ORBIT_DISTANCE,
   RTS_ORBIT_PITCH,
+  CAMERA_ZOOM_STEP_MULTIPLIER,
+  LIVE_WORLD_MIN_ZOOM_PERCENT,
+  LIVE_WORLD_OVERVIEW_ZOOM_PERCENT,
   ILLUSTRATED_MAP_MIN_PITCH,
   computeCloseCurveStartDistance,
   computeIllustratedMapFarPlane,
@@ -25,11 +28,11 @@ const MIN_PITCH = THREE.MathUtils.degToRad(5);
 const MAX_PITCH = THREE.MathUtils.degToRad(70);
 const BASELINE_ZOOM_PERCENT = 100;
 const MAX_ZOOM_PERCENT = 1000;
-const LIVE_WORLD_MIN_ZOOM_PERCENT = 30;
 const MIN_DISTANCE = BASELINE_ORBIT_DISTANCE / (MAX_ZOOM_PERCENT / BASELINE_ZOOM_PERCENT);
+const LIVE_WORLD_OVERVIEW_DISTANCE = BASELINE_ORBIT_DISTANCE
+  / (LIVE_WORLD_OVERVIEW_ZOOM_PERCENT / BASELINE_ZOOM_PERCENT);
 const LIVE_WORLD_MAX_DISTANCE = BASELINE_ORBIT_DISTANCE
   / (LIVE_WORLD_MIN_ZOOM_PERCENT / BASELINE_ZOOM_PERCENT);
-const ZOOM_MULTIPLIER = 1.18;
 /** A short exponential glide removes wheel-step pops without adding floaty inertia. */
 const ZOOM_DAMPING = 16;
 /** End the invisible tail of the glide once it is within 0.1% of its stop. */
@@ -391,11 +394,24 @@ export class CameraController {
           else this.illustratedMapEntryPending = true;
         }
       } else {
-        this.targetDistance = THREE.MathUtils.clamp(
-          this.targetDistance * ZOOM_MULTIPLIER,
-          this.getMinDistance(),
+        const nextDistance = this.targetDistance * CAMERA_ZOOM_STEP_MULTIPLIER;
+        const overviewStop = Math.min(
+          LIVE_WORLD_OVERVIEW_DISTANCE,
           this.liveWorldMaxDistance,
         );
+        // Preserve the established 30% overview as an exact stop before the
+        // newly added outer live-world tier. This also makes the inward path
+        // retrace the same two authored distances in reverse.
+        this.targetDistance = (
+          this.targetDistance < overviewStop - DISTANCE_EPSILON
+          && nextDistance > overviewStop
+        )
+          ? overviewStop
+          : THREE.MathUtils.clamp(
+            nextDistance,
+            this.getMinDistance(),
+            this.liveWorldMaxDistance,
+          );
       }
     } else if (zoomDirection < 0) {
       if (this.illustratedMapActive) {
@@ -411,11 +427,12 @@ export class CameraController {
       } else {
         if (this.illustratedMapEntryPending) {
           // The pending outward event only requested the map handoff. Its
-          // reciprocal inward event cancels that request at the same 30% stop.
+          // reciprocal inward event cancels that request at the same outer
+          // live-world stop.
           this.illustratedMapEntryPending = false;
         } else {
           this.targetDistance = this.clampDistance(
-            this.targetDistance / ZOOM_MULTIPLIER,
+            this.targetDistance / CAMERA_ZOOM_STEP_MULTIPLIER,
           );
         }
       }

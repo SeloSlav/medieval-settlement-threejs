@@ -16,8 +16,8 @@ export const IRON_ICON_HTML = resourceIconMarkup('iron');
 export const SALT_ICON_HTML = resourceIconMarkup('salt');
 
 /**
- * Canonical generated resource art shared by far-zoom map icons and minimap.
- * The atlas is authored at public/assets/ui/icons/map-resources.png.
+ * Canonical resource markup shared by projected map icons and minimap markers.
+ * CSS supplies the same normal/rich map-stamp art used by the inspector card.
  */
 export const RESOURCE_MAP_ICON_HTML: Readonly<Record<WorldResourceIconKind, string>> = {
   quarry: QUARRY_ICON_HTML,

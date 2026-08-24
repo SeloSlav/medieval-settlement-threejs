@@ -41,6 +41,8 @@ const { shouldDismissVillagerSelection } = await import('../src/ui/VillagerInspe
 const { resolveSceneRenderOwner } = await import('../src/scene/sceneRenderOwnership.ts');
 const {
   BASELINE_ORBIT_DISTANCE,
+  LIVE_WORLD_MIN_ZOOM_PERCENT,
+  LIVE_WORLD_OVERVIEW_ZOOM_PERCENT,
   DEFAULT_FOV,
   ILLUSTRATED_MAP_MIN_PITCH,
   ILLUSTRATED_MAP_OUTWARD_ZOOM_TIER_COUNT,
@@ -248,7 +250,11 @@ function scrollToLiveWorldMaximum(
   controller: CameraController,
   domElement: HTMLElement,
 ): void {
-  for (let step = 0; step < 40 && controller.getZoomPercent() > 30; step += 1) {
+  for (
+    let step = 0;
+    step < 40 && controller.getZoomPercent() > LIVE_WORLD_MIN_ZOOM_PERCENT;
+    step += 1
+  ) {
     domElement.dispatch('wheel', wheelEvent({ deltaY: 120 }));
     settleZoom(controller);
   }
@@ -765,6 +771,46 @@ function scrollToLiveWorldMaximum(
 }
 
 {
+  const { controller, domElement } = createController(undefined, true);
+  for (
+    let step = 0;
+    step < 40 && controller.getZoomPercent() > LIVE_WORLD_OVERVIEW_ZOOM_PERCENT;
+    step += 1
+  ) {
+    domElement.dispatch('wheel', wheelEvent({ deltaY: 120 }));
+    settleZoom(controller);
+  }
+  assert.ok(
+    Math.abs(controller.getZoomPercent() - LIVE_WORLD_OVERVIEW_ZOOM_PERCENT) < 1e-9,
+    'outward navigation should retain the established 30% live-world stop',
+  );
+  assert.equal(controller.isIllustratedMapActive(), false);
+
+  domElement.dispatch('wheel', wheelEvent({ deltaY: 120 }));
+  settleZoom(controller);
+  assert.ok(
+    Math.abs(controller.getZoomPercent() - LIVE_WORLD_MIN_ZOOM_PERCENT) < 1e-9,
+    'one more outward detent should reach the new outer live-world tier',
+  );
+  assert.equal(controller.isIllustratedMapActive(), false,
+    'the added outer tier must still render the live 3D world');
+
+  domElement.dispatch('wheel', wheelEvent({ deltaY: 120 }));
+  assert.equal(controller.isIllustratedMapActive(), true,
+    'only the following outward detent should hand ownership to the paper map');
+  domElement.dispatch('wheel', wheelEvent({ deltaY: -120 }));
+  assert.equal(controller.isIllustratedMapActive(), false,
+    'the first inward detent should return to the new outer live tier');
+  domElement.dispatch('wheel', wheelEvent({ deltaY: -120 }));
+  settleZoom(controller);
+  assert.ok(
+    Math.abs(controller.getZoomPercent() - LIVE_WORLD_OVERVIEW_ZOOM_PERCENT) < 1e-9,
+    'inward navigation should retrace the exact 30% overview stop',
+  );
+  controller.dispose();
+}
+
+{
   const mapModeChanges: boolean[] = [];
   const { controller, domElement } = createController(
     undefined,
@@ -785,8 +831,9 @@ function scrollToLiveWorldMaximum(
     'the map handoff must remain pending while the live camera is still moving');
   settleZoom(controller);
   assert.equal(controller.isIllustratedMapActive(), true,
-    'the queued map handoff should complete once the 30% live view is exact');
-  assert.ok(Math.abs(controller.getZoomPercent() - 30) < 1e-9,
+    'the queued map handoff should complete once the outer live view is exact');
+  assert.ok(
+    Math.abs(controller.getZoomPercent() - LIVE_WORLD_MIN_ZOOM_PERCENT) < 1e-9,
     'the queued handoff should preserve the exact live/map continuity pose');
   assert.deepEqual(mapModeChanges, [true]);
 }
@@ -813,11 +860,13 @@ function scrollToLiveWorldMaximum(
   domElement.dispatch('wheel', wheelEvent({ deltaY: 120 }));
   domElement.dispatch('wheel', wheelEvent({ deltaY: 120 }));
   domElement.dispatch('wheel', wheelEvent({ deltaY: 120 }));
+  domElement.dispatch('wheel', wheelEvent({ deltaY: 120 }));
   domElement.dispatch('wheel', wheelEvent({ deltaY: -120 }));
   settleZoom(controller);
   assert.equal(controller.isIllustratedMapActive(), false,
     'one reciprocal step should cancel a pending map handoff');
-  assert.ok(Math.abs(controller.getZoomPercent() - 30) < 1e-9,
+  assert.ok(
+    Math.abs(controller.getZoomPercent() - LIVE_WORLD_MIN_ZOOM_PERCENT) < 1e-9,
     'cancelling the pending handoff should remain at the live overview stop');
   assert.deepEqual(mapModeChanges, []);
 }
@@ -903,8 +952,8 @@ function scrollToLiveWorldMaximum(
   );
   scrollToLiveWorldMaximum(controller, domElement);
   assert.ok(
-    Math.abs(controller.getZoomPercent() - 30) < 1e-9,
-    'the live 3D world should still stop at the existing 30% overview',
+    Math.abs(controller.getZoomPercent() - LIVE_WORLD_MIN_ZOOM_PERCENT) < 1e-9,
+    'the live 3D world should include one tier beyond the former 30% overview',
   );
   assert.equal(controller.isIllustratedMapActive(), false);
   const liveWorldDistance = controller.getOrbitDistance();
@@ -940,9 +989,11 @@ function scrollToLiveWorldMaximum(
     'the render-owner handoff must not introduce a camera-position cut');
   assert.ok(camera.quaternion.angleTo(liveWorldCameraQuaternion) < 1e-7,
     'the render-owner handoff must not introduce a camera-orientation cut');
-  assert.ok(Math.abs(controller.getZoomPercent() - 30) < 1e-9,
+  assert.ok(
+    Math.abs(controller.getZoomPercent() - LIVE_WORLD_MIN_ZOOM_PERCENT) < 1e-9,
     'the actual camera zoom should remain at the live overview scale');
-  assert.ok(Math.abs(controller.getHudZoomPercent() - 30) < 1e-9,
+  assert.ok(
+    Math.abs(controller.getHudZoomPercent() - LIVE_WORLD_MIN_ZOOM_PERCENT) < 1e-9,
     'the HUD should retain the actual zoom percentage across the map handoff');
   assert.ok(Math.abs(camera.far - expectedMapFarPlane) < 1e-9,
     'map mode should expand the far plane for its scale-derived maximum tier');
@@ -1060,9 +1111,13 @@ function scrollToLiveWorldMaximum(
   }
   domElement.dispatch('wheel', wheelEvent({ deltaY: -120 }));
   assert.equal(controller.isIllustratedMapActive(), false,
-    'scrolling inward from the entry map tier should return to the live 30% overview');
-  assert.ok(Math.abs(controller.getZoomPercent() - 30) < 1e-9);
-  assert.ok(Math.abs(controller.getHudZoomPercent() - 30) < 1e-9);
+    'scrolling inward from the entry map tier should return to the outer live overview');
+  assert.ok(
+    Math.abs(controller.getZoomPercent() - LIVE_WORLD_MIN_ZOOM_PERCENT) < 1e-9,
+  );
+  assert.ok(
+    Math.abs(controller.getHudZoomPercent() - LIVE_WORLD_MIN_ZOOM_PERCENT) < 1e-9,
+  );
   assert.equal(camera.far, liveWorldFarPlane,
     'leaving the illustrated map should restore the exact world far plane');
   assert.equal(camera.near, liveWorldNearPlane);

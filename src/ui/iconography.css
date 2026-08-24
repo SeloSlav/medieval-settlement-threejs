@@ -118,35 +118,49 @@
   filter: drop-shadow(0 1px 1px rgba(7, 6, 4, 0.78));
 }
 
-/* Map atlas: stone, game, berries / mushrooms, fish, clay. Iron and salt use
- * their dedicated commodity silhouettes below so mineral markers never become
- * color-shifted copies of the stone quarry. */
+/* Projected map markers use the same authored normal/rich resource portraits as
+ * the inspector card. Every portrait is centered in the shared marker frame so
+ * changing resource or richness never shifts the marker's world anchor. */
 .map-resource-icon-glyph {
   width: 27px;
   height: 27px;
-  background-image: url('/assets/ui/icons/map-resources.png');
-  background-size: 300% 200%;
+  background-image: var(--map-resource-art-normal);
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: contain;
 }
 
-.map-resource-icon-glyph--quarry { background-position: 0 0; }
-.map-resource-icon-glyph--game { background-position: 50% 0; }
-.map-resource-icon-glyph--berries { background-position: 100% 0; }
-.map-resource-icon-glyph--mushrooms { background-position: 0 100%; }
-.map-resource-icon-glyph--fish { background-position: 50% 100%; }
-.map-resource-icon-glyph--clay { background-position: 100% 100%; }
-
+.map-resource-icon-glyph--quarry {
+  --map-resource-art-normal: url('/assets/ui/map-stamps/stone-normal.png');
+  --map-resource-art-rich: url('/assets/ui/map-stamps/stone-rich.png');
+}
+.map-resource-icon-glyph--game {
+  --map-resource-art-normal: url('/assets/ui/map-stamps/game-normal.png');
+  --map-resource-art-rich: url('/assets/ui/map-stamps/game-rich.png');
+}
+.map-resource-icon-glyph--berries {
+  --map-resource-art-normal: url('/assets/ui/map-stamps/berries-normal.png');
+  --map-resource-art-rich: url('/assets/ui/map-stamps/berries-rich.png');
+}
+.map-resource-icon-glyph--mushrooms {
+  --map-resource-art-normal: url('/assets/ui/map-stamps/mushrooms-normal.png');
+  --map-resource-art-rich: url('/assets/ui/map-stamps/mushrooms-rich.png');
+}
+.map-resource-icon-glyph--fish {
+  --map-resource-art-normal: url('/assets/ui/map-stamps/fish-normal.png');
+  --map-resource-art-rich: url('/assets/ui/map-stamps/fish-rich.png');
+}
+.map-resource-icon-glyph--clay {
+  --map-resource-art-normal: url('/assets/ui/map-stamps/clay-normal.png');
+  --map-resource-art-rich: url('/assets/ui/map-stamps/clay-rich.png');
+}
 .map-resource-icon-glyph--iron {
-  background-image: url('/assets/ui/icons/materials/iron.png');
-  background-position: center;
-  background-repeat: no-repeat;
-  background-size: contain;
+  --map-resource-art-normal: url('/assets/ui/map-stamps/iron-normal.png');
+  --map-resource-art-rich: url('/assets/ui/map-stamps/iron-rich.png');
 }
-
 .map-resource-icon-glyph--salt {
-  background-image: url('/assets/ui/icons/materials/salt.png');
-  background-position: center;
-  background-repeat: no-repeat;
-  background-size: contain;
+  --map-resource-art-normal: url('/assets/ui/map-stamps/salt-normal.png');
+  --map-resource-art-rich: url('/assets/ui/map-stamps/salt-rich.png');
 }
 
 .quarry-map-icon,
@@ -165,6 +179,7 @@
 .resource-node-marker--rich .map-resource-icon-glyph {
   width: 35px;
   height: 35px;
+  background-image: var(--map-resource-art-rich);
 }
 
 .resource-node-marker--rich.quarry-map-icon--large .map-resource-icon-glyph {

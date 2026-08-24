@@ -3,6 +3,7 @@ import {
   type ForagingSite,
 } from '../foraging/ForagingLayout.ts';
 import type { QuarrySite } from '../quarries/QuarryLayout.ts';
+import type { ResourceNodeDefinition } from '../resources/types.ts';
 import { hashF64 } from '../rivers/riverHash.ts';
 import type { RiverLayout } from '../rivers/RiverLayout.ts';
 import { CENTRAL_CLEARING_RADIUS } from '../props/forestField.ts';
@@ -68,6 +69,23 @@ export function clayDepositMaxYield(site: ClayDepositSite): number {
   if (site.formation === 'inland_basin') return INLAND_CLAY_DEPOSIT_MAX_YIELD;
   if (site.formation === 'coastal') return COASTAL_CLAY_DEPOSIT_MAX_YIELD;
   return ORDINARY_CLAY_DEPOSIT_MAX_YIELD;
+}
+
+export function clayDepositDefinition(
+  site: ClayDepositSite,
+  index: number,
+): ResourceNodeDefinition {
+  return {
+    id: clayDepositNodeId(site, index),
+    kind: 'quarry',
+    resource: 'clay',
+    x: site.x,
+    z: site.z,
+    label: clayDepositLabel(site),
+    maxYield: clayDepositMaxYield(site),
+    pickRadius: Math.max(site.radiusX, site.radiusZ) + 6,
+    isRich: site.kind === 'rich',
+  };
 }
 
 export function clayDepositAtCenter(

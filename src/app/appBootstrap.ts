@@ -315,6 +315,7 @@ export async function bootstrapAppSession(
     terrain: sceneManager.terrain,
     riverField: sceneManager.riverField,
     registry: layoutRegistry,
+    clayDepositSites: sceneManager.worldLayout.clayDepositLayout.sites,
     getGameState: () => liveContext.gameState,
     getRoadNetwork: () => roadNetwork,
     getTreeRegistry: () => liveContext.treeRegistry,
@@ -1485,7 +1486,7 @@ export async function bootstrapAppSession(
     onTerrainImageUpdated: () => sceneManager.invalidateIllustratedMapImage(),
     onQuarrySelect: (quarryId) => resourceInspector.selectQuarry(quarryId),
     onForagingSelect: (nodeId) => resourceInspector.selectForaging(nodeId),
-    onClaySelect: (x, z) => cameraController.focusWorldPosition(x, z),
+    onClaySelect: (nodeId) => resourceInspector.selectQuarry(nodeId),
   });
   worldMapUi.minimap.syncBuildings(buildBuildingWorldMapMarkers(liveContext.gameState.buildings.values()));
 

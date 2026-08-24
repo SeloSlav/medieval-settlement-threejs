@@ -323,21 +323,35 @@ for (const [resource, asset] of [
   );
 }
 assert.doesNotMatch(iconography, /\.svg(?:['")])/i, 'active commodity mappings must not use SVG artwork');
-for (const [resource, asset] of [
-  ['iron', 'materials/iron.png'],
-  ['salt', 'materials/salt.png'],
+for (const [markerKind, artFamily] of [
+  ['quarry', 'stone'],
+  ['game', 'game'],
+  ['berries', 'berries'],
+  ['mushrooms', 'mushrooms'],
+  ['fish', 'fish'],
+  ['clay', 'clay'],
+  ['iron', 'iron'],
+  ['salt', 'salt'],
 ] as const) {
-  assert.match(
-    iconography,
-    new RegExp(`map-resource-icon-glyph--${resource}[\\s\\S]{0,220}${escapeRegex(asset)}`),
-    `${resource} map markers must use their dedicated commodity silhouette`,
-  );
-  assert.ok(statSync(`public/assets/ui/icons/${asset}`).size > 20_000);
+  for (const variant of ['normal', 'rich'] as const) {
+    const asset = `${artFamily}-${variant}.png`;
+    assert.match(
+      iconography,
+      new RegExp(`map-resource-icon-glyph--${markerKind}[\\s\\S]{0,260}${escapeRegex(asset)}`),
+      `${markerKind} map markers must use the ${variant} inspector/map-stamp portrait`,
+    );
+    assert.ok(statSync(`public/assets/ui/map-stamps/${asset}`).size > 20_000);
+  }
 }
-assert.doesNotMatch(
+assert.match(
   iconography,
-  /map-resource-icon-glyph--iron,\s*\n\.map-resource-icon-glyph--salt\s*\{\s*background-position:\s*0 0/,
-  'iron and salt must not be color-shifted copies of the stone quarry cell',
+  /\.map-resource-icon-glyph\s*\{[\s\S]{0,260}background-position:\s*center;[\s\S]{0,120}background-size:\s*contain;/,
+  'resource portraits must stay centered on the shared world-space marker anchor',
+);
+assert.match(
+  iconography,
+  /\.resource-node-marker--rich \.map-resource-icon-glyph\s*\{[\s\S]{0,180}background-image:\s*var\(--map-resource-art-rich\)/,
+  'rich nodes must swap to the matching rich resource portrait',
 );
 assert.match(iconography, /\.resource-cost--unaffordable\s*\{[\s\S]{0,120}color:\s*#f09a82/);
 

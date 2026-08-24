@@ -91,7 +91,7 @@ import {
   nearestRoadDistance,
 } from '../roads/roadConnectivity.ts';
 import { backyardIconPosition } from '../residences/backyardPosition.ts';
-import type { BuildingKind, BuildingState, BurgageZoneState, GameState, InspectableTarget, LivestockHerdState, PastureState, ResourceNodeState, ResidenceState } from './types.ts';
+import type { BuildingKind, BuildingState, BurgageZoneState, GameState, InspectableTarget, LivestockHerdState, PastureState, ResourceNodeDefinition, ResourceNodeState, ResidenceState } from './types.ts';
 import type { WorldLayoutRegistry } from './WorldLayoutRegistry.ts';
 import { buildingKindLabel, findNearestBuilding as findBuilding } from './WorldLayoutRegistry.ts';
 import { countTreesNearBuilding } from './ForestVisualSync.ts';
@@ -115,6 +115,10 @@ import {
 } from '../security/frontierSecurity.ts';
 import { gameClock } from '../world/gameCalendar.ts';
 import { environmentFor } from '../world/seasonPolicy.ts';
+import {
+  clayDepositDefinition,
+  type ClayDepositSite,
+} from '../clay/ClayDepositLayout.ts';
 
 const RIVER_INSPECT_MAX_SHORE = 8;
 const NEAREST_ROAD_MAX_DISTANCE = 24;
@@ -201,6 +205,8 @@ export class WorldQueries {
   private readonly terrain: Terrain;
   private readonly riverField: RiverField;
   private readonly registry: WorldLayoutRegistry;
+  private readonly clayDefinitions: readonly ResourceNodeDefinition[];
+  private readonly clayDefinitionsById: ReadonlyMap<string, ResourceNodeDefinition>;
   private readonly getGameState: () => GameState;
   private readonly getRoadNetwork: () => RoadNetwork;
   private readonly getTreeRegistry: () => TreeRegistry | null;
@@ -211,6 +217,7 @@ export class WorldQueries {
     terrain: Terrain;
     riverField: RiverField;
     registry: WorldLayoutRegistry;
+    clayDepositSites?: readonly ClayDepositSite[];
     getGameState: () => GameState;
     getRoadNetwork: () => RoadNetwork;
     getTreeRegistry: () => TreeRegistry | null;
@@ -220,6 +227,10 @@ export class WorldQueries {
     this.terrain = options.terrain;
     this.riverField = options.riverField;
     this.registry = options.registry;
+    this.clayDefinitions = (options.clayDepositSites ?? []).map(clayDepositDefinition);
+    this.clayDefinitionsById = new Map(
+      this.clayDefinitions.map((definition) => [definition.id, definition]),
+    );
     this.getGameState = options.getGameState;
     this.getRoadNetwork = options.getRoadNetwork;
     this.getTreeRegistry = options.getTreeRegistry;
@@ -327,6 +338,9 @@ export class WorldQueries {
         return { kind: 'quarry', definition: quarryDefinition, state: quarryState };
       }
     }
+
+    const clayTarget = this.findNearestClayTarget(x, z);
+    if (clayTarget) return clayTarget;
 
     const foragingTarget = findNearestForagingTarget(state, this.registry, x, z);
     if (foragingTarget) return foragingTarget;
@@ -1303,6 +1317,7 @@ export class WorldQueries {
         inboundTargets.add(trip.targetBuildingId);
       }
     }
+
     const acceptsMaterialInput = (
       target: BuildingState,
       material: DirectProcessorInputCommodity,
@@ -1667,13 +1682,32 @@ export class WorldQueries {
   }
 
   findQuarryTarget(quarryId: string): Extract<InspectableTarget, { kind: 'quarry' }> | null {
-    const definition = this.registry.getDefinition(quarryId);
+    const definition = this.registry.getDefinition(quarryId)
+      ?? this.clayDefinitionsById.get(quarryId);
     if (!definition || definition.kind !== 'quarry') return null;
 
     const quarryState = this.getGameState().quarries.get(quarryId);
     if (!quarryState) return null;
 
     return { kind: 'quarry', definition, state: quarryState };
+  }
+
+  private findNearestClayTarget(
+    x: number,
+    z: number,
+  ): Extract<InspectableTarget, { kind: 'quarry' }> | null {
+    const state = this.getGameState();
+    let nearest: Extract<InspectableTarget, { kind: 'quarry' }> | null = null;
+    let nearestDistance = Number.POSITIVE_INFINITY;
+    for (const definition of this.clayDefinitions) {
+      const clayState = state.quarries.get(definition.id);
+      if (!clayState) continue;
+      const distance = Math.hypot(x - definition.x, z - definition.z);
+      if (distance > definition.pickRadius || distance >= nearestDistance) continue;
+      nearestDistance = distance;
+      nearest = { kind: 'quarry', definition, state: clayState };
+    }
+    return nearest;
   }
 
   findNearestQuarryWithRemaining(x: number, z: number, radius: number): ResourceNodeState | null {
