@@ -122,7 +122,12 @@ const SETTLEMENT_HUD_HTML = `
       <span class="settlement-hud__clock-date" data-clock-date>Year 1</span>
       <span class="settlement-hud__clock-time" data-clock-time>08:00</span>
       <span class="settlement-hud__clock-detail" data-clock-detail></span>
-      <span class="settlement-hud__season" data-season-status tabindex="0"></span>
+      <span
+        class="settlement-hud__season"
+        data-season-status
+        tabindex="0"
+        aria-label="Season almanac"
+      ></span>
       <div class="settlement-vitals__alerts" aria-label="Legacy settlement alerts" aria-hidden="true" hidden>
       <div class="settlement-hud__fire-alert" data-fire-alert hidden>
         <strong data-fire-count>Fire</strong>
@@ -831,6 +836,7 @@ export class SettlementHud {
     const severeWeatherPossible = severeWeatherEnabled || environment.weather === 'drought';
     const description = describeEnvironment(environment, severeWeatherPossible);
     this.seasonStatus.textContent = description.title;
+    this.seasonStatus.setAttribute('aria-label', `Season almanac: ${description.title}`);
     this.seasonStatus.dataset.season = environment.season;
     this.seasonStatus.dataset.tooltip = seasonAlmanacTooltip(severeWeatherPossible);
     this.seasonStatus.dataset.tooltipVariant = 'season-almanac';

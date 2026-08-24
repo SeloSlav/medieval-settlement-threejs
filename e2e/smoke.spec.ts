@@ -306,6 +306,8 @@ test('connects, places a reforester, and updates settlement HUD timber', async (
   const totalsMode = page.locator('button[data-resource-totals-mode]');
   const tooltip = page.locator('#ui-tooltip');
   const seasonStatus = page.locator('[data-season-status]');
+  await expect(seasonStatus).toHaveCSS('background-image', /woodcut-sundial\.webp/);
+  await expect(seasonStatus).toHaveAttribute('aria-label', /^Season almanac: /);
   await seasonStatus.hover();
   await expect(tooltip).toHaveClass(/ui-tooltip--season-almanac/);
   await expect(tooltip.locator('.ui-tooltip__season-header .ui-tooltip__title')).toHaveText(

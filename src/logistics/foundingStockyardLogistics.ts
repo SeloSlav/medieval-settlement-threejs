@@ -22,11 +22,12 @@ import {
   BUILDING_STORAGE_CAPS,
   STOREHOUSE_HAUL_PER_WORKER,
 } from '../generated/gameBalance.ts';
-import type {
-  DeliveryCargoKind,
-  DeliveryTripState,
+import {
+  DELIVERY_CARGO_KINDS,
+  inboundSupplyTripConflicts,
+  type DeliveryCargoKind,
+  type DeliveryTripState,
 } from './deliveryTrips.ts';
-import { inboundSupplyTripConflicts } from './deliveryTrips.ts';
 
 export type FoundingStockyardBlocker =
   | 'active-trip'
@@ -72,48 +73,10 @@ export type FoundingStockyardPlanInput = {
 };
 
 const EPSILON = 1e-6;
-export const FOUNDING_RELOCATION_COMMODITIES = [
-  'timber',
-  'stone',
-  'firewood',
-  'food',
-  'ryeSheaves',
-  'oatSheaves',
-  'barleySheaves',
-  'maslinSheaves',
-  'ryeGrain',
-  'oatGrain',
-  'maslinGrain',
-  'barley',
-  'malt',
-  'ryeFlour',
-  'maslinFlour',
-  'preservedFood',
-  'ale',
-  'honey',
-  'wine',
-  'cloth',
-  'wool',
-  'flax',
-  'ironwork',
-  'polearms',
-  'water',
-  'ryeBread',
-  'maslinBread',
-  'meat',
-  'fish',
-  'berries',
-  'mushrooms',
-  'milk',
-  'apples',
-  'cherries',
-  'vegetables',
-  'eggs',
-  'grapes',
-  'curedMeat',
-  'smokedFish',
-  'cheese',
-] as const satisfies readonly FoundingRelocationCommodity[];
+export const FOUNDING_RELOCATION_COMMODITIES: readonly FoundingRelocationCommodity[] =
+  DELIVERY_CARGO_KINDS.filter(
+    (kind): kind is FoundingRelocationCommodity => kind !== 'gold',
+  );
 
 export const OCCUPIED_SHELTER_RELOCATION_COMMODITIES = [
   'food',

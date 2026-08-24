@@ -9,8 +9,6 @@ import {
 } from '../../logistics/foundingStockyardLogistics.ts';
 import type { InspectableTarget } from '../types.ts';
 import {
-  buildingDemolishHint,
-  buildingRoadAccessRow,
   buildingStorageRows,
 } from './buildingCommon.ts';
 import {
@@ -188,29 +186,15 @@ export function renderFoundersCampInspector(
   context: InspectorRenderContext,
 ): InspectorView {
   const { building } = target;
-  if (isExpansionCamp(building)) {
-    return {
-      eyebrow: 'Civic expansion outpost',
-      title: "Founders' camp",
-      statusText: 'Ready to anchor future settlement expansion',
-      statusState: 'ok',
-      detailsHtml: `
-        <li><span>Role</span><span>Establishes a permanent civic foothold for future regional settlement and logistics</span></li>
-        <li><span>Founding safeguard</span><span>Immune to fire, severe weather, and raids</span></li>
-        <li><span>Camp shelters</span><span>Remain active as an expansion outpost rather than clearing with the original founders</span></li>
-        ${buildingStorageRows(building, building.kind)}
-        ${buildingRoadAccessRow(context.worldQueries, building)}
-      `,
-      demolish: {
-        visible: true,
-        hint: buildingDemolishHint(building.kind),
-      },
-      labor: hiddenLabor(),
-    };
-  }
+  const expansionCamp = isExpansionCamp(building);
+  const settlement = building.settlementId
+    ? context.gameState.settlements.get(building.settlementId)
+    : undefined;
+  const founderPopulation = settlement?.founderPopulation ?? STARTING_POPULATION;
   const shelterActive = building.foundingShelterActive !== false;
   const unhousedFounders = shelterActive
-    ? Math.max(0, STARTING_POPULATION - context.populationStats.housed)
+    ? settlement?.unhousedFounders
+      ?? Math.max(0, founderPopulation - context.populationStats.housed)
     : 0;
   const activeTrip = context.worldQueries.getActiveDeliveryTrip(building);
   const relocationPlan = planFoundingStockyardRelocation({
@@ -241,7 +225,7 @@ export function renderFoundersCampInspector(
     : building.gold <= 1e-6
       ? 'Empty'
       : completedTownHall === null
-        ? `${building.gold.toFixed(0)} gold · awaiting a completed Town Hall`
+        ? `${building.gold.toFixed(0)} gold · awaiting a valid civic treasury`
         : townHallRoadDistance === null
           ? `${building.gold.toFixed(0)} gold · connect the camp and Town Hall by road`
           : `${building.gold.toFixed(0)} gold · awaiting the next free hauler`;
@@ -252,15 +236,17 @@ export function renderFoundersCampInspector(
       ? [`${unhousedFounders} founder${unhousedFounders === 1 ? '' : 's'} awaiting a home`, 'warning'] as const
       : hasStock
         ? ['Shelters cleared · founding stores remain', 'ok'] as const
-        : ['Empty · awaiting permanent civic storage', 'idle'] as const;
+        : ['Empty · ready to disband', 'idle'] as const;
 
   return {
-    eyebrow: shelterActive ? 'Settlement origin' : 'Temporary stockyard',
+    eyebrow: shelterActive
+      ? expansionCamp ? 'Expansion settlement origin' : 'Settlement origin'
+      : 'Temporary stockyard',
     title: shelterActive ? "Founders' camp" : 'Founding stockyard',
     statusText: status[0],
     statusState: status[1],
     detailsHtml: `
-      <li><span>Founding households</span><span>${STARTING_POPULATION} people · ${context.populationStats.housed} rehoused</span></li>
+      <li><span>Founding cohort</span><span>${founderPopulation} people · ${unhousedFounders} still need nearby homes</span></li>
       <li><span>Shelter lifecycle</span><span>${shelterActive ? 'Tents clear after all founders have residence places' : 'All founders rehoused'}</span></li>
       <li data-inspector-state="positive"><span>Founding safeguard</span><span>Immune to fire, weather, and raids · cannot be demolished</span></li>
       <li><span>Construction supply</span><span>Free workers carry reserved loads by handcart; the founding stockyard can begin off-road</span></li>
@@ -269,7 +255,7 @@ export function renderFoundersCampInspector(
       <li><span>Active cart</span><span>${activeTrip ? formatTripPhaseLabel(activeTrip.phase) : 'None'}</span></li>
       <li><span>Lockbox</span><span>${lockboxStatus}</span></li>
       ${buildingStorageRows(building, building.kind)}
-      <li><span>Final clearance</span><span>After every cart returns, all founders are housed, the yard is empty, and both a Town Hall and Storehouse are complete</span></li>
+      <li><span>Final clearance</span><span>The camp disbands after every founder is housed, every cart returns, and its yard and lockbox are empty; no Town Hall or Storehouse is required once nothing remains</span></li>
     `,
     demolish: hiddenDemolish(),
     labor: hiddenLabor(),

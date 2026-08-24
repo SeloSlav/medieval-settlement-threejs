@@ -85,6 +85,10 @@ import { sampleNaturalTerrainHeight } from '../terrain/TerrainHeight.ts';
 import { BuildToolbar } from '../ui/BuildToolbar.ts';
 import type { BuildingKind } from '../generated/gameBalance.ts';
 import { ECONOMIC_ACTIVITY_TAX_RATE_DEFAULT } from '../economy/villageEconomy.ts';
+import { DEFAULT_FISCAL_POLICY } from '../economy/fiscalPolicy.ts';
+import { DEFAULT_LABOR_STEWARD_RESERVE } from '../economy/laborSteward.ts';
+import { DEFAULT_NIGHT_POLICY } from '../economy/nightPolicy.ts';
+import { DEFAULT_PANTRY_SAFEGUARD_POLICY } from '../economy/pantrySafeguardPolicy.ts';
 import { DEFAULT_PARISH_POLICY } from '../economy/chapelParish.ts';
 import { settlementHasStaffedChapel } from '../logistics/landmarkAccess.ts';
 import { DEFAULT_MONASTERY_POLICY } from '../economy/monasteryPolicy.ts';
@@ -1109,6 +1113,10 @@ export async function bootstrapAppSession(
       if (selected) resourceInspector?.clearSelection();
     },
   });
+  const inspectorSettlement = (settlementId?: string) =>
+    settlementId ? liveContext.gameState.settlements.get(settlementId) : undefined;
+  const legacyRealmPolicy = (settlementId?: string): boolean =>
+    settlementId === 'settlement-0';
   resourceInspector = new ResourceInspector({
     domElement: sceneManager.renderer.domElement,
     uiRoot,
@@ -1116,23 +1124,87 @@ export async function bootstrapAppSession(
     terrainProjector: sceneManager.terrainProjector,
     worldQueries,
     getState: () => liveContext.gameState,
-    getEconomicActivityTaxRate: () =>
-      spacetimeStore.snapshot.economicActivityTaxRate ?? ECONOMIC_ACTIVITY_TAX_RATE_DEFAULT,
-    getPantrySafeguardPolicy: () => spacetimeStore.snapshot.pantrySafeguardPolicy,
-    getFiscalPolicy: () => spacetimeStore.snapshot.fiscalPolicy,
-    getSeasonalLaborStewardEnabled: () =>
-      spacetimeStore.snapshot.seasonalLaborStewardEnabled,
-    getConstructionLaborStewardEnabled: () =>
-      spacetimeStore.snapshot.constructionLaborStewardEnabled,
-    getProductionLaborStewardEnabled: () =>
-      spacetimeStore.snapshot.productionLaborStewardEnabled,
-    getLaborStewardReserve: () =>
-      spacetimeStore.snapshot.laborStewardReserve,
+    getEconomicActivityTaxRate: (settlementId) =>
+      inspectorSettlement(settlementId)?.economicActivityTaxRate
+      ?? (legacyRealmPolicy(settlementId)
+        ? spacetimeStore.snapshot.economicActivityTaxRate
+        : ECONOMIC_ACTIVITY_TAX_RATE_DEFAULT),
+    getPantrySafeguardPolicy: (settlementId) =>
+      inspectorSettlement(settlementId)?.pantrySafeguardPolicy
+      ?? (legacyRealmPolicy(settlementId)
+        ? spacetimeStore.snapshot.pantrySafeguardPolicy
+        : DEFAULT_PANTRY_SAFEGUARD_POLICY),
+    getFiscalPolicy: (settlementId) => {
+      const settlement = inspectorSettlement(settlementId);
+      if (settlement) {
+        return {
+          ...DEFAULT_FISCAL_POLICY,
+          landLevyRate: settlement.landLevyRate,
+          importDutyRate: settlement.importDutyRate,
+          exportDutyRate: settlement.exportDutyRate,
+          landLevyAssessedTotal: settlement.landLevyAssessedTotal,
+          landLevyCollectedTotal: settlement.landLevyCollectedTotal,
+          importDutyCollectedTotal: settlement.importDutyCollectedTotal,
+          exportDutyCollectedTotal: settlement.exportDutyCollectedTotal,
+        };
+      }
+      return legacyRealmPolicy(settlementId)
+        ? spacetimeStore.snapshot.fiscalPolicy
+        : DEFAULT_FISCAL_POLICY;
+    },
+    getSeasonalLaborStewardEnabled: (settlementId) =>
+      inspectorSettlement(settlementId)?.seasonalLaborStewardEnabled
+      ?? (legacyRealmPolicy(settlementId)
+        ? spacetimeStore.snapshot.seasonalLaborStewardEnabled
+        : false),
+    getConstructionLaborStewardEnabled: (settlementId) =>
+      inspectorSettlement(settlementId)?.constructionLaborStewardEnabled
+      ?? (legacyRealmPolicy(settlementId)
+        ? spacetimeStore.snapshot.constructionLaborStewardEnabled
+        : false),
+    getProductionLaborStewardEnabled: (settlementId) =>
+      inspectorSettlement(settlementId)?.productionLaborStewardEnabled
+      ?? (legacyRealmPolicy(settlementId)
+        ? spacetimeStore.snapshot.productionLaborStewardEnabled
+        : false),
+    getLaborStewardReserve: (settlementId) =>
+      inspectorSettlement(settlementId)?.laborStewardReserve
+      ?? (legacyRealmPolicy(settlementId)
+        ? spacetimeStore.snapshot.laborStewardReserve
+        : DEFAULT_LABOR_STEWARD_RESERVE),
     getParishPolicy: () =>
       spacetimeStore.snapshot.parishPolicy ?? DEFAULT_PARISH_POLICY,
     getMonasteryPolicy: () =>
       spacetimeStore.snapshot.monasteryPolicy ?? DEFAULT_MONASTERY_POLICY,
-    getNightPolicy: () => spacetimeStore.snapshot.nightPolicy,
+    getNightPolicy: (settlementId) => {
+      const settlement = inspectorSettlement(settlementId);
+      if (settlement) {
+        return {
+          watch: settlement.nightWatchPolicy,
+          gathering: settlement.nightGatheringPolicy,
+          work: settlement.nightWorkPolicy,
+          lighting: settlement.nightLightingPolicy,
+          curfew: settlement.nightCurfewPolicy,
+          lastReportDay: settlement.lastNightReportDay,
+          lastHouseholds: settlement.lastNightHouseholds,
+          lastWellRestedHouseholds: settlement.lastNightWellRestedHouseholds,
+          lastColdHouseholds: settlement.lastNightColdHouseholds,
+          lastSocialHouseholds: settlement.lastNightSocialHouseholds,
+          lastWorkers: settlement.lastNightWorkers,
+          lastWatchStrength: settlement.lastNightWatchStrength,
+          lastIncidents: settlement.lastNightIncidents,
+          lastTheftGold: settlement.lastNightTheftGold,
+          lastWildlifeSightings: settlement.lastNightWildlifeSightings,
+          lastLightingFuelUsed: settlement.lastNightLightingFuelUsed,
+          lastLightingFuelShortfall: settlement.lastNightLightingFuelShortfall,
+          communityCohesion: settlement.nightCommunityCohesion,
+          laborFatigue: settlement.nightLaborFatigue,
+        };
+      }
+      return legacyRealmPolicy(settlementId)
+        ? spacetimeStore.snapshot.nightPolicy
+        : DEFAULT_NIGHT_POLICY;
+    },
     getMarketState: () => spacetimeStore.snapshot.marketState,
     getSettlementSecurity: () => spacetimeStore.snapshot.settlementSecurity,
     getCombatAgents: () => spacetimeStore.snapshot.combatAgents.values(),

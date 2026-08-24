@@ -669,8 +669,9 @@ export async function setNightPolicies(
   lighting: NightPolicyCode,
   curfew: NightPolicyCode,
 ): Promise<void> {
+  const serverId = requireTownHallServerId(townHallId);
   await callReducer('setNightPolicies', 'set_night_policies', {
-    townHallId: requireTownHallServerId(townHallId),
+    townHallId: serverId,
     watchPolicy: watch,
     gatheringPolicy: gathering,
     workPolicy: work,
@@ -973,42 +974,48 @@ export async function assignBuildingLabor(buildingId: string, labor: number): Pr
 }
 
 export async function rotateConstructionLabor(townHallId: string): Promise<void> {
+  const serverId = requireTownHallServerId(townHallId);
   await callReducer('rotateConstructionLabor', 'rotate_construction_labor', {
-    townHallId: requireTownHallServerId(townHallId),
+    townHallId: serverId,
   });
 }
 
 export async function recallIdleSeasonalLabor(townHallId: string): Promise<void> {
+  const serverId = requireTownHallServerId(townHallId);
   await callReducer('recallIdleSeasonalLabor', 'recall_idle_seasonal_labor', {
-    townHallId: requireTownHallServerId(townHallId),
+    townHallId: serverId,
   });
 }
 
 export async function callUpActiveSeasonalLabor(townHallId: string): Promise<void> {
+  const serverId = requireTownHallServerId(townHallId);
   await callReducer('callUpActiveSeasonalLabor', 'call_up_active_seasonal_labor', {
-    townHallId: requireTownHallServerId(townHallId),
+    townHallId: serverId,
   });
 }
 
 export async function recallTargetIdleProcessorLabor(townHallId: string): Promise<void> {
+  const serverId = requireTownHallServerId(townHallId);
   await callReducer(
     'recallTargetIdleProcessorLabor',
     'recall_target_idle_processor_labor',
-    { townHallId: requireTownHallServerId(townHallId) },
+    { townHallId: serverId },
   );
 }
 
 export async function callUpTargetReadyProcessorLabor(townHallId: string): Promise<void> {
+  const serverId = requireTownHallServerId(townHallId);
   await callReducer(
     'callUpTargetReadyProcessorLabor',
     'call_up_target_ready_processor_labor',
-    { townHallId: requireTownHallServerId(townHallId) },
+    { townHallId: serverId },
   );
 }
 
 export async function callUpYearRoundLabor(townHallId: string): Promise<void> {
+  const serverId = requireTownHallServerId(townHallId);
   await callReducer('callUpYearRoundLabor', 'call_up_year_round_labor', {
-    townHallId: requireTownHallServerId(townHallId),
+    townHallId: serverId,
   });
 }
 

@@ -31,12 +31,12 @@ export type InspectorSpacetimeActions = {
   onUpgradeFlowerGardenLuxury: (residenceId: string) => Promise<void>;
   onDemolishBackyardGarden: (residenceId: string) => Promise<void>;
   onAssignBuildingLabor: (buildingId: string, labor: number) => Promise<void>;
-  onRotateConstructionLabor: () => Promise<void>;
-  onRecallIdleSeasonalLabor: () => Promise<void>;
-  onCallUpActiveSeasonalLabor: () => Promise<void>;
-  onRecallTargetIdleProcessorLabor: () => Promise<void>;
-  onCallUpTargetReadyProcessorLabor: () => Promise<void>;
-  onBalanceYearRoundLabor: () => Promise<void>;
+  onRotateConstructionLabor: (townHallId: string) => Promise<void>;
+  onRecallIdleSeasonalLabor: (townHallId: string) => Promise<void>;
+  onCallUpActiveSeasonalLabor: (townHallId: string) => Promise<void>;
+  onRecallTargetIdleProcessorLabor: (townHallId: string) => Promise<void>;
+  onCallUpTargetReadyProcessorLabor: (townHallId: string) => Promise<void>;
+  onBalanceYearRoundLabor: (townHallId: string) => Promise<void>;
   onSetConstructionPriority: (buildingId: string, priority: number) => Promise<void>;
   onSetTradingPostTradeRule: (
     buildingId: string,
@@ -56,22 +56,27 @@ export type InspectorSpacetimeActions = {
   onTradeLivestock: (buildingId: string, headDelta: number) => Promise<void>;
   onSetLivestockBreedingReserve: (buildingId: string, breedingReserve: number) => Promise<void>;
   onSetLivestockHaymakingPercent: (buildingId: string, haymakingPercent: number) => Promise<void>;
-  onSetEconomicActivityTaxRate: (taxRate: number) => Promise<void>;
-  onSetPantrySafeguardPolicy: (policy: PantrySafeguardPolicyCode) => Promise<void>;
+  onSetEconomicActivityTaxRate: (townHallId: string, taxRate: number) => Promise<void>;
+  onSetPantrySafeguardPolicy: (
+    townHallId: string,
+    policy: PantrySafeguardPolicyCode,
+  ) => Promise<void>;
   onSetFiscalPolicy: (
+    townHallId: string,
     landLevyRate: number,
     importDutyRate: number,
     exportDutyRate: number,
   ) => Promise<void>;
-  onSetSeasonalLaborSteward: (enabled: boolean) => Promise<void>;
-  onSetConstructionLaborSteward: (enabled: boolean) => Promise<void>;
-  onSetProductionLaborSteward: (enabled: boolean) => Promise<void>;
-  onSetLaborStewardReserve: (laborReserve: number) => Promise<void>;
+  onSetSeasonalLaborSteward: (townHallId: string, enabled: boolean) => Promise<void>;
+  onSetConstructionLaborSteward: (townHallId: string, enabled: boolean) => Promise<void>;
+  onSetProductionLaborSteward: (townHallId: string, enabled: boolean) => Promise<void>;
+  onSetLaborStewardReserve: (townHallId: string, laborReserve: number) => Promise<void>;
   onSetChapelParishPolicy: (sabbathObservanceEnabled: boolean) => Promise<void>;
   onSetMonasteryPolicy: (titheShare: number, feastsEnabled: boolean) => Promise<void>;
   onSetMonasteryCharter: (levyRate: number) => Promise<void>;
   onSetMonasteryNextExtension: (buildingId: string, extension: number) => Promise<void>;
   onSetNightPolicies: (
+    townHallId: string,
     watch: NightPolicyCode,
     gathering: NightPolicyCode,
     work: NightPolicyCode,
@@ -276,11 +281,11 @@ export function createInspectorSpacetimeActions(
       if (!store) return;
       await runReducer(() => store.assignBuildingLabor(buildingId, labor), 'Labor assignment failed.');
     },
-    onRotateConstructionLabor: async () => {
+    onRotateConstructionLabor: async (townHallId) => {
       const store = requireReady();
       if (!store) return;
       await runReducer(async () => {
-        const result = await store.rotateConstructionLabor();
+        const result = await store.rotateConstructionLabor(townHallId);
         if (result.recalledWorkers > 0 && result.calledWorkers > 0) {
           toastManager.show(
             `${result.recalledWorkers} blocked ${result.recalledWorkers === 1 ? 'builder' : 'builders'} released; ${result.calledWorkers} ${result.calledWorkers === 1 ? 'worker' : 'workers'} deployed to ready sites.`,
@@ -296,11 +301,11 @@ export function createInspectorSpacetimeActions(
         }
       }, 'Could not rotate construction crews.');
     },
-    onRecallIdleSeasonalLabor: async () => {
+    onRecallIdleSeasonalLabor: async (townHallId) => {
       const store = requireReady();
       if (!store) return;
       await runReducer(async () => {
-        const recalled = await store.recallIdleSeasonalLabor();
+        const recalled = await store.recallIdleSeasonalLabor(townHallId);
         if (recalled > 0) {
           toastManager.show(
             `${recalled} seasonal ${recalled === 1 ? 'worker' : 'workers'} returned to the free labor pool.`,
@@ -308,11 +313,11 @@ export function createInspectorSpacetimeActions(
         }
       }, 'Could not recall idle seasonal crews.');
     },
-    onCallUpActiveSeasonalLabor: async () => {
+    onCallUpActiveSeasonalLabor: async (townHallId) => {
       const store = requireReady();
       if (!store) return;
       await runReducer(async () => {
-        const calledUp = await store.callUpActiveSeasonalLabor();
+        const calledUp = await store.callUpActiveSeasonalLabor(townHallId);
         if (calledUp > 0) {
           toastManager.show(
             `${calledUp} seasonal ${calledUp === 1 ? 'worker' : 'workers'} called to active work.`,
@@ -320,11 +325,11 @@ export function createInspectorSpacetimeActions(
         }
       }, 'Could not call up active seasonal crews.');
     },
-    onRecallTargetIdleProcessorLabor: async () => {
+    onRecallTargetIdleProcessorLabor: async (townHallId) => {
       const store = requireReady();
       if (!store) return;
       await runReducer(async () => {
-        const recalled = await store.recallTargetIdleProcessorLabor();
+        const recalled = await store.recallTargetIdleProcessorLabor(townHallId);
         if (recalled > 0) {
           toastManager.show(
             `${recalled} stalled production ${recalled === 1 ? 'worker' : 'workers'} returned to the free labor pool.`,
@@ -332,11 +337,11 @@ export function createInspectorSpacetimeActions(
         }
       }, 'Could not recall stalled production crews.');
     },
-    onCallUpTargetReadyProcessorLabor: async () => {
+    onCallUpTargetReadyProcessorLabor: async (townHallId) => {
       const store = requireReady();
       if (!store) return;
       await runReducer(async () => {
-        const calledUp = await store.callUpTargetReadyProcessorLabor();
+        const calledUp = await store.callUpTargetReadyProcessorLabor(townHallId);
         if (calledUp > 0) {
           toastManager.show(
             `${calledUp} production ${calledUp === 1 ? 'worker' : 'workers'} deployed to ready worksites.`,
@@ -344,11 +349,11 @@ export function createInspectorSpacetimeActions(
         }
       }, 'Could not deploy production crews.');
     },
-    onBalanceYearRoundLabor: async () => {
+    onBalanceYearRoundLabor: async (townHallId) => {
       const store = requireReady();
       if (!store) return;
       await runReducer(async () => {
-        const result = await store.balanceYearRoundLabor();
+        const result = await store.balanceYearRoundLabor(townHallId);
         if (result.recalledWorkers > 0) {
           toastManager.show(
             `${result.recalledWorkers} lower-priority ${result.recalledWorkers === 1 ? 'worker' : 'workers'} reassigned; ${result.calledWorkers} year-round ${result.calledWorkers === 1 ? 'post filled' : 'posts filled'}.`,
@@ -500,21 +505,21 @@ export function createInspectorSpacetimeActions(
         'Could not change the summer hay meadow allocation.',
       );
     },
-    onSetEconomicActivityTaxRate: async (taxRate) => {
+    onSetEconomicActivityTaxRate: async (townHallId, taxRate) => {
       const store = requireReady();
       if (!store) return;
       await runReducer(
-        () => store.setEconomicActivityTaxRate(taxRate),
+        () => store.setEconomicActivityTaxRate(townHallId, taxRate),
         'Could not update the Town Hall tax policy.',
       );
     },
-    onSetSeasonalLaborSteward: async (enabled) => {
+    onSetSeasonalLaborSteward: async (townHallId, enabled) => {
       const store = requireReady();
       if (!store) return;
       let updated = false;
       await runReducer(
         async () => {
-          await store.setSeasonalLaborSteward(enabled);
+          await store.setSeasonalLaborSteward(townHallId, enabled);
           updated = true;
         },
         'Could not update the seasonal labor steward policy.',
@@ -526,13 +531,13 @@ export function createInspectorSpacetimeActions(
           : 'Town Hall steward disabled. Seasonal crew changes are manual.',
       );
     },
-    onSetConstructionLaborSteward: async (enabled) => {
+    onSetConstructionLaborSteward: async (townHallId, enabled) => {
       const store = requireReady();
       if (!store) return;
       let updated = false;
       await runReducer(
         async () => {
-          await store.setConstructionLaborSteward(enabled);
+          await store.setConstructionLaborSteward(townHallId, enabled);
           updated = true;
         },
         'Could not update the construction labor steward policy.',
@@ -544,13 +549,13 @@ export function createInspectorSpacetimeActions(
           : 'Town Hall construction steward disabled. Builder rotation is manual.',
       );
     },
-    onSetPantrySafeguardPolicy: async (policy) => {
+    onSetPantrySafeguardPolicy: async (townHallId, policy) => {
       const store = requireReady();
       if (!store) return;
       let updated = false;
       await runReducer(
         async () => {
-          await store.setPantrySafeguardPolicy(policy);
+          await store.setPantrySafeguardPolicy(townHallId, policy);
           updated = true;
         },
         'Could not update the Town Hall pantry safeguard.',
@@ -559,21 +564,21 @@ export function createInspectorSpacetimeActions(
         toastManager.show('Pantry safeguard posted. Daily issues continue; critical food and heat will use the new buffer.');
       }
     },
-    onSetFiscalPolicy: async (landLevyRate, importDutyRate, exportDutyRate) => {
+    onSetFiscalPolicy: async (townHallId, landLevyRate, importDutyRate, exportDutyRate) => {
       const store = requireReady();
       if (!store) return;
       await runReducer(
-        () => store.setFiscalPolicy(landLevyRate, importDutyRate, exportDutyRate),
+        () => store.setFiscalPolicy(townHallId, landLevyRate, importDutyRate, exportDutyRate),
         'Could not update the Town Hall land or customs policy.',
       );
     },
-    onSetProductionLaborSteward: async (enabled) => {
+    onSetProductionLaborSteward: async (townHallId, enabled) => {
       const store = requireReady();
       if (!store) return;
       let updated = false;
       await runReducer(
         async () => {
-          await store.setProductionLaborSteward(enabled);
+          await store.setProductionLaborSteward(townHallId, enabled);
           updated = true;
         },
         'Could not update the production labor steward policy.',
@@ -585,13 +590,13 @@ export function createInspectorSpacetimeActions(
           : 'Town Hall production steward disabled. Production crew rotation is manual.',
       );
     },
-    onSetLaborStewardReserve: async (laborReserve) => {
+    onSetLaborStewardReserve: async (townHallId, laborReserve) => {
       const store = requireReady();
       if (!store) return;
       let updated = false;
       await runReducer(
         async () => {
-          await store.setLaborStewardReserve(laborReserve);
+          await store.setLaborStewardReserve(townHallId, laborReserve);
           updated = true;
         },
         'Could not update the automatic labor reserve.',
@@ -635,13 +640,13 @@ export function createInspectorSpacetimeActions(
         'Could not reserve the next monastery extension.',
       );
     },
-    onSetNightPolicies: async (watch, gathering, work, lighting, curfew) => {
+    onSetNightPolicies: async (townHallId, watch, gathering, work, lighting, curfew) => {
       const store = requireReady();
       if (!store) return;
       let updated = false;
       await runReducer(
         async () => {
-          await store.setNightPolicies(watch, gathering, work, lighting, curfew);
+          await store.setNightPolicies(townHallId, watch, gathering, work, lighting, curfew);
           updated = true;
         },
         'Could not update the settlement night policy.',
