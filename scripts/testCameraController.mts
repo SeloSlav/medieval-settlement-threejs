@@ -828,6 +828,18 @@ function scrollToLiveWorldMaximum(
       && controller.getOrbitDistance() > liveWorldDistance,
     'the queued map exit should move smoothly toward the continuity stop',
   );
+  const interruptedDistance = controller.getOrbitDistance();
+  controller.setInputEnabled(false);
+  assert.equal(controller.isNavigationActive(), false,
+    'temporarily disabled input should hide the paused map glide from navigation state');
+  controller.update(0.5);
+  assert.equal(controller.getOrbitDistance(), interruptedDistance,
+    'temporarily disabled input should pause the in-flight map handoff');
+  assert.equal(controller.isIllustratedMapActive(), true,
+    'pausing input must preserve paper render ownership mid-handoff');
+  controller.setInputEnabled(true);
+  assert.equal(controller.isNavigationActive(), true,
+    're-enabling input should resume the preserved map destination');
   settleNavigation(controller);
   assert.equal(controller.isIllustratedMapActive(), false,
     'the paper render owner should release only after reaching the exact continuity stop');
@@ -837,7 +849,7 @@ function scrollToLiveWorldMaximum(
 }
 
 {
-  const { controller, camera, target, domElement } = createController(undefined, true);
+  const { controller, camera, target, domElement } = createController(undefined, false);
   camera.aspect = 1.8;
   camera.updateProjectionMatrix();
   const authoredPitch = THREE.MathUtils.degToRad(18);
@@ -902,11 +914,11 @@ function scrollToLiveWorldMaximum(
   );
   assert.equal(controller.getOrbitDistance(), wideOuterStop,
     'a portrait resize should retarget without teleporting the rendered map pose');
-  controller.update(1 / 60);
+  await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
   assert.ok(
     controller.getOrbitDistance() > wideOuterStop
       && controller.getOrbitDistance() < expectedPortraitOuterStop,
-    'a portrait resize should smoothly rescale the active outer regional tier',
+    'demand rendering should animate a resized outer regional tier',
   );
   settleZoom(controller);
   assert.ok(Math.abs(controller.getOrbitDistance() - expectedPortraitOuterStop) < 1e-9,

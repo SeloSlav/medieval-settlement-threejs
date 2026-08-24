@@ -36,7 +36,7 @@ use crate::monastery_estate_policy::{
     MONASTERY_INFIRMARY_FOOD_PER_BED_DAY,
 };
 use crate::preserved_food_policy::allocate_preserved_meal;
-use crate::residence_service_policy::required_chapel_tier;
+use crate::residence_service_policy::{required_chapel_tier, service_need_clock_active};
 use crate::resident_welfare_policy::{
     cold_exposure_death_chance, deterministic_unit, next_malnutrition, next_service_deficit_ticks,
     starvation_death_chance, ticks_for_days,
@@ -88,9 +88,14 @@ pub fn step_residence_needs(
         if kind == ResidenceNeedKind::Food {
             continue;
         }
-        // Heating is continuous. Other needs keep the established daytime
-        // cadence, but Sunday observance does not make provisions free.
-        if general_consumption_paused && kind != ResidenceNeedKind::Firewood {
+        // Heating is continuous through ordinary nights. Other services keep
+        // the daytime cadence, while named holy days freeze every shortage
+        // clock together with the rest of the simulation.
+        if !service_need_clock_active(
+            kind,
+            clock.is_work_hours,
+            crate::simulation::holiday_observance(clock).is_some(),
+        ) {
             continue;
         }
         if !kind.is_active_for_tier(residence.tier) {

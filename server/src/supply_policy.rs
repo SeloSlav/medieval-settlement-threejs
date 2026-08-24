@@ -23,16 +23,6 @@ use crate::balance_generated::{
 use crate::civilian_tool_policy::{civilian_tool_refill_due, is_civilian_tool_site};
 use crate::processor_output_policy::processor_input_staging_cycles;
 
-/// Staffed Taverns are the household-facing service point for ale, apple cider,
-/// pear cider, and mead.
-pub const BEVERAGE_SERVICE_KINDS: &[&str] = &["tavern"];
-pub const CLOTH_PRODUCER_KINDS: &[&str] = &["weaver"];
-pub const POTTERY_PRODUCER_KINDS: &[&str] = &["potter_kiln"];
-pub const SHOES_PRODUCER_KINDS: &[&str] = &["cobbler"];
-/// Buildings that can create a sustainable preserved-food service for a new
-/// prosperous household. Storage depots deliberately remain outside this
-/// roster so an empty granary cannot satisfy a tier-three upgrade gate.
-pub const PRESERVED_FOOD_PRODUCER_KINDS: &[&str] = &["smokehouse", "pastoral_farmstead"];
 /// The Marketplace is the household-facing food service point. Staffed
 /// granaries own and replenish its stalls after physical stock reaches storage.
 pub const FOOD_SUPPLIER_KINDS: &[&str] = &["marketplace"];
@@ -300,21 +290,6 @@ pub fn granary_dispatch_order(households_first: bool) -> [GranaryDispatchDuty; 2
     }
 }
 
-pub fn is_staffed_operational_supplier(construction_complete: bool, assigned_labor: u32) -> bool {
-    construction_complete && assigned_labor > 0
-}
-
-pub fn is_firewood_supplier_operational(
-    kind: &str,
-    construction_complete: bool,
-    assigned_labor: u32,
-    storehouse_accepts_firewood: bool,
-) -> bool {
-    is_staffed_operational_supplier(construction_complete, assigned_labor)
-        && (kind == "woodcutters_lodge"
-            || (kind == "village_storehouse" && storehouse_accepts_firewood))
-}
-
 pub fn is_well_supplier_operational(
     kind: &str,
     construction_complete: bool,
@@ -329,14 +304,6 @@ pub fn is_food_supplier_operational(
     _assigned_labor: u32,
 ) -> bool {
     FOOD_SUPPLIER_KINDS.contains(&kind) && construction_complete
-}
-
-pub fn is_specialty_supplier_operational(
-    _kind: &str,
-    construction_complete: bool,
-    assigned_labor: u32,
-) -> bool {
-    construction_complete && assigned_labor > 0
 }
 
 /// Food kept at a routine supplier before an institution may collect surplus.
@@ -805,8 +772,7 @@ mod tests {
         compare_supply_route_candidates, construction_source_available_stock,
         construction_source_priority, directly_dispatched_processor_input_per_cycle,
         grain_input_runway_cycles, grain_input_target, grain_work_priority, granary_dispatch_order,
-        household_food_reserve, institutional_food_surplus, is_firewood_supplier_operational,
-        is_food_supplier_operational, is_specialty_supplier_operational,
+        household_food_reserve, institutional_food_surplus, is_food_supplier_operational,
         is_well_supplier_operational, large_quarry_support_runway_cycles,
         large_quarry_support_target, large_quarry_supports_ready, local_material_dispatch_target,
         marketplace_refill_request, processor_input_dispatch_duty,
@@ -815,11 +781,10 @@ mod tests {
         rich_mine_supports_ready, select_grain_dispatch_candidate, select_need_delivery_candidate,
         select_processor_input_dispatch_candidate, select_seed_grain_delivery_candidate,
         select_supply_route_candidate, GranaryDispatchDuty, InstitutionalFoodDispatchDuty,
-        NeedDeliveryCandidate, ProcessorInputDispatchDuty, BEVERAGE_SERVICE_KINDS,
-        CLOTH_PRODUCER_KINDS, FOOD_SUPPLIER_KINDS, GRAIN_CRITICAL_RUNWAY_CYCLES,
+        NeedDeliveryCandidate, ProcessorInputDispatchDuty, FOOD_SUPPLIER_KINDS,
+        GRAIN_CRITICAL_RUNWAY_CYCLES,
         GRAIN_PROCESSOR_KINDS, INDUSTRIAL_FIREWOOD_TARGET_KINDS, INSTITUTIONAL_FOOD_SOURCE_KINDS,
-        LOCAL_MATERIAL_SOURCE_KINDS, MARKETPLACE_MATERIAL_TARGET_KINDS, POTTERY_PRODUCER_KINDS,
-        PRESERVED_FOOD_PRODUCER_KINDS,
+        LOCAL_MATERIAL_SOURCE_KINDS, MARKETPLACE_MATERIAL_TARGET_KINDS,
     };
     use std::cmp::Ordering;
     use std::time::{Duration, Instant};
@@ -1620,42 +1585,7 @@ mod tests {
     }
 
     #[test]
-    fn specialty_producer_roles_are_explicit() {
-        assert_eq!(BEVERAGE_SERVICE_KINDS, &["tavern"]);
-        assert_eq!(
-            PRESERVED_FOOD_PRODUCER_KINDS,
-            &["smokehouse", "pastoral_farmstead"]
-        );
-        assert_eq!(CLOTH_PRODUCER_KINDS, &["weaver"]);
-        assert_eq!(POTTERY_PRODUCER_KINDS, &["potter_kiln"]);
-    }
-
-    #[test]
     fn household_services_follow_the_delivery_labor_contract() {
-        assert!(is_firewood_supplier_operational(
-            "woodcutters_lodge",
-            true,
-            1,
-            false
-        ));
-        assert!(!is_firewood_supplier_operational(
-            "woodcutters_lodge",
-            true,
-            0,
-            false
-        ));
-        assert!(is_firewood_supplier_operational(
-            "village_storehouse",
-            true,
-            2,
-            true
-        ));
-        assert!(!is_firewood_supplier_operational(
-            "village_storehouse",
-            true,
-            2,
-            false
-        ));
         assert!(is_well_supplier_operational("well", true, 0));
         assert!(!is_well_supplier_operational("well", false, 0));
         assert!(!is_food_supplier_operational("fishing_camp", true, 1));
@@ -1666,13 +1596,6 @@ mod tests {
         assert!(!is_food_supplier_operational("pastoral_farmstead", true, 0));
         assert!(!is_food_supplier_operational("monastery", true, 0));
         assert!(is_food_supplier_operational("marketplace", true, 0));
-    }
-
-    #[test]
-    fn specialty_suppliers_require_staff() {
-        assert!(!is_specialty_supplier_operational("monastery", true, 0));
-        assert!(!is_specialty_supplier_operational("brewery", true, 0));
-        assert!(is_specialty_supplier_operational("smokehouse", true, 1));
     }
 
     #[test]

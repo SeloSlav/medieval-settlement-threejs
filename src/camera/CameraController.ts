@@ -163,6 +163,7 @@ export class CameraController {
   }
 
   isNavigationActive(): boolean {
+    if (!this.inputEnabled) return false;
     if (this.isPanning || this.isRotating) return true;
     if (this.hasAnimatedNavigationMotion()) return true;
     if (performance.now() < this.wheelNavigationUntilMs) return true;
@@ -198,17 +199,19 @@ export class CameraController {
 
   setInputEnabled(enabled: boolean): void {
     this.inputEnabled = enabled;
-    if (enabled) return;
+    if (enabled) {
+      this.ensureNavigationAnimation();
+      return;
+    }
     this.isPanning = false;
     this.isRotating = false;
     this.wheelNavigationUntilMs = 0;
-    this.pendingPanX = 0;
-    this.pendingPanY = 0;
-    this.pendingRotateX = 0;
-    this.pendingRotateY = 0;
-    this.targetDistance = this.currentDistance;
-    this.illustratedMapEntryPending = false;
-    this.illustratedMapExitPending = false;
+    this.resetPointerMotion();
+    if (!this.illustratedMapActive) {
+      this.targetDistance = this.currentDistance;
+      this.illustratedMapEntryPending = false;
+      this.illustratedMapExitPending = false;
+    }
     this.cancelNavigationAnimation();
     this.resetWheelAccumulator();
     this.keys.clear();
@@ -658,6 +661,7 @@ export class CameraController {
       // the following frame so listener ordering cannot leave us using the old
       // projection while recomputing the terminal desk fit.
       this.commitViewChange();
+      this.ensureNavigationAnimation();
     });
   };
 
