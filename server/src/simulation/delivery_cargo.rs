@@ -325,6 +325,51 @@ pub fn selected_food_delivery_commodity(
         .find(|commodity| building_commodity_stock(building, *commodity) > 1e-6)
 }
 
+/// Select one physical commodity for a household cart. Keeping the commodity
+/// identity on the trip prevents returned cider, charcoal, or wine from being
+/// silently converted into the generic need it satisfies.
+pub fn selected_need_delivery_commodity(
+    building: &Building,
+    need_kind: ResidenceNeedKind,
+) -> Option<CommodityKind> {
+    match need_kind {
+        ResidenceNeedKind::Firewood => [CommodityKind::Firewood, CommodityKind::Charcoal]
+            .into_iter()
+            .find(|commodity| building_commodity_stock(building, *commodity) >= 1.0),
+        ResidenceNeedKind::Water => (building.water >= 1.0).then_some(CommodityKind::Water),
+        ResidenceNeedKind::Food | ResidenceNeedKind::PreservedFood => {
+            selected_food_delivery_commodity(building, need_kind)
+        }
+        ResidenceNeedKind::Ale => [
+            CommodityKind::Cider,
+            CommodityKind::PearCider,
+            CommodityKind::Ale,
+            CommodityKind::Mead,
+        ]
+        .into_iter()
+        .find(|commodity| building_commodity_stock(building, *commodity) >= 1.0),
+        ResidenceNeedKind::Cloth => (building.cloth >= 1.0).then_some(CommodityKind::Cloth),
+        ResidenceNeedKind::Shoes => (building.shoes >= 1.0).then_some(CommodityKind::Shoes),
+        ResidenceNeedKind::Pottery => (building.pottery >= 1.0).then_some(CommodityKind::Pottery),
+        // Honey remains an edible pantry commodity and therefore cannot encode
+        // a distinct Luxury destination on the existing one-kind cart row.
+        ResidenceNeedKind::Luxury => (building.wine >= 1.0).then_some(CommodityKind::Wine),
+        ResidenceNeedKind::Church | ResidenceNeedKind::FoodVariety => None,
+    }
+}
+
+pub fn delivery_commodity_need_value(
+    need_kind: ResidenceNeedKind,
+    commodity: CommodityKind,
+) -> f64 {
+    match (need_kind, commodity) {
+        (ResidenceNeedKind::Firewood, CommodityKind::Charcoal) => {
+            whole_units(CHARCOAL_HOUSEHOLD_FUEL_VALUE).max(1.0)
+        }
+        _ => 1.0,
+    }
+}
+
 /// Prefer a food category that the destination pantry does not yet contain,
 /// then fall back to the normal perishability order. This makes market variety
 /// a physical allocation result instead of a global-stock checkbox.
@@ -466,11 +511,23 @@ pub fn pick_delivery_target(
                     0.0
                 }
             },
-            |physical| residence_commodity_delivery_room(residence, physical),
+            |physical| {
+                if physical.is_edible() {
+                    residence_commodity_delivery_room(residence, physical)
+                } else {
+                    let stock = need_stock(&load_needs(ctx, residence.id), kind);
+                    let need_room = delivery_stock_room(kind, stock);
+                    let value = delivery_commodity_need_value(kind, physical);
+                    whole_units(need_room / value)
+                }
+            },
         );
         if room <= 1e-6 {
             continue;
         }
+        let batch = commodity.map_or(batch, |physical| {
+            whole_units(batch / delivery_commodity_need_value(kind, physical))
+        });
         let load = whole_units(available.min(room).min(batch));
         if load <= 1e-6 {
             continue;

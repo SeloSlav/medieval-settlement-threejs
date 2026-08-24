@@ -1316,6 +1316,17 @@ export class ResourceInspector {
       this.selectedTarget?.kind === 'building'
       && this.selectedTarget.building.kind === 'granary'
     ) {
+      const householdsFirstValue = (event.target as HTMLElement)
+        .closest<HTMLElement>('[data-granary-households-first]')
+        ?.dataset.granaryHouseholdsFirst;
+      if (householdsFirstValue != null) {
+        void this.options.onSetGranaryPolicy?.(
+          this.selectedTarget.building.id,
+          this.selectedTarget.building.granaryAcceptsFreshFood !== false,
+          householdsFirstValue === 'true',
+        );
+        return;
+      }
       const reserveValue = (event.target as HTMLElement)
         .closest<HTMLElement>('[data-granary-grain-reserve]')
         ?.dataset.granaryGrainReserve;
@@ -1623,11 +1634,6 @@ export class ResourceInspector {
         salt,
       );
       return;
-    }
-    if (building.kind === 'granary' && input.matches('[data-granary-households-first]')) {
-      const acceptsFreshFood = building.granaryAcceptsFreshFood !== false;
-      const householdsFirst = this.supplementalPanelSection.querySelector<HTMLInputElement>('[data-granary-households-first]')?.checked ?? false;
-      void this.options.onSetGranaryPolicy?.(building.id, acceptsFreshFood, householdsFirst);
     }
   };
 

@@ -133,7 +133,7 @@ export function placeBuilding(state: GameState, kind: BuildingKind, x: number, z
     storehouseCharcoalTargetPercent: 25,
     granaryAcceptsFreshFood: true,
     storageAcceptanceMask: ((1n << 64n) - 1n).toString(),
-    granaryHouseholdsFirst: false,
+    granaryHouseholdsFirst: true,
     granaryFreshFoodTargetPercent: 75,
     breweryRecipePolicy: 0,
     constructionPriority: 2,

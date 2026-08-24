@@ -35,7 +35,7 @@ use crate::residence_upgrade_policy::{
     household_stock_satisfies_promotion_need, residence_project_active, residence_promotion_needs,
     residence_upgrade_household_contribution,
 };
-use crate::resource_units::whole_units;
+use crate::resource_units::{whole_cost, whole_units};
 use crate::roads::{load_owner_road_network, RoadNetwork};
 use crate::simulation::residence_needs::{load_needs, need_stock, ResidenceNeedKind};
 use crate::simulation::{
@@ -46,6 +46,15 @@ use crate::simulation::{
 use crate::supply_policy::is_well_supplier_operational;
 use crate::tables::{farm_field, BurgageZone, Residence};
 use crate::well_policy::position_within_well_service_radius;
+
+fn whole_residence_project_contribution(household_wealth: f64, gold_cost: f64) -> f64 {
+    let cost = whole_cost(gold_cost);
+    whole_units(residence_upgrade_household_contribution(
+        whole_units(household_wealth),
+        cost,
+    ))
+    .min(cost)
+}
 
 #[reducer]
 pub fn place_burgage_zone(
@@ -399,6 +408,7 @@ pub fn upgrade_residence(ctx: &ReducerContext, residence_id: u64) -> Result<(), 
         ),
         _ => return Err("This residence is already at tier 4.".to_string()),
     };
+    let gold = whole_cost(gold);
 
     if let Some(unmet_need) = first_unmet_current_tier_promotion_need(ctx, &residence) {
         return Err(format!(
@@ -415,7 +425,7 @@ pub fn upgrade_residence(ctx: &ReducerContext, residence_id: u64) -> Result<(), 
         .find(&owner)
         .is_some_and(|resources| resources.physical_founding_site_enabled);
     let household_contribution = if physical_economy {
-        residence_upgrade_household_contribution(residence.household_wealth, gold)
+        whole_residence_project_contribution(residence.household_wealth, gold)
     } else {
         0.0
     };
@@ -467,7 +477,8 @@ pub fn upgrade_residence(ctx: &ReducerContext, residence_id: u64) -> Result<(), 
             )?;
         }
 
-        residence.household_wealth = (residence.household_wealth - household_contribution).max(0.0);
+        residence.household_wealth =
+            (whole_units(residence.household_wealth) - household_contribution).max(0.0);
         residence.upgrade_target_tier = next_tier;
         residence.upgrade_progress = 0.0;
         residence.upgrade_required_timber = timber;
@@ -1057,7 +1068,14 @@ pub fn demolish_burgage_zone(ctx: &ReducerContext, zone_id: u64) -> Result<(), S
 
 #[cfg(test)]
 mod demolition_tests {
-    use super::allocated_whole_salvage_share;
+    use super::{allocated_whole_salvage_share, whole_residence_project_contribution};
+
+    #[test]
+    fn residence_upgrade_contribution_uses_only_whole_coins() {
+        assert_eq!(whole_residence_project_contribution(15.9, 8.4), 3.0);
+        assert_eq!(whole_residence_project_contribution(50.0, 8.4), 9.0);
+        assert_eq!(whole_residence_project_contribution(11.9, 8.4), 0.0);
+    }
 
     #[test]
     fn zone_salvage_distributes_only_whole_units_without_losing_remainders() {

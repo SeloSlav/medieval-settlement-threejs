@@ -515,9 +515,7 @@ pub fn directly_dispatched_processor_input_per_cycle(target_kind: &str, commodit
 }
 
 pub fn processor_input_target(per_cycle: f64, processor_output_target_percent: u8) -> f64 {
-    whole_cost(
-        per_cycle.max(0.0) * processor_input_staging_cycles(processor_output_target_percent),
-    )
+    whole_cost(per_cycle.max(0.0) * processor_input_staging_cycles(processor_output_target_percent))
 }
 
 pub fn processor_input_runway_cycles(stock: f64, per_cycle: f64) -> f64 {
@@ -808,11 +806,12 @@ mod tests {
 
     #[test]
     fn rich_mines_stage_three_complete_timber_support_cycles() {
-        assert_eq!(rich_mine_support_target(), 1.5);
+        assert_eq!(rich_mine_support_target(), 3.0);
+        assert_eq!(rich_mine_support_target().fract(), 0.0);
         assert_eq!(rich_mine_support_runway_cycles(0.0), 0.0);
-        assert_eq!(rich_mine_support_runway_cycles(1.5), 3.0);
-        assert!(!rich_mine_supports_ready(0.49));
-        assert!(rich_mine_supports_ready(0.5));
+        assert_eq!(rich_mine_support_runway_cycles(3.0), 3.0);
+        assert!(!rich_mine_supports_ready(0.99));
+        assert!(rich_mine_supports_ready(1.0));
     }
 
     #[test]
@@ -825,10 +824,11 @@ mod tests {
 
     #[test]
     fn large_quarries_stage_six_lighter_timber_support_cycles() {
-        assert!((large_quarry_support_target() - 1.5).abs() < 1e-9);
-        assert_eq!(large_quarry_support_runway_cycles(1.5), 6.0);
-        assert!(!large_quarry_supports_ready(0.24));
-        assert!(large_quarry_supports_ready(0.25));
+        assert_eq!(large_quarry_support_target(), 6.0);
+        assert_eq!(large_quarry_support_target().fract(), 0.0);
+        assert_eq!(large_quarry_support_runway_cycles(6.0), 6.0);
+        assert!(!large_quarry_supports_ready(0.99));
+        assert!(large_quarry_supports_ready(1.0));
     }
 
     #[test]
@@ -1043,25 +1043,25 @@ mod tests {
 
     #[test]
     fn carpenter_service_stock_backs_real_accelerated_departures() {
-        assert!((carpenter_cart_service_timber_target(15) - 3.0).abs() < 1e-9);
-        assert!((carpenter_cart_service_ironwork_target(15) - 0.6).abs() < 1e-9);
+        assert_eq!(carpenter_cart_service_timber_target(15), 15.0);
+        assert_eq!(carpenter_cart_service_ironwork_target(15), 15.0);
         assert_eq!(carpenter_cart_service_timber_target(0), 0.0);
         assert_eq!(carpenter_cart_service_ironwork_target(0), 0.0);
-        assert_eq!(carpenter_cart_service_trips_available(3.0, 0.6), 15);
-        assert_eq!(carpenter_cart_service_trips_available(3.0, 0.039), 0);
-        assert!(!carpenter_cart_service_ready(15, 0.19, 4.0));
-        assert!(carpenter_cart_service_ready(15, 0.2, 0.04));
-        assert!(!carpenter_cart_service_ready(0, 3.0, 0.6));
+        assert_eq!(carpenter_cart_service_trips_available(15.0, 15.0), 15);
+        assert_eq!(carpenter_cart_service_trips_available(15.0, 0.99), 0);
+        assert!(!carpenter_cart_service_ready(15, 0.99, 4.0));
+        assert!(carpenter_cart_service_ready(15, 1.0, 1.0));
+        assert!(!carpenter_cart_service_ready(0, 15.0, 15.0));
     }
 
     #[test]
     fn construction_carts_leave_the_carpenter_service_buffer_at_the_shop() {
         assert!(
-            (construction_source_available_stock("carpenter", 15, "timber", 8.0) - 5.0).abs()
+            (construction_source_available_stock("carpenter", 15, "timber", 20.0) - 5.0).abs()
                 < 1e-9
         );
         assert!(
-            (construction_source_available_stock("carpenter", 15, "ironwork", 2.0) - 1.4).abs()
+            (construction_source_available_stock("carpenter", 15, "ironwork", 18.0) - 3.0).abs()
                 < 1e-9
         );
         assert_eq!(
@@ -1173,7 +1173,7 @@ mod tests {
         );
         assert_eq!(
             directly_dispatched_processor_input_per_cycle("pastoral_farmstead", "salt"),
-            super::LIVESTOCK_FARMSTEAD_SALT_STAGING_PER_CYCLE,
+            1.0,
         );
         assert_eq!(
             MARKETPLACE_MATERIAL_TARGET_KINDS,
@@ -1218,7 +1218,7 @@ mod tests {
         );
         assert_eq!(
             directly_dispatched_processor_input_per_cycle("smokehouse", "pottery"),
-            0.25,
+            0.0,
         );
         assert_eq!(
             directly_dispatched_processor_input_per_cycle("threshing_barn", "ironwork"),
@@ -1255,17 +1255,17 @@ mod tests {
             ProcessorInputDispatchDuty::WorkshopOverflow
         );
         assert_eq!(
-            local_material_dispatch_target("mine", "ironwork", 4, 0.59, 3.0, 25, 0.0),
+            local_material_dispatch_target("mine", "ironwork", 4, 2.0, 3.0, 25, 0.0),
             Some((ProcessorInputDispatchDuty::WorkingBuffer, 3.0)),
             "a staffed tool rack below reorder must request one full-rack refill independent of output policy"
         );
         assert_eq!(
-            local_material_dispatch_target("mine", "ironwork", 4, 0.6, 3.0, 100, 0.0),
+            local_material_dispatch_target("mine", "ironwork", 4, 3.0, 3.0, 100, 0.0),
             None,
-            "hysteresis must prevent fractional top-up cart spam above the reorder point"
+            "a full whole-unit rack must not request redundant top-up carts"
         );
         assert_eq!(
-            local_material_dispatch_target("stone_quarry", "ironwork", 0, 0.2, 3.0, 50, 0.0),
+            local_material_dispatch_target("stone_quarry", "ironwork", 0, 0.0, 3.0, 50, 0.0),
             Some((ProcessorInputDispatchDuty::WorkshopOverflow, 3.0)),
             "idle sites may be pre-stocked only after staffed working-buffer claims"
         );

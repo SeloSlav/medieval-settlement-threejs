@@ -1108,7 +1108,7 @@ pub fn insert_reclamation_pile(
         construction_reserved_roof_tiles: 0.0,
         construction_treasury_roof_tiles: 0.0,
         granary_accepts_fresh_food: true,
-        granary_households_first: false,
+        granary_households_first: true,
         construction_priority: CONSTRUCTION_PRIORITY_NORMAL,
         woodcutter_timber_reserve: 0.0,
         granary_grain_reserve: 0.0,

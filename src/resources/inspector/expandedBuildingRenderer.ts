@@ -1696,8 +1696,11 @@ export function renderGranaryPolicyPanel(building: BuildingState): string {
       ${renderStorageAcceptanceControls(building, GRANARY_STORAGE_GROUPS)}
     </div>
     <div class="inspector-action-panel" data-inspector-panel-title="Delivery order · ${deliveryPriority}">
-      <p class="inspector-action-panel__hint">Turn on to stock household Marketplace stalls before smokehouses; turn off to stock smokehouses first.</p>
-      <label class="city-admin-panel__toggle"><input type="checkbox" data-granary-households-first ${householdsFirst ? 'checked' : ''} /><span>Households first</span></label>
+      <p class="inspector-action-panel__hint">Choose which shortage receives the first eligible cart. New Granaries prioritize household Marketplace stalls by default; if that destination has no shortage, delivery falls through to the other.</p>
+      <div class="resource-action-row granary-delivery-order" role="group" aria-label="Granary delivery order">
+        <button type="button" class="resource-action-button${householdsFirst ? ' is-selected' : ''}" data-granary-households-first="true" aria-pressed="${householdsFirst}" ${householdsFirst ? 'disabled' : ''}>Households first</button>
+        <button type="button" class="resource-action-button${householdsFirst ? '' : ' is-selected'}" data-granary-households-first="false" aria-pressed="${!householdsFirst}" ${householdsFirst ? '' : 'disabled'}>Smokehouses first</button>
+      </div>
     </div>
     <div class="inspector-action-panel" data-inspector-panel-title="Fresh-food limit · ${freshFoodTarget.toFixed(0)}">
       <p class="inspector-action-panel__hint">Collect up to ${freshFoodTarget.toFixed(0)} fresh food (${freshFoodTargetPercent}% of ${freshFoodCapacity.toFixed(0)} capacity); outgoing carts can still use it.</p>

@@ -41,13 +41,14 @@ use crate::raid_agent_policy::{
     COMBAT_STATE_LOOTING, COMBAT_TARGET_BUILDING, COMBAT_TARGET_DELIVERY_TRIP,
 };
 use crate::residence_upgrade_policy::residence_project_active;
-use crate::resource_units::whole_units;
+use crate::resource_units::{whole_cost, whole_units};
 use crate::roads::{RoadNetwork, RoadPathRoute};
 use crate::season_policy::environment_for;
 use crate::security_policy::raid_immune_building_kind;
 use crate::simulation::delivery_cargo::{
-    building_delivery_stock, pick_delivery_target, residence_delivery_room,
-    selected_food_delivery_commodity, withdraw_delivery_cargo, DeliveryCargoTotals,
+    building_delivery_stock, delivery_commodity_need_value, pick_delivery_target,
+    residence_delivery_room, selected_need_delivery_commodity, withdraw_delivery_cargo,
+    DeliveryCargoTotals,
 };
 use crate::simulation::fires::{
     apply_fire_water, building_fire_state, release_fire_response, residence_fire_state,
@@ -107,6 +108,31 @@ pub const DELIVERY_DESTINATION_REGIONAL_TRADE: u8 = 5;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum TripCargoKind {
     Commodity(CommodityKind),
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+struct WholeLocalSaleReceipt {
+    producer_income: f64,
+    local_tax: f64,
+}
+
+/// Convert a local commodity sale into whole coins before assigning tax and
+/// producer income. The split never creates or drops part of a realized coin.
+fn split_whole_local_sale_receipt(
+    base_activity: f64,
+    tax_rate: f64,
+    collection_multiplier: f64,
+) -> WholeLocalSaleReceipt {
+    let (adjusted, assessed_tax) = taxed_economic_activity(base_activity, tax_rate);
+    let gross = whole_units(adjusted);
+    if gross < 1.0 {
+        return WholeLocalSaleReceipt::default();
+    }
+    let local_tax = whole_cost(assessed_tax * collection_multiplier.clamp(0.0, 1.0)).min(gross);
+    WholeLocalSaleReceipt {
+        producer_income: gross - local_tax,
+        local_tax,
+    }
 }
 
 impl TripCargoKind {
@@ -785,7 +811,7 @@ pub fn try_start_delivery_trip(
         return false;
     }
 
-    let delivery_commodity = selected_food_delivery_commodity(building, need_kind);
+    let delivery_commodity = selected_need_delivery_commodity(building, need_kind);
     let available = delivery_commodity
         .map(|commodity| building_commodity_stock(building, commodity))
         .unwrap_or_else(|| building_delivery_stock(building, need_kind));
@@ -870,7 +896,7 @@ pub fn try_start_market_stall_delivery_trip(
     {
         return false;
     }
-    let delivery_commodity = selected_food_delivery_commodity(marketplace, need_kind);
+    let delivery_commodity = selected_need_delivery_commodity(marketplace, need_kind);
     let available = delivery_commodity
         .map(|commodity| building_commodity_stock(marketplace, commodity))
         .unwrap_or_else(|| building_delivery_stock(marketplace, need_kind));
@@ -2491,18 +2517,25 @@ fn unload_commodity_to_building(
         trip.amount = (trip.amount - deposited).max(0.0);
         if local_milk_sale {
             let base_activity = deposited * FOOD_SALE_GOLD_PER_UNIT;
-            let (adjusted, assessed_tax) = taxed_economic_activity(
+            let receipt = split_whole_local_sale_receipt(
                 base_activity,
                 player_economic_activity_tax_rate(ctx, target.owner),
+                town_hall_tax_collection_multiplier(ctx, target.owner),
             );
-            let collected_tax =
-                assessed_tax * town_hall_tax_collection_multiplier(ctx, target.owner);
-            credit_settlement_household_income(
+            let credited_income = credit_settlement_household_income(
                 ctx,
                 target.owner,
-                (adjusted - collected_tax).max(0.0),
+                receipt.producer_income,
             );
-            credit_marketplace_receipt_gold(ctx, &mut target, collected_tax);
+            // A settlement with no occupied household cannot receive private
+            // income. Keep those realized coins at the market instead of
+            // deleting them.
+            let unclaimed_income = (receipt.producer_income - credited_income).max(0.0);
+            credit_marketplace_receipt_gold(
+                ctx,
+                &mut target,
+                receipt.local_tax + unclaimed_income,
+            );
         }
         ctx.db.building().id().update(target);
         if monastery_tithe_delivery {
@@ -2915,7 +2948,10 @@ fn return_commodity_to_building(
 
 #[cfg(test)]
 mod tests {
-    use super::{recalled_inbound_progress, rostered_cart_workers, DeliveryTripPhase};
+    use super::{
+        recalled_inbound_progress, rostered_cart_workers, split_whole_local_sale_receipt,
+        DeliveryTripPhase, WholeLocalSaleReceipt,
+    };
 
     #[test]
     fn rostered_cart_workers_excludes_free_haulers() {
@@ -2956,6 +2992,29 @@ mod tests {
         assert_eq!(
             recalled_inbound_progress(DeliveryTripPhase::Outbound, 100.0, -20.0),
             100.0
+        );
+    }
+
+    #[test]
+    fn local_milk_sale_assigns_every_realized_coin_once() {
+        let receipt = split_whole_local_sale_receipt(10.8, 0.18, 1.0);
+        assert_eq!(
+            receipt,
+            WholeLocalSaleReceipt {
+                producer_income: 8.0,
+                local_tax: 2.0,
+            }
+        );
+        assert_eq!(receipt.producer_income + receipt.local_tax, 10.0);
+        assert_eq!(receipt.producer_income.fract(), 0.0);
+        assert_eq!(receipt.local_tax.fract(), 0.0);
+    }
+
+    #[test]
+    fn sub_coin_local_milk_sale_does_not_mint_currency() {
+        assert_eq!(
+            split_whole_local_sale_receipt(0.99, 0.18, 1.0),
+            WholeLocalSaleReceipt::default()
         );
     }
 }

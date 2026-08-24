@@ -23,6 +23,7 @@ use crate::raid_agent_policy::{
     RAIDER_SPEED_MPS, RESIDENCE_ASSAULT_OUTER_RADIUS_METERS, WOUNDED_GUARD_SPEED_MPS,
 };
 use crate::roads::{RoadNetwork, RoadPathRoute};
+use crate::resource_units::whole_units;
 use crate::security_policy::{
     guardhouse_muster_efficiency, raid_arson_occurs, scheduled_raid_ticks,
     select_guardhouse_muster_watch, RaidPortableStores, WatchArea,
@@ -1519,17 +1520,20 @@ fn record_contact_plunder(
     plunder: ContactRaidPlunder,
     sim_tick: u64,
 ) {
+    let carried = plunder.carried.normalized_whole();
+    let goods_lost = whole_units(plunder.goods_lost);
+    let wealth_lost = whole_units(plunder.wealth_lost);
     if plunder.goods_lost > EPSILON || plunder.wealth_lost > EPSILON {
-        agent.carried_loot_json = serde_json::to_string(&plunder.carried).unwrap_or_default();
+        agent.carried_loot_json = serde_json::to_string(&carried).unwrap_or_default();
     }
     let Some(mut latest) = ctx.db.active_raid().owner().find(&active.owner) else {
         return;
     };
-    latest.goods_lost += plunder.goods_lost;
-    latest.wealth_lost += plunder.wealth_lost;
+    latest.goods_lost = whole_units(latest.goods_lost) + goods_lost;
+    latest.wealth_lost = whole_units(latest.wealth_lost) + wealth_lost;
 
     if !latest.arson_started
-        && (plunder.goods_lost + plunder.wealth_lost) > EPSILON
+        && (goods_lost + wealth_lost) > EPSILON
         && raid_arson_occurs(
             latest.enemy_pressure,
             0.0,
@@ -1665,6 +1669,7 @@ fn down_agent(ctx: &ReducerContext, agent: &mut CombatAgent, active: &ActiveRaid
     latest.raiders_downed = latest.raiders_downed.saturating_add(1);
 
     if let Ok(carried) = serde_json::from_str::<RaidPortableStores>(&agent.carried_loot_json) {
+        let carried = carried.normalized_whole();
         let recovered = recover_stock_at(
             ctx,
             agent.owner,
@@ -1675,8 +1680,10 @@ fn down_agent(ctx: &ReducerContext, agent: &mut CombatAgent, active: &ActiveRaid
         .unwrap_or(false);
         if recovered {
             agent.carried_loot_json.clear();
-            latest.goods_lost = (latest.goods_lost - carried.goods_amount()).max(0.0);
-            latest.wealth_lost = (latest.wealth_lost - carried.gold.max(0.0)).max(0.0);
+            latest.goods_lost =
+                (whole_units(latest.goods_lost) - carried.goods_amount()).max(0.0);
+            latest.wealth_lost =
+                (whole_units(latest.wealth_lost) - whole_units(carried.gold)).max(0.0);
         }
     }
     ctx.db.active_raid().owner().update(latest);
@@ -1969,14 +1976,16 @@ pub(super) fn issued_guard_polearms_by_building(
         else {
             continue;
         };
-        if stores.polearms.is_finite() && stores.polearms > 0.0 {
-            *issued.entry(agent.source_building_id).or_insert(0.0) += stores.polearms;
+        let polearms = stores.normalized_whole().polearms;
+        if polearms > 0.0 {
+            *issued.entry(agent.source_building_id).or_insert(0.0) += polearms;
         }
     }
     issued
 }
 
 fn reclamation_from_raid_stores(stores: RaidPortableStores) -> ReclamationStock {
+    let stores = stores.normalized_whole();
     ReclamationStock {
         timber: stores.timber,
         firewood: stores.firewood,
@@ -1995,6 +2004,7 @@ fn reclamation_from_raid_stores(stores: RaidPortableStores) -> ReclamationStock 
         ale: stores.ale,
         cider: stores.cider,
         pear_cider: stores.pear_cider,
+        mead: stores.mead,
         preserved_food: stores.preserved_food,
         honey: stores.honey,
         wine: stores.wine,
@@ -2002,6 +2012,9 @@ fn reclamation_from_raid_stores(stores: RaidPortableStores) -> ReclamationStock 
         polearms: stores.polearms,
         wool: stores.wool,
         cloth: stores.cloth,
+        hides: stores.hides,
+        leather: stores.leather,
+        shoes: stores.shoes,
         gold: stores.gold,
         barley: stores.barley,
         malt: stores.malt,
@@ -2011,6 +2024,7 @@ fn reclamation_from_raid_stores(stores: RaidPortableStores) -> ReclamationStock 
         salt: stores.salt,
         charcoal: stores.charcoal,
         pottery: stores.pottery,
+        roof_tiles: stores.roof_tiles,
         remedies: stores.remedies,
         meat: stores.meat,
         fish: stores.fish,

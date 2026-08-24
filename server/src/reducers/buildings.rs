@@ -979,7 +979,7 @@ pub(crate) fn place_building_internal(
         storehouse_accepts_salt: true,
         storehouse_accepts_charcoal: true,
         granary_accepts_fresh_food: true,
-        granary_households_first: false,
+        granary_households_first: true,
         granary_grain_reserve: 0.0,
         harvest_reserve_percent,
         wool: 0.0,

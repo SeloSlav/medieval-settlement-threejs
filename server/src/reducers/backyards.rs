@@ -18,12 +18,22 @@ use crate::reducers::residences::ensure_upgrade_source_route;
 use crate::residence_upgrade_policy::{
     residence_project_active, residence_upgrade_household_contribution,
 };
+use crate::resource_units::{whole_cost, whole_units};
 use crate::roads::load_owner_road_network;
 use crate::simulation::{
     cancel_trips_for_residence, clear_residence_project, game_clock, insert_reclamation_pile,
     ReclamationStock,
 };
 use crate::tables::{BackyardGarden, Residence};
+
+fn whole_household_project_contribution(household_wealth: f64, gold_cost: f64) -> f64 {
+    let cost = whole_cost(gold_cost);
+    whole_units(residence_upgrade_household_contribution(
+        whole_units(household_wealth),
+        cost,
+    ))
+    .min(cost)
+}
 
 #[reducer]
 pub fn place_backyard_garden(
@@ -123,7 +133,7 @@ pub fn place_backyard_garden(
     }
 
     let cost = backyard_garden_cost(def.kind);
-    let gold_cost = def.cost_gold;
+    let gold_cost = whole_cost(def.cost_gold);
 
     if total_timber(ctx, owner) + 1e-6 < cost.timber {
         return Err("Not enough timber for this garden.".to_string());
@@ -139,7 +149,7 @@ pub fn place_backyard_garden(
         .find(&owner)
         .is_some_and(|resources| resources.physical_founding_site_enabled);
     let household_contribution = if physical_economy {
-        residence_upgrade_household_contribution(residence.household_wealth, gold_cost)
+        whole_household_project_contribution(residence.household_wealth, gold_cost)
     } else {
         0.0
     };
@@ -171,7 +181,8 @@ pub fn place_backyard_garden(
             )?;
         }
 
-        residence.household_wealth = (residence.household_wealth - household_contribution).max(0.0);
+        residence.household_wealth =
+            (whole_units(residence.household_wealth) - household_contribution).max(0.0);
         residence.backyard_project_kind = def.kind as u8;
         residence.upgrade_progress = 0.0;
         residence.upgrade_required_timber = cost.timber;
@@ -242,9 +253,9 @@ pub fn specialize_orchard(
         .filter(|candidate| candidate.specialization_of == Some("orchard"))
         .ok_or_else(|| "That is not an orchard planting option.".to_string())?;
     let orchard = crate::balance_generated::backyard_garden_def(BackyardGardenKind::Orchard);
-    let planting_gold = (def.cost_gold - orchard.cost_gold).max(0.0);
+    let planting_gold = whole_cost((def.cost_gold - orchard.cost_gold).max(0.0));
     let household_contribution =
-        residence_upgrade_household_contribution(residence.household_wealth, planting_gold);
+        whole_household_project_contribution(residence.household_wealth, planting_gold);
     let civic_gold_due = (planting_gold - household_contribution).max(0.0);
     if treasury_gold(ctx, owner) + 1e-6 < civic_gold_due {
         return Err(format!(
@@ -252,8 +263,9 @@ pub fn specialize_orchard(
             (civic_gold_due - treasury_gold(ctx, owner)).ceil() as i64,
         ));
     }
-    residence.household_wealth = (residence.household_wealth - household_contribution).max(0.0);
     spend_treasury_gold(ctx, owner, civic_gold_due)?;
+    residence.household_wealth =
+        (whole_units(residence.household_wealth) - household_contribution).max(0.0);
     credit_settlement_household_income(ctx, owner, planting_gold);
 
     let total_days = ctx
@@ -307,9 +319,9 @@ pub fn specialize_vegetable_garden(
         .filter(|candidate| candidate.specialization_of == Some("vegetable_garden"))
         .ok_or_else(|| "That seed cannot be planted in this vegetable garden.".to_string())?;
     let shell = crate::balance_generated::backyard_garden_def(BackyardGardenKind::VegetableGarden);
-    let seed_gold = (def.cost_gold - shell.cost_gold).max(0.0);
+    let seed_gold = whole_cost((def.cost_gold - shell.cost_gold).max(0.0));
     let household_contribution =
-        residence_upgrade_household_contribution(residence.household_wealth, seed_gold);
+        whole_household_project_contribution(residence.household_wealth, seed_gold);
     let civic_gold_due = (seed_gold - household_contribution).max(0.0);
     if treasury_gold(ctx, owner) + 1e-6 < civic_gold_due {
         return Err(format!(
@@ -317,8 +329,9 @@ pub fn specialize_vegetable_garden(
             (civic_gold_due - treasury_gold(ctx, owner)).ceil() as i64,
         ));
     }
-    residence.household_wealth = (residence.household_wealth - household_contribution).max(0.0);
     spend_treasury_gold(ctx, owner, civic_gold_due)?;
+    residence.household_wealth =
+        (whole_units(residence.household_wealth) - household_contribution).max(0.0);
     credit_settlement_household_income(ctx, owner, seed_gold);
 
     let total_days = ctx
@@ -372,9 +385,9 @@ pub fn specialize_animal_pen(
         .filter(|candidate| candidate.specialization_of == Some("animal_pen"))
         .ok_or_else(|| "That livestock cannot be housed in this pen.".to_string())?;
     let shell = crate::balance_generated::backyard_garden_def(BackyardGardenKind::AnimalPen);
-    let stocking_gold = (def.cost_gold - shell.cost_gold).max(0.0);
+    let stocking_gold = whole_cost((def.cost_gold - shell.cost_gold).max(0.0));
     let household_contribution =
-        residence_upgrade_household_contribution(residence.household_wealth, stocking_gold);
+        whole_household_project_contribution(residence.household_wealth, stocking_gold);
     let civic_gold_due = (stocking_gold - household_contribution).max(0.0);
     if treasury_gold(ctx, owner) + 1e-6 < civic_gold_due {
         return Err(format!(
@@ -382,8 +395,9 @@ pub fn specialize_animal_pen(
             (civic_gold_due - treasury_gold(ctx, owner)).ceil() as i64,
         ));
     }
-    residence.household_wealth = (residence.household_wealth - household_contribution).max(0.0);
     spend_treasury_gold(ctx, owner, civic_gold_due)?;
+    residence.household_wealth =
+        (whole_units(residence.household_wealth) - household_contribution).max(0.0);
     credit_settlement_household_income(ctx, owner, stocking_gold);
 
     let total_days = ctx
@@ -435,10 +449,12 @@ pub fn upgrade_flower_garden_luxury(ctx: &ReducerContext, residence_id: u64) -> 
     if garden.flower_luxury_upgraded {
         return Err("This flower garden already supplies luxury bouquets.".to_string());
     }
-    let cost = crate::balance_generated::backyard_garden_def(BackyardGardenKind::FlowerGarden)
-        .luxury_upgrade_gold_cost;
+    let cost = whole_cost(
+        crate::balance_generated::backyard_garden_def(BackyardGardenKind::FlowerGarden)
+            .luxury_upgrade_gold_cost,
+    );
     let household_contribution =
-        residence_upgrade_household_contribution(residence.household_wealth, cost);
+        whole_household_project_contribution(residence.household_wealth, cost);
     let civic_gold_due = (cost - household_contribution).max(0.0);
     if treasury_gold(ctx, owner) + 1e-6 < civic_gold_due {
         return Err(format!(
@@ -446,8 +462,9 @@ pub fn upgrade_flower_garden_luxury(ctx: &ReducerContext, residence_id: u64) -> 
             (civic_gold_due - treasury_gold(ctx, owner)).ceil() as i64,
         ));
     }
-    residence.household_wealth = (residence.household_wealth - household_contribution).max(0.0);
     spend_treasury_gold(ctx, owner, civic_gold_due)?;
+    residence.household_wealth =
+        (whole_units(residence.household_wealth) - household_contribution).max(0.0);
     credit_settlement_household_income(ctx, owner, cost);
     garden.flower_luxury_upgraded = true;
     ctx.db.backyard_garden().id().update(garden);
@@ -470,7 +487,11 @@ pub fn demolish_backyard_garden(ctx: &ReducerContext, residence_id: u64) -> Resu
     }
 
     if residence.backyard_project_kind != 0 {
-        credit_settlement_household_income(ctx, owner, residence.upgrade_delivered_gold.max(0.0));
+        credit_settlement_household_income(
+            ctx,
+            owner,
+            whole_units(residence.upgrade_delivered_gold),
+        );
         let refund = ReclamationStock {
             timber: (residence.upgrade_delivered_timber
                 * crate::balance_generated::TIMBER_SALVAGE_FRACTION)
@@ -555,4 +576,16 @@ fn backyard_reclamation_position(ctx: &ReducerContext, residence: &Residence) ->
         measure_zone_depth(&corners, zone.frontage_edge),
     );
     (point.x, point.z)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::whole_household_project_contribution;
+
+    #[test]
+    fn backyard_purchase_contribution_uses_only_whole_coins() {
+        assert_eq!(whole_household_project_contribution(15.9, 8.4), 3.0);
+        assert_eq!(whole_household_project_contribution(50.0, 8.4), 9.0);
+        assert_eq!(whole_household_project_contribution(11.9, 8.4), 0.0);
+    }
 }

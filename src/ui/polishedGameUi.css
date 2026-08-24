@@ -1611,6 +1611,11 @@ select:focus-visible {
   gap: 6px;
 }
 
+.granary-delivery-order > .resource-action-button {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
 .resource-action-button {
   min-height: 34px;
   padding: 7px 10px;

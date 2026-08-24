@@ -262,11 +262,15 @@ pub struct RaidPortableStores {
     pub ale: f64,
     pub cider: f64,
     pub pear_cider: f64,
+    pub mead: f64,
     pub preserved_food: f64,
     pub honey: f64,
     pub wine: f64,
     pub wool: f64,
     pub cloth: f64,
+    pub hides: f64,
+    pub leather: f64,
+    pub shoes: f64,
     pub ironwork: f64,
     pub polearms: f64,
     pub gold: f64,
@@ -278,6 +282,7 @@ pub struct RaidPortableStores {
     pub salt: f64,
     pub charcoal: f64,
     pub pottery: f64,
+    pub roof_tiles: f64,
     pub remedies: f64,
     pub meat: f64,
     pub fish: f64,
@@ -310,6 +315,83 @@ pub struct RaidPlunder {
 }
 
 impl RaidPortableStores {
+    /// Canonicalize persisted or newly assembled raid cargo at the boundary.
+    ///
+    /// Save-compatible table columns and JSON values remain `f64`, but every
+    /// physical commodity represented here is an indivisible, non-negative
+    /// unit. Keeping this operation on the record itself prevents one mapping
+    /// path from accidentally preserving a legacy fraction.
+    pub fn normalized_whole(mut self) -> Self {
+        macro_rules! normalize {
+            ($($field:ident),+ $(,)?) => {
+                $(self.$field = whole_units(self.$field);)+
+            };
+        }
+        normalize!(
+            timber,
+            firewood,
+            food,
+            rye_sheaves,
+            oat_sheaves,
+            barley_sheaves,
+            maslin_sheaves,
+            rye_grain,
+            oat_grain,
+            maslin_grain,
+            rye_flour,
+            maslin_flour,
+            rye_bread,
+            maslin_bread,
+            ale,
+            cider,
+            pear_cider,
+            mead,
+            preserved_food,
+            honey,
+            wine,
+            wool,
+            cloth,
+            hides,
+            leather,
+            shoes,
+            ironwork,
+            polearms,
+            gold,
+            barley,
+            malt,
+            flax,
+            iron,
+            clay,
+            salt,
+            charcoal,
+            pottery,
+            roof_tiles,
+            remedies,
+            meat,
+            fish,
+            berries,
+            mushrooms,
+            milk,
+            apples,
+            cherries,
+            vegetables,
+            eggs,
+            grapes,
+            cured_meat,
+            smoked_fish,
+            cheese,
+            pears,
+            aronia,
+            rosehips,
+            cabbage,
+            carrots,
+            beetroot,
+            aronia_jam,
+            rosehip_jam,
+        );
+        self
+    }
+
     pub fn raid_value(self) -> f64 {
         positive_store(self.timber)
             + positive_store(self.firewood)
@@ -328,11 +410,15 @@ impl RaidPortableStores {
             + positive_store(self.ale)
             + positive_store(self.cider)
             + positive_store(self.pear_cider)
+            + positive_store(self.mead)
             + positive_store(self.preserved_food)
             + positive_store(self.honey)
             + positive_store(self.wine)
             + positive_store(self.wool)
             + positive_store(self.cloth) * CLOTH_RAID_VALUE_MULTIPLIER
+            + positive_store(self.hides)
+            + positive_store(self.leather) * CLOTH_RAID_VALUE_MULTIPLIER
+            + positive_store(self.shoes) * IRONWORK_RAID_VALUE_MULTIPLIER
             + positive_store(self.ironwork) * IRONWORK_RAID_VALUE_MULTIPLIER
             + positive_store(self.polearms) * POLEARM_RAID_VALUE_MULTIPLIER
             + positive_store(self.gold)
@@ -344,6 +430,7 @@ impl RaidPortableStores {
             + positive_store(self.salt) * 1.5
             + positive_store(self.charcoal)
             + positive_store(self.pottery) * 1.25
+            + positive_store(self.roof_tiles)
             + positive_store(self.remedies) * 1.25
             + positive_store(self.meat)
             + positive_store(self.fish)
@@ -386,11 +473,15 @@ impl RaidPortableStores {
             + positive_store(self.ale)
             + positive_store(self.cider)
             + positive_store(self.pear_cider)
+            + positive_store(self.mead)
             + positive_store(self.preserved_food)
             + positive_store(self.honey)
             + positive_store(self.wine)
             + positive_store(self.wool)
             + positive_store(self.cloth)
+            + positive_store(self.hides)
+            + positive_store(self.leather)
+            + positive_store(self.shoes)
             + positive_store(self.ironwork)
             + positive_store(self.polearms)
             + positive_store(self.barley)
@@ -401,6 +492,7 @@ impl RaidPortableStores {
             + positive_store(self.salt)
             + positive_store(self.charcoal)
             + positive_store(self.pottery)
+            + positive_store(self.roof_tiles)
             + positive_store(self.remedies)
             + positive_store(self.meat)
             + positive_store(self.fish)
@@ -431,12 +523,13 @@ impl RaidPortableStores {
         } else {
             0.0
         };
-        let mut remaining = self;
+        let source = self.normalized_whole();
+        let mut remaining = source;
         let mut goods_lost = 0.0;
 
         macro_rules! plunder_good {
             ($field:ident) => {{
-                let (stock_left, stock_lost) = plunder_store(self.$field, fraction);
+                let (stock_left, stock_lost) = plunder_store(source.$field, fraction);
                 remaining.$field = stock_left;
                 goods_lost += stock_lost;
             }};
@@ -459,11 +552,15 @@ impl RaidPortableStores {
         plunder_good!(ale);
         plunder_good!(cider);
         plunder_good!(pear_cider);
+        plunder_good!(mead);
         plunder_good!(preserved_food);
         plunder_good!(honey);
         plunder_good!(wine);
         plunder_good!(wool);
         plunder_good!(cloth);
+        plunder_good!(hides);
+        plunder_good!(leather);
+        plunder_good!(shoes);
         plunder_good!(ironwork);
         plunder_good!(polearms);
         plunder_good!(barley);
@@ -474,6 +571,7 @@ impl RaidPortableStores {
         plunder_good!(salt);
         plunder_good!(charcoal);
         plunder_good!(pottery);
+        plunder_good!(roof_tiles);
         plunder_good!(remedies);
         plunder_good!(meat);
         plunder_good!(fish);
@@ -496,7 +594,7 @@ impl RaidPortableStores {
         plunder_good!(beetroot);
         plunder_good!(aronia_jam);
         plunder_good!(rosehip_jam);
-        let (gold, wealth_lost) = plunder_store(self.gold, fraction);
+        let (gold, wealth_lost) = plunder_store(source.gold, fraction);
         remaining.gold = gold;
 
         RaidPlunder {
@@ -530,11 +628,15 @@ impl RaidPortableStores {
             ale: removed!(ale),
             cider: removed!(cider),
             pear_cider: removed!(pear_cider),
+            mead: removed!(mead),
             preserved_food: removed!(preserved_food),
             honey: removed!(honey),
             wine: removed!(wine),
             wool: removed!(wool),
             cloth: removed!(cloth),
+            hides: removed!(hides),
+            leather: removed!(leather),
+            shoes: removed!(shoes),
             ironwork: removed!(ironwork),
             polearms: removed!(polearms),
             gold: removed!(gold),
@@ -546,6 +648,7 @@ impl RaidPortableStores {
             salt: removed!(salt),
             charcoal: removed!(charcoal),
             pottery: removed!(pottery),
+            roof_tiles: removed!(roof_tiles),
             remedies: removed!(remedies),
             meat: removed!(meat),
             fish: removed!(fish),

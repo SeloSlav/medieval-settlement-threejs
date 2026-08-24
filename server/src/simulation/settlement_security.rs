@@ -684,6 +684,9 @@ fn building_portable_value(building: &Building, issued_polearms: f64) -> f64 {
 }
 
 pub(super) fn building_portable_stores(building: &Building) -> RaidPortableStores {
+    if raid_immune_building_kind(&building.kind) {
+        return RaidPortableStores::default();
+    }
     RaidPortableStores {
         timber: building.timber,
         firewood: building.firewood,
@@ -702,11 +705,15 @@ pub(super) fn building_portable_stores(building: &Building) -> RaidPortableStore
         ale: building.ale,
         cider: building.cider,
         pear_cider: building.pear_cider,
+        mead: building.mead,
         preserved_food: building.preserved_food,
         honey: building.honey,
         wine: building.wine,
         wool: building.wool,
         cloth: building.cloth,
+        hides: building.hides,
+        leather: building.leather,
+        shoes: building.shoes,
         ironwork: building.ironwork,
         polearms: building.polearms,
         gold: building.gold,
@@ -718,6 +725,7 @@ pub(super) fn building_portable_stores(building: &Building) -> RaidPortableStore
         salt: building.salt,
         charcoal: building.charcoal,
         pottery: building.pottery,
+        roof_tiles: building.roof_tiles,
         remedies: building.remedies,
         meat: building.meat,
         fish: building.fish,
@@ -741,6 +749,7 @@ pub(super) fn building_portable_stores(building: &Building) -> RaidPortableStore
         aronia_jam: building.aronia_jam,
         rosehip_jam: building.rosehip_jam,
     }
+    .normalized_whole()
 }
 
 pub(super) fn building_portable_stores_at_site(
@@ -754,7 +763,7 @@ pub(super) fn building_portable_stores_at_site(
         0.0
     };
     stores.polearms = (stores.polearms - issued).max(0.0);
-    stores
+    stores.normalized_whole()
 }
 
 #[derive(Clone, Copy, Debug, Default)]
@@ -789,7 +798,7 @@ pub(super) fn plunder_raid_target_at_contact(
                 .get(&building.id)
                 .copied()
                 .unwrap_or(0.0)
-                .min(building.polearms.max(0.0));
+                .min(whole_units(building.polearms));
             let before = building_portable_stores_at_site(&building, issued);
             let plunder = before.plunder(loss_fraction);
             let mut company_remaining = plunder.remaining;
@@ -859,6 +868,26 @@ pub(super) fn plunder_raid_target_at_contact(
             }
         }
         RaidTargetKind::TreasuryAtBuilding | RaidTargetKind::TreasuryAtResidence => {
+            let valid_anchor = match kind {
+                RaidTargetKind::TreasuryAtBuilding => ctx
+                    .db
+                    .building()
+                    .id()
+                    .find(&target_id)
+                    .is_some_and(|building| {
+                        building.owner == owner && !raid_immune_building_kind(&building.kind)
+                    }),
+                RaidTargetKind::TreasuryAtResidence => ctx
+                    .db
+                    .residence()
+                    .id()
+                    .find(&target_id)
+                    .is_some_and(|residence| residence.owner == owner),
+                _ => false,
+            };
+            if !valid_anchor {
+                return ContactRaidPlunder::default();
+            }
             let Some(mut treasury) = ctx.db.player_resources().owner().find(&owner) else {
                 return ContactRaidPlunder::default();
             };
@@ -934,7 +963,7 @@ pub(super) fn delivery_trip_portable_stores(trip: &DeliveryTrip) -> RaidPortable
         Some(CommodityKind::Ale) => stores.ale = amount,
         Some(CommodityKind::Cider) => stores.cider = amount,
         Some(CommodityKind::PearCider) => stores.pear_cider = amount,
-        Some(CommodityKind::Mead) => stores.ale = amount,
+        Some(CommodityKind::Mead) => stores.mead = amount,
         Some(CommodityKind::PreservedFood) => stores.preserved_food = amount,
         Some(CommodityKind::CuredMeat) => stores.cured_meat = amount,
         Some(CommodityKind::SmokedFish) => stores.smoked_fish = amount,
@@ -951,6 +980,9 @@ pub(super) fn delivery_trip_portable_stores(trip: &DeliveryTrip) -> RaidPortable
         Some(CommodityKind::Wine) => stores.wine = amount,
         Some(CommodityKind::Wool) => stores.wool = amount,
         Some(CommodityKind::Cloth) => stores.cloth = amount,
+        Some(CommodityKind::Hides) => stores.hides = amount,
+        Some(CommodityKind::Leather) => stores.leather = amount,
+        Some(CommodityKind::Shoes) => stores.shoes = amount,
         Some(CommodityKind::Ironwork) => stores.ironwork = amount,
         Some(CommodityKind::Polearms) => stores.polearms = amount,
         Some(CommodityKind::Gold) => stores.gold = amount,
@@ -962,21 +994,18 @@ pub(super) fn delivery_trip_portable_stores(trip: &DeliveryTrip) -> RaidPortable
         Some(CommodityKind::Salt) => stores.salt = amount,
         Some(CommodityKind::Charcoal) => stores.charcoal = amount,
         Some(CommodityKind::Pottery) => stores.pottery = amount,
+        Some(CommodityKind::RoofTiles) => stores.roof_tiles = amount,
         Some(CommodityKind::Remedies) => stores.remedies = amount,
         // Raiders do not select bulk stone or water as plunder even when a
         // settlement cart happens to be carrying it.
         Some(
             CommodityKind::Stone
             | CommodityKind::Water
-            | CommodityKind::Manure
-            | CommodityKind::RoofTiles
-            | CommodityKind::Hides
-            | CommodityKind::Leather
-            | CommodityKind::Shoes,
+            | CommodityKind::Manure,
         )
         | None => {}
     }
-    stores
+    stores.normalized_whole()
 }
 
 fn delivery_trip_remaining_amount(cargo_kind: u8, stores: RaidPortableStores) -> f64 {
@@ -1008,7 +1037,7 @@ fn delivery_trip_remaining_amount(cargo_kind: u8, stores: RaidPortableStores) ->
         Some(CommodityKind::Ale) => stores.ale,
         Some(CommodityKind::Cider) => stores.cider,
         Some(CommodityKind::PearCider) => stores.pear_cider,
-        Some(CommodityKind::Mead) => stores.ale,
+        Some(CommodityKind::Mead) => stores.mead,
         Some(CommodityKind::PreservedFood) => stores.preserved_food,
         Some(CommodityKind::CuredMeat) => stores.cured_meat,
         Some(CommodityKind::SmokedFish) => stores.smoked_fish,
@@ -1025,6 +1054,9 @@ fn delivery_trip_remaining_amount(cargo_kind: u8, stores: RaidPortableStores) ->
         Some(CommodityKind::Wine) => stores.wine,
         Some(CommodityKind::Wool) => stores.wool,
         Some(CommodityKind::Cloth) => stores.cloth,
+        Some(CommodityKind::Hides) => stores.hides,
+        Some(CommodityKind::Leather) => stores.leather,
+        Some(CommodityKind::Shoes) => stores.shoes,
         Some(CommodityKind::Ironwork) => stores.ironwork,
         Some(CommodityKind::Polearms) => stores.polearms,
         Some(CommodityKind::Gold) => stores.gold,
@@ -1036,15 +1068,12 @@ fn delivery_trip_remaining_amount(cargo_kind: u8, stores: RaidPortableStores) ->
         Some(CommodityKind::Salt) => stores.salt,
         Some(CommodityKind::Charcoal) => stores.charcoal,
         Some(CommodityKind::Pottery) => stores.pottery,
+        Some(CommodityKind::RoofTiles) => stores.roof_tiles,
         Some(CommodityKind::Remedies) => stores.remedies,
         Some(
             CommodityKind::Stone
             | CommodityKind::Water
-            | CommodityKind::Manure
-            | CommodityKind::RoofTiles
-            | CommodityKind::Hides
-            | CommodityKind::Leather
-            | CommodityKind::Shoes,
+            | CommodityKind::Manure,
         )
         | None => 0.0,
     }
@@ -1083,11 +1112,15 @@ fn treasury_portable_stores(
         ale: treasury.ale,
         cider: treasury.cider,
         pear_cider: treasury.pear_cider,
+        mead: treasury.mead,
         preserved_food: treasury.preserved_food,
         honey: treasury.honey,
         wine: treasury.wine,
         wool: treasury.wool,
         cloth: treasury.cloth,
+        hides: treasury.hides,
+        leather: treasury.leather,
+        shoes: treasury.shoes,
         ironwork: treasury.ironwork,
         polearms: treasury.polearms,
         gold: treasury.gold,
@@ -1099,6 +1132,7 @@ fn treasury_portable_stores(
         salt: treasury.salt,
         charcoal: treasury.charcoal,
         pottery: treasury.pottery,
+        roof_tiles: treasury.roof_tiles,
         remedies: 0.0,
         meat: treasury.meat,
         fish: treasury.fish,
@@ -1122,6 +1156,7 @@ fn treasury_portable_stores(
         aronia_jam: treasury.aronia_jam,
         rosehip_jam: treasury.rosehip_jam,
     }
+    .normalized_whole()
 }
 
 fn treasury_anchor(
@@ -1139,6 +1174,7 @@ fn treasury_anchor(
                 && building.kind != "watchtower"
                 && building.kind != "guardhouse"
                 && building.kind != "palisaded_refuge"
+                && !raid_immune_building_kind(&building.kind)
         })
         .min_by_key(|building| building.id);
     if let Some(building) = town_hall.or(completed_holding) {
@@ -1163,6 +1199,7 @@ fn treasury_anchor(
             building.kind != "watchtower"
                 && building.kind != "guardhouse"
                 && building.kind != "palisaded_refuge"
+                && !raid_immune_building_kind(&building.kind)
         })
         .min_by_key(|building| building.id)
         .map(|building| {
@@ -1176,6 +1213,7 @@ fn treasury_anchor(
 }
 
 fn retain_unplundered_stores(building: &mut Building, stores: RaidPortableStores) {
+    let stores = stores.normalized_whole();
     building.timber = stores.timber;
     building.firewood = stores.firewood;
     building.food = stores.food;
@@ -1193,11 +1231,15 @@ fn retain_unplundered_stores(building: &mut Building, stores: RaidPortableStores
     building.ale = stores.ale;
     building.cider = stores.cider;
     building.pear_cider = stores.pear_cider;
+    building.mead = stores.mead;
     building.preserved_food = stores.preserved_food;
     building.honey = stores.honey;
     building.wine = stores.wine;
     building.wool = stores.wool;
     building.cloth = stores.cloth;
+    building.hides = stores.hides;
+    building.leather = stores.leather;
+    building.shoes = stores.shoes;
     building.ironwork = stores.ironwork;
     building.polearms = stores.polearms;
     building.gold = stores.gold;
@@ -1209,6 +1251,7 @@ fn retain_unplundered_stores(building: &mut Building, stores: RaidPortableStores
     building.salt = stores.salt;
     building.charcoal = stores.charcoal;
     building.pottery = stores.pottery;
+    building.roof_tiles = stores.roof_tiles;
     building.remedies = stores.remedies;
     building.meat = stores.meat;
     building.fish = stores.fish;
@@ -1244,7 +1287,7 @@ fn retain_unplundered_treasury_stores(
     macro_rules! subtract_loss {
         ($field:ident) => {{
             let lost = portable_store_loss(before.$field, remaining.$field);
-            treasury.$field = (treasury.$field - lost).max(0.0);
+            treasury.$field = (whole_units(treasury.$field) - lost).max(0.0);
         }};
     }
 
@@ -1265,11 +1308,15 @@ fn retain_unplundered_treasury_stores(
     subtract_loss!(ale);
     subtract_loss!(cider);
     subtract_loss!(pear_cider);
+    subtract_loss!(mead);
     subtract_loss!(preserved_food);
     subtract_loss!(honey);
     subtract_loss!(wine);
     subtract_loss!(wool);
     subtract_loss!(cloth);
+    subtract_loss!(hides);
+    subtract_loss!(leather);
+    subtract_loss!(shoes);
     subtract_loss!(ironwork);
     subtract_loss!(polearms);
     subtract_loss!(gold);
@@ -1281,6 +1328,7 @@ fn retain_unplundered_treasury_stores(
     subtract_loss!(salt);
     subtract_loss!(charcoal);
     subtract_loss!(pottery);
+    subtract_loss!(roof_tiles);
     subtract_loss!(meat);
     subtract_loss!(fish);
     subtract_loss!(berries);
@@ -1305,17 +1353,7 @@ fn retain_unplundered_treasury_stores(
 }
 
 fn portable_store_loss(before: f64, remaining: f64) -> f64 {
-    let stocked = if before.is_finite() {
-        before.max(0.0)
-    } else {
-        0.0
-    };
-    let retained = if remaining.is_finite() {
-        remaining.max(0.0)
-    } else {
-        0.0
-    };
-    (stocked - retained).max(0.0)
+    (whole_units(before) - whole_units(remaining)).max(0.0)
 }
 
 fn settlement_guard_districts(
