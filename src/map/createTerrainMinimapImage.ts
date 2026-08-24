@@ -120,7 +120,9 @@ export async function createTerrainMinimapImage(
   canvas.dataset.terrainStyle = 'medieval-parchment';
   canvas.dataset.terrainFieldContract = ILLUSTRATED_TERRAIN_FIELD_CONTRACT;
   canvas.dataset.terrainSeed = String(seed >>> 0);
-  canvas.dataset.palette = 'desaturated-faded-ivory';
+  canvas.dataset.palette = 'aged-rag-warm-grey';
+  canvas.dataset.paperField = 'broad-middle-tooth-fibres-edge-patina';
+  canvas.dataset.terrainMarkMaking = 'seeded-organic-charcoal-etching';
   canvas.dataset.terrainHierarchy = 'roads-buildings-stamps-over-relief';
   canvas.dataset.mountainRanges = String(diagnostics.elevation.mountainRangeCount);
   canvas.dataset.mountainSummitCovered = String(diagnostics.elevation.summitCoverageGuaranteed);
@@ -149,6 +151,19 @@ async function createParchmentRaster(
   const denominator = Math.max(MINIMAP_RESOLUTION - 1, 1);
   const riverDenominator = Math.max(riverField.resolution - 1, 1);
   const sourceWaterMask = createRenderedWaterMask(riverField);
+  const paperStyle = ILLUSTRATED_TERRAIN_STYLE.paper;
+  const broadMottle = createValueNoiseGrid(
+    MINIMAP_RESOLUTION,
+    MINIMAP_RESOLUTION,
+    paperStyle.broadMottleCellAuthorPixels * MAP_ART_SCALE,
+    seed ^ 0x5f35_2a91,
+  );
+  const middleMottle = createValueNoiseGrid(
+    MINIMAP_RESOLUTION,
+    MINIMAP_RESOLUTION,
+    paperStyle.middleMottleCellAuthorPixels * MAP_ART_SCALE,
+    seed ^ 0x26d4_7c13,
+  );
 
   for (let row = 0; row < MINIMAP_RESOLUTION; row++) {
     if (row > 0 && row % ROWS_PER_YIELD === 0) await yieldToMain();
@@ -169,18 +184,33 @@ async function createParchmentRaster(
       const pixelIndex = row * MINIMAP_RESOLUTION + column;
       const isWater = waterMask[pixelIndex] === 1;
       const grain = mapHash(column, row, seed) - 0.5;
-      const longFiber = Math.sin(
-        (column / MAP_ART_SCALE) * 0.071
-          + (row / MAP_ART_SCALE) * 0.017
-          + seed * 0.0017,
-      ) * ILLUSTRATED_TERRAIN_STYLE.paper.fibreAmplitude;
+      const authorX = column / MAP_ART_SCALE;
+      const authorY = row / MAP_ART_SCALE;
+      const longFiber = (
+        Math.sin(authorX * 0.071 + authorY * 0.017 + seed * 0.0017) * 0.68
+          + Math.sin(authorX * 0.193 - authorY * 0.011 + seed * 0.00091) * 0.32
+      ) * paperStyle.fibreAmplitude;
+      const broadSample = sampleValueNoiseGrid(broadMottle, column, row);
+      const middleSample = sampleValueNoiseGrid(middleMottle, column, row);
+      const edgeDistance = Math.min(
+        column,
+        row,
+        MINIMAP_RESOLUTION - 1 - column,
+        MINIMAP_RESOLUTION - 1 - row,
+      );
+      const edgeWidth = paperStyle.edgePatinaWidthAuthorPixels * MAP_ART_SCALE
+        * (0.78 + broadSample * 0.46);
+      const edgePatina = 1 - smoothstep01(edgeDistance / Math.max(1, edgeWidth));
       const base = isWater
-        ? blendColors(PARCHMENT_COLOR, WATER_WASH_COLOR, 0.66 + grain * 0.08)
+        ? blendColors(PARCHMENT_COLOR, WATER_WASH_COLOR, 0.62 + grain * 0.07)
         : PARCHMENT_COLOR;
       const edgeStrength = waterBoundaryStrength(waterMask, column, row);
       const inkMix = edgeStrength * (0.72 + mapHash(column + 91, row - 37, seed) * 0.18);
-      const paperVariation = grain * ILLUSTRATED_TERRAIN_STYLE.paper.grainAmplitude
-        + longFiber;
+      const paperVariation = (broadSample * 2 - 1) * paperStyle.broadMottleAmplitude
+        + (middleSample * 2 - 1) * paperStyle.middleMottleAmplitude
+        + grain * paperStyle.grainAmplitude
+        + longFiber
+        - edgePatina * paperStyle.edgeDarkening;
       const color = blendColors(
         {
           r: base.r + paperVariation,

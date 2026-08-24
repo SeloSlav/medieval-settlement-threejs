@@ -86,6 +86,7 @@ import {
 } from '../economy/foodInventory.ts';
 import { AlertDialog } from '../ui/AlertDialog.ts';
 import { hasCustomTreeWorkArea } from './treeWorkArea.ts';
+import { resourceNodeArtUrl } from './resourceNodeArt.ts';
 
 const BUILDING_SUMMARY_LIMIT = 4;
 const INSPECTOR_TOOLTIP_MAX_LENGTH = 120;
@@ -2818,16 +2819,22 @@ function inspectablePresentation(target: InspectableTarget): InspectorPresentati
     return {
       kind: 'resource',
       symbol: '\u25C6',
-      image: target.definition.resource === 'stone'
-        ? '/assets/ui/build-menu/cards/stonecutters-camp.webp'
-        : '/assets/ui/build-menu/cards/large-quarry.webp',
+      image: resourceNodeArtUrl(
+        target.definition.kind,
+        target.definition.resource,
+        target.state.isRich === true,
+      ),
     };
   }
   if (target.kind === 'foraging') {
     return {
       kind: 'resource',
       symbol: '\u2767',
-      image: '/assets/ui/build-menu/cards/foragers-hut.webp',
+      image: resourceNodeArtUrl(
+        target.definition.kind,
+        target.definition.resource,
+        target.state.isRich === true,
+      ),
     };
   }
   return {

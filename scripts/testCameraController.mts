@@ -303,20 +303,131 @@ function scrollToLiveWorldMaximum(
 }
 
 {
-  const { controller, target } = createController();
-  window.dispatchEvent(keyboardEvent('keydown', 'd'));
+  const { controller, target } = createController(undefined, true);
+  const startX = target.x;
+  window.dispatchEvent(keyboardEvent('keydown', 'ArrowRight'));
   assert.equal(controller.isNavigationActive(), true,
     'keyboard pan should share the camera navigation activity state');
   controller.update(0.05);
-  const afterKeyX = target.x;
+  const firstFrameX = target.x;
+  assert.ok(firstFrameX < startX,
+    'right-arrow panning should begin smoothly on the first frame');
   controller.update(0.05);
-  assert.notEqual(target.x, afterKeyX, 'keyboard pan should move target every frame');
-  window.dispatchEvent(keyboardEvent('keyup', 'd'));
+  const secondFrameX = target.x;
+  assert.ok(
+    Math.abs(secondFrameX - firstFrameX) > Math.abs(firstFrameX - startX),
+    'held arrow panning should accelerate toward its authored speed',
+  );
+  window.dispatchEvent(keyboardEvent('keyup', 'ArrowRight'));
+  assert.equal(controller.isNavigationActive(), true,
+    'keyboard release should retain navigation activity during the short glide');
+  controller.update(1 / 60);
+  assert.ok(target.x < secondFrameX,
+    'released arrow panning should decelerate instead of stopping abruptly');
+  settleNavigation(controller);
   assert.equal(controller.isNavigationActive(), false,
-    'keyboard release should settle the camera navigation activity state');
+    'keyboard navigation should become idle after its velocity settles');
   const settledX = target.x;
+  controller.update(0.2);
+  assert.equal(target.x, settledX,
+    'settled keyboard panning must not keep drifting');
+  controller.dispose();
+}
+
+{
+  const coarse = createController(undefined, true);
+  const fine = createController(undefined, true);
+  window.dispatchEvent(keyboardEvent('keydown', 'ArrowUp'));
+  coarse.controller.update(0.1);
+  for (let frame = 0; frame < 10; frame += 1) fine.controller.update(0.01);
+  assert.ok(
+    coarse.target.distanceTo(fine.target) < 1e-9,
+    'arrow-key acceleration should produce the same travel across frame rates',
+  );
+  window.dispatchEvent(keyboardEvent('keyup', 'ArrowUp'));
+  coarse.controller.update(0.1);
+  for (let frame = 0; frame < 10; frame += 1) fine.controller.update(0.01);
+  assert.ok(
+    coarse.target.distanceTo(fine.target) < 1e-9,
+    'arrow-key deceleration should produce the same travel across frame rates',
+  );
+  coarse.controller.dispose();
+  fine.controller.dispose();
+}
+
+{
+  const straight = createController(undefined, true);
+  window.dispatchEvent(keyboardEvent('keydown', 'ArrowUp'));
+  straight.controller.update(0.1);
+  window.dispatchEvent(keyboardEvent('keyup', 'ArrowUp'));
+  const straightDistance = straight.target.length();
+  straight.controller.dispose();
+
+  const diagonal = createController(undefined, true);
+  window.dispatchEvent(keyboardEvent('keydown', 'ArrowUp'));
+  window.dispatchEvent(keyboardEvent('keydown', 'ArrowRight'));
+  diagonal.controller.update(0.1);
+  window.dispatchEvent(keyboardEvent('keyup', 'ArrowUp'));
+  window.dispatchEvent(keyboardEvent('keyup', 'ArrowRight'));
+  assert.ok(
+    Math.abs(diagonal.target.length() - straightDistance) < 1e-9,
+    'diagonal arrow panning should retain the authored cardinal movement speed',
+  );
+  assert.ok(diagonal.target.x < 0 && diagonal.target.z > 0,
+    'combined arrows should smoothly pan along both requested axes');
+  diagonal.controller.dispose();
+}
+
+{
+  const directions = [
+    { key: 'ArrowUp', axis: 'z' as const, sign: 1 },
+    { key: 'ArrowDown', axis: 'z' as const, sign: -1 },
+    { key: 'ArrowLeft', axis: 'x' as const, sign: 1 },
+    { key: 'ArrowRight', axis: 'x' as const, sign: -1 },
+  ];
+  for (const direction of directions) {
+    const { controller, target } = createController(undefined, true);
+    window.dispatchEvent(keyboardEvent('keydown', direction.key));
+    controller.update(0.1);
+    window.dispatchEvent(keyboardEvent('keyup', direction.key));
+    settleNavigation(controller);
+    assert.ok(
+      Math.sign(target[direction.axis]) === direction.sign,
+      `${direction.key} should pan along its expected map axis`,
+    );
+    controller.dispose();
+  }
+}
+
+{
+  let viewChangeCount = 0;
+  const { controller, target } = createController(() => {
+    viewChangeCount += 1;
+  });
+  const startZ = target.z;
+  window.dispatchEvent(keyboardEvent('keydown', 'ArrowUp'));
+  await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+  assert.ok(target.z > startZ,
+    'demand-rendered arrow panning should start its own navigation frame');
+  assert.ok(viewChangeCount > 0,
+    'demand-rendered arrow panning should invalidate the visible scene');
+  window.dispatchEvent(keyboardEvent('keyup', 'ArrowUp'));
+  controller.setInputEnabled(false);
+  controller.dispose();
+}
+
+{
+  const { controller, target } = createController(undefined, true);
+  window.dispatchEvent(keyboardEvent('keydown', 'ArrowLeft'));
+  controller.update(0.05);
+  const targetBeforeBlur = target.clone();
+  window.dispatchEvent({ type: 'blur' } as Event);
+  assert.equal(controller.isNavigationActive(), false,
+    'window blur should clear held keyboard navigation state');
   controller.update(0.5);
-  assert.equal(target.x, settledX, 'keyboard pan must not keep drifting via smoothing');
+  assert.ok(target.equals(targetBeforeBlur),
+    'window blur should prevent a released focus from leaving keyboard drift');
+  controller.dispose();
 }
 
 {
@@ -738,6 +849,13 @@ function scrollToLiveWorldMaximum(
   assert.ok(!target.equals(targetBeforePan),
     'smooth world-space panning should remain active over the illustrated map');
   releaseMouse(2);
+  settleNavigation(controller);
+  const targetBeforeArrowPan = target.clone();
+  window.dispatchEvent(keyboardEvent('keydown', 'ArrowUp'));
+  controller.update(1 / 60);
+  assert.ok(!target.equals(targetBeforeArrowPan),
+    'smooth arrow-key panning should remain active over the outer paper-map tier');
+  window.dispatchEvent(keyboardEvent('keyup', 'ArrowUp'));
   settleNavigation(controller);
   const adjustedMapStops = computeIllustratedMapZoomStops(
     DEFAULT_TEST_BOUNDS,

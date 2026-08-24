@@ -1,21 +1,18 @@
 import type { ResidenceState } from '../resources/types.ts';
 import type { TerrainBounds } from '../terrain/Terrain.ts';
 import type { WorldMapMarker } from './worldMapMarkers.ts';
+import {
+  RESOURCE_NODE_ART_FAMILIES,
+  resourceNodeArtFamily,
+  type ResourceNodeArtKey,
+  type ResourceNodeArtVariant,
+} from '../resources/resourceNodeArt.ts';
 
-export const MAP_STAMP_RESOURCE_KINDS = [
-  'stone',
-  'game',
-  'berries',
-  'mushrooms',
-  'fish',
-  'clay',
-  'iron',
-  'salt',
-] as const;
+export const MAP_STAMP_RESOURCE_KINDS = RESOURCE_NODE_ART_FAMILIES;
 
 export type MapStampResourceKind = typeof MAP_STAMP_RESOURCE_KINDS[number];
-export type MapStampVariant = 'normal' | 'rich';
-export type MapStampKey = `${MapStampResourceKind}-${MapStampVariant}`;
+export type MapStampVariant = ResourceNodeArtVariant;
+export type MapStampKey = ResourceNodeArtKey;
 export type MapPoint = { x: number; y: number };
 export type WorldPoint = { x: number; z: number };
 
@@ -28,12 +25,7 @@ export function resourceKindForMapMarker(
   marker: WorldMapMarker,
 ): MapStampResourceKind | null {
   if (marker.kind === 'building') return null;
-  if (marker.kind === 'quarry') {
-    return marker.resource === 'iron' || marker.resource === 'salt'
-      ? marker.resource
-      : 'stone';
-  }
-  return marker.kind;
+  return resourceNodeArtFamily(marker.kind, marker.resource);
 }
 
 export function mapStampKey(

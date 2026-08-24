@@ -1045,6 +1045,11 @@ select:focus-visible {
   object-position: center 42%;
 }
 
+.resource-inspector-panel[data-inspector-kind='resource'] .resource-inspector-hero-image {
+  object-fit: contain;
+  object-position: center;
+}
+
 .resource-inspector-hero-image[hidden] {
   display: none;
 }

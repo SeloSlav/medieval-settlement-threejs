@@ -26,6 +26,7 @@ import {
   residenceFootprintCorners,
   worldToMapPixels,
 } from '../src/map/illustratedMapGeometry.ts';
+import { resourceNodeArtUrl } from '../src/resources/resourceNodeArt.ts';
 
 const EPSILON = 1e-12;
 const bounds = { minX: -100, maxX: 100, minZ: -200, maxZ: 200 };
@@ -266,6 +267,10 @@ const mapIconCss = readFileSync(
 );
 const appStyles = readFileSync(
   new URL('../src/style.css', import.meta.url),
+  'utf8',
+);
+const polishedGameUi = readFileSync(
+  new URL('../src/ui/polishedGameUi.css', import.meta.url),
   'utf8',
 );
 const appBootstrapSource = readFileSync(
@@ -513,6 +518,30 @@ assert.equal(
     resource: 'stone',
   }, false),
   'stone-normal',
+);
+const inspectorArtCases = [
+  { family: 'stone', kind: 'quarry', resource: 'stone' },
+  { family: 'clay', kind: 'quarry', resource: 'clay' },
+  { family: 'iron', kind: 'quarry', resource: 'iron' },
+  { family: 'salt', kind: 'quarry', resource: 'salt' },
+  { family: 'game', kind: 'game', resource: 'game' },
+  { family: 'berries', kind: 'berries', resource: 'berries' },
+  { family: 'mushrooms', kind: 'mushrooms', resource: 'mushrooms' },
+  { family: 'fish', kind: 'fish', resource: 'fish' },
+] as const;
+for (const { family, kind, resource } of inspectorArtCases) {
+  for (const rich of [false, true]) {
+    assert.equal(
+      resourceNodeArtUrl(kind, resource, rich),
+      `/assets/ui/map-stamps/${family}-${rich ? 'rich' : 'normal'}.png`,
+      `${family} inspector art should preserve both its resource family and richness`,
+    );
+  }
+}
+assert.match(
+  polishedGameUi,
+  /\[data-inspector-kind='resource'\] \.resource-inspector-hero-image\s*\{[\s\S]*?object-fit:\s*contain;/,
+  'transparent resource stamps should be fully visible in the inspector hero',
 );
 assert.equal(
   mapStampArtSize({

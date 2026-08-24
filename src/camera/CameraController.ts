@@ -35,6 +35,10 @@ const ZOOM_SETTLE_RATIO = 0.001;
 const POINTER_MOTION_DAMPING = 18;
 /** Apply the last imperceptible fraction exactly so drag input never gets lost. */
 const POINTER_MOTION_SETTLE_PIXELS = 0.01;
+/** Keyboard panning shares the short, responsive drag glide. */
+const KEY_PAN_DAMPING = POINTER_MOTION_DAMPING;
+/** Snap the final normalized velocity tail after preserving its full travel. */
+const KEY_PAN_SETTLE_SPEED = 0.0001;
 const WHEEL_ZOOM_STEP_DELTA = 80;
 const WHEEL_LINE_PIXEL_SCALE = 32;
 const WHEEL_PAGE_PIXEL_FALLBACK = 800;
@@ -48,7 +52,7 @@ const KEY_ROTATE_SPEED = 2.8;
 const INSPECT_FOCUS_DISTANCE = 90;
 /** Keep the resident render set stable until a wheel/trackpad zoom burst settles. */
 const WHEEL_NAVIGATION_GRACE_MS = 220;
-const NAVIGATION_KEYS = new Set([
+const KEYBOARD_PAN_KEYS = new Set([
   'w',
   'a',
   's',
@@ -57,6 +61,9 @@ const NAVIGATION_KEYS = new Set([
   'arrowdown',
   'arrowleft',
   'arrowright',
+]);
+const NAVIGATION_KEYS = new Set([
+  ...KEYBOARD_PAN_KEYS,
   'q',
   'e',
 ]);
@@ -100,6 +107,8 @@ export class CameraController {
   private pendingPanY = 0;
   private pendingRotateX = 0;
   private pendingRotateY = 0;
+  private keyboardPanVelocityX = 0;
+  private keyboardPanVelocityY = 0;
   private activeCursor = '';
   private viewChangeFrame = 0;
   private viewportChangeFrame = 0;
@@ -139,6 +148,7 @@ export class CameraController {
     window.addEventListener('mouseup', this.onMouseUp);
     window.addEventListener('keydown', this.onKeyDown);
     window.addEventListener('keyup', this.onKeyUp);
+    window.addEventListener('blur', this.onWindowBlur);
     window.addEventListener('resize', this.onViewportResize);
   }
 
@@ -192,6 +202,7 @@ export class CameraController {
     this.illustratedMapEntryPending = false;
     this.illustratedMapExitPending = false;
     this.resetPointerMotion();
+    this.resetKeyboardPanMotion();
     this.cancelNavigationAnimation();
     this.updateCamera();
     this.notifyViewChanged();
@@ -207,6 +218,7 @@ export class CameraController {
     this.isRotating = false;
     this.wheelNavigationUntilMs = 0;
     this.resetPointerMotion();
+    this.resetKeyboardPanMotion();
     if (!this.illustratedMapActive) {
       this.targetDistance = this.currentDistance;
       this.illustratedMapEntryPending = false;
@@ -229,6 +241,7 @@ export class CameraController {
     this.illustratedMapEntryPending = false;
     this.illustratedMapExitPending = false;
     this.resetPointerMotion();
+    this.resetKeyboardPanMotion();
     this.cancelNavigationAnimation();
     this.updateCamera();
   }
@@ -250,6 +263,7 @@ export class CameraController {
     this.illustratedMapEntryPending = false;
     this.illustratedMapExitPending = false;
     this.resetPointerMotion();
+    this.resetKeyboardPanMotion();
     this.cancelNavigationAnimation();
     this.updateCamera();
     this.notifyViewChanged();
@@ -266,12 +280,6 @@ export class CameraController {
   update(dt: number): void {
     if (!this.inputEnabled) return;
     const animatedMotionChanged = this.updateAnimatedNavigationMotion(dt);
-    const scale = this.getPanScale();
-    const panSpeed = KEY_PAN_SPEED * scale * dt;
-    if (this.keys.has('w') || this.keys.has('arrowup')) this.pan(0, panSpeed);
-    if (this.keys.has('s') || this.keys.has('arrowdown')) this.pan(0, -panSpeed);
-    if (this.keys.has('a') || this.keys.has('arrowleft')) this.pan(panSpeed, 0);
-    if (this.keys.has('d') || this.keys.has('arrowright')) this.pan(-panSpeed, 0);
     if (this.keys.has('q')) this.currentYaw = this.normalizeAngle(this.currentYaw - KEY_ROTATE_SPEED * dt);
     if (this.keys.has('e')) this.currentYaw = this.normalizeAngle(this.currentYaw + KEY_ROTATE_SPEED * dt);
 
@@ -299,6 +307,7 @@ export class CameraController {
     window.removeEventListener('mouseup', this.onMouseUp);
     window.removeEventListener('keydown', this.onKeyDown);
     window.removeEventListener('keyup', this.onKeyUp);
+    window.removeEventListener('blur', this.onWindowBlur);
     window.removeEventListener('resize', this.onViewportResize);
     if (this.illustratedMapActive) this.exitIllustratedMap();
     else this.restoreWorldProjection();
@@ -465,7 +474,8 @@ export class CameraController {
   private updateAnimatedNavigationMotion(dt: number): boolean {
     const zoomChanged = this.updateZoom(dt);
     const pointerChanged = this.updatePointerMotion(dt);
-    return zoomChanged || pointerChanged;
+    const keyboardPanChanged = this.updateKeyboardPanMotion(dt);
+    return zoomChanged || pointerChanged || keyboardPanChanged;
   }
 
   private updateZoom(dt: number): boolean {
@@ -572,6 +582,65 @@ export class CameraController {
     this.pendingRotateY = 0;
   }
 
+  private updateKeyboardPanMotion(dt: number): boolean {
+    const safeDt = Number.isFinite(dt) ? Math.max(0, dt) : 0;
+    if (safeDt <= 0 || !this.hasKeyboardPanMotion()) return false;
+
+    let inputX = Number(this.keys.has('a') || this.keys.has('arrowleft'))
+      - Number(this.keys.has('d') || this.keys.has('arrowright'));
+    let inputY = Number(this.keys.has('w') || this.keys.has('arrowup'))
+      - Number(this.keys.has('s') || this.keys.has('arrowdown'));
+    const inputLength = Math.hypot(inputX, inputY);
+    if (inputLength > 1) {
+      inputX /= inputLength;
+      inputY /= inputLength;
+    }
+    const decay = Math.exp(-KEY_PAN_DAMPING * safeDt);
+    const responseIntegral = (1 - decay) / KEY_PAN_DAMPING;
+    let travelX = inputX * safeDt
+      + (this.keyboardPanVelocityX - inputX) * responseIntegral;
+    let travelY = inputY * safeDt
+      + (this.keyboardPanVelocityY - inputY) * responseIntegral;
+    let nextVelocityX = inputX
+      + (this.keyboardPanVelocityX - inputX) * decay;
+    let nextVelocityY = inputY
+      + (this.keyboardPanVelocityY - inputY) * decay;
+
+    if (Math.abs(nextVelocityX - inputX) <= KEY_PAN_SETTLE_SPEED) {
+      travelX += (nextVelocityX - inputX) / KEY_PAN_DAMPING;
+      nextVelocityX = inputX;
+    }
+    if (Math.abs(nextVelocityY - inputY) <= KEY_PAN_SETTLE_SPEED) {
+      travelY += (nextVelocityY - inputY) / KEY_PAN_DAMPING;
+      nextVelocityY = inputY;
+    }
+
+    this.keyboardPanVelocityX = nextVelocityX;
+    this.keyboardPanVelocityY = nextVelocityY;
+    if (travelX === 0 && travelY === 0) return false;
+    const scale = KEY_PAN_SPEED * this.getPanScale();
+    this.pan(travelX * scale, travelY * scale);
+    return true;
+  }
+
+  private hasKeyboardPanInput(): boolean {
+    for (const key of KEYBOARD_PAN_KEYS) {
+      if (this.keys.has(key)) return true;
+    }
+    return false;
+  }
+
+  private hasKeyboardPanMotion(): boolean {
+    return this.hasKeyboardPanInput()
+      || this.keyboardPanVelocityX !== 0
+      || this.keyboardPanVelocityY !== 0;
+  }
+
+  private resetKeyboardPanMotion(): void {
+    this.keyboardPanVelocityX = 0;
+    this.keyboardPanVelocityY = 0;
+  }
+
   private isZoomSettled(): boolean {
     const settleDistance = Math.max(
       DISTANCE_EPSILON,
@@ -584,7 +653,8 @@ export class CameraController {
     return !this.isZoomSettled()
       || this.illustratedMapEntryPending
       || this.illustratedMapExitPending
-      || this.hasPendingPointerMotion();
+      || this.hasPendingPointerMotion()
+      || this.hasKeyboardPanMotion();
   }
 
   private ensureNavigationAnimation(): void {
@@ -646,10 +716,25 @@ export class CameraController {
     const key = event.key.toLowerCase();
     if (key.startsWith('arrow')) event.preventDefault();
     this.keys.add(key);
+    if (KEYBOARD_PAN_KEYS.has(key)) this.ensureNavigationAnimation();
   };
 
   private readonly onKeyUp = (event: KeyboardEvent): void => {
-    this.keys.delete(event.key.toLowerCase());
+    const key = event.key.toLowerCase();
+    this.keys.delete(key);
+    if (KEYBOARD_PAN_KEYS.has(key)) this.ensureNavigationAnimation();
+  };
+
+  private readonly onWindowBlur = (): void => {
+    this.isPanning = false;
+    this.isRotating = false;
+    this.wheelNavigationUntilMs = 0;
+    this.keys.clear();
+    this.resetPointerMotion();
+    this.resetKeyboardPanMotion();
+    this.resetWheelAccumulator();
+    if (!this.hasAnimatedNavigationMotion()) this.cancelNavigationAnimation();
+    this.applyCursor();
   };
 
   private readonly onViewportResize = (): void => {
