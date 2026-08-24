@@ -164,6 +164,11 @@ async function createParchmentRaster(
     paperStyle.middleMottleCellAuthorPixels * MAP_ART_SCALE,
     seed ^ 0x26d4_7c13,
   );
+  const fibreBasis = createPaperFibreBasis(
+    MINIMAP_RESOLUTION,
+    MINIMAP_RESOLUTION,
+    seed,
+  );
 
   for (let row = 0; row < MINIMAP_RESOLUTION; row++) {
     if (row > 0 && row % ROWS_PER_YIELD === 0) await yieldToMain();
@@ -184,14 +189,15 @@ async function createParchmentRaster(
       const pixelIndex = row * MINIMAP_RESOLUTION + column;
       const isWater = waterMask[pixelIndex] === 1;
       const grain = mapHash(column, row, seed) - 0.5;
-      const authorX = column / MAP_ART_SCALE;
-      const authorY = row / MAP_ART_SCALE;
       const longFiber = (
-        Math.sin(authorX * 0.071 + authorY * 0.017 + seed * 0.0017) * 0.68
-          + Math.sin(authorX * 0.193 - authorY * 0.011 + seed * 0.00091) * 0.32
-      ) * paperStyle.fibreAmplitude;
-      const broadSample = sampleValueNoiseGrid(broadMottle, column, row);
-      const middleSample = sampleValueNoiseGrid(middleMottle, column, row);
+        fibreBasis.sinColumnPrimary[column] * fibreBasis.cosRowPrimary[row]
+          + fibreBasis.cosColumnPrimary[column] * fibreBasis.sinRowPrimary[row]
+      ) * 0.68 * paperStyle.fibreAmplitude + (
+        fibreBasis.sinColumnSecondary[column] * fibreBasis.cosRowSecondary[row]
+          + fibreBasis.cosColumnSecondary[column] * fibreBasis.sinRowSecondary[row]
+      ) * 0.32 * paperStyle.fibreAmplitude;
+      const broadSample = sampleValueNoiseGridPixel(broadMottle, column, row);
+      const middleSample = sampleValueNoiseGridPixel(middleMottle, column, row);
       const edgeDistance = Math.min(
         column,
         row,
@@ -1308,8 +1314,8 @@ function drawBroadleafGlyph(
   variant: number,
 ): void {
   const crownY = y - (4.7 + glyphVariantHash(variant, 0, 0x401) * 0.65) * scale;
-  const radiusX = (3.1 + glyphVariantHash(variant, 1, 0x42b) * 0.8) * scale;
-  const radiusY = (2.9 + glyphVariantHash(variant, 2, 0x455) * 0.72) * scale;
+  const radiusX = (3.55 + glyphVariantHash(variant, 1, 0x42b) * 0.95) * scale;
+  const radiusY = (3.25 + glyphVariantHash(variant, 2, 0x455) * 0.88) * scale;
   const pointCount = 9 + variant % 4;
   const points: Array<{ x: number; y: number }> = [];
   const phase = glyphVariantHash(variant, 3, 0x47f) * Math.PI * 2;
@@ -1358,8 +1364,8 @@ function drawBroadleafGlyph(
 
   // Forked trunk and uneven interior canopy scratches supply the etched mass
   // that survives the strategic map's trilinear minification.
-  context.globalAlpha = 0.9;
-  context.lineWidth = baseLineWidth * 0.9;
+  context.globalAlpha = 0.68;
+  context.lineWidth = baseLineWidth * 0.76;
   context.beginPath();
   context.moveTo(x - scale * 0.1, y + 1.75 * scale);
   context.bezierCurveTo(
@@ -1384,8 +1390,8 @@ function drawBroadleafGlyph(
     const endY = crownY - radiusY * (
       0.05 + glyphVariantHash(variant, branch, 0x551) * 0.48
     );
-    context.globalAlpha = 0.52 + glyphVariantHash(variant, branch, 0x57b) * 0.3;
-    context.lineWidth = baseLineWidth * 0.64;
+    context.globalAlpha = 0.42 + glyphVariantHash(variant, branch, 0x57b) * 0.24;
+    context.lineWidth = baseLineWidth * 0.58;
     context.beginPath();
     context.moveTo(originX, originY);
     context.quadraticCurveTo(
@@ -1397,7 +1403,7 @@ function drawBroadleafGlyph(
     context.stroke();
   }
 
-  const hatchCount = 2 + (variant * 3) % 4;
+  const hatchCount = 3 + (variant * 3) % 4;
   for (let hatch = 0; hatch < hatchCount; hatch++) {
     const px = x + lean * 0.52 + (
       glyphVariantHash(variant, hatch, 0x5a5) - 0.5
@@ -1405,9 +1411,9 @@ function drawBroadleafGlyph(
     const py = crownY + (
       glyphVariantHash(variant, hatch, 0x5cf) - 0.5
     ) * radiusY * 1.05;
-    const curlRadius = scale * (0.34 + glyphVariantHash(variant, hatch, 0x5f9) * 0.54);
-    context.globalAlpha = 0.38 + glyphVariantHash(variant, hatch, 0x623) * 0.28;
-    context.lineWidth = baseLineWidth * 0.55;
+    const curlRadius = scale * (0.52 + glyphVariantHash(variant, hatch, 0x5f9) * 0.7);
+    context.globalAlpha = 0.5 + glyphVariantHash(variant, hatch, 0x623) * 0.3;
+    context.lineWidth = baseLineWidth * 0.62;
     context.beginPath();
     context.moveTo(px - curlRadius, py + curlRadius * 0.2);
     context.quadraticCurveTo(
@@ -1560,6 +1566,21 @@ type ValueNoiseGrid = {
   columns: number;
   rows: number;
   values: Float32Array;
+  xIndex: Uint16Array;
+  xBlend: Float32Array;
+  yIndex: Uint16Array;
+  yBlend: Float32Array;
+};
+
+type PaperFibreBasis = {
+  sinColumnPrimary: Float32Array;
+  cosColumnPrimary: Float32Array;
+  sinRowPrimary: Float32Array;
+  cosRowPrimary: Float32Array;
+  sinColumnSecondary: Float32Array;
+  cosColumnSecondary: Float32Array;
+  sinRowSecondary: Float32Array;
+  cosRowSecondary: Float32Array;
 };
 
 function createValueNoiseGrid(
@@ -1577,7 +1598,52 @@ function createValueNoiseGrid(
       values[row * columns + column] = mapHash(column, row, seed);
     }
   }
-  return { cellSize: safeCellSize, columns, rows, values };
+  const xAxis = createValueNoiseAxis(width, safeCellSize, columns);
+  const yAxis = createValueNoiseAxis(height, safeCellSize, rows);
+  return {
+    cellSize: safeCellSize,
+    columns,
+    rows,
+    values,
+    xIndex: xAxis.index,
+    xBlend: xAxis.blend,
+    yIndex: yAxis.index,
+    yBlend: yAxis.blend,
+  };
+}
+
+function createValueNoiseAxis(
+  length: number,
+  cellSize: number,
+  gridLength: number,
+): { index: Uint16Array; blend: Float32Array } {
+  const index = new Uint16Array(length);
+  const blend = new Float32Array(length);
+  for (let pixel = 0; pixel < length; pixel++) {
+    const gridPosition = pixel / cellSize;
+    const cell = Math.min(gridLength - 2, Math.floor(gridPosition));
+    index[pixel] = cell;
+    blend[pixel] = smoothstep01(gridPosition - cell);
+  }
+  return { index, blend };
+}
+
+function sampleValueNoiseGridPixel(
+  grid: ValueNoiseGrid,
+  x: number,
+  y: number,
+): number {
+  const x0 = grid.xIndex[x];
+  const y0 = grid.yIndex[y];
+  const tx = grid.xBlend[x];
+  const ty = grid.yBlend[y];
+  const topOffset = y0 * grid.columns + x0;
+  const bottomOffset = topOffset + grid.columns;
+  const top = grid.values[topOffset] * (1 - tx)
+    + grid.values[topOffset + 1] * tx;
+  const bottom = grid.values[bottomOffset] * (1 - tx)
+    + grid.values[bottomOffset + 1] * tx;
+  return top * (1 - ty) + bottom * ty;
 }
 
 function sampleValueNoiseGrid(grid: ValueNoiseGrid, x: number, y: number): number {
@@ -1594,6 +1660,49 @@ function sampleValueNoiseGrid(grid: ValueNoiseGrid, x: number, y: number): numbe
   const bottom = grid.values[y1 * grid.columns + x0] * (1 - tx)
     + grid.values[y1 * grid.columns + x1] * tx;
   return top * (1 - ty) + bottom * ty;
+}
+
+function createPaperFibreBasis(
+  width: number,
+  height: number,
+  seed: number,
+): PaperFibreBasis {
+  const sinColumnPrimary = new Float32Array(width);
+  const cosColumnPrimary = new Float32Array(width);
+  const sinColumnSecondary = new Float32Array(width);
+  const cosColumnSecondary = new Float32Array(width);
+  const sinRowPrimary = new Float32Array(height);
+  const cosRowPrimary = new Float32Array(height);
+  const sinRowSecondary = new Float32Array(height);
+  const cosRowSecondary = new Float32Array(height);
+  for (let column = 0; column < width; column++) {
+    const authorX = column / MAP_ART_SCALE;
+    const primary = authorX * 0.071;
+    const secondary = authorX * 0.193;
+    sinColumnPrimary[column] = Math.sin(primary);
+    cosColumnPrimary[column] = Math.cos(primary);
+    sinColumnSecondary[column] = Math.sin(secondary);
+    cosColumnSecondary[column] = Math.cos(secondary);
+  }
+  for (let row = 0; row < height; row++) {
+    const authorY = row / MAP_ART_SCALE;
+    const primary = authorY * 0.017 + seed * 0.0017;
+    const secondary = -authorY * 0.011 + seed * 0.00091;
+    sinRowPrimary[row] = Math.sin(primary);
+    cosRowPrimary[row] = Math.cos(primary);
+    sinRowSecondary[row] = Math.sin(secondary);
+    cosRowSecondary[row] = Math.cos(secondary);
+  }
+  return {
+    sinColumnPrimary,
+    cosColumnPrimary,
+    sinRowPrimary,
+    cosRowPrimary,
+    sinColumnSecondary,
+    cosColumnSecondary,
+    sinRowSecondary,
+    cosRowSecondary,
+  };
 }
 
 function glyphVariantHash(variant: number, feature: number, salt: number): number {

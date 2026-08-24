@@ -12,10 +12,13 @@ import {
   CLOSE_PAN_SPEED_SCALE,
   RTS_ORBIT_DISTANCE,
   RTS_ORBIT_PITCH,
+  ILLUSTRATED_MAP_MIN_PITCH,
+  computeCloseCurveStartDistance,
   computeIllustratedMapFarPlane,
   computeIllustratedMapZoomStops,
   computeMaxOrbitDistance,
   evalCloseBlendFromDistance,
+  evalCloseCurveProgress,
 } from './CameraCurves.ts';
 
 const MIN_PITCH = THREE.MathUtils.degToRad(5);
@@ -353,7 +356,10 @@ export class CameraController {
       this.lastMouseX = event.clientX;
       this.lastMouseY = event.clientY;
       this.pendingRotateX += dx;
-      this.pendingRotateY += dy;
+      // Bind pitch input to the pose where it was authored. At full close the
+      // orbit pitch is invisible, so discard vertical drag immediately rather
+      // than letting a same-frame wheel-out reveal it as hidden pitch drift.
+      this.pendingRotateY += dy * (1 - this.getCloseBlend());
       this.ensureNavigationAnimation();
     }
   };
@@ -545,14 +551,15 @@ export class CameraController {
       this.currentYaw = this.normalizeAngle(
         this.currentYaw + rotateX * ROTATE_SENSITIVITY,
       );
+      const minimumPitch = this.getMinimumPitch();
       const nextPitch = THREE.MathUtils.clamp(
         this.currentPitch + rotateY * PITCH_SENSITIVITY,
-        MIN_PITCH,
+        minimumPitch,
         MAX_PITCH,
       );
       if (
         (nextPitch === MAX_PITCH && this.pendingRotateY > 0)
-        || (nextPitch === MIN_PITCH && this.pendingRotateY < 0)
+        || (nextPitch === minimumPitch && this.pendingRotateY < 0)
       ) {
         this.pendingRotateY = 0;
       }
@@ -799,8 +806,41 @@ export class CameraController {
     return MIN_DISTANCE + Math.max(0, this.config.getHeightAt(this.config.target.x, this.config.target.z)) * 0.08;
   }
 
+  private getMinimumPitch(): number {
+    return this.illustratedMapActive ? ILLUSTRATED_MAP_MIN_PITCH : MIN_PITCH;
+  }
+
+  private getCloseHeightFromTarget(): number {
+    const target = this.config.target;
+    const forward = this.getForwardXZ();
+    const camX = target.x - forward.x * CLOSE_BACK_DISTANCE;
+    const camZ = target.z - forward.z * CLOSE_BACK_DISTANCE;
+    return this.config.getHeightAt(camX, camZ)
+      + CLOSE_HEIGHT_ABOVE_TERRAIN
+      - target.y;
+  }
+
+  private getCloseCurveStartDistance(
+    minDistance = this.getMinDistance(),
+    closeHeightFromTarget = this.getCloseHeightFromTarget(),
+  ): number {
+    return Math.min(
+      this.liveWorldMaxDistance,
+      computeCloseCurveStartDistance(
+        minDistance,
+        this.currentPitch,
+        closeHeightFromTarget,
+      ),
+    );
+  }
+
   private getCloseBlend(): number {
-    return evalCloseBlendFromDistance(this.currentDistance, this.getMinDistance());
+    const minDistance = this.getMinDistance();
+    return evalCloseBlendFromDistance(
+      this.currentDistance,
+      minDistance,
+      this.getCloseCurveStartDistance(minDistance),
+    );
   }
 
   private getPanScale(): number {
@@ -824,6 +864,10 @@ export class CameraController {
   private enterIllustratedMap(): void {
     if (this.illustratedMapActive) return;
     if (this.config.isIllustratedMapReady?.() === false) return;
+    // Low world-camera angles are useful for terrain inspection, but make the
+    // physical paper collapse into a thin strip. Lift only the paper-map pose
+    // into its authored composition envelope before solving its zoom stops.
+    this.currentPitch = Math.max(this.currentPitch, ILLUSTRATED_MAP_MIN_PITCH);
     this.refreshIllustratedMapFraming(true);
     this.illustratedMapActive = true;
     this.illustratedMapEntryPending = false;
@@ -942,23 +986,65 @@ export class CameraController {
   private updateCamera(): void {
     if (this.illustratedMapActive) this.refreshIllustratedMapFraming();
     const target = this.config.target;
-    const closeBlend = this.getCloseBlend();
+    const minDistance = this.getMinDistance();
 
     this.orbitDirection.set(
       Math.cos(this.currentPitch) * Math.cos(this.currentYaw),
       Math.sin(this.currentPitch),
       Math.cos(this.currentPitch) * Math.sin(this.currentYaw),
     );
-    this.orbitPosition.copy(target).addScaledVector(this.orbitDirection, this.currentDistance);
 
     const forward = this.getForwardXZ();
     const camX = target.x - forward.x * CLOSE_BACK_DISTANCE;
     const camZ = target.z - forward.z * CLOSE_BACK_DISTANCE;
     const terrainUnderCamera = this.config.getHeightAt(camX, camZ);
     this.closePosition.set(camX, terrainUnderCamera + CLOSE_HEIGHT_ABOVE_TERRAIN, camZ);
+    const closeCurveStartDistance = this.getCloseCurveStartDistance(
+      minDistance,
+      this.closePosition.y - target.y,
+    );
+    const closeCurveProgress = evalCloseCurveProgress(
+      this.currentDistance,
+      minDistance,
+      closeCurveStartDistance,
+    );
+    const closeBlend = evalCloseBlendFromDistance(
+      this.currentDistance,
+      minDistance,
+      closeCurveStartDistance,
+    );
 
     const camera = this.config.camera;
-    camera.position.lerpVectors(this.orbitPosition, this.closePosition, closeBlend);
+    if (closeCurveProgress >= 1) {
+      camera.position.copy(target).addScaledVector(
+        this.orbitDirection,
+        this.currentDistance,
+      );
+    } else {
+      // One authored Hermite curve owns the entire ground-eye handoff. Its
+      // outer tangent matches the ordinary distance orbit, while its zero
+      // inner tangent and monotone handoff keep outward zoom from doglegging
+      // across the terrain. Because pose is a pure function of distance, the
+      // same curve is retraced exactly when wheel direction reverses.
+      this.orbitPosition.copy(target).addScaledVector(
+        this.orbitDirection,
+        closeCurveStartDistance,
+      );
+      const t = closeCurveProgress;
+      const t2 = t * t;
+      const t3 = t2 * t;
+      const closeWeight = 2 * t3 - 3 * t2 + 1;
+      const orbitWeight = -2 * t3 + 3 * t2;
+      const orbitTangentWeight = t3 - t2;
+      camera.position
+        .copy(this.closePosition)
+        .multiplyScalar(closeWeight)
+        .addScaledVector(this.orbitPosition, orbitWeight)
+        .addScaledVector(
+          this.orbitDirection,
+          orbitTangentWeight * (closeCurveStartDistance - minDistance),
+        );
+    }
     this.enforceTerrainClearance(camera.position);
 
     const lookX = target.x + forward.x * CLOSE_LOOK_AHEAD;

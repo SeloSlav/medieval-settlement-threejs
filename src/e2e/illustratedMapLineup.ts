@@ -16,6 +16,7 @@ const requestedView = new URLSearchParams(window.location.search).get('view');
 document.body.dataset.view = requestedView === 'near' || requestedView === 'far'
   ? requestedView
   : 'design';
+const bakeStartedAt = performance.now();
 
 const riverField = {
   resolution: RIVER_RESOLUTION,
@@ -58,16 +59,19 @@ const result = await createTerrainMinimapImage({
   treePlacements,
   seed: FIXTURE_SEED,
 });
+const bakeDurationMs = performance.now() - bakeStartedAt;
 
 host.replaceChildren(result.canvas);
 document.body.dataset.ready = 'true';
 document.body.dataset.terrainSeed = String(result.diagnostics.seed);
 document.body.dataset.woodlandSignature = result.diagnostics.woodland.signature;
+document.body.dataset.mapBakeMs = bakeDurationMs.toFixed(1);
 metrics.textContent = [
   `${result.canvas.width}×${result.canvas.height}`,
   `seed ${result.diagnostics.seed}`,
   `${result.diagnostics.woodland.drawnTreeGlyphCount} etched trees`,
   `${result.diagnostics.elevation.mountainRangeCount} ridge groups`,
+  `${Math.round(bakeDurationMs)} ms bake`,
 ].join(' · ');
 
 function createFixtureWoodland(

@@ -8,7 +8,7 @@ import type { TerrainBounds } from '../terrain/Terrain.ts';
  * CLOSE_BLEND_START_DISTANCE.
  */
 
-/** Orbit distance below which the ground-eye rig begins blending in. */
+/** Minimum orbit distance below which the ground-eye rig begins blending in. */
 export const CLOSE_BLEND_START_DISTANCE = 32;
 
 export const CLOSE_BACK_DISTANCE = 13;
@@ -25,6 +25,13 @@ export const BASELINE_ORBIT_DISTANCE = 88;
 /** Default strategic RTS orbit when the app loads and when leaving first-person. */
 export const RTS_ORBIT_DISTANCE = 240;
 export const RTS_ORBIT_PITCH = THREE.MathUtils.degToRad(68);
+
+/**
+ * Keep the physical paper and its table surround legible during map-only
+ * orbiting. The live world deliberately retains its much lower 5-degree
+ * elevation floor.
+ */
+export const ILLUSTRATED_MAP_MIN_PITCH = THREE.MathUtils.degToRad(45);
 
 /**
  * The illustrated map owns one continuity stop at the live-world overview,
@@ -184,11 +191,53 @@ function smoothstep01(t: number): number {
   return x * x * (3 - 2 * x);
 }
 
+/**
+ * Pick a curve handoff far/high enough for a zero-start-tangent cubic Hermite
+ * arc to join the ordinary orbit without reversing laterally or vertically.
+ * The factor of three is the monotone cubic endpoint-slope limit.
+ */
+export function computeCloseCurveStartDistance(
+  minDistance: number,
+  orbitPitch: number,
+  closeHeightFromTarget = CLOSE_HEIGHT_ABOVE_TERRAIN,
+): number {
+  const horizontalDirection = Math.max(Math.cos(orbitPitch), 0.0001);
+  const verticalDirection = Math.max(Math.sin(orbitPitch), 0.0001);
+  const monotoneHandoffDistance = (
+    3 * CLOSE_BACK_DISTANCE - horizontalDirection * minDistance
+  ) / (2 * horizontalDirection);
+  const monotoneHeightHandoffDistance = (
+    3 * closeHeightFromTarget - verticalDirection * minDistance
+  ) / (2 * verticalDirection);
+  return Math.max(
+    CLOSE_BLEND_START_DISTANCE,
+    minDistance,
+    monotoneHandoffDistance,
+    monotoneHeightHandoffDistance,
+  );
+}
+
+/** 0 = full ground-eye pose, 1 = ordinary orbit handoff. */
+export function evalCloseCurveProgress(
+  distance: number,
+  minDistance: number,
+  startDistance: number,
+): number {
+  if (startDistance <= minDistance) return distance >= startDistance ? 1 : 0;
+  return THREE.MathUtils.clamp(
+    (distance - minDistance) / (startDistance - minDistance),
+    0,
+    1,
+  );
+}
+
 /** 0 = classic orbit, 1 = full ground-eye rig. */
-export function evalCloseBlendFromDistance(distance: number, minDistance: number): number {
-  const start = CLOSE_BLEND_START_DISTANCE;
-  const end = minDistance;
-  if (distance >= start) return 0;
-  if (end >= start) return 1;
-  return smoothstep01((start - distance) / (start - end));
+export function evalCloseBlendFromDistance(
+  distance: number,
+  minDistance: number,
+  startDistance = CLOSE_BLEND_START_DISTANCE,
+): number {
+  return 1 - smoothstep01(
+    evalCloseCurveProgress(distance, minDistance, startDistance),
+  );
 }

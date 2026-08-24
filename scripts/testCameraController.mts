@@ -39,9 +39,12 @@ ensureBrowserGlobals();
 const { CameraController } = await import('../src/camera/CameraController.ts');
 const { shouldDismissVillagerSelection } = await import('../src/ui/VillagerInspector.ts');
 const {
+  BASELINE_ORBIT_DISTANCE,
   DEFAULT_FOV,
+  ILLUSTRATED_MAP_MIN_PITCH,
   ILLUSTRATED_MAP_OUTWARD_ZOOM_TIER_COUNT,
   RTS_ORBIT_PITCH,
+  computeCloseCurveStartDistance,
   computeIllustratedMapFarPlane,
   computeIllustratedMapTerminalDistance,
   computeIllustratedMapZoomStops,
@@ -205,6 +208,13 @@ function mmbOrbit(domElement: HTMLElement, fromX: number, fromY: number, toX: nu
     clientY: toY,
     buttons: 4,
   }));
+}
+
+function measureOrbitPitch(camera: THREE.PerspectiveCamera, target: THREE.Vector3): number {
+  const dx = camera.position.x - target.x;
+  const dy = camera.position.y - target.y;
+  const dz = camera.position.z - target.z;
+  return Math.atan2(dy, Math.hypot(dx, dz));
 }
 
 function releaseMouse(button: number): void {
@@ -565,6 +575,101 @@ function scrollToLiveWorldMaximum(
     'reciprocal zoom directions should cover equal logarithmic distance per frame');
   outward.controller.dispose();
   inward.controller.dispose();
+}
+
+{
+  const minimumDistance = BASELINE_ORBIT_DISTANCE / 10;
+  const pitchDegrees = [5, 14, THREE.MathUtils.radToDeg(RTS_ORBIT_PITCH), 70];
+  for (const pitchDegree of pitchDegrees) {
+    const { controller, camera, target } = createController(undefined, true);
+    const pitch = THREE.MathUtils.degToRad(pitchDegree);
+    const closeCurveStartDistance = computeCloseCurveStartDistance(
+      minimumDistance,
+      pitch,
+      4,
+    );
+    const outwardPositions: THREE.Vector3[] = [];
+    let previousBackDistance = Number.NEGATIVE_INFINITY;
+    let previousHeight = Number.NEGATIVE_INFINITY;
+
+    for (let sample = 0; sample <= 120; sample += 1) {
+      const distance = THREE.MathUtils.lerp(
+        minimumDistance,
+        closeCurveStartDistance,
+        sample / 120,
+      );
+      controller.applyShowcaseView(0, 0, -Math.PI / 2, pitch, distance);
+      const backDistance = Math.hypot(
+        camera.position.x - target.x,
+        camera.position.z - target.z,
+      );
+      assert.ok(
+        backDistance >= previousBackDistance - 1e-8,
+        `the ${pitchDegree.toFixed(0)}° close-exit curve must not dogleg toward the target`,
+      );
+      assert.ok(
+        camera.position.y >= previousHeight - 1e-8,
+        `the ${pitchDegree.toFixed(0)}° close-exit curve must climb monotonically`,
+      );
+      outwardPositions.push(camera.position.clone());
+      previousBackDistance = backDistance;
+      previousHeight = camera.position.y;
+    }
+
+    for (let sample = 120; sample >= 0; sample -= 1) {
+      const distance = THREE.MathUtils.lerp(
+        minimumDistance,
+        closeCurveStartDistance,
+        sample / 120,
+      );
+      controller.applyShowcaseView(0, 0, -Math.PI / 2, pitch, distance);
+      assert.ok(
+        camera.position.distanceTo(outwardPositions[sample]) < 1e-9,
+        `the ${pitchDegree.toFixed(0)}° inward camera path should exactly retrace its outward curve`,
+      );
+    }
+    controller.dispose();
+  }
+}
+
+{
+  const baseline = createController(undefined, true);
+  const dragged = createController(undefined, true);
+  const minimumDistance = BASELINE_ORBIT_DISTANCE / 10;
+  baseline.controller.applyShowcaseView(
+    0,
+    0,
+    -Math.PI / 2,
+    RTS_ORBIT_PITCH,
+    minimumDistance,
+  );
+  dragged.controller.applyShowcaseView(
+    0,
+    0,
+    -Math.PI / 2,
+    RTS_ORBIT_PITCH,
+    minimumDistance,
+  );
+
+  mmbOrbit(dragged.domElement, 100, 500, 100, 0);
+  // Queue the outward wheel before either controller renders. Pitch input
+  // authored while fully close must not become active merely because zoom is
+  // processed first on the shared navigation frame.
+  baseline.domElement.dispatch('wheel', wheelEvent({ deltaY: 120 }));
+  dragged.domElement.dispatch('wheel', wheelEvent({ deltaY: 120 }));
+  releaseMouse(1);
+  settleZoom(baseline.controller);
+  settleZoom(dragged.controller);
+  assert.ok(
+    dragged.camera.position.distanceTo(baseline.camera.position) < 1e-9,
+    'leaving ground-eye zoom should retrace the authored curve instead of revealing hidden pitch drift',
+  );
+  assert.ok(
+    dragged.camera.quaternion.angleTo(baseline.camera.quaternion) < 1e-7,
+    'the close-zoom exit orientation should remain on the same authored curve',
+  );
+  baseline.controller.dispose();
+  dragged.controller.dispose();
 }
 
 {
@@ -1029,8 +1134,24 @@ function scrollToLiveWorldMaximum(
     authoredPitch,
     100_000,
   );
+  assert.ok(Math.abs(measureOrbitPitch(camera, target) - authoredPitch) < 1e-9,
+    'the live world should retain low-angle terrain inspection before the map handoff');
   const mapEntryDistance = controller.getOrbitDistance();
   domElement.dispatch('wheel', wheelEvent({ deltaY: 120 }));
+  assert.ok(
+    Math.abs(measureOrbitPitch(camera, target) - ILLUSTRATED_MAP_MIN_PITCH) < 1e-9,
+    'entering the paper map from a low world angle should lift it to the map-only floor',
+  );
+  const yawBeforeFlattenAttempt = controller.getYaw();
+  mmbOrbit(domElement, 100, 100, 100, -900);
+  releaseMouse(1);
+  settleNavigation(controller);
+  assert.ok(
+    Math.abs(measureOrbitPitch(camera, target) - ILLUSTRATED_MAP_MIN_PITCH) < 1e-9,
+    'paper-map vertical orbit input must not flatten the table below its authored floor',
+  );
+  assert.equal(controller.getYaw(), yawBeforeFlattenAttempt,
+    'vertical-only paper-map orbit input should not alter yaw');
   for (let tier = 0; tier < ILLUSTRATED_MAP_OUTWARD_ZOOM_TIER_COUNT; tier += 1) {
     domElement.dispatch('wheel', wheelEvent({ deltaY: 120 }));
   }
@@ -1038,7 +1159,7 @@ function scrollToLiveWorldMaximum(
   const wideFrame = {
     aspect: camera.aspect,
     yaw: controller.getYaw(),
-    pitch: authoredPitch,
+    pitch: ILLUSTRATED_MAP_MIN_PITCH,
     targetX: target.x,
     targetZ: target.z,
   };
@@ -1066,7 +1187,7 @@ function scrollToLiveWorldMaximum(
   const portraitFrame = {
     aspect: camera.aspect,
     yaw: controller.getYaw(),
-    pitch: authoredPitch,
+    pitch: ILLUSTRATED_MAP_MIN_PITCH,
     targetX: target.x,
     targetZ: target.z,
   };
@@ -1100,8 +1221,8 @@ function scrollToLiveWorldMaximum(
   releaseMouse(1);
   settleNavigation(controller);
   const rotatedPitch = THREE.MathUtils.clamp(
-    authoredPitch + 70 * 0.004,
-    THREE.MathUtils.degToRad(5),
+    ILLUSTRATED_MAP_MIN_PITCH + 70 * 0.004,
+    ILLUSTRATED_MAP_MIN_PITCH,
     THREE.MathUtils.degToRad(70),
   );
   const rotatedFrame = {
@@ -1156,6 +1277,20 @@ function scrollToLiveWorldMaximum(
     'pan input should recompute the active outer regional stop');
   assert.ok(controller.getOrbitDistance() < pannedFullDeskFit,
     'panned recomputation should remain below the removed full-desk fit');
+
+  for (let step = 0; step <= ILLUSTRATED_MAP_OUTWARD_ZOOM_TIER_COUNT; step += 1) {
+    domElement.dispatch('wheel', wheelEvent({ deltaY: -120 }));
+    settleZoom(controller);
+  }
+  assert.equal(controller.isIllustratedMapActive(), false,
+    'returning inward from the paper map should restore live-world camera ownership');
+  mmbOrbit(domElement, 100, 100, 100, -300);
+  releaseMouse(1);
+  settleNavigation(controller);
+  assert.ok(
+    measureOrbitPitch(camera, target) < ILLUSTRATED_MAP_MIN_PITCH - 1e-3,
+    'the live world should remain free to orbit below the paper-map-only floor',
+  );
   controller.dispose();
 }
 
