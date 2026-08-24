@@ -1,11 +1,11 @@
 import assert from 'node:assert/strict';
 import { createDefaultNeeds } from '../src/residences/residenceNeedState.ts';
-import { createEmptyStockpile } from '../src/resources/resourceTotals.ts';
 import type {
   BuildingState,
   GameState,
   ResidenceState,
 } from '../src/resources/types.ts';
+import { createEmptyStockpile } from '../src/resources/types.ts';
 import type { FireIncidentState } from '../src/fires/fireIncident.ts';
 import {
   deriveLordReportTransitions,
@@ -160,8 +160,25 @@ const storehouseFullReports = deriveLordReportTransitions(
 );
 assert.equal(storehouseFullReports[0]?.title, 'Storehouse storage is full');
 
-const priorHome = residence({ id: 'home-arrival', population: 2 });
-const occupiedHome = residence({ ...priorHome, population: 3 });
+const foundingHouseholdFill = residence({ id: 'founding-home', population: 2 });
+assert.deepEqual(
+  deriveLordReportTransitions(
+    gameState(199, {
+      residences: [{ ...foundingHouseholdFill, population: 3 }],
+    }),
+    gameState(198, { residences: [foundingHouseholdFill] }),
+  ),
+  [],
+  'moving the existing founding labor pool into housing should not report a new city laborer',
+);
+
+const priorHome = residence({
+  id: 'home-arrival',
+  tier: 4,
+  population: 10,
+  populationCapacity: 15,
+});
+const occupiedHome = residence({ ...priorHome, population: 11 });
 const arrivalReports = deriveLordReportTransitions(
   gameState(201, { residences: [occupiedHome] }),
   gameState(200, { residences: [priorHome] }),
@@ -171,7 +188,7 @@ assert.equal(arrivalReports[0]?.kind, 'labor');
 assert.equal(arrivalReports[0]?.title, 'A new laborer joined the city');
 assert.equal(arrivalReports[0]?.target?.kind, 'residence');
 assert.equal(arrivalReports[0]?.target?.id, occupiedHome.id);
-assert.match(arrivalReports[0]?.detail ?? '', /now houses 3/);
+assert.match(arrivalReports[0]?.detail ?? '', /now houses 11/);
 assert.deepEqual(
   deriveLordReportTransitions(
     gameState(202, { residences: [{ ...occupiedHome }] }),
@@ -189,7 +206,7 @@ assert.deepEqual(
   'population loss is not a new-laborer report',
 );
 const pluralArrivalReports = deriveLordReportTransitions(
-  gameState(204, { residences: [{ ...priorHome, population: 4 }] }),
+  gameState(204, { residences: [{ ...priorHome, population: 12 }] }),
   gameState(203, { residences: [priorHome] }),
 );
 assert.equal(pluralArrivalReports[0]?.title, '2 new laborers joined the city');
@@ -223,7 +240,7 @@ const fireReports = deriveLordReportTransitions(
 assert.equal(fireReports.length, 1);
 assert.equal(fireReports[0]?.kind, 'fire');
 assert.equal(fireReports[0]?.target?.id, fireBuilding.id);
-assert.match(fireReports[0]?.title ?? '', /Fire reported at Smithy/);
+assert.match(fireReports[0]?.title ?? '', /Fire reported at .*smithy/i);
 assert.deepEqual(
   deriveLordReportTransitions(
     gameState(302, { buildings: [fireBuilding], fires: [{ ...burning }] }),
@@ -263,19 +280,19 @@ assert.equal(collection.clear(), true);
 assert.equal(collection.clear(), false, 'clearing an empty ledger should be a no-op');
 
 const persistentDismissal = new LordReportCollection();
-persistentDismissal.addAll(firstFullReports);
+for (const entry of firstFullReports) persistentDismissal.add(entry);
 assert.equal(persistentDismissal.size, 1);
 assert.equal(persistentDismissal.dismiss(firstFullReports[0]!.id), true);
-persistentDismissal.addAll(deriveLordReportTransitions(
+for (const entry of deriveLordReportTransitions(
   gameState(102, { buildings: [{ ...fullLodge }] }),
   gameState(101, { buildings: [fullLodge] }),
-));
+)) persistentDismissal.add(entry);
 assert.equal(
   persistentDismissal.size,
   0,
   'dismissing a report while its condition remains active must not recreate it next snapshot',
 );
-persistentDismissal.addAll(refilledReports);
+for (const entry of refilledReports) persistentDismissal.add(entry);
 assert.equal(
   persistentDismissal.size,
   1,

@@ -83,7 +83,7 @@ pub fn step_market_household_distribution(
     ctx: &ReducerContext,
     tick: &SimTickContext,
     sim_tick: u64,
-    _environment: EnvironmentState,
+    environment: EnvironmentState,
 ) {
     let Some(issue_cycle) = market_issue_cycle(sim_tick) else {
         return;
@@ -296,7 +296,7 @@ fn household_issue_target(
     residence: &Residence,
     need_kind: ResidenceNeedKind,
     issue_cycle: MarketIssueCycle,
-    environment: EnvironmentState,
+    _environment: EnvironmentState,
     pantry_policy: u8,
 ) -> Option<(f64, f64)> {
     let monthly_lot = match need_kind {

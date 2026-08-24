@@ -1056,16 +1056,13 @@
 
 .noble-hud__eye:disabled { cursor: default; opacity: 0.42; }
 
-.noble-hud__dawn-report {
+.noble-hud__reports {
   position: absolute;
   top: calc(100% + 14px);
   right: 0;
-  display: grid;
-  gap: 6px;
+  overflow: hidden;
   width: 100%;
-  padding: 13px 38px 14px 15px;
   border: 1px solid rgba(210, 179, 111, 0.3);
-  border-left: 3px solid #bfa05d;
   border-radius: 2px;
   color: #d9cfbb;
   background:
@@ -1078,60 +1075,194 @@
   animation: noble-dawn-report-in 220ms ease-out;
 }
 
-.noble-hud__dawn-report[hidden] {
+.noble-hud__reports[hidden] {
   display: none;
 }
 
-.noble-hud__dawn-report[data-state='troubled'] {
-  border-color: rgba(201, 112, 85, 0.48);
-  border-left-color: #c97055;
-  background:
-    linear-gradient(135deg, rgba(201, 112, 85, 0.11), transparent 52%),
-    rgba(31, 20, 17, 0.97);
+.noble-hud__reports-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  padding: 8px 10px 7px 12px;
+  border-bottom: 1px solid rgba(210, 179, 111, 0.2);
+  background: rgba(8, 11, 8, 0.34);
 }
 
-.noble-hud__dawn-report-kicker {
+.noble-hud__reports-header > strong {
+  overflow: hidden;
   color: #d6b96f;
   font-size: 9px;
   font-weight: 850;
   letter-spacing: 0.14em;
   line-height: 1;
+  text-overflow: ellipsis;
   text-transform: uppercase;
+  white-space: nowrap;
 }
 
-.noble-hud__dawn-report[data-state='troubled'] .noble-hud__dawn-report-kicker {
-  color: #e1a18e;
+.noble-hud__reports-count {
+  display: grid;
+  place-items: center;
+  min-width: 19px;
+  height: 19px;
+  padding: 0 5px;
+  border: 1px solid rgba(210, 179, 111, 0.26);
+  border-radius: 999px;
+  color: #cbb98f;
+  background: rgba(210, 179, 111, 0.08);
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-size: 9px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
 }
 
-.noble-hud__dawn-report-copy {
+.noble-hud__reports-clear {
+  padding: 3px 5px;
+  border: 0;
+  color: #948975;
+  background: transparent;
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-size: 8px;
+  font-weight: 750;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.noble-hud__reports-clear:hover,
+.noble-hud__reports-clear:focus-visible {
+  color: #ecdbaf;
+  outline: none;
+}
+
+.noble-hud__reports-list {
+  max-height: min(340px, calc(100vh - 174px));
   margin: 0;
-  color: #e4dac6;
-  font-size: 11px;
-  font-weight: 600;
-  line-height: 1.45;
+  padding: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  list-style: none;
+  scrollbar-color: rgba(195, 161, 91, 0.48) rgba(0, 0, 0, 0.18);
+  scrollbar-width: thin;
 }
 
-.noble-hud__dawn-report-dismiss {
-  position: absolute;
-  top: 8px;
-  right: 9px;
+.noble-hud__report {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 28px;
+  min-width: 0;
+  border-bottom: 1px solid rgba(210, 179, 111, 0.12);
+  box-shadow: inset 3px 0 rgba(190, 160, 93, 0.52);
+}
+
+.noble-hud__report:last-child { border-bottom: 0; }
+
+.noble-hud__report[data-tone='notice'] {
+  box-shadow: inset 3px 0 rgba(125, 159, 178, 0.68);
+}
+
+.noble-hud__report[data-tone='warning'] {
+  background: rgba(132, 86, 35, 0.11);
+  box-shadow: inset 3px 0 rgba(213, 155, 71, 0.76);
+}
+
+.noble-hud__report[data-tone='danger'] {
+  background: rgba(132, 48, 30, 0.13);
+  box-shadow: inset 3px 0 rgba(211, 96, 66, 0.82);
+}
+
+.noble-hud__report-body {
+  appearance: none;
+  display: grid;
+  grid-template-columns: 25px minmax(0, 1fr);
+  gap: 8px;
+  min-width: 0;
+  padding: 10px 4px 10px 12px;
+  border: 0;
+  color: inherit;
+  background: transparent;
+  font: inherit;
+  text-align: left;
+}
+
+button.noble-hud__report-body:not(:disabled) { cursor: pointer; }
+button.noble-hud__report-body:disabled { opacity: 1; }
+
+button.noble-hud__report-body:not(:disabled):hover,
+button.noble-hud__report-body:not(:disabled):focus-visible {
+  background: rgba(218, 187, 119, 0.075);
+  outline: none;
+}
+
+button.noble-hud__report-body:not(:disabled):focus-visible {
+  box-shadow: inset 0 0 0 1px rgba(228, 196, 125, 0.5);
+}
+
+.noble-hud__report-symbol {
+  display: grid;
+  place-items: start center;
+  padding-top: 1px;
+  color: #c8aa69;
+  font-size: 17px;
+  line-height: 1;
+}
+
+.noble-hud__report[data-tone='notice'] .noble-hud__report-symbol { color: #9dbdc9; }
+.noble-hud__report[data-tone='warning'] .noble-hud__report-symbol { color: #e1ad5e; }
+.noble-hud__report[data-tone='danger'] .noble-hud__report-symbol { color: #e58d73; }
+
+.noble-hud__report-copy {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.noble-hud__report-copy > strong {
+  color: #eadfc9;
+  font-size: 10px;
+  font-weight: 760;
+  line-height: 1.25;
+}
+
+.noble-hud__report-detail {
+  color: #b9af9c;
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-size: 9px;
+  font-weight: 560;
+  line-height: 1.38;
+}
+
+.noble-hud__report-time {
+  color: #817866;
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-size: 8px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  line-height: 1.2;
+}
+
+.noble-hud__report-dismiss {
+  align-self: start;
   display: grid;
   place-items: center;
   width: 23px;
   height: 23px;
+  margin: 6px 4px 0 0;
   padding: 0;
   border: 0;
   border-radius: 50%;
-  color: #998d77;
+  color: #887f70;
   background: transparent;
   font-family: ui-sans-serif, system-ui, sans-serif;
-  font-size: 18px;
+  font-size: 17px;
   line-height: 1;
   cursor: pointer;
 }
 
-.noble-hud__dawn-report-dismiss:hover,
-.noble-hud__dawn-report-dismiss:focus-visible {
+.noble-hud__report-dismiss:hover,
+.noble-hud__report-dismiss:focus-visible {
   color: #f0dfba;
   background: rgba(213, 180, 102, 0.12);
   outline: none;
@@ -1176,13 +1307,18 @@
   .noble-hud__gold .settlement-hud__value { font-size: 18px; }
   .noble-hud__eye { bottom: 2px; left: -8px; width: 30px; height: 30px; }
   .noble-hud__eye svg { width: 19px; height: 13px; }
-  .noble-hud__dawn-report {
+  .noble-hud__reports {
     top: calc(100% + 12px);
-    padding: 11px 34px 12px 13px;
   }
-  .noble-hud__dawn-report-copy { font-size: 10px; }
+  .noble-hud__reports-list { max-height: min(280px, calc(100vh - 150px)); }
+  .noble-hud__report-body {
+    grid-template-columns: 21px minmax(0, 1fr);
+    gap: 6px;
+    padding-left: 9px;
+  }
+  .noble-hud__report-detail { font-size: 8px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .noble-hud__dawn-report { animation: none; }
+  .noble-hud__reports { animation: none; }
 }

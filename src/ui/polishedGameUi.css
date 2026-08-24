@@ -927,6 +927,10 @@ select:focus-visible {
   width: var(--settlement-vitals-width);
 }
 
+.settlement-vitals__alerts[hidden] {
+  display: none !important;
+}
+
 .settlement-hud__fire-alert[hidden],
 .settlement-hud__security-alert[hidden],
 .settlement-hud__welfare-alert[hidden] {

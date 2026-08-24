@@ -402,7 +402,9 @@ export class LordReportLedger {
     const list = document.createElement('ol');
     list.className = 'noble-hud__reports-list';
     list.dataset.reportList = '';
+    list.setAttribute('role', 'log');
     list.setAttribute('aria-live', 'polite');
+    list.setAttribute('aria-relevant', 'additions');
 
     header.append(heading, count, clearButton);
     root.append(header, list);

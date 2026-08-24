@@ -1290,6 +1290,51 @@ export async function bootstrapAppSession(
       { variant: 'info', durationMs: 4000 },
     );
   });
+  toolbar.settlementHud.setLordReportTargetHandler((target) => {
+    if (isWorldInspectionBlocked(placementGate)) {
+      toastManager.show(
+        sessionGate.isReady()
+          ? 'Finish or cancel the active tool before opening a reported location.'
+          : 'Connect to the settlement before opening a reported location.',
+        { variant: 'info', durationMs: 3200 },
+      );
+      return;
+    }
+
+    const state = liveContext.gameState;
+    let focusX = target.x;
+    let focusZ = target.z;
+    let targetPresent = false;
+    if (target.kind === 'building') {
+      const building = state.buildings.get(target.id);
+      if (building) {
+        villagerInspector.clearSelection();
+        resourceInspector.selectBuilding(target.id);
+        focusX = building.x;
+        focusZ = building.z;
+        targetPresent = true;
+      }
+    } else {
+      const residence = state.residences.get(target.id);
+      if (residence) {
+        villagerInspector.clearSelection();
+        resourceInspector.selectResidence(target.id);
+        focusX = residence.x;
+        focusZ = residence.z;
+        targetPresent = true;
+      }
+    }
+
+    if (!targetPresent) {
+      resourceInspector.clearSelection();
+      villagerInspector.clearSelection();
+      toastManager.show(
+        'That holding is no longer present. Showing its last reported location.',
+        { variant: 'info', durationMs: 3600 },
+      );
+    }
+    cameraController.focusWorldPositionAtZoom(focusX, focusZ, 25);
+  });
   toolbar.settlementHud.setSecurityAttentionHandler((target, index, count) => {
     if (isWorldInspectionBlocked(placementGate)) {
       toastManager.show(
