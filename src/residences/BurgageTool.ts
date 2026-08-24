@@ -26,6 +26,7 @@ import {
 } from './burgagePlacementValidation.ts';
 import type { PhysicalDepositFootprint } from '../resources/physicalDepositProtection.ts';
 import {
+  snapBurgageBoundaryDraftPoint,
   snapBurgageBoundaryPoint,
   snapBurgageFrontagePoint,
 } from './burgagePlotSnap.ts';
@@ -1059,12 +1060,24 @@ export class BurgageTool {
   }
 
   private snapBackPointToExistingPlots(point: THREE.Vector3): THREE.Vector3 {
-    const snapped = snapBurgageBoundaryPoint(
-      point,
-      this.options.getState().burgageZones.values(),
-      undefined,
-      (candidate) => this.backPointMeetsMinimumDepth(candidate),
+    const zones = this.options.getState().burgageZones.values();
+    const candidateFilter = (candidate: { x: number; z: number }) => (
+      this.backPointMeetsMinimumDepth(candidate)
     );
+    const snapped = this.placementStage === 3 && this.points.length === 3
+      ? snapBurgageBoundaryDraftPoint(
+          point,
+          this.points,
+          zones,
+          undefined,
+          candidateFilter,
+        )
+      : snapBurgageBoundaryPoint(
+          point,
+          zones,
+          undefined,
+          candidateFilter,
+        );
     return new THREE.Vector3(
       snapped.x,
       this.options.getHeightAt(snapped.x, snapped.z),

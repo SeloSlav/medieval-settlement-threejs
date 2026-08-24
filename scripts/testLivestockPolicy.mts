@@ -32,37 +32,54 @@ import {
 import {
   computeSettlementLivestockFodderPlan,
   livestockCyclesPerCalendarDay,
+  livestockStoredFodderOatEquivalent,
+  livestockStoredFodderValue,
   projectLivestockFodderHolding,
 } from '../src/economy/livestockFodder.ts';
 import {
   AUTUMN_PASTURE_CAPACITY_MULTIPLIER,
+  CATTLE_AREA_PER_HEAD,
   CATTLE_DEFAULT_BREEDING_RESERVE,
   CATTLE_BREEDING_PER_CYCLE,
+  CATTLE_DAIRY_PRODUCTIVE_SHARE,
+  CATTLE_FOOD_PER_CYCLE_PER_HEAD,
   CATTLE_HAY_PER_UNSUPPORTED_HEAD,
   CATTLE_HAY_YIELD_PER_RESERVED_CAPACITY_PER_CYCLE,
   CATTLE_HEADS_PER_WORKER,
   CATTLE_MAX_HERD,
   CATTLE_MINIMUM_BREEDING_RESERVE,
   CATTLE_PURCHASE_GOLD_PER_HEAD,
+  CATTLE_PRESERVED_FOOD_PER_CYCLE_PER_HEAD,
   CATTLE_SALE_GOLD_PER_HEAD,
   CATTLE_STARTER_HERD,
   CATTLE_WATER_PER_HEAD_PER_CYCLE,
   DROUGHT_PASTURE_CAPACITY_MULTIPLIER,
   LIVESTOCK_FARMSTEAD_PRESERVATION_SALT_PER_OUTPUT,
   LIVESTOCK_FARMSTEAD_SALT_STAGING_PER_CYCLE,
+  LIVESTOCK_MASLIN_FODDER_VALUE,
+  LIVESTOCK_OAT_FODDER_VALUE,
+  LIVESTOCK_RYE_FODDER_VALUE,
   LIVESTOCK_WINTER_FODDER_RESERVE_DAYS,
+  MARKETPLACE_TRADE_OFFERS,
+  MARKET_PRICE_MULTIPLIER_MAX,
   PANNAGE_AUTUMN_CAPACITY_MULTIPLIER,
   PANNAGE_DROUGHT_CAPACITY_MULTIPLIER,
   PANNAGE_SPRING_CAPACITY_MULTIPLIER,
   PANNAGE_WINTER_CAPACITY_MULTIPLIER,
   SHEEP_DEFAULT_BREEDING_RESERVE,
+  SHEEP_AREA_PER_HEAD,
   SHEEP_BREEDING_PER_CYCLE,
+  SHEEP_DAIRY_PRODUCTIVE_SHARE,
+  SHEEP_FOOD_PER_CYCLE_PER_HEAD,
   SHEEP_HEADS_PER_WORKER,
   SHEEP_MAX_HERD,
+  SHEEP_PRESERVED_FOOD_PER_CYCLE_PER_HEAD,
   SHEEP_STARTER_HERD,
   SWINE_BREEDING_PER_CYCLE,
+  SWINE_AREA_PER_HEAD,
   SWINE_HEADS_PER_WORKER,
   SWINE_MAX_HERD,
+  SWINE_MATURE_TREES_PER_HEAD,
   SWINE_STARTER_HERD,
   SWINE_FOOD_PER_CYCLE_PER_HEAD,
   SWINE_WATER_PER_HEAD_PER_CYCLE,
@@ -166,42 +183,42 @@ assert.equal(
 );
 assert.deepEqual(
   livestockReservePresets('cattle').map((preset) => preset.reserve),
-  [3, 6, 10],
+  [5, 12, 20],
 );
 assert.equal(pendingLivestockCullHeads('swine', 10, 7), 3);
 assert.deepEqual(projectedLivestockCullYield('swine', 10, 7), {
   heads: 3,
-  food: 27,
+  food: 9,
   preservedFood: 0,
 });
 assert.deepEqual(projectedLivestockCullYield('cattle', 9, 6), {
   heads: 3,
-  food: 30,
-  preservedFood: 9,
+  food: 15,
+  preservedFood: 1.5,
 });
 assert.equal(livestockPreservationSaltRequired(8), 1);
 assert.equal(livestockSaltedOutputCapacity(1), 8);
 assert.equal(
   livestockDairyPreservedOutputPerCycle('cattle', 10),
-  1.2,
+  0.6,
 );
 assert.equal(
   livestockDairySaltPerCycle('cattle', 10),
-  1.2 * LIVESTOCK_FARMSTEAD_PRESERVATION_SALT_PER_OUTPUT,
+  0.6 * LIVESTOCK_FARMSTEAD_PRESERVATION_SALT_PER_OUTPUT,
 );
 assert.equal(livestockDairySaltPerCycle('swine', 10), 0);
 assert.equal(livestockMilkUsePolicy(25).label, 'Fresh milk');
 assert.equal(livestockMilkUsePolicy(100).label, 'Balanced');
 assert.equal(livestockMilkUsePolicy(75).label, 'Cheese first');
 assert.deepEqual(livestockMilkAllocationPerCycle('cattle', 10, 25), {
-  grossMilk: 5.4,
-  freshMilk: 5.4,
+  grossMilk: 2.7,
+  freshMilk: 2.7,
   cheese: 0,
 });
 const cheeseFirst = livestockMilkAllocationPerCycle('cattle', 10, 75);
-assert.ok(Math.abs(cheeseFirst.freshMilk - 1.35) < 1e-9);
-assert.ok(Math.abs(cheeseFirst.cheese - 4.05) < 1e-9);
-assert.ok(Math.abs(cheeseFirst.freshMilk + cheeseFirst.cheese - 5.4) < 1e-9);
+assert.ok(Math.abs(cheeseFirst.freshMilk - 0.675) < 1e-9);
+assert.ok(Math.abs(cheeseFirst.cheese - 2.025) < 1e-9);
+assert.ok(Math.abs(cheeseFirst.freshMilk + cheeseFirst.cheese - 2.7) < 1e-9);
 assert.equal(farmhouseCheeseSaltStagingCycles(25), 0);
 assert.equal(farmhouseCheeseSaltStagingCycles(50), 3);
 assert.equal(livestockPurchaseGoldPerHead('cattle'), CATTLE_PURCHASE_GOLD_PER_HEAD);
@@ -213,6 +230,64 @@ assert.equal(livestockSaleProceeds('swine', -4), 0);
 assert.ok(
   livestockPurchaseGoldPerHead('cattle') > livestockSaleGoldPerHead('cattle'),
   'live-animal resale must not be an arbitrage loop',
+);
+assert.deepEqual(
+  [CATTLE_STARTER_HERD, SHEEP_STARTER_HERD, SWINE_STARTER_HERD],
+  [5, 15, 8],
+  'first orders should feel like herds rather than token single animals',
+);
+assert.deepEqual(
+  [CATTLE_MAX_HERD, SHEEP_MAX_HERD, SWINE_MAX_HERD],
+  [20, 60, 30],
+  'developed holdings need visibly distinct settlement-scale ceilings',
+);
+assert.deepEqual(
+  [
+    CATTLE_STARTER_HERD * CATTLE_AREA_PER_HEAD,
+    SHEEP_STARTER_HERD * SHEEP_AREA_PER_HEAD,
+    SWINE_STARTER_HERD * SWINE_AREA_PER_HEAD,
+  ],
+  [1200, 1350, 1280],
+  'starter orders should ask for comparable ideal enclosure footprints',
+);
+assert.equal(SWINE_STARTER_HERD * SWINE_MATURE_TREES_PER_HEAD, 12);
+assert.equal(SWINE_MAX_HERD * SWINE_MATURE_TREES_PER_HEAD, 45);
+const starterOrderCosts = [
+  livestockPurchaseCost('cattle', CATTLE_STARTER_HERD),
+  livestockPurchaseCost('sheep', SHEEP_STARTER_HERD),
+  livestockPurchaseCost('swine', SWINE_STARTER_HERD),
+];
+assert.ok(
+  Math.max(...starterOrderCosts) - Math.min(...starterOrderCosts) <= 10,
+  'starter orders should require comparable civic capital across species',
+);
+const exportGoldPerUnit = (resource: 'meat' | 'curedMeat'): number => {
+  const offer = MARKETPLACE_TRADE_OFFERS.find(
+    (candidate) => candidate.kind === 'goldSell' && candidate.resource === resource,
+  );
+  assert.ok(offer && offer.kind === 'goldSell');
+  return offer.goldYield / offer.amount;
+};
+for (const species of ['cattle', 'sheep', 'swine'] as const) {
+  const policy = livestockPolicyDefinition(species);
+  const peakCullExport = (
+    policy.slaughterFoodPerHead * exportGoldPerUnit('meat')
+    + policy.slaughterPreservedFoodPerHead * exportGoldPerUnit('curedMeat')
+  ) * MARKET_PRICE_MULTIPLIER_MAX;
+  assert.ok(
+    policy.purchaseGoldPerHead > peakCullExport,
+    `${species} breeding stock must cost more than its peak-market carcass export`,
+  );
+}
+const cattleFullGrossMilk = CATTLE_MAX_HERD
+  * CATTLE_DAIRY_PRODUCTIVE_SHARE
+  * (CATTLE_FOOD_PER_CYCLE_PER_HEAD + CATTLE_PRESERVED_FOOD_PER_CYCLE_PER_HEAD);
+const sheepFullGrossMilk = SHEEP_MAX_HERD
+  * SHEEP_DAIRY_PRODUCTIVE_SHARE
+  * (SHEEP_FOOD_PER_CYCLE_PER_HEAD + SHEEP_PRESERVED_FOOD_PER_CYCLE_PER_HEAD);
+assert.ok(
+  Math.abs(cattleFullGrossMilk - sheepFullGrossMilk) <= cattleFullGrossMilk * 0.1,
+  'larger sheep head counts must not multiply full-holding dairy beyond cattle-scale output',
 );
 
 function fullySupportedHeadsAfterOneYear(
@@ -260,7 +335,7 @@ assert.deepEqual(
       35 / 6,
     ),
   ],
-  [4, 10, 10],
+  [7, 27, 21],
   'one fully supported year should grow herds meaningfully without filling every holding',
 );
 assert.equal(livestockHeadsPerWorker('cattle'), CATTLE_HEADS_PER_WORKER);
@@ -268,6 +343,9 @@ assert.equal(livestockHeadsPerWorker('sheep'), SHEEP_HEADS_PER_WORKER);
 assert.equal(livestockHeadsPerWorker('swine'), SWINE_HEADS_PER_WORKER);
 assert.equal(livestockCareCapacity('cattle', 2.9), CATTLE_HEADS_PER_WORKER * 2);
 assert.equal(livestockCareCapacity('cattle', -1), 0);
+assert.equal(livestockCareCapacity('cattle', 3), CATTLE_MAX_HERD + 1);
+assert.equal(livestockCareCapacity('sheep', 3), SHEEP_MAX_HERD);
+assert.equal(livestockCareCapacity('swine', 2), SWINE_MAX_HERD);
 assert.equal(
   livestockWaterPerHeadPerCycle('cattle'),
   CATTLE_WATER_PER_HEAD_PER_CYCLE,
@@ -283,6 +361,16 @@ assert.ok(
   ) < 1e-9,
 );
 assert.equal(livestockWaterRequiredPerCycle('sheep', Number.NaN), 0);
+assert.equal(
+  livestockStoredFodderValue({ oatGrain: 10, ryeGrain: 5, maslinGrain: 5 }),
+  10 * LIVESTOCK_OAT_FODDER_VALUE
+    + 5 * LIVESTOCK_RYE_FODDER_VALUE
+    + 5 * LIVESTOCK_MASLIN_FODDER_VALUE,
+);
+assert.equal(
+  livestockStoredFodderOatEquivalent({ oatGrain: 10, ryeGrain: 5, maslinGrain: 5 }),
+  17.6,
+);
 assert.equal(
   pannageCapacityMultiplierFor('spring', 'fair'),
   PANNAGE_SPRING_CAPACITY_MULTIPLIER,
@@ -320,29 +408,26 @@ const fodderPlan = projectLivestockFodderHolding(
 assert.equal(fodderPlan.projectedHeadCount, 6, 'autumn forecast must include configured culls');
 assert.equal(fodderPlan.winterPastureCapacity, 3.5);
 assert.equal(fodderPlan.winterUnsupportedHeads, 2.5);
-assert.ok(Math.abs(fodderPlan.winterGrainPerDay - 5.95) < 1e-9);
+assert.ok(Math.abs(fodderPlan.winterGrainPerDay - 1.68) < 1e-9);
 assert.ok(
   Math.abs(
     fodderPlan.winterGrainNeed
       - fodderPlan.winterGrainPerDay * LIVESTOCK_WINTER_FODDER_RESERVE_DAYS,
   ) < 1e-9,
 );
-assert.equal(fodderPlan.winterReserveTarget, 90, 'holding target must respect grain capacity');
-assert.equal(fodderPlan.winterReserveStock, 60);
-assert.equal(fodderPlan.winterReserveShortfall, 30);
+assert.ok(Math.abs(fodderPlan.winterReserveTarget - 50.4) < 1e-9);
+assert.ok(Math.abs(fodderPlan.winterReserveStock - 50.4) < 1e-9);
+assert.equal(fodderPlan.winterReserveShortfall, 0);
 assert.ok(Math.abs(fodderPlan.productiveHeads - 7.2) < 1e-9);
-assert.ok(Math.abs(fodderPlan.dairyPreservedFoodPerDay - 6.048) < 1e-9);
-assert.ok(Math.abs(fodderPlan.dairySaltPerDay - 0.756) < 1e-9);
+assert.ok(Math.abs(fodderPlan.dairyPreservedFoodPerDay - 3.024) < 1e-9);
+assert.ok(Math.abs(fodderPlan.dairySaltPerDay - 0.378) < 1e-9);
 assert.equal(
   fodderPlan.dairySaltTarget,
   LIVESTOCK_FARMSTEAD_SALT_STAGING_PER_CYCLE * 3,
 );
 assert.equal(fodderPlan.dairySaltShortfall, fodderPlan.dairySaltTarget);
 assert.equal(fodderPlan.dairySaltRunwayDays, 0);
-assert.ok(
-  fodderPlan.winterGrainNeed > fodderPlan.winterReserveTarget,
-  'full holding storage must expose a mid-winter resupply requirement',
-);
+assert.equal(fodderPlan.winterGrainNeed, fodderPlan.winterReserveTarget);
 
 const summerHerd = {
   ...fodderHerd,
@@ -365,8 +450,8 @@ assert.ok(
   ) < 1e-9,
 );
 assert.equal(summerPlan.haymakingDaysRemaining, 90);
-assert.ok(Math.abs(summerPlan.projectedHayStock - 240) < 1e-9);
-assert.equal(summerPlan.winterHayNeed, 178.5);
+assert.ok(Math.abs(summerPlan.projectedHayStock - 165.375) < 1e-9);
+assert.equal(summerPlan.winterHayNeed, 63);
 assert.equal(
   summerPlan.winterGrainNeed,
   0,
@@ -450,7 +535,7 @@ assert.equal(droughtSwinePlan.basePastureCapacity, 8);
 
 const hayFedAutumnPlan = projectLivestockFodderHolding(
   fodderBuilding,
-  { ...fodderHerd, hayStock: 178.5 },
+  { ...fodderHerd, hayStock: 63 },
   AUTUMN_PASTURE_CAPACITY_MULTIPLIER,
   false,
   9,
@@ -491,7 +576,7 @@ assert.equal(
 );
 assert.equal(
   settlementFodder.winterReserveShortfall,
-  180,
+  100.8,
   'one full holding must not hide local shortfalls at two others',
 );
 assert.equal(settlementFodder.dairySaltShortHoldings, 3);
@@ -534,6 +619,7 @@ assert.match(serverPolicy, /pub fn projected_winter_fodder_grain/);
 assert.match(serverPolicy, /pub fn is_haymaking_month/);
 assert.match(serverPolicy, /pub fn is_shearing_month/);
 assert.match(serverPolicy, /pub fn haymaking_share/);
+assert.match(serverPolicy, /pub fn essential_livestock_care_labor/);
 assert.match(serverPolicy, /food_room[\s\S]*slaughter_food_per_head/);
 assert.match(serverSimulation, /herd\.head_count -= 1/);
 assert.match(serverSimulation, /herd\.last_culled = 1/);
@@ -566,7 +652,13 @@ assert.match(
   'farmhouse preserved output must withdraw physical salt',
 );
 assert.match(serverSimulation, /livestock_milk_allocation/);
+assert.match(serverSimulation, /species_dairy_productive_share/);
 assert.match(serverSimulation, /gross_milk - stored_cheese/);
+assert.match(
+  serverSimulation,
+  /let care_labor = essential_livestock_care_labor[\s\S]{0,260}let productive_labor = if paused \{ 0 \} else \{ onsite_labor \}/,
+  'Sabbath must pause haymaking and slaughter without withdrawing essential herd care',
+);
 assert.match(serverDeliveryTrips, /local_milk_sale[\s\S]*FOOD_SALE_GOLD_PER_UNIT/);
 assert.match(serverDeliveryTrips, /credit_settlement_household_income/);
 assert.match(
@@ -657,7 +749,7 @@ const stressFodder = computeSettlementLivestockFodderPlan(
 );
 const fodderElapsed = performance.now() - fodderStarted;
 assert.equal(stressFodder.holdingCount, 100_000);
-assert.equal(stressFodder.capacityLimitedHoldings, 100_000);
+assert.equal(stressFodder.capacityLimitedHoldings, 0);
 assert.ok(
   fodderElapsed < 1_000,
   `100,000-holding fodder aggregation took ${fodderElapsed.toFixed(1)} ms`,

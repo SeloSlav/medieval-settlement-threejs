@@ -95,7 +95,7 @@ function weaver(partial: Partial<BuildingState> = {}): BuildingState {
 
 assert.equal(SHEEP_SHEARING_START_MONTH, 6);
 assert.equal(SHEEP_SHEARING_END_MONTH, 7);
-assert.equal(SHEEP_WOOL_PER_SHEARING_PER_HEAD, 3);
+assert.equal(SHEEP_WOOL_PER_SHEARING_PER_HEAD, 1);
 assert.equal(WEAVER_WOOL_PER_CYCLE, 3);
 assert.equal(WEAVER_FLAX_PER_CYCLE, 3);
 assert.equal(WEAVER_FLAX_WATER_PER_CYCLE, 1);
@@ -104,21 +104,21 @@ assert.equal(TEXTILE_TRANSFER_PER_TRIP, 12);
 assert.equal(SPECIALTY_EXPORT_GOLD_PER_CLOTH, 1.5);
 assert.equal(RESIDENCE_CLOTH_CAPACITY, 8);
 assert.equal(RESIDENCE_CLOTH_PER_PERSON_PER_SEC, 0.00018);
-assert.equal(BUILDING_STORAGE_CAPS.pastoral_farmstead.wool, 120);
+assert.equal(BUILDING_STORAGE_CAPS.pastoral_farmstead.wool, 180);
 assert.equal(BUILDING_STORAGE_CAPS.weaver.wool, 90);
 assert.equal(BUILDING_STORAGE_CAPS.weaver.flax, 90);
 assert.equal(BUILDING_STORAGE_CAPS.weaver.water, 24);
 assert.equal(BUILDING_STORAGE_CAPS.threshing_barn.flax, 180);
 assert.equal(BUILDING_STORAGE_CAPS.weaver.cloth, 90);
 assert.equal(BUILDING_STORAGE_CAPS.marketplace.cloth, 120);
-assert.equal(sheepFleeceOutput(4.5), 13.5);
+assert.equal(sheepFleeceOutput(4.5), 4.5);
 assert.equal(
   projectedSheepFleece({
     headCount: 6,
     suppliedCapacity: 5,
     health: 0.8,
   }),
-  12,
+  4,
 );
 assert.equal(canStoreFullSheepClip(18, 18), true);
 assert.equal(canStoreFullSheepClip(18, 17.99), false);

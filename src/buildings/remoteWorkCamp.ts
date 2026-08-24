@@ -5,7 +5,10 @@ import { buildingPlacementYaw } from './buildingPlacement.ts';
 
 export const REMOTE_WORK_CAMP_NAME = 'RemoteWorkCamp';
 export const REMOTE_WORK_CAMPFIRE_NAME = 'RemoteWorkCampfire';
-export const REMOTE_WORK_CAMP_MAX_DISTANCE = 34;
+// Rich stone landmarks reserve up to 67 m around a quarry. Keep enough room
+// beyond that protected footprint for the camp itself and a usable placement
+// band instead of trapping linked placement entirely inside the deposit.
+export const REMOTE_WORK_CAMP_MAX_DISTANCE = 80;
 
 /** Exposed extraction yards where a separate sleeping camp is believable. */
 export const BUILDABLE_REMOTE_WORK_CAMP_KINDS = [
@@ -54,6 +57,14 @@ const CAMP_LAYOUT: RemoteWorkCampLayout = {
 
 export function supportsRemoteWorkCamp(kind: BuildingKind): kind is RemoteWorkCampKind {
   return BUILDABLE_REMOTE_WORK_CAMP_KINDS.includes(kind as RemoteWorkCampKind);
+}
+
+export function isWithinRemoteWorkCampRange(
+  worksite: Pick<BuildingState, 'x' | 'z'>,
+  x: number,
+  z: number,
+): boolean {
+  return Math.hypot(x - worksite.x, z - worksite.z) <= REMOTE_WORK_CAMP_MAX_DISTANCE;
 }
 
 export function hasBuiltInWorkLodging(kind: BuildingKind): kind is BuiltInWorkLodgingKind {

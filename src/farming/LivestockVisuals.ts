@@ -61,15 +61,33 @@ const TARGET_HEIGHTS = {
   swine: 0.78,
 } as const;
 
-const VISUAL_HEAD_CAP = 14;
+const VISUAL_HEAD_CAP_BY_SPECIES: Record<LivestockSpecies, number> = {
+  cattle: 20,
+  sheep: 36,
+  swine: 24,
+};
 const MIN_EDGE_MARGIN = 0.12;
 const TAU = Math.PI * 2;
 
 export type CattleVisualKind = 'cow' | 'bull';
 
+/**
+ * Keeps developed holdings visibly herd-scale without allowing several remote
+ * farms to multiply animated skinned-mesh work without bound.
+ */
+export function livestockVisualHeadCount(
+  species: LivestockSpecies,
+  headCount: number,
+): number {
+  return Math.max(
+    0,
+    Math.min(VISUAL_HEAD_CAP_BY_SPECIES[species], Math.floor(headCount)),
+  );
+}
+
 /** Keeps cattle herds cow-heavy while adding one breeding bull once established. */
 export function createCattleVisualDistribution(headCount: number): CattleVisualKind[] {
-  const count = Math.max(0, Math.min(VISUAL_HEAD_CAP, Math.floor(headCount)));
+  const count = livestockVisualHeadCount('cattle', headCount);
   return Array.from({ length: count }, (_, index) => count >= 4 && index === 0 ? 'bull' : 'cow');
 }
 
@@ -208,7 +226,7 @@ export class LivestockVisuals {
     for (const herd of this.latestInput.herds.values()) {
       const pastures = pasturesByHerd.get(herd.buildingId);
       if (!pastures?.length || herd.headCount <= 0) continue;
-      const visualCount = Math.min(VISUAL_HEAD_CAP, herd.headCount);
+      const visualCount = livestockVisualHeadCount(herd.species, herd.headCount);
       const cattleDistribution = herd.species === 'cattle'
         ? createCattleVisualDistribution(visualCount)
         : null;

@@ -8,6 +8,7 @@ import {
   livestockHaymakingPresets,
   livestockCareCapacity,
   livestockHeadsPerWorker,
+  livestockDairyProductiveHeads,
   livestockMilkAllocationPerCycle,
   livestockMilkUsePolicy,
   livestockPolicyDefinition,
@@ -22,7 +23,10 @@ import {
   projectedSheepFleece,
   projectedLivestockCullYield,
 } from '../../economy/livestockPolicy.ts';
-import { projectLivestockFodderHolding } from '../../economy/livestockFodder.ts';
+import {
+  livestockStoredFodderOatEquivalent,
+  projectLivestockFodderHolding,
+} from '../../economy/livestockFodder.ts';
 import {
   buildingPreservedFoodStorageFactor,
   formatPreservedFoodLoss,
@@ -91,6 +95,12 @@ const SPECIES_LABEL = {
   cattle: 'Cattle',
   sheep: 'Sheep',
   swine: 'Swine',
+} as const;
+
+const SPECIES_MEAT_LABEL = {
+  cattle: 'beef',
+  sheep: 'mutton',
+  swine: 'pork',
 } as const;
 
 export function renderLivestockBuildingInspector(
@@ -188,6 +198,9 @@ export function renderLivestockBuildingInspector(
       ),
     )
     : null;
+  const dairyProductiveHeads = herd && herd.species !== 'swine' && fodderPlan
+    ? livestockDairyProductiveHeads(herd.species, fodderPlan.productiveHeads)
+    : 0;
   const winterReserveRelevant = month >= 9 || month <= 2;
   const winterReserveAtRisk = Boolean(
     winterReserveRelevant
@@ -232,6 +245,7 @@ export function renderLivestockBuildingInspector(
     ? livestockWaterRequiredPerCycle(herd.species, herd.headCount)
     : 0;
   const troughWater = Math.max(0, building.water ?? 0);
+  const storedFodderOatEquivalent = livestockStoredFodderOatEquivalent(building);
   const troughCycles = troughWaterPerCycle > 1e-9
     ? troughWater / troughWaterPerCycle
     : Number.POSITIVE_INFINITY;
@@ -347,8 +361,8 @@ export function renderLivestockBuildingInspector(
     : !herd
       ? 'Unstocked holding → choose cattle or sheep before laying out pasture'
     : herd?.species === 'sheep'
-      ? 'Upland grazing → milk, salt-cured cheese, and annual wool'
-      : 'Pasture → milk, salt-cured cheese, manure, and ox power';
+      ? 'Upland grazing → sheep milk, salt-cured cheese, annual wool, and mutton culls'
+      : 'Pasture → cow milk, salt-cured cheese, beef culls, manure, and ox power';
 
   const purchasePrice = herd ? livestockPurchaseGoldPerHead(herd.species) : 0;
   const salePrice = herd ? livestockSaleGoldPerHead(herd.species) : 0;
@@ -370,7 +384,7 @@ export function renderLivestockBuildingInspector(
           <button type="button" class="resource-action-button resource-action-button--icon" data-livestock-species="cattle" ${herd?.species === 'cattle' || !canChangeSpecies ? 'disabled' : ''}><span class="inspector-action-icon" data-action-icon="cattle-herd" aria-hidden="true"></span><span>Cattle</span></button>
           <button type="button" class="resource-action-button resource-action-button--icon" data-livestock-species="sheep" ${herd?.species === 'sheep' || !canChangeSpecies ? 'disabled' : ''}><span class="inspector-action-icon" data-action-icon="sheep-flock" aria-hidden="true"></span><span>Sheep</span></button>
         </div>
-        <p class="inspector-action-panel__hint"><strong>Cattle:</strong> ${CATTLE_AREA_PER_HEAD} m²/head, up to ${CATTLE_MAX_HERD}; stronger milk per head, physical manure, and ox support for ${CATTLE_MAX_PLOUGH_SUPPORTED_FIELDS} priority fields. <strong>Sheep:</strong> ${SHEEP_AREA_PER_HEAD} m²/head, up to ${SHEEP_MAX_HERD}; faster-growing upland flocks and an annual ${SHEEP_WOOL_PER_SHEARING_PER_HEAD} wool/head clip for cloth and export. A full holding has broadly comparable food potential, so the land, fertility, and textile benefits decide the trade.</p>
+        <p class="inspector-action-panel__hint"><strong>Cattle:</strong> ${CATTLE_AREA_PER_HEAD} m²/head, up to ${CATTLE_MAX_HERD}; stronger milk per lactating animal, beef culls, physical manure, and ox support for ${CATTLE_MAX_PLOUGH_SUPPORTED_FIELDS} priority fields. <strong>Sheep:</strong> ${SHEEP_AREA_PER_HEAD} m²/head, up to ${SHEEP_MAX_HERD}; faster-growing upland flocks, mutton culls, and an annual ${SHEEP_WOOL_PER_SHEARING_PER_HEAD} wool/head clip for cloth and export. Calves, lambs, males, and dry females still need land and feed, so only the species-specific lactating share makes milk.</p>
       </div>`
     : undefined;
   const stockingControls = herd
@@ -417,7 +431,7 @@ export function renderLivestockBuildingInspector(
             .join('')}
         </div>
         <p class="inspector-action-panel__hint">${projectedCull.heads > 0
-          ? `${projectedCull.heads} surplus head currently project ${projectedCull.food.toFixed(0)} fresh food${projectedCull.preservedFood > 0 ? ` + up to ${projectedCull.preservedFood.toFixed(0)} cured provisions using ${renderResourceAmount('salt', livestockPreservationSaltRequired(projectedCull.preservedFood), { compact: true })}` : ''}. Slaughter pauses unless the holding can store a whole animal’s actual yield; any unsalted cured share enters the fresh store instead.`
+          ? `${projectedCull.heads} surplus head currently project ${projectedCull.food.toFixed(0)} fresh ${SPECIES_MEAT_LABEL[herd.species]}${projectedCull.preservedFood > 0 ? ` + up to ${projectedCull.preservedFood.toFixed(1)} cured provisions using ${renderResourceAmount('salt', livestockPreservationSaltRequired(projectedCull.preservedFood), { compact: true })}` : ''}. Species meat enters the shared meat inventory. Slaughter pauses unless the holding can store a whole animal’s actual yield; any unsalted cured share enters the fresh store instead.`
           : `No current surplus. The holding will keep up to ${breedingReserve} head through winter.`}</p>
       </div>`
     : '';
@@ -518,7 +532,7 @@ export function renderLivestockBuildingInspector(
     detailsHtml: `
       <li><span>Role</span><span>${role}</span></li>
       <li><span>Herd</span><span>${herd ? SPECIES_LABEL[herd.species] : 'None'}</span></li>
-      ${herd?.species !== 'swine' && herd ? `<li><span>Milk use</span><span>${milkUse.label} · ${milkAllocation?.freshMilk.toFixed(2) ?? '0.00'} milk + ${milkAllocation?.cheese.toFixed(2) ?? '0.00'} cheese per husbandry cycle</span></li>` : ''}
+      ${herd?.species !== 'swine' && herd ? `<li><span>Milk use</span><span>${milkUse.label} · ${milkAllocation?.freshMilk.toFixed(2) ?? '0.00'} milk + ${milkAllocation?.cheese.toFixed(2) ?? '0.00'} cheese per husbandry cycle · ${dairyProductiveHeads.toFixed(1)} lactating-equivalent head</span></li>` : ''}
       <li><span>Stocking</span><span>${capacity}</span></li>
       <li><span>Pastures</span><span>${pastures.length} · ${Math.round(pastureArea)} m² fenced</span></li>
       <li><span>Main holding</span><span>Winter shelter, feed store, purchase point, and water trough</span></li>
@@ -529,7 +543,7 @@ export function renderLivestockBuildingInspector(
       <li><span>Winter reserve</span><span>${herd ? `${breedingReserve} head · ${projectedCull.heads} current surplus` : 'None'}</span></li>
       <li><span>Last husbandry cycle</span><span>${recentOutput}</span></li>
       ${dairySaltRow}
-      <li><span>Stored supplement</span><span>${Math.round(Math.max(0, building.oatGrain ?? 0))} oats · oat grain is preferred, then rye and maslin substitutes</span></li>
+      <li><span>Stored supplement</span><span>${Math.round(Math.max(0, building.oatGrain ?? 0))} oats + ${Math.round(Math.max(0, building.ryeGrain ?? 0))} rye + ${Math.round(Math.max(0, building.maslinGrain ?? 0))} maslin · ${storedFodderOatEquivalent.toFixed(1)} oat-equivalent fodder · feed value 1.25 / 1.0 / 0.9</span></li>
       <li><span>Current grain burden</span><span>${currentGrainBurden}</span></li>
       <li><span>Produced fodder</span><span>${haymakingPlan}</span></li>
       <li><span>Hayloft fodder</span><span>${fodderPlan ? `${Math.round(fodderPlan.hayStock)} / ${Math.round(LIVESTOCK_HAY_STORAGE_CAPACITY)} hay` : 'No herd'}</span></li>

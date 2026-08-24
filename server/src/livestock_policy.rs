@@ -5,8 +5,9 @@ use crate::balance_generated::{
     CATTLE_MANURE_COLLECTION_WINTER_MULTIPLIER, CATTLE_MANURE_PER_SUPPLIED_HEAD_PER_CYCLE,
     LIVESTOCK_AUTUMN_CULL_END_MONTH, LIVESTOCK_AUTUMN_CULL_START_MONTH,
     LIVESTOCK_HAYMAKING_END_MONTH, LIVESTOCK_HAYMAKING_START_MONTH,
-    LIVESTOCK_MAXIMUM_HAYMAKING_PERCENT, LIVESTOCK_WINTER_FODDER_RESERVE_DAYS,
-    SHEEP_SHEARING_END_MONTH, SHEEP_SHEARING_START_MONTH, SHEEP_WOOL_PER_SHEARING_PER_HEAD,
+    LIVESTOCK_MAXIMUM_HAYMAKING_PERCENT, LIVESTOCK_OAT_FODDER_VALUE,
+    LIVESTOCK_WINTER_FODDER_RESERVE_DAYS, SHEEP_SHEARING_END_MONTH, SHEEP_SHEARING_START_MONTH,
+    SHEEP_WOOL_PER_SHEARING_PER_HEAD,
 };
 use crate::season_policy::Season;
 
@@ -89,6 +90,17 @@ pub fn livestock_cycles_per_calendar_day(action_interval: f64) -> f64 {
     workday_seconds / action_interval
 }
 
+/// Assigned herders still perform the irreducible feeding, watering, and
+/// milking round on an observed Sunday. A live raider threat is different:
+/// workers have taken refuge, so even essential care is unavailable.
+pub fn essential_livestock_care_labor(onsite_labor: u32, active_raider_threat: bool) -> u32 {
+    if active_raider_threat {
+        0
+    } else {
+        onsite_labor
+    }
+}
+
 pub fn projected_winter_fodder_grain(
     projected_head_count: u32,
     base_pasture_capacity: f64,
@@ -98,8 +110,7 @@ pub fn projected_winter_fodder_grain(
     cycles_per_calendar_day: f64,
     winter_capacity_multiplier: f64,
 ) -> f64 {
-    let winter_capacity =
-        base_pasture_capacity.max(0.0) * winter_capacity_multiplier.max(0.0);
+    let winter_capacity = base_pasture_capacity.max(0.0) * winter_capacity_multiplier.max(0.0);
     let unsupported_heads = (projected_head_count as f64 - winter_capacity).max(0.0);
     let unsupported_head_cycles =
         unsupported_heads * cycles_per_calendar_day.max(0.0) * LIVESTOCK_WINTER_FODDER_RESERVE_DAYS;
@@ -108,8 +119,9 @@ pub fn projected_winter_fodder_grain(
     } else {
         0.0
     };
-    (unsupported_head_cycles - hay_supported_head_cycles).max(0.0)
-        * grain_per_unsupported_head.max(0.0)
+    let feed_value = (unsupported_head_cycles - hay_supported_head_cycles).max(0.0)
+        * grain_per_unsupported_head.max(0.0);
+    feed_value / LIVESTOCK_OAT_FODDER_VALUE.max(1e-9)
 }
 
 pub fn is_haymaking_month(month: u32) -> bool {
@@ -201,11 +213,11 @@ mod tests {
     use super::{
         can_cull_one, can_store_full_sheep_clip, cattle_field_support_is_active,
         cattle_manure_collection_multiplier, cattle_manure_output, effective_breeding_reserve,
-        farmhouse_cheese_salt_staging_cycles, haymaking_share, is_autumn_cull_month,
-        is_haymaking_month, is_shearing_month, livestock_cycles_per_calendar_day,
-        livestock_milk_allocation, normalize_milk_use_policy, pending_cull_heads,
-        projected_winter_fodder_grain, retain_priority_candidate, sheep_fleece_output,
-        MILK_USE_BALANCED, MILK_USE_CHEESE_FIRST, MILK_USE_FRESH,
+        essential_livestock_care_labor, farmhouse_cheese_salt_staging_cycles, haymaking_share,
+        is_autumn_cull_month, is_haymaking_month, is_shearing_month,
+        livestock_cycles_per_calendar_day, livestock_milk_allocation, normalize_milk_use_policy,
+        pending_cull_heads, projected_winter_fodder_grain, retain_priority_candidate,
+        sheep_fleece_output, MILK_USE_BALANCED, MILK_USE_CHEESE_FIRST, MILK_USE_FRESH,
     };
     use crate::season_policy::Season;
     use std::time::Instant;
@@ -240,6 +252,12 @@ mod tests {
         let salt_limited = livestock_milk_allocation(MILK_USE_CHEESE_FIRST, 4.2, 1.2, 0.5);
         assert!((salt_limited.0 - 4.9).abs() < 1e-9);
         assert!((salt_limited.1 - 0.5).abs() < 1e-9);
+    }
+
+    #[test]
+    fn sunday_keeps_essential_animal_care_but_raids_remove_it() {
+        assert_eq!(essential_livestock_care_labor(3, false), 3);
+        assert_eq!(essential_livestock_care_labor(3, true), 0);
     }
 
     #[test]
@@ -308,7 +326,7 @@ mod tests {
         assert!((cycles - 7.0).abs() < 1e-9);
         assert!((livestock_cycles_per_calendar_day(12.0) - 35.0 / 6.0).abs() < 1e-9);
         let grain = projected_winter_fodder_grain(6, 10.0, 0.0, 0.34, 0.34, cycles, 0.35);
-        assert!((grain - 178.5).abs() < 1e-9);
+        assert!((grain - 142.8).abs() < 1e-9);
         assert_eq!(
             projected_winter_fodder_grain(6, 10.0, 178.5, 0.34, 0.34, cycles, 0.35),
             0.0
@@ -341,9 +359,9 @@ mod tests {
 
     #[test]
     fn annual_shearing_waits_for_room_for_the_whole_clip() {
-        assert!((sheep_fleece_output(4.5) - 13.5).abs() < 1e-9);
-        assert!(can_store_full_sheep_clip(4.5, 13.5));
-        assert!(!can_store_full_sheep_clip(4.5, 13.49));
+        assert!((sheep_fleece_output(4.5) - 4.5).abs() < 1e-9);
+        assert!(can_store_full_sheep_clip(4.5, 4.5));
+        assert!(!can_store_full_sheep_clip(4.5, 4.49));
         assert!(!can_store_full_sheep_clip(0.0, 90.0));
     }
 

@@ -32,6 +32,10 @@ import {
   resolveRoadsideBuildingPlacementCandidates,
 } from '../src/buildings/buildingPlacement.ts';
 import {
+  isWithinRemoteWorkCampRange,
+  REMOTE_WORK_CAMP_MAX_DISTANCE,
+} from '../src/buildings/remoteWorkCamp.ts';
+import {
   createBuildingPreviewMesh,
   disposeBuildingPreviewMesh,
   updateBuildingPreviewAppearance,
@@ -61,6 +65,7 @@ import {
   resizeForestryWorkAreaRadius,
 } from '../src/resources/ForestryWorkAreaTool.ts';
 import { QuarryLayout, quarrySiteOverlapsRiver } from '../src/quarries/QuarryLayout.ts';
+import { RICH_STONE_DEPOSIT_PROTECTION_RADIUS } from '../src/resources/physicalDepositProtection.ts';
 import {
   burgageZoneTouchesWater,
   validateBurgagePlacement,
@@ -177,6 +182,48 @@ function testQuarryFootprintsAvoidRivers(): void {
     }
   }
   assert.equal(checkedWorlds, 36);
+}
+
+function testRemoteWorkCampRangeClearsRichQuarryDeposits(): void {
+  const centeredQuarry = { x: 0, z: 0 };
+  assert.equal(REMOTE_WORK_CAMP_MAX_DISTANCE, 80);
+  assert.ok(
+    REMOTE_WORK_CAMP_MAX_DISTANCE - RICH_STONE_DEPOSIT_PROTECTION_RADIUS >= 10,
+    'overnight camps need a usable clear placement band beyond a rich stone deposit',
+  );
+  assert.equal(
+    isWithinRemoteWorkCampRange(centeredQuarry, 75, 0),
+    true,
+    'clear ground beyond a rich quarry footprint must remain in linked-camp range',
+  );
+  assert.equal(isWithinRemoteWorkCampRange(centeredQuarry, 80, 0), true);
+  assert.equal(isWithinRemoteWorkCampRange(centeredQuarry, 80.001, 0), false);
+
+  const context = {
+    buildings: [],
+    residences: [],
+    burgageZones: [],
+    farmFields: [],
+    pastures: [],
+    vineyardParcels: [],
+    quarries: [],
+    foragingNodes: [],
+    stockpile: { timber: 100, stone: 100, ironwork: 100, roofTiles: 100 },
+    isWaterAt: () => false,
+    isResourceDepositAt: (x: number, z: number) =>
+      Math.hypot(x, z) <= RICH_STONE_DEPOSIT_PROTECTION_RADIUS,
+    getNaturalHeightAt: () => 0,
+  };
+  assert.deepEqual(
+    validateBuildingPlacement('remote_work_camp', 75, 0, context),
+    { ok: true },
+    'a linked camp in the new outer band must pass ordinary placement validation',
+  );
+  assert.deepEqual(
+    validateBuildingPlacement('remote_work_camp', 65, 0, context),
+    { ok: false, reason: 'on_resource_deposit' },
+    'the larger link range must not weaken physical deposit protection',
+  );
 }
 
 function testBurgageWaterValidationSamplesTheWholeZone(): void {
@@ -1885,6 +1932,7 @@ function testTerrainPointerPickingUsesBoundedHeightfieldWork(): void {
 testClearanceSpatialIndexKeepsNearbyCandidates();
 testMovableBuildingsSnapToRoadSides();
 testQuarryFootprintsAvoidRivers();
+testRemoteWorkCampRangeClearsRichQuarryDeposits();
 testBurgageWaterValidationSamplesTheWholeZone();
 testBurgageTerrainRulesAreLotFriendly();
 testBurgageBuildingOverlapUsesVisibleFootprints();
@@ -1968,6 +2016,20 @@ assert.equal(
 );
 
 const buildingReducer = readFileSync('server/src/reducers/buildings.rs', 'utf8');
+const authoritativeCampDistance = buildingReducer.match(
+  /const REMOTE_WORK_CAMP_MAX_DISTANCE: f64 = ([\d.]+);/,
+);
+assert.ok(authoritativeCampDistance, 'the server must expose its authoritative linked-camp range');
+assert.equal(
+  Number(authoritativeCampDistance[1]),
+  REMOTE_WORK_CAMP_MAX_DISTANCE,
+  'client preview and server placement must use the same overnight-camp range',
+);
+assert.match(
+  buildingReducer,
+  /hypot\(z - worksite\.z\) > REMOTE_WORK_CAMP_MAX_DISTANCE/,
+  'the server reducer must enforce the synchronized linked-camp range',
+);
 const placementValidation = readFileSync('server/src/placement_validation.rs', 'utf8');
 const reclamationSimulation = readFileSync('server/src/simulation/reclamation.rs', 'utf8');
 const residenceReducer = readFileSync('server/src/reducers/residences.rs', 'utf8');

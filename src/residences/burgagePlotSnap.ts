@@ -1,5 +1,9 @@
 import type { BurgageZoneState } from '../resources/types.ts';
-import type { Point2 } from '../utils/polygonGeometry.ts';
+import {
+  convexPolygonsOverlap2,
+  isConvexQuad2,
+  type Point2,
+} from '../utils/polygonGeometry.ts';
 import { getZoneEdge, type BurgageZoneCorners } from './burgageLayout.ts';
 
 /** Keep residence-land authoring as forgiving as the other parcel tools. */
@@ -36,13 +40,28 @@ function nearestCandidate(
   let result = point;
   let bestDistance = Math.max(0, maxDistance);
   for (const candidate of candidates) {
-    if (candidateFilter && !candidateFilter(candidate)) continue;
     const distance = Math.hypot(candidate.x - point.x, candidate.z - point.z);
     if (distance > bestDistance) continue;
+    if (candidateFilter && !candidateFilter(candidate)) continue;
     bestDistance = distance;
     result = candidate;
   }
   return { ...result };
+}
+
+function boundaryCandidates(point: Point2, zones: Iterable<BurgageZoneState>): Point2[] {
+  const candidates: Point2[] = [];
+  for (const zone of zones) {
+    const corners = [zone.cornerA, zone.cornerB, zone.cornerC, zone.cornerD];
+    for (let index = 0; index < corners.length; index += 1) {
+      candidates.push(closestPointOnSegment(
+        point,
+        corners[index],
+        corners[(index + 1) % corners.length],
+      ));
+    }
+  }
+  return candidates;
 }
 
 /**
@@ -69,16 +88,55 @@ export function snapBurgageBoundaryPoint(
   maxDistance = BURGAGE_PLOT_SNAP_DISTANCE,
   candidateFilter?: CandidateFilter,
 ): Point2 {
-  const candidates: Point2[] = [];
-  for (const zone of zones) {
-    const corners = [zone.cornerA, zone.cornerB, zone.cornerC, zone.cornerD];
-    for (let index = 0; index < corners.length; index += 1) {
-      candidates.push(closestPointOnSegment(
-        point,
-        corners[index],
-        corners[(index + 1) % corners.length],
-      ));
-    }
+  return nearestCandidate(
+    point,
+    boundaryCandidates(point, zones),
+    maxDistance,
+    candidateFilter,
+  );
+}
+
+/**
+ * Keeps the final rear corner coherent with the accepted draft. A nearer edge
+ * on the same zone must not win when it would pull the closing side through
+ * that existing residence plot.
+ */
+export function snapBurgageBoundaryDraftPoint(
+  point: Point2,
+  acceptedPoints: readonly Point2[],
+  zones: Iterable<BurgageZoneState>,
+  maxDistance = BURGAGE_PLOT_SNAP_DISTANCE,
+  candidateFilter?: CandidateFilter,
+): Point2 {
+  const existingZones = [...zones];
+  if (acceptedPoints.length !== 3) {
+    return snapBurgageBoundaryPoint(
+      point,
+      existingZones,
+      maxDistance,
+      candidateFilter,
+    );
   }
-  return nearestCandidate(point, candidates, maxDistance, candidateFilter);
+
+  return nearestCandidate(
+    point,
+    boundaryCandidates(point, existingZones),
+    maxDistance,
+    (candidate) => {
+      if (candidateFilter && !candidateFilter(candidate)) return false;
+      const draft = [
+        acceptedPoints[0],
+        acceptedPoints[1],
+        acceptedPoints[2],
+        candidate,
+      ];
+      return isConvexQuad2(draft[0], draft[1], draft[2], draft[3])
+        && existingZones.every((zone) => !convexPolygonsOverlap2(draft, [
+          zone.cornerA,
+          zone.cornerB,
+          zone.cornerC,
+          zone.cornerD,
+        ]));
+    },
+  );
 }

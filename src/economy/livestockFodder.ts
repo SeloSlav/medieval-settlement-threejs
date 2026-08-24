@@ -12,6 +12,9 @@ import {
   LIVESTOCK_HAYMAKING_END_MONTH,
   LIVESTOCK_HAYMAKING_START_MONTH,
   LIVESTOCK_HAY_STORAGE_CAPACITY,
+  LIVESTOCK_MASLIN_FODDER_VALUE,
+  LIVESTOCK_OAT_FODDER_VALUE,
+  LIVESTOCK_RYE_FODDER_VALUE,
   LIVESTOCK_WINTER_FODDER_RESERVE_DAYS,
   SHEEP_HAY_PER_UNSUPPORTED_HEAD,
   SHEEP_HAY_YIELD_PER_RESERVED_CAPACITY_PER_CYCLE,
@@ -121,6 +124,21 @@ export type LivestockFodderHoldingPlan = {
   dairySaltShortfall: number;
   dairySaltRunwayDays: number;
 };
+
+export function livestockStoredFodderValue(
+  building: Pick<BuildingState, 'oatGrain' | 'ryeGrain' | 'maslinGrain'>,
+): number {
+  return Math.max(0, building.oatGrain ?? 0) * LIVESTOCK_OAT_FODDER_VALUE
+    + Math.max(0, building.ryeGrain ?? 0) * LIVESTOCK_RYE_FODDER_VALUE
+    + Math.max(0, building.maslinGrain ?? 0) * LIVESTOCK_MASLIN_FODDER_VALUE;
+}
+
+export function livestockStoredFodderOatEquivalent(
+  building: Pick<BuildingState, 'oatGrain' | 'ryeGrain' | 'maslinGrain'>,
+): number {
+  return livestockStoredFodderValue(building)
+    / Math.max(1e-9, LIVESTOCK_OAT_FODDER_VALUE);
+}
 
 export type SettlementLivestockFodderPlan = {
   holdingCount: number;
@@ -252,7 +270,10 @@ export function projectLivestockFodderHolding(
     ? projectedHayStock
     : hayStock;
   const currentUnsupportedHeads = Math.max(0, herd.headCount - herd.pastureCapacity);
-  const currentGrainPerDay = currentUnsupportedHeads * grainPerHead * cyclesPerDay;
+  const currentGrainPerDay = currentUnsupportedHeads
+    * grainPerHead
+    * cyclesPerDay
+    / Math.max(1e-9, LIVESTOCK_OAT_FODDER_VALUE);
   const winterCapacityMultiplier = herd.species === 'swine'
     ? pannageCapacityMultiplierFor('winter', 'frost')
     : WINTER_PASTURE_CAPACITY_MULTIPLIER;
@@ -272,13 +293,19 @@ export function projectLivestockFodderHolding(
     0,
     winterUnsupportedHeadCycles - haySupportedHeadCycles,
   );
-  const winterGrainPerDay = winterUnsupportedHeads * grainPerHead * cyclesPerDay;
-  const winterGrainNeed = grainSupportedHeadCycles * grainPerHead;
+  const winterGrainPerDay = winterUnsupportedHeads
+    * grainPerHead
+    * cyclesPerDay
+    / Math.max(1e-9, LIVESTOCK_OAT_FODDER_VALUE);
+  const winterGrainNeed = grainSupportedHeadCycles
+    * grainPerHead
+    / Math.max(1e-9, LIVESTOCK_OAT_FODDER_VALUE);
   const grainCapacity = buildingStorageCaps(building.kind).grain ?? 0;
   const winterReserveTarget = Math.min(winterGrainNeed, grainCapacity);
+  const storedFodderOatEquivalent = livestockStoredFodderOatEquivalent(building);
   const winterReserveStock = Math.min(
     winterReserveTarget,
-    Math.max(0, building.oatGrain ?? 0),
+    storedFodderOatEquivalent,
   );
 
   return {
@@ -295,7 +322,7 @@ export function projectLivestockFodderHolding(
     currentUnsupportedHeads,
     currentGrainPerDay,
     currentGrainRunwayDays: currentGrainPerDay > 1e-9
-      ? Math.max(0, building.oatGrain ?? 0) / currentGrainPerDay
+      ? storedFodderOatEquivalent / currentGrainPerDay
       : Number.POSITIVE_INFINITY,
     winterPastureCapacity,
     winterUnsupportedHeads,
@@ -309,14 +336,14 @@ export function projectLivestockFodderHolding(
     winterGrainPerDay,
     winterGrainNeed,
     winterGrainRunwayDays: winterGrainPerDay > 1e-9
-      ? Math.max(0, building.oatGrain ?? 0) / winterGrainPerDay
+      ? storedFodderOatEquivalent / winterGrainPerDay
       : Number.POSITIVE_INFINITY,
     winterCombinedRunwayDays: winterGrainPerDay > 1e-9
       ? (
         hayPerHead > 1e-9
           ? winterHayAvailable / (winterUnsupportedHeads * hayPerHead * cyclesPerDay)
           : 0
-      ) + Math.max(0, building.oatGrain ?? 0) / winterGrainPerDay
+      ) + storedFodderOatEquivalent / winterGrainPerDay
       : Number.POSITIVE_INFINITY,
     winterReserveTarget,
     winterReserveStock,

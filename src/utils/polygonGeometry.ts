@@ -165,27 +165,46 @@ export function convexPolygonsOverlap2(
   b: Point2[],
   boundaryEpsilon = 0.12,
 ): boolean {
-  const samplesA = [...a, polygonCentroid2(a)];
-  const samplesB = [...b, polygonCentroid2(b)];
+  if (a.length < 3 || b.length < 3) return false;
 
-  for (const point of samplesA) {
-    if (pointStrictlyInsidePolygon2(point, b, boundaryEpsilon)) return true;
-  }
-  for (const point of samplesB) {
-    if (pointStrictlyInsidePolygon2(point, a, boundaryEpsilon)) return true;
-  }
+  const epsilon = Math.max(0, boundaryEpsilon);
+  let testedAxis = false;
+  const hasSeparatingOrTouchingAxis = (edges: Point2[]): boolean => {
+    for (let index = 0; index < edges.length; index++) {
+      const start = edges[index];
+      const end = edges[(index + 1) % edges.length];
+      const edgeX = end.x - start.x;
+      const edgeZ = end.z - start.z;
+      const edgeLength = Math.hypot(edgeX, edgeZ);
+      if (edgeLength <= 1e-9) continue;
 
-  for (let i = 0; i < a.length; i++) {
-    const a1 = a[i];
-    const a2 = a[(i + 1) % a.length];
-    for (let j = 0; j < b.length; j++) {
-      const b1 = b[j];
-      const b2 = b[(j + 1) % b.length];
-      if (segmentsIntersectProperly2(a1, a2, b1, b2, boundaryEpsilon)) return true;
+      testedAxis = true;
+      // Normalize the perpendicular so boundaryEpsilon remains a world-space distance.
+      const axisX = -edgeZ / edgeLength;
+      const axisZ = edgeX / edgeLength;
+      let minA = Infinity;
+      let maxA = -Infinity;
+      let minB = Infinity;
+      let maxB = -Infinity;
+      for (const point of a) {
+        const projection = point.x * axisX + point.z * axisZ;
+        minA = Math.min(minA, projection);
+        maxA = Math.max(maxA, projection);
+      }
+      for (const point of b) {
+        const projection = point.x * axisX + point.z * axisZ;
+        minB = Math.min(minB, projection);
+        maxB = Math.max(maxB, projection);
+      }
+
+      const overlap = Math.min(maxA, maxB) - Math.max(minA, minB);
+      if (overlap <= epsilon) return true;
     }
-  }
+    return false;
+  };
 
-  return false;
+  if (hasSeparatingOrTouchingAxis(a) || hasSeparatingOrTouchingAxis(b)) return false;
+  return testedAxis;
 }
 
 /** Shortest edge-to-edge distance; intersecting convex polygons return zero. */

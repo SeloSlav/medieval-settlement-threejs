@@ -4,6 +4,7 @@ import { FirstPersonController } from '../camera/FirstPersonController.ts';
 import { FpCollisionWorld } from '../camera/fp/fpCollisionWorld.ts';
 import { BuildingMarkers } from '../buildings/BuildingMarkers.ts';
 import { BuildingTool } from '../buildings/BuildingTool.ts';
+import { REMOTE_WORK_CAMP_MAX_DISTANCE } from '../buildings/remoteWorkCamp.ts';
 import type { FarmFieldMarkers } from '../farming/FarmFieldMarkers.ts';
 import {
   FarmFieldTool,
@@ -1157,7 +1158,7 @@ export async function bootstrapAppSession(
       resourceInspector.clearSelection();
       villagerInspector.clearSelection();
       toastManager.show(
-        'Choose clear ground within 34 m of the worksite. Haulers and builders will complete the camp normally.',
+        `Choose clear ground within ${REMOTE_WORK_CAMP_MAX_DISTANCE} m of the worksite. Haulers and builders will complete the camp normally.`,
         { variant: 'info', durationMs: 6000 },
       );
       bridge.syncToolbar();

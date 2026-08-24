@@ -3,30 +3,30 @@ use std::collections::HashMap;
 use spacetimedb::{Identity, ReducerContext};
 
 use crate::balance_generated::{
-    CATTLE_AREA_PER_HEAD, CATTLE_BREEDING_PER_CYCLE, CATTLE_FOOD_PER_CYCLE_PER_HEAD,
-    CATTLE_GRAIN_PER_UNSUPPORTED_HEAD, CATTLE_HAY_PER_UNSUPPORTED_HEAD,
-    CATTLE_HAY_YIELD_PER_RESERVED_CAPACITY_PER_CYCLE, CATTLE_HEALTH_LOSS_PER_CYCLE,
-    CATTLE_HEALTH_RECOVERY_PER_CYCLE, CATTLE_HEADS_PER_WORKER, CATTLE_MAX_HERD,
-    CATTLE_MAX_PLOUGH_SUPPORTED_FIELDS, CATTLE_MAX_SLOPE_DEGREES, CATTLE_MOISTURE_IDEAL,
-    CATTLE_MOISTURE_TOLERANCE,
-    CATTLE_PRESERVED_FOOD_PER_CYCLE_PER_HEAD, CATTLE_SLAUGHTER_FOOD_PER_HEAD,
-    CATTLE_SLAUGHTER_PRESERVED_FOOD_PER_HEAD, CATTLE_WATER_PER_HEAD_PER_CYCLE,
-    LIVESTOCK_FARMSTEAD_PRESERVATION_SALT_PER_OUTPUT, LIVESTOCK_HAY_STORAGE_CAPACITY,
-    LIVESTOCK_MANURE_TRANSFER_PER_TRIP, LIVESTOCK_MINIMUM_BREEDING_HEADS,
-    PANNAGE_WINTER_CAPACITY_MULTIPLIER,
-    SHEEP_AREA_PER_HEAD, SHEEP_BREEDING_PER_CYCLE, SHEEP_FOOD_PER_CYCLE_PER_HEAD,
+    CATTLE_AREA_PER_HEAD, CATTLE_BREEDING_PER_CYCLE, CATTLE_DAIRY_PRODUCTIVE_SHARE,
+    CATTLE_FOOD_PER_CYCLE_PER_HEAD, CATTLE_GRAIN_PER_UNSUPPORTED_HEAD,
+    CATTLE_HAY_PER_UNSUPPORTED_HEAD, CATTLE_HAY_YIELD_PER_RESERVED_CAPACITY_PER_CYCLE,
+    CATTLE_HEADS_PER_WORKER, CATTLE_HEALTH_LOSS_PER_CYCLE, CATTLE_HEALTH_RECOVERY_PER_CYCLE,
+    CATTLE_MAX_HERD, CATTLE_MAX_PLOUGH_SUPPORTED_FIELDS, CATTLE_MAX_SLOPE_DEGREES,
+    CATTLE_MOISTURE_IDEAL, CATTLE_MOISTURE_TOLERANCE, CATTLE_PRESERVED_FOOD_PER_CYCLE_PER_HEAD,
+    CATTLE_SLAUGHTER_FOOD_PER_HEAD, CATTLE_SLAUGHTER_PRESERVED_FOOD_PER_HEAD,
+    CATTLE_WATER_PER_HEAD_PER_CYCLE, LIVESTOCK_FARMSTEAD_PRESERVATION_SALT_PER_OUTPUT,
+    LIVESTOCK_HAY_STORAGE_CAPACITY, LIVESTOCK_MANURE_TRANSFER_PER_TRIP,
+    LIVESTOCK_MASLIN_FODDER_VALUE, LIVESTOCK_MINIMUM_BREEDING_HEADS, LIVESTOCK_OAT_FODDER_VALUE,
+    LIVESTOCK_RYE_FODDER_VALUE, PANNAGE_WINTER_CAPACITY_MULTIPLIER, SHEEP_AREA_PER_HEAD,
+    SHEEP_BREEDING_PER_CYCLE, SHEEP_DAIRY_PRODUCTIVE_SHARE, SHEEP_FOOD_PER_CYCLE_PER_HEAD,
     SHEEP_GRAIN_PER_UNSUPPORTED_HEAD, SHEEP_HAY_PER_UNSUPPORTED_HEAD,
-    SHEEP_HAY_YIELD_PER_RESERVED_CAPACITY_PER_CYCLE, SHEEP_HEALTH_LOSS_PER_CYCLE,
-    SHEEP_HEALTH_RECOVERY_PER_CYCLE, SHEEP_HEADS_PER_WORKER, SHEEP_MAX_HERD,
+    SHEEP_HAY_YIELD_PER_RESERVED_CAPACITY_PER_CYCLE, SHEEP_HEADS_PER_WORKER,
+    SHEEP_HEALTH_LOSS_PER_CYCLE, SHEEP_HEALTH_RECOVERY_PER_CYCLE, SHEEP_MAX_HERD,
     SHEEP_MAX_SLOPE_DEGREES, SHEEP_MOISTURE_IDEAL, SHEEP_MOISTURE_TOLERANCE,
     SHEEP_PRESERVED_FOOD_PER_CYCLE_PER_HEAD, SHEEP_SLAUGHTER_FOOD_PER_HEAD,
-    SHEEP_SLAUGHTER_PRESERVED_FOOD_PER_HEAD, SHEEP_WATER_PER_HEAD_PER_CYCLE,
-    SWINE_AREA_PER_HEAD, SWINE_BREEDING_PER_CYCLE, SWINE_FOOD_PER_CYCLE_PER_HEAD,
-    SWINE_GRAIN_PER_UNSUPPORTED_HEAD, SWINE_HEALTH_LOSS_PER_CYCLE,
-    SWINE_HEALTH_RECOVERY_PER_CYCLE, SWINE_HEADS_PER_WORKER, SWINE_MATURE_TREES_PER_HEAD,
-    SWINE_MAX_HERD, SWINE_SLAUGHTER_FOOD_PER_HEAD, SWINE_SLAUGHTER_PRESERVED_FOOD_PER_HEAD,
-    SWINE_WATER_PER_HEAD_PER_CYCLE, TICK_DT, TIMBER_DELIVERY_SPEED_MPS,
-    TIMBER_DELIVERY_UNLOAD_SEC, WINTER_PASTURE_CAPACITY_MULTIPLIER,
+    SHEEP_SLAUGHTER_PRESERVED_FOOD_PER_HEAD, SHEEP_WATER_PER_HEAD_PER_CYCLE, SWINE_AREA_PER_HEAD,
+    SWINE_BREEDING_PER_CYCLE, SWINE_DAIRY_PRODUCTIVE_SHARE, SWINE_FOOD_PER_CYCLE_PER_HEAD,
+    SWINE_GRAIN_PER_UNSUPPORTED_HEAD, SWINE_HEADS_PER_WORKER, SWINE_HEALTH_LOSS_PER_CYCLE,
+    SWINE_HEALTH_RECOVERY_PER_CYCLE, SWINE_MATURE_TREES_PER_HEAD, SWINE_MAX_HERD,
+    SWINE_SLAUGHTER_FOOD_PER_HEAD, SWINE_SLAUGHTER_PRESERVED_FOOD_PER_HEAD,
+    SWINE_WATER_PER_HEAD_PER_CYCLE, TICK_DT, TIMBER_DELIVERY_SPEED_MPS, TIMBER_DELIVERY_UNLOAD_SEC,
+    WINTER_PASTURE_CAPACITY_MULTIPLIER,
 };
 use crate::building_defs::building_def;
 use crate::burgage::{Point2, ZoneCorners};
@@ -38,9 +38,9 @@ use crate::economy::{
 use crate::farming::{centroid, point_in_field};
 use crate::livestock_policy::{
     can_cull_one, can_store_full_sheep_clip, cattle_manure_output, effective_breeding_reserve,
-    haymaking_share, is_haymaking_month, is_shearing_month, livestock_cycles_per_calendar_day,
-    livestock_milk_allocation, projected_winter_fodder_grain, retain_priority_candidate,
-    sheep_fleece_output,
+    essential_livestock_care_labor, haymaking_share, is_haymaking_month, is_shearing_month,
+    livestock_cycles_per_calendar_day, livestock_milk_allocation, projected_winter_fodder_grain,
+    retain_priority_candidate, sheep_fleece_output,
 };
 use crate::reducers::livestock::{SPECIES_CATTLE, SPECIES_SHEEP, SPECIES_SWINE};
 use crate::season_policy::{EnvironmentState, Season};
@@ -102,9 +102,8 @@ fn step_livestock_building(
     } else {
         environment.pasture_capacity_multiplier()
     };
-    herd.pasture_capacity = base_pasture_capacity
-        * seasonal_capacity_multiplier
-        * (1.0 - summer_hay_share);
+    herd.pasture_capacity =
+        base_pasture_capacity * seasonal_capacity_multiplier * (1.0 - summer_hay_share);
     // Supplemental feed and trough water are resolved on the fixed husbandry
     // cycle. Do not erase that support on every simulation substep merely
     // because the land-only capacity was recomputed.
@@ -115,11 +114,16 @@ fn step_livestock_building(
 
     let paused = labor_and_logistics_paused(ctx, tick, building.owner, clock);
     let onsite_labor = onsite_building_labor(ctx, &building);
-    let care_labor = if paused { 0 } else { onsite_labor };
+    let care_labor = essential_livestock_care_labor(
+        onsite_labor,
+        tick.owner_has_active_raider_threat(ctx, building.owner),
+    );
+    let productive_labor = if paused { 0 } else { onsite_labor };
     if !paused && onsite_labor > 0 {
         let unsupported = (herd.head_count as f64 - herd.pasture_capacity).max(0.0);
         let grain_per_head = species_grain_per_unsupported_head(herd.species);
-        let immediate_grain_buffer = unsupported * grain_per_head * 2.0;
+        let immediate_grain_buffer =
+            unsupported * grain_per_head * 2.0 / LIVESTOCK_OAT_FODDER_VALUE.max(1e-9);
         let winter_grain_target = if matches!(environment.season, Season::Autumn | Season::Winter) {
             let projected_head_count = if environment.season == Season::Autumn {
                 herd.head_count.min(effective_breeding_reserve(
@@ -152,8 +156,12 @@ fn step_livestock_building(
         } else {
             0.0
         };
-        let desired_grain = immediate_grain_buffer.max(winter_grain_target);
-        if desired_grain > 0.05 {
+        let substitute_oat_equivalent = (building.rye_grain.max(0.0) * LIVESTOCK_RYE_FODDER_VALUE
+            + building.maslin_grain.max(0.0) * LIVESTOCK_MASLIN_FODDER_VALUE)
+            / LIVESTOCK_OAT_FODDER_VALUE.max(1e-9);
+        let desired_oats =
+            (immediate_grain_buffer.max(winter_grain_target) - substitute_oat_equivalent).max(0.0);
+        if desired_oats > 0.05 {
             request_connected_commodity(
                 ctx,
                 tick,
@@ -161,7 +169,7 @@ fn step_livestock_building(
                 &building,
                 CommodityKind::OatGrain,
                 &["threshing_barn", "granary"],
-                desired_grain,
+                desired_oats,
             );
         }
     }
@@ -179,6 +187,7 @@ fn step_livestock_building(
                 environment,
                 base_pasture_capacity,
                 care_labor,
+                productive_labor,
                 &mut building,
                 &mut herd,
             );
@@ -246,6 +255,7 @@ fn run_livestock_cycle(
     environment: EnvironmentState,
     base_pasture_capacity: f64,
     care_labor: u32,
+    productive_labor: u32,
     building: &mut Building,
     herd: &mut LivestockHerd,
 ) {
@@ -260,13 +270,13 @@ fn run_livestock_cycle(
         return;
     }
 
-    if herd.species != SPECIES_SWINE && care_labor > 0 && is_haymaking_month(clock.month) {
+    if herd.species != SPECIES_SWINE && productive_labor > 0 && is_haymaking_month(clock.month) {
         let reserved_capacity =
             base_pasture_capacity.max(0.0) * haymaking_share(herd.haymaking_percent);
         let hay = reserved_capacity
             * species_hay_yield_per_reserved_capacity(herd.species)
             * environment.pasture_capacity_multiplier()
-            * f64::from(care_labor);
+            * f64::from(productive_labor);
         let stored = hay.min((LIVESTOCK_HAY_STORAGE_CAPACITY - herd.hay_stock).max(0.0));
         herd.hay_stock += stored;
         herd.last_hay_output = stored;
@@ -285,7 +295,9 @@ fn run_livestock_cycle(
     let grain_unsupported = (unsupported - hay_supplement).max(0.0);
     let grain_per_head = species_grain_per_unsupported_head(herd.species);
     let feed_head_capacity = if grain_per_head > 0.0 {
-        (building.oat_grain * 1.25 + building.rye_grain + building.maslin_grain * 0.9)
+        (building.oat_grain * LIVESTOCK_OAT_FODDER_VALUE
+            + building.rye_grain * LIVESTOCK_RYE_FODDER_VALUE
+            + building.maslin_grain * LIVESTOCK_MASLIN_FODDER_VALUE)
             / grain_per_head
     } else {
         0.0
@@ -296,22 +308,24 @@ fn run_livestock_cycle(
         let oats_used = withdraw_building_commodity(
             building,
             CommodityKind::OatGrain,
-            feed_value_needed / 1.25,
+            feed_value_needed / LIVESTOCK_OAT_FODDER_VALUE.max(1e-9),
         );
-        feed_value_needed = (feed_value_needed - oats_used * 1.25).max(0.0);
-        let rye_used =
-            withdraw_building_commodity(building, CommodityKind::RyeGrain, feed_value_needed);
-        feed_value_needed = (feed_value_needed - rye_used).max(0.0);
+        feed_value_needed = (feed_value_needed - oats_used * LIVESTOCK_OAT_FODDER_VALUE).max(0.0);
+        let rye_used = withdraw_building_commodity(
+            building,
+            CommodityKind::RyeGrain,
+            feed_value_needed / LIVESTOCK_RYE_FODDER_VALUE.max(1e-9),
+        );
+        feed_value_needed = (feed_value_needed - rye_used * LIVESTOCK_RYE_FODDER_VALUE).max(0.0);
         if feed_value_needed > 1e-9 {
             withdraw_building_commodity(
                 building,
                 CommodityKind::MaslinGrain,
-                feed_value_needed / 0.9,
+                feed_value_needed / LIVESTOCK_MASLIN_FODDER_VALUE.max(1e-9),
             );
         }
     }
-    let feed_supported_heads =
-        (herd.pasture_capacity + hay_supplement + supplement).min(heads);
+    let feed_supported_heads = (herd.pasture_capacity + hay_supplement + supplement).min(heads);
     let water_per_head = species_water_per_head_per_cycle(herd.species);
     let water_supported_heads = if water_per_head <= 1e-9 {
         heads
@@ -337,12 +351,15 @@ fn run_livestock_cycle(
         .clamp(0.12, 1.0);
 
     let productive_heads = heads * support_ratio * herd.health;
-    // Cattle and sheep provide a shared gross milk yield. The holding's milk
+    // Cattle and sheep provide a shared gross milk yield. Only the aggregate
+    // mature, lactating share produces it; young stock, males, and dry animals
+    // still consume land, water, fodder, and care. The holding's milk
     // policy chooses how much becomes fresh milk or salted cheese; cheese is a
     // conversion, not a parallel free output. Pigs provide
     // meat only when actual surplus animals are culled below.
-    let base_milk = productive_heads * species_food_per_cycle(herd.species);
-    let base_cheese = productive_heads * species_preserved_per_cycle(herd.species);
+    let dairy_heads = productive_heads * species_dairy_productive_share(herd.species);
+    let base_milk = dairy_heads * species_food_per_cycle(herd.species);
+    let base_cheese = dairy_heads * species_preserved_per_cycle(herd.species);
     let (_, desired_cheese) = livestock_milk_allocation(
         building.processor_output_target_percent,
         base_milk,
@@ -371,6 +388,7 @@ fn run_livestock_cycle(
     // storage, road hauling, workshop labor, and market capacity consequential.
     herd.last_wool_gold = 0.0;
     if herd.species == SPECIES_SHEEP
+        && productive_labor > 0
         && herd.last_shearing_year != clock.year
         && is_shearing_month(clock.month)
     {
@@ -387,9 +405,7 @@ fn run_livestock_cycle(
         && support_ratio >= 0.9
         && herd.health >= 0.72
     {
-        let land_limit = base_pasture_capacity
-            .floor()
-            .clamp(0.0, u32::MAX as f64) as u32;
+        let land_limit = base_pasture_capacity.floor().clamp(0.0, u32::MAX as f64) as u32;
         let breeding_limit = species_max_herd(herd.species).min(land_limit);
         if herd.head_count < breeding_limit {
             herd.breeding_progress += productive_heads
@@ -407,9 +423,7 @@ fn run_livestock_cycle(
         herd.breeding_progress = (herd.breeding_progress - 0.08).max(0.0);
         if herd.health <= 0.2 && herd.head_count > 0 {
             herd.head_count -= 1;
-            herd.supplied_capacity = herd
-                .supplied_capacity
-                .min(f64::from(herd.head_count));
+            herd.supplied_capacity = herd.supplied_capacity.min(f64::from(herd.head_count));
             herd.health = if herd.head_count > 0 { 0.36 } else { 0.12 };
         }
     }
@@ -421,16 +435,18 @@ fn run_livestock_cycle(
             .min(building_commodity_room(building, CommodityKind::CuredMeat)),
     );
     let unsalted_slaughter = (slaughter_preserved - saltable_slaughter).max(0.0);
-    if can_cull_one(
-        clock.month,
-        herd.head_count,
-        herd.breeding_reserve,
-        maximum_herd,
-        building_commodity_room(building, CommodityKind::Meat),
-        building_commodity_room(building, CommodityKind::CuredMeat),
-        slaughter_food + unsalted_slaughter,
-        saltable_slaughter,
-    ) {
+    if productive_labor > 0
+        && can_cull_one(
+            clock.month,
+            herd.head_count,
+            herd.breeding_reserve,
+            maximum_herd,
+            building_commodity_room(building, CommodityKind::Meat),
+            building_commodity_room(building, CommodityKind::CuredMeat),
+            slaughter_food + unsalted_slaughter,
+            saltable_slaughter,
+        )
+    {
         herd.head_count -= 1;
         herd.last_culled = 1;
         herd.supplied_capacity = herd.supplied_capacity.min(herd.head_count as f64);
@@ -502,9 +518,9 @@ pub(crate) fn grazing_capacity_with_mature_tree_points(
         let area_capacity =
             pastures.iter().map(|pasture| pasture.area).sum::<f64>() / SWINE_AREA_PER_HEAD.max(1.0);
         let inside_pasture = |x: f64, z: f64| {
-            pastures.iter().any(|pasture| {
-                point_in_field(Point2 { x, z }, &pasture_points(pasture))
-            })
+            pastures
+                .iter()
+                .any(|pasture| point_in_field(Point2 { x, z }, &pasture_points(pasture)))
         };
         let mature_trees = mature_tree_points.map_or_else(
             || {
@@ -737,6 +753,15 @@ fn species_food_per_cycle(species: u8) -> f64 {
         SPECIES_SHEEP => SHEEP_FOOD_PER_CYCLE_PER_HEAD,
         _ => SWINE_FOOD_PER_CYCLE_PER_HEAD,
     }
+}
+
+fn species_dairy_productive_share(species: u8) -> f64 {
+    match species {
+        SPECIES_CATTLE => CATTLE_DAIRY_PRODUCTIVE_SHARE,
+        SPECIES_SHEEP => SHEEP_DAIRY_PRODUCTIVE_SHARE,
+        _ => SWINE_DAIRY_PRODUCTIVE_SHARE,
+    }
+    .clamp(0.0, 1.0)
 }
 
 fn species_preserved_per_cycle(species: u8) -> f64 {

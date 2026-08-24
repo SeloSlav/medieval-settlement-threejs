@@ -65,7 +65,10 @@ import {
   VINEYARD_MIN_EDGE,
   VINEYARD_MONASTERY_MAX_DISTANCE,
 } from '../vineyards/vineyardSuitability.ts';
-import { snapLandParcelPoint } from './landParcelSnap.ts';
+import {
+  snapLandParcelDraftPoint,
+  snapLandParcelPoint,
+} from './landParcelSnap.ts';
 import {
   countMatureTreesInPasturePolygons,
   livestockHoldingWholeHeadLimit,
@@ -679,7 +682,9 @@ export class FarmFieldTool {
           : [...(state.vineyardParcels ?? new Map()).values()]
               .filter((parcel) => parcel.monasteryId === this.farmsteadId)
               .map((parcel) => parcel.corners);
-    return snapLandParcelPoint(point, linked);
+    return this.points.length === 3 && !this.fixedCorners
+      ? snapLandParcelDraftPoint(point, this.points, linked)
+      : snapLandParcelPoint(point, linked);
   }
 
   private resolveDraftPath(): Point2[] {

@@ -383,89 +383,104 @@ fn footprint_fits(center: &Point2, yaw: f64, polygon: &[Point2]) -> bool {
     })
 }
 
-fn polygon_centroid(polygon: &[Point2]) -> Point2 {
-    let mut x = 0.0;
-    let mut z = 0.0;
-    for point in polygon {
-        x += point.x;
-        z += point.z;
-    }
-    let count = polygon.len() as f64;
-    Point2 {
-        x: x / count,
-        z: z / count,
-    }
-}
-
-fn point_strictly_inside_polygon(
-    point: &Point2,
-    polygon: &[Point2],
-    boundary_epsilon: f64,
-) -> bool {
-    if !is_point_in_polygon(point, polygon) {
+fn convex_polygons_overlap(a: &[Point2], b: &[Point2], boundary_epsilon: f64) -> bool {
+    if a.len() < 3 || b.len() < 3 {
         return false;
     }
-    for i in 0..polygon.len() {
-        let start = &polygon[i];
-        let end = &polygon[(i + 1) % polygon.len()];
-        if distance_point_to_segment(point, start, end) <= boundary_epsilon {
-            return false;
-        }
-    }
-    true
-}
 
-fn segments_intersect_properly(
-    a1: &Point2,
-    a2: &Point2,
-    b1: &Point2,
-    b2: &Point2,
-    epsilon: f64,
-) -> bool {
-    let d1 = cross(b1, b2, a1);
-    let d2 = cross(b1, b2, a2);
-    let d3 = cross(a1, a2, b1);
-    let d4 = cross(a1, a2, b2);
-    ((d1 > epsilon && d2 < -epsilon) || (d1 < -epsilon && d2 > epsilon))
-        && ((d3 > epsilon && d4 < -epsilon) || (d3 < -epsilon && d4 > epsilon))
-}
+    let epsilon = boundary_epsilon.max(0.0);
+    let mut tested_axis = false;
+    let has_separating_or_touching_axis = |edges: &[Point2], tested_axis: &mut bool| {
+        for index in 0..edges.len() {
+            let start = &edges[index];
+            let end = &edges[(index + 1) % edges.len()];
+            let edge_x = end.x - start.x;
+            let edge_z = end.z - start.z;
+            let edge_length = edge_x.hypot(edge_z);
+            if edge_length <= 1e-12 {
+                continue;
+            }
 
-fn convex_polygons_overlap(a: &[Point2], b: &[Point2], boundary_epsilon: f64) -> bool {
-    let centroid_a = polygon_centroid(a);
-    let centroid_b = polygon_centroid(b);
+            *tested_axis = true;
+            // Normalize the perpendicular so boundary_epsilon remains a world-space distance.
+            let axis_x = -edge_z / edge_length;
+            let axis_z = edge_x / edge_length;
+            let mut min_a = f64::INFINITY;
+            let mut max_a = f64::NEG_INFINITY;
+            let mut min_b = f64::INFINITY;
+            let mut max_b = f64::NEG_INFINITY;
+            for point in a {
+                let projection = point.x * axis_x + point.z * axis_z;
+                min_a = min_a.min(projection);
+                max_a = max_a.max(projection);
+            }
+            for point in b {
+                let projection = point.x * axis_x + point.z * axis_z;
+                min_b = min_b.min(projection);
+                max_b = max_b.max(projection);
+            }
 
-    for point in a.iter().chain(std::iter::once(&centroid_a)) {
-        if point_strictly_inside_polygon(point, b, boundary_epsilon) {
-            return true;
-        }
-    }
-    for point in b.iter().chain(std::iter::once(&centroid_b)) {
-        if point_strictly_inside_polygon(point, a, boundary_epsilon) {
-            return true;
-        }
-    }
-
-    for i in 0..a.len() {
-        let a1 = &a[i];
-        let a2 = &a[(i + 1) % a.len()];
-        for j in 0..b.len() {
-            let b1 = &b[j];
-            let b2 = &b[(j + 1) % b.len()];
-            if segments_intersect_properly(a1, a2, b1, b2, boundary_epsilon) {
+            let overlap = max_a.min(max_b) - min_a.max(min_b);
+            if overlap <= epsilon {
                 return true;
             }
         }
-    }
+        false
+    };
 
-    false
+    if has_separating_or_touching_axis(a, &mut tested_axis)
+        || has_separating_or_touching_axis(b, &mut tested_axis)
+    {
+        return false;
+    }
+    tested_axis
 }
 
 #[cfg(test)]
 mod tests {
     use super::{
-        backyard_center, compute_burgage_layout, residence_depth_cost_units, Point2, ZoneCorners,
-        HOUSE_SETBACK, MAIN_HOUSE_DEPTH,
+        backyard_center, compute_burgage_layout, convex_zones_overlap, residence_depth_cost_units,
+        Point2, ZoneCorners, HOUSE_SETBACK, MAIN_HOUSE_DEPTH,
     };
+
+    #[test]
+    fn convex_overlap_distinguishes_contact_from_snapped_wedges() {
+        let existing = [
+            Point2 { x: 0.0, z: 0.0 },
+            Point2 { x: 20.0, z: 0.0 },
+            Point2 { x: 20.0, z: 18.0 },
+            Point2 { x: 0.0, z: 18.0 },
+        ];
+        let shared_edge = [
+            Point2 { x: 20.0, z: 0.0 },
+            Point2 { x: 40.0, z: 0.0 },
+            Point2 { x: 40.0, z: 18.0 },
+            Point2 { x: 20.0, z: 18.0 },
+        ];
+        let shared_corner = [
+            Point2 { x: 20.0, z: 18.0 },
+            Point2 { x: 32.0, z: 18.0 },
+            Point2 { x: 32.0, z: 30.0 },
+            Point2 { x: 20.0, z: 30.0 },
+        ];
+        let snapped_wedge = [
+            Point2 { x: 20.0, z: 0.0 },
+            Point2 { x: 40.0, z: 0.0 },
+            Point2 { x: 40.0, z: 18.0 },
+            Point2 { x: 17.0, z: 18.0 },
+        ];
+        let separated = [
+            Point2 { x: 21.0, z: 0.0 },
+            Point2 { x: 41.0, z: 0.0 },
+            Point2 { x: 41.0, z: 18.0 },
+            Point2 { x: 21.0, z: 18.0 },
+        ];
+
+        assert!(!convex_zones_overlap(&existing, &shared_edge));
+        assert!(!convex_zones_overlap(&existing, &shared_corner));
+        assert!(convex_zones_overlap(&existing, &snapped_wedge));
+        assert!(!convex_zones_overlap(&existing, &separated));
+    }
 
     #[test]
     fn backyard_center_tracks_the_house_rear_axis() {

@@ -14,7 +14,10 @@ import {
   MANURE_STOCK_SEGMENT_NAME,
 } from '../src/buildings/meshes/manureStockpileMesh.ts';
 import { getBuildingExtent } from '../src/buildings/buildingExtents.ts';
-import { createCattleVisualDistribution } from '../src/farming/LivestockVisuals.ts';
+import {
+  createCattleVisualDistribution,
+  livestockVisualHeadCount,
+} from '../src/farming/LivestockVisuals.ts';
 import {
   cattleManureCollectionMultiplier,
   cattleManurePerCycle,
@@ -368,6 +371,9 @@ assert.ok(manureYard instanceof THREE.Group, 'the pastoral farmstead should expo
 const manureSegments = manureYard.children.filter(
   (child) => child.name === MANURE_STOCK_SEGMENT_NAME,
 );
+assert.equal(livestockVisualHeadCount('cattle', 50), 20);
+assert.equal(livestockVisualHeadCount('sheep', 60), 36);
+assert.equal(livestockVisualHeadCount('swine', 30), 24);
 assert.equal(manureSegments.length, MANURE_STOCKPILE_VISUAL_SEGMENTS);
 assert.equal(manureYard.visible, false, 'an empty manure yard must not show a decorative pile');
 assert.equal(
@@ -459,8 +465,8 @@ assert.match(
 );
 assert.match(
   serverLivestock,
-  /let care_labor = if paused \{ 0 \} else \{ onsite_labor \}/,
-  'paused or unstaffed holdings must provide no active animal care',
+  /let care_labor = essential_livestock_care_labor\([\s\S]{0,180}owner_has_active_raider_threat[\s\S]{0,160}let productive_labor = if paused \{ 0 \} else \{ onsite_labor \}/,
+  'observed Sundays must retain essential animal care while raids still remove it and ordinary work pauses',
 );
 assert.match(
   serverLivestock,

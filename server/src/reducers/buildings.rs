@@ -349,7 +349,9 @@ pub(crate) fn next_available_building_id(
     Ok(candidate)
 }
 
-const REMOTE_WORK_CAMP_MAX_DISTANCE: f64 = 34.0;
+// Rich stone landmarks reserve up to 67 m around a quarry, so the linked camp
+// needs a placement band beyond the protected deposit footprint.
+const REMOTE_WORK_CAMP_MAX_DISTANCE: f64 = 80.0;
 
 fn supports_buildable_remote_work_camp(kind: &str) -> bool {
     matches!(

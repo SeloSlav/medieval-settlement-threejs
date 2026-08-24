@@ -29,8 +29,8 @@ import {
 } from './buildingPlacement.ts';
 import { resolveBuildingEdgeSnap } from './BuildingSpacing.ts';
 import {
+  isWithinRemoteWorkCampRange,
   linkedRemoteWorkCamp,
-  REMOTE_WORK_CAMP_MAX_DISTANCE,
   supportsRemoteWorkCamp,
 } from './remoteWorkCamp.ts';
 import {
@@ -741,7 +741,7 @@ export class BuildingTool {
       if (linkedRemoteWorkCamp(worksite.id, state.buildings.values())) {
         return { ok: false as const, reason: 'remote_camp_exists' as const };
       }
-      if (Math.hypot(x - worksite.x, z - worksite.z) > REMOTE_WORK_CAMP_MAX_DISTANCE) {
+      if (!isWithinRemoteWorkCampRange(worksite, x, z)) {
         return { ok: false as const, reason: 'outside_remote_worksite_range' as const };
       }
     }

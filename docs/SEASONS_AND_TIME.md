@@ -26,7 +26,8 @@ The calendar is deliberately fictional and fixed:
   when an unusually long return finishes after the next workday begins.
 - Exposed extraction worksites may instead construct persistent remote lodging.
   Lumber mills, stonecutters' camps, large quarries, mines, clay pits, and charcoal
-  yards expose a worksite-card order that starts targeted placement within 34 m.
+  yards expose a worksite-card order that starts targeted placement within 80 m,
+  leaving usable clear ground beyond large stone and mineral deposit footprints.
   The resulting two-tent camp is a normal building project: it reserves 14 timber
   and 3 stone, awaits physical material carts and builder labor, can burn, and can
   be demolished into ordinary reclamation. The crew keeps commuting until it is

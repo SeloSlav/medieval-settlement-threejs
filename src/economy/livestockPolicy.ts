@@ -1,5 +1,6 @@
 import {
   CATTLE_DEFAULT_BREEDING_RESERVE,
+  CATTLE_DAIRY_PRODUCTIVE_SHARE,
   CATTLE_FOOD_PER_CYCLE_PER_HEAD,
   CATTLE_HEADS_PER_WORKER,
   CATTLE_MAX_HERD,
@@ -18,6 +19,7 @@ import {
   LIVESTOCK_MAXIMUM_HAYMAKING_PERCENT,
   LIVESTOCK_FARMSTEAD_PRESERVATION_SALT_PER_OUTPUT,
   SHEEP_DEFAULT_BREEDING_RESERVE,
+  SHEEP_DAIRY_PRODUCTIVE_SHARE,
   SHEEP_FOOD_PER_CYCLE_PER_HEAD,
   SHEEP_HEADS_PER_WORKER,
   SHEEP_MAX_HERD,
@@ -32,6 +34,7 @@ import {
   SHEEP_WATER_PER_HEAD_PER_CYCLE,
   SHEEP_WOOL_PER_SHEARING_PER_HEAD,
   SWINE_DEFAULT_BREEDING_RESERVE,
+  SWINE_DAIRY_PRODUCTIVE_SHARE,
   SWINE_HEADS_PER_WORKER,
   SWINE_MAX_HERD,
   SWINE_MINIMUM_BREEDING_RESERVE,
@@ -55,6 +58,7 @@ export type LivestockPolicyDefinition = {
   saleGoldPerHead: number;
   headsPerWorker: number;
   waterPerHeadPerCycle: number;
+  dairyProductiveShare: number;
 };
 
 export type LivestockReservePreset = {
@@ -91,6 +95,7 @@ const POLICY_BY_SPECIES: Record<LivestockSpecies, LivestockPolicyDefinition> = {
     saleGoldPerHead: CATTLE_SALE_GOLD_PER_HEAD,
     headsPerWorker: CATTLE_HEADS_PER_WORKER,
     waterPerHeadPerCycle: CATTLE_WATER_PER_HEAD_PER_CYCLE,
+    dairyProductiveShare: CATTLE_DAIRY_PRODUCTIVE_SHARE,
   },
   sheep: {
     minimumReserve: SHEEP_MINIMUM_BREEDING_RESERVE,
@@ -104,6 +109,7 @@ const POLICY_BY_SPECIES: Record<LivestockSpecies, LivestockPolicyDefinition> = {
     saleGoldPerHead: SHEEP_SALE_GOLD_PER_HEAD,
     headsPerWorker: SHEEP_HEADS_PER_WORKER,
     waterPerHeadPerCycle: SHEEP_WATER_PER_HEAD_PER_CYCLE,
+    dairyProductiveShare: SHEEP_DAIRY_PRODUCTIVE_SHARE,
   },
   swine: {
     minimumReserve: SWINE_MINIMUM_BREEDING_RESERVE,
@@ -117,6 +123,7 @@ const POLICY_BY_SPECIES: Record<LivestockSpecies, LivestockPolicyDefinition> = {
     saleGoldPerHead: SWINE_SALE_GOLD_PER_HEAD,
     headsPerWorker: SWINE_HEADS_PER_WORKER,
     waterPerHeadPerCycle: SWINE_WATER_PER_HEAD_PER_CYCLE,
+    dairyProductiveShare: SWINE_DAIRY_PRODUCTIVE_SHARE,
   },
 };
 
@@ -300,8 +307,21 @@ export function livestockDairyPreservedOutputPerCycle(
   species: LivestockSpecies,
   productiveHeads: number,
 ): number {
-  return Math.max(0, productiveHeads)
+  return livestockDairyProductiveHeads(species, productiveHeads)
     * livestockPolicyDefinition(species).preservedFoodPerCyclePerHead;
+}
+
+/**
+ * Herd rows count every animal. This aggregate share represents mature,
+ * lactating females so calves, lambs, males, and dry animals consume land and
+ * care without all being treated as milk producers.
+ */
+export function livestockDairyProductiveHeads(
+  species: LivestockSpecies,
+  healthySupportedHeads: number,
+): number {
+  return Math.max(0, healthySupportedHeads)
+    * livestockPolicyDefinition(species).dairyProductiveShare;
 }
 
 export function livestockMilkUsePolicy(
@@ -318,9 +338,9 @@ export function livestockMilkAllocationPerCycle(
   cheeseCapacity = Number.POSITIVE_INFINITY,
 ): { grossMilk: number; freshMilk: number; cheese: number } {
   const policy = livestockPolicyDefinition(species);
-  const productive = Math.max(0, productiveHeads);
-  const baseMilk = productive * policy.milkPerCyclePerHead;
-  const baseCheese = productive * policy.preservedFoodPerCyclePerHead;
+  const dairyHeads = livestockDairyProductiveHeads(species, productiveHeads);
+  const baseMilk = dairyHeads * policy.milkPerCyclePerHead;
+  const baseCheese = dairyHeads * policy.preservedFoodPerCyclePerHead;
   const grossMilk = baseMilk + baseCheese;
   const normalized = livestockMilkUsePolicy(configured).value;
   const desiredCheese = normalized === 25

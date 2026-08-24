@@ -32,6 +32,7 @@ import {
 } from '../resources/resourceTotals.ts';
 import { computeSettlementProvisioning } from '../economy/settlementProvisioning.ts';
 import { computeSettlementApproval } from '../economy/settlementApproval.ts';
+import { SettlementApprovalPacer } from '../economy/settlementApprovalPacing.ts';
 import { TreeRegistry } from '../resources/TreeRegistry.ts';
 import { WorldLayoutRegistry } from '../resources/WorldLayoutRegistry.ts';
 import {
@@ -216,6 +217,7 @@ export class App {
     () => performance.now(),
     this.visualQaConditions,
   );
+  private readonly settlementApprovalPacer = new SettlementApprovalPacer();
   private visualQaFoundersCampFixture: BuildingState | null = null;
   private showcaseViewApplied = false;
   private initialSettlementViewApplied = false;
@@ -1148,14 +1150,23 @@ export class App {
     for (const incident of state.fireIncidents.values()) {
       if (incident.status === 'burning') activeFires += 1;
     }
-    this.toolbar?.settlementHud.setApprovalState(computeSettlementApproval({
+    const approvalTarget = computeSettlementApproval({
       provisioning,
       nightPolicy: snapshot.nightPolicy,
       security: snapshot.settlementSecurity,
       conflictEnabled,
       activeFires,
       month: clock.month,
-    }));
+    });
+    this.toolbar?.settlementHud.setApprovalState(this.settlementApprovalPacer.update(
+      approvalTarget,
+      {
+        identityHex: snapshot.identityHex,
+        worldSeed: state.seed,
+        simTick: snapshot.simTick,
+        active: snapshot.gameSpeed > 0,
+      },
+    ));
     this.toolbar?.setConflictEnabled(conflictEnabled);
     const presentationEnvironment = import.meta.env.DEV
       ? this.visualQaConditions
