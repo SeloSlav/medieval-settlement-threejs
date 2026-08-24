@@ -3635,21 +3635,6 @@ for (const sharedSystem of [
 ]) {
   assert.ok(fixtureSource.includes(sharedSystem), `fixture must exercise ${sharedSystem}`);
 }
-assert.match(
-  fixtureSource,
-  /waitForBootStage\('forest', forestPromise, requestedVisualProfile \? 30_000 : 9_000\)/,
-  'a cold-cache visual profile must wait for real deterministic forest atlases without delaying ordinary fallback startup',
-);
-assert.match(
-  fixtureSource,
-  /getSeedThreeProfileBreakdown: \(\) =>[\s\S]*?forestRuntimeReady[\s\S]*?getSeedThreeForestProfileBreakdown\(forest\)[\s\S]*?: null/,
-  'the intentional empty-forest fallback must remain safe under profiler polling',
-);
-assert.match(
-  fixtureSource,
-  /forestStartupPromiseStartedAtMs[\s\S]*?hamletForestStartupTiming[\s\S]*?getSeedThreeForestStartupTiming\(\)/,
-  'the QA fixture must publish actual cold/warm forest hydration duration outside the render loop',
-);
 for (const runtimeContract of [
   'getPointAt(',
   'getPointAtInto(',

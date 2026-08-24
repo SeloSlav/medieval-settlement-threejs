@@ -2,10 +2,10 @@
 
 ## Approved runtime set — 2026-08-23
 
-The approved PBR replacement set covers meadow, dense and dry grass; primary
-and secondary forest litter; forest mossy rock; river stone; and quarry
-limestone. Runtime-ready files live in versioned `gorski_*_v1` texture folders.
-The original texture folders and raw PATINA review outputs remain intact.
+The active generated PBR replacement set covers meadow, dense and dry grass
+plus primary and secondary forest litter. Runtime-ready files live in
+versioned `gorski_*_v1` texture folders. The original texture folders and raw
+PATINA review outputs remain intact.
 
 Runtime normals are green-channel corrected, mean-centered, strength-limited,
 and renormalized with an upward-facing Z component. Rotated grass UV families
@@ -13,15 +13,23 @@ also reorient their tangent normals before blending. Forest litter shares a
 four-cell albedo/HRAO atlas (height, roughness, AO) so the terrain remains
 within the portable WebGPU sampler budget.
 
-Rock identity is ecological and semantic:
+## Rock material override — 2026-08-24
 
-- mossy karst stone belongs only to sufficiently dense woodland;
-- open-meadow stones retain the neutral legacy fallback;
-- river stones are pale, water-worn and free of procedural moss tint;
-- quarry deposits use pale fractured limestone and remain distinguished by
-  angular clusters, quarry pads, map cues and depletion;
-- constructed quarry masonry continues using its separate building-material
-  library.
+All natural boulder and outcrop roles now use the established
+`props/mossy_rock` albedo, normal and roughness set:
+
+- forest and meadow rocks;
+- river-bank stones;
+- quarry-deposit boulders;
+- isolated mineral/quarry lineup previews that use those runtime loaders.
+
+The pale generated forest limestone, river stone and quarry limestone sets are
+retained on disk as rejected/inactive candidates; no texture was deleted.
+Role-owned texture instances remain separate so river and quarry teardown is
+safe. Harvestable quarry deposits continue to be distinguished by their dense
+angular clusters, quarry pads, map cues and depletion rather than by a white
+surface. Constructed walls and building masonry remain separate authored
+materials rather than natural boulder props.
 
 ## Deferred final pass
 

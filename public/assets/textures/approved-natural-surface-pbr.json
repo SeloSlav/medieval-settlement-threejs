@@ -1,6 +1,21 @@
 {
   "installedOn": "2026-08-23",
   "rawCandidatesPreserved": true,
+  "runtimeRockOverride": {
+    "changedOn": "2026-08-24",
+    "base": "public/assets/textures/props/mossy_rock",
+    "roles": [
+      "forest",
+      "meadow",
+      "river",
+      "quarry"
+    ],
+    "retainedInactiveCandidates": [
+      "public/assets/textures/props/gorski_forest_mossy_rock_v1",
+      "public/assets/textures/props/gorski_river_stone_v1",
+      "public/assets/textures/props/gorski_quarry_limestone_v1"
+    ]
+  },
   "deferred": [
     "medieval compacted dirt road",
     "backyard garden-bed soil"

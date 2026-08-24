@@ -274,13 +274,11 @@ async function createForestMaterials(maxAnisotropy: number, enableTreeShadowFilt
     map: forestRockTextures.map,
     normalMap: forestRockTextures.normalMap,
     roughnessMap: forestRockTextures.roughnessMap,
-    aoMap: forestRockTextures.aoMap,
-    aoMapIntensity: 0.7,
-    color: 0xffffff,
-    roughness: 1,
+    color: 0xb6b3a4,
+    roughness: 0.9,
     metalness: 0,
   });
-  forestRock.normalScale.set(0.6, 0.6);
+  forestRock.normalScale.set(0.55, 0.55);
 
   const meadowRock = new THREE.MeshStandardMaterial({
     map: meadowRockTextures.map,

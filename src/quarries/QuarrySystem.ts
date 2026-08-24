@@ -281,13 +281,11 @@ function createQuarryRockMaterial(rockTextures: RockTextureSet<'quarry'>): THREE
     map: rockTextures.map,
     normalMap: rockTextures.normalMap,
     roughnessMap: rockTextures.roughnessMap,
-    aoMap: rockTextures.aoMap,
-    aoMapIntensity: 0.72,
-    color: 0xffffff,
-    roughness: 1,
+    color: 0xb0aea0,
+    roughness: 0.92,
     metalness: 0,
   });
-  material.normalScale.set(0.64, 0.64);
+  material.normalScale.set(0.55, 0.55);
   return material;
 }
 

@@ -186,13 +186,11 @@ function createRiverRockMaterial(rockTextures: RockTextureSet<'river'>): THREE.M
     map: rockTextures.map,
     normalMap: rockTextures.normalMap,
     roughnessMap: rockTextures.roughnessMap,
-    aoMap: rockTextures.aoMap,
-    aoMapIntensity: 0.68,
-    color: 0xffffff,
-    roughness: 1,
+    color: 0xb0aea0,
+    roughness: 0.92,
     metalness: 0,
   });
-  material.normalScale.set(0.62, 0.62);
+  material.normalScale.set(0.55, 0.55);
   return material;
 }
 

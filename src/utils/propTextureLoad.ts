@@ -13,6 +13,11 @@ export type RockTextureSet<Role extends RockTextureRole> = {
 
 export type MossyRockTextureSet = RockTextureSet<'forest'>;
 
+// Keep separate role-owned texture instances so river/quarry lifecycles can
+// dispose independently, but deliberately give every natural rock the same
+// established mossy visual identity.
+const MOSSY_ROCK_TEXTURE_BASE = '/assets/textures/props/mossy_rock';
+
 async function loadRockTextureSet<Role extends RockTextureRole>(
   role: Role,
   base: string,
@@ -32,16 +37,16 @@ async function loadRockTextureSet<Role extends RockTextureRole>(
 export function loadForestRockTextures(maxAnisotropy: number): Promise<RockTextureSet<'forest'>> {
   return loadRockTextureSet(
     'forest',
-    '/assets/textures/props/gorski_forest_mossy_rock_v1',
+    MOSSY_ROCK_TEXTURE_BASE,
     maxAnisotropy,
-    true,
+    false,
   );
 }
 
 export function loadNeutralMeadowRockTextures(maxAnisotropy: number): Promise<RockTextureSet<'meadow'>> {
   return loadRockTextureSet(
     'meadow',
-    '/assets/textures/props/mossy_rock',
+    MOSSY_ROCK_TEXTURE_BASE,
     maxAnisotropy,
     false,
   );
@@ -50,18 +55,18 @@ export function loadNeutralMeadowRockTextures(maxAnisotropy: number): Promise<Ro
 export function loadRiverRockTextures(maxAnisotropy: number): Promise<RockTextureSet<'river'>> {
   return loadRockTextureSet(
     'river',
-    '/assets/textures/props/gorski_river_stone_v1',
+    MOSSY_ROCK_TEXTURE_BASE,
     maxAnisotropy,
-    true,
+    false,
   );
 }
 
 export function loadQuarryRockTextures(maxAnisotropy: number): Promise<RockTextureSet<'quarry'>> {
   return loadRockTextureSet(
     'quarry',
-    '/assets/textures/props/gorski_quarry_limestone_v1',
+    MOSSY_ROCK_TEXTURE_BASE,
     maxAnisotropy,
-    true,
+    false,
   );
 }
 

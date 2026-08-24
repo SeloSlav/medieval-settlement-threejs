@@ -73,6 +73,7 @@ import {
   lilyPadShorePresence,
 } from '../src/rivers/RiverLilyPads.ts';
 import {
+  computeShoreStoneMoss,
   computeShoreStoneTint,
   computeShoreStoneVisualScale,
   computeShoreStoneVisualVariation,
@@ -295,7 +296,9 @@ assert.ok(stoneVisualA >= 0.58 && stoneVisualA <= 1.2);
 assert.ok(stoneVisualB >= 0.58 && stoneVisualB <= 1.2);
 assert.notEqual(stoneVisualA, stoneVisualB);
 const stoneTint = computeShoreStoneTint(12, -8);
-assert.ok(stoneTint >= 0.84 && stoneTint <= 1);
+assert.ok(stoneTint >= 0.5 && stoneTint <= 0.88);
+const stoneMoss = computeShoreStoneMoss(12, -8);
+assert.ok(stoneMoss >= 0 && stoneMoss <= 1);
 const stoneVariation = computeShoreStoneVisualVariation(12, -8);
 assert.ok(stoneVariation.aspect >= 0.64 && stoneVariation.aspect <= 1.5);
 assert.ok(stoneVariation.height >= 0.72 && stoneVariation.height <= 1.22);

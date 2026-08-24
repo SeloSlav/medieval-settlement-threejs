@@ -42,7 +42,11 @@ export function computeShoreStoneVisualScale(x: number, z: number): number {
 export function computeShoreStoneTint(x: number, z: number): number {
   const weathering = valueNoise2(x * 0.065 + 3.6, z * 0.065 - 17.4);
   const fineGrain = valueNoise2(x * 0.17 - 6.1, z * 0.17 + 9.8);
-  return 0.84 + (1 - 0.84) * (weathering * 0.72 + fineGrain * 0.28);
+  return 0.5 + (0.88 - 0.5) * (weathering * 0.72 + fineGrain * 0.28);
+}
+
+export function computeShoreStoneMoss(x: number, z: number): number {
+  return valueNoise2(x * 0.14 + 18.4, z * 0.14 - 12.7);
 }
 
 export type ShoreStoneVisualVariation = {

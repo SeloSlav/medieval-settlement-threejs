@@ -15,6 +15,7 @@ import {
 } from '../utils/pathGeometry.ts';
 import type { RiverField } from './RiverField.ts';
 import {
+  computeShoreStoneMoss,
   computeShoreStoneTint,
   computeShoreStoneVisualScale,
   computeShoreStoneVisualVariation,
@@ -139,10 +140,11 @@ export function createRiverShoreStones(
       mesh.setMatrixAt(rockIndex, visualMatrix);
       shadowMesh.setMatrixAt(rockIndex, visualMatrix);
       const tint = computeShoreStoneTint(rock.x, rock.z);
+      const moss = computeShoreStoneMoss(rock.x, rock.z);
       stoneTint.setRGB(
-        tint,
-        tint * 0.99,
-        tint * 0.96,
+        tint * (0.98 - moss * 0.18),
+        tint * (0.82 + moss * 0.18),
+        tint * (0.69 + moss * 0.07),
       );
       mesh.setColorAt(rockIndex, stoneTint);
       instances.push({
