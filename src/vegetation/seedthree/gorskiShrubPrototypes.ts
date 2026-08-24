@@ -9,8 +9,9 @@ import { raspberry } from '@seedthree/species/raspberry.js';
 import { commonHornbeamHedge } from '@seedthree/species/common-hornbeam-hedge.js';
 import { aronia } from '@seedthree/species/aronia.js';
 import { rosehip } from '@seedthree/species/rosehip.js';
+import { stingingNettle } from '@seedthree/species/stinging-nettle.js';
 
-export type GorskiShrubKind = 'bush' | 'fern' | 'juniper' | 'raspberry' | 'field-hornbeam' | 'aronia' | 'rosehip';
+export type GorskiShrubKind = 'bush' | 'fern' | 'juniper' | 'raspberry' | 'field-hornbeam' | 'aronia' | 'rosehip' | 'nettle';
 
 export type GorskiShrubPrototype = {
   geometry: THREE.BufferGeometry;
@@ -44,6 +45,7 @@ const PRESETS = {
   'field-hornbeam': commonHornbeamHedge as SeedThreeShrubPreset,
   aronia: aronia as SeedThreeShrubPreset,
   rosehip: rosehip as SeedThreeShrubPreset,
+  nettle: stingingNettle as SeedThreeShrubPreset,
 } as const;
 
 export function createGorskiShrubPrototype(
@@ -66,7 +68,10 @@ export function createGorskiShrubPrototype(
 
   const foliageMaterial = new THREE.MeshBasicMaterial();
   const foliageRng = new Rng(`${seed}:sprays`);
-  const config = { ...species.foliage, mode: 'clusters' };
+  const config = {
+    ...species.foliage,
+    mode: kind === 'nettle' ? 'leaves' : 'clusters',
+  };
   const terminalFoliage = buildFoliage(
     generated.terminalStems,
     config,
@@ -107,7 +112,9 @@ export function createGorskiShrubPrototype(
   geometry.computeBoundingSphere();
   geometry.userData.gorskiShrubKind = kind;
   geometry.userData.gorskiShrubVariant = variant;
-  geometry.userData.seedThreeGenerator = 'dichotomous/sprayClusters';
+  geometry.userData.seedThreeGenerator = kind === 'nettle'
+    ? 'dichotomous/opposite-paired-leaves'
+    : 'dichotomous/sprayClusters';
 
   const fruitLimit = kind === 'raspberry'
     ? RASPBERRY_FRUIT_ANCHOR_LIMIT

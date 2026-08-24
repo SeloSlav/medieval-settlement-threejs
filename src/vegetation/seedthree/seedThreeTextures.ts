@@ -2,7 +2,7 @@
 // apple/cherry backyard models. A directory-wide eager glob made every unused
 // SeedThree biome texture part of the production payload.
 const barkModules = import.meta.glob(
-  '../../../vendor/seedthree/assets/bark/{american_beech,white_oak,red_maple,sweetgum,douglas_fir,loblolly,pine,apple_bark,cherry_bark,pear_bark,aronia_branch,rosehip_cane,bilberry_branch,common_juniper_branch,raspberry_cane,hornbeam_hedge_branch}_{albedo,normal,roughness}.png',
+  '../../../vendor/seedthree/assets/bark/{american_beech,white_oak,red_maple,sweetgum,douglas_fir,loblolly,pine,apple_bark,cherry_bark,pear_bark,aronia_branch,rosehip_cane,bilberry_branch,common_juniper_branch,raspberry_cane,hornbeam_hedge_branch,stinging_nettle_stem}_{albedo,normal,roughness}.png',
   {
     eager: true,
     query: '?url',
@@ -13,7 +13,7 @@ const barkModules = import.meta.glob(
 const leafModules = import.meta.glob(
   [
     '../../../vendor/seedthree/assets/leaves/{american_beech_single,white_oak_single,red_maple_single,sweetgum_single,douglas_fir_needle,loblolly_needle,pine_needle,apple_single,cherry_single,pear_single}_{albedo,normal,roughness,translucency}.png',
-    '../../../vendor/seedthree/assets/leaves/{bilberry,fern,juniper_scrub,raspberry_spray,hornbeam_hedge_spray,aronia_spray,rosehip_spray}_{albedo,normal,roughness,translucency}.png',
+    '../../../vendor/seedthree/assets/leaves/{bilberry,fern,juniper_scrub,raspberry_spray,hornbeam_hedge_spray,aronia_spray,rosehip_spray,stinging_nettle_single}_{albedo,normal,roughness,translucency}.png',
     '../../../vendor/seedthree/assets/leaves/cattail_reed_card{,_normal,_roughness,_translucency}.png',
   ],
   {

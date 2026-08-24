@@ -756,6 +756,10 @@ declare module '@seedthree/species/common-hornbeam-hedge.js' {
   export const commonHornbeamHedge: Record<string, unknown>;
 }
 
+declare module '@seedthree/species/stinging-nettle.js' {
+  export const stingingNettle: Record<string, unknown>;
+}
+
 declare module '@seedthree/species/index.js' {
   export const SPECIES: Record<string, Record<string, unknown>>;
   export const DEFAULT_SPECIES: string;

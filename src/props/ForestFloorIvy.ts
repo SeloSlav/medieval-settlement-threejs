@@ -1,9 +1,24 @@
 import * as THREE from 'three';
 import { applyGroundCoverShadowPolicy } from '@seedthree/core/ground-cover-shadows.js';
+import { setForestCardSnowCoverage } from '@seedthree/core/branch-cards.js';
+import {
+  attribute,
+  float,
+  mix,
+  normalWorldGeometry,
+  positionWorld,
+  sin,
+  smoothstep,
+  texture,
+  uniform,
+  vec3,
+  vec4,
+} from 'three/tsl';
 import {
   supportsNodeMaterials,
   type RendererBackendKind,
 } from '../scene/RendererBackend.ts';
+import { chainMaterialShaderPatch } from '../scene/materialShaderPatch.ts';
 import type { Terrain } from '../terrain/Terrain.ts';
 import { sampleTerrainMeshAttributeX } from '../terrain/TerrainMeshHeight.ts';
 import { mulberry32 } from '../utils/random.ts';
@@ -23,6 +38,59 @@ export const FOREST_FLOOR_IVY_TEXTURE_PATH =
   '/assets/textures/vegetation/forest-floor-ivy-card.png';
 export const FOREST_FLOOR_IVY_SEED = 0x1f1c0a7;
 export const FOREST_FLOOR_IVY_MIN_BLEND = 0.24;
+export const FOREST_FLOOR_IVY_SNOW_RGB = [0.92, 0.955, 0.98] as const;
+export const FOREST_FLOOR_IVY_SNOW_EXPOSURE_MIN = 0.2;
+export const FOREST_FLOOR_IVY_SNOW_EXPOSURE_MAX = 0.86;
+export const FOREST_FLOOR_IVY_SNOW_MAX_BLEND = 0.58;
+export const FOREST_FLOOR_IVY_SNOW_SSS_ATTENUATION = 0.82;
+
+type IvySnowNode = {
+  add: (value: unknown) => IvySnowNode;
+  mul: (value: unknown) => IvySnowNode;
+  sub: (value: unknown) => IvySnowNode;
+  a: IvySnowNode;
+  rgb: IvySnowNode;
+  x: IvySnowNode;
+  y: IvySnowNode;
+  z: IvySnowNode;
+};
+
+type IvySnowUniformNode = IvySnowNode & { value: number };
+
+type IvySnowNodeMaterial = THREE.Material & {
+  colorNode: IvySnowNode | null;
+  thicknessColorNode: IvySnowNode | null;
+};
+
+const ivySnowTsl = {
+  attribute: attribute as (name: string, type: string) => IvySnowNode,
+  float: float as (value: number) => IvySnowNode,
+  mix: mix as (a: unknown, b: unknown, amount: unknown) => IvySnowNode,
+  normalWorldGeometry: normalWorldGeometry as IvySnowNode,
+  positionWorld: positionWorld as IvySnowNode,
+  sin: sin as (value: unknown) => IvySnowNode,
+  smoothstep: smoothstep as (
+    edge0: unknown,
+    edge1: unknown,
+    value: unknown,
+  ) => IvySnowNode,
+  texture: texture as (source: THREE.Texture) => IvySnowNode,
+  uniform: uniform as (value: number) => IvySnowUniformNode,
+  vec3: vec3 as (x: unknown, y?: unknown, z?: unknown) => IvySnowNode,
+  vec4: vec4 as (x: unknown, y?: unknown, z?: unknown, w?: unknown) => IvySnowNode,
+};
+
+const FOREST_FLOOR_IVY_SNOW_WEBGL_CACHE_KEY =
+  'seedthree-forest-floor-ivy-snow-v1';
+const FOREST_FLOOR_IVY_SNOW_WEBGL_VERTEX_DECLARATIONS = `
+varying float vForestFloorIvySnowExposure;
+varying vec2 vForestFloorIvySnowWorldXZ;
+`;
+const FOREST_FLOOR_IVY_SNOW_WEBGL_FRAGMENT_DECLARATIONS = `
+uniform float uForestFloorIvySnowCoverage;
+varying float vForestFloorIvySnowExposure;
+varying vec2 vForestFloorIvySnowWorldXZ;
+`;
 
 /** Matches the authored texture's visible alpha bounds inside its 1254px source. */
 export const FOREST_FLOOR_IVY_UV_BOUNDS = {
@@ -304,10 +372,124 @@ export type ForestFloorIvyInstances = {
   placementVertexRangesByTree: ForestFloorIvyVertexRange[][];
   textures: SeedThreeGroundCoverTextures;
   stats: ForestFloorIvyStats;
+  setSnowCoverage: (coverage: number) => boolean;
   setTreeActive: (treeIndex: number, active: boolean) => boolean;
   commit: () => void;
   dispose: () => void;
 };
+
+function applyForestFloorIvyNodeSnow(
+  material: THREE.Material,
+  textures: SeedThreeGroundCoverTextures,
+): void {
+  const target = material as IvySnowNodeMaterial;
+  const snowCoverage = ivySnowTsl.uniform(0);
+  const albedo = ivySnowTsl.texture(textures.albedo);
+  const baseColor = albedo.mul(
+    ivySnowTsl.vec4(
+      ivySnowTsl.attribute('aTint', 'vec3'),
+      ivySnowTsl.float(1),
+    ),
+  );
+  const upwardExposure = ivySnowTsl.smoothstep(
+    ivySnowTsl.float(FOREST_FLOOR_IVY_SNOW_EXPOSURE_MIN),
+    ivySnowTsl.float(FOREST_FLOOR_IVY_SNOW_EXPOSURE_MAX),
+    ivySnowTsl.normalWorldGeometry.y,
+  );
+  const snowVariation = ivySnowTsl.sin(
+    ivySnowTsl.positionWorld.x
+      .mul(ivySnowTsl.float(0.81))
+      .add(ivySnowTsl.positionWorld.z.mul(ivySnowTsl.float(1.13))),
+  ).mul(ivySnowTsl.float(0.12)).add(ivySnowTsl.float(0.88));
+  const snowAmount = snowCoverage
+    .mul(upwardExposure)
+    .mul(snowVariation)
+    .mul(ivySnowTsl.float(FOREST_FLOOR_IVY_SNOW_MAX_BLEND));
+  const snowColor = ivySnowTsl.vec3(
+    FOREST_FLOOR_IVY_SNOW_RGB[0],
+    FOREST_FLOOR_IVY_SNOW_RGB[1],
+    FOREST_FLOOR_IVY_SNOW_RGB[2],
+  );
+
+  // Preserve the authored alpha cutout and immutable aTint coloration while
+  // changing only the visible leaf surface. Snow also mutes the same SSS path
+  // used by SeedThree evergreen cards so covered leaves do not glow green.
+  target.colorNode = ivySnowTsl.vec4(
+    ivySnowTsl.mix(baseColor.rgb, snowColor, snowAmount),
+    baseColor.a,
+  );
+  if (target.thicknessColorNode) {
+    target.thicknessColorNode = target.thicknessColorNode.mul(
+      ivySnowTsl.float(1).sub(
+        snowAmount.mul(ivySnowTsl.float(FOREST_FLOOR_IVY_SNOW_SSS_ATTENUATION)),
+      ),
+    );
+  }
+  material.userData.forestSnowCoverage = snowCoverage;
+}
+
+function applyForestFloorIvyWebGLSnow(material: THREE.Material): void {
+  const snowCoverage = new THREE.Uniform(0);
+  material.userData.forestSnowCoverage = snowCoverage;
+  chainMaterialShaderPatch(
+    material,
+    FOREST_FLOOR_IVY_SNOW_WEBGL_CACHE_KEY,
+    (shader) => {
+      shader.uniforms.uForestFloorIvySnowCoverage = snowCoverage;
+      shader.vertexShader = shader.vertexShader.replace(
+        '#include <common>',
+        `#include <common>\n${FOREST_FLOOR_IVY_SNOW_WEBGL_VERTEX_DECLARATIONS}`,
+      );
+      // The petiole-wind patch rotates objectNormal before this chunk. Reading
+      // it here keeps snow exposure coherent without replacing the wind hook.
+      shader.vertexShader = shader.vertexShader.replace(
+        '#include <defaultnormal_vertex>',
+        `#include <defaultnormal_vertex>
+vec3 forestFloorIvySnowWorldNormal = normalize( mat3( modelMatrix ) * objectNormal );
+vForestFloorIvySnowExposure = smoothstep(
+  ${FOREST_FLOOR_IVY_SNOW_EXPOSURE_MIN.toFixed(2)},
+  ${FOREST_FLOOR_IVY_SNOW_EXPOSURE_MAX.toFixed(2)},
+  forestFloorIvySnowWorldNormal.y
+);`,
+      );
+      shader.vertexShader = shader.vertexShader.replace(
+        '#include <project_vertex>',
+        `vForestFloorIvySnowWorldXZ = ( modelMatrix * vec4( transformed, 1.0 ) ).xz;
+#include <project_vertex>`,
+      );
+      shader.fragmentShader = shader.fragmentShader.replace(
+        '#include <common>',
+        `#include <common>\n${FOREST_FLOOR_IVY_SNOW_WEBGL_FRAGMENT_DECLARATIONS}`,
+      );
+      shader.fragmentShader = shader.fragmentShader.replace(
+        '#include <color_fragment>',
+        `#include <color_fragment>
+float forestFloorIvySnowVariation = sin(
+  vForestFloorIvySnowWorldXZ.x * 0.81
+  + vForestFloorIvySnowWorldXZ.y * 1.13
+) * 0.12 + 0.88;
+float forestFloorIvySnowAmount = clamp(
+  uForestFloorIvySnowCoverage
+  * vForestFloorIvySnowExposure
+  * forestFloorIvySnowVariation
+  * ${FOREST_FLOOR_IVY_SNOW_MAX_BLEND.toFixed(2)},
+  0.0,
+  1.0
+);
+diffuseColor.rgb = mix(
+  diffuseColor.rgb,
+  vec3(
+    ${FOREST_FLOOR_IVY_SNOW_RGB[0].toFixed(3)},
+    ${FOREST_FLOOR_IVY_SNOW_RGB[1].toFixed(3)},
+    ${FOREST_FLOOR_IVY_SNOW_RGB[2].toFixed(3)}
+  ),
+  forestFloorIvySnowAmount
+);`,
+      );
+    },
+  );
+  material.needsUpdate = true;
+}
 
 export function createForestFloorIvyMaterial(
   name: string,
@@ -325,12 +507,14 @@ export function createForestFloorIvyMaterial(
   );
   material.alphaTest = 0.31;
   if (supportsNodeMaterials(rendererBackend)) {
+    applyForestFloorIvyNodeSnow(material, textures);
     // The same rigid petiole rotation drives lighting as well as position;
     // otherwise close leaves visibly brighten/darken against a static normal.
     (material as THREE.Material & { normalNode: unknown }).normalNode =
       hingeWind.normalNode;
   } else {
     applyIvyLeafHingeWebGLWind(material);
+    applyForestFloorIvyWebGLSnow(material);
   }
   return material;
 }
@@ -421,6 +605,9 @@ export async function createForestFloorIvyInstances(
         0,
       ),
       seed,
+    },
+    setSnowCoverage(coverage: number): boolean {
+      return setForestCardSnowCoverage(material, coverage);
     },
     setTreeActive(treeIndex: number, active: boolean): boolean {
       if (treeActive[treeIndex] === active) return false;
