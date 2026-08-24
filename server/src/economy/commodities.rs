@@ -76,7 +76,7 @@ pub enum CommodityKind {
 /// Canonical exhaustive commodity iteration order. Systems that must prove a
 /// physical holder is empty (temporary camps, reclamation piles, diagnostics)
 /// use this list so adding a commodity cannot silently strand stock.
-pub const ALL_COMMODITIES: &[CommodityKind] = &[
+pub const ALL_COMMODITIES: &[CommodityKind; 63] = &[
     CommodityKind::Firewood,
     CommodityKind::Water,
     CommodityKind::Food,

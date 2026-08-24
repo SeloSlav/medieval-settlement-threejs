@@ -851,7 +851,7 @@ export class ResourceInspector {
       && this.selectedTarget?.kind === 'building'
       && this.selectedTarget.building.kind === 'town_hall'
     ) {
-      void this.options.onRotateConstructionLabor?.();
+      void this.options.onRotateConstructionLabor?.(this.selectedTarget.building.id);
       return;
     }
     if (
@@ -859,7 +859,7 @@ export class ResourceInspector {
       && this.selectedTarget?.kind === 'building'
       && this.selectedTarget.building.kind === 'town_hall'
     ) {
-      void this.options.onRecallIdleSeasonalLabor?.();
+      void this.options.onRecallIdleSeasonalLabor?.(this.selectedTarget.building.id);
       return;
     }
     if (
@@ -867,7 +867,7 @@ export class ResourceInspector {
       && this.selectedTarget?.kind === 'building'
       && this.selectedTarget.building.kind === 'town_hall'
     ) {
-      void this.options.onCallUpActiveSeasonalLabor?.();
+      void this.options.onCallUpActiveSeasonalLabor?.(this.selectedTarget.building.id);
       return;
     }
     if (
@@ -875,7 +875,7 @@ export class ResourceInspector {
       && this.selectedTarget?.kind === 'building'
       && this.selectedTarget.building.kind === 'town_hall'
     ) {
-      void this.options.onRecallTargetIdleProcessorLabor?.();
+      void this.options.onRecallTargetIdleProcessorLabor?.(this.selectedTarget.building.id);
       return;
     }
     if (
@@ -883,7 +883,7 @@ export class ResourceInspector {
       && this.selectedTarget?.kind === 'building'
       && this.selectedTarget.building.kind === 'town_hall'
     ) {
-      void this.options.onCallUpTargetReadyProcessorLabor?.();
+      void this.options.onCallUpTargetReadyProcessorLabor?.(this.selectedTarget.building.id);
       return;
     }
     if (
@@ -891,7 +891,7 @@ export class ResourceInspector {
       && this.selectedTarget?.kind === 'building'
       && this.selectedTarget.building.kind === 'town_hall'
     ) {
-      void this.options.onBalanceYearRoundLabor?.();
+      void this.options.onBalanceYearRoundLabor?.(this.selectedTarget.building.id);
       return;
     }
     if (this.selectedTarget?.kind === 'farm-field') {
@@ -1541,21 +1541,21 @@ export class ResourceInspector {
     }
 
     if (building.kind === 'town_hall' && input.matches('[data-policy-tax-rate]')) {
-      void this.options.onSetEconomicActivityTaxRate?.(Number(input.value) / 100);
+      void this.options.onSetEconomicActivityTaxRate?.(building.id, Number(input.value) / 100);
       return;
     }
     if (building.kind === 'town_hall' && input.matches('[data-pantry-safeguard-policy]')) {
       const value = Number(input.value);
       const policy: PantrySafeguardPolicyCode = value === 0 || value === 2 ? value : 1;
-      void this.options.onSetPantrySafeguardPolicy?.(policy);
+      void this.options.onSetPantrySafeguardPolicy?.(building.id, policy);
       return;
     }
     if (building.kind === 'town_hall' && input.matches('[data-policy-seasonal-labor-steward]')) {
-      void this.options.onSetSeasonalLaborSteward?.(input.checked);
+      void this.options.onSetSeasonalLaborSteward?.(building.id, input.checked);
       return;
     }
     if (building.kind === 'town_hall' && input.matches('[data-policy-construction-labor-steward]')) {
-      void this.options.onSetConstructionLaborSteward?.(input.checked);
+      void this.options.onSetConstructionLaborSteward?.(building.id, input.checked);
       return;
     }
     if (building.kind === 'town_hall' && input.matches('[data-policy-land-levy], [data-policy-import-duty], [data-policy-export-duty]')) {
@@ -1563,6 +1563,7 @@ export class ResourceInspector {
         this.supplementalPanelSection.querySelector<HTMLInputElement>(selector)?.value ?? 0,
       ) / 100;
       void this.options.onSetFiscalPolicy?.(
+        building.id,
         percent('[data-policy-land-levy]'),
         percent('[data-policy-import-duty]'),
         percent('[data-policy-export-duty]'),
@@ -1570,11 +1571,11 @@ export class ResourceInspector {
       return;
     }
     if (building.kind === 'town_hall' && input.matches('[data-policy-production-labor-steward]')) {
-      void this.options.onSetProductionLaborSteward?.(input.checked);
+      void this.options.onSetProductionLaborSteward?.(building.id, input.checked);
       return;
     }
     if (building.kind === 'town_hall' && input.matches('[data-policy-labor-steward-reserve]')) {
-      void this.options.onSetLaborStewardReserve?.(Number(input.value));
+      void this.options.onSetLaborStewardReserve?.(building.id, Number(input.value));
       return;
     }
     if (building.kind === 'town_hall' && input.matches('[data-night-policy]')) {
@@ -1585,6 +1586,7 @@ export class ResourceInspector {
         return value === 1 || value === 2 ? value : 0;
       };
       void this.options.onSetNightPolicies?.(
+        building.id,
         code('[data-night-policy-watch]'),
         code('[data-night-policy-gathering]'),
         code('[data-night-policy-work]'),
@@ -2081,6 +2083,21 @@ export class ResourceInspector {
           windWeatherThroughputMultiplier(productionEnvironment?.weather ?? 'fair'),
         )
       : undefined;
+    const targetSettlementId = target.kind === 'building'
+      ? target.building.settlementId
+      : target.kind === 'residence' || target.kind === 'backyard'
+        ? target.residence.settlementId
+        : target.kind === 'farm-field' || target.kind === 'pasture'
+          ? target.farmstead?.settlementId
+          : undefined;
+    const getEconomicActivityTaxRate = this.options.getEconomicActivityTaxRate;
+    const getPantrySafeguardPolicy = this.options.getPantrySafeguardPolicy;
+    const getSeasonalLaborStewardEnabled = this.options.getSeasonalLaborStewardEnabled;
+    const getConstructionLaborStewardEnabled = this.options.getConstructionLaborStewardEnabled;
+    const getFiscalPolicy = this.options.getFiscalPolicy;
+    const getProductionLaborStewardEnabled = this.options.getProductionLaborStewardEnabled;
+    const getLaborStewardReserve = this.options.getLaborStewardReserve;
+    const getNightPolicy = this.options.getNightPolicy;
     const view = renderInspectableTarget(target, {
       gameState,
       worldQueries: this.options.worldQueries,
@@ -2098,26 +2115,26 @@ export class ResourceInspector {
         ? { getWorksiteCommuteSummary: this.options.getWorksiteCommuteSummary }
         : {}),
       ...(settlementProduction ? { settlementProduction } : {}),
-      ...(this.options.getEconomicActivityTaxRate
-        ? { getEconomicActivityTaxRate: this.options.getEconomicActivityTaxRate }
+      ...(getEconomicActivityTaxRate
+        ? { getEconomicActivityTaxRate: () => getEconomicActivityTaxRate(targetSettlementId) }
         : {}),
-      ...(this.options.getPantrySafeguardPolicy
-        ? { getPantrySafeguardPolicy: this.options.getPantrySafeguardPolicy }
+      ...(getPantrySafeguardPolicy
+        ? { getPantrySafeguardPolicy: () => getPantrySafeguardPolicy(targetSettlementId) }
         : {}),
-      ...(this.options.getSeasonalLaborStewardEnabled
-        ? { getSeasonalLaborStewardEnabled: this.options.getSeasonalLaborStewardEnabled }
+      ...(getSeasonalLaborStewardEnabled
+        ? { getSeasonalLaborStewardEnabled: () => getSeasonalLaborStewardEnabled(targetSettlementId) }
         : {}),
-      ...(this.options.getConstructionLaborStewardEnabled
-        ? { getConstructionLaborStewardEnabled: this.options.getConstructionLaborStewardEnabled }
+      ...(getConstructionLaborStewardEnabled
+        ? { getConstructionLaborStewardEnabled: () => getConstructionLaborStewardEnabled(targetSettlementId) }
         : {}),
-      ...(this.options.getFiscalPolicy
-        ? { getFiscalPolicy: this.options.getFiscalPolicy }
+      ...(getFiscalPolicy
+        ? { getFiscalPolicy: () => getFiscalPolicy(targetSettlementId) }
         : {}),
-      ...(this.options.getProductionLaborStewardEnabled
-        ? { getProductionLaborStewardEnabled: this.options.getProductionLaborStewardEnabled }
+      ...(getProductionLaborStewardEnabled
+        ? { getProductionLaborStewardEnabled: () => getProductionLaborStewardEnabled(targetSettlementId) }
         : {}),
-      ...(this.options.getLaborStewardReserve
-        ? { getLaborStewardReserve: this.options.getLaborStewardReserve }
+      ...(getLaborStewardReserve
+        ? { getLaborStewardReserve: () => getLaborStewardReserve(targetSettlementId) }
         : {}),
       ...(this.options.getParishPolicy
         ? { getParishPolicy: this.options.getParishPolicy }
@@ -2125,8 +2142,8 @@ export class ResourceInspector {
       ...(this.options.getMonasteryPolicy
         ? { getMonasteryPolicy: this.options.getMonasteryPolicy }
         : {}),
-      ...(this.options.getNightPolicy
-        ? { getNightPolicy: this.options.getNightPolicy }
+      ...(getNightPolicy
+        ? { getNightPolicy: () => getNightPolicy(targetSettlementId) }
         : {}),
       getTradeAvailability: (marketplace) => computeMarketplaceTradeAvailability(
         this.options.getState(),

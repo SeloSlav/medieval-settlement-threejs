@@ -171,4 +171,5 @@ export default __t.row({
   treeWorkAreaX: __t.f64().name("tree_work_area_x"),
   treeWorkAreaZ: __t.f64().name("tree_work_area_z"),
   treeWorkAreaRadius: __t.f64().name("tree_work_area_radius"),
+  settlementId: __t.u64().name("settlement_id"),
 });

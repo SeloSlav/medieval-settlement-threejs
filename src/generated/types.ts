@@ -206,6 +206,7 @@ export const Building = __t.object("Building", {
   treeWorkAreaX: __t.f64(),
   treeWorkAreaZ: __t.f64(),
   treeWorkAreaRadius: __t.f64(),
+  settlementId: __t.u64(),
 });
 export type Building = __Infer<typeof Building>;
 
@@ -222,6 +223,7 @@ export const BurgageZone = __t.object("BurgageZone", {
   cornerDz: __t.f64(),
   frontageEdge: __t.u8(),
   plotCount: __t.u32(),
+  settlementId: __t.u64(),
 });
 export type BurgageZone = __Infer<typeof BurgageZone>;
 
@@ -692,6 +694,7 @@ export const Residence = __t.object("Residence", {
   beetroot: __t.f64(),
   aroniaJam: __t.f64(),
   rosehipJam: __t.f64(),
+  settlementId: __t.u64(),
 });
 export type Residence = __Infer<typeof Residence>;
 
@@ -715,6 +718,53 @@ export const RoadNetworkState = __t.object("RoadNetworkState", {
   snapshotJson: __t.string(),
 });
 export type RoadNetworkState = __Infer<typeof RoadNetworkState>;
+
+export const Settlement = __t.object("Settlement", {
+  id: __t.u64(),
+  owner: __t.identity(),
+  name: __t.string(),
+  anchorX: __t.f64(),
+  anchorZ: __t.f64(),
+  foundingCampId: __t.u64(),
+  founderPopulation: __t.u32(),
+  unhousedFounders: __t.u32(),
+  active: __t.bool(),
+  townHallId: __t.u64(),
+  createdTick: __t.u64(),
+  economicActivityTaxRate: __t.f64(),
+  pantrySafeguardPolicy: __t.u8(),
+  landLevyRate: __t.f64(),
+  importDutyRate: __t.f64(),
+  exportDutyRate: __t.f64(),
+  seasonalLaborStewardEnabled: __t.bool(),
+  constructionLaborStewardEnabled: __t.bool(),
+  productionLaborStewardEnabled: __t.bool(),
+  laborStewardReserve: __t.u32(),
+  nightWatchPolicy: __t.u8(),
+  nightGatheringPolicy: __t.u8(),
+  nightWorkPolicy: __t.u8(),
+  nightLightingPolicy: __t.u8(),
+  nightCurfewPolicy: __t.u8(),
+  landLevyAssessedTotal: __t.f64(),
+  landLevyCollectedTotal: __t.f64(),
+  importDutyCollectedTotal: __t.f64(),
+  exportDutyCollectedTotal: __t.f64(),
+  lastNightReportDay: __t.u64(),
+  lastNightHouseholds: __t.u32(),
+  lastNightWellRestedHouseholds: __t.u32(),
+  lastNightColdHouseholds: __t.u32(),
+  lastNightSocialHouseholds: __t.u32(),
+  lastNightWorkers: __t.u32(),
+  lastNightWatchStrength: __t.f64(),
+  lastNightIncidents: __t.u32(),
+  lastNightTheftGold: __t.f64(),
+  lastNightWildlifeSightings: __t.u32(),
+  lastNightLightingFuelUsed: __t.f64(),
+  lastNightLightingFuelShortfall: __t.f64(),
+  nightCommunityCohesion: __t.f64(),
+  nightLaborFatigue: __t.f64(),
+});
+export type Settlement = __Infer<typeof Settlement>;
 
 export const SettlementSecurity = __t.object("SettlementSecurity", {
   owner: __t.identity(),

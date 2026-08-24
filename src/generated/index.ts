@@ -160,6 +160,7 @@ import ResidenceRow from "./residence_table";
 import ResidenceNeedRow from "./residence_need_table";
 import ResourceUnitMigrationRow from "./resource_unit_migration_table";
 import RoadNetworkStateRow from "./road_network_state_table";
+import SettlementRow from "./settlement_table";
 import SettlementSecurityRow from "./settlement_security_table";
 import SimPacingStateRow from "./sim_pacing_state_table";
 import SimTickScheduleRow from "./sim_tick_schedule_table";
@@ -223,6 +224,9 @@ const tablesSchema = __schema({
       { name: 'owner', algorithm: 'btree', columns: [
         'owner',
       ] },
+      { name: 'settlement_id', algorithm: 'btree', columns: [
+        'settlementId',
+      ] },
     ],
     constraints: [
       { name: 'building_id_key', constraint: 'unique', columns: ['id'] },
@@ -236,6 +240,9 @@ const tablesSchema = __schema({
       ] },
       { name: 'owner', algorithm: 'btree', columns: [
         'owner',
+      ] },
+      { name: 'settlement_id', algorithm: 'btree', columns: [
+        'settlementId',
       ] },
     ],
     constraints: [
@@ -471,6 +478,9 @@ const tablesSchema = __schema({
       { name: 'owner', algorithm: 'btree', columns: [
         'owner',
       ] },
+      { name: 'settlement_id', algorithm: 'btree', columns: [
+        'settlementId',
+      ] },
       { name: 'zone_id', algorithm: 'btree', columns: [
         'zoneId',
       ] },
@@ -515,6 +525,20 @@ const tablesSchema = __schema({
       { name: 'road_network_state_owner_key', constraint: 'unique', columns: ['owner'] },
     ],
   }, RoadNetworkStateRow),
+  settlement: __table({
+    name: 'settlement',
+    indexes: [
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+      { name: 'owner', algorithm: 'btree', columns: [
+        'owner',
+      ] },
+    ],
+    constraints: [
+      { name: 'settlement_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, SettlementRow),
   settlement_security: __table({
     name: 'settlement_security',
     indexes: [

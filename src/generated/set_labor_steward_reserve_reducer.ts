@@ -11,5 +11,6 @@ import {
 } from "spacetimedb";
 
 export default {
+  townHallId: __t.u64(),
   laborReserve: __t.u32(),
 };

@@ -12,9 +12,10 @@ use crate::roads::{load_owner_road_network, RoadNetwork};
 use crate::tables::{Building, PlayerResources, Settlement};
 
 const EPSILON: f64 = 1e-6;
-/// New residential frontage must remain within a practical walk/road catchment
-/// of an existing community source. Occupied homes then extend that catchment
-/// organically; a distant cluster needs its own Founders' Camp seed.
+/// New residential frontage must remain within a practical travel-time
+/// catchment of an existing community source: 260 m by road, with open ground
+/// scaled by the authored off-road speed. Occupied homes then extend that
+/// catchment organically; a distant cluster needs its own Founders' Camp seed.
 pub const RESIDENTIAL_SETTLEMENT_REACH: f64 = 260.0;
 
 fn direct_distance(ax: f64, az: f64, bx: f64, bz: f64) -> f64 {

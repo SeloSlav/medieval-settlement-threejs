@@ -85,4 +85,5 @@ export default __t.row({
   beetroot: __t.f64(),
   aroniaJam: __t.f64().name("aronia_jam"),
   rosehipJam: __t.f64().name("rosehip_jam"),
+  settlementId: __t.u64().name("settlement_id"),
 });

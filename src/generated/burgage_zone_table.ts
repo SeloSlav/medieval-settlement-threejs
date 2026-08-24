@@ -23,4 +23,5 @@ export default __t.row({
   cornerDz: __t.f64().name("corner_dz"),
   frontageEdge: __t.u8().name("frontage_edge"),
   plotCount: __t.u32().name("plot_count"),
+  settlementId: __t.u64().name("settlement_id"),
 });

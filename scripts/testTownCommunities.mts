@@ -48,6 +48,7 @@ assert.match(
 const foundingSite = source('server/src/simulation/founding_site.rs');
 const population = source('server/src/economy/population.rs');
 const residenceSettlement = source('server/src/simulation/residence_settlement.rs');
+const residenceReducer = source('server/src/reducers/residences.rs');
 const settlementAuthority = source('server/src/settlements.rs');
 assert.match(
   foundingSite,
@@ -70,8 +71,18 @@ assert.doesNotMatch(
   'an empty camp must retire from physical state, not wait on blanket civic-building prerequisites',
 );
 assert.match(
+  foundingSite,
+  /fn founding_camp_has_active_trip[\s\S]{0,1000}\.building_id\(\)[\s\S]{0,1000}\.target_building_id\(\)[\s\S]{0,1000}\.labor_building_id\(\)/,
+  'camp retirement must wait for origin, destination, and labor-linked carts so deleting the yard cannot orphan a trip',
+);
+assert.match(
+  foundingSite,
+  /ALL_COMMODITIES[\s\S]*fn has_portable_stock[\s\S]{0,500}ALL_COMMODITIES/,
+  'both relocation and final emptiness must share the canonical all-commodity catalog',
+);
+assert.match(
   population,
-  /unhoused_founders/,
+  /owner_unhoused_founders\(ctx, owner\)[\s\S]{0,260}saturating_add\(founding_cohorts\)/,
   'realm population must sum each still-homeless founding cohort',
 );
 assert.match(
@@ -80,9 +91,24 @@ assert.match(
   'a home must consume founders only from its own community before attracting a new migrant',
 );
 assert.match(
+  residenceSettlement,
+  /settlement\.active[\s\S]{0,220}return;/,
+  'cottages laid out for a planned town must stay empty until that expedition actually arrives',
+);
+assert.match(
+  residenceReducer,
+  /residential_settlement_for_position[\s\S]{0,260}Place a Founders' Camp before laying out homes here/,
+  'distant housing must not silently claim founders from another town',
+);
+assert.match(
   settlementAuthority,
   /fn take_unhoused_founder[\s\S]{0,900}settlement\.unhoused_founders -= 1/,
   'the same-community founder claim must atomically reduce that cohort',
+);
+assert.match(
+  settlementAuthority,
+  /fn residential_settlement_for_position[\s\S]{0,500}RESIDENTIAL_SETTLEMENT_REACH/,
+  'residential community claims need a bounded travel-reach test rather than nearest-town ownership across the whole map',
 );
 
 const buildingReducer = source('server/src/reducers/buildings.rs');
@@ -196,11 +222,22 @@ assert.doesNotMatch(
 );
 
 const localReport = source('src/resources/settlementResourceReport.ts');
+const townReportPanel = source('src/ui/TownReportPanel.ts');
+const worldMapIcons = source('src/app/worldMapIcons.ts');
 assert.match(localReport, /export function computeSettlementResourceReport/);
 assert.doesNotMatch(
   localReport,
   /state\.(?:buildings|residences|deliveryTrips)\.(?:set|delete|clear)\(/,
   'town resource views are read-only reports over one integrated physical economy',
+);
+assert.match(townReportPanel, /computeSettlementResourceReport/);
+assert.match(townReportPanel, /one realm economy/);
+assert.match(townReportPanel, /Not a separate town wallet/);
+assert.match(townReportPanel, /bound for off-map trade/);
+assert.match(
+  worldMapIcons,
+  /TownReportPanel[\s\S]*settlementId[\s\S]*townReport\.open/,
+  'map community markers must open the local whereabouts report rather than switch the global HUD wallet',
 );
 const { computeSettlementResourceReport } = await import(
   '../src/resources/settlementResourceReport.ts'
@@ -350,12 +387,18 @@ assert.equal(westReport.offMapTradeTrips, 0);
 const overlayPreference = source('src/scene/mapOverlayPreference.ts');
 const toolbar = source('src/ui/BuildToolbar.ts');
 const sceneManager = source('src/scene/SceneManager.ts');
+const snapshotApplier = source('src/app/spacetimeSnapshotApplier.ts');
 const communityOverlay = source('src/settlement/CommunityReachOverlay.ts');
 const communityRaster = source('src/settlement/CommunityReachRaster.ts');
 assert.match(overlayPreference, /'communities'/);
 assert.match(toolbar, /data-overlay-mode="communities"/);
 assert.match(sceneManager, /CommunityReachOverlay/);
 assert.match(sceneManager, /mode === 'communities'/);
+assert.match(
+  snapshotApplier,
+  /settlementsChanged \|\| buildingsChanged \|\| residencesChanged[\s\S]{0,300}syncCommunityReach\([\s\S]{0,180}state\.settlements[\s\S]{0,180}state\.buildings[\s\S]{0,180}state\.residences/,
+  'community reach must refresh when any authoritative influence layer changes',
+);
 assert.match(communityOverlay, /rasterizeCommunityReach/);
 assert.match(communityRaster, /SettlementState/);
 assert.match(communityRaster, /ResidenceState/);

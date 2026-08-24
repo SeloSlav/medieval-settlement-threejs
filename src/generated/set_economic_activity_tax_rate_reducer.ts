@@ -11,5 +11,6 @@ import {
 } from "spacetimedb";
 
 export default {
+  townHallId: __t.u64(),
   taxRate: __t.f64(),
 };
