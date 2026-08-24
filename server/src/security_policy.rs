@@ -584,6 +584,13 @@ pub fn raid_holding_vulnerability(construction_complete: bool, portable_value: f
     }
 }
 
+/// The one-time settlement bootstrap must never become an incursion target.
+/// Keeping this as an explicit invariant prevents balance changes or newly
+/// added portable commodities from making the founding camp raidable.
+pub fn raid_immune_building_kind(kind: &str) -> bool {
+    kind == "founders_camp"
+}
+
 /// Only treasury timber not already promised to active construction can be
 /// carried away. Reservations remain backed so a raid cannot leave a site
 /// permanently waiting for material the authoritative queue still claims.
@@ -1100,6 +1107,12 @@ mod tests {
         assert_eq!(raid_holding_vulnerability(false, 0.0), 0.0);
         assert_eq!(raid_holding_vulnerability(false, 30.0), 1.0);
         assert_eq!(raid_holding_vulnerability(false, f64::NAN), 0.0);
+    }
+
+    #[test]
+    fn founding_bootstrap_is_raid_immune() {
+        assert!(raid_immune_building_kind("founders_camp"));
+        assert!(!raid_immune_building_kind("village_storehouse"));
     }
 
     #[test]

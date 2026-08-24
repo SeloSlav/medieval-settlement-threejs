@@ -43,6 +43,7 @@ use crate::raid_agent_policy::{
 use crate::residence_upgrade_policy::residence_project_active;
 use crate::roads::{RoadNetwork, RoadPathRoute};
 use crate::season_policy::environment_for;
+use crate::security_policy::raid_immune_building_kind;
 use crate::simulation::delivery_cargo::{
     building_delivery_stock, pick_delivery_target, residence_delivery_room,
     selected_food_delivery_commodity, withdraw_delivery_cargo, DeliveryCargoTotals,
@@ -2539,7 +2540,17 @@ fn unload_need_to_residence(
 }
 
 fn finish_inbound_trip(ctx: &ReducerContext, trip: DeliveryTrip, sim_tick: u64) {
-    let cart_raid_value = delivery_trip_portable_stores(&trip).raid_value();
+    let cart_raid_value = if ctx
+        .db
+        .building()
+        .id()
+        .find(&trip.building_id)
+        .is_some_and(|building| raid_immune_building_kind(&building.kind))
+    {
+        0.0
+    } else {
+        delivery_trip_portable_stores(&trip).raid_value()
+    };
     return_trip_cargo_to_building(ctx, &trip);
     hand_off_arriving_cart_pursuit(ctx, &trip, cart_raid_value, sim_tick);
     ctx.db.delivery_trip().id().delete(trip.id);

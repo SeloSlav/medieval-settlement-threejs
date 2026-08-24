@@ -331,6 +331,23 @@ test('connects, places a reforester, and updates settlement HUD timber', async (
     /heated homes need twice their normal fuel/,
   ]);
   await expect(tooltip.locator('.ui-tooltip__season-description').nth(1)).not.toContainText(/drought/i);
+  const tooltipLifecycleFixture = page.locator('[data-e2e-tooltip-lifecycle]');
+  await page.locator('[data-ui-root]').evaluate((uiRoot) => {
+    const host = document.createElement('div');
+    host.dataset.e2eTooltipLifecycle = '';
+    host.style.cssText = 'position: fixed; left: 20px; bottom: 20px; z-index: 10000;';
+    host.innerHTML = '<button type="button" data-tooltip-title="Lifecycle" data-tooltip="Temporary building detail">Hover detail</button>';
+    uiRoot.appendChild(host);
+  });
+  await tooltipLifecycleFixture.getByRole('button').hover();
+  await expect(tooltip.locator('.ui-tooltip__title')).toHaveText('Lifecycle');
+  await tooltipLifecycleFixture.evaluate((host) => { host.hidden = true; });
+  await expect(tooltip).toBeHidden();
+  await tooltipLifecycleFixture.evaluate((host) => { host.hidden = false; });
+  await tooltipLifecycleFixture.getByRole('button').hover();
+  await expect(tooltip).toBeVisible();
+  await tooltipLifecycleFixture.evaluate((host) => host.remove());
+  await expect(tooltip).toBeHidden();
   await expect(totalsMode).toHaveAttribute(
     'aria-label',
     'Showing surplus goods. Show total goods stored.',

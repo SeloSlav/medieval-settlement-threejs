@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use spacetimedb::ReducerContext;
 
 use crate::balance_generated::{
@@ -17,10 +19,12 @@ use crate::economy::{
 use crate::season_policy::EnvironmentState;
 use crate::tables::{Building, DeliveryTrip, PlayerResources};
 
-/// Fresh and cured food decay everywhere they can be held. Salted and smoked
-/// provisions last far longer, but remain finite; cool, purpose-built stores
-/// slow their quality loss. Grain, flour, honey, wine, and ale are deliberately
-/// excluded.
+/// Fresh and cured food decay everywhere they can ordinarily be held. The
+/// founding camp and cargo dispatched from it are a protected bootstrap
+/// exception so weather cannot erase the player's starting path. Salted and
+/// smoked provisions otherwise last far longer, but remain finite; cool,
+/// purpose-built stores slow their quality loss. Grain, flour, honey, wine,
+/// and ale are deliberately excluded.
 pub fn step_fresh_food_spoilage(ctx: &ReducerContext, environment: EnvironmentState) {
     let fresh_rate = environment.fresh_food_spoilage_fraction_per_second();
     let preserved_rate = environment.preserved_food_spoilage_fraction_per_second();
@@ -28,7 +32,18 @@ pub fn step_fresh_food_spoilage(ctx: &ReducerContext, environment: EnvironmentSt
         return;
     }
 
+    let weather_immune_building_ids = ctx
+        .db
+        .building()
+        .iter()
+        .filter(|building| building.kind == "founders_camp")
+        .map(|building| building.id)
+        .collect::<HashSet<_>>();
+
     for mut building in ctx.db.building().iter().collect::<Vec<Building>>() {
+        if weather_immune_building_ids.contains(&building.id) {
+            continue;
+        }
         if building_fresh_food_stock(&building) <= 1e-9
             && building_preserved_food_stock(&building) <= 1e-9
         {
@@ -77,8 +92,9 @@ pub fn step_fresh_food_spoilage(ctx: &ReducerContext, environment: EnvironmentSt
         .delivery_trip()
         .iter()
         .filter(|trip| {
-            CommodityKind::from_u8(trip.cargo_kind)
-                .is_some_and(|kind| kind.is_fresh_food() || kind.is_preserved_food())
+            !weather_immune_building_ids.contains(&trip.building_id)
+                && CommodityKind::from_u8(trip.cargo_kind)
+                    .is_some_and(|kind| kind.is_fresh_food() || kind.is_preserved_food())
                 && trip.amount > 1e-9
         })
         .collect::<Vec<DeliveryTrip>>()

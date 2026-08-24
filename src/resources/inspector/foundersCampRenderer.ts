@@ -226,7 +226,7 @@ export function renderFoundersCampInspector(
     detailsHtml: `
       <li><span>Founding households</span><span>${STARTING_POPULATION} people · ${context.populationStats.housed} rehoused</span></li>
       <li><span>Shelter lifecycle</span><span>${shelterActive ? 'Tents clear after all founders have residence places' : 'All founders rehoused'}</span></li>
-      <li><span>Founding safeguard</span><span>The one-time camp cannot burn or be demolished; portable goods remain exposed to later raids</span></li>
+      <li data-inspector-state="positive"><span>Founding safeguard</span><span>Immune to fire, weather, and raids · cannot be demolished</span></li>
       <li><span>Construction supply</span><span>Free workers carry reserved loads by handcart; the founding stockyard can begin off-road</span></li>
       <li><span>Permanent storage</span><span>${permanentStorageStatus(relocationPlan, activeTrip, context)}</span></li>
       <li><span>Clearance order</span><span>${shelterActive ? 'Starter food moves before bulk fuel; other committed stores remain until every founder is housed' : 'Construction materials move first; provisions, drink, textiles, armaments, and water follow to compatible permanent stores'}</span></li>

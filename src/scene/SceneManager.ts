@@ -373,7 +373,12 @@ export class SceneManager {
     );
     this.precipitation = new PrecipitationRenderer(this.camera, this.scene);
     this.addLighting();
-    this.postProcessor = createPostProcessor(backend, this.scene, this.camera);
+    this.postProcessor = createPostProcessor(
+      backend,
+      this.scene,
+      this.camera,
+      this.illustratedMap.scene,
+    );
     this.unsubscribeShadowPreferences = subscribeShadowPreferences(() => this.applyShadowPreferences());
     this.applyShadowPreferences();
   }
@@ -901,7 +906,7 @@ export class SceneManager {
       // The plane follows only the target's elevation. Its X/Z transform stays
       // fixed to world coordinates, preserving pan and orbit semantics.
       this.illustratedMap.setElevation(this.cameraTarget.y);
-      this.renderer.render(this.illustratedMap.scene, this.camera);
+      this.postProcessor.renderIllustratedMap();
       this.completedRenderFrames++;
       this.lastRendererFrameStats = readRendererFrameStats(
         rendererInfo,

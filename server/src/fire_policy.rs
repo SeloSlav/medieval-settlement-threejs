@@ -61,9 +61,12 @@ pub fn weather_risk_multiplier(is_raining: bool, is_drought: bool) -> f64 {
 }
 
 /// Structural ignition policy shared by accident, lightning, spread, and raid
-/// arson. Goods stored at a fire-safe holding can still be lost through the
-/// raid economy; this controls only whether the structure can burn.
+/// arson. The founding camp is an invariant bootstrap safeguard rather than a
+/// balance-tunable fire risk.
 pub fn building_base_flammability(kind: &str) -> f64 {
+    if kind == "founders_camp" {
+        return 0.0;
+    }
     fire_building_base_flammability(kind)
 }
 

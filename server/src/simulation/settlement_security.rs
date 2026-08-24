@@ -15,11 +15,11 @@ use crate::season_policy::EnvironmentState;
 use crate::security_policy::{
     assign_refuge_households, guardhouse_muster_efficiency, is_raid_season,
     raid_contact_loss_fraction, raid_district_forecast, raid_holding_vulnerability,
-    raid_target_can_shelter, raid_target_count, raid_warning_detection, raidable_treasury_timber,
-    scheduled_raid_ticks, select_guardhouse_muster_watch, select_raid_targets, threat_progress,
-    tower_effective_radius, RaidPortableStores, RaidTargetCandidate, RaidTargetDefenseCandidate,
-    RaidTargetKind, RefugeHouseholdCandidate, WatchArea, WatchCoverageIndex,
-    MIN_FRONTIER_POPULATION, SECURITY_UPDATE_INTERVAL_TICKS,
+    raid_immune_building_kind, raid_target_can_shelter, raid_target_count, raid_warning_detection,
+    raidable_treasury_timber, scheduled_raid_ticks, select_guardhouse_muster_watch,
+    select_raid_targets, threat_progress, tower_effective_radius, RaidPortableStores,
+    RaidTargetCandidate, RaidTargetDefenseCandidate, RaidTargetKind, RefugeHouseholdCandidate,
+    WatchArea, WatchCoverageIndex, MIN_FRONTIER_POPULATION, SECURITY_UPDATE_INTERVAL_TICKS,
 };
 use crate::tables::{
     settlement_security, Building, DeliveryTrip, PlayerResources, Residence, SettlementSecurity,
@@ -545,12 +545,16 @@ fn settlement_exposure(
         .filter(|building| building.kind == "palisaded_refuge")
         .map(|building| (building.id, (building.x, building.z)))
         .collect::<HashMap<_, _>>();
+    let raid_immune_building_ids = buildings
+        .iter()
+        .filter(|building| raid_immune_building_kind(&building.kind))
+        .map(|building| building.id)
+        .collect::<HashSet<_>>();
     let mut raid_targets =
         Vec::with_capacity(buildings.len() + residences.len() + delivery_trips.len() + 1);
-    for building in buildings
-        .iter()
-        .filter(|building| building.kind != "watchtower")
-    {
+    for building in buildings.iter().filter(|building| {
+        building.kind != "watchtower" && !raid_immune_building_kind(&building.kind)
+    }) {
         let portable_value = building_portable_value(
             building,
             issued_guard_polearms
@@ -619,6 +623,9 @@ fn settlement_exposure(
     // Moving cargo therefore cannot be used as a raid-proof inventory slot,
     // while staffed watches still protect compact logistics corridors.
     for trip in delivery_trips {
+        if raid_immune_building_ids.contains(&trip.building_id) {
+            continue;
+        }
         let portable_value = delivery_trip_portable_stores(trip).raid_value();
         if portable_value <= 1e-9 {
             continue;
@@ -669,6 +676,9 @@ fn settlement_exposure(
 }
 
 fn building_portable_value(building: &Building, issued_polearms: f64) -> f64 {
+    if raid_immune_building_kind(&building.kind) {
+        return 0.0;
+    }
     building_portable_stores_at_site(building, issued_polearms).raid_value()
 }
 
@@ -771,7 +781,7 @@ pub(super) fn plunder_raid_target_at_contact(
             let Some(mut building) = ctx.db.building().id().find(&target_id) else {
                 return ContactRaidPlunder::default();
             };
-            if building.owner != owner {
+            if building.owner != owner || raid_immune_building_kind(&building.kind) {
                 return ContactRaidPlunder::default();
             }
             let issued = issued_guard_polearms_by_building(ctx, owner)
@@ -825,6 +835,15 @@ pub(super) fn plunder_raid_target_at_contact(
                 return ContactRaidPlunder::default();
             };
             if trip.owner != owner {
+                return ContactRaidPlunder::default();
+            }
+            if ctx
+                .db
+                .building()
+                .id()
+                .find(&trip.building_id)
+                .is_some_and(|building| raid_immune_building_kind(&building.kind))
+            {
                 return ContactRaidPlunder::default();
             }
             let before = delivery_trip_portable_stores(&trip);

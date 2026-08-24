@@ -43,8 +43,16 @@ export function mountTooltips(root: HTMLElement): () => void {
     if (!activeAnchor) return;
     refresh(activeAnchor);
   });
+  const activeContextObserver = new MutationObserver(() => {
+    if (!activeAnchor) return;
+    if (!isTooltipAnchorAvailable(activeAnchor, root)) hide();
+  });
 
   const refresh = (anchor: HTMLElement): void => {
+    if (!isTooltipAnchorAvailable(anchor, root)) {
+      hide();
+      return;
+    }
     const text = anchor.dataset.tooltip?.trim();
     if (!text) {
       hide();
@@ -57,6 +65,7 @@ export function mountTooltips(root: HTMLElement): () => void {
   const hide = (): void => {
     showToken += 1;
     activeAnchorObserver.disconnect();
+    activeContextObserver.disconnect();
     if (activeAnchor?.getAttribute('aria-describedby') === tooltip.id) {
       activeAnchor.removeAttribute('aria-describedby');
     }
@@ -67,6 +76,7 @@ export function mountTooltips(root: HTMLElement): () => void {
   };
 
   const show = (anchor: HTMLElement): void => {
+    if (!isTooltipAnchorAvailable(anchor, root)) return;
     const text = anchor.dataset.tooltip?.trim();
     if (!text) return;
 
@@ -91,6 +101,13 @@ export function mountTooltips(root: HTMLElement): () => void {
         'data-tooltip-variant',
         'data-tooltip-season',
       ],
+    });
+    activeContextObserver.disconnect();
+    activeContextObserver.observe(root, {
+      attributes: true,
+      attributeFilter: ['aria-hidden', 'class', 'hidden', 'inert', 'style'],
+      childList: true,
+      subtree: true,
     });
     const token = showToken + 1;
     showToken = token;
@@ -133,8 +150,23 @@ export function mountTooltips(root: HTMLElement): () => void {
     hide();
   };
 
+  const onDocumentMouseOver = (event: MouseEvent): void => {
+    if (!activeAnchor) return;
+    const target = event.target;
+    if (target instanceof Node && activeAnchor.contains(target)) return;
+    hide();
+  };
+
+  const onDocumentVisibilityChange = (): void => {
+    if (document.hidden) hide();
+  };
+
   const onReposition = (): void => {
     if (!activeAnchor) return;
+    if (!isTooltipAnchorAvailable(activeAnchor, root)) {
+      hide();
+      return;
+    }
     positionTooltip(activeAnchor, tooltip);
   };
 
@@ -143,6 +175,9 @@ export function mountTooltips(root: HTMLElement): () => void {
   root.addEventListener('focusin', onFocusIn);
   root.addEventListener('focusout', onFocusOut);
   root.addEventListener(UI_TOOLTIP_REPOSITION_EVENT, onReposition);
+  document.addEventListener('mouseover', onDocumentMouseOver, true);
+  document.addEventListener('visibilitychange', onDocumentVisibilityChange);
+  window.addEventListener('blur', hide);
   window.addEventListener('resize', onReposition);
   window.addEventListener('scroll', onReposition, true);
 
@@ -154,6 +189,9 @@ export function mountTooltips(root: HTMLElement): () => void {
     root.removeEventListener('focusin', onFocusIn);
     root.removeEventListener('focusout', onFocusOut);
     root.removeEventListener(UI_TOOLTIP_REPOSITION_EVENT, onReposition);
+    document.removeEventListener('mouseover', onDocumentMouseOver, true);
+    document.removeEventListener('visibilitychange', onDocumentVisibilityChange);
+    window.removeEventListener('blur', hide);
     window.removeEventListener('resize', onReposition);
     window.removeEventListener('scroll', onReposition, true);
   };
@@ -527,6 +565,15 @@ function findTooltipAnchor(target: EventTarget | null): HTMLElement | null {
   const element = target as HTMLElement | null;
   if (!element?.closest) return null;
   return element.closest<HTMLElement>('[data-tooltip]');
+}
+
+function isTooltipAnchorAvailable(anchor: HTMLElement, root: HTMLElement): boolean {
+  if (!anchor.isConnected || !root.contains(anchor)) return false;
+  if (anchor.closest('[hidden], [inert]')) return false;
+  const visibility = getComputedStyle(anchor).visibility;
+  return visibility !== 'hidden'
+    && visibility !== 'collapse'
+    && anchor.getClientRects().length > 0;
 }
 
 function positionTooltip(anchor: HTMLElement, tooltip: HTMLElement): void {

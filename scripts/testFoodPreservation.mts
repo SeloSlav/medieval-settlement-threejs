@@ -68,6 +68,7 @@ assert.deepEqual(preservation.granaryNetwork, {
   stockAboveTarget: 0,
 });
 assert.equal(buildingFreshFoodStorageFactor('granary'), FRESH_FOOD_STORAGE_GRANARY_FACTOR);
+assert.equal(buildingFreshFoodStorageFactor('founders_camp'), 0);
 assert.ok(
   buildingFreshFoodStorageFactor('granary') < buildingFreshFoodStorageFactor('hunters_hall'),
   'granary storage should materially slow fresh-food spoilage',
@@ -125,6 +126,7 @@ assert.equal(
   buildingPreservedFoodStorageFactor('granary'),
   PRESERVED_FOOD_STORAGE_GRANARY_FACTOR,
 );
+assert.equal(buildingPreservedFoodStorageFactor('founders_camp'), 0);
 assert.ok(
   buildingPreservedFoodStorageFactor('smokehouse')
   < buildingPreservedFoodStorageFactor('granary'),
@@ -164,6 +166,32 @@ assert.equal(
   0,
   'physical food planning must ignore compatibility-ledger stock',
 );
+
+const foundingWeatherState = emptyGameState();
+const weatherproofCamp = building('weatherproof-camp', 'founders_camp', 30);
+weatherproofCamp.preservedFood = 20;
+foundingWeatherState.buildings.set(weatherproofCamp.id, weatherproofCamp);
+const foundingFoodCart = deliveryTrip('founding-food-cart', 'food', 12, 'outbound');
+foundingFoodCart.buildingId = weatherproofCamp.id;
+foundingWeatherState.deliveryTrips.set(foundingFoodCart.id, foundingFoodCart);
+const foundingCuredCart = deliveryTrip(
+  'founding-cured-cart',
+  'preservedFood',
+  8,
+  'outbound',
+);
+foundingCuredCart.buildingId = weatherproofCamp.id;
+foundingWeatherState.deliveryTrips.set(foundingCuredCart.id, foundingCuredCart);
+const foundingWeather = analyzeFreshFoodPreservation(
+  foundingWeatherState,
+  ambientSpoilage,
+);
+assert.equal(foundingWeather.totalStock, 42);
+assert.equal(foundingWeather.protectedStock, 42);
+assert.equal(foundingWeather.spoilagePerDay, 0);
+assert.equal(foundingWeather.preservedFood.totalStock, 28);
+assert.equal(foundingWeather.preservedFood.protectedStock, 28);
+assert.equal(foundingWeather.preservedFood.spoilagePerDay, 0);
 
 const cartState = emptyGameState();
 cartState.deliveryTrips.set('outbound-food', deliveryTrip('outbound-food', 'food', 24, 'outbound'));
@@ -469,13 +497,18 @@ assert.match(
 );
 assert.match(
   serverFoodSpoilage,
+  /weather_immune_building_ids[\s\S]*building\.kind == "founders_camp"[\s\S]*weather_immune_building_ids\.contains\(&building\.id\)[\s\S]*weather_immune_building_ids\.contains\(&trip\.building_id\)/,
+  'the founding camp and its dispatched provisions must be immune to authoritative weather spoilage',
+);
+assert.match(
+  serverFoodSpoilage,
   /delivery_trip\(\)[\s\S]*CommodityKind::from_u8[\s\S]*is_fresh_food\(\) \|\| kind\.is_preserved_food\(\)[\s\S]*PRESERVED_FOOD_STORAGE_CART_FACTOR[\s\S]*delivery_trip\(\)\.id\(\)\.update/,
   'loaded fresh and cured food must keep aging in the authoritative delivery row',
 );
 assert.match(
   serverFoodSpoilage,
   /preserved_food_spoilage_fraction_per_second\(\)[\s\S]*PRESERVED_FOOD_COMMODITIES[\s\S]*building_commodity_stock[\s\S]*preserved_rate[\s\S]*withdraw_building_commodity/,
-  'every physical building store must lose cured provisions according to its storage quality',
+  'every ordinary physical building store must lose cured provisions according to its storage quality',
 );
 assert.match(
   serverFoodSpoilage,

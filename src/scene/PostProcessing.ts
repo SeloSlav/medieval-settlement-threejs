@@ -114,6 +114,7 @@ const DAYLIGHT_GRADE_SHADER = {
 export type ScenePostProcessor = {
   dispose(): void;
   render(dt: number): void;
+  renderIllustratedMap(): void;
   setDayNightGrade(grade: DayNightGrade): void;
   setWeatherWetness(wetness: number): void;
   setPixelRatio(pixelRatio: number): void;
@@ -124,12 +125,23 @@ export function createPostProcessor(
   backend: RendererBackend,
   scene: THREE.Scene,
   camera: THREE.PerspectiveCamera,
+  illustratedMapScene: THREE.Scene = scene,
 ): ScenePostProcessor {
   if (supportsNodeMaterials(backend.kind)) {
-    return new WebGPUPostProcessor(backend.renderer as WebGPURenderer, scene, camera);
+    return new WebGPUPostProcessor(
+      backend.renderer as WebGPURenderer,
+      scene,
+      camera,
+      illustratedMapScene,
+    );
   }
 
-  return new WebGLPostProcessor(backend.renderer as THREE.WebGLRenderer, scene, camera);
+  return new WebGLPostProcessor(
+    backend.renderer as THREE.WebGLRenderer,
+    scene,
+    camera,
+    illustratedMapScene,
+  );
 }
 
 function applyGradeUniforms(
@@ -140,13 +152,24 @@ function applyGradeUniforms(
 }
 
 class WebGLPostProcessor implements ScenePostProcessor {
+  private readonly renderer: THREE.WebGLRenderer;
+  private readonly camera: THREE.PerspectiveCamera;
+  private readonly illustratedMapScene: THREE.Scene;
   private readonly composer: EffectComposer;
   private readonly gradePass: ShaderPass;
   private pixelRatio = 1;
   private width = 1;
   private height = 1;
 
-  constructor(renderer: THREE.WebGLRenderer, scene: THREE.Scene, camera: THREE.PerspectiveCamera) {
+  constructor(
+    renderer: THREE.WebGLRenderer,
+    scene: THREE.Scene,
+    camera: THREE.PerspectiveCamera,
+    illustratedMapScene: THREE.Scene,
+  ) {
+    this.renderer = renderer;
+    this.camera = camera;
+    this.illustratedMapScene = illustratedMapScene;
     this.composer = new EffectComposer(renderer);
     this.composer.addPass(new RenderPass(scene, camera));
     this.composer.addPass(
@@ -168,6 +191,10 @@ class WebGLPostProcessor implements ScenePostProcessor {
 
   render(dt: number): void {
     this.composer.render(dt);
+  }
+
+  renderIllustratedMap(): void {
+    this.renderer.render(this.illustratedMapScene, this.camera);
   }
 
   setDayNightGrade(grade: DayNightGrade): void {
@@ -203,6 +230,8 @@ class WebGPUPostProcessor implements ScenePostProcessor {
   private readonly bloomPass: Disposable;
   private readonly pipeline: RenderPipeline;
   private readonly scenePass: PassNodeLike;
+  private readonly illustratedMapPipeline: RenderPipeline;
+  private readonly illustratedMapPass: PassNodeLike;
   private readonly gradeSaturation = uniform(DEFAULT_GRADE.saturation);
   private readonly gradeContrast = uniform(DEFAULT_GRADE.contrast);
   private readonly gradeWarmth = uniform(DEFAULT_GRADE.warmth);
@@ -217,9 +246,17 @@ class WebGPUPostProcessor implements ScenePostProcessor {
   };
   private readonly weatherNaiveArtRetention = uniform(1);
 
-  constructor(renderer: WebGPURenderer, scene: THREE.Scene, camera: THREE.PerspectiveCamera) {
+  constructor(
+    renderer: WebGPURenderer,
+    scene: THREE.Scene,
+    camera: THREE.PerspectiveCamera,
+    illustratedMapScene: THREE.Scene,
+  ) {
     this.pipeline = new RenderPipeline(renderer);
     this.scenePass = pass(scene, camera) as PassNodeLike;
+    this.illustratedMapPipeline = new RenderPipeline(renderer);
+    this.illustratedMapPass = pass(illustratedMapScene, camera) as PassNodeLike;
+    this.illustratedMapPipeline.outputNode = this.illustratedMapPass.getTextureNode('output');
 
     const sceneColor = this.scenePass.getTextureNode('output');
     this.bloomPass = new StableSizeBloomNode(
@@ -250,10 +287,20 @@ class WebGPUPostProcessor implements ScenePostProcessor {
     this.pipeline.dispose();
     this.scenePass.dispose();
     this.bloomPass.dispose();
+    this.illustratedMapPipeline.dispose();
+    this.illustratedMapPass.dispose();
   }
 
   render(): void {
     this.pipeline.render();
+  }
+
+  renderIllustratedMap(): void {
+    // Keep both render owners on RenderPipeline. Mixing a direct WebGPU
+    // renderer submission for the map with the world's post pipeline can
+    // leave the swap-chain showing only its cleared parchment/sky colour when
+    // ownership returns to the world.
+    this.illustratedMapPipeline.render();
   }
 
   setDayNightGrade(grade: DayNightGrade): void {

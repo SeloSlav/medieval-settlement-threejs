@@ -13,7 +13,15 @@ const WARNING_ROW = /(?:\bfire\b|\bburn\w*\b|\bdestroy\w*\b|\bdanger\b|\bcritica
 export function inspectorDetailState(
   label: string,
   value: string,
+  authoredState?: string,
 ): InspectorDetailState {
+  if (
+    authoredState === 'warning'
+    || authoredState === 'positive'
+  ) {
+    return authoredState;
+  }
+
   const normalizedValue = value.toLowerCase();
   const normalizedRow = `${label} ${value}`.toLowerCase();
 

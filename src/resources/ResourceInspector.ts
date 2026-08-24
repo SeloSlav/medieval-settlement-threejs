@@ -2961,7 +2961,7 @@ function decorateInspectorRow(row: HTMLElement, label: string, value: string): v
     return;
   }
   const normalized = `${label} ${value}`.toLowerCase();
-  const state = inspectorDetailState(label, value);
+  const state = inspectorDetailState(label, value, row.dataset.inspectorState);
   const labelElement = row.firstElementChild;
   const valueElement = row.lastElementChild;
   labelElement?.classList.add('inspector-detail-label');

@@ -17,6 +17,16 @@ assert.match(
 assert.match(postSource, /class StableSizeBloomNode extends BloomNode/);
 assert.match(postSource, /if \(width === this\.width && height === this\.height\) return/);
 assert.match(postSource, /super\.setSize\(width, height\)/);
+assert.match(
+  postSource,
+  /this\.illustratedMapPipeline = new RenderPipeline\(renderer\)/,
+  'the WebGPU paper map should own a pipeline on the same submission path as the world',
+);
+assert.match(
+  postSource,
+  /this\.illustratedMapPipeline\.render\(\)/,
+  'the WebGPU paper map should render through its pipeline instead of a direct submission',
+);
 assert.doesNotMatch(
   postSource,
   /override (setup|updateBefore)/,

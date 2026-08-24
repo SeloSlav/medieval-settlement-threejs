@@ -99,6 +99,8 @@ export type FreshFoodPreservationOptions = {
 
 export function buildingFreshFoodStorageFactor(kind: BuildingKind): number {
   switch (kind) {
+    case 'founders_camp':
+      return 0;
     case 'granary':
       return FRESH_FOOD_STORAGE_GRANARY_FACTOR;
     case 'smokehouse':
@@ -114,6 +116,8 @@ export function buildingFreshFoodStorageFactor(kind: BuildingKind): number {
 
 export function buildingPreservedFoodStorageFactor(kind: BuildingKind): number {
   switch (kind) {
+    case 'founders_camp':
+      return 0;
     case 'granary':
       return PRESERVED_FOOD_STORAGE_GRANARY_FACTOR;
     case 'smokehouse':
@@ -280,24 +284,27 @@ export function analyzeFreshFoodPreservation(
   }
 
   for (const trip of state.deliveryTrips.values()) {
+    const foundingTrip = state.buildings.get(trip.buildingId)?.kind === 'founders_camp';
     if (isPreservedFoodCargo(trip.cargoKind)) {
       const kind = trip.cargoKind as FoodInventoryKind;
       const stock = finiteStock(trip.amount) * foodMealValue(kind);
       const exposure = stock * foodSpoilageMultiplier(kind);
       if (stock <= 0) continue;
+      const storageFactor = foundingTrip ? 0 : PRESERVED_FOOD_STORAGE_CART_FACTOR;
       preservedTotalStock += stock;
-      preservedWeightedStock += exposure * PRESERVED_FOOD_STORAGE_CART_FACTOR;
+      preservedWeightedStock += exposure * storageFactor;
       preservedTransitStock += stock;
-      preservedTransitWeightedStock += exposure * PRESERVED_FOOD_STORAGE_CART_FACTOR;
+      preservedTransitWeightedStock += exposure * storageFactor;
       preservedLargestLossSite = largerLossSite(preservedLargestLossSite, {
         source: 'trip',
         id: trip.id,
         buildingKind: null,
         stock,
-        storageFactor: PRESERVED_FOOD_STORAGE_CART_FACTOR,
+        storageFactor,
         spoilagePerDay:
-          exposure * PRESERVED_FOOD_STORAGE_CART_FACTOR * preservedRate,
+          exposure * storageFactor * preservedRate,
       });
+      if (foundingTrip) preservedProtectedStock += stock;
       continue;
     }
     if (!isFreshFoodCargo(trip.cargoKind)) continue;
@@ -305,18 +312,22 @@ export function analyzeFreshFoodPreservation(
     const stock = finiteStock(trip.amount) * foodMealValue(kind);
     const exposure = stock * foodSpoilageMultiplier(kind);
     if (stock <= 0) continue;
+    const storageFactor = foundingTrip ? 0 : FRESH_FOOD_STORAGE_CART_FACTOR;
     totalStock += stock;
-    weightedStock += exposure * FRESH_FOOD_STORAGE_CART_FACTOR;
+    weightedStock += exposure * storageFactor;
     transitStock += stock;
-    transitWeightedStock += exposure * FRESH_FOOD_STORAGE_CART_FACTOR;
+    transitWeightedStock += exposure * storageFactor;
     largestLossSite = largerLossSite(largestLossSite, {
       source: 'trip',
       id: trip.id,
       buildingKind: null,
       stock,
-      storageFactor: FRESH_FOOD_STORAGE_CART_FACTOR,
-      spoilagePerDay: exposure * FRESH_FOOD_STORAGE_CART_FACTOR * ambientRate,
+      storageFactor,
+      spoilagePerDay: exposure * storageFactor * ambientRate,
     });
+    if (foundingTrip) {
+      protectedStock += stock;
+    }
   }
 
   for (const residence of state.residences.values()) {

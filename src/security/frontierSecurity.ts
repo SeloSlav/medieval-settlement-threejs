@@ -934,7 +934,7 @@ export function projectRaidTargets(
   };
 
   for (const building of gameState.buildings.values()) {
-    if (building.kind === 'watchtower') continue;
+    if (building.kind === 'watchtower' || building.kind === 'founders_camp') continue;
     const portableValue = portableRaidValue(building);
     if (portableValue <= 1e-9) continue;
     consider({
@@ -949,6 +949,7 @@ export function projectRaidTargets(
     });
   }
   for (const trip of gameState.deliveryTrips.values()) {
+    if (gameState.buildings.get(trip.buildingId)?.kind === 'founders_camp') continue;
     const portableValue = deliveryTripRaidValue(trip);
     if (portableValue <= 1e-9) continue;
     consider({
@@ -1093,6 +1094,7 @@ export function countSitesProtectedByWatchtower(
   for (const building of gameState.buildings.values()) {
     if (
       building.id === tower.id
+      || building.kind === 'founders_camp'
       || (
         building.constructionComplete === false
         && portableRaidValue(building) <= 1e-9

@@ -80,6 +80,7 @@ type WellCandidate = {
  * ignition rule and client planning feedback cannot drift.
  */
 export function buildingBaseFlammability(kind: BuildingKind): number {
+  if (kind === 'founders_camp') return 0;
   return FIRE_BUILDING_BASE_FLAMMABILITY[
     kind as keyof typeof FIRE_BUILDING_BASE_FLAMMABILITY
   ] ?? FIRE_DEFAULT_BUILDING_BASE_FLAMMABILITY;

@@ -897,6 +897,8 @@ export class CameraController {
     this.targetDistance = this.currentDistance;
     this.worldFarBeforeIllustratedMap = this.config.camera.far;
     this.updateIllustratedMapProjection();
+    this.updateCamera();
+    this.config.camera.updateMatrixWorld(true);
     this.config.onIllustratedMapModeChanged?.(true);
   }
 
@@ -909,6 +911,11 @@ export class CameraController {
     this.currentDistance = this.liveWorldMaxDistance;
     this.targetDistance = this.currentDistance;
     this.restoreWorldProjection();
+    // Rebuild the complete world pose before releasing render ownership. The
+    // mode callback is allowed to render immediately, so it must never observe
+    // the paper-map projection or a stale camera matrix.
+    this.updateCamera();
+    this.config.camera.updateMatrixWorld(true);
     this.config.onIllustratedMapModeChanged?.(false);
   }
 

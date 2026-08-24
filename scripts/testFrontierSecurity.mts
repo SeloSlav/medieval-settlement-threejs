@@ -1097,6 +1097,26 @@ assert.deepEqual(
 assert.equal(cartTargets[0]?.label, 'Loaded food handcart');
 assert.equal(cartTargets[0]?.portableSummary, '60 food on the road');
 assert.match(formatProjectedRaidTargets(cartTargets), /Loaded food handcart/);
+const foundingBootstrapState = emptyGameState();
+const foundingCamp = {
+  ...building('founding-camp', 'founders_camp', 0, 0, 0),
+  food: 80,
+  gold: 25,
+};
+const foundingCart = deliveryTrip('founding-cart', 'food', 40, 20, 0);
+foundingCart.buildingId = foundingCamp.id;
+foundingBootstrapState.buildings.set(foundingCamp.id, foundingCamp);
+foundingBootstrapState.deliveryTrips.set(foundingCart.id, foundingCart);
+assert.deepEqual(
+  projectRaidTargets(foundingBootstrapState, 4),
+  [],
+  'the founding camp and cargo dispatched from it must never become projected raid targets',
+);
+assert.equal(
+  countSitesProtectedByWatchtower(tower, foundingBootstrapState).buildings,
+  0,
+  'the raid-immune bootstrap must not inflate watch-coverage claims',
+);
 const textileTargetState = emptyGameState();
 textileTargetState.buildings.set(
   'textile-store',
@@ -1572,6 +1592,7 @@ const app = readFileSync('src/app/App.ts', 'utf8');
 const appBootstrap = readFileSync('src/app/appBootstrap.ts', 'utf8');
 const clientSecurity = readFileSync('src/security/frontierSecurity.ts', 'utf8');
 const serverSimulation = readFileSync('server/src/simulation/settlement_security.rs', 'utf8');
+const serverDeliveryTrips = readFileSync('server/src/simulation/delivery_trips.rs', 'utf8');
 assert.match(
   serverSimulation,
   /fn treasury_portable_stores[\s\S]*?if treasury\.physical_founding_site_enabled[\s\S]*?return RaidPortableStores::default\(\)/,
@@ -1902,6 +1923,26 @@ assert.match(serverSimulation, /raid_district_forecast/);
 assert.match(serverSimulation, /RaidTargetKind::Residence/);
 assert.match(serverSimulation, /RaidTargetKind::DeliveryTrip/);
 assert.match(serverSimulation, /pub\(super\) fn plunder_raid_target_at_contact/);
+assert.match(
+  serverPolicy,
+  /pub fn raid_immune_building_kind[\s\S]*kind == "founders_camp"/,
+  'the bootstrap raid exemption must be an explicit server invariant',
+);
+assert.match(
+  serverSimulation,
+  /raid_immune_building_ids[\s\S]*raid_immune_building_kind\(&building\.kind\)[\s\S]*raid_immune_building_ids\.contains\(&trip\.building_id\)/,
+  'authoritative target selection must omit the camp and its dispatched cargo',
+);
+assert.match(
+  serverSimulation,
+  /RaidTargetKind::Building[\s\S]*raid_immune_building_kind\(&building\.kind\)[\s\S]*RaidTargetKind::DeliveryTrip[\s\S]*find\(&trip\.building_id\)[\s\S]*raid_immune_building_kind\(&building\.kind\)/,
+  'contact resolution must preserve founding stock even for stale replicated targets',
+);
+assert.match(
+  serverDeliveryTrips,
+  /fn finish_inbound_trip[\s\S]*raid_immune_building_kind\(&building\.kind\)[\s\S]*0\.0[\s\S]*hand_off_arriving_cart_pursuit/,
+  'protected founding carts must not hand a stale raider pursuit onto the camp',
+);
 assert.match(serverSimulation, /let plunder = before\.plunder\(loss_fraction\)/);
 assert.match(serverSimulation, /retain_unplundered_stores/);
 assert.match(

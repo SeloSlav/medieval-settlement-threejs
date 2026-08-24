@@ -38,6 +38,14 @@ assert.equal(
 );
 assert.equal(
   inspectorDetailState(
+    'Founding safeguard',
+    'Immune to fire, weather, and raids · cannot be demolished',
+    'positive',
+  ),
+  'positive',
+);
+assert.equal(
+  inspectorDetailState(
     'Spread exposure',
     'Isolated \u00b7 no other occupied structure within 22 m',
   ),

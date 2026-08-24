@@ -945,11 +945,25 @@ function scrollToLiveWorldMaximum(
 
 {
   const mapModeChanges: boolean[] = [];
-  const { controller, camera, target, domElement } = createController(
+  let callbackCamera: THREE.PerspectiveCamera | null = null;
+  let exitCallbackCameraPosition: THREE.Vector3 | null = null;
+  let exitCallbackMatrixPosition: THREE.Vector3 | null = null;
+  let exitCallbackFarPlane = Number.NaN;
+  const created = createController(
     undefined,
     true,
-    (active) => mapModeChanges.push(active),
+    (active) => {
+      mapModeChanges.push(active);
+      if (active || !callbackCamera) return;
+      exitCallbackCameraPosition = callbackCamera.position.clone();
+      exitCallbackMatrixPosition = new THREE.Vector3().setFromMatrixPosition(
+        callbackCamera.matrixWorld,
+      );
+      exitCallbackFarPlane = callbackCamera.far;
+    },
   );
+  const { controller, camera, target, domElement } = created;
+  callbackCamera = camera;
   scrollToLiveWorldMaximum(controller, domElement);
   assert.ok(
     Math.abs(controller.getZoomPercent() - LIVE_WORLD_MIN_ZOOM_PERCENT) < 1e-9,
@@ -1122,6 +1136,16 @@ function scrollToLiveWorldMaximum(
     'leaving the illustrated map should restore the exact world far plane');
   assert.equal(camera.near, liveWorldNearPlane);
   assert.equal(camera.fov, liveWorldFov);
+  assert.ok(
+    exitCallbackCameraPosition?.distanceTo(camera.position)! < 1e-9,
+    'the exit callback should observe the final world camera position',
+  );
+  assert.ok(
+    exitCallbackMatrixPosition?.distanceTo(camera.position)! < 1e-9,
+    'the exit callback should observe a synchronized world camera matrix',
+  );
+  assert.equal(exitCallbackFarPlane, liveWorldFarPlane,
+    'the exit callback should observe the restored world projection');
   assert.deepEqual(
     mapModeChanges,
     [true, false],
