@@ -2993,6 +2993,16 @@ pub fn demolish_building(ctx: &ReducerContext, building_id: u64) -> Result<(), S
     if matches!(building.kind.as_str(), "pastoral_farmstead" | "swineherd")
         && ctx
             .db
+            .livestock_herd()
+            .building_id()
+            .find(&building_id)
+            .is_some_and(|herd| herd.head_count > 0)
+    {
+        return Err("Sell this livestock holding's animals before demolition.".to_string());
+    }
+    if matches!(building.kind.as_str(), "pastoral_farmstead" | "swineherd")
+        && ctx
+            .db
             .pasture()
             .farmstead_id()
             .filter(&building_id)

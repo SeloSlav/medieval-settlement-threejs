@@ -238,8 +238,8 @@ export function renderStorageAcceptanceControls(
           <span>${active} of ${total} enabled</span>
         </div>
         <div class="storage-acceptance__bulk">
-          <button type="button" data-storage-accept-all="true" ${active === total ? 'disabled' : ''}>Accept all</button>
-          <button type="button" data-storage-accept-all="false" ${active === 0 ? 'disabled' : ''}>Accept none</button>
+          <button type="button" class="resource-action-button storage-acceptance__bulk-action" data-storage-accept-all="true" ${active === total ? 'disabled' : ''}>Accept all</button>
+          <button type="button" class="resource-action-button storage-acceptance__bulk-action" data-storage-accept-all="false" ${active === 0 ? 'disabled' : ''}>Accept none</button>
         </div>
       </div>
       ${groups.map((group) => `
@@ -252,7 +252,7 @@ export function renderStorageAcceptanceControls(
               const state = accepts
                 ? `${label}: accepting new deliveries.`
                 : `${label}: new deliveries blocked.`;
-              return `<button type="button" class="storage-acceptance__commodity resource-cost__item${accepts ? '' : ' is-blocked'}" data-resource-cost="${commodity}" data-storage-commodity="${commodity}" data-storage-accepts="${accepts}" aria-pressed="${accepts}" aria-label="${state}" title="${state}"><span class="resource-cost__icon" aria-hidden="true"></span><span class="storage-acceptance__commodity-label">${label}</span></button>`;
+              return `<button type="button" class="resource-action-button resource-action-button--toggle storage-acceptance__commodity resource-cost__item${accepts ? '' : ' is-blocked'}" data-resource-cost="${commodity}" data-storage-commodity="${commodity}" data-storage-accepts="${accepts}" aria-pressed="${accepts}" aria-label="${state}" title="${state}"><span class="resource-cost__icon" aria-hidden="true"></span><span class="storage-acceptance__commodity-label">${label}</span></button>`;
             }).join('')}
           </div>
         </section>

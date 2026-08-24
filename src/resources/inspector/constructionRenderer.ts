@@ -210,7 +210,7 @@ export function renderConstructionInspector(
         nextSourceDistance == null ? '' : ` · ${Math.round(nextSourceDistance)}m haul`
       }${supply?.state === 'fire-disabled' ? ' · fire-disabled' : ''}`
     : 'None';
-  const priorityControls = `<div class="inspector-action-panel">
+  const priorityControls = `<div class="inspector-action-panel" data-inspector-panel-title="Construction priority">
       <p class="resource-inspector-note">Queue priority — urgent sites claim available carts and scarce stored material first. Hold stops hauling and builder work while retaining reservations.</p>
       <div class="resource-action-row">${CONSTRUCTION_PRIORITIES.map((candidate) =>
         constructionPriorityButton(candidate, priority)).join('')}</div>

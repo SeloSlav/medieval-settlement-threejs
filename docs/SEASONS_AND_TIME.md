@@ -163,7 +163,8 @@ The HUD shows the active season/weather and a tooltip listing its major effects.
 - Berry and mushroom nodes regrow in place.
 - Fish reproduce only in spring. Recovery follows surviving population, so a badly
   depleted shoal recovers slowly and a zero population is permanently extinct.
-- Pasture capacity is 115%.
+- Grass-pasture capacity is 115%. Woodland pannage is only 75%; drought, if
+  present, overrides it to 55% because a dry spring weakens the coming mast crop.
 - Livestock breeding is 125%.
 - Household firewood demand is 100%.
 - Fresh food spoilage is 0.4% per game day before storage modifiers.
@@ -179,7 +180,8 @@ are all favorable, while fields have time to recover from a weak start.
   month early, and cannot be undone by saving or reconnecting. Waiting until
   September preserves the full yield.
 - Berry and mushroom nodes continue regrowing.
-- Pasture capacity is 100% and household firewood demand falls to 70%.
+- Grass-pasture capacity is 100%, woodland pannage is 90%, and household firewood
+  demand falls to 70%.
 - Fresh food spoilage rises to 0.8% per day.
 
 During drought:
@@ -187,7 +189,7 @@ During drought:
 - Crop growth falls to 45%.
 - Berry and mushroom regrowth falls to 35%.
 - Well refill falls to 50%.
-- Pasture capacity falls to 65%.
+- Grass-pasture capacity falls to 65% and woodland pannage falls to 55%.
 - Fish ponds lose 4% of maximum population per drought day. This can finish off an
   already depleted shoal and make its extinction permanent.
 - Fresh-food spoilage rises to 1.8% per day.
@@ -225,11 +227,11 @@ Other autumn rules:
 - Gorski Kotar mushroom beds enter their peak fruiting window and regrow at
   175% of their spring/summer rate through November; berry regrowth has ended.
 - New cart trips travel at 90% pace on seasonally softened tracks.
-- Pasture capacity is 90%.
+- Grass-pasture capacity is 90%, while woodland pannage reaches its 125% acorn-
+  and beechnut peak.
 - Household firewood demand rises to 115%.
 - Fresh-food spoilage returns to 0.4% per day.
 - Vegetable and herb gardens taper to 55%; flowers taper to 35%.
-- Swine retain their existing autumn mast-production bonus.
 
 Autumn's advantage is the year's concentrated grain, orchard, and swine income. Its
 constraint is labor scheduling: a late harvest cannot spill into October, and
@@ -243,9 +245,10 @@ unfinished sowing cannot spill into winter.
 - Fully sown grain remains alive but dormant.
 - A field still in the sowing stage when winter begins fails and must be ploughed
   again next autumn.
-- Pasture capacity falls to 35%, so grain reserves are needed to support herd size.
+- Grass-pasture capacity falls to 35% and woodland pannage to 45%, so hay and
+  grain reserves are needed to support herd size.
 - Livestock breeding falls to 60%.
-- Sheep produce no wool income.
+- Sheep are not shorn; their annual physical fleece clip is an early-summer event.
 - Household firewood demand rises to 200% and continues through nights and
   sabbaths. An unsupplied higher-tier residence accumulates its ordinary firewood
   deficit, lowering approval and household market/tax output and eventually
@@ -260,6 +263,46 @@ threshing stored wheat have no general seasonal shutdown, but their road haulage
 slower. Granary ovens, smokehouses, and brewhouses also remain productive only while
 their physical firewood buffers are supplied, so ale production competes with baking,
 preservation, and the sharply higher household heating claim.
+
+## Livestock land, stocking, and the husbandry clock
+
+A pastoral farmstead begins without a herd. The player first chooses cattle or
+sheep, draws one or more pasture polygons inside the holding's work extent, and
+then buys whole animals with civic gold. A woodland swineherd already has its pig
+policy, but likewise begins at zero head and needs player-drawn pannage before pigs
+can be bought. Selling live animals returns the lower regional sale price. Stocked
+holdings cannot change species or be demolished; even an empty pastoral holding
+must remove its linked species-shaped parcels before switching.
+
+The exact placed land is authoritative, not just the main building. Cattle and
+sheep capacity sums every linked polygon after its area, slope, and moisture are
+evaluated. Pannage has two independent limits: suitable fenced area and the count
+of mature trees whose positions actually fall inside those polygons. Its carrying
+capacity is the smaller of the area and mast limits, then the species hard maximum
+is applied. Growing trees and mature trees outside the fence do not count. This is
+why clear-cutting a pig enclosure can reduce its support even though the polygon's
+area has not changed.
+
+The farmstead or swineherd is the animals' shelter, feed store, water trough, and
+logistics base. During each fixed daytime husbandry cycle, the simulation resolves:
+
+1. heads supported by grass or mast, winter hay, and emergency grain;
+2. heads supplied by the water physically present in the holding's trough; and
+3. heads covered by active herders at the species-specific care ratio.
+
+Only the intersection of feed, water, and care counts as fully supplied. Poor
+support reduces milk, manure, wool, and health; prolonged severe neglect can kill
+animals. Additional labor raises care coverage, summer hay output, and hauling, but
+does not make biological time run faster. Thirst, production, breeding progress,
+and mortality use the building's fixed action interval even when a holding is
+unstaffed or temporarily work-paused, so abandoned animals do not become immortal
+and large crews cannot accelerate gestation.
+
+Reproduction requires at least two animals, at least 90% support, and healthy
+breeding stock. Births stop at the lower of neutral placed-land capacity and the
+species management ceiling. Seasonal breeding still peaks at 125% in spring and
+falls to 60% in winter; pannage capacity instead follows its separate mast calendar
+described above.
 
 ## Seasonal road logistics
 

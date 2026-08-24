@@ -12,7 +12,7 @@ use crate::construction_priority::{
 };
 use crate::db::*;
 use crate::economy::{building_commodity_stock, CommodityKind};
-use crate::reducers::livestock::{starter_herd, SPECIES_SWINE};
+use crate::reducers::livestock::{unstocked_herd, SPECIES_SWINE};
 use crate::roads::RoadNetwork;
 use crate::simulation::delivery_trips::{
     available_free_haulers, building_has_inbound_supply_trip, construction_source_cart_busy,
@@ -308,9 +308,10 @@ fn complete_site(ctx: &ReducerContext, site: &mut Building) {
         site.maslin_grain += FARMSTEAD_STARTER_SEED_GRAIN;
         site.flax += FARMSTEAD_STARTER_SEED_GRAIN;
         site.barley += FARMSTEAD_STARTER_BARLEY_SEED;
-    // Pastoral farmsteads remain deliberately unstocked until the player
-    // chooses cattle or sheep in the completed holding's inspector. Woodland
-    // swineherds are species-specific buildings and still receive pigs here.
+    // Pastoral farmsteads remain without a herd policy until the player chooses
+    // cattle or sheep. Woodland swineherds know their species immediately, but
+    // both holding types begin with zero animals; stock is bought after enough
+    // pasture or pannage has been fenced.
     } else if site.kind == "swineherd"
         && ctx
             .db
@@ -321,6 +322,6 @@ fn complete_site(ctx: &ReducerContext, site: &mut Building) {
     {
         ctx.db
             .livestock_herd()
-            .insert(starter_herd(site.id, site.owner, SPECIES_SWINE));
+            .insert(unstocked_herd(site.id, site.owner, SPECIES_SWINE));
     }
 }

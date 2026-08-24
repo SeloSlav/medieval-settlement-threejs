@@ -54,6 +54,7 @@ import {
   fieldSeedGrainRemaining,
   farmsteadSeedBarleyRequired,
 } from '../farming/farmWorkPlanning.ts';
+import { countMatureTreesInPasturePolygons } from '../farming/pastureCapacity.ts';
 import { BREAD_GRAIN_KINDS, breadGrainStock, type BreadGrainKind } from '../economy/cropGoods.ts';
 import {
   foodSupplierDeliveryTripSeconds,
@@ -394,6 +395,17 @@ export class WorldQueries {
   getPasturesForBuilding(buildingId: string): PastureState[] {
     return [...this.getGameState().pastures.values()].filter(
       (pasture) => pasture.farmsteadId === buildingId,
+    );
+  }
+
+  /** Exact live mast count inside this holding's authored pannage polygons. */
+  getMaturePannageTreeCount(buildingId: string): number {
+    const treeRegistry = this.getTreeRegistry();
+    if (!treeRegistry) return 0;
+    return countMatureTreesInPasturePolygons(
+      this.getGameState(),
+      treeRegistry,
+      this.getPasturesForBuilding(buildingId),
     );
   }
 

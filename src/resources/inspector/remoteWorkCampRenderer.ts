@@ -52,7 +52,7 @@ export function withWorksiteLodging(
 
   const panel = policy === 'built_in'
     ? `
-      <section class="inspector-action-panel">
+      <section class="inspector-action-panel" data-inspector-panel-title="Crew lodging">
         <h3>Built-in crew lodging</h3>
         <p class="inspector-action-panel__hint">${worksiteFire
           ? 'The building and its bunks are fire-disabled. Its crew returns to household lodging until repairs are complete.'
@@ -61,20 +61,20 @@ export function withWorksiteLodging(
     `
     : camp
       ? `
-        <section class="inspector-action-panel">
+        <section class="inspector-action-panel" data-inspector-panel-title="Overnight camp">
           <h3>Overnight work camp</h3>
           <p class="inspector-action-panel__hint">${campFire
             ? 'The linked camp is fire-disabled. Its crew resumes the household commute until the camp is repaired or cleared.'
             : camp.constructionComplete === false
             ? 'Builders and haulers are raising the linked tents and fire ring. The crew still commutes home until construction is complete.'
             : 'The linked tents and campfire are operational, restoring the worksite\'s full productive shift. Demolish the camp itself to return this crew to household commuting.'}</p>
-          <button type="button" class="inspector-action-panel__button inspector-action-panel__button--icon" data-work-camp-action data-inspect-building="${camp.id}"><span class="inspector-action-icon" data-action-icon="overnight-work-camp" aria-hidden="true"></span><span>${camp.constructionComplete === false ? 'Inspect camp construction' : 'Inspect overnight camp'}</span></button>
+          <button type="button" class="resource-action-button resource-action-button--icon" data-work-camp-action data-inspect-building="${camp.id}"><span class="inspector-action-icon" data-action-icon="overnight-work-camp" aria-hidden="true"></span><span>${camp.constructionComplete === false ? 'Inspect camp construction' : 'Inspect overnight camp'}</span></button>
         </section>
       `
       : `
-        <section class="inspector-action-panel">
+        <section class="inspector-action-panel" data-inspector-panel-title="Overnight camp">
           <h3>Overnight work camp</h3>
-          <button type="button" class="inspector-action-panel__button inspector-action-panel__button--icon" data-work-camp-action data-begin-remote-work-camp><span class="inspector-action-icon" data-action-icon="overnight-work-camp" aria-hidden="true"></span><span>Plan overnight camp</span></button>
+          <button type="button" class="resource-action-button resource-action-button--icon" data-work-camp-action data-begin-remote-work-camp><span class="inspector-action-icon" data-action-icon="overnight-work-camp" aria-hidden="true"></span><span>Plan overnight camp</span></button>
           <p class="inspector-action-panel__hint">Choose a nearby clear site. Timber and stone are reserved normally, haulers deliver them, and assigned builders raise two tents and a campfire. It can later be demolished like any building.</p>
         </section>
       `;

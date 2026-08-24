@@ -334,8 +334,9 @@ export function validateBuildingPlacement(
     return { ok: false, reason: 'no_fish_in_range' };
   }
 
-  if (kind === 'lumber_mill') {
-    const workRadius = getBuildingDefinition(kind).workRadius;
+  const definition = getBuildingDefinition(kind);
+  if (definition.requiresMatureTrees) {
+    const workRadius = definition.workRadius;
     const matureTrees = context.countMatureTreesInRadius?.(x, z, workRadius) ?? 0;
     if (matureTrees <= 0) {
       return { ok: false, reason: 'no_trees_in_range' };

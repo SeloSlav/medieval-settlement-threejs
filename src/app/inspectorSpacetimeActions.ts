@@ -53,6 +53,7 @@ export type InspectorSpacetimeActions = {
   onStartFarmFieldEarlyHarvest: (fieldId: string) => Promise<void>;
   onDemolishPasture: (pastureId: string) => Promise<void>;
   onSetLivestockSpecies: (buildingId: string, species: Exclude<LivestockSpecies, 'swine'>) => Promise<void>;
+  onTradeLivestock: (buildingId: string, headDelta: number) => Promise<void>;
   onSetLivestockBreedingReserve: (buildingId: string, breedingReserve: number) => Promise<void>;
   onSetLivestockHaymakingPercent: (buildingId: string, haymakingPercent: number) => Promise<void>;
   onSetEconomicActivityTaxRate: (taxRate: number) => Promise<void>;
@@ -473,6 +474,14 @@ export function createInspectorSpacetimeActions(
       await runReducer(
         () => store.setLivestockSpecies(buildingId, species),
         'Could not change livestock specialization.',
+      );
+    },
+    onTradeLivestock: async (buildingId, headDelta) => {
+      const store = requireReady();
+      if (!store) return;
+      await runReducer(
+        () => store.tradeLivestock(buildingId, headDelta),
+        headDelta > 0 ? 'Could not purchase livestock.' : 'Could not sell livestock.',
       );
     },
     onSetLivestockBreedingReserve: async (buildingId, breedingReserve) => {

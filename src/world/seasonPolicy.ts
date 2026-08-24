@@ -20,6 +20,11 @@ import {
   PRESERVED_FOOD_SPOILAGE_SPRING_MULTIPLIER,
   PRESERVED_FOOD_SPOILAGE_SUMMER_MULTIPLIER,
   PRESERVED_FOOD_SPOILAGE_WINTER_MULTIPLIER,
+  PANNAGE_AUTUMN_CAPACITY_MULTIPLIER,
+  PANNAGE_DROUGHT_CAPACITY_MULTIPLIER,
+  PANNAGE_SPRING_CAPACITY_MULTIPLIER,
+  PANNAGE_SUMMER_CAPACITY_MULTIPLIER,
+  PANNAGE_WINTER_CAPACITY_MULTIPLIER,
   RESIDENCE_PRESERVED_FOOD_AUTUMN_MULTIPLIER,
   RESIDENCE_PRESERVED_FOOD_SPRING_MULTIPLIER,
   RESIDENCE_PRESERVED_FOOD_SUMMER_MULTIPLIER,
@@ -90,6 +95,20 @@ export function seasonForMonth(month: number): Season {
   if (month >= 6 && month <= 8) return 'summer';
   if (month >= 9 && month <= 11) return 'autumn';
   return 'winter';
+}
+
+/** Woodland forage follows the mast calendar rather than grass growth. */
+export function pannageCapacityMultiplierFor(
+  season: Season,
+  weather: WeatherKind,
+): number {
+  if (weather === 'drought') return PANNAGE_DROUGHT_CAPACITY_MULTIPLIER;
+  return {
+    spring: PANNAGE_SPRING_CAPACITY_MULTIPLIER,
+    summer: PANNAGE_SUMMER_CAPACITY_MULTIPLIER,
+    autumn: PANNAGE_AUTUMN_CAPACITY_MULTIPLIER,
+    winter: PANNAGE_WINTER_CAPACITY_MULTIPLIER,
+  }[season];
 }
 
 export function watermillThroughputForWeather(weather: WeatherKind): number {

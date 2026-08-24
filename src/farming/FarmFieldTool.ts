@@ -15,12 +15,19 @@ import {
 } from '../generated/gameBalance.ts';
 import { sampleAuthoritativeGroundwaterScore } from '../hydrology/sampleAuthoritativeHydrology.ts';
 import { buildingFootprintPolygonFromState, burgageZonePolygon } from '../placement/placementConflicts.ts';
-import { FARM_CROPS, type BuildingState, type FarmCrop, type GameState } from '../resources/types.ts';
-import type { FarmFieldState } from '../resources/types.ts';
+import {
+  FARM_CROPS,
+  type BuildingState,
+  type FarmCrop,
+  type FarmFieldState,
+  type GameState,
+  type PastureState,
+} from '../resources/types.ts';
 import {
   polygonOverlapsPhysicalDeposit,
   type PhysicalDepositFootprint,
 } from '../resources/physicalDepositProtection.ts';
+import type { TreeRegistry } from '../resources/TreeRegistry.ts';
 import type { TerrainProjector } from '../terrain/TerrainProjector.ts';
 import type { RoadNetwork } from '../roads/RoadNetwork.ts';
 import { convexPolygonsOverlap2, type Point2 } from '../utils/polygonGeometry.ts';
@@ -59,6 +66,13 @@ import {
   VINEYARD_MONASTERY_MAX_DISTANCE,
 } from '../vineyards/vineyardSuitability.ts';
 import { snapLandParcelPoint } from './landParcelSnap.ts';
+import {
+  countMatureTreesInPasturePolygons,
+  livestockHoldingWholeHeadLimit,
+  neutralPastureHeadCapacity,
+  neutralPastureHoldingHeadCapacity,
+  pannageHoldingHeadCapacity,
+} from './pastureCapacity.ts';
 
 const MIN_CLICK_DISTANCE = 1.5;
 const PREVIEW_VALIDATION_INTERVAL_MS = 110;
@@ -84,6 +98,8 @@ type Validation =
   | { ok: true; corners: FarmFieldCorners; farmstead: BuildingState | null; slope: number; moisture: number; southExposure: number }
   | { ok: false; reason: FarmFieldPlacementFailureReason; corners: FarmFieldCorners | null; slope?: number; moisture?: number; southExposure?: number };
 
+type SuccessfulValidation = Extract<Validation, { ok: true }>;
+
 type FarmFieldToolOptions = {
   domElement: HTMLElement;
   camera: THREE.Camera;
@@ -94,6 +110,7 @@ type FarmFieldToolOptions = {
   isResourceDepositAt: (x: number, z: number) => boolean;
   physicalDeposits?: readonly PhysicalDepositFootprint[];
   getRoadNetwork?: () => RoadNetwork;
+  getTreeRegistry?: () => TreeRegistry | null;
   onCommit: (input: {
     farmsteadId: string;
     corners: FarmFieldCorners;
@@ -273,7 +290,12 @@ export class FarmFieldTool {
       ? 'hammer or Enter to place'
       : 'click to set the final corner';
     if (this.mode === 'pasture') {
-      return `${area} m² pasture · ${placementHint}`;
+      return this.pastureCapacityStatusDetail(
+        this.validation,
+        exactArea,
+        area,
+        placementHint,
+      );
     }
     if (this.mode === 'graveyard') {
       return `${area} m² consecrated ground · ${placementHint}`;
@@ -342,6 +364,82 @@ export class FarmFieldTool {
     const cycleWorkerDays = fieldWorkerDays(fullFieldCycleWork(draftField, farmstead));
     const sowingSeason = FARM_CROP_DEFINITIONS[this.crop].workSeason;
     return `${cropLabel(this.crop)} · ${areaDetail} · ${produceDetail} · field ${cycleWorkerDays.toFixed(1)} base worker-days/year · farm ${plan.activeFields} active fields: ${sowingSeason} ${sowingPlan.requiredWorkerDays.toFixed(1)}/${sowingPlan.availableWorkerDays.toFixed(1)}, harvest ${plan.harvest.requiredWorkerDays.toFixed(1)}/${plan.harvest.availableWorkerDays.toFixed(1)} worker-days · ${placementHint}`;
+  }
+
+  private pastureCapacityStatusDetail(
+    validation: SuccessfulValidation,
+    exactArea: number,
+    roundedArea: number,
+    placementHint: string,
+  ): string {
+    const farmstead = validation.farmstead;
+    const state = this.options.getState();
+    const herd = farmstead ? state.livestockHerds.get(farmstead.id) : null;
+    if (!farmstead || !herd) {
+      return `${roundedArea} m² pasture · choose a herd to calculate capacity · ${placementHint}`;
+    }
+
+    const draftPasture: PastureState = {
+      id: 'pasture:zzzz-preview',
+      farmsteadId: farmstead.id,
+      corners: validation.corners,
+      area: exactArea,
+      averageSlopeDegrees: validation.slope,
+      moisture: validation.moisture,
+    };
+    const existingPastures = [...state.pastures.values()]
+      .filter((pasture) => pasture.farmsteadId === farmstead.id);
+    const resultingPastures = [...existingPastures, draftPasture];
+
+    if (herd.species !== 'swine') {
+      const addedCapacity = neutralPastureHeadCapacity(
+        draftPasture,
+        herd.species,
+      ) ?? 0;
+      const resultingCapacity = neutralPastureHoldingHeadCapacity(
+        resultingPastures,
+        herd.species,
+      );
+      const wholeHeadLimit = livestockHoldingWholeHeadLimit(
+        resultingCapacity,
+        herd.species,
+      );
+      return `${roundedArea} m² pasture · +${addedCapacity.toFixed(1)} neutral ${herd.species} capacity · holding ${wholeHeadLimit} whole-head limit · ${placementHint}`;
+    }
+
+    const treeRegistry = this.options.getTreeRegistry?.();
+    if (!treeRegistry) {
+      const areaCapacity = pannageHoldingHeadCapacity(resultingPastures, 0)
+        .areaHeadCapacity;
+      return `${roundedArea} m² pannage · holding land cap ${areaCapacity.toFixed(1)} pigs · mature-tree mast cap loading · ${placementHint}`;
+    }
+    const existingMatureTrees = countMatureTreesInPasturePolygons(
+      state,
+      treeRegistry,
+      existingPastures,
+    );
+    const resultingMatureTrees = countMatureTreesInPasturePolygons(
+      state,
+      treeRegistry,
+      resultingPastures,
+    );
+    const existingCapacity = pannageHoldingHeadCapacity(
+      existingPastures,
+      existingMatureTrees,
+    );
+    const resultingCapacity = pannageHoldingHeadCapacity(
+      resultingPastures,
+      resultingMatureTrees,
+    );
+    const addedCapacity = Math.max(
+      0,
+      resultingCapacity.headCapacity - existingCapacity.headCapacity,
+    );
+    const wholeHeadLimit = livestockHoldingWholeHeadLimit(
+      resultingCapacity.headCapacity,
+      herd.species,
+    );
+    return `${roundedArea} m² pannage · +${addedCapacity.toFixed(1)} neutral pig capacity · holding ${wholeHeadLimit} whole-head limit · land cap ${resultingCapacity.areaHeadCapacity.toFixed(1)} vs mast cap ${resultingCapacity.mastHeadCapacity.toFixed(1)} (${resultingCapacity.matureTrees} mature trees) · ${placementHint}`;
   }
 
   getBuildButtonPosition(): { clientX: number; clientY: number } | null {
@@ -614,6 +712,7 @@ export class FarmFieldTool {
       this.resolveDraftPath(),
       this.mode,
     );
+    if (this.mode === 'pasture') this.options.onModeChanged();
   }
 
   private validate(corners: FarmFieldCorners | null): Validation {

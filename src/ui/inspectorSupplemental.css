@@ -134,7 +134,7 @@
   white-space: nowrap;
 }
 
-.inspector-action-panel__button .resource-cost {
+.resource-action-button .resource-cost {
   margin-left: 0.45em;
   color: #ead49d;
 }
@@ -173,25 +173,7 @@
   cursor: not-allowed;
 }
 
-.inspector-action-panel__button {
-  width: 100%;
-  padding: 10px 12px;
-  font-weight: 650;
-  color: inherit;
-  background: rgba(196, 167, 99, 0.14);
-  border: 1px solid rgba(196, 167, 99, 0.42);
-  border-radius: 8px;
-  cursor: pointer;
-}
-
-.inspector-action-panel__button:hover,
-.inspector-action-panel__button:focus-visible {
-  border-color: var(--accent);
-  outline: none;
-}
-
-.resource-action-button--icon,
-.inspector-action-panel__button--icon {
+.resource-action-button--icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;

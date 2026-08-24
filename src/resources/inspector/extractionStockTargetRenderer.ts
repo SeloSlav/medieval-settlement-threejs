@@ -26,7 +26,7 @@ export function renderExtractionStockTargetPanel(
       : 'Extraction paused at target';
 
   return `
-    <div class="inspector-action-panel">
+    <div class="inspector-action-panel" data-inspector-panel-title="${commodity} target">
       <p class="resource-inspector-note">Extraction yard policy · ${commodity} ${stock.toFixed(0)} / ${target.toFixed(0)} · ${pressure}</p>
       <div class="resource-action-row">${EXTRACTION_OUTPUT_TARGET_PRESETS
         .map((preset) => `<button type="button" class="resource-action-button" data-processor-output-target="${preset.percent}" title="${preset.hint}" ${percent === preset.percent ? 'disabled' : ''}>${preset.label} · ${preset.percent}%</button>`)

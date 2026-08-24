@@ -577,7 +577,20 @@ const harvestInspector = readFileSync(
   'utf8',
 );
 assert.match(harvestInspector, /data-harvest-reserve-slider/);
-assert.match(harvestInspector, /Stop harvesting at/);
+assert.match(harvestInspector, /building\.kind === 'hunters_hall'[\s\S]{0,80}'Hunt'/);
+assert.match(harvestInspector, /building\.kind === 'fishing_camp'[\s\S]{0,80}'Fish'/);
+assert.match(harvestInspector, /:\s*'Gather'/);
+assert.match(
+  harvestInspector,
+  /data-inspector-panel-title="\$\{reserveActionVerb\} until \$\{reserveSliderValue\} \$\{stockUnit\} remain"/,
+  'wild-stock controls should use the same verb-until-population label shape',
+);
+assert.match(
+  harvestInspector,
+  /data-harvest-reserve-share>\$\{reservePercent\}% of capacity/,
+  'wild-stock reserve guidance should remain concise',
+);
+assert.doesNotMatch(harvestInspector, /Stop harvesting at|Set the quantity this camp/);
 assert.match(harvestInspector, /building\.kind === 'foragers_shed'/);
 
 const granary = readFileSync(

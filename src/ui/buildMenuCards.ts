@@ -123,8 +123,8 @@ const DETAILS: Record<PlacementArtKey, BuildCardDetail> = {
   weaver: ["Weaver's workshop", 'Weaves wool into cloth and prepares flax with water for linen.', flow(['wool', 'flax', 'water'], ['cloth'])],
   tannery: ['Tannery', 'Tans goat and game hides with water and bark-fired heat into workable leather.', flow(['hides', 'water', 'firewood'], ['leather'])],
   cobbler: ["Cobbler's workshop", 'Cuts leather into finished shoes for prosperous Tier 3 households.', flow(['leather'], ['shoes'])],
-  pastoral_farmstead: ['Pastoral farmstead', 'Raises cattle or sheep for milk, wool, manure, and meat.', flow([], ['milk', 'wool', 'manure', 'meat'])],
-  swineherd: ['Woodland swineherd', 'Fattens pigs on woodland mast or oats for meat.', flow(['oatGrain'], ['meat'])],
+  pastoral_farmstead: ['Pastoral farmstead', 'An unstocked byre: fence capacity, buy cattle or sheep, then supply trough water and winter fodder.', flow(['water', 'oatGrain'], ['milk', 'wool', 'manure', 'meat'])],
+  swineherd: ['Woodland swineherd', 'An unstocked sty: fence tree-rich pannage, buy pigs, and supplement mast with water and oats.', flow(['water', 'oatGrain'], ['meat'])],
 };
 
 const action = (kind: PlayerPlaceableBuildingKind): PlacementBuildMenuAction =>

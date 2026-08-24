@@ -2,11 +2,15 @@ use spacetimedb::{reducer, ReducerContext};
 
 use crate::balance_generated::{
     CATTLE_DEFAULT_BREEDING_RESERVE, CATTLE_MAX_HERD, CATTLE_MAX_SLOPE_DEGREES,
-    CATTLE_MINIMUM_BREEDING_RESERVE, CATTLE_STARTER_HERD, LIVESTOCK_DEFAULT_HAYMAKING_PERCENT,
-    LIVESTOCK_MAXIMUM_HAYMAKING_PERCENT, LIVESTOCK_MIN_PASTURE_AREA, LIVESTOCK_MIN_PASTURE_EDGE,
-    SHEEP_DEFAULT_BREEDING_RESERVE, SHEEP_MAX_HERD, SHEEP_MAX_SLOPE_DEGREES,
-    SHEEP_MINIMUM_BREEDING_RESERVE, SHEEP_STARTER_HERD, SWINE_DEFAULT_BREEDING_RESERVE,
-    SWINE_MAX_HERD, SWINE_MINIMUM_BREEDING_RESERVE,
+    CATTLE_MINIMUM_BREEDING_RESERVE, CATTLE_PURCHASE_GOLD_PER_HEAD,
+    CATTLE_SALE_GOLD_PER_HEAD, LIVESTOCK_DEFAULT_HAYMAKING_PERCENT,
+    LIVESTOCK_MAXIMUM_HAYMAKING_PERCENT, LIVESTOCK_MIN_PASTURE_AREA,
+    LIVESTOCK_MIN_PASTURE_EDGE, SHEEP_DEFAULT_BREEDING_RESERVE, SHEEP_MAX_HERD,
+    SHEEP_MAX_SLOPE_DEGREES, SHEEP_MINIMUM_BREEDING_RESERVE,
+    SHEEP_PURCHASE_GOLD_PER_HEAD, SHEEP_SALE_GOLD_PER_HEAD,
+    SWINE_DEFAULT_BREEDING_RESERVE, SWINE_MAX_HERD, SWINE_MAX_SLOPE_DEGREES,
+    SWINE_MINIMUM_BREEDING_RESERVE, SWINE_PURCHASE_GOLD_PER_HEAD,
+    SWINE_SALE_GOLD_PER_HEAD,
 };
 use crate::burgage::{convex_zones_overlap, Point2};
 use crate::db::*;
@@ -14,11 +18,13 @@ use crate::farming::{
     centroid, corners_from_values, edge_lengths, is_valid_convex_quadrilateral, polygon_area,
 };
 use crate::hydrology::sample_world_groundwater_score;
+use crate::economy::{credit_treasury_gold, spend_treasury_gold};
 use crate::placement_validation::{
     zone_overlaps_building_footprint, zone_overlaps_resource_deposit,
 };
 use crate::roads::load_owner_road_network;
-use crate::tables::{farm_field, livestock_herd, pasture, LivestockHerd, Pasture};
+use crate::simulation::grazing_capacity;
+use crate::tables::{farm_field, graveyard, livestock_herd, pasture, LivestockHerd, Pasture};
 
 pub const SPECIES_CATTLE: u8 = 0;
 pub const SPECIES_SHEEP: u8 = 1;
@@ -84,7 +90,8 @@ pub fn place_pasture(
     let slope = average_slope_degrees.clamp(0.0, 90.0);
     let max_slope = match herd.species {
         SPECIES_CATTLE => CATTLE_MAX_SLOPE_DEGREES,
-        SPECIES_SHEEP | SPECIES_SWINE => SHEEP_MAX_SLOPE_DEGREES,
+        SPECIES_SHEEP => SHEEP_MAX_SLOPE_DEGREES,
+        SPECIES_SWINE => SWINE_MAX_SLOPE_DEGREES,
         _ => return Err("Unknown herd species.".to_string()),
     };
     if slope > max_slope {
@@ -217,6 +224,29 @@ pub fn place_pasture(
             return Err("Pasture overlaps an existing vineyard.".to_string());
         }
     }
+    for graveyard in ctx.db.graveyard().owner().filter(&owner) {
+        let existing = [
+            Point2 {
+                x: graveyard.corner_ax,
+                z: graveyard.corner_az,
+            },
+            Point2 {
+                x: graveyard.corner_bx,
+                z: graveyard.corner_bz,
+            },
+            Point2 {
+                x: graveyard.corner_cx,
+                z: graveyard.corner_cz,
+            },
+            Point2 {
+                x: graveyard.corner_dx,
+                z: graveyard.corner_dz,
+            },
+        ];
+        if convex_zones_overlap(&polygon, &existing) {
+            return Err("Pasture overlaps consecrated burial ground.".to_string());
+        }
+    }
 
     let config = ctx
         .db
@@ -268,19 +298,30 @@ pub fn set_livestock_species(
     let Some(mut herd) = existing_herd else {
         ctx.db
             .livestock_herd()
-            .insert(starter_herd(building.id, building.owner, species));
+            .insert(unstocked_herd(building.id, building.owner, species));
         return Ok(());
     };
     if herd.species == species {
         return Ok(());
     }
+    if herd.head_count > 0 {
+        return Err("Sell the current herd before changing this holding's species.".to_string());
+    }
+    if ctx
+        .db
+        .pasture()
+        .farmstead_id()
+        .filter(&building_id)
+        .next()
+        .is_some()
+    {
+        return Err(
+            "Remove this holding's linked pasture before changing species.".to_string(),
+        );
+    }
     herd.species = species;
-    herd.head_count = if species == SPECIES_CATTLE {
-        CATTLE_STARTER_HERD
-    } else {
-        SHEEP_STARTER_HERD
-    };
-    herd.health = 0.75;
+    herd.head_count = 0;
+    herd.health = 0.82;
     herd.breeding_progress = 0.0;
     herd.pasture_capacity = 0.0;
     herd.supplied_capacity = 0.0;
@@ -293,6 +334,82 @@ pub fn set_livestock_species(
     herd.last_culled = 0;
     herd.last_hay_output = 0.0;
     herd.haymaking_percent = LIVESTOCK_DEFAULT_HAYMAKING_PERCENT;
+    ctx.db.livestock_herd().building_id().update(herd);
+    Ok(())
+}
+
+/// Buy or sell whole animals at the holding. Positive deltas purchase regional
+/// breeding stock with civic gold; negative deltas sell live animals back to
+/// drovers. Purchases may never exceed the land's neutral carrying capacity or
+/// the holding's management ceiling.
+#[reducer]
+pub fn trade_livestock(
+    ctx: &ReducerContext,
+    building_id: u64,
+    head_delta: i32,
+) -> Result<(), String> {
+    if head_delta == 0 || !(-100..=100).contains(&head_delta) {
+        return Err("Livestock orders must change between 1 and 100 head.".to_string());
+    }
+    let owner = ctx.sender();
+    let building = ctx
+        .db
+        .building()
+        .id()
+        .find(&building_id)
+        .ok_or_else(|| "Livestock holding not found.".to_string())?;
+    if building.owner != owner
+        || !matches!(building.kind.as_str(), "pastoral_farmstead" | "swineherd")
+        || !building.construction_complete
+    {
+        return Err("You do not own this completed livestock holding.".to_string());
+    }
+    let mut herd = ctx
+        .db
+        .livestock_herd()
+        .building_id()
+        .find(&building_id)
+        .ok_or_else(|| "Choose a herd species before ordering animals.".to_string())?;
+
+    if head_delta > 0 {
+        let quantity = head_delta as u32;
+        let land_limit = grazing_capacity(ctx, &building, &herd)
+            .floor()
+            .clamp(0.0, u32::MAX as f64) as u32;
+        let holding_limit = maximum_herd(herd.species).min(land_limit);
+        if herd.head_count.saturating_add(quantity) > holding_limit {
+            let available = holding_limit.saturating_sub(herd.head_count);
+            return Err(format!(
+                "This holding has room for only {available} more head ({} total by land and management capacity).",
+                holding_limit
+            ));
+        }
+        let cost = purchase_gold_per_head(herd.species) * f64::from(quantity);
+        spend_treasury_gold(ctx, owner, cost)?;
+        let was_empty = herd.head_count == 0;
+        herd.head_count += quantity;
+        if was_empty {
+            herd.health = 0.82;
+            herd.breeding_progress = 0.0;
+        }
+    } else {
+        let quantity = (-i64::from(head_delta)) as u32;
+        if quantity > herd.head_count {
+            return Err(format!(
+                "Only {} head are available to sell.",
+                herd.head_count
+            ));
+        }
+        herd.head_count -= quantity;
+        herd.supplied_capacity = herd.supplied_capacity.min(f64::from(herd.head_count));
+        herd.breeding_progress = herd.breeding_progress.min(0.999);
+        credit_treasury_gold(
+            ctx,
+            owner,
+            sale_gold_per_head(herd.species) * f64::from(quantity),
+        );
+    }
+
     ctx.db.livestock_herd().building_id().update(herd);
     Ok(())
 }
@@ -385,16 +502,16 @@ pub fn demolish_pasture(ctx: &ReducerContext, pasture_id: u64) -> Result<(), Str
     Ok(())
 }
 
-pub fn starter_herd(building_id: u64, owner: spacetimedb::Identity, species: u8) -> LivestockHerd {
+pub fn unstocked_herd(
+    building_id: u64,
+    owner: spacetimedb::Identity,
+    species: u8,
+) -> LivestockHerd {
     LivestockHerd {
         building_id,
         owner,
         species,
-        head_count: match species {
-            SPECIES_CATTLE => CATTLE_STARTER_HERD,
-            SPECIES_SHEEP => SHEEP_STARTER_HERD,
-            _ => crate::balance_generated::SWINE_STARTER_HERD,
-        },
+        head_count: 0,
         health: 0.82,
         breeding_progress: 0.0,
         pasture_capacity: 0.0,
@@ -437,5 +554,21 @@ fn maximum_herd(species: u8) -> u32 {
         SPECIES_CATTLE => CATTLE_MAX_HERD,
         SPECIES_SHEEP => SHEEP_MAX_HERD,
         _ => SWINE_MAX_HERD,
+    }
+}
+
+fn purchase_gold_per_head(species: u8) -> f64 {
+    match species {
+        SPECIES_CATTLE => CATTLE_PURCHASE_GOLD_PER_HEAD,
+        SPECIES_SHEEP => SHEEP_PURCHASE_GOLD_PER_HEAD,
+        _ => SWINE_PURCHASE_GOLD_PER_HEAD,
+    }
+}
+
+fn sale_gold_per_head(species: u8) -> f64 {
+    match species {
+        SPECIES_CATTLE => CATTLE_SALE_GOLD_PER_HEAD,
+        SPECIES_SHEEP => SHEEP_SALE_GOLD_PER_HEAD,
+        _ => SWINE_SALE_GOLD_PER_HEAD,
     }
 }

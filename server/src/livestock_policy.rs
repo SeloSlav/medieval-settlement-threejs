@@ -7,7 +7,6 @@ use crate::balance_generated::{
     LIVESTOCK_HAYMAKING_END_MONTH, LIVESTOCK_HAYMAKING_START_MONTH,
     LIVESTOCK_MAXIMUM_HAYMAKING_PERCENT, LIVESTOCK_WINTER_FODDER_RESERVE_DAYS,
     SHEEP_SHEARING_END_MONTH, SHEEP_SHEARING_START_MONTH, SHEEP_WOOL_PER_SHEARING_PER_HEAD,
-    WINTER_PASTURE_CAPACITY_MULTIPLIER,
 };
 use crate::season_policy::Season;
 
@@ -80,19 +79,14 @@ pub fn cattle_manure_output(productive_heads: f64, season: Season) -> f64 {
         * cattle_manure_collection_multiplier(season)
 }
 
-pub fn livestock_cycles_per_calendar_day(
-    assigned_labor: u32,
-    action_interval: f64,
-    sabbath_observed: bool,
-) -> f64 {
-    if assigned_labor == 0 || action_interval <= 1e-9 {
+pub fn livestock_cycles_per_calendar_day(action_interval: f64) -> f64 {
+    if action_interval <= 1e-9 {
         return 0.0;
     }
     let workday_seconds = CALENDAR_SECONDS_PER_DAY
         * (CALENDAR_WORK_END_HOUR - CALENDAR_WORK_START_HOUR) as f64
         / CALENDAR_HOURS_PER_DAY as f64;
-    let working_week_share = if sabbath_observed { 6.0 / 7.0 } else { 1.0 };
-    workday_seconds * working_week_share * assigned_labor as f64 / action_interval
+    workday_seconds / action_interval
 }
 
 pub fn projected_winter_fodder_grain(
@@ -102,8 +96,10 @@ pub fn projected_winter_fodder_grain(
     hay_per_unsupported_head: f64,
     grain_per_unsupported_head: f64,
     cycles_per_calendar_day: f64,
+    winter_capacity_multiplier: f64,
 ) -> f64 {
-    let winter_capacity = base_pasture_capacity.max(0.0) * WINTER_PASTURE_CAPACITY_MULTIPLIER;
+    let winter_capacity =
+        base_pasture_capacity.max(0.0) * winter_capacity_multiplier.max(0.0);
     let unsupported_heads = (projected_head_count as f64 - winter_capacity).max(0.0);
     let unsupported_head_cycles =
         unsupported_heads * cycles_per_calendar_day.max(0.0) * LIVESTOCK_WINTER_FODDER_RESERVE_DAYS;
@@ -308,20 +304,20 @@ mod tests {
 
     #[test]
     fn winter_fodder_projection_uses_work_calendar_and_pasture_pressure() {
-        let cycles = livestock_cycles_per_calendar_day(1, 10.0, false);
+        let cycles = livestock_cycles_per_calendar_day(10.0);
         assert!((cycles - 7.0).abs() < 1e-9);
-        assert!((livestock_cycles_per_calendar_day(1, 10.0, true) - 6.0).abs() < 1e-9);
-        let grain = projected_winter_fodder_grain(6, 10.0, 0.0, 0.34, 0.34, cycles);
+        assert!((livestock_cycles_per_calendar_day(12.0) - 35.0 / 6.0).abs() < 1e-9);
+        let grain = projected_winter_fodder_grain(6, 10.0, 0.0, 0.34, 0.34, cycles, 0.35);
         assert!((grain - 178.5).abs() < 1e-9);
         assert_eq!(
-            projected_winter_fodder_grain(6, 10.0, 178.5, 0.34, 0.34, cycles),
+            projected_winter_fodder_grain(6, 10.0, 178.5, 0.34, 0.34, cycles, 0.35),
             0.0
         );
         assert_eq!(
-            projected_winter_fodder_grain(3, 10.0, 0.0, 0.34, 0.34, cycles),
+            projected_winter_fodder_grain(3, 10.0, 0.0, 0.34, 0.34, cycles, 0.35),
             0.0
         );
-        assert_eq!(livestock_cycles_per_calendar_day(0, 10.0, false), 0.0);
+        assert_eq!(livestock_cycles_per_calendar_day(0.0), 0.0);
     }
 
     #[test]

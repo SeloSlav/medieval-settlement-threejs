@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
-import { existsSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { resolve } from 'node:path';
 import {
   BACKYARD_GARDEN_DEFINITIONS,
@@ -16,6 +16,7 @@ import {
   forestryWorkAreaDetailRow,
   renderForestryWorkAreaPanel,
 } from '../src/resources/inspector/treeWorkAreaRenderer.ts';
+import { renderInspectorResourceToken } from '../src/resources/inspector/inspectorResourceTokens.ts';
 
 type SharpDecodeResult = {
   data: Uint8Array;
@@ -49,6 +50,9 @@ const campRenderer = readFileSync('src/resources/inspector/remoteWorkCampRendere
 const expandedBuildingRenderer = readFileSync('src/resources/inspector/expandedBuildingRenderer.ts', 'utf8');
 const farmFieldRenderer = readFileSync('src/resources/inspector/farmFieldRenderer.ts', 'utf8');
 const livestockBuildingRenderer = readFileSync('src/resources/inspector/livestockBuildingRenderer.ts', 'utf8');
+const townHallRenderer = readFileSync('src/resources/inspector/townHallRenderer.ts', 'utf8');
+const marketplaceTradeRenderer = readFileSync('src/resources/inspector/marketplaceTradeRenderer.ts', 'utf8');
+const storageAcceptancePolicy = readFileSync('src/economy/storageAcceptancePolicy.ts', 'utf8');
 const inspectorResourceTokens = readFileSync('src/resources/inspector/inspectorResourceTokens.ts', 'utf8');
 const supplementalPanel = readFileSync('src/resources/inspector/supplementalPanel.ts', 'utf8');
 const resourceInspector = readFileSync('src/resources/ResourceInspector.ts', 'utf8');
@@ -61,6 +65,7 @@ const iconography = readFileSync('src/ui/iconography.css', 'utf8');
 const constructionDock = readFileSync('src/ui/constructionDock.css', 'utf8');
 const lumberMillRenderer = readFileSync('src/resources/inspector/lumberMillRenderer.ts', 'utf8');
 const reforesterRenderer = readFileSync('src/resources/inspector/reforesterRenderer.ts', 'utf8');
+const harvestBuildingRenderer = readFileSync('src/resources/inspector/harvestBuildingRenderer.ts', 'utf8');
 
 const inspectorArtBlock = resourceInspector.match(
   /const BUILDING_INSPECTOR_ART = \{([\s\S]*?)\}\s+satisfies Record<BuildingKind, string>;/,
@@ -219,9 +224,40 @@ assert.match(inspectorResourceTokens, /data-tooltip-amount="\$\{escapeHtml\(form
 assert.match(inspectorResourceTokens, /data-tooltip-resources="\$\{escapeHtml\(tooltipResources\)\}"/);
 assert.match(inspectorResourceTokens, /resource-cost__item" data-resource-cost="\$\{options\.kind\}"[\s\S]{0,120}resource-cost__icon/);
 assert.match(inspectorResourceTokens, /inspector-resource-strip[\s\S]{0,520}role="group" aria-label=/);
-assert.match(chapelRenderer, /data-action="upgrade-chapel" data-upgrade-tier="\$\{upgrade\.targetTier\}"[\s\S]*data-action-icon="church-tier-\$\{upgrade\.targetTier\}"/);
+assert.match(inspectorResourceTokens, /const INSPECTOR_RESOURCE_TOOLTIP_MAX_LENGTH = 120/);
+assert.match(
+  inspectorResourceTokens,
+  /const detail = compactTooltipDetail\(options\.detail\?\.trim\(\) \|\| 'Current amount'\)/,
+  'resource-token details must use the concise tooltip path',
+);
+assert.match(
+  inspectorResourceTokens,
+  /function compactTooltipDetail\([\s\S]{0,700}INSPECTOR_RESOURCE_TOOLTIP_MAX_LENGTH[\s\S]{0,360}\.slice\(/,
+  'resource-token tooltip compaction must enforce its hard cap',
+);
+const verboseResourceToken = renderInspectorResourceToken({
+  kind: 'timber',
+  amount: 12,
+  detail: 'Timber is held across this worksite while carts, builders, household projects, road access, and several competing construction claims all wait for their next dispatch cycle',
+});
+const compactResourceTooltip = verboseResourceToken.match(/data-tooltip="([^"]*)"/)?.[1] ?? '';
+assert.ok(compactResourceTooltip.length > 0);
+assert.ok(compactResourceTooltip.length <= 120, 'rendered resource-token tooltips must stay within 120 characters');
+assert.match(compactResourceTooltip, /…$/);
+assert.match(
+  chapelRenderer,
+  /<button(?=[^>]*data-action="upgrade-chapel")(?=[^>]*class="[^"]*\bresource-action-button\b)[^>]*>[\s\S]*?data-action-icon="church-tier-\$\{upgrade\.targetTier\}"/,
+  'chapel upgrades must use the shared building-card action button',
+);
 assert.match(campRenderer, /data-begin-remote-work-camp[\s\S]*data-action-icon="overnight-work-camp"|data-action-icon="overnight-work-camp"[\s\S]*data-begin-remote-work-camp/);
 assert.match(campRenderer, /data-work-camp-action[\s\S]*Inspect overnight camp/);
+assert.match(
+  campRenderer,
+  /<button(?=[^>]*data-work-camp-action)(?=[^>]*class="[^"]*\bresource-action-button\b)[^>]*>/,
+  'overnight-camp actions must use the shared building-card action button',
+);
+assert.doesNotMatch(chapelRenderer, /inspector-action-panel__button/);
+assert.doesNotMatch(campRenderer, /inspector-action-panel__button/);
 
 const forestryBuilding = {
   id: 'lumber-1',
@@ -265,9 +301,10 @@ assert.match(
   resourceInspector,
   /hasCustomTreeWorkArea\(building\)[\s\S]{0,180}onClearTreeWorkArea\?\.[\s\S]{0,180}onBeginTreeWorkAreaPlacement\?\./,
 );
-assert.match(
+assert.doesNotMatch(
   resourceInspector,
-  /classList\.contains\('inspector-action-panel'\)[\s\S]{0,120}!element\.hasAttribute\('data-inspector-pinned-action'\)/,
+  /hasAttribute\('data-inspector-pinned-action'\)/,
+  'pinned work-area panels should pass through the same concise central standardization',
 );
 assert.match(actionCss, /data-action-icon='tree-work-area'[\s\S]{0,520}linear-gradient/);
 assert.match(actionCss, /background-size:\s*6px 6px, 6px 6px, 100% 100%/);
@@ -325,31 +362,93 @@ assert.match(
   /omittedPrimaryDetails[\s\S]{0,900}appendFocusableInspectorTooltip/,
   'primary details beyond the visible cap should remain keyboard-accessible',
 );
+const compactDemolitionBlock = resourceInspector.match(
+  /const compactDemolition =[\s\S]*?;/,
+)?.[0] ?? '';
+for (const targetKind of ['building', 'residence', 'backyard', 'farm-field', 'pasture'] as const) {
+  assert.match(
+    compactDemolitionBlock,
+    new RegExp(`target\\.kind === '${escapeRegex(targetKind)}'`),
+    `${targetKind} demolition guidance should move into the shared concise tooltip`,
+  );
+}
+assert.match(resourceInspector, /this\.demolishHint\.hidden = compactDemolition/);
+assert.match(resourceInspector, /this\.demolishSecondaryHint\.hidden = compactDemolition/);
 assert.match(
   resourceInspector,
-  /const compactDemolition = target\.kind === 'building' \|\| target\.kind === 'residence'[\s\S]{0,220}this\.demolishHint\.hidden = compactDemolition/,
-  'building and residence salvage prose should move off the default card',
+  /syncInspectorTooltip\([\s\S]{0,180}compactDemolition \? view\.demolish\.hint : ''/,
+  'primary demolition guidance should remain available through the concise tooltip path',
 );
 assert.match(resourceInspector, /this\.laborHint\.hidden = target\.kind === 'building'/);
 assert.match(
   resourceInspector,
-  /compactBuildingSupplementalPanels[\s\S]{0,2200}controls\.length === 0[\s\S]{0,520}panel\.remove\(\)/,
+  /standardizeSupplementalPanels[\s\S]{0,2600}controls\.length === 0[\s\S]{0,520}panel\.remove\(\)/,
   'read-only supplemental essays should not occupy building cards',
 );
 assert.match(
   resourceInspector,
-  /:scope > \.inspector-action-panel__hint, :scope > \.resource-inspector-note, \.trading-post-ledger__intro[\s\S]{0,240}nextElementSibling\?\.matches\('\.resource-action-row'\)/,
-  'building compaction should preserve nested labels inside expanded controls',
+  /const subgroupNodes = \[\.\.\.panel\.querySelectorAll<HTMLElement>/,
+  'long action notes should collapse to concise subgroup labels instead of remaining as visible essays',
 );
+assert.match(resourceInspector, /nextElementSibling\?\.matches\('\.resource-action-row'\)/);
+assert.match(resourceInspector, /node\.className = 'inspector-action-panel__subheading'/);
+assert.match(resourceInspector, /syncFocusableInspectorTooltip\(node, subgroupLabel, detail\)/);
 assert.match(resourceInspector, /compactChildren\.length > 1 && compactChildren\.every/);
 assert.match(resourceInspector, /function syncFocusableInspectorTooltip/);
 assert.match(resourceInspector, /this\.laborLabel,[\s\S]{0,120}target\.kind === 'building' \? view\.labor\.hint/);
 assert.match(
   resourceInspector,
-  /const shouldOrganize = compactBuilding[\s\S]{0,220}inspectorControlCount/,
-  'multi-control building policies should be compact disclosures closed by default',
+  /standardizeSupplementalPanels[\s\S]{0,5200}\w+\.classList\.add\('resource-action-button'\)/,
+  'supplemental building-card buttons should be normalized to the shared action control',
 );
-assert.match(resourceInspector, /: !compactBuilding && index === 0/);
+assert.match(resourceInspector, /dataset\.inspectorActionGroup/);
+assert.doesNotMatch(
+  resourceInspector,
+  /document\.createElement\(['"](?:details|summary)['"]\)/,
+  'resource inspector controls must remain flat instead of creating accordions',
+);
+assert.doesNotMatch(resourceInspector, /inspector-policy-card/);
+assert.match(resourceInspector, /const INSPECTOR_TOOLTIP_MAX_LENGTH = 120/);
+assert.match(
+  resourceInspector,
+  /function compactInspectorDetail\([\s\S]{0,900}INSPECTOR_TOOLTIP_MAX_LENGTH[\s\S]{0,500}\.slice\(/,
+  'all inspector tooltip detail must pass through a hard concise-length cap',
+);
+assert.match(resourceInspector, /function compactActionTooltip\(/);
+assert.match(
+  resourceInspector,
+  /function syncInspectorTooltip\([\s\S]{0,420}compactInspectorDetail\(detail\)/,
+  'the common tooltip writer must enforce the concise cap',
+);
+assert.match(
+  resourceInspector,
+  /standardizeSupplementalPanels[\s\S]{0,5200}compactActionTooltip\(/,
+  'supplemental action guidance must be compacted before becoming a tooltip',
+);
+assert.match(townHallRenderer, /<option[^>]*title=/, 'Town Hall policies should retain native option guidance');
+assert.match(
+  resourceInspector,
+  /querySelectorAll<HTMLElement>\([\s\S]{0,80}'\[title\], \[data-tooltip\]'[\s\S]{0,180}instanceof HTMLButtonElement[\s\S]{0,120}compactNonButtonTooltip\(tooltipTarget\)/,
+  'native and data tooltip text on non-button policy controls must use the shared compact path',
+);
+const compactNonButtonTooltipBlock = resourceInspector.match(
+  /function compactNonButtonTooltip\([\s\S]*?\n}/,
+)?.[0] ?? '';
+assert.match(
+  compactNonButtonTooltipBlock,
+  /const detail = compactInspectorDetail\(element\.dataset\.tooltip\?\.trim\(\) \|\| nativeTitle\)/,
+  'non-button tooltip details must be capped before any native or custom presentation',
+);
+assert.match(
+  compactNonButtonTooltipBlock,
+  /element instanceof HTMLOptionElement[\s\S]{0,100}element\.title = detail[\s\S]{0,60}return/,
+  'native option tooltips should preserve only their capped detail',
+);
+assert.match(
+  compactNonButtonTooltipBlock,
+  /element\.removeAttribute\('title'\)[\s\S]{0,100}syncInspectorTooltip\(element, title, detail\)/,
+  'other non-button controls should move capped native titles into the shared tooltip',
+);
 assert.match(backyardCss, /\.resource-inspector-demolish\[hidden\]\s*\{\s*display:\s*none/);
 assert.match(
   resourceInspector,
@@ -385,6 +484,114 @@ assert.match(livestockBuildingRenderer, /data-land-parcel="pasture"[\s\S]{0,760}
 assert.match(livestockBuildingRenderer, /data-land-parcel="pasture"[^>]*data-tooltip-cost="\$\{FREE_CONSTRUCTION_COST_TOOLTIP\}"/);
 assert.match(farmFieldRenderer, /data-field-early-harvest[\s\S]{0,260}data-action-icon="early-harvest"|data-action-icon="early-harvest"[\s\S]{0,260}data-field-early-harvest/);
 assert.match(backyardCss, /resource-inspector-demolish::before[\s\S]{0,240}actions\/demolish\.png/);
+
+for (const [source, selector, label] of [
+  [resourceInspector, 'data-action="demolish-primary"', 'primary demolition'],
+  [resourceInspector, 'data-action="demolish-secondary"', 'secondary demolition'],
+  [resourceInspector, 'data-fire-recovery', 'repair'],
+  [residenceRenderer, 'data-action="upgrade-residence"', 'residence upgrade'],
+  [chapelRenderer, 'data-land-parcel="graveyard"', 'burial-ground layout'],
+  [chapelRenderer, 'data-demolish-graveyard=', 'empty burial-ground removal'],
+  [farmFieldRenderer, 'data-field-early-harvest', 'early harvest'],
+  [backyardRenderer, 'data-inspector-action="place-garden"', 'backyard extension choice'],
+  [backyardRenderer, 'data-inspector-action="specialize-orchard"', 'orchard specialization'],
+  [backyardRenderer, 'data-inspector-action="specialize-animal-pen"', 'animal-pen specialization'],
+  [backyardRenderer, 'data-inspector-action="specialize-vegetable-garden"', 'vegetable-garden specialization'],
+  [expandedBuildingRenderer, 'data-monastery-extension-choice=', 'monastery extension'],
+  [marketplaceTradeRenderer, 'data-trade-rule-mode=', 'Trading Post mode'],
+  [marketplaceTradeRenderer, 'data-trade-surplus-delta=', 'Trading Post target stepper'],
+  [storageAcceptancePolicy, 'data-storage-accept-all=', 'storage bulk acceptance'],
+  [storageAcceptancePolicy, 'data-storage-commodity=', 'storage commodity toggle'],
+] as const) {
+  assert.match(
+    source,
+    new RegExp(`<button(?=[^>]*${escapeRegex(selector)})(?=[^>]*class="[^"]*\\bresource-action-button\\b)[^>]*>`),
+    `${label} must use the shared building-card action button`,
+  );
+}
+
+for (const [source, selector, modifier, label] of [
+  [chapelRenderer, 'data-demolish-graveyard=', 'resource-action-button--danger', 'empty burial-ground removal'],
+  [expandedBuildingRenderer, 'data-monastery-extension-choice=', 'resource-action-button--toggle', 'monastery extension'],
+  [marketplaceTradeRenderer, 'data-trade-rule-mode=', 'resource-action-button--toggle', 'Trading Post mode'],
+  [storageAcceptancePolicy, 'data-storage-commodity=', 'resource-action-button--toggle', 'storage commodity'],
+] as const) {
+  assert.match(
+    source,
+    new RegExp(`<button(?=[^>]*${escapeRegex(selector)})(?=[^>]*class="[^"]*\\b${escapeRegex(modifier)}\\b)[^>]*>`),
+    `${label} must retain its shared ${modifier} semantics`,
+  );
+}
+
+const buildingCardButtonSources = [
+  ...readdirSync('src/resources/inspector')
+    .filter((file) => file.endsWith('.ts'))
+    .map((file) => [`src/resources/inspector/${file}`, readFileSync(`src/resources/inspector/${file}`, 'utf8')] as const),
+  ['src/economy/storageAcceptancePolicy.ts', storageAcceptancePolicy] as const,
+];
+for (const [file, source] of buildingCardButtonSources) {
+  assert.doesNotMatch(
+    source,
+    /<(?:details|summary)\b|createElement\(['"](?:details|summary)['"]\)/,
+    `${file} must not add an accordion to a building card`,
+  );
+  for (const match of source.matchAll(/<button\b[\s\S]*?>/g)) {
+    const button = match[0];
+    assert.ok(
+      /\bresource-action-button\b/.test(button) || /\binspector-jump-button\b/.test(button),
+      `${file} building-card buttons must use the shared action family (inline Inspect navigation is exempt): ${button.replace(/\s+/g, ' ').slice(0, 180)}`,
+    );
+  }
+}
+for (const match of resourceInspector.matchAll(/<button\b[\s\S]*?>/g)) {
+  const button = match[0];
+  assert.ok(
+    /\bresource-action-button\b/.test(button) || /\bresource-inspector-close\b/.test(button),
+    `ResourceInspector building-card controls must use the shared action family (panel close is exempt): ${button.replace(/\s+/g, ' ').slice(0, 180)}`,
+  );
+}
+
+assert.match(harvestBuildingRenderer, /building\.kind === 'hunters_hall'[\s\S]{0,80}'Hunt'/);
+assert.match(harvestBuildingRenderer, /building\.kind === 'fishing_camp'[\s\S]{0,80}'Fish'/);
+assert.match(harvestBuildingRenderer, /:\s*'Gather'/);
+assert.match(
+  harvestBuildingRenderer,
+  /data-inspector-panel-title="\$\{reserveActionVerb\} until \$\{reserveSliderValue\} \$\{stockUnit\} remain"/,
+  'harvest control groups must use the same verb-until-population label shape',
+);
+assert.match(
+  harvestBuildingRenderer,
+  /<span>\$\{reserveActionVerb\} until<\/span>[\s\S]{0,160}<strong data-harvest-reserve-value>\$\{reserveSliderValue\} \$\{stockUnit\}<\/strong>[\s\S]{0,100}<span>remain<\/span>/,
+  'the visible harvest control must mirror its standardized action label',
+);
+assert.match(harvestBuildingRenderer, /data-harvest-reserve-share>\$\{reservePercent\}% of capacity/);
+assert.doesNotMatch(harvestBuildingRenderer, /Stop harvesting at/);
+assert.doesNotMatch(
+  harvestBuildingRenderer,
+  /Set the quantity this camp|same proportional floor adapts|Rich shoals hold|Every habitat keeps|Berry thickets and mushroom beds regrow/,
+  'harvest controls should not retain essay-length descriptions',
+);
+const harvestLiveStart = resourceInspector.indexOf(
+  "} else if (input.matches('[data-harvest-reserve-slider]'))",
+);
+const harvestLiveEnd = resourceInspector.indexOf(
+  'private readonly onSupplementalChange',
+  harvestLiveStart,
+);
+assert.ok(harvestLiveStart >= 0 && harvestLiveEnd > harvestLiveStart);
+const harvestLiveBlock = resourceInspector.slice(harvestLiveStart, harvestLiveEnd);
+assert.match(harvestLiveBlock, /const liveTitle = `\$\{verb\} until \$\{reserve\} \$\{unit\} remain`/);
+assert.match(harvestLiveBlock, /input\.closest<HTMLElement>\('\.inspector-action-panel'\)/);
+assert.match(
+  harvestLiveBlock,
+  /panel\.dataset\.inspectorPanelTitle = liveTitle/,
+  'harvest slider input must keep the action-group title synchronized with its live reserve',
+);
+assert.match(
+  harvestLiveBlock,
+  /heading\.textContent = liveTitle[\s\S]{0,180}syncFocusableInspectorTooltip\(heading, liveTitle, liveDetail\)/,
+  'harvest slider input must update both the visible group heading and its concise detail',
+);
 
 for (const icon of ['fire-recovery', 'early-harvest'] as const) {
   assert.match(

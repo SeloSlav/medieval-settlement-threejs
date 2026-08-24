@@ -229,7 +229,7 @@ export function renderFarmFieldInspector(
       ? `${expectedYield.toFixed(1)} ${cropHarvestUnit(field.crop)} total · ${Math.max(0, expectedYield - field.currentYield).toFixed(1)} remaining`
       : `${expectedYield.toFixed(1)} ${cropHarvestUnit(field.crop)} projected`;
 
-  const cropControls = `<div class="inspector-action-panel">
+  const cropControls = `<div class="inspector-action-panel" data-inspector-panel-title="Crop rotation">
       <p class="resource-inspector-note">Year 2 crop — schedule the next cycle without changing the crop already in the ground.</p>
       <div class="resource-action-row">${FARM_CROPS.map((crop) => cropButton(crop, field.nextCrop, 'data-field-crop')).join('')}</div>
       <p class="resource-inspector-note">Year 3 crop — choosing one enables a repeating ${cropLabel(field.crop)} → ${cropLabel(field.nextCrop)} → Year 3 cycle. Future manure is not promised.</p>
@@ -238,12 +238,12 @@ export function renderFarmFieldInspector(
         <button type="button" class="resource-action-button" data-field-following-clear ${cyclicRotation ? '' : 'disabled'}>Repeat Year 2</button>
       </div>
     </div>`;
-  const priorityControls = `<div class="inspector-action-panel">
+  const priorityControls = `<div class="inspector-action-panel" data-inspector-panel-title="Field priority">
       <p class="resource-inspector-note">Field-work priority — each farm handles its own active fields; High and Urgent also enter every nearby farmstead crew’s queue. A ready harvest always comes first; other jobs use priority, stage urgency, linked-field ties, then field age. Each farmstead also inserts its own threshing job into this shared queue.</p>
       <div class="resource-action-row">${[0, 1, 2, 3].map((priority) => `<button type="button" class="resource-action-button" data-field-priority="${priority}" ${priority === field.priority ? 'disabled' : ''}>${PRIORITY_LABEL[priority]}</button>`).join('')}</div>
     </div>`;
   const earlyHarvestControls = field.stage === 'growing' && cropProduce(field.crop) !== 'none'
-    ? `<div class="inspector-action-panel">
+    ? `<div class="inspector-action-panel" data-inspector-panel-title="Early harvest">
         <p class="resource-inspector-note">Early harvest — ${!farmstead || farmstead.constructionComplete === false
           ? 'finish the farmstead before ordering the cut.'
           : earlyHarvest.reason} Waiting until ${harvestMonthLabel} keeps 100% yield.</p>

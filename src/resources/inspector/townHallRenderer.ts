@@ -2562,7 +2562,7 @@ export function renderTownHallInspector(
     demolish: { visible: true, hint: buildingDemolishHint(building.kind) },
     labor: buildingLaborView(building, context.populationStats, context.worldQueries),
     supplementalPanelHtml: `
-      <div class="inspector-action-panel">
+      <div class="inspector-action-panel" data-inspector-panel-title="Civic revenue">
         <h4 class="inspector-action-panel__title">Optional civic revenue</h4>
         <p class="inspector-action-panel__hint">All rates may remain at zero. Civic receipts wait in Marketplace or Trading Post lockboxes for free-hauler collection. Parish and monastery funds remain independent church property.</p>
         <label class="city-admin-panel__slider-label">
@@ -2610,7 +2610,7 @@ export function renderTownHallInspector(
         </select>
         <p class="inspector-action-panel__hint">The levy applies only when the monastery receives pilgrimage offerings or external-estate income. The remainder stays in its purse to fund daily infirmary, guesthouse, archive, and workshop services and its chosen next extension. A heavier levy pays the treasury sooner but can leave outward services underfunded.</p>
       </div>
-      <div class="inspector-action-panel">
+      <div class="inspector-action-panel" data-inspector-panel-title="Market issues">
         <h4 class="inspector-action-panel__title">Household market issues</h4>
         <p class="inspector-action-panel__hint">Covered homes are checked ${MARKETPLACE_HOUSEHOLD_ISSUE_CHECKS_PER_DAY} times per day and refilled up to their ordinary one-day target when needed. This doctrine controls only the extra buffer for critical food and heat already staged at connected markets; it never opens a prompt, spends gold, or creates a door-to-door cart.</p>
         <label class="city-admin-panel__slider-label" for="town-hall-pantry-safeguard"><span>Pantry safeguard</span></label>
@@ -2623,7 +2623,7 @@ export function renderTownHallInspector(
         <p class="inspector-action-panel__hint">${pantrySafeguard.hint} Scarce stock is shared one household-day at a time. Parish poor relief remains separate: after a sustained food shortage, a staffed chapel may spend its own coffer on a weekly relief purchase.</p>
         ${!staffedTownHallAvailable ? '<p class="inspector-action-panel__hint">Assign a Town Hall clerk to post a different safeguard.</p>' : ''}
       </div>
-      <div class="inspector-action-panel">
+      <div class="inspector-action-panel" data-inspector-panel-title="Night orders">
         <h4 class="inspector-action-panel__title">Night orders</h4>
         <p class="inspector-action-panel__hint">Night is fully simulated. Homes eat an evening meal and burn heat, lamps consume stored firewood, stocked processors may continue, and watch, lighting, gatherings, and curfew shape rest, cohesion, theft, fire discovery, and night-raid warning. Active fights never stop at dawn or dusk.</p>
         <label class="city-admin-panel__slider-label" for="town-hall-night-watch"><span>Watch</span></label>
@@ -2649,7 +2649,7 @@ export function renderTownHallInspector(
         <p class="inspector-action-panel__hint"><strong>Dawn report:</strong> ${formatDawnReport(nightPolicy)}<br />Cohesion ${Math.round(nightPolicy.communityCohesion * 100)}% · fatigue ${Math.round(nightPolicy.laborFatigue * 100)}%.</p>
         ${!staffedTownHallAvailable ? '<p class="inspector-action-panel__hint">Assign a Town Hall clerk to post night orders.</p>' : ''}
       </div>
-      <div class="inspector-action-panel">
+      <div class="inspector-action-panel" data-inspector-panel-title="Seasonal steward">
         <label class="city-admin-panel__toggle">
           <input type="checkbox" data-policy-seasonal-labor-steward
             ${seasonalLaborStewardEnabled ? 'checked' : ''}
@@ -2659,7 +2659,7 @@ export function renderTownHallInspector(
         <p class="inspector-action-panel__hint">At each new calendar day, a staffed Town Hall releases dormant farm, forage, fishing, and apiary crews before assigning free labor fairly across active seasonal sites in stable worksite order. Year-round jobs, builders, and production-workshop crews are untouched. Enabling performs one review immediately. Manual is the save-compatible default.</p>
         ${!staffedTownHallAvailable ? '<p class="inspector-action-panel__hint">Assign a Town Hall clerk to change or run this policy.</p>' : ''}
       </div>
-      <div class="inspector-action-panel">
+      <div class="inspector-action-panel" data-inspector-panel-title="Labor reserve">
         <label class="city-admin-panel__slider-label" for="town-hall-labor-steward-reserve">
           <span>Automatic labor reserve</span>
           <strong>${laborStewardReserve}</strong>
@@ -2673,7 +2673,7 @@ export function renderTownHallInspector(
         <p class="inspector-action-panel__hint">All enabled dawn stewards share this floor after safe crew releases. It preserves labor for explicit orders and emergencies without dismissing productive crews merely to reach the floor. Manual call-ups can still use the reserve.</p>
         ${!staffedTownHallAvailable ? '<p class="inspector-action-panel__hint">Assign a Town Hall clerk to change this policy.</p>' : ''}
       </div>
-      <div class="inspector-action-panel">
+      <div class="inspector-action-panel" data-inspector-panel-title="Production steward">
         <label class="city-admin-panel__toggle">
           <input type="checkbox" data-policy-production-labor-steward
             ${productionLaborStewardEnabled ? 'checked' : ''}
@@ -2683,7 +2683,7 @@ export function renderTownHallInspector(
         <p class="inspector-action-panel__hint">At each new calendar day, a staffed Town Hall releases full production crews from genuinely stalled workshops, exhausted or target-held extraction yards, and reserve-held hunting halls. Stored output and active carts remain logistics work. It then fills supplied, below-target production sites fairly in stable worksite order. Matching inbound supplies protect recovering workshops. The Dawn labor review previews the full seasonal → production → construction sequence against one shared labor pool without issuing orders. Enabling performs one review immediately.</p>
         ${!staffedTownHallAvailable ? '<p class="inspector-action-panel__hint">Assign a Town Hall clerk to change or run this policy.</p>' : ''}
       </div>
-      <div class="inspector-action-panel">
+      <div class="inspector-action-panel" data-inspector-panel-title="Construction steward">
         <label class="city-admin-panel__toggle">
           <input type="checkbox" data-policy-construction-labor-steward
             ${constructionLaborStewardEnabled ? 'checked' : ''}
@@ -2693,7 +2693,7 @@ export function renderTownHallInspector(
         <p class="inspector-action-panel__hint">At each new calendar day, a staffed Town Hall releases builders only from sites that cannot progress and have no supply cart approaching, then fills immediately productive sites by urgent, normal, and low priority. Crews awaiting inbound material stay assigned and equal-priority sites share workers round-robin. Enabling performs one rotation immediately. When multiple stewards are enabled, active seasonal work is reviewed first, production second, and construction last.</p>
         ${!staffedTownHallAvailable ? '<p class="inspector-action-panel__hint">Assign a Town Hall clerk to change or run this policy.</p>' : ''}
       </div>
-      <div class="inspector-action-panel">
+      <div class="inspector-action-panel" data-inspector-panel-title="Rotate builders">
         <p class="inspector-action-panel__hint">Rotate construction labor now using the existing queue priorities. Builders are released only from sites that cannot progress and have no supply cart approaching; crews awaiting inbound material stay in place. Free workers then fill immediately productive urgent sites before normal and low sites, sharing workers round-robin within each tier.${constructionLaborStewardEnabled ? ' The daily steward repeats this safe rotation automatically.' : ' Future rotations remain manual.'}</p>
         <button type="button" class="resource-action-button" data-rotate-construction-labor ${staffedTownHallAvailable && constructionLabor.assignments.length > 0 ? '' : 'disabled'}>
           ${constructionLabor.recalledWorkers > 0 && constructionLabor.calledWorkers > 0
@@ -2706,7 +2706,7 @@ export function renderTownHallInspector(
         </button>
         ${!staffedTownHallAvailable && constructionLabor.assignments.length > 0 ? '<p class="inspector-action-panel__hint">Assign a clerk to issue a settlement-wide construction rotation.</p>' : ''}
       </div>
-      <div class="inspector-action-panel">
+      <div class="inspector-action-panel" data-inspector-panel-title="Recall seasonal labor">
         <p class="inspector-action-panel__hint">Recall full production crews at seasonally dormant farms, apiaries, foragers, and fishing camps. Stored goods remain available to the appropriate logistics labor; no producer is retained as a hauler.${seasonalLaborStewardEnabled ? ' The steward will call labor back when work becomes active.' : ' You must restaff before the next work window.'}</p>
         <button type="button" class="resource-action-button" data-recall-idle-seasonal-labor ${staffedTownHallAvailable && seasonalLabor.reclaimableWorkers > 0 ? '' : 'disabled'}>
           ${seasonalLabor.reclaimableWorkers > 0
@@ -2715,7 +2715,7 @@ export function renderTownHallInspector(
         </button>
         ${!staffedTownHallAvailable && seasonalLabor.reclaimableWorkers > 0 ? '<p class="inspector-action-panel__hint">Assign a clerk to issue a settlement-wide recall.</p>' : ''}
       </div>
-      <div class="inspector-action-panel">
+      <div class="inspector-action-panel" data-inspector-panel-title="Call seasonal labor">
         <p class="inspector-action-panel__hint">Call free workers only to seasonal sites whose work is active now. Each site receives one worker in stable worksite order before any receives another. Existing crews are never displaced.${seasonalLaborStewardEnabled ? ' The next daily review repeats this rule automatically.' : ' Future hiring remains manual.'}</p>
         <button type="button" class="resource-action-button" data-call-up-active-seasonal-labor ${staffedTownHallAvailable && seasonalCallup.callupWorkers > 0 ? '' : 'disabled'}>
           ${seasonalCallup.callupWorkers > 0
@@ -2726,7 +2726,7 @@ export function renderTownHallInspector(
         </button>
         ${!staffedTownHallAvailable && seasonalCallup.callupWorkers > 0 ? '<p class="inspector-action-panel__hint">Assign a clerk to issue a settlement-wide call-up.</p>' : ''}
       </div>
-      <div class="inspector-action-panel">
+      <div class="inspector-action-panel" data-inspector-panel-title="Recall stalled labor">
         <p class="inspector-action-panel__hint">Recall labor that cannot currently produce: workshops with an empty input or reached output target, exhausted or target-held extraction yards, and active-season hunting or fishing sites without harvestable stock. Matching inbound supplies protect recovering workshops. Stored output and active carts remain logistics work, so no producer is retained as a dispatcher.${productionLaborStewardEnabled ? ' The steward will redeploy released labor to ready production sites.' : ' Restaffing remains an explicit decision.'}</p>
         <button type="button" class="resource-action-button" data-recall-target-idle-processor-labor ${staffedTownHallAvailable && worksiteStalls.reclaimableWorkers > 0 ? '' : 'disabled'}>
           ${worksiteStalls.reclaimableWorkers > 0
@@ -2735,7 +2735,7 @@ export function renderTownHallInspector(
         </button>
         ${!staffedTownHallAvailable && worksiteStalls.reclaimableWorkers > 0 ? '<p class="inspector-action-panel__hint">Assign a clerk to issue a settlement-wide stalled-production recall.</p>' : ''}
       </div>
-      <div class="inspector-action-panel">
+      <div class="inspector-action-panel" data-inspector-panel-title="Deploy production labor">
         <p class="inspector-action-panel__hint">Deploy free labor to completed production sites that can accept work: workshops below their output ceiling, extraction works on usable deposits with room below their chosen yard target, and hunting halls with harvestable game above their reserve. Sites share workers round-robin in stable worksite order. This manual order may pre-staff an empty workshop in preparation for future carts. Existing crews are never displaced.${productionLaborStewardEnabled ? ' The daily steward is stricter and calls workshops only when every recipe input is present or already inbound.' : ' Future hiring remains manual.'}</p>
         <button type="button" class="resource-action-button" data-call-up-target-ready-processor-labor ${staffedTownHallAvailable && productionLaborCallup.callupWorkers > 0 ? '' : 'disabled'}>
           ${productionLaborCallup.callupWorkers > 0
@@ -2746,7 +2746,7 @@ export function renderTownHallInspector(
         </button>
         ${!staffedTownHallAvailable && productionLaborCallup.callupWorkers > 0 ? '<p class="inspector-action-panel__hint">Assign a clerk to deploy production crews.</p>' : ''}
       </div>
-      <div class="inspector-action-panel">
+      <div class="inspector-action-panel" data-inspector-panel-title="Balance year-round labor">
         <p class="inspector-action-panel__hint">Deploy free labor across completed year-round services and ordinary industries in stable worksite order. Existing crews, seasonal sites, source-bound production, builders, and Town Hall clerks are never displaced. Future hiring remains explicit.</p>
         <button type="button" class="resource-action-button" data-balance-year-round-labor ${staffedTownHallAvailable && yearRoundLabor.assignments.length > 0 ? '' : 'disabled'}>
           ${yearRoundLabor.recalledWorkers > 0

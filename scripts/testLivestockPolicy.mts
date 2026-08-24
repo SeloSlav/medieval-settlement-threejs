@@ -9,6 +9,8 @@ import {
   isLivestockHaymakingMonth,
   isSheepShearingMonth,
   farmhouseCheeseSaltStagingCycles,
+  livestockCareCapacity,
+  livestockHeadsPerWorker,
   livestockHaymakingPresets,
   livestockDairyPreservedOutputPerCycle,
   livestockDairySaltPerCycle,
@@ -16,8 +18,14 @@ import {
   livestockMilkUsePolicy,
   livestockPreservationSaltRequired,
   livestockPolicyDefinition,
+  livestockPurchaseCost,
+  livestockPurchaseGoldPerHead,
   livestockReservePresets,
+  livestockSaleGoldPerHead,
+  livestockSaleProceeds,
   livestockSaltedOutputCapacity,
+  livestockWaterPerHeadPerCycle,
+  livestockWaterRequiredPerCycle,
   pendingLivestockCullHeads,
   projectedLivestockCullYield,
 } from '../src/economy/livestockPolicy.ts';
@@ -29,17 +37,38 @@ import {
 import {
   AUTUMN_PASTURE_CAPACITY_MULTIPLIER,
   CATTLE_DEFAULT_BREEDING_RESERVE,
+  CATTLE_BREEDING_PER_CYCLE,
   CATTLE_HAY_PER_UNSUPPORTED_HEAD,
   CATTLE_HAY_YIELD_PER_RESERVED_CAPACITY_PER_CYCLE,
+  CATTLE_HEADS_PER_WORKER,
   CATTLE_MAX_HERD,
   CATTLE_MINIMUM_BREEDING_RESERVE,
+  CATTLE_PURCHASE_GOLD_PER_HEAD,
+  CATTLE_SALE_GOLD_PER_HEAD,
+  CATTLE_STARTER_HERD,
+  CATTLE_WATER_PER_HEAD_PER_CYCLE,
+  DROUGHT_PASTURE_CAPACITY_MULTIPLIER,
   LIVESTOCK_FARMSTEAD_PRESERVATION_SALT_PER_OUTPUT,
   LIVESTOCK_FARMSTEAD_SALT_STAGING_PER_CYCLE,
   LIVESTOCK_WINTER_FODDER_RESERVE_DAYS,
+  PANNAGE_AUTUMN_CAPACITY_MULTIPLIER,
+  PANNAGE_DROUGHT_CAPACITY_MULTIPLIER,
+  PANNAGE_SPRING_CAPACITY_MULTIPLIER,
+  PANNAGE_WINTER_CAPACITY_MULTIPLIER,
   SHEEP_DEFAULT_BREEDING_RESERVE,
+  SHEEP_BREEDING_PER_CYCLE,
+  SHEEP_HEADS_PER_WORKER,
+  SHEEP_MAX_HERD,
+  SHEEP_STARTER_HERD,
+  SWINE_BREEDING_PER_CYCLE,
+  SWINE_HEADS_PER_WORKER,
+  SWINE_MAX_HERD,
+  SWINE_STARTER_HERD,
   SWINE_FOOD_PER_CYCLE_PER_HEAD,
+  SWINE_WATER_PER_HEAD_PER_CYCLE,
 } from '../src/generated/gameBalance.ts';
 import type { BuildingState, LivestockHerdState } from '../src/resources/types.ts';
+import { pannageCapacityMultiplierFor } from '../src/world/seasonPolicy.ts';
 
 function buildingFixture(
   id: string,
@@ -59,6 +88,7 @@ function buildingFixture(
     water: 0,
     food: 0,
     grain,
+    oatGrain: grain,
     flour: 0,
     ale: 0,
     preservedFood: 0,
@@ -174,11 +204,112 @@ assert.ok(Math.abs(cheeseFirst.cheese - 4.05) < 1e-9);
 assert.ok(Math.abs(cheeseFirst.freshMilk + cheeseFirst.cheese - 5.4) < 1e-9);
 assert.equal(farmhouseCheeseSaltStagingCycles(25), 0);
 assert.equal(farmhouseCheeseSaltStagingCycles(50), 3);
+assert.equal(livestockPurchaseGoldPerHead('cattle'), CATTLE_PURCHASE_GOLD_PER_HEAD);
+assert.equal(livestockSaleGoldPerHead('cattle'), CATTLE_SALE_GOLD_PER_HEAD);
+assert.equal(livestockPurchaseCost('cattle', 2.9), CATTLE_PURCHASE_GOLD_PER_HEAD * 2);
+assert.equal(livestockSaleProceeds('cattle', 2.9), CATTLE_SALE_GOLD_PER_HEAD * 2);
+assert.equal(livestockPurchaseCost('sheep', Number.NaN), 0);
+assert.equal(livestockSaleProceeds('swine', -4), 0);
+assert.ok(
+  livestockPurchaseGoldPerHead('cattle') > livestockSaleGoldPerHead('cattle'),
+  'live-animal resale must not be an arbitrage loop',
+);
+
+function fullySupportedHeadsAfterOneYear(
+  startingHeads: number,
+  maximumHeads: number,
+  breedingPerCycle: number,
+  cyclesPerDay: number,
+): number {
+  let heads = startingHeads;
+  let progress = 0;
+  for (let day = 0; day < 360; day += 1) {
+    const month = Math.floor(day / 30) + 1;
+    const seasonalMultiplier = month >= 3 && month <= 5
+      ? 1.25
+      : month <= 2 || month === 12
+        ? 0.6
+        : 1;
+    progress += heads * breedingPerCycle * cyclesPerDay * seasonalMultiplier;
+    while (progress >= 1 && heads < maximumHeads) {
+      heads += 1;
+      progress -= 1;
+    }
+  }
+  return heads;
+}
+
+assert.deepEqual(
+  [
+    fullySupportedHeadsAfterOneYear(
+      CATTLE_STARTER_HERD,
+      CATTLE_MAX_HERD,
+      CATTLE_BREEDING_PER_CYCLE,
+      7,
+    ),
+    fullySupportedHeadsAfterOneYear(
+      SHEEP_STARTER_HERD,
+      SHEEP_MAX_HERD,
+      SHEEP_BREEDING_PER_CYCLE,
+      7,
+    ),
+    fullySupportedHeadsAfterOneYear(
+      SWINE_STARTER_HERD,
+      SWINE_MAX_HERD,
+      SWINE_BREEDING_PER_CYCLE,
+      35 / 6,
+    ),
+  ],
+  [4, 10, 10],
+  'one fully supported year should grow herds meaningfully without filling every holding',
+);
+assert.equal(livestockHeadsPerWorker('cattle'), CATTLE_HEADS_PER_WORKER);
+assert.equal(livestockHeadsPerWorker('sheep'), SHEEP_HEADS_PER_WORKER);
+assert.equal(livestockHeadsPerWorker('swine'), SWINE_HEADS_PER_WORKER);
+assert.equal(livestockCareCapacity('cattle', 2.9), CATTLE_HEADS_PER_WORKER * 2);
+assert.equal(livestockCareCapacity('cattle', -1), 0);
+assert.equal(
+  livestockWaterPerHeadPerCycle('cattle'),
+  CATTLE_WATER_PER_HEAD_PER_CYCLE,
+);
+assert.equal(
+  livestockWaterPerHeadPerCycle('swine'),
+  SWINE_WATER_PER_HEAD_PER_CYCLE,
+);
+assert.ok(
+  Math.abs(
+    livestockWaterRequiredPerCycle('cattle', 10)
+      - CATTLE_WATER_PER_HEAD_PER_CYCLE * 10,
+  ) < 1e-9,
+);
+assert.equal(livestockWaterRequiredPerCycle('sheep', Number.NaN), 0);
+assert.equal(
+  pannageCapacityMultiplierFor('spring', 'fair'),
+  PANNAGE_SPRING_CAPACITY_MULTIPLIER,
+);
+assert.equal(
+  pannageCapacityMultiplierFor('autumn', 'fair'),
+  PANNAGE_AUTUMN_CAPACITY_MULTIPLIER,
+);
+assert.equal(
+  pannageCapacityMultiplierFor('autumn', 'drought'),
+  PANNAGE_DROUGHT_CAPACITY_MULTIPLIER,
+);
 
 const fodderBuilding = buildingFixture('building-1', 60);
 const fodderHerd = herdFixture(fodderBuilding.id);
 assert.equal(livestockCyclesPerCalendarDay(fodderBuilding, false), 7);
-assert.equal(livestockCyclesPerCalendarDay(fodderBuilding, true), 6);
+assert.equal(livestockCyclesPerCalendarDay(fodderBuilding, true), 7);
+assert.equal(
+  livestockCyclesPerCalendarDay(buildingFixture('building-0', 0, 0), true),
+  7,
+  'animal needs continue when a holding is unstaffed or observes Sabbath',
+);
+assert.equal(
+  livestockCyclesPerCalendarDay(buildingFixture('building-2', 0, 2), false),
+  7,
+  'extra workers must not accelerate animal biology',
+);
 const fodderPlan = projectLivestockFodderHolding(
   fodderBuilding,
   fodderHerd,
@@ -242,6 +373,80 @@ assert.equal(
   'a full three-month haymaking season should cover the minimum winter reserve',
 );
 assert.equal(summerPlan.currentUnsupportedHeads, 1.5);
+
+const twoWorkerSummerPlan = projectLivestockFodderHolding(
+  { ...fodderBuilding, assignedLabor: 2 },
+  summerHerd,
+  1,
+  false,
+  6,
+  1,
+);
+assert.ok(Math.abs(twoWorkerSummerPlan.hayOutputPerDay - summerPlan.hayOutputPerDay * 2) < 1e-9);
+assert.equal(
+  twoWorkerSummerPlan.dairyPreservedFoodPerDay,
+  summerPlan.dairyPreservedFoodPerDay,
+  'workers may cut more hay but must not accelerate milk cycles',
+);
+assert.equal(twoWorkerSummerPlan.winterGrainNeed, summerPlan.winterGrainNeed);
+
+const sabbathSummerPlan = projectLivestockFodderHolding(
+  fodderBuilding,
+  summerHerd,
+  1,
+  true,
+  6,
+  1,
+);
+assert.ok(Math.abs(sabbathSummerPlan.hayOutputPerDay - summerPlan.hayOutputPerDay * 6 / 7) < 1e-9);
+assert.equal(sabbathSummerPlan.dairyPreservedFoodPerDay, summerPlan.dairyPreservedFoodPerDay);
+assert.equal(sabbathSummerPlan.winterHayNeed, summerPlan.winterHayNeed);
+
+const unstaffedSummerPlan = projectLivestockFodderHolding(
+  { ...fodderBuilding, assignedLabor: 0 },
+  summerHerd,
+  1,
+  false,
+  6,
+  1,
+);
+assert.equal(unstaffedSummerPlan.hayOutputPerDay, 0);
+assert.equal(unstaffedSummerPlan.winterHayNeed, summerPlan.winterHayNeed);
+
+const swineBuilding = {
+  ...buildingFixture('building-swine', 60),
+  kind: 'swineherd' as const,
+};
+const swineHerd: LivestockHerdState = {
+  ...herdFixture(swineBuilding.id),
+  species: 'swine',
+  headCount: 10,
+  pastureCapacity: 8 * PANNAGE_AUTUMN_CAPACITY_MULTIPLIER,
+  suppliedCapacity: 10,
+  breedingReserve: 7,
+  haymakingPercent: 0,
+};
+const swinePlan = projectLivestockFodderHolding(
+  swineBuilding,
+  swineHerd,
+  AUTUMN_PASTURE_CAPACITY_MULTIPLIER,
+  false,
+  9,
+);
+assert.equal(swinePlan.basePastureCapacity, 8);
+assert.equal(swinePlan.winterPastureCapacity, 8 * PANNAGE_WINTER_CAPACITY_MULTIPLIER);
+
+const droughtSwinePlan = projectLivestockFodderHolding(
+  swineBuilding,
+  {
+    ...swineHerd,
+    pastureCapacity: 8 * PANNAGE_DROUGHT_CAPACITY_MULTIPLIER,
+  },
+  DROUGHT_PASTURE_CAPACITY_MULTIPLIER,
+  false,
+  7,
+);
+assert.equal(droughtSwinePlan.basePastureCapacity, 8);
 
 const hayFedAutumnPlan = projectLivestockFodderHolding(
   fodderBuilding,
@@ -347,12 +552,12 @@ assert.match(
 );
 assert.match(
   serverSimulation,
-  /CommodityKind::Grain,[\s\S]{0,120}&\["threshing_barn", "granary"\]/,
+  /CommodityKind::OatGrain,[\s\S]{0,120}&\["threshing_barn", "granary"\]/,
   'winter reserve must use the existing seed- and reserve-protected grain logistics',
 );
 assert.match(
   serverSimulation,
-  /head_count < max_herd[\s\S]*breeding_progress \+= [\s\S]*else[\s\S]*breeding_progress = herd\.breeding_progress\.min\(0\.999\)/,
+  /head_count < breeding_limit[\s\S]*breeding_progress \+= [\s\S]*else[\s\S]*breeding_progress = herd\.breeding_progress\.min\(0\.999\)/,
   'full herds must not bank an unlimited queue of replacement births',
 );
 assert.match(

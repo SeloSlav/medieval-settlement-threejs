@@ -398,7 +398,7 @@ function renderMusterPostPanel(
     return `<button type="button" class="resource-action-button" data-guardhouse-muster-watchtower="${option.tower.id}" title="${route} by road · ${state}" ${orderedMusterPostId === option.tower.id ? 'disabled' : ''}>Watch #${option.tower.id} · ${route}</button>`;
   }).join('');
   return `
-    <div class="inspector-action-panel">
+    <div class="inspector-action-panel" data-inspector-panel-title="Muster post">
       <p class="resource-inspector-note">Muster post — leave the company on its nearest staffed road-linked watch, or bind it to one completed post. An explicit order can reinforce a chosen district, but it keeps waiting when that watch is unstaffed, burning, or cut off instead of quietly moving elsewhere.</p>
       <div class="resource-action-row">${automatic}${posts}</div>
       <p class="inspector-action-panel__hint">${options.length === 0 ? 'Complete a watchtower before issuing a company order.' : 'Long and weather-softened routes reduce the company strength that arrives in time. Hover a post for staffing and outage state.'}</p>
@@ -408,7 +408,7 @@ function renderMusterPostPanel(
 
 function renderRationReservePanel(currentReserve: number): string {
   return `
-    <div class="inspector-action-panel">
+    <div class="inspector-action-panel" data-inspector-panel-title="Food reserve">
       <p class="resource-inspector-note">Company ration reserve — choose how much fresh food producers and emergency granary carts try to keep at this guardhouse. The twelve-food minimum keeps a practical cart lot at very small posts.</p>
       <div class="resource-action-row">${GUARDHOUSE_FOOD_RESERVES
         .map((candidate) => `<button type="button" class="resource-action-button" data-guardhouse-food-reserve="${candidate.reservePerGuard}" title="${candidate.hint}" ${candidate.reservePerGuard === currentReserve ? 'disabled' : ''}>${candidate.label} · ${candidate.reservePerGuard}/guard</button>`)
@@ -420,7 +420,7 @@ function renderRationReservePanel(currentReserve: number): string {
 
 function renderCompanyPriorityPanel(currentPriority: number): string {
   return `
-    <div class="inspector-action-panel">
+    <div class="inspector-action-panel" data-inspector-panel-title="Company priority">
       <p class="resource-inspector-note">Company priority — high-priority guardhouses claim scarce carpenter-made polearms, routine producer food, and treasury wages before lower tiers. Any armed company below the emergency floor instead wins food by lowest runway, whether the cart starts at a producer or granary.</p>
       <div class="resource-action-row">${GUARDHOUSE_PAY_PRIORITIES
         .map((candidate) => `<button type="button" class="resource-action-button" data-guardhouse-pay-priority="${candidate.priority}" ${candidate.priority === currentPriority ? 'disabled' : ''}>${candidate.label}</button>`)

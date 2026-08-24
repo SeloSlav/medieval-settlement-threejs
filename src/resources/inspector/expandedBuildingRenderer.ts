@@ -1801,7 +1801,7 @@ export function renderProcessorOutputTargetPanel(building: BuildingState): strin
     `
     : '';
   return `
-    <div class="inspector-action-panel">
+    <div class="inspector-action-panel" data-inspector-panel-title="Production policy">
       <p class="resource-inspector-note">Stock policy · stages ${stagingLabel} · finished ${label} ${stock.toFixed(0)} / ${target.toFixed(0)} · ${pressure}</p>
       <div class="resource-action-row">${PROCESSOR_OUTPUT_TARGET_PRESETS
         .map((preset) => `<button type="button" class="resource-action-button" data-processor-output-target="${preset.percent}" title="${preset.hint}" ${percent === preset.percent ? 'disabled' : ''}>${preset.label} · ${preset.percent}%</button>`)
@@ -1826,7 +1826,7 @@ function renderCarpenterPolicyPanel(
   const serviceIronworkTarget = carpenterCartServiceIronworkTarget(serviceTarget);
   const armory = carpenterArmoryPlan(building);
   return `
-    <div class="inspector-action-panel">
+    <div class="inspector-action-panel" data-inspector-panel-title="Cart and armory">
       <p class="resource-inspector-note">Cart-service depth — protected working capital for accelerated departures.</p>
       <div class="resource-action-row">${CARPENTER_CART_SERVICE_TARGET_PRESETS
         .map((preset) => `<button type="button" class="resource-action-button" data-carpenter-cart-service-target="${preset.trips}" title="${preset.hint}" ${serviceTarget === preset.trips ? 'disabled' : ''}>${preset.label} · ${preset.trips}</button>`)
@@ -1848,7 +1848,7 @@ function renderCarpenterPolicyPanel(
 function renderFarmsteadFieldPanel(building: BuildingState): string {
   const threshingPriority = normalizeThreshingPriority(building.threshingPriority);
   return `
-    <div class="inspector-action-panel">
+    <div class="inspector-action-panel" data-inspector-panel-title="Field orders">
       <p class="resource-inspector-note">Threshing priority — the same onsite crew works fields and converts stored sheaves into typed grain. A ready harvest always pre-empts threshing.</p>
       <div class="resource-action-row">${THRESHING_PRIORITY_PRESETS
         .map((preset) => `<button type="button" class="resource-action-button" data-threshing-priority="${preset.priority}" title="${preset.hint}" ${threshingPriority === preset.priority ? 'disabled' : ''}>${preset.label}</button>`)
@@ -1866,7 +1866,7 @@ function renderFarmsteadFieldPanel(building: BuildingState): string {
 function renderApiaryHarvestPolicyPanel(building: BuildingState): string {
   const selected = apiaryHarvestPolicy(building.apiaryHarvestPolicy);
   return `
-    <div class="inspector-action-panel">
+    <div class="inspector-action-panel" data-inspector-panel-title="Honey harvest">
       <p class="resource-inspector-note">Honey harvest · choose how much winter food the beekeepers protect and how aggressively they work the hives.</p>
       <div class="resource-action-row">${APIARY_HARVEST_POLICIES
         .map((policy) => `<button type="button" class="resource-action-button" data-apiary-harvest-policy="${policy.value}" title="${policy.hint}" ${selected.value === policy.value ? 'disabled' : ''}>${policy.label} · ${policy.reserve} reserve · ${Math.round(policy.yieldMultiplier * 100)}%</button>`)
@@ -1890,7 +1890,7 @@ function renderMonasteryPolicyPanel(building: BuildingState, context: InspectorR
   );
   const nextExtension = building.monasteryNextExtension ?? 0;
   return `
-    <div class="inspector-action-panel">
+    <div class="inspector-action-panel" data-inspector-panel-title="Monastery estate">
       <p class="inspector-action-panel__hint"><strong>${archetype.name}</strong> · ${archetype.payoff}. Assign residents to the eight-cell community; without a monk on site the estate and every service remain dormant. The fixed estate is intentionally non-granular: mixed apples and pears, kitchen gardens, apiary, cattle and sheep, and workshops resolve into abstract proceeds.</p>
       <div class="city-admin-panel__slider-label"><span>Enclosed estate</span><strong>Mixed orchard and kitchen gardens</strong></div>
       <p class="inspector-action-panel__hint">There are no apple-versus-pear or cabbage-versus-carrot choices. The visual estate canonically grows a useful mixture; its orchard also supplies one house-cider output, while ordinary regional activity is presented as gold-in/gold-out administration.</p>
@@ -1901,7 +1901,7 @@ function renderMonasteryPolicyPanel(building: BuildingState, context: InspectorR
       <div class="city-admin-panel__slider-label"><span>Next reserved extension</span><strong>${monasteryExtensionCount(extensions)} / 4 complete</strong></div>
       ${availableExtensions.length > 0
         ? `<div class="monastery-extension-grid" role="group" aria-label="Choose the next monastery extension">
-            ${availableExtensions.map((extension) => `<button type="button" class="monastery-extension-choice${nextExtension === extension.value ? ' is-selected' : ''}" data-monastery-extension-choice="${extension.value}" aria-pressed="${nextExtension === extension.value ? 'true' : 'false'}" title="${extension.payoff}" ${nextExtension === extension.value ? 'disabled' : ''}>
+            ${availableExtensions.map((extension) => `<button type="button" class="resource-action-button resource-action-button--toggle monastery-extension-choice${nextExtension === extension.value ? ' is-selected' : ''}" data-monastery-extension-choice="${extension.value}" aria-pressed="${nextExtension === extension.value ? 'true' : 'false'}" title="${extension.payoff}" ${nextExtension === extension.value ? 'disabled' : ''}>
               <span class="monastery-extension-choice__icon" data-monastery-extension-icon="${extension.value}" aria-hidden="true"></span>
               <span class="monastery-extension-choice__copy"><strong>${extension.label}</strong><small>${extension.cost} gold</small></span>
             </button>`).join('')}

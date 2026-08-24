@@ -133,12 +133,12 @@ function renderCommodityRow(
       <div class="trading-post-ledger__target">
         <span>Keep in settlement</span>
         <div class="trading-post-ledger__stepper">
-          <button type="button" data-trade-surplus-delta="-1" aria-label="Reduce ${TRADE_RESOURCE_LABELS[resource]} kept in settlement">&#x2039;</button>
+          <button type="button" class="resource-action-button trading-post-ledger__stepper-button" data-trade-surplus-delta="-1" aria-label="Reduce ${TRADE_RESOURCE_LABELS[resource]} kept in settlement">&#x2039;</button>
           <input type="number" min="0" max="9999" step="1" inputmode="numeric"
             value="${target}" data-trade-surplus-input
             data-commodity-kind="${TRADE_RESOURCE_COMMODITY_CODES[resource]}"
             aria-label="${TRADE_RESOURCE_LABELS[resource]} to keep in settlement">
-          <button type="button" data-trade-surplus-delta="1" aria-label="Increase ${TRADE_RESOURCE_LABELS[resource]} kept in settlement">&#x203A;</button>
+          <button type="button" class="resource-action-button trading-post-ledger__stepper-button" data-trade-surplus-delta="1" aria-label="Increase ${TRADE_RESOURCE_LABELS[resource]} kept in settlement">&#x203A;</button>
         </div>
       </div>
     </article>`;
@@ -152,7 +152,7 @@ function renderModeButton(
 ): string {
   return `<button type="button" data-trade-rule-mode="${value}"
     data-commodity-kind="${TRADE_RESOURCE_COMMODITY_CODES[resource]}"
-    class="${selected === value ? 'is-selected' : ''}"
+    class="resource-action-button resource-action-button--toggle trading-post-ledger__mode${selected === value ? ' is-selected' : ''}"
     aria-pressed="${selected === value}">${label}</button>`;
 }
 

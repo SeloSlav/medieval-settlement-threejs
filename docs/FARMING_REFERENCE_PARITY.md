@@ -1,6 +1,6 @@
 # Farming reference parity
 
-Audit date: 28 July 2026
+Audit date: 24 August 2026
 
 References:
 
@@ -11,15 +11,21 @@ References:
 - [Hrčak — Croatian peasant flax production](https://hrcak.srce.hr/48526)
 
 The project is feature-matched on the core annual field loop, three-year
-rotation planning, and reference crop roster, with spring oats retained as a
-regional addition. This pass did not add a technology tree, development
-unlocks, or a Heavy Plow unlock.
+rotation planning, reference crop roster, and the reference principle that a
+player-drawn pasture determines how many animals fit. Spring oats and woodland
+pannage are retained as regional additions. This pass did not add a technology
+tree, development unlocks, or a Heavy Plow unlock.
 
 ## Parity matrix
 
 | Farming behavior | Reference behavior | Current project | Status |
 | --- | --- | --- | --- |
 | Field layout | Free flexible four-sided field | A selected farmstead or livestock holding traces a convex four-corner parcel inside its work extent, with live boundary, area, shape, terrain, water, quarry, and overlap feedback | Matched |
+| Pasture placement and capacity | A player draws an enclosure and its size determines the animal limit | Cattle and sheep capacity sums the exact linked polygons after area, slope, and moisture; the live preview and inspector report the resulting whole-head land limit before stocking | Matched in intent, with terrain-sensitive capacity |
+| Woodland pannage | No equivalent core enclosure in the field reference | A swineherd draws fenced woodland polygons; pig support is the smaller of suitable area and the exact mature-tree count inside them, with an autumn mast peak and drought/winter pressure | Regional addition |
+| Livestock acquisition | Animals are separate stock rather than free output from drawing land | New pastoral and swine holdings begin at zero head; the player buys whole animals with civic gold subject to the land and management cap, and may sell them back at a lower regional price | Matched in intent, with explicit holding-level trade |
+| Livestock needs and reproduction | Herd management constrains productive stocking | A fixed daytime biology cycle intersects pasture/mast plus stored fodder, physical trough water, and staffed care; neglect lowers health and output, at least two healthy supplied animals are required to breed, and births stop at neutral land capacity | Different by design — explicit water, care, and fixed-cadence biology |
+| Livestock parcel and demolition safety | Enclosures and their animals must remain coherently owned | Stocked holdings cannot switch species or be demolished; linked parcels block demolition, and even an empty pastoral holding must remove its cattle- or sheep-shaped pasture before switching | Project integrity rule |
 | Field size and labor | Larger fields yield more and take longer to work | Area drives yield, seed, ploughing, sowing, and harvest work; efficiency is full through 1,600 m² and then tapers softly | Matched |
 | Farm workforce | Families assigned to a Farmhouse work connected fields | Assigned farmstead labor works only that holding’s fields and respects seasonal/Sabbath pauses | Matched |
 | Work stages | Plough, sow, grow, harvest | Authoritative `ploughing`, `sowing`, `growing`, and `harvesting` stages with normalized progress | Matched |

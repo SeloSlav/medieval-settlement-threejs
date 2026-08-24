@@ -1513,95 +1513,80 @@ select:focus-visible {
   padding-top: 8px;
 }
 
-.inspector-policy-card {
-  overflow: hidden;
+.inspector-action-panel[data-inspector-action-group] {
+  min-width: 0;
+  padding: 8px;
   border: 1px solid rgba(221, 196, 137, 0.12);
   border-radius: 3px;
   background: rgba(255, 255, 255, 0.018);
 }
 
-.inspector-policy-card > summary {
-  display: grid;
-  grid-template-columns: 24px minmax(0, 1fr) 18px;
-  align-items: center;
-  gap: 7px;
-  min-height: 42px;
-  padding: 7px 10px;
-  color: #d9cfba;
-  list-style: none;
-  cursor: pointer;
-}
-
-.resource-inspector-panel[data-inspector-target='building'] .inspector-policy-card > summary {
-  min-height: 36px;
-  padding: 5px 8px;
-}
-
-.inspector-policy-card > summary > :first-child {
-  color: var(--ui-brass);
-  font-family: var(--ui-display);
-  font-size: 16px;
-  text-align: center;
-}
-
-.inspector-policy-card > summary strong {
+.inspector-action-panel[data-inspector-action-group] > .inspector-action-panel__title {
+  grid-column: 1 / -1;
+  margin: 0;
+  padding: 0 1px 5px;
+  border-bottom: 1px solid rgba(220, 194, 135, 0.1);
+  color: #bda66f;
   overflow: hidden;
-  font-family: var(--ui-display);
-  font-size: 12px;
-  font-weight: 600;
+  font: 750 9px/1.2 var(--ui-font-sans);
+  letter-spacing: 0.08em;
   text-overflow: ellipsis;
+  text-transform: uppercase;
   white-space: nowrap;
 }
 
-.inspector-policy-card > summary > :last-child {
-  color: #897f6b;
-  font-size: 17px;
-  text-align: center;
-  transition: transform 120ms ease;
+.inspector-action-panel[data-inspector-action-group] > .inspector-action-panel__title:focus-visible {
+  color: #e4c980;
+  outline: 1px solid rgba(228, 201, 128, 0.56);
+  outline-offset: 2px;
 }
 
-.inspector-policy-card[open] {
-  border-color: rgba(218, 182, 98, 0.26);
-  background: rgba(188, 143, 63, 0.035);
+.inspector-action-panel__subheading {
+  grid-column: 1 / -1;
+  margin: 1px 0 -1px;
+  color: #9b927f;
+  font: 650 9px/1.2 var(--ui-font-sans);
+  letter-spacing: 0.04em;
 }
 
-.inspector-policy-card[open] > summary {
-  border-bottom: 1px solid rgba(220, 194, 135, 0.1);
-}
-
-.inspector-policy-card[open] > summary > :last-child {
-  transform: rotate(45deg);
-}
-
-.inspector-policy-card > .inspector-action-panel {
-  padding: 10px;
+.inspector-action-panel__subheading:focus-visible {
+  color: #d3c39f;
+  outline: 1px solid rgba(211, 195, 159, 0.46);
+  outline-offset: 2px;
 }
 
 .inspector-action-panel {
   gap: 9px;
 }
 
-.resource-inspector-panel[data-inspector-target='building'] .inspector-action-panel--compact {
+.inspector-action-panel--compact {
   gap: 5px;
 }
 
-.resource-inspector-panel[data-inspector-target='building'] .inspector-action-panel--button-grid {
+.inspector-action-panel--button-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
-.resource-inspector-panel[data-inspector-target='building'] .inspector-action-panel--button-grid > .resource-action-button,
-.resource-inspector-panel[data-inspector-target='building'] .inspector-action-panel--button-grid > .inspector-action-panel__button {
+.inspector-action-panel--button-grid > .resource-action-button {
   width: 100%;
   min-width: 0;
 }
 
-.resource-inspector-panel[data-inspector-target='building'] .inspector-action-panel--compact .resource-action-row {
+.inspector-action-panel[data-inspector-action-group] > .resource-action-button {
+  width: 100%;
+}
+
+.inspector-action-panel[data-inspector-action-group] .resource-action-row > .resource-action-button {
+  flex: 1 1 72px;
+  min-width: 0;
+}
+
+.inspector-action-panel--compact .resource-action-row {
   gap: 4px;
 }
 
 .inspector-action-panel + .inspector-action-panel {
-  padding-top: 10px;
-  border-top: 1px solid rgba(220, 195, 139, 0.1);
+  margin-top: 1px;
 }
 
 .inspector-action-panel__hint,
@@ -1617,8 +1602,7 @@ select:focus-visible {
   gap: 6px;
 }
 
-.resource-action-button,
-.inspector-action-panel__button {
+.resource-action-button {
   min-height: 34px;
   padding: 7px 10px;
   border: 1px solid rgba(210, 177, 99, 0.34);
@@ -1633,24 +1617,40 @@ select:focus-visible {
   cursor: pointer;
 }
 
-.resource-inspector-panel[data-inspector-target='building'] .inspector-action-panel--compact .resource-action-button,
-.resource-inspector-panel[data-inspector-target='building'] .inspector-action-panel--compact .inspector-action-panel__button {
+.inspector-action-panel--compact .resource-action-button {
   min-height: 30px;
   padding: 5px 8px;
   font-size: 9px;
 }
 
-.resource-action-button:hover:not(:disabled):not([aria-disabled='true']),
-.inspector-action-panel__button:hover:not(:disabled):not([aria-disabled='true']) {
+.resource-action-button:hover:not(:disabled):not([aria-disabled='true']) {
   border-color: rgba(237, 203, 121, 0.66);
   color: #fff1ce;
   background: rgba(207, 160, 72, 0.16);
 }
 
+.resource-action-button.resource-action-button--danger {
+  border-color: rgba(192, 104, 89, 0.42);
+  color: #dba895;
+  background:
+    linear-gradient(180deg, rgba(151, 58, 43, 0.24), rgba(79, 31, 25, 0.14)),
+    rgba(104, 39, 29, 0.18);
+}
+
+.resource-action-button.resource-action-button--danger:hover:not(:disabled):not([aria-disabled='true']) {
+  border-color: rgba(222, 131, 112, 0.66);
+  color: #f1c6b7;
+  background: rgba(150, 52, 42, 0.4);
+}
+
+.resource-action-button.resource-action-button--danger.resource-inspector-demolish--secondary {
+  border-color: rgba(167, 136, 119, 0.32);
+  color: #cbb8aa;
+  background: rgba(88, 58, 48, 0.24);
+}
+
 .resource-action-button:disabled,
-.resource-action-button[aria-disabled='true'],
-.inspector-action-panel__button:disabled,
-.inspector-action-panel__button[aria-disabled='true'] {
+.resource-action-button[aria-disabled='true'] {
   opacity: 0.38;
   cursor: not-allowed;
 }
@@ -1691,8 +1691,7 @@ select:focus-visible {
     rgba(184, 161, 101, 0.13);
 }
 
-.resource-action-button[aria-disabled='true']:focus-visible,
-.inspector-action-panel__button[aria-disabled='true']:focus-visible {
+.resource-action-button[aria-disabled='true']:focus-visible {
   outline: 1px solid rgba(237, 203, 121, 0.72);
   outline-offset: 2px;
 }

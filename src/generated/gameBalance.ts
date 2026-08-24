@@ -708,6 +708,12 @@ export const LIVESTOCK_HAYMAKING_START_MONTH = 6;
 export const LIVESTOCK_HAYMAKING_END_MONTH = 8;
 export const LIVESTOCK_DEFAULT_HAYMAKING_PERCENT = 35;
 export const LIVESTOCK_MAXIMUM_HAYMAKING_PERCENT = 60;
+export const LIVESTOCK_MINIMUM_BREEDING_HEADS = 2;
+export const PANNAGE_SPRING_CAPACITY_MULTIPLIER = 0.75;
+export const PANNAGE_SUMMER_CAPACITY_MULTIPLIER = 0.9;
+export const PANNAGE_AUTUMN_CAPACITY_MULTIPLIER = 1.25;
+export const PANNAGE_WINTER_CAPACITY_MULTIPLIER = 0.45;
+export const PANNAGE_DROUGHT_CAPACITY_MULTIPLIER = 0.55;
 export const LIVESTOCK_HAY_STORAGE_CAPACITY = 240;
 export const LIVESTOCK_MANURE_TRANSFER_PER_TRIP = 24;
 export const LIVESTOCK_FARMSTEAD_PRESERVATION_SALT_PER_OUTPUT = 0.125;
@@ -716,7 +722,11 @@ export const CATTLE_STARTER_HERD = 3;
 export const CATTLE_MAX_HERD = 10;
 export const CATTLE_MINIMUM_BREEDING_RESERVE = 3;
 export const CATTLE_DEFAULT_BREEDING_RESERVE = 6;
+export const CATTLE_PURCHASE_GOLD_PER_HEAD = 18;
+export const CATTLE_SALE_GOLD_PER_HEAD = 7;
 export const CATTLE_AREA_PER_HEAD = 190;
+export const CATTLE_HEADS_PER_WORKER = 4;
+export const CATTLE_WATER_PER_HEAD_PER_CYCLE = 0.18;
 export const CATTLE_MAX_SLOPE_DEGREES = 15;
 export const CATTLE_MOISTURE_IDEAL = 0.58;
 export const CATTLE_MOISTURE_TOLERANCE = 0.52;
@@ -727,7 +737,7 @@ export const CATTLE_SLAUGHTER_PRESERVED_FOOD_PER_HEAD = 3;
 export const CATTLE_HAY_PER_UNSUPPORTED_HEAD = 0.34;
 export const CATTLE_HAY_YIELD_PER_RESERVED_CAPACITY_PER_CYCLE = 0.24;
 export const CATTLE_GRAIN_PER_UNSUPPORTED_HEAD = 0.34;
-export const CATTLE_BREEDING_PER_CYCLE = 0.018;
+export const CATTLE_BREEDING_PER_CYCLE = 0.00015;
 export const CATTLE_HEALTH_RECOVERY_PER_CYCLE = 0.035;
 export const CATTLE_HEALTH_LOSS_PER_CYCLE = 0.08;
 export const CATTLE_MANURE_PER_SUPPLIED_HEAD_PER_CYCLE = 0.015;
@@ -741,7 +751,11 @@ export const SHEEP_STARTER_HERD = 6;
 export const SHEEP_MAX_HERD = 18;
 export const SHEEP_MINIMUM_BREEDING_RESERVE = 5;
 export const SHEEP_DEFAULT_BREEDING_RESERVE = 10;
+export const SHEEP_PURCHASE_GOLD_PER_HEAD = 9;
+export const SHEEP_SALE_GOLD_PER_HEAD = 3;
 export const SHEEP_AREA_PER_HEAD = 105;
+export const SHEEP_HEADS_PER_WORKER = 8;
+export const SHEEP_WATER_PER_HEAD_PER_CYCLE = 0.08;
 export const SHEEP_MAX_SLOPE_DEGREES = 28;
 export const SHEEP_MOISTURE_IDEAL = 0.38;
 export const SHEEP_MOISTURE_TOLERANCE = 0.72;
@@ -755,20 +769,25 @@ export const SHEEP_GRAIN_PER_UNSUPPORTED_HEAD = 0.18;
 export const SHEEP_WOOL_PER_SHEARING_PER_HEAD = 3;
 export const SHEEP_SHEARING_START_MONTH = 6;
 export const SHEEP_SHEARING_END_MONTH = 7;
-export const SHEEP_BREEDING_PER_CYCLE = 0.025;
+export const SHEEP_BREEDING_PER_CYCLE = 0.00025;
 export const SHEEP_HEALTH_RECOVERY_PER_CYCLE = 0.04;
 export const SHEEP_HEALTH_LOSS_PER_CYCLE = 0.065;
 export const SWINE_STARTER_HERD = 4;
 export const SWINE_MAX_HERD = 14;
 export const SWINE_MINIMUM_BREEDING_RESERVE = 3;
 export const SWINE_DEFAULT_BREEDING_RESERVE = 7;
+export const SWINE_PURCHASE_GOLD_PER_HEAD = 13;
+export const SWINE_SALE_GOLD_PER_HEAD = 5;
 export const SWINE_AREA_PER_HEAD = 120;
+export const SWINE_HEADS_PER_WORKER = 7;
+export const SWINE_WATER_PER_HEAD_PER_CYCLE = 0.12;
+export const SWINE_MAX_SLOPE_DEGREES = 22;
 export const SWINE_MATURE_TREES_PER_HEAD = 2.5;
 export const SWINE_FOOD_PER_CYCLE_PER_HEAD = 0;
 export const SWINE_SLAUGHTER_FOOD_PER_HEAD = 9;
 export const SWINE_SLAUGHTER_PRESERVED_FOOD_PER_HEAD = 0;
 export const SWINE_GRAIN_PER_UNSUPPORTED_HEAD = 0.5;
-export const SWINE_BREEDING_PER_CYCLE = 0.022;
+export const SWINE_BREEDING_PER_CYCLE = 0.0005;
 export const SWINE_HEALTH_RECOVERY_PER_CYCLE = 0.03;
 export const SWINE_HEALTH_LOSS_PER_CYCLE = 0.09;
 
@@ -1709,8 +1728,8 @@ export const BUILDING_STORAGE_CAPS = {
   guardhouse: { timber: 0, firewood: 0, stone: 0, food: 72, polearms: 12 },
   palisaded_refuge: { timber: 0, firewood: 0, stone: 0 },
   threshing_barn: { timber: 0, firewood: 0, stone: 0, grain: 240, barley: 180, flax: 180, ironwork: 3, manure: 120 },
-  pastoral_farmstead: { timber: 0, firewood: 0, stone: 0, food: 120, grain: 90, preservedFood: 70, wool: 120, salt: 6, manure: 160 },
-  swineherd: { timber: 0, firewood: 0, stone: 0, food: 150, grain: 120 },
+  pastoral_farmstead: { timber: 0, firewood: 0, stone: 0, water: 30, food: 120, grain: 90, preservedFood: 70, wool: 120, salt: 6, manure: 160 },
+  swineherd: { timber: 0, firewood: 0, stone: 0, water: 30, food: 150, grain: 120 },
   monastery: { timber: 0, firewood: 0, stone: 0, food: 180, grain: 180, cider: 80, mead: 120, preservedFood: 80, honey: 160, wine: 120 },
   brewery: { timber: 0, firewood: 40, stone: 0, water: 120, food: 96, barley: 96, malt: 48, ale: 200, cider: 200, pearCider: 200, mead: 200, honey: 72 },
   tavern: { timber: 0, firewood: 0, stone: 0, ale: 180, cider: 180, pearCider: 180, mead: 180 },

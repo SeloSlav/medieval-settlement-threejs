@@ -10,6 +10,9 @@ use crate::balance_generated::{
     PRESERVED_FOOD_SPOILAGE_AUTUMN_MULTIPLIER, PRESERVED_FOOD_SPOILAGE_DROUGHT_MULTIPLIER,
     PRESERVED_FOOD_SPOILAGE_PER_DAY, PRESERVED_FOOD_SPOILAGE_SPRING_MULTIPLIER,
     PRESERVED_FOOD_SPOILAGE_SUMMER_MULTIPLIER, PRESERVED_FOOD_SPOILAGE_WINTER_MULTIPLIER,
+    PANNAGE_AUTUMN_CAPACITY_MULTIPLIER, PANNAGE_DROUGHT_CAPACITY_MULTIPLIER,
+    PANNAGE_SPRING_CAPACITY_MULTIPLIER, PANNAGE_SUMMER_CAPACITY_MULTIPLIER,
+    PANNAGE_WINTER_CAPACITY_MULTIPLIER,
     RESIDENCE_PRESERVED_FOOD_AUTUMN_MULTIPLIER, RESIDENCE_PRESERVED_FOOD_SPRING_MULTIPLIER,
     RESIDENCE_PRESERVED_FOOD_SUMMER_MULTIPLIER, RESIDENCE_PRESERVED_FOOD_WINTER_MULTIPLIER,
     SPRING_BREEDING_MULTIPLIER, SPRING_FIREWOOD_DEMAND_MULTIPLIER,
@@ -102,6 +105,21 @@ impl EnvironmentState {
             Season::Summer => SUMMER_PASTURE_CAPACITY_MULTIPLIER,
             Season::Autumn => AUTUMN_PASTURE_CAPACITY_MULTIPLIER,
             Season::Winter => WINTER_PASTURE_CAPACITY_MULTIPLIER,
+        }
+    }
+
+    /// Woodland pigs follow the mast calendar rather than the grass calendar:
+    /// autumn acorns and beechnuts are the peak, while spring is the leanest
+    /// season and drought reduces the coming mast crop.
+    pub fn pannage_capacity_multiplier(self) -> f64 {
+        if self.weather == WeatherKind::Drought {
+            return PANNAGE_DROUGHT_CAPACITY_MULTIPLIER;
+        }
+        match self.season {
+            Season::Spring => PANNAGE_SPRING_CAPACITY_MULTIPLIER,
+            Season::Summer => PANNAGE_SUMMER_CAPACITY_MULTIPLIER,
+            Season::Autumn => PANNAGE_AUTUMN_CAPACITY_MULTIPLIER,
+            Season::Winter => PANNAGE_WINTER_CAPACITY_MULTIPLIER,
         }
     }
 

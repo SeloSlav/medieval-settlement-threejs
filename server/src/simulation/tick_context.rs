@@ -26,7 +26,9 @@ use crate::simulation::fires::{FIRE_TARGET_BUILDING, FIRE_TARGET_RESIDENCE};
 use crate::simulation::residence_needs::ResidenceNeedKind;
 use crate::simulation::road_logistics::claim_residences_by_nearest_supplier;
 use crate::supply_policy::{is_food_supplier_operational, is_well_supplier_operational};
-use crate::tables::{corpse, farm_field, livestock_herd, Building, Residence};
+use crate::tables::{
+    corpse, farm_field, livestock_herd, Building, LivestockHerd, Residence,
+};
 
 #[derive(Default)]
 struct OwnerBuildingIndex {
@@ -58,6 +60,9 @@ impl FarmsteadSeedReserves {
 
 pub type SharedRoadNetworks = Arc<HashMap<Identity, RoadNetwork>>;
 
+const LIVESTOCK_TREE_INDEX_CELL_METERS: f64 = 32.0;
+type MatureTreeSpatialIndex = HashMap<(i32, i32), Vec<(f64, f64)>>;
+
 pub struct SimTickContext {
     road_networks: SharedRoadNetworks,
     building_index: RefCell<Option<HashMap<Identity, OwnerBuildingIndex>>>,
@@ -81,6 +86,8 @@ pub struct SimTickContext {
     farmstead_seed_reserves: RefCell<HashMap<Identity, HashMap<u64, FarmsteadSeedReserves>>>,
     farmstead_manure_requirements: RefCell<HashMap<Identity, HashMap<u64, (f64, u8)>>>,
     cattle_field_sources_by_owner: RefCell<HashMap<Identity, HashMap<u64, Vec<u64>>>>,
+    livestock_grazing_capacity_by_building: RefCell<HashMap<u64, f64>>,
+    mature_tree_spatial_index: RefCell<Option<MatureTreeSpatialIndex>>,
 }
 
 impl SimTickContext {
@@ -121,7 +128,74 @@ impl SimTickContext {
             farmstead_seed_reserves: RefCell::new(HashMap::new()),
             farmstead_manure_requirements: RefCell::new(HashMap::new()),
             cattle_field_sources_by_owner: RefCell::new(HashMap::new()),
+            livestock_grazing_capacity_by_building: RefCell::new(HashMap::new()),
+            mature_tree_spatial_index: RefCell::new(None),
         }
+    }
+
+    /// Pannage capacity requires spatially testing live mature trees against
+    /// authored parcels. Build one compact grid per simulation substep, then
+    /// give each holding only the trees inside its work-radius bounding square.
+    pub fn livestock_grazing_capacity(
+        &self,
+        ctx: &ReducerContext,
+        building: &Building,
+        herd: &LivestockHerd,
+    ) -> f64 {
+        if let Some(capacity) = self
+            .livestock_grazing_capacity_by_building
+            .borrow()
+            .get(&building.id)
+            .copied()
+        {
+            return capacity;
+        }
+        let capacity = if herd.species == crate::reducers::livestock::SPECIES_SWINE {
+            let candidate_points = {
+                let mut cached_index = self.mature_tree_spatial_index.borrow_mut();
+                let index = cached_index.get_or_insert_with(|| {
+                    let mut index = MatureTreeSpatialIndex::new();
+                    for tree in ctx.db.tree_entity().iter().filter(|tree| tree.phase == "mature") {
+                        let cell = (
+                            (tree.x / LIVESTOCK_TREE_INDEX_CELL_METERS).floor() as i32,
+                            (tree.z / LIVESTOCK_TREE_INDEX_CELL_METERS).floor() as i32,
+                        );
+                        index.entry(cell).or_default().push((tree.x, tree.z));
+                    }
+                    index
+                });
+                let radius = building.work_radius.max(0.0);
+                let min_cell_x = ((building.x - radius) / LIVESTOCK_TREE_INDEX_CELL_METERS).floor()
+                    as i32;
+                let max_cell_x = ((building.x + radius) / LIVESTOCK_TREE_INDEX_CELL_METERS).floor()
+                    as i32;
+                let min_cell_z = ((building.z - radius) / LIVESTOCK_TREE_INDEX_CELL_METERS).floor()
+                    as i32;
+                let max_cell_z = ((building.z + radius) / LIVESTOCK_TREE_INDEX_CELL_METERS).floor()
+                    as i32;
+                let mut points = Vec::new();
+                for cell_x in min_cell_x..=max_cell_x {
+                    for cell_z in min_cell_z..=max_cell_z {
+                        if let Some(cell_points) = index.get(&(cell_x, cell_z)) {
+                            points.extend_from_slice(cell_points);
+                        }
+                    }
+                }
+                points
+            };
+            crate::simulation::grazing_capacity_with_mature_tree_points(
+                ctx,
+                building,
+                herd,
+                Some(candidate_points.as_slice()),
+            )
+        } else {
+            crate::simulation::grazing_capacity(ctx, building, herd)
+        };
+        self.livestock_grazing_capacity_by_building
+            .borrow_mut()
+            .insert(building.id, capacity);
+        capacity
     }
 
     pub fn road_network(&self, owner: Identity) -> Option<&RoadNetwork> {

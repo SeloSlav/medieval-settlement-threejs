@@ -675,6 +675,7 @@ export async function bootstrapAppSession(
     isResourceDepositAt,
     physicalDeposits,
     getRoadNetwork: () => roadNetwork,
+    getTreeRegistry: () => liveContext.treeRegistry,
     onCommit: async (input) => {
       requireSessionReady();
       await spacetimeStore.placeFarmField(input);

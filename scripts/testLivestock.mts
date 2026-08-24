@@ -20,10 +20,16 @@ import {
   cattleManurePerCycle,
 } from '../src/farming/manurePlanning.ts';
 import {
+  countMatureTreesInPasturePolygons,
   currentPastureHeadCapacity,
+  livestockHoldingWholeHeadLimit,
   neutralPastureHeadCapacity,
+  neutralPastureHoldingHeadCapacity,
+  pannageHoldingHeadCapacity,
   pastureAreaHeadCapacity,
 } from '../src/farming/pastureCapacity.ts';
+import type { TreeRegistry } from '../src/resources/TreeRegistry.ts';
+import type { TreeEntityState, TreeLayoutEntry } from '../src/resources/types.ts';
 import {
   BACKYARD_GARDEN_DEFINITIONS,
   BUILDING_STORAGE_CAPS,
@@ -38,6 +44,7 @@ import {
   SHEEP_GRAIN_PER_UNSUPPORTED_HEAD,
   SWINE_GRAIN_PER_UNSUPPORTED_HEAD,
   SWINE_MATURE_TREES_PER_HEAD,
+  SWINE_MAX_HERD,
 } from '../src/generated/gameBalance.ts';
 
 (globalThis as typeof globalThis & { self: typeof globalThis }).self = globalThis;
@@ -106,6 +113,66 @@ const attributedCapacity = [lowerPasture, upperPasture]
     0,
   );
 assert.ok(Math.abs(attributedCapacity - currentHoldingHerd.pastureCapacity) < 1e-9);
+assert.ok(Math.abs(
+  neutralPastureHoldingHeadCapacity([lowerPasture, upperPasture], 'cattle')
+    - (
+      (neutralPastureHeadCapacity(lowerPasture, 'cattle') ?? 0)
+      + (neutralPastureHeadCapacity(upperPasture, 'cattle') ?? 0)
+    ),
+) < 1e-9);
+
+const eastPannage = {
+  ...lowerPasture,
+  id: 'pasture-3',
+  corners: [
+    { x: 30, z: 0 },
+    { x: 50, z: 0 },
+    { x: 50, z: 20 },
+    { x: 30, z: 20 },
+  ],
+} as const;
+const pannageTreeEntries = [
+  { id: 'tree-1', layoutIndex: 1, x: 5, z: 5, woodYield: 10, form: 'broad', species: 'oak', scale: 1 },
+  { id: 'tree-2', layoutIndex: 2, x: 12, z: 12, woodYield: 8, form: 'broad', species: 'beech', scale: 1 },
+  { id: 'tree-3', layoutIndex: 3, x: 35, z: 5, woodYield: 9, form: 'broad', species: 'oak', scale: 1 },
+  { id: 'tree-4', layoutIndex: 4, x: 10, z: 21, woodYield: 7, form: 'broad', species: 'oak', scale: 1 },
+] satisfies TreeLayoutEntry[];
+const pannageTreeRegistry: Pick<TreeRegistry, 'treesInRadiusInto'> = {
+  treesInRadiusInto(x, z, radius, results) {
+    results.length = 0;
+    for (const tree of pannageTreeEntries) {
+      if (Math.hypot(tree.x - x, tree.z - z) <= radius) results.push(tree);
+    }
+    return results;
+  },
+};
+const pannageTreeStates = new Map<string, TreeEntityState>([
+  ['tree-1', { treeId: 'tree-1', layoutIndex: 1, phase: 'mature', growthProgress: 1 }],
+  ['tree-2', { treeId: 'tree-2', layoutIndex: 2, phase: 'growing', growthProgress: 0.6 }],
+  ['tree-3', { treeId: 'tree-3', layoutIndex: 3, phase: 'mature', growthProgress: 1 }],
+  ['tree-4', { treeId: 'tree-4', layoutIndex: 4, phase: 'mature', growthProgress: 1 }],
+]);
+const exactPannageTrees = countMatureTreesInPasturePolygons(
+  { trees: pannageTreeStates },
+  pannageTreeRegistry,
+  [lowerPasture, eastPannage],
+);
+assert.equal(
+  exactPannageTrees,
+  2,
+  'pannage mast must count mature authoritative trees inside exact polygons only',
+);
+const pannageCapacity = pannageHoldingHeadCapacity(
+  [lowerPasture, eastPannage],
+  exactPannageTrees,
+);
+assert.ok(pannageCapacity.areaHeadCapacity > pannageCapacity.mastHeadCapacity);
+assert.equal(pannageCapacity.headCapacity, pannageCapacity.mastHeadCapacity);
+assert.equal(
+  livestockHoldingWholeHeadLimit(999, 'swine'),
+  SWINE_MAX_HERD,
+  'whole-head previews must respect the species hard herd cap',
+);
 
 const constructionSource = fs.readFileSync('server/src/simulation/construction.rs', 'utf8');
 assert.doesNotMatch(
@@ -115,26 +182,123 @@ assert.doesNotMatch(
 );
 assert.match(
   constructionSource,
-  /site\.kind == "swineherd"[\s\S]{0,500}SPECIES_SWINE/,
-  'the species-specific swineherd should still establish its pig herd automatically',
+  /site\.kind == "swineherd"[\s\S]{0,500}unstocked_herd\(site\.id, site\.owner, SPECIES_SWINE\)/,
+  'the species-specific swineherd should establish its pig policy without free animals',
 );
 const livestockReducerSource = fs.readFileSync('server/src/reducers/livestock.rs', 'utf8');
 assert.match(
   livestockReducerSource,
-  /let Some\(mut herd\) = existing_herd else \{[\s\S]*insert\(starter_herd\(building\.id, building\.owner, species\)\)/,
-  'the first explicit pastoral specialization must create the chosen starter herd',
+  /let Some\(mut herd\) = existing_herd else \{[\s\S]*insert\(unstocked_herd\(building\.id, building\.owner, species\)\)/,
+  'the first explicit pastoral specialization must create an unstocked herd policy',
+);
+assert.match(
+  livestockReducerSource,
+  /pub fn unstocked_herd\([\s\S]{0,420}head_count: 0/,
+  'new holding policies must contain zero animals until the player buys stock',
+);
+assert.match(
+  livestockReducerSource,
+  /if herd\.head_count > 0 \{[\s\S]{0,180}Sell the current herd before changing this holding's species/,
+  'a stocked pastoral holding must reject a species change',
+);
+assert.match(
+  livestockReducerSource,
+  /\.pasture\(\)[\s\S]{0,220}\.farmstead_id\(\)[\s\S]{0,260}Remove this holding's linked pasture before changing species/,
+  'even an empty holding must remove species-shaped pasture parcels before switching species',
+);
+assert.match(
+  livestockReducerSource,
+  /pub fn trade_livestock\([\s\S]{0,240}head_delta == 0 \|\| !\(-100\.\.=100\)\.contains\(&head_delta\)/,
+  'livestock trade must reject empty and unreasonable orders authoritatively',
+);
+assert.match(
+  livestockReducerSource,
+  /let land_limit = grazing_capacity\(ctx, &building, &herd\)[\s\S]{0,180}let holding_limit = maximum_herd\(herd\.species\)\.min\(land_limit\)[\s\S]{0,180}saturating_add\(quantity\) > holding_limit/,
+  'purchases must fit both the drawn land and the species management ceiling',
+);
+assert.match(
+  livestockReducerSource,
+  /let cost = purchase_gold_per_head\(herd\.species\) \* f64::from\(quantity\);[\s\S]{0,80}spend_treasury_gold\(ctx, owner, cost\)\?/,
+  'animal purchases must spend civic gold before adding heads',
+);
+assert.match(
+  livestockReducerSource,
+  /if quantity > herd\.head_count[\s\S]{0,520}credit_treasury_gold\([\s\S]{0,160}sale_gold_per_head\(herd\.species\)/,
+  'animal sales must reject overselling and credit the species sale value',
 );
 const livestockInspectorSource = fs.readFileSync('src/resources/inspector/livestockBuildingRenderer.ts', 'utf8');
 const pastureInspectorSource = fs.readFileSync('src/resources/inspector/pastureRenderer.ts', 'utf8');
+const farmFieldToolSource = fs.readFileSync('src/farming/FarmFieldTool.ts', 'utf8');
+const worldQueriesSource = fs.readFileSync('src/resources/WorldQueries.ts', 'utf8');
+const buildingReducerSource = fs.readFileSync('server/src/reducers/buildings.rs', 'utf8');
+const serverSeasonPolicySource = fs.readFileSync('server/src/season_policy.rs', 'utf8');
+const clientSeasonPolicySource = fs.readFileSync('src/world/seasonPolicy.ts', 'utf8');
+const clientReducersSource = fs.readFileSync('src/data/spacetimeReducers.ts', 'utf8');
+const gameStoreSource = fs.readFileSync('src/data/spacetimeGameStore.ts', 'utf8');
+const resourceInspectorSource = fs.readFileSync('src/resources/ResourceInspector.ts', 'utf8');
+const inspectorActionsSource = fs.readFileSync('src/app/inspectorSpacetimeActions.ts', 'utf8');
+const generatedTradeReducerSource = fs.readFileSync('src/generated/trade_livestock_reducer.ts', 'utf8');
+const generatedIndexSource = fs.readFileSync('src/generated/index.ts', 'utf8');
+const generatedReducerTypesSource = fs.readFileSync('src/generated/types/reducers.ts', 'utf8');
+const serverGeneratedIndexSource = fs.readFileSync('server/src/generated/index.ts', 'utf8');
 assert.match(livestockInspectorSource, /Choose cattle or sheep/);
 assert.match(pastureInspectorSource, /This parcel supports/);
 assert.match(pastureInspectorSource, /Production rhythm/);
 assert.match(pastureInspectorSource, /Linked holding's last cycle/);
+assert.match(farmFieldToolSource, /neutral .* capacity/);
+assert.match(farmFieldToolSource, /land cap .* vs mast cap/);
+assert.match(farmFieldToolSource, /getTreeRegistry/);
+assert.match(worldQueriesSource, /getMaturePannageTreeCount/);
+assert.match(livestockInspectorSource, /data-livestock-trade="1"/);
+assert.match(livestockInspectorSource, /data-livestock-trade="-1"/);
+assert.match(livestockInspectorSource, /Fenced mast trees/);
+assert.match(livestockInspectorSource, /Pannage bottleneck/);
 assert.match(
   livestockInspectorSource,
-  /data-land-parcel="pasture"[\s\S]{0,160}pastoral_farmstead'[\s\S]{0,80}!herd[\s\S]{0,40}disabled/,
+  /getMaturePannageTreeCount\(building\.id\)/,
+  'the swine inspector must report exact mature trees inside its linked polygons',
+);
+assert.match(
+  livestockInspectorSource,
+  /data-land-parcel="pasture"[\s\S]{0,420}pastoral_farmstead'[\s\S]{0,80}!herd[\s\S]{0,40}disabled/,
   'pasture authoring must remain locked until the pastoral species is chosen',
 );
+assert.match(
+  buildingReducerSource,
+  /livestock_herd\(\)[\s\S]{0,180}\.building_id\(\)[\s\S]{0,160}herd\.head_count > 0[\s\S]{0,160}Sell this livestock holding's animals before demolition/,
+  'stocked livestock buildings must not be demolished out from under their animals',
+);
+assert.match(
+  buildingReducerSource,
+  /\.pasture\(\)[\s\S]{0,180}\.farmstead_id\(\)[\s\S]{0,220}Remove this livestock building's pastures first/,
+  'linked pasture parcels must still block holding demolition',
+);
+assert.match(
+  serverSeasonPolicySource,
+  /pub fn pannage_capacity_multiplier[\s\S]{0,420}Season::Autumn => PANNAGE_AUTUMN_CAPACITY_MULTIPLIER/,
+  'authoritative woodland capacity must use its autumn mast season',
+);
+assert.match(
+  clientSeasonPolicySource,
+  /function pannageCapacityMultiplierFor[\s\S]{0,360}autumn: PANNAGE_AUTUMN_CAPACITY_MULTIPLIER/,
+  'client pannage forecasts must mirror the authoritative mast calendar',
+);
+assert.match(generatedTradeReducerSource, /buildingId: __t\.u64\(\)[\s\S]{0,80}headDelta: __t\.i32\(\)/);
+assert.match(generatedIndexSource, /__reducerSchema\("trade_livestock", TradeLivestockReducer\)/);
+assert.match(serverGeneratedIndexSource, /__reducerSchema\("trade_livestock", TradeLivestockReducer\)/);
+assert.match(generatedReducerTypesSource, /export type TradeLivestockParams = __Infer<typeof TradeLivestockReducer>/);
+assert.match(
+  clientReducersSource,
+  /function tradeLivestock\(buildingId: string, headDelta: number\)[\s\S]{0,420}callReducer\('tradeLivestock', 'trade_livestock',[\s\S]{0,120}headDelta: normalizedDelta/,
+  'the client reducer adapter must normalize and dispatch livestock orders',
+);
+assert.match(gameStoreSource, /tradeLivestock\(buildingId: string, headDelta: number\)[\s\S]{0,100}spacetimeReducers\.tradeLivestock\(buildingId, headDelta\)/);
+assert.match(
+  resourceInspectorSource,
+  /\[data-livestock-trade\][\s\S]{0,260}Number\.isInteger\(headDelta\)[\s\S]{0,180}onTradeLivestock/,
+  'the inspector must pass only whole, non-zero head deltas to its action layer',
+);
+assert.match(inspectorActionsSource, /onTradeLivestock:[\s\S]{0,260}store\.tradeLivestock\(buildingId, headDelta\)/);
 
 assert.deepEqual(createCattleVisualDistribution(3), ['cow', 'cow', 'cow']);
 assert.deepEqual(createCattleVisualDistribution(6), ['bull', 'cow', 'cow', 'cow', 'cow', 'cow']);
@@ -279,9 +443,65 @@ for (const label of ['cow', 'bull', 'sheep', 'pig', 'chicken']) {
 assert.match(license, /CC0 1\.0/, 'livestock assets should retain their CC0 license record');
 
 const serverLivestock = fs.readFileSync('server/src/simulation/livestock.rs', 'utf8');
+const serverLivestockPolicy = fs.readFileSync('server/src/livestock_policy.rs', 'utf8');
 const tickContext = fs.readFileSync('server/src/simulation/tick_context.rs', 'utf8');
 assert.match(serverLivestock, /tree\.phase == "mature"/, 'pannage should count only mature trees');
 assert.match(serverLivestock, /mature_trees\s*\/\s*SWINE_MATURE_TREES_PER_HEAD/, 'pannage capacity should use mature trees');
+assert.match(
+  serverLivestock,
+  /herd\.species == SPECIES_SWINE[\s\S]{0,160}environment\.pannage_capacity_multiplier\(\)/,
+  'swine must use the pannage calendar instead of the grass-pasture calendar',
+);
+assert.match(
+  serverLivestock,
+  /herd\.supplied_capacity[\s\S]{0,120}\.max\(herd\.pasture_capacity\.min\(f64::from\(herd\.head_count\)\)\)/,
+  'fixed-cycle feed and water support must survive intervening simulation substeps',
+);
+assert.match(
+  serverLivestock,
+  /let care_labor = if paused \{ 0 \} else \{ onsite_labor \}/,
+  'paused or unstaffed holdings must provide no active animal care',
+);
+assert.match(
+  serverLivestock,
+  /if clock\.is_work_hours \{[\s\S]{0,220}building\.action_cooldown - TICK_DT[\s\S]{0,420}def\.action_interval/,
+  'animal biology must advance on a fixed daytime interval instead of worker throughput',
+);
+assert.doesNotMatch(
+  serverLivestock,
+  /def\.action_interval\s*\/\s*f64::from\(onsite_labor\)/,
+  'additional herders must not accelerate thirst, gestation, or milk cycles',
+);
+assert.match(
+  serverLivestock,
+  /let water_supported_heads[\s\S]{0,420}CommodityKind::Water[\s\S]{0,260}let care_supported_heads/,
+  'each husbandry cycle must consume trough water before resolving staffed care',
+);
+assert.match(
+  serverLivestock,
+  /herd\.supplied_capacity = feed_supported_heads[\s\S]{0,120}\.min\(water_supported_heads\)[\s\S]{0,120}\.min\(care_supported_heads\)/,
+  'feed, water, and care must all constrain the number of productive heads',
+);
+assert.match(
+  serverLivestock,
+  /herd\.head_count >= LIVESTOCK_MINIMUM_BREEDING_HEADS[\s\S]{0,180}support_ratio >= 0\.9[\s\S]{0,120}herd\.health >= 0\.72/,
+  'reproduction must require a viable, well-supported, healthy breeding group',
+);
+assert.match(
+  serverLivestock,
+  /let land_limit = base_pasture_capacity[\s\S]{0,180}let breeding_limit = species_max_herd\(herd\.species\)\.min\(land_limit\)/,
+  'births must stop at neutral land capacity and the species hard limit',
+);
+assert.match(
+  serverLivestockPolicy,
+  /pub fn livestock_cycles_per_calendar_day\(action_interval: f64\)[\s\S]{0,300}workday_seconds \/ action_interval/,
+  'winter-feed forecasting must use the same fixed husbandry cadence',
+);
+assert.doesNotMatch(
+  serverLivestockPolicy,
+  /pub fn livestock_cycles_per_calendar_day\([^)]*(assigned_labor|sabbath)/,
+  'the biology forecast must not scale its cycle count with labor or Sabbath staffing',
+);
 assert.match(serverLivestock, /CATTLE_MAX_PLOUGH_SUPPORTED_FIELDS/, 'ox support should cap ploughed fields');
 assert.match(
   serverLivestock,
@@ -341,7 +561,7 @@ assert.match(
 );
 assert.match(
   farmSimulation,
-  /withdraw_building_commodity\(resource_farmstead, CommodityKind::Manure, manure_needed\)/,
+  /withdraw_building_commodity\(\s*resource_farmstead,\s*CommodityKind::Manure,\s*manure_needed,?\s*\)/,
   'field work must consume physical manure from its owning crop farmstead',
 );
 assert.match(

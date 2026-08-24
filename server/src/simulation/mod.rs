@@ -87,6 +87,7 @@ pub use household_distribution::{distribute_well_water, step_market_household_di
 pub use labor_schedule::{labor_and_logistics_paused, production_labor_paused};
 pub(crate) use landmark_access::monastery_infirmary_assignments;
 pub use large_quarry::step_large_quarry;
+pub(crate) use livestock::{grazing_capacity, grazing_capacity_with_mature_tree_points};
 pub use livestock::{step_pastoral_farmstead, step_swineherd};
 pub use lumber_mill::step_lumber_mill;
 pub use marketplace_caravan::{step_marketplace_caravans, try_dispatch_marketplace_caravan};

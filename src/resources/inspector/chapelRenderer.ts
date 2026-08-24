@@ -94,7 +94,7 @@ export function renderChapelInspector(
     const removable = graveyard.burials === 0 && incoming === 0;
     return `<li><span>Burial ground ${index + 1}</span><span>${graveyard.burials} buried · ${incoming} reserved · ${graveyard.capacity} capacity${
       removable
-        ? ` · <button type="button" class="inspector-jump-button inspector-jump-button--demolish" data-demolish-graveyard="${graveyard.id}">Remove empty ground</button>`
+        ? ` · <button type="button" class="resource-action-button resource-action-button--danger inspector-jump-button inspector-jump-button--demolish" data-demolish-graveyard="${graveyard.id}">Remove empty ground</button>`
         : ''
     }</span></li>`;
   }).join('');
@@ -171,10 +171,10 @@ export function renderChapelInspector(
     ? ''
     : ` <button type="button" class="inspector-jump-button" data-inspect-residence="${parishRelief.targetResidenceId}" aria-label="Inspect parish relief household">Inspect</button>`;
   const collectPanelHtml = `
-    <div class="inspector-action-panel">
+    <div class="inspector-action-panel" data-inspector-panel-title="Parish orders">
       ${upgrade == null
         ? '<p class="inspector-action-panel__hint">The large stone church is fully upgraded.</p>'
-        : `<button type="button" class="inspector-action-panel__button inspector-action-panel__button--icon" data-action="upgrade-chapel" data-upgrade-tier="${upgrade.targetTier}"${upgradeBlocker ? ' disabled' : ''}>
+        : `<button type="button" class="resource-action-button resource-action-button--icon" data-action="upgrade-chapel" data-upgrade-tier="${upgrade.targetTier}"${upgradeBlocker ? ' disabled' : ''}>
             <span class="inspector-action-icon" data-action-icon="church-tier-${upgrade.targetTier}" aria-hidden="true"></span><span>Upgrade to tier ${upgrade.targetTier}</span>${upgradeCostLabel}
           </button>
           <p class="inspector-action-panel__hint">${upgradeBlocker ?? 'Rebuild the church in place; the final footprint was reserved when the wooden church was laid out.'}</p>`}
@@ -184,7 +184,7 @@ export function renderChapelInspector(
       <label class="city-admin-panel__toggle"><input type="checkbox" data-policy-chapel-sabbath ${parishPolicy.sabbathObservanceEnabled ? 'checked' : ''} /><span>Observe Sunday Sabbath</span></label>
       <p class="inspector-action-panel__hint">Sabbath pauses work and carts for +${Math.round(CHAPEL_SABBATH_OBSERVANCE_ATTENDANCE_BONUS * 100)}% attendance and +${Math.round(CHAPEL_SABBATH_OBSERVANCE_SETTLEMENT_BONUS * 100)}% settlement speed. Households still consume delivered provisions, so stock them before Saturday night.</p>
       <p class="inspector-action-panel__hint">Keep at least ${renderResourceAmount('gold', CHAPEL_CHARITY_MIN_COFFER_GOLD, { compact: true })} after wages and upkeep. In physical-economy settlements, one day of alms leaves as a visible purse carried by a free villager; long or blocked roads and church-cart contention delay it. Monday poor relief may spend up to ${renderResourceAmount('gold', CHAPEL_POOR_RELIEF_GOLD_PER_DISPATCH, { compact: true, suffix: 'per dispatch' })}.</p>
-      <button type="button" class="inspector-action-panel__button inspector-action-panel__button--icon" data-land-parcel="graveyard" data-tooltip-title="Burial-ground parcel" data-tooltip="Lay out consecrated ground inside this church’s burial work extent." data-tooltip-cost="${FREE_CONSTRUCTION_COST_TOOLTIP}" data-tooltip-cost-affordable="true"${building.constructionComplete === false || suspendedByFire ? ' disabled' : ''}>
+      <button type="button" class="resource-action-button resource-action-button--icon" data-land-parcel="graveyard" data-tooltip-title="Burial-ground parcel" data-tooltip="Lay out consecrated ground inside this church’s burial work extent." data-tooltip-cost="${FREE_CONSTRUCTION_COST_TOOLTIP}" data-tooltip-cost-affordable="true"${building.constructionComplete === false || suspendedByFire ? ' disabled' : ''}>
         <span class="inspector-action-icon" data-action-icon="graveyard" aria-hidden="true"></span><span>Lay burial-ground parcel</span>
       </button>
       <p class="inspector-action-panel__hint">Trace any number of four-corner parcels inside the church’s burial work extent. Nearby linked boundaries snap together; parcels do not have to touch the church or one another. Each assigned priest/gravedigger can move one body at a time by handcart over connected roads.</p>

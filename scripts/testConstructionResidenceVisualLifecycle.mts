@@ -450,6 +450,31 @@ async function testInspectorHeroArtRefreshStability(): Promise<void> {
   assert.deepEqual(assignedSources, [lumberArt, quarryArt, lumberArt]);
   assert.equal(heroImage.hidden, false);
   assert.equal(heroArt.dataset.artState, 'ready');
+
+  internals.applyPresentation(buildingTarget({
+    ...constructionBuilding(1, true),
+    id: 'missing-quarry-art',
+    kind: 'stone_quarry',
+  }));
+  decodeRequests[3]!.reject();
+  await Promise.resolve();
+  await Promise.resolve();
+  assert.equal(heroImage.hidden, true);
+  assert.equal(heroImage.getAttribute('src'), null);
+  assert.equal(heroArt.dataset.artState, 'fallback');
+  assert.equal(artClasses.has('is-art-unavailable'), true);
+
+  internals.applyPresentation(buildingTarget({
+    ...constructionBuilding(1, true),
+    id: 'missing-quarry-art-refresh',
+    kind: 'stone_quarry',
+  }));
+  assert.deepEqual(
+    assignedSources,
+    [lumberArt, quarryArt, lumberArt, quarryArt],
+    'a failed source must keep its fallback state instead of retrying every refresh',
+  );
+  assert.equal(heroArt.dataset.artState, 'fallback');
 }
 
 function constructionBuilding(
@@ -629,6 +654,7 @@ function createInspectorRefreshHarness(initial: InspectableTarget): {
 function constructionInspectorContext(site: BuildingState): unknown {
   return {
     gameState: {
+      tick: 0,
       buildings: new Map([[site.id, site]]),
       deliveryTrips: new Map(),
       fireIncidents: new Map(),

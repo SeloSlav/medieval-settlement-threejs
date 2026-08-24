@@ -335,6 +335,11 @@ export function renderHarvestBuildingInspector(
     reserveSliderMax,
     Math.max(reserveSliderMin, Math.round(protectedStock)),
   );
+  const reserveActionVerb = building.kind === 'hunters_hall'
+    ? 'Hunt'
+    : building.kind === 'fishing_camp'
+      ? 'Fish'
+      : 'Gather';
 
   let statusText: string;
   let statusState: InspectorView['statusState'];
@@ -411,22 +416,14 @@ export function renderHarvestBuildingInspector(
       <li><span>Harvestable stock</span><span>${nearestNode ? `${Math.floor(harvestableStock)} above floor / ${Math.round(nearestNode.remaining)} of ${Math.round(nearestNode.maxYield)} population` : 'No population in range'}</span></li>`
     : '';
   const reservePanel = managesWildStock
-    ? `<div class="inspector-action-panel">
-        <p class="resource-inspector-note">Set the quantity this camp must leave in the wild. Workers stop at that floor, switch to another healthy source in range, and resume here after regeneration lifts stock above it.</p>
-        <p class="city-admin-panel__slider-label"><span>Stop harvesting at</span><strong data-harvest-reserve-value>${reserveSliderValue} ${stockUnit}</strong></p>
+    ? `<div class="inspector-action-panel" data-inspector-panel-title="${reserveActionVerb} until ${reserveSliderValue} ${stockUnit} remain">
+        <p class="city-admin-panel__slider-label"><span>${reserveActionVerb} until</span><strong data-harvest-reserve-value>${reserveSliderValue} ${stockUnit}</strong><span>remain</span></p>
         <input class="city-admin-panel__slider" type="range" data-harvest-reserve-slider data-harvest-reserve-capacity="${nearestNode?.maxYield ?? 100}" data-harvest-reserve-unit="${stockUnit}" min="${reserveSliderMin}" max="${reserveSliderMax}" step="1" value="${reserveSliderValue}" ${nearestNode ? '' : 'disabled'} />
         <div class="city-admin-panel__range-hints">
           <span>${hasAutomaticRenewableFloor ? `${reserveSliderMin} automatic minimum` : '0 maximum harvest'}</span>
           <span>${reserveSliderMax} light harvest</span>
         </div>
-        <p class="inspector-action-panel__hint" data-harvest-reserve-share>${reservePercent}% of capacity · the same proportional floor adapts automatically to ordinary and rich sources.</p>
-        <p class="inspector-action-panel__hint">${building.kind === 'fishing_camp'
-          ? nearestNode?.isRich === true
-            ? 'Rich shoals hold twice the fish, yield 1.75× per cycle, and reproduce 1.75× faster. They rebuild only in spring.'
-            : 'Ordinary shoals are renewable when fish survive to reproduce in spring. Setting the floor to zero risks permanent extinction.'
-          : building.kind === 'hunters_hall'
-            ? 'Every habitat keeps an automatic breeding pair. Rich habitats hold more game, yield 1.5× per cycle, and reproduce 1.75× faster.'
-            : 'Berry thickets and mushroom beds regrow in season even after depletion. Rich patches hold more, yield 1.5× per cycle, and regrow 1.5× faster.'}</p>
+        <p class="inspector-action-panel__hint" data-harvest-reserve-share>${reservePercent}% of capacity</p>
       </div>`
     : undefined;
   const remedyRows = building.kind === 'foragers_shed'

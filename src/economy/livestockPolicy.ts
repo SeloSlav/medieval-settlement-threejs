@@ -1,11 +1,15 @@
 import {
   CATTLE_DEFAULT_BREEDING_RESERVE,
   CATTLE_FOOD_PER_CYCLE_PER_HEAD,
+  CATTLE_HEADS_PER_WORKER,
   CATTLE_MAX_HERD,
   CATTLE_MINIMUM_BREEDING_RESERVE,
   CATTLE_PRESERVED_FOOD_PER_CYCLE_PER_HEAD,
+  CATTLE_PURCHASE_GOLD_PER_HEAD,
+  CATTLE_SALE_GOLD_PER_HEAD,
   CATTLE_SLAUGHTER_FOOD_PER_HEAD,
   CATTLE_SLAUGHTER_PRESERVED_FOOD_PER_HEAD,
+  CATTLE_WATER_PER_HEAD_PER_CYCLE,
   LIVESTOCK_AUTUMN_CULL_END_MONTH,
   LIVESTOCK_AUTUMN_CULL_START_MONTH,
   LIVESTOCK_DEFAULT_HAYMAKING_PERCENT,
@@ -15,19 +19,27 @@ import {
   LIVESTOCK_FARMSTEAD_PRESERVATION_SALT_PER_OUTPUT,
   SHEEP_DEFAULT_BREEDING_RESERVE,
   SHEEP_FOOD_PER_CYCLE_PER_HEAD,
+  SHEEP_HEADS_PER_WORKER,
   SHEEP_MAX_HERD,
   SHEEP_MINIMUM_BREEDING_RESERVE,
   SHEEP_PRESERVED_FOOD_PER_CYCLE_PER_HEAD,
+  SHEEP_PURCHASE_GOLD_PER_HEAD,
+  SHEEP_SALE_GOLD_PER_HEAD,
   SHEEP_SHEARING_END_MONTH,
   SHEEP_SHEARING_START_MONTH,
   SHEEP_SLAUGHTER_FOOD_PER_HEAD,
   SHEEP_SLAUGHTER_PRESERVED_FOOD_PER_HEAD,
+  SHEEP_WATER_PER_HEAD_PER_CYCLE,
   SHEEP_WOOL_PER_SHEARING_PER_HEAD,
   SWINE_DEFAULT_BREEDING_RESERVE,
+  SWINE_HEADS_PER_WORKER,
   SWINE_MAX_HERD,
   SWINE_MINIMUM_BREEDING_RESERVE,
+  SWINE_PURCHASE_GOLD_PER_HEAD,
+  SWINE_SALE_GOLD_PER_HEAD,
   SWINE_SLAUGHTER_FOOD_PER_HEAD,
   SWINE_SLAUGHTER_PRESERVED_FOOD_PER_HEAD,
+  SWINE_WATER_PER_HEAD_PER_CYCLE,
 } from '../generated/gameBalance.ts';
 import type { LivestockHerdState, LivestockSpecies } from '../resources/types.ts';
 
@@ -39,6 +51,10 @@ export type LivestockPolicyDefinition = {
   slaughterPreservedFoodPerHead: number;
   preservedFoodPerCyclePerHead: number;
   milkPerCyclePerHead: number;
+  purchaseGoldPerHead: number;
+  saleGoldPerHead: number;
+  headsPerWorker: number;
+  waterPerHeadPerCycle: number;
 };
 
 export type LivestockReservePreset = {
@@ -71,6 +87,10 @@ const POLICY_BY_SPECIES: Record<LivestockSpecies, LivestockPolicyDefinition> = {
     slaughterPreservedFoodPerHead: CATTLE_SLAUGHTER_PRESERVED_FOOD_PER_HEAD,
     preservedFoodPerCyclePerHead: CATTLE_PRESERVED_FOOD_PER_CYCLE_PER_HEAD,
     milkPerCyclePerHead: CATTLE_FOOD_PER_CYCLE_PER_HEAD,
+    purchaseGoldPerHead: CATTLE_PURCHASE_GOLD_PER_HEAD,
+    saleGoldPerHead: CATTLE_SALE_GOLD_PER_HEAD,
+    headsPerWorker: CATTLE_HEADS_PER_WORKER,
+    waterPerHeadPerCycle: CATTLE_WATER_PER_HEAD_PER_CYCLE,
   },
   sheep: {
     minimumReserve: SHEEP_MINIMUM_BREEDING_RESERVE,
@@ -80,6 +100,10 @@ const POLICY_BY_SPECIES: Record<LivestockSpecies, LivestockPolicyDefinition> = {
     slaughterPreservedFoodPerHead: SHEEP_SLAUGHTER_PRESERVED_FOOD_PER_HEAD,
     preservedFoodPerCyclePerHead: SHEEP_PRESERVED_FOOD_PER_CYCLE_PER_HEAD,
     milkPerCyclePerHead: SHEEP_FOOD_PER_CYCLE_PER_HEAD,
+    purchaseGoldPerHead: SHEEP_PURCHASE_GOLD_PER_HEAD,
+    saleGoldPerHead: SHEEP_SALE_GOLD_PER_HEAD,
+    headsPerWorker: SHEEP_HEADS_PER_WORKER,
+    waterPerHeadPerCycle: SHEEP_WATER_PER_HEAD_PER_CYCLE,
   },
   swine: {
     minimumReserve: SWINE_MINIMUM_BREEDING_RESERVE,
@@ -89,11 +113,69 @@ const POLICY_BY_SPECIES: Record<LivestockSpecies, LivestockPolicyDefinition> = {
     slaughterPreservedFoodPerHead: SWINE_SLAUGHTER_PRESERVED_FOOD_PER_HEAD,
     preservedFoodPerCyclePerHead: 0,
     milkPerCyclePerHead: 0,
+    purchaseGoldPerHead: SWINE_PURCHASE_GOLD_PER_HEAD,
+    saleGoldPerHead: SWINE_SALE_GOLD_PER_HEAD,
+    headsPerWorker: SWINE_HEADS_PER_WORKER,
+    waterPerHeadPerCycle: SWINE_WATER_PER_HEAD_PER_CYCLE,
   },
 };
 
 export function livestockPolicyDefinition(species: LivestockSpecies): LivestockPolicyDefinition {
   return POLICY_BY_SPECIES[species];
+}
+
+export function livestockPurchaseGoldPerHead(species: LivestockSpecies): number {
+  return livestockPolicyDefinition(species).purchaseGoldPerHead;
+}
+
+export function livestockSaleGoldPerHead(species: LivestockSpecies): number {
+  return livestockPolicyDefinition(species).saleGoldPerHead;
+}
+
+export function livestockPurchaseCost(
+  species: LivestockSpecies,
+  headCount: number,
+): number {
+  const wholeHeads = Number.isFinite(headCount)
+    ? Math.max(0, Math.floor(headCount))
+    : 0;
+  return wholeHeads * livestockPurchaseGoldPerHead(species);
+}
+
+export function livestockSaleProceeds(
+  species: LivestockSpecies,
+  headCount: number,
+): number {
+  const wholeHeads = Number.isFinite(headCount)
+    ? Math.max(0, Math.floor(headCount))
+    : 0;
+  return wholeHeads * livestockSaleGoldPerHead(species);
+}
+
+export function livestockHeadsPerWorker(species: LivestockSpecies): number {
+  return livestockPolicyDefinition(species).headsPerWorker;
+}
+
+export function livestockCareCapacity(
+  species: LivestockSpecies,
+  assignedLabor: number,
+): number {
+  const workers = Number.isFinite(assignedLabor)
+    ? Math.max(0, Math.floor(assignedLabor))
+    : 0;
+  return workers * livestockHeadsPerWorker(species);
+}
+
+export function livestockWaterPerHeadPerCycle(species: LivestockSpecies): number {
+  return livestockPolicyDefinition(species).waterPerHeadPerCycle;
+}
+
+export function livestockWaterRequiredPerCycle(
+  species: LivestockSpecies,
+  headCount: number,
+): number {
+  const heads = Number.isFinite(headCount) ? Math.max(0, headCount) : 0;
+  return heads * livestockWaterPerHeadPerCycle(species);
 }
 
 export function effectiveLivestockBreedingReserve(

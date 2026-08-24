@@ -121,7 +121,11 @@ type LivestockSpeciesBalance = {
   maxHerd: number;
   minimumBreedingReserve: number;
   defaultBreedingReserve: number;
+  purchaseGoldPerHead: number;
+  saleGoldPerHead: number;
   areaPerHead: number;
+  headsPerWorker: number;
+  waterPerHeadPerCycle: number;
   foodPerCyclePerHead: number;
   slaughterFoodPerHead: number;
   slaughterPreservedFoodPerHead: number;
@@ -738,6 +742,12 @@ export type GameBalance = {
     haymakingEndMonth: number;
     defaultHaymakingPercent: number;
     maximumHaymakingPercent: number;
+    minimumBreedingHeads: number;
+    pannageSpringCapacityMultiplier: number;
+    pannageSummerCapacityMultiplier: number;
+    pannageAutumnCapacityMultiplier: number;
+    pannageWinterCapacityMultiplier: number;
+    pannageDroughtCapacityMultiplier: number;
     hayStorageCapacity: number;
     manureTransferPerTrip: number;
     farmsteadPreservationSaltPerOutput: number;
@@ -1365,6 +1375,12 @@ function generateRust(): string {
     `pub const LIVESTOCK_HAYMAKING_END_MONTH: u32 = ${b.livestock.haymakingEndMonth};`,
     `pub const LIVESTOCK_DEFAULT_HAYMAKING_PERCENT: u8 = ${b.livestock.defaultHaymakingPercent};`,
     `pub const LIVESTOCK_MAXIMUM_HAYMAKING_PERCENT: u8 = ${b.livestock.maximumHaymakingPercent};`,
+    `pub const LIVESTOCK_MINIMUM_BREEDING_HEADS: u32 = ${b.livestock.minimumBreedingHeads};`,
+    `pub const PANNAGE_SPRING_CAPACITY_MULTIPLIER: f64 = ${rustF64(b.livestock.pannageSpringCapacityMultiplier)};`,
+    `pub const PANNAGE_SUMMER_CAPACITY_MULTIPLIER: f64 = ${rustF64(b.livestock.pannageSummerCapacityMultiplier)};`,
+    `pub const PANNAGE_AUTUMN_CAPACITY_MULTIPLIER: f64 = ${rustF64(b.livestock.pannageAutumnCapacityMultiplier)};`,
+    `pub const PANNAGE_WINTER_CAPACITY_MULTIPLIER: f64 = ${rustF64(b.livestock.pannageWinterCapacityMultiplier)};`,
+    `pub const PANNAGE_DROUGHT_CAPACITY_MULTIPLIER: f64 = ${rustF64(b.livestock.pannageDroughtCapacityMultiplier)};`,
     `pub const LIVESTOCK_HAY_STORAGE_CAPACITY: f64 = ${rustF64(b.livestock.hayStorageCapacity)};`,
     `pub const LIVESTOCK_MANURE_TRANSFER_PER_TRIP: f64 = ${rustF64(b.livestock.manureTransferPerTrip)};`,
     `pub const LIVESTOCK_FARMSTEAD_PRESERVATION_SALT_PER_OUTPUT: f64 = ${rustF64(b.livestock.farmsteadPreservationSaltPerOutput)};`,
@@ -1373,7 +1389,11 @@ function generateRust(): string {
     `pub const CATTLE_MAX_HERD: u32 = ${b.livestock.cattle.maxHerd};`,
     `pub const CATTLE_MINIMUM_BREEDING_RESERVE: u32 = ${b.livestock.cattle.minimumBreedingReserve};`,
     `pub const CATTLE_DEFAULT_BREEDING_RESERVE: u32 = ${b.livestock.cattle.defaultBreedingReserve};`,
+    `pub const CATTLE_PURCHASE_GOLD_PER_HEAD: f64 = ${rustF64(b.livestock.cattle.purchaseGoldPerHead)};`,
+    `pub const CATTLE_SALE_GOLD_PER_HEAD: f64 = ${rustF64(b.livestock.cattle.saleGoldPerHead)};`,
     `pub const CATTLE_AREA_PER_HEAD: f64 = ${rustF64(b.livestock.cattle.areaPerHead)};`,
+    `pub const CATTLE_HEADS_PER_WORKER: f64 = ${rustF64(b.livestock.cattle.headsPerWorker)};`,
+    `pub const CATTLE_WATER_PER_HEAD_PER_CYCLE: f64 = ${rustF64(b.livestock.cattle.waterPerHeadPerCycle)};`,
     `pub const CATTLE_MAX_SLOPE_DEGREES: f64 = ${rustF64(b.livestock.cattle.maxSlopeDegrees ?? 0)};`,
     `pub const CATTLE_MOISTURE_IDEAL: f64 = ${rustF64(b.livestock.cattle.moistureIdeal ?? 0)};`,
     `pub const CATTLE_MOISTURE_TOLERANCE: f64 = ${rustF64(b.livestock.cattle.moistureTolerance ?? 1)};`,
@@ -1398,7 +1418,11 @@ function generateRust(): string {
     `pub const SHEEP_MAX_HERD: u32 = ${b.livestock.sheep.maxHerd};`,
     `pub const SHEEP_MINIMUM_BREEDING_RESERVE: u32 = ${b.livestock.sheep.minimumBreedingReserve};`,
     `pub const SHEEP_DEFAULT_BREEDING_RESERVE: u32 = ${b.livestock.sheep.defaultBreedingReserve};`,
+    `pub const SHEEP_PURCHASE_GOLD_PER_HEAD: f64 = ${rustF64(b.livestock.sheep.purchaseGoldPerHead)};`,
+    `pub const SHEEP_SALE_GOLD_PER_HEAD: f64 = ${rustF64(b.livestock.sheep.saleGoldPerHead)};`,
     `pub const SHEEP_AREA_PER_HEAD: f64 = ${rustF64(b.livestock.sheep.areaPerHead)};`,
+    `pub const SHEEP_HEADS_PER_WORKER: f64 = ${rustF64(b.livestock.sheep.headsPerWorker)};`,
+    `pub const SHEEP_WATER_PER_HEAD_PER_CYCLE: f64 = ${rustF64(b.livestock.sheep.waterPerHeadPerCycle)};`,
     `pub const SHEEP_MAX_SLOPE_DEGREES: f64 = ${rustF64(b.livestock.sheep.maxSlopeDegrees ?? 0)};`,
     `pub const SHEEP_MOISTURE_IDEAL: f64 = ${rustF64(b.livestock.sheep.moistureIdeal ?? 0)};`,
     `pub const SHEEP_MOISTURE_TOLERANCE: f64 = ${rustF64(b.livestock.sheep.moistureTolerance ?? 1)};`,
@@ -1419,7 +1443,12 @@ function generateRust(): string {
     `pub const SWINE_MAX_HERD: u32 = ${b.livestock.swine.maxHerd};`,
     `pub const SWINE_MINIMUM_BREEDING_RESERVE: u32 = ${b.livestock.swine.minimumBreedingReserve};`,
     `pub const SWINE_DEFAULT_BREEDING_RESERVE: u32 = ${b.livestock.swine.defaultBreedingReserve};`,
+    `pub const SWINE_PURCHASE_GOLD_PER_HEAD: f64 = ${rustF64(b.livestock.swine.purchaseGoldPerHead)};`,
+    `pub const SWINE_SALE_GOLD_PER_HEAD: f64 = ${rustF64(b.livestock.swine.saleGoldPerHead)};`,
     `pub const SWINE_AREA_PER_HEAD: f64 = ${rustF64(b.livestock.swine.areaPerHead)};`,
+    `pub const SWINE_HEADS_PER_WORKER: f64 = ${rustF64(b.livestock.swine.headsPerWorker)};`,
+    `pub const SWINE_WATER_PER_HEAD_PER_CYCLE: f64 = ${rustF64(b.livestock.swine.waterPerHeadPerCycle)};`,
+    `pub const SWINE_MAX_SLOPE_DEGREES: f64 = ${rustF64(b.livestock.swine.maxSlopeDegrees ?? 0)};`,
     `pub const SWINE_MATURE_TREES_PER_HEAD: f64 = ${rustF64(b.livestock.swine.matureTreesPerHead ?? 0)};`,
     `pub const SWINE_FOOD_PER_CYCLE_PER_HEAD: f64 = ${rustF64(b.livestock.swine.foodPerCyclePerHead)};`,
     `pub const SWINE_SLAUGHTER_FOOD_PER_HEAD: f64 = ${rustF64(b.livestock.swine.slaughterFoodPerHead)};`,
@@ -2383,6 +2412,12 @@ function generateTypeScript(): string {
     `export const LIVESTOCK_HAYMAKING_END_MONTH = ${b.livestock.haymakingEndMonth};`,
     `export const LIVESTOCK_DEFAULT_HAYMAKING_PERCENT = ${b.livestock.defaultHaymakingPercent};`,
     `export const LIVESTOCK_MAXIMUM_HAYMAKING_PERCENT = ${b.livestock.maximumHaymakingPercent};`,
+    `export const LIVESTOCK_MINIMUM_BREEDING_HEADS = ${b.livestock.minimumBreedingHeads};`,
+    `export const PANNAGE_SPRING_CAPACITY_MULTIPLIER = ${b.livestock.pannageSpringCapacityMultiplier};`,
+    `export const PANNAGE_SUMMER_CAPACITY_MULTIPLIER = ${b.livestock.pannageSummerCapacityMultiplier};`,
+    `export const PANNAGE_AUTUMN_CAPACITY_MULTIPLIER = ${b.livestock.pannageAutumnCapacityMultiplier};`,
+    `export const PANNAGE_WINTER_CAPACITY_MULTIPLIER = ${b.livestock.pannageWinterCapacityMultiplier};`,
+    `export const PANNAGE_DROUGHT_CAPACITY_MULTIPLIER = ${b.livestock.pannageDroughtCapacityMultiplier};`,
     `export const LIVESTOCK_HAY_STORAGE_CAPACITY = ${b.livestock.hayStorageCapacity};`,
     `export const LIVESTOCK_MANURE_TRANSFER_PER_TRIP = ${b.livestock.manureTransferPerTrip};`,
     `export const LIVESTOCK_FARMSTEAD_PRESERVATION_SALT_PER_OUTPUT = ${b.livestock.farmsteadPreservationSaltPerOutput};`,
@@ -2391,7 +2426,11 @@ function generateTypeScript(): string {
     `export const CATTLE_MAX_HERD = ${b.livestock.cattle.maxHerd};`,
     `export const CATTLE_MINIMUM_BREEDING_RESERVE = ${b.livestock.cattle.minimumBreedingReserve};`,
     `export const CATTLE_DEFAULT_BREEDING_RESERVE = ${b.livestock.cattle.defaultBreedingReserve};`,
+    `export const CATTLE_PURCHASE_GOLD_PER_HEAD = ${b.livestock.cattle.purchaseGoldPerHead};`,
+    `export const CATTLE_SALE_GOLD_PER_HEAD = ${b.livestock.cattle.saleGoldPerHead};`,
     `export const CATTLE_AREA_PER_HEAD = ${b.livestock.cattle.areaPerHead};`,
+    `export const CATTLE_HEADS_PER_WORKER = ${b.livestock.cattle.headsPerWorker};`,
+    `export const CATTLE_WATER_PER_HEAD_PER_CYCLE = ${b.livestock.cattle.waterPerHeadPerCycle};`,
     `export const CATTLE_MAX_SLOPE_DEGREES = ${b.livestock.cattle.maxSlopeDegrees ?? 0};`,
     `export const CATTLE_MOISTURE_IDEAL = ${b.livestock.cattle.moistureIdeal ?? 0};`,
     `export const CATTLE_MOISTURE_TOLERANCE = ${b.livestock.cattle.moistureTolerance ?? 1};`,
@@ -2416,7 +2455,11 @@ function generateTypeScript(): string {
     `export const SHEEP_MAX_HERD = ${b.livestock.sheep.maxHerd};`,
     `export const SHEEP_MINIMUM_BREEDING_RESERVE = ${b.livestock.sheep.minimumBreedingReserve};`,
     `export const SHEEP_DEFAULT_BREEDING_RESERVE = ${b.livestock.sheep.defaultBreedingReserve};`,
+    `export const SHEEP_PURCHASE_GOLD_PER_HEAD = ${b.livestock.sheep.purchaseGoldPerHead};`,
+    `export const SHEEP_SALE_GOLD_PER_HEAD = ${b.livestock.sheep.saleGoldPerHead};`,
     `export const SHEEP_AREA_PER_HEAD = ${b.livestock.sheep.areaPerHead};`,
+    `export const SHEEP_HEADS_PER_WORKER = ${b.livestock.sheep.headsPerWorker};`,
+    `export const SHEEP_WATER_PER_HEAD_PER_CYCLE = ${b.livestock.sheep.waterPerHeadPerCycle};`,
     `export const SHEEP_MAX_SLOPE_DEGREES = ${b.livestock.sheep.maxSlopeDegrees ?? 0};`,
     `export const SHEEP_MOISTURE_IDEAL = ${b.livestock.sheep.moistureIdeal ?? 0};`,
     `export const SHEEP_MOISTURE_TOLERANCE = ${b.livestock.sheep.moistureTolerance ?? 1};`,
@@ -2437,7 +2480,12 @@ function generateTypeScript(): string {
     `export const SWINE_MAX_HERD = ${b.livestock.swine.maxHerd};`,
     `export const SWINE_MINIMUM_BREEDING_RESERVE = ${b.livestock.swine.minimumBreedingReserve};`,
     `export const SWINE_DEFAULT_BREEDING_RESERVE = ${b.livestock.swine.defaultBreedingReserve};`,
+    `export const SWINE_PURCHASE_GOLD_PER_HEAD = ${b.livestock.swine.purchaseGoldPerHead};`,
+    `export const SWINE_SALE_GOLD_PER_HEAD = ${b.livestock.swine.saleGoldPerHead};`,
     `export const SWINE_AREA_PER_HEAD = ${b.livestock.swine.areaPerHead};`,
+    `export const SWINE_HEADS_PER_WORKER = ${b.livestock.swine.headsPerWorker};`,
+    `export const SWINE_WATER_PER_HEAD_PER_CYCLE = ${b.livestock.swine.waterPerHeadPerCycle};`,
+    `export const SWINE_MAX_SLOPE_DEGREES = ${b.livestock.swine.maxSlopeDegrees ?? 0};`,
     `export const SWINE_MATURE_TREES_PER_HEAD = ${b.livestock.swine.matureTreesPerHead ?? 0};`,
     `export const SWINE_FOOD_PER_CYCLE_PER_HEAD = ${b.livestock.swine.foodPerCyclePerHead};`,
     `export const SWINE_SLAUGHTER_FOOD_PER_HEAD = ${b.livestock.swine.slaughterFoodPerHead};`,

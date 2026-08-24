@@ -1044,7 +1044,7 @@ function residenceRoofTileProjectPanel(
 }
 
 function residenceProjectPriorityPanel(priority: ConstructionPriority): string {
-  return `<div class="inspector-action-panel inspector-action-panel--compact" aria-label="Priority"><div class="resource-action-row">${CONSTRUCTION_PRIORITIES.map((candidate) =>
+  return `<div class="inspector-action-panel inspector-action-panel--compact" data-inspector-panel-title="Priority" aria-label="Priority"><div class="resource-action-row">${CONSTRUCTION_PRIORITIES.map((candidate) =>
     residenceUpgradePriorityButton(candidate, priority)).join('')}</div></div>`;
 }
 

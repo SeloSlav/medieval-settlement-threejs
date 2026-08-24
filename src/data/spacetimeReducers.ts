@@ -372,6 +372,17 @@ export async function setLivestockSpecies(
   });
 }
 
+export async function tradeLivestock(buildingId: string, headDelta: number): Promise<void> {
+  const serverId = parseBuildingServerId(buildingId);
+  if (serverId === null) throw new Error('Invalid livestock holding id.');
+  const normalizedDelta = Math.trunc(headDelta);
+  if (normalizedDelta === 0) throw new Error('Livestock order must change at least one head.');
+  await callReducer('tradeLivestock', 'trade_livestock', {
+    buildingId: serverId,
+    headDelta: normalizedDelta,
+  });
+}
+
 export async function setLivestockBreedingReserve(
   buildingId: string,
   breedingReserve: number,

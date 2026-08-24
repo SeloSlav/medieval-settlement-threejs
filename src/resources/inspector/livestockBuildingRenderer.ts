@@ -6,12 +6,19 @@ import {
   isSheepShearingMonth,
   LIVESTOCK_MILK_USE_PRESETS,
   livestockHaymakingPresets,
+  livestockCareCapacity,
+  livestockHeadsPerWorker,
   livestockMilkAllocationPerCycle,
   livestockMilkUsePolicy,
   livestockPolicyDefinition,
   livestockPreservationSaltRequired,
+  livestockPurchaseCost,
+  livestockPurchaseGoldPerHead,
   livestockReservePresets,
+  livestockSaleGoldPerHead,
+  livestockSaleProceeds,
   livestockSaltedOutputCapacity,
+  livestockWaterRequiredPerCycle,
   projectedSheepFleece,
   projectedLivestockCullYield,
 } from '../../economy/livestockPolicy.ts';
@@ -32,13 +39,22 @@ import {
   FARM_MANURE_FERTILITY_BONUS,
   LIVESTOCK_HAYMAKING_START_MONTH,
   LIVESTOCK_HAY_STORAGE_CAPACITY,
+  LIVESTOCK_MINIMUM_BREEDING_HEADS,
   LIVESTOCK_WINTER_FODDER_RESERVE_DAYS,
   SHEEP_AREA_PER_HEAD,
   SHEEP_MAX_HERD,
   SHEEP_STARTER_HERD,
   SHEEP_WOOL_PER_SHEARING_PER_HEAD,
+  SWINE_AREA_PER_HEAD,
+  SWINE_MATURE_TREES_PER_HEAD,
+  SWINE_STARTER_HERD,
 } from '../../generated/gameBalance.ts';
 import { cattleManurePerCycle } from '../../farming/manurePlanning.ts';
+import {
+  livestockHoldingWholeHeadLimit,
+  neutralPastureHoldingHeadCapacity,
+  pannageHoldingHeadCapacity,
+} from '../../farming/pastureCapacity.ts';
 import { settlementHasStaffedChapel } from '../../logistics/landmarkAccess.ts';
 import { environmentFor } from '../../world/seasonPolicy.ts';
 import {
@@ -87,6 +103,23 @@ export function renderLivestockBuildingInspector(
   const herd = context.worldQueries.getLivestockHerd(building.id);
   const pastures = context.worldQueries.getPasturesForBuilding(building.id);
   const pastureArea = pastures.reduce((sum, pasture) => sum + pasture.area, 0);
+  const maturePannageTrees = building.kind === 'swineherd'
+    ? context.worldQueries.getMaturePannageTreeCount(building.id)
+    : 0;
+  const pannageCapacity = building.kind === 'swineherd'
+    ? pannageHoldingHeadCapacity(pastures, maturePannageTrees)
+    : null;
+  const neutralCapacity = !herd
+    ? 0
+    : herd.species === 'swine'
+      ? pannageCapacity?.headCapacity ?? 0
+      : neutralPastureHoldingHeadCapacity(pastures, herd.species);
+  const neutralWholeHeadLimit = herd
+    ? livestockHoldingWholeHeadLimit(neutralCapacity, herd.species)
+    : 0;
+  const availableStockingSlots = herd
+    ? Math.max(0, neutralWholeHeadLimit - herd.headCount)
+    : 0;
   const healthPercent = Math.round((herd?.health ?? 0) * 100);
   const breedingPercent = Math.round((herd?.breedingProgress ?? 0) * 100);
   const overCapacity = herd ? herd.headCount > herd.suppliedCapacity : false;
@@ -191,7 +224,25 @@ export function renderLivestockBuildingInspector(
     : 0;
   const activeTrip = context.worldQueries.getActiveDeliveryTrip(building);
   const onsiteLabor = onsiteBuildingLabor(building, activeTrip);
-  const active = Boolean(herd && pastures.length > 0 && onsiteLabor > 0 && herd.health >= 0.45);
+  const headsPerWorker = herd ? livestockHeadsPerWorker(herd.species) : 0;
+  const careCapacity = herd
+    ? livestockCareCapacity(herd.species, onsiteLabor)
+    : 0;
+  const troughWaterPerCycle = herd
+    ? livestockWaterRequiredPerCycle(herd.species, herd.headCount)
+    : 0;
+  const troughWater = Math.max(0, building.water ?? 0);
+  const troughCycles = troughWaterPerCycle > 1e-9
+    ? troughWater / troughWaterPerCycle
+    : Number.POSITIVE_INFINITY;
+  const active = Boolean(
+    herd
+      && herd.headCount > 0
+      && pastures.length > 0
+      && onsiteLabor > 0
+      && troughWaterPerCycle <= troughWater + 1e-6
+      && herd.health >= 0.45,
+  );
   const foodTerritory = context.worldQueries.getClaimedResidencesForFoodSupplier(building);
   const foodCapacity = storageCaps.food ?? 0;
   const householdFoodFloor = householdFoodReserve(foodTerritory.length, foodCapacity);
@@ -241,67 +292,101 @@ export function renderLivestockBuildingInspector(
       && fodderPlan.dairySaltPerDay > 0.001
       && fodderPlan.dairySaltStock + inboundSalt <= 0.001,
   );
-  const statusText = !herd
-    ? building.kind === 'pastoral_farmstead'
-      ? 'Choose cattle or sheep'
-      : 'Awaiting pig herd'
-    : pastures.length === 0
-      ? 'Draw a fenced pasture'
-      : onsiteLabor === 0
-        ? building.assignedLabor > 0
-          ? 'Herd work paused - the full crew is away with its cart'
-          : 'Awaiting herders'
-        : winterReserveAtRisk
-          ? `Winter grain reserve short ${fodderPlan!.winterReserveShortfall.toFixed(1)}`
-        : herd.species === 'sheep' && shearingWindow && !shornThisYear
-          ? shearingStorageBlocked
-            ? `Shearing needs ${projectedFleece.toFixed(1)} free wool storage`
-            : shearingFlockBlocked
-              ? 'Shearing waiting for a healthy supplied flock'
-              : 'Annual shearing underway'
-        : isLivestockHaymakingMonth(month)
-          && fodderPlan
-          && fodderPlan.haymakingPercent > 0
-          && overCapacity
-          ? `Haymaking reserves ${fodderPlan.haymakingPercent}% of summer pasture — grain fallback active`
-        : overCapacity
-          ? 'Over capacity — grain fallback active'
-        : herd.health < 0.45
-            ? 'Herd health is poor'
-            : dairySaltEmpty
-              ? 'Cheese salt empty — fresh milk continues'
-            : herd.lastCulled > 0
-              ? `Autumn slaughter — ${herd.lastCulled} surplus head culled`
-              : cullSeason && projectedCull.heads > 0 && !cullHasStorage
-                ? 'Autumn slaughter waiting for empty food storage'
-                : cullSeason && projectedCull.heads > 0
-                  ? `Culling ${projectedCull.heads} surplus head before winter`
-                  : projectedCull.heads > 0
-                    ? `Holding ${projectedCull.heads} surplus head for October`
-                    : 'Herd tended';
+  const statusText = (() => {
+    if (!herd) return 'Choose cattle or sheep';
+    if (pastures.length === 0) {
+      return herd.species === 'swine' ? 'Fence woodland pannage' : 'Fence a pasture';
+    }
+    if (herd.headCount === 0) {
+      return neutralWholeHeadLimit > 0
+        ? `Unstocked — room to buy ${neutralWholeHeadLimit} head`
+        : 'Expand the parcel before stocking';
+    }
+    if (troughWater + 1e-6 < troughWaterPerCycle) return 'Trough water is short';
+    if (careCapacity < herd.headCount) {
+      return `Herders can care for ${careCapacity} of ${herd.headCount} head`;
+    }
+    if (winterReserveAtRisk) {
+      return `Winter grain reserve short ${fodderPlan!.winterReserveShortfall.toFixed(1)}`;
+    }
+    if (herd.species === 'sheep' && shearingWindow && !shornThisYear) {
+      if (shearingStorageBlocked) {
+        return `Shearing needs ${projectedFleece.toFixed(1)} free wool storage`;
+      }
+      if (shearingFlockBlocked) return 'Shearing waiting for a healthy supplied flock';
+      return 'Annual shearing underway';
+    }
+    if (
+      isLivestockHaymakingMonth(month)
+      && fodderPlan
+      && fodderPlan.haymakingPercent > 0
+      && overCapacity
+    ) {
+      return `Haymaking reserves ${fodderPlan.haymakingPercent}% of summer pasture — fodder fallback active`;
+    }
+    if (overCapacity) return 'Feed, water, or care support is short';
+    if (herd.health < 0.45) return 'Herd health is poor';
+    if (dairySaltEmpty) return 'Cheese salt empty — fresh milk continues';
+    if (herd.lastCulled > 0) {
+      return `Autumn slaughter — ${herd.lastCulled} surplus head culled`;
+    }
+    if (cullSeason && projectedCull.heads > 0 && !cullHasStorage) {
+      return 'Autumn slaughter waiting for empty food storage';
+    }
+    if (cullSeason && projectedCull.heads > 0) {
+      return `Culling ${projectedCull.heads} surplus head before winter`;
+    }
+    if (projectedCull.heads > 0) {
+      return `Holding ${projectedCull.heads} surplus head for October`;
+    }
+    return 'Herd tended';
+  })();
 
   const role = building.kind === 'swineherd'
-    ? 'Forest pannage → seasonal pork for smokehouses'
+    ? 'Drawn forest pannage → mast, seasonal pork, and a central sty with trough'
     : !herd
       ? 'Unstocked holding → choose cattle or sheep before laying out pasture'
     : herd?.species === 'sheep'
       ? 'Upland grazing → milk, salt-cured cheese, and annual wool'
       : 'Pasture → milk, salt-cured cheese, manure, and ox power';
 
+  const purchasePrice = herd ? livestockPurchaseGoldPerHead(herd.species) : 0;
+  const salePrice = herd ? livestockSaleGoldPerHead(herd.species) : 0;
+  const starterTarget = herd?.species === 'cattle'
+    ? CATTLE_STARTER_HERD
+    : herd?.species === 'sheep'
+      ? SHEEP_STARTER_HERD
+      : SWINE_STARTER_HERD;
+  const starterOrder = Math.min(starterTarget, availableStockingSlots);
+  const treasuryGold = Math.max(0, context.resourceTotals.gold);
+  const canChangeSpecies = !herd || (herd.headCount === 0 && pastures.length === 0);
+
   const speciesControls = building.kind === 'pastoral_farmstead'
-    ? `<div class="inspector-action-panel">
+    ? `<div class="inspector-action-panel" data-inspector-panel-title="Herd">
         <p class="resource-inspector-note">${herd
-          ? 'Herd specialization — switching keeps the building and pasture, but replaces the herd with starter stock.'
-          : 'Choose this holding’s herd before fencing pasture. The first choice establishes its starter animals.'}</p>
+          ? 'Species policy only. Sell every animal and remove linked pasture before changing species.'
+          : 'Choose which species this empty holding will manage. Animals are purchased separately after pasture is fenced.'}</p>
         <div class="resource-action-row">
-          <button type="button" class="resource-action-button resource-action-button--icon" data-livestock-species="cattle" ${herd?.species === 'cattle' ? 'disabled' : ''}><span class="inspector-action-icon" data-action-icon="cattle-herd" aria-hidden="true"></span><span>Cattle · ${CATTLE_STARTER_HERD}</span></button>
-          <button type="button" class="resource-action-button resource-action-button--icon" data-livestock-species="sheep" ${herd?.species === 'sheep' ? 'disabled' : ''}><span class="inspector-action-icon" data-action-icon="sheep-flock" aria-hidden="true"></span><span>Sheep · ${SHEEP_STARTER_HERD}</span></button>
+          <button type="button" class="resource-action-button resource-action-button--icon" data-livestock-species="cattle" ${herd?.species === 'cattle' || !canChangeSpecies ? 'disabled' : ''}><span class="inspector-action-icon" data-action-icon="cattle-herd" aria-hidden="true"></span><span>Cattle</span></button>
+          <button type="button" class="resource-action-button resource-action-button--icon" data-livestock-species="sheep" ${herd?.species === 'sheep' || !canChangeSpecies ? 'disabled' : ''}><span class="inspector-action-icon" data-action-icon="sheep-flock" aria-hidden="true"></span><span>Sheep</span></button>
         </div>
         <p class="inspector-action-panel__hint"><strong>Cattle:</strong> ${CATTLE_AREA_PER_HEAD} m²/head, up to ${CATTLE_MAX_HERD}; stronger milk per head, physical manure, and ox support for ${CATTLE_MAX_PLOUGH_SUPPORTED_FIELDS} priority fields. <strong>Sheep:</strong> ${SHEEP_AREA_PER_HEAD} m²/head, up to ${SHEEP_MAX_HERD}; faster-growing upland flocks and an annual ${SHEEP_WOOL_PER_SHEARING_PER_HEAD} wool/head clip for cloth and export. A full holding has broadly comparable food potential, so the land, fertility, and textile benefits decide the trade.</p>
       </div>`
     : undefined;
+  const stockingControls = herd
+    ? `<div class="inspector-action-panel" data-inspector-panel-title="Stocking">
+        <p class="resource-inspector-note">Buy regional breeding stock only after the authored parcels create whole-head room. Neutral land and the holding ceiling set the purchase limit; season, fodder, water, and herders determine day-to-day support.</p>
+        <div class="resource-action-row">
+          <button type="button" class="resource-action-button" data-livestock-trade="1" ${availableStockingSlots < 1 || treasuryGold + 1e-6 < purchasePrice ? 'disabled' : ''}>Buy 1 · ${renderResourceAmount('gold', purchasePrice, { compact: true })}</button>
+          ${starterOrder > 1 ? `<button type="button" class="resource-action-button" data-livestock-trade="${starterOrder}" ${treasuryGold + 1e-6 < livestockPurchaseCost(herd.species, starterOrder) ? 'disabled' : ''}>Buy ${starterOrder} · ${renderResourceAmount('gold', livestockPurchaseCost(herd.species, starterOrder), { compact: true })}</button>` : ''}
+          <button type="button" class="resource-action-button" data-livestock-trade="-1" ${herd.headCount < 1 ? 'disabled' : ''}>Sell 1 · ${renderResourceAmount('gold', salePrice, { compact: true })}</button>
+          ${herd.headCount > 1 ? `<button type="button" class="resource-action-button" data-livestock-trade="-${herd.headCount}">Sell all · ${renderResourceAmount('gold', livestockSaleProceeds(herd.species, herd.headCount), { compact: true })}</button>` : ''}
+        </div>
+        <p class="inspector-action-panel__hint">${neutralWholeHeadLimit} whole-head slots from ${neutralCapacity.toFixed(1)} neutral capacity; ${availableStockingSlots} open. Treasury: ${renderResourceAmount('gold', treasuryGold, { compact: true })}. A typical first order is ${starterTarget} head, but buying one at a time is allowed.</p>
+      </div>`
+    : '';
   const milkUseControls = herd && herd.species !== 'swine' && building.kind === 'pastoral_farmstead'
-    ? `<div class="inspector-action-panel">
+    ? `<div class="inspector-action-panel" data-inspector-panel-title="Milk use">
         <p class="resource-inspector-note">Milk use — choose after stocking. Cheese consumes the same gross milk yield one-for-one; it is durable and exportable, but needs salt and cured-store room.</p>
         <div class="resource-action-row">
           ${LIVESTOCK_MILK_USE_PRESETS
@@ -313,18 +398,18 @@ export function renderLivestockBuildingInspector(
     : '';
   const pastureLabel = building.kind === 'swineherd' ? 'Fence woodland pannage' : 'Fence pasture';
   const pastureHint = building.kind === 'swineherd'
-    ? 'Fence any number of woodland parcels inside this holding’s work extent. Total area and live mature trees determine the pigs’ capacity.'
+    ? `Fence any number of woodland parcels inside this holding’s work extent. A typical first order of ${SWINE_STARTER_HERD} pigs needs at least ${SWINE_STARTER_HERD * SWINE_AREA_PER_HEAD} m² and ${SWINE_STARTER_HERD * SWINE_MATURE_TREES_PER_HEAD} mature trees before seasonal losses.`
     : !herd
       ? 'Choose cattle or sheep before fencing grazing land.'
-    : 'Fence any number of grazing parcels inside this holding’s work extent. Nearby linked boundaries snap together; total area and terrain determine this herd’s capacity.';
-  const pastureControls = `<div class="inspector-action-panel">
+    : `Fence any number of grazing parcels inside this holding’s work extent. A typical first order needs about ${herd.species === 'cattle' ? CATTLE_STARTER_HERD * CATTLE_AREA_PER_HEAD : SHEEP_STARTER_HERD * SHEEP_AREA_PER_HEAD} m² on ideal ground; slope and moisture can increase that requirement.`;
+  const pastureControls = `<div class="inspector-action-panel" data-inspector-panel-title="Pasture">
       <p class="resource-inspector-note">${pastureHint}</p>
       <div class="resource-action-row">
         <button type="button" class="resource-action-button resource-action-button--icon" data-land-parcel="pasture" data-tooltip-title="${pastureLabel}" data-tooltip="Lay out a fenced parcel inside this holding’s work extent." data-tooltip-cost="${FREE_CONSTRUCTION_COST_TOOLTIP}" data-tooltip-cost-affordable="true" ${building.kind === 'pastoral_farmstead' && !herd ? 'disabled' : ''}><span class="inspector-action-icon" data-action-icon="pasture-parcel" aria-hidden="true"></span><span>${pastureLabel}</span></button>
       </div>
     </div>`;
   const reserveControls = herd
-    ? `<div class="inspector-action-panel">
+    ? `<div class="inspector-action-panel" data-inspector-panel-title="Breeding reserve">
         <p class="resource-inspector-note">Winter breeding reserve — surplus above this herd size is culled during October and November. A larger reserve accelerates future breeding but consumes more pasture and emergency grain.</p>
         <div class="resource-action-row">
           ${livestockReservePresets(herd.species)
@@ -346,7 +431,7 @@ export function renderLivestockBuildingInspector(
           ? `At current staffing, the coming hay season projects ${fodderPlan.projectedHayStock.toFixed(1)} / ${LIVESTOCK_HAY_STORAGE_CAPACITY} in the loft; drought can reduce the cut.`
           : `This year's cutting season has ended with ${Math.round(fodderPlan.hayStock)} / ${Math.round(LIVESTOCK_HAY_STORAGE_CAPACITY)} in the loft.`;
   const haymakingControls = herd && building.kind === 'pastoral_farmstead' && fodderPlan
-    ? `<div class="inspector-action-panel">
+    ? `<div class="inspector-action-panel" data-inspector-panel-title="Haymaking">
         <p class="resource-inspector-note">Summer hay meadow — reserving more pasture from grazing during June–August builds a local winter feed reserve, but can force emergency grain use while grass is being cut.</p>
         <div class="resource-action-row">
           ${livestockHaymakingPresets()
@@ -360,7 +445,7 @@ export function renderLivestockBuildingInspector(
     : '';
 
   const recentOutput = herd
-    ? `${Math.round(herd.lastFoodOutput)} fresh food · ${Math.round(herd.lastPreservedOutput)} salted provisions${herd.lastHayOutput > 0 ? ` · ${Math.round(herd.lastHayOutput)} hay` : ''}${herd.lastCulled > 0 ? ` · ${herd.lastCulled} culled` : ''}`
+    ? `${Math.round(herd.lastFoodOutput)} fresh food · ${Math.round(herd.lastPreservedOutput)} salted provisions${herd.lastHayOutput > 0 ? ` · ${Math.round(herd.lastHayOutput)} produced hay fodder` : ''}${herd.lastCulled > 0 ? ` · ${herd.lastCulled} culled` : ''}`
     : 'None';
   const manurePerCycle = herd?.species === 'cattle'
     ? cattleManurePerCycle(
@@ -369,11 +454,11 @@ export function renderLivestockBuildingInspector(
     )
     : 0;
   const capacity = herd
-    ? `${herd.headCount} head · ${herd.suppliedCapacity}/${herd.pastureCapacity} supplied/pasture capacity`
+    ? `${herd.headCount} / ${neutralWholeHeadLimit} head · ${neutralCapacity.toFixed(1)} neutral land · ${herd.suppliedCapacity.toFixed(1)} currently supplied`
     : 'No herd';
   const woodlandRows = building.kind === 'swineherd'
-    ? `<li><span>Mature pannage trees</span><span>${target.matureTrees}</span></li>
-       <li><span>Forest condition</span><span>${target.matureTrees > 0 ? 'Live canopy supplies mast' : 'Clear-cut — grain-only fallback'}</span></li>`
+    ? `<li><span>Fenced mast trees</span><span>${maturePannageTrees} mature · ${(pannageCapacity?.mastHeadCapacity ?? 0).toFixed(1)} pig capacity</span></li>
+       <li><span>Pannage bottleneck</span><span>${(pannageCapacity?.areaHeadCapacity ?? 0).toFixed(1)} by area / ${(pannageCapacity?.mastHeadCapacity ?? 0).toFixed(1)} by mast · ${maturePannageTrees > 0 ? 'autumn mast peak' : 'clear-cut — oat/grain fallback only'}</span></li>`
     : '';
   const benefitRow = herd?.species === 'cattle'
     ? `<li><span>Ox team</span><span>Highest-priority ${CATTLE_MAX_PLOUGH_SUPPORTED_FIELDS} fields inside work extent · ${Math.round((1 - CATTLE_PLOUGH_WORK_MULTIPLIER) * 100)}% less ploughing</span></li>
@@ -384,29 +469,25 @@ export function renderLivestockBuildingInspector(
       : '<li><span>Seasonality</span><span>No passive pork · actual surplus culls in October–November</span></li>';
   const currentGrainBurden = !fodderPlan
     ? 'No herd'
-    : building.assignedLabor <= 0
-      ? 'No work cycles while unstaffed'
-      : fodderPlan.currentGrainPerDay <= 0.01
-        ? 'Pasture covers the current herd'
-        : `${fodderPlan.currentUnsupportedHeads.toFixed(1)} unsupported head · ${environment.season === 'winter' && fodderPlan.hayStock > 0 ? 'hay feeds first, then ' : ''}${renderResourceAmount('oatGrain', fodderPlan.currentGrainPerDay, { compact: true, suffix: '/day' })} · ${formatProvisionRunway(fodderPlan.currentGrainRunwayDays)} stored`;
+    : fodderPlan.currentGrainPerDay <= 0.01
+      ? `${herd?.species === 'swine' ? 'Woodland mast' : 'Pasture'} covers the current herd`
+      : `${fodderPlan.currentUnsupportedHeads.toFixed(1)} unsupported head · ${environment.season === 'winter' && fodderPlan.hayStock > 0 ? 'produced hay fodder feeds first, then ' : ''}${renderResourceAmount('oatGrain', fodderPlan.currentGrainPerDay, { compact: true, suffix: '/day' })} · ${formatProvisionRunway(fodderPlan.currentGrainRunwayDays)} stored${building.assignedLabor <= 0 ? ' · no herder is replenishing it' : ''}`;
   const winterHerdPlan = !fodderPlan
     ? 'No herd'
     : `${fodderPlan.projectedHeadCount} head after planned culls · ${fodderPlan.winterPastureCapacity.toFixed(1)} pasture-supported · ${fodderPlan.winterUnsupportedHeads.toFixed(1)} need stored fodder`;
   const haymakingPlan = !fodderPlan || herd?.species === 'swine'
     ? 'Pigs depend on woodland mast and emergency grain'
-    : `${fodderPlan.haymakingPercent}% of summer pasture · ${fodderPlan.summerReservedCapacity.toFixed(1)} head-capacity · ${fodderPlan.hayOutputPerDay.toFixed(1)} hay / day ${isLivestockHaymakingMonth(month) ? 'now' : 'in season'}`;
+    : `${fodderPlan.haymakingPercent}% of summer pasture · ${fodderPlan.summerReservedCapacity.toFixed(1)} head-capacity · ${fodderPlan.hayOutputPerDay.toFixed(1)} produced fodder / day ${isLivestockHaymakingMonth(month) ? 'now' : 'in season'}`;
   const winterHayReserve = !fodderPlan || herd?.species === 'swine'
     ? 'Not used by woodland pigs'
     : `${Math.round(fodderPlan.hayStock)} stored · ${Math.floor(fodderPlan.projectedHayStock)} projected at winter / ${Math.ceil(fodderPlan.winterHayNeed)} needed · ${formatProvisionRunway(fodderPlan.winterHayRunwayDays)}`;
   const winterGrainReserve = !fodderPlan
     ? 'No herd'
-    : building.assignedLabor <= 0
-      ? 'Assign herders to establish a working reserve'
-      : fodderPlan.winterReserveTarget <= 0.01
+    : fodderPlan.winterReserveTarget <= 0.01
         ? fodderPlan.winterUnsupportedHeads <= 0.01
           ? 'Winter pasture covers the projected herd'
-          : 'Projected hay covers the remaining winter fodder demand'
-        : `${Math.round(fodderPlan.winterReserveStock)} / ${Math.ceil(fodderPlan.winterReserveTarget)} onsite after hay · ${formatProvisionRunway(fodderPlan.winterCombinedRunwayDays)} combined coverage`;
+          : 'Projected produced hay covers the remaining winter fodder demand'
+        : `${Math.round(fodderPlan.winterReserveStock)} / ${Math.ceil(fodderPlan.winterReserveTarget)} onsite after hay · ${formatProvisionRunway(fodderPlan.winterCombinedRunwayDays)} combined coverage${building.assignedLabor <= 0 ? ' · assign herders to replenish oats' : ''}`;
   const winterResupplyRow = fodderPlan
     && fodderPlan.winterGrainNeed > fodderPlan.winterReserveTarget + 0.05
     ? `<li><span>Winter resupply</span><span>Full store covers ${formatProvisionRunway(fodderPlan.storageRunwayDays)} · ${renderResourceAmount('oatGrain', fodderPlan.winterGrainNeed, { compact: true, suffix: `for ${LIVESTOCK_WINTER_FODDER_RESERVE_DAYS} days` })}</span></li>`
@@ -422,7 +503,14 @@ export function renderLivestockBuildingInspector(
     eyebrow: 'Livestock holding',
     title: definition.label,
     statusText,
-    statusState: winterReserveAtRisk || shearingStorageBlocked || shearingFlockBlocked || overCapacity || (herd?.health ?? 1) < 0.45 || dairySaltEmpty
+    statusState: winterReserveAtRisk
+      || shearingStorageBlocked
+      || shearingFlockBlocked
+      || overCapacity
+      || Boolean(herd && herd.headCount > careCapacity)
+      || Boolean(herd && troughWater + 1e-6 < troughWaterPerCycle)
+      || (herd?.health ?? 1) < 0.45
+      || dairySaltEmpty
       ? 'warning'
       : active
         ? 'active'
@@ -430,18 +518,21 @@ export function renderLivestockBuildingInspector(
     detailsHtml: `
       <li><span>Role</span><span>${role}</span></li>
       <li><span>Herd</span><span>${herd ? SPECIES_LABEL[herd.species] : 'None'}</span></li>
-      ${herd?.species !== 'swine' && herd ? `<li><span>Milk use</span><span>${milkUse.label} · ${milkAllocation?.freshMilk.toFixed(2) ?? '0.00'} milk + ${milkAllocation?.cheese.toFixed(2) ?? '0.00'} cheese per current work cycle</span></li>` : ''}
+      ${herd?.species !== 'swine' && herd ? `<li><span>Milk use</span><span>${milkUse.label} · ${milkAllocation?.freshMilk.toFixed(2) ?? '0.00'} milk + ${milkAllocation?.cheese.toFixed(2) ?? '0.00'} cheese per husbandry cycle</span></li>` : ''}
       <li><span>Stocking</span><span>${capacity}</span></li>
       <li><span>Pastures</span><span>${pastures.length} · ${Math.round(pastureArea)} m² fenced</span></li>
-      <li><span>Health</span><span>${herd ? `${healthPercent}%` : 'Not stocked'}</span></li>
-      <li><span>Breeding cycle</span><span>${herd ? `${breedingPercent}%` : 'Not started'}</span></li>
+      <li><span>Main holding</span><span>Winter shelter, feed store, purchase point, and water trough</span></li>
+      <li><span>Herding care</span><span>${herd ? `${careCapacity} / ${herd.headCount} head covered by ${onsiteLabor} onsite worker${onsiteLabor === 1 ? '' : 's'} · ${headsPerWorker} head/worker` : 'Choose a species first'}</span></li>
+      <li><span>Water trough</span><span>${herd ? `${troughWater.toFixed(1)} / ${Math.round(storageCaps.water ?? 0)} water · ${troughWaterPerCycle.toFixed(2)} needed/cycle · ${Number.isFinite(troughCycles) ? troughCycles.toFixed(1) : '∞'} cycles onsite` : 'Not stocked'}</span></li>
+      <li><span>Health</span><span>${herd && herd.headCount > 0 ? `${healthPercent}%` : 'Not stocked'}</span></li>
+      <li><span>Breeding cycle</span><span>${herd ? herd.headCount < LIVESTOCK_MINIMUM_BREEDING_HEADS ? `Needs at least ${LIVESTOCK_MINIMUM_BREEDING_HEADS} head` : `${breedingPercent}%` : 'Not started'}</span></li>
       <li><span>Winter reserve</span><span>${herd ? `${breedingReserve} head · ${projectedCull.heads} current surplus` : 'None'}</span></li>
-      <li><span>Last work cycle</span><span>${recentOutput}</span></li>
+      <li><span>Last husbandry cycle</span><span>${recentOutput}</span></li>
       ${dairySaltRow}
-      <li><span>Preferred fallback</span><span>${Math.round(Math.max(0, building.oatGrain ?? 0))} oats stored</span></li>
+      <li><span>Stored supplement</span><span>${Math.round(Math.max(0, building.oatGrain ?? 0))} oats · oat grain is preferred, then rye and maslin substitutes</span></li>
       <li><span>Current grain burden</span><span>${currentGrainBurden}</span></li>
-      <li><span>Summer hay meadow</span><span>${haymakingPlan}</span></li>
-      <li><span>Hayloft</span><span>${fodderPlan ? `${Math.round(fodderPlan.hayStock)} / ${Math.round(LIVESTOCK_HAY_STORAGE_CAPACITY)}` : 'No herd'}</span></li>
+      <li><span>Produced fodder</span><span>${haymakingPlan}</span></li>
+      <li><span>Hayloft fodder</span><span>${fodderPlan ? `${Math.round(fodderPlan.hayStock)} / ${Math.round(LIVESTOCK_HAY_STORAGE_CAPACITY)} hay` : 'No herd'}</span></li>
       <li><span>Winter hay reserve</span><span>${winterHayReserve}</span></li>
       <li><span>Winter herd plan</span><span>${winterHerdPlan}</span></li>
       <li><span>Winter grain reserve</span><span>${winterGrainReserve}</span></li>
@@ -478,11 +569,13 @@ export function renderLivestockBuildingInspector(
     `,
     demolish: {
       visible: true,
-      hint: pastures.length > 0
+      hint: (herd?.headCount ?? 0) > 0
+        ? `Sell the ${herd!.headCount} remaining head before demolition.`
+        : pastures.length > 0
         ? `Remove its ${pastures.length === 1 ? 'pasture' : 'pastures'} first. ${buildingDemolishHint(building.kind)}`
         : buildingDemolishHint(building.kind),
     },
     labor: buildingLaborView(building, context.populationStats, context.worldQueries),
-    supplementalPanelHtml: `${speciesControls ?? ''}${milkUseControls}${pastureControls}${reserveControls}${haymakingControls}`,
+    supplementalPanelHtml: `${speciesControls ?? ''}${pastureControls}${stockingControls}${milkUseControls}${reserveControls}${haymakingControls}`,
   };
 }

@@ -5,6 +5,8 @@ import {
   type ResourceCostKind,
 } from '../../ui/resourceCost.ts';
 
+const INSPECTOR_RESOURCE_TOOLTIP_MAX_LENGTH = 120;
+
 export type InspectorResourceTokenOptions = {
   kind: ResourceCostKind;
   amount?: number;
@@ -32,7 +34,7 @@ export function renderInspectorResourceToken(
   const formattedAmount = amount == null ? '' : formatResourceCostAmount(amount);
   const resourceLabel = resourceCostLabel(options.kind);
   const title = options.title?.trim() || capitalize(resourceLabel);
-  const detail = options.detail?.trim() || 'Current amount';
+  const detail = compactTooltipDetail(options.detail?.trim() || 'Current amount');
   const amountLabel = options.amountLabel?.trim() || 'On site';
   const showAmount = options.showAmount !== false && formattedAmount.length > 0;
   const ariaLabel = options.ariaLabel?.trim()
@@ -84,6 +86,14 @@ function encodeTooltipResources(
 
 function capitalize(value: string): string {
   return `${value.charAt(0).toUpperCase()}${value.slice(1)}`;
+}
+
+function compactTooltipDetail(value: string): string {
+  const normalized = value.replace(/\s+/gu, ' ').trim();
+  if (normalized.length <= INSPECTOR_RESOURCE_TOOLTIP_MAX_LENGTH) return normalized;
+  const firstSentence = normalized.split(/(?<=[.!?])\s+/u)[0]?.trim() ?? normalized;
+  if (firstSentence.length <= INSPECTOR_RESOURCE_TOOLTIP_MAX_LENGTH) return firstSentence;
+  return `${firstSentence.slice(0, INSPECTOR_RESOURCE_TOOLTIP_MAX_LENGTH - 1).trimEnd()}…`;
 }
 
 function escapeHtml(value: string): string {

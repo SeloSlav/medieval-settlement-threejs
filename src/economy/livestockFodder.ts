@@ -7,6 +7,7 @@ import {
   CATTLE_HAY_PER_UNSUPPORTED_HEAD,
   CATTLE_HAY_YIELD_PER_RESERVED_CAPACITY_PER_CYCLE,
   CATTLE_GRAIN_PER_UNSUPPORTED_HEAD,
+  DROUGHT_PASTURE_CAPACITY_MULTIPLIER,
   LIVESTOCK_FARMSTEAD_SALT_STAGING_PER_CYCLE,
   LIVESTOCK_HAYMAKING_END_MONTH,
   LIVESTOCK_HAYMAKING_START_MONTH,
@@ -28,6 +29,10 @@ import type {
   LivestockHerdState,
   LivestockSpecies,
 } from '../resources/types.ts';
+import {
+  pannageCapacityMultiplierFor,
+  seasonForMonth,
+} from '../world/seasonPolicy.ts';
 import {
   effectiveLivestockBreedingReserve,
   effectiveLivestockHaymakingPercent,
@@ -153,15 +158,11 @@ export type SettlementLivestockFodderPlan = {
 
 export function livestockCyclesPerCalendarDay(
   building: BuildingState,
-  sabbathObserved: boolean,
+  _sabbathObserved: boolean,
 ): number {
-  if (building.assignedLabor <= 0) return 0;
   const interval = getBuildingDefinition(building.kind).harvestInterval;
   if (interval <= 1e-9) return 0;
-  return WORKDAY_SECONDS
-    * (sabbathObserved ? 6 / 7 : 1)
-    * building.assignedLabor
-    / interval;
+  return WORKDAY_SECONDS / interval;
 }
 
 export function projectLivestockFodderHolding(
@@ -173,6 +174,12 @@ export function projectLivestockFodderHolding(
   monthDay = 1,
 ): LivestockFodderHoldingPlan {
   const cyclesPerDay = livestockCyclesPerCalendarDay(building, sabbathObserved);
+  const assignedLabor = Number.isFinite(building.assignedLabor)
+    ? Math.max(0, Math.floor(building.assignedLabor))
+    : 0;
+  const laborCyclesPerDay = cyclesPerDay
+    * assignedLabor
+    * (sabbathObserved ? 6 / 7 : 1);
   const productiveHeads = herd.species === 'swine'
     ? 0
     : Math.min(
@@ -206,7 +213,18 @@ export function projectLivestockFodderHolding(
   const currentGrazingShare = isLivestockHaymakingMonth(month)
     ? 1 - haymakingShare
     : 1;
-  const currentCapacityFactor = currentPastureCapacityMultiplier * currentGrazingShare;
+  const currentSeason = seasonForMonth(month);
+  const currentPannageWeather = Math.abs(
+    currentPastureCapacityMultiplier - DROUGHT_PASTURE_CAPACITY_MULTIPLIER,
+  ) <= 1e-9
+    ? 'drought'
+    : currentSeason === 'winter'
+      ? 'frost'
+      : 'fair';
+  const currentSpeciesCapacityMultiplier = herd.species === 'swine'
+    ? pannageCapacityMultiplierFor(currentSeason, currentPannageWeather)
+    : currentPastureCapacityMultiplier;
+  const currentCapacityFactor = currentSpeciesCapacityMultiplier * currentGrazingShare;
   const basePastureCapacity = currentCapacityFactor > 1e-9
     ? Math.max(0, herd.pastureCapacity) / currentCapacityFactor
     : 0;
@@ -222,7 +240,7 @@ export function projectLivestockFodderHolding(
     : 1;
   const hayOutputPerDay = summerReservedCapacity
     * HAY_YIELD_PER_RESERVED_CAPACITY[herd.species]
-    * cyclesPerDay
+    * laborCyclesPerDay
     * hayYieldMultiplier;
   const remainingHaymakingDays = haymakingDaysRemaining(month, monthDay);
   const hayStock = Math.max(0, herd.hayStock);
@@ -235,8 +253,10 @@ export function projectLivestockFodderHolding(
     : hayStock;
   const currentUnsupportedHeads = Math.max(0, herd.headCount - herd.pastureCapacity);
   const currentGrainPerDay = currentUnsupportedHeads * grainPerHead * cyclesPerDay;
-  const winterPastureCapacity = basePastureCapacity
-    * WINTER_PASTURE_CAPACITY_MULTIPLIER;
+  const winterCapacityMultiplier = herd.species === 'swine'
+    ? pannageCapacityMultiplierFor('winter', 'frost')
+    : WINTER_PASTURE_CAPACITY_MULTIPLIER;
+  const winterPastureCapacity = basePastureCapacity * winterCapacityMultiplier;
   const winterUnsupportedHeads = Math.max(
     0,
     projectedHeadCount - winterPastureCapacity,

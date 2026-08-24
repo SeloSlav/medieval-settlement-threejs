@@ -234,7 +234,7 @@ export function renderBackyardInspector(
       <li><span>Build cost</span><span>${renderBuildingResourceCost(getBackyardGardenCost(garden.kind))}</span></li>
     `,
     supplementalPanelHtml: `${garden.kind === 'flower_garden' && !garden.flowerLuxuryUpgraded
-      ? `<div class="inspector-action-panel">
+      ? `<div class="inspector-action-panel" data-inspector-panel-title="Luxury flowers">
           <p class="resource-inspector-note">Tier-3 households can prepare selected bulbs, cutting beds, and bouquet tools for Tier-4 luxury comfort. The garden keeps its pollinator and attraction effects.</p>
           <button type="button" class="resource-action-button resource-action-button--icon" data-action="upgrade-flower-luxury" ${residence.tier < 3 ? 'disabled title="Requires a tier-3 residence"' : ''}><span class="inspector-action-icon" data-action-icon="luxury-flowers" aria-hidden="true"></span><span>Cultivate luxury flowers · ${BACKYARD_GARDEN_DEFINITIONS.flower_garden.luxuryUpgradeGoldCost} gold</span></button>
         </div>`
@@ -289,26 +289,29 @@ function renderEmptyBackyardPicker(
       && blockingPile === null
       && materialsAffordable
       && funding.ready;
-    const disabledReason = underConstruction
-        ? 'Finish the cottage before improving its backyard.'
-      : blockingPile
-        ? 'Haul away the reclaimed timber and stone from this backyard first.'
-      : !materialsAffordable
-        ? `Needs ${cost.timber} timber and ${cost.stone} stone (available ${Math.floor(totals.timber)} timber and ${Math.floor(totals.stone)} stone).`
-      : !funding.ready
-        ? `Needs ${formatProjectAmount(funding.treasuryShortfall)} more treasury gold.`
-        : '';
     const fundingLabel = `Household ${formatProjectAmount(funding.householdContribution)} · Treasury ${formatProjectAmount(funding.civicGoldRequired)}`;
+    const availabilityLabel = underConstruction
+      ? 'cottage unfinished'
+      : blockingPile
+        ? 'salvage pile blocks site'
+        : !materialsAffordable
+          ? `have ${Math.floor(totals.timber)} timber/${Math.floor(totals.stone)} stone`
+          : !funding.ready
+            ? `treasury short ${formatProjectAmount(funding.treasuryShortfall)} gold`
+            : 'ready';
+    const actionLabel = `Build ${backyardGardenLabel(kind)}`;
+    const optionDetail = `Cost ${formatBackyardGardenCost(kind)} · ${availabilityLabel} · paid ${formatProjectAmount(funding.householdContribution)} household/${formatProjectAmount(funding.civicGoldRequired)} treasury gold`;
     return `
       <li class="backyard-picker-row">
         <button
           type="button"
-          class="backyard-picker-option${affordable ? '' : ' backyard-picker-option--disabled'}"
+          class="resource-action-button backyard-picker-option${affordable ? '' : ' backyard-picker-option--disabled'}"
           data-inspector-action="place-garden"
           data-garden-kind="${kind}"
-          aria-label="Build ${backyardGardenLabel(kind)} — ${formatBackyardGardenCost(kind)}"
+          data-tooltip-title="${actionLabel}"
+          data-tooltip="${optionDetail}"
+          aria-label="${actionLabel}. ${optionDetail}"
           ${affordable ? '' : 'disabled'}
-          ${disabledReason ? `title="${disabledReason}"` : ''}
         >
           <span class="backyard-picker-option__icon" aria-hidden="true"></span>
           <span class="backyard-picker-option__title">${backyardGardenPickerLabel(kind)}</span>
@@ -337,14 +340,7 @@ function renderEmptyBackyardPicker(
     `,
     demolish: { visible: false, hint: '' },
     labor: hiddenLabor(),
-    supplementalPanelHtml: `
-      <p class="resource-inspector-note">${blockingPile
-        ? 'A free hauler needs a road-connected destination with room for both materials. Select the pile to inspect its route blockers.'
-        : underConstruction
-          ? 'The backyard stays unworked while founders live at camp and the cottage frame is raised.'
-          : 'Choose one extension. The household contributes only savings above its protected reserve; the treasury automatically grants the rest. The quote is committed when works begin, while timber and stone remain physical carted goods.'}</p>
-      <ul class="backyard-picker-list">${options}</ul>
-    `,
+    supplementalPanelHtml: `<ul class="backyard-picker-list">${options}</ul>`,
   };
 }
 
@@ -367,14 +363,21 @@ function renderOrchardSpecializationPicker(
     const harvestMonths = def.harvestStartMonth === def.harvestEndMonth
       ? monthName(def.harvestStartMonth)
       : `${monthName(def.harvestStartMonth)}–${monthName(def.harvestEndMonth)}`;
+    const efficiency = Math.round(def.yieldEfficiency * 100);
+    const fundingState = ready
+      ? 'ready'
+      : `needs ${formatProjectAmount(funding.treasuryShortfall)} treasury gold`;
+    const actionLabel = `Plant ${backyardGardenLabel(kind)}`;
+    const optionDetail = `${plantingGold} gold · ${fundingState} · paid ${formatProjectAmount(funding.householdContribution)} household/${formatProjectAmount(funding.civicGoldRequired)} treasury · first ${def.firstHarvestDays}d · ${harvestMonths} · ${efficiency}% yield${def.jamPerPersonPerSec > 0 ? ' · jam' : ''} · permanent`;
     return `<li class="backyard-picker-row">
-      <button type="button" class="backyard-picker-option${ready ? '' : ' backyard-picker-option--disabled'}"
+      <button type="button" class="resource-action-button backyard-picker-option${ready ? '' : ' backyard-picker-option--disabled'}"
         data-inspector-action="specialize-orchard" data-garden-kind="${kind}"
-        ${ready ? '' : 'disabled'} aria-label="Plant ${backyardGardenLabel(kind)}">
+        data-tooltip-title="${actionLabel}" data-tooltip="${optionDetail}"
+        ${ready ? '' : 'disabled'} aria-label="${actionLabel}. ${optionDetail}">
         <span class="backyard-picker-option__icon" aria-hidden="true"></span>
         <span class="backyard-picker-option__title">${backyardGardenLabel(kind)}</span>
-        <span class="backyard-picker-option__cost">${plantingGold} gold · first harvest ${def.firstHarvestDays} days</span>
-        <span class="backyard-picker-option__funding">${harvestMonths} · ${Math.round(def.yieldEfficiency * 100)}% efficiency${def.jamPerPersonPerSec > 0 ? ' · preserves part of its harvest as jam' : ''}</span>
+        <span class="backyard-picker-option__cost">${plantingGold} gold · first in ${def.firstHarvestDays}d</span>
+        <span class="backyard-picker-option__funding">${harvestMonths} · ${efficiency}% yield</span>
       </button>
     </li>`;
   }).join('');
@@ -388,7 +391,7 @@ function renderOrchardSpecializationPicker(
       <li><span>Construction</span><span>Complete · no builder assigned</span></li>
       <li><span>Planting</span><span>Unselected · no production yet</span></li>
     `,
-    supplementalPanelHtml: `<p class="resource-inspector-note">Planting is a permanent orchard choice until demolition. Species differ in establishment time, harvest window, output efficiency, and preserve yield.</p><ul class="backyard-picker-list">${options}</ul>`,
+    supplementalPanelHtml: `<ul class="backyard-picker-list">${options}</ul>`,
     demolish: {
       visible: true,
       label: 'Demolish orchard',
@@ -413,17 +416,28 @@ function renderAnimalPenSpecializationPicker(
       context.resourceTotals.gold,
       context.gameState.physicalFoundingSiteEnabled === true,
     );
+    const primaryProduct = kind === 'chicken_pen'
+      ? 'Eggs'
+      : kind === 'goat_pen'
+        ? 'Milk'
+        : 'Pork';
     const secondary = def.secondaryProductionIntervalDays > 0
-      ? ` · cull every ${def.secondaryProductionIntervalDays} days (${formatMonthWindow(def.secondaryHarvestStartMonth, def.secondaryHarvestEndMonth)})`
+      ? ` · cull ${def.secondaryProductionIntervalDays}d ${formatMonthWindow(def.secondaryHarvestStartMonth, def.secondaryHarvestEndMonth)}`
       : '';
+    const fundingState = funding.ready
+      ? 'ready'
+      : `needs ${formatProjectAmount(funding.treasuryShortfall)} treasury gold`;
+    const actionLabel = `House ${backyardGardenLabel(kind)}`;
+    const optionDetail = `${stockingGold} gold · ${fundingState} · paid ${formatProjectAmount(funding.householdContribution)} household/${formatProjectAmount(funding.civicGoldRequired)} treasury · ${primaryProduct} every ${def.productionIntervalDays}d ${formatMonthWindow(def.harvestStartMonth, def.harvestEndMonth)}${secondary} · permanent`;
     return `<li class="backyard-picker-row">
-      <button type="button" class="backyard-picker-option${funding.ready ? '' : ' backyard-picker-option--disabled'}"
+      <button type="button" class="resource-action-button backyard-picker-option${funding.ready ? '' : ' backyard-picker-option--disabled'}"
         data-inspector-action="specialize-animal-pen" data-garden-kind="${kind}"
-        ${funding.ready ? '' : 'disabled'} aria-label="House ${backyardGardenLabel(kind)}">
+        data-tooltip-title="${actionLabel}" data-tooltip="${optionDetail}"
+        ${funding.ready ? '' : 'disabled'} aria-label="${actionLabel}. ${optionDetail}">
         <span class="backyard-picker-option__icon" aria-hidden="true"></span>
         <span class="backyard-picker-option__title">${backyardGardenLabel(kind)}</span>
-        <span class="backyard-picker-option__cost">${stockingGold} gold · first output ${def.firstHarvestDays} days</span>
-        <span class="backyard-picker-option__funding">${backyardGardenProductSummary(kind)} · primary every ${def.productionIntervalDays} days (${formatMonthWindow(def.harvestStartMonth, def.harvestEndMonth)})${secondary}</span>
+        <span class="backyard-picker-option__cost">${stockingGold} gold · first in ${def.firstHarvestDays}d</span>
+        <span class="backyard-picker-option__funding">${primaryProduct} · every ${def.productionIntervalDays}d</span>
       </button>
     </li>`;
   }).join('');
@@ -437,7 +451,7 @@ function renderAnimalPenSpecializationPicker(
       <li><span>Construction</span><span>Complete · no builder assigned</span></li>
       <li><span>Livestock</span><span>Unselected · no production yet</span></li>
     `,
-    supplementalPanelHtml: `<p class="resource-inspector-note">Stocking is permanent until demolition. Chickens favor quick eggs, goats combine milk with occasional meat and hides, and pigs delay all value for a larger pork harvest. Their products retain typed identity through household storage, assigned Granary or Storehouse staging, later Marketplace stocking, spoilage, cheese-making, and meat curing.</p><ul class="backyard-picker-list">${options}</ul>`,
+    supplementalPanelHtml: `<ul class="backyard-picker-list">${options}</ul>`,
     demolish: {
       visible: true,
       label: 'Demolish animal pen',
@@ -462,14 +476,22 @@ function renderVegetableGardenSpecializationPicker(
       context.resourceTotals.gold,
       context.gameState.physicalFoundingSiteEnabled === true,
     );
+    const harvestMonths = formatMonthWindow(def.harvestStartMonth, def.harvestEndMonth);
+    const efficiency = Math.round(def.yieldEfficiency * 100);
+    const fundingState = funding.ready
+      ? 'ready'
+      : `needs ${formatProjectAmount(funding.treasuryShortfall)} treasury gold`;
+    const actionLabel = `Purchase ${backyardGardenLabel(kind)} seed`;
+    const optionDetail = `${seedGold} gold seed · ${fundingState} · paid ${formatProjectAmount(funding.householdContribution)} household/${formatProjectAmount(funding.civicGoldRequired)} treasury · first ${def.firstHarvestDays}d · ${harvestMonths} · ${efficiency}% yield · permanent`;
     return `<li class="backyard-picker-row">
-      <button type="button" class="backyard-picker-option${funding.ready ? '' : ' backyard-picker-option--disabled'}"
+      <button type="button" class="resource-action-button backyard-picker-option${funding.ready ? '' : ' backyard-picker-option--disabled'}"
         data-inspector-action="specialize-vegetable-garden" data-garden-kind="${kind}"
-        ${funding.ready ? '' : 'disabled'} aria-label="Purchase ${backyardGardenLabel(kind)} seed">
+        data-tooltip-title="${actionLabel}" data-tooltip="${optionDetail}"
+        ${funding.ready ? '' : 'disabled'} aria-label="${actionLabel}. ${optionDetail}">
         <span class="backyard-picker-option__icon" aria-hidden="true"></span>
         <span class="backyard-picker-option__title">${backyardGardenLabel(kind)}</span>
-        <span class="backyard-picker-option__cost">${seedGold} gold seed · first harvest ${def.firstHarvestDays} days</span>
-        <span class="backyard-picker-option__funding">${formatMonthWindow(def.harvestStartMonth, def.harvestEndMonth)} · ${Math.round(def.yieldEfficiency * 100)}% yield efficiency</span>
+        <span class="backyard-picker-option__cost">${seedGold} gold seed · first in ${def.firstHarvestDays}d</span>
+        <span class="backyard-picker-option__funding">${harvestMonths} · ${efficiency}% yield</span>
       </button>
     </li>`;
   }).join('');
@@ -483,7 +505,7 @@ function renderVegetableGardenSpecializationPicker(
       <li><span>Construction</span><span>Complete · no builder assigned</span></li>
       <li><span>Seed crop</span><span>Unselected · prepared beds produce no food</span></li>
     `,
-    supplementalPanelHtml: `<p class="resource-inspector-note">The seed purchase is permanent until demolition, and all beds grow the same crop. Beetroot is fast and cheap, carrots balance access and yield, while cabbage delays production for the strongest harvest.</p><ul class="backyard-picker-list">${options}</ul>`,
+    supplementalPanelHtml: `<ul class="backyard-picker-list">${options}</ul>`,
     demolish: {
       visible: true,
       label: 'Demolish vegetable garden',
@@ -558,7 +580,7 @@ function renderBackyardProject(
     },
     labor: hiddenLabor(),
     supplementalPanelHtml: `
-      <div class="inspector-action-panel">
+      <div class="inspector-action-panel" data-inspector-panel-title="Construction priority">
         <p class="resource-inspector-note">Construction priority — a shared household builder and real source carts compete with cottages, house upgrades, and other construction.</p>
         <div class="resource-action-row">${priorityButtons}</div>
       </div>

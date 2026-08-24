@@ -1149,9 +1149,11 @@ pub struct LivestockHerd {
     pub head_count: u32,
     pub health: f64,
     pub breeding_progress: f64,
-    /// Supported heads after terrain and woodland-mast modifiers.
+    /// Heads supported by the authored land in the current season after
+    /// terrain, haymaking, drought, or woodland-mast modifiers.
     pub pasture_capacity: f64,
-    /// Supported heads after any grain supplement consumed this cycle.
+    /// Heads jointly supported by grazing/mast plus fodder, trough water, and
+    /// active herding care during the most recent husbandry cycle.
     pub supplied_capacity: f64,
     pub last_food_output: f64,
     pub last_preserved_output: f64,
@@ -1160,13 +1162,14 @@ pub struct LivestockHerd {
     /// for every species; newly created herds use their species-specific value.
     #[default(7u32)]
     pub breeding_reserve: u32,
-    /// Animals culled during the most recent livestock work cycle.
+    /// Animals culled during the most recent fixed husbandry cycle.
     #[default(0u32)]
     pub last_culled: u32,
-    /// Dried grass stored locally in the holding's loft and hayrack.
+    /// Player-produced dried-grass fodder stored locally in the holding's loft
+    /// and hayrack; this is consumed before grain during winter shortages.
     #[default(0.0)]
     pub hay_stock: f64,
-    /// Hay cut during the most recent livestock work cycle.
+    /// Hay fodder cut during the most recent fixed husbandry cycle.
     #[default(0.0)]
     pub last_hay_output: f64,
     /// Share of summer pasture withheld from grazing and cut for winter hay.
