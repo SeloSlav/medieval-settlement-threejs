@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import {
+  CATTLE_MAX_HERD,
   CATTLE_MAX_SLOPE_DEGREES,
   FARM_CROP_DEFINITIONS,
   FARM_MAX_ACCEPTED_SLOPE_DEGREES,
@@ -12,6 +13,8 @@ import {
   LIVESTOCK_MIN_PASTURE_AREA,
   LIVESTOCK_MIN_PASTURE_EDGE,
   SHEEP_MAX_SLOPE_DEGREES,
+  SHEEP_MAX_HERD,
+  SWINE_MAX_HERD,
   SWINE_MAX_SLOPE_DEGREES,
 } from '../generated/gameBalance.ts';
 import { sampleAuthoritativeGroundwaterScore } from '../hydrology/sampleAuthoritativeHydrology.ts';
@@ -76,6 +79,7 @@ import {
   neutralPastureHeadCapacity,
   neutralPastureHoldingHeadCapacity,
   pannageHoldingHeadCapacity,
+  pastureAreaHeadCapacity,
 } from './pastureCapacity.ts';
 
 const MIN_CLICK_DISTANCE = 1.5;
@@ -396,6 +400,10 @@ export class FarmFieldTool {
     const resultingPastures = [...existingPastures, draftPasture];
 
     if (herd.species !== 'swine') {
+      const existingCapacity = neutralPastureHoldingHeadCapacity(
+        existingPastures,
+        herd.species,
+      );
       const addedCapacity = neutralPastureHeadCapacity(
         draftPasture,
         herd.species,
@@ -408,7 +416,20 @@ export class FarmFieldTool {
         resultingCapacity,
         herd.species,
       );
-      return `${roundedArea} m² pasture · +${addedCapacity.toFixed(1)} neutral ${herd.species} capacity · holding ${wholeHeadLimit} whole-head limit · ${placementHint}`;
+      const existingWholeHeadLimit = livestockHoldingWholeHeadLimit(
+        existingCapacity,
+        herd.species,
+      );
+      const addedWholeHeadSlots = Math.max(0, wholeHeadLimit - existingWholeHeadLimit);
+      const areaOnlyCapacity = pastureAreaHeadCapacity(draftPasture, herd.species);
+      const landQualityPercent = areaOnlyCapacity <= 1e-9
+        ? 0
+        : Math.round((addedCapacity / areaOnlyCapacity) * 100);
+      const maximumHerd = herd.species === 'cattle' ? CATTLE_MAX_HERD : SHEEP_MAX_HERD;
+      const managementCap = wholeHeadLimit >= maximumHerd
+        ? ' · management cap reached'
+        : '';
+      return `${roundedArea} m² pasture · +${addedCapacity.toFixed(1)} neutral ${herd.species} capacity (${landQualityPercent}% land quality) · +${addedWholeHeadSlots} whole-head slots, holding limit ${wholeHeadLimit}${managementCap} · ${placementHint}`;
     }
 
     const treeRegistry = this.options.getTreeRegistry?.();
@@ -443,7 +464,16 @@ export class FarmFieldTool {
       resultingCapacity.headCapacity,
       herd.species,
     );
-    return `${roundedArea} m² pannage · +${addedCapacity.toFixed(1)} neutral pig capacity · holding ${wholeHeadLimit} whole-head limit · land cap ${resultingCapacity.areaHeadCapacity.toFixed(1)} vs mast cap ${resultingCapacity.mastHeadCapacity.toFixed(1)} (${resultingCapacity.matureTrees} mature trees) · ${placementHint}`;
+    const existingWholeHeadLimit = livestockHoldingWholeHeadLimit(
+      existingCapacity.headCapacity,
+      herd.species,
+    );
+    const addedWholeHeadSlots = Math.max(0, wholeHeadLimit - existingWholeHeadLimit);
+    const addedMatureTrees = Math.max(0, resultingMatureTrees - existingMatureTrees);
+    const managementCap = wholeHeadLimit >= SWINE_MAX_HERD
+      ? ' · management cap reached'
+      : '';
+    return `${roundedArea} m² pannage · +${addedCapacity.toFixed(1)} neutral pig capacity · +${addedWholeHeadSlots} whole-head slots, holding limit ${wholeHeadLimit}${managementCap} · land cap ${resultingCapacity.areaHeadCapacity.toFixed(1)} vs woodland browse/mast cap ${resultingCapacity.mastHeadCapacity.toFixed(1)} (+${addedMatureTrees}, ${resultingCapacity.matureTrees} mature trees total) · ${placementHint}`;
   }
 
   getBuildButtonPosition(): { clientX: number; clientY: number } | null {

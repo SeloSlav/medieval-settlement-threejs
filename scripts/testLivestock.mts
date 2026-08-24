@@ -275,6 +275,9 @@ assert.match(pastureInspectorSource, /Production rhythm/);
 assert.match(pastureInspectorSource, /Linked holding's last cycle/);
 assert.match(farmFieldToolSource, /neutral .* capacity/);
 assert.match(farmFieldToolSource, /land cap .* vs mast cap/);
+assert.match(farmFieldToolSource, /whole-head slots/);
+assert.match(farmFieldToolSource, /land quality/);
+assert.match(farmFieldToolSource, /management cap reached/);
 assert.match(farmFieldToolSource, /getTreeRegistry/);
 assert.match(
   farmFieldToolSource,
@@ -282,7 +285,13 @@ assert.match(
   'swine pannage preview validation must use the same slope ceiling as the server',
 );
 assert.match(worldQueriesSource, /getMaturePannageTreeCount/);
+assert.match(worldQueriesSource, /getMaturePannageTreeCountForPasture/);
 assert.match(livestockInspectorSource, /data-livestock-trade="1"/);
+assert.match(
+  livestockInspectorSource,
+  /starterTarget - \(herd\?\.headCount \?\? 0\)/,
+  'a partial herd must only offer the remaining animals needed for its starter target',
+);
 assert.match(livestockInspectorSource, /data-livestock-trade="-1"/);
 assert.match(livestockInspectorSource, /Fenced mast trees/);
 assert.match(livestockInspectorSource, /Pannage bottleneck/);

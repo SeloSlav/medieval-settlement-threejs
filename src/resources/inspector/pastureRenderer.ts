@@ -2,6 +2,7 @@ import type { InspectableTarget } from '../types.ts';
 import {
   currentPastureHeadCapacity,
   neutralPastureHeadCapacity,
+  pannageHoldingHeadCapacity,
   pastureAreaHeadCapacity,
 } from '../../farming/pastureCapacity.ts';
 import type { InspectorRenderContext, InspectorView } from './renderInspectableTarget.ts';
@@ -28,15 +29,21 @@ export function renderPastureInspector(
   const currentCapacity = herd
     ? currentPastureHeadCapacity(pasture, holdingPastures, herd)
     : null;
+  const parcelPannageCapacity = herd?.species === 'swine'
+    ? pannageHoldingHeadCapacity(
+      [pasture],
+      context.worldQueries.getMaturePannageTreeCountForPasture(pasture.id),
+    )
+    : null;
   const parcelCapacity = !herd
     ? 'Choose a herd to calculate carrying capacity'
     : herd.species === 'swine'
-      ? `${pastureAreaHeadCapacity(pasture, herd.species).toFixed(1)} head by area · actual pannage also depends on mature trees`
+      ? `${parcelPannageCapacity?.headCapacity.toFixed(1) ?? '0.0'} pigs neutral · ${pastureAreaHeadCapacity(pasture, herd.species).toFixed(1)} by area / ${parcelPannageCapacity?.mastHeadCapacity.toFixed(1) ?? '0.0'} by woodland browse/mast (${parcelPannageCapacity?.matureTrees ?? 0} mature trees)`
       : `${currentCapacity?.toFixed(1) ?? '0.0'} ${herd.species} now · ${neutralCapacity?.toFixed(1) ?? '0.0'} in neutral conditions`;
   const productionRhythm = !herd
     ? 'No herd linked'
     : herd.species === 'swine'
-      ? 'Woodland mast supports the herd · pork comes from surplus culls in October–November, not a parcel harvest'
+      ? 'Mature woodland trees are an abstract browse/mast proxy · pork comes from surplus culls in October–November, not a parcel harvest'
       : 'Grazing supports continuous dairy and breeding · hay is cut June–August at the linked holding';
   const recentOutput = herd
     ? `${Math.round(herd.lastFoodOutput)} fresh food · ${Math.round(herd.lastPreservedOutput)} preserved${herd.lastHayOutput > 0 ? ` · ${Math.round(herd.lastHayOutput)} hay` : ''}${herd.lastCulled > 0 ? ` · ${herd.lastCulled} culled` : ''}`

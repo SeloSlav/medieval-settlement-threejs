@@ -357,7 +357,7 @@ export function renderLivestockBuildingInspector(
   })();
 
   const role = building.kind === 'swineherd'
-    ? 'Drawn forest pannage → mast, seasonal pork, and a central sty with trough'
+    ? 'Drawn forest pannage → woodland browse/mast, seasonal pork, and a central sty with trough'
     : !herd
       ? 'Unstocked holding → choose cattle or sheep before laying out pasture'
     : herd?.species === 'sheep'
@@ -415,7 +415,7 @@ export function renderLivestockBuildingInspector(
     : '';
   const pastureLabel = building.kind === 'swineherd' ? 'Fence woodland pannage' : 'Fence pasture';
   const pastureHint = building.kind === 'swineherd'
-    ? `Fence any number of woodland parcels inside this holding’s work extent. A typical first order of ${SWINE_STARTER_HERD} pigs needs at least ${SWINE_STARTER_HERD * SWINE_AREA_PER_HEAD} m² and ${SWINE_STARTER_HERD * SWINE_MATURE_TREES_PER_HEAD} mature trees before seasonal losses.`
+    ? `Fence any number of woodland parcels inside this holding’s work extent. Mature trees act as an abstract browse/mast proxy. A typical first order of ${SWINE_STARTER_HERD} pigs needs at least ${SWINE_STARTER_HERD * SWINE_AREA_PER_HEAD} m² and ${SWINE_STARTER_HERD * SWINE_MATURE_TREES_PER_HEAD} mature trees before seasonal losses.`
     : !herd
       ? 'Choose cattle or sheep before fencing grazing land.'
     : `Fence any number of grazing parcels inside this holding’s work extent. A typical first order needs about ${herd.species === 'cattle' ? CATTLE_STARTER_HERD * CATTLE_AREA_PER_HEAD : SHEEP_STARTER_HERD * SHEEP_AREA_PER_HEAD} m² on ideal ground; slope and moisture can increase that requirement.`;
@@ -476,8 +476,8 @@ export function renderLivestockBuildingInspector(
     ? `${herd.headCount} / ${neutralWholeHeadLimit} head · ${neutralCapacity.toFixed(1)} neutral land · ${herd.suppliedCapacity.toFixed(1)} currently supplied`
     : 'No herd';
   const woodlandRows = building.kind === 'swineherd'
-    ? `<li><span>Fenced mast trees</span><span>${maturePannageTrees} mature · ${(pannageCapacity?.mastHeadCapacity ?? 0).toFixed(1)} pig capacity</span></li>
-       <li><span>Pannage bottleneck</span><span>${(pannageCapacity?.areaHeadCapacity ?? 0).toFixed(1)} by area / ${(pannageCapacity?.mastHeadCapacity ?? 0).toFixed(1)} by mast · ${maturePannageTrees > 0 ? 'autumn mast peak' : 'clear-cut — oat/grain fallback only'}</span></li>`
+    ? `<li><span>Fenced woodland trees</span><span>${maturePannageTrees} mature · ${(pannageCapacity?.mastHeadCapacity ?? 0).toFixed(1)} pig capacity</span></li>
+       <li><span>Pannage bottleneck</span><span>${(pannageCapacity?.areaHeadCapacity ?? 0).toFixed(1)} by area / ${(pannageCapacity?.mastHeadCapacity ?? 0).toFixed(1)} by browse/mast proxy · ${maturePannageTrees > 0 ? 'autumn mast peak' : 'clear-cut — oat/grain fallback only'}</span></li>`
     : '';
   const benefitRow = herd?.species === 'cattle'
     ? `<li><span>Ox team</span><span>Highest-priority ${CATTLE_MAX_PLOUGH_SUPPORTED_FIELDS} fields inside work extent · ${Math.round((1 - CATTLE_PLOUGH_WORK_MULTIPLIER) * 100)}% less ploughing</span></li>

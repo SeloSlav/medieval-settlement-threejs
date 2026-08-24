@@ -409,6 +409,18 @@ export class WorldQueries {
     );
   }
 
+  /** Exact mature woodland browse/mast proxy count inside one pannage parcel. */
+  getMaturePannageTreeCountForPasture(pastureId: string): number {
+    const treeRegistry = this.getTreeRegistry();
+    const pasture = this.getGameState().pastures.get(pastureId);
+    if (!treeRegistry || !pasture) return 0;
+    return countMatureTreesInPasturePolygons(
+      this.getGameState(),
+      treeRegistry,
+      [pasture],
+    );
+  }
+
   private *fireEnabledBuildings(
     state: GameState,
     fireDisabled = fireDisabledBuildingIds(state.fireIncidents.values()),
