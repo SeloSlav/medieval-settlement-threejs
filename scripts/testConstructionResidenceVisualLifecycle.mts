@@ -332,6 +332,126 @@ function testResidenceCheckpointAndTierReplacement(): void {
   markers.dispose();
 }
 
+async function testInspectorHeroArtRefreshStability(): Promise<void> {
+  const inspector = Object.create(ResourceInspector.prototype) as ResourceInspector;
+  const artClasses = new Set<string>();
+  const attributes = new Map<string, string>();
+  const assignedSources: string[] = [];
+  const decodeRequests: Array<{
+    promise: Promise<void>;
+    resolve: () => void;
+    reject: () => void;
+  }> = [];
+  const heroImage = {
+    hidden: false,
+    onload: null,
+    onerror: null,
+    getAttribute: (name: string) => attributes.get(name) ?? null,
+    removeAttribute: (name: string) => attributes.delete(name),
+    get src(): string {
+      return attributes.get('src') ?? '';
+    },
+    set src(source: string) {
+      assignedSources.push(source);
+      attributes.set('src', source);
+    },
+    decode: () => {
+      let resolve!: () => void;
+      let reject!: () => void;
+      const promise = new Promise<void>((resolveRequest, rejectRequest) => {
+        resolve = resolveRequest;
+        reject = rejectRequest;
+      });
+      decodeRequests.push({ promise, resolve, reject });
+      return promise;
+    },
+  };
+  const heroArt = {
+    dataset: {} as Record<string, string>,
+    classList: {
+      add: (...classes: string[]) => classes.forEach((name) => artClasses.add(name)),
+      remove: (...classes: string[]) => classes.forEach((name) => artClasses.delete(name)),
+    },
+  };
+  const internals = inspector as unknown as {
+    panel: { dataset: Record<string, string> };
+    heroArt: typeof heroArt;
+    heroImage: typeof heroImage;
+    heroSymbol: { textContent: string };
+    heroImageSource: string | null;
+    heroImageRequestId: number;
+    applyPresentation: (target: InspectableTarget) => void;
+  };
+  internals.panel = { dataset: {} };
+  internals.heroArt = heroArt;
+  internals.heroImage = heroImage;
+  internals.heroSymbol = { textContent: '' };
+  internals.heroImageSource = null;
+  internals.heroImageRequestId = 0;
+
+  const lumberArt = '/assets/ui/build-menu/cards/lumber-mill.webp';
+  const quarryArt = '/assets/ui/build-menu/cards/stonecutters-camp.webp';
+  internals.applyPresentation(buildingTarget({
+    ...constructionBuilding(1, true),
+    id: 'lumber-one',
+  }));
+  assert.deepEqual(assignedSources, [lumberArt]);
+  assert.equal(heroImage.hidden, true);
+  assert.equal(heroArt.dataset.artState, 'loading');
+
+  internals.applyPresentation(buildingTarget({
+    ...constructionBuilding(1, true),
+    id: 'lumber-two',
+  }));
+  assert.deepEqual(
+    assignedSources,
+    [lumberArt],
+    'refreshing or selecting another building with the same art must not restart image decode',
+  );
+
+  internals.applyPresentation(buildingTarget({
+    ...constructionBuilding(1, true),
+    id: 'quarry',
+    kind: 'stone_quarry',
+  }));
+  internals.applyPresentation(buildingTarget({
+    ...constructionBuilding(1, true),
+    id: 'lumber-three',
+  }));
+  assert.deepEqual(assignedSources, [lumberArt, quarryArt, lumberArt]);
+
+  decodeRequests[0]!.reject();
+  await Promise.resolve();
+  await Promise.resolve();
+  assert.equal(
+    heroImage.getAttribute('src'),
+    lumberArt,
+    'a stale failure for an earlier request must not clear the current image',
+  );
+  assert.equal(heroArt.dataset.artState, 'loading');
+
+  decodeRequests[2]!.resolve();
+  await Promise.resolve();
+  await Promise.resolve();
+  assert.equal(heroImage.hidden, false);
+  assert.equal(heroArt.dataset.artState, 'ready');
+  assert.equal(artClasses.has('has-art'), true);
+
+  decodeRequests[1]!.resolve();
+  await Promise.resolve();
+  await Promise.resolve();
+  assert.equal(heroImage.getAttribute('src'), lumberArt);
+  assert.equal(heroArt.dataset.artState, 'ready');
+
+  internals.applyPresentation(buildingTarget({
+    ...constructionBuilding(1, true),
+    id: 'lumber-four',
+  }));
+  assert.deepEqual(assignedSources, [lumberArt, quarryArt, lumberArt]);
+  assert.equal(heroImage.hidden, false);
+  assert.equal(heroArt.dataset.artState, 'ready');
+}
+
 function constructionBuilding(
   progress: number,
   constructionComplete: boolean,
@@ -634,6 +754,7 @@ testConstructionSiteCheckpoints();
 testConstructionMarkerReplacementAndInspectorRefresh();
 testResidenceMaterialOwnership();
 testResidenceCheckpointAndTierReplacement();
+await testInspectorHeroArtRefreshStability();
 
 console.log(
   [

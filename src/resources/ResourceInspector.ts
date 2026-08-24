@@ -395,6 +395,8 @@ export class ResourceInspector {
   private readonly marker: THREE.Mesh;
   private readonly hoverOutline: PlayerAuthoredHoverOutline;
   private selectedTarget: InspectableTarget | null = null;
+  private heroImageSource: string | null = null;
+  private heroImageRequestId = 0;
   private serviceCoverageBuildingId: string | null = null;
   private serviceCoverageResidenceIds = new Set<string>();
   private serviceCoverageProjection: ServiceCoverageView | null = null;
@@ -2366,25 +2368,40 @@ export class ResourceInspector {
     this.panel.dataset.inspectorTarget = target.kind;
     this.panel.dataset.inspectorKind = presentation.kind;
     this.heroSymbol.textContent = presentation.symbol;
+
+    const source = presentation.image ?? null;
+    if (source === this.heroImageSource) return;
+
+    this.heroImageSource = source;
+    const requestId = ++this.heroImageRequestId;
     this.heroArt.classList.remove('has-art', 'is-art-unavailable');
     this.heroImage.hidden = true;
     this.heroImage.onload = null;
     this.heroImage.onerror = null;
     this.heroImage.removeAttribute('src');
 
-    const source = presentation.image;
-    if (!source) return;
+    if (!source) {
+      delete this.heroArt.dataset.artState;
+      return;
+    }
 
     this.heroArt.dataset.artState = 'loading';
+    const isCurrentRequest = () => (
+      this.heroImageRequestId === requestId
+      && this.heroImageSource === source
+      && this.heroImage.getAttribute('src') === source
+    );
     const markArtAvailable = () => {
-      if (this.heroImage.getAttribute('src') !== source) return;
+      if (!isCurrentRequest()) return;
+      this.heroImage.onload = null;
+      this.heroImage.onerror = null;
       this.heroImage.hidden = false;
       this.heroArt.classList.add('has-art');
       this.heroArt.classList.remove('is-art-unavailable');
       this.heroArt.dataset.artState = 'ready';
     };
     const markArtUnavailable = () => {
-      if (this.heroImage.getAttribute('src') !== source) return;
+      if (!isCurrentRequest()) return;
       this.heroImage.onload = null;
       this.heroImage.onerror = null;
       this.heroImage.removeAttribute('src');
