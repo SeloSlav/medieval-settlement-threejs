@@ -412,6 +412,117 @@ pub struct PlayerResources {
     pub pear_cider: f64,
 }
 
+/// A durable community inside one owner-wide realm. Settlements carry civic
+/// identity and local policy, but never own an abstract resource stockpile;
+/// goods remain physical on buildings, residences, and delivery carts.
+#[spacetimedb::table(
+    accessor = settlement,
+    public,
+    index(accessor = owner, btree(columns = [owner]))
+)]
+#[derive(Clone)]
+pub struct Settlement {
+    #[primary_key]
+    #[auto_inc]
+    pub id: u64,
+    pub owner: Identity,
+    pub name: String,
+    /// Stable founding locality. The rendered community field is derived from
+    /// member homes and civic buildings, so this point is not a hard border.
+    pub anchor_x: f64,
+    pub anchor_z: f64,
+    /// The temporary shelter/stockyard while a founding cohort remains. Zero
+    /// after the camp has emptied and disbanded.
+    #[default(0u64)]
+    pub founding_camp_id: u64,
+    /// Number of people delivered by this settlement's founding expedition.
+    #[default(0u32)]
+    pub founder_population: u32,
+    /// Founders still sleeping at the camp. Moving one into a member residence
+    /// transfers population rather than creating a new migrant.
+    #[default(0u32)]
+    pub unhoused_founders: u32,
+    /// False while a paid expansion camp is still under construction.
+    #[default(false)]
+    pub active: bool,
+    /// Completed local Town Hall, or zero while the community uses realm
+    /// defaults and has no local policy overrides.
+    #[default(0u64)]
+    pub town_hall_id: u64,
+    #[default(0u64)]
+    pub created_tick: u64,
+
+    // Town Hall policy. PlayerResources retains realm/save-compatibility
+    // defaults, while a staffed Hall edits the row belonging to its community.
+    #[default(0.18)]
+    pub economic_activity_tax_rate: f64,
+    #[default(1u8)]
+    pub pantry_safeguard_policy: u8,
+    #[default(0.0)]
+    pub land_levy_rate: f64,
+    #[default(0.0)]
+    pub import_duty_rate: f64,
+    #[default(0.0)]
+    pub export_duty_rate: f64,
+    #[default(false)]
+    pub seasonal_labor_steward_enabled: bool,
+    #[default(false)]
+    pub construction_labor_steward_enabled: bool,
+    #[default(false)]
+    pub production_labor_steward_enabled: bool,
+    #[default(0u32)]
+    pub labor_steward_reserve: u32,
+    #[default(0u8)]
+    pub night_watch_policy: u8,
+    #[default(1u8)]
+    pub night_gathering_policy: u8,
+    #[default(1u8)]
+    pub night_work_policy: u8,
+    #[default(1u8)]
+    pub night_lighting_policy: u8,
+    #[default(1u8)]
+    pub night_curfew_policy: u8,
+
+    // Local reports remain town-scoped even though coin and goods roll up to
+    // the lord's single realm-wide Total/Surplus ledger.
+    #[default(0.0)]
+    pub land_levy_assessed_total: f64,
+    #[default(0.0)]
+    pub land_levy_collected_total: f64,
+    #[default(0.0)]
+    pub import_duty_collected_total: f64,
+    #[default(0.0)]
+    pub export_duty_collected_total: f64,
+    #[default(0u64)]
+    pub last_night_report_day: u64,
+    #[default(0u32)]
+    pub last_night_households: u32,
+    #[default(0u32)]
+    pub last_night_well_rested_households: u32,
+    #[default(0u32)]
+    pub last_night_cold_households: u32,
+    #[default(0u32)]
+    pub last_night_social_households: u32,
+    #[default(0u32)]
+    pub last_night_workers: u32,
+    #[default(0.0)]
+    pub last_night_watch_strength: f64,
+    #[default(0u32)]
+    pub last_night_incidents: u32,
+    #[default(0.0)]
+    pub last_night_theft_gold: f64,
+    #[default(0u32)]
+    pub last_night_wildlife_sightings: u32,
+    #[default(0.0)]
+    pub last_night_lighting_fuel_used: f64,
+    #[default(0.0)]
+    pub last_night_lighting_fuel_shortfall: f64,
+    #[default(0.5)]
+    pub night_community_cohesion: f64,
+    #[default(0.0)]
+    pub night_labor_fatigue: f64,
+}
+
 #[spacetimedb::table(accessor = quarry, public)]
 pub struct Quarry {
     #[primary_key]
@@ -452,7 +563,12 @@ pub struct TreeEntity {
     pub z: f64,
 }
 
-#[spacetimedb::table(accessor = building, public, index(accessor = owner, btree(columns = [owner])))]
+#[spacetimedb::table(
+    accessor = building,
+    public,
+    index(accessor = owner, btree(columns = [owner])),
+    index(accessor = settlement_id, btree(columns = [settlement_id]))
+)]
 #[derive(Clone)]
 pub struct Building {
     #[primary_key]
@@ -952,6 +1068,10 @@ pub struct Building {
     pub tree_work_area_z: f64,
     #[default(0.0)]
     pub tree_work_area_radius: f64,
+    /// Sticky community membership. This scopes housing/civic accounting and
+    /// diagnostics without preventing cross-town roads, carts, or commutes.
+    #[default(0u64)]
+    pub settlement_id: u64,
 }
 
 /// One persistent import/export instruction for one Trading Post commodity.
@@ -1199,7 +1319,12 @@ pub struct RoadNetworkState {
     pub snapshot_json: String,
 }
 
-#[spacetimedb::table(accessor = burgage_zone, public, index(accessor = owner, btree(columns = [owner])))]
+#[spacetimedb::table(
+    accessor = burgage_zone,
+    public,
+    index(accessor = owner, btree(columns = [owner])),
+    index(accessor = settlement_id, btree(columns = [settlement_id]))
+)]
 pub struct BurgageZone {
     #[primary_key]
     #[auto_inc]
@@ -1215,9 +1340,17 @@ pub struct BurgageZone {
     pub corner_dz: f64,
     pub frontage_edge: u8,
     pub plot_count: u32,
+    #[default(0u64)]
+    pub settlement_id: u64,
 }
 
-#[spacetimedb::table(accessor = residence, public, index(accessor = zone_id, btree(columns = [zone_id])), index(accessor = owner, btree(columns = [owner])))]
+#[spacetimedb::table(
+    accessor = residence,
+    public,
+    index(accessor = zone_id, btree(columns = [zone_id])),
+    index(accessor = owner, btree(columns = [owner])),
+    index(accessor = settlement_id, btree(columns = [settlement_id]))
+)]
 #[derive(Clone)]
 pub struct Residence {
     #[primary_key]
@@ -1410,6 +1543,10 @@ pub struct Residence {
     pub aronia_jam: f64,
     #[default(0.0)]
     pub rosehip_jam: f64,
+    /// The household's durable home community. Territory visuals may evolve,
+    /// but an occupied home never changes town merely because a road is added.
+    #[default(0u64)]
+    pub settlement_id: u64,
 }
 
 #[spacetimedb::table(

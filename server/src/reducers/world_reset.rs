@@ -4,8 +4,8 @@ use crate::db::*;
 use crate::tables::{
     active_raid, corpse, farm_field, graveyard, livestock_herd, pasture, settlement_security,
     vineyard_parcel, BackyardGarden, Building, BurgageZone, CombatAgent, Corpse, DeliveryTrip,
-    FarmField, FireIncident, Graveyard, LivestockHerd, Pasture, ResidenceNeed, VineyardParcel,
-    WorldConfig,
+    FarmField, FireIncident, Graveyard, LivestockHerd, Pasture, ResidenceNeed, Settlement,
+    VineyardParcel, WorldConfig,
 };
 use crate::world_entities::clear_global_world_entities;
 
@@ -163,6 +163,16 @@ fn clear_owner_settlement(ctx: &ReducerContext, owner: Identity) {
         .collect::<Vec<Building>>()
     {
         ctx.db.building().id().delete(building.id);
+    }
+
+    for settlement in ctx
+        .db
+        .settlement()
+        .owner()
+        .filter(&owner)
+        .collect::<Vec<Settlement>>()
+    {
+        ctx.db.settlement().id().delete(settlement.id);
     }
 
     if ctx.db.road_network_state().owner().find(&owner).is_some() {

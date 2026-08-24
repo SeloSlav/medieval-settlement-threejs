@@ -10,16 +10,16 @@ use spacetimedb::ReducerContext;
 
 use crate::burgage::{compute_burgage_layout, residence_depth_cost_units, Point2, ZoneCorners};
 use crate::db::*;
+use crate::delivery_trip_policy::DeliveryTripPhase;
 use crate::economy::{residence_zone_cost_for_units, CommodityKind};
 use crate::residence_upgrade_policy::allocate_whole_residence_project_costs;
 use crate::resource_units::{whole_signed_units, whole_units};
 use crate::security_policy::RaidPortableStores;
+use crate::simulation::delivery_trips::DELIVERY_DESTINATION_RESIDENCE;
 use crate::tables::{Residence, ResourceUnitMigration};
 
 const RESOURCE_UNIT_MIGRATION_ID: u8 = 0;
 const RESOURCE_UNIT_MIGRATION_VERSION: u8 = 3;
-const DELIVERY_DESTINATION_RESIDENCE: u8 = 0;
-const DELIVERY_PHASE_INBOUND: u8 = 2;
 
 macro_rules! normalize_fields {
     ($row:ident, $($field:ident),+ $(,)?) => {
@@ -41,7 +41,7 @@ fn incoming_cottage_material(
             .filter(&residence_id)
             .filter(|trip| {
                 trip.destination_kind == DELIVERY_DESTINATION_RESIDENCE
-                    && trip.phase != DELIVERY_PHASE_INBOUND
+                    && DeliveryTripPhase::from_u8(trip.phase) != Some(DeliveryTripPhase::Inbound)
                     && trip.cargo_kind == commodity.as_u8()
             })
             .map(|trip| whole_units(trip.amount))
