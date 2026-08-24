@@ -37,12 +37,14 @@ use crate::economy::{
 };
 use crate::farming::{centroid, point_in_field};
 use crate::livestock_policy::{
-    can_cull_one, can_store_full_sheep_clip, cattle_manure_output, essential_livestock_care_labor,
-    haymaking_share, is_haymaking_month, is_shearing_month, livestock_cycles_per_calendar_day,
+    can_cull_one, cattle_manure_output, essential_livestock_care_labor, haymaking_share,
+    is_haymaking_month, is_shearing_month, livestock_cycles_per_calendar_day,
     livestock_milk_allocation, projected_winter_fodder_grain, retain_priority_candidate,
     sheep_fleece_output, storage_secured_pending_cull_heads,
 };
 use crate::reducers::livestock::{SPECIES_CATTLE, SPECIES_SHEEP, SPECIES_SWINE};
+use crate::resident_welfare_policy::deterministic_unit;
+use crate::resource_units::{whole_cost, whole_units};
 use crate::season_policy::{EnvironmentState, Season};
 use crate::simulation::delivery_trips::{
     building_has_active_trip, building_has_inbound_supply_trip, onsite_building_labor,
@@ -91,6 +93,9 @@ fn step_livestock_building(
     if swine_building && herd.species != SPECIES_SWINE {
         herd.species = SPECIES_SWINE;
     }
+    // Migrate any legacy fractional livestock stores as soon as the holding is
+    // stepped, including paused or storage-blocked holdings.
+    normalize_livestock_resource_stocks(&mut building, &mut herd);
     let base_pasture_capacity = tick.livestock_grazing_capacity(ctx, &building, &herd);
     let summer_hay_share = if herd.species != SPECIES_SWINE
         && is_haymaking_month(clock.month)
@@ -171,9 +176,14 @@ fn step_livestock_building(
         let substitute_oat_equivalent = (building.rye_grain.max(0.0) * LIVESTOCK_RYE_FODDER_VALUE
             + building.maslin_grain.max(0.0) * LIVESTOCK_MASLIN_FODDER_VALUE)
             / LIVESTOCK_OAT_FODDER_VALUE.max(1e-9);
-        let desired_oats =
+        let raw_desired_oats =
             (immediate_grain_buffer.max(winter_grain_target) - substitute_oat_equivalent).max(0.0);
-        if desired_oats > 0.05 {
+        let desired_oats = if raw_desired_oats > 1e-9 {
+            whole_cost(raw_desired_oats)
+        } else {
+            0.0
+        };
+        if desired_oats >= 1.0 {
             request_connected_commodity(
                 ctx,
                 tick,
@@ -194,18 +204,29 @@ fn step_livestock_building(
     if clock.is_work_hours {
         building.action_cooldown = (building.action_cooldown - TICK_DT).max(0.0);
         if building.action_cooldown <= 1e-6 {
-            run_livestock_cycle(
+            let mut next_building = building.clone();
+            let mut next_herd = herd.clone();
+            let committed = run_livestock_cycle(
                 clock,
                 environment,
                 base_pasture_capacity,
                 care_labor,
                 productive_labor,
-                &mut building,
-                &mut herd,
+                &mut next_building,
+                &mut next_herd,
             );
-            building.action_cooldown = building_def(&building.kind)
-                .map(|def| def.action_interval)
-                .unwrap_or(10.0);
+            if committed {
+                building = next_building;
+                herd = next_herd;
+                building.action_cooldown = building_def(&building.kind)
+                    .map(|def| def.action_interval)
+                    .unwrap_or(10.0);
+            } else {
+                // Keep the complete husbandry transaction due. Inputs and
+                // outputs were evaluated on clones, so a blocked barn cannot
+                // consume feed or mint a partial production lot.
+                building.action_cooldown = 0.0;
+            }
         }
     }
 
@@ -270,86 +291,82 @@ fn run_livestock_cycle(
     productive_labor: u32,
     building: &mut Building,
     herd: &mut LivestockHerd,
-) {
+) -> bool {
+    normalize_livestock_resource_stocks(building, herd);
     herd.last_culled = 0;
     herd.last_hay_output = 0.0;
+    herd.last_wool_output = 0.0;
     let heads = herd.head_count as f64;
     if heads <= 0.0 {
         herd.supplied_capacity = 0.0;
         herd.last_food_output = 0.0;
         herd.last_preserved_output = 0.0;
         herd.last_wool_gold = 0.0;
-        return;
+        return true;
     }
 
     if herd.species != SPECIES_SWINE && productive_labor > 0 && is_haymaking_month(clock.month) {
         let reserved_capacity =
             base_pasture_capacity.max(0.0) * haymaking_share(herd.haymaking_percent);
-        let hay = reserved_capacity
+        let expected_hay = reserved_capacity
             * species_hay_yield_per_reserved_capacity(herd.species)
             * environment.pasture_capacity_multiplier()
             * f64::from(productive_labor);
-        let stored = hay.min((LIVESTOCK_HAY_STORAGE_CAPACITY - herd.hay_stock).max(0.0));
-        herd.hay_stock += stored;
-        herd.last_hay_output = stored;
+        let hay = discrete_expected_units(expected_hay, building.id, clock.total_days, 0x4841_59);
+        let hay_room = (whole_units(LIVESTOCK_HAY_STORAGE_CAPACITY) - herd.hay_stock).max(0.0);
+        if hay > hay_room + 1e-9 {
+            return false;
+        }
+        herd.hay_stock += hay;
+        herd.last_hay_output = hay;
     }
 
     let unsupported = (heads - herd.pasture_capacity).max(0.0);
     let hay_per_head = species_hay_per_unsupported_head(herd.species);
-    let hay_supplement = if environment.season == Season::Winter && hay_per_head > 0.0 {
-        (herd.hay_stock / hay_per_head).min(unsupported)
+    let hay_units_used = if environment.season == Season::Winter && hay_per_head > 0.0 {
+        whole_cost(unsupported * hay_per_head).min(herd.hay_stock)
     } else {
         0.0
     };
-    if hay_supplement > 0.0 {
-        herd.hay_stock = (herd.hay_stock - hay_supplement * hay_per_head).max(0.0);
+    let hay_supplement = if hay_per_head > 1e-9 {
+        (hay_units_used / hay_per_head).min(unsupported)
+    } else {
+        0.0
+    };
+    if hay_units_used >= 1.0 {
+        herd.hay_stock -= hay_units_used;
     }
     let grain_unsupported = (unsupported - hay_supplement).max(0.0);
     let grain_per_head = species_grain_per_unsupported_head(herd.species);
-    let feed_head_capacity = if grain_per_head > 0.0 {
-        (building.oat_grain * LIVESTOCK_OAT_FODDER_VALUE
-            + building.rye_grain * LIVESTOCK_RYE_FODDER_VALUE
-            + building.maslin_grain * LIVESTOCK_MASLIN_FODDER_VALUE)
-            / grain_per_head
+    let grain_value_used = if grain_per_head > 1e-9 {
+        consume_whole_fodder(building, grain_unsupported * grain_per_head)
     } else {
         0.0
     };
-    let supplement = feed_head_capacity.min(grain_unsupported);
-    if supplement > 0.0 {
-        let mut feed_value_needed = supplement * grain_per_head;
-        let oats_used = withdraw_building_commodity(
-            building,
-            CommodityKind::OatGrain,
-            feed_value_needed / LIVESTOCK_OAT_FODDER_VALUE.max(1e-9),
-        );
-        feed_value_needed = (feed_value_needed - oats_used * LIVESTOCK_OAT_FODDER_VALUE).max(0.0);
-        let rye_used = withdraw_building_commodity(
-            building,
-            CommodityKind::RyeGrain,
-            feed_value_needed / LIVESTOCK_RYE_FODDER_VALUE.max(1e-9),
-        );
-        feed_value_needed = (feed_value_needed - rye_used * LIVESTOCK_RYE_FODDER_VALUE).max(0.0);
-        if feed_value_needed > 1e-9 {
-            withdraw_building_commodity(
-                building,
-                CommodityKind::MaslinGrain,
-                feed_value_needed / LIVESTOCK_MASLIN_FODDER_VALUE.max(1e-9),
-            );
-        }
-    }
-    let feed_supported_heads = (herd.pasture_capacity + hay_supplement + supplement).min(heads);
+    let grain_supplement = if grain_per_head > 1e-9 {
+        (grain_value_used / grain_per_head).min(grain_unsupported)
+    } else {
+        0.0
+    };
+    let feed_supported_heads =
+        (herd.pasture_capacity + hay_supplement + grain_supplement).min(heads);
     let water_per_head = species_water_per_head_per_cycle(herd.species);
+    let water_units_used = if water_per_head <= 1e-9 {
+        0.0
+    } else {
+        whole_cost(heads * water_per_head).min(whole_units(building.water))
+    };
     let water_supported_heads = if water_per_head <= 1e-9 {
         heads
     } else {
-        (building.water.max(0.0) / water_per_head).min(heads)
+        (water_units_used / water_per_head).min(heads)
     };
-    if water_per_head > 1e-9 && water_supported_heads > 0.0 {
-        withdraw_building_commodity(
-            building,
-            CommodityKind::Water,
-            water_supported_heads * water_per_head,
-        );
+    if water_units_used >= 1.0 {
+        let withdrawn =
+            withdraw_building_commodity(building, CommodityKind::Water, water_units_used);
+        if (withdrawn - water_units_used).abs() > 1e-9 {
+            return false;
+        }
     }
     let care_supported_heads =
         (f64::from(care_labor) * species_heads_per_worker(herd.species)).min(heads);
@@ -372,27 +389,60 @@ fn run_livestock_cycle(
     let dairy_heads = productive_heads * species_dairy_productive_share(herd.species);
     let base_milk = dairy_heads * species_food_per_cycle(herd.species);
     let base_cheese = dairy_heads * species_preserved_per_cycle(herd.species);
-    let (_, desired_cheese) = livestock_milk_allocation(
+    let (_, expected_cheese) = livestock_milk_allocation(
         building.processor_output_target_percent,
         base_milk,
         base_cheese,
         f64::INFINITY,
     );
-    let stored_cheese =
-        store_salted_farmstead_output(building, CommodityKind::Cheese, desired_cheese);
-    herd.last_preserved_output = stored_cheese;
-    let gross_milk = base_milk.max(0.0) + base_cheese.max(0.0);
-    herd.last_food_output = deposit_building_commodity(
-        building,
-        CommodityKind::Milk,
-        (gross_milk - stored_cheese).max(0.0),
+    let expected_gross_milk = base_milk.max(0.0) + base_cheese.max(0.0);
+    let gross_milk = discrete_expected_units(
+        expected_gross_milk,
+        building.id,
+        clock.total_days,
+        0x4d49_4c4b,
     );
+    let cheese_share = if expected_gross_milk > 1e-9 {
+        (expected_cheese / expected_gross_milk).clamp(0.0, 1.0)
+    } else {
+        0.0
+    };
+    let cheese = discrete_expected_units(
+        gross_milk * cheese_share,
+        building.id,
+        clock.total_days,
+        0x4348_4545_5345,
+    )
+    .min(gross_milk);
+    let fresh_milk = gross_milk - cheese;
+    if building_commodity_room(building, CommodityKind::Milk) + 1e-9 < fresh_milk
+        || !can_store_exact_salted_output(building, CommodityKind::Cheese, cheese)
+    {
+        return false;
+    }
+    if !try_store_exact_salted_output(building, CommodityKind::Cheese, cheese) {
+        return false;
+    }
+    let stored_milk = deposit_building_commodity(building, CommodityKind::Milk, fresh_milk);
+    if (stored_milk - fresh_milk).abs() > 1e-9 {
+        return false;
+    }
+    herd.last_preserved_output = cheese;
+    herd.last_food_output = fresh_milk;
     if herd.species == SPECIES_CATTLE {
-        deposit_building_commodity(
-            building,
-            CommodityKind::Manure,
+        let manure = discrete_expected_units(
             cattle_manure_output(productive_heads, environment.season),
+            building.id,
+            clock.total_days,
+            0x4d41_4e55_5245,
         );
+        if building_commodity_room(building, CommodityKind::Manure) + 1e-9 < manure {
+            return false;
+        }
+        let stored = deposit_building_commodity(building, CommodityKind::Manure, manure);
+        if (stored - manure).abs() > 1e-9 {
+            return false;
+        }
     }
 
     // A flock is shorn once in the early-summer window. The old implementation
@@ -404,13 +454,24 @@ fn run_livestock_cycle(
         && herd.last_shearing_year != clock.year
         && is_shearing_month(clock.month)
     {
-        let fleece = sheep_fleece_output(productive_heads);
+        let fleece = discrete_expected_units(
+            sheep_fleece_output(productive_heads),
+            building.id,
+            u64::from(clock.year),
+            0x574f_4f4c,
+        );
         let wool_room = building_commodity_room(building, CommodityKind::Wool);
-        if can_store_full_sheep_clip(productive_heads, wool_room) {
-            let stored = deposit_building_commodity(building, CommodityKind::Wool, fleece);
-            herd.last_wool_output = stored;
-            herd.last_shearing_year = clock.year;
+        if fleece >= 1.0 && wool_room + 1e-9 < fleece {
+            return false;
         }
+        if fleece >= 1.0 {
+            let stored = deposit_building_commodity(building, CommodityKind::Wool, fleece);
+            if (stored - fleece).abs() > 1e-9 {
+                return false;
+            }
+            herd.last_wool_output = fleece;
+        }
+        herd.last_shearing_year = clock.year;
     }
 
     if herd.head_count >= LIVESTOCK_MINIMUM_BREEDING_HEADS
@@ -441,12 +502,33 @@ fn run_livestock_cycle(
     }
 
     let maximum_herd = species_max_herd(herd.species);
-    let (slaughter_food, slaughter_preserved) = species_slaughter_yields(herd.species);
-    let saltable_slaughter = slaughter_preserved.min(
-        farmstead_salted_output_capacity(building)
-            .min(building_commodity_room(building, CommodityKind::CuredMeat)),
+    let (expected_slaughter_food, expected_slaughter_preserved) =
+        species_slaughter_yields(herd.species);
+    let slaughter_food = discrete_expected_units(
+        expected_slaughter_food,
+        building.id,
+        clock.total_days,
+        0x534c_4155_4748_5446,
     );
-    let unsalted_slaughter = (slaughter_preserved - saltable_slaughter).max(0.0);
+    let slaughter_preserved = discrete_expected_units(
+        expected_slaughter_preserved,
+        building.id,
+        clock.total_days,
+        0x534c_4155_4748_5450,
+    );
+    let preserve_full_lot =
+        can_store_exact_salted_output(building, CommodityKind::CuredMeat, slaughter_preserved);
+    let cured_slaughter = if preserve_full_lot {
+        slaughter_preserved
+    } else {
+        0.0
+    };
+    let fresh_slaughter = slaughter_food
+        + if preserve_full_lot {
+            0.0
+        } else {
+            slaughter_preserved
+        };
     if productive_labor > 0
         && can_cull_one(
             clock.month,
@@ -455,8 +537,8 @@ fn run_livestock_cycle(
             maximum_herd,
             building_commodity_room(building, CommodityKind::Meat),
             building_commodity_room(building, CommodityKind::CuredMeat),
-            slaughter_food + unsalted_slaughter,
-            saltable_slaughter,
+            fresh_slaughter,
+            cured_slaughter,
         )
     {
         herd.head_count -= 1;
@@ -465,42 +547,124 @@ fn run_livestock_cycle(
         // Unsalted meat enters the vulnerable fresh-food store instead of
         // becoming free cured provisions. No animal is discarded merely
         // because an imported salt cart has not reached the holding.
-        herd.last_food_output += deposit_building_commodity(
-            building,
-            CommodityKind::Meat,
-            slaughter_food + unsalted_slaughter,
-        );
-        herd.last_preserved_output +=
-            store_salted_farmstead_output(building, CommodityKind::CuredMeat, saltable_slaughter);
+        let stored_meat =
+            deposit_building_commodity(building, CommodityKind::Meat, fresh_slaughter);
+        if (stored_meat - fresh_slaughter).abs() > 1e-9
+            || !try_store_exact_salted_output(building, CommodityKind::CuredMeat, cured_slaughter)
+        {
+            return false;
+        }
+        herd.last_food_output += fresh_slaughter;
+        herd.last_preserved_output += cured_slaughter;
     }
+    true
 }
 
 fn farmstead_salted_output_capacity(building: &Building) -> f64 {
     if LIVESTOCK_FARMSTEAD_PRESERVATION_SALT_PER_OUTPUT <= 1e-9 {
         f64::INFINITY
     } else {
-        building.salt.max(0.0) / LIVESTOCK_FARMSTEAD_PRESERVATION_SALT_PER_OUTPUT
+        whole_units(building.salt) / LIVESTOCK_FARMSTEAD_PRESERVATION_SALT_PER_OUTPUT
     }
 }
 
-fn store_salted_farmstead_output(
+fn salted_output_salt_cost(output_units: f64) -> f64 {
+    if output_units < 1.0 || LIVESTOCK_FARMSTEAD_PRESERVATION_SALT_PER_OUTPUT <= 1e-9 {
+        0.0
+    } else {
+        whole_cost(output_units * LIVESTOCK_FARMSTEAD_PRESERVATION_SALT_PER_OUTPUT)
+    }
+}
+
+fn can_store_exact_salted_output(
+    building: &Building,
+    output: CommodityKind,
+    output_units: f64,
+) -> bool {
+    let output_units = whole_units(output_units);
+    building_commodity_room(building, output) + 1e-9 >= output_units
+        && whole_units(building.salt) + 1e-9 >= salted_output_salt_cost(output_units)
+}
+
+fn try_store_exact_salted_output(
     building: &mut Building,
     output: CommodityKind,
-    desired_output: f64,
-) -> f64 {
-    let stored = desired_output
-        .max(0.0)
-        .min(building_commodity_room(building, output))
-        .min(farmstead_salted_output_capacity(building));
-    if stored <= 1e-9 {
+    output_units: f64,
+) -> bool {
+    let output_units = whole_units(output_units);
+    if output_units < 1.0 {
+        return true;
+    }
+    if !can_store_exact_salted_output(building, output, output_units) {
+        return false;
+    }
+    let salt_cost = salted_output_salt_cost(output_units);
+    let salt_used = withdraw_building_commodity(building, CommodityKind::Salt, salt_cost);
+    if (salt_used - salt_cost).abs() > 1e-9 {
+        return false;
+    }
+    let stored = deposit_building_commodity(building, output, output_units);
+    (stored - output_units).abs() <= 1e-9
+}
+
+fn consume_whole_fodder(building: &mut Building, desired_feed_value: f64) -> f64 {
+    if !desired_feed_value.is_finite() || desired_feed_value <= 1e-9 {
         return 0.0;
     }
-    withdraw_building_commodity(
-        building,
-        CommodityKind::Salt,
-        stored * LIVESTOCK_FARMSTEAD_PRESERVATION_SALT_PER_OUTPUT,
-    );
-    deposit_building_commodity(building, output, stored)
+    let mut remaining = desired_feed_value;
+    let mut supplied = 0.0;
+    for (commodity, value_per_unit) in [
+        (CommodityKind::OatGrain, LIVESTOCK_OAT_FODDER_VALUE),
+        (CommodityKind::RyeGrain, LIVESTOCK_RYE_FODDER_VALUE),
+        (CommodityKind::MaslinGrain, LIVESTOCK_MASLIN_FODDER_VALUE),
+    ] {
+        if remaining <= 1e-9 || value_per_unit <= 1e-9 {
+            break;
+        }
+        let available = whole_units(crate::economy::building_commodity_stock(
+            building, commodity,
+        ));
+        let requested = whole_cost(remaining / value_per_unit).min(available);
+        let used = withdraw_building_commodity(building, commodity, requested);
+        supplied += used * value_per_unit;
+        remaining = (desired_feed_value - supplied).max(0.0);
+    }
+    supplied
+}
+
+fn normalize_livestock_resource_stocks(building: &mut Building, herd: &mut LivestockHerd) {
+    building.water = whole_units(building.water);
+    building.oat_grain = whole_units(building.oat_grain);
+    building.rye_grain = whole_units(building.rye_grain);
+    building.maslin_grain = whole_units(building.maslin_grain);
+    building.salt = whole_units(building.salt);
+    building.milk = whole_units(building.milk);
+    building.cheese = whole_units(building.cheese);
+    building.manure = whole_units(building.manure);
+    building.wool = whole_units(building.wool);
+    building.meat = whole_units(building.meat);
+    building.cured_meat = whole_units(building.cured_meat);
+    herd.hay_stock = whole_units(herd.hay_stock);
+    herd.last_food_output = whole_units(herd.last_food_output);
+    herd.last_preserved_output = whole_units(herd.last_preserved_output);
+    herd.last_hay_output = whole_units(herd.last_hay_output);
+    herd.last_wool_output = whole_units(herd.last_wool_output);
+    herd.last_wool_gold = whole_units(herd.last_wool_gold);
+}
+
+fn discrete_expected_units(expected: f64, entity_id: u64, day: u64, salt: u64) -> f64 {
+    if !expected.is_finite() || expected <= 0.0 {
+        return 0.0;
+    }
+    let base = expected.floor();
+    let remainder = expected - base;
+    base + if remainder > 1e-9
+        && deterministic_unit(entity_id ^ 0x517c_c1b7, day, entity_id, salt) < remainder
+    {
+        1.0
+    } else {
+        0.0
+    }
 }
 
 pub(crate) fn grazing_capacity(
@@ -649,7 +813,8 @@ fn dispatch_manure_to_crop_farmstead(
     clock: &GameClock,
     source: &mut Building,
 ) {
-    if source.manure <= 1e-6 || building_has_active_trip(ctx, source.id) {
+    source.manure = whole_units(source.manure);
+    if source.manure < 1.0 || building_has_active_trip(ctx, source.id) {
         return;
     }
     let Some(network) = tick.road_network(source.owner) else {
@@ -662,8 +827,11 @@ fn dispatch_manure_to_crop_farmstead(
         };
         let (requirement, priority) =
             tick.farmstead_manure_requirement_for(ctx, source.owner, target.id);
-        let desired = requirement.min(building_commodity_cap(&target.kind, CommodityKind::Manure));
-        let needed = (desired - target.manure.max(0.0)).max(0.0);
+        let desired = whole_units(requirement).min(whole_units(building_commodity_cap(
+            &target.kind,
+            CommodityKind::Manure,
+        )));
+        let needed = (desired - whole_units(target.manure)).max(0.0);
         if !target.construction_complete
             || needed <= 1e-6
             || building_has_inbound_supply_trip(ctx, target.id)
@@ -676,7 +844,7 @@ fn dispatch_manure_to_crop_farmstead(
             continue;
         };
         let coverage = if desired > 1e-9 {
-            (target.manure.max(0.0) / desired).clamp(0.0, 1.0)
+            (whole_units(target.manure) / desired).clamp(0.0, 1.0)
         } else {
             1.0
         };
@@ -841,5 +1009,28 @@ fn species_max_herd(species: u8) -> u32 {
         SPECIES_CATTLE => CATTLE_MAX_HERD,
         SPECIES_SHEEP => SHEEP_MAX_HERD,
         _ => SWINE_MAX_HERD,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{discrete_expected_units, salted_output_salt_cost};
+
+    #[test]
+    fn livestock_expected_yields_commit_only_whole_units() {
+        for expected in [0.0, 0.02, 0.99, 1.25, 8.75, 12.0] {
+            let output = discrete_expected_units(expected, 77, 300, 5);
+            assert_eq!(output.fract(), 0.0);
+            assert!(output == expected.floor() || output == expected.ceil());
+        }
+    }
+
+    #[test]
+    fn salted_lots_pay_whole_salt_units() {
+        for output in [0.0, 1.0, 7.0, 8.0, 9.0] {
+            assert_eq!(salted_output_salt_cost(output).fract(), 0.0);
+        }
+        assert_eq!(salted_output_salt_cost(0.0), 0.0);
+        assert!(salted_output_salt_cost(1.0) >= 1.0);
     }
 }

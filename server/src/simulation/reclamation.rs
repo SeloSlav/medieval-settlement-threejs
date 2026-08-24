@@ -15,6 +15,7 @@ use crate::economy::{
 };
 use crate::placement_validation::building_overlaps_road_surface;
 use crate::reducers::buildings::next_available_building_id;
+use crate::resource_units::whole_units;
 use crate::roads::load_owner_road_network;
 use crate::simulation::delivery_trips::{
     available_free_haulers, building_has_active_trip, building_has_inbound_supply_trip,
@@ -160,7 +161,7 @@ pub struct ReclamationStock {
 
 impl ReclamationStock {
     pub fn from_commodity(commodity: CommodityKind, amount: f64) -> Self {
-        let amount = amount.max(0.0);
+        let amount = whole_units(amount);
         match commodity {
             CommodityKind::Timber => Self {
                 timber: amount,
@@ -417,6 +418,171 @@ impl ReclamationStock {
         }
     }
 
+    /// Convert every portable inventory field to its authoritative whole-unit
+    /// representation. Salvage ratios may be fractional, but the goods they
+    /// produce are indivisible and fractions are never carried into a pile.
+    pub fn normalized(mut self) -> Self {
+        macro_rules! normalize_fields {
+            ($($field:ident),+ $(,)?) => {
+                $(self.$field = whole_units(self.$field);)+
+            };
+        }
+        normalize_fields!(
+            timber,
+            firewood,
+            stone,
+            water,
+            food,
+            ale,
+            cider,
+            pear_cider,
+            mead,
+            preserved_food,
+            honey,
+            wine,
+            ironwork,
+            polearms,
+            wool,
+            cloth,
+            hides,
+            leather,
+            shoes,
+            gold,
+            barley,
+            malt,
+            flax,
+            iron,
+            clay,
+            salt,
+            charcoal,
+            pottery,
+            manure,
+            remedies,
+            roof_tiles,
+            meat,
+            fish,
+            berries,
+            mushrooms,
+            milk,
+            apples,
+            cherries,
+            vegetables,
+            eggs,
+            grapes,
+            cured_meat,
+            smoked_fish,
+            cheese,
+            rye_sheaves,
+            oat_sheaves,
+            barley_sheaves,
+            maslin_sheaves,
+            rye_grain,
+            oat_grain,
+            maslin_grain,
+            rye_flour,
+            maslin_flour,
+            rye_bread,
+            maslin_bread,
+            pears,
+            aronia,
+            rosehips,
+            cabbage,
+            carrots,
+            beetroot,
+            aronia_jam,
+            rosehip_jam,
+        );
+        self
+    }
+
+    /// Capture all portable inventory in a building without preserving legacy
+    /// fractional stock.
+    pub fn from_building(building: &Building) -> Self {
+        RECOVERY_ORDER.into_iter().fold(Self::default(), |stock, commodity| {
+            stock.merged(Self::from_commodity(
+                commodity,
+                building_commodity_stock(building, commodity),
+            ))
+        })
+    }
+
+    /// Merge two recovery ledgers without creating fractional cargo.
+    pub fn merged(self, other: Self) -> Self {
+        let mut merged = self.normalized();
+        let other = other.normalized();
+        macro_rules! merge_fields {
+            ($($field:ident),+ $(,)?) => {
+                $(merged.$field = whole_units(merged.$field + other.$field);)+
+            };
+        }
+        merge_fields!(
+            timber,
+            firewood,
+            stone,
+            water,
+            food,
+            ale,
+            cider,
+            pear_cider,
+            mead,
+            preserved_food,
+            honey,
+            wine,
+            ironwork,
+            polearms,
+            wool,
+            cloth,
+            hides,
+            leather,
+            shoes,
+            gold,
+            barley,
+            malt,
+            flax,
+            iron,
+            clay,
+            salt,
+            charcoal,
+            pottery,
+            manure,
+            remedies,
+            roof_tiles,
+            meat,
+            fish,
+            berries,
+            mushrooms,
+            milk,
+            apples,
+            cherries,
+            vegetables,
+            eggs,
+            grapes,
+            cured_meat,
+            smoked_fish,
+            cheese,
+            rye_sheaves,
+            oat_sheaves,
+            barley_sheaves,
+            maslin_sheaves,
+            rye_grain,
+            oat_grain,
+            maslin_grain,
+            rye_flour,
+            maslin_flour,
+            rye_bread,
+            maslin_bread,
+            pears,
+            aronia,
+            rosehips,
+            cabbage,
+            carrots,
+            beetroot,
+            aronia_jam,
+            rosehip_jam,
+        );
+        merged
+    }
+
     pub fn is_empty(self) -> bool {
         RECOVERY_ORDER
             .into_iter()
@@ -489,6 +655,7 @@ impl ReclamationStock {
             aronia_jam: resources.aronia_jam.max(0.0),
             rosehip_jam: resources.rosehip_jam.max(0.0),
         }
+        .normalized()
     }
 
     fn amount(self, commodity: CommodityKind) -> f64 {
@@ -559,70 +726,87 @@ impl ReclamationStock {
         }
     }
 
+    /// Replace a building's portable inventory with an exact, normalized
+    /// recovery ledger. This is used when the source row itself becomes the
+    /// reclamation pile.
+    pub fn replace_building_inventory(self, building: &mut Building) {
+        let merged = self.normalized();
+        macro_rules! replace_fields {
+            ($($field:ident),+ $(,)?) => {
+                $(building.$field = merged.$field;)+
+            };
+        }
+        replace_fields!(
+            timber,
+            firewood,
+            stone,
+            water,
+            food,
+            ale,
+            cider,
+            pear_cider,
+            mead,
+            preserved_food,
+            honey,
+            wine,
+            ironwork,
+            polearms,
+            wool,
+            cloth,
+            hides,
+            leather,
+            shoes,
+            gold,
+            barley,
+            malt,
+            flax,
+            iron,
+            clay,
+            salt,
+            charcoal,
+            pottery,
+            manure,
+            remedies,
+            roof_tiles,
+            meat,
+            fish,
+            berries,
+            mushrooms,
+            milk,
+            apples,
+            cherries,
+            vegetables,
+            eggs,
+            grapes,
+            cured_meat,
+            smoked_fish,
+            cheese,
+            rye_sheaves,
+            oat_sheaves,
+            barley_sheaves,
+            maslin_sheaves,
+            rye_grain,
+            oat_grain,
+            maslin_grain,
+            rye_flour,
+            maslin_flour,
+            rye_bread,
+            maslin_bread,
+            pears,
+            aronia,
+            rosehips,
+            cabbage,
+            carrots,
+            beetroot,
+            aronia_jam,
+            rosehip_jam,
+        );
+    }
+
     fn add_to_building(self, building: &mut Building) {
-        building.timber += self.timber;
-        building.firewood += self.firewood;
-        building.stone += self.stone;
-        building.water += self.water;
-        building.food += self.food;
-        building.ale += self.ale;
-        building.cider += self.cider;
-        building.pear_cider += self.pear_cider;
-        building.mead += self.mead;
-        building.preserved_food += self.preserved_food;
-        building.honey += self.honey;
-        building.wine += self.wine;
-        building.ironwork += self.ironwork;
-        building.polearms += self.polearms;
-        building.wool += self.wool;
-        building.cloth += self.cloth;
-        building.hides += self.hides;
-        building.leather += self.leather;
-        building.shoes += self.shoes;
-        building.gold += self.gold;
-        building.barley += self.barley;
-        building.malt += self.malt;
-        building.flax += self.flax;
-        building.iron += self.iron;
-        building.clay += self.clay;
-        building.salt += self.salt;
-        building.charcoal += self.charcoal;
-        building.pottery += self.pottery;
-        building.manure += self.manure;
-        building.remedies += self.remedies;
-        building.roof_tiles += self.roof_tiles;
-        building.meat += self.meat;
-        building.fish += self.fish;
-        building.berries += self.berries;
-        building.mushrooms += self.mushrooms;
-        building.milk += self.milk;
-        building.apples += self.apples;
-        building.cherries += self.cherries;
-        building.vegetables += self.vegetables;
-        building.eggs += self.eggs;
-        building.grapes += self.grapes;
-        building.cured_meat += self.cured_meat;
-        building.smoked_fish += self.smoked_fish;
-        building.cheese += self.cheese;
-        building.rye_sheaves += self.rye_sheaves;
-        building.oat_sheaves += self.oat_sheaves;
-        building.barley_sheaves += self.barley_sheaves;
-        building.maslin_sheaves += self.maslin_sheaves;
-        building.rye_grain += self.rye_grain;
-        building.oat_grain += self.oat_grain;
-        building.maslin_grain += self.maslin_grain;
-        building.rye_flour += self.rye_flour;
-        building.maslin_flour += self.maslin_flour;
-        building.rye_bread += self.rye_bread;
-        building.maslin_bread += self.maslin_bread;
-        building.pears += self.pears;
-        building.aronia += self.aronia;
-        building.rosehips += self.rosehips;
-        building.cabbage += self.cabbage;
-        building.carrots += self.carrots;
-        building.beetroot += self.beetroot;
-        building.aronia_jam += self.aronia_jam;
-        building.rosehip_jam += self.rosehip_jam;
+        Self::from_building(building)
+            .merged(self)
+            .replace_building_inventory(building);
     }
 }
 
@@ -769,6 +953,7 @@ pub fn insert_reclamation_pile(
     z: f64,
     stock: ReclamationStock,
 ) -> Result<bool, String> {
+    let stock = stock.normalized();
     let physical_reclamation = ctx
         .db
         .player_resources()
@@ -992,6 +1177,7 @@ pub fn recover_stock_at(
     z: f64,
     stock: ReclamationStock,
 ) -> Result<bool, String> {
+    let stock = stock.normalized();
     let physical_reclamation = ctx
         .db
         .player_resources()

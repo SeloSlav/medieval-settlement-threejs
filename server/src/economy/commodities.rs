@@ -1281,42 +1281,6 @@ pub fn withdraw_residence_commodity(
     withdrawn
 }
 
-pub fn withdraw_residence_fresh_food(residence: &mut Residence, meal_amount: f64) -> f64 {
-    let mut remaining = meal_amount.max(0.0);
-    let mut withdrawn = 0.0;
-    for kind in FOOD_CONSUMPTION_ORDER {
-        if remaining <= 1e-9 {
-            break;
-        }
-        if !(kind.is_fresh_food() || kind == CommodityKind::Honey) {
-            continue;
-        }
-        let amount =
-            withdraw_residence_commodity(residence, kind, remaining / kind.meal_value().max(1e-9));
-        withdrawn += amount * kind.meal_value();
-        remaining = (remaining - amount * kind.meal_value()).max(0.0);
-    }
-    withdrawn
-}
-
-pub fn withdraw_residence_preserved_food(residence: &mut Residence, meal_amount: f64) -> f64 {
-    let mut remaining = meal_amount.max(0.0);
-    let mut withdrawn = 0.0;
-    for kind in FOOD_CONSUMPTION_ORDER {
-        if remaining <= 1e-9 {
-            break;
-        }
-        if !kind.is_preserved_food() {
-            continue;
-        }
-        let amount =
-            withdraw_residence_commodity(residence, kind, remaining / kind.meal_value().max(1e-9));
-        withdrawn += amount * kind.meal_value();
-        remaining = (remaining - amount * kind.meal_value()).max(0.0);
-    }
-    withdrawn
-}
-
 pub fn deposit_residence_commodity(
     residence: &mut Residence,
     kind: CommodityKind,

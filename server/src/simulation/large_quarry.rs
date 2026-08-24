@@ -85,7 +85,8 @@ pub fn step_large_quarry(
     let batch = crate::resource_units::whole_cost(base_batch);
     if source.is_none()
         || crate::resource_units::whole_units(output_headroom) + 1e-6 < batch
-        || building.timber + 1e-6 < crate::resource_units::whole_cost(LARGE_QUARRY_TIMBER_SUPPORT_PER_CYCLE)
+        || building.timber + 1e-6
+            < crate::resource_units::whole_cost(LARGE_QUARRY_TIMBER_SUPPORT_PER_CYCLE)
         || (tools_maintained
             && building.ironwork + 1e-6
                 < crate::resource_units::whole_cost(CIVILIAN_TOOL_IRONWORK_PER_CYCLE))

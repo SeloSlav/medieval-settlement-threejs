@@ -2,12 +2,9 @@ use std::cmp::Ordering;
 
 use spacetimedb::{Identity, ReducerContext};
 
-use crate::balance_generated::{CALENDAR_SECONDS_PER_DAY, EVENING_MEAL_PER_PERSON, TICK_DT};
+use crate::balance_generated::{CALENDAR_SECONDS_PER_DAY, TICK_DT};
 use crate::db::*;
-use crate::economy::{
-    debit_residence_wealth, withdraw_building_commodity, withdraw_residence_fresh_food,
-    withdraw_residence_preserved_food, CommodityKind,
-};
+use crate::economy::debit_residence_wealth;
 use crate::frontier_economy_policy::armed_guards;
 use crate::night_policy::{
     curfew_security_multiplier, gathering_share, lighting_firewood_per_household,
@@ -119,15 +116,13 @@ fn complete_night_for_owner(
             cold_households += 1;
         }
 
-        let meal_due = EVENING_MEAL_PER_PERSON * residence.population as f64;
-        let fresh_used = withdraw_residence_fresh_food(&mut current, meal_due);
-        let preserved_used = if fresh_used + 1e-6 < meal_due && residence.tier >= 4 {
-            withdraw_residence_preserved_food(&mut current, meal_due - fresh_used)
-        } else {
-            0.0
-        };
-        let fed = fresh_used + preserved_used + 1e-6 >= meal_due;
-        migrate_and_sync_food_inventory(ctx, &mut current, &mut needs);
+        // The monthly tier slots are the single authoritative household food
+        // charge. Night reports observe that result instead of silently
+        // burning a second, per-person meal from the same pantry.
+        let fed = needs
+            .iter()
+            .find(|need| need.kind == ResidenceNeedKind::Food)
+            .is_some_and(|need| need.deficit_ticks == 0);
         persist_needs(ctx, residence.id, &needs);
 
         let worked_night_shift = household_index < tired_household_slots as usize;
@@ -163,15 +158,13 @@ fn complete_night_for_owner(
     let watch_strength =
         (watch_staff * 1.5 + guards) * watch_policy_multiplier(resources.night_watch_policy);
 
-    let requested_light_fuel =
-        household_count as f64 * lighting_firewood_per_household(resources.night_lighting_policy);
-    let lighting_fuel_used = withdraw_owner_building_firewood(ctx, owner, requested_light_fuel);
-    let lighting_shortfall = (requested_light_fuel - lighting_fuel_used).max(0.0);
-    let lighting_supply_ratio = if requested_light_fuel <= 1e-9 {
-        1.0
-    } else {
-        lighting_fuel_used / requested_light_fuel
-    };
+    // Lighting fuel is included in the household's one monthly firewood unit.
+    // Keep the legacy report fields at zero instead of charging an additional
+    // nightly fractional resource stream.
+    let _bundled_lighting_share = lighting_firewood_per_household(resources.night_lighting_policy);
+    let lighting_fuel_used = 0.0;
+    let lighting_shortfall = 0.0;
+    let lighting_supply_ratio = 1.0;
 
     let effective_security = (1.0 + watch_strength * 0.18)
         * lighting_security_multiplier(resources.night_lighting_policy)
@@ -215,40 +208,6 @@ fn complete_night_for_owner(
     ctx.db.player_resources().owner().update(resources);
 }
 
-fn withdraw_owner_building_firewood(ctx: &ReducerContext, owner: Identity, amount: f64) -> f64 {
-    let mut candidates: Vec<Building> = ctx
-        .db
-        .building()
-        .owner()
-        .filter(&owner)
-        .filter(|building| building.construction_complete && building.firewood > 1e-9)
-        .collect();
-    candidates.sort_by_key(|building| {
-        let priority = match building.kind.as_str() {
-            "village_storehouse" => 0,
-            "woodcutters_lodge" => 1,
-            "founders_camp" => 2,
-            _ => 3,
-        };
-        (priority, building.id)
-    });
-
-    let mut remaining = amount.max(0.0);
-    let mut withdrawn = 0.0;
-    for mut building in candidates {
-        if remaining <= 1e-9 {
-            break;
-        }
-        let taken = withdraw_building_commodity(&mut building, CommodityKind::Firewood, remaining);
-        if taken > 1e-9 {
-            ctx.db.building().id().update(building);
-            remaining -= taken;
-            withdrawn += taken;
-        }
-    }
-    withdrawn
-}
-
 fn steal_from_richest_household(ctx: &ReducerContext, residences: &[Residence]) -> f64 {
     let Some(victim) = residences
         .iter()
@@ -262,7 +221,7 @@ fn steal_from_richest_household(ctx: &ReducerContext, residences: &[Residence]) 
     else {
         return 0.0;
     };
-    debit_residence_wealth(ctx, victim, victim.household_wealth.min(1.5))
+    debit_residence_wealth(ctx, victim, victim.household_wealth.min(2.0))
 }
 
 fn deterministic_unit(seed: u64, day: u64, owner: &Identity, salt: u64) -> f64 {

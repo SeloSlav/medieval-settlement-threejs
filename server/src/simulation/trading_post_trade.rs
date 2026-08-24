@@ -17,6 +17,7 @@ use crate::economy::{
     withdraw_building_commodity, CommodityKind, MarketTradeDirection,
 };
 use crate::granary_policy::granary_exportable_grain;
+use crate::resource_units::{whole_cost, whole_signed_units, whole_units};
 use crate::simulation::delivery_trips::{
     building_has_active_trip, building_has_inbound_commodity_trip, onsite_building_labor,
     try_start_building_supply_trip,
@@ -143,8 +144,8 @@ fn settle_due_rules(ctx: &ReducerContext, post: &Building, current_exchange: u64
             _ => (0.0, 0.0),
         };
         rule.last_settled_month = current_exchange;
-        rule.last_trade_amount = amount;
-        rule.last_trade_gold = gold;
+        rule.last_trade_amount = whole_units(amount);
+        rule.last_trade_gold = whole_signed_units(gold);
         ctx.db.trading_post_trade_rule().id().update(rule);
     }
 }
@@ -186,16 +187,20 @@ fn settle_export(
     let Some(mut post) = ctx.db.building().id().find(&post_id) else {
         return (0.0, 0.0);
     };
-    let units = building_commodity_stock(&post, commodity).floor().max(0.0);
+    let units = whole_units(building_commodity_stock(&post, commodity));
     if units <= 1e-6 || lot_amount <= 1e-9 {
         return (0.0, 0.0);
     }
     let multiplier = current_price_multiplier(ctx, owner, resource);
+    let planned_revenue = whole_units(trade_gold(units, gold_yield / lot_amount * multiplier));
+    if planned_revenue < 1.0 {
+        return (0.0, 0.0);
+    }
     let sold = withdraw_building_commodity(&mut post, commodity, units);
     if sold <= 1e-6 {
         return (0.0, 0.0);
     }
-    let revenue = trade_gold(sold, gold_yield / lot_amount * multiplier);
+    let revenue = whole_units(trade_gold(sold, gold_yield / lot_amount * multiplier));
     ctx.db.building().id().update(post);
     credit_treasury_gold(ctx, owner, revenue);
     record_market_trade(ctx, owner, resource, MarketTradeDirection::Export, sold);
@@ -234,17 +239,17 @@ fn settle_import(
     let deficit = import_deficit(public_stock, target_surplus);
     let multiplier = current_price_multiplier(ctx, owner, resource);
     let unit_price = gold_cost / lot_amount * multiplier;
-    let available_gold = treasury_gold(ctx, owner).min(gold_budget.max(0.0));
-    let units = affordable_import_units(
+    let available_gold = whole_units(treasury_gold(ctx, owner).min(gold_budget.max(0.0)));
+    let units = whole_units(affordable_import_units(
         deficit,
         building_commodity_room(&post, commodity),
         available_gold,
         unit_price,
-    );
+    ));
     if units <= 1e-6 {
         return (0.0, 0.0);
     }
-    let expense = trade_gold(units, unit_price);
+    let expense = whole_cost(trade_gold(units, unit_price));
     if expense <= 1e-9 || expense > available_gold + 1e-6 {
         return (0.0, 0.0);
     }
@@ -256,7 +261,7 @@ fn settle_import(
         credit_treasury_gold(ctx, owner, expense);
         return (0.0, 0.0);
     }
-    let actual_expense = trade_gold(imported, unit_price);
+    let actual_expense = whole_cost(trade_gold(imported, unit_price));
     if actual_expense + 1e-6 < expense {
         credit_treasury_gold(ctx, owner, expense - actual_expense);
     }

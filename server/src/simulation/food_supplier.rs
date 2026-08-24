@@ -253,11 +253,8 @@ fn harvest_from_node(
     }
     if harvested_game {
         let hide_output = extracted * crate::resource_units::whole_cost(GAME_HIDES_PER_ANIMAL);
-        if deposit_building_commodity(
-            &mut updated_building,
-            CommodityKind::Hides,
-            hide_output,
-        ) != hide_output
+        if deposit_building_commodity(&mut updated_building, CommodityKind::Hides, hide_output)
+            != hide_output
         {
             return (original_building, false);
         }

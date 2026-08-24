@@ -8,6 +8,7 @@ import {
   FARM_MANURE_PER_SQUARE_METER,
 } from '../generated/gameBalance.ts';
 import type { FarmFieldState } from '../resources/types.ts';
+import { wholeResourceUnits } from '../resources/resourceUnits.ts';
 import type { Season } from '../world/seasonPolicy.ts';
 
 export type FarmsteadManurePlan = {
@@ -25,7 +26,8 @@ export type FarmsteadManurePlan = {
 export function fieldManureRequirement(
   field: Pick<FarmFieldState, 'area'>,
 ): number {
-  return Math.max(0, field.area) * Math.max(0, FARM_MANURE_PER_SQUARE_METER);
+  const raw = Math.max(0, field.area) * Math.max(0, FARM_MANURE_PER_SQUARE_METER);
+  return raw > 0 ? Math.ceil(raw - 1e-6) : 0;
 }
 
 export function fieldManureApplied(
@@ -33,7 +35,7 @@ export function fieldManureApplied(
 ): number {
   return Math.min(
     fieldManureRequirement(field),
-    Math.max(0, field.manureApplied ?? 0),
+    wholeResourceUnits(field.manureApplied),
   );
 }
 
@@ -67,8 +69,8 @@ export function buildFarmsteadManurePlan(
     applied += fieldManureApplied(field);
   }
   const remaining = Math.max(0, required - applied);
-  const onsite = Math.max(0, onsiteStock);
-  const inbound = Math.max(0, inboundStock);
+  const onsite = wholeResourceUnits(onsiteStock);
+  const inbound = wholeResourceUnits(inboundStock);
   const covered = Math.min(required, applied + onsite + inbound);
   const shortfall = Math.max(0, required - covered);
   return {

@@ -17,6 +17,7 @@ use crate::fire_policy::{
     suppression_result, weather_risk_multiplier,
 };
 use crate::residence_upgrade_policy::residence_project_active;
+use crate::resource_units::{whole_cost, whole_units};
 use crate::roads::RoadNetwork;
 use crate::season_policy::{EnvironmentState, WeatherKind};
 use crate::simulation::delivery_trips::{DeliveryTripPhase, DELIVERY_DESTINATION_FIRE};
@@ -209,7 +210,7 @@ pub fn ignite_raid_target(
                 x: building.x,
                 z: building.z,
                 flammability,
-                required_water: (7.0 + flammability * 2.0).clamp(6.0, 13.0),
+                required_water: whole_cost((7.0 + flammability * 2.0).clamp(6.0, 13.0)),
             }
         }
         FIRE_TARGET_RESIDENCE => {
@@ -334,7 +335,8 @@ pub fn apply_fire_water(
     let Some(mut incident) = fire_for_target(ctx, target_kind, target_id) else {
         return false;
     };
-    if incident.state != FIRE_STATE_BURNING || water <= 1e-6 {
+    let water = whole_units(water);
+    if incident.state != FIRE_STATE_BURNING || water < 1.0 {
         return false;
     }
     let roll = unit_roll(
@@ -379,7 +381,7 @@ fn collect_candidates(
             x: building.x,
             z: building.z,
             flammability,
-            required_water: (7.0 + flammability * 2.0).clamp(6.0, 13.0),
+            required_water: whole_cost((7.0 + flammability * 2.0).clamp(6.0, 13.0)),
         });
     }
     for residence in ctx.db.residence().iter() {
@@ -592,7 +594,7 @@ fn ignite_candidate(
         intensity: FIRE_INITIAL_INTENSITY,
         damage: 0.0,
         water_delivered: 0.0,
-        required_water: candidate.required_water,
+        required_water: whole_cost(candidate.required_water),
         extinguish_chance: 0.0,
         started_tick: sim_tick,
         discovered_tick,

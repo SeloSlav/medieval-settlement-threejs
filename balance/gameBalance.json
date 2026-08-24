@@ -126,7 +126,7 @@
     "rainIntensityDampingPerSecond": 0.006,
     "damagePerIntensitySecond": 0.01,
     "bucketWater": 3,
-    "minimumBucketWater": 0.5,
+    "minimumBucketWater": 1,
     "bucketSpeedMps": 2.6,
     "bucketUnloadSeconds": 2.4,
     "intensityReductionPerWater": 0.14,
@@ -583,7 +583,7 @@
     "corpseIllnessMultiplier": 0.6,
     "illnessRecoveryDays": 7,
     "illnessMortalityChancePerSickDay": 0.008,
-    "herbRemediesPerPersonDay": 0.08,
+    "herbRemediesPerPersonDay": 0.025,
     "herbRemedyCapacity": 18,
     "herbTreatmentPerSickDay": 0.15,
     "herbRecoveryMultiplier": 2.5,
@@ -1943,7 +1943,7 @@
     "apple_orchard": {
       "label": "Apple orchard",
       "cost": { "timber": 10, "stone": 4, "gold": 4 },
-      "foodPerPersonPerSec": 0.0025,
+      "foodPerPersonPerSec": 0.00048,
       "settlementAttractionMultiplier": 1,
       "hiddenFromPicker": true,
       "specializationOf": "orchard",
@@ -1956,7 +1956,7 @@
     "cherry_orchard": {
       "label": "Cherry orchard",
       "cost": { "timber": 9, "stone": 3, "gold": 4 },
-      "foodPerPersonPerSec": 0.00225,
+      "foodPerPersonPerSec": 0.00045,
       "settlementAttractionMultiplier": 1,
       "hiddenFromPicker": true,
       "specializationOf": "orchard",
@@ -1969,7 +1969,7 @@
     "pear_orchard": {
       "label": "Pear orchard",
       "cost": { "timber": 10, "stone": 4, "gold": 5 },
-      "foodPerPersonPerSec": 0.0027,
+      "foodPerPersonPerSec": 0.0005,
       "settlementAttractionMultiplier": 1.01,
       "hiddenFromPicker": true,
       "specializationOf": "orchard",
@@ -1982,7 +1982,7 @@
     "aronia_orchard": {
       "label": "Aronia bushes",
       "cost": { "timber": 10, "stone": 4, "gold": 4 },
-      "foodPerPersonPerSec": 0.00165,
+      "foodPerPersonPerSec": 0.00043,
       "settlementAttractionMultiplier": 1.015,
       "hiddenFromPicker": true,
       "specializationOf": "orchard",
@@ -1990,12 +1990,12 @@
       "harvestStartMonth": 8,
       "harvestEndMonth": 9,
       "yieldEfficiency": 0.9,
-      "jamPerPersonPerSec": 0.00065
+      "jamPerPersonPerSec": 0.00014
     },
     "rosehip_orchard": {
       "label": "Rosehip bushes",
       "cost": { "timber": 10, "stone": 4, "gold": 4 },
-      "foodPerPersonPerSec": 0.00125,
+      "foodPerPersonPerSec": 0.0004,
       "settlementAttractionMultiplier": 1.02,
       "hiddenFromPicker": true,
       "specializationOf": "orchard",
@@ -2003,7 +2003,7 @@
       "harvestStartMonth": 10,
       "harvestEndMonth": 11,
       "yieldEfficiency": 0.82,
-      "jamPerPersonPerSec": 0.0009
+      "jamPerPersonPerSec": 0.00018
     },
     "vegetable_garden": {
       "label": "Vegetable garden",
@@ -2014,7 +2014,7 @@
     "cabbage_garden": {
       "label": "Cabbage garden",
       "cost": { "timber": 5, "stone": 2, "gold": 5 },
-      "foodPerPersonPerSec": 0.0038,
+      "foodPerPersonPerSec": 0.0008,
       "settlementAttractionMultiplier": 1,
       "hiddenFromPicker": true,
       "specializationOf": "vegetable_garden",
@@ -2026,7 +2026,7 @@
     "carrot_garden": {
       "label": "Carrot garden",
       "cost": { "timber": 5, "stone": 2, "gold": 4 },
-      "foodPerPersonPerSec": 0.0029,
+      "foodPerPersonPerSec": 0.00072,
       "settlementAttractionMultiplier": 1,
       "hiddenFromPicker": true,
       "specializationOf": "vegetable_garden",
@@ -2038,7 +2038,7 @@
     "beetroot_garden": {
       "label": "Beetroot garden",
       "cost": { "timber": 5, "stone": 2, "gold": 3 },
-      "foodPerPersonPerSec": 0.00235,
+      "foodPerPersonPerSec": 0.00065,
       "settlementAttractionMultiplier": 1,
       "hiddenFromPicker": true,
       "specializationOf": "vegetable_garden",
@@ -2069,7 +2069,7 @@
     "chicken_pen": {
       "label": "Chicken pen",
       "cost": { "timber": 8, "stone": 2, "gold": 4 },
-      "foodPerPersonPerSec": 0.0017,
+      "foodPerPersonPerSec": 0.0009,
       "settlementAttractionMultiplier": 1,
       "hiddenFromPicker": true,
       "specializationOf": "animal_pen",
@@ -2087,7 +2087,7 @@
     "goat_pen": {
       "label": "Goat pen",
       "cost": { "timber": 8, "stone": 2, "gold": 6 },
-      "foodPerPersonPerSec": 0.0013,
+      "foodPerPersonPerSec": 0.0005,
       "settlementAttractionMultiplier": 0.97,
       "hiddenFromPicker": true,
       "specializationOf": "animal_pen",
@@ -2107,7 +2107,7 @@
     "pig_pen": {
       "label": "Pig pen",
       "cost": { "timber": 8, "stone": 2, "gold": 7 },
-      "foodPerPersonPerSec": 0.00065,
+      "foodPerPersonPerSec": 0.00033,
       "settlementAttractionMultiplier": 0.95,
       "hiddenFromPicker": true,
       "specializationOf": "animal_pen",
@@ -2121,7 +2121,7 @@
     "backyard_apiary": {
       "label": "Backyard apiary",
       "cost": { "timber": 7, "stone": 1, "gold": 4 },
-      "foodPerPersonPerSec": 0.001,
+      "foodPerPersonPerSec": 0.0005,
       "settlementAttractionMultiplier": 1.03
     }
   }

@@ -13,6 +13,7 @@ use crate::construction_priority::{
 use crate::db::*;
 use crate::economy::{building_commodity_stock, CommodityKind};
 use crate::reducers::livestock::{unstocked_herd, SPECIES_SWINE};
+use crate::resource_units::whole_units;
 use crate::roads::RoadNetwork;
 use crate::simulation::delivery_trips::{
     available_free_haulers, building_has_inbound_supply_trip, construction_source_cart_busy,
@@ -70,12 +71,16 @@ fn transfer_treasury_reserve(
     let Some(mut treasury) = ctx.db.player_resources().owner().find(&site.owner) else {
         return;
     };
+    // The legacy treasury handoff had no persisted carry, so a sub-unit tick
+    // could only create fractional material ledgers. Move at least one whole
+    // unit per staffed tick; builder progress remains continuous.
     let mut transfer_budget =
-        CONSTRUCTION_TREASURY_TRANSFER_PER_SEC * onsite_labor as f64 * TICK_DT;
+        whole_units(CONSTRUCTION_TREASURY_TRANSFER_PER_SEC * onsite_labor as f64 * TICK_DT)
+            .max(1.0);
 
     let stone = transfer_budget
-        .min(site.construction_treasury_stone)
-        .min(treasury.stone);
+        .min(whole_units(site.construction_treasury_stone))
+        .min(whole_units(treasury.stone));
     if stone > 1e-6 {
         treasury.stone -= stone;
         site.construction_treasury_stone -= stone;
@@ -85,8 +90,8 @@ fn transfer_treasury_reserve(
     }
 
     let timber = transfer_budget
-        .min(site.construction_treasury_timber)
-        .min(treasury.timber);
+        .min(whole_units(site.construction_treasury_timber))
+        .min(whole_units(treasury.timber));
     if timber > 1e-6 {
         treasury.timber -= timber;
         site.construction_treasury_timber -= timber;
@@ -96,8 +101,8 @@ fn transfer_treasury_reserve(
     }
 
     let ironwork = transfer_budget
-        .min(site.construction_treasury_ironwork)
-        .min(treasury.ironwork);
+        .min(whole_units(site.construction_treasury_ironwork))
+        .min(whole_units(treasury.ironwork));
     if ironwork > 1e-6 {
         treasury.ironwork -= ironwork;
         site.construction_treasury_ironwork -= ironwork;
@@ -108,8 +113,8 @@ fn transfer_treasury_reserve(
     }
 
     let roof_tiles = transfer_budget
-        .min(site.construction_treasury_roof_tiles)
-        .min(treasury.roof_tiles);
+        .min(whole_units(site.construction_treasury_roof_tiles))
+        .min(whole_units(treasury.roof_tiles));
     if roof_tiles > 1e-6 {
         treasury.roof_tiles -= roof_tiles;
         site.construction_treasury_roof_tiles -= roof_tiles;

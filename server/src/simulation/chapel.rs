@@ -11,8 +11,10 @@ use crate::economy::{
     chapel_monastery_tithe_due, chapel_tithe_payment_room, debit_residence_wealth,
     deposit_chapel_tithe, CommodityKind,
 };
+use crate::chapel_parish_policy::chapel_monthly_tithe_due;
+use crate::resource_units::whole_units;
 use crate::simulation::chapel_community::{
-    chapel_attendance_chance, chapel_tithe_gold_per_tick_for_tier,
+    chapel_attendance_chance, chapel_monthly_tithe_gold_for_tier,
 };
 use crate::simulation::delivery_trips::{
     available_free_haulers, building_has_active_trip, try_start_building_supply_trip,
@@ -29,6 +31,13 @@ struct MonasteryTitheRoute {
     share: f64,
 }
 
+#[derive(Clone, Copy)]
+struct PendingChapelTithe {
+    paid: f64,
+    payment_room: f64,
+    monastery_share: f64,
+}
+
 pub fn step_chapels(
     ctx: &ReducerContext,
     tick: &SimTickContext,
@@ -42,12 +51,18 @@ pub fn step_chapels(
     // scanning and sorting monastery rows for every household that pays.
     let monastery_tithe_routes = build_monastery_tithe_routes(ctx, tick, chapels, monasteries);
 
-    for residence in ctx.db.residence().iter() {
+    let mut residences = ctx.db.residence().iter().collect::<Vec<_>>();
+    residences.sort_by_key(|residence| residence.id);
+    let mut pending_tithes: HashMap<u64, PendingChapelTithe> = HashMap::new();
+
+    for residence in residences {
         if residence.abandoned || residence.population == 0 {
             continue;
         }
 
-        if is_chapel_tithe_paused(ctx, tick, residence.owner, clock) {
+        if !chapel_monthly_tithe_due(residence.id, clock)
+            || is_chapel_tithe_paused(ctx, tick, residence.owner, clock)
+        {
             continue;
         }
 
@@ -69,24 +84,45 @@ pub fn step_chapels(
             sabbath_observance,
             has_monastery_coverage,
         );
-        if !roll_chapel_attendance(residence.id, sim_tick, attendance_chance) {
-            continue;
-        }
-
         let route = monastery_tithe_routes.get(&chapel.id);
         let monastery_share = route
             .filter(|route| route.monastery_id.is_some())
             .map(|route| route.share)
             .unwrap_or(0.0);
-        let tithe_due =
-            chapel_tithe_gold_per_tick_for_tier(residence.population, chapel.chapel_tier);
-        let payment_room = chapel_tithe_payment_room(ctx, chapel.id, monastery_share);
-        let paid = debit_residence_wealth(ctx, &residence, tithe_due.min(payment_room));
-        if paid <= 1e-9 {
+        let tithe_due = chapel_monthly_tithe_gold_for_tier(
+            residence.population,
+            chapel.chapel_tier,
+            attendance_chance,
+        );
+        if tithe_due < 1.0 {
             continue;
         }
 
-        deposit_chapel_tithe(ctx, chapel.id, paid, monastery_share);
+        let pending = pending_tithes
+            .entry(chapel.id)
+            .or_insert_with(|| PendingChapelTithe {
+                paid: 0.0,
+                payment_room: chapel_tithe_payment_room(ctx, chapel.id, monastery_share),
+                monastery_share,
+            });
+        let remaining_room = (pending.payment_room - pending.paid).max(0.0);
+        let paid = debit_residence_wealth(ctx, &residence, tithe_due.min(remaining_room));
+        pending.paid += paid;
+    }
+
+    // Split once per chapel after all due households have paid. Aggregation
+    // prevents fractional-share bias while every physical purse remains whole.
+    let mut pending_tithes = pending_tithes.into_iter().collect::<Vec<_>>();
+    pending_tithes.sort_by_key(|(chapel_id, _)| *chapel_id);
+    for (chapel_id, pending) in pending_tithes {
+        if pending.paid >= 1.0 {
+            deposit_chapel_tithe(
+                ctx,
+                chapel_id,
+                pending.paid,
+                pending.monastery_share,
+            );
+        }
     }
 
     // Parish and monastery coin share one physical chapel doorway. Remitting
@@ -168,8 +204,11 @@ fn dispatch_monastery_tithes(
         let Some(mut source) = ctx.db.building().id().find(&chapel.id) else {
             continue;
         };
+        let normalized_gold = whole_units(source.gold);
         let pending = chapel_monastery_tithe_due(&source);
-        let mut source_changed = (source.chapel_monastery_tithe_due - pending).abs() > 1e-9;
+        let mut source_changed = (source.gold - normalized_gold).abs() > 1e-9
+            || (source.chapel_monastery_tithe_due - pending).abs() > 1e-9;
+        source.gold = normalized_gold;
         source.chapel_monastery_tithe_due = pending;
         if pending <= 1e-9 || building_has_active_trip(ctx, source.id) {
             if source_changed {
@@ -215,9 +254,10 @@ fn dispatch_monastery_tithes(
             STOREHOUSE_HAUL_PER_WORKER,
             pending,
         ) {
-            let loaded = (before - source.gold).max(0.0);
-            source.chapel_monastery_tithe_due =
-                (source.chapel_monastery_tithe_due - loaded).max(0.0);
+            let loaded = whole_units((before - source.gold).max(0.0));
+            source.chapel_monastery_tithe_due = whole_units(
+                (source.chapel_monastery_tithe_due - loaded).max(0.0),
+            );
             source_changed = true;
             *free_haulers -= 1;
         }
@@ -225,19 +265,4 @@ fn dispatch_monastery_tithes(
             ctx.db.building().id().update(source);
         }
     }
-}
-
-fn roll_chapel_attendance(residence_id: u64, sim_tick: u64, chance: f64) -> bool {
-    if chance <= 1e-9 {
-        return false;
-    }
-    if chance >= 1.0 - 1e-9 {
-        return true;
-    }
-
-    let hash = residence_id
-        .wrapping_mul(0xD6E8_FEB8_6659_FD93)
-        .wrapping_add(sim_tick.wrapping_mul(0xA5C6_5F3E_2B91_C7D1));
-    let roll = (hash % 10_000) as f64 / 10_000.0;
-    roll < chance
 }

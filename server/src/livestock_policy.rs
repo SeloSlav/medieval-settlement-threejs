@@ -136,14 +136,6 @@ pub fn sheep_fleece_output(productive_heads: f64) -> f64 {
     productive_heads.max(0.0) * SHEEP_WOOL_PER_SHEARING_PER_HEAD
 }
 
-/// An annual clip is indivisible: if the loft cannot hold the whole fleece,
-/// shearing waits so a cart can clear the store instead of silently discarding
-/// the unstored remainder.
-pub fn can_store_full_sheep_clip(productive_heads: f64, wool_room: f64) -> bool {
-    let fleece = sheep_fleece_output(productive_heads);
-    fleece > STORAGE_EPSILON && wool_room.max(0.0) + STORAGE_EPSILON >= fleece
-}
-
 pub fn haymaking_share(configured_percent: u8) -> f64 {
     configured_percent.min(LIVESTOCK_MAXIMUM_HAYMAKING_PERCENT) as f64 / 100.0
 }
@@ -257,14 +249,14 @@ pub fn can_cull_one(
 #[cfg(test)]
 mod tests {
     use super::{
-        can_cull_one, can_store_full_sheep_clip, cattle_field_support_is_active,
-        cattle_manure_collection_multiplier, cattle_manure_output, effective_breeding_reserve,
-        essential_livestock_care_labor, farmhouse_cheese_salt_staging_cycles, haymaking_share,
-        is_autumn_cull_month, is_haymaking_month, is_shearing_month,
-        livestock_cycles_per_calendar_day, livestock_milk_allocation, normalize_milk_use_policy,
-        pending_cull_heads, projected_winter_fodder_grain, retain_priority_candidate,
-        sheep_fleece_output, storage_secured_pending_cull_heads, MILK_USE_BALANCED,
-        MILK_USE_CHEESE_FIRST, MILK_USE_FRESH,
+        can_cull_one, cattle_field_support_is_active, cattle_manure_collection_multiplier,
+        cattle_manure_output, effective_breeding_reserve, essential_livestock_care_labor,
+        farmhouse_cheese_salt_staging_cycles, haymaking_share, is_autumn_cull_month,
+        is_haymaking_month, is_shearing_month, livestock_cycles_per_calendar_day,
+        livestock_milk_allocation, normalize_milk_use_policy, pending_cull_heads,
+        projected_winter_fodder_grain, retain_priority_candidate, sheep_fleece_output,
+        storage_secured_pending_cull_heads, MILK_USE_BALANCED, MILK_USE_CHEESE_FIRST,
+        MILK_USE_FRESH,
     };
     use crate::season_policy::Season;
     use std::time::Instant;
@@ -448,11 +440,9 @@ mod tests {
     }
 
     #[test]
-    fn annual_shearing_waits_for_room_for_the_whole_clip() {
+    fn annual_shearing_output_scales_with_productive_heads() {
         assert!((sheep_fleece_output(4.5) - 4.5).abs() < 1e-9);
-        assert!(can_store_full_sheep_clip(4.5, 4.5));
-        assert!(!can_store_full_sheep_clip(4.5, 4.49));
-        assert!(!can_store_full_sheep_clip(0.0, 90.0));
+        assert_eq!(sheep_fleece_output(0.0), 0.0);
     }
 
     #[test]

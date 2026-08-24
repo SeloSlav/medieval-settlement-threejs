@@ -1,9 +1,8 @@
 use crate::balance_generated::{
-    CALENDAR_HOURS_PER_DAY, CALENDAR_SECONDS_PER_DAY, CALENDAR_WORK_END_HOUR,
-    CALENDAR_WORK_START_HOUR, CIVILIAN_TOOL_IRONWORK_PER_CYCLE, CIVILIAN_TOOL_REORDER_CYCLES,
+    CIVILIAN_TOOL_IRONWORK_PER_CYCLE, CIVILIAN_TOOL_REORDER_CYCLES,
     CIVILIAN_TOOL_THROUGHPUT_MULTIPLIER, FARM_TOOL_IRONWORK_PER_WORKER_DAY,
-    FARM_WORK_METERS_PER_WORKER_PER_SEC,
 };
+use crate::resource_units::whole_cost;
 
 pub const CIVILIAN_TOOL_SITE_KINDS: [&str; 9] = [
     "lumber_mill",
@@ -67,16 +66,12 @@ pub fn civilian_tool_refill_due(ironwork: f64, capacity: f64) -> bool {
     capacity > 1e-6 && ironwork.max(0.0) + 1e-6 < civilian_tool_reorder_stock(capacity)
 }
 
-pub fn farm_tool_ironwork_for_work(completed_work: f64) -> f64 {
-    let workday_seconds = CALENDAR_SECONDS_PER_DAY
-        * (CALENDAR_WORK_END_HOUR - CALENDAR_WORK_START_HOUR) as f64
-        / CALENDAR_HOURS_PER_DAY as f64;
-    let work_per_worker_day = FARM_WORK_METERS_PER_WORKER_PER_SEC * workday_seconds;
-    if work_per_worker_day <= 1e-9 {
-        0.0
-    } else {
-        completed_work.max(0.0) / work_per_worker_day * FARM_TOOL_IRONWORK_PER_WORKER_DAY
-    }
+/// Field work progress is continuous, but a tool is replaced only when a
+/// complete field stage is posted. The old per-worker-day rate remains the
+/// balance input; rounding a positive wear lot upward prevents free partial
+/// tools without draining fractions every tick.
+pub fn farm_tool_ironwork_per_completed_stage() -> f64 {
+    whole_cost(FARM_TOOL_IRONWORK_PER_WORKER_DAY)
 }
 
 #[cfg(test)]
@@ -183,22 +178,8 @@ mod tests {
     }
 
     #[test]
-    fn farm_tool_wear_scales_with_completed_work_not_field_count() {
-        let one_worker_day = FARM_WORK_METERS_PER_WORKER_PER_SEC
-            * CALENDAR_SECONDS_PER_DAY
-            * (CALENDAR_WORK_END_HOUR - CALENDAR_WORK_START_HOUR) as f64
-            / CALENDAR_HOURS_PER_DAY as f64;
-        assert!(
-            (farm_tool_ironwork_for_work(one_worker_day) - FARM_TOOL_IRONWORK_PER_WORKER_DAY).abs()
-                < 1e-9
-        );
-        assert!(
-            (farm_tool_ironwork_for_work(one_worker_day * 0.4)
-                + farm_tool_ironwork_for_work(one_worker_day * 0.6)
-                - FARM_TOOL_IRONWORK_PER_WORKER_DAY)
-                .abs()
-                < 1e-9
-        );
+    fn farm_tool_wear_posts_one_whole_unit_per_completed_stage() {
+        assert_eq!(farm_tool_ironwork_per_completed_stage(), 1.0);
         assert!(farm_tools_maintained(FARM_TOOL_IRONWORK_PER_WORKER_DAY));
         assert!(!farm_tools_maintained(0.0));
         assert_eq!(

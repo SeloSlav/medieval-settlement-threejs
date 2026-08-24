@@ -8,11 +8,12 @@ use spacetimedb::ReducerContext;
 use crate::balance_generated::CHAPEL_COFFER_CAPACITY;
 use crate::chapel_upgrade_policy::chapel_coffer_capacity_for_tier;
 use crate::db::*;
+use crate::resource_units::{whole_request, whole_room, whole_transfer, whole_units};
 use crate::tables::Building;
 
 pub fn chapel_coffer_gold(building: &Building) -> f64 {
     if building.kind == "chapel" {
-        (building.gold - chapel_monastery_tithe_due(building)).max(0.0)
+        whole_units(building.gold - chapel_monastery_tithe_due(building))
     } else {
         0.0
     }
@@ -20,10 +21,7 @@ pub fn chapel_coffer_gold(building: &Building) -> f64 {
 
 pub fn chapel_monastery_tithe_due(building: &Building) -> f64 {
     if building.kind == "chapel" {
-        building
-            .chapel_monastery_tithe_due
-            .max(0.0)
-            .min(building.gold.max(0.0))
+        whole_units(building.chapel_monastery_tithe_due).min(whole_units(building.gold))
     } else {
         0.0
     }
@@ -36,10 +34,31 @@ pub fn chapel_coffer_capacity() -> f64 {
 
 pub fn chapel_coffer_capacity_for(chapel: &Building) -> f64 {
     if chapel.kind == "chapel" {
-        chapel_coffer_capacity_for_tier(chapel.chapel_tier)
+        whole_units(chapel_coffer_capacity_for_tier(chapel.chapel_tier))
     } else {
         0.0
     }
+}
+
+/// Split one aggregate household payment without minting half-coins. Rounding
+/// favors the local parish coffer; every paid coin is assigned exactly once.
+pub fn chapel_tithe_split(payment: f64, monastery_share: f64) -> (f64, f64) {
+    let payment = whole_units(payment);
+    let monastery_gold = whole_units(payment * monastery_share.clamp(0.0, 0.8));
+    ((payment - monastery_gold).max(0.0), monastery_gold)
+}
+
+fn chapel_tithe_payment_room_for(chapel: &Building, monastery_share: f64) -> f64 {
+    let parish_room = whole_room(chapel_coffer_capacity_for(chapel), chapel_coffer_gold(chapel));
+    let parish_fraction = 1.0 - monastery_share.clamp(0.0, 0.8);
+    if parish_room < 1.0 || parish_fraction <= 0.0 {
+        return 0.0;
+    }
+
+    // With the monastery share floored to a whole coin, the parish receives
+    // ceil(gross * parish_fraction). This quotient is therefore the largest
+    // gross whole payment that can fit in the remaining ordinary coffer room.
+    whole_units(parish_room / parish_fraction)
 }
 
 /// Maximum gross tithe that can be accepted without disembodied overflow.
@@ -56,13 +75,7 @@ pub fn chapel_tithe_payment_room(
     if chapel.kind != "chapel" {
         return 0.0;
     }
-    let parish_fraction = 1.0 - monastery_share.clamp(0.0, 0.8);
-    let parish_room = (chapel_coffer_capacity_for(&chapel) - chapel_coffer_gold(&chapel)).max(0.0);
-    if parish_fraction <= 1e-9 {
-        f64::MAX
-    } else {
-        parish_room / parish_fraction
-    }
+    chapel_tithe_payment_room_for(&chapel, monastery_share)
 }
 
 /// Deposits one household payment into the physical chapel chest, separating
@@ -74,7 +87,8 @@ pub fn deposit_chapel_tithe(
     paid: f64,
     monastery_share: f64,
 ) -> (f64, f64) {
-    if paid <= 1e-9 {
+    let paid = whole_request(paid);
+    if paid < 1.0 {
         return (0.0, 0.0);
     }
     let Some(mut chapel) = ctx.db.building().id().find(&chapel_id) else {
@@ -84,9 +98,11 @@ pub fn deposit_chapel_tithe(
         return (0.0, 0.0);
     }
 
+    chapel.gold = whole_units(chapel.gold);
     chapel.chapel_monastery_tithe_due = chapel_monastery_tithe_due(&chapel);
-    let monastery_gold = paid * monastery_share.clamp(0.0, 0.8);
-    let parish_gold = deposit_coffer_in_place(&mut chapel, (paid - monastery_gold).max(0.0));
+    let accepted = paid.min(chapel_tithe_payment_room_for(&chapel, monastery_share));
+    let (parish_payment, monastery_gold) = chapel_tithe_split(accepted, monastery_share);
+    let parish_gold = deposit_coffer_in_place(&mut chapel, parish_payment);
     chapel.gold += monastery_gold;
     chapel.chapel_monastery_tithe_due += monastery_gold;
     ctx.db.building().id().update(chapel);
@@ -94,13 +110,15 @@ pub fn deposit_chapel_tithe(
 }
 
 pub fn deposit_coffer_in_place(chapel: &mut Building, amount: f64) -> f64 {
-    if chapel.kind != "chapel" || amount <= 1e-9 {
+    if chapel.kind != "chapel" {
         return 0.0;
     }
 
-    let room = (chapel_coffer_capacity_for(chapel) - chapel_coffer_gold(chapel)).max(0.0);
-    let deposited = amount.min(room);
-    if deposited <= 1e-9 {
+    chapel.gold = whole_units(chapel.gold);
+    chapel.chapel_monastery_tithe_due = chapel_monastery_tithe_due(chapel);
+    let deposited = whole_room(chapel_coffer_capacity_for(chapel), chapel_coffer_gold(chapel))
+        .min(whole_request(amount));
+    if deposited < 1.0 {
         return 0.0;
     }
 
@@ -109,12 +127,14 @@ pub fn deposit_coffer_in_place(chapel: &mut Building, amount: f64) -> f64 {
 }
 
 pub fn withdraw_coffer_in_place(chapel: &mut Building, amount: f64) -> f64 {
-    if chapel.kind != "chapel" || amount <= 1e-9 {
+    if chapel.kind != "chapel" {
         return 0.0;
     }
 
-    let withdrawn = amount.min(chapel_coffer_gold(chapel).max(0.0));
-    if withdrawn <= 1e-9 {
+    chapel.gold = whole_units(chapel.gold);
+    chapel.chapel_monastery_tithe_due = chapel_monastery_tithe_due(chapel);
+    let withdrawn = whole_transfer(chapel_coffer_gold(chapel), amount);
+    if withdrawn < 1.0 {
         return 0.0;
     }
 
@@ -126,7 +146,7 @@ pub fn withdraw_coffer_in_place(chapel: &mut Building, amount: f64) -> f64 {
 mod tests {
     use super::{
         chapel_coffer_capacity, chapel_coffer_capacity_for, chapel_coffer_gold,
-        deposit_coffer_in_place, withdraw_coffer_in_place,
+        chapel_tithe_split, deposit_coffer_in_place, withdraw_coffer_in_place,
     };
     use crate::tables::Building;
 
@@ -339,5 +359,22 @@ mod tests {
         assert!((chapel_coffer_gold(&chapel) - 18.0).abs() < 1e-9);
         assert!((withdraw_coffer_in_place(&mut chapel, 40.0) - 18.0).abs() < 1e-9);
         assert!((chapel.gold - 12.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn aggregate_tithe_split_assigns_only_whole_coins() {
+        assert_eq!(chapel_tithe_split(17.0, 0.25), (13.0, 4.0));
+        assert_eq!(chapel_tithe_split(3.9, 0.25), (3.0, 0.0));
+    }
+
+    #[test]
+    fn coffer_operations_normalize_legacy_fractional_gold() {
+        let mut chapel = sample_chapel(9.75);
+        chapel.chapel_monastery_tithe_due = 2.4;
+        assert_eq!(withdraw_coffer_in_place(&mut chapel, 2.8), 2.0);
+        assert_eq!(chapel.gold, 7.0);
+        assert_eq!(chapel.chapel_monastery_tithe_due, 2.0);
+        assert_eq!(deposit_coffer_in_place(&mut chapel, 1.9), 1.0);
+        assert_eq!(chapel.gold, 8.0);
     }
 }

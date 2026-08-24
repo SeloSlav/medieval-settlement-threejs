@@ -30,36 +30,6 @@ pub fn split_backyard_orchard_harvest(gross_fruit: f64, jam_target: f64) -> Back
     }
 }
 
-#[derive(Clone, Copy, Debug, Default, PartialEq)]
-pub struct BackyardJamMealAllocation {
-    /// Physical jars opened during this household meal. A jar is withdrawn
-    /// once even when it contributes to both food and tier-4 luxury comfort.
-    pub consumed: f64,
-    pub food_used: f64,
-    pub luxury_met: bool,
-    pub remaining_stock: f64,
-}
-
-/// Allocates household jam as ordinary food first. Tier-4 households may use
-/// the same physical serving to meet their smaller luxury-preserves demand;
-/// this is a dual benefit, not a second withdrawal.
-pub fn allocate_backyard_jam_meal(
-    stock: f64,
-    food_demand: f64,
-    luxury_demand: f64,
-) -> BackyardJamMealAllocation {
-    let stock = finite_nonnegative(stock);
-    let food_demand = finite_nonnegative(food_demand);
-    let luxury_demand = finite_nonnegative(luxury_demand);
-    let consumed = stock.min(food_demand.max(luxury_demand));
-    BackyardJamMealAllocation {
-        consumed,
-        food_used: consumed.min(food_demand),
-        luxury_met: luxury_demand <= 1e-9 || consumed + 1e-9 >= luxury_demand,
-        remaining_stock: (stock - consumed).max(0.0),
-    }
-}
-
 fn finite_nonnegative(value: f64) -> f64 {
     if value.is_finite() {
         value.max(0.0)
@@ -281,25 +251,6 @@ mod tests {
             backyard_garden_seasonal_multiplier(BackyardGardenKind::Orchard, 9, autumn),
             0.0,
         );
-    }
-
-    #[test]
-    fn jam_is_food_at_every_tier_and_the_same_tier_four_serving_is_luxury() {
-        let lower_tier = allocate_backyard_jam_meal(2.0, 1.0, 0.0);
-        assert_eq!(lower_tier.consumed, 1.0);
-        assert_eq!(lower_tier.food_used, 1.0);
-        assert_eq!(lower_tier.remaining_stock, 1.0);
-
-        let tier_four = allocate_backyard_jam_meal(2.0, 1.0, 0.25);
-        assert_eq!(tier_four.consumed, 1.0);
-        assert_eq!(tier_four.food_used, 1.0);
-        assert!(tier_four.luxury_met);
-        assert_eq!(tier_four.remaining_stock, 1.0);
-
-        let scarce = allocate_backyard_jam_meal(0.1, 1.0, 0.25);
-        assert_eq!(scarce.food_used, 0.1);
-        assert!(!scarce.luxury_met);
-        assert_eq!(scarce.remaining_stock, 0.0);
     }
 
     #[test]

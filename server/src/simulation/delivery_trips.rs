@@ -41,6 +41,7 @@ use crate::raid_agent_policy::{
     COMBAT_STATE_LOOTING, COMBAT_TARGET_BUILDING, COMBAT_TARGET_DELIVERY_TRIP,
 };
 use crate::residence_upgrade_policy::residence_project_active;
+use crate::resource_units::whole_units;
 use crate::roads::{RoadNetwork, RoadPathRoute};
 use crate::season_policy::environment_for;
 use crate::security_policy::raid_immune_building_kind;
@@ -1822,6 +1823,10 @@ fn insert_trip(
     route: RoadPathRoute,
     route_speed_multiplier: f64,
 ) {
+    let load_amount = whole_units(spec.load_amount);
+    if load_amount < 1.0 {
+        return;
+    }
     let (destination_kind, residence_id, target_building_id) = spec.destination.to_row_fields();
     let (start_x, start_z) = RoadNetwork::sample_polyline_xz(&route.polyline, 0.0);
     let regional_market_trip = destination_kind == DELIVERY_DESTINATION_REGIONAL_TRADE;
@@ -1868,7 +1873,7 @@ fn insert_trip(
         destination_kind,
         target_building_id,
         cargo_kind: spec.cargo_kind,
-        amount: spec.load_amount,
+        amount: load_amount,
         phase: DeliveryTripPhase::Outbound.as_u8(),
         x: start_x,
         z: start_z,

@@ -93,7 +93,7 @@ export const FIRE_INTENSITY_GROWTH_PER_SECOND = 0.008;
 export const FIRE_RAIN_INTENSITY_DAMPING_PER_SECOND = 0.006;
 export const FIRE_DAMAGE_PER_INTENSITY_SECOND = 0.01;
 export const FIRE_BUCKET_WATER = 3;
-export const FIRE_MINIMUM_BUCKET_WATER = 0.5;
+export const FIRE_MINIMUM_BUCKET_WATER = 1;
 export const FIRE_BUCKET_SPEED_MPS = 2.6;
 export const FIRE_BUCKET_UNLOAD_SECONDS = 2.4;
 export const FIRE_INTENSITY_REDUCTION_PER_WATER = 0.14;
@@ -268,7 +268,7 @@ export const CORPSE_DISEASE_RADIUS = 30;
 export const CORPSE_ILLNESS_MULTIPLIER = 0.6;
 export const ILLNESS_RECOVERY_DAYS = 7;
 export const ILLNESS_MORTALITY_CHANCE_PER_SICK_DAY = 0.008;
-export const HERB_REMEDIES_PER_PERSON_DAY = 0.08;
+export const HERB_REMEDIES_PER_PERSON_DAY = 0.025;
 export const HERB_REMEDY_CAPACITY = 18;
 export const HERB_TREATMENT_PER_SICK_DAY = 0.15;
 export const HERB_RECOVERY_MULTIPLIER = 2.5;
@@ -1817,7 +1817,7 @@ export const BACKYARD_GARDEN_DEFINITIONS = {
   apple_orchard: {
     kind: 'apple_orchard',
     label: "Apple orchard",
-    foodPerPersonPerSec: 0.0025,
+    foodPerPersonPerSec: 0.00048,
     settlementAttractionMultiplier: 1,
     hiddenFromPicker: true,
     specializationOf: 'orchard',
@@ -1840,7 +1840,7 @@ export const BACKYARD_GARDEN_DEFINITIONS = {
   cherry_orchard: {
     kind: 'cherry_orchard',
     label: "Cherry orchard",
-    foodPerPersonPerSec: 0.00225,
+    foodPerPersonPerSec: 0.00045,
     settlementAttractionMultiplier: 1,
     hiddenFromPicker: true,
     specializationOf: 'orchard',
@@ -1863,7 +1863,7 @@ export const BACKYARD_GARDEN_DEFINITIONS = {
   pear_orchard: {
     kind: 'pear_orchard',
     label: "Pear orchard",
-    foodPerPersonPerSec: 0.0027,
+    foodPerPersonPerSec: 0.0005,
     settlementAttractionMultiplier: 1.01,
     hiddenFromPicker: true,
     specializationOf: 'orchard',
@@ -1886,7 +1886,7 @@ export const BACKYARD_GARDEN_DEFINITIONS = {
   aronia_orchard: {
     kind: 'aronia_orchard',
     label: "Aronia bushes",
-    foodPerPersonPerSec: 0.00165,
+    foodPerPersonPerSec: 0.00043,
     settlementAttractionMultiplier: 1.015,
     hiddenFromPicker: true,
     specializationOf: 'orchard',
@@ -1902,14 +1902,14 @@ export const BACKYARD_GARDEN_DEFINITIONS = {
     hidePerPersonPerSecondaryHarvest: 0,
     hideCapacity: 0,
     yieldEfficiency: 0.9,
-    jamPerPersonPerSec: 0.00065,
+    jamPerPersonPerSec: 0.00014,
     luxuryUpgradeGoldCost: 0,
     goldCost: 4,
   },
   rosehip_orchard: {
     kind: 'rosehip_orchard',
     label: "Rosehip bushes",
-    foodPerPersonPerSec: 0.00125,
+    foodPerPersonPerSec: 0.0004,
     settlementAttractionMultiplier: 1.02,
     hiddenFromPicker: true,
     specializationOf: 'orchard',
@@ -1925,7 +1925,7 @@ export const BACKYARD_GARDEN_DEFINITIONS = {
     hidePerPersonPerSecondaryHarvest: 0,
     hideCapacity: 0,
     yieldEfficiency: 0.82,
-    jamPerPersonPerSec: 0.0009,
+    jamPerPersonPerSec: 0.00018,
     luxuryUpgradeGoldCost: 0,
     goldCost: 4,
   },
@@ -1955,7 +1955,7 @@ export const BACKYARD_GARDEN_DEFINITIONS = {
   cabbage_garden: {
     kind: 'cabbage_garden',
     label: "Cabbage garden",
-    foodPerPersonPerSec: 0.0038,
+    foodPerPersonPerSec: 0.0008,
     settlementAttractionMultiplier: 1,
     hiddenFromPicker: true,
     specializationOf: 'vegetable_garden',
@@ -1978,7 +1978,7 @@ export const BACKYARD_GARDEN_DEFINITIONS = {
   carrot_garden: {
     kind: 'carrot_garden',
     label: "Carrot garden",
-    foodPerPersonPerSec: 0.0029,
+    foodPerPersonPerSec: 0.00072,
     settlementAttractionMultiplier: 1,
     hiddenFromPicker: true,
     specializationOf: 'vegetable_garden',
@@ -2001,7 +2001,7 @@ export const BACKYARD_GARDEN_DEFINITIONS = {
   beetroot_garden: {
     kind: 'beetroot_garden',
     label: "Beetroot garden",
-    foodPerPersonPerSec: 0.00235,
+    foodPerPersonPerSec: 0.00065,
     settlementAttractionMultiplier: 1,
     hiddenFromPicker: true,
     specializationOf: 'vegetable_garden',
@@ -2093,7 +2093,7 @@ export const BACKYARD_GARDEN_DEFINITIONS = {
   chicken_pen: {
     kind: 'chicken_pen',
     label: "Chicken pen",
-    foodPerPersonPerSec: 0.0017,
+    foodPerPersonPerSec: 0.0009,
     settlementAttractionMultiplier: 1,
     hiddenFromPicker: true,
     specializationOf: 'animal_pen',
@@ -2116,7 +2116,7 @@ export const BACKYARD_GARDEN_DEFINITIONS = {
   goat_pen: {
     kind: 'goat_pen',
     label: "Goat pen",
-    foodPerPersonPerSec: 0.0013,
+    foodPerPersonPerSec: 0.0005,
     settlementAttractionMultiplier: 0.97,
     hiddenFromPicker: true,
     specializationOf: 'animal_pen',
@@ -2139,7 +2139,7 @@ export const BACKYARD_GARDEN_DEFINITIONS = {
   pig_pen: {
     kind: 'pig_pen',
     label: "Pig pen",
-    foodPerPersonPerSec: 0.00065,
+    foodPerPersonPerSec: 0.00033,
     settlementAttractionMultiplier: 0.95,
     hiddenFromPicker: true,
     specializationOf: 'animal_pen',
@@ -2162,7 +2162,7 @@ export const BACKYARD_GARDEN_DEFINITIONS = {
   backyard_apiary: {
     kind: 'backyard_apiary',
     label: "Backyard apiary",
-    foodPerPersonPerSec: 0.001,
+    foodPerPersonPerSec: 0.0005,
     settlementAttractionMultiplier: 1.03,
     hiddenFromPicker: false,
     specializationOf: null,

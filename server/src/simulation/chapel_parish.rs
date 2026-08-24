@@ -1,21 +1,21 @@
 use spacetimedb::ReducerContext;
 
 use crate::balance_generated::{
-    CHAPEL_CHARITY_GOLD_PER_DAY, CHAPEL_CHARITY_MIN_COFFER_GOLD,
-    CHAPEL_POOR_RELIEF_GOLD_PER_DISPATCH, CHAPEL_PRIEST_SALARY_GOLD_PER_DAY,
-    CHAPEL_UNSTAFFED_UPKEEP_FRACTION, CHAPEL_UPKEEP_GOLD_PER_DAY, HOUSEHOLD_MAX_WEALTH,
-    MARKET_CARAVAN_FOOD_PER_DELIVERY, TICK_DT, TIMBER_DELIVERY_SPEED_MPS,
-    TIMBER_DELIVERY_UNLOAD_SEC,
+    CHAPEL_CHARITY_MIN_COFFER_GOLD, CHAPEL_POOR_RELIEF_GOLD_PER_DISPATCH,
+    HOUSEHOLD_MAX_WEALTH, MARKET_CARAVAN_FOOD_PER_DELIVERY, TICK_DT,
+    TIMBER_DELIVERY_SPEED_MPS, TIMBER_DELIVERY_UNLOAD_SEC,
 };
 use crate::chapel_parish_policy::{
     chapel_alms_dispatch_amount, chapel_alms_dispatch_interval_seconds,
-    chapel_daily_gold_per_work_tick, chapel_poor_relief_due,
+    chapel_monthly_expense_due, chapel_poor_relief_due, chapel_priest_salary_lot,
+    chapel_upkeep_lot,
 };
 use crate::db::*;
 use crate::economy::building_edible_food_stock;
 use crate::economy::{chapel_coffer_gold, credit_residence_wealth, withdraw_coffer_in_place};
 use crate::economy::{record_parish_ledger, ParishLedgerKind};
 use crate::residence_service_policy::service_shortage_warns;
+use crate::resource_units::whole_units;
 use crate::simulation::delivery_trips::try_start_residence_wealth_trip;
 use crate::simulation::game_calendar::GameClock;
 use crate::simulation::labor_schedule::is_parish_economy_paused;
@@ -24,26 +24,6 @@ use crate::simulation::residence_needs::{load_needs, need_stock, ResidenceNeedKi
 use crate::simulation::road_logistics::claim_residences_by_nearest_supplier;
 use crate::simulation::tick_context::SimTickContext;
 use crate::tables::{Building, Residence};
-
-pub fn chapel_priest_salary_per_tick(assigned_labor: u32) -> f64 {
-    if assigned_labor == 0 {
-        return 0.0;
-    }
-    chapel_daily_gold_per_work_tick(CHAPEL_PRIEST_SALARY_GOLD_PER_DAY * assigned_labor as f64)
-}
-
-pub fn chapel_upkeep_per_tick(assigned_labor: u32) -> f64 {
-    let daily = if assigned_labor > 0 {
-        CHAPEL_UPKEEP_GOLD_PER_DAY
-    } else {
-        CHAPEL_UPKEEP_GOLD_PER_DAY * CHAPEL_UNSTAFFED_UPKEEP_FRACTION
-    };
-    chapel_daily_gold_per_work_tick(daily)
-}
-
-pub fn chapel_charity_per_tick() -> f64 {
-    chapel_daily_gold_per_work_tick(CHAPEL_CHARITY_GOLD_PER_DAY)
-}
 
 pub fn step_chapel_parish(
     ctx: &ReducerContext,
@@ -109,19 +89,24 @@ fn step_one_chapel_parish(
         .is_some_and(|resources| resources.physical_founding_site_enabled);
 
     if economy_active {
+        let monthly_expenses_due = chapel_monthly_expense_due(chapel_row.id, clock);
         if assigned_labor > 0 {
-            let salary_paid = withdraw_coffer_in_place(
-                &mut chapel_row,
-                chapel_priest_salary_per_tick(assigned_labor),
-            );
-            record_parish_ledger(ctx, owner, ParishLedgerKind::Salary, salary_paid);
+            if monthly_expenses_due {
+                let salary_paid = withdraw_coffer_in_place(
+                    &mut chapel_row,
+                    chapel_priest_salary_lot(assigned_labor),
+                );
+                record_parish_ledger(ctx, owner, ParishLedgerKind::Salary, salary_paid);
+            }
         }
 
-        let upkeep_paid =
-            withdraw_coffer_in_place(&mut chapel_row, chapel_upkeep_per_tick(assigned_labor));
-        record_parish_ledger(ctx, owner, ParishLedgerKind::Upkeep, upkeep_paid);
+        if monthly_expenses_due {
+            let upkeep_paid =
+                withdraw_coffer_in_place(&mut chapel_row, chapel_upkeep_lot(assigned_labor));
+            record_parish_ledger(ctx, owner, ParishLedgerKind::Upkeep, upkeep_paid);
+        }
 
-        if physical_economy && assigned_labor > 0 {
+        if assigned_labor > 0 {
             chapel_row.action_cooldown = (chapel_row.action_cooldown - TICK_DT).max(0.0);
         }
         let coffer_balance = chapel_coffer_gold(&chapel_row);
@@ -137,6 +122,12 @@ fn step_one_chapel_parish(
                         chapel_alms_dispatch_amount(),
                     );
                     if alms_dispatched > 1e-9 {
+                        record_parish_ledger(
+                            ctx,
+                            owner,
+                            ParishLedgerKind::Charity,
+                            alms_dispatched,
+                        );
                         chapel_row.action_cooldown = chapel_alms_dispatch_interval_seconds();
                     }
                 }
@@ -145,19 +136,21 @@ fn step_one_chapel_parish(
                     ctx,
                     &chapel_row,
                     residences,
-                    chapel_charity_per_tick(),
+                    chapel_alms_dispatch_amount(),
                 );
                 if alms_distributed > 1e-9 {
                     let alms_paid = withdraw_coffer_in_place(&mut chapel_row, alms_distributed);
                     record_parish_ledger(ctx, owner, ParishLedgerKind::Charity, alms_paid);
+                    chapel_row.action_cooldown = chapel_alms_dispatch_interval_seconds();
                 }
             }
 
             if chapel_poor_relief_due(sim_tick)
                 && chapel_coffer_gold(&chapel_row) >= CHAPEL_CHARITY_MIN_COFFER_GOLD
             {
-                let relief_budget =
-                    chapel_coffer_gold(&chapel_row).min(CHAPEL_POOR_RELIEF_GOLD_PER_DISPATCH);
+                let relief_budget = whole_units(
+                    chapel_coffer_gold(&chapel_row).min(CHAPEL_POOR_RELIEF_GOLD_PER_DISPATCH),
+                );
                 let relief_spent = try_chapel_poor_relief(
                     ctx,
                     tick,
@@ -308,8 +301,7 @@ fn try_chapel_poor_relief(
     let Some(mut marketplace) = ctx.db.building().id().find(&marketplace_id) else {
         return 0.0;
     };
-    let relief_amount = budget
-        .floor()
+    let relief_amount = whole_units(budget)
         .min(MARKET_CARAVAN_FOOD_PER_DELIVERY)
         .min(building_edible_food_stock(&marketplace))
         .floor();
@@ -371,33 +363,31 @@ fn distribute_wealth_charity(
 
 #[cfg(test)]
 mod tests {
-    use super::{chapel_charity_per_tick, chapel_priest_salary_per_tick, chapel_upkeep_per_tick};
     use crate::balance_generated::{
-        CHAPEL_CHARITY_GOLD_PER_DAY, CHAPEL_PRIEST_SALARY_GOLD_PER_DAY,
+        CALENDAR_DAYS_PER_MONTH, CHAPEL_PRIEST_SALARY_GOLD_PER_DAY,
         CHAPEL_UNSTAFFED_UPKEEP_FRACTION, CHAPEL_UPKEEP_GOLD_PER_DAY,
     };
-    use crate::chapel_parish_policy::chapel_daily_gold_per_work_tick;
+    use crate::chapel_parish_policy::{chapel_priest_salary_lot, chapel_upkeep_lot};
 
     #[test]
-    fn priest_salary_per_tick_matches_balance() {
-        let expected = chapel_daily_gold_per_work_tick(CHAPEL_PRIEST_SALARY_GOLD_PER_DAY);
-        assert!((chapel_priest_salary_per_tick(1) - expected).abs() < 1e-9);
-        assert_eq!(chapel_priest_salary_per_tick(0), 0.0);
+    fn priest_salary_is_one_whole_monthly_lot() {
+        let expected =
+            (CHAPEL_PRIEST_SALARY_GOLD_PER_DAY * CALENDAR_DAYS_PER_MONTH as f64).round();
+        assert_eq!(chapel_priest_salary_lot(1), expected);
+        assert_eq!(chapel_priest_salary_lot(1).fract(), 0.0);
+        assert_eq!(chapel_priest_salary_lot(0), 0.0);
     }
 
     #[test]
-    fn upkeep_per_tick_matches_balance() {
-        let staffed = chapel_daily_gold_per_work_tick(CHAPEL_UPKEEP_GOLD_PER_DAY);
-        let idle = chapel_daily_gold_per_work_tick(
-            CHAPEL_UPKEEP_GOLD_PER_DAY * CHAPEL_UNSTAFFED_UPKEEP_FRACTION,
-        );
-        assert!((chapel_upkeep_per_tick(1) - staffed).abs() < 1e-9);
-        assert!((chapel_upkeep_per_tick(0) - idle).abs() < 1e-9);
-    }
-
-    #[test]
-    fn charity_per_tick_matches_balance() {
-        let expected = chapel_daily_gold_per_work_tick(CHAPEL_CHARITY_GOLD_PER_DAY);
-        assert!((chapel_charity_per_tick() - expected).abs() < 1e-9);
+    fn upkeep_is_one_whole_monthly_lot() {
+        let staffed = (CHAPEL_UPKEEP_GOLD_PER_DAY * CALENDAR_DAYS_PER_MONTH as f64).round();
+        let idle = (CHAPEL_UPKEEP_GOLD_PER_DAY
+            * CHAPEL_UNSTAFFED_UPKEEP_FRACTION
+            * CALENDAR_DAYS_PER_MONTH as f64)
+            .round();
+        assert_eq!(chapel_upkeep_lot(1), staffed);
+        assert_eq!(chapel_upkeep_lot(0), idle);
+        assert_eq!(chapel_upkeep_lot(1).fract(), 0.0);
+        assert_eq!(chapel_upkeep_lot(0).fract(), 0.0);
     }
 }

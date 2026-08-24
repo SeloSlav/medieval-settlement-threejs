@@ -38,6 +38,10 @@ export function mountTooltips(root: HTMLElement): () => void {
   document.body.appendChild(tooltip);
 
   let activeAnchor: HTMLElement | null = null;
+  let activeTrigger: 'pointer' | 'focus' = 'pointer';
+  let lastPointerX: number | null = null;
+  let lastPointerY: number | null = null;
+  let reconcileFrame: number | null = null;
   let showToken = 0;
   const activeAnchorObserver = new MutationObserver(() => {
     if (!activeAnchor) return;
@@ -45,12 +49,12 @@ export function mountTooltips(root: HTMLElement): () => void {
   });
   const activeContextObserver = new MutationObserver(() => {
     if (!activeAnchor) return;
-    if (!isTooltipAnchorAvailable(activeAnchor, root)) hide();
+    if (!isTooltipAnchorAvailable(activeAnchor, root)) scheduleActiveAnchorReconciliation();
   });
 
   const refresh = (anchor: HTMLElement): void => {
     if (!isTooltipAnchorAvailable(anchor, root)) {
-      hide();
+      scheduleActiveAnchorReconciliation();
       return;
     }
     const text = anchor.dataset.tooltip?.trim();
@@ -63,6 +67,10 @@ export function mountTooltips(root: HTMLElement): () => void {
   };
 
   const hide = (): void => {
+    if (reconcileFrame !== null) {
+      cancelAnimationFrame(reconcileFrame);
+      reconcileFrame = null;
+    }
     showToken += 1;
     activeAnchorObserver.disconnect();
     activeContextObserver.disconnect();
@@ -75,24 +83,31 @@ export function mountTooltips(root: HTMLElement): () => void {
     tooltip.replaceChildren();
   };
 
-  const show = (anchor: HTMLElement): void => {
+  const show = (anchor: HTMLElement, trigger: 'pointer' | 'focus'): void => {
     if (!isTooltipAnchorAvailable(anchor, root)) return;
     const text = anchor.dataset.tooltip?.trim();
     if (!text) return;
+    if (reconcileFrame !== null) {
+      cancelAnimationFrame(reconcileFrame);
+      reconcileFrame = null;
+    }
 
     // Delegated mouseover/focus events can fire again while moving between
     // descendants of the same anchor. Keep the current tooltip visible rather
     // than restarting its fade on every internal boundary crossing.
     if (activeAnchor === anchor && !tooltip.hidden) {
+      activeTrigger = trigger;
       refresh(anchor);
       return;
     }
 
+    const preserveVisibility = !tooltip.hidden && tooltip.classList.contains('is-visible');
     if (activeAnchor && activeAnchor !== anchor && activeAnchor.getAttribute('aria-describedby') === tooltip.id) {
       activeAnchor.removeAttribute('aria-describedby');
     }
 
     activeAnchor = anchor;
+    activeTrigger = trigger;
     activeAnchorObserver.disconnect();
     activeAnchorObserver.observe(anchor, {
       attributes: true,
@@ -121,8 +136,18 @@ export function mountTooltips(root: HTMLElement): () => void {
     showToken = token;
     renderTooltipContent(anchor, tooltip, text);
     tooltip.hidden = false;
-    tooltip.classList.remove('is-visible');
     anchor.setAttribute('aria-describedby', tooltip.id);
+
+    // Live panels replace their rows as state arrives. When the pointer is
+    // still over the equivalent replacement anchor, update in place without
+    // dropping visibility for a frame.
+    if (preserveVisibility) {
+      positionTooltip(anchor, tooltip);
+      tooltip.classList.add('is-visible');
+      return;
+    }
+
+    tooltip.classList.remove('is-visible');
 
     requestAnimationFrame(() => {
       if (token !== showToken || activeAnchor !== anchor) return;
@@ -131,23 +156,70 @@ export function mountTooltips(root: HTMLElement): () => void {
     });
   };
 
+  const findReplacementAnchor = (): HTMLElement | null => {
+    const target = activeTrigger === 'focus'
+      ? document.activeElement
+      : lastPointerX !== null && lastPointerY !== null
+        ? document.elementFromPoint(lastPointerX, lastPointerY)
+        : null;
+    const replacement = findTooltipAnchor(target);
+    return replacement && isTooltipAnchorAvailable(replacement, root)
+      ? replacement
+      : null;
+  };
+
+  const reconcileActiveAnchor = (): void => {
+    if (!activeAnchor) return;
+    if (isTooltipAnchorAvailable(activeAnchor, root)) {
+      refresh(activeAnchor);
+      return;
+    }
+    const replacement = findReplacementAnchor();
+    if (replacement) {
+      show(replacement, activeTrigger);
+      return;
+    }
+    hide();
+  };
+
+  function scheduleActiveAnchorReconciliation(): void {
+    if (reconcileFrame !== null) return;
+    reconcileFrame = requestAnimationFrame(() => {
+      reconcileFrame = null;
+      reconcileActiveAnchor();
+    });
+  }
+
+  const rememberPointer = (event: MouseEvent): void => {
+    lastPointerX = event.clientX;
+    lastPointerY = event.clientY;
+  };
+
   const onMouseOver = (event: MouseEvent): void => {
+    rememberPointer(event);
     const anchor = findTooltipAnchor(event.target);
     if (!anchor) return;
-    show(anchor);
+    show(anchor, 'pointer');
+  };
+
+  const onMouseMove = (event: MouseEvent): void => {
+    rememberPointer(event);
   };
 
   const onMouseOut = (event: MouseEvent): void => {
+    rememberPointer(event);
     const anchor = findTooltipAnchor(event.target);
     if (!anchor || activeAnchor !== anchor) return;
     const related = event.relatedTarget;
     if (related instanceof Node && anchor.contains(related)) return;
-    hide();
+    const nextAnchor = findTooltipAnchor(related);
+    if (nextAnchor && isTooltipAnchorAvailable(nextAnchor, root)) return;
+    scheduleActiveAnchorReconciliation();
   };
 
   const onFocusIn = (event: FocusEvent): void => {
     const anchor = findTooltipAnchor(event.target);
-    if (anchor) show(anchor);
+    if (anchor) show(anchor, 'focus');
   };
 
   const onFocusOut = (event: FocusEvent): void => {
@@ -155,13 +227,18 @@ export function mountTooltips(root: HTMLElement): () => void {
     if (!anchor || activeAnchor !== anchor) return;
     const related = event.relatedTarget;
     if (related instanceof Node && anchor.contains(related)) return;
+    const nextAnchor = findTooltipAnchor(related);
+    if (nextAnchor && isTooltipAnchorAvailable(nextAnchor, root)) return;
     hide();
   };
 
   const onDocumentMouseOver = (event: MouseEvent): void => {
+    rememberPointer(event);
     if (!activeAnchor) return;
     const target = event.target;
     if (target instanceof Node && activeAnchor.contains(target)) return;
+    const nextAnchor = findTooltipAnchor(target);
+    if (nextAnchor && isTooltipAnchorAvailable(nextAnchor, root)) return;
     hide();
   };
 
@@ -172,13 +249,14 @@ export function mountTooltips(root: HTMLElement): () => void {
   const onReposition = (): void => {
     if (!activeAnchor) return;
     if (!isTooltipAnchorAvailable(activeAnchor, root)) {
-      hide();
+      scheduleActiveAnchorReconciliation();
       return;
     }
     positionTooltip(activeAnchor, tooltip);
   };
 
   root.addEventListener('mouseover', onMouseOver);
+  root.addEventListener('mousemove', onMouseMove);
   root.addEventListener('mouseout', onMouseOut);
   root.addEventListener('focusin', onFocusIn);
   root.addEventListener('focusout', onFocusOut);
@@ -193,6 +271,7 @@ export function mountTooltips(root: HTMLElement): () => void {
     hide();
     tooltip.remove();
     root.removeEventListener('mouseover', onMouseOver);
+    root.removeEventListener('mousemove', onMouseMove);
     root.removeEventListener('mouseout', onMouseOut);
     root.removeEventListener('focusin', onFocusIn);
     root.removeEventListener('focusout', onFocusOut);

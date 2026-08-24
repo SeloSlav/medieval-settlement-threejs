@@ -1,5 +1,6 @@
 use spacetimedb::ReducerContext;
 
+use crate::balance_generated::CALENDAR_SECONDS_PER_DAY;
 use crate::building_defs::building_def;
 use crate::constants::{
     TICK_DT, WELL_SURGE_AMOUNT_MAX, WELL_SURGE_AMOUNT_MIN, WELL_SURGE_CHANCE_PER_TICK,
@@ -9,6 +10,9 @@ use crate::construction_priority::CONSTRUCTION_PRIORITY_NORMAL;
 use crate::db::*;
 use crate::economy::{deposit_building_commodity, CommodityKind};
 use crate::hydrology::{drought_groundwater_score, sample_world_well_groundwater_score};
+use crate::residence_consumption_policy::daily_household_bill_due;
+use crate::resident_welfare_policy::deterministic_unit;
+use crate::resource_units::{whole_room, whole_units};
 use crate::roads::RoadNetwork;
 use crate::season_policy::{EnvironmentState, WeatherKind};
 use crate::simulation::delivery_trips::{available_free_haulers, building_has_inbound_supply_trip};
@@ -34,19 +38,11 @@ pub fn step_well(
     world_seed: u64,
     world_hydrology: u8,
     well_aquifer_networks_enabled: bool,
-    _clock: &GameClock,
+    clock: &GameClock,
     environment: EnvironmentState,
     building: Building,
 ) {
     let Some(def) = building_def(&building.kind) else {
-        return;
-    };
-
-    let Some(network) = tick.road_network(building.owner) else {
-        ctx.db.building().id().update(Building {
-            action_cooldown: (building.action_cooldown - TICK_DT).max(0.0),
-            ..building
-        });
         return;
     };
 
@@ -65,24 +61,50 @@ pub fn step_well(
     } else {
         base_hydrology
     };
-    let capacity =
-        crate::hydrology::well_capacity_from_hydrology(def.storage_water, base_hydrology);
+    let capacity = whole_units(crate::hydrology::well_capacity_from_hydrology(
+        def.storage_water,
+        base_hydrology,
+    ));
 
     well.water_capacity = capacity;
+    well.water = whole_units(well.water).min(capacity);
     well.action_cooldown = (well.action_cooldown - TICK_DT).max(0.0);
 
     // A completed well is infrastructure, not a workplace. Groundwater
-    // accumulates at the baseline draw rate, then supplies nearby connected
-    // consumers directly without creating routine water-carrier agents.
-    well.water = (well.water
-        + well_refill_amount(hydrology, environment.well_refill_multiplier(), TICK_DT))
-    .min(capacity);
+    // accumulates in one whole-unit daily draw, then supplies nearby connected
+    // consumers directly without creating routine water-carrier agents. The
+    // deterministic remainder roll preserves a fractional expected daily
+    // yield without ever persisting a fractional bucket.
+    if daily_household_bill_due(clock) {
+        let expected_refill = well_refill_amount(
+            hydrology,
+            environment.well_refill_multiplier(),
+            CALENDAR_SECONDS_PER_DAY,
+        );
+        let refill = rounded_expected_units(
+            expected_refill,
+            deterministic_unit(world_seed, clock.total_days, well.id, 0x5745_4C4C_5245_4649),
+        )
+        .min(whole_room(capacity, well.water));
+        well.water += refill;
 
-    if well.action_cooldown <= 0.0 && should_surge(well.id, sim_tick, hydrology) {
-        let surge = lerp(WELL_SURGE_AMOUNT_MIN, WELL_SURGE_AMOUNT_MAX, hydrology);
-        well.water = (well.water + surge).min(capacity);
-        well.action_cooldown = WELL_SURGE_COOLDOWN_SEC;
+        if well.action_cooldown <= 0.0
+            && should_surge(world_seed, well.id, clock.total_days, hydrology)
+        {
+            let surge = rounded_expected_units(
+                lerp(WELL_SURGE_AMOUNT_MIN, WELL_SURGE_AMOUNT_MAX, hydrology),
+                deterministic_unit(world_seed, clock.total_days, well.id, 0x5745_4C4C_5355_5247),
+            )
+            .min(whole_room(capacity, well.water));
+            well.water += surge;
+            well.action_cooldown = WELL_SURGE_COOLDOWN_SEC;
+        }
     }
+
+    let Some(network) = tick.road_network(well.owner) else {
+        ctx.db.building().id().update(well);
+        return;
+    };
 
     // Fire response gets first claim on newly drawn water. Persist the refill
     // before selection because nearest-well eligibility reads the indexed
@@ -200,17 +222,37 @@ fn select_industrial_water_target(
     ctx.db.building().id().find(&selected.building_id)
 }
 
-fn should_surge(building_id: u64, sim_tick: u64, hydrology: f64) -> bool {
+fn should_surge(world_seed: u64, building_id: u64, total_days: u64, hydrology: f64) -> bool {
     if hydrology <= 0.05 {
         return false;
     }
-    let hash = building_id
-        .wrapping_mul(0x9E37_79B9_7F4A_7C15)
-        .wrapping_add(sim_tick.wrapping_mul(0x517c_c1b7_2722_0a95));
-    let roll = (hash % 10_000) as f64 / 10_000.0;
-    roll < WELL_SURGE_CHANCE_PER_TICK * hydrology
+    let ticks_per_day = (CALENDAR_SECONDS_PER_DAY / TICK_DT).round().max(1.0);
+    let chance_per_tick = (WELL_SURGE_CHANCE_PER_TICK * hydrology).clamp(0.0, 1.0);
+    let chance_per_day = 1.0 - (1.0 - chance_per_tick).powf(ticks_per_day);
+    deterministic_unit(world_seed, total_days, building_id, 0x5745_4C4C_4348_414E) < chance_per_day
 }
 
 fn lerp(min: f64, max: f64, t: f64) -> f64 {
     min + (max - min) * t.clamp(0.0, 1.0)
+}
+
+fn rounded_expected_units(expected: f64, roll: f64) -> f64 {
+    if !expected.is_finite() || expected <= 0.0 {
+        return 0.0;
+    }
+    let base = expected.floor();
+    whole_units(base + f64::from(roll < expected - base))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::rounded_expected_units;
+
+    #[test]
+    fn expected_well_yield_is_always_a_whole_bucket() {
+        assert_eq!(rounded_expected_units(3.25, 0.24), 4.0);
+        assert_eq!(rounded_expected_units(3.25, 0.25), 3.0);
+        assert_eq!(rounded_expected_units(0.75, 0.74), 1.0);
+        assert_eq!(rounded_expected_units(0.75, 0.75), 0.0);
+    }
 }

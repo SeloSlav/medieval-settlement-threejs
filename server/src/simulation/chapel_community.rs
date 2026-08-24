@@ -3,12 +3,12 @@ use crate::balance_generated::{
     CHAPEL_PRIEST_ATTENDANCE_BONUS, CHAPEL_RECOVERY_STOCK_MULTIPLIER,
     CHAPEL_SABBATH_OBSERVANCE_ATTENDANCE_BONUS, CHAPEL_SABBATH_OBSERVANCE_SETTLEMENT_BONUS,
     CHAPEL_SETTLEMENT_TICKS_MULTIPLIER, CHAPEL_TITHE_GOLD_PER_PERSON_PER_DAY,
-    MONASTERY_ATTENDANCE_BONUS, MONASTERY_RECOVERY_STOCK_MULTIPLIER,
+    CALENDAR_DAYS_PER_MONTH, MONASTERY_ATTENDANCE_BONUS, MONASTERY_RECOVERY_STOCK_MULTIPLIER,
     MONASTERY_SETTLEMENT_TICKS_MULTIPLIER, RESIDENCE_RECOVERY_FIREWOOD_MIN,
     RESIDENCE_RECOVERY_FOOD_MIN, RESIDENCE_RECOVERY_WATER_MIN, RESIDENCE_SETTLE_TICKS,
 };
-use crate::chapel_parish_policy::chapel_daily_gold_per_work_tick;
 use crate::chapel_upgrade_policy::chapel_tithe_multiplier;
+use crate::resource_units::whole_units;
 use crate::simulation::residence_needs::ResidenceNeedKind;
 
 pub fn effective_settle_ticks(
@@ -87,35 +87,44 @@ pub fn chapel_attendance_chance(
 }
 
 #[cfg(test)]
-pub fn chapel_tithe_gold_per_tick(population: u32) -> f64 {
-    chapel_tithe_gold_per_tick_for_tier(population, 1)
+pub fn chapel_monthly_tithe_gold(population: u32, attendance_share: f64) -> f64 {
+    chapel_monthly_tithe_gold_for_tier(population, 1, attendance_share)
 }
 
-pub fn chapel_tithe_gold_per_tick_for_tier(population: u32, chapel_tier: u8) -> f64 {
-    if population == 0 {
+/// One household posts one whole tithe purse on its monthly parish day. The
+/// attendance chance becomes the expected participating share of the monthly
+/// assessment, avoiding an all-or-nothing month while retaining the former
+/// long-run revenue rate.
+pub fn chapel_monthly_tithe_gold_for_tier(
+    population: u32,
+    chapel_tier: u8,
+    attendance_share: f64,
+) -> f64 {
+    if population == 0 || attendance_share <= 0.0 {
         return 0.0;
     }
 
-    chapel_daily_gold_per_work_tick(
-        population as f64
-            * CHAPEL_TITHE_GOLD_PER_PERSON_PER_DAY
-            * chapel_tithe_multiplier(chapel_tier),
-    )
+    let monthly_assessment = population as f64
+        * CHAPEL_TITHE_GOLD_PER_PERSON_PER_DAY
+        * CALENDAR_DAYS_PER_MONTH as f64
+        * chapel_tithe_multiplier(chapel_tier)
+        * attendance_share.clamp(0.0, 1.0);
+    whole_units(monthly_assessment + 0.5)
 }
 
 #[cfg(test)]
 mod tests {
     use super::{
-        chapel_attendance_chance, chapel_tithe_gold_per_tick, chapel_tithe_gold_per_tick_for_tier,
-        effective_settle_ticks,
+        chapel_attendance_chance, chapel_monthly_tithe_gold,
+        chapel_monthly_tithe_gold_for_tier, effective_settle_ticks,
     };
     use crate::balance_generated::{
-        CHAPEL_BASE_ATTENDANCE_CHANCE, CHAPEL_COMMUNITY_ATTENDANCE_BONUS,
+        CALENDAR_DAYS_PER_MONTH, CHAPEL_BASE_ATTENDANCE_CHANCE,
+        CHAPEL_COMMUNITY_ATTENDANCE_BONUS,
         CHAPEL_PRIEST_ATTENDANCE_BONUS, CHAPEL_SETTLEMENT_TICKS_MULTIPLIER,
         CHAPEL_TITHE_GOLD_PER_PERSON_PER_DAY, MONASTERY_SETTLEMENT_TICKS_MULTIPLIER,
         RESIDENCE_SETTLE_TICKS,
     };
-    use crate::chapel_parish_policy::chapel_daily_gold_per_work_tick;
 
     #[test]
     fn effective_settle_ticks_matches_balance() {
@@ -149,18 +158,24 @@ mod tests {
     }
 
     #[test]
-    fn chapel_tithe_gold_per_tick_matches_balance() {
-        let expected = chapel_daily_gold_per_work_tick(3.0 * CHAPEL_TITHE_GOLD_PER_PERSON_PER_DAY);
-        assert!((chapel_tithe_gold_per_tick(3) - expected).abs() < 1e-9);
+    fn chapel_monthly_tithe_is_a_whole_coin_assessment() {
+        let expected = (3.0
+            * CHAPEL_TITHE_GOLD_PER_PERSON_PER_DAY
+            * CALENDAR_DAYS_PER_MONTH as f64)
+            .round();
+        assert_eq!(chapel_monthly_tithe_gold(3, 1.0), expected);
+        assert_eq!(chapel_monthly_tithe_gold(3, 1.0).fract(), 0.0);
     }
 
     #[test]
     fn upgraded_churches_collect_larger_tithes() {
         assert!(
-            chapel_tithe_gold_per_tick_for_tier(3, 3) > chapel_tithe_gold_per_tick_for_tier(3, 2)
+            chapel_monthly_tithe_gold_for_tier(10, 3, 1.0)
+                > chapel_monthly_tithe_gold_for_tier(10, 2, 1.0)
         );
         assert!(
-            chapel_tithe_gold_per_tick_for_tier(3, 2) > chapel_tithe_gold_per_tick_for_tier(3, 1)
+            chapel_monthly_tithe_gold_for_tier(10, 2, 1.0)
+                > chapel_monthly_tithe_gold_for_tier(10, 1, 1.0)
         );
     }
 }

@@ -453,6 +453,11 @@ assert.ok(
   FARM_CROP_DEFINITIONS.oats.seedGrainPerSquareMeter
     > FARM_CROP_DEFINITIONS.rye.seedGrainPerSquareMeter,
 );
+assert.equal(
+  seedGrainRequired(1, 'rye'),
+  1,
+  'positive seed requirements are indivisible lots',
+);
 assert.equal(FARM_CROP_DEFINITIONS.flax.produce, 'fibre');
 assert.equal(FARM_CROP_DEFINITIONS.barley.produce, 'barley');
 assert.equal(FARM_CROP_DEFINITIONS.wheat.workSeason, 'autumn');
@@ -508,6 +513,11 @@ assert.equal(
 );
 assert.equal(fieldManureRequirement(planningField), planningField.area * FARM_MANURE_PER_SQUARE_METER);
 assert.equal(
+  fieldManureRequirement({ area: 1 }),
+  1,
+  'positive manure requirements are whole lots',
+);
+assert.equal(
   fieldManureFertilityBonus({
     ...planningField,
     manureApplied: fieldManureRequirement(planningField) / 2,
@@ -538,7 +548,8 @@ assert.equal(
     stage: 'sowing',
     stageProgress: 0.25,
   }),
-  seedGrainRequired(planningField.area, 'rye') * 0.75,
+  0,
+  'the complete seed lot leaves inventory when sowing begins',
 );
 assert.equal(fieldSeedGrainRemaining({ ...planningField, priority: 0, nextCrop: 'oats' }), 0);
 assert.equal(
@@ -1058,7 +1069,7 @@ assert.match(
 );
 assert.match(
   farmSimulation,
-  /withdraw_building_commodity\([\s\S]*?resource_farmstead,[\s\S]*?CommodityKind::Manure,[\s\S]*?manure_needed,[\s\S]*?\)[\s\S]*?field\.manure_applied \+= manure_spread/,
+  /withdraw_building_commodity\([\s\S]*?resource_farmstead,[\s\S]*?CommodityKind::Manure,[\s\S]*?manure_needed,?\s*\)[\s\S]*?field\.manure_applied \+= manure_spread/,
   'ploughing progress must physically withdraw and spread manure from the crop farmstead',
 );
 assert.match(farmSimulation, /field_accepts_farmstead_labor/);
@@ -1076,7 +1087,21 @@ assert.match(
   'cycle settlement must convert actual spread coverage into the soil bonus',
 );
 assert.match(farmSimulation, /seed_grain_required\(field\.area, field\.crop\)/);
-assert.match(farmSimulation, /withdraw_building_commodity\(resource_farmstead, seed_commodity, seed_used\)/);
+assert.match(
+  farmSimulation,
+  /let seed_due = if seed_required > 1e-9 && field\.stage_progress <= 1e-9[\s\S]*withdraw_building_commodity\(resource_farmstead, seed_commodity, seed_due\)/,
+  'sowing must commit one complete seed lot when work first begins',
+);
+assert.match(
+  farmSimulation,
+  /let room = building_commodity_room\(resource_farmstead, commodity\)[\s\S]*harvest_due > room \+ 1e-9[\s\S]*let affordable_total = field\.current_yield \+ room/,
+  'harvest progress must stop before a complete whole-unit lot exceeds storage headroom',
+);
+assert.doesNotMatch(
+  farmSimulation,
+  /let harvested = expected \* \(field\.stage_progress - previous_progress\)/,
+  'harvest output must not leak fractional inventory with each work tick',
+);
 assert.match(
   farmSimulation,
   /fn crop_seed_commodity[\s\S]*CROP_RYE => CommodityKind::RyeGrain[\s\S]*CROP_OATS => CommodityKind::OatGrain[\s\S]*CROP_BARLEY => CommodityKind::Barley[\s\S]*CROP_FLAX => CommodityKind::Flax[\s\S]*CROP_WHEAT => CommodityKind::MaslinGrain/,

@@ -17,6 +17,20 @@ pub fn whole_units(value: f64) -> f64 {
     (value + WHOLE_UNIT_EPSILON).floor()
 }
 
+/// Normalize a signed resource delta or accounting receipt while preserving
+/// its direction. This is for fields such as a trade's last gold change; stock
+/// itself always uses `whole_units` and remains non-negative.
+pub fn whole_signed_units(value: f64) -> f64 {
+    if !value.is_finite() {
+        return 0.0;
+    }
+    if value < 0.0 {
+        -whole_units(-value)
+    } else {
+        whole_units(value)
+    }
+}
+
 /// Normalize a requested transfer or consumption amount to whole units.
 pub fn whole_request(value: f64) -> f64 {
     whole_units(value)
@@ -43,13 +57,16 @@ pub fn whole_room(capacity: f64, stock: f64) -> f64 {
     (whole_units(capacity) - whole_units(stock)).max(0.0)
 }
 
+#[cfg(test)]
 pub fn is_whole_units(value: f64) -> bool {
     value.is_finite() && value >= 0.0 && (value - value.round()).abs() <= WHOLE_UNIT_EPSILON
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{is_whole_units, whole_cost, whole_room, whole_transfer, whole_units};
+    use super::{
+        is_whole_units, whole_cost, whole_room, whole_signed_units, whole_transfer, whole_units,
+    };
 
     #[test]
     fn inventories_are_non_negative_whole_units() {
@@ -70,5 +87,6 @@ mod tests {
         assert_eq!(whole_room(10.8, 7.2), 3.0);
         assert_eq!(whole_cost(0.25), 1.0);
         assert_eq!(whole_cost(3.0 + 1e-7), 3.0);
+        assert_eq!(whole_signed_units(-3.75), -3.0);
     }
 }

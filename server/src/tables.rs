@@ -24,6 +24,15 @@ pub struct SimPacingState {
     pub step_credit: u16,
 }
 
+/// Server-only marker for one-time save migrations that normalize legacy
+/// fractional inventories without adding a hot-loop scan to every tick.
+#[spacetimedb::table(accessor = resource_unit_migration)]
+pub struct ResourceUnitMigration {
+    #[primary_key]
+    pub id: u8,
+    pub version: u8,
+}
+
 #[spacetimedb::table(accessor = world_config, public)]
 pub struct WorldConfig {
     #[primary_key]

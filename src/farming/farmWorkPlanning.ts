@@ -29,6 +29,7 @@ import {
 } from '../resources/types.ts';
 import type { GameClock } from '../world/gameCalendar.ts';
 import { compareStableEntityIds } from '../logistics/roadLogistics.ts';
+import { wholeResourceUnits } from '../resources/resourceUnits.ts';
 import {
   computeCattleFieldSupport,
   type CattleFieldSupport,
@@ -311,7 +312,8 @@ export function cropSeedGrainPerSquareMeter(crop: FarmCrop): number {
 }
 
 export function seedGrainRequired(area: number, crop: FarmCrop): number {
-  return Math.max(0, area) * cropSeedGrainPerSquareMeter(crop);
+  const raw = Math.max(0, area) * cropSeedGrainPerSquareMeter(crop);
+  return raw > 0 ? Math.ceil(raw - 1e-6) : 0;
 }
 
 export function fieldSeedGrainRemaining(field: FarmFieldState): number {
@@ -319,11 +321,10 @@ export function fieldSeedGrainRemaining(field: FarmFieldState): number {
   const plannedCrop = field.stage === 'ploughing' || field.stage === 'sowing'
     ? field.crop
     : field.nextCrop;
-  const unseededFraction = field.stage === 'sowing'
-    ? 1 - Math.max(0, Math.min(1, field.stageProgress))
-    : 1;
   if (FARM_CROP_DEFINITIONS[plannedCrop].produce === 'barley') return 0;
-  return seedGrainRequired(field.area, plannedCrop) * unseededFraction;
+  return field.stage === 'sowing' && field.stageProgress > 1e-9
+    ? 0
+    : seedGrainRequired(field.area, plannedCrop);
 }
 
 export function fieldSeedBarleyRemaining(field: FarmFieldState): number {
@@ -332,10 +333,9 @@ export function fieldSeedBarleyRemaining(field: FarmFieldState): number {
     ? field.crop
     : field.nextCrop;
   if (FARM_CROP_DEFINITIONS[plannedCrop].produce !== 'barley') return 0;
-  const unseededFraction = field.stage === 'sowing'
-    ? 1 - Math.max(0, Math.min(1, field.stageProgress))
-    : 1;
-  return seedGrainRequired(field.area, plannedCrop) * unseededFraction;
+  return field.stage === 'sowing' && field.stageProgress > 1e-9
+    ? 0
+    : seedGrainRequired(field.area, plannedCrop);
 }
 
 export function farmsteadSeedGrainRequired(fields: Iterable<FarmFieldState>): number {
@@ -348,7 +348,7 @@ export function farmsteadExportableGrain(
   stock: number,
   fields: Iterable<FarmFieldState>,
 ): number {
-  return Math.max(0, stock - farmsteadSeedGrainRequired(fields));
+  return Math.max(0, wholeResourceUnits(stock) - farmsteadSeedGrainRequired(fields));
 }
 
 export function fieldStageAllowed(field: FarmFieldState, month: number): boolean {

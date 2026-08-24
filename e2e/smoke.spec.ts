@@ -341,6 +341,41 @@ test('connects, places a reforester, and updates settlement HUD timber', async (
   });
   await tooltipLifecycleFixture.getByRole('button').hover();
   await expect(tooltip.locator('.ui-tooltip__title')).toHaveText('Lifecycle');
+  await expect(tooltip).toHaveClass(/is-visible/);
+  await tooltip.evaluate((element) => {
+    const target = element as HTMLElement & { e2eVisibilityObserver?: MutationObserver };
+    target.dataset.e2eVisibilityDrops = '0';
+    target.e2eVisibilityObserver = new MutationObserver((records) => {
+      const hiddenDrops = records.filter(
+        (record) => record.attributeName === 'hidden' && record.oldValue === null,
+      ).length;
+      const classRecords = records.filter((record) => record.attributeName === 'class');
+      let classDrops = 0;
+      for (const [index, record] of classRecords.entries()) {
+        const before = new Set((record.oldValue ?? '').split(/\s+/).filter(Boolean));
+        const afterValue = classRecords[index + 1]?.oldValue ?? target.className;
+        const after = new Set(afterValue.split(/\s+/).filter(Boolean));
+        if (before.has('is-visible') && !after.has('is-visible')) classDrops += 1;
+      }
+      const current = Number(target.dataset.e2eVisibilityDrops ?? '0');
+      target.dataset.e2eVisibilityDrops = String(current + hiddenDrops + classDrops);
+    });
+    target.e2eVisibilityObserver.observe(target, {
+      attributes: true,
+      attributeFilter: ['hidden', 'class'],
+      attributeOldValue: true,
+    });
+  });
+  for (let replacement = 0; replacement < 8; replacement += 1) {
+    await tooltipLifecycleFixture.evaluate((host, index) => {
+      host.innerHTML = `<button type="button" data-tooltip-title="Lifecycle" data-tooltip="Temporary building detail ${index}">Hover detail</button>`;
+    }, replacement);
+    await page.waitForTimeout(50);
+  }
+  await expect(tooltip).toHaveClass(/is-visible/);
+  await expect(tooltip).not.toHaveAttribute('hidden', '');
+  await expect(tooltip).toHaveAttribute('data-e2e-visibility-drops', '0');
+  await expect(tooltip.locator('.ui-tooltip__body')).toContainText('Temporary building detail 7');
   await tooltipLifecycleFixture.evaluate((host) => { host.hidden = true; });
   await expect(tooltip).toBeHidden();
   await tooltipLifecycleFixture.evaluate((host) => { host.hidden = false; });
@@ -348,6 +383,12 @@ test('connects, places a reforester, and updates settlement HUD timber', async (
   await expect(tooltip).toBeVisible();
   await tooltipLifecycleFixture.evaluate((host) => host.remove());
   await expect(tooltip).toBeHidden();
+  await tooltip.evaluate((element) => {
+    const target = element as HTMLElement & { e2eVisibilityObserver?: MutationObserver };
+    target.e2eVisibilityObserver?.disconnect();
+    delete target.e2eVisibilityObserver;
+    delete target.dataset.e2eVisibilityDrops;
+  });
   await expect(totalsMode).toHaveAttribute(
     'aria-label',
     'Showing surplus goods. Show total goods stored.',

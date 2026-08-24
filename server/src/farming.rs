@@ -13,6 +13,7 @@ use crate::balance_generated::{
     FARM_SOW_WORK_PER_SQUARE_METER,
 };
 use crate::burgage::{Point2, ZoneCorners};
+use crate::resource_units::{whole_cost, whole_units};
 
 pub const CROP_RYE: u8 = FARM_CROP_RYE_ID;
 pub const CROP_OATS: u8 = FARM_CROP_OATS_ID;
@@ -505,7 +506,7 @@ pub fn crop_seed_grain_per_square_meter(crop: u8) -> f64 {
 }
 
 pub fn seed_grain_required(area: f64, crop: u8) -> f64 {
-    area.max(0.0) * crop_seed_grain_per_square_meter(crop)
+    whole_cost(area.max(0.0) * crop_seed_grain_per_square_meter(crop))
 }
 
 /// Crop whose seed must be protected for the field's next unfinished sowing.
@@ -534,17 +535,19 @@ pub fn field_seed_grain_remaining(
         return 0.0;
     }
     let planned_crop = field_seed_crop(crop, next_crop, stage);
-    let unseeded_fraction = if stage == STAGE_SOWING {
-        1.0 - stage_progress.clamp(0.0, 1.0)
+    // Sowing commits one indivisible seed lot when work first begins. Once
+    // progress is non-zero that lot has already left inventory, so no partial
+    // seed balance remains to reserve or dispatch.
+    if stage == STAGE_SOWING && stage_progress > 1e-9 {
+        0.0
     } else {
-        1.0
-    };
-    seed_grain_required(area, planned_crop) * unseeded_fraction
+        seed_grain_required(area, planned_crop)
+    }
 }
 
 /// Grain a farmstead may release without consuming seed allocated to fields.
 pub fn farmstead_exportable_grain(stock: f64, seed_grain_required: f64) -> f64 {
-    (stock.max(0.0) - seed_grain_required.max(0.0)).max(0.0)
+    (whole_units(stock) - whole_cost(seed_grain_required)).max(0.0)
 }
 
 /// Each crop uses its balance-driven historical sowing and growth calendar.
@@ -590,7 +593,7 @@ pub fn fertility_after_harvest(crop: u8, fertility: f64) -> f64 {
 }
 
 pub fn field_manure_required(area: f64) -> f64 {
-    area.max(0.0) * FARM_MANURE_PER_SQUARE_METER.max(0.0)
+    whole_cost(area.max(0.0) * FARM_MANURE_PER_SQUARE_METER.max(0.0))
 }
 
 pub fn field_manure_fertility_bonus(area: f64, manure_applied: f64) -> f64 {
@@ -598,7 +601,7 @@ pub fn field_manure_fertility_bonus(area: f64, manure_applied: f64) -> f64 {
     if required <= 1e-9 {
         return 0.0;
     }
-    FARM_MANURE_FERTILITY_BONUS.max(0.0) * (manure_applied.max(0.0) / required).clamp(0.0, 1.0)
+    FARM_MANURE_FERTILITY_BONUS.max(0.0) * (whole_units(manure_applied) / required).clamp(0.0, 1.0)
 }
 
 pub fn point_in_field(point: Point2, corners: &ZoneCorners) -> bool {
@@ -911,28 +914,29 @@ mod tests {
     }
 
     #[test]
-    fn seed_reserve_tracks_crop_progress_and_field_priority() {
-        assert!((seed_grain_required(1_600.0, CROP_RYE) - 17.6).abs() < 1e-9);
-        assert!((seed_grain_required(1_600.0, CROP_OATS) - 22.4).abs() < 1e-9);
+    fn seed_reserve_tracks_indivisible_sowing_lots_and_field_priority() {
+        assert_eq!(seed_grain_required(1_600.0, CROP_RYE), 18.0);
+        assert_eq!(seed_grain_required(1_600.0, CROP_OATS), 23.0);
         assert_eq!(seed_grain_required(1_600.0, CROP_FALLOW), 0.0);
-        assert!(
-            (field_seed_grain_remaining(1_600.0, CROP_RYE, CROP_OATS, STAGE_SOWING, 0.25, 1,)
-                - 13.2)
-                .abs()
-                < 1e-9
+        assert_eq!(
+            field_seed_grain_remaining(1_600.0, CROP_RYE, CROP_OATS, STAGE_SOWING, 0.0, 1,),
+            18.0
         );
-        assert!(
-            (field_seed_grain_remaining(1_600.0, CROP_RYE, CROP_OATS, STAGE_GROWING, 0.5, 1,)
-                - 22.4)
-                .abs()
-                < 1e-9
+        assert_eq!(
+            field_seed_grain_remaining(1_600.0, CROP_RYE, CROP_OATS, STAGE_SOWING, 0.25, 1,),
+            0.0
+        );
+        assert_eq!(
+            field_seed_grain_remaining(1_600.0, CROP_RYE, CROP_OATS, STAGE_GROWING, 0.5, 1,),
+            23.0
         );
         assert_eq!(
             field_seed_grain_remaining(1_600.0, CROP_RYE, CROP_OATS, STAGE_GROWING, 0.5, 0,),
             0.0
         );
-        assert!((farmstead_exportable_grain(30.0, 17.6) - 12.4).abs() < 1e-9);
-        assert_eq!(farmstead_exportable_grain(10.0, 17.6), 0.0);
+        assert_eq!(farmstead_exportable_grain(30.0, 18.0), 12.0);
+        assert_eq!(farmstead_exportable_grain(30.75, 18.0), 12.0);
+        assert_eq!(farmstead_exportable_grain(10.0, 18.0), 0.0);
         assert_eq!(
             field_seed_crop(CROP_BARLEY, CROP_RYE, STAGE_SOWING),
             CROP_BARLEY
@@ -940,6 +944,17 @@ mod tests {
         assert_eq!(
             field_seed_crop(CROP_RYE, CROP_BARLEY, STAGE_GROWING),
             CROP_BARLEY
+        );
+    }
+
+    #[test]
+    fn manure_requirements_and_coverage_use_whole_lots() {
+        assert_eq!(field_manure_required(1_600.0), 64.0);
+        assert_eq!(field_manure_required(1.0), 1.0);
+        assert_eq!(field_manure_fertility_bonus(1.0, 0.75), 0.0);
+        assert_eq!(
+            field_manure_fertility_bonus(1.0, 1.0),
+            FARM_MANURE_FERTILITY_BONUS
         );
     }
 }

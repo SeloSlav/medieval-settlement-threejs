@@ -19,7 +19,8 @@ use crate::economy::{
     residence_food_progression_required_slots, withdraw_building_commodity,
 };
 use crate::pantry_safeguard_policy::{
-    emergency_pantry_rule, normalize_pantry_safeguard_policy, PANTRY_SAFEGUARD_DEFAULT,
+    daily_market_issue_target_days, emergency_pantry_rule, normalize_pantry_safeguard_policy,
+    PANTRY_SAFEGUARD_DEFAULT,
 };
 use crate::season_policy::EnvironmentState;
 use crate::simulation::delivery_cargo::{
@@ -300,9 +301,10 @@ fn household_issue_target(
     pantry_policy: u8,
 ) -> Option<(f64, f64)> {
     let monthly_lot = match need_kind {
-        ResidenceNeedKind::Food => f64::from(residence_food_progression_required_slots(
-            residence.tier,
-        )) * RESIDENCE_FOOD_UNITS_PER_SLOT_PER_MONTH,
+        ResidenceNeedKind::Food => {
+            f64::from(residence_food_progression_required_slots(residence.tier))
+                * RESIDENCE_FOOD_UNITS_PER_SLOT_PER_MONTH
+        }
         ResidenceNeedKind::Firewood => RESIDENCE_FIREWOOD_UNITS_PER_MONTH,
         ResidenceNeedKind::PreservedFood => f64::from(residence.tier >= 4),
         ResidenceNeedKind::Ale => RESIDENCE_ALE_UNITS_PER_MONTH,
@@ -316,7 +318,19 @@ fn household_issue_target(
         return None;
     }
     let stock = need_stock(&load_needs(ctx, residence.id), need_kind);
-    let reserve_months = issue_cycle.ration_rounds(pantry_policy) as f64;
+    let reserve_months = match issue_cycle {
+        MarketIssueCycle::Daily => daily_market_issue_target_days(
+            matches!(
+                need_kind,
+                ResidenceNeedKind::Firewood
+                    | ResidenceNeedKind::Food
+                    | ResidenceNeedKind::PreservedFood
+            ),
+            stock,
+            monthly_lot,
+            pantry_policy,
+        ),
+    };
     let capacity = delivery_stock_room(need_kind, 0.0);
     let target_stock = (monthly_lot * reserve_months).min(capacity);
     (stock + 1e-9 < target_stock).then_some((target_stock, monthly_lot))

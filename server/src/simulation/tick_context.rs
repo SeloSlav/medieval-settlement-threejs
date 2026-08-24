@@ -761,8 +761,9 @@ impl SimTickContext {
             if field.priority == 0 {
                 continue;
             }
-            let remaining =
-                (field_manure_required(field.area) - field.manure_applied.max(0.0)).max(0.0);
+            let remaining = (field_manure_required(field.area)
+                - crate::resource_units::whole_units(field.manure_applied))
+            .max(0.0);
             if remaining <= 1e-6 {
                 continue;
             }

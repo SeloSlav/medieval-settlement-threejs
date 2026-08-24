@@ -3,6 +3,8 @@ use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 
+use crate::resource_units::whole_units;
+
 use crate::balance_generated::{
     GUARDHOUSE_FULL_MUSTER_ROAD_DISTANCE, GUARDHOUSE_LONG_MUSTER_EFFICIENCY,
     GUARDHOUSE_LONG_MUSTER_ROAD_DISTANCE, GUARDHOUSE_UNLINKED_MUSTER_EFFICIENCY,
@@ -599,17 +601,13 @@ pub fn raidable_treasury_timber(timber: f64, reserved_timber: f64) -> f64 {
 }
 
 fn positive_store(amount: f64) -> f64 {
-    if amount.is_finite() {
-        amount.max(0.0)
-    } else {
-        0.0
-    }
+    whole_units(amount)
 }
 
 fn plunder_store(amount: f64, fraction: f64) -> (f64, f64) {
     let stocked = positive_store(amount);
-    let lost = stocked * fraction;
-    ((stocked - lost).max(0.0), lost)
+    let lost = whole_units(stocked * fraction.clamp(0.0, 1.0)).min(stocked);
+    (stocked - lost, lost)
 }
 
 pub fn is_raid_season(month: u32) -> bool {

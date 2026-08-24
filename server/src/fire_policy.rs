@@ -8,6 +8,7 @@ use crate::balance_generated::{
     FIRE_RAIN_INTENSITY_DAMPING_PER_SECOND, FIRE_RAIN_RISK_MULTIPLIER,
     RESIDENCE_TILE_ROOF_FLAMMABILITY_MULTIPLIER,
 };
+use crate::resource_units::{whole_cost, whole_transfer, whole_units};
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct FireStep {
@@ -23,10 +24,11 @@ pub struct SuppressionResult {
 }
 
 pub fn fire_response_load(available_water: f64) -> f64 {
-    if available_water + 1e-6 < FIRE_MINIMUM_BUCKET_WATER {
+    let available_water = whole_units(available_water);
+    if available_water < whole_cost(FIRE_MINIMUM_BUCKET_WATER) {
         0.0
     } else {
-        available_water.min(FIRE_BUCKET_WATER).max(0.0)
+        whole_transfer(available_water, FIRE_BUCKET_WATER)
     }
 }
 
@@ -40,14 +42,16 @@ pub fn fire_response_water_needed(
     delivered_water: f64,
     in_transit_water: f64,
 ) -> f64 {
-    let in_transit = in_transit_water.max(0.0);
-    let estimated_remaining = (required_water.max(0.0) - delivered_water.max(0.0)).max(0.0);
+    let required_water = whole_cost(required_water);
+    let delivered_water = whole_units(delivered_water);
+    let in_transit = whole_units(in_transit_water);
+    let estimated_remaining = (required_water - delivered_water).max(0.0);
     let response_wave = if in_transit <= 1e-6 {
         estimated_remaining.max(FIRE_BUCKET_WATER)
     } else {
         estimated_remaining
     };
-    (response_wave - in_transit).max(0.0)
+    whole_units((response_wave - in_transit).max(0.0))
 }
 
 pub fn weather_risk_multiplier(is_raining: bool, is_drought: bool) -> f64 {
@@ -116,7 +120,8 @@ pub fn step_fire(
 }
 
 pub fn suppression_result(intensity: f64, damage: f64, water: f64, roll: f64) -> SuppressionResult {
-    let effective_water = water.max(0.0) * (1.0 - damage.clamp(0.0, 1.0) * 0.2);
+    let water = whole_units(water);
+    let effective_water = water * (1.0 - damage.clamp(0.0, 1.0) * 0.2);
     let next_intensity =
         (intensity - effective_water * FIRE_INTENSITY_REDUCTION_PER_WATER).max(0.0);
     let threshold_bonus = if next_intensity <= FIRE_EXTINGUISH_INTENSITY_THRESHOLD {

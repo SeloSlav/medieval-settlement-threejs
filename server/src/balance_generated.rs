@@ -90,7 +90,7 @@ pub const FIRE_INTENSITY_GROWTH_PER_SECOND: f64 = 0.008;
 pub const FIRE_RAIN_INTENSITY_DAMPING_PER_SECOND: f64 = 0.006;
 pub const FIRE_DAMAGE_PER_INTENSITY_SECOND: f64 = 0.01;
 pub const FIRE_BUCKET_WATER: f64 = 3.0;
-pub const FIRE_MINIMUM_BUCKET_WATER: f64 = 0.5;
+pub const FIRE_MINIMUM_BUCKET_WATER: f64 = 1.0;
 pub const FIRE_BUCKET_SPEED_MPS: f64 = 2.6;
 pub const FIRE_BUCKET_UNLOAD_SECONDS: f64 = 2.4;
 pub const FIRE_INTENSITY_REDUCTION_PER_WATER: f64 = 0.14;
@@ -265,7 +265,7 @@ pub const CORPSE_DISEASE_RADIUS: f64 = 30.0;
 pub const CORPSE_ILLNESS_MULTIPLIER: f64 = 0.6;
 pub const ILLNESS_RECOVERY_DAYS: f64 = 7.0;
 pub const ILLNESS_MORTALITY_CHANCE_PER_SICK_DAY: f64 = 0.008;
-pub const HERB_REMEDIES_PER_PERSON_DAY: f64 = 0.08;
+pub const HERB_REMEDIES_PER_PERSON_DAY: f64 = 0.025;
 pub const HERB_REMEDY_CAPACITY: f64 = 18.0;
 pub const HERB_TREATMENT_PER_SICK_DAY: f64 = 0.15;
 pub const HERB_RECOVERY_MULTIPLIER: f64 = 2.5;
@@ -3387,7 +3387,7 @@ const BACKYARD_APPLE_ORCHARD: BackyardGardenDef = BackyardGardenDef {
     cost_timber: 10.0,
     cost_stone: 4.0,
     cost_gold: 4.0,
-    food_per_person_per_sec: 0.0025,
+    food_per_person_per_sec: 0.00048,
     settlement_attraction_multiplier: 1.0,
     hidden_from_picker: true,
     specialization_of: Some("orchard"),
@@ -3414,7 +3414,7 @@ const BACKYARD_CHERRY_ORCHARD: BackyardGardenDef = BackyardGardenDef {
     cost_timber: 9.0,
     cost_stone: 3.0,
     cost_gold: 4.0,
-    food_per_person_per_sec: 0.00225,
+    food_per_person_per_sec: 0.00045,
     settlement_attraction_multiplier: 1.0,
     hidden_from_picker: true,
     specialization_of: Some("orchard"),
@@ -3441,7 +3441,7 @@ const BACKYARD_PEAR_ORCHARD: BackyardGardenDef = BackyardGardenDef {
     cost_timber: 10.0,
     cost_stone: 4.0,
     cost_gold: 5.0,
-    food_per_person_per_sec: 0.0027,
+    food_per_person_per_sec: 0.0005,
     settlement_attraction_multiplier: 1.01,
     hidden_from_picker: true,
     specialization_of: Some("orchard"),
@@ -3468,7 +3468,7 @@ const BACKYARD_ARONIA_ORCHARD: BackyardGardenDef = BackyardGardenDef {
     cost_timber: 10.0,
     cost_stone: 4.0,
     cost_gold: 4.0,
-    food_per_person_per_sec: 0.00165,
+    food_per_person_per_sec: 0.00043,
     settlement_attraction_multiplier: 1.015,
     hidden_from_picker: true,
     specialization_of: Some("orchard"),
@@ -3484,7 +3484,7 @@ const BACKYARD_ARONIA_ORCHARD: BackyardGardenDef = BackyardGardenDef {
     hide_per_person_per_secondary_harvest: 0.0,
     hide_capacity: 0.0,
     yield_efficiency: 0.9,
-    jam_per_person_per_sec: 0.00065,
+    jam_per_person_per_sec: 0.00014,
     luxury_upgrade_gold_cost: 0.0,
 };
 
@@ -3495,7 +3495,7 @@ const BACKYARD_ROSEHIP_ORCHARD: BackyardGardenDef = BackyardGardenDef {
     cost_timber: 10.0,
     cost_stone: 4.0,
     cost_gold: 4.0,
-    food_per_person_per_sec: 0.00125,
+    food_per_person_per_sec: 0.0004,
     settlement_attraction_multiplier: 1.02,
     hidden_from_picker: true,
     specialization_of: Some("orchard"),
@@ -3511,7 +3511,7 @@ const BACKYARD_ROSEHIP_ORCHARD: BackyardGardenDef = BackyardGardenDef {
     hide_per_person_per_secondary_harvest: 0.0,
     hide_capacity: 0.0,
     yield_efficiency: 0.82,
-    jam_per_person_per_sec: 0.0009,
+    jam_per_person_per_sec: 0.00018,
     luxury_upgrade_gold_cost: 0.0,
 };
 
@@ -3549,7 +3549,7 @@ const BACKYARD_CABBAGE_GARDEN: BackyardGardenDef = BackyardGardenDef {
     cost_timber: 5.0,
     cost_stone: 2.0,
     cost_gold: 5.0,
-    food_per_person_per_sec: 0.0038,
+    food_per_person_per_sec: 0.0008,
     settlement_attraction_multiplier: 1.0,
     hidden_from_picker: true,
     specialization_of: Some("vegetable_garden"),
@@ -3576,7 +3576,7 @@ const BACKYARD_CARROT_GARDEN: BackyardGardenDef = BackyardGardenDef {
     cost_timber: 5.0,
     cost_stone: 2.0,
     cost_gold: 4.0,
-    food_per_person_per_sec: 0.0029,
+    food_per_person_per_sec: 0.00072,
     settlement_attraction_multiplier: 1.0,
     hidden_from_picker: true,
     specialization_of: Some("vegetable_garden"),
@@ -3603,7 +3603,7 @@ const BACKYARD_BEETROOT_GARDEN: BackyardGardenDef = BackyardGardenDef {
     cost_timber: 5.0,
     cost_stone: 2.0,
     cost_gold: 3.0,
-    food_per_person_per_sec: 0.00235,
+    food_per_person_per_sec: 0.00065,
     settlement_attraction_multiplier: 1.0,
     hidden_from_picker: true,
     specialization_of: Some("vegetable_garden"),
@@ -3711,7 +3711,7 @@ const BACKYARD_CHICKEN_PEN: BackyardGardenDef = BackyardGardenDef {
     cost_timber: 8.0,
     cost_stone: 2.0,
     cost_gold: 4.0,
-    food_per_person_per_sec: 0.0017,
+    food_per_person_per_sec: 0.0009,
     settlement_attraction_multiplier: 1.0,
     hidden_from_picker: true,
     specialization_of: Some("animal_pen"),
@@ -3738,7 +3738,7 @@ const BACKYARD_GOAT_PEN: BackyardGardenDef = BackyardGardenDef {
     cost_timber: 8.0,
     cost_stone: 2.0,
     cost_gold: 6.0,
-    food_per_person_per_sec: 0.0013,
+    food_per_person_per_sec: 0.0005,
     settlement_attraction_multiplier: 0.97,
     hidden_from_picker: true,
     specialization_of: Some("animal_pen"),
@@ -3765,7 +3765,7 @@ const BACKYARD_PIG_PEN: BackyardGardenDef = BackyardGardenDef {
     cost_timber: 8.0,
     cost_stone: 2.0,
     cost_gold: 7.0,
-    food_per_person_per_sec: 0.00065,
+    food_per_person_per_sec: 0.00033,
     settlement_attraction_multiplier: 0.95,
     hidden_from_picker: true,
     specialization_of: Some("animal_pen"),
@@ -3792,7 +3792,7 @@ const BACKYARD_BACKYARD_APIARY: BackyardGardenDef = BackyardGardenDef {
     cost_timber: 7.0,
     cost_stone: 1.0,
     cost_gold: 4.0,
-    food_per_person_per_sec: 0.001,
+    food_per_person_per_sec: 0.0005,
     settlement_attraction_multiplier: 1.03,
     hidden_from_picker: false,
     specialization_of: None,

@@ -83,8 +83,7 @@ pub fn step_lumber_mill(
         return;
     }
 
-    let (timber_deposited, _, _, updated) =
-        deposit_building(&mill, caps, tree_yield, 0.0, 0.0);
+    let (timber_deposited, _, _, updated) = deposit_building(&mill, caps, tree_yield, 0.0, 0.0);
     if timber_deposited != tree_yield {
         ctx.db.building().id().update(mill);
         return;

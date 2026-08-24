@@ -11,6 +11,7 @@ import {
   deriveLordReportTransitions,
   fullStorageChannels,
   LordReportCollection,
+  reportableStorageOccupancyChannels,
   storageOccupancyChannels,
   type LordReport,
 } from '../src/ui/lordReports.ts';
@@ -66,6 +67,50 @@ assert.deepEqual(
   }),
   [],
   'unfinished buildings must not produce full-storage reports',
+);
+
+const maintainedLumberMill = building({
+  id: 'maintained-lumber-mill',
+  kind: 'lumber_mill',
+  ironwork: 3,
+});
+assert.equal(
+  storageOccupancyChannels(maintainedLumberMill)
+    .find((channel) => channel.key === 'ironwork')?.purpose,
+  'maintenance-reserve',
+  'a civilian-tool rack should remain visible as physical storage but be classified as maintenance stock',
+);
+assert.equal(
+  reportableStorageOccupancyChannels(maintainedLumberMill)
+    .some((channel) => channel.key === 'ironwork'),
+  false,
+  'maintenance ironwork must be excluded from reportable storage channels',
+);
+assert.deepEqual(
+  fullStorageChannels(maintainedLumberMill),
+  [],
+  'a full lumber-mill maintenance rack must not create a full-storage report',
+);
+
+const fullSmithyOutput = building({
+  id: 'full-smithy-output',
+  kind: 'smithy',
+  ironwork: 72,
+});
+const smithyIronworkChannel = fullStorageChannels(fullSmithyOutput)
+  .find((channel) => channel.key === 'ironwork');
+assert.equal(smithyIronworkChannel?.purpose, 'working-stock');
+assert.equal(smithyIronworkChannel?.amount, 72);
+assert.equal(smithyIronworkChannel?.capacity, 72);
+assert.equal(
+  deriveLordReportTransitions(
+    gameState(91, { buildings: [fullSmithyOutput] }),
+    gameState(90, {
+      buildings: [{ ...fullSmithyOutput, ironwork: 71 }],
+    }),
+  ).filter((entry) => entry.kind === 'storage').length,
+  1,
+  'a genuine smithy output store should still report when ironwork reaches capacity',
 );
 
 const nearlyFullLodge = building({

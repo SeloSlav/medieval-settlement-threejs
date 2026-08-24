@@ -19,7 +19,7 @@ use crate::balance_generated::{
 use crate::residence_consumption_policy::{
     daily_household_bill_due, monthly_household_bill_due, need_units_due,
 };
-use crate::resource_units::whole_units;
+use crate::resource_units::{whole_cost, whole_units};
 use crate::season_policy::{EnvironmentState, Season};
 use crate::simulation::game_calendar::GameClock;
 use crate::simulation::labor_schedule::is_consumption_paused;
@@ -28,10 +28,10 @@ use spacetimedb::ReducerContext;
 
 use crate::db::*;
 use crate::economy::{
-    building_edible_food_stock, food_category, reconcile_building_labor,
-    residence_commodity_stock, residence_food_progression_slots,
-    withdraw_building_edible_food, withdraw_residence_commodity, CommodityKind, FoodCategory,
-    EDIBLE_COMMODITIES, FRESH_FOOD_COMMODITIES, PRESERVED_FOOD_COMMODITIES,
+    building_edible_food_stock, food_category, reconcile_building_labor, residence_commodity_stock,
+    residence_food_progression_slots, withdraw_building_edible_food, withdraw_residence_commodity,
+    CommodityKind, FoodCategory, EDIBLE_COMMODITIES, FRESH_FOOD_COMMODITIES,
+    PRESERVED_FOOD_COMMODITIES,
 };
 use crate::monastery_estate_policy::{
     monastery_infirmary_mortality_multiplier, monastery_infirmary_recovery_multiplier,
@@ -68,12 +68,7 @@ pub fn step_residence_needs(
     migrate_and_sync_food_inventory(ctx, &mut residence, &mut needs);
     let general_consumption_paused = is_consumption_paused(ctx, residence.owner, clock);
     if !general_consumption_paused && daily_household_bill_due(clock) {
-        spoil_residence_food_inventory(
-            &mut residence,
-            environment,
-            world_seed,
-            sim_tick,
-        );
+        spoil_residence_food_inventory(&mut residence, environment, world_seed, sim_tick);
     }
     migrate_and_sync_food_inventory(ctx, &mut residence, &mut needs);
     let monthly_bill_due = monthly_household_bill_due(residence.id, clock);
@@ -105,8 +100,7 @@ pub fn step_residence_needs(
                 variety.deficit_ticks = u32::from(!result.all_slots_met);
             }
             if residence.tier >= 4 {
-                if let Some(preserved) =
-                    find_need_mut(&mut needs, ResidenceNeedKind::PreservedFood)
+                if let Some(preserved) = find_need_mut(&mut needs, ResidenceNeedKind::PreservedFood)
                 {
                     preserved.deficit_ticks = u32::from(!result.preserved_slot_met);
                 }
@@ -164,10 +158,12 @@ pub fn step_residence_needs(
             } else {
                 ConsumeResult::Unmet
             }
-        } else if kind == ResidenceNeedKind::Luxury
-            && residence_has_flower_luxury(ctx, &residence)
+        } else if kind == ResidenceNeedKind::Luxury && residence_has_flower_luxury(ctx, &residence)
         {
-            ConsumeResult::Met(NeedState { stock: 1.0, ..*need })
+            ConsumeResult::Met(NeedState {
+                stock: 1.0,
+                ..*need
+            })
         } else if let Some(units) = need_units_due(residence.id, kind, clock) {
             consume_need(kind, need, units)
         } else if need.deficit_ticks == 0 {
@@ -215,6 +211,7 @@ pub fn step_residence_needs(
         cold_exposure_ticks,
         general_consumption_paused,
         infirmary_care,
+        !general_consumption_paused && daily_household_bill_due(clock),
         world_seed,
         sim_tick,
     );
@@ -262,8 +259,7 @@ enum MonthlyFoodSlot {
 }
 
 const TIER_1_FOOD_SLOTS: &[MonthlyFoodSlot] = &[MonthlyFoodSlot::Any];
-const TIER_2_FOOD_SLOTS: &[MonthlyFoodSlot] =
-    &[MonthlyFoodSlot::Grain, MonthlyFoodSlot::NonGrain];
+const TIER_2_FOOD_SLOTS: &[MonthlyFoodSlot] = &[MonthlyFoodSlot::Grain, MonthlyFoodSlot::NonGrain];
 const TIER_3_FOOD_SLOTS: &[MonthlyFoodSlot] = &[
     MonthlyFoodSlot::Grain,
     MonthlyFoodSlot::ProduceOrForage,
@@ -458,6 +454,7 @@ fn update_health(
     cold_exposure_ticks: u32,
     consumption_paused: bool,
     infirmary_care: Option<MonasteryInfirmaryCare>,
+    daily_care_due: bool,
     world_seed: u64,
     sim_tick: u64,
 ) {
@@ -510,15 +507,15 @@ fn update_health(
         residence.sick_population = residence.sick_population.saturating_add(1);
     }
 
-    let infirmary_care_ratio = fund_monastery_infirmary_care(ctx, residence, infirmary_care);
+    let infirmary_care_ratio =
+        fund_monastery_infirmary_care(ctx, residence, infirmary_care, daily_care_due);
 
     let mut herb_treated = false;
-    if residence.sick_population > 0 && residence.remedy_stock > 1e-9 {
+    if daily_care_due && residence.sick_population > 0 && residence.remedy_stock >= 1.0 {
         let remedy_demand =
-            residence.sick_population as f64 * HERB_TREATMENT_PER_SICK_DAY * TICK_DT
-                / CALENDAR_SECONDS_PER_DAY;
+            whole_cost(residence.sick_population as f64 * HERB_TREATMENT_PER_SICK_DAY);
         if residence.remedy_stock + 1e-9 >= remedy_demand {
-            residence.remedy_stock = (residence.remedy_stock - remedy_demand).max(0.0);
+            residence.remedy_stock = whole_units(residence.remedy_stock - remedy_demand);
             herb_treated = true;
         }
     }
@@ -535,6 +532,18 @@ fn update_health(
                 - 1.0)
                 * infirmary_care_ratio
         });
+        // Care is purchased once in a whole daily lot. Credit the remaining
+        // recovery work for that day immediately instead of withdrawing tiny
+        // food/remedy fractions on every simulation tick.
+        if daily_care_due {
+            let daily_ticks = ticks_for_days(1.0);
+            let care_multiplier =
+                (herb_recovery_multiplier * infirmary_recovery_multiplier).max(1.0);
+            let bonus = (f64::from(daily_ticks) * (care_multiplier - 1.0))
+                .round()
+                .max(0.0) as u32;
+            residence.illness_ticks = residence.illness_ticks.saturating_add(bonus);
+        }
         let effective_recovery_ticks = (f64::from(recovery_ticks)
             / (herb_recovery_multiplier * infirmary_recovery_multiplier).max(1.0))
         .round()
@@ -600,6 +609,7 @@ fn fund_monastery_infirmary_care(
     ctx: &ReducerContext,
     residence: &Residence,
     care: Option<MonasteryInfirmaryCare>,
+    daily_care_due: bool,
 ) -> f64 {
     let Some(care) = care else {
         return 0.0;
@@ -617,23 +627,20 @@ fn fund_monastery_infirmary_care(
         return 0.0;
     }
 
-    let admitted = care.beds.min(residence.sick_population);
-    let requested_food =
-        admitted as f64 * MONASTERY_INFIRMARY_FOOD_PER_BED_DAY * TICK_DT / CALENDAR_SECONDS_PER_DAY;
-    if requested_food <= 1e-9 {
-        return admitted as f64 / residence.sick_population as f64;
-    }
-    let supply_ratio = (building_edible_food_stock(&monastery) / requested_food).clamp(0.0, 1.0);
-    if supply_ratio <= 1e-9 {
+    if !daily_care_due {
         return 0.0;
     }
-    let withdrawn = withdraw_building_edible_food(&mut monastery, requested_food * supply_ratio);
-    if withdrawn <= 1e-9 {
+    let admitted = care.beds.min(residence.sick_population);
+    let requested_food = whole_cost(admitted as f64 * MONASTERY_INFIRMARY_FOOD_PER_BED_DAY);
+    if requested_food < 1.0 || building_edible_food_stock(&monastery) + 1e-9 < requested_food {
+        return 0.0;
+    }
+    let withdrawn = withdraw_building_edible_food(&mut monastery, requested_food);
+    if withdrawn + 1e-9 < requested_food {
         return 0.0;
     }
     ctx.db.building().id().update(monastery);
-    (admitted as f64 / residence.sick_population as f64)
-        * (withdrawn / requested_food).clamp(0.0, 1.0)
+    admitted as f64 / residence.sick_population as f64
 }
 
 fn insert_corpse(
@@ -716,11 +723,7 @@ enum ConsumeResult {
     Unmet,
 }
 
-fn consume_need(
-    kind: ResidenceNeedKind,
-    need: &NeedState,
-    units: f64,
-) -> ConsumeResult {
+fn consume_need(kind: ResidenceNeedKind, need: &NeedState, units: f64) -> ConsumeResult {
     match kind {
         ResidenceNeedKind::Firewood => match firewood::consume(need, units) {
             firewood::ConsumeOutcome::Met(updated) => ConsumeResult::Met(updated),

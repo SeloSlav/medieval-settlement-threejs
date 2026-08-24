@@ -1151,13 +1151,13 @@ assert.equal(farmPlan.pausedFields, 0);
 assert.equal(farmPlan.orphanedFields, 0);
 assert.ok(farmPlan.expectedHarvest > 0);
 approx(farmPlan.laborCoveredHarvest, farmPlan.expectedHarvest);
-approx(farmPlan.seedGrainRequired, 5.6);
+assert.equal(farmPlan.seedGrainRequired, 6);
 assert.equal(
   farmPlan.seedGrainCovered,
   0,
   'grain at a different holding must not conceal local seed risk',
 );
-approx(farmPlan.seedGrainShortfall, 5.6);
+assert.equal(farmPlan.seedGrainShortfall, 6);
 assert.equal(farmPlan.seedShortHoldings, 1);
 assert.equal(farmPlan.firstSeedShortBuildingId, shortFarm.id);
 assert.equal(farmPlan.toolEligibleHoldings, 2);
@@ -1168,7 +1168,7 @@ assert.ok(farmPlan.toolIronworkCovered >= 0.1);
 assert.ok(farmPlan.toolIronworkShortfall >= 0.1);
 assert.equal(farmPlan.toolShortHoldings, 1);
 assert.equal(farmPlan.firstToolShortBuildingId, shortFarm.id);
-approx(farmPlan.seedGrainByHolding.get(shortFarm.id) ?? -1, 5.6);
+assert.equal(farmPlan.seedGrainByHolding.get(shortFarm.id), 6);
 assert.equal(farmPlan.seedGrainByHolding.get(stockedFarm.id), 0);
 assert.equal(farmPlan.harvest.shortfallWorkerDays, 0);
 assert.ok(farmPlan.spring.requiredWorkerDays > 0);
@@ -1187,7 +1187,7 @@ assert.ok(
 );
 assert.equal(farmPlan.rotation.restoringFields, 1);
 assert.equal(farmPlan.rotation.decliningFields, 1);
-approx(farmPlan.rotation.plannedSeedGrainRequired, 5.6);
+assert.equal(farmPlan.rotation.plannedSeedGrainRequired, 6);
 assert.ok(farmPlan.rotation.plannedHarvest > 0);
 assert.equal(farmPlan.rotation.weakestFieldId, 'short-field');
 

@@ -1,4 +1,5 @@
 import { flourStock, breadGrainBulkStock } from '../economy/cropGoods.ts';
+import { isCivilianToolSite } from '../economy/civilianToolPolicy.ts';
 import { freshFoodStock, preservedFoodStock } from '../economy/foodInventory.ts';
 import type { StorageCaps } from '../generated/gameBalance.ts';
 import { getBuildingDefinition } from '../resources/buildings.ts';
@@ -35,6 +36,7 @@ export type StorageOccupancyChannel = {
   label: string;
   amount: number;
   capacity: number;
+  purpose: 'working-stock' | 'maintenance-reserve';
 };
 
 const STORAGE_CHANNEL_LABELS: Record<keyof StorageCaps, string> = {
@@ -111,15 +113,31 @@ export function storageOccupancyChannels(
       label: STORAGE_CHANNEL_LABELS[key],
       amount: storageChannelAmount(building, key),
       capacity,
+      purpose: key === 'ironwork' && isCivilianToolSite(building.kind)
+        ? 'maintenance-reserve'
+        : 'working-stock',
     }];
   });
+}
+
+/**
+ * Report notifications are about working stores that can block production or
+ * deliveries. Small ironwork tool racks are maintenance reserves, even though
+ * they share the building row's physical `ironwork` stock field.
+ */
+export function reportableStorageOccupancyChannels(
+  building: BuildingState,
+): StorageOccupancyChannel[] {
+  return storageOccupancyChannels(building).filter(
+    (channel) => channel.purpose === 'working-stock',
+  );
 }
 
 export function fullStorageChannels(
   building: BuildingState,
 ): StorageOccupancyChannel[] {
   if (building.constructionComplete === false) return [];
-  return storageOccupancyChannels(building).filter(
+  return reportableStorageOccupancyChannels(building).filter(
     (channel) => channel.amount + FULL_EPSILON >= channel.capacity,
   );
 }

@@ -43,7 +43,8 @@ use crate::building_defs::building_def;
 use crate::burgage::{Point2, ZoneCorners};
 use crate::civilian_tool_policy::{
     civilian_tool_runway_cycles, civilian_tool_throughput_multiplier, civilian_tools_maintained,
-    farm_tool_ironwork_for_work, farm_tool_throughput_multiplier, farm_tools_maintained,
+    farm_tool_ironwork_per_completed_stage, farm_tool_throughput_multiplier,
+    farm_tools_maintained,
     is_civilian_tool_site,
 };
 use crate::construction_priority::CONSTRUCTION_PRIORITY_NORMAL;
@@ -1956,6 +1957,8 @@ fn apply_farm_field_work(
     world_seed: u64,
     map_size: u8,
 ) -> f64 {
+    normalize_farmstead_field_inventory(resource_farmstead);
+    normalize_farm_field_resource_state(field);
     let corners = field_corners(field);
     let field_center = centroid(&corners);
     let shape = shape_efficiency(&corners);
@@ -1971,7 +1974,7 @@ fn apply_farm_field_work(
     .max(1e-6);
     let remaining = required * (1.0_f64 - field.stage_progress).max(0.0_f64);
     let expected_harvest = if field.stage == STAGE_HARVESTING {
-        Some(
+        Some(crate::resource_units::whole_units(
             expected_grain_yield(
                 field.area,
                 field.crop,
@@ -1984,7 +1987,7 @@ fn apply_farm_field_work(
                 world_seed,
                 map_size,
             ) * field.harvest_yield_multiplier.clamp(0.0, 1.0),
-        )
+        ))
     } else {
         None
     };
@@ -1994,46 +1997,71 @@ fn apply_farm_field_work(
         FarmCropProduce::Fibre => Some(CommodityKind::Flax),
         FarmCropProduce::None => None,
     };
-    let mut spent = available_work.min(remaining);
-    if let (Some(expected), Some(commodity)) = (expected_harvest, harvest_commodity) {
-        if expected > 1e-9 {
-            let storage_limited_work =
-                required * building_commodity_room(resource_farmstead, commodity) / expected;
-            spent = spent.min(storage_limited_work);
-        }
-    }
+    let maximum_spent = available_work.min(remaining);
     let seed_required = if field.stage == STAGE_SOWING {
         seed_grain_required(field.area, field.crop)
     } else {
         0.0
     };
     let seed_commodity = crop_seed_commodity(field.crop);
-    if seed_required > 1e-9 {
-        let seed_limited_work = required
-            * building_commodity_stock(resource_farmstead, seed_commodity).max(0.0)
-            / seed_required;
-        spent = spent.min(seed_limited_work);
+    let seed_due = if seed_required > 1e-9 && field.stage_progress <= 1e-9 {
+        seed_required
+    } else {
+        0.0
+    };
+    if building_commodity_stock(resource_farmstead, seed_commodity) + 1e-9 < seed_due {
+        return 0.0;
     }
-    if spent <= 1e-9 {
+    if maximum_spent <= 1e-9 {
         return 0.0;
     }
 
     let previous_progress = field.stage_progress;
-    field.stage_progress = (field.stage_progress + spent / required).min(1.0);
+    let mut next_progress = (field.stage_progress + maximum_spent / required).min(1.0);
+    let mut harvest_due = 0.0;
+    if let (Some(expected), Some(commodity)) = (expected_harvest, harvest_commodity) {
+        let room = building_commodity_room(resource_farmstead, commodity);
+        let proposed_total = crate::resource_units::whole_units(expected * next_progress);
+        harvest_due = (proposed_total - field.current_yield).max(0.0);
+        if harvest_due > room + 1e-9 && expected > 1e-9 {
+            // Work may advance up to, but not across, the next whole-unit
+            // harvest threshold that cannot fit. This keeps large fields
+            // harvestable over several cart clearances without ever creating
+            // a fractional sheaf, grain, or fibre unit.
+            let affordable_total = field.current_yield + room;
+            next_progress = next_progress.min(
+                ((affordable_total + 1.0 - 2e-6) / expected)
+                    .max(previous_progress)
+                    .min(1.0),
+            );
+            let affordable_target = crate::resource_units::whole_units(expected * next_progress);
+            harvest_due = (affordable_target - field.current_yield).max(0.0);
+        }
+    }
+    let spent = required * (next_progress - previous_progress).max(0.0);
+    if spent <= 1e-9 {
+        return 0.0;
+    }
+    field.stage_progress = next_progress;
+    if seed_due > 1e-9 {
+        let seed_used = withdraw_building_commodity(resource_farmstead, seed_commodity, seed_due);
+        debug_assert!((seed_used - seed_due).abs() <= 1e-9);
+    }
     if field.stage == STAGE_PLOUGHING {
-        let manure_needed =
-            field_manure_required(field.area) * (field.stage_progress - previous_progress);
+        let manure_target = crate::resource_units::whole_units(
+            field_manure_required(field.area) * field.stage_progress,
+        );
+        let manure_needed = (manure_target - field.manure_applied).max(0.0);
         let manure_spread =
             withdraw_building_commodity(resource_farmstead, CommodityKind::Manure, manure_needed);
         field.manure_applied += manure_spread;
     }
-    if seed_required > 1e-9 {
-        let seed_used = seed_required * (field.stage_progress - previous_progress).clamp(0.0, 1.0);
-        withdraw_building_commodity(resource_farmstead, seed_commodity, seed_used);
-    }
-    if let (Some(expected), Some(commodity)) = (expected_harvest, harvest_commodity) {
-        let harvested = expected * (field.stage_progress - previous_progress).max(0.0);
-        let deposited = deposit_building_commodity(resource_farmstead, commodity, harvested);
+    if let Some(commodity) = harvest_commodity {
+        let deposited = deposit_building_commodity(resource_farmstead, commodity, harvest_due);
+        if deposited + 1e-9 < harvest_due {
+            field.stage_progress = previous_progress;
+            return 0.0;
+        }
         field.current_yield += deposited;
     }
     if field.stage_progress >= 1.0 - 1e-9 {
@@ -2051,7 +2079,8 @@ fn apply_farm_field_work(
                 field.stage_progress = 0.0;
             }
             STAGE_HARVESTING => {
-                finish_field_cycle(field, expected_harvest.unwrap_or_default());
+                let harvested = field.current_yield;
+                finish_field_cycle(field, harvested);
             }
             _ => {}
         }
@@ -2062,7 +2091,10 @@ fn apply_farm_field_work(
 fn field_work_is_ready(field: &FarmField, resource_farmstead: &Building) -> bool {
     match field.stage {
         STAGE_SOWING => {
-            building_commodity_stock(resource_farmstead, crop_seed_commodity(field.crop)) > 1e-6
+            field.stage_progress > 1e-9
+                || building_commodity_stock(resource_farmstead, crop_seed_commodity(field.crop))
+                    + 1e-9
+                    >= seed_grain_required(field.area, field.crop)
         }
         STAGE_HARVESTING => {
             crop_sheaf_commodity(field.crop).is_some_and(|commodity| {
@@ -2094,8 +2126,10 @@ fn step_farmstead_fields(
     onsite_labor: u32,
     mut fields: Vec<FarmField>,
 ) -> FarmsteadWorkResult {
+    normalize_farmstead_field_inventory(farmstead);
     // Rain and drought persistently change soil moisture, which later affects yield.
     for field in &mut fields {
+        normalize_farm_field_resource_state(field);
         let moisture_change_per_day = match environment.weather {
             WeatherKind::Rain => 0.012,
             WeatherKind::Drought => {
@@ -2180,6 +2214,9 @@ fn step_farmstead_fields(
         }
         work_fields.push(candidate);
     }
+    for field in &mut work_fields {
+        normalize_farm_field_resource_state(field);
+    }
     let cattle_support: std::collections::HashMap<u64, f64> = work_fields
         .iter()
         .filter_map(|field| {
@@ -2262,6 +2299,8 @@ fn step_farmstead_fields(
             continue;
         }
         let plough_multiplier = cattle_support.get(&field.id).copied().unwrap_or(1.0);
+        let stage_before = field.stage;
+        let harvest_count_before = field.harvest_count;
         let spent = if field.farmstead_id == worker_farmstead_id {
             apply_farm_field_work(
                 field,
@@ -2297,11 +2336,12 @@ fn step_farmstead_fields(
             continue;
         }
         work_budget -= spent;
-        if farm_tools_ready {
+        let completed_stage = field.stage != stage_before || field.harvest_count != harvest_count_before;
+        if farm_tools_ready && completed_stage {
             withdraw_building_commodity(
                 farmstead,
                 CommodityKind::Ironwork,
-                farm_tool_ironwork_for_work(spent),
+                farm_tool_ironwork_per_completed_stage(),
             );
         }
     }
@@ -2387,9 +2427,29 @@ fn crop_seed_commodity(crop: u8) -> CommodityKind {
     }
 }
 
+fn normalize_farmstead_field_inventory(farmstead: &mut Building) {
+    let whole = crate::resource_units::whole_units;
+    farmstead.manure = whole(farmstead.manure);
+    farmstead.flax = whole(farmstead.flax);
+    farmstead.barley = whole(farmstead.barley);
+    farmstead.rye_grain = whole(farmstead.rye_grain);
+    farmstead.oat_grain = whole(farmstead.oat_grain);
+    farmstead.maslin_grain = whole(farmstead.maslin_grain);
+    farmstead.rye_sheaves = whole(farmstead.rye_sheaves);
+    farmstead.oat_sheaves = whole(farmstead.oat_sheaves);
+    farmstead.barley_sheaves = whole(farmstead.barley_sheaves);
+    farmstead.maslin_sheaves = whole(farmstead.maslin_sheaves);
+}
+
+fn normalize_farm_field_resource_state(field: &mut FarmField) {
+    field.last_yield = crate::resource_units::whole_units(field.last_yield);
+    field.current_yield = crate::resource_units::whole_units(field.current_yield);
+    field.manure_applied = crate::resource_units::whole_units(field.manure_applied);
+}
+
 fn finish_field_cycle(field: &mut FarmField, harvested: f64) {
     let manure_bonus = settle_field_manure_bonus(field);
-    field.last_yield = harvested;
+    field.last_yield = crate::resource_units::whole_units(harvested);
     field.current_yield = 0.0;
     field.harvest_yield_multiplier = 1.0;
     field.harvest_count = field.harvest_count.saturating_add(1);

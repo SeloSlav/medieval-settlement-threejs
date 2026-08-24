@@ -9,9 +9,9 @@ use crate::economy::{
     residence_fresh_food_stock, residence_preserved_food_stock, withdraw_building,
     withdraw_building_commodity, withdraw_building_water, CommodityKind,
 };
+use crate::resource_units::whole_units;
 use crate::simulation::residence_needs::{firewood, food, provisions, water};
 use crate::simulation::residence_needs::{load_needs, need_stock, ResidenceNeedKind};
-use crate::resource_units::whole_units;
 use crate::tables::Building;
 
 #[derive(Clone, Copy, Debug, Default)]
@@ -185,8 +185,12 @@ pub fn withdraw_delivery_cargo(
                 (requested_equivalent / charcoal_value).floor(),
             );
             let charcoal_equivalent = charcoal_withdrawn * charcoal_value;
-            let (_, firewood_withdrawn, _, updated) =
-                withdraw_building(building, 0.0, (requested_equivalent - charcoal_equivalent).max(0.0), 0.0);
+            let (_, firewood_withdrawn, _, updated) = withdraw_building(
+                building,
+                0.0,
+                (requested_equivalent - charcoal_equivalent).max(0.0),
+                0.0,
+            );
             *building = updated;
             charcoal_equivalent + firewood_withdrawn
         }

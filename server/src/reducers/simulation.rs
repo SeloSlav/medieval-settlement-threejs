@@ -53,6 +53,7 @@ pub fn run_sim_tick(ctx: &ReducerContext, _schedule: crate::schedule::SimTickSch
     // spendable treasury. Repair this save invariant only while simulation is
     // running so Pause remains a true no-mutation boundary.
     materialize_all_physical_resource_ledgers(ctx);
+    crate::resource_unit_migration::migrate_legacy_fractional_resources(ctx);
     // A fresh world remains at its opening hour while the player surveys the
     // land. Placing the founders' camp creates the first building and starts
     // calendar/economy progression on the following scheduler heartbeat.
@@ -186,7 +187,7 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
     // construction claims the remaining pool and blocked builders.
     step_production_labor_stewards(ctx, sim_tick);
     step_construction_labor_stewards(ctx, sim_tick);
-    step_foraging_lifecycle(ctx, &clock, environment, &road_networks);
+    step_foraging_lifecycle(ctx, &clock, world_seed, environment, &road_networks);
 
     step_settlement_security(
         ctx,
@@ -557,7 +558,7 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
     }
 
     step_backyard_gardens(ctx, &tick, &clock, environment);
-    step_fresh_food_spoilage(ctx, environment);
+    step_fresh_food_spoilage(ctx, &clock, environment, world_seed);
     // Physical hauling ends at stalls. Once per game day, issue real market
     // stock to connected homes after local production, intake, and spoilage.
     step_market_household_distribution(ctx, &tick, sim_tick, environment);

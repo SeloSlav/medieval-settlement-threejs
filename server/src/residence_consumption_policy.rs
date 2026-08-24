@@ -7,15 +7,15 @@
 //! per-tick deductions.
 
 use crate::balance_generated::{
-    CALENDAR_DAYS_PER_MONTH, RESIDENCE_ALE_UNITS_PER_MONTH,
-    RESIDENCE_CLOTH_MONTHS_PER_UNIT, RESIDENCE_FIREWOOD_UNITS_PER_MONTH,
-    RESIDENCE_LUXURY_UNITS_PER_MONTH, RESIDENCE_POTTERY_MONTHS_PER_UNIT,
-    RESIDENCE_SHOES_MONTHS_PER_UNIT, RESIDENCE_WATER_UNITS_PER_DAY,
+    CALENDAR_DAYS_PER_MONTH, RESIDENCE_ALE_UNITS_PER_MONTH, RESIDENCE_CLOTH_MONTHS_PER_UNIT,
+    RESIDENCE_FIREWOOD_UNITS_PER_MONTH, RESIDENCE_LUXURY_UNITS_PER_MONTH,
+    RESIDENCE_POTTERY_MONTHS_PER_UNIT, RESIDENCE_SHOES_MONTHS_PER_UNIT,
+    RESIDENCE_WATER_UNITS_PER_DAY,
 };
 use crate::holiday_calendar::holiday_for_date;
 use crate::resource_units::whole_units;
-use crate::simulation::{game_clock, GameClock};
 use crate::simulation::residence_needs::ResidenceNeedKind;
+use crate::simulation::{game_clock, GameClock};
 
 fn household_service_day_started(clock: &GameClock) -> bool {
     if clock.sim_tick == 0 || !clock.is_work_hours {
@@ -70,26 +70,19 @@ pub fn need_units_due(
         ResidenceNeedKind::Water => {
             daily_household_bill_due(clock).then_some(RESIDENCE_WATER_UNITS_PER_DAY)
         }
-        ResidenceNeedKind::Ale => monthly_household_bill_due(residence_id, clock)
-            .then_some(RESIDENCE_ALE_UNITS_PER_MONTH),
-        ResidenceNeedKind::Cloth => interval_month_due(
-            residence_id,
-            clock,
-            RESIDENCE_CLOTH_MONTHS_PER_UNIT,
-        )
-        .then_some(1.0),
-        ResidenceNeedKind::Shoes => interval_month_due(
-            residence_id,
-            clock,
-            RESIDENCE_SHOES_MONTHS_PER_UNIT,
-        )
-        .then_some(1.0),
-        ResidenceNeedKind::Pottery => interval_month_due(
-            residence_id,
-            clock,
-            RESIDENCE_POTTERY_MONTHS_PER_UNIT,
-        )
-        .then_some(1.0),
+        ResidenceNeedKind::Ale => {
+            monthly_household_bill_due(residence_id, clock).then_some(RESIDENCE_ALE_UNITS_PER_MONTH)
+        }
+        ResidenceNeedKind::Cloth => {
+            interval_month_due(residence_id, clock, RESIDENCE_CLOTH_MONTHS_PER_UNIT).then_some(1.0)
+        }
+        ResidenceNeedKind::Shoes => {
+            interval_month_due(residence_id, clock, RESIDENCE_SHOES_MONTHS_PER_UNIT).then_some(1.0)
+        }
+        ResidenceNeedKind::Pottery => {
+            interval_month_due(residence_id, clock, RESIDENCE_POTTERY_MONTHS_PER_UNIT)
+                .then_some(1.0)
+        }
         ResidenceNeedKind::Luxury => monthly_household_bill_due(residence_id, clock)
             .then_some(RESIDENCE_LUXURY_UNITS_PER_MONTH),
         ResidenceNeedKind::Food
