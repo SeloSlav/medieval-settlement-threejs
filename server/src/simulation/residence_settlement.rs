@@ -29,9 +29,7 @@ pub fn step_residence_settlement(
     let buffers = needs.iter().filter_map(|need| {
         let kind = match need.kind {
             ResidenceNeedKind::Food => ResidenceSettlementVitalNeed::Food,
-            ResidenceNeedKind::Firewood => {
-                ResidenceSettlementVitalNeed::Firewood
-            }
+            ResidenceNeedKind::Firewood => ResidenceSettlementVitalNeed::Firewood,
             ResidenceNeedKind::Water => ResidenceSettlementVitalNeed::Water,
             _ => return None,
         };

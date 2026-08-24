@@ -264,7 +264,7 @@ fn try_chapel_poor_relief(
             load_needs(ctx, residence.id)
                 .iter()
                 .find(|need| need.kind == ResidenceNeedKind::Food)
-                .is_some_and(|need| service_shortage_warns(need.deficit_ticks))
+                .is_some_and(|need| service_shortage_warns(need.kind, need.deficit_ticks))
         })
         .cloned()
         .collect();

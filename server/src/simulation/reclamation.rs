@@ -226,9 +226,18 @@ impl ReclamationStock {
                 cloth: amount,
                 ..Self::default()
             },
-            CommodityKind::Hides => Self { hides: amount, ..Self::default() },
-            CommodityKind::Leather => Self { leather: amount, ..Self::default() },
-            CommodityKind::Shoes => Self { shoes: amount, ..Self::default() },
+            CommodityKind::Hides => Self {
+                hides: amount,
+                ..Self::default()
+            },
+            CommodityKind::Leather => Self {
+                leather: amount,
+                ..Self::default()
+            },
+            CommodityKind::Shoes => Self {
+                shoes: amount,
+                ..Self::default()
+            },
             CommodityKind::Gold => Self {
                 gold: amount,
                 ..Self::default()

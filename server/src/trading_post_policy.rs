@@ -177,7 +177,10 @@ mod tests {
                 < trade_rule_settlement_key(TRADE_MODE_IMPORT, 0)
         );
         let export_revenue = trade_gold(10.0, 1.0);
-        assert_eq!(affordable_import_units(10.0, 10.0, export_revenue, 2.0), 5.0);
+        assert_eq!(
+            affordable_import_units(10.0, 10.0, export_revenue, 2.0),
+            5.0
+        );
     }
 
     #[test]
@@ -198,7 +201,6 @@ mod tests {
         assert_eq!(exchange_two, [60, 6, 14]);
     }
 
-
     #[test]
     fn the_least_fulfilled_import_gets_first_claim_on_real_coin() {
         assert_eq!(import_target_fulfillment(0.0, 12.0), 0.0);
@@ -210,7 +212,6 @@ mod tests {
         let ale_fulfillment = import_target_fulfillment(0.0, 12.0);
         let cloth_fulfillment = import_target_fulfillment(4.85, 12.0);
         assert!(ale_fulfillment < cloth_fulfillment);
-
     }
 
     #[test]
@@ -231,9 +232,11 @@ mod tests {
         }
         assert_eq!(selected, [4, 7, 8, 9, 4, 7, 8, 9]);
         assert_eq!(trading_post_service_route_order(f64::NAN, 3), [0, 1, 2]);
-        assert_eq!(trading_post_service_route_order(8.0, 0), Vec::<usize>::new());
+        assert_eq!(
+            trading_post_service_route_order(8.0, 0),
+            Vec::<usize>::new()
+        );
     }
-
 
     #[test]
     fn treasury_limited_repeated_exchanges_fund_every_recurring_import() {

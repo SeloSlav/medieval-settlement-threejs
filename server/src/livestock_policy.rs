@@ -191,6 +191,52 @@ pub fn pending_cull_heads(head_count: u32, configured_reserve: u32, maximum_herd
     head_count.saturating_sub(effective_breeding_reserve(configured_reserve, maximum_herd))
 }
 
+/// Counts the currently pending culls whose complete slaughter yields fit in
+/// the holding's present stores. Preserved yield uses the available salt and
+/// cured-food room first; any remainder becomes fresh meat, exactly as it does
+/// during the authoritative livestock cycle. Each animal is indivisible, so a
+/// partial final carcass never reduces the projected winter herd.
+#[allow(clippy::too_many_arguments)]
+pub fn storage_secured_pending_cull_heads(
+    head_count: u32,
+    configured_reserve: u32,
+    maximum_herd: u32,
+    food_room: f64,
+    preserved_food_room: f64,
+    salted_output_capacity: f64,
+    slaughter_food_per_head: f64,
+    slaughter_preserved_food_per_head: f64,
+) -> u32 {
+    let pending = pending_cull_heads(head_count, configured_reserve, maximum_herd);
+    let mut food_room = food_room.max(0.0);
+    let mut preserved_food_room = preserved_food_room.max(0.0);
+    let mut salted_output_capacity = salted_output_capacity.max(0.0);
+    let slaughter_food = slaughter_food_per_head.max(0.0);
+    let slaughter_preserved = slaughter_preserved_food_per_head.max(0.0);
+    let mut secured = 0;
+
+    for _ in 0..pending {
+        let saltable_slaughter = slaughter_preserved
+            .min(salted_output_capacity)
+            .min(preserved_food_room);
+        let unsalted_slaughter = (slaughter_preserved - saltable_slaughter).max(0.0);
+        let fresh_storage_needed = slaughter_food + unsalted_slaughter;
+
+        if food_room + STORAGE_EPSILON < fresh_storage_needed
+            || preserved_food_room + STORAGE_EPSILON < saltable_slaughter
+        {
+            break;
+        }
+
+        food_room = (food_room - fresh_storage_needed).max(0.0);
+        preserved_food_room = (preserved_food_room - saltable_slaughter).max(0.0);
+        salted_output_capacity = (salted_output_capacity - saltable_slaughter).max(0.0);
+        secured += 1;
+    }
+
+    secured
+}
+
 #[allow(clippy::too_many_arguments)]
 pub fn can_cull_one(
     month: u32,
@@ -217,7 +263,8 @@ mod tests {
         is_autumn_cull_month, is_haymaking_month, is_shearing_month,
         livestock_cycles_per_calendar_day, livestock_milk_allocation, normalize_milk_use_policy,
         pending_cull_heads, projected_winter_fodder_grain, retain_priority_candidate,
-        sheep_fleece_output, MILK_USE_BALANCED, MILK_USE_CHEESE_FIRST, MILK_USE_FRESH,
+        sheep_fleece_output, storage_secured_pending_cull_heads, MILK_USE_BALANCED,
+        MILK_USE_CHEESE_FIRST, MILK_USE_FRESH,
     };
     use crate::season_policy::Season;
     use std::time::Instant;
@@ -283,6 +330,49 @@ mod tests {
         assert!(!can_cull_one(10, 9, 7, 14, 8.99, 0.0, 9.0, 0.0));
         assert!(!can_cull_one(10, 9, 7, 14, 9.0, 0.99, 9.0, 1.0));
         assert!(!can_cull_one(8, 9, 7, 14, 90.0, 90.0, 9.0, 1.0));
+    }
+
+    #[test]
+    fn winter_projection_only_counts_whole_carcasses_that_fit() {
+        assert_eq!(
+            storage_secured_pending_cull_heads(10, 7, 14, 15.0, 1.5, 1.5, 5.0, 0.5),
+            3
+        );
+        assert_eq!(
+            storage_secured_pending_cull_heads(10, 7, 14, 14.99, 1.5, 1.5, 5.0, 0.5),
+            2
+        );
+        assert_eq!(
+            storage_secured_pending_cull_heads(10, 7, 14, 50.0, 50.0, 50.0, 5.0, 0.5),
+            3
+        );
+        assert_eq!(
+            storage_secured_pending_cull_heads(7, 7, 14, 50.0, 50.0, 50.0, 5.0, 0.5),
+            0
+        );
+    }
+
+    #[test]
+    fn winter_projection_routes_unsalted_preserved_yield_to_fresh_storage() {
+        // The first carcass consumes the remaining half-unit of cured room and
+        // salt capacity. The second carcass therefore needs 5.5 fresh-food
+        // room; the same split is used by the live culling cycle.
+        assert_eq!(
+            storage_secured_pending_cull_heads(9, 7, 14, 10.5, 0.5, 0.5, 5.0, 0.5),
+            2
+        );
+        assert_eq!(
+            storage_secured_pending_cull_heads(9, 7, 14, 10.49, 0.5, 0.5, 5.0, 0.5),
+            1
+        );
+        assert_eq!(
+            storage_secured_pending_cull_heads(9, 7, 14, 11.0, 0.0, 0.0, 5.0, 0.5),
+            2
+        );
+        assert_eq!(
+            storage_secured_pending_cull_heads(9, 7, 14, 10.0, 0.0, 0.0, 5.0, 0.5),
+            1
+        );
     }
 
     #[test]

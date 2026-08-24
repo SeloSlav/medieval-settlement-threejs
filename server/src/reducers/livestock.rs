@@ -2,23 +2,21 @@ use spacetimedb::{reducer, ReducerContext};
 
 use crate::balance_generated::{
     CATTLE_DEFAULT_BREEDING_RESERVE, CATTLE_MAX_HERD, CATTLE_MAX_SLOPE_DEGREES,
-    CATTLE_MINIMUM_BREEDING_RESERVE, CATTLE_PURCHASE_GOLD_PER_HEAD,
-    CATTLE_SALE_GOLD_PER_HEAD, LIVESTOCK_DEFAULT_HAYMAKING_PERCENT,
-    LIVESTOCK_MAXIMUM_HAYMAKING_PERCENT, LIVESTOCK_MIN_PASTURE_AREA,
-    LIVESTOCK_MIN_PASTURE_EDGE, SHEEP_DEFAULT_BREEDING_RESERVE, SHEEP_MAX_HERD,
-    SHEEP_MAX_SLOPE_DEGREES, SHEEP_MINIMUM_BREEDING_RESERVE,
-    SHEEP_PURCHASE_GOLD_PER_HEAD, SHEEP_SALE_GOLD_PER_HEAD,
-    SWINE_DEFAULT_BREEDING_RESERVE, SWINE_MAX_HERD, SWINE_MAX_SLOPE_DEGREES,
-    SWINE_MINIMUM_BREEDING_RESERVE, SWINE_PURCHASE_GOLD_PER_HEAD,
-    SWINE_SALE_GOLD_PER_HEAD,
+    CATTLE_MINIMUM_BREEDING_RESERVE, CATTLE_PURCHASE_GOLD_PER_HEAD, CATTLE_SALE_GOLD_PER_HEAD,
+    LIVESTOCK_DEFAULT_HAYMAKING_PERCENT, LIVESTOCK_MAXIMUM_HAYMAKING_PERCENT,
+    LIVESTOCK_MIN_PASTURE_AREA, LIVESTOCK_MIN_PASTURE_EDGE, SHEEP_DEFAULT_BREEDING_RESERVE,
+    SHEEP_MAX_HERD, SHEEP_MAX_SLOPE_DEGREES, SHEEP_MINIMUM_BREEDING_RESERVE,
+    SHEEP_PURCHASE_GOLD_PER_HEAD, SHEEP_SALE_GOLD_PER_HEAD, SWINE_DEFAULT_BREEDING_RESERVE,
+    SWINE_MAX_HERD, SWINE_MAX_SLOPE_DEGREES, SWINE_MINIMUM_BREEDING_RESERVE,
+    SWINE_PURCHASE_GOLD_PER_HEAD, SWINE_SALE_GOLD_PER_HEAD,
 };
 use crate::burgage::{convex_zones_overlap, Point2};
 use crate::db::*;
+use crate::economy::{credit_treasury_gold, spend_treasury_gold};
 use crate::farming::{
     centroid, corners_from_values, edge_lengths, is_valid_convex_quadrilateral, polygon_area,
 };
 use crate::hydrology::sample_world_groundwater_score;
-use crate::economy::{credit_treasury_gold, spend_treasury_gold};
 use crate::placement_validation::{
     zone_overlaps_building_footprint, zone_overlaps_resource_deposit,
 };
@@ -315,9 +313,7 @@ pub fn set_livestock_species(
         .next()
         .is_some()
     {
-        return Err(
-            "Remove this holding's linked pasture before changing species.".to_string(),
-        );
+        return Err("Remove this holding's linked pasture before changing species.".to_string());
     }
     herd.species = species;
     herd.head_count = 0;

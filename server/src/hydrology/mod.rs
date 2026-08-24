@@ -151,10 +151,10 @@ mod tests {
     use super::{
         clay_bank_regional_yield_multiplier, clay_bank_site_yield_multiplier,
         clay_bank_yield_multiplier, clay_bank_yield_multiplier_with_richness,
-        drought_groundwater_score, sample_world_well_groundwater_score,
-        sample_world_groundwater_score, CLAY_BANK_ORDINARY_YIELD_MAX, CLAY_BANK_RICH_YIELD_MIN,
-        CLAY_BANK_SITE_YIELD_MAX, CLAY_BANK_SITE_YIELD_MIN, DROUGHT_GROUNDWATER_MULTIPLIER,
-        UNIFORM_GROUNDWATER_SCORE,
+        drought_groundwater_score, sample_world_groundwater_score,
+        sample_world_well_groundwater_score, CLAY_BANK_ORDINARY_YIELD_MAX,
+        CLAY_BANK_RICH_YIELD_MIN, CLAY_BANK_SITE_YIELD_MAX, CLAY_BANK_SITE_YIELD_MIN,
+        DROUGHT_GROUNDWATER_MULTIPLIER, UNIFORM_GROUNDWATER_SCORE,
     };
 
     #[test]

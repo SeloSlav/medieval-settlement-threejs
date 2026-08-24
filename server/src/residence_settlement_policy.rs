@@ -30,9 +30,7 @@ pub fn residence_settlement_buffer_min(
     let daily_demand = match kind {
         ResidenceSettlementVitalNeed::Food => household_food_per_day(population),
         ResidenceSettlementVitalNeed::Firewood => {
-            f64::from(population)
-                * RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC
-                * CALENDAR_SECONDS_PER_DAY
+            f64::from(population) * RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC * CALENDAR_SECONDS_PER_DAY
         }
         ResidenceSettlementVitalNeed::Water => {
             f64::from(population) * RESIDENCE_WATER_PER_PERSON_PER_SEC * workday_seconds
@@ -68,8 +66,7 @@ mod tests {
     };
     use crate::balance_generated::{
         CHAPEL_RECOVERY_STOCK_MULTIPLIER, MONASTERY_RECOVERY_STOCK_MULTIPLIER,
-        RESIDENCE_RECOVERY_FIREWOOD_MIN, RESIDENCE_RECOVERY_FOOD_MIN,
-        RESIDENCE_RECOVERY_WATER_MIN,
+        RESIDENCE_RECOVERY_FIREWOOD_MIN, RESIDENCE_RECOVERY_FOOD_MIN, RESIDENCE_RECOVERY_WATER_MIN,
     };
     use crate::food_demand_policy::household_food_per_day;
     use std::time::{Duration, Instant};
@@ -98,56 +95,34 @@ mod tests {
 
     #[test]
     fn settlement_buffers_scale_with_household_demand_and_fit_daily_issues() {
-        let food = residence_settlement_buffer_min(
-            ResidenceSettlementVitalNeed::Food,
-            1,
-            false,
-            false,
-        );
+        let food =
+            residence_settlement_buffer_min(ResidenceSettlementVitalNeed::Food, 1, false, false);
         let firewood = residence_settlement_buffer_min(
             ResidenceSettlementVitalNeed::Firewood,
             1,
             false,
             false,
         );
-        let water = residence_settlement_buffer_min(
-            ResidenceSettlementVitalNeed::Water,
-            1,
-            false,
-            false,
-        );
+        let water =
+            residence_settlement_buffer_min(ResidenceSettlementVitalNeed::Water, 1, false, false);
 
         assert!(food > 0.0 && food < household_food_per_day(1));
         assert!(firewood > 0.0 && firewood < 1.0 / 3.0);
         assert!(water > 0.0 && water < 0.84);
-        assert!(residence_settlement_buffer_min(
-            ResidenceSettlementVitalNeed::Food,
-            2,
-            false,
-            false,
-        ) > food);
+        assert!(
+            residence_settlement_buffer_min(ResidenceSettlementVitalNeed::Food, 2, false, false,)
+                > food
+        );
     }
 
     #[test]
     fn parish_support_reduces_but_never_creates_the_vital_buffer() {
-        let ordinary = residence_settlement_buffer_min(
-            ResidenceSettlementVitalNeed::Food,
-            3,
-            false,
-            false,
-        );
-        let parish = residence_settlement_buffer_min(
-            ResidenceSettlementVitalNeed::Food,
-            3,
-            true,
-            false,
-        );
-        let monastery = residence_settlement_buffer_min(
-            ResidenceSettlementVitalNeed::Food,
-            3,
-            true,
-            true,
-        );
+        let ordinary =
+            residence_settlement_buffer_min(ResidenceSettlementVitalNeed::Food, 3, false, false);
+        let parish =
+            residence_settlement_buffer_min(ResidenceSettlementVitalNeed::Food, 3, true, false);
+        let monastery =
+            residence_settlement_buffer_min(ResidenceSettlementVitalNeed::Food, 3, true, true);
 
         assert!((parish - ordinary * CHAPEL_RECOVERY_STOCK_MULTIPLIER).abs() < 1e-9);
         assert!((monastery - parish * MONASTERY_RECOVERY_STOCK_MULTIPLIER).abs() < 1e-9);

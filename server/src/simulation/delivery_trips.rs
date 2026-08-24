@@ -1847,7 +1847,7 @@ fn insert_trip(
                 config.severe_weather_enabled,
                 &game_clock(config.sim_tick),
             )
-                .road_speed_multiplier()
+            .road_speed_multiplier()
         })
         .unwrap_or(1.0);
     let travel_speed_multiplier =

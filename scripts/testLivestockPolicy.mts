@@ -24,6 +24,7 @@ import {
   livestockSaleGoldPerHead,
   livestockSaleProceeds,
   livestockSaltedOutputCapacity,
+  livestockStorageSecuredCullHeads,
   livestockWaterPerHeadPerCycle,
   livestockWaterRequiredPerCycle,
   pendingLivestockCullHeads,
@@ -38,6 +39,7 @@ import {
 } from '../src/economy/livestockFodder.ts';
 import {
   AUTUMN_PASTURE_CAPACITY_MULTIPLIER,
+  BUILDING_STORAGE_CAPS,
   CATTLE_AREA_PER_HEAD,
   CATTLE_DEFAULT_BREEDING_RESERVE,
   CATTLE_BREEDING_PER_CYCLE,
@@ -197,6 +199,17 @@ assert.deepEqual(projectedLivestockCullYield('cattle', 9, 6), {
   food: 15,
   preservedFood: 1.5,
 });
+assert.equal(livestockStorageSecuredCullHeads('cattle', 20, 12, 120, 70, 12), 8);
+assert.equal(
+  livestockStorageSecuredCullHeads('cattle', 20, 12, 4.99, 70, 12),
+  0,
+  'a whole cattle carcass must fit before winter planning removes that animal',
+);
+assert.equal(
+  livestockStorageSecuredCullHeads('cattle', 20, 12, 44, 0, 0),
+  8,
+  'an unsalted cured share must correctly fall back into available fresh storage',
+);
 assert.equal(livestockPreservationSaltRequired(8), 1);
 assert.equal(livestockSaltedOutputCapacity(1), 8);
 assert.equal(
@@ -407,6 +420,9 @@ const fodderPlan = projectLivestockFodderHolding(
   9,
 );
 assert.equal(fodderPlan.projectedHeadCount, 6, 'autumn forecast must include configured culls');
+assert.equal(fodderPlan.plannedCullHeads, 2);
+assert.equal(fodderPlan.executableCullHeads, 2);
+assert.equal(fodderPlan.unsecuredCullHeads, 0);
 assert.equal(fodderPlan.winterPastureCapacity, 3.5);
 assert.equal(fodderPlan.winterUnsupportedHeads, 2.5);
 assert.ok(Math.abs(fodderPlan.winterGrainPerDay - 1.68) < 1e-9);
@@ -429,6 +445,29 @@ assert.equal(
 assert.equal(fodderPlan.dairySaltShortfall, fodderPlan.dairySaltTarget);
 assert.equal(fodderPlan.dairySaltRunwayDays, 0);
 assert.equal(fodderPlan.winterGrainNeed, fodderPlan.winterReserveTarget);
+
+const storageBlockedFodderPlan = projectLivestockFodderHolding(
+  {
+    ...fodderBuilding,
+    oatGrain: 0,
+    grain: 0,
+    meat: BUILDING_STORAGE_CAPS.pastoral_farmstead.food,
+    curedMeat: BUILDING_STORAGE_CAPS.pastoral_farmstead.preservedFood,
+  },
+  { ...fodderHerd, headCount: 20, breedingReserve: 12 },
+  AUTUMN_PASTURE_CAPACITY_MULTIPLIER,
+  false,
+  9,
+);
+assert.equal(storageBlockedFodderPlan.plannedCullHeads, 8);
+assert.equal(storageBlockedFodderPlan.executableCullHeads, 0);
+assert.equal(storageBlockedFodderPlan.unsecuredCullHeads, 8);
+assert.equal(
+  storageBlockedFodderPlan.projectedHeadCount,
+  20,
+  'blocked culls must leave their animals in the winter fodder forecast',
+);
+assert.ok(storageBlockedFodderPlan.winterHayNeed > fodderPlan.winterHayNeed);
 
 const summerHerd = {
   ...fodderHerd,
@@ -514,7 +553,12 @@ const unstaffedSummerPlan = projectLivestockFodderHolding(
   1,
 );
 assert.equal(unstaffedSummerPlan.hayOutputPerDay, 0);
-assert.equal(unstaffedSummerPlan.winterHayNeed, summerPlan.winterHayNeed);
+assert.equal(unstaffedSummerPlan.executableCullHeads, 0);
+assert.equal(unstaffedSummerPlan.unsecuredCullHeads, 2);
+assert.ok(
+  unstaffedSummerPlan.winterHayNeed > summerPlan.winterHayNeed,
+  'an unstaffed holding must provision the surplus animals it cannot cull',
+);
 
 const swineBuilding = {
   ...buildingFixture('building-swine', 60),

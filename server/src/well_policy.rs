@@ -3,9 +3,9 @@
 use crate::balance_generated::{
     BAKERY_WATER_PER_CYCLE, BREWERY_BREWING_WATER_PER_CYCLE, BREWERY_MALTING_WATER_PER_CYCLE,
     CATTLE_MAX_HERD, CATTLE_WATER_PER_HEAD_PER_CYCLE, MILL_WATER_PER_HARVEST,
-    POTTER_WATER_PER_CYCLE, SHEEP_MAX_HERD, SHEEP_WATER_PER_HEAD_PER_CYCLE,
-    SMITHY_WATER_PER_CYCLE, SWINE_MAX_HERD, SWINE_WATER_PER_HEAD_PER_CYCLE,
-    WEAVER_FLAX_WATER_PER_CYCLE, WELL_BASE_REFILL_PER_SEC, WELL_MINIMUM_REFILL_HYDROLOGY,
+    POTTER_WATER_PER_CYCLE, SHEEP_MAX_HERD, SHEEP_WATER_PER_HEAD_PER_CYCLE, SMITHY_WATER_PER_CYCLE,
+    SWINE_MAX_HERD, SWINE_WATER_PER_HEAD_PER_CYCLE, WEAVER_FLAX_WATER_PER_CYCLE,
+    WELL_BASE_REFILL_PER_SEC, WELL_MINIMUM_REFILL_HYDROLOGY,
 };
 use crate::construction_priority::CONSTRUCTION_PRIORITY_NORMAL;
 use crate::processor_output_policy::processor_input_staging_cycles;
@@ -20,16 +20,15 @@ pub struct IndustrialWaterCandidate {
     pub distance: f64,
 }
 
-pub const INDUSTRIAL_WATER_BUILDING_KINDS: &[&str] =
-    &[
-        "bakery",
-        "brewery",
-        "weaver",
-        "smithy",
-        "potter_kiln",
-        "pastoral_farmstead",
-        "swineherd",
-    ];
+pub const INDUSTRIAL_WATER_BUILDING_KINDS: &[&str] = &[
+    "bakery",
+    "brewery",
+    "weaver",
+    "smithy",
+    "potter_kiln",
+    "pastoral_farmstead",
+    "swineherd",
+];
 
 pub fn industrial_water_requirement(building_kind: &str) -> f64 {
     match building_kind {
@@ -38,8 +37,7 @@ pub fn industrial_water_requirement(building_kind: &str) -> f64 {
         "weaver" => WEAVER_FLAX_WATER_PER_CYCLE,
         "smithy" => SMITHY_WATER_PER_CYCLE,
         "potter_kiln" => POTTER_WATER_PER_CYCLE,
-        "pastoral_farmstead" => (f64::from(CATTLE_MAX_HERD)
-            * CATTLE_WATER_PER_HEAD_PER_CYCLE)
+        "pastoral_farmstead" => (f64::from(CATTLE_MAX_HERD) * CATTLE_WATER_PER_HEAD_PER_CYCLE)
             .max(f64::from(SHEEP_MAX_HERD) * SHEEP_WATER_PER_HEAD_PER_CYCLE),
         "swineherd" => f64::from(SWINE_MAX_HERD) * SWINE_WATER_PER_HEAD_PER_CYCLE,
         "lumber_mill" => MILL_WATER_PER_HARVEST,

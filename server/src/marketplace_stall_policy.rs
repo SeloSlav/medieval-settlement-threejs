@@ -43,8 +43,7 @@ pub fn assign_marketplace_stall_candidates(
     slots_remaining: &mut HashMap<u64, u32>,
 ) {
     candidates.sort_by(|left, right| {
-        left
-            .distance
+        left.distance
             .total_cmp(&right.distance)
             .then_with(|| right.source_has_stock.cmp(&left.source_has_stock))
             .then_with(|| stall_need_rank(left.need_kind).cmp(&stall_need_rank(right.need_kind)))
@@ -92,9 +91,9 @@ pub fn stall_group_for_need(need_kind: ResidenceNeedKind) -> Option<u8> {
         | ResidenceNeedKind::Cloth
         | ResidenceNeedKind::Shoes
         | ResidenceNeedKind::Pottery => Some(MARKET_STALL_GROUP_GOODS),
-        ResidenceNeedKind::Water
-        | ResidenceNeedKind::Church
-        | ResidenceNeedKind::FoodVariety => None,
+        ResidenceNeedKind::Water | ResidenceNeedKind::Church | ResidenceNeedKind::FoodVariety => {
+            None
+        }
     }
 }
 
@@ -120,9 +119,7 @@ fn stall_need_rank(need_kind: ResidenceNeedKind) -> u8 {
         ResidenceNeedKind::PreservedFood | ResidenceNeedKind::Cloth => 1,
         ResidenceNeedKind::Shoes => 2,
         ResidenceNeedKind::Ale | ResidenceNeedKind::Pottery | ResidenceNeedKind::Luxury => 2,
-        ResidenceNeedKind::Water
-        | ResidenceNeedKind::Church
-        | ResidenceNeedKind::FoodVariety => 3,
+        ResidenceNeedKind::Water | ResidenceNeedKind::Church | ResidenceNeedKind::FoodVariety => 3,
     }
 }
 
@@ -151,7 +148,8 @@ mod tests {
     fn assign_tier_four_goods(slots_per_market: u32) -> MarketplaceStallRoster {
         let mut roster = MarketplaceStallRoster::default();
         let mut workers_remaining = HashMap::from([(40_u64, 2_u32), (41, 2)]);
-        let mut slots_remaining = HashMap::from([(10_u64, slots_per_market), (20, slots_per_market)]);
+        let mut slots_remaining =
+            HashMap::from([(10_u64, slots_per_market), (20, slots_per_market)]);
         assign_marketplace_stall_candidates(
             &mut roster,
             MARKET_STALL_GROUP_GOODS,

@@ -222,9 +222,7 @@ pub fn food_category(kind: CommodityKind) -> Option<FoodCategory> {
         CommodityKind::Apples
         | CommodityKind::Cherries
         | CommodityKind::Grapes
-        | CommodityKind::Pears => {
-            Some(FoodCategory::Fruits)
-        }
+        | CommodityKind::Pears => Some(FoodCategory::Fruits),
         CommodityKind::Milk | CommodityKind::Eggs | CommodityKind::Cheese => {
             Some(FoodCategory::AnimalProduce)
         }
@@ -636,9 +634,7 @@ pub fn building_commodity_cap(kind: &str, commodity: CommodityKind) -> f64 {
         | CommodityKind::SmokedFish
         | CommodityKind::Cheese
         | CommodityKind::AroniaJam
-        | CommodityKind::RosehipJam => {
-            def.storage_preserved_food
-        }
+        | CommodityKind::RosehipJam => def.storage_preserved_food,
     }
 }
 
@@ -1366,8 +1362,8 @@ mod tests {
     #[test]
     fn commodity_ids_remain_stable_and_round_trip() {
         for id in 0_u8..=62 {
-            let commodity = CommodityKind::from_u8(id)
-                .unwrap_or_else(|| panic!("missing commodity id {id}"));
+            let commodity =
+                CommodityKind::from_u8(id).unwrap_or_else(|| panic!("missing commodity id {id}"));
             assert_eq!(commodity.as_u8(), id);
         }
         assert_eq!(CommodityKind::from_u8(63), None);

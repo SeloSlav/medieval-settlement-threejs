@@ -541,13 +541,7 @@ impl RoadNetwork {
     /// nearest interior projections instead of detouring to a distant graph
     /// node. Reservations and trip movement then use the same materialized
     /// polyline and the road remains faster than the off-road fallback.
-    fn same_edge_road_route(
-        &self,
-        ax: f64,
-        az: f64,
-        bx: f64,
-        bz: f64,
-    ) -> Option<RoadPathRoute> {
+    fn same_edge_road_route(&self, ax: f64, az: f64, bx: f64, bz: f64) -> Option<RoadPathRoute> {
         if !ax.is_finite() || !az.is_finite() || !bx.is_finite() || !bz.is_finite() {
             return None;
         }
@@ -582,8 +576,7 @@ impl RoadNetwork {
             let Some(target) = project_point_to_polyline(bx, bz, &edge.sampled_path) else {
                 continue;
             };
-            if origin.access_distance > max_snap + 1e-6
-                || target.access_distance > max_snap + 1e-6
+            if origin.access_distance > max_snap + 1e-6 || target.access_distance > max_snap + 1e-6
             {
                 continue;
             }
@@ -1221,11 +1214,7 @@ fn project_point_to_segment(px: f64, pz: f64, ax: f64, az: f64, bx: f64, bz: f64
     (cx, cz)
 }
 
-fn project_point_to_polyline(
-    x: f64,
-    z: f64,
-    path: &[[f64; 3]],
-) -> Option<EdgeProjection> {
+fn project_point_to_polyline(x: f64, z: f64, path: &[[f64; 3]]) -> Option<EdgeProjection> {
     if path.len() < 2 {
         return None;
     }
@@ -1369,7 +1358,14 @@ mod tests {
             route.polyline,
             vec![[8650.0, 14.0], [8650.0, 0.0], [8785.0, 0.0], [8785.0, 14.0]]
         );
-        assert!((network.road_path_distance(8650.0, 14.0, 8785.0, 14.0).unwrap() - 163.0).abs() < 1e-9);
+        assert!(
+            (network
+                .road_path_distance(8650.0, 14.0, 8785.0, 14.0)
+                .unwrap()
+                - 163.0)
+                .abs()
+                < 1e-9
+        );
         assert_eq!(
             network.road_path_distances_from(8650.0, 14.0, &[(8785.0, 14.0)]),
             vec![Some(163.0)]

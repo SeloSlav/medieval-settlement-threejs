@@ -26,10 +26,10 @@ use crate::balance_generated::{
     RICH_MINE_THROUGHPUT_MULTIPLIER, SMITHY_CHARCOAL_PER_CYCLE, SMITHY_IRONWORK_PER_CYCLE,
     SMITHY_IRON_PER_CYCLE, SMITHY_WATER_PER_CYCLE, SMOKEHOUSE_FIREWOOD_PER_CYCLE,
     SMOKEHOUSE_FOOD_PER_CYCLE, SMOKEHOUSE_POTTERY_PER_CYCLE, SMOKEHOUSE_PRESERVED_FOOD_PER_CYCLE,
-    SMOKEHOUSE_SALT_PER_CYCLE, TANNERY_FIREWOOD_PER_CYCLE, TANNERY_HIDES_PER_CYCLE,
-    TANNERY_LEATHER_PER_CYCLE, TANNERY_WATER_PER_CYCLE, TEXTILE_TRANSFER_PER_TRIP,
-    SUMMER_DROUGHT_DURATION_DAYS, THRESHING_GRAIN_PER_CYCLE, THRESHING_SHEAVES_PER_CYCLE, TICK_DT, TIMBER_DELIVERY_SPEED_MPS,
-    TIMBER_DELIVERY_UNLOAD_SEC, VINEYARD_FERMENTATION_SECONDS,
+    SMOKEHOUSE_SALT_PER_CYCLE, SUMMER_DROUGHT_DURATION_DAYS, TANNERY_FIREWOOD_PER_CYCLE,
+    TANNERY_HIDES_PER_CYCLE, TANNERY_LEATHER_PER_CYCLE, TANNERY_WATER_PER_CYCLE,
+    TEXTILE_TRANSFER_PER_TRIP, THRESHING_GRAIN_PER_CYCLE, THRESHING_SHEAVES_PER_CYCLE, TICK_DT,
+    TIMBER_DELIVERY_SPEED_MPS, TIMBER_DELIVERY_UNLOAD_SEC, VINEYARD_FERMENTATION_SECONDS,
     VINEYARD_GRAPES_PER_FERMENTATION_BATCH, VINEYARD_GRAPES_PER_HARVEST_CYCLE,
     VINEYARD_WINE_PER_FERMENTATION_BATCH, WATERMILL_GRAIN_PER_CYCLE,
     WATERMILL_MASLIN_FLOUR_PER_CYCLE, WATERMILL_RYE_FLOUR_PER_CYCLE, WEAVER_CLOTH_PER_CYCLE,
@@ -108,9 +108,9 @@ use crate::season_policy::{EnvironmentState, WeatherKind};
 use crate::simulation::delivery_trips::{
     building_has_active_trip, building_has_conflicting_inbound_supply_trip,
     building_has_inbound_commodity_trip, building_has_inbound_supply_trip,
-    building_has_regional_market_trip, onsite_building_labor,
-    regional_market_export_route, start_regional_market_export_trip,
-    try_start_building_supply_trip, try_start_origin_rostered_building_supply_trip,
+    building_has_regional_market_trip, onsite_building_labor, regional_market_export_route,
+    start_regional_market_export_trip, try_start_building_supply_trip,
+    try_start_origin_rostered_building_supply_trip,
 };
 use crate::simulation::game_calendar::GameClock;
 use crate::simulation::labor_and_logistics_paused;
@@ -129,15 +129,15 @@ use crate::supply_policy::{
     compare_institutional_food_dispatch_candidates, compare_processor_input_dispatch_candidates,
     directly_dispatched_processor_input_per_cycle as processor_input_per_cycle_for_dispatch,
     grain_input_runway_cycles, grain_input_target, granary_dispatch_order,
-    institutional_food_surplus, local_material_dispatch_target, processor_input_dispatch_duty,
-    processor_input_dispatch_duty_for_target, processor_input_runway_cycles,
-    processor_input_target, marketplace_refill_request, rich_mine_support_target,
-    rich_mine_supports_ready,
-    select_grain_dispatch_candidate, select_processor_input_dispatch_candidate,
-    select_seed_grain_delivery_candidate, select_supply_route_candidate, GranaryDispatchDuty,
-    InstitutionalFoodDispatchDuty, ProcessorInputDispatchDuty, GRAIN_CRITICAL_RUNWAY_CYCLES,
-    GRAIN_PROCESSOR_KINDS, INDUSTRIAL_FIREWOOD_TARGET_KINDS, INSTITUTIONAL_FOOD_SOURCE_KINDS,
-    LOCAL_MATERIAL_SOURCE_KINDS, MARKETPLACE_MATERIAL_TARGET_KINDS,
+    institutional_food_surplus, local_material_dispatch_target, marketplace_refill_request,
+    processor_input_dispatch_duty, processor_input_dispatch_duty_for_target,
+    processor_input_runway_cycles, processor_input_target, rich_mine_support_target,
+    rich_mine_supports_ready, select_grain_dispatch_candidate,
+    select_processor_input_dispatch_candidate, select_seed_grain_delivery_candidate,
+    select_supply_route_candidate, GranaryDispatchDuty, InstitutionalFoodDispatchDuty,
+    ProcessorInputDispatchDuty, GRAIN_CRITICAL_RUNWAY_CYCLES, GRAIN_PROCESSOR_KINDS,
+    INDUSTRIAL_FIREWOOD_TARGET_KINDS, INSTITUTIONAL_FOOD_SOURCE_KINDS, LOCAL_MATERIAL_SOURCE_KINDS,
+    MARKETPLACE_MATERIAL_TARGET_KINDS,
 };
 use crate::tables::{farm_field, Building, FarmField, ForagingNode, Quarry, Residence};
 use crate::vineyard::fermentable_grapes;
@@ -2023,11 +2023,8 @@ fn apply_farm_field_work(
     if field.stage == STAGE_PLOUGHING {
         let manure_needed =
             field_manure_required(field.area) * (field.stage_progress - previous_progress);
-        let manure_spread = withdraw_building_commodity(
-            resource_farmstead,
-            CommodityKind::Manure,
-            manure_needed,
-        );
+        let manure_spread =
+            withdraw_building_commodity(resource_farmstead, CommodityKind::Manure, manure_needed);
         field.manure_applied += manure_spread;
     }
     if seed_required > 1e-9 {
@@ -2103,8 +2100,7 @@ fn step_farmstead_fields(
             WeatherKind::Rain => 0.012,
             WeatherKind::Drought => {
                 let drought_level = drought_groundwater_score(field.moisture);
-                -(field.moisture - drought_level)
-                    / f64::from(SUMMER_DROUGHT_DURATION_DAYS.max(1))
+                -(field.moisture - drought_level) / f64::from(SUMMER_DROUGHT_DURATION_DAYS.max(1))
             }
             _ => 0.0,
         };

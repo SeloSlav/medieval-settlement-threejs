@@ -306,8 +306,7 @@ pub fn specialize_vegetable_garden(
     let def = backyard_garden_def_by_slug(kind.trim())
         .filter(|candidate| candidate.specialization_of == Some("vegetable_garden"))
         .ok_or_else(|| "That seed cannot be planted in this vegetable garden.".to_string())?;
-    let shell =
-        crate::balance_generated::backyard_garden_def(BackyardGardenKind::VegetableGarden);
+    let shell = crate::balance_generated::backyard_garden_def(BackyardGardenKind::VegetableGarden);
     let seed_gold = (def.cost_gold - shell.cost_gold).max(0.0);
     let household_contribution =
         residence_upgrade_household_contribution(residence.household_wealth, seed_gold);
@@ -372,8 +371,7 @@ pub fn specialize_animal_pen(
     let def = backyard_garden_def_by_slug(kind.trim())
         .filter(|candidate| candidate.specialization_of == Some("animal_pen"))
         .ok_or_else(|| "That livestock cannot be housed in this pen.".to_string())?;
-    let shell =
-        crate::balance_generated::backyard_garden_def(BackyardGardenKind::AnimalPen);
+    let shell = crate::balance_generated::backyard_garden_def(BackyardGardenKind::AnimalPen);
     let stocking_gold = (def.cost_gold - shell.cost_gold).max(0.0);
     let household_contribution =
         residence_upgrade_household_contribution(residence.household_wealth, stocking_gold);

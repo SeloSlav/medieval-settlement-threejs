@@ -40,8 +40,7 @@ use crate::granary_policy::{
     GRANARY_FRESH_FOOD_TARGET_DEFAULT_PERCENT,
 };
 use crate::harvest_reserve_policy::{
-    default_harvest_reserve_percent, harvestable_wild_stock,
-    normalize_harvest_reserve_percent,
+    default_harvest_reserve_percent, harvestable_wild_stock, normalize_harvest_reserve_percent,
 };
 use crate::hydrology::{sample_world_well_groundwater_score, well_capacity_from_hydrology};
 use crate::labor_steward_policy::steward_deployable_labor;
@@ -1308,8 +1307,7 @@ fn processor_recipe_availability(
 ) -> ProcessorRecipeAvailability {
     let available = |commodity| {
         building_commodity_stock(building, commodity) > 1e-6
-            || (include_inbound
-                && building_has_inbound_commodity_trip(ctx, building.id, commodity))
+            || (include_inbound && building_has_inbound_commodity_trip(ctx, building.id, commodity))
     };
     ProcessorRecipeAvailability {
         rye_grain: available(CommodityKind::RyeGrain),

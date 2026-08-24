@@ -37,8 +37,7 @@ pub fn service_shortage_warns(kind: ResidenceNeedKind, deficit_ticks: u32) -> bo
 }
 
 pub fn service_shortage_blocks_upgrade(kind: ResidenceNeedKind, deficit_ticks: u32) -> bool {
-    service_deficit_days(kind, deficit_ticks) + 1e-9
-        >= RESIDENCE_UPGRADE_SERVICE_BLOCK_DAYS
+    service_deficit_days(kind, deficit_ticks) + 1e-9 >= RESIDENCE_UPGRADE_SERVICE_BLOCK_DAYS
 }
 
 /// Physical heating continues through ordinary nights; all other needs use
@@ -99,17 +98,13 @@ mod tests {
     fn daytime_church_shortage_reaches_the_exact_three_and_six_day_gates() {
         assert_eq!(daytime_service_ticks_per_day(), 350);
         let warning = daytime_service_ticks_per_day() * RESIDENCE_SERVICE_WARNING_DAYS as u32;
-        let blocked =
-            daytime_service_ticks_per_day() * RESIDENCE_UPGRADE_SERVICE_BLOCK_DAYS as u32;
+        let blocked = daytime_service_ticks_per_day() * RESIDENCE_UPGRADE_SERVICE_BLOCK_DAYS as u32;
 
         assert!(!service_shortage_warns(
             ResidenceNeedKind::Church,
             warning.saturating_sub(1)
         ));
-        assert!(service_shortage_warns(
-            ResidenceNeedKind::Church,
-            warning
-        ));
+        assert!(service_shortage_warns(ResidenceNeedKind::Church, warning));
         assert!(!service_shortage_blocks_upgrade(
             ResidenceNeedKind::Church,
             blocked.saturating_sub(1)
@@ -132,10 +127,7 @@ mod tests {
             ResidenceNeedKind::Firewood,
             warning - 1
         ));
-        assert!(service_shortage_warns(
-            ResidenceNeedKind::Firewood,
-            warning
-        ));
+        assert!(service_shortage_warns(ResidenceNeedKind::Firewood, warning));
         assert!(!service_shortage_blocks_upgrade(
             ResidenceNeedKind::Firewood,
             blocked - 1

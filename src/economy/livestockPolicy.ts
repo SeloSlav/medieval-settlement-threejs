@@ -290,6 +290,50 @@ export function projectedLivestockCullYield(
   };
 }
 
+/**
+ * Returns the surplus animals whose complete carcasses fit in the holding's
+ * current stores. Salted yield uses preserved storage; any unsalted share
+ * becomes fresh meat, matching the authoritative one-animal cull cycle.
+ */
+export function livestockStorageSecuredCullHeads(
+  species: LivestockSpecies,
+  headCount: number,
+  configuredReserve: number,
+  freshFoodRoom: number,
+  preservedFoodRoom: number,
+  saltStock: number,
+): number {
+  const pendingHeads = pendingLivestockCullHeads(species, headCount, configuredReserve);
+  const policy = livestockPolicyDefinition(species);
+  let freshRoom = Number.isFinite(freshFoodRoom) ? Math.max(0, freshFoodRoom) : 0;
+  let preservedRoom = Number.isFinite(preservedFoodRoom)
+    ? Math.max(0, preservedFoodRoom)
+    : 0;
+  let salt = Number.isFinite(saltStock) ? Math.max(0, saltStock) : 0;
+  let securedHeads = 0;
+
+  for (let index = 0; index < pendingHeads; index += 1) {
+    const saltedOutput = Math.min(
+      policy.slaughterPreservedFoodPerHead,
+      livestockSaltedOutputCapacity(salt),
+      preservedRoom,
+    );
+    const freshOutput = policy.slaughterFoodPerHead
+      + Math.max(0, policy.slaughterPreservedFoodPerHead - saltedOutput);
+    if (
+      freshRoom + 1e-6 < freshOutput
+      || preservedRoom + 1e-6 < saltedOutput
+    ) {
+      break;
+    }
+    freshRoom = Math.max(0, freshRoom - freshOutput);
+    preservedRoom = Math.max(0, preservedRoom - saltedOutput);
+    salt = Math.max(0, salt - livestockPreservationSaltRequired(saltedOutput));
+    securedHeads += 1;
+  }
+  return securedHeads;
+}
+
 export function livestockPreservationSaltRequired(
   preservedFood: number,
 ): number {

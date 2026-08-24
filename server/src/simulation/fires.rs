@@ -112,8 +112,7 @@ pub fn step_fires(
         }
     }
 
-    let ignition_due = severe_weather_enabled
-        && sim_tick % FIRE_IGNITION_CHECK_INTERVAL_TICKS == 0;
+    let ignition_due = severe_weather_enabled && sim_tick % FIRE_IGNITION_CHECK_INTERVAL_TICKS == 0;
     if active_after_step.is_empty() && !ignition_due {
         return;
     }

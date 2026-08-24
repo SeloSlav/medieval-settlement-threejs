@@ -119,10 +119,7 @@ fn settle_due_rules(ctx: &ReducerContext, post: &Building, current_exchange: u64
     let mut remaining_imports = import_count;
     for mut rule in rules {
         let import_gold_budget = if rule.mode == TRADE_MODE_IMPORT {
-            let budget = fair_import_gold_budget(
-                treasury_gold(ctx, post.owner),
-                remaining_imports,
-            );
+            let budget = fair_import_gold_budget(treasury_gold(ctx, post.owner), remaining_imports);
             remaining_imports = remaining_imports.saturating_sub(1);
             budget
         } else {
@@ -135,16 +132,14 @@ fn settle_due_rules(ctx: &ReducerContext, post: &Building, current_exchange: u64
         };
         let (amount, gold) = match rule.mode {
             TRADE_MODE_EXPORT => settle_export(ctx, post.id, post.owner, commodity),
-            TRADE_MODE_IMPORT => {
-                settle_import(
-                    ctx,
-                    post.id,
-                    post.owner,
-                    commodity,
-                    rule.target_surplus,
-                    import_gold_budget,
-                )
-            }
+            TRADE_MODE_IMPORT => settle_import(
+                ctx,
+                post.id,
+                post.owner,
+                commodity,
+                rule.target_surplus,
+                import_gold_budget,
+            ),
             _ => (0.0, 0.0),
         };
         rule.last_settled_month = current_exchange;
@@ -162,7 +157,10 @@ fn import_rule_fulfillment(
     let Some(commodity) = CommodityKind::from_u8(rule.commodity_kind) else {
         return 1.0;
     };
-    import_target_fulfillment(owner_public_stock(ctx, owner, commodity), rule.target_surplus)
+    import_target_fulfillment(
+        owner_public_stock(ctx, owner, commodity),
+        rule.target_surplus,
+    )
 }
 
 fn settle_export(

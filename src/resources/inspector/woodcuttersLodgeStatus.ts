@@ -92,8 +92,8 @@ export function resolveWoodcuttersLodgeStatus(input: LodgeStatusInput): {
   }
   if (claimedResidenceCount === 0 && !hasIndustrialTarget) {
     return {
-      statusText: 'No heated homes or staffed fuel-burning workshops currently need fuel',
-      statusState: 'warning',
+      statusText: '',
+      statusState: 'idle',
     };
   }
   if (inboundTimberTrip && timberTripRemainingSeconds != null) {

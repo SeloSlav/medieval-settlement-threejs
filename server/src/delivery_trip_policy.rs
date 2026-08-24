@@ -122,7 +122,9 @@ mod tests {
         assert!(inbound_supply_trip_conflicts(true, 55, 55, unloading, 24.0));
         assert!(!inbound_supply_trip_conflicts(true, 55, 0, outbound, 24.0));
         assert!(inbound_supply_trip_conflicts(false, 55, 0, outbound, 24.0));
-        assert!(!inbound_supply_trip_conflicts(true, 55, 55, returning, 24.0));
+        assert!(!inbound_supply_trip_conflicts(
+            true, 55, 55, returning, 24.0
+        ));
         assert!(!inbound_supply_trip_conflicts(true, 55, 55, outbound, 0.0));
     }
 

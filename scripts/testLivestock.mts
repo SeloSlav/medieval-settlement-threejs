@@ -274,7 +274,7 @@ assert.match(pastureInspectorSource, /This parcel supports/);
 assert.match(pastureInspectorSource, /Production rhythm/);
 assert.match(pastureInspectorSource, /Linked holding's last cycle/);
 assert.match(farmFieldToolSource, /neutral .* capacity/);
-assert.match(farmFieldToolSource, /land cap .* vs mast cap/);
+assert.match(farmFieldToolSource, /land cap .* vs woodland browse\/mast cap/);
 assert.match(farmFieldToolSource, /whole-head slots/);
 assert.match(farmFieldToolSource, /land quality/);
 assert.match(farmFieldToolSource, /management cap reached/);
@@ -293,7 +293,7 @@ assert.match(
   'a partial herd must only offer the remaining animals needed for its starter target',
 );
 assert.match(livestockInspectorSource, /data-livestock-trade="-1"/);
-assert.match(livestockInspectorSource, /Fenced mast trees/);
+assert.match(livestockInspectorSource, /Fenced woodland trees/);
 assert.match(livestockInspectorSource, /Pannage bottleneck/);
 assert.match(
   livestockInspectorSource,

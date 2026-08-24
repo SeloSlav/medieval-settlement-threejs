@@ -10,12 +10,12 @@ pub use state::{load_needs, need_stock, sync_food_need_rows};
 
 use crate::backyard_garden_policy::{allocate_backyard_jam_meal, BackyardJamMealAllocation};
 use crate::balance_generated::{
-    BASE_ILLNESS_CHANCE_PER_PERSON_DAY, CALENDAR_SECONDS_PER_DAY,
-    COLD_EXPOSURE_ILLNESS_MULTIPLIER, CORPSE_DISEASE_RADIUS, CORPSE_ILLNESS_MULTIPLIER,
-    FRESH_FOOD_STORAGE_RESIDENCE_FACTOR, HERB_MORTALITY_MULTIPLIER, HERB_RECOVERY_MULTIPLIER,
-    HERB_TREATMENT_PER_SICK_DAY, ILLNESS_MORTALITY_CHANCE_PER_SICK_DAY, ILLNESS_RECOVERY_DAYS,
-    MALNUTRITION_ILLNESS_MULTIPLIER, PRESERVED_FOOD_STORAGE_RESIDENCE_FACTOR,
-    RESIDENCE_LUXURY_JAM_PER_PERSON_PER_SEC, TICK_DT, UNSAFE_WATER_ILLNESS_MULTIPLIER,
+    BASE_ILLNESS_CHANCE_PER_PERSON_DAY, CALENDAR_SECONDS_PER_DAY, COLD_EXPOSURE_ILLNESS_MULTIPLIER,
+    CORPSE_DISEASE_RADIUS, CORPSE_ILLNESS_MULTIPLIER, FRESH_FOOD_STORAGE_RESIDENCE_FACTOR,
+    HERB_MORTALITY_MULTIPLIER, HERB_RECOVERY_MULTIPLIER, HERB_TREATMENT_PER_SICK_DAY,
+    ILLNESS_MORTALITY_CHANCE_PER_SICK_DAY, ILLNESS_RECOVERY_DAYS, MALNUTRITION_ILLNESS_MULTIPLIER,
+    PRESERVED_FOOD_STORAGE_RESIDENCE_FACTOR, RESIDENCE_LUXURY_JAM_PER_PERSON_PER_SEC, TICK_DT,
+    UNSAFE_WATER_ILLNESS_MULTIPLIER,
 };
 use crate::season_policy::{EnvironmentState, Season};
 use crate::simulation::game_calendar::GameClock;
@@ -697,9 +697,7 @@ fn consume_need(
             provisions::ConsumeOutcome::Met(updated) => ConsumeResult::Met(updated),
             provisions::ConsumeOutcome::Unmet => ConsumeResult::Unmet,
         },
-        ResidenceNeedKind::Church | ResidenceNeedKind::FoodVariety => {
-            ConsumeResult::Unmet
-        }
+        ResidenceNeedKind::Church | ResidenceNeedKind::FoodVariety => ConsumeResult::Unmet,
     }
 }
 
@@ -714,9 +712,7 @@ fn on_unmet_need(kind: ResidenceNeedKind, need: &NeedState) -> NeedState {
         | ResidenceNeedKind::Shoes
         | ResidenceNeedKind::Pottery
         | ResidenceNeedKind::Luxury => provisions::on_unmet(need),
-        ResidenceNeedKind::Church | ResidenceNeedKind::FoodVariety => {
-            *need
-        }
+        ResidenceNeedKind::Church | ResidenceNeedKind::FoodVariety => *need,
     }
 }
 
@@ -731,9 +727,7 @@ fn apply_delivery_for_kind(kind: ResidenceNeedKind, need: &NeedState, delivered:
         | ResidenceNeedKind::Shoes
         | ResidenceNeedKind::Pottery
         | ResidenceNeedKind::Luxury => provisions::apply_delivery(need, delivered),
-        ResidenceNeedKind::Church | ResidenceNeedKind::FoodVariety => {
-            *need
-        }
+        ResidenceNeedKind::Church | ResidenceNeedKind::FoodVariety => *need,
     }
 }
 

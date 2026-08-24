@@ -52,8 +52,7 @@ pub fn construction_supply_crew(
     if free_haulers > 0 {
         return Some(ConstructionSupplyCrew::Free);
     }
-    let builder_can_leave = onsite_builders > 1
-        || (onsite_builders == 1 && borrowed_builders == 0);
+    let builder_can_leave = onsite_builders > 1 || (onsite_builders == 1 && borrowed_builders == 0);
     if builder_can_leave && !site_work_ready {
         return Some(ConstructionSupplyCrew::SiteBuilder);
     }

@@ -48,9 +48,7 @@ pub fn alternative_processor_recipe_ready(
     brewery_recipe_policy: u8,
     available: ProcessorRecipeAvailability,
 ) -> Option<bool> {
-    let ale_ready = (available.barley || available.malt)
-        && available.water
-        && available.firewood;
+    let ale_ready = (available.barley || available.malt) && available.water && available.firewood;
     let cider_ready = available.apples;
     let pear_cider_ready = available.pears;
     let mead_ready = available.honey;
@@ -62,15 +60,15 @@ pub fn alternative_processor_recipe_ready(
                 && available.water
                 && available.firewood,
         ),
-        "brewery" => Some(match normalize_brewery_recipe_policy(brewery_recipe_policy) {
-            BREWERY_RECIPE_CIDER => cider_ready,
-            BREWERY_RECIPE_PEAR_CIDER => pear_cider_ready,
-            BREWERY_RECIPE_MEAD => mead_ready,
-            BREWERY_RECIPE_AUTO => {
-                ale_ready || cider_ready || pear_cider_ready || mead_ready
-            }
-            _ => ale_ready,
-        }),
+        "brewery" => Some(
+            match normalize_brewery_recipe_policy(brewery_recipe_policy) {
+                BREWERY_RECIPE_CIDER => cider_ready,
+                BREWERY_RECIPE_PEAR_CIDER => pear_cider_ready,
+                BREWERY_RECIPE_MEAD => mead_ready,
+                BREWERY_RECIPE_AUTO => ale_ready || cider_ready || pear_cider_ready || mead_ready,
+                _ => ale_ready,
+            },
+        ),
         "smokehouse" => Some(
             (available.food || available.meat || available.fish || available.milk)
                 && available.firewood

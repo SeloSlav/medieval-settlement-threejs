@@ -229,6 +229,10 @@ function settleZoom(controller: CameraController): void {
   advanceController(controller, 0.6);
 }
 
+function settleNavigation(controller: CameraController): void {
+  advanceController(controller, 0.8);
+}
+
 function scrollToLiveWorldMaximum(
   controller: CameraController,
   domElement: HTMLElement,
@@ -240,55 +244,62 @@ function scrollToLiveWorldMaximum(
 }
 
 {
-  const { controller, target, domElement } = createController();
+  const { controller, target, domElement } = createController(undefined, true);
   const startX = target.x;
   rmbPan(domElement, 100, 100, 160, 100);
   assert.equal(controller.isNavigationActive(), true,
     'RMB pan should expose active navigation to render scheduling');
-  assert.notEqual(target.x, startX, 'RMB pan should move target immediately');
+  assert.equal(target.x, startX,
+    'raw RMB movement should set a smooth destination instead of moving immediately');
+  controller.update(1 / 60);
+  const firstFrameX = target.x;
+  assert.ok(firstFrameX > startX,
+    'RMB panning should begin on the next render frame');
   releaseMouse(2);
+  assert.equal(controller.isNavigationActive(), true,
+    'the short RMB glide should remain active after release until it settles');
+  settleNavigation(controller);
+  assert.ok(target.x > firstFrameX,
+    'RMB panning should smoothly converge after the raw drag ends');
   assert.equal(controller.isNavigationActive(), false,
-    'RMB release should settle navigation before the next render');
-  const afterPanX = target.x;
-  controller.update(0.016);
-  controller.update(0.016);
-  assert.equal(target.x, afterPanX, 'target must not lag behind after pan ends');
-}
-
-{
-  const { controller, domElement } = createController();
-  const yawBefore = controller.getYaw();
-  mmbOrbit(domElement, 100, 100, 140, 100);
-  assert.ok(
-    controller.getYaw() > yawBefore,
-    'dragging orbit right should increase yaw',
-  );
-  releaseMouse(1);
+    'RMB navigation should become idle once the glide is exact');
+  const settledX = target.x;
+  controller.update(0.2);
+  assert.equal(target.x, settledX,
+    'a settled RMB pan must not keep drifting');
 }
 
 {
   const { controller, domElement } = createController(undefined, true);
   const yawBefore = controller.getYaw();
   mmbOrbit(domElement, 100, 100, 140, 100);
-  assert.equal(
-    controller.getYaw(),
-    yawBefore,
-    'continuous play should defer orbit input until the render frame',
-  );
-  controller.update(0.016);
-  assert.ok(
-    controller.getYaw() > yawBefore,
-    'continuous orbit dragging right should increase yaw',
-  );
+  assert.equal(controller.getYaw(), yawBefore,
+    'raw middle-drag movement should set a smooth orbit destination');
+  controller.update(1 / 60);
+  const firstFrameYaw = controller.getYaw();
+  assert.ok(firstFrameYaw > yawBefore,
+    'middle-drag orbit should begin on the next render frame');
   releaseMouse(1);
+  settleNavigation(controller);
+  assert.ok(controller.getYaw() > firstFrameYaw,
+    'middle-drag orbit should smoothly converge after release');
+  assert.ok(Math.abs(controller.getYaw() - (yawBefore + 40 * 0.005)) < 1e-9,
+    'middle-drag smoothing must preserve the complete authored orbit delta');
 }
 
 {
-  const { controller, target, domElement } = createController();
-  rmbPan(domElement, 0, 0, 0, 120);
-  const afterPanZ = target.z;
-  controller.update(1);
-  assert.equal(target.z, afterPanZ, 'idle update must not apply pan smoothing');
+  const coarse = createController(undefined, true);
+  const fine = createController(undefined, true);
+  mmbOrbit(coarse.domElement, 100, 100, 140, 130);
+  mmbOrbit(fine.domElement, 100, 100, 140, 130);
+  coarse.controller.update(0.1);
+  for (let frame = 0; frame < 10; frame += 1) fine.controller.update(0.01);
+  assert.ok(
+    Math.abs(coarse.controller.getYaw() - fine.controller.getYaw()) < 1e-9,
+    'middle-drag damping should produce the same response across frame rates',
+  );
+  coarse.controller.dispose();
+  fine.controller.dispose();
 }
 
 {
@@ -563,7 +574,7 @@ function scrollToLiveWorldMaximum(
   const mapModeChanges: boolean[] = [];
   const { controller, camera, target, domElement } = createController(
     undefined,
-    false,
+    true,
     (active) => mapModeChanges.push(active),
     DEFAULT_TEST_BOUNDS,
     2600,
@@ -601,6 +612,15 @@ function scrollToLiveWorldMaximum(
     },
   );
   domElement.dispatch('wheel', wheelEvent({ deltaY: 4000 }));
+  assert.equal(controller.getOrbitDistance(), liveWorldDistance,
+    'one coarse map event should set a destination without teleporting tiers');
+  controller.update(1 / 60);
+  assert.ok(
+    controller.getOrbitDistance() > liveWorldDistance
+      && controller.getOrbitDistance() < readyStops[1],
+    'coarse paper-map zoom should glide between its continuity and authored stops',
+  );
+  settleZoom(controller);
   assert.ok(Math.abs(controller.getOrbitDistance() - readyStops[1]) < 1e-9,
     'one coarse map event must advance exactly one illustrated tier');
   controller.dispose();
@@ -610,7 +630,7 @@ function scrollToLiveWorldMaximum(
   const mapModeChanges: boolean[] = [];
   const { controller, camera, target, domElement } = createController(
     undefined,
-    false,
+    true,
     (active) => mapModeChanges.push(active),
   );
   scrollToLiveWorldMaximum(controller, domElement);
@@ -666,10 +686,20 @@ function scrollToLiveWorldMaximum(
 
   const visitedMapStops = [controller.getOrbitDistance()];
   for (let tier = 1; tier <= ILLUSTRATED_MAP_OUTWARD_ZOOM_TIER_COUNT; tier += 1) {
+    const distanceBeforeTier = controller.getOrbitDistance();
     domElement.dispatch('wheel', wheelEvent({ deltaY: 120 }));
-    visitedMapStops.push(controller.getOrbitDistance());
     assert.equal(controller.isIllustratedMapActive(), true,
       `outward illustrated-map tier ${tier} should retain map render ownership`);
+    assert.equal(controller.getOrbitDistance(), distanceBeforeTier,
+      `outward illustrated-map tier ${tier} should begin from the rendered pose`);
+    controller.update(1 / 60);
+    assert.ok(
+      controller.getOrbitDistance() > distanceBeforeTier
+        && controller.getOrbitDistance() < expectedMapStops[tier],
+      `outward illustrated-map tier ${tier} should move smoothly on its first frame`,
+    );
+    settleZoom(controller);
+    visitedMapStops.push(controller.getOrbitDistance());
     assert.ok(
       Math.abs(controller.getOrbitDistance() - expectedMapStops[tier]) < 1e-9,
       `outward illustrated-map tier ${tier} should use its authored geometric stop`,
@@ -693,14 +723,22 @@ function scrollToLiveWorldMaximum(
 
   const yawBefore = controller.getYaw();
   mmbOrbit(domElement, 100, 100, 140, 100);
+  assert.equal(controller.getYaw(), yawBefore,
+    'paper-map middle drag should retain its current pose until the render frame');
+  controller.update(1 / 60);
   assert.ok(controller.getYaw() > yawBefore,
-    'ordinary orbit rotation should remain active over the illustrated map');
+    'smooth orbit rotation should remain active over the illustrated map');
   releaseMouse(1);
+  settleNavigation(controller);
   const targetBeforePan = target.clone();
   rmbPan(domElement, 100, 100, 140, 100);
+  assert.ok(target.equals(targetBeforePan),
+    'paper-map RMB drag should retain its current pose until the render frame');
+  controller.update(1 / 60);
   assert.ok(!target.equals(targetBeforePan),
-    'ordinary world-space panning should remain active over the illustrated map');
+    'smooth world-space panning should remain active over the illustrated map');
   releaseMouse(2);
+  settleNavigation(controller);
   const adjustedMapStops = computeIllustratedMapZoomStops(
     DEFAULT_TEST_BOUNDS,
     DEFAULT_FOV,
@@ -725,9 +763,19 @@ function scrollToLiveWorldMaximum(
   );
 
   for (let tier = ILLUSTRATED_MAP_OUTWARD_ZOOM_TIER_COUNT - 1; tier >= 0; tier -= 1) {
+    const distanceBeforeTier = controller.getOrbitDistance();
     domElement.dispatch('wheel', wheelEvent({ deltaY: -120 }));
     assert.equal(controller.isIllustratedMapActive(), true,
       `returning to illustrated-map tier ${tier} should retain map render ownership`);
+    assert.equal(controller.getOrbitDistance(), distanceBeforeTier,
+      `returning to illustrated-map tier ${tier} should not teleport`);
+    controller.update(1 / 60);
+    assert.ok(
+      controller.getOrbitDistance() < distanceBeforeTier
+        && controller.getOrbitDistance() > adjustedMapStops[tier],
+      `returning to illustrated-map tier ${tier} should glide on its first frame`,
+    );
+    settleZoom(controller);
     assert.ok(
       Math.abs(controller.getOrbitDistance() - adjustedMapStops[tier]) < 1e-9,
       `inward scrolling should revisit illustrated-map tier ${tier}`,
@@ -752,7 +800,44 @@ function scrollToLiveWorldMaximum(
 }
 
 {
-  const { controller, camera, target, domElement } = createController();
+  const mapModeChanges: boolean[] = [];
+  const { controller, domElement } = createController(
+    undefined,
+    true,
+    (active) => mapModeChanges.push(active),
+  );
+  scrollToLiveWorldMaximum(controller, domElement);
+  const liveWorldDistance = controller.getOrbitDistance();
+  domElement.dispatch('wheel', wheelEvent({ deltaY: 120 }));
+  for (let tier = 0; tier < ILLUSTRATED_MAP_OUTWARD_ZOOM_TIER_COUNT; tier += 1) {
+    domElement.dispatch('wheel', wheelEvent({ deltaY: 120 }));
+  }
+  settleZoom(controller);
+  const outerMapDistance = controller.getOrbitDistance();
+
+  for (let step = 0; step <= ILLUSTRATED_MAP_OUTWARD_ZOOM_TIER_COUNT; step += 1) {
+    domElement.dispatch('wheel', wheelEvent({ deltaY: -120 }));
+  }
+  assert.equal(controller.isIllustratedMapActive(), true,
+    'a rapid inward burst should keep paper render ownership during the glide');
+  assert.equal(controller.getOrbitDistance(), outerMapDistance,
+    'a rapid inward burst should not cut directly from the outer map pose');
+  controller.update(1 / 60);
+  assert.ok(
+    controller.getOrbitDistance() < outerMapDistance
+      && controller.getOrbitDistance() > liveWorldDistance,
+    'the queued map exit should move smoothly toward the continuity stop',
+  );
+  settleNavigation(controller);
+  assert.equal(controller.isIllustratedMapActive(), false,
+    'the paper render owner should release only after reaching the exact continuity stop');
+  assert.ok(Math.abs(controller.getOrbitDistance() - liveWorldDistance) < 1e-9);
+  assert.deepEqual(mapModeChanges, [true, false]);
+  controller.dispose();
+}
+
+{
+  const { controller, camera, target, domElement } = createController(undefined, true);
   camera.aspect = 1.8;
   camera.updateProjectionMatrix();
   const authoredPitch = THREE.MathUtils.degToRad(18);
@@ -768,6 +853,7 @@ function scrollToLiveWorldMaximum(
   for (let tier = 0; tier < ILLUSTRATED_MAP_OUTWARD_ZOOM_TIER_COUNT; tier += 1) {
     domElement.dispatch('wheel', wheelEvent({ deltaY: 120 }));
   }
+  settleZoom(controller);
   const wideFrame = {
     aspect: camera.aspect,
     yaw: controller.getYaw(),
@@ -814,15 +900,24 @@ function scrollToLiveWorldMaximum(
     DEFAULT_FOV,
     portraitFrame,
   );
-  assert.ok(controller.getOrbitDistance() > wideOuterStop,
-    'a portrait resize should rescale the active outer regional tier');
+  assert.equal(controller.getOrbitDistance(), wideOuterStop,
+    'a portrait resize should retarget without teleporting the rendered map pose');
+  controller.update(1 / 60);
+  assert.ok(
+    controller.getOrbitDistance() > wideOuterStop
+      && controller.getOrbitDistance() < expectedPortraitOuterStop,
+    'a portrait resize should smoothly rescale the active outer regional tier',
+  );
+  settleZoom(controller);
   assert.ok(Math.abs(controller.getOrbitDistance() - expectedPortraitOuterStop) < 1e-9,
     'resize recomputation should use the exact current-aspect outer regional stop');
   assert.ok(controller.getOrbitDistance() < portraitFullDeskFit,
     'portrait recomputation should remain below the removed full-desk fit');
 
   mmbOrbit(domElement, 100, 100, 160, 170);
+  controller.update(1 / 60);
   releaseMouse(1);
+  settleNavigation(controller);
   const rotatedPitch = THREE.MathUtils.clamp(
     authoredPitch + 70 * 0.004,
     THREE.MathUtils.degToRad(5),
@@ -853,7 +948,9 @@ function scrollToLiveWorldMaximum(
 
   const targetBeforePan = target.clone();
   rmbPan(domElement, 100, 100, -100, -40);
+  controller.update(1 / 60);
   releaseMouse(2);
+  settleNavigation(controller);
   assert.ok(!target.equals(targetBeforePan),
     'the regional-stop regression should exercise a newly panned target');
   const pannedFrame = {

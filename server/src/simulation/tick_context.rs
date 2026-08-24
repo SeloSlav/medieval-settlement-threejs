@@ -26,9 +26,7 @@ use crate::simulation::fires::{FIRE_TARGET_BUILDING, FIRE_TARGET_RESIDENCE};
 use crate::simulation::residence_needs::ResidenceNeedKind;
 use crate::simulation::road_logistics::claim_residences_by_nearest_supplier;
 use crate::supply_policy::{is_food_supplier_operational, is_well_supplier_operational};
-use crate::tables::{
-    corpse, farm_field, livestock_herd, Building, LivestockHerd, Residence,
-};
+use crate::tables::{corpse, farm_field, livestock_herd, Building, LivestockHerd, Residence};
 
 #[derive(Default)]
 struct OwnerBuildingIndex {
@@ -155,7 +153,12 @@ impl SimTickContext {
                 let mut cached_index = self.mature_tree_spatial_index.borrow_mut();
                 let index = cached_index.get_or_insert_with(|| {
                     let mut index = MatureTreeSpatialIndex::new();
-                    for tree in ctx.db.tree_entity().iter().filter(|tree| tree.phase == "mature") {
+                    for tree in ctx
+                        .db
+                        .tree_entity()
+                        .iter()
+                        .filter(|tree| tree.phase == "mature")
+                    {
                         let cell = (
                             (tree.x / LIVESTOCK_TREE_INDEX_CELL_METERS).floor() as i32,
                             (tree.z / LIVESTOCK_TREE_INDEX_CELL_METERS).floor() as i32,
@@ -165,14 +168,14 @@ impl SimTickContext {
                     index
                 });
                 let radius = building.work_radius.max(0.0);
-                let min_cell_x = ((building.x - radius) / LIVESTOCK_TREE_INDEX_CELL_METERS).floor()
-                    as i32;
-                let max_cell_x = ((building.x + radius) / LIVESTOCK_TREE_INDEX_CELL_METERS).floor()
-                    as i32;
-                let min_cell_z = ((building.z - radius) / LIVESTOCK_TREE_INDEX_CELL_METERS).floor()
-                    as i32;
-                let max_cell_z = ((building.z + radius) / LIVESTOCK_TREE_INDEX_CELL_METERS).floor()
-                    as i32;
+                let min_cell_x =
+                    ((building.x - radius) / LIVESTOCK_TREE_INDEX_CELL_METERS).floor() as i32;
+                let max_cell_x =
+                    ((building.x + radius) / LIVESTOCK_TREE_INDEX_CELL_METERS).floor() as i32;
+                let min_cell_z =
+                    ((building.z - radius) / LIVESTOCK_TREE_INDEX_CELL_METERS).floor() as i32;
+                let max_cell_z =
+                    ((building.z + radius) / LIVESTOCK_TREE_INDEX_CELL_METERS).floor() as i32;
                 let mut points = Vec::new();
                 for cell_x in min_cell_x..=max_cell_x {
                     for cell_z in min_cell_z..=max_cell_z {
@@ -1449,9 +1452,7 @@ fn stall_need_for_commodity(commodity: CommodityKind) -> Option<ResidenceNeedKin
             CommodityKind::Ale
             | CommodityKind::Cider
             | CommodityKind::PearCider
-            | CommodityKind::Mead => {
-                Some(ResidenceNeedKind::Ale)
-            }
+            | CommodityKind::Mead => Some(ResidenceNeedKind::Ale),
             CommodityKind::Firewood | CommodityKind::Charcoal => Some(ResidenceNeedKind::Firewood),
             CommodityKind::Cloth => Some(ResidenceNeedKind::Cloth),
             CommodityKind::Shoes => Some(ResidenceNeedKind::Shoes),

@@ -37,10 +37,10 @@ use crate::economy::{
 };
 use crate::farming::{centroid, point_in_field};
 use crate::livestock_policy::{
-    can_cull_one, can_store_full_sheep_clip, cattle_manure_output, effective_breeding_reserve,
-    essential_livestock_care_labor, haymaking_share, is_haymaking_month, is_shearing_month,
-    livestock_cycles_per_calendar_day, livestock_milk_allocation, projected_winter_fodder_grain,
-    retain_priority_candidate, sheep_fleece_output,
+    can_cull_one, can_store_full_sheep_clip, cattle_manure_output, essential_livestock_care_labor,
+    haymaking_share, is_haymaking_month, is_shearing_month, livestock_cycles_per_calendar_day,
+    livestock_milk_allocation, projected_winter_fodder_grain, retain_priority_candidate,
+    sheep_fleece_output, storage_secured_pending_cull_heads,
 };
 use crate::reducers::livestock::{SPECIES_CATTLE, SPECIES_SHEEP, SPECIES_SWINE};
 use crate::season_policy::{EnvironmentState, Season};
@@ -129,10 +129,19 @@ fn step_livestock_building(
             unsupported * grain_per_head * 2.0 / LIVESTOCK_OAT_FODDER_VALUE.max(1e-9);
         let winter_grain_target = if matches!(environment.season, Season::Autumn | Season::Winter) {
             let projected_head_count = if environment.season == Season::Autumn {
-                herd.head_count.min(effective_breeding_reserve(
+                let maximum_herd = species_max_herd(herd.species);
+                let (slaughter_food, slaughter_preserved) = species_slaughter_yields(herd.species);
+                let secured_culls = storage_secured_pending_cull_heads(
+                    herd.head_count,
                     herd.breeding_reserve,
-                    species_max_herd(herd.species),
-                ))
+                    maximum_herd,
+                    building_commodity_room(&building, CommodityKind::Meat),
+                    building_commodity_room(&building, CommodityKind::CuredMeat),
+                    farmstead_salted_output_capacity(&building),
+                    slaughter_food,
+                    slaughter_preserved,
+                );
+                herd.head_count.saturating_sub(secured_culls)
             } else {
                 herd.head_count
             };

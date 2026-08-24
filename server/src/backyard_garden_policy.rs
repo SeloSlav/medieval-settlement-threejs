@@ -21,10 +21,7 @@ pub struct BackyardOrchardHarvest {
 /// Converts a bounded share of one physical fruit harvest into preserves.
 /// `jam_target` is not extra output: every jar removes the same amount from
 /// the fresh-fruit basket, while occupied-household labor performs the work.
-pub fn split_backyard_orchard_harvest(
-    gross_fruit: f64,
-    jam_target: f64,
-) -> BackyardOrchardHarvest {
+pub fn split_backyard_orchard_harvest(gross_fruit: f64, jam_target: f64) -> BackyardOrchardHarvest {
     let gross_fruit = finite_nonnegative(gross_fruit);
     let jam = finite_nonnegative(jam_target).min(gross_fruit);
     BackyardOrchardHarvest {

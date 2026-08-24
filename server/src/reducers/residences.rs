@@ -362,13 +362,11 @@ pub fn upgrade_residence(ctx: &ReducerContext, residence_id: u64) -> Result<(), 
     ) {
         return Err("This household already has improvement works underway.".to_string());
     }
-    let max_service_deficit = load_needs(ctx, residence.id)
+    let service_blocked = load_needs(ctx, residence.id)
         .into_iter()
         .filter(|need| need.kind.is_active_for_tier(residence.tier))
-        .map(|need| need.deficit_ticks)
-        .max()
-        .unwrap_or(0);
-    if service_shortage_blocks_upgrade(max_service_deficit) {
+        .any(|need| service_shortage_blocks_upgrade(need.kind, need.deficit_ticks));
+    if service_blocked {
         return Err(
             "Restore this household's sustained unmet needs before upgrading the residence."
                 .to_string(),

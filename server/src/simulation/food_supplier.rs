@@ -1,8 +1,8 @@
 use spacetimedb::ReducerContext;
 
 use crate::balance_generated::{
-    FORAGER_REMEDIES_PER_HARVEST, FORAGER_REMEDY_SEASON_END_MONTH, GAME_HIDES_PER_ANIMAL,
-    FORAGER_REMEDY_SEASON_START_MONTH,
+    FORAGER_REMEDIES_PER_HARVEST, FORAGER_REMEDY_SEASON_END_MONTH,
+    FORAGER_REMEDY_SEASON_START_MONTH, GAME_HIDES_PER_ANIMAL,
 };
 use crate::building_defs::building_def;
 use crate::constants::{

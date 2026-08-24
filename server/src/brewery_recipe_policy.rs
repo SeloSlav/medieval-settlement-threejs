@@ -35,7 +35,10 @@ mod tests {
         assert_eq!(normalize_brewery_recipe_policy(1), BREWERY_RECIPE_CIDER);
         assert_eq!(normalize_brewery_recipe_policy(2), BREWERY_RECIPE_MEAD);
         assert_eq!(normalize_brewery_recipe_policy(3), BREWERY_RECIPE_AUTO);
-        assert_eq!(normalize_brewery_recipe_policy(4), BREWERY_RECIPE_PEAR_CIDER);
+        assert_eq!(
+            normalize_brewery_recipe_policy(4),
+            BREWERY_RECIPE_PEAR_CIDER
+        );
         assert_eq!(normalize_brewery_recipe_policy(255), BREWERY_RECIPE_ALE);
     }
 }

@@ -7,7 +7,7 @@ use crate::frontier_economy_policy::{armed_guards, guardhouse_payroll_buckets};
 use crate::simulation::{
     materialize_all_physical_resource_ledgers, retire_removed_buildings, step_apiary,
     step_backyard_gardens, step_bakery, step_brewery, step_burials, step_carpenter,
-    step_chapel_parish, step_chapels, step_charcoal_burner, step_clay_pit,
+    step_chapel_parish, step_chapels, step_charcoal_burner, step_clay_pit, step_cobbler,
     step_construction_labor_stewards, step_construction_sites, step_delivery_trips, step_fires,
     step_fishing_camp, step_foragers_shed, step_foraging_lifecycle, step_founding_sites,
     step_fresh_food_spoilage, step_granary, step_guardhouse, step_household_discretionary_trade,
@@ -19,10 +19,10 @@ use crate::simulation::{
     step_reclamation_piles, step_reforester, step_residence, step_residence_upgrades,
     step_seasonal_labor_stewards, step_seed_grain_distribution, step_settlement_security,
     step_smithy, step_smokehouse, step_stone_quarry, step_storehouse_market_stalls, step_swineherd,
-    step_threshing_barn, step_trading_post_trade, step_village_storehouse_overflow_collection,
-    step_cobbler, step_tannery, step_watermill, step_weaver, step_well,
-    step_windmill, step_woodcutters_lodge,
-    step_workforce_commutes, try_dispatch_guardhouse_payroll, SharedRoadNetworks, SimTickContext,
+    step_tannery, step_threshing_barn, step_trading_post_trade,
+    step_village_storehouse_overflow_collection, step_watermill, step_weaver, step_well,
+    step_windmill, step_woodcutters_lodge, step_workforce_commutes,
+    try_dispatch_guardhouse_payroll, SharedRoadNetworks, SimTickContext,
 };
 use crate::supply_policy::{INSTITUTIONAL_FOOD_SOURCE_KINDS, LOCAL_MATERIAL_SOURCE_KINDS};
 use crate::tables::WorldConfig;
@@ -430,17 +430,15 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
             continue;
         };
         match sim_kind {
-            crate::building_defs::BuildingSimKind::ThreshingBarn => {
-                step_threshing_barn(
-                    ctx,
-                    &tick,
-                    &clock,
-                    environment,
-                    world_seed,
-                    world_map_size,
-                    building,
-                )
-            }
+            crate::building_defs::BuildingSimKind::ThreshingBarn => step_threshing_barn(
+                ctx,
+                &tick,
+                &clock,
+                environment,
+                world_seed,
+                world_map_size,
+                building,
+            ),
             crate::building_defs::BuildingSimKind::Monastery => {
                 step_monastery(ctx, &tick, &clock, building)
             }

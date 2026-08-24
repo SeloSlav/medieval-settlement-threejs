@@ -65,7 +65,8 @@ pub fn step_well(
     } else {
         base_hydrology
     };
-    let capacity = crate::hydrology::well_capacity_from_hydrology(def.storage_water, base_hydrology);
+    let capacity =
+        crate::hydrology::well_capacity_from_hydrology(def.storage_water, base_hydrology);
 
     well.water_capacity = capacity;
     well.action_cooldown = (well.action_cooldown - TICK_DT).max(0.0);

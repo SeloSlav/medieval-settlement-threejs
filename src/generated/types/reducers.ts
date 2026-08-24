@@ -70,7 +70,6 @@ import SetLaborStewardReserveReducer from "../set_labor_steward_reserve_reducer"
 import SetLivestockBreedingReserveReducer from "../set_livestock_breeding_reserve_reducer";
 import SetLivestockHaymakingPercentReducer from "../set_livestock_haymaking_percent_reducer";
 import SetLivestockSpeciesReducer from "../set_livestock_species_reducer";
-import TradeLivestockReducer from "../trade_livestock_reducer";
 import SetMarketplaceGoldReserveTargetReducer from "../set_marketplace_gold_reserve_target_reducer";
 import SetMarketplaceIronTargetReducer from "../set_marketplace_iron_target_reducer";
 import SetMarketplaceIronworkTargetReducer from "../set_marketplace_ironwork_target_reducer";
@@ -104,6 +103,7 @@ import SpecializeVegetableGardenReducer from "../specialize_vegetable_garden_red
 import StartFarmFieldEarlyHarvestReducer from "../start_farm_field_early_harvest_reducer";
 import SyncRoadNetworkReducer from "../sync_road_network_reducer";
 import TickSimReducer from "../tick_sim_reducer";
+import TradeLivestockReducer from "../trade_livestock_reducer";
 import UpgradeChapelReducer from "../upgrade_chapel_reducer";
 import UpgradeFlowerGardenLuxuryReducer from "../upgrade_flower_garden_luxury_reducer";
 import UpgradeResidenceReducer from "../upgrade_residence_reducer";
@@ -172,7 +172,6 @@ export type SetLaborStewardReserveParams = __Infer<typeof SetLaborStewardReserve
 export type SetLivestockBreedingReserveParams = __Infer<typeof SetLivestockBreedingReserveReducer>;
 export type SetLivestockHaymakingPercentParams = __Infer<typeof SetLivestockHaymakingPercentReducer>;
 export type SetLivestockSpeciesParams = __Infer<typeof SetLivestockSpeciesReducer>;
-export type TradeLivestockParams = __Infer<typeof TradeLivestockReducer>;
 export type SetMarketplaceGoldReserveTargetParams = __Infer<typeof SetMarketplaceGoldReserveTargetReducer>;
 export type SetMarketplaceIronTargetParams = __Infer<typeof SetMarketplaceIronTargetReducer>;
 export type SetMarketplaceIronworkTargetParams = __Infer<typeof SetMarketplaceIronworkTargetReducer>;
@@ -206,6 +205,8 @@ export type SpecializeVegetableGardenParams = __Infer<typeof SpecializeVegetable
 export type StartFarmFieldEarlyHarvestParams = __Infer<typeof StartFarmFieldEarlyHarvestReducer>;
 export type SyncRoadNetworkParams = __Infer<typeof SyncRoadNetworkReducer>;
 export type TickSimParams = __Infer<typeof TickSimReducer>;
+export type TradeLivestockParams = __Infer<typeof TradeLivestockReducer>;
 export type UpgradeChapelParams = __Infer<typeof UpgradeChapelReducer>;
 export type UpgradeFlowerGardenLuxuryParams = __Infer<typeof UpgradeFlowerGardenLuxuryReducer>;
 export type UpgradeResidenceParams = __Infer<typeof UpgradeResidenceReducer>;
+

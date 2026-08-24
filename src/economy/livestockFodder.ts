@@ -32,17 +32,19 @@ import type {
   LivestockHerdState,
   LivestockSpecies,
 } from '../resources/types.ts';
+import { freshFoodStock, preservedFoodStock } from './foodInventory.ts';
 import {
   pannageCapacityMultiplierFor,
   seasonForMonth,
 } from '../world/seasonPolicy.ts';
 import {
-  effectiveLivestockBreedingReserve,
   effectiveLivestockHaymakingPercent,
   farmhouseCheeseSaltStagingCycles,
   isLivestockHaymakingMonth,
   livestockMilkAllocationPerCycle,
   livestockDairySaltPerCycle,
+  livestockStorageSecuredCullHeads,
+  pendingLivestockCullHeads,
 } from './livestockPolicy.ts';
 
 const WORKDAY_SECONDS = CALENDAR_SECONDS_PER_DAY
@@ -94,6 +96,9 @@ export type LivestockFodderHoldingPlan = {
   species: LivestockSpecies;
   basePastureCapacity: number;
   projectedHeadCount: number;
+  plannedCullHeads: number;
+  executableCullHeads: number;
+  unsecuredCullHeads: number;
   haymakingPercent: number;
   summerReservedCapacity: number;
   hayOutputPerDay: number;
@@ -146,6 +151,9 @@ export type SettlementLivestockFodderPlan = {
   pastoralHoldings: number;
   haymakingHoldings: number;
   projectedHeadCount: number;
+  plannedCullHeads: number;
+  executableCullHeads: number;
+  unsecuredCullHeads: number;
   summerReservedCapacity: number;
   hayOutputPerDay: number;
   hayStock: number;
@@ -249,12 +257,34 @@ export function projectLivestockFodderHolding(
   const basePastureCapacity = currentCapacityFactor > 1e-9
     ? Math.max(0, herd.pastureCapacity) / currentCapacityFactor
     : 0;
-  const projectedHeadCount = month >= 3 && month <= 11
-    ? Math.min(
+  const storageCaps = buildingStorageCaps(building.kind);
+  const cullsAffectThisWinter = month >= 3 && month <= 11;
+  const plannedCullHeads = cullsAffectThisWinter
+    ? pendingLivestockCullHeads(
+      herd.species,
       herd.headCount,
-      effectiveLivestockBreedingReserve(herd.species, herd.breedingReserve),
+      herd.breedingReserve,
     )
-    : herd.headCount;
+    : 0;
+  const executableCullHeads = cullsAffectThisWinter
+    && assignedLabor > 0
+    ? livestockStorageSecuredCullHeads(
+      herd.species,
+      herd.headCount,
+      herd.breedingReserve,
+      (storageCaps.food ?? 0) - freshFoodStock(building),
+      (storageCaps.preservedFood ?? 0) - preservedFoodStock(building),
+      building.salt ?? 0,
+    )
+    : 0;
+  const unsecuredCullHeads = Math.max(
+    0,
+    plannedCullHeads - executableCullHeads,
+  );
+  const projectedHeadCount = Math.max(
+    0,
+    herd.headCount - executableCullHeads,
+  );
   const summerReservedCapacity = basePastureCapacity * haymakingShare;
   const hayYieldMultiplier = isLivestockHaymakingMonth(month)
     ? Math.min(1, Math.max(0, currentPastureCapacityMultiplier))
@@ -302,7 +332,7 @@ export function projectLivestockFodderHolding(
   const winterGrainNeed = grainSupportedHeadCycles
     * grainPerHead
     / Math.max(1e-9, LIVESTOCK_OAT_FODDER_VALUE);
-  const grainCapacity = buildingStorageCaps(building.kind).grain ?? 0;
+  const grainCapacity = storageCaps.grain ?? 0;
   const winterReserveTarget = Math.min(winterGrainNeed, grainCapacity);
   const storedFodderOatEquivalent = livestockStoredFodderOatEquivalent(building);
   const winterReserveStock = Math.min(
@@ -315,6 +345,9 @@ export function projectLivestockFodderHolding(
     species: herd.species,
     basePastureCapacity,
     projectedHeadCount,
+    plannedCullHeads,
+    executableCullHeads,
+    unsecuredCullHeads,
     haymakingPercent,
     summerReservedCapacity,
     hayOutputPerDay,
@@ -381,6 +414,9 @@ export function computeSettlementLivestockFodderPlan(
     pastoralHoldings: 0,
     haymakingHoldings: 0,
     projectedHeadCount: 0,
+    plannedCullHeads: 0,
+    executableCullHeads: 0,
+    unsecuredCullHeads: 0,
     summerReservedCapacity: 0,
     hayOutputPerDay: 0,
     hayStock: 0,
@@ -435,6 +471,9 @@ export function computeSettlementLivestockFodderPlan(
       }
     }
     total.projectedHeadCount += plan.projectedHeadCount;
+    total.plannedCullHeads += plan.plannedCullHeads;
+    total.executableCullHeads += plan.executableCullHeads;
+    total.unsecuredCullHeads += plan.unsecuredCullHeads;
     total.summerReservedCapacity += plan.summerReservedCapacity;
     total.hayOutputPerDay += plan.hayOutputPerDay;
     total.hayStock += plan.hayStock;

@@ -493,7 +493,7 @@ export function renderLivestockBuildingInspector(
       : `${fodderPlan.currentUnsupportedHeads.toFixed(1)} unsupported head · ${environment.season === 'winter' && fodderPlan.hayStock > 0 ? 'produced hay fodder feeds first, then ' : ''}${renderResourceAmount('oatGrain', fodderPlan.currentGrainPerDay, { compact: true, suffix: '/day' })} · ${formatProvisionRunway(fodderPlan.currentGrainRunwayDays)} stored${building.assignedLabor <= 0 ? ' · no herder is replenishing it' : ''}`;
   const winterHerdPlan = !fodderPlan
     ? 'No herd'
-    : `${fodderPlan.projectedHeadCount} head after planned culls · ${fodderPlan.winterPastureCapacity.toFixed(1)} pasture-supported · ${fodderPlan.winterUnsupportedHeads.toFixed(1)} need stored fodder`;
+    : `${fodderPlan.projectedHeadCount} head after ${fodderPlan.executableCullHeads}/${fodderPlan.plannedCullHeads} currently executable planned culls${fodderPlan.unsecuredCullHeads > 0 ? ` · ${fodderPlan.unsecuredCullHeads} surplus still provisioned until labor and whole-carcass storage are ready` : ''} · ${fodderPlan.winterPastureCapacity.toFixed(1)} pasture-supported · ${fodderPlan.winterUnsupportedHeads.toFixed(1)} need stored fodder`;
   const haymakingPlan = !fodderPlan || herd?.species === 'swine'
     ? 'Pigs depend on woodland mast and emergency grain'
     : fodderPlan.hayStock + 0.05 >= LIVESTOCK_HAY_STORAGE_CAPACITY

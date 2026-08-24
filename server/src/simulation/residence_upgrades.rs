@@ -58,9 +58,7 @@ pub fn step_residence_upgrades(ctx: &ReducerContext, tick: &SimTickContext, cloc
             && load_needs(ctx, residence.id)
                 .into_iter()
                 .filter(|need| need.kind.is_active_for_tier(residence.tier))
-                .map(|need| need.deficit_ticks)
-                .max()
-                .is_some_and(service_shortage_blocks_upgrade);
+                .any(|need| service_shortage_blocks_upgrade(need.kind, need.deficit_ticks));
         let suspended = (residence.population == 0 && !initial_cottage_works && !structural_repair)
             || (service_blocked && !structural_repair)
             || (tick.residence_disabled_by_fire(ctx, residence.id)
@@ -130,10 +128,7 @@ fn rebalance_upgrade_builders(
             inbound_supply: has_approaching_upgrade_supply(ctx, residence.id),
         })
         .collect::<Vec<_>>();
-    let targets = residence_project_labor_targets(
-        &sites,
-        available_building_labor(ctx, owner),
-    );
+    let targets = residence_project_labor_targets(&sites, available_building_labor(ctx, owner));
 
     for (id, assigned) in targets {
         let Some(mut residence) = ctx.db.residence().id().find(&id) else {

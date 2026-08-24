@@ -173,6 +173,33 @@ const heldStatus = resolveWoodcuttersLodgeStatus({
 assert.match(heldStatus.statusText, /Holding timber for construction/);
 assert.equal(heldStatus.statusState, 'warning');
 
+const noDemandStatus = resolveWoodcuttersLodgeStatus({
+  onRoad: true,
+  assignedLabor: 1,
+  connectedMillCount: 1,
+  millsWithTimber: 1,
+  timber: 3,
+  firewood: 6,
+  claimedResidenceCount: 0,
+  crew: lodgeLaborSplit(1),
+  tripRemainingSeconds: null,
+  activeTrip: null,
+  inboundTimberTrip: null,
+  timberTripRemainingSeconds: null,
+  nextTargetLabel: 'Protected household reserves covered',
+  hasNextTarget: false,
+  activeDestinationLabel: 'Protected household reserves covered',
+  hasIndustrialTarget: false,
+  industrialTargetLabel: 'industry',
+  firewoodPerTrip: lodgeFirewoodPerDelivery(1),
+  canDeliver: false,
+  availableUnreservedTimber: 100,
+  timberReserve: 0,
+  timberPerCycle: 3,
+});
+assert.equal(noDemandStatus.statusText, '');
+assert.equal(noDemandStatus.statusState, 'idle');
+
 const lodgeSimulation = readFileSync(
   'server/src/simulation/woodcutters_lodge.rs',
   'utf8',

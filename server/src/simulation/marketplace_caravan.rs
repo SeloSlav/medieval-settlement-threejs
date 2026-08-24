@@ -275,8 +275,7 @@ fn try_dispatch_trading_post_stock_to_local_service(
         trading_post.action_cooldown,
         TRADING_POST_SERVICE_ROUTES.len(),
     ) {
-        let (need_kind, routed_commodity) =
-            TRADING_POST_SERVICE_ROUTES[route_index];
+        let (need_kind, routed_commodity) = TRADING_POST_SERVICE_ROUTES[route_index];
         let commodity = routed_commodity.or_else(|| match need_kind {
             ResidenceNeedKind::Food | ResidenceNeedKind::PreservedFood => {
                 selected_food_delivery_commodity(trading_post, need_kind)

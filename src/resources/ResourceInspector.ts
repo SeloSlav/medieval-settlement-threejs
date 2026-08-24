@@ -2252,6 +2252,7 @@ export class ResourceInspector {
       ? compactBuildingStatus(view.statusText)
       : view.statusText;
     this.status.textContent = compactStatus;
+    this.status.hidden = compactStatus.length === 0;
     this.status.dataset.state = view.statusState;
     syncFocusableInspectorTooltip(
       this.status,
