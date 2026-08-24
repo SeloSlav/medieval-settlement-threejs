@@ -15,7 +15,7 @@ use crate::simulation::residence_needs::state::{
     load_needs, migrate_and_sync_food_inventory, need_stock, persist_needs,
 };
 use crate::simulation::residence_needs::ResidenceNeedKind;
-use crate::tables::{Building, Residence};
+use crate::tables::{Building, Residence, Settlement};
 
 const RESTED_SETTLEMENT_PROGRESS: u32 = 2;
 
@@ -29,28 +29,32 @@ pub fn step_night_cycle(
         return;
     }
 
-    let owners: Vec<Identity> = ctx
+    let settlements: Vec<Settlement> = ctx
         .db
-        .player_resources()
+        .settlement()
         .iter()
-        .map(|row| row.owner)
+        .filter(|settlement| settlement.active)
         .collect();
-    for owner in owners {
-        complete_night_for_owner(ctx, owner, clock.total_days, clock.sim_tick, world_seed);
+    for settlement in settlements {
+        complete_night_for_settlement(
+            ctx,
+            settlement,
+            clock.total_days,
+            clock.sim_tick,
+            world_seed,
+        );
     }
 }
 
-fn complete_night_for_owner(
+fn complete_night_for_settlement(
     ctx: &ReducerContext,
-    owner: Identity,
+    mut settlement: Settlement,
     report_day: u64,
     sim_tick: u64,
     world_seed: u64,
 ) {
-    let Some(mut resources) = ctx.db.player_resources().owner().find(&owner) else {
-        return;
-    };
-    if resources.last_night_report_day == report_day {
+    let owner = settlement.owner;
+    if settlement.last_night_report_day == report_day {
         return;
     }
 
@@ -59,7 +63,12 @@ fn complete_night_for_owner(
         .residence()
         .owner()
         .filter(&owner)
-        .filter(|residence| !residence.abandoned && residence.tier > 0 && residence.population > 0)
+        .filter(|residence| {
+            residence.settlement_id == settlement.id
+                && !residence.abandoned
+                && residence.tier > 0
+                && residence.population > 0
+        })
         .collect();
     residences.sort_by_key(|residence| residence.id);
     let household_count = residences.len() as u32;
@@ -83,21 +92,23 @@ fn complete_night_for_owner(
         .building()
         .owner()
         .filter(&owner)
-        .filter(|building| building.construction_complete)
+        .filter(|building| {
+            building.settlement_id == settlement.id && building.construction_complete
+        })
         .collect();
     let night_workers = buildings
         .iter()
-        .filter(|building| night_work_allowed(resources.night_work_policy, &building.kind))
+        .filter(|building| night_work_allowed(settlement.night_work_policy, &building.kind))
         .map(|building| building.assigned_labor)
         .sum::<u32>();
-    let tired_household_slots = match resources.night_work_policy {
+    let tired_household_slots = match settlement.night_work_policy {
         crate::night_policy::NIGHT_WORK_STAFFED => night_workers.div_ceil(2),
         crate::night_policy::NIGHT_WORK_CONTINUOUS => night_workers.div_ceil(5),
         _ => 0,
     }
     .min(household_count);
     let cohesion_progress_bonus =
-        (resources.night_community_cohesion.clamp(0.0, 1.0) * 2.0).round() as u32;
+        (settlement.night_community_cohesion.clamp(0.0, 1.0) * 2.0).round() as u32;
 
     let mut well_rested = 0u32;
     let mut cold_households = 0u32;
@@ -139,8 +150,8 @@ fn complete_night_for_owner(
 
     let social_households = ((household_count as f64
         * gathering_share(
-            resources.night_gathering_policy,
-            resources.night_curfew_policy,
+            settlement.night_gathering_policy,
+            settlement.night_curfew_policy,
         ))
     .round() as u32)
         .min(household_count);
@@ -156,29 +167,40 @@ fn complete_night_for_owner(
         .map(|building| armed_guards(building.assigned_labor, building.polearms))
         .sum::<f64>();
     let watch_strength =
-        (watch_staff * 1.5 + guards) * watch_policy_multiplier(resources.night_watch_policy);
+        (watch_staff * 1.5 + guards) * watch_policy_multiplier(settlement.night_watch_policy);
 
     // Lighting fuel is included in the household's one monthly firewood unit.
     // Keep the legacy report fields at zero instead of charging an additional
     // nightly fractional resource stream.
-    let _bundled_lighting_share = lighting_firewood_per_household(resources.night_lighting_policy);
+    let _bundled_lighting_share =
+        lighting_firewood_per_household(settlement.night_lighting_policy);
     let lighting_fuel_used = 0.0;
     let lighting_shortfall = 0.0;
     let lighting_supply_ratio = 1.0;
 
     let effective_security = (1.0 + watch_strength * 0.18)
-        * lighting_security_multiplier(resources.night_lighting_policy)
+        * lighting_security_multiplier(settlement.night_lighting_policy)
         * (0.65 + lighting_supply_ratio * 0.35)
-        * curfew_security_multiplier(resources.night_curfew_policy);
+        * curfew_security_multiplier(settlement.night_curfew_policy);
     let theft_chance = (0.055 / effective_security.max(0.25)).clamp(0.005, 0.16);
-    let theft_roll = deterministic_unit(world_seed, report_day, &owner, 0x5448_4546_54);
+    let theft_roll = deterministic_unit(
+        world_seed,
+        report_day,
+        &owner,
+        0x5448_4546_54 ^ settlement.id,
+    );
     let theft_gold = if household_count > 0 && theft_roll < theft_chance && !active_raid {
         steal_from_richest_household(ctx, &residences)
     } else {
         0.0
     };
     let wildlife_sightings =
-        (deterministic_unit(world_seed, report_day, &owner, 0x5749_4c44) < 0.1) as u32;
+        (deterministic_unit(
+            world_seed,
+            report_day,
+            &owner,
+            0x5749_4c44 ^ settlement.id,
+        ) < 0.1) as u32;
     let incidents = recent_fires + u32::from(theft_gold > 1e-9);
 
     let social_ratio = social_households as f64 / household_count.max(1) as f64;
@@ -187,25 +209,25 @@ fn complete_night_for_owner(
         - if incidents > 0 { 0.12 } else { 0.0 })
     .clamp(0.0, 1.0);
     let fatigue_target =
-        work_fatigue_target(resources.night_work_policy, night_workers, population);
+        work_fatigue_target(settlement.night_work_policy, night_workers, population);
 
-    resources.last_night_report_day = report_day;
-    resources.last_night_households = household_count;
-    resources.last_night_well_rested_households = well_rested;
-    resources.last_night_cold_households = cold_households;
-    resources.last_night_social_households = social_households;
-    resources.last_night_workers = night_workers;
-    resources.last_night_watch_strength = watch_strength;
-    resources.last_night_incidents = incidents;
-    resources.last_night_theft_gold = theft_gold;
-    resources.last_night_wildlife_sightings = wildlife_sightings;
-    resources.last_night_lighting_fuel_used = lighting_fuel_used;
-    resources.last_night_lighting_fuel_shortfall = lighting_shortfall;
-    resources.night_community_cohesion =
-        (resources.night_community_cohesion * 0.75 + cohesion_target * 0.25).clamp(0.0, 1.0);
-    resources.night_labor_fatigue =
-        (resources.night_labor_fatigue * 0.65 + fatigue_target * 0.35).clamp(0.0, 1.0);
-    ctx.db.player_resources().owner().update(resources);
+    settlement.last_night_report_day = report_day;
+    settlement.last_night_households = household_count;
+    settlement.last_night_well_rested_households = well_rested;
+    settlement.last_night_cold_households = cold_households;
+    settlement.last_night_social_households = social_households;
+    settlement.last_night_workers = night_workers;
+    settlement.last_night_watch_strength = watch_strength;
+    settlement.last_night_incidents = incidents;
+    settlement.last_night_theft_gold = theft_gold;
+    settlement.last_night_wildlife_sightings = wildlife_sightings;
+    settlement.last_night_lighting_fuel_used = lighting_fuel_used;
+    settlement.last_night_lighting_fuel_shortfall = lighting_shortfall;
+    settlement.night_community_cohesion =
+        (settlement.night_community_cohesion * 0.75 + cohesion_target * 0.25).clamp(0.0, 1.0);
+    settlement.night_labor_fatigue =
+        (settlement.night_labor_fatigue * 0.65 + fatigue_target * 0.35).clamp(0.0, 1.0);
+    ctx.db.settlement().id().update(settlement);
 }
 
 fn steal_from_richest_household(ctx: &ReducerContext, residences: &[Residence]) -> f64 {

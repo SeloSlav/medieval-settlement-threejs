@@ -1,17 +1,24 @@
 //! Material reservations, construction hauling, and builder progress.
 
+use std::collections::HashMap;
+
 use spacetimedb::ReducerContext;
 
 use crate::balance_generated::{
     CONSTRUCTION_TREASURY_TRANSFER_PER_SEC, CONSTRUCTION_WORK_PER_WORKER_PER_SEC,
-    FARMSTEAD_STARTER_BARLEY_SEED, FARMSTEAD_STARTER_SEED_GRAIN, TICK_DT,
+    FARMSTEAD_STARTER_BARLEY_SEED, FARMSTEAD_STARTER_SEED_GRAIN, STARTING_BREAD, STARTING_FIREWOOD,
+    STARTING_IRONWORK, TICK_DT,
 };
 use crate::construction_priority::{
-    construction_priority_bucket, CONSTRUCTION_PRIORITY_HOLD, CONSTRUCTION_PRIORITY_LEVELS,
+    construction_labor_queue_callup, construction_labor_ready, construction_priority_bucket,
+    ConstructionLaborSite, CONSTRUCTION_PRIORITY_HOLD, CONSTRUCTION_PRIORITY_LEVELS,
     CONSTRUCTION_PRIORITY_NORMAL,
 };
 use crate::db::*;
-use crate::economy::{building_commodity_stock, CommodityKind};
+use crate::economy::{
+    available_building_labor, building_commodity_stock, queued_construction_callup_labor,
+    CommodityKind,
+};
 use crate::reducers::livestock::{unstocked_herd, SPECIES_SWINE};
 use crate::resource_units::whole_units;
 use crate::roads::RoadNetwork;
@@ -30,6 +37,8 @@ use crate::tables::Building;
 pub fn step_construction_sites(ctx: &ReducerContext, tick: &SimTickContext, clock: &GameClock) {
     let mut site_buckets: [Vec<u64>; CONSTRUCTION_PRIORITY_LEVELS] =
         std::array::from_fn(|_| Vec::new());
+    let mut owner_sites: HashMap<spacetimedb::Identity, Vec<ConstructionLaborSite>> =
+        HashMap::new();
     for building in ctx
         .db
         .building()
@@ -39,8 +48,38 @@ pub fn step_construction_sites(ctx: &ReducerContext, tick: &SimTickContext, cloc
         let bucket = construction_priority_bucket(building.construction_priority);
         if bucket > CONSTRUCTION_PRIORITY_HOLD as usize {
             site_buckets[bucket].push(building.id);
+            owner_sites
+                .entry(building.owner)
+                .or_default()
+                .push(ConstructionLaborSite {
+                    building_id: building.id,
+                    priority: building.construction_priority,
+                    assigned_labor: building.assigned_labor,
+                    max_labor: crate::balance_generated::CONSTRUCTION_MAX_BUILDERS,
+                    work_ready: construction_labor_ready(
+                        building.construction_required_timber,
+                        building.construction_required_stone,
+                        building.construction_required_ironwork,
+                        building.construction_delivered_timber,
+                        building.construction_delivered_stone,
+                        building.construction_delivered_ironwork,
+                        building.construction_progress,
+                        building.construction_treasury_timber,
+                        building.construction_treasury_stone,
+                        building.construction_treasury_ironwork,
+                        building.construction_required_roof_tiles,
+                        building.construction_delivered_roof_tiles,
+                        building.construction_treasury_roof_tiles,
+                    ),
+                    // The baseline queue never recalls crews, so inbound state
+                    // is intentionally irrelevant here. The Town Hall rotation
+                    // remains responsible for safe blocked-crew reassignment.
+                    inbound_supply: false,
+                });
         }
     }
+
+    call_up_queued_builders(ctx, owner_sites);
 
     // Four fixed buckets keep dispatch linear while urgent sites get first
     // claim on busy carts and scarce physical stores.
@@ -55,6 +94,47 @@ pub fn step_construction_sites(ctx: &ReducerContext, tick: &SimTickContext, cloc
         dispatch_reserved_stock(ctx, tick, clock, &mut site, CommodityKind::Ironwork);
         dispatch_reserved_stock(ctx, tick, clock, &mut site, CommodityKind::RoofTiles);
         advance_builder_work(ctx, tick, clock, site);
+    }
+}
+
+/// Starts ready queued sites whenever genuinely free villagers exist. This is
+/// baseline construction behavior and does not require a Town Hall: the clerk
+/// steward still adds the distinct ability to recall blocked crews. The budget
+/// starts every zero-builder site it can, then preserves a small free cart pool
+/// before expanding crews beyond one worker.
+fn call_up_queued_builders(
+    ctx: &ReducerContext,
+    owner_sites: HashMap<spacetimedb::Identity, Vec<ConstructionLaborSite>>,
+) {
+    for (owner, sites) in owner_sites {
+        let available_labor = available_building_labor(ctx, owner);
+        if available_labor == 0 {
+            continue;
+        }
+        let ready_unstaffed_sites = sites
+            .iter()
+            .filter(|site| site.work_ready && site.assigned_labor == 0)
+            .count() as u32;
+        let callup_labor = queued_construction_callup_labor(available_labor, ready_unstaffed_sites);
+        if callup_labor == 0 {
+            continue;
+        }
+        let callup = construction_labor_queue_callup(&sites, callup_labor);
+        for (building_id, target_labor) in callup.targets {
+            let Some(mut building) = ctx.db.building().id().find(&building_id) else {
+                continue;
+            };
+            if building.owner != owner
+                || building.construction_complete
+                || building.construction_priority == CONSTRUCTION_PRIORITY_HOLD
+                || target_labor <= building.assigned_labor
+            {
+                continue;
+            }
+            building.assigned_labor =
+                target_labor.min(crate::balance_generated::CONSTRUCTION_MAX_BUILDERS);
+            ctx.db.building().id().update(building);
+        }
     }
 }
 
@@ -303,6 +383,20 @@ fn complete_site(ctx: &ReducerContext, site: &mut Building) {
     site.construction_treasury_roof_tiles = 0.0;
     site.construction_priority = CONSTRUCTION_PRIORITY_NORMAL;
     site.assigned_labor = 0;
+
+    if site.kind == "founders_camp"
+        && crate::settlements::activate_founding_settlement(ctx, site.settlement_id, site.id)
+    {
+        // The large commissioning cost funds a modest physical expedition
+        // package. It must be carted into this town's permanent stores before
+        // the temporary stockyard can disband.
+        site.founding_shelter_active = true;
+        site.firewood += STARTING_FIREWOOD;
+        site.rye_bread += STARTING_BREAD;
+        site.ironwork += STARTING_IRONWORK;
+    }
+
+    crate::settlements::link_completed_town_hall(ctx, site);
 
     if site.kind == "threshing_barn" {
         // A newly established holding arrives with enough seed for roughly one

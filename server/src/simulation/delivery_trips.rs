@@ -25,12 +25,13 @@ use crate::delivery_trip_policy::{
 use crate::economy::{
     adriatic_trade_entry_point, available_building_labor, building_commodity_room,
     building_commodity_stock, chapel_coffer_gold, chapel_monastery_tithe_due,
-    credit_marketplace_receipt_gold, credit_residence_wealth, credit_settlement_household_income,
+    credit_local_household_income, credit_marketplace_receipt_gold, credit_residence_wealth,
     credit_treasury_commodity, deposit_building_commodity, deposit_residence_commodity,
-    player_economic_activity_tax_rate, private_export_proceeds, record_parish_ledger,
+    private_export_proceeds, record_parish_ledger,
     record_private_export_income, restore_local_civic_receipts, restore_private_export_proceeds,
-    settle_regional_market_export, storage_accepts_commodity, taxed_economic_activity,
-    town_hall_tax_collection_multiplier, withdraw_building_commodity, withdraw_coffer_in_place,
+    settle_regional_market_export, settlement_economic_activity_tax_rate,
+    settlement_town_hall_tax_collection_multiplier, storage_accepts_commodity,
+    taxed_economic_activity, withdraw_building_commodity, withdraw_coffer_in_place,
     withdraw_private_export_proceeds, CommodityKind, ParishLedgerKind,
 };
 use crate::fire_policy::fire_response_load;
@@ -2518,11 +2519,23 @@ fn unload_commodity_to_building(
             let base_activity = deposited * FOOD_SALE_GOLD_PER_UNIT;
             let receipt = split_whole_local_sale_receipt(
                 base_activity,
-                player_economic_activity_tax_rate(ctx, target.owner),
-                town_hall_tax_collection_multiplier(ctx, target.owner),
+                settlement_economic_activity_tax_rate(
+                    ctx,
+                    target.owner,
+                    target.settlement_id,
+                ),
+                settlement_town_hall_tax_collection_multiplier(
+                    ctx,
+                    target.owner,
+                    target.settlement_id,
+                ),
             );
-            let credited_income =
-                credit_settlement_household_income(ctx, target.owner, receipt.producer_income);
+            let credited_income = credit_local_household_income(
+                ctx,
+                target.owner,
+                target.settlement_id,
+                receipt.producer_income,
+            );
             // A settlement with no occupied household cannot receive private
             // income. Keep those realized coins at the market instead of
             // deleting them.

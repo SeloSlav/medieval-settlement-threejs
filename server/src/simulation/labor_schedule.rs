@@ -124,12 +124,6 @@ pub fn production_labor_paused(
     if tick.owner_has_active_raider_threat(ctx, building.owner) {
         return true;
     }
-    let policy = ctx
-        .db
-        .player_resources()
-        .owner()
-        .find(&building.owner)
-        .map(|resources| resources.night_work_policy)
-        .unwrap_or(crate::night_policy::NIGHT_WORK_DAY_SHIFT);
+    let policy = crate::settlement_policy::night(ctx, building.owner, building.settlement_id).work;
     !crate::night_policy::night_work_allowed(policy, &building.kind)
 }

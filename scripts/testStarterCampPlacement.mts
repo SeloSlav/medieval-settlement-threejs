@@ -491,6 +491,11 @@ assert.match(
   /pub\(crate\) fn place_founding_camp[\s\S]*?kind: "founders_camp"[\s\S]*?physical_founding_site_enabled = true/,
   'player placement should create and activate the physical founding site',
 );
+assert.match(
+  bootstrapReducer,
+  /create_initial_settlement\(ctx, owner, building_id, x, z\)[\s\S]{0,500}settlement_id: settlement\.id/,
+  'the free first camp must seed a durable community row instead of serving as that community forever',
+);
 
 const buildingReducer = read('server/src/reducers/buildings.rs');
 assert.match(
@@ -502,6 +507,16 @@ assert.match(
   buildingReducer,
   /let is_founders_camp_expansion = kind == "founders_camp" && physical_founding_site_enabled/,
   'later founders camps should enter the ordinary construction pipeline as expansions',
+);
+assert.match(
+  buildingReducer,
+  /create_planned_settlement\([\s\S]{0,180}ctx, owner, x, z[\s\S]{0,300}settlement_id/,
+  'each paid expedition must own a distinct planned community before construction begins',
+);
+assert.match(
+  buildingReducer,
+  /attach_founding_camp\(ctx, settlement_id, building_id\)/,
+  'the expansion camp must remain traceable to its own founder cohort',
 );
 assert.match(
   buildingReducer,
@@ -517,6 +532,12 @@ assert.match(
   buildingReducer,
   /fn is_bootstrap_founders_camp[\s\S]{0,420}construction_required_timber[\s\S]{0,220}construction_required_roof_tiles/,
   'the server should persistently distinguish free bootstrap camps from paid expansion camps',
+);
+const constructionSimulation = read('server/src/simulation/construction.rs');
+assert.match(
+  constructionSimulation,
+  /site\.kind == "founders_camp"[\s\S]{0,180}activate_founding_settlement\(ctx, site\.settlement_id, site\.id\)[\s\S]{0,220}site\.founding_shelter_active = true/,
+  'an expansion cohort must arrive exactly when its paid camp finishes, not while it is only a worksite',
 );
 assert.doesNotMatch(
   buildingReducer,

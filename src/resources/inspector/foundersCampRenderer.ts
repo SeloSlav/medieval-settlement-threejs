@@ -42,7 +42,7 @@ function storageNeed(plan: FoundingStockyardRelocationPlan): string {
     case 'timber':
     case 'stone':
     case 'firewood':
-      return 'a Village Storehouse with intake enabled';
+      return 'a Storehouse with intake enabled';
     case 'food':
     case 'ryeBread':
     case 'maslinBread':
@@ -163,7 +163,7 @@ function permanentStorageStatus(
     case 'no-storage':
       return `Build ${storageNeed(plan)} before clearing ${materialLabel(plan).toLowerCase()}`;
     case 'intake-disabled':
-      return `Enable ${materialLabel(plan).toLowerCase()} intake at a Village Storehouse`;
+      return `Enable ${materialLabel(plan).toLowerCase()} intake at a Storehouse`;
     case 'target-full':
       return `Create ${materialLabel(plan).toLowerCase()} room at ${storageNeed(plan)}`;
     case 'fire':
@@ -269,7 +269,7 @@ export function renderFoundersCampInspector(
       <li><span>Active cart</span><span>${activeTrip ? formatTripPhaseLabel(activeTrip.phase) : 'None'}</span></li>
       <li><span>Lockbox</span><span>${lockboxStatus}</span></li>
       ${buildingStorageRows(building, building.kind)}
-      <li><span>Final clearance</span><span>After every cart returns, all founders are housed, the yard is empty, and both a Town Hall and Village Storehouse are complete</span></li>
+      <li><span>Final clearance</span><span>After every cart returns, all founders are housed, the yard is empty, and both a Town Hall and Storehouse are complete</span></li>
     `,
     demolish: hiddenDemolish(),
     labor: hiddenLabor(),

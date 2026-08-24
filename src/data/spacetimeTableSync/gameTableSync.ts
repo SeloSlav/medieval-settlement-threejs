@@ -23,6 +23,7 @@ import { syncQuarries } from './syncQuarries.ts';
 import { syncResidences } from './syncResidences.ts';
 import { syncRoadNetwork } from './syncRoadNetwork.ts';
 import { syncSettlementSecurity } from './syncSettlementSecurity.ts';
+import { syncSettlements, type SettlementRow } from './syncSettlements.ts';
 import { removeTreeRow, syncTrees, upsertTreeRow } from './syncTrees.ts';
 import { syncWorldConfig } from './syncWorldConfig.ts';
 import { syncTradingPostTradeRules } from './syncTradingPostTradeRules.ts';
@@ -32,6 +33,14 @@ type TableHandle = {
   onUpdate: (cb: () => void) => void;
   onDelete: (cb: () => void) => void;
 };
+
+type SettlementTableHandle = TableHandle & {
+  iter: () => Iterable<SettlementRow>;
+};
+
+function settlementTableFromDb(db: unknown): SettlementTableHandle | undefined {
+  return (db as { settlement?: SettlementTableHandle }).settlement;
+}
 
 type TableChange<Row> =
   | { type: 'insert'; row: Row }
@@ -49,9 +58,14 @@ export class GameTableSync {
 
   syncAll(connection: DbConnection): void {
     const db = connection.db;
+    const settlementTable = settlementTableFromDb(db);
 
     syncWorldConfig(db.world_config ? db.world_config.iter() : [], this.state);
     syncPlayerResources(db.player_resources ? db.player_resources.iter() : [], this.state);
+    this.state.settlements = syncSettlements(
+      settlementTable ? settlementTable.iter() : [],
+      this.state.identityHex,
+    );
     syncMarketState(db.market_state ? db.market_state.iter() : [], this.state);
     this.state.tradingPostTradeRules = syncTradingPostTradeRules(
       db.trading_post_trade_rule ? db.trading_post_trade_rule.iter() : [],
@@ -145,6 +159,7 @@ export class GameTableSync {
 
   attachHandlers(connection: DbConnection): void {
     const db = connection.db;
+    const settlementTable = settlementTableFromDb(db);
     let notifyPending = false;
     const notify = (): void => {
       if (notifyPending) return;
@@ -222,6 +237,13 @@ export class GameTableSync {
     bindTable(db.player_resources, () => {
       syncPlayerResources(db.player_resources ? db.player_resources.iter() : [], this.state);
     }, false);
+
+    bindTable(settlementTable, () => {
+      this.state.settlements = syncSettlements(
+        settlementTable ? settlementTable.iter() : [],
+        this.state.identityHex,
+      );
+    });
 
     bindTable(db.market_state, () => {
       syncMarketState(db.market_state ? db.market_state.iter() : [], this.state);

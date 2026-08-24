@@ -1293,7 +1293,7 @@ export const BUILDING_DEFINITIONS = {
   },
   village_storehouse: {
     kind: 'village_storehouse',
-    label: "Village storehouse",
+    label: "Storehouse",
     workRadius: 0,
     pickRadius: 10,
     harvestInterval: 4,
@@ -1502,7 +1502,7 @@ export const BUILDING_DEFINITIONS = {
   },
   granary: {
     kind: 'granary',
-    label: "Village granary",
+    label: "Granary",
     workRadius: 0,
     pickRadius: 9,
     harvestInterval: 4,

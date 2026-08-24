@@ -283,6 +283,9 @@ const constructionServer = read('server/src/simulation/construction.rs');
 assert.match(constructionServer, /construction_reserved_timber/);
 assert.match(constructionServer, /try_start_construction_supply_trip/);
 assert.match(constructionServer, /available_free_haulers/);
+assert.match(constructionServer, /call_up_queued_builders\(ctx, owner_sites\)/);
+assert.match(constructionServer, /queued_construction_callup_labor/);
+assert.match(constructionServer, /construction_labor_queue_callup/);
 const deliveryTripServer = read('server/src/simulation/delivery_trips.rs');
 assert.match(
   deliveryTripServer,
@@ -1130,8 +1133,8 @@ const manualUnstaffedView = renderConstructionInspector(
 );
 assert.equal(
   manualUnstaffedView.statusText,
-  'Waiting for builders — use Workforce + to assign one (2 available). Staffing is manual; a staffed Town Hall can enable daily construction rotation.',
-  'a zero-builder site must name the immediately attainable manual staffing remedy',
+  'Queued for builders — 2 free workers will be called automatically when this priority tier reaches a productive slot. Workforce + can override the queue; a staffed Town Hall can enable blocked-crew rotation.',
+  'a zero-builder site must explain the automatic queue and immediate manual override',
 );
 assert.equal(
   manualUnstaffedView.labor.increaseDisabled,
@@ -1146,8 +1149,8 @@ assert.equal(
       getConstructionLaborStewardEnabled: () => true,
     } as never,
   ).statusText,
-  'Waiting for builders — use Workforce + to assign one (2 available). The enabled Town Hall steward also reviews ready sites at dawn while the hall is staffed.',
-  'an enabled steward must be distinguished from the default manual staffing policy',
+  'Queued for builders — 2 free workers will be called automatically when this priority tier reaches a productive slot. The enabled Town Hall steward also recalls safely releasable blocked crews at dawn.',
+  'an enabled steward must be distinguished from baseline automatic queue call-up',
 );
 
 const nightPauseContext = constructionContext([stoneSource], 5, 30);

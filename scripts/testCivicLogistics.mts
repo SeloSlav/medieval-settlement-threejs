@@ -338,7 +338,16 @@ assert.ok(
 );
 
 const placement = fs.readFileSync('server/src/reducers/buildings.rs', 'utf8');
-assert.match(placement, /Only one Town Hall may serve a settlement/);
+assert.match(
+  placement,
+  /building\.settlement_id == settlement_id[\s\S]{0,900}Only one Town Hall may serve this community/,
+  'each durable community may have one Town Hall without making the realm a global singleton',
+);
+assert.match(
+  placement,
+  /residence\.settlement_id == settlement_id[\s\S]{0,240}TOWN_HALL_POPULATION_REQUIRED/,
+  'Town Hall maturity is earned by the community where it is placed',
+);
 assert.match(placement, /population < TOWN_HALL_POPULATION_REQUIRED/);
 assert.match(placement, /Build a chapel before founding the Town Hall/);
 assert.match(placement, /Build a marketplace before founding the Town Hall/);
@@ -346,7 +355,21 @@ assert.match(placement, /road-linked to both the chapel and marketplace/);
 assert.match(placement, /pub fn set_storehouse_policy/);
 
 const admin = fs.readFileSync('server/src/reducers/village_admin.rs', 'utf8');
-assert.match(admin, /require_owned_building\(ctx, "town_hall", true\)/, 'tax policy must require a staffed Town Hall');
+assert.match(
+  admin,
+  /require_owned_town_hall\(ctx, town_hall_id, true\)/,
+  'a civic policy edit must identify the exact staffed Town Hall',
+);
+assert.match(
+  admin,
+  /settlement\.town_hall_id != hall\.id/,
+  'a Hall may administer only the durable community that names it',
+);
+assert.match(
+  admin,
+  /ctx\.db\.settlement\(\)\.id\(\)\.update\(settlement\)/,
+  'secular policies belong to the selected community rather than one owner-global policy row',
+);
 assert.match(admin, /require_owned_building\(ctx, "chapel", false\)/, 'parish policy must live at a chapel');
 assert.match(admin, /require_owned_building\(ctx, "monastery", false\)/, 'monastery policy must live at a monastery');
 

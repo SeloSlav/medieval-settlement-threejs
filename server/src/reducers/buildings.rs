@@ -557,6 +557,28 @@ pub(crate) fn place_building_internal(
     // Parsing and indexing the serialized road graph is one of the more expensive
     // placement checks. Reuse one snapshot for overlap, landmark, and carpenter checks.
     let road_network = load_owner_road_network(ctx, owner);
+    crate::settlements::ensure_owner_settlements(ctx, owner);
+    let planned_settlement = if is_founders_camp_expansion {
+        Some(crate::settlements::create_planned_settlement(
+            ctx, owner, x, z,
+        )?)
+    } else {
+        None
+    };
+    let settlement_id = if let Some(settlement) = planned_settlement.as_ref() {
+        settlement.id
+    } else if kind == "remote_work_camp" && linked_worksite_id != 0 {
+        ctx.db
+            .building()
+            .id()
+            .find(&linked_worksite_id)
+            .map(|worksite| worksite.settlement_id)
+            .filter(|settlement_id| *settlement_id != 0)
+            .ok_or_else(|| "The linked worksite has no community affiliation.".to_string())?
+    } else {
+        crate::settlements::settlement_for_position(ctx, owner, x, z)
+            .ok_or_else(|| "Place the founders' camp before building the settlement.".to_string())?
+    };
 
     if matches!(
         kind.as_str(),
@@ -662,6 +684,7 @@ pub(crate) fn place_building_internal(
             .building()
             .owner()
             .filter(&owner)
+            .filter(|building| building.settlement_id == settlement_id)
             .filter(|building| {
                 building.kind == "town_hall"
                     || (building.construction_complete
@@ -672,13 +695,14 @@ pub(crate) fn place_building_internal(
             .iter()
             .any(|building| building.kind == "town_hall")
         {
-            return Err("Only one Town Hall may serve a settlement.".to_string());
+            return Err("Only one Town Hall may serve this community.".to_string());
         }
         let population: u32 = ctx
             .db
             .residence()
             .owner()
             .filter(&owner)
+            .filter(|residence| residence.settlement_id == settlement_id)
             .map(|residence| residence.population)
             .sum();
         if population < TOWN_HALL_POPULATION_REQUIRED {
@@ -1004,7 +1028,8 @@ pub(crate) fn place_building_internal(
         storehouse_charcoal_target_percent: 25,
         processor_output_target_percent: PROCESSOR_OUTPUT_TARGET_DEFAULT_PERCENT,
         gold: 0.0,
-        founding_shelter_active: is_founders_camp_expansion,
+        // A paid expedition's people arrive only when construction completes.
+        founding_shelter_active: false,
         chapel_monastery_tithe_due: 0.0,
         civic_receipts_gold: 0.0,
         private_export_proceeds_gold: 0.0,
@@ -1091,7 +1116,12 @@ pub(crate) fn place_building_internal(
         aronia_jam: 0.0,
         rosehip_jam: 0.0,
         pear_cider: 0.0,
+        settlement_id,
     });
+
+    if is_founders_camp_expansion {
+        crate::settlements::attach_founding_camp(ctx, settlement_id, building_id)?;
+    }
 
     ctx.db.world_config().id().update(WorldConfig {
         next_building_id: building_id + 1,
@@ -1199,13 +1229,37 @@ pub(crate) fn rotate_construction_labor_for_owner_with_reserve(
     owner: spacetimedb::Identity,
     labor_reserve: u32,
 ) -> ConstructionLaborRotation {
+    rotate_construction_labor_for_scope(ctx, owner, None, labor_reserve)
+}
+
+/// A Town Hall steward administers only construction sites affiliated with its
+/// own community. The workers remain part of the realm-wide free labor pool,
+/// so this is a jurisdiction filter rather than a movement or hiring wall.
+pub(crate) fn rotate_construction_labor_for_settlement_with_reserve(
+    ctx: &ReducerContext,
+    owner: spacetimedb::Identity,
+    settlement_id: u64,
+    labor_reserve: u32,
+) -> ConstructionLaborRotation {
+    rotate_construction_labor_for_scope(ctx, owner, Some(settlement_id), labor_reserve)
+}
+
+fn rotate_construction_labor_for_scope(
+    ctx: &ReducerContext,
+    owner: spacetimedb::Identity,
+    settlement_id: Option<u64>,
+    labor_reserve: u32,
+) -> ConstructionLaborRotation {
     let available_labor = available_building_labor(ctx, owner);
     let sites = ctx
         .db
         .building()
         .owner()
         .filter(&owner)
-        .filter(|building| !building.construction_complete)
+        .filter(|building| {
+            !building.construction_complete
+                && settlement_id.is_none_or(|id| building.settlement_id == id)
+        })
         .map(|building| ConstructionLaborSite {
             building_id: building.id,
             priority: building.construction_priority,
@@ -1239,7 +1293,10 @@ pub(crate) fn rotate_construction_labor_for_owner_with_reserve(
         let Some(mut building) = ctx.db.building().id().find(&building_id) else {
             continue;
         };
-        if building.owner != owner || building.construction_complete {
+        if building.owner != owner
+            || building.construction_complete
+            || settlement_id.is_some_and(|id| building.settlement_id != id)
+        {
             continue;
         }
         let target_labor = target_labor.min(CONSTRUCTION_MAX_BUILDERS);
@@ -1691,6 +1748,22 @@ pub fn recall_target_idle_processor_labor_for_owner(
     ctx: &ReducerContext,
     owner: spacetimedb::Identity,
 ) -> u32 {
+    recall_target_idle_processor_labor_for_scope(ctx, owner, None)
+}
+
+pub fn recall_target_idle_processor_labor_for_settlement(
+    ctx: &ReducerContext,
+    owner: spacetimedb::Identity,
+    settlement_id: u64,
+) -> u32 {
+    recall_target_idle_processor_labor_for_scope(ctx, owner, Some(settlement_id))
+}
+
+fn recall_target_idle_processor_labor_for_scope(
+    ctx: &ReducerContext,
+    owner: spacetimedb::Identity,
+    settlement_id: Option<u64>,
+) -> u32 {
     let sim_tick = ctx
         .db
         .world_config()
@@ -1706,7 +1779,11 @@ pub fn recall_target_idle_processor_labor_for_owner(
         .building()
         .owner()
         .filter(&owner)
-        .filter(|building| building.construction_complete && building.assigned_labor > 0)
+        .filter(|building| {
+            building.construction_complete
+                && building.assigned_labor > 0
+                && settlement_id.is_none_or(|id| building.settlement_id == id)
+        })
         .collect();
     let mut recalled = 0_u32;
     for mut building in buildings {
@@ -1860,6 +1937,7 @@ pub fn recall_target_idle_processor_labor(ctx: &ReducerContext) -> Result<(), St
 fn call_up_target_ready_processor_labor_for_owner_with_policy(
     ctx: &ReducerContext,
     owner: spacetimedb::Identity,
+    settlement_id: Option<u64>,
     require_operational_inputs: bool,
     labor_reserve: u32,
 ) -> u32 {
@@ -1883,7 +1961,9 @@ fn call_up_target_ready_processor_labor_for_owner_with_policy(
     };
     let mut candidates = Vec::new();
     for building in ctx.db.building().owner().filter(&owner).filter(|building| {
-        building.construction_complete && building_fire_state(ctx, building.id).is_none()
+        building.construction_complete
+            && settlement_id.is_none_or(|id| building.settlement_id == id)
+            && building_fire_state(ctx, building.id).is_none()
     }) {
         let Some(def) = building_def(&building.kind) else {
             continue;
@@ -1918,7 +1998,10 @@ fn call_up_target_ready_processor_labor_for_owner_with_policy(
         let Some(mut building) = ctx.db.building().id().find(&building_id) else {
             continue;
         };
-        if building.owner != owner || target_labor <= building.assigned_labor {
+        if building.owner != owner
+            || target_labor <= building.assigned_labor
+            || settlement_id.is_some_and(|id| building.settlement_id != id)
+        {
             continue;
         }
         called_up = called_up.saturating_add(target_labor - building.assigned_labor);
@@ -1935,7 +2018,7 @@ pub fn call_up_target_ready_processor_labor_for_owner(
     ctx: &ReducerContext,
     owner: spacetimedb::Identity,
 ) -> u32 {
-    call_up_target_ready_processor_labor_for_owner_with_policy(ctx, owner, false, 0)
+    call_up_target_ready_processor_labor_for_owner_with_policy(ctx, owner, None, false, 0)
 }
 
 /// Daily automation is deliberately stricter: it never recalls an input-starved
@@ -1946,7 +2029,28 @@ pub fn call_up_operational_production_labor_for_owner(
     owner: spacetimedb::Identity,
     labor_reserve: u32,
 ) -> u32 {
-    call_up_target_ready_processor_labor_for_owner_with_policy(ctx, owner, true, labor_reserve)
+    call_up_target_ready_processor_labor_for_owner_with_policy(
+        ctx,
+        owner,
+        None,
+        true,
+        labor_reserve,
+    )
+}
+
+pub fn call_up_operational_production_labor_for_settlement(
+    ctx: &ReducerContext,
+    owner: spacetimedb::Identity,
+    settlement_id: u64,
+    labor_reserve: u32,
+) -> u32 {
+    call_up_target_ready_processor_labor_for_owner_with_policy(
+        ctx,
+        owner,
+        Some(settlement_id),
+        true,
+        labor_reserve,
+    )
 }
 
 #[reducer]

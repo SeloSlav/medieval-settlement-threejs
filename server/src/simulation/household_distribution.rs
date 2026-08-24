@@ -55,6 +55,7 @@ struct DistributionTarget {
     runway_days: f64,
     target_stock: f64,
     daily_lot: f64,
+    pantry_rounds: usize,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -89,17 +90,6 @@ pub fn step_market_household_distribution(
     let Some(issue_cycle) = market_issue_cycle(sim_tick) else {
         return;
     };
-    let pantry_policy_by_owner: HashMap<Identity, u8> = ctx
-        .db
-        .player_resources()
-        .iter()
-        .map(|resources| {
-            (
-                resources.owner,
-                normalize_pantry_safeguard_policy(resources.pantry_safeguard_policy),
-            )
-        })
-        .collect();
     for need_kind in MARKET_NEEDS {
         let distribution_kind = if need_kind == ResidenceNeedKind::Ale {
             "tavern"
@@ -121,10 +111,13 @@ pub fn step_market_household_distribution(
                 {
                     return None;
                 }
-                let pantry_policy = pantry_policy_by_owner
-                    .get(&residence.owner)
-                    .copied()
-                    .unwrap_or(PANTRY_SAFEGUARD_DEFAULT);
+                let pantry_policy = normalize_pantry_safeguard_policy(
+                    crate::settlement_policy::pantry_safeguard(
+                        ctx,
+                        residence.owner,
+                        residence.settlement_id,
+                    ),
+                );
                 let (target_stock, daily_lot) = household_issue_target(
                     ctx,
                     &residence,
@@ -215,16 +208,20 @@ pub fn step_market_household_distribution(
             };
             sources.sort_by_key(|market| market.id);
             sort_distribution_targets(&mut targets);
-            let pantry_policy = pantry_policy_by_owner
-                .get(&owner)
-                .copied()
-                .unwrap_or(PANTRY_SAFEGUARD_DEFAULT);
+            let max_rounds = targets
+                .iter()
+                .map(|target| target.pantry_rounds)
+                .max()
+                .unwrap_or(1);
 
             // Allocate one household-day per pass. When stock is scarce this
             // gives every connected home some cover before any one pantry is
             // receives extra safeguard cover.
-            for _ in 0..issue_cycle.ration_rounds(pantry_policy) {
+            for round in 0..max_rounds {
                 for target in &targets {
+                    if round >= target.pantry_rounds {
+                        continue;
+                    }
                     let current = need_stock(&load_needs(ctx, target.residence_id), need_kind);
                     let round_target = target.target_stock.min(current + target.daily_lot);
                     if let Some(preferred_index) = sources.iter().position(|market| {
@@ -417,6 +414,15 @@ fn distribution_targets(
                     / daily_lot.max(1e-9),
                 target_stock: *target_stock,
                 daily_lot: *daily_lot,
+                pantry_rounds: MarketIssueCycle::Daily.ration_rounds(
+                    normalize_pantry_safeguard_policy(
+                        crate::settlement_policy::pantry_safeguard(
+                            ctx,
+                            residence.owner,
+                            residence.settlement_id,
+                        ),
+                    ),
+                ),
             })
         })
         .collect()
@@ -593,6 +599,7 @@ mod tests {
                 runway_days: 0.0,
                 target_stock: 7.0,
                 daily_lot: 1.0,
+                pantry_rounds: 1,
             },
             DistributionTarget {
                 residence_id: 10,
@@ -603,6 +610,7 @@ mod tests {
                 runway_days: 0.0,
                 target_stock: 7.0,
                 daily_lot: 1.0,
+                pantry_rounds: 1,
             },
             DistributionTarget {
                 residence_id: 20,
@@ -613,6 +621,7 @@ mod tests {
                 runway_days: 0.0,
                 target_stock: 7.0,
                 daily_lot: 1.0,
+                pantry_rounds: 1,
             },
         ];
         sort_distribution_targets(&mut ordered);
@@ -628,6 +637,7 @@ mod tests {
                     runway_days: 0.0,
                     target_stock: 7.0,
                     daily_lot: 1.0,
+                    pantry_rounds: 1,
                 },
                 DistributionTarget {
                     residence_id: 20,
@@ -638,6 +648,7 @@ mod tests {
                     runway_days: 0.0,
                     target_stock: 7.0,
                     daily_lot: 1.0,
+                    pantry_rounds: 1,
                 },
                 DistributionTarget {
                     residence_id: 30,
@@ -648,6 +659,7 @@ mod tests {
                     runway_days: 0.0,
                     target_stock: 7.0,
                     daily_lot: 1.0,
+                    pantry_rounds: 1,
                 },
             ]
         );

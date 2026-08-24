@@ -49,6 +49,7 @@ export function createInitialGameState(registry: WorldLayoutRegistry, seed: numb
     foragingNodes,
     trees: new Map(),
     buildings: new Map(),
+    settlements: new Map(),
     tradingPostTradeRules: new Map(),
     farmFields: new Map(),
     pastures: new Map(),

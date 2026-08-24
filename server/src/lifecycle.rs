@@ -46,6 +46,7 @@ pub fn client_connected(ctx: &ReducerContext) {
     // construction_treasury_* shares. Repair that bounded legacy case once on
     // reconnect rather than scanning every ordinary resource reducer.
     materialize_physical_construction_reservations(ctx, owner);
+    crate::settlements::ensure_owner_settlements(ctx, owner);
 }
 
 /// Marks this exact transport connection as an active gameplay client.

@@ -1031,11 +1031,17 @@ export function computePopulationStats(state: GameState): PopulationStats {
     housingCapacity += residence.populationCapacity;
   }
 
-  const legacyPopulationBonus = state.legacyUnhousedPopulationBonusEnabled
-    ?? state.physicalFoundingSiteEnabled !== true;
-  const total = legacyPopulationBonus
-    ? STARTING_POPULATION + housed
-    : Math.max(STARTING_POPULATION, housed);
+  const settlements = state.settlements?.values();
+  const hasSettlementRows = (state.settlements?.size ?? 0) > 0;
+  const total = hasSettlementRows
+    ? housed + [...settlements!].reduce(
+        (sum, settlement) => sum + (settlement.active ? settlement.unhousedFounders : 0),
+        0,
+      )
+    : (state.legacyUnhousedPopulationBonusEnabled
+        ?? state.physicalFoundingSiteEnabled !== true)
+      ? STARTING_POPULATION + housed
+      : Math.max(STARTING_POPULATION, housed);
   let buildingAssigned = 0;
   for (const building of state.buildings.values()) {
     buildingAssigned += building.assignedLabor;

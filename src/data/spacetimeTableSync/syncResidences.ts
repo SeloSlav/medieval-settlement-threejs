@@ -1,5 +1,5 @@
 import type { Residence, ResidenceNeed } from '../../generated/types.ts';
-import { residenceClientId, zoneClientId } from '../spacetimeIds.ts';
+import { residenceClientId, settlementClientId, zoneClientId } from '../spacetimeIds.ts';
 import {
   createDefaultNeeds,
   mergeNeedRow,
@@ -78,10 +78,14 @@ export function syncResidences(
       beetroot: number;
       aroniaJam: number;
       rosehipJam: number;
+      settlementId: bigint;
     }>;
     const residenceId = residenceClientId(row.id);
     residences.set(residenceId, {
       id: residenceId,
+      settlementId: upgradeRow.settlementId == null || upgradeRow.settlementId === 0n
+        ? undefined
+        : settlementClientId(upgradeRow.settlementId),
       zoneId: zoneClientId(row.zoneId),
       parcelIndex: Number(row.parcelIndex),
       x: row.x,

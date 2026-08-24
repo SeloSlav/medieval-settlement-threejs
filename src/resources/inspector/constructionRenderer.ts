@@ -119,13 +119,13 @@ export function renderConstructionInspector(
     statusState = 'warning';
   } else if (building.assignedLabor <= 0) {
     const availableBuilders = Math.max(0, context.populationStats.available);
-    const directRemedy = availableBuilders > 0
-      ? `use Workforce + to assign one (${availableBuilders} available)`
-      : 'release a worker from another assignment or wait for a reserved cart to return, then use Workforce +';
+    const queueGuidance = availableBuilders > 0
+      ? `${availableBuilders} free worker${availableBuilders === 1 ? '' : 's'} will be called automatically when this priority tier reaches a productive slot`
+      : 'the next free worker will be called automatically when this priority tier reaches a productive slot';
     const stewardGuidance = context.getConstructionLaborStewardEnabled?.()
-      ? 'The enabled Town Hall steward also reviews ready sites at dawn while the hall is staffed.'
-      : 'Staffing is manual; a staffed Town Hall can enable daily construction rotation.';
-    statusText = `Waiting for builders — ${directRemedy}. ${stewardGuidance}`;
+      ? 'The enabled Town Hall steward also recalls safely releasable blocked crews at dawn.'
+      : 'Workforce + can override the queue; a staffed Town Hall can enable blocked-crew rotation.';
+    statusText = `Queued for builders — ${queueGuidance}. ${stewardGuidance}`;
     statusState = 'warning';
   } else if (inbound) {
     const sourceLabel = origin ? getBuildingDefinition(origin.kind).label : 'material source';

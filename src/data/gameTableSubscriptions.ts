@@ -1,6 +1,7 @@
 export const GAME_TABLE_SUBSCRIPTIONS = [
   'world_config',
   'player_resources',
+  'settlement',
   'market_state',
   'trading_post_trade_rule',
   'quarry',

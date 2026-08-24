@@ -75,6 +75,11 @@ pub fn step_residence_settlement(
         return;
     }
 
+    // A matching local founding cohort is always rehoused before this vacancy
+    // attracts an external migrant. Cohorts from other settlements are never
+    // consulted, even if their camp is geographically closer.
+    let _rehoused_founder =
+        crate::settlements::take_unhoused_founder(ctx, residence.settlement_id);
     ctx.db.residence().id().update(Residence {
         population: residence.population.saturating_add(1),
         household_wealth: residence.household_wealth.max(0.0)

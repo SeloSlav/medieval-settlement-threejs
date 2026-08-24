@@ -130,6 +130,74 @@ pub fn construction_labor_rotation(
     construction_labor_rotation_with_reserve(sites, available_labor, 0)
 }
 
+/// Calls genuinely free workers into immediately productive construction
+/// without recalling or preempting any existing crew. Higher priorities fill
+/// first. Within a tier, the least-staffed sites receive workers first so a
+/// newly queued zero-builder site starts before an established crew grows.
+pub fn construction_labor_queue_callup(
+    sites: &[ConstructionLaborSite],
+    available_labor: u32,
+) -> ConstructionLaborRotation {
+    let mut buckets: [Vec<(ConstructionLaborSite, u32)>; 3] = std::array::from_fn(|_| Vec::new());
+
+    for site in sites.iter().copied() {
+        let priority = construction_priority_bucket(site.priority);
+        if priority == CONSTRUCTION_PRIORITY_HOLD as usize
+            || !site.work_ready
+            || site.assigned_labor >= site.max_labor
+        {
+            continue;
+        }
+        let bucket = priority.saturating_sub(CONSTRUCTION_PRIORITY_LOW as usize);
+        buckets[bucket].push((site, site.assigned_labor));
+    }
+    for bucket in &mut buckets {
+        bucket.sort_unstable_by_key(|(site, _)| site.building_id);
+    }
+
+    let mut labor_remaining = available_labor;
+    let mut called_workers = 0u32;
+    let mut targets = Vec::new();
+    for bucket in buckets.iter_mut().rev() {
+        for target_labor in 1..=bucket
+            .iter()
+            .map(|(site, _)| site.max_labor)
+            .max()
+            .unwrap_or(0)
+        {
+            for (site, _) in bucket.iter_mut() {
+                if labor_remaining == 0 {
+                    break;
+                }
+                if site.assigned_labor >= target_labor || site.assigned_labor >= site.max_labor {
+                    continue;
+                }
+                site.assigned_labor += 1;
+                called_workers += 1;
+                labor_remaining -= 1;
+            }
+            if labor_remaining == 0 {
+                break;
+            }
+        }
+        targets.extend(
+            bucket
+                .iter()
+                .filter(|(site, original_labor)| site.assigned_labor > *original_labor)
+                .map(|(site, _)| (site.building_id, site.assigned_labor)),
+        );
+        if labor_remaining == 0 {
+            break;
+        }
+    }
+
+    ConstructionLaborRotation {
+        targets,
+        recalled_workers: 0,
+        called_workers,
+    }
+}
+
 pub fn construction_labor_rotation_with_reserve(
     sites: &[ConstructionLaborSite],
     available_labor: u32,
@@ -209,7 +277,7 @@ mod tests {
     use std::time::{Duration, Instant};
 
     use super::{
-        construction_labor_ready, construction_labor_rotation,
+        construction_labor_queue_callup, construction_labor_ready, construction_labor_rotation,
         construction_labor_rotation_with_reserve, construction_priority_bucket,
         construction_supply_crew, is_valid_construction_priority, ConstructionLaborSite,
         ConstructionSupplyCrew, CONSTRUCTION_PRIORITY_HOLD, CONSTRUCTION_PRIORITY_LEVELS,
@@ -388,6 +456,87 @@ mod tests {
         assert_eq!(rotation.recalled_workers, 2);
         assert_eq!(rotation.called_workers, 3);
         assert_eq!(rotation.targets, vec![(40, 0), (10, 2), (20, 1)]);
+    }
+
+    #[test]
+    fn baseline_queue_starts_unstaffed_ready_sites_without_recalling_blocked_crews() {
+        let rotation = construction_labor_queue_callup(
+            &[
+                ConstructionLaborSite {
+                    building_id: 10,
+                    priority: CONSTRUCTION_PRIORITY_NORMAL,
+                    assigned_labor: 2,
+                    max_labor: 4,
+                    work_ready: false,
+                    inbound_supply: false,
+                },
+                ConstructionLaborSite {
+                    building_id: 20,
+                    priority: CONSTRUCTION_PRIORITY_URGENT,
+                    assigned_labor: 2,
+                    max_labor: 4,
+                    work_ready: true,
+                    inbound_supply: false,
+                },
+                ConstructionLaborSite {
+                    building_id: 30,
+                    priority: CONSTRUCTION_PRIORITY_URGENT,
+                    assigned_labor: 0,
+                    max_labor: 4,
+                    work_ready: true,
+                    inbound_supply: false,
+                },
+                ConstructionLaborSite {
+                    building_id: 40,
+                    priority: CONSTRUCTION_PRIORITY_NORMAL,
+                    assigned_labor: 0,
+                    max_labor: 4,
+                    work_ready: true,
+                    inbound_supply: false,
+                },
+            ],
+            3,
+        );
+
+        assert_eq!(rotation.recalled_workers, 0);
+        assert_eq!(rotation.called_workers, 3);
+        assert_eq!(rotation.targets, vec![(20, 3), (30, 2)]);
+        assert!(rotation
+            .targets
+            .iter()
+            .all(|(building_id, _)| *building_id != 10));
+        assert!(rotation
+            .targets
+            .iter()
+            .all(|(building_id, _)| *building_id != 40));
+    }
+
+    #[test]
+    fn one_released_builder_advances_the_next_site_in_an_oversubscribed_queue() {
+        let rotation = construction_labor_queue_callup(
+            &[
+                ConstructionLaborSite {
+                    building_id: 10,
+                    priority: CONSTRUCTION_PRIORITY_NORMAL,
+                    assigned_labor: 0,
+                    max_labor: 4,
+                    work_ready: true,
+                    inbound_supply: false,
+                },
+                ConstructionLaborSite {
+                    building_id: 20,
+                    priority: CONSTRUCTION_PRIORITY_NORMAL,
+                    assigned_labor: 0,
+                    max_labor: 4,
+                    work_ready: true,
+                    inbound_supply: false,
+                },
+            ],
+            1,
+        );
+
+        assert_eq!(rotation.called_workers, 1);
+        assert_eq!(rotation.targets, vec![(10, 1)]);
     }
 
     #[test]

@@ -43,25 +43,28 @@ pub fn player_economic_activity_tax_rate(
     ctx: &ReducerContext,
     owner: spacetimedb::Identity,
 ) -> f64 {
-    ctx.db
-        .player_resources()
-        .owner()
-        .find(&owner)
-        .map(|row| row.economic_activity_tax_rate)
-        .unwrap_or(ECONOMIC_ACTIVITY_TAX_RATE)
+    crate::settlement_policy::economic_activity_tax_rate(ctx, owner, 0)
+}
+
+pub fn settlement_economic_activity_tax_rate(
+    ctx: &ReducerContext,
+    owner: spacetimedb::Identity,
+    settlement_id: u64,
+) -> f64 {
+    crate::settlement_policy::economic_activity_tax_rate(ctx, owner, settlement_id)
 }
 
 pub fn town_hall_tax_collection_multiplier(
     ctx: &ReducerContext,
     owner: spacetimedb::Identity,
 ) -> f64 {
-    if ctx.db.building().owner().filter(&owner).any(|building| {
-        building.kind == "town_hall"
-            && building.construction_complete
-            && building.assigned_labor > 0
-    }) {
-        1.0
-    } else {
-        TOWN_HALL_UNSTAFFED_TAX_COLLECTION_MULTIPLIER
-    }
+    crate::settlement_policy::town_hall_tax_collection_multiplier(ctx, owner, 0)
+}
+
+pub fn settlement_town_hall_tax_collection_multiplier(
+    ctx: &ReducerContext,
+    owner: spacetimedb::Identity,
+    settlement_id: u64,
+) -> f64 {
+    crate::settlement_policy::town_hall_tax_collection_multiplier(ctx, owner, settlement_id)
 }

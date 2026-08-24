@@ -561,21 +561,24 @@ fn ignite_candidate(
     let discovered_tick = if clock.is_work_hours || source == FIRE_SOURCE_RAID {
         sim_tick
     } else {
-        let (watch_policy, lighting_policy) = ctx
-            .db
-            .player_resources()
-            .owner()
-            .find(&candidate.owner)
-            .map(|resources| {
-                (
-                    resources.night_watch_policy,
-                    resources.night_lighting_policy,
-                )
-            })
-            .unwrap_or((
-                crate::night_policy::WATCH_STANDARD,
-                crate::night_policy::LIGHTING_MAIN_ROADS,
-            ));
+        let settlement_id = if candidate.target_kind == FIRE_TARGET_RESIDENCE {
+            ctx.db
+                .residence()
+                .id()
+                .find(&candidate.target_id)
+                .map(|residence| residence.settlement_id)
+                .unwrap_or(0)
+        } else {
+            ctx.db
+                .building()
+                .id()
+                .find(&candidate.target_id)
+                .map(|building| building.settlement_id)
+                .unwrap_or(0)
+        };
+        let policies =
+            crate::settlement_policy::night(ctx, candidate.owner, settlement_id);
+        let (watch_policy, lighting_policy) = (policies.watch, policies.lighting);
         let delay_ticks =
             (crate::night_policy::fire_discovery_delay_seconds(watch_policy, lighting_policy)
                 / TICK_DT)

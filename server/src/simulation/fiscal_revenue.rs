@@ -114,17 +114,13 @@ pub fn step_land_levies(ctx: &ReducerContext, tick: &SimTickContext, clock: &Gam
         let Some(resources) = ctx.db.player_resources().owner().find(&owner) else {
             continue;
         };
-        let rate = crate::fiscal_policy::clamp_land_levy_rate(resources.land_levy_rate);
-        if rate <= 1e-9 {
-            continue;
-        }
-        let collection_multiplier = crate::economy::town_hall_tax_collection_multiplier(ctx, owner);
         let owner_markets = marketplace_rows
             .iter()
             .filter(|marketplace| marketplace.owner == owner)
             .collect::<Vec<_>>();
         let mut assessed_total = 0.0;
         let mut collected_total = 0.0;
+        let mut local_totals = HashMap::<u64, (f64, f64)>::new();
         let physical = resources.physical_founding_site_enabled;
         let residences = ctx
             .db
@@ -134,6 +130,22 @@ pub fn step_land_levies(ctx: &ReducerContext, tick: &SimTickContext, clock: &Gam
             .filter(|residence| residence.population > 0 && !residence.abandoned)
             .collect::<Vec<_>>();
         for residence in residences {
+            let rate = crate::fiscal_policy::clamp_land_levy_rate(
+                crate::settlement_policy::land_levy_rate(
+                    ctx,
+                    owner,
+                    residence.settlement_id,
+                ),
+            );
+            if rate <= 1e-9 {
+                continue;
+            }
+            let collection_multiplier =
+                crate::settlement_policy::town_hall_tax_collection_multiplier(
+                    ctx,
+                    owner,
+                    residence.settlement_id,
+                );
             let plot_area = zones.get(&residence.zone_id).copied().unwrap_or(0.0);
             let assessed_value = land_levy_assessed_value(
                 residence.tier,
@@ -142,8 +154,20 @@ pub fn step_land_levies(ctx: &ReducerContext, tick: &SimTickContext, clock: &Gam
             );
             let assessment = monthly_land_levy(assessed_value, rate);
             assessed_total += assessment;
+            local_totals
+                .entry(residence.settlement_id)
+                .or_default()
+                .0 += assessment;
+            let local_markets = owner_markets
+                .iter()
+                .copied()
+                .filter(|marketplace| {
+                    residence.settlement_id == 0
+                        || marketplace.settlement_id == residence.settlement_id
+                })
+                .collect::<Vec<_>>();
             let Some(lockbox) =
-                nearest_land_levy_lockbox(tick, owner, residence.x, residence.z, &owner_markets)
+                nearest_land_levy_lockbox(tick, owner, residence.x, residence.z, &local_markets)
             else {
                 continue;
             };
@@ -175,6 +199,10 @@ pub fn step_land_levies(ctx: &ReducerContext, tick: &SimTickContext, clock: &Gam
                 credit_residence_wealth(ctx, residence.id, paid - credited);
             }
             collected_total += credited;
+            local_totals
+                .entry(residence.settlement_id)
+                .or_default()
+                .1 += credited;
         }
         if let Some(mut ledger) = ctx.db.player_resources().owner().find(&owner) {
             ledger.land_levy_assessed_total =
@@ -182,6 +210,19 @@ pub fn step_land_levies(ctx: &ReducerContext, tick: &SimTickContext, clock: &Gam
             ledger.land_levy_collected_total =
                 whole_units(ledger.land_levy_collected_total) + whole_units(collected_total);
             ctx.db.player_resources().owner().update(ledger);
+        }
+        for (settlement_id, (assessed, collected)) in local_totals {
+            let Some(mut settlement) = ctx.db.settlement().id().find(&settlement_id) else {
+                continue;
+            };
+            if settlement.owner != owner {
+                continue;
+            }
+            settlement.land_levy_assessed_total =
+                whole_units(settlement.land_levy_assessed_total) + whole_units(assessed);
+            settlement.land_levy_collected_total =
+                whole_units(settlement.land_levy_collected_total) + whole_units(collected);
+            ctx.db.settlement().id().update(settlement);
         }
     }
 }
@@ -206,6 +247,7 @@ mod tests {
             corner_dz: 10.0,
             frontage_edge: 0,
             plot_count: 1,
+            settlement_id: 1,
         };
         assert!((burgage_zone_area(&zone) - 200.0).abs() < 1e-9);
     }

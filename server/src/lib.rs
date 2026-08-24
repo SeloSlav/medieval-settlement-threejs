@@ -58,6 +58,7 @@ mod schedule;
 mod season_policy;
 mod seasonal_labor_policy;
 mod security_policy;
+mod settlement_policy;
 mod settlements;
 mod simulation;
 mod specialty_trade_policy;

@@ -28,7 +28,7 @@ pub use commodities::{
     residence_food_progression_required_slots, residence_food_progression_slots,
     residence_fresh_food_stock, residence_preserved_food_stock, storage_accepts_commodity,
     withdraw_building_commodity, withdraw_building_edible_food, withdraw_residence_commodity,
-    CommodityKind, FoodCategory, EDIBLE_COMMODITIES, FRESH_FOOD_COMMODITIES,
+    CommodityKind, FoodCategory, ALL_COMMODITIES, EDIBLE_COMMODITIES, FRESH_FOOD_COMMODITIES,
     PRESERVED_FOOD_COMMODITIES,
 };
 pub(crate) use marketplace_trade_policy::adriatic_trade_entry_point;
@@ -47,7 +47,7 @@ pub use civic_receipts::{
 };
 pub(crate) use fiscal_accounting::credit_monastery_export_receipt;
 pub use fiscal_accounting::{
-    credit_local_purchase_receipt, credit_private_export_receipt,
+    credit_local_household_income, credit_local_purchase_receipt, credit_private_export_receipt,
     credit_settlement_household_income, private_export_proceeds, record_private_export_income,
     restore_private_export_proceeds, withdraw_private_export_proceeds,
 };
@@ -61,8 +61,8 @@ pub use parish_accounting::{
 };
 pub use population::{
     assign_building_labor, available_building_labor, guardhouse_roster_count,
-    guardhouse_roster_floors, initial_construction_labor, reconcile_building_labor,
-    residence_population_for_parcel,
+    guardhouse_roster_floors, initial_construction_labor, queued_construction_callup_labor,
+    reconcile_building_labor, residence_population_for_parcel,
 };
 pub use regional_market::{
     ensure_market_state, price_multiplier_for, record_market_trade, step_regional_markets,
@@ -83,8 +83,9 @@ pub use storage::{
 };
 pub use trade_resources::trade_resource_for_commodity;
 pub use village_economy::{
-    clamp_economic_activity_tax_rate, player_economic_activity_tax_rate, taxed_economic_activity,
-    town_hall_tax_collection_multiplier,
+    clamp_economic_activity_tax_rate, player_economic_activity_tax_rate,
+    settlement_economic_activity_tax_rate, settlement_town_hall_tax_collection_multiplier,
+    taxed_economic_activity, town_hall_tax_collection_multiplier,
 };
 
 pub use crate::balance_generated::{

@@ -7,7 +7,12 @@ import {
   locatePhysicalResource,
   resourceDisplayLabel,
 } from '../src/resources/resourceLocator.ts';
-import { HUD_RESOURCE_KINDS } from '../src/resources/resourceTotals.ts';
+import {
+  computeInTransitResourceTotals,
+  computeResourceTotals,
+  computeStoredResourceTotals,
+  HUD_RESOURCE_KINDS,
+} from '../src/resources/resourceTotals.ts';
 import {
   createEmptyStockpile,
   type BuildingState,
@@ -230,6 +235,66 @@ assert.deepEqual(
   locatePhysicalResource(gameState({ stockpile: legacyStockpile }), 'flax'),
   [],
   'physical saves must never expose compatibility-ledger goods as map stock',
+);
+
+const westTownStore = Object.assign(building({
+  id: 'west-town-store',
+  x: -240,
+  timber: 30,
+  stone: 4,
+}), { settlementId: 'settlement-west' });
+const eastTownStore = Object.assign(building({
+  id: 'east-town-store',
+  x: 240,
+  timber: 10,
+  stone: 11,
+}), { settlementId: 'settlement-east' });
+const eastTownProject = Object.assign(building({
+  id: 'east-town-project',
+  kind: 'well',
+  x: 250,
+  constructionComplete: false,
+  constructionReservedTimber: 7,
+}), { settlementId: 'settlement-east' });
+const interTownCart = {
+  ...physicalFoodState.deliveryTrips.get('cart-1')!,
+  id: 'inter-town-timber',
+  buildingId: westTownStore.id,
+  targetBuildingId: eastTownStore.id,
+  cargoKind: 'timber' as const,
+  amount: 5,
+};
+const integratedRealmState = gameState({
+  buildings: new Map([
+    [westTownStore.id, westTownStore],
+    [eastTownStore.id, eastTownStore],
+    [eastTownProject.id, eastTownProject],
+  ]),
+  deliveryTrips: new Map([[interTownCart.id, interTownCart]]),
+});
+assert.deepEqual(
+  {
+    timber: computeStoredResourceTotals(integratedRealmState).timber,
+    stone: computeStoredResourceTotals(integratedRealmState).stone,
+  },
+  { timber: 40, stone: 15 },
+  'the lord-facing Total ledger must sum physical stores in every on-map town',
+);
+assert.equal(
+  computeResourceTotals(integratedRealmState).timber,
+  33,
+  'the lord-facing Surplus ledger must reserve projects realm-wide without switching town scope',
+);
+assert.equal(
+  computeInTransitResourceTotals(integratedRealmState.deliveryTrips.values()).timber,
+  5,
+  'an inter-town cart remains one realm-owned in-transit holding, not a trade between sub-economies',
+);
+assert.deepEqual(
+  locatePhysicalResource(integratedRealmState, 'stone')
+    .map((location) => location.id),
+  [eastTownStore.id, westTownStore.id],
+  'the default resource locator must remain an all-holdings view across town identities',
 );
 
 assert.equal(resourceDisplayLabel('gold'), 'Civic gold');

@@ -166,6 +166,16 @@ pub fn place_burgage_zone(
 
     let layout = compute_burgage_layout(&corners, frontage_edge, plot_count)
         .ok_or_else(|| "Could not fit residences in this zone.".to_string())?;
+    crate::settlements::ensure_owner_settlements(ctx, owner);
+    let settlement_x = (corner_ax + corner_bx + corner_cx + corner_dx) * 0.25;
+    let settlement_z = (corner_az + corner_bz + corner_cz + corner_dz) * 0.25;
+    let settlement_id = crate::settlements::settlement_for_position(
+        ctx,
+        owner,
+        settlement_x,
+        settlement_z,
+    )
+    .ok_or_else(|| "Place a Founders' Camp before laying out homes here.".to_string())?;
 
     let residence_cost_units: Vec<f64> = layout
         .residences
@@ -207,7 +217,7 @@ pub fn place_burgage_zone(
             None
         };
 
-    ctx.db.burgage_zone().insert(BurgageZone {
+    let inserted_zone = ctx.db.burgage_zone().insert(BurgageZone {
         id: 0,
         owner,
         corner_ax,
@@ -220,15 +230,9 @@ pub fn place_burgage_zone(
         corner_dz,
         frontage_edge,
         plot_count: layout.plot_count,
+        settlement_id,
     });
-
-    let zone_id = ctx
-        .db
-        .burgage_zone()
-        .iter()
-        .map(|zone| zone.id)
-        .max()
-        .ok_or_else(|| "Failed to resolve residence zone id.".to_string())?;
+    let zone_id = inserted_zone.id;
 
     for (index, residence) in layout.residences.into_iter().enumerate() {
         let population_capacity = residence_population_for_parcel(residence.parcel_frontage);
@@ -320,6 +324,7 @@ pub fn place_burgage_zone(
             beetroot: 0.0,
             aronia_jam: 0.0,
             rosehip_jam: 0.0,
+            settlement_id,
         });
         ensure_residence_needs(ctx, inserted.id);
         if let Some(network) = physical_road_network.as_ref() {

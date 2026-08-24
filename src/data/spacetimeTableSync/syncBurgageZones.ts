@@ -1,5 +1,5 @@
 import type { BurgageZone } from '../../generated/types.ts';
-import { zoneClientId } from '../spacetimeIds.ts';
+import { settlementClientId, zoneClientId } from '../spacetimeIds.ts';
 import type { BurgageFrontageEdge, BurgageZoneState } from '../../resources/types.ts';
 
 export function syncBurgageZones(
@@ -11,8 +11,12 @@ export function syncBurgageZones(
 
   for (const row of rows) {
     if (row.owner.toHexString() !== identityHex) continue;
+    const settlementRow = row as BurgageZone & Partial<{ settlementId: bigint }>;
     burgageZones.set(zoneClientId(row.id), {
       id: zoneClientId(row.id),
+      settlementId: settlementRow.settlementId == null || settlementRow.settlementId === 0n
+        ? undefined
+        : settlementClientId(settlementRow.settlementId),
       cornerA: { x: row.cornerAx, z: row.cornerAz },
       cornerB: { x: row.cornerBx, z: row.cornerBz },
       cornerC: { x: row.cornerCx, z: row.cornerCz },

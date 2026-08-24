@@ -1547,7 +1547,7 @@
       "requiresBerries": false
     },
     "village_storehouse": {
-      "label": "Village storehouse",
+      "label": "Storehouse",
       "cost": { "timber": 54, "stone": 28 },
       "storage": {
         "timber": 360,
@@ -1768,7 +1768,7 @@
       "requiresWaterShore": false
     },
     "granary": {
-      "label": "Village granary",
+      "label": "Granary",
       "cost": { "timber": 50, "stone": 28, "ironwork": 3 },
       "storage": { "timber": 0, "firewood": 0, "stone": 0, "grain": 360, "barley": 240, "flax": 180, "flour": 260, "food": 340, "preservedFood": 180, "honey": 96, "ale": 180, "cider": 180, "pearCider": 180, "wine": 180 },
       "workRadius": 0,

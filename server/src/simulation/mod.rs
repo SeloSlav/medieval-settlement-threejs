@@ -93,7 +93,8 @@ pub use lumber_mill::step_lumber_mill;
 pub use marketplace_caravan::{step_marketplace_caravans, try_dispatch_marketplace_caravan};
 pub use night_cycle::step_night_cycle;
 pub use production_labor_steward::{
-    reconcile_target_production_labor_for_owner, step_production_labor_stewards,
+    reconcile_target_production_labor_for_owner, reconcile_target_production_labor_for_settlement,
+    step_production_labor_stewards,
 };
 pub use raid_agents::{start_live_raid, step_live_raids, LiveRaidTarget};
 pub use reclamation::{
@@ -112,6 +113,7 @@ pub(crate) use road_logistics::local_delivery_distance;
 pub use seasonal_labor_steward::{
     call_up_active_seasonal_labor_for_owner, owner_has_staffed_town_hall,
     recall_idle_seasonal_labor_for_owner, reconcile_seasonal_labor_for_owner,
+    reconcile_seasonal_labor_for_settlement, settlement_has_staffed_town_hall,
     step_seasonal_labor_stewards,
 };
 pub use settlement_security::{ensure_settlement_security, step_settlement_security};

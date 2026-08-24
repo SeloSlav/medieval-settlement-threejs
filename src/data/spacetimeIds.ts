@@ -10,6 +10,15 @@ export function residenceClientId(serverId: bigint | number): string {
   return `residence-${serverId}`;
 }
 
+export function settlementClientId(serverId: bigint | number): string {
+  return `settlement-${serverId}`;
+}
+
+export function parseSettlementServerId(settlementId: string): bigint | null {
+  const match = /^settlement-(\d+)$/.exec(settlementId);
+  return match ? BigInt(match[1]) : null;
+}
+
 export function tripClientId(serverId: bigint | number): string {
   return `trip-${serverId}`;
 }

@@ -831,6 +831,110 @@ export function createSmokehouseMesh(): THREE.Group {
   return group;
 }
 
+const GRANARY_ROOF_SILO_PLAN = Object.freeze({
+  centerX: 1.8,
+  centerZ: -0.45,
+  bodyBaseY: 4.12,
+  bodyHeight: 3.12,
+  bodyRadiusBottom: 1.34,
+  bodyRadiusTop: 1.2,
+  capRadius: 1.72,
+  capHeight: 1.52,
+  bandHeights: Object.freeze([4.52, 5.55, 6.58, 7.12]),
+});
+
+function addGranaryRoofSilo(group: THREE.Group): void {
+  const plan = GRANARY_ROOF_SILO_PLAN;
+  const silo = new THREE.Group();
+  silo.name = 'Granary roof grain silo';
+  silo.position.set(plan.centerX, 0, plan.centerZ);
+  silo.userData.architectureRole = 'roof-grain-silo';
+  silo.userData.massingPlan = {
+    bodyBaseY: plan.bodyBaseY,
+    bodyTopY: plan.bodyBaseY + plan.bodyHeight,
+    capTopY: plan.bodyBaseY + plan.bodyHeight + plan.capHeight,
+  };
+  group.add(silo);
+
+  const body = addMesh(
+    silo,
+    new THREE.CylinderGeometry(
+      plan.bodyRadiusTop,
+      plan.bodyRadiusBottom,
+      plan.bodyHeight,
+      8,
+    ),
+    timberMaterial('weathered'),
+    new THREE.Vector3(0, plan.bodyBaseY + plan.bodyHeight * 0.5, 0),
+    new THREE.Euler(0, Math.PI * 0.125, 0),
+  );
+  body.name = 'Granary roof silo body';
+
+  // Projecting timber hoops and corner staves keep the octagonal store tied
+  // to the longhouse framing instead of reading as a modern metal tank.
+  for (const y of plan.bandHeights) {
+    const t = THREE.MathUtils.clamp((y - plan.bodyBaseY) / plan.bodyHeight, 0, 1);
+    const radius = THREE.MathUtils.lerp(plan.bodyRadiusBottom, plan.bodyRadiusTop, t);
+    const band = addMesh(
+      silo,
+      new THREE.CylinderGeometry(radius + 0.075, radius + 0.075, 0.14, 8),
+      timberMaterial('dark'),
+      new THREE.Vector3(0, y, 0),
+      new THREE.Euler(0, Math.PI * 0.125, 0),
+    );
+    band.name = 'Granary roof silo timber hoop';
+  }
+  for (const angle of [0, Math.PI * 0.5, Math.PI, Math.PI * 1.5]) {
+    const postRadius = 1.27;
+    const post = addMesh(
+      silo,
+      new THREE.BoxGeometry(0.14, plan.bodyHeight - 0.28, 0.16),
+      timberMaterial('dark'),
+      new THREE.Vector3(
+        Math.cos(angle) * postRadius,
+        plan.bodyBaseY + plan.bodyHeight * 0.5,
+        Math.sin(angle) * postRadius,
+      ),
+      new THREE.Euler(0, -angle, 0),
+    );
+    post.name = 'Granary roof silo corner stave';
+  }
+
+  addDarkOpening(
+    silo,
+    0,
+    plan.bodyBaseY + plan.bodyHeight * 0.62,
+    plan.bodyRadiusTop + 0.08,
+    0.62,
+    0.78,
+  );
+
+  const cap = addMesh(
+    silo,
+    new THREE.ConeGeometry(plan.capRadius, plan.capHeight, 8),
+    shingleMaterial(),
+    new THREE.Vector3(
+      0,
+      plan.bodyBaseY + plan.bodyHeight + plan.capHeight * 0.5 - 0.04,
+      0,
+    ),
+    new THREE.Euler(0, Math.PI * 0.125, 0),
+  );
+  cap.name = 'Granary roof silo shingle cap';
+
+  const finial = addMesh(
+    silo,
+    new THREE.CylinderGeometry(0.075, 0.11, 0.46, 6),
+    metalMaterial('iron'),
+    new THREE.Vector3(
+      0,
+      plan.bodyBaseY + plan.bodyHeight + plan.capHeight + 0.16,
+      0,
+    ),
+  );
+  finial.name = 'Granary roof silo finial';
+}
+
 export function createGranaryMesh(): THREE.Group {
   const group = new THREE.Group();
   group.name = 'Granary';
@@ -839,6 +943,7 @@ export function createGranaryMesh(): THREE.Group {
   const shell = addGableShell(store, { width: 9.5, depth: 6.3, stoneHeight: 0.34, wallHeight: 3.15, ridgeHeight: 2.55, wallMaterial: timberMaterial('weathered'), roofMaterial: shingleMaterial() });
   addPlankDoor(store, 0, 0.38, shell.frontZ + 0.03, 1.55, 2.25);
   for (const x of [-3.3, 3.3]) addSmallWindow(store, x, 1.92, shell.frontZ + 0.03, 0.58, 0.62);
+  addGranaryRoofSilo(store);
   group.add(store);
   addSegmentedStockProps(
     group,

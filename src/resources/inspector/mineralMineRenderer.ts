@@ -97,7 +97,7 @@ export function renderMineralMineInspector(
           ? ` + ${formatResourceCostAmount(inboundSupportTimber)} inbound`
           : ''
       } / ${formatResourceCostAmount(RICH_MINE_SUPPORT_TARGET)} timber target · ${supportRunway.toFixed(1)} cycles</span></li>
-      <li><span>Timber crib wear</span><span>${renderResourceAmount('timber', MINE_TIMBER_SUPPORT_PER_CYCLE, { compact: true, suffix: 'per completed deep batch' })} · nearest lumber mill or village storehouse supplies it; roads make the haul faster</span></li>`
+      <li><span>Timber crib wear</span><span>${renderResourceAmount('timber', MINE_TIMBER_SUPPORT_PER_CYCLE, { compact: true, suffix: 'per completed deep batch' })} · nearest lumber mill or storehouse supplies it; roads make the haul faster</span></li>`
     : '<li><span>Shaft timber</span><span>Ordinary surface seam · no recurring deep-support cost</span></li>';
 
   return {

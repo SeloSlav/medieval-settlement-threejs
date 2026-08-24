@@ -67,25 +67,60 @@ fn owner_worker_origins(ctx: &ReducerContext, owner: Identity) -> Vec<WorkerOrig
         .map_or(true, |resources| {
             resources.legacy_unhoused_population_bonus_enabled
         });
-    let total_population = if legacy_bonus {
-        STARTING_POPULATION.saturating_add(healthy_housed)
-    } else {
-        STARTING_POPULATION.max(healthy_housed)
-    };
-    let unhoused = total_population.saturating_sub(healthy_housed);
-    if unhoused > 0 {
-        if let Some(camp) = ctx
+    let founding_origins = crate::settlements::active_settlement_founder_origins(ctx, owner);
+    for (_, x, z, available) in founding_origins {
+        origins.push(WorkerOrigin { x, z, available });
+    }
+
+    // Mature legacy saves retain their historical additive five-person pool,
+    // but it is separate from every authoritative local founding cohort.
+    if legacy_bonus {
+        let fallback = ctx
             .db
             .building()
             .owner()
             .filter(&owner)
             .find(|building| building.kind == "founders_camp")
-        {
-            origins.push(WorkerOrigin {
-                x: camp.x,
-                z: camp.z,
-                available: unhoused,
+            .map(|camp| (camp.x, camp.z))
+            .or_else(|| {
+                ctx.db
+                    .settlement()
+                    .owner()
+                    .filter(&owner)
+                    .min_by_key(|settlement| settlement.id)
+                    .map(|settlement| (settlement.anchor_x, settlement.anchor_z))
             });
+        if let Some((x, z)) = fallback {
+            origins.push(WorkerOrigin {
+                x,
+                z,
+                available: STARTING_POPULATION,
+            });
+        }
+    } else if ctx
+        .db
+        .settlement()
+        .owner()
+        .filter(&owner)
+        .next()
+        .is_none()
+    {
+        // Pre-migration fallback; client connection normally repairs this path.
+        let unhoused = STARTING_POPULATION.saturating_sub(healthy_housed);
+        if unhoused > 0 {
+            if let Some(camp) = ctx
+                .db
+                .building()
+                .owner()
+                .filter(&owner)
+                .find(|building| building.kind == "founders_camp")
+            {
+                origins.push(WorkerOrigin {
+                    x: camp.x,
+                    z: camp.z,
+                    available: unhoused,
+                });
+            }
         }
     }
     origins

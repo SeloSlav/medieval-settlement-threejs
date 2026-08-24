@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 
 import { syncBackyardGardens } from '../src/data/spacetimeTableSync/syncBackyardGardens.ts';
 import { syncBuildings } from '../src/data/spacetimeTableSync/syncBuildings.ts';
+import { syncBurgageZones } from '../src/data/spacetimeTableSync/syncBurgageZones.ts';
 import { syncDeliveryTrips } from '../src/data/spacetimeTableSync/syncDeliveryTrips.ts';
 import { syncFarmFields } from '../src/data/spacetimeTableSync/syncFarmFields.ts';
 import { syncFireIncidents } from '../src/data/spacetimeTableSync/syncFireIncidents.ts';
@@ -10,6 +11,7 @@ import { syncLivestockHerds } from '../src/data/spacetimeTableSync/syncLivestock
 import { syncPlayerResources } from '../src/data/spacetimeTableSync/syncPlayerResources.ts';
 import { syncQuarries } from '../src/data/spacetimeTableSync/syncQuarries.ts';
 import { syncResidences } from '../src/data/spacetimeTableSync/syncResidences.ts';
+import { syncSettlements } from '../src/data/spacetimeTableSync/syncSettlements.ts';
 import { syncSettlementSecurity } from '../src/data/spacetimeTableSync/syncSettlementSecurity.ts';
 import { syncTradingPostTradeRules } from '../src/data/spacetimeTableSync/syncTradingPostTradeRules.ts';
 import {
@@ -97,6 +99,7 @@ const buildingRow = rowWithDefaults({
   ...buildingStockInput,
   ...buildingMaterialLedgerInput,
   id: 1n,
+  settlementId: 41n,
   owner,
   kind: 'granary',
   guardhouseMusterWatchtowerId: 0n,
@@ -118,6 +121,7 @@ const buildingRow = rowWithDefaults({
 });
 const building = syncBuildings([buildingRow as never], identityHex).get('building-1');
 assert.ok(building);
+assert.equal(building.settlementId, 'settlement-41');
 assertWholeRecord(building as unknown as Record<string, unknown>, buildingStockFields, 'building');
 for (const field of buildingStockFields) {
   assert.equal(
@@ -299,6 +303,7 @@ const residence = syncResidences(
   [rowWithDefaults({
     ...residencePantryInput,
     id: 3n,
+    settlementId: 41n,
     owner,
     zoneId: 4n,
     x: 5.25,
@@ -319,6 +324,7 @@ const residence = syncResidences(
   identityHex,
 ).get('residence-3');
 assert.ok(residence);
+assert.equal(residence.settlementId, 'settlement-41');
 assertWholeRecord(
   residence as unknown as Record<string, unknown>,
   residencePantryFields,
@@ -348,6 +354,75 @@ assert.equal(residence.z, -6.75);
 assert.equal(residence.yaw, 0.325);
 assert.equal(residence.upgradeProgress, 0.625);
 assert.equal(residence.malnutrition, 0.375);
+
+const burgage = syncBurgageZones([rowWithDefaults({
+  id: 4n,
+  owner,
+  settlementId: 41n,
+  cornerAx: 0,
+  cornerAz: 0,
+  cornerBx: 10,
+  cornerBz: 0,
+  cornerCx: 10,
+  cornerCz: 20,
+  cornerDx: 0,
+  cornerDz: 20,
+  frontageEdge: 1,
+  plotCount: 3n,
+}) as never], identityHex).get('zone-4');
+assert.ok(burgage);
+assert.equal(burgage.settlementId, 'settlement-41');
+
+const settlement = syncSettlements([rowWithDefaults({
+  id: 41n,
+  owner,
+  name: ' East Mere ',
+  anchorX: 125.5,
+  anchorZ: -82.25,
+  foundingCampId: 1n,
+  founderPopulation: 5n,
+  unhousedFounders: 2n,
+  active: true,
+  townHallId: 2n,
+  createdTick: 990n,
+  economicActivityTaxRate: 0.1375,
+  pantrySafeguardPolicy: 2,
+  landLevyRate: 0.0825,
+  importDutyRate: 0.045,
+  exportDutyRate: 0.025,
+  seasonalLaborStewardEnabled: true,
+  constructionLaborStewardEnabled: false,
+  productionLaborStewardEnabled: true,
+  laborStewardReserve: 4n,
+  nightWatchPolicy: 2,
+  nightGatheringPolicy: 1,
+  nightWorkPolicy: 0,
+  nightLightingPolicy: 2,
+  nightCurfewPolicy: 1,
+  landLevyAssessedTotal: 11.9,
+  landLevyCollectedTotal: 10.9,
+  importDutyCollectedTotal: 3.9,
+  exportDutyCollectedTotal: 4.9,
+  lastNightTheftGold: 2.9,
+  lastNightLightingFuelUsed: 5.9,
+  lastNightLightingFuelShortfall: 1.9,
+  nightCommunityCohesion: 0.825,
+  nightLaborFatigue: 0.175,
+}) as never], identityHex).get('settlement-41');
+assert.ok(settlement);
+assert.equal(settlement.name, 'East Mere');
+assert.equal(settlement.foundingCampId, 'building-1');
+assert.equal(settlement.townHallId, 'building-2');
+assert.equal(settlement.unhousedFounders, 2);
+assert.equal(settlement.landLevyAssessedTotal, 11);
+assert.equal(settlement.landLevyCollectedTotal, 10);
+assert.equal(settlement.importDutyCollectedTotal, 3);
+assert.equal(settlement.exportDutyCollectedTotal, 4);
+assert.equal(settlement.lastNightTheftGold, 2);
+assert.equal(settlement.lastNightLightingFuelUsed, 5);
+assert.equal(settlement.lastNightLightingFuelShortfall, 1);
+assert.equal(settlement.economicActivityTaxRate, 0.1375);
+assert.equal(settlement.nightCommunityCohesion, 0.825);
 
 const backyard = syncBackyardGardens([rowWithDefaults({
   id: 5n,

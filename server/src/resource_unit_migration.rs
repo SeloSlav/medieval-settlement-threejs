@@ -15,11 +15,11 @@ use crate::economy::{residence_zone_cost_for_units, CommodityKind};
 use crate::residence_upgrade_policy::allocate_whole_residence_project_costs;
 use crate::resource_units::{whole_signed_units, whole_units};
 use crate::security_policy::RaidPortableStores;
-use crate::simulation::delivery_trips::DELIVERY_DESTINATION_RESIDENCE;
 use crate::tables::{Residence, ResourceUnitMigration};
 
 const RESOURCE_UNIT_MIGRATION_ID: u8 = 0;
 const RESOURCE_UNIT_MIGRATION_VERSION: u8 = 3;
+const DELIVERY_DESTINATION_RESIDENCE: u8 = 0;
 
 macro_rules! normalize_fields {
     ($row:ident, $($field:ident),+ $(,)?) => {

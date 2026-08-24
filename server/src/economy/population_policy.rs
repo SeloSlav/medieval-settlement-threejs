@@ -20,6 +20,18 @@ pub fn initial_construction_labor(available_labor: u32) -> u32 {
         .min(CONSTRUCTION_MAX_BUILDERS)
 }
 
+/// Returns the free labor that the ordinary construction queue may call up.
+/// Every immediately productive zero-builder site gets a starter before the
+/// usual two-person cart reserve is protected. Once every ready site has a
+/// builder, only labor above that reserve expands existing crews. Re-running
+/// this policy each tick is therefore stable instead of gradually consuming
+/// the hauling pool.
+pub fn queued_construction_callup_labor(available_labor: u32, ready_unstaffed_sites: u32) -> u32 {
+    available_labor
+        .saturating_sub(INITIAL_CONSTRUCTION_HAULER_RESERVE)
+        .max(available_labor.min(ready_unstaffed_sites))
+}
+
 /// Labor requests cannot increase a building beyond the settlement's current population.
 pub fn population_limit_blocks_labor_request(
     current_labor: u32,
@@ -161,7 +173,8 @@ mod tests {
 
     use super::{
         initial_construction_labor, labor_reconciliation_updates,
-        population_limit_blocks_labor_request, LaborAssignment, CONSTRUCTION_MAX_BUILDERS,
+        population_limit_blocks_labor_request, queued_construction_callup_labor, LaborAssignment,
+        CONSTRUCTION_MAX_BUILDERS,
     };
 
     #[test]
@@ -173,6 +186,17 @@ mod tests {
         assert_eq!(initial_construction_labor(5), 3);
         assert_eq!(initial_construction_labor(6), CONSTRUCTION_MAX_BUILDERS);
         assert_eq!(initial_construction_labor(20), CONSTRUCTION_MAX_BUILDERS);
+    }
+
+    #[test]
+    fn queued_sites_start_before_the_cart_reserve_blocks_crew_growth() {
+        assert_eq!(queued_construction_callup_labor(0, 3), 0);
+        assert_eq!(queued_construction_callup_labor(1, 3), 1);
+        assert_eq!(queued_construction_callup_labor(2, 3), 2);
+        assert_eq!(queued_construction_callup_labor(5, 3), 3);
+        assert_eq!(queued_construction_callup_labor(5, 1), 3);
+        assert_eq!(queued_construction_callup_labor(2, 0), 0);
+        assert_eq!(queued_construction_callup_labor(5, 0), 3);
     }
 
     #[test]

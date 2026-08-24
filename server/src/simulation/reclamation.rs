@@ -1054,6 +1054,7 @@ pub fn insert_reclamation_pile(
         .find(&0)
         .ok_or_else(|| "World not initialized.".to_string())?;
     let building_id = next_available_building_id(ctx, config.next_building_id)?;
+    let settlement_id = crate::settlements::settlement_for_position(ctx, owner, x, z).unwrap_or(0);
     ctx.db.building().insert(Building {
         id: building_id,
         owner,
@@ -1225,6 +1226,7 @@ pub fn insert_reclamation_pile(
         leather: stock.leather.max(0.0),
         shoes: stock.shoes.max(0.0),
         storage_acceptance_mask: u64::MAX,
+        settlement_id,
     });
     ctx.db.world_config().id().update(WorldConfig {
         next_building_id: building_id

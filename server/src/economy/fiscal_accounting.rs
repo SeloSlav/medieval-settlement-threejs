@@ -12,7 +12,8 @@ use crate::tables::Building;
 
 use super::{
     credit_residence_wealth, credit_treasury_gold, deposit_building_commodity,
-    player_economic_activity_tax_rate, town_hall_tax_collection_multiplier, CommodityKind,
+    settlement_economic_activity_tax_rate, settlement_town_hall_tax_collection_multiplier,
+    CommodityKind,
 };
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
@@ -28,12 +29,19 @@ pub struct MonasteryExportSplit {
 }
 
 pub fn player_export_duty_rate(ctx: &ReducerContext, owner: spacetimedb::Identity) -> f64 {
-    ctx.db
-        .player_resources()
-        .owner()
-        .find(&owner)
-        .map(|resources| clamp_export_duty_rate(resources.export_duty_rate))
-        .unwrap_or(0.0)
+    settlement_export_duty_rate(ctx, owner, 0)
+}
+
+pub fn settlement_export_duty_rate(
+    ctx: &ReducerContext,
+    owner: spacetimedb::Identity,
+    settlement_id: u64,
+) -> f64 {
+    clamp_export_duty_rate(crate::settlement_policy::export_duty_rate(
+        ctx,
+        owner,
+        settlement_id,
+    ))
 }
 
 pub fn player_monastery_levy_rate(ctx: &ReducerContext, owner: spacetimedb::Identity) -> f64 {
@@ -125,12 +133,25 @@ pub fn credit_settlement_household_income(
     owner: spacetimedb::Identity,
     amount: f64,
 ) -> f64 {
+    credit_local_household_income(ctx, owner, 0, amount)
+}
+
+pub fn credit_local_household_income(
+    ctx: &ReducerContext,
+    owner: spacetimedb::Identity,
+    settlement_id: u64,
+    amount: f64,
+) -> f64 {
     let mut residences = ctx
         .db
         .residence()
         .owner()
         .filter(&owner)
-        .filter(|residence| residence.population > 0 && !residence.abandoned)
+        .filter(|residence| {
+            residence.population > 0
+                && !residence.abandoned
+                && (settlement_id == 0 || residence.settlement_id == settlement_id)
+        })
         .collect::<Vec<_>>();
     residences.sort_by_key(|residence| residence.id);
     let amount = whole_units(amount);
@@ -161,7 +182,7 @@ pub fn credit_private_export_receipt(
     if gross_receipt < 1.0 || marketplace.kind != "trading_post" {
         return PrivateExportSplit::default();
     }
-    let rate = player_export_duty_rate(ctx, marketplace.owner);
+    let rate = settlement_export_duty_rate(ctx, marketplace.owner, marketplace.settlement_id);
     let physical = ctx
         .db
         .player_resources()
@@ -182,8 +203,12 @@ pub fn credit_private_export_receipt(
     } else {
         let split = split_private_export_receipt(gross_receipt, rate);
         credit_treasury_gold(ctx, marketplace.owner, split.export_duty);
-        let credited =
-            credit_settlement_household_income(ctx, marketplace.owner, split.household_income);
+        let credited = credit_local_household_income(
+            ctx,
+            marketplace.owner,
+            marketplace.settlement_id,
+            split.household_income,
+        );
         // A depopulated legacy settlement has no private wallet to receive the
         // proceeds. Keep those coins in civic custody instead of deleting them.
         credit_treasury_gold(
@@ -205,6 +230,15 @@ pub fn credit_private_export_receipt(
                 whole_units(resources.private_export_income_total) + split.household_income;
         }
         ctx.db.player_resources().owner().update(resources);
+    }
+    if let Some(mut settlement) = crate::settlement_policy::row(
+        ctx,
+        marketplace.owner,
+        marketplace.settlement_id,
+    ) {
+        settlement.export_duty_collected_total =
+            whole_units(settlement.export_duty_collected_total) + split.export_duty;
+        ctx.db.settlement().id().update(settlement);
     }
     split
 }
@@ -281,8 +315,13 @@ pub fn credit_local_purchase_receipt(
         return LocalPurchaseSplit::default();
     }
     let owner = market.owner;
-    let rate = player_economic_activity_tax_rate(ctx, owner);
-    let collection = town_hall_tax_collection_multiplier(ctx, owner).clamp(0.0, 1.0);
+    let rate = settlement_economic_activity_tax_rate(ctx, owner, market.settlement_id);
+    let collection = settlement_town_hall_tax_collection_multiplier(
+        ctx,
+        owner,
+        market.settlement_id,
+    )
+    .clamp(0.0, 1.0);
     let physical = ctx
         .db
         .player_resources()
@@ -303,7 +342,12 @@ pub fn credit_local_purchase_receipt(
     } else {
         let receipt = split_local_purchase_receipt(gross_receipt, rate * collection);
         credit_treasury_gold(ctx, owner, receipt.local_tax);
-        let credited = credit_settlement_household_income(ctx, owner, receipt.producer_income);
+        let credited = credit_local_household_income(
+            ctx,
+            owner,
+            market.settlement_id,
+            receipt.producer_income,
+        );
         credit_treasury_gold(ctx, owner, (receipt.producer_income - credited).max(0.0));
         receipt
     };

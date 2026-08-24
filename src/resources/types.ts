@@ -69,6 +69,56 @@ export type TreeEntityState = {
   growthProgress: number;
 };
 
+/**
+ * A durable civic community inside the player's one realm-wide economy.
+ * Goods never belong to this row: they remain physical on buildings, homes,
+ * and carts and are only broken down by settlement for local diagnostics.
+ */
+export type SettlementState = {
+  id: string;
+  name: string;
+  anchorX: number;
+  anchorZ: number;
+  foundingCampId?: string;
+  founderPopulation: number;
+  unhousedFounders: number;
+  active: boolean;
+  townHallId?: string;
+  createdTick: number;
+  economicActivityTaxRate: number;
+  pantrySafeguardPolicy: 0 | 1 | 2;
+  landLevyRate: number;
+  importDutyRate: number;
+  exportDutyRate: number;
+  seasonalLaborStewardEnabled: boolean;
+  constructionLaborStewardEnabled: boolean;
+  productionLaborStewardEnabled: boolean;
+  laborStewardReserve: number;
+  nightWatchPolicy: 0 | 1 | 2;
+  nightGatheringPolicy: 0 | 1 | 2;
+  nightWorkPolicy: 0 | 1 | 2;
+  nightLightingPolicy: 0 | 1 | 2;
+  nightCurfewPolicy: 0 | 1 | 2;
+  landLevyAssessedTotal: number;
+  landLevyCollectedTotal: number;
+  importDutyCollectedTotal: number;
+  exportDutyCollectedTotal: number;
+  lastNightReportDay: number;
+  lastNightHouseholds: number;
+  lastNightWellRestedHouseholds: number;
+  lastNightColdHouseholds: number;
+  lastNightSocialHouseholds: number;
+  lastNightWorkers: number;
+  lastNightWatchStrength: number;
+  lastNightIncidents: number;
+  lastNightTheftGold: number;
+  lastNightWildlifeSightings: number;
+  lastNightLightingFuelUsed: number;
+  lastNightLightingFuelShortfall: number;
+  nightCommunityCohesion: number;
+  nightLaborFatigue: number;
+};
+
 export type TreeWorkArea = {
   x: number;
   z: number;
@@ -77,6 +127,8 @@ export type TreeWorkArea = {
 
 export type BuildingState = {
   id: string;
+  /** Sticky civic membership; absent only for legacy or neutral structures. */
+  settlementId?: string;
   kind: BuildingKind;
   x: number;
   z: number;
@@ -370,6 +422,8 @@ export type BurgageFrontageEdge = 0 | 1 | 2 | 3;
 
 export type BurgageZoneState = {
   id: string;
+  /** Sticky community chosen when the parcel was laid out. */
+  settlementId?: string;
   cornerA: { x: number; z: number };
   cornerB: { x: number; z: number };
   cornerC: { x: number; z: number };
@@ -380,6 +434,8 @@ export type BurgageZoneState = {
 
 export type ResidenceState = {
   id: string;
+  /** Durable home community; reach visuals never silently transfer it. */
+  settlementId?: string;
   zoneId: string;
   parcelIndex: number;
   x: number;
@@ -507,6 +563,7 @@ export type GameState = {
   foragingNodes: Map<string, ForagingNodeState>;
   trees: Map<string, TreeEntityState>;
   buildings: Map<string, BuildingState>;
+  settlements: Map<string, SettlementState>;
   tradingPostTradeRules?: Map<string, import('../economy/tradingPostTrade.ts').TradingPostTradeRuleState>;
   farmFields: Map<string, FarmFieldState>;
   pastures: Map<string, PastureState>;

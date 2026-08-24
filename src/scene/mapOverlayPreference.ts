@@ -1,6 +1,6 @@
 import type { FarmCrop } from '../resources/types.ts';
 
-export type MapOverlayMode = 'none' | 'water' | 'wind' | 'fertility';
+export type MapOverlayMode = 'none' | 'water' | 'wind' | 'fertility' | 'communities';
 export type MapOverlaySelection = {
   mode: MapOverlayMode;
   crop: FarmCrop;
@@ -57,7 +57,11 @@ export function subscribeMapOverlayPreference(listener: () => void): () => void 
 }
 
 function isMode(value: unknown): value is MapOverlayMode {
-  return value === 'none' || value === 'water' || value === 'wind' || value === 'fertility';
+  return value === 'none'
+    || value === 'water'
+    || value === 'wind'
+    || value === 'fertility'
+    || value === 'communities';
 }
 
 function isFertilityCrop(value: unknown): value is FarmCrop {

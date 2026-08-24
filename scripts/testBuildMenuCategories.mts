@@ -35,6 +35,7 @@ import {
 } from '../src/ui/resourceCost.ts';
 import { isConstructionResourceShortfallMessage } from '../src/ui/toastMessages.ts';
 import { resolveTooltipPosition } from '../src/ui/tooltips.ts';
+import { BUILDING_DEFINITIONS } from '../src/generated/gameBalance.ts';
 
 assert.deepEqual(keys(CIVIC_BUILD_MENU_ENTRIES), [
   'residences', 'well', 'founders_camp', 'chapel', 'wayside_shrine', 'dry_stone_wall', 'monastery', 'marketplace', 'tavern', 'trading_post', 'town_hall',
@@ -356,6 +357,8 @@ assert.match(renderedCards, /data-action="dry-stone-wall"[\s\S]*?>Dry-stone wall
 assert.match(renderedCards, /data-action="village-storehouse"[\s\S]*?>Storehouse</);
 assert.match(renderedCards, /data-action="granary"[\s\S]*?>Granary</);
 assert.doesNotMatch(renderedCards, />Village (?:storehouse|granary)</);
+assert.equal(BUILDING_DEFINITIONS.village_storehouse.label, 'Storehouse');
+assert.equal(BUILDING_DEFINITIONS.granary.label, 'Granary');
 assert.match(
   renderedCards,
   /data-action="marketplace"[^>]*data-tooltip="Required to distribute food to residences;/,

@@ -98,6 +98,11 @@ function parseGeneratedFields(tableName: string, source: string): Field[] {
 const subscriptions = parseSubscribedTableNames(readFileSync(subscriptionsPath, 'utf8'));
 const rustTables = parseRustTables(readFileSync(rustTablesPath, 'utf8'));
 
+assert.ok(
+  subscriptions.includes('settlement'),
+  'the durable town/community table must be part of the authoritative game subscription',
+);
+
 for (const tableName of subscriptions) {
   const rustTable = rustTables.get(tableName);
   assert.ok(rustTable, `subscribed table ${tableName} has no public Rust table definition`);
@@ -118,14 +123,56 @@ for (const tableName of subscriptions) {
 const building = rustTables.get('building');
 assert.ok(building, 'building table must be subscribed and public');
 assert.deepEqual(
-  building.fields.slice(-3),
+  building.fields.slice(-4),
   [
     { name: 'tree_work_area_x', type: 'f64' },
     { name: 'tree_work_area_z', type: 'f64' },
     { name: 'tree_work_area_radius', type: 'f64' },
+    { name: 'settlement_id', type: 'u64' },
   ],
-  'additive Building fields must remain appended for save/schema compatibility',
+  'sticky community identity must be appended after the existing additive Building fields',
 );
+
+for (const tableName of ['burgage_zone', 'residence'] as const) {
+  const table = rustTables.get(tableName);
+  assert.ok(table, `${tableName} table must be subscribed and public`);
+  assert.deepEqual(
+    table.fields.at(-1),
+    { name: 'settlement_id', type: 'u64' },
+    `${tableName}.settlement_id must remain the final additive compatibility field`,
+  );
+}
+
+const settlement = rustTables.get('settlement');
+assert.ok(settlement, 'settlement must be a public subscribed table');
+for (const requiredField of [
+  'id',
+  'owner',
+  'name',
+  'anchor_x',
+  'anchor_z',
+  'founding_camp_id',
+  'town_hall_id',
+  'founder_population',
+  'unhoused_founders',
+] as const) {
+  assert.ok(
+    settlement.fields.some((field) => field.name === requiredField),
+    `Settlement.${requiredField} is required for durable community and founding-cohort authority`,
+  );
+}
+for (const forbiddenResourceField of [
+  'timber',
+  'stone',
+  'firewood',
+  'food',
+  'gold',
+] as const) {
+  assert.ok(
+    !settlement.fields.some((field) => field.name === forbiddenResourceField),
+    `Settlement must not create a separate ${forbiddenResourceField} wallet; resources stay physical and realm-integrated`,
+  );
+}
 
 console.log(
   `Spacetime schema parity passed for ${subscriptions.length} subscribed tables (${workspaceRoot}).`,

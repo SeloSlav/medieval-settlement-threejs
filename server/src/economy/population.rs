@@ -19,7 +19,7 @@ use crate::simulation::{
 };
 use crate::tables::Building;
 
-pub use super::population_policy::initial_construction_labor;
+pub use super::population_policy::{initial_construction_labor, queued_construction_callup_labor};
 use super::population_policy::{
     labor_reconciliation_updates, population_limit_blocks_labor_request, LaborAssignment,
 };
@@ -59,7 +59,24 @@ fn total_population(ctx: &ReducerContext, owner: spacetimedb::Identity) -> u32 {
         .map_or(true, |resources| {
             resources.legacy_unhoused_population_bonus_enabled
         });
-    settlement_population(from_residences, legacy_unhoused_population_bonus_enabled)
+    let has_authoritative_settlements = ctx
+        .db
+        .settlement()
+        .owner()
+        .filter(&owner)
+        .next()
+        .is_some();
+    if !has_authoritative_settlements {
+        return settlement_population(from_residences, legacy_unhoused_population_bonus_enabled);
+    }
+    let founding_cohorts = crate::settlements::owner_unhoused_founders(ctx, owner);
+    from_residences
+        .saturating_add(founding_cohorts)
+        .saturating_add(if legacy_unhoused_population_bonus_enabled {
+            STARTING_POPULATION
+        } else {
+            0
+        })
 }
 
 pub fn settlement_population(housed: u32, legacy_unhoused_population_bonus_enabled: bool) -> u32 {

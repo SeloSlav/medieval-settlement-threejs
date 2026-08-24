@@ -16,6 +16,7 @@ import type {
   PastureState,
   ResourceNodeState,
   ResidenceState,
+  SettlementState,
   ResourceStockpile,
   TreeEntityState,
   VineyardParcelState,
@@ -54,6 +55,7 @@ export type GameTableSyncState = {
   foragingNodes: Map<string, ForagingNodeState>;
   trees: Map<string, TreeEntityState>;
   buildings: Map<string, BuildingState>;
+  settlements: Map<string, SettlementState>;
   farmFields: Map<string, FarmFieldState>;
   pastures: Map<string, PastureState>;
   vineyardParcels: Map<string, VineyardParcelState>;

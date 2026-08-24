@@ -3,15 +3,13 @@
 use spacetimedb::ReducerContext;
 
 use crate::balance_generated::{
-    STARTING_POPULATION, STOREHOUSE_HAUL_PER_WORKER, TIMBER_DELIVERY_SPEED_MPS,
-    TIMBER_DELIVERY_UNLOAD_SEC,
+    STOREHOUSE_HAUL_PER_WORKER, TIMBER_DELIVERY_SPEED_MPS, TIMBER_DELIVERY_UNLOAD_SEC,
 };
 use crate::db::*;
 use crate::economy::{
     building_commodity_cap, building_commodity_room, building_commodity_stock,
-    storage_accepts_commodity, CommodityKind,
+    storage_accepts_commodity, CommodityKind, ALL_COMMODITIES,
 };
-use crate::reducers::buildings::is_bootstrap_founders_camp;
 use crate::residence_upgrade_policy::residence_project_active;
 use crate::simulation::delivery_trips::{
     available_free_haulers, building_has_active_trip, building_has_conflicting_inbound_supply_trip,
@@ -24,49 +22,6 @@ use crate::storehouse_policy::storehouse_filtered_collection_headroom;
 use crate::tables::Building;
 
 const EPSILON: f64 = 1e-6;
-const FOUNDING_RELOCATION_COMMODITIES: [CommodityKind; 40] = [
-    CommodityKind::Timber,
-    CommodityKind::Stone,
-    CommodityKind::Firewood,
-    CommodityKind::Food,
-    CommodityKind::RyeSheaves,
-    CommodityKind::OatSheaves,
-    CommodityKind::BarleySheaves,
-    CommodityKind::MaslinSheaves,
-    CommodityKind::RyeGrain,
-    CommodityKind::OatGrain,
-    CommodityKind::MaslinGrain,
-    CommodityKind::Barley,
-    CommodityKind::Malt,
-    CommodityKind::RyeFlour,
-    CommodityKind::MaslinFlour,
-    CommodityKind::PreservedFood,
-    CommodityKind::Ale,
-    CommodityKind::Honey,
-    CommodityKind::Wine,
-    CommodityKind::Cloth,
-    CommodityKind::Wool,
-    CommodityKind::Flax,
-    CommodityKind::Ironwork,
-    CommodityKind::Polearms,
-    CommodityKind::Water,
-    CommodityKind::RyeBread,
-    CommodityKind::MaslinBread,
-    CommodityKind::Meat,
-    CommodityKind::Fish,
-    CommodityKind::Berries,
-    CommodityKind::Mushrooms,
-    CommodityKind::Milk,
-    CommodityKind::Apples,
-    CommodityKind::Cherries,
-    CommodityKind::Vegetables,
-    CommodityKind::Eggs,
-    CommodityKind::Grapes,
-    CommodityKind::CuredMeat,
-    CommodityKind::SmokedFish,
-    CommodityKind::Cheese,
-];
-
 /// While founders still occupy the shelter, move a household food load before
 /// draining the much larger fuel pile. Ironwork remains eligible so the
 /// maintenance chain can bootstrap before every founder is housed.
@@ -82,7 +37,7 @@ fn founding_relocation_commodities(starter_supplies_only: bool) -> &'static [Com
     if starter_supplies_only {
         &OCCUPIED_SHELTER_RELOCATION_COMMODITIES
     } else {
-        &FOUNDING_RELOCATION_COMMODITIES
+        ALL_COMMODITIES
     }
 }
 
@@ -101,7 +56,11 @@ pub fn step_founding_sites(ctx: &ReducerContext, tick: &SimTickContext, clock: &
         .db
         .building()
         .iter()
-        .filter(is_bootstrap_founders_camp)
+        .filter(|building| {
+            building.kind == "founders_camp"
+                && building.construction_complete
+                && building.settlement_id != 0
+        })
         .map(|building| building.id)
         .collect::<Vec<_>>();
 
@@ -109,22 +68,22 @@ pub fn step_founding_sites(ctx: &ReducerContext, tick: &SimTickContext, clock: &
         let Some(mut site) = ctx.db.building().id().find(&site_id) else {
             continue;
         };
+        let Some(settlement) = ctx.db.settlement().id().find(&site.settlement_id) else {
+            continue;
+        };
+        if !settlement.active || settlement.founding_camp_id != site.id {
+            continue;
+        }
         let mut site_changed = false;
 
-        let housed: u32 = ctx
-            .db
-            .residence()
-            .owner()
-            .filter(&site.owner)
-            .filter(|residence| !residence.abandoned)
-            .map(|residence| residence.population)
-            .sum();
-        if site.founding_shelter_active && housed >= STARTING_POPULATION {
-            site.founding_shelter_active = false;
+        let shelter_should_be_active = settlement.unhoused_founders > 0;
+        if site.founding_shelter_active != shelter_should_be_active {
+            site.founding_shelter_active = shelter_should_be_active;
             site_changed = true;
         }
 
-        let town_hall = first_completed_building(ctx, site.owner, "town_hall");
+        let town_hall =
+            first_completed_building(ctx, site.owner, site.settlement_id, "town_hall");
         if let Some(ref town_hall) = town_hall {
             if site.gold > EPSILON
                 && !building_has_active_trip(ctx, site.id)
@@ -162,22 +121,42 @@ pub fn step_founding_sites(ctx: &ReducerContext, tick: &SimTickContext, clock: &
         if site_changed {
             ctx.db.building().id().update(site.clone());
         }
-        let has_town_hall = town_hall.is_some();
-        let has_storehouse =
-            first_completed_building(ctx, site.owner, "village_storehouse").is_some();
         if site.founding_shelter_active
-            || building_has_active_trip(ctx, site.id)
+            || founding_camp_has_active_trip(ctx, site.id)
             || has_portable_stock(&site)
-            || !has_town_hall
-            || !has_storehouse
         {
             continue;
         }
 
-        // Once housing, a permanent material depot, and a civic lockbox all
-        // exist, an empty open stockyard no longer represents anything.
+        // Community identity outlives its temporary camp. A Town Hall is not a
+        // prerequisite: it matters only when physical gold still needs a civic
+        // lockbox and therefore keeps `has_portable_stock` true.
+        crate::settlements::retire_founding_camp(ctx, site.settlement_id, site.id);
         ctx.db.building().id().delete(site.id);
     }
+}
+
+fn founding_camp_has_active_trip(ctx: &ReducerContext, camp_id: u64) -> bool {
+    ctx.db
+        .delivery_trip()
+        .building_id()
+        .filter(&camp_id)
+        .next()
+        .is_some()
+        || ctx
+            .db
+            .delivery_trip()
+            .target_building_id()
+            .filter(&camp_id)
+            .next()
+            .is_some()
+        || ctx
+            .db
+            .delivery_trip()
+            .labor_building_id()
+            .filter(&camp_id)
+            .next()
+            .is_some()
 }
 
 /// While the shelter is occupied, one free villager may move starter bread to
@@ -209,6 +188,7 @@ fn try_start_stockyard_relocation(
             .filter(&site.owner)
             .filter(|candidate| {
                 candidate.id != site.id
+                    && candidate.settlement_id == site.settlement_id
                     && candidate.construction_complete
                     && !tick.building_disabled_by_fire(ctx, candidate.id)
                     && !building_has_conflicting_inbound_supply_trip(ctx, candidate, commodity)
@@ -401,62 +381,26 @@ fn founding_storehouse_room(storehouse: &Building, commodity: CommodityKind) -> 
 fn first_completed_building(
     ctx: &ReducerContext,
     owner: spacetimedb::Identity,
+    settlement_id: u64,
     kind: &str,
 ) -> Option<Building> {
     ctx.db
         .building()
         .owner()
         .filter(&owner)
-        .filter(|building| building.kind == kind && building.construction_complete)
+        .filter(|building| {
+            building.settlement_id == settlement_id
+                && building.kind == kind
+                && building.construction_complete
+        })
         .min_by_key(|building| building.id)
 }
 
 fn has_portable_stock(building: &Building) -> bool {
-    [
-        building.timber,
-        building.firewood,
-        building.stone,
-        building.water,
-        building.food,
-        building.rye_sheaves,
-        building.oat_sheaves,
-        building.barley_sheaves,
-        building.maslin_sheaves,
-        building.rye_grain,
-        building.oat_grain,
-        building.maslin_grain,
-        building.rye_flour,
-        building.maslin_flour,
-        building.ale,
-        building.preserved_food,
-        building.honey,
-        building.wine,
-        building.ironwork,
-        building.polearms,
-        building.wool,
-        building.cloth,
-        building.gold,
-        building.barley,
-        building.malt,
-        building.flax,
-        building.rye_bread,
-        building.maslin_bread,
-        building.meat,
-        building.fish,
-        building.berries,
-        building.mushrooms,
-        building.milk,
-        building.apples,
-        building.cherries,
-        building.vegetables,
-        building.eggs,
-        building.grapes,
-        building.cured_meat,
-        building.smoked_fish,
-        building.cheese,
-    ]
-    .into_iter()
-    .any(|amount| amount > EPSILON)
+    ALL_COMMODITIES
+        .iter()
+        .copied()
+        .any(|commodity| building_commodity_stock(building, commodity) > EPSILON)
 }
 
 #[cfg(test)]
@@ -501,8 +445,8 @@ mod tests {
             ],
         );
         assert_eq!(
-            founding_relocation_commodities(false),
-            &FOUNDING_RELOCATION_COMMODITIES,
+                founding_relocation_commodities(false),
+                ALL_COMMODITIES,
         );
     }
 

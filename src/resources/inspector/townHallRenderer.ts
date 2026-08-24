@@ -922,7 +922,7 @@ function formatConstructionLabor(plan: SettlementConstructionLaborPlan): string 
 
 export function renderStorehouseNetworkRows(network: StorehouseNetworkPlan): string {
   if (network.completedDepots === 0) {
-    return '<li><span>Material depots</span><span>No completed village storehouse</span></li>';
+    return '<li><span>Material depots</span><span>No completed storehouse</span></li>';
   }
   const rows = ([
     'timber',

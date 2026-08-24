@@ -90,6 +90,7 @@
     "test:settlement-welfare": "node --experimental-strip-types scripts/testSettlementWelfare.mts",
     "test:settlement-approval": "node --experimental-strip-types scripts/testSettlementApproval.mts",
     "test:settlement-growth": "node --experimental-strip-types scripts/testSettlementGrowth.mts",
+    "test:town-communities": "node --experimental-strip-types scripts/testTownCommunities.mts",
     "test:settlement-labor": "node --experimental-strip-types scripts/testSettlementLabor.mts",
     "test:staffing-priority": "node --experimental-strip-types scripts/testStaffingPriority.mts",
     "test:seasonal-labor": "node --experimental-strip-types scripts/testSeasonalLabor.mts",

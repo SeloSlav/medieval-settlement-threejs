@@ -46,19 +46,19 @@ assert.equal(
   'a night incident is relevant to the Lord',
 );
 assert.equal(
-  isDawnReportRelevant({ ...routineDawn, lastLightingFuelShortfall: 0.01 }),
+  isDawnReportRelevant({ ...routineDawn, lastTheftGold: 1 }),
   true,
-  'a real lighting-fuel shortfall is relevant to the Lord',
+  'stolen household wealth is relevant to the Lord even if a legacy snapshot omitted its incident count',
 );
 assert.equal(
   isDawnReportRelevant({ ...routineDawn, lastWildlifeSightings: 1 }),
-  true,
-  'an unusual wildlife sighting is interesting enough for the Lord ledger',
+  false,
+  'a cosmetic wildlife sighting should remain out of the Lord ledger',
 );
 assert.equal(
-  isDawnReportRelevant({ ...routineDawn, lastLightingFuelShortfall: 0.005 }),
+  isDawnReportRelevant({ ...routineDawn, lastLightingFuelShortfall: 1 }),
   false,
-  'rounding noise at the existing fuel epsilon should remain below the threshold',
+  'the legacy lighting-shortfall field has no current simulation consequence',
 );
 
 const aggregatedGranary = building({

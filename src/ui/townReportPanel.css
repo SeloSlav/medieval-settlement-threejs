@@ -1,0 +1,76 @@
+.town-report-panel {
+  position: absolute;
+  top: 96px;
+  right: 18px;
+  z-index: 13;
+  width: min(520px, calc(100vw - 36px));
+  max-height: calc(100vh - 126px);
+  overflow: hidden;
+  color: var(--ink);
+  border: 1px solid rgba(215, 180, 99, 0.34);
+  border-radius: 14px;
+  background: linear-gradient(155deg, rgba(34, 37, 29, 0.97), rgba(21, 24, 20, 0.96));
+  box-shadow: 0 22px 54px rgba(0, 0, 0, 0.44);
+  backdrop-filter: blur(14px);
+}
+
+.town-report-panel[hidden] { display: none; }
+
+.town-report-panel__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 16px 18px 13px;
+  border-bottom: 1px solid rgba(238, 232, 220, 0.12);
+}
+
+.town-report-panel__header p,
+.town-report-panel__header h2 { margin: 0; }
+.town-report-panel__header p {
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+.town-report-panel__header h2 { margin-top: 3px; font: 700 23px/1.1 Georgia, serif; }
+.town-report-panel__header button {
+  width: 32px;
+  height: 32px;
+  color: var(--muted);
+  border: 1px solid rgba(238, 232, 220, 0.14);
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.16);
+  cursor: pointer;
+}
+
+.town-report-panel__body { padding: 15px 18px 18px; overflow: auto; max-height: calc(100vh - 200px); }
+.town-report-panel__scope { margin: 0 0 13px; color: var(--muted); font-size: 12px; line-height: 1.45; }
+.town-report-panel__stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.town-report-panel__stats span { padding: 10px 8px; text-align: center; border: 1px solid rgba(238,232,220,.09); border-radius: 9px; background: rgba(255,255,255,.035); }
+.town-report-panel__stats strong,
+.town-report-panel__stats small { display: block; }
+.town-report-panel__stats strong { color: #f2d995; font-size: 18px; }
+.town-report-panel__stats small { margin-top: 2px; color: var(--muted); font-size: 10px; text-transform: uppercase; }
+.town-report-panel__actions { display: flex; align-items: center; gap: 8px; margin: 12px 0 16px; }
+.town-report-panel__action { padding: 8px 11px; color: var(--ink); border: 1px solid rgba(215,180,99,.32); border-radius: 7px; background: rgba(215,180,99,.1); cursor: pointer; }
+.town-report-panel__action:hover,
+.town-report-panel__action:focus-visible { border-color: var(--accent); outline: none; }
+.town-report-panel__pending { color: var(--muted); font-size: 11px; }
+.town-report-panel__ledger > header { display: flex; justify-content: space-between; gap: 10px; margin-bottom: 7px; }
+.town-report-panel__ledger > header small { color: var(--muted); }
+.town-report-panel__table { border: 1px solid rgba(238,232,220,.1); border-radius: 9px; overflow: hidden; }
+.town-report-panel__row { display: grid; grid-template-columns: minmax(92px, 1.35fr) repeat(4, minmax(58px, .7fr)); gap: 6px; align-items: center; padding: 7px 9px; border-top: 1px solid rgba(238,232,220,.07); font-size: 11px; }
+.town-report-panel__row:first-child { border-top: 0; }
+.town-report-panel__row > :not(:first-child) { text-align: right; font-variant-numeric: tabular-nums; }
+.town-report-panel__row--head { color: var(--muted); background: rgba(255,255,255,.035); font-size: 9px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; }
+.town-report-panel__empty,
+.town-report-panel__trade { margin: 0; padding: 12px; color: var(--muted); font-size: 11px; }
+.town-report-panel__trade { padding: 9px 2px 0; color: #d5c18b; }
+
+@media (max-width: 680px) {
+  .town-report-panel { top: 72px; right: 10px; width: calc(100vw - 20px); }
+  .town-report-panel__stats { grid-template-columns: repeat(2, 1fr); }
+  .town-report-panel__row { grid-template-columns: minmax(78px, 1.2fr) repeat(4, minmax(46px, .7fr)); font-size: 10px; }
+}

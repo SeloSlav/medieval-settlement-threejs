@@ -13,7 +13,7 @@ use crate::seasonal_labor_policy::{
     seasonal_callup_targets, seasonal_labor_target, seasonal_production_active,
     SeasonalCallupCandidate,
 };
-use crate::tables::{farm_field, Building};
+use crate::tables::{farm_field, Building, Settlement};
 
 use super::{building_fire_state, building_has_active_trip, preserve_in_transit_cart_labor};
 
@@ -26,6 +26,26 @@ pub fn owner_has_staffed_town_hall(ctx: &ReducerContext, owner: Identity) -> boo
     })
 }
 
+pub fn settlement_has_staffed_town_hall(
+    ctx: &ReducerContext,
+    settlement: &Settlement,
+) -> bool {
+    settlement.town_hall_id != 0
+        && ctx
+            .db
+            .building()
+            .id()
+            .find(&settlement.town_hall_id)
+            .is_some_and(|building| {
+                building.owner == settlement.owner
+                    && building.settlement_id == settlement.id
+                    && building.kind == "town_hall"
+                    && building.construction_complete
+                    && building.assigned_labor > 0
+                    && building_fire_state(ctx, building.id).is_none()
+            })
+}
+
 /// Releases only labor whose seasonal work is dormant. Logistics labor handles
 /// stored stock and active carts independently of the production roster.
 pub fn recall_idle_seasonal_labor_for_owner(
@@ -33,12 +53,25 @@ pub fn recall_idle_seasonal_labor_for_owner(
     owner: Identity,
     month: u32,
 ) -> u32 {
+    recall_idle_seasonal_labor_for_scope(ctx, owner, None, month)
+}
+
+fn recall_idle_seasonal_labor_for_scope(
+    ctx: &ReducerContext,
+    owner: Identity,
+    settlement_id: Option<u64>,
+    month: u32,
+) -> u32 {
     let buildings: Vec<Building> = ctx
         .db
         .building()
         .owner()
         .filter(&owner)
-        .filter(|building| building.construction_complete && building.assigned_labor > 0)
+        .filter(|building| {
+            building.construction_complete
+                && building.assigned_labor > 0
+                && settlement_id.is_none_or(|id| building.settlement_id == id)
+        })
         .collect();
     let mut recalled = 0_u32;
 
@@ -152,6 +185,16 @@ fn call_up_active_seasonal_labor_for_owner_with_reserve(
     month: u32,
     labor_reserve: u32,
 ) -> u32 {
+    call_up_active_seasonal_labor_for_scope(ctx, owner, None, month, labor_reserve)
+}
+
+fn call_up_active_seasonal_labor_for_scope(
+    ctx: &ReducerContext,
+    owner: Identity,
+    settlement_id: Option<u64>,
+    month: u32,
+    labor_reserve: u32,
+) -> u32 {
     let available_labor =
         steward_deployable_labor(available_building_labor(ctx, owner), labor_reserve);
     if available_labor == 0 {
@@ -159,7 +202,9 @@ fn call_up_active_seasonal_labor_for_owner_with_reserve(
     }
     let mut candidates = Vec::new();
     for building in ctx.db.building().owner().filter(&owner).filter(|building| {
-        building.construction_complete && building_fire_state(ctx, building.id).is_none()
+        building.construction_complete
+            && settlement_id.is_none_or(|id| building.settlement_id == id)
+            && building_fire_state(ctx, building.id).is_none()
     }) {
         let Some(def) = building_def(&building.kind) else {
             continue;
@@ -202,7 +247,10 @@ fn call_up_active_seasonal_labor_for_owner_with_reserve(
         let Some(mut building) = ctx.db.building().id().find(&building_id) else {
             continue;
         };
-        if building.owner != owner || target_labor <= building.assigned_labor {
+        if building.owner != owner
+            || target_labor <= building.assigned_labor
+            || settlement_id.is_some_and(|id| building.settlement_id != id)
+        {
             continue;
         }
         called_up = called_up.saturating_add(target_labor - building.assigned_labor);
@@ -226,22 +274,46 @@ pub fn reconcile_seasonal_labor_for_owner(
     (recalled, called_up)
 }
 
+pub fn reconcile_seasonal_labor_for_settlement(
+    ctx: &ReducerContext,
+    owner: Identity,
+    settlement_id: u64,
+    month: u32,
+    labor_reserve: u32,
+) -> (u32, u32) {
+    let recalled =
+        recall_idle_seasonal_labor_for_scope(ctx, owner, Some(settlement_id), month);
+    let called_up = call_up_active_seasonal_labor_for_scope(
+        ctx,
+        owner,
+        Some(settlement_id),
+        month,
+        labor_reserve,
+    );
+    (recalled, called_up)
+}
+
 /// Runs once at the authoritative calendar boundary. Disabled policies and
 /// ordinary ticks avoid all settlement scans.
 pub fn step_seasonal_labor_stewards(ctx: &ReducerContext, sim_tick: u64, month: u32) {
     if !seasonal_labor_steward_review_due(sim_tick) {
         return;
     }
-    let owners: Vec<(Identity, u32)> = ctx
+    let settlements: Vec<Settlement> = ctx
         .db
-        .player_resources()
+        .settlement()
         .iter()
-        .filter(|resources| resources.seasonal_labor_steward_enabled)
-        .map(|resources| (resources.owner, resources.labor_steward_reserve))
+        .filter(|settlement| settlement.active && settlement.seasonal_labor_steward_enabled)
         .collect();
-    for (owner, labor_reserve) in owners {
-        if owner_has_staffed_town_hall(ctx, owner) {
-            reconcile_seasonal_labor_for_owner(ctx, owner, month, labor_reserve);
+    for settlement in settlements {
+        if settlement_has_staffed_town_hall(ctx, &settlement) {
+            reconcile_seasonal_labor_for_settlement(
+                ctx,
+                settlement.owner,
+                settlement.id,
+                month,
+                settlement.labor_steward_reserve,
+            );
         }
     }
 }

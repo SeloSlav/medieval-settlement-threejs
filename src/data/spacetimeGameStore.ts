@@ -44,6 +44,7 @@ import type {
   LivestockHerdState,
   PastureState,
   ResidenceState,
+  SettlementState,
   ResourceStockpile,
   TreeEntityState,
   VineyardParcelState,
@@ -136,6 +137,7 @@ export type SpacetimeGameSnapshot = {
   foragingNodes: Map<string, ForagingNodeState>;
   trees: Map<string, TreeEntityState>;
   buildings: Map<string, BuildingState>;
+  settlements: Map<string, SettlementState>;
   farmFields: Map<string, FarmFieldState>;
   pastures: Map<string, PastureState>;
   vineyardParcels: Map<string, VineyardParcelState>;
@@ -183,6 +185,7 @@ function createEmptyTableState(): GameTableSyncState {
     foragingNodes: new Map(),
     trees: new Map(),
     buildings: new Map(),
+    settlements: new Map(),
     farmFields: new Map(),
     pastures: new Map(),
     vineyardParcels: new Map(),
@@ -206,6 +209,13 @@ function tableStatePopulation(state: GameTableSyncState): number {
     (total, residence) => total + (residence.abandoned ? 0 : residence.population),
     0,
   );
+  if (state.settlements.size > 0) {
+    const unhousedFounders = [...state.settlements.values()].reduce(
+      (total, settlement) => total + (settlement.active ? settlement.unhousedFounders : 0),
+      0,
+    );
+    return housed + unhousedFounders;
+  }
   return state.legacyUnhousedPopulationBonusEnabled
     ? STARTING_POPULATION + housed
     : Math.max(STARTING_POPULATION, housed);
@@ -267,6 +277,7 @@ export class SpacetimeGameStore {
       foragingNodes: this.snapshotMap(state.foragingNodes),
       trees: this.snapshotMap(state.trees),
       buildings: this.snapshotMap(state.buildings),
+      settlements: this.snapshotMap(state.settlements),
       farmFields: this.snapshotMap(state.farmFields),
       pastures: this.snapshotMap(state.pastures),
       vineyardParcels: this.snapshotMap(state.vineyardParcels),
@@ -358,6 +369,7 @@ export class SpacetimeGameStore {
       foragingNodes: snapshot.foragingNodes,
       trees: snapshot.trees,
       buildings: snapshot.buildings,
+      settlements: snapshot.settlements,
       tradingPostTradeRules: snapshot.tradingPostTradeRules,
       farmFields: snapshot.farmFields,
       pastures: snapshot.pastures,

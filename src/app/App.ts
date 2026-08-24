@@ -1387,7 +1387,7 @@ export class App {
     const troubled =
       snapshot.nightPolicy.lastColdHouseholds > 0
       || snapshot.nightPolicy.lastIncidents > 0
-      || snapshot.nightPolicy.lastLightingFuelShortfall > 0.005;
+      || snapshot.nightPolicy.lastTheftGold > 0.005;
     this.toolbar?.settlementHud.addLordReport({
       id: `dawn:${reportDay}`,
       kind: 'dawn',

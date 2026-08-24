@@ -112,7 +112,7 @@ export function nightLightingVisualScale(policy: NightPolicyCode): number {
 
 /**
  * Routine dawn summaries remain available in the Town Hall inspector. The
- * Lord's ledger is reserved for nights with a consequence or an unusual event.
+ * Lord's ledger is reserved for nights with an actual gameplay consequence.
  */
 export const DAWN_REPORT_RELEVANCE_THRESHOLD = 1;
 
@@ -122,8 +122,6 @@ export function dawnReportRelevanceScore(policy: NightPolicyState): number {
   let score = 0;
   if (policy.lastIncidents > 0 || policy.lastTheftGold > 0.005) score += 3;
   if (policy.lastColdHouseholds > 0) score += 2;
-  if (policy.lastLightingFuelShortfall > 0.005) score += 2;
-  if (policy.lastWildlifeSightings > 0) score += 1;
   return score;
 }
 

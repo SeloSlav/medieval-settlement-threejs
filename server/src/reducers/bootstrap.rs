@@ -212,6 +212,8 @@ pub(crate) fn place_founding_camp(ctx: &ReducerContext, x: f64, z: f64) -> Resul
         .find(&0)
         .ok_or_else(|| "World not initialized.".to_string())?;
     let building_id = next_available_building_id(ctx, config.next_building_id)?;
+    let settlement =
+        crate::settlements::create_initial_settlement(ctx, owner, building_id, x, z)?;
     ctx.db.building().insert(Building {
         id: building_id,
         owner,
@@ -375,6 +377,7 @@ pub(crate) fn place_founding_camp(ctx: &ReducerContext, x: f64, z: f64) -> Resul
         aronia_jam: resources.aronia_jam.max(0.0),
         rosehip_jam: resources.rosehip_jam.max(0.0),
         pear_cider: resources.pear_cider.max(0.0),
+        settlement_id: settlement.id,
     });
 
     resources.timber = 0.0;

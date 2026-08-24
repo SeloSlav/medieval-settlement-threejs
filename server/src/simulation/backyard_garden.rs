@@ -12,9 +12,9 @@ use crate::balance_generated::{
 use crate::db::*;
 use crate::economy::{
     credit_marketplace_receipt_gold, credit_residence_wealth, deposit_building_commodity,
-    deposit_residence_commodity, player_economic_activity_tax_rate, residence_edible_food_stock,
-    storage_accepts_commodity, taxed_economic_activity, town_hall_tax_collection_multiplier,
-    CommodityKind,
+    deposit_residence_commodity, residence_edible_food_stock,
+    settlement_economic_activity_tax_rate, settlement_town_hall_tax_collection_multiplier,
+    storage_accepts_commodity, taxed_economic_activity, CommodityKind,
 };
 use crate::resident_welfare_policy::deterministic_unit;
 use crate::resource_units::{whole_cost, whole_units};
@@ -71,7 +71,7 @@ pub fn step_backyard_gardens(
 ) {
     // The tick context builds one exact local-market road territory per owner.
     // Aggregate tolls so a large town updates each physical market coffer once.
-    let mut tax_policy_by_owner: HashMap<spacetimedb::Identity, (f64, f64)> = HashMap::new();
+    let mut tax_policy_by_town: HashMap<(spacetimedb::Identity, u64), (f64, f64)> = HashMap::new();
     let mut market_tolls_by_market: HashMap<u64, f64> = HashMap::new();
     for garden in ctx.db.backyard_garden().iter() {
         let Some(kind) = BackyardGardenKind::from_id(garden.kind) else {
@@ -119,10 +119,20 @@ pub fn step_backyard_gardens(
             food_marketplace_id
         };
         let (tax_rate, collection_multiplier) =
-            *tax_policy_by_owner.entry(garden.owner).or_insert_with(|| {
+            *tax_policy_by_town
+                .entry((garden.owner, residence.settlement_id))
+                .or_insert_with(|| {
                 (
-                    player_economic_activity_tax_rate(ctx, garden.owner),
-                    town_hall_tax_collection_multiplier(ctx, garden.owner),
+                    settlement_economic_activity_tax_rate(
+                        ctx,
+                        garden.owner,
+                        residence.settlement_id,
+                    ),
+                    settlement_town_hall_tax_collection_multiplier(
+                        ctx,
+                        garden.owner,
+                        residence.settlement_id,
+                    ),
                 )
             });
         let toll = step_one_garden(

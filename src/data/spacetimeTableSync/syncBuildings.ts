@@ -1,5 +1,5 @@
 import type { Building } from '../../generated/types.ts';
-import { buildingClientId } from '../spacetimeIds.ts';
+import { buildingClientId, settlementClientId } from '../spacetimeIds.ts';
 import type { BuildingState } from '../../resources/types.ts';
 import { isBuildingKind } from '../../resources/types.ts';
 import { wholeResourceUnits } from '../../resources/resourceUnits.ts';
@@ -78,6 +78,7 @@ function buildingStateFromRow(
     treeWorkAreaX: number;
     treeWorkAreaZ: number;
     treeWorkAreaRadius: number;
+    settlementId: bigint;
   }>;
   const treeWorkAreaX = Number(materialRow.treeWorkAreaX ?? 0);
   const treeWorkAreaZ = Number(materialRow.treeWorkAreaZ ?? 0);
@@ -90,6 +91,9 @@ function buildingStateFromRow(
     : undefined;
   return {
     id,
+    settlementId: materialRow.settlementId == null || materialRow.settlementId === 0n
+      ? undefined
+      : settlementClientId(materialRow.settlementId),
     kind: row.kind,
     x: row.x,
     z: row.z,

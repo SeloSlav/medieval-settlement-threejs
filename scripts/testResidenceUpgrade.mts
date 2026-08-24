@@ -719,6 +719,29 @@ assert.doesNotMatch(
   /coin|gold|lockbox/i,
   'founding cottages should grow from the material economy without a civic coin charge',
 );
+
+const legacyFractionalStall = residence('legacy-fractional-stall', 0, 0);
+Object.assign(legacyFractionalStall, {
+  upgradeTargetTier: 1,
+  upgradeProgress: 0.97,
+  upgradeRequiredTimber: 9.4,
+  upgradeRequiredStone: 11,
+  upgradeDeliveredTimber: 9,
+  upgradeDeliveredStone: 11,
+  upgradeReservedTimber: 0.4,
+  upgradeReservedStone: 0,
+  upgradeAssignedLabor: 0,
+  upgradePriority: 2,
+});
+const legacyFractionalProject = residenceUpgradeProject(legacyFractionalStall);
+assert.ok(legacyFractionalProject);
+assert.equal(
+  legacyFractionalProject.blockers[0],
+  '0.4 timber still reserved at source',
+  'the inspector should name the unhaulable residue before the derived builder wait',
+);
+assert.equal(legacyFractionalProject.blockers[1], 'waiting for a free builder');
+
 assert.equal(residenceUpgradeWorkplaces([initialCottage]).length, 1);
 assert.deepEqual(activeResidenceNeedKinds(initialCottage.tier), []);
 assert.equal(residenceSettlementReadiness(initialCottage).ready, false);
@@ -940,8 +963,9 @@ assert.match(
 );
 assert.match(
   residenceInspector,
-  /inspector-action-panel inspector-action-panel--compact" aria-label="Priority"/,
+  /inspector-action-panel inspector-action-panel--compact"[^>]*aria-label="Priority"/,
 );
+assert.match(residenceInspector, /project\.blockers\[0\]/);
 assert.match(residenceInspector, /Inspect incoming \$\{trip\.cargoKind\} cart/);
 assert.match(residenceInspector, /structural recovery required before settlement resumes/);
 assert.match(residenceInspector, /TIMBER_SALVAGE_FRACTION \* 100\)}% timber/);

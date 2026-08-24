@@ -8,6 +8,7 @@
 @import url('./ui/resourceInspector.css');
 @import url('./ui/villagerInspector.css');
 @import url('./ui/mapIcons.css');
+@import url('./ui/townReportPanel.css');
 @import url('./ui/terrainMinimap.css');
 @import url('./ui/compassHud.css');
 @import url('./ui/hudPanels.css');
@@ -103,6 +104,8 @@ button {
 [data-ui-root] .tutorial-overlay,
 [data-ui-root] .quarry-map-icon,
 [data-ui-root] .foraging-map-icon,
+[data-ui-root] .settlement-map-icon,
+[data-ui-root] .town-report-panel,
 [data-ui-root] .toast--clickable,
 [data-ui-root] .builder-status-bar {
   pointer-events: auto;
