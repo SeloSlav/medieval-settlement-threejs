@@ -32,15 +32,20 @@ type WebGPUAdapterLike = {
 };
 
 export type WebGPUProviderLike = {
-  requestAdapter(options?: {
-    powerPreference?: WebGPUPowerPreference;
-    featureLevel?: 'compatibility';
-    xrCompatible?: boolean;
-  }): Promise<WebGPUAdapterLike | null>;
+  requestAdapter(options?: WebGPUAdapterRequestOptions): Promise<WebGPUAdapterLike | null>;
 };
 
 type NavigatorWithWebGPU = Navigator & {
   gpu?: WebGPUProviderLike;
+  userAgentData?: {
+    platform?: string;
+  };
+};
+
+type WebGPUAdapterRequestOptions = {
+  powerPreference?: WebGPUPowerPreference;
+  featureLevel?: 'compatibility';
+  xrCompatible?: boolean;
 };
 
 type RendererWithBackend = WebGPURenderer & {
@@ -216,11 +221,9 @@ export async function acquireWebGPUAdapterDevice(
   adapterEvidence: RendererAdapterEvidence;
   device: unknown;
 } | null> {
-  const adapter = await gpu.requestAdapter({
-    powerPreference: RENDERER_OPTIONS.powerPreference,
-    featureLevel: 'compatibility',
-    xrCompatible: false,
-  });
+  const adapter = await gpu.requestAdapter(webGPUAdapterRequestOptionsForPlatform(
+    currentBrowserPlatform(),
+  ));
   if (!adapter) return null;
 
   let adapterEvidence: RendererAdapterEvidence;
@@ -247,6 +250,32 @@ export async function acquireWebGPUAdapterDevice(
     adapterEvidence,
     device,
   };
+}
+
+/**
+ * Chromium currently ignores powerPreference on Windows and emits a warning
+ * whenever the member is present. Preserve the useful selection hint on other
+ * platforms while omitting the no-op member for Windows adapters.
+ */
+export function webGPUAdapterRequestOptionsForPlatform(
+  platform: string | null | undefined,
+): WebGPUAdapterRequestOptions {
+  const options: WebGPUAdapterRequestOptions = {
+    featureLevel: 'compatibility',
+    xrCompatible: false,
+  };
+  if (!/^win(?:dows|32|64)?/i.test(platform?.trim() ?? '')) {
+    options.powerPreference = RENDERER_OPTIONS.powerPreference;
+  }
+  return options;
+}
+
+function currentBrowserPlatform(): string | null {
+  if (typeof window === 'undefined' || typeof navigator === 'undefined') return null;
+  const browserNavigator = navigator as NavigatorWithWebGPU;
+  return browserNavigator.userAgentData?.platform
+    ?? browserNavigator.platform
+    ?? null;
 }
 
 export function readWebGLAdapterEvidence(

@@ -71,7 +71,13 @@ export function createIllustratedMapDeskCanvas(
   canvas.dataset.textureAsset = ILLUSTRATED_MAP_DESK_TEXTURE_ASSET;
   canvas.dataset.textureState = 'loading';
 
-  const context = canvas.getContext('2d', { alpha: false });
+  // The edge fade reads the full canvas once for the fallback and again when
+  // the photographic surface arrives. Opt into the readback-oriented Canvas2D
+  // path up front so Chromium does not migrate the context after those reads.
+  const context = canvas.getContext('2d', {
+    alpha: false,
+    willReadFrequently: true,
+  });
   if (!context) return canvas;
 
   // Give both render paths a stable, seam-free surface immediately. The real

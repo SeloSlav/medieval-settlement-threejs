@@ -90,6 +90,11 @@ assert.match(overlaySource, /view\?\.innerWidth[\s\S]*?view\?\.innerHeight/);
 assert.match(deskSurfaceSource, /new Image\(\)/);
 assert.match(deskSurfaceSource, /drawImageCover\(context, image/);
 assert.match(deskSurfaceSource, /pixels\[offset \+ 3\] = 255/);
+assert.match(
+  deskSurfaceSource,
+  /getContext\('2d',\s*\{[\s\S]*?alpha:\s*false,[\s\S]*?willReadFrequently:\s*true,[\s\S]*?\}\)/,
+  'the repeatedly sampled desk canvas should request Chromium\'s readback-oriented Canvas2D path',
+);
 assert.doesNotMatch(deskSurfaceSource, /plankCount|drawPlank|mulberry32|textureSeed/);
 assert.match(
   overlaySource,

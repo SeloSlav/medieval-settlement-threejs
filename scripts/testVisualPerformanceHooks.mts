@@ -38,6 +38,7 @@ import {
   createPreferredRenderer,
   readWebGLAdapterEvidence,
   type RendererBackend,
+  webGPUAdapterRequestOptionsForPlatform,
 } from '../src/scene/RendererBackend.ts';
 
 class FakeGpuBuffer {
@@ -519,6 +520,19 @@ assert.deepEqual(featureMissingGpuProfiler.getEvidence().limitations, [
 ]);
 
 const selectedDevice = { label: 'selected adapter device' };
+assert.deepEqual(webGPUAdapterRequestOptionsForPlatform('Windows'), {
+  featureLevel: 'compatibility',
+  xrCompatible: false,
+});
+assert.deepEqual(webGPUAdapterRequestOptionsForPlatform('Win32'), {
+  featureLevel: 'compatibility',
+  xrCompatible: false,
+});
+assert.deepEqual(webGPUAdapterRequestOptionsForPlatform('Linux x86_64'), {
+  featureLevel: 'compatibility',
+  xrCompatible: false,
+  powerPreference: 'high-performance',
+});
 let adapterRequests = 0;
 let adapterOptions: unknown = null;
 let deviceDescriptor: unknown = null;

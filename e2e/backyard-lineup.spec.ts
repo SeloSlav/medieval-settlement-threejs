@@ -37,8 +37,7 @@ function monitorRuntime(page: Page): { runtimeErrors: string[]; failedRequests: 
 
 function expectCleanRuntime(runtimeErrors: string[], failedRequests: string[]): void {
   const unexpectedRuntimeErrors = runtimeErrors.filter((message) => !(
-    /powerPreference option is currently ignored/.test(message)
-    || /No available adapters\./.test(message)
+    /No available adapters\./.test(message)
     || /THREE\.WebGPURenderer: WebGPU is not available, running under WebGL2 backend\./.test(message)
     || /GL Driver Message .* GPU stall due to ReadPixels/.test(message)
   ));

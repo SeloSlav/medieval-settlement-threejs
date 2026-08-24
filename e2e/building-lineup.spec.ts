@@ -41,8 +41,7 @@ for (const [label, url, maxDrawCalls, maxTriangles] of cases) {
     expect(Number.isFinite(metrics!.triangles)).toBe(true);
     console.log(`[building-lineup] ${label}: ${JSON.stringify(metrics)}`);
     const unexpectedRuntimeErrors = runtimeErrors.filter((message) => !(
-      /powerPreference option is currently ignored/.test(message)
-      || /No available adapters\./.test(message)
+      /No available adapters\./.test(message)
       || /THREE\.WebGPURenderer: WebGPU is not available, running under WebGL2 backend\./.test(message)
       || /GL Driver Message .* GPU stall due to ReadPixels/.test(message)
     ));
