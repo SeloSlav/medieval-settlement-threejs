@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Illustrated Map Material Fixture</title>
+    <style>
+      :root { color-scheme: dark; font-family: Inter, ui-sans-serif, system-ui, sans-serif; }
+      * { box-sizing: border-box; }
+      html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; background: #0d0a08; }
+      body { display: grid; grid-template-rows: 54px 1fr; }
+      header {
+        display: flex; align-items: center; gap: 20px; padding: 0 18px;
+        border-bottom: 1px solid rgba(218, 199, 165, .2);
+        color: #e2d8c6; background: #18130f;
+      }
+      h1 { margin: 0; font: 600 17px/1 Georgia, serif; }
+      #metrics { margin-left: auto; color: #aa9d8b; font: 10px/1.4 ui-monospace, monospace; }
+      main { position: relative; display: grid; place-items: center; min-height: 0; padding: 24px; }
+      #map-host {
+        position: relative; width: min(86vmin, calc(100vw - 48px)); aspect-ratio: 1;
+        border: 2px solid #1b120d; box-shadow: 0 18px 56px #000, 0 0 0 1px #584334;
+      }
+      #map-host canvas { display: block; width: 100%; height: 100%; }
+      #loading { color: #c7bba7; font: 14px Georgia, serif; letter-spacing: .06em; }
+      body[data-ready="true"] #loading { display: none; }
+      body[data-view="near"] #map-host { width: min(112vmin, calc(100vw - 20px)); }
+      body[data-view="far"] #map-host { width: min(58vmin, calc(100vw - 80px)); }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Aged paper + charcoal ecology</h1>
+      <span>deterministic no-post fixture</span>
+      <div id="metrics">Baking 2048² map…</div>
+    </header>
+    <main>
+      <div id="map-host"><div id="loading">Preparing rag paper and etched woodland…</div></div>
+    </main>
+    <script type="module" src="/src/e2e/illustratedMapLineup.ts"></script>
+  </body>
+</html>

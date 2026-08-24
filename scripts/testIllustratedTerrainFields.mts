@@ -218,11 +218,12 @@ assert.ok(
   'high, sloped, locally prominent terrain should read as a mountain range',
 );
 assert.ok(
-  ILLUSTRATED_TERRAIN_STYLE.woodland.minimumGlyphSpacingAuthorPixels >= 3.25,
-  'individual accepted-tree marks should retain a measurable far-view separation',
+  ILLUSTRATED_TERRAIN_STYLE.woodland.minimumGlyphSpacingAuthorPixels >= 2.6
+    && ILLUSTRATED_TERRAIN_STYLE.woodland.minimumGlyphSpacingAuthorPixels <= 3.2,
+  'accepted-tree marks should overlap into groves without collapsing into a solid badge',
 );
 assert.ok(
-  ILLUSTRATED_TERRAIN_STYLE.woodland.maximumGlyphCount >= 3_500,
+  ILLUSTRATED_TERRAIN_STYLE.woodland.maximumGlyphCount >= 5_000,
   'the illustrated forest ceiling should remain dense enough to read as real groves',
 );
 assert.ok(
@@ -230,17 +231,37 @@ assert.ok(
   'mountain ranges should not occupy adjacent legacy grid slots',
 );
 assert.ok(
-  ILLUSTRATED_TERRAIN_STYLE.paper.base.b >= 190
+  ILLUSTRATED_TERRAIN_STYLE.paper.base.r >= 176
+    && ILLUSTRATED_TERRAIN_STYLE.paper.base.r <= 190
+    && ILLUSTRATED_TERRAIN_STYLE.paper.base.g >= 166
+    && ILLUSTRATED_TERRAIN_STYLE.paper.base.g <= 180
+    && ILLUSTRATED_TERRAIN_STYLE.paper.base.b >= 150
+    && ILLUSTRATED_TERRAIN_STYLE.paper.base.b <= 166
     && ILLUSTRATED_TERRAIN_STYLE.paper.base.r
-      - ILLUSTRATED_TERRAIN_STYLE.paper.base.b <= 24,
-  'paper should stay a desaturated faded ivory rather than yellow parchment',
+      - ILLUSTRATED_TERRAIN_STYLE.paper.base.g >= 8
+    && ILLUSTRATED_TERRAIN_STYLE.paper.base.g
+      - ILLUSTRATED_TERRAIN_STYLE.paper.base.b >= 10,
+  'paper should match the reference warm-grey rag stock rather than white or yellow parchment',
 );
 assert.ok(
-  ILLUSTRATED_TERRAIN_STYLE.woodland.outlineAlpha <= 0.35
-    && ILLUSTRATED_TERRAIN_STYLE.mountains.outlineAlphaMin
-      + ILLUSTRATED_TERRAIN_STYLE.mountains.outlineAlphaProminence <= 0.28
-    && ILLUSTRATED_TERRAIN_STYLE.grassland.alpha <= 0.12,
-  'terrain ink must remain subordinate to live roads, buildings, and stamps',
+  ILLUSTRATED_TERRAIN_STYLE.paper.broadMottleAmplitude >= 16
+    && ILLUSTRATED_TERRAIN_STYLE.paper.middleMottleAmplitude >= 7
+    && ILLUSTRATED_TERRAIN_STYLE.paper.edgeDarkening >= 18
+    && ILLUSTRATED_TERRAIN_STYLE.paper.stainAlphaMin
+      + ILLUSTRATED_TERRAIN_STYLE.paper.stainAlphaRange >= 0.09,
+  'paper needs observable multiscale tooth, handling stains, and asymmetric edge patina',
+);
+assert.ok(
+  ILLUSTRATED_TERRAIN_STYLE.woodland.outlineAlpha >= 0.36
+    && ILLUSTRATED_TERRAIN_STYLE.woodland.outlineAlpha <= 0.5
+    && ILLUSTRATED_TERRAIN_STYLE.grassland.alpha >= 0.16
+    && ILLUSTRATED_TERRAIN_STYLE.grassland.alpha <= 0.3,
+  'charcoal vegetation must remain darker than the local paper while yielding to gameplay ink',
+);
+assert.ok(
+  ILLUSTRATED_TERRAIN_STYLE.woodland.broadleafSilhouetteVariants >= 12
+    && ILLUSTRATED_TERRAIN_STYLE.woodland.coniferSilhouetteVariants >= 6,
+  'woodland etching should expose enough seeded silhouettes to avoid symbol repetition',
 );
 
 console.log('test:illustrated-map-terrain passed');

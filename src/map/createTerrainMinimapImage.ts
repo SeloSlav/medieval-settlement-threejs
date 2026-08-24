@@ -256,33 +256,87 @@ function sampleBinaryMaskBilinear(mask: Uint8Array, resolution: number, x: numbe
 
 function drawParchmentMottling(context: CanvasRenderingContext2D, seed: number): void {
   const rng = mulberry32(seed ^ 0x7a4d_21c3);
+  const paperStyle = ILLUSTRATED_TERRAIN_STYLE.paper;
   context.save();
   context.globalCompositeOperation = 'multiply';
 
-  for (let index = 0; index < 22; index++) {
+  // Broad handling stains carry most of the old rag-paper identity. Their
+  // irregular ellipses deliberately overlap the coherent raster field rather
+  // than acting as a uniform vignette.
+  for (let index = 0; index < paperStyle.stainCount; index++) {
     const x = rng() * MINIMAP_RESOLUTION;
     const y = rng() * MINIMAP_RESOLUTION;
-    const radius = (22 + rng() * 74) * MAP_ART_SCALE;
+    const radius = (18 + rng() * 108) * MAP_ART_SCALE;
     const gradient = context.createRadialGradient(x, y, 0, x, y, radius);
-    const stain = ILLUSTRATED_TERRAIN_STYLE.paper.stain;
-    const stainAlpha = ILLUSTRATED_TERRAIN_STYLE.paper.stainAlphaMin
-      + rng() * ILLUSTRATED_TERRAIN_STYLE.paper.stainAlphaRange;
+    const stain = paperStyle.stain;
+    const stainAlpha = paperStyle.stainAlphaMin
+      + rng() * paperStyle.stainAlphaRange;
     gradient.addColorStop(0, `rgba(${stain.r}, ${stain.g}, ${stain.b}, ${stainAlpha})`);
+    gradient.addColorStop(0.42, `rgba(${stain.r}, ${stain.g}, ${stain.b}, ${stainAlpha * 0.72})`);
     gradient.addColorStop(1, `rgba(${stain.r}, ${stain.g}, ${stain.b}, 0)`);
     context.fillStyle = gradient;
     context.beginPath();
-    context.ellipse(x, y, radius, radius * (0.42 + rng() * 0.48), rng() * Math.PI, 0, Math.PI * 2);
+    context.ellipse(
+      x,
+      y,
+      radius,
+      radius * (0.3 + rng() * 0.58),
+      rng() * Math.PI,
+      0,
+      Math.PI * 2,
+    );
+    context.fill();
+  }
+
+  // Hairline pulp fibres and sparse foxing live below the drawing ink. Their
+  // very low alpha becomes material tooth after minification instead of noise.
+  context.lineCap = 'round';
+  for (let index = 0; index < paperStyle.fibreCount; index++) {
+    const x = rng() * MINIMAP_RESOLUTION;
+    const y = rng() * MINIMAP_RESOLUTION;
+    const length = (10 + rng() * 76) * MAP_ART_SCALE;
+    const angle = (rng() - 0.5) * 0.46 + (rng() > 0.9 ? Math.PI * 0.5 : 0);
+    const endX = x + Math.cos(angle) * length;
+    const endY = y + Math.sin(angle) * length;
+    const bend = (rng() - 0.5) * 4.5 * MAP_ART_SCALE;
+    context.strokeStyle = `rgba(${paperStyle.stain.r}, ${paperStyle.stain.g}, ${paperStyle.stain.b}, ${0.012 + rng() * 0.022})`;
+    context.lineWidth = (0.12 + rng() * 0.34) * MAP_ART_SCALE;
+    context.beginPath();
+    context.moveTo(x, y);
+    context.quadraticCurveTo(
+      (x + endX) * 0.5 - Math.sin(angle) * bend,
+      (y + endY) * 0.5 + Math.cos(angle) * bend,
+      endX,
+      endY,
+    );
+    context.stroke();
+  }
+
+  for (let index = 0; index < paperStyle.foxingCount; index++) {
+    const radius = (0.12 + rng() ** 2 * 1.05) * MAP_ART_SCALE;
+    context.fillStyle = `rgba(${paperStyle.stain.r}, ${paperStyle.stain.g}, ${paperStyle.stain.b}, ${0.012 + rng() * 0.04})`;
+    context.beginPath();
+    context.arc(
+      rng() * MINIMAP_RESOLUTION,
+      rng() * MINIMAP_RESOLUTION,
+      radius,
+      0,
+      Math.PI * 2,
+    );
     context.fill();
   }
 
   context.globalCompositeOperation = 'screen';
-  for (let index = 0; index < 12; index++) {
+  for (let index = 0; index < paperStyle.bleachCount; index++) {
     const x = rng() * MINIMAP_RESOLUTION;
     const y = rng() * MINIMAP_RESOLUTION;
-    const radius = (34 + rng() * 92) * MAP_ART_SCALE;
+    const radius = (28 + rng() * 88) * MAP_ART_SCALE;
     const gradient = context.createRadialGradient(x, y, 0, x, y, radius);
-    gradient.addColorStop(0, `rgba(231, 227, 216, ${0.018 + rng() * 0.022})`);
-    gradient.addColorStop(1, 'rgba(231, 227, 216, 0)');
+    const bleach = paperStyle.bleach;
+    const bleachAlpha = paperStyle.bleachAlphaMin
+      + rng() * paperStyle.bleachAlphaRange;
+    gradient.addColorStop(0, `rgba(${bleach.r}, ${bleach.g}, ${bleach.b}, ${bleachAlpha})`);
+    gradient.addColorStop(1, `rgba(${bleach.r}, ${bleach.g}, ${bleach.b}, 0)`);
     context.fillStyle = gradient;
     context.beginPath();
     context.ellipse(x, y, radius, radius * (0.4 + rng() * 0.5), rng() * Math.PI, 0, Math.PI * 2);
@@ -692,10 +746,18 @@ function drawGrassGlyphs(
 ): void {
   context.save();
   const grassInk = ILLUSTRATED_TERRAIN_STYLE.grassland.ink;
+  context.globalCompositeOperation = 'multiply';
   context.strokeStyle = `rgba(${grassInk.r}, ${grassInk.g}, ${grassInk.b}, ${ILLUSTRATED_TERRAIN_STYLE.grassland.alpha})`;
   context.lineWidth = ILLUSTRATED_TERRAIN_STYLE.grassland.lineWidthAuthorPixels
     * MAP_ART_SCALE;
   context.lineCap = 'round';
+  context.lineJoin = 'round';
+  const patchField = createValueNoiseGrid(
+    MINIMAP_RESOLUTION,
+    MINIMAP_RESOLUTION,
+    ILLUSTRATED_TERRAIN_STYLE.grassland.patchCellAuthorPixels * MAP_ART_SCALE,
+    seed ^ 0x2f5c_61a7,
+  );
 
   const inset = 8 * MAP_ART_SCALE;
   for (let row = inset; row < MINIMAP_RESOLUTION - inset; row += GRASS_GLYPH_SPACING) {
@@ -708,14 +770,19 @@ function drawGrassGlyphs(
       if (hasWoodlandGlyphNear(woodlandGlyphs, pixelX, pixelY, 6.5)) continue;
       const world = pixelToWorld(pixelX, pixelY, bounds);
       const [meadow, , dry] = sampleTerrainBlendWeights(world.x, world.z);
-      const chance = 0.18 + meadow * 0.28 + dry * 0.12;
+      const patch = smoothstep01(
+        (sampleValueNoiseGrid(patchField, pixelX, pixelY) - 0.31) / 0.5,
+      );
+      const chance = (0.12 + meadow * 0.3 + dry * 0.13) * (0.22 + patch * 1.38);
       if (mapHash(column + 17, row - 9, seed) > chance) continue;
+      const height = (1.55 + mapHash(column - 31, row + 42, seed) * 1.65)
+        * MAP_ART_SCALE;
       drawGrassTuft(
         context,
         pixelX,
         pixelY,
-        (1.3 + mapHash(column - 31, row + 42, seed) * 1.3) * MAP_ART_SCALE,
-        (mapHash(column, row, seed ^ 0x51a4) - 0.5) * MAP_ART_SCALE,
+        height,
+        (mapHash(column, row, seed ^ 0x51a4) - 0.5) * height * 0.58,
         mapHash(column + 57, row - 22, seed ^ 0x81a7),
       );
     }
@@ -738,8 +805,9 @@ async function drawForestGlyphs(
   ));
   context.save();
   const woodlandInk = ILLUSTRATED_TERRAIN_STYLE.paper.terrainInk;
+  context.globalCompositeOperation = 'multiply';
   context.strokeStyle = `rgba(${woodlandInk.r}, ${woodlandInk.g}, ${woodlandInk.b}, ${ILLUSTRATED_TERRAIN_STYLE.woodland.outlineAlpha})`;
-  context.fillStyle = `rgba(83, 86, 72, ${ILLUSTRATED_TERRAIN_STYLE.woodland.fillAlpha})`;
+  context.fillStyle = `rgba(${woodlandInk.r}, ${woodlandInk.g}, ${woodlandInk.b}, ${ILLUSTRATED_TERRAIN_STYLE.woodland.fillAlpha})`;
   context.lineWidth = ILLUSTRATED_TERRAIN_STYLE.woodland.lineWidthAuthorPixels
     * MAP_ART_SCALE;
   context.lineCap = 'round';
@@ -770,12 +838,26 @@ async function drawForestGlyphs(
     }
     const lean = (
       mapHash(glyph.layoutIndex, 73, seed ^ 0x731f) - 0.5
-    ) * symbolScale * 0.22;
+    ) * symbolScale * 4;
+    const rotation = (
+      mapHash(glyph.layoutIndex, 149, seed ^ 0x4d2b) - 0.5
+    ) * 0.34;
+    const variantCount = glyph.conifer
+      ? ILLUSTRATED_TERRAIN_STYLE.woodland.coniferSilhouetteVariants
+      : ILLUSTRATED_TERRAIN_STYLE.woodland.broadleafSilhouetteVariants;
+    const variant = Math.min(
+      variantCount - 1,
+      Math.floor(mapHash(glyph.layoutIndex, 211, seed ^ 0x1f83) * variantCount),
+    );
+    context.save();
+    context.translate(pixelX, pixelY);
+    context.rotate(rotation);
     if (glyph.conifer) {
-      drawConiferGlyph(context, pixelX, pixelY, symbolScale, lean);
+      drawConiferGlyph(context, 0, 0, symbolScale, lean, variant);
     } else {
-      drawBroadleafGlyph(context, pixelX, pixelY, symbolScale, lean);
+      drawBroadleafGlyph(context, 0, 0, symbolScale, lean, variant);
     }
+    context.restore();
     drawnTreeGlyphCount++;
   }
 
@@ -1077,28 +1159,55 @@ function drawGrassTuft(
   lean: number,
   variant: number,
 ): void {
-  const width = height * (0.68 + variant * 0.2);
-  const baseY = y + MAP_ART_SCALE * 0.55;
-  context.beginPath();
-  context.moveTo(x - width, baseY);
-  context.quadraticCurveTo(
-    x - width * 0.56,
-    y - height * (0.25 + variant * 0.16),
-    x - width * 0.12 + lean * 0.32,
-    baseY - height * 0.08,
-  );
-  context.moveTo(x - width * 0.08, baseY - height * 0.03);
-  context.quadraticCurveTo(
-    x + width * 0.42 + lean * 0.45,
-    y - height * (0.38 + (1 - variant) * 0.12),
-    x + width,
-    baseY - height * 0.02,
-  );
-  if (variant > 0.68) {
-    context.moveTo(x + width * 1.18, baseY - height * 0.02);
-    context.lineTo(x + width * 1.42, baseY - height * 0.08);
+  const variantIndex = Math.min(9, Math.floor(variant * 10));
+  const bladeCount = 3 + variantIndex % 5;
+  const width = height * (0.78 + glyphVariantHash(variantIndex, 1, 0x35) * 0.5);
+  const baseY = y + MAP_ART_SCALE * (0.34 + glyphVariantHash(variantIndex, 2, 0x51) * 0.22);
+  const baseLineWidth = context.lineWidth;
+
+  context.save();
+  for (let blade = 0; blade < bladeCount; blade++) {
+    const slot = bladeCount === 1 ? 0.5 : blade / (bladeCount - 1);
+    const rootJitter = (glyphVariantHash(variantIndex, blade, 0x83) - 0.5) * width * 0.2;
+    const rootX = x + (slot - 0.5) * width * 0.72 + rootJitter;
+    const bladeHeight = height * (
+      0.48 + glyphVariantHash(variantIndex, blade, 0xa7) * 0.52
+    );
+    const fan = (slot - 0.5) * width * (
+      0.72 + glyphVariantHash(variantIndex, blade, 0xc1) * 0.42
+    );
+    const tipX = rootX + fan + lean * (
+      0.28 + glyphVariantHash(variantIndex, blade, 0xe5) * 0.52
+    );
+    const tipY = baseY - bladeHeight;
+    const bend = (glyphVariantHash(variantIndex, blade, 0x107) - 0.5) * width * 0.48;
+    context.globalAlpha = 0.72 + glyphVariantHash(variantIndex, blade, 0x12b) * 0.28;
+    context.lineWidth = baseLineWidth * (
+      0.76 + glyphVariantHash(variantIndex, blade, 0x14f) * 0.3
+    );
+    context.beginPath();
+    context.moveTo(rootX, baseY);
+    context.quadraticCurveTo(
+      (rootX + tipX) * 0.5 + bend,
+      baseY - bladeHeight * (0.34 + glyphVariantHash(variantIndex, blade, 0x173) * 0.2),
+      tipX,
+      tipY,
+    );
+    context.stroke();
   }
+
+  context.globalAlpha = 0.54 + glyphVariantHash(variantIndex, 7, 0x197) * 0.26;
+  context.lineWidth = baseLineWidth * 0.72;
+  context.beginPath();
+  context.moveTo(x - width * 0.5, baseY + MAP_ART_SCALE * 0.08);
+  context.quadraticCurveTo(
+    x + lean * 0.18,
+    baseY - MAP_ART_SCALE * (0.08 + variant * 0.16),
+    x + width * (0.24 + variant * 0.34),
+    baseY,
+  );
   context.stroke();
+  context.restore();
 }
 
 function drawConiferGlyph(
@@ -1107,24 +1216,87 @@ function drawConiferGlyph(
   y: number,
   scale: number,
   lean: number,
+  variant: number,
 ): void {
-  const height = 7.2 * scale;
-  const halfWidth = 3.2 * scale;
+  const height = (8.1 + glyphVariantHash(variant, 0, 0x211) * 1.55) * scale;
+  const halfWidth = (2.8 + glyphVariantHash(variant, 1, 0x239) * 0.85) * scale;
+  const tierCount = 3 + variant % 4;
+  const baseLineWidth = context.lineWidth;
+
+  context.save();
+  context.lineWidth = baseLineWidth * 0.82;
+  context.globalAlpha = 0.92;
+  context.beginPath();
+  context.moveTo(x, y + 1.7 * scale);
+  context.bezierCurveTo(
+    x - lean * 0.08,
+    y - height * 0.26,
+    x + lean * 0.56,
+    y - height * 0.72,
+    x + lean,
+    y - height,
+  );
+  context.stroke();
+
+  for (let tier = 0; tier < tierCount; tier++) {
+    const along = (tier + 1) / (tierCount + 0.72);
+    const tierY = y - height + along * height * 0.9;
+    const centerX = x + lean * (1 - along * 0.92);
+    const tierWidth = halfWidth * Math.pow(along, 0.7)
+      * (0.8 + glyphVariantHash(variant, tier, 0x263) * 0.38);
+    const leftLength = tierWidth * (0.72 + glyphVariantHash(variant, tier, 0x28d) * 0.44);
+    const rightLength = tierWidth * (0.7 + glyphVariantHash(variant, tier, 0x2b7) * 0.46);
+    const leftDrop = scale * (0.25 + glyphVariantHash(variant, tier, 0x2e1) * 0.78);
+    const rightDrop = scale * (0.25 + glyphVariantHash(variant, tier, 0x30b) * 0.78);
+
+    context.globalAlpha = 0.7 + glyphVariantHash(variant, tier, 0x335) * 0.3;
+    context.lineWidth = baseLineWidth * (
+      0.84 + glyphVariantHash(variant, tier, 0x35f) * 0.2
+    );
+    context.beginPath();
+    context.moveTo(centerX, tierY - scale * 0.18);
+    context.quadraticCurveTo(
+      centerX - leftLength * 0.42,
+      tierY - scale * (0.18 + glyphVariantHash(variant, tier, 0x389) * 0.35),
+      centerX - leftLength,
+      tierY + leftDrop,
+    );
+    context.stroke();
+    context.globalAlpha *= 0.84 + glyphVariantHash(variant, tier, 0x3b3) * 0.16;
+    context.beginPath();
+    context.moveTo(centerX + scale * 0.03, tierY);
+    context.quadraticCurveTo(
+      centerX + rightLength * 0.46,
+      tierY - scale * (0.12 + glyphVariantHash(variant, tier, 0x3dd) * 0.38),
+      centerX + rightLength,
+      tierY + rightDrop,
+    );
+    context.stroke();
+
+    if ((variant + tier) % 2 === 0) {
+      context.globalAlpha *= 0.58;
+      context.lineWidth = baseLineWidth * 0.58;
+      context.beginPath();
+      context.moveTo(centerX - leftLength * 0.18, tierY + scale * 0.02);
+      context.lineTo(centerX - leftLength * 0.68, tierY - scale * 0.5);
+      context.moveTo(centerX + rightLength * 0.2, tierY + scale * 0.08);
+      context.lineTo(centerX + rightLength * 0.64, tierY - scale * 0.42);
+      context.stroke();
+    }
+  }
+
+  context.globalAlpha = 0.82;
+  context.lineWidth = baseLineWidth * 0.7;
   context.beginPath();
   context.moveTo(x + lean, y - height);
-  context.lineTo(x - halfWidth * 0.54, y - height * 0.48);
-  context.lineTo(x - halfWidth * 0.22, y - height * 0.51);
-  context.lineTo(x - halfWidth, y - height * 0.08);
-  context.lineTo(x + halfWidth, y - height * 0.08);
-  context.lineTo(x + halfWidth * 0.2, y - height * 0.51);
-  context.lineTo(x + halfWidth * 0.56, y - height * 0.48);
-  context.closePath();
-  context.fill();
+  context.quadraticCurveTo(
+    x + lean + scale * (variant % 2 === 0 ? -0.32 : 0.32),
+    y - height - scale * 0.56,
+    x + lean * 1.02,
+    y - height - scale * 0.92,
+  );
   context.stroke();
-  context.beginPath();
-  context.moveTo(x, y - height * 0.1);
-  context.lineTo(x, y + 1.8 * scale);
-  context.stroke();
+  context.restore();
 }
 
 function drawBroadleafGlyph(
@@ -1133,41 +1305,120 @@ function drawBroadleafGlyph(
   y: number,
   scale: number,
   lean: number,
+  variant: number,
 ): void {
-  const crownY = y - 4.2 * scale;
-  const radius = 3.1 * scale;
+  const crownY = y - (4.7 + glyphVariantHash(variant, 0, 0x401) * 0.65) * scale;
+  const radiusX = (3.1 + glyphVariantHash(variant, 1, 0x42b) * 0.8) * scale;
+  const radiusY = (2.9 + glyphVariantHash(variant, 2, 0x455) * 0.72) * scale;
+  const pointCount = 9 + variant % 4;
+  const points: Array<{ x: number; y: number }> = [];
+  const phase = glyphVariantHash(variant, 3, 0x47f) * Math.PI * 2;
+  const baseLineWidth = context.lineWidth;
+
+  for (let point = 0; point < pointCount; point++) {
+    const angle = -Math.PI * 0.5 + point / pointCount * Math.PI * 2;
+    const lobe = 0.76
+      + glyphVariantHash(variant, point, 0x4a9) * 0.3
+      + Math.sin(angle * (3 + variant % 3) + phase) * 0.08;
+    const upperLean = Math.max(0, -Math.sin(angle)) * lean;
+    points.push({
+      x: x + Math.cos(angle) * radiusX * lobe + upperLean,
+      y: crownY + Math.sin(angle) * radiusY * lobe,
+    });
+  }
+
+  context.save();
   context.beginPath();
-  context.moveTo(x - radius * 0.92, crownY + radius * 0.18);
-  context.bezierCurveTo(
-    x - radius * 1.06,
-    crownY - radius * 0.58,
-    x - radius * 0.36 + lean,
-    crownY - radius * 1.1,
-    x + lean,
-    crownY - radius * 0.83,
-  );
-  context.bezierCurveTo(
-    x + radius * 0.72 + lean,
-    crownY - radius * 1.02,
-    x + radius * 1.12,
-    crownY - radius * 0.18,
-    x + radius * 0.83,
-    crownY + radius * 0.38,
-  );
-  context.bezierCurveTo(
-    x + radius * 0.36,
-    crownY + radius * 0.85,
-    x - radius * 0.55,
-    crownY + radius * 0.76,
-    x - radius * 0.92,
-    crownY + radius * 0.18,
-  );
+  const first = midpoint(points[pointCount - 1], points[0]);
+  context.moveTo(first.x, first.y);
+  for (let point = 0; point < pointCount; point++) {
+    const next = points[(point + 1) % pointCount];
+    const end = midpoint(points[point], next);
+    context.quadraticCurveTo(points[point].x, points[point].y, end.x, end.y);
+  }
+  context.closePath();
   context.fill();
-  context.stroke();
+
+  // Draw each lobe independently so pressure breakup varies around the crown
+  // instead of producing a pristine vector outline.
+  for (let point = 0; point < pointCount; point++) {
+    const previous = points[(point + pointCount - 1) % pointCount];
+    const next = points[(point + 1) % pointCount];
+    const start = midpoint(previous, points[point]);
+    const end = midpoint(points[point], next);
+    context.globalAlpha = 0.7 + glyphVariantHash(variant, point, 0x4d3) * 0.3;
+    context.lineWidth = baseLineWidth * (
+      0.84 + glyphVariantHash(variant, point, 0x4fd) * 0.22
+    );
+    context.beginPath();
+    context.moveTo(start.x, start.y);
+    context.quadraticCurveTo(points[point].x, points[point].y, end.x, end.y);
+    context.stroke();
+  }
+
+  // Forked trunk and uneven interior canopy scratches supply the etched mass
+  // that survives the strategic map's trilinear minification.
+  context.globalAlpha = 0.9;
+  context.lineWidth = baseLineWidth * 0.9;
   context.beginPath();
-  context.moveTo(x, crownY + radius * 0.38);
-  context.lineTo(x, y + 1.8 * scale);
+  context.moveTo(x - scale * 0.1, y + 1.75 * scale);
+  context.bezierCurveTo(
+    x + scale * 0.12,
+    y - scale * 0.5,
+    x + lean * 0.34,
+    crownY + radiusY * 0.48,
+    x + lean * 0.54,
+    crownY + radiusY * 0.05,
+  );
   context.stroke();
+
+  const branchCount = 2 + variant % 4;
+  for (let branch = 0; branch < branchCount; branch++) {
+    const side = (branch + variant) % 2 === 0 ? -1 : 1;
+    const branchHeight = 0.12 + branch / Math.max(1, branchCount - 1) * 0.54;
+    const originX = x + lean * branchHeight * 0.48;
+    const originY = y - scale * 0.45 - branchHeight * radiusY * 1.35;
+    const endX = x + lean * 0.55 + side * radiusX * (
+      0.34 + glyphVariantHash(variant, branch, 0x527) * 0.34
+    );
+    const endY = crownY - radiusY * (
+      0.05 + glyphVariantHash(variant, branch, 0x551) * 0.48
+    );
+    context.globalAlpha = 0.52 + glyphVariantHash(variant, branch, 0x57b) * 0.3;
+    context.lineWidth = baseLineWidth * 0.64;
+    context.beginPath();
+    context.moveTo(originX, originY);
+    context.quadraticCurveTo(
+      (originX + endX) * 0.5 + side * scale * 0.2,
+      (originY + endY) * 0.5 - scale * 0.28,
+      endX,
+      endY,
+    );
+    context.stroke();
+  }
+
+  const hatchCount = 2 + (variant * 3) % 4;
+  for (let hatch = 0; hatch < hatchCount; hatch++) {
+    const px = x + lean * 0.52 + (
+      glyphVariantHash(variant, hatch, 0x5a5) - 0.5
+    ) * radiusX * 1.18;
+    const py = crownY + (
+      glyphVariantHash(variant, hatch, 0x5cf) - 0.5
+    ) * radiusY * 1.05;
+    const curlRadius = scale * (0.34 + glyphVariantHash(variant, hatch, 0x5f9) * 0.54);
+    context.globalAlpha = 0.38 + glyphVariantHash(variant, hatch, 0x623) * 0.28;
+    context.lineWidth = baseLineWidth * 0.55;
+    context.beginPath();
+    context.moveTo(px - curlRadius, py + curlRadius * 0.2);
+    context.quadraticCurveTo(
+      px - curlRadius * 0.08,
+      py - curlRadius,
+      px + curlRadius,
+      py + curlRadius * 0.12,
+    );
+    context.stroke();
+  }
+  context.restore();
 }
 
 function drawInkBorder(context: CanvasRenderingContext2D): void {
@@ -1304,6 +1555,65 @@ function pixelToWorld(
   };
 }
 
+type ValueNoiseGrid = {
+  cellSize: number;
+  columns: number;
+  rows: number;
+  values: Float32Array;
+};
+
+function createValueNoiseGrid(
+  width: number,
+  height: number,
+  cellSize: number,
+  seed: number,
+): ValueNoiseGrid {
+  const safeCellSize = Math.max(1, cellSize);
+  const columns = Math.ceil(width / safeCellSize) + 2;
+  const rows = Math.ceil(height / safeCellSize) + 2;
+  const values = new Float32Array(columns * rows);
+  for (let row = 0; row < rows; row++) {
+    for (let column = 0; column < columns; column++) {
+      values[row * columns + column] = mapHash(column, row, seed);
+    }
+  }
+  return { cellSize: safeCellSize, columns, rows, values };
+}
+
+function sampleValueNoiseGrid(grid: ValueNoiseGrid, x: number, y: number): number {
+  const gridX = Math.max(0, x) / grid.cellSize;
+  const gridY = Math.max(0, y) / grid.cellSize;
+  const x0 = Math.min(grid.columns - 2, Math.floor(gridX));
+  const y0 = Math.min(grid.rows - 2, Math.floor(gridY));
+  const x1 = x0 + 1;
+  const y1 = y0 + 1;
+  const tx = smoothstep01(gridX - x0);
+  const ty = smoothstep01(gridY - y0);
+  const top = grid.values[y0 * grid.columns + x0] * (1 - tx)
+    + grid.values[y0 * grid.columns + x1] * tx;
+  const bottom = grid.values[y1 * grid.columns + x0] * (1 - tx)
+    + grid.values[y1 * grid.columns + x1] * tx;
+  return top * (1 - ty) + bottom * ty;
+}
+
+function glyphVariantHash(variant: number, feature: number, salt: number): number {
+  return mapHash(
+    variant * 131 + salt,
+    feature * 197 - salt,
+    salt ^ Math.imul(variant + 1, 0x45d9f3b),
+  );
+}
+
+function midpoint(
+  first: { x: number; y: number },
+  second: { x: number; y: number },
+): { x: number; y: number } {
+  return {
+    x: (first.x + second.x) * 0.5,
+    y: (first.y + second.y) * 0.5,
+  };
+}
+
 function mapHash(x: number, y: number, seed: number): number {
   let hash = Math.imul(Math.trunc(x) ^ seed, 0x45d9f3b)
     ^ Math.imul(Math.trunc(y) + seed * 3, 0x27d4eb2d);
@@ -1332,4 +1642,9 @@ function clampByte(value: number): number {
 
 function clamp01(value: number): number {
   return Math.max(0, Math.min(1, value));
+}
+
+function smoothstep01(value: number): number {
+  const t = clamp01(value);
+  return t * t * (3 - 2 * t);
 }

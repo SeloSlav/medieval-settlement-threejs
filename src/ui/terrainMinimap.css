@@ -65,7 +65,7 @@
   z-index: 2;
   overflow: hidden;
   border: 1px solid rgba(54, 31, 17, 0.82);
-  background: #d6c193;
+  background: #b8aea0;
   box-shadow:
     0 18px 48px rgba(0, 0, 0, 0.72),
     0 4px 12px rgba(7, 4, 2, 0.78),
@@ -82,7 +82,8 @@
 }
 
 .terrain-minimap__terrain-canvas {
-  opacity: 0.88;
+  /* The authored paper canvas owns its color in both DOM and 3D map paths. */
+  opacity: 1;
 }
 
 .terrain-minimap__stamp-canvas {

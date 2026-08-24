@@ -177,9 +177,6 @@ export class CameraController {
     if (this.isPanning || this.isRotating) return true;
     if (this.hasAnimatedNavigationMotion()) return true;
     if (performance.now() < this.wheelNavigationUntilMs) return true;
-    for (const key of NAVIGATION_KEYS) {
-      if (this.keys.has(key)) return true;
-    }
     return false;
   }
 
@@ -203,6 +200,7 @@ export class CameraController {
     this.illustratedMapExitPending = false;
     this.resetPointerMotion();
     this.resetKeyboardPanMotion();
+    this.keys.clear();
     this.cancelNavigationAnimation();
     this.updateCamera();
     this.notifyViewChanged();
@@ -242,6 +240,7 @@ export class CameraController {
     this.illustratedMapExitPending = false;
     this.resetPointerMotion();
     this.resetKeyboardPanMotion();
+    this.keys.clear();
     this.cancelNavigationAnimation();
     this.updateCamera();
   }
@@ -264,6 +263,7 @@ export class CameraController {
     this.illustratedMapExitPending = false;
     this.resetPointerMotion();
     this.resetKeyboardPanMotion();
+    this.keys.clear();
     this.cancelNavigationAnimation();
     this.updateCamera();
     this.notifyViewChanged();
@@ -280,8 +280,6 @@ export class CameraController {
   update(dt: number): void {
     if (!this.inputEnabled) return;
     const animatedMotionChanged = this.updateAnimatedNavigationMotion(dt);
-    if (this.keys.has('q')) this.currentYaw = this.normalizeAngle(this.currentYaw - KEY_ROTATE_SPEED * dt);
-    if (this.keys.has('e')) this.currentYaw = this.normalizeAngle(this.currentYaw + KEY_ROTATE_SPEED * dt);
 
     this.updateCamera();
     this.applyCursor();
@@ -475,7 +473,11 @@ export class CameraController {
     const zoomChanged = this.updateZoom(dt);
     const pointerChanged = this.updatePointerMotion(dt);
     const keyboardPanChanged = this.updateKeyboardPanMotion(dt);
-    return zoomChanged || pointerChanged || keyboardPanChanged;
+    const keyboardRotationChanged = this.updateKeyboardRotationMotion(dt);
+    return zoomChanged
+      || pointerChanged
+      || keyboardPanChanged
+      || keyboardRotationChanged;
   }
 
   private updateZoom(dt: number): boolean {
@@ -624,10 +626,11 @@ export class CameraController {
   }
 
   private hasKeyboardPanInput(): boolean {
-    for (const key of KEYBOARD_PAN_KEYS) {
-      if (this.keys.has(key)) return true;
-    }
-    return false;
+    const horizontalIntent = Number(this.keys.has('a') || this.keys.has('arrowleft'))
+      - Number(this.keys.has('d') || this.keys.has('arrowright'));
+    const verticalIntent = Number(this.keys.has('w') || this.keys.has('arrowup'))
+      - Number(this.keys.has('s') || this.keys.has('arrowdown'));
+    return horizontalIntent !== 0 || verticalIntent !== 0;
   }
 
   private hasKeyboardPanMotion(): boolean {
@@ -639,6 +642,19 @@ export class CameraController {
   private resetKeyboardPanMotion(): void {
     this.keyboardPanVelocityX = 0;
     this.keyboardPanVelocityY = 0;
+  }
+
+  private updateKeyboardRotationMotion(dt: number): boolean {
+    const direction = Number(this.keys.has('e')) - Number(this.keys.has('q'));
+    if (direction === 0 || !Number.isFinite(dt) || dt <= 0) return false;
+    this.currentYaw = this.normalizeAngle(
+      this.currentYaw + direction * KEY_ROTATE_SPEED * dt,
+    );
+    return true;
+  }
+
+  private hasKeyboardRotationInput(): boolean {
+    return this.keys.has('q') !== this.keys.has('e');
   }
 
   private isZoomSettled(): boolean {
@@ -654,7 +670,8 @@ export class CameraController {
       || this.illustratedMapEntryPending
       || this.illustratedMapExitPending
       || this.hasPendingPointerMotion()
-      || this.hasKeyboardPanMotion();
+      || this.hasKeyboardPanMotion()
+      || this.hasKeyboardRotationInput();
   }
 
   private ensureNavigationAnimation(): void {
@@ -716,13 +733,13 @@ export class CameraController {
     const key = event.key.toLowerCase();
     if (key.startsWith('arrow')) event.preventDefault();
     this.keys.add(key);
-    if (KEYBOARD_PAN_KEYS.has(key)) this.ensureNavigationAnimation();
+    if (NAVIGATION_KEYS.has(key)) this.ensureNavigationAnimation();
   };
 
   private readonly onKeyUp = (event: KeyboardEvent): void => {
     const key = event.key.toLowerCase();
     this.keys.delete(key);
-    if (KEYBOARD_PAN_KEYS.has(key)) this.ensureNavigationAnimation();
+    if (NAVIGATION_KEYS.has(key)) this.ensureNavigationAnimation();
   };
 
   private readonly onWindowBlur = (): void => {

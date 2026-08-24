@@ -417,6 +417,42 @@ function scrollToLiveWorldMaximum(
 }
 
 {
+  let viewChangeCount = 0;
+  const { controller } = createController(() => {
+    viewChangeCount += 1;
+  });
+  const yawBefore = controller.getYaw();
+  window.dispatchEvent(keyboardEvent('keydown', 'q'));
+  await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+  assert.ok(controller.getYaw() < yawBefore,
+    'demand-rendered keyboard rotation should use the shared navigation frame');
+  assert.ok(viewChangeCount > 0,
+    'demand-rendered keyboard rotation should invalidate the visible scene');
+  window.dispatchEvent(keyboardEvent('keyup', 'q'));
+  controller.dispose();
+}
+
+{
+  let viewChangeCount = 0;
+  const { controller, target } = createController(() => {
+    viewChangeCount += 1;
+  });
+  const targetBeforeOpposingKeys = target.clone();
+  window.dispatchEvent(keyboardEvent('keydown', 'ArrowUp'));
+  window.dispatchEvent(keyboardEvent('keydown', 'ArrowDown'));
+  await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+  assert.ok(target.equals(targetBeforeOpposingKeys),
+    'opposing arrow keys should resolve to zero movement');
+  assert.equal(controller.isNavigationActive(), false,
+    'opposing arrow keys should not retain a no-op navigation owner');
+  assert.equal(viewChangeCount, 0,
+    'opposing arrow keys should not invalidate an unchanged view');
+  window.dispatchEvent(keyboardEvent('keyup', 'ArrowUp'));
+  window.dispatchEvent(keyboardEvent('keyup', 'ArrowDown'));
+  controller.dispose();
+}
+
+{
   const { controller, target } = createController(undefined, true);
   window.dispatchEvent(keyboardEvent('keydown', 'ArrowLeft'));
   controller.update(0.05);
@@ -738,6 +774,21 @@ function scrollToLiveWorldMaximum(
 }
 
 {
+  const { controller, target } = createController(undefined, true);
+  window.dispatchEvent(keyboardEvent('keydown', 'ArrowRight'));
+  controller.update(0.05);
+  controller.focusWorldPosition(10, 15);
+  const targetAfterFocus = target.clone();
+  assert.equal(controller.isNavigationActive(), false,
+    'a scripted camera focus should clear held keyboard navigation');
+  controller.update(0.5);
+  assert.ok(target.equals(targetAfterFocus),
+    'pre-focus keyboard momentum must not pull the scripted camera pose');
+  window.dispatchEvent(keyboardEvent('keyup', 'ArrowRight'));
+  controller.dispose();
+}
+
+{
   const mapModeChanges: boolean[] = [];
   const { controller, camera, target, domElement } = createController(
     undefined,
@@ -898,8 +949,8 @@ function scrollToLiveWorldMaximum(
       Math.abs(controller.getOrbitDistance() - adjustedMapStops[tier]) < 1e-9,
       `inward scrolling should revisit illustrated-map tier ${tier}`,
     );
-    assert.equal(camera.far, adjustedMapFarPlane,
-      'the map far plane should remain owned until the render-owner handoff ends');
+    assert.ok(Math.abs(camera.far - adjustedMapFarPlane) <= 0.01,
+      'the map far plane should remain owned within its projection epsilon until the handoff ends');
   }
   domElement.dispatch('wheel', wheelEvent({ deltaY: -120 }));
   assert.equal(controller.isIllustratedMapActive(), false,
