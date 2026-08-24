@@ -1202,6 +1202,37 @@ mod tests {
     }
 
     #[test]
+    fn portable_drinks_leather_goods_and_tiles_are_not_hidden_from_raids() {
+        let stores = RaidPortableStores {
+            mead: 2.0,
+            hides: 3.0,
+            leather: 4.0,
+            shoes: 5.0,
+            roof_tiles: 6.0,
+            ..RaidPortableStores::default()
+        };
+        assert_eq!(stores.goods_amount(), 20.0);
+        assert_eq!(stores.raid_value(), 27.0);
+
+        let plunder = stores.plunder(1.0);
+        assert_eq!(plunder.remaining, RaidPortableStores::default());
+        assert_eq!(plunder.goods_lost, 20.0);
+    }
+
+    #[test]
+    fn portable_store_json_defaults_new_fields_and_normalizes_legacy_fractions() {
+        let legacy: RaidPortableStores =
+            serde_json::from_str(r#"{"ale":2.8,"hides":-1.0}"#).expect("legacy raid cargo");
+        assert_eq!(legacy.mead, 0.0);
+        assert_eq!(legacy.leather, 0.0);
+
+        let normalized = legacy.normalized_whole();
+        assert_eq!(normalized.ale, 2.0);
+        assert_eq!(normalized.hides, 0.0);
+        assert!(normalized.goods_amount().fract().abs() <= f64::EPSILON);
+    }
+
+    #[test]
     fn reconstruction_keeps_stored_goods_exposed_without_counting_empty_sites() {
         assert_eq!(raid_holding_vulnerability(true, 0.0), 1.0);
         assert_eq!(raid_holding_vulnerability(true, 30.0), 2.0);

@@ -704,6 +704,12 @@ export const ResidenceNeed = __t.object("ResidenceNeed", {
 });
 export type ResidenceNeed = __Infer<typeof ResidenceNeed>;
 
+export const ResourceUnitMigration = __t.object("ResourceUnitMigration", {
+  id: __t.u8(),
+  version: __t.u8(),
+});
+export type ResourceUnitMigration = __Infer<typeof ResourceUnitMigration>;
+
 export const RoadNetworkState = __t.object("RoadNetworkState", {
   owner: __t.identity(),
   snapshotJson: __t.string(),

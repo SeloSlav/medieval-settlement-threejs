@@ -46,9 +46,8 @@ use crate::roads::{RoadNetwork, RoadPathRoute};
 use crate::season_policy::environment_for;
 use crate::security_policy::raid_immune_building_kind;
 use crate::simulation::delivery_cargo::{
-    building_delivery_stock, delivery_commodity_need_value, pick_delivery_target,
-    residence_delivery_room, selected_need_delivery_commodity, withdraw_delivery_cargo,
-    DeliveryCargoTotals,
+    building_delivery_stock, pick_delivery_target, residence_delivery_room,
+    selected_need_delivery_commodity, withdraw_delivery_cargo, DeliveryCargoTotals,
 };
 use crate::simulation::fires::{
     apply_fire_water, building_fire_state, release_fire_response, residence_fire_state,
@@ -2522,20 +2521,13 @@ fn unload_commodity_to_building(
                 player_economic_activity_tax_rate(ctx, target.owner),
                 town_hall_tax_collection_multiplier(ctx, target.owner),
             );
-            let credited_income = credit_settlement_household_income(
-                ctx,
-                target.owner,
-                receipt.producer_income,
-            );
+            let credited_income =
+                credit_settlement_household_income(ctx, target.owner, receipt.producer_income);
             // A settlement with no occupied household cannot receive private
             // income. Keep those realized coins at the market instead of
             // deleting them.
             let unclaimed_income = (receipt.producer_income - credited_income).max(0.0);
-            credit_marketplace_receipt_gold(
-                ctx,
-                &mut target,
-                receipt.local_tax + unclaimed_income,
-            );
+            credit_marketplace_receipt_gold(ctx, &mut target, receipt.local_tax + unclaimed_income);
         }
         ctx.db.building().id().update(target);
         if monastery_tithe_delivery {

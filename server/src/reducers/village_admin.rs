@@ -14,9 +14,41 @@ use crate::monastery_estate_policy::{
 use crate::night_policy::valid_policy_code;
 use crate::pantry_safeguard_policy::valid_pantry_safeguard_policy;
 use crate::reducers::buildings::rotate_construction_labor_for_owner_with_reserve;
+use crate::resource_units::{whole_cost, whole_units};
 use crate::simulation::{
     game_clock, reconcile_seasonal_labor_for_owner, reconcile_target_production_labor_for_owner,
 };
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+struct MonasteryPrivateGoldPayment {
+    gold: f64,
+    civic_receipts_gold: f64,
+    private_export_proceeds_gold: f64,
+}
+
+fn plan_monastery_private_gold_payment(
+    gold: f64,
+    civic_receipts_gold: f64,
+    private_export_proceeds_gold: f64,
+    authored_cost: f64,
+    authored_reserve: f64,
+) -> Option<MonasteryPrivateGoldPayment> {
+    let gold = whole_units(gold);
+    let civic_receipts_gold = whole_units(civic_receipts_gold).min(gold);
+    let private_gold = gold - civic_receipts_gold;
+    let cost = whole_cost(authored_cost);
+    let reserve = whole_cost(authored_reserve);
+    if private_gold + 1e-9 < cost + reserve {
+        return None;
+    }
+    let gold = gold - cost;
+    let private_gold = gold - civic_receipts_gold;
+    Some(MonasteryPrivateGoldPayment {
+        gold,
+        civic_receipts_gold,
+        private_export_proceeds_gold: whole_units(private_export_proceeds_gold).min(private_gold),
+    })
+}
 
 fn require_owned_building(ctx: &ReducerContext, kind: &str, staffed: bool) -> Result<(), String> {
     let owner = ctx.sender();
@@ -241,18 +273,22 @@ pub fn set_monastery_planting(
                 "Perennial rows may be replanted only from November through February.".to_string(),
             );
         }
-        let private_gold = (monastery.gold - monastery.civic_receipts_gold.max(0.0)).max(0.0);
-        if private_gold + 1e-9 < MONASTERY_ORCHARD_REPLANT_COST + MONASTERY_ESTATE_GOLD_RESERVE {
+        let Some(payment) = plan_monastery_private_gold_payment(
+            monastery.gold,
+            monastery.civic_receipts_gold,
+            monastery.private_export_proceeds_gold,
+            MONASTERY_ORCHARD_REPLANT_COST,
+            MONASTERY_ESTATE_GOLD_RESERVE,
+        ) else {
             return Err(format!(
                 "The monastery needs {:.0} private gold plus its {:.0}-gold working reserve to replant the orchard.",
-                MONASTERY_ORCHARD_REPLANT_COST,
-                MONASTERY_ESTATE_GOLD_RESERVE,
+                whole_cost(MONASTERY_ORCHARD_REPLANT_COST),
+                whole_cost(MONASTERY_ESTATE_GOLD_RESERVE),
             ));
-        }
-        monastery.gold = (monastery.gold - MONASTERY_ORCHARD_REPLANT_COST).max(0.0);
-        monastery.private_export_proceeds_gold = monastery
-            .private_export_proceeds_gold
-            .min((monastery.gold - monastery.civic_receipts_gold.max(0.0)).max(0.0));
+        };
+        monastery.gold = payment.gold;
+        monastery.civic_receipts_gold = payment.civic_receipts_gold;
+        monastery.private_export_proceeds_gold = payment.private_export_proceeds_gold;
         monastery.monastery_orchard_planting = orchard_planting;
         monastery.monastery_orchard_planted_year = if clock.month >= 11 {
             clock.year.saturating_add(1)
@@ -398,4 +434,29 @@ pub fn set_labor_steward_reserve(ctx: &ReducerContext, labor_reserve: u32) -> Re
     resources.labor_steward_reserve = labor_reserve;
     ctx.db.player_resources().owner().update(resources);
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{plan_monastery_private_gold_payment, MonasteryPrivateGoldPayment};
+
+    #[test]
+    fn monastery_replant_spends_only_whole_private_coins() {
+        assert_eq!(
+            plan_monastery_private_gold_payment(30.9, 5.8, 20.7, 12.2, 6.1),
+            Some(MonasteryPrivateGoldPayment {
+                gold: 17.0,
+                civic_receipts_gold: 5.0,
+                private_export_proceeds_gold: 12.0,
+            })
+        );
+    }
+
+    #[test]
+    fn monastery_replant_preserves_the_whole_working_reserve() {
+        assert_eq!(
+            plan_monastery_private_gold_payment(22.0, 4.0, 10.0, 12.0, 7.0),
+            None
+        );
+    }
 }

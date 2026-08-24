@@ -158,6 +158,7 @@ import QuarryRow from "./quarry_table";
 import RaidIncursionRouteRow from "./raid_incursion_route_table";
 import ResidenceRow from "./residence_table";
 import ResidenceNeedRow from "./residence_need_table";
+import ResourceUnitMigrationRow from "./resource_unit_migration_table";
 import RoadNetworkStateRow from "./road_network_state_table";
 import SettlementSecurityRow from "./settlement_security_table";
 import SimPacingStateRow from "./sim_pacing_state_table";
@@ -492,6 +493,17 @@ const tablesSchema = __schema({
       { name: 'residence_need_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, ResidenceNeedRow),
+  resource_unit_migration: __table({
+    name: 'resource_unit_migration',
+    indexes: [
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'resource_unit_migration_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, ResourceUnitMigrationRow),
   road_network_state: __table({
     name: 'road_network_state',
     indexes: [

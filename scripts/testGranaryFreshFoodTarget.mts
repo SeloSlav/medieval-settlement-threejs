@@ -122,6 +122,7 @@ const serverPolicySource = readFileSync('server/src/granary_policy.rs', 'utf8');
 const economySource = readFileSync('server/src/simulation/expanded_economy.rs', 'utf8');
 const reducerSource = readFileSync('server/src/reducers/buildings.rs', 'utf8');
 const generatedBuilding = readFileSync('src/generated/building_table.ts', 'utf8');
+const clientGameStateSource = readFileSync('src/resources/GameState.ts', 'utf8');
 const generatedReducer = readFileSync(
   'src/generated/set_granary_fresh_food_target_reducer.ts',
   'utf8',
@@ -159,8 +160,18 @@ assert.match(clientReducers, /setGranaryFreshFoodTarget/);
 assert.match(buildingSync, /granaryFreshFoodTargetPercent: row\.granaryFreshFoodTargetPercent/);
 assert.match(inspectorSource, /onSetGranaryFreshFoodTarget/);
 assert.match(
+  reducerSource,
+  /granary_households_first: true/,
+  'new authoritative Granaries must prioritize household deliveries by default',
+);
+assert.match(
+  clientGameStateSource,
+  /granaryHouseholdsFirst: true/,
+  'the local placement fallback must use the same household-first default',
+);
+assert.match(
   inspectorSource,
-  /building\.kind === 'granary'[\s\S]{0,900}data-granary-fresh-food-target[\s\S]{0,400}onSetGranaryFreshFoodTarget/,
+  /building\.kind === 'granary'[\s\S]{0,1400}data-granary-fresh-food-target[\s\S]{0,400}onSetGranaryFreshFoodTarget/,
   'the intake buttons must dispatch only from the granary click branch',
 );
 

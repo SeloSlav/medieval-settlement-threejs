@@ -22,8 +22,8 @@ use crate::raid_agent_policy::{
     DOWNED_LINGER_SECONDS, GUARD_SPEED_MPS, MELEE_RANGE_METERS, RAIDER_ENGAGE_RANGE_METERS,
     RAIDER_SPEED_MPS, RESIDENCE_ASSAULT_OUTER_RADIUS_METERS, WOUNDED_GUARD_SPEED_MPS,
 };
-use crate::roads::{RoadNetwork, RoadPathRoute};
 use crate::resource_units::whole_units;
+use crate::roads::{RoadNetwork, RoadPathRoute};
 use crate::security_policy::{
     guardhouse_muster_efficiency, raid_arson_occurs, scheduled_raid_ticks,
     select_guardhouse_muster_watch, RaidPortableStores, WatchArea,
@@ -1523,7 +1523,7 @@ fn record_contact_plunder(
     let carried = plunder.carried.normalized_whole();
     let goods_lost = whole_units(plunder.goods_lost);
     let wealth_lost = whole_units(plunder.wealth_lost);
-    if plunder.goods_lost > EPSILON || plunder.wealth_lost > EPSILON {
+    if goods_lost > EPSILON || wealth_lost > EPSILON {
         agent.carried_loot_json = serde_json::to_string(&carried).unwrap_or_default();
     }
     let Some(mut latest) = ctx.db.active_raid().owner().find(&active.owner) else {
@@ -1680,8 +1680,7 @@ fn down_agent(ctx: &ReducerContext, agent: &mut CombatAgent, active: &ActiveRaid
         .unwrap_or(false);
         if recovered {
             agent.carried_loot_json.clear();
-            latest.goods_lost =
-                (whole_units(latest.goods_lost) - carried.goods_amount()).max(0.0);
+            latest.goods_lost = (whole_units(latest.goods_lost) - carried.goods_amount()).max(0.0);
             latest.wealth_lost =
                 (whole_units(latest.wealth_lost) - whole_units(carried.gold)).max(0.0);
         }
@@ -1790,8 +1789,8 @@ fn return_guards_and_finalize(
         .find(&active.owner)
         .unwrap_or(active);
     security.last_raid_tick = sim_tick;
-    security.last_goods_lost = latest.goods_lost;
-    security.last_wealth_lost = latest.wealth_lost;
+    security.last_goods_lost = whole_units(latest.goods_lost);
+    security.last_wealth_lost = whole_units(latest.wealth_lost);
     security.last_outcome = if latest.arson_started {
         3
     } else if latest.goods_lost + latest.wealth_lost > EPSILON {

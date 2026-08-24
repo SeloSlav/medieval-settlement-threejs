@@ -8,10 +8,11 @@ use spacetimedb::ReducerContext;
 
 use crate::db::*;
 use crate::resource_units::{whole_signed_units, whole_units};
+use crate::security_policy::RaidPortableStores;
 use crate::tables::ResourceUnitMigration;
 
 const RESOURCE_UNIT_MIGRATION_ID: u8 = 0;
-const RESOURCE_UNIT_MIGRATION_VERSION: u8 = 1;
+const RESOURCE_UNIT_MIGRATION_VERSION: u8 = 2;
 
 macro_rules! normalize_fields {
     ($row:ident, $($field:ident),+ $(,)?) => {
@@ -317,6 +318,21 @@ pub fn migrate_legacy_fractional_resources(ctx: &ReducerContext) {
     for mut row in ctx.db.active_raid().iter() {
         normalize_fields!(row, goods_lost, wealth_lost);
         ctx.db.active_raid().owner().update(row);
+    }
+    for mut row in ctx.db.combat_agent().iter() {
+        if row.carried_loot_json.is_empty() {
+            continue;
+        }
+        let Ok(stores) = serde_json::from_str::<RaidPortableStores>(&row.carried_loot_json) else {
+            continue;
+        };
+        let Ok(normalized_json) = serde_json::to_string(&stores.normalized_whole()) else {
+            continue;
+        };
+        if normalized_json != row.carried_loot_json {
+            row.carried_loot_json = normalized_json;
+            ctx.db.combat_agent().id().update(row);
+        }
     }
     for mut row in ctx.db.trading_post_trade_rule().iter() {
         normalize_fields!(row, target_surplus, last_trade_amount);
