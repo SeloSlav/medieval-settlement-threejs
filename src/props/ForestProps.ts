@@ -14,6 +14,8 @@ import {
   disposeUndergrowthInstances,
 } from './ForestUndergrowth.ts';
 import { createForestFloorIvyInstances } from './ForestFloorIvy.ts';
+import { createForestFloorNettleInstances } from './ForestFloorNettles.ts';
+import { createForestFloorTwigInstances } from './ForestFloorTwigs.ts';
 import { applyForestFoliageMaterialPatches, applyTreeShadowReceiveFilter, setTreeShadowInstanceAttributes } from './treeShadowReceiveFilter.ts';
 import { TREE_SHADOW_CAST_LAYER } from '../scene/SceneLayers.ts';
 import type { RendererBackendKind, SupportedRenderer } from '../scene/RendererBackend.ts';
@@ -142,10 +144,36 @@ export async function createForestProps(
     (options?.treeSeed ?? 0x5eedf0a5) ^ 0x1f1c0a7,
     isBlockedAt,
   );
-  const [materials, undergrowthMaterials, forestFloorIvy] = await Promise.all([
+  const nettlesPromise = createForestFloorNettleInstances(
+    allTreePlacements,
+    terrain,
+    maxAnisotropy,
+    options?.rendererBackend,
+    (options?.treeSeed ?? 0x5eedf0a5) ^ 0x75727469,
+    isBlockedAt,
+  );
+  const twigsPromise = createForestFloorTwigInstances(
+    allTreePlacements,
+    terrain,
+    maxAnisotropy,
+    {
+      seed: (options?.treeSeed ?? 0x5eedf0a5) ^ 0x7a193f2d,
+      densityScale: options?.densityScale,
+      isBlockedAt,
+    },
+  );
+  const [
+    materials,
+    undergrowthMaterials,
+    forestFloorIvy,
+    forestFloorNettles,
+    forestFloorTwigs,
+  ] = await Promise.all([
     materialsPromise,
     undergrowthMaterialsPromise,
     ivyPromise,
+    nettlesPromise,
+    twigsPromise,
   ]);
   const undergrowth = buildUndergrowthInstances(undergrowthPlacements, terrain, undergrowthMaterials, rng);
 
@@ -180,6 +208,8 @@ export async function createForestProps(
     forest.add(rockField.group);
     forest.add(undergrowth.group);
     forest.add(forestFloorIvy.group);
+    forest.add(forestFloorNettles.group);
+    forest.add(forestFloorTwigs.group);
 
     return new ForestManager(
       forest,
@@ -191,6 +221,8 @@ export async function createForestProps(
       () => {
         seedThree.resetSeedThreeForestPreloadState();
         forestFloorIvy.dispose();
+        forestFloorNettles.dispose();
+        forestFloorTwigs.dispose();
         disposeUndergrowthInstances(undergrowth, undergrowthMaterials);
         disposeForestMaterials(materials);
         seedThreeController.dispose();
@@ -201,6 +233,8 @@ export async function createForestProps(
       maxAnisotropy,
       seedThree.resolveSeedThreeHarvestStumpBark,
       forestFloorIvy,
+      forestFloorNettles,
+      forestFloorTwigs,
     );
   }
 
@@ -224,6 +258,8 @@ export async function createForestProps(
   forest.add(rockField.group);
   forest.add(undergrowth.group);
   forest.add(forestFloorIvy.group);
+  forest.add(forestFloorNettles.group);
+  forest.add(forestFloorTwigs.group);
 
   return new ForestManager(
     forest,
@@ -234,6 +270,8 @@ export async function createForestProps(
     terrain,
     () => {
       forestFloorIvy.dispose();
+      forestFloorNettles.dispose();
+      forestFloorTwigs.dispose();
       disposeUndergrowthInstances(undergrowth, undergrowthMaterials);
       disposeForestMaterials(materials);
     },
@@ -241,6 +279,8 @@ export async function createForestProps(
     maxAnisotropy,
     undefined,
     forestFloorIvy,
+    forestFloorNettles,
+    forestFloorTwigs,
   );
 }
 

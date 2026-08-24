@@ -3,7 +3,6 @@ import { MeshSSSNodeMaterial, MeshStandardNodeMaterial } from 'three/webgpu';
 import {
   cameraViewMatrix,
   float,
-  luminance,
   mix,
   normalMap,
   normalView,
@@ -62,6 +61,8 @@ type TslNode = {
   max(value: unknown): TslNode;
   clamp(minimum: unknown, maximum: unknown): TslNode;
   r: TslNode;
+  g: TslNode;
+  b: TslNode;
   a: TslNode;
   rgb: TslNode;
   xyz: TslNode;
@@ -70,7 +71,6 @@ type TslNode = {
 const tsl = {
   cameraViewMatrix: cameraViewMatrix as unknown as TslNode,
   float: float as (value: number) => TslNode,
-  luminance: luminance as (value: unknown) => TslNode,
   mix: mix as (left: unknown, right: unknown, amount: unknown) => TslNode,
   normalMap: normalMap as (sample: unknown) => TslNode,
   normalView: normalView as unknown as TslNode,
@@ -375,7 +375,6 @@ function createNettleFoliageMaterial(
 
   const material = new MeshSSSNodeMaterial({
     map: textures.albedo,
-    roughnessMap: textures.roughness,
     alphaTest: 0.42,
     side: THREE.DoubleSide,
     roughness: 1,
@@ -383,12 +382,15 @@ function createNettleFoliageMaterial(
   });
   material.name = 'SeedThree stinging nettle paired leaves';
   material.forceSinglePass = true;
+  material.roughnessMap = textures.roughness;
   material.positionNode = createRootedGeometryWindPosition(0.07) as never;
   const texel = tsl.texture(textures.albedo);
   const spring = tsl.uniform(0);
   const autumn = tsl.uniform(0);
   const dormancy = tsl.uniform(0);
-  const value = tsl.luminance(texel.rgb);
+  const value = texel.r.mul(0.2126)
+    .add(texel.g.mul(0.7152))
+    .add(texel.b.mul(0.0722));
   const springLeaf = tsl.vec3(0.63, 0.94, 0.26)
     .mul(value.mul(1.34)).clamp(0, 1);
   const autumnLeaf = tsl.vec3(0.9, 0.39, 0.065)
@@ -434,7 +436,9 @@ function createNettleBranchMaterial(
     material.normalScale.set(0.38, 0.38);
     return material;
   }
-  const material = new MeshStandardNodeMaterial();
+  const material = new MeshStandardNodeMaterial() as unknown as THREE.MeshStandardMaterial & {
+    positionNode: unknown;
+  };
   material.name = 'SeedThree living stinging nettle stem';
   material.map = textures.albedo;
   material.normalMap = textures.normal;

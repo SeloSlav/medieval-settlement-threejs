@@ -18,6 +18,14 @@ import type {
   ForestFloorIvyInstances,
   ForestFloorIvyStats,
 } from './ForestFloorIvy.ts';
+import type {
+  ForestFloorNettleInstances,
+  ForestFloorNettleStats,
+} from './ForestFloorNettles.ts';
+import type {
+  ForestFloorTwigInstances,
+  ForestFloorTwigStats,
+} from './ForestFloorTwigs.ts';
 import {
   commitHarvestStumpInstanceUpdates,
   createHarvestStumpInstances,
@@ -127,6 +135,8 @@ export class ForestManager {
   private readonly undergrowth: UndergrowthInstances | null;
   private readonly undergrowthPlacements: UndergrowthPlacement[];
   private readonly forestFloorIvy: ForestFloorIvyInstances | null;
+  private readonly forestFloorNettles: ForestFloorNettleInstances | null;
+  private readonly forestFloorTwigs: ForestFloorTwigInstances | null;
   private readonly canopyOcclusion: ForestCanopyOcclusionMap | null;
   private readonly rockInstances: ForestRockInstance[];
   private readonly allRockPlacements: RockObstacle[];
@@ -164,6 +174,8 @@ export class ForestManager {
     maxAnisotropy = 1,
     resolveHarvestStumpBark?: HarvestStumpBarkResolver,
     forestFloorIvy: ForestFloorIvyInstances | null = null,
+    forestFloorNettles: ForestFloorNettleInstances | null = null,
+    forestFloorTwigs: ForestFloorTwigInstances | null = null,
   ) {
     this.seedThreeForest = seedThreeForest;
     this.group = root;
@@ -187,6 +199,8 @@ export class ForestManager {
     this.undergrowth = undergrowth;
     this.undergrowthPlacements = undergrowthPlacements;
     this.forestFloorIvy = forestFloorIvy;
+    this.forestFloorNettles = forestFloorNettles;
+    this.forestFloorTwigs = forestFloorTwigs;
     this.terrain = terrain;
     this.canopyOcclusion = forestCanopyOcclusionMapFromMaterial(
       terrain.mesh.material,
@@ -254,10 +268,12 @@ export class ForestManager {
 
   setDeciduousFoliage(presentation: DeciduousFoliagePresentation): void {
     this.seedThreeForest?.setDeciduousFoliage(presentation);
+    this.forestFloorNettles?.setDeciduousFoliage(presentation);
   }
 
   setSnowCoverage(coverage: number): void {
     this.seedThreeForest?.setSnowCoverage(coverage);
+    this.forestFloorIvy?.setSnowCoverage(coverage);
   }
 
   setDistantCanopyCardsEnabled(enabled: boolean): void {
@@ -277,6 +293,14 @@ export class ForestManager {
 
   getForestFloorIvyStats(): ForestFloorIvyStats | null {
     return this.forestFloorIvy?.stats ?? null;
+  }
+
+  getForestFloorNettleStats(): ForestFloorNettleStats | null {
+    return this.forestFloorNettles?.stats ?? null;
+  }
+
+  getForestFloorTwigStats(): ForestFloorTwigStats | null {
+    return this.forestFloorTwigs?.stats ?? null;
   }
 
   setForestFloorDebugMode(mode: ForestCanopyOcclusionDebugMode): void {
@@ -460,7 +484,12 @@ export class ForestManager {
     if (harvestStumpVisibilityChanged) {
       this.harvestStumps.group.visible = harvestStumpsVisible;
     }
-    if (!this.undergrowth && !this.forestFloorIvy) {
+    if (
+      !this.undergrowth
+      && !this.forestFloorIvy
+      && !this.forestFloorNettles
+      && !this.forestFloorTwigs
+    ) {
       return shadowCastersChanged || harvestStumpVisibilityChanged;
     }
     const threshold = this.undergrowthVisible
@@ -473,6 +502,8 @@ export class ForestManager {
     this.undergrowthVisible = visible;
     if (this.undergrowth) this.undergrowth.group.visible = visible;
     if (this.forestFloorIvy) this.forestFloorIvy.group.visible = visible;
+    if (this.forestFloorNettles) this.forestFloorNettles.group.visible = visible;
+    this.forestFloorTwigs?.setCloseDetailVisible(visible);
     return shadowCastersChanged || harvestStumpVisibilityChanged;
   }
 
@@ -794,12 +825,16 @@ export class ForestManager {
       this.broadleafShadowMesh.instanceMatrix.needsUpdate = true;
     }
     this.forestFloorIvy?.commit();
+    this.forestFloorNettles?.commit();
+    this.forestFloorTwigs?.commit();
     commitHarvestStumpInstanceUpdates(this.harvestStumps);
   }
 
   private setTreeForestFloorActive(treeIndex: number, active: boolean): void {
     this.canopyOcclusion?.setTreeActive(treeIndex, active, true);
     this.forestFloorIvy?.setTreeActive(treeIndex, active);
+    this.forestFloorNettles?.setTreeActive(treeIndex, active);
+    this.forestFloorTwigs?.setTreeActive(treeIndex, active);
   }
 
   private hideConiferLayers(treeIndex: number): void {
