@@ -16,6 +16,8 @@ import {
 import { MAX_RASPBERRIES_PER_CLUMP } from '../src/foraging/berryPatchPresentation.ts';
 
 const projectRoot = fileURLToPath(new URL('../', import.meta.url));
+const PORTABLE_WEBGPU_VERTEX_BUFFER_LIMIT = 8;
+const undergrowthRuntimeAttributes = ['aAnchorPos', 'aWindVec'] as const;
 const kinds: GorskiShrubKind[] = ['bush', 'fern', 'juniper', 'raspberry', 'field-hornbeam'];
 const limits: Record<GorskiShrubKind, {
   triangles: [number, number];
@@ -141,6 +143,16 @@ const seedThreeTexturesSource = readFileSync(
 assert.match(undergrowthVisuals, /GORSKI_SHRUB_VARIANT_COUNT/);
 assert.match(undergrowthVisuals, /new THREE\.InstancedMesh/);
 assert.doesNotMatch(
+  undergrowthVisuals,
+  /aTint/,
+  'forest undergrowth must use InstancedMesh.instanceColor instead of a duplicate tint buffer',
+);
+assert.match(
+  undergrowthVisuals,
+  /material\.colorNode = tsl\.texture\(textures\.albedo\)/,
+  'the WebGPU card material must leave per-instance tinting to NodeMaterial instanceColor',
+);
+assert.doesNotMatch(
   `${undergrowthVisuals}\n${shrubPrototypesSource}\n${seedThreeTexturesSource}`,
   /bilberry_berry\.glb|juniper_berry\.glb|selectFoliageSurfaceAnchors|createUndergrowthFruitInstances/,
   'ordinary bilberry and juniper shrubs must not load, anchor, or render berry GLBs',
@@ -202,6 +214,34 @@ function prototypeSignatures(): Record<string, string> {
         geometry.getAttribute('aRootWeight'),
         `${kind} variant ${variant} must carry rooted wind weights`,
       );
+      if (kind === 'bush') {
+        for (const attributeName of undergrowthRuntimeAttributes) {
+          geometry.setAttribute(
+            attributeName,
+            new THREE.InstancedBufferAttribute(new Float32Array(3), 3),
+          );
+        }
+        const mesh = new THREE.InstancedMesh(
+          geometry,
+          new THREE.MeshBasicMaterial(),
+          1,
+        );
+        mesh.setColorAt(0, new THREE.Color(1, 1, 1));
+        const vertexBuffers = new Set<THREE.BufferAttribute | THREE.InterleavedBuffer>([
+          ...Object.values(geometry.attributes).map((attribute) => (
+            attribute instanceof THREE.InterleavedBufferAttribute
+              ? attribute.data
+              : attribute
+          )),
+          mesh.instanceMatrix,
+          mesh.instanceColor!,
+        ]);
+        assert.ok(
+          vertexBuffers.size <= PORTABLE_WEBGPU_VERTEX_BUFFER_LIMIT,
+          `bilberry variant ${variant} requires ${vertexBuffers.size} vertex buffers; portable WebGPU permits ${PORTABLE_WEBGPU_VERTEX_BUFFER_LIMIT}`,
+        );
+        (mesh.material as THREE.Material).dispose();
+      }
       if (kind === 'raspberry') {
         assert.ok(
           prototype.fruitAnchors.length >= MAX_RASPBERRIES_PER_CLUMP,

@@ -38,6 +38,7 @@ ensureBrowserGlobals();
 
 const { CameraController } = await import('../src/camera/CameraController.ts');
 const { shouldDismissVillagerSelection } = await import('../src/ui/VillagerInspector.ts');
+const { resolveSceneRenderOwner } = await import('../src/scene/sceneRenderOwnership.ts');
 const {
   BASELINE_ORBIT_DISTANCE,
   DEFAULT_FOV,
@@ -1075,14 +1076,23 @@ function scrollToLiveWorldMaximum(
 
 {
   const mapModeChanges: boolean[] = [];
+  let sceneManagerMapActive = false;
   const { controller, domElement } = createController(
     undefined,
     true,
-    (active) => mapModeChanges.push(active),
+    (active) => {
+      mapModeChanges.push(active);
+      sceneManagerMapActive = active;
+    },
   );
   scrollToLiveWorldMaximum(controller, domElement);
   const liveWorldDistance = controller.getOrbitDistance();
   domElement.dispatch('wheel', wheelEvent({ deltaY: 120 }));
+  assert.equal(
+    resolveSceneRenderOwner(sceneManagerMapActive, true),
+    'illustrated-map',
+    'the SceneManager selector should take paper ownership on the entry callback',
+  );
   for (let tier = 0; tier < ILLUSTRATED_MAP_OUTWARD_ZOOM_TIER_COUNT; tier += 1) {
     domElement.dispatch('wheel', wheelEvent({ deltaY: 120 }));
   }
@@ -1111,12 +1121,22 @@ function scrollToLiveWorldMaximum(
     'temporarily disabled input should pause the in-flight map handoff');
   assert.equal(controller.isIllustratedMapActive(), true,
     'pausing input must preserve paper render ownership mid-handoff');
+  assert.equal(
+    resolveSceneRenderOwner(sceneManagerMapActive, true),
+    'illustrated-map',
+    'the paper scene should remain the selected renderer while exit is pending',
+  );
   controller.setInputEnabled(true);
   assert.equal(controller.isNavigationActive(), true,
     're-enabling input should resume the preserved map destination');
   settleNavigation(controller);
   assert.equal(controller.isIllustratedMapActive(), false,
     'the paper render owner should release only after reaching the exact continuity stop');
+  assert.equal(
+    resolveSceneRenderOwner(sceneManagerMapActive, true),
+    'world',
+    'the same update that completes camera exit should restore world render ownership',
+  );
   assert.ok(Math.abs(controller.getOrbitDistance() - liveWorldDistance) < 1e-9);
   assert.deepEqual(mapModeChanges, [true, false]);
   controller.dispose();

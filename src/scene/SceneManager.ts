@@ -120,6 +120,10 @@ import {
   IllustratedMapPlane,
   type IllustratedMapDebugMode,
 } from '../map/IllustratedMapPlane.ts';
+import {
+  resolveSceneRenderOwner,
+  type SceneRenderOwner,
+} from './sceneRenderOwnership.ts';
 
 export type SceneLoadProgress = {
   label: string;
@@ -834,6 +838,13 @@ export class SceneManager {
     return this.illustratedMapActive;
   }
 
+  getRenderOwner(): SceneRenderOwner {
+    return resolveSceneRenderOwner(
+      this.illustratedMapActive,
+      this.illustratedMap.ready,
+    );
+  }
+
   isIllustratedMapReady(): boolean {
     return this.illustratedMap.ready;
   }
@@ -886,7 +897,7 @@ export class SceneManager {
     }
     this.worldAnimationElapsedSeconds += Math.max(0, dt);
     setWorldAnimationTime(this.worldAnimationElapsedSeconds);
-    if (this.illustratedMapActive && this.illustratedMap.ready) {
+    if (this.getRenderOwner() === 'illustrated-map') {
       // The plane follows only the target's elevation. Its X/Z transform stays
       // fixed to world coordinates, preserving pan and orbit semantics.
       this.illustratedMap.setElevation(this.cameraTarget.y);

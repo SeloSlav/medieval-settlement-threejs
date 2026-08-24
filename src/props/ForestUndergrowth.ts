@@ -2,7 +2,6 @@ import * as THREE from 'three';
 import { SpatialHash2D } from '../utils/SpatialHash2D.ts';
 import { MeshSSSNodeMaterial, MeshStandardNodeMaterial } from 'three/webgpu';
 import {
-  attribute,
   cameraViewMatrix,
   float,
   modelWorldMatrix,
@@ -55,7 +54,6 @@ type TslNode = {
 };
 
 const tsl = {
-  attribute: attribute as (name: string, type: string) => TslNode,
   cameraViewMatrix: cameraViewMatrix as TslNode,
   float: float as (value: number) => TslNode,
   modelWorldMatrix: modelWorldMatrix as TslNode,
@@ -140,7 +138,6 @@ export type UndergrowthBucket = {
   mesh: THREE.InstancedMesh;
   shadowMesh: THREE.InstancedMesh;
   matrices: THREE.Matrix4[];
-  tintAttr: THREE.InstancedBufferAttribute;
   anchorAttr: THREE.InstancedBufferAttribute;
   windVecAttr: THREE.InstancedBufferAttribute;
 };
@@ -419,10 +416,8 @@ function createUndergrowthBucket(
 ): UndergrowthBucket {
   const capacity = Math.max(placements.length, 1);
   const geometry = prototype.geometry;
-  const tintAttr = new THREE.InstancedBufferAttribute(new Float32Array(capacity * 3), 3);
   const anchorAttr = new THREE.InstancedBufferAttribute(new Float32Array(capacity * 3), 3);
   const windVecAttr = new THREE.InstancedBufferAttribute(new Float32Array(capacity * 3), 3);
-  geometry.setAttribute('aTint', tintAttr);
   geometry.setAttribute('aAnchorPos', anchorAttr);
   geometry.setAttribute('aWindVec', windVecAttr);
 
@@ -450,7 +445,6 @@ function createUndergrowthBucket(
     mesh,
     shadowMesh,
     matrices: placements.map(() => new THREE.Matrix4()),
-    tintAttr,
     anchorAttr,
     windVecAttr,
   };
@@ -471,7 +465,6 @@ function placeUndergrowthBucket(bucket: UndergrowthBucket, terrain: Terrain, rng
     bucket.matrices[index].copy(matrix);
 
     const tint = sampleUndergrowthTint(placement.kind, rng);
-    bucket.tintAttr.setXYZ(index, tint.x, tint.y, tint.z);
     bucket.anchorAttr.setXYZ(index, position.x, position.y, position.z);
     const windVec = undergrowthWindVecForYaw(yaw, scaleVector);
     bucket.windVecAttr.setXYZ(index, windVec.x, windVec.y, windVec.z);
@@ -481,7 +474,6 @@ function placeUndergrowthBucket(bucket: UndergrowthBucket, terrain: Terrain, rng
 
   bucket.mesh.instanceMatrix.needsUpdate = true;
   bucket.shadowMesh.instanceMatrix.needsUpdate = true;
-  bucket.tintAttr.needsUpdate = true;
   bucket.anchorAttr.needsUpdate = true;
   bucket.windVecAttr.needsUpdate = true;
   if (bucket.mesh.instanceColor) bucket.mesh.instanceColor.needsUpdate = true;
@@ -651,13 +643,15 @@ function createUndergrowthCardMaterial(
 
   const transmit = tsl.uniform(new THREE.Color().setRGB(...transmitRGB));
   const edge = textures.translucency ? tsl.texture(textures.translucency).r : tsl.float(1);
-  material.thicknessColorNode = edge.mul(tsl.attribute('aTint', 'vec3').y).mul(transmit);
+  material.thicknessColorNode = edge.mul(transmit);
   material.thicknessDistortionNode = tsl.uniform(0.3);
   material.thicknessAmbientNode = tsl.uniform(0.026);
   material.thicknessAttenuationNode = tsl.uniform(1.0);
   material.thicknessPowerNode = tsl.uniform(5.0);
   material.thicknessScaleNode = tsl.uniform(1.5);
-  material.colorNode = tsl.texture(textures.albedo).mul(tsl.vec4(tsl.attribute('aTint', 'vec3'), tsl.float(1)));
+  // NodeMaterial applies InstancedMesh.instanceColor after colorNode. Keeping
+  // tint on that built-in path avoids a duplicate per-instance vertex buffer.
+  material.colorNode = tsl.texture(textures.albedo);
   material.positionNode = createRootedGeometryWindPosition(0.1);
 
   const upView = tsl.cameraViewMatrix.mul(tsl.vec4(0, 1, 0, 0)).xyz;
