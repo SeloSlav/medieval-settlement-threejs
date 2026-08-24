@@ -228,7 +228,7 @@ select:focus-visible {
 }
 
 .settlement-hud__approval-shell {
-  --approval-panel-width: min(380px, calc(100vw - 28px));
+  --approval-panel-width: min(300px, calc(100vw - 28px));
   align-self: stretch;
   min-width: 0;
 }

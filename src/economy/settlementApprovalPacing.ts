@@ -80,11 +80,16 @@ export class SettlementApprovalPacer {
   private state: SettlementApprovalPacingState | null = null;
   private lastSimTick = 0;
   private persistedDisplayedScore: number | null = null;
+  private readonly now: () => number;
+  private readonly storage: ApprovalPacingStorage | null;
 
   constructor(
-    private readonly now: () => number = () => Date.now(),
-    private readonly storage: ApprovalPacingStorage | null = browserStorage(),
-  ) {}
+    now: () => number = () => Date.now(),
+    storage: ApprovalPacingStorage | null = browserStorage(),
+  ) {
+    this.now = now;
+    this.storage = storage;
+  }
 
   update(
     target: SettlementApproval,

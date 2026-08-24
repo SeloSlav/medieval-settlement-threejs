@@ -1650,7 +1650,7 @@
     "pastoral_farmstead": {
       "label": "Pastoral farmstead",
       "cost": { "timber": 40, "stone": 20 },
-      "storage": { "timber": 0, "firewood": 0, "stone": 0, "water": 60, "food": 120, "grain": 240, "salt": 6, "preservedFood": 70, "wool": 180, "manure": 160 },
+      "storage": { "timber": 0, "firewood": 0, "stone": 0, "water": 60, "food": 120, "grain": 240, "salt": 12, "preservedFood": 70, "wool": 120, "manure": 160 },
       "workRadius": 110,
       "pickRadius": 10,
       "harvestInterval": 10,

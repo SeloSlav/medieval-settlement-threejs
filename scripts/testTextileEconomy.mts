@@ -104,7 +104,7 @@ assert.equal(TEXTILE_TRANSFER_PER_TRIP, 12);
 assert.equal(SPECIALTY_EXPORT_GOLD_PER_CLOTH, 1.5);
 assert.equal(RESIDENCE_CLOTH_CAPACITY, 8);
 assert.equal(RESIDENCE_CLOTH_PER_PERSON_PER_SEC, 0.00018);
-assert.equal(BUILDING_STORAGE_CAPS.pastoral_farmstead.wool, 180);
+assert.equal(BUILDING_STORAGE_CAPS.pastoral_farmstead.wool, 120);
 assert.equal(BUILDING_STORAGE_CAPS.weaver.wool, 90);
 assert.equal(BUILDING_STORAGE_CAPS.weaver.flax, 90);
 assert.equal(BUILDING_STORAGE_CAPS.weaver.water, 24);
@@ -282,7 +282,7 @@ const storageBlockedHolding = weaver({
   id: 'sheep-storage-blocked',
   kind: 'pastoral_farmstead',
   assignedLabor: 1,
-  wool: 110,
+  wool: 115,
 });
 const readyHolding = weaver({
   id: 'sheep-ready',
@@ -347,13 +347,13 @@ assert.equal(annualTextiles.pendingHoldings, 2);
 assert.equal(annualTextiles.readyPendingHoldings, 0);
 assert.equal(annualTextiles.storageBlockedHoldings, 1);
 assert.equal(annualTextiles.staffingBlockedHoldings, 1);
-assert.equal(annualTextiles.projectedAnnualWool, 51);
+assert.equal(annualTextiles.projectedAnnualWool, 27);
 assert.equal(annualTextiles.securedAnnualWool, 15);
-assert.equal(annualTextiles.annualWoolAtRisk, 36);
+assert.equal(annualTextiles.annualWoolAtRisk, 12);
 assert.equal(annualTextiles.firstAttentionBuildingId, storageBlockedHolding.id);
 assert.equal(annualTextiles.firstAttentionKind, 'storage');
 assert.equal(annualTextiles.woolInTransit, 6);
-assert.equal(annualTextiles.woolStock, 122);
+assert.equal(annualTextiles.woolStock, 127);
 assert.equal(annualTextiles.clothInTransit, 2);
 assert.equal(annualTextiles.clothStock, 11);
 const physicalTextiles = computeSettlementTextilePlan({
@@ -368,7 +368,7 @@ const physicalTextiles = computeSettlementTextilePlan({
     clothDemandPerDay: 0.05,
   },
 });
-assert.equal(physicalTextiles.woolStock, 120);
+assert.equal(physicalTextiles.woolStock, 125);
 assert.equal(physicalTextiles.clothStock, 10);
 assert.equal(annualTextiles.householdClothStock, 3);
 assert.equal(annualTextiles.supplierClothStock, 5);
@@ -379,9 +379,9 @@ assert.equal(annualTextiles.fireQuarantinedClothStock, 0);
 assert.equal(annualTextiles.serviceableHouseholdClothStock, 8);
 assert.equal(annualTextiles.unavailableHouseholdClothStock, 3);
 assert.equal(annualTextiles.clothReserveRunwayDays, 160);
-assert.equal(annualTextiles.annualClothPotential, 34);
+assert.equal(annualTextiles.annualClothPotential, 18);
 assert.equal(annualTextiles.annualHouseholdClothDemand, 18);
-assert.equal(annualTextiles.annualClothBalance, 16);
+assert.equal(annualTextiles.annualClothBalance, 0);
 assert.equal(annualTextiles.roadPlan, null);
 assert.match(textileChainBalanceLabel(annualTextiles), /covered/);
 
@@ -709,7 +709,7 @@ for (let index = 0; index < 100_000; index += 1) {
       id,
       kind: 'pastoral_farmstead',
       x: index % 200,
-      wool: index % 2 === 0 ? 0 : 110,
+      wool: index % 2 === 0 ? 0 : 115,
     }),
   );
   perfTextiles.livestockHerds.set(id, sheepHerd(id));

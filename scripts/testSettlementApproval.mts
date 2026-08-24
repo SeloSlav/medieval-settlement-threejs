@@ -1,17 +1,33 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import {
+  approvalConcernSummary,
   approvalNeedPressureProgress,
   approvalTier,
   computeSettlementApproval,
 } from '../src/economy/settlementApproval.ts';
+import {
+  paceSettlementApproval,
+  type SettlementApprovalPacingState,
+} from '../src/economy/settlementApprovalPacing.ts';
 import { DEFAULT_NIGHT_POLICY } from '../src/economy/nightPolicy.ts';
 import {
+  APPROVAL_BASE_SCORE,
+  APPROVAL_DECLINE_POINTS_PER_REAL_HOUR,
+  APPROVAL_MAX_ACUTE_PENALTY,
+  APPROVAL_MAX_NEED_PENALTY,
   APPROVAL_NEED_PRESSURE_RAMP_DAYS,
-  CALENDAR_SECONDS_PER_DAY,
-  SIM_REALTIME_RATE,
 } from '../src/generated/gameBalance.ts';
 import type { SettlementProvisioning } from '../src/economy/settlementProvisioning.ts';
-import { DEFAULT_SETTLEMENT_SECURITY } from '../src/security/frontierSecurity.ts';
+
+const DEFAULT_SETTLEMENT_SECURITY = {
+  coverage: 0,
+  defenseReadiness: 0,
+  nextRaidTick: 0,
+  targetsAtRisk: 0,
+  threat: 0,
+  warningStartedTick: 0,
+};
 
 const thriving = computeSettlementApproval({
   provisioning: provisioning({
@@ -41,7 +57,6 @@ const thriving = computeSettlementApproval({
 assert.ok(thriving.score >= 80, `expected thriving approval, received ${thriving.score}`);
 assert.ok(thriving.factors.some((factor) =>
   factor.key === 'community-cohesion' && factor.impact > 0));
-assert.match(thriving.effects[0] ?? '', /all 8 established homes/);
 
 const distressed = computeSettlementApproval({
   provisioning: provisioning({
@@ -95,21 +110,23 @@ const distressed = computeSettlementApproval({
   activeFires: 2,
   month: 1,
 });
-assert.ok(distressed.score < 25, `expected crisis approval, received ${distressed.score}`);
-assert.equal(distressed.tier, 'crisis');
+assert.equal(distressed.score, APPROVAL_BASE_SCORE - APPROVAL_MAX_ACUTE_PENALTY);
+assert.equal(distressed.tier, 'uneasy');
 assert.ok(distressed.factors.some((factor) =>
   factor.key === 'frontier-safety' && factor.impact < 0));
 assert.ok(distressed.factors.some((factor) =>
   factor.key === 'fire-disruption' && factor.impact < 0));
-assert.match(distressed.summary, /strongest current pressure/i);
-assert.match(distressed.effects[1] ?? '', /4 sustained-shortage homes/);
-assert.match(distressed.effects[2] ?? '', /2 homes are blocked/);
+assert.equal(
+  distressed.factors
+    .filter((factor) => factor.impact < 0 && factor.key !== 'household-hardship')
+    .reduce((sum, factor) => sum - factor.impact, 0),
+  APPROVAL_MAX_ACUTE_PENALTY,
+  'simultaneous acute problems must share one lenient penalty budget',
+);
+assert.equal(distressed.summary, 'Fires and displacement are disrupting the settlement.');
 
 const earlyNeedCrisis = needCrisisApproval(3);
-assert.ok(
-  earlyNeedCrisis.score >= 35,
-  `three shortage days should leave recovery room, received ${earlyNeedCrisis.score}%`,
-);
+assert.equal(earlyNeedCrisis.score, 49);
 assert.equal(
   earlyNeedCrisis.factors.filter((factor) => factor.impact < 0).length,
   2,
@@ -123,13 +140,9 @@ assert.equal(
   earlyNeedCrisis.factors.some((factor) => factor.key === 'hunger'),
   false,
 );
-assert.match(
-  earlyNeedCrisis.factors.find((factor) => factor.key === 'household-hardship')?.detail ?? '',
-  /hunger 3\.0 days \(5%\).*services 3\.0 days \(5%\).*60 shortage-days/i,
-);
 
 const fiveDayNeedCrisis = needCrisisApproval(5);
-assert.ok(fiveDayNeedCrisis.score > 25, 'five shortage days must not cause approval crisis');
+assert.equal(fiveDayNeedCrisis.score, 48);
 assert.ok(fiveDayNeedCrisis.score < earlyNeedCrisis.score, 'need pressure should mature over time');
 
 const longServiceFreshHunger = needCrisisApproval(3, APPROVAL_NEED_PRESSURE_RAMP_DAYS);
@@ -173,11 +186,12 @@ assert.ok(
 );
 
 const prolongedNeedCrisis = needCrisisApproval(APPROVAL_NEED_PRESSURE_RAMP_DAYS);
-assert.equal(prolongedNeedCrisis.score, 0);
+assert.equal(prolongedNeedCrisis.score, 18);
 assert.equal(
   prolongedNeedCrisis.factors.find((factor) => factor.key === 'household-hardship')?.impact,
-  -40,
+  -APPROVAL_MAX_NEED_PENALTY,
 );
+assert.equal(prolongedNeedCrisis.summary, 'Some households are struggling to meet basic needs.');
 
 const recovered = computeSettlementApproval({
   provisioning: provisioning({
@@ -208,13 +222,6 @@ assert.equal(approvalNeedPressureProgress(0), 0);
 assert.equal(approvalNeedPressureProgress(APPROVAL_NEED_PRESSURE_RAMP_DAYS / 2), 0.5);
 assert.equal(approvalNeedPressureProgress(APPROVAL_NEED_PRESSURE_RAMP_DAYS), 1);
 assert.equal(approvalNeedPressureProgress(Number.POSITIVE_INFINITY), 1);
-const normalSpeedRampSeconds = APPROVAL_NEED_PRESSURE_RAMP_DAYS
-  * CALENDAR_SECONDS_PER_DAY
-  / SIM_REALTIME_RATE;
-assert.ok(
-  normalSpeedRampSeconds >= 2 * 60 * 60,
-  `full need pressure must take hours at normal speed, received ${normalSpeedRampSeconds}s`,
-);
 
 const peaceful = computeSettlementApproval({
   provisioning: provisioning(),
@@ -232,8 +239,113 @@ assert.equal(
   peaceful.factors.some((factor) => factor.key === 'frontier-safety'),
   false,
 );
-assert.equal(peaceful.score, 50);
-assert.match(peaceful.effects[0] ?? '', /build an operational residence/i);
+assert.equal(peaceful.score, APPROVAL_BASE_SCORE);
+assert.equal(peaceful.summary, 'Residents have no pressing concerns.');
+
+const summaryCases = [
+  ['household-hardship', 'Some households are struggling to meet basic needs.'],
+  ['illness', 'Illness is affecting the settlement.'],
+  ['community-cohesion', 'Community morale is low.'],
+  ['labor-fatigue', 'Residents are exhausted.'],
+  ['burial-dignity', 'Bodies remain unburied.'],
+  ['fire-disruption', 'Fires and displacement are disrupting the settlement.'],
+  ['frontier-safety', 'Residents feel unsafe.'],
+] as const;
+const forbiddenMechanicCopy = /\d|%|\b(?:day|tick|point|impact|threshold|production|tax|upgrade|score|approval)\b/i;
+for (const [key, expected] of summaryCases) {
+  const summary = approvalConcernSummary([{ key, impact: -1 }]);
+  assert.equal(summary, expected);
+  assert.equal(
+    summary.match(/[.!?]/g)?.length,
+    1,
+    `${key} diagnosis must contain exactly one sentence`,
+  );
+  assert.doesNotMatch(summary, forbiddenMechanicCopy);
+}
+
+assert.equal(
+  APPROVAL_BASE_SCORE - APPROVAL_MAX_NEED_PENALTY - APPROVAL_MAX_ACUTE_PENALTY,
+  16,
+  'even fully compounded pressure should retain a forgiving floor',
+);
+const severeTarget = {
+  score: 16,
+  tier: 'crisis' as const,
+  label: 'Crisis',
+  summary: 'Some households are struggling to meet basic needs.',
+  factors: [],
+};
+const fiveMinutesMs = 5 * 60 * 1_000;
+let pacingNowMs = 0;
+let paced = paceSettlementApproval(severeTarget, null, pacingNowMs, true);
+let pacingState: SettlementApprovalPacingState = paced.state;
+assert.equal(paced.approval.score, APPROVAL_BASE_SCORE);
+assert.equal(paced.approval.tier, 'content');
+
+for (let step = 1; step <= 36; step += 1) {
+  pacingNowMs += fiveMinutesMs;
+  paced = paceSettlementApproval(severeTarget, pacingState, pacingNowMs, true);
+  pacingState = paced.state;
+}
+assert.equal(paced.approval.score, 30, 'three real hours may remove only thirty points');
+assert.notEqual(paced.approval.tier, 'crisis');
+
+for (let step = 0; step < 6; step += 1) {
+  pacingNowMs += fiveMinutesMs;
+  paced = paceSettlementApproval(severeTarget, pacingState, pacingNowMs, true);
+  pacingState = paced.state;
+}
+assert.equal(paced.approval.score, 25);
+assert.notEqual(paced.approval.tier, 'crisis');
+pacingNowMs += fiveMinutesMs;
+paced = paceSettlementApproval(severeTarget, pacingState, pacingNowMs, true);
+pacingState = paced.state;
+assert.equal(paced.approval.score, 24);
+assert.equal(paced.approval.tier, 'crisis');
+
+for (let step = 43; step < 53; step += 1) {
+  pacingNowMs += fiveMinutesMs;
+  paced = paceSettlementApproval(severeTarget, pacingState, pacingNowMs, true);
+  pacingState = paced.state;
+}
+assert.equal(paced.approval.score, 16, 'reaching the severe target must take over four real hours');
+assert.equal(APPROVAL_DECLINE_POINTS_PER_REAL_HOUR, 10);
+
+let background = paceSettlementApproval(severeTarget, null, 0, true);
+background = paceSettlementApproval(severeTarget, background.state, 4 * 60 * 60 * 1_000, true);
+assert.equal(background.approval.score, 59, 'a throttled background tab must not spend hours at once');
+const pausedAt = fiveMinutesMs;
+let paused = paceSettlementApproval(severeTarget, null, 0, true);
+paused = paceSettlementApproval(severeTarget, paused.state, pausedAt, false);
+const beforePause = paused.approval.score;
+paused = paceSettlementApproval(severeTarget, paused.state, pausedAt + 4 * 60 * 60 * 1_000, true);
+assert.equal(paused.approval.score, beforePause, 'paused wall time must not lower approval');
+
+const recoveredTarget = { ...severeTarget, score: 90, tier: 'beloved' as const, label: 'Beloved' };
+const pacedRecovery = paceSettlementApproval(
+  recoveredTarget,
+  pacingState,
+  pacingNowMs + fiveMinutesMs,
+  true,
+);
+assert.equal(pacedRecovery.approval.score, 90, 'approval recovery should be immediate and lenient');
+assert.equal(pacedRecovery.approval.tier, 'beloved');
+
+const settlementHudSource = readFileSync(
+  new URL('../src/ui/SettlementHud.ts', import.meta.url),
+  'utf8',
+);
+const approvalPanelStart = settlementHudSource.indexOf('id="settlement-approval-panel"');
+const approvalPanelEnd = settlementHudSource.indexOf('</section>', approvalPanelStart);
+const approvalPanelTemplate = settlementHudSource.slice(approvalPanelStart, approvalPanelEnd);
+assert.ok(approvalPanelStart >= 0 && approvalPanelEnd > approvalPanelStart);
+assert.equal(approvalPanelTemplate.match(/<p\b/g)?.length, 1);
+assert.match(approvalPanelTemplate, /data-approval-summary/);
+assert.doesNotMatch(
+  settlementHudSource,
+  /data-approval-(?:effects|concerns|support)|Current effects|Needs attention|Supporting factors|factor\.(?:impact|detail)/,
+  'approval hover must never render mechanics, effect lists, or numeric factor impacts',
+);
 
 assert.equal(approvalTier(100), 'beloved');
 assert.equal(approvalTier(70), 'liked');

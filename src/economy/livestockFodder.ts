@@ -224,10 +224,13 @@ export function projectLivestockFodderHolding(
   const dairySaltPerDay = dairySaltPerCycle * cyclesPerDay;
   const grainPerHead = GRAIN_PER_UNSUPPORTED_HEAD[herd.species];
   const hayPerHead = HAY_PER_UNSUPPORTED_HEAD[herd.species];
+  const hayStock = Math.max(0, herd.hayStock);
   const haymakingPercent = herd.species === 'swine'
     ? 0
     : effectiveLivestockHaymakingPercent(herd.haymakingPercent);
-  const haymakingShare = haymakingPercent / 100;
+  const haymakingShare = hayStock + 1e-6 >= LIVESTOCK_HAY_STORAGE_CAPACITY
+    ? 0
+    : haymakingPercent / 100;
   const currentGrazingShare = isLivestockHaymakingMonth(month)
     ? 1 - haymakingShare
     : 1;
@@ -261,7 +264,6 @@ export function projectLivestockFodderHolding(
     * laborCyclesPerDay
     * hayYieldMultiplier;
   const remainingHaymakingDays = haymakingDaysRemaining(month, monthDay);
-  const hayStock = Math.max(0, herd.hayStock);
   const projectedHayStock = Math.min(
     LIVESTOCK_HAY_STORAGE_CAPACITY,
     hayStock + hayOutputPerDay * remainingHaymakingDays,

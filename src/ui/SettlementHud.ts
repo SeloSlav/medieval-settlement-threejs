@@ -31,10 +31,7 @@ import {
   formatProvisionRunway,
   type SettlementProvisioning,
 } from '../economy/settlementProvisioning.ts';
-import type {
-  SettlementApproval,
-  SettlementApprovalFactor,
-} from '../economy/settlementApproval.ts';
+import type { SettlementApproval } from '../economy/settlementApproval.ts';
 import type { AuthoritativeWorldGeneration } from '../world/worldConfigAuthority.ts';
 import {
   FOOD_RESOURCE_KINDS,
@@ -229,18 +226,6 @@ const SETTLEMENT_HUD_HTML = `
         <p class="settlement-hud__approval-summary" data-approval-summary>
           Settlement data is not available yet.
         </p>
-        <section class="settlement-hud__approval-section">
-          <h3>Current effects</h3>
-          <ul class="settlement-hud__approval-effects" data-approval-effects></ul>
-        </section>
-        <section class="settlement-hud__approval-section" data-approval-concerns-section>
-          <h3>Needs attention</h3>
-          <ul class="settlement-hud__approval-factors" data-approval-concerns></ul>
-        </section>
-        <section class="settlement-hud__approval-section" data-approval-support-section>
-          <h3>Supporting factors</h3>
-          <ul class="settlement-hud__approval-factors" data-approval-support></ul>
-        </section>
       </section>
     </div>
     <div class="settlement-hud__perf">
@@ -586,11 +571,6 @@ export class SettlementHud {
   private readonly approvalMeter: HTMLElement;
   private readonly approvalMeterFill: HTMLElement;
   private readonly approvalSummary: HTMLElement;
-  private readonly approvalEffects: HTMLElement;
-  private readonly approvalConcerns: HTMLElement;
-  private readonly approvalSupport: HTMLElement;
-  private readonly approvalConcernsSection: HTMLElement;
-  private readonly approvalSupportSection: HTMLElement;
   private readonly foodStat: HTMLElement;
   private readonly foodStores: HTMLDetailsElement;
   private readonly foodRunwayValue: HTMLElement;
@@ -685,11 +665,6 @@ export class SettlementHud {
     this.approvalMeter = this.mustElement('[data-approval-meter]');
     this.approvalMeterFill = this.mustElement('[data-approval-meter-fill]');
     this.approvalSummary = this.mustElement('[data-approval-summary]');
-    this.approvalEffects = this.mustElement('[data-approval-effects]');
-    this.approvalConcerns = this.mustElement('[data-approval-concerns]');
-    this.approvalSupport = this.mustElement('[data-approval-support]');
-    this.approvalConcernsSection = this.mustElement('[data-approval-concerns-section]');
-    this.approvalSupportSection = this.mustElement('[data-approval-support-section]');
     this.foodStat = this.mustElement('[data-resource="food"]');
     this.foodStores = this.mustDetails('[data-food-stores]');
     this.foodRunwayValue = this.mustElement('[data-food-runway]');
@@ -1072,28 +1047,8 @@ export class SettlementHud {
     this.approvalTrend.dataset.trend = this.lastApprovalTrend;
     this.approvalButton.setAttribute(
       'aria-label',
-      `Approval ${approval.score} percent, ${approval.label}, ${trendCopy.label}. Hover or focus for details.`,
+      `Approval ${approval.score} percent, ${approval.label}, ${trendCopy.label}.`,
     );
-
-    renderTextList(this.approvalEffects, approval.effects);
-    const concerns = approval.factors
-      .filter((factor) => factor.impact < 0)
-      .sort((left, right) => left.impact - right.impact);
-    const support = approval.factors
-      .filter((factor) => factor.impact > 0)
-      .sort((left, right) => right.impact - left.impact);
-    renderApprovalFactorList(
-      this.approvalConcerns,
-      concerns,
-      'No active factor is reducing approval.',
-    );
-    renderApprovalFactorList(
-      this.approvalSupport,
-      support,
-      'No factor is currently lifting approval above its neutral base.',
-    );
-    this.approvalConcernsSection.dataset.empty = String(concerns.length === 0);
-    this.approvalSupportSection.dataset.empty = String(support.length === 0);
   }
 
   clearApprovalState(): void {
@@ -1116,9 +1071,6 @@ export class SettlementHud {
     this.approvalButton.setAttribute('aria-label', 'Approval awaiting settlement data');
     delete this.approvalButton.dataset.tooltipTitle;
     delete this.approvalButton.dataset.tooltip;
-    this.approvalEffects.replaceChildren();
-    this.approvalConcerns.replaceChildren();
-    this.approvalSupport.replaceChildren();
   }
 
   private setWelfareState(provisioning: SettlementProvisioning): void {
@@ -1647,54 +1599,4 @@ function formatSupplyAmount(amount: number): string {
   if (!Number.isFinite(amount)) return '0';
   if (Math.abs(amount) < 10) return amount.toFixed(1);
   return Math.round(amount).toString();
-}
-
-function renderTextList(parent: HTMLElement, values: readonly string[]): void {
-  const fragment = document.createDocumentFragment();
-  for (const value of values) {
-    const item = document.createElement('li');
-    item.textContent = value;
-    fragment.appendChild(item);
-  }
-  parent.replaceChildren(fragment);
-}
-
-function renderApprovalFactorList(
-  parent: HTMLElement,
-  factors: readonly SettlementApprovalFactor[],
-  emptyMessage: string,
-): void {
-  const fragment = document.createDocumentFragment();
-  if (factors.length === 0) {
-    const empty = document.createElement('li');
-    empty.className = 'settlement-hud__approval-empty';
-    empty.textContent = emptyMessage;
-    fragment.appendChild(empty);
-  } else {
-    for (const factor of factors) {
-      const item = document.createElement('li');
-      item.className = `settlement-hud__approval-factor settlement-hud__approval-factor--${
-        factor.impact > 0 ? 'positive' : 'negative'
-      }`;
-
-      const copy = document.createElement('span');
-      copy.className = 'settlement-hud__approval-factor-copy';
-      const label = document.createElement('strong');
-      label.textContent = factor.label;
-      const detail = document.createElement('span');
-      detail.textContent = factor.detail;
-      copy.append(label, detail);
-
-      const impact = document.createElement('strong');
-      impact.className = 'settlement-hud__approval-impact';
-      impact.textContent = factor.impact > 0 ? `+${factor.impact}` : String(factor.impact);
-      impact.setAttribute(
-        'aria-label',
-        `${Math.abs(factor.impact)} approval ${factor.impact > 0 ? 'gained' : 'lost'}`,
-      );
-      item.append(copy, impact);
-      fragment.appendChild(item);
-    }
-  }
-  parent.replaceChildren(fragment);
 }

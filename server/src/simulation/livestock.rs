@@ -92,7 +92,10 @@ fn step_livestock_building(
         herd.species = SPECIES_SWINE;
     }
     let base_pasture_capacity = tick.livestock_grazing_capacity(ctx, &building, &herd);
-    let summer_hay_share = if herd.species != SPECIES_SWINE && is_haymaking_month(clock.month) {
+    let summer_hay_share = if herd.species != SPECIES_SWINE
+        && is_haymaking_month(clock.month)
+        && herd.hay_stock + 1e-6 < LIVESTOCK_HAY_STORAGE_CAPACITY
+    {
         haymaking_share(herd.haymaking_percent)
     } else {
         0.0

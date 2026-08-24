@@ -56,6 +56,7 @@ import {
   DROUGHT_PASTURE_CAPACITY_MULTIPLIER,
   LIVESTOCK_FARMSTEAD_PRESERVATION_SALT_PER_OUTPUT,
   LIVESTOCK_FARMSTEAD_SALT_STAGING_PER_CYCLE,
+  LIVESTOCK_HAY_STORAGE_CAPACITY,
   LIVESTOCK_MASLIN_FODDER_VALUE,
   LIVESTOCK_OAT_FODDER_VALUE,
   LIVESTOCK_RYE_FODDER_VALUE,
@@ -459,6 +460,23 @@ assert.equal(
 );
 assert.equal(summerPlan.currentUnsupportedHeads, 1.5);
 
+const fullLoftSummerPlan = projectLivestockFodderHolding(
+  fodderBuilding,
+  {
+    ...summerHerd,
+    pastureCapacity: 10,
+    hayStock: LIVESTOCK_HAY_STORAGE_CAPACITY,
+  },
+  1,
+  false,
+  6,
+  1,
+);
+assert.equal(fullLoftSummerPlan.basePastureCapacity, 10);
+assert.equal(fullLoftSummerPlan.summerReservedCapacity, 0);
+assert.equal(fullLoftSummerPlan.hayOutputPerDay, 0);
+assert.equal(fullLoftSummerPlan.currentUnsupportedHeads, 0);
+
 const twoWorkerSummerPlan = projectLivestockFodderHolding(
   { ...fodderBuilding, assignedLabor: 2 },
   summerHerd,
@@ -631,6 +649,11 @@ assert.match(
 );
 assert.match(serverSimulation, /herd\.hay_stock/);
 assert.match(serverSimulation, /is_haymaking_month/);
+assert.match(
+  serverSimulation,
+  /herd\.hay_stock \+ 1e-6 < LIVESTOCK_HAY_STORAGE_CAPACITY/,
+  'a full hayloft must release reserved meadow back to grazing',
+);
 assert.match(
   serverSimulation,
   /let hay_supplement[\s\S]*herd\.hay_stock = [\s\S]*let grain_unsupported/,

@@ -12,6 +12,7 @@ import {
   LIVESTOCK_MIN_PASTURE_AREA,
   LIVESTOCK_MIN_PASTURE_EDGE,
   SHEEP_MAX_SLOPE_DEGREES,
+  SWINE_MAX_SLOPE_DEGREES,
 } from '../generated/gameBalance.ts';
 import { sampleAuthoritativeGroundwaterScore } from '../hydrology/sampleAuthoritativeHydrology.ts';
 import { buildingFootprintPolygonFromState, burgageZonePolygon } from '../placement/placementConflicts.ts';
@@ -776,10 +777,13 @@ export class FarmFieldTool {
         return { ok: false, reason: 'no_farmstead', corners, slope, moisture, southExposure };
       }
     }
+    const pastureSpecies = state.livestockHerds.get(farmstead!.id)?.species;
     const maxSlope = this.mode === 'pasture'
-      ? state.livestockHerds.get(farmstead!.id)?.species === 'cattle'
+      ? pastureSpecies === 'cattle'
         ? CATTLE_MAX_SLOPE_DEGREES
-        : SHEEP_MAX_SLOPE_DEGREES
+        : pastureSpecies === 'swine'
+          ? SWINE_MAX_SLOPE_DEGREES
+          : SHEEP_MAX_SLOPE_DEGREES
       : this.mode === 'graveyard'
         ? GRAVEYARD_MAX_SLOPE
         : this.mode === 'vineyard'

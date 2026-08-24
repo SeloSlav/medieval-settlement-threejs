@@ -9,6 +9,8 @@ import { getZoneEdge, type BurgageZoneCorners } from './burgageLayout.ts';
 /** Keep residence-land authoring as forgiving as the other parcel tools. */
 export const BURGAGE_PLOT_SNAP_DISTANCE = 6;
 
+const FRONTAGE_ENDPOINT_MATCH_EPSILON = 1e-5;
+
 type CandidateFilter = (candidate: Point2) => boolean;
 
 function zoneCorners(zone: BurgageZoneState): BurgageZoneCorners {
@@ -64,6 +66,50 @@ function boundaryCandidates(point: Point2, zones: Iterable<BurgageZoneState>): P
   return candidates;
 }
 
+function pairedSideBoundaryCandidates(
+  point: Point2,
+  acceptedPoints: readonly Point2[],
+  zones: Iterable<BurgageZoneState>,
+): Point2[] {
+  if (acceptedPoints.length !== 2 && acceptedPoints.length !== 3) return [];
+  // Point C is paired with frontage B; point D is paired with frontage A.
+  const frontageAnchor = acceptedPoints.length === 2
+    ? acceptedPoints[1]
+    : acceptedPoints[0];
+  const candidates: Point2[] = [];
+
+  for (const zone of zones) {
+    const corners = [zone.cornerA, zone.cornerB, zone.cornerC, zone.cornerD];
+    const frontageStartIndex = zone.frontageEdge;
+    const frontageEndIndex = (frontageStartIndex + 1) % corners.length;
+    const frontageStart = corners[frontageStartIndex];
+    const frontageEnd = corners[frontageEndIndex];
+
+    if (Math.hypot(
+      frontageAnchor.x - frontageStart.x,
+      frontageAnchor.z - frontageStart.z,
+    ) <= FRONTAGE_ENDPOINT_MATCH_EPSILON) {
+      candidates.push(closestPointOnSegment(
+        point,
+        frontageStart,
+        corners[(frontageStartIndex + corners.length - 1) % corners.length],
+      ));
+    }
+    if (Math.hypot(
+      frontageAnchor.x - frontageEnd.x,
+      frontageAnchor.z - frontageEnd.z,
+    ) <= FRONTAGE_ENDPOINT_MATCH_EPSILON) {
+      candidates.push(closestPointOnSegment(
+        point,
+        frontageEnd,
+        corners[(frontageEndIndex + 1) % corners.length],
+      ));
+    }
+  }
+
+  return candidates;
+}
+
 /**
  * A new frontage may join an existing row at either end. Restricting frontage
  * snapping to endpoints avoids pulling a new zone into the middle of occupied
@@ -97,9 +143,10 @@ export function snapBurgageBoundaryPoint(
 }
 
 /**
- * Keeps the final rear corner coherent with the accepted draft. A nearer edge
- * on the same zone must not win when it would pull the closing side through
- * that existing residence plot.
+ * Keeps either rear corner coherent with the accepted frontage. When its
+ * frontage anchor joined an existing row endpoint, prefer that row's matching
+ * side boundary; on the final point, also reject any completed overlapping
+ * quad.
  */
 export function snapBurgageBoundaryDraftPoint(
   point: Point2,
@@ -109,7 +156,7 @@ export function snapBurgageBoundaryDraftPoint(
   candidateFilter?: CandidateFilter,
 ): Point2 {
   const existingZones = [...zones];
-  if (acceptedPoints.length !== 3) {
+  if (acceptedPoints.length !== 2 && acceptedPoints.length !== 3) {
     return snapBurgageBoundaryPoint(
       point,
       existingZones,
@@ -118,25 +165,41 @@ export function snapBurgageBoundaryDraftPoint(
     );
   }
 
+  const acceptsCandidate = (candidate: Point2): boolean => {
+    if (candidateFilter && !candidateFilter(candidate)) return false;
+    if (acceptedPoints.length !== 3) return true;
+    const draft = [
+      acceptedPoints[0],
+      acceptedPoints[1],
+      acceptedPoints[2],
+      candidate,
+    ];
+    return isConvexQuad2(draft[0], draft[1], draft[2], draft[3])
+      && existingZones.every((zone) => !convexPolygonsOverlap2(draft, [
+        zone.cornerA,
+        zone.cornerB,
+        zone.cornerC,
+        zone.cornerD,
+      ]));
+  };
+
+  let pairedCandidateAccepted = false;
+  const paired = nearestCandidate(
+    point,
+    pairedSideBoundaryCandidates(point, acceptedPoints, existingZones),
+    maxDistance,
+    (candidate) => {
+      const accepted = acceptsCandidate(candidate);
+      pairedCandidateAccepted ||= accepted;
+      return accepted;
+    },
+  );
+  if (pairedCandidateAccepted) return paired;
+
   return nearestCandidate(
     point,
     boundaryCandidates(point, existingZones),
     maxDistance,
-    (candidate) => {
-      if (candidateFilter && !candidateFilter(candidate)) return false;
-      const draft = [
-        acceptedPoints[0],
-        acceptedPoints[1],
-        acceptedPoints[2],
-        candidate,
-      ];
-      return isConvexQuad2(draft[0], draft[1], draft[2], draft[3])
-        && existingZones.every((zone) => !convexPolygonsOverlap2(draft, [
-          zone.cornerA,
-          zone.cornerB,
-          zone.cornerC,
-          zone.cornerD,
-        ]));
-    },
+    acceptsCandidate,
   );
 }

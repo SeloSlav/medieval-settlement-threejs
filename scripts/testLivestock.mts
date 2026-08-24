@@ -15,6 +15,7 @@ import {
 } from '../src/buildings/meshes/manureStockpileMesh.ts';
 import { getBuildingExtent } from '../src/buildings/buildingExtents.ts';
 import {
+  allocateLivestockVisualPastures,
   createCattleVisualDistribution,
   livestockVisualHeadCount,
 } from '../src/farming/LivestockVisuals.ts';
@@ -105,6 +106,30 @@ assert.ok(
 );
 assert.equal(neutralPastureHeadCapacity(lowerPasture, 'swine'), null);
 assert.ok(pastureAreaHeadCapacity(lowerPasture, 'swine') > 0);
+const largeVisualPasture = {
+  ...lowerPasture,
+  id: 'pasture-visual-large',
+  corners: [
+    { x: 30, z: 0 },
+    { x: 70, z: 0 },
+    { x: 70, z: 40 },
+    { x: 30, z: 40 },
+  ],
+  area: 1600,
+};
+const weightedSheepVisuals = allocateLivestockVisualPastures(
+  [lowerPasture, largeVisualPasture],
+  'sheep',
+  10,
+);
+assert.deepEqual(
+  [
+    weightedSheepVisuals.filter((pasture) => pasture.id === lowerPasture.id).length,
+    weightedSheepVisuals.filter((pasture) => pasture.id === largeVisualPasture.id).length,
+  ],
+  [2, 8],
+  'displayed animals should follow each linked parcel\'s share of carrying capacity',
+);
 const currentHoldingHerd = { species: 'cattle', pastureCapacity: 3 } as const;
 const attributedCapacity = [lowerPasture, upperPasture]
   .reduce(
@@ -251,6 +276,11 @@ assert.match(pastureInspectorSource, /Linked holding's last cycle/);
 assert.match(farmFieldToolSource, /neutral .* capacity/);
 assert.match(farmFieldToolSource, /land cap .* vs mast cap/);
 assert.match(farmFieldToolSource, /getTreeRegistry/);
+assert.match(
+  farmFieldToolSource,
+  /pastureSpecies === 'swine'[\s\S]{0,80}SWINE_MAX_SLOPE_DEGREES/,
+  'swine pannage preview validation must use the same slope ceiling as the server',
+);
 assert.match(worldQueriesSource, /getMaturePannageTreeCount/);
 assert.match(livestockInspectorSource, /data-livestock-trade="1"/);
 assert.match(livestockInspectorSource, /data-livestock-trade="-1"/);
@@ -372,8 +402,8 @@ const manureSegments = manureYard.children.filter(
   (child) => child.name === MANURE_STOCK_SEGMENT_NAME,
 );
 assert.equal(livestockVisualHeadCount('cattle', 50), 20);
-assert.equal(livestockVisualHeadCount('sheep', 60), 36);
-assert.equal(livestockVisualHeadCount('swine', 30), 24);
+assert.equal(livestockVisualHeadCount('sheep', 60), 60);
+assert.equal(livestockVisualHeadCount('swine', 30), 30);
 assert.equal(manureSegments.length, MANURE_STOCKPILE_VISUAL_SEGMENTS);
 assert.equal(manureYard.visible, false, 'an empty manure yard must not show a decorative pile');
 assert.equal(

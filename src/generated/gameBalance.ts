@@ -1738,7 +1738,7 @@ export const BUILDING_STORAGE_CAPS = {
   guardhouse: { timber: 0, firewood: 0, stone: 0, food: 72, polearms: 12 },
   palisaded_refuge: { timber: 0, firewood: 0, stone: 0 },
   threshing_barn: { timber: 0, firewood: 0, stone: 0, grain: 240, barley: 180, flax: 180, ironwork: 3, manure: 120 },
-  pastoral_farmstead: { timber: 0, firewood: 0, stone: 0, water: 60, food: 120, grain: 240, preservedFood: 70, wool: 180, salt: 6, manure: 160 },
+  pastoral_farmstead: { timber: 0, firewood: 0, stone: 0, water: 60, food: 120, grain: 240, preservedFood: 70, wool: 120, salt: 12, manure: 160 },
   swineherd: { timber: 0, firewood: 0, stone: 0, water: 48, food: 150, grain: 240 },
   monastery: { timber: 0, firewood: 0, stone: 0, food: 180, grain: 180, cider: 80, mead: 120, preservedFood: 80, honey: 160, wine: 120 },
   brewery: { timber: 0, firewood: 40, stone: 0, water: 120, food: 96, barley: 96, malt: 48, ale: 200, cider: 200, pearCider: 200, mead: 200, honey: 72 },

@@ -10,6 +10,9 @@ import {
 /** Matches the forgiving magnetic range used while authoring residence land. */
 export const LAND_PARCEL_SNAP_DISTANCE = 6;
 
+/** Slightly favor vertices when two adjacent edge projections compete near a corner. */
+const LAND_PARCEL_CORNER_PRIORITY_BIAS = 1.5;
+
 function closestPointOnSegment(point: Point2, start: Point2, end: Point2): Point2 {
   const dx = end.x - start.x;
   const dz = end.z - start.z;
@@ -29,9 +32,18 @@ function snapToNearestLandParcelBoundary(
   maxDistance: number,
   candidateFilter?: CandidateFilter,
 ): Point2 {
-  let snapped = point;
-  let bestDistance = Math.max(0, maxDistance);
+  let edgeSnap = point;
+  let bestEdgeDistance = Math.max(0, maxDistance);
+  let cornerSnap: Point2 | null = null;
+  let bestCornerDistance = Math.max(0, maxDistance);
   for (const corners of linkedParcels) {
+    for (const corner of corners) {
+      const distance = Math.hypot(corner.x - point.x, corner.z - point.z);
+      if (distance > bestCornerDistance) continue;
+      if (candidateFilter && !candidateFilter(corner)) continue;
+      bestCornerDistance = distance;
+      cornerSnap = corner;
+    }
     for (let index = 0; index < corners.length; index += 1) {
       const candidate = closestPointOnSegment(
         point,
@@ -39,13 +51,19 @@ function snapToNearestLandParcelBoundary(
         corners[(index + 1) % corners.length],
       );
       const distance = Math.hypot(candidate.x - point.x, candidate.z - point.z);
-      if (distance > bestDistance) continue;
+      if (distance > bestEdgeDistance) continue;
       if (candidateFilter && !candidateFilter(candidate)) continue;
-      bestDistance = distance;
-      snapped = candidate;
+      bestEdgeDistance = distance;
+      edgeSnap = candidate;
     }
   }
-  return { ...snapped };
+  if (
+    cornerSnap
+    && bestCornerDistance <= bestEdgeDistance + LAND_PARCEL_CORNER_PRIORITY_BIAS
+  ) {
+    return { ...cornerSnap };
+  }
+  return { ...edgeSnap };
 }
 
 /**

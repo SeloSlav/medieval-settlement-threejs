@@ -56,6 +56,12 @@ tenure, and it cannot cause abandonment. A vital food, water, or firewood
 shortage still pauses optional shopping until the household's survival buffers
 recover.
 
+The Approval display is deliberately forgiving. Adverse conditions share a
+bounded penalty budget, and the visible score loses no more than ten points per
+active real hour at any simulation speed. Recovery applies immediately. Its
+hover card shows only one non-mechanical sentence naming the most pressing
+concern; detailed welfare evidence remains in the Town Hall and residence views.
+
 The timings live under `population` and the spending multiplier under `economy`
 in `balance/gameBalance.json`; both are generated into Rust and TypeScript.
 

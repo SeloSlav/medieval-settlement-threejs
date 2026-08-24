@@ -9,6 +9,10 @@ import {
   isWithinShadowRange,
 } from '../settlement/crowdView.ts';
 import { hashStringSeed, mulberry32 } from '../utils/random.ts';
+import {
+  neutralPastureHeadCapacity,
+  pastureAreaHeadCapacity,
+} from './pastureCapacity.ts';
 
 type MotionMode = 'idle' | 'graze' | 'walk';
 
@@ -63,8 +67,8 @@ const TARGET_HEIGHTS = {
 
 const VISUAL_HEAD_CAP_BY_SPECIES: Record<LivestockSpecies, number> = {
   cattle: 20,
-  sheep: 36,
-  swine: 24,
+  sheep: 60,
+  swine: 30,
 };
 const MIN_EDGE_MARGIN = 0.12;
 const TAU = Math.PI * 2;
@@ -89,6 +93,47 @@ export function livestockVisualHeadCount(
 export function createCattleVisualDistribution(headCount: number): CattleVisualKind[] {
   const count = livestockVisualHeadCount('cattle', headCount);
   return Array.from({ length: count }, (_, index) => count >= 4 && index === 0 ? 'bull' : 'cow');
+}
+
+/**
+ * Spreads the displayed herd across linked parcels in proportion to the land
+ * capacity each parcel contributes. Pannage uses its area share here because
+ * mast is authoritative only at holding level; the actual pig limit still uses
+ * mature trees inside the complete set of drawn polygons.
+ */
+export function allocateLivestockVisualPastures<
+  T extends Pick<PastureState, 'area' | 'averageSlopeDegrees' | 'moisture'>,
+>(
+  pastures: readonly T[],
+  species: LivestockSpecies,
+  visualCount: number,
+): T[] {
+  const count = Math.max(0, Math.floor(visualCount));
+  if (count === 0 || pastures.length === 0) return [];
+
+  const weights = pastures.map((pasture) => Math.max(
+    0,
+    species === 'swine'
+      ? pastureAreaHeadCapacity(pasture, species)
+      : neutralPastureHeadCapacity(pasture, species) ?? 0,
+  ));
+  const totalWeight = weights.reduce((sum, weight) => sum + weight, 0);
+  if (totalWeight <= 1e-9) {
+    return Array.from({ length: count }, (_, index) => pastures[index % pastures.length]!);
+  }
+
+  const assignments: T[] = [];
+  let pastureIndex = 0;
+  let cumulativeWeight = weights[0]!;
+  for (let index = 0; index < count; index += 1) {
+    const targetWeight = ((index + 0.5) / count) * totalWeight;
+    while (pastureIndex < pastures.length - 1 && targetWeight > cumulativeWeight) {
+      pastureIndex += 1;
+      cumulativeWeight += weights[pastureIndex]!;
+    }
+    assignments.push(pastures[pastureIndex]!);
+  }
+  return assignments;
 }
 
 /** Close-world, rigged animals for authoritative livestock herds. */
@@ -230,8 +275,13 @@ export class LivestockVisuals {
       const cattleDistribution = herd.species === 'cattle'
         ? createCattleVisualDistribution(visualCount)
         : null;
+      const visualPastures = allocateLivestockVisualPastures(
+        pastures,
+        herd.species,
+        visualCount,
+      );
       for (let index = 0; index < visualCount; index++) {
-        const pasture = pastures[index % pastures.length]!;
+        const pasture = visualPastures[index]!;
         const modelKind = cattleDistribution?.[index] ?? resolveModelKind(herd.species);
         this.addAnimal(herd, pasture, index, modelKind);
       }

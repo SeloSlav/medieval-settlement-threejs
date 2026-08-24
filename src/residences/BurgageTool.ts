@@ -1064,7 +1064,10 @@ export class BurgageTool {
     const candidateFilter = (candidate: { x: number; z: number }) => (
       this.backPointMeetsMinimumDepth(candidate)
     );
-    const snapped = this.placementStage === 3 && this.points.length === 3
+    const snapped = (
+      (this.placementStage === 2 && this.points.length === 2)
+      || (this.placementStage === 3 && this.points.length === 3)
+    )
       ? snapBurgageBoundaryDraftPoint(
           point,
           this.points,

@@ -371,7 +371,10 @@ export function renderLivestockBuildingInspector(
     : herd?.species === 'sheep'
       ? SHEEP_STARTER_HERD
       : SWINE_STARTER_HERD;
-  const starterOrder = Math.min(starterTarget, availableStockingSlots);
+  const starterOrder = Math.min(
+    Math.max(0, starterTarget - (herd?.headCount ?? 0)),
+    availableStockingSlots,
+  );
   const treasuryGold = Math.max(0, context.resourceTotals.gold);
   const canChangeSpecies = !herd || (herd.headCount === 0 && pastures.length === 0);
 
@@ -437,7 +440,9 @@ export function renderLivestockBuildingInspector(
     : '';
   const haymakingForecastHint = !fodderPlan
     ? ''
-    : building.assignedLabor <= 0
+    : fodderPlan.hayStock + 0.05 >= LIVESTOCK_HAY_STORAGE_CAPACITY
+      ? 'The loft is full, so designated meadow has returned to grazing until hay is consumed.'
+      : building.assignedLabor <= 0
       ? 'The meadow allocation is configured, but no hay is cut while the holding is unstaffed.'
       : isLivestockHaymakingMonth(month)
         ? `${fodderPlan.haymakingDaysRemaining} cutting days remain at current staffing, projecting ${fodderPlan.projectedHayStock.toFixed(1)} / ${LIVESTOCK_HAY_STORAGE_CAPACITY} in the loft; drought can reduce the cut.`
@@ -491,7 +496,9 @@ export function renderLivestockBuildingInspector(
     : `${fodderPlan.projectedHeadCount} head after planned culls · ${fodderPlan.winterPastureCapacity.toFixed(1)} pasture-supported · ${fodderPlan.winterUnsupportedHeads.toFixed(1)} need stored fodder`;
   const haymakingPlan = !fodderPlan || herd?.species === 'swine'
     ? 'Pigs depend on woodland mast and emergency grain'
-    : `${fodderPlan.haymakingPercent}% of summer pasture · ${fodderPlan.summerReservedCapacity.toFixed(1)} head-capacity · ${fodderPlan.hayOutputPerDay.toFixed(1)} produced fodder / day ${isLivestockHaymakingMonth(month) ? 'now' : 'in season'}`;
+    : fodderPlan.hayStock + 0.05 >= LIVESTOCK_HAY_STORAGE_CAPACITY
+      ? `${fodderPlan.haymakingPercent}% policy · loft full, so all meadow is grazing again`
+      : `${fodderPlan.haymakingPercent}% of summer pasture · ${fodderPlan.summerReservedCapacity.toFixed(1)} head-capacity · ${fodderPlan.hayOutputPerDay.toFixed(1)} produced fodder / day ${isLivestockHaymakingMonth(month) ? 'now' : 'in season'}`;
   const winterHayReserve = !fodderPlan || herd?.species === 'swine'
     ? 'Not used by woodland pigs'
     : `${Math.round(fodderPlan.hayStock)} stored · ${Math.floor(fodderPlan.projectedHayStock)} projected at winter / ${Math.ceil(fodderPlan.winterHayNeed)} needed · ${formatProvisionRunway(fodderPlan.winterHayRunwayDays)}`;
