@@ -1,14 +1,13 @@
 use spacetimedb::ReducerContext;
 
 use crate::balance_generated::{
-    CHAPEL_CHARITY_MIN_COFFER_GOLD, CHAPEL_POOR_RELIEF_GOLD_PER_DISPATCH,
-    HOUSEHOLD_MAX_WEALTH, MARKET_CARAVAN_FOOD_PER_DELIVERY, TICK_DT,
-    TIMBER_DELIVERY_SPEED_MPS, TIMBER_DELIVERY_UNLOAD_SEC,
+    CHAPEL_CHARITY_MIN_COFFER_GOLD, CHAPEL_POOR_RELIEF_GOLD_PER_DISPATCH, HOUSEHOLD_MAX_WEALTH,
+    MARKET_CARAVAN_FOOD_PER_DELIVERY, TICK_DT, TIMBER_DELIVERY_SPEED_MPS,
+    TIMBER_DELIVERY_UNLOAD_SEC,
 };
 use crate::chapel_parish_policy::{
-    chapel_alms_dispatch_amount, chapel_alms_dispatch_interval_seconds,
-    chapel_monthly_expense_due, chapel_poor_relief_due, chapel_priest_salary_lot,
-    chapel_upkeep_lot,
+    chapel_alms_dispatch_amount, chapel_alms_dispatch_interval_seconds, chapel_monthly_expense_due,
+    chapel_poor_relief_due, chapel_priest_salary_lot, chapel_upkeep_lot,
 };
 use crate::db::*;
 use crate::economy::building_edible_food_stock;
@@ -110,26 +109,22 @@ fn step_one_chapel_parish(
             chapel_row.action_cooldown = (chapel_row.action_cooldown - TICK_DT).max(0.0);
         }
         let coffer_balance = chapel_coffer_gold(&chapel_row);
-        if assigned_labor > 0 && coffer_balance >= CHAPEL_CHARITY_MIN_COFFER_GOLD {
+        if assigned_labor > 0
+            && coffer_balance >= CHAPEL_CHARITY_MIN_COFFER_GOLD
+            && chapel_row.action_cooldown <= 1e-9
+        {
             if physical_economy {
-                if chapel_row.action_cooldown <= 1e-9 {
-                    let alms_dispatched = try_chapel_alms_delivery(
-                        ctx,
-                        tick,
-                        clock,
-                        &mut chapel_row,
-                        residences,
-                        chapel_alms_dispatch_amount(),
-                    );
-                    if alms_dispatched > 1e-9 {
-                        record_parish_ledger(
-                            ctx,
-                            owner,
-                            ParishLedgerKind::Charity,
-                            alms_dispatched,
-                        );
-                        chapel_row.action_cooldown = chapel_alms_dispatch_interval_seconds();
-                    }
+                let alms_dispatched = try_chapel_alms_delivery(
+                    ctx,
+                    tick,
+                    clock,
+                    &mut chapel_row,
+                    residences,
+                    chapel_alms_dispatch_amount(),
+                );
+                if alms_dispatched > 1e-9 {
+                    record_parish_ledger(ctx, owner, ParishLedgerKind::Charity, alms_dispatched);
+                    chapel_row.action_cooldown = chapel_alms_dispatch_interval_seconds();
                 }
             } else {
                 let alms_distributed = distribute_wealth_charity(
@@ -144,25 +139,20 @@ fn step_one_chapel_parish(
                     chapel_row.action_cooldown = chapel_alms_dispatch_interval_seconds();
                 }
             }
+        }
 
-            if chapel_poor_relief_due(sim_tick)
-                && chapel_coffer_gold(&chapel_row) >= CHAPEL_CHARITY_MIN_COFFER_GOLD
-            {
-                let relief_budget = whole_units(
-                    chapel_coffer_gold(&chapel_row).min(CHAPEL_POOR_RELIEF_GOLD_PER_DISPATCH),
-                );
-                let relief_spent = try_chapel_poor_relief(
-                    ctx,
-                    tick,
-                    clock,
-                    &chapel_row,
-                    residences,
-                    relief_budget,
-                );
-                if relief_spent > 1e-9 {
-                    let relief_paid = withdraw_coffer_in_place(&mut chapel_row, relief_spent);
-                    record_parish_ledger(ctx, owner, ParishLedgerKind::Charity, relief_paid);
-                }
+        if assigned_labor > 0
+            && chapel_poor_relief_due(sim_tick)
+            && chapel_coffer_gold(&chapel_row) >= CHAPEL_CHARITY_MIN_COFFER_GOLD
+        {
+            let relief_budget = whole_units(
+                chapel_coffer_gold(&chapel_row).min(CHAPEL_POOR_RELIEF_GOLD_PER_DISPATCH),
+            );
+            let relief_spent =
+                try_chapel_poor_relief(ctx, tick, clock, &chapel_row, residences, relief_budget);
+            if relief_spent > 1e-9 {
+                let relief_paid = withdraw_coffer_in_place(&mut chapel_row, relief_spent);
+                record_parish_ledger(ctx, owner, ParishLedgerKind::Charity, relief_paid);
             }
         }
     }
@@ -371,8 +361,7 @@ mod tests {
 
     #[test]
     fn priest_salary_is_one_whole_monthly_lot() {
-        let expected =
-            (CHAPEL_PRIEST_SALARY_GOLD_PER_DAY * CALENDAR_DAYS_PER_MONTH as f64).round();
+        let expected = (CHAPEL_PRIEST_SALARY_GOLD_PER_DAY * CALENDAR_DAYS_PER_MONTH as f64).round();
         assert_eq!(chapel_priest_salary_lot(1), expected);
         assert_eq!(chapel_priest_salary_lot(1).fract(), 0.0);
         assert_eq!(chapel_priest_salary_lot(0), 0.0);

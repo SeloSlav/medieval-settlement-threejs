@@ -59,7 +59,8 @@ const parishSimulation = readFileSync(
   'utf8',
 );
 assert.match(parishSimulation, /if !economy_active\s*\{\s*return/);
-assert.match(parishSimulation, /if economy_active\s*\{[\s\S]{0,500}chapel_priest_salary_per_tick/);
+assert.match(parishSimulation, /if economy_active\s*\{[\s\S]{0,800}chapel_monthly_expense_due[\s\S]{0,300}chapel_priest_salary_lot/);
+assert.doesNotMatch(parishSimulation, /salary_per_tick|upkeep_per_tick|charity_per_tick/);
 assert.doesNotMatch(parishSimulation, /auto_sweep|try_start_chapel_treasury_trip|credit_treasury_gold/);
 const buildingReducers = readFileSync(
   new URL('../server/src/reducers/buildings.rs', import.meta.url),

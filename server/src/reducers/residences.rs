@@ -31,6 +31,7 @@ use crate::placement_validation::{
     burgage_zone_has_road_frontage, burgage_zone_overlaps_buildings, zone_overlaps_resource_deposit,
 };
 use crate::residence_service_policy::{required_chapel_tier, service_shortage_blocks_upgrade};
+use crate::resource_units::whole_units;
 use crate::residence_upgrade_policy::{
     household_stock_satisfies_promotion_need, residence_project_active, residence_promotion_needs,
     residence_upgrade_household_contribution,
@@ -881,7 +882,7 @@ pub fn demolish_residence(ctx: &ReducerContext, residence_id: u64) -> Result<(),
         0
     });
     let recover_project_materials = !fire_damaged || residence.fire_repair_active;
-    let salvaged_roof_tiles = ((if residence.tiled_roof {
+    let salvaged_roof_tiles = whole_units((if recover_project_materials && residence.tiled_roof {
         RESIDENCE_TILE_ROOF_TILE_COST
     } else {
         0.0
@@ -889,25 +890,22 @@ pub fn demolish_residence(ctx: &ReducerContext, residence_id: u64) -> Result<(),
         residence.upgrade_delivered_roof_tiles
     } else {
         0.0
-    }) * RESIDENCE_TILE_ROOF_SALVAGE_FRACTION)
-        .round();
+    }) * RESIDENCE_TILE_ROOF_SALVAGE_FRACTION);
     let salvage = ResourceAmount {
-        timber: ((refund.timber
+        timber: whole_units((refund.timber
             + if recover_project_materials {
                 residence.upgrade_delivered_timber
             } else {
                 0.0
             })
-            * TIMBER_SALVAGE_FRACTION)
-            .round(),
-        stone: ((refund.stone
+            * TIMBER_SALVAGE_FRACTION),
+        stone: whole_units((refund.stone
             + if recover_project_materials {
                 residence.upgrade_delivered_stone
             } else {
                 0.0
             })
-            * STONE_SALVAGE_FRACTION)
-            .round(),
+            * STONE_SALVAGE_FRACTION),
         ironwork: 0.0,
         roof_tiles: 0.0,
     };

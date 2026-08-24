@@ -21,10 +21,9 @@ use crate::construction_priority::{
 use crate::db::*;
 use crate::economy::{
     assign_building_labor as set_building_labor, available_building_labor, building_commodity_cap,
-    building_commodity_stock, building_cost, building_salvage_refund,
-    construction_treasury_reservation, credit_treasury_commodity, credit_treasury_firewood,
-    credit_treasury_food, credit_treasury_gold, credit_treasury_stone, credit_treasury_timber,
-    credit_treasury_water, guardhouse_roster_count, guardhouse_roster_floors,
+    building_commodity_stock, building_cost,
+    construction_treasury_reservation, credit_treasury_commodity, guardhouse_roster_count,
+    guardhouse_roster_floors,
     initial_construction_labor, spend_aggregate_ironwork, spend_aggregate_roof_tiles,
     spend_aggregate_stone, spend_aggregate_timber, spend_treasury_gold, total_ironwork,
     total_roof_tiles, total_stone, total_timber, CommodityKind,
@@ -72,7 +71,7 @@ use crate::processor_output_policy::{
     processor_output_kind, ProcessorInputKind, ProcessorOutputKind,
     PROCESSOR_OUTPUT_TARGET_DEFAULT_PERCENT,
 };
-use crate::resource_units::whole_cost;
+use crate::resource_units::{whole_cost, whole_units};
 use crate::roads::load_owner_road_network;
 use crate::seasonal_labor_policy::seasonal_production_active;
 use crate::simulation::{
@@ -81,7 +80,7 @@ use crate::simulation::{
     cancel_inbound_construction_trips_for_site, clear_fire_for_target, drain_trips_for_building,
     game_clock, local_delivery_distance, owner_has_staffed_town_hall,
     preserve_in_transit_cart_labor, recall_idle_seasonal_labor_for_owner,
-    staffed_cart_workers_by_building, FIRE_TARGET_BUILDING,
+    staffed_cart_workers_by_building, ReclamationStock, FIRE_TARGET_BUILDING,
 };
 use crate::specialty_trade_policy::{is_valid_specialty_export_policy, SpecialtyMarketFamily};
 use crate::storage_acceptance_policy::{
@@ -394,7 +393,7 @@ fn founders_camp_gold_refund(
     }
     let paid_gold = whole_cost(cost_gold);
     if construction_complete {
-        (paid_gold * GOLD_SALVAGE_FRACTION).round()
+        whole_units(paid_gold * GOLD_SALVAGE_FRACTION)
     } else {
         paid_gold
     }
@@ -3120,25 +3119,38 @@ pub fn demolish_building(ctx: &ReducerContext, building_id: u64) -> Result<(), S
             roof_tiles: 0.0,
         }
     } else if building.construction_complete {
-        building_salvage_refund(&building.kind)?
+        let cost = building_cost(&building.kind)?;
+        crate::economy::ResourceAmount {
+            timber: whole_units(cost.timber * crate::balance_generated::TIMBER_SALVAGE_FRACTION),
+            stone: whole_units(cost.stone * crate::balance_generated::STONE_SALVAGE_FRACTION),
+            ironwork: whole_units(
+                cost.ironwork * crate::balance_generated::IRONWORK_SALVAGE_FRACTION,
+            ),
+            roof_tiles: whole_units(
+                cost.roof_tiles
+                    * crate::balance_generated::RESIDENCE_TILE_ROOF_SALVAGE_FRACTION,
+            ),
+        }
     } else {
         crate::economy::ResourceAmount {
-            timber: (building.construction_delivered_timber
-                * crate::balance_generated::TIMBER_SALVAGE_FRACTION)
-                .round(),
-            stone: (building.construction_delivered_stone
-                * crate::balance_generated::STONE_SALVAGE_FRACTION)
-                .round(),
-            ironwork: (building.construction_delivered_ironwork
-                * crate::balance_generated::IRONWORK_SALVAGE_FRACTION)
-                .round(),
-            roof_tiles: (building.construction_delivered_roof_tiles
-                * crate::balance_generated::RESIDENCE_TILE_ROOF_SALVAGE_FRACTION)
-                .round(),
+            timber: whole_units(
+                building.construction_delivered_timber
+                    * crate::balance_generated::TIMBER_SALVAGE_FRACTION,
+            ),
+            stone: whole_units(
+                building.construction_delivered_stone
+                    * crate::balance_generated::STONE_SALVAGE_FRACTION,
+            ),
+            ironwork: whole_units(
+                building.construction_delivered_ironwork
+                    * crate::balance_generated::IRONWORK_SALVAGE_FRACTION,
+            ),
+            roof_tiles: whole_units(
+                building.construction_delivered_roof_tiles
+                    * crate::balance_generated::RESIDENCE_TILE_ROOF_SALVAGE_FRACTION,
+            ),
         }
     };
-    let recoverable = if fire_damaged { 0.0 } else { 1.0 };
-
     if building.kind == "trading_post" {
         for rule in ctx
             .db
@@ -3194,54 +3206,25 @@ pub fn demolish_building(ctx: &ReducerContext, building_id: u64) -> Result<(), S
         .find(&owner)
         .is_some_and(|resources| resources.physical_founding_site_enabled);
     if physical_reclamation {
+        let recovered_inventory = if fire_damaged {
+            ReclamationStock::default()
+        } else {
+            ReclamationStock::from_building(&building)
+        };
+        let recovered_inventory = recovered_inventory.merged(ReclamationStock {
+            timber: refund.timber,
+            stone: refund.stone,
+            ironwork: refund.ironwork,
+            roof_tiles: refund.roof_tiles,
+            gold: gold_refund,
+            ..ReclamationStock::default()
+        });
         let salvage_def = building_def("salvage_pile")
             .ok_or_else(|| "Reclamation pile balance is missing.".to_string())?;
-        ctx.db.building().id().update(Building {
+        let mut pile = Building {
             kind: "salvage_pile".into(),
             work_radius: salvage_def.work_radius,
             action_cooldown: 0.0,
-            timber: refund.timber + building.timber * recoverable,
-            firewood: building.firewood * recoverable,
-            stone: refund.stone + building.stone * recoverable,
-            water: building.water * recoverable,
-            food: building.food * recoverable,
-            ale: building.ale * recoverable,
-            preserved_food: building.preserved_food * recoverable,
-            honey: building.honey * recoverable,
-            wine: building.wine * recoverable,
-            ironwork: refund.ironwork + building.ironwork * recoverable,
-            roof_tiles: refund.roof_tiles + building.roof_tiles * recoverable,
-            polearms: building.polearms * recoverable,
-            wool: building.wool * recoverable,
-            cloth: building.cloth * recoverable,
-            barley: building.barley * recoverable,
-            malt: building.malt * recoverable,
-            flax: building.flax * recoverable,
-            meat: building.meat * recoverable,
-            fish: building.fish * recoverable,
-            berries: building.berries * recoverable,
-            mushrooms: building.mushrooms * recoverable,
-            milk: building.milk * recoverable,
-            apples: building.apples * recoverable,
-            cherries: building.cherries * recoverable,
-            vegetables: building.vegetables * recoverable,
-            eggs: building.eggs * recoverable,
-            grapes: building.grapes * recoverable,
-            cured_meat: building.cured_meat * recoverable,
-            smoked_fish: building.smoked_fish * recoverable,
-            cheese: building.cheese * recoverable,
-            rye_sheaves: building.rye_sheaves * recoverable,
-            oat_sheaves: building.oat_sheaves * recoverable,
-            barley_sheaves: building.barley_sheaves * recoverable,
-            maslin_sheaves: building.maslin_sheaves * recoverable,
-            rye_grain: building.rye_grain * recoverable,
-            oat_grain: building.oat_grain * recoverable,
-            maslin_grain: building.maslin_grain * recoverable,
-            rye_flour: building.rye_flour * recoverable,
-            maslin_flour: building.maslin_flour * recoverable,
-            rye_bread: building.rye_bread * recoverable,
-            maslin_bread: building.maslin_bread * recoverable,
-            gold: gold_refund + building.gold * recoverable,
             water_capacity: 0.0,
             assigned_labor: 0,
             construction_complete: true,
@@ -3272,187 +3255,33 @@ pub fn demolish_building(ctx: &ReducerContext, building_id: u64) -> Result<(), S
             remote_work_camp_enabled: false,
             linked_worksite_id: 0,
             ..building
-        });
+        };
+        recovered_inventory.replace_building_inventory(&mut pile);
+        ctx.db.building().id().update(pile);
         return Ok(());
     }
 
     // Legacy saves retain their abstract refunds. Remove the source before
     // crediting recovered cargo so it cannot receive its own refund.
     let trip_cargo = drain_trips_for_building(ctx, building_id);
+    let recovered_inventory = if fire_damaged {
+        ReclamationStock::default()
+    } else {
+        ReclamationStock::from_building(&building)
+            .merged(ReclamationStock::from_delivery_cargo(&trip_cargo))
+    }
+    .merged(ReclamationStock {
+        timber: refund.timber,
+        stone: refund.stone,
+        ironwork: refund.ironwork,
+        roof_tiles: refund.roof_tiles,
+        gold: gold_refund,
+        ..ReclamationStock::default()
+    });
     ctx.db.building().id().delete(building_id);
 
-    credit_treasury_timber(
-        ctx,
-        owner,
-        refund.timber + (building.timber + trip_cargo.timber) * recoverable,
-    );
-    credit_treasury_stone(
-        ctx,
-        owner,
-        refund.stone + (building.stone + trip_cargo.stone) * recoverable,
-    );
-    credit_treasury_firewood(
-        ctx,
-        owner,
-        (building.firewood + trip_cargo.firewood) * recoverable,
-    );
-    credit_treasury_water(
-        ctx,
-        owner,
-        (building.water + trip_cargo.water) * recoverable,
-    );
-    credit_treasury_food(ctx, owner, (building.food + trip_cargo.food) * recoverable);
-    credit_treasury_gold(ctx, owner, gold_refund + building.gold * recoverable);
-    credit_treasury_commodity(
-        ctx,
-        owner,
-        CommodityKind::Ale,
-        (building.ale + trip_cargo.ale) * recoverable,
-    );
-    credit_treasury_commodity(
-        ctx,
-        owner,
-        CommodityKind::PreservedFood,
-        (building.preserved_food + trip_cargo.preserved_food) * recoverable,
-    );
-    credit_treasury_commodity(
-        ctx,
-        owner,
-        CommodityKind::Honey,
-        (building.honey + trip_cargo.honey) * recoverable,
-    );
-    credit_treasury_commodity(
-        ctx,
-        owner,
-        CommodityKind::Wine,
-        (building.wine + trip_cargo.wine) * recoverable,
-    );
-    credit_treasury_commodity(
-        ctx,
-        owner,
-        CommodityKind::Ironwork,
-        refund.ironwork + (building.ironwork + trip_cargo.ironwork) * recoverable,
-    );
-    credit_treasury_commodity(
-        ctx,
-        owner,
-        CommodityKind::RoofTiles,
-        refund.roof_tiles + (building.roof_tiles + trip_cargo.roof_tiles) * recoverable,
-    );
-    credit_treasury_commodity(
-        ctx,
-        owner,
-        CommodityKind::Polearms,
-        (building.polearms + trip_cargo.polearms) * recoverable,
-    );
-    credit_treasury_commodity(
-        ctx,
-        owner,
-        CommodityKind::Wool,
-        (building.wool + trip_cargo.wool) * recoverable,
-    );
-    credit_treasury_commodity(
-        ctx,
-        owner,
-        CommodityKind::Cloth,
-        (building.cloth + trip_cargo.cloth) * recoverable,
-    );
-    credit_treasury_commodity(
-        ctx,
-        owner,
-        CommodityKind::Barley,
-        (building.barley + trip_cargo.barley) * recoverable,
-    );
-    credit_treasury_commodity(
-        ctx,
-        owner,
-        CommodityKind::Malt,
-        (building.malt + trip_cargo.malt) * recoverable,
-    );
-    credit_treasury_commodity(
-        ctx,
-        owner,
-        CommodityKind::Flax,
-        (building.flax + trip_cargo.flax) * recoverable,
-    );
-    for (commodity, amount) in [
-        (
-            CommodityKind::RyeSheaves,
-            building.rye_sheaves + trip_cargo.rye_sheaves,
-        ),
-        (
-            CommodityKind::OatSheaves,
-            building.oat_sheaves + trip_cargo.oat_sheaves,
-        ),
-        (
-            CommodityKind::BarleySheaves,
-            building.barley_sheaves + trip_cargo.barley_sheaves,
-        ),
-        (
-            CommodityKind::MaslinSheaves,
-            building.maslin_sheaves + trip_cargo.maslin_sheaves,
-        ),
-        (
-            CommodityKind::RyeGrain,
-            building.rye_grain + trip_cargo.rye_grain,
-        ),
-        (
-            CommodityKind::OatGrain,
-            building.oat_grain + trip_cargo.oat_grain,
-        ),
-        (
-            CommodityKind::MaslinGrain,
-            building.maslin_grain + trip_cargo.maslin_grain,
-        ),
-        (
-            CommodityKind::RyeFlour,
-            building.rye_flour + trip_cargo.rye_flour,
-        ),
-        (
-            CommodityKind::MaslinFlour,
-            building.maslin_flour + trip_cargo.maslin_flour,
-        ),
-        (
-            CommodityKind::RyeBread,
-            building.rye_bread + trip_cargo.rye_bread,
-        ),
-        (
-            CommodityKind::MaslinBread,
-            building.maslin_bread + trip_cargo.maslin_bread,
-        ),
-        (CommodityKind::Meat, building.meat + trip_cargo.meat),
-        (CommodityKind::Fish, building.fish + trip_cargo.fish),
-        (
-            CommodityKind::Berries,
-            building.berries + trip_cargo.berries,
-        ),
-        (
-            CommodityKind::Mushrooms,
-            building.mushrooms + trip_cargo.mushrooms,
-        ),
-        (CommodityKind::Milk, building.milk + trip_cargo.milk),
-        (CommodityKind::Apples, building.apples + trip_cargo.apples),
-        (
-            CommodityKind::Cherries,
-            building.cherries + trip_cargo.cherries,
-        ),
-        (
-            CommodityKind::Vegetables,
-            building.vegetables + trip_cargo.vegetables,
-        ),
-        (CommodityKind::Eggs, building.eggs + trip_cargo.eggs),
-        (CommodityKind::Grapes, building.grapes + trip_cargo.grapes),
-        (
-            CommodityKind::CuredMeat,
-            building.cured_meat + trip_cargo.cured_meat,
-        ),
-        (
-            CommodityKind::SmokedFish,
-            building.smoked_fish + trip_cargo.smoked_fish,
-        ),
-        (CommodityKind::Cheese, building.cheese + trip_cargo.cheese),
-    ] {
-        credit_treasury_commodity(ctx, owner, commodity, amount * recoverable);
+    for commodity in ReclamationStock::commodities() {
+        credit_treasury_commodity(ctx, owner, commodity, recovered_inventory.amount(commodity));
     }
 
     Ok(())

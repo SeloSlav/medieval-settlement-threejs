@@ -17,6 +17,7 @@ use crate::db::*;
 use crate::economy::{
     credit_treasury_gold, deposit_building_commodity, trade_resource_for_commodity, CommodityKind,
 };
+use crate::resource_units::whole_units;
 use crate::tables::Building;
 
 fn physical_trade_staging_enabled(ctx: &ReducerContext, owner: spacetimedb::Identity) -> bool {
@@ -35,7 +36,8 @@ pub(crate) fn credit_marketplace_receipt_gold(
     marketplace: &mut Building,
     amount: f64,
 ) {
-    if !amount.is_finite() || amount <= 1e-6 {
+    let amount = whole_units(amount);
+    if amount < 1.0 {
         return;
     }
     if physical_trade_staging_enabled(ctx, marketplace.owner) {
@@ -70,7 +72,8 @@ pub(crate) fn settle_regional_market_export(
                 && building.construction_complete
         })
         .ok_or_else(|| "The regional specialty export site no longer exists.".to_string())?;
-    if !sold_amount.is_finite() || sold_amount < 0.0 {
+    let sold_amount = whole_units(sold_amount);
+    if sold_amount < 1.0 {
         return Err("The regional export load is invalid.".to_string());
     }
 
@@ -122,6 +125,12 @@ pub(crate) fn settle_regional_market_export(
         specialty_price_multiplier_for_commodity(&market, sold_commodity)
             .ok_or_else(|| "The specialty cargo has no regional market family.".to_string())?
     };
+    let gold_receipt = whole_units(sold_amount * gold_per_unit * market_rate.max(0.0));
+    if gold_receipt < 1.0 {
+        return Err(
+            "The regional buyer cannot offer a whole gold coin for this cargo.".to_string(),
+        );
+    }
     if let Some(resource) = ordinary_resource {
         record_market_trade(
             ctx,
@@ -133,8 +142,5 @@ pub(crate) fn settle_regional_market_export(
     } else {
         record_specialty_market_export(ctx, owner, sold_commodity, sold_amount);
     }
-    Ok((
-        CommodityKind::Gold,
-        sold_amount * gold_per_unit * market_rate.max(0.0),
-    ))
+    Ok((CommodityKind::Gold, gold_receipt))
 }

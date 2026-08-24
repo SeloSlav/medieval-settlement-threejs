@@ -6,8 +6,8 @@ use crate::balance_generated::{
     CHAPEL_UPKEEP_GOLD_PER_DAY, TICK_DT,
 };
 use crate::holiday_calendar::holiday_for_date;
-use crate::resource_units::whole_units;
 use crate::residence_consumption_policy::monthly_household_bill_due;
+use crate::resource_units::whole_units;
 use crate::simulation::{game_clock, GameClock};
 
 /// Configured "per day" parish rates accrue only while the parish office is
@@ -78,10 +78,10 @@ pub fn chapel_upkeep_lot(assigned_labor: u32) -> f64 {
     chapel_monthly_gold_lot(daily)
 }
 
-/// A physical-economy chapel batches its small continuous alms budget into one
-/// purse per parish workday. The cooldown is stored on the chapel's existing
-/// action clock, so a blocked courier order remains due without another save
-/// field and long routes reduce the realized charity rate.
+/// A chapel accrues its small continuous alms budget until one whole coin can
+/// fill a purse. The cooldown is stored on the chapel's existing action clock,
+/// so a blocked courier order remains due without another save field and long
+/// routes reduce the realized charity rate.
 pub fn chapel_alms_dispatch_amount() -> f64 {
     if CHAPEL_CHARITY_GOLD_PER_DAY > 0.0 {
         1.0

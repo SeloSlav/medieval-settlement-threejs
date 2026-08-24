@@ -21,6 +21,7 @@ use crate::simulation::delivery_trips::{
     available_free_haulers, building_has_active_trip, building_has_inbound_supply_trip,
     try_start_free_building_supply_trip,
 };
+use crate::simulation::delivery_cargo::DeliveryCargoTotals;
 use crate::simulation::road_logistics::local_delivery_distance;
 use crate::simulation::{labor_and_logistics_paused, GameClock, SimTickContext};
 use crate::tables::{Building, PlayerResources, WorldConfig};
@@ -506,6 +507,80 @@ impl ReclamationStock {
         })
     }
 
+    /// Capture cart cargo before a source or destination row is retired.
+    pub fn from_delivery_cargo(cargo: &DeliveryCargoTotals) -> Self {
+        Self {
+            timber: cargo.timber,
+            firewood: cargo.firewood,
+            stone: cargo.stone,
+            water: cargo.water,
+            food: cargo.food,
+            ale: cargo.ale,
+            cider: cargo.cider,
+            pear_cider: cargo.pear_cider,
+            mead: cargo.mead,
+            preserved_food: cargo.preserved_food,
+            honey: cargo.honey,
+            wine: cargo.wine,
+            ironwork: cargo.ironwork,
+            polearms: cargo.polearms,
+            wool: cargo.wool,
+            cloth: cargo.cloth,
+            hides: cargo.hides,
+            leather: cargo.leather,
+            shoes: cargo.shoes,
+            gold: cargo.gold,
+            barley: cargo.barley,
+            malt: cargo.malt,
+            flax: cargo.flax,
+            iron: cargo.iron,
+            clay: cargo.clay,
+            salt: cargo.salt,
+            charcoal: cargo.charcoal,
+            pottery: cargo.pottery,
+            manure: cargo.manure,
+            remedies: cargo.remedies,
+            roof_tiles: cargo.roof_tiles,
+            meat: cargo.meat,
+            fish: cargo.fish,
+            berries: cargo.berries,
+            mushrooms: cargo.mushrooms,
+            milk: cargo.milk,
+            apples: cargo.apples,
+            cherries: cargo.cherries,
+            vegetables: cargo.vegetables,
+            eggs: cargo.eggs,
+            grapes: cargo.grapes,
+            cured_meat: cargo.cured_meat,
+            smoked_fish: cargo.smoked_fish,
+            cheese: cargo.cheese,
+            rye_sheaves: cargo.rye_sheaves,
+            oat_sheaves: cargo.oat_sheaves,
+            barley_sheaves: cargo.barley_sheaves,
+            maslin_sheaves: cargo.maslin_sheaves,
+            rye_grain: cargo.rye_grain,
+            oat_grain: cargo.oat_grain,
+            maslin_grain: cargo.maslin_grain,
+            rye_flour: cargo.rye_flour,
+            maslin_flour: cargo.maslin_flour,
+            rye_bread: cargo.rye_bread,
+            maslin_bread: cargo.maslin_bread,
+            pears: cargo.pears,
+            aronia: cargo.aronia,
+            rosehips: cargo.rosehips,
+            cabbage: cargo.cabbage,
+            carrots: cargo.carrots,
+            beetroot: cargo.beetroot,
+            aronia_jam: cargo.aronia_jam,
+            rosehip_jam: cargo.rosehip_jam,
+        }
+        .normalized()
+    }
+
+    pub fn commodities() -> [CommodityKind; 63] {
+        RECOVERY_ORDER
+    }
+
     /// Merge two recovery ledgers without creating fractional cargo.
     pub fn merged(self, other: Self) -> Self {
         let mut merged = self.normalized();
@@ -658,7 +733,7 @@ impl ReclamationStock {
         .normalized()
     }
 
-    fn amount(self, commodity: CommodityKind) -> f64 {
+    pub fn amount(self, commodity: CommodityKind) -> f64 {
         match commodity {
             CommodityKind::Timber => self.timber,
             CommodityKind::Firewood => self.firewood,

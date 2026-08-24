@@ -7,6 +7,7 @@ use crate::fiscal_policy::{
     clamp_export_duty_rate, normalize_monastery_levy_rate, split_private_export_receipt,
     PrivateExportSplit,
 };
+use crate::resource_units::{whole_cost, whole_transfer, whole_units};
 use crate::tables::Building;
 
 use super::{
@@ -45,24 +46,76 @@ pub fn player_monastery_levy_rate(ctx: &ReducerContext, owner: spacetimedb::Iden
 }
 
 pub fn private_export_proceeds(building: &Building) -> f64 {
-    building
-        .private_export_proceeds_gold
-        .max(0.0)
-        .min((building.gold - building.civic_receipts_gold.max(0.0)).max(0.0))
+    whole_units(building.private_export_proceeds_gold).min(
+        (whole_units(building.gold) - whole_units(building.civic_receipts_gold)).max(0.0),
+    )
 }
 
 pub fn withdraw_private_export_proceeds(building: &mut Building, amount: f64) -> f64 {
-    let withdrawn = private_export_proceeds(building).min(amount.max(0.0));
-    building.private_export_proceeds_gold =
-        (private_export_proceeds(building) - withdrawn).max(0.0);
-    building.gold = (building.gold - withdrawn).max(0.0);
+    let available = private_export_proceeds(building);
+    let withdrawn = whole_transfer(available, amount);
+    building.private_export_proceeds_gold = available - withdrawn;
+    building.gold = whole_units(building.gold) - withdrawn;
     withdrawn
 }
 
 pub fn restore_private_export_proceeds(building: &mut Building, amount: f64) {
-    let restored = amount.max(0.0).min(building.gold.max(0.0));
-    building.private_export_proceeds_gold =
-        (private_export_proceeds(building) + restored).min(building.gold.max(0.0));
+    let gold = whole_units(building.gold);
+    let civic = whole_units(building.civic_receipts_gold).min(gold);
+    let private = private_export_proceeds(building);
+    let unpledged_room = (gold - civic - private).max(0.0);
+    let restored = whole_transfer(unpledged_room, amount);
+    building.private_export_proceeds_gold = private + restored;
+}
+
+/// Hamilton apportionment for indivisible coins. Every coin is assigned once,
+/// while stable ids break equal-remainder ties deterministically for replay.
+fn apportion_whole_coins(amount: f64, weighted_ids: &[(u64, u32)]) -> Vec<(u64, f64)> {
+    let coins = whole_units(amount) as u64;
+    let total_weight = weighted_ids
+        .iter()
+        .map(|(_, weight)| *weight as u128)
+        .sum::<u128>();
+    if coins == 0 || total_weight == 0 {
+        return weighted_ids.iter().map(|(id, _)| (*id, 0.0)).collect();
+    }
+
+    let mut allocations = Vec::with_capacity(weighted_ids.len());
+    let mut assigned = 0_u64;
+    for (id, weight) in weighted_ids {
+        let numerator = coins as u128 * *weight as u128;
+        let base = (numerator / total_weight) as u64;
+        let remainder = numerator % total_weight;
+        assigned = assigned.saturating_add(base);
+        allocations.push((*id, base, remainder));
+    }
+
+    let mut remainder_order = (0..allocations.len()).collect::<Vec<_>>();
+    remainder_order.sort_by(|left, right| {
+        allocations[*right]
+            .2
+            .cmp(&allocations[*left].2)
+            .then_with(|| allocations[*left].0.cmp(&allocations[*right].0))
+    });
+    for index in remainder_order
+        .into_iter()
+        .take(coins.saturating_sub(assigned) as usize)
+    {
+        allocations[index].1 += 1;
+    }
+    allocations
+        .into_iter()
+        .map(|(id, share, _)| (id, share as f64))
+        .collect()
+}
+
+fn split_local_purchase_receipt(gross_receipt: f64, effective_tax_rate: f64) -> LocalPurchaseSplit {
+    let gross = whole_units(gross_receipt);
+    let local_tax = whole_cost(gross * effective_tax_rate.clamp(0.0, 1.0)).min(gross);
+    LocalPurchaseSplit {
+        producer_income: gross - local_tax,
+        local_tax,
+    }
 }
 
 /// Credits aggregate private producer income across occupied households by
@@ -81,23 +134,18 @@ pub fn credit_settlement_household_income(
         .filter(|residence| residence.population > 0 && !residence.abandoned)
         .collect::<Vec<_>>();
     residences.sort_by_key(|residence| residence.id);
-    let total_population = residences
-        .iter()
-        .map(|residence| residence.population as f64)
-        .sum::<f64>();
-    if total_population <= 1e-9 {
+    let amount = whole_units(amount);
+    if amount < 1.0 || residences.is_empty() {
         return 0.0;
     }
-    let amount = amount.max(0.0);
+    let weights = residences
+        .iter()
+        .map(|residence| (residence.id, residence.population))
+        .collect::<Vec<_>>();
+    let shares = apportion_whole_coins(amount, &weights);
     let mut credited = 0.0;
-    let residence_count = residences.len();
-    for (index, residence) in residences.into_iter().enumerate() {
-        let share = if index + 1 == residence_count {
-            (amount - credited).max(0.0)
-        } else {
-            amount * residence.population as f64 / total_population
-        };
-        credited += credit_residence_wealth(ctx, residence.id, share);
+    for (residence_id, share) in shares {
+        credited += credit_residence_wealth(ctx, residence_id, share);
     }
     credited
 }
@@ -110,7 +158,8 @@ pub fn credit_private_export_receipt(
     marketplace: &mut Building,
     gross_receipt: f64,
 ) -> PrivateExportSplit {
-    if gross_receipt <= 1e-9 || marketplace.kind != "trading_post" {
+    let gross_receipt = whole_units(gross_receipt);
+    if gross_receipt < 1.0 || marketplace.kind != "trading_post" {
         return PrivateExportSplit::default();
     }
     let rate = player_export_duty_rate(ctx, marketplace.owner);
@@ -124,28 +173,37 @@ pub fn credit_private_export_receipt(
     let split = if physical {
         let deposited = deposit_building_commodity(marketplace, CommodityKind::Gold, gross_receipt);
         let split = split_private_export_receipt(deposited, rate);
-        marketplace.civic_receipts_gold = (marketplace.civic_receipts_gold.max(0.0)
-            + split.export_duty)
-            .min(marketplace.gold.max(0.0));
+        marketplace.civic_receipts_gold =
+            (whole_units(marketplace.civic_receipts_gold) + split.export_duty)
+                .min(whole_units(marketplace.gold));
         marketplace.private_export_proceeds_gold = (private_export_proceeds(marketplace)
             + split.household_income)
-            .min((marketplace.gold - marketplace.civic_receipts_gold).max(0.0));
+            .min((whole_units(marketplace.gold) - marketplace.civic_receipts_gold).max(0.0));
         split
     } else {
         let split = split_private_export_receipt(gross_receipt, rate);
         credit_treasury_gold(ctx, marketplace.owner, split.export_duty);
         let credited =
             credit_settlement_household_income(ctx, marketplace.owner, split.household_income);
+        // A depopulated legacy settlement has no private wallet to receive the
+        // proceeds. Keep those coins in civic custody instead of deleting them.
+        credit_treasury_gold(
+            ctx,
+            marketplace.owner,
+            (split.household_income - credited).max(0.0),
+        );
         PrivateExportSplit {
-            household_income: credited,
+            household_income: split.household_income,
             export_duty: split.export_duty,
         }
     };
 
     if let Some(mut resources) = ctx.db.player_resources().owner().find(&marketplace.owner) {
-        resources.export_duty_collected_total += split.export_duty;
+        resources.export_duty_collected_total =
+            whole_units(resources.export_duty_collected_total) + split.export_duty;
         if !physical {
-            resources.private_export_income_total += split.household_income;
+            resources.private_export_income_total =
+                whole_units(resources.private_export_income_total) + split.household_income;
         }
         ctx.db.player_resources().owner().update(resources);
     }
@@ -162,7 +220,8 @@ pub fn credit_monastery_export_receipt(
     monastery: &mut Building,
     gross_receipt: f64,
 ) -> MonasteryExportSplit {
-    if gross_receipt <= 1e-9 || monastery.kind != "monastery" {
+    let gross_receipt = whole_units(gross_receipt);
+    if gross_receipt < 1.0 || monastery.kind != "monastery" {
         return MonasteryExportSplit::default();
     }
     let rate = player_monastery_levy_rate(ctx, monastery.owner);
@@ -176,9 +235,9 @@ pub fn credit_monastery_export_receipt(
     let split = if physical {
         let deposited = deposit_building_commodity(monastery, CommodityKind::Gold, gross_receipt);
         let receipt = split_private_export_receipt(deposited, rate);
-        monastery.civic_receipts_gold = (monastery.civic_receipts_gold.max(0.0)
-            + receipt.export_duty)
-            .min(monastery.gold.max(0.0));
+        monastery.civic_receipts_gold =
+            (whole_units(monastery.civic_receipts_gold) + receipt.export_duty)
+                .min(whole_units(monastery.gold));
         MonasteryExportSplit {
             estate_income: receipt.household_income,
             export_duty: receipt.export_duty,
@@ -195,8 +254,10 @@ pub fn credit_monastery_export_receipt(
     };
 
     if let Some(mut resources) = ctx.db.player_resources().owner().find(&monastery.owner) {
-        resources.monastery_levy_collected_total += split.export_duty;
-        resources.private_export_income_total += split.estate_income;
+        resources.monastery_levy_collected_total =
+            whole_units(resources.monastery_levy_collected_total) + split.export_duty;
+        resources.private_export_income_total =
+            whole_units(resources.private_export_income_total) + split.estate_income;
         ctx.db.player_resources().owner().update(resources);
     }
     split
@@ -211,7 +272,8 @@ pub fn credit_local_purchase_receipt(
     market: &mut Building,
     gross_receipt: f64,
 ) -> LocalPurchaseSplit {
-    if gross_receipt <= 1e-9
+    let gross_receipt = whole_units(gross_receipt);
+    if gross_receipt < 1.0
         || !matches!(
             market.kind.as_str(),
             "marketplace" | "tavern" | "trading_post"
@@ -231,30 +293,29 @@ pub fn credit_local_purchase_receipt(
 
     let split = if physical {
         let deposited = deposit_building_commodity(market, CommodityKind::Gold, gross_receipt);
-        let local_tax = (deposited * rate * collection).clamp(0.0, deposited);
-        let producer_income = (deposited - local_tax).max(0.0);
-        market.civic_receipts_gold =
-            (market.civic_receipts_gold.max(0.0) + local_tax).min(market.gold.max(0.0));
+        let receipt = split_local_purchase_receipt(deposited, rate * collection);
+        let local_tax = receipt.local_tax;
+        let producer_income = receipt.producer_income;
+        market.civic_receipts_gold = (whole_units(market.civic_receipts_gold) + local_tax)
+            .min(whole_units(market.gold));
         market.private_export_proceeds_gold = (private_export_proceeds(market) + producer_income)
-            .min((market.gold - market.civic_receipts_gold).max(0.0));
-        LocalPurchaseSplit {
-            producer_income,
-            local_tax,
-        }
+            .min((whole_units(market.gold) - market.civic_receipts_gold).max(0.0));
+        receipt
     } else {
-        let local_tax = (gross_receipt * rate * collection).clamp(0.0, gross_receipt);
-        let producer_income = (gross_receipt - local_tax).max(0.0);
-        credit_treasury_gold(ctx, owner, local_tax);
-        let credited = credit_settlement_household_income(ctx, owner, producer_income);
-        LocalPurchaseSplit {
-            producer_income: credited,
-            local_tax,
-        }
+        let receipt = split_local_purchase_receipt(gross_receipt, rate * collection);
+        credit_treasury_gold(ctx, owner, receipt.local_tax);
+        let credited = credit_settlement_household_income(ctx, owner, receipt.producer_income);
+        credit_treasury_gold(ctx, owner, (receipt.producer_income - credited).max(0.0));
+        receipt
     };
 
     if let Some(mut resources) = ctx.db.player_resources().owner().find(&owner) {
-        resources.local_discretionary_spend_total += split.producer_income + split.local_tax;
-        resources.local_producer_income_total += split.producer_income;
+        resources.local_discretionary_spend_total = whole_units(
+            resources.local_discretionary_spend_total,
+        ) + split.producer_income
+            + split.local_tax;
+        resources.local_producer_income_total =
+            whole_units(resources.local_producer_income_total) + split.producer_income;
         ctx.db.player_resources().owner().update(resources);
     }
     split
@@ -265,11 +326,35 @@ pub fn record_private_export_income(
     owner: spacetimedb::Identity,
     amount: f64,
 ) {
-    if amount <= 1e-9 {
+    let amount = whole_units(amount);
+    if amount < 1.0 {
         return;
     }
     if let Some(mut resources) = ctx.db.player_resources().owner().find(&owner) {
-        resources.private_export_income_total += amount;
+        resources.private_export_income_total =
+            whole_units(resources.private_export_income_total) + amount;
         ctx.db.player_resources().owner().update(resources);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{apportion_whole_coins, split_local_purchase_receipt};
+
+    #[test]
+    fn weighted_coin_apportionment_is_whole_stable_and_conserving() {
+        let shares = apportion_whole_coins(11.9, &[(10, 1), (20, 2), (30, 1)]);
+        assert_eq!(shares, vec![(10, 3.0), (20, 5.0), (30, 3.0)]);
+        assert_eq!(shares.iter().map(|(_, share)| *share).sum::<f64>(), 11.0);
+        assert!(shares.iter().all(|(_, share)| share.fract() == 0.0));
+    }
+
+    #[test]
+    fn local_tax_split_charges_whole_coin_and_conserves_receipt() {
+        let split = split_local_purchase_receipt(10.8, 0.01);
+        assert_eq!(split.local_tax, 1.0);
+        assert_eq!(split.producer_income, 9.0);
+        assert_eq!(split.local_tax + split.producer_income, 10.0);
+        assert_eq!(split_local_purchase_receipt(10.0, 0.0).local_tax, 0.0);
     }
 }

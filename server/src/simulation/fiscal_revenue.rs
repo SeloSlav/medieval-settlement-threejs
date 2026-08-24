@@ -8,6 +8,7 @@ use crate::balance_generated::{CALENDAR_SECONDS_PER_DAY, TICK_DT};
 use crate::db::*;
 use crate::economy::{credit_local_civic_receipts, debit_residence_wealth};
 use crate::fiscal_policy::{land_levy_assessed_value, monthly_land_levy};
+use crate::resource_units::{whole_cost, whole_units};
 use crate::simulation::game_calendar::GameClock;
 use crate::simulation::road_logistics::local_delivery_distance;
 use crate::simulation::tick_context::SimTickContext;
@@ -143,7 +144,7 @@ pub fn step_land_levies(ctx: &ReducerContext, tick: &SimTickContext, clock: &Gam
             else {
                 continue;
             };
-            let requested = assessment * collection_multiplier;
+            let requested = whole_cost(assessment * collection_multiplier);
             let paid = debit_residence_wealth(ctx, &residence, requested);
             if paid <= 1e-9 {
                 continue;
@@ -159,8 +160,10 @@ pub fn step_land_levies(ctx: &ReducerContext, tick: &SimTickContext, clock: &Gam
             }
         }
         if let Some(mut ledger) = ctx.db.player_resources().owner().find(&owner) {
-            ledger.land_levy_assessed_total += assessed_total;
-            ledger.land_levy_collected_total += collected_total;
+            ledger.land_levy_assessed_total =
+                whole_units(ledger.land_levy_assessed_total) + whole_units(assessed_total);
+            ledger.land_levy_collected_total =
+                whole_units(ledger.land_levy_collected_total) + whole_units(collected_total);
             ctx.db.player_resources().owner().update(ledger);
         }
     }

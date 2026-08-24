@@ -1,9 +1,9 @@
 use crate::balance_generated::{
-    CHAPEL_BASE_ATTENDANCE_CHANCE, CHAPEL_COMMUNITY_ATTENDANCE_BONUS,
+    CALENDAR_DAYS_PER_MONTH, CHAPEL_BASE_ATTENDANCE_CHANCE, CHAPEL_COMMUNITY_ATTENDANCE_BONUS,
     CHAPEL_PRIEST_ATTENDANCE_BONUS, CHAPEL_RECOVERY_STOCK_MULTIPLIER,
     CHAPEL_SABBATH_OBSERVANCE_ATTENDANCE_BONUS, CHAPEL_SABBATH_OBSERVANCE_SETTLEMENT_BONUS,
     CHAPEL_SETTLEMENT_TICKS_MULTIPLIER, CHAPEL_TITHE_GOLD_PER_PERSON_PER_DAY,
-    CALENDAR_DAYS_PER_MONTH, MONASTERY_ATTENDANCE_BONUS, MONASTERY_RECOVERY_STOCK_MULTIPLIER,
+    MONASTERY_ATTENDANCE_BONUS, MONASTERY_RECOVERY_STOCK_MULTIPLIER,
     MONASTERY_SETTLEMENT_TICKS_MULTIPLIER, RESIDENCE_RECOVERY_FIREWOOD_MIN,
     RESIDENCE_RECOVERY_FOOD_MIN, RESIDENCE_RECOVERY_WATER_MIN, RESIDENCE_SETTLE_TICKS,
 };
@@ -115,12 +115,11 @@ pub fn chapel_monthly_tithe_gold_for_tier(
 #[cfg(test)]
 mod tests {
     use super::{
-        chapel_attendance_chance, chapel_monthly_tithe_gold,
-        chapel_monthly_tithe_gold_for_tier, effective_settle_ticks,
+        chapel_attendance_chance, chapel_monthly_tithe_gold, chapel_monthly_tithe_gold_for_tier,
+        effective_settle_ticks,
     };
     use crate::balance_generated::{
-        CALENDAR_DAYS_PER_MONTH, CHAPEL_BASE_ATTENDANCE_CHANCE,
-        CHAPEL_COMMUNITY_ATTENDANCE_BONUS,
+        CALENDAR_DAYS_PER_MONTH, CHAPEL_BASE_ATTENDANCE_CHANCE, CHAPEL_COMMUNITY_ATTENDANCE_BONUS,
         CHAPEL_PRIEST_ATTENDANCE_BONUS, CHAPEL_SETTLEMENT_TICKS_MULTIPLIER,
         CHAPEL_TITHE_GOLD_PER_PERSON_PER_DAY, MONASTERY_SETTLEMENT_TICKS_MULTIPLIER,
         RESIDENCE_SETTLE_TICKS,
@@ -159,10 +158,8 @@ mod tests {
 
     #[test]
     fn chapel_monthly_tithe_is_a_whole_coin_assessment() {
-        let expected = (3.0
-            * CHAPEL_TITHE_GOLD_PER_PERSON_PER_DAY
-            * CALENDAR_DAYS_PER_MONTH as f64)
-            .round();
+        let expected =
+            (3.0 * CHAPEL_TITHE_GOLD_PER_PERSON_PER_DAY * CALENDAR_DAYS_PER_MONTH as f64).round();
         assert_eq!(chapel_monthly_tithe_gold(3, 1.0), expected);
         assert_eq!(chapel_monthly_tithe_gold(3, 1.0).fract(), 0.0);
     }

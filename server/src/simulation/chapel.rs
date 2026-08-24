@@ -6,12 +6,12 @@ use crate::balance_generated::{
     CALENDAR_SECONDS_PER_DAY, STOREHOUSE_HAUL_PER_WORKER, TICK_DT, TIMBER_DELIVERY_SPEED_MPS,
     TIMBER_DELIVERY_UNLOAD_SEC,
 };
+use crate::chapel_parish_policy::chapel_monthly_tithe_due;
 use crate::db::*;
 use crate::economy::{
     chapel_monastery_tithe_due, chapel_tithe_payment_room, debit_residence_wealth,
     deposit_chapel_tithe, CommodityKind,
 };
-use crate::chapel_parish_policy::chapel_monthly_tithe_due;
 use crate::resource_units::whole_units;
 use crate::simulation::chapel_community::{
     chapel_attendance_chance, chapel_monthly_tithe_gold_for_tier,
@@ -116,12 +116,7 @@ pub fn step_chapels(
     pending_tithes.sort_by_key(|(chapel_id, _)| *chapel_id);
     for (chapel_id, pending) in pending_tithes {
         if pending.paid >= 1.0 {
-            deposit_chapel_tithe(
-                ctx,
-                chapel_id,
-                pending.paid,
-                pending.monastery_share,
-            );
+            deposit_chapel_tithe(ctx, chapel_id, pending.paid, pending.monastery_share);
         }
     }
 
@@ -255,9 +250,8 @@ fn dispatch_monastery_tithes(
             pending,
         ) {
             let loaded = whole_units((before - source.gold).max(0.0));
-            source.chapel_monastery_tithe_due = whole_units(
-                (source.chapel_monastery_tithe_due - loaded).max(0.0),
-            );
+            source.chapel_monastery_tithe_due =
+                whole_units((source.chapel_monastery_tithe_due - loaded).max(0.0));
             source_changed = true;
             *free_haulers -= 1;
         }

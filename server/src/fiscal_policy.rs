@@ -9,6 +9,7 @@ use crate::balance_generated::{
     LAND_LEVY_RATE_MAX, LAND_LEVY_RATE_MIN, LAND_LEVY_REFERENCE_PLOT_AREA,
     LAND_LEVY_TIER1_ASSESSED_VALUE, LAND_LEVY_TIER2_ASSESSED_VALUE, LAND_LEVY_TIER3_ASSESSED_VALUE,
 };
+use crate::resource_units::{whole_cost, whole_units};
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct PrivateExportSplit {
@@ -55,10 +56,14 @@ pub fn clamp_export_duty_rate(rate: f64) -> f64 {
 }
 
 pub fn split_private_export_receipt(gross_receipt: f64, rate: f64) -> PrivateExportSplit {
-    let gross = gross_receipt.max(0.0);
-    let export_duty = gross * clamp_export_duty_rate(rate);
+    // Export proceeds are received coin, so a fractional quote is floored.
+    // Customs is a cost charged against that realized receipt, so any positive
+    // fractional duty is one whole coin. The remainder assignment guarantees
+    // that the split neither creates nor destroys a coin.
+    let gross = whole_units(gross_receipt);
+    let export_duty = whole_cost(gross * clamp_export_duty_rate(rate)).min(gross);
     PrivateExportSplit {
-        household_income: (gross - export_duty).max(0.0),
+        household_income: gross - export_duty,
         export_duty,
     }
 }
@@ -82,7 +87,9 @@ pub fn land_levy_assessed_value(tier: u8, plot_area: f64, has_backyard: bool) ->
 /// The configured rate is annual. Twelve rational game months divide that
 /// liability into predictable monthly assessments.
 pub fn monthly_land_levy(assessed_value: f64, annual_rate: f64) -> f64 {
-    assessed_value.max(0.0) * clamp_land_levy_rate(annual_rate) / 12.0
+    // An assessment is a payable cost. Even a small positive liability is a
+    // whole coin; zero-rate settlements still owe exactly zero.
+    whole_cost(assessed_value.max(0.0) * clamp_land_levy_rate(annual_rate) / 12.0)
 }
 
 #[cfg(test)]
@@ -92,7 +99,9 @@ mod tests {
     #[test]
     fn customs_rates_are_bounded_and_conserve_private_export_receipts() {
         let split = split_private_export_receipt(100.0, EXPORT_DUTY_RATE_MAX);
-        assert!((split.household_income + split.export_duty - 100.0).abs() < 1e-9);
+        assert_eq!(split.household_income + split.export_duty, 100.0);
+        assert_eq!(split_private_export_receipt(10.9, 0.0).household_income, 10.0);
+        assert_eq!(split_private_export_receipt(10.0, 0.01).export_duty, 1.0);
         assert_eq!(clamp_import_duty_rate(-1.0), IMPORT_DUTY_RATE_MIN);
         assert_eq!(clamp_export_duty_rate(2.0), EXPORT_DUTY_RATE_MAX);
     }
@@ -114,5 +123,7 @@ mod tests {
         let prosperous = land_levy_assessed_value(3, LAND_LEVY_REFERENCE_PLOT_AREA * 1.4, true);
         assert!(prosperous > cottage);
         assert!(monthly_land_levy(prosperous, LAND_LEVY_RATE_MAX) > 0.0);
+        assert_eq!(monthly_land_levy(prosperous, 0.0), 0.0);
+        assert_eq!(monthly_land_levy(1.0, LAND_LEVY_RATE_MAX), 1.0);
     }
 }

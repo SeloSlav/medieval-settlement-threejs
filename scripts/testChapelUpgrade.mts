@@ -158,7 +158,7 @@ const markerSignature = source('src/buildings/buildingMarkerSignature.ts');
 assert.match(table, /#\[default\(3u8\)\]\s+pub chapel_tier: u8/);
 assert.match(reducer, /pub fn upgrade_chapel[\s\S]*spend_aggregate_timber[\s\S]*spend_aggregate_stone[\s\S]*spend_aggregate_ironwork[\s\S]*spend_aggregate_roof_tiles[\s\S]*chapel_tier = cost\.target_tier/);
 assert.match(coffer, /chapel_coffer_capacity_for_tier\(chapel\.chapel_tier\)/);
-assert.match(tithe, /chapel_tithe_gold_per_tick_for_tier\([\s\S]*chapel\.chapel_tier/);
+assert.match(tithe, /chapel_monthly_tithe_gold_for_tier\([\s\S]*chapel\.chapel_tier/);
 assert.match(inspector, /data-action="upgrade-chapel"/);
 assert.match(inspector, /upgrade\.ironwork[\s\S]*upgrade\.roofTiles/);
 assert.match(markerSignature, /tier-\$\{building\.chapelTier/);

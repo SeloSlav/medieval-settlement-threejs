@@ -49,7 +49,10 @@ pub fn chapel_tithe_split(payment: f64, monastery_share: f64) -> (f64, f64) {
 }
 
 fn chapel_tithe_payment_room_for(chapel: &Building, monastery_share: f64) -> f64 {
-    let parish_room = whole_room(chapel_coffer_capacity_for(chapel), chapel_coffer_gold(chapel));
+    let parish_room = whole_room(
+        chapel_coffer_capacity_for(chapel),
+        chapel_coffer_gold(chapel),
+    );
     let parish_fraction = 1.0 - monastery_share.clamp(0.0, 0.8);
     if parish_room < 1.0 || parish_fraction <= 0.0 {
         return 0.0;
@@ -116,8 +119,11 @@ pub fn deposit_coffer_in_place(chapel: &mut Building, amount: f64) -> f64 {
 
     chapel.gold = whole_units(chapel.gold);
     chapel.chapel_monastery_tithe_due = chapel_monastery_tithe_due(chapel);
-    let deposited = whole_room(chapel_coffer_capacity_for(chapel), chapel_coffer_gold(chapel))
-        .min(whole_request(amount));
+    let deposited = whole_room(
+        chapel_coffer_capacity_for(chapel),
+        chapel_coffer_gold(chapel),
+    )
+    .min(whole_request(amount));
     if deposited < 1.0 {
         return 0.0;
     }
@@ -145,8 +151,8 @@ pub fn withdraw_coffer_in_place(chapel: &mut Building, amount: f64) -> f64 {
 #[cfg(test)]
 mod tests {
     use super::{
-        chapel_coffer_capacity, chapel_coffer_capacity_for, chapel_coffer_gold,
-        chapel_tithe_split, deposit_coffer_in_place, withdraw_coffer_in_place,
+        chapel_coffer_capacity, chapel_coffer_capacity_for, chapel_coffer_gold, chapel_tithe_split,
+        deposit_coffer_in_place, withdraw_coffer_in_place,
     };
     use crate::tables::Building;
 

@@ -14,8 +14,10 @@ use crate::balance_generated::{
 use crate::db::*;
 use crate::economy::{
     building_commodity_room, building_commodity_stock, credit_local_purchase_receipt,
-    debit_residence_wealth, deposit_building_commodity, withdraw_building_commodity, CommodityKind,
+    credit_residence_wealth, debit_residence_wealth, deposit_building_commodity,
+    withdraw_building_commodity, CommodityKind,
 };
+use crate::resource_units::{whole_cost, whole_units};
 use crate::residence_service_policy::{
     scale_discretionary_limits, tier_four_non_vital_discretionary_multiplier,
 };
@@ -166,25 +168,28 @@ fn try_purchase_one_good(
             continue;
         }
         let price = local_unit_price(commodity);
-        let stock = building_commodity_stock(trading_post, commodity);
-        let units = stock
-            .min(unit_limit)
-            .min(spendable / price)
-            .min(receipt_room / price);
-        if units <= 1e-9 {
+        let units = affordable_whole_purchase_units(
+            building_commodity_stock(trading_post, commodity),
+            unit_limit,
+            spendable,
+            receipt_room,
+            price,
+        );
+        if units < 1.0 {
             continue;
         }
 
         let withdrawn = withdraw_building_commodity(trading_post, commodity, units);
-        let intended_payment = withdrawn * price;
-        let paid = debit_residence_wealth(ctx, residence, intended_payment);
-        if paid <= 1e-9 {
+        if withdrawn + 1e-6 < units {
             deposit_building_commodity(trading_post, commodity, withdrawn);
             return false;
         }
-        if paid + 1e-9 < intended_payment {
-            let unpaid_units = withdrawn * (1.0 - paid / intended_payment);
-            deposit_building_commodity(trading_post, commodity, unpaid_units);
+        let payment = whole_cost(withdrawn * price);
+        let paid = debit_residence_wealth(ctx, residence, payment);
+        if paid + 1e-6 < payment {
+            deposit_building_commodity(trading_post, commodity, withdrawn);
+            credit_residence_wealth(ctx, residence.id, paid);
+            return false;
         }
         credit_local_purchase_receipt(ctx, trading_post, paid);
         if let Some(mut updated) = ctx.db.residence().id().find(&residence.id) {
@@ -194,6 +199,40 @@ fn try_purchase_one_good(
         return true;
     }
     false
+}
+
+fn affordable_whole_purchase_units(
+    stock: f64,
+    unit_limit: f64,
+    coin_budget: f64,
+    receipt_room: f64,
+    unit_price: f64,
+) -> f64 {
+    if !unit_price.is_finite() || unit_price <= 0.0 {
+        return 0.0;
+    }
+    let budget = whole_units(coin_budget);
+    if budget < 1.0 {
+        return 0.0;
+    }
+    let room = if receipt_room.is_infinite() {
+        f64::INFINITY
+    } else {
+        whole_units(receipt_room)
+    };
+    let mut units = whole_units(stock)
+        .min(whole_units(unit_limit))
+        .min((budget / unit_price).floor());
+    if room.is_finite() {
+        units = units.min((room / unit_price).floor());
+    }
+    while units >= 1.0
+        && (whole_cost(units * unit_price) > budget
+            || (room.is_finite() && whole_cost(units * unit_price) > room))
+    {
+        units -= 1.0;
+    }
+    units.max(0.0)
 }
 
 fn discretionary_limits(wealth: f64, population: u32, spending_multiplier: f64) -> (f64, f64) {
@@ -243,5 +282,13 @@ mod tests {
 
         assert!((reduced_spend - full_spend * 0.75).abs() < 1e-9);
         assert!((reduced_units - full_units * 0.75).abs() < 1e-9);
+    }
+
+    #[test]
+    fn purchases_move_only_whole_goods_for_a_full_whole_coin_payment() {
+        assert_eq!(affordable_whole_purchase_units(4.8, 3.9, 5.9, 9.0, 1.6), 3.0);
+        assert_eq!(whole_cost(3.0 * 1.6), 5.0);
+        assert_eq!(affordable_whole_purchase_units(4.0, 4.0, 0.9, 9.0, 0.2), 0.0);
+        assert_eq!(affordable_whole_purchase_units(4.0, 4.0, 1.0, 1.0, 0.4), 2.0);
     }
 }

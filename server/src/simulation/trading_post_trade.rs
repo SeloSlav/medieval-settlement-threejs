@@ -25,9 +25,9 @@ use crate::simulation::delivery_trips::{
 use crate::simulation::{labor_and_logistics_paused, GameClock, SimTickContext};
 use crate::tables::{Building, TradingPostTradeRule};
 use crate::trading_post_policy::{
-    affordable_import_units, exportable_surplus, fair_import_gold_budget, import_deficit,
-    import_rule_rotation_offset, import_target_fulfillment, regional_exchange_sequence, trade_gold,
-    trade_rule_settlement_key, TRADE_MODE_EXPORT, TRADE_MODE_IMPORT,
+    affordable_import_units, exportable_surplus, import_deficit, import_rule_rotation_offset,
+    import_target_fulfillment, regional_exchange_sequence, trade_rule_settlement_key,
+    TRADE_MODE_EXPORT, TRADE_MODE_IMPORT,
 };
 
 pub fn trading_post_exports_commodity(
@@ -120,7 +120,10 @@ fn settle_due_rules(ctx: &ReducerContext, post: &Building, current_exchange: u64
     let mut remaining_imports = import_count;
     for mut rule in rules {
         let import_gold_budget = if rule.mode == TRADE_MODE_IMPORT {
-            let budget = fair_import_gold_budget(treasury_gold(ctx, post.owner), remaining_imports);
+            let budget = fair_whole_import_gold_budget(
+                treasury_gold(ctx, post.owner),
+                remaining_imports,
+            );
             remaining_imports = remaining_imports.saturating_sub(1);
             budget
         } else {
@@ -148,6 +151,13 @@ fn settle_due_rules(ctx: &ReducerContext, post: &Building, current_exchange: u64
         rule.last_trade_gold = whole_signed_units(gold);
         ctx.db.trading_post_trade_rule().id().update(rule);
     }
+}
+
+fn fair_whole_import_gold_budget(remaining_gold: f64, remaining_rules: usize) -> f64 {
+    if remaining_rules == 0 {
+        return 0.0;
+    }
+    (whole_units(remaining_gold) / remaining_rules as f64).floor()
 }
 
 fn import_rule_fulfillment(
@@ -192,7 +202,8 @@ fn settle_export(
         return (0.0, 0.0);
     }
     let multiplier = current_price_multiplier(ctx, owner, resource);
-    let planned_revenue = whole_units(trade_gold(units, gold_yield / lot_amount * multiplier));
+    let unit_price = gold_yield / lot_amount * multiplier;
+    let planned_revenue = whole_units(units * unit_price);
     if planned_revenue < 1.0 {
         return (0.0, 0.0);
     }
@@ -200,7 +211,7 @@ fn settle_export(
     if sold <= 1e-6 {
         return (0.0, 0.0);
     }
-    let revenue = whole_units(trade_gold(sold, gold_yield / lot_amount * multiplier));
+    let revenue = whole_units(sold * unit_price);
     ctx.db.building().id().update(post);
     credit_treasury_gold(ctx, owner, revenue);
     record_market_trade(ctx, owner, resource, MarketTradeDirection::Export, sold);
@@ -249,7 +260,7 @@ fn settle_import(
     if units <= 1e-6 {
         return (0.0, 0.0);
     }
-    let expense = whole_cost(trade_gold(units, unit_price));
+    let expense = whole_cost(units * unit_price);
     if expense <= 1e-9 || expense > available_gold + 1e-6 {
         return (0.0, 0.0);
     }
@@ -261,7 +272,7 @@ fn settle_import(
         credit_treasury_gold(ctx, owner, expense);
         return (0.0, 0.0);
     }
-    let actual_expense = whole_cost(trade_gold(imported, unit_price));
+    let actual_expense = whole_cost(imported * unit_price);
     if actual_expense + 1e-6 < expense {
         credit_treasury_gold(ctx, owner, expense - actual_expense);
     }
@@ -428,5 +439,18 @@ fn source_exportable_stock(building: &Building, commodity: CommodityKind) -> f64
             granary_exportable_grain(stock, protected)
         }
         _ => stock,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::fair_whole_import_gold_budget;
+
+    #[test]
+    fn recurring_import_budgets_apportion_only_whole_coins() {
+        assert_eq!(fair_whole_import_gold_budget(10.9, 3), 3.0);
+        assert_eq!(fair_whole_import_gold_budget(2.0, 3), 0.0);
+        assert_eq!(fair_whole_import_gold_budget(2.0, 1), 2.0);
+        assert_eq!(fair_whole_import_gold_budget(10.0, 0), 0.0);
     }
 }
