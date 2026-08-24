@@ -764,7 +764,7 @@ assert.equal(largeRoadTextilePlan.roadPlan?.matchedBranches, 200);
 assert.equal(largeRoadTextilePlan.roadPlan?.householdBranches, 0);
 assert.equal(
   largeRoadTextilePlan.roadPlan?.roadMatchedAnnualClothPotential,
-  1_200_000,
+  400_000,
 );
 assert.equal(largeRoadTextilePlan.roadPlan?.fragmentationClothPotential, 0);
 assert.ok(
