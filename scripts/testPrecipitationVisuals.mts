@@ -416,8 +416,13 @@ assert.match(roadFactorySource, /roadWeatherProfile\(environment\)/);
 assert.doesNotMatch(roadFactorySource, /loadTerrainSnowTextures|terrainSnowTextures/);
 assert.match(
   roadTextureLoaderSource,
-  /manor_grass_dry\/snow_leaf_albedo_atlas\.png/,
+  /gorski_dry_grass_v1\/snow_leaf_albedo_atlas\.png/,
   'the terrain pipeline must load the packed dry-grass, generated-snow, and forest-litter atlas',
+);
+assert.match(
+  roadTextureLoaderSource,
+  /roughness: '\/assets\/textures\/terrain\/gorski_dry_grass_v1\/snow_leaf_hrao_atlas\.png'/,
+  'the terrain pipeline must reuse the dry roughness binding for packed litter height, roughness, and AO',
 );
 assert.match(roadFactorySource, /1 - Math\.exp\(-Math\.max\(0,\s*dt\) \* 2\.8\)/);
 assert.match(roadFactorySource, /readonly rainTerrain!:\s*THREE\.MeshStandardMaterial/);

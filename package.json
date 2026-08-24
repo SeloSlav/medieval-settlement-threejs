@@ -219,6 +219,7 @@
     "test:wildflower-runtime-geometry": "npx tsx scripts/testWildflowerRuntimeGeometry.mts",
     "test:forest-floor-coverage": "npx tsx scripts/testForestFloorCoverage.mts",
     "test:terrain-ecology-material": "node --experimental-strip-types scripts/testTerrainEcologyMaterial.mts",
+    "test:approved-natural-surfaces": "node --experimental-strip-types scripts/testApprovedNaturalSurfaces.mts",
     "test": "npm run test:ci",
     "test:ci": "npx tsx scripts/run-all-tests.mts",
     "deploy:local": "powershell -ExecutionPolicy Bypass -File ./server/deploy-local.ps1",

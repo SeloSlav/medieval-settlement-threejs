@@ -1,5 +1,8 @@
 import * as THREE from 'three';
-import type { MossyRockTextureSet } from '../utils/propTextureLoad.ts';
+import {
+  disposeRockTextureSet,
+  type RockTextureSet,
+} from '../utils/propTextureLoad.ts';
 import type { Terrain } from '../terrain/Terrain.ts';
 import { createRockShadowGeometry } from '../props/ForestProps.ts';
 import { TREE_SHADOW_CAST_LAYER } from '../scene/SceneLayers.ts';
@@ -11,6 +14,8 @@ import {
   type RockObstacle,
 } from '../utils/pathGeometry.ts';
 import { SpatialHash2D } from '../utils/SpatialHash2D.ts';
+import { unwrapTriangleUvSeams } from '../utils/boulderUv.ts';
+import { disposeObject3D } from '../utils/dispose.ts';
 
 const TAU = Math.PI * 2;
 
@@ -44,7 +49,7 @@ export type QuarrySystem = {
 export function createQuarrySystem(
   terrain: Terrain,
   layout: QuarryLayout,
-  rockTextures: MossyRockTextureSet,
+  rockTextures: RockTextureSet<'quarry'>,
 ): QuarrySystem {
   const group = new THREE.Group();
   group.name = 'Stone deposits';
@@ -90,6 +95,7 @@ export function createQuarrySystem(
   };
 
   const finishDetails = (): Promise<void> => {
+    if (disposed) return Promise.resolve();
     if (detailsPromise) return detailsPromise;
     detailsPromise = (async () => {
       const rng = mulberry32(0x71a2e0d ^ 0x5151);
@@ -101,7 +107,10 @@ export function createQuarrySystem(
         shadowMaterials,
         rng,
       );
-      if (disposed) return;
+      if (disposed) {
+        disposeObject3D(result.group);
+        return;
+      }
       group.add(result.group);
       sites.push(...result.sites);
       activePlacements.splice(0, activePlacements.length, ...placements);
@@ -117,11 +126,10 @@ export function createQuarrySystem(
   };
 
   const dispose = () => {
+    if (disposed) return;
     disposed = true;
     rockMaterial.dispose();
-    rockMaterial.map?.dispose();
-    rockMaterial.normalMap?.dispose();
-    rockMaterial.roughnessMap?.dispose();
+    disposeRockTextureSet(rockTextures);
     shadowMaterials.shadowCast.dispose();
     shadowMaterials.shadowDepth.dispose();
   };
@@ -268,16 +276,18 @@ function createQuarryRockMeshes(
   return { group, sites };
 }
 
-function createQuarryRockMaterial(rockTextures: MossyRockTextureSet): THREE.MeshStandardMaterial {
+function createQuarryRockMaterial(rockTextures: RockTextureSet<'quarry'>): THREE.MeshStandardMaterial {
   const material = new THREE.MeshStandardMaterial({
     map: rockTextures.map,
     normalMap: rockTextures.normalMap,
     roughnessMap: rockTextures.roughnessMap,
-    color: 0xb0aea0,
-    roughness: 0.92,
+    aoMap: rockTextures.aoMap,
+    aoMapIntensity: 0.72,
+    color: 0xffffff,
+    roughness: 1,
     metalness: 0,
   });
-  material.normalScale.set(0.55, 0.55);
+  material.normalScale.set(0.64, 0.64);
   return material;
 }
 
@@ -318,6 +328,8 @@ function createBoulderGeometry(seed: number): THREE.BufferGeometry {
   }
 
   geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+  unwrapTriangleUvSeams(geometry);
+  geometry.setAttribute('uv1', geometry.getAttribute('uv').clone());
   geometry.computeVertexNormals();
   geometry.computeBoundingSphere();
   return geometry;

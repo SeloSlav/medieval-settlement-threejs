@@ -106,9 +106,9 @@ groundGeometry.computeVertexNormals();
 
 const textureLoader = new THREE.TextureLoader();
 const [leafAlbedo, leafNormal, leafRoughness] = await Promise.all([
-  textureLoader.loadAsync('/assets/textures/terrain/forest_leaf_litter/albedo.png'),
-  textureLoader.loadAsync('/assets/textures/terrain/forest_leaf_litter/normal.png'),
-  textureLoader.loadAsync('/assets/textures/terrain/forest_leaf_litter/roughness.png'),
+  textureLoader.loadAsync('/assets/textures/terrain/gorski_forest_litter_primary_v1/albedo.png'),
+  textureLoader.loadAsync('/assets/textures/terrain/gorski_forest_litter_primary_v1/normal.png'),
+  textureLoader.loadAsync('/assets/textures/terrain/gorski_forest_litter_primary_v1/roughness.png'),
 ]);
 leafAlbedo.colorSpace = THREE.SRGBColorSpace;
 for (const texture of [leafAlbedo, leafNormal, leafRoughness]) {

@@ -11,7 +11,7 @@ import type {
 } from '../minerals/MineralDepositLayout.ts';
 import { createQuarrySystem, type QuarrySystem } from '../quarries/QuarrySystem.ts';
 import { QuarryLayout } from '../quarries/QuarryLayout.ts';
-import { loadMossyRockTextures } from '../utils/propTextureLoad.ts';
+import { loadQuarryRockTextures } from '../utils/propTextureLoad.ts';
 
 declare global {
   interface Window {
@@ -89,7 +89,7 @@ const quarryLayout = QuarryLayout.fromSerialized({
     pitDepth: 0.4,
   }],
 });
-const rockTextures = await loadMossyRockTextures(renderer.getMaxAnisotropy());
+const rockTextures = await loadQuarryRockTextures(renderer.getMaxAnisotropy());
 const quarry: QuarrySystem = createQuarrySystem(terrain, quarryLayout, rockTextures);
 scene.add(quarry.group);
 await quarry.finishDetails();

@@ -472,7 +472,7 @@ export class SceneManager {
       backend.maxAnisotropy,
       backend.kind,
     );
-    const quarrySystem = createQuarrySystem(terrain, quarryLayout, startupTextures.riverRock);
+    const quarrySystem = createQuarrySystem(terrain, quarryLayout, startupTextures.quarryRock);
     const clayDepositSystem = createClayDepositSystem(terrain, clayDepositLayout);
     const mineralDepositSystem = createMineralDepositSystem(terrain, mineralDepositLayout);
     await yieldToMain();

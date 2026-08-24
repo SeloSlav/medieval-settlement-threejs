@@ -33,13 +33,22 @@ type ForestMaterialSet = {
   bark: THREE.MeshStandardMaterial;
   coniferFoliage: THREE.MeshStandardMaterial;
   broadleafFoliage: THREE.MeshStandardMaterial;
-  rock: THREE.MeshStandardMaterial;
+  forestRock: THREE.MeshStandardMaterial;
+  meadowRock: THREE.MeshStandardMaterial;
   shadowCast: THREE.MeshStandardMaterial;
   shadowDepth: THREE.MeshDepthMaterial;
   textures: THREE.Texture[];
 };
 
-import { loadMossyRockTextures, loadPineFoliageTextures } from '../utils/propTextureLoad.ts';
+import {
+  loadForestRockTextures,
+  loadNeutralMeadowRockTextures,
+  loadPineFoliageTextures,
+} from '../utils/propTextureLoad.ts';
+import {
+  classifyForestRockSurface,
+  type ForestRockSurface,
+} from './forestRockAppearance.ts';
 import { createStubForestInstances } from './forestInstanceStub.ts';
 import {
   computeForestTreePlacements,
@@ -50,6 +59,7 @@ import {
   type TreeSpeciesProfile,
 } from './forestPlacements.ts';
 import { setRockObstacleCollisionBounds } from '../utils/pathGeometry.ts';
+import { unwrapTriangleUvSeams } from '../utils/boulderUv.ts';
 
 const UP = new THREE.Vector3(0, 1, 0);
 const TAU = Math.PI * 2;
@@ -74,6 +84,7 @@ type RockPlacement = {
   z: number;
   scale: number;
   profile: RockProfile;
+  surface: ForestRockSurface;
 };
 
 type RockOutcrop = {
@@ -157,7 +168,10 @@ export async function createForestProps(
     const rockField = createRockField(
       rockPlacements,
       terrain,
-      materials.rock,
+      {
+        mossyForest: materials.forestRock,
+        neutralMeadow: materials.meadowRock,
+      },
       materials.shadowCast,
       materials.shadowDepth,
       rng,
@@ -197,7 +211,10 @@ export async function createForestProps(
   const rockField = createRockField(
     rockPlacements,
     terrain,
-    materials.rock,
+    {
+      mossyForest: materials.forestRock,
+      neutralMeadow: materials.meadowRock,
+    },
     materials.shadowCast,
     materials.shadowDepth,
     rng,
@@ -228,11 +245,20 @@ export async function createForestProps(
 }
 
 async function createForestMaterials(maxAnisotropy: number, enableTreeShadowFilter: boolean): Promise<ForestMaterialSet> {
-  const [rockTextures, foliageTextures] = await Promise.all([
-    loadMossyRockTextures(maxAnisotropy),
+  const [forestRockTextures, meadowRockTextures, foliageTextures] = await Promise.all([
+    loadForestRockTextures(maxAnisotropy),
+    loadNeutralMeadowRockTextures(maxAnisotropy),
     loadPineFoliageTextures(maxAnisotropy),
   ]);
-  const textures: THREE.Texture[] = [rockTextures.map, rockTextures.normalMap, rockTextures.roughnessMap];
+  const textures: THREE.Texture[] = [
+    forestRockTextures.map,
+    forestRockTextures.normalMap,
+    forestRockTextures.roughnessMap,
+    ...(forestRockTextures.aoMap ? [forestRockTextures.aoMap] : []),
+    meadowRockTextures.map,
+    meadowRockTextures.normalMap,
+    meadowRockTextures.roughnessMap,
+  ];
 
   const barkMap = createPineBarkTexture(maxAnisotropy);
   textures.push(barkMap, foliageTextures.needleMap, foliageTextures.needleRoughnessMap);
@@ -244,15 +270,27 @@ async function createForestMaterials(maxAnisotropy: number, enableTreeShadowFilt
     metalness: 0,
   });
 
-  const rock = new THREE.MeshStandardMaterial({
-    map: rockTextures.map,
-    normalMap: rockTextures.normalMap,
-    roughnessMap: rockTextures.roughnessMap,
+  const forestRock = new THREE.MeshStandardMaterial({
+    map: forestRockTextures.map,
+    normalMap: forestRockTextures.normalMap,
+    roughnessMap: forestRockTextures.roughnessMap,
+    aoMap: forestRockTextures.aoMap,
+    aoMapIntensity: 0.7,
+    color: 0xffffff,
+    roughness: 1,
+    metalness: 0,
+  });
+  forestRock.normalScale.set(0.6, 0.6);
+
+  const meadowRock = new THREE.MeshStandardMaterial({
+    map: meadowRockTextures.map,
+    normalMap: meadowRockTextures.normalMap,
+    roughnessMap: meadowRockTextures.roughnessMap,
     color: 0xb6b3a4,
     roughness: 0.9,
     metalness: 0,
   });
-  rock.normalScale.set(0.55, 0.55);
+  meadowRock.normalScale.set(0.55, 0.55);
 
   const coniferFoliage = new THREE.MeshStandardMaterial({
     map: foliageTextures.needleMap,
@@ -276,7 +314,8 @@ async function createForestMaterials(maxAnisotropy: number, enableTreeShadowFilt
 
   return {
     bark,
-    rock,
+    forestRock,
+    meadowRock,
     shadowCast: new THREE.MeshStandardMaterial({
       transparent: true,
       opacity: 0,
@@ -358,7 +397,13 @@ function createRockPlacements(
       if (treeIndex.hasPointWithin(x, z, 2.7 + scale * 0.78)) continue;
       if (placementIndex.hasPointWithin(x, z, 2.8 + scale * 1.35)) continue;
 
-      const placement = { x, z, scale, profile: rockProfileForScale(scale, rng) };
+      const placement = {
+        x,
+        z,
+        scale,
+        profile: rockProfileForScale(scale, rng),
+        surface: classifyForestRockSurface(forestDensity),
+      };
       placements.push(placement);
       placementIndex.add(placement);
       placedInOutcrop++;
@@ -378,7 +423,20 @@ function createRockPlacements(
     const scale = THREE.MathUtils.lerp(0.45, 2.2, Math.pow(rng(), 1.45));
     if (treeIndex.hasPointWithin(x, z, 3.2 + scale * 0.7)) continue;
     if (placementIndex.hasPointWithin(x, z, 5.4 + scale * 1.2)) continue;
-    const placement = { x, z, scale, profile: rockProfileForScale(scale, rng) };
+    const forestDensity = forestDensityAt(
+      x,
+      z,
+      forestCores,
+      spawnConfig.extent,
+      spawnConfig.terrainExtent,
+    );
+    const placement = {
+      x,
+      z,
+      scale,
+      profile: rockProfileForScale(scale, rng),
+      surface: classifyForestRockSurface(forestDensity),
+    };
     placements.push(placement);
     placementIndex.add(placement);
   }
@@ -1040,64 +1098,103 @@ export function createRockShadowGeometry(): THREE.BufferGeometry {
 function createRockField(
   placements: RockPlacement[],
   terrain: Terrain,
-  material: THREE.Material,
+  materials: Record<ForestRockSurface, THREE.Material>,
   shadowCast: THREE.MeshStandardMaterial,
   shadowDepth: THREE.MeshDepthMaterial,
   rng: () => number,
 ): ForestRockInstances {
   const group = new THREE.Group();
   const instances: ForestRockInstances['instances'] = [];
-  group.name = 'Instanced mossy boulder field';
+  group.name = 'Instanced woodland and meadow boulder field';
   const shapeSeeds = [1.3, 7.7, 13.2] as const;
   const profiles: RockProfile[] = ['flat', 'moderate', 'tall'];
+  const surfaces: ForestRockSurface[] = ['mossyForest', 'neutralMeadow'];
   const variants = profiles.flatMap((profile) =>
     shapeSeeds.map((seed) => createBoulderGeometry(seed, profile)),
   );
   const shadowGeometry = createRockShadowGeometry();
-  const buckets = variants.map(() => [] as RockPlacement[]);
+  const transformBuckets = variants.map(() => [] as RockPlacement[]);
   placements.forEach((placement, index) => {
     const profileIndex = profiles.indexOf(placement.profile);
-    const bucketIndex = profileIndex * shapeSeeds.length + (index % shapeSeeds.length);
-    buckets[bucketIndex].push(placement);
+    const variantIndex = profileIndex * shapeSeeds.length + (index % shapeSeeds.length);
+    transformBuckets[variantIndex].push(placement);
   });
   const matrix = new THREE.Matrix4();
   const position = new THREE.Vector3();
   const quaternion = new THREE.Quaternion();
   const scaleVector = new THREE.Vector3();
 
-  buckets.forEach((bucket, variantIndex) => {
-    if (bucket.length === 0) return;
-    const mesh = new THREE.InstancedMesh(variants[variantIndex], material, bucket.length);
-    mesh.name = `Instanced mossy boulders ${variantIndex + 1}`;
-    mesh.castShadow = false;
-    mesh.receiveShadow = true;
-    const shadowMesh = new THREE.InstancedMesh(shadowGeometry, shadowCast, bucket.length);
-    shadowMesh.name = `Instanced mossy boulder shadows ${variantIndex + 1}`;
-    shadowMesh.layers.set(TREE_SHADOW_CAST_LAYER);
-    shadowMesh.castShadow = true;
-    shadowMesh.receiveShadow = false;
-    shadowMesh.customDepthMaterial = shadowDepth;
-    bucket.forEach((rock, rockIndex) => {
+  type PreparedRock = {
+    placement: RockPlacement;
+    surface: ForestRockSurface;
+    variantIndex: number;
+    matrix: THREE.Matrix4;
+    rendered?: ForestRockInstances['instances'][number];
+  };
+  const preparedInLegacyOrder: PreparedRock[] = [];
+  const renderBuckets = surfaces.flatMap(() => variants.map(() => [] as PreparedRock[]));
+
+  // Preserve the original variant-major RNG order exactly. Material identity
+  // is a rendering concern and must not migrate transforms or collision bounds.
+  transformBuckets.forEach((bucket, variantIndex) => {
+    bucket.forEach((rock) => {
       const y = terrain.getHeightAt(rock.x, rock.z);
       position.set(rock.x, y + rock.scale * 0.18, rock.z);
       quaternion.setFromEuler(new THREE.Euler((rng() - 0.5) * 0.18, rng() * TAU, (rng() - 0.5) * 0.18));
       rockInstanceScaleForProfile(rock.profile, rock.scale, rng, scaleVector);
       matrix.compose(position, quaternion, scaleVector);
       setRockObstacleCollisionBounds(rock, variants[variantIndex], matrix);
-      mesh.setMatrixAt(rockIndex, matrix);
-      shadowMesh.setMatrixAt(rockIndex, matrix);
-      instances.push({
+      const prepared: PreparedRock = {
         placement: rock,
+        surface: rock.surface,
+        variantIndex,
+        matrix: matrix.clone(),
+      };
+      preparedInLegacyOrder.push(prepared);
+      const surfaceIndex = surfaces.indexOf(rock.surface);
+      renderBuckets[surfaceIndex * variants.length + variantIndex].push(prepared);
+    });
+  });
+
+  renderBuckets.forEach((bucket, bucketIndex) => {
+    if (bucket.length === 0) return;
+    const surfaceIndex = Math.floor(bucketIndex / variants.length);
+    const variantIndex = bucketIndex % variants.length;
+    const surface = surfaces[surfaceIndex];
+    const mesh = new THREE.InstancedMesh(
+      variants[variantIndex],
+      materials[surface],
+      bucket.length,
+    );
+    mesh.name = `${surface === 'mossyForest' ? 'Forest mossy' : 'Neutral meadow'} boulders ${variantIndex + 1}`;
+    mesh.castShadow = false;
+    mesh.receiveShadow = true;
+    const shadowMesh = new THREE.InstancedMesh(shadowGeometry, shadowCast, bucket.length);
+    shadowMesh.name = `Instanced ${surface === 'mossyForest' ? 'forest' : 'meadow'} boulder shadows ${variantIndex + 1}`;
+    shadowMesh.layers.set(TREE_SHADOW_CAST_LAYER);
+    shadowMesh.castShadow = true;
+    shadowMesh.receiveShadow = false;
+    shadowMesh.customDepthMaterial = shadowDepth;
+    bucket.forEach((prepared, rockIndex) => {
+      mesh.setMatrixAt(rockIndex, prepared.matrix);
+      shadowMesh.setMatrixAt(rockIndex, prepared.matrix);
+      prepared.rendered = {
+        placement: prepared.placement,
         mesh,
         shadowMesh,
         instanceIndex: rockIndex,
-        matrix: matrix.clone(),
-      });
+        matrix: prepared.matrix,
+      };
     });
     mesh.instanceMatrix.needsUpdate = true;
     shadowMesh.instanceMatrix.needsUpdate = true;
     group.add(mesh, shadowMesh);
   });
+
+  for (const prepared of preparedInLegacyOrder) {
+    if (!prepared.rendered) throw new Error('Forest rock render bucket was not created');
+    instances.push(prepared.rendered);
+  }
 
   return { group, instances };
 }
@@ -1161,6 +1258,8 @@ function createBoulderGeometry(seed: number, profile: RockProfile = 'moderate'):
   }
 
   geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+  unwrapTriangleUvSeams(geometry);
+  geometry.setAttribute('uv1', geometry.getAttribute('uv').clone());
   geometry.computeVertexNormals();
   geometry.computeBoundingSphere();
   return geometry;
@@ -1183,7 +1282,8 @@ function stableSurfaceNoise(point: THREE.Vector3, seed: number): number {
 
 function disposeForestMaterials(materials: ForestMaterialSet): void {
   materials.bark.dispose();
-  materials.rock.dispose();
+  materials.forestRock.dispose();
+  materials.meadowRock.dispose();
   materials.shadowCast.dispose();
   materials.shadowDepth.dispose();
   materials.coniferFoliage.dispose();

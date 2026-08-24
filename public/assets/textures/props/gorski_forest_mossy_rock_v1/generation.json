@@ -1,0 +1,89 @@
+{
+  "model": "fal-ai/patina/material",
+  "label": "Forest mossy karst rock surface v3",
+  "source": null,
+  "requestId": "01a02fb7-96a3-7160-ba20-f6b688375abf",
+  "requestedInput": {
+    "prompt": "Flat orthographic seamless material of weathered grey-beige karst limestone in a damp shaded Gorski Kotar forest. Fine porous stone and shallow weathered pits remain visible between low velvety dark-olive moss mats. Moss forms a few connected asymmetrical branching islands with feathery torn organic boundaries, covering roughly twenty-five percent of the stone, plus very sparse subtle pale lichen grain. The green moss is clearly readable but thin and irregular, with material detail at 1 millimeter to 12 centimeter scale. No round moss spots, circular colonies, dots, polka-dot pattern, bubbles, soil, leaves, roots, separate stones, gravel, thick continuous carpet, dramatic cracks, wet gloss, directional lighting, shadows, perspective, borders, text, or motifs.",
+    "image_size": "square_hd",
+    "num_inference_steps": 8,
+    "seed": 431033,
+    "num_images": 1,
+    "enable_prompt_expansion": true,
+    "enable_safety_checker": true,
+    "tiling_mode": "both",
+    "tile_size": 128,
+    "tile_stride": 64,
+    "maps": [
+      "basecolor",
+      "normal",
+      "roughness",
+      "metalness",
+      "height"
+    ],
+    "upscale_factor": 0,
+    "output_format": "png"
+  },
+  "returnedSeed": 431033,
+  "returnedPrompt": "A high-resolution 4k orthographic photograph of weathered grey-beige karst limestone. The flat stone surface features fine porous textures and shallow weathered pits typical of a damp Gorski Kotar forest. Velvety dark-olive moss forms thin, irregular, branching islands with feathery organic edges, covering a small portion of the stone. Subtle pale lichen grains are scattered sparsely across the rock. The lighting is perfectly uniform and flat, eliminating all directional shadows. Every detail is crisp, ranging from millimeter-scale stone pores to centimeter-scale moss textures. The composition is a continuous, naturalistic spread of mineral and vegetation with a completely flat perspective and no distracting elements, emphasizing the raw, realistic material quality of mossy limestone.",
+  "timings": {
+    "texture_generation": 9.845886861003237,
+    "pbr_prediction": 69.80936185800238
+  },
+  "images": [
+    {
+      "url": "https://v3b.fal.media/files/b/0aa784fc/lVE7R0qabwQh5R-mlFDUM_QmVX3Hb3.png",
+      "content_type": "image/png",
+      "file_name": "lVE7R0qabwQh5R-mlFDUM_QmVX3Hb3.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "url": "https://v3b.fal.media/files/b/0aa784ed/-2-vwbfovVm0cHH_LEj3f_Qa3dd40V.png",
+      "content_type": "image/png",
+      "file_name": "-2-vwbfovVm0cHH_LEj3f_Qa3dd40V.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024,
+      "map_type": "basecolor"
+    },
+    {
+      "url": "https://v3b.fal.media/files/b/0aa78501/NFm71WT5N1PO9X1t_bQtZ_jyPOJsFp.png",
+      "content_type": "image/png",
+      "file_name": "NFm71WT5N1PO9X1t_bQtZ_jyPOJsFp.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024,
+      "map_type": "normal"
+    },
+    {
+      "url": "https://v3b.fal.media/files/b/0aa784ed/qeBmkCJuEs9t5bAY1afiv_akGFzX8K.png",
+      "content_type": "image/png",
+      "file_name": "qeBmkCJuEs9t5bAY1afiv_akGFzX8K.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024,
+      "map_type": "roughness"
+    },
+    {
+      "url": "https://v3b.fal.media/files/b/0aa784ed/w1Aj9_YT67YPOQFkS5fBj_hQWOGTTU.png",
+      "content_type": "image/png",
+      "file_name": "w1Aj9_YT67YPOQFkS5fBj_hQWOGTTU.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024,
+      "map_type": "metalness"
+    },
+    {
+      "url": "https://v3b.fal.media/files/b/0aa784ed/pINre8yKw8-gA8D4BMeLj_pPk5JUM7.png",
+      "content_type": "image/png",
+      "file_name": "pINre8yKw8-gA8D4BMeLj_pPk5JUM7.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024,
+      "map_type": "height"
+    }
+  ],
+  "generatedAt": "2026-08-23T17:43:50.710Z"
+}

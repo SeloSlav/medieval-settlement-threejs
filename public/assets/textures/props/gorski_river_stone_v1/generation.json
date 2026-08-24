@@ -1,0 +1,89 @@
+{
+  "model": "fal-ai/patina/material",
+  "label": "Clean water-worn river stone surface",
+  "source": null,
+  "requestId": "01a02fb2-1561-7210-ae16-6d8d90749319",
+  "requestedInput": {
+    "prompt": "Flat orthographic seamless material of clean water-worn karst limestone from a Croatian mountain river. Pale cool grey and warm grey-beige mineral color, fine dense stone grain, softly rounded shallow pitting, subtle smoothed abrasion and faint mineral staining at 1 millimeter to 10 centimeter scale, natural rough non-metallic boulder surface that remains readable when a game shader adds water wetness. No moss, lichen, algae, soil, leaves, separate pebbles, gravel bed, shells, dramatic cracks, wet gloss, directional lighting, cast shadows, perspective, horizon, borders, text, or obvious repeating motifs.",
+    "image_size": "square_hd",
+    "num_inference_steps": 8,
+    "seed": 431029,
+    "num_images": 1,
+    "enable_prompt_expansion": true,
+    "enable_safety_checker": true,
+    "tiling_mode": "both",
+    "tile_size": 128,
+    "tile_stride": 64,
+    "maps": [
+      "basecolor",
+      "normal",
+      "roughness",
+      "metalness",
+      "height"
+    ],
+    "upscale_factor": 0,
+    "output_format": "png"
+  },
+  "returnedSeed": 431029,
+  "returnedPrompt": "Flat orthographic top-down photograph of a seamless mountain river karst limestone surface. The texture features a sophisticated blend of pale cool grey and warm grey-beige mineral tones with a fine, dense stone grain. The surface shows soft water-worn characteristics, including shallow rounded pitting, smooth micro-abrasions, and subtle mineral staining. The material is a clean, natural, non-metallic boulder face with uniform diffuse lighting to ensure readability for game shaders. High-resolution 4k scan quality, sharp detail from 1mm to 10cm scale, matte finish, consistent mineral distribution, and natural stone topography without organic debris or directional shadows. Raw geological aesthetic, geological precision, hyper-realistic stone texture.",
+  "timings": {
+    "texture_generation": 10.207413457974326,
+    "pbr_prediction": 63.45925212500151
+  },
+  "images": [
+    {
+      "url": "https://v3b.fal.media/files/b/0aa784c3/rLeJCpalkhiQWXDSYQr0G_IPIf6r9L.png",
+      "content_type": "image/png",
+      "file_name": "rLeJCpalkhiQWXDSYQr0G_IPIf6r9L.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "url": "https://v3b.fal.media/files/b/0aa784ca/OSNvQIG0S-COPSScZpZRz_Nj6fynFY.png",
+      "content_type": "image/png",
+      "file_name": "OSNvQIG0S-COPSScZpZRz_Nj6fynFY.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024,
+      "map_type": "basecolor"
+    },
+    {
+      "url": "https://v3b.fal.media/files/b/0aa784de/Z_i6_PdoAGhuwmGxB3nQb_ECzInKc1.png",
+      "content_type": "image/png",
+      "file_name": "Z_i6_PdoAGhuwmGxB3nQb_ECzInKc1.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024,
+      "map_type": "normal"
+    },
+    {
+      "url": "https://v3b.fal.media/files/b/0aa784ca/4NghbC3mT_b7WcNoFXF1V_6KXKaE3P.png",
+      "content_type": "image/png",
+      "file_name": "4NghbC3mT_b7WcNoFXF1V_6KXKaE3P.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024,
+      "map_type": "roughness"
+    },
+    {
+      "url": "https://v3b.fal.media/files/b/0aa784de/9rRrGxVf-nj9DVt5FHrT__iZi3uslh.png",
+      "content_type": "image/png",
+      "file_name": "9rRrGxVf-nj9DVt5FHrT__iZi3uslh.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024,
+      "map_type": "metalness"
+    },
+    {
+      "url": "https://v3b.fal.media/files/b/0aa784ca/FmtiidPHuaAdT9RYKYttj_LP6prZJj.png",
+      "content_type": "image/png",
+      "file_name": "FmtiidPHuaAdT9RYKYttj_LP6prZJj.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024,
+      "map_type": "height"
+    }
+  ],
+  "generatedAt": "2026-08-23T17:37:42.783Z"
+}

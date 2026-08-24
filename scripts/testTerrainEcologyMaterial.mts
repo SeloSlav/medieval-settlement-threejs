@@ -19,6 +19,7 @@ import {
   TERRAIN_SNOW_REVEAL_WIDTH,
   TERRAIN_SNOW_TEXTURE_WEIGHT,
   mirroredTerrainAtlasCoordinate,
+  mirroredTerrainNormalParity,
   stableTerrainBlendWeight,
   terrainShoreRainVisibility,
 } from '../src/terrain/TerrainGrassMaterial.ts';
@@ -121,17 +122,35 @@ assert.match(
   /const grassColorNode = mix\(\s*overviewTexturedColor,\s*blendedColor,\s*closeMaterialDetail/,
 );
 assert.match(ecologySource, /attribute\('forestBlend', 'float'\)/);
-for (const [projection, sourceName] of [
+const forestHraoProjections = [
   ['A', 'primary'],
   ['B', 'secondary'],
   ['C', 'secondary'],
-] as const) {
+] as const;
+for (const [projectionIndex, [projection, sourceName]] of forestHraoProjections.entries()) {
   assert.match(
     ecologySource,
     new RegExp(`packedForestLitterUv\\(forestUv${projection}, '${sourceName}'\\)`),
   );
   assert.match(ecologySource, new RegExp(`packedForestLitterGradient\\(forestUv${projection}\\.dFdx\\(\\)\\)`));
   assert.match(ecologySource, new RegExp(`packedForestLitterGradient\\(forestUv${projection}\\.dFdy\\(\\)\\)`));
+  const sampleStart = ecologySource.indexOf(`const forestHraoSample${projection} =`);
+  const nextProjection = forestHraoProjections[projectionIndex + 1]?.[0];
+  const sampleEnd = nextProjection
+    ? ecologySource.indexOf(`const forestHraoSample${nextProjection} =`, sampleStart)
+    : ecologySource.indexOf('// Reuse the existing broad ecology fields', sampleStart);
+  assert.ok(sampleStart >= 0 && sampleEnd > sampleStart);
+  const hraoSampleSource = ecologySource.slice(sampleStart, sampleEnd);
+  assert.match(hraoSampleSource, /texture\(\s*textures\.dry\.roughness/);
+  assert.match(
+    hraoSampleSource,
+    new RegExp(`packedForestLitterUv\\(forestUv${projection}, '${sourceName}'\\)`),
+  );
+  assert.match(
+    hraoSampleSource,
+    new RegExp(`\\.grad\\(\\s*packedForestLitterGradient\\(forestUv${projection}\\.dFdx\\(\\)\\),\\s*packedForestLitterGradient\\(forestUv${projection}\\.dFdy\\(\\)\\)`),
+    `forest HRAO projection ${projection} must use explicit atlas-safe gradients`,
+  );
 }
 assert.match(ecologySource, /const forestSecondaryProjection = smoothstep/);
 assert.match(ecologySource, /const forestPrimaryWeight = mix/);
@@ -144,6 +163,11 @@ assert.match(
   ecologySource,
   /const forestSecondaryColor = mix\([\s\S]*?forestSampleB[\s\S]*?forestSampleC[\s\S]*?forestSecondaryProjection[\s\S]*?const forestColor = mix\([\s\S]*?forestSecondaryColor[\s\S]*?forestSampleA[\s\S]*?forestPrimaryWeight/,
   'leaf litter must blend independent sources through broad ecology fields',
+);
+assert.match(
+  ecologySource,
+  /const forestSecondaryHrao = mix\([\s\S]*?forestHraoSampleB[\s\S]*?forestHraoSampleC[\s\S]*?forestSecondaryProjection[\s\S]*?const forestHrao = mix\([\s\S]*?forestSecondaryHrao[\s\S]*?forestHraoSampleA[\s\S]*?forestPrimaryWeight/,
+  'leaf-litter height, roughness, and AO must use the same material weights as albedo',
 );
 assert.match(
   ecologySource,
@@ -170,17 +194,37 @@ assert.doesNotMatch(
   /forestOverviewColorNode|forestOverviewTexturedColorNode/,
   'forest litter must not fall back to a flat brown overview material',
 );
-assert.match(ecologySource, /const forestBumpNode = bumpMap/);
+assert.match(ecologySource, /const forestBumpNode = bumpMap\(\s*forestHrao\.r/);
 assert.match(ecologySource, /const forestNormalNode = normalize\([\s\S]*?forestBumpNode,[\s\S]*?rainNormalVisibility/);
-assert.match(ecologySource, /const forestRoughnessNode = forestDetailRoughnessNode;/);
+assert.match(ecologySource, /const forestDetailRoughnessNode = forestHrao\.g;/);
 assert.match(
   ecologySource,
-  /const forestDetailAoNode = mix\([\s\S]*?float\(0\.9\)[\s\S]*?float\(0\.99\)[\s\S]*?forestGrain/,
+  /const meadowNormal = reorientTerrainNormalSample\([\s\S]*?textures\.meadow\.normal[\s\S]*?meadowUv,[\s\S]*?1,[\s\S]*?0,[\s\S]*?0,[\s\S]*?1/,
+  'meadow tangent normals must account for hardware mirror parity',
+);
+assert.match(
+  ecologySource,
+  /const denseNormal = reorientTerrainNormalSample\([\s\S]*?textures\.dense\.normal[\s\S]*?0\.81232,[\s\S]*?0\.58321,[\s\S]*?-0\.58321,[\s\S]*?0\.81232/,
+  'dense-grass tangent normals must rotate with the dense UV transform',
+);
+assert.match(
+  ecologySource,
+  /const dryNormal = reorientTerrainNormalSample\([\s\S]*?textures\.dry\.normal[\s\S]*?0\.68569,[\s\S]*?-0\.72789,[\s\S]*?0\.72789,[\s\S]*?0\.68569/,
+  'dry-grass tangent normals must rotate with the dry UV transform',
+);
+assert.match(
+  ecologySource,
+  /const dryRoughness = \(texture\(\s*textures\.dry\.roughness,\s*packedDrySnowUv\(dryUv, false\),?\s*\) as TslNode\)\.g;/,
+  'dry grass roughness must read G from the dry cell of the reused HRAO atlas',
+);
+assert.match(
+  ecologySource,
+  /const forestDetailAoNode = mix\([\s\S]*?float\(0\.9\)[\s\S]*?float\(1\)[\s\S]*?forestHrao\.b/,
   'close leaf litter must retain soft AO rather than being darkened twice',
 );
 assert.match(
   ecologySource,
-  /const forestAoNode = mix\([\s\S]*?float\(0\.95\)[\s\S]*?forestDetailAoNode,[\s\S]*?rainAoVisibility/,
+  /const forestAoNode = mix\([\s\S]*?float\(1\)[\s\S]*?forestDetailAoNode,[\s\S]*?rainAoVisibility/,
   'forest-floor AO must remain detailed at every camera height',
 );
 assert.match(ecologySource, /vec3\(0\.12, 0\.24, 0\.045\)/);
@@ -235,8 +279,41 @@ assert.doesNotMatch(
 );
 assert.equal(
   (source.match(/\btexture\(/g) ?? []).length,
-  29,
-  'layered close soil, packed snow/leaf atlas and reused albedo coverage samples must retain a bounded texture budget',
+  32,
+  'packed litter HRAO must retain a bounded texture-fetch budget',
+);
+const terrainTextureBindings = new Set(
+  [...source.matchAll(/texture\(\s*(textures\.(?:meadow|dense|dry)\.(?:albedo|normal|roughness|ao)|roadTextures\.(?:albedo|roughness))/g)]
+    .map((match) => match[1]),
+);
+assert.equal(
+  terrainTextureBindings.size,
+  14,
+  'terrain must reuse dry.roughness for HRAO and preserve one portable sampler slot beside the sun shadow',
+);
+assert.deepEqual(
+  [...terrainTextureBindings].sort(),
+  [
+    'roadTextures.albedo',
+    'roadTextures.roughness',
+    'textures.dense.albedo',
+    'textures.dense.ao',
+    'textures.dense.normal',
+    'textures.dense.roughness',
+    'textures.dry.albedo',
+    'textures.dry.ao',
+    'textures.dry.normal',
+    'textures.dry.roughness',
+    'textures.meadow.albedo',
+    'textures.meadow.ao',
+    'textures.meadow.normal',
+    'textures.meadow.roughness',
+  ],
+);
+assert.doesNotMatch(
+  source,
+  /texture\(\s*textures\.(?:meadow|dense|dry)\.height/,
+  'terrain height maps must not silently consume the final portable sampler slot',
 );
 assert.match(source, /function mirroredTerrainAtlasUv/);
 assert.match(source, /const tileUv = mirroredTerrainAtlasUv\(grassUv\)/);
@@ -255,6 +332,16 @@ assert.deepEqual(
   [-1, -0.5, 0, 0.5, 1, 1.5, 2].map(mirroredTerrainAtlasCoordinate),
   [1, 0.5, 0, 0.5, 1, 0.5, 0],
   'packed terrain atlas coordinates must alternate direction across each tile',
+);
+assert.deepEqual(
+  [-1.2, -0.2, 0.2, 1.2].map(mirroredTerrainNormalParity),
+  [1, -1, 1, -1],
+  'mirrored normal axes must flip on alternating positive and negative tiles',
+);
+assert.match(
+  source,
+  /function reorientTerrainNormalSample[\s\S]*?step\([\s\S]*?fract\(sourceUv\.x\.mul\(float\(0\.5\)[\s\S]*?step\([\s\S]*?fract\(sourceUv\.y\.mul\(float\(0\.5\)/,
+  'runtime tangent normals must apply per-axis hardware mirror parity before UV rotation',
 );
 for (let boundary = -4; boundary <= 4; boundary += 1) {
   const epsilon = 1e-7;
@@ -492,9 +579,15 @@ assert.ok(
   'exposed winter ground should become snow-covered while retaining slight terrain variation',
 );
 assert.match(source, /packedDrySnowUv\(grassUv, true\)/);
-assert.match(textureLoaderSource, /snow_leaf_albedo_atlas\.png/);
+assert.match(
+  source,
+  /function packedDrySnowUv[\s\S]*?tileUv\.x[\s\S]*?float\(0\.875\)[\s\S]*?float\(0\.0625\)[\s\S]*?float\(0\.21875\)[\s\S]*?snow \? 0\.515625 : 0\.765625/,
+  'dry and snow atlas coordinates must map exactly onto their reflected 64px-gutter content windows',
+);
+assert.match(textureLoaderSource, /gorski_dry_grass_v1\/snow_leaf_albedo_atlas\.png/);
+assert.match(textureLoaderSource, /roughness: '\/assets\/textures\/terrain\/gorski_dry_grass_v1\/snow_leaf_hrao_atlas\.png'/);
 const packedTerrainAtlas = readFileSync(
-  `${projectRoot}public/assets/textures/terrain/manor_grass_dry/snow_leaf_albedo_atlas.png`,
+  `${projectRoot}public/assets/textures/terrain/gorski_dry_grass_v1/snow_leaf_albedo_atlas.png`,
 );
 assert.equal(packedTerrainAtlas.readUInt32BE(16), 1024);
 assert.equal(
@@ -502,8 +595,17 @@ assert.equal(
   4096,
   'the packed terrain atlas must retain dry grass, snow, and two independent leaf-litter cells',
 );
+const packedTerrainHraoAtlas = readFileSync(
+  `${projectRoot}public/assets/textures/terrain/gorski_dry_grass_v1/snow_leaf_hrao_atlas.png`,
+);
+assert.equal(packedTerrainHraoAtlas.readUInt32BE(16), 1024);
+assert.equal(
+  packedTerrainHraoAtlas.readUInt32BE(20),
+  4096,
+  'the HRAO atlas must exactly match the packed terrain albedo layout',
+);
 const secondaryForestAlbedo = readFileSync(
-  `${projectRoot}public/assets/textures/terrain/forest_leaf_litter_secondary/albedo.png`,
+  `${projectRoot}public/assets/textures/terrain/gorski_forest_litter_secondary_v1/albedo.png`,
 );
 assert.equal(secondaryForestAlbedo.readUInt32BE(16), 1024);
 assert.equal(secondaryForestAlbedo.readUInt32BE(20), 1024);

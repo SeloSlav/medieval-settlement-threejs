@@ -1,9 +1,15 @@
 import * as THREE from 'three';
 import { loadSkyPerlinTexture } from '../sky/SkyCloudMesh.ts';
-import { loadMossyRockTextures, type MossyRockTextureSet } from '../utils/propTextureLoad.ts';
+import {
+  loadQuarryRockTextures,
+  loadRiverRockTextures,
+  type RockTextureRole,
+  type RockTextureSet,
+} from '../utils/propTextureLoad.ts';
 
 export type SceneStartupTextures = {
-  riverRock: MossyRockTextureSet;
+  riverRock: RockTextureSet<'river'>;
+  quarryRock: RockTextureSet<'quarry'>;
   skyPerlin: THREE.Texture;
   ready?: Promise<void>;
 };
@@ -12,26 +18,23 @@ const DEFAULT_MAX_ANISOTROPY = 8;
 
 export function beginStartupTextureLoad(maxAnisotropy = DEFAULT_MAX_ANISOTROPY): Promise<SceneStartupTextures> {
   return Promise.all([
-    loadMossyRockTextures(maxAnisotropy),
+    loadRiverRockTextures(maxAnisotropy),
+    loadQuarryRockTextures(maxAnisotropy),
     loadSkyPerlinTexture(),
-  ]).then(([riverRock, skyPerlin]) => ({ riverRock, skyPerlin }));
+  ]).then(([riverRock, quarryRock, skyPerlin]) => ({ riverRock, quarryRock, skyPerlin }));
 }
 
 export function beginProgressiveStartupTextureLoad(
   maxAnisotropy = DEFAULT_MAX_ANISOTROPY,
 ): Promise<SceneStartupTextures> {
-  const riverRock: MossyRockTextureSet = {
-    map: placeholderTexture([95, 102, 91, 255], true),
-    normalMap: placeholderTexture([128, 128, 255, 255], false),
-    roughnessMap: placeholderTexture([235, 235, 235, 255], false),
-  };
+  const riverRock = placeholderRockTextureSet('river', [184, 181, 170, 255]);
+  const quarryRock = placeholderRockTextureSet('quarry', [202, 196, 181, 255]);
   const skyPerlin = placeholderTexture([128, 128, 128, 255], false);
-  const textures: SceneStartupTextures = { riverRock, skyPerlin };
+  const textures: SceneStartupTextures = { riverRock, quarryRock, skyPerlin };
   textures.ready = beginStartupTextureLoad(maxAnisotropy)
     .then((loaded) => {
-      hydrateTexture(riverRock.map, loaded.riverRock.map);
-      hydrateTexture(riverRock.normalMap, loaded.riverRock.normalMap);
-      hydrateTexture(riverRock.roughnessMap, loaded.riverRock.roughnessMap);
+      hydrateRockTextureSet(riverRock, loaded.riverRock);
+      hydrateRockTextureSet(quarryRock, loaded.quarryRock);
       hydrateTexture(skyPerlin, loaded.skyPerlin);
     });
   return Promise.resolve(textures);
@@ -39,9 +42,46 @@ export function beginProgressiveStartupTextureLoad(
 
 export function applyMaxAnisotropy(textures: SceneStartupTextures, maxAnisotropy: number): void {
   const limit = Math.max(1, Math.min(16, maxAnisotropy));
-  for (const texture of [textures.riverRock.map, textures.riverRock.normalMap, textures.riverRock.roughnessMap]) {
+  for (const texture of [
+    ...rockTextures(textures.riverRock),
+    ...rockTextures(textures.quarryRock),
+  ]) {
     texture.anisotropy = limit;
   }
+}
+
+function placeholderRockTextureSet<Role extends 'river' | 'quarry'>(
+  role: Role,
+  albedo: [number, number, number, number],
+): RockTextureSet<Role> {
+  const aoMap = placeholderTexture([242, 242, 242, 255], false);
+  aoMap.channel = 1;
+  return {
+    role,
+    map: placeholderTexture(albedo, true),
+    normalMap: placeholderTexture([128, 128, 255, 255], false),
+    roughnessMap: placeholderTexture([235, 235, 235, 255], false),
+    aoMap,
+  };
+}
+
+function rockTextures(set: RockTextureSet<RockTextureRole>): THREE.Texture[] {
+  return [
+    set.map,
+    set.normalMap,
+    set.roughnessMap,
+    ...(set.aoMap ? [set.aoMap] : []),
+  ];
+}
+
+function hydrateRockTextureSet<Role extends 'river' | 'quarry'>(
+  target: RockTextureSet<Role>,
+  source: RockTextureSet<Role>,
+): void {
+  hydrateTexture(target.map, source.map);
+  hydrateTexture(target.normalMap, source.normalMap);
+  hydrateTexture(target.roughnessMap, source.roughnessMap);
+  if (target.aoMap && source.aoMap) hydrateTexture(target.aoMap, source.aoMap);
 }
 
 function placeholderTexture(
@@ -65,6 +105,11 @@ function placeholderTexture(
 }
 
 function hydrateTexture(target: THREE.Texture, source: THREE.Texture): void {
+  // Renderer capability negotiation happens against the stable placeholder
+  // identity. Texture.copy() also copies source anisotropy, so preserve the
+  // negotiated target value while hydrating the decoded image and sampler.
+  const anisotropy = target.anisotropy;
   target.copy(source);
+  target.anisotropy = anisotropy;
   target.needsUpdate = true;
 }

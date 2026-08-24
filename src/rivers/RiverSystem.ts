@@ -2,7 +2,10 @@ import * as THREE from 'three';
 import type { MeshStandardNodeMaterial } from 'three/webgpu';
 import type { BuildingTerrainSource } from '../buildings/BuildingTerrainLayout.ts';
 import type { RoadNetwork } from '../roads/RoadNetwork.ts';
-import type { MossyRockTextureSet } from '../utils/propTextureLoad.ts';
+import {
+  disposeRockTextureSet,
+  type RockTextureSet,
+} from '../utils/propTextureLoad.ts';
 import type { Terrain } from '../terrain/Terrain.ts';
 import { RiverField } from './RiverField.ts';
 import { createRiverBankMeshes } from './RiverBankMesh.ts';
@@ -15,6 +18,7 @@ import type { RockObstacle } from '../utils/pathGeometry.ts';
 import type { Point2 } from '../utils/polygonGeometry.ts';
 import type { RendererBackendKind } from '../scene/RendererBackend.ts';
 import { isReedZoomActive } from '../grass/grassLodMath.ts';
+import { disposeObject3D } from '../utils/dispose.ts';
 
 function createPropShadowMaterials(): {
   shadowCast: THREE.MeshStandardMaterial;
@@ -61,7 +65,7 @@ export async function createRiverSystem(
   terrain: Terrain,
   riverField: RiverField,
   bankMaterial: MeshStandardNodeMaterial,
-  rockTextures: MossyRockTextureSet,
+  rockTextures: RockTextureSet<'river'>,
   maxAnisotropy: number,
   rendererBackend: RendererBackendKind,
 ): Promise<RiverSystem> {
@@ -86,6 +90,7 @@ export async function createRiverSystem(
   let roadNetwork: RoadNetwork | null = null;
 
   const finishDetails = (): Promise<void> => {
+    if (disposed) return Promise.resolve();
     if (detailsPromise) return detailsPromise;
     detailsPromise = (async () => {
       const nextShoreStones = createRiverShoreStones(
@@ -112,6 +117,8 @@ export async function createRiverSystem(
         ),
       ]);
       if (disposed) {
+        disposeObject3D(nextShoreStones.group);
+        disposeObject3D(bankMeshes);
         nextReeds.dispose();
         nextLilyPads.dispose();
         return;
@@ -131,12 +138,12 @@ export async function createRiverSystem(
   };
 
   const dispose = () => {
+    if (disposed) return;
+    disposed = true;
     waterController?.dispose();
     disposeSharedRiverWaterMaterial();
     rockMaterial.dispose();
-    rockMaterial.map?.dispose();
-    rockMaterial.normalMap?.dispose();
-    rockMaterial.roughnessMap?.dispose();
+    disposeRockTextureSet(rockTextures);
     rockShadowMaterials.shadowCast.dispose();
     rockShadowMaterials.shadowDepth.dispose();
     reeds?.dispose();
@@ -169,22 +176,23 @@ export async function createRiverSystem(
     setNightAmount: setSharedRiverWaterNightAmount,
     tick: (dt, timeSec) => waterController?.tick(dt, timeSec),
     dispose: () => {
-      disposed = true;
       dispose();
     },
   };
 }
 
-function createRiverRockMaterial(rockTextures: MossyRockTextureSet): THREE.MeshStandardMaterial {
+function createRiverRockMaterial(rockTextures: RockTextureSet<'river'>): THREE.MeshStandardMaterial {
   const material = new THREE.MeshStandardMaterial({
     map: rockTextures.map,
     normalMap: rockTextures.normalMap,
     roughnessMap: rockTextures.roughnessMap,
-    color: 0xb0aea0,
-    roughness: 0.92,
+    aoMap: rockTextures.aoMap,
+    aoMapIntensity: 0.68,
+    color: 0xffffff,
+    roughness: 1,
     metalness: 0,
   });
-  material.normalScale.set(0.55, 0.55);
+  material.normalScale.set(0.62, 0.62);
   return material;
 }
 

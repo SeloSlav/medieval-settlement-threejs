@@ -1,0 +1,349 @@
+{
+  "installedOn": "2026-08-23",
+  "rawCandidatesPreserved": true,
+  "deferred": [
+    "medieval compacted dirt road",
+    "backyard garden-bed soil"
+  ],
+  "materials": [
+    {
+      "slug": "manor-grass-meadow",
+      "target": "public/assets/textures/terrain/gorski_meadow_grass_v1",
+      "normalProcessing": {
+        "greenChannelFlipped": true,
+        "meanTiltRemoved": true,
+        "xyStrength": 0.28,
+        "sourceMeanRgb": [
+          105.036,
+          111.161,
+          218.098
+        ],
+        "runtimeMeanRgb": [
+          127.441,
+          127.494,
+          252.854
+        ],
+        "runtimeRangeRgb": [
+          [
+            99,
+            167
+          ],
+          [
+            89,
+            158
+          ],
+          [
+            244,
+            255
+          ]
+        ]
+      }
+    },
+    {
+      "slug": "manor-grass-dense",
+      "target": "public/assets/textures/terrain/gorski_dense_grass_v1",
+      "normalProcessing": {
+        "greenChannelFlipped": true,
+        "meanTiltRemoved": true,
+        "xyStrength": 0.32,
+        "sourceMeanRgb": [
+          114.104,
+          120.892,
+          227.595
+        ],
+        "runtimeMeanRgb": [
+          127.5,
+          127.503,
+          254.165
+        ],
+        "runtimeRangeRgb": [
+          [
+            92,
+            170
+          ],
+          [
+            87,
+            165
+          ],
+          [
+            246,
+            255
+          ]
+        ]
+      }
+    },
+    {
+      "slug": "manor-grass-dry-v2",
+      "target": "public/assets/textures/terrain/gorski_dry_grass_v1",
+      "normalProcessing": {
+        "greenChannelFlipped": true,
+        "meanTiltRemoved": true,
+        "xyStrength": 0.5,
+        "sourceMeanRgb": [
+          113.694,
+          112.879,
+          245.955
+        ],
+        "runtimeMeanRgb": [
+          127.543,
+          127.454,
+          252.038
+        ],
+        "runtimeRangeRgb": [
+          [
+            76,
+            189
+          ],
+          [
+            70,
+            179
+          ],
+          [
+            232,
+            255
+          ]
+        ]
+      }
+    },
+    {
+      "slug": "forest-leaf-litter-primary",
+      "target": "public/assets/textures/terrain/gorski_forest_litter_primary_v1",
+      "normalProcessing": {
+        "greenChannelFlipped": true,
+        "meanTiltRemoved": true,
+        "xyStrength": 0.55,
+        "sourceMeanRgb": [
+          124.062,
+          107.436,
+          244.117
+        ],
+        "runtimeMeanRgb": [
+          127.5,
+          127.525,
+          251.407
+        ],
+        "runtimeRangeRgb": [
+          [
+            67,
+            190
+          ],
+          [
+            59,
+            181
+          ],
+          [
+            226,
+            255
+          ]
+        ]
+      }
+    },
+    {
+      "slug": "forest-leaf-litter-secondary",
+      "target": "public/assets/textures/terrain/gorski_forest_litter_secondary_v1",
+      "normalProcessing": {
+        "greenChannelFlipped": true,
+        "meanTiltRemoved": true,
+        "xyStrength": 0.55,
+        "sourceMeanRgb": [
+          123.331,
+          119.171,
+          247.465
+        ],
+        "runtimeMeanRgb": [
+          127.519,
+          127.459,
+          250.611
+        ],
+        "runtimeRangeRgb": [
+          [
+            68,
+            190
+          ],
+          [
+            63,
+            186
+          ],
+          [
+            227,
+            255
+          ]
+        ]
+      }
+    },
+    {
+      "slug": "forest-mossy-karst-rock-v3",
+      "target": "public/assets/textures/props/gorski_forest_mossy_rock_v1",
+      "normalProcessing": {
+        "greenChannelFlipped": true,
+        "meanTiltRemoved": true,
+        "xyStrength": 0.68,
+        "sourceMeanRgb": [
+          121.536,
+          108.768,
+          250.026
+        ],
+        "runtimeMeanRgb": [
+          127.468,
+          127.543,
+          253.18
+        ],
+        "runtimeRangeRgb": [
+          [
+            58,
+            201
+          ],
+          [
+            49,
+            191
+          ],
+          [
+            217,
+            255
+          ]
+        ]
+      }
+    },
+    {
+      "slug": "clean-river-stone",
+      "target": "public/assets/textures/props/gorski_river_stone_v1",
+      "normalProcessing": {
+        "greenChannelFlipped": true,
+        "meanTiltRemoved": true,
+        "xyStrength": 0.64,
+        "sourceMeanRgb": [
+          120.909,
+          104.625,
+          251.647
+        ],
+        "runtimeMeanRgb": [
+          127.502,
+          127.5,
+          254.048
+        ],
+        "runtimeRangeRgb": [
+          [
+            61,
+            191
+          ],
+          [
+            65,
+            187
+          ],
+          [
+            229,
+            255
+          ]
+        ]
+      }
+    },
+    {
+      "slug": "clean-quarry-limestone-v2",
+      "target": "public/assets/textures/props/gorski_quarry_limestone_v1",
+      "normalProcessing": {
+        "greenChannelFlipped": true,
+        "meanTiltRemoved": true,
+        "xyStrength": 0.66,
+        "sourceMeanRgb": [
+          121.165,
+          107.396,
+          251.879
+        ],
+        "runtimeMeanRgb": [
+          127.494,
+          127.471,
+          254.401
+        ],
+        "runtimeRangeRgb": [
+          [
+            60,
+            200
+          ],
+          [
+            50,
+            189
+          ],
+          [
+            220,
+            255
+          ]
+        ]
+      }
+    }
+  ],
+  "terrainAtlases": {
+    "albedo": "public/assets/textures/terrain/gorski_dry_grass_v1/snow_leaf_albedo_atlas.png",
+    "hrao": "public/assets/textures/terrain/gorski_dry_grass_v1/snow_leaf_hrao_atlas.png",
+    "hraoChannels": "R=height, G=roughness, B=ambient occlusion",
+    "cellOrderTopToBottom": "dry, snow, primary forest litter, secondary forest litter",
+    "cellPaddingModesTopToBottom": "mirror, mirror, mirror, repeat"
+  },
+  "files": {
+    "public/assets/textures/props/gorski_forest_mossy_rock_v1/albedo.png": "5ce3091b2e246c5a7246194d1b04bdd68a63db1d79532d5324bb7fd21cf32690",
+    "public/assets/textures/props/gorski_forest_mossy_rock_v1/ao.png": "f656d765aa1d9735146b66f8995476c8987e9ea566a19d02f06c686305e717d6",
+    "public/assets/textures/props/gorski_forest_mossy_rock_v1/generation.json": "de609c5ea6772f40b6040d0a1359d352fb12ff67315b3b8d8767358c2a845bf3",
+    "public/assets/textures/props/gorski_forest_mossy_rock_v1/height.png": "1b17ee6bce0ac4224d6a60f7046515c2e88606ae11e41aa01e30823fa327873f",
+    "public/assets/textures/props/gorski_forest_mossy_rock_v1/metalness.png": "0f4b1668d119f77ceb6b86645573f088ab2341d7b284314d5df0be7226ea5d91",
+    "public/assets/textures/props/gorski_forest_mossy_rock_v1/normal.png": "81eea6a65597c31f299e9a1240d950b1dc4a7854a9da31703db3f4b2033d7d04",
+    "public/assets/textures/props/gorski_forest_mossy_rock_v1/README.md": "cac81d5fb847cce8a32706a2825bcda9a23d46980ffea575129a6b8960c14be0",
+    "public/assets/textures/props/gorski_forest_mossy_rock_v1/roughness.png": "068404813bd8bd315be00e0dfcb360eed970aff9d72d6cd611283719ace75eed",
+    "public/assets/textures/props/gorski_quarry_limestone_v1/albedo.png": "b2829f4879f4202614eabfb0aec98604c17488f4bb3f58fe02779f73c05528c9",
+    "public/assets/textures/props/gorski_quarry_limestone_v1/ao.png": "e59ccd649e52c32ebd5f94a5facae99108830937d71c379881a822ab36ab1abc",
+    "public/assets/textures/props/gorski_quarry_limestone_v1/generation.json": "28f78760b19e70287f2a5ff24d528b4982de1e784bf524f714d9a91ceb51522a",
+    "public/assets/textures/props/gorski_quarry_limestone_v1/height.png": "94f905a7e12fb49d19e560481192ac2f37fdb8ae12a8c1171d1fba511345c7a6",
+    "public/assets/textures/props/gorski_quarry_limestone_v1/metalness.png": "0f4b1668d119f77ceb6b86645573f088ab2341d7b284314d5df0be7226ea5d91",
+    "public/assets/textures/props/gorski_quarry_limestone_v1/normal.png": "89fbdeae6afe068eb31cf68a43936060970a051e72d465bc473f00e4c184c40b",
+    "public/assets/textures/props/gorski_quarry_limestone_v1/README.md": "61fe4cc33fcb58e6dfb6c104f70d9cfccf4b8525f7bd5238d1d3ca99edb41efe",
+    "public/assets/textures/props/gorski_quarry_limestone_v1/roughness.png": "c495f465e4606fd477ce452bdbdcf9ffe5408244faad2e4c243ddaed16524190",
+    "public/assets/textures/props/gorski_river_stone_v1/albedo.png": "a74aaaca5d604f7bf3756b9119eb69a50d4f73b1792fb800a59926ba919cf6d1",
+    "public/assets/textures/props/gorski_river_stone_v1/ao.png": "640775a674aa08f211a5eb1b99bfb05fe8db00645d18343d766680d51a61ee07",
+    "public/assets/textures/props/gorski_river_stone_v1/generation.json": "dfecd23892658a8b9cc1046f5d23c3c301d673c539ba83839a6538bb366eef5c",
+    "public/assets/textures/props/gorski_river_stone_v1/height.png": "6db7d92c11ecb070bf655e6d0edfb15a82db2da18869d1b76d5109b07b6ae571",
+    "public/assets/textures/props/gorski_river_stone_v1/metalness.png": "0f4b1668d119f77ceb6b86645573f088ab2341d7b284314d5df0be7226ea5d91",
+    "public/assets/textures/props/gorski_river_stone_v1/normal.png": "374cec716494c6a21cc5adacad7d4d9f4f66b83d8b669e967ad0c6d785e5d0dd",
+    "public/assets/textures/props/gorski_river_stone_v1/README.md": "eec2e0011ef0bd06e9dbc0d4b49d21e2e8f13e2a632d7ea4bc89f72844fd2415",
+    "public/assets/textures/props/gorski_river_stone_v1/roughness.png": "81c3d38c93918316300eeb0ee1d45895549a6aa8af92169aeb1833784243d946",
+    "public/assets/textures/terrain/gorski_dense_grass_v1/albedo.png": "43267d62958a9ff6e7819567783e7ceb2c5545cda581ba70c6b7ac0de359536b",
+    "public/assets/textures/terrain/gorski_dense_grass_v1/ao.png": "0eef354e95bd313fecb7dcc0cb7c3303efad658fd34c2bfe1172f104836c8bb6",
+    "public/assets/textures/terrain/gorski_dense_grass_v1/generation.json": "aca2923490df55584256632bd211141a5a66f2f3846ecd801006853e014a93e5",
+    "public/assets/textures/terrain/gorski_dense_grass_v1/height.png": "53b03b35d925133b957d9fcd85e264e334631801ffd6dd3c7b42859baf65f6bd",
+    "public/assets/textures/terrain/gorski_dense_grass_v1/metalness.png": "0f4b1668d119f77ceb6b86645573f088ab2341d7b284314d5df0be7226ea5d91",
+    "public/assets/textures/terrain/gorski_dense_grass_v1/normal.png": "2e7e0574b0328383ec6037b934f2ca1d0fbe1d3d26b00a229daec52da30f798e",
+    "public/assets/textures/terrain/gorski_dense_grass_v1/README.md": "89421a6b5fb3f59776808d02b2c6614592c99b8b0dadd7ec653041902fa93e3a",
+    "public/assets/textures/terrain/gorski_dense_grass_v1/roughness.png": "804bff892c749637fba25dc798c1557ec1161d2ffd42801561531b5666a03b77",
+    "public/assets/textures/terrain/gorski_dry_grass_v1/albedo.png": "187e1155ba16f00ac2a8fa979e8545ddeb87a4e0be31a024ba5e18f331bcfbda",
+    "public/assets/textures/terrain/gorski_dry_grass_v1/ao.png": "b6e066fe6145966b4c4722c2ab238e5cf0839a40acc271da50ff063b08a63bff",
+    "public/assets/textures/terrain/gorski_dry_grass_v1/generation.json": "614b3c54ed746b97372602c7c07a877912b7c3f801affb1c1d4f106c224b3a6c",
+    "public/assets/textures/terrain/gorski_dry_grass_v1/height.png": "af76f93e8ea0afbfce9e6cd87b6a1d6003ecec464fcb77ccee039f458830e510",
+    "public/assets/textures/terrain/gorski_dry_grass_v1/metalness.png": "0f4b1668d119f77ceb6b86645573f088ab2341d7b284314d5df0be7226ea5d91",
+    "public/assets/textures/terrain/gorski_dry_grass_v1/normal.png": "525ffa35e493b617f1e5c65692cc2541ebf9a181ddaee6cec9305e5179f8c4f3",
+    "public/assets/textures/terrain/gorski_dry_grass_v1/README.md": "10eb1be42acc4cd75c7d43d37dbb89730a7a826b12ec57b5a1dd4a10a2dee5ab",
+    "public/assets/textures/terrain/gorski_dry_grass_v1/roughness.png": "619e03b139e07abcfbe72452455eab353e92caf35e31e733844531668e6a70c0",
+    "public/assets/textures/terrain/gorski_dry_grass_v1/snow_leaf_albedo_atlas.png": "d18520b29bd3bfac178471358c3cd77201835c6133d371b922f1b5e5ffc115fe",
+    "public/assets/textures/terrain/gorski_dry_grass_v1/snow_leaf_hrao_atlas.png": "ff8f165932872a391d92e2ff81a0497b8ff963b116e312aa87477e3fd463a3c8",
+    "public/assets/textures/terrain/gorski_forest_litter_primary_v1/albedo.png": "1e107da55ea6bf337497119c5e07dfc796b0a0a4d22d76f51ef0723a84c6e087",
+    "public/assets/textures/terrain/gorski_forest_litter_primary_v1/ao.png": "81c5969f771440ad4bc21d7e2c960dbf19ede56831eff8785ba01a0c3b7d610f",
+    "public/assets/textures/terrain/gorski_forest_litter_primary_v1/generation.json": "711db7ca2f3ec57690e9b4c1dc6391dd4b25cb1ae22a73900aaa38e550ab36f9",
+    "public/assets/textures/terrain/gorski_forest_litter_primary_v1/height.png": "dae67575da9a3c5536266e3035eab3e60b3fc5d496f1e5a53c291a140f64cea8",
+    "public/assets/textures/terrain/gorski_forest_litter_primary_v1/metalness.png": "0f4b1668d119f77ceb6b86645573f088ab2341d7b284314d5df0be7226ea5d91",
+    "public/assets/textures/terrain/gorski_forest_litter_primary_v1/normal.png": "47ee4d2da4a7a068acce725026ff521c74f20ce41e7435e25dee478edb0cc5aa",
+    "public/assets/textures/terrain/gorski_forest_litter_primary_v1/README.md": "cee814a90e98b251111e8cff0669be80737671424db3e510e0a4e7b4302d48e1",
+    "public/assets/textures/terrain/gorski_forest_litter_primary_v1/roughness.png": "945e5a2bca047a821217e17e7b724cfc40350ec56d36689154ca9814ae6a5eca",
+    "public/assets/textures/terrain/gorski_forest_litter_secondary_v1/albedo.png": "2194d7a46e7d24ba89d842fce2b27781e1f3d6eefec34f25e9590b80e638ce51",
+    "public/assets/textures/terrain/gorski_forest_litter_secondary_v1/ao.png": "ae2c883a1238049d2bbb5d3ab787cc73544d9291004b535b0795c66ef681e3e2",
+    "public/assets/textures/terrain/gorski_forest_litter_secondary_v1/generation.json": "75a716289461d2dcbb2aa44c0d5270466af593762a79026277810211a0a4137f",
+    "public/assets/textures/terrain/gorski_forest_litter_secondary_v1/height.png": "4530060f64491bd88a93bc9fd1663a2e379a11231d98c71707dcc53d6d506c91",
+    "public/assets/textures/terrain/gorski_forest_litter_secondary_v1/metalness.png": "0f4b1668d119f77ceb6b86645573f088ab2341d7b284314d5df0be7226ea5d91",
+    "public/assets/textures/terrain/gorski_forest_litter_secondary_v1/normal.png": "310417c9d4cf87203bd76be9c2801b994666c020cf84ab5bf9b9f5b75adecb89",
+    "public/assets/textures/terrain/gorski_forest_litter_secondary_v1/README.md": "b13422ff93d72ff9f9a122b2bb30c2798699c901846366729d93281da8fafffd",
+    "public/assets/textures/terrain/gorski_forest_litter_secondary_v1/roughness.png": "34d6fb0de9441442bcba545458e51b7d87bc9cf249a3edac10d4b234f4b25eea",
+    "public/assets/textures/terrain/gorski_meadow_grass_v1/albedo.png": "6851103eb4a311cf57eba9e3aafcb5dd318ce61383f34e5d749371b4b16f1b36",
+    "public/assets/textures/terrain/gorski_meadow_grass_v1/ao.png": "7dc10900df084725bb4b55ffc9e7a1eca5fdb37d1919df765de23603e64fba83",
+    "public/assets/textures/terrain/gorski_meadow_grass_v1/generation.json": "1d927744e79a76570a6184210c95c1328b1c9e9f5af866e3b9543374322dda2a",
+    "public/assets/textures/terrain/gorski_meadow_grass_v1/height.png": "dd9736d4e554b1e7c6271d7f1a6029c9bd7244ef73bd77ab83313ecfd8f40d4b",
+    "public/assets/textures/terrain/gorski_meadow_grass_v1/metalness.png": "0f4b1668d119f77ceb6b86645573f088ab2341d7b284314d5df0be7226ea5d91",
+    "public/assets/textures/terrain/gorski_meadow_grass_v1/normal.png": "0c7a751ec5a18755814bfad1fb112d73182c56e5aa0567e1fa17867cb7c25249",
+    "public/assets/textures/terrain/gorski_meadow_grass_v1/README.md": "17f87916d35644cd4b7826a26c4edbc262b32f9a2e20d455105875f14e95baff",
+    "public/assets/textures/terrain/gorski_meadow_grass_v1/roughness.png": "30d1984234843565f2624be71313ff2438e3453961dbbf39c989b959734962d5"
+  }
+}
