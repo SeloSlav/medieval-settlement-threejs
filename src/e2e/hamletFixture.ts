@@ -62,7 +62,6 @@ import {
   setSeedThreeForestShadows,
   updateSeedThreeForestCamera,
   updateSeedThreeForestCameraBudgeted,
-  ensureSeedThreeSpatialForestLodGroupsVisible,
   type SeedThreeForestInstances,
 } from '../vegetation/seedthree/seedThreeForestBuilder.ts';
 import {
@@ -229,19 +228,6 @@ type HamletFixtureSystems = {
   degraded: readonly string[];
 };
 
-type HamletForestPresentationWork = {
-  updates: number;
-  selectorEvaluations: number;
-  selectorSkips: number;
-  selectionChanges: number;
-  bucketCompactions: number;
-  workChunks: number;
-  matrixWrites: number;
-  pendingBuckets: number;
-  maxPendingBuckets: number;
-  maxUpdateDurationMs: number;
-};
-
 type HamletFixtureBootStageState = {
   status: 'pending' | 'running' | 'ready' | 'timed-out' | 'failed';
   elapsedMs?: number;
@@ -291,7 +277,6 @@ declare global {
     __HAMLET_FIXTURE_PERFORMANCE_PROTOCOL__?: HamletFixturePerformanceProtocol;
     __HAMLET_FIXTURE_ABLATION__?: HamletFixtureAblation;
     __HAMLET_FIXTURE_FOREST_WORK__?: HamletForestRouteWorkTelemetry;
-    __HAMLET_FIXTURE_FOREST_PRESENTATION_WORK__?: HamletForestPresentationWork;
     __HAMLET_FIXTURE_GROUNDCOVER_WORK__?: GrassStreamTelemetry;
     __HAMLET_FIXTURE_COMPLETED_ROUTES__?: number;
     __HAMLET_FIXTURE_ROUTE_WARMUP__?: HamletFixtureRouteWarmupEvidence;
@@ -855,19 +840,6 @@ let latestForestFrameWork: VisualSlowFrameContext['forest'] = {
   bucketUploads: 0,
   pendingBuckets: 0,
 };
-const forestPresentationWork: HamletForestPresentationWork = {
-  updates: 0,
-  selectorEvaluations: 0,
-  selectorSkips: 0,
-  selectionChanges: 0,
-  bucketCompactions: 0,
-  workChunks: 0,
-  matrixWrites: 0,
-  pendingBuckets: 0,
-  maxPendingBuckets: 0,
-  maxUpdateDurationMs: 0,
-};
-window.__HAMLET_FIXTURE_FOREST_PRESENTATION_WORK__ = forestPresentationWork;
 let latestGroundcoverFrameDelta: VisualSlowFrameContext['groundcoverDelta'] = {
   generationSubsteps: 0,
   clearWriteSubsteps: 0,
@@ -2043,54 +2015,6 @@ function updateSceneLods(
   if (forestRuntimeReady && advanceForest) {
     const casterBounds = { minX: -90, maxX: 90, minZ: -80, maxZ: 80 };
     if (forestUpdatesFrozenForMeasurement && forestLodPrimed) {
-      const presentation = updateSeedThreeForestCameraBudgeted(
-        forest,
-        camera,
-        firstPerson,
-        casterBounds,
-        {
-          maxBucketCompactions:
-            HAMLET_FOREST_ROUTE_WORK_BUDGET.maxBucketCompactionsPerFrame,
-          maxUpdateDurationMs:
-            HAMLET_FOREST_ROUTE_WORK_BUDGET.maxUpdateDurationMs,
-          maxMatrixWritesPerChunk:
-            HAMLET_FOREST_ROUTE_WORK_BUDGET.maxMatrixWritesPerChunk,
-          stabilizeDuringInteraction: false,
-          minimumCameraMove:
-            HAMLET_FOREST_ROUTE_WORK_BUDGET.minimumCameraMoveMeters,
-          minimumDirectionAngle: THREE.MathUtils.degToRad(
-            HAMLET_FOREST_ROUTE_WORK_BUDGET.minimumDirectionAngleDegrees,
-          ),
-          minimumProjectionChange:
-            HAMLET_FOREST_ROUTE_WORK_BUDGET.minimumProjectionChange,
-          minimumCasterBoundsChange:
-            HAMLET_FOREST_ROUTE_WORK_BUDGET.minimumCasterBoundsChangeMeters,
-          cameraInteractionActive: routeElapsedMs !== undefined,
-          presentationOnly: true,
-        },
-      );
-      forestPresentationWork.updates += 1;
-      forestPresentationWork.selectorEvaluations += presentation.selectorSkipped ? 0 : 1;
-      forestPresentationWork.selectorSkips += presentation.selectorSkipped ? 1 : 0;
-      forestPresentationWork.selectionChanges += presentation.selectionChanged ? 1 : 0;
-      forestPresentationWork.bucketCompactions += presentation.bucketCompactions;
-      forestPresentationWork.workChunks += presentation.workChunks;
-      forestPresentationWork.matrixWrites += presentation.matrixWrites;
-      forestPresentationWork.pendingBuckets = presentation.pendingBuckets;
-      forestPresentationWork.maxPendingBuckets = Math.max(
-        forestPresentationWork.maxPendingBuckets,
-        presentation.pendingBuckets,
-      );
-      forestPresentationWork.maxUpdateDurationMs = Math.max(
-        forestPresentationWork.maxUpdateDurationMs,
-        presentation.durationMs,
-      );
-      window.__HAMLET_FIXTURE_FOREST_PRESENTATION_WORK__ = {
-        ...forestPresentationWork,
-      };
-      document.body.dataset.forestPresentationPending = String(
-        presentation.pendingBuckets,
-      );
       recordForestRouteWork(distanceMeters, {
         selectionChanged: false,
         bucketCompactions: 0,
@@ -2122,14 +2046,6 @@ function updateSceneLods(
       updateSeedThreeForestCamera(forest, camera, firstPerson, casterBounds);
       forestLodPrimed = true;
     }
-  }
-  if (forestRuntimeReady) {
-    // Presentation LOD remains camera-owned even while matrix selection is
-    // deliberately frozen for the exact profiler treatment. This swaps only
-    // submitted authored geometry; it does not regenerate or compact trees.
-    ensureSeedThreeSpatialForestLodGroupsVisible(
-      forest,
-    );
   }
   const lod = resolveFixtureLodState(distanceMeters);
   settlementRoot.userData.reviewLodBand = lod.building;
@@ -2460,9 +2376,6 @@ function maybeFinalizeFixtureEvidence(): void {
         presentationTreatment: envelope.presentationTreatment ?? null,
         groundcoverWork: envelope.groundcoverWork,
         forestWork: envelope.forestWork,
-        forestPresentationWork: {
-          ...forestPresentationWork,
-        },
         renderer: {
           ...performanceReport.renderer,
           lastFrame: { ...lastRendererFrameStats },
@@ -3317,19 +3230,6 @@ function resetMeasuredRouteTelemetry(): void {
     matrixWrites: 0,
     bucketUploads: 0,
     pendingBuckets: forestRouteWork.pendingBuckets,
-  };
-  forestPresentationWork.updates = 0;
-  forestPresentationWork.selectorEvaluations = 0;
-  forestPresentationWork.selectorSkips = 0;
-  forestPresentationWork.selectionChanges = 0;
-  forestPresentationWork.bucketCompactions = 0;
-  forestPresentationWork.workChunks = 0;
-  forestPresentationWork.matrixWrites = 0;
-  forestPresentationWork.pendingBuckets = 0;
-  forestPresentationWork.maxPendingBuckets = 0;
-  forestPresentationWork.maxUpdateDurationMs = 0;
-  window.__HAMLET_FIXTURE_FOREST_PRESENTATION_WORK__ = {
-    ...forestPresentationWork,
   };
   previousGroundcoverWork = grassField.getStreamTelemetry();
   latestGroundcoverFrameDelta = {

@@ -1,122 +1,115 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
-import * as THREE from 'three';
+import { partitionSeedThreeSelectionByStaticLod } from '../src/vegetation/seedthree/seedThreeForestCompaction.ts';
 import {
-  partitionSeedThreeSelectionByDistanceLod,
-} from '../src/vegetation/seedthree/seedThreeForestCompaction.ts';
-import {
-  createForestLodSelector,
-  selectForestLods,
-} from '../vendor/seedthree/src/core/forest-lod.js';
-const DETAIL_DISTANCE_METERS = 44;
-const LOD_HYSTERESIS_METERS = 14;
+  OVERVIEW_BILLBOARD_FULL_OPACITY_ZOOM_PERCENT,
+  OVERVIEW_BILLBOARD_REMOVE_ZOOM_PERCENT,
+  OVERVIEW_BILLBOARD_REVEAL_ZOOM_PERCENT,
+  updateSeedThreeOverviewBillboardFade,
+  type SeedThreeOverviewBillboardFadeState,
+} from '../src/vegetation/seedthree/seedThreeOverviewBillboardFade.ts';
 
-function cameraAt(distance: number): THREE.PerspectiveCamera {
-  const camera = new THREE.PerspectiveCamera(55, 16 / 9, 0.1, 400);
-  camera.position.set(0, 0, distance);
-  camera.lookAt(0, 0, 0);
-  camera.updateProjectionMatrix();
-  camera.updateMatrixWorld(true);
-  return camera;
+const hidden: SeedThreeOverviewBillboardFadeState = { enabled: false, opacity: 0 };
+
+const insideDisabledHysteresis = updateSeedThreeOverviewBillboardFade(
+  hidden,
+  98,
+  1 / 60,
+);
+assert.equal(
+  insideDisabledHysteresis.enabled,
+  false,
+  'overview quads must remain disabled between the reveal and remove thresholds',
+);
+assert.equal(insideDisabledHysteresis.visible, false);
+
+const revealed = updateSeedThreeOverviewBillboardFade(
+  hidden,
+  OVERVIEW_BILLBOARD_REVEAL_ZOOM_PERCENT,
+  1 / 60,
+);
+assert.equal(revealed.enabled, true, 'retreating to 96% must reveal overview quads');
+assert.ok(revealed.opacity > 0, 'revealed overview quads must begin a damped fade-in');
+
+const insideEnabledHysteresis = updateSeedThreeOverviewBillboardFade(
+  { enabled: true, opacity: revealed.opacity },
+  98,
+  1 / 60,
+);
+assert.equal(
+  insideEnabledHysteresis.enabled,
+  true,
+  'enabled overview quads must remain enabled inside the hysteresis band',
+);
+
+const midpoint = updateSeedThreeOverviewBillboardFade(
+  { enabled: true, opacity: 0.5 },
+  85,
+  1 / 60,
+);
+assert.equal(midpoint.targetOpacity, 0.5, 'the smootherstep zoom fade must be centered at 85%');
+
+const fullyRetreated = updateSeedThreeOverviewBillboardFade(
+  { enabled: true, opacity: 1 },
+  OVERVIEW_BILLBOARD_FULL_OPACITY_ZOOM_PERCENT,
+  1 / 60,
+);
+assert.equal(fullyRetreated.targetOpacity, 1);
+assert.equal(fullyRetreated.opacity, 1);
+
+const removed = updateSeedThreeOverviewBillboardFade(
+  { enabled: true, opacity: 0.8 },
+  OVERVIEW_BILLBOARD_REMOVE_ZOOM_PERCENT,
+  0.1,
+);
+assert.equal(removed.enabled, false, '100% zoom must disable overview quads');
+assert.equal(removed.targetOpacity, 0);
+assert.ok(
+  removed.opacity > 0 && removed.visible,
+  'the group must remain renderable while its residual opacity fades out',
+);
+
+let settled = removed;
+for (let frame = 0; frame < 120 && settled.visible; frame += 1) {
+  settled = updateSeedThreeOverviewBillboardFade(settled, 100, 1 / 60);
 }
+assert.equal(settled.opacity, 0, 'a completed fade-out must snap to exact zero opacity');
+assert.equal(settled.visible, false, 'the overview group may hide only after its fade completes');
 
-const sourceItems = [
-  { x: 0, y: 0, z: 0, radius: 1 },
-  { x: 5, y: 0, z: 0, radius: 1, forceOverview: true },
-] as const;
-const selector = createForestLodSelector(sourceItems, {
-  frustumPadding: 26,
-  nearDistance: DETAIL_DISTANCE_METERS,
-  lodHysteresis: LOD_HYSTERESIS_METERS,
-  minimumCameraMove: 0,
-});
-
-const boundary = selectForestLods(selector, cameraAt(44), { force: true });
-assert.ok(boundary.nearIndices.includes(0), 'a tree at 44 m starts in authored LOD2');
+const oneStep = updateSeedThreeOverviewBillboardFade(hidden, 70, 0.1);
+const halfStep = updateSeedThreeOverviewBillboardFade(hidden, 70, 0.05);
+const twoSteps = updateSeedThreeOverviewBillboardFade(halfStep, 70, 0.05);
 assert.ok(
-  boundary.overviewIndices.includes(1) && !boundary.nearIndices.includes(1),
-  'an authored edge-footprint tree remains overview geometry at every scale',
+  Math.abs(oneStep.opacity - twoSteps.opacity) < 1e-12,
+  'half-life damping must remain frame-rate independent',
 );
 
-const beyondExit = selectForestLods(selector, cameraAt(59), { force: true });
-assert.ok(
-  beyondExit.overviewIndices.includes(0),
-  'detail exits only beyond the 44 m + 14 m hysteresis boundary',
+const firstPerson = updateSeedThreeOverviewBillboardFade(
+  { enabled: true, opacity: 0.8 },
+  70,
+  1 / 60,
+  true,
 );
-const insideEnterBand = selectForestLods(selector, cameraAt(31), { force: true });
-assert.ok(
-  insideEnterBand.overviewIndices.includes(0),
-  'an overview tree stays overview inside the 44 m - 14 m enter band',
-);
-const beyondEnter = selectForestLods(selector, cameraAt(29), { force: true });
-assert.ok(
-  beyondEnter.nearIndices.includes(0),
-  'genuinely close geometry returns after crossing the hysteretic enter boundary',
-);
+assert.equal(firstPerson.enabled, false, 'first-person mode must never render overview quads');
+assert.equal(firstPerson.targetOpacity, 0);
+assert.equal(firstPerson.opacity, 0, 'first-person mode must remove residual overview opacity immediately');
+assert.equal(firstPerson.visible, false, 'first-person mode must hide the overlapping overview group immediately');
 
-const selected = {
-  nearIndices: [0, 3, 5],
-  overviewIndices: [1, 2, 4, 6],
-  viewIndices: [0, 1, 2, 3, 4],
-};
-const liveColor = partitionSeedThreeSelectionByDistanceLod(selected);
-const frozenColor = partitionSeedThreeSelectionByDistanceLod(selected);
-assert.deepEqual(liveColor, {
-  nearViewIndices: [0, 3],
-  overviewViewIndices: [1, 2, 4],
+const overlappingLods = partitionSeedThreeSelectionByStaticLod(
+  {
+    nearIndices: [0, 1],
+    overviewIndices: [2, 3],
+    viewIndices: [1, 2],
+  },
+  (layoutIndex) => layoutIndex === 2 || layoutIndex === 3,
+  true,
+);
+assert.deepEqual(overlappingLods, {
+  nearIndices: [0, 1, 2, 3],
+  overviewIndices: [2, 3],
+  nearViewIndices: [1, 2],
+  overviewViewIndices: [2],
   nearViewCount: 2,
-  overviewViewCount: 3,
-});
-assert.deepEqual(
-  frozenColor,
-  liveColor,
-  'ordinary and frozen-selection paths must resolve identical color LOD prefixes',
-);
+  overviewViewCount: 1,
+}, 'forced overview trees must keep their real near LOD resident under the fading quads');
 
-const forestSource = readFileSync(
-  new URL('../src/vegetation/seedthree/seedThreeForestBuilder.ts', import.meta.url),
-  'utf8',
-);
-const fixtureSource = readFileSync(
-  new URL('../src/e2e/hamletFixture.ts', import.meta.url),
-  'utf8',
-);
-assert.match(
-  forestSource,
-  /SEEDTHREE_FOREST_DETAIL_DISTANCE_METERS = 44;[\s\S]*?SEEDTHREE_FOREST_LOD_HYSTERESIS_METERS = 14;/,
-  'the reviewed close-detail footprint must remain 44 m with 14 m hysteresis',
-);
-assert.match(
-  forestSource,
-  /const distanceLod = partitionSeedThreeSelectionByDistanceLod\(selection\);[\s\S]*?viewNear:[\s\S]*?viewOverview:/,
-  'production bucket selection must derive both exact color prefixes from per-tree distance LOD',
-);
-assert.match(
-  forestSource,
-  /presentationOnly[\s\S]*?bucket\.nearSlotIndices[\s\S]*?viewNear: \[\] as number\[\]/,
-  'presentation-only mode may freeze caster residency but not replace spatial color ownership',
-);
-assert.match(
-  forestSource,
-  /createSeedThreeForestController[\s\S]*?updateSeedThreeForestCamera\([\s\S]*?ensureSeedThreeSpatialForestLodGroupsVisible\(/,
-  'ordinary live camera updates must use the production selector and keep both exact groups renderable',
-);
-assert.match(
-  fixtureSource,
-  /forestUpdatesFrozenForMeasurement[\s\S]*?updateSeedThreeForestCameraBudgeted\([\s\S]*?presentationOnly: true/,
-  'the frozen profiler must invoke the same production camera selector for presentation-only LOD',
-);
-assert.match(
-  forestSource,
-  /ensureSeedThreeSpatialForestLodGroupsVisible[\s\S]*?overviewBillboardGroup\.visible = next\.visible[\s\S]*?const nearColorVisible = true/,
-  'spatial detail and footprint prefixes must coexist without a camera-wide downgrade',
-);
-assert.match(
-  forestSource,
-  /getSeedThreeForestStructuralStats[\s\S]*?forest\.group\.traverseVisible/,
-  'forest evidence must count submitted visible geometry rather than hidden allocation',
-);
-
-console.log(
-  'SeedThree spatial forest LOD: fixed view, 44/14 m hysteresis, exact prefix partition, and live/frozen parity passed.',
-);
+console.log('SeedThree overview billboard fade: easing, hysteresis, settling, and resident overlap passed.');

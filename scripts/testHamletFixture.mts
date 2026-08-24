@@ -3663,8 +3663,6 @@ for (const runtimeContract of [
   'resolveHamletFixtureAblation',
   'canFinalizeHamletFixtureEvidence',
   'updateSeedThreeForestCameraBudgeted',
-  'ensureSeedThreeSpatialForestLodGroupsVisible',
-  '__HAMLET_FIXTURE_FOREST_PRESENTATION_WORK__',
   'primeAndFreezeStream',
   'forestUpdatesFrozenForMeasurement',
   'frozen-after-settled-warmup',
