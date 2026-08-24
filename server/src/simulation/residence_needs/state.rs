@@ -3,6 +3,7 @@ use spacetimedb::ReducerContext;
 use crate::balance_generated::{RESIDENCE_CLOTH_CAPACITY, RESIDENCE_POTTERY_CAPACITY};
 use crate::db::*;
 use crate::economy::{residence_edible_food_stock, residence_preserved_food_stock};
+use crate::resource_units::whole_units;
 use crate::simulation::residence_needs::kinds::ResidenceNeedKind;
 use crate::tables::{Residence, ResidenceNeed};
 
@@ -32,7 +33,7 @@ pub fn load_needs(ctx: &ReducerContext, residence_id: u64) -> Vec<NeedState> {
         .filter_map(|row| {
             ResidenceNeedKind::from_u8(row.need_kind).map(|kind| NeedState {
                 kind,
-                stock: row.stock,
+                stock: whole_units(row.stock),
                 deficit_ticks: row.deficit_ticks,
             })
         })
@@ -92,9 +93,10 @@ pub fn load_needs(ctx: &ReducerContext, residence_id: u64) -> Vec<NeedState> {
 }
 
 pub fn persist_need(ctx: &ReducerContext, residence_id: u64, need: &NeedState) {
+    let stock = whole_units(need.stock);
     if let Some(existing) = find_row(ctx, residence_id, need.kind) {
         ctx.db.residence_need().id().update(ResidenceNeed {
-            stock: need.stock,
+            stock,
             deficit_ticks: need.deficit_ticks,
             ..existing
         });
@@ -105,7 +107,7 @@ pub fn persist_need(ctx: &ReducerContext, residence_id: u64, need: &NeedState) {
         id: 0,
         residence_id,
         need_kind: need.kind.as_u8(),
-        stock: need.stock,
+        stock,
         deficit_ticks: need.deficit_ticks,
     });
 }
@@ -124,8 +126,10 @@ pub fn migrate_and_sync_food_inventory(
     needs: &mut [NeedState],
 ) {
     if !residence.food_inventory_migrated {
-        residence.food += need_stock(needs, ResidenceNeedKind::Food).max(0.0);
-        residence.preserved_food += need_stock(needs, ResidenceNeedKind::PreservedFood).max(0.0);
+        residence.food = whole_units(residence.food)
+            + whole_units(need_stock(needs, ResidenceNeedKind::Food));
+        residence.preserved_food = whole_units(residence.preserved_food)
+            + whole_units(need_stock(needs, ResidenceNeedKind::PreservedFood));
         residence.food_inventory_migrated = true;
     }
     if let Some(food_need) = find_need_mut(needs, ResidenceNeedKind::Food) {

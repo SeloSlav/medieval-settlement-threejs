@@ -31,11 +31,11 @@ use crate::placement_validation::{
     burgage_zone_has_road_frontage, burgage_zone_overlaps_buildings, zone_overlaps_resource_deposit,
 };
 use crate::residence_service_policy::{required_chapel_tier, service_shortage_blocks_upgrade};
-use crate::resource_units::whole_units;
 use crate::residence_upgrade_policy::{
     household_stock_satisfies_promotion_need, residence_project_active, residence_promotion_needs,
     residence_upgrade_household_contribution,
 };
+use crate::resource_units::whole_units;
 use crate::roads::{load_owner_road_network, RoadNetwork};
 use crate::simulation::residence_needs::{load_needs, need_stock, ResidenceNeedKind};
 use crate::simulation::{
@@ -860,6 +860,17 @@ fn current_tier_promotion_remedy(kind: ResidenceNeedKind, current_tier: u8) -> S
     }
 }
 
+fn allocated_whole_salvage_share(total: f64, index: usize, recipients: usize) -> f64 {
+    if recipients == 0 || index >= recipients {
+        return 0.0;
+    }
+    let total = whole_units(total) as u64;
+    let recipients = recipients as u64;
+    let base = total / recipients;
+    let remainder = total % recipients;
+    (base + u64::from((index as u64) < remainder)) as f64
+}
+
 #[reducer]
 pub fn demolish_residence(ctx: &ReducerContext, residence_id: u64) -> Result<(), String> {
     let owner = ctx.sender();
@@ -882,30 +893,36 @@ pub fn demolish_residence(ctx: &ReducerContext, residence_id: u64) -> Result<(),
         0
     });
     let recover_project_materials = !fire_damaged || residence.fire_repair_active;
-    let salvaged_roof_tiles = whole_units((if recover_project_materials && residence.tiled_roof {
-        RESIDENCE_TILE_ROOF_TILE_COST
-    } else {
-        0.0
-    } + if recover_project_materials {
-        residence.upgrade_delivered_roof_tiles
-    } else {
-        0.0
-    }) * RESIDENCE_TILE_ROOF_SALVAGE_FRACTION);
+    let salvaged_roof_tiles = whole_units(
+        (if recover_project_materials && residence.tiled_roof {
+            RESIDENCE_TILE_ROOF_TILE_COST
+        } else {
+            0.0
+        } + if recover_project_materials {
+            residence.upgrade_delivered_roof_tiles
+        } else {
+            0.0
+        }) * RESIDENCE_TILE_ROOF_SALVAGE_FRACTION,
+    );
     let salvage = ResourceAmount {
-        timber: whole_units((refund.timber
-            + if recover_project_materials {
-                residence.upgrade_delivered_timber
-            } else {
-                0.0
-            })
-            * TIMBER_SALVAGE_FRACTION),
-        stone: whole_units((refund.stone
-            + if recover_project_materials {
-                residence.upgrade_delivered_stone
-            } else {
-                0.0
-            })
-            * STONE_SALVAGE_FRACTION),
+        timber: whole_units(
+            (refund.timber
+                + if recover_project_materials {
+                    residence.upgrade_delivered_timber
+                } else {
+                    0.0
+                })
+                * TIMBER_SALVAGE_FRACTION,
+        ),
+        stone: whole_units(
+            (refund.stone
+                + if recover_project_materials {
+                    residence.upgrade_delivered_stone
+                } else {
+                    0.0
+                })
+                * STONE_SALVAGE_FRACTION,
+        ),
         ironwork: 0.0,
         roof_tiles: 0.0,
     };
@@ -955,7 +972,8 @@ pub fn demolish_burgage_zone(ctx: &ReducerContext, zone_id: u64) -> Result<(), S
         return Err("You do not own this residence zone.".to_string());
     }
 
-    let residences: Vec<Residence> = ctx.db.residence().zone_id().filter(&zone_id).collect();
+    let mut residences: Vec<Residence> = ctx.db.residence().zone_id().filter(&zone_id).collect();
+    residences.sort_by_key(|residence| residence.id);
     let completed_intact_residence_count = residences
         .iter()
         .filter(|residence| {
@@ -963,89 +981,66 @@ pub fn demolish_burgage_zone(ctx: &ReducerContext, zone_id: u64) -> Result<(), S
         })
         .count() as u32;
     let refund = residence_zone_cost(completed_intact_residence_count);
-    let upgrade_timber = residences
-        .iter()
-        .filter(|residence| {
-            residence_fire_state(ctx, residence.id).is_none() || residence.fire_repair_active
-        })
-        .map(|residence| residence.upgrade_delivered_timber)
-        .sum::<f64>();
-    let upgrade_stone = residences
-        .iter()
-        .filter(|residence| {
-            residence_fire_state(ctx, residence.id).is_none() || residence.fire_repair_active
-        })
-        .map(|residence| residence.upgrade_delivered_stone)
-        .sum::<f64>();
-    let salvaged_roof_tiles = residences
-        .iter()
-        .map(|residence| {
-            let recover_project_materials =
-                residence_fire_state(ctx, residence.id).is_none() || residence.fire_repair_active;
-            (if residence.tiled_roof {
-                RESIDENCE_TILE_ROOF_TILE_COST
-            } else {
-                0.0
-            } + if recover_project_materials {
-                residence.upgrade_delivered_roof_tiles
-            } else {
-                0.0
-            }) * RESIDENCE_TILE_ROOF_SALVAGE_FRACTION
-        })
-        .sum::<f64>()
-        .round();
-    let salvage = ResourceAmount {
-        timber: ((refund.timber + upgrade_timber) * TIMBER_SALVAGE_FRACTION).round(),
-        stone: ((refund.stone + upgrade_stone) * STONE_SALVAGE_FRACTION).round(),
-        ironwork: 0.0,
-        roof_tiles: 0.0,
-    };
-    let base_salvage = if completed_intact_residence_count > 0 {
-        ReclamationStock {
-            timber: (refund.timber * TIMBER_SALVAGE_FRACTION).round()
-                / completed_intact_residence_count as f64,
-            stone: (refund.stone * STONE_SALVAGE_FRACTION).round()
-                / completed_intact_residence_count as f64,
-            ..ReclamationStock::default()
-        }
-    } else {
-        ReclamationStock::default()
-    };
-    let mut physical_reclamation = false;
+    let base_timber = whole_units(refund.timber * TIMBER_SALVAGE_FRACTION);
+    let base_stone = whole_units(refund.stone * STONE_SALVAGE_FRACTION);
+    let completed_count = completed_intact_residence_count as usize;
+    let mut completed_index = 0_usize;
+    let mut salvage_by_residence = Vec::with_capacity(residences.len());
+    let mut total_salvage = ReclamationStock::default();
     for residence in &residences {
         let fire_damaged = residence_fire_state(ctx, residence.id).is_some();
-        if fire_damaged && !residence.fire_repair_active {
+        let recover_project_materials = !fire_damaged || residence.fire_repair_active;
+        if !recover_project_materials {
+            salvage_by_residence.push((residence, ReclamationStock::default()));
             continue;
         }
-        let completed_structure = if !fire_damaged && residence.tier >= 1 {
-            base_salvage
+        let completed_structure = !fire_damaged && residence.tier >= 1;
+        let (completed_timber, completed_stone) = if completed_structure {
+            let share = (
+                allocated_whole_salvage_share(base_timber, completed_index, completed_count),
+                allocated_whole_salvage_share(base_stone, completed_index, completed_count),
+            );
+            completed_index += 1;
+            share
         } else {
-            ReclamationStock::default()
+            (0.0, 0.0)
         };
-        physical_reclamation |= insert_reclamation_pile(
-            ctx,
-            owner,
-            residence.x,
-            residence.z,
-            ReclamationStock {
-                timber: completed_structure.timber
-                    + (residence.upgrade_delivered_timber * TIMBER_SALVAGE_FRACTION),
-                stone: completed_structure.stone
-                    + (residence.upgrade_delivered_stone * STONE_SALVAGE_FRACTION),
-                roof_tiles: (if residence.tiled_roof {
+        let stock = ReclamationStock {
+            timber: completed_timber
+                + whole_units(residence.upgrade_delivered_timber * TIMBER_SALVAGE_FRACTION),
+            stone: completed_stone
+                + whole_units(residence.upgrade_delivered_stone * STONE_SALVAGE_FRACTION),
+            roof_tiles: whole_units(
+                (if residence.tiled_roof {
                     RESIDENCE_TILE_ROOF_TILE_COST
                 } else {
                     0.0
                 } + residence.upgrade_delivered_roof_tiles)
                     * RESIDENCE_TILE_ROOF_SALVAGE_FRACTION,
-                ..ReclamationStock::default()
-            },
-        )?;
+            ),
+            ..ReclamationStock::default()
+        }
+        .normalized();
+        total_salvage = total_salvage.merged(stock);
+        salvage_by_residence.push((residence, stock));
+    }
+    let mut physical_reclamation = false;
+    for (residence, stock) in salvage_by_residence {
+        if stock.is_empty() {
+            continue;
+        }
+        physical_reclamation |=
+            insert_reclamation_pile(ctx, owner, residence.x, residence.z, stock)?;
     }
     if !physical_reclamation {
-        credit_treasury_timber(ctx, owner, salvage.timber);
-        credit_treasury_stone(ctx, owner, salvage.stone);
-        credit_treasury_commodity(ctx, owner, CommodityKind::RoofTiles, salvaged_roof_tiles);
+        credit_treasury_timber(ctx, owner, total_salvage.timber);
+        credit_treasury_stone(ctx, owner, total_salvage.stone);
+        credit_treasury_commodity(
+            ctx,
+            owner,
+            CommodityKind::RoofTiles,
+            total_salvage.roof_tiles,
+        );
     }
 
     for residence in residences {
@@ -1058,4 +1053,20 @@ pub fn demolish_burgage_zone(ctx: &ReducerContext, zone_id: u64) -> Result<(), S
     ctx.db.burgage_zone().id().delete(zone_id);
     reconcile_building_labor(ctx, owner);
     Ok(())
+}
+
+#[cfg(test)]
+mod demolition_tests {
+    use super::allocated_whole_salvage_share;
+
+    #[test]
+    fn zone_salvage_distributes_only_whole_units_without_losing_remainders() {
+        let shares = (0..4)
+            .map(|index| allocated_whole_salvage_share(11.9, index, 4))
+            .collect::<Vec<_>>();
+        assert_eq!(shares, vec![3.0, 3.0, 3.0, 2.0]);
+        assert_eq!(shares.iter().sum::<f64>(), 11.0);
+        assert_eq!(allocated_whole_salvage_share(11.0, 4, 4), 0.0);
+        assert_eq!(allocated_whole_salvage_share(11.0, 0, 0), 0.0);
+    }
 }

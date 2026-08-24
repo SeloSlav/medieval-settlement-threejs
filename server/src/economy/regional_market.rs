@@ -6,7 +6,7 @@ use crate::balance_generated::{
     TradeResource, MARKET_LOCAL_FOOD_DEMAND_WEIGHT, MARKET_PRICE_UPDATE_INTERVAL_TICKS,
 };
 use crate::db::*;
-use crate::economy::{household_food_per_day, CommodityKind};
+use crate::economy::{household_food_units_per_day_for_tier, CommodityKind};
 use crate::simulation::game_clock;
 use crate::simulation::residence_needs::{load_needs, need_stock, ResidenceNeedKind};
 use crate::specialty_trade_policy::SpecialtyMarketFamily;
@@ -357,7 +357,7 @@ fn local_food_demand_pressure(ctx: &ReducerContext, owner: Identity) -> f64 {
         }
         let needs = load_needs(ctx, residence.id);
         let stock = need_stock(&needs, ResidenceNeedKind::Food);
-        let use_per_day = household_food_per_day(residence.population);
+        let use_per_day = household_food_units_per_day_for_tier(residence.tier);
         if use_per_day <= 1e-9 {
             continue;
         }

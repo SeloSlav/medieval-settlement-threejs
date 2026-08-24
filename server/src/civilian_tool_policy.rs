@@ -2,7 +2,7 @@ use crate::balance_generated::{
     CIVILIAN_TOOL_IRONWORK_PER_CYCLE, CIVILIAN_TOOL_REORDER_CYCLES,
     CIVILIAN_TOOL_THROUGHPUT_MULTIPLIER, FARM_TOOL_IRONWORK_PER_WORKER_DAY,
 };
-use crate::resource_units::whole_cost;
+use crate::resource_units::{whole_cost, whole_units};
 
 pub const CIVILIAN_TOOL_SITE_KINDS: [&str; 9] = [
     "lumber_mill",
@@ -21,7 +21,14 @@ pub fn is_civilian_tool_site(kind: &str) -> bool {
 }
 
 pub fn civilian_tools_maintained(ironwork: f64) -> bool {
-    ironwork + 1e-6 >= CIVILIAN_TOOL_IRONWORK_PER_CYCLE
+    whole_units(ironwork) + 1e-6 >= civilian_tool_ironwork_per_cycle()
+}
+
+/// Tool wear is posted only when a production cycle completes. Authored rates
+/// are therefore converted to one indivisible replacement lot rather than
+/// leaking fractional ironwork from the rack on every simulation tick.
+pub fn civilian_tool_ironwork_per_cycle() -> f64 {
+    whole_cost(CIVILIAN_TOOL_IRONWORK_PER_CYCLE)
 }
 
 pub fn civilian_tool_throughput_multiplier(ironwork: f64) -> f64 {
@@ -33,7 +40,7 @@ pub fn civilian_tool_throughput_multiplier(ironwork: f64) -> f64 {
 }
 
 pub fn farm_tools_maintained(ironwork: f64) -> bool {
-    ironwork > 1e-6
+    whole_units(ironwork) + 1e-6 >= farm_tool_ironwork_per_completed_stage()
 }
 
 pub fn farm_tool_throughput_multiplier(ironwork: f64) -> f64 {
@@ -45,10 +52,11 @@ pub fn farm_tool_throughput_multiplier(ironwork: f64) -> f64 {
 }
 
 pub fn civilian_tool_runway_cycles(ironwork: f64) -> f64 {
-    if CIVILIAN_TOOL_IRONWORK_PER_CYCLE <= 1e-9 {
+    let per_cycle = civilian_tool_ironwork_per_cycle();
+    if per_cycle <= 1e-9 {
         f64::INFINITY
     } else {
-        ironwork.max(0.0) / CIVILIAN_TOOL_IRONWORK_PER_CYCLE
+        whole_units(ironwork) / per_cycle
     }
 }
 
@@ -57,13 +65,15 @@ pub fn civilian_tool_runway_cycles(ironwork: f64) -> f64 {
 /// rack's physical capacity. This makes road length and reserve depth matter
 /// without generating a stream of tiny top-up trips.
 pub fn civilian_tool_reorder_stock(capacity: f64) -> f64 {
-    (CIVILIAN_TOOL_IRONWORK_PER_CYCLE * CIVILIAN_TOOL_REORDER_CYCLES)
-        .max(CIVILIAN_TOOL_IRONWORK_PER_CYCLE)
-        .min(capacity.max(0.0))
+    let per_cycle = civilian_tool_ironwork_per_cycle();
+    whole_cost(per_cycle * CIVILIAN_TOOL_REORDER_CYCLES)
+        .max(per_cycle)
+        .min(whole_units(capacity))
 }
 
 pub fn civilian_tool_refill_due(ironwork: f64, capacity: f64) -> bool {
-    capacity > 1e-6 && ironwork.max(0.0) + 1e-6 < civilian_tool_reorder_stock(capacity)
+    whole_units(capacity) > 0.0
+        && whole_units(ironwork) + 1e-6 < civilian_tool_reorder_stock(capacity)
 }
 
 /// Field work progress is continuous, but a tool is replaced only when a
@@ -86,30 +96,33 @@ mod tests {
 
     #[test]
     fn one_wear_batch_activates_the_bonus() {
-        assert!(civilian_tools_maintained(CIVILIAN_TOOL_IRONWORK_PER_CYCLE));
+        let wear = civilian_tool_ironwork_per_cycle();
+        assert_eq!(wear.fract(), 0.0);
+        assert!(civilian_tools_maintained(wear));
+        assert!(!civilian_tools_maintained(wear - 0.01));
         assert_eq!(
-            civilian_tool_throughput_multiplier(CIVILIAN_TOOL_IRONWORK_PER_CYCLE),
+            civilian_tool_throughput_multiplier(wear),
             CIVILIAN_TOOL_THROUGHPUT_MULTIPLIER
         );
-        assert!(
-            (civilian_tool_runway_cycles(CIVILIAN_TOOL_IRONWORK_PER_CYCLE * 3.0) - 3.0).abs()
-                < 1e-9
-        );
+        assert!((civilian_tool_runway_cycles(wear * 3.0) - 3.0).abs() < 1e-9);
     }
 
     #[test]
     fn racks_reorder_low_and_refill_in_one_substantial_load() {
         let capacity = 3.0;
         let reorder = civilian_tool_reorder_stock(capacity);
-        assert!((reorder - 0.6).abs() < 1e-9);
+        assert_eq!(reorder, 3.0);
+        assert_eq!(reorder.fract(), 0.0);
         assert!(!civilian_tool_refill_due(reorder, capacity));
-        assert!(civilian_tool_refill_due(reorder - 0.01, capacity));
+        assert!(civilian_tool_refill_due(reorder - 1.0, capacity));
+        assert!(civilian_tool_refill_due(2.99, capacity));
     }
 
     #[test]
-    fn balanced_wear_keeps_a_full_rack_useful_for_thirty_cycles() {
-        assert!((CIVILIAN_TOOL_IRONWORK_PER_CYCLE - 0.1).abs() < 1e-9);
-        assert!((civilian_tool_runway_cycles(3.0) - 30.0).abs() < 1e-9);
+    fn whole_wear_keeps_a_full_rack_useful_until_a_refill_arrives() {
+        assert_eq!(civilian_tool_ironwork_per_cycle(), 1.0);
+        assert_eq!(civilian_tool_runway_cycles(3.0), 3.0);
+        assert_eq!(civilian_tool_runway_cycles(3.9), 3.0);
     }
 
     #[test]
@@ -119,7 +132,10 @@ mod tests {
             let mut trip_remaining = 0.0;
             let mut maintained_cycles = 0;
             let mut completed_cycles = 0;
-            let work_seconds = 70.0;
+            // The fastest heavy sites complete about two cycles per 120-second
+            // game day. A three-unit rack must bridge an ordinary local cart
+            // round trip at that real production cadence.
+            let work_seconds = 120.0;
             let cycle_seconds = if cycles_per_day == 0 {
                 work_seconds
             } else {
@@ -128,7 +144,7 @@ mod tests {
             for _ in 0..days {
                 for _ in 0..cycles_per_day {
                     if civilian_tools_maintained(stock) {
-                        stock = (stock - CIVILIAN_TOOL_IRONWORK_PER_CYCLE).max(0.0);
+                        stock = (stock - civilian_tool_ironwork_per_cycle()).max(0.0);
                         maintained_cycles += 1;
                     }
                     completed_cycles += 1;
@@ -153,10 +169,10 @@ mod tests {
             (uptime, stock, completed_cycles)
         }
 
-        let (near_uptime, _, _) = simulate(10.0, 18, 14);
-        let (far_uptime, _, _) = simulate(80.0, 18, 14);
-        assert!(near_uptime > 0.9, "near smithy uptime was {near_uptime}");
-        assert!(far_uptime > 0.5 && far_uptime < near_uptime);
+        let (near_uptime, _, _) = simulate(10.0, 2, 14);
+        let (far_uptime, _, _) = simulate(80.0, 2, 14);
+        assert!(near_uptime > 0.99, "near smithy uptime was {near_uptime}");
+        assert!(far_uptime > 0.99, "far smithy uptime was {far_uptime}");
 
         let (_, idle_stock, idle_cycles) = simulate(80.0, 0, 14);
         assert_eq!(idle_cycles, 0);
@@ -179,11 +195,13 @@ mod tests {
 
     #[test]
     fn farm_tool_wear_posts_one_whole_unit_per_completed_stage() {
-        assert_eq!(farm_tool_ironwork_per_completed_stage(), 1.0);
-        assert!(farm_tools_maintained(FARM_TOOL_IRONWORK_PER_WORKER_DAY));
+        let stage_wear = farm_tool_ironwork_per_completed_stage();
+        assert_eq!(stage_wear, 1.0);
+        assert!(farm_tools_maintained(stage_wear));
+        assert!(!farm_tools_maintained(FARM_TOOL_IRONWORK_PER_WORKER_DAY));
         assert!(!farm_tools_maintained(0.0));
         assert_eq!(
-            farm_tool_throughput_multiplier(FARM_TOOL_IRONWORK_PER_WORKER_DAY),
+            farm_tool_throughput_multiplier(stage_wear),
             CIVILIAN_TOOL_THROUGHPUT_MULTIPLIER
         );
     }

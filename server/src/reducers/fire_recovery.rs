@@ -18,6 +18,7 @@ use crate::fire_recovery_policy::{fire_recovery_cost, FireRecoveryCost};
 use crate::lifecycle::ensure_player_resources;
 use crate::monastery_estate_policy::monastery_scriptorium_recovery_multiplier;
 use crate::reducers::residences::ensure_upgrade_source_route;
+use crate::resource_units::whole_units;
 use crate::roads::load_owner_road_network;
 use crate::simulation::{
     building_fire_state, cancel_trips_for_residence, clear_fire_for_target,
@@ -127,10 +128,10 @@ fn repair_building(
     ensure_recovery_resources(ctx, owner, cost)?;
     record_scriptorium_savings(ctx, owner, without_archive, cost);
 
-    let onsite_timber = building.timber.min(cost.timber);
-    let onsite_stone = building.stone.min(cost.stone);
-    let onsite_ironwork = building.ironwork.min(cost.ironwork);
-    let onsite_roof_tiles = building.roof_tiles.min(cost.roof_tiles);
+    let onsite_timber = whole_units(building.timber).min(cost.timber);
+    let onsite_stone = whole_units(building.stone).min(cost.stone);
+    let onsite_ironwork = whole_units(building.ironwork).min(cost.ironwork);
+    let onsite_roof_tiles = whole_units(building.roof_tiles).min(cost.roof_tiles);
     let remaining_timber = (cost.timber - onsite_timber).max(0.0);
     let remaining_stone = (cost.stone - onsite_stone).max(0.0);
     let remaining_ironwork = (cost.ironwork - onsite_ironwork).max(0.0);
@@ -148,10 +149,10 @@ fn repair_building(
     let available_for_repair =
         available_building_labor(ctx, owner).saturating_add(building.assigned_labor);
 
-    building.timber -= onsite_timber;
-    building.stone -= onsite_stone;
-    building.ironwork -= onsite_ironwork;
-    building.roof_tiles -= onsite_roof_tiles;
+    building.timber = whole_units(building.timber) - onsite_timber;
+    building.stone = whole_units(building.stone) - onsite_stone;
+    building.ironwork = whole_units(building.ironwork) - onsite_ironwork;
+    building.roof_tiles = whole_units(building.roof_tiles) - onsite_roof_tiles;
     building.assigned_labor = initial_construction_labor(available_for_repair);
     building.action_cooldown = 0.0;
     building.construction_complete = false;
@@ -455,10 +456,14 @@ fn record_scriptorium_savings(
         return;
     }
     if let Some(mut resources) = ctx.db.player_resources().owner().find(&owner) {
-        resources.monastery_scriptorium_timber_saved_total += timber;
-        resources.monastery_scriptorium_stone_saved_total += stone;
-        resources.monastery_scriptorium_ironwork_saved_total += ironwork;
-        resources.monastery_scriptorium_roof_tiles_saved_total += roof_tiles;
+        resources.monastery_scriptorium_timber_saved_total =
+            whole_units(resources.monastery_scriptorium_timber_saved_total) + timber;
+        resources.monastery_scriptorium_stone_saved_total =
+            whole_units(resources.monastery_scriptorium_stone_saved_total) + stone;
+        resources.monastery_scriptorium_ironwork_saved_total =
+            whole_units(resources.monastery_scriptorium_ironwork_saved_total) + ironwork;
+        resources.monastery_scriptorium_roof_tiles_saved_total =
+            whole_units(resources.monastery_scriptorium_roof_tiles_saved_total) + roof_tiles;
         ctx.db.player_resources().owner().update(resources);
     }
 }

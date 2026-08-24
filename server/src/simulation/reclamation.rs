@@ -17,11 +17,11 @@ use crate::placement_validation::building_overlaps_road_surface;
 use crate::reducers::buildings::next_available_building_id;
 use crate::resource_units::whole_units;
 use crate::roads::load_owner_road_network;
+use crate::simulation::delivery_cargo::DeliveryCargoTotals;
 use crate::simulation::delivery_trips::{
     available_free_haulers, building_has_active_trip, building_has_inbound_supply_trip,
     try_start_free_building_supply_trip,
 };
-use crate::simulation::delivery_cargo::DeliveryCargoTotals;
 use crate::simulation::road_logistics::local_delivery_distance;
 use crate::simulation::{labor_and_logistics_paused, GameClock, SimTickContext};
 use crate::tables::{Building, PlayerResources, WorldConfig};
@@ -499,12 +499,14 @@ impl ReclamationStock {
     /// Capture all portable inventory in a building without preserving legacy
     /// fractional stock.
     pub fn from_building(building: &Building) -> Self {
-        RECOVERY_ORDER.into_iter().fold(Self::default(), |stock, commodity| {
-            stock.merged(Self::from_commodity(
-                commodity,
-                building_commodity_stock(building, commodity),
-            ))
-        })
+        RECOVERY_ORDER
+            .into_iter()
+            .fold(Self::default(), |stock, commodity| {
+                stock.merged(Self::from_commodity(
+                    commodity,
+                    building_commodity_stock(building, commodity),
+                ))
+            })
     }
 
     /// Capture cart cargo before a source or destination row is retired.
@@ -659,9 +661,10 @@ impl ReclamationStock {
     }
 
     pub fn is_empty(self) -> bool {
+        let stock = self.normalized();
         RECOVERY_ORDER
             .into_iter()
-            .all(|commodity| self.amount(commodity) <= EPSILON)
+            .all(|commodity| stock.amount(commodity) <= EPSILON)
     }
 
     fn from_resource_ledger(resources: &PlayerResources) -> Self {
@@ -1723,7 +1726,7 @@ pub(crate) fn reclamation_destination_priority(commodity: CommodityKind, kind: &
 fn has_portable_stock(building: &Building) -> bool {
     RECOVERY_ORDER
         .into_iter()
-        .any(|commodity| building_commodity_stock(building, commodity) > EPSILON)
+        .any(|commodity| whole_units(building_commodity_stock(building, commodity)) >= 1.0)
 }
 
 #[cfg(test)]
@@ -1739,6 +1742,11 @@ mod tests {
             ..ReclamationStock::default()
         }
         .is_empty());
+        assert!(ReclamationStock {
+            timber: 0.99,
+            ..ReclamationStock::default()
+        }
+        .is_empty());
         assert!(!ReclamationStock {
             timber: 0.0,
             stone: 1.0,
@@ -1750,5 +1758,20 @@ mod tests {
             ..ReclamationStock::default()
         }
         .is_empty());
+    }
+
+    #[test]
+    fn constructors_and_merges_keep_whole_units() {
+        let recovered =
+            ReclamationStock::from_commodity(crate::economy::CommodityKind::Timber, 3.9).merged(
+                ReclamationStock {
+                    timber: 2.8,
+                    gold: 1.9,
+                    ..ReclamationStock::default()
+                },
+            );
+        assert_eq!(recovered.timber, 5.0);
+        assert_eq!(recovered.gold, 1.0);
+        assert_eq!(recovered.stone, 0.0);
     }
 }

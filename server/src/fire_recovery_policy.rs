@@ -2,6 +2,7 @@ use crate::balance_generated::{
     FIRE_DAMAGE_REPAIR_COST_MULTIPLIER, FIRE_DESTROYED_REBUILD_COST_FRACTION,
     FIRE_MINIMUM_REPAIR_COST_FRACTION,
 };
+use crate::resource_units::whole_cost;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct FireRecoveryCost {
@@ -35,16 +36,12 @@ pub fn fire_recovery_cost(
     let fraction = fire_recovery_fraction(damage, destroyed);
     let archive = archive_material_multiplier.max(0.0);
     FireRecoveryCost {
-        timber: round_to_tenth(base_timber * fraction * timber_cost_multiplier.max(0.0) * archive),
-        stone: round_to_tenth(base_stone * fraction * archive),
-        ironwork: round_to_tenth(base_ironwork * fraction * archive),
-        roof_tiles: round_to_tenth(base_roof_tiles * fraction * archive),
+        timber: whole_cost(base_timber * fraction * timber_cost_multiplier.max(0.0) * archive),
+        stone: whole_cost(base_stone * fraction * archive),
+        ironwork: whole_cost(base_ironwork * fraction * archive),
+        roof_tiles: whole_cost(base_roof_tiles * fraction * archive),
         fraction,
     }
-}
-
-fn round_to_tenth(value: f64) -> f64 {
-    (value.max(0.0) * 10.0).round() / 10.0
 }
 
 #[cfg(test)]
@@ -57,8 +54,8 @@ mod tests {
         assert_eq!(cost.fraction, FIRE_MINIMUM_REPAIR_COST_FRACTION);
         assert_eq!(cost.timber, 4.0);
         assert_eq!(cost.stone, 2.0);
-        assert_eq!(cost.ironwork, 0.4);
-        assert_eq!(cost.roof_tiles, 1.2);
+        assert_eq!(cost.ironwork, 1.0);
+        assert_eq!(cost.roof_tiles, 2.0);
     }
 
     #[test]
@@ -76,7 +73,7 @@ mod tests {
         assert_eq!(cost.fraction, FIRE_DESTROYED_REBUILD_COST_FRACTION);
         assert_eq!(cost.timber, 35.0);
         assert_eq!(cost.stone, 21.0);
-        assert_eq!(cost.ironwork, 4.2);
+        assert_eq!(cost.ironwork, 5.0);
         assert_eq!(cost.roof_tiles, 14.0);
     }
 

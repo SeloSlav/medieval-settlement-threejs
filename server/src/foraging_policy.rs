@@ -153,13 +153,25 @@ mod tests {
     #[test]
     fn rich_food_nodes_apply_their_harvest_multiplier() {
         assert_eq!(harvest_yield_multiplier("game", 12.0), 1.0);
-        assert_eq!(harvest_yield_multiplier("game", 20.0), 1.5);
+        assert_eq!(harvest_yield_multiplier("game", 20.0), 2.0);
         assert_eq!(harvest_yield_multiplier("berries", 60.0), 1.0);
-        assert_eq!(harvest_yield_multiplier("berries", 100.0), 1.5);
+        assert_eq!(harvest_yield_multiplier("berries", 100.0), 2.0);
         assert_eq!(harvest_yield_multiplier("mushrooms", 42.0), 1.0);
-        assert_eq!(harvest_yield_multiplier("mushrooms", 72.0), 1.5);
+        assert_eq!(harvest_yield_multiplier("mushrooms", 72.0), 2.0);
         assert_eq!(harvest_yield_multiplier("fish", 120.0), 1.0);
         assert_eq!(harvest_yield_multiplier("fish", 240.0), 1.75);
+
+        // The multiplier itself may describe a rate, but every authored base
+        // harvest resolves to an indivisible resource lot.
+        for (kind, rich_capacity, base_harvest) in [
+            ("game", 20.0, 4.0),
+            ("berries", 100.0, 3.0),
+            ("mushrooms", 72.0, 3.0),
+            ("fish", 240.0, 4.0),
+        ] {
+            let rich_harvest = base_harvest * harvest_yield_multiplier(kind, rich_capacity);
+            assert_eq!(rich_harvest.fract(), 0.0, "{kind} yielded {rich_harvest}");
+        }
     }
 
     #[test]

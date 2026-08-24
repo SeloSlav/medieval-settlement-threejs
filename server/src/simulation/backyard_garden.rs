@@ -17,7 +17,7 @@ use crate::economy::{
     CommodityKind,
 };
 use crate::resident_welfare_policy::deterministic_unit;
-use crate::resource_units::whole_units;
+use crate::resource_units::{whole_cost, whole_units};
 use crate::season_policy::EnvironmentState;
 use crate::simulation::game_calendar::GameClock;
 use crate::simulation::labor_and_logistics_paused;
@@ -35,6 +35,32 @@ const BACKYARD_PLANT_PRODUCTION_INTERVAL_DAYS: u64 = 30;
 #[derive(Clone, Copy, Debug, Default)]
 struct BackyardFoodCommit {
     market_sold: f64,
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+struct WholeSaleReceipt {
+    producer_income: f64,
+    local_tax: f64,
+}
+
+/// Realize an authored sale as indivisible coins, then assign every realized
+/// coin exactly once. Revenue is rounded down because a buyer cannot tender a
+/// fraction of a coin; the assessed tax is a cost and therefore rounds up.
+fn split_whole_sale_receipt(
+    base_activity: f64,
+    tax_rate: f64,
+    collection_multiplier: f64,
+) -> WholeSaleReceipt {
+    let (adjusted, assessed_tax) = taxed_economic_activity(base_activity, tax_rate);
+    let gross = whole_units(adjusted);
+    if gross < 1.0 {
+        return WholeSaleReceipt::default();
+    }
+    let local_tax = whole_cost(assessed_tax * collection_multiplier.clamp(0.0, 1.0)).min(gross);
+    WholeSaleReceipt {
+        producer_income: gross - local_tax,
+        local_tax,
+    }
 }
 
 pub fn step_backyard_gardens(
@@ -281,13 +307,11 @@ fn step_one_garden(
         return 0.0;
     }
 
-    let (adjusted, assessed_tax) = taxed_economic_activity(economic_activity, tax_rate);
-    let tax = assessed_tax * collection_multiplier;
-    let net_wealth = (adjusted - tax).max(0.0);
-    if net_wealth > 1e-9 {
-        credit_residence_wealth(ctx, residence.id, net_wealth);
+    let receipt = split_whole_sale_receipt(economic_activity, tax_rate, collection_multiplier);
+    if receipt.producer_income >= 1.0 {
+        credit_residence_wealth(ctx, residence.id, receipt.producer_income);
     }
-    tax
+    receipt.local_tax
 }
 
 fn backyard_has_food_output(kind: BackyardGardenKind) -> bool {
@@ -463,13 +487,11 @@ fn step_livestock_pen(
         return 0.0;
     }
     let economic_activity = market_food_sold * FOOD_SALE_GOLD_PER_UNIT;
-    let (adjusted, assessed_tax) = taxed_economic_activity(economic_activity, tax_rate);
-    let tax = assessed_tax * collection_multiplier;
-    let net_wealth = (adjusted - tax).max(0.0);
-    if net_wealth > 1e-9 {
-        credit_residence_wealth(ctx, residence.id, net_wealth);
+    let receipt = split_whole_sale_receipt(economic_activity, tax_rate, collection_multiplier);
+    if receipt.producer_income >= 1.0 {
+        credit_residence_wealth(ctx, residence.id, receipt.producer_income);
     }
-    tax
+    receipt.local_tax
 }
 
 fn transfer_backyard_hides_to_storehouse(
@@ -745,7 +767,7 @@ pub fn clear_backyard_garden_for_residence(ctx: &ReducerContext, residence_id: u
 
 #[cfg(test)]
 mod tests {
-    use super::discrete_expected_units;
+    use super::{discrete_expected_units, split_whole_sale_receipt, WholeSaleReceipt};
 
     #[test]
     fn expected_backyard_yields_are_always_whole() {
@@ -762,5 +784,28 @@ mod tests {
         let a = discrete_expected_units(2.4, 9, 180, 3);
         let b = discrete_expected_units(2.4, 9, 180, 3);
         assert_eq!(a, b);
+    }
+
+    #[test]
+    fn backyard_sale_coin_split_is_whole_and_conserving() {
+        let receipt = split_whole_sale_receipt(10.8, 0.18, 1.0);
+        assert_eq!(
+            receipt,
+            WholeSaleReceipt {
+                producer_income: 8.0,
+                local_tax: 2.0,
+            }
+        );
+        assert_eq!(receipt.producer_income + receipt.local_tax, 10.0);
+        assert_eq!(receipt.producer_income.fract(), 0.0);
+        assert_eq!(receipt.local_tax.fract(), 0.0);
+    }
+
+    #[test]
+    fn sub_coin_backyard_sale_does_not_mint_currency() {
+        assert_eq!(
+            split_whole_sale_receipt(0.99, 0.18, 1.0),
+            WholeSaleReceipt::default()
+        );
     }
 }

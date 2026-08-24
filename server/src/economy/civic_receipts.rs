@@ -45,6 +45,5 @@ pub fn mark_local_civic_receipts_dispatched(building: &mut Building, amount: f64
 pub fn restore_local_civic_receipts(building: &mut Building, amount: f64) {
     let gold = whole_units(building.gold);
     let receipts = local_civic_receipts(building);
-    building.civic_receipts_gold =
-        receipts + whole_transfer((gold - receipts).max(0.0), amount);
+    building.civic_receipts_gold = receipts + whole_transfer((gold - receipts).max(0.0), amount);
 }

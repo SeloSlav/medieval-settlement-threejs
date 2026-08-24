@@ -7,6 +7,7 @@ use super::storage::{
     available_unreserved_treasury_stone, available_unreserved_treasury_timber,
 };
 use crate::db::*;
+use crate::resource_units::{whole_cost, whole_units};
 use crate::tables::Building;
 
 enum AggregateSpendField {
@@ -54,7 +55,8 @@ fn spend_aggregate(
     amount: f64,
     field: AggregateSpendField,
 ) -> Result<(), String> {
-    if amount <= 0.0 {
+    let amount = whole_cost(amount);
+    if amount < 1.0 {
         return Ok(());
     }
 
@@ -65,18 +67,18 @@ fn spend_aggregate(
         AggregateSpendField::RoofTiles => "fired roof tiles",
     };
 
-    let available_building = match field {
+    let available_building = whole_units(match field {
         AggregateSpendField::Timber => available_unreserved_building_timber(ctx, owner),
         AggregateSpendField::Stone => available_unreserved_building_stone(ctx, owner),
         AggregateSpendField::Ironwork => available_unreserved_building_ironwork(ctx, owner),
         AggregateSpendField::RoofTiles => available_unreserved_building_roof_tiles(ctx, owner),
-    };
-    let available_treasury = match field {
+    });
+    let available_treasury = whole_units(match field {
         AggregateSpendField::Timber => available_unreserved_treasury_timber(ctx, owner),
         AggregateSpendField::Stone => available_unreserved_treasury_stone(ctx, owner),
         AggregateSpendField::Ironwork => available_unreserved_treasury_ironwork(ctx, owner),
         AggregateSpendField::RoofTiles => available_unreserved_treasury_roof_tiles(ctx, owner),
-    };
+    });
     if amount > available_building + available_treasury + 1e-6 {
         return Err(format!(
             "Not enough {resource_name} (need {} more).",
@@ -98,31 +100,31 @@ fn spend_aggregate(
         if remaining <= 1e-6 || remaining_building_budget <= 1e-6 {
             break;
         }
-        let available = match field {
+        let available = whole_units(match field {
             AggregateSpendField::Timber => building.timber,
             AggregateSpendField::Stone => building.stone,
             AggregateSpendField::Ironwork => building.ironwork,
             AggregateSpendField::RoofTiles => building.roof_tiles,
-        };
-        let withdraw = remaining.min(available).min(remaining_building_budget);
+        });
+        let withdraw = whole_units(remaining.min(available).min(remaining_building_budget));
         if withdraw <= 0.0 {
             continue;
         }
         let updated = match field {
             AggregateSpendField::Timber => Building {
-                timber: building.timber - withdraw,
+                timber: whole_units(building.timber) - withdraw,
                 ..building
             },
             AggregateSpendField::Stone => Building {
-                stone: building.stone - withdraw,
+                stone: whole_units(building.stone) - withdraw,
                 ..building
             },
             AggregateSpendField::Ironwork => Building {
-                ironwork: building.ironwork - withdraw,
+                ironwork: whole_units(building.ironwork) - withdraw,
                 ..building
             },
             AggregateSpendField::RoofTiles => Building {
-                roof_tiles: building.roof_tiles - withdraw,
+                roof_tiles: whole_units(building.roof_tiles) - withdraw,
                 ..building
             },
         };
@@ -133,12 +135,20 @@ fn spend_aggregate(
 
     if remaining > 1e-6 {
         if let Some(mut treasury) = ctx.db.player_resources().owner().find(&owner) {
-            let from_treasury = remaining.min(available_treasury);
+            let from_treasury = whole_units(remaining.min(available_treasury));
             match field {
-                AggregateSpendField::Timber => treasury.timber -= from_treasury,
-                AggregateSpendField::Stone => treasury.stone -= from_treasury,
-                AggregateSpendField::Ironwork => treasury.ironwork -= from_treasury,
-                AggregateSpendField::RoofTiles => treasury.roof_tiles -= from_treasury,
+                AggregateSpendField::Timber => {
+                    treasury.timber = whole_units(treasury.timber) - from_treasury
+                }
+                AggregateSpendField::Stone => {
+                    treasury.stone = whole_units(treasury.stone) - from_treasury
+                }
+                AggregateSpendField::Ironwork => {
+                    treasury.ironwork = whole_units(treasury.ironwork) - from_treasury
+                }
+                AggregateSpendField::RoofTiles => {
+                    treasury.roof_tiles = whole_units(treasury.roof_tiles) - from_treasury
+                }
             }
             remaining -= from_treasury;
             ctx.db.player_resources().owner().update(treasury);

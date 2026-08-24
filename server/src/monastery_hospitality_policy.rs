@@ -3,6 +3,7 @@ use crate::balance_generated::{
     MONASTERY_HOSPITALITY_BONUS_GOLD_PER_DAY, MONASTERY_HOSPITALITY_DRINK_PER_DAY,
     MONASTERY_HOSPITALITY_HONEY_PER_DAY, MONASTERY_PILGRIMAGE_GOLD_PER_DAY,
 };
+use crate::resource_units::{periodic_whole_units, whole_request, whole_units};
 
 /// Five established observances on their familiar dates inside the fixed
 /// 30-day calendar: Epiphany, Saints Peter and Paul, the Assumption, the
@@ -48,6 +49,7 @@ struct DrinkDraw {
     mixed_cellar: bool,
 }
 
+#[cfg(test)]
 fn draw_estate_drink(cider: f64, mead: f64, wine: f64, amount: f64) -> DrinkDraw {
     let stocks = [cider.max(0.0), mead.max(0.0), wine.max(0.0)];
     let total_stock: f64 = stocks.iter().sum();
@@ -57,6 +59,48 @@ fn draw_estate_drink(cider: f64, mead: f64, wine: f64, amount: f64) -> DrinkDraw
     }
     let used = stocks.map(|stock| total * stock / total_stock);
     let distinct = used.iter().filter(|value| **value > 1e-6).count();
+    let mixed_cellar = distinct >= 2;
+    let common_drink_share = (used[0] + used[1]) / total;
+    let wine_share = used[2] / total;
+    DrinkDraw {
+        cider: used[0],
+        mead: used[1],
+        wine: used[2],
+        total,
+        common_table_multiplier: 1.0 + 0.25 * common_drink_share,
+        prestige_multiplier: 1.0 + 0.25 * wine_share + if mixed_cellar { 0.10 } else { 0.0 },
+        mixed_cellar,
+    }
+}
+
+fn draw_estate_drink_whole(cider: f64, mead: f64, wine: f64, amount: f64) -> DrinkDraw {
+    let stocks = [whole_units(cider), whole_units(mead), whole_units(wine)];
+    let total_stock: f64 = stocks.iter().sum();
+    let total = whole_request(amount).min(total_stock);
+    if total < 1.0 || total_stock < 1.0 {
+        return DrinkDraw::default();
+    }
+
+    let ideal = stocks.map(|stock| total * stock / total_stock);
+    let mut used = ideal.map(f64::floor);
+    let mut remaining = whole_units(total - used.iter().sum::<f64>()) as usize;
+    let mut order = [0usize, 1, 2];
+    order.sort_by(|left, right| {
+        (ideal[*right] - used[*right])
+            .total_cmp(&(ideal[*left] - used[*left]))
+            .then_with(|| left.cmp(right))
+    });
+    for index in order.into_iter().cycle().take(9) {
+        if remaining == 0 {
+            break;
+        }
+        if used[index] + 1.0 <= stocks[index] + 1e-9 {
+            used[index] += 1.0;
+            remaining -= 1;
+        }
+    }
+
+    let distinct = used.iter().filter(|value| **value >= 1.0).count();
     let mixed_cellar = distinct >= 2;
     let common_drink_share = (used[0] + used[1]) / total;
     let wine_share = used[2] / total;
@@ -86,7 +130,7 @@ pub fn monastery_feast_batch(
 ) -> MonasteryFeastBatch {
     let missing_food = (MONASTERY_FEAST_FOOD - food_available.max(0.0)).max(0.0);
     let missing_honey = (MONASTERY_FEAST_HONEY - honey_available.max(0.0)).max(0.0);
-    let drink = draw_estate_drink(
+    let drink = draw_estate_drink_whole(
         cider_available,
         mead_available,
         wine_available,
@@ -107,6 +151,85 @@ pub fn monastery_feast_batch(
     }
 }
 
+/// Posts one calendar day's hospitality as whole pantry lots. Fractional
+/// authored daily rates are conserved by a staggered schedule; inventory is
+/// only touched on days where a complete unit is due.
+pub fn monastery_daily_hospitality_use(
+    honey_available: f64,
+    cider_available: f64,
+    mead_available: f64,
+    wine_available: f64,
+    service_funding: f64,
+    schedule_key: u64,
+    total_days: u64,
+    enabled: bool,
+) -> MonasteryHospitalityUse {
+    if !enabled {
+        return MonasteryHospitalityUse {
+            honey_due: 0.0,
+            drink_due: 0.0,
+            honey_used: 0.0,
+            cider_used: 0.0,
+            mead_used: 0.0,
+            wine_used: 0.0,
+            supply_ratio: 0.0,
+            prestige_multiplier: 1.0,
+            common_table_multiplier: 1.0,
+            mixed_cellar: false,
+        };
+    }
+
+    let honey_due = periodic_whole_units(
+        MONASTERY_HOSPITALITY_HONEY_PER_DAY,
+        schedule_key ^ 0x484F_4E45_59,
+        total_days,
+    );
+    let drink_due = periodic_whole_units(
+        MONASTERY_HOSPITALITY_DRINK_PER_DAY,
+        schedule_key ^ 0x4452_494E_4B,
+        total_days,
+    );
+    let funded_fraction = service_funding.clamp(0.0, 1.0);
+    let honey_budget = whole_units(honey_due * funded_fraction);
+    let drink_budget = whole_units(drink_due * funded_fraction);
+    let honey_used = whole_units(
+        monastery_feast_surplus(honey_available, MONASTERY_FEAST_HONEY, enabled).min(honey_budget),
+    );
+    let drink_surplus = whole_units(monastery_feast_surplus(
+        whole_units(cider_available) + whole_units(mead_available) + whole_units(wine_available),
+        MONASTERY_FEAST_DRINK,
+        enabled,
+    ));
+    let drink = draw_estate_drink_whole(
+        cider_available,
+        mead_available,
+        wine_available,
+        drink_budget.min(drink_surplus),
+    );
+    let honey_ratio = if honey_due >= 1.0 {
+        honey_used / honey_due
+    } else {
+        1.0
+    };
+    let drink_ratio = if drink_due >= 1.0 {
+        drink.total / drink_due
+    } else {
+        1.0
+    };
+    MonasteryHospitalityUse {
+        honey_due,
+        drink_due,
+        honey_used,
+        cider_used: drink.cider,
+        mead_used: drink.mead,
+        wine_used: drink.wine,
+        supply_ratio: ((honey_ratio + drink_ratio) * 0.5).clamp(0.0, 1.0),
+        prestige_multiplier: drink.prestige_multiplier,
+        common_table_multiplier: drink.common_table_multiplier,
+        mixed_cellar: drink.mixed_cellar,
+    }
+}
+
 /// A configured feast batch is a hard pantry floor. Ordinary hospitality and
 /// household charity may use only stock above it; disabling the policy releases
 /// the whole store back into the settlement economy.
@@ -119,6 +242,7 @@ pub fn monastery_feast_surplus(stock: f64, reserve: f64, enabled: bool) -> f64 {
     }
 }
 
+#[cfg(test)]
 pub fn monastery_hospitality_use(
     honey_available: f64,
     cider_available: f64,

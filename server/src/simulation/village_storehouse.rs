@@ -12,8 +12,8 @@ use crate::economy::{
     building_commodity_cap, building_commodity_stock, storage_accepts_commodity, CommodityKind,
 };
 use crate::fuel_reserve_policy::{
-    combined_fuel_equivalent, fuel_runway_days, household_fuel_demand_per_day,
-    marketplace_fuel_reserve_target,
+    combined_fuel_equivalent, fuel_runway_days, household_fuel_demand_for_households_per_day,
+    marketplace_fuel_reserve_target_for_households,
 };
 use crate::season_policy::EnvironmentState;
 use crate::simulation::delivery_trips::{
@@ -66,7 +66,7 @@ pub fn step_storehouse_market_stalls(
     environment: EnvironmentState,
     storehouses: Vec<Building>,
 ) {
-    let mut covered_population_by_market = HashMap::<u64, u32>::new();
+    let mut covered_households_by_market = HashMap::<u64, u32>::new();
     for residence in ctx.db.residence().iter().filter(|residence| {
         !residence.abandoned
             && residence.population > 0
@@ -78,8 +78,8 @@ pub fn step_storehouse_market_stalls(
             residence.id,
             ResidenceNeedKind::Firewood,
         ) {
-            let population = covered_population_by_market.entry(market_id).or_default();
-            *population = population.saturating_add(residence.population);
+            let household_count = covered_households_by_market.entry(market_id).or_default();
+            *household_count = household_count.saturating_add(1);
         }
     }
 
@@ -108,16 +108,16 @@ pub fn step_storehouse_market_stalls(
                     && !building_has_inbound_commodity_trip(ctx, market.id, CommodityKind::Charcoal)
             })
             .flat_map(|market| {
-                let population = covered_population_by_market
+                let household_count = covered_households_by_market
                     .get(&market.id)
                     .copied()
                     .unwrap_or(0);
-                let daily_demand = household_fuel_demand_per_day(
-                    population,
+                let daily_demand = household_fuel_demand_for_households_per_day(
+                    household_count,
                     environment.firewood_demand_multiplier(),
                 );
-                let target_equivalent = marketplace_fuel_reserve_target(
-                    population,
+                let target_equivalent = marketplace_fuel_reserve_target_for_households(
+                    household_count,
                     environment.firewood_demand_multiplier(),
                     building_commodity_cap(&market.kind, CommodityKind::Firewood),
                     building_commodity_cap(&market.kind, CommodityKind::Charcoal),

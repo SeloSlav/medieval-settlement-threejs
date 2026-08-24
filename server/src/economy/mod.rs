@@ -23,7 +23,7 @@ pub use commodities::{
     building_preservable_food_stock, building_preserved_food_stock, credit_treasury_commodity,
     deposit_building_commodity, deposit_residence_commodity, first_building_edible_commodity,
     flour_bulk_stock, food_category, food_commodity_advances_residence_progression,
-    household_food_per_day, residence_commodity_stock, residence_edible_food_stock,
+    household_food_units_per_day_for_tier, residence_commodity_stock, residence_edible_food_stock,
     residence_food_category_mask, residence_food_progression_met,
     residence_food_progression_required_slots, residence_food_progression_slots,
     residence_fresh_food_stock, residence_preserved_food_stock, storage_accepts_commodity,
@@ -75,11 +75,10 @@ pub(crate) use storage::{
 };
 pub use storage::{
     building_storage_caps, building_water_storage_cap, construction_treasury_reservation,
-    construction_treasury_reservation_excluding_building, credit_treasury_firewood,
-    credit_treasury_food, credit_treasury_gold, credit_treasury_stone, credit_treasury_timber,
-    credit_treasury_water, deposit_building, residence_firewood_capacity, residence_food_capacity,
-    residence_water_capacity, restore_treasury_gold, spend_treasury_gold, total_ironwork,
-    total_roof_tiles, total_stone, total_timber, treasury_gold, withdraw_building,
+    construction_treasury_reservation_excluding_building, credit_treasury_gold,
+    credit_treasury_stone, credit_treasury_timber, deposit_building, residence_firewood_capacity,
+    residence_food_capacity, residence_water_capacity, restore_treasury_gold, spend_treasury_gold,
+    total_ironwork, total_roof_tiles, total_stone, total_timber, treasury_gold, withdraw_building,
     withdraw_building_water,
 };
 pub use trade_resources::trade_resource_for_commodity;
@@ -114,10 +113,12 @@ pub fn building_cost(kind: &str) -> Result<ResourceAmount, String> {
 pub fn building_salvage_refund(kind: &str) -> Result<ResourceAmount, String> {
     let cost = building_cost(kind)?;
     Ok(ResourceAmount {
-        timber: (cost.timber * TIMBER_SALVAGE_FRACTION).round(),
-        stone: (cost.stone * STONE_SALVAGE_FRACTION).round(),
-        ironwork: (cost.ironwork * IRONWORK_SALVAGE_FRACTION).round(),
-        roof_tiles: (cost.roof_tiles * RESIDENCE_TILE_ROOF_SALVAGE_FRACTION).round(),
+        timber: crate::resource_units::whole_units(cost.timber * TIMBER_SALVAGE_FRACTION),
+        stone: crate::resource_units::whole_units(cost.stone * STONE_SALVAGE_FRACTION),
+        ironwork: crate::resource_units::whole_units(cost.ironwork * IRONWORK_SALVAGE_FRACTION),
+        roof_tiles: crate::resource_units::whole_units(
+            cost.roof_tiles * RESIDENCE_TILE_ROOF_SALVAGE_FRACTION,
+        ),
     })
 }
 

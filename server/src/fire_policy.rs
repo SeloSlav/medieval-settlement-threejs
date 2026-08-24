@@ -28,7 +28,7 @@ pub fn fire_response_load(available_water: f64) -> f64 {
     if available_water < whole_cost(FIRE_MINIMUM_BUCKET_WATER) {
         0.0
     } else {
-        whole_transfer(available_water, FIRE_BUCKET_WATER)
+        whole_transfer(available_water, whole_cost(FIRE_BUCKET_WATER))
     }
 }
 
@@ -45,9 +45,10 @@ pub fn fire_response_water_needed(
     let required_water = whole_cost(required_water);
     let delivered_water = whole_units(delivered_water);
     let in_transit = whole_units(in_transit_water);
+    let bucket_water = whole_cost(FIRE_BUCKET_WATER);
     let estimated_remaining = (required_water - delivered_water).max(0.0);
     let response_wave = if in_transit <= 1e-6 {
-        estimated_remaining.max(FIRE_BUCKET_WATER)
+        estimated_remaining.max(bucket_water)
     } else {
         estimated_remaining
     };
@@ -184,29 +185,34 @@ mod tests {
     }
 
     #[test]
-    fn low_water_wells_send_partial_buckets() {
-        assert_eq!(fire_response_load(0.49), 0.0);
-        assert_eq!(fire_response_load(0.5), 0.5);
-        assert_eq!(fire_response_load(1.9), 1.9);
+    fn low_water_wells_send_only_whole_water_units() {
+        assert_eq!(fire_response_load(0.99), 0.0);
+        assert_eq!(fire_response_load(1.0), 1.0);
+        assert_eq!(fire_response_load(1.9), 1.0);
+        assert_eq!(fire_response_load(2.9), 2.0);
         assert_eq!(fire_response_load(3.0), 3.0);
         assert_eq!(fire_response_load(8.0), 3.0);
     }
 
     #[test]
-    fn a_partial_bucket_has_real_suppression_value() {
-        let result = suppression_result(0.34, 0.2, fire_response_load(1.9), 1.0);
-        assert!(result.intensity < 0.16);
+    fn one_whole_water_unit_has_real_suppression_value() {
+        let load = fire_response_load(1.9);
+        assert_eq!(load, 1.0);
+        let result = suppression_result(0.34, 0.2, load, 1.0);
+        assert!(result.intensity < 0.34);
         assert!(result.extinguish_chance > FIRE_EXTINGUISH_CHANCE_BASE);
     }
 
     #[test]
     fn low_water_response_can_dispatch_and_refill_for_a_follow_up_trip() {
         let first_load = fire_response_load(1.9);
-        assert_eq!(first_load, 1.9);
+        assert_eq!(first_load, 1.0);
+        assert_eq!(first_load.fract(), 0.0);
 
         let refilled = crate::well_policy::well_refill_amount(0.03, 1.0, 20.0);
         let second_load = fire_response_load(refilled);
-        assert!(second_load >= 2.0);
+        assert_eq!(second_load, FIRE_BUCKET_WATER);
+        assert_eq!(second_load.fract(), 0.0);
 
         let first_suppression = suppression_result(0.42, 0.15, first_load, 1.0);
         let second_suppression =

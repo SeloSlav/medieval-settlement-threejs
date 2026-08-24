@@ -1,6 +1,6 @@
 use crate::constants::RESIDENCE_WATER_REORDER_FRACTION;
 use crate::economy::residence_water_capacity;
-use crate::resource_units::{whole_transfer, whole_units};
+use crate::resource_units::{whole_cost, whole_transfer, whole_units};
 use crate::simulation::residence_needs::state::NeedState;
 
 #[derive(Clone, Copy, Debug)]
@@ -46,15 +46,15 @@ pub fn stock_capacity() -> f64 {
 }
 
 pub fn has_stock_room(stock: f64) -> bool {
-    stock + 1e-6 < stock_capacity() * RESIDENCE_WATER_REORDER_FRACTION
+    let reorder_stock = whole_cost(stock_capacity() * RESIDENCE_WATER_REORDER_FRACTION);
+    whole_units(stock) < reorder_stock
 }
 
 #[cfg(test)]
 mod tests {
     use super::{has_stock_room, stock_capacity};
     use crate::balance_generated::{
-        CALENDAR_SECONDS_PER_DAY, RESIDENCE_WATER_PER_PERSON_PER_SEC,
-        RESIDENCE_WATER_REORDER_FRACTION, WELL_WATER_PER_DELIVERY,
+        RESIDENCE_WATER_REORDER_FRACTION, RESIDENCE_WATER_UNITS_PER_DAY, WELL_WATER_PER_DELIVERY,
     };
 
     #[test]
@@ -62,18 +62,13 @@ mod tests {
         let reorder_stock = stock_capacity() * RESIDENCE_WATER_REORDER_FRACTION;
         assert!(!has_stock_room(stock_capacity()));
         assert!(!has_stock_room(reorder_stock));
-        assert!(has_stock_room(reorder_stock - 0.01));
+        assert!(has_stock_room(reorder_stock - 1.0));
         assert!((stock_capacity() - reorder_stock - WELL_WATER_PER_DELIVERY).abs() < 1e-9);
     }
 
     #[test]
-    fn one_water_run_last_multiple_days_for_each_household_size() {
-        let days_per_load = |population: f64| {
-            WELL_WATER_PER_DELIVERY
-                / (population * RESIDENCE_WATER_PER_PERSON_PER_SEC * CALENDAR_SECONDS_PER_DAY)
-        };
-        assert!(days_per_load(2.0) > 5.5);
-        assert!(days_per_load(3.0) > 3.7);
-        assert!(days_per_load(4.0) > 2.7);
+    fn one_water_run_is_measured_against_the_household_daily_bill() {
+        let days_per_load = WELL_WATER_PER_DELIVERY / RESIDENCE_WATER_UNITS_PER_DAY;
+        assert_eq!(days_per_load, 16.0);
     }
 }

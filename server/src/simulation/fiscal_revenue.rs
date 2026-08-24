@@ -6,7 +6,10 @@ use spacetimedb::ReducerContext;
 
 use crate::balance_generated::{CALENDAR_SECONDS_PER_DAY, TICK_DT};
 use crate::db::*;
-use crate::economy::{credit_local_civic_receipts, debit_residence_wealth};
+use crate::economy::{
+    building_commodity_room, credit_local_civic_receipts, credit_residence_wealth,
+    debit_residence_wealth, CommodityKind,
+};
 use crate::fiscal_policy::{land_levy_assessed_value, monthly_land_levy};
 use crate::resource_units::{whole_cost, whole_units};
 use crate::simulation::game_calendar::GameClock;
@@ -122,7 +125,7 @@ pub fn step_land_levies(ctx: &ReducerContext, tick: &SimTickContext, clock: &Gam
             .collect::<Vec<_>>();
         let mut assessed_total = 0.0;
         let mut collected_total = 0.0;
-        let mut receipts_by_market: HashMap<u64, f64> = HashMap::new();
+        let physical = resources.physical_founding_site_enabled;
         let residences = ctx
             .db
             .residence()
@@ -145,19 +148,33 @@ pub fn step_land_levies(ctx: &ReducerContext, tick: &SimTickContext, clock: &Gam
                 continue;
             };
             let requested = whole_cost(assessment * collection_multiplier);
+            let available_lockbox_room = if physical {
+                ctx.db
+                    .building()
+                    .id()
+                    .find(&lockbox.id)
+                    .map(|market| building_commodity_room(&market, CommodityKind::Gold))
+                    .unwrap_or(0.0)
+            } else {
+                f64::INFINITY
+            };
+            let requested = requested.min(available_lockbox_room);
             let paid = debit_residence_wealth(ctx, &residence, requested);
-            if paid <= 1e-9 {
+            if paid < 1.0 {
                 continue;
             }
-            collected_total += paid;
-            *receipts_by_market.entry(lockbox.id).or_default() += paid;
-        }
-
-        for (market_id, amount) in receipts_by_market {
-            if let Some(mut marketplace) = ctx.db.building().id().find(&market_id) {
-                credit_local_civic_receipts(ctx, &mut marketplace, amount);
+            let Some(mut marketplace) = ctx.db.building().id().find(&lockbox.id) else {
+                credit_residence_wealth(ctx, residence.id, paid);
+                continue;
+            };
+            let credited = credit_local_civic_receipts(ctx, &mut marketplace, paid);
+            if credited > 0.0 {
                 ctx.db.building().id().update(marketplace);
             }
+            if credited + 1e-6 < paid {
+                credit_residence_wealth(ctx, residence.id, paid - credited);
+            }
+            collected_total += credited;
         }
         if let Some(mut ledger) = ctx.db.player_resources().owner().find(&owner) {
             ledger.land_levy_assessed_total =

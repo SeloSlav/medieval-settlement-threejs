@@ -22,6 +22,7 @@ use crate::balance_generated::{
 };
 use crate::civilian_tool_policy::{civilian_tool_refill_due, is_civilian_tool_site};
 use crate::processor_output_policy::processor_input_staging_cycles;
+use crate::resource_units::{whole_cost, whole_units};
 
 /// The Marketplace is the household-facing food service point. Staffed
 /// granaries own and replenish its stalls after physical stock reaches storage.
@@ -121,19 +122,27 @@ pub fn normalize_carpenter_cart_service_target(target_trips: u8) -> u8 {
 }
 
 pub fn carpenter_cart_service_timber_target(target_trips: u8) -> f64 {
-    CARPENTER_CART_SERVICE_TIMBER_PER_TRIP
-        * normalize_carpenter_cart_service_target(target_trips) as f64
+    whole_cost(
+        CARPENTER_CART_SERVICE_TIMBER_PER_TRIP
+            * normalize_carpenter_cart_service_target(target_trips) as f64,
+    )
 }
 
 pub fn carpenter_cart_service_ironwork_target(target_trips: u8) -> f64 {
-    CARPENTER_CART_SERVICE_IRONWORK_PER_TRIP
-        * normalize_carpenter_cart_service_target(target_trips) as f64
+    whole_cost(
+        CARPENTER_CART_SERVICE_IRONWORK_PER_TRIP
+            * normalize_carpenter_cart_service_target(target_trips) as f64,
+    )
 }
 
 pub fn carpenter_cart_service_trips_available(timber: f64, ironwork: f64) -> u32 {
-    let timber_trips = ((timber.max(0.0) + 1e-9) / CARPENTER_CART_SERVICE_TIMBER_PER_TRIP).floor();
-    let ironwork_trips =
-        ((ironwork.max(0.0) + 1e-9) / CARPENTER_CART_SERVICE_IRONWORK_PER_TRIP).floor();
+    let timber_per_trip = whole_cost(CARPENTER_CART_SERVICE_TIMBER_PER_TRIP);
+    let ironwork_per_trip = whole_cost(CARPENTER_CART_SERVICE_IRONWORK_PER_TRIP);
+    if timber_per_trip <= 0.0 || ironwork_per_trip <= 0.0 {
+        return 0;
+    }
+    let timber_trips = (whole_units(timber) / timber_per_trip).floor();
+    let ironwork_trips = (whole_units(ironwork) / ironwork_per_trip).floor();
     timber_trips.min(ironwork_trips).clamp(0.0, u32::MAX as f64) as u32
 }
 
@@ -157,21 +166,22 @@ pub fn construction_source_available_stock(
         }
         _ => 0.0,
     };
-    (stock.max(0.0) - reserve).max(0.0)
+    (whole_units(stock) - reserve).max(0.0)
 }
 
 /// Deep stone chambers use bedrock pillars for most permanent support, but
 /// still consume prepared timber columns and working cribs while a new face is
 /// undercut. The larger buffer offsets the quarry's faster, six-person cycle.
 pub fn large_quarry_support_target() -> f64 {
-    LARGE_QUARRY_TIMBER_SUPPORT_PER_CYCLE * LARGE_QUARRY_TIMBER_SUPPORT_BUFFER_CYCLES
+    whole_cost(LARGE_QUARRY_TIMBER_SUPPORT_PER_CYCLE * LARGE_QUARRY_TIMBER_SUPPORT_BUFFER_CYCLES)
 }
 
 pub fn large_quarry_support_runway_cycles(timber: f64) -> f64 {
-    if LARGE_QUARRY_TIMBER_SUPPORT_PER_CYCLE <= 1e-9 {
+    let per_cycle = whole_cost(LARGE_QUARRY_TIMBER_SUPPORT_PER_CYCLE);
+    if per_cycle <= 1e-9 {
         return 0.0;
     }
-    timber.max(0.0) / LARGE_QUARRY_TIMBER_SUPPORT_PER_CYCLE
+    whole_units(timber) / per_cycle
 }
 
 pub fn large_quarry_supports_ready(timber: f64) -> bool {
@@ -182,14 +192,15 @@ pub fn large_quarry_supports_ready(timber: f64) -> bool {
 /// complete timber-crib batch before labor can safely advance extraction.
 /// Ordinary finite seams remain support-free surface workings.
 pub fn rich_mine_support_target() -> f64 {
-    MINE_TIMBER_SUPPORT_PER_CYCLE * MINE_TIMBER_SUPPORT_BUFFER_CYCLES
+    whole_cost(MINE_TIMBER_SUPPORT_PER_CYCLE * MINE_TIMBER_SUPPORT_BUFFER_CYCLES)
 }
 
 pub fn rich_mine_support_runway_cycles(timber: f64) -> f64 {
-    if MINE_TIMBER_SUPPORT_PER_CYCLE <= 1e-9 {
+    let per_cycle = whole_cost(MINE_TIMBER_SUPPORT_PER_CYCLE);
+    if per_cycle <= 1e-9 {
         return 0.0;
     }
-    timber.max(0.0) / MINE_TIMBER_SUPPORT_PER_CYCLE
+    whole_units(timber) / per_cycle
 }
 
 pub fn rich_mine_supports_ready(timber: f64) -> bool {
@@ -207,7 +218,7 @@ pub fn grain_input_target(
         _ => 0.0,
     };
     let staging_cycles = processor_input_staging_cycles(processor_output_target_percent);
-    per_cycle * staging_cycles
+    whole_cost(per_cycle * staging_cycles)
 }
 
 pub fn grain_input_runway_cycles(kind: &str, stock: f64, _productivity: f64) -> f64 {
@@ -215,10 +226,11 @@ pub fn grain_input_runway_cycles(kind: &str, stock: f64, _productivity: f64) -> 
         "watermill" | "windmill" => WATERMILL_GRAIN_PER_CYCLE,
         _ => 0.0,
     };
+    let per_cycle = whole_cost(per_cycle);
     if per_cycle <= 1e-6 {
         f64::INFINITY
     } else {
-        stock.max(0.0) / per_cycle
+        whole_units(stock) / per_cycle
     }
 }
 
@@ -461,7 +473,7 @@ pub enum ProcessorInputDispatchDuty {
 /// A zero result deliberately marks storage/export overflow, so pottery fills
 /// staffed smokehouse vessel buffers before a nearer marketplace can claim it.
 pub fn directly_dispatched_processor_input_per_cycle(target_kind: &str, commodity: &str) -> f64 {
-    match (target_kind, commodity) {
+    let authored_cost = match (target_kind, commodity) {
         (kind, "ironwork") if is_civilian_tool_site(kind) => CIVILIAN_TOOL_IRONWORK_PER_CYCLE,
         ("bakery", "firewood") => BAKERY_FIREWOOD_PER_CYCLE,
         ("bakery", "water") => BAKERY_WATER_PER_CYCLE,
@@ -498,18 +510,22 @@ pub fn directly_dispatched_processor_input_per_cycle(target_kind: &str, commodit
         ("smithy", "iron") => SMITHY_IRON_PER_CYCLE,
         ("smithy", "water") => SMITHY_WATER_PER_CYCLE,
         _ => 0.0,
-    }
+    };
+    whole_cost(authored_cost)
 }
 
 pub fn processor_input_target(per_cycle: f64, processor_output_target_percent: u8) -> f64 {
-    per_cycle.max(0.0) * processor_input_staging_cycles(processor_output_target_percent)
+    whole_cost(
+        per_cycle.max(0.0) * processor_input_staging_cycles(processor_output_target_percent),
+    )
 }
 
 pub fn processor_input_runway_cycles(stock: f64, per_cycle: f64) -> f64 {
+    let per_cycle = whole_cost(per_cycle);
     if per_cycle <= 1e-6 {
         f64::INFINITY
     } else {
-        stock.max(0.0) / per_cycle
+        whole_units(stock) / per_cycle
     }
 }
 
@@ -520,7 +536,8 @@ pub fn processor_input_dispatch_duty(
     processor_output_target_percent: u8,
 ) -> ProcessorInputDispatchDuty {
     if assigned_labor > 0
-        && stock + 1e-6 < processor_input_target(per_cycle, processor_output_target_percent)
+        && whole_units(stock) + 1e-6
+            < processor_input_target(per_cycle, processor_output_target_percent)
     {
         ProcessorInputDispatchDuty::WorkingBuffer
     } else {
@@ -568,8 +585,8 @@ pub fn local_material_dispatch_target(
     processor_output_target_percent: u8,
     marketplace_reserve_target: f64,
 ) -> Option<(ProcessorInputDispatchDuty, f64)> {
-    let stock = stock.max(0.0);
-    let capacity = capacity.max(0.0);
+    let stock = whole_units(stock);
+    let capacity = whole_units(capacity);
     let is_raw_market_material = matches!(commodity, "iron" | "salt");
 
     if commodity == "ironwork" && is_civilian_tool_site(target_kind) {
@@ -585,7 +602,7 @@ pub fn local_material_dispatch_target(
     }
 
     if is_raw_market_material && target_kind == "trading_post" {
-        let desired_stock = marketplace_reserve_target.max(0.0).min(capacity);
+        let desired_stock = whole_units(marketplace_reserve_target).min(capacity);
         return (assigned_labor > 0 && stock + 1e-6 < desired_stock)
             .then_some((ProcessorInputDispatchDuty::WorkshopOverflow, desired_stock));
     }

@@ -1,30 +1,38 @@
 //! Demand-driven household fuel reserves and industrial charcoal hysteresis.
 
 use crate::balance_generated::{
-    CALENDAR_SECONDS_PER_DAY, CHARCOAL_HOUSEHOLD_FUEL_VALUE, MARKETPLACE_FUEL_RESERVE_DAYS,
-    RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC, SMITHY_CHARCOAL_PER_CYCLE,
-    SMITHY_CHARCOAL_REORDER_CYCLES, SMITHY_CHARCOAL_TARGET_CYCLES,
+    CALENDAR_DAYS_PER_MONTH, CHARCOAL_HOUSEHOLD_FUEL_VALUE, MARKETPLACE_FUEL_RESERVE_DAYS,
+    RESIDENCE_FIREWOOD_UNITS_PER_MONTH, SMITHY_CHARCOAL_PER_CYCLE, SMITHY_CHARCOAL_REORDER_CYCLES,
+    SMITHY_CHARCOAL_TARGET_CYCLES,
 };
+use crate::resource_units::{whole_cost, whole_units};
 
 pub fn combined_fuel_equivalent(firewood: f64, charcoal: f64) -> f64 {
-    firewood.max(0.0) + charcoal.max(0.0) * CHARCOAL_HOUSEHOLD_FUEL_VALUE
+    whole_units(firewood) + whole_units(charcoal) * whole_units(CHARCOAL_HOUSEHOLD_FUEL_VALUE)
 }
 
-pub fn household_fuel_demand_per_day(population: u32, seasonal_multiplier: f64) -> f64 {
-    f64::from(population)
-        * RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC
-        * CALENDAR_SECONDS_PER_DAY
+/// Average daily demand for a known number of households. Actual residences
+/// pay one whole monthly bill; this fractional rate exists only for runway and
+/// reserve planning.
+pub fn household_fuel_demand_for_households_per_day(
+    household_count: u32,
+    seasonal_multiplier: f64,
+) -> f64 {
+    f64::from(household_count) * whole_units(RESIDENCE_FIREWOOD_UNITS_PER_MONTH)
+        / f64::from(CALENDAR_DAYS_PER_MONTH.max(1))
         * seasonal_multiplier.max(0.0)
 }
 
-pub fn marketplace_fuel_reserve_target(
-    covered_population: u32,
+pub fn marketplace_fuel_reserve_target_for_households(
+    covered_households: u32,
     seasonal_multiplier: f64,
     firewood_capacity: f64,
     charcoal_capacity: f64,
 ) -> f64 {
-    let demand_target = household_fuel_demand_per_day(covered_population, seasonal_multiplier)
-        * MARKETPLACE_FUEL_RESERVE_DAYS;
+    let demand_target = whole_cost(
+        household_fuel_demand_for_households_per_day(covered_households, seasonal_multiplier)
+            * MARKETPLACE_FUEL_RESERVE_DAYS,
+    );
     let physical_capacity = combined_fuel_equivalent(firewood_capacity, charcoal_capacity);
     demand_target.min(physical_capacity).max(0.0)
 }
@@ -41,9 +49,9 @@ pub fn fuel_runway_days(fuel_equivalent: f64, daily_demand: f64) -> f64 {
 /// complete charcoal cycles. This avoids one-cycle cart chatter while keeping
 /// a useful production buffer ahead of household reserve hauling.
 pub fn smithy_charcoal_refill_target(stock: f64) -> Option<f64> {
-    let reorder = SMITHY_CHARCOAL_PER_CYCLE * SMITHY_CHARCOAL_REORDER_CYCLES;
-    let target = SMITHY_CHARCOAL_PER_CYCLE * SMITHY_CHARCOAL_TARGET_CYCLES;
-    (stock.max(0.0) + 1e-9 < reorder).then_some(target)
+    let reorder = whole_cost(SMITHY_CHARCOAL_PER_CYCLE * SMITHY_CHARCOAL_REORDER_CYCLES);
+    let target = whole_cost(SMITHY_CHARCOAL_PER_CYCLE * SMITHY_CHARCOAL_TARGET_CYCLES);
+    (whole_units(stock) < reorder).then_some(target)
 }
 
 #[cfg(test)]
@@ -51,13 +59,19 @@ mod tests {
     use super::*;
 
     #[test]
-    fn market_reserve_scales_with_people_and_season() {
-        let fair = marketplace_fuel_reserve_target(10, 1.0, 80.0, 80.0);
-        let winter = marketplace_fuel_reserve_target(10, 2.0, 80.0, 80.0);
-        assert!((fair - 70.0).abs() < 1e-6);
-        assert!((winter - 140.0).abs() < 1e-6);
-        assert_eq!(marketplace_fuel_reserve_target(0, 2.0, 80.0, 80.0), 0.0);
-        assert_eq!(marketplace_fuel_reserve_target(100, 2.0, 80.0, 80.0), 240.0);
+    fn market_reserve_scales_with_households_and_season_in_whole_units() {
+        let fair = marketplace_fuel_reserve_target_for_households(10, 1.0, 80.0, 80.0);
+        let winter = marketplace_fuel_reserve_target_for_households(10, 2.0, 80.0, 80.0);
+        assert_eq!(fair, 7.0);
+        assert_eq!(winter, 14.0);
+        assert_eq!(
+            marketplace_fuel_reserve_target_for_households(0, 2.0, 80.0, 80.0),
+            0.0
+        );
+        assert_eq!(
+            marketplace_fuel_reserve_target_for_households(100, 2.0, 80.0, 80.0),
+            140.0
+        );
     }
 
     #[test]

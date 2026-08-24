@@ -25,16 +25,19 @@ pub fn credit_residence_wealth(ctx: &ReducerContext, residence_id: u64, amount: 
 /// Deduct up to `amount` from a residence wallet. Returns gold actually paid.
 pub fn debit_residence_wealth(ctx: &ReducerContext, residence: &Residence, amount: f64) -> f64 {
     let amount = whole_cost(amount);
-    if amount < 1.0 || residence.household_wealth < 1.0 {
+    if amount < 1.0 {
         return 0.0;
     }
 
-    let paid = whole_transfer(residence.household_wealth, amount);
     let Some(mut updated) = ctx.db.residence().id().find(&residence.id) else {
         return 0.0;
     };
-
-    updated.household_wealth = whole_units(updated.household_wealth) - paid;
+    updated.household_wealth = whole_units(updated.household_wealth);
+    let paid = whole_transfer(updated.household_wealth, amount);
+    if paid < 1.0 {
+        return 0.0;
+    }
+    updated.household_wealth -= paid;
     ctx.db.residence().id().update(updated);
     paid
 }

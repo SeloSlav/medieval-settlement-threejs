@@ -383,18 +383,6 @@ pub fn credit_treasury_stone(ctx: &ReducerContext, owner: spacetimedb::Identity,
     crate::economy::credit_treasury_commodity(ctx, owner, CommodityKind::Stone, amount);
 }
 
-pub fn credit_treasury_firewood(ctx: &ReducerContext, owner: spacetimedb::Identity, amount: f64) {
-    crate::economy::credit_treasury_commodity(ctx, owner, CommodityKind::Firewood, amount);
-}
-
-pub fn credit_treasury_water(ctx: &ReducerContext, owner: spacetimedb::Identity, amount: f64) {
-    crate::economy::credit_treasury_commodity(ctx, owner, CommodityKind::Water, amount);
-}
-
-pub fn credit_treasury_food(ctx: &ReducerContext, owner: spacetimedb::Identity, amount: f64) {
-    crate::economy::credit_treasury_commodity(ctx, owner, CommodityKind::Food, amount);
-}
-
 pub fn credit_treasury_gold(ctx: &ReducerContext, owner: spacetimedb::Identity, amount: f64) {
     let amount = whole_units(amount);
     if amount < 1.0 {
@@ -427,15 +415,11 @@ pub fn restore_treasury_gold(ctx: &ReducerContext, owner: spacetimedb::Identity,
 }
 
 pub fn treasury_gold(ctx: &ReducerContext, owner: spacetimedb::Identity) -> f64 {
-    let resources = ctx.db.player_resources().owner().find(&owner);
-    let ledger_gold = resources
-        .as_ref()
-        .filter(|resources| !resources.physical_founding_site_enabled)
-        .map(|resources| resources.gold.max(0.0))
-        .unwrap_or(0.0);
-    let physical_gold = ledger_gold
-        + ctx
-            .db
+    let Some(resources) = ctx.db.player_resources().owner().find(&owner) else {
+        return 0.0;
+    };
+    let held_gold = if resources.physical_founding_site_enabled {
+        ctx.db
             .building()
             .owner()
             .filter(&owner)
@@ -446,11 +430,15 @@ pub fn treasury_gold(ctx: &ReducerContext, owner: spacetimedb::Identity) -> f64 
                         "founders_camp" | "salvage_pile" | "town_hall"
                     )
             })
-            .map(|building| building.gold.max(0.0))
-            .sum::<f64>();
-    (physical_gold
-        - reserved_residence_upgrade_total(ctx, owner, |residence| residence.upgrade_reserved_gold))
-    .max(0.0)
+            .map(|building| whole_units(building.gold))
+            .sum::<f64>()
+    } else {
+        whole_units(resources.gold)
+    };
+    let reserved = whole_cost(reserved_residence_upgrade_total(ctx, owner, |residence| {
+        residence.upgrade_reserved_gold
+    }));
+    whole_units(held_gold - reserved)
 }
 
 pub fn spend_treasury_gold(
@@ -505,7 +493,7 @@ pub fn spend_treasury_gold(
             seat.gold -= paid;
             remaining -= paid;
             ctx.db.building().id().update(seat);
-            if remaining <= 1e-6 {
+            if remaining < 1.0 {
                 return Ok(());
             }
         }

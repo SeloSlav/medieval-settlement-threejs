@@ -100,7 +100,10 @@ mod tests {
     fn customs_rates_are_bounded_and_conserve_private_export_receipts() {
         let split = split_private_export_receipt(100.0, EXPORT_DUTY_RATE_MAX);
         assert_eq!(split.household_income + split.export_duty, 100.0);
-        assert_eq!(split_private_export_receipt(10.9, 0.0).household_income, 10.0);
+        assert_eq!(
+            split_private_export_receipt(10.9, 0.0).household_income,
+            10.0
+        );
         assert_eq!(split_private_export_receipt(10.0, 0.01).export_duty, 1.0);
         assert_eq!(clamp_import_duty_rate(-1.0), IMPORT_DUTY_RATE_MIN);
         assert_eq!(clamp_export_duty_rate(2.0), EXPORT_DUTY_RATE_MAX);

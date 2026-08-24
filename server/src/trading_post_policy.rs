@@ -112,25 +112,6 @@ pub fn affordable_import_units(deficit: f64, room: f64, gold: f64, unit_price: f
         .min(gold.max(0.0) / unit_price)
 }
 
-/// Split the actually available treasury among the due import rules that have
-/// not yet had their turn. Cents are floored, so no rule can overspend its
-/// tranche through price rounding; unused coin automatically flows into the
-/// larger tranches calculated for later rules.
-pub fn fair_import_gold_budget(remaining_gold: f64, remaining_rules: usize) -> f64 {
-    if remaining_rules == 0 || !remaining_gold.is_finite() {
-        return 0.0;
-    }
-    let available_cents = (remaining_gold.max(0.0) * 100.0).floor();
-    ((available_cents / remaining_rules as f64).floor()) / 100.0
-}
-
-pub fn trade_gold(units: f64, unit_price: f64) -> f64 {
-    if !units.is_finite() || !unit_price.is_finite() {
-        return 0.0;
-    }
-    ((units.max(0.0) * unit_price.max(0.0)) * 100.0).round() / 100.0
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -147,8 +128,6 @@ mod tests {
         let deficit = import_deficit(18.0, 50.0);
         assert_eq!(deficit, 32.0);
         assert_eq!(affordable_import_units(deficit, 20.0, 17.0, 2.0), 8.5);
-        assert_eq!(fair_import_gold_budget(1.0, 3), 0.33);
-        assert_eq!(fair_import_gold_budget(0.67, 2), 0.33);
     }
 
     #[test]
@@ -176,7 +155,7 @@ mod tests {
             trade_rule_settlement_key(TRADE_MODE_EXPORT, u8::MAX)
                 < trade_rule_settlement_key(TRADE_MODE_IMPORT, 0)
         );
-        let export_revenue = trade_gold(10.0, 1.0);
+        let export_revenue = 10.0;
         assert_eq!(
             affordable_import_units(10.0, 10.0, export_revenue, 2.0),
             5.0
@@ -254,9 +233,9 @@ mod tests {
             total_export_revenue += 3.0;
             for index in 0..unit_prices.len() {
                 let remaining = unit_prices.len() - index;
-                let budget = fair_import_gold_budget(treasury, remaining);
+                let budget = (treasury / remaining as f64).floor();
                 let units = affordable_import_units(12.0, 100.0, budget, unit_prices[index]);
-                let expense = trade_gold(units, unit_prices[index]);
+                let expense = (units * unit_prices[index]).floor();
                 assert!(expense <= budget + 1e-9);
                 treasury = (treasury - expense).max(0.0);
                 total_spent += expense;

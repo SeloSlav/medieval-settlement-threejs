@@ -3,7 +3,8 @@ use crate::balance_generated::{
     BACKYARD_FOOD_RESERVE_TIER2_DAYS, BACKYARD_FOOD_RESERVE_TIER3_DAYS, RESIDENCE_FOOD_CAPACITY,
     RESIDENCE_PRESERVED_FOOD_CAPACITY,
 };
-use crate::food_demand_policy::household_food_per_day;
+use crate::food_demand_policy::household_food_units_per_day_for_tier;
+use crate::resource_units::{whole_cost, whole_units};
 use crate::season_policy::{EnvironmentState, Season, WeatherKind};
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
@@ -22,8 +23,8 @@ pub struct BackyardOrchardHarvest {
 /// `jam_target` is not extra output: every jar removes the same amount from
 /// the fresh-fruit basket, while occupied-household labor performs the work.
 pub fn split_backyard_orchard_harvest(gross_fruit: f64, jam_target: f64) -> BackyardOrchardHarvest {
-    let gross_fruit = finite_nonnegative(gross_fruit);
-    let jam = finite_nonnegative(jam_target).min(gross_fruit);
+    let gross_fruit = whole_units(gross_fruit);
+    let jam = whole_units(jam_target).min(gross_fruit);
     BackyardOrchardHarvest {
         fresh_fruit: (gross_fruit - jam).max(0.0),
         jam,
@@ -47,10 +48,11 @@ pub fn backyard_food_reserve_days(tier: u8) -> f64 {
     .max(0.0)
 }
 
-pub fn backyard_food_reserve_target(tier: u8, population: u32) -> f64 {
-    let daily_food = household_food_per_day(population);
-    (daily_food * backyard_food_reserve_days(tier))
-        .min(RESIDENCE_FOOD_CAPACITY + RESIDENCE_PRESERVED_FOOD_CAPACITY)
+pub fn backyard_food_reserve_target(tier: u8, _population: u32) -> f64 {
+    let daily_food = household_food_units_per_day_for_tier(tier);
+    whole_cost(daily_food * backyard_food_reserve_days(tier)).min(whole_units(
+        RESIDENCE_FOOD_CAPACITY + RESIDENCE_PRESERVED_FOOD_CAPACITY,
+    ))
 }
 
 pub fn allocate_backyard_food(
@@ -60,22 +62,14 @@ pub fn allocate_backyard_food(
     population: u32,
     current_food_stock: f64,
 ) -> BackyardFoodAllocation {
-    let total = if total_food.is_finite() {
-        total_food.max(0.0)
-    } else {
-        0.0
-    };
+    let total = whole_units(total_food);
     if !has_market_access {
         return BackyardFoodAllocation {
             self_food: total,
             market_food: 0.0,
         };
     }
-    let current = if current_food_stock.is_finite() {
-        current_food_stock.max(0.0)
-    } else {
-        0.0
-    };
+    let current = whole_units(current_food_stock);
     let reserve_gap = (backyard_food_reserve_target(tier, population) - current).max(0.0);
     let self_food = total.min(reserve_gap);
     BackyardFoodAllocation {
@@ -396,9 +390,9 @@ mod tests {
 
     #[test]
     fn household_reserves_scale_by_tier_and_storage() {
-        assert!((backyard_food_reserve_target(1, 3) - 3.0).abs() < 1e-9);
-        assert!((backyard_food_reserve_target(2, 6) - 10.0).abs() < 1e-9);
-        assert!((backyard_food_reserve_target(3, 10) - 70.0 / 3.0).abs() < 1e-9);
+        assert_eq!(backyard_food_reserve_target(1, 3), 1.0);
+        assert_eq!(backyard_food_reserve_target(2, 6), 1.0);
+        assert_eq!(backyard_food_reserve_target(3, 10), 1.0);
     }
 
     #[test]
@@ -407,14 +401,14 @@ mod tests {
         assert_eq!(
             empty,
             BackyardFoodAllocation {
-                self_food: 2.0,
-                market_food: 0.0
+                self_food: 1.0,
+                market_food: 1.0
             }
         );
 
         let partial = allocate_backyard_food(2.0, true, 1, 3, 1.5);
-        assert!((partial.self_food - 1.5).abs() < 1e-9);
-        assert!((partial.market_food - 0.5).abs() < 1e-9);
+        assert_eq!(partial.self_food, 0.0);
+        assert_eq!(partial.market_food, 2.0);
 
         let stocked = allocate_backyard_food(2.0, true, 1, 3, 12.0);
         assert_eq!(

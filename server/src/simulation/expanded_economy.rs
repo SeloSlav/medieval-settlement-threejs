@@ -43,8 +43,7 @@ use crate::building_defs::building_def;
 use crate::burgage::{Point2, ZoneCorners};
 use crate::civilian_tool_policy::{
     civilian_tool_runway_cycles, civilian_tool_throughput_multiplier, civilian_tools_maintained,
-    farm_tool_ironwork_per_completed_stage, farm_tool_throughput_multiplier,
-    farm_tools_maintained,
+    farm_tool_ironwork_per_completed_stage, farm_tool_throughput_multiplier, farm_tools_maintained,
     is_civilian_tool_site,
 };
 use crate::construction_priority::CONSTRUCTION_PRIORITY_NORMAL;
@@ -69,14 +68,15 @@ use crate::farming::{
     STAGE_PLOUGHING, STAGE_SOWING,
 };
 use crate::frontier_economy_policy::{
-    armed_guards, carpenter_polearm_shortfall, guard_upkeep, guardhouse_food_runway_days,
+    armed_guards, carpenter_polearm_shortfall, guard_daily_upkeep, guardhouse_food_runway_days,
     guardhouse_food_target, guardhouse_polearm_coverage, guardhouse_polearm_target,
     next_guard_readiness, select_guardhouse_armament_candidate, select_guardhouse_food_candidate,
     CARPENTER_IRONWORK_PER_POLEARM, CARPENTER_TIMBER_PER_POLEARM,
     GUARDHOUSE_CRITICAL_FOOD_RUNWAY_DAYS,
 };
 use crate::fuel_reserve_policy::{
-    combined_fuel_equivalent, marketplace_fuel_reserve_target, smithy_charcoal_refill_target,
+    combined_fuel_equivalent, marketplace_fuel_reserve_target_for_households,
+    smithy_charcoal_refill_target,
 };
 use crate::granary_policy::granary_fresh_food_target;
 use crate::hydrology::{
@@ -96,7 +96,7 @@ use crate::monastery_estate_policy::{
     monastery_seed_archive_target_per_crop, MONASTERY_INFIRMARY_FOOD_PER_BED_DAY,
 };
 use crate::monastery_hospitality_policy::{
-    is_monastery_feast_day, monastery_feast_batch, monastery_hospitality_use,
+    is_monastery_feast_day, monastery_daily_hospitality_use, monastery_feast_batch,
     monastery_pilgrimage_gold,
 };
 use crate::potter_firing_policy::potter_fires_roof_tiles;
@@ -104,6 +104,10 @@ use crate::pottery_dispatch_policy::pottery_households_first;
 use crate::processor_output_policy::{
     processor_input_staging_cycles, processor_output_headroom, processor_output_kind,
     ProcessorOutputKind,
+};
+use crate::residence_consumption_policy::daily_household_bill_due;
+use crate::resource_units::{
+    deterministic_whole_lot, periodic_whole_units, whole_cost, whole_units,
 };
 use crate::season_policy::{EnvironmentState, WeatherKind};
 use crate::simulation::delivery_trips::{
@@ -1592,7 +1596,7 @@ fn marketplace_fuel_shortfalls(
     tick: &SimTickContext,
     environment: EnvironmentState,
 ) -> HashMap<u64, f64> {
-    let mut covered_population = HashMap::<u64, u32>::new();
+    let mut covered_households = HashMap::<u64, u32>::new();
     for residence in ctx.db.residence().iter().filter(|residence| {
         !residence.abandoned
             && residence.population > 0
@@ -1604,21 +1608,21 @@ fn marketplace_fuel_shortfalls(
             residence.id,
             ResidenceNeedKind::Firewood,
         ) {
-            let population = covered_population.entry(market_id).or_default();
-            *population = population.saturating_add(residence.population);
+            let household_count = covered_households.entry(market_id).or_default();
+            *household_count = household_count.saturating_add(1);
         }
     }
-    covered_population
+    covered_households
         .into_iter()
-        .filter_map(|(market_id, population)| {
+        .filter_map(|(market_id, household_count)| {
             let market = ctx.db.building().id().find(&market_id)?;
             if building_has_inbound_commodity_trip(ctx, market.id, CommodityKind::Firewood)
                 || building_has_inbound_commodity_trip(ctx, market.id, CommodityKind::Charcoal)
             {
                 return None;
             }
-            let target = marketplace_fuel_reserve_target(
-                population,
+            let target = marketplace_fuel_reserve_target_for_households(
+                household_count,
                 environment.firewood_demand_multiplier(),
                 building_commodity_cap(&market.kind, CommodityKind::Firewood),
                 building_commodity_cap(&market.kind, CommodityKind::Charcoal),
@@ -2336,7 +2340,8 @@ fn step_farmstead_fields(
             continue;
         }
         work_budget -= spent;
-        let completed_stage = field.stage != stage_before || field.harvest_count != harvest_count_before;
+        let completed_stage =
+            field.stage != stage_before || field.harvest_count != harvest_count_before;
         if farm_tools_ready && completed_stage {
             withdraw_building_commodity(
                 farmstead,
@@ -3321,7 +3326,7 @@ pub fn step_monastery(
             monastery.monastery_croft_planting,
             orchard_maturity,
         );
-        for (commodity, amount) in [
+        for (yield_index, (commodity, amount)) in [
             (CommodityKind::Apples, yields.apples),
             (CommodityKind::Pears, yields.pears),
             (CommodityKind::Vegetables, yields.vegetables),
@@ -3332,19 +3337,28 @@ pub fn step_monastery(
             (CommodityKind::Cider, yields.cider),
             (CommodityKind::Mead, yields.mead),
             (CommodityKind::Cheese, yields.cheese),
-        ] {
-            deposit_building_commodity(&mut monastery, commodity, amount * productivity * staffing);
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            let lot = deterministic_whole_lot(
+                amount * productivity * staffing,
+                monastery.id ^ ((yield_index as u64 + 1) * 0x9E37),
+                clock.sim_tick,
+            );
+            deposit_building_commodity(&mut monastery, commodity, lot);
         }
         if vineyard_is_harvesting(clock.month as u8) {
             if vineyard_production_multiplier > 1e-9 {
-                deposit_building_commodity(
-                    &mut monastery,
-                    CommodityKind::Grapes,
+                let grapes = deterministic_whole_lot(
                     VINEYARD_GRAPES_PER_HARVEST_CYCLE
                         * vineyard_production_multiplier
                         * productivity
                         * staffing,
+                    monastery.id ^ 0x4752_4150_4553,
+                    clock.sim_tick,
                 );
+                deposit_building_commodity(&mut monastery, CommodityKind::Grapes, grapes);
             }
         }
         reset_cycle(&mut monastery, 1.0);
@@ -3357,18 +3371,21 @@ pub fn step_monastery(
     // offerings replenish that purse for future days rather than funding the
     // very hospitality that generated them.
     fund_monastery_services(&mut monastery, clock.total_days);
-    if linked && owner_has_connected_marketplace(ctx, tick, &monastery) {
+    if linked
+        && owner_has_connected_marketplace(ctx, tick, &monastery)
+        && daily_household_bill_due(clock)
+    {
         // A small liturgical wine allowance belongs to ordinary overhead.
         // Public hospitality requires honey and whichever estate drink this
         // house actually makes; no planting pair is a mandatory recipe.
-        let hospitality = monastery_hospitality_use(
+        let hospitality = monastery_daily_hospitality_use(
             monastery.honey,
             monastery.cider,
             monastery.mead,
             monastery.wine,
             monastery.monastery_service_funding,
-            TICK_DT,
-            CALENDAR_SECONDS_PER_DAY,
+            monastery.id,
+            clock.total_days,
             hospitality_enabled,
         );
         withdraw_building_commodity(&mut monastery, CommodityKind::Honey, hospitality.honey_used);
@@ -3386,7 +3403,11 @@ pub fn step_monastery(
             CALENDAR_SECONDS_PER_DAY,
             CALENDAR_SECONDS_PER_DAY,
         );
-        let gold = receipt_daily_income * TICK_DT / CALENDAR_SECONDS_PER_DAY;
+        let gold = periodic_whole_units(
+            receipt_daily_income,
+            monastery.id ^ 0x5049_4C47_5249_4D,
+            clock.total_days,
+        );
         let credited = credit_monastery_export_receipt(ctx, &mut monastery, gold);
         if let Some(mut treasury) = ctx.db.player_resources().owner().find(&monastery.owner) {
             treasury.monastery_pilgrimage_gold_total +=
@@ -3440,7 +3461,7 @@ fn request_monastery_seed_archive(
 }
 
 fn reinvest_monastery_estate(monastery: &mut Building) {
-    let private_gold = (monastery.gold - monastery.civic_receipts_gold).max(0.0);
+    let private_gold = whole_units((monastery.gold - monastery.civic_receipts_gold).max(0.0));
     if !monastery_estate_can_reinvest(
         monastery.monastery_extensions,
         monastery.monastery_next_extension,
@@ -3454,8 +3475,9 @@ fn reinvest_monastery_estate(monastery: &mut Building) {
     ) else {
         return;
     };
+    let cost = whole_cost(cost);
     let spent = withdraw_building_commodity(monastery, CommodityKind::Gold, cost);
-    if spent + 1e-6 >= cost {
+    if spent >= cost {
         monastery.monastery_extensions |= monastery.monastery_next_extension;
         monastery.monastery_next_extension = 0;
         monastery.chapel_tier = monastery_extension_count(monastery.monastery_extensions).min(3);
@@ -3472,8 +3494,13 @@ fn fund_monastery_services(monastery: &mut Building, total_days: u64) {
         return;
     }
     monastery.monastery_last_service_day = total_days;
-    let due = monastery_daily_service_cost(monastery.monastery_extensions);
-    let private_gold = (monastery.gold - monastery.civic_receipts_gold.max(0.0)).max(0.0);
+    let due = periodic_whole_units(
+        monastery_daily_service_cost(monastery.monastery_extensions),
+        monastery.id ^ 0x5345_5256_4943_45,
+        total_days,
+    );
+    let private_gold =
+        whole_units((monastery.gold - monastery.civic_receipts_gold.max(0.0)).max(0.0));
     let paid = due.min(private_gold);
     if paid > 1e-9 {
         withdraw_building_commodity(monastery, CommodityKind::Gold, paid);
@@ -3762,12 +3789,14 @@ pub fn step_guardhouse(
 
     let armed_guards = armed_guards(building.assigned_labor, building.polearms);
     if armed_guards <= 1e-6 {
-        building.action_cooldown = next_guard_readiness(
-            building.action_cooldown,
-            0.0,
-            TICK_DT,
-            CALENDAR_SECONDS_PER_DAY,
-        );
+        if daily_household_bill_due(clock) {
+            building.action_cooldown = next_guard_readiness(
+                building.action_cooldown,
+                0.0,
+                CALENDAR_SECONDS_PER_DAY,
+                CALENDAR_SECONDS_PER_DAY,
+            );
+        }
         ctx.db.building().id().update(building);
         return;
     }
@@ -3781,20 +3810,24 @@ pub fn step_guardhouse(
     if physical_payroll {
         try_dispatch_guardhouse_payroll(ctx, tick, clock, &building, armed_guards);
     }
+    if !daily_household_bill_due(clock) {
+        ctx.db.building().id().update(building);
+        return;
+    }
     let available_gold = if physical_payroll {
         building.gold
     } else {
         treasury_gold(ctx, building.owner)
     };
-    let upkeep = guard_upkeep(
+    let upkeep = guard_daily_upkeep(
         armed_guards,
         building_edible_food_stock(&building),
         available_gold,
-        TICK_DT,
-        CALENDAR_SECONDS_PER_DAY,
+        building.id,
+        clock.total_days,
     );
-    withdraw_building_edible_food(&mut building, upkeep.food_due * upkeep.supply_ratio);
-    let wage_paid = upkeep.wage_due * upkeep.supply_ratio;
+    withdraw_building_edible_food(&mut building, upkeep.food_used);
+    let wage_paid = upkeep.wage_paid;
     if physical_payroll {
         let withdrawn = withdraw_building_commodity(&mut building, CommodityKind::Gold, wage_paid);
         let credited = credit_settlement_household_income(ctx, building.owner, withdrawn);
@@ -3816,7 +3849,7 @@ pub fn step_guardhouse(
     building.action_cooldown = next_guard_readiness(
         building.action_cooldown,
         upkeep.supply_ratio,
-        TICK_DT,
+        CALENDAR_SECONDS_PER_DAY,
         CALENDAR_SECONDS_PER_DAY,
     );
     ctx.db.building().id().update(building);
@@ -3913,12 +3946,7 @@ fn step_processor_with_labor(
         return building;
     }
     let output_target_percent = building.processor_output_target_percent;
-    if !process_batch(
-        &mut building,
-        inputs,
-        outputs,
-        Some(output_target_percent),
-    ) {
+    if !process_batch(&mut building, inputs, outputs, Some(output_target_percent)) {
         return building;
     }
     reset_cycle(&mut building, productive_labor);
@@ -3945,12 +3973,7 @@ fn step_processor_at_rate(
         return building;
     };
     let output_target_percent = building.processor_output_target_percent;
-    if !process_batch(
-        &mut building,
-        inputs,
-        outputs,
-        Some(output_target_percent),
-    ) {
+    if !process_batch(&mut building, inputs, outputs, Some(output_target_percent)) {
         return building;
     }
     reset_cycle(&mut building, labor);

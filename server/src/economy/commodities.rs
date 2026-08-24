@@ -2,7 +2,7 @@ use spacetimedb::ReducerContext;
 
 use crate::building_defs::building_def;
 use crate::db::*;
-pub use crate::food_demand_policy::household_food_per_day;
+pub use crate::food_demand_policy::household_food_units_per_day_for_tier;
 use crate::resource_units::{whole_room, whole_transfer, whole_units};
 use crate::tables::{Building, Residence};
 

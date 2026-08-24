@@ -5,7 +5,7 @@ use crate::balance_generated::{
 };
 use crate::db::*;
 use crate::residence_settlement_policy::{
-    residence_settlement_buffer_min, settlement_buffers_ready, ResidenceSettlementVitalNeed,
+    residence_settlement_bill_buffer_min, settlement_buffers_ready, ResidenceSettlementVitalNeed,
 };
 use crate::simulation::chapel_community::effective_settle_ticks;
 use crate::simulation::residence_needs::{state::NeedState, ResidenceNeedKind};
@@ -35,9 +35,9 @@ pub fn step_residence_settlement(
         };
         Some((
             need.stock,
-            residence_settlement_buffer_min(
+            residence_settlement_bill_buffer_min(
                 kind,
-                residence.population,
+                residence.tier,
                 has_chapel_access,
                 has_monastery_coverage,
             ),

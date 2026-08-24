@@ -21,12 +21,11 @@ use crate::construction_priority::{
 use crate::db::*;
 use crate::economy::{
     assign_building_labor as set_building_labor, available_building_labor, building_commodity_cap,
-    building_commodity_stock, building_cost,
+    building_commodity_stock, building_cost, building_salvage_refund,
     construction_treasury_reservation, credit_treasury_commodity, guardhouse_roster_count,
-    guardhouse_roster_floors,
-    initial_construction_labor, spend_aggregate_ironwork, spend_aggregate_roof_tiles,
-    spend_aggregate_stone, spend_aggregate_timber, spend_treasury_gold, total_ironwork,
-    total_roof_tiles, total_stone, total_timber, CommodityKind,
+    guardhouse_roster_floors, initial_construction_labor, spend_aggregate_ironwork,
+    spend_aggregate_roof_tiles, spend_aggregate_stone, spend_aggregate_timber, spend_treasury_gold,
+    total_ironwork, total_roof_tiles, total_stone, total_timber, CommodityKind,
 };
 use crate::farm_work_policy::is_valid_threshing_priority;
 use crate::foraging_policy::harvest_available;
@@ -3119,18 +3118,7 @@ pub fn demolish_building(ctx: &ReducerContext, building_id: u64) -> Result<(), S
             roof_tiles: 0.0,
         }
     } else if building.construction_complete {
-        let cost = building_cost(&building.kind)?;
-        crate::economy::ResourceAmount {
-            timber: whole_units(cost.timber * crate::balance_generated::TIMBER_SALVAGE_FRACTION),
-            stone: whole_units(cost.stone * crate::balance_generated::STONE_SALVAGE_FRACTION),
-            ironwork: whole_units(
-                cost.ironwork * crate::balance_generated::IRONWORK_SALVAGE_FRACTION,
-            ),
-            roof_tiles: whole_units(
-                cost.roof_tiles
-                    * crate::balance_generated::RESIDENCE_TILE_ROOF_SALVAGE_FRACTION,
-            ),
-        }
+        building_salvage_refund(&building.kind)?
     } else {
         crate::economy::ResourceAmount {
             timber: whole_units(
@@ -3306,7 +3294,16 @@ mod tests {
         assert_eq!(founders_camp_gold_refund(cost, false, false), cost);
         assert_eq!(
             founders_camp_gold_refund(cost, true, false),
-            (cost * GOLD_SALVAGE_FRACTION).round()
+            whole_units(cost * GOLD_SALVAGE_FRACTION)
+        );
+        let fractional_cost = 101.2;
+        assert_eq!(
+            founders_camp_gold_refund(fractional_cost, false, false),
+            102.0
+        );
+        assert_eq!(
+            founders_camp_gold_refund(fractional_cost, true, false),
+            whole_units(102.0 * GOLD_SALVAGE_FRACTION)
         );
         assert_eq!(founders_camp_gold_refund(cost, false, true), 0.0);
         assert_eq!(founders_camp_gold_refund(cost, true, true), 0.0);

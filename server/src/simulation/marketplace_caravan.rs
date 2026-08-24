@@ -15,6 +15,7 @@ use crate::economy::{
     building_preserved_food_stock, mark_local_civic_receipts_dispatched,
     marketplace_proceeds_cart_load, physical_treasury_seat, private_export_proceeds, CommodityKind,
 };
+use crate::resource_units::whole_units;
 use crate::season_policy::EnvironmentState;
 use crate::simulation::delivery_cargo::{
     delivery_stock_room, has_delivery_stock_room, residence_commodity_delivery_room,
@@ -515,7 +516,8 @@ pub fn step_marketplace_caravans(
         if is_trading_post && private_export_proceeds(&building) > 1e-6 {
             changed |= try_dispatch_private_export_income(ctx, tick, clock, &mut building);
         }
-        let unpledged_gold = (building.gold - private_export_proceeds(&building)).max(0.0);
+        let unpledged_gold =
+            whole_units(whole_units(building.gold) - private_export_proceeds(&building));
         let collectible_gold = if is_trading_post {
             unpledged_gold
         } else if unpledged_gold + 1e-9 >= LOCAL_MARKET_TAX_CART_THRESHOLD
@@ -552,8 +554,10 @@ fn try_dispatch_marketplace_proceeds(
     if building_has_active_trip(ctx, marketplace.id) {
         return false;
     }
-    let load = marketplace_proceeds_cart_load(collectible_gold);
-    if load <= 1e-6 {
+    let load = whole_units(marketplace_proceeds_cart_load(whole_units(
+        collectible_gold,
+    )));
+    if load < 1.0 {
         return false;
     }
     let Some(target) = physical_treasury_seat(ctx, marketplace.owner) else {
@@ -565,7 +569,7 @@ fn try_dispatch_marketplace_proceeds(
     let Some(network) = tick.road_network(marketplace.owner) else {
         return false;
     };
-    let before = marketplace.gold;
+    let before = whole_units(marketplace.gold);
     let started = try_start_free_building_supply_trip(
         ctx,
         tick,
@@ -580,7 +584,10 @@ fn try_dispatch_marketplace_proceeds(
         load,
     );
     if started {
-        mark_local_civic_receipts_dispatched(marketplace, (before - marketplace.gold).max(0.0));
+        mark_local_civic_receipts_dispatched(
+            marketplace,
+            whole_units(before - whole_units(marketplace.gold)),
+        );
     }
     started
 }
@@ -644,7 +651,7 @@ fn try_dispatch_private_export_income(
         network,
         trading_post,
         &residence,
-        PRIVATE_EXPORT_INCOME_CART_LOAD,
+        whole_units(PRIVATE_EXPORT_INCOME_CART_LOAD),
     ) > 1e-6
 }
 

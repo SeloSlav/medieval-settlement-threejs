@@ -10,6 +10,7 @@ use crate::raid_agent_policy::{
     raid_entry_point_for_approach, raid_party_size, select_guard_muster_slots,
     COMBAT_FACTION_GUARD, COMBAT_STATE_HOLDING, COMBAT_TARGET_BUILDING, RAID_APPROACH_UNKNOWN,
 };
+use crate::resource_units::whole_units;
 use crate::roads::{load_owner_road_network, RoadNetwork};
 use crate::season_policy::EnvironmentState;
 use crate::security_policy::{
@@ -748,7 +749,7 @@ pub(super) fn building_portable_stores_at_site(
 ) -> RaidPortableStores {
     let mut stores = building_portable_stores(building);
     let issued = if issued_polearms.is_finite() {
-        issued_polearms.max(0.0).min(stores.polearms.max(0.0))
+        whole_units(issued_polearms).min(whole_units(stores.polearms))
     } else {
         0.0
     };
@@ -813,12 +814,13 @@ pub(super) fn plunder_raid_target_at_contact(
             } else {
                 0.0
             };
-            let lost = residence.household_wealth.max(0.0) * fraction;
+            let wealth = whole_units(residence.household_wealth);
+            let lost = whole_units(wealth * fraction).min(wealth);
             if lost <= 1e-9 {
                 return ContactRaidPlunder::default();
             }
             ctx.db.residence().id().update(Residence {
-                household_wealth: (residence.household_wealth - lost).max(0.0),
+                household_wealth: wealth - lost,
                 ..residence
             });
             ContactRaidPlunder {
@@ -902,7 +904,7 @@ pub(super) fn raid_target_position(
 }
 
 pub(super) fn delivery_trip_portable_stores(trip: &DeliveryTrip) -> RaidPortableStores {
-    let amount = trip.amount.max(0.0);
+    let amount = whole_units(trip.amount);
     let mut stores = RaidPortableStores::default();
     match CommodityKind::from_u8(trip.cargo_kind) {
         Some(CommodityKind::Timber) => stores.timber = amount,
@@ -1229,13 +1231,8 @@ fn retain_unplundered_stores(building: &mut Building, stores: RaidPortableStores
     building.beetroot = stores.beetroot;
     building.aronia_jam = stores.aronia_jam;
     building.rosehip_jam = stores.rosehip_jam;
-    building.civic_receipts_gold = building
-        .civic_receipts_gold
-        .max(0.0)
-        .min(building.gold.max(0.0));
-    building.private_export_proceeds_gold = building
-        .private_export_proceeds_gold
-        .max(0.0)
+    building.civic_receipts_gold = whole_units(building.civic_receipts_gold).min(building.gold);
+    building.private_export_proceeds_gold = whole_units(building.private_export_proceeds_gold)
         .min((building.gold - building.civic_receipts_gold).max(0.0));
 }
 

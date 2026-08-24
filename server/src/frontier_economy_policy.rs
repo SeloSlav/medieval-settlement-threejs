@@ -6,6 +6,8 @@ pub use crate::balance_generated::{
 };
 use std::cmp::Ordering;
 
+use crate::resource_units::{periodic_whole_units, whole_units};
+
 pub const GUARDHOUSE_CRITICAL_FOOD_RUNWAY_DAYS: f64 = 3.0;
 pub const GUARDHOUSE_FOOD_BUFFER_PER_GUARD: f64 = 6.0;
 pub const GUARDHOUSE_MIN_FOOD_BUFFER: f64 = 12.0;
@@ -87,6 +89,8 @@ pub fn guardhouse_payroll_buckets<T: Ord>(
 pub struct GuardUpkeep {
     pub food_due: f64,
     pub wage_due: f64,
+    pub food_used: f64,
+    pub wage_paid: f64,
     pub supply_ratio: f64,
 }
 
@@ -225,29 +229,40 @@ pub fn select_guardhouse_armament_candidate<T>(
     })
 }
 
-pub fn guard_upkeep(
+pub fn guard_daily_upkeep(
     armed: f64,
     food_available: f64,
     gold_available: f64,
-    elapsed_seconds: f64,
-    seconds_per_day: f64,
+    schedule_key: u64,
+    total_days: u64,
 ) -> GuardUpkeep {
-    let day_fraction = elapsed_seconds.max(0.0) / seconds_per_day.max(1e-9);
-    let food_due = armed.max(0.0) * GUARDHOUSE_FOOD_PER_GUARD_PER_DAY * day_fraction;
-    let wage_due = armed.max(0.0) * GUARDHOUSE_WAGE_PER_GUARD_PER_DAY * day_fraction;
+    let food_due = periodic_whole_units(
+        armed.max(0.0) * GUARDHOUSE_FOOD_PER_GUARD_PER_DAY,
+        schedule_key ^ 0x464F_4F44,
+        total_days,
+    );
+    let wage_due = periodic_whole_units(
+        armed.max(0.0) * GUARDHOUSE_WAGE_PER_GUARD_PER_DAY,
+        schedule_key ^ 0x5741_4745,
+        total_days,
+    );
+    let food_used = food_due.min(whole_units(food_available));
+    let wage_paid = wage_due.min(whole_units(gold_available));
     let food_ratio = if food_due > 1e-9 {
-        (food_available.max(0.0) / food_due).clamp(0.0, 1.0)
+        food_used / food_due
     } else {
         1.0
     };
     let wage_ratio = if wage_due > 1e-9 {
-        (gold_available.max(0.0) / wage_due).clamp(0.0, 1.0)
+        wage_paid / wage_due
     } else {
         1.0
     };
     GuardUpkeep {
         food_due,
         wage_due,
+        food_used,
+        wage_paid,
         supply_ratio: food_ratio.min(wage_ratio),
     }
 }
@@ -500,14 +515,26 @@ mod tests {
     }
 
     #[test]
-    fn upkeep_is_proportional_and_the_scarcest_supply_wins() {
-        let upkeep = guard_upkeep(4.0, 0.9, 2.0, 0.5, 1.0);
-        assert!((upkeep.food_due - 0.9).abs() < 1e-9);
-        assert!((upkeep.wage_due - 0.7).abs() < 1e-9);
-        assert_eq!(upkeep.supply_ratio, 1.0);
+    fn upkeep_posts_conserving_whole_daily_lots() {
+        let lots = (0..20)
+            .map(|day| guard_daily_upkeep(4.0, 100.0, 100.0, 17, day))
+            .collect::<Vec<_>>();
+        assert!(lots.iter().all(|upkeep| {
+            upkeep.food_due.fract() == 0.0
+                && upkeep.wage_due.fract() == 0.0
+                && upkeep.food_used.fract() == 0.0
+                && upkeep.wage_paid.fract() == 0.0
+                && upkeep.supply_ratio == 1.0
+        }));
+        assert_eq!(lots.iter().map(|upkeep| upkeep.food_due).sum::<f64>(), 36.0);
+        assert_eq!(lots.iter().map(|upkeep| upkeep.wage_due).sum::<f64>(), 28.0);
 
-        let short = guard_upkeep(4.0, 0.45, 2.0, 0.5, 1.0);
-        assert!((short.supply_ratio - 0.5).abs() < 1e-9);
+        let due = (0..20)
+            .map(|day| guard_daily_upkeep(4.0, 100.0, 100.0, 17, day))
+            .find(|upkeep| upkeep.food_due >= 2.0)
+            .expect("four guards eventually owe a multi-unit ration lot");
+        let short = guard_daily_upkeep(4.0, due.food_due - 1.0, 100.0, 17, 0);
+        assert!(short.food_used.fract() == 0.0);
     }
 
     #[test]

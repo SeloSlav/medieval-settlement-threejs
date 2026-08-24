@@ -1,5 +1,7 @@
 //! Pure well-yield policy shared by the authoritative simulation and native tests.
 
+#[cfg(test)]
+use crate::balance_generated::CALENDAR_SECONDS_PER_DAY;
 use crate::balance_generated::{
     BAKERY_WATER_PER_CYCLE, BREWERY_BREWING_WATER_PER_CYCLE, BREWERY_MALTING_WATER_PER_CYCLE,
     CATTLE_MAX_HERD, CATTLE_WATER_PER_HEAD_PER_CYCLE, MILL_WATER_PER_HARVEST,
@@ -108,6 +110,11 @@ pub fn well_refill_amount(hydrology: f64, weather_multiplier: f64, dt: f64) -> f
     well_refill_per_second(hydrology, weather_multiplier) * dt.max(0.0)
 }
 
+#[cfg(test)]
+pub fn well_refill_per_day(hydrology: f64, weather_multiplier: f64) -> f64 {
+    well_refill_amount(hydrology, weather_multiplier, CALENDAR_SECONDS_PER_DAY)
+}
+
 pub fn position_within_well_service_radius(
     well_x: f64,
     well_z: f64,
@@ -126,10 +133,7 @@ pub fn position_within_well_service_radius(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::balance_generated::{
-        DROUGHT_WELL_REFILL_MULTIPLIER, RESIDENCE_POPULATION_WIDE,
-        RESIDENCE_WATER_PER_PERSON_PER_SEC,
-    };
+    use crate::balance_generated::{DROUGHT_WELL_REFILL_MULTIPLIER, RESIDENCE_WATER_UNITS_PER_DAY};
     use std::time::Instant;
 
     #[test]
@@ -147,14 +151,13 @@ mod tests {
     }
 
     #[test]
-    fn excellent_well_sustains_fifty_full_homes_in_fair_weather() {
-        let full_home_demand =
-            f64::from(RESIDENCE_POPULATION_WIDE) * RESIDENCE_WATER_PER_PERSON_PER_SEC;
-        let best_case_homes = well_refill_per_second(1.0, 1.0) / full_home_demand;
-        let dry_site_homes = well_refill_per_second(0.0, 1.0) / full_home_demand;
+    fn well_capacity_is_measured_against_daily_household_bills() {
+        let household_daily_demand = RESIDENCE_WATER_UNITS_PER_DAY;
+        let best_case_homes = well_refill_per_day(1.0, 1.0) / household_daily_demand;
+        let dry_site_homes = well_refill_per_day(0.0, 1.0) / household_daily_demand;
         let drought_homes =
-            well_refill_per_second(1.0, DROUGHT_WELL_REFILL_MULTIPLIER) / full_home_demand;
-        assert!((best_case_homes - 50.0).abs() < 1e-9);
+            well_refill_per_day(1.0, DROUGHT_WELL_REFILL_MULTIPLIER) / household_daily_demand;
+        assert!((best_case_homes - 288.0).abs() < 1e-9);
         assert!(dry_site_homes < best_case_homes);
         assert!(drought_homes < best_case_homes);
     }

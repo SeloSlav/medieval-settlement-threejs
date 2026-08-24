@@ -17,11 +17,11 @@ use crate::economy::{
     credit_residence_wealth, debit_residence_wealth, deposit_building_commodity,
     withdraw_building_commodity, CommodityKind,
 };
-use crate::resource_units::{whole_cost, whole_units};
 use crate::residence_service_policy::{
     scale_discretionary_limits, tier_four_non_vital_discretionary_multiplier,
 };
 use crate::residence_settlement_policy::settlement_buffers_ready;
+use crate::resource_units::{whole_cost, whole_units};
 use crate::simulation::chapel_community::recovery_stock_min;
 use crate::simulation::game_calendar::GameClock;
 use crate::simulation::residence_needs::load_needs;
@@ -286,9 +286,18 @@ mod tests {
 
     #[test]
     fn purchases_move_only_whole_goods_for_a_full_whole_coin_payment() {
-        assert_eq!(affordable_whole_purchase_units(4.8, 3.9, 5.9, 9.0, 1.6), 3.0);
+        assert_eq!(
+            affordable_whole_purchase_units(4.8, 3.9, 5.9, 9.0, 1.6),
+            3.0
+        );
         assert_eq!(whole_cost(3.0 * 1.6), 5.0);
-        assert_eq!(affordable_whole_purchase_units(4.0, 4.0, 0.9, 9.0, 0.2), 0.0);
-        assert_eq!(affordable_whole_purchase_units(4.0, 4.0, 1.0, 1.0, 0.4), 2.0);
+        assert_eq!(
+            affordable_whole_purchase_units(4.0, 4.0, 0.9, 9.0, 0.2),
+            0.0
+        );
+        assert_eq!(
+            affordable_whole_purchase_units(4.0, 4.0, 1.0, 1.0, 0.4),
+            2.0
+        );
     }
 }
