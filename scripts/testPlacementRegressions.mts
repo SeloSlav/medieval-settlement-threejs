@@ -35,6 +35,7 @@ import {
   isWithinRemoteWorkCampRange,
   REMOTE_WORK_CAMP_MAX_DISTANCE,
 } from '../src/buildings/remoteWorkCamp.ts';
+import { createRemoteWorkCampMesh } from '../src/buildings/meshes/foundersCampMesh.ts';
 import {
   createBuildingPreviewMesh,
   disposeBuildingPreviewMesh,
@@ -834,6 +835,58 @@ function testMovableBuildingsSnapToRoadSides(): void {
     false,
     'clearance must not rotate the short local axis back to the fallback yaw',
   );
+}
+
+function testRemoteWorkCampTentOpeningsFaceSnappedRoad(): void {
+  const roads = new RoadNetwork();
+  roads.addRoadPath([
+    new THREE.Vector3(-40, 0, 0),
+    new THREE.Vector3(40, 0, 0),
+  ]);
+  const campPosition = resolveRoadsideBuildingPlacement(
+    'remote_work_camp',
+    4,
+    6,
+    roads,
+  );
+  const camp = createRemoteWorkCampMesh();
+  camp.position.set(campPosition.x, 0, campPosition.z);
+  camp.rotation.y = buildingPlacementYaw(
+    'remote_work_camp',
+    campPosition.x,
+    campPosition.z,
+    roads,
+  );
+  camp.updateMatrixWorld(true);
+
+  const tents = camp.children.filter((child): child is THREE.Group => (
+    child instanceof THREE.Group && child.name === 'Founding canvas tent'
+  ));
+  assert.equal(tents.length, 2, 'the overnight camp should retain both road-facing tents');
+
+  for (const tent of tents) {
+    const opening = tent.getObjectByName('Open tent interior');
+    assert.ok(opening instanceof THREE.Mesh);
+    const openingCenter = new THREE.Box3()
+      .setFromObject(opening)
+      .getCenter(new THREE.Vector3());
+    const tentCenter = tent.getWorldPosition(new THREE.Vector3());
+    const roadSnap = roads.findSnap(tentCenter, 40);
+    assert.ok(roadSnap, 'a snapped overnight camp tent should retain its nearby road');
+    const openingDirection = openingCenter
+      .sub(tentCenter)
+      .setY(0)
+      .normalize();
+    const roadDirection = roadSnap.point
+      .clone()
+      .sub(tentCenter)
+      .setY(0)
+      .normalize();
+    assert.ok(
+      openingDirection.dot(roadDirection) > 0.95,
+      'each overnight camp tent opening should face the road used to orient its snapped camp',
+    );
+  }
 }
 
 function testPlacementOverlaysFollowTerrainHeight(): void {
@@ -1931,6 +1984,7 @@ function testTerrainPointerPickingUsesBoundedHeightfieldWork(): void {
 
 testClearanceSpatialIndexKeepsNearbyCandidates();
 testMovableBuildingsSnapToRoadSides();
+testRemoteWorkCampTentOpeningsFaceSnappedRoad();
 testQuarryFootprintsAvoidRivers();
 testRemoteWorkCampRangeClearsRichQuarryDeposits();
 testBurgageWaterValidationSamplesTheWholeZone();

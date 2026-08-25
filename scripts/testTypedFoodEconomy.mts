@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
+  FOOD_MEAL_VALUES,
   NAMED_FOOD_KINDS,
   foodCategory,
   foodCategoryQualifyingStock,
@@ -40,11 +41,21 @@ assert.equal(freshFoodStock(pantry), 15);
 assert.equal(preservableFoodStock(pantry), 6);
 assert.equal(preservedFoodStock(pantry), 21);
 assert.equal(edibleFoodStock(pantry), 45);
-assert.ok(Math.abs(freshFoodMealEquivalents(pantry) - 13.05) < 1e-9);
-assert.ok(Math.abs(preservedFoodMealEquivalents(pantry) - 21.45) < 1e-9);
-assert.ok(Math.abs(edibleFoodMealEquivalents(pantry) - 45.3) < 1e-9);
-assert.equal(foodMealValue('honey'), 1.2);
-assert.equal(foodMealValue('apples'), 0.6);
+assert.equal(freshFoodMealEquivalents(pantry), 15);
+assert.equal(preservedFoodMealEquivalents(pantry), 21);
+assert.equal(edibleFoodMealEquivalents(pantry), 45);
+assert.equal(foodMealValue('honey'), 1);
+assert.equal(foodMealValue('apples'), 1);
+assert.deepEqual(
+  Object.values(FOOD_MEAL_VALUES),
+  Array.from({ length: Object.keys(FOOD_MEAL_VALUES).length }, () => 1),
+  'every ready-to-eat physical food unit must equal one authoritative household ration',
+);
+assert.equal(
+  edibleFoodMealEquivalents({ meat: 49, berries: 20, fish: 27 }),
+  96,
+  'mixed ready-to-eat stock must be counted by physical units without nutrition weighting',
+);
 assert.equal(foodSpoilageMultiplier('honey'), 0);
 assert.ok(foodSpoilageMultiplier('milk') > foodSpoilageMultiplier('apples'));
 assert.equal(NAMED_FOOD_KINDS.length, 25);
@@ -79,12 +90,12 @@ assert.equal(
 assert.ok(Math.abs(foodCategoryQualifyingStock(1) - 1 / 3) < 1e-9);
 assert.ok(Math.abs(foodCategoryQualifyingStock(6) - 2) < 1e-9);
 assert.equal(
-  foodVarietyCount({ vegetables: 0.4 }, 1),
+  foodVarietyCount({ vegetables: 0.3 }, 1),
   0,
   'a token amount must not qualify a category',
 );
 assert.equal(
-  foodVarietyCount({ vegetables: 0.5 }, 1),
+  foodVarietyCount({ vegetables: 0.4 }, 1),
   1,
   'vegetables must qualify as their own category once a full household-day is stocked',
 );
@@ -203,8 +214,8 @@ const transit = computeInTransitResourceTotals([
 assert.equal(transit.ryeBread, 10);
 assert.equal(transit.meat, 4);
 assert.equal(transit.cheese, 3);
-assert.ok(Math.abs(transit.preservedFood - 2.7) < 1e-9);
-assert.ok(Math.abs(transit.food - 19.5) < 1e-9);
+assert.equal(transit.preservedFood, 3);
+assert.equal(transit.food, 19);
 
 assert.equal(processorInputCommodityStock(pantry, 'food'), 6);
 assert.equal(processorInputCommodityStock(pantry, 'preservedFood'), 21);
@@ -216,6 +227,11 @@ const commoditiesSource = readFileSync(
 assert.match(commoditiesSource, /Self::Meat => Some\(Self::CuredMeat\)/);
 assert.match(commoditiesSource, /Self::Fish => Some\(Self::SmokedFish\)/);
 assert.match(commoditiesSource, /Self::Milk => Some\(Self::Cheese\)/);
+assert.match(
+  commoditiesSource,
+  /Every ready-to-eat commodity is one indivisible household ration[\s\S]*Self::RosehipJam\s*=> 1\.0/,
+  'client unit food values must remain in parity with the authoritative server policy',
+);
 const economySource = readFileSync(
   'server/src/simulation/expanded_economy.rs',
   'utf8',
@@ -235,8 +251,8 @@ assert.match(economySource, /kind == "smokehouse" && commodity\.is_preserved_foo
 assert.match(tradeResourcesSource, /CommodityKind::Meat => TradeResource::Meat/);
 assert.match(tradeResourcesSource, /CommodityKind::CuredMeat => TradeResource::CuredMeat/);
 assert.match(tradeResourcesSource, /CommodityKind::Cheese => TradeResource::Cheese/);
-assert.match(nightCycleSource, /withdraw_residence_fresh_food\(&mut current, meal_due\)/);
-assert.match(nightCycleSource, /withdraw_residence_preserved_food\(&mut current,/);
+assert.match(nightCycleSource, /monthly tier slots are the single authoritative household food/);
+assert.doesNotMatch(nightCycleSource, /withdraw_residence_(?:fresh|preserved)_food/);
 assert.doesNotMatch(nightCycleSource, /take_need_stock/);
 
 console.log('Typed food identity, cargo, aggregation, and preservation tests passed.');

@@ -14,9 +14,9 @@ import {
   RESIDENCE_POTTERY_CAPACITY,
   RESIDENCE_POTTERY_PER_PERSON_PER_SEC,
   RESIDENCE_PRESERVED_FOOD_CAPACITY,
-  RESIDENCE_PRESERVED_FOOD_PER_PERSON_PER_SEC,
 } from '../generated/gameBalance.ts';
 import { spoilageAdjustedRunwayDays } from '../economy/foodPreservation.ts';
+import { householdFoodUnitsPerDay } from '../economy/householdBillDemand.ts';
 import type { BuildingKind, BuildingState, ResidenceState } from '../resources/types.ts';
 import { getNeedStock } from '../residences/residenceNeedState.ts';
 import { preservedFoodStock } from '../economy/foodInventory.ts';
@@ -168,7 +168,7 @@ export function hasStaffedChapel(buildings: Iterable<BuildingState>): boolean {
 
 export function residencePreservedFoodRunwaySeconds(
   residence: ResidenceState,
-  seasonalDemandMultiplier = 1,
+  _seasonalDemandMultiplier = 1,
   ambientSpoilageFractionPerDay = PRESERVED_FOOD_SPOILAGE_PER_DAY,
 ): number | null {
   if (residence.abandoned || residence.population === 0 || residence.tier < 4) return null;
@@ -178,16 +178,11 @@ export function residencePreservedFoodRunwaySeconds(
       ? 0
       : getNeedStock(residence.needs, 'preservedFood'),
   );
-  const multiplier = Number.isFinite(seasonalDemandMultiplier)
-    ? Math.max(0, seasonalDemandMultiplier)
-    : 1;
-  const usePerSec = residence.population
-    * RESIDENCE_PRESERVED_FOOD_PER_PERSON_PER_SEC
-    * multiplier;
-  if (usePerSec <= 1e-9) return null;
+  const usePerDay = householdFoodUnitsPerDay(1);
+  if (usePerDay <= 1e-9) return null;
   return spoilageAdjustedRunwayDays(
     stock,
-    usePerSec * SPECIALTY_CONSUMPTION_SECONDS_PER_DAY,
+    usePerDay,
     Math.max(0, ambientSpoilageFractionPerDay)
       * PRESERVED_FOOD_STORAGE_RESIDENCE_FACTOR,
   ) * SPECIALTY_CONSUMPTION_SECONDS_PER_DAY;

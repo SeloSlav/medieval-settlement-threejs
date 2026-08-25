@@ -4,6 +4,10 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import * as THREE from 'three';
 import { createBuildingMesh } from '../src/buildings/BuildingMeshes.ts';
+import {
+  STABLE_ARCHITECTURE_PLAN,
+  STABLE_OX_REST_ANCHORS,
+} from '../src/buildings/meshes/stableMesh.ts';
 import { createConstructionSiteMesh } from '../src/buildings/ConstructionSiteMesh.ts';
 import {
   getBuildingMaterialLibraryStats,
@@ -275,6 +279,35 @@ for (const kind of BUILDING_KINDS) {
       || plan.diagnostics?.overlappingZonePairs?.length !== 0
     ) {
       throw new Error('Monastery must compile from a clean stone-precinct plan with protected pasture and upgrade parcels.');
+    }
+  }
+  if (kind === 'stable') {
+    const plan = model.userData.architecturePlan as typeof STABLE_ARCHITECTURE_PLAN | undefined;
+    const diagnostics = plan?.diagnostics;
+    if (
+      STABLE_OX_REST_ANCHORS.length !== 3
+      || plan?.typology !== 'three-bay-open-ox-stable'
+      || plan.bayCount !== 3
+      || plan.oxRestAnchorIds.length !== 3
+      || diagnostics?.overlappingBayPairs.length !== 0
+      || diagnostics.duplicateAnchorIds.length !== 0
+      || diagnostics.outOfBoundsAnchorIds.length !== 0
+      || diagnostics.misalignedAnchorIds.length !== 0
+      || Math.abs(diagnostics.minimumAnchorSpacing - 3) > 1e-9
+    ) {
+      throw new Error('Stable must compile from a clean three-bay plan with exactly three separated ox rest anchors.');
+    }
+    for (const anchor of STABLE_OX_REST_ANCHORS) {
+      const marker = model.getObjectByName(`Stable ox rest anchor ${anchor.slotIndex + 1}`);
+      if (
+        !(marker instanceof THREE.Group)
+        || marker.userData.stableOxRestAnchorId !== anchor.id
+        || marker.userData.stableOxSlotIndex !== anchor.slotIndex
+        || marker.position.distanceTo(new THREE.Vector3().fromArray(anchor.localPosition)) > 1e-9
+        || Math.abs(marker.rotation.y - anchor.localYaw) > 1e-9
+      ) {
+        throw new Error(`Stable ox rest anchor ${anchor.slotIndex + 1} diverged from its exported semantic layout.`);
+      }
     }
   }
   auditFacadeOpenings(model, kind, buildingsExpectedToHaveOpenings.has(kind));

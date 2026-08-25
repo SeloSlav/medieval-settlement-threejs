@@ -38,7 +38,7 @@ import { resolveTooltipPosition } from '../src/ui/tooltips.ts';
 import { BUILDING_DEFINITIONS } from '../src/generated/gameBalance.ts';
 
 assert.deepEqual(keys(CIVIC_BUILD_MENU_ENTRIES), [
-  'residences', 'well', 'founders_camp', 'chapel', 'wayside_shrine', 'dry_stone_wall', 'monastery', 'marketplace', 'tavern', 'trading_post', 'town_hall',
+  'residences', 'well', 'stable', 'founders_camp', 'chapel', 'wayside_shrine', 'dry_stone_wall', 'monastery', 'marketplace', 'tavern', 'trading_post', 'town_hall',
   'village_storehouse', 'granary',
 ]);
 assert.deepEqual(keys(GATHERING_BUILD_MENU_ENTRIES), [
@@ -63,7 +63,7 @@ assert.deepEqual(BUILD_MENU_CATEGORIES.map((category) => category.id), [
   'civic', 'trade', 'gathering', 'agriculture',
   'food', 'industry', 'faith', 'decorations', 'military',
 ]);
-assert.deepEqual(categoryKeys('civic'), ['residences', 'well', 'founders_camp', 'town_hall']);
+assert.deepEqual(categoryKeys('civic'), ['residences', 'well', 'stable', 'founders_camp', 'town_hall']);
 assert.deepEqual(categoryKeys('trade'), ['marketplace', 'trading_post', 'village_storehouse', 'granary']);
 assert.deepEqual(categoryKeys('gathering'), [
   'lumber_mill', 'reforester', 'stone_quarry', 'large_quarry', 'mine', 'clay_pit', 'hunters_hall', 'foragers_shed', 'fishing_camp',
@@ -77,6 +77,8 @@ assert.deepEqual(categoryKeys('military'), ['watchtower', 'guardhouse', 'palisad
 assert.equal(BUILD_MENU_CATEGORIES.at(-1)?.conflictOnly, true);
 assert.equal(BUILDING_KIND_TO_MENU_ACTION.founders_camp, 'founders-camp');
 assert.equal(MENU_ACTION_TO_BUILDING_KIND['founders-camp'], 'founders_camp');
+assert.equal(BUILDING_KIND_TO_MENU_ACTION.stable, 'stable');
+assert.equal(MENU_ACTION_TO_BUILDING_KIND.stable, 'stable');
 
 const allActions = BUILD_MENU_ENTRIES.map((entry) => entry.action);
 assert.equal(new Set(allActions).size, allActions.length, 'each build action must belong to exactly one menu');
@@ -91,6 +93,11 @@ assert.match(
   renderedCards,
   /data-action="founders-camp"[\s\S]*?data-src="\/assets\/ui\/build-menu\/cards\/founders-camp\.webp"/,
   'the founders camp must have a dedicated civic build card and art asset',
+);
+assert.match(
+  renderedCards,
+  /data-action="stable"[\s\S]*?data-src="\/assets\/ui\/build-menu\/cards\/stable\.webp"/,
+  'the stable must have a dedicated civic build card and art asset',
 );
 assert.match(
   renderedCards,

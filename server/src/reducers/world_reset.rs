@@ -5,7 +5,7 @@ use crate::tables::{
     active_raid, corpse, farm_field, graveyard, livestock_herd, pasture, settlement_security,
     vineyard_parcel, BackyardGarden, Building, BurgageZone, CombatAgent, Corpse, DeliveryTrip,
     FarmField, FireIncident, Graveyard, LivestockHerd, Pasture, ResidenceNeed, Settlement,
-    VineyardParcel, WorldConfig,
+    StableOx, VineyardParcel, WorldConfig,
 };
 use crate::world_entities::clear_global_world_entities;
 
@@ -87,6 +87,15 @@ fn clear_owner_settlement(ctx: &ReducerContext, owner: Identity) {
             .livestock_herd()
             .building_id()
             .delete(&herd.building_id);
+    }
+    for ox in ctx
+        .db
+        .stable_ox()
+        .owner()
+        .filter(&owner)
+        .collect::<Vec<StableOx>>()
+    {
+        ctx.db.stable_ox().id().delete(ox.id);
     }
     for field in ctx
         .db

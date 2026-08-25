@@ -9,6 +9,15 @@ type DogwoodRenderEvidence = {
   stemSubmissions: number;
   foliageSubmissions: number;
   renderCalls: number;
+  timeSeconds: number;
+  windStrength: number;
+  variant: number | null;
+};
+
+type DogwoodCaptureOptions = {
+  timeSeconds?: number;
+  windStrength?: number;
+  variant?: number | null;
 };
 
 type PixelEvidence = {
@@ -60,18 +69,20 @@ function expectCleanRuntime(monitor: RuntimeMonitor): void {
 async function setCaptureMode(
   page: Page,
   mode: DogwoodCaptureMode,
+  options?: DogwoodCaptureOptions,
 ): Promise<DogwoodRenderEvidence> {
-  return page.evaluate(async (nextMode) => {
+  return page.evaluate(async ({ nextMode, captureOptions }) => {
     const capture = (
       window as Window & {
         __DOGWOOD_LINEUP_CAPTURE__?: (
           requestedMode: DogwoodCaptureMode,
+          requestedOptions?: DogwoodCaptureOptions,
         ) => Promise<DogwoodRenderEvidence>;
       }
     ).__DOGWOOD_LINEUP_CAPTURE__;
     if (!capture) throw new Error('Dogwood capture hook is unavailable.');
-    return capture(nextMode);
-  }, mode);
+    return capture(nextMode, captureOptions);
+  }, { nextMode: mode, captureOptions: options });
 }
 
 async function captureCanvas(canvas: Locator): Promise<Buffer> {
@@ -156,9 +167,9 @@ async function comparePngFrames(
 }
 
 const cases = [
-  ['near', 'summer', '0.84', { autumn: '0.00', dormancy: '0.00', shadow: '1.0000' }],
-  ['design', 'autumn', '1.00', { autumn: '1.00', dormancy: '0.18', shadow: '0.8488' }],
-  ['far', 'winter', '1.25', { autumn: '0.00', dormancy: '1.00', shadow: '0.1600' }],
+  ['near', 'summer', '0.98', { autumn: '0.00', dormancy: '0.00', shadow: '1.0000' }],
+  ['design', 'autumn', '1.20', { autumn: '1.00', dormancy: '0.18', shadow: '0.8488' }],
+  ['far', 'winter', '1.42', { autumn: '0.00', dormancy: '1.00', shadow: '0.1600' }],
 ] as const;
 
 for (const [view, season, scale, expected] of cases) {
@@ -186,10 +197,10 @@ for (const [view, season, scale, expected] of cases) {
     expect(Number(dataset.dogwoodDefaultRockCount)).toBeGreaterThan(300);
     expect(Number(dataset.dogwoodDefaultCount)).toBeGreaterThanOrEqual(1_300);
     expect(Number(dataset.dogwoodDefaultCount)).toBeLessThanOrEqual(1_750);
-    expect(Number(dataset.dogwoodDefaultMinimumScale)).toBeGreaterThanOrEqual(0.84);
-    expect(Number(dataset.dogwoodDefaultMinimumScale)).toBeLessThan(0.9);
-    expect(Number(dataset.dogwoodDefaultMaximumScale)).toBeGreaterThan(1.2);
-    expect(Number(dataset.dogwoodDefaultMaximumScale)).toBeLessThanOrEqual(1.25);
+    expect(Number(dataset.dogwoodDefaultMinimumScale)).toBeGreaterThanOrEqual(0.98);
+    expect(Number(dataset.dogwoodDefaultMinimumScale)).toBeLessThan(1);
+    expect(Number(dataset.dogwoodDefaultMaximumScale)).toBeGreaterThan(1.39);
+    expect(Number(dataset.dogwoodDefaultMaximumScale)).toBeLessThanOrEqual(1.42);
     expect(dataset.dogwoodDefaultSignature).toMatch(/^[0-9a-f]{8}$/);
     expect(dataset.dogwoodRepeatedSignature).toBe(dataset.dogwoodDefaultSignature);
     expect(Number(dataset.dogwoodTriangles)).toBeGreaterThan(24_000);
@@ -204,8 +215,21 @@ for (const [view, season, scale, expected] of cases) {
       .filter(Boolean)
       .map(Number);
     expect(finalHeights).toHaveLength(3);
-    expect(Math.max(...finalHeights)).toBeLessThanOrEqual(3.4);
-    expect(Math.min(...finalHeights)).toBeGreaterThanOrEqual(2);
+    expect(Math.max(...finalHeights)).toBeLessThanOrEqual(3.56);
+    expect(Math.min(...finalHeights)).toBeGreaterThanOrEqual(2.35);
+    expect(Math.max(...finalHeights) - Math.min(...finalHeights)).toBeGreaterThan(0.08);
+    const finalWidthsX = (dataset.dogwoodFinalWidthsX ?? '')
+      .split(',')
+      .filter(Boolean)
+      .map(Number);
+    const finalWidthsZ = (dataset.dogwoodFinalWidthsZ ?? '')
+      .split(',')
+      .filter(Boolean)
+      .map(Number);
+    expect(finalWidthsX).toHaveLength(3);
+    expect(finalWidthsZ).toHaveLength(3);
+    expect(Math.min(...finalWidthsX, ...finalWidthsZ)).toBeGreaterThan(1.5);
+    expect(Math.max(...finalWidthsX, ...finalWidthsZ)).toBeLessThan(3.2);
     const groundContacts = (dataset.dogwoodGroundContacts ?? '')
       .split(',')
       .filter(Boolean)
@@ -221,8 +245,8 @@ for (const [view, season, scale, expected] of cases) {
       .map(Number);
     expect(groundOrigins).toHaveLength(3);
     for (const groundOrigin of groundOrigins) expect(groundOrigin).toBeCloseTo(0.006, 5);
-    if (scale === '0.84') expect(Math.max(...finalHeights)).toBeLessThan(2.3);
-    if (scale === '1.25') expect(Math.min(...finalHeights)).toBeGreaterThan(3);
+    if (scale === '0.98') expect(Math.max(...finalHeights)).toBeLessThan(2.7);
+    if (scale === '1.42') expect(Math.min(...finalHeights)).toBeGreaterThan(3.4);
     expect(dataset.dogwoodSignature).toMatch(
       new RegExp(`^${view}:${season}:4\\.00:${scale}:`),
     );
@@ -336,3 +360,94 @@ for (const [view, season, scale, expected] of cases) {
     expectCleanRuntime(runtime);
   });
 }
+
+test('Common dogwood leaf motion is rooted, deterministic, and SeedThree-responsive', async ({ page }, testInfo) => {
+  const runtime = monitorRuntime(page);
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await page.goto('/shrub-lineup.html?focus=dogwood&view=near&season=summer&time=2.5&scale=1.20');
+  await page.waitForFunction(() => document.body.dataset.ready === 'true');
+  const canvas = page.locator('canvas');
+  await expect(canvas).toBeVisible();
+
+  const movingPixelCounts: number[] = [];
+  for (let variant = 0; variant < 3; variant++) {
+    const startEvidence = await setCaptureMode(page, 'foliage', {
+      timeSeconds: 2.5,
+      windStrength: 0.55,
+      variant,
+    });
+    const startFrame = await captureCanvas(canvas);
+    await setCaptureMode(page, 'foliage', {
+      timeSeconds: 2.5,
+      windStrength: 0.55,
+      variant,
+    });
+    const repeatedStartFrame = await captureCanvas(canvas);
+    const repeatedNoise = await comparePngFrames(page, startFrame, repeatedStartFrame);
+
+    const endEvidence = await setCaptureMode(page, 'foliage', {
+      timeSeconds: 5,
+      windStrength: 0.55,
+      variant,
+    });
+    const endFrame = await captureCanvas(canvas);
+    const movingPixels = await comparePngFrames(page, startFrame, endFrame);
+
+    await setCaptureMode(page, 'foliage', {
+      timeSeconds: 2.5,
+      windStrength: 0.55,
+      variant,
+    });
+    const rewoundFrame = await captureCanvas(canvas);
+    const rewindNoise = await comparePngFrames(page, startFrame, rewoundFrame);
+
+    expect(startEvidence).toMatchObject({
+      mode: 'foliage',
+      variant,
+      timeSeconds: 2.5,
+      windStrength: 0.55,
+      stemSubmissions: 0,
+      foliageSubmissions: 1,
+    });
+    expect(endEvidence).toMatchObject({
+      mode: 'foliage',
+      variant,
+      timeSeconds: 5,
+      windStrength: 0.55,
+      stemSubmissions: 0,
+      foliageSubmissions: 1,
+    });
+    expect(repeatedNoise.changedPixels).toBeLessThan(25);
+    expect(rewindNoise.changedPixels).toBeLessThan(25);
+    expect(movingPixels.changedPixels).toBeGreaterThan(30);
+    expect(movingPixels.meanAbsDelta).toBeGreaterThan(1);
+    movingPixelCounts.push(movingPixels.changedPixels);
+
+    if (process.env.E2E_CAPTURE === '1') {
+      const capturePath = testInfo.outputPath(`dogwood-motion-variant-${variant}.png`);
+      await writeFile(capturePath, endFrame);
+      await testInfo.attach(`dogwood-motion-variant-${variant}`, {
+        path: capturePath,
+        contentType: 'image/png',
+      });
+    }
+  }
+
+  await setCaptureMode(page, 'foliage', {
+    timeSeconds: 0,
+    windStrength: 0,
+    variant: 1,
+  });
+  const stillStart = await captureCanvas(canvas);
+  await setCaptureMode(page, 'foliage', {
+    timeSeconds: 12,
+    windStrength: 0,
+    variant: 1,
+  });
+  const stillEnd = await captureCanvas(canvas);
+  const stillNoise = await comparePngFrames(page, stillStart, stillEnd);
+  expect(stillNoise.changedPixels).toBeLessThan(25);
+  expect(movingPixelCounts).toHaveLength(3);
+  console.log(`[dogwood-motion] ${JSON.stringify({ movingPixelCounts, stillNoise })}`);
+  expectCleanRuntime(runtime);
+});

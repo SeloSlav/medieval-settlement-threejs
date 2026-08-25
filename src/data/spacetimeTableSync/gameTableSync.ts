@@ -16,6 +16,7 @@ import { syncForagingNodes } from './syncForagingNodes.ts';
 import { syncFarmFields } from './syncFarmFields.ts';
 import { syncCorpses, syncGraveyards } from './syncBurials.ts';
 import { syncLivestockHerds, syncPastures } from './syncLivestock.ts';
+import { syncStableOxen, type StableOxRow } from './syncStableOxen.ts';
 import { syncVineyardParcels } from './syncVineyards.ts';
 import { syncMarketState } from './syncMarketState.ts';
 import { syncPlayerResources } from './syncPlayerResources.ts';
@@ -38,8 +39,16 @@ type SettlementTableHandle = TableHandle & {
   iter: () => Iterable<SettlementRow>;
 };
 
+type StableOxTableHandle = TableHandle & {
+  iter: () => Iterable<StableOxRow>;
+};
+
 function settlementTableFromDb(db: unknown): SettlementTableHandle | undefined {
   return (db as { settlement?: SettlementTableHandle }).settlement;
+}
+
+function stableOxTableFromDb(db: unknown): StableOxTableHandle | undefined {
+  return (db as { stable_ox?: StableOxTableHandle }).stable_ox;
 }
 
 type TableChange<Row> =
@@ -59,6 +68,7 @@ export class GameTableSync {
   syncAll(connection: DbConnection): void {
     const db = connection.db;
     const settlementTable = settlementTableFromDb(db);
+    const stableOxTable = stableOxTableFromDb(db);
 
     syncWorldConfig(db.world_config ? db.world_config.iter() : [], this.state);
     syncPlayerResources(db.player_resources ? db.player_resources.iter() : [], this.state);
@@ -98,6 +108,10 @@ export class GameTableSync {
     );
     this.state.livestockHerds = syncLivestockHerds(
       db.livestock_herd ? db.livestock_herd.iter() : [],
+      this.state.identityHex,
+    );
+    this.state.stableOxen = syncStableOxen(
+      stableOxTable ? stableOxTable.iter() : [],
       this.state.identityHex,
     );
     this.state.burgageZones = syncBurgageZones(
@@ -160,6 +174,7 @@ export class GameTableSync {
   attachHandlers(connection: DbConnection): void {
     const db = connection.db;
     const settlementTable = settlementTableFromDb(db);
+    const stableOxTable = stableOxTableFromDb(db);
     let notifyPending = false;
     const notify = (): void => {
       if (notifyPending) return;
@@ -385,6 +400,13 @@ export class GameTableSync {
     bindTable(db.livestock_herd, () => {
       this.state.livestockHerds = syncLivestockHerds(
         db.livestock_herd ? db.livestock_herd.iter() : [],
+        this.state.identityHex,
+      );
+    });
+
+    bindTable(stableOxTable, () => {
+      this.state.stableOxen = syncStableOxen(
+        stableOxTable ? stableOxTable.iter() : [],
         this.state.identityHex,
       );
     });

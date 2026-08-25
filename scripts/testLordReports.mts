@@ -158,6 +158,31 @@ assert.equal(
   'a genuine smithy output store should still report when ironwork reaches capacity',
 );
 
+const fullMarketplace = building({
+  id: 'fully-stocked-marketplace',
+  kind: 'marketplace',
+  food: 96,
+});
+const marketplaceFoodChannel = storageOccupancyChannels(fullMarketplace)
+  .find((channel) => channel.key === 'food');
+assert.equal(marketplaceFoodChannel?.amount, 96);
+assert.equal(marketplaceFoodChannel?.capacity, 96);
+assert.deepEqual(
+  fullStorageChannels(fullMarketplace),
+  [],
+  'a full Marketplace service bay must not be classified as blocked storage',
+);
+assert.deepEqual(
+  deriveLordReportTransitions(
+    gameState(96, { buildings: [fullMarketplace] }),
+    gameState(95, {
+      buildings: [{ ...fullMarketplace, food: 95 }],
+    }),
+  ),
+  [],
+  'stocking a Marketplace service bay to capacity must not warn the Lord',
+);
+
 const nearlyFullLodge = building({
   id: 'lodge-full-edge',
   kind: 'woodcutters_lodge',

@@ -14,7 +14,7 @@ import {
 export type PlacementBuildMenuAction =
   | 'founders-camp'
   | 'lumber-mill' | 'stone-quarry' | 'large-quarry' | 'mine' | 'reforester' | 'woodcutters-lodge'
-  | 'well' | 'hunters-hall' | 'foragers-shed' | 'fishing-camp' | 'chapel' | 'wayside-shrine' | 'marketplace' | 'trading-post'
+  | 'well' | 'stable' | 'hunters-hall' | 'foragers-shed' | 'fishing-camp' | 'chapel' | 'wayside-shrine' | 'marketplace' | 'trading-post'
   | 'threshing-barn' | 'monastery' | 'brewery' | 'tavern' | 'smokehouse'
   | 'granary' | 'bakery' | 'apiary' | 'watermill' | 'windmill' | 'carpenter'
   | 'weaver'
@@ -45,6 +45,7 @@ const BUILD_CARD_ART: Record<PlacementArtKey, string> = {
   smithy: '/assets/ui/build-menu/cards/smithy-bloomery.webp',
   potter_kiln: '/assets/ui/build-menu/cards/potter-kiln.webp',
   well: '/assets/ui/build-menu/cards/water-well.webp', hunters_hall: '/assets/ui/build-menu/cards/hunter-hall.webp',
+  stable: '/assets/ui/build-menu/cards/stable.webp',
   foragers_shed: '/assets/ui/build-menu/cards/foragers-hut.webp', chapel: '/assets/ui/build-menu/cards/chapel.webp',
   wayside_shrine: '/assets/ui/build-menu/cards/wayside-shrine.webp',
   dry_stone_wall: '/assets/ui/build-menu/cards/dry-stone-wall.webp',
@@ -90,6 +91,7 @@ const DETAILS: Record<PlacementArtKey, BuildCardDetail> = {
   founders_camp: ["Founders' camp", 'Establishes a costly civic foothold for future settlement expansion.'],
   residences: ['Residence', 'Raises road-fronted homes that grow as their families prosper.'],
   well: ['Well', 'Draws water for nearby homes along the roads.', flow([], ['water'])],
+  stable: ['Stable', 'Houses up to three independently dispatched draft oxen, each bought with civic gold.'],
   chapel: ['Church', 'Tends parish life, gathers tithes, and strengthens nearby households.'],
   wayside_shrine: ['Wayside shrine', 'Marks the roadside with a small place of prayer and devotion.'],
   dry_stone_wall: ['Dry-stone wall', 'Lines dirt roads with a free, instantly raised wall of fitted stone.'],
@@ -145,7 +147,7 @@ const entry = (artKey: PlacementArtKey): BuildMenuEntry => ({
 
 /** Compatibility collection for systems that need the complete non-production civic set. */
 export const CIVIC_BUILD_MENU_ENTRIES: readonly BuildMenuEntry[] = [
-  entry('residences'), entry('well'), entry('founders_camp'), entry('chapel'), entry('wayside_shrine'), entry('dry_stone_wall'), entry('monastery'), entry('marketplace'), entry('tavern'), entry('trading_post'), entry('town_hall'), entry('village_storehouse'), entry('granary'),
+  entry('residences'), entry('well'), entry('stable'), entry('founders_camp'), entry('chapel'), entry('wayside_shrine'), entry('dry_stone_wall'), entry('monastery'), entry('marketplace'), entry('tavern'), entry('trading_post'), entry('town_hall'), entry('village_storehouse'), entry('granary'),
 ];
 
 /** Sites whose crews gather raw resources from the landscape. */
@@ -192,7 +194,7 @@ export type BuildMenuCategory = {
 };
 
 const CIVIC_SERVICES_BUILD_MENU_ENTRIES = [
-  entry('residences'), entry('well'), entry('founders_camp'), entry('town_hall'),
+  entry('residences'), entry('well'), entry('stable'), entry('founders_camp'), entry('town_hall'),
 ] as const;
 const TRADE_BUILD_MENU_ENTRIES = [
   entry('marketplace'), entry('trading_post'), entry('village_storehouse'), entry('granary'),
@@ -208,7 +210,7 @@ const DECORATION_BUILD_MENU_ENTRIES = [entry('wayside_shrine'), entry('dry_stone
 
 /** The single build palette's icon-driven, deliberately granular category model. */
 export const BUILD_MENU_CATEGORIES: readonly BuildMenuCategory[] = [
-  { id: 'civic', label: 'Civic', hint: 'Homes, water, and settlement government', icon: 'civic', entries: CIVIC_SERVICES_BUILD_MENU_ENTRIES },
+  { id: 'civic', label: 'Civic', hint: 'Homes, water, draft power, and settlement government', icon: 'civic', entries: CIVIC_SERVICES_BUILD_MENU_ENTRIES },
   { id: 'trade', label: 'Trade & storage', hint: 'Markets, exchange, and shared stores', icon: 'trade', entries: TRADE_BUILD_MENU_ENTRIES },
   { id: 'gathering', label: 'Gathering', hint: 'Wood, stone, game, forage, and fish', icon: 'gathering', entries: GATHERING_BUILD_MENU_ENTRIES },
   { id: 'agriculture', label: 'Agriculture', hint: 'Fields, orchards, and livestock', icon: 'agriculture', entries: AGRICULTURE_BUILD_MENU_ENTRIES },

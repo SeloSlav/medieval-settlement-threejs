@@ -22,6 +22,8 @@ import { chainMaterialShaderPatch } from '../../scene/materialShaderPatch.ts';
 type TslNode = {
   mul: (value: unknown) => TslNode;
   add: (value: unknown) => TslNode;
+  sub: (value: unknown) => TslNode;
+  clamp: (minimum: unknown, maximum: unknown) => TslNode;
   x: TslNode;
   y: TslNode;
   z: TslNode;
@@ -90,6 +92,11 @@ export type IvyLeafHingeWindNodes = {
   positionNode: IvyTslNode;
   normalNode: IvyTslNode;
 };
+
+export const DOGWOOD_ROOT_SWAY_AMPLITUDE = 0.35;
+export const DOGWOOD_LEAF_FLUTTER_AMPLITUDE = 0.055;
+export const DOGWOOD_LEAF_PHASE_MULTIPLIER = 37.7;
+export const DOGWOOD_LEAF_WEIGHT_GATE = 10;
 
 function swayAt(phaseWorld: TslNode, phaseScale: number): TslNode {
   const t = tsl.time.mul(tsl.windSpeed);
@@ -290,4 +297,104 @@ export function createRootedGeometryWindPosition(ampScale = 0.08): TslNode {
     local.y,
     local.z.add(windLocal.z.mul(bend)),
   );
+}
+
+/**
+ * Baked dogwood foliage keeps SeedThree's fork-continuous anchor weight and
+ * per-leaf random phase. Base sway exactly matches the woody group; the two
+ * detuned tip terms are multiplied by UV.y², so the petiole edge remains
+ * welded while the blade visibly responds to gusts.
+ */
+export function createRootedDogwoodFoliageWindPosition(
+  rootAmplitude = DOGWOOD_ROOT_SWAY_AMPLITUDE,
+  flutterAmplitude = DOGWOOD_LEAF_FLUTTER_AMPLITUDE,
+): TslNode {
+  const local = tsl.positionLocal;
+  const rootWeight = tsl.attribute('aRootWeight', 'float');
+  const leafPhase = tsl.attribute('aLeafPhase', 'float');
+  const anchorWorld = tsl.attribute('aAnchorPos', 'vec3');
+  const windLocal = tsl.attribute('aWindVec', 'vec3');
+  const time = tsl.time.mul(tsl.windSpeed);
+  const rootScale = tsl.windStrength.mul(rootAmplitude);
+  const rootJitterTime = time
+    .mul(2.7)
+    .add(anchorWorld.z.mul(1.7))
+    .add(anchorWorld.x.mul(1.3));
+  const base = swayAt(anchorWorld, 2)
+    .mul(rootScale)
+    .add(tsl.sin(rootJitterTime).mul(rootScale).mul(0.12))
+    .mul(rootWeight);
+  const flutterTime = time
+    .mul(5.2)
+    .add(leafPhase.mul(DOGWOOD_LEAF_PHASE_MULTIPLIER))
+    .add(local.x.mul(2.1))
+    .add(local.z.mul(1.7));
+  const tip = tsl.uv().y.mul(tsl.uv().y);
+  const gate = rootWeight.mul(DOGWOOD_LEAF_WEIGHT_GATE).clamp(0, 1);
+  const flutterScale = tsl.windStrength.mul(flutterAmplitude).mul(tip).mul(gate);
+  const longitudinal = tsl.sin(flutterTime)
+    .add(tsl.sin(flutterTime.mul(1.31)).mul(0.35))
+    .mul(flutterScale);
+  const lateral = tsl.sin(flutterTime.mul(0.77)).mul(0.55).mul(flutterScale);
+  const along = base.add(longitudinal);
+  return tsl.vec3(
+    local.x.add(windLocal.x.mul(along)).sub(windLocal.z.mul(lateral)),
+    local.y,
+    local.z.add(windLocal.z.mul(along)).add(windLocal.x.mul(lateral)),
+  );
+}
+
+export type DogwoodFoliageWindSample = {
+  baseSway: number;
+  longitudinalFlutter: number;
+  lateralFlutter: number;
+};
+
+/** CPU mirror used by deterministic motion regressions. */
+export function sampleDogwoodFoliageWind(options: {
+  timeSeconds: number;
+  windSpeedValue: number;
+  windStrengthValue: number;
+  anchorX: number;
+  anchorZ: number;
+  localX: number;
+  localZ: number;
+  rootWeight: number;
+  leafPhase: number;
+  uvY: number;
+  rootAmplitude?: number;
+  flutterAmplitude?: number;
+}): DogwoodFoliageWindSample {
+  if (options.windStrengthValue === 0) {
+    return { baseSway: 0, longitudinalFlutter: 0, lateralFlutter: 0 };
+  }
+  const time = options.timeSeconds * options.windSpeedValue;
+  const phase = (options.anchorX * 0.35 + options.anchorZ * 0.27) * 2;
+  const gust = Math.sin(time * 1.15 + phase) * 0.72
+    + Math.sin(time * 2.63 + phase * 1.9) * 0.28;
+  const rootAmplitude = options.rootAmplitude ?? DOGWOOD_ROOT_SWAY_AMPLITUDE;
+  const flutterAmplitude = options.flutterAmplitude ?? DOGWOOD_LEAF_FLUTTER_AMPLITUDE;
+  const jitter = Math.sin(
+    time * 2.7 + options.anchorZ * 1.7 + options.anchorX * 1.3,
+  ) * 0.12;
+  const baseSway = (gust + jitter)
+    * options.windStrengthValue * rootAmplitude * options.rootWeight;
+  const flutterTime = time * 5.2
+    + options.leafPhase * DOGWOOD_LEAF_PHASE_MULTIPLIER
+    + options.localX * 2.1
+    + options.localZ * 1.7;
+  const tip = THREE.MathUtils.clamp(options.uvY, 0, 1) ** 2;
+  const gate = THREE.MathUtils.clamp(options.rootWeight * DOGWOOD_LEAF_WEIGHT_GATE, 0, 1);
+  const scale = options.windStrengthValue * flutterAmplitude * tip * gate;
+  const longitudinalFlutter = scale === 0 ? 0 : (
+    Math.sin(flutterTime) + Math.sin(flutterTime * 1.31) * 0.35
+  ) * scale;
+  const lateralFlutter = scale === 0
+    ? 0
+    : Math.sin(flutterTime * 0.77) * 0.55 * scale;
+  return {
+    baseSway,
+    longitudinalFlutter,
+    lateralFlutter,
+  };
 }

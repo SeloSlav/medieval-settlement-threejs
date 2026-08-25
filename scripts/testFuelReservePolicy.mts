@@ -22,11 +22,12 @@ assert.equal(SMITHY_CHARCOAL_TARGET_CYCLES, 6);
 assert.equal(combinedFuelEquivalent(20, 15), 50);
 
 const fairDailyDemand = householdFuelDemandPerDay(10, 1);
-assert.ok(Math.abs(fairDailyDemand - (10 / 3)) < 1e-9);
-assert.ok(Math.abs(marketplaceFuelReserveTarget(10, 1, 80, 80) - 70) < 1e-9);
-assert.ok(Math.abs(marketplaceFuelReserveTarget(10, 2, 80, 80) - 140) < 1e-9);
-assert.equal(marketplaceFuelReserveTarget(100, 2, 80, 80), 240);
-assert.ok(Math.abs(fuelRunwayDays(70, fairDailyDemand) - 21) < 1e-9);
+assert.ok(Math.abs(fairDailyDemand - (10 / 30)) < 1e-9);
+assert.equal(marketplaceFuelReserveTarget(10, 1, 80, 80), 7);
+assert.equal(marketplaceFuelReserveTarget(10, 2, 80, 80), 14);
+assert.equal(marketplaceFuelReserveTarget(100, 2, 80, 80), 140);
+assert.equal(marketplaceFuelReserveTarget(1, 1, 80, 80), 1);
+assert.ok(Math.abs(fuelRunwayDays(7, fairDailyDemand) - 21) < 1e-9);
 
 const reorder = SMITHY_CHARCOAL_PER_CYCLE * SMITHY_CHARCOAL_REORDER_CYCLES;
 const refill = SMITHY_CHARCOAL_PER_CYCLE * SMITHY_CHARCOAL_TARGET_CYCLES;
@@ -38,8 +39,8 @@ const materials = readFileSync('server/src/simulation/expanded_economy.rs', 'utf
 const loop = readFileSync('server/src/reducers/simulation.rs', 'utf8');
 const cargo = readFileSync('server/src/simulation/delivery_cargo.rs', 'utf8');
 
-assert.match(routing, /covered_population_by_market/);
-assert.match(routing, /marketplace_fuel_reserve_target/);
+assert.match(routing, /covered_households_by_market/);
+assert.match(routing, /marketplace_fuel_reserve_target_for_households/);
 assert.match(routing, /combined_fuel_equivalent/);
 assert.doesNotMatch(
   routing,

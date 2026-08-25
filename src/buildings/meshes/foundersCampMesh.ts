@@ -1890,10 +1890,16 @@ export function createRemoteWorkCampMesh(): THREE.Group {
   camp.userData.fpCollisionChildrenOnly = true;
 
   layout.tents.forEach((tent, index) => {
+    // The reusable shelter is authored with its opening on local -Z, while
+    // camp placement (and the worker door targets) use local +Z as the side
+    // facing the snapped road. Turn only the overnight-camp instances around
+    // so their visible openings honor that shared road-facing convention.
+    const shelterYaw = tent.yaw + Math.PI;
     // Leave the shared aisle free of crossed guy ropes and doubled stakes.
-    // Each shelter retains its outer side guys plus both ridge-end anchors.
-    const inwardSide = tent.x < 0 ? 1 : -1;
-    addAFrameShelter(camp, tent.x, tent.z, tent.yaw, index + 1, inwardSide);
+    // The half-turn reverses each shelter's local X axis, so omit the adjusted
+    // inward side and retain the outer guys plus both ridge-end anchors.
+    const inwardSide = tent.x < 0 ? -1 : 1;
+    addAFrameShelter(camp, tent.x, tent.z, shelterYaw, index + 1, inwardSide);
   });
   const campfire = addCampfire(camp);
   campfire.name = REMOTE_WORK_CAMPFIRE_NAME;

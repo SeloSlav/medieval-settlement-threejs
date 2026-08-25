@@ -51,6 +51,10 @@ export function corpseClientId(serverId: bigint | number): string {
   return `corpse-${serverId}`;
 }
 
+export function stableOxClientId(serverId: bigint | number): string {
+  return `stable-ox-${serverId}`;
+}
+
 export function parsePastureServerId(pastureId: string): bigint | null {
   const match = /^pasture-(\d+)$/.exec(pastureId);
   return match ? BigInt(match[1]) : null;

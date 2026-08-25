@@ -46,6 +46,7 @@ import type {
   ResidenceState,
   SettlementState,
   ResourceStockpile,
+  StableOxState,
   TreeEntityState,
   VineyardParcelState,
 } from '../resources/types.ts';
@@ -144,6 +145,7 @@ export type SpacetimeGameSnapshot = {
   graveyards: Map<string, GraveyardState>;
   corpses: Map<string, CorpseState>;
   livestockHerds: Map<string, LivestockHerdState>;
+  stableOxen: Map<string, StableOxState>;
   burgageZones: Map<string, BurgageZoneState>;
   residences: Map<string, ResidenceState>;
   backyardGardens: Map<string, BackyardGardenState>;
@@ -192,6 +194,7 @@ function createEmptyTableState(): GameTableSyncState {
     graveyards: new Map(),
     corpses: new Map(),
     livestockHerds: new Map(),
+    stableOxen: new Map(),
     burgageZones: new Map(),
     residences: new Map(),
     backyardGardens: new Map(),
@@ -330,6 +333,7 @@ export class SpacetimeGameStore {
       graveyards: this.snapshotMap(state.graveyards),
       corpses: this.snapshotMap(state.corpses),
       livestockHerds: this.snapshotMap(state.livestockHerds),
+      stableOxen: this.snapshotMap(state.stableOxen),
       burgageZones: this.snapshotMap(state.burgageZones),
       residences: this.snapshotMap(state.residences),
       backyardGardens: this.snapshotMap(state.backyardGardens),
@@ -423,6 +427,7 @@ export class SpacetimeGameStore {
       graveyards: snapshot.graveyards,
       corpses: snapshot.corpses,
       livestockHerds: snapshot.livestockHerds,
+      stableOxen: snapshot.stableOxen,
       burgageZones: snapshot.burgageZones,
       residences: snapshot.residences,
       backyardGardens: snapshot.backyardGardens,
@@ -601,6 +606,10 @@ export class SpacetimeGameStore {
 
   tradeLivestock(buildingId: string, headDelta: number): Promise<void> {
     return spacetimeReducers.tradeLivestock(buildingId, headDelta);
+  }
+
+  purchaseStableOx(stableId: string): Promise<void> {
+    return spacetimeReducers.purchaseStableOx(stableId);
   }
 
   setLivestockBreedingReserve(buildingId: string, breedingReserve: number): Promise<void> {

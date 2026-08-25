@@ -1,13 +1,8 @@
 import {
-  CALENDAR_HOURS_PER_DAY,
-  CALENDAR_SECONDS_PER_DAY,
-  CALENDAR_WORK_END_HOUR,
-  CALENDAR_WORK_START_HOUR,
   CHAPEL_RECOVERY_STOCK_MULTIPLIER,
   MONASTERY_RECOVERY_STOCK_MULTIPLIER,
-  RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC,
   RESIDENCE_SETTLEMENT_BUFFER_DAYS,
-  RESIDENCE_WATER_PER_PERSON_PER_SEC,
+  RESIDENCE_WATER_UNITS_PER_DAY,
 } from '../generated/gameBalance.ts';
 import {
   activeResidenceNeedKinds,
@@ -17,7 +12,11 @@ import {
   type ResidenceNeedKind,
 } from '../residences/residenceNeedState.ts';
 import type { ResidenceState } from '../resources/types.ts';
-import { householdFoodPerDay } from './foodInventory.ts';
+import { wholeResourceUnits } from '../resources/resourceUnits.ts';
+import {
+  householdFirewoodUnitsPerDay,
+  householdFoodUnitsPerDayForTier,
+} from './householdBillDemand.ts';
 
 export type ResidenceSettlementVitalNeedKind = 'food' | 'firewood' | 'water';
 
@@ -52,26 +51,20 @@ const NEED_LABELS: Record<ResidenceNeedKind, string> = {
 };
 
 /**
- * Established households need only a fraction of one ordinary day's vital
- * demand before another settler can arrive. The buffer therefore stays
- * reachable through the same market issues that sustain the household.
+ * Settlement readiness mirrors the server's discrete household bills. The
+ * authored fractional horizon is converted to an attainable whole-unit lot;
+ * population does not multiply food, firewood, or water obligations.
  */
 export function residenceSettlementBufferMin(
   kind: ResidenceSettlementVitalNeedKind,
-  population: number,
+  tier: ResidenceState['tier'],
   community: ResidenceCommunityContext = DEFAULT_RESIDENCE_COMMUNITY_CONTEXT,
 ): number {
-  const householdPopulation = Math.max(1, population);
-  const workdaySeconds = CALENDAR_SECONDS_PER_DAY
-    * Math.max(0, CALENDAR_WORK_END_HOUR - CALENDAR_WORK_START_HOUR)
-    / Math.max(1, CALENDAR_HOURS_PER_DAY);
   const dailyDemand = kind === 'food'
-    ? householdFoodPerDay(householdPopulation)
+    ? householdFoodUnitsPerDayForTier(tier)
     : kind === 'firewood'
-      ? householdPopulation
-        * RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC
-        * CALENDAR_SECONDS_PER_DAY
-      : householdPopulation * RESIDENCE_WATER_PER_PERSON_PER_SEC * workdaySeconds;
+      ? householdFirewoodUnitsPerDay()
+      : wholeResourceUnits(RESIDENCE_WATER_UNITS_PER_DAY);
   let threshold = dailyDemand * Math.max(0, RESIDENCE_SETTLEMENT_BUFFER_DAYS);
   if (community.hasChapelAccess) {
     threshold *= CHAPEL_RECOVERY_STOCK_MULTIPLIER;
@@ -79,13 +72,13 @@ export function residenceSettlementBufferMin(
   if (community.hasChapelAccess && community.hasMonasteryCoverage) {
     threshold *= MONASTERY_RECOVERY_STOCK_MULTIPLIER;
   }
-  return Math.max(0, threshold);
+  return wholeResourceCost(threshold);
 }
 
 /**
  * The first settler establishes the delivery claim for a vacant residence.
- * Later arrivals wait until survival needs hold a population-scaled fraction
- * of one ordinary day. Status goods never block a safe home.
+ * Later arrivals wait until survival needs hold their market-aligned bill
+ * buffers. Status goods never block a safe home.
  */
 export function residenceSettlementReadiness(
   residence: ResidenceState,
@@ -107,10 +100,10 @@ export function residenceSettlementReadiness(
     )
     .map(
       (kind): ResidenceSettlementBuffer => {
-        const stock = Math.max(0, getNeed(residence.needs, kind).stock);
+        const stock = wholeResourceUnits(getNeed(residence.needs, kind).stock);
         const required = residenceSettlementBufferMin(
           kind,
-          residence.population,
+          residence.tier,
           community,
         );
         const shortfall = Math.max(0, required - stock);
@@ -132,4 +125,9 @@ export function residenceSettlementReadiness(
     buffers,
     waitingOn,
   };
+}
+
+function wholeResourceCost(value: number): number {
+  if (!Number.isFinite(value) || value <= 0) return 0;
+  return Math.ceil(value - 1e-6);
 }

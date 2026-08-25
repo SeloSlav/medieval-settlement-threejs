@@ -20,7 +20,6 @@ import {
   RESIDENCE_SHOES_CAPACITY,
   RESIDENCE_FOOD_CAPACITY,
   RESIDENCE_PRESERVED_FOOD_CAPACITY,
-  RESIDENCE_PRESERVED_FOOD_PER_PERSON_PER_SEC,
   RESIDENCE_POTTERY_CAPACITY,
   RESIDENCE_TILE_ROOF_SALVAGE_FRACTION,
   RESIDENCE_TILE_ROOF_TILE_COST,
@@ -29,14 +28,16 @@ import {
   COLD_EXPOSURE_DEATH_START_DAYS,
   HERB_TREATMENT_PER_SICK_DAY,
 } from '../../generated/gameBalance.ts';
-import { formatPreservedFoodLoss } from '../../economy/foodPreservation.ts';
+import {
+  formatPreservedFoodLoss,
+  spoilageAdjustedRunwayDays,
+} from '../../economy/foodPreservation.ts';
 import {
   NAMED_FOOD_KINDS,
   NAMED_FOOD_LABELS,
   edibleFoodStock,
   foodCategoryQualifyingStock,
   foodProgressionStatus,
-  householdFoodPerDay,
   presentFoodCategories,
   FOOD_CATEGORY_LABELS,
   FOOD_PROGRESSION_SLOT_LABELS,
@@ -48,11 +49,9 @@ import {
 } from '../../logistics/foodLogistics.ts';
 import {
   formatSpecialtyRunwayDays,
-  SPECIALTY_CONSUMPTION_SECONDS_PER_DAY,
   residenceAleRunwayDays,
   residenceClothRunwayDays,
   residenceShoesRunwayDays,
-  residencePreservedFoodRunwayDays,
   residencePotteryRunwayDays,
 } from '../../logistics/specialtyLogistics.ts';
 import { formatWaterRunwayDays, residenceWaterRunwayDays } from '../../logistics/waterLogistics.ts';
@@ -77,6 +76,12 @@ import {
   allocatePreservedMeal,
   freshFoodRunwayWithPreservedRotation,
 } from '../../economy/preservedFoodPolicy.ts';
+import {
+  householdFoodUnitsPerDay,
+  householdFoodUnitsPerDayForTier,
+  householdFoodUnitsPerMonth,
+  householdFoodUnitsPerMonthForTier,
+} from '../../economy/householdBillDemand.ts';
 import { residenceSettlementReadiness } from '../../economy/residenceSettlement.ts';
 import {
   evaluateResidenceUpgrade,
@@ -375,13 +380,14 @@ export function renderResidenceInspector(
     currentClock,
     context.severeWeatherEnabled ?? false,
   );
-  const preservedFoodDemandMultiplier =
-    environment.preservedFoodDemandMultiplier;
-  const preservedFoodRotationPerDay = residence.population
-    * RESIDENCE_PRESERVED_FOOD_PER_PERSON_PER_SEC
-    * SPECIALTY_CONSUMPTION_SECONDS_PER_DAY
-    * preservedFoodDemandMultiplier;
-  const grossFoodPerDay = householdFoodPerDay(residence.population);
+  const preservedFoodRotationPerMonth = residence.tier >= 4
+    ? householdFoodUnitsPerMonth(1)
+    : 0;
+  const preservedFoodRotationPerDay = residence.tier >= 4
+    ? householdFoodUnitsPerDay(1)
+    : 0;
+  const grossFoodPerMonth = householdFoodUnitsPerMonthForTier(residence.tier);
+  const grossFoodPerDay = householdFoodUnitsPerDayForTier(residence.tier);
   const physicalPreservedFood = preservedFoodStock(residence);
   const physicalFreshMeals = Math.max(
     0,
@@ -396,15 +402,15 @@ export function renderResidenceInspector(
         physicalPreservedFood,
         getNeedStock(residence.needs, 'preservedFood'),
       );
-  const mealAllocation = allocatePreservedMeal(
+  const billAllocation = allocatePreservedMeal(
     householdFreshMeals,
     householdPreservedFood,
-    grossFoodPerDay,
-    preservedFoodRotationPerDay,
+    grossFoodPerMonth,
+    preservedFoodRotationPerMonth,
     residence.tier >= 4,
   );
-  const preservedMealUse = mealAllocation.preservedRotationUsed
-    + mealAllocation.preservedFallbackUsed;
+  const preservedBillUse = billAllocation.preservedRotationUsed
+    + billAllocation.preservedFallbackUsed;
   const hasMonasteryCoverage = context.worldQueries.isResidenceInMonasteryCoverage(residence);
   const community = buildResidenceCommunityContext(
     servingChapel,
@@ -449,10 +455,11 @@ export function renderResidenceInspector(
     ? '—'
     : formatFoodRunwayDays(foodRunwayDays);
   const preservedFoodRunwayDays = residence.tier >= 4
-    ? residencePreservedFoodRunwayDays(
-        residence,
-        preservedFoodDemandMultiplier,
-        environment.preservedFoodSpoilageFractionPerDay,
+    ? spoilageAdjustedRunwayDays(
+        householdPreservedFood,
+        preservedFoodRotationPerDay,
+        environment.preservedFoodSpoilageFractionPerDay
+          * PRESERVED_FOOD_STORAGE_RESIDENCE_FACTOR,
       )
     : null;
   const preservedFoodRunwayLabel = preservedFoodRunwayDays == null
@@ -809,7 +816,7 @@ export function renderResidenceInspector(
       <li data-inspector-primary><span>Active needs</span><span>${displayedNeedsLabel}</span></li>
       ${residence.tier > 0 && residence.population > 0 ? `<li><span>Approval & economy</span><span>${formatResidenceServiceConsequence(service)}</span></li>` : ''}
       ${residence.tier > 0 ? `<li><span>Household prosperity</span><span>${formatHouseholdProsperity(residence.householdWealth)}</span></li>` : ''}
-      ${residence.tier > 0 ? `<li><span>Local supply cycle</span><span>Connected Marketplace checks ${MARKETPLACE_HOUSEHOLD_ISSUE_CHECKS_PER_DAY} times per day and issues up to the household's one-day target when needed · Town Hall safeguard: ${pantrySafeguard.label} — ${pantrySafeguard.hint} · well water draws automatically in radius · no household cart or player prompt</span></li>` : ''}
+      ${residence.tier > 0 ? `<li><span>Local supply cycle</span><span>Connected Marketplace checks ${MARKETPLACE_HOUSEHOLD_ISSUE_CHECKS_PER_DAY} times per day and replenishes the household's monthly bill buffer when needed · Town Hall safeguard: ${pantrySafeguard.label} — ${pantrySafeguard.hint} · well water draws automatically in radius · no household cart or player prompt</span></li>` : ''}
       ${fireDisabled
         ? '<li><span>Parish economy</span><span>Paused · no tithe, alms, or relief claim until structural recovery</span></li>'
         : parishEconomy.hasChapelAccess
@@ -830,14 +837,14 @@ export function renderResidenceInspector(
       ${residence.tier > 0 ? `<li data-inspector-primary data-inspector-section="${foodAndDrinkSection}"><span>Fresh food</span><span>${householdFreshMeals.toFixed(1)} / ${RESIDENCE_FOOD_CAPACITY} · ${foodRunwayLabel} runway</span></li>` : ''}
       ${residence.tier > 0 ? householdFoodVarietyRow(residence, foodAndDrinkSection) : ''}
       ${residence.tier > 0 ? householdFoodContentsRow(residence, foodAndDrinkSection) : ''}
-      ${residence.tier >= 4 ? `<li data-inspector-secondary data-inspector-section="${foodAndDrinkSection}"><span>Next daily meal</span><span>${mealAllocation.freshUsed.toFixed(2)} fresh + ${preservedMealUse.toFixed(2)} preserved${mealAllocation.preservedFallbackUsed > 1e-6 ? ` (${mealAllocation.preservedFallbackUsed.toFixed(2)} emergency fallback)` : ''}${mealAllocation.unmet > 1e-6 ? ` &middot; ${mealAllocation.unmet.toFixed(2)} unmet` : ''} &middot; ${grossFoodPerDay.toFixed(2)} total demand</span></li>` : ''}
+      ${residence.tier >= 4 ? `<li data-inspector-secondary data-inspector-section="${foodAndDrinkSection}"><span>Next monthly food bill</span><span>${billAllocation.freshUsed.toFixed(0)} fresh + ${preservedBillUse.toFixed(0)} cured${billAllocation.preservedFallbackUsed > 1e-6 ? ` (${billAllocation.preservedFallbackUsed.toFixed(0)} fallback)` : ''}${billAllocation.unmet > 1e-6 ? ` &middot; ${billAllocation.unmet.toFixed(0)} unmet` : ''} &middot; ${grossFoodPerMonth.toFixed(0)} units due</span></li>` : ''}
       ${residence.tier >= 4 ? `<li data-inspector-primary data-inspector-section="${foodAndDrinkSection}"><span>Cured provisions</span><span>${householdPreservedFood.toFixed(1)} / ${RESIDENCE_PRESERVED_FOOD_CAPACITY} · ${preservedFoodRunwayLabel} runway</span></li>` : ''}
       ${residence.tier >= 4 ? `<li data-inspector-secondary data-inspector-section="${foodAndDrinkSection}"><span>Cupboard aging</span><span>${formatPreservedFoodLoss(
         householdPreservedFood
         * environment.preservedFoodSpoilageFractionPerDay
         * PRESERVED_FOOD_STORAGE_RESIDENCE_FACTOR,
       )} · consume or replenish regularly</span></li>` : ''}
-      ${residence.tier >= 4 ? `<li data-inspector-secondary data-inspector-section="${foodAndDrinkSection}"><span>Seasonal ration rotation</span><span>${preservedFoodRotationPerDay.toFixed(2)} / day at ${preservedFoodDemandMultiplier.toFixed(2)}&times; seasonal use &middot; replaces the same amount of fresh food rather than adding a second meal</span></li>` : ''}
+      ${residence.tier >= 4 ? `<li data-inspector-secondary data-inspector-section="${foodAndDrinkSection}"><span>Monthly cured slot</span><span>${preservedFoodRotationPerMonth.toFixed(0)} cured unit per bill &middot; replaces one food category unit rather than adding another charge</span></li>` : ''}
       ${residence.tier >= 2 ? `<li data-inspector-primary data-inspector-section="${foodAndDrinkSection}"><span>Beverages</span><span>${Math.round(getNeedStock(residence.needs, 'ale'))} / ${RESIDENCE_ALE_CAPACITY} · ${aleRunwayLabel} runway</span></li>` : ''}
       ${residence.tier > 0 ? `<li data-inspector-secondary data-inspector-section="${foodAndDrinkSection}"><span>Fresh-food supplier</span><span>${foodSupplierLabel}</span></li>` : ''}
       ${residence.tier >= 4 ? `<li data-inspector-secondary data-inspector-section="${foodAndDrinkSection}"><span>Preserved-food supplier</span><span>${preservedFoodSupplierLabel}</span></li>` : ''}

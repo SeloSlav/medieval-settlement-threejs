@@ -81,6 +81,14 @@ const MAX_VISIBLE_WORKERS = 1024;
 const MAX_TARGETS_PER_BUILDING = 96;
 const MAX_PREFERRED_RESOURCE_WALK = 72;
 const NO_ROSTERED_CART_WORKERS: ReadonlyMap<string, number> = new Map();
+const FISHING_SHORE_TRACE_STEP = 0.35;
+const FISHING_SHORE_REFINEMENT_STEPS = 8;
+export const FISHING_SHORE_STANDOFF = 1.1;
+const FISHING_YARD_SHORE_STANDOFF = 3.4;
+const FISHING_YARD_WATER_CLEARANCE = 1.25;
+const FISHING_YARD_WATER_PROBES = 16;
+
+export type WorkerWaterTest = (x: number, z: number) => boolean;
 
 export type WorkerAssignment = {
   id: string;
@@ -608,6 +616,7 @@ export function workplaceYardPosition(
   building: BuildingState,
   slotIndex: number,
   roadNetwork: RoadNetwork | null = null,
+  isWaterAt: WorkerWaterTest | null = null,
 ): PointXZ & { yaw: number } {
   if (building.kind === 'watchtower') {
     const x = building.x + (slotIndex % 2 === 0 ? -0.58 : 0.58);
@@ -635,11 +644,36 @@ export function workplaceYardPosition(
   const radius = Math.max(3.2, definition.pickRadius * (0.62 + rng() * 0.16));
   const x = building.x + Math.sin(angle) * radius;
   const z = building.z + Math.cos(angle) * radius;
-  return {
+  const yard = {
     x,
     z,
     yaw: Math.atan2(building.x - x, building.z - z),
   };
+  if (building.kind !== 'fishing_camp') {
+    return yard;
+  }
+  if (!isWaterAt) {
+    return { x: building.x, z: building.z, yaw: yard.yaw };
+  }
+
+  const wetProbe = fishingYardWetProbe(yard, isWaterAt);
+  if (!wetProbe) return yard;
+  const dryYard = findFishingShoreWorkPosition(
+    building,
+    wetProbe,
+    isWaterAt,
+    FISHING_YARD_SHORE_STANDOFF,
+  );
+  return dryYard
+    ? {
+        ...dryYard,
+        yaw: Math.atan2(building.x - dryYard.x, building.z - dryYard.z),
+      }
+    : {
+        x: building.x,
+        z: building.z,
+        yaw: yard.yaw,
+      };
 }
 
 export function watchtowerDutyPosition(
@@ -698,13 +732,23 @@ export function pickWorkerWalkPlan(
   targets: readonly WorkerTarget[],
   seed: number,
   roadNetwork: RoadNetwork | null = null,
+  isWaterAt: WorkerWaterTest | null = null,
 ): WorkerWalkPlan | null {
-  const start = workplaceYardPosition(building, slotIndex, roadNetwork);
+  const start = workplaceYardPosition(
+    building,
+    slotIndex,
+    roadNetwork,
+    isWaterAt,
+  );
   const rng = mulberry32(seed ^ hashStringSeed(building.id));
 
   if (
     targets.length > 0
-    && (building.constructionComplete === false || rng() < 0.82)
+    && (
+      building.constructionComplete === false
+      || building.kind === 'fishing_camp'
+      || rng() < 0.82
+    )
   ) {
     const preferred = targets.filter(
       (target) => Math.sqrt(distanceSq(building, target))
@@ -713,8 +757,9 @@ export function pickWorkerWalkPlan(
     const pool = preferred.length > 0 ? preferred : targets;
     const target = pool[Math.floor(rng() * pool.length)] ?? pool[0];
     if (target) {
-      const path = resourceWorkLoop(building, start, target, rng);
-      if (polylineLengthXZ(path) >= 4) {
+      const path = resourceWorkLoop(building, start, target, rng, isWaterAt);
+      const minimumPathLength = target.kind === 'fish' ? 0.25 : 4;
+      if (path && polylineLengthXZ(path) >= minimumPathLength) {
         const activity = workerActivityFor(building, target);
         return {
           path,
@@ -725,6 +770,11 @@ export function pickWorkerWalkPlan(
       }
     }
   }
+
+  // A fishing camp's generic orbit can overlap the very bank it works from.
+  // When there is no safe resource route, leave the crew at its verified dry
+  // yard position instead of inventing a walk through the water.
+  if (building.kind === 'fishing_camp') return null;
 
   const localPath = workplaceLoop(building, start, slotIndex, rng);
   return polylineLengthXZ(localPath) >= 4
@@ -920,7 +970,25 @@ function resourceWorkLoop(
   start: PointXZ,
   target: WorkerTarget,
   rng: () => number,
-): PointXZ[] {
+  isWaterAt: WorkerWaterTest | null,
+): PointXZ[] | null {
+  if (target.kind === 'fish') {
+    // A fish node is intentionally stored in open water. Without the rendered
+    // wetness sampler there is no safe presentation target, so keep the crew
+    // in its local yard instead of falling back to the shoal coordinate.
+    if (!isWaterAt) return null;
+    const shore = findFishingShoreWorkPosition(start, target, isWaterAt);
+    if (!shore) return null;
+    const midpoint = {
+      x: (start.x + shore.x) * 0.5,
+      z: (start.z + shore.z) * 0.5,
+    };
+    // The shoal remains the action focus, but the complete out-and-back walk
+    // stays on the verified dry ray to its bank. Random orbit points around a
+    // fish node would put the visible fisher back into open water.
+    return [start, midpoint, shore, midpoint, start];
+  }
+
   const dx = target.x - start.x;
   const dz = target.z - start.z;
   const length = Math.max(0.001, Math.hypot(dx, dz));
@@ -955,6 +1023,76 @@ function resourceWorkLoop(
     midpoint,
     start,
   ];
+}
+
+/**
+ * Finds the dry activity stop immediately before a wet shoal on the straight
+ * approach from a fishing camp. The water coordinate is deliberately retained
+ * separately so the casting pose still faces the fish rather than the bank.
+ */
+export function findFishingShoreWorkPosition(
+  dryOrigin: PointXZ,
+  shoal: PointXZ,
+  isWaterAt: WorkerWaterTest,
+  shoreStandoff = FISHING_SHORE_STANDOFF,
+): PointXZ | null {
+  if (isWaterAt(dryOrigin.x, dryOrigin.z) || !isWaterAt(shoal.x, shoal.z)) {
+    return null;
+  }
+
+  const dx = shoal.x - dryOrigin.x;
+  const dz = shoal.z - dryOrigin.z;
+  const distance = Math.hypot(dx, dz);
+  if (distance <= 1e-6) return null;
+
+  const sampleCount = Math.max(1, Math.ceil(distance / FISHING_SHORE_TRACE_STEP));
+  let dryT = 0;
+  for (let index = 1; index <= sampleCount; index += 1) {
+    const t = index / sampleCount;
+    const x = dryOrigin.x + dx * t;
+    const z = dryOrigin.z + dz * t;
+    if (!isWaterAt(x, z)) {
+      dryT = t;
+      continue;
+    }
+
+    let wetT = t;
+    for (let refinement = 0; refinement < FISHING_SHORE_REFINEMENT_STEPS; refinement += 1) {
+      const midpointT = (dryT + wetT) * 0.5;
+      if (isWaterAt(
+        dryOrigin.x + dx * midpointT,
+        dryOrigin.z + dz * midpointT,
+      )) {
+        wetT = midpointT;
+      } else {
+        dryT = midpointT;
+      }
+    }
+
+    const standT = Math.max(0, dryT - Math.max(0, shoreStandoff) / distance);
+    const stand = {
+      x: dryOrigin.x + dx * standT,
+      z: dryOrigin.z + dz * standT,
+    };
+    return isWaterAt(stand.x, stand.z) ? null : stand;
+  }
+  return null;
+}
+
+function fishingYardWetProbe(
+  yard: PointXZ,
+  isWaterAt: WorkerWaterTest,
+): PointXZ | null {
+  if (isWaterAt(yard.x, yard.z)) return yard;
+  for (let index = 0; index < FISHING_YARD_WATER_PROBES; index += 1) {
+    const angle = index / FISHING_YARD_WATER_PROBES * Math.PI * 2;
+    const probe = {
+      x: yard.x + Math.cos(angle) * FISHING_YARD_WATER_CLEARANCE,
+      z: yard.z + Math.sin(angle) * FISHING_YARD_WATER_CLEARANCE,
+    };
+    if (isWaterAt(probe.x, probe.z)) return probe;
+  }
+  return null;
 }
 
 function clampResourceWorkPoint(

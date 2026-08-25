@@ -49,6 +49,7 @@ const PAD_PARAMS: Record<BuildingKind, BuildingPadParams> = {
   smithy: { radiusX: 4.6, radiusZ: 4.1, innerFade: 0.88, outerFade: 1.3 },
   potter_kiln: { radiusX: 4.7, radiusZ: 4.1, innerFade: 0.88, outerFade: 1.3 },
   well: { radiusX: 2.2, radiusZ: 2.2, innerFade: 0.9, outerFade: 1.2 },
+  stable: { radiusX: 6.4, radiusZ: 4.2, innerFade: 0.9, outerFade: 1.3 },
   hunters_hall: { radiusX: 5.2, radiusZ: 4.8, innerFade: 0.88, outerFade: 1.34 },
   foragers_shed: { radiusX: 4.2, radiusZ: 3.8, innerFade: 0.88, outerFade: 1.3 },
   fishing_camp: { radiusX: 5.4, radiusZ: 4.5, innerFade: 0.88, outerFade: 1.3 },

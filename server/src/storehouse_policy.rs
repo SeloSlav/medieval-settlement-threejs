@@ -1,5 +1,7 @@
 use std::cmp::Ordering;
 
+use crate::balance_generated::STOREHOUSE_OVERFLOW_THRESHOLD;
+
 pub const STOREHOUSE_STOCK_TARGET_DEFAULT_PERCENT: u8 = 100;
 pub const STOREHOUSE_STOCK_TARGET_PERCENTS: [u8; 4] = [25, 50, 75, 100];
 
@@ -48,6 +50,17 @@ pub fn storehouse_filtered_collection_headroom(
     storehouse_collection_headroom(stock, capacity, percent)
 }
 
+/// Industrial firewood dispatch runs before depot collection, so remaining
+/// lodge fuel can be centralized immediately for household Marketplace stalls.
+/// Other bulk materials retain the configured producer-overflow floor.
+pub fn producer_collection_floor(is_household_firewood: bool, capacity: f64) -> f64 {
+    if is_household_firewood {
+        0.0
+    } else {
+        capacity.max(0.0) * STOREHOUSE_OVERFLOW_THRESHOLD
+    }
+}
+
 /// Fullest producers are relieved first. Stable ids make simultaneous overflow
 /// independent of table iteration and building construction order.
 pub fn compare_storehouse_source_priority(
@@ -79,8 +92,9 @@ mod tests {
     use super::{
         compare_storehouse_destination, compare_storehouse_source_priority,
         is_valid_storehouse_stock_target_percent, normalize_storehouse_stock_target_percent,
-        storehouse_collection_headroom, storehouse_filtered_collection_headroom,
-        storehouse_stock_target, STOREHOUSE_STOCK_TARGET_DEFAULT_PERCENT,
+        producer_collection_floor, storehouse_collection_headroom,
+        storehouse_filtered_collection_headroom, storehouse_stock_target,
+        STOREHOUSE_OVERFLOW_THRESHOLD, STOREHOUSE_STOCK_TARGET_DEFAULT_PERCENT,
     };
 
     #[test]
@@ -118,6 +132,15 @@ mod tests {
         assert_eq!(
             storehouse_filtered_collection_headroom(true, 40.0, 360.0, 25),
             50.0
+        );
+    }
+
+    #[test]
+    fn lodge_firewood_does_not_wait_for_the_bulk_overflow_floor() {
+        assert_eq!(producer_collection_floor(true, 120.0), 0.0);
+        assert_eq!(
+            producer_collection_floor(false, 240.0),
+            240.0 * STOREHOUSE_OVERFLOW_THRESHOLD,
         );
     }
 

@@ -4,8 +4,8 @@ use spacetimedb::{Identity, ReducerContext};
 
 use crate::balance_generated::{
     CHARCOAL_HOUSEHOLD_FUEL_VALUE, FIREWOOD_DELIVERY_SPEED_MPS, FIREWOOD_DELIVERY_UNLOAD_SEC,
-    STOREHOUSE_FIREWOOD_PER_DELIVERY, STOREHOUSE_HAUL_PER_WORKER, STOREHOUSE_OVERFLOW_THRESHOLD,
-    TIMBER_DELIVERY_SPEED_MPS, TIMBER_DELIVERY_UNLOAD_SEC,
+    STOREHOUSE_FIREWOOD_PER_DELIVERY, STOREHOUSE_HAUL_PER_WORKER, TIMBER_DELIVERY_SPEED_MPS,
+    TIMBER_DELIVERY_UNLOAD_SEC,
 };
 use crate::db::*;
 use crate::economy::{
@@ -26,7 +26,7 @@ use crate::simulation::residence_needs::ResidenceNeedKind;
 use crate::simulation::road_logistics::local_delivery_distance;
 use crate::simulation::tick_context::SimTickContext;
 use crate::storehouse_policy::{
-    compare_storehouse_destination, compare_storehouse_source_priority,
+    compare_storehouse_destination, compare_storehouse_source_priority, producer_collection_floor,
     storehouse_filtered_collection_headroom,
 };
 use crate::tables::Building;
@@ -289,10 +289,12 @@ pub fn step_storehouse_market_stalls(
 }
 
 /// Once Marketplace-stall and industrial firewood duties have run, remaining
-/// idle depots clear producer overflow in one owner-wide pass. Fullest producers
-/// claim the nearest compatible depot, so database iteration and construction
-/// order cannot silently distort the logistics layout. Food and grain remain
-/// excluded so the granary and marketplace keep their specialized roles.
+/// idle depots clear producer output in one owner-wide pass. Household firewood
+/// is collected as soon as it exists; every other bulk material retains the
+/// normal overflow floor. Fullest producers claim the nearest compatible depot,
+/// so database iteration and construction order cannot silently distort the
+/// logistics layout. Food and grain remain excluded so the granary and
+/// marketplace keep their specialized roles.
 pub fn step_village_storehouse_overflow_collection(
     ctx: &ReducerContext,
     tick: &SimTickContext,
@@ -349,7 +351,11 @@ fn dispatch_overflow_collection_for_owner(
                 continue;
             }
             let stock = building_commodity_stock(&source, commodity);
-            let excess = stock - capacity * STOREHOUSE_OVERFLOW_THRESHOLD;
+            let collection_floor = producer_collection_floor(
+                source.kind == "woodcutters_lodge" && commodity == CommodityKind::Firewood,
+                capacity,
+            );
+            let excess = stock - collection_floor;
             if excess <= 1e-6 {
                 continue;
             }

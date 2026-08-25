@@ -51,6 +51,7 @@ import {
   createPalisadedRefugeMesh,
 } from './meshes/civicLogisticsBuildingMeshes.ts';
 import { createCobblerMesh, createTanneryMesh } from './meshes/leatherChainBuildingMeshes.ts';
+import { createStableMesh } from './meshes/stableMesh.ts';
 
 export function createBuildingMesh(
   kind: BuildingKind,
@@ -92,6 +93,8 @@ export function createBuildingMesh(
       return createPotterKilnMesh();
     case 'well':
       return createWellMesh();
+    case 'stable':
+      return createStableMesh();
     case 'hunters_hall':
       return createHuntersHallMesh();
     case 'foragers_shed':

@@ -71,7 +71,7 @@ stockToThreshold(tierTwo, 'food');
 stockToThreshold(tierTwo, 'firewood');
 tierTwo.needs.water.stock = residenceSettlementBufferMin(
   'water',
-  tierTwo.population,
+  tierTwo.tier,
 ) - 0.1;
 const tierTwoPlan = computeSettlementGrowthPlan({ state: stateWith(tierTwo) });
 assert.equal(tierTwoPlan.pausedHomes, 1);
@@ -279,7 +279,7 @@ function stockToThreshold(
 ): void {
   target.needs[kind].stock = residenceSettlementBufferMin(
     kind,
-    target.population,
+    target.tier,
   );
 }
 

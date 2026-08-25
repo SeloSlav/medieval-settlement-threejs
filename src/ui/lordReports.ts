@@ -128,6 +128,9 @@ export function storageOccupancyChannels(
 export function reportableStorageOccupancyChannels(
   building: BuildingState,
 ): StorageOccupancyChannel[] {
+  // Marketplace bays are service inventory: reaching their target capacity
+  // means the stall is fully stocked, not that local production is blocked.
+  if (building.kind === 'marketplace') return [];
   return storageOccupancyChannels(building).filter(
     (channel) => channel.purpose === 'working-stock',
   );

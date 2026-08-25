@@ -31,6 +31,7 @@ export const BUILDING_LOCAL_VISUAL_BOUNDS = {
   smithy: { minX: -4.32, maxX: 4.32, minZ: -3.37, maxZ: 3.70 },
   potter_kiln: { minX: -4.39, maxX: 4.48, minZ: -3.37, maxZ: 3.37 },
   well: { minX: -2.17, maxX: 2.17, minZ: -2.17, maxZ: 2.17 },
+  stable: { minX: -5.55, maxX: 5.55, minZ: -3.53, maxZ: 3.53 },
   hunters_hall: { minX: -4.26, maxX: 5.98, minZ: -3.94, maxZ: 3.94 },
   foragers_shed: { minX: -3.46, maxX: 3.46, minZ: -3.13, maxZ: 4.15 },
   fishing_camp: { minX: -6.13, maxX: 4.63, minZ: -3.70, maxZ: 4.00 },

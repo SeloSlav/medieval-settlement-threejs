@@ -74,12 +74,12 @@ impl MarketIssueCycle {
 }
 
 /// Check household lots from stock held at local markets several times per
-/// day. Each check fills only to the same daily target, so frequent checks
-/// reduce the wait after stock arrives without multiplying household demand. An
-/// optional Town Hall safeguard adds a deeper buffer for critically low food
-/// and fuel without turning every meal into a separate haul. Replenishment
-/// remains physical, and scarce stock is shared one household-day at a time
-/// before any pantry receives an extra safeguard day.
+/// day. Each check fills only to the same monthly-bill buffer, so frequent
+/// checks reduce the wait after stock arrives without multiplying household
+/// demand. An optional Town Hall safeguard adds a deeper buffer for critically
+/// low food and fuel without turning every bill into a separate haul.
+/// Replenishment remains physical, and scarce stock is shared one household
+/// bill at a time before any pantry receives an extra safeguard lot.
 pub fn step_market_household_distribution(
     ctx: &ReducerContext,
     tick: &SimTickContext,
@@ -110,13 +110,12 @@ pub fn step_market_household_distribution(
                 {
                     return None;
                 }
-                let pantry_policy = normalize_pantry_safeguard_policy(
-                    crate::settlement_policy::pantry_safeguard(
+                let pantry_policy =
+                    normalize_pantry_safeguard_policy(crate::settlement_policy::pantry_safeguard(
                         ctx,
                         residence.owner,
                         residence.settlement_id,
-                    ),
-                );
+                    ));
                 let (target_stock, daily_lot) = household_issue_target(
                     ctx,
                     &residence,
@@ -213,9 +212,9 @@ pub fn step_market_household_distribution(
                 .max()
                 .unwrap_or(1);
 
-            // Allocate one household-day per pass. When stock is scarce this
-            // gives every connected home some cover before any one pantry is
-            // receives extra safeguard cover.
+            // Allocate one household bill per pass. When stock is scarce this
+            // gives every connected home some cover before any one pantry
+            // receives an extra safeguard lot.
             for round in 0..max_rounds {
                 for target in &targets {
                     if round >= target.pantry_rounds {
@@ -414,13 +413,11 @@ fn distribution_targets(
                 target_stock: *target_stock,
                 daily_lot: *daily_lot,
                 pantry_rounds: MarketIssueCycle::Daily.ration_rounds(
-                    normalize_pantry_safeguard_policy(
-                        crate::settlement_policy::pantry_safeguard(
-                            ctx,
-                            residence.owner,
-                            residence.settlement_id,
-                        ),
-                    ),
+                    normalize_pantry_safeguard_policy(crate::settlement_policy::pantry_safeguard(
+                        ctx,
+                        residence.owner,
+                        residence.settlement_id,
+                    )),
                 ),
             })
         })

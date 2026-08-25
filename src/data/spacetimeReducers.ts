@@ -86,6 +86,14 @@ export async function enterWorld(): Promise<void> {
   await callReducer('enterWorld', 'enter_world', {});
 }
 
+export async function purchaseStableOx(stableId: string): Promise<void> {
+  const serverId = parseBuildingServerId(stableId);
+  if (serverId === null) throw new Error('Invalid Stable id.');
+  await callReducer('purchaseStableOx', 'purchase_stable_ox', {
+    stableId: serverId,
+  });
+}
+
 export async function placeBackyardGarden(
   residenceId: string,
   kind: BackyardGardenKind,

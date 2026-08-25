@@ -7,6 +7,6 @@ pub use crate::tables::{
     delivery_trip, farm_field, fire_incident, foraging_node, guard_muster_route, livestock_herd,
     market_state, pasture, player_resources, quarry, raid_incursion_route, residence,
     residence_need, resource_unit_migration, road_network_state, settlement_security,
-    settlement, sim_pacing_state, trading_post_trade_rule, tree_entity, vineyard_parcel,
+    settlement, sim_pacing_state, stable_ox, trading_post_trade_rule, tree_entity, vineyard_parcel,
     world_config,
 };

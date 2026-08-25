@@ -11,7 +11,6 @@ import {
   LODGE_FIREWOOD_PER_CYCLE,
   LODGE_TIMBER_PER_CYCLE,
   POTTER_FIREWOOD_PER_CYCLE,
-  RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC,
   SMOKEHOUSE_FIREWOOD_PER_CYCLE,
   WINTER_FIREWOOD_DEMAND_MULTIPLIER,
 } from '../generated/gameBalance.ts';
@@ -21,6 +20,7 @@ import { lodgeSustainedProcessingLabor } from '../logistics/lodgeLogistics.ts';
 import { getNeedStock } from '../residences/residenceNeedState.ts';
 import { getBuildingDefinition } from '../resources/buildings.ts';
 import { civilianToolThroughputMultiplier } from './civilianToolPolicy.ts';
+import { householdFirewoodUnitsPerDay } from './householdBillDemand.ts';
 import type {
   BuildingKind,
   BuildingState,
@@ -181,10 +181,9 @@ export function computeSettlementFirewoodPlan(
     if (stock + 1e-6 < protectedTarget) {
       branch.householdsBelowProtectedStock += 1;
     }
-    branch.winterHouseholdDemandPerDay += Math.max(0, residence.population)
-      * RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC
-      * CALENDAR_SECONDS_PER_DAY
-      * WINTER_FIREWOOD_DEMAND_MULTIPLIER;
+    branch.winterHouseholdDemandPerDay += householdFirewoodUnitsPerDay(
+      WINTER_FIREWOOD_DEMAND_MULTIPLIER,
+    );
     branch.firstHouseholdId = earlierId(branch.firstHouseholdId, residence.id);
   }
 

@@ -1,10 +1,10 @@
 import {
   CALENDAR_SECONDS_PER_DAY,
   RESIDENCE_FIREWOOD_CAPACITY,
-  RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC,
   RESIDENCE_FIREWOOD_PRIORITY_WINTER_DAYS,
   WINTER_FIREWOOD_DEMAND_MULTIPLIER,
 } from '../generated/gameBalance.ts';
+import { householdFirewoodUnitsPerDay } from '../economy/householdBillDemand.ts';
 import { getNeedStock } from '../residences/residenceNeedState.ts';
 import type { ResidenceState } from '../resources/types.ts';
 
@@ -13,7 +13,7 @@ import { GAME_DAY_SECONDS } from '../world/gameCalendar.ts';
 
 export function residenceFirewoodDemandPerSecond(residence: ResidenceState): number {
   if (residence.abandoned || residence.population <= 0) return 0;
-  return residence.population * RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC;
+  return householdFirewoodUnitsPerDay() / CALENDAR_SECONDS_PER_DAY;
 }
 
 export function residenceFirewoodRunwaySeconds(residence: ResidenceState): number | null {
@@ -32,14 +32,19 @@ export function residenceHasFirewoodRoom(firewoodStock: number): boolean {
   return firewoodStock + 1e-6 < RESIDENCE_FIREWOOD_CAPACITY;
 }
 
+/**
+ * Population remains the public occupancy gate for existing callers, but an
+ * occupied residence owes one household bill regardless of resident count.
+ * Round the forecast floor up because pantry fuel is stored in whole units.
+ */
 export function residenceFirewoodPriorityTarget(population: number): number {
+  if (population <= 0) return 0;
+  const winterFloor = householdFirewoodUnitsPerDay(
+    WINTER_FIREWOOD_DEMAND_MULTIPLIER,
+  ) * RESIDENCE_FIREWOOD_PRIORITY_WINTER_DAYS;
   return Math.min(
     RESIDENCE_FIREWOOD_CAPACITY,
-    Math.max(0, population)
-      * RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC
-      * CALENDAR_SECONDS_PER_DAY
-      * WINTER_FIREWOOD_DEMAND_MULTIPLIER
-      * RESIDENCE_FIREWOOD_PRIORITY_WINTER_DAYS,
+    winterFloor > 0 ? Math.ceil(winterFloor - 1e-6) : 0,
   );
 }
 

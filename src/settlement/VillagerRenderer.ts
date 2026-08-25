@@ -266,6 +266,7 @@ function remoteCampPhaseForHomeState(homeState: HouseholdHomeState): RemoteCampP
 }
 
 const WORKER_ACTIVITY_SECONDS = 9.5;
+const FISHING_PATH_WATER_SAMPLE_STEP = 0.3;
 const MONASTIC_HABIT_COLOR = 0x493629;
 const CAMP_SEAT_RELEASE_DISTANCE = 0.8;
 const NO_REFUGE_ASSIGNMENTS: ReadonlyMap<string, string> = new Map();
@@ -686,7 +687,21 @@ export class VillagerRenderer {
         ? Math.max(0, agent.workStopDistance - cursor)
         : null;
       const rerouted = this.routeWorkerPath(remaining, remainingWorkDistance);
-      if (!rerouted || polylineLengthXZ(rerouted.path) < 0.05) {
+      const workplace = agent.workplaceId
+        ? this.buildings.get(agent.workplaceId)
+        : null;
+      const fishingRerouteTouchesWater = agent.pathPurpose === 'worker_work_loop'
+        && workplace?.kind === 'fishing_camp'
+        && rerouted
+        && (
+          !this.isWaterAt
+          || polylineTouchesWater(rerouted.path, this.isWaterAt)
+        );
+      if (
+        !rerouted
+        || polylineLengthXZ(rerouted.path) < 0.05
+        || fishingRerouteTouchesWater
+      ) {
         this.cancelBlockedPath(agent);
         changed = true;
         continue;
@@ -2403,6 +2418,7 @@ export class VillagerRenderer {
       targets,
       agent.pathSeed,
       this.roadNetwork,
+      this.isWaterAt,
     );
     agent.pathSeed = (agent.pathSeed * 1_664_525) ^ 0x165667b1;
 
@@ -2411,7 +2427,14 @@ export class VillagerRenderer {
       : null;
     const path = routedPlan?.path ?? null;
     const pathDistance = path ? polylineLengthXZ(path) : 0;
-    if (!path || pathDistance < 4) {
+    const fishingPathTouchesWater = building.kind === 'fishing_camp'
+      && path
+      && (
+        !this.isWaterAt
+        || polylineTouchesWater(path, this.isWaterAt)
+      );
+    const minimumPathDistance = plan?.activity === 'fish' ? 0.25 : 4;
+    if (!path || pathDistance < minimumPathDistance || fishingPathTouchesWater) {
       agent.idleRemaining = pickIdleDuration(agent.pathSeed) * 0.5;
       return;
     }
@@ -3895,7 +3918,12 @@ export class VillagerRenderer {
   ): PointXZ & { yaw: number } {
     return this.marketStallDutyByWorker.get(
       workerSlotKey(workplace.id, workplaceSlot),
-    ) ?? workplaceYardPosition(workplace, workplaceSlot, this.roadNetwork);
+    ) ?? workplaceYardPosition(
+      workplace,
+      workplaceSlot,
+      this.roadNetwork,
+      this.isWaterAt,
+    );
   }
 
   private workerRestDestination(
@@ -4802,6 +4830,29 @@ function pushPathPoint(path: PointXZ[], point: PointXZ): void {
   const previous = path[path.length - 1];
   if (previous && Math.hypot(previous.x - point.x, previous.z - point.z) <= 1e-5) return;
   path.push({ ...point });
+}
+
+function polylineTouchesWater(
+  path: readonly PointXZ[],
+  isWaterAt: (x: number, z: number) => boolean,
+): boolean {
+  for (let index = 0; index < path.length - 1; index += 1) {
+    const start = path[index];
+    const end = path[index + 1];
+    const distance = Math.hypot(end.x - start.x, end.z - start.z);
+    const samples = Math.max(
+      1,
+      Math.ceil(distance / FISHING_PATH_WATER_SAMPLE_STEP),
+    );
+    for (let sample = 0; sample <= samples; sample += 1) {
+      const t = sample / samples;
+      if (isWaterAt(
+        start.x + (end.x - start.x) * t,
+        start.z + (end.z - start.z) * t,
+      )) return true;
+    }
+  }
+  return false;
 }
 
 function refugeAssignmentMapsEqual(

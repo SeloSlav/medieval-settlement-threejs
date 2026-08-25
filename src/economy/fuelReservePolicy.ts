@@ -1,35 +1,37 @@
 import {
-  CALENDAR_SECONDS_PER_DAY,
   CHARCOAL_HOUSEHOLD_FUEL_VALUE,
   MARKETPLACE_FUEL_RESERVE_DAYS,
-  RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC,
   SMITHY_CHARCOAL_PER_CYCLE,
   SMITHY_CHARCOAL_REORDER_CYCLES,
   SMITHY_CHARCOAL_TARGET_CYCLES,
 } from '../generated/gameBalance.ts';
+import { householdFirewoodUnitsPerDay } from './householdBillDemand.ts';
 
 export function combinedFuelEquivalent(firewood: number, charcoal: number): number {
   return Math.max(0, firewood) + Math.max(0, charcoal) * CHARCOAL_HOUSEHOLD_FUEL_VALUE;
 }
 
 export function householdFuelDemandPerDay(
-  population: number,
+  householdCount: number,
   seasonalMultiplier: number,
 ): number {
-  return Math.max(0, population)
-    * RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC
-    * CALENDAR_SECONDS_PER_DAY
-    * Math.max(0, seasonalMultiplier);
+  const households = Number.isFinite(householdCount)
+    ? Math.max(0, Math.floor(householdCount))
+    : 0;
+  return households * householdFirewoodUnitsPerDay(seasonalMultiplier);
 }
 
 export function marketplaceFuelReserveTarget(
-  coveredPopulation: number,
+  coveredHouseholds: number,
   seasonalMultiplier: number,
   firewoodCapacity: number,
   charcoalCapacity: number,
 ): number {
-  const target = householdFuelDemandPerDay(coveredPopulation, seasonalMultiplier)
+  const fractionalTarget = householdFuelDemandPerDay(coveredHouseholds, seasonalMultiplier)
     * MARKETPLACE_FUEL_RESERVE_DAYS;
+  const target = fractionalTarget <= 0 || !Number.isFinite(fractionalTarget)
+    ? 0
+    : Math.ceil(fractionalTarget - 1e-6);
   return Math.max(
     0,
     Math.min(target, combinedFuelEquivalent(firewoodCapacity, charcoalCapacity)),

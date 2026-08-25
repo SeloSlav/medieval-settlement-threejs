@@ -779,7 +779,7 @@ assert.match(ivyWindSource, /IVY_HINGE_ACTIVE_Y_THRESHOLD[\s\S]*?step/);
 assert.match(ivyWindSource, /uIvyTime[\s\S]*?uIvyWindSpeed[\s\S]*?uIvyWindStrength/);
 assert.doesNotMatch(
   ivyWindSource,
-  /createIvyLeafHingeWindNodes[\s\S]*?tsl\.uv\(\)\.y/,
+  /createIvyLeafHingeWindNodes(?:(?!const IVY_HINGE_WEBGL_CACHE_KEY)[\s\S])*tsl\.uv\(\)\.y/,
   'ivy roots must be explicit petiole attributes rather than texture-V weighting',
 );
 assert.match(

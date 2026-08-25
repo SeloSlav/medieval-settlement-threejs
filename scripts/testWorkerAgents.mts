@@ -28,6 +28,7 @@ import {
 import {
   allocateProductionWorkers,
   collectWorkerTargets,
+  FISHING_SHORE_STANDOFF,
   pickWorkerWalkPath,
   pickWorkerWalkPlan,
   PRODUCTION_WORKPLACE_KINDS,
@@ -38,6 +39,7 @@ import {
   workplaceYardPosition,
   YARD_WORK_ACTIVITY,
 } from '../src/settlement/workerPaths.ts';
+import { samplePolylineXZ } from '../src/utils/pathGeometry.ts';
 import { workerToolVisibleInMode } from '../src/settlement/SettlementCrowdRenderer.ts';
 import { WORKER_TOOL_URLS } from '../src/settlement/workerTools.ts';
 import {
@@ -521,11 +523,152 @@ for (const [kind, nodeKind, expectedActivity] of [
     foragingNodes: [node],
   });
   const activityPlan = Array.from({ length: 32 }, (_, seed) =>
-    pickWorkerWalkPlan(workplace, 0, targets, seed)
+    pickWorkerWalkPlan(
+      workplace,
+      0,
+      targets,
+      seed,
+      null,
+      kind === 'fishing_camp'
+        ? (x: number) => x >= 18
+        : null,
+    )
   ).find((plan) => plan?.activity === expectedActivity);
   assert.ok(
     activityPlan,
     `${kind} workers should perform ${expectedActivity} at ${nodeKind} targets`,
+  );
+}
+
+for (const waterFixture of [
+  {
+    label: 'pond',
+    shoal: { x: 24, z: 0 },
+    isWaterAt: (x: number, z: number) => Math.hypot(x - 24, z) <= 8,
+  },
+  {
+    label: 'river',
+    shoal: { x: 24, z: 0 },
+    isWaterAt: (x: number, z: number) => x >= 18 && x <= 30,
+  },
+] as const) {
+  const fishingCamp = building(
+    `shoreline-${waterFixture.label}`,
+    'fishing_camp',
+    0,
+    0,
+    3,
+    60,
+  );
+  const shoal = foragingNode(
+    `${waterFixture.label}-shoal`,
+    'fish',
+    waterFixture.shoal.x,
+    waterFixture.shoal.z,
+  );
+  const targets = collectWorkerTargets(fishingCamp, {
+    ...targetInputs,
+    foragingNodes: [shoal],
+  });
+
+  for (let slotIndex = 0; slotIndex < 3; slotIndex += 1) {
+    const fishingPlans = Array.from({ length: 64 }, (_, seed) =>
+      pickWorkerWalkPlan(
+        fishingCamp,
+        slotIndex,
+        targets,
+        seed,
+        null,
+        waterFixture.isWaterAt,
+      )
+    );
+    assert.ok(
+      fishingPlans.every((plan) => plan?.activity === 'fish'),
+      `${waterFixture.label} fishers should never replace shoreline work with a wet yard loop`,
+    );
+    for (const fishingPlan of fishingPlans) {
+      assert.ok(fishingPlan);
+      assert.ok(fishingPlan.workDistance != null);
+      const stop = samplePolylineXZ(fishingPlan.path, fishingPlan.workDistance);
+      assert.ok(stop, `${waterFixture.label} fishing plan should retain its activity stop`);
+      assert.equal(
+        waterFixture.isWaterAt(stop.x, stop.z),
+        false,
+        `${waterFixture.label} fishers must stand on dry land rather than at the shoal center`,
+      );
+      assert.equal(
+        waterFixture.isWaterAt(fishingPlan.target!.x, fishingPlan.target!.z),
+        true,
+        `${waterFixture.label} plans should keep the wet shoal as the casting focus`,
+      );
+      const focusDistance = Math.hypot(
+        fishingPlan.target!.x - stop.x,
+        fishingPlan.target!.z - stop.z,
+      );
+      const towardWater = {
+        x: stop.x + (fishingPlan.target!.x - stop.x) / focusDistance
+          * (FISHING_SHORE_STANDOFF + 0.25),
+        z: stop.z + (fishingPlan.target!.z - stop.z) / focusDistance
+          * (FISHING_SHORE_STANDOFF + 0.25),
+      };
+      assert.equal(
+        waterFixture.isWaterAt(towardWater.x, towardWater.z),
+        true,
+        `${waterFixture.label} fishing stop should remain immediately beside the water`,
+      );
+      assertDryPolyline(
+        fishingPlan.path,
+        waterFixture.isWaterAt,
+        `${waterFixture.label} fishers should never traverse open water`,
+      );
+    }
+  }
+
+  for (let seed = 0; seed < 16; seed += 1) {
+    assert.equal(
+      pickWorkerWalkPlan(fishingCamp, 0, [], seed, null, waterFixture.isWaterAt),
+      null,
+      `${waterFixture.label} crews without a harvestable shoal should stay in the dry yard`,
+    );
+  }
+}
+
+const closeBankCamp = building('shoreline-close', 'fishing_camp', 0, 0, 3, 60);
+const closeBankWater = (x: number) => x >= 5.5;
+assert.equal(
+  closeBankWater(workplaceYardPosition(closeBankCamp, 2, null, () => false).x),
+  true,
+  'the close-bank fixture should expose a generic yard slot over water',
+);
+assert.equal(
+  closeBankWater(workplaceYardPosition(closeBankCamp, 2, null, closeBankWater).x),
+  false,
+  'fishing-camp yard slots should be pulled safely inland when the bank is close',
+);
+const closeBankTargets = collectWorkerTargets(closeBankCamp, {
+  ...targetInputs,
+  foragingNodes: [foragingNode('close-bank-shoal', 'fish', 10, 0)],
+});
+const closeBankPlans = Array.from({ length: 64 }, (_, seed) =>
+  pickWorkerWalkPlan(
+    closeBankCamp,
+    2,
+    closeBankTargets,
+    seed,
+    null,
+    closeBankWater,
+  )
+);
+assert.ok(
+  closeBankPlans.every((plan) => plan?.activity === 'fish'),
+  'a relocated dry yard slot should always reach its shoreline work stop',
+);
+for (const closeBankPlan of closeBankPlans) {
+  assert.ok(closeBankPlan);
+  assertDryPolyline(
+    closeBankPlan.path,
+    closeBankWater,
+    'close-bank fishers should remain dry for the complete work loop',
   );
 }
 
@@ -823,6 +966,16 @@ assert.match(
   villagerRendererSource,
   /workerSoundSourcePool[\s\S]*farmSongSourcePool[\s\S]*combatAudioFighterPool/,
   'per-frame villager audio sources should use retained record pools',
+);
+assert.match(
+  villagerRendererSource,
+  /pickWorkerWalkPlan\([\s\S]*this\.roadNetwork,[\s\S]*this\.isWaterAt,/,
+  'runtime worker planning must use the rendered-water sampler for fishing stops',
+);
+assert.match(
+  villagerRendererSource,
+  /invalidateNavigation\(\)[\s\S]*fishingRerouteTouchesWater[\s\S]*polylineTouchesWater/,
+  'navigation invalidation must not reroute an active fishing loop through water',
 );
 
 const loggingAgent = {
@@ -1356,4 +1509,28 @@ function pastureState(
     averageSlopeDegrees: 0,
     moisture: 0.7,
   };
+}
+
+function assertDryPolyline(
+  path: ReadonlyArray<{ x: number; z: number }>,
+  isWaterAt: (x: number, z: number) => boolean,
+  message: string,
+): void {
+  for (let index = 0; index < path.length - 1; index += 1) {
+    const start = path[index];
+    const end = path[index + 1];
+    const distance = Math.hypot(end.x - start.x, end.z - start.z);
+    const samples = Math.max(1, Math.ceil(distance / 0.2));
+    for (let sample = 0; sample <= samples; sample += 1) {
+      const t = sample / samples;
+      assert.equal(
+        isWaterAt(
+          start.x + (end.x - start.x) * t,
+          start.z + (end.z - start.z) * t,
+        ),
+        false,
+        message,
+      );
+    }
+  }
 }

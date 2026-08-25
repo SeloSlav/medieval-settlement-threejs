@@ -34,10 +34,10 @@ import { GAME_DAY_SECONDS } from '../world/gameCalendar.ts';
 import {
   edibleFoodStock,
   freshFoodStock,
-  householdFoodPerDay,
   preservableFoodStock,
   type FoodInventoryLike,
 } from '../economy/foodInventory.ts';
+import { householdFoodUnitsPerDayForTier } from '../economy/householdBillDemand.ts';
 
 export type FoodLaborSplit = {
   harvesting: number;
@@ -153,7 +153,7 @@ export function institutionalFoodSurplus(
 export function residenceFoodRunwaySeconds(residence: ResidenceState): number | null {
   if (residence.abandoned || residence.population === 0) return null;
   const stock = residenceFoodStock(residence);
-  const usePerDay = householdFoodPerDay(residence.population);
+  const usePerDay = householdFoodUnitsPerDayForTier(residence.tier);
   if (usePerDay <= 1e-9) return null;
   return stock / usePerDay * GAME_DAY_SECONDS;
 }

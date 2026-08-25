@@ -1451,8 +1451,11 @@ mod tests {
         assert!(CommodityKind::CuredMeat.is_preserved_food());
         assert!(CommodityKind::Honey.is_edible());
         assert_eq!(CommodityKind::RyeBread.meal_value(), 1.0);
-        assert_eq!(CommodityKind::OatGrain.meal_value(), 0.65);
-        assert_eq!(CommodityKind::MaslinBread.meal_value(), 1.05);
+        assert_eq!(CommodityKind::OatGrain.meal_value(), 1.0);
+        assert_eq!(CommodityKind::MaslinBread.meal_value(), 1.0);
+        assert_eq!(CommodityKind::Meat.meal_value(), 1.0);
+        assert_eq!(CommodityKind::Berries.meal_value(), 1.0);
+        assert_eq!(CommodityKind::Fish.meal_value(), 1.0);
         assert!(
             CommodityKind::Milk.spoilage_multiplier()
                 > CommodityKind::RyeBread.spoilage_multiplier()

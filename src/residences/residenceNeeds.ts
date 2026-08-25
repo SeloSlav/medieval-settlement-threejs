@@ -31,8 +31,8 @@ import type { ResidenceState } from '../resources/types.ts';
 import {
   FOOD_PROGRESSION_SLOT_LABELS,
   foodProgressionStatus,
-  householdFoodPerDay,
 } from '../economy/foodInventory.ts';
+import { householdFoodUnitsPerDayForTier } from '../economy/householdBillDemand.ts';
 import {
   getNeed,
   requiredChapelTierForResidence,
@@ -521,7 +521,7 @@ function activeNeedKinds(residence: ResidenceState): ResidenceNeedKind[] {
 function residenceFoodRunwayDays(residence: ResidenceState): number | null {
   if (residence.population === 0) return null;
   const stock = getNeed(residence.needs, 'food').stock;
-  const dailyUse = householdFoodPerDay(residence.population);
+  const dailyUse = householdFoodUnitsPerDayForTier(residence.tier);
   if (dailyUse <= 1e-9) return null;
   return stock / dailyUse;
 }

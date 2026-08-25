@@ -418,6 +418,14 @@ export type LivestockHerdState = {
   haymakingPercent: number;
 };
 
+export type StableOxState = {
+  /** Durable purchased-animal identity. */
+  id: string;
+  stableId: string;
+  /** Zero-based authored resting bay within the stable. */
+  slot: number;
+};
+
 export type BurgageFrontageEdge = 0 | 1 | 2 | 3;
 
 export type BurgageZoneState = {
@@ -571,6 +579,7 @@ export type GameState = {
   graveyards?: Map<string, GraveyardState>;
   corpses?: Map<string, CorpseState>;
   livestockHerds: Map<string, LivestockHerdState>;
+  stableOxen: Map<string, StableOxState>;
   burgageZones: Map<string, BurgageZoneState>;
   residences: Map<string, ResidenceState>;
   backyardGardens: Map<string, BackyardGardenState>;

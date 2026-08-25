@@ -55,6 +55,7 @@ export function createInitialGameState(registry: WorldLayoutRegistry, seed: numb
     pastures: new Map(),
     vineyardParcels: new Map(),
     livestockHerds: new Map(),
+    stableOxen: new Map(),
     burgageZones: new Map(),
     residences: new Map(),
     backyardGardens: new Map(),

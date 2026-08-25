@@ -306,6 +306,8 @@ export type GameBalance = {
     startingBread: number;
     startingIronwork: number;
     startingGold: number;
+    stableOxSlots: number;
+    stableOxPurchaseGold: number;
     stoneSalvageFraction: number;
     timberSalvageFraction: number;
     goldSalvageFraction: number;
@@ -825,6 +827,7 @@ const simKindByKind: Record<string, string | null> = {
   wayside_shrine: null,
   marketplace: null,
   town_hall: null,
+  stable: null,
   village_storehouse: 'VillageStorehouse',
   watchtower: null,
   guardhouse: 'Guardhouse',
@@ -962,6 +965,8 @@ function generateRust(): string {
     `pub const STARTING_BREAD: f64 = ${rustF64(b.economy.startingBread)};`,
     `pub const STARTING_IRONWORK: f64 = ${rustF64(b.economy.startingIronwork)};`,
     `pub const STARTING_GOLD: f64 = ${rustF64(b.economy.startingGold)};`,
+    `pub const STABLE_OX_SLOTS: u8 = ${b.economy.stableOxSlots};`,
+    `pub const STABLE_OX_PURCHASE_GOLD: f64 = ${rustF64(b.economy.stableOxPurchaseGold)};`,
     `pub const STONE_SALVAGE_FRACTION: f64 = ${rustF64(b.economy.stoneSalvageFraction)};`,
     `pub const TIMBER_SALVAGE_FRACTION: f64 = ${rustF64(b.economy.timberSalvageFraction)};`,
     `pub const IRONWORK_SALVAGE_FRACTION: f64 = ${rustF64(b.economy.ironworkSalvageFraction)};`,
@@ -1988,6 +1993,8 @@ function generateTypeScript(): string {
     `export const STARTING_BREAD = ${b.economy.startingBread};`,
     `export const STARTING_IRONWORK = ${b.economy.startingIronwork};`,
     `export const STARTING_GOLD = ${b.economy.startingGold};`,
+    `export const STABLE_OX_SLOTS = ${b.economy.stableOxSlots};`,
+    `export const STABLE_OX_PURCHASE_GOLD = ${b.economy.stableOxPurchaseGold};`,
     `export const STONE_SALVAGE_FRACTION = ${b.economy.stoneSalvageFraction};`,
     `export const TIMBER_SALVAGE_FRACTION = ${b.economy.timberSalvageFraction};`,
     `export const IRONWORK_SALVAGE_FRACTION = ${b.economy.ironworkSalvageFraction};`,

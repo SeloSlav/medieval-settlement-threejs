@@ -559,8 +559,9 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
 
     step_backyard_gardens(ctx, &tick, &clock, environment);
     step_fresh_food_spoilage(ctx, &clock, environment, world_seed);
-    // Physical hauling ends at stalls. Once per game day, issue real market
-    // stock to connected homes after local production, intake, and spoilage.
+    // Physical hauling ends at stalls. Several checks per game day issue real
+    // market stock to connected homes after local production, intake, and
+    // spoilage without multiplying the household's monthly target lot.
     step_market_household_distribution(ctx, &tick, sim_tick, environment);
 
     let chapels: Vec<Building> = chapel_ids

@@ -17,7 +17,14 @@ import {
   vec4,
 } from 'three/tsl';
 import { windSpeed, windStrength, WIND_DIR } from '@seedthree/core/wind.js';
-import { createRootedGeometryWindPosition } from '../vegetation/seedthree/seedThreeFoliageWind.ts';
+import {
+  createRootedDogwoodFoliageWindPosition,
+  createRootedGeometryWindPosition,
+  DOGWOOD_LEAF_FLUTTER_AMPLITUDE,
+  DOGWOOD_LEAF_PHASE_MULTIPLIER,
+  DOGWOOD_LEAF_WEIGHT_GATE,
+  DOGWOOD_ROOT_SWAY_AMPLITUDE,
+} from '../vegetation/seedthree/seedThreeFoliageWind.ts';
 import type { Terrain } from '../terrain/Terrain.ts';
 import { applyFoliageDoubleSideNormals } from '../scene/foliageDoubleSideNormals.ts';
 import { chainMaterialShaderPatch } from '../scene/materialShaderPatch.ts';
@@ -105,14 +112,15 @@ export const UNDERGROWTH_KINDS: readonly UndergrowthKind[] = [
   'dogwood',
 ];
 
-export const DOGWOOD_MIN_SCALE = 0.84;
-export const DOGWOOD_MAX_SCALE = 1.25;
-export const DOGWOOD_MAX_HEIGHT_METERS = 3.4;
+export const DOGWOOD_MIN_SCALE = 0.98;
+export const DOGWOOD_MAX_SCALE = 1.42;
+/** Exactly twice the 1.78 m standing first-person body. */
+export const DOGWOOD_MAX_HEIGHT_METERS = 3.56;
 export const DOGWOOD_FOREST_EDGE_SHARE = 0.32;
 export const DOGWOOD_FOREST_CORE_SHARE = 0.24;
 const DOGWOOD_TREE_TRUNK_CLEARANCE = 1.4;
-const DOGWOOD_COMPANION_CLEARANCE = 1.55;
-const DOGWOOD_FOOTPRINT_CLEARANCE = 1.7;
+const DOGWOOD_COMPANION_CLEARANCE = 1.85;
+const DOGWOOD_FOOTPRINT_CLEARANCE = 1.85;
 const DOGWOOD_GROUND_OFFSET_METERS = 0.006;
 
 export type UndergrowthPlacement = {
@@ -287,14 +295,18 @@ export async function createUndergrowthMaterials(
         'SeedThree common dogwood basal stems',
         dogwoodBranch,
         useNodeMaterials,
-        { webglWindAmplitude: 0.075 },
+        { webglWindAmplitude: DOGWOOD_ROOT_SWAY_AMPLITUDE },
       ),
       createUndergrowthCardMaterial(
         'SeedThree common dogwood opposite leaves',
         dogwoodTextures,
         useNodeMaterials,
         [0.27, 0.43, 0.15],
-        { deciduousDogwood: true, webglWindAmplitude: 0.1 },
+        {
+          deciduousDogwood: true,
+          webglWindAmplitude: DOGWOOD_ROOT_SWAY_AMPLITUDE,
+          leafFlutterAmplitude: DOGWOOD_LEAF_FLUTTER_AMPLITUDE,
+        },
       ),
     ],
     prototypes,
@@ -660,9 +672,9 @@ function composeUndergrowthMatrix(
   position.set(placement.x, y, placement.z);
   if (placement.kind === 'dogwood') {
     // The authored variants already carry natural basal-stem asymmetry. Keep
-    // the runtime transform upright so the agreed 0.84-1.25 envelope remains
-    // a strict 2.045-3.375 m height contract rather than gaining Y extent from
-    // a rotated wide crown.
+    // the runtime transform upright so the 0.98-1.42 envelope remains a strict
+    // 2.39-3.56 m height contract rather than gaining Y extent from a rotated
+    // wide crown.
     quaternion.setFromAxisAngle(Y_AXIS, yaw);
   } else {
     const leanDirection = rng() * TAU;
@@ -683,11 +695,10 @@ function composeUndergrowthMatrix(
     : placement.kind === 'juniper'
       ? 1.12
       : 1.0;
-  const widthScale = placement.scale * widthFactor * (
-    placement.kind === 'dogwood'
-      ? THREE.MathUtils.lerp(0.94, 1.06, rng())
-      : THREE.MathUtils.lerp(0.9, 1.14, rng())
-  );
+  const widthScale = placement.kind === 'dogwood'
+    ? THREE.MathUtils.lerp(1, placement.scale, 0.72)
+      * THREE.MathUtils.lerp(0.96, 1.08, rng())
+    : placement.scale * widthFactor * THREE.MathUtils.lerp(0.9, 1.14, rng());
   const heightScale = placement.kind === 'dogwood'
     ? Math.min(placement.scale, DOGWOOD_MAX_HEIGHT_METERS / prototypeHeight)
     : placement.scale * THREE.MathUtils.lerp(0.92, 1.14, rng());
@@ -767,6 +778,7 @@ function sampleUndergrowthTint(kind: UndergrowthKind, rng: () => number): THREE.
 type UndergrowthMaterialOptions = {
   deciduousDogwood?: boolean;
   webglWindAmplitude?: number;
+  leafFlutterAmplitude?: number;
 };
 
 function createUndergrowthCardMaterial(
@@ -792,7 +804,11 @@ function createUndergrowthCardMaterial(
     material.normalScale.set(0.45, 0.45);
     applyFoliageDoubleSideNormals(material);
     if (options.webglWindAmplitude !== undefined) {
-      applyUndergrowthWebGLWind(material, options.webglWindAmplitude);
+      applyUndergrowthWebGLWind(
+        material,
+        options.webglWindAmplitude,
+        options.leafFlutterAmplitude,
+      );
     }
     if (options.deciduousDogwood) applyDogwoodWebGLSeason(material);
     return material;
@@ -826,7 +842,12 @@ function createUndergrowthCardMaterial(
   // NodeMaterial applies InstancedMesh.instanceColor after colorNode. Keeping
   // tint on that built-in path avoids a duplicate per-instance vertex buffer.
   material.colorNode = tsl.texture(textures.albedo);
-  material.positionNode = createRootedGeometryWindPosition(options.webglWindAmplitude ?? 0.1);
+  material.positionNode = options.leafFlutterAmplitude === undefined
+    ? createRootedGeometryWindPosition(options.webglWindAmplitude ?? 0.1)
+    : createRootedDogwoodFoliageWindPosition(
+      options.webglWindAmplitude ?? DOGWOOD_ROOT_SWAY_AMPLITUDE,
+      options.leafFlutterAmplitude,
+    );
 
   if (options.deciduousDogwood) {
     const spring = tsl.uniform(0);
@@ -891,9 +912,14 @@ function createUndergrowthBranchMaterial(
   return material;
 }
 
-function applyUndergrowthWebGLWind(material: THREE.Material, amplitude: number): void {
+function applyUndergrowthWebGLWind(
+  material: THREE.Material,
+  amplitude: number,
+  leafFlutterAmplitude?: number,
+): void {
   const cacheAmplitude = amplitude.toFixed(3);
-  chainMaterialShaderPatch(material, `seedthree-undergrowth-rooted-wind-${cacheAmplitude}`, (shader) => {
+  const cacheFlutter = leafFlutterAmplitude?.toFixed(3) ?? 'none';
+  chainMaterialShaderPatch(material, `seedthree-undergrowth-rooted-wind-${cacheAmplitude}-${cacheFlutter}`, (shader) => {
     shader.uniforms.uUndergrowthTime = worldAnimationTime as unknown as THREE.IUniform;
     shader.uniforms.uUndergrowthWindSpeed = windSpeed as unknown as THREE.IUniform;
     shader.uniforms.uUndergrowthWindStrength = windStrength as unknown as THREE.IUniform;
@@ -902,7 +928,7 @@ function applyUndergrowthWebGLWind(material: THREE.Material, amplitude: number):
       `#include <common>
 attribute float aRootWeight;
 attribute vec3 aAnchorPos;
-attribute vec3 aWindVec;
+attribute vec3 aWindVec;${leafFlutterAmplitude === undefined ? '' : '\nattribute float aLeafPhase;'}
 uniform float uUndergrowthTime;
 uniform float uUndergrowthWindSpeed;
 uniform float uUndergrowthWindStrength;`,
@@ -919,8 +945,27 @@ float undergrowthWindJitter = sin(
 ) * 0.12;
 float undergrowthWindBend = ( undergrowthWindGust + undergrowthWindJitter )
   * uUndergrowthWindStrength * ${cacheAmplitude} * aRootWeight;
+${leafFlutterAmplitude === undefined ? `
 transformed.x += aWindVec.x * undergrowthWindBend;
-transformed.z += aWindVec.z * undergrowthWindBend;`,
+transformed.z += aWindVec.z * undergrowthWindBend;` : `
+float undergrowthLeafFlutterTime = undergrowthWindTime * 5.2
+  + aLeafPhase * ${DOGWOOD_LEAF_PHASE_MULTIPLIER.toFixed(1)}
+  + position.x * 2.1 + position.z * 1.7;
+float undergrowthLeafTip = uv.y * uv.y;
+float undergrowthLeafGate = clamp( aRootWeight * ${DOGWOOD_LEAF_WEIGHT_GATE.toFixed(1)}, 0.0, 1.0 );
+float undergrowthLeafScale = uUndergrowthWindStrength
+  * ${leafFlutterAmplitude.toFixed(3)} * undergrowthLeafTip * undergrowthLeafGate;
+float undergrowthLeafLongitudinal = (
+  sin( undergrowthLeafFlutterTime )
+  + sin( undergrowthLeafFlutterTime * 1.31 ) * 0.35
+) * undergrowthLeafScale;
+float undergrowthLeafLateral = sin( undergrowthLeafFlutterTime * 0.77 )
+  * 0.55 * undergrowthLeafScale;
+float undergrowthLeafAlong = undergrowthWindBend + undergrowthLeafLongitudinal;
+transformed.x += aWindVec.x * undergrowthLeafAlong
+  - aWindVec.z * undergrowthLeafLateral;
+transformed.z += aWindVec.z * undergrowthLeafAlong
+  + aWindVec.x * undergrowthLeafLateral;`}`,
     );
   });
   material.needsUpdate = true;

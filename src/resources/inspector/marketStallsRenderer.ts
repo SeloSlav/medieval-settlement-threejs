@@ -88,14 +88,14 @@ export function renderMarketStallsInspector(
       candidate.kind === 'marketplace'
       && candidate.constructionComplete !== false
       && !fireDisabled.has(candidate.id)
-      && stallAssignments.some((assignment) =>
-        assignment.marketplaceId === candidate.id
-        && assignment.needKind === 'firewood'
+      && stallRoster.workers.some((worker) =>
+        worker.marketplaceId === candidate.id
+        && worker.group === 'goods'
       )
     );
   let roadConnectedHomes = 0;
   let roadConnectedPopulation = 0;
-  let coveredPopulation = 0;
+  let coveredHouseholds = 0;
   for (const residence of context.gameState.residences.values()) {
     if (
       residence.abandoned
@@ -127,7 +127,7 @@ export function renderMarketStallsInspector(
       .sort((left, right) =>
         left.distance - right.distance || left.market.id.localeCompare(right.market.id)
       )[0]?.market;
-    if (claimedMarket?.id === building.id) coveredPopulation += residence.population;
+    if (claimedMarket?.id === building.id) coveredHouseholds += 1;
   }
   const environment = environmentFor(
     context.gameState.seed,
@@ -140,11 +140,11 @@ export function renderMarketStallsInspector(
     building.charcoal ?? 0,
   );
   const fuelDemandPerDay = householdFuelDemandPerDay(
-    coveredPopulation,
+    coveredHouseholds,
     environment.firewoodDemandMultiplier,
   );
   const fuelTarget = marketplaceFuelReserveTarget(
-    coveredPopulation,
+    coveredHouseholds,
     environment.firewoodDemandMultiplier,
     BUILDING_STORAGE_CAPS.marketplace.firewood ?? 0,
     BUILDING_STORAGE_CAPS.marketplace.charcoal ?? 0,
@@ -212,7 +212,7 @@ export function renderMarketStallsInspector(
       kind: 'firewood',
       amount: fuelEquivalent,
       title: 'Household fuel',
-      detail: `${assignmentDetail('firewood', MARKETPLACE_GOODS_STALL_SLOTS, 'No stocked Storehouse table')} · Target: ${fuelTarget.toFixed(0)} equivalents · Runway: ${formatFuelRunway(fuelRunway, coveredPopulation)}`,
+      detail: `${assignmentDetail('firewood', MARKETPLACE_GOODS_STALL_SLOTS, 'No stocked Storehouse table')} · Target: ${fuelTarget.toFixed(0)} equivalents · Runway: ${formatFuelRunway(fuelRunway, coveredHouseholds)}`,
       amountLabel: 'Fuel equivalents',
       resources: resourcesIn(fuelKinds),
     },
@@ -286,8 +286,8 @@ export function renderMarketStallsInspector(
       <li data-inspector-primary data-inspector-resource-strip><span>Marketplace stock</span>${renderInspectorResourceStrip(resourceTokens, { ariaLabel: 'Marketplace stock' })}</li>
       <li data-inspector-primary data-inspector-detail="Food and goods tables are staffed by road-linked Granary and Storehouse workers."><span>Stalls</span><span>${foodAssignments.length}/${MARKETPLACE_FOOD_STALL_SLOTS} food · ${goodsAssignments.length}/${MARKETPLACE_GOODS_STALL_SLOTS} goods${standbyWorkers > 0 ? ` · ${standbyWorkers} standby` : ''}</span></li>
       <li data-inspector-primary data-inspector-detail="Every road-connected home is eligible; exact road length chooses the nearest stocked Marketplace."><span>Reach</span><span>${roadConnectedHomes} homes · ${roadConnectedPopulation} residents</span></li>
-      <li data-inspector-primary><span>Household issues</span><span>Checks ${MARKETPLACE_HOUSEHOLD_ISSUE_CHECKS_PER_DAY} times per day and refills each connected household up to its one-day target when needed</span></li>
-      <li data-inspector-primary data-inspector-detail="Seasonal target: ${MARKETPLACE_FUEL_RESERVE_DAYS} days at ${fuelDemandPerDay.toFixed(1)} fuel-equivalents per day for ${coveredPopulation} covered residents."><span>Fuel runway</span><span>${fuelEquivalent.toFixed(0)}/${fuelTarget.toFixed(0)} eq · ${formatFuelRunway(fuelRunway, coveredPopulation)}</span></li>
+      <li data-inspector-primary><span>Household issues</span><span>Checks ${MARKETPLACE_HOUSEHOLD_ISSUE_CHECKS_PER_DAY} times per day and replenishes each connected household's monthly bill buffer when needed</span></li>
+      <li data-inspector-primary data-inspector-detail="Seasonal target: ${MARKETPLACE_FUEL_RESERVE_DAYS} days at ${fuelDemandPerDay.toFixed(2)} fuel-equivalents per day for ${coveredHouseholds} covered households."><span>Fuel runway</span><span>${fuelEquivalent.toFixed(0)}/${fuelTarget.toFixed(0)} eq · ${formatFuelRunway(fuelRunway, coveredHouseholds)}</span></li>
       <li data-inspector-secondary><span>Cart</span><span>${cartLabel}</span></li>
     `,
     demolish: {
@@ -309,7 +309,7 @@ function formatStallAssignments(
   ).join(' · ');
 }
 
-function formatFuelRunway(days: number, population: number): string {
-  if (population <= 0 || !Number.isFinite(days)) return 'no covered household demand';
+function formatFuelRunway(days: number, households: number): string {
+  if (households <= 0 || !Number.isFinite(days)) return 'no covered household demand';
   return `${days.toFixed(1)} days (${(days / 30).toFixed(1)} months)`;
 }

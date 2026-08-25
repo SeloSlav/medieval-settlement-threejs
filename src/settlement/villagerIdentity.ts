@@ -64,6 +64,7 @@ const OCCUPATIONS: Record<BuildingKind, string> = {
   smithy: 'Blacksmith',
   potter_kiln: 'Potter',
   well: 'Well keeper',
+  stable: 'Ox keeper',
   hunters_hall: 'Hunter',
   foragers_shed: 'Forager',
   fishing_camp: 'Fisher',

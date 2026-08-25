@@ -16,6 +16,11 @@ import {
   GORSKI_SHRUB_VARIANT_COUNT,
   createGorskiShrubPrototype,
 } from '../src/vegetation/seedthree/gorskiShrubPrototypes.ts';
+import {
+  DOGWOOD_LEAF_FLUTTER_AMPLITUDE,
+  DOGWOOD_ROOT_SWAY_AMPLITUDE,
+  sampleDogwoodFoliageWind,
+} from '../src/vegetation/seedthree/seedThreeFoliageWind.ts';
 
 const projectRoot = fileURLToPath(new URL('../', import.meta.url));
 const dogwoodAssetRoot = join(projectRoot, 'src/assets/vegetation/common-dogwood');
@@ -32,6 +37,7 @@ assert.deepEqual(
 assert.equal(commonDogwood.category, 'shrub');
 assert.equal(commonDogwood.foliageType, 'singleLeaves');
 assert.equal(commonDogwood.foliage.mode, 'leaves');
+assert.equal(commonDogwood.foliage.flutterScale, 0.42);
 assert.equal(commonDogwood.foliage.whorlSize, 2, 'dogwood leaves must remain opposite pairs');
 assert.ok(
   commonDogwood.foliage.rotate >= 85 && commonDogwood.foliage.rotate <= 95,
@@ -173,13 +179,18 @@ assert.match(
 );
 assert.match(
   undergrowthSource,
-  /DOGWOOD_MIN_SCALE = 0\.84[\s\S]*DOGWOOD_MAX_SCALE = 1\.25[\s\S]*DOGWOOD_MAX_HEIGHT_METERS = 3\.4/,
+  /DOGWOOD_MIN_SCALE = 0\.98[\s\S]*DOGWOOD_MAX_SCALE = 1\.42[\s\S]*DOGWOOD_MAX_HEIGHT_METERS = 3\.56/,
   'dogwood placement scale and final-height budgets must remain explicit',
 );
 assert.match(
   undergrowthSource,
   /heightScale = placement\.kind === 'dogwood'[\s\S]*Math\.min\(placement\.scale, DOGWOOD_MAX_HEIGHT_METERS \/ prototypeHeight\)[\s\S]*placement\.finalHeight = prototypeHeight \* heightScale/,
-  'dogwood matrices must clamp the generated prototype to the 3.40 m final-height ceiling',
+  'dogwood matrices must clamp the generated prototype to the 3.56 m final-height ceiling',
+);
+assert.match(
+  undergrowthSource,
+  /widthScale = placement\.kind === 'dogwood'[\s\S]*THREE\.MathUtils\.lerp\(1, placement\.scale, 0\.72\)[\s\S]*THREE\.MathUtils\.lerp\(0\.96, 1\.08, rng\(\)\)/,
+  'dogwood height growth must only modestly widen its crown',
 );
 assert.match(
   undergrowthSource,
@@ -193,8 +204,18 @@ assert.match(
 );
 assert.match(
   undergrowthSource,
-  /DOGWOOD_TREE_TRUNK_CLEARANCE[\s\S]*DOGWOOD_COMPANION_CLEARANCE[\s\S]*DOGWOOD_FOOTPRINT_CLEARANCE = 1\.7[\s\S]*isDogwoodFootprintBlocked/,
+  /DOGWOOD_TREE_TRUNK_CLEARANCE[\s\S]*DOGWOOD_COMPANION_CLEARANCE = 1\.85[\s\S]*DOGWOOD_FOOTPRINT_CLEARANCE = 1\.85[\s\S]*isDogwoodFootprintBlocked/,
   'large dogwood instances must reserve their complete footprint around trees and blockers',
+);
+assert.match(
+  undergrowthSource,
+  /createRootedDogwoodFoliageWindPosition[\s\S]*DOGWOOD_ROOT_SWAY_AMPLITUDE[\s\S]*DOGWOOD_LEAF_FLUTTER_AMPLITUDE/,
+  'dogwood foliage must use the dedicated SeedThree-rooted leaf response',
+);
+assert.match(
+  undergrowthSource,
+  /aLeafPhase[\s\S]*undergrowthLeafFlutterTime[\s\S]*5\.2[\s\S]*uv\.y \* uv\.y[\s\S]*1\.31[\s\S]*0\.77/,
+  'the WebGL fallback must retain per-leaf phase, SeedThree frequencies, and a pinned petiole edge',
 );
 assert.match(
   undergrowthSource,
@@ -235,6 +256,50 @@ assert.match(
   forestManagerSource,
   /applyUndergrowthClearance[\s\S]*undergrowthBucketForPlacement[\s\S]*bucket\.mesh\.setMatrixAt[\s\S]*bucket\.shadowMesh\.setMatrixAt/,
   'dogwood must inherit the generic undergrowth road/building clearance lifecycle',
+);
+
+assert.equal(DOGWOOD_ROOT_SWAY_AMPLITUDE, 0.35);
+assert.equal(DOGWOOD_LEAF_FLUTTER_AMPLITUDE, 0.055);
+const windSampleOptions = {
+  timeSeconds: 2.5,
+  windSpeedValue: 0.84,
+  windStrengthValue: 0.55,
+  anchorX: 13.4,
+  anchorZ: -8.1,
+  localX: 0.42,
+  localZ: -0.31,
+  rootWeight: 0.18,
+  leafPhase: 0.73,
+};
+const rootSample = sampleDogwoodFoliageWind({ ...windSampleOptions, uvY: 0 });
+assert.equal(rootSample.longitudinalFlutter, 0, 'dogwood petiole vertices must not flutter');
+assert.equal(rootSample.lateralFlutter, 0, 'dogwood petiole vertices must not twist away from stems');
+const tipSample = sampleDogwoodFoliageWind({ ...windSampleOptions, uvY: 1 });
+assert.ok(
+  Math.hypot(tipSample.longitudinalFlutter, tipSample.lateralFlutter) > 0.001,
+  'dogwood leaf tips must visibly respond at the SeedThree wind checkpoints',
+);
+assert.deepEqual(
+  sampleDogwoodFoliageWind({ ...windSampleOptions, uvY: 1 }),
+  tipSample,
+  'fixed time, phase, and wind must reproduce identical dogwood motion',
+);
+const laterTipSample = sampleDogwoodFoliageWind({
+  ...windSampleOptions,
+  timeSeconds: 5,
+  uvY: 1,
+});
+assert.notDeepEqual(laterTipSample, tipSample, 'dogwood leaf tips must change across wind time');
+const stillTipSample = sampleDogwoodFoliageWind({
+  ...windSampleOptions,
+  timeSeconds: 12,
+  windStrengthValue: 0,
+  uvY: 1,
+});
+assert.deepEqual(
+  stillTipSample,
+  { baseSway: 0, longitudinalFlutter: 0, lateralFlutter: 0 },
+  'zero wind must reproduce the exact dogwood rest pose',
 );
 
 console.log('test:dogwood-integration passed');
@@ -289,20 +354,41 @@ function dogwoodPrototypeSignatures(): Record<string, string> {
         Math.hypot(positions.getX(index), positions.getZ(index)),
       );
     }
+    const maximumWidthScale = THREE.MathUtils.lerp(1, 1.42, 0.72) * 1.08;
     assert.ok(
-      maximumRadialExtent * 1.25 * 1.06 <= 1.7,
-      `dogwood variant ${variant} can exceed its 1.70 m clearance at maximum runtime width scale`,
+      maximumRadialExtent * maximumWidthScale <= 1.85,
+      `dogwood variant ${variant} can exceed its 1.85 m clearance at maximum runtime width scale`,
     );
     const rootWeight = geometry.getAttribute('aRootWeight');
     assert.ok(rootWeight, `dogwood variant ${variant} needs rooted wind weights`);
+    const leafPhase = geometry.getAttribute('aLeafPhase');
+    assert.ok(leafPhase, `dogwood variant ${variant} needs per-leaf SeedThree phases`);
+    assert.ok(
+      rootWeight instanceof THREE.InterleavedBufferAttribute
+        && leafPhase instanceof THREE.InterleavedBufferAttribute
+        && rootWeight.data === leafPhase.data,
+      `dogwood variant ${variant} must interleave weight and phase inside one portable buffer`,
+    );
     let minimumRootWeight = Number.POSITIVE_INFINITY;
     let maximumRootWeight = Number.NEGATIVE_INFINITY;
+    let maximumLeafPhase = Number.NEGATIVE_INFINITY;
+    const nonzeroLeafPhases = new Set<string>();
     for (let index = 0; index < rootWeight.count; index++) {
       minimumRootWeight = Math.min(minimumRootWeight, rootWeight.getX(index));
       maximumRootWeight = Math.max(maximumRootWeight, rootWeight.getX(index));
+      maximumLeafPhase = Math.max(maximumLeafPhase, leafPhase.getX(index));
+      if (leafPhase.getX(index) > 0) nonzeroLeafPhases.add(leafPhase.getX(index).toFixed(5));
     }
     assert.ok(minimumRootWeight <= 0.001);
-    assert.ok(maximumRootWeight >= 0.99 && maximumRootWeight <= 1.001);
+    assert.ok(
+      maximumRootWeight >= 0.17 && maximumRootWeight <= 0.181,
+      `dogwood variant ${variant} must preserve its preset 0.18 SeedThree wind ceiling`,
+    );
+    assert.ok(maximumLeafPhase >= 0.4 && maximumLeafPhase <= 1.001);
+    assert.ok(
+      nonzeroLeafPhases.size > 20,
+      `dogwood variant ${variant} needs visibly detuned leaf phases`,
+    );
     assertPortableVertexBuffers(geometry, variant);
     signatures[String(variant)] = geometryHash(geometry);
     geometry.dispose();
@@ -373,10 +459,14 @@ function assertDedicatedAlbedo(fileName: string, surface: 'branch' | 'leaf'): vo
 
 function geometryHash(geometry: THREE.BufferGeometry): string {
   const hash = createHash('sha256');
-  for (const name of ['position', 'normal', 'uv', 'aRootWeight']) {
+  for (const name of ['position', 'normal', 'uv', 'aRootWeight', 'aLeafPhase']) {
     const attribute = geometry.getAttribute(name);
     assert.ok(attribute, `dogwood prototype geometry is missing ${name}`);
-    hash.update(Buffer.from(attribute.array.buffer, attribute.array.byteOffset, attribute.array.byteLength));
+    for (let index = 0; index < attribute.count; index++) {
+      hash.update(`${attribute.getX(index).toFixed(7)},`);
+      if (attribute.itemSize > 1) hash.update(`${attribute.getY(index).toFixed(7)},`);
+      if (attribute.itemSize > 2) hash.update(`${attribute.getZ(index).toFixed(7)},`);
+    }
   }
   if (geometry.index) {
     hash.update(Buffer.from(

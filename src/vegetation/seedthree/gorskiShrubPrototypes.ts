@@ -109,14 +109,19 @@ export function createGorskiShrubPrototype(
     : null;
 
   const branchGeometry = copySurfaceGeometry(generated.geometry);
+  if (dogwoodVariant) addDogwoodBranchWindProfile(branchGeometry, generated.geometry);
   const foliageGeometries = [terminalFoliage, parentFoliage]
     .filter((mesh): mesh is THREE.InstancedMesh => Boolean(mesh))
-    .map(bakeInstancedSurfaceGeometry);
+    .map((mesh) => bakeInstancedSurfaceGeometry(mesh, Boolean(dogwoodVariant)));
   const foliageGeometry = mergeGeometries(foliageGeometries, false);
   if (!foliageGeometry) throw new Error(`Unable to bake foliage for ${species.name}`);
   const geometry = mergeGeometries([branchGeometry, foliageGeometry], true);
   if (!geometry) throw new Error(`Unable to merge shrub prototype for ${species.name}`);
-  addRootWeightAttribute(geometry);
+  if (dogwoodVariant) {
+    interleaveDogwoodWindProfile(geometry);
+  } else {
+    addRootWeightAttribute(geometry);
+  }
   geometry.computeBoundingBox();
   geometry.computeBoundingSphere();
   geometry.userData.gorskiShrubKind = kind;
@@ -158,12 +163,30 @@ export function createGorskiShrubPrototype(
   };
 }
 
-function bakeInstancedSurfaceGeometry(mesh: THREE.InstancedMesh): THREE.BufferGeometry {
+function bakeInstancedSurfaceGeometry(
+  mesh: THREE.InstancedMesh,
+  preserveDogwoodWindProfile = false,
+): THREE.BufferGeometry {
   const pieces: THREE.BufferGeometry[] = [];
   const matrix = new THREE.Matrix4();
+  const sourceWeights = mesh.geometry.userData.windWeights as ArrayLike<number> | undefined;
+  const sourcePhases = mesh.geometry.getAttribute('aThickness');
   for (let index = 0; index < mesh.count; index++) {
     mesh.getMatrixAt(index, matrix);
     const piece = copySurfaceGeometry(mesh.geometry);
+    if (preserveDogwoodWindProfile) {
+      const vertexCount = piece.getAttribute('position').count;
+      const rootWeight = Number(sourceWeights?.[index] ?? 0);
+      const leafPhase = sourcePhases ? sourcePhases.getX(index) : 0.7;
+      piece.setAttribute(
+        'aRootWeight',
+        new THREE.BufferAttribute(new Float32Array(vertexCount).fill(rootWeight), 1),
+      );
+      piece.setAttribute(
+        'aLeafPhase',
+        new THREE.BufferAttribute(new Float32Array(vertexCount).fill(leafPhase), 1),
+      );
+    }
     piece.applyMatrix4(matrix);
     pieces.push(piece);
   }
@@ -171,6 +194,45 @@ function bakeInstancedSurfaceGeometry(mesh: THREE.InstancedMesh): THREE.BufferGe
   for (const piece of pieces) piece.dispose();
   if (!merged) throw new Error(`Unable to flatten ${mesh.name || 'SeedThree foliage'}`);
   return merged;
+}
+
+function addDogwoodBranchWindProfile(
+  target: THREE.BufferGeometry,
+  source: THREE.BufferGeometry,
+): void {
+  const sourceWind = source.getAttribute('aWind');
+  const vertexCount = target.getAttribute('position').count;
+  if (!sourceWind || sourceWind.count !== vertexCount) {
+    throw new Error('Common dogwood branches require SeedThree fork-continuous wind weights');
+  }
+  target.setAttribute('aRootWeight', sourceWind.clone());
+  target.setAttribute(
+    'aLeafPhase',
+    new THREE.BufferAttribute(new Float32Array(vertexCount), 1),
+  );
+}
+
+/**
+ * Dogwood keeps SeedThree's twig weight and per-leaf phase without adding a
+ * ninth portable WebGPU vertex buffer. Both logical attributes share one
+ * interleaved buffer; the other shrub species retain their cheaper scalar
+ * height profile.
+ */
+function interleaveDogwoodWindProfile(geometry: THREE.BufferGeometry): void {
+  const rootWeight = geometry.getAttribute('aRootWeight');
+  const leafPhase = geometry.getAttribute('aLeafPhase');
+  if (!rootWeight || !leafPhase || rootWeight.count !== leafPhase.count) {
+    throw new Error('Common dogwood wind profile is incomplete after prototype merge');
+  }
+  const data = new THREE.InterleavedBuffer(new Float32Array(rootWeight.count * 2), 2);
+  const interleavedRootWeight = new THREE.InterleavedBufferAttribute(data, 1, 0);
+  const interleavedLeafPhase = new THREE.InterleavedBufferAttribute(data, 1, 1);
+  for (let index = 0; index < rootWeight.count; index++) {
+    interleavedRootWeight.setX(index, rootWeight.getX(index));
+    interleavedLeafPhase.setX(index, leafPhase.getX(index));
+  }
+  geometry.setAttribute('aRootWeight', interleavedRootWeight);
+  geometry.setAttribute('aLeafPhase', interleavedLeafPhase);
 }
 
 function copySurfaceGeometry(source: THREE.BufferGeometry): THREE.BufferGeometry {

@@ -6,6 +6,8 @@ import {
   buildUndergrowthInstances,
   createUndergrowthMaterials,
   createUndergrowthPlacements,
+  DOGWOOD_MAX_SCALE,
+  DOGWOOD_MIN_SCALE,
   disposeUndergrowthInstances,
   type UndergrowthPlacement,
 } from '../props/ForestUndergrowth.ts';
@@ -40,6 +42,15 @@ type DogwoodRenderEvidence = {
   stemSubmissions: number;
   foliageSubmissions: number;
   renderCalls: number;
+  timeSeconds: number;
+  windStrength: number;
+  variant: number | null;
+};
+
+type DogwoodCaptureOptions = {
+  timeSeconds?: number;
+  windStrength?: number;
+  variant?: number | null;
 };
 
 type DogwoodPlacementSweep = {
@@ -118,6 +129,7 @@ declare global {
     __SHRUB_LINEUP_READY__?: boolean;
     __DOGWOOD_LINEUP_CAPTURE__?: (
       mode: DogwoodCaptureMode,
+      options?: DogwoodCaptureOptions,
     ) => Promise<DogwoodRenderEvidence>;
   }
 }
@@ -141,8 +153,8 @@ const fixedAnimationTime = requestedTimeValue !== null && Number.isFinite(reques
 const requestedDogwoodScale = Number(query.get('scale') ?? '1');
 const dogwoodScale = THREE.MathUtils.clamp(
   Number.isFinite(requestedDogwoodScale) ? requestedDogwoodScale : 1,
-  0.84,
-  1.25,
+  DOGWOOD_MIN_SCALE,
+  DOGWOOD_MAX_SCALE,
 );
 const requestedStock = Number(query.get('stock') ?? '1');
 const stockRatio = THREE.MathUtils.clamp(Number.isFinite(requestedStock) ? requestedStock : 1, 0, 1);
@@ -189,7 +201,7 @@ for (const [kind, centerX] of lineupKinds) {
   for (let variant = 0; variant < 3; variant++) {
     placements.push({
       kind,
-      x: centerX + (variant - 1) * (kind === 'dogwood' ? 2.35 : kind === 'juniper' ? 1.15 : 0.82),
+      x: centerX + (variant - 1) * (kind === 'dogwood' ? 2.65 : kind === 'juniper' ? 1.15 : 0.82),
       z: kind === 'dogwood' ? (variant === 1 ? 0.35 : -0.22) : variant === 1 ? 0.42 : -0.18,
       scale: kind === 'dogwood'
         ? dogwoodScale
@@ -257,8 +269,8 @@ const camera = new THREE.PerspectiveCamera(38, 1, 0.05, 100);
 const view = query.get('view') ?? 'design';
 if (view === 'near') {
   if (isDogwoodFocus) {
-    camera.position.set(0.2, 2.55, 6.7);
-    camera.lookAt(0, 1.32, 0);
+    camera.position.set(0.2, 2.9, 7.1);
+    camera.lookAt(0, 1.58, 0);
   } else if (focus === 'bilberry') {
     camera.position.set(-7.2, 1.2, 2.05);
     camera.lookAt(-7.2, 0.55, 0);
@@ -277,16 +289,16 @@ if (view === 'near') {
   }
 } else if (view === 'far') {
   if (isDogwoodFocus) {
-    camera.position.set(0.4, 8.7, 20.5);
-    camera.lookAt(0, 1.25, 0);
+    camera.position.set(0.4, 9.2, 21.2);
+    camera.lookAt(0, 1.65, 0);
   } else {
     camera.position.set(0, 14.5, 31);
     camera.lookAt(0.5, 0.75, 0);
   }
 } else {
   if (isDogwoodFocus) {
-    camera.position.set(0.35, 5.2, 12.6);
-    camera.lookAt(0, 1.3, 0);
+    camera.position.set(0.35, 5.8, 13.2);
+    camera.lookAt(0, 1.65, 0);
   } else {
     camera.position.set(0.5, 7.8, 19.5);
     camera.lookAt(0.5, 0.82, 0);
@@ -320,13 +332,15 @@ for (const bucket of dogwoodBuckets ?? []) {
   };
 }
 
-function prepareFrame(now: number): void {
-  setWorldAnimationTime(fixedAnimationTime ?? now * 0.001);
+function prepareFrame(now: number, animationTimeOverride?: number): number {
+  const animationTime = animationTimeOverride ?? fixedAnimationTime ?? now * 0.001;
+  setWorldAnimationTime(animationTime);
   const width = root!.clientWidth;
   const height = root!.clientHeight;
   renderer.setSize(width, height, false);
   camera.aspect = width / height;
   camera.updateProjectionMatrix();
+  return animationTime;
 }
 
 function render(now = performance.now()): void {
@@ -339,14 +353,35 @@ function render(now = performance.now()): void {
 }
 
 if (isDogwoodFocus && dogwoodMaterials) {
-  window.__DOGWOOD_LINEUP_CAPTURE__ = async (mode) => {
+  window.__DOGWOOD_LINEUP_CAPTURE__ = async (mode, options = {}) => {
     capturePaused = true;
+    const requestedVariant = options.variant;
+    const variant = Number.isInteger(requestedVariant)
+      && Number(requestedVariant) >= 0
+      && Number(requestedVariant) < (dogwoodBuckets?.length ?? 0)
+      ? Number(requestedVariant)
+      : null;
+    for (let index = 0; index < (dogwoodBuckets?.length ?? 0); index++) {
+      const visible = variant === null || index === variant;
+      dogwoodBuckets![index]!.mesh.visible = visible;
+      dogwoodBuckets![index]!.shadowMesh.visible = visible;
+    }
     dogwoodMaterials[0].visible = mode === 'stems' || mode === 'final';
     dogwoodMaterials[1].visible = foliagePresentation.dormancy < 1
       && (mode === 'foliage' || mode === 'final');
+    const captureWindStrength = typeof options.windStrength === 'number'
+      && Number.isFinite(options.windStrength)
+      ? THREE.MathUtils.clamp(Number(options.windStrength), 0, 1)
+      : 0.38;
+    windStrength.value = captureWindStrength;
     stemSubmissions = 0;
     foliageSubmissions = 0;
-    prepareFrame(performance.now());
+    const captureTime = prepareFrame(
+      performance.now(),
+      typeof options.timeSeconds === 'number' && Number.isFinite(options.timeSeconds)
+        ? options.timeSeconds
+        : undefined,
+    );
     renderer.info.reset();
     renderer.render(scene, camera);
     await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
@@ -356,6 +391,9 @@ if (isDogwoodFocus && dogwoodMaterials) {
       stemSubmissions,
       foliageSubmissions,
       renderCalls: renderer.info.render.calls,
+      timeSeconds: captureTime,
+      windStrength: captureWindStrength,
+      variant,
     };
   };
 }
@@ -406,6 +444,8 @@ const dogwoodHeights: number[] = [];
 const dogwoodGroundContacts: number[] = [];
 const dogwoodGroundOrigins: number[] = [];
 const dogwoodStemCounts: number[] = [];
+const dogwoodWidthsX: number[] = [];
+const dogwoodWidthsZ: number[] = [];
 let dogwoodTriangles = 0;
 for (const bucket of dogwoodBuckets ?? []) {
   bucket.mesh.geometry.computeBoundingBox();
@@ -418,6 +458,8 @@ for (const bucket of dogwoodBuckets ?? []) {
     dogwoodGroundOrigins.push(matrix.elements[13]!);
     dogwoodGroundContacts.push(worldBounds.min.y);
     dogwoodHeights.push(worldBounds.max.y - worldBounds.min.y);
+    dogwoodWidthsX.push(worldBounds.max.x - worldBounds.min.x);
+    dogwoodWidthsZ.push(worldBounds.max.z - worldBounds.min.z);
   }
 }
 document.body.dataset.dogwoodInstances = String(
@@ -432,6 +474,12 @@ document.body.dataset.dogwoodGroundContacts = dogwoodGroundContacts
   .join(',');
 document.body.dataset.dogwoodGroundOrigins = dogwoodGroundOrigins
   .map((height) => height.toFixed(6))
+  .join(',');
+document.body.dataset.dogwoodFinalWidthsX = dogwoodWidthsX
+  .map((width) => width.toFixed(6))
+  .join(',');
+document.body.dataset.dogwoodFinalWidthsZ = dogwoodWidthsZ
+  .map((width) => width.toFixed(6))
   .join(',');
 document.body.dataset.dogwoodTriangles = String(dogwoodTriangles);
 document.body.dataset.dogwoodLeafyDrawCalls = String(
@@ -452,6 +500,8 @@ document.body.dataset.dogwoodSignature = [
   dogwoodHeights.map((height) => height.toFixed(6)).join(','),
   dogwoodGroundContacts.map((height) => height.toFixed(6)).join(','),
   dogwoodGroundOrigins.map((height) => height.toFixed(6)).join(','),
+  dogwoodWidthsX.map((width) => width.toFixed(6)).join(','),
+  dogwoodWidthsZ.map((width) => width.toFixed(6)).join(','),
   dogwoodTriangles,
 ].join(':');
 

@@ -3320,6 +3320,18 @@ pub fn demolish_building(ctx: &ReducerContext, building_id: u64) -> Result<(), S
     {
         ctx.db.vineyard_parcel().id().delete(parcel.id);
     }
+    // Physical demolition may repurpose this exact Building row into a
+    // salvage pile, so remove stable-owned animals before that identity can
+    // change kind and leave orphaned ox rows behind.
+    for ox in ctx
+        .db
+        .stable_ox()
+        .stable_id()
+        .filter(&building_id)
+        .collect::<Vec<_>>()
+    {
+        ctx.db.stable_ox().id().delete(ox.id);
+    }
 
     let physical_reclamation = ctx
         .db

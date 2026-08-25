@@ -105,35 +105,40 @@ export const NAMED_FOOD_LABELS: Record<NamedFoodKind, string> = {
 
 export type FoodInventoryLike = Partial<Record<FoodInventoryKind, number>>;
 
-/** Physical food units converted to the meal-equivalents used by demand. */
+/**
+ * Every ready-to-eat physical food unit is one indivisible household ration.
+ * Food identity still matters through category requirements, spoilage,
+ * preservation, and recipes, but not through fractional nutrition weights.
+ * Keep this exhaustive table in parity with `CommodityKind::meal_value`.
+ */
 export const FOOD_MEAL_VALUES: Readonly<Record<FoodInventoryKind, number>> = {
   food: 1,
-  oatGrain: 0.65,
+  oatGrain: 1,
   ryeBread: 1,
-  maslinBread: 1.05,
-  meat: 1.1,
+  maslinBread: 1,
+  meat: 1,
   fish: 1,
-  berries: 0.55,
-  mushrooms: 0.6,
-  milk: 0.75,
-  apples: 0.6,
-  pears: 0.62,
-  cherries: 0.6,
-  aronia: 0.5,
-  rosehips: 0.52,
-  vegetables: 0.7,
-  cabbage: 0.75,
-  carrots: 0.68,
-  beetroot: 0.7,
-  eggs: 0.75,
-  grapes: 0.6,
+  berries: 1,
+  mushrooms: 1,
+  milk: 1,
+  apples: 1,
+  pears: 1,
+  cherries: 1,
+  aronia: 1,
+  rosehips: 1,
+  vegetables: 1,
+  cabbage: 1,
+  carrots: 1,
+  beetroot: 1,
+  eggs: 1,
+  grapes: 1,
   preservedFood: 1,
-  curedMeat: 1.15,
-  smokedFish: 1.05,
-  cheese: 0.9,
+  curedMeat: 1,
+  smokedFish: 1,
+  cheese: 1,
   aroniaJam: 1,
   rosehipJam: 1,
-  honey: 1.2,
+  honey: 1,
 };
 
 /** Relative decay inside each food's fresh or preserved storage class. */
