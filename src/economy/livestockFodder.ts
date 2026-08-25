@@ -31,6 +31,9 @@ import type {
 } from '../resources/types.ts';
 import { freshFoodStock, preservedFoodStock } from './foodInventory.ts';
 import {
+  averageProductiveCalendarDayShare,
+} from '../world/holidayCalendar.ts';
+import {
   pannageCapacityMultiplierFor,
   seasonForMonth,
 } from '../world/seasonPolicy.ts';
@@ -240,6 +243,7 @@ export function projectLivestockFodderHolding(
   laborForecast?: LivestockLaborForecast | null,
 ): LivestockFodderHoldingPlan {
   const cyclesPerDay = livestockCyclesPerCalendarDay(building, sabbathObserved);
+  const productiveDayShare = averageProductiveCalendarDayShare(sabbathObserved);
   const {
     onsiteHumanWorkers,
     pairedOxen,
@@ -247,7 +251,7 @@ export function projectLivestockFodderHolding(
   } = normalizedLivestockLaborForecast(building, laborForecast);
   const laborCyclesPerDay = cyclesPerDay
     * effectiveWorkers
-    * (sabbathObserved ? 6 / 7 : 1);
+    * productiveDayShare;
   const suppliedHeads = Math.min(
     Math.max(0, herd.headCount),
     Math.max(0, herd.suppliedCapacity),
@@ -260,9 +264,8 @@ export function projectLivestockFodderHolding(
     suppliedHeads,
     livestockCareCapacity(herd.species, onsiteHumanWorkers),
   );
-  const careSupportedHeads = sabbathObserved
-    ? (workdaySupportedHeads * 6 + sabbathSupportedHeads) / 7
-    : workdaySupportedHeads;
+  const careSupportedHeads = workdaySupportedHeads * productiveDayShare
+    + sabbathSupportedHeads * (1 - productiveDayShare);
   const productiveHeads = herd.species === 'swine'
     ? 0
     : careSupportedHeads * Math.min(1, Math.max(0, herd.health));
@@ -399,7 +402,7 @@ export function projectLivestockFodderHolding(
   // but each due cycle can prepare only one feed batch. Stable oxen therefore
   // do not multiply the oats-to-feed workshop rate.
   const staffedFeedCyclesPerDay = onsiteHumanWorkers > 0
-    ? cyclesPerDay * (sabbathObserved ? 6 / 7 : 1)
+    ? cyclesPerDay * productiveDayShare
     : 0;
   const feedConversionPerDay = building.kind === 'pastoral_farmstead'
     ? staffedFeedCyclesPerDay * LIVESTOCK_ANIMAL_FEED_PER_CYCLE

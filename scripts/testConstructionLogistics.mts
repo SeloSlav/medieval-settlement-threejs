@@ -1156,12 +1156,12 @@ assert.equal(
   'an enabled steward must be distinguished from baseline automatic queue call-up',
 );
 
-const nightPauseContext = constructionContext([stoneSource], 5, 30);
-nightPauseContext.gameState.tick = 300;
-assert.doesNotMatch(
-  renderConstructionInspector(siteTarget, nightPauseContext as never).statusText,
-  /Night hours|resume during work hours/,
-  'cosmetic night must not present a false construction pause',
+const cosmeticClockContext = constructionContext([stoneSource], 5, 30);
+cosmeticClockContext.gameState.tick = 300;
+assert.equal(
+  renderConstructionInspector(siteTarget, cosmeticClockContext as never).statusText,
+  '75% built · materials ready',
+  'the displayed clock must not change construction status at an ordinary hour',
 );
 const raidPauseContext = {
   ...constructionContext([stoneSource], 5, 30),

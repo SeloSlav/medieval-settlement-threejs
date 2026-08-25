@@ -23,6 +23,7 @@ import {
 } from '../src/logistics/firewoodLogistics.ts';
 import { computeResourceTotals } from '../src/resources/resourceTotals.ts';
 import type { GameState, ResidenceState } from '../src/resources/types.ts';
+import { averageProductiveCalendarDayShare } from '../src/world/holidayCalendar.ts';
 
 const closeTo = (actual: number, expected: number, message: string): void => {
   assert.ok(
@@ -238,7 +239,7 @@ closeTo(
 );
 
 const workSecondsPerDay = CALENDAR_SECONDS_PER_DAY;
-const sabbathAdjustedWorkFraction = 6 / 7;
+const observedCalendarProductiveShare = averageProductiveCalendarDayShare(true);
 const fishing = BUILDING_DEFINITIONS.fishing_camp;
 const hunting = BUILDING_DEFINITIONS.hunters_hall;
 const lodge = BUILDING_DEFINITIONS.woodcutters_lodge;
@@ -246,18 +247,18 @@ const fullFishingOutputPerDay = fishing.maxLabor
   * FISH_PER_HARVEST
   * workSecondsPerDay
   / fishing.harvestInterval
-  * sabbathAdjustedWorkFraction;
+  * observedCalendarProductiveShare;
 const fullHuntingOutputPerDay = hunting.maxLabor
   * GAME_ANIMALS_PER_HARVEST
   * GAME_PER_HARVEST
   * workSecondsPerDay
   / hunting.harvestInterval
-  * sabbathAdjustedWorkFraction;
+  * observedCalendarProductiveShare;
 const fullLodgeOutputPerDay = lodge.maxLabor
   * LODGE_FIREWOOD_PER_CYCLE
   * workSecondsPerDay
   / lodge.harvestInterval
-  * sabbathAdjustedWorkFraction;
+  * observedCalendarProductiveShare;
 const sixHomeDemandPerDay = 6 / 30;
 assert.ok(
   fullFishingOutputPerDay > sixHomeDemandPerDay * 3,

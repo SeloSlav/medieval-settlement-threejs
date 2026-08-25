@@ -17,6 +17,7 @@ import {
   type GameState,
   type ResourceNodeState,
 } from '../src/resources/types.ts';
+import { averageProductiveCalendarDayShare } from '../src/world/holidayCalendar.ts';
 
 function makeBuilding(
   partial: Partial<BuildingState> & Pick<BuildingState, 'id' | 'kind' | 'x' | 'z'>,
@@ -452,13 +453,15 @@ assert.equal(inboundSupportedPlan.iron.deepSourcesAwaitingSupports, 0);
 assert.equal(inboundSupportedPlan.iron.deepSupportRunwayCycles, 1);
 
 const sabbathPlan = computeSettlementGeologyPlan(state, true);
+const ordinaryProductiveShare = averageProductiveCalendarDayShare(false);
+const sabbathProductiveShare = averageProductiveCalendarDayShare(true);
 assert.ok(
   Math.abs(
     sabbathPlan.iron.finiteExtractionPerDay
       / plan.iron.finiteExtractionPerDay
-      - 6 / 7,
+      - sabbathProductiveShare / ordinaryProductiveShare,
   ) < 1e-9,
-  'the forecast must honor the same six-day work week as production',
+  'the forecast must honor both named holy days and the observed Sabbath',
 );
 
 const exhaustedIron = state.quarries.get('deposit-iron-ordinary');

@@ -121,15 +121,20 @@ assert.doesNotMatch(
   /pub fn household_consumption_paused[\s\S]{0,180}!clock\.is_work_hours/,
   'cosmetic night must not pause household consumption',
 );
-assert.match(
+assert.doesNotMatch(
   laborSchedule,
-  /pub fn protected_household_rest_day[\s\S]*?holiday_observance\(clock\)\.is_some\(\)[\s\S]*?owner_observes_sabbath/,
-  'the owner-aware schedule must protect both named holy days and observed Sundays',
+  /pub fn protected_household_rest_day/,
+  'observed Sunday must not freeze household consumption or shortage clocks',
 );
 assert.match(
   residenceNeeds,
-  /protected_household_rest_day[\s\S]*?household_consumption_paused\(clock\)[\s\S]*?protected_rest_day/,
-  'residence consumption and shortage clocks must use the protected-rest decision',
+  /general_consumption_paused\s*=\s*[\s\S]{0,120}household_consumption_paused\(clock\)[\s\S]*?service_need_clock_active\(kind,\s*general_consumption_paused\)/,
+  'residence bills and shortage clocks must use the holiday-only consumption pause',
+);
+assert.doesNotMatch(
+  residenceNeeds,
+  /owner_observes_sabbath|protected_household_rest_day|protected_rest_day/,
+  'observed Sunday must continue ordinary household bills, needs, and welfare progression',
 );
 for (const policySource of [
   serverPreservedFoodPolicy,
@@ -277,7 +282,7 @@ assert.equal(provisioning.householdBufferPotteryShortHomes, 0);
 assert.match(formatHouseholdBufferReadiness(provisioning), /0 \/ 2 homes buffered/);
 assert.ok(Math.abs(
   provisioning.householdFoodPerDay
-  - householdFoodPerDay(7) * 6 / 7,
+  - householdFoodPerDay(7),
 ) < 1e-9);
 assert.equal(
   provisioning.grossHouseholdFoodPerDay,
@@ -290,18 +295,18 @@ assert.equal(provisioning.grossFoodDemandPerDay, provisioning.totalFoodPerDay);
 assert.ok(Math.abs(
   provisioning.foodRunwayDays
   - provisioning.foodStock
-    / (householdFoodPerDay(7) * 6 / 7 + provisioning.guardFoodPerDay),
+    / (householdFoodPerDay(7) + provisioning.guardFoodPerDay),
 ) < 1e-9);
 assert.ok(Math.abs(
   provisioning.winterFirewoodPerDay
   - 7 * RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC * 120
-    * WINTER_FIREWOOD_DEMAND_MULTIPLIER * 6 / 7,
+    * WINTER_FIREWOOD_DEMAND_MULTIPLIER,
 ) < 1e-9);
 assert.ok(
-  Math.abs(provisioning.winterFirewoodRunwayDays - 10) < 1e-9,
-  `expected 10 winter firewood days, received ${provisioning.winterFirewoodRunwayDays}`,
+  Math.abs(provisioning.winterFirewoodRunwayDays - 60 / 7) < 1e-9,
+  `expected 8.6 winter firewood days, received ${provisioning.winterFirewoodRunwayDays}`,
 );
-assert.ok(Math.abs(provisioning.winterFirewoodCoverage - 1 / 9) < 1e-9);
+assert.ok(Math.abs(provisioning.winterFirewoodCoverage - 2 / 21) < 1e-9);
 assert.equal(provisioning.guardWagePerDay, 2 * GUARDHOUSE_WAGE_PER_GUARD_PER_DAY);
 assert.ok(Math.abs(provisioning.guardWageRunwayDays - 10) < 1e-9);
 assert.equal(provisioning.roadBranches, null, 'legacy callers may omit road topology');

@@ -13,6 +13,8 @@ use crate::seasonal_labor_policy::{
     seasonal_callup_targets, seasonal_labor_target, seasonal_production_active,
     SeasonalCallupCandidate,
 };
+use crate::simulation::game_calendar::GameClock;
+use crate::simulation::tick_context::SimTickContext;
 use crate::tables::{farm_field, Building, Settlement};
 
 use super::{building_fire_state, building_has_active_trip, preserve_in_transit_cart_labor};
@@ -263,7 +265,13 @@ pub fn reconcile_seasonal_labor_for_settlement(
 
 /// Runs once at the authoritative calendar boundary. Disabled policies and
 /// ordinary ticks avoid all settlement scans.
-pub fn step_seasonal_labor_stewards(ctx: &ReducerContext, sim_tick: u64, month: u32) {
+pub fn step_seasonal_labor_stewards(
+    ctx: &ReducerContext,
+    tick: &SimTickContext,
+    clock: &GameClock,
+    sim_tick: u64,
+    month: u32,
+) {
     if !seasonal_labor_steward_review_due(sim_tick) {
         return;
     }
@@ -274,7 +282,16 @@ pub fn step_seasonal_labor_stewards(ctx: &ReducerContext, sim_tick: u64, month: 
         .filter(|settlement| settlement.active && settlement.seasonal_labor_steward_enabled)
         .collect();
     for settlement in settlements {
-        if settlement_has_staffed_town_hall(ctx, &settlement) {
+        // Preserve the physical roster throughout an observed Sabbath. The
+        // missed midnight review runs at the next ordinary day boundary.
+        if settlement_has_staffed_town_hall(ctx, &settlement)
+            && !crate::simulation::labor_schedule::owner_observes_sabbath(
+                ctx,
+                tick,
+                settlement.owner,
+                clock,
+            )
+        {
             reconcile_seasonal_labor_for_settlement(
                 ctx,
                 settlement.owner,

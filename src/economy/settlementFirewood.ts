@@ -12,6 +12,7 @@ import {
   SMOKEHOUSE_FIREWOOD_PER_CYCLE,
   WINTER_FIREWOOD_DEMAND_MULTIPLIER,
 } from '../generated/gameBalance.ts';
+import { averageProductiveCalendarDayShare } from '../world/holidayCalendar.ts';
 import { fireDisabledBuildingIds, fireDisabledResidenceIds } from '../fires/fireIncident.ts';
 import { residenceFirewoodPriorityTarget } from '../logistics/firewoodLogistics.ts';
 import { lodgeSustainedProcessingLabor } from '../logistics/lodgeLogistics.ts';
@@ -442,7 +443,7 @@ function workshopCyclesPerDay(
   if (interval <= 1e-9 || labor <= 0) return 0;
   return CALENDAR_SECONDS_PER_DAY / interval
     * labor
-    * (sabbathObserved ? 6 / 7 : 1);
+    * averageProductiveCalendarDayShare(sabbathObserved);
 }
 
 function finiteStock(value: number | undefined): number {

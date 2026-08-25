@@ -9,6 +9,7 @@ import {
   RICH_MINE_THROUGHPUT_MULTIPLIER,
   STONE_PER_HARVEST,
 } from '../generated/gameBalance.ts';
+import { averageProductiveCalendarDayShare } from '../world/holidayCalendar.ts';
 import { fireDisabledBuildingIds } from '../fires/fireIncident.ts';
 import { getBuildingDefinition } from '../resources/buildings.ts';
 import type {
@@ -572,7 +573,7 @@ function cyclesPerCalendarDay(
   const interval = getBuildingDefinition(kind).harvestInterval;
   if (assignedLabor <= 0 || interval <= EPSILON) return 0;
   return WORKDAY_SECONDS
-    * (sabbathObserved ? 6 / 7 : 1)
+    * averageProductiveCalendarDayShare(sabbathObserved)
     * assignedLabor
     * Math.max(0, throughputMultiplier)
     / interval;

@@ -11,6 +11,7 @@ import {
   SMOKEHOUSE_PRESERVED_FOOD_PER_CYCLE,
   SMOKEHOUSE_SALT_PER_CYCLE,
 } from '../generated/gameBalance.ts';
+import { averageProductiveCalendarDayShare } from '../world/holidayCalendar.ts';
 import { fireDisabledBuildingIds, fireDisabledResidenceIds } from '../fires/fireIncident.ts';
 import type { DeliveryTripState } from '../logistics/deliveryTrips.ts';
 import { compareStableEntityIds } from '../logistics/roadLogistics.ts';
@@ -627,7 +628,7 @@ function cyclesPerCalendarDay(
   const interval = getBuildingDefinition('smokehouse').harvestInterval;
   if (interval <= 1e-9) return 0;
   return WORKDAY_SECONDS
-    * (sabbathObserved ? 6 / 7 : 1)
+    * averageProductiveCalendarDayShare(sabbathObserved)
     * Math.max(0, building.assignedLabor)
     / interval;
 }

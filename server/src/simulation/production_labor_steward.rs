@@ -6,6 +6,9 @@ use crate::reducers::buildings::{
     call_up_operational_production_labor_for_settlement,
     recall_target_idle_processor_labor_for_settlement,
 };
+use crate::simulation::game_calendar::GameClock;
+use crate::simulation::labor_schedule::owner_observes_sabbath;
+use crate::simulation::tick_context::SimTickContext;
 use crate::tables::Settlement;
 
 use super::settlement_has_staffed_town_hall;
@@ -32,7 +35,12 @@ pub fn reconcile_target_production_labor_for_settlement(
 
 /// Runs only at the authoritative calendar boundary. Disabled settlements and
 /// ordinary ticks avoid every production and source scan.
-pub fn step_production_labor_stewards(ctx: &ReducerContext, sim_tick: u64) {
+pub fn step_production_labor_stewards(
+    ctx: &ReducerContext,
+    tick: &SimTickContext,
+    clock: &GameClock,
+    sim_tick: u64,
+) {
     if !seasonal_labor_steward_review_due(sim_tick) {
         return;
     }
@@ -43,7 +51,11 @@ pub fn step_production_labor_stewards(ctx: &ReducerContext, sim_tick: u64) {
         .filter(|settlement| settlement.active && settlement.production_labor_steward_enabled)
         .collect();
     for settlement in settlements {
-        if settlement_has_staffed_town_hall(ctx, &settlement) {
+        // Preserve the physical roster throughout an observed Sabbath. The
+        // missed midnight review runs at the next ordinary day boundary.
+        if settlement_has_staffed_town_hall(ctx, &settlement)
+            && !owner_observes_sabbath(ctx, tick, settlement.owner, clock)
+        {
             reconcile_target_production_labor_for_settlement(
                 ctx,
                 settlement.owner,

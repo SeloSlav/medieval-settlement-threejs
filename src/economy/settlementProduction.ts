@@ -63,6 +63,7 @@ import {
   COBBLER_LEATHER_PER_CYCLE,
   COBBLER_SHOES_PER_CYCLE,
 } from '../generated/gameBalance.ts';
+import { averageProductiveCalendarDayShare } from '../world/holidayCalendar.ts';
 import {
   rosteredCartWorkersByBuilding,
   tripDeliveryRemainingSeconds,
@@ -1101,7 +1102,7 @@ function completedProcessorOverview(
       const maintained = building.kind === 'threshing_barn'
         ? farmToolsMaintained(building.ironwork ?? 0)
         : civilianToolsMaintained(building.ironwork ?? 0);
-      const weeklyWorkShare = sabbathObserved ? 6 / 7 : 1;
+      const weeklyWorkShare = averageProductiveCalendarDayShare(sabbathObserved);
       const canWork = civilianToolSiteCanWork(building, state, mineDeposit);
       let fullyEquippedDemand: number;
       let maintainedDemand: number;
@@ -1994,7 +1995,7 @@ function cyclesPerCalendarDay(
   if (assignedLabor <= 0) return 0;
   const interval = getBuildingDefinition(kind).harvestInterval;
   if (interval <= 1e-6) return 0;
-  const weeklyWorkShare = sabbathObserved ? 6 / 7 : 1;
+  const weeklyWorkShare = averageProductiveCalendarDayShare(sabbathObserved);
   return WORKDAY_SECONDS
     * weeklyWorkShare
     * assignedLabor
@@ -2045,7 +2046,8 @@ function toolMaintenanceRoutePlan(
     };
   }
 
-  const workSeconds = WORKDAY_SECONDS * (sabbathObserved ? 6 / 7 : 1);
+  const workSeconds = WORKDAY_SECONDS
+    * averageProductiveCalendarDayShare(sabbathObserved);
   const speed = TIMBER_DELIVERY_SPEED_MPS
     * Math.max(1e-6, travelSpeedMultiplier);
   const smithyLoads = toolSmithies
@@ -2954,7 +2956,8 @@ export function computeSettlementProductionCapacity(
   );
 
   return {
-    capacityDaysPerWeek: sabbathObserved ? 6 : 7,
+    capacityDaysPerWeek:
+      averageProductiveCalendarDayShare(sabbathObserved) * 7,
     watermillThroughputMultiplier: normalizedWatermillThroughput,
     windmillWeatherThroughputMultiplier: normalizedWindmillWeatherThroughput,
     clayPitThroughputMultiplier: normalizedClayPitThroughput,

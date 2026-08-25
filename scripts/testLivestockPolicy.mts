@@ -95,7 +95,11 @@ import {
   WINTER_PASTURE_CAPACITY_MULTIPLIER,
 } from '../src/generated/gameBalance.ts';
 import type { BuildingState, LivestockHerdState } from '../src/resources/types.ts';
+import { averageProductiveCalendarDayShare } from '../src/world/holidayCalendar.ts';
 import { pannageCapacityMultiplierFor } from '../src/world/seasonPolicy.ts';
+
+const ordinaryProductiveShare = averageProductiveCalendarDayShare(false);
+const sabbathProductiveShare = averageProductiveCalendarDayShare(true);
 
 function buildingFixture(
   id: string,
@@ -607,9 +611,10 @@ const sabbathFeedWorkshopPlan = projectLivestockFodderHolding(
 assert.ok(
   Math.abs(
     sabbathFeedWorkshopPlan.feedConversionPerDay
-      - feedWorkshopPlan.feedConversionPerDay * 6 / 7,
+      - feedWorkshopPlan.feedConversionPerDay
+        * sabbathProductiveShare / ordinaryProductiveShare,
   ) < 1e-9,
-  'Sabbath must pause feed preparation for one day without changing animal biology',
+  'the observed calendar must remove both Sabbath labor and named holy days from feed preparation',
 );
 const unstaffedFeedWorkshopPlan = projectLivestockFodderHolding(
   { ...feedWorkshopBuilding, assignedLabor: 0 },
@@ -811,7 +816,11 @@ const sabbathSummerPlan = projectLivestockFodderHolding(
   6,
   1,
 );
-assert.ok(Math.abs(sabbathSummerPlan.hayOutputPerDay - summerPlan.hayOutputPerDay * 6 / 7) < 1e-9);
+assert.ok(Math.abs(
+  sabbathSummerPlan.hayOutputPerDay
+    - summerPlan.hayOutputPerDay
+      * sabbathProductiveShare / ordinaryProductiveShare,
+) < 1e-9);
 assert.equal(sabbathSummerPlan.dairyPreservedFoodPerDay, summerPlan.dairyPreservedFoodPerDay);
 assert.equal(sabbathSummerPlan.winterHayNeed, summerPlan.winterHayNeed);
 

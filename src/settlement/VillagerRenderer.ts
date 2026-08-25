@@ -2817,7 +2817,6 @@ export class VillagerRenderer {
     if (
       agent.pathPurpose === 'return_home'
       || agent.pathPurpose === 'return_to_work'
-      || agent.pathPurpose === 'return_for_observance'
     ) {
       return false;
     }

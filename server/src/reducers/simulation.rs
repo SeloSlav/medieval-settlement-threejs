@@ -182,12 +182,15 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
         severe_weather_enabled,
         &clock,
     );
-    step_seasonal_labor_stewards(ctx, sim_tick, clock.month);
-    // Time-critical seasonal work has first claim on the day's free labor.
-    // Target-governed production then rotates its safe surplus before
-    // construction claims the remaining pool and blocked builders.
-    step_production_labor_stewards(ctx, sim_tick);
-    step_construction_labor_stewards(ctx, sim_tick);
+    if crate::labor_steward_policy::seasonal_labor_steward_review_due(sim_tick) {
+        let labor_review_tick = SimTickContext::with_road_networks(road_networks.clone());
+        step_seasonal_labor_stewards(ctx, &labor_review_tick, &clock, sim_tick, clock.month);
+        // Time-critical seasonal work has first claim on the day's free labor.
+        // Target-governed production then rotates its safe surplus before
+        // construction claims the remaining pool and blocked builders.
+        step_production_labor_stewards(ctx, &labor_review_tick, &clock, sim_tick);
+        step_construction_labor_stewards(ctx, &labor_review_tick, &clock, sim_tick);
+    }
     step_foraging_lifecycle(ctx, &clock, world_seed, environment, &road_networks);
 
     step_settlement_security(

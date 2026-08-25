@@ -1051,6 +1051,12 @@ const agricultureMenu = renderBuildMenuCards(AGRICULTURE_BUILD_MENU_ENTRIES);
 assert.doesNotMatch(agricultureMenu, /data-action="grain-field"/, 'fields must be started from a selected farmstead');
 assert.doesNotMatch(agricultureMenu, /data-action="pasture"/, 'pastures must be started from a selected livestock holding');
 
+const farmWorkPlanningSource = fs.readFileSync('src/farming/farmWorkPlanning.ts', 'utf8');
+assert.match(
+  farmWorkPlanningSource,
+  /function productiveSecondsInWindow[\s\S]*?holidayObservanceAtDayOffset\(clock,\s*offset\)[\s\S]*?continue/,
+  'farm labor forecasts must remove named holy days from every seasonal work window',
+);
 const farmFieldTool = fs.readFileSync('src/farming/FarmFieldTool.ts', 'utf8');
 assert.match(farmFieldTool, /state\.buildings\.get\(this\.farmsteadId\)/, 'parcel placement must stay pinned to the selected holding');
 assert.doesNotMatch(farmFieldTool, /let distance = Number\.POSITIVE_INFINITY/, 'parcel placement must not silently choose the nearest holding');

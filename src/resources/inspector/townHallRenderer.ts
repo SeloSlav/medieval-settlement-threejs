@@ -2168,7 +2168,7 @@ export function renderTownHallInspector(
           : undefined,
       })
     : null;
-  const processingWeek = `${production.capacityDaysPerWeek}-day working week · operational staffed capacity if supplied · watermills at ${Math.round(production.watermillThroughputMultiplier * 100)}% river power, windmills use their local exposure × ${Math.round(production.windmillWeatherThroughputMultiplier * 100)}% weather, with each mill's tool condition applied`;
+  const processingWeek = `${production.capacityDaysPerWeek.toFixed(1)}-day average productive week · operational staffed capacity if supplied · watermills at ${Math.round(production.watermillThroughputMultiplier * 100)}% river power, windmills use their local exposure × ${Math.round(production.windmillWeatherThroughputMultiplier * 100)}% weather, with each mill's tool condition applied`;
   const productionFireOutageRow = production.fireDisabledProcessorSites === 0
     ? ''
     : `<li><span>Processor fire outages</span><span>${production.fireDisabledProcessorWorkers} ${production.fireDisabledProcessorWorkers === 1 ? 'worker is' : 'workers are'} idle across ${production.fireDisabledProcessorSites} fire-disabled ${production.fireDisabledProcessorSites === 1 ? 'processor' : 'processors'}${production.firstFireDisabledProcessorId === null ? '' : ` <button type="button" class="inspector-jump-button" data-inspect-building="${production.firstFireDisabledProcessorId}" aria-label="Inspect first fire-disabled processor">Inspect</button>`}</span></li>`;
