@@ -22,10 +22,6 @@ import type {
 } from '../src/resources/types.ts';
 import { computeVillagerSlots } from '../src/settlement/villagerPaths.ts';
 import {
-  commuteEffectiveShiftRatio,
-  WORKDAY_SECONDS,
-} from '../src/settlement/workerCommute.ts';
-import {
   allocateProductionWorkers,
   collectWorkerTargets,
   FISHING_SHORE_STANDOFF,
@@ -55,21 +51,9 @@ import {
 import { buildCrowdViewState } from '../src/settlement/crowdView.ts';
 import { RoadNetwork } from '../src/roads/RoadNetwork.ts';
 import {
-  hasBuiltInWorkLodging,
-  REMOTE_WORK_CAMPFIRE_NAME,
-  REMOTE_WORK_CAMP_NAME,
-  resolveWorksiteLodging,
-  supportsRemoteWorkCamp,
-  workLodgingDoorPosition,
-  workLodgingFiresidePosition,
-} from '../src/buildings/remoteWorkCamp.ts';
-import { createRemoteWorkCampMesh } from '../src/buildings/meshes/foundersCampMesh.ts';
-import {
-  BUILDING_COSTS,
   WORKFORCE_AVERAGE_WALK_SPEED_MPS,
   WORKFORCE_ROAD_SPEED_MULTIPLIER,
 } from '../src/generated/gameBalance.ts';
-import { BUILDING_KIND_TO_MENU_ACTION } from '../src/ui/buildMenuMapping.ts';
 import {
   createSelectedAgentRoute,
   SELECTED_AGENT_ROUTE_COLOR,
@@ -281,113 +265,8 @@ assert.equal(
   'road-connected-home',
   'road travel time should beat a slightly shorter direct walk when the road pace makes it faster',
 );
-assert.equal(supportsRemoteWorkCamp('lumber_mill'), true);
-assert.equal(
-  supportsRemoteWorkCamp('stone_quarry'),
-  true,
-  'a Mining Camp must offer the same optional overnight-camp flow as a lumber mill',
-);
-assert.equal(
-  supportsRemoteWorkCamp('clay_pit'),
-  false,
-  'legacy Clay Pits must retain commute behavior without offering a server-rejected camp action',
-);
-assert.equal(supportsRemoteWorkCamp('smithy'), false);
-assert.equal(hasBuiltInWorkLodging('hunters_hall'), true);
-assert.equal(hasBuiltInWorkLodging('reforester'), true);
-assert.equal(hasBuiltInWorkLodging('threshing_barn'), false);
-assert.deepEqual(BUILDING_COSTS.remote_work_camp, { timber: 14, stone: 3 });
 assert.equal(WORKFORCE_AVERAGE_WALK_SPEED_MPS, 1.225);
 assert.equal(WORKFORCE_ROAD_SPEED_MULTIPLIER, 1.25);
-assert.equal(commuteEffectiveShiftRatio(0), 1);
-assert.ok(Math.abs(commuteEffectiveShiftRatio(WORKDAY_SECONDS * 0.125) - 0.75) < 1e-9);
-assert.equal(
-  BUILDING_KIND_TO_MENU_ACTION.remote_work_camp,
-  undefined,
-  'the linked camp must be initiated from a worksite card rather than the global build menu',
-);
-const hunterLodging = building('lodged-hunters', 'hunters_hall', 12, 8, 2, 55);
-assert.equal(
-  resolveWorksiteLodging(hunterLodging, [hunterLodging])?.mode,
-  'built_in',
-  'a hunter hall should canonically lodge its own crew without a second building',
-);
-const campWorkplace = building('camp-layout-workplace', 'lumber_mill', 40, 20, 1, 60);
-const campBuilding = {
-  ...building('camp-layout', 'remote_work_camp', 56, 23, 0, 0),
-  linkedWorksiteId: campWorkplace.id,
-  constructionComplete: true,
-};
-assert.equal(
-  resolveWorksiteLodging(campWorkplace, [campWorkplace, campBuilding])?.lodging.id,
-  campBuilding.id,
-  'only a completed linked camp should replace the extraction crew commute',
-);
-assert.equal(
-  resolveWorksiteLodging(campWorkplace, [
-    campWorkplace,
-    { ...campBuilding, constructionComplete: false },
-  ]),
-  null,
-  'a construction site must not provide lodging before builders finish it',
-);
-assert.equal(
-  resolveWorksiteLodging(campWorkplace, [campWorkplace, campBuilding], new Set([campBuilding.id])),
-  null,
-  'a fire-disabled camp must immediately restore the household commute',
-);
-const tentDoor = workLodgingDoorPosition(campBuilding, 0, commuteRoads);
-const fireside = workLodgingFiresidePosition(campBuilding, 0, commuteRoads);
-assert.ok(
-  Number.isFinite(tentDoor.x)
-    && Number.isFinite(tentDoor.z)
-    && Math.hypot(tentDoor.x - campBuilding.x, tentDoor.z - campBuilding.z) > 0.5,
-  'remote lodging must expose a stable tent entrance on its own building footprint',
-);
-assert.ok(
-  Math.hypot(fireside.x - tentDoor.x, fireside.z - tentDoor.z) > 0.5,
-  'remote workers need a distinct fireside gathering place before bed',
-);
-const campMesh = createRemoteWorkCampMesh();
-assert.equal(campMesh.name, REMOTE_WORK_CAMP_NAME);
-const campTents = campMesh.children
-  .filter((child): child is THREE.Group => (
-    child instanceof THREE.Group && child.name === 'Founding canvas tent'
-  ))
-  .sort((left, right) => left.position.x - right.position.x);
-assert.equal(
-  campTents.length,
-  2,
-  'an enabled rural camp should render two reusable canvas shelters',
-);
-campMesh.updateMatrixWorld(true);
-const leftCanvas = campTents[0]?.getObjectByName('Weathered tent canvas shell');
-const rightCanvas = campTents[1]?.getObjectByName('Weathered tent canvas shell');
-assert.ok(leftCanvas instanceof THREE.Mesh && rightCanvas instanceof THREE.Mesh);
-const leftCanvasBounds = new THREE.Box3().setFromObject(leftCanvas);
-const rightCanvasBounds = new THREE.Box3().setFromObject(rightCanvas);
-const canvasClearance = rightCanvasBounds.min.x - leftCanvasBounds.max.x;
-assert.ok(
-  canvasClearance >= 0.65,
-  `the overnight camp tent canvases should retain visible clearance instead of intersecting (received ${canvasClearance.toFixed(3)} m)`,
-);
-for (const tent of campTents) {
-  assert.equal(
-    tent.children.filter((child) => child.name === 'Taut tent guy rope').length,
-    4,
-    'remote tents should omit the inward guy pair that would cross the shared aisle',
-  );
-  assert.equal(
-    tent.children.filter((child) => child.name === 'Tent stake').length,
-    4,
-    'remote tents should not double their inward stakes in the shared aisle',
-  );
-}
-assert.ok(
-  campMesh.getObjectByName(REMOTE_WORK_CAMPFIRE_NAME) instanceof THREE.Group,
-  'an enabled rural camp should render the animated founders-camp fire treatment',
-);
-
 const treeEntries: TreeLayoutEntry[] = [
   treeEntry('tree-mature', 20, 0),
   treeEntry('tree-stump', 22, 0),
@@ -923,28 +802,6 @@ assert.ok(
   `20,000 material workplaces took ${materialScaleElapsedMs.toFixed(1)} ms to roster`,
 );
 const villagerRendererSource = fs.readFileSync('src/settlement/VillagerRenderer.ts', 'utf8');
-const buildingReducerSource = fs.readFileSync('server/src/reducers/buildings.rs', 'utf8');
-const commuteAuthoritySource = fs.readFileSync(
-  'server/src/simulation/workforce_commute.rs',
-  'utf8',
-);
-const generatedBuildingSource = fs.readFileSync('src/generated/building_table.ts', 'utf8');
-const lodgingInspectorSource = fs.readFileSync(
-  'src/resources/inspector/remoteWorkCampRenderer.ts',
-  'utf8',
-);
-assert.match(buildingReducerSource, /pub fn place_remote_work_camp/);
-assert.match(buildingReducerSource, /place_building_internal\(ctx, "remote_work_camp"\.to_string\(\), x, z, worksite_id\)/);
-assert.match(buildingReducerSource, /Demolish this worksite's overnight camp first/);
-assert.doesNotMatch(buildingReducerSource, /pub fn set_remote_work_camp/);
-assert.match(generatedBuildingSource, /commuteEfficiency: __t\.f64\(\)/);
-assert.match(commuteAuthoritySource, /seasonal_labor_steward_review_due/);
-assert.match(commuteAuthoritySource, /road_path_distances_from/);
-assert.match(commuteAuthoritySource, /worksite_has_active_remote_camp/);
-assert.match(lodgingInspectorSource, /Shift output/);
-assert.doesNotMatch(lodgingInspectorSource, /Authoritative output labor/);
-assert.match(lodgingInspectorSource, /restoring the worksite\\'s full productive shift/);
-assert.doesNotMatch(lodgingInspectorSource, /Â/, 'inspector copy must not contain mojibake');
 assert.match(villagerRendererSource, /scanFromWatchtower/);
 assert.match(villagerRendererSource, /resolveAgentY/);
 assert.match(villagerRendererSource, /buildMarketplaceStallDuties/);

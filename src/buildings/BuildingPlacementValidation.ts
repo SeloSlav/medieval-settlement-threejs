@@ -76,8 +76,7 @@ export type BuildingPlacementFailureReason =
   | 'requires_town_hall_population'
   | 'requires_completed_chapel'
   | 'requires_completed_marketplace'
-  | 'requires_civic_road_link'
-  ;
+  | 'requires_civic_road_link';
 
 export type BuildingPlacementResult =
   | { ok: true }

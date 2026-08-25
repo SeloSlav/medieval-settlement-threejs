@@ -91,6 +91,9 @@ pub(crate) fn settle_regional_market_export(
     let ordinary_resource = if matches!(
         sold_commodity,
         CommodityKind::Apples
+            | CommodityKind::Cabbage
+            | CommodityKind::Carrots
+            | CommodityKind::Beetroot
             | CommodityKind::Eggs
             | CommodityKind::Milk
             | CommodityKind::Meat

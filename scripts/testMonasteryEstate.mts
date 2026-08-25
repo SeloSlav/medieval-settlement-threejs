@@ -352,6 +352,9 @@ assert.match(simulation, /CommodityKind::Cider, yields\.cider/);
 assert.match(simulation, /CommodityKind::Mead, yields\.mead/);
 assert.doesNotMatch(simulation, /CommodityKind::Wine, yields\.wine/);
 assert.match(simulation, /CommodityKind::Milk,\s*food_exportable/);
+assert.match(simulation, /CommodityKind::Cabbage,\s*food_exportable/);
+assert.match(simulation, /CommodityKind::Carrots,\s*food_exportable/);
+assert.match(simulation, /CommodityKind::Beetroot,\s*food_exportable/);
 assert.match(simulation, /fn dispatch_monastery_vineyard_wine[\s\S]*MONASTERY_FEAST_DRINK[\s\S]*monastery\.cider[\s\S]*monastery\.mead[\s\S]*monastery\.wine/);
 assert.match(simulation, /fn advance_monastery_vineyard_fermentation[\s\S]*CommodityKind::Wine/);
 const estateExportSource = simulation.slice(
@@ -378,7 +381,7 @@ assert.match(deliveryTrips, /credit_monastery_export_receipt/);
 const marketplaceTrade = readFileSync(new URL('../server/src/economy/marketplace_trade.rs', import.meta.url), 'utf8');
 assert.match(
   marketplaceTrade,
-  /CommodityKind::Apples[\s\S]*CommodityKind::Vegetables[\s\S]*CommodityKind::Eggs[\s\S]*CommodityKind::Milk[\s\S]*CommodityKind::Meat/,
+  /CommodityKind::Apples[\s\S]*CommodityKind::Cabbage[\s\S]*CommodityKind::Carrots[\s\S]*CommodityKind::Beetroot[\s\S]*CommodityKind::Eggs[\s\S]*CommodityKind::Milk[\s\S]*CommodityKind::Meat/,
 );
 assert.match(marketplaceTrade, /marketplace_trade_offer_for_resource/);
 assert.match(marketplaceTrade, /price_multiplier_for/);

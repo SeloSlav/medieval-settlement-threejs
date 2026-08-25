@@ -257,11 +257,15 @@ function buildDogwoodFoliageCohorts(
       architecture.foliageGapRetention,
       gapInfluence,
     );
+    const massDirection = gapAzimuth + Math.PI;
+    const massWeight = 1 + architecture.foliageMassBias * Math.cos(
+      Math.atan2(tip.z, tip.x) - massDirection,
+    );
     const localVariation = 1 + densityRng.vary(
       0,
       architecture.foliageDensityVariation,
     );
-    return Math.max(0.05, gapWeight * localVariation);
+    return Math.max(0.05, gapWeight * massWeight * localVariation);
   });
   const nodeCounts = allocateWeightedCounts(
     weights,

@@ -26,10 +26,6 @@ import { renderPalisadedRefugeInspector } from './palisadedRefugeRenderer.ts';
 import { renderFoundersCampInspector } from './foundersCampRenderer.ts';
 import { renderSalvagePileInspector } from './salvagePileRenderer.ts';
 import { withBuildingFireSafety } from './fireSafetyRenderer.ts';
-import {
-  renderRemoteWorkCampInspector,
-  withWorksiteLodging,
-} from './remoteWorkCampRenderer.ts';
 import { fireForTarget } from '../../fires/fireIncident.ts';
 import { withBuildingLocalStorage } from './buildingLocalStorageRenderer.ts';
 import { renderWaysideShrineInspector } from './waysideShrineRenderer.ts';
@@ -74,8 +70,6 @@ export function renderBuildingInspector(
       return renderFoundersCampInspector(target, context);
     case 'salvage_pile':
       return renderSalvagePileInspector(target, context);
-    case 'remote_work_camp':
-      return renderRemoteWorkCampInspector(target, context);
     case 'chapel':
       return renderChapelInspector(target, context);
     case 'wayside_shrine':
@@ -143,10 +137,9 @@ export function renderBuildingInspector(
     }
     }
   })();
-  const worksiteView = withWorksiteLodging(view, building, context);
   const storageView = building.kind === 'marketplace'
-    ? worksiteView
-    : withBuildingLocalStorage(worksiteView, building);
+    ? view
+    : withBuildingLocalStorage(view, building);
   const safeView = withBuildingFireSafety(
     storageView,
     building,

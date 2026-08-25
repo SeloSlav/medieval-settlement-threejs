@@ -4,7 +4,6 @@ import { FirstPersonController } from '../camera/FirstPersonController.ts';
 import { FpCollisionWorld } from '../camera/fp/fpCollisionWorld.ts';
 import { BuildingMarkers } from '../buildings/BuildingMarkers.ts';
 import { BuildingTool } from '../buildings/BuildingTool.ts';
-import { REMOTE_WORK_CAMP_MAX_DISTANCE } from '../buildings/remoteWorkCamp.ts';
 import type { FarmFieldMarkers } from '../farming/FarmFieldMarkers.ts';
 import {
   FarmFieldTool,
@@ -87,7 +86,6 @@ import type { BuildingKind } from '../generated/gameBalance.ts';
 import { ECONOMIC_ACTIVITY_TAX_RATE_DEFAULT } from '../economy/villageEconomy.ts';
 import { DEFAULT_FISCAL_POLICY } from '../economy/fiscalPolicy.ts';
 import { DEFAULT_LABOR_STEWARD_RESERVE } from '../economy/laborSteward.ts';
-import { DEFAULT_NIGHT_POLICY } from '../economy/nightPolicy.ts';
 import { DEFAULT_PANTRY_SAFEGUARD_POLICY } from '../economy/pantrySafeguardPolicy.ts';
 import { DEFAULT_PARISH_POLICY } from '../economy/chapelParish.ts';
 import { settlementHasStaffedChapel } from '../logistics/landmarkAccess.ts';
@@ -546,11 +544,6 @@ export async function bootstrapAppSession(
     onPlaceBuilding: async (kind, x, z) => {
       requireSessionReady();
       await spacetimeStore.placeBuilding(kind, x, z);
-      ambientAudio.playUiSound('building_place');
-    },
-    onPlaceRemoteWorkCamp: async (worksiteId, x, z) => {
-      requireSessionReady();
-      await spacetimeStore.placeRemoteWorkCamp(worksiteId, x, z);
       ambientAudio.playUiSound('building_place');
     },
     onDemolishBuilding: async (buildingId) => {
@@ -1192,35 +1185,6 @@ export async function bootstrapAppSession(
       spacetimeStore.snapshot.parishPolicy ?? DEFAULT_PARISH_POLICY,
     getMonasteryPolicy: () =>
       spacetimeStore.snapshot.monasteryPolicy ?? DEFAULT_MONASTERY_POLICY,
-    getNightPolicy: (settlementId) => {
-      const settlement = inspectorSettlement(settlementId);
-      if (settlement) {
-        return {
-          watch: settlement.nightWatchPolicy,
-          gathering: settlement.nightGatheringPolicy,
-          work: settlement.nightWorkPolicy,
-          lighting: settlement.nightLightingPolicy,
-          curfew: settlement.nightCurfewPolicy,
-          lastReportDay: settlement.lastNightReportDay,
-          lastHouseholds: settlement.lastNightHouseholds,
-          lastWellRestedHouseholds: settlement.lastNightWellRestedHouseholds,
-          lastColdHouseholds: settlement.lastNightColdHouseholds,
-          lastSocialHouseholds: settlement.lastNightSocialHouseholds,
-          lastWorkers: settlement.lastNightWorkers,
-          lastWatchStrength: settlement.lastNightWatchStrength,
-          lastIncidents: settlement.lastNightIncidents,
-          lastTheftGold: settlement.lastNightTheftGold,
-          lastWildlifeSightings: settlement.lastNightWildlifeSightings,
-          lastLightingFuelUsed: settlement.lastNightLightingFuelUsed,
-          lastLightingFuelShortfall: settlement.lastNightLightingFuelShortfall,
-          communityCohesion: settlement.nightCommunityCohesion,
-          laborFatigue: settlement.nightLaborFatigue,
-        };
-      }
-      return legacyRealmPolicy(settlementId)
-        ? spacetimeStore.snapshot.nightPolicy
-        : DEFAULT_NIGHT_POLICY;
-    },
     getMarketState: () => spacetimeStore.snapshot.marketState,
     getSettlementSecurity: () => spacetimeStore.snapshot.settlementSecurity,
     getCombatAgents: () => spacetimeStore.snapshot.combatAgents.values(),
@@ -1236,8 +1200,6 @@ export async function bootstrapAppSession(
       ?? getDraftWorldGeneration().wellAquiferNetworksEnabled,
     getWorldResourceAbundance: () =>
       spacetimeStore.snapshot.worldGeneration?.resourceAbundance ?? 50,
-    getWorksiteCommuteSummary: (buildingId) =>
-      villagers.getWorksiteCommuteSummary(buildingId),
     ...inspectorActions,
     getPendingTreeWorkAreaBuildingId: () => forestryWorkAreaTool.getBuildingId(),
     onBeginTreeWorkAreaPlacement: beginTreeWorkAreaPlacement,
@@ -1249,25 +1211,6 @@ export async function bootstrapAppSession(
     onBeginPasturePlacement: (farmsteadId) => beginLinkedLandParcelPlacement('pasture', farmsteadId),
     onBeginGraveyardPlacement: (chapelId) => beginLinkedLandParcelPlacement('graveyard', chapelId),
     onBeginVineyardPlacement: (monasteryId) => beginLinkedLandParcelPlacement('vineyard', monasteryId),
-    onBeginRemoteWorkCampPlacement: (worksiteId) => {
-      if (!sessionGate.isReady()) {
-        toastManager.show('SpacetimeDB is not connected.', { variant: 'error' });
-        return;
-      }
-      forestryWorkAreaTool.setEnabled(false);
-      buildingTool.beginLinkedRemoteWorkCampPlacement(worksiteId);
-      if (buildingTool.getMode() !== 'remote_work_camp') return;
-      roadTool.setEnabled(false);
-      burgageTool.setEnabled(false);
-      farmFieldTool.setEnabled(false);
-      resourceInspector.clearSelection();
-      villagerInspector.clearSelection();
-      toastManager.show(
-        `Choose clear ground within ${REMOTE_WORK_CAMP_MAX_DISTANCE} m of the worksite. Haulers and builders will complete the camp normally.`,
-        { variant: 'info', durationMs: 6000 },
-      );
-      bridge.syncToolbar();
-    },
     onInspectDeliveryTrip: (tripId) => {
       const trip = liveContext.gameState.deliveryTrips.get(tripId);
       if (!trip || !villagerInspector.selectDeliveryTrip(tripId)) return;

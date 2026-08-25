@@ -74,7 +74,7 @@ pub mod hydrology;
 pub mod game_calendar;
 
 pub mod simulation {
-    pub use crate::game_calendar::{game_clock, GameClock};
+    pub use crate::game_calendar::{calendar_day_started, game_clock, GameClock};
 
     pub mod residence_needs {
         pub use crate::residence_need_kinds::ResidenceNeedKind;

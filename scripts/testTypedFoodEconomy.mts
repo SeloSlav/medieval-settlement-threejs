@@ -65,7 +65,12 @@ assert.equal(
 );
 assert.equal(foodSpoilageMultiplier('honey'), 0);
 assert.ok(foodSpoilageMultiplier('milk') > foodSpoilageMultiplier('apples'));
-assert.equal(NAMED_FOOD_KINDS.length, 25);
+assert.equal(NAMED_FOOD_KINDS.length, 24);
+assert.equal(
+  (NAMED_FOOD_KINDS as readonly string[]).includes('vegetables'),
+  false,
+  'retired aggregate vegetables must not appear in the household or HUD food catalog',
+);
 assert.equal(foodCategory('apples'), 'fruits');
 assert.equal(foodCategory('pears'), 'fruits');
 assert.equal(foodCategory('cherries'), 'fruits');
@@ -80,7 +85,7 @@ assert.equal(foodCategory('rosehipJam'), 'foraged');
 assert.equal(foodCategory('milk'), 'animalProduce');
 assert.equal(foodCategory('cheese'), 'animalProduce');
 assert.equal(
-  foodVarietyCount({ apples: 2, cherries: 2, vegetables: 3, milk: 1, cheese: 1 }, 1),
+  foodVarietyCount({ apples: 2, cherries: 2, cabbage: 3, milk: 1, cheese: 1 }, 1),
   3,
   'close substitutes must not inflate household variety',
 );
@@ -97,14 +102,14 @@ assert.equal(
 assert.ok(Math.abs(foodCategoryQualifyingStock(1) - 1 / 3) < 1e-9);
 assert.ok(Math.abs(foodCategoryQualifyingStock(6) - 2) < 1e-9);
 assert.equal(
-  foodVarietyCount({ vegetables: 0.3 }, 1),
+  foodVarietyCount({ cabbage: 0.3 }, 1),
   0,
   'a token amount must not qualify a category',
 );
 assert.equal(
-  foodVarietyCount({ vegetables: 0.4 }, 1),
+  foodVarietyCount({ cabbage: 0.4 }, 1),
   1,
-  'vegetables must qualify as their own category once a full household-day is stocked',
+  'cabbage must qualify the vegetable category once a full household-day is stocked',
 );
 assert.equal(
   foodVarietyCount({ milk: 0.63, cheese: 0.5 }, 1),
@@ -112,7 +117,7 @@ assert.equal(
   'close substitutes may combine to qualify their one shared category',
 );
 assert.deepEqual(
-  foodProgressionStatus({ ryeBread: 2, vegetables: 2, apples: 2 }, 1, 3).satisfiedSlots,
+  foodProgressionStatus({ ryeBread: 2, cabbage: 2, apples: 2 }, 1, 3).satisfiedSlots,
   ['grains', 'produceAndForage'],
   'three crop and forage categories must not masquerade as a balanced tier-three diet',
 );
@@ -126,7 +131,7 @@ assert.deepEqual(
   ['animalFoods'],
   'animal produce and meat remain one broad tier-three diet group',
 );
-const tierFourBase = { ryeBread: 2, vegetables: 2, fish: 2 };
+const tierFourBase = { ryeBread: 2, cabbage: 2, fish: 2 };
 const tierFourEggs = foodProgressionStatus({ ...tierFourBase, eggs: 2 }, 1, 4);
 assert.equal(tierFourEggs.missingSlots.includes('animalProduce'), false);
 assert.equal(tierFourEggs.missingSlots.includes('meat'), true);

@@ -4,10 +4,6 @@ use crate::simulation::game_calendar::{holiday_observance, GameClock};
 use crate::simulation::SimTickContext;
 use crate::tables::Building;
 
-pub fn is_work_hours(clock: &GameClock) -> bool {
-    clock.is_work_hours
-}
-
 pub fn owner_has_staffed_chapel(
     ctx: &ReducerContext,
     tick: &SimTickContext,
@@ -45,10 +41,11 @@ pub fn owner_observes_sabbath(
 }
 
 /// Ordinary work and logistics halt while a capable hostile raider remains on
-/// the map, at night, and during Sunday sabbath when a staffed chapel and the
-/// policy are both active. Returning guards and downed raiders remain visible
-/// aftermath, but no longer hold every civilian at refuge. Fire-response trips
-/// deliberately bypass this helper at their dispatch and movement call sites.
+/// the map, on named holy days, and during Sunday sabbath when a staffed chapel
+/// and the policy are both active. Clock hours are cosmetic: an ordinary night
+/// follows exactly the same rules as an ordinary day. Returning guards and
+/// downed raiders remain visible aftermath, but no longer hold every civilian
+/// at refuge. Fire-response trips deliberately bypass this helper.
 pub fn labor_and_logistics_paused(
     ctx: &ReducerContext,
     tick: &SimTickContext,
@@ -60,10 +57,6 @@ pub fn labor_and_logistics_paused(
     }
 
     if tick.owner_has_active_raider_threat(ctx, owner) {
-        return true;
-    }
-
-    if !is_work_hours(clock) {
         return true;
     }
 
@@ -82,12 +75,12 @@ pub fn protected_household_rest_day(
     holiday_observance(clock).is_some() || owner_observes_sabbath(ctx, tick, owner, clock)
 }
 
-/// Parish wages, upkeep, and local alms accrue during the workday.
+/// Parish wages, upkeep, and local alms accrue continuously outside holy days.
 pub fn is_parish_economy_paused(clock: &GameClock) -> bool {
-    !is_work_hours(clock) || holiday_observance(clock).is_some()
+    holiday_observance(clock).is_some()
 }
 
-/// Chapel tithes pause outside work hours and on Sunday sabbath.
+/// Chapel tithes pause on named holy days and an observed Sunday sabbath.
 pub fn is_chapel_tithe_paused(
     ctx: &ReducerContext,
     tick: &SimTickContext,
@@ -99,7 +92,7 @@ pub fn is_chapel_tithe_paused(
 
 #[cfg(test)]
 mod tests {
-    use super::{is_work_hours, sabbath_rest_applies};
+    use super::sabbath_rest_applies;
     use crate::balance_generated::{CALENDAR_SECONDS_PER_DAY, TICK_DT};
     use crate::simulation::game_calendar::{game_clock, household_consumption_paused};
 
@@ -108,16 +101,16 @@ mod tests {
     }
 
     #[test]
-    fn night_hours_pause_labor_without_db() {
+    fn clock_still_describes_the_cosmetic_night_window() {
         let clock = game_clock(midnight_tick());
-        assert!(!is_work_hours(&clock));
+        assert!(!clock.is_work_hours);
     }
 
     #[test]
-    fn night_still_pauses_household_consumption() {
+    fn ordinary_night_does_not_pause_household_simulation() {
         let night = game_clock(midnight_tick());
         assert!(!night.is_work_hours);
-        assert!(household_consumption_paused(&night));
+        assert!(!household_consumption_paused(&night));
     }
 
     #[test]
@@ -133,24 +126,13 @@ mod tests {
     }
 }
 
-/// Processing may continue after dark according to civic policy, but this
-/// deliberately does not unpause carts, field work, construction, or any
-/// activity while raiders are an active threat.
+/// Production shares the same continuous calendar as logistics. The building
+/// parameter remains useful to centralize the owner lookup for callers.
 pub fn production_labor_paused(
     ctx: &ReducerContext,
     tick: &SimTickContext,
     building: &Building,
     clock: &GameClock,
 ) -> bool {
-    if holiday_observance(clock).is_some() {
-        return true;
-    }
-    if clock.is_work_hours {
-        return labor_and_logistics_paused(ctx, tick, building.owner, clock);
-    }
-    if tick.owner_has_active_raider_threat(ctx, building.owner) {
-        return true;
-    }
-    let policy = crate::settlement_policy::night(ctx, building.owner, building.settlement_id).work;
-    !crate::night_policy::night_work_allowed(policy, &building.kind)
+    labor_and_logistics_paused(ctx, tick, building.owner, clock)
 }

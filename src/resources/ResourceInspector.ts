@@ -43,7 +43,6 @@ import {
 import { handleSupplementalPanelClick } from './inspector/supplementalPanel.ts';
 import type { ParishPolicyState } from '../economy/chapelParish.ts';
 import type { MonasteryPolicyState } from '../economy/monasteryPolicy.ts';
-import type { NightPolicyCode, NightPolicyState } from '../economy/nightPolicy.ts';
 import type { FiscalPolicyState } from '../economy/fiscalPolicy.ts';
 import type { PantrySafeguardPolicyCode } from '../economy/pantrySafeguardPolicy.ts';
 import type { RegionalMarketState } from '../economy/regionalMarket.ts';
@@ -77,7 +76,6 @@ import {
   serviceCoverageLabel,
   type ServiceCoverageView,
 } from './serviceCoverage.ts';
-import type { WorksiteCommuteSummary } from '../settlement/workerCommute.ts';
 import { PlayerAuthoredHoverOutline } from './PlayerAuthoredHoverOutline.ts';
 import {
   foodMealValue,
@@ -107,7 +105,6 @@ type ResourceInspectorOptions = {
   getLaborStewardReserve?: (settlementId?: string) => number;
   getParishPolicy?: () => ParishPolicyState;
   getMonasteryPolicy?: () => MonasteryPolicyState;
-  getNightPolicy?: (settlementId?: string) => NightPolicyState;
   getMarketState?: () => RegionalMarketState;
   getSettlementSecurity?: () => SettlementSecurityState;
   getCombatAgents?: () => Iterable<CombatAgentState>;
@@ -117,7 +114,6 @@ type ResourceInspectorOptions = {
   getSevereWeatherEnabled?: () => boolean;
   getWellAquiferNetworksEnabled?: () => boolean;
   getWorldResourceAbundance?: () => number;
-  getWorksiteCommuteSummary?: (buildingId: string) => WorksiteCommuteSummary | null;
   getPendingTreeWorkAreaBuildingId?: () => string | null;
   onDemolishBuilding?: (buildingId: string) => void | Promise<void>;
   onDemolishResidence?: (residenceId: string) => void | Promise<void>;
@@ -172,14 +168,6 @@ type ResourceInspectorOptions = {
   onSetMonasteryPolicy?: (titheShare: number, feastsEnabled: boolean) => void | Promise<void>;
   onSetMonasteryCharter?: (levyRate: number) => void | Promise<void>;
   onSetMonasteryNextExtension?: (buildingId: string, extension: number) => void | Promise<void>;
-  onSetNightPolicies?: (
-    townHallId: string,
-    watch: NightPolicyCode,
-    gathering: NightPolicyCode,
-    work: NightPolicyCode,
-    lighting: NightPolicyCode,
-    curfew: NightPolicyCode,
-  ) => void | Promise<void>;
   onSetStorehousePolicy?: (
     buildingId: string,
     acceptsTimber: boolean,
@@ -319,7 +307,6 @@ type ResourceInspectorOptions = {
   onBeginPasturePlacement?: (farmsteadId: string) => void;
   onBeginGraveyardPlacement?: (chapelId: string) => void;
   onBeginVineyardPlacement?: (monasteryId: string) => void;
-  onBeginRemoteWorkCampPlacement?: (worksiteId: string) => void;
   onBeginTreeWorkAreaPlacement?: (buildingId: string) => void;
   onClearTreeWorkArea?: (buildingId: string) => void | Promise<void>;
   onInspectDeliveryTrip?: (tripId: string) => void;
@@ -1042,10 +1029,6 @@ export class ResourceInspector {
         );
         return;
       }
-      if ((event.target as HTMLElement).closest('[data-begin-remote-work-camp]')) {
-        this.options.onBeginRemoteWorkCampPlacement?.(building.id);
-        return;
-      }
       const constructionPriority = (event.target as HTMLElement)
         .closest<HTMLElement>('[data-construction-priority]')
         ?.dataset.constructionPriority;
@@ -1680,23 +1663,6 @@ export class ResourceInspector {
       void this.options.onSetLaborStewardReserve?.(building.id, Number(input.value));
       return;
     }
-    if (building.kind === 'town_hall' && input.matches('[data-night-policy]')) {
-      const code = (selector: string): NightPolicyCode => {
-        const value = Number(
-          this.supplementalPanelSection.querySelector<HTMLSelectElement>(selector)?.value ?? 0,
-        );
-        return value === 1 || value === 2 ? value : 0;
-      };
-      void this.options.onSetNightPolicies?.(
-        building.id,
-        code('[data-night-policy-watch]'),
-        code('[data-night-policy-gathering]'),
-        code('[data-night-policy-work]'),
-        code('[data-night-policy-lighting]'),
-        code('[data-night-policy-curfew]'),
-      );
-      return;
-    }
     if (building.kind === 'chapel' && input.matches('[data-policy-chapel-sabbath]')) {
       const sabbath = this.supplementalPanelSection.querySelector<HTMLInputElement>('[data-policy-chapel-sabbath]')?.checked ?? false;
       void this.options.onSetChapelParishPolicy?.(sabbath);
@@ -2204,7 +2170,6 @@ export class ResourceInspector {
     const getFiscalPolicy = this.options.getFiscalPolicy;
     const getProductionLaborStewardEnabled = this.options.getProductionLaborStewardEnabled;
     const getLaborStewardReserve = this.options.getLaborStewardReserve;
-    const getNightPolicy = this.options.getNightPolicy;
     const view = renderInspectableTarget(target, {
       gameState,
       worldQueries: this.options.worldQueries,
@@ -2218,9 +2183,6 @@ export class ResourceInspector {
       enemyPressure: this.options.getEnemyPressure?.() ?? 0,
       pendingTreeWorkAreaBuildingId:
         this.options.getPendingTreeWorkAreaBuildingId?.() ?? null,
-      ...(this.options.getWorksiteCommuteSummary
-        ? { getWorksiteCommuteSummary: this.options.getWorksiteCommuteSummary }
-        : {}),
       ...(settlementProduction ? { settlementProduction } : {}),
       ...(getEconomicActivityTaxRate
         ? { getEconomicActivityTaxRate: () => getEconomicActivityTaxRate(targetSettlementId) }
@@ -2248,9 +2210,6 @@ export class ResourceInspector {
         : {}),
       ...(this.options.getMonasteryPolicy
         ? { getMonasteryPolicy: this.options.getMonasteryPolicy }
-        : {}),
-      ...(getNightPolicy
-        ? { getNightPolicy: () => getNightPolicy(targetSettlementId) }
         : {}),
       getTradeAvailability: (marketplace) => computeMarketplaceTradeAvailability(
         this.options.getState(),
@@ -2878,7 +2837,6 @@ const BUILDING_INSPECTOR_ART = {
   woodcutters_lodge: '/assets/ui/build-menu/cards/woodcutters-lodge.webp',
   stone_quarry: '/assets/ui/build-menu/cards/stonecutters-camp.webp',
   large_quarry: '/assets/ui/build-menu/cards/large-quarry.webp',
-  remote_work_camp: '/assets/ui/icons/actions/overnight-work-camp.png',
   mine: '/assets/ui/build-menu/cards/iron-mine.webp',
   clay_pit: '/assets/ui/build-menu/cards/clay-pit.webp',
   charcoal_burner: '/assets/ui/build-menu/cards/charcoal-burner.webp',

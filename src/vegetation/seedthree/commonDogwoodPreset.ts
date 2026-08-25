@@ -47,6 +47,7 @@ export type CommonDogwoodArchitecture = {
   readonly foliageGapDeg: number;
   readonly foliageGapRetention: number;
   readonly foliageDensityVariation: number;
+  readonly foliageMassBias: number;
 };
 
 export type CommonDogwoodVariant = {
@@ -102,6 +103,7 @@ export const COMMON_DOGWOOD_VARIANTS: readonly CommonDogwoodVariant[] = [
       foliageGapDeg: 75,
       foliageGapRetention: 0.25,
       foliageDensityVariation: 0.28,
+      foliageMassBias: 0.3,
     },
   },
   {
@@ -133,6 +135,7 @@ export const COMMON_DOGWOOD_VARIANTS: readonly CommonDogwoodVariant[] = [
       foliageGapDeg: 45,
       foliageGapRetention: 0.5,
       foliageDensityVariation: 0.18,
+      foliageMassBias: 0.18,
     },
   },
   {
@@ -164,6 +167,7 @@ export const COMMON_DOGWOOD_VARIANTS: readonly CommonDogwoodVariant[] = [
       foliageGapDeg: 35,
       foliageGapRetention: 0.62,
       foliageDensityVariation: 0.22,
+      foliageMassBias: 0.42,
     },
   },
 ] as const;

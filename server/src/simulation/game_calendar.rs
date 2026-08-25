@@ -28,11 +28,18 @@ pub fn holiday_observance(clock: &GameClock) -> Option<HolidayObservance> {
     holiday_for_date(clock.month, clock.month_day, clock.year)
 }
 
-/// Ordinary nights retain their established consumption cadence. Named holy
-/// days are calendar-level protected rest periods. Policy-observed Sundays are
-/// added by the owner-aware labor schedule.
+/// Named holy days are calendar-level protected rest periods. Ordinary clock
+/// hours are presentation metadata and do not change household simulation.
+/// Policy-observed Sundays are added by the owner-aware labor schedule.
 pub fn household_consumption_paused(clock: &GameClock) -> bool {
-    !clock.is_work_hours || holiday_observance(clock).is_some()
+    holiday_observance(clock).is_some()
+}
+
+/// True exactly once when the presented calendar advances to a new date.
+/// Daily gameplay uses this boundary instead of depending on a visible hour.
+pub fn calendar_day_started(clock: &GameClock) -> bool {
+    clock.sim_tick > 0
+        && game_clock(clock.sim_tick.saturating_sub(1)).total_days != clock.total_days
 }
 
 pub fn game_clock(sim_tick: u64) -> GameClock {
@@ -106,14 +113,25 @@ mod tests {
     }
 
     #[test]
-    fn an_ordinary_sunday_is_not_a_calendar_level_holiday() {
+    fn ordinary_clock_hours_do_not_pause_households() {
         let sunday_morning = game_clock(0);
         assert!(sunday_morning.is_sunday);
         assert!(sunday_morning.is_work_hours);
         assert!(!household_consumption_paused(&sunday_morning));
 
         let night_tick = (CALENDAR_SECONDS_PER_DAY / 2.0 / TICK_DT) as u64;
-        assert!(household_consumption_paused(&game_clock(night_tick)));
+        assert!(!game_clock(night_tick).is_work_hours);
+        assert!(!household_consumption_paused(&game_clock(night_tick)));
+    }
+
+    #[test]
+    fn calendar_day_boundary_is_independent_of_the_displayed_work_window() {
+        let first_boundary = (1..=(CALENDAR_SECONDS_PER_DAY / TICK_DT) as u64)
+            .map(game_clock)
+            .find(calendar_day_started)
+            .expect("calendar should cross into the next date");
+        assert_eq!(first_boundary.hour, 0);
+        assert!(!first_boundary.is_work_hours);
     }
 
     #[test]
