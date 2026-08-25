@@ -250,10 +250,10 @@ approx(
 const materialState = emptyGameState();
 const materialBuildings = [
   building('material-clay', 'stone_quarry', 1),
-  building('material-potter', 'potter_kiln', 1),
+  building('material-potter', 'potter_kiln', 4),
   building('material-smokehouse', 'smokehouse', 1),
-  building('material-charcoal', 'charcoal_burner', 1),
-  building('material-smithy', 'smithy', 1),
+  building('material-charcoal', 'charcoal_burner', 2),
+  building('material-smithy', 'smithy', 12),
   building('material-well', 'well', 1),
   building('material-market', 'marketplace', 1),
   building('material-lumber', 'lumber_mill', 1),
@@ -272,7 +272,7 @@ materialState.farmFields.set(
   'material-field',
   farmField('material-field', 'material-farm', 'fallow'),
 );
-materialState.residences.set('material-home', residence('material-home', 10));
+materialState.residences.set('material-home', residence('material-home', 10, 4));
 materialBuildings[3].firewood = 36;
 materialBuildings[1].water = 9;
 materialBuildings[4].water = 9;
@@ -498,6 +498,18 @@ approx(
   'same-branch smithing should cover the currently maintained tool racks',
 );
 assert.ok(joinedMaterials.ironworkSurplusAfterToolUpkeep > 0);
+
+const joinedSabbathMaterials = computeSettlementProductionCapacity(
+  materialState,
+  true,
+  () => 'joined',
+).industrialMaterials;
+assert.equal(joinedSabbathMaterials.smithyBlockedBranches, 0);
+approx(
+  joinedSabbathMaterials.sustainableToolUptime,
+  joinedMaterials.sustainableToolUptime,
+  'rest days must scale forge output, tool wear, and cart time together without changing working-day feasibility',
+);
 
 const nearToolRoutes = computeSettlementProductionCapacity(
   materialState,

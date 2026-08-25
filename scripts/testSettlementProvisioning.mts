@@ -41,6 +41,7 @@ import type {
 } from '../src/resources/types.ts';
 import type { FireIncidentState } from '../src/fires/fireIncident.ts';
 import type { DeliveryTripState } from '../src/logistics/deliveryTrips.ts';
+import { averageNonHolidayCalendarDayShare } from '../src/world/holidayCalendar.ts';
 
 const serverCalendar = readFileSync(
   new URL('../server/src/simulation/game_calendar.rs', import.meta.url),
@@ -229,7 +230,9 @@ assert.match(townHallInspector, /Household delivery buffer/);
 assert.match(townHallInspector, /Road-branch provisions/);
 assert.match(townHallInspector, /first road-branch provision exposure/);
 assert.match(townHallInspector, /Cured ration displacement/);
-assert.match(townHallInspector, /current fresh demand after/);
+assert.match(townHallInspector, /average calendar-day fresh demand after/);
+assert.match(townHallInspector, /fresh\/ordinary day/);
+assert.match(townHallInspector, /gold \/ ordinary day/);
 assert.doesNotMatch(
   townHallInspector,
   /Â/,
@@ -292,6 +295,18 @@ assert.equal(provisioning.householdPreservedFoodRotationTargetPerDay, 0);
 assert.equal(provisioning.householdPreservedFoodRotationPerDay, 0);
 assert.equal(provisioning.guardFoodPerDay, 2 * GUARDHOUSE_FOOD_PER_GUARD_PER_DAY);
 assert.equal(provisioning.grossFoodDemandPerDay, provisioning.totalFoodPerDay);
+assert.ok(Math.abs(
+  provisioning.averageFreshFoodDemandPerCalendarDay
+    - (
+      provisioning.householdFoodPerDay
+      + provisioning.guardFoodPerDay * averageNonHolidayCalendarDayShare()
+    )
+) < 1e-9);
+assert.ok(
+  provisioning.averageFreshFoodDemandPerCalendarDay
+    < provisioning.totalFoodPerDay,
+  'named holidays waive guard upkeep but shift household monthly bills to an ordinary day',
+);
 assert.ok(Math.abs(
   provisioning.foodRunwayDays
   - provisioning.foodStock

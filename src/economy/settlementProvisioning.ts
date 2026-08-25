@@ -75,6 +75,7 @@ import {
   householdFoodUnitsPerMonth,
   householdFoodUnitsPerMonthForTier,
 } from './householdBillDemand.ts';
+import { averageNonHolidayCalendarDayShare } from '../world/holidayCalendar.ts';
 
 export const WINTER_RESERVE_DAYS = CALENDAR_DAYS_PER_MONTH * 3;
 export const PROVISION_WARNING_DAYS = 5;
@@ -119,6 +120,11 @@ export type SettlementProvisioning = {
   guardFoodPerDay: number;
   grossFoodDemandPerDay: number;
   totalFoodPerDay: number;
+  /**
+   * Long-run fresh-food demand on an average calendar day. Household monthly
+   * bills move off named holidays, while guard daily upkeep is waived.
+   */
+  averageFreshFoodDemandPerCalendarDay: number;
   usablePreservedFoodStock: number;
   fireQuarantinedPreservedFoodStock: number;
   preservedFoodSpoilagePerDay: number;
@@ -920,6 +926,8 @@ export function computeSettlementProvisioning(input: {
   const guardFoodPerDay = armedGuards * GUARDHOUSE_FOOD_PER_GUARD_PER_DAY;
   const grossFoodDemandPerDay = grossHouseholdFoodPerDay + guardFoodPerDay;
   const totalFoodPerDay = householdFoodPerDay + guardFoodPerDay;
+  const averageFreshFoodDemandPerCalendarDay = householdFoodPerDay
+    + guardFoodPerDay * averageNonHolidayCalendarDayShare();
   const foodPreservation = analyzeFreshFoodPreservation(
     state,
     freshFoodSpoilageFractionPerDay,
@@ -1012,6 +1020,7 @@ export function computeSettlementProvisioning(input: {
     guardFoodPerDay,
     grossFoodDemandPerDay,
     totalFoodPerDay,
+    averageFreshFoodDemandPerCalendarDay,
     usablePreservedFoodStock,
     fireQuarantinedPreservedFoodStock,
     preservedFoodSpoilagePerDay: usablePreservedFoodSpoilagePerDay,
