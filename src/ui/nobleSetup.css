@@ -461,14 +461,17 @@
 
 .noble-setup-noble {
   position: relative;
+  width: 100%;
   min-width: 0;
   padding: 0;
   overflow: hidden;
   border-radius: 2px;
-  aspect-ratio: 0.76;
+  aspect-ratio: 19 / 25;
 }
 
 .noble-setup-noble img {
+  position: absolute;
+  inset: 0;
   display: block;
   width: 100%;
   height: 100%;
@@ -478,6 +481,8 @@
 }
 
 .noble-setup-noble__portrait-placeholder {
+  position: absolute;
+  inset: 0;
   display: block;
   width: 100%;
   height: 100%;

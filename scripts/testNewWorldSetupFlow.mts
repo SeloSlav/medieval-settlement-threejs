@@ -30,7 +30,6 @@ assert.doesNotMatch(noblePanel, /<h2[^>]*>Your Noble<\/h2>/);
 assert.doesNotMatch(noblePanel, /<p class="noble-setup-eyebrow">Coat of Arms<\/p>/);
 assert.doesNotMatch(noblePanel, /Heraldry of Your House/);
 for (const id of [
-  'matija-vlacic-ilirik',
   'simun-kozicic-benja',
   'mila-gojsalic',
 ]) {
@@ -48,8 +47,18 @@ assert.match(
   nobleProfile,
   /id: 'stjepan-konzul-istranin'[\s\S]*?portrait: '\/assets\/ui\/noble-setup\/portraits\/stjepan-konzul-istranin\.webp'/,
 );
+assert.match(
+  nobleProfile,
+  /id: 'matija-vlacic-ilirik'[\s\S]*?portrait: '\/assets\/ui\/noble-setup\/portraits\/matija-vlacic-ilirik\.webp'/,
+);
 assert.match(noblePanel, /noble-setup-noble__portrait-placeholder/);
 assert.match(noblePanel, /image\.removeAttribute\('src'\)/);
+assert.match(nobleCss, /\.noble-setup-noble\s*\{[\s\S]*?width: 100%;[\s\S]*?aspect-ratio: 19 \/ 25;/);
+assert.match(nobleCss, /\.noble-setup-noble img\s*\{[\s\S]*?position: absolute;[\s\S]*?inset: 0;/);
+assert.match(
+  nobleCss,
+  /\.noble-setup-noble__portrait-placeholder\s*\{[\s\S]*?position: absolute;[\s\S]*?inset: 0;/,
+);
 assert.match(
   noblePanel,
   /this\.backButton\.addEventListener\('click',[\s\S]*?this\.step = 'house'[\s\S]*?this\.syncStep/,

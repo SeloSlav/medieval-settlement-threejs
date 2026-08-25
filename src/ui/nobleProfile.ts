@@ -111,7 +111,7 @@ export const NOBLES = [
     name: 'Matija Vlačić Ilirik',
     title: 'Labin-born Protestant theologian, historian, and philologist',
     years: '1520–1575',
-    portrait: null,
+    portrait: '/assets/ui/noble-setup/portraits/matija-vlacic-ilirik.webp',
   },
   {
     id: 'simun-kozicic-benja',
