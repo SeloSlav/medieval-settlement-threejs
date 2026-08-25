@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Beeswax candles">
+  <defs>
+    <linearGradient id="candle" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#b97320"/>
+      <stop offset=".45" stop-color="#f2d377"/>
+      <stop offset="1" stop-color="#c88827"/>
+    </linearGradient>
+    <radialGradient id="flame" cx="50%" cy="70%" r="60%">
+      <stop offset="0" stop-color="#fff5b0"/>
+      <stop offset=".55" stop-color="#ffb72e"/>
+      <stop offset="1" stop-color="#d75b17"/>
+    </radialGradient>
+  </defs>
+  <ellipse cx="32" cy="55" rx="25" ry="5" fill="#613c18" opacity=".35"/>
+  <path fill="url(#candle)" d="M10 30h12v24H10zM26 20h13v34H26zM43 27h11v27H43z"/>
+  <g fill="#f7dd8a">
+    <ellipse cx="16" cy="30" rx="6" ry="2.3"/><ellipse cx="32.5" cy="20" rx="6.5" ry="2.4"/><ellipse cx="48.5" cy="27" rx="5.5" ry="2.2"/>
+  </g>
+  <g stroke="#49301c" stroke-width="2" stroke-linecap="round">
+    <path d="M16 29v-4M32.5 19v-5M48.5 26v-4"/>
+  </g>
+  <g fill="url(#flame)">
+    <path d="M16 24c-5-4-2-9 1-13 4 6 4 10-1 13z"/>
+    <path d="M32.5 13c-5-5-2-10 1-13 4 6 4 10-1 13z"/>
+    <path d="M48.5 21c-4-4-2-8 1-12 4 5 3 9-1 12z"/>
+  </g>
+</svg>

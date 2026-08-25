@@ -130,17 +130,26 @@ assert.deepEqual(
   [2, 8],
   'displayed animals should follow each linked parcel\'s share of carrying capacity',
 );
-const currentHoldingHerd = { species: 'cattle', pastureCapacity: 3 } as const;
-const attributedCapacity = [lowerPasture, upperPasture]
-  .reduce(
-    (sum, pasture) => sum + (currentPastureHeadCapacity(
-      pasture,
-      [lowerPasture, upperPasture],
-      currentHoldingHerd,
-    ) ?? 0),
-    0,
-  );
-assert.ok(Math.abs(attributedCapacity - currentHoldingHerd.pastureCapacity) < 1e-9);
+const lowerParcelHerd = { species: 'cattle', pastureCapacity: 3 } as const;
+const upperParcelHerd = { species: 'sheep', pastureCapacity: 7 } as const;
+assert.equal(
+  currentPastureHeadCapacity(
+    lowerPasture,
+    [lowerPasture, upperPasture],
+    lowerParcelHerd,
+  ),
+  3,
+  'a parcel-owned herd should expose its own live capacity without sibling redistribution',
+);
+assert.equal(
+  currentPastureHeadCapacity(
+    upperPasture,
+    [lowerPasture, upperPasture],
+    upperParcelHerd,
+  ),
+  7,
+  'a sibling pasture should retain the live capacity authored on its own herd row',
+);
 assert.ok(Math.abs(
   neutralPastureHoldingHeadCapacity([lowerPasture, upperPasture], 'cattle')
     - (
@@ -205,44 +214,44 @@ assert.equal(
 const constructionSource = fs.readFileSync('server/src/simulation/construction.rs', 'utf8');
 assert.doesNotMatch(
   constructionSource,
-  /site\.kind == "pastoral_farmstead"[\s\S]{0,500}starter_herd/,
-  'a completed pastoral holding must wait for an explicit cattle-or-sheep choice',
-);
-assert.match(
-  constructionSource,
-  /site\.kind == "swineherd"[\s\S]{0,500}unstocked_herd\(site\.id, site\.owner, SPECIES_SWINE\)/,
-  'the species-specific swineherd should establish its pig policy without free animals',
+  /livestock_herd|pasture_herd|unstocked_(?:pasture_)?herd/,
+  'finishing a livestock building must not create a building-owned herd',
 );
 const livestockReducerSource = fs.readFileSync('server/src/reducers/livestock.rs', 'utf8');
 assert.match(
   livestockReducerSource,
-  /let Some\(mut herd\) = existing_herd else \{[\s\S]*insert\(unstocked_herd\(building\.id, building\.owner, species\)\)/,
-  'the first explicit pastoral specialization must create an unstocked herd policy',
+  /farmstead\.kind == "swineherd"[\s\S]{0,700}insert\(unstocked_pasture_herd\(&pasture, SPECIES_SWINE\)\)/,
+  'a new swine pannage should establish its parcel policy without granting free pigs',
 );
 assert.match(
   livestockReducerSource,
-  /pub fn unstocked_herd\([\s\S]{0,420}head_count: 0/,
-  'new holding policies must contain zero animals until the player buys stock',
+  /let Some\(mut herd\) = existing_herd else \{[\s\S]{0,180}insert\(unstocked_pasture_herd\(&pasture, species\)\)/,
+  'the first explicit pasture specialization must create an unstocked parcel herd policy',
 );
 assert.match(
   livestockReducerSource,
-  /if herd\.head_count > 0 \{[\s\S]{0,180}Sell the current herd before changing this holding's species/,
-  'a stocked pastoral holding must reject a species change',
+  /pub fn unstocked_pasture_herd\([\s\S]{0,460}pasture_id: pasture\.id[\s\S]{0,180}head_count: 0/,
+  'new parcel herd policies must be keyed to their pasture and start with zero animals',
 );
 assert.match(
   livestockReducerSource,
-  /\.pasture\(\)[\s\S]{0,220}\.farmstead_id\(\)[\s\S]{0,260}Remove this holding's linked pasture before changing species/,
-  'even an empty holding must remove species-shaped pasture parcels before switching species',
+  /if herd\.head_count > 0 \{[\s\S]{0,180}Sell this pasture's current herd before changing its species/,
+  'a stocked pasture must reject a species change until only that parcel is emptied',
+);
+assert.doesNotMatch(
+  livestockReducerSource,
+  /Remove this holding's linked pasture before changing species/,
+  'switching an empty pasture must never require removing its fence or sibling parcels',
 );
 assert.match(
   livestockReducerSource,
-  /pub fn trade_livestock\([\s\S]{0,240}head_delta == 0 \|\| !\(-100\.\.=100\)\.contains\(&head_delta\)/,
+  /pub fn trade_livestock\([\s\S]{0,100}pasture_id: u64[\s\S]{0,260}head_delta == 0 \|\| !\(-100\.\.=100\)\.contains\(&head_delta\)/,
   'livestock trade must reject empty and unreasonable orders authoritatively',
 );
 assert.match(
   livestockReducerSource,
-  /let land_limit = grazing_capacity\(ctx, &building, &herd\)[\s\S]{0,180}let holding_limit = maximum_herd\(herd\.species\)\.min\(land_limit\)[\s\S]{0,180}saturating_add\(quantity\) > holding_limit/,
-  'purchases must fit both the drawn land and the species management ceiling',
+  /let land_limit = grazing_capacity_for_pasture\(ctx, &pasture, &herd\)[\s\S]{0,220}let parcel_limit = maximum_herd\(herd\.species\)\.min\(land_limit\)[\s\S]{0,260}holding_management_units\(ctx, pasture\.farmstead_id\)[\s\S]{0,260}\.min\(management_room\)/,
+  'purchases must fit this parcel and the linked holding shared management budget',
 );
 assert.match(
   livestockReducerSource,
@@ -269,25 +278,33 @@ const generatedTradeReducerSource = fs.readFileSync('src/generated/trade_livesto
 const generatedIndexSource = fs.readFileSync('src/generated/index.ts', 'utf8');
 const generatedReducerTypesSource = fs.readFileSync('src/generated/types/reducers.ts', 'utf8');
 const serverGeneratedIndexSource = fs.readFileSync('server/src/generated/index.ts', 'utf8');
-assert.match(livestockInspectorSource, /Choose cattle or sheep/);
-assert.match(pastureInspectorSource, /This parcel supports/);
-assert.match(pastureInspectorSource, /Production rhythm/);
-assert.match(pastureInspectorSource, /Linked holding's last cycle/);
+assert.match(livestockInspectorSource, /Mixed livestock holding/);
+assert.match(livestockInspectorSource, /getLivestockHerdsForBuilding\(building\.id\)/);
+assert.match(livestockInspectorSource, /data-inspect-pasture="\$\{pasture\.id\}"/);
+assert.match(pastureInspectorSource, /This pasture supports/);
+assert.match(pastureInspectorSource, /This pasture's herd/);
+assert.match(pastureInspectorSource, /Last husbandry cycle/);
 assert.match(
   pastureInspectorSource,
-  /data-inspector-panel-title="Stock shared herd"[\s\S]{0,900}data-livestock-trade="1"/,
-  'a selected pasture must be the purchase surface for its shared holding herd',
+  /data-inspector-panel-title="Stock this pasture"[\s\S]{0,900}data-livestock-trade="1"/,
+  'a selected pasture must be the purchase surface for its own herd',
 );
 assert.match(
   pastureInspectorSource,
-  /all .* linked pasture[\s\S]{0,260}combine into the purchase and breeding ceiling/i,
-  'pasture stocking copy must explain that parcels combine into one holding-level cap',
+  /Each fenced pasture keeps its own herd and carrying limit[\s\S]{0,300}sibling pasture remain untouched/i,
+  'pasture switching copy must explain that only the selected parcel changes',
+);
+assert.match(
+  pastureInspectorSource,
+  /livestockPastureManagementHeadAllowance\(species, otherHerds\)/,
+  'the parcel ceiling must also respect shared holding management headroom',
 );
 assert.match(pastureInspectorSource, /spring only[\s\S]{0,80}stops at/);
-assert.match(farmFieldToolSource, /neutral .* capacity/);
+assert.match(farmFieldToolSource, /choose after fencing/);
+assert.match(farmFieldToolSource, /each parcel keeps its own herd and cap/);
 assert.match(farmFieldToolSource, /land cap .* vs woodland browse\/mast cap/);
-assert.match(farmFieldToolSource, /whole-head slots/);
-assert.match(farmFieldToolSource, /land quality/);
+assert.match(farmFieldToolSource, /pig slots/);
+assert.match(farmFieldToolSource, /% quality/);
 assert.match(farmFieldToolSource, /management cap reached/);
 assert.match(farmFieldToolSource, /getTreeRegistry/);
 assert.match(
@@ -299,31 +316,30 @@ assert.match(worldQueriesSource, /getMaturePannageTreeCount/);
 assert.match(worldQueriesSource, /getMaturePannageTreeCountForPasture/);
 assert.doesNotMatch(
   livestockInspectorSource,
-  /data-livestock-trade="1"/,
-  'new animals must be purchased from a selected pasture, not from the farmstead panel',
+  /data-livestock-(?:species|trade|breeding-reserve|haymaking-percent)/,
+  'species, trading, breeding, and hay policy must live on pastures rather than the farmstead panel',
 );
 assert.match(
   pastureInspectorSource,
-  /starterTarget - \(herd\?\.headCount \?\? 0\)/,
+  /starterHerd\(herd\.species\) - herd\.headCount/,
   'a partial herd must only offer the remaining animals needed for its starter target',
 );
-assert.match(livestockInspectorSource, /data-livestock-trade="-1"/);
-assert.match(livestockInspectorSource, /Purchase new breeding stock from a selected linked pasture/);
-assert.match(livestockInspectorSource, /Fenced woodland trees/);
-assert.match(livestockInspectorSource, /Pannage bottleneck/);
+assert.match(pastureInspectorSource, /data-livestock-trade="-1"/);
+assert.match(livestockInspectorSource, /Select a finished pasture to choose its animals, buy or sell that herd/);
+assert.match(livestockInspectorSource, /Pannage trees/);
 assert.match(
   livestockInspectorSource,
   /getMaturePannageTreeCount\(building\.id\)/,
-  'the swine inspector must report exact mature trees inside its linked polygons',
+  'the swine holding dashboard must aggregate mature trees across its linked polygons',
 );
 assert.match(
   livestockInspectorSource,
-  /data-land-parcel="pasture"[\s\S]{0,420}pastoral_farmstead'[\s\S]{0,80}!herd[\s\S]{0,40}disabled/,
-  'pasture authoring must remain locked until the pastoral species is chosen',
+  /data-land-parcel="pasture"[\s\S]{0,180}<span>\$\{pastureLabel\}<\/span><\/button>/,
+  'one farmstead must always be able to fence additional independent pastures',
 );
 assert.match(
   buildingReducerSource,
-  /livestock_herd\(\)[\s\S]{0,180}\.building_id\(\)[\s\S]{0,160}herd\.head_count > 0[\s\S]{0,160}Sell this livestock holding's animals before demolition/,
+  /pasture_herd\(\)[\s\S]{0,120}\.farmstead_id\(\)[\s\S]{0,120}herd\.head_count > 0[\s\S]{0,260}Sell this livestock holding's animals before demolition/,
   'stocked livestock buildings must not be demolished out from under their animals',
 );
 assert.match(
@@ -341,16 +357,16 @@ assert.match(
   /function pannageCapacityMultiplierFor[\s\S]{0,360}autumn: PANNAGE_AUTUMN_CAPACITY_MULTIPLIER/,
   'client pannage forecasts must mirror the authoritative mast calendar',
 );
-assert.match(generatedTradeReducerSource, /buildingId: __t\.u64\(\)[\s\S]{0,80}headDelta: __t\.i32\(\)/);
+assert.match(generatedTradeReducerSource, /pastureId: __t\.u64\(\)[\s\S]{0,80}headDelta: __t\.i32\(\)/);
 assert.match(generatedIndexSource, /__reducerSchema\("trade_livestock", TradeLivestockReducer\)/);
 assert.match(serverGeneratedIndexSource, /__reducerSchema\("trade_livestock", TradeLivestockReducer\)/);
 assert.match(generatedReducerTypesSource, /export type TradeLivestockParams = __Infer<typeof TradeLivestockReducer>/);
 assert.match(
   clientReducersSource,
-  /function tradeLivestock\(buildingId: string, headDelta: number\)[\s\S]{0,420}callReducer\('tradeLivestock', 'trade_livestock',[\s\S]{0,120}headDelta: normalizedDelta/,
-  'the client reducer adapter must normalize and dispatch livestock orders',
+  /function tradeLivestock\(pastureId: string, headDelta: number\)[\s\S]{0,180}parsePastureServerId\(pastureId\)[\s\S]{0,260}callReducer\('tradeLivestock', 'trade_livestock',[\s\S]{0,120}pastureId: serverId[\s\S]{0,80}headDelta: normalizedDelta/,
+  'the client reducer adapter must normalize and dispatch pasture-keyed livestock orders',
 );
-assert.match(gameStoreSource, /tradeLivestock\(buildingId: string, headDelta: number\)[\s\S]{0,100}spacetimeReducers\.tradeLivestock\(buildingId, headDelta\)/);
+assert.match(gameStoreSource, /tradeLivestock\(pastureId: string, headDelta: number\)[\s\S]{0,100}spacetimeReducers\.tradeLivestock\(pastureId, headDelta\)/);
 assert.match(
   resourceInspectorSource,
   /\[data-livestock-trade\][\s\S]{0,260}Number\.isInteger\(headDelta\)[\s\S]{0,180}onTradeLivestock/,
@@ -358,10 +374,10 @@ assert.match(
 );
 assert.match(
   resourceInspectorSource,
-  /selectedTarget\?\.kind === 'pasture'[\s\S]{0,900}selectedTarget\.farmstead\.id[\s\S]{0,120}headDelta/,
-  'pasture stocking must forward the trade to its linked holding rather than invent a parcel herd',
+  /selectedTarget\?\.kind === 'pasture'[\s\S]{0,900}onTradeLivestock\?\.\([\s\S]{0,80}selectedTarget\.pasture\.id,[\s\S]{0,80}headDelta/,
+  'pasture stocking must forward the selected parcel id rather than the linked farmstead id',
 );
-assert.match(inspectorActionsSource, /onTradeLivestock:[\s\S]{0,260}store\.tradeLivestock\(buildingId, headDelta\)/);
+assert.match(inspectorActionsSource, /onTradeLivestock: async \(pastureId, headDelta\)[\s\S]{0,260}store\.tradeLivestock\(pastureId, headDelta\)/);
 
 assert.deepEqual(createCattleVisualDistribution(3), ['cow', 'cow', 'cow']);
 assert.deepEqual(createCattleVisualDistribution(6), ['bull', 'cow', 'cow', 'cow', 'cow', 'cow']);
@@ -560,8 +576,8 @@ assert.match(
 );
 assert.match(
   serverLivestock,
-  /let land_limit = base_pasture_capacity[\s\S]{0,180}let breeding_limit = species_max_herd\(herd\.species\)\.min\(land_limit\)/,
-  'births must stop at neutral land capacity and the species hard limit',
+  /let local_limit = species_max_herd\(parcel\.herd\.species\)[\s\S]{0,180}parcel\.base_capacity[\s\S]{0,180}let breeding_limit[\s\S]{0,120}local_limit\.min\(before_heads\.saturating_add\(management_room_heads\)\)/,
+  'births must stop at the parcel land limit and shared holding management ceiling',
 );
 assert.match(
   serverLivestockPolicy,
@@ -591,8 +607,8 @@ assert.match(
 );
 assert.match(
   tickContext,
-  /cattle_field_support_for[\s\S]*livestock_herd\(\)[\s\S]*building_id\(\)[\s\S]*find\(&building_id\)[\s\S]*cattle_field_support_is_active/,
-  'field work should re-read live herd readiness after using the cached candidate map',
+  /cattle_field_support_for[\s\S]*filter_map\(\|pasture_id\| ctx\.db\.pasture_herd\(\)\.pasture_id\(\)\.find\(&pasture_id\)\)[\s\S]*cattle_field_support_is_active/,
+  'field work should re-read every candidate pasture herd after using the cached map',
 );
 assert.match(
   serverLivestock,

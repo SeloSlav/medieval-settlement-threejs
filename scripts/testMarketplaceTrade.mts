@@ -139,7 +139,11 @@ function oatTradeAvailability(
     buildings: new Map([[post.id, post], [source.id, source]]),
     livestockHerds: new Map(headCount === undefined
       ? []
-      : [[source.id, { buildingId: source.id, headCount }]]),
+      : [['pasture-feed-test', {
+          pastureId: 'pasture-feed-test',
+          buildingId: source.id,
+          headCount,
+        }]]),
     fireIncidents: new Map(),
     residences: new Map(),
   } as unknown as GameState;
@@ -327,8 +331,8 @@ assert.match(
 );
 assert.match(
   serverLoop,
-  /livestock_herd\(\)[\s\S]*?\.find\(&building\.id\)[\s\S]*?herd\.head_count > 0[\s\S]*?livestock_feed_oat_exportable_stock/,
-  'authoritative oat export collection must consult the source holding\'s live herd commitment',
+  /pasture_herd\(\)[\s\S]*?farmstead_id\(\)[\s\S]*?filter\(&building\.id\)[\s\S]*?herd\.head_count > 0[\s\S]*?livestock_feed_oat_exportable_stock/,
+  'authoritative oat export collection must aggregate the source holding\'s live pasture herds',
 );
 assert.match(
   serverLoop,

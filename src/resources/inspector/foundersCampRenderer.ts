@@ -87,6 +87,10 @@ function storageNeed(plan: FoundingStockyardRelocationPlan): string {
     case 'honey':
     case 'wine':
       return 'a Marketplace, Monastery, or compatible producer';
+    case 'wax':
+      return 'a Chandlery, Marketplace, or compatible store';
+    case 'candles':
+      return 'a Marketplace, Chandlery, or compatible store';
     case 'ironwork':
       return 'a Carpenter or Marketplace';
     case 'iron':

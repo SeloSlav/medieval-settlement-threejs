@@ -838,29 +838,161 @@
   min-width: 0;
 }
 
-.noble-setup-heraldry-preview {
-  display: grid;
-  grid-template-columns: minmax(0, 130px) 72px;
-  align-items: center;
-  gap: 13px;
-  min-width: 0;
-  padding: 5px 8px 5px 14px;
-  border: 1px solid rgba(218, 190, 126, 0.24);
-  border-radius: 3px 3px 13px 3px;
-  background: rgba(8, 10, 8, 0.46);
+.noble-setup-portrait-caption[data-tooltip],
+.noble-setup-heraldry-identity[data-tooltip] {
+  cursor: help;
 }
 
-.noble-setup-heraldry-preview > span {
+.noble-setup-portrait-caption[data-tooltip]:focus-visible,
+.noble-setup-heraldry-identity[data-tooltip]:focus-visible {
+  border-radius: 3px;
+  outline: 1px solid rgba(225, 190, 105, 0.72);
+  outline-offset: 3px;
+}
+
+.ui-tooltip.ui-tooltip--noble-setup {
+  z-index: 10005;
+  max-width: min(320px, calc(100vw - 24px));
+  padding: 11px 13px;
+  border-color: rgba(225, 190, 105, 0.42);
+  border-radius: 4px;
+  background:
+    linear-gradient(145deg, rgba(45, 42, 31, 0.98), rgba(17, 21, 16, 0.99)),
+    #171a15;
+  box-shadow:
+    0 20px 54px rgba(0, 0, 0, 0.56),
+    inset 3px 0 0 rgba(197, 155, 72, 0.64),
+    inset 0 1px 0 rgba(255, 244, 218, 0.08);
+}
+
+.noble-setup-armory {
+  display: block;
+  height: 100%;
+  padding: 16px 18px;
   overflow: hidden;
-  color: #cdbd9b;
-  font-size: 11px;
-  text-align: right;
+}
+
+.noble-setup-heraldry-layout {
+  display: grid;
+  grid-template-columns: minmax(270px, 0.54fr) minmax(0, 1.46fr);
+  gap: clamp(14px, 1.7vw, 26px);
+  height: 100%;
+  min-height: 0;
+}
+
+.noble-setup-heraldry-profile {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 16px;
+  min-width: 0;
+  min-height: 0;
+  padding: clamp(12px, 1.5vw, 22px);
+  border: 1px solid rgba(218, 190, 126, 0.2);
+  border-radius: 4px 4px 24px 4px;
+  background:
+    radial-gradient(circle at 42% 34%, rgba(180, 139, 65, 0.13), transparent 48%),
+    linear-gradient(155deg, rgba(255, 244, 212, 0.035), transparent 50%),
+    rgba(8, 11, 8, 0.34);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.025);
+}
+
+.noble-setup-heraldry-portrait-shell {
+  position: relative;
+  align-self: center;
+  justify-self: center;
+  width: min(100%, 360px);
+  min-width: 0;
+  padding: 0 10px 18px 0;
+}
+
+.noble-setup-heraldry-portrait-frame {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 0.86;
+  overflow: hidden;
+  border: 1px solid rgba(218, 190, 126, 0.5);
+  border-radius: 3px;
+  background: #141711;
+  box-shadow:
+    inset 0 0 0 4px rgba(18, 16, 12, 0.72),
+    inset 0 0 0 5px rgba(205, 174, 106, 0.16),
+    0 18px 42px rgba(0, 0, 0, 0.36);
+}
+
+.noble-setup-heraldry-portrait-frame > img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  filter: saturate(0.86) contrast(1.04);
+}
+
+.noble-setup-heraldry-shield {
+  position: absolute;
+  right: -3px;
+  bottom: -3px;
+  display: grid;
+  place-items: center;
+  width: clamp(112px, 43%, 164px);
+  padding: 10px;
+  border: 1px solid rgba(225, 190, 105, 0.48);
+  border-radius: 50% 50% 46% 46%;
+  background:
+    radial-gradient(circle, rgba(40, 38, 29, 0.98) 0 58%, rgba(11, 13, 10, 0.98) 59% 100%);
+  box-shadow:
+    0 16px 34px rgba(0, 0, 0, 0.52),
+    inset 0 0 0 3px rgba(208, 174, 95, 0.11);
+}
+
+.noble-setup-heraldry-shield .heraldry-shield--main {
+  width: 100%;
+}
+
+.noble-setup-heraldry-identity {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  padding: 2px 6px 0;
+  text-align: center;
+}
+
+.noble-setup-heraldry-identity h2,
+.noble-setup-heraldry-identity p,
+.noble-setup-heraldry-identity small {
+  margin: 0;
+}
+
+.noble-setup-heraldry-identity h2 {
+  overflow: hidden;
+  color: #ead9b5;
+  font-size: clamp(18px, 1.55vw, 25px);
+  font-weight: 500;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.noble-setup-heraldry-preview .heraldry-shield--main {
-  width: 54px;
+.noble-setup-heraldry-identity > p:not(.noble-setup-eyebrow) {
+  overflow: hidden;
+  color: #b6aa91;
+  font-size: 11px;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.noble-setup-heraldry-identity small {
+  color: #817969;
+  font: 9px/1 Inter, ui-sans-serif, system-ui, sans-serif;
+}
+
+.noble-setup-heraldry-editor {
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  gap: 12px;
+  min-width: 0;
+  min-height: 0;
 }
 
 .noble-setup-actions .noble-setup-back {
@@ -886,6 +1018,13 @@
   .noble-setup-presets { grid-template-columns: repeat(8, 1fr); }
   .noble-setup-preset:nth-child(n + 9) { display: none; }
   .noble-setup-patterns, .noble-setup-charges { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .noble-setup-heraldry-layout {
+    grid-template-columns: minmax(220px, 0.46fr) minmax(0, 1.54fr);
+    gap: 12px;
+  }
+  .noble-setup-heraldry-profile { gap: 10px; padding: 12px; }
+  .noble-setup-heraldry-portrait-shell { width: min(100%, 290px); }
+  .noble-setup-heraldry-shield { width: clamp(92px, 42%, 126px); padding: 8px; }
 }
 
 @media (max-width: 820px) {
@@ -989,13 +1128,19 @@
   .noble-setup-house-profile { width: min(230px, 100%); }
   .noble-setup-identity-showcase { grid-template-columns: minmax(0, 1fr); }
   .noble-setup-house-roster { gap: 5px; }
-  .noble-setup-heraldry-preview {
-    grid-template-columns: minmax(0, 90px) 48px;
-    gap: 6px;
-    padding: 3px 5px 3px 8px;
+  .noble-setup-armory { display: block; padding: 7px; overflow: hidden; }
+  .noble-setup-heraldry-layout {
+    grid-template-columns: minmax(145px, 0.42fr) minmax(0, 1.58fr);
+    gap: 7px;
   }
-  .noble-setup-heraldry-preview > span { font-size: 8px; }
-  .noble-setup-heraldry-preview .heraldry-shield--main { width: 38px; }
+  .noble-setup-heraldry-profile { gap: 5px; padding: 6px; border-radius: 3px 3px 13px 3px; }
+  .noble-setup-heraldry-portrait-shell { width: min(100%, 190px); padding: 0 5px 8px 0; }
+  .noble-setup-heraldry-shield { right: -2px; bottom: -2px; width: clamp(62px, 43%, 82px); padding: 5px; }
+  .noble-setup-heraldry-identity { gap: 2px; padding: 0 2px; }
+  .noble-setup-heraldry-identity h2 { font-size: 12px; }
+  .noble-setup-heraldry-identity > p:not(.noble-setup-eyebrow) { font-size: 7px; }
+  .noble-setup-heraldry-identity small { font-size: 6px; }
+  .noble-setup-heraldry-editor { gap: 5px; }
   .noble-setup-actions {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1032,6 +1177,46 @@
   }
   .noble-setup-house-profile .noble-setup-name-label { align-self: end; }
   .noble-setup-nobles { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+  .noble-setup-heraldry-layout {
+    grid-template-columns: minmax(104px, 0.36fr) minmax(0, 1.64fr);
+    gap: 5px;
+  }
+  .noble-setup-heraldry-profile { padding: 4px; }
+  .noble-setup-heraldry-portrait-shell { width: 100%; padding: 0 3px 5px 0; }
+  .noble-setup-heraldry-shield { width: clamp(48px, 46%, 62px); padding: 4px; }
+  .noble-setup-heraldry-identity > p:not(.noble-setup-eyebrow) { display: none; }
+  .noble-setup-heraldry-identity h2 { font-size: 9px; }
+}
+
+@media (max-width: 380px) {
+  .noble-setup-armory { overflow-y: auto; }
+  .noble-setup-heraldry-layout {
+    grid-template-columns: minmax(0, 1fr);
+    height: auto;
+  }
+  .noble-setup-heraldry-profile {
+    grid-template-columns: 92px minmax(0, 1fr);
+    grid-template-rows: auto;
+    gap: 8px;
+  }
+  .noble-setup-heraldry-portrait-shell {
+    grid-column: 1;
+    width: 92px;
+  }
+  .noble-setup-heraldry-identity {
+    grid-column: 2;
+    align-self: center;
+    text-align: left;
+  }
+  .noble-setup-heraldry-identity > p:not(.noble-setup-eyebrow) { display: block; }
+  .noble-setup-heraldry-shield { width: 46px; }
+  .noble-setup-heraldry-editor { grid-template-rows: auto auto auto; }
+  .noble-setup-armory-columns { grid-template-columns: minmax(0, 1fr); }
+  .noble-setup-editor-panel {
+    grid-template-rows: auto auto auto auto auto auto;
+    overflow: visible;
+  }
+  .noble-setup-charges { max-height: none; overflow: visible; }
 }
 
 @media (max-height: 760px) and (min-width: 821px) {
@@ -1048,6 +1233,8 @@
   .noble-setup-actions { min-height: 50px; }
   .noble-setup-identity-showcase { grid-template-columns: minmax(0, 1fr); }
   .noble-setup-house-profile { width: min(255px, 100%); }
+  .noble-setup-heraldry-portrait-shell { width: min(100%, 255px); }
+  .noble-setup-heraldry-shield { width: clamp(92px, 42%, 124px); }
 }
 
 @media (prefers-reduced-motion: reduce) {

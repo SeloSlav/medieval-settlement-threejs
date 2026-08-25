@@ -33,7 +33,7 @@ export const MARKETPLACE_STALL_DISPLAY_KINDS = {
     'smokedFish',
     'cheese',
   ],
-  goods: ['firewood', 'charcoal', 'cloth', 'shoes', 'pottery'],
+  goods: ['firewood', 'charcoal', 'cloth', 'shoes', 'pottery', 'candles'],
 } as const satisfies Readonly<
   Record<MarketStallGroup, readonly MarketStallDisplayKind[]>
 >;

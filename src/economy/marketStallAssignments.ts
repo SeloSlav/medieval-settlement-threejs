@@ -37,7 +37,8 @@ export type MarketStallCommodityKind =
   | 'charcoal'
   | 'cloth'
   | 'shoes'
-  | 'pottery';
+  | 'pottery'
+  | 'candles';
 
 /**
  * A deliberately small visual kit. Closely related commodities share a prop
@@ -62,7 +63,8 @@ export type MarketStallDisplayKind =
   | 'charcoal'
   | 'cloth'
   | 'shoes'
-  | 'pottery';
+  | 'pottery'
+  | 'candles';
 
 export type MarketStallRepresentative = {
   commodityKind: MarketStallCommodityKind;
@@ -112,7 +114,7 @@ const MARKET_STALL_LABELS: Readonly<Record<MarketStallNeed, string>> = {
   firewood: 'Fuel',
   cloth: 'Cloth',
   shoes: 'Shoes',
-  pottery: 'Pottery',
+  pottery: 'Household wares',
 };
 
 export function marketStallLabel(needKind: MarketStallNeed): string {
@@ -127,7 +129,7 @@ const MARKET_STALL_COMMODITIES_BY_NEED: Readonly<
   firewood: ['firewood', 'charcoal'],
   cloth: ['cloth'],
   shoes: ['shoes'],
-  pottery: ['pottery'],
+  pottery: ['pottery', 'candles'],
 };
 
 /**
@@ -193,6 +195,7 @@ function marketStallDisplayKind(
     case 'cloth': return 'cloth';
     case 'shoes': return 'shoes';
     case 'pottery': return 'pottery';
+    case 'candles': return 'candles';
     default: {
       const unreachable: never = commodityKind;
       return unreachable;
@@ -447,7 +450,7 @@ export function marketStallStock(
     case 'shoes':
       return finiteStock(building.shoes);
     case 'pottery':
-      return finiteStock(building.pottery);
+      return finiteStock(building.pottery) + finiteStock(building.candles);
   }
 }
 

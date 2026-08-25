@@ -12,6 +12,17 @@ assert.match(noblePanel, /data-setup-step="house"/);
 assert.match(noblePanel, /data-setup-step="heraldry"/);
 assert.match(noblePanel, /Continue to Heraldry/);
 assert.match(noblePanel, /Continue to Map Generation/);
+assert.match(noblePanel, /HERALDRY_PRESETS\.findIndex/);
+assert.match(noblePanel, /aria-modal="true"/);
+assert.match(noblePanel, /this\.syncStep\(true\)/);
+assert.match(noblePanel, /mountTooltips\(this\.backdrop\)/);
+assert.match(noblePanel, /data-noble-description/);
+assert.match(noblePanel, /button\.dataset\.tooltipTitle = noble\.name/);
+assert.match(noblePanel, /button\.dataset\.tooltip = `\$\{noble\.title\}\\n\\n\$\{noble\.years\}`/);
+assert.match(noblePanel, /class="noble-setup-heraldry-profile"/);
+assert.match(noblePanel, /data-heraldry-preview-portrait/);
+assert.match(noblePanel, /class="noble-setup-heraldry-shield" data-main-shield/);
+assert.match(noblePanel, /class="noble-setup-heraldry-editor"/);
 assert.match(
   noblePanel,
   /this\.backButton\.addEventListener\('click',[\s\S]*?this\.step = 'house'[\s\S]*?this\.syncStep/,
@@ -21,10 +32,15 @@ assert.match(
   /if \(this\.step === 'house'\) \{[\s\S]*?this\.step = 'heraldry'[\s\S]*?return;/,
 );
 assert.match(nobleCss, /\[data-setup-step\]\[hidden\][\s\S]*?display: none/);
+assert.match(nobleCss, /\.ui-tooltip\.ui-tooltip--noble-setup[\s\S]*?z-index: 10005/);
+assert.match(nobleCss, /\.noble-setup-heraldry-layout[\s\S]*?grid-template-columns:/);
+assert.match(nobleCss, /\.noble-setup-heraldry-shield[\s\S]*?position: absolute/);
 
 assert.match(worldPanel, /action: 'back' \| 'start'/);
 assert.match(worldPanel, /initialSettings\?: WorldGenerationSettings/);
 assert.match(worldPanel, /data-setup-back>Back to Heraldry/);
+assert.match(worldPanel, /aria-pressed="\$\{size === this\.draft\.mapSize\}"/);
+assert.match(worldPanel, /data-setup-heading/);
 assert.match(
   worldPanel,
   /backButton\.addEventListener\('click',[\s\S]*?this\.resolve\(\{ action: 'back', settings \}\)/,
@@ -43,5 +59,8 @@ assert.match(browserCoverage, /Back to Noble House/);
 assert.match(browserCoverage, /House of the Silver Pine/);
 assert.match(browserCoverage, /data-map-size="small"/);
 assert.match(browserCoverage, /data-aquifer-networks/);
+assert.match(browserCoverage, /Lord of Bosiljevo, Ribnik, and Novigrad/);
+assert.match(browserCoverage, /noble-setup-heraldry-profile/);
+assert.match(browserCoverage, /data-heraldry-preview-portrait/);
 
 console.log('new-world setup flow tests passed');

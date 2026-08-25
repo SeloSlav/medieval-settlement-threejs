@@ -102,7 +102,10 @@ for (const mapping of [
 ]) {
   assert.match(backyardSimulation, mapping);
 }
-assert.match(backyardSimulation, /HerbGarden \| BackyardGardenKind::GoatPen/);
+assert.match(
+  backyardSimulation,
+  /HerbGarden\s*\| BackyardGardenKind::GoatPen\s*\| BackyardGardenKind::BackyardApiary/,
+);
 assert.match(backyardSimulation, /CommodityKind::Remedies/);
 assert.match(backyardSimulation, /CommodityKind::Hides/);
 assert.match(
@@ -114,6 +117,11 @@ assert.match(
   backyardSimulation,
   /GoatPen[\s\S]*goods_marketplace_id[\s\S]*transfer_backyard_hides_to_storehouse/,
   'goat hides must not depend on the pen having a food-stall assignment',
+);
+assert.match(
+  backyardSimulation,
+  /BackyardApiary[\s\S]*goods_marketplace_id[\s\S]*transfer_backyard_wax_to_storehouse/,
+  'backyard wax must use the Storehouse goods route independently of honey',
 );
 
 const expandedEconomy = readFileSync('server/src/simulation/expanded_economy.rs', 'utf8');
@@ -143,10 +151,17 @@ assert.match(
   'raw backyard hides must leave the Storehouse through industry or regional trade, not household retail',
 );
 
-const needSimulation = readFileSync('server/src/simulation/residence_needs/mod.rs', 'utf8');
-assert.match(needSimulation, /residence\.tier >= 4[\s\S]*RESIDENCE_LUXURY_JAM_PER_PERSON_PER_SEC/);
-assert.match(needSimulation, /residence\.aronia_jam[\s\S]*residence\.rosehip_jam/);
-assert.match(needSimulation, /allocation\.remaining_stock[\s\S]*aronia_used[\s\S]*rosehip_jam/);
+const deliveryCargo = readFileSync('server/src/simulation/delivery_cargo.rs', 'utf8');
+assert.match(
+  deliveryCargo,
+  /PRESERVED_ORDER[\s\S]*CommodityKind::AroniaJam[\s\S]*CommodityKind::RosehipJam/,
+  'both backyard jams must remain distinct preserved-food deliveries',
+);
+assert.match(
+  deliveryCargo,
+  /ResidenceNeedKind::PreservedFood => &PRESERVED_ORDER/,
+  'backyard jams must satisfy the Tier-4 preserved-food need through physical carts',
+);
 
 for (const root of ['src/generated', 'server/src/generated']) {
   const backyardTable = readFileSync(`${root}/backyard_garden_table.ts`, 'utf8');

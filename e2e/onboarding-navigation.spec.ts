@@ -9,7 +9,9 @@ async function expectActiveStep(page: Page, step: 'house' | 'heraldry' | 'map'):
 test('new-world setup moves backward and forward without losing choices', async ({ page }) => {
   await page.goto('/?new');
 
-  await expect(page.getByRole('heading', { name: 'Choose Your Noble House' })).toBeVisible();
+  const houseHeading = page.getByRole('heading', { name: 'Choose Your Noble House' });
+  await expect(houseHeading).toBeVisible();
+  await expect(houseHeading).toBeFocused();
   await expect(page.locator('[data-setup-step="house"]')).toBeVisible();
   await expect(page.locator('[data-setup-step="heraldry"]')).toBeHidden();
   await expect(page.locator('[data-setup-back]')).toBeHidden();
@@ -17,22 +19,57 @@ test('new-world setup moves backward and forward without losing choices', async 
 
   const noble = page.locator('[data-noble-id="vuk-frankapan"]');
   await noble.click();
+  await expect(noble).not.toHaveAttribute('title', /./);
+  await expect(noble).toHaveAttribute('data-tooltip', /Lord of Bosiljevo, Ribnik, and Novigrad/);
+  const description = page.locator('[data-noble-description]');
+  await description.hover();
+  const tooltip = page.locator('#ui-tooltip');
+  await expect(tooltip).toBeVisible();
+  await expect(tooltip).toContainText('Vuk I. Frankapan');
+  await expect(tooltip).toContainText('Lord of Bosiljevo, Ribnik, and Novigrad');
+  await expect(tooltip).toContainText('before 1521–1546 · legacy');
   await page.locator('[data-noble-name]').fill('House of the Silver Pine');
   await page.getByRole('button', { name: /Continue to Heraldry/ }).click();
 
-  await expect(page.getByRole('heading', { name: 'Design Your Heraldry' })).toBeVisible();
+  const heraldryHeading = page.getByRole('heading', { name: 'Design Your Heraldry' });
+  await expect(heraldryHeading).toBeVisible();
+  await expect(heraldryHeading).toBeFocused();
   await expect(page.locator('[data-setup-step="house"]')).toBeHidden();
   await expect(page.locator('[data-setup-step="heraldry"]')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Back to Noble House' })).toBeVisible();
   await expectActiveStep(page, 'heraldry');
 
-  const pattern = page.locator('[data-pattern-choice="solid"]');
-  const charge = page.locator('[data-charge-choice="tower"]');
-  await pattern.click();
-  await charge.click();
+  const heraldryProfile = page.locator('.noble-setup-heraldry-profile');
+  const heraldryEditor = page.locator('.noble-setup-heraldry-editor');
+  const heraldryPortrait = page.locator('[data-heraldry-preview-portrait]');
+  const heraldryShieldMount = page.locator('.noble-setup-heraldry-shield');
+  const liveShield = heraldryShieldMount.locator('.heraldry-shield');
+  await expect(heraldryProfile).toBeVisible();
+  await expect(heraldryEditor).toBeVisible();
+  await expect(heraldryPortrait).toHaveAttribute('src', /vuk-frankapan\.webp/);
+  await expect(heraldryPortrait).toHaveAttribute('alt', 'Portrait of Vuk I. Frankapan');
+  const [profileBox, editorBox, portraitBox, shieldBox] = await Promise.all([
+    heraldryProfile.boundingBox(),
+    heraldryEditor.boundingBox(),
+    page.locator('.noble-setup-heraldry-portrait-frame').boundingBox(),
+    heraldryShieldMount.boundingBox(),
+  ]);
+  expect(profileBox).not.toBeNull();
+  expect(editorBox).not.toBeNull();
+  expect(portraitBox).not.toBeNull();
+  expect(shieldBox).not.toBeNull();
+  expect(profileBox!.x + profileBox!.width).toBeLessThanOrEqual(editorBox!.x);
+  expect(shieldBox!.x).toBeGreaterThan(portraitBox!.x + portraitBox!.width * 0.5);
+  expect(shieldBox!.y + shieldBox!.height).toBeGreaterThan(portraitBox!.y + portraitBox!.height * 0.9);
+
+  const preset = page.getByRole('button', { name: 'Coat of arms preset 6' });
+  await preset.click();
+  await expect(preset).toHaveAttribute('aria-pressed', 'true');
   await page.getByRole('button', { name: /Continue to Map Generation/ }).click();
 
-  await expect(page.getByRole('heading', { name: 'Map Generation' })).toBeVisible();
+  const mapHeading = page.getByRole('heading', { name: 'Map Generation' });
+  await expect(mapHeading).toBeVisible();
+  await expect(mapHeading).toBeFocused();
   await expect(page.getByRole('button', { name: 'Back to Heraldry' })).toBeVisible();
   await expectActiveStep(page, 'map');
 
@@ -41,21 +78,39 @@ test('new-world setup moves backward and forward without losing choices', async 
   await page.locator('[data-aquifer-networks]').click();
 
   await page.getByRole('button', { name: 'Back to Heraldry' }).click();
-  await expect(page.getByRole('heading', { name: 'Design Your Heraldry' })).toBeVisible();
+  await expect(heraldryHeading).toBeVisible();
+  await expect(heraldryHeading).toBeFocused();
+  await expect(preset).toHaveAttribute('aria-pressed', 'true');
+
+  const pattern = page.locator('[data-pattern-choice="solid"]');
+  const charge = page.locator('[data-charge-choice="tower"]');
+  await pattern.click();
+  await expect(liveShield).toHaveAttribute('data-pattern', 'solid');
+  await charge.click();
+  await expect(liveShield).toHaveCSS('--charge-mask', /tower\.png/);
+  await page.getByRole('button', { name: /Continue to Map Generation/ }).click();
+  await expect(mapHeading).toBeVisible();
+  await expect(page.locator('[data-map-size="small"]')).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('[data-aquifer-networks]')).toHaveAttribute('aria-pressed', 'true');
+  await page.getByRole('button', { name: 'Back to Heraldry' }).click();
+  await expect(heraldryHeading).toBeFocused();
   await expect(pattern).toHaveAttribute('aria-pressed', 'true');
   await expect(charge).toHaveAttribute('aria-pressed', 'true');
   await expectActiveStep(page, 'heraldry');
 
   await page.getByRole('button', { name: 'Back to Noble House' }).click();
-  await expect(page.getByRole('heading', { name: 'Choose Your Noble House' })).toBeVisible();
+  await expect(houseHeading).toBeVisible();
+  await expect(houseHeading).toBeFocused();
   await expect(noble).toHaveAttribute('aria-pressed', 'true');
   await expect(page.locator('[data-noble-name]')).toHaveValue('House of the Silver Pine');
   await expectActiveStep(page, 'house');
 
   await page.getByRole('button', { name: /Continue to Heraldry/ }).click();
+  await expect(heraldryHeading).toBeFocused();
   await page.getByRole('button', { name: /Continue to Map Generation/ }).click();
-  await expect(page.getByRole('heading', { name: 'Map Generation' })).toBeVisible();
-  await expect(page.locator('[data-map-size="small"]')).toHaveClass(/is-selected/);
+  await expect(mapHeading).toBeVisible();
+  await expect(mapHeading).toBeFocused();
+  await expect(page.locator('[data-map-size="small"]')).toHaveAttribute('aria-pressed', 'true');
   await expect(page.locator('[data-aquifer-networks]')).toHaveAttribute('aria-pressed', 'true');
   await expectActiveStep(page, 'map');
 });

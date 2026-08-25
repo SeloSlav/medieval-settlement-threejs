@@ -356,6 +356,21 @@
   background-image: url('/assets/ui/icons/resource-mead.png');
 }
 
+.settlement-hud__stat[data-resource='wax']::before,
+.settlement-hud__stat[data-resource='candles']::before {
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: contain;
+}
+
+.settlement-hud__stat[data-resource='wax']::before {
+  background-image: url('/assets/ui/icons/materials/beeswax.svg');
+}
+
+.settlement-hud__stat[data-resource='candles']::before {
+  background-image: url('/assets/ui/icons/materials/candles.svg');
+}
+
 .settlement-hud__stat[data-resource='ryeGrain']::before,
 .settlement-hud__stat[data-resource='oatGrain']::before,
 .settlement-hud__stat[data-resource='maslinGrain']::before,
@@ -599,6 +614,21 @@
 
 .resource-cost__item[data-resource-cost='mead'] .resource-cost__icon {
   background-image: url('/assets/ui/icons/resource-mead.png');
+}
+
+.resource-cost__item[data-resource-cost='wax'] .resource-cost__icon,
+.resource-cost__item[data-resource-cost='candles'] .resource-cost__icon {
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: contain;
+}
+
+.resource-cost__item[data-resource-cost='wax'] .resource-cost__icon {
+  background-image: url('/assets/ui/icons/materials/beeswax.svg');
+}
+
+.resource-cost__item[data-resource-cost='candles'] .resource-cost__icon {
+  background-image: url('/assets/ui/icons/materials/candles.svg');
 }
 
 .resource-cost__item[data-resource-cost='ryeSheaves'] .resource-cost__icon,

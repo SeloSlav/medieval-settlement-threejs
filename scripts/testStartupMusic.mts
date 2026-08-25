@@ -6,7 +6,10 @@ import {
   StartupMusicController,
   type StartupMusicEnvironment,
 } from '../src/audio/StartupMusicController.ts';
-import { MUSIC_TRACKS } from '../src/audio/audioCatalog.ts';
+import {
+  MUSIC_TRACKS,
+  STARTUP_MUSIC_CLIP,
+} from '../src/audio/audioCatalog.ts';
 import {
   isSoundtrackActive,
   setExternalSoundtrackActive,
@@ -177,8 +180,13 @@ async function flushPromises(): Promise<void> {
   await Promise.resolve();
 }
 
-assert.equal(STARTUP_MUSIC_TRACK_ID, 'valley_at_first_light');
+assert.equal(STARTUP_MUSIC_TRACK_ID, 'a_charter_beneath_the_firs');
 assert.equal(STARTUP_MUSIC_FADE_OUT_MS, 7_000);
+assert.strictEqual(
+  MUSIC_TRACKS[STARTUP_MUSIC_TRACK_ID],
+  STARTUP_MUSIC_CLIP,
+  'the planning theme must remain available to the gameplay soundtrack',
+);
 setSoundtrackActive(false);
 setExternalSoundtrackActive(true);
 assert.equal(
@@ -201,12 +209,12 @@ controller.start();
 controller.start();
 assert.equal(retryHarness.audioInstances.length, 1, 'startup must own one audio element');
 const audio = retryHarness.audioInstances[0]!;
-assert.equal(audio.src, MUSIC_TRACKS.valley_at_first_light.path);
+assert.equal(audio.src, STARTUP_MUSIC_CLIP.path);
 assert.equal(audio.preload, 'auto');
 assert.equal(audio.loop, true, 'setup music must survive arbitrarily long world setup');
 assert.equal(
   audio.volume,
-  (MUSIC_TRACKS.valley_at_first_light.volume ?? 1) * 0.5,
+  (STARTUP_MUSIC_CLIP.volume ?? 1) * 0.5,
   'startup music must use the authored cue gain and saved music volume',
 );
 assert.equal(audio.playCount, 1, 'startup should attempt autoplay immediately');
@@ -233,7 +241,7 @@ assert.equal(audio.playCount, 2, 'successful unlock must remove retry listeners'
 controller.setMusicVolume(0.25);
 assert.equal(
   audio.volume,
-  (MUSIC_TRACKS.valley_at_first_light.volume ?? 1) * 0.25,
+  (STARTUP_MUSIC_CLIP.volume ?? 1) * 0.25,
   'live music-volume changes must reach the startup cue during its handoff',
 );
 const startVolume = audio.volume;

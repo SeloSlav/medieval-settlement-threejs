@@ -41,6 +41,7 @@ export const BUILDING_KIND_TO_MENU_ACTION: Partial<Record<BuildingKind, Placemen
   weaver: 'weaver',
   tannery: 'tannery',
   cobbler: 'cobbler',
+  chandlery: 'chandlery',
   pastoral_farmstead: 'pastoral-farmstead',
   swineherd: 'swineherd',
 };
@@ -86,6 +87,7 @@ export const MENU_ACTION_TO_BUILDING_KIND: Record<BuildingMenuAction, BuildingKi
   weaver: 'weaver',
   tannery: 'tannery',
   cobbler: 'cobbler',
+  chandlery: 'chandlery',
   'pastoral-farmstead': 'pastoral_farmstead',
   swineherd: 'swineherd',
 };

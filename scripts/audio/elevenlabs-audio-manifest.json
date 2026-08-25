@@ -1252,6 +1252,15 @@
       "promptInfluence": 0.88
     },
     {
+      "id": "music-charter-beneath-firs",
+      "group": "soundtrack",
+      "kind": "music",
+      "output": "public/sounds/music/a_charter_beneath_the_firs.mp3",
+      "prompt": "Instrumental main-menu and world-creation theme for a historically grounded settlement strategy game in Gorski Kotar, Croatia, circa 1550. An intimate late-Renaissance chamber piece, restrained and human rather than epic. A warm six-course Renaissance lute states a short memorable motif; a breathy wooden tenor recorder answers in sparse phrases; one low viola da gamba sustains open fifths and develops a gentle two-voice counterline; only occasional muted tabor pulses, never a marching beat. Slow measured duple pulse around 62 BPM, Dorian-centered modality with brief Mixolydian warmth, clear cadences, modest imitation and counterpoint, and a narrow singable melody. The mood is mist over beech-and-fir highlands, parchment maps, wax seals, noble responsibility, frontier uncertainty, and hopeful settlement-building. Begin immediately but softly, grow once to a dignified and quietly resolute middle, then return to the opening lute-and-open-fifth sonority. Designed for unobtrusive menu listening and a clean repeat: low-energy final five seconds, matching the opening harmony and timbre, no abrupt ending. Instrumental only; no vocals or choir, no modern orchestra, cinematic trailer swells, synths, piano, accordion, tamburica ensemble, brass fanfare, Celtic or Irish styling, battle drums, or fantasy-tavern music.",
+      "musicLengthMs": 120000,
+      "forceInstrumental": true
+    },
+    {
       "id": "music-valley-first-light",
       "group": "soundtrack",
       "kind": "music",

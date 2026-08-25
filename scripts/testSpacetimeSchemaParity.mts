@@ -123,15 +123,35 @@ for (const tableName of subscriptions) {
 const building = rustTables.get('building');
 assert.ok(building, 'building table must be subscribed and public');
 assert.deepEqual(
-  building.fields.slice(-5),
+  building.fields.slice(-9),
   [
     { name: 'tree_work_area_x', type: 'f64' },
     { name: 'tree_work_area_z', type: 'f64' },
     { name: 'tree_work_area_radius', type: 'f64' },
     { name: 'settlement_id', type: 'u64' },
     { name: 'animal_feed', type: 'f64' },
+    { name: 'storage_acceptance_mask_high', type: 'u64' },
+    { name: 'wax', type: 'f64' },
+    { name: 'candles', type: 'f64' },
+    { name: 'apiary_wax_cycle_progress', type: 'u8' },
   ],
-  'Animal Feed must append after sticky community identity without reordering saved Building fields',
+  'candle-chain fields must append after Animal Feed without reordering saved Building fields',
+);
+
+const playerResources = rustTables.get('player_resources');
+assert.ok(playerResources, 'player_resources table must be subscribed and public');
+assert.deepEqual(
+  playerResources.fields.slice(-2),
+  [{ name: 'wax', type: 'f64' }, { name: 'candles', type: 'f64' }],
+  'candle-chain treasury fields must remain additive',
+);
+
+const backyardGarden = rustTables.get('backyard_garden');
+assert.ok(backyardGarden, 'backyard_garden table must be subscribed and public');
+assert.deepEqual(
+  backyardGarden.fields.at(-1),
+  { name: 'wax_stock', type: 'f64' },
+  'backyard wax stock must remain an additive compatibility field',
 );
 
 for (const tableName of ['burgage_zone', 'residence'] as const) {

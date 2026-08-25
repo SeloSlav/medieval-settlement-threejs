@@ -72,6 +72,7 @@ export const PRODUCTION_WORKPLACE_KINDS = [
   'windmill',
   'carpenter',
   'weaver',
+  'chandlery',
   'watchtower',
   'guardhouse',
 ] as const satisfies readonly BuildingKind[];
@@ -140,6 +141,7 @@ export type WorkerProductionBlocker =
   | 'ironwork_target'
   | 'pottery_target'
   | 'preserved_food_target'
+  | 'candles_target'
   | 'firewood'
   | 'iron'
   | 'charcoal'
@@ -147,7 +149,8 @@ export type WorkerProductionBlocker =
   | 'water'
   | 'food'
   | 'salt'
-  | 'pottery';
+  | 'pottery'
+  | 'wax';
 
 export type WorkerWalkPlan = {
   path: PointXZ[];
@@ -193,6 +196,7 @@ export const YARD_WORK_ACTIVITY = {
   windmill: 'tend',
   carpenter: 'build',
   weaver: 'tend',
+  chandlery: 'tend',
   guardhouse: 'build',
   monastery: 'tend',
 } as const satisfies Partial<Record<BuildingKind, WorkerActivityKind>>;
@@ -260,6 +264,9 @@ export function workerProductionBlocker(
     case 'smokehouse':
       outputBlocker = 'preserved_food_target';
       break;
+    case 'chandlery':
+      outputBlocker = 'candles_target';
+      break;
     default:
       return null;
   }
@@ -284,6 +291,9 @@ export function workerProductionBlocker(
       if (building.firewood <= 1e-6) return 'firewood';
       if ((building.salt ?? 0) <= 1e-6) return 'salt';
       return (building.pottery ?? 0) > 1e-6 ? null : 'pottery';
+    case 'chandlery':
+      if ((building.wax ?? 0) <= 1e-6) return 'wax';
+      return building.firewood > 1e-6 ? null : 'firewood';
   }
 }
 
@@ -296,6 +306,7 @@ export function workerProductionBlockerDescription(
     case 'ironwork_target': return 'the ironwork target has been reached';
     case 'pottery_target': return 'the pottery target has been reached';
     case 'preserved_food_target': return 'the preserved-food target has been reached';
+    case 'candles_target': return 'the candle target has been reached';
     case 'firewood': return 'there is no firewood on site';
     case 'iron': return 'there is no raw iron on site';
     case 'charcoal': return 'there is no charcoal on site';
@@ -304,6 +315,7 @@ export function workerProductionBlockerDescription(
     case 'food': return 'there is no fresh food on site';
     case 'salt': return 'there is no salt on site';
     case 'pottery': return 'there are no pottery vessels on site';
+    case 'wax': return 'there is no beeswax on site';
   }
 }
 

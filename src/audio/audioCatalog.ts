@@ -8,6 +8,7 @@ export type AmbientLayerId =
   | 'light_rain';
 
 export type MusicTrackId =
+  | 'a_charter_beneath_the_firs'
   | 'valley_at_first_light'
   | 'roads_and_rooftops'
   | 'vespers_over_the_valley'
@@ -106,6 +107,10 @@ export const RIVER_WATER_CLIP: AudioClipDefinition = {
 
 /** Context-selected, non-looping score with deliberate silence between cues. */
 export const MUSIC_TRACKS: Record<MusicTrackId, AudioClipDefinition> = {
+  a_charter_beneath_the_firs: {
+    path: '/sounds/music/a_charter_beneath_the_firs.mp3',
+    volume: 0.115,
+  },
   valley_at_first_light: {
     path: '/sounds/music/valley_at_first_light.mp3',
     volume: 0.135,
@@ -123,6 +128,10 @@ export const MUSIC_TRACKS: Record<MusicTrackId, AudioClipDefinition> = {
     volume: 0.18,
   },
 };
+
+/** The score cue selected for planning/loading, then retained in gameplay rotation. */
+export const STARTUP_MUSIC_TRACK_ID = 'a_charter_beneath_the_firs' as const;
+export const STARTUP_MUSIC_CLIP = MUSIC_TRACKS[STARTUP_MUSIC_TRACK_ID];
 
 /** Authorized Selo Empire asset, heard only beside actively worked grain fields. */
 export const FARM_WORKERS_SINGING_CLIP: AudioClipDefinition = {
@@ -236,6 +245,7 @@ export const BUILDING_AUDIO_CLIPS: Record<
   weaver: { path: '/sounds/buildings/weaver.mp3', volume: 0.05 },
   tannery: { path: '/sounds/buildings/smokehouse.mp3', volume: 0.045 },
   cobbler: { path: '/sounds/buildings/carpenter.mp3', volume: 0.045 },
+  chandlery: { path: '/sounds/buildings/potter_kiln.mp3', volume: 0.045 },
   residence: { path: '/sounds/buildings/residence.mp3', volume: 0.035 },
 };
 

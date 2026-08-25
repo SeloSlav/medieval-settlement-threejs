@@ -735,9 +735,10 @@ function directMaterialCommodityRank(
     case 'clay': return 3;
     case 'charcoal': return 4;
     case 'ironwork': return 5;
-    case 'barley': return 6;
-    case 'firewood': return 7;
-    case 'ryeFlour': return 8;
+    case 'wax': return 6;
+    case 'barley': return 7;
+    case 'firewood': return 8;
+    case 'ryeFlour': return 9;
     case 'maslinFlour': return 10;
     case 'food': return 11;
     case 'preservedFood': return 12;

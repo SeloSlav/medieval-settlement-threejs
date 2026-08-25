@@ -1,11 +1,14 @@
-import { MUSIC_TRACKS, type AudioClipDefinition } from './audioCatalog.ts';
+import {
+  STARTUP_MUSIC_CLIP,
+  type AudioClipDefinition,
+} from './audioCatalog.ts';
 import {
   getMusicVolume,
   isGameAudioEnabled,
   isMusicEnabled,
 } from './audioPreferences.ts';
 
-export const STARTUP_MUSIC_TRACK_ID = 'valley_at_first_light' as const;
+export { STARTUP_MUSIC_TRACK_ID } from './audioCatalog.ts';
 export const STARTUP_MUSIC_FADE_OUT_MS = 7_000;
 
 type StartupAudio = Pick<
@@ -73,7 +76,7 @@ export class StartupMusicController {
   private audible = false;
 
   constructor(options: StartupMusicControllerOptions = {}) {
-    this.clip = options.clip ?? MUSIC_TRACKS[STARTUP_MUSIC_TRACK_ID];
+    this.clip = options.clip ?? STARTUP_MUSIC_CLIP;
     this.gameAudioEnabled = options.gameAudioEnabled
       ?? options.enabled
       ?? isGameAudioEnabled();

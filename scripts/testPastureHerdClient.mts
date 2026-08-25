@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {
+  currentPastureHeadCapacity,
   livestockPastureManagementHeadAllowance,
   PASTORAL_MANAGEMENT_UNITS,
   SWINE_MANAGEMENT_UNITS,
@@ -29,6 +30,27 @@ assert.equal(
   livestockPastureManagementHeadAllowance('swine', [{ species: 'swine', headCount: 8 }]),
   22,
 );
+assert.equal(
+  currentPastureHeadCapacity(
+    {
+      id: 'pasture-1',
+      farmsteadId: 'building-1',
+      corners: [
+        { x: 0, z: 0 },
+        { x: 20, z: 0 },
+        { x: 20, z: 20 },
+        { x: 0, z: 20 },
+      ],
+      area: 400,
+      averageSlopeDegrees: 4,
+      moisture: 0.58,
+    },
+    [],
+    { species: 'cattle', pastureCapacity: 3 },
+  ),
+  3,
+  'live capacity must come directly from the selected parcel herd row',
+);
 
 const types = source('src/resources/types.ts');
 const subscriptions = source('src/data/gameTableSubscriptions.ts');
@@ -40,6 +62,7 @@ const pastureRenderer = source('src/resources/inspector/pastureRenderer.ts');
 const buildingRenderer = source('src/resources/inspector/livestockBuildingRenderer.ts');
 const markers = source('src/farming/PastureMarkers.ts');
 const visuals = source('src/farming/LivestockVisuals.ts');
+const buildingMarkers = source('src/buildings/BuildingMarkers.ts');
 const placement = source('src/farming/FarmFieldTool.ts');
 
 assert.match(types, /type LivestockHerdState = \{[\s\S]{0,180}pastureId: string;[\s\S]{0,180}buildingId: string;/);
@@ -92,6 +115,8 @@ assert.match(markers, /herds\.get\(pasture\.id\)/);
 assert.doesNotMatch(markers, /herds\.get\(pasture\.farmsteadId\)/);
 assert.match(visuals, /pasturesById\.get\(herd\.pastureId\)/);
 assert.match(visuals, /herdPastureId = herd\.pastureId/);
+assert.match(buildingMarkers, /hayStorageCapacity:[\s\S]{0,180}herd\.species === 'swine'[\s\S]{0,100}LIVESTOCK_HAY_STORAGE_CAPACITY/);
+assert.match(buildingMarkers, /Math\.max\(LIVESTOCK_HAY_STORAGE_CAPACITY, livestock\?\.hayStorageCapacity \?\? 0\)/);
 assert.match(placement, /choose after fencing:/);
 assert.match(placement, /farmstead!\.kind === 'swineherd'/);
 assert.doesNotMatch(placement, /state\.livestockHerds\.get\(farmstead!\.id\)\?\.species/);

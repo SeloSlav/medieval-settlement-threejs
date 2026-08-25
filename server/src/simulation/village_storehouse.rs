@@ -3,9 +3,9 @@ use std::collections::HashMap;
 use spacetimedb::{Identity, ReducerContext};
 
 use crate::balance_generated::{
-    CHARCOAL_HOUSEHOLD_FUEL_VALUE, FIREWOOD_DELIVERY_SPEED_MPS, FIREWOOD_DELIVERY_UNLOAD_SEC,
-    STOREHOUSE_FIREWOOD_PER_DELIVERY, STOREHOUSE_HAUL_PER_WORKER, TIMBER_DELIVERY_SPEED_MPS,
-    TIMBER_DELIVERY_UNLOAD_SEC,
+    CANDLE_TRANSFER_PER_TRIP, CHARCOAL_HOUSEHOLD_FUEL_VALUE, FIREWOOD_DELIVERY_SPEED_MPS,
+    FIREWOOD_DELIVERY_UNLOAD_SEC, STOREHOUSE_FIREWOOD_PER_DELIVERY, STOREHOUSE_HAUL_PER_WORKER,
+    TIMBER_DELIVERY_SPEED_MPS, TIMBER_DELIVERY_UNLOAD_SEC,
 };
 use crate::db::*;
 use crate::economy::{
@@ -224,6 +224,13 @@ pub fn step_storehouse_market_stalls(
                 TIMBER_DELIVERY_SPEED_MPS,
                 TIMBER_DELIVERY_UNLOAD_SEC,
                 2.0,
+            ),
+            (
+                CommodityKind::Candles,
+                storehouse.candles,
+                TIMBER_DELIVERY_SPEED_MPS,
+                TIMBER_DELIVERY_UNLOAD_SEC,
+                CANDLE_TRANSFER_PER_TRIP,
             ),
             (
                 CommodityKind::Shoes,

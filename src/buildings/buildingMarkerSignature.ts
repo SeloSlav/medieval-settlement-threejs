@@ -297,6 +297,13 @@ export function buildingMarkerSignatures(
             ].join('');
           })()
         : '';
+      const chandleryState = building.kind === 'chandlery'
+        && building.constructionComplete !== false
+        ? [
+            `:wax:${stockpileVisualLevel(building.wax ?? 0, BUILDING_STORAGE_CAPS.chandlery.wax ?? 0, 3)}`,
+            `:candles:${stockpileVisualLevel(building.candles ?? 0, BUILDING_STORAGE_CAPS.chandlery.candles ?? 0, 3)}`,
+          ].join('')
+        : '';
       const flaxState = building.kind === 'weaver'
         && building.constructionComplete !== false
         ? `:flax:${stockpileVisualLevel(
@@ -323,7 +330,7 @@ export function buildingMarkerSignatures(
       ].join(':');
       return {
         id: building.id,
-        visual: `${structural}${foundingState}${salvageState}${treasuryState}${localReceiptState}${guardhousePayrollState}${marketState}${timberState}${storehouseState}${hayState}${woolState}${flaxState}${clothState}${leatherChainState}${foodStockState}${bulkStockState}${armoryStockState}${seasonalStockState}${marketplaceSpecialtyStockState}${monasteryStockState}`,
+        visual: `${structural}${foundingState}${salvageState}${treasuryState}${localReceiptState}${guardhousePayrollState}${marketState}${timberState}${storehouseState}${hayState}${woolState}${flaxState}${clothState}${leatherChainState}${chandleryState}${foodStockState}${bulkStockState}${armoryStockState}${seasonalStockState}${marketplaceSpecialtyStockState}${monasteryStockState}`,
         collider: structural,
       };
     })

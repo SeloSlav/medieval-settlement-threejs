@@ -275,8 +275,8 @@ assert.match(
 );
 assert.match(
   expandedEconomy,
-  /fn livestock_source_has_feed_commitment[\s\S]{0,300}livestock_herd\(\)[\s\S]{0,160}head_count > 0/,
-  'authoritative oat protection must be backed by a live herd row rather than building kind alone',
+  /fn livestock_source_has_feed_commitment[\s\S]{0,300}pasture_herd\(\)[\s\S]{0,100}farmstead_id\(\)[\s\S]{0,100}filter\(&source\.id\)[\s\S]{0,100}head_count > 0/,
+  'authoritative oat protection must aggregate live pasture herds linked to the source holding',
 );
 assert.match(
   expandedEconomy,
@@ -317,8 +317,8 @@ assert.match(clientReducers, /acceptsFreshFood,\s*householdsFirst/);
 assert.match(buildingSync, /granaryHouseholdsFirst: row\.granaryHouseholdsFirst/);
 assert.match(harvestInspector, /Local food reserve/);
 assert.match(harvestInspector, /central surplus/);
-assert.match(livestockInspector, /central surplus/);
-assert.match(livestockInspector, /Next surplus cart/);
+assert.match(livestockInspector, /Linked pasture herds/);
+assert.match(livestockInspector, /Animal Feed store/);
 assert.match(granaryInspector, /Household priority/);
 assert.match(granaryInspector, /data-granary-households-first/);
 assert.match(granaryInspector, /data-granary-households-first="true"/);
@@ -334,13 +334,13 @@ assert.match(guardhouseInspector, /becomes an emergency claim/);
 assert.match(guardhouseInspector, /None until polearms arm the company/);
 assert.match(
   resourceTotals,
-  /livestockHoldingProtectsFeedOats\([\s\S]{0,80}building\.kind,[\s\S]{0,120}livestockHerds\?\.get\(building\.id\)\?\.headCount[\s\S]{0,120}reservedOatGrain \+=/,
-  'settlement totals must reserve pastoral feed-workshop oats only for holdings with live animals',
+  /const stockedLivestockBuildings = new Set\([\s\S]{0,240}herd\.headCount > 0[\s\S]{0,100}herd\.buildingId[\s\S]*livestockHoldingProtectsFeedOats\([\s\S]{0,80}building\.kind,[\s\S]{0,100}stockedLivestockBuildings\.has\(building\.id\)[\s\S]{0,120}reservedOatGrain \+=/,
+  'settlement totals must aggregate parcel herds before reserving their holding feed oats',
 );
 assert.match(
   worldQueries,
-  /livestockHerds\.get\(source\.id\)\?\.headCount[\s\S]{0,180}institutionalDispatchableFoodStock\([\s\S]{0,180}hasFeedCommitment/,
-  'client dispatch previews must use the same live-herd commitment as the server',
+  /const hasFeedCommitment = this\.hasStockedLivestock\(source\.id\)[\s\S]{0,180}institutionalDispatchableFoodStock\([\s\S]{0,180}hasFeedCommitment/,
+  'client dispatch previews must aggregate the source holding\'s stocked pasture herds',
 );
 assert.match(
   resourceTotals,

@@ -19,6 +19,7 @@ export type PlacementBuildMenuAction =
   | 'granary' | 'bakery' | 'apiary' | 'watermill' | 'windmill' | 'carpenter'
   | 'weaver'
   | 'tannery' | 'cobbler'
+  | 'chandlery'
   | 'pastoral-farmstead' | 'swineherd'
   | 'town-hall' | 'village-storehouse'
   | 'watchtower'
@@ -69,6 +70,7 @@ const BUILD_CARD_ART: Record<PlacementArtKey, string> = {
   weaver: '/assets/ui/build-menu/cards/weaver.webp',
   tannery: '/assets/ui/build-menu/cards/tannery.webp',
   cobbler: '/assets/ui/build-menu/cards/cobbler.webp',
+  chandlery: '/assets/ui/build-menu/cards/potter-kiln.webp',
   pastoral_farmstead: '/assets/ui/build-menu/cards/pastoral-farmstead.webp',
   swineherd: '/assets/ui/build-menu/cards/swineherd.webp',
 };
@@ -130,6 +132,7 @@ const DETAILS: Record<PlacementArtKey, BuildCardDetail> = {
   weaver: ["Weaver's workshop", 'Weaves wool into cloth and prepares flax with water for linen.', flow(['wool', 'flax', 'water'], ['cloth'])],
   tannery: ['Tannery', 'Tans goat and game hides with water and bark-fired heat into workable leather.', flow(['hides', 'water', 'firewood'], ['leather'])],
   cobbler: ["Cobbler's workshop", 'Cuts leather into finished shoes for prosperous Tier 3 households.', flow(['leather'], ['shoes'])],
+  chandlery: ['Chandlery', 'Melts scarce beeswax over a wood-fired hearth and repeatedly dips long-burning candles for prosperous households and institutions.', flow(['wax', 'firewood'], ['candles'])],
   pastoral_farmstead: ['Pastoral farmstead', 'Cattle and sheep graze, cut hay, then use hay before feed. Staff prepare animal feed from oats; water stays separate.', flow(['water', 'oatGrain'], ['animalFeed', 'milk', 'wool', 'manure', 'meat'])],
   swineherd: ['Woodland swineherd', 'Pigs use woodland mast first, then prepared animal feed when seasonal forage falls short; trough water is separate.', flow(['water', 'animalFeed'], ['meat'])],
 };
@@ -166,7 +169,7 @@ export const AGRICULTURE_BUILD_MENU_ENTRIES: readonly BuildMenuEntry[] = [
 /** Workshops that process gathered or agricultural inputs into finished goods. */
 export const INDUSTRY_BUILD_MENU_ENTRIES: readonly BuildMenuEntry[] = [
   entry('woodcutters_lodge'), entry('watermill'), entry('windmill'), entry('bakery'), entry('brewery'), entry('smokehouse'),
-  entry('carpenter'), entry('weaver'), entry('tannery'), entry('cobbler'), entry('charcoal_burner'), entry('smithy'), entry('potter_kiln'),
+  entry('carpenter'), entry('weaver'), entry('tannery'), entry('cobbler'), entry('chandlery'), entry('charcoal_burner'), entry('smithy'), entry('potter_kiln'),
 ];
 
 /** Conflict-enabled early warning and settlement defenses. */
@@ -204,7 +207,7 @@ const FOOD_BUILD_MENU_ENTRIES = [
   entry('watermill'), entry('windmill'), entry('bakery'), entry('brewery'), entry('tavern'), entry('smokehouse'),
 ] as const;
 const WORKSHOP_BUILD_MENU_ENTRIES = [
-  entry('woodcutters_lodge'), entry('carpenter'), entry('weaver'), entry('tannery'), entry('cobbler'), entry('charcoal_burner'), entry('smithy'), entry('potter_kiln'),
+  entry('woodcutters_lodge'), entry('carpenter'), entry('weaver'), entry('tannery'), entry('cobbler'), entry('chandlery'), entry('charcoal_burner'), entry('smithy'), entry('potter_kiln'),
 ] as const;
 const FAITH_BUILD_MENU_ENTRIES = [entry('chapel'), entry('monastery')] as const;
 const DECORATION_BUILD_MENU_ENTRIES = [entry('wayside_shrine'), entry('dry_stone_wall')] as const;
@@ -216,7 +219,7 @@ export const BUILD_MENU_CATEGORIES: readonly BuildMenuCategory[] = [
   { id: 'gathering', label: 'Gathering', hint: 'Wood, stone, game, forage, and fish', icon: 'gathering', entries: GATHERING_BUILD_MENU_ENTRIES },
   { id: 'agriculture', label: 'Agriculture', hint: 'Fields, orchards, and livestock', icon: 'agriculture', entries: AGRICULTURE_BUILD_MENU_ENTRIES },
   { id: 'food', label: 'Food & drink', hint: 'Milling, baking, brewing, and preservation', icon: 'food', entries: FOOD_BUILD_MENU_ENTRIES },
-  { id: 'industry', label: 'Industry', hint: 'Fuel, crafts, textiles, leather, metal, and pottery', icon: 'industry', entries: WORKSHOP_BUILD_MENU_ENTRIES },
+  { id: 'industry', label: 'Industry', hint: 'Fuel, crafts, textiles, leather, candles, metal, and pottery', icon: 'industry', entries: WORKSHOP_BUILD_MENU_ENTRIES },
   { id: 'faith', label: 'Faith', hint: 'Parish and monastic institutions', icon: 'faith', entries: FAITH_BUILD_MENU_ENTRIES },
   { id: 'decorations', label: 'Decorations', hint: 'Roadside details and stone walls', icon: 'decorations', entries: DECORATION_BUILD_MENU_ENTRIES },
   { id: 'military', label: 'Military', hint: 'Warning, defense, and refuge', icon: 'military', entries: MILITARY_BUILD_MENU_ENTRIES, conflictOnly: true },

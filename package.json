@@ -51,6 +51,7 @@
     "test:parish-relief-planning": "npx tsx scripts/testParishReliefPlanning.mts",
     "test:textile-economy": "npx tsx scripts/testTextileEconomy.mts",
     "test:leather-economy": "npx tsx scripts/testLeatherEconomy.mts",
+    "test:candle-economy": "npx tsx scripts/testCandleEconomy.mts",
     "test:monastery-hospitality": "node --experimental-strip-types scripts/testMonasteryHospitality.mts",
     "test:civic-receipts": "npx tsx scripts/testCivicReceipts.mts",
     "test:fiscal-policy": "npx tsx scripts/testFiscalPolicy.mts",

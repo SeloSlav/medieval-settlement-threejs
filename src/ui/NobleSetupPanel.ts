@@ -15,6 +15,7 @@ import {
   type HeraldryPattern,
   type NobleProfile,
 } from './nobleProfile.ts';
+import { mountTooltips } from './tooltips.ts';
 
 export type NobleSetupStep = 'house' | 'heraldry';
 
@@ -47,7 +48,12 @@ export class NobleSetupPanel {
   private readonly previewName: HTMLInputElement;
   private readonly previewTitle: HTMLElement;
   private readonly previewYears: HTMLElement;
+  private readonly previewDescription: HTMLElement;
   private readonly heraldryHouseName: HTMLElement;
+  private readonly heraldryPreviewPortrait: HTMLImageElement;
+  private readonly heraldryPreviewTitle: HTMLElement;
+  private readonly heraldryPreviewYears: HTMLElement;
+  private readonly heraldryDescription: HTMLElement;
   private readonly mainShield: HTMLElement;
   private readonly presetStrip: HTMLElement;
   private readonly nobleGrid: HTMLElement;
@@ -64,6 +70,7 @@ export class NobleSetupPanel {
   private readonly angleValue: HTMLElement;
   private readonly countValue: HTMLElement;
   private readonly scaleValue: HTMLElement;
+  private readonly disposeTooltips: () => void;
   private draft: NobleProfile;
   private step: NobleSetupStep;
   private selectedPreset: number;
@@ -114,7 +121,12 @@ export class NobleSetupPanel {
                   </div>
                 </div>
 
-                <div class="noble-setup-portrait-caption">
+                <div
+                  class="noble-setup-portrait-caption"
+                  data-noble-description
+                  data-tooltip-placement="above"
+                  tabindex="0"
+                >
                   <span data-noble-preview-title></span>
                   <small data-noble-preview-years></small>
                 </div>
@@ -136,67 +148,87 @@ export class NobleSetupPanel {
           </section>
 
           <section class="noble-setup-armory" data-setup-step="heraldry" aria-labelledby="noble-armory-title" hidden>
-            <div class="noble-setup-section-heading noble-setup-section-heading--armory">
-              <div>
-                <p class="noble-setup-eyebrow">Coat of Arms</p>
-                <h2 id="noble-armory-title">Heraldry of Your House</h2>
+            <div class="noble-setup-heraldry-layout">
+              <aside class="noble-setup-heraldry-profile" aria-label="Selected commander and live heraldry">
+                <div class="noble-setup-heraldry-portrait-shell">
+                  <div class="noble-setup-heraldry-portrait-frame">
+                    <img data-heraldry-preview-portrait alt="Selected commander" width="560" height="560" />
+                  </div>
+                  <div class="noble-setup-heraldry-shield" data-main-shield></div>
+                </div>
+                <div
+                  class="noble-setup-heraldry-identity"
+                  data-heraldry-description
+                  data-tooltip-placement="above"
+                  tabindex="0"
+                >
+                  <p class="noble-setup-eyebrow">Selected Commander</p>
+                  <h2 data-heraldry-house-name></h2>
+                  <p data-heraldry-preview-title></p>
+                  <small data-heraldry-preview-years></small>
+                </div>
+              </aside>
+
+              <div class="noble-setup-heraldry-editor">
+                <div class="noble-setup-section-heading noble-setup-section-heading--armory">
+                  <div>
+                    <p class="noble-setup-eyebrow">Coat of Arms</p>
+                    <h2 id="noble-armory-title">Heraldry of Your House</h2>
+                  </div>
+                </div>
+
+                <div class="noble-setup-presets" aria-label="Coat of arms presets" data-preset-strip></div>
+
+                <div class="noble-setup-armory-columns">
+                  <section class="noble-setup-editor-panel" aria-labelledby="noble-field-title">
+                    <div class="noble-setup-editor-title">
+                      <span aria-hidden="true">I</span>
+                      <h3 id="noble-field-title">Field</h3>
+                    </div>
+                    <div class="noble-setup-color-setting">
+                      <span>Primary Color</span>
+                      <div class="noble-setup-colors" data-field-colors></div>
+                    </div>
+                    <div class="noble-setup-color-setting">
+                      <span>Pattern Color</span>
+                      <div class="noble-setup-colors" data-pattern-colors></div>
+                    </div>
+                    <div class="noble-setup-patterns" data-pattern-grid></div>
+                    <label class="noble-setup-slider-row" for="noble-pattern-tiling">
+                      <span>Tiling</span>
+                      <input id="noble-pattern-tiling" type="range" min="1" max="6" step="1" data-tiling />
+                      <strong data-tiling-value></strong>
+                    </label>
+                    <label class="noble-setup-slider-row" for="noble-pattern-angle">
+                      <span>Angle</span>
+                      <input id="noble-pattern-angle" type="range" min="-45" max="45" step="5" data-angle />
+                      <strong data-angle-value></strong>
+                    </label>
+                  </section>
+
+                  <section class="noble-setup-editor-panel" aria-labelledby="noble-charge-title">
+                    <div class="noble-setup-editor-title">
+                      <span aria-hidden="true">II</span>
+                      <h3 id="noble-charge-title">Charge</h3>
+                    </div>
+                    <div class="noble-setup-color-setting">
+                      <span>Charge Color</span>
+                      <div class="noble-setup-colors" data-charge-colors></div>
+                    </div>
+                    <div class="noble-setup-charges" data-charge-grid></div>
+                    <label class="noble-setup-slider-row" for="noble-charge-count">
+                      <span>Number of Charges</span>
+                      <input id="noble-charge-count" type="range" min="1" max="5" step="1" data-count />
+                      <strong data-count-value></strong>
+                    </label>
+                    <label class="noble-setup-slider-row" for="noble-charge-scale">
+                      <span>Scale</span>
+                      <input id="noble-charge-scale" type="range" min="24" max="84" step="1" data-scale />
+                      <strong data-scale-value></strong>
+                    </label>
+                  </section>
+                </div>
               </div>
-              <div class="noble-setup-heraldry-preview">
-                <span data-heraldry-house-name></span>
-                <div class="noble-setup-main-shield" data-main-shield></div>
-              </div>
-            </div>
-
-            <div class="noble-setup-presets" aria-label="Coat of arms presets" data-preset-strip></div>
-
-            <div class="noble-setup-armory-columns">
-              <section class="noble-setup-editor-panel" aria-labelledby="noble-field-title">
-                <div class="noble-setup-editor-title">
-                  <span aria-hidden="true">I</span>
-                  <h3 id="noble-field-title">Field</h3>
-                </div>
-                <div class="noble-setup-color-setting">
-                  <span>Primary Color</span>
-                  <div class="noble-setup-colors" data-field-colors></div>
-                </div>
-                <div class="noble-setup-color-setting">
-                  <span>Pattern Color</span>
-                  <div class="noble-setup-colors" data-pattern-colors></div>
-                </div>
-                <div class="noble-setup-patterns" data-pattern-grid></div>
-                <label class="noble-setup-slider-row" for="noble-pattern-tiling">
-                  <span>Tiling</span>
-                  <input id="noble-pattern-tiling" type="range" min="1" max="6" step="1" data-tiling />
-                  <strong data-tiling-value></strong>
-                </label>
-                <label class="noble-setup-slider-row" for="noble-pattern-angle">
-                  <span>Angle</span>
-                  <input id="noble-pattern-angle" type="range" min="-45" max="45" step="5" data-angle />
-                  <strong data-angle-value></strong>
-                </label>
-              </section>
-
-              <section class="noble-setup-editor-panel" aria-labelledby="noble-charge-title">
-                <div class="noble-setup-editor-title">
-                  <span aria-hidden="true">II</span>
-                  <h3 id="noble-charge-title">Charge</h3>
-                </div>
-                <div class="noble-setup-color-setting">
-                  <span>Charge Color</span>
-                  <div class="noble-setup-colors" data-charge-colors></div>
-                </div>
-                <div class="noble-setup-charges" data-charge-grid></div>
-                <label class="noble-setup-slider-row" for="noble-charge-count">
-                  <span>Number of Charges</span>
-                  <input id="noble-charge-count" type="range" min="1" max="5" step="1" data-count />
-                  <strong data-count-value></strong>
-                </label>
-                <label class="noble-setup-slider-row" for="noble-charge-scale">
-                  <span>Scale</span>
-                  <input id="noble-charge-scale" type="range" min="24" max="84" step="1" data-scale />
-                  <strong data-scale-value></strong>
-                </label>
-              </section>
             </div>
           </section>
         </div>
@@ -213,6 +245,8 @@ export class NobleSetupPanel {
     `;
 
     parent.appendChild(this.backdrop);
+    this.disposeTooltips = mountTooltips(this.backdrop);
+    document.getElementById('ui-tooltip')?.classList.add('ui-tooltip--noble-setup');
     this.heading = this.mustElement('[data-setup-heading]');
     this.housePage = this.mustElement('[data-setup-step="house"]');
     this.heraldryPage = this.mustElement('[data-setup-step="heraldry"]');
@@ -222,7 +256,12 @@ export class NobleSetupPanel {
     this.previewName = this.mustInput('[data-noble-name]');
     this.previewTitle = this.mustElement('[data-noble-preview-title]');
     this.previewYears = this.mustElement('[data-noble-preview-years]');
+    this.previewDescription = this.mustElement('[data-noble-description]');
     this.heraldryHouseName = this.mustElement('[data-heraldry-house-name]');
+    this.heraldryPreviewPortrait = this.mustImage('[data-heraldry-preview-portrait]');
+    this.heraldryPreviewTitle = this.mustElement('[data-heraldry-preview-title]');
+    this.heraldryPreviewYears = this.mustElement('[data-heraldry-preview-years]');
+    this.heraldryDescription = this.mustElement('[data-heraldry-description]');
     this.presetStrip = this.mustElement('[data-preset-strip]');
     this.nobleGrid = this.mustElement('[data-noble-grid]');
     this.patternGrid = this.mustElement('[data-pattern-grid]');
@@ -303,6 +342,7 @@ export class NobleSetupPanel {
       const profile = getCurrentNobleProfile();
       this.backdrop.classList.add('is-leaving');
       window.setTimeout(() => {
+        this.disposeTooltips();
         this.backdrop.remove();
         this.resolve(profile);
       }, 180);
@@ -333,7 +373,10 @@ export class NobleSetupPanel {
       button.type = 'button';
       button.className = 'noble-setup-noble';
       button.dataset.nobleId = noble.id;
-      button.title = `${noble.name} — ${noble.title}`;
+      button.dataset.tooltipTitle = noble.name;
+      button.dataset.tooltip = `${noble.title}\n\n${noble.years}`;
+      button.dataset.tooltipPlacement = 'above';
+      button.setAttribute('aria-label', `${noble.name}. ${noble.title}. ${noble.years}`);
       button.innerHTML = `
         <img src="${noble.portrait}" alt="" width="560" height="560" loading="eager" />
         <span>${noble.name.replace(/\s+(?=[^ ]+$)/, '<br>')}</span>
@@ -426,6 +469,15 @@ export class NobleSetupPanel {
     this.previewTitle.textContent = noble.title;
     this.previewYears.textContent = noble.years;
     this.heraldryHouseName.textContent = this.draft.displayName;
+    this.heraldryPreviewPortrait.src = noble.portrait;
+    this.heraldryPreviewPortrait.alt = `Portrait of ${noble.name}`;
+    this.heraldryPreviewTitle.textContent = noble.title;
+    this.heraldryPreviewYears.textContent = noble.years;
+    const tooltipBody = `${noble.title}\n\n${noble.years}`;
+    this.previewDescription.dataset.tooltipTitle = noble.name;
+    this.previewDescription.dataset.tooltip = tooltipBody;
+    this.heraldryDescription.dataset.tooltipTitle = noble.name;
+    this.heraldryDescription.dataset.tooltip = tooltipBody;
     for (const button of this.nobleGrid.querySelectorAll<HTMLButtonElement>('[data-noble-id]')) {
       const selected = button.dataset.nobleId === noble.id;
       button.classList.toggle('is-selected', selected);

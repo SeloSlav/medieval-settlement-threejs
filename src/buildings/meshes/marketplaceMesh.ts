@@ -111,6 +111,7 @@ function addMarketStallDisplay(
     case 'cloth': addClothCounter(display); break;
     case 'shoes': addShoesCounter(display); break;
     case 'pottery': addPotteryCounter(display); break;
+    case 'candles': addCandleCounter(display); break;
   }
   table.add(display);
 }
@@ -405,6 +406,26 @@ function addPotteryCounter(display: THREE.Group): void {
     pottery.position.x = x;
     addMarketPottery(pottery, index === 1 ? 0.82 : 0.66, index);
     display.add(pottery);
+  }
+}
+
+function addCandleCounter(display: THREE.Group): void {
+  const wax = residenceFacadeMaterial('yellow');
+  const wick = timberMaterial('dark');
+  for (const [index, x] of [-0.48, -0.16, 0.16, 0.48].entries()) {
+    const height = index % 2 === 0 ? 0.42 : 0.3;
+    addMesh(
+      display,
+      new THREE.CylinderGeometry(0.075, 0.085, height, 8),
+      wax,
+      new THREE.Vector3(x, height * 0.5, 0),
+    );
+    addMesh(
+      display,
+      new THREE.CylinderGeometry(0.012, 0.012, 0.08, 5),
+      wick,
+      new THREE.Vector3(x, height + 0.04, 0),
+    );
   }
 }
 

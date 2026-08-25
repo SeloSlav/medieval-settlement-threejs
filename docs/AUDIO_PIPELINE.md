@@ -38,8 +38,11 @@ prints help and does not call the API.
 # Inspect the whole request and its duration/credit envelope without spending.
 npm run audio:generate -- --all --dry-run
 
-# Generate the four missing soundtrack pieces.
+# Generate all five gameplay-score pieces.
 npm run audio:generate -- --group soundtrack
+
+# Generate only the cue selected for setup/loading.
+npm run audio:generate -- --id music-charter-beneath-firs
 
 # Replace the current river asset with a native seamless ElevenLabs loop.
 npm run audio:generate -- --id ambient-river --force
@@ -85,18 +88,19 @@ cost.
   the layer follows the normal ambience volume, master mute, score ducking,
   and its own persisted **Forest wind sounds** Settings toggle. The toggle is
   off by default, making the SeedThree bed explicitly opt-in.
-- Four non-looping instrumental tracks are chosen by settlement context,
+- Five non-looping instrumental tracks are chosen by settlement context,
   season, and time of day. Silence between tracks keeps the score from
   fatiguing the player. Active cues gently duck ambience to 86%, with a slower
   release after the cue, so the score remains legible without flattening the
   environmental soundscape.
-- `valley_at_first_light.mp3` also serves as the looping startup theme. One
+- `a_charter_beneath_the_firs.mp3` is selected as the looping planning theme,
+  while remaining one of the five cues available during normal gameplay. One
   persistent player carries it across noble selection, world setup, and the
   loading overlay. Browsers that block eager playback retry it on the first
   pointer or keyboard gesture. Once both presentation and server state are
   playable, it fades out over seven seconds before releasing the contextual
-  gameplay soundtrack scheduler, which treats the startup cue as recently
-  played so it does not immediately repeat it.
+  gameplay soundtrack scheduler. The handoff records it as the most recently
+  played cue so the scheduler cannot immediately repeat it.
 - `farm_workers_singing.mp3` is the authorized Selo Empire farm-worker song.
   It fades in only near actively tended grain fields at close zoom and yields
   to the instrumental score when a music cue is active.
@@ -108,8 +112,8 @@ cost.
   75% music. Ambience scales environmental beds and positional river audio.
   Sound effects scales worker impacts, footsteps and other world Foley,
   building activity, combat, fires, chapel bells, and UI feedback. The master
-  switch still mutes every layer. The four score cues are normalized against
-  browser-decoded source RMS, and the combined rain/village bed is
+  switch still mutes every layer. The five gameplay score cues are normalized
+  against browser-decoded source RMS, and the combined rain/village bed is
   regression-checked against their default effective level.
 
 The `ambient-extra`, `worker-foley`, and `ui` groups drive active fire

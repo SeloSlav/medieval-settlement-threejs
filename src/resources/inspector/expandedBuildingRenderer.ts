@@ -8,6 +8,7 @@ import {
   CARPENTER_TIMBER_PER_POLEARM,
   APIARY_POLLINATION_BONUS_MAX,
   APIARY_WINTER_HONEY_REQUIRED,
+  CANDLE_TRANSFER_PER_TRIP,
   FOOD_DELIVERY_SPEED_MPS,
   FOOD_DELIVERY_UNLOAD_SEC,
   FRESH_FOOD_STORAGE_GRANARY_FACTOR,
@@ -382,6 +383,8 @@ function cargoPerTripLabel(building: BuildingState): string | null {
       return `3 per cured-food haul · ${GRAIN_TRANSFER_PER_TRIP} per granary haul`;
     case 'weaver':
       return `${TEXTILE_TRANSFER_PER_TRIP} cloth per Storehouse or market haul`;
+    case 'chandlery':
+      return `${CANDLE_TRANSFER_PER_TRIP} candle lots per Storehouse or market haul`;
     case 'clay_pit':
     case 'charcoal_burner':
     case 'smithy':

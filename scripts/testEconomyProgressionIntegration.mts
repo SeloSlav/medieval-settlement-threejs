@@ -1299,7 +1299,11 @@ function assertFiniteNonNegativeState(connection: DbConnection): void {
     ['vineyard_parcel', connection.db.vineyard_parcel as unknown as AuthoritativeTable],
     ['graveyard', connection.db.graveyard as unknown as AuthoritativeTable],
     ['corpse', connection.db.corpse as unknown as AuthoritativeTable],
-    ['livestock_herd', connection.db.livestock_herd as unknown as AuthoritativeTable],
+    ['pasture_herd', connection.db.pasture_herd as unknown as AuthoritativeTable],
+    // Compatibility rows may exist only until save migration can materialize
+    // them into a linked pasture. Keep auditing them, but do not treat this as
+    // the active livestock table.
+    ['legacy_livestock_herd', connection.db.livestock_herd as unknown as AuthoritativeTable],
     ['burgage_zone', connection.db.burgage_zone as unknown as AuthoritativeTable],
     ['residence', connection.db.residence as unknown as AuthoritativeTable],
     ['backyard_garden', connection.db.backyard_garden as unknown as AuthoritativeTable],

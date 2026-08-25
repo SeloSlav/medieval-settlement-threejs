@@ -53,8 +53,6 @@ export function syncPlayerResources(rows: Iterable<PlayerResources>, state: Game
       aroniaJam: number;
       rosehipJam: number;
       pearCider: number;
-      wax: number;
-      candles: number;
     }>;
     state.stockpile = {
       timber: wholeResourceUnits(row.timber),
@@ -87,8 +85,8 @@ export function syncPlayerResources(rows: Iterable<PlayerResources>, state: Game
       mead: wholeResourceUnits(row.mead),
       preservedFood: wholeResourceUnits(row.preservedFood),
       honey: wholeResourceUnits(row.honey),
-      wax: wholeResourceUnits(leatherRow.wax),
-      candles: wholeResourceUnits(leatherRow.candles),
+      wax: wholeResourceUnits(row.wax),
+      candles: wholeResourceUnits(row.candles),
       wine: wholeResourceUnits(row.wine),
       wool: wholeResourceUnits(row.wool),
       cloth: wholeResourceUnits(row.cloth),

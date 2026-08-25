@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Beeswax blocks">
+  <defs>
+    <linearGradient id="wax-top" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f4d77a"/>
+      <stop offset="1" stop-color="#c88925"/>
+    </linearGradient>
+    <linearGradient id="wax-side" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#d99b32"/>
+      <stop offset="1" stop-color="#9b5c18"/>
+    </linearGradient>
+  </defs>
+  <path fill="#6b3d16" opacity=".38" d="M8 48l24 9 26-12-24-8z"/>
+  <path fill="url(#wax-side)" d="M7 31l24 8v15L7 46z"/>
+  <path fill="#a7651e" d="M31 39l26-11v15L31 54z"/>
+  <path fill="url(#wax-top)" d="M7 31l26-11 24 8-26 11z"/>
+  <path fill="url(#wax-side)" d="M13 18l19 6v12l-19-6z"/>
+  <path fill="#a7651e" d="M32 24l20-8v12l-20 8z"/>
+  <path fill="url(#wax-top)" d="M13 18l20-8 19 6-20 8z"/>
+  <g fill="none" stroke="#9e621d" stroke-width="1.5" opacity=".75">
+    <path d="M23 16l5-2 5 2v4l-5 2-5-2zM34 13l5-2 5 2v4l-5 2-5-2z"/>
+  </g>
+</svg>

@@ -16,6 +16,7 @@ import {
   FIRE_CRACKLE_CLIP,
   MUSIC_TRACKS,
   RIVER_WATER_CLIP,
+  STARTUP_MUSIC_CLIP,
   UI_SOUNDS,
   WORKER_ACTIVITY_CLIPS,
   WORLD_FOLEY_CLIPS,
@@ -261,6 +262,10 @@ async function main(): Promise<void> {
     const averageScoreRms =
       scoreRmsValues.reduce((sum, value) => sum + value, 0)
       / scoreRmsValues.length;
+    const startupScoreRms = defaultEffectiveRms(
+      STARTUP_MUSIC_CLIP,
+      DEFAULT_MUSIC_VOLUME,
+    );
     const dayRms = defaultEffectiveRms(
       AMBIENT_LAYERS.birds_wind_day,
       DEFAULT_AMBIENCE_VOLUME,
@@ -285,6 +290,12 @@ async function main(): Promise<void> {
       'Decoded score and busy ambience are outside the intended default balance',
     );
     invariant(
+      startupScoreRms >= averageScoreRms * 0.8
+      && startupScoreRms <= averageScoreRms * 1.2,
+      `Startup theme effective RMS ${startupScoreRms.toFixed(4)} is outside`
+      + ` the gameplay-score neighborhood ${averageScoreRms.toFixed(4)}`,
+    );
+    invariant(
       overviewWindRms >= dayRms * 1.4
       && overviewWindRms <= dayRms * 2.2,
       'Decoded overview wind should be broader than the close daytime bed without dominating it',
@@ -306,6 +317,7 @@ async function main(): Promise<void> {
     );
     console.log(
       `Default mix RMS: score ${averageScoreRms.toFixed(4)},`
+      + ` startup ${startupScoreRms.toFixed(4)},`
       + ` busy ambience under score ${busyAmbienceUnderScore.toFixed(4)},`
       + ` overview wind ${overviewWindRms.toFixed(4)}.`,
     );

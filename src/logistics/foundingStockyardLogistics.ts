@@ -237,6 +237,14 @@ function foundingDestinationPriority(
       if (building.kind === 'marketplace') return 0;
       if (building.kind === 'monastery') return 1;
       return 3;
+    case 'wax':
+      if (building.kind === 'chandlery') return 0;
+      if (building.kind === 'marketplace') return 1;
+      return 3;
+    case 'candles':
+      if (building.kind === 'marketplace') return 0;
+      if (building.kind === 'chandlery') return 1;
+      return 3;
     case 'ironwork':
       if (building.kind === 'carpenter') return 0;
       if (building.kind === 'marketplace') return 1;

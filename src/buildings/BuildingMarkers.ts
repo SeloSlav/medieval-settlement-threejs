@@ -123,6 +123,11 @@ type BuildingMarkersOptions = {
   onShadowCastersChanged?: () => void;
 };
 
+type LivestockBuildingVisualState = {
+  hayStock: number;
+  hayStorageCapacity: number;
+};
+
 export class BuildingMarkers {
   private readonly terrain: Terrain;
   private readonly getRoadNetwork?: () => RoadNetwork | null;
@@ -194,14 +199,16 @@ export class BuildingMarkers {
     livestockHerds?: ReadonlyMap<string, LivestockHerdState>,
     issuedGuardPolearms?: ReadonlyMap<string, number>,
   ): void {
-    const visualHerdsByBuilding = new Map<string, LivestockHerdState>();
+    const livestockVisualsByBuilding = new Map<string, LivestockBuildingVisualState>();
     for (const herd of livestockHerds?.values() ?? []) {
-      const prior = visualHerdsByBuilding.get(herd.buildingId);
-      visualHerdsByBuilding.set(
+      const prior = livestockVisualsByBuilding.get(herd.buildingId);
+      livestockVisualsByBuilding.set(
         herd.buildingId,
-        prior
-          ? { ...prior, hayStock: prior.hayStock + Math.max(0, herd.hayStock) }
-          : { ...herd, hayStock: Math.max(0, herd.hayStock) },
+        {
+          hayStock: (prior?.hayStock ?? 0) + Math.max(0, herd.hayStock),
+          hayStorageCapacity: (prior?.hayStorageCapacity ?? 0)
+            + (herd.species === 'swine' ? 0 : LIVESTOCK_HAY_STORAGE_CAPACITY),
+        },
       );
     }
     const nextIds = new Set<string>();
@@ -211,7 +218,7 @@ export class BuildingMarkers {
       if (
         priorState === building
         && this.buildingMeshes.has(building.id)
-        && visualHerdsByBuilding.has(building.id) !== true
+        && livestockVisualsByBuilding.has(building.id) !== true
         && issuedGuardPolearms?.has(building.id) !== true
       ) {
         continue;
@@ -219,7 +226,7 @@ export class BuildingMarkers {
       this.buildingStates.set(building.id, building);
       this.upsertBuilding(
         building,
-        visualHerdsByBuilding.get(building.id),
+        livestockVisualsByBuilding.get(building.id),
         issuedGuardPolearms?.get(building.id) ?? 0,
       );
       const marker = this.buildingMeshes.get(building.id);
@@ -768,7 +775,7 @@ export class BuildingMarkers {
 
   private upsertBuilding(
     building: BuildingState,
-    herd?: LivestockHerdState,
+    livestock?: LivestockBuildingVisualState,
     issuedGuardPolearms = 0,
   ): void {
     let marker = this.buildingMeshes.get(building.id);
@@ -930,7 +937,7 @@ export class BuildingMarkers {
       this.shadowProxyBatch.remove(building.id);
     }
     if (operational || building.kind === 'salvage_pile') {
-      syncBuildingVisualState(marker, building, herd, issuedGuardPolearms);
+      syncBuildingVisualState(marker, building, livestock, issuedGuardPolearms);
     }
     if (
       adoptedPendingFoundersCamp
@@ -1012,7 +1019,7 @@ function setsEqual<T>(left: ReadonlySet<T>, right: ReadonlySet<T>): boolean {
 function syncBuildingVisualState(
   marker: THREE.Group,
   building: BuildingState,
-  herd?: LivestockHerdState,
+  livestock?: LivestockBuildingVisualState,
   issuedGuardPolearms = 0,
 ): void {
   if (building.kind === 'founders_camp') {
@@ -1307,8 +1314,8 @@ function syncBuildingVisualState(
       syncStockpileSegments(
         hayloft,
         'HayStockSegment',
-        herd?.hayStock ?? 0,
-        LIVESTOCK_HAY_STORAGE_CAPACITY,
+        livestock?.hayStock ?? 0,
+        Math.max(LIVESTOCK_HAY_STORAGE_CAPACITY, livestock?.hayStorageCapacity ?? 0),
       );
     }
     const wool = marker.getObjectByName('WoolStockpile');
@@ -1366,6 +1373,26 @@ function syncBuildingVisualState(
     const shoes = marker.getObjectByName('ShoesStock');
     if (shoes instanceof THREE.Group) {
       syncStockpileSegments(shoes, 'ShoesStockSegment', building.shoes ?? 0, leatherCaps.shoes ?? 0);
+    }
+  }
+  if (building.kind === 'chandlery') {
+    const wax = marker.getObjectByName('WaxStock');
+    if (wax instanceof THREE.Group) {
+      syncStockpileSegments(
+        wax,
+        'WaxStockSegment',
+        building.wax ?? 0,
+        BUILDING_STORAGE_CAPS.chandlery.wax ?? 0,
+      );
+    }
+    const candles = marker.getObjectByName('CandlesStock');
+    if (candles instanceof THREE.Group) {
+      syncStockpileSegments(
+        candles,
+        'CandlesStockSegment',
+        building.candles ?? 0,
+        BUILDING_STORAGE_CAPS.chandlery.candles ?? 0,
+      );
     }
   }
   syncFoodStockpileVisuals(marker, building);

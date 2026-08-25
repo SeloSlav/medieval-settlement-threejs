@@ -147,6 +147,7 @@ function buildingFixture(
 
 function herdFixture(buildingId: string): LivestockHerdState {
   return {
+    pastureId: `pasture-for-${buildingId}`,
     buildingId,
     species: 'cattle',
     headCount: 8,
@@ -547,9 +548,9 @@ const feedWorkshopBuilding = {
   oatGrain: 5,
   animalFeed: 0,
 };
-const feedWorkshopPlan = projectLivestockFodderHolding(
+  const feedWorkshopPlan = projectLivestockFodderHolding(
   feedWorkshopBuilding,
-  { ...fodderHerd, buildingId: feedWorkshopBuilding.id },
+  { ...fodderHerd, pastureId: 'pasture-feed-workshop', buildingId: feedWorkshopBuilding.id },
   AUTUMN_PASTURE_CAPACITY_MULTIPLIER,
   false,
   9,
@@ -575,7 +576,7 @@ assert.equal(
 );
 const threeWorkerFeedWorkshopPlan = projectLivestockFodderHolding(
   { ...feedWorkshopBuilding, assignedLabor: 3 },
-  { ...fodderHerd, buildingId: feedWorkshopBuilding.id },
+  { ...fodderHerd, pastureId: 'pasture-feed-workshop', buildingId: feedWorkshopBuilding.id },
   AUTUMN_PASTURE_CAPACITY_MULTIPLIER,
   false,
   9,
@@ -591,7 +592,7 @@ assert.equal(
 );
 const oxAssistedFeedWorkshopPlan = projectLivestockFodderHolding(
   feedWorkshopBuilding,
-  { ...fodderHerd, buildingId: feedWorkshopBuilding.id },
+  { ...fodderHerd, pastureId: 'pasture-feed-workshop', buildingId: feedWorkshopBuilding.id },
   AUTUMN_PASTURE_CAPACITY_MULTIPLIER,
   false,
   9,
@@ -605,7 +606,7 @@ assert.equal(
 );
 const sabbathFeedWorkshopPlan = projectLivestockFodderHolding(
   feedWorkshopBuilding,
-  { ...fodderHerd, buildingId: feedWorkshopBuilding.id },
+  { ...fodderHerd, pastureId: 'pasture-feed-workshop', buildingId: feedWorkshopBuilding.id },
   AUTUMN_PASTURE_CAPACITY_MULTIPLIER,
   true,
   9,
@@ -619,7 +620,7 @@ assert.ok(
 );
 const unstaffedFeedWorkshopPlan = projectLivestockFodderHolding(
   { ...feedWorkshopBuilding, assignedLabor: 0 },
-  { ...fodderHerd, buildingId: feedWorkshopBuilding.id },
+  { ...fodderHerd, pastureId: 'pasture-feed-workshop', buildingId: feedWorkshopBuilding.id },
   AUTUMN_PASTURE_CAPACITY_MULTIPLIER,
   false,
   9,
@@ -795,7 +796,7 @@ assert.equal(
 const oxAssistedSettlementPlan = computeSettlementLivestockFodderPlan(
   {
     buildings: new Map([[fodderBuilding.id, fodderBuilding]]),
-    livestockHerds: new Map([[summerHerd.buildingId, summerHerd]]),
+    livestockHerds: new Map([[summerHerd.pastureId, summerHerd]]),
   },
   1,
   false,
@@ -899,9 +900,9 @@ const firstShortState = {
     ['building-1', buildingFixture('building-1', 90)],
   ]),
   livestockHerds: new Map([
-    ['building-10', herdFixture('building-10')],
-    ['building-2', herdFixture('building-2')],
-    ['building-1', herdFixture('building-1')],
+    ['pasture-10', { ...herdFixture('building-10'), pastureId: 'pasture-10' }],
+    ['pasture-2', { ...herdFixture('building-2'), pastureId: 'pasture-2' }],
+    ['pasture-1', { ...herdFixture('building-1'), pastureId: 'pasture-1' }],
   ]),
 };
 const settlementFodder = computeSettlementLivestockFodderPlan(
@@ -938,7 +939,7 @@ const serverSimulation = fs.readFileSync('server/src/simulation/livestock.rs', '
 const serverReducer = fs.readFileSync('server/src/reducers/livestock.rs', 'utf8');
 const serverTables = fs.readFileSync('server/src/tables.rs', 'utf8');
 const serverDeliveryTrips = fs.readFileSync('server/src/simulation/delivery_trips.rs', 'utf8');
-const generatedHerd = fs.readFileSync('src/generated/livestock_herd_table.ts', 'utf8');
+const generatedHerd = fs.readFileSync('src/generated/pasture_herd_table.ts', 'utf8');
 const generatedReducer = fs.readFileSync(
   'src/generated/set_livestock_breeding_reserve_reducer.ts',
   'utf8',
@@ -950,6 +951,10 @@ const generatedHaymakingReducer = fs.readFileSync(
 const clientReducers = fs.readFileSync('src/data/spacetimeReducers.ts', 'utf8');
 const livestockInspector = fs.readFileSync(
   'src/resources/inspector/livestockBuildingRenderer.ts',
+  'utf8',
+);
+const pastureInspector = fs.readFileSync(
+  'src/resources/inspector/pastureRenderer.ts',
   'utf8',
 );
 const townHallInspector = fs.readFileSync(
@@ -985,18 +990,23 @@ assert.match(
   'a full hayloft must release reserved meadow back to grazing',
 );
 assert.match(
+  serverSimulation,
+  /fn allocate_holding_cycle_inputs[\s\S]{0,1000}let hay_units = if environment\.season == Season::Winter[\s\S]{0,500}let feed_unsupported = \(unsupported - hay_supported_heads\)[\s\S]{0,300}let feed_units = if environment\.season == Season::Winter/,
+  'each pasture must allocate its local winter hay before requesting shared prepared Animal Feed',
+);
+assert.match(
   livestockCycle,
-  /let hay_units_used = if environment\.season == Season::Winter[\s\S]{0,420}herd\.hay_stock -= hay_units_used[\s\S]{0,160}let feed_unsupported[\s\S]{0,240}consume_whole_animal_feed/,
-  'winter cattle and sheep feeding must consume local hay before prepared Animal Feed',
+  /let hay_units_used = inputs\.hay_units[\s\S]{0,360}herd\.hay_stock -= hay_units_used[\s\S]{0,220}inputs\.animal_feed_units/,
+  'the parcel cycle must consume the hay and feed allocated to that herd',
 );
 assert.match(
   serverSimulation,
-  /if herd\.species == SPECIES_SWINE && desired_feed >= 1\.0[\s\S]*CommodityKind::AnimalFeed,[\s\S]*&\["pastoral_farmstead"\]/,
+  /if swine_building && desired_feed >= 1\.0[\s\S]*CommodityKind::AnimalFeed,[\s\S]*&\["pastoral_farmstead"\]/,
   'swineherds must request finished feed from pastoral holdings',
 );
 assert.match(
   serverSimulation,
-  /else if herd\.species != SPECIES_SWINE && desired_feed >= 1\.0[\s\S]*CommodityKind::OatGrain,[\s\S]*&\["threshing_barn", "granary"\]/,
+  /else if !swine_building && desired_feed >= 1\.0[\s\S]*CommodityKind::OatGrain,[\s\S]*&\["threshing_barn", "granary"\]/,
   'pastoral workshops must request oats from threshing barns or granaries',
 );
 assert.match(
@@ -1005,9 +1015,9 @@ assert.match(
   'only staffed pastoral production cycles may execute the oats-to-feed recipe',
 );
 assert.match(
-  livestockCycle,
-  /let feed_value_used = if environment\.season == Season::Winter[\s\S]{0,180}consume_whole_animal_feed/,
-  'Animal Feed consumption must remain winter-only',
+  serverSimulation,
+  /let feed_units = if environment\.season == Season::Winter[\s\S]{0,700}fair_whole_allocations\(whole_units\(building\.animal_feed\), &feed_demands\)[\s\S]{0,260}withdraw_building_commodity\(building, CommodityKind::AnimalFeed, feed_used\)/,
+  'shared Animal Feed must be allocated fairly and consumed only for winter demand',
 );
 assert.doesNotMatch(
   livestockCycle,
@@ -1049,9 +1059,11 @@ assert.match(serverReducer, /pub fn set_livestock_haymaking_percent/);
 assert.match(serverReducer, /breeding_reserve < minimum \|\| breeding_reserve > maximum/);
 assert.match(
   serverTables,
-  /last_wool_gold:[\s\S]*#\[default\(7u32\)\][\s\S]*breeding_reserve:[\s\S]*last_culled:[\s\S]*#\[default\(0\.0\)\][\s\S]*hay_stock:[\s\S]*last_hay_output:[\s\S]*#\[default\(0u8\)\][\s\S]*haymaking_percent:[\s\S]*#\[default\(0\.0\)\][\s\S]*last_wool_output:[\s\S]*#\[default\(0u32\)\][\s\S]*last_shearing_year:/,
-  'migration-safe fields must remain appended to the herd table',
+  /pub struct PastureHerd \{[\s\S]{0,220}pub pasture_id: u64[\s\S]*last_wool_gold:[\s\S]*#\[default\(7u32\)\][\s\S]*breeding_reserve:[\s\S]*last_culled:[\s\S]*#\[default\(0\.0\)\][\s\S]*hay_stock:[\s\S]*last_hay_output:[\s\S]*#\[default\(0u8\)\][\s\S]*haymaking_percent:[\s\S]*#\[default\(0\.0\)\][\s\S]*last_wool_output:[\s\S]*#\[default\(0u32\)\][\s\S]*last_shearing_year:/,
+  'migration-safe fields must remain on the pasture-keyed herd table',
 );
+assert.match(generatedHerd, /pastureId: __t\.u64\(\)\.primaryKey/);
+assert.match(generatedHerd, /farmsteadId: __t\.u64\(\)/);
 assert.match(generatedHerd, /breedingReserve/);
 assert.match(generatedHerd, /lastCulled/);
 assert.match(generatedHerd, /hayStock/);
@@ -1071,26 +1083,22 @@ assert.match(generatedHaymakingReducer, /haymakingPercent/);
 assert.match(clientReducers, /setLivestockBreedingReserve/);
 assert.match(clientReducers, /setLivestockHaymakingPercent/);
 assert.ok(GAME_TABLE_SUBSCRIPTIONS.includes('pasture'));
-assert.ok(GAME_TABLE_SUBSCRIPTIONS.includes('livestock_herd'));
-assert.match(livestockInspector, /data-livestock-breeding-reserve/);
-assert.match(livestockInspector, /October(?: and |–)November/);
-assert.match(livestockInspector, /whole animal/);
-assert.match(livestockInspector, /Feeding rule/);
-assert.match(livestockInspector, /Feeding coverage/);
-assert.match(livestockInspector, /Winter Animal Feed/);
-assert.match(livestockInspector, /Winter resupply/);
-assert.match(livestockInspector, /data-livestock-haymaking-percent/);
-assert.match(livestockInspector, /Summer haymaking/);
-assert.match(livestockInspector, /Local hayloft/);
-assert.match(livestockInspector, /Winter hay coverage/);
+assert.ok(GAME_TABLE_SUBSCRIPTIONS.includes('pasture_herd'));
+assert.ok(!GAME_TABLE_SUBSCRIPTIONS.includes('livestock_herd'));
+assert.match(pastureInspector, /data-livestock-breeding-reserve/);
+assert.match(pastureInspector, /Spring births grow this pasture's healthy, supplied herd/);
+assert.match(pastureInspector, /data-livestock-haymaking-percent/);
+assert.match(pastureInspector, /Hay meadow/);
+assert.match(pastureInspector, /stored for this herd and consumed before prepared Animal Feed in winter/);
+assert.doesNotMatch(livestockInspector, /data-livestock-breeding-reserve|data-livestock-haymaking-percent/);
+assert.match(livestockInspector, /Mixed livestock holding/);
+assert.match(livestockInspector, /Shared herders, trough water, winter Animal Feed/);
+assert.match(livestockInspector, /Pasture hay reserves/);
+assert.match(livestockInspector, /Animal Feed store/);
 assert.match(livestockInspector, /Feed workshop/);
-assert.match(livestockInspector, /Feed supply/);
-assert.match(livestockInspector, /raw oats are not fed here/);
-assert.match(livestockInspector, /Cheese salt/);
-assert.match(livestockInspector, /fresh milk continues/);
+assert.match(livestockInspector, /pigs do not consume raw oats/);
 assert.match(livestockInspector, /data-processor-output-target/);
 assert.match(livestockInspector, /LIVESTOCK_MILK_USE_PRESETS/);
-assert.match(livestockInspector, /builds household wealth/);
 assert.match(townHallInspector, /computeSettlementLivestockFodderPlan/);
 assert.match(townHallInspector, /first winter Animal Feed shortfall/);
 assert.match(townHallInspector, /Summer haymaking/);

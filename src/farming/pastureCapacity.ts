@@ -224,21 +224,19 @@ export function countMatureTreesInPasturePolygons(
 }
 
 /**
- * Attributes the holding's live, season-adjusted capacity back to one parcel.
- * Pannage is intentionally excluded because mature-tree placement, not area
- * alone, determines which woodland parcel supplies the herd.
+ * Returns the live, season-adjusted capacity authored for one parcel herd.
+ *
+ * The pasture arguments remain in this compatibility helper for callers that
+ * still have the surrounding land context, but capacity is no longer divided
+ * among sibling parcels: every `PastureHerd` row already belongs to exactly
+ * one pasture. Pannage remains excluded because its UI reports the separate
+ * live area and mast ceilings instead.
  */
 export function currentPastureHeadCapacity(
-  pasture: PastureState,
-  holdingPastures: Iterable<PastureState>,
+  _pasture: PastureState,
+  _holdingPastures: Iterable<PastureState>,
   herd: Pick<LivestockHerdState, 'species' | 'pastureCapacity'>,
 ): number | null {
   if (herd.species === 'swine') return null;
-  const parcelCapacity = neutralPastureHeadCapacity(pasture, herd.species) ?? 0;
-  const holdingCapacity = neutralPastureHoldingHeadCapacity(
-    holdingPastures,
-    herd.species,
-  );
-  if (holdingCapacity <= 1e-9) return 0;
-  return Math.max(0, herd.pastureCapacity) * parcelCapacity / holdingCapacity;
+  return Math.max(0, herd.pastureCapacity);
 }

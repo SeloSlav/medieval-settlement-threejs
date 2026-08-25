@@ -848,6 +848,7 @@ const oxHolding = {
   workRadius: 100,
 } as BuildingState;
 const healthyCattle = {
+  pastureId: 'pasture-7',
   buildingId: oxHolding.id,
   species: 'cattle',
   headCount: 4,
@@ -887,7 +888,7 @@ assert.equal(
 const cattleSupport = computeCattleFieldSupport({
   buildings: new Map([[oxHolding.id, oxHolding]]),
   farmFields: new Map(cattleCandidateFields.map((field) => [field.id, field])),
-  livestockHerds: new Map([[healthyCattle.buildingId, healthyCattle]]),
+  livestockHerds: new Map([[healthyCattle.pastureId, healthyCattle]]),
 });
 assert.deepEqual([...cattleSupport.keys()], ['farm-field-2', 'farm-field-10']);
 const unsupportedPloughWork = currentFieldWorkRemaining(cattleCandidateFields[0]);
@@ -1007,7 +1008,7 @@ const cattleProjection = computeCattleFieldSupport({
     `farm-field-${index + 1}`,
     { ...field, id: `farm-field-${index + 1}` },
   ])),
-  livestockHerds: new Map([[healthyCattle.buildingId, healthyCattle]]),
+  livestockHerds: new Map([[healthyCattle.pastureId, healthyCattle]]),
 });
 const cattleProjectionElapsed = performance.now() - cattleProjectionStarted;
 assert.equal(cattleProjection.size, 2);

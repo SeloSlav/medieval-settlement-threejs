@@ -1545,6 +1545,10 @@ fn stall_need_for_commodity(commodity: CommodityKind) -> Option<ResidenceNeedKin
 fn marketplace_stall_stock(building: &Building, need_kind: ResidenceNeedKind) -> f64 {
     if need_kind == ResidenceNeedKind::Food {
         (building_edible_food_stock(building) - building_preserved_food_stock(building)).max(0.0)
+    } else if need_kind == ResidenceNeedKind::Pottery {
+        // Pottery and candles share the staffed Household wares counter, but
+        // only pottery satisfies the distinct Pottery residence need.
+        building.pottery + building.candles
     } else {
         crate::simulation::delivery_cargo::building_delivery_stock(building, need_kind)
     }

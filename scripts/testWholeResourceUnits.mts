@@ -108,6 +108,8 @@ const buildingRow = rowWithDefaults({
   constructionProgress: 0.625,
   commuteEfficiency: 0.45,
   apiaryColonyHealth: 0.73,
+  apiaryWaxCycleProgress: 7,
+  storageAcceptanceMaskHigh: 3n,
   civicReceiptsGold: 1.9,
   granaryGrainReserve: 17.8,
   woodcutterTimberReserve: 18.8,
@@ -154,6 +156,8 @@ assert.equal(building.actionCooldown, 0.375);
 assert.equal(building.constructionProgress, 0.625);
 assert.equal(building.commuteEfficiency, 0.45);
 assert.equal(building.apiaryColonyHealth, 0.73);
+assert.equal(building.apiaryWaxCycleProgress, 7);
+assert.equal(building.storageAcceptanceMaskHigh, '3');
 
 const tripRow = rowWithDefaults({
   id: 2n,
@@ -236,6 +240,8 @@ const playerState = { identityHex } as never;
 syncPlayerResources([rowWithDefaults({
   owner,
   ...Object.fromEntries(RESOURCE_KINDS.map((kind, index) => [kind, index + 1.9])),
+  wax: 6.9,
+  candles: 7.9,
   landLevyCollectedTotal: 31.8,
   parishCharityPaidTotal: 4.9,
   chapelCofferReserveGold: 12.9,
@@ -253,6 +259,8 @@ assertWholeRecord(
   'player stockpile',
 );
 assert.equal((playerState as { stockpile: { timber: number } }).stockpile.timber, 1);
+assert.equal((playerState as { stockpile: { wax: number } }).stockpile.wax, 6);
+assert.equal((playerState as { stockpile: { candles: number } }).stockpile.candles, 7);
 assert.equal((playerState as { fiscalPolicy: { landLevyCollectedTotal: number } })
   .fiscalPolicy.landLevyCollectedTotal, 31);
 assert.equal((playerState as { parishPolicy: { cofferReserveGold: number } })
@@ -430,9 +438,11 @@ const backyard = syncBackyardGardens([rowWithDefaults({
   residenceId: 3n,
   kind: 1,
   hideStock: 7.9,
+  waxStock: 3.9,
 }) as never], identityHex).get('residence-3');
 assert.ok(backyard);
 assert.equal(backyard.hideStock, 7);
+assert.equal(backyard.waxStock, 3);
 
 const herd = syncLivestockHerds([rowWithDefaults({
   owner,

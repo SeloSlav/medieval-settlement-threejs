@@ -93,6 +93,7 @@ const OCCUPATIONS: Record<BuildingKind, string> = {
   weaver: 'Weaver',
   tannery: 'Tanner',
   cobbler: 'Cobbler',
+  chandlery: 'Chandler',
 };
 
 /**
