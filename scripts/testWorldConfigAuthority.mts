@@ -400,8 +400,9 @@ async function testSevereWeatherSetupContract(): Promise<void> {
     new URL('../server/src/reducers/world_configuration.rs', import.meta.url),
     'utf8',
   );
-  assert.match(setupSource, /data-severe-weather[\s\S]*Off · beginner friendly/);
-  assert.match(setupSource, /Adds droughts, lightning, and spreading fires/);
+  assert.match(setupSource, /data-world-selector="severe-weather"/);
+  assert.match(setupSource, /Normal rain and frost only/);
+  assert.match(setupSource, /Droughts, lightning, and fire/);
   assert.match(settingsSource, /severeWeatherEnabled:\s*false/);
   assert.match(serverConfigSource, /severe_weather_enabled:\s*false/);
 }
@@ -419,9 +420,10 @@ async function testDifficultySetupContract(): Promise<void> {
     new URL('../server/src/reducers/world_configuration.rs', import.meta.url),
     'utf8',
   );
-  assert.match(setupSource, /data-approval-decline-rate="0"[\s\S]*data-approval-decline-rate="150"/);
-  assert.match(setupSource, /data-food-spoilage-rate="0"[\s\S]*Food never spoils/);
-  assert.match(setupSource, /data-initial-goods-multiplier="1"[\s\S]*data-initial-goods-multiplier="2"/);
+  assert.match(setupSource, /data-world-selector="approval-decline"/);
+  assert.match(setupSource, /0: \['Disabled', 'No passive approval loss\.'\][\s\S]*150: \['Demanding'/);
+  assert.match(setupSource, /data-world-selector="food-spoilage"[\s\S]*Food never spoils/);
+  assert.match(setupSource, /data-world-selector="initial-goods"[\s\S]*Twice the goods in the original camp/);
   assert.match(settingsSource, /approvalDeclineRate:\s*100/);
   assert.match(settingsSource, /foodSpoilageRate:\s*100/);
   assert.match(settingsSource, /initialGoodsMultiplier:\s*1/);
@@ -443,10 +445,9 @@ async function testAquiferSetupContract(): Promise<void> {
     new URL('../server/src/reducers/world_configuration.rs', import.meta.url),
     'utf8',
   );
-  assert.match(setupSource, /data-aquifer-networks[\s\S]*Off · even groundwater/);
-  assert.match(setupSource, /Enable aquifer networks/);
+  assert.match(setupSource, /data-world-selector="groundwater"/);
+  assert.match(setupSource, /Every well has reliable yield/);
   assert.match(setupSource, /Well yield varies by location/);
-  assert.match(setupSource, /On · placement matters/);
   assert.match(settingsSource, /wellAquiferNetworksEnabled:\s*false/);
   assert.match(serverConfigSource, /well_aquifer_networks_enabled:\s*false/);
 }

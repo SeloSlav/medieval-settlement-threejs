@@ -100,9 +100,8 @@ test('new-world setup moves backward and forward without losing choices', async 
   expect(mapRandomizeBox!.y + mapRandomizeBox!.height).toBeLessThan(mapBackBox!.y);
   await expectActiveStep(page, 'map');
 
-  const smallMap = page.locator('[data-map-size="small"]');
-  await smallMap.click();
-  await page.locator('[data-aquifer-networks]').click();
+  await page.locator('[data-world-selector="map-size"] [data-selector-step="-1"]').click();
+  await page.locator('[data-world-selector="groundwater"] [data-selector-step="1"]').click();
 
   await page.getByRole('button', { name: 'Back to Heraldry' }).click();
   await expect(heraldryHeading).toBeVisible();
@@ -117,8 +116,8 @@ test('new-world setup moves backward and forward without losing choices', async 
   await expect(liveShield).toHaveCSS('--charge-mask', /tower\.png/);
   await page.getByRole('button', { name: /Continue to Map Generation/ }).click();
   await expect(mapStep).toBeVisible();
-  await expect(page.locator('[data-map-size="small"]')).toHaveAttribute('aria-pressed', 'true');
-  await expect(page.locator('[data-aquifer-networks]')).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('[data-map-size-value]')).toHaveAttribute('data-value', 'small');
+  await expect(page.locator('[data-aquifer-networks-value]')).toHaveAttribute('data-value', 'aquifers');
   await page.getByRole('button', { name: 'Back to Heraldry' }).click();
   await expect(heraldryHeading).toBeFocused();
   await expect(pattern).toHaveAttribute('aria-pressed', 'true');
@@ -137,7 +136,7 @@ test('new-world setup moves backward and forward without losing choices', async 
   await page.getByRole('button', { name: /Continue to Map Generation/ }).click();
   await expect(mapStep).toBeVisible();
   await expect(mapStep).toBeFocused();
-  await expect(page.locator('[data-map-size="small"]')).toHaveAttribute('aria-pressed', 'true');
-  await expect(page.locator('[data-aquifer-networks]')).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('[data-map-size-value]')).toHaveAttribute('data-value', 'small');
+  await expect(page.locator('[data-aquifer-networks-value]')).toHaveAttribute('data-value', 'aquifers');
   await expectActiveStep(page, 'map');
 });

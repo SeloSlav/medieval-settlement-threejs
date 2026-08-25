@@ -47,6 +47,7 @@ const {
   DEFAULT_FOV,
   ILLUSTRATED_MAP_MIN_PITCH,
   ILLUSTRATED_MAP_OUTWARD_ZOOM_TIER_COUNT,
+  RTS_ORBIT_YAW,
   RTS_ORBIT_PITCH,
   computeCloseCurveStartDistance,
   computeIllustratedMapFarPlane,
@@ -139,6 +140,15 @@ function createController(
     onIllustratedMapModeChanged,
   });
   return { controller, camera, target, domElement };
+}
+
+{
+  const { controller, camera, target } = createController();
+  assert.equal(controller.getYaw(), RTS_ORBIT_YAW,
+    'the default RTS camera should face the paper map from its authored bottom edge');
+  assert.ok(camera.position.z > target.z,
+    'the default camera should keep the canvas top edge at the top of the paper-map view');
+  controller.dispose();
 }
 
 function mouseEvent(init: {
@@ -271,13 +281,14 @@ function scrollToLiveWorldMaximum(
     'raw RMB movement should set a smooth destination instead of moving immediately');
   controller.update(1 / 60);
   const firstFrameX = target.x;
-  assert.ok(firstFrameX > startX,
+  const defaultScreenRightX = -Math.sin(RTS_ORBIT_YAW);
+  assert.ok((firstFrameX - startX) * defaultScreenRightX > 0,
     'RMB panning should begin on the next render frame');
   releaseMouse(2);
   assert.equal(controller.isNavigationActive(), true,
     'the short RMB glide should remain active after release until it settles');
   settleNavigation(controller);
-  assert.ok(target.x > firstFrameX,
+  assert.ok((target.x - firstFrameX) * defaultScreenRightX > 0,
     'RMB panning should smoothly converge after the raw drag ends');
   assert.equal(controller.isNavigationActive(), false,
     'RMB navigation should become idle once the glide is exact');
@@ -321,7 +332,7 @@ function scrollToLiveWorldMaximum(
     clientY: 100,
   }));
   settleNavigation(controller);
-  assert.ok(target.x > startX,
+  assert.ok((target.x - startX) * -Math.sin(RTS_ORBIT_YAW) > 0,
     'RMB drag must continue to reach the camera while a placement gesture is armed');
   assert.equal(stationarySecondaryClicks, 0,
     'RMB camera drag must preserve the placement action');
@@ -386,7 +397,7 @@ function scrollToLiveWorldMaximum(
     'keyboard pan should share the camera navigation activity state');
   controller.update(0.05);
   const firstFrameX = target.x;
-  assert.ok(firstFrameX < startX,
+  assert.ok((firstFrameX - startX) * Math.sin(RTS_ORBIT_YAW) > 0,
     'right-arrow panning should begin smoothly on the first frame');
   controller.update(0.05);
   const secondFrameX = target.x;
@@ -398,7 +409,7 @@ function scrollToLiveWorldMaximum(
   assert.equal(controller.isNavigationActive(), true,
     'keyboard release should retain navigation activity during the short glide');
   controller.update(1 / 60);
-  assert.ok(target.x < secondFrameX,
+  assert.ok((target.x - secondFrameX) * Math.sin(RTS_ORBIT_YAW) > 0,
     'released arrow panning should decelerate instead of stopping abruptly');
   settleNavigation(controller);
   assert.equal(controller.isNavigationActive(), false,
@@ -449,17 +460,19 @@ function scrollToLiveWorldMaximum(
     Math.abs(diagonal.target.length() - straightDistance) < 1e-9,
     'diagonal arrow panning should retain the authored cardinal movement speed',
   );
-  assert.ok(diagonal.target.x < 0 && diagonal.target.z > 0,
+  assert.ok(
+    diagonal.target.x * Math.sin(RTS_ORBIT_YAW) > 0
+      && diagonal.target.z * -Math.sin(RTS_ORBIT_YAW) > 0,
     'combined arrows should smoothly pan along both requested axes');
   diagonal.controller.dispose();
 }
 
 {
   const directions = [
-    { key: 'ArrowUp', axis: 'z' as const, sign: 1 },
-    { key: 'ArrowDown', axis: 'z' as const, sign: -1 },
-    { key: 'ArrowLeft', axis: 'x' as const, sign: 1 },
-    { key: 'ArrowRight', axis: 'x' as const, sign: -1 },
+    { key: 'ArrowUp', axis: 'z' as const, sign: Math.sign(-Math.sin(RTS_ORBIT_YAW)) },
+    { key: 'ArrowDown', axis: 'z' as const, sign: Math.sign(Math.sin(RTS_ORBIT_YAW)) },
+    { key: 'ArrowLeft', axis: 'x' as const, sign: Math.sign(-Math.sin(RTS_ORBIT_YAW)) },
+    { key: 'ArrowRight', axis: 'x' as const, sign: Math.sign(Math.sin(RTS_ORBIT_YAW)) },
   ];
   for (const direction of directions) {
     const { controller, target } = createController(undefined, true);
@@ -483,7 +496,7 @@ function scrollToLiveWorldMaximum(
   const startZ = target.z;
   window.dispatchEvent(keyboardEvent('keydown', 'ArrowUp'));
   await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
-  assert.ok(target.z > startZ,
+  assert.ok((target.z - startZ) * -Math.sin(RTS_ORBIT_YAW) > 0,
     'demand-rendered arrow panning should start its own navigation frame');
   assert.ok(viewChangeCount > 0,
     'demand-rendered arrow panning should invalidate the visible scene');

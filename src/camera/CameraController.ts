@@ -11,6 +11,7 @@ import {
   CLOSE_LOOK_HEIGHT_OFFSET,
   CLOSE_PAN_SPEED_SCALE,
   RTS_ORBIT_DISTANCE,
+  RTS_ORBIT_YAW,
   RTS_ORBIT_PITCH,
   CAMERA_ZOOM_STEP_MULTIPLIER,
   LIVE_WORLD_MIN_ZOOM_PERCENT,
@@ -96,7 +97,7 @@ export class CameraController {
   private illustratedMapFarPlane = 0;
   private currentDistance = RTS_ORBIT_DISTANCE;
   private targetDistance = RTS_ORBIT_DISTANCE;
-  private currentYaw = -Math.PI / 2;
+  private currentYaw = RTS_ORBIT_YAW;
   private currentPitch = RTS_ORBIT_PITCH;
   private readonly orbitPosition = new THREE.Vector3();
   private readonly orbitDirection = new THREE.Vector3();

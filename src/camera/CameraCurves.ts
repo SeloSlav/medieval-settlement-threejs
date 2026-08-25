@@ -24,6 +24,12 @@ export const BASELINE_ORBIT_DISTANCE = 88;
 
 /** Default strategic RTS orbit when the app loads and when leaving first-person. */
 export const RTS_ORBIT_DISTANCE = 240;
+/**
+ * View the world-aligned paper map from its authored bottom edge. Canvas +Y
+ * maps toward world +Z, so the reciprocal yaw would present the sheet rotated
+ * 180 degrees at the default map handoff.
+ */
+export const RTS_ORBIT_YAW = Math.PI / 2;
 export const RTS_ORBIT_PITCH = THREE.MathUtils.degToRad(68);
 
 /** Every wheel detent advances one logarithmically even orbit-distance tier. */

@@ -232,15 +232,16 @@ test('connects, places a reforester, and updates settlement HUD timber', async (
   await page.goto('/?new');
   await advanceToMapGeneration(page);
 
-  const aquiferToggle = page.locator('[data-aquifer-networks]');
-  const aquiferState = page.locator('[data-aquifer-networks-state]');
-  await expect(aquiferToggle).toHaveAttribute('aria-pressed', 'false');
-  await expect(aquiferState).toHaveText('Off · even groundwater');
-  await aquiferToggle.click();
-  await expect(aquiferToggle).toHaveAttribute('aria-pressed', 'true');
-  await expect(aquiferState).toHaveText('On · placement matters');
-  await aquiferToggle.click();
-  await expect(aquiferToggle).toHaveAttribute('aria-pressed', 'false');
+  const aquiferState = page.locator('[data-aquifer-networks-value]');
+  const aquiferNext = page.locator('[data-world-selector="groundwater"] [data-selector-step="1"]');
+  const aquiferPrevious = page.locator('[data-world-selector="groundwater"] [data-selector-step="-1"]');
+  await expect(aquiferState).toHaveAttribute('data-value', 'even');
+  await expect(aquiferState).toHaveText('Even');
+  await aquiferNext.click();
+  await expect(aquiferState).toHaveAttribute('data-value', 'aquifers');
+  await expect(aquiferState).toHaveText('Aquifers');
+  await aquiferPrevious.click();
+  await expect(aquiferState).toHaveAttribute('data-value', 'even');
 
   const timberHud = page.locator('[data-stockpile="timber"]');
   const startWorld = page.getByRole('button', { name: 'Start world' });

@@ -925,8 +925,8 @@
 
 .noble-setup-heraldry-shield {
   position: absolute;
-  right: -3px;
-  bottom: -3px;
+  right: -26px;
+  bottom: -10px;
   display: grid;
   place-items: center;
   width: clamp(112px, 43%, 164px);
@@ -1122,7 +1122,7 @@
   }
   .noble-setup-heraldry-profile { gap: 5px; padding: 6px; border-radius: 3px 3px 13px 3px; }
   .noble-setup-heraldry-portrait-shell { width: min(100%, 190px); padding: 0 5px 8px 0; }
-  .noble-setup-heraldry-shield { right: -2px; bottom: -2px; width: clamp(62px, 43%, 82px); padding: 5px; }
+  .noble-setup-heraldry-shield { right: -16px; bottom: -7px; width: clamp(62px, 43%, 82px); padding: 5px; }
   .noble-setup-heraldry-identity { gap: 2px; padding: 0 2px; }
   .noble-setup-heraldry-identity h2 { font-size: 12px; }
   .noble-setup-heraldry-identity > p:not(.noble-setup-eyebrow) { font-size: 7px; }

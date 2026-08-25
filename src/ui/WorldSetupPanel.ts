@@ -15,14 +15,6 @@ import {
   WORLD_TERRAIN_PRESETS,
   type WorldTerrainPreset,
 } from '../world/worldTerrainPresets.ts';
-import {
-  createRegionalDepositSurvey,
-  createRegionalResourcePlan,
-  describeResourceAbundance,
-  describeResourceVariety,
-  type RegionalDepositResource,
-} from '../world/regionalResourceDistribution.ts';
-
 export type WorldSetupResult = {
   action: 'back' | 'start';
   settings: WorldGenerationSettings;
@@ -31,6 +23,17 @@ export type WorldSetupResult = {
 export type WorldSetupOptions = {
   initialSettings?: WorldGenerationSettings;
 };
+
+const MAP_SIZE_ORDER: readonly WorldMapSize[] = ['small', 'medium', 'large'];
+const CONFLICT_MODE_ORDER = ['peaceful', 'frontier'] as const;
+const DIFFICULTY_RATE_ORDER: readonly WorldDifficultyRate[] = [0, 50, 100, 150];
+const INITIAL_GOODS_ORDER = [1, 2] as const;
+const BOOLEAN_ORDER = [false, true] as const;
+
+function cycleValue<T>(values: readonly T[], current: T, step: number): T {
+  const currentIndex = Math.max(0, values.indexOf(current));
+  return values[(currentIndex + step + values.length) % values.length]!;
+}
 
 export class WorldSetupPanel {
   private readonly backdrop: HTMLElement;
@@ -91,114 +94,15 @@ export class WorldSetupPanel {
           </header>
           <div class="world-setup-scroll" aria-label="World settings">
             <section class="world-setup-section" aria-label="Map size">
-            <h2 class="world-setup-section__title">Map size</h2>
-            <div class="world-setup-size-grid" data-size-grid></div>
-            </section>
-
-            <section class="world-setup-section" aria-label="Settlement mode">
-            <h2 class="world-setup-section__title">Settlement mode</h2>
-            <div class="world-setup-mode-grid" data-mode-grid>
-              <button type="button" class="world-setup-mode-option is-selected" data-conflict-mode="peaceful">
-                <strong>Peaceful settlement</strong>
-                <span>Build, trade, and grow without hostile raids.</span>
-              </button>
-              <button type="button" class="world-setup-mode-option" data-conflict-mode="frontier">
-                <strong>Contested frontier</strong>
-                <span>Support watchmen and withstand periodic Ottoman raids.</span>
-              </button>
-            </div>
-            <div class="world-setup-pressure" data-pressure-controls hidden>
-              <label class="world-setup-slider-label" for="world-setup-pressure">
-                <span>Enemy pressure</span>
-                <strong data-pressure-value>50</strong>
-              </label>
-              <input id="world-setup-pressure" class="world-setup-slider" type="range" min="10" max="100" step="5" value="50" />
-              <p class="world-setup-slider-hint">Higher pressure brings earlier scouts and heavier losses at exposed holdings.</p>
-            </div>
-            </section>
-
-            <section class="world-setup-section" aria-label="Approval decline">
-              <h2 class="world-setup-section__title">Approval decline</h2>
-              <div class="world-setup-rule-grid" data-approval-decline-grid>
-                <button type="button" class="world-setup-rule-option" data-approval-decline-rate="0">
-                  <strong>Disabled</strong><span>No passive decline.</span>
-                </button>
-                <button type="button" class="world-setup-rule-option" data-approval-decline-rate="50">
-                  <strong>Relaxed</strong><span>50% slower.</span>
-                </button>
-                <button type="button" class="world-setup-rule-option" data-approval-decline-rate="100">
-                  <strong>Normal</strong><span>Current rate.</span>
-                </button>
-                <button type="button" class="world-setup-rule-option" data-approval-decline-rate="150">
-                  <strong>Demanding</strong><span>50% faster.</span>
-                </button>
+              <h2 class="world-setup-section__title">Map size</h2>
+              <div class="world-setup-arrow-select" data-world-selector="map-size">
+                <button type="button" class="world-setup-arrow-select__arrow" data-selector-step="-1" aria-label="Previous map size">‹</button>
+                <div class="world-setup-arrow-select__value" aria-live="polite">
+                  <strong data-map-size-value></strong>
+                  <span data-map-size-description></span>
+                </div>
+                <button type="button" class="world-setup-arrow-select__arrow" data-selector-step="1" aria-label="Next map size">›</button>
               </div>
-            </section>
-
-            <section class="world-setup-section" aria-label="Food spoilage">
-              <h2 class="world-setup-section__title">Food spoilage</h2>
-              <div class="world-setup-rule-grid" data-food-spoilage-grid>
-                <button type="button" class="world-setup-rule-option" data-food-spoilage-rate="0">
-                  <strong>None</strong><span>Food never spoils.</span>
-                </button>
-                <button type="button" class="world-setup-rule-option" data-food-spoilage-rate="50">
-                  <strong>Reduced</strong><span>50% slower.</span>
-                </button>
-                <button type="button" class="world-setup-rule-option" data-food-spoilage-rate="100">
-                  <strong>Normal</strong><span>Current rates.</span>
-                </button>
-                <button type="button" class="world-setup-rule-option" data-food-spoilage-rate="150">
-                  <strong>Harsh</strong><span>50% faster.</span>
-                </button>
-              </div>
-            </section>
-
-            <section class="world-setup-section" aria-label="Starting supplies">
-              <h2 class="world-setup-section__title">First camp supplies</h2>
-              <div class="world-setup-rule-grid world-setup-rule-grid--two" data-initial-goods-grid>
-                <button type="button" class="world-setup-rule-option" data-initial-goods-multiplier="1">
-                  <strong>Normal</strong><span>Current starting stock.</span>
-                </button>
-                <button type="button" class="world-setup-rule-option" data-initial-goods-multiplier="2">
-                  <strong>Double</strong><span>2× goods in the original camp.</span>
-                </button>
-              </div>
-            </section>
-
-            <section class="world-setup-section" aria-label="Severe weather">
-              <h2 class="world-setup-section__title">Severe weather</h2>
-              <button
-                type="button"
-                class="world-setup-hazard-option"
-                data-severe-weather
-                aria-pressed="false"
-              >
-                <span class="world-setup-hazard-option__marker" aria-hidden="true">⚡</span>
-                <span class="world-setup-hazard-option__copy">
-                  <strong>Enable severe weather events</strong>
-                  <span>Adds droughts, lightning, and spreading fires.</span>
-                </span>
-                <span class="world-setup-hazard-option__state" data-severe-weather-state>Off · beginner friendly</span>
-              </button>
-              <p class="world-setup-slider-hint world-setup-hazard-hint">Normal rain and frost always apply. Raid arson requires Contested frontier.</p>
-            </section>
-
-            <section class="world-setup-section" aria-labelledby="world-setup-groundwater-title">
-              <h2 class="world-setup-section__title" id="world-setup-groundwater-title">Groundwater</h2>
-              <button
-                type="button"
-                class="world-setup-hazard-option world-setup-hazard-option--aquifer"
-                data-aquifer-networks
-                aria-pressed="false"
-              >
-                <span class="world-setup-hazard-option__marker" aria-hidden="true">≋</span>
-                <span class="world-setup-hazard-option__copy">
-                  <strong>Enable aquifer networks</strong>
-                  <span>Well yield varies by location; the overlay reveals strong sites.</span>
-                </span>
-                <span class="world-setup-hazard-option__state" data-aquifer-networks-state>Off · even groundwater</span>
-              </button>
-              <p class="world-setup-slider-hint world-setup-hazard-hint">Off gives every well the same yield. Surface water is unchanged.</p>
             </section>
 
             <section class="world-setup-section world-setup-landscape" aria-label="Landscape">
@@ -217,7 +121,7 @@ export class WorldSetupPanel {
               <strong data-topography-value>${this.draft.topography}</strong>
             </label>
             <input id="world-setup-topography" class="world-setup-slider" type="range" min="0" max="100" step="1" value="${this.draft.topography}" />
-            <p class="world-setup-slider-hint">Low: rolling hills. Above 80: mountain-scale ridges.</p>
+            <p class="world-setup-slider-hint">Higher values create larger, steeper ridges.</p>
             </section>
 
             <section class="world-setup-section" aria-label="Custom hydrology">
@@ -226,7 +130,7 @@ export class WorldSetupPanel {
               <strong data-hydrology-value>${this.draft.hydrology}</strong>
             </label>
             <input id="world-setup-hydrology" class="world-setup-slider" type="range" min="0" max="100" step="1" value="${this.draft.hydrology}" />
-            <p class="world-setup-slider-hint">Low: drier with fewer rivers. High: wetter with more waterways and stronger aquifers.</p>
+            <p class="world-setup-slider-hint">Higher values add rivers and stronger aquifers.</p>
             </section>
 
             <section class="world-setup-section" aria-label="Custom forest density">
@@ -235,26 +139,82 @@ export class WorldSetupPanel {
               <strong data-forest-value>${this.draft.forestDensity}</strong>
             </label>
             <input id="world-setup-forest" class="world-setup-slider" type="range" min="0" max="100" step="1" value="${this.draft.forestDensity}" />
-            <p class="world-setup-slider-hint">Low: open meadow. High: dense conifer forest.</p>
+            <p class="world-setup-slider-hint">Higher values create denser woodland.</p>
             </section>
             </div>
 
-            <section class="world-setup-section world-setup-resources" aria-label="Regional resources">
-            <h2 class="world-setup-section__title">Regional resources</h2>
-            <label class="world-setup-slider-label" for="world-setup-resource-abundance">
-              <span>Local abundance</span>
-              <strong data-resource-abundance-value>${describeResourceAbundance(this.draft.resourceAbundance)} · ${this.draft.resourceAbundance}</strong>
-            </label>
-            <input id="world-setup-resource-abundance" class="world-setup-slider" type="range" min="0" max="100" step="5" value="${this.draft.resourceAbundance}" />
-            <p class="world-setup-slider-hint">Size fixes nodes / rich / guaranteed food: Small 5 / 2 / 1+, Medium 20 / 8 / 4+, Large 40 / 16 / 8+. Abundance and seed can add wild food. Import missing materials through a Trading Post.</p>
-
-            <label class="world-setup-slider-label world-setup-slider-label--secondary" for="world-setup-resource-variety">
-              <span>Local variety</span>
-              <strong data-resource-variety-value>${describeResourceVariety(this.draft.resourceVariety)} · ${this.draft.resourceVariety}</strong>
-            </label>
-            <input id="world-setup-resource-variety" class="world-setup-slider" type="range" min="0" max="100" step="5" value="${this.draft.resourceVariety}" />
-            <p class="world-setup-slider-hint">Specialized repeats fewer resource families. Broad mix offers more types without changing node counts.</p>
-            <div class="world-setup-resource-summary" data-resource-summary aria-live="polite">${this.resourceSummaryMarkup()}</div>
+            <section class="world-setup-section world-setup-game-rules" aria-label="Gameplay rules">
+              <div class="world-setup-section-heading">
+                <h2 class="world-setup-section__title">Gameplay rules</h2>
+                <span>Optional difficulty</span>
+              </div>
+              <div class="world-setup-setting-list">
+                <div class="world-setup-setting-row">
+                  <div class="world-setup-setting-row__label"><strong>Settlement mode</strong></div>
+                  <div class="world-setup-arrow-select" data-world-selector="settlement-mode">
+                    <button type="button" class="world-setup-arrow-select__arrow" data-selector-step="-1" aria-label="Previous settlement mode">‹</button>
+                    <div class="world-setup-arrow-select__value" aria-live="polite">
+                      <strong data-conflict-mode-value></strong><span data-conflict-mode-description></span>
+                    </div>
+                    <button type="button" class="world-setup-arrow-select__arrow" data-selector-step="1" aria-label="Next settlement mode">›</button>
+                  </div>
+                </div>
+                <div class="world-setup-pressure" data-pressure-controls hidden>
+                  <label class="world-setup-slider-label" for="world-setup-pressure"><span>Enemy pressure</span><strong data-pressure-value>50</strong></label>
+                  <input id="world-setup-pressure" class="world-setup-slider" type="range" min="10" max="100" step="5" value="50" />
+                  <p class="world-setup-slider-hint">Higher pressure means earlier, stronger raids.</p>
+                </div>
+                <div class="world-setup-setting-row">
+                  <div class="world-setup-setting-row__label"><strong>Approval decline</strong></div>
+                  <div class="world-setup-arrow-select" data-world-selector="approval-decline">
+                    <button type="button" class="world-setup-arrow-select__arrow" data-selector-step="-1" aria-label="Lower approval decline">‹</button>
+                    <div class="world-setup-arrow-select__value" aria-live="polite">
+                      <strong data-approval-decline-value></strong><span data-approval-decline-description></span>
+                    </div>
+                    <button type="button" class="world-setup-arrow-select__arrow" data-selector-step="1" aria-label="Higher approval decline">›</button>
+                  </div>
+                </div>
+                <div class="world-setup-setting-row">
+                  <div class="world-setup-setting-row__label"><strong>Food spoilage</strong></div>
+                  <div class="world-setup-arrow-select" data-world-selector="food-spoilage">
+                    <button type="button" class="world-setup-arrow-select__arrow" data-selector-step="-1" aria-label="Lower food spoilage">‹</button>
+                    <div class="world-setup-arrow-select__value" aria-live="polite">
+                      <strong data-food-spoilage-value></strong><span data-food-spoilage-description></span>
+                    </div>
+                    <button type="button" class="world-setup-arrow-select__arrow" data-selector-step="1" aria-label="Higher food spoilage">›</button>
+                  </div>
+                </div>
+                <div class="world-setup-setting-row">
+                  <div class="world-setup-setting-row__label"><strong>First camp supplies</strong></div>
+                  <div class="world-setup-arrow-select" data-world-selector="initial-goods">
+                    <button type="button" class="world-setup-arrow-select__arrow" data-selector-step="-1" aria-label="Fewer first camp supplies">‹</button>
+                    <div class="world-setup-arrow-select__value" aria-live="polite">
+                      <strong data-initial-goods-value></strong><span data-initial-goods-description></span>
+                    </div>
+                    <button type="button" class="world-setup-arrow-select__arrow" data-selector-step="1" aria-label="More first camp supplies">›</button>
+                  </div>
+                </div>
+                <div class="world-setup-setting-row">
+                  <div class="world-setup-setting-row__label"><strong>Severe weather</strong></div>
+                  <div class="world-setup-arrow-select" data-world-selector="severe-weather">
+                    <button type="button" class="world-setup-arrow-select__arrow" data-selector-step="-1" aria-label="Previous severe weather setting">‹</button>
+                    <div class="world-setup-arrow-select__value" aria-live="polite">
+                      <strong data-severe-weather-value></strong><span data-severe-weather-description></span>
+                    </div>
+                    <button type="button" class="world-setup-arrow-select__arrow" data-selector-step="1" aria-label="Next severe weather setting">›</button>
+                  </div>
+                </div>
+                <div class="world-setup-setting-row">
+                  <div class="world-setup-setting-row__label"><strong>Groundwater</strong></div>
+                  <div class="world-setup-arrow-select" data-world-selector="groundwater">
+                    <button type="button" class="world-setup-arrow-select__arrow" data-selector-step="-1" aria-label="Previous groundwater setting">‹</button>
+                    <div class="world-setup-arrow-select__value" aria-live="polite">
+                      <strong data-aquifer-networks-value></strong><span data-aquifer-networks-description></span>
+                    </div>
+                    <button type="button" class="world-setup-arrow-select__arrow" data-selector-step="1" aria-label="Next groundwater setting">›</button>
+                  </div>
+                </div>
+              </div>
             </section>
 
           </div>
@@ -285,7 +245,6 @@ export class WorldSetupPanel {
 
     parent.appendChild(this.backdrop);
     this.renderTerrainPresetOptions();
-    this.renderSizeOptions();
     this.bindEvents();
     this.backdrop.querySelector<HTMLElement>('[data-setup-heading]')!.focus();
   }
@@ -301,26 +260,35 @@ export class WorldSetupPanel {
     const topographySlider = this.backdrop.querySelector<HTMLInputElement>('#world-setup-topography')!;
     const hydrologySlider = this.backdrop.querySelector<HTMLInputElement>('#world-setup-hydrology')!;
     const forestSlider = this.backdrop.querySelector<HTMLInputElement>('#world-setup-forest')!;
-    const resourceAbundanceSlider = this.backdrop.querySelector<HTMLInputElement>('#world-setup-resource-abundance')!;
-    const resourceVarietySlider = this.backdrop.querySelector<HTMLInputElement>('#world-setup-resource-variety')!;
     const topographyValue = this.backdrop.querySelector<HTMLElement>('[data-topography-value]')!;
     const hydrologyValue = this.backdrop.querySelector<HTMLElement>('[data-hydrology-value]')!;
     const forestValue = this.backdrop.querySelector<HTMLElement>('[data-forest-value]')!;
-    const resourceAbundanceValue = this.backdrop.querySelector<HTMLElement>('[data-resource-abundance-value]')!;
-    const resourceVarietyValue = this.backdrop.querySelector<HTMLElement>('[data-resource-variety-value]')!;
     const seedInput = this.backdrop.querySelector<HTMLInputElement>('[data-seed-input]')!;
     const randomizeButton = this.backdrop.querySelector<HTMLButtonElement>('[data-randomize-seed]')!;
-    const modeGrid = this.backdrop.querySelector<HTMLElement>('[data-mode-grid]')!;
+    const mapSizeSelector = this.backdrop.querySelector<HTMLElement>('[data-world-selector="map-size"]')!;
+    const mapSizeValue = this.backdrop.querySelector<HTMLElement>('[data-map-size-value]')!;
+    const mapSizeDescription = this.backdrop.querySelector<HTMLElement>('[data-map-size-description]')!;
+    const conflictModeSelector = this.backdrop.querySelector<HTMLElement>('[data-world-selector="settlement-mode"]')!;
+    const conflictModeValue = this.backdrop.querySelector<HTMLElement>('[data-conflict-mode-value]')!;
+    const conflictModeDescription = this.backdrop.querySelector<HTMLElement>('[data-conflict-mode-description]')!;
     const pressureControls = this.backdrop.querySelector<HTMLElement>('[data-pressure-controls]')!;
     const pressureSlider = this.backdrop.querySelector<HTMLInputElement>('#world-setup-pressure')!;
     const pressureValue = this.backdrop.querySelector<HTMLElement>('[data-pressure-value]')!;
-    const severeWeatherButton = this.backdrop.querySelector<HTMLButtonElement>('[data-severe-weather]')!;
-    const severeWeatherState = this.backdrop.querySelector<HTMLElement>('[data-severe-weather-state]')!;
-    const aquiferNetworksButton = this.backdrop.querySelector<HTMLButtonElement>('[data-aquifer-networks]')!;
-    const aquiferNetworksState = this.backdrop.querySelector<HTMLElement>('[data-aquifer-networks-state]')!;
-    const approvalDeclineGrid = this.backdrop.querySelector<HTMLElement>('[data-approval-decline-grid]')!;
-    const foodSpoilageGrid = this.backdrop.querySelector<HTMLElement>('[data-food-spoilage-grid]')!;
-    const initialGoodsGrid = this.backdrop.querySelector<HTMLElement>('[data-initial-goods-grid]')!;
+    const approvalDeclineSelector = this.backdrop.querySelector<HTMLElement>('[data-world-selector="approval-decline"]')!;
+    const approvalDeclineValue = this.backdrop.querySelector<HTMLElement>('[data-approval-decline-value]')!;
+    const approvalDeclineDescription = this.backdrop.querySelector<HTMLElement>('[data-approval-decline-description]')!;
+    const foodSpoilageSelector = this.backdrop.querySelector<HTMLElement>('[data-world-selector="food-spoilage"]')!;
+    const foodSpoilageValue = this.backdrop.querySelector<HTMLElement>('[data-food-spoilage-value]')!;
+    const foodSpoilageDescription = this.backdrop.querySelector<HTMLElement>('[data-food-spoilage-description]')!;
+    const initialGoodsSelector = this.backdrop.querySelector<HTMLElement>('[data-world-selector="initial-goods"]')!;
+    const initialGoodsValue = this.backdrop.querySelector<HTMLElement>('[data-initial-goods-value]')!;
+    const initialGoodsDescription = this.backdrop.querySelector<HTMLElement>('[data-initial-goods-description]')!;
+    const severeWeatherSelector = this.backdrop.querySelector<HTMLElement>('[data-world-selector="severe-weather"]')!;
+    const severeWeatherValue = this.backdrop.querySelector<HTMLElement>('[data-severe-weather-value]')!;
+    const severeWeatherDescription = this.backdrop.querySelector<HTMLElement>('[data-severe-weather-description]')!;
+    const aquiferNetworksSelector = this.backdrop.querySelector<HTMLElement>('[data-world-selector="groundwater"]')!;
+    const aquiferNetworksValue = this.backdrop.querySelector<HTMLElement>('[data-aquifer-networks-value]')!;
+    const aquiferNetworksDescription = this.backdrop.querySelector<HTMLElement>('[data-aquifer-networks-description]')!;
     const backButton = this.backdrop.querySelector<HTMLButtonElement>('[data-setup-back]')!;
     const landscapeGrid = this.backdrop.querySelector<HTMLElement>('[data-landscape-grid]')!;
     const landscapeNote = this.backdrop.querySelector<HTMLElement>('[data-landscape-note]')!;
@@ -351,92 +319,129 @@ export class WorldSetupPanel {
         const preset = button.dataset.terrainPreset as WorldTerrainPreset;
         this.draft = applyTerrainPreset(this.draft, preset);
         syncLandscapeControls();
-        this.renderResourceSummary();
       });
     }
     syncLandscapeControls();
+
+    const syncMapSizeControl = (): void => {
+      const preset = MAP_SIZE_PRESETS[this.draft.mapSize];
+      const playableKm = (preset.playableSize / 1000).toFixed(1);
+      mapSizeValue.textContent = preset.label;
+      mapSizeValue.dataset.value = this.draft.mapSize;
+      mapSizeDescription.textContent = `${playableKm} km wide · ${preset.smallMapAreas}× small-map area`;
+    };
 
     const syncConflictControls = (): void => {
       pressureSlider.value = String(Math.max(10, this.draft.enemyPressure));
       pressureValue.textContent = pressureSlider.value;
       pressureControls.hidden = this.draft.conflictMode !== 'frontier';
-      for (const option of modeGrid.querySelectorAll<HTMLButtonElement>('[data-conflict-mode]')) {
-        const selected = option.dataset.conflictMode === this.draft.conflictMode;
-        option.classList.toggle('is-selected', selected);
-        option.setAttribute('aria-pressed', String(selected));
-      }
+      conflictModeValue.dataset.value = this.draft.conflictMode;
+      conflictModeValue.textContent = this.draft.conflictMode === 'frontier'
+        ? 'Contested frontier'
+        : 'Peaceful settlement';
+      conflictModeDescription.textContent = this.draft.conflictMode === 'frontier'
+        ? 'Periodic Ottoman raids.'
+        : 'No hostile raids.';
     };
 
     const syncHazardControls = (): void => {
-      severeWeatherButton.classList.toggle('is-selected', this.draft.severeWeatherEnabled);
-      severeWeatherButton.setAttribute('aria-pressed', String(this.draft.severeWeatherEnabled));
-      severeWeatherState.textContent = this.draft.severeWeatherEnabled
-        ? 'On · severe events'
-        : 'Off · beginner friendly';
-      aquiferNetworksButton.classList.toggle('is-selected', this.draft.wellAquiferNetworksEnabled);
-      aquiferNetworksButton.setAttribute('aria-pressed', String(this.draft.wellAquiferNetworksEnabled));
-      aquiferNetworksState.textContent = this.draft.wellAquiferNetworksEnabled
-        ? 'On · placement matters'
-        : 'Off · even groundwater';
+      severeWeatherValue.dataset.value = this.draft.severeWeatherEnabled ? 'on' : 'off';
+      severeWeatherValue.textContent = this.draft.severeWeatherEnabled ? 'On' : 'Off';
+      severeWeatherDescription.textContent = this.draft.severeWeatherEnabled
+        ? 'Droughts, lightning, and fire.'
+        : 'Normal rain and frost only.';
+      aquiferNetworksValue.dataset.value = this.draft.wellAquiferNetworksEnabled ? 'aquifers' : 'even';
+      aquiferNetworksValue.textContent = this.draft.wellAquiferNetworksEnabled ? 'Aquifers' : 'Even';
+      aquiferNetworksDescription.textContent = this.draft.wellAquiferNetworksEnabled
+        ? 'Well yield varies by location.'
+        : 'Every well has reliable yield.';
     };
 
     const syncRuleControls = (): void => {
-      for (const option of approvalDeclineGrid.querySelectorAll<HTMLButtonElement>('[data-approval-decline-rate]')) {
-        const selected = Number(option.dataset.approvalDeclineRate) === this.draft.approvalDeclineRate;
-        option.classList.toggle('is-selected', selected);
-        option.setAttribute('aria-pressed', String(selected));
-      }
-      for (const option of foodSpoilageGrid.querySelectorAll<HTMLButtonElement>('[data-food-spoilage-rate]')) {
-        const selected = Number(option.dataset.foodSpoilageRate) === this.draft.foodSpoilageRate;
-        option.classList.toggle('is-selected', selected);
-        option.setAttribute('aria-pressed', String(selected));
-      }
-      for (const option of initialGoodsGrid.querySelectorAll<HTMLButtonElement>('[data-initial-goods-multiplier]')) {
-        const selected = Number(option.dataset.initialGoodsMultiplier) === this.draft.initialGoodsMultiplier;
-        option.classList.toggle('is-selected', selected);
-        option.setAttribute('aria-pressed', String(selected));
+      const approvalCopy: Record<WorldDifficultyRate, readonly [string, string]> = {
+        0: ['Disabled', 'No passive approval loss.'],
+        50: ['Relaxed', 'Approval falls 50% slower.'],
+        100: ['Normal', 'Standard approval decline.'],
+        150: ['Demanding', 'Approval falls 50% faster.'],
+      };
+      const foodCopy: Record<WorldDifficultyRate, readonly [string, string]> = {
+        0: ['None', 'Food never spoils.'],
+        50: ['Reduced', 'Food spoils 50% slower.'],
+        100: ['Normal', 'Standard seasonal spoilage.'],
+        150: ['Harsh', 'Food spoils 50% faster.'],
+      };
+      const approval = approvalCopy[this.draft.approvalDeclineRate];
+      approvalDeclineValue.dataset.value = String(this.draft.approvalDeclineRate);
+      approvalDeclineValue.textContent = approval[0];
+      approvalDeclineDescription.textContent = approval[1];
+      const food = foodCopy[this.draft.foodSpoilageRate];
+      foodSpoilageValue.dataset.value = String(this.draft.foodSpoilageRate);
+      foodSpoilageValue.textContent = food[0];
+      foodSpoilageDescription.textContent = food[1];
+      initialGoodsValue.dataset.value = String(this.draft.initialGoodsMultiplier);
+      initialGoodsValue.textContent = this.draft.initialGoodsMultiplier === 2 ? 'Double' : 'Normal';
+      initialGoodsDescription.textContent = this.draft.initialGoodsMultiplier === 2
+        ? 'Twice the goods in the original camp.'
+        : 'Standard starting stock.';
+    };
+
+    const bindArrowSelector = (
+      selector: HTMLElement,
+      onStep: (step: number) => void,
+    ): void => {
+      for (const button of selector.querySelectorAll<HTMLButtonElement>('[data-selector-step]')) {
+        button.addEventListener('click', () => onStep(Number(button.dataset.selectorStep)));
       }
     };
 
-    for (const button of modeGrid.querySelectorAll<HTMLButtonElement>('[data-conflict-mode]')) {
-      button.addEventListener('click', () => {
-        this.draft.conflictMode = button.dataset.conflictMode === 'frontier' ? 'frontier' : 'peaceful';
+    bindArrowSelector(mapSizeSelector, (step) => {
+      this.draft.mapSize = cycleValue(MAP_SIZE_ORDER, this.draft.mapSize, step);
+      syncMapSizeControl();
+    });
+    bindArrowSelector(conflictModeSelector, (step) => {
+        this.draft.conflictMode = cycleValue(CONFLICT_MODE_ORDER, this.draft.conflictMode, step);
         if (this.draft.conflictMode === 'frontier' && this.draft.enemyPressure <= 0) {
           this.draft.enemyPressure = 50;
         }
         syncConflictControls();
-      });
-    }
+    });
     pressureSlider.addEventListener('input', () => {
       this.draft.enemyPressure = Number(pressureSlider.value);
       pressureValue.textContent = pressureSlider.value;
     });
-    severeWeatherButton.addEventListener('click', () => {
-      this.draft.severeWeatherEnabled = !this.draft.severeWeatherEnabled;
+    bindArrowSelector(severeWeatherSelector, (step) => {
+      this.draft.severeWeatherEnabled = cycleValue(BOOLEAN_ORDER, this.draft.severeWeatherEnabled, step);
       syncHazardControls();
     });
-    aquiferNetworksButton.addEventListener('click', () => {
-      this.draft.wellAquiferNetworksEnabled = !this.draft.wellAquiferNetworksEnabled;
+    bindArrowSelector(aquiferNetworksSelector, (step) => {
+      this.draft.wellAquiferNetworksEnabled = cycleValue(BOOLEAN_ORDER, this.draft.wellAquiferNetworksEnabled, step);
       syncHazardControls();
     });
-    for (const button of approvalDeclineGrid.querySelectorAll<HTMLButtonElement>('[data-approval-decline-rate]')) {
-      button.addEventListener('click', () => {
-        this.draft.approvalDeclineRate = Number(button.dataset.approvalDeclineRate) as WorldDifficultyRate;
-        syncRuleControls();
-      });
-    }
-    for (const button of foodSpoilageGrid.querySelectorAll<HTMLButtonElement>('[data-food-spoilage-rate]')) {
-      button.addEventListener('click', () => {
-        this.draft.foodSpoilageRate = Number(button.dataset.foodSpoilageRate) as WorldDifficultyRate;
-        syncRuleControls();
-      });
-    }
-    for (const button of initialGoodsGrid.querySelectorAll<HTMLButtonElement>('[data-initial-goods-multiplier]')) {
-      button.addEventListener('click', () => {
-        this.draft.initialGoodsMultiplier = button.dataset.initialGoodsMultiplier === '2' ? 2 : 1;
-        syncRuleControls();
-      });
-    }
+    bindArrowSelector(approvalDeclineSelector, (step) => {
+      this.draft.approvalDeclineRate = cycleValue(
+        DIFFICULTY_RATE_ORDER,
+        this.draft.approvalDeclineRate,
+        step,
+      );
+      syncRuleControls();
+    });
+    bindArrowSelector(foodSpoilageSelector, (step) => {
+      this.draft.foodSpoilageRate = cycleValue(
+        DIFFICULTY_RATE_ORDER,
+        this.draft.foodSpoilageRate,
+        step,
+      );
+      syncRuleControls();
+    });
+    bindArrowSelector(initialGoodsSelector, (step) => {
+      this.draft.initialGoodsMultiplier = cycleValue(
+        INITIAL_GOODS_ORDER,
+        this.draft.initialGoodsMultiplier,
+        step,
+      );
+      syncRuleControls();
+    });
+    syncMapSizeControl();
     syncConflictControls();
     syncHazardControls();
     syncRuleControls();
@@ -448,29 +453,14 @@ export class WorldSetupPanel {
     hydrologySlider.addEventListener('input', () => {
       this.draft.hydrology = Number(hydrologySlider.value);
       hydrologyValue.textContent = String(this.draft.hydrology);
-      this.renderResourceSummary();
     });
     forestSlider.addEventListener('input', () => {
       this.draft.forestDensity = Number(forestSlider.value);
       forestValue.textContent = String(this.draft.forestDensity);
-      this.renderResourceSummary();
-    });
-    resourceAbundanceSlider.addEventListener('input', () => {
-      this.draft.resourceAbundance = Number(resourceAbundanceSlider.value);
-      resourceAbundanceValue.textContent =
-        `${describeResourceAbundance(this.draft.resourceAbundance)} · ${this.draft.resourceAbundance}`;
-      this.renderResourceSummary();
-    });
-    resourceVarietySlider.addEventListener('input', () => {
-      this.draft.resourceVariety = Number(resourceVarietySlider.value);
-      resourceVarietyValue.textContent =
-        `${describeResourceVariety(this.draft.resourceVariety)} · ${this.draft.resourceVariety}`;
-      this.renderResourceSummary();
     });
     randomizeButton.addEventListener('click', () => {
       this.draft.seed = seedForTerrainPreset(randomWorldSeed(), this.draft.terrainPreset);
       seedInput.value = formatSeedHex(this.draft.seed);
-      this.renderResourceSummary();
     });
     seedInput.addEventListener('change', () => {
       const parsed = parseSeedHex(seedInput.value);
@@ -480,7 +470,6 @@ export class WorldSetupPanel {
       }
       this.draft.seed = seedForTerrainPreset(parsed, this.draft.terrainPreset);
       seedInput.value = formatSeedHex(this.draft.seed);
-      this.renderResourceSummary();
     });
 
     const readSettings = (): WorldGenerationSettings => {
@@ -534,138 +523,4 @@ export class WorldSetupPanel {
     }).join('');
   }
 
-  private renderSizeOptions(): void {
-    const grid = this.backdrop.querySelector<HTMLElement>('[data-size-grid]')!;
-    grid.innerHTML = (Object.keys(MAP_SIZE_PRESETS) as WorldMapSize[]).map((size) => {
-      const preset = MAP_SIZE_PRESETS[size];
-      const selected = size === this.draft.mapSize ? ' is-selected' : '';
-      const playableKm = (preset.playableSize / 1000).toFixed(1);
-      return `
-        <button
-          type="button"
-          class="world-setup-size-option${selected}"
-          data-map-size="${size}"
-          aria-pressed="${size === this.draft.mapSize}"
-        >
-          <strong>${preset.label}</strong>
-          <span>${playableKm} km wide · ${preset.smallMapAreas}× small-map area</span>
-        </button>
-      `;
-    }).join('');
-
-    for (const button of grid.querySelectorAll<HTMLButtonElement>('[data-map-size]')) {
-      button.addEventListener('click', () => {
-        const size = button.dataset.mapSize as WorldMapSize;
-        this.draft.mapSize = size;
-        for (const option of grid.querySelectorAll<HTMLButtonElement>('[data-map-size]')) {
-          const isSelected = option.dataset.mapSize === size;
-          option.classList.toggle('is-selected', isSelected);
-          option.setAttribute('aria-pressed', String(isSelected));
-        }
-        this.renderResourceSummary();
-      });
-    }
-  }
-
-  private renderResourceSummary(): void {
-    const summary = this.backdrop.querySelector<HTMLElement>('[data-resource-summary]');
-    if (summary) summary.innerHTML = this.resourceSummaryMarkup();
-  }
-
-  private resourceSummaryMarkup(): string {
-    const plan = createRegionalResourcePlan(this.draft);
-    const depositSurvey = createRegionalDepositSurvey(this.draft, plan);
-    const kindLabels: Record<(typeof plan.presentForagingKinds)[number], string> = {
-      game: 'game',
-      berries: 'berries',
-      mushrooms: 'mushrooms',
-      fish: 'fish',
-    };
-    const wildResources = plan.presentForagingKinds
-      .map((kind) => {
-        const rich = plan.foragingRichNodeCounts[kind];
-        return `${kindLabels[kind]} ×${plan.foragingNodeCounts[kind]}`
-          + (rich > 0 ? ` (${rich} rich)` : '');
-      })
-      .join(', ');
-
-    return `
-      <div class="world-setup-resource-summary__heading">
-        <strong>This seed's resource roll</strong>
-        <span>${plan.totalResourceNodes} nodes · ${plan.richResourceNodeCount} rich · ${plan.totalForagingNodes} wild food (${plan.minimumFoodNodeCount}+ guaranteed)</span>
-      </div>
-      <div class="world-setup-deposit-grid">
-        ${depositSurvey.map((entry) => this.depositCardMarkup(
-          entry.resource,
-          entry.ordinary,
-          entry.rich,
-        )).join('')}
-      </div>
-      <p class="world-setup-wild-summary"><strong>Wild food</strong> · ${wildResources}</p>
-    `;
-  }
-
-  private depositCardMarkup(
-    resource: RegionalDepositResource,
-    ordinary: number,
-    rich: number,
-  ): string {
-    const labels: Record<RegionalDepositResource, {
-      name: string;
-      extractor: string;
-    }> = {
-      stone: {
-        name: 'Stone',
-        extractor: 'Mining Camp / Quarry',
-      },
-      clay: {
-        name: 'Clay',
-        extractor: 'Mining Camp / Mineworks',
-      },
-      iron: {
-        name: 'Iron',
-        extractor: 'Mining Camp / Mineworks',
-      },
-      salt: {
-        name: 'Salt',
-        extractor: 'Mining Camp / Mineworks',
-      },
-    };
-    const label = labels[resource];
-    const total = ordinary + rich;
-    if (total === 0) {
-      return `
-        <article class="world-setup-deposit-card" data-resource="${resource}">
-          <div class="world-setup-deposit-card__title">
-            <strong>${label.name}</strong>
-            <span>${label.extractor}</span>
-          </div>
-          <div class="world-setup-deposit-card__grades">
-            <span class="world-setup-deposit-grade world-setup-deposit-grade--none">Not present</span>
-          </div>
-          <p>Absent locally; import through trade.</p>
-        </article>
-      `;
-    }
-    const richMarkup = rich > 0
-      ? `<span class="world-setup-deposit-grade world-setup-deposit-grade--rich">Rich ×${rich}</span>`
-      : '<span class="world-setup-deposit-grade world-setup-deposit-grade--none">No rich roll</span>';
-    const detail = rich > 0
-      ? 'Rich sites unlock unlimited underground extraction.'
-      : 'Finite surface extraction only.';
-
-    return `
-      <article class="world-setup-deposit-card" data-resource="${resource}">
-        <div class="world-setup-deposit-card__title">
-          <strong>${label.name}</strong>
-          <span>${label.extractor}</span>
-        </div>
-        <div class="world-setup-deposit-card__grades">
-          ${ordinary > 0 ? `<span class="world-setup-deposit-grade">Ordinary ×${ordinary}</span>` : ''}
-          ${richMarkup}
-        </div>
-        <p>${detail}</p>
-      </article>
-    `;
-  }
 }
