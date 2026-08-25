@@ -322,9 +322,9 @@ class WebGPUPostProcessor implements ScenePostProcessor {
   }
 
   private renderPipelineToCanvas(pipeline: RenderPipeline): void {
-    // RenderPipeline's final fullscreen draw targets the renderer's current
-    // target. Reclaim the swap chain explicitly at every scene-owner boundary
-    // so a leaked offscreen target/MRT cannot strand the visible canvas on the
+    // RenderPipeline's final fullscreen draw inherits Three's current/output
+    // target state. Reclaim the swap chain at every scene-owner boundary so a
+    // leaked offscreen target or MRT cannot strand the visible canvas on the
     // last parchment clear frame.
     resetWebGPUCanvasTarget(this.renderer);
     pipeline.render();

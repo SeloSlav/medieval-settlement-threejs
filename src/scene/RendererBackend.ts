@@ -71,6 +71,7 @@ type RendererWithAnimationLoop = {
 };
 type WebGPURendererWithTargetState = {
   setMRT(mrt: unknown | null): void;
+  setOutputRenderTarget(renderTarget: unknown | null): void;
   setRenderTarget(renderTarget: unknown | null): void;
 };
 
@@ -94,9 +95,18 @@ export function setWebGPURenderTarget(
   (renderer as unknown as WebGPURendererWithTargetState).setRenderTarget(renderTarget);
 }
 
+export function setWebGPUOutputRenderTarget(
+  renderer: WebGPURenderer,
+  renderTarget: unknown | null,
+): void {
+  (renderer as unknown as WebGPURendererWithTargetState)
+    .setOutputRenderTarget(renderTarget);
+}
+
 export function resetWebGPUCanvasTarget(renderer: WebGPURenderer): void {
   const targetRenderer = renderer as unknown as WebGPURendererWithTargetState;
   targetRenderer.setRenderTarget(null);
+  targetRenderer.setOutputRenderTarget(null);
   targetRenderer.setMRT(null);
 }
 
@@ -144,7 +154,6 @@ const RENDERER_OPTIONS = {
   antialias: true,
   powerPreference: 'high-performance' as const,
 };
-const WEBGPU_STARTUP_TIMEOUT_MS = 2500;
 export const WEBGPU_REQUIRED_MESSAGE =
   'This game requires native WebGPU. Use a WebGPU-compatible browser and GPU driver.';
 
@@ -207,8 +216,10 @@ function defaultRendererBackendDependencies(): RendererBackendDependencies {
   return {
     gpu,
     createRenderer: (options) => new WebGPURenderer(options),
-    waitForStartup: (promise, label) =>
-      withTimeout(promise, WEBGPU_STARTUP_TIMEOUT_MS, label),
+    // Adapter/device acquisition and renderer initialization are not
+    // cancellable. Let them settle instead of racing them with a timer that
+    // could orphan a late native-WebGPU initialization.
+    waitForStartup: (promise) => promise,
   };
 }
 
@@ -476,20 +487,4 @@ function isNativeWebGPU(renderer: WebGPURenderer): boolean {
 
 export function supportsNodeMaterials(backend: RendererBackendKind): boolean {
   return backend === 'webgpu' || backend === 'webgl2-node';
-}
-
-function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string): Promise<T> {
-  return new Promise((resolve, reject) => {
-    const timeout = window.setTimeout(() => reject(new Error(`${label} timed out after ${timeoutMs}ms.`)), timeoutMs);
-    promise.then(
-      (value) => {
-        window.clearTimeout(timeout);
-        resolve(value);
-      },
-      (error: unknown) => {
-        window.clearTimeout(timeout);
-        reject(error);
-      },
-    );
-  });
 }

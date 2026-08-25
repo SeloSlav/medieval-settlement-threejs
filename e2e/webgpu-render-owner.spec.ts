@@ -19,15 +19,24 @@ test('recovers the world canvas after a paper-map WebGPU owner handoff', async (
 
   const canvas = page.locator('canvas');
   const worldBefore = await canvas.screenshot();
-  await page.evaluate(async () => {
-    await window.__WEBGPU_RENDER_OWNER_FIXTURE__!.renderOwner('illustrated-map');
+  const worldBeforeFrame = await page.evaluate(() => Number(
+    document.body.dataset.renderedFrame,
+  ));
+  const mapFrame = await page.evaluate(async () => {
+    return window.__WEBGPU_RENDER_OWNER_FIXTURE__!
+      .renderOwner('illustrated-map');
   });
+  expect(mapFrame).toBeGreaterThan(worldBeforeFrame);
   const map = await canvas.screenshot();
   expect(map.equals(worldBefore)).toBe(false);
 
-  await page.evaluate(async () => {
-    await window.__WEBGPU_RENDER_OWNER_FIXTURE__!.renderOwner('world');
+  const worldAfterFrame = await page.evaluate(async () => {
+    const fixture = window.__WEBGPU_RENDER_OWNER_FIXTURE__!;
+    fixture.setWorldColor(0x2c8a4b);
+    return fixture.renderOwner('world');
   });
+  expect(worldAfterFrame).toBeGreaterThan(mapFrame);
   const worldAfter = await canvas.screenshot();
-  expect(worldAfter.equals(worldBefore)).toBe(true);
+  expect(worldAfter.equals(worldBefore)).toBe(false);
+  expect(worldAfter.equals(map)).toBe(false);
 });

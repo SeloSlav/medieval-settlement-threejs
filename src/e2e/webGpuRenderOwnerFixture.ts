@@ -3,10 +3,18 @@ import type { WebGPURenderer } from 'three/webgpu';
 import { createPostProcessor } from '../scene/PostProcessing.ts';
 import {
   createPreferredRenderer,
+  setRendererAnimationLoop,
+  setWebGPUOutputRenderTarget,
   setWebGPURenderTarget,
 } from '../scene/RendererBackend.ts';
 
 type FixtureOwner = 'world' | 'illustrated-map';
+type PendingRender = {
+  owner: FixtureOwner;
+  reject(error: unknown): void;
+  resolve(frame: number): void;
+  simulateLeakedTargets: boolean;
+};
 
 const host = document.querySelector<HTMLElement>('#fixture');
 if (!host) throw new Error('WebGPU render-owner fixture host is missing.');
@@ -25,7 +33,8 @@ try {
   camera.updateMatrixWorld(true);
 
   const worldScene = new THREE.Scene();
-  worldScene.background = new THREE.Color(0x173f8f);
+  const worldBackground = new THREE.Color(0x173f8f);
+  worldScene.background = worldBackground;
   const mapScene = new THREE.Scene();
   mapScene.background = new THREE.Color(0xc17832);
   const postProcessor = createPostProcessor(
@@ -38,25 +47,55 @@ try {
   postProcessor.setSize(256, 256);
 
   const leakedTarget = new THREE.WebGLRenderTarget(16, 16);
-  const renderOwner = async (
+  const pendingRenders: PendingRender[] = [];
+  let renderInFlight = false;
+  let renderedFrame = 0;
+  const renderOwner = (
     owner: FixtureOwner,
-    simulateLeakedTarget = true,
-  ): Promise<void> => {
-    if (simulateLeakedTarget) setWebGPURenderTarget(renderer, leakedTarget);
-    if (owner === 'world') postProcessor.render(0);
-    else postProcessor.renderIllustratedMap();
-    await backend.waitForSubmittedWork();
-    document.body.dataset.owner = owner;
-  };
+    simulateLeakedTargets = true,
+  ): Promise<number> => new Promise((resolve, reject) => {
+    pendingRenders.push({ owner, reject, resolve, simulateLeakedTargets });
+  });
+
+  setRendererAnimationLoop(renderer, () => {
+    if (renderInFlight) return;
+    const request = pendingRenders.shift();
+    if (!request) return;
+
+    renderInFlight = true;
+    const frame = ++renderedFrame;
+    try {
+      if (request.simulateLeakedTargets) {
+        setWebGPURenderTarget(renderer, leakedTarget);
+        setWebGPUOutputRenderTarget(renderer, leakedTarget);
+      }
+      if (request.owner === 'world') postProcessor.render(0);
+      else postProcessor.renderIllustratedMap();
+    } catch (error) {
+      renderInFlight = false;
+      request.reject(error);
+      return;
+    }
+
+    void backend.waitForSubmittedWork().then(() => {
+      document.body.dataset.owner = request.owner;
+      document.body.dataset.renderedFrame = String(frame);
+      request.resolve(frame);
+    }, request.reject).finally(() => {
+      renderInFlight = false;
+    });
+  });
 
   window.__WEBGPU_RENDER_OWNER_FIXTURE__ = {
     backend: backend.kind,
     renderOwner,
+    setWorldColor: (color) => worldBackground.set(color),
   };
   await renderOwner('world', false);
   document.body.dataset.ready = 'true';
 
   window.addEventListener('pagehide', () => {
+    setRendererAnimationLoop(renderer, null);
     postProcessor.dispose();
     leakedTarget.dispose();
     renderer.dispose();
@@ -78,7 +117,8 @@ declare global {
   interface Window {
     __WEBGPU_RENDER_OWNER_FIXTURE__?: {
       backend: string;
-      renderOwner(owner: FixtureOwner, simulateLeakedTarget?: boolean): Promise<void>;
+      renderOwner(owner: FixtureOwner, simulateLeakedTargets?: boolean): Promise<number>;
+      setWorldColor(color: number): void;
     };
   }
 }

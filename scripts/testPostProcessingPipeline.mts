@@ -36,8 +36,18 @@ assert.match(
 );
 assert.match(
   rendererBackendSource,
-  /export function resetWebGPUCanvasTarget\(renderer: WebGPURenderer\): void \{[\s\S]*?setRenderTarget\(null\);[\s\S]*?setMRT\(null\);/,
-  'the WebGPU canvas-target guard must clear both render-target and MRT ownership',
+  /export function resetWebGPUCanvasTarget\(renderer: WebGPURenderer\): void \{[\s\S]*?setRenderTarget\(null\);[\s\S]*?setOutputRenderTarget\(null\);[\s\S]*?setMRT\(null\);/,
+  'the WebGPU canvas-target guard must clear render-target, output-target, and MRT ownership',
+);
+assert.match(
+  rendererBackendSource,
+  /waitForStartup: \(promise\) => promise/,
+  'native WebGPU startup must await non-cancellable adapter and renderer initialization work',
+);
+assert.doesNotMatch(
+  rendererBackendSource,
+  /WEBGPU_STARTUP_TIMEOUT_MS|function withTimeout/,
+  'native WebGPU startup must not race initialization against a non-cancelling timeout',
 );
 assert.equal(
   (postSource.match(/this\.renderPipelineToCanvas\(/g) ?? []).length,
