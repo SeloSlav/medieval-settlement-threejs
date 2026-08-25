@@ -114,6 +114,11 @@ assert.match(worldPanel, /<nav class="world-setup-actions__navigation" aria-labe
 assert.match(worldPanel, /data-world-selector="map-size"/);
 assert.match(worldPanel, /data-map-size-value/);
 assert.match(worldPanel, /data-setup-heading/);
+assert.match(worldPanel, /data-world-selector="difficulty-preset"/);
+assert.match(worldPanel, /Pampered Page \(Easy\)/);
+assert.match(worldPanel, /Steadfast Castellan \(Normal\)/);
+assert.match(worldPanel, /Marcher Lord \(Hardcore\)/);
+assert.match(worldPanel, /No losses or raids; double supplies/);
 assert.match(worldPanel, /data-world-selector="approval-decline"/);
 assert.match(worldPanel, /data-world-selector="food-spoilage"[\s\S]*Food never spoils/);
 assert.match(worldPanel, /data-world-selector="initial-goods"[\s\S]*Twice the goods in the original camp/);
@@ -132,6 +137,7 @@ assert.match(worldCss, /\.world-setup-actions__navigation\s*\{[\s\S]*?justify-co
 assert.match(worldCss, /\.world-setup-back\s*\{[\s\S]*?min-width: 210px/);
 assert.match(worldCss, /\.world-setup-section__title\s*\{[\s\S]*?font-size: 17px/);
 assert.match(worldCss, /\.world-setup-arrow-select__value span\s*\{[\s\S]*?font-size: 15px/);
+assert.match(worldCss, /\.world-setup-difficulty-preset \.world-setup-arrow-select\s*\{[\s\S]*?min-height: 64px/);
 assert.match(worldCss, /\.world-setup-setting-row__label strong\s*\{[\s\S]*?font-size: 16px/);
 assert.match(
   worldCss,

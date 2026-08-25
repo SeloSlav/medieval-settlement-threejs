@@ -335,6 +335,31 @@
   display: none;
 }
 
+.world-setup-difficulty-preset {
+  margin-bottom: 12px;
+}
+
+.world-setup-difficulty-preset__label {
+  display: block;
+  margin: 0 0 6px;
+  color: rgba(238, 232, 220, 0.72);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.world-setup-difficulty-preset .world-setup-arrow-select {
+  min-height: 64px;
+  border-color: rgba(215, 180, 99, 0.28);
+  background: rgba(215, 180, 99, 0.055);
+}
+
+.world-setup-difficulty-preset .world-setup-arrow-select__value strong {
+  color: #f1d591;
+  font-size: 18px;
+}
+
 .world-setup-setting-list {
   border-top: 1px solid rgba(238, 232, 220, 0.15);
 }

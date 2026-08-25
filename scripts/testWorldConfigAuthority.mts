@@ -420,6 +420,11 @@ async function testDifficultySetupContract(): Promise<void> {
     new URL('../server/src/reducers/world_configuration.rs', import.meta.url),
     'utf8',
   );
+  assert.match(setupSource, /data-world-selector="difficulty-preset"/);
+  assert.match(setupSource, /id: 'easy'[\s\S]*approvalDeclineRate: 0[\s\S]*foodSpoilageRate: 0[\s\S]*initialGoodsMultiplier: 2/);
+  assert.match(setupSource, /id: 'normal'[\s\S]*approvalDeclineRate: 100[\s\S]*foodSpoilageRate: 100[\s\S]*initialGoodsMultiplier: 1/);
+  assert.match(setupSource, /id: 'hardcore'[\s\S]*enemyPressure: 100[\s\S]*severeWeatherEnabled: true[\s\S]*approvalDeclineRate: 150[\s\S]*foodSpoilageRate: 150/);
+  assert.match(setupSource, /difficultyPresetValue\.textContent = preset\?\.name \?\? 'Custom'/);
   assert.match(setupSource, /data-world-selector="approval-decline"/);
   assert.match(setupSource, /0: \['Disabled', 'No passive approval loss\.'\][\s\S]*150: \['Demanding'/);
   assert.match(setupSource, /data-world-selector="food-spoilage"[\s\S]*Food never spoils/);

@@ -30,6 +30,83 @@ const DIFFICULTY_RATE_ORDER: readonly WorldDifficultyRate[] = [0, 50, 100, 150];
 const INITIAL_GOODS_ORDER = [1, 2] as const;
 const BOOLEAN_ORDER = [false, true] as const;
 
+type DifficultyPresetId = 'easy' | 'normal' | 'hardcore';
+type DifficultyRuleSettings = Pick<
+  WorldGenerationSettings,
+  | 'conflictMode'
+  | 'enemyPressure'
+  | 'severeWeatherEnabled'
+  | 'wellAquiferNetworksEnabled'
+  | 'approvalDeclineRate'
+  | 'foodSpoilageRate'
+  | 'initialGoodsMultiplier'
+>;
+
+const DIFFICULTY_PRESETS: readonly {
+  id: DifficultyPresetId;
+  name: string;
+  description: string;
+  settings: DifficultyRuleSettings;
+}[] = [
+  {
+    id: 'easy',
+    name: 'Pampered Page (Easy)',
+    description: 'No losses or raids; double supplies.',
+    settings: {
+      conflictMode: 'peaceful',
+      enemyPressure: 0,
+      severeWeatherEnabled: false,
+      wellAquiferNetworksEnabled: false,
+      approvalDeclineRate: 0,
+      foodSpoilageRate: 0,
+      initialGoodsMultiplier: 2,
+    },
+  },
+  {
+    id: 'normal',
+    name: 'Steadfast Castellan (Normal)',
+    description: 'Standard losses and starting supplies.',
+    settings: {
+      conflictMode: 'peaceful',
+      enemyPressure: 0,
+      severeWeatherEnabled: false,
+      wellAquiferNetworksEnabled: false,
+      approvalDeclineRate: 100,
+      foodSpoilageRate: 100,
+      initialGoodsMultiplier: 1,
+    },
+  },
+  {
+    id: 'hardcore',
+    name: 'Marcher Lord (Hardcore)',
+    description: 'Maximum losses, raids, and severe weather.',
+    settings: {
+      conflictMode: 'frontier',
+      enemyPressure: 100,
+      severeWeatherEnabled: true,
+      wellAquiferNetworksEnabled: true,
+      approvalDeclineRate: 150,
+      foodSpoilageRate: 150,
+      initialGoodsMultiplier: 1,
+    },
+  },
+];
+const DIFFICULTY_PRESET_ORDER = DIFFICULTY_PRESETS.map((preset) => preset.id);
+
+function difficultyPresetForSettings(
+  settings: WorldGenerationSettings,
+): (typeof DIFFICULTY_PRESETS)[number] | undefined {
+  return DIFFICULTY_PRESETS.find((preset) => (
+    preset.settings.conflictMode === settings.conflictMode
+    && preset.settings.enemyPressure === settings.enemyPressure
+    && preset.settings.severeWeatherEnabled === settings.severeWeatherEnabled
+    && preset.settings.wellAquiferNetworksEnabled === settings.wellAquiferNetworksEnabled
+    && preset.settings.approvalDeclineRate === settings.approvalDeclineRate
+    && preset.settings.foodSpoilageRate === settings.foodSpoilageRate
+    && preset.settings.initialGoodsMultiplier === settings.initialGoodsMultiplier
+  ));
+}
+
 function cycleValue<T>(values: readonly T[], current: T, step: number): T {
   const currentIndex = Math.max(0, values.indexOf(current));
   return values[(currentIndex + step + values.length) % values.length]!;
@@ -147,6 +224,16 @@ export class WorldSetupPanel {
               <div class="world-setup-section-heading">
                 <h2 class="world-setup-section__title">Gameplay rules</h2>
                 <span>Optional difficulty</span>
+              </div>
+              <div class="world-setup-difficulty-preset">
+                <span class="world-setup-difficulty-preset__label">Rule preset</span>
+                <div class="world-setup-arrow-select" data-world-selector="difficulty-preset">
+                  <button type="button" class="world-setup-arrow-select__arrow" data-selector-step="-1" aria-label="Previous difficulty preset">‹</button>
+                  <div class="world-setup-arrow-select__value" aria-live="polite">
+                    <strong data-difficulty-preset-value></strong><span data-difficulty-preset-description></span>
+                  </div>
+                  <button type="button" class="world-setup-arrow-select__arrow" data-selector-step="1" aria-label="Next difficulty preset">›</button>
+                </div>
               </div>
               <div class="world-setup-setting-list">
                 <div class="world-setup-setting-row">
@@ -268,6 +355,9 @@ export class WorldSetupPanel {
     const mapSizeSelector = this.backdrop.querySelector<HTMLElement>('[data-world-selector="map-size"]')!;
     const mapSizeValue = this.backdrop.querySelector<HTMLElement>('[data-map-size-value]')!;
     const mapSizeDescription = this.backdrop.querySelector<HTMLElement>('[data-map-size-description]')!;
+    const difficultyPresetSelector = this.backdrop.querySelector<HTMLElement>('[data-world-selector="difficulty-preset"]')!;
+    const difficultyPresetValue = this.backdrop.querySelector<HTMLElement>('[data-difficulty-preset-value]')!;
+    const difficultyPresetDescription = this.backdrop.querySelector<HTMLElement>('[data-difficulty-preset-description]')!;
     const conflictModeSelector = this.backdrop.querySelector<HTMLElement>('[data-world-selector="settlement-mode"]')!;
     const conflictModeValue = this.backdrop.querySelector<HTMLElement>('[data-conflict-mode-value]')!;
     const conflictModeDescription = this.backdrop.querySelector<HTMLElement>('[data-conflict-mode-description]')!;
@@ -385,6 +475,20 @@ export class WorldSetupPanel {
         : 'Standard starting stock.';
     };
 
+    const syncDifficultyPresetControl = (): void => {
+      const preset = difficultyPresetForSettings(this.draft);
+      difficultyPresetValue.dataset.value = preset?.id ?? 'custom';
+      difficultyPresetValue.textContent = preset?.name ?? 'Custom';
+      difficultyPresetDescription.textContent = preset?.description ?? 'Individual rules adjusted.';
+    };
+
+    const syncGameplayControls = (): void => {
+      syncConflictControls();
+      syncHazardControls();
+      syncRuleControls();
+      syncDifficultyPresetControl();
+    };
+
     const bindArrowSelector = (
       selector: HTMLElement,
       onStep: (step: number) => void,
@@ -398,24 +502,32 @@ export class WorldSetupPanel {
       this.draft.mapSize = cycleValue(MAP_SIZE_ORDER, this.draft.mapSize, step);
       syncMapSizeControl();
     });
+    bindArrowSelector(difficultyPresetSelector, (step) => {
+      const currentPreset = difficultyPresetForSettings(this.draft)?.id ?? 'normal';
+      const nextPresetId = cycleValue(DIFFICULTY_PRESET_ORDER, currentPreset, step);
+      const nextPreset = DIFFICULTY_PRESETS.find((preset) => preset.id === nextPresetId)!;
+      Object.assign(this.draft, nextPreset.settings);
+      syncGameplayControls();
+    });
     bindArrowSelector(conflictModeSelector, (step) => {
         this.draft.conflictMode = cycleValue(CONFLICT_MODE_ORDER, this.draft.conflictMode, step);
         if (this.draft.conflictMode === 'frontier' && this.draft.enemyPressure <= 0) {
           this.draft.enemyPressure = 50;
         }
-        syncConflictControls();
+        syncGameplayControls();
     });
     pressureSlider.addEventListener('input', () => {
       this.draft.enemyPressure = Number(pressureSlider.value);
       pressureValue.textContent = pressureSlider.value;
+      syncDifficultyPresetControl();
     });
     bindArrowSelector(severeWeatherSelector, (step) => {
       this.draft.severeWeatherEnabled = cycleValue(BOOLEAN_ORDER, this.draft.severeWeatherEnabled, step);
-      syncHazardControls();
+      syncGameplayControls();
     });
     bindArrowSelector(aquiferNetworksSelector, (step) => {
       this.draft.wellAquiferNetworksEnabled = cycleValue(BOOLEAN_ORDER, this.draft.wellAquiferNetworksEnabled, step);
-      syncHazardControls();
+      syncGameplayControls();
     });
     bindArrowSelector(approvalDeclineSelector, (step) => {
       this.draft.approvalDeclineRate = cycleValue(
@@ -423,7 +535,7 @@ export class WorldSetupPanel {
         this.draft.approvalDeclineRate,
         step,
       );
-      syncRuleControls();
+      syncGameplayControls();
     });
     bindArrowSelector(foodSpoilageSelector, (step) => {
       this.draft.foodSpoilageRate = cycleValue(
@@ -431,7 +543,7 @@ export class WorldSetupPanel {
         this.draft.foodSpoilageRate,
         step,
       );
-      syncRuleControls();
+      syncGameplayControls();
     });
     bindArrowSelector(initialGoodsSelector, (step) => {
       this.draft.initialGoodsMultiplier = cycleValue(
@@ -439,12 +551,10 @@ export class WorldSetupPanel {
         this.draft.initialGoodsMultiplier,
         step,
       );
-      syncRuleControls();
+      syncGameplayControls();
     });
     syncMapSizeControl();
-    syncConflictControls();
-    syncHazardControls();
-    syncRuleControls();
+    syncGameplayControls();
 
     topographySlider.addEventListener('input', () => {
       this.draft.topography = Number(topographySlider.value);

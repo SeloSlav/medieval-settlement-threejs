@@ -184,18 +184,18 @@ fn step_livestock_building(
                         // Every parcel at this holding shares the same stores.
                         // Debit the capacity secured for earlier parcels before
                         // projecting later ones so it cannot be counted twice.
-                        let secured_culls = f64::from(secured_culls);
-                        let preserved_used = (secured_culls * slaughter_preserved)
+                        let secured_cull_count = f64::from(secured_culls);
+                        let preserved_used = (secured_cull_count * slaughter_preserved)
                             .min(cull_preserved_room)
                             .min(cull_salted_output_capacity);
-                        let food_used =
-                            secured_culls * (slaughter_food + slaughter_preserved) - preserved_used;
+                        let food_used = secured_cull_count * (slaughter_food + slaughter_preserved)
+                            - preserved_used;
                         cull_food_room = (cull_food_room - food_used).max(0.0);
                         cull_preserved_room = (cull_preserved_room - preserved_used).max(0.0);
                         cull_salted_output_capacity =
                             (cull_salted_output_capacity - preserved_used).max(0.0);
 
-                        parcel.herd.head_count.saturating_sub(secured_culls as u32)
+                        parcel.herd.head_count.saturating_sub(secured_culls)
                     } else {
                         parcel.herd.head_count
                     };
