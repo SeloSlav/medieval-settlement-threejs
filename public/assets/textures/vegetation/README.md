@@ -1,12 +1,20 @@
 # Vegetation card textures
 
-`forest-floor-ivy-card.png` is a retained legacy source and is no longer loaded
-at runtime. Forest-floor ivy now owns its silhouette in geometry: seven tapered,
-terrain-sampled runner ribbons carry six alternating five-lobed leaves each.
-All 42 leaves are separate meshes within one merged buffer, are welded to real
-runner nodes, and use independent SeedThree petiole hinges. A neutral one-pixel
-albedo keeps the shared SeedThree material/SSS path without reintroducing atlas
-edges, detached overlay leaves, or a broad hidden carrier sheet.
+`forest-floor-ivy-card.png` is the generated RGBA alpha card used by the
+SeedThree broad woodland-floor ivy batch. The source was generated from the
+supplied Manor Lords forest-floor references as a low, horizontally spreading
+European ivy clump on a uniform magenta extraction field, then converted with
+the Seloslav/SeedThree `chroma-key.mjs` pipeline. Runtime geometry crops to the
+asset's visible alpha bounds and maps each colony onto seven disconnected,
+terrain-aware sheets in one merged mesh: a broad 8x6 ground apron, paired lower
+lobes, paired offset upper lobes, and two localized crownlets. Every vertex samples the
+terrain independently. The apron's visible perimeter sits 1.4 cm above the
+litter; each raised sheet is supported by the layers beneath it, anchors along
+a low rear/root arc, and lets its transparent forward fringe overhang. Small
+physical gaps, independent yaw and tint, and a 48 cm maximum stack height create
+under-leaf darkness and grazing-angle parallax without turning the colony into
+a shrub or a hovering billboard. A complete colony remains one SeedThree
+material and one draw call (199 vertices, 266 triangles).
 
 Final generation prompt summary: a single botanically convincing carpet of
 small overlapping five-lobed ivy leaves, broad irregular perimeter, restrained

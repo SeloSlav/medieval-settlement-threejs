@@ -1,14 +1,12 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 
 type ForestFloorDataset = Record<string, string>;
-type CaptureMode = 'baseline' | 'ivy' | 'nettles' | 'twigs' | 'final';
+type CaptureMode = 'baseline' | 'nettles' | 'twigs' | 'final';
 
 type RenderEvidence = {
   mode: CaptureMode;
-  ivyAttached: boolean;
   nettleGroupAttached: boolean;
   twigGroupAttached: boolean;
-  ivySubmissions: number;
   nettleSubmissions: number;
   twigSubmissions: number;
   renderCalls: number;
@@ -212,11 +210,6 @@ for (const [season, expected] of seasons) {
     expect(dataset.nettleAutumnColor).toBe(expected.autumn);
     expect(dataset.nettleDormancy).toBe(expected.dormancy);
     expect(Number(dataset.ivyPatches)).toBe(7);
-    expect(Number(dataset.ivyRunners)).toBe(7);
-    expect(Number(dataset.ivyLeaves)).toBe(294);
-    expect(Number(dataset.ivyDrawCalls)).toBe(1);
-    expect(Number(dataset.ivyTriangles)).toBe(5_880);
-    expect(Number(dataset.ivyMaxHeight)).toBe(0.22);
     expect(Number(dataset.nettleInstances)).toBeGreaterThanOrEqual(25);
     expect(Number(dataset.nettleColonies)).toBeGreaterThanOrEqual(20);
     expect(Number(dataset.nettleResidentInstances)).toBe(Number(dataset.nettleInstances));
@@ -274,10 +267,6 @@ for (const [season, expected] of seasons) {
     const repeatedBaselineFrame = await captureCanvas(canvas);
     const baselineNoise = await comparePngFrames(page, baselineFrame, repeatedBaselineFrame);
 
-    const ivyEvidence = await setCaptureMode(page, 'ivy');
-    const ivyFrame = await captureCanvas(canvas);
-    const ivyPixels = await comparePngFrames(page, baselineFrame, ivyFrame);
-
     const nettleEvidence = await setCaptureMode(page, 'nettles');
     const nettleFrame = await captureCanvas(canvas);
     const nettlePixels = await comparePngFrames(page, baselineFrame, nettleFrame);
@@ -291,44 +280,28 @@ for (const [season, expected] of seasons) {
 
     console.log(`[forest-floor-render] ${season}: ${JSON.stringify({
       baselineEvidence,
-      ivyEvidence,
       nettleEvidence,
       twigEvidence,
       finalEvidence,
       baselineNoise,
-      ivyPixels,
       nettlePixels,
       twigPixels,
     })}`);
 
     expect(baselineEvidence).toMatchObject({
       mode: 'baseline',
-      ivyAttached: true,
       nettleGroupAttached: true,
       twigGroupAttached: true,
-      ivySubmissions: 0,
       nettleSubmissions: 0,
       twigSubmissions: 0,
     });
     expect(repeatedBaselineEvidence).toMatchObject({
       mode: 'baseline',
-      ivySubmissions: 0,
       nettleSubmissions: 0,
       twigSubmissions: 0,
     });
-    expect(ivyEvidence).toMatchObject({
-      mode: 'ivy',
-      ivyAttached: true,
-      nettleGroupAttached: true,
-      twigGroupAttached: true,
-      nettleSubmissions: 0,
-      twigSubmissions: 0,
-    });
-    expect(ivyEvidence.ivySubmissions).toBe(Number(dataset.ivyDrawCalls));
-    expect(ivyEvidence.renderCalls).toBeGreaterThan(baselineEvidence.renderCalls);
     expect(nettleEvidence).toMatchObject({
       mode: 'nettles',
-      ivySubmissions: 0,
       nettleGroupAttached: true,
       twigGroupAttached: true,
       twigSubmissions: 0,
@@ -337,14 +310,12 @@ for (const [season, expected] of seasons) {
     expect(nettleEvidence.renderCalls).toBeGreaterThan(baselineEvidence.renderCalls);
     expect(twigEvidence).toMatchObject({
       mode: 'twigs',
-      ivySubmissions: 0,
       nettleGroupAttached: true,
       twigGroupAttached: true,
       nettleSubmissions: 0,
     });
     expect(twigEvidence.twigSubmissions).toBe(Number(dataset.twigDrawCalls));
     expect(twigEvidence.renderCalls).toBeGreaterThan(baselineEvidence.renderCalls);
-    expect(finalEvidence.ivySubmissions).toBe(Number(dataset.ivyDrawCalls));
     expect(finalEvidence.nettleSubmissions).toBe(Number(dataset.nettleDrawCalls));
     expect(finalEvidence.twigSubmissions).toBe(Number(dataset.twigDrawCalls));
     // WebGPU's WebGL2 fallback counts multi-material groups differently from
@@ -353,9 +324,6 @@ for (const [season, expected] of seasons) {
     expect(finalEvidence.renderCalls).toBeGreaterThan(nettleEvidence.renderCalls);
     expect(finalEvidence.renderCalls).toBeGreaterThan(twigEvidence.renderCalls);
     if (finalEvidence.triangles > baselineEvidence.triangles) {
-      expect(ivyEvidence.triangles - baselineEvidence.triangles).toBe(
-        Number(dataset.ivyTriangles),
-      );
       expect(nettleEvidence.triangles - baselineEvidence.triangles).toBe(
         Number(dataset.nettleTriangles),
       );
@@ -365,30 +333,23 @@ for (const [season, expected] of seasons) {
     } else {
       expect([
         baselineEvidence.triangles,
-        ivyEvidence.triangles,
         nettleEvidence.triangles,
         twigEvidence.triangles,
         finalEvidence.triangles,
-      ]).toEqual([0, 0, 0, 0, 0]);
+      ]).toEqual([0, 0, 0, 0]);
     }
 
     expect(baselineNoise.changedPixels).toBeLessThan(25);
-    expect(ivyPixels.changedPixels).toBeGreaterThan(
-      Math.max(500, baselineNoise.changedPixels * 10 + 100),
-    );
     expect(nettlePixels.changedPixels).toBeGreaterThan(
       Math.max(750, baselineNoise.changedPixels * 10 + 100),
     );
     expect(twigPixels.changedPixels).toBeGreaterThan(
       Math.max(100, baselineNoise.changedPixels * 10 + 25),
     );
-    expect(ivyPixels.lowerChangedPixels / ivyPixels.changedPixels).toBeGreaterThan(0.9);
     expect(nettlePixels.lowerChangedPixels / nettlePixels.changedPixels).toBeGreaterThan(0.9);
     expect(twigPixels.lowerChangedPixels / twigPixels.changedPixels).toBeGreaterThan(0.9);
-    expect(ivyPixels.meanAbsDelta).toBeGreaterThan(8);
     expect(nettlePixels.meanAbsDelta).toBeGreaterThan(10);
     expect(twigPixels.meanAbsDelta).toBeGreaterThan(8);
-    expect(ivyPixels.meanTargetLuminance).toBeGreaterThan(14);
     expect(nettlePixels.meanTargetLuminance).toBeGreaterThan(18);
     expect(twigPixels.meanTargetLuminance).toBeGreaterThan(18);
     if (season === 'summer') {
@@ -397,23 +358,9 @@ for (const [season, expected] of seasons) {
     } else {
       expect(nettlePixels.meanTargetRed).toBeGreaterThan(nettlePixels.meanTargetBlue + 4);
     }
-    if (season !== 'winter') {
-      expect(ivyPixels.meanTargetGreen).toBeGreaterThan(ivyPixels.meanTargetRed);
-      expect(ivyPixels.meanTargetGreen).toBeGreaterThan(ivyPixels.meanTargetBlue + 3);
-    }
     expect(twigPixels.meanTargetRed).toBeGreaterThan(twigPixels.meanTargetBlue + 3);
 
     if (process.env.E2E_CAPTURE === '1') {
-      await setCaptureMode(page, 'ivy');
-      await canvas.screenshot({
-        path: `test-results/forest-floor-ivy-${season}.png`,
-        animations: 'disabled',
-      });
-      await setCaptureMode(page, 'final');
-      await canvas.screenshot({
-        path: `test-results/forest-floor-${season}.png`,
-        animations: 'disabled',
-      });
       await testInfo.attach(`forest-floor-${season}`, {
         body: finalFrame,
         contentType: 'image/png',

@@ -27,6 +27,7 @@ import type { ForestTreePlacement } from './forestPlacements.ts';
 import {
   createSeedThreeGroundCoverMaterial,
   disposeSeedThreeGroundCoverTextures,
+  loadSeedThreeGroundCoverTextures,
   type SeedThreeGroundCoverTextures,
 } from '../vegetation/seedthree/seedThreeGroundCover.ts';
 import {
@@ -34,6 +35,8 @@ import {
   createIvyLeafHingeWindNodes,
 } from '../vegetation/seedthree/seedThreeFoliageWind.ts';
 
+export const FOREST_FLOOR_IVY_TEXTURE_PATH =
+  '/assets/textures/vegetation/forest-floor-ivy-card.png';
 export const FOREST_FLOOR_IVY_SEED = 0x1f1c0a7;
 export const FOREST_FLOOR_IVY_MIN_BLEND = 0.24;
 export const FOREST_FLOOR_IVY_SNOW_RGB = [0.92, 0.955, 0.98] as const;
@@ -90,63 +93,218 @@ varying float vForestFloorIvySnowExposure;
 varying vec2 vForestFloorIvySnowWorldXZ;
 `;
 
-/**
- * Procedural five-lobed ivy silhouette in (half-width, root-to-tip) space.
- * The geometry owns the outline, so no atlas alpha can drift away from it.
- */
-export const FOREST_FLOOR_IVY_LEAF_BOUNDARY = [
-  [0, 0],
-  [0.11, 0.13],
-  [0.38, 0.24],
-  [0.24, 0.36],
-  [0.58, 0.51],
-  [0.28, 0.61],
-  [0.18, 0.77],
-  [0.08, 0.88],
-  [0, 1],
-  [-0.08, 0.88],
-  [-0.18, 0.77],
-  [-0.28, 0.61],
-  [-0.58, 0.51],
-  [-0.24, 0.36],
-  [-0.38, 0.24],
-  [-0.11, 0.13],
-] as const;
+/** Matches the authored texture's visible alpha bounds inside its 1254px source. */
+export const FOREST_FLOOR_IVY_UV_BOUNDS = {
+  minU: 22 / 1254,
+  maxU: 1210 / 1254,
+  minV: 1 - 957 / 1254,
+  maxV: 1 - 263 / 1254,
+} as const;
 
-export const FOREST_FLOOR_IVY_RUNNERS_PER_PATCH = 7;
-export const FOREST_FLOOR_IVY_LEAVES_PER_RUNNER = 6;
-export const FOREST_FLOOR_IVY_RUNNER_SEGMENTS = FOREST_FLOOR_IVY_LEAVES_PER_RUNNER;
-export const FOREST_FLOOR_IVY_RUNNER_VERTICES =
-  (FOREST_FLOOR_IVY_RUNNER_SEGMENTS + 1) * 3;
-export const FOREST_FLOOR_IVY_RUNNER_TRIANGLES =
-  FOREST_FLOOR_IVY_RUNNER_SEGMENTS * 4;
-export const FOREST_FLOOR_IVY_RUNNER_VERTICES_PER_PATCH =
-  FOREST_FLOOR_IVY_RUNNERS_PER_PATCH * FOREST_FLOOR_IVY_RUNNER_VERTICES;
-export const FOREST_FLOOR_IVY_RUNNER_TRIANGLES_PER_PATCH =
-  FOREST_FLOOR_IVY_RUNNERS_PER_PATCH * FOREST_FLOOR_IVY_RUNNER_TRIANGLES;
-export const FOREST_FLOOR_IVY_LEAVES_PER_PATCH =
-  FOREST_FLOOR_IVY_RUNNERS_PER_PATCH * FOREST_FLOOR_IVY_LEAVES_PER_RUNNER;
-/** All visible leaves are explicit meshes and all of them animate. */
-export const FOREST_FLOOR_IVY_ANIMATED_LEAVES_PER_PATCH =
-  FOREST_FLOOR_IVY_LEAVES_PER_PATCH;
+/**
+ * A clean peripheral leaf already present in the authored colony texture.
+ * Explicit geometry traces this source shape, so animated leaves reuse the
+ * existing artwork/material/atlas instead of introducing another draw.
+ */
+const FOREST_FLOOR_IVY_LEAF_UV_BOUNDARY_PIXELS = [
+  [1031, 351],
+  [1028, 337],
+  [1021, 330],
+  [1021, 324],
+  [1029, 322],
+  [1029, 314],
+  [1038, 322],
+  [1052, 321],
+  [1061, 329],
+  [1048, 335],
+  [1042, 340],
+  [1034, 338],
+] as const;
+const FOREST_FLOOR_IVY_LEAF_UV_CENTER_PIXEL = [1038, 328] as const;
+const FOREST_FLOOR_IVY_LEAF_ROOT_PIXEL = FOREST_FLOOR_IVY_LEAF_UV_BOUNDARY_PIXELS[0];
+const FOREST_FLOOR_IVY_LEAF_PIXEL_LENGTH = 37;
+const FOREST_FLOOR_IVY_LEAF_PIXEL_HALF_WIDTH = 40;
+
+export type ForestFloorIvyLayerKind = 'ground' | 'lower' | 'upper' | 'crown';
+
+export type ForestFloorIvyLayerSpec = {
+  kind: ForestFloorIvyLayerKind;
+  tier: 0 | 1 | 2 | 3;
+  segmentsX: number;
+  segmentsZ: number;
+  footprintX: number;
+  footprintZ: number;
+  offsetX: number;
+  offsetZ: number;
+  yawOffset: number;
+  riseScale: number;
+  reliefScale: number;
+  overhangScale: number;
+  supportGap: number;
+  tintScale: number;
+  uvGuard: number;
+};
+
+/**
+ * One alpha-cut leaf colony is compiled as seven botanical sheets distributed
+ * across four height tiers. Paired lower and upper lobes break the silhouette
+ * so the colony reads as overlapping foliage shelves rather than a concentric
+ * height-field mound.
+ */
+export const FOREST_FLOOR_IVY_LAYER_SPECS = [
+  {
+    kind: 'ground',
+    tier: 0,
+    segmentsX: 8,
+    segmentsZ: 6,
+    footprintX: 1,
+    footprintZ: 1,
+    offsetX: 0,
+    offsetZ: 0,
+    yawOffset: 0,
+    riseScale: 0,
+    reliefScale: 0.38,
+    overhangScale: 0,
+    supportGap: 0,
+    tintScale: 0.82,
+    uvGuard: 0,
+  },
+  {
+    kind: 'lower',
+    tier: 1,
+    segmentsX: 5,
+    segmentsZ: 4,
+    footprintX: 0.62,
+    footprintZ: 0.56,
+    offsetX: -0.22,
+    offsetZ: -0.04,
+    yawOffset: 0.28,
+    riseScale: 0.07,
+    reliefScale: 0.14,
+    overhangScale: 0.16,
+    supportGap: 0.006,
+    tintScale: 0.88,
+    uvGuard: 0.01,
+  },
+  {
+    kind: 'lower',
+    tier: 1,
+    segmentsX: 5,
+    segmentsZ: 4,
+    footprintX: 0.57,
+    footprintZ: 0.5,
+    offsetX: 0.24,
+    offsetZ: 0.1,
+    yawOffset: -0.42,
+    riseScale: 0.09,
+    reliefScale: 0.14,
+    overhangScale: 0.18,
+    supportGap: 0.006,
+    tintScale: 0.9,
+    uvGuard: 0.01,
+  },
+  {
+    kind: 'upper',
+    tier: 2,
+    segmentsX: 4,
+    segmentsZ: 3,
+    footprintX: 0.43,
+    footprintZ: 0.4,
+    offsetX: -0.14,
+    offsetZ: 0.2,
+    yawOffset: -0.25,
+    riseScale: 0.12,
+    reliefScale: 0.17,
+    overhangScale: 0.2,
+    supportGap: 0.008,
+    tintScale: 0.96,
+    uvGuard: 0.012,
+  },
+  {
+    kind: 'upper',
+    tier: 2,
+    segmentsX: 4,
+    segmentsZ: 3,
+    footprintX: 0.39,
+    footprintZ: 0.35,
+    offsetX: 0.18,
+    offsetZ: -0.15,
+    yawOffset: 0.52,
+    riseScale: 0.13,
+    reliefScale: 0.18,
+    overhangScale: 0.22,
+    supportGap: 0.008,
+    tintScale: 0.98,
+    uvGuard: 0.012,
+  },
+  {
+    kind: 'crown',
+    tier: 3,
+    segmentsX: 4,
+    segmentsZ: 3,
+    footprintX: 0.31,
+    footprintZ: 0.29,
+    offsetX: 0.02,
+    offsetZ: 0.15,
+    yawOffset: 0.67,
+    riseScale: 0.16,
+    reliefScale: 0.2,
+    overhangScale: 0.22,
+    supportGap: 0.009,
+    tintScale: 1.02,
+    uvGuard: 0.014,
+  },
+  {
+    kind: 'crown',
+    tier: 3,
+    segmentsX: 3,
+    segmentsZ: 3,
+    footprintX: 0.26,
+    footprintZ: 0.24,
+    offsetX: -0.23,
+    offsetZ: -0.1,
+    yawOffset: -0.72,
+    riseScale: 0.15,
+    reliefScale: 0.18,
+    overhangScale: 0.2,
+    supportGap: 0.009,
+    tintScale: 1,
+    uvGuard: 0.014,
+  },
+] as const satisfies readonly ForestFloorIvyLayerSpec[];
+
+export const FOREST_FLOOR_IVY_LAYER_COUNT = FOREST_FLOOR_IVY_LAYER_SPECS.length;
+export const FOREST_FLOOR_IVY_SHEET_VERTICES_PER_PATCH = FOREST_FLOOR_IVY_LAYER_SPECS
+  .reduce((total, layer) => total + (layer.segmentsX + 1) * (layer.segmentsZ + 1), 0);
+export const FOREST_FLOOR_IVY_SHEET_TRIANGLES_PER_PATCH = FOREST_FLOOR_IVY_LAYER_SPECS
+  .reduce((total, layer) => total + layer.segmentsX * layer.segmentsZ * 2, 0);
+/** Sparse real leaves animate above the dense baked colony without moving it. */
+export const FOREST_FLOOR_IVY_ANIMATED_LEAVES_PER_PATCH = 18;
 export const FOREST_FLOOR_IVY_LEAF_VERTICES =
-  FOREST_FLOOR_IVY_LEAF_BOUNDARY.length + 1;
+  FOREST_FLOOR_IVY_LEAF_UV_BOUNDARY_PIXELS.length + 1;
 export const FOREST_FLOOR_IVY_LEAF_TRIANGLES =
-  FOREST_FLOOR_IVY_LEAF_BOUNDARY.length;
+  FOREST_FLOOR_IVY_LEAF_UV_BOUNDARY_PIXELS.length;
 export const FOREST_FLOOR_IVY_VERTICES_PER_PATCH =
-  FOREST_FLOOR_IVY_RUNNER_VERTICES_PER_PATCH
-  + FOREST_FLOOR_IVY_LEAVES_PER_PATCH * FOREST_FLOOR_IVY_LEAF_VERTICES;
+  FOREST_FLOOR_IVY_SHEET_VERTICES_PER_PATCH
+  + FOREST_FLOOR_IVY_ANIMATED_LEAVES_PER_PATCH * FOREST_FLOOR_IVY_LEAF_VERTICES;
 export const FOREST_FLOOR_IVY_TRIANGLES_PER_PATCH =
-  FOREST_FLOOR_IVY_RUNNER_TRIANGLES_PER_PATCH
-  + FOREST_FLOOR_IVY_LEAVES_PER_PATCH * FOREST_FLOOR_IVY_LEAF_TRIANGLES;
+  FOREST_FLOOR_IVY_SHEET_TRIANGLES_PER_PATCH
+  + FOREST_FLOOR_IVY_ANIMATED_LEAVES_PER_PATCH * FOREST_FLOOR_IVY_LEAF_TRIANGLES;
 export const FOREST_FLOOR_IVY_ANIMATION_MAX_TIP_DISPLACEMENT = 0.07;
+
+const FOREST_FLOOR_IVY_LEAF_LAYER_SEQUENCE = [
+  0, 0,
+  1, 2, 1, 2, 1, 2,
+  3, 4, 3, 4, 3, 4,
+  5, 6, 5, 6,
+] as const;
 
 /** The perimeter almost touches the litter; only a small depth-safe lift remains. */
 export const FOREST_FLOOR_IVY_GROUND_CLEARANCE = 0.014;
 export const FOREST_FLOOR_IVY_RELIEF_MIN = 0.12;
 export const FOREST_FLOOR_IVY_RELIEF_MAX = 0.22;
-/** Absolute ground-to-leaf-tip guardrail for the low runner network. */
-export const FOREST_FLOOR_IVY_CANOPY_HEIGHT_MAX = 0.22;
+/** Absolute ground-to-crown guardrail, including every supporting shelf. */
+export const FOREST_FLOOR_IVY_CANOPY_HEIGHT_MAX = 0.48;
 const FOREST_FLOOR_IVY_HIDDEN_Y = -10_000;
 
 type IvyTerrainSurface = Pick<Terrain, 'getHeightAt'>;
@@ -170,17 +328,18 @@ export type ForestFloorIvyVertexRange = {
   count: number;
 };
 
-export type ForestFloorIvyRunnerVertexRange = ForestFloorIvyVertexRange & {
+export type ForestFloorIvyLayerVertexRange = ForestFloorIvyVertexRange & {
   placementIndex: number;
-  runnerIndex: number;
+  layerIndex: number;
+  kind: ForestFloorIvyLayerKind;
+  tier: 0 | 1 | 2 | 3;
 };
 
-export type ForestFloorIvyLeafVertexRange = ForestFloorIvyVertexRange & {
+export type ForestFloorIvyAnimatedLeafVertexRange = ForestFloorIvyVertexRange & {
   placementIndex: number;
   leafIndex: number;
-  runnerIndex: number;
-  runnerNodeIndex: number;
-  runnerRootVertex: number;
+  layerIndex: number;
+  tier: 0 | 1 | 2 | 3;
   rootVertex: number;
   tipVertex: number;
 };
@@ -191,10 +350,10 @@ export type ForestFloorIvyStats = {
   trianglesPerInstance: number;
   vertices: number;
   triangles: number;
-  runnersPerInstance: number;
-  runners: number;
-  leavesPerInstance: number;
-  leaves: number;
+  layersPerInstance: number;
+  layers: number;
+  animatedLeavesPerInstance: number;
+  animatedLeaves: number;
   drawCalls: number;
   maximumRelief: number;
   maximumCanopyHeight: number;
@@ -206,8 +365,8 @@ export type CompiledForestFloorIvyGeometry = {
   originalPositions: Float32Array;
   placementVertexRanges: ForestFloorIvyVertexRange[];
   placementVertexRangesByTree: ForestFloorIvyVertexRange[][];
-  runnerVertexRanges: ForestFloorIvyRunnerVertexRange[];
-  leafVertexRanges: ForestFloorIvyLeafVertexRange[];
+  layerVertexRanges: ForestFloorIvyLayerVertexRange[];
+  animatedLeafVertexRanges: ForestFloorIvyAnimatedLeafVertexRange[];
 };
 
 export type ForestFloorIvyInstances = {
@@ -260,9 +419,9 @@ function applyForestFloorIvyNodeSnow(
     FOREST_FLOOR_IVY_SNOW_RGB[2],
   );
 
-  // Preserve procedural vertex coloration while changing only the visible
-  // leaf surface. Snow also mutes the same SSS path used by SeedThree foliage
-  // so covered leaves do not glow green.
+  // Preserve the authored alpha cutout and immutable aTint coloration while
+  // changing only the visible leaf surface. Snow also mutes the same SSS path
+  // used by SeedThree evergreen cards so covered leaves do not glow green.
   target.colorNode = ivySnowTsl.vec4(
     ivySnowTsl.mix(baseColor.rgb, snowColor, snowAmount),
     baseColor.a,
@@ -340,35 +499,6 @@ diffuseColor.rgb = mix(
   material.needsUpdate = true;
 }
 
-/**
- * The runner and leaf meshes own their exact silhouettes and coloration.
- * SeedThree's shared ground-cover material still expects an albedo map, so a
- * neutral texel keeps that material path without reintroducing a leaf atlas.
- */
-export function createForestFloorIvyTextures(
-  maxAnisotropy = 1,
-): SeedThreeGroundCoverTextures {
-  const albedo = new THREE.DataTexture(
-    new Uint8Array([255, 255, 255, 255]),
-    1,
-    1,
-    THREE.RGBAFormat,
-    THREE.UnsignedByteType,
-  );
-  albedo.name = 'Procedural forest-floor ivy neutral albedo';
-  albedo.colorSpace = THREE.SRGBColorSpace;
-  albedo.wrapS = THREE.ClampToEdgeWrapping;
-  albedo.wrapT = THREE.ClampToEdgeWrapping;
-  albedo.anisotropy = Math.max(1, Math.min(16, maxAnisotropy));
-  albedo.needsUpdate = true;
-  return {
-    albedo,
-    normal: null,
-    roughness: null,
-    translucency: null,
-  };
-}
-
 export function createForestFloorIvyMaterial(
   name: string,
   textures: SeedThreeGroundCoverTextures,
@@ -383,7 +513,7 @@ export function createForestFloorIvyMaterial(
     0,
     hingeWind.positionNode,
   );
-  material.alphaTest = 0;
+  material.alphaTest = 0.31;
   if (supportsNodeMaterials(rendererBackend)) {
     applyForestFloorIvyNodeSnow(material, textures);
     // The same rigid petiole rotation drives lighting as well as position;
@@ -398,10 +528,13 @@ export function createForestFloorIvyMaterial(
 }
 
 /**
- * Every patch is a small ivy growth graph: tapered runners crawl across the
- * rendered terrain and alternating lobed leaves attach at successive nodes.
- * There is no colony card or floating hero-leaf layer. Each visible leaf owns
- * its silhouette and hinges independently at the petiole in SeedThree wind.
+ * Manor-Lords-style ivy is a layered leaf canopy resting on litter, not a
+ * crossed billboard clump or one embossed sheet. Every patch compiles a broad
+ * ground-contact drape plus paired lower, paired upper, and crown shelves, then
+ * roots sparse cambered hero leaves into those supports. The dense sheets stay
+ * welded to litter while each real leaf hinges independently in SeedThree wind.
+ * Every support samples the rendered terrain and the strata beneath it, so the
+ * alpha perimeter lands on foliage while the interior has grazing-view depth.
  */
 export async function createForestFloorIvyInstances(
   trees: readonly ForestTreePlacement[],
@@ -411,7 +544,9 @@ export async function createForestFloorIvyInstances(
   seed = FOREST_FLOOR_IVY_SEED,
   isBlockedAt?: ForestFloorIvyBlocker,
 ): Promise<ForestFloorIvyInstances> {
-  const textures = createForestFloorIvyTextures(maxAnisotropy);
+  const textures = await loadSeedThreeGroundCoverTextures({
+    albedo: FOREST_FLOOR_IVY_TEXTURE_PATH,
+  }, maxAnisotropy);
   const placements = createForestFloorIvyPlacements(
     trees,
     terrain,
@@ -431,7 +566,7 @@ export async function createForestFloorIvyInstances(
   );
 
   const mesh = new THREE.Mesh(compiled.geometry, material);
-  mesh.name = 'SeedThree runner-chain terrain-conforming forest-floor ivy';
+  mesh.name = 'SeedThree tessellated terrain-conforming forest-floor ivy';
   mesh.frustumCulled = false;
   mesh.renderOrder = 2;
   applyGroundCoverShadowPolicy(mesh, { terrainReceivesShadow: true });
@@ -476,18 +611,26 @@ export async function createForestFloorIvyInstances(
       trianglesPerInstance: FOREST_FLOOR_IVY_TRIANGLES_PER_PATCH,
       vertices: FOREST_FLOOR_IVY_VERTICES_PER_PATCH * placements.length,
       triangles: FOREST_FLOOR_IVY_TRIANGLES_PER_PATCH * placements.length,
-      runnersPerInstance: FOREST_FLOOR_IVY_RUNNERS_PER_PATCH,
-      runners: FOREST_FLOOR_IVY_RUNNERS_PER_PATCH * placements.length,
-      leavesPerInstance: FOREST_FLOOR_IVY_LEAVES_PER_PATCH,
-      leaves: FOREST_FLOOR_IVY_LEAVES_PER_PATCH * placements.length,
+      layersPerInstance: FOREST_FLOOR_IVY_LAYER_COUNT,
+      layers: FOREST_FLOOR_IVY_LAYER_COUNT * placements.length,
+      animatedLeavesPerInstance: FOREST_FLOOR_IVY_ANIMATED_LEAVES_PER_PATCH,
+      animatedLeaves: FOREST_FLOOR_IVY_ANIMATED_LEAVES_PER_PATCH * placements.length,
       drawCalls: placements.length > 0 ? 1 : 0,
       maximumRelief: placements.reduce(
         (maximum, placement) => Math.max(maximum, placement.reliefHeight),
         0,
       ),
-      maximumCanopyHeight: placements.length > 0
-        ? FOREST_FLOOR_IVY_CANOPY_HEIGHT_MAX
-        : 0,
+      maximumCanopyHeight: placements.reduce(
+        (maximum, placement) => Math.max(
+          maximum,
+          Math.min(
+            FOREST_FLOOR_IVY_CANOPY_HEIGHT_MAX,
+            placement.reliefHeight * ivyMaximumStackScale()
+              + ivyMaximumSupportGap(),
+          ),
+        ),
+        0,
+      ),
       seed,
     },
     setSnowCoverage(coverage: number): boolean {
@@ -519,32 +662,6 @@ export async function createForestFloorIvyInstances(
   };
 }
 
-type IvyRunnerNode = {
-  x: number;
-  y: number;
-  z: number;
-  lift: number;
-  tangentX: number;
-  tangentZ: number;
-};
-
-type CompiledIvyRunnerPlan = {
-  runnerIndex: number;
-  phase: number;
-  baseWidth: number;
-  nodes: IvyRunnerNode[];
-};
-
-type IvyGeometryWriteBuffers = {
-  positions: Float32Array;
-  uvs: Float32Array;
-  tintValues: Float32Array;
-  runnerValues: Uint8Array;
-  rootPhaseValues: Float32Array;
-  hingeValues: Float32Array;
-  indices: Uint32Array;
-};
-
 export function createTerrainConformingIvyGeometry(
   placements: readonly ForestFloorIvyPlacement[],
   terrain: IvyTerrainSurface,
@@ -556,76 +673,147 @@ export function createTerrainConformingIvyGeometry(
   const positions = new Float32Array(vertexCount * 3);
   const uvs = new Float32Array(vertexCount * 2);
   const tintValues = new Float32Array(vertexCount * 3);
-  const runnerValues = new Uint8Array(vertexCount);
+  const layerValues = new Uint8Array(vertexCount);
   const rootPhaseValues = new Float32Array(vertexCount * 4);
   const hingeValues = new Float32Array(vertexCount * 4);
   const indices = new Uint32Array(indexCount);
-  const buffers: IvyGeometryWriteBuffers = {
-    positions,
-    uvs,
-    tintValues,
-    runnerValues,
-    rootPhaseValues,
-    hingeValues,
-    indices,
-  };
   const placementVertexRanges: ForestFloorIvyVertexRange[] = [];
   const placementVertexRangesByTree = Array.from(
     { length: treeCount },
     () => [] as ForestFloorIvyVertexRange[],
   );
-  const runnerVertexRanges: ForestFloorIvyRunnerVertexRange[] = [];
-  const leafVertexRanges: ForestFloorIvyLeafVertexRange[] = [];
-  const baseColor = new THREE.Color();
+  const layerVertexRanges: ForestFloorIvyLayerVertexRange[] = [];
+  const animatedLeafVertexRanges: ForestFloorIvyAnimatedLeafVertexRange[] = [];
+  const color = new THREE.Color();
+  const layerColor = new THREE.Color();
   const tintWhite = new THREE.Color(0xffffff);
   let vertexOffset = 0;
   let indexOffset = 0;
 
   for (let placementIndex = 0; placementIndex < placements.length; placementIndex++) {
     const placement = placements[placementIndex]!;
+    const layerPlans = createIvyLayerPlans(placement, placementIndex, seed);
     const tintRng = mulberry32(
       (seed ^ Math.imul(placementIndex + 1, 0x9e3779b1)) >>> 0,
     );
-    baseColor.setHSL(
-      0.292 + (tintRng() - 0.5) * 0.026,
-      0.5 + tintRng() * 0.1,
-      0.17 + (tintRng() - 0.5) * 0.03,
-    ).lerp(tintWhite, 0.018);
+    color.setHSL(
+      0.285 + (tintRng() - 0.5) * 0.022,
+      0.34 + tintRng() * 0.08,
+      0.31 + (tintRng() - 0.5) * 0.045,
+    ).lerp(tintWhite, 0.18);
 
-    const runnerPlans = createIvyRunnerPlans(
-      placement,
-      placementIndex,
-      terrain,
-      seed,
-    );
     const placementStart = vertexOffset;
-    const runnerWrite = appendIvyRunners({
-      placementIndex,
-      runnerPlans,
-      terrain,
-      baseColor,
-      buffers,
-      vertexOffset,
-      indexOffset,
-      runnerVertexRanges,
-    });
-    vertexOffset = runnerWrite.vertexOffset;
-    indexOffset = runnerWrite.indexOffset;
+    for (let layerIndex = 0; layerIndex < layerPlans.length; layerIndex++) {
+      const layer = layerPlans[layerIndex]!;
+      const spec = layer.spec;
+      const layerStart = vertexOffset;
+      layerColor.copy(color).multiplyScalar(spec.tintScale);
+      const minU = Math.max(0, FOREST_FLOOR_IVY_UV_BOUNDS.minU - spec.uvGuard);
+      const maxU = Math.min(1, FOREST_FLOOR_IVY_UV_BOUNDS.maxU + spec.uvGuard);
+      const minV = Math.max(0, FOREST_FLOOR_IVY_UV_BOUNDS.minV - spec.uvGuard);
+      const maxV = Math.min(1, FOREST_FLOOR_IVY_UV_BOUNDS.maxV + spec.uvGuard);
 
-    const leafWrite = appendIvyRunnerLeaves({
+      for (let zIndex = 0; zIndex <= spec.segmentsZ; zIndex++) {
+        const tz = zIndex / spec.segmentsZ;
+        const normalizedZ = tz * 2 - 1;
+        for (let xIndex = 0; xIndex <= spec.segmentsX; xIndex++) {
+          const tx = xIndex / spec.segmentsX;
+          const normalizedX = tx * 2 - 1;
+          const localX = normalizedX * layer.radiusX;
+          const localZ = normalizedZ * layer.radiusZ;
+          const worldX = layer.centerX + localX * layer.cos - localZ * layer.sin;
+          const worldZ = layer.centerZ + localX * layer.sin + localZ * layer.cos;
+          const supportHeight = layerIndex === 0
+            ? 0
+            : ivyStackHeightAtWorld(
+              worldX,
+              worldZ,
+              placement,
+              layerPlans,
+              layerIndex,
+            );
+          const shelfHeight = Math.min(
+            FOREST_FLOOR_IVY_CANOPY_HEIGHT_MAX,
+            supportHeight + ivyLayerOwnElevation(
+              normalizedX,
+              normalizedZ,
+              placement,
+              layer,
+            ),
+          );
+          const worldY = terrain.getHeightAt(worldX, worldZ)
+            + FOREST_FLOOR_IVY_GROUND_CLEARANCE
+            + shelfHeight;
+          const vertexIndex = vertexOffset
+            + zIndex * (spec.segmentsX + 1)
+            + xIndex;
+          const positionOffset = vertexIndex * 3;
+          positions[positionOffset] = worldX;
+          positions[positionOffset + 1] = worldY;
+          positions[positionOffset + 2] = worldZ;
+          const uvOffset = vertexIndex * 2;
+          uvs[uvOffset] = THREE.MathUtils.lerp(
+            minU,
+            maxU,
+            layer.flipU ? 1 - tx : tx,
+          );
+          uvs[uvOffset + 1] = THREE.MathUtils.lerp(
+            minV,
+            maxV,
+            tz,
+          );
+          tintValues[positionOffset] = layerColor.r;
+          tintValues[positionOffset + 1] = layerColor.g;
+          tintValues[positionOffset + 2] = layerColor.b;
+          layerValues[vertexIndex] = layerIndex;
+        }
+      }
+
+      const rowSize = spec.segmentsX + 1;
+      for (let zIndex = 0; zIndex < spec.segmentsZ; zIndex++) {
+        for (let xIndex = 0; xIndex < spec.segmentsX; xIndex++) {
+          const a = vertexOffset + zIndex * rowSize + xIndex;
+          const b = a + 1;
+          const c = a + rowSize;
+          const d = c + 1;
+          indices[indexOffset++] = a;
+          indices[indexOffset++] = c;
+          indices[indexOffset++] = b;
+          indices[indexOffset++] = b;
+          indices[indexOffset++] = c;
+          indices[indexOffset++] = d;
+        }
+      }
+
+      const layerCount = (spec.segmentsX + 1) * (spec.segmentsZ + 1);
+      layerVertexRanges.push({
+        start: layerStart,
+        count: layerCount,
+        placementIndex,
+        layerIndex,
+        kind: spec.kind,
+        tier: spec.tier,
+      });
+      vertexOffset += layerCount;
+    }
+
+    const leafWrite = appendAnimatedIvyLeaves({
       placement,
       placementIndex,
-      runnerPlans,
-      runnerVertexRanges: runnerVertexRanges.slice(
-        runnerVertexRanges.length - FOREST_FLOOR_IVY_RUNNERS_PER_PATCH,
-      ),
+      layerPlans,
       terrain,
       seed,
-      baseColor,
-      buffers,
+      baseColor: color,
+      positions,
+      uvs,
+      tintValues,
+      layerValues,
+      rootPhaseValues,
+      hingeValues,
+      indices,
       vertexOffset,
       indexOffset,
-      leafVertexRanges,
+      animatedLeafVertexRanges,
     });
     vertexOffset = leafWrite.vertexOffset;
     indexOffset = leafWrite.indexOffset;
@@ -648,7 +836,7 @@ export function createTerrainConformingIvyGeometry(
   geometry.setIndex(new THREE.BufferAttribute(indices, 1));
   geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
   geometry.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
-  geometry.setAttribute('ivyRunner', new THREE.Uint8BufferAttribute(runnerValues, 1));
+  geometry.setAttribute('ivyLayer', new THREE.Uint8BufferAttribute(layerValues, 1));
   geometry.setAttribute('aIvyRootPhase', new THREE.BufferAttribute(rootPhaseValues, 4));
   geometry.setAttribute('aIvyHinge', new THREE.BufferAttribute(hingeValues, 4));
   const tint = new THREE.BufferAttribute(tintValues, 3);
@@ -656,9 +844,6 @@ export function createTerrainConformingIvyGeometry(
   // Three's conventional color semantic. Both share one immutable buffer.
   geometry.setAttribute('aTint', tint);
   geometry.setAttribute('color', tint);
-  geometry.userData.seedThreeGenerator = 'terrain-following-ivy-runner-chain';
-  geometry.userData.runnersPerPatch = FOREST_FLOOR_IVY_RUNNERS_PER_PATCH;
-  geometry.userData.leavesPerRunner = FOREST_FLOOR_IVY_LEAVES_PER_RUNNER;
   if (vertexCount > 0) {
     geometry.computeVertexNormals();
     geometry.computeBoundingBox();
@@ -675,353 +860,381 @@ export function createTerrainConformingIvyGeometry(
     originalPositions: positions.slice(),
     placementVertexRanges,
     placementVertexRangesByTree,
-    runnerVertexRanges,
-    leafVertexRanges,
+    layerVertexRanges,
+    animatedLeafVertexRanges,
   };
 }
 
-function createIvyRunnerPlans(
+type CompiledIvyLayerPlan = {
+  spec: (typeof FOREST_FLOOR_IVY_LAYER_SPECS)[number];
+  centerX: number;
+  centerZ: number;
+  radiusX: number;
+  radiusZ: number;
+  cos: number;
+  sin: number;
+  phase: number;
+  flipU: boolean;
+};
+
+function createIvyLayerPlans(
   placement: ForestFloorIvyPlacement,
   placementIndex: number,
-  terrain: IvyTerrainSurface,
   seed: number,
-): CompiledIvyRunnerPlan[] {
+): CompiledIvyLayerPlan[] {
   const rng = mulberry32(
     (seed ^ Math.imul(placementIndex + 1, 0x27d4eb2d)) >>> 0,
   );
   const placementCos = Math.cos(placement.yaw);
   const placementSin = Math.sin(placement.yaw);
-  const placementScale = THREE.MathUtils.clamp(placement.scale, 0.82, 1.3);
-  const plans: CompiledIvyRunnerPlan[] = [];
 
-  for (
-    let runnerIndex = 0;
-    runnerIndex < FOREST_FLOOR_IVY_RUNNERS_PER_PATCH;
-    runnerIndex++
-  ) {
-    const angle = runnerIndex / FOREST_FLOOR_IVY_RUNNERS_PER_PATCH
-      * Math.PI * 2
-      + (rng() - 0.5) * 0.34;
-    const directionX = Math.cos(angle);
-    const directionZ = Math.sin(angle);
-    const sideX = -directionZ;
-    const sideZ = directionX;
-    const endRadius = THREE.MathUtils.lerp(0.82, 0.96, rng());
-    const bend = (rng() - 0.5) * 0.34;
-    const originX = (rng() - 0.5) * 0.1;
-    const originZ = (rng() - 0.5) * 0.1;
-    const phase = placement.reliefPhase
-      + runnerIndex * 1.37
-      + (rng() - 0.5) * 0.46;
-    const liftScale = placement.reliefHeight
-      * THREE.MathUtils.lerp(0.032, 0.048, rng());
-    const nodes: IvyRunnerNode[] = [];
-
-    for (
-      let nodeIndex = 0;
-      nodeIndex <= FOREST_FLOOR_IVY_RUNNER_SEGMENTS;
-      nodeIndex++
-    ) {
-      const t = nodeIndex / FOREST_FLOOR_IVY_RUNNER_SEGMENTS;
-      const reach = THREE.MathUtils.lerp(0.035, endRadius, t);
-      const lateral = Math.sin(t * Math.PI) * bend;
-      const normalizedX = originX * (1 - t)
-        + directionX * reach
-        + sideX * lateral;
-      const normalizedZ = originZ * (1 - t)
-        + directionZ * reach
-        + sideZ * lateral;
-      const localX = normalizedX * placement.radiusX;
-      const localZ = normalizedZ * placement.radiusZ;
-      const worldX = placement.x
-        + localX * placementCos
-        - localZ * placementSin;
-      const worldZ = placement.z
-        + localX * placementSin
-        + localZ * placementCos;
-      const arch = Math.sin(t * Math.PI);
-      const lift = 0.0025 + arch * arch * liftScale
-        * (0.78 + 0.22 * Math.sin(phase + t * Math.PI * 2));
-      nodes.push({
-        x: worldX,
-        y: terrain.getHeightAt(worldX, worldZ)
-          + FOREST_FLOOR_IVY_GROUND_CLEARANCE
-          + lift,
-        z: worldZ,
-        lift,
-        tangentX: 0,
-        tangentZ: 0,
-      });
-    }
-
-    for (let nodeIndex = 0; nodeIndex < nodes.length; nodeIndex++) {
-      const previous = nodes[Math.max(0, nodeIndex - 1)]!;
-      const next = nodes[Math.min(nodes.length - 1, nodeIndex + 1)]!;
-      const dx = next.x - previous.x;
-      const dz = next.z - previous.z;
-      const inverseLength = 1 / Math.max(1e-6, Math.hypot(dx, dz));
-      nodes[nodeIndex]!.tangentX = dx * inverseLength;
-      nodes[nodeIndex]!.tangentZ = dz * inverseLength;
-    }
-
-    plans.push({
-      runnerIndex,
-      phase,
-      baseWidth: THREE.MathUtils.lerp(0.018, 0.027, rng()) * placementScale,
-      nodes,
-    });
-  }
-
-  return plans;
+  return FOREST_FLOOR_IVY_LAYER_SPECS.map((spec, layerIndex) => {
+    const upperLayer = layerIndex > 0;
+    const offsetJitterX = upperLayer ? (rng() - 0.5) * 0.045 : 0;
+    const offsetJitterZ = upperLayer ? (rng() - 0.5) * 0.045 : 0;
+    const radiusJitterX = upperLayer ? THREE.MathUtils.lerp(0.96, 1.04, rng()) : 1;
+    const radiusJitterZ = upperLayer ? THREE.MathUtils.lerp(0.96, 1.04, rng()) : 1;
+    const yaw = placement.yaw
+      + spec.yawOffset
+      + (upperLayer ? (rng() - 0.5) * 0.14 : 0);
+    const localCenterX = placement.radiusX * (spec.offsetX + offsetJitterX);
+    const localCenterZ = placement.radiusZ * (spec.offsetZ + offsetJitterZ);
+    return {
+      spec,
+      centerX: placement.x
+        + localCenterX * placementCos
+        - localCenterZ * placementSin,
+      centerZ: placement.z
+        + localCenterX * placementSin
+        + localCenterZ * placementCos,
+      radiusX: placement.radiusX * spec.footprintX * radiusJitterX,
+      radiusZ: placement.radiusZ * spec.footprintZ * radiusJitterZ,
+      cos: Math.cos(yaw),
+      sin: Math.sin(yaw),
+      phase: placement.reliefPhase
+        + layerIndex * 1.73
+        + (upperLayer ? (rng() - 0.5) * 0.5 : 0),
+      flipU: upperLayer && rng() < 0.5,
+    };
+  });
 }
 
-type AppendIvyRunnersArgs = {
-  placementIndex: number;
-  runnerPlans: readonly CompiledIvyRunnerPlan[];
-  terrain: IvyTerrainSurface;
-  baseColor: THREE.Color;
-  buffers: IvyGeometryWriteBuffers;
-  vertexOffset: number;
-  indexOffset: number;
-  runnerVertexRanges: ForestFloorIvyRunnerVertexRange[];
-};
-
-function appendIvyRunners(
-  args: AppendIvyRunnersArgs,
-): { vertexOffset: number; indexOffset: number } {
-  const runnerColor = new THREE.Color();
-  let vertexOffset = args.vertexOffset;
-  let indexOffset = args.indexOffset;
-
-  for (const plan of args.runnerPlans) {
-    const runnerStart = vertexOffset;
-    runnerColor.copy(args.baseColor)
-      .offsetHSL(-0.035, -0.12, -0.025)
-      .multiplyScalar(0.84);
-    for (let nodeIndex = 0; nodeIndex < plan.nodes.length; nodeIndex++) {
-      const node = plan.nodes[nodeIndex]!;
-      const t = nodeIndex / FOREST_FLOOR_IVY_RUNNER_SEGMENTS;
-      const tipTaper = smootherstep01(
-        THREE.MathUtils.clamp((t - 0.68) / 0.32, 0, 1),
-      );
-      const width = plan.baseWidth
-        * THREE.MathUtils.lerp(1, 0.18, tipTaper)
-        * (0.9 + 0.1 * Math.sin(plan.phase + t * Math.PI));
-      const sideX = -node.tangentZ;
-      const sideZ = node.tangentX;
-
-      for (let sideIndex = 0; sideIndex < 3; sideIndex++) {
-        const across = sideIndex - 1;
-        const vertexIndex = vertexOffset + nodeIndex * 3 + sideIndex;
-        const worldX = node.x + sideX * across * width;
-        const worldZ = node.z + sideZ * across * width;
-        const positionOffset = vertexIndex * 3;
-        args.buffers.positions[positionOffset] = worldX;
-        args.buffers.positions[positionOffset + 1] = sideIndex === 1
-          ? node.y
-          : args.terrain.getHeightAt(worldX, worldZ)
-            + FOREST_FLOOR_IVY_GROUND_CLEARANCE
-            + node.lift;
-        args.buffers.positions[positionOffset + 2] = worldZ;
-        const uvOffset = vertexIndex * 2;
-        args.buffers.uvs[uvOffset] = sideIndex * 0.5;
-        args.buffers.uvs[uvOffset + 1] = t;
-        const centerHighlight = sideIndex === 1 ? 1.12 : 0.86;
-        args.buffers.tintValues[positionOffset] = runnerColor.r * centerHighlight;
-        args.buffers.tintValues[positionOffset + 1] = runnerColor.g * centerHighlight;
-        args.buffers.tintValues[positionOffset + 2] = runnerColor.b * centerHighlight;
-        args.buffers.runnerValues[vertexIndex] = plan.runnerIndex;
-      }
-    }
-
-    for (
-      let segmentIndex = 0;
-      segmentIndex < FOREST_FLOOR_IVY_RUNNER_SEGMENTS;
-      segmentIndex++
-    ) {
-      const current = vertexOffset + segmentIndex * 3;
-      const next = current + 3;
-      args.buffers.indices[indexOffset++] = current;
-      args.buffers.indices[indexOffset++] = next;
-      args.buffers.indices[indexOffset++] = current + 1;
-      args.buffers.indices[indexOffset++] = current + 1;
-      args.buffers.indices[indexOffset++] = next;
-      args.buffers.indices[indexOffset++] = next + 1;
-      args.buffers.indices[indexOffset++] = current + 1;
-      args.buffers.indices[indexOffset++] = next + 1;
-      args.buffers.indices[indexOffset++] = current + 2;
-      args.buffers.indices[indexOffset++] = current + 2;
-      args.buffers.indices[indexOffset++] = next + 1;
-      args.buffers.indices[indexOffset++] = next + 2;
-    }
-
-    args.runnerVertexRanges.push({
-      start: runnerStart,
-      count: FOREST_FLOOR_IVY_RUNNER_VERTICES,
-      placementIndex: args.placementIndex,
-      runnerIndex: plan.runnerIndex,
-    });
-    vertexOffset += FOREST_FLOOR_IVY_RUNNER_VERTICES;
-  }
-
-  return { vertexOffset, indexOffset };
-}
-
-type AppendIvyRunnerLeavesArgs = {
+type AnimatedIvyLeafWriteArgs = {
   placement: ForestFloorIvyPlacement;
   placementIndex: number;
-  runnerPlans: readonly CompiledIvyRunnerPlan[];
-  runnerVertexRanges: readonly ForestFloorIvyRunnerVertexRange[];
+  layerPlans: readonly CompiledIvyLayerPlan[];
   terrain: IvyTerrainSurface;
   seed: number;
   baseColor: THREE.Color;
-  buffers: IvyGeometryWriteBuffers;
+  positions: Float32Array;
+  uvs: Float32Array;
+  tintValues: Float32Array;
+  layerValues: Uint8Array;
+  rootPhaseValues: Float32Array;
+  hingeValues: Float32Array;
+  indices: Uint32Array;
   vertexOffset: number;
   indexOffset: number;
-  leafVertexRanges: ForestFloorIvyLeafVertexRange[];
+  animatedLeafVertexRanges: ForestFloorIvyAnimatedLeafVertexRange[];
 };
 
-function appendIvyRunnerLeaves(
-  args: AppendIvyRunnerLeavesArgs,
+function appendAnimatedIvyLeaves(
+  args: AnimatedIvyLeafWriteArgs,
 ): { vertexOffset: number; indexOffset: number } {
+  const {
+    placement,
+    placementIndex,
+    layerPlans,
+    terrain,
+    seed,
+    baseColor,
+    positions,
+    uvs,
+    tintValues,
+    layerValues,
+    rootPhaseValues,
+    hingeValues,
+    indices,
+    animatedLeafVertexRanges,
+  } = args;
   const rng = mulberry32(
-    (args.seed ^ Math.imul(args.placementIndex + 1, 0x165667b1)) >>> 0,
+    (seed ^ Math.imul(placementIndex + 1, 0x165667b1)) >>> 0,
   );
+  const sourcePixels = [
+    ...FOREST_FLOOR_IVY_LEAF_UV_BOUNDARY_PIXELS,
+    FOREST_FLOOR_IVY_LEAF_UV_CENTER_PIXEL,
+  ] as const;
+  const boundaryCount = FOREST_FLOOR_IVY_LEAF_UV_BOUNDARY_PIXELS.length;
   const centerLocalIndex = FOREST_FLOOR_IVY_LEAF_VERTICES - 1;
+  const rootPixelX = FOREST_FLOOR_IVY_LEAF_ROOT_PIXEL[0];
+  const rootPixelY = FOREST_FLOOR_IVY_LEAF_ROOT_PIXEL[1];
+  const tierLengthRanges = [
+    [0.18, 0.25],
+    [0.21, 0.3],
+    [0.23, 0.34],
+    [0.25, 0.37],
+  ] as const;
+  const tierHingeRanges = [
+    [0.025, 0.04],
+    [0.04, 0.058],
+    [0.065, 0.09],
+    [0.085, 0.115],
+  ] as const;
+  const tierTiltRanges = [
+    [8, 16],
+    [12, 22],
+    [16, 28],
+    [18, 32],
+  ] as const;
+  const placementScale = THREE.MathUtils.clamp(placement.scale, 0.82, 1.25);
   const leafColor = new THREE.Color();
-  const placementScale = THREE.MathUtils.clamp(args.placement.scale, 0.82, 1.25);
   let vertexOffset = args.vertexOffset;
   let indexOffset = args.indexOffset;
 
-  for (const plan of args.runnerPlans) {
-    const runnerRange = args.runnerVertexRanges[plan.runnerIndex]!;
-    for (
-      let nodeIndex = 1;
-      nodeIndex <= FOREST_FLOOR_IVY_LEAVES_PER_RUNNER;
-      nodeIndex++
-    ) {
-      const node = plan.nodes[nodeIndex]!;
-      const leafIndex = plan.runnerIndex * FOREST_FLOOR_IVY_LEAVES_PER_RUNNER
-        + nodeIndex - 1;
-      const sideSign = (plan.runnerIndex + nodeIndex) % 2 === 0 ? -1 : 1;
-      const terminal = nodeIndex === FOREST_FLOOR_IVY_RUNNER_SEGMENTS;
-      const tangentYaw = Math.atan2(node.tangentZ, node.tangentX);
-      const sideAngle = terminal
-        ? (rng() - 0.5) * 0.42
-        : sideSign * THREE.MathUtils.lerp(0.74, 1.08, rng())
-          + (rng() - 0.5) * 0.18;
-      const forwardYaw = tangentYaw + sideAngle;
-      const forwardX = Math.cos(forwardYaw);
-      const forwardZ = Math.sin(forwardYaw);
-      const hingeX = -forwardZ;
-      const hingeZ = forwardX;
-      const progress = nodeIndex / FOREST_FLOOR_IVY_LEAVES_PER_RUNNER;
-      const length = THREE.MathUtils.lerp(0.195, 0.305, rng())
-        * THREE.MathUtils.lerp(0.92, 1.08, progress)
-        * placementScale;
-      const width = length * THREE.MathUtils.lerp(0.78, 0.94, rng());
-      const tilt = THREE.MathUtils.degToRad(
-        THREE.MathUtils.lerp(3.5, terminal ? 11 : 8.5, rng()),
+  for (
+    let leafIndex = 0;
+    leafIndex < FOREST_FLOOR_IVY_ANIMATED_LEAVES_PER_PATCH;
+    leafIndex++
+  ) {
+    const layerIndex = FOREST_FLOOR_IVY_LEAF_LAYER_SEQUENCE[leafIndex]!;
+    const layer = layerPlans[layerIndex]!;
+    const tier = layer.spec.tier;
+    const radialAngle = rng() * Math.PI * 2;
+    const radialMinimum = tier === 0 ? 0.56 : 0.18;
+    const radialMaximum = tier === 0 ? 0.86 : 0.78;
+    const radial = THREE.MathUtils.lerp(
+      radialMinimum,
+      radialMaximum,
+      Math.sqrt(rng()),
+    );
+    const normalizedX = Math.cos(radialAngle) * radial;
+    const normalizedZ = Math.sin(radialAngle) * radial;
+    const localX = normalizedX * layer.radiusX;
+    const localZ = normalizedZ * layer.radiusZ;
+    const rootX = layer.centerX + localX * layer.cos - localZ * layer.sin;
+    const rootZ = layer.centerZ + localX * layer.sin + localZ * layer.cos;
+    const supportHeight = layerIndex === 0
+      ? 0
+      : ivyStackHeightAtWorld(
+        rootX,
+        rootZ,
+        placement,
+        layerPlans,
+        layerIndex,
       );
-      const forwardHorizontal = Math.cos(tilt);
-      const forwardVertical = Math.sin(tilt);
-      const camber = length * THREE.MathUtils.lerp(0.035, 0.065, rng());
-      const twist = length * (rng() - 0.5) * 0.045;
-      const hingeAmplitude = THREE.MathUtils.lerp(0.064, 0.108, rng());
-      const phase = plan.phase + nodeIndex * 0.79 + (rng() - 0.5) * 0.54;
-      leafColor.copy(args.baseColor)
-        .offsetHSL(
-          (rng() - 0.5) * 0.024,
-          (rng() - 0.5) * 0.08,
-          (rng() - 0.5) * 0.045,
-        )
-        .multiplyScalar(THREE.MathUtils.lerp(0.9, 1.06, rng()));
+    const shelfHeight = Math.min(
+      FOREST_FLOOR_IVY_CANOPY_HEIGHT_MAX,
+      supportHeight + ivyLayerOwnElevation(
+        normalizedX,
+        normalizedZ,
+        placement,
+        layer,
+      ),
+    );
+    const rootY = terrain.getHeightAt(rootX, rootZ)
+      + FOREST_FLOOR_IVY_GROUND_CLEARANCE
+      + shelfHeight
+      + 0.003;
 
-      const leafStart = vertexOffset;
-      for (
-        let localIndex = 0;
-        localIndex < FOREST_FLOOR_IVY_LEAF_VERTICES;
-        localIndex++
-      ) {
-        const [localWidth, localForward] = localIndex < FOREST_FLOOR_IVY_LEAF_BOUNDARY.length
-          ? FOREST_FLOOR_IVY_LEAF_BOUNDARY[localIndex]!
-          : [0, 0.48] as const;
-        const along = localForward * length;
-        const across = localWidth * width;
-        const worldX = node.x
-          + forwardX * along * forwardHorizontal
-          + hingeX * across;
-        const worldZ = node.z
-          + forwardZ * along * forwardHorizontal
-          + hingeZ * across;
-        const edgeDistance = Math.min(1, Math.abs(localWidth) / 0.58);
-        const foldLift = Math.sin(localForward * Math.PI)
-          * camber
-          * (1 - edgeDistance * 0.48);
-        const twistLift = localWidth * localForward * twist;
-        const vertexIndex = vertexOffset + localIndex;
-        const positionOffset = vertexIndex * 3;
-        args.buffers.positions[positionOffset] = worldX;
-        args.buffers.positions[positionOffset + 1] = localIndex === 0
-          ? node.y
-          : args.terrain.getHeightAt(worldX, worldZ)
-            + FOREST_FLOOR_IVY_GROUND_CLEARANCE
-            + node.lift * (1 - localForward * 0.45)
-            + along * forwardVertical
-            + foldLift
-            + twistLift;
-        args.buffers.positions[positionOffset + 2] = worldZ;
-        const uvOffset = vertexIndex * 2;
-        args.buffers.uvs[uvOffset] = 0.5 + localWidth * 0.82;
-        args.buffers.uvs[uvOffset + 1] = localForward;
-        const brightness = localIndex === centerLocalIndex
-          ? 1.08
-          : localIndex === 0
-            ? 0.68
-            : 0.84 + localForward * 0.13 + (1 - edgeDistance) * 0.035;
-        args.buffers.tintValues[positionOffset] = leafColor.r * brightness;
-        args.buffers.tintValues[positionOffset + 1] = leafColor.g * brightness;
-        args.buffers.tintValues[positionOffset + 2] = leafColor.b * brightness;
-        args.buffers.runnerValues[vertexIndex] = plan.runnerIndex;
-        const motionOffset = vertexIndex * 4;
-        args.buffers.rootPhaseValues[motionOffset] = node.x;
-        args.buffers.rootPhaseValues[motionOffset + 1] = node.y;
-        args.buffers.rootPhaseValues[motionOffset + 2] = node.z;
-        args.buffers.rootPhaseValues[motionOffset + 3] = phase;
-        args.buffers.hingeValues[motionOffset] = hingeX;
-        args.buffers.hingeValues[motionOffset + 1] = 0;
-        args.buffers.hingeValues[motionOffset + 2] = hingeZ;
-        args.buffers.hingeValues[motionOffset + 3] = hingeAmplitude;
-      }
+    const outwardYaw = Math.atan2(rootZ - layer.centerZ, rootX - layer.centerX);
+    const forwardYaw = outwardYaw + (rng() - 0.5) * 1.35;
+    const forwardX = Math.cos(forwardYaw);
+    const forwardZ = Math.sin(forwardYaw);
+    const hingeX = -forwardZ;
+    const hingeZ = forwardX;
+    const lengthRange = tierLengthRanges[tier];
+    const length = THREE.MathUtils.lerp(lengthRange[0], lengthRange[1], rng())
+      * placementScale;
+    const width = length * THREE.MathUtils.lerp(0.76, 0.94, rng());
+    const tiltRange = tierTiltRanges[tier];
+    const tilt = THREE.MathUtils.degToRad(
+      THREE.MathUtils.lerp(tiltRange[0], tiltRange[1], rng()),
+    );
+    const forwardHorizontal = Math.cos(tilt);
+    const forwardVertical = Math.sin(tilt);
+    const camber = length * THREE.MathUtils.lerp(0.035, 0.065, rng());
+    const twist = length * (rng() - 0.5) * 0.055;
+    const hingeRange = tierHingeRanges[tier];
+    const hingeAmplitude = THREE.MathUtils.lerp(
+      hingeRange[0],
+      hingeRange[1],
+      rng(),
+    );
+    const phase = placement.reliefPhase
+      + leafIndex * 0.73
+      + (rng() - 0.5) * 0.62;
+    const mirror = rng() < 0.5 ? -1 : 1;
+    leafColor.copy(baseColor).multiplyScalar(
+      layer.spec.tintScale * THREE.MathUtils.lerp(0.94, 1.075, rng()),
+    );
 
-      for (
-        let boundaryIndex = 0;
-        boundaryIndex < FOREST_FLOOR_IVY_LEAF_BOUNDARY.length;
-        boundaryIndex++
-      ) {
-        args.buffers.indices[indexOffset++] = leafStart + centerLocalIndex;
-        args.buffers.indices[indexOffset++] = leafStart + boundaryIndex;
-        args.buffers.indices[indexOffset++] = leafStart
-          + (boundaryIndex + 1) % FOREST_FLOOR_IVY_LEAF_BOUNDARY.length;
-      }
-
-      const runnerRootVertex = runnerRange.start + nodeIndex * 3 + 1;
-      args.leafVertexRanges.push({
-        start: leafStart,
-        count: FOREST_FLOOR_IVY_LEAF_VERTICES,
-        placementIndex: args.placementIndex,
-        leafIndex,
-        runnerIndex: plan.runnerIndex,
-        runnerNodeIndex: nodeIndex,
-        runnerRootVertex,
-        rootVertex: leafStart,
-        tipVertex: leafStart + 8,
-      });
-      vertexOffset += FOREST_FLOOR_IVY_LEAF_VERTICES;
+    const leafStart = vertexOffset;
+    for (let localIndex = 0; localIndex < sourcePixels.length; localIndex++) {
+      const sourcePixel = sourcePixels[localIndex]!;
+      const localForward = THREE.MathUtils.clamp(
+        (rootPixelY - sourcePixel[1]) / FOREST_FLOOR_IVY_LEAF_PIXEL_LENGTH,
+        0,
+        1,
+      );
+      const localWidth = mirror
+        * (sourcePixel[0] - rootPixelX)
+        / FOREST_FLOOR_IVY_LEAF_PIXEL_HALF_WIDTH;
+      const edgeDistance = Math.min(1, Math.abs(localWidth));
+      const foldLift = Math.sin(localForward * Math.PI)
+        * camber
+        * (1 - edgeDistance * 0.48);
+      const twistLift = localWidth * localForward * twist;
+      const along = localForward * length;
+      const across = localWidth * width;
+      const vertexIndex = vertexOffset + localIndex;
+      const positionOffset = vertexIndex * 3;
+      positions[positionOffset] = rootX
+        + forwardX * along * forwardHorizontal
+        + hingeX * across;
+      positions[positionOffset + 1] = rootY
+        + along * forwardVertical
+        + foldLift
+        + twistLift;
+      positions[positionOffset + 2] = rootZ
+        + forwardZ * along * forwardHorizontal
+        + hingeZ * across;
+      const uvOffset = vertexIndex * 2;
+      uvs[uvOffset] = sourcePixel[0] / 1254;
+      uvs[uvOffset + 1] = 1 - sourcePixel[1] / 1254;
+      tintValues[positionOffset] = leafColor.r;
+      tintValues[positionOffset + 1] = leafColor.g;
+      tintValues[positionOffset + 2] = leafColor.b;
+      layerValues[vertexIndex] = layerIndex;
+      const motionOffset = vertexIndex * 4;
+      rootPhaseValues[motionOffset] = rootX;
+      rootPhaseValues[motionOffset + 1] = rootY;
+      rootPhaseValues[motionOffset + 2] = rootZ;
+      rootPhaseValues[motionOffset + 3] = phase;
+      hingeValues[motionOffset] = hingeX;
+      hingeValues[motionOffset + 1] = 0;
+      hingeValues[motionOffset + 2] = hingeZ;
+      hingeValues[motionOffset + 3] = hingeAmplitude;
     }
+
+    for (let boundaryIndex = 0; boundaryIndex < boundaryCount; boundaryIndex++) {
+      indices[indexOffset++] = leafStart + centerLocalIndex;
+      if (mirror > 0) {
+        indices[indexOffset++] = leafStart + (boundaryIndex + 1) % boundaryCount;
+        indices[indexOffset++] = leafStart + boundaryIndex;
+      } else {
+        indices[indexOffset++] = leafStart + boundaryIndex;
+        indices[indexOffset++] = leafStart + (boundaryIndex + 1) % boundaryCount;
+      }
+    }
+    animatedLeafVertexRanges.push({
+      start: leafStart,
+      count: FOREST_FLOOR_IVY_LEAF_VERTICES,
+      placementIndex,
+      leafIndex,
+      layerIndex,
+      tier,
+      rootVertex: leafStart,
+      tipVertex: leafStart + 5,
+    });
+    vertexOffset += FOREST_FLOOR_IVY_LEAF_VERTICES;
   }
 
   return { vertexOffset, indexOffset };
+}
+
+function ivyStackHeightAtWorld(
+  worldX: number,
+  worldZ: number,
+  placement: ForestFloorIvyPlacement,
+  layers: readonly CompiledIvyLayerPlan[],
+  throughLayerExclusive: number,
+): number {
+  const targetTier = layers[throughLayerExclusive]!.spec.tier;
+  const heightByTier = [0, 0, 0, 0];
+  for (let layerIndex = 0; layerIndex < throughLayerExclusive; layerIndex++) {
+    const layer = layers[layerIndex]!;
+    if (layer.spec.tier >= targetTier) continue;
+    const dx = worldX - layer.centerX;
+    const dz = worldZ - layer.centerZ;
+    const normalizedX = (dx * layer.cos + dz * layer.sin) / layer.radiusX;
+    const normalizedZ = (-dx * layer.sin + dz * layer.cos) / layer.radiusZ;
+    if (normalizedX * normalizedX + normalizedZ * normalizedZ >= 1) continue;
+    heightByTier[layer.spec.tier] = Math.max(
+      heightByTier[layer.spec.tier]!,
+      ivyLayerOwnElevation(
+      normalizedX,
+      normalizedZ,
+      placement,
+      layer,
+      ),
+    );
+  }
+  return heightByTier.reduce((height, tierHeight) => height + tierHeight, 0);
+}
+
+function ivyLayerOwnElevation(
+  x: number,
+  z: number,
+  placement: ForestFloorIvyPlacement,
+  layer: CompiledIvyLayerPlan,
+): number {
+  const radius = Math.sqrt(x * x + z * z);
+  const contactWidth = layer.spec.tier === 0 ? 0.72 : 0.38;
+  const contact = smootherstep01(
+    THREE.MathUtils.clamp((1 - radius) / contactWidth, 0, 1),
+  );
+  const rootArc = smootherstep01(THREE.MathUtils.clamp((0.62 - z) / 1.15, 0, 1));
+  const fringe = smootherstep01(1 - contact);
+  return layer.spec.supportGap + placement.reliefHeight * (
+    layer.spec.riseScale * contact
+    + layer.spec.reliefScale * ivyLayerProfileAt(x, z, contact, layer.phase)
+    + layer.spec.overhangScale * rootArc * fringe
+  );
+}
+
+function ivyLayerProfileAt(
+  x: number,
+  z: number,
+  contact: number,
+  phase: number,
+): number {
+  const center = gaussian2(x, z, -0.04, 0.12, 0.62, 0.52);
+  const leftLobe = gaussian2(x, z, -0.43, -0.05, 0.36, 0.42);
+  const rightLobe = gaussian2(x, z, 0.4, 0.02, 0.4, 0.38);
+  const backLobe = gaussian2(x, z, 0.08, 0.48, 0.46, 0.3);
+  const fold = 0.5 + 0.5 * Math.sin(x * 8.7 + z * 5.3 + phase);
+  return contact * THREE.MathUtils.clamp(
+    0.29
+      + center * 0.38
+      + leftLobe * 0.16
+      + rightLobe * 0.14
+      + backLobe * 0.12
+      + fold * 0.045,
+    0,
+    1,
+  );
+}
+
+function ivyMaximumStackScale(): number {
+  const maximumByTier = [0, 0, 0, 0];
+  for (const layer of FOREST_FLOOR_IVY_LAYER_SPECS) {
+    maximumByTier[layer.tier] = Math.max(
+      maximumByTier[layer.tier]!,
+      layer.riseScale + layer.reliefScale + layer.overhangScale,
+    );
+  }
+  return maximumByTier.reduce((total, maximum) => total + maximum, 0);
+}
+
+function ivyMaximumSupportGap(): number {
+  const maximumByTier = [0, 0, 0, 0];
+  for (const layer of FOREST_FLOOR_IVY_LAYER_SPECS) {
+    maximumByTier[layer.tier] = Math.max(
+      maximumByTier[layer.tier]!,
+      layer.supportGap,
+    );
+  }
+  return maximumByTier.reduce((total, maximum) => total + maximum, 0);
 }
 
 export function createForestFloorIvyPlacements(
@@ -1062,8 +1275,8 @@ export function createForestFloorIvyPlacements(
         sourceTreeIndex: treeIndex,
         scale,
         yaw: rng() * Math.PI * 2,
-        // Broad elliptical reach gives the runner fan room to crawl beneath
-        // the canopy. This remains ground coverage, not a freestanding bush.
+        // Preserve the trimmed image's broad 1.71:1 footprint while allowing
+        // restrained colony variation. This is ground coverage, not a bush.
         radiusX: scale * THREE.MathUtils.lerp(2.25, 2.75, rng()),
         radiusZ: scale * THREE.MathUtils.lerp(1.34, 1.66, rng()),
         reliefHeight: THREE.MathUtils.lerp(
@@ -1108,6 +1321,19 @@ function ivyIntersectsBlocker(
     }
   }
   return false;
+}
+
+function gaussian2(
+  x: number,
+  z: number,
+  centerX: number,
+  centerZ: number,
+  radiusX: number,
+  radiusZ: number,
+): number {
+  const dx = (x - centerX) / radiusX;
+  const dz = (z - centerZ) / radiusZ;
+  return Math.exp(-(dx * dx + dz * dz));
 }
 
 function smootherstep01(value: number): number {

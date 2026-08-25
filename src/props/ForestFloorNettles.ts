@@ -385,7 +385,7 @@ export function createForestFloorNettlePlacements(
         colonyZ,
         // Store authored height in metres. Prototype variants differ by about
         // eight centimetres, so raw scalar ranges made some crowns disappear
-        // into the 0.22 m ground-hugging ivy runner canopy.
+        // into the 0.48 m ivy layer.
         targetHeight: THREE.MathUtils.lerp(
           FOREST_FLOOR_NETTLE_MIN_HEIGHT,
           FOREST_FLOOR_NETTLE_MAX_HEIGHT,

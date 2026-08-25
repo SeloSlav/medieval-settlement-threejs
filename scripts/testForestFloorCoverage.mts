@@ -8,19 +8,16 @@ import {
 } from '../src/terrain/ForestCanopyOcclusion.ts';
 import {
   createTerrainConformingIvyGeometry,
+  FOREST_FLOOR_IVY_ANIMATED_LEAVES_PER_PATCH,
   FOREST_FLOOR_IVY_ANIMATION_MAX_TIP_DISPLACEMENT,
   FOREST_FLOOR_IVY_CANOPY_HEIGHT_MAX,
   FOREST_FLOOR_IVY_GROUND_CLEARANCE,
-  FOREST_FLOOR_IVY_LEAF_BOUNDARY,
   FOREST_FLOOR_IVY_LEAF_VERTICES,
-  FOREST_FLOOR_IVY_LEAVES_PER_PATCH,
-  FOREST_FLOOR_IVY_LEAVES_PER_RUNNER,
-  FOREST_FLOOR_IVY_RUNNER_SEGMENTS,
-  FOREST_FLOOR_IVY_RUNNER_TRIANGLES,
-  FOREST_FLOOR_IVY_RUNNER_VERTICES,
-  FOREST_FLOOR_IVY_RUNNER_VERTICES_PER_PATCH,
-  FOREST_FLOOR_IVY_RUNNERS_PER_PATCH,
+  FOREST_FLOOR_IVY_LAYER_COUNT,
+  FOREST_FLOOR_IVY_LAYER_SPECS,
+  FOREST_FLOOR_IVY_SHEET_VERTICES_PER_PATCH,
   FOREST_FLOOR_IVY_TRIANGLES_PER_PATCH,
+  FOREST_FLOOR_IVY_UV_BOUNDS,
   FOREST_FLOOR_IVY_VERTICES_PER_PATCH,
   type ForestFloorIvyPlacement,
 } from '../src/props/ForestFloorIvy.ts';
@@ -64,6 +61,8 @@ const visualHooksSource = readFileSync(
   'utf8',
 );
 const lineupSource = readFileSync(`${projectRoot}src/e2e/forestFloorLineup.ts`, 'utf8');
+const ivyTexturePath =
+  `${projectRoot}public/assets/textures/vegetation/forest-floor-ivy-card.png`;
 const twigTexturePaths = Object.values(FOREST_FLOOR_TWIG_TEXTURE_SOURCES).map(
   (path) => `${projectRoot}public${path}`,
 );
@@ -420,223 +419,70 @@ const compiledIvy = createTerrainConformingIvyGeometry(
 const ivyPosition = compiledIvy.geometry.getAttribute('position') as THREE.BufferAttribute;
 const ivyNormal = compiledIvy.geometry.getAttribute('normal') as THREE.BufferAttribute;
 const ivyUv = compiledIvy.geometry.getAttribute('uv') as THREE.BufferAttribute;
-const ivyRunner = compiledIvy.geometry.getAttribute('ivyRunner') as THREE.BufferAttribute;
+const ivyLayer = compiledIvy.geometry.getAttribute('ivyLayer') as THREE.BufferAttribute;
 const ivyTint = compiledIvy.geometry.getAttribute('aTint') as THREE.BufferAttribute;
 const ivyRootPhase = compiledIvy.geometry.getAttribute(
   'aIvyRootPhase',
 ) as THREE.BufferAttribute;
 const ivyHinge = compiledIvy.geometry.getAttribute('aIvyHinge') as THREE.BufferAttribute;
-
-assert.equal(FOREST_FLOOR_IVY_RUNNER_SEGMENTS, FOREST_FLOOR_IVY_LEAVES_PER_RUNNER);
-assert.equal(
-  FOREST_FLOOR_IVY_LEAVES_PER_PATCH,
-  FOREST_FLOOR_IVY_RUNNERS_PER_PATCH * FOREST_FLOOR_IVY_LEAVES_PER_RUNNER,
-);
 assert.equal(ivyPosition.count, FOREST_FLOOR_IVY_VERTICES_PER_PATCH);
 assert.equal(
   compiledIvy.geometry.index!.count / 3,
   FOREST_FLOOR_IVY_TRIANGLES_PER_PATCH,
 );
-assert.equal(compiledIvy.runnerVertexRanges.length, FOREST_FLOOR_IVY_RUNNERS_PER_PATCH);
-assert.equal(compiledIvy.leafVertexRanges.length, FOREST_FLOOR_IVY_LEAVES_PER_PATCH);
+assert.equal(compiledIvy.layerVertexRanges.length, FOREST_FLOOR_IVY_LAYER_COUNT);
 assert.deepEqual(
   compiledIvy.placementVertexRangesByTree,
   [[{ start: 0, count: FOREST_FLOOR_IVY_VERTICES_PER_PATCH }]],
 );
-assert.equal(
-  compiledIvy.geometry.userData.seedThreeGenerator,
-  'terrain-following-ivy-runner-chain',
+const expectedLayerKinds = FOREST_FLOOR_IVY_LAYER_SPECS.map((layer) => layer.kind);
+assert.deepEqual(
+  compiledIvy.layerVertexRanges.map((range) => range.kind),
+  expectedLayerKinds,
 );
-assert.equal(
-  compiledIvy.geometry.userData.runnersPerPatch,
-  FOREST_FLOOR_IVY_RUNNERS_PER_PATCH,
-);
-
-const runnerWidths: Array<{ base: number; tip: number }> = [];
-for (const [runnerIndex, range] of compiledIvy.runnerVertexRanges.entries()) {
-  assert.equal(range.start, runnerIndex * FOREST_FLOOR_IVY_RUNNER_VERTICES);
-  assert.equal(range.count, FOREST_FLOOR_IVY_RUNNER_VERTICES);
-  assert.equal(range.runnerIndex, runnerIndex);
+let expectedLayerStart = 0;
+for (const [layerIndex, range] of compiledIvy.layerVertexRanges.entries()) {
+  const spec = FOREST_FLOOR_IVY_LAYER_SPECS[layerIndex]!;
+  assert.equal(range.start, expectedLayerStart);
+  assert.equal(range.count, (spec.segmentsX + 1) * (spec.segmentsZ + 1));
+  assert.equal(range.layerIndex, layerIndex);
   assert.equal(range.placementIndex, 0);
-  const centers: THREE.Vector3[] = [];
-  for (let nodeIndex = 0; nodeIndex <= FOREST_FLOOR_IVY_RUNNER_SEGMENTS; nodeIndex++) {
-    const leftIndex = range.start + nodeIndex * 3;
-    const centerIndex = leftIndex + 1;
-    const rightIndex = leftIndex + 2;
-    const left = new THREE.Vector3(
-      ivyPosition.getX(leftIndex),
-      ivyPosition.getY(leftIndex),
-      ivyPosition.getZ(leftIndex),
-    );
-    const center = new THREE.Vector3(
-      ivyPosition.getX(centerIndex),
-      ivyPosition.getY(centerIndex),
-      ivyPosition.getZ(centerIndex),
-    );
-    const right = new THREE.Vector3(
-      ivyPosition.getX(rightIndex),
-      ivyPosition.getY(rightIndex),
-      ivyPosition.getZ(rightIndex),
-    );
-    centers.push(center);
-    for (const vertexIndex of [leftIndex, centerIndex, rightIndex]) {
-      assert.equal(ivyRunner.getX(vertexIndex), runnerIndex);
-      assert.equal(ivyHinge.getW(vertexIndex), 0, 'runner ribbons must remain terrain-welded');
-      assert.equal(ivyRootPhase.getX(vertexIndex), 0);
-      assert.equal(ivyRootPhase.getY(vertexIndex), 0);
-      assert.equal(ivyRootPhase.getZ(vertexIndex), 0);
-      assert.equal(ivyRootPhase.getW(vertexIndex), 0);
-      const x = ivyPosition.getX(vertexIndex);
-      const z = ivyPosition.getZ(vertexIndex);
-      const clearance = ivyPosition.getY(vertexIndex) - slopedTerrain.getHeightAt(x, z);
-      assert.ok(
-        clearance >= FOREST_FLOOR_IVY_GROUND_CLEARANCE + 0.0023
-          && clearance < FOREST_FLOOR_IVY_GROUND_CLEARANCE + 0.014,
-        `runner ${runnerIndex} node ${nodeIndex} must hug the sampled terrain`,
-      );
-    }
-    assert.ok(
-      Math.abs(left.clone().add(right).multiplyScalar(0.5).x - center.x) < 1e-5
-        && Math.abs(left.clone().add(right).multiplyScalar(0.5).z - center.z) < 1e-5,
-      'each three-wide runner ring needs an exact centerline vertex',
-    );
+  for (let index = range.start; index < range.start + range.count; index++) {
+    assert.equal(ivyLayer.getX(index), layerIndex);
   }
-  for (let nodeIndex = 1; nodeIndex < centers.length; nodeIndex++) {
-    const segmentLength = new THREE.Vector2(
-      centers[nodeIndex]!.x - centers[nodeIndex - 1]!.x,
-      centers[nodeIndex]!.z - centers[nodeIndex - 1]!.z,
-    ).length();
-    assert.ok(
-      segmentLength > 0.1 && segmentLength < 0.75,
-      `runner ${runnerIndex} must remain a continuous ground curve`,
-    );
-  }
-  const baseLeft = new THREE.Vector3(
-    ivyPosition.getX(range.start),
-    ivyPosition.getY(range.start),
-    ivyPosition.getZ(range.start),
-  );
-  const baseRight = new THREE.Vector3(
-    ivyPosition.getX(range.start + 2),
-    ivyPosition.getY(range.start + 2),
-    ivyPosition.getZ(range.start + 2),
-  );
-  const terminalStart = range.start + FOREST_FLOOR_IVY_RUNNER_SEGMENTS * 3;
-  const tipLeft = new THREE.Vector3(
-    ivyPosition.getX(terminalStart),
-    ivyPosition.getY(terminalStart),
-    ivyPosition.getZ(terminalStart),
-  );
-  const tipRight = new THREE.Vector3(
-    ivyPosition.getX(terminalStart + 2),
-    ivyPosition.getY(terminalStart + 2),
-    ivyPosition.getZ(terminalStart + 2),
-  );
-  runnerWidths.push({
-    base: baseLeft.distanceTo(baseRight),
-    tip: tipLeft.distanceTo(tipRight),
-  });
+  expectedLayerStart += range.count;
 }
-for (const width of runnerWidths) {
-  assert.ok(width.tip < width.base * 0.25, 'every runner must taper beneath its final leaf');
-}
-
-for (const [leafIndex, range] of compiledIvy.leafVertexRanges.entries()) {
+assert.equal(expectedLayerStart, FOREST_FLOOR_IVY_SHEET_VERTICES_PER_PATCH);
+assert.equal(
+  compiledIvy.animatedLeafVertexRanges.length,
+  FOREST_FLOOR_IVY_ANIMATED_LEAVES_PER_PATCH,
+);
+for (const [leafIndex, range] of compiledIvy.animatedLeafVertexRanges.entries()) {
   assert.equal(
     range.start,
-    FOREST_FLOOR_IVY_RUNNER_VERTICES_PER_PATCH
+    FOREST_FLOOR_IVY_SHEET_VERTICES_PER_PATCH
       + leafIndex * FOREST_FLOOR_IVY_LEAF_VERTICES,
   );
   assert.equal(range.count, FOREST_FLOOR_IVY_LEAF_VERTICES);
   assert.equal(range.leafIndex, leafIndex);
   assert.equal(range.placementIndex, 0);
-  assert.equal(range.runnerIndex, Math.floor(leafIndex / FOREST_FLOOR_IVY_LEAVES_PER_RUNNER));
-  assert.equal(range.runnerNodeIndex, leafIndex % FOREST_FLOOR_IVY_LEAVES_PER_RUNNER + 1);
   assert.equal(range.rootVertex, range.start);
-  assert.equal(range.tipVertex, range.start + 8);
-  assert.ok(
-    new THREE.Vector3(
-      ivyPosition.getX(range.rootVertex),
-      ivyPosition.getY(range.rootVertex),
-      ivyPosition.getZ(range.rootVertex),
-    ).distanceTo(new THREE.Vector3(
-      ivyPosition.getX(range.runnerRootVertex),
-      ivyPosition.getY(range.runnerRootVertex),
-      ivyPosition.getZ(range.runnerRootVertex),
-    )) < 1e-6,
-    'every petiole must be welded to a real runner node',
-  );
-  for (let index = range.start; index < range.start + range.count; index++) {
-    assert.equal(ivyRunner.getX(index), range.runnerIndex);
-    const x = ivyPosition.getX(index);
-    const z = ivyPosition.getZ(index);
-    const clearance = ivyPosition.getY(index) - slopedTerrain.getHeightAt(x, z);
-    assert.ok(
-      clearance >= FOREST_FLOOR_IVY_GROUND_CLEARANCE - 0.001
-        && clearance <= FOREST_FLOOR_IVY_GROUND_CLEARANCE
-          + FOREST_FLOOR_IVY_CANOPY_HEIGHT_MAX + 1e-6,
-      'the complete leaf mesh must follow the ground rather than float above a carrier',
-    );
-  }
-}
-
-for (let runnerIndex = 0; runnerIndex < FOREST_FLOOR_IVY_RUNNERS_PER_PATCH; runnerIndex++) {
-  const runnerRange = compiledIvy.runnerVertexRanges[runnerIndex]!;
-  const sideSigns: number[] = [];
-  for (let nodeIndex = 1; nodeIndex < FOREST_FLOOR_IVY_LEAVES_PER_RUNNER; nodeIndex++) {
-    const leaf = compiledIvy.leafVertexRanges[
-      runnerIndex * FOREST_FLOOR_IVY_LEAVES_PER_RUNNER + nodeIndex - 1
-    ]!;
-    const previousRoot = runnerRange.start + (nodeIndex - 1) * 3 + 1;
-    const nextRoot = runnerRange.start + (nodeIndex + 1) * 3 + 1;
-    const tangentX = ivyPosition.getX(nextRoot) - ivyPosition.getX(previousRoot);
-    const tangentZ = ivyPosition.getZ(nextRoot) - ivyPosition.getZ(previousRoot);
-    const leafX = ivyPosition.getX(leaf.tipVertex) - ivyPosition.getX(leaf.rootVertex);
-    const leafZ = ivyPosition.getZ(leaf.tipVertex) - ivyPosition.getZ(leaf.rootVertex);
-    const cross = tangentX * leafZ - tangentZ * leafX;
-    assert.ok(Math.abs(cross) > 0.01, 'non-terminal leaves must visibly branch from the runner');
-    sideSigns.push(Math.sign(cross));
-  }
-  for (let index = 1; index < sideSigns.length; index++) {
-    assert.equal(
-      sideSigns[index],
-      -sideSigns[index - 1]!,
-      'successive ivy leaves should alternate sides like a botanical chain',
-    );
-  }
-  const terminalLeaf = compiledIvy.leafVertexRanges[
-    (runnerIndex + 1) * FOREST_FLOOR_IVY_LEAVES_PER_RUNNER - 1
-  ]!;
-  assert.equal(
-    terminalLeaf.runnerRootVertex,
-    runnerRange.start + FOREST_FLOOR_IVY_RUNNER_SEGMENTS * 3 + 1,
-    'the runner must end under its final leaf instead of protruding beyond it',
-  );
+  assert.ok(range.tipVertex >= range.start && range.tipVertex < range.start + range.count);
 }
 
 const ivyIndices = compiledIvy.geometry.index!.array;
 for (let index = 0; index < ivyIndices.length; index += 3) {
-  const runnerIndex = ivyRunner.getX(ivyIndices[index]!);
-  assert.equal(ivyRunner.getX(ivyIndices[index + 1]!), runnerIndex);
-  assert.equal(ivyRunner.getX(ivyIndices[index + 2]!), runnerIndex);
+  const aLayer = ivyLayer.getX(ivyIndices[index]!);
+  assert.equal(ivyLayer.getX(ivyIndices[index + 1]!), aLayer);
+  assert.equal(ivyLayer.getX(ivyIndices[index + 2]!), aLayer);
 }
-assert.equal(FOREST_FLOOR_IVY_LEAF_BOUNDARY.length, 16);
-assert.ok(
-  Math.min(...Array.from({ length: ivyUv.count }, (_, index) => ivyUv.getX(index))) >= 0,
-);
-assert.ok(
-  Math.max(...Array.from({ length: ivyUv.count }, (_, index) => ivyUv.getX(index))) <= 1,
-);
-for (const range of compiledIvy.leafVertexRanges) {
-  assert.ok(Math.abs(ivyUv.getX(range.rootVertex) - 0.5) < 1e-6);
-  assert.ok(Math.abs(ivyUv.getY(range.rootVertex)) < 1e-6);
-  assert.ok(Math.abs(ivyUv.getX(range.tipVertex) - 0.5) < 1e-6);
-  assert.ok(Math.abs(ivyUv.getY(range.tipVertex) - 1) < 1e-6);
-  assert.ok(
-    ivyTint.getY(range.start + FOREST_FLOOR_IVY_LEAF_VERTICES - 1)
-      > ivyTint.getY(range.rootVertex),
-    'procedural vertex color should preserve a readable midrib-to-petiole gradient',
-  );
+
+for (let index = 0; index < FOREST_FLOOR_IVY_SHEET_VERTICES_PER_PATCH; index++) {
+  assert.equal(ivyHinge.getW(index), 0, 'broad carrier sheets must remain terrain-welded');
+  assert.equal(ivyRootPhase.getX(index), 0);
+  assert.equal(ivyRootPhase.getY(index), 0);
+  assert.equal(ivyRootPhase.getZ(index), 0);
+  assert.equal(ivyRootPhase.getW(index), 0);
 }
 
 function smootherstep(edge0: number, edge1: number, value: number): number {
@@ -672,7 +518,7 @@ const motionSampleTimes = [0, 1.25, 2.5, 5, 8, 12];
 const leafPhases = new Set<string>();
 const motionSignatures = new Set<string>();
 let movingLeafCount = 0;
-for (const range of compiledIvy.leafVertexRanges) {
+for (const range of compiledIvy.animatedLeafVertexRanges) {
   const root = new THREE.Vector3(
     ivyRootPhase.getX(range.rootVertex),
     ivyRootPhase.getY(range.rootVertex),
@@ -690,11 +536,11 @@ for (const range of compiledIvy.leafVertexRanges) {
     (_, index) => ivyNormal.getY(range.start + index),
   );
   assert.ok(
-    Math.min(...leafNormalYs) > 0.05,
-    `leaf ${range.leafIndex} must keep its authored face normals above the litter`,
+    Math.min(...leafNormalYs) > 0.08,
+    `leaf ${range.leafIndex} must keep its authored face normals above the litter (observed ${Math.min(...leafNormalYs).toFixed(3)})`,
   );
   assert.ok(Math.abs(axis.length() - 1) < 1e-6, 'every leaf needs a unit hinge axis');
-  assert.ok(hingeAmplitude > 0, 'every visible leaf needs non-zero flexibility');
+  assert.ok(hingeAmplitude > 0, 'every explicit leaf needs non-zero flexibility');
   assert.ok(
     new THREE.Vector3(
       ivyPosition.getX(range.rootVertex),
@@ -737,7 +583,10 @@ for (const range of compiledIvy.leafVertexRanges) {
     maximumMotion = Math.max(maximumMotion, motion);
     signature.push(Number(motion.toFixed(5)));
   }
-  assert.equal(Math.abs(ivyAngleAt(root, phase, hingeAmplitude, 5, 0, 4)), 0);
+  assert.ok(
+    Math.abs(ivyAngleAt(root, phase, hingeAmplitude, 5, 0, 4)) === 0,
+    'zero SeedThree wind strength must reproduce the authored rest pose',
+  );
   assert.ok(
     maximumMotion <= FOREST_FLOOR_IVY_ANIMATION_MAX_TIP_DISPLACEMENT + 1e-6,
     `leaf ${range.leafIndex} exceeded the sheltered groundcover motion cap`,
@@ -747,18 +596,96 @@ for (const range of compiledIvy.leafVertexRanges) {
 }
 assert.equal(
   movingLeafCount,
-  FOREST_FLOOR_IVY_LEAVES_PER_PATCH,
-  'every visible ivy leaf should respond over a complete SeedThree gust sample',
+  FOREST_FLOOR_IVY_ANIMATED_LEAVES_PER_PATCH,
+  'every explicit leaf should visibly respond over a complete gust sample',
 );
 assert.ok(
-  leafPhases.size >= FOREST_FLOOR_IVY_LEAVES_PER_PATCH * 0.9,
+  leafPhases.size >= FOREST_FLOOR_IVY_ANIMATED_LEAVES_PER_PATCH * 0.9,
   'individual leaves need deterministic non-lockstep phases',
 );
 assert.ok(
-  motionSignatures.size >= FOREST_FLOOR_IVY_LEAVES_PER_PATCH * 0.75,
-  'individual leaves must not animate as one rocking colony card',
+  motionSignatures.size >= FOREST_FLOOR_IVY_ANIMATED_LEAVES_PER_PATCH * 0.75,
+  'individual leaves must not animate as one rocking card',
 );
 
+const clearanceByLayer = compiledIvy.layerVertexRanges.map(() => [] as number[]);
+const normalYByLayer = compiledIvy.layerVertexRanges.map(() => [] as number[]);
+const tintBrightnessByLayer = compiledIvy.layerVertexRanges.map(() => [] as number[]);
+for (const [layerIndex, range] of compiledIvy.layerVertexRanges.entries()) {
+  for (let index = range.start; index < range.start + range.count; index++) {
+    const x = ivyPosition.getX(index);
+    const z = ivyPosition.getZ(index);
+    clearanceByLayer[layerIndex]!.push(
+      ivyPosition.getY(index) - slopedTerrain.getHeightAt(x, z),
+    );
+    normalYByLayer[layerIndex]!.push(ivyNormal.getY(index));
+    tintBrightnessByLayer[layerIndex]!.push(
+      (ivyTint.getX(index) + ivyTint.getY(index) + ivyTint.getZ(index)) / 3,
+    );
+  }
+}
+const minimumClearance = Math.min(...clearanceByLayer.flat());
+const maximumClearance = Math.max(...clearanceByLayer.flat());
+const layerPeaks = clearanceByLayer.map((values) => Math.max(...values));
+const layerTintMeans = tintBrightnessByLayer.map(
+  (values) => values.reduce((sum, value) => sum + value, 0) / values.length,
+);
+const tierPeaks = [0, 0, 0, 0];
+const tierTintTotals = [0, 0, 0, 0];
+const tierTintCounts = [0, 0, 0, 0];
+for (const [layerIndex, spec] of FOREST_FLOOR_IVY_LAYER_SPECS.entries()) {
+  tierPeaks[spec.tier] = Math.max(tierPeaks[spec.tier]!, layerPeaks[layerIndex]!);
+  tierTintTotals[spec.tier] += layerTintMeans[layerIndex]!;
+  tierTintCounts[spec.tier] += 1;
+}
+const tierTintMeans = tierTintTotals.map(
+  (total, tier) => total / tierTintCounts[tier]!,
+);
+assert.ok(
+  Math.abs(minimumClearance - FOREST_FLOOR_IVY_GROUND_CLEARANCE) < 1e-6,
+  'the ground stratum should retain exact litter contact',
+);
+assert.ok(
+  maximumClearance > 0.22
+    && maximumClearance <= FOREST_FLOOR_IVY_GROUND_CLEARANCE
+      + FOREST_FLOOR_IVY_CANOPY_HEIGHT_MAX + 1e-6,
+  'the crown should create real layered depth while remaining bounded groundcover',
+);
+assert.ok(
+  FOREST_FLOOR_IVY_LAYER_COUNT > tierPeaks.length,
+  'paired botanical lobes should create more disconnected sheets than height tiers',
+);
+for (let tier = 1; tier < tierPeaks.length; tier++) {
+  assert.ok(
+    tierPeaks[tier]! > tierPeaks[tier - 1]! + 0.025,
+    `tier ${tier} should establish a distinct height band`,
+  );
+  assert.ok(
+    tierTintMeans[tier]! > tierTintMeans[tier - 1]!,
+    `tier ${tier} should be brighter than its supporting foliage`,
+  );
+}
+assert.ok(
+  Math.min(...normalYByLayer[0]!) > 0.75,
+  'only the grounded apron must remain consistently ground-facing',
+);
+const raisedNormals = normalYByLayer.slice(1).flat();
+assert.ok(
+  raisedNormals.filter((normalY) => normalY < Math.cos(THREE.MathUtils.degToRad(20))).length
+    / raisedNormals.length > 0.05,
+  'raised shelves should contain visibly canted macro normals rather than parallel sheets',
+);
+assert.ok(Math.abs(ivyUv.getX(0) - FOREST_FLOOR_IVY_UV_BOUNDS.minU) < 1e-6);
+assert.ok(Math.abs(ivyUv.getY(0) - FOREST_FLOOR_IVY_UV_BOUNDS.minV) < 1e-6);
+assert.ok(
+  Math.min(...Array.from({ length: ivyUv.count }, (_, index) => ivyUv.getX(index)))
+    < FOREST_FLOOR_IVY_UV_BOUNDS.minU,
+  'raised shelves should include a transparent UV guard around the alpha silhouette',
+);
+assert.ok(
+  Math.max(...Array.from({ length: ivyUv.count }, (_, index) => ivyUv.getX(index)))
+    > FOREST_FLOOR_IVY_UV_BOUNDS.maxU,
+);
 const repeatedIvy = createTerrainConformingIvyGeometry(
   [ivyPlacement],
   slopedTerrain,
@@ -768,12 +695,12 @@ const repeatedIvy = createTerrainConformingIvyGeometry(
 assert.deepEqual(
   Array.from(repeatedIvy.originalPositions),
   Array.from(compiledIvy.originalPositions),
-  'fixed seed, placement, and terrain should reproduce every runner and leaf',
+  'fixed seed, placement, and terrain should reproduce every shelf exactly',
 );
 assert.deepEqual(
   Array.from(repeatedIvy.geometry.index!.array),
   Array.from(compiledIvy.geometry.index!.array),
-  'fixed inputs should reproduce the runner-chain topology exactly',
+  'fixed inputs should reproduce layered topology exactly',
 );
 assert.deepEqual(
   Array.from(repeatedIvy.geometry.getAttribute('aIvyRootPhase').array),
@@ -784,11 +711,6 @@ assert.deepEqual(
   Array.from(repeatedIvy.geometry.getAttribute('aIvyHinge').array),
   Array.from(ivyHinge.array),
   'fixed inputs should reproduce every leaf hinge and amplitude',
-);
-
-assert.equal(
-  FOREST_FLOOR_IVY_RUNNER_TRIANGLES,
-  FOREST_FLOOR_IVY_RUNNER_SEGMENTS * 4,
 );
 
 assert.equal(FOREST_FLOOR_TWIG_VARIANT_COUNT, 3);
@@ -844,13 +766,8 @@ for (const [variantIndex, geometry] of twigGeometries.entries()) {
   repeated.dispose();
 }
 
-assert.doesNotMatch(
-  ivySource,
-  /loadSeedThreeGroundCoverTextures|forest-floor-ivy-card\.png/,
-  'procedural ivy must not sample the rejected colony-card texture',
-);
+assert.match(ivySource, /loadSeedThreeGroundCoverTextures/);
 assert.match(ivySource, /createTerrainConformingIvyGeometry/);
-assert.match(ivySource, /new THREE\.DataTexture\([\s\S]*?255, 255, 255, 255/);
 assert.match(
   ivySource,
   /createSeedThreeGroundCoverMaterial/,
@@ -859,7 +776,7 @@ assert.match(
 assert.doesNotMatch(
   ivySource,
   /createSeedThreeCardClumpGeometry|new THREE\.InstancedMesh|tiltMin:/,
-  'the rejected flat-card and crossed-card colony must not return',
+  'the rejected flat-card and crossed-card carrier must not return',
 );
 assert.match(ivySource, /terrain\.getHeightAt\(worldX, worldZ\)/);
 assert.match(ivySource, /sourceTreeIndex:[\s\S]*?placementVertexRangesByTree/);
@@ -869,9 +786,7 @@ assert.match(ivySource, /hingeWind\.normalNode/);
 assert.match(ivySource, /applyIvyLeafHingeWebGLWind\(material\)/);
 assert.match(ivySource, /geometry\.setAttribute\('aIvyRootPhase'/);
 assert.match(ivySource, /geometry\.setAttribute\('aIvyHinge'/);
-assert.match(ivySource, /createIvyRunnerPlans/);
-assert.match(ivySource, /appendIvyRunners/);
-assert.match(ivySource, /appendIvyRunnerLeaves/);
+assert.match(ivySource, /appendAnimatedIvyLeaves/);
 assert.match(ivyWindSource, /worldAnimationTime[\s\S]*?windSpeed[\s\S]*?windStrength/);
 assert.match(ivyWindSource, /rotateAroundAxis[\s\S]*?rootPhase[\s\S]*?hinge/);
 assert.match(ivyWindSource, /transformNormalToView\(rotatedNormal\)/);
@@ -890,16 +805,11 @@ assert.match(
 assert.match(ivySource, /FOREST_FLOOR_IVY_HIDDEN_Y[\s\S]*?position\.addUpdateRange/);
 assert.match(
   ivySource,
-  /FOREST_FLOOR_IVY_RUNNERS_PER_PATCH = 7[\s\S]*?FOREST_FLOOR_IVY_LEAVES_PER_RUNNER = 6[\s\S]*?FOREST_FLOOR_IVY_LEAVES_PER_PATCH/,
-  'ivy should declare a bounded runner graph with one explicit leaf at every link',
+  /FOREST_FLOOR_IVY_LAYER_SPECS[\s\S]*?kind: 'ground'[\s\S]*?kind: 'lower'[\s\S]*?kind: 'upper'[\s\S]*?kind: 'crown'/,
+  'ivy should declare semantic ground, lower, upper, and crown strata',
 );
-assert.match(ivySource, /tipTaper[\s\S]*?THREE\.MathUtils\.lerp\(1, 0\.18, tipTaper\)/);
-assert.match(ivySource, /geometry\.setAttribute\('ivyRunner'/);
-assert.doesNotMatch(
-  ivySource,
-  /FOREST_FLOOR_IVY_LAYER_SPECS|ivyStackHeightAtWorld|appendAnimatedIvyLeaves/,
-  'the detached carrier-sheet architecture must not return',
-);
+assert.match(ivySource, /ivyStackHeightAtWorld[\s\S]*?overhangScale[\s\S]*?supportGap/);
+assert.match(ivySource, /geometry\.setAttribute\('ivyLayer'/);
 assert.match(
   nettleSource,
   /createGorskiShrubPrototype\('nettle', variant\)/,
@@ -1081,6 +991,13 @@ assert.match(grassSource, /FOREST_GRASS_RENDER_DENSITY_MULTIPLIER = 0/);
 assert.match(grassSource, /FOREST_GRASS_PLACEMENT_CHANCE = 0/);
 assert.match(grassSource, /FOREST_WILDFLOWER_PLACEMENT_CHANCE = 0/);
 
+const ivyTexture = readFileSync(ivyTexturePath);
+assert.ok(
+  statSync(ivyTexturePath).size > 200_000,
+  'forest ivy should remain a full authored cutout instead of a placeholder',
+);
+assert.equal(ivyTexture.subarray(1, 4).toString('ascii'), 'PNG');
+assert.equal(ivyTexture[25], 6, 'forest ivy should retain RGBA transparency');
 for (const twigTexturePath of twigTexturePaths) {
   const texture = readFileSync(twigTexturePath);
   assert.ok(
