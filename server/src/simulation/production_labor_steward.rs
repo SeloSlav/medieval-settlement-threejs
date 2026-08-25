@@ -3,9 +3,7 @@ use spacetimedb::{Identity, ReducerContext};
 use crate::db::*;
 use crate::labor_steward_policy::seasonal_labor_steward_review_due;
 use crate::reducers::buildings::{
-    call_up_operational_production_labor_for_owner,
     call_up_operational_production_labor_for_settlement,
-    recall_target_idle_processor_labor_for_owner,
     recall_target_idle_processor_labor_for_settlement,
 };
 use crate::tables::Settlement;
@@ -16,16 +14,6 @@ use super::settlement_has_staffed_town_hall;
 /// genuinely stalled sites first, then the enlarged free pool fills supplied
 /// or recovering, capacity-open sites fairly in stable worksite order. The explicit
 /// player order remains free to pre-staff an empty chain.
-pub fn reconcile_target_production_labor_for_owner(
-    ctx: &ReducerContext,
-    owner: Identity,
-    labor_reserve: u32,
-) -> (u32, u32) {
-    let recalled = recall_target_idle_processor_labor_for_owner(ctx, owner);
-    let called_up = call_up_operational_production_labor_for_owner(ctx, owner, labor_reserve);
-    (recalled, called_up)
-}
-
 pub fn reconcile_target_production_labor_for_settlement(
     ctx: &ReducerContext,
     owner: Identity,

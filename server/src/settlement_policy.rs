@@ -10,6 +10,7 @@ use crate::balance_generated::{
     ECONOMIC_ACTIVITY_TAX_RATE, TOWN_HALL_UNSTAFFED_TAX_COLLECTION_MULTIPLIER,
 };
 use crate::db::*;
+use crate::night_policy::WATCH_STANDARD;
 use crate::pantry_safeguard_policy::PANTRY_SAFEGUARD_DEFAULT;
 use crate::tables::Settlement;
 
@@ -100,20 +101,16 @@ pub fn export_duty_rate(ctx: &ReducerContext, owner: Identity, settlement_id: u6
 #[derive(Clone, Copy, Debug)]
 pub struct NightPolicies {
     pub watch: u8,
-    pub gathering: u8,
     pub work: u8,
     pub lighting: u8,
-    pub curfew: u8,
 }
 
 pub fn night(ctx: &ReducerContext, owner: Identity, settlement_id: u64) -> NightPolicies {
     if let Some(settlement) = row(ctx, owner, settlement_id) {
         return NightPolicies {
             watch: settlement.night_watch_policy,
-            gathering: settlement.night_gathering_policy,
             work: settlement.night_work_policy,
             lighting: settlement.night_lighting_policy,
-            curfew: settlement.night_curfew_policy,
         };
     }
     ctx.db
@@ -122,17 +119,13 @@ pub fn night(ctx: &ReducerContext, owner: Identity, settlement_id: u64) -> Night
         .find(&owner)
         .map(|resources| NightPolicies {
             watch: resources.night_watch_policy,
-            gathering: resources.night_gathering_policy,
             work: resources.night_work_policy,
             lighting: resources.night_lighting_policy,
-            curfew: resources.night_curfew_policy,
         })
         .unwrap_or(NightPolicies {
-            watch: 0,
-            gathering: 1,
+            watch: WATCH_STANDARD,
             work: 1,
             lighting: 1,
-            curfew: 1,
         })
 }
 

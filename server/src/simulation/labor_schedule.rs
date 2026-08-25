@@ -1,6 +1,5 @@
 use spacetimedb::{Identity, ReducerContext};
 
-use crate::db::*;
 use crate::simulation::game_calendar::{
     holiday_observance, household_consumption_paused, GameClock,
 };

@@ -84,9 +84,8 @@ pub use storage::{
 };
 pub use trade_resources::trade_resource_for_commodity;
 pub use village_economy::{
-    clamp_economic_activity_tax_rate, player_economic_activity_tax_rate,
-    settlement_economic_activity_tax_rate, settlement_town_hall_tax_collection_multiplier,
-    taxed_economic_activity, town_hall_tax_collection_multiplier,
+    clamp_economic_activity_tax_rate, settlement_economic_activity_tax_rate,
+    settlement_town_hall_tax_collection_multiplier, taxed_economic_activity,
 };
 
 pub use crate::balance_generated::{

@@ -20,7 +20,6 @@ use crate::economy::{
 };
 use crate::pantry_safeguard_policy::{
     daily_market_issue_target_days, emergency_pantry_rule, normalize_pantry_safeguard_policy,
-    PANTRY_SAFEGUARD_DEFAULT,
 };
 use crate::season_policy::EnvironmentState;
 use crate::simulation::delivery_cargo::{

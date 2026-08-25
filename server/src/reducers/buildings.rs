@@ -75,11 +75,9 @@ use crate::roads::load_owner_road_network;
 use crate::seasonal_labor_policy::seasonal_production_active;
 use crate::simulation::{
     building_fire_state, building_has_active_trip, building_has_inbound_commodity_trip,
-    building_has_inbound_supply_trip, call_up_active_seasonal_labor_for_owner,
-    call_up_active_seasonal_labor_for_settlement,
+    building_has_inbound_supply_trip, call_up_active_seasonal_labor_for_settlement,
     cancel_inbound_construction_trips_for_site, clear_fire_for_target, drain_trips_for_building,
-    game_clock, local_delivery_distance, owner_has_staffed_town_hall,
-    preserve_in_transit_cart_labor, recall_idle_seasonal_labor_for_owner,
+    game_clock, local_delivery_distance, preserve_in_transit_cart_labor,
     recall_idle_seasonal_labor_for_settlement,
     staffed_cart_workers_by_building, ReclamationStock, FIRE_TARGET_BUILDING,
 };
@@ -1253,21 +1251,6 @@ pub fn rotate_construction_labor(
 /// order and the optional daily steward. The queue policy remains pure; this
 /// adapter supplies live material and inbound-cart state, then applies only the
 /// returned target rows.
-pub(crate) fn rotate_construction_labor_for_owner(
-    ctx: &ReducerContext,
-    owner: spacetimedb::Identity,
-) -> ConstructionLaborRotation {
-    rotate_construction_labor_for_owner_with_reserve(ctx, owner, 0)
-}
-
-pub(crate) fn rotate_construction_labor_for_owner_with_reserve(
-    ctx: &ReducerContext,
-    owner: spacetimedb::Identity,
-    labor_reserve: u32,
-) -> ConstructionLaborRotation {
-    rotate_construction_labor_for_scope(ctx, owner, None, labor_reserve)
-}
-
 /// A Town Hall steward administers only construction sites affiliated with its
 /// own community. The workers remain part of the realm-wide free labor pool,
 /// so this is a jurisdiction filter rather than a movement or hiring wall.
@@ -1782,13 +1765,6 @@ fn production_site_ready(
 /// reducer name is retained for generated-binding and save compatibility.
 /// Matching inbound inputs protect recovering workshops; stored output and
 /// active carts never retain production workers.
-pub fn recall_target_idle_processor_labor_for_owner(
-    ctx: &ReducerContext,
-    owner: spacetimedb::Identity,
-) -> u32 {
-    recall_target_idle_processor_labor_for_scope(ctx, owner, None)
-}
-
 pub fn recall_target_idle_processor_labor_for_settlement(
     ctx: &ReducerContext,
     owner: spacetimedb::Identity,
@@ -2051,13 +2027,6 @@ fn call_up_target_ready_processor_labor_for_owner_with_policy(
 
 /// The explicit Town Hall order may pre-staff an input-empty workshop so the
 /// player can prepare a chain before its first cart arrives.
-pub fn call_up_target_ready_processor_labor_for_owner(
-    ctx: &ReducerContext,
-    owner: spacetimedb::Identity,
-) -> u32 {
-    call_up_target_ready_processor_labor_for_owner_with_policy(ctx, owner, None, false, 0)
-}
-
 pub fn call_up_target_ready_processor_labor_for_settlement(
     ctx: &ReducerContext,
     owner: spacetimedb::Identity,
@@ -2075,20 +2044,6 @@ pub fn call_up_target_ready_processor_labor_for_settlement(
 /// Daily automation is deliberately stricter: it never recalls an input-starved
 /// crew and immediately hires it back. Capacity-open workshops must have their
 /// current inputs or matching inbound carts before they claim free labor.
-pub fn call_up_operational_production_labor_for_owner(
-    ctx: &ReducerContext,
-    owner: spacetimedb::Identity,
-    labor_reserve: u32,
-) -> u32 {
-    call_up_target_ready_processor_labor_for_owner_with_policy(
-        ctx,
-        owner,
-        None,
-        true,
-        labor_reserve,
-    )
-}
-
 pub fn call_up_operational_production_labor_for_settlement(
     ctx: &ReducerContext,
     owner: spacetimedb::Identity,

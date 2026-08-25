@@ -3,9 +3,7 @@ use spacetimedb::ReducerContext;
 use crate::balance_generated::{
     ECONOMIC_ACTIVITY_TAX_RATE, ECONOMIC_ACTIVITY_TAX_RATE_MAX, ECONOMIC_ACTIVITY_TAX_RATE_MIN,
     HIGH_TAX_PRODUCTIVITY_DRAG, LOW_TAX_PRODUCTIVITY_BOOST,
-    TOWN_HALL_UNSTAFFED_TAX_COLLECTION_MULTIPLIER,
 };
-use crate::db::*;
 
 pub fn clamp_economic_activity_tax_rate(rate: f64) -> f64 {
     rate.clamp(
@@ -39,26 +37,12 @@ pub fn taxed_economic_activity(base_activity: f64, tax_rate: f64) -> (f64, f64) 
     (adjusted, tax)
 }
 
-pub fn player_economic_activity_tax_rate(
-    ctx: &ReducerContext,
-    owner: spacetimedb::Identity,
-) -> f64 {
-    crate::settlement_policy::economic_activity_tax_rate(ctx, owner, 0)
-}
-
 pub fn settlement_economic_activity_tax_rate(
     ctx: &ReducerContext,
     owner: spacetimedb::Identity,
     settlement_id: u64,
 ) -> f64 {
     crate::settlement_policy::economic_activity_tax_rate(ctx, owner, settlement_id)
-}
-
-pub fn town_hall_tax_collection_multiplier(
-    ctx: &ReducerContext,
-    owner: spacetimedb::Identity,
-) -> f64 {
-    crate::settlement_policy::town_hall_tax_collection_multiplier(ctx, owner, 0)
 }
 
 pub fn settlement_town_hall_tax_collection_multiplier(

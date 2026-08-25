@@ -17,15 +17,6 @@ use crate::tables::{farm_field, Building, Settlement};
 
 use super::{building_fire_state, building_has_active_trip, preserve_in_transit_cart_labor};
 
-pub fn owner_has_staffed_town_hall(ctx: &ReducerContext, owner: Identity) -> bool {
-    ctx.db.building().owner().filter(&owner).any(|building| {
-        building.kind == "town_hall"
-            && building.construction_complete
-            && building.assigned_labor > 0
-            && building_fire_state(ctx, building.id).is_none()
-    })
-}
-
 pub fn settlement_has_staffed_town_hall(
     ctx: &ReducerContext,
     settlement: &Settlement,
@@ -48,14 +39,6 @@ pub fn settlement_has_staffed_town_hall(
 
 /// Releases only labor whose seasonal work is dormant. Logistics labor handles
 /// stored stock and active carts independently of the production roster.
-pub fn recall_idle_seasonal_labor_for_owner(
-    ctx: &ReducerContext,
-    owner: Identity,
-    month: u32,
-) -> u32 {
-    recall_idle_seasonal_labor_for_scope(ctx, owner, None, month)
-}
-
 fn recall_idle_seasonal_labor_for_scope(
     ctx: &ReducerContext,
     owner: Identity,
@@ -180,23 +163,6 @@ pub fn recall_idle_seasonal_labor_for_settlement(
 
 /// Fills active seasonal sites from the free labor pool. Existing staffing
 /// priorities and round-robin sharing remain authoritative.
-pub fn call_up_active_seasonal_labor_for_owner(
-    ctx: &ReducerContext,
-    owner: Identity,
-    month: u32,
-) -> u32 {
-    call_up_active_seasonal_labor_for_owner_with_reserve(ctx, owner, month, 0)
-}
-
-fn call_up_active_seasonal_labor_for_owner_with_reserve(
-    ctx: &ReducerContext,
-    owner: Identity,
-    month: u32,
-    labor_reserve: u32,
-) -> u32 {
-    call_up_active_seasonal_labor_for_scope(ctx, owner, None, month, labor_reserve)
-}
-
 fn call_up_active_seasonal_labor_for_scope(
     ctx: &ReducerContext,
     owner: Identity,
@@ -280,18 +246,6 @@ pub fn call_up_active_seasonal_labor_for_settlement(
 
 /// Ordering matters: dormant crews return first, then the same day's active
 /// sites compete for the enlarged free pool.
-pub fn reconcile_seasonal_labor_for_owner(
-    ctx: &ReducerContext,
-    owner: Identity,
-    month: u32,
-    labor_reserve: u32,
-) -> (u32, u32) {
-    let recalled = recall_idle_seasonal_labor_for_owner(ctx, owner, month);
-    let called_up =
-        call_up_active_seasonal_labor_for_owner_with_reserve(ctx, owner, month, labor_reserve);
-    (recalled, called_up)
-}
-
 pub fn reconcile_seasonal_labor_for_settlement(
     ctx: &ReducerContext,
     owner: Identity,

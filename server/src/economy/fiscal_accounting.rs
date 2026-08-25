@@ -28,10 +28,6 @@ pub struct MonasteryExportSplit {
     pub export_duty: f64,
 }
 
-pub fn player_export_duty_rate(ctx: &ReducerContext, owner: spacetimedb::Identity) -> f64 {
-    settlement_export_duty_rate(ctx, owner, 0)
-}
-
 pub fn settlement_export_duty_rate(
     ctx: &ReducerContext,
     owner: spacetimedb::Identity,
