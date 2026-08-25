@@ -992,6 +992,15 @@
     saturate(1.06);
 }
 
+/* Church is a service rather than stored inventory, so its residence-need
+ * token uses the chapel artwork instead of masquerading as a commodity. */
+.residence-need-icon[data-residence-need='church'] .resource-cost__icon {
+  background-image: url('/assets/ui/build-menu/cards/chapel.webp');
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: contain;
+}
+
 @media (max-width: 720px) {
   .construction-dock-button .gk-icon {
     --gk-icon-size: 31px;

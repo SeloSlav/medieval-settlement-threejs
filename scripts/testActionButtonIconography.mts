@@ -229,14 +229,20 @@ assert.match(residenceRenderer, /data-action="upgrade-residence" data-upgrade-ti
 assert.match(residenceRenderer, /data-residence-summary/);
 assert.match(
   residenceRenderer,
-  /data-inspector-detail="Staffed parish level \$\{requiredChapelTierForResidence\(residence\.tier\)\} required"><span>Church<\/span>/,
-  'the compact church summary should state only the actual staffed-parish requirement',
+  /data-residence-tier-needs[\s\S]{0,240}<span>Tier \$\{tier\} \/ 4 needs<\/span>[\s\S]{0,160}class="residence-needs-row"/,
+  'the residence summary should align the current tier with its need-icon row',
 );
 assert.doesNotMatch(
   residenceRenderer,
-  /data-inspector-detail="[^"]*no monastery[^"]*"><span>Church<\/span>/,
-  'optional monastery coverage must not be presented as a church requirement',
+  /<span>Approval & economy<\/span>|<span>Household services<\/span>/,
+  'generic household-service prose cards should not appear on residence inspectors',
 );
+assert.match(residenceRenderer, /activeResidenceNeedKinds\(tier\)/);
+assert.match(residenceRenderer, /data-residence-need-state="\$\{met \? 'met' : 'unmet'\}"/);
+assert.match(residenceRenderer, /getNeed\(residence\.needs, kind\)\.deficitTicks <= 0/);
+assert.match(backyardCss, /residence-need-icon\.is-unmet \.resource-cost__icon[\s\S]{0,120}grayscale\(1\)/);
+assert.match(iconography, /data-residence-need='church'[\s\S]{0,180}chapel\.webp/);
+assert.doesNotMatch(backyardRenderer, /<span>Household services<\/span>|formatResidenceServiceConsequence/);
 assert.match(
   residenceRenderer,
   /<span>Monastery bonus<\/span><span>\$\{community\.hasMonasteryCoverage \? 'Active[^']*' : 'Inactive'\}<\/span>/,

@@ -1914,6 +1914,91 @@ select:focus-visible {
   text-align: left;
 }
 
+.resource-inspector-details [data-inspector-details] > li[data-residence-tier-needs] {
+  grid-column: 1 / -1;
+  grid-template-columns: minmax(92px, max-content) minmax(0, 1fr);
+  grid-template-rows: auto;
+  gap: 8px 12px;
+  min-height: 58px;
+  overflow: visible;
+}
+
+.resource-inspector-details [data-inspector-details] > li[data-residence-tier-needs]
+  > .inspector-row-icon {
+  display: none;
+}
+
+.resource-inspector-details [data-inspector-details] > li[data-residence-tier-needs]
+  > .inspector-detail-label {
+  grid-column: 1;
+  grid-row: 1;
+  align-self: center;
+  font-size: 9px;
+  line-height: 1.25;
+}
+
+.resource-inspector-details [data-inspector-details] > li[data-residence-tier-needs]
+  > .inspector-detail-value {
+  grid-column: 2;
+  grid-row: 1;
+  align-self: center;
+}
+
+.residence-needs-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+}
+
+.residence-need-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 30px;
+  border: 1px solid rgba(218, 190, 126, 0.25);
+  border-radius: 4px;
+  background: rgba(10, 11, 9, 0.42);
+  cursor: help;
+  transition: border-color 120ms ease, background 120ms ease, opacity 120ms ease;
+}
+
+.residence-need-icon .resource-cost__item {
+  display: grid;
+  place-items: center;
+}
+
+.residence-need-icon .resource-cost__icon {
+  width: 21px;
+  height: 21px;
+}
+
+.residence-need-icon.is-met {
+  border-color: rgba(153, 194, 113, 0.5);
+  background:
+    linear-gradient(145deg, rgba(104, 148, 74, 0.2), transparent 66%),
+    rgba(14, 20, 12, 0.46);
+}
+
+.residence-need-icon.is-unmet {
+  border-color: rgba(177, 178, 173, 0.16);
+  background: rgba(31, 32, 30, 0.3);
+}
+
+.residence-need-icon.is-unmet .resource-cost__icon {
+  opacity: 0.38;
+  filter: grayscale(1) brightness(0.72);
+}
+
+.residence-need-icon:hover,
+.residence-need-icon:focus-visible {
+  border-color: rgba(231, 199, 123, 0.72);
+  background-color: rgba(43, 39, 29, 0.7);
+  outline: none;
+}
+
 .resource-inspector-panel[data-inspector-target='building'] .resource-inspector-details > [data-inspector-details] {
   gap: 5px;
 }

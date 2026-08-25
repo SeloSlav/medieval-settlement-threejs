@@ -132,6 +132,20 @@ import type { BuildingState, InspectableTarget, ResidenceState } from '../types.
 import type { InspectorRenderContext, InspectorView } from './renderInspectableTarget.ts';
 import { hiddenLabor } from './renderInspectableTarget.ts';
 
+const RESIDENCE_NEED_ICON_RESOURCES: Record<ResidenceNeedKind, ResourceCostKind> = {
+  food: 'food',
+  firewood: 'firewood',
+  water: 'water',
+  church: 'candles',
+  foodVariety: 'vegetables',
+  cloth: 'cloth',
+  shoes: 'shoes',
+  preservedFood: 'preservedFood',
+  ale: 'ale',
+  pottery: 'pottery',
+  luxury: 'candles',
+};
+
 export function renderResidenceInspector(
   target: Extract<InspectableTarget, { kind: 'residence' }>,
   context: InspectorRenderContext,
@@ -893,6 +907,52 @@ export function renderResidenceInspector(
         ? residenceUpgradePanel(upgradePlan, prosperityPlan, tierThreeProjection)
         : ''}`,
   };
+}
+
+function renderResidenceTierNeedsRow(
+  residence: ResidenceState,
+  roadAccess: string,
+): string {
+  if (residence.tier === 0) return '';
+  const tier = residence.tier;
+  const needStates = activeResidenceNeedKinds(tier).map((kind) => ({
+    kind,
+    met: residence.population > 0 && getNeed(residence.needs, kind).deficitTicks <= 0,
+  }));
+  const needs = needStates.map(({ kind, met }) => {
+    const occupied = residence.population > 0;
+    const label = residenceNeedIconLabel(kind);
+    const churchRequirement = kind === 'church'
+      ? ` A staffed level-${requiredChapelTierForResidence(tier)} parish is required.`
+      : '';
+    const detail = occupied
+      ? `${met ? 'Met' : 'Not currently met'} for this Tier ${tier} household.${churchRequirement}`
+      : `Inactive until this Tier ${tier} residence is occupied.${churchRequirement}`;
+    return `<span class="residence-need-icon ${met ? 'is-met' : 'is-unmet'}" role="listitem" tabindex="0" data-residence-need="${kind}" data-residence-need-state="${met ? 'met' : 'unmet'}" data-tooltip-title="${label}" data-tooltip="${detail}" aria-label="${label}: ${met ? 'met' : 'not met'}"><span class="resource-cost__item" data-resource-cost="${RESIDENCE_NEED_ICON_RESOURCES[kind]}" aria-hidden="true"><span class="resource-cost__icon"></span></span></span>`;
+  });
+  const metCount = needStates.filter(({ met }) => met).length;
+  const roof = tier >= 4
+    ? 'Fired clay tile'
+    : tier === 1
+      ? 'Bundled thatch'
+      : 'Split wooden shingle';
+  return `<li data-residence-summary data-inspector-primary data-residence-tier-needs data-inspector-detail="${roof} · ${roadAccess} · ${metCount} of ${needs.length} current needs met"><span>Tier ${tier} / 4 needs</span><span class="residence-needs-row" role="list" aria-label="Tier ${tier} household needs">${needs.join('')}</span></li>`;
+}
+
+function residenceNeedIconLabel(kind: ResidenceNeedKind): string {
+  switch (kind) {
+    case 'food': return 'Food';
+    case 'firewood': return 'Firewood';
+    case 'water': return 'Water';
+    case 'church': return 'Church access';
+    case 'foodVariety': return 'Food variety';
+    case 'cloth': return 'Household textiles';
+    case 'shoes': return 'Footwear';
+    case 'preservedFood': return 'Cured provisions';
+    case 'ale': return 'Beverages';
+    case 'pottery': return 'Household pottery';
+    case 'luxury': return 'Luxury comfort';
+  }
 }
 
 function residenceProjectStatus(

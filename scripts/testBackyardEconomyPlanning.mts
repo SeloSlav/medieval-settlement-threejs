@@ -593,6 +593,8 @@ assert.match(backyardView.detailsHtml, /Shared market food today/);
 assert.match(backyardView.detailsHtml, /Local trade value today/);
 assert.match(backyardView.detailsHtml, /collection without a staffed clerk/);
 assert.doesNotMatch(backyardView.detailsHtml, /<span>Parcel<\/span>/);
+assert.doesNotMatch(backyardView.detailsHtml, /Household services/);
+assert.doesNotMatch(backyardView.detailsHtml, /Sustained shortages/);
 
 const emptyBackyardView = renderBackyardInspector(
   {
