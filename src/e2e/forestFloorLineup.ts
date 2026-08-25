@@ -21,8 +21,20 @@ import {
   loadForestFloorTwigTextures,
   type ForestFloorTwigPlacement,
 } from '../props/ForestFloorTwigs.ts';
-import { createForestFloorNettleInstances } from '../props/ForestFloorNettles.ts';
-import type { ForestTreePlacement } from '../props/forestPlacements.ts';
+import {
+  FOREST_FLOOR_NETTLE_SEED,
+  createForestFloorNettleInstances,
+  createForestFloorNettlePlacements,
+} from '../props/ForestFloorNettles.ts';
+import {
+  computeForestTreePlacements,
+  type ForestTreePlacement,
+} from '../props/forestPlacements.ts';
+import {
+  createForestCores,
+  createForestSpawnConfig,
+  mulberry32,
+} from '../props/forestField.ts';
 import type { Terrain } from '../terrain/Terrain.ts';
 import {
   disposeSeedThreeGroundCoverTextures,
@@ -31,6 +43,12 @@ import {
 import { setWorldAnimationTime } from '../scene/worldAnimationTime.ts';
 import { deciduousFoliageForSeasonPreview } from '../world/deciduousFoliagePolicy.ts';
 import type { Season } from '../world/seasonPolicy.ts';
+import {
+  DEFAULT_WORLD_GENERATION_SETTINGS,
+  DEFAULT_WORLD_SEED,
+  deriveSubSeed,
+  resolveWorldDimensions,
+} from '../world/worldGenerationSettings.ts';
 
 type ForestFloorCaptureMode = 'baseline' | 'nettles' | 'twigs' | 'final';
 
@@ -70,6 +88,36 @@ const fixedAnimationTime = requestedTimeValue !== null && Number.isFinite(reques
   ? requestedTime
   : null;
 document.body.dataset.clean = String(query.get('clean') === '1');
+
+const defaultDimensions = resolveWorldDimensions(DEFAULT_WORLD_GENERATION_SETTINGS.mapSize);
+const defaultSpawnConfig = createForestSpawnConfig(
+  defaultDimensions.generationSize,
+  defaultDimensions.terrainSize,
+  1,
+);
+const defaultForestCores = createForestCores(
+  mulberry32(deriveSubSeed(DEFAULT_WORLD_SEED, 'forest')),
+  defaultSpawnConfig,
+);
+const defaultTreeSeed = deriveSubSeed(DEFAULT_WORLD_SEED, 'trees');
+const defaultTreePlacements = computeForestTreePlacements(
+  defaultDimensions.generationSize,
+  defaultDimensions.terrainSize,
+  undefined,
+  { treeSeed: defaultTreeSeed, forestCores: defaultForestCores },
+);
+const defaultNettlePlacements = createForestFloorNettlePlacements(
+  defaultTreePlacements,
+  (defaultTreeSeed ^ FOREST_FLOOR_NETTLE_SEED) >>> 0,
+);
+const defaultNettleSourceIndices = new Set(
+  defaultNettlePlacements.map((placement) => placement.sourceTreeIndex),
+);
+const defaultNettleVariantCounts = [0, 1, 2].map(
+  (variant) => defaultNettlePlacements.filter(
+    (placement) => placement.prototypeIndex === variant,
+  ).length,
+);
 
 const renderer = new WebGPURenderer({ antialias: true, alpha: false });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.35));
@@ -355,6 +403,13 @@ document.body.dataset.nettleTriangles = String(nettles.stats.triangles);
 document.body.dataset.nettleSpringFlush = deciduousFoliage.springFlush.toFixed(2);
 document.body.dataset.nettleAutumnColor = deciduousFoliage.autumnColor.toFixed(2);
 document.body.dataset.nettleDormancy = deciduousFoliage.dormancy.toFixed(2);
+document.body.dataset.nettleDefaultTreeCount = String(defaultTreePlacements.length);
+document.body.dataset.nettleDefaultCount = String(defaultNettlePlacements.length);
+document.body.dataset.nettleDefaultUniqueSources = String(defaultNettleSourceIndices.size);
+document.body.dataset.nettleDefaultMaximumSourceIndex = String(
+  Math.max(...defaultNettleSourceIndices),
+);
+document.body.dataset.nettleDefaultVariantCounts = defaultNettleVariantCounts.join(',');
 document.body.dataset.twigInstances = String(twigPlacements.length);
 document.body.dataset.twigDrawCalls = String(twigMeshes.length);
 document.body.dataset.twigPrototypeVertices = String(
@@ -380,6 +435,9 @@ document.body.dataset.forestFloorSignature = [
   deciduousFoliage.springFlush.toFixed(2),
   deciduousFoliage.autumnColor.toFixed(2),
   deciduousFoliage.dormancy.toFixed(2),
+  defaultNettlePlacements.length,
+  defaultNettleSourceIndices.size,
+  defaultNettleVariantCounts.join(','),
 ].join(':');
 
 window.addEventListener('beforeunload', () => {

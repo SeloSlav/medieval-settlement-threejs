@@ -35,9 +35,11 @@ import { createForestFloorPlacementMask } from './ForestFloorPlacementMask.ts';
 import type { ForestTreePlacement } from './forestPlacements.ts';
 
 export const FOREST_FLOOR_NETTLE_SEED = 0x75727469;
-export const FOREST_FLOOR_NETTLE_MAX_INSTANCES = 3_200;
+export const FOREST_FLOOR_NETTLE_MAX_INSTANCES = 9_600;
 export const FOREST_FLOOR_NETTLE_MIN_SPACING = 0.48;
 export const FOREST_FLOOR_NETTLE_CLEAR_RADIUS = 0.34;
+export const FOREST_FLOOR_NETTLE_MIN_SCALE = 0.9;
+export const FOREST_FLOOR_NETTLE_MAX_SCALE = 1.38;
 
 const NETTLE_LEAF_FILES = {
   albedo: 'stinging_nettle_single_albedo.png',
@@ -245,14 +247,19 @@ export function createForestFloorNettlePlacements(
 ): ForestFloorNettlePlacement[] {
   const placements: ForestFloorNettlePlacement[] = [];
   const spatial = new SpatialHash2D<ForestFloorNettlePlacement>(0.75);
-  for (let treeIndex = 0; treeIndex < trees.length; treeIndex++) {
+  // Spread the capped population across the accepted forest rather than
+  // exhausting it against the first tree zone in layout order. Per-tree RNG
+  // still keys from the authoritative source index, so the same world seed is
+  // byte-stable while producing visible nettle patches throughout the woods.
+  const treeIndices = shuffledNettleSourceTreeIndices(trees.length, seed);
+  for (const treeIndex of treeIndices) {
     if (placements.length >= FOREST_FLOOR_NETTLE_MAX_INSTANCES) break;
     const tree = trees[treeIndex]!;
     const rng = mulberry32((seed ^ Math.imul(treeIndex + 1, 0x9e3779b1)) >>> 0);
-    const attempts = 1 + (rng() < 0.28 ? 1 : 0);
+    const attempts = 2 + (rng() < 0.36 ? 1 : 0);
     for (let attempt = 0; attempt < attempts; attempt++) {
       if (placements.length >= FOREST_FLOOR_NETTLE_MAX_INSTANCES) break;
-      if (attempt === 0 && rng() > 0.9) continue;
+      if (attempt === 0 && rng() > 0.94) continue;
       const radius = THREE.MathUtils.lerp(1.15, 4.8, Math.sqrt(rng()));
       const angle = rng() * Math.PI * 2;
       const x = tree.x + Math.cos(angle) * radius;
@@ -264,7 +271,11 @@ export function createForestFloorNettlePlacements(
         sourceTreeIndex: treeIndex,
         // The ivy canopy can reach 0.48 m. Keep young plants varied but tall
         // enough that several paired leaf nodes read above that ground layer.
-        scale: THREE.MathUtils.lerp(0.78, 1.28, Math.pow(rng(), 0.72)),
+        scale: THREE.MathUtils.lerp(
+          FOREST_FLOOR_NETTLE_MIN_SCALE,
+          FOREST_FLOOR_NETTLE_MAX_SCALE,
+          Math.pow(rng(), 0.72),
+        ),
         yaw: rng() * Math.PI * 2,
         lean: THREE.MathUtils.lerp(0.015, 0.085, rng()),
         leanDirection: rng() * Math.PI * 2,
@@ -277,6 +288,16 @@ export function createForestFloorNettlePlacements(
     }
   }
   return placements;
+}
+
+function shuffledNettleSourceTreeIndices(count: number, seed: number): number[] {
+  const indices = Array.from({ length: count }, (_, index) => index);
+  const rng = mulberry32((seed ^ 0x6e657474) >>> 0);
+  for (let index = indices.length - 1; index > 0; index--) {
+    const swapIndex = Math.floor(rng() * (index + 1));
+    [indices[index], indices[swapIndex]] = [indices[swapIndex]!, indices[index]!];
+  }
+  return indices;
 }
 
 function nettleIntersectsBlocker(

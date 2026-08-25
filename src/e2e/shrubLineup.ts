@@ -23,6 +23,14 @@ import {
   createForestCores,
   createForestSpawnConfig,
 } from '../props/forestField.ts';
+import { computeForestTreePlacements } from '../props/forestPlacements.ts';
+import { createRockPlacements } from '../props/ForestProps.ts';
+import {
+  DEFAULT_WORLD_GENERATION_SETTINGS,
+  DEFAULT_WORLD_SEED,
+  deriveSubSeed,
+  resolveWorldDimensions,
+} from '../world/worldGenerationSettings.ts';
 
 type DogwoodCaptureMode = 'baseline' | 'stems' | 'foliage' | 'final';
 
@@ -37,17 +45,46 @@ type DogwoodRenderEvidence = {
 type DogwoodPlacementSweep = {
   targetCount: number;
   acceptedCount: number;
+  treeCount: number;
+  rockCount: number;
   dogwoodCount: number;
   dogwoodMinimumScale: number;
   dogwoodMaximumScale: number;
   signature: string;
 };
 
-function createDefaultDogwoodPlacementSweep(seed: number): DogwoodPlacementSweep {
-  const random = mulberry32(seed);
-  const spawnConfig = createForestSpawnConfig(496, 1_080, 1);
-  const forestCores = createForestCores(random, spawnConfig);
-  const accepted = createUndergrowthPlacements(random, forestCores, spawnConfig);
+function createDefaultDogwoodPlacementSweep(worldSeed: number): DogwoodPlacementSweep {
+  const dimensions = resolveWorldDimensions(DEFAULT_WORLD_GENERATION_SETTINGS.mapSize);
+  const spawnConfig = createForestSpawnConfig(
+    dimensions.generationSize,
+    dimensions.terrainSize,
+    1,
+  );
+  const forestCores = createForestCores(
+    mulberry32(deriveSubSeed(worldSeed, 'forest')),
+    spawnConfig,
+  );
+  const treeSeed = deriveSubSeed(worldSeed, 'trees');
+  const treePlacements = computeForestTreePlacements(
+    spawnConfig.playableSize,
+    spawnConfig.terrainSize,
+    undefined,
+    { treeSeed, forestCores },
+  );
+  const placementRandom = mulberry32(treeSeed);
+  const rockPlacements = createRockPlacements(
+    placementRandom,
+    forestCores,
+    treePlacements,
+    spawnConfig,
+  );
+  const accepted = createUndergrowthPlacements(
+    placementRandom,
+    forestCores,
+    spawnConfig,
+    undefined,
+    treePlacements,
+  );
   const dogwoods = accepted.filter((placement) => placement.kind === 'dogwood');
   let hash = 0x811c9dc5;
   for (const placement of accepted) {
@@ -67,6 +104,8 @@ function createDefaultDogwoodPlacementSweep(seed: number): DogwoodPlacementSweep
   return {
     targetCount: spawnConfig.undergrowthTargetCount,
     acceptedCount: accepted.length,
+    treeCount: treePlacements.length,
+    rockCount: rockPlacements.length,
     dogwoodCount: dogwoods.length,
     dogwoodMinimumScale: Math.min(...dogwoods.map((placement) => placement.scale)),
     dogwoodMaximumScale: Math.max(...dogwoods.map((placement) => placement.scale)),
@@ -108,10 +147,10 @@ const dogwoodScale = THREE.MathUtils.clamp(
 const requestedStock = Number(query.get('stock') ?? '1');
 const stockRatio = THREE.MathUtils.clamp(Number.isFinite(requestedStock) ? requestedStock : 1, 0, 1);
 const dogwoodPlacementSweep = isDogwoodFocus
-  ? createDefaultDogwoodPlacementSweep(0xd06d_600d)
+  ? createDefaultDogwoodPlacementSweep(DEFAULT_WORLD_SEED)
   : null;
 const repeatedDogwoodPlacementSweep = isDogwoodFocus
-  ? createDefaultDogwoodPlacementSweep(0xd06d_600d)
+  ? createDefaultDogwoodPlacementSweep(DEFAULT_WORLD_SEED)
   : null;
 if (
   dogwoodPlacementSweep
@@ -338,6 +377,8 @@ document.body.dataset.dogwoodScale = dogwoodScale.toFixed(2);
 if (dogwoodPlacementSweep && repeatedDogwoodPlacementSweep) {
   document.body.dataset.dogwoodDefaultTarget = String(dogwoodPlacementSweep.targetCount);
   document.body.dataset.dogwoodDefaultAccepted = String(dogwoodPlacementSweep.acceptedCount);
+  document.body.dataset.dogwoodDefaultTreeCount = String(dogwoodPlacementSweep.treeCount);
+  document.body.dataset.dogwoodDefaultRockCount = String(dogwoodPlacementSweep.rockCount);
   document.body.dataset.dogwoodDefaultCount = String(dogwoodPlacementSweep.dogwoodCount);
   document.body.dataset.dogwoodDefaultMinimumScale = dogwoodPlacementSweep.dogwoodMinimumScale.toFixed(6);
   document.body.dataset.dogwoodDefaultMaximumScale = dogwoodPlacementSweep.dogwoodMaximumScale.toFixed(6);

@@ -81,7 +81,7 @@ type TreePlacement = ForestTreePlacement;
 
 type RockProfile = 'flat' | 'moderate' | 'tall';
 
-type RockPlacement = {
+export type RockPlacement = {
   x: number;
   z: number;
   scale: number;
@@ -408,7 +408,7 @@ function createPineBarkTexture(maxAnisotropy: number): THREE.Texture {
   return texture;
 }
 
-function createRockPlacements(
+export function createRockPlacements(
   rng: () => number,
   forestCores: ForestCore[],
   treePlacements: TreePlacement[],

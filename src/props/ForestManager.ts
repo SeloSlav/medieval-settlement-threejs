@@ -903,7 +903,9 @@ export class ForestManager {
   private setTreeForestFloorActive(treeIndex: number, active: boolean): void {
     this.canopyOcclusion?.setTreeActive(treeIndex, active, true);
     this.forestFloorIvy?.setTreeActive(treeIndex, active);
-    this.forestFloorNettles?.setTreeActive(treeIndex, active);
+    // Nettles are independent colonies, not part of the source tree. Their
+    // own footprint mask handles roads and placed sites, while felling a tree
+    // leaves the existing forest-floor plants in the newly opened light gap.
     this.forestFloorTwigs?.setTreeActive(treeIndex, active);
   }
 

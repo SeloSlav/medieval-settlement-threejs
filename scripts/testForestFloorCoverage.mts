@@ -802,6 +802,16 @@ assert.match(
 );
 assert.match(
   nettleSource,
+  /FOREST_FLOOR_NETTLE_MAX_INSTANCES = 9_600[\s\S]*shuffledNettleSourceTreeIndices\(trees\.length, seed\)[\s\S]*const attempts = 2 \+ \(rng\(\) < 0\.36 \? 1 : 0\)/,
+  'nettles must form numerous seed-stable patches across the complete forest instead of the first tree zone',
+);
+assert.match(
+  nettleSource,
+  /FOREST_FLOOR_NETTLE_MIN_SCALE = 0\.9[\s\S]*FOREST_FLOOR_NETTLE_MAX_SCALE = 1\.38[\s\S]*scale: THREE\.MathUtils\.lerp\([\s\S]*FOREST_FLOOR_NETTLE_MIN_SCALE,[\s\S]*FOREST_FLOOR_NETTLE_MAX_SCALE/,
+  'young nettles must stand clearly above the layered ivy canopy',
+);
+assert.match(
+  nettleSource,
   /NETTLE_LEAF_FILES[\s\S]*stinging_nettle_single_albedo\.png[\s\S]*stinging_nettle_single_normal\.png[\s\S]*stinging_nettle_single_roughness\.png[\s\S]*stinging_nettle_single_translucency\.png/,
   'nettle leaf cards must retain their complete dedicated PBR/SSS set',
 );
@@ -872,8 +882,13 @@ assert.match(
 );
 assert.match(
   managerSource,
-  /this\.canopyOcclusion\?\.setTreeActive\(treeIndex, active, true\);[\s\S]*?this\.forestFloorIvy\?\.setTreeActive\(treeIndex, active\);[\s\S]*?this\.forestFloorNettles\?\.setTreeActive\(treeIndex, active\);[\s\S]*?this\.forestFloorTwigs\?\.setTreeActive\(treeIndex, active\);/,
-  'tree ownership must hide and restore ivy, nettles, and twigs together',
+  /this\.canopyOcclusion\?\.setTreeActive\(treeIndex, active, true\);[\s\S]*?this\.forestFloorIvy\?\.setTreeActive\(treeIndex, active\);[\s\S]*?this\.forestFloorTwigs\?\.setTreeActive\(treeIndex, active\);/,
+  'tree ownership must still update canopy shade, ivy, and fallen twigs',
+);
+assert.doesNotMatch(
+  managerSource.match(/private setTreeForestFloorActive[\s\S]*?\n  \}/)?.[0] ?? '',
+  /forestFloorNettles\?\.setTreeActive/,
+  'felling a source tree must not erase independent nettle colonies',
 );
 assert.match(
   ivySource,

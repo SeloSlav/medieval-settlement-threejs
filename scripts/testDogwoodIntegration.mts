@@ -106,6 +106,10 @@ const forestManagerSource = readFileSync(
   join(projectRoot, 'src/props/ForestManager.ts'),
   'utf8',
 );
+const forestPlacementSource = readFileSync(
+  join(projectRoot, 'src/props/forestPlacements.ts'),
+  'utf8',
+);
 
 assert.match(
   shrubPrototypeSource,
@@ -126,6 +130,16 @@ assert.match(
   undergrowthSource,
   /UndergrowthKind[^;]*'dogwood'/,
   'live undergrowth placement and buckets must recognize dogwood',
+);
+assert.doesNotMatch(
+  forestPlacementSource,
+  /dogwood/i,
+  'dogwood shrubs must never enter the authoritative tree layout or tree count',
+);
+assert.doesNotMatch(
+  undergrowthSource,
+  /TreePhase|harvest|cuttable/i,
+  'dogwood undergrowth must not participate in tree growth or felling lifecycle',
 );
 assert.match(
   undergrowthSource,
@@ -169,8 +183,13 @@ assert.match(
 );
 assert.match(
   undergrowthSource,
-  /dogwoodChance = THREE\.MathUtils\.lerp\(0\.17, 0\.11, density\)[\s\S]*return 'dogwood'/,
+  /DOGWOOD_FOREST_EDGE_SHARE = 0\.32[\s\S]*DOGWOOD_FOREST_CORE_SHARE = 0\.24[\s\S]*dogwoodChance = THREE\.MathUtils\.lerp\([\s\S]*DOGWOOD_FOREST_EDGE_SHARE,[\s\S]*DOGWOOD_FOREST_CORE_SHARE,[\s\S]*density,[\s\S]*return 'dogwood'/,
   'dogwood must remain numerous across the deterministic forest-density envelope',
+);
+assert.match(
+  forestManagerSource,
+  /this\.undergrowth\.group\.visible = visible/,
+  'dogwood must retain the close-detail visibility contract shared by forest undergrowth',
 );
 assert.match(
   undergrowthSource,

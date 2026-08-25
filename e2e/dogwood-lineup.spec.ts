@@ -180,10 +180,12 @@ for (const [view, season, scale, expected] of cases) {
     expect(dataset.dogwoodDormancy).toBe(expected.dormancy);
     expect(Number(dataset.dogwoodInstances)).toBe(3);
     expect(dataset.dogwoodStemCounts).toBe('12,19,27');
-    expect(Number(dataset.dogwoodDefaultTarget)).toBe(1_180);
-    expect(Number(dataset.dogwoodDefaultAccepted)).toBe(1_180);
-    expect(Number(dataset.dogwoodDefaultCount)).toBeGreaterThanOrEqual(100);
-    expect(Number(dataset.dogwoodDefaultCount)).toBeLessThanOrEqual(230);
+    expect(Number(dataset.dogwoodDefaultTarget)).toBe(7_375);
+    expect(Number(dataset.dogwoodDefaultAccepted)).toBe(7_375);
+    expect(Number(dataset.dogwoodDefaultTreeCount)).toBeGreaterThan(10_000);
+    expect(Number(dataset.dogwoodDefaultRockCount)).toBeGreaterThan(300);
+    expect(Number(dataset.dogwoodDefaultCount)).toBeGreaterThanOrEqual(1_300);
+    expect(Number(dataset.dogwoodDefaultCount)).toBeLessThanOrEqual(1_750);
     expect(Number(dataset.dogwoodDefaultMinimumScale)).toBeGreaterThanOrEqual(0.84);
     expect(Number(dataset.dogwoodDefaultMinimumScale)).toBeLessThan(0.9);
     expect(Number(dataset.dogwoodDefaultMaximumScale)).toBeGreaterThan(1.2);

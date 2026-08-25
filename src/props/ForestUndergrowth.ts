@@ -108,6 +108,8 @@ export const UNDERGROWTH_KINDS: readonly UndergrowthKind[] = [
 export const DOGWOOD_MIN_SCALE = 0.84;
 export const DOGWOOD_MAX_SCALE = 1.25;
 export const DOGWOOD_MAX_HEIGHT_METERS = 3.4;
+export const DOGWOOD_FOREST_EDGE_SHARE = 0.32;
+export const DOGWOOD_FOREST_CORE_SHARE = 0.24;
 const DOGWOOD_TREE_TRUNK_CLEARANCE = 1.4;
 const DOGWOOD_COMPANION_CLEARANCE = 1.55;
 const DOGWOOD_FOOTPRINT_CLEARANCE = 1.7;
@@ -696,9 +698,13 @@ function composeUndergrowthMatrix(
 }
 
 function pickUndergrowthKind(rng: () => number, density: number): UndergrowthKind {
-  // Common dogwood favors brighter woodland edges. Keep it numerous overall
-  // while biasing its share away from the darkest fern-heavy core interiors.
-  const dogwoodChance = THREE.MathUtils.lerp(0.17, 0.11, density);
+  // Common dogwood favors brighter woodland edges while retaining a visible
+  // midstory share inside the darker fern-heavy core interiors.
+  const dogwoodChance = THREE.MathUtils.lerp(
+    DOGWOOD_FOREST_EDGE_SHARE,
+    DOGWOOD_FOREST_CORE_SHARE,
+    density,
+  );
   const juniperChance = THREE.MathUtils.lerp(0.18, 0.055, density);
   const fernChance = THREE.MathUtils.lerp(0.26, 0.42, density);
   const roll = rng();

@@ -214,6 +214,16 @@ for (const [season, expected] of seasons) {
     expect(Number(dataset.nettleDrawCalls)).toBeGreaterThan(0);
     expect(Number(dataset.nettleDrawCalls)).toBeLessThanOrEqual(6);
     expect(Number(dataset.nettleTriangles)).toBeGreaterThan(2_500);
+    expect(Number(dataset.nettleDefaultTreeCount)).toBeGreaterThan(10_000);
+    expect(Number(dataset.nettleDefaultCount)).toBe(9_600);
+    expect(Number(dataset.nettleDefaultUniqueSources)).toBeGreaterThan(4_000);
+    expect(Number(dataset.nettleDefaultMaximumSourceIndex)).toBeGreaterThan(10_000);
+    const defaultNettleVariantCounts = (dataset.nettleDefaultVariantCounts ?? '')
+      .split(',')
+      .map(Number);
+    expect(defaultNettleVariantCounts).toHaveLength(3);
+    expect(defaultNettleVariantCounts.reduce((sum, count) => sum + count, 0)).toBe(9_600);
+    for (const count of defaultNettleVariantCounts) expect(count).toBeGreaterThan(3_000);
     expect(Number(dataset.twigInstances)).toBe(18);
     expect(Number(dataset.twigDrawCalls)).toBe(3);
     expect(Number(dataset.twigPrototypeVertices)).toBe(174);
