@@ -128,7 +128,7 @@ import {
   IllustratedMapPlane,
   type IllustratedMapDebugMode,
 } from '../map/IllustratedMapPlane.ts';
-import { IllustratedMapCloudTransition } from '../map/IllustratedMapCloudTransition.ts';
+import { IllustratedMapOpacityTransition } from '../map/IllustratedMapOpacityTransition.ts';
 import {
   resolveSceneRenderOwner,
   type SceneRenderOwner,
@@ -173,7 +173,7 @@ export class SceneManager {
   private readonly waitForSubmittedWork: () => Promise<void>;
   readonly postProcessor: ScenePostProcessor;
   private readonly illustratedMap: IllustratedMapPlane;
-  private readonly illustratedMapCloudTransition: IllustratedMapCloudTransition;
+  private readonly illustratedMapOpacityTransition: IllustratedMapOpacityTransition;
   private illustratedMapActive = false;
   private readonly maxAnisotropy: number;
   readonly cameraTarget = new THREE.Vector3();
@@ -310,7 +310,9 @@ export class SceneManager {
     this.waitForSubmittedWork = backend.waitForSubmittedWork;
     this.maxAnisotropy = backend.maxAnisotropy;
     this.illustratedMap = new IllustratedMapPlane(this.maxAnisotropy);
-    this.illustratedMapCloudTransition = new IllustratedMapCloudTransition(container);
+    this.illustratedMapOpacityTransition = new IllustratedMapOpacityTransition(
+      this.renderer.domElement,
+    );
     this.materials = materials;
     this.scene = new THREE.Scene();
     this.scene.background = null;
@@ -881,8 +883,8 @@ export class SceneManager {
     this.illustratedMapActive = active;
   }
 
-  playIllustratedMapEntryTransition(commitMapHandoff: () => void): () => void {
-    return this.illustratedMapCloudTransition.playToMap(commitMapHandoff);
+  playIllustratedMapOpacityTransition(commitMapHandoff: () => void): () => void {
+    return this.illustratedMapOpacityTransition.play(commitMapHandoff);
   }
 
   isIllustratedMapActive(): boolean {
@@ -1577,7 +1579,7 @@ export class SceneManager {
     setActiveClayDepositLayout(null);
     this.precipitation.dispose();
     this.sky.dispose();
-    this.illustratedMapCloudTransition.dispose();
+    this.illustratedMapOpacityTransition.dispose();
     this.illustratedMap.dispose();
     this.postProcessor.dispose();
     disposeObject3D(this.junctionGroup);

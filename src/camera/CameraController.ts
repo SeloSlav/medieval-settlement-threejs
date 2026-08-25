@@ -88,12 +88,11 @@ export type CameraControllerConfig = {
   shouldIgnoreInput?: (event: MouseEvent | WheelEvent) => boolean;
   isIllustratedMapReady?: () => boolean;
   onViewChanged?: () => void;
-  /**
-   * Covers the live view before committing the map camera/render-owner swap.
-   * Return a cancellation callback so direct camera focuses can abort a
-   * transition that has not reached its covered midpoint.
-   */
-  onIllustratedMapEntryTransition?: (commit: () => void) => (() => void) | void;
+  /** Commits either render owner only at the transition's transparent midpoint. */
+  onIllustratedMapModeTransition?: (
+    active: boolean,
+    commit: () => void,
+  ) => (() => void) | void;
   onIllustratedMapModeChanged?: (active: boolean) => void;
   /** The owner already renders every animation frame, so view changes only invalidate that frame. */
   continuousRenderLoop?: boolean;
@@ -134,8 +133,8 @@ export class CameraController {
   private accumulatedWheelDeltaY = 0;
   private lastWheelDeltaTimeMs = Number.NEGATIVE_INFINITY;
   private illustratedMapEntryPending = false;
-  private illustratedMapEntryTransitionActive = false;
-  private cancelIllustratedMapEntryTransition: (() => void) | null = null;
+  private illustratedMapModeTransitionTarget: boolean | null = null;
+  private cancelIllustratedMapModeTransition: (() => void) | null = null;
   private illustratedMapExitPending = false;
   private illustratedMapActive = false;
   private illustratedMapZoomTier = 0;
@@ -192,7 +191,7 @@ export class CameraController {
 
   isNavigationActive(): boolean {
     if (!this.inputEnabled) return false;
-    if (this.illustratedMapEntryTransitionActive) return true;
+    if (this.illustratedMapModeTransitionTarget !== null) return true;
     if (this.isPanning || this.isRotating) return true;
     if (this.hasAnimatedNavigationMotion()) return true;
     if (performance.now() < this.wheelNavigationUntilMs) return true;
@@ -208,7 +207,7 @@ export class CameraController {
     z: number,
     maxDistance = INSPECT_FOCUS_DISTANCE,
   ): void {
-    this.exitIllustratedMap();
+    this.exitIllustratedMap(true);
     this.applyWorldFocus(
       x,
       z,
@@ -222,7 +221,7 @@ export class CameraController {
    * its nearest bound rather than handing render ownership to the paper map.
    */
   focusWorldPositionAtZoom(x: number, z: number, zoomPercent: number): void {
-    this.exitIllustratedMap();
+    this.exitIllustratedMap(true);
     const requestedZoom = Number.isFinite(zoomPercent)
       ? zoomPercent
       : BASELINE_ZOOM_PERCENT;
@@ -273,7 +272,7 @@ export class CameraController {
   }
 
   applyRtsOrbitView(): void {
-    this.exitIllustratedMap();
+    this.exitIllustratedMap(true);
     this.currentPitch = RTS_ORBIT_PITCH;
     this.currentDistance = THREE.MathUtils.clamp(
       RTS_ORBIT_DISTANCE,
@@ -297,7 +296,7 @@ export class CameraController {
     pitch = THREE.MathUtils.degToRad(14),
     distance = 70,
   ): void {
-    this.exitIllustratedMap();
+    this.exitIllustratedMap(true);
     this.config.target.set(x, this.config.getHeightAt(x, z), z);
     this.clampTarget();
     this.currentYaw = this.normalizeAngle(yaw);
@@ -315,7 +314,7 @@ export class CameraController {
   }
 
   syncFromFirstPerson(x: number, z: number, yaw: number): void {
-    this.exitIllustratedMap();
+    this.exitIllustratedMap(true);
     const terrainY = this.config.getHeightAt(x, z);
     this.config.target.set(x, terrainY, z);
     this.currentYaw = this.normalizeAngle(yaw);
@@ -352,7 +351,7 @@ export class CameraController {
     window.removeEventListener('keyup', this.onKeyUp);
     window.removeEventListener('blur', this.onWindowBlur);
     window.removeEventListener('resize', this.onViewportResize);
-    this.cancelPendingIllustratedMapEntryTransition();
+    this.cancelPendingIllustratedMapModeTransition();
     if (this.illustratedMapActive) this.commitIllustratedMapExit();
     else this.restoreWorldProjection();
     el.style.cursor = '';
@@ -360,7 +359,7 @@ export class CameraController {
   }
 
   private readonly onMouseDown = (event: MouseEvent): void => {
-    if (!this.inputEnabled || this.illustratedMapEntryTransitionActive) return;
+    if (!this.inputEnabled || this.illustratedMapModeTransitionTarget !== null) return;
     if (!this.config.domElement.contains(event.target as Node)) return;
     if (this.config.shouldIgnoreInput?.(event)) return;
     if (event.button === 2) {
@@ -416,7 +415,7 @@ export class CameraController {
     if (!this.inputEnabled) return;
     if (this.config.shouldIgnoreInput?.(event)) return;
     event.preventDefault();
-    if (this.illustratedMapEntryTransitionActive) return;
+    if (this.illustratedMapModeTransitionTarget !== null) return;
     const distanceBefore = this.targetDistance;
     const renderedDistanceBefore = this.currentDistance;
     const mapActiveBefore = this.illustratedMapActive;
@@ -791,7 +790,7 @@ export class CameraController {
   };
 
   private readonly onKeyDown = (event: KeyboardEvent): void => {
-    if (!this.inputEnabled || this.illustratedMapEntryTransitionActive) return;
+    if (!this.inputEnabled || this.illustratedMapModeTransitionTarget !== null) return;
     const target = event.target as HTMLElement | null;
     const tag = target?.tagName;
     if (tag === 'INPUT' || tag === 'TEXTAREA' || target?.isContentEditable) return;
@@ -934,36 +933,13 @@ export class CameraController {
   }
 
   private enterIllustratedMap(): void {
-    if (this.illustratedMapActive || this.illustratedMapEntryTransitionActive) return;
+    if (this.illustratedMapActive || this.illustratedMapModeTransitionTarget === true) return;
     if (this.config.isIllustratedMapReady?.() === false) return;
-    const transition = this.config.onIllustratedMapEntryTransition;
-    if (!transition) {
+    if (!this.config.onIllustratedMapModeTransition) {
       this.commitIllustratedMapEntry();
       return;
     }
-    this.illustratedMapEntryPending = false;
-    this.illustratedMapExitPending = false;
-    this.illustratedMapEntryTransitionActive = true;
-    this.resetPointerMotion();
-    this.resetKeyboardPanMotion();
-    this.keys.clear();
-    try {
-      const cancel = transition(() => {
-        if (!this.illustratedMapEntryTransitionActive) return;
-        this.illustratedMapEntryTransitionActive = false;
-        this.cancelIllustratedMapEntryTransition = null;
-        this.commitIllustratedMapEntry();
-      });
-      if (
-        this.illustratedMapEntryTransitionActive
-        && typeof cancel === 'function'
-      ) this.cancelIllustratedMapEntryTransition = cancel;
-    } catch (error) {
-      console.warn('Illustrated map cloud transition failed; using an immediate handoff.', error);
-      this.illustratedMapEntryTransitionActive = false;
-      this.cancelIllustratedMapEntryTransition = null;
-      this.commitIllustratedMapEntry();
-    }
+    this.beginIllustratedMapModeTransition(true, () => this.commitIllustratedMapEntry());
   }
 
   private commitIllustratedMapEntry(): void {
@@ -990,10 +966,19 @@ export class CameraController {
     this.config.onIllustratedMapModeChanged?.(true);
   }
 
-  private exitIllustratedMap(): void {
-    this.cancelPendingIllustratedMapEntryTransition();
+  private exitIllustratedMap(immediate = false): void {
+    if (this.illustratedMapModeTransitionTarget === true && !this.illustratedMapActive) {
+      this.cancelPendingIllustratedMapModeTransition();
+      return;
+    }
     if (!this.illustratedMapActive) return;
-    this.commitIllustratedMapExit();
+    if (immediate || !this.config.onIllustratedMapModeTransition) {
+      this.cancelPendingIllustratedMapModeTransition();
+      this.commitIllustratedMapExit();
+      return;
+    }
+    if (this.illustratedMapModeTransitionTarget === false) return;
+    this.beginIllustratedMapModeTransition(false, () => this.commitIllustratedMapExit());
   }
 
   private commitIllustratedMapExit(): void {
@@ -1013,11 +998,46 @@ export class CameraController {
     this.config.onIllustratedMapModeChanged?.(false);
   }
 
-  private cancelPendingIllustratedMapEntryTransition(): void {
-    if (!this.illustratedMapEntryTransitionActive) return;
-    this.illustratedMapEntryTransitionActive = false;
-    const cancel = this.cancelIllustratedMapEntryTransition;
-    this.cancelIllustratedMapEntryTransition = null;
+  private beginIllustratedMapModeTransition(
+    active: boolean,
+    commit: () => void,
+  ): void {
+    const transition = this.config.onIllustratedMapModeTransition;
+    if (!transition) {
+      commit();
+      return;
+    }
+    this.cancelPendingIllustratedMapModeTransition();
+    this.illustratedMapEntryPending = false;
+    this.illustratedMapExitPending = false;
+    this.illustratedMapModeTransitionTarget = active;
+    this.resetPointerMotion();
+    this.resetKeyboardPanMotion();
+    this.keys.clear();
+    try {
+      const cancel = transition(active, () => {
+        if (this.illustratedMapModeTransitionTarget !== active) return;
+        this.illustratedMapModeTransitionTarget = null;
+        this.cancelIllustratedMapModeTransition = null;
+        commit();
+      });
+      if (
+        this.illustratedMapModeTransitionTarget === active
+        && typeof cancel === 'function'
+      ) this.cancelIllustratedMapModeTransition = cancel;
+    } catch (error) {
+      console.warn('Illustrated map opacity transition failed; using an immediate handoff.', error);
+      this.illustratedMapModeTransitionTarget = null;
+      this.cancelIllustratedMapModeTransition = null;
+      commit();
+    }
+  }
+
+  private cancelPendingIllustratedMapModeTransition(): void {
+    if (this.illustratedMapModeTransitionTarget === null) return;
+    this.illustratedMapModeTransitionTarget = null;
+    const cancel = this.cancelIllustratedMapModeTransition;
+    this.cancelIllustratedMapModeTransition = null;
     cancel?.();
     this.illustratedMapEntryPending = false;
     this.illustratedMapExitPending = false;

@@ -421,9 +421,9 @@ export async function bootstrapAppSession(
       || (farmFieldTool?.shouldBlockCameraInput(event) ?? false)
       || (forestryWorkAreaTool?.shouldBlockCameraInput(event) ?? false),
     isIllustratedMapReady: () => sceneManager.isIllustratedMapReady(),
-    onIllustratedMapEntryTransition: import.meta.env.VITE_E2E_TEST === '1'
+    onIllustratedMapModeTransition: import.meta.env.VITE_E2E_TEST === '1'
       ? undefined
-      : (commit) => sceneManager.playIllustratedMapEntryTransition(commit),
+      : (_active, commit) => sceneManager.playIllustratedMapOpacityTransition(commit),
     continuousRenderLoop: import.meta.env.VITE_E2E_TEST !== '1',
     onViewChanged: () => {
       if (firstPersonController?.isActive()) return;
