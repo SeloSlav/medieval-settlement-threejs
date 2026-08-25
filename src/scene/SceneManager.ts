@@ -687,7 +687,10 @@ export class SceneManager {
     this.applyForagingVisualState();
     if (GRASS_BLADES_ENABLED) {
       this.grassField = await grassFieldPromise;
-      if (this.grassField) this.scene.add(this.grassField.group);
+      if (this.grassField) {
+        if (this.environment) this.grassField.setEnvironment(this.environment);
+        this.scene.add(this.grassField.group);
+      }
       // Keep reeds at the scene root; their explicit render order lets the
       // water film veil submerged stems while the grass-blocked shore band
       // prevents competing ground blades around their rooted bases.
@@ -1225,6 +1228,8 @@ export class SceneManager {
     this.precipitation.setEnvironment(environment);
     this.forestManager?.setDeciduousFoliage(environment.deciduousFoliage);
     this.forestManager?.setSnowCoverage(environment.snowCoverage);
+    this.grassField?.setEnvironment(environment);
+    this.applyForagingVisualState();
     if (this.lastDayNightState) this.applyDayNight(this.lastDayNightState);
   }
 

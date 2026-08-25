@@ -1,7 +1,11 @@
 import * as THREE from 'three';
+import { MeshStandardNodeMaterial } from 'three/webgpu';
+import * as tsl from 'three/tsl';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import type { Terrain } from '../terrain/Terrain.ts';
 import type { RendererBackendKind } from '../scene/RendererBackend.ts';
+import { supportsNodeMaterials } from '../scene/RendererBackend.ts';
+import { chainMaterialShaderPatch } from '../scene/materialShaderPatch.ts';
 import { mulberry32 } from '../props/forestField.ts';
 import { sampleBerryPatchClumpScale } from '../vegetation/bilberryBushVisual.ts';
 import {
@@ -17,6 +21,7 @@ import type { ForagingSite } from './ForagingLayout.ts';
 import { BERRY_PATCH_RADIUS } from './foragingYields.ts';
 import type { ForagingNodeState } from '../resources/types.ts';
 import { isForagingHarvestAvailable } from './foragingSeason.ts';
+import type { EnvironmentState } from '../world/seasonPolicy.ts';
 import {
   BERRY_THICKET_MAX_SPACING,
   BERRY_THICKET_MIN_SPACING,
@@ -24,7 +29,6 @@ import {
   RASPBERRY_CANE_HEIGHT_MULTIPLIER,
   berryClumpTargetCount,
   berryThicketRadiusScale,
-  isBerryClumpVisible,
   isBerryFruitVisible,
   resolveBerryClumpPosition,
 } from './berryPatchPresentation.ts';
@@ -56,16 +60,22 @@ type BerryFruitPlacement = {
 };
 
 type RaspberryMaterialSet = {
-  branch: THREE.MeshStandardMaterial;
-  foliage: THREE.MeshStandardMaterial;
+  branch: THREE.Material;
+  foliage: THREE.Material;
   fruit: THREE.Material;
   textures: THREE.Texture[];
 };
+
+export type BerryPatchEnvironment = Pick<
+  EnvironmentState,
+  'deciduousFoliage' | 'snowCoverage'
+>;
 
 export type BerryPatchVisuals = {
   group: THREE.Group;
   placements: ReadonlyArray<BerryClumpPlacement>;
   sync: (nodes: Iterable<ForagingNodeState>, month: number) => void;
+  setEnvironment: (environment: BerryPatchEnvironment) => boolean;
   dispose: () => void;
 };
 
@@ -83,7 +93,7 @@ export async function createBerryPatchVisuals(
   terrain: Terrain,
   sites: ReadonlyArray<ForagingSite>,
   maxAnisotropy: number,
-  _rendererBackend: RendererBackendKind,
+  rendererBackend: RendererBackendKind,
   seed: number,
   isBlockedAt?: (x: number, z: number) => boolean,
 ): Promise<BerryPatchVisuals> {
@@ -108,26 +118,20 @@ export async function createBerryPatchVisuals(
     loadOptionalTexture(seedThreeLeafUrl('raspberry_spray_roughness.png'), false, maxAnisotropy),
     loadOptionalTexture(seedThreeLeafUrl('raspberry_spray_translucency.png'), false, maxAnisotropy),
   ]);
+  const useNodeMaterials = supportsNodeMaterials(rendererBackend);
   const materials: RaspberryMaterialSet = {
-    branch: new THREE.MeshStandardMaterial({
-      name: 'SeedThree raspberry cane bark',
-      map: branchAlbedo,
-      normalMap: branchNormal,
-      roughnessMap: branchRoughness,
-      roughness: branchRoughness ? 1 : 0.92,
-      metalness: 0,
-    }),
-    foliage: new THREE.MeshStandardMaterial({
-      name: 'Generated Rubus idaeus leaf sprays',
-      map: foliageAlbedo,
-      normalMap: foliageNormal,
-      roughnessMap: foliageRoughness,
-      roughness: foliageRoughness ? 1 : 0.9,
-      metalness: 0,
-      alphaTest: 0.38,
-      side: THREE.DoubleSide,
-      transparent: false,
-    }),
+    branch: createRaspberryBranchMaterial(
+      branchAlbedo,
+      branchNormal,
+      branchRoughness,
+      useNodeMaterials,
+    ),
+    foliage: createRaspberryFoliageMaterial(
+      foliageAlbedo,
+      foliageNormal,
+      foliageRoughness,
+      useNodeMaterials,
+    ),
     fruit: fruitMaterial,
     textures: [branchAlbedo, foliageAlbedo, ...[
       branchNormal,
@@ -139,8 +143,6 @@ export async function createBerryPatchVisuals(
       (texture): texture is THREE.Texture => Boolean(texture),
     )],
   };
-  materials.foliage.forceSinglePass = true;
-  materials.foliage.normalScale.set(0.45, 0.45);
   materials.foliage.userData.translucencyMap = foliageTranslucency;
 
   const prototypes = Array.from({ length: GORSKI_SHRUB_VARIANT_COUNT }, (_, variant) => {
@@ -237,7 +239,7 @@ export async function createBerryPatchVisuals(
     const byId = new Map(Array.from(nodes, (node) => [node.nodeId, node] as const));
     const seasonAvailable = isForagingHarvestAvailable('berries', month);
     const visibleClumps = new Set<BerryClumpPlacement>();
-    placements.forEach((placement, index) => {
+    placements.forEach((placement) => {
       const mesh = meshes[placement.prototypeIndex]!;
       const node = byId.get(placement.nodeId);
       if (!node || !placement.matrix) {
@@ -252,17 +254,9 @@ export async function createBerryPatchVisuals(
         node.x,
         node.z,
       );
-      const visible = isBerryClumpVisible(
-        placement.clumpIndex,
-        node.remaining,
-        node.maxYield,
-        seasonAvailable,
-        hash01(index * 7.31 + 21.7),
-      );
-      if (!visible) {
-        mesh.setMatrixAt(placement.meshIndex, hiddenMatrix);
-        return;
-      }
+      // Harvesting removes berries, not the perennial raspberry crown. Keep
+      // every authored cane clump resident through depletion and winter so the
+      // resource never pops into bare ground when its stock reaches zero.
       visibleClumps.add(placement);
       workingMatrix.copy(placement.matrix);
       workingMatrix.setPosition(
@@ -318,10 +312,64 @@ export async function createBerryPatchVisuals(
     });
   };
 
+  const setEnvironment = (environment: BerryPatchEnvironment): boolean => {
+    const springFlush = clampSeasonAmount(environment.deciduousFoliage.springFlush);
+    const autumnColor = clampSeasonAmount(environment.deciduousFoliage.autumnColor);
+    const dormancy = clampSeasonAmount(environment.deciduousFoliage.dormancy);
+    const snowCoverage = clampSeasonAmount(environment.snowCoverage);
+    let changed = false;
+    changed = setMaterialUniform(
+      materials.foliage,
+      'raspberrySeasonalSpringFlush',
+      springFlush,
+    ) || changed;
+    changed = setMaterialUniform(
+      materials.foliage,
+      'raspberrySeasonalAutumnColor',
+      autumnColor,
+    ) || changed;
+    changed = setMaterialUniform(
+      materials.foliage,
+      'raspberrySeasonalDormancy',
+      dormancy,
+    ) || changed;
+    changed = setMaterialUniform(
+      materials.foliage,
+      'raspberrySnowCoverage',
+      snowCoverage,
+    ) || changed;
+    changed = setMaterialUniform(
+      materials.branch,
+      'raspberrySnowCoverage',
+      snowCoverage,
+    ) || changed;
+
+    // At exact winter dormancy, skip the foliage material group completely.
+    // The branch group in the same geometry remains visible and snow-covered.
+    const foliageVisible = dormancy < 1;
+    if (materials.foliage.visible !== foliageVisible) {
+      materials.foliage.visible = foliageVisible;
+      changed = true;
+    }
+    group.userData.raspberrySeason = {
+      springFlush,
+      autumnColor,
+      dormancy,
+      snowCoverage,
+    };
+    return changed;
+  };
+
+  setEnvironment({
+    deciduousFoliage: { springFlush: 0, autumnColor: 0, dormancy: 0 },
+    snowCoverage: 0,
+  });
+
   return {
     group,
     placements,
     sync,
+    setEnvironment,
     dispose: () => {
       for (const mesh of meshes) mesh.geometry.dispose();
       fruitMesh.geometry.dispose();

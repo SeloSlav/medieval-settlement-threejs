@@ -154,6 +154,7 @@ export type ForestFloorTwigInstances = {
   setTreeActive: (treeIndex: number, active: boolean) => boolean;
   setPlacementActive: (placementIndex: number, active: boolean) => boolean;
   refreshBlockedMask: (isBlockedAt?: ForestFloorTwigBlocker) => number;
+  setSnowCoverage: (coverage: number) => boolean;
   setCloseDetailVisible: (visible: boolean) => boolean;
   commit: () => void;
   dispose: () => void;
@@ -504,6 +505,8 @@ export async function createForestFloorTwigInstances(
   const slots: ForestFloorTwigSlot[] = Array.from({ length: placements.length });
   const authoredMatrices = placements.map(() => new THREE.Matrix4());
   const dirtyInstances = new Map<THREE.InstancedMesh, Set<number>>();
+  const placementVisible = placements.map(() => true);
+  let snowCoverage = 0;
   const hiddenMatrix = new THREE.Matrix4().makeTranslation(0, FOREST_FLOOR_TWIG_HIDDEN_Y, 0);
   const prototypeStats: ForestFloorTwigPrototypeStats[] = [];
 
@@ -556,9 +559,12 @@ export async function createForestFloorTwigInstances(
     (placementIndex, visible) => {
       const slot = slots[placementIndex];
       if (!slot) return;
+      placementVisible[placementIndex] = visible;
       slot.mesh.setMatrixAt(
         slot.instanceIndex,
-        visible ? authoredMatrices[placementIndex]! : hiddenMatrix,
+        visible && isTwigRetainedAboveSnow(placementIndex, snowCoverage)
+          ? authoredMatrices[placementIndex]!
+          : hiddenMatrix,
       );
       dirtyInstances.get(slot.mesh)?.add(slot.instanceIndex);
     },
@@ -596,6 +602,27 @@ export async function createForestFloorTwigInstances(
         placement.length,
         isBlockedAt,
       ));
+    },
+    setSnowCoverage(coverage: number): boolean {
+      const next = THREE.MathUtils.clamp(
+        Number.isFinite(coverage) ? coverage : 0,
+        0,
+        1,
+      );
+      if (Math.abs(next - snowCoverage) <= 1e-6) return false;
+      snowCoverage = next;
+      for (let placementIndex = 0; placementIndex < placements.length; placementIndex++) {
+        const slot = slots[placementIndex];
+        if (!slot) continue;
+        const visible = placementVisible[placementIndex]
+          && isTwigRetainedAboveSnow(placementIndex, snowCoverage);
+        slot.mesh.setMatrixAt(
+          slot.instanceIndex,
+          visible ? authoredMatrices[placementIndex]! : hiddenMatrix,
+        );
+        dirtyInstances.get(slot.mesh)?.add(slot.instanceIndex);
+      }
+      return true;
     },
     setCloseDetailVisible(visible: boolean): boolean {
       if (group.visible === visible) return false;
@@ -710,6 +737,21 @@ function twigIntersectsBlocker(
   const dx = Math.cos(yaw) * halfLength;
   const dz = Math.sin(yaw) * halfLength;
   return isBlockedAt(x - dx, z - dz) || isBlockedAt(x + dx, z + dz);
+}
+
+/**
+ * Settled snow buries litter instead of bleaching every bark cylinder white.
+ * A stable placement hash leaves a few raised twigs legible at full cover and
+ * avoids reshuffling the visible cohort as the calendar advances.
+ */
+function isTwigRetainedAboveSnow(
+  placementIndex: number,
+  snowCoverage: number,
+): boolean {
+  const burial = THREE.MathUtils.smoothstep(snowCoverage, 0.12, 0.94);
+  const retention = THREE.MathUtils.lerp(1, 0.08, burial);
+  const hash = Math.imul((placementIndex + 1) >>> 0, 0x85eb_ca6b) >>> 0;
+  return hash / 0x1_0000_0000 < retention;
 }
 
 function sampleForestBlend(terrain: Terrain, x: number, z: number): number {

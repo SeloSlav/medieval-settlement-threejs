@@ -1548,6 +1548,9 @@ function createEmptyGrassField(): GrassBladeField {
     syncPlacementClearance() {},
     setBuildInteractionActive() {},
     setRoadDraftActive() {},
+    setEnvironment() {
+      return false;
+    },
     updateCameraState() {},
     dispose() {},
   };

@@ -9,12 +9,15 @@ import {
   normalViewGeometry,
   smoothstep,
   texture,
+  uniform,
   uv,
   vec2,
+  vec3,
   vec4,
 } from 'three/tsl';
 import { loadBitmapTexture } from '../../utils/textureLoad.ts';
 import { createPinnedGrassWindPosition } from './seedThreeGrass.ts';
+import type { DeciduousFoliagePresentation } from '../../world/deciduousFoliagePolicy.ts';
 
 type TslNode = {
   a: TslNode;
@@ -23,6 +26,7 @@ type TslNode = {
   x: TslNode;
   xyz: TslNode;
   y: TslNode;
+  z: TslNode;
   add: (value: unknown) => TslNode;
   mul: (value: unknown) => TslNode;
   sub: (value: unknown) => TslNode;
@@ -37,8 +41,10 @@ const tsl = {
   normalViewGeometry: normalViewGeometry as TslNode,
   smoothstep: smoothstep as (low: unknown, high: unknown, value: unknown) => TslNode,
   texture: texture as (map: THREE.Texture, uvNode?: unknown) => TslNode,
+  uniform: uniform as <T>(value: T) => { value: T } & TslNode,
   uv: uv as () => TslNode,
   vec2: vec2 as (...values: unknown[]) => TslNode,
+  vec3: vec3 as (...values: unknown[]) => TslNode,
   vec4: vec4 as (...values: unknown[]) => TslNode,
 };
 
@@ -852,14 +858,79 @@ export function createSeedThreeWildflowerMaterial(
     texel,
     flowerMask,
   );
-  material.colorNode = surfaceColor.mul(structureVisibility);
+  const spring = tsl.uniform(0);
+  const autumn = tsl.uniform(0);
+  const dormancy = tsl.uniform(0);
+  const snowCoverage = tsl.uniform(0);
+  const springBloom = whiteUmbel.mul(0.24)
+    .add(gentianOnly)
+    .add(hawkbitOnly.mul(0.56))
+    .add(lilyOnly.mul(0.2))
+    .add(campionOnly.mul(0.86));
+  const nonFlowerMask = tsl.float(1).sub(flowerMask);
+  const surfaceValue = surfaceColor.rgb.x.mul(0.2126)
+    .add(surfaceColor.rgb.y.mul(0.7152))
+    .add(surfaceColor.rgb.z.mul(0.0722));
+  const springGreen = tsl.vec3(0.55, 0.84, 0.22).mul(surfaceValue.mul(1.4));
+  const autumnDry = tsl.vec3(0.72, 0.43, 0.14).mul(surfaceValue.mul(1.55));
+  const winterDry = tsl.vec3(0.43, 0.34, 0.2).mul(surfaceValue.mul(1.68));
+  let seasonalSurface = tsl.mix(
+    surfaceColor.rgb,
+    springGreen,
+    spring.mul(nonFlowerMask).mul(0.3),
+  );
+  seasonalSurface = tsl.mix(seasonalSurface, autumnDry, autumn.mul(0.78));
+  seasonalSurface = tsl.mix(seasonalSurface, winterDry, dormancy.mul(0.92));
+  const bloomRetention = tsl.mix(tsl.float(1), springBloom, spring)
+    .mul(tsl.float(1).sub(autumn.mul(0.78)))
+    .mul(tsl.float(1).sub(dormancy));
+  const dryStructureRetention = tsl.float(1).sub(dormancy.mul(0.82));
+  const seasonalRetention = tsl.mix(
+    dryStructureRetention,
+    bloomRetention,
+    flowerMask,
+  ).mul(tsl.float(1).sub(snowCoverage.mul(0.78)));
+  material.colorNode = tsl.vec4(
+    seasonalSurface,
+    surfaceColor.a.mul(structureVisibility).mul(seasonalRetention),
+  );
   // A separate weight keeps every point of the head card attached to its stem
   // rather than bending the image according to its texture UV.
   material.positionNode = createPinnedGrassWindPosition('windWeight', 'vec4');
   const upView = tsl.cameraViewMatrix.mul(tsl.vec4(0, 1, 0, 0)).xyz;
   material.normalNode = tsl.normalize(tsl.mix(tsl.normalViewGeometry, upView, flowerMask));
   material.userData.stemTexture = 'procedural wildflower stem fibers';
+  material.userData.forestSeasonalSpringFlush = spring;
+  material.userData.forestSeasonalAutumnColor = autumn;
+  material.userData.forestSeasonalDormancy = dormancy;
+  material.userData.forestSnowCoverage = snowCoverage;
   return material;
+}
+
+export function setSeedThreeWildflowerSeason(
+  material: THREE.Material,
+  presentation: DeciduousFoliagePresentation,
+  snowCoverage: number,
+): boolean {
+  let changed = false;
+  changed = setWildflowerUniform(material, 'forestSeasonalSpringFlush', presentation.springFlush) || changed;
+  changed = setWildflowerUniform(material, 'forestSeasonalAutumnColor', presentation.autumnColor) || changed;
+  changed = setWildflowerUniform(material, 'forestSeasonalDormancy', presentation.dormancy) || changed;
+  changed = setWildflowerUniform(material, 'forestSnowCoverage', snowCoverage) || changed;
+  return changed;
+}
+
+function setWildflowerUniform(
+  material: THREE.Material,
+  key: string,
+  value: number,
+): boolean {
+  const target = material.userData[key] as { value: number } | undefined;
+  if (!target) return false;
+  const next = THREE.MathUtils.clamp(Number.isFinite(value) ? value : 0, 0, 1);
+  if (Math.abs(target.value - next) <= 1e-6) return false;
+  target.value = next;
+  return true;
 }
 
 export function disposeSeedThreeWildflowerTextureCache(): void {

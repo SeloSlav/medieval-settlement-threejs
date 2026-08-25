@@ -5,6 +5,7 @@ import {
   disposeSeedThreeGrassTextureCache,
   loadSeedThreeGrassTextures,
   sampleSeedThreeGrassTint,
+  setSeedThreeGrassSeason,
   type SeedThreeTuftVariant,
 } from '../vegetation/seedthree/seedThreeGrass.ts';
 import type { RendererBackendKind } from '../scene/RendererBackend.ts';
@@ -16,7 +17,9 @@ import {
   loadSeedThreeWildflowerAtlas,
   SEEDTHREE_WILDFLOWER_HEAD_SCALE,
   SEEDTHREE_WILDFLOWER_VARIANTS,
+  setSeedThreeWildflowerSeason,
 } from '../vegetation/seedthree/seedThreeWildflowers.ts';
+import type { EnvironmentState } from '../world/seasonPolicy.ts';
 import {
   estimateWildflowerSubmittedTriangles,
   resolveWildflowerGeometryLod,
@@ -84,6 +87,7 @@ export type GrassBladeField = {
   syncPlacementClearance: (polygons: Iterable<Point2[]>) => void;
   setBuildInteractionActive: (active: boolean) => void;
   setRoadDraftActive: (active: boolean) => void;
+  setEnvironment: (environment: EnvironmentState) => boolean;
   updateCameraState: (
     cameraPosition: THREE.Vector3,
     cameraTarget: THREE.Vector3,
@@ -1163,6 +1167,19 @@ export async function createGrassBladeField(
         streamTelemetry.converged = false;
       }
     },
+    setEnvironment(environment: EnvironmentState): boolean {
+      let changed = setSeedThreeGrassSeason(
+        grassMaterial,
+        environment.deciduousFoliage,
+        environment.snowCoverage,
+      );
+      changed = setSeedThreeWildflowerSeason(
+        wildflowerMaterial,
+        environment.deciduousFoliage,
+        environment.snowCoverage,
+      ) || changed;
+      return changed;
+    },
     updateCameraState(
       cameraPosition: THREE.Vector3,
       cameraTarget: THREE.Vector3,
@@ -1319,6 +1336,9 @@ function createDisabledGrassBladeField(): GrassBladeField {
     syncPlacementClearance() {},
     setBuildInteractionActive() {},
     setRoadDraftActive() {},
+    setEnvironment() {
+      return false;
+    },
     updateCameraState() {},
     dispose() {},
   };
