@@ -931,13 +931,9 @@
   place-items: center;
   width: clamp(112px, 43%, 164px);
   padding: 10px;
-  border: 1px solid rgba(225, 190, 105, 0.48);
-  border-radius: 50% 50% 46% 46%;
-  background:
-    radial-gradient(circle, rgba(40, 38, 29, 0.98) 0 58%, rgba(11, 13, 10, 0.98) 59% 100%);
-  box-shadow:
-    0 16px 34px rgba(0, 0, 0, 0.52),
-    inset 0 0 0 3px rgba(208, 174, 95, 0.11);
+  border: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
 .noble-setup-heraldry-shield .heraldry-shield--main {

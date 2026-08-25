@@ -96,6 +96,10 @@ assert.match(nobleCss, /\[data-setup-step\]\[hidden\][\s\S]*?display: none/);
 assert.match(nobleCss, /\.ui-tooltip\.ui-tooltip--noble-setup[\s\S]*?z-index: 10005/);
 assert.match(nobleCss, /\.noble-setup-heraldry-layout[\s\S]*?grid-template-columns:/);
 assert.match(nobleCss, /\.noble-setup-heraldry-shield[\s\S]*?position: absolute/);
+assert.match(
+  nobleCss,
+  /\.noble-setup-heraldry-shield\s*\{[\s\S]*?border: 0;[\s\S]*?background: transparent;[\s\S]*?box-shadow: none;/,
+);
 
 assert.match(worldPanel, /action: 'back' \| 'start'/);
 assert.match(worldPanel, /initialSettings\?: WorldGenerationSettings/);
