@@ -33,7 +33,6 @@ import { RESIDENCE_FIREWOOD_CAPACITY } from '../generated/gameBalance.ts';
 import { hashStringSeed } from '../utils/random.ts';
 import type { GameClock } from '../world/gameCalendar.ts';
 import { residenceWindowActivity } from './householdRoutine.ts';
-import type { NightPolicyState } from '../economy/nightPolicy.ts';
 import type { ServiceCoverageView } from '../resources/serviceCoverage.ts';
 import { batchResidenceStaticMeshes } from './staticResidenceBatch.ts';
 import { ResidenceStaticBatches } from './ResidenceStaticBatches.ts';
@@ -2033,13 +2032,10 @@ export class ResidenceMarkers {
   private destroyedResidenceIds = new Set<string>();
   private chimneySmokeAllowed = true;
   private eveningWindowGlow = 0;
-  private nightPolicy: Pick<NightPolicyState, 'gathering' | 'curfew'> | undefined;
   private householdClock: GameClock | null = null;
   private householdActivityInputsInitialized = false;
   private householdActivityHour = -1;
   private householdActivityMinute = -1;
-  private householdActivityGathering: NightPolicyState['gathering'] | undefined;
-  private householdActivityCurfew: NightPolicyState['curfew'] | undefined;
 
   constructor(
     parent: THREE.Group,
@@ -2147,7 +2143,7 @@ export class ResidenceMarkers {
 
   setHouseholdClock(clock: GameClock): void {
     this.householdClock = clock;
-    if (!this.updateHouseholdActivityInputs(clock, this.nightPolicy)) return;
+    if (!this.updateHouseholdActivityInputs(clock)) return;
     this.recomputeHouseholdWindowActivities();
     this.applyWindowGlow();
   }
@@ -2155,13 +2151,11 @@ export class ResidenceMarkers {
   setHouseholdLighting(
     clock: GameClock,
     glow: number,
-    nightPolicy?: Pick<NightPolicyState, 'gathering' | 'curfew'>,
   ): void {
     const glowChanged = this.eveningWindowGlow !== glow;
     this.householdClock = clock;
     this.eveningWindowGlow = glow;
-    this.nightPolicy = nightPolicy;
-    const activityChanged = this.updateHouseholdActivityInputs(clock, nightPolicy);
+    const activityChanged = this.updateHouseholdActivityInputs(clock);
     if (activityChanged) this.recomputeHouseholdWindowActivities();
     if (!activityChanged && !glowChanged) return;
     this.applyWindowGlow();
@@ -2433,24 +2427,17 @@ export class ResidenceMarkers {
 
   private updateHouseholdActivityInputs(
     clock: Pick<GameClock, 'hour' | 'minute'>,
-    nightPolicy?: Pick<NightPolicyState, 'gathering' | 'curfew'>,
   ): boolean {
-    const gathering = nightPolicy?.gathering;
-    const curfew = nightPolicy?.curfew;
     if (
       this.householdActivityInputsInitialized
       && this.householdActivityHour === clock.hour
       && this.householdActivityMinute === clock.minute
-      && this.householdActivityGathering === gathering
-      && this.householdActivityCurfew === curfew
     ) {
       return false;
     }
     this.householdActivityInputsInitialized = true;
     this.householdActivityHour = clock.hour;
     this.householdActivityMinute = clock.minute;
-    this.householdActivityGathering = gathering;
-    this.householdActivityCurfew = curfew;
     return true;
   }
 
@@ -2469,7 +2456,6 @@ export class ResidenceMarkers {
       residenceId,
       population,
       this.householdClock,
-      this.nightPolicy,
     );
     this.residenceWindowActivities.set(residenceId, activity);
     return activity;

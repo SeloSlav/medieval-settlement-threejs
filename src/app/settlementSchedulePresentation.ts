@@ -19,13 +19,14 @@ import {
   type VisualQaConditions,
 } from './visualQaConditions.ts';
 import { hasActiveRaiderThreat } from '../security/combatAgents.ts';
-import { nightLightingVisualScale } from '../economy/nightPolicy.ts';
 import { computeFixedSkyState } from '../scene/fixedSkyPresentation.ts';
 import {
   getSkyPresentationPreference,
   type FixedSkyPresetId,
 } from '../scene/skyPresentationPreference.ts';
 import type { DayNightLightingState } from '../world/dayNightPresentation.ts';
+
+const HOUSEHOLD_LIGHTING_VISUAL_SCALE = 0.92;
 
 export type SettlementPresentationTargets = {
   settlementHud: SettlementHud | null;
@@ -69,7 +70,7 @@ export class SettlementPresentationController {
   private anchor: SnapshotAnchor | null = null;
   private lastSnapshot: Pick<
     SpacetimeGameSnapshot,
-    'simTick' | 'parishPolicy' | 'monasteryPolicy' | 'nightPolicy' | 'gameSpeed' | 'combatAgents'
+    'simTick' | 'parishPolicy' | 'monasteryPolicy' | 'gameSpeed' | 'combatAgents'
   > | null = null;
   private lastGameState: GameState | null = null;
   private lastStaffedChapel = false;
@@ -92,7 +93,7 @@ export class SettlementPresentationController {
     targets: SettlementPresentationTargets,
     snapshot: Pick<
       SpacetimeGameSnapshot,
-      'simTick' | 'parishPolicy' | 'monasteryPolicy' | 'nightPolicy' | 'gameSpeed' | 'combatAgents'
+      'simTick' | 'parishPolicy' | 'monasteryPolicy' | 'gameSpeed' | 'combatAgents'
     >,
     gameState: GameState | null,
     connected: boolean,
@@ -109,11 +110,6 @@ export class SettlementPresentationController {
     const dirtyKey = [
       settlementScheduleDirtyKey(snapshot, gameState),
       snapshot.gameSpeed,
-      snapshot.nightPolicy.watch,
-      snapshot.nightPolicy.gathering,
-      snapshot.nightPolicy.work,
-      snapshot.nightPolicy.lighting,
-      snapshot.nightPolicy.curfew,
       monasteryFeastsEnabled ? 'feasts-on' : 'feasts-off',
       raidThreatActive ? 'incursion' : 'all-clear',
     ].join('|');
@@ -147,7 +143,6 @@ export class SettlementPresentationController {
     this.applyPresentation(
       targets,
       schedule,
-      snapshot.nightPolicy,
       monasteryFeastsEnabled,
     );
     return schedule;
@@ -172,7 +167,6 @@ export class SettlementPresentationController {
     this.applyPresentation(
       targets,
       schedule,
-      this.lastSnapshot.nightPolicy,
       monasteryFeastsEnabled,
     );
   }
@@ -228,25 +222,21 @@ export class SettlementPresentationController {
   private applyPresentation(
     targets: SettlementPresentationTargets,
     schedule: SettlementSchedule,
-    nightPolicy: SpacetimeGameSnapshot['nightPolicy'],
     monasteryFeastsEnabled: boolean,
   ): void {
-    const lightingScale = nightLightingVisualScale(nightPolicy.lighting);
     targets.settlementHud?.setSettlementClock(schedule);
     targets.sceneManager?.applyDayNight(this.resolveSceneLighting(schedule));
     targets.buildingMarkers?.setFoundersCampfireNightLighting(
-      schedule.dayNight.nightAmount * lightingScale,
+      schedule.dayNight.nightAmount * HOUSEHOLD_LIGHTING_VISUAL_SCALE,
     );
     targets.residenceMarkers?.setChimneySmokeAllowed(schedule.dayNight.smokeAllowed);
     targets.residenceMarkers?.setHouseholdLighting(
       schedule.clock,
-      schedule.dayNight.eveningWindowGlow * lightingScale,
-      nightPolicy,
+      schedule.dayNight.eveningWindowGlow * HOUSEHOLD_LIGHTING_VISUAL_SCALE,
     );
     targets.villagers?.setSchedule(
       schedule.clock,
       schedule.laborPaused,
-      nightPolicy,
       monasteryFeastsEnabled,
       schedule.clock.isSunday
         && schedule.sabbathObservance

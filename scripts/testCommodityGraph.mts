@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, statSync } from 'node:fs';
 
 import {
   BUILDING_COSTS,
@@ -145,6 +145,26 @@ for (const { resource, code } of authoritativeEntries) {
   );
 }
 assert.ok(formatResourceAmount('game', 1).trim());
+assert.equal(cargoKindLabel('cloth'), 'Clothing');
+assert.equal(resourceCostLabel('cloth'), 'clothing');
+assert.equal(formatResourceAmount('cloth', 1), '1 clothing');
+assert.equal(STORAGE_COMMODITY_LABELS.cloth, 'Clothing');
+assert.equal(TRADE_RESOURCE_LABELS.cloth, 'Clothing');
+assert.equal(tradeResourceLabel('cloth'), 'Clothing');
+assert.match(
+  iconographySource,
+  /settlement-hud__stat\[data-resource='cloth'\][\s\S]{0,240}materials\/clothing\.png/,
+  'the HUD cloth key must render the dedicated finished-clothing icon',
+);
+assert.match(
+  iconographySource,
+  /resource-cost__item\[data-resource-cost='cloth'\][\s\S]{0,240}materials\/clothing\.png/,
+  'resource-cost cloth tokens must render the dedicated finished-clothing icon',
+);
+assert.ok(
+  statSync('public/assets/ui/icons/materials/clothing.png').size > 20_000,
+  'the finished-clothing icon must be a real raster asset',
+);
 
 const rustTradeMappings = [...tradeResourceSource.matchAll(
   /CommodityKind::([A-Z][A-Za-z0-9]*)\s*=>\s*TradeResource::([A-Z][A-Za-z0-9]*)/g,

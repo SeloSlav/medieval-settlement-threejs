@@ -138,7 +138,7 @@ const RESIDENCE_NEED_ICON_RESOURCES: Record<ResidenceNeedKind, ResourceCostKind>
   water: 'water',
   church: 'candles',
   foodVariety: 'vegetables',
-  cloth: 'clothing',
+  cloth: 'cloth',
   shoes: 'shoes',
   preservedFood: 'preservedFood',
   ale: 'ale',

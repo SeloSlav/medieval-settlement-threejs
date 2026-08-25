@@ -568,8 +568,8 @@ assert.doesNotMatch(
 );
 assert.match(
   laborScheduleSource,
-  /labor_and_logistics_paused\([\s\S]*?tick:\s*&SimTickContext[\s\S]*?owner_sabbath_observance_enabled\(ctx,\s*tick,\s*owner\)[\s\S]*?owner_has_staffed_chapel\(ctx,\s*tick,\s*owner\)/,
-  'all schedule decisions should resolve through the tick-local owner caches',
+  /labor_and_logistics_paused\([\s\S]*?tick:\s*&SimTickContext[\s\S]*?owner_observes_sabbath\(ctx,\s*tick,\s*owner,\s*clock\)/,
+  'all schedule decisions should resolve through the owner-aware Sabbath helper',
 );
 assert.doesNotMatch(
   laborScheduleSource,
