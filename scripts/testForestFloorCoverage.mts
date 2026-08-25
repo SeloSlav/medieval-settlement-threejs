@@ -506,6 +506,10 @@ assert.equal(
   Array.from(compiledIvy.geometry.index!.array).length,
   FOREST_FLOOR_IVY_LEAF_TRIANGLES * 3,
 );
+assert.ok(
+  ivyNormal.getZ(FOREST_FLOOR_IVY_LEAF_ROOT_VERTEX) > 0,
+  'the prototype front face must map to the upward instance-basis normal',
+);
 
 function smootherstep(edge0: number, edge1: number, value: number): number {
   const t = THREE.MathUtils.clamp((value - edge0) / (edge1 - edge0), 0, 1);
@@ -678,6 +682,11 @@ assert.equal(statSync(ivyTexturePath).size > 1_000_000, true);
 for (const leaf of FOREST_FLOOR_IVY_ATLAS_LEAVES) {
   assert.ok(leaf.maxX - leaf.minX > 500 && leaf.maxY - leaf.minY > 500);
 }
+assert.ok(
+  FOREST_FLOOR_IVY_ATLAS_LEAVES[0]!.maxY
+    < FOREST_FLOOR_IVY_ATLAS_LEAVES[2]!.minY,
+  'left-column atlas leaves must retain a transparent mip-safe gutter',
+);
 repeatedIvy.geometry.dispose();
 
 assert.equal(FOREST_FLOOR_TWIG_VARIANT_COUNT, 3);
@@ -750,6 +759,7 @@ assert.match(ivySource, /terrain\.getHeightAt\(worldX, worldZ\)/);
 assert.match(ivySource, /sourceTreeIndex:[\s\S]*?placementInstanceRangesByTree/);
 assert.match(ivySource, /new THREE\.InstancedMesh\(/);
 assert.match(ivySource, /createForestFloorIvyMesh\(compiled, material\)/);
+assert.match(ivySource, /dispose\(\): void \{[\s\S]*?mesh\.dispose\(\)/);
 assert.match(ivySource, /createIvyLeafHingeWindNodes/);
 assert.match(ivySource, /hingeWind\.normalNode/);
 assert.match(ivySource, /applyIvyLeafHingeWebGLWind\(material\)/);

@@ -105,9 +105,12 @@ varying vec2 vForestFloorIvySnowWorldXZ;
 export const FOREST_FLOOR_IVY_ATLAS_SIZE = 1254;
 /** Alpha-trimmed pixel bounds for the generated 600px-class leaf variants. */
 export const FOREST_FLOOR_IVY_ATLAS_LEAVES = [
-  { minX: 24, minY: 17, maxX: 616, maxY: 627 },
+  // Keep the top-left and lower-left cells disjoint. The atlas contains a
+  // transparent gutter between their petioles; crossing it would sample a
+  // detached fragment from the neighbouring leaf at mip levels.
+  { minX: 24, minY: 17, maxX: 616, maxY: 599 },
   { minX: 690, minY: 43, maxX: 1229, maxY: 579 },
-  { minX: 26, minY: 627, maxX: 609, maxY: 1210 },
+  { minX: 26, minY: 621, maxX: 609, maxY: 1210 },
   { minX: 675, minY: 641, maxX: 1237, maxY: 1210 },
 ] as const;
 
@@ -638,6 +641,7 @@ export async function createForestFloorIvyInstances(
       dirtyPlacements.clear();
     },
     dispose(): void {
+      mesh.dispose();
       compiled.geometry.dispose();
       material.dispose();
       disposeSeedThreeGroundCoverTextures(textures);
@@ -787,7 +791,9 @@ export function createForestFloorIvyLeafGeometry(): THREE.BufferGeometry {
       const b = a + 1;
       const c = a + 3;
       const d = c + 1;
-      indices.push(a, c, b, b, c, d);
+      // +Z is the authored leaf face. The instance basis maps it to the
+      // terrain-facing surface normal, so lighting and snow resolve upward.
+      indices.push(a, b, c, b, d, c);
     }
   }
   geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
