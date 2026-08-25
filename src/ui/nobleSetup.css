@@ -794,8 +794,9 @@
 }
 
 .noble-setup-house-content {
+  --noble-profile-width: clamp(250px, 24vw, 300px);
   display: grid;
-  grid-template-columns: minmax(250px, 0.48fr) minmax(0, 1.52fr);
+  grid-template-columns: var(--noble-profile-width) minmax(0, 1fr);
   align-items: center;
   gap: clamp(22px, 4vw, 58px);
   width: min(1120px, 100%);
@@ -807,9 +808,17 @@
   display: grid;
   align-content: center;
   gap: 9px;
-  width: min(340px, 100%);
+  width: 100%;
+  max-width: var(--noble-profile-width);
   min-width: 0;
   justify-self: end;
+}
+
+.noble-setup-house-profile .noble-setup-portrait-caption,
+.noble-setup-house-profile .noble-setup-name-label,
+.noble-setup-house-profile .noble-setup-portrait-caption span,
+.noble-setup-house-profile .noble-setup-name-label input {
+  min-width: 0;
 }
 
 .noble-setup-identity-showcase {
@@ -1103,11 +1112,11 @@
     overflow-y: auto;
   }
   .noble-setup-house-content {
-    grid-template-columns: minmax(150px, 0.6fr) minmax(0, 1.4fr);
+    --noble-profile-width: 230px;
+    grid-template-columns: var(--noble-profile-width) minmax(0, 1fr);
     align-items: center;
     gap: 12px;
   }
-  .noble-setup-house-profile { width: min(230px, 100%); }
   .noble-setup-identity-showcase { grid-template-columns: minmax(0, 1fr); }
   .noble-setup-house-roster { gap: 5px; }
   .noble-setup-armory { display: block; padding: 7px; overflow: hidden; }
@@ -1147,6 +1156,7 @@
     align-items: center;
     gap: 5px 9px;
     width: 100%;
+    max-width: none;
     justify-self: stretch;
   }
   .noble-setup-house-profile .noble-setup-identity-showcase {
@@ -1214,7 +1224,7 @@
   .noble-setup-charge > span { width: 29px; height: 29px; }
   .noble-setup-actions { min-height: 50px; }
   .noble-setup-identity-showcase { grid-template-columns: minmax(0, 1fr); }
-  .noble-setup-house-profile { width: min(255px, 100%); }
+  .noble-setup-house-content { --noble-profile-width: 255px; }
   .noble-setup-heraldry-portrait-shell { width: min(100%, 255px); }
   .noble-setup-heraldry-shield { width: clamp(92px, 42%, 124px); }
 }

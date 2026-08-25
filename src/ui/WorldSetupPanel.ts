@@ -52,6 +52,16 @@ export class WorldSetupPanel {
     this.backdrop.className = 'world-setup-backdrop';
     this.backdrop.dataset.activeSetupStep = 'map';
     this.backdrop.innerHTML = `
+      <video
+        class="world-setup-background-video"
+        src="/assets/ui/selo_empire_loading_screen.mp4"
+        autoplay
+        muted
+        loop
+        playsinline
+        preload="auto"
+        aria-hidden="true"
+      ></video>
       <div class="world-setup-shell">
         <img
           class="world-setup-logo"
@@ -89,11 +99,11 @@ export class WorldSetupPanel {
             <div class="world-setup-mode-grid" data-mode-grid>
               <button type="button" class="world-setup-mode-option is-selected" data-conflict-mode="peaceful">
                 <strong>Peaceful settlement</strong>
-                <span>Construction, survival, trade, and optimization without hostile raids.</span>
+                <span>Build, trade, and grow without hostile raids.</span>
               </button>
               <button type="button" class="world-setup-mode-option" data-conflict-mode="frontier">
                 <strong>Contested frontier</strong>
-                <span>Build an economy that can support watchmen and withstand periodic Ottoman raiding parties.</span>
+                <span>Support watchmen and withstand periodic Ottoman raids.</span>
               </button>
             </div>
             <div class="world-setup-pressure" data-pressure-controls hidden>
@@ -102,7 +112,7 @@ export class WorldSetupPanel {
                 <strong data-pressure-value>50</strong>
               </label>
               <input id="world-setup-pressure" class="world-setup-slider" type="range" min="10" max="100" step="5" value="50" />
-              <p class="world-setup-slider-hint">Higher pressure brings scouts sooner and increases portable-goods losses at exposed holdings.</p>
+              <p class="world-setup-slider-hint">Higher pressure brings earlier scouts and heavier losses at exposed holdings.</p>
             </div>
             </section>
 
@@ -117,11 +127,11 @@ export class WorldSetupPanel {
                 <span class="world-setup-hazard-option__marker" aria-hidden="true">⚡</span>
                 <span class="world-setup-hazard-option__copy">
                   <strong>Enable severe weather events</strong>
-                  <span>Summer droughts, lightning ignition, accidental structure fires, and fire spread.</span>
+                  <span>Adds droughts, lightning, and spreading fires.</span>
                 </span>
                 <span class="world-setup-hazard-option__state" data-severe-weather-state>Off · beginner friendly</span>
               </button>
-              <p class="world-setup-slider-hint world-setup-hazard-hint">Ordinary spring rain and winter frost remain part of every world. Frontier raid arson stays tied to Contested frontier mode.</p>
+              <p class="world-setup-slider-hint world-setup-hazard-hint">Normal rain and frost always apply. Raid arson requires Contested frontier.</p>
             </section>
 
             <section class="world-setup-section" aria-labelledby="world-setup-groundwater-title">
@@ -135,11 +145,11 @@ export class WorldSetupPanel {
                 <span class="world-setup-hazard-option__marker" aria-hidden="true">≋</span>
                 <span class="world-setup-hazard-option__copy">
                   <strong>Enable aquifer networks</strong>
-                  <span>Well yield varies by location. Use the Groundwater overlay to find strong sites.</span>
+                  <span>Well yield varies by location; the overlay reveals strong sites.</span>
                 </span>
                 <span class="world-setup-hazard-option__state" data-aquifer-networks-state>Off · even groundwater</span>
               </button>
-              <p class="world-setup-slider-hint world-setup-hazard-hint">When off, every well site has the same reliable yield. Rivers and lakes remain separate surface water.</p>
+              <p class="world-setup-slider-hint world-setup-hazard-hint">Off gives every well the same yield. Surface water is unchanged.</p>
             </section>
 
             <section class="world-setup-section world-setup-landscape" aria-label="Landscape">
@@ -158,7 +168,7 @@ export class WorldSetupPanel {
               <strong data-topography-value>${this.draft.topography}</strong>
             </label>
             <input id="world-setup-topography" class="world-setup-slider" type="range" min="0" max="100" step="1" value="${this.draft.topography}" />
-            <p class="world-setup-slider-hint">Low = gentle rolling hills. Above 80 creates mountain-scale ridges hundreds of metres high.</p>
+            <p class="world-setup-slider-hint">Low: rolling hills. Above 80: mountain-scale ridges.</p>
             </section>
 
             <section class="world-setup-section" aria-label="Custom hydrology">
@@ -167,7 +177,7 @@ export class WorldSetupPanel {
               <strong data-hydrology-value>${this.draft.hydrology}</strong>
             </label>
             <input id="world-setup-hydrology" class="world-setup-slider" type="range" min="0" max="100" step="1" value="${this.draft.hydrology}" />
-            <p class="world-setup-slider-hint">Low = drier land with fewer rivers. High = wetter valleys and more waterways; aquifer networks also follow this water table.</p>
+            <p class="world-setup-slider-hint">Low: drier with fewer rivers. High: wetter with more waterways and stronger aquifers.</p>
             </section>
 
             <section class="world-setup-section" aria-label="Custom forest density">
@@ -176,7 +186,7 @@ export class WorldSetupPanel {
               <strong data-forest-value>${this.draft.forestDensity}</strong>
             </label>
             <input id="world-setup-forest" class="world-setup-slider" type="range" min="0" max="100" step="1" value="${this.draft.forestDensity}" />
-            <p class="world-setup-slider-hint">Low = open meadows and scattered woodland. High = dense conifer cover.</p>
+            <p class="world-setup-slider-hint">Low: open meadow. High: dense conifer forest.</p>
             </section>
             </div>
 
@@ -187,14 +197,14 @@ export class WorldSetupPanel {
               <strong data-resource-abundance-value>${describeResourceAbundance(this.draft.resourceAbundance)} · ${this.draft.resourceAbundance}</strong>
             </label>
             <input id="world-setup-resource-abundance" class="world-setup-slider" type="range" min="0" max="100" step="5" value="${this.draft.resourceAbundance}" />
-            <p class="world-setup-slider-hint">Map size fixes the complete resource roll: small has 5 nodes with 2 rich, medium has 20 with 8 rich, and large has 40 with 16 rich. Every roll guarantees at least 1, 4, or 8 food nodes from game, berries, or mushrooms; abundance and seed can roll additional wild-food sites. Rich grades roll separately across every node, so wild food can also be rich. Larger maps softly spread their rolls across small-map-sized territories—about five nodes per territory on average—so distant deposits reward regional roads, hamlets, and new town centers. Terrain and ecology can move nodes across those invisible boundaries. Clay follows river or coastal sediment where water exists; waterless maps use leaner inland lenses. Missing local materials can be imported through a staffed Trading Post.</p>
+            <p class="world-setup-slider-hint">Size fixes nodes / rich / guaranteed food: Small 5 / 2 / 1+, Medium 20 / 8 / 4+, Large 40 / 16 / 8+. Abundance and seed can add wild food. Import missing materials through a Trading Post.</p>
 
             <label class="world-setup-slider-label world-setup-slider-label--secondary" for="world-setup-resource-variety">
               <span>Local variety</span>
               <strong data-resource-variety-value>${describeResourceVariety(this.draft.resourceVariety)} · ${this.draft.resourceVariety}</strong>
             </label>
             <input id="world-setup-resource-variety" class="world-setup-slider" type="range" min="0" max="100" step="5" value="${this.draft.resourceVariety}" />
-            <p class="world-setup-slider-hint">Specialized regions concentrate repeated rolls into fewer food and mineral families. Broad regions expose a wider mix while keeping the same size-based total and rich-node counts.</p>
+            <p class="world-setup-slider-hint">Specialized repeats fewer resource families. Broad mix offers more types without changing node counts.</p>
             <div class="world-setup-resource-summary" data-resource-summary aria-live="polite">${this.resourceSummaryMarkup()}</div>
             </section>
 
@@ -275,8 +285,8 @@ export class WorldSetupPanel {
       customLandscapeControls.hidden = this.draft.terrainPreset !== 'custom';
       const selected = WORLD_TERRAIN_PRESETS.find((preset) => preset.id === this.draft.terrainPreset)!;
       landscapeNote.textContent = this.draft.terrainPreset === 'custom'
-        ? 'Custom map seeds vary the procedural terrain; the highest topography settings add major mountain massifs.'
-        : `${selected.name} seeds keep this landform and vary its bends, ridges, forests, and resources.`;
+        ? 'Seeds vary custom terrain; high topography adds major mountains.'
+        : `${selected.name} keeps this landform; seeds vary terrain and resources.`;
       for (const option of landscapeGrid.querySelectorAll<HTMLButtonElement>('[data-terrain-preset]')) {
         const isSelected = option.dataset.terrainPreset === this.draft.terrainPreset;
         option.classList.toggle('is-selected', isSelected);
@@ -514,32 +524,22 @@ export class WorldSetupPanel {
     const labels: Record<RegionalDepositResource, {
       name: string;
       extractor: string;
-      ordinaryDetail: string;
-      richDetail: string;
     }> = {
       stone: {
         name: 'Stone',
         extractor: 'Mining Camp / Quarry',
-        ordinaryDetail: 'finite surface deposit',
-        richDetail: 'finite surface + unlimited underground',
       },
       clay: {
         name: 'Clay',
         extractor: 'Mining Camp / Mineworks',
-        ordinaryDetail: 'finite surface deposit',
-        richDetail: 'finite surface + unlimited underground',
       },
       iron: {
         name: 'Iron',
         extractor: 'Mining Camp / Mineworks',
-        ordinaryDetail: 'finite surface deposit',
-        richDetail: 'finite surface + unlimited underground',
       },
       salt: {
         name: 'Salt',
         extractor: 'Mining Camp / Mineworks',
-        ordinaryDetail: 'finite surface deposit',
-        richDetail: 'finite surface + unlimited underground',
       },
     };
     const label = labels[resource];
@@ -554,7 +554,7 @@ export class WorldSetupPanel {
           <div class="world-setup-deposit-card__grades">
             <span class="world-setup-deposit-grade world-setup-deposit-grade--none">Not present</span>
           </div>
-          <p>No local deposit in this roll; regional trade can supply it.</p>
+          <p>Absent locally; import through trade.</p>
         </article>
       `;
     }
@@ -562,8 +562,8 @@ export class WorldSetupPanel {
       ? `<span class="world-setup-deposit-grade world-setup-deposit-grade--rich">Rich ×${rich}</span>`
       : '<span class="world-setup-deposit-grade world-setup-deposit-grade--none">No rich roll</span>';
     const detail = rich > 0
-      ? `${label.ordinaryDetail}; ${label.richDetail}`
-      : label.ordinaryDetail;
+      ? 'Rich sites unlock unlimited underground extraction.'
+      : 'Finite surface extraction only.';
 
     return `
       <article class="world-setup-deposit-card" data-resource="${resource}">

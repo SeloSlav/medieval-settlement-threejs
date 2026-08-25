@@ -56,6 +56,8 @@
 .new-game-setup-steps li > strong {
   position: relative;
   z-index: 1;
+  justify-self: start;
+  max-width: 100%;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;

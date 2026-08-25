@@ -5,6 +5,7 @@ import type { ForestCore } from '../props/forestField.ts';
 import type { WorldDimensions, WorldGenerationSettings } from '../world/worldGenerationSettings.ts';
 import { TERRAIN_RESOLUTION, type TerrainGeometryData } from './terrainGeometryData.ts';
 import { createHeightfieldNormals } from './terrainNormals.ts';
+import type { LicPoljeTerrainFieldDebugMode } from './LicPoljeTerrainField.ts';
 
 const DATABASE_NAME = 'medieval-road-system-generated-world';
 const DATABASE_VERSION = 1;
@@ -22,6 +23,7 @@ export type TerrainStartupRequest = {
   riverLayout: SerializedRiverLayout;
   quarryLayout: SerializedQuarryLayout;
   forestCores: ForestCore[];
+  terrainFieldDebugMode?: LicPoljeTerrainFieldDebugMode;
 };
 
 type CacheRecord = {
@@ -58,6 +60,7 @@ export function terrainStartupCacheKey(request: TerrainStartupRequest): string {
     settings.resourceAbundance,
     settings.resourceVariety,
     settings.forestDensity,
+    request.terrainFieldDebugMode ?? 'final',
     dimensions.playableSize,
     dimensions.terrainSize,
     TERRAIN_RESOLUTION,

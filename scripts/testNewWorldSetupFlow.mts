@@ -39,12 +39,14 @@ assert.match(
 );
 assert.match(
   nobleProfile,
-  /id: 'juraj-julije-klovic'[\s\S]*?portrait: '\/assets\/ui\/noble-setup\/portraits\/juraj-julije-klovic\.webp'/,
+  /id: 'milica-koriolanovic-cipiko'[\s\S]*?title: 'Trogir tapestry embroiderer and literary correspondent'[\s\S]*?portrait: null/,
 );
 assert.match(
   nobleProfile,
-  /id: 'stjepan-konzul-istranin'[\s\S]*?portrait: '\/assets\/ui\/noble-setup\/portraits\/stjepan-konzul-istranin\.webp'/,
+  /id: 'nada-bunic'[\s\S]*?title: "Dubrovnik poet and author of a defense of women's honor"[\s\S]*?portrait: null/,
 );
+assert.doesNotMatch(nobleProfile, /juraj-julije-klovic|stjepan-konzul-istranin/);
+assert.doesNotMatch(nobleProfile, /catharina-van-hemessen|gaspara-stampa/);
 assert.match(
   nobleProfile,
   /id: 'matija-vlacic-ilirik'[\s\S]*?portrait: '\/assets\/ui\/noble-setup\/portraits\/matija-vlacic-ilirik\.webp'/,
@@ -62,6 +64,14 @@ assert.match(noblePanel, /image\.removeAttribute\('src'\)/);
 assert.match(nobleCss, /\.noble-setup-noble\s*\{[\s\S]*?width: 100%;[\s\S]*?aspect-ratio: 19 \/ 25;/);
 assert.match(nobleCss, /\.noble-setup-portrait-frame\s*\{[\s\S]*?aspect-ratio: 19 \/ 25;/);
 assert.match(nobleCss, /\.noble-setup-heraldry-portrait-frame\s*\{[\s\S]*?aspect-ratio: 19 \/ 25;/);
+assert.match(
+  nobleCss,
+  /\.noble-setup-house-content\s*\{[\s\S]*?--noble-profile-width: clamp\(250px, 24vw, 300px\);[\s\S]*?grid-template-columns: var\(--noble-profile-width\) minmax\(0, 1fr\);/,
+);
+assert.match(
+  nobleCss,
+  /\.noble-setup-house-profile\s*\{[\s\S]*?width: 100%;[\s\S]*?max-width: var\(--noble-profile-width\);[\s\S]*?min-width: 0;/,
+);
 assert.match(noblePanel, /data-noble-preview-portrait[^>]*width="560" height="737"/);
 assert.match(noblePanel, /data-heraldry-preview-portrait[^>]*width="560" height="737"/);
 assert.match(nobleCss, /\.noble-setup-noble img\s*\{[\s\S]*?position: absolute;[\s\S]*?inset: 0;/);
@@ -100,6 +110,22 @@ assert.match(worldPanel, /this\.resolve\(\{ action: 'start', settings \}\)/);
 assert.match(worldCss, /\.world-setup-actions\s*\{[\s\S]*?grid-template-rows: auto auto/);
 assert.match(worldCss, /\.world-setup-actions__navigation\s*\{[\s\S]*?justify-content: space-between/);
 assert.match(worldCss, /\.world-setup-back\s*\{[\s\S]*?min-width: 210px/);
+assert.match(
+  worldCss,
+  /\.world-setup-backdrop\s*\{[\s\S]*?padding-bottom: clamp\(12px, 2\.4vw, 34px\);/,
+);
+assert.match(
+  worldCss,
+  /\.world-setup-shell\s*\{[\s\S]*?grid-template-rows: minmax\(0, 1fr\);[\s\S]*?gap: 0;/,
+);
+assert.match(
+  worldCss,
+  /\.world-setup-logo\s*\{[\s\S]*?position: fixed;[\s\S]*?top: clamp\(22px, 4vw, 58px\);[\s\S]*?right: clamp\(22px, 4vw, 58px\);/,
+);
+assert.match(
+  worldCss,
+  /@media \(max-width: 1120px\)[\s\S]*?\.world-setup-shell\s*\{[\s\S]*?grid-template-rows: auto minmax\(0, 1fr\);[\s\S]*?\.world-setup-logo\s*\{[\s\S]*?position: static;/,
+);
 assert.match(appShell, /class="app-loading-kicker">Medieval Croatia · 1550</);
 assert.doesNotMatch(appShell, /class="app-loading-kicker">[^<]*Gorski Kotar/i);
 

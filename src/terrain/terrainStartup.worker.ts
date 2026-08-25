@@ -44,6 +44,7 @@ async function generate(request: TerrainStartupRequest): Promise<void> {
       },
       undefined,
       request.forestCores,
+      request.terrainFieldDebugMode,
     );
     const data: TerrainStartupData = { terrain, riverField: riverField.serialize() };
     post(

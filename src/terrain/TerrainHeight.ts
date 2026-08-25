@@ -3,6 +3,7 @@ import type { RiverLayout } from '../rivers/RiverLayout.ts';
 import type { QuarryLayout } from '../quarries/QuarryLayout.ts';
 import { getActiveWorldDimensions, getActiveWorldGeneration } from '../world/worldGenerationContext.ts';
 import { topographyScale } from '../world/worldGenerationSettings.ts';
+import { sampleLicPoljeTerrainFields } from './LicPoljeTerrainField.ts';
 
 let activeRiverLayout: RiverLayout | null = null;
 let activeQuarryLayout: QuarryLayout | null = null;
@@ -287,6 +288,18 @@ function sampleVinodolCoastHeight(x: number, z: number, relief: number, seed: nu
     + getEdgeHillHeight(x, z) * relief * ridgeRise * 0.42;
 }
 
+function sampleLicPoljeHeight(x: number, z: number, relief: number, seed: number): number {
+  const { terrainSize } = getActiveWorldDimensions();
+  const terrainHalf = terrainSize * 0.5;
+  return sampleLicPoljeTerrainFields(
+    x,
+    z,
+    { minX: -terrainHalf, maxX: terrainHalf, minZ: -terrainHalf, maxZ: terrainHalf },
+    relief,
+    seed,
+  ).height;
+}
+
 export function sampleRawTerrainHeight(x: number, z: number): number {
   const settings = getActiveWorldGeneration();
   const layout = activeRiverLayout;
@@ -304,6 +317,9 @@ export function sampleRawTerrainHeight(x: number, z: number): number {
   }
   if (settings.terrainPreset === 'vinodol_coast') {
     return sampleVinodolCoastHeight(x, z, relief, settings.seed);
+  }
+  if (settings.terrainPreset === 'lic_polje') {
+    return sampleLicPoljeHeight(x, z, relief, settings.seed);
   }
   const n1 = fbm(x * 0.014, z * 0.014, 4) * 5.6 * relief;
   const n2 = fbm(x * 0.04 + 18.4, z * 0.04 - 9.2, 3) * 1.2 * relief;

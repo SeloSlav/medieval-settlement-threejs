@@ -12,6 +12,7 @@ import {
 } from './terrainStartupCache.ts';
 import { fullTerrainBounds } from './terrainBounds.ts';
 import { markTerrainDataReady } from '../app/startupDiagnostics.ts';
+import { parseLicPoljeTerrainFieldDebugMode } from './LicPoljeTerrainField.ts';
 
 type ProgressCallback = (completedRows: number, totalRows: number, source: 'cache' | 'generated') => void;
 
@@ -27,6 +28,11 @@ export async function loadTerrainStartupData(
     riverLayout: worldLayout.riverLayout.serialize(),
     quarryLayout: worldLayout.quarryLayout.serialize(),
     forestCores: worldLayout.forestCores,
+    terrainFieldDebugMode: settings.terrainPreset === 'lic_polje'
+      ? parseLicPoljeTerrainFieldDebugMode(
+        typeof location === 'undefined' ? '' : location.search,
+      )
+      : 'final',
   };
   const key = terrainStartupCacheKey(request);
   const cached = await readTerrainStartupCache(key);
@@ -52,6 +58,7 @@ export async function loadTerrainStartupData(
       (completedRows, totalRows) => onProgress?.(completedRows, totalRows, 'generated'),
       yieldToMain,
       worldLayout.forestCores,
+      request.terrainFieldDebugMode,
     );
     generated = { terrain, riverField: riverField.serialize() };
   }

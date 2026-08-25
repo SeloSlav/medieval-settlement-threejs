@@ -18,8 +18,20 @@ import {
   terrainPresetFromSeed,
   type WorldTerrainPreset,
 } from '../src/world/worldTerrainPresets.ts';
+import {
+  createLicPoljeHydrologyAnchors,
+  licPoljeTerrainDebugWeights,
+  parseLicPoljeTerrainFieldDebugMode,
+  sampleLicPoljeTerrainFields,
+} from '../src/terrain/LicPoljeTerrainField.ts';
 
-const authoredPresets = ['kupa_valley', 'risnjak_pass', 'delnice_meadow', 'vinodol_coast'] as const;
+const authoredPresets = [
+  'kupa_valley',
+  'risnjak_pass',
+  'delnice_meadow',
+  'vinodol_coast',
+  'lic_polje',
+] as const;
 
 for (const [mapSize, preset] of Object.entries(MAP_SIZE_PRESETS)) {
   const dimensions = resolveWorldDimensions(mapSize as keyof typeof MAP_SIZE_PRESETS);
@@ -207,6 +219,71 @@ assert.ok(
   'The Vinodol seabed must remain below the flat Adriatic water surface.',
 );
 
+const lic = preparePreset('lic_polje', 0x2a6_8f31);
+const licDimensions = resolveWorldDimensions(lic.settings.mapSize);
+assert.equal(lic.layout.riverLayout.corridors.length, 1, 'Lič Polje needs one ponornica.');
+assert.equal(
+  lic.layout.riverLayout.inlandWaterBodies.length,
+  0,
+  'The Ličanka-like stream must disappear into its ponor without a terminal lake.',
+);
+const licAnchors = createLicPoljeHydrologyAnchors(
+  {
+    minX: -licDimensions.terrainSize * 0.5,
+    maxX: licDimensions.terrainSize * 0.5,
+    minZ: -licDimensions.terrainSize * 0.5,
+    maxZ: licDimensions.terrainSize * 0.5,
+  },
+  lic.layout.riverLayout.seed,
+);
+assert.deepEqual(lic.layout.riverLayout.drain, licAnchors.ponor);
+const licCorridor = lic.layout.riverLayout.corridors[0];
+const licStart = licCorridor.points[0];
+const licEnd = licCorridor.points[licCorridor.points.length - 1];
+assert.ok(Math.hypot(licStart.x - licAnchors.spring.x, licStart.z - licAnchors.spring.z) < 0.01);
+assert.ok(Math.hypot(licEnd.x - licAnchors.ponor.x, licEnd.z - licAnchors.ponor.z) < 0.01);
+assert.ok(licEnd.halfWidth < 1, 'The stream should taper visibly as it enters the ponor.');
+const pastPonorScale = 26 / Math.hypot(licEnd.x - licStart.x, licEnd.z - licStart.z);
+const pastPonorX = licEnd.x + (licEnd.x - licStart.x) * pastPonorScale;
+const pastPonorZ = licEnd.z + (licEnd.z - licStart.z) * pastPonorScale;
+assert.equal(
+  lic.layout.riverLayout.isWaterAt(pastPonorX, pastPonorZ),
+  false,
+  'Surface water must stop after the ponor.',
+);
+const licFloorRelief = sampleRelief(-190, 190, -190, 190, 19);
+assert.ok(
+  licFloorRelief <= 9,
+  `Lič Polje needs a broadly buildable basin floor, got ${licFloorRelief.toFixed(1)} m relief.`,
+);
+const licFloor = sampleNaturalTerrainHeight(0, 0);
+const licBorderRise = Math.min(
+  sampleNaturalTerrainHeight(-licDimensions.playableHalf * 0.94, 0) - licFloor,
+  sampleNaturalTerrainHeight(licDimensions.playableHalf * 0.94, 0) - licFloor,
+  sampleNaturalTerrainHeight(0, -licDimensions.playableHalf * 0.94) - licFloor,
+  sampleNaturalTerrainHeight(0, licDimensions.playableHalf * 0.94) - licFloor,
+);
+assert.ok(
+  licBorderRise >= 95,
+  `Lič Polje needs a mountain rim around the basin, got ${licBorderRise.toFixed(1)} m.`,
+);
+const licFields = sampleLicPoljeTerrainFields(
+  licAnchors.ponor.x,
+  licAnchors.ponor.z,
+  {
+    minX: -licDimensions.terrainSize * 0.5,
+    maxX: licDimensions.terrainSize * 0.5,
+    minZ: -licDimensions.terrainSize * 0.5,
+    maxZ: licDimensions.terrainSize * 0.5,
+  },
+  1,
+  lic.layout.riverLayout.seed,
+);
+assert.ok(licFields.ponorBowl > 0.9, 'The shared terrain field must locate the ponor bowl.');
+assert.equal(parseLicPoljeTerrainFieldDebugMode('?lic-polje-debug=ponor'), 'ponor');
+assert.equal(parseLicPoljeTerrainFieldDebugMode('?lic-polje-debug=unknown'), 'final');
+assert.notEqual(licPoljeTerrainDebugWeights(licFields, 'composite'), null);
+
 console.log('world terrain preset tests passed', {
   kupaWaterWidth: Number(kupaWaterWidth.toFixed(1)),
   kupaBenchRelief: Number(kupaBenchRelief.toFixed(1)),
@@ -218,6 +295,8 @@ console.log('world terrain preset tests passed', {
   delniceMeadowRelief: Number(delniceMeadowRelief.toFixed(1)),
   delniceMinimumBorderRise: Number(delniceBorderRise.toFixed(1)),
   vinodolWaterPercent: Number((coastalWaterShare * 100).toFixed(1)),
+  licFloorRelief: Number(licFloorRelief.toFixed(1)),
+  licMinimumBorderRise: Number(licBorderRise.toFixed(1)),
 });
 
 function preparePreset(preset: Exclude<WorldTerrainPreset, 'custom'>, variation: number) {

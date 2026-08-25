@@ -5,6 +5,7 @@ export type WorldTerrainPreset =
   | 'risnjak_pass'
   | 'delnice_meadow'
   | 'vinodol_coast'
+  | 'lic_polje'
   | 'custom';
 
 export type WorldTerrainPresetDefinition = {
@@ -27,6 +28,7 @@ const PRESET_SEED_SIGNATURES = {
   risnjak_pass: 0x7150_0000,
   delnice_meadow: 0x4310_0000,
   vinodol_coast: 0x5600_0000,
+  lic_polje: 0x4c10_0000,
 } as const satisfies Record<Exclude<WorldTerrainPreset, 'custom'>, number>;
 
 export const WORLD_TERRAIN_PRESETS: readonly WorldTerrainPresetDefinition[] = [
@@ -35,7 +37,7 @@ export const WORLD_TERRAIN_PRESETS: readonly WorldTerrainPresetDefinition[] = [
     name: 'Kupa Valley',
     region: 'Gusti Laz · Gorski Kotar',
     description:
-      'A Kupa-sized river runs through a broad village bench beneath mountain-scale wooded valley walls.',
+      'Wide river valley with a broad village bench and wooded mountain walls.',
     features: ['25–35 m river', 'Broad valley floor', '500+ m valley sides'],
     topography: 78,
     hydrology: 58,
@@ -46,7 +48,7 @@ export const WORLD_TERRAIN_PRESETS: readonly WorldTerrainPresetDefinition[] = [
     name: 'Risnjak Pass',
     region: 'Risnjak · Gorski Kotar',
     description:
-      'A high forest saddle with rugged ridgelines, headwater streams, and a sheltered upland meadow.',
+      'Rugged forest saddle with streams and a sheltered upland meadow.',
     features: ['High mountain saddle', 'Headwater streams', 'Dense fir and beech'],
     topography: 92,
     hydrology: 46,
@@ -57,7 +59,7 @@ export const WORLD_TERRAIN_PRESETS: readonly WorldTerrainPresetDefinition[] = [
     name: 'Delnice',
     region: 'Delnice · Gorski Kotar',
     description:
-      'A broad, level upland meadow with a spring-fed woodland pond and forested mountain ridges along every border.',
+      'Open upland meadow with a fish pond and mountain-ringed forest.',
     features: ['Open meadow floor', 'Spring-fed fish pond', 'Mountain ring'],
     topography: 76,
     hydrology: 0,
@@ -68,18 +70,29 @@ export const WORLD_TERRAIN_PRESETS: readonly WorldTerrainPresetDefinition[] = [
     name: 'Vinodol Coast',
     region: 'Vinodol · Primorje',
     description:
-      'The Adriatic covers one edge of the map, backed by buildable coastal ground and a limestone ridge.',
+      'Buildable Adriatic coast beneath a limestone ridge.',
     features: ['One-fifth sea', 'Coastal settlement shelf', 'Karst ridge'],
     topography: 68,
     hydrology: 38,
     forestDensity: 45,
   },
   {
+    id: 'lic_polje',
+    name: 'Lič Polje',
+    region: 'Lič · Gorski Kotar',
+    description:
+      'High karst grazing field with a stream that vanishes into a ponor.',
+    features: ['Disappearing stream', 'Open grazing basin', 'Karst mountain ring'],
+    topography: 84,
+    hydrology: 34,
+    forestDensity: 42,
+  },
+  {
     id: 'custom',
     name: 'Custom Map',
     region: '',
     description:
-      'Shape a procedural regional landscape yourself with the topography, water, and woodland controls.',
+      'Shape the terrain, waterways, and woodland.',
     features: ['Mountain-scale relief', 'Adjustable waterways', 'Adjustable woodland'],
     topography: 50,
     hydrology: 50,

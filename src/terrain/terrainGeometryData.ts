@@ -6,6 +6,12 @@ import { fbm2, forestDensityAt, type ForestCore } from '../props/forestField.ts'
 import { sampleTerrainBlendWeights, sampleTerrainUv } from './TerrainBlendWeights.ts';
 import { sampleBaseTerrainHeight } from './TerrainHeight.ts';
 import { createHeightfieldNormals } from './terrainNormals.ts';
+import { getActiveWorldGeneration } from '../world/worldGenerationContext.ts';
+import {
+  licPoljeTerrainDebugWeights,
+  sampleLicPoljeTerrainFields,
+  type LicPoljeTerrainFieldDebugMode,
+} from './LicPoljeTerrainField.ts';
 
 // The end-to-end smoke verifies renderer/material compatibility and placement,
 // not production terrain tessellation. Keeping its software-rendered world
@@ -42,6 +48,7 @@ export async function buildTerrainGeometryData(
   onProgress?: (completedRows: number, totalRows: number) => void,
   yieldControl: () => Promise<void> = async () => undefined,
   forestCores: readonly ForestCore[] = [],
+  terrainFieldDebugMode: LicPoljeTerrainFieldDebugMode = 'final',
 ): Promise<TerrainGeometryData> {
   const resolution = TERRAIN_RESOLUTION;
   const size = dimensions.terrainSize;
@@ -54,6 +61,11 @@ export async function buildTerrainGeometryData(
   const quarryPadBlends = new Float32Array(vertexCount);
   const step = size / (resolution - 1);
   const half = size * 0.5;
+  const generation = getActiveWorldGeneration();
+  const licPoljeDebugMode = generation.terrainPreset === 'lic_polje'
+    ? terrainFieldDebugMode
+    : 'final';
+  const terrainBounds = { minX: -half, maxX: half, minZ: -half, maxZ: half };
 
   for (let zIndex = 0; zIndex < resolution; zIndex++) {
     const rowOffset = zIndex * resolution;
@@ -71,7 +83,19 @@ export async function buildTerrainGeometryData(
       uvs[uvOffset] = uv[0];
       uvs[uvOffset + 1] = uv[1];
 
-      const weights = sampleTerrainBlendWeights(x, z);
+      const debugWeights = licPoljeDebugMode === 'final'
+        ? null
+        : licPoljeTerrainDebugWeights(
+          sampleLicPoljeTerrainFields(
+            x,
+            z,
+            terrainBounds,
+            1,
+            generation.seed,
+          ),
+          licPoljeDebugMode,
+        );
+      const weights = debugWeights ?? sampleTerrainBlendWeights(x, z);
       const colorOffset = vertexIndex * 3;
       colors[colorOffset] = weights[0];
       colors[colorOffset + 1] = weights[1];

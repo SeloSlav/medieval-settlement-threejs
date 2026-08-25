@@ -1,5 +1,6 @@
 import type { TerrainBounds } from '../terrain/Terrain.ts';
 import type { WorldTerrainPreset } from '../world/worldTerrainPresets.ts';
+import { createLicPoljeHydrologyAnchors } from '../terrain/LicPoljeTerrainField.ts';
 import { hashF64 } from './riverHash.ts';
 
 export type RiverPoint = {
@@ -116,6 +117,18 @@ export class RiverLayout {
         drain,
         [],
         [buildDelnicePond(bounds, seed)],
+        terrainPreset,
+      );
+    }
+
+    if (terrainPreset === 'lic_polje') {
+      const anchors = createLicPoljeHydrologyAnchors(bounds, seed);
+      return new RiverLayout(
+        bounds,
+        seed,
+        anchors.ponor,
+        [buildLicankaCorridor(bounds, seed, anchors)],
+        [],
         terrainPreset,
       );
     }
@@ -347,6 +360,61 @@ function buildKupaCorridor(bounds: TerrainBounds, seed: number): RiverCorridor {
   return { points };
 }
 
+function buildLicankaCorridor(
+  bounds: TerrainBounds,
+  seed: number,
+  anchors: ReturnType<typeof createLicPoljeHydrologyAnchors>,
+): RiverCorridor {
+  const { spring, ponor } = anchors;
+  const dx = ponor.x - spring.x;
+  const dz = ponor.z - spring.z;
+  const length = Math.max(1, Math.hypot(dx, dz));
+  const perpendicularX = -dz / length;
+  const perpendicularZ = dx / length;
+  const span = Math.min(bounds.maxX - bounds.minX, bounds.maxZ - bounds.minZ);
+  const phase = hashF64(seed ^ 0x4c69, 5, 17) * TAU;
+  const controls: Array<{ x: number; z: number }> = [];
+  const controlCount = 9;
+
+  for (let index = 0; index < controlCount; index++) {
+    const progress = index / (controlCount - 1);
+    const baseX = lerp(spring.x, ponor.x, progress);
+    const baseZ = lerp(spring.z, ponor.z, progress);
+    const meanderEnvelope = Math.sin(progress * Math.PI) * span * 0.018;
+    const meander = (
+      Math.sin(progress * TAU * 1.75 + phase) * 0.68
+      + Math.sin(progress * TAU * 3.6 - phase * 0.7) * 0.32
+    ) * meanderEnvelope;
+    controls.push({
+      x: baseX + perpendicularX * meander,
+      z: baseZ + perpendicularZ * meander,
+    });
+  }
+
+  const dense = catmullRomSamples(controls, 12);
+  const resampled = resampleByDistance(dense, 2.6);
+  return {
+    points: resampled.map((point, index) => {
+      const progress = index / Math.max(1, resampled.length - 1);
+      const springReach = 1 - smoothstep(0, 0.12, progress);
+      const matureReach = smoothstep(0.12, 0.7, progress);
+      const ponorPool = Math.exp(-Math.pow((progress - 0.91) / 0.075, 2));
+      const terminalTaper = smoothstep(0.94, 1, progress);
+      const halfWidth = lerp(
+        3.1 + springReach * 0.7 + matureReach * 2.2 + ponorPool * 2.1,
+        0.85,
+        terminalTaper,
+      );
+      const channelDepth = lerp(
+        1.15 + matureReach * 0.75 + ponorPool * 0.7,
+        1.05,
+        terminalTaper,
+      );
+      return { ...point, progress, halfWidth, channelDepth };
+    }),
+  };
+}
+
 function coastalShoreX(bounds: TerrainBounds, seed: number, z: number): number {
   const spanX = bounds.maxX - bounds.minX;
   const spanZ = bounds.maxZ - bounds.minZ;
@@ -542,7 +610,11 @@ function defaultInlandWaterBodies(
   terrainPreset: WorldTerrainPreset,
 ): InlandWaterBody[] {
   if (terrainPreset === 'delnice_meadow') return [buildDelnicePond(bounds, seed)];
-  if (terrainPreset === 'kupa_valley' || terrainPreset === 'vinodol_coast') return [];
+  if (
+    terrainPreset === 'kupa_valley'
+    || terrainPreset === 'vinodol_coast'
+    || terrainPreset === 'lic_polje'
+  ) return [];
   return [buildConfluenceLake(drain)];
 }
 
