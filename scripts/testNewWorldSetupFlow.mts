@@ -30,15 +30,24 @@ assert.doesNotMatch(noblePanel, /<h2[^>]*>Your Noble<\/h2>/);
 assert.doesNotMatch(noblePanel, /<p class="noble-setup-eyebrow">Coat of Arms<\/p>/);
 assert.doesNotMatch(noblePanel, /Heraldry of Your House/);
 for (const id of [
-  'juraj-julije-klovic',
-  'stjepan-konzul-istranin',
-  'frane-petric',
   'matija-vlacic-ilirik',
   'simun-kozicic-benja',
   'mila-gojsalic',
 ]) {
   assert.match(nobleProfile, new RegExp(`id: '${id}'[\\s\\S]*?portrait: null`));
 }
+assert.match(
+  nobleProfile,
+  /id: 'frane-petric'[\s\S]*?portrait: '\/assets\/ui\/noble-setup\/portraits\/frane-petric\.webp'/,
+);
+assert.match(
+  nobleProfile,
+  /id: 'juraj-julije-klovic'[\s\S]*?portrait: '\/assets\/ui\/noble-setup\/portraits\/juraj-julije-klovic\.webp'/,
+);
+assert.match(
+  nobleProfile,
+  /id: 'stjepan-konzul-istranin'[\s\S]*?portrait: '\/assets\/ui\/noble-setup\/portraits\/stjepan-konzul-istranin\.webp'/,
+);
 assert.match(noblePanel, /noble-setup-noble__portrait-placeholder/);
 assert.match(noblePanel, /image\.removeAttribute\('src'\)/);
 assert.match(
