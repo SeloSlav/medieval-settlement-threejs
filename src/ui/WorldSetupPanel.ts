@@ -510,11 +510,11 @@ export class WorldSetupPanel {
       syncGameplayControls();
     });
     bindArrowSelector(conflictModeSelector, (step) => {
-        this.draft.conflictMode = cycleValue(CONFLICT_MODE_ORDER, this.draft.conflictMode, step);
-        if (this.draft.conflictMode === 'frontier' && this.draft.enemyPressure <= 0) {
-          this.draft.enemyPressure = 50;
-        }
-        syncGameplayControls();
+      this.draft.conflictMode = cycleValue(CONFLICT_MODE_ORDER, this.draft.conflictMode, step);
+      if (this.draft.conflictMode === 'frontier' && this.draft.enemyPressure <= 0) {
+        this.draft.enemyPressure = 50;
+      }
+      syncGameplayControls();
     });
     pressureSlider.addEventListener('input', () => {
       this.draft.enemyPressure = Number(pressureSlider.value);

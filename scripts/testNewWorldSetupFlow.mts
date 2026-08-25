@@ -170,6 +170,7 @@ assert.match(browserCoverage, /Back to Legacy/);
 assert.match(browserCoverage, /Choose Your Legacy/);
 assert.match(browserCoverage, /House of the Silver Pine/);
 assert.match(browserCoverage, /data-map-size-value/);
+assert.match(browserCoverage, /data-difficulty-preset-value/);
 assert.match(browserCoverage, /data-aquifer-networks-value/);
 assert.match(browserCoverage, /Lord of Bosiljevo, Ribnik, and Novigrad/);
 assert.match(browserCoverage, /noble-setup-heraldry-profile/);

@@ -101,7 +101,13 @@ test('new-world setup moves backward and forward without losing choices', async 
   await expectActiveStep(page, 'map');
 
   await page.locator('[data-world-selector="map-size"] [data-selector-step="-1"]').click();
+  await page.locator('[data-world-selector="difficulty-preset"] [data-selector-step="-1"]').click();
+  await expect(page.locator('[data-difficulty-preset-value]')).toHaveText('Pampered Page (Easy)');
+  await expect(page.locator('[data-approval-decline-value]')).toHaveText('Disabled');
+  await expect(page.locator('[data-food-spoilage-value]')).toHaveText('None');
+  await expect(page.locator('[data-initial-goods-value]')).toHaveText('Double');
   await page.locator('[data-world-selector="groundwater"] [data-selector-step="1"]').click();
+  await expect(page.locator('[data-difficulty-preset-value]')).toHaveText('Custom');
 
   await page.getByRole('button', { name: 'Back to Heraldry' }).click();
   await expect(heraldryHeading).toBeVisible();
@@ -118,6 +124,7 @@ test('new-world setup moves backward and forward without losing choices', async 
   await expect(mapStep).toBeVisible();
   await expect(page.locator('[data-map-size-value]')).toHaveAttribute('data-value', 'small');
   await expect(page.locator('[data-aquifer-networks-value]')).toHaveAttribute('data-value', 'aquifers');
+  await expect(page.locator('[data-difficulty-preset-value]')).toHaveText('Custom');
   await page.getByRole('button', { name: 'Back to Heraldry' }).click();
   await expect(heraldryHeading).toBeFocused();
   await expect(pattern).toHaveAttribute('aria-pressed', 'true');
@@ -138,5 +145,6 @@ test('new-world setup moves backward and forward without losing choices', async 
   await expect(mapStep).toBeFocused();
   await expect(page.locator('[data-map-size-value]')).toHaveAttribute('data-value', 'small');
   await expect(page.locator('[data-aquifer-networks-value]')).toHaveAttribute('data-value', 'aquifers');
+  await expect(page.locator('[data-difficulty-preset-value]')).toHaveText('Custom');
   await expectActiveStep(page, 'map');
 });
