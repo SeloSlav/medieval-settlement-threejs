@@ -41,6 +41,7 @@ import type {
 } from '../src/resources/types.ts';
 import type { WorldQueries } from '../src/resources/WorldQueries.ts';
 import { RoadNetwork } from '../src/roads/RoadNetwork.ts';
+import type { DeliveryTripState } from '../src/logistics/deliveryTrips.ts';
 import {
   gameClock,
   type GameClock,
@@ -637,6 +638,27 @@ const backyardProjectHome: ResidenceState = {
   upgradeAssignedLabor: 1,
   upgradePriority: 3,
 };
+const backyardTimberCart: DeliveryTripState = {
+  id: 'backyard-timber-cart',
+  buildingId: 'stockyard',
+  residenceId: backyardProjectHome.id,
+  destinationKind: 'residence',
+  targetBuildingId: null,
+  cargoKind: 'timber',
+  amount: 5,
+  phase: 'outbound',
+  x: 0,
+  z: 0,
+  progress: 0.2,
+  speedMps: 1,
+  unloadSeconds: 1,
+  unloadRemaining: 1,
+  deliveryWorkers: 1,
+  freeHaulerWorkers: 1,
+  pathDistance: 10,
+  travelSpeedMultiplier: 1,
+  routePolylineJson: '',
+};
 const backyardProjectView = renderBackyardInspector(
   {
     kind: 'backyard',
@@ -647,7 +669,7 @@ const backyardProjectView = renderBackyardInspector(
   {
     gameState: {
       ...state({ residences: [backyardProjectHome] }),
-      deliveryTrips: new Map(),
+      deliveryTrips: new Map([[backyardTimberCart.id, backyardTimberCart]]),
     } as GameState,
     worldQueries: {
       isResidenceConnectedToMarketplace: () => true,
@@ -663,6 +685,9 @@ assert.equal(backyardProjectView.title, 'Vegetable garden works');
 assert.match(backyardProjectView.detailsHtml, /42%/);
 assert.match(backyardProjectView.detailsHtml, /Begins only after the worksite is complete/);
 assert.doesNotMatch(backyardProjectView.detailsHtml, /<span>Parcel<\/span>/);
+assert.doesNotMatch(backyardProjectView.detailsHtml, /Incoming haul/);
+assert.doesNotMatch(backyardProjectView.detailsHtml, /data-inspect-delivery-trip/);
+assert.doesNotMatch(backyardProjectView.detailsHtml, /Inspect cart/);
 assert.match(backyardProjectView.supplementalPanelHtml ?? '', /data-residence-upgrade-priority="3"/);
 assert.match(backyardProjectView.supplementalPanelHtml ?? '', /class="resource-action-row"/);
 assert.match(backyardProjectView.supplementalPanelHtml ?? '', /class="resource-action-button" data-residence-upgrade-priority="3" disabled/);

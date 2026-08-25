@@ -871,6 +871,11 @@ assert.doesNotMatch(
   'twigs must not retain a duplicate dedicated bark texture bundle',
 );
 assert.match(
+  twigSource,
+  /setSnowCoverage\(coverage: number\): boolean \{[\s\S]*?isTwigRetainedAboveSnow\(placementIndex, snowCoverage\)[\s\S]*?visible \? authoredMatrices\[placementIndex\]! : hiddenMatrix[\s\S]*?function isTwigRetainedAboveSnow[\s\S]*?smoothstep\(snowCoverage, 0\.12, 0\.94\)[\s\S]*?lerp\(1, 0\.08, burial\)/,
+  'settled snow must bury a deterministic share of twigs while retaining a few raised branches',
+);
+assert.match(
   forestPropsSource,
   /const nettlesPromise = createForestFloorNettleInstances\([\s\S]*?const twigsPromise = createForestFloorTwigInstances\(/,
   'ForestProps must schedule both new forest-floor systems before renderer-specific tree setup',

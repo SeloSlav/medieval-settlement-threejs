@@ -128,6 +128,16 @@ assert.match(
   'grass tint should favor natural meadow green while retaining a muted dry range',
 );
 assert.match(
+  grassSource,
+  /export function setSeedThreeGrassSeason[\s\S]*?forestSeasonalSpringFlush[\s\S]*?forestSeasonalAutumnColor[\s\S]*?forestSeasonalDormancy[\s\S]*?forestSnowCoverage/,
+  'close grass must expose the complete shared four-season environment envelope',
+);
+assert.match(
+  grassSource,
+  /grassSpring[\s\S]*?grassAutumn[\s\S]*?grassDormant[\s\S]*?grassSnowBurial[\s\S]*?grassSnowTip[\s\S]*?const springGrass[\s\S]*?const autumnGrass[\s\S]*?const dormantGrass[\s\S]*?const snowTip/,
+  'both WebGL and node grass paths must freshen, dry, thin, and collect snow at blade tips',
+);
+assert.match(
   sceneSource,
   /rendererBackend: this\.rendererBackend/,
   'the shared SeedThree material should receive the active renderer backend',
@@ -800,6 +810,21 @@ assert.match(
   wildflowerSource,
   /const leafAtlasUv = tsl\.vec2[\s\S]*?const leafTexel = tsl\.texture\(texture, leafAtlasUv\)/,
   'the material should sample species-matched leaf cutouts from the existing atlas binding',
+);
+assert.match(
+  wildflowerSource,
+  /const springBloom = whiteUmbel\.mul\(0\.24\)[\s\S]*?gentianOnly[\s\S]*?hawkbitOnly\.mul\(0\.56\)[\s\S]*?lilyOnly\.mul\(0\.2\)[\s\S]*?campionOnly\.mul\(0\.86\)[\s\S]*?const winterDry[\s\S]*?const bloomRetention[\s\S]*?const dryStructureRetention[\s\S]*?snowCoverage\.mul\(0\.78\)/,
+  'wildflowers must retain species-specific spring bloom windows, lose flowers in winter, and leave sparse snow-buried dry structure',
+);
+assert.match(
+  fieldSource,
+  /setEnvironment\(environment: EnvironmentState\): boolean \{[\s\S]*?setSeedThreeGrassSeason\([\s\S]*?environment\.deciduousFoliage,[\s\S]*?environment\.snowCoverage[\s\S]*?setSeedThreeWildflowerSeason\(/,
+  'the live streamed field must route one retained environment to grass and wildflowers',
+);
+assert.match(
+  sceneSource,
+  /if \(this\.environment\) this\.grassField\.setEnvironment\(this\.environment\)[\s\S]*?this\.grassField\?\.setEnvironment\(environment\)/,
+  'deferred and live grass fields must inherit the authoritative season before rendering',
 );
 assert.match(
   wildflowerSource,

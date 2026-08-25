@@ -540,11 +540,6 @@ function backyardGardenPickerLabel(kind: BackyardGardenKind): string {
 
 function renderBackyardProject(project: ResidenceBackyardProject): InspectorView {
   const label = backyardGardenLabel(project.kind);
-  const incoming = project.incomingTrips.length === 0
-    ? 'None'
-    : project.incomingTrips.map((trip) =>
-      `${formatProjectAmount(trip.amount)} ${trip.cargoKind} <button type="button" class="inspector-jump-button" data-inspect-delivery-trip="${trip.id}" aria-label="Inspect incoming ${trip.cargoKind} cart">Inspect cart</button>`,
-    ).join(' · ');
   const priorityButtons = CONSTRUCTION_PRIORITIES.map((priority) =>
     backyardPriorityButton(priority, project.priority),
   ).join('');
@@ -563,7 +558,6 @@ function renderBackyardProject(project: ResidenceBackyardProject): InspectorView
       <li><span>Timber onsite</span><span>${formatProjectAmount(project.delivered.timber)} / ${formatProjectAmount(project.required.timber)} · ${formatProjectAmount(project.reserved.timber)} at source</span></li>
       <li><span>Stone onsite</span><span>${formatProjectAmount(project.delivered.stone)} / ${formatProjectAmount(project.required.stone)} · ${formatProjectAmount(project.reserved.stone)} at source</span></li>
       <li><span>Coin onsite</span><span>${formatProjectAmount(project.delivered.gold)} / ${formatProjectAmount(project.required.gold)} · ${formatProjectAmount(project.reserved.gold)} at treasury source</span></li>
-      <li><span>Incoming haul</span><span>${incoming}</span></li>
       <li><span>Production</span><span>Begins only after the worksite is complete</span></li>
     `,
     demolish: {

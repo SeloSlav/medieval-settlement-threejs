@@ -78,6 +78,7 @@ function expectCleanRuntime(runtimeErrors: string[], failedRequests: string[]): 
   const unexpectedRuntimeErrors = runtimeErrors.filter((message) => !(
     /No available adapters\./.test(message)
     || /THREE\.WebGPURenderer: WebGPU is not available, running under WebGL2 backend\./.test(message)
+    || /THREE\.Renderer: "renderAsync\(\)" has been deprecated\./.test(message)
     || /GL Driver Message .* GPU stall due to ReadPixels/.test(message)
   ));
   expect(unexpectedRuntimeErrors).toEqual([]);
