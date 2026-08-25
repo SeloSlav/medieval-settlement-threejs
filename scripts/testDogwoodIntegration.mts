@@ -329,6 +329,11 @@ assert.match(
   'the shrub lineup must route the same season and snow envelope through undergrowth and raspberry patches',
 );
 assert.match(
+  shrubLineupSource,
+  /berryPreviewMonth = season === 'spring'[\s\S]*?\? 4[\s\S]*?season === 'summer'[\s\S]*?\? 7[\s\S]*?season === 'autumn'[\s\S]*?\? 10[\s\S]*?: 1;[\s\S]*?berries\.sync\(\[berryNode\], berryPreviewMonth\)/,
+  'the shrub lineup must synchronize raspberry fruit to representative spring, summer, autumn, and winter months',
+);
+assert.match(
   forestManagerSource,
   /applyUndergrowthClearance[\s\S]*undergrowthBucketForPlacement[\s\S]*bucket\.mesh\.setMatrixAt[\s\S]*bucket\.shadowMesh\.setMatrixAt/,
   'dogwood must inherit the generic undergrowth road/building clearance lifecycle',

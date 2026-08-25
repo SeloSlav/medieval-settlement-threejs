@@ -170,16 +170,16 @@ async function comparePngFrames(
 
 const cases = [
   ['near', 'spring', '1.08', {
-    spring: '0.85', autumn: '0.00', dormancy: '0.15', snow: '0.00', shadow: '0.8740',
+    spring: '0.85', autumn: '0.00', dormancy: '0.15', snow: '0.00', month: '4', shadow: '0.8740',
   }],
   ['near', 'summer', '0.98', {
-    spring: '0.00', autumn: '0.00', dormancy: '0.00', snow: '0.00', shadow: '1.0000',
+    spring: '0.00', autumn: '0.00', dormancy: '0.00', snow: '0.00', month: '7', shadow: '1.0000',
   }],
   ['design', 'autumn', '1.20', {
-    spring: '0.00', autumn: '1.00', dormancy: '0.18', snow: '0.00', shadow: '0.8488',
+    spring: '0.00', autumn: '1.00', dormancy: '0.18', snow: '0.00', month: '10', shadow: '0.8488',
   }],
   ['far', 'winter', '1.42', {
-    spring: '0.00', autumn: '0.00', dormancy: '1.00', snow: '0.86', shadow: '0.1600',
+    spring: '0.00', autumn: '0.00', dormancy: '1.00', snow: '0.86', month: '1', shadow: '0.1600',
   }],
 ] as const;
 
@@ -206,6 +206,12 @@ for (const [view, season, scale, expected] of cases) {
     expect(dataset.raspberryAutumnColor).toBe(expected.autumn);
     expect(dataset.raspberryDormancy).toBe(expected.dormancy);
     expect(dataset.raspberrySnowCoverage).toBe(expected.snow);
+    expect(dataset.berryPreviewMonth).toBe(expected.month);
+    if (season === 'winter') {
+      expect(Number(dataset.visibleRaspberryFruit)).toBe(0);
+    } else {
+      expect(Number(dataset.visibleRaspberryFruit)).toBeGreaterThan(0);
+    }
     expect(dataset.dogwoodRendererBackend).toMatch(/^(?:webgpu|webgl2-node)$/);
     expect(dataset.dogwoodNodeMaterial).toBe('true');
     expect(Number(dataset.dogwoodInstances)).toBe(3);

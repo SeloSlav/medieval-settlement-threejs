@@ -369,7 +369,14 @@ const berryNode: ForagingNodeState = {
   z: 0,
   isRich: isRichBerryPatch,
 };
-berries.sync([berryNode], 7);
+const berryPreviewMonth = season === 'spring'
+  ? 4
+  : season === 'summer'
+    ? 7
+    : season === 'autumn'
+      ? 10
+      : 1;
+berries.sync([berryNode], berryPreviewMonth);
 
 const ground = new THREE.Mesh(
   new THREE.PlaneGeometry(30, 12),
@@ -555,6 +562,7 @@ if (dogwoodPlacementSweep && repeatedDogwoodPlacementSweep) {
 }
 document.body.dataset.berryRich = String(isRichBerryPatch);
 document.body.dataset.berryStockRatio = stockRatio.toFixed(2);
+document.body.dataset.berryPreviewMonth = String(berryPreviewMonth);
 document.body.dataset.visibleRaspberryFruit = String(
   berries.group.userData.visibleRaspberryFruit ?? 0,
 );
@@ -668,7 +676,7 @@ document.body.dataset.dogwoodBareDrawCalls = String(
   undergrowth.stats.dogwood.bareDrawCalls,
 );
 document.body.dataset.dogwoodShadowWidths = (dogwoodBuckets ?? [])
-  .map((bucket) => Number(bucket.shadowMesh.geometry.userData.dogwoodShadowWidth ?? 1).toFixed(4))
+  .map((bucket) => Number(bucket.shadowMesh.geometry.userData.seasonalShadowWidth ?? 1).toFixed(4))
   .join(',');
 document.body.dataset.dogwoodSignature = [
   view,

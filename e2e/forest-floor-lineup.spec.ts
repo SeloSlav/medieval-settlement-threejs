@@ -237,7 +237,14 @@ for (const [season, expected] of seasons) {
     );
     expect(Number(dataset.nettleInstances)).toBeGreaterThanOrEqual(25);
     expect(Number(dataset.nettleColonies)).toBeGreaterThanOrEqual(20);
-    expect(Number(dataset.nettleResidentInstances)).toBe(Number(dataset.nettleInstances));
+    if (season === 'winter') {
+      expect(Number(dataset.nettleResidentInstances)).toBeGreaterThan(0);
+      expect(Number(dataset.nettleResidentInstances)).toBeLessThan(
+        Number(dataset.nettleInstances) * 0.2,
+      );
+    } else {
+      expect(Number(dataset.nettleResidentInstances)).toBe(Number(dataset.nettleInstances));
+    }
     expect(Number(dataset.nettleDrawCalls)).toBeGreaterThan(0);
     expect(Number(dataset.nettleDrawCalls)).toBeLessThanOrEqual(6);
     expect(Number(dataset.nettleTriangles)).toBeGreaterThan(2_500);
