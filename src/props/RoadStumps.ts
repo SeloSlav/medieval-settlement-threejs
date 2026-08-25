@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import type { RoadEdge } from '../roads/RoadEdge.ts';
+import { chainMaterialShaderPatch } from '../scene/materialShaderPatch.ts';
 import { distancePointToPolylineXZ } from '../utils/pathGeometry.ts';
 
 type StumpPlacement = {
@@ -97,6 +98,26 @@ export function createHarvestStumpInstances(
     roughness: 0.88,
     metalness: 0,
   });
+  const cutFaceSnowCoverage = { value: 0 };
+  cutFaceMaterial.userData.harvestStumpSnowCoverage = cutFaceSnowCoverage;
+  chainMaterialShaderPatch(cutFaceMaterial, 'harvest-stump-snow-v1', (shader) => {
+    shader.uniforms.uHarvestStumpSnowCoverage = cutFaceSnowCoverage;
+    shader.fragmentShader = shader.fragmentShader.replace(
+      '#include <common>',
+      `#include <common>
+uniform float uHarvestStumpSnowCoverage;`,
+    );
+    shader.fragmentShader = shader.fragmentShader.replace(
+      '#include <color_fragment>',
+      `#include <color_fragment>
+diffuseColor.rgb = mix(
+  diffuseColor.rgb,
+  vec3( 0.92, 0.955, 0.98 ),
+  uHarvestStumpSnowCoverage * 0.86
+);`,
+    );
+  });
+  cutFaceMaterial.needsUpdate = true;
   ownedMaterials.push(cutFaceMaterial);
   ownedTextures.push(
     cutFaceTextures.map,
@@ -250,8 +271,9 @@ export function setHarvestStumpSnowCoverage(
   );
   if (Math.abs(instances.snowCoverage - next) <= 1e-6) return false;
   instances.snowCoverage = next;
-  instances.cutFaceMaterial.emissive.setHex(0xeaf4ff);
-  instances.cutFaceMaterial.emissiveIntensity = next * 0.58;
+  const uniform = instances.cutFaceMaterial.userData.harvestStumpSnowCoverage as
+    { value: number } | undefined;
+  if (uniform) uniform.value = next;
   instances.cutFaceMaterial.roughness = THREE.MathUtils.lerp(0.88, 1, next);
   return true;
 }
