@@ -1140,10 +1140,10 @@ assert.equal(
   'finished cloth must carry its authoritative 1.5x target value in client projections',
 );
 assert.equal(textileTarget?.portableValue, 22);
-assert.equal(textileTarget?.portableSummary, '12 cloth + 4 wool');
+assert.equal(textileTarget?.portableSummary, '12 clothing + 4 wool');
 assert.match(
   formatProjectedRaidTargets([textileTarget!]),
-  /12 cloth \+ 4 wool/,
+  /12 clothing \+ 4 wool/,
   'likely-target feedback should explain the textile stock attracting the raid',
 );
 const reconstructionTargetState = emptyGameState();
@@ -1179,7 +1179,7 @@ assert.deepEqual(
   'reconstruction must not hide retained stores, while empty construction sites stay irrelevant',
 );
 assert.equal(reconstructionTargets[0]?.label, "Weaver's workshop worksite");
-assert.equal(reconstructionTargets[0]?.portableSummary, '12 cloth + 4 wool');
+assert.equal(reconstructionTargets[0]?.portableSummary, '12 clothing + 4 wool');
 const reconstructionCoverageState = emptyGameState();
 reconstructionCoverageState.buildings.set(tower.id, tower);
 reconstructionCoverageState.buildings.set(
@@ -1238,7 +1238,7 @@ assert.deepEqual(
   'unreserved treasury goods must compete in the same bounded raid budget as physical stores',
 );
 assert.equal(treasuryTargets[0]?.portableValue, 60);
-assert.equal(treasuryTargets[0]?.portableSummary, '20 cloth + 20 timber');
+assert.equal(treasuryTargets[0]?.portableSummary, '20 clothing + 20 timber');
 assert.equal(treasuryTargets[0]?.label, 'Settlement treasury at Town Hall');
 const physicalTreasuryLeakState = emptyGameState();
 physicalTreasuryLeakState.physicalFoundingSiteEnabled = true;

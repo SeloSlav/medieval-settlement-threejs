@@ -566,7 +566,7 @@ function formatGrowthBottlenecks(plan: SettlementGrowthPlan): string {
     ['water', 'water'],
     ['preservedFood', 'preserved food'],
     ['ale', 'ale'],
-    ['cloth', 'textiles'],
+    ['cloth', 'clothing'],
     ['pottery', 'pottery'],
   ];
   return labels
@@ -1228,7 +1228,7 @@ function specialtyExportCargoMix(
     ale: 'ale',
     honey: 'honey',
     wine: 'wine',
-    cloth: 'cloth',
+    cloth: 'clothing',
     cheese: 'cheese',
     pottery: 'pottery',
   };

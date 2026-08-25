@@ -2079,7 +2079,7 @@ assert.match(townHallInspector, /Mill buffers/);
 assert.match(townHallInspector, /Bakery buffers/);
 assert.match(townHallInspector, /bread room/);
 assert.match(townHallInspector, /preserved-food room/);
-assert.match(townHallInspector, /Cloth capacity/);
+assert.match(townHallInspector, /Clothing capacity/);
 assert.match(townHallInspector, /data-inspect-building=/);
 assert.match(townHallInspector, /processorBottleneckBuildingId/);
 assert.match(townHallInspector, /Mill \/ bakery balance/);

@@ -348,7 +348,7 @@ const localWeaverOnlyPlan = evaluateResidenceUpgrade(tierTwo, richTotals, {
 });
 assert.ok(localWeaverOnlyPlan);
 assert.equal(localWeaverOnlyPlan.ready, false);
-assert.match(localWeaverOnlyPlan.blockers.join(' '), /cloth unmet/);
+assert.match(localWeaverOnlyPlan.blockers.join(' '), /clothing unmet/);
 const importedClothAtMarketPlan = evaluateResidenceUpgrade(tierTwo, richTotals, {
   ...allServices,
   cloth: { supplier: householdMarket, stocked: true },

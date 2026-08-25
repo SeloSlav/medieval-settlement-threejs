@@ -389,7 +389,7 @@ assert.deepEqual(
       swineBreedingCyclesPerDay,
     ),
   ],
-  [7, 27, 21],
+  [10, 42, 30],
   'one fully supported spring at the actual fixed husbandry cadence should grow herds meaningfully',
 );
 assert.equal(livestockHeadsPerWorker('cattle'), CATTLE_HEADS_PER_WORKER);

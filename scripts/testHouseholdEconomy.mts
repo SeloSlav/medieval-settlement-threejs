@@ -153,8 +153,8 @@ const discretionaryTrade = readFileSync(
 );
 assert.match(
   discretionaryTrade,
-  /clock\.hour != 18[\s\S]*last_discretionary_market_day != day_marker/,
-  'optional purchases must be limited to one evening market call per household and day',
+  /if !calendar_day_started\(clock\)[\s\S]*last_discretionary_market_day != day_marker/,
+  'optional purchases must be limited to one calendar-day call without an hour gate',
 );
 assert.match(
   discretionaryTrade,

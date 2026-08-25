@@ -162,21 +162,21 @@ assert.ok(
 );
 assert.equal(
   residenceAleRunwayDays(residence('ale-runway', 0, 4, 'ale', 7)),
-  10,
+  35 / 6,
 );
 assert.ok(
   Math.abs(
     (residenceClothRunwayDays(
       residence('cloth-runway', 0, 10, 'cloth', 1),
-    ) ?? 0) - 7.936507936507937,
+    ) ?? 0) - 125 / 27,
   ) < 1e-9,
-  'household cloth runway must use the same 14-hour consumption window as the server',
+  'household cloth runway must use the same continuous-day consumption window as the server',
 );
 assert.ok(
   Math.abs(
     (residenceShoesRunwayDays(
       residence('shoes-runway', 0, 10, 'shoes', 1),
-    ) ?? 0) - 11.904761904761905,
+    ) ?? 0) - 125 / 18,
   ) < 1e-9,
   'Tier 3 footwear runway must use the authoritative household consumption rate',
 );

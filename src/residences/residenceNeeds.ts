@@ -167,7 +167,7 @@ function evaluateNeedRecovery(
     case 'cloth':
       return {
         kind,
-        label: 'Household textiles',
+        label: 'Clothing',
         ready: supply.servingClothSupplierId != null && need.stock + 1e-6 >= threshold,
         stock: need.stock,
         threshold,
@@ -387,13 +387,13 @@ function describeActiveNeed(
       if (runwayDays == null) return null;
       if (runwayDays <= 0.25) {
         return {
-          label: 'Out of household textiles — awaiting weaver supply',
+          label: 'Out of clothing — awaiting weaver supply',
           state: 'warning',
         };
       }
       if (runwayDays < 3) {
         return {
-          label: `Household textiles low — ${formatSpecialtyRunwayDays(runwayDays)} left`,
+          label: `Clothing low — ${formatSpecialtyRunwayDays(runwayDays)} left`,
           state: 'warning',
         };
       }
@@ -481,7 +481,7 @@ function needLabel(kind: ResidenceNeedKind): string {
     case 'preservedFood':
       return 'Cured provisions';
     case 'cloth':
-      return 'Household textiles';
+      return 'Clothing';
     case 'shoes':
       return 'Footwear';
     case 'pottery':

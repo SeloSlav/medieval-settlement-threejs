@@ -102,6 +102,7 @@ const storehouseControls = renderStorageAcceptanceControls(
 );
 assert.equal((storehouseControls.match(/data-storage-commodity=/g) ?? []).length, 15);
 assert.match(storehouseControls, /data-storage-commodity="cloth"/);
+assert.match(storehouseControls, /Clothing: accepting new deliveries\./);
 assert.match(storehouseControls, /data-storage-commodity="hides"/);
 assert.match(storehouseControls, /data-storage-commodity="leather"/);
 assert.match(storehouseControls, /data-storage-commodity="shoes"/);

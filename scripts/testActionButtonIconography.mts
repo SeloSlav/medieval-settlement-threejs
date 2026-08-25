@@ -357,6 +357,7 @@ for (const [resource, asset] of [
   ['remedies', 'materials/remedies.png'],
   ['wax', 'materials/beeswax.png'],
   ['candles', 'materials/candles.png'],
+  ['cloth', 'materials/clothing.png'],
   ['animalFeed', 'provisions/animal-feed.png'],
 ] as const) {
   assert.match(

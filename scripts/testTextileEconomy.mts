@@ -136,7 +136,7 @@ assert.equal(cargoKindFromId(14), 'cloth');
 assert.equal(cargoKindFromId(18), 'flax');
 assert.equal(cargoKindLabel('wool'), 'Wool fleece');
 assert.equal(cargoKindLabel('flax'), 'Flax fibre');
-assert.equal(cargoKindLabel('cloth'), 'Cloth');
+assert.equal(cargoKindLabel('cloth'), 'Clothing');
 assert.equal(needKindFromId(14), 'cloth');
 assert.equal(createDefaultNeeds().cloth.stock, 0);
 assert.equal(normalizeWeaverInputPolicy(undefined), WEAVER_INPUT_POLICY_AUTO);
@@ -205,14 +205,14 @@ assert.equal(
     weaver({ wool: WEAVER_WOOL_PER_CYCLE }),
     worldQueries,
   )?.statusText,
-  'Weaving wool into cloth',
+  'Tailoring wool clothing',
 );
 assert.equal(
   getBuildingProcessorStatus(
     weaver({ wool: WEAVER_WOOL_PER_CYCLE, cloth: BUILDING_STORAGE_CAPS.weaver.cloth }),
     worldQueries,
   )?.statusText,
-  'Cloth target reached - weaving paused',
+  'Clothing target reached - tailoring paused',
 );
 const flaxWorldQueries = {
   getRoadConnectedWells: () => [weaver({ id: 'well-1', kind: 'well', water: 8 })],
@@ -224,7 +224,7 @@ assert.equal(
     weaver({ flax: WEAVER_FLAX_PER_CYCLE, water: WEAVER_FLAX_WATER_PER_CYCLE }),
     flaxWorldQueries,
   )?.statusText,
-  'Preparing flax and weaving linen cloth',
+  'Preparing flax and tailoring linen clothing',
 );
 const policyStatus = getBuildingProcessorStatus(
   weaver({
@@ -235,7 +235,7 @@ const policyStatus = getBuildingProcessorStatus(
   }),
   flaxWorldQueries,
 );
-assert.equal(policyStatus?.statusText, 'Preparing flax and weaving linen cloth');
+assert.equal(policyStatus?.statusText, 'Preparing flax and tailoring linen clothing');
 assert.match(policyStatus?.waterDetailHtml ?? '', /Input policy<\/span><span>Flax first/);
 assert.match(policyStatus?.waterDetailHtml ?? '', /Selected textile route<\/span><span>Flax \+ hauled water/);
 const policyPanel = renderProcessorOutputTargetPanel(weaver());
@@ -553,12 +553,12 @@ assert.equal(
 assert.match(textileChainBalanceLabel(splitRoadTextiles), /Road-limited/);
 const splitTextileRows = renderSettlementTextileRows(splitRoadTextiles);
 assert.match(splitTextileRows, /1 \/ 3 active branches/);
-assert.match(splitTextileRows, /8\.0 \/ 16\.0 cloth\/year physically paired/);
-assert.match(splitTextileRows, /8\.0 cloth\/year stranded/);
+assert.match(splitTextileRows, /8\.0 \/ 16\.0 clothing\/year physically paired/);
+assert.match(splitTextileRows, /8\.0 clothing\/year stranded/);
 assert.match(splitTextileRows, /16\.0 local shortfall/);
 assert.match(splitTextileRows, /data-inspect-residence="east-home"/);
 assert.match(splitTextileRows, /1 \/ 2 current household branches/);
-assert.match(splitTextileRows, /9 cloth in local cupboards/);
+assert.match(splitTextileRows, /9 clothing in local cupboards/);
 assert.match(splitTextileRows, /weakest reserve 90 days/);
 assert.match(
   splitTextileRows,
@@ -617,8 +617,8 @@ assert.equal(fireAwareTextiles.fireQuarantinedClothStock, 7);
 assert.equal(fireAwareTextiles.householdClothStock, 2);
 assert.equal(fireAwareTextiles.householdClothInTransit, 0);
 assert.equal(fireAwareTextiles.roadPlan?.householdBranches, 1);
-assert.match(renderSettlementTextileRows(fireAwareTextiles), /Textile fire outages/);
-assert.match(renderSettlementTextileRows(fireAwareTextiles), /7 cloth/);
+assert.match(renderSettlementTextileRows(fireAwareTextiles), /Clothing fire outages/);
+assert.match(renderSettlementTextileRows(fireAwareTextiles), /7 clothing/);
 assert.match(renderSettlementTextileRows(fireAwareTextiles), /first fire-disabled sheep holding/);
 
 const joinedRoadTextiles = computeSettlementTextilePlan({
@@ -656,7 +656,7 @@ assert.equal(joinedRoadTextiles.roadPlan?.unservedHouseholdBranches, 0);
 assert.equal(joinedRoadTextiles.roadPlan?.worstHouseholdClothRunwayDays, 225);
 assert.match(
   renderSettlementTextileRows(joinedRoadTextiles),
-  /no cloth capacity stranded by topology/,
+  /no clothing capacity stranded by topology/,
 );
 
 const satelliteRoadTextiles = computeSettlementTextilePlan({
@@ -900,7 +900,7 @@ assert.match(townHallRenderer, /Shearing readiness/);
 assert.match(townHallRenderer, /Textile stores/);
 assert.match(townHallRenderer, /Textile chain/);
 assert.match(townHallRenderer, /Textile roads/);
-assert.match(townHallRenderer, /cloth\/year physically paired/);
+assert.match(townHallRenderer, /clothing\/year physically paired/);
 assert.match(townHallRenderer, /first holding waiting for full-clip room/);
 assert.match(townHallRenderer, /waiting for full-clip room/);
 assert.match(livestockBuildingRenderer, /Shearing waits for full-clip room/);

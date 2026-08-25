@@ -1143,7 +1143,7 @@ export function formatHouseholdBufferReadiness(
     ['water', provisioning.householdBufferWaterShortHomes],
     ['preserved food', provisioning.householdBufferPreservedFoodShortHomes],
     ['ale', provisioning.householdBufferAleShortHomes],
-    ['textiles', provisioning.householdBufferClothShortHomes],
+    ['clothing', provisioning.householdBufferClothShortHomes],
     ['pottery', provisioning.householdBufferPotteryShortHomes],
   ] as const;
   const shortageLabel = shortages

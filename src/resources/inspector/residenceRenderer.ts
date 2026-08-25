@@ -538,7 +538,7 @@ export function renderResidenceInspector(
       kind === 'preservedFood'
         ? 'preserved food'
         : kind === 'cloth'
-          ? 'household textiles'
+          ? 'clothing'
           : kind === 'pottery'
             ? 'household pottery'
           : kind === 'foodVariety'
@@ -686,7 +686,7 @@ export function renderResidenceInspector(
           ? [{
               kind: 'cloth' as const,
               amount: getNeedStock(residence.needs, 'cloth'),
-              title: 'Household textiles',
+              title: 'Clothing',
               amountLabel: `Stock · cap ${RESIDENCE_CLOTH_CAPACITY}`,
               detail: `${clothRunwayLabel} runway · ${clothSupplierLabel}`,
               className: getNeed(residence.needs, 'cloth').deficitTicks > 0 ? 'is-warning' : '',
@@ -865,7 +865,7 @@ export function renderResidenceInspector(
       ${residence.tier > 0 ? `<li data-inspector-primary data-inspector-section="${fuelAndWaterSection}"><span>Water</span><span>${Math.round(getNeedStock(residence.needs, 'water'))} / ${RESIDENCE_WATER_CAPACITY} · ${waterRunwayLabel} runway</span></li>` : ''}
       ${residence.tier > 0 ? `<li data-inspector-secondary data-inspector-section="${fuelAndWaterSection}"><span>Heating supplier</span><span>${firewoodSupplierLabel}</span></li>` : ''}
       ${residence.tier > 0 ? `<li data-inspector-secondary data-inspector-section="${fuelAndWaterSection}"><span>Serving well</span><span>${wellLabel}</span></li>` : ''}
-      ${residence.tier >= 2 ? `<li data-inspector-primary data-inspector-section="${householdGoodsSection}"><span>Household textiles</span><span>${Math.round(getNeedStock(residence.needs, 'cloth'))} / ${RESIDENCE_CLOTH_CAPACITY} · ${clothRunwayLabel} runway</span></li>` : ''}
+      ${residence.tier >= 2 ? `<li data-inspector-primary data-inspector-section="${householdGoodsSection}"><span>Clothing</span><span>${Math.round(getNeedStock(residence.needs, 'cloth'))} / ${RESIDENCE_CLOTH_CAPACITY} · ${clothRunwayLabel} runway</span></li>` : ''}
       ${residence.tier >= 3 ? `<li data-inspector-primary data-inspector-section="${householdGoodsSection}"><span>Footwear</span><span>${Math.round(getNeedStock(residence.needs, 'shoes'))} / ${RESIDENCE_SHOES_CAPACITY} · ${shoesRunwayLabel} replacement</span></li>` : ''}
       ${residence.tier >= 4 ? `<li data-inspector-primary data-inspector-section="${householdGoodsSection}"><span>Household pottery</span><span>${Math.round(getNeedStock(residence.needs, 'pottery'))} / ${RESIDENCE_POTTERY_CAPACITY} · ${potteryRunwayLabel} replacement</span></li>` : ''}
       ${residence.tier >= 2 ? `<li data-inspector-secondary data-inspector-section="${householdGoodsSection}"><span>Clothing supplier</span><span>${clothSupplierLabel}</span></li>` : ''}
@@ -946,7 +946,7 @@ function residenceNeedIconLabel(kind: ResidenceNeedKind): string {
     case 'water': return 'Water';
     case 'church': return 'Church access';
     case 'foodVariety': return 'Food variety';
-    case 'cloth': return 'Household textiles';
+    case 'cloth': return 'Clothing';
     case 'shoes': return 'Footwear';
     case 'preservedFood': return 'Cured provisions';
     case 'ale': return 'Beverages';
@@ -1213,7 +1213,7 @@ function compactNeedLabel(
   switch (kind) {
     case 'preservedFood': return 'preserved food';
     case 'foodVariety': return 'food variety';
-    case 'cloth': return 'textiles';
+    case 'cloth': return 'clothing';
     case 'pottery': return 'pottery';
     case 'church': return 'church';
     case 'luxury': return 'luxury';
