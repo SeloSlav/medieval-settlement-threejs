@@ -22,21 +22,32 @@ test('recovers the world canvas after a paper-map WebGPU owner handoff', async (
   const worldBeforeFrame = await page.evaluate(() => Number(
     document.body.dataset.renderedFrame,
   ));
-  const mapFrame = await page.evaluate(async () => {
+  const mapRender = await page.evaluate(async () => {
     return window.__WEBGPU_RENDER_OWNER_FIXTURE__!
       .renderOwner('illustrated-map');
   });
-  expect(mapFrame).toBeGreaterThan(worldBeforeFrame);
+  expect(mapRender.owner).toBe('illustrated-map');
+  expect(mapRender.frameId).toBeGreaterThan(worldBeforeFrame);
   const map = await canvas.screenshot();
   expect(map.equals(worldBefore)).toBe(false);
 
-  const worldAfterFrame = await page.evaluate(async () => {
-    const fixture = window.__WEBGPU_RENDER_OWNER_FIXTURE__!;
-    fixture.setWorldColor(0x2c8a4b);
-    return fixture.renderOwner('world');
+  const worldAfterRender = await page.evaluate(async () => {
+    return window.__WEBGPU_RENDER_OWNER_FIXTURE__!.renderOwner('world', {
+      worldColor: 0x2c8a4b,
+    });
   });
-  expect(worldAfterFrame).toBeGreaterThan(mapFrame);
+  expect(worldAfterRender.owner).toBe('world');
+  expect(worldAfterRender.frameId).toBeGreaterThan(mapRender.frameId);
   const worldAfter = await canvas.screenshot();
   expect(worldAfter.equals(worldBefore)).toBe(false);
   expect(worldAfter.equals(map)).toBe(false);
+
+  const worldRestoredRender = await page.evaluate(async () => {
+    return window.__WEBGPU_RENDER_OWNER_FIXTURE__!.renderOwner('world', {
+      worldColor: 0x173f8f,
+    });
+  });
+  expect(worldRestoredRender.frameId).toBeGreaterThan(worldAfterRender.frameId);
+  const worldRestored = await canvas.screenshot();
+  expect(worldRestored.equals(worldBefore)).toBe(true);
 });

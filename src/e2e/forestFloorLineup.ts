@@ -53,12 +53,16 @@ import {
   resolveWorldDimensions,
 } from '../world/worldGenerationSettings.ts';
 
-type ForestFloorCaptureMode = 'baseline' | 'nettles' | 'twigs' | 'final';
+type ForestFloorCaptureMode = 'ground' | 'ivy' | 'nettles' | 'twigs' | 'final';
 
 type ForestFloorRenderEvidence = {
   mode: ForestFloorCaptureMode;
+  groundMeshAttached: boolean;
+  ivyMeshAttached: boolean;
   nettleGroupAttached: boolean;
   twigGroupAttached: boolean;
+  groundSubmissions: number;
+  ivySubmissions: number;
   nettleSubmissions: number;
   twigSubmissions: number;
   renderCalls: number;
@@ -280,8 +284,12 @@ for (let variantIndex = 0; variantIndex < FOREST_FLOOR_TWIG_VARIANT_COUNT; varia
 }
 scene.add(twigGroup);
 
+let ivySubmissions = 0;
 let nettleSubmissions = 0;
 let twigSubmissions = 0;
+ivy.onBeforeRender = () => {
+  ivySubmissions += 1;
+};
 for (const bucket of nettles.buckets) {
   bucket.mesh.onBeforeRender = () => {
     nettleSubmissions += 1;
@@ -330,6 +338,10 @@ const groundMaterial = new THREE.MeshStandardMaterial({
 const ground = new THREE.Mesh(groundGeometry, groundMaterial);
 ground.name = 'Leaf-litter terrain validation surface';
 scene.add(ground);
+let groundSubmissions = 0;
+ground.onBeforeRender = () => {
+  groundSubmissions += 1;
+};
 
 const trunkGeometry = new THREE.CylinderGeometry(0.23, 0.37, 6.2, 10);
 const trunkMaterial = new THREE.MeshStandardMaterial({
@@ -387,8 +399,11 @@ function render(now = performance.now()): void {
 
 window.__FOREST_FLOOR_SET_CAPTURE_MODE__ = async (mode) => {
   capturePaused = true;
+  ivy.visible = mode === 'ivy' || mode === 'final';
   nettles.group.visible = mode === 'nettles' || mode === 'final';
   twigGroup.visible = mode === 'twigs' || mode === 'final';
+  groundSubmissions = 0;
+  ivySubmissions = 0;
   nettleSubmissions = 0;
   twigSubmissions = 0;
   prepareFrame(performance.now());
@@ -397,8 +412,12 @@ window.__FOREST_FLOOR_SET_CAPTURE_MODE__ = async (mode) => {
   await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
   return {
     mode,
+    groundMeshAttached: ground.parent === scene,
+    ivyMeshAttached: ivy.parent === scene,
     nettleGroupAttached: nettles.group.parent === scene,
     twigGroupAttached: twigGroup.parent === scene,
+    groundSubmissions,
+    ivySubmissions,
     nettleSubmissions,
     twigSubmissions,
     renderCalls: renderer.info.render.calls,
@@ -417,10 +436,23 @@ document.body.dataset.animationTime = fixedAnimationTime === null
   : fixedAnimationTime.toFixed(2);
 document.body.dataset.ivyLayers = String(FOREST_FLOOR_IVY_LAYER_COUNT);
 document.body.dataset.ivyPatches = String(placements.length);
-document.body.dataset.ivyLeaves = String(
-  placements.length * FOREST_FLOOR_IVY_LEAVES_PER_PATCH,
+document.body.dataset.ivyLeavesPerPatch = String(FOREST_FLOOR_IVY_LEAVES_PER_PATCH);
+document.body.dataset.ivyLeafInstances = String(ivy.count);
+document.body.dataset.ivyCarrierSheets = '0';
+document.body.dataset.ivyDetachedOverlayLeaves = '0';
+document.body.dataset.ivyDrawCalls = String(ivy.count > 0 ? 1 : 0);
+document.body.dataset.ivyPrototypeVertices = String(
+  ivy.geometry.getAttribute('position').count,
 );
-document.body.dataset.ivyDrawCalls = '1';
+document.body.dataset.ivyPrototypeTriangles = String(
+  (ivy.geometry.getIndex()?.count ?? 0) / 3,
+);
+document.body.dataset.ivySubmittedVertices = String(
+  ivy.geometry.getAttribute('position').count * ivy.count,
+);
+document.body.dataset.ivySubmittedTriangles = String(
+  (ivy.geometry.getIndex()?.count ?? 0) / 3 * ivy.count,
+);
 document.body.dataset.ivyMaxHeight = FOREST_FLOOR_IVY_CANOPY_HEIGHT_MAX.toFixed(2);
 document.body.dataset.ivySnowCoverage = ivySnowCoverage.toFixed(2);
 document.body.dataset.nettleInstances = String(nettles.stats.instances);
@@ -470,6 +502,9 @@ document.body.dataset.forestFloorSignature = [
   season,
   fixedAnimationTime === null ? 'live' : fixedAnimationTime.toFixed(2),
   placements.length,
+  ivy.count,
+  ivy.geometry.getAttribute('position').count,
+  (ivy.geometry.getIndex()?.count ?? 0) / 3 * ivy.count,
   nettles.stats.instances,
   nettles.stats.triangles,
   twigPlacements.length,

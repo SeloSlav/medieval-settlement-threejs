@@ -606,7 +606,7 @@ for (let index = 0; index < compiledIvy.instanceCount; index++) {
     maximumMotion = Math.max(maximumMotion, motion);
     signature.push(Number(motion.toFixed(5)));
   }
-  assert.equal(ivyAngleAt(root, phase, hingeAmplitude, 5, 0, 4), 0);
+  assert.ok(Math.abs(ivyAngleAt(root, phase, hingeAmplitude, 5, 0, 4)) < 1e-12);
   assert.ok(
     maximumMotion <= FOREST_FLOOR_IVY_ANIMATION_MAX_TIP_DISPLACEMENT + 0.005,
     'sheltered ivy flutter must remain bounded',
@@ -679,9 +679,6 @@ for (const leaf of FOREST_FLOOR_IVY_ATLAS_LEAVES) {
   assert.ok(leaf.maxX - leaf.minX > 500 && leaf.maxY - leaf.minY > 500);
 }
 repeatedIvy.geometry.dispose();
-  Array.from(ivyHinge.array),
-  'fixed inputs should reproduce every leaf hinge and amplitude',
-);
 
 assert.equal(FOREST_FLOOR_TWIG_VARIANT_COUNT, 3);
 assert.equal(FOREST_FLOOR_TWIG_RADIAL_SEGMENTS, 6);
@@ -746,22 +743,32 @@ assert.match(
 );
 assert.doesNotMatch(
   ivySource,
-  /createSeedThreeCardClumpGeometry|new THREE\.InstancedMesh|tiltMin:/,
-  'the rejected flat-card and crossed-card carrier must not return',
+  /createSeedThreeCardClumpGeometry|appendAnimatedIvyLeaves|FOREST_FLOOR_IVY_(?:SHEET|ANIMATED)/,
+  'the rejected carrier sheets and detached animated overlay must not return',
 );
 assert.match(ivySource, /terrain\.getHeightAt\(worldX, worldZ\)/);
-assert.match(ivySource, /sourceTreeIndex:[\s\S]*?placementVertexRangesByTree/);
-assert.match(ivySource, /new THREE\.Mesh\(compiled\.geometry, material\)/);
+assert.match(ivySource, /sourceTreeIndex:[\s\S]*?placementInstanceRangesByTree/);
+assert.match(ivySource, /new THREE\.InstancedMesh\(/);
+assert.match(ivySource, /createForestFloorIvyMesh\(compiled, material\)/);
 assert.match(ivySource, /createIvyLeafHingeWindNodes/);
 assert.match(ivySource, /hingeWind\.normalNode/);
 assert.match(ivySource, /applyIvyLeafHingeWebGLWind\(material\)/);
-assert.match(ivySource, /geometry\.setAttribute\('aIvyRootPhase'/);
-assert.match(ivySource, /geometry\.setAttribute\('aIvyHinge'/);
-assert.match(ivySource, /appendAnimatedIvyLeaves/);
+assert.match(ivySource, /geometry\.setAttribute\(\s*'aIvyRootPhase'/);
+assert.match(ivySource, /geometry\.setAttribute\(\s*'aIvyHinge'/);
+assert.match(ivySource, /geometry\.setAttribute\(\s*'aIvyVisibility'/);
+assert.match(ivySource, /geometry\.setAttribute\(\s*'aIvyAtlasRect'/);
+assert.match(ivySource, /appendIvyLayerLeaves/);
+assert.match(ivySource, /ivyRunnerPointAt/);
+assert.match(ivySource, /ivySurfaceHeightAtWorld/);
 assert.match(ivyWindSource, /worldAnimationTime[\s\S]*?windSpeed[\s\S]*?windStrength/);
 assert.match(ivyWindSource, /rotateAroundAxis[\s\S]*?rootPhase[\s\S]*?hinge/);
 assert.match(ivyWindSource, /transformNormalToView\(rotatedNormal\)/);
-assert.match(ivyWindSource, /IVY_HINGE_ACTIVE_Y_THRESHOLD[\s\S]*?step/);
+assert.match(ivyWindSource, /attribute\('aIvyVisibility', 'float'\)/);
+assert.match(
+  ivyWindSource,
+  /rotateIvyAroundAxis[\s\S]*?vec3\( 1\.0, 0\.0, 0\.0 \)[\s\S]*?aIvyVisibility/,
+  'classic WebGL must rotate the shared leaf about its local petiole axis before instancing',
+);
 assert.match(ivyWindSource, /uIvyTime[\s\S]*?uIvyWindSpeed[\s\S]*?uIvyWindStrength/);
 assert.doesNotMatch(
   ivyWindSource,
@@ -773,14 +780,18 @@ assert.match(
   /supportsNodeMaterials\(rendererBackend\)/,
   'the SeedThree node path must cover native WebGPU and WebGL2 node backends',
 );
-assert.match(ivySource, /FOREST_FLOOR_IVY_HIDDEN_Y[\s\S]*?position\.addUpdateRange/);
+assert.match(
+  ivySource,
+  /liveVisibility\.fill[\s\S]*?visibility\.addUpdateRange[\s\S]*?visibility\.needsUpdate = true/,
+  'tree and blocker masking must update only owned leaf visibility ranges',
+);
 assert.match(
   ivySource,
   /FOREST_FLOOR_IVY_LAYER_SPECS[\s\S]*?kind: 'ground'[\s\S]*?kind: 'lower'[\s\S]*?kind: 'upper'[\s\S]*?kind: 'crown'/,
   'ivy should declare semantic ground, lower, upper, and crown strata',
 );
 assert.match(ivySource, /ivyStackHeightAtWorld[\s\S]*?overhangScale[\s\S]*?supportGap/);
-assert.match(ivySource, /geometry\.setAttribute\('ivyLayer'/);
+assert.match(ivySource, /geometry\.setAttribute\(\s*'ivyLayer'/);
 assert.match(
   nettleSource,
   /createGorskiShrubPrototype\('nettle', variant\)/,

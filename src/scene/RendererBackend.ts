@@ -74,6 +74,9 @@ type WebGPURendererWithTargetState = {
   setOutputRenderTarget(renderTarget: unknown | null): void;
   setRenderTarget(renderTarget: unknown | null): void;
 };
+type WebGPURendererWithFallbackHook = {
+  _getFallback: ((error: unknown) => unknown) | null;
+};
 
 /**
  * WebGPURenderer's bundled declaration currently omits this runtime API even
@@ -215,12 +218,23 @@ function defaultRendererBackendDependencies(): RendererBackendDependencies {
     : (navigator as NavigatorWithWebGPU).gpu ?? null;
   return {
     gpu,
-    createRenderer: (options) => new WebGPURenderer(options),
+    createRenderer: createNativeWebGPURenderer,
     // Adapter/device acquisition and renderer initialization are not
     // cancellable. Let them settle instead of racing them with a timer that
     // could orphan a late native-WebGPU initialization.
     waitForStartup: (promise) => promise,
   };
+}
+
+function createNativeWebGPURenderer(
+  options: RendererConstructionOptions,
+): WebGPURenderer {
+  const renderer = new WebGPURenderer(options);
+  // Three r185 installs an internal WebGL2 fallback even when forceWebGL is
+  // absent. The game is native-WebGPU-only, so disable that private boundary
+  // before init; the post-init backend check below remains a second guard.
+  (renderer as unknown as WebGPURendererWithFallbackHook)._getFallback = null;
+  return renderer;
 }
 
 async function waitForNativeWebGPUSubmittedWork(

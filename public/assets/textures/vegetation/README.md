@@ -1,25 +1,26 @@
 # Vegetation card textures
 
-`forest-floor-ivy-card.png` is the generated RGBA alpha card used by the
-SeedThree broad woodland-floor ivy batch. The source was generated from the
-supplied Manor Lords forest-floor references as a low, horizontally spreading
-European ivy clump on a uniform magenta extraction field, then converted with
-the Seloslav/SeedThree `chroma-key.mjs` pipeline. Runtime geometry crops to the
-asset's visible alpha bounds and maps each colony onto seven disconnected,
-terrain-aware sheets in one merged mesh: a broad 8x6 ground apron, paired lower
-lobes, paired offset upper lobes, and two localized crownlets. Every vertex samples the
-terrain independently. The apron's visible perimeter sits 1.4 cm above the
-litter; each raised sheet is supported by the layers beneath it, anchors along
-a low rear/root arc, and lets its transparent forward fringe overhang. Small
-physical gaps, independent yaw and tint, and a 48 cm maximum stack height create
-under-leaf darkness and grazing-angle parallax without turning the colony into
-a shrub or a hovering billboard. A complete colony remains one SeedThree
-material and one draw call (199 vertices, 266 triangles).
+`forest-floor-ivy-leaf-atlas-v2.png` is the dedicated RGBA atlas used by the
+SeedThree woodland-floor ivy system. Its four alpha-trimmed, 600 px-class
+European ivy leaves replace the low-resolution peripheral crop formerly taken
+from `forest-floor-ivy-card.png`; that older colony card is retained only as a
+legacy reference and is no longer loaded by the runtime.
 
-Final generation prompt summary: a single botanically convincing carpet of
-small overlapping five-lobed ivy leaves, broad irregular perimeter, restrained
-young yellow-green leaves and visible creeping stems; diffuse de-lit botanical
-game texture; no grass, flowers, soil, rocks, trees, text, or cast shadow.
+Each ivy patch renders 160 individually rooted leaf instances distributed
+along terrain-following runner chains. Seven unrendered density envelopes keep
+the broad ground, lower, upper, and crown composition, but they never become
+carrier sheets. Every visible leaf owns a runner root, hinge axis, phase, atlas
+selection, tint, and cambered transform. SeedThree wind rotates both position
+and normal about that root, so the entire colony shudders without root sliding
+or synchronized card rocking. There is no baked colony sheet and no detached
+moving-leaf overlay; one shared leaf prototype and one instanced material keep
+each complete patch to a single draw call.
+
+Final v2 generation prompt summary: four isolated, high-resolution,
+botanically convincing five-lobed European ivy leaves in a 2x2 atlas; natural
+green variation, crisp veins and edges, diffuse de-lit botanical game texture,
+clean transparency, and no grass, flowers, soil, rocks, stems, text, or cast
+shadow.
 
 `raspberry_patch_albedo.png` is the dedicated transparent alpha card for harvestable berry-resource patches. It replaces the former bilberry-card-plus-red-sphere treatment with raspberry canes whose aggregate fruit is part of the texture. Ordinary procedural juniper scrub continues to use SeedThree's original `juniper_scrub_*` texture set.
 

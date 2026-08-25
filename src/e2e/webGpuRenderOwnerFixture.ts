@@ -9,11 +9,23 @@ import {
 } from '../scene/RendererBackend.ts';
 
 type FixtureOwner = 'world' | 'illustrated-map';
+type RenderOwnerOptions = {
+  simulateLeakedTargets?: boolean;
+  worldColor?: number;
+};
+type RenderOwnerResult = {
+  frameId: number;
+  owner: FixtureOwner;
+};
 type PendingRender = {
   owner: FixtureOwner;
   reject(error: unknown): void;
-  resolve(frame: number): void;
+  resolve(result: RenderOwnerResult): void;
   simulateLeakedTargets: boolean;
+  worldColor?: number;
+};
+type WebGPURendererWithCommonFrameInfo = {
+  info: { frame: number };
 };
 
 const host = document.querySelector<HTMLElement>('#fixture');
@@ -49,12 +61,17 @@ try {
   const leakedTarget = new THREE.WebGLRenderTarget(16, 16);
   const pendingRenders: PendingRender[] = [];
   let renderInFlight = false;
-  let renderedFrame = 0;
   const renderOwner = (
     owner: FixtureOwner,
-    simulateLeakedTargets = true,
-  ): Promise<number> => new Promise((resolve, reject) => {
-    pendingRenders.push({ owner, reject, resolve, simulateLeakedTargets });
+    options: RenderOwnerOptions = {},
+  ): Promise<RenderOwnerResult> => new Promise((resolve, reject) => {
+    pendingRenders.push({
+      owner,
+      reject,
+      resolve,
+      simulateLeakedTargets: options.simulateLeakedTargets ?? true,
+      worldColor: options.worldColor,
+    });
   });
 
   setRendererAnimationLoop(renderer, () => {
@@ -63,12 +80,15 @@ try {
     if (!request) return;
 
     renderInFlight = true;
-    const frame = ++renderedFrame;
+    const frameId = (
+      renderer as unknown as WebGPURendererWithCommonFrameInfo
+    ).info.frame;
     try {
       if (request.simulateLeakedTargets) {
         setWebGPURenderTarget(renderer, leakedTarget);
         setWebGPUOutputRenderTarget(renderer, leakedTarget);
       }
+      if (request.worldColor !== undefined) worldBackground.set(request.worldColor);
       if (request.owner === 'world') postProcessor.render(0);
       else postProcessor.renderIllustratedMap();
     } catch (error) {
@@ -79,8 +99,8 @@ try {
 
     void backend.waitForSubmittedWork().then(() => {
       document.body.dataset.owner = request.owner;
-      document.body.dataset.renderedFrame = String(frame);
-      request.resolve(frame);
+      document.body.dataset.renderedFrame = String(frameId);
+      request.resolve({ frameId, owner: request.owner });
     }, request.reject).finally(() => {
       renderInFlight = false;
     });
@@ -89,9 +109,8 @@ try {
   window.__WEBGPU_RENDER_OWNER_FIXTURE__ = {
     backend: backend.kind,
     renderOwner,
-    setWorldColor: (color) => worldBackground.set(color),
   };
-  await renderOwner('world', false);
+  await renderOwner('world', { simulateLeakedTargets: false });
   document.body.dataset.ready = 'true';
 
   window.addEventListener('pagehide', () => {
@@ -117,8 +136,10 @@ declare global {
   interface Window {
     __WEBGPU_RENDER_OWNER_FIXTURE__?: {
       backend: string;
-      renderOwner(owner: FixtureOwner, simulateLeakedTargets?: boolean): Promise<number>;
-      setWorldColor(color: number): void;
+      renderOwner(
+        owner: FixtureOwner,
+        options?: RenderOwnerOptions,
+      ): Promise<RenderOwnerResult>;
     };
   }
 }

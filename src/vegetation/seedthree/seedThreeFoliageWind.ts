@@ -8,7 +8,6 @@ import {
   positionLocal,
   sin,
   smoothstep,
-  step,
   transformNormalToView,
   uv,
   vec3,
@@ -75,7 +74,6 @@ const ivyTsl = {
     edge1: unknown,
     value: unknown,
   ) => IvyTslNode,
-  step: step as (edge: unknown, value: unknown) => IvyTslNode,
   time: worldAnimationTime as unknown as IvyTslNode,
   transformNormalToView: transformNormalToView as (value: unknown) => IvyTslNode,
   vec4: vec4 as (x: unknown, y?: unknown, z?: unknown, w?: unknown) => IvyTslNode,
@@ -83,7 +81,6 @@ const ivyTsl = {
   windStrength: windStrength as unknown as IvyTslNode,
 };
 
-export const IVY_HINGE_ACTIVE_Y_THRESHOLD = -1_000;
 export const IVY_HINGE_MACRO_FADE_START = 22;
 export const IVY_HINGE_MACRO_FADE_END = 44;
 export const IVY_HINGE_MACRO_FAR_SCALE = 0.15;

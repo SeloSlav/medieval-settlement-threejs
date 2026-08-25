@@ -49,6 +49,11 @@ assert.doesNotMatch(
   /WEBGPU_STARTUP_TIMEOUT_MS|function withTimeout/,
   'native WebGPU startup must not race initialization against a non-cancelling timeout',
 );
+assert.match(
+  rendererBackendSource,
+  /function createNativeWebGPURenderer\([\s\S]*?new WebGPURenderer\(options\)[\s\S]*?_getFallback = null/,
+  'production renderer construction must disable Three r185\'s internal WebGL2 fallback',
+);
 assert.equal(
   (postSource.match(/this\.renderPipelineToCanvas\(/g) ?? []).length,
   2,

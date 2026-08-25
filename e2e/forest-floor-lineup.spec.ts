@@ -1,12 +1,16 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 
 type ForestFloorDataset = Record<string, string>;
-type CaptureMode = 'baseline' | 'nettles' | 'twigs' | 'final';
+type CaptureMode = 'ground' | 'ivy' | 'nettles' | 'twigs' | 'final';
 
 type RenderEvidence = {
   mode: CaptureMode;
+  groundMeshAttached: boolean;
+  ivyMeshAttached: boolean;
   nettleGroupAttached: boolean;
   twigGroupAttached: boolean;
+  groundSubmissions: number;
+  ivySubmissions: number;
   nettleSubmissions: number;
   twigSubmissions: number;
   renderCalls: number;
@@ -210,6 +214,25 @@ for (const [season, expected] of seasons) {
     expect(dataset.nettleAutumnColor).toBe(expected.autumn);
     expect(dataset.nettleDormancy).toBe(expected.dormancy);
     expect(Number(dataset.ivyPatches)).toBe(7);
+    const ivyPatches = Number(dataset.ivyPatches);
+    const ivyLeavesPerPatch = Number(dataset.ivyLeavesPerPatch);
+    const ivyLeafInstances = Number(dataset.ivyLeafInstances);
+    const ivyPrototypeVertices = Number(dataset.ivyPrototypeVertices);
+    const ivyPrototypeTriangles = Number(dataset.ivyPrototypeTriangles);
+    expect(Number(dataset.ivyLayers)).toBe(7);
+    expect(ivyLeavesPerPatch).toBeGreaterThan(100);
+    expect(ivyLeafInstances).toBe(ivyPatches * ivyLeavesPerPatch);
+    expect(Number(dataset.ivyCarrierSheets)).toBe(0);
+    expect(Number(dataset.ivyDetachedOverlayLeaves)).toBe(0);
+    expect(Number(dataset.ivyDrawCalls)).toBe(1);
+    expect(ivyPrototypeVertices).toBeGreaterThanOrEqual(9);
+    expect(ivyPrototypeTriangles).toBeGreaterThanOrEqual(8);
+    expect(Number(dataset.ivySubmittedVertices)).toBe(
+      ivyLeafInstances * ivyPrototypeVertices,
+    );
+    expect(Number(dataset.ivySubmittedTriangles)).toBe(
+      ivyLeafInstances * ivyPrototypeTriangles,
+    );
     expect(Number(dataset.nettleInstances)).toBeGreaterThanOrEqual(25);
     expect(Number(dataset.nettleColonies)).toBeGreaterThanOrEqual(20);
     expect(Number(dataset.nettleResidentInstances)).toBe(Number(dataset.nettleInstances));
@@ -261,93 +284,128 @@ for (const [season, expected] of seasons) {
       ).toBe(firstSignature);
     }
 
-    const baselineEvidence = await setCaptureMode(page, 'baseline');
-    const baselineFrame = await captureCanvas(canvas);
-    const repeatedBaselineEvidence = await setCaptureMode(page, 'baseline');
-    const repeatedBaselineFrame = await captureCanvas(canvas);
-    const baselineNoise = await comparePngFrames(page, baselineFrame, repeatedBaselineFrame);
+    const groundEvidence = await setCaptureMode(page, 'ground');
+    const groundFrame = await captureCanvas(canvas);
+    const repeatedGroundEvidence = await setCaptureMode(page, 'ground');
+    const repeatedGroundFrame = await captureCanvas(canvas);
+    const groundNoise = await comparePngFrames(page, groundFrame, repeatedGroundFrame);
+
+    const ivyEvidence = await setCaptureMode(page, 'ivy');
+    const ivyFrame = await captureCanvas(canvas);
+    const ivyPixels = await comparePngFrames(page, groundFrame, ivyFrame);
 
     const nettleEvidence = await setCaptureMode(page, 'nettles');
     const nettleFrame = await captureCanvas(canvas);
-    const nettlePixels = await comparePngFrames(page, baselineFrame, nettleFrame);
+    const nettlePixels = await comparePngFrames(page, groundFrame, nettleFrame);
 
     const twigEvidence = await setCaptureMode(page, 'twigs');
     const twigFrame = await captureCanvas(canvas);
-    const twigPixels = await comparePngFrames(page, baselineFrame, twigFrame);
+    const twigPixels = await comparePngFrames(page, groundFrame, twigFrame);
 
     const finalEvidence = await setCaptureMode(page, 'final');
     const finalFrame = await captureCanvas(canvas);
 
     console.log(`[forest-floor-render] ${season}: ${JSON.stringify({
-      baselineEvidence,
+      groundEvidence,
+      ivyEvidence,
       nettleEvidence,
       twigEvidence,
       finalEvidence,
-      baselineNoise,
+      groundNoise,
+      ivyPixels,
       nettlePixels,
       twigPixels,
     })}`);
 
-    expect(baselineEvidence).toMatchObject({
-      mode: 'baseline',
+    expect(groundEvidence).toMatchObject({
+      mode: 'ground',
+      groundMeshAttached: true,
+      ivyMeshAttached: true,
+      groundSubmissions: 1,
+      ivySubmissions: 0,
       nettleGroupAttached: true,
       twigGroupAttached: true,
       nettleSubmissions: 0,
       twigSubmissions: 0,
     });
-    expect(repeatedBaselineEvidence).toMatchObject({
-      mode: 'baseline',
+    expect(repeatedGroundEvidence).toMatchObject({
+      mode: 'ground',
+      groundSubmissions: 1,
+      ivySubmissions: 0,
       nettleSubmissions: 0,
       twigSubmissions: 0,
     });
+    expect(ivyEvidence).toMatchObject({
+      mode: 'ivy',
+      groundSubmissions: 1,
+      nettleSubmissions: 0,
+      twigSubmissions: 0,
+    });
+    expect(ivyEvidence.ivySubmissions).toBe(Number(dataset.ivyDrawCalls));
+    expect(ivyEvidence.renderCalls).toBeGreaterThan(groundEvidence.renderCalls);
     expect(nettleEvidence).toMatchObject({
       mode: 'nettles',
       nettleGroupAttached: true,
       twigGroupAttached: true,
+      groundSubmissions: 1,
+      ivySubmissions: 0,
       twigSubmissions: 0,
     });
     expect(nettleEvidence.nettleSubmissions).toBe(Number(dataset.nettleDrawCalls));
-    expect(nettleEvidence.renderCalls).toBeGreaterThan(baselineEvidence.renderCalls);
+    expect(nettleEvidence.renderCalls).toBeGreaterThan(groundEvidence.renderCalls);
     expect(twigEvidence).toMatchObject({
       mode: 'twigs',
       nettleGroupAttached: true,
       twigGroupAttached: true,
+      groundSubmissions: 1,
+      ivySubmissions: 0,
       nettleSubmissions: 0,
     });
     expect(twigEvidence.twigSubmissions).toBe(Number(dataset.twigDrawCalls));
-    expect(twigEvidence.renderCalls).toBeGreaterThan(baselineEvidence.renderCalls);
+    expect(twigEvidence.renderCalls).toBeGreaterThan(groundEvidence.renderCalls);
+    expect(finalEvidence.ivySubmissions).toBe(Number(dataset.ivyDrawCalls));
     expect(finalEvidence.nettleSubmissions).toBe(Number(dataset.nettleDrawCalls));
     expect(finalEvidence.twigSubmissions).toBe(Number(dataset.twigDrawCalls));
     // WebGPU's WebGL2 fallback counts multi-material groups differently from
     // onBeforeRender. The exact submission hooks plus pixel deltas prove the
     // authored layers rendered; renderer.info only needs to move upward.
+    expect(finalEvidence.renderCalls).toBeGreaterThan(ivyEvidence.renderCalls);
     expect(finalEvidence.renderCalls).toBeGreaterThan(nettleEvidence.renderCalls);
     expect(finalEvidence.renderCalls).toBeGreaterThan(twigEvidence.renderCalls);
-    if (finalEvidence.triangles > baselineEvidence.triangles) {
-      expect(nettleEvidence.triangles - baselineEvidence.triangles).toBe(
+    if (finalEvidence.triangles > groundEvidence.triangles) {
+      expect(ivyEvidence.triangles - groundEvidence.triangles).toBe(
+        Number(dataset.ivySubmittedTriangles),
+      );
+      expect(nettleEvidence.triangles - groundEvidence.triangles).toBe(
         Number(dataset.nettleTriangles),
       );
-      expect(twigEvidence.triangles - baselineEvidence.triangles).toBe(
+      expect(twigEvidence.triangles - groundEvidence.triangles).toBe(
         Number(dataset.twigSubmittedTriangles),
       );
     } else {
       expect([
-        baselineEvidence.triangles,
+        groundEvidence.triangles,
+        ivyEvidence.triangles,
         nettleEvidence.triangles,
         twigEvidence.triangles,
         finalEvidence.triangles,
-      ]).toEqual([0, 0, 0, 0]);
+      ]).toEqual([0, 0, 0, 0, 0]);
     }
 
-    expect(baselineNoise.changedPixels).toBeLessThan(25);
+    expect(groundNoise.changedPixels).toBeLessThan(25);
+    expect(ivyPixels.changedPixels).toBeGreaterThan(
+      Math.max(1_000, groundNoise.changedPixels * 10 + 100),
+    );
     expect(nettlePixels.changedPixels).toBeGreaterThan(
-      Math.max(750, baselineNoise.changedPixels * 10 + 100),
+      Math.max(750, groundNoise.changedPixels * 10 + 100),
     );
     expect(twigPixels.changedPixels).toBeGreaterThan(
-      Math.max(100, baselineNoise.changedPixels * 10 + 25),
+      Math.max(100, groundNoise.changedPixels * 10 + 25),
     );
+    expect(ivyPixels.lowerChangedPixels / ivyPixels.changedPixels).toBeGreaterThan(0.85);
     expect(nettlePixels.lowerChangedPixels / nettlePixels.changedPixels).toBeGreaterThan(0.9);
     expect(twigPixels.lowerChangedPixels / twigPixels.changedPixels).toBeGreaterThan(0.9);
+    expect(ivyPixels.meanAbsDelta).toBeGreaterThan(8);
     expect(nettlePixels.meanAbsDelta).toBeGreaterThan(10);
     expect(twigPixels.meanAbsDelta).toBeGreaterThan(8);
     expect(nettlePixels.meanTargetLuminance).toBeGreaterThan(18);
