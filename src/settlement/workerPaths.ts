@@ -506,7 +506,7 @@ export function collectWorkerTargets(
     );
   }
 
-  if (definition.requiresQuarryStone) {
+  if (building.kind === 'stone_quarry' || definition.requiresQuarryStone) {
     for (const node of inputs.quarries) {
       if (node.kind !== 'quarry' || node.remaining <= 0) continue;
       pushNodeInsideExtent(building, radius, node, 'quarry', targets);

@@ -112,7 +112,7 @@ Do not build close details until the first two levels work.
 | Lumber mill | Long, low saw hall with a dominant roof | Timber frame, stone plinth, red tile | Saw, intake bay, log stacks |
 | Reforester | Compact woodland hut with a steep protective roof | Shingles, weathered timber, stone base | Sapling racks, tools, planting stock |
 | Woodcutter's lodge | Sturdy processing hut with a busy side yard | Timber, shingles, iron | Chopping block, split logs, stacked firewood |
-| Stone quarry | Rugged open worksite rather than a polished house | Cool quarry stone, timber machinery, iron | Derrick, cut blocks, spoil, tool shelter |
+| Mining Camp | Low, mobile day-work camp with no centered excavation | Canvas, weathered timber, rough mixed ore and stone | Tool shelter, sorting canopy, handcart, sieve bench, survey stakes, perimeter stockpiles |
 | Hunter's hall | Low forest hall with a lean-to profile | Dark timber, shingles, stone hearth | Drying rack, hides, bows or traps |
 | Forager's shed | Smallest and lightest enclosed work building | Weathered timber, shingles | Baskets, herb racks, drying bundles |
 | Marketplace | Broad open civic canopy or arcade | Timber posts, stone paving, selective tile or canvas | Stalls, crates, scales, barrels |
