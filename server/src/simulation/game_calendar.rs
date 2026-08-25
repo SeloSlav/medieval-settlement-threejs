@@ -29,8 +29,8 @@ pub fn holiday_observance(clock: &GameClock) -> Option<HolidayObservance> {
 }
 
 /// Ordinary nights retain their established consumption cadence. Named holy
-/// days are protected rest periods: provisions, heating, health, and every
-/// other household penalty are frozen together with production.
+/// days are calendar-level protected rest periods. Policy-observed Sundays are
+/// added by the owner-aware labor schedule.
 pub fn household_consumption_paused(clock: &GameClock) -> bool {
     !clock.is_work_hours || holiday_observance(clock).is_some()
 }
@@ -106,7 +106,7 @@ mod tests {
     }
 
     #[test]
-    fn sunday_pauses_work_not_household_consumption() {
+    fn an_ordinary_sunday_is_not_a_calendar_level_holiday() {
         let sunday_morning = game_clock(0);
         assert!(sunday_morning.is_sunday);
         assert!(sunday_morning.is_work_hours);

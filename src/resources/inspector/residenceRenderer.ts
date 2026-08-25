@@ -863,7 +863,7 @@ export function renderResidenceInspector(
       ${residence.tier >= 3 ? `<li data-inspector-secondary data-inspector-section="${householdGoodsSection}"><span>Shoe supplier</span><span>${shoesSupplierLabel}</span></li>` : ''}
       ${residence.tier >= 4 ? `<li data-inspector-secondary data-inspector-section="${householdGoodsSection}"><span>Pottery supplier</span><span>${potterySupplierLabel}</span></li>` : ''}
       ${residence.tier > 0 ? `<li data-inspector-primary data-inspector-section="${faithAndCommunitySection}"><span>Church access</span><span>${community.hasChapelAccess ? `Staffed level-${community.chapelTier ?? 1} parish on the road` : `No qualifying parish on branch · level ${requiredChapelTierForResidence(residence.tier)} required`}</span></li>` : ''}
-      ${residence.tier > 0 ? `<li data-inspector-secondary data-inspector-section="${faithAndCommunitySection}"><span>Monastery coverage</span><span>${community.hasMonasteryCoverage ? 'Linked Pauline house within parish radius' : 'None'}</span></li>` : ''}
+      ${residence.tier > 0 ? `<li data-inspector-secondary data-inspector-section="${faithAndCommunitySection}"><span>Monastery bonus</span><span>${community.hasMonasteryCoverage ? 'Active · linked Pauline house; faster settlement, easier shortage recovery, and higher church attendance' : 'Inactive'}</span></li>` : ''}
       <li><span>Road access</span><span>${roadAccess}</span></li>
       <li><span>Build cost</span><span>${renderBuildingResourceCost(singleCost)}</span></li>
       <li><span>Nearest road</span><span>${nearestRoad == null ? 'None nearby' : `${nearestRoad.toFixed(1)} m`}</span></li>

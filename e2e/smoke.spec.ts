@@ -322,7 +322,7 @@ test('connects, places a reforester, and updates settlement HUD timber', async (
   await seasonStatus.hover();
   await expect(tooltip).toHaveClass(/ui-tooltip--season-almanac/);
   await expect(tooltip.locator('.ui-tooltip__season-header .ui-tooltip__title')).toHaveText(
-    /^(Spring|Summer|Autumn|Winter)$/,
+    /^(Sunday|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday), \d{1,2} (January|February|March|April|May|June|July|August|September|October|November|December), Year \d+$/,
   );
   await expect(tooltip.locator('.ui-tooltip__season-header-icon')).toBeVisible();
   await expect(tooltip.locator('.ui-tooltip__season-introduction')).toHaveText(

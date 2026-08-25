@@ -506,6 +506,10 @@ export class ForestManager {
       ? UNDERGROWTH_HIDE_DISTANCE
       : UNDERGROWTH_SHOW_DISTANCE;
     const visible = firstPersonActive || cameraDistance <= threshold;
+    this.forestFloorIvy?.updateCamera(
+      camera.position,
+      visible,
+    );
     this.forestFloorNettles?.updateCamera(
       camera.position,
       visible,
@@ -515,7 +519,6 @@ export class ForestManager {
     }
     this.undergrowthVisible = visible;
     if (this.undergrowth) this.undergrowth.group.visible = visible;
-    if (this.forestFloorIvy) this.forestFloorIvy.group.visible = visible;
     this.forestFloorTwigs?.setCloseDetailVisible(visible);
     return shadowCastersChanged || harvestStumpVisibilityChanged;
   }

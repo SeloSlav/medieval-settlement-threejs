@@ -1175,10 +1175,6 @@ export function settlementProvisionLevel(
       winterRelevant
       && provisioning.winterFirewoodRunwayDays < WINTER_RESERVE_DAYS
     )
-    || (
-      provisioning.sabbathObserved
-      && provisioning.sabbathReadyHouseholds < provisioning.sabbathHouseholds
-    )
   ) {
     return 'watch';
   }

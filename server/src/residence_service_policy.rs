@@ -41,15 +41,14 @@ pub fn service_shortage_blocks_upgrade(kind: ResidenceNeedKind, deficit_ticks: u
 }
 
 /// Physical heating continues through ordinary nights; all other needs use
-/// the daytime household-service cadence. Protected holy days freeze both
-/// clocks so the promised grace window does not expire while all ordinary
-/// household activity is suspended.
+/// the daytime household-service cadence. Protected holy days and observed
+/// Sundays freeze both clocks so no grace window expires during ordered rest.
 pub fn service_need_clock_active(
     kind: ResidenceNeedKind,
     is_work_hours: bool,
-    protected_holiday: bool,
+    protected_rest_day: bool,
 ) -> bool {
-    !protected_holiday && (kind == ResidenceNeedKind::Firewood || is_work_hours)
+    !protected_rest_day && (kind == ResidenceNeedKind::Firewood || is_work_hours)
 }
 
 pub fn tier_four_non_vital_discretionary_multiplier(
@@ -139,7 +138,7 @@ mod tests {
     }
 
     #[test]
-    fn protected_holidays_freeze_daytime_service_and_continuous_heat_clocks() {
+    fn protected_rest_days_freeze_daytime_service_and_continuous_heat_clocks() {
         assert!(service_need_clock_active(
             ResidenceNeedKind::Church,
             true,

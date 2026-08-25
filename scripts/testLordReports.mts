@@ -36,8 +36,8 @@ assert.match(
 );
 assert.match(
   appSource,
-  /notifyLordReportChanges\(\s*state,\s*previous,\s*snapshot\.parishPolicy\.sabbathObservanceEnabled,\s*formatSabbathReadiness\(provisioning\),?\s*\)[\s\S]*?deriveLordReportTransitions\(state,\s*previous,\s*\{\s*sabbathObservanceEnabled,\s*sabbathReadinessLabel,?\s*\}\)/,
-  'Sabbath reports must receive the authoritative parish policy and live household readiness summary',
+  /notifyLordReportChanges\(\s*state,\s*previous,\s*snapshot\.parishPolicy\.sabbathObservanceEnabled,?\s*\)[\s\S]*?deriveLordReportTransitions\(state,\s*previous,\s*\{\s*sabbathObservanceEnabled,?\s*\}\)/,
+  'Sabbath reports must receive the authoritative parish policy',
 );
 
 const routineDawn = {
@@ -92,7 +92,6 @@ const initialObservedSabbath = deriveLordReportTransitions(
   null,
   {
     sabbathObservanceEnabled: true,
-    sabbathReadinessLabel: '3.2 days of food · 1.7 days of firewood',
   },
 ).filter((entry) => entry.kind === 'sabbath');
 assert.equal(initialObservedSabbath.length, 1);
@@ -113,8 +112,8 @@ assert.match(
 );
 assert.match(
   initialObservedSabbath[0]?.detail ?? '',
-  /3\.2 days of food · 1\.7 days of firewood/,
-  'the report should carry through the live in-game household readiness summary',
+  /household consumption and shortage penalties are frozen/i,
+  'the report should explain that observed Sabbath protects household needs',
 );
 
 assert.deepEqual(

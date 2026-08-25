@@ -426,9 +426,6 @@ const ivyRootPhase = compiledIvy.geometry.getAttribute(
 const ivyHinge = compiledIvy.geometry.getAttribute(
   'aIvyHinge',
 ) as THREE.InstancedBufferAttribute;
-const ivyVisibility = compiledIvy.geometry.getAttribute(
-  'aIvyVisibility',
-) as THREE.InstancedBufferAttribute;
 const ivyAtlasRect = compiledIvy.geometry.getAttribute(
   'aIvyAtlasRect',
 ) as THREE.InstancedBufferAttribute;
@@ -446,7 +443,6 @@ for (const attribute of [
   ivyTint,
   ivyRootPhase,
   ivyHinge,
-  ivyVisibility,
   ivyAtlasRect,
 ]) {
   assert.equal(attribute.count, compiledIvy.instanceCount);
@@ -570,7 +566,6 @@ for (let index = 0; index < compiledIvy.instanceCount; index++) {
     new THREE.Vector3().setFromMatrixPosition(matrix).distanceTo(root) < 1e-6,
     'instance translation and explicit hinge root must agree',
   );
-  assert.equal(ivyVisibility.getX(index), 1, 'all compiled leaves start visible');
 
   const axis = new THREE.Vector3(
     ivyHinge.getX(index),
@@ -654,7 +649,6 @@ for (const name of [
   'ivyRunner',
   'aIvyRootPhase',
   'aIvyHinge',
-  'aIvyVisibility',
   'aIvyAtlasRect',
 ]) {
   assert.deepEqual(
@@ -758,14 +752,14 @@ assert.doesNotMatch(
 assert.match(ivySource, /terrain\.getHeightAt\(worldX, worldZ\)/);
 assert.match(ivySource, /sourceTreeIndex:[\s\S]*?placementInstanceRangesByTree/);
 assert.match(ivySource, /new THREE\.InstancedMesh\(/);
-assert.match(ivySource, /createForestFloorIvyMesh\(compiled, material\)/);
+assert.match(ivySource, /createForestFloorIvyMesh\(residentCompiled, material\)/);
 assert.match(ivySource, /dispose\(\): void \{[\s\S]*?mesh\.dispose\(\)/);
 assert.match(ivySource, /createIvyLeafHingeWindNodes/);
 assert.match(ivySource, /hingeWind\.normalNode/);
 assert.match(ivySource, /applyIvyLeafHingeWebGLWind\(material\)/);
 assert.match(ivySource, /geometry\.setAttribute\(\s*'aIvyRootPhase'/);
 assert.match(ivySource, /geometry\.setAttribute\(\s*'aIvyHinge'/);
-assert.match(ivySource, /geometry\.setAttribute\(\s*'aIvyVisibility'/);
+assert.doesNotMatch(ivySource, /geometry\.setAttribute\(\s*'aIvyVisibility'/);
 assert.match(ivySource, /geometry\.setAttribute\(\s*'aIvyAtlasRect'/);
 assert.match(ivySource, /appendIvyLayerLeaves/);
 assert.match(ivySource, /ivyRunnerPointAt/);
@@ -773,10 +767,14 @@ assert.match(ivySource, /ivySurfaceHeightAtWorld/);
 assert.match(ivyWindSource, /worldAnimationTime[\s\S]*?windSpeed[\s\S]*?windStrength/);
 assert.match(ivyWindSource, /rotateAroundAxis[\s\S]*?rootPhase[\s\S]*?hinge/);
 assert.match(ivyWindSource, /transformNormalToView\(rotatedNormal\)/);
-assert.match(ivyWindSource, /attribute\('aIvyVisibility', 'float'\)/);
+assert.doesNotMatch(
+  ivyWindSource,
+  /attribute\('aIvyVisibility', 'float'\)|attribute float aIvyVisibility/,
+  'resident placement selection must own visibility without a ninth WebGPU vertex buffer',
+);
 assert.match(
   ivyWindSource,
-  /rotateIvyAroundAxis[\s\S]*?vec3\( 1\.0, 0\.0, 0\.0 \)[\s\S]*?aIvyVisibility/,
+  /rotateIvyAroundAxis[\s\S]*?vec3\( 1\.0, 0\.0, 0\.0 \)[\s\S]*?ivyAngle/,
   'classic WebGL must rotate the shared leaf about its local petiole axis before instancing',
 );
 assert.match(ivyWindSource, /uIvyTime[\s\S]*?uIvyWindSpeed[\s\S]*?uIvyWindStrength/);
@@ -792,8 +790,8 @@ assert.match(
 );
 assert.match(
   ivySource,
-  /liveVisibility\.fill[\s\S]*?visibility\.addUpdateRange[\s\S]*?visibility\.needsUpdate = true/,
-  'tree and blocker masking must update only owned leaf visibility ranges',
+  /FOREST_FLOOR_IVY_STREAM_RADIUS = 104[\s\S]*?residentCandidates[\s\S]*?distanceSquared > radiusSquared[\s\S]*?mesh\.count = writeInstance[\s\S]*?stats\.residentLeaves = writeInstance/,
+  'the live ivy population must submit only a camera-local resident leaf batch',
 );
 assert.match(
   ivySource,
@@ -970,8 +968,8 @@ assert.match(
 );
 assert.match(
   managerSource,
-  /this\.forestFloorNettles\?\.updateCamera\([\s\S]*?camera\.position,[\s\S]*?visible,[\s\S]*?this\.forestFloorTwigs\?\.setCloseDetailVisible\(visible\);/,
-  'the close-detail visibility gate must stream nearby nettles and cover twigs with ivy',
+  /this\.forestFloorIvy\?\.updateCamera\([\s\S]*?camera\.position,[\s\S]*?visible,[\s\S]*?this\.forestFloorNettles\?\.updateCamera\([\s\S]*?this\.forestFloorTwigs\?\.setCloseDetailVisible\(visible\);/,
+  'the close-detail visibility gate must stream nearby ivy and nettles before toggling twigs',
 );
 assert.match(
   terrainSource,

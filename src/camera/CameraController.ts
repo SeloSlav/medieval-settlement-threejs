@@ -88,6 +88,12 @@ export type CameraControllerConfig = {
   shouldIgnoreInput?: (event: MouseEvent | WheelEvent) => boolean;
   isIllustratedMapReady?: () => boolean;
   onViewChanged?: () => void;
+  /**
+   * Covers the live view before committing the map camera/render-owner swap.
+   * Return a cancellation callback so direct camera focuses can abort a
+   * transition that has not reached its covered midpoint.
+   */
+  onIllustratedMapEntryTransition?: (commit: () => void) => (() => void) | void;
   onIllustratedMapModeChanged?: (active: boolean) => void;
   /** The owner already renders every animation frame, so view changes only invalidate that frame. */
   continuousRenderLoop?: boolean;
@@ -128,6 +134,8 @@ export class CameraController {
   private accumulatedWheelDeltaY = 0;
   private lastWheelDeltaTimeMs = Number.NEGATIVE_INFINITY;
   private illustratedMapEntryPending = false;
+  private illustratedMapEntryTransitionActive = false;
+  private cancelIllustratedMapEntryTransition: (() => void) | null = null;
   private illustratedMapExitPending = false;
   private illustratedMapActive = false;
   private illustratedMapZoomTier = 0;
@@ -184,6 +192,7 @@ export class CameraController {
 
   isNavigationActive(): boolean {
     if (!this.inputEnabled) return false;
+    if (this.illustratedMapEntryTransitionActive) return true;
     if (this.isPanning || this.isRotating) return true;
     if (this.hasAnimatedNavigationMotion()) return true;
     if (performance.now() < this.wheelNavigationUntilMs) return true;
@@ -343,14 +352,15 @@ export class CameraController {
     window.removeEventListener('keyup', this.onKeyUp);
     window.removeEventListener('blur', this.onWindowBlur);
     window.removeEventListener('resize', this.onViewportResize);
-    if (this.illustratedMapActive) this.exitIllustratedMap();
+    this.cancelPendingIllustratedMapEntryTransition();
+    if (this.illustratedMapActive) this.commitIllustratedMapExit();
     else this.restoreWorldProjection();
     el.style.cursor = '';
     document.body.style.cursor = '';
   }
 
   private readonly onMouseDown = (event: MouseEvent): void => {
-    if (!this.inputEnabled) return;
+    if (!this.inputEnabled || this.illustratedMapEntryTransitionActive) return;
     if (!this.config.domElement.contains(event.target as Node)) return;
     if (this.config.shouldIgnoreInput?.(event)) return;
     if (event.button === 2) {
@@ -406,6 +416,7 @@ export class CameraController {
     if (!this.inputEnabled) return;
     if (this.config.shouldIgnoreInput?.(event)) return;
     event.preventDefault();
+    if (this.illustratedMapEntryTransitionActive) return;
     const distanceBefore = this.targetDistance;
     const renderedDistanceBefore = this.currentDistance;
     const mapActiveBefore = this.illustratedMapActive;
@@ -780,7 +791,7 @@ export class CameraController {
   };
 
   private readonly onKeyDown = (event: KeyboardEvent): void => {
-    if (!this.inputEnabled) return;
+    if (!this.inputEnabled || this.illustratedMapEntryTransitionActive) return;
     const target = event.target as HTMLElement | null;
     const tag = target?.tagName;
     if (tag === 'INPUT' || tag === 'TEXTAREA' || target?.isContentEditable) return;
@@ -923,6 +934,39 @@ export class CameraController {
   }
 
   private enterIllustratedMap(): void {
+    if (this.illustratedMapActive || this.illustratedMapEntryTransitionActive) return;
+    if (this.config.isIllustratedMapReady?.() === false) return;
+    const transition = this.config.onIllustratedMapEntryTransition;
+    if (!transition) {
+      this.commitIllustratedMapEntry();
+      return;
+    }
+    this.illustratedMapEntryPending = false;
+    this.illustratedMapExitPending = false;
+    this.illustratedMapEntryTransitionActive = true;
+    this.resetPointerMotion();
+    this.resetKeyboardPanMotion();
+    this.keys.clear();
+    try {
+      const cancel = transition(() => {
+        if (!this.illustratedMapEntryTransitionActive) return;
+        this.illustratedMapEntryTransitionActive = false;
+        this.cancelIllustratedMapEntryTransition = null;
+        this.commitIllustratedMapEntry();
+      });
+      if (
+        this.illustratedMapEntryTransitionActive
+        && typeof cancel === 'function'
+      ) this.cancelIllustratedMapEntryTransition = cancel;
+    } catch (error) {
+      console.warn('Illustrated map cloud transition failed; using an immediate handoff.', error);
+      this.illustratedMapEntryTransitionActive = false;
+      this.cancelIllustratedMapEntryTransition = null;
+      this.commitIllustratedMapEntry();
+    }
+  }
+
+  private commitIllustratedMapEntry(): void {
     if (this.illustratedMapActive) return;
     if (this.config.isIllustratedMapReady?.() === false) return;
     // Low world-camera angles are useful for terrain inspection, but make the
@@ -947,6 +991,12 @@ export class CameraController {
   }
 
   private exitIllustratedMap(): void {
+    this.cancelPendingIllustratedMapEntryTransition();
+    if (!this.illustratedMapActive) return;
+    this.commitIllustratedMapExit();
+  }
+
+  private commitIllustratedMapExit(): void {
     if (!this.illustratedMapActive) return;
     this.illustratedMapActive = false;
     this.illustratedMapEntryPending = false;
@@ -961,6 +1011,16 @@ export class CameraController {
     this.updateCamera();
     this.config.camera.updateMatrixWorld(true);
     this.config.onIllustratedMapModeChanged?.(false);
+  }
+
+  private cancelPendingIllustratedMapEntryTransition(): void {
+    if (!this.illustratedMapEntryTransitionActive) return;
+    this.illustratedMapEntryTransitionActive = false;
+    const cancel = this.cancelIllustratedMapEntryTransition;
+    this.cancelIllustratedMapEntryTransition = null;
+    cancel?.();
+    this.illustratedMapEntryPending = false;
+    this.illustratedMapExitPending = false;
   }
 
   private stepIllustratedMapZoom(direction: -1 | 1): void {

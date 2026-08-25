@@ -34,10 +34,7 @@ import {
   computeResourceTotals,
   computeStoredResourceTotals,
 } from '../resources/resourceTotals.ts';
-import {
-  computeSettlementProvisioning,
-  formatSabbathReadiness,
-} from '../economy/settlementProvisioning.ts';
+import { computeSettlementProvisioning } from '../economy/settlementProvisioning.ts';
 import { computeSettlementApproval } from '../economy/settlementApproval.ts';
 import { SettlementApprovalPacer } from '../economy/settlementApprovalPacing.ts';
 import { TreeRegistry } from '../resources/TreeRegistry.ts';
@@ -1243,7 +1240,6 @@ export class App {
       state,
       previous,
       snapshot.parishPolicy.sabbathObservanceEnabled,
-      formatSabbathReadiness(provisioning),
     );
     const conflictEnabled = snapshot.worldGeneration?.conflictMode === 'frontier';
     let activeFires = 0;
@@ -1320,7 +1316,6 @@ export class App {
     state: GameState,
     previous: GameState | null,
     sabbathObservanceEnabled: boolean,
-    sabbathReadinessLabel: string,
   ): void {
     const newlyReportedFire = [...state.fireIncidents.values()].some((incident) => (
       incident.status === 'burning'
@@ -1330,7 +1325,6 @@ export class App {
     this.toolbar?.settlementHud.addLordReports(
       deriveLordReportTransitions(state, previous, {
         sabbathObservanceEnabled,
-        sabbathReadinessLabel,
       }),
     );
   }

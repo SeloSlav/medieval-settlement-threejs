@@ -24,8 +24,6 @@ export type LordReportTone = 'settled' | 'notice' | 'warning' | 'danger';
 
 export type LordReportContext = {
   sabbathObservanceEnabled: boolean;
-  /** Current simulation-backed household stock summary, when already available. */
-  sabbathReadinessLabel?: string;
 };
 
 export type LordReportTarget = {
@@ -391,27 +389,24 @@ function deriveSabbathReports(
   const massWindow = `${formatScheduleHour(SUNDAY_MASS_START_HOUR)}–${formatScheduleHour(SUNDAY_MASS_END_HOUR)}`;
   const sickPeople = population.sick ?? 0;
   const sickPeopleLabel = sickPeople > 0
-    ? ` ${sickPeople} sick ${sickPeople === 1 ? 'resident remains' : 'residents remain'} home.`
+    ? ` · ${sickPeople} sick ${sickPeople === 1 ? 'resident remains' : 'residents remain'} home`
     : '';
-  const massDetail = staffedChurches.length > 0
-    ? ` Sunday Mass is scheduled ${massWindow} for road-linked households.${sickPeopleLabel}`
-    : ' No staffed church is available for parish Mass.';
+  const massStatus = staffedChurches.length > 0
+    ? `Mass ${massWindow} for road-linked homes${sickPeopleLabel}`
+    : 'no staffed church for parish Mass';
 
   let tone: LordReportTone = 'settled';
   let detail: string;
   if (holiday) {
-    detail = `${holiday.label} is a protected holy day. Ordinary labor and new cart departures rest regardless of parish policy; ${committedCartLabel}. Household consumption and need clocks are frozen, and no household tithes are due.${massDetail}`;
+    detail = `${holiday.label} is a protected holy day · labor and new cart departures pause regardless of parish policy · household consumption is frozen · ${massStatus} · ${committedCartLabel}.`;
   } else if (sabbathObserved) {
-    const readiness = context.sabbathReadinessLabel
-      ? ` Sunday stores: ${context.sabbathReadinessLabel}.`
-      : '';
-    detail = `${peopleLabel} · ${churchLabel}. Ordinary labor and new cart departures rest today; ${committedCartLabel}. Households still consume provisions, and no household tithes are due.${readiness}${massDetail}`;
+    detail = `${peopleLabel} · ${churchLabel} · labor and new cart departures pause · household consumption and shortage penalties are frozen · ${massStatus} · ${committedCartLabel}.`;
   } else if (context.sabbathObservanceEnabled) {
     tone = 'warning';
-    detail = `Observance is ordered, but no staffed, serviceable church is available. Normal labor and delivery schedules remain in effect for ${peopleLabel}; no parish Mass can gather.`;
+    detail = `Observance is ordered, but no staffed, serviceable church can lead it · normal labor and deliveries continue for ${peopleLabel} · no parish Mass.`;
   } else {
     tone = 'notice';
-    detail = `Parish policy does not order Sabbath rest. Normal labor and delivery schedules remain in effect for ${peopleLabel}.${massDetail}`;
+    detail = `Parish policy does not order Sabbath rest · normal labor and deliveries continue for ${peopleLabel} · ${massStatus}.`;
   }
 
   return [{

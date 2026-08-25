@@ -1,8 +1,6 @@
 use spacetimedb::{Identity, ReducerContext};
 
-use crate::simulation::game_calendar::{
-    holiday_observance, household_consumption_paused, GameClock,
-};
+use crate::simulation::game_calendar::{holiday_observance, GameClock};
 use crate::simulation::SimTickContext;
 use crate::tables::Building;
 
@@ -24,6 +22,26 @@ pub fn owner_sabbath_observance_enabled(
     owner: Identity,
 ) -> bool {
     tick.sabbath_observance_enabled(ctx, owner)
+}
+
+fn sabbath_rest_applies(clock: &GameClock, policy_enabled: bool, staffed_chapel: bool) -> bool {
+    clock.is_sunday && policy_enabled && staffed_chapel
+}
+
+pub fn owner_observes_sabbath(
+    ctx: &ReducerContext,
+    tick: &SimTickContext,
+    owner: Identity,
+    clock: &GameClock,
+) -> bool {
+    if !clock.is_sunday {
+        return false;
+    }
+    sabbath_rest_applies(
+        clock,
+        owner_sabbath_observance_enabled(ctx, tick, owner),
+        owner_has_staffed_chapel(ctx, tick, owner),
+    )
 }
 
 /// Ordinary work and logistics halt while a capable hostile raider remains on
@@ -49,21 +67,19 @@ pub fn labor_and_logistics_paused(
         return true;
     }
 
-    if !clock.is_sunday {
-        return false;
-    }
-
-    if !owner_sabbath_observance_enabled(ctx, tick, owner) {
-        return false;
-    }
-
-    owner_has_staffed_chapel(ctx, tick, owner)
+    owner_observes_sabbath(ctx, tick, owner, clock)
 }
 
-/// Household consumption keeps its daytime cadence on Sundays even when work
-/// and delivery carts rest, requiring homes to be provisioned in advance.
-pub fn is_consumption_paused(_ctx: &ReducerContext, _owner: Identity, clock: &GameClock) -> bool {
-    household_consumption_paused(clock)
+/// Named holy days and a policy-observed Sunday are protected household rest
+/// days. Food, fuel, service shortages, and related health penalties freeze so
+/// players are not punished for honoring a work prohibition.
+pub fn protected_household_rest_day(
+    ctx: &ReducerContext,
+    tick: &SimTickContext,
+    owner: Identity,
+    clock: &GameClock,
+) -> bool {
+    holiday_observance(clock).is_some() || owner_observes_sabbath(ctx, tick, owner, clock)
 }
 
 /// Parish wages, upkeep, and local alms accrue during the workday.
@@ -83,9 +99,9 @@ pub fn is_chapel_tithe_paused(
 
 #[cfg(test)]
 mod tests {
-    use super::is_work_hours;
+    use super::{is_work_hours, sabbath_rest_applies};
     use crate::balance_generated::{CALENDAR_SECONDS_PER_DAY, TICK_DT};
-    use crate::simulation::game_calendar::game_clock;
+    use crate::simulation::game_calendar::{game_clock, household_consumption_paused};
 
     fn midnight_tick() -> u64 {
         ((CALENDAR_SECONDS_PER_DAY / 2.0) / TICK_DT) as u64
@@ -101,7 +117,19 @@ mod tests {
     fn night_still_pauses_household_consumption() {
         let night = game_clock(midnight_tick());
         assert!(!night.is_work_hours);
-        assert!(super::household_consumption_paused(&night));
+        assert!(household_consumption_paused(&night));
+    }
+
+    #[test]
+    fn sunday_rest_requires_both_policy_and_a_staffed_chapel() {
+        let sunday = game_clock(0);
+        assert!(sunday.is_sunday);
+        assert!(sabbath_rest_applies(&sunday, true, true));
+        assert!(!sabbath_rest_applies(&sunday, false, true));
+        assert!(!sabbath_rest_applies(&sunday, true, false));
+
+        let day_ticks = (CALENDAR_SECONDS_PER_DAY / TICK_DT) as u64;
+        assert!(!sabbath_rest_applies(&game_clock(day_ticks), true, true));
     }
 }
 

@@ -239,6 +239,16 @@ assert.doesNotMatch(
 );
 assert.match(
   residenceRenderer,
+  /<span>Monastery bonus<\/span><span>\$\{community\.hasMonasteryCoverage \? 'Active[^']*' : 'Inactive'\}<\/span>/,
+  'the expanded residence view should present monastery coverage as an optional bonus',
+);
+assert.doesNotMatch(
+  residenceRenderer,
+  /<span>Monastery coverage<\/span><span>\$\{community\.hasMonasteryCoverage/,
+  'the expanded residence view must not make monastery coverage resemble a requirement',
+);
+assert.match(
+  residenceRenderer,
   /data-residence-summary data-inspector-primary data-inspector-resource-strip data-inspector-section="Materials"[\s\S]{0,240}renderInspectorResourceStrip\(worksiteTokens/,
   'residence worksites should summarize materials as an icon strip',
 );

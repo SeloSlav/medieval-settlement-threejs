@@ -22,7 +22,7 @@ use crate::residence_consumption_policy::{
 use crate::resource_units::{whole_cost, whole_units};
 use crate::season_policy::{EnvironmentState, Season};
 use crate::simulation::game_calendar::GameClock;
-use crate::simulation::labor_schedule::is_consumption_paused;
+use crate::simulation::labor_schedule::protected_household_rest_day;
 use crate::simulation::landmark_access::MonasteryInfirmaryCare;
 use spacetimedb::ReducerContext;
 
@@ -67,7 +67,11 @@ pub fn step_residence_needs(
     }
 
     migrate_and_sync_food_inventory(ctx, &mut residence, &mut needs);
-    let general_consumption_paused = is_consumption_paused(ctx, residence.owner, clock);
+    let protected_rest_day =
+        protected_household_rest_day(ctx, tick, residence.owner, clock);
+    let general_consumption_paused =
+        crate::simulation::game_calendar::household_consumption_paused(clock)
+            || protected_rest_day;
     if !general_consumption_paused && daily_household_bill_due(clock) {
         spoil_residence_food_inventory(
             &mut residence,
@@ -124,12 +128,12 @@ pub fn step_residence_needs(
             continue;
         }
         // Heating is continuous through ordinary nights. Other services keep
-        // the daytime cadence, while named holy days freeze every shortage
-        // clock together with the rest of the simulation.
+        // the daytime cadence, while named holy days and policy-observed
+        // Sundays freeze every shortage clock together with production.
         if !service_need_clock_active(
             kind,
             clock.is_work_hours,
-            crate::simulation::holiday_observance(clock).is_some(),
+            protected_rest_day,
         ) {
             continue;
         }

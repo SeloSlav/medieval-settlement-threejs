@@ -608,8 +608,9 @@ function markForestFloorIvyResidentAttributeUpdate(
  * Every visible element is now a real ivy leaf rooted to a deterministic,
  * surface-following runner. The former colony sheets and eighteen detached
  * overlays do not render. Seven density envelopes preserve their broad, paired
- * lower/upper, and crown composition while one InstancedMesh keeps world-scale
- * memory bounded and gives every leaf its own SeedThree petiole hinge.
+ * lower/upper, and crown composition. The live mesh streams a camera-local
+ * subset, so every leaf keeps its SeedThree petiole hinge without uploading
+ * every colony in the world as one uncullable GPU batch.
  */
 export async function createForestFloorIvyInstances(
   trees: readonly ForestTreePlacement[],
@@ -640,7 +641,27 @@ export async function createForestFloorIvyInstances(
     rendererBackend ?? 'webgl',
   );
 
-  const mesh = createForestFloorIvyMesh(compiled, material);
+  const residentPatchCapacity = Math.min(
+    placements.length,
+    FOREST_FLOOR_IVY_MAX_RESIDENT_PATCHES,
+  );
+  const residentLeafCapacity = Math.max(
+    1,
+    residentPatchCapacity * FOREST_FLOOR_IVY_LEAVES_PER_PATCH,
+  );
+  const resident = createForestFloorIvyResidentGeometry(
+    compiled.geometry,
+    residentLeafCapacity,
+  );
+  const residentCompiled: CompiledForestFloorIvyGeometry = {
+    ...compiled,
+    geometry: resident.geometry,
+    instanceCount: residentLeafCapacity,
+    instanceMatrices: new Float32Array(residentLeafCapacity * 16),
+  };
+  const mesh = createForestFloorIvyMesh(residentCompiled, material);
+  mesh.count = 0;
+  mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
   mesh.name = 'SeedThree rooted instanced forest-floor ivy leaves';
   mesh.frustumCulled = false;
   mesh.renderOrder = 2;
@@ -648,21 +669,113 @@ export async function createForestFloorIvyInstances(
 
   const group = new THREE.Group();
   group.name = 'Live-tree terrain-conforming forest-floor ivy';
+  group.visible = false;
   group.add(mesh);
 
-  const visibility = compiled.geometry.getAttribute(
-    'aIvyVisibility',
-  ) as THREE.InstancedBufferAttribute;
-  const liveVisibility = visibility.array as Float32Array;
-  const dirtyPlacements = new Set<number>();
+  const placementVisible = placements.map(() => true);
+  const residentCandidates: Array<{
+    placementIndex: number;
+    distanceSquared: number;
+  }> = [];
+  let streamDirty = true;
+  let lastStreamX = Number.NaN;
+  let lastStreamZ = Number.NaN;
+  const stats: ForestFloorIvyStats = {
+    instances: placements.length,
+    residentInstances: 0,
+    verticesPerInstance: FOREST_FLOOR_IVY_VERTICES_PER_PATCH,
+    trianglesPerInstance: FOREST_FLOOR_IVY_TRIANGLES_PER_PATCH,
+    vertices: FOREST_FLOOR_IVY_VERTICES_PER_PATCH * placements.length,
+    triangles: FOREST_FLOOR_IVY_TRIANGLES_PER_PATCH * placements.length,
+    layersPerInstance: FOREST_FLOOR_IVY_LAYER_COUNT,
+    layers: FOREST_FLOOR_IVY_LAYER_COUNT * placements.length,
+    leavesPerInstance: FOREST_FLOOR_IVY_LEAVES_PER_PATCH,
+    leaves: FOREST_FLOOR_IVY_LEAVES_PER_PATCH * placements.length,
+    residentLeaves: 0,
+    leafPrototypeVertices: FOREST_FLOOR_IVY_LEAF_VERTICES,
+    leafPrototypeTriangles: FOREST_FLOOR_IVY_LEAF_TRIANGLES,
+    drawCalls: placements.length > 0 ? 1 : 0,
+    maximumRelief: placements.reduce(
+      (maximum, placement) => Math.max(maximum, placement.reliefHeight),
+      0,
+    ),
+    maximumCanopyHeight: placements.reduce(
+      (maximum, placement) => Math.max(
+        maximum,
+        Math.min(
+          FOREST_FLOOR_IVY_CANOPY_HEIGHT_MAX,
+          placement.reliefHeight * ivyMaximumStackScale()
+            + ivyMaximumSupportGap(),
+        ),
+      ),
+      0,
+    ),
+    seed,
+    streamRadius: FOREST_FLOOR_IVY_STREAM_RADIUS,
+  };
+
+  const rebuildResidentInstances = (cameraX: number, cameraZ: number): void => {
+    residentCandidates.length = 0;
+    const radiusSquared = FOREST_FLOOR_IVY_STREAM_RADIUS ** 2;
+    for (let placementIndex = 0; placementIndex < placements.length; placementIndex++) {
+      if (!placementVisible[placementIndex]) continue;
+      const placement = placements[placementIndex]!;
+      const dx = placement.x - cameraX;
+      const dz = placement.z - cameraZ;
+      const distanceSquared = dx * dx + dz * dz;
+      if (distanceSquared > radiusSquared) continue;
+      residentCandidates.push({ placementIndex, distanceSquared });
+    }
+    if (residentCandidates.length > residentPatchCapacity) {
+      residentCandidates.sort((a, b) => (
+        a.distanceSquared - b.distanceSquared
+          || a.placementIndex - b.placementIndex
+      ));
+      residentCandidates.length = residentPatchCapacity;
+    }
+
+    const matrixTarget = mesh.instanceMatrix.array as Float32Array;
+    let writeInstance = 0;
+    for (const candidate of residentCandidates) {
+      const range = compiled.placementInstanceRanges[candidate.placementIndex];
+      if (!range) continue;
+      matrixTarget.set(
+        compiled.instanceMatrices.subarray(
+          range.start * 16,
+          (range.start + range.count) * 16,
+        ),
+        writeInstance * 16,
+      );
+      for (const attribute of resident.attributes) {
+        copyForestFloorIvyResidentAttributeRange(
+          attribute,
+          range.start,
+          range.count,
+          writeInstance,
+        );
+      }
+      writeInstance += range.count;
+    }
+
+    mesh.count = writeInstance;
+    markForestFloorIvyResidentAttributeUpdate(mesh.instanceMatrix, writeInstance);
+    for (const attribute of resident.attributes) {
+      markForestFloorIvyResidentAttributeUpdate(attribute.target, writeInstance);
+    }
+    stats.residentInstances = writeInstance / FOREST_FLOOR_IVY_LEAVES_PER_PATCH;
+    stats.residentLeaves = writeInstance;
+    lastStreamX = cameraX;
+    lastStreamZ = cameraZ;
+    streamDirty = false;
+  };
+
   const placementMask = createForestFloorPlacementMask(
     placements,
     trees.length,
     (placementIndex, visible) => {
-      const range = compiled.placementInstanceRanges[placementIndex];
-      if (!range) return;
-      liveVisibility.fill(visible ? 1 : 0, range.start, range.start + range.count);
-      dirtyPlacements.add(placementIndex);
+      if (!placements[placementIndex]) return;
+      placementVisible[placementIndex] = visible;
+      streamDirty = true;
     },
   );
 
@@ -674,36 +787,7 @@ export async function createForestFloorIvyInstances(
     placementInstanceRangesByTree: compiled.placementInstanceRangesByTree,
     placementIndicesByTree: placementMask.placementIndicesByTree,
     textures,
-    stats: {
-      instances: placements.length,
-      verticesPerInstance: FOREST_FLOOR_IVY_VERTICES_PER_PATCH,
-      trianglesPerInstance: FOREST_FLOOR_IVY_TRIANGLES_PER_PATCH,
-      vertices: FOREST_FLOOR_IVY_VERTICES_PER_PATCH * placements.length,
-      triangles: FOREST_FLOOR_IVY_TRIANGLES_PER_PATCH * placements.length,
-      layersPerInstance: FOREST_FLOOR_IVY_LAYER_COUNT,
-      layers: FOREST_FLOOR_IVY_LAYER_COUNT * placements.length,
-      leavesPerInstance: FOREST_FLOOR_IVY_LEAVES_PER_PATCH,
-      leaves: FOREST_FLOOR_IVY_LEAVES_PER_PATCH * placements.length,
-      leafPrototypeVertices: FOREST_FLOOR_IVY_LEAF_VERTICES,
-      leafPrototypeTriangles: FOREST_FLOOR_IVY_LEAF_TRIANGLES,
-      drawCalls: placements.length > 0 ? 1 : 0,
-      maximumRelief: placements.reduce(
-        (maximum, placement) => Math.max(maximum, placement.reliefHeight),
-        0,
-      ),
-      maximumCanopyHeight: placements.reduce(
-        (maximum, placement) => Math.max(
-          maximum,
-          Math.min(
-            FOREST_FLOOR_IVY_CANOPY_HEIGHT_MAX,
-            placement.reliefHeight * ivyMaximumStackScale()
-              + ivyMaximumSupportGap(),
-          ),
-        ),
-        0,
-      ),
-      seed,
-    },
+    stats,
     setSnowCoverage(coverage: number): boolean {
       return setForestCardSnowCoverage(material, coverage);
     },
@@ -714,18 +798,25 @@ export async function createForestFloorIvyInstances(
         ivyIntersectsBlocker(placement, blocker)
       ));
     },
+    updateCamera(cameraPosition, closeDetailVisible): boolean {
+      const visibilityChanged = group.visible !== closeDetailVisible;
+      group.visible = closeDetailVisible;
+      if (!closeDetailVisible) return visibilityChanged;
+      const dx = cameraPosition.x - lastStreamX;
+      const dz = cameraPosition.z - lastStreamZ;
+      const streamMoved = !Number.isFinite(lastStreamX)
+        || dx * dx + dz * dz >= FOREST_FLOOR_IVY_STREAM_REBUILD_DISTANCE ** 2;
+      if (!streamDirty && !streamMoved) return visibilityChanged;
+      rebuildResidentInstances(cameraPosition.x, cameraPosition.z);
+      return true;
+    },
     commit(): void {
-      if (dirtyPlacements.size === 0) return;
-      visibility.clearUpdateRanges();
-      for (const placementIndex of dirtyPlacements) {
-        const range = compiled.placementInstanceRanges[placementIndex];
-        if (range) visibility.addUpdateRange(range.start, range.count);
-      }
-      visibility.needsUpdate = true;
-      dirtyPlacements.clear();
+      if (!streamDirty || !group.visible || !Number.isFinite(lastStreamX)) return;
+      rebuildResidentInstances(lastStreamX, lastStreamZ);
     },
     dispose(): void {
       mesh.dispose();
+      resident.geometry.dispose();
       compiled.geometry.dispose();
       material.dispose();
       disposeSeedThreeGroundCoverTextures(textures);
@@ -747,9 +838,7 @@ export function createTerrainConformingIvyGeometry(
   const runnerValues = new Uint8Array(instanceCount);
   const rootPhaseValues = new Float32Array(instanceCount * 4);
   const hingeValues = new Float32Array(instanceCount * 4);
-  const visibilityValues = new Float32Array(instanceCount);
   const atlasRectValues = new Float32Array(instanceCount * 4);
-  visibilityValues.fill(1);
   const placementInstanceRanges: ForestFloorIvyInstanceRange[] = [];
   const placementInstanceRangesByTree = Array.from(
     { length: treeCount },
@@ -833,10 +922,6 @@ export function createTerrainConformingIvyGeometry(
   geometry.setAttribute(
     'aIvyHinge',
     new THREE.InstancedBufferAttribute(hingeValues, 4),
-  );
-  geometry.setAttribute(
-    'aIvyVisibility',
-    new THREE.InstancedBufferAttribute(visibilityValues, 1),
   );
   geometry.setAttribute(
     'aIvyAtlasRect',
