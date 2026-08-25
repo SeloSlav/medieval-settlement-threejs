@@ -63,7 +63,15 @@ try {
   }, { once: true });
 } catch (error) {
   document.body.dataset.error = 'true';
-  host.textContent = error instanceof Error ? error.message : String(error);
+  const messages: string[] = [];
+  let current: unknown = error;
+  while (current instanceof Error) {
+    messages.push(current.message);
+    current = current.cause;
+  }
+  if (current !== undefined) messages.push(String(current));
+  document.body.dataset.errorReason = messages.join(' Caused by: ');
+  host.textContent = document.body.dataset.errorReason;
 }
 
 declare global {
