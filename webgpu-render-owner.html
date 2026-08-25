@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>WebGPU Render Owner Fixture</title>
+    <style>
+      html, body, #fixture { width: 100%; height: 100%; margin: 0; overflow: hidden; }
+      body { background: #090b10; }
+      #fixture { display: grid; place-items: center; }
+      canvas { display: block; width: 256px; height: 256px; }
+      [data-error] { max-width: 42rem; padding: 2rem; color: #f3d9ce; font: 16px/1.5 system-ui; }
+    </style>
+  </head>
+  <body>
+    <main id="fixture"></main>
+    <script type="module" src="/src/e2e/webGpuRenderOwnerFixture.ts"></script>
+  </body>
+</html>

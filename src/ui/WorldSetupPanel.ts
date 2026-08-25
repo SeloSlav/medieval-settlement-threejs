@@ -126,7 +126,7 @@ export class WorldSetupPanel {
     this.draft = options.initialSettings
       ? normalizeWorldGenerationSettings(options.initialSettings)
       : applyTerrainPreset(
-        { ...DEFAULT_WORLD_GENERATION_SETTINGS },
+        { ...DEFAULT_WORLD_GENERATION_SETTINGS, mapSize: 'small' },
         'delnice_meadow',
       );
     this.backdrop = document.createElement('div');

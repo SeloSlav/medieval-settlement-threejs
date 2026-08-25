@@ -29,6 +29,9 @@ const backyardLineupEntry = fileURLToPath(
 const illustratedMapLineupEntry = fileURLToPath(
   new URL('./illustrated-map-lineup.html', import.meta.url),
 );
+const webGpuRenderOwnerEntry = fileURLToPath(
+  new URL('./webgpu-render-owner.html', import.meta.url),
+);
 const publicRoot = fileURLToPath(new URL('./public', import.meta.url));
 
 function vendorChunk(id: string): string | undefined {
@@ -90,6 +93,9 @@ export default defineConfig(({ mode }) => {
   }
   if ((includeQaArchives || mode === 'e2e') && existsSync(illustratedMapLineupEntry)) {
     buildInputs['illustrated-map-lineup'] = illustratedMapLineupEntry;
+  }
+  if (mode === 'e2e' && existsSync(webGpuRenderOwnerEntry)) {
+    buildInputs['webgpu-render-owner'] = webGpuRenderOwnerEntry;
   }
 
   return {

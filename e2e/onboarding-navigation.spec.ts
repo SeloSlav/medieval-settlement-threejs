@@ -87,6 +87,7 @@ test('new-world setup moves backward and forward without losing choices', async 
   await expect(mapRandomize).toBeVisible();
   await expect(mapNavigation.locator('button')).toHaveCount(2);
   await expect(page.locator('[data-map-seed-section]')).not.toContainText('Back to Heraldry');
+  await expect(page.locator('[data-map-size-value]')).toHaveAttribute('data-value', 'small');
   const [mapBackBox, mapStartBox, mapRandomizeBox] = await Promise.all([
     mapBack.boundingBox(),
     mapStart.boundingBox(),
@@ -100,7 +101,7 @@ test('new-world setup moves backward and forward without losing choices', async 
   expect(mapRandomizeBox!.y + mapRandomizeBox!.height).toBeLessThan(mapBackBox!.y);
   await expectActiveStep(page, 'map');
 
-  await page.locator('[data-world-selector="map-size"] [data-selector-step="-1"]').click();
+  await page.locator('[data-world-selector="map-size"] [data-selector-step="1"]').click();
   await page.locator('[data-world-selector="difficulty-preset"] [data-selector-step="-1"]').click();
   await expect(page.locator('[data-difficulty-preset-value]')).toHaveText('Pampered Page (Easy)');
   await expect(page.locator('[data-approval-decline-value]')).toHaveText('Disabled');
@@ -122,7 +123,7 @@ test('new-world setup moves backward and forward without losing choices', async 
   await expect(liveShield).toHaveCSS('--charge-mask', /tower\.png/);
   await page.getByRole('button', { name: /Continue to Map Generation/ }).click();
   await expect(mapStep).toBeVisible();
-  await expect(page.locator('[data-map-size-value]')).toHaveAttribute('data-value', 'small');
+  await expect(page.locator('[data-map-size-value]')).toHaveAttribute('data-value', 'medium');
   await expect(page.locator('[data-aquifer-networks-value]')).toHaveAttribute('data-value', 'aquifers');
   await expect(page.locator('[data-difficulty-preset-value]')).toHaveText('Custom');
   await page.getByRole('button', { name: 'Back to Heraldry' }).click();
@@ -143,7 +144,7 @@ test('new-world setup moves backward and forward without losing choices', async 
   await page.getByRole('button', { name: /Continue to Map Generation/ }).click();
   await expect(mapStep).toBeVisible();
   await expect(mapStep).toBeFocused();
-  await expect(page.locator('[data-map-size-value]')).toHaveAttribute('data-value', 'small');
+  await expect(page.locator('[data-map-size-value]')).toHaveAttribute('data-value', 'medium');
   await expect(page.locator('[data-aquifer-networks-value]')).toHaveAttribute('data-value', 'aquifers');
   await expect(page.locator('[data-difficulty-preset-value]')).toHaveText('Custom');
   await expectActiveStep(page, 'map');

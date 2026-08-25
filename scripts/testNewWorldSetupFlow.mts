@@ -113,6 +113,11 @@ assert.match(worldPanel, /data-randomize-seed>Randomize map/);
 assert.match(worldPanel, /<nav class="world-setup-actions__navigation" aria-label="Setup navigation">/);
 assert.match(worldPanel, /data-world-selector="map-size"/);
 assert.match(worldPanel, /data-map-size-value/);
+assert.match(
+  worldPanel,
+  /\{ \.\.\.DEFAULT_WORLD_GENERATION_SETTINGS, mapSize: 'small' \}/,
+  'new map creation should default to the small map size',
+);
 assert.match(worldPanel, /data-setup-heading/);
 assert.match(worldPanel, /data-world-selector="difficulty-preset"/);
 assert.match(worldPanel, /Pampered Page \(Easy\)/);

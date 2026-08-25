@@ -69,6 +69,10 @@ type RendererAnimationCallback = (time: DOMHighResTimeStamp) => void;
 type RendererWithAnimationLoop = {
   setAnimationLoop(callback: RendererAnimationCallback | null): void | Promise<void>;
 };
+type WebGPURendererWithTargetState = {
+  setMRT(mrt: unknown | null): void;
+  setRenderTarget(renderTarget: unknown | null): void;
+};
 
 /**
  * WebGPURenderer's bundled declaration currently omits this runtime API even
@@ -80,6 +84,20 @@ export function setRendererAnimationLoop(
   callback: RendererAnimationCallback | null,
 ): void {
   void (renderer as unknown as RendererWithAnimationLoop).setAnimationLoop(callback);
+}
+
+/** Runtime render-target APIs omitted by the bundled WebGPURenderer declaration. */
+export function setWebGPURenderTarget(
+  renderer: WebGPURenderer,
+  renderTarget: unknown | null,
+): void {
+  (renderer as unknown as WebGPURendererWithTargetState).setRenderTarget(renderTarget);
+}
+
+export function resetWebGPUCanvasTarget(renderer: WebGPURenderer): void {
+  const targetRenderer = renderer as unknown as WebGPURendererWithTargetState;
+  targetRenderer.setRenderTarget(null);
+  targetRenderer.setMRT(null);
 }
 
 export type RendererAdapterEvidence = {

@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 const root = fileURLToPath(new URL('../', import.meta.url));
 const postSource = readFileSync(`${root}/src/scene/PostProcessing.ts`, 'utf8');
 const appSource = readFileSync(`${root}/src/app/App.ts`, 'utf8');
+const rendererBackendSource = readFileSync(`${root}/src/scene/RendererBackend.ts`, 'utf8');
 const stockBloomSource = readFileSync(
   `${root}/node_modules/three/examples/jsm/tsl/display/BloomNode.js`,
   'utf8',
@@ -30,8 +31,13 @@ assert.match(
 );
 assert.match(
   postSource,
-  /private renderPipelineToCanvas\(pipeline: RenderPipeline\): void \{[\s\S]*?this\.renderer\.setRenderTarget\(null\);[\s\S]*?this\.renderer\.setMRT\(null\);[\s\S]*?pipeline\.render\(\);/,
+  /private renderPipelineToCanvas\(pipeline: RenderPipeline\): void \{[\s\S]*?resetWebGPUCanvasTarget\(this\.renderer\);[\s\S]*?pipeline\.render\(\);/,
   'every top-level WebGPU pipeline must explicitly reclaim the canvas target and clear MRT state',
+);
+assert.match(
+  rendererBackendSource,
+  /export function resetWebGPUCanvasTarget\(renderer: WebGPURenderer\): void \{[\s\S]*?setRenderTarget\(null\);[\s\S]*?setMRT\(null\);/,
+  'the WebGPU canvas-target guard must clear both render-target and MRT ownership',
 );
 assert.equal(
   (postSource.match(/this\.renderPipelineToCanvas\(/g) ?? []).length,

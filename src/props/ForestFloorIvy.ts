@@ -11,6 +11,8 @@ import {
   smoothstep,
   texture,
   uniform,
+  uv,
+  vec2,
   vec3,
   vec4,
 } from 'three/tsl';
@@ -36,7 +38,7 @@ import {
 } from '../vegetation/seedthree/seedThreeFoliageWind.ts';
 
 export const FOREST_FLOOR_IVY_TEXTURE_PATH =
-  '/assets/textures/vegetation/forest-floor-ivy-card.png';
+  '/assets/textures/vegetation/forest-floor-ivy-leaf-atlas-v2.png';
 export const FOREST_FLOOR_IVY_SEED = 0x1f1c0a7;
 export const FOREST_FLOOR_IVY_MIN_BLEND = 0.24;
 export const FOREST_FLOOR_IVY_SNOW_RGB = [0.92, 0.955, 0.98] as const;
@@ -54,6 +56,8 @@ type IvySnowNode = {
   x: IvySnowNode;
   y: IvySnowNode;
   z: IvySnowNode;
+  xy: IvySnowNode;
+  zw: IvySnowNode;
 };
 
 type IvySnowUniformNode = IvySnowNode & { value: number };
@@ -75,8 +79,10 @@ const ivySnowTsl = {
     edge1: unknown,
     value: unknown,
   ) => IvySnowNode,
-  texture: texture as (source: THREE.Texture) => IvySnowNode,
+  texture: texture as (source: THREE.Texture, uvNode?: unknown) => IvySnowNode,
   uniform: uniform as (value: number) => IvySnowUniformNode,
+  uv: uv as () => IvySnowNode,
+  vec2: vec2 as (x: unknown, y?: unknown) => IvySnowNode,
   vec3: vec3 as (x: unknown, y?: unknown, z?: unknown) => IvySnowNode,
   vec4: vec4 as (x: unknown, y?: unknown, z?: unknown, w?: unknown) => IvySnowNode,
 };

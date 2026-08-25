@@ -65,7 +65,11 @@ import {
   GRADE_VIGNETTE_OUTER,
   GRADE_WARMTH_TINT,
 } from './postGradeShader.ts';
-import { supportsNodeMaterials, type RendererBackend } from './RendererBackend.ts';
+import {
+  resetWebGPUCanvasTarget,
+  supportsNodeMaterials,
+  type RendererBackend,
+} from './RendererBackend.ts';
 
 type Disposable = {
   dispose(): void;
@@ -322,8 +326,7 @@ class WebGPUPostProcessor implements ScenePostProcessor {
     // target. Reclaim the swap chain explicitly at every scene-owner boundary
     // so a leaked offscreen target/MRT cannot strand the visible canvas on the
     // last parchment clear frame.
-    this.renderer.setRenderTarget(null);
-    this.renderer.setMRT(null);
+    resetWebGPUCanvasTarget(this.renderer);
     pipeline.render();
   }
 }
