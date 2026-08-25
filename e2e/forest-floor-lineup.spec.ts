@@ -190,6 +190,7 @@ async function captureCanvas(canvas: Locator): Promise<Buffer> {
 }
 
 const seasons = [
+  ['spring', { snow: '0.00', spring: '0.85', autumn: '0.00', dormancy: '0.15' }],
   ['summer', { snow: '0.00', spring: '0.00', autumn: '0.00', dormancy: '0.00' }],
   ['autumn', { snow: '0.00', spring: '0.00', autumn: '1.00', dormancy: '0.18' }],
   ['winter', { snow: '0.86', spring: '0.00', autumn: '0.00', dormancy: '1.00' }],
@@ -213,6 +214,7 @@ for (const [season, expected] of seasons) {
     expect(dataset.nettleSpringFlush).toBe(expected.spring);
     expect(dataset.nettleAutumnColor).toBe(expected.autumn);
     expect(dataset.nettleDormancy).toBe(expected.dormancy);
+    expect(dataset.nettleSnowCoverage).toBe(expected.snow);
     expect(Number(dataset.ivyPatches)).toBe(7);
     const ivyPatches = Number(dataset.ivyPatches);
     const ivyLeavesPerPatch = Number(dataset.ivyLeavesPerPatch);
@@ -410,7 +412,7 @@ for (const [season, expected] of seasons) {
     expect(twigPixels.meanAbsDelta).toBeGreaterThan(8);
     expect(nettlePixels.meanTargetLuminance).toBeGreaterThan(18);
     expect(twigPixels.meanTargetLuminance).toBeGreaterThan(18);
-    if (season === 'summer') {
+    if (season === 'spring' || season === 'summer') {
       expect(nettlePixels.meanTargetGreen).toBeGreaterThan(nettlePixels.meanTargetRed);
       expect(nettlePixels.meanTargetGreen).toBeGreaterThan(nettlePixels.meanTargetBlue + 5);
     } else {

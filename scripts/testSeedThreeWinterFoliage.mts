@@ -410,19 +410,32 @@ const matrixChunkSource = readFileSync(
 );
 const forestPropsSource = readFileSync(join(root, 'src/props/ForestProps.ts'), 'utf8');
 const forestManagerSource = readFileSync(join(root, 'src/props/ForestManager.ts'), 'utf8');
+const canopyOcclusionSource = readFileSync(
+  join(root, 'src/terrain/ForestCanopyOcclusion.ts'),
+  'utf8',
+);
+const roadStumpsSource = readFileSync(join(root, 'src/props/RoadStumps.ts'), 'utf8');
 const forestFloorIvySource = readFileSync(join(root, 'src/props/ForestFloorIvy.ts'), 'utf8');
 const forestFloorNettleSource = readFileSync(join(root, 'src/props/ForestFloorNettles.ts'), 'utf8');
 const sceneSource = readFileSync(join(root, 'src/scene/SceneManager.ts'), 'utf8');
 
 assert.match(
   forkSource,
-  /greenDominance[\s\S]*transmissionLeafMask[\s\S]*greenLeafMask\.max\(transmissionLeafMask\)[\s\S]*opacityNode = texel\.a\.mul\(seasonalRetain\)/,
-  'the fork must use green and leaf-transmission masks so every deciduous bake drops leaves while retaining twigs',
+  /greenDominance[\s\S]*transmissionLeafMask[\s\S]*greenLeafMask\.max\(transmissionLeafMask\)[\s\S]*const phenologyOffset = sin\([\s\S]*const leafClusterNoise = sin\([\s\S]*const clusterRetain = step\(effectiveDormancy, leafClusterNoise\)[\s\S]*seasonalRetain = float\(1\)\.sub\(dormantMask\)[\s\S]*opacityNode = texel\.a\.mul\(seasonalRetain\)/,
+  'detailed deciduous cards must retain baked twigs while dropping leaves in stable world-space clusters',
 );
 assert.match(
   forkSource,
-  /const foliageMask = greenLeafMask\.max\(transmissionLeafMask\)[\s\S]*const evergreenInstance = float\(1\)\.sub\(deciduousInstance\)[\s\S]*const upwardExposure = base\.y\.smoothstep[\s\S]*const snowAmount = foliageMask[\s\S]*mix\(tintedSurface, snowColor, snowAmount\)/,
-  'settled snow must dust only evergreen foliage pixels with an upward-facing crown filter',
+  /const foliageMask = greenLeafMask\.max\(transmissionLeafMask\)[\s\S]*const upwardExposure = base\.y\.smoothstep[\s\S]*const snowAmount = foliageMask[\s\S]*?\.mul\(seasonalRetain\)[\s\S]*?\.mul\(snowCoverage\)[\s\S]*?\.mul\(upwardExposure\)[\s\S]*mix\(tintedSurface, snowColor, snowAmount\)/,
+  'settled snow must reach evergreen foliage and only the retained leaves on dormant deciduous cards',
+);
+assert.doesNotMatch(
+  forkSource.slice(
+    forkSource.indexOf('// Settled snow is a surface response'),
+    forkSource.indexOf('const transmit = uniform'),
+  ),
+  /evergreenInstance/,
+  'the foliage snow graph must not exclude retained deciduous leaves',
 );
 assert.match(
   builderSource,
@@ -466,8 +479,23 @@ assert.match(
 );
 assert.match(
   forestManagerSource,
-  /setDeciduousFoliage\(presentation: DeciduousFoliagePresentation\): void \{[\s\S]*?this\.seedThreeForest\?\.setDeciduousFoliage\(presentation\);[\s\S]*?this\.forestFloorNettles\?\.setDeciduousFoliage\(presentation\);[\s\S]*?\}/,
-  'the manager must forward the same authoritative seasonal state to young nettles',
+  /setDeciduousFoliage\(presentation: DeciduousFoliagePresentation\): void \{[\s\S]*?this\.seedThreeForest\?\.setDeciduousFoliage\(presentation\);[\s\S]*?this\.forestFloorNettles\?\.setDeciduousFoliage\(presentation\);[\s\S]*?this\.undergrowth\?\.setDeciduousFoliage\(presentation\);[\s\S]*?this\.canopyOcclusion\?\.setDeciduousDormancy\(presentation\.dormancy\);[\s\S]*?\}/,
+  'the manager must forward the same authoritative seasonal state to plants and the canopy-light field',
+);
+assert.match(
+  forestManagerSource,
+  /this\.canopyOcclusion\?\.rebuild\(this\.placements\.map\(\(placement\) => \(\{[\s\S]*?seasonalDeciduous: gorskiKotarSpeciesIsDeciduous\(placement\.species\)/,
+  'the canopy-light field must receive the live deciduous identity of every gameplay tree',
+);
+assert.match(
+  canopyOcclusionSource,
+  /setDeciduousDormancy\(dormancy: number\): boolean \{[\s\S]*?Math\.round\(clamped \* 20\) \/ 20[\s\S]*?this\.accumulation\.fill\(0\)[\s\S]*?this\.standDensity\.fill\(0\)[\s\S]*?this\.crownWeight\(stamp\)[\s\S]*?this\.standWeight\(stamp\)/,
+  'deciduous leaf loss must rebuild the existing event-driven canopy field without new per-frame work',
+);
+assert.match(
+  canopyOcclusionSource,
+  /private crownWeight\(stamp: ForestCanopyTreeStamp\): number \{[\s\S]*?if \(!stamp\.seasonalDeciduous\) return 1;[\s\S]*?lerp\(1, 0\.12, this\.deciduousDormancy\)[\s\S]*?private standWeight\(stamp: ForestCanopyTreeStamp\): number \{[\s\S]*?if \(!stamp\.seasonalDeciduous\) return 1;[\s\S]*?lerp\(1, 0\.38, this\.deciduousDormancy\)/,
+  'dormant broadleaf crowns must lighten terrain while evergreen and residual branch shade remains',
 );
 assert.match(
   forestFloorNettleSource,
@@ -496,13 +524,13 @@ assert.match(
 );
 assert.match(
   forestMaterialSource,
-  /applySeedThreeWholeCardDormancy[\s\S]*tslStep\(float\(1024\), packedTreeOrigin\.y\)[\s\S]*opacityNode = cardAlpha\.mul\(retain\)/,
-  'strategic foliage-volume cards must drop completely for each packed dormant deciduous instance',
+  /applySeedThreeWholeCardDormancy[\s\S]*tslStep\(float\(1024\), packedTreeOrigin\.y\)[\s\S]*const anchor = attribute\('aAnchorPos', 'vec3'\)[\s\S]*const phenologyOffset = barkSnowTsl\.sin\([\s\S]*const clusterNoise = barkSnowTsl\.sin\([\s\S]*const clusterRetain = tslStep\(effectiveDormancy, clusterNoise\)[\s\S]*opacityNode = cardAlpha\.mul\(retain\)/,
+  'strategic foliage-volume cards must drop in stable per-anchor clusters for packed deciduous instances',
 );
 assert.match(
   builderSource,
   /createSeedThreeOverviewFadeMaterial\(\s*baseForestMaterial,\s*options\.seasonalDeciduous === true[\s\S]*options\.overviewCards === true[\s\S]*applySeedThreeWholeCardDormancy\(fmat\)/,
-  'both crown underlays and zoomed-out overview cards must use whole-card dormancy',
+  'both crown underlays and zoomed-out overview cards must use stable clustered dormancy',
 );
 assert.match(
   forkSource,
@@ -560,14 +588,34 @@ assert.match(
   'every near and overview foliage material must receive the shared snow coverage',
 );
 assert.match(
+  forestMaterialSource,
+  /export function applySeedThreeBarkSnow[\s\S]*normalWorldGeometry\.y[\s\S]*const snowAmount = snowCoverage[\s\S]*mix\([\s\S]*0\.92, 0\.955, 0\.98[\s\S]*material\.userData\.forestSnowCoverage = snowCoverage/,
+  'real trunk and branch materials must accumulate the same upward-facing settled snow',
+);
+assert.match(
+  builderSource,
+  /const sourceMaterial = applySeedThreeBarkSnow\(\s*forestBarkMaterial\(mesh\.material as THREE\.Material\)[\s\S]*?createSeedThreeOverviewBarkFadeMaterial\(sourceMaterial\)[\s\S]*?options\.snowCardMaterials\?\.add\(material\)/,
+  'near and overview bark materials must register with the shared forest snow controller',
+);
+assert.match(
   sceneSource,
   /setSnowCoverage\(this\.environment\.snowCoverage\)[\s\S]*setSnowCoverage\(environment\.snowCoverage\)/,
   'both deferred and live forests must inherit the authoritative settled-snow coverage',
 );
 assert.match(
   forestManagerSource,
-  /setSnowCoverage\(coverage: number\): void \{[\s\S]*?this\.seedThreeForest\?\.setSnowCoverage\(coverage\);[\s\S]*?this\.forestFloorIvy\?\.setSnowCoverage\(coverage\);[\s\S]*?\}/,
-  'the manager must forward settled-snow coverage to evergreen ivy',
+  /setSnowCoverage\(coverage: number\): void \{[\s\S]*?this\.seedThreeForest\?\.setSnowCoverage\(coverage\);[\s\S]*?this\.forestFloorIvy\?\.setSnowCoverage\(coverage\);[\s\S]*?this\.forestFloorNettles\?\.setSnowCoverage\(coverage\);[\s\S]*?this\.forestFloorTwigs\?\.setSnowCoverage\(coverage\);[\s\S]*?this\.undergrowth\?\.setSnowCoverage\(coverage\);[\s\S]*?setHarvestStumpSnowCoverage\(this\.harvestStumps, coverage\);[\s\S]*?\}/,
+  'the manager must route settled snow to trees, forest-floor plants, twigs, undergrowth, and stumps',
+);
+assert.match(
+  roadStumpsSource,
+  /const cutFaceSnowCoverage = \{ value: 0 \}[\s\S]*?harvestStumpSnowCoverage = cutFaceSnowCoverage[\s\S]*?uHarvestStumpSnowCoverage = cutFaceSnowCoverage[\s\S]*?diffuseColor\.rgb = mix\([\s\S]*?0\.92, 0\.955, 0\.98[\s\S]*?uHarvestStumpSnowCoverage \* 0\.86/,
+  'harvest-stump cut faces must whiten through a dedicated routed snow uniform',
+);
+assert.match(
+  roadStumpsSource,
+  /export function setHarvestStumpSnowCoverage[\s\S]*?THREE\.MathUtils\.clamp\([\s\S]*?userData\.harvestStumpSnowCoverage[\s\S]*?if \(uniform\) uniform\.value = next[\s\S]*?instances\.cutFaceMaterial\.roughness = THREE\.MathUtils\.lerp\(0\.88, 1, next\)/,
+  'harvest-stump snow routing must clamp coverage and update both color and surface roughness',
 );
 assert.match(
   forestFloorIvySource,

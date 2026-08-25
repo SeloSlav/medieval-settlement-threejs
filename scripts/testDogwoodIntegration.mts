@@ -116,6 +116,10 @@ const forestManagerSource = readFileSync(
   join(projectRoot, 'src/props/ForestManager.ts'),
   'utf8',
 );
+const shrubLineupSource = readFileSync(
+  join(projectRoot, 'src/e2e/shrubLineup.ts'),
+  'utf8',
+);
 const forestPlacementSource = readFileSync(
   join(projectRoot, 'src/props/forestPlacements.ts'),
   'utf8',
@@ -266,13 +270,28 @@ assert.match(
 );
 assert.match(
   undergrowthSource,
-  /setDeciduousFoliage\(presentation\): boolean \{[\s\S]*setDogwoodSeason\(materials\.dogwood\[1\], presentation\)[\s\S]*setDogwoodShadowDormancy\(buckets\.dogwood, dormancy\)[\s\S]*materials\.dogwood\[1\]\.visible = leafy/,
-  'full winter dormancy must remove leaf cards while updating the retained shadow proxy',
+  /setDeciduousFoliage\(presentation\): boolean \{[\s\S]*for \(const kind of UNDERGROWTH_KINDS\)[\s\S]*setUndergrowthSeason\(materials\[kind\]\.at\(-1\)!, presentation\)[\s\S]*setUndergrowthShadowDormancy\(buckets\.dogwood, dormancy, 0\.16\)[\s\S]*setUndergrowthShadowDormancy\(buckets\.bush, dormancy, 0\.28\)[\s\S]*setUndergrowthShadowDormancy\(buckets\.fern, dormancy, 0\.42\)[\s\S]*setSeasonalFoliageVisibility\(materials\.dogwood\[1\], dormancy < 1\)[\s\S]*setSeasonalFoliageVisibility\(materials\.bush\[1\], dormancy < 1\)/,
+  'season changes must update every undergrowth role, narrow deciduous shadows, and remove fully dormant cards',
 );
 assert.match(
   undergrowthSource,
-  /setDogwoodShadowDormancy[\s\S]*THREE\.MathUtils\.lerp\(1, 0\.16, dormancy\)[\s\S]*dogwoodShadowBasePositions[\s\S]*position\.setXYZ\(index, base\[offset\] \* width, base\[offset \+ 1\], base\[offset \+ 2\] \* width\)/,
-  'backend-agnostic dogwood shadow geometry must narrow continuously to a 0.16-scale winter stem proxy',
+  /setUndergrowthShadowDormancy[\s\S]*THREE\.MathUtils\.lerp\(1, winterWidth, dormancy\)[\s\S]*seasonalShadowBasePositions[\s\S]*position\.setXYZ\(index, base\[offset\] \* width, base\[offset \+ 1\], base\[offset \+ 2\] \* width\)/,
+  'backend-agnostic deciduous shadow geometry must narrow continuously to each role-specific winter proxy',
+);
+assert.match(
+  undergrowthSource,
+  /bilberry: \{[\s\S]*?winterRetention: 0,[\s\S]*?fern: \{[\s\S]*?winterRetention: 0\.22,[\s\S]*?juniper: \{[\s\S]*?winterRetention: 1,[\s\S]*?dogwood: \{[\s\S]*?winterRetention: 0,/,
+  'bilberry and dogwood must lose leaves, fern must retain dry frond remnants, and evergreen juniper must retain its needles',
+);
+assert.match(
+  undergrowthSource,
+  /seasonalRole: 'bilberry'[\s\S]*?seasonalRole: 'fern'[\s\S]*?seasonalRole: 'juniper'[\s\S]*?seasonalRole: 'dogwood'/,
+  'every relevant undergrowth foliage material must opt into its biological seasonal palette',
+);
+assert.match(
+  undergrowthSource,
+  /setSnowCoverage\(coverage\): boolean \{[\s\S]*for \(const kind of UNDERGROWTH_KINDS\)[\s\S]*for \(const material of materials\[kind\]\)[\s\S]*setSeasonUniform\(material, 'forestSnowCoverage', coverage\)/,
+  'snow coverage must reach the stems and foliage of bilberry, fern, juniper, and dogwood',
 );
 assert.doesNotMatch(
   undergrowthSource.match(/setDeciduousFoliage\(presentation\): boolean \{[\s\S]*?\n    \},/)?.[0] ?? '',
@@ -293,6 +312,21 @@ assert.doesNotMatch(
   undergrowthSource,
   /setDeciduousFoliage[\s\S]{0,500}(?:geometry\.dispose|new THREE\.(?:BufferGeometry|InstancedMesh))/, 
   'season changes must update materials rather than rebuild dogwood geometry',
+);
+assert.match(
+  forestManagerSource,
+  /setSnowCoverage\(coverage: number\): void \{[\s\S]*?undergrowth\?\.setSnowCoverage\(coverage\)/,
+  'ForestManager must forward the authoritative snow envelope to undergrowth',
+);
+assert.match(
+  shrubLineupSource,
+  /requestedSeason === 'spring'[\s\S]*?\|\| requestedSeason === 'summer'[\s\S]*?\|\| requestedSeason === 'autumn'[\s\S]*?\|\| requestedSeason === 'winter'[\s\S]*?\? requestedSeason[\s\S]*?: 'summer'/,
+  'the shrub lineup must expose all four fixed-view seasons without coercing spring to summer',
+);
+assert.match(
+  shrubLineupSource,
+  /undergrowth\.setDeciduousFoliage\(foliagePresentation\)[\s\S]*?undergrowth\.setSnowCoverage\(snowCoverage\)[\s\S]*?berries\.setEnvironment\(\{[\s\S]*?deciduousFoliage: foliagePresentation,[\s\S]*?snowCoverage/,
+  'the shrub lineup must route the same season and snow envelope through undergrowth and raspberry patches',
 );
 assert.match(
   forestManagerSource,

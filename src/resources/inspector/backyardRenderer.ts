@@ -332,9 +332,7 @@ function renderEmptyBackyardPicker(
         : 'Choose an extension',
     statusState: underConstruction || blockingPile ? 'warning' : 'neutral',
     detailsHtml: `
-      <li><span>Parcel</span><span>#${residence.parcelIndex + 1} of ${zone.plotCount}</span></li>
       <li><span>Population</span><span>${residence.population}</span></li>
-      <li><span>Available timber</span><span>${Math.floor(totals.timber)}</span></li>
       <li><span>Available stone</span><span>${Math.floor(totals.stone)}</span></li>
       <li><span>Available treasury</span><span>${Math.floor(totals.gold)} gold</span></li>
     `,

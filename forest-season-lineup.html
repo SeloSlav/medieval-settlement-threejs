@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SeedThree Four-Season Forest Canopy</title>
+    <style>
+      :root { color-scheme: dark; font-family: Inter, ui-sans-serif, system-ui, sans-serif; }
+      * { box-sizing: border-box; }
+      html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; background: #121610; }
+      body { display: grid; grid-template-rows: 62px 1fr; }
+      body[data-clean="true"] { grid-template-rows: 1fr; }
+      header {
+        display: flex; align-items: center; justify-content: space-between; gap: 22px; padding: 0 22px;
+        border-bottom: 1px solid rgba(226, 214, 179, .2); color: #f0ecdf;
+        background: linear-gradient(180deg, #293126, #181d17);
+      }
+      body[data-clean="true"] header { display: none; }
+      h1 { margin: 0; font: 600 20px/1 Georgia, serif; }
+      header p { margin: 0; color: #bdc8b7; font-size: 11px; letter-spacing: .045em; }
+      header a { color: #e6c970; text-decoration: none; }
+      main { position: relative; min-height: 0; }
+      canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+      #contract {
+        position: absolute; left: 16px; bottom: 14px; margin: 0; padding: 7px 10px;
+        border: 1px solid rgba(226, 214, 179, .18); border-radius: 3px;
+        background: rgba(13, 17, 12, .76); color: #dedbce; font-size: 11px;
+        pointer-events: none;
+      }
+      body[data-clean="true"] #contract { display: none; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>SeedThree four-season canopy contract</h1>
+      <p>
+        <a href="?season=spring&time=4">Spring</a> ·
+        <a href="?season=summer&time=4">Summer</a> ·
+        <a href="?season=autumn&time=4">Autumn</a> ·
+        <a href="?season=winter&time=4">Winter</a>
+      </p>
+    </header>
+    <main id="lineup-root">
+      <p id="contract">Beech · oak · maple · ash · larch | fir · spruce · pine</p>
+    </main>
+    <script type="module" src="/src/e2e/forestSeasonLineup.ts"></script>
+  </body>
+</html>

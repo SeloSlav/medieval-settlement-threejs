@@ -18,7 +18,6 @@ import { mulberry32 } from '../utils/random.ts';
 import { setWorldAnimationTime } from '../scene/worldAnimationTime.ts';
 import {
   deciduousFoliageForSeasonPreview,
-  type DeciduousFoliagePresentation,
 } from '../world/deciduousFoliagePolicy.ts';
 import type { Season } from '../world/seasonPolicy.ts';
 import {
@@ -242,10 +241,14 @@ const isRichBerryPatch = query.get('rich') === '1';
 const focus = query.get('focus') ?? 'berries';
 const isDogwoodFocus = focus === 'dogwood';
 const requestedSeason = query.get('season');
-const season: Season = requestedSeason === 'autumn' || requestedSeason === 'winter'
+const season: Season = requestedSeason === 'spring'
+  || requestedSeason === 'summer'
+  || requestedSeason === 'autumn'
+  || requestedSeason === 'winter'
   ? requestedSeason
   : 'summer';
 const foliagePresentation = deciduousFoliageForSeasonPreview(season);
+const snowCoverage = season === 'winter' ? 0.86 : 0;
 const requestedTimeValue = query.get('time');
 const requestedTime = Number(requestedTimeValue);
 const fixedAnimationTime = requestedTimeValue !== null && Number.isFinite(requestedTime)
@@ -339,15 +342,8 @@ const materials = await createUndergrowthMaterials(
 );
 const undergrowth = buildUndergrowthInstances(placements, terrain, materials, random);
 scene.add(undergrowth.group);
-const seasonalUndergrowth = undergrowth as typeof undergrowth & {
-  setDeciduousFoliage?: (presentation: DeciduousFoliagePresentation) => boolean;
-};
-if (isDogwoodFocus) {
-  if (!seasonalUndergrowth.setDeciduousFoliage) {
-    throw new Error('Dogwood lineup requires the live undergrowth seasonal lifecycle.');
-  }
-  seasonalUndergrowth.setDeciduousFoliage(foliagePresentation);
-}
+undergrowth.setDeciduousFoliage(foliagePresentation);
+undergrowth.setSnowCoverage(snowCoverage);
 
 const berries = await createBerryPatchVisuals(
   terrain,
@@ -358,6 +354,10 @@ const berries = await createBerryPatchVisuals(
 );
 scene.add(berries.group);
 berries.group.visible = !isDogwoodFocus;
+berries.setEnvironment({
+  deciduousFoliage: foliagePresentation,
+  snowCoverage,
+});
 const berryCapacity = berryPatchMaxYield(isRichBerryPatch);
 const berryNode: ForagingNodeState = {
   nodeId: 'foraging-berries-0',
@@ -536,6 +536,7 @@ document.body.dataset.animationTime = fixedAnimationTime === null
 document.body.dataset.dogwoodSpringFlush = foliagePresentation.springFlush.toFixed(2);
 document.body.dataset.dogwoodAutumnColor = foliagePresentation.autumnColor.toFixed(2);
 document.body.dataset.dogwoodDormancy = foliagePresentation.dormancy.toFixed(2);
+document.body.dataset.dogwoodSnowCoverage = snowCoverage.toFixed(2);
 document.body.dataset.dogwoodScale = dogwoodScale.toFixed(2);
 document.body.dataset.dogwoodRendererBackend = rendererBackendName;
 document.body.dataset.dogwoodNodeMaterial = String(Boolean(
@@ -566,6 +567,24 @@ document.body.dataset.raspberryClumpCount = String(
 document.body.dataset.raspberryCaneHeightMultiplier = String(
   berries.group.userData.raspberryCaneHeightMultiplier ?? 0,
 );
+const raspberrySeason = berries.group.userData.raspberrySeason as {
+  springFlush?: number;
+  autumnColor?: number;
+  dormancy?: number;
+  snowCoverage?: number;
+} | undefined;
+document.body.dataset.raspberrySpringFlush = Number(
+  raspberrySeason?.springFlush ?? 0,
+).toFixed(2);
+document.body.dataset.raspberryAutumnColor = Number(
+  raspberrySeason?.autumnColor ?? 0,
+).toFixed(2);
+document.body.dataset.raspberryDormancy = Number(
+  raspberrySeason?.dormancy ?? 0,
+).toFixed(2);
+document.body.dataset.raspberrySnowCoverage = Number(
+  raspberrySeason?.snowCoverage ?? 0,
+).toFixed(2);
 document.body.dataset.ordinaryTriangles = String(
   Object.values(materials.prototypes).flat().reduce((sum, prototype) => sum + prototype.triangleCount, 0),
 );

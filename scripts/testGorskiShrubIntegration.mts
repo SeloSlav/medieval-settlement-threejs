@@ -173,6 +173,7 @@ assert.equal(
 );
 
 const berryVisuals = readFileSync(`${projectRoot}src/foraging/BerryPatchVisuals.ts`, 'utf8');
+const sceneManagerSource = readFileSync(`${projectRoot}src/scene/SceneManager.ts`, 'utf8');
 assert.match(berryVisuals, /createGorskiShrubPrototype\('raspberry'/);
 assert.match(berryVisuals, /raspberry_cluster\.glb/);
 assert.match(berryVisuals, /Depleting real raspberry fruit instances/);
@@ -180,8 +181,33 @@ assert.match(berryVisuals, /fruitMesh\.count = visibleFruitCount/);
 assert.match(berryVisuals, /targetDiameterM = \[0\.017, 0\.022\]/);
 assert.match(berryVisuals, /RASPBERRY_CANE_HEIGHT_MULTIPLIER/);
 assert.match(berryVisuals, /berryThicketRadiusScale/);
+assert.match(
+  berryVisuals,
+  /Harvesting removes berries, not the perennial raspberry crown[\s\S]*?visibleClumps\.add\(placement\)/,
+  'depletion and winter must remove fruit without erasing the perennial raspberry canes',
+);
+assert.match(
+  berryVisuals,
+  /setEnvironment:[\s\S]*?raspberrySeasonalDormancy[\s\S]*?raspberrySnowCoverage/,
+  'raspberry foliage and canes must expose seasonal leaf-loss and snow controls',
+);
 assert.doesNotMatch(berryVisuals, /bakeRaspberryFruitIntoPrototype/);
 assert.doesNotMatch(berryVisuals, /raspberry_patch_albedo\.png|createSeedThreeCardClumpGeometry/);
+assert.match(
+  sceneManagerSource,
+  /this\.berryPatchVisuals = await berryPatchPromise;[\s\S]*?this\.berryPatchVisuals\.setEnvironment\(this\.environment\)/,
+  'deferred raspberry creation must inherit the retained seasonal environment before its first frame',
+);
+assert.match(
+  sceneManagerSource,
+  /this\.berryPatchVisuals\?\.setEnvironment\(environment\)[\s\S]*?this\.applyForagingVisualState\(\)/,
+  'live season changes must reach both raspberry materials and foraging visibility',
+);
+assert.match(
+  sceneManagerSource,
+  /FORAGING_PRESENTATION_MONTH:[\s\S]*?spring:\s*4[\s\S]*?summer:\s*7[\s\S]*?autumn:\s*10[\s\S]*?winter:\s*1/,
+  'visual-QA season overrides must use a matching representative foraging month',
+);
 
 const undergrowthVisuals = readFileSync(`${projectRoot}src/props/ForestUndergrowth.ts`, 'utf8');
 const shrubPrototypesSource = readFileSync(
@@ -227,8 +253,18 @@ assert.match(
 );
 assert.match(
   undergrowthVisuals,
-  /material\.colorNode = options\.albedoTint === undefined[\s\S]*?\? texel[\s\S]*?: tsl\.vec4\(texel\.rgb\.mul\(albedoTintNode\), texel\.a\)/,
+  /const baseSurface = options\.albedoTint === undefined[\s\S]*?\? texel\.rgb[\s\S]*?: texel\.rgb\.mul\(albedoTintNode\);[\s\S]*?material\.colorNode = tsl\.vec4\(baseSurface, texel\.a\)/,
   'the WebGPU card material must apply its species tint without losing cutout alpha',
+);
+assert.match(
+  undergrowthVisuals,
+  /bilberry:[\s\S]*?winterRetention:\s*0[\s\S]*?fern:[\s\S]*?winterRetention:\s*0\.22[\s\S]*?juniper:[\s\S]*?winterRetention:\s*1/,
+  'bilberry, fern, and juniper must keep distinct winter biological roles',
+);
+assert.match(
+  undergrowthVisuals,
+  /setSnowCoverage\(coverage\):\s*boolean[\s\S]*?setSeasonUniform\(material, 'forestSnowCoverage', coverage\)/,
+  'forest shrubs must expose one settled-snow environment path',
 );
 assert.doesNotMatch(
   `${undergrowthVisuals}\n${shrubPrototypesSource}\n${seedThreeTexturesSource}`,

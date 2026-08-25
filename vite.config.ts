@@ -20,6 +20,9 @@ const shrubLineupEntry = fileURLToPath(
 const forestFloorLineupEntry = fileURLToPath(
   new URL('./forest-floor-lineup.html', import.meta.url),
 );
+const forestSeasonLineupEntry = fileURLToPath(
+  new URL('./forest-season-lineup.html', import.meta.url),
+);
 const farmFieldLineupEntry = fileURLToPath(
   new URL('./farm-field-lineup.html', import.meta.url),
 );
@@ -84,6 +87,9 @@ export default defineConfig(({ mode }) => {
   }
   if (mode === 'e2e' && existsSync(forestFloorLineupEntry)) {
     buildInputs['forest-floor-lineup'] = forestFloorLineupEntry;
+  }
+  if (mode === 'e2e' && existsSync(forestSeasonLineupEntry)) {
+    buildInputs['forest-season-lineup'] = forestSeasonLineupEntry;
   }
   if (mode === 'e2e' && existsSync(farmFieldLineupEntry)) {
     buildInputs['farm-field-lineup'] = farmFieldLineupEntry;

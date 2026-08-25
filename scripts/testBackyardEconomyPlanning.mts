@@ -592,6 +592,26 @@ assert.match(backyardView.detailsHtml, /Shared market food today/);
 assert.match(backyardView.detailsHtml, /Local trade value today/);
 assert.match(backyardView.detailsHtml, /collection without a staffed clerk/);
 
+const emptyBackyardView = renderBackyardInspector(
+  {
+    kind: 'backyard',
+    residence: westHome,
+    zone: { plotCount: 4 },
+    garden: null,
+  } as Parameters<typeof renderBackyardInspector>[0],
+  {
+    gameState: state({ residences: [westHome] }) as GameState,
+    worldQueries: {} as WorldQueries,
+    worldHydrology: 50,
+    resourceTotals: { timber: 381, stone: 12, gold: 24 },
+    getEconomicActivityTaxRate: () => 0.25,
+    getParishPolicy: () => DEFAULT_PARISH_POLICY,
+  } as Parameters<typeof renderBackyardInspector>[1],
+);
+assert.doesNotMatch(emptyBackyardView.detailsHtml, /<span>Parcel<\/span>/);
+assert.doesNotMatch(emptyBackyardView.detailsHtml, /<span>Available timber<\/span>/);
+assert.match(emptyBackyardView.detailsHtml, /<span>Population<\/span>/);
+
 const backyardProjectHome: ResidenceState = {
   ...westHome,
   backyardProjectKind: BACKYARD_GARDEN_KINDS.indexOf('vegetable_garden') + 1,

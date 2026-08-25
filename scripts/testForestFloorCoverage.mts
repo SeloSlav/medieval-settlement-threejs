@@ -836,6 +836,26 @@ assert.match(
   'nettle stems must retain their dedicated bark PBR set',
 );
 assert.match(
+  nettleSource,
+  /setDeciduousFoliage\(presentation\): boolean \{[\s\S]*setNettleSeason\(foliageMaterial, presentation\)[\s\S]*updateNettleStemSeason\(branchMaterial, presentation\)[\s\S]*seasonalDormancy = nextDormancy[\s\S]*streamDirty = true/,
+  'nettle season updates must color foliage and stems while invalidating the resident winter cohort',
+);
+assert.match(
+  nettleSource,
+  /isNettleSeasonallyRetained\(placementIndex, seasonalDormancy\)[\s\S]*function isNettleSeasonallyRetained[\s\S]*THREE\.MathUtils\.lerp\(1, 0\.14, onset\)/,
+  'winter nettles must deterministically retain only a sparse dry-stalk cohort',
+);
+assert.match(
+  nettleSource,
+  /const retain = tsl\.float\(1\)\.sub\(dormancy\.mul\(0\.78\)\)[\s\S]*material\.opacityNode = texel\.a\.mul\(retain\)[\s\S]*diffuseColor\.a \*= 1\.0 - uNettleDormancy \* 0\.78/,
+  'both node and WebGL nettle foliage paths must fade during dormancy',
+);
+assert.match(
+  nettleSource,
+  /setSnowCoverage\(coverage\): boolean \{[\s\S]*setSeasonUniform\(foliageMaterial, 'forestSnowCoverage', coverage\)[\s\S]*setSeasonUniform\(branchMaterial, 'forestSnowCoverage', coverage\)/,
+  'snow coverage must reach both nettle leaves and the retained winter stems',
+);
+assert.match(
   twigSource,
   /new THREE\.MeshStandardMaterial\(\{[\s\S]*map: textures\.albedo,[\s\S]*normalMap: textures\.normal,[\s\S]*roughnessMap: textures\.roughness,[\s\S]*vertexColors: true/,
   'twigs must render the complete shared beech PBR set with deterministic tint variation',
@@ -892,8 +912,8 @@ assert.equal(
 );
 assert.match(
   lineupSource,
-  /requestedSeason === 'autumn' \|\| requestedSeason === 'winter'[\s\S]*?: 'summer'/,
-  'the forest-floor lineup must expose deterministic summer, autumn, and winter queries',
+  /requestedSeason === 'spring'[\s\S]*?\|\| requestedSeason === 'summer'[\s\S]*?\|\| requestedSeason === 'autumn'[\s\S]*?\|\| requestedSeason === 'winter'[\s\S]*?\? requestedSeason[\s\S]*?: 'summer'/,
+  'the forest-floor lineup must expose deterministic spring, summer, autumn, and winter queries',
 );
 assert.match(
   lineupSource,
@@ -902,13 +922,18 @@ assert.match(
 );
 assert.match(
   lineupSource,
-  /setForestCardSnowCoverage\(ivyMaterial, ivySnowCoverage\)[\s\S]*?nettles\.setDeciduousFoliage\(deciduousFoliage\)/,
-  'seasonal lineup queries must apply winter snow to ivy and seasonal color to nettles',
+  /setForestCardSnowCoverage\(ivyMaterial, ivySnowCoverage\)[\s\S]*?nettles\.setDeciduousFoliage\(deciduousFoliage\)[\s\S]*?nettles\.setSnowCoverage\(ivySnowCoverage\)/,
+  'seasonal lineup queries must apply winter snow to both ivy and nettles',
 );
 assert.match(
   lineupSource,
-  /dataset\.season = season[\s\S]*?dataset\.nettleInstances[\s\S]*?dataset\.twigInstances[\s\S]*?dataset\.forestFloorSignature/,
+  /dataset\.season = season[\s\S]*?dataset\.nettleInstances[\s\S]*?dataset\.nettleSnowCoverage[\s\S]*?dataset\.twigInstances[\s\S]*?dataset\.forestFloorSignature/,
   'the lineup must publish stable forest-floor evidence for browser regression tests',
+);
+assert.match(
+  managerSource,
+  /setSnowCoverage\(coverage: number\): void \{[\s\S]*?forestFloorIvy\?\.setSnowCoverage\(coverage\)[\s\S]*?forestFloorNettles\?\.setSnowCoverage\(coverage\)[\s\S]*?forestFloorTwigs\?\.setSnowCoverage\(coverage\)[\s\S]*?undergrowth\?\.setSnowCoverage\(coverage\)/,
+  'ForestManager must route one snow envelope through every forest-floor and undergrowth system',
 );
 assert.match(
   managerSource,

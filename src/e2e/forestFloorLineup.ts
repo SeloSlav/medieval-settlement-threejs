@@ -84,7 +84,10 @@ if (!root) throw new Error('Forest-floor lineup host is missing.');
 const query = new URLSearchParams(window.location.search);
 const view = query.get('view') ?? 'design';
 const requestedSeason = query.get('season');
-const season: Season = requestedSeason === 'autumn' || requestedSeason === 'winter'
+const season: Season = requestedSeason === 'spring'
+  || requestedSeason === 'summer'
+  || requestedSeason === 'autumn'
+  || requestedSeason === 'winter'
   ? requestedSeason
   : 'summer';
 const deciduousFoliage = deciduousFoliageForSeasonPreview(season);
@@ -231,6 +234,7 @@ const [nettles, twigTextures] = await Promise.all([
   loadForestFloorTwigTextures(renderer.getMaxAnisotropy()),
 ]);
 nettles.setDeciduousFoliage(deciduousFoliage);
+nettles.setSnowCoverage(ivySnowCoverage);
 scene.add(nettles.group);
 
 const twigPlacements: ForestFloorTwigPlacement[] = Array.from(
@@ -463,6 +467,7 @@ document.body.dataset.nettleTriangles = String(nettles.stats.triangles);
 document.body.dataset.nettleSpringFlush = deciduousFoliage.springFlush.toFixed(2);
 document.body.dataset.nettleAutumnColor = deciduousFoliage.autumnColor.toFixed(2);
 document.body.dataset.nettleDormancy = deciduousFoliage.dormancy.toFixed(2);
+document.body.dataset.nettleSnowCoverage = ivySnowCoverage.toFixed(2);
 document.body.dataset.nettleDefaultTreeCount = String(defaultTreePlacements.length);
 document.body.dataset.nettleDefaultCount = String(defaultNettlePlacements.length);
 document.body.dataset.nettleDefaultColonies = String(defaultNettleColonySizes.size);
