@@ -39,14 +39,17 @@ assert.match(
 );
 assert.match(
   nobleProfile,
-  /id: 'milica-koriolanovic-cipiko'[\s\S]*?title: 'Trogir tapestry embroiderer and literary correspondent'[\s\S]*?portrait: null/,
+  /id: 'daniciceva-udovica'[\s\S]*?title: 'Senj Uskok expedition leader and organizer'[\s\S]*?portrait: null/,
 );
 assert.match(
   nobleProfile,
-  /id: 'nada-bunic'[\s\S]*?title: "Dubrovnik poet and author of a defense of women's honor"[\s\S]*?portrait: null/,
+  /id: 'filipa-lacea'[\s\S]*?title: 'Pula-born Neo-Latin poet and Renaissance humanist'[\s\S]*?portrait: null/,
 );
 assert.doesNotMatch(nobleProfile, /juraj-julije-klovic|stjepan-konzul-istranin/);
-assert.doesNotMatch(nobleProfile, /catharina-van-hemessen|gaspara-stampa/);
+assert.doesNotMatch(
+  nobleProfile,
+  /catharina-van-hemessen|gaspara-stampa|milica-koriolanovic-cipiko|nada-bunic/,
+);
 assert.match(
   nobleProfile,
   /id: 'matija-vlacic-ilirik'[\s\S]*?portrait: '\/assets\/ui\/noble-setup\/portraits\/matija-vlacic-ilirik\.webp'/,

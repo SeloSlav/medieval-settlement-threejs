@@ -76,9 +76,14 @@ export const WORLD_TERRAIN_PRESETS: readonly WorldTerrainPresetDefinition[] = [
     hydrology: 38,
     forestDensity: 45,
   },
+  // Lič is documented as a settled Frankapan possession by 1477, but the old
+  // village was abandoned through much of the 16th century after Ottoman
+  // incursions. This profile therefore represents a frontier founding site,
+  // not an already thriving 1550 settlement.
+  // https://hrcak.srce.hr/file/364048
   {
     id: 'lic_polje',
-    name: 'Lič Polje',
+    name: 'Ličko Polje',
     region: 'Lič · Gorski Kotar',
     description:
       'High karst grazing field with a stream that vanishes into a ponor.',

@@ -63,7 +63,7 @@ const LIC_POLJE_FIELD_PROFILE = {
 } as const;
 
 /**
- * Shared world-space field contract for the Lič Polje preset.
+ * Shared world-space field contract for the Ličko Polje preset.
  *
  * world XZ -> seeded basin frame -> floor/rim/fan/drainage/ponor fields
  * -> terrain height, river anchors, and optional field-debug colors.

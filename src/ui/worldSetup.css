@@ -827,6 +827,11 @@
 }
 
 @media (max-width: 420px) {
+  .world-setup-size-grid,
+  .world-setup-deposit-grid {
+    grid-template-columns: 1fr;
+  }
+
   .world-setup-footer-seed {
     grid-template-columns: minmax(0, 1fr);
     gap: 6px;

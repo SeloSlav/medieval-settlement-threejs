@@ -236,7 +236,13 @@ const layout = createWorldLayout();
 assertGameHabitatsStayDry(layout, 'default map');
 assertBerryPatchesStayDry(layout, 'default map');
 assertMushroomPatchesStayInDryDeepForest(layout, 'default map');
-for (const preset of ['kupa_valley', 'risnjak_pass', 'delnice_meadow', 'vinodol_coast'] as const) {
+for (const preset of [
+  'kupa_valley',
+  'risnjak_pass',
+  'delnice_meadow',
+  'vinodol_coast',
+  'lic_polje',
+] as const) {
   const presetLayout = createWorldLayout(applyTerrainPreset({
       ...DEFAULT_WORLD_GENERATION_SETTINGS,
       seed: 0x52a91,

@@ -221,7 +221,7 @@ assert.ok(
 
 const lic = preparePreset('lic_polje', 0x2a6_8f31);
 const licDimensions = resolveWorldDimensions(lic.settings.mapSize);
-assert.equal(lic.layout.riverLayout.corridors.length, 1, 'Lič Polje needs one ponornica.');
+assert.equal(lic.layout.riverLayout.corridors.length, 1, 'Ličko Polje needs one ponornica.');
 assert.equal(
   lic.layout.riverLayout.inlandWaterBodies.length,
   0,
@@ -254,7 +254,7 @@ assert.equal(
 const licFloorRelief = sampleRelief(-190, 190, -190, 190, 19);
 assert.ok(
   licFloorRelief <= 9,
-  `Lič Polje needs a broadly buildable basin floor, got ${licFloorRelief.toFixed(1)} m relief.`,
+  `Ličko Polje needs a broadly buildable basin floor, got ${licFloorRelief.toFixed(1)} m relief.`,
 );
 const licFloor = sampleNaturalTerrainHeight(0, 0);
 const licBorderRise = Math.min(
@@ -265,7 +265,33 @@ const licBorderRise = Math.min(
 );
 assert.ok(
   licBorderRise >= 95,
-  `Lič Polje needs a mountain rim around the basin, got ${licBorderRise.toFixed(1)} m.`,
+  `Ličko Polje needs a mountain rim around the basin, got ${licBorderRise.toFixed(1)} m.`,
+);
+let licMaximumFloorRelief = licFloorRelief;
+let licMinimumSeededBorderRise = licBorderRise;
+for (let index = 0; index < 8; index++) {
+  const variation = preparePreset('lic_polje', 0x318_4f72 + index * 0x8d31);
+  const dimensions = resolveWorldDimensions(variation.settings.mapSize);
+  const floorRelief = sampleRelief(-190, 190, -190, 190, 19);
+  const floor = sampleNaturalTerrainHeight(0, 0);
+  const borderRise = Math.min(
+    sampleNaturalTerrainHeight(-dimensions.playableHalf * 0.94, 0) - floor,
+    sampleNaturalTerrainHeight(dimensions.playableHalf * 0.94, 0) - floor,
+    sampleNaturalTerrainHeight(0, -dimensions.playableHalf * 0.94) - floor,
+    sampleNaturalTerrainHeight(0, dimensions.playableHalf * 0.94) - floor,
+  );
+  licMaximumFloorRelief = Math.max(licMaximumFloorRelief, floorRelief);
+  licMinimumSeededBorderRise = Math.min(licMinimumSeededBorderRise, borderRise);
+  assert.equal(variation.layout.riverLayout.corridors.length, 1);
+  assert.equal(variation.layout.riverLayout.inlandWaterBodies.length, 0);
+}
+assert.ok(
+  licMaximumFloorRelief <= 9,
+  `Ličko Polje seeds must preserve the buildable basin, got ${licMaximumFloorRelief.toFixed(1)} m relief.`,
+);
+assert.ok(
+  licMinimumSeededBorderRise >= 95,
+  `Ličko Polje seeds must preserve the mountain rim, got ${licMinimumSeededBorderRise.toFixed(1)} m.`,
 );
 const licFields = sampleLicPoljeTerrainFields(
   licAnchors.ponor.x,
@@ -297,6 +323,8 @@ console.log('world terrain preset tests passed', {
   vinodolWaterPercent: Number((coastalWaterShare * 100).toFixed(1)),
   licFloorRelief: Number(licFloorRelief.toFixed(1)),
   licMinimumBorderRise: Number(licBorderRise.toFixed(1)),
+  licMaximumSeededFloorRelief: Number(licMaximumFloorRelief.toFixed(1)),
+  licMinimumSeededBorderRise: Number(licMinimumSeededBorderRise.toFixed(1)),
 });
 
 function preparePreset(preset: Exclude<WorldTerrainPreset, 'custom'>, variation: number) {
