@@ -55,6 +55,9 @@ const ROTATE_SENSITIVITY = 0.005;
 const PITCH_SENSITIVITY = 0.004;
 const RMB_PAN_MULTIPLIER = 0.105;
 const KEY_PAN_SPEED = 34;
+/** Preserve responsive arrow-key travel as the close camera tightens beyond 350%. */
+const KEY_PAN_CLOSE_ZOOM_START_PERCENT = 350;
+const KEY_PAN_MAX_ZOOM_MULTIPLIER = 2.4;
 const KEY_ROTATE_SPEED = 2.8;
 const INSPECT_FOCUS_DISTANCE = 90;
 /** Keep the resident render set stable until a wheel/trackpad zoom burst settles. */
@@ -671,7 +674,7 @@ export class CameraController {
     this.keyboardPanVelocityX = nextVelocityX;
     this.keyboardPanVelocityY = nextVelocityY;
     if (travelX === 0 && travelY === 0) return false;
-    const scale = KEY_PAN_SPEED * this.getPanScale();
+    const scale = KEY_PAN_SPEED * this.getKeyboardPanScale();
     this.pan(travelX * scale, travelY * scale);
     return true;
   }
@@ -892,6 +895,20 @@ export class CameraController {
     const base = THREE.MathUtils.clamp(ratio * ratio * 1.8, 0.55, 18);
     const closeBlend = this.getCloseBlend();
     return THREE.MathUtils.lerp(base, base * CLOSE_PAN_SPEED_SCALE, closeBlend);
+  }
+
+  private getKeyboardPanScale(): number {
+    const zoomProgress = THREE.MathUtils.smoothstep(
+      this.getZoomPercent(),
+      KEY_PAN_CLOSE_ZOOM_START_PERCENT,
+      MAX_ZOOM_PERCENT,
+    );
+    const closeZoomMultiplier = THREE.MathUtils.lerp(
+      1,
+      KEY_PAN_MAX_ZOOM_MULTIPLIER,
+      zoomProgress,
+    );
+    return this.getPanScale() * closeZoomMultiplier;
   }
 
   private clampDistance(value: number): number {

@@ -443,6 +443,43 @@ function scrollToLiveWorldMaximum(
 }
 
 {
+  const measureArrowPanAtZoom = (zoomPercent: number): number => {
+    const { controller, target } = createController(undefined, true);
+    controller.focusWorldPositionAtZoom(0, 0, zoomPercent);
+    window.dispatchEvent(keyboardEvent('keydown', 'ArrowUp'));
+    controller.update(0.25);
+    window.dispatchEvent(keyboardEvent('keyup', 'ArrowUp'));
+    const travel = target.length();
+    controller.dispose();
+    return travel;
+  };
+  const measureMousePanAtZoom = (zoomPercent: number): number => {
+    const { controller, domElement, target } = createController(undefined, true);
+    controller.focusWorldPositionAtZoom(0, 0, zoomPercent);
+    rmbPan(domElement, 100, 100, 140, 100);
+    controller.update(0.25);
+    releaseMouse(2);
+    const travel = target.length();
+    controller.dispose();
+    return travel;
+  };
+
+  const arrowTravelAtCurveStart = measureArrowPanAtZoom(350);
+  const arrowTravelAtMaxZoom = measureArrowPanAtZoom(1000);
+  assert.ok(
+    arrowTravelAtMaxZoom >= arrowTravelAtCurveStart,
+    'arrow-key pan speed should remain responsive from 350% through maximum zoom',
+  );
+
+  const mouseTravelAtCurveStart = measureMousePanAtZoom(350);
+  const mouseTravelAtMaxZoom = measureMousePanAtZoom(1000);
+  assert.ok(
+    mouseTravelAtMaxZoom < mouseTravelAtCurveStart * 0.5,
+    'close-zoom keyboard acceleration must not change precise RMB drag scaling',
+  );
+}
+
+{
   const straight = createController(undefined, true);
   window.dispatchEvent(keyboardEvent('keydown', 'ArrowUp'));
   straight.controller.update(0.1);
