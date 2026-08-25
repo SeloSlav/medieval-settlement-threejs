@@ -20,7 +20,7 @@ import {
   householdProsperityBand,
   householdNetIncomePerDay,
 } from '../src/economy/householdWealth.ts';
-import { GAME_WORKDAY_SECONDS } from '../src/world/gameCalendar.ts';
+import { GAME_DAY_SECONDS } from '../src/world/gameCalendar.ts';
 import {
   estimateVillageChapelTithePerDay,
   estimateVillageHouseholdSavingsPerDay,
@@ -42,12 +42,12 @@ const tithePerTick = chapelTitheGoldPerTick(3);
 assert.ok(
   Math.abs(
     tithePerTick
-    - 3 * CHAPEL_TITHE_GOLD_PER_PERSON_PER_DAY * SIM_TICK_SECONDS / GAME_WORKDAY_SECONDS,
+    - 3 * CHAPEL_TITHE_GOLD_PER_PERSON_PER_DAY * SIM_TICK_SECONDS / GAME_DAY_SECONDS,
   ) < 1e-9,
 );
 assert.ok(
   Math.abs(
-    tithePerTick * GAME_WORKDAY_SECONDS / SIM_TICK_SECONDS
+    tithePerTick * GAME_DAY_SECONDS / SIM_TICK_SECONDS
     - 3 * CHAPEL_TITHE_GOLD_PER_PERSON_PER_DAY,
   ) < 1e-9,
   'a complete continuous-labor day must accrue the configured daily flat tithe',

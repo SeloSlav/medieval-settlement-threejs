@@ -29,6 +29,7 @@ import {
   type GameState,
 } from '../resources/types.ts';
 import type { GameClock } from '../world/gameCalendar.ts';
+import { holidayObservanceAtDayOffset } from '../world/holidayCalendar.ts';
 import { compareStableEntityIds } from '../logistics/roadLogistics.ts';
 import { wholeResourceUnits } from '../resources/resourceUnits.ts';
 import {
@@ -509,6 +510,7 @@ function productiveSecondsInWindow(
 
   for (let offset = startOffset; offset < endOffset; offset++) {
     const weekday = (clock.weekday + offset) % 7;
+    if (holidayObservanceAtDayOffset(clock, offset)) continue;
     if (sabbathObserved && weekday === CALENDAR_SUNDAY_WEEKDAY) continue;
     if (offset === 0) {
       const hour = clock.preciseHour ?? clock.hour + clock.minute / 60;

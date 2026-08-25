@@ -15,6 +15,7 @@ import {
   gameClock,
   type GameClock,
 } from '../world/gameCalendar.ts';
+import { isHoliday } from '../world/holidayCalendar.ts';
 import {
   environmentFor,
   type EnvironmentState,
@@ -95,7 +96,7 @@ export type SettlementBackyardEconomyPlan = {
   horizonHouseholdIncome: number;
   firstUnlinkedResidenceId: string | null;
   firstUnlinkedHorizonActivity: number;
-  currentSabbathPause: boolean;
+  currentCalendarPause: boolean;
   currentEnvironment: EnvironmentState;
   currentClock: GameClock;
   byKind: Readonly<Record<BackyardGardenKind, BackyardGardenKindPlan>>;
@@ -161,7 +162,7 @@ function multiplierByKind(
   environment: EnvironmentState,
   sabbathObserved: boolean,
 ): Record<BackyardGardenKind, number> {
-  const paused = sabbathObserved && clock.isSunday;
+  const paused = isHoliday(clock) || (sabbathObserved && clock.isSunday);
   const multipliers = {} as Record<BackyardGardenKind, number>;
   for (const kind of BACKYARD_GARDEN_KINDS) {
     multipliers[kind] = paused
@@ -203,8 +204,8 @@ function horizonMultipliers(input: {
 }
 
 /**
- * Read-only household-plot forecast matching the authoritative workday,
- * seasonal weather, Sabbath, tax collection, and completed-market topology.
+ * Read-only household-plot forecast matching the authoritative calendar,
+ * seasonal weather, observances, tax collection, and completed-market topology.
  *
  * Connectivity uses cached component ids, so the reduction is linear in
  * buildings, gardens, and residences and performs no route solves.
@@ -230,7 +231,8 @@ export function computeSettlementBackyardEconomyPlan(input: {
     input.clock,
     input.severeWeatherEnabled ?? false,
   );
-  const currentSabbathPause = input.sabbathObserved && input.clock.isSunday;
+  const currentCalendarPause = isHoliday(input.clock)
+    || (input.sabbathObserved && input.clock.isSunday);
   const currentMultipliers = multiplierByKind(
     input.clock,
     currentEnvironment,
@@ -549,7 +551,7 @@ export function computeSettlementBackyardEconomyPlan(input: {
     horizonHouseholdIncome,
     firstUnlinkedResidenceId,
     firstUnlinkedHorizonActivity,
-    currentSabbathPause,
+    currentCalendarPause,
     currentEnvironment,
     currentClock: input.clock,
     byKind,

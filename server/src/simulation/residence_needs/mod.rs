@@ -22,7 +22,6 @@ use crate::residence_consumption_policy::{
 use crate::resource_units::{whole_cost, whole_units};
 use crate::season_policy::{EnvironmentState, Season};
 use crate::simulation::game_calendar::GameClock;
-use crate::simulation::labor_schedule::protected_household_rest_day;
 use crate::simulation::landmark_access::MonasteryInfirmaryCare;
 use spacetimedb::ReducerContext;
 
@@ -67,11 +66,11 @@ pub fn step_residence_needs(
     }
 
     migrate_and_sync_food_inventory(ctx, &mut residence, &mut needs);
-    let protected_rest_day =
-        protected_household_rest_day(ctx, tick, residence.owner, clock);
+    // Sabbath prohibits labor and new logistics, not eating, heating, water
+    // use, spoilage, or welfare progression. Only named holy days protect the
+    // household-consumption clock.
     let general_consumption_paused =
-        crate::simulation::game_calendar::household_consumption_paused(clock)
-            || protected_rest_day;
+        crate::simulation::game_calendar::household_consumption_paused(clock);
     if !general_consumption_paused && daily_household_bill_due(clock) {
         spoil_residence_food_inventory(
             &mut residence,
@@ -127,9 +126,9 @@ pub fn step_residence_needs(
         if kind == ResidenceNeedKind::Food {
             continue;
         }
-        // Every service clock is continuous. Named holy days and
-        // policy-observed Sundays freeze shortage clocks with production.
-        if !service_need_clock_active(kind, protected_rest_day) {
+        // Every service clock is continuous, including observed Sundays.
+        // Named holy days alone freeze shortage clocks with consumption.
+        if !service_need_clock_active(kind, general_consumption_paused) {
             continue;
         }
         if !kind.is_active_for_tier(residence.tier) {

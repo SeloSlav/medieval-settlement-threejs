@@ -168,6 +168,7 @@ import {
 } from './palisadedRefugeRally.ts';
 import type { GameSpeed } from '../world/gameSpeed.ts';
 import {
+  CALENDAR_HOURS_PER_DAY,
   CALENDAR_SECONDS_PER_DAY,
   SIM_REALTIME_RATE,
   STARTING_POPULATION,
@@ -1310,6 +1311,7 @@ export class VillagerRenderer {
       agent.frozen = !isWithinCrowdView(agent.x, agent.z, view);
       const offscreenJourneyMustAdvance = agent.pathPurpose === 'return_home'
         || agent.pathPurpose === 'return_to_work'
+        || agent.pathPurpose === 'return_for_observance'
         || agent.pathPurpose === 'chapel_mass'
         || agent.pathPurpose === 'return_from_mass'
         || agent.pathPurpose === 'monastery_feast'
@@ -2173,6 +2175,9 @@ export class VillagerRenderer {
         case 'return_to_work':
           this.completeWorkerReturnToWork(agent);
           break;
+        case 'return_for_observance':
+          this.completeWorkerObservanceReturn(agent);
+          break;
         case 'chapel_mass':
           this.completeMassArrival(agent);
           break;
@@ -2694,6 +2699,20 @@ export class VillagerRenderer {
       }
       return false;
     }
+    if (agent.pathPurpose === 'return_for_observance') {
+      if (!workplace || this.fireDisabledBuildingIds.has(workplace.id)) {
+        return this.beginWorkerReturnHome(agent);
+      }
+      return false;
+    }
+    if (
+      !shouldWork
+      && this.sabbathPausedToday
+      && workplace
+      && this.shouldBeginWorkerObservanceReturn(agent, workplace)
+    ) {
+      return this.beginWorkerReturnToWork(agent, true);
+    }
 
     const homeState = this.householdHomeStateFor(agent);
     const chapel = this.findMassChapel(agent);
@@ -2798,6 +2817,7 @@ export class VillagerRenderer {
     if (
       agent.pathPurpose === 'return_home'
       || agent.pathPurpose === 'return_to_work'
+      || agent.pathPurpose === 'return_for_observance'
     ) {
       return false;
     }
@@ -2861,6 +2881,37 @@ export class VillagerRenderer {
       agent.walkSpeed * PEDESTRIAN_ROAD_SPEED_MULTIPLIER,
     );
     return optimisticTravelSeconds <= CALENDAR_SECONDS_PER_DAY;
+  }
+
+  private shouldBeginWorkerObservanceReturn(
+    agent: VillagerAgent,
+    workplace: BuildingState,
+  ): boolean {
+    if (
+      !this.clock
+      || (
+        agent.routinePhase !== 'home_outdoors'
+        && agent.routinePhase !== 'indoors'
+        && agent.routinePhase !== 'asleep'
+      )
+    ) {
+      return false;
+    }
+    const duty = this.workerDutyPosition(workplace, agent.workplaceSlot);
+    const path = pickWorkerTravelPath(agent, duty, this.roadNetwork);
+    if (!path) return true;
+    const conservativeTravelSeconds = polylineLengthXZ(path)
+      / Math.max(0.1, agent.walkSpeed)
+      + 1;
+    const hour = this.clock.preciseHour
+      ?? this.clock.hour + this.clock.minute / 60;
+    const secondsRemaining = Math.max(
+      0,
+      (CALENDAR_HOURS_PER_DAY - hour)
+        / CALENDAR_HOURS_PER_DAY
+        * CALENDAR_SECONDS_PER_DAY,
+    );
+    return secondsRemaining <= conservativeTravelSeconds;
   }
 
   private transitionToWorksiteObservance(agent: VillagerAgent): boolean {
@@ -3983,7 +4034,10 @@ export class VillagerRenderer {
       agent.idleRemaining = 1;
       return;
     }
-    if (purpose === 'return_to_work') agent.routinePhase = 'home_outdoors';
+    if (
+      purpose === 'return_to_work'
+      || purpose === 'return_for_observance'
+    ) agent.routinePhase = 'home_outdoors';
     if (purpose === 'return_home' || purpose === 'worker_work_loop') {
       agent.routinePhase = 'work';
     }
@@ -4501,6 +4555,7 @@ export class VillagerRenderer {
       || agent.routinePhase === 'at_fire_assembly'
       || agent.routinePhase === 'returning_from_fire_assembly'
       || agent.routinePhase === 'observance_at_worksite'
+      || agent.routinePhase === 'returning_for_observance'
     ) return null;
     const workplace = this.buildings.get(agent.workplaceId);
     if (workplace && this.fireDisabledBuildingIds.has(workplace.id)) return null;
@@ -4654,6 +4709,8 @@ function describeVillagerActivity(
       return marketStallDuty
         ? 'Walking to the Marketplace stall'
         : `Walking to ${workplaceLabel}`;
+    case 'returning_for_observance':
+      return `Returning to ${workplaceLabel} before the observance ends`;
     case 'returning_home':
       return workplaceFireDisabled
         ? `Evacuating from the fire at ${workplaceLabel}`

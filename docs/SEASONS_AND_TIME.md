@@ -279,7 +279,7 @@ have not changed.
 
 The farmstead or swineherd remains the shared shelter, prepared-feed store, water
 trough, workplace, product store, and logistics base for all of its parcel herds.
-During each fixed daytime husbandry cycle, the simulation resolves all linked herds
+During each fixed calendar-day husbandry cycle, the simulation resolves all linked herds
 together:
 
 1. each herd's heads supported by its own grass or mast, then its own winter hay

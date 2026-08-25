@@ -1,4 +1,10 @@
-import { CALENDAR_DAYS_PER_MONTH } from '../generated/gameBalance.ts';
+import {
+  CALENDAR_DAYS_PER_MONTH,
+  CALENDAR_DAYS_PER_WEEK,
+  CALENDAR_MONTHS_PER_YEAR,
+  CALENDAR_START_MONTH,
+  CALENDAR_SUNDAY_WEEKDAY,
+} from '../generated/gameBalance.ts';
 import type { GameClock } from './gameCalendar.ts';
 
 export const HISTORICAL_HOLIDAY_BASE_YEAR = 1550;
@@ -82,6 +88,39 @@ export function isHoliday(clock: Pick<GameClock, 'month' | 'monthDay' | 'year'>)
   return holidayObservanceForClock(clock) !== null;
 }
 
+export function holidayObservanceAtDayOffset(
+  clock: Pick<GameClock, 'month' | 'monthDay' | 'year'>,
+  dayOffset: number,
+): HolidayObservance | null {
+  const daysPerYear = CALENDAR_DAYS_PER_MONTH * CALENDAR_MONTHS_PER_YEAR;
+  const absoluteDay = Math.max(
+    0,
+    (Math.max(1, Math.floor(clock.year)) - 1) * daysPerYear
+      + (clock.month - 1) * CALENDAR_DAYS_PER_MONTH
+      + Math.max(0, clock.monthDay - 1)
+      + Math.floor(dayOffset),
+  );
+  const year = Math.floor(absoluteDay / daysPerYear) + 1;
+  const dayOfYear = absoluteDay % daysPerYear;
+  return holidayObservanceForClock({
+    year,
+    month: Math.floor(dayOfYear / CALENDAR_DAYS_PER_MONTH) + 1,
+    monthDay: dayOfYear % CALENDAR_DAYS_PER_MONTH + 1,
+  });
+}
+
+const PRODUCTIVE_SHARE_CYCLE_YEARS = 70;
+const PRODUCTIVE_DAY_SHARES = computeAverageProductiveDayShares();
+
+/** Long-run labor-day share including every named holiday and optional Sabbath. */
+export function averageProductiveCalendarDayShare(
+  sabbathObserved: boolean,
+): number {
+  return sabbathObserved
+    ? PRODUCTIVE_DAY_SHARES.withSabbath
+    : PRODUCTIVE_DAY_SHARES.withoutSabbath;
+}
+
 export function julianEasterDate(year: number): { month: number; day: number } {
   const a = year % 4;
   const b = year % 7;
@@ -137,4 +176,34 @@ function movable(
 
 function dateKey(month: number, day: number): string {
   return `${month}:${day}`;
+}
+
+function computeAverageProductiveDayShares(): {
+  withoutSabbath: number;
+  withSabbath: number;
+} {
+  const daysPerYear = CALENDAR_DAYS_PER_MONTH * CALENDAR_MONTHS_PER_YEAR;
+  const totalDays = PRODUCTIVE_SHARE_CYCLE_YEARS * daysPerYear;
+  let withoutSabbath = 0;
+  let withSabbath = 0;
+  for (let year = 1; year <= PRODUCTIVE_SHARE_CYCLE_YEARS; year += 1) {
+    for (let dayOfYear = 0; dayOfYear < daysPerYear; dayOfYear += 1) {
+      const month = Math.floor(dayOfYear / CALENDAR_DAYS_PER_MONTH) + 1;
+      const monthDay = dayOfYear % CALENDAR_DAYS_PER_MONTH + 1;
+      if (isHoliday({ year, month, monthDay })) continue;
+      withoutSabbath += 1;
+      const daysSinceSimulationStart = (year - 1) * daysPerYear
+        + (month - CALENDAR_START_MONTH) * CALENDAR_DAYS_PER_MONTH
+        + monthDay - 1;
+      const weekday = (
+        daysSinceSimulationStart % CALENDAR_DAYS_PER_WEEK
+        + CALENDAR_DAYS_PER_WEEK
+      ) % CALENDAR_DAYS_PER_WEEK;
+      if (weekday !== CALENDAR_SUNDAY_WEEKDAY) withSabbath += 1;
+    }
+  }
+  return {
+    withoutSabbath: withoutSabbath / totalDays,
+    withSabbath: withSabbath / totalDays,
+  };
 }

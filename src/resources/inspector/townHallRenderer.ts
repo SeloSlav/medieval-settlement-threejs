@@ -1342,8 +1342,8 @@ export function renderSettlementBackyardEconomyRows(
     `;
   }
   const environment = `${plan.currentEnvironment.season}, ${plan.currentEnvironment.weather}`;
-  const productionState = plan.currentSabbathPause
-    ? 'Sunday Sabbath pauses every plot today'
+  const productionState = plan.currentCalendarPause
+    ? 'Today’s calendar observance pauses every plot'
     : `${plan.producingTodayGardens} / ${plan.occupiedGardens} occupied plots are in season`;
   const inspect = plan.firstUnlinkedResidenceId === null
     ? ''

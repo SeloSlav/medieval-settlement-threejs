@@ -179,6 +179,19 @@ function nonSundayClockInMonth(month: number): GameClock {
   throw new Error(`No non-Sunday clock found in month ${month}`);
 }
 
+function clockOnDate(month: number, monthDay: number): GameClock {
+  const ticksPerDay = CALENDAR_SECONDS_PER_DAY / SIM_TICK_SECONDS;
+  for (
+    let day = 0;
+    day < CALENDAR_DAYS_PER_MONTH * CALENDAR_MONTHS_PER_YEAR;
+    day += 1
+  ) {
+    const clock = gameClock(day * ticksPerDay);
+    if (clock.month === month && clock.monthDay === monthDay) return clock;
+  }
+  throw new Error(`No clock found for ${month}:${monthDay}`);
+}
+
 assert.equal(
   BACKYARD_WORKDAY_SECONDS,
   CALENDAR_SECONDS_PER_DAY,
@@ -442,7 +455,7 @@ const sabbath = computeSettlementBackyardEconomyPlan({
   sabbathObserved: true,
   roadComponentFor: () => 1,
 });
-assert.equal(sabbath.currentSabbathPause, true);
+assert.equal(sabbath.currentCalendarPause, true);
 assert.equal(sabbath.seasonallyActiveGardens, 1);
 assert.equal(sabbath.producingTodayGardens, 0);
 assert.equal(sabbath.currentDaySelfFood, 0);
@@ -454,6 +467,20 @@ assert.equal(
 );
 assert.ok(sabbath.horizonMarketFood > 0);
 assert.ok(sabbath.horizonRoutedActivity > 0);
+
+const jurjevo = computeSettlementBackyardEconomyPlan({
+  state: sabbathState,
+  clock: clockOnDate(4, 23),
+  hydrology: 50,
+  taxRate: 0.2,
+  taxCollectionMultiplier: 1,
+  sabbathObserved: false,
+  roadComponentFor: () => 1,
+});
+assert.equal(jurjevo.currentCalendarPause, true);
+assert.equal(jurjevo.producingTodayGardens, 0);
+assert.equal(jurjevo.currentDaySelfFood, 0);
+assert.equal(jurjevo.currentDayRoutedActivity, 0);
 
 const unstaffedMarket = computeSettlementBackyardEconomyPlan({
   state: state({

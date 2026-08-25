@@ -36,13 +36,13 @@ pub fn service_shortage_blocks_upgrade(kind: ResidenceNeedKind, deficit_ticks: u
     service_deficit_days(kind, deficit_ticks) + 1e-9 >= RESIDENCE_UPGRADE_SERVICE_BLOCK_DAYS
 }
 
-/// Every household-service clock runs continuously. Protected holy days and
-/// observed Sundays freeze them so no grace window expires during ordered rest.
+/// Every household-service clock runs continuously. Named holy days freeze
+/// them so no grace window expires during the calendar-wide observance.
 pub fn service_need_clock_active(
     _kind: ResidenceNeedKind,
-    protected_rest_day: bool,
+    holiday_paused: bool,
 ) -> bool {
-    !protected_rest_day
+    !holiday_paused
 }
 
 pub fn tier_four_non_vital_discretionary_multiplier(

@@ -466,7 +466,6 @@ export function computeSettlementProvisioning(input: {
   };
 
   const workdaySeconds = CALENDAR_SECONDS_PER_DAY;
-  const householdConsumptionWeekShare = sabbathObserved ? 6 / 7 : 1;
   const preservedFoodDemandMultiplier = Number.isFinite(
     currentPreservedFoodDemandMultiplier,
   )
@@ -548,16 +547,14 @@ export function computeSettlementProvisioning(input: {
     }
     householdBufferHouseholds += 1;
     let householdBufferReady = true;
-    const grossFoodNeeded = householdFoodUnitsPerDayForTier(residence.tier)
-      * householdConsumptionWeekShare;
+    const grossFoodNeeded = householdFoodUnitsPerDayForTier(residence.tier);
     const monthlyFoodBill = householdFoodUnitsPerMonthForTier(residence.tier);
     let preservedFoodNeeded = 0;
     let monthlyPreservedFoodBill = 0;
     let preservedFoodRotationUsed = 0;
     if (residence.tier >= 4) {
       preservedFoodNeeded = householdFoodUnitsPerDay(1)
-        * preservedFoodDemandMultiplier
-        * householdConsumptionWeekShare;
+        * preservedFoodDemandMultiplier;
       monthlyPreservedFoodBill = householdFoodUnitsPerMonth(1);
       // Keep the settlement-wide scan allocation-free. This is the rotation
       // portion of allocatePreservedMeal with a full fresh-food plan, so no
@@ -613,7 +610,7 @@ export function computeSettlementProvisioning(input: {
         roadBranch.heatedHouseholds += 1;
         roadBranch.winterFirewoodDemandPerDay += householdFirewoodUnitsPerDay(
           WINTER_FIREWOOD_DEMAND_MULTIPLIER,
-        ) * householdConsumptionWeekShare;
+        );
         roadBranch.firewoodStock += residenceFirewoodStock;
       }
       if (residenceFirewoodStock + 1e-6 < firewoodNeeded) {
@@ -958,11 +955,9 @@ export function computeSettlementProvisioning(input: {
     householdHeatingStock - fireQuarantinedFirewoodStock,
   );
   const currentFirewoodPerDay = heatedHouseholds
-    * householdFirewoodUnitsPerDay(currentFirewoodDemandMultiplier)
-    * householdConsumptionWeekShare;
+    * householdFirewoodUnitsPerDay(currentFirewoodDemandMultiplier);
   const winterFirewoodPerDay = heatedHouseholds
-    * householdFirewoodUnitsPerDay(WINTER_FIREWOOD_DEMAND_MULTIPLIER)
-    * householdConsumptionWeekShare;
+    * householdFirewoodUnitsPerDay(WINTER_FIREWOOD_DEMAND_MULTIPLIER);
   const winterFirewoodNeed = winterFirewoodPerDay * WINTER_RESERVE_DAYS;
   const guardWagePerDay = armedGuards * GUARDHOUSE_WAGE_PER_GUARD_PER_DAY;
   const roadBranches = roadProvisionBranches === null

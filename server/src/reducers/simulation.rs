@@ -88,9 +88,10 @@ pub fn run_sim_tick(ctx: &ReducerContext, _schedule: crate::schedule::SimTickSch
     let heartbeat_clock = crate::simulation::game_clock(config.sim_tick);
     let holiday_protected = crate::simulation::holiday_observance(&heartbeat_clock).is_some();
     // Delivery speeds are expressed in world metres per simulation second.
-    // Advance them on every scheduler heartbeat using the same authoritative
-    // rate as the calendar and economy.
-    if has_delivery_trips && !holiday_protected {
+    // Advance already-departed carts on every scheduler heartbeat using the
+    // same authoritative rate as the calendar and economy. Named holy days
+    // block new dispatch below, but never strand a real crew or its cargo.
+    if has_delivery_trips {
         let delivery_tick = SimTickContext::with_road_networks(
             shared_road_networks
                 .as_ref()

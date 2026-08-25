@@ -63,18 +63,6 @@ pub fn labor_and_logistics_paused(
     owner_observes_sabbath(ctx, tick, owner, clock)
 }
 
-/// Named holy days and a policy-observed Sunday are protected household rest
-/// days. Food, fuel, service shortages, and related health penalties freeze so
-/// players are not punished for honoring a work prohibition.
-pub fn protected_household_rest_day(
-    ctx: &ReducerContext,
-    tick: &SimTickContext,
-    owner: Identity,
-    clock: &GameClock,
-) -> bool {
-    holiday_observance(clock).is_some() || owner_observes_sabbath(ctx, tick, owner, clock)
-}
-
 /// Parish wages, upkeep, and local alms accrue continuously outside holy days.
 pub fn is_parish_economy_paused(clock: &GameClock) -> bool {
     holiday_observance(clock).is_some()

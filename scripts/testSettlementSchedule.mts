@@ -584,8 +584,13 @@ assert.match(
 );
 assert.match(
   simulationSource,
+  /if has_delivery_trips \{[\s\S]*?step_delivery_trips/,
+  'already-departed carts must keep moving through a named holy day',
+);
+assert.doesNotMatch(
+  simulationSource,
   /if has_delivery_trips && !holiday_protected/,
-  'already-departed carts should physically freeze instead of consuming protected holiday time',
+  'holiday protection must block new dispatch without stranding committed carts',
 );
 
 console.log('settlement schedule tests passed');

@@ -11,7 +11,7 @@ import {
   MONASTERY_ATTENDANCE_BONUS,
   SIM_TICK_SECONDS,
 } from '../generated/gameBalance.ts';
-import { GAME_WORKDAY_SECONDS } from '../world/gameCalendar.ts';
+import { GAME_DAY_SECONDS } from '../world/gameCalendar.ts';
 import { taxedEconomicActivity } from './villageEconomy.ts';
 
 export { HOUSEHOLD_MAX_WEALTH };
@@ -54,7 +54,7 @@ export function chapelTitheGoldPerTick(population: number, titheMultiplier = 1):
     * CHAPEL_TITHE_GOLD_PER_PERSON_PER_DAY
     * titheMultiplier
     * SIM_TICK_SECONDS
-    / GAME_WORKDAY_SECONDS;
+    / GAME_DAY_SECONDS;
 }
 
 export function chapelTitheGoldPerDay(population: number, titheMultiplier = 1): number {

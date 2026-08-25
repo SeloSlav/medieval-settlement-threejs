@@ -344,16 +344,18 @@ villagers.setSchedule({
   weekday: 0,
   isSunday: true,
 }, true, true, true);
-assert.equal(worker.routinePhase, 'asleep');
+assert.equal(worker.routinePhase, 'returning_for_observance');
+assert.equal(worker.pathPurpose, 'return_for_observance');
 villagers.setSchedule({
   ...fullClock(1),
   totalDays: 1,
 }, false);
-assert.equal(worker.routinePhase, 'returning_to_work');
-assert.equal(worker.pathPurpose, 'return_to_work');
+assert.match(worker.routinePhase, /^returning_(?:for_observance|to_work)$/);
+assert.match(worker.pathPurpose ?? '', /^return_(?:for_observance|to_work)$/);
 for (let step = 0; step < realtimeTickBudget(600); step++) villagers.tick(0.05);
 assert.equal(worker.routinePhase, 'work');
 assert.notEqual(worker.pathPurpose, 'return_to_work');
+assert.notEqual(worker.pathPurpose, 'return_for_observance');
 
 villagers.setSchedule({
   ...fullClock(9),
@@ -732,6 +734,9 @@ defenseVillagers.sync({
   roadNetwork: parishRoads,
 });
 defenseVillagers.setSchedule(fullClock(12), false);
+for (let step = 0; step < realtimeTickBudget(2000); step++) {
+  defenseVillagers.tick(0.05);
+}
 defenseVillagers.setRefugeAlert(
   true,
   new Map([[defenseHome.id, refuge.id]]),
