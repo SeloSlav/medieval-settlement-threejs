@@ -828,7 +828,6 @@ type CompiledIvyLayerPlan = {
   cos: number;
   sin: number;
   phase: number;
-  flipU: boolean;
 };
 
 function createIvyLayerPlans(
@@ -868,232 +867,278 @@ function createIvyLayerPlans(
       phase: placement.reliefPhase
         + layerIndex * 1.73
         + (upperLayer ? (rng() - 0.5) * 0.5 : 0),
-      flipU: upperLayer && rng() < 0.5,
     };
   });
 }
 
-type AnimatedIvyLeafWriteArgs = {
+type IvyLayerLeafWriteArgs = {
   placement: ForestFloorIvyPlacement;
   placementIndex: number;
+  layerIndex: number;
   layerPlans: readonly CompiledIvyLayerPlan[];
   terrain: IvyTerrainSurface;
   seed: number;
   baseColor: THREE.Color;
-  positions: Float32Array;
-  uvs: Float32Array;
-  tintValues: Float32Array;
+  instanceMatrices: Float32Array;
+  tintValues: Uint8Array;
   layerValues: Uint8Array;
+  runnerValues: Uint8Array;
   rootPhaseValues: Float32Array;
   hingeValues: Float32Array;
-  indices: Uint32Array;
-  vertexOffset: number;
-  indexOffset: number;
-  animatedLeafVertexRanges: ForestFloorIvyAnimatedLeafVertexRange[];
+  atlasRectValues: Float32Array;
+  instanceOffset: number;
 };
 
-function appendAnimatedIvyLeaves(
-  args: AnimatedIvyLeafWriteArgs,
-): { vertexOffset: number; indexOffset: number } {
+function appendIvyLayerLeaves(args: IvyLayerLeafWriteArgs): number {
   const {
     placement,
     placementIndex,
+    layerIndex,
     layerPlans,
     terrain,
     seed,
     baseColor,
-    positions,
-    uvs,
+    instanceMatrices,
     tintValues,
     layerValues,
+    runnerValues,
     rootPhaseValues,
     hingeValues,
-    indices,
-    animatedLeafVertexRanges,
+    atlasRectValues,
   } = args;
+  const layer = layerPlans[layerIndex]!;
+  const spec = layer.spec;
   const rng = mulberry32(
-    (seed ^ Math.imul(placementIndex + 1, 0x165667b1)) >>> 0,
+    (
+      seed
+      ^ Math.imul(placementIndex + 1, 0x165667b1)
+      ^ Math.imul(layerIndex + 1, 0x85ebca6b)
+    ) >>> 0,
   );
-  const sourcePixels = [
-    ...FOREST_FLOOR_IVY_LEAF_UV_BOUNDARY_PIXELS,
-    FOREST_FLOOR_IVY_LEAF_UV_CENTER_PIXEL,
-  ] as const;
-  const boundaryCount = FOREST_FLOOR_IVY_LEAF_UV_BOUNDARY_PIXELS.length;
-  const centerLocalIndex = FOREST_FLOOR_IVY_LEAF_VERTICES - 1;
-  const rootPixelX = FOREST_FLOOR_IVY_LEAF_ROOT_PIXEL[0];
-  const rootPixelY = FOREST_FLOOR_IVY_LEAF_ROOT_PIXEL[1];
-  const tierLengthRanges = [
-    [0.18, 0.25],
-    [0.21, 0.3],
-    [0.23, 0.34],
-    [0.25, 0.37],
-  ] as const;
   const tierHingeRanges = [
-    [0.025, 0.04],
-    [0.04, 0.058],
-    [0.065, 0.09],
-    [0.085, 0.115],
+    [0.075, 0.105],
+    [0.085, 0.12],
+    [0.095, 0.135],
+    [0.105, 0.15],
   ] as const;
-  const tierTiltRanges = [
-    [8, 16],
-    [12, 22],
-    [16, 28],
-    [18, 32],
-  ] as const;
-  const placementScale = THREE.MathUtils.clamp(placement.scale, 0.82, 1.25);
   const leafColor = new THREE.Color();
-  let vertexOffset = args.vertexOffset;
-  let indexOffset = args.indexOffset;
+  const matrix = new THREE.Matrix4();
+  const hinge = new THREE.Vector3();
+  const forward = new THREE.Vector3();
+  const normal = new THREE.Vector3();
+  let instanceOffset = args.instanceOffset;
+  let leafInLayer = 0;
+  const slotsPerRunner = Array.from(
+    { length: spec.runnerCount },
+    (_, runnerIndex) => Math.floor(spec.leafCount / spec.runnerCount)
+      + (runnerIndex < spec.leafCount % spec.runnerCount ? 1 : 0),
+  );
+  const nominalLength = THREE.MathUtils.clamp(
+    Math.sqrt(
+      (layer.radiusX * 2 * layer.radiusZ * 2) / Math.max(spec.leafCount, 1),
+    ) * 1.16,
+    0.28,
+    0.6,
+  );
 
-  for (
-    let leafIndex = 0;
-    leafIndex < FOREST_FLOOR_IVY_ANIMATED_LEAVES_PER_PATCH;
-    leafIndex++
-  ) {
-    const layerIndex = FOREST_FLOOR_IVY_LEAF_LAYER_SEQUENCE[leafIndex]!;
-    const layer = layerPlans[layerIndex]!;
-    const tier = layer.spec.tier;
-    const radialAngle = rng() * Math.PI * 2;
-    const radialMinimum = tier === 0 ? 0.56 : 0.18;
-    const radialMaximum = tier === 0 ? 0.86 : 0.78;
-    const radial = THREE.MathUtils.lerp(
-      radialMinimum,
-      radialMaximum,
-      Math.sqrt(rng()),
-    );
-    const normalizedX = Math.cos(radialAngle) * radial;
-    const normalizedZ = Math.sin(radialAngle) * radial;
-    const localX = normalizedX * layer.radiusX;
-    const localZ = normalizedZ * layer.radiusZ;
-    const rootX = layer.centerX + localX * layer.cos - localZ * layer.sin;
-    const rootZ = layer.centerZ + localX * layer.sin + localZ * layer.cos;
-    const supportHeight = layerIndex === 0
-      ? 0
-      : ivyStackHeightAtWorld(
-        rootX,
-        rootZ,
+  for (let runnerIndex = 0; runnerIndex < spec.runnerCount; runnerIndex++) {
+    const slotCount = slotsPerRunner[runnerIndex]!;
+    for (let slotIndex = 0; slotIndex < slotCount; slotIndex++) {
+      const along = slotCount <= 1 ? 0.5 : slotIndex / (slotCount - 1);
+      const pathT = runnerIndex % 2 === 0 ? along : 1 - along;
+      const path = ivyRunnerPointAt(layer, runnerIndex, pathT);
+      const before = ivyRunnerPointAt(layer, runnerIndex, Math.max(0, pathT - 0.012));
+      const after = ivyRunnerPointAt(layer, runnerIndex, Math.min(1, pathT + 0.012));
+      const root = ivyLayerPointToWorld(layer, path.x, path.z);
+      const tangentStart = ivyLayerPointToWorld(layer, before.x, before.z);
+      const tangentEnd = ivyLayerPointToWorld(layer, after.x, after.z);
+      let tangentX = tangentEnd.x - tangentStart.x;
+      let tangentZ = tangentEnd.z - tangentStart.z;
+      const tangentLength = Math.hypot(tangentX, tangentZ) || 1;
+      tangentX /= tangentLength;
+      tangentZ /= tangentLength;
+
+      let fanAngle: number;
+      if (slotIndex === 0) {
+        fanAngle = Math.PI + (rng() - 0.5) * 0.26;
+      } else if (slotIndex === slotCount - 1) {
+        fanAngle = (rng() - 0.5) * 0.26;
+      } else {
+        fanAngle = (slotIndex % 2 === 0 ? -1 : 1)
+          * THREE.MathUtils.lerp(0.56, 1.02, rng())
+          + (rng() - 0.5) * 0.2;
+      }
+      const fanCos = Math.cos(fanAngle);
+      const fanSin = Math.sin(fanAngle);
+      const directionX = tangentX * fanCos - tangentZ * fanSin;
+      const directionZ = tangentX * fanSin + tangentZ * fanCos;
+      const rootY = ivySurfaceHeightAtWorld(
+        root.x,
+        root.z,
         placement,
         layerPlans,
         layerIndex,
-      );
-    const shelfHeight = Math.min(
-      FOREST_FLOOR_IVY_CANOPY_HEIGHT_MAX,
-      supportHeight + ivyLayerOwnElevation(
-        normalizedX,
-        normalizedZ,
+        terrain,
+      ) + 0.002;
+      const probe = 0.1;
+      const forwardHeight = ivySurfaceHeightAtWorld(
+        root.x + directionX * probe,
+        root.z + directionZ * probe,
         placement,
-        layer,
-      ),
-    );
-    const rootY = terrain.getHeightAt(rootX, rootZ)
-      + FOREST_FLOOR_IVY_GROUND_CLEARANCE
-      + shelfHeight
-      + 0.003;
-
-    const outwardYaw = Math.atan2(rootZ - layer.centerZ, rootX - layer.centerX);
-    const forwardYaw = outwardYaw + (rng() - 0.5) * 1.35;
-    const forwardX = Math.cos(forwardYaw);
-    const forwardZ = Math.sin(forwardYaw);
-    const hingeX = -forwardZ;
-    const hingeZ = forwardX;
-    const lengthRange = tierLengthRanges[tier];
-    const length = THREE.MathUtils.lerp(lengthRange[0], lengthRange[1], rng())
-      * placementScale;
-    const width = length * THREE.MathUtils.lerp(0.76, 0.94, rng());
-    const tiltRange = tierTiltRanges[tier];
-    const tilt = THREE.MathUtils.degToRad(
-      THREE.MathUtils.lerp(tiltRange[0], tiltRange[1], rng()),
-    );
-    const forwardHorizontal = Math.cos(tilt);
-    const forwardVertical = Math.sin(tilt);
-    const camber = length * THREE.MathUtils.lerp(0.035, 0.065, rng());
-    const twist = length * (rng() - 0.5) * 0.055;
-    const hingeRange = tierHingeRanges[tier];
-    const hingeAmplitude = THREE.MathUtils.lerp(
-      hingeRange[0],
-      hingeRange[1],
-      rng(),
-    );
-    const phase = placement.reliefPhase
-      + leafIndex * 0.73
-      + (rng() - 0.5) * 0.62;
-    const mirror = rng() < 0.5 ? -1 : 1;
-    leafColor.copy(baseColor).multiplyScalar(
-      layer.spec.tintScale * THREE.MathUtils.lerp(0.94, 1.075, rng()),
-    );
-
-    const leafStart = vertexOffset;
-    for (let localIndex = 0; localIndex < sourcePixels.length; localIndex++) {
-      const sourcePixel = sourcePixels[localIndex]!;
-      const localForward = THREE.MathUtils.clamp(
-        (rootPixelY - sourcePixel[1]) / FOREST_FLOOR_IVY_LEAF_PIXEL_LENGTH,
-        0,
-        1,
+        layerPlans,
+        layerIndex,
+        terrain,
       );
-      const localWidth = mirror
-        * (sourcePixel[0] - rootPixelX)
-        / FOREST_FLOOR_IVY_LEAF_PIXEL_HALF_WIDTH;
-      const edgeDistance = Math.min(1, Math.abs(localWidth));
-      const foldLift = Math.sin(localForward * Math.PI)
-        * camber
-        * (1 - edgeDistance * 0.48);
-      const twistLift = localWidth * localForward * twist;
-      const along = localForward * length;
-      const across = localWidth * width;
-      const vertexIndex = vertexOffset + localIndex;
-      const positionOffset = vertexIndex * 3;
-      positions[positionOffset] = rootX
-        + forwardX * along * forwardHorizontal
-        + hingeX * across;
-      positions[positionOffset + 1] = rootY
-        + along * forwardVertical
-        + foldLift
-        + twistLift;
-      positions[positionOffset + 2] = rootZ
-        + forwardZ * along * forwardHorizontal
-        + hingeZ * across;
-      const uvOffset = vertexIndex * 2;
-      uvs[uvOffset] = sourcePixel[0] / 1254;
-      uvs[uvOffset + 1] = 1 - sourcePixel[1] / 1254;
-      tintValues[positionOffset] = leafColor.r;
-      tintValues[positionOffset + 1] = leafColor.g;
-      tintValues[positionOffset + 2] = leafColor.b;
-      layerValues[vertexIndex] = layerIndex;
-      const motionOffset = vertexIndex * 4;
-      rootPhaseValues[motionOffset] = rootX;
-      rootPhaseValues[motionOffset + 1] = rootY;
-      rootPhaseValues[motionOffset + 2] = rootZ;
-      rootPhaseValues[motionOffset + 3] = phase;
-      hingeValues[motionOffset] = hingeX;
-      hingeValues[motionOffset + 1] = 0;
-      hingeValues[motionOffset + 2] = hingeZ;
-      hingeValues[motionOffset + 3] = hingeAmplitude;
-    }
-
-    for (let boundaryIndex = 0; boundaryIndex < boundaryCount; boundaryIndex++) {
-      indices[indexOffset++] = leafStart + centerLocalIndex;
-      if (mirror > 0) {
-        indices[indexOffset++] = leafStart + (boundaryIndex + 1) % boundaryCount;
-        indices[indexOffset++] = leafStart + boundaryIndex;
-      } else {
-        indices[indexOffset++] = leafStart + boundaryIndex;
-        indices[indexOffset++] = leafStart + (boundaryIndex + 1) % boundaryCount;
+      const sideX = -directionZ;
+      const sideZ = directionX;
+      const sideHeight = ivySurfaceHeightAtWorld(
+        root.x + sideX * probe,
+        root.z + sideZ * probe,
+        placement,
+        layerPlans,
+        layerIndex,
+        terrain,
+      );
+      forward.set(
+        directionX,
+        (forwardHeight - rootY) / probe
+          + THREE.MathUtils.lerp(0.035, 0.075 + spec.tier * 0.022, rng()),
+        directionZ,
+      ).normalize();
+      hinge.set(
+        sideX,
+        (sideHeight - rootY) / probe,
+        sideZ,
+      ).normalize();
+      normal.crossVectors(hinge, forward).normalize();
+      if (normal.y < 0) {
+        hinge.multiplyScalar(-1);
+        normal.crossVectors(hinge, forward).normalize();
       }
+
+      const length = nominalLength * THREE.MathUtils.lerp(0.84, 1.16, rng());
+      const width = length * THREE.MathUtils.lerp(0.84, 1.02, rng());
+      matrix.makeBasis(
+        hinge.clone().multiplyScalar(width),
+        forward.clone().multiplyScalar(length),
+        normal.clone().multiplyScalar(length),
+      );
+      matrix.setPosition(root.x, rootY, root.z);
+      matrix.toArray(instanceMatrices, instanceOffset * 16);
+
+      const phase = placement.reliefPhase
+        + layerIndex * 7.31
+        + leafInLayer * 0.731
+        + (rng() - 0.5) * 0.58;
+      const hingeRange = tierHingeRanges[spec.tier];
+      const hingeAmplitude = Math.min(
+        THREE.MathUtils.lerp(hingeRange[0], hingeRange[1], rng()),
+        FOREST_FLOOR_IVY_ANIMATION_MAX_TIP_DISPLACEMENT / length,
+      );
+      const motionOffset = instanceOffset * 4;
+      rootPhaseValues[motionOffset] = root.x;
+      rootPhaseValues[motionOffset + 1] = rootY;
+      rootPhaseValues[motionOffset + 2] = root.z;
+      rootPhaseValues[motionOffset + 3] = phase;
+      hingeValues[motionOffset] = hinge.x;
+      hingeValues[motionOffset + 1] = hinge.y;
+      hingeValues[motionOffset + 2] = hinge.z;
+      hingeValues[motionOffset + 3] = hingeAmplitude;
+      layerValues[instanceOffset] = layerIndex;
+      runnerValues[instanceOffset] = runnerIndex;
+
+      leafColor.copy(baseColor).multiplyScalar(
+        spec.tintScale * THREE.MathUtils.lerp(0.92, 1.07, rng()),
+      );
+      const tintOffset = instanceOffset * 3;
+      tintValues[tintOffset] = Math.round(THREE.MathUtils.clamp(leafColor.r, 0, 1) * 255);
+      tintValues[tintOffset + 1] = Math.round(THREE.MathUtils.clamp(leafColor.g, 0, 1) * 255);
+      tintValues[tintOffset + 2] = Math.round(THREE.MathUtils.clamp(leafColor.b, 0, 1) * 255);
+
+      const atlasLeaf = FOREST_FLOOR_IVY_ATLAS_LEAVES[
+        (leafInLayer + layerIndex + Math.floor(rng() * 4))
+          % FOREST_FLOOR_IVY_ATLAS_LEAVES.length
+      ]!;
+      const atlasOffset = instanceOffset * 4;
+      const minU = atlasLeaf.minX / FOREST_FLOOR_IVY_ATLAS_SIZE;
+      const maxU = atlasLeaf.maxX / FOREST_FLOOR_IVY_ATLAS_SIZE;
+      const minV = 1 - atlasLeaf.maxY / FOREST_FLOOR_IVY_ATLAS_SIZE;
+      const maxV = 1 - atlasLeaf.minY / FOREST_FLOOR_IVY_ATLAS_SIZE;
+      const mirrored = rng() < 0.5;
+      atlasRectValues[atlasOffset] = mirrored ? maxU : minU;
+      atlasRectValues[atlasOffset + 1] = minV;
+      atlasRectValues[atlasOffset + 2] = mirrored ? minU - maxU : maxU - minU;
+      atlasRectValues[atlasOffset + 3] = maxV - minV;
+
+      instanceOffset += 1;
+      leafInLayer += 1;
     }
-    animatedLeafVertexRanges.push({
-      start: leafStart,
-      count: FOREST_FLOOR_IVY_LEAF_VERTICES,
-      placementIndex,
-      leafIndex,
-      layerIndex,
-      tier,
-      rootVertex: leafStart,
-      tipVertex: leafStart + 5,
-    });
-    vertexOffset += FOREST_FLOOR_IVY_LEAF_VERTICES;
   }
 
-  return { vertexOffset, indexOffset };
+  return instanceOffset;
+}
+
+function ivyRunnerPointAt(
+  layer: CompiledIvyLayerPlan,
+  runnerIndex: number,
+  t: number,
+): { x: number; z: number } {
+  const runnerCount = layer.spec.runnerCount;
+  const row = runnerCount === 1
+    ? 0
+    : THREE.MathUtils.lerp(-0.78, 0.78, (runnerIndex + 0.5) / runnerCount);
+  let x = THREE.MathUtils.lerp(-0.88, 0.88, t);
+  let z = row + Math.sin(t * Math.PI * 2 + layer.phase + runnerIndex * 1.37)
+    * (runnerCount === 1 ? 0.18 : 0.1);
+  const radius = Math.hypot(x, z);
+  if (radius > 0.93) {
+    x *= 0.93 / radius;
+    z *= 0.93 / radius;
+  }
+  return { x, z };
+}
+
+function ivyLayerPointToWorld(
+  layer: CompiledIvyLayerPlan,
+  x: number,
+  z: number,
+): { x: number; z: number } {
+  const localX = x * layer.radiusX;
+  const localZ = z * layer.radiusZ;
+  return {
+    x: layer.centerX + localX * layer.cos - localZ * layer.sin,
+    z: layer.centerZ + localX * layer.sin + localZ * layer.cos,
+  };
+}
+
+function ivySurfaceHeightAtWorld(
+  worldX: number,
+  worldZ: number,
+  placement: ForestFloorIvyPlacement,
+  layers: readonly CompiledIvyLayerPlan[],
+  layerIndex: number,
+  terrain: IvyTerrainSurface,
+): number {
+  const layer = layers[layerIndex]!;
+  const dx = worldX - layer.centerX;
+  const dz = worldZ - layer.centerZ;
+  const normalizedX = (dx * layer.cos + dz * layer.sin) / layer.radiusX;
+  const normalizedZ = (-dx * layer.sin + dz * layer.cos) / layer.radiusZ;
+  const supportHeight = layerIndex === 0
+    ? 0
+    : ivyStackHeightAtWorld(worldX, worldZ, placement, layers, layerIndex);
+  const shelfHeight = Math.min(
+    FOREST_FLOOR_IVY_CANOPY_HEIGHT_MAX,
+    supportHeight + ivyLayerOwnElevation(
+      normalizedX,
+      normalizedZ,
+      placement,
+      layer,
+    ),
+  );
+  return terrain.getHeightAt(worldX, worldZ)
+    + FOREST_FLOOR_IVY_GROUND_CLEARANCE
+    + shelfHeight;
 }
 
 function ivyStackHeightAtWorld(

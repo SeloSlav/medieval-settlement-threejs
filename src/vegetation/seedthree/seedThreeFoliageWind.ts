@@ -146,16 +146,16 @@ function rotateAroundAxis(
 }
 
 /**
- * Individually rooted forest-floor ivy leaves. The broad carrier sheets write
- * zero hinge amplitude and remain terrain-welded; every explicit leaf repeats
- * its own root, hinge axis, phase, and maximum rotation on its vertices. This
- * is a rigid petiole hinge, so the root cannot slide and the leaf does not
- * stretch like a height-field sheet.
+ * Individually rooted forest-floor ivy leaves. Every instance supplies its
+ * object-space root, hinge axis, phase, and maximum rotation. Visibility
+ * collapses a masked leaf to its petiole, so no hidden instance can leave a
+ * giant rotation arm or a detached fragment.
  */
 export function createIvyLeafHingeWindNodes(): IvyLeafHingeWindNodes {
   const local = ivyTsl.positionLocal;
   const rootPhase = ivyTsl.attribute('aIvyRootPhase', 'vec4');
   const hinge = ivyTsl.attribute('aIvyHinge', 'vec4');
+  const visibility = ivyTsl.attribute('aIvyVisibility', 'float');
   const hingeLength = hinge.xyz.length();
   const axis = hinge.xyz.div(hingeLength.max(0.00001));
   const rootWorld = ivyTsl.modelWorldMatrix.mul(ivyTsl.vec4(rootPhase.xyz, 1)).xyz;
@@ -184,20 +184,19 @@ export function createIvyLeafHingeWindNodes(): IvyLeafHingeWindNodes {
     .mul(0.18)
     .mul(flutterGate)
     .mul(flutterFade);
-  // Hidden tree-owned ranges move only `position.y` to the sentinel. Gating
-  // before rotation prevents a retained root attribute creating a 10 km arm.
-  const active = ivyTsl.step(IVY_HINGE_ACTIVE_Y_THRESHOLD, local.y);
   const angle = gust.add(flutter)
     .mul(ivyTsl.windStrength)
     .mul(hinge.w)
-    .mul(active)
+    .mul(visibility)
     .clamp(-0.12, 0.28);
   const rotatedPosition = rotateAroundAxis(local.sub(rootPhase.xyz), axis, angle)
     .add(rootPhase.xyz);
   const rotatedNormal = rotateAroundAxis(ivyTsl.normalLocal, axis, angle).normalize();
 
   return {
-    positionNode: rotatedPosition,
+    positionNode: rootPhase.xyz.add(
+      rotatedPosition.sub(rootPhase.xyz).mul(visibility),
+    ),
     normalNode: ivyTsl.transformNormalToView(rotatedNormal).normalize(),
   };
 }
@@ -207,6 +206,7 @@ const IVY_HINGE_WEBGL_CACHE_KEY = 'seedthree-ivy-petiole-hinge-v1';
 const IVY_HINGE_WEBGL_DECLARATIONS = `
 attribute vec4 aIvyRootPhase;
 attribute vec4 aIvyHinge;
+attribute float aIvyVisibility;
 uniform float uIvyTime;
 uniform float uIvyWindSpeed;
 uniform float uIvyWindStrength;
@@ -219,9 +219,9 @@ vec3 rotateIvyAroundAxis( vec3 value, vec3 axis, float angle ) {
     + axis * dot( axis, value ) * ( 1.0 - cosine );
 }
 
-float ivyHingeAngle( vec3 objectPosition, vec4 rootPhase, vec4 hinge ) {
+float ivyHingeAngle( vec4 rootPhase, vec4 hinge, float visibility ) {
   float hingeLength = length( hinge.xyz );
-  if ( hingeLength < 0.00001 || objectPosition.y < ${IVY_HINGE_ACTIVE_Y_THRESHOLD.toFixed(1)} ) return 0.0;
+  if ( hingeLength < 0.00001 || visibility < 0.5 ) return 0.0;
   vec3 rootWorld = ( modelMatrix * vec4( rootPhase.xyz, 1.0 ) ).xyz;
   float time = uIvyTime * uIvyWindSpeed;
   float spatialPhase = rootWorld.x * 0.35 + rootWorld.z * 0.27;
@@ -242,7 +242,7 @@ float ivyHingeAngle( vec3 objectPosition, vec4 rootPhase, vec4 hinge ) {
   float flutter = sin( time * 5.2 + rootPhase.w )
     * 0.18 * flutterGate * flutterFade;
   return clamp(
-    ( gust * macroFade + flutter ) * uIvyWindStrength * hinge.w,
+    ( gust * macroFade + flutter ) * uIvyWindStrength * hinge.w * visibility,
     -0.12,
     0.28
   );
@@ -262,15 +262,17 @@ export function applyIvyLeafHingeWebGLWind(material: THREE.Material): void {
     shader.vertexShader = shader.vertexShader.replace(
       '#include <beginnormal_vertex>',
       `#include <beginnormal_vertex>
-vec3 ivyAxis = aIvyHinge.xyz / max( length( aIvyHinge.xyz ), 0.00001 );
-float ivyAngle = ivyHingeAngle( position, aIvyRootPhase, aIvyHinge );
-objectNormal = rotateIvyAroundAxis( objectNormal, ivyAxis, ivyAngle );`,
+float ivyAngle = ivyHingeAngle( aIvyRootPhase, aIvyHinge, aIvyVisibility );
+objectNormal = rotateIvyAroundAxis( objectNormal, vec3( 1.0, 0.0, 0.0 ), ivyAngle );`,
     );
     shader.vertexShader = shader.vertexShader.replace(
       '#include <begin_vertex>',
       `#include <begin_vertex>
-transformed = aIvyRootPhase.xyz
-  + rotateIvyAroundAxis( transformed - aIvyRootPhase.xyz, ivyAxis, ivyAngle );`,
+transformed = rotateIvyAroundAxis(
+  transformed,
+  vec3( 1.0, 0.0, 0.0 ),
+  ivyAngle
+) * aIvyVisibility;`,
     );
   });
   material.needsUpdate = true;

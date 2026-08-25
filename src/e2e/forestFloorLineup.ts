@@ -3,12 +3,13 @@ import { setForestCardSnowCoverage } from '@seedthree/core/branch-cards.js';
 import { windSpeed, windStrength } from '@seedthree/core/wind.js';
 import { WebGPURenderer } from 'three/webgpu';
 import {
-  FOREST_FLOOR_IVY_ANIMATED_LEAVES_PER_PATCH,
   FOREST_FLOOR_IVY_CANOPY_HEIGHT_MAX,
   FOREST_FLOOR_IVY_LAYER_COUNT,
+  FOREST_FLOOR_IVY_LEAVES_PER_PATCH,
   FOREST_FLOOR_IVY_SEED,
   FOREST_FLOOR_IVY_TEXTURE_PATH,
   createForestFloorIvyMaterial,
+  createForestFloorIvyMesh,
   createTerrainConformingIvyGeometry,
   type ForestFloorIvyPlacement,
 } from '../props/ForestFloorIvy.ts';
@@ -176,12 +177,13 @@ const placements: ForestFloorIvyPlacement[] = [
   { x: 7.1, z: 1.15, sourceTreeIndex: 6, scale: 0.96, yaw: -0.12, radiusX: 2.5, radiusZ: 1.4, reliefHeight: 0.18, reliefPhase: 0.9 },
 ];
 
-const ivyGeometry = createTerrainConformingIvyGeometry(
+const compiledIvy = createTerrainConformingIvyGeometry(
   placements,
   terrainSurface,
   placements.length,
   FOREST_FLOOR_IVY_SEED,
-).geometry;
+);
+const ivyGeometry = compiledIvy.geometry;
 const ivyTextures = await loadSeedThreeGroundCoverTextures(
   { albedo: FOREST_FLOOR_IVY_TEXTURE_PATH },
   renderer.getMaxAnisotropy(),
@@ -194,8 +196,8 @@ const ivyMaterial = createForestFloorIvyMaterial(
 setForestCardSnowCoverage(ivyMaterial, ivySnowCoverage);
 windStrength.value = 0.5;
 windSpeed.value = 0.84;
-const ivy = new THREE.Mesh(ivyGeometry, ivyMaterial);
-ivy.name = 'Four-strata terrain-conforming ivy lineup';
+const ivy = createForestFloorIvyMesh(compiledIvy, ivyMaterial);
+ivy.name = 'Four-strata rooted ivy-leaf lineup';
 ivy.frustumCulled = false;
 ivy.renderOrder = 2;
 scene.add(ivy);
@@ -415,8 +417,8 @@ document.body.dataset.animationTime = fixedAnimationTime === null
   : fixedAnimationTime.toFixed(2);
 document.body.dataset.ivyLayers = String(FOREST_FLOOR_IVY_LAYER_COUNT);
 document.body.dataset.ivyPatches = String(placements.length);
-document.body.dataset.ivyAnimatedLeaves = String(
-  placements.length * FOREST_FLOOR_IVY_ANIMATED_LEAVES_PER_PATCH,
+document.body.dataset.ivyLeaves = String(
+  placements.length * FOREST_FLOOR_IVY_LEAVES_PER_PATCH,
 );
 document.body.dataset.ivyDrawCalls = '1';
 document.body.dataset.ivyMaxHeight = FOREST_FLOOR_IVY_CANOPY_HEIGHT_MAX.toFixed(2);
