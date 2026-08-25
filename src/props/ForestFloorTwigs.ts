@@ -223,7 +223,7 @@ export function createForestFloorTwigMaterial(
   textures: ForestFloorTwigTextures,
 ): THREE.MeshStandardMaterial {
   const material = new THREE.MeshStandardMaterial({
-    name: 'Textured weathered forest-floor twigs',
+    name: 'Pale shared-beech forest-floor twigs',
     map: textures.albedo,
     normalMap: textures.normal,
     roughnessMap: textures.roughness,
@@ -233,6 +233,8 @@ export function createForestFloorTwigMaterial(
     metalness: 0,
   });
   material.normalScale.set(0.48, 0.48);
+  material.userData.barkPreset = FOREST_FLOOR_TWIG_BARK_PRESET_KEY;
+  material.userData.textureOwnership = textures.ownership;
   return material;
 }
 
