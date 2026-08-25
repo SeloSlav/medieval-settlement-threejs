@@ -491,7 +491,7 @@ export class ResourceInspector {
           <section class="resource-inspector-labor resource-inspector-ox-team" data-inspector-ox-team hidden aria-label="Ox posting">
             <div class="resource-inspector-labor-row">
               <span class="resource-inspector-labor-label">
-                <span class="resource-inspector-ox-mark" aria-hidden="true">OX</span>
+                <span class="resource-inspector-ox-mark" aria-hidden="true"></span>
                 <span class="resource-inspector-assignment-copy">
                   <span>Posted oxen</span>
                   <small data-inspector-ox-pool>Automatic pool · 0</small>

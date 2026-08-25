@@ -118,6 +118,13 @@
   filter: drop-shadow(0 1px 1px rgba(7, 6, 4, 0.78));
 }
 
+.resource-inspector-labor-label > .resource-inspector-ox-mark[aria-hidden='true'] {
+  flex: 0 0 22px;
+  background-image: url('/assets/ui/icons/hud-livestock.png');
+  background-position: center;
+  background-size: contain;
+}
+
 /* Projected map markers use the same authored normal/rich resource portraits as
  * the inspector card. Every portrait is centered in the shared marker frame so
  * changing resource or richness never shifts the marker's world anchor. */

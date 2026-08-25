@@ -161,6 +161,7 @@ const generatedAssets = [
   'backyards/goat-pen.png',
   'backyards/pig-pen.png',
   'actions/overnight-work-camp.png',
+  'actions/limit-work-area.png',
   'actions/luxury-flowers.png',
   'upgrades/residence-tier-2.png',
   'upgrades/residence-tier-3.png',
@@ -205,6 +206,7 @@ assert.ok(animalFeedVisiblePixels > 0, 'animal feed artwork must contain a visib
 
 for (const [icon, asset] of [
   ['overnight-work-camp', 'actions/overnight-work-camp.png'],
+  ['tree-work-area', 'actions/limit-work-area.png'],
   ['luxury-flowers', 'actions/luxury-flowers.png'],
   ['residence-tier-2', 'upgrades/residence-tier-2.png'],
   ['residence-tier-3', 'upgrades/residence-tier-3.png'],
@@ -323,8 +325,13 @@ assert.doesNotMatch(
   /hasAttribute\('data-inspector-pinned-action'\)/,
   'pinned work-area panels should pass through the same concise central standardization',
 );
-assert.match(actionCss, /data-action-icon='tree-work-area'[\s\S]{0,520}linear-gradient/);
-assert.match(actionCss, /background-size:\s*6px 6px, 6px 6px, 100% 100%/);
+assert.match(resourceInspector, /class="resource-inspector-ox-mark" aria-hidden="true"><\/span>/);
+assert.match(
+  iconography,
+  /resource-inspector-ox-mark[\s\S]{0,220}hud-livestock\.png/,
+  'posted oxen should reuse the dedicated ox artwork instead of the workforce hammer',
+);
+await assertRasterDecodes('public/assets/ui/icons/hud-livestock.png', 'posted-ox artwork');
 assert.match(backyardCss, /resource-action-button--toggle\[aria-pressed='true'\]/);
 assert.match(backyardCss, /resource-action-button--toggle\.is-pending/);
 
