@@ -5,6 +5,8 @@ const noblePanel = readFileSync('src/ui/NobleSetupPanel.ts', 'utf8');
 const worldPanel = readFileSync('src/ui/WorldSetupPanel.ts', 'utf8');
 const bootstrapFlow = readFileSync('src/app/worldBootstrapFlow.ts', 'utf8');
 const nobleCss = readFileSync('src/ui/nobleSetup.css', 'utf8');
+const worldCss = readFileSync('src/ui/worldSetup.css', 'utf8');
+const appShell = readFileSync('index.html', 'utf8');
 const browserCoverage = readFileSync('e2e/onboarding-navigation.spec.ts', 'utf8');
 
 assert.match(noblePanel, /export type NobleSetupStep = 'house' \| 'heraldry'/);
@@ -38,7 +40,10 @@ assert.match(nobleCss, /\.noble-setup-heraldry-shield[\s\S]*?position: absolute/
 
 assert.match(worldPanel, /action: 'back' \| 'start'/);
 assert.match(worldPanel, /initialSettings\?: WorldGenerationSettings/);
-assert.match(worldPanel, /data-setup-back>Back to Heraldry/);
+assert.match(worldPanel, /data-setup-back[^>]*>[\s\S]*?Back to Heraldry/);
+assert.match(worldPanel, /data-map-seed-section/);
+assert.match(worldPanel, /data-randomize-seed>Randomize map/);
+assert.match(worldPanel, /<nav class="world-setup-actions__navigation" aria-label="Setup navigation">/);
 assert.match(worldPanel, /aria-pressed="\$\{size === this\.draft\.mapSize\}"/);
 assert.match(worldPanel, /data-setup-heading/);
 assert.match(
@@ -46,6 +51,11 @@ assert.match(
   /backButton\.addEventListener\('click',[\s\S]*?this\.resolve\(\{ action: 'back', settings \}\)/,
 );
 assert.match(worldPanel, /this\.resolve\(\{ action: 'start', settings \}\)/);
+assert.match(worldCss, /\.world-setup-actions\s*\{[\s\S]*?grid-template-rows: auto auto/);
+assert.match(worldCss, /\.world-setup-actions__navigation\s*\{[\s\S]*?justify-content: space-between/);
+assert.match(worldCss, /\.world-setup-back\s*\{[\s\S]*?min-width: 210px/);
+assert.match(appShell, /class="app-loading-kicker">Medieval Croatia · 1550</);
+assert.doesNotMatch(appShell, /class="app-loading-kicker">[^<]*Gorski Kotar/i);
 
 assert.match(bootstrapFlow, /while \(true\)/);
 assert.match(bootstrapFlow, /initialStep: nobleStep/);

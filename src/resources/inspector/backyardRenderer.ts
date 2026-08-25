@@ -186,7 +186,7 @@ export function renderBackyardInspector(
              : ''}`
         : ''}
       ${BACKYARD_GARDEN_DEFINITIONS[garden.kind].jamPerPersonPerSec > 0
-        ? `<li><span>${garden.kind === 'aronia_orchard' ? 'Aronia jam' : 'Rosehip jam'}</span><span>${Math.max(0, garden.kind === 'aronia_orchard' ? residence.aroniaJam ?? 0 : residence.rosehipJam ?? 0).toFixed(1)} jars in the household pantry · household labor preserves this share of the harvested fruit rather than creating extra output · transferable food at every tier${residence.tier >= 4 ? ' and luxury comfort from the same serving' : '; gains luxury value at tier 4'}</span></li>`
+        ? `<li><span>${garden.kind === 'aronia_orchard' ? 'Aronia jam' : 'Rosehip jam'}</span><span>${Math.max(0, garden.kind === 'aronia_orchard' ? residence.aroniaJam ?? 0 : residence.rosehipJam ?? 0).toFixed(1)} jars in the household pantry · household labor preserves this share of the harvested fruit rather than creating extra output · transferable preserved food that supports the tier-4 preserved-food standard</span></li>`
         : ''}
       ${producesFood
         ? `<li><span>${isLivestockPen ? 'Average primary home food/day' : 'Home food today'}</span><span>${economy.selfFoodPerDay.toFixed(1)} (${hasMarketAccess ? `fills the tier ${residence.tier} ${reserveDays}-day reserve first` : '100% kept without a staffed stall'})</span></li>
@@ -239,7 +239,7 @@ export function renderBackyardInspector(
           <button type="button" class="resource-action-button resource-action-button--icon" data-action="upgrade-flower-luxury" ${residence.tier < 3 ? 'disabled title="Requires a tier-3 residence"' : ''}><span class="inspector-action-icon" data-action-icon="luxury-flowers" aria-hidden="true"></span><span>Cultivate luxury flowers · ${BACKYARD_GARDEN_DEFINITIONS.flower_garden.luxuryUpgradeGoldCost} gold</span></button>
         </div>`
       : garden.kind === 'flower_garden' && garden.flowerLuxuryUpgraded
-        ? '<p class="resource-inspector-note">Luxury cut flowers are active: this home satisfies its tier-4 luxury-comfort need without consuming jam.</p>'
+        ? '<p class="resource-inspector-note">Luxury cut flowers are active: this home satisfies its tier-4 luxury-comfort need without consuming a market luxury good.</p>'
         : ''}<p class="resource-inspector-note">${producesFood
       ? `The household keeps edible output until its ${reserveDays}-day reserve is filled. Only physical overflow becomes Marketplace inventory. Gardens do not compete for a fourth food slot: they share the existing Granary-staffed food group, its inventory capacity, and its throughput.${garden.kind === 'goat_pen' ? ' Cull hides independently remain at the household until a staffed Storehouse accepts them for a Tannery or Trading Post.' : ''}`
       : marketChannel === 'goods'

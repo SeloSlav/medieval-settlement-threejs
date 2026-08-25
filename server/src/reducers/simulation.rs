@@ -6,9 +6,8 @@ use crate::economy::step_regional_markets;
 use crate::frontier_economy_policy::{armed_guards, guardhouse_payroll_buckets};
 use crate::simulation::{
     materialize_all_physical_resource_ledgers, retire_removed_buildings, step_apiary,
-    step_backyard_gardens, step_bakery, step_brewery, step_burials, step_carpenter,
-    step_chandlery, step_chapel_parish, step_chapels, step_charcoal_burner, step_clay_pit,
-    step_cobbler,
+    step_backyard_gardens, step_bakery, step_brewery, step_burials, step_carpenter, step_chandlery,
+    step_chapel_parish, step_chapels, step_charcoal_burner, step_clay_pit, step_cobbler,
     step_construction_labor_stewards, step_construction_sites, step_delivery_trips, step_fires,
     step_fishing_camp, step_foragers_shed, step_foraging_lifecycle, step_founding_sites,
     step_fresh_food_spoilage, step_granary, step_guardhouse, step_household_discretionary_trade,

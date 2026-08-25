@@ -201,19 +201,26 @@ export class WorldSetupPanel {
 
           </div>
 
-          <div class="world-setup-actions">
-            <div class="world-setup-footer-seed">
-              <label class="world-setup-footer-seed__label" for="world-setup-seed">World seed</label>
+          <footer class="world-setup-actions">
+            <div class="world-setup-footer-seed" data-map-seed-section>
+              <label class="world-setup-footer-seed__label" for="world-setup-seed">
+                <span>World seed</span>
+                <small>Repeatable terrain</small>
+              </label>
               <div class="world-setup-seed-row">
                 <input id="world-setup-seed" class="world-setup-seed-input" type="text" inputmode="text" spellcheck="false" autocomplete="off" aria-label="World seed" data-seed-input value="${formatSeedHex(this.draft.seed)}" />
-                <button type="button" class="world-setup-randomize" data-randomize-seed>Randomize</button>
+                <button type="button" class="world-setup-randomize" data-randomize-seed>Randomize map</button>
               </div>
             </div>
-            <div class="world-setup-actions__navigation">
-              <button type="button" class="world-setup-back" data-setup-back>Back to Heraldry</button>
-              <button type="submit" class="world-setup-start">Start world</button>
-            </div>
-          </div>
+            <nav class="world-setup-actions__navigation" aria-label="Setup navigation">
+              <button type="button" class="world-setup-back" data-setup-back>
+                <i aria-hidden="true">‹</i> Back to Heraldry
+              </button>
+              <button type="submit" class="world-setup-start">
+                Start world <i aria-hidden="true">›</i>
+              </button>
+            </nav>
+          </footer>
         </form>
       </div>
     `;

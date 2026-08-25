@@ -63,8 +63,8 @@ pub use delivery_trips::{
     staffed_cart_workers_by_building, step_delivery_trips, try_start_fire_response_trip,
 };
 pub use expanded_economy::{
-    step_apiary, step_bakery, step_brewery, step_carpenter, step_charcoal_burner, step_clay_pit,
-    step_chandlery, step_cobbler, step_granary, step_guardhouse, step_industrial_firewood_dispatch,
+    step_apiary, step_bakery, step_brewery, step_carpenter, step_chandlery, step_charcoal_burner,
+    step_clay_pit, step_cobbler, step_granary, step_guardhouse, step_industrial_firewood_dispatch,
     step_institutional_food_dispatch, step_local_material_dispatch,
     step_marketplace_material_dispatch, step_mine, step_monastery, step_potter_kiln,
     step_seed_grain_distribution, step_smithy, step_smokehouse, step_tannery, step_threshing_barn,

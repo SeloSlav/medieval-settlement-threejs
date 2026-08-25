@@ -71,7 +71,26 @@ test('new-world setup moves backward and forward without losing choices', async 
   const mapHeading = page.getByRole('heading', { name: 'Map Generation' });
   await expect(mapHeading).toBeVisible();
   await expect(mapHeading).toBeFocused();
-  await expect(page.getByRole('button', { name: 'Back to Heraldry' })).toBeVisible();
+  const mapBack = page.getByRole('button', { name: 'Back to Heraldry' });
+  const mapStart = page.getByRole('button', { name: 'Start world' });
+  const mapRandomize = page.getByRole('button', { name: 'Randomize map' });
+  const mapNavigation = page.locator('.world-setup-actions__navigation');
+  await expect(mapBack).toBeVisible();
+  await expect(mapStart).toBeVisible();
+  await expect(mapRandomize).toBeVisible();
+  await expect(mapNavigation.locator('button')).toHaveCount(2);
+  await expect(page.locator('[data-map-seed-section]')).not.toContainText('Back to Heraldry');
+  const [mapBackBox, mapStartBox, mapRandomizeBox] = await Promise.all([
+    mapBack.boundingBox(),
+    mapStart.boundingBox(),
+    mapRandomize.boundingBox(),
+  ]);
+  expect(mapBackBox).not.toBeNull();
+  expect(mapStartBox).not.toBeNull();
+  expect(mapRandomizeBox).not.toBeNull();
+  expect(mapBackBox!.x).toBeLessThan(mapStartBox!.x);
+  expect(Math.abs(mapBackBox!.y - mapStartBox!.y)).toBeLessThan(2);
+  expect(mapRandomizeBox!.y + mapRandomizeBox!.height).toBeLessThan(mapBackBox!.y);
   await expectActiveStep(page, 'map');
 
   const smallMap = page.locator('[data-map-size="small"]');

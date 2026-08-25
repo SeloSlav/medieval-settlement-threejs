@@ -319,6 +319,8 @@ const cargoSignatures: Record<DeliveryCargoKind, string> = {
   mead: 'Ale keg',
   preservedFood: 'Preserved food crock 1',
   honey: 'Honey crock 1',
+  wax: 'Beeswax block 1',
+  candles: 'Beeswax candle 1',
   wine: 'Wine amphora',
   stone: 'Quarried stone 1',
   polearms: 'Polearm shaft 1',

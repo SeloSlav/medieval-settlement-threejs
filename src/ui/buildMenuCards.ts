@@ -70,7 +70,7 @@ const BUILD_CARD_ART: Record<PlacementArtKey, string> = {
   weaver: '/assets/ui/build-menu/cards/weaver.webp',
   tannery: '/assets/ui/build-menu/cards/tannery.webp',
   cobbler: '/assets/ui/build-menu/cards/cobbler.webp',
-  chandlery: '/assets/ui/build-menu/cards/potter-kiln.webp',
+  chandlery: '/assets/ui/build-menu/cards/chandlery.webp',
   pastoral_farmstead: '/assets/ui/build-menu/cards/pastoral-farmstead.webp',
   swineherd: '/assets/ui/build-menu/cards/swineherd.webp',
 };

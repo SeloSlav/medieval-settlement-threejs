@@ -65,6 +65,8 @@ function processor(
     mead: 0,
     apples: 0,
     honey: 0,
+    wax: 0,
+    candles: 0,
     preservedFood: 0,
     cloth: 0,
     wool: 0,
@@ -90,6 +92,7 @@ assert.deepEqual(
     'potter_kiln',
     'tannery',
     'cobbler',
+    'chandlery',
   ],
 );
 assert.equal(normalizeProcessorOutputTargetPercent(undefined), 100);
@@ -136,6 +139,7 @@ assert.equal(processorOutputCommodity('smithy'), 'ironwork');
 assert.equal(processorOutputCommodity('potter_kiln'), 'pottery');
 assert.equal(processorOutputCommodity('tannery'), 'leather');
 assert.equal(processorOutputCommodity('cobbler'), 'shoes');
+assert.equal(processorOutputCommodity('chandlery'), 'candles');
 assert.equal(BREWERY_APPLES_PER_CIDER_CYCLE, 4);
 assert.equal(BREWERY_CIDER_PER_CYCLE, 1);
 assert.equal(BREWERY_HONEY_PER_MEAD_CYCLE, 1);
@@ -219,6 +223,11 @@ assert.deepEqual(
 );
 assert.deepEqual(processorInputCommodities('tannery'), ['hides', 'water', 'firewood']);
 assert.deepEqual(processorInputCommodities('cobbler'), ['leather']);
+assert.deepEqual(
+  processorInputCommodities('chandlery'),
+  ['wax', 'firewood'],
+  'the Chandlery must stage beeswax and hearth fuel without consuming flax',
+);
 
 const mill = processor('mill', 'watermill', 25);
 assert.equal(processorOutputTargetForBuilding(mill), 65);

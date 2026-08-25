@@ -56,7 +56,7 @@ assert.deepEqual(keys(AGRICULTURE_BUILD_MENU_ENTRIES), [
 ]);
 assert.deepEqual(keys(INDUSTRY_BUILD_MENU_ENTRIES), [
   'woodcutters_lodge', 'watermill', 'windmill', 'bakery', 'brewery', 'smokehouse',
-  'carpenter', 'weaver', 'tannery', 'cobbler', 'charcoal_burner', 'smithy', 'potter_kiln',
+  'carpenter', 'weaver', 'tannery', 'cobbler', 'chandlery', 'charcoal_burner', 'smithy', 'potter_kiln',
 ]);
 
 assert.deepEqual(BUILD_MENU_CATEGORIES.map((category) => category.id), [
@@ -70,7 +70,7 @@ assert.deepEqual(categoryKeys('gathering'), [
 ]);
 assert.deepEqual(categoryKeys('agriculture'), ['threshing_barn', 'apiary', 'pastoral_farmstead', 'swineherd']);
 assert.deepEqual(categoryKeys('food'), ['watermill', 'windmill', 'bakery', 'brewery', 'tavern', 'smokehouse']);
-assert.deepEqual(categoryKeys('industry'), ['woodcutters_lodge', 'carpenter', 'weaver', 'tannery', 'cobbler', 'charcoal_burner', 'smithy', 'potter_kiln']);
+assert.deepEqual(categoryKeys('industry'), ['woodcutters_lodge', 'carpenter', 'weaver', 'tannery', 'cobbler', 'chandlery', 'charcoal_burner', 'smithy', 'potter_kiln']);
 assert.deepEqual(categoryKeys('faith'), ['chapel', 'monastery']);
 assert.deepEqual(categoryKeys('decorations'), ['wayside_shrine', 'dry_stone_wall']);
 assert.deepEqual(categoryKeys('military'), ['watchtower', 'guardhouse', 'palisaded_refuge']);
@@ -79,6 +79,8 @@ assert.equal(BUILDING_KIND_TO_MENU_ACTION.founders_camp, 'founders-camp');
 assert.equal(MENU_ACTION_TO_BUILDING_KIND['founders-camp'], 'founders_camp');
 assert.equal(BUILDING_KIND_TO_MENU_ACTION.stable, 'stable');
 assert.equal(MENU_ACTION_TO_BUILDING_KIND.stable, 'stable');
+assert.equal(BUILDING_KIND_TO_MENU_ACTION.chandlery, 'chandlery');
+assert.equal(MENU_ACTION_TO_BUILDING_KIND.chandlery, 'chandlery');
 
 const allActions = BUILD_MENU_ENTRIES.map((entry) => entry.action);
 assert.equal(new Set(allActions).size, allActions.length, 'each build action must belong to exactly one menu');
@@ -387,8 +389,12 @@ assert.ok(fs.existsSync('public/assets/ui/build-menu/cards/wayside-shrine.webp')
 assert.ok(fs.existsSync('public/assets/ui/build-menu/cards/dry-stone-wall.webp'));
 assert.ok(fs.statSync('public/assets/ui/build-menu/cards/tannery.webp').size > 20_000);
 assert.ok(fs.statSync('public/assets/ui/build-menu/cards/cobbler.webp').size > 20_000);
+assert.ok(fs.statSync('public/assets/ui/build-menu/cards/chandlery.webp').size > 20_000);
 assert.match(renderedCards, /data-action="tannery"[\s\S]*?data-src="\/assets\/ui\/build-menu\/cards\/tannery\.webp"/);
 assert.match(renderedCards, /data-action="cobbler"[\s\S]*?data-src="\/assets\/ui\/build-menu\/cards\/cobbler\.webp"/);
+assert.match(renderedCards, /data-action="chandlery"[\s\S]*?data-src="\/assets\/ui\/build-menu\/cards\/chandlery\.webp"/);
+assert.ok(renderedCards.includes('%22wax%22'));
+assert.ok(renderedCards.includes('%22candles%22'));
 assert.match(renderedCards, /data-action="dry-stone-wall"[\s\S]*?>Dry-stone wall</);
 assert.match(renderedCards, /data-action="village-storehouse"[\s\S]*?>Storehouse</);
 assert.match(renderedCards, /data-action="granary"[\s\S]*?>Granary</);

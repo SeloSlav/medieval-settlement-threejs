@@ -91,6 +91,7 @@ const buildingsExpectedToHaveOpenings = new Set<string>([
   'large_quarry',
   'smithy',
   'potter_kiln',
+  'chandlery',
   'hunters_hall',
   'foragers_shed',
   'fishing_camp',
@@ -241,6 +242,7 @@ const expectedLeanToRoofs = new Map<string, number>([
   ['charcoal_burner', 1],
   ['smithy', 1],
   ['potter_kiln', 1],
+  ['chandlery', 2],
 ]);
 const leanToRoofCounts = new Map<string, number>();
 for (const kind of BUILDING_KINDS) {
@@ -259,6 +261,52 @@ for (const kind of BUILDING_KINDS) {
       || plan.diagnostics?.hiddenFacadeModules !== 0
     ) {
       throw new Error('Tavern must compile from a clean, four-facade architecture plan.');
+    }
+  }
+  if (kind === 'chandlery') {
+    const plan = model.userData.architecturePlan as {
+      signature?: string;
+      deterministic?: boolean;
+      roadFace?: string;
+      masses?: unknown[];
+      facadeEdges?: unknown[];
+      placements?: unknown[];
+      diagnostics?: Record<string, unknown[]>;
+    } | undefined;
+    const diagnostics = model.userData.architectureDiagnostics as {
+      facadeOwnershipCount?: number;
+      exposedFacadeCount?: number;
+      plannedModuleCount?: number;
+      compiledModuleCount?: number;
+      meshCount?: number;
+      triangleCount?: number;
+    } | undefined;
+    const diagnosticLists = plan?.diagnostics == null
+      ? []
+      : Object.values(plan.diagnostics);
+    if (
+      plan?.signature !== 'gorski-chandlery-v1'
+      || plan.deterministic !== true
+      || plan.roadFace !== 'positive-z'
+      || plan.masses?.length !== 2
+      || plan.facadeEdges?.length !== 4
+      || diagnosticLists.some((entries) => entries.length !== 0)
+      || diagnostics?.facadeOwnershipCount !== 4
+      || diagnostics.exposedFacadeCount !== 4
+      || diagnostics.plannedModuleCount !== plan.placements?.length
+      || diagnostics.compiledModuleCount !== plan.placements?.length
+      || (diagnostics.meshCount ?? 0) < 20
+      || (diagnostics.triangleCount ?? 0) < 100
+    ) {
+      throw new Error('Chandlery must compile deterministically from a clean two-mass, four-facade semantic architecture plan.');
+    }
+    if (
+      model.getObjectByName('WaxStock') == null
+      || model.getObjectByName('CandlesStock') == null
+      || model.getObjectByName('Chandlery roadside dipping porch roof') == null
+      || model.getObjectByName('Chandlery heated melt-bay lean-to roof') == null
+    ) {
+      throw new Error('Chandlery must expose semantic wax, candle-dipping, and heated-bay presentation modules.');
     }
   }
   if (kind === 'monastery') {

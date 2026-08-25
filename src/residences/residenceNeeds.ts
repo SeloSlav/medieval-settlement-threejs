@@ -459,7 +459,7 @@ function describeActiveNeed(
     }
     case 'luxury':
       return getNeed(residence.needs, kind).stock <= 1e-6
-        ? { label: 'Luxury comfort missing — supply market candles, honey or wine, household jam, or upgraded cut flowers', state: 'warning' }
+        ? { label: 'Luxury comfort missing — supply market candles, honey or wine, or cultivate upgraded cut flowers', state: 'warning' }
         : null;
     default: {
       const unhandled: never = kind;
