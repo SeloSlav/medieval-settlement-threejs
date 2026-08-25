@@ -224,6 +224,7 @@ test('SeedThree canopy — deterministic fixed-view four-season contract', async
   const initialDataset = await page.evaluate(() => ({ ...document.body.dataset }));
   expect(initialDataset.season).toBe('spring');
   expect(initialDataset.animationTime).toBe('4.00');
+  expect(initialDataset.windStrength).toBe('0.00');
   expect(initialDataset.supportedSeasons).toBe('spring,summer,autumn,winter');
   expect(initialDataset.species).toBe(
     'beech,sessileOak,sycamoreMaple,ash,larch,silverFir,norwaySpruce,scotsPine',

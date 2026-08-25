@@ -161,6 +161,7 @@ export function applySeedThreeWholeCardDormancy(
   const deciduousInstance = tslStep(float(1024), packedTreeOrigin.y);
   const treeOriginY = packedTreeOrigin.y.sub(deciduousInstance.mul(float(2048)));
   const anchor = attribute('aAnchorPos', 'vec3') as unknown as TslVectorNode;
+  const cardVariation = attribute('aThickness', 'float') as unknown as TslVectorNode;
   const phenologyOffset = barkSnowTsl.sin(
     packedTreeOrigin.x.mul(0.37).add(packedTreeOrigin.z.mul(0.53)),
   ).mul(0.13)
@@ -173,7 +174,11 @@ export function applySeedThreeWholeCardDormancy(
       .add(packedTreeOrigin.z.mul(0.27))
       .add(anchor.x.mul(1.31))
       .add(anchor.y.mul(0.83))
-      .add(anchor.z.mul(1.57)),
+      .add(anchor.z.mul(1.57))
+      // Forest compaction shares one tree-root anchor across its cards.
+      // Reuse the existing per-card thickness randomizer so crown cards shed
+      // progressively instead of disappearing as one synchronized slab.
+      .add(cardVariation.mul(7.31)),
   ).mul(0.49).add(0.5);
   const clusterRetain = tslStep(effectiveDormancy, clusterNoise);
   const retain = (float(1) as TslNode).sub(

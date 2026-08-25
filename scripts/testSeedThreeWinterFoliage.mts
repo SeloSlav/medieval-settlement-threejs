@@ -421,7 +421,7 @@ const sceneSource = readFileSync(join(root, 'src/scene/SceneManager.ts'), 'utf8'
 
 assert.match(
   forkSource,
-  /greenDominance[\s\S]*transmissionLeafMask[\s\S]*greenLeafMask\.max\(transmissionLeafMask\)[\s\S]*const phenologyOffset = sin\([\s\S]*const leafClusterNoise = sin\([\s\S]*const clusterRetain = step\(effectiveDormancy, leafClusterNoise\)[\s\S]*seasonalRetain = float\(1\)\.sub\(dormantMask\)[\s\S]*opacityNode = texel\.a\.mul\(seasonalRetain\)/,
+  /greenDominance[\s\S]*transmissionLeafMask[\s\S]*greenLeafMask\.max\(transmissionLeafMask\)[\s\S]*const phenologyOffset = sin\([\s\S]*const leafClusterNoise = sin\([\s\S]*attribute\('aThickness', 'float'\)\.mul\(float\(7\.31\)\)[\s\S]*const clusterRetain = step\(effectiveDormancy, leafClusterNoise\)[\s\S]*seasonalRetain = float\(1\)\.sub\(dormantMask\)[\s\S]*opacityNode = texel\.a\.mul\(seasonalRetain\)/,
   'detailed deciduous cards must retain baked twigs while dropping leaves in stable world-space clusters',
 );
 assert.match(
@@ -524,7 +524,7 @@ assert.match(
 );
 assert.match(
   forestMaterialSource,
-  /applySeedThreeWholeCardDormancy[\s\S]*tslStep\(float\(1024\), packedTreeOrigin\.y\)[\s\S]*const anchor = attribute\('aAnchorPos', 'vec3'\)[\s\S]*const phenologyOffset = barkSnowTsl\.sin\([\s\S]*const clusterNoise = barkSnowTsl\.sin\([\s\S]*const clusterRetain = tslStep\(effectiveDormancy, clusterNoise\)[\s\S]*opacityNode = cardAlpha\.mul\(retain\)/,
+  /applySeedThreeWholeCardDormancy[\s\S]*tslStep\(float\(1024\), packedTreeOrigin\.y\)[\s\S]*const anchor = attribute\('aAnchorPos', 'vec3'\)[\s\S]*const cardVariation = attribute\('aThickness', 'float'\)[\s\S]*const phenologyOffset = barkSnowTsl\.sin\([\s\S]*const clusterNoise = barkSnowTsl\.sin\([\s\S]*add\(cardVariation\.mul\(7\.31\)\)[\s\S]*const clusterRetain = tslStep\(effectiveDormancy, clusterNoise\)[\s\S]*opacityNode = cardAlpha\.mul\(retain\)/,
   'strategic foliage-volume cards must drop in stable per-anchor clusters for packed deciduous instances',
 );
 assert.match(

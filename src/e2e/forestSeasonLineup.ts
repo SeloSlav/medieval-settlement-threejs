@@ -151,7 +151,10 @@ camera.position.set(0, 9.4, 39.5);
 camera.lookAt(0, 5.25, 0);
 camera.updateMatrixWorld(true);
 
-windStrength.value = 0.34;
+// This fixture compares biology, not motion. SeedThree's shared wind clock is
+// wall-time based, so zero amplitude is the only true fixed-time visual
+// contract across asynchronous GPU readbacks.
+windStrength.value = 0;
 windSpeed.value = 0.84;
 setWorldAnimationTime(fixedAnimationTime);
 
@@ -188,6 +191,7 @@ function updateDataset(): void {
   const structural = getSeedThreeForestStructuralStats(forest);
   document.body.dataset.season = activeSeason;
   document.body.dataset.animationTime = fixedAnimationTime.toFixed(2);
+  document.body.dataset.windStrength = windStrength.value.toFixed(2);
   document.body.dataset.springFlush = activeFoliage.springFlush.toFixed(2);
   document.body.dataset.autumnColor = activeFoliage.autumnColor.toFixed(2);
   document.body.dataset.dormancy = activeFoliage.dormancy.toFixed(2);
