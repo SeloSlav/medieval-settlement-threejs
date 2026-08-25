@@ -21,6 +21,7 @@ import {
   type RendererBackendKind,
 } from '../scene/RendererBackend.ts';
 import { chainMaterialShaderPatch } from '../scene/materialShaderPatch.ts';
+import { applyNaturalPainterlyMaterial } from '../scene/naturalPainterlyMaterial.ts';
 import type { Terrain } from '../terrain/Terrain.ts';
 import { sampleTerrainMeshAttributeX } from '../terrain/TerrainMeshHeight.ts';
 import { mulberry32 } from '../utils/random.ts';
@@ -528,6 +529,7 @@ export function createForestFloorIvyMaterial(
     // otherwise close leaves visibly brighten/darken against a static normal.
     (material as THREE.Material & { normalNode: unknown }).normalNode =
       hingeWind.normalNode;
+    applyNaturalPainterlyMaterial(material, { role: 'undergrowth' });
   } else {
     applyIvyLeafHingeWebGLWind(material);
     applyForestFloorIvyWebGLAtlas(material);

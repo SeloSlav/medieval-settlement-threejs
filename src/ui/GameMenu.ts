@@ -32,6 +32,10 @@ import {
   setDistantCanopyCardsEnabled,
 } from '../scene/distantCanopyCardPreference.ts';
 import {
+  isNaturalPainterlyEnvironmentEnabled,
+  setNaturalPainterlyEnvironmentEnabled,
+} from '../scene/naturalPainterlyPreference.ts';
+import {
   FIXED_SKY_PRESETS,
   fixedSkyPreset,
   getSkyPresentationPreference,
@@ -64,6 +68,7 @@ export class GameMenu {
   private readonly treeShadowsCheckbox: HTMLInputElement;
   private readonly buildingShadowsCheckbox: HTMLInputElement;
   private readonly distantCanopyCardsCheckbox: HTMLInputElement;
+  private readonly naturalPainterlyCheckbox: HTMLInputElement;
   private readonly constellationGuidesCheckbox: HTMLInputElement;
   private readonly dayNightCycleCheckbox: HTMLInputElement;
   private readonly fixedSkyPresetSelect: HTMLSelectElement;
@@ -136,6 +141,10 @@ export class GameMenu {
               <label class="game-menu-option">
                 <input type="checkbox" data-distant-canopy-cards-checkbox />
                 <span>Distant canopy cards</span>
+              </label>
+              <label class="game-menu-option">
+                <input type="checkbox" data-natural-painterly-checkbox />
+                <span>Painterly natural environment</span>
               </label>
               <label class="game-menu-option">
                 <input type="checkbox" data-resource-icons-checkbox />
@@ -276,6 +285,7 @@ export class GameMenu {
     this.treeShadowsCheckbox = this.backdrop.querySelector<HTMLInputElement>('[data-tree-shadows-checkbox]')!;
     this.buildingShadowsCheckbox = this.backdrop.querySelector<HTMLInputElement>('[data-building-shadows-checkbox]')!;
     this.distantCanopyCardsCheckbox = this.backdrop.querySelector<HTMLInputElement>('[data-distant-canopy-cards-checkbox]')!;
+    this.naturalPainterlyCheckbox = this.backdrop.querySelector<HTMLInputElement>('[data-natural-painterly-checkbox]')!;
     this.constellationGuidesCheckbox = this.backdrop.querySelector<HTMLInputElement>('[data-constellation-guides-checkbox]')!;
     this.dayNightCycleCheckbox = this.backdrop.querySelector<HTMLInputElement>('[data-day-night-cycle-checkbox]')!;
     this.fixedSkyPresetSelect = this.backdrop.querySelector<HTMLSelectElement>('[data-fixed-sky-preset]')!;
@@ -308,6 +318,7 @@ export class GameMenu {
     this.treeShadowsCheckbox.checked = areTreeShadowsEnabled();
     this.buildingShadowsCheckbox.checked = areBuildingShadowsEnabled();
     this.distantCanopyCardsCheckbox.checked = areDistantCanopyCardsEnabled();
+    this.naturalPainterlyCheckbox.checked = isNaturalPainterlyEnvironmentEnabled();
     this.constellationGuidesCheckbox.checked = areConstellationGuidesEnabled();
     this.syncSkyPresentationControls();
     this.resourceIconsCheckbox.checked = areResourceIconsAlwaysShown();
@@ -349,6 +360,9 @@ export class GameMenu {
       const enabled = this.distantCanopyCardsCheckbox.checked;
       setDistantCanopyCardsEnabled(enabled);
       options.onDistantCanopyCardsChange?.(enabled);
+    });
+    this.naturalPainterlyCheckbox.addEventListener('change', () => {
+      setNaturalPainterlyEnvironmentEnabled(this.naturalPainterlyCheckbox.checked);
     });
     this.constellationGuidesCheckbox.addEventListener('change', () => {
       setConstellationGuidesEnabled(this.constellationGuidesCheckbox.checked);
@@ -452,6 +466,7 @@ export class GameMenu {
     this.treeShadowsCheckbox.checked = areTreeShadowsEnabled();
     this.buildingShadowsCheckbox.checked = areBuildingShadowsEnabled();
     this.distantCanopyCardsCheckbox.checked = areDistantCanopyCardsEnabled();
+    this.naturalPainterlyCheckbox.checked = isNaturalPainterlyEnvironmentEnabled();
     this.constellationGuidesCheckbox.checked = areConstellationGuidesEnabled();
     this.syncSkyPresentationControls();
     this.resourceIconsCheckbox.checked = areResourceIconsAlwaysShown();

@@ -72,6 +72,14 @@ import { applyShadowPreferences as syncShadowCasters } from './applyShadowPrefer
 import { TREE_SHADOW_CAST_LAYER } from './SceneLayers.ts';
 import { subscribeShadowPreferences } from './shadowPreference.ts';
 import { areDistantCanopyCardsEnabled } from './distantCanopyCardPreference.ts';
+import {
+  setNaturalPainterlyLightDirection,
+  setNaturalPainterlyMaterialEnabled,
+} from './naturalPainterlyMaterial.ts';
+import {
+  isNaturalPainterlyEnvironmentEnabled,
+  subscribeNaturalPainterlyEnvironmentPreference,
+} from './naturalPainterlyPreference.ts';
 import { applyMaxAnisotropy, beginProgressiveStartupTextureLoad, type SceneStartupTextures } from './startupTextures.ts';
 import { HydrologyOverlay } from '../hydrology/HydrologyOverlay.ts';
 import { CropSuitabilityOverlay } from '../farming/CropSuitabilityOverlay.ts';
@@ -282,6 +290,7 @@ export class SceneManager {
   private unsubscribeShadowPreferences: (() => void) | null = null;
   private unsubscribeMapOverlayPreference: (() => void) | null = null;
   private unsubscribeConstellationPreference: (() => void) | null = null;
+  private unsubscribeNaturalPainterlyPreference: (() => void) | null = null;
   private environment: EnvironmentState | null = null;
   private lastDayNightState: DayNightLightingState | null = null;
   private readonly weatherPresentation = createWeatherPresentationState(null);
@@ -329,6 +338,12 @@ export class SceneManager {
     this.camera.layers.disable(TREE_SHADOW_CAST_LAYER);
     this.sunDirection.setFromSphericalCoords(1, THREE.MathUtils.degToRad(43), THREE.MathUtils.degToRad(225));
     this.shadowKeyDirection.copy(this.sunDirection);
+    setNaturalPainterlyLightDirection(this.shadowKeyDirection);
+    setNaturalPainterlyMaterialEnabled(isNaturalPainterlyEnvironmentEnabled());
+    this.unsubscribeNaturalPainterlyPreference =
+      subscribeNaturalPainterlyEnvironmentPreference((enabled) => {
+        setNaturalPainterlyMaterialEnabled(enabled);
+      });
     this.terrain = terrain;
     this.fairTerrainMaterial = terrain.mesh.material as THREE.Material;
     this.terrainProjector = new TerrainProjector(this.terrain, this.camera, this.renderer.domElement);
@@ -1133,6 +1148,7 @@ export class SceneManager {
       .multiplyScalar(1 - moonBlend)
       .addScaledVector(MOON_KEY_DIRECTION, moonBlend)
       .normalize();
+    setNaturalPainterlyLightDirection(this.shadowKeyDirection);
     this.sky.updateAtmosphere(state.dawnAmount, state.duskAmount);
     this.sky.updateSiderealAngle(state.siderealAngle);
     this.sunLight.color.setHex(blendColorHex(
@@ -1544,6 +1560,8 @@ export class SceneManager {
     this.unsubscribeMapOverlayPreference = null;
     this.unsubscribeConstellationPreference?.();
     this.unsubscribeConstellationPreference = null;
+    this.unsubscribeNaturalPainterlyPreference?.();
+    this.unsubscribeNaturalPainterlyPreference = null;
     this.hydrologyOverlay?.dispose();
     this.hydrologyOverlay = null;
     this.windOverlay?.dispose();

@@ -15,6 +15,7 @@ import {
   vec3,
   vec4,
 } from 'three/tsl';
+import { applyNaturalPainterlyMaterial } from '../../scene/naturalPainterlyMaterial.ts';
 import { loadBitmapTexture } from '../../utils/textureLoad.ts';
 import { createPinnedGrassWindPosition } from './seedThreeGrass.ts';
 import type { DeciduousFoliagePresentation } from '../../world/deciduousFoliagePolicy.ts';
@@ -904,6 +905,7 @@ export function createSeedThreeWildflowerMaterial(
   material.userData.forestSeasonalAutumnColor = autumn;
   material.userData.forestSeasonalDormancy = dormancy;
   material.userData.forestSnowCoverage = snowCoverage;
+  applyNaturalPainterlyMaterial(material, { role: 'foliage' });
   return material;
 }
 

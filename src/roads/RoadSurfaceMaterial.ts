@@ -14,6 +14,7 @@ import {
   uv,
   vec3,
 } from 'three/tsl';
+import { applyNaturalPainterlyMaterial } from '../scene/naturalPainterlyMaterial.ts';
 import type { TextureSet } from './RoadTextureLoader.ts';
 
 type TslNode = {
@@ -222,6 +223,10 @@ export function createRoadCoreMaterial(
     ) as TslNode;
     material.roughnessNode = applyRoadWeatherRoughness(surfaceRoughness, weather);
     if (dirtTextures.ao) material.aoNode = (texture(dirtTextures.ao, uv() as TslNode) as TslNode).r;
+    applyNaturalPainterlyMaterial(material, {
+      role: 'road',
+      coverageNode: sub(float(1) as TslNode, bridgeBlend) as never,
+    });
   } else {
     material.colorNode = applyRoadWeatherColor(dirtColor, weather);
     material.normalNode = normalMap(texture(dirtTextures.normal, uv()));
@@ -233,6 +238,7 @@ export function createRoadCoreMaterial(
     ) as TslNode;
     material.roughnessNode = applyRoadWeatherRoughness(dirtRoughness, weather);
     if (dirtTextures.ao) material.aoNode = (texture(dirtTextures.ao, uv() as TslNode) as TslNode).r;
+    applyNaturalPainterlyMaterial(material, { role: 'road' });
   }
   return material;
 }
@@ -265,6 +271,7 @@ export function createRoadEdgeMaterial(
     opacity = opacity.mul(edgeKeep) as TslNode;
   }
   material.opacityNode = opacity;
+  applyNaturalPainterlyMaterial(material, { role: 'road' });
   return material;
 }
 
@@ -293,5 +300,6 @@ export function createRiverBankMaterial(textures: TextureSet): MeshStandardNodeM
   );
   if (textures.ao) material.aoNode = (texture(textures.ao, uv() as TslNode) as TslNode).r;
   material.opacityNode = buildRiverBankOpacityNode();
+  applyNaturalPainterlyMaterial(material, { role: 'soil' });
   return material;
 }

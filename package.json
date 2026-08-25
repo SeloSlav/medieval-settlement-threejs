@@ -117,6 +117,7 @@
     "test:startup-music": "node --experimental-strip-types scripts/testStartupMusic.mts",
     "test:day-night": "node --experimental-strip-types scripts/testDayNightPresentation.mts",
     "test:naive-art-post": "node --experimental-strip-types scripts/testNaiveArtPostEffect.mts",
+    "test:natural-painterly-environment": "npx tsx scripts/testNaturalPainterlyEnvironment.mts",
     "test:post-processing-pipeline": "node --experimental-strip-types scripts/testPostProcessingPipeline.mts",
     "test:celestial-sky": "node --experimental-strip-types scripts/testCelestialSky.mts",
     "test:fires": "node --experimental-strip-types scripts/testFireSystem.mts && cargo test --manifest-path server/logic/Cargo.toml fire_policy && cargo test --manifest-path server/logic/Cargo.toml well_policy",
