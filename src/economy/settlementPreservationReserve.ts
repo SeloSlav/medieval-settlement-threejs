@@ -44,9 +44,7 @@ import { householdFoodPerDay, isPreservedFoodCargo, preservedFoodStock } from '.
  */
 export const PRESERVATION_RESERVE_DAYS = 30;
 
-const WORKDAY_SECONDS = CALENDAR_SECONDS_PER_DAY
-  * (CALENDAR_WORK_END_HOUR - CALENDAR_WORK_START_HOUR)
-  / CALENDAR_HOURS_PER_DAY;
+const WORKDAY_SECONDS = CALENDAR_SECONDS_PER_DAY;
 
 export type PreservationReserveBranch = {
   key: string;

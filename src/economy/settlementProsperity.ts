@@ -84,9 +84,7 @@ export type ProsperityRoadPlan = {
   branches: ReadonlyMap<string, ProsperityRoadBranchPlan>;
 };
 
-const WORKDAY_SECONDS = CALENDAR_SECONDS_PER_DAY
-  * (CALENDAR_WORK_END_HOUR - CALENDAR_WORK_START_HOUR)
-  / CALENDAR_HOURS_PER_DAY;
+const WORKDAY_SECONDS = CALENDAR_SECONDS_PER_DAY;
 
 const PER_RESIDENT_PER_DAY: Record<ProsperityCommodity, number> = {
   preservedFood:

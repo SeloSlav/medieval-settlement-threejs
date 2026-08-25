@@ -48,9 +48,7 @@ import {
   pendingLivestockCullHeads,
 } from './livestockPolicy.ts';
 
-const WORKDAY_SECONDS = CALENDAR_SECONDS_PER_DAY
-  * (CALENDAR_WORK_END_HOUR - CALENDAR_WORK_START_HOUR)
-  / CALENDAR_HOURS_PER_DAY;
+const WORKDAY_SECONDS = CALENDAR_SECONDS_PER_DAY;
 
 const FODDER_VALUE_PER_UNSUPPORTED_HEAD: Record<LivestockSpecies, number> = {
   cattle: CATTLE_GRAIN_PER_UNSUPPORTED_HEAD,

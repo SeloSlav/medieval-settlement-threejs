@@ -249,22 +249,22 @@ pub struct PlayerResources {
     /// Fired household and preserving vessels.
     #[default(0.0)]
     pub pottery: f64,
-    /// Night watch: 0 = ordinary watch, 1 = reinforced, 2 = stand down.
+    /// Deprecated night-policy value retained for additive save compatibility.
     #[default(0u8)]
     pub night_watch_policy: u8,
-    /// Evening life: 0 = quiet homes, 1 = courtyard visits, 2 = open late.
+    /// Deprecated night-policy value retained for additive save compatibility.
     #[default(1u8)]
     pub night_gathering_policy: u8,
-    /// Night production: 0 = day shift, 1 = continuous processes, 2 = staffed shift.
+    /// Deprecated night-policy value retained for additive save compatibility.
     #[default(1u8)]
     pub night_work_policy: u8,
-    /// Public lighting: 0 = conserve, 1 = main roads, 2 = fully lit.
+    /// Deprecated night-policy value retained for additive save compatibility.
     #[default(1u8)]
     pub night_lighting_policy: u8,
-    /// Curfew: 0 = none, 1 = children indoors, 2 = general curfew.
+    /// Deprecated night-policy value retained for additive save compatibility.
     #[default(1u8)]
     pub night_curfew_policy: u8,
-    /// Calendar day represented by the most recently completed dawn report.
+    /// Deprecated night-report fields retained for additive save compatibility.
     #[default(0u64)]
     pub last_night_report_day: u64,
     #[default(0u32)]
@@ -289,10 +289,10 @@ pub struct PlayerResources {
     pub last_night_lighting_fuel_used: f64,
     #[default(0.0)]
     pub last_night_lighting_fuel_shortfall: f64,
-    /// Smoothed 0-1 benefit from safe, sociable evenings.
+    /// Deprecated night-report value retained for additive save compatibility.
     #[default(0.5)]
     pub night_community_cohesion: f64,
-    /// Smoothed 0-1 burden from staffing workshops through the night.
+    /// Deprecated night-report value retained for additive save compatibility.
     #[default(0.0)]
     pub night_labor_fatigue: f64,
     /// Fired roof tiles recovered from a legacy ledger or demolished stores.
@@ -486,6 +486,7 @@ pub struct Settlement {
     pub production_labor_steward_enabled: bool,
     #[default(0u32)]
     pub labor_steward_reserve: u32,
+    // Deprecated night-policy values retained for additive save compatibility.
     #[default(0u8)]
     pub night_watch_policy: u8,
     #[default(1u8)]
@@ -875,19 +876,13 @@ pub struct Building {
     /// Kiln firing choice: 0 household/preserving vessels, 1 roof tiles.
     #[default(0u8)]
     pub potter_firing_policy: u8,
-    /// Deprecated presentation toggle retained in place for additive schema
-    /// compatibility. New clients ignore it and require a linked building.
+    /// Deprecated camp toggle retained in place for additive schema compatibility.
     #[default(false)]
     pub remote_work_camp_enabled: bool,
-    /// Parent rural worksite for a separately placed overnight camp. Zero for
-    /// every ordinary building. The linked camp retains a normal construction,
-    /// fire, repair, and demolition lifecycle.
+    /// Deprecated camp link retained in place for additive schema compatibility.
     #[default(0u64)]
     pub linked_worksite_id: u64,
-    /// Fraction of an exposed rural crew's nominal shift left after its
-    /// household commute. Rebuilt from current homes and roads once per day;
-    /// a completed, fire-safe linked camp bypasses it at runtime. The additive
-    /// default preserves existing production until the first review.
+    /// Deprecated commute cache retained in place for additive schema compatibility.
     #[default(1.0)]
     pub commute_efficiency: f64,
     /// Visual and service tier for the legacy `chapel` kind: 1 small timber,

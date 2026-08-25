@@ -443,10 +443,7 @@ function workshopCyclesPerDay(
 ): number {
   const interval = getBuildingDefinition(kind).harvestInterval;
   if (interval <= 1e-9 || labor <= 0) return 0;
-  const workdaySeconds = CALENDAR_SECONDS_PER_DAY
-    * (CALENDAR_WORK_END_HOUR - CALENDAR_WORK_START_HOUR)
-    / CALENDAR_HOURS_PER_DAY;
-  return workdaySeconds / interval
+  return CALENDAR_SECONDS_PER_DAY / interval
     * labor
     * (sabbathObserved ? 6 / 7 : 1);
 }

@@ -252,11 +252,8 @@ export function foodCategory(kind: FoodInventoryKind): FoodCategory {
 }
 
 export function householdFoodPerDay(population: number): number {
-  const workdaySeconds = CALENDAR_SECONDS_PER_DAY
-    * (CALENDAR_WORK_END_HOUR - CALENDAR_WORK_START_HOUR)
-    / CALENDAR_HOURS_PER_DAY;
   return Math.max(0, population)
-    * (RESIDENCE_FOOD_PER_PERSON_PER_SEC * workdaySeconds + EVENING_MEAL_PER_PERSON);
+    * (RESIDENCE_FOOD_PER_PERSON_PER_SEC * CALENDAR_SECONDS_PER_DAY + EVENING_MEAL_PER_PERSON);
 }
 
 export function foodCategoryQualifyingStock(population: number): number {

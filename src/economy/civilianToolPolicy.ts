@@ -98,10 +98,8 @@ export function farmToolThroughputMultiplier(ironwork: number): number {
 }
 
 export function farmToolIronworkForWork(completedWork: number): number {
-  const workdaySeconds = CALENDAR_SECONDS_PER_DAY
-    * (CALENDAR_WORK_END_HOUR - CALENDAR_WORK_START_HOUR)
-    / CALENDAR_HOURS_PER_DAY;
-  const workPerWorkerDay = FARM_WORK_METERS_PER_WORKER_PER_SEC * workdaySeconds;
+  const workPerWorkerDay = FARM_WORK_METERS_PER_WORKER_PER_SEC
+    * CALENDAR_SECONDS_PER_DAY;
   return workPerWorkerDay <= 1e-9
     ? 0
     : Math.max(0, completedWork) / workPerWorkerDay

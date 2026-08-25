@@ -9,16 +9,17 @@ use crate::economy::reconcile_building_labor;
 use crate::simulation::delivery_trips::drain_trips_for_building;
 use crate::simulation::ReclamationStock;
 
-/// Ferry crossings were removed because rivers are intentionally trivial in
-/// this map scale. Existing rows become ordinary reclamation piles in place;
-/// stored coin and cart cargo survive, completed structures yield a modest
-/// material salvage, and assigned workers return to the free pool.
+/// Removed structures become ordinary reclamation piles in place. Stored
+/// goods and cart cargo survive, completed structures yield their established
+/// material salvage, and assigned workers return to the free pool. This also
+/// clears legacy overnight camps from existing saves now that labor is
+/// continuous and commute distance has no production effect.
 pub fn retire_removed_buildings(ctx: &ReducerContext) {
     let retired: Vec<u64> = ctx
         .db
         .building()
         .iter()
-        .filter(|building| building.kind == "ferry_landing")
+        .filter(|building| matches!(building.kind.as_str(), "ferry_landing" | "remote_work_camp"))
         .map(|building| building.id)
         .collect();
     if retired.is_empty() {
@@ -34,19 +35,23 @@ pub fn retire_removed_buildings(ctx: &ReducerContext) {
         let cargo = drain_trips_for_building(ctx, building.id);
         let complete = building.construction_complete;
         let recovered_cargo = ReclamationStock::from_delivery_cargo(&cargo);
+        let completed_salvage = match building.kind.as_str() {
+            "remote_work_camp" => (14.0, 3.0, 0.0),
+            _ => (23.0, 9.0, 1.0),
+        };
         let recovered_structure = ReclamationStock {
             timber: if complete {
-                23.0
+                completed_salvage.0
             } else {
                 building.construction_delivered_timber
             },
             stone: if complete {
-                9.0
+                completed_salvage.1
             } else {
                 building.construction_delivered_stone
             },
             ironwork: if complete {
-                1.0
+                completed_salvage.2
             } else {
                 building.construction_delivered_ironwork
             },
@@ -86,6 +91,9 @@ pub fn retire_removed_buildings(ctx: &ReducerContext) {
         building.construction_treasury_roof_tiles = 0.0;
         building.civic_receipts_gold = 0.0;
         building.private_export_proceeds_gold = 0.0;
+        building.remote_work_camp_enabled = false;
+        building.linked_worksite_id = 0;
+        building.commute_efficiency = 1.0;
         ctx.db.building().id().update(building);
     }
     for owner in owners {

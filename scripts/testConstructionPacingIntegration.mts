@@ -367,7 +367,7 @@ try {
             kind: 'well',
             route: 'near',
             dayAlignedClickTick: 0,
-            dayAlignedClock: '08:00 (configured calendar start, within work hours)',
+            dayAlignedClock: '08:00 (configured calendar start; daylight is presentation only)',
             staffing: `${CONSTRUCTION_MAX_BUILDERS}/${CONSTRUCTION_MAX_BUILDERS} builders plus all remaining founders available to haul`,
             source: 'normal physically stocked Founders’ Camp; no direct stock mutation',
             gate: `atomic completion within ${CALENDAR_SECONDS_PER_DAY} simulation seconds / one calendar day`,
@@ -992,8 +992,8 @@ async function runIsolatedCoreCases(
         assert.equal(trace.click.tick, 0, `${trace.key} must click at the fresh-world tick-zero boundary`);
         const clickClock = gameClock(trace.click.tick);
         assert(
-          clickClock.isWorkHours && clickClock.hour === 8,
-          `${trace.key} expected the configured 08:00 workday start, received hour ${clickClock.hour}`,
+          clickClock.hour === 8,
+          `${trace.key} expected the configured 08:00 calendar start, received hour ${clickClock.hour}`,
         );
         const site = buildingById(connection, trace.siteId!);
         const camp = buildingByKind(connection, 'founders_camp');

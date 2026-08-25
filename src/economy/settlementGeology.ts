@@ -79,9 +79,7 @@ type MutableGeologicalResourcePlan = GeologicalResourcePlan & {
 
 const MINERAL_CENTER_TOLERANCE_SQ = 2.5 * 2.5;
 const EPSILON = 1e-9;
-const WORKDAY_SECONDS = CALENDAR_SECONDS_PER_DAY
-  * (CALENDAR_WORK_END_HOUR - CALENDAR_WORK_START_HOUR)
-  / CALENDAR_HOURS_PER_DAY;
+const WORKDAY_SECONDS = CALENDAR_SECONDS_PER_DAY;
 
 /**
  * Settlement-wide reserve and extraction forecast for physical geological

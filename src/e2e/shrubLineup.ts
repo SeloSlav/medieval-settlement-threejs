@@ -73,6 +73,12 @@ type DogwoodMorphologyMetrics = {
   firstForkRatio: number;
   lowerThirdFoliageRatio: number;
   basalBranchFanScore: number;
+  rootBaseSpread: number;
+  rootAzimuthGapCv: number;
+  firstForkLengthRange: number;
+  forkSiblingLengthRatio: number;
+  canopyOppositeSectorImbalance: number;
+  canopySectorCoefficientOfVariation: number;
 };
 
 function measureDogwoodMorphology(
@@ -105,6 +111,7 @@ function measureDogwoodMorphology(
 
   let lowerThirdCards = 0;
   let foliageCards = 0;
+  const foliageCardAngles: number[] = [];
   for (
     let offset = foliageGroup.start;
     offset < foliageGroup.start + foliageGroup.count;
@@ -114,11 +121,16 @@ function measureDogwoodMorphology(
     for (let indexOffset = 0; indexOffset < 6; indexOffset++) {
       cardVertices.add(index.getX(offset + indexOffset));
     }
-    const centerY = [...cardVertices].reduce(
-      (sum, vertex) => sum + position.getY(vertex),
-      0,
-    ) / cardVertices.size;
-    if (centerY <= lowerThirdTop) lowerThirdCards++;
+    const center = [...cardVertices].reduce(
+      (sum, vertex) => sum.add(new THREE.Vector3(
+        position.getX(vertex),
+        position.getY(vertex),
+        position.getZ(vertex),
+      )),
+      new THREE.Vector3(),
+    ).divideScalar(cardVertices.size);
+    if (center.y <= lowerThirdTop) lowerThirdCards++;
+    foliageCardAngles.push(Math.atan2(center.z, center.x));
     foliageCards++;
   }
 
@@ -154,6 +166,7 @@ function measureDogwoodMorphology(
   if (firstForkMeters === undefined || !Number.isFinite(firstForkMeters)) {
     throw new Error(`Dogwood morphology diagnostics received invalid variant ${variant}.`);
   }
+  const canopyDistribution = measureAngularDistribution(foliageCardAngles);
   return {
     lowestFoliageMeters,
     lowestFoliageRatio: lowestFoliageMeters / height,
@@ -161,7 +174,45 @@ function measureDogwoodMorphology(
     firstForkRatio: firstForkMeters / height,
     lowerThirdFoliageRatio: lowerThirdCards / Math.max(1, foliageCards),
     basalBranchFanScore,
+    rootBaseSpread: Number(geometry.userData.dogwoodRootBaseSpread),
+    rootAzimuthGapCv: Number(geometry.userData.dogwoodRootAzimuthGapCv),
+    firstForkLengthRange: Number(geometry.userData.dogwoodFirstForkLengthRange),
+    forkSiblingLengthRatio: Number(geometry.userData.dogwoodForkSiblingLengthRatio),
+    canopyOppositeSectorImbalance: canopyDistribution.oppositeSectorImbalance,
+    canopySectorCoefficientOfVariation: canopyDistribution.sectorCoefficientOfVariation,
   };
+}
+
+function measureAngularDistribution(angles: number[]): {
+  oppositeSectorImbalance: number;
+  sectorCoefficientOfVariation: number;
+} {
+  const mean = angles.length / 12;
+  let oppositeSectorImbalance = 0;
+  let sectorCoefficientOfVariation = 0;
+  for (let phase = 0; phase < 12; phase++) {
+    const counts = new Array<number>(12).fill(0);
+    const phaseAngle = (phase / 12) * (Math.PI / 6);
+    for (const angle of angles) {
+      const normalized = (((angle + phaseAngle) / (Math.PI * 2)) + 1) % 1;
+      counts[Math.min(11, Math.floor(normalized * 12))]!++;
+    }
+    sectorCoefficientOfVariation = Math.max(
+      sectorCoefficientOfVariation,
+      Math.sqrt(
+        counts.reduce((sum, count) => sum + (count - mean) ** 2, 0) / 12,
+      ) / Math.max(0.001, mean),
+    );
+    let oppositeDifference = 0;
+    for (let sector = 0; sector < 6; sector++) {
+      oppositeDifference += Math.abs(counts[sector]! - counts[sector + 6]!);
+    }
+    oppositeSectorImbalance = Math.max(
+      oppositeSectorImbalance,
+      oppositeDifference / Math.max(1, angles.length),
+    );
+  }
+  return { oppositeSectorImbalance, sectorCoefficientOfVariation };
 }
 
 function createDefaultDogwoodPlacementSweep(worldSeed: number): DogwoodPlacementSweep {
@@ -608,6 +659,12 @@ const dogwoodFirstForkMeters: number[] = [];
 const dogwoodFirstForkRatios: number[] = [];
 const dogwoodLowerThirdFoliageRatios: number[] = [];
 const dogwoodBasalBranchFanScores: number[] = [];
+const dogwoodRootBaseSpreads: number[] = [];
+const dogwoodRootAzimuthGapCvs: number[] = [];
+const dogwoodFirstForkLengthRanges: number[] = [];
+const dogwoodForkSiblingLengthRatios: number[] = [];
+const dogwoodCanopyOppositeSectorImbalances: number[] = [];
+const dogwoodCanopySectorCvs: number[] = [];
 let dogwoodTriangles = 0;
 for (const bucket of dogwoodBuckets ?? []) {
   bucket.mesh.geometry.computeBoundingBox();
@@ -620,6 +677,12 @@ for (const bucket of dogwoodBuckets ?? []) {
   dogwoodFirstForkRatios.push(morphology.firstForkRatio);
   dogwoodLowerThirdFoliageRatios.push(morphology.lowerThirdFoliageRatio);
   dogwoodBasalBranchFanScores.push(morphology.basalBranchFanScore);
+  dogwoodRootBaseSpreads.push(morphology.rootBaseSpread);
+  dogwoodRootAzimuthGapCvs.push(morphology.rootAzimuthGapCv);
+  dogwoodFirstForkLengthRanges.push(morphology.firstForkLengthRange);
+  dogwoodForkSiblingLengthRatios.push(morphology.forkSiblingLengthRatio);
+  dogwoodCanopyOppositeSectorImbalances.push(morphology.canopyOppositeSectorImbalance);
+  dogwoodCanopySectorCvs.push(morphology.canopySectorCoefficientOfVariation);
   dogwoodTriangles += Number(bucket.mesh.userData.prototypeTriangleCount ?? 0);
   if (!localBounds) continue;
   for (const matrix of bucket.matrices) {
@@ -668,6 +731,24 @@ document.body.dataset.dogwoodLowerThirdFoliageRatios = dogwoodLowerThirdFoliageR
 document.body.dataset.dogwoodBasalBranchFanScores = dogwoodBasalBranchFanScores
   .map((score) => score.toFixed(6))
   .join(',');
+document.body.dataset.dogwoodRootBaseSpreads = dogwoodRootBaseSpreads
+  .map((spread) => spread.toFixed(6))
+  .join(',');
+document.body.dataset.dogwoodRootAzimuthGapCvs = dogwoodRootAzimuthGapCvs
+  .map((variation) => variation.toFixed(6))
+  .join(',');
+document.body.dataset.dogwoodFirstForkLengthRanges = dogwoodFirstForkLengthRanges
+  .map((range) => range.toFixed(6))
+  .join(',');
+document.body.dataset.dogwoodForkSiblingLengthRatios = dogwoodForkSiblingLengthRatios
+  .map((ratio) => ratio.toFixed(6))
+  .join(',');
+document.body.dataset.dogwoodCanopyOppositeSectorImbalances = dogwoodCanopyOppositeSectorImbalances
+  .map((imbalance) => imbalance.toFixed(6))
+  .join(',');
+document.body.dataset.dogwoodCanopySectorCvs = dogwoodCanopySectorCvs
+  .map((variation) => variation.toFixed(6))
+  .join(',');
 document.body.dataset.dogwoodTriangles = String(dogwoodTriangles);
 document.body.dataset.dogwoodLeafyDrawCalls = String(
   undergrowth.stats.dogwood.leafyDrawCalls,
@@ -693,6 +774,11 @@ document.body.dataset.dogwoodSignature = [
   dogwoodFirstForkRatios.map((ratio) => ratio.toFixed(6)).join(','),
   dogwoodLowerThirdFoliageRatios.map((ratio) => ratio.toFixed(6)).join(','),
   dogwoodBasalBranchFanScores.map((score) => score.toFixed(6)).join(','),
+  dogwoodRootAzimuthGapCvs.map((variation) => variation.toFixed(6)).join(','),
+  dogwoodFirstForkLengthRanges.map((range) => range.toFixed(6)).join(','),
+  dogwoodForkSiblingLengthRatios.map((ratio) => ratio.toFixed(6)).join(','),
+  dogwoodCanopyOppositeSectorImbalances.map((imbalance) => imbalance.toFixed(6)).join(','),
+  dogwoodCanopySectorCvs.map((variation) => variation.toFixed(6)).join(','),
   dogwoodTriangles,
 ].join(':');
 

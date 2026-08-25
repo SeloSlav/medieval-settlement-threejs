@@ -468,11 +468,7 @@ export function computeSettlementProvisioning(input: {
       : marketHasActiveStall(market, 'preservedFood');
   };
 
-  const workdayFraction = Math.max(
-    0,
-    (CALENDAR_WORK_END_HOUR - CALENDAR_WORK_START_HOUR) / CALENDAR_HOURS_PER_DAY,
-  );
-  const workdaySeconds = CALENDAR_SECONDS_PER_DAY * workdayFraction;
+  const workdaySeconds = CALENDAR_SECONDS_PER_DAY;
   const householdConsumptionWeekShare = sabbathObserved ? 6 / 7 : 1;
   const preservedFoodDemandMultiplier = Number.isFinite(
     currentPreservedFoodDemandMultiplier,

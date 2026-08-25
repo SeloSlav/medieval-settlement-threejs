@@ -25,9 +25,7 @@ import {
 } from './settlementProduction.ts';
 
 const EPSILON = 1e-6;
-const WORKDAY_SECONDS = CALENDAR_SECONDS_PER_DAY
-  * (CALENDAR_WORK_END_HOUR - CALENDAR_WORK_START_HOUR)
-  / CALENDAR_HOURS_PER_DAY;
+const WORKDAY_SECONDS = CALENDAR_SECONDS_PER_DAY;
 
 export type ConstructionMaterialKind = 'timber' | 'stone' | 'ironwork' | 'roofTiles';
 

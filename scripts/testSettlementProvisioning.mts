@@ -113,8 +113,13 @@ const appSource = readFileSync(
 
 assert.match(
   serverCalendar,
-  /pub fn household_consumption_paused[\s\S]*?!clock\.is_work_hours/,
-  'the calendar helper should pause household consumption at night and on named holy days',
+  /pub fn household_consumption_paused[\s\S]{0,180}holiday_observance\(clock\)\.is_some\(\)/,
+  'the calendar helper should pause household consumption only on named holy days',
+);
+assert.doesNotMatch(
+  serverCalendar,
+  /pub fn household_consumption_paused[\s\S]{0,180}!clock\.is_work_hours/,
+  'cosmetic night must not pause household consumption',
 );
 assert.match(
   laborSchedule,

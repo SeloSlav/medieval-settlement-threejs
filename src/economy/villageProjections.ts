@@ -28,9 +28,7 @@ export type BackyardGardenEconomyPerDay = {
   marketFood: number;
 };
 
-export const BACKYARD_WORKDAY_SECONDS = CALENDAR_SECONDS_PER_DAY
-  * (CALENDAR_WORK_END_HOUR - CALENDAR_WORK_START_HOUR)
-  / CALENDAR_HOURS_PER_DAY;
+export const BACKYARD_WORKDAY_SECONDS = CALENDAR_SECONDS_PER_DAY;
 
 export function backyardGardenEconomyPerDay(
   kind: BackyardGardenKind,

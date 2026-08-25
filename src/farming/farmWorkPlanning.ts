@@ -179,9 +179,7 @@ type FarmWorkWindows = {
   autumn: number;
 };
 
-const WORKDAY_SECONDS = CALENDAR_SECONDS_PER_DAY
-  * (CALENDAR_WORK_END_HOUR - CALENDAR_WORK_START_HOUR)
-  / CALENDAR_HOURS_PER_DAY;
+const WORKDAY_SECONDS = CALENDAR_SECONDS_PER_DAY;
 const WORK_PER_WORKER_DAY = FARM_WORK_METERS_PER_WORKER_PER_SEC * WORKDAY_SECONDS;
 
 type FieldWorkFarmstead = Pick<BuildingState, 'x' | 'z'>;
@@ -516,10 +514,7 @@ function productiveSecondsInWindow(
     if (sabbathObserved && weekday === CALENDAR_SUNDAY_WEEKDAY) continue;
     if (offset === 0) {
       const hour = clock.preciseHour ?? clock.hour + clock.minute / 60;
-      const hoursLeft = Math.max(
-        0,
-        CALENDAR_WORK_END_HOUR - Math.max(CALENDAR_WORK_START_HOUR, hour),
-      );
+      const hoursLeft = Math.max(0, CALENDAR_HOURS_PER_DAY - hour);
       productiveSeconds += hoursLeft / CALENDAR_HOURS_PER_DAY * CALENDAR_SECONDS_PER_DAY;
     } else {
       productiveSeconds += WORKDAY_SECONDS;
