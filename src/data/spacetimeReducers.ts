@@ -32,6 +32,7 @@ import {
   parseGraveyardServerId,
   parsePastureServerId,
   parseResidenceServerId,
+  parseSettlementServerId,
   parseZoneServerId,
 } from './spacetimeIds.ts';
 
@@ -438,6 +439,15 @@ export async function setEconomicActivityTaxRate(townHallId: string, taxRate: nu
   await callReducer('setEconomicActivityTaxRate', 'set_economic_activity_tax_rate', {
     townHallId: serverId,
     taxRate,
+  });
+}
+
+export async function renameSettlement(settlementId: string, name: string): Promise<void> {
+  const serverId = parseSettlementServerId(settlementId);
+  if (serverId === null) throw new Error('Invalid town id.');
+  await callReducer('renameSettlement', 'rename_settlement', {
+    settlementId: serverId,
+    name,
   });
 }
 

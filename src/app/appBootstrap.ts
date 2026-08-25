@@ -111,6 +111,9 @@ import {
   burgagePlacementReasonToToastId,
   isConstructionResourceShortfallMessage,
 } from '../ui/toastMessages.ts';
+import { renameSettlement } from '../data/spacetimeReducers.ts';
+
+const REPORT_FOCUS_ZOOM_PERCENT = 50;
 
 export type AppBootstrapBridge = {
   syncToolbar: () => void;
@@ -1453,7 +1456,11 @@ export async function bootstrapAppSession(
         { variant: 'info', durationMs: 3600 },
       );
     }
-    cameraController.focusWorldPositionAtZoom(focusX, focusZ, 25);
+    cameraController.focusWorldPositionAtZoom(
+      focusX,
+      focusZ,
+      REPORT_FOCUS_ZOOM_PERCENT,
+    );
   });
   toolbar.settlementHud.setSecurityAttentionHandler((target, index, count) => {
     if (isWorldInspectionBlocked(placementGate)) {
@@ -1562,6 +1569,12 @@ export async function bootstrapAppSession(
       if (roadDeckY != null && roadDeckY > terrainY + 0.12) return 'timber';
       if (y > Math.max(terrainY, roadDeckY ?? terrainY) + 0.18) return 'stone';
       if (isOnRoadSurface(x, z, roadNetwork)) return 'dirt';
+      if (
+        (sceneManager.getForestManager()?.sampleAudioCanopyCover(x, z) ?? 0)
+          >= 0.34
+      ) {
+        return 'forest';
+      }
       return 'grass';
     },
     onFootstep: (surface) => ambientAudio.playFootstep(surface),
@@ -1660,16 +1673,31 @@ export async function bootstrapAppSession(
       buildingMarkers.setBuildingSelectionOverlays(null);
       const settlement = liveContext.gameState.settlements.get(settlementId);
       if (settlement && !firstPersonController.isActive()) {
-        cameraController.focusWorldPositionAtZoom(settlement.anchorX, settlement.anchorZ, 25);
+        cameraController.focusWorldPositionAtZoom(
+          settlement.anchorX,
+          settlement.anchorZ,
+          REPORT_FOCUS_ZOOM_PERCENT,
+        );
       }
     },
     onSettlementFocus: (x, z) => {
-      if (!firstPersonController.isActive()) cameraController.focusWorldPositionAtZoom(x, z, 25);
+      if (!firstPersonController.isActive()) {
+        cameraController.focusWorldPositionAtZoom(x, z, REPORT_FOCUS_ZOOM_PERCENT);
+      }
     },
     onTownHallSelect: (buildingId) => {
       worldMapUi.townReport.close();
       villagerInspector.clearSelection();
       resourceInspector.selectBuilding(buildingId);
+    },
+    onSettlementRename: async (settlementId, name) => {
+      try {
+        await renameSettlement(settlementId, name);
+        toastManager.show(`Town renamed to ${name}.`, { variant: 'success', durationMs: 2600 });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Could not rename this town.';
+        toastManager.show(message, { variant: 'error' });
+      }
     },
   });
   worldMapUi.minimap.syncBuildings(buildBuildingWorldMapMarkers(liveContext.gameState.buildings.values()));

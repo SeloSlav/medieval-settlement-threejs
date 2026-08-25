@@ -88,6 +88,7 @@
 
 .settlement-map-icon__art .settlement-map-icon-art { width: 31px; height: 27px; }
 .settlement-map-icon strong { max-width: 132px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 700 11px/1.1 Georgia, serif; }
+.settlement-map-icon strong[data-settlement-map-rename]:hover { color: #f0d48b; text-decoration: underline; text-underline-offset: 2px; }
 .settlement-map-icon[data-tier='founders'] { border-style: dashed; }
 
 .settlement-map-icons[hidden] .settlement-map-icon,

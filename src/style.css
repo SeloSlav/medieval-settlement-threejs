@@ -4,6 +4,7 @@
 @import url('./ui/gameMenu.css');
 @import url('./ui/gameControls.css');
 @import url('./ui/alertDialog.css');
+@import url('./ui/townNameDialog.css');
 @import url('./ui/settlementHud.css');
 @import url('./ui/resourceInspector.css');
 @import url('./ui/villagerInspector.css');
@@ -101,6 +102,7 @@ button {
 [data-ui-root] .game-menu-backdrop,
 [data-ui-root] .game-controls-backdrop,
 [data-ui-root] .alert-dialog-backdrop,
+[data-ui-root] .town-name-dialog-backdrop,
 [data-ui-root] .city-admin-backdrop,
 [data-ui-root] .tutorial-overlay,
 [data-ui-root] .quarry-map-icon,

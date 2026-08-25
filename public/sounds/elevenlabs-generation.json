@@ -1237,68 +1237,101 @@
     {
       "id": "world-footstep-dirt-1",
       "output": "public/sounds/world/footstep_dirt_1.mp3",
-      "generatedAt": "2026-08-04T10:41:44.634Z",
+      "generatedAt": "2026-08-25T17:03:45.855Z",
       "endpoint": "/v1/sound-generation",
       "modelId": "eleven_text_to_sound_v2",
       "outputFormat": "mp3_44100_128",
-      "characterCost": "10",
-      "byteLength": 17180,
-      "sha256": "97c4a533f238bca976a0028a5e7be48ceec128a1154b948106693009a8a14688"
+      "characterCost": "9",
+      "byteLength": 15090,
+      "sha256": "51d78691c1d9b3e2e0ec066f3867f1ed25bc3b0ebb8088d822d8256bc3cc07b2"
     },
     {
       "id": "world-footstep-dirt-2",
       "output": "public/sounds/world/footstep_dirt_2.mp3",
-      "generatedAt": "2026-08-04T10:41:46.412Z",
+      "generatedAt": "2026-08-25T17:03:47.900Z",
       "endpoint": "/v1/sound-generation",
       "modelId": "eleven_text_to_sound_v2",
       "outputFormat": "mp3_44100_128",
-      "characterCost": "10",
-      "byteLength": 17180,
-      "sha256": "b48ecab0659bc6a08420755a9d410b72ac5d10564ed220e68d7e1077b2ad8c88"
+      "characterCost": "9",
+      "byteLength": 15090,
+      "sha256": "7d8fda406c29502977afd06b94c4b20df6fcb90f5ef8dd8a380d20f69eaae99e"
     },
     {
       "id": "world-footstep-dirt-3",
       "output": "public/sounds/world/footstep_dirt_3.mp3",
-      "generatedAt": "2026-08-04T10:41:48.240Z",
+      "generatedAt": "2026-08-25T17:03:49.736Z",
+      "endpoint": "/v1/sound-generation",
+      "modelId": "eleven_text_to_sound_v2",
+      "outputFormat": "mp3_44100_128",
+      "characterCost": "9",
+      "byteLength": 15090,
+      "sha256": "f7f92c8a18462071d3ab0a61916f7d383b1a8ff3ce23173b4f8512835fcac2dc"
+    },
+    {
+      "id": "world-footstep-forest-1",
+      "output": "public/sounds/world/footstep_forest_1.mp3",
+      "generatedAt": "2026-08-25T17:03:39.919Z",
       "endpoint": "/v1/sound-generation",
       "modelId": "eleven_text_to_sound_v2",
       "outputFormat": "mp3_44100_128",
       "characterCost": "10",
       "byteLength": 17180,
-      "sha256": "de9b61428fc76baa5b43176ca8998ab5a5343b905471d3d75ebd83329646d51d"
+      "sha256": "7b3716d22913a0288af418f8edea79701da26278d2e2cd09348ecd548faef0ec"
+    },
+    {
+      "id": "world-footstep-forest-2",
+      "output": "public/sounds/world/footstep_forest_2.mp3",
+      "generatedAt": "2026-08-25T17:03:41.880Z",
+      "endpoint": "/v1/sound-generation",
+      "modelId": "eleven_text_to_sound_v2",
+      "outputFormat": "mp3_44100_128",
+      "characterCost": "10",
+      "byteLength": 17180,
+      "sha256": "20a9c0109a5bc85b3fdabb7cc58d913f5ad825d1d4c7c904c3b4e3ff2f202874"
+    },
+    {
+      "id": "world-footstep-forest-3",
+      "output": "public/sounds/world/footstep_forest_3.mp3",
+      "generatedAt": "2026-08-25T17:03:43.913Z",
+      "endpoint": "/v1/sound-generation",
+      "modelId": "eleven_text_to_sound_v2",
+      "outputFormat": "mp3_44100_128",
+      "characterCost": "10",
+      "byteLength": 17180,
+      "sha256": "661fcda146aa3ccc7557494db35c897e8b6a22d8f3bc6b9699afc56b43563501"
     },
     {
       "id": "world-footstep-grass-1",
       "output": "public/sounds/world/footstep_grass_1.mp3",
-      "generatedAt": "2026-08-04T10:41:39.051Z",
+      "generatedAt": "2026-08-25T17:03:33.969Z",
       "endpoint": "/v1/sound-generation",
       "modelId": "eleven_text_to_sound_v2",
       "outputFormat": "mp3_44100_128",
-      "characterCost": "10",
-      "byteLength": 17180,
-      "sha256": "de53f221b516d093caebcaed2ba35cef1c0208087701067bda4485f3667504ee"
+      "characterCost": "9",
+      "byteLength": 15090,
+      "sha256": "112081ebe8ceae7ac0f9f3f98dde832b8a0cf40e430b8dd21d1448cbd65a52f8"
     },
     {
       "id": "world-footstep-grass-2",
       "output": "public/sounds/world/footstep_grass_2.mp3",
-      "generatedAt": "2026-08-04T10:41:40.749Z",
+      "generatedAt": "2026-08-25T17:03:36.143Z",
       "endpoint": "/v1/sound-generation",
       "modelId": "eleven_text_to_sound_v2",
       "outputFormat": "mp3_44100_128",
-      "characterCost": "10",
-      "byteLength": 17180,
-      "sha256": "4b04e5c5fe09a0cee0c237e37321e27102fa656cf303da7c3125977365757753"
+      "characterCost": "9",
+      "byteLength": 15090,
+      "sha256": "d36f2df7e590ae4ac7c0c6a66ef4d94ad8e0e97f721da6eb541e58f8722f3e1a"
     },
     {
       "id": "world-footstep-grass-3",
       "output": "public/sounds/world/footstep_grass_3.mp3",
-      "generatedAt": "2026-08-04T10:41:42.893Z",
+      "generatedAt": "2026-08-25T17:03:38.001Z",
       "endpoint": "/v1/sound-generation",
       "modelId": "eleven_text_to_sound_v2",
       "outputFormat": "mp3_44100_128",
-      "characterCost": "10",
-      "byteLength": 17180,
-      "sha256": "82e06cd4f0b15d2dbe108336dd054bdaa915899c141e02e4cff6d40f53373619"
+      "characterCost": "9",
+      "byteLength": 15090,
+      "sha256": "2dd26b1a3027ec303490214417b76d7d9066f87ce0c51fba7be6a53eadd6ed3c"
     },
     {
       "id": "world-footstep-stone-1",
@@ -1369,35 +1402,35 @@
     {
       "id": "world-footstep-water-1",
       "output": "public/sounds/world/footstep_water_1.mp3",
-      "generatedAt": "2026-08-04T10:42:00.574Z",
+      "generatedAt": "2026-08-25T17:03:51.686Z",
       "endpoint": "/v1/sound-generation",
       "modelId": "eleven_text_to_sound_v2",
       "outputFormat": "mp3_44100_128",
-      "characterCost": "10",
-      "byteLength": 17180,
-      "sha256": "ef0fdae3a55750aca632d47f3604e8e189aad1722061af1a0dbe9d9ea2ce7175"
+      "characterCost": "11",
+      "byteLength": 18434,
+      "sha256": "0aa8c3105cc57eb2a4373e15be7f0303623e928f1537d84311614f24eec77592"
     },
     {
       "id": "world-footstep-water-2",
       "output": "public/sounds/world/footstep_water_2.mp3",
-      "generatedAt": "2026-08-04T10:42:02.415Z",
+      "generatedAt": "2026-08-25T17:03:53.987Z",
       "endpoint": "/v1/sound-generation",
       "modelId": "eleven_text_to_sound_v2",
       "outputFormat": "mp3_44100_128",
-      "characterCost": "10",
-      "byteLength": 17180,
-      "sha256": "dee50ce5fef48d5870b2cc86033ebef3be5603d085ea85212034dd1a1c014589"
+      "characterCost": "11",
+      "byteLength": 18434,
+      "sha256": "b0661443deeb66ec313804185342a9834ff339b5838f326a5e2de1e4b4767fe7"
     },
     {
       "id": "world-footstep-water-3",
       "output": "public/sounds/world/footstep_water_3.mp3",
-      "generatedAt": "2026-08-04T10:42:04.260Z",
+      "generatedAt": "2026-08-25T17:03:55.899Z",
       "endpoint": "/v1/sound-generation",
       "modelId": "eleven_text_to_sound_v2",
       "outputFormat": "mp3_44100_128",
-      "characterCost": "10",
-      "byteLength": 17180,
-      "sha256": "7bf531554a01da4339cadc512576c7528fe1deb02158ec390478f0624889bb18"
+      "characterCost": "11",
+      "byteLength": 18434,
+      "sha256": "f59ce3b3f31c0fb5681769f7eee4986922303622bd89bf91b25ec070f796bb66"
     },
     {
       "id": "world-season-autumn-leaves",

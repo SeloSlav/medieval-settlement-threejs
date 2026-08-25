@@ -25,8 +25,7 @@
   border-bottom: 1px solid rgba(238, 232, 220, 0.12);
 }
 
-.town-report-panel__header p,
-.town-report-panel__header h2 { margin: 0; }
+.town-report-panel__header p { margin: 0; }
 .town-report-panel__header p {
   color: var(--accent);
   font-size: 11px;
@@ -34,8 +33,25 @@
   letter-spacing: 0.13em;
   text-transform: uppercase;
 }
-.town-report-panel__header h2 { margin-top: 3px; font: 700 23px/1.1 Georgia, serif; }
-.town-report-panel__header button {
+.town-report-panel__rename {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 390px;
+  margin: 3px 0 0;
+  padding: 0;
+  color: var(--ink);
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  font: 700 23px/1.1 Georgia, serif;
+  text-align: left;
+}
+.town-report-panel__rename span { overflow: hidden; text-overflow: ellipsis; }
+.town-report-panel__rename i { color: var(--muted); font: 400 13px/1 sans-serif; }
+.town-report-panel__rename:hover,
+.town-report-panel__rename:focus-visible { color: #f0d48b; outline: none; }
+.town-report-panel__header > button {
   width: 32px;
   height: 32px;
   color: var(--muted);

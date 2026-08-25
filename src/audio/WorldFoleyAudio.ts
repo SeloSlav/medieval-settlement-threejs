@@ -137,6 +137,7 @@ export class WorldFoleyAudio {
   private readonly graveyardBurials = new Map<string, number>();
   private readonly footstepSequences: Record<FootstepSurface, number> = {
     grass: 0,
+    forest: 0,
     dirt: 0,
     timber: 0,
     stone: 0,

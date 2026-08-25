@@ -41,6 +41,8 @@ type SeedThreeStem = {
 
 export const GORSKI_SHRUB_VARIANT_COUNT = 3;
 export const RASPBERRY_FRUIT_ANCHOR_LIMIT = 10;
+export const GORSKI_SHRUB_TERMINAL_TAPER_START = 0.68;
+export const GORSKI_SHRUB_TERMINAL_TIP_RADIUS_SCALE = 0.04;
 
 const PRESETS = {
   bush: bilberry as SeedThreeShrubPreset,
@@ -67,7 +69,15 @@ export function createGorskiShrubPrototype(
   const skeletonRng = new Rng(seed);
   const tipClearance = (species.foliage.clusterSize ?? 0.3) * 0.9;
   const generated = generateDichotomous(
-    { ...species.params, tipClearance },
+    {
+      ...species.params,
+      // Leaf-bearing shrub shoots finish as a narrow growing point. Keeping
+      // this integration-owned leaves SeedThree's thick cactus/yucca tips
+      // unchanged while removing the blunt stem above the last leaf whorl.
+      terminalTaperStart: GORSKI_SHRUB_TERMINAL_TAPER_START,
+      terminalTipRadiusScale: GORSKI_SHRUB_TERMINAL_TIP_RADIUS_SCALE,
+      tipClearance,
+    },
     skeletonRng,
   ) as {
     stems: SeedThreeStem[];

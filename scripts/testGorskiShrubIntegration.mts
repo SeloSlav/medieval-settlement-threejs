@@ -3,12 +3,17 @@ import { createHash } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import * as THREE from 'three';
+import { generateDichotomous } from '../vendor/seedthree/src/core/dichotomous.js';
+import { Rng } from '../vendor/seedthree/src/core/rng.js';
 import { bilberry } from '../vendor/seedthree/src/species/bilberry.js';
 import { commonHornbeamHedge } from '../vendor/seedthree/src/species/common-hornbeam-hedge.js';
 import { commonJuniper } from '../vendor/seedthree/src/species/common-juniper.js';
 import { raspberry } from '../vendor/seedthree/src/species/raspberry.js';
 import { stingingNettle } from '../src/vegetation/seedthree/stingingNettlePreset.ts';
+import { createCommonDogwoodVariantPreset } from '../src/vegetation/seedthree/commonDogwoodPreset.ts';
 import {
+  GORSKI_SHRUB_TERMINAL_TAPER_START,
+  GORSKI_SHRUB_TERMINAL_TIP_RADIUS_SCALE,
   GORSKI_SHRUB_VARIANT_COUNT,
   RASPBERRY_FRUIT_ANCHOR_LIMIT,
   createGorskiShrubPrototype,
@@ -55,6 +60,18 @@ assert.equal(
 assert.equal(stingingNettle.foliage.rotate, 90, 'successive nettle leaf pairs must be decussate');
 assert.equal(stingingNettle.bark, 'stinging_nettle_stem_albedo.png');
 assert.equal(stingingNettle.leaf, 'stinging_nettle_single_albedo.png');
+
+assertTerminalStemTaper(
+  'stinging nettle',
+  stingingNettle,
+  `gorski:${stingingNettle.name}:0`,
+);
+const dogwoodTaperPreset = createCommonDogwoodVariantPreset(0);
+assertTerminalStemTaper(
+  'common dogwood',
+  dogwoodTaperPreset.preset,
+  dogwoodTaperPreset.seed,
+);
 
 const startedAt = performance.now();
 const firstPass = prototypeSignatures();
@@ -171,6 +188,11 @@ const shrubPrototypesSource = readFileSync(
   `${projectRoot}src/vegetation/seedthree/gorskiShrubPrototypes.ts`,
   'utf8',
 );
+assert.match(
+  shrubPrototypesSource,
+  /terminalTaperStart:\s*GORSKI_SHRUB_TERMINAL_TAPER_START[\s\S]*terminalTipRadiusScale:\s*GORSKI_SHRUB_TERMINAL_TIP_RADIUS_SCALE/,
+  'production shrub generation must opt into the tested terminal growing-point taper',
+);
 const seedThreeTexturesSource = readFileSync(
   `${projectRoot}src/vegetation/seedthree/seedThreeTextures.ts`,
   'utf8',
@@ -223,6 +245,39 @@ assert.doesNotMatch(
 console.log(
   `Gorski shrub integration tests passed (${generationMs.toFixed(1)} ms deterministic seed sweep)`,
 );
+
+function assertTerminalStemTaper(
+  name: string,
+  preset: {
+    readonly params: Record<string, unknown>;
+    readonly foliage: { readonly clusterSize?: number };
+  },
+  seed: string,
+): void {
+  const generated = generateDichotomous(
+    {
+      ...preset.params,
+      terminalTaperStart: GORSKI_SHRUB_TERMINAL_TAPER_START,
+      terminalTipRadiusScale: GORSKI_SHRUB_TERMINAL_TIP_RADIUS_SCALE,
+      tipClearance: (preset.foliage.clusterSize ?? 0.3) * 0.9,
+    },
+    new Rng(seed),
+  );
+  assert.ok(generated.terminalStems.length > 0, `${name} needs terminal leafy shoots`);
+  for (const [stemIndex, stem] of generated.terminalStems.entries()) {
+    const radii = stem.radii as number[];
+    assert.ok(radii.length >= 4, `${name} terminal ${stemIndex} needs a resolved taper profile`);
+    const finalRadiusRatio = radii.at(-1)! / radii[0]!;
+    assert.ok(
+      finalRadiusRatio <= GORSKI_SHRUB_TERMINAL_TIP_RADIUS_SCALE + 0.001,
+      `${name} terminal ${stemIndex} ends at ${(finalRadiusRatio * 100).toFixed(1)}% of its base radius`,
+    );
+    assert.ok(
+      radii.at(-2)! > radii.at(-1)! * 2,
+      `${name} terminal ${stemIndex} must narrow progressively into its growing point`,
+    );
+  }
+}
 
 function prototypeSignatures(): Record<string, string> {
   const signatures: Record<string, string> = {};

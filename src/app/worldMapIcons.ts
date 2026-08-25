@@ -30,6 +30,7 @@ import type { RoadNetwork } from '../roads/RoadNetwork.ts';
 import { ILLUSTRATED_MAP_STAMP_LIFT } from '../map/IllustratedMapPlane.ts';
 import { IllustratedMapResourceHover } from '../map/IllustratedMapResourceHover.ts';
 import { TownReportPanel } from '../ui/TownReportPanel.ts';
+import { TownNameDialog } from '../ui/TownNameDialog.ts';
 
 export type WorldMapUiBundle = {
   quarry: QuarryMapIcons;
@@ -66,6 +67,7 @@ export function createWorldMapUi(options: {
   onSettlementSelect?: (settlementId: string) => void;
   onSettlementFocus?: (x: number, z: number) => void;
   onTownHallSelect?: (buildingId: string) => void;
+  onSettlementRename?: (settlementId: string, name: string) => Promise<void>;
 }): WorldMapUiBundle {
   const {
     uiRoot,
@@ -92,6 +94,7 @@ export function createWorldMapUi(options: {
     onSettlementSelect,
     onSettlementFocus,
     onTownHallSelect,
+    onSettlementRename,
   } = options;
 
   const layoutMarkers = buildLayoutWorldMapMarkers(registry, clayDepositSites);
@@ -134,11 +137,19 @@ export function createWorldMapUi(options: {
       : isWorldResourceIconVisibilityBlocked(placementGate),
   });
 
+  const townNameDialog = new TownNameDialog(uiRoot);
+  const requestSettlementRename = async (settlementId: string): Promise<void> => {
+    const settlement = getGameState().settlements.get(settlementId);
+    if (!settlement || !onSettlementRename) return;
+    const name = await townNameDialog.prompt(settlement.name);
+    if (name !== null) await onSettlementRename(settlementId, name);
+  };
   const townReport = new TownReportPanel({
     uiRoot,
     getState: getGameState,
     onFocus: onSettlementFocus,
     onInspectTownHall: onTownHallSelect,
+    onRename: (settlementId) => void requestSettlementRename(settlementId),
   });
   const settlement = new SettlementMapIcons({
     uiRoot,
@@ -151,6 +162,7 @@ export function createWorldMapUi(options: {
       townReport.open(settlementId);
       onSettlementSelect?.(settlementId);
     },
+    onSettlementRename: (settlementId) => void requestSettlementRename(settlementId),
     isBlocked: () => isWorldInspectionBlocked(placementGate),
     isVisibilityBlocked: () => isOverlayBlocked(placementGate),
   });
@@ -201,6 +213,7 @@ export function createWorldMapUi(options: {
       foraging.dispose();
       settlement.dispose();
       townReport.dispose();
+      townNameDialog.dispose();
       minimap.dispose();
     },
   };

@@ -873,63 +873,93 @@
     },
     {
       "id": "world-footstep-grass-1",
-      "group": "world-foley",
+      "group": "movement-foley",
       "kind": "sound-effect",
       "output": "public/sounds/world/footstep_grass_1.mp3",
-      "prompt": "One soft close leather boot footstep through short slightly damp meadow grass, natural cloth movement, no second step, no voice, no music",
-      "durationSeconds": 1,
+      "prompt": "Photorealistic isolated field recording of exactly one adult walking footfall: a worn soft-soled leather boot plants heel-to-toe into short slightly damp meadow grass over firm soil, believable human body weight, crisp grass compression and a quiet soil thump, close-miked outdoors with no room reverb. One footfall only, no second step, no running, no stomping, no clothing, no ambience, no birds, no voice, no music",
+      "durationSeconds": 0.9,
       "loop": false,
-      "promptInfluence": 0.9
+      "promptInfluence": 0.95
     },
     {
       "id": "world-footstep-grass-2",
-      "group": "world-foley",
+      "group": "movement-foley",
       "kind": "sound-effect",
       "output": "public/sounds/world/footstep_grass_2.mp3",
-      "prompt": "One soft leather boot footstep variation on cool flattened grass with a small leafy brush, close realistic Foley, no second step, no voice, no music",
-      "durationSeconds": 1,
+      "prompt": "Photorealistic isolated field recording of exactly one adult walking footfall: a worn soft-soled leather boot presses into lush cool grass over compact earth, natural heel contact, body-weighted sole roll, stems brushing and springing back, close dry outdoor Foley. One footfall only, no repeated footsteps, no running, no stomp, no clothing, no ambience, no insects, no voice, no music",
+      "durationSeconds": 0.9,
       "loop": false,
-      "promptInfluence": 0.9
+      "promptInfluence": 0.95
     },
     {
       "id": "world-footstep-grass-3",
-      "group": "world-foley",
+      "group": "movement-foley",
       "kind": "sound-effect",
       "output": "public/sounds/world/footstep_grass_3.mp3",
-      "prompt": "One subdued close leather boot footstep variation in mixed grass and soft soil, delicate vegetation compression, no second step, no voice, no music",
+      "prompt": "Photorealistic isolated field recording of exactly one adult walking footfall: a worn leather boot lands heel-to-toe in mixed meadow grass and slightly yielding loam, a solid low sole impact with detailed blades folding beneath it and a tiny earth release, close-miked outdoors without reverb. One footfall only, no cadence, no running, no exaggerated crunch, no clothing, no ambience, no voice, no music",
+      "durationSeconds": 0.9,
+      "loop": false,
+      "promptInfluence": 0.95
+    },
+    {
+      "id": "world-footstep-forest-1",
+      "group": "movement-foley",
+      "kind": "sound-effect",
+      "output": "public/sounds/world/footstep_forest_1.mp3",
+      "prompt": "Photorealistic isolated field recording of exactly one adult walking footfall on a temperate forest floor: a worn soft-soled leather boot compresses damp brown leaf litter, pine needles and dark humus, weighted heel-to-toe contact with one small twig tick, close dry outdoor Foley. One footfall only, no second step, no running, no exaggerated crunchy leaves, no clothing, no wind, no birds, no voice, no music",
       "durationSeconds": 1,
       "loop": false,
-      "promptInfluence": 0.9
+      "promptInfluence": 0.95
+    },
+    {
+      "id": "world-footstep-forest-2",
+      "group": "movement-foley",
+      "kind": "sound-effect",
+      "output": "public/sounds/world/footstep_forest_2.mp3",
+      "prompt": "Photorealistic isolated field recording of exactly one adult walking footfall through dense forest understory: a worn leather boot plants into soft mossy soil beneath flattened fern fronds and old leaves, believable body weight, muted earth thump, damp foliage fold and slight sole lift, close-miked outdoors. One footfall only, no repeated steps, no running, no ambience, no wildlife, no voice, no music",
+      "durationSeconds": 1,
+      "loop": false,
+      "promptInfluence": 0.95
+    },
+    {
+      "id": "world-footstep-forest-3",
+      "group": "movement-foley",
+      "kind": "sound-effect",
+      "output": "public/sounds/world/footstep_forest_3.mp3",
+      "prompt": "Photorealistic isolated field recording of exactly one adult walking footfall on uneven woodland understory: a soft-soled medieval leather boot settles into moist leaf mould, scattered beech leaves and fine fallen twigs, natural heel-to-toe roll, restrained litter crunch and one subtle twig flex, close dry Foley. One footfall only, no cadence, no running, no stomping, no ambience, no birds, no voice, no music",
+      "durationSeconds": 1,
+      "loop": false,
+      "promptInfluence": 0.95
     },
     {
       "id": "world-footstep-dirt-1",
-      "group": "world-foley",
+      "group": "movement-foley",
       "kind": "sound-effect",
       "output": "public/sounds/world/footstep_dirt_1.mp3",
-      "prompt": "One soft close leather boot footstep on a compact medieval dirt road, tiny dry grit crunch, no second step, no voice, no music",
-      "durationSeconds": 1,
+      "prompt": "Photorealistic isolated field recording of exactly one adult walking footfall on a dry compacted medieval dirt road: a worn thick leather sole plants heel-to-toe with believable body weight, solid packed-earth impact, fine grit shear and two tiny loose stones, close-miked outdoors without echo. One footfall only, no second step, no running, no stomp, no horse, no clothing, no ambience, no voice, no music",
+      "durationSeconds": 0.9,
       "loop": false,
-      "promptInfluence": 0.9
+      "promptInfluence": 0.95
     },
     {
       "id": "world-footstep-dirt-2",
-      "group": "world-foley",
+      "group": "movement-foley",
       "kind": "sound-effect",
       "output": "public/sounds/world/footstep_dirt_2.mp3",
-      "prompt": "One restrained leather boot footstep variation on packed earth with two small pebbles, close natural Foley, no second step, no voice, no music",
-      "durationSeconds": 1,
+      "prompt": "Photorealistic isolated field recording of exactly one adult walking footfall: a scuffed soft-soled leather boot lands on a well-travelled packed clay road dusted with sand and sparse gravel, weighted heel strike, short sole roll and granular scrape, close dry outdoor Foley. One footfall only, no repeated footsteps, no running, no exaggerated gravel crunch, no ambience, no voice, no music",
+      "durationSeconds": 0.9,
       "loop": false,
-      "promptInfluence": 0.9
+      "promptInfluence": 0.95
     },
     {
       "id": "world-footstep-dirt-3",
-      "group": "world-foley",
+      "group": "movement-foley",
       "kind": "sound-effect",
       "output": "public/sounds/world/footstep_dirt_3.mp3",
-      "prompt": "One muted close leather boot footstep variation on firm slightly dusty soil, compact heel and soft grit, no second step, no voice, no music",
-      "durationSeconds": 1,
+      "prompt": "Photorealistic isolated field recording of exactly one adult walking footfall on a firm rutted earth road after light dampness: a worn leather boot makes a dense heel-to-toe thud, slight tack from the clay and a small edge of displaced grit, full human weight, close-miked outdoors. One footfall only, no second step, no running, no muddy squelch, no clothing, no ambience, no voice, no music",
+      "durationSeconds": 0.9,
       "loop": false,
-      "promptInfluence": 0.9
+      "promptInfluence": 0.95
     },
     {
       "id": "world-footstep-timber-1",
@@ -993,33 +1023,33 @@
     },
     {
       "id": "world-footstep-water-1",
-      "group": "world-foley",
+      "group": "movement-foley",
       "kind": "sound-effect",
       "output": "public/sounds/world/footstep_water_1.mp3",
-      "prompt": "One soft close leather boot footstep into very shallow stream water over mud, restrained splash and small ripple, no second step, no voice, no music",
-      "durationSeconds": 1,
+      "prompt": "Photorealistic isolated field recording of exactly one adult walking footfall into ankle-deep stream water: a worn leather boot strikes the shallow surface with a crisp medium splash, pushes water outward over a muddy gravel bed, then makes a short wet lift and droplets, close-miked outdoors. One footfall only, no second step, no continuous stream ambience, no running, no giant splash, no clothing, no voice, no music",
+      "durationSeconds": 1.1,
       "loop": false,
-      "promptInfluence": 0.9
+      "promptInfluence": 0.95
     },
     {
       "id": "world-footstep-water-2",
-      "group": "world-foley",
+      "group": "movement-foley",
       "kind": "sound-effect",
       "output": "public/sounds/world/footstep_water_2.mp3",
-      "prompt": "One subdued leather boot footstep variation through ankle-shallow water, a compact slosh and wet sole lift, no second step, no voice, no music",
-      "durationSeconds": 1,
+      "prompt": "Photorealistic isolated field recording of exactly one adult wading footfall through ankle-shallow clear water: a leather boot plants with human weight, compact sharp splash and low slosh around the ankle, wet sole release with a few falling droplets, close dry outdoor Foley. One footfall only, no repeated steps, no river ambience, no running, no exaggerated cinematic splash, no voice, no music",
+      "durationSeconds": 1.1,
       "loop": false,
-      "promptInfluence": 0.9
+      "promptInfluence": 0.95
     },
     {
       "id": "world-footstep-water-3",
-      "group": "world-foley",
+      "group": "movement-foley",
       "kind": "sound-effect",
       "output": "public/sounds/world/footstep_water_3.mp3",
-      "prompt": "One soft close leather boot footstep variation in a shallow grassy puddle, delicate water displacement and mud suction, no second step, no voice, no music",
-      "durationSeconds": 1,
+      "prompt": "Photorealistic isolated field recording of exactly one adult walking footfall in a shallow flooded grassy ford: a worn leather boot breaks the water surface, makes a broad natural splash through submerged grass, compresses soft mud and lifts with brief suction and droplets, close-miked outdoors. One footfall only, no second step, no continuous water ambience, no running, no huge splash, no clothing, no voice, no music",
+      "durationSeconds": 1.1,
       "loop": false,
-      "promptInfluence": 0.9
+      "promptInfluence": 0.95
     },
     {
       "id": "world-fire-bucket-1",

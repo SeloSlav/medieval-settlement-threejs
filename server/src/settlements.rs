@@ -4,6 +4,8 @@
 //! administration, and diagnostics, but never partitions the owner's resource,
 //! logistics, or workforce ledgers.
 
+use std::collections::HashSet;
+
 use spacetimedb::{Identity, ReducerContext};
 
 use crate::balance_generated::{OFFROAD_DELIVERY_SPEED_MULTIPLIER, STARTING_POPULATION};
@@ -12,6 +14,63 @@ use crate::roads::{load_owner_road_network, RoadNetwork};
 use crate::tables::{Building, PlayerResources, Settlement};
 
 const EPSILON: f64 = 1e-6;
+pub const MAX_SETTLEMENT_NAME_CHARS: usize = 48;
+
+/// Regional Croatian names used for authoritative settlement creation. The
+/// pool intentionally spans the Kvarner, Lika, Gorski kotar, and neighboring
+/// frontier localities represented by the game's mid-sixteenth-century map.
+pub const CANONICAL_SETTLEMENT_NAMES: [&str; 50] = [
+    "Brinje",
+    "Brlog",
+    "Otočac",
+    "Senj",
+    "Ledenice",
+    "Modruš",
+    "Ogulin",
+    "Grobnik",
+    "Trsat",
+    "Bakar",
+    "Hreljin",
+    "Drivenik",
+    "Grižane",
+    "Bribir",
+    "Novi",
+    "Crikvenica",
+    "Vinodol",
+    "Krk",
+    "Osor",
+    "Rab",
+    "Kastav",
+    "Veprinac",
+    "Lovran",
+    "Mošćenice",
+    "Plomin",
+    "Labin",
+    "Udbina",
+    "Krbava",
+    "Perušić",
+    "Bužim",
+    "Ribnik",
+    "Kosinj",
+    "Dabar",
+    "Drežnik",
+    "Slunj",
+    "Cetin",
+    "Tržac",
+    "Steničnjak",
+    "Bosiljevo",
+    "Severin",
+    "Dubovac",
+    "Ozalj",
+    "Skrad",
+    "Zvečaj",
+    "Ključ",
+    "Klana",
+    "Gacka",
+    "Gvozd",
+    "Jesenica",
+    "Lič",
+];
 /// New residential frontage must remain within a practical travel-time
 /// catchment of an existing community source: 260 m by road, with open ground
 /// scaled by the authored off-road speed. Occupied homes then extend that
@@ -39,9 +98,89 @@ fn current_sim_tick(ctx: &ReducerContext) -> u64 {
         .map_or(0, |config| config.sim_tick)
 }
 
-fn next_settlement_name(ctx: &ReducerContext, owner: Identity) -> String {
-    let ordinal = ctx.db.settlement().owner().filter(&owner).count() + 1;
-    format!("Town {ordinal}")
+fn mix_settlement_name_entropy(mut value: u64) -> u64 {
+    value ^= value >> 30;
+    value = value.wrapping_mul(0xbf58_476d_1ce4_e5b9);
+    value ^= value >> 27;
+    value = value.wrapping_mul(0x94d0_49bb_1331_11eb);
+    value ^ (value >> 31)
+}
+
+fn settlement_name_entropy(
+    ctx: &ReducerContext,
+    owner: Identity,
+    x: f64,
+    z: f64,
+    ordinal: u64,
+) -> u64 {
+    let mut entropy = ctx
+        .db
+        .world_config()
+        .id()
+        .find(&0)
+        .map_or(0, |config| config.seed)
+        ^ x.to_bits().rotate_left(17)
+        ^ z.to_bits().rotate_left(41)
+        ^ ordinal.wrapping_mul(0x9e37_79b9_7f4a_7c15);
+    let owner_bytes = owner.to_byte_array();
+    for chunk in owner_bytes.chunks_exact(8) {
+        let owner_word = u64::from_le_bytes(chunk.try_into().unwrap_or([0; 8]));
+        entropy = mix_settlement_name_entropy(entropy ^ owner_word);
+    }
+    mix_settlement_name_entropy(entropy)
+}
+
+fn next_settlement_name(ctx: &ReducerContext, owner: Identity, x: f64, z: f64) -> String {
+    let ordinal = ctx.db.settlement().owner().filter(&owner).count() as u64 + 1;
+    let used = ctx
+        .db
+        .settlement()
+        .owner()
+        .filter(&owner)
+        .map(|settlement| settlement.name.trim().to_lowercase())
+        .collect::<HashSet<_>>();
+    let start = settlement_name_entropy(ctx, owner, x, z, ordinal)
+        % CANONICAL_SETTLEMENT_NAMES.len() as u64;
+    for offset in 0..CANONICAL_SETTLEMENT_NAMES.len() {
+        let candidate = CANONICAL_SETTLEMENT_NAMES
+            [(start as usize + offset) % CANONICAL_SETTLEMENT_NAMES.len()];
+        if !used.contains(&candidate.to_lowercase()) {
+            return candidate.to_string();
+        }
+    }
+
+    // Very large or long-lived worlds can exhaust the authored pool. Retain a
+    // regional root and add a stable suffix instead of falling back to Town N.
+    let base = CANONICAL_SETTLEMENT_NAMES[start as usize];
+    for suffix in 2u64.. {
+        let candidate = format!("{base} {suffix}");
+        if !used.contains(&candidate.to_lowercase()) {
+            return candidate;
+        }
+    }
+    unreachable!()
+}
+
+fn is_legacy_ordinal_name(name: &str) -> bool {
+    name.strip_prefix("Town ").is_some_and(|suffix| {
+        !suffix.is_empty() && suffix.chars().all(|character| character.is_ascii_digit())
+    })
+}
+
+pub fn normalize_settlement_name(name: &str) -> Result<String, String> {
+    let normalized = name.split_whitespace().collect::<Vec<_>>().join(" ");
+    if normalized.is_empty() {
+        return Err("Enter a town name before confirming.".to_string());
+    }
+    if normalized.chars().count() > MAX_SETTLEMENT_NAME_CHARS {
+        return Err(format!(
+            "Town names may contain at most {MAX_SETTLEMENT_NAME_CHARS} characters."
+        ));
+    }
+    if normalized.chars().any(char::is_control) {
+        return Err("Town names cannot contain control characters.".to_string());
+    }
+    Ok(normalized)
 }
 
 fn settlement_row(
@@ -58,7 +197,7 @@ fn settlement_row(
     Settlement {
         id: 0,
         owner,
-        name: next_settlement_name(ctx, owner),
+        name: next_settlement_name(ctx, owner, x, z),
         anchor_x: x,
         anchor_z: z,
         founding_camp_id,
@@ -99,6 +238,7 @@ fn settlement_row(
         last_night_lighting_fuel_shortfall: 0.0,
         night_community_cohesion: 0.5,
         night_labor_fatigue: 0.0,
+        name_customized: false,
     }
 }
 
@@ -364,6 +504,15 @@ pub fn ensure_owner_settlements(ctx: &ReducerContext, owner: Identity) {
         .owner()
         .filter(&owner)
         .collect::<Vec<_>>();
+    settlements.sort_by_key(|settlement| settlement.id);
+    for settlement in &mut settlements {
+        if settlement.name_customized || !is_legacy_ordinal_name(&settlement.name) {
+            continue;
+        }
+        settlement.name =
+            next_settlement_name(ctx, owner, settlement.anchor_x, settlement.anchor_z);
+        ctx.db.settlement().id().update(settlement.clone());
+    }
     let buildings = ctx.db.building().owner().filter(&owner).collect::<Vec<_>>();
     let has_residences = ctx.db.residence().owner().filter(&owner).next().is_some();
     if settlements.is_empty() && buildings.is_empty() && !has_residences {
@@ -523,6 +672,42 @@ pub fn ensure_owner_settlements(ctx: &ReducerContext, owner: Identity) {
         .collect::<Vec<_>>();
     for hall in completed_halls {
         link_completed_town_hall(ctx, &hall);
+    }
+}
+
+#[cfg(test)]
+mod naming_tests {
+    use super::*;
+
+    #[test]
+    fn canonical_name_pool_has_fifty_unique_names() {
+        assert_eq!(CANONICAL_SETTLEMENT_NAMES.len(), 50);
+        assert_eq!(
+            CANONICAL_SETTLEMENT_NAMES
+                .iter()
+                .map(|name| name.to_lowercase())
+                .collect::<HashSet<_>>()
+                .len(),
+            50
+        );
+    }
+
+    #[test]
+    fn custom_names_are_trimmed_and_bounded() {
+        assert_eq!(
+            normalize_settlement_name("  Novi   Vinodol  ").unwrap(),
+            "Novi Vinodol"
+        );
+        assert!(normalize_settlement_name("   ").is_err());
+        assert!(normalize_settlement_name(&"a".repeat(MAX_SETTLEMENT_NAME_CHARS + 1)).is_err());
+    }
+
+    #[test]
+    fn only_old_ordinal_placeholders_are_migrated() {
+        assert!(is_legacy_ordinal_name("Town 1"));
+        assert!(is_legacy_ordinal_name("Town 42"));
+        assert!(!is_legacy_ordinal_name("Town Hall"));
+        assert!(!is_legacy_ordinal_name("My Town 1"));
     }
 }
 

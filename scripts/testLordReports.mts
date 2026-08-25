@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { createDefaultNeeds } from '../src/residences/residenceNeedState.ts';
 import type {
   BuildingState,
@@ -20,6 +21,13 @@ import {
   storageOccupancyChannels,
   type LordReport,
 } from '../src/ui/lordReports.ts';
+
+const appBootstrap = readFileSync('src/app/appBootstrap.ts', 'utf8');
+assert.match(
+  appBootstrap,
+  /setLordReportTargetHandler[\s\S]*?focusWorldPositionAtZoom\([\s\S]*?REPORT_FOCUS_ZOOM_PERCENT[\s\S]*?setSecurityAttentionHandler/,
+  'lord report targets must center at the shared 50% report zoom',
+);
 
 const routineDawn = {
   ...DEFAULT_NIGHT_POLICY,

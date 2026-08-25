@@ -10,6 +10,7 @@ export type TownReportPanelOptions = {
   getState: () => GameState;
   onFocus?: (x: number, z: number) => void;
   onInspectTownHall?: (buildingId: string) => void;
+  onRename?: (settlementId: string) => void;
 };
 
 export class TownReportPanel {
@@ -26,7 +27,7 @@ export class TownReportPanel {
     options.uiRoot.insertAdjacentHTML('beforeend', `
       <aside class="town-report-panel" data-town-report hidden aria-label="Local town report">
         <header class="town-report-panel__header">
-          <div><p>Community report</p><h2 data-town-report-title>Town</h2></div>
+          <div><p>Community report</p><button type="button" class="town-report-panel__rename" data-town-report-rename title="Rename town"><span data-town-report-title>Town</span><i aria-hidden="true">✎</i></button></div>
           <button type="button" data-town-report-close aria-label="Close town report">×</button>
         </header>
         <div class="town-report-panel__body" data-town-report-body></div>
@@ -131,6 +132,10 @@ export class TownReportPanel {
       ? this.options.getState().settlements.get(settlementId)
       : null;
     if (!settlement) return;
+    if (target.closest('[data-town-report-rename]')) {
+      this.options.onRename?.(settlement.id);
+      return;
+    }
     if (target.closest('[data-town-report-focus]')) {
       this.options.onFocus?.(settlement.anchorX, settlement.anchorZ);
       return;

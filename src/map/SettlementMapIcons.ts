@@ -28,6 +28,7 @@ type SettlementMapIconsOptions = {
   getCamera: () => THREE.PerspectiveCamera | null;
   getZoomPercent: () => number;
   onSettlementSelect: (settlementId: string) => void;
+  onSettlementRename?: (settlementId: string) => void;
   isBlocked: () => boolean;
   isVisibilityBlocked?: () => boolean;
 };
@@ -136,7 +137,13 @@ export class SettlementMapIcons {
       event.preventDefault();
       event.stopPropagation();
       const settlementId = button.dataset.settlementId;
-      if (settlementId) this.options.onSettlementSelect(settlementId);
+      if (!settlementId) return;
+      const target = event.target instanceof Element ? event.target : null;
+      if (target?.closest('[data-settlement-map-rename]')) {
+        this.options.onSettlementRename?.(settlementId);
+      } else {
+        this.options.onSettlementSelect(settlementId);
+      }
     });
     this.syncButton(button, marker);
     return button;
@@ -149,7 +156,7 @@ export class SettlementMapIcons {
     button.dataset.tier = marker.tier;
     const color = COMMUNITY_REACH_PALETTE[stableCommunityPaletteIndex(marker.settlementId)];
     button.style.setProperty('--settlement-color', `rgb(${color[0]}, ${color[1]}, ${color[2]})`);
-    button.innerHTML = `<span class="settlement-map-icon__art">${SETTLEMENT_MAP_ICON_HTML[marker.tier]}</span><strong>${escapeHtml(marker.name)}</strong>`;
+    button.innerHTML = `<span class="settlement-map-icon__art">${SETTLEMENT_MAP_ICON_HTML[marker.tier]}</span><strong data-settlement-map-rename title="Rename ${escapeHtml(marker.name)}">${escapeHtml(marker.name)}</strong>`;
   }
 }
 

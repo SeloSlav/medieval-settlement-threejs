@@ -45,7 +45,13 @@ export type BuildingAudioKind = Exclude<
   'chapel'
 > | 'residence';
 
-export type FootstepSurface = 'grass' | 'dirt' | 'timber' | 'stone' | 'water';
+export type FootstepSurface =
+  | 'grass'
+  | 'forest'
+  | 'dirt'
+  | 'timber'
+  | 'stone'
+  | 'water';
 
 export type WorldFoleySoundId =
   | 'cart_roll_1'
@@ -265,21 +271,24 @@ export const WORLD_FOLEY_CLIPS: Record<WorldFoleySoundId, AudioClipDefinition> =
   construction_stone: worldFoleyClip('construction_stone', 0.075),
   demolition_timber: worldFoleyClip('demolition_timber', 0.085),
   demolition_stone: worldFoleyClip('demolition_stone', 0.085),
-  footstep_grass_1: worldFoleyClip('footstep_grass_1', 0.12),
-  footstep_grass_2: worldFoleyClip('footstep_grass_2', 0.12),
-  footstep_grass_3: worldFoleyClip('footstep_grass_3', 0.12),
-  footstep_dirt_1: worldFoleyClip('footstep_dirt_1', 0.12),
-  footstep_dirt_2: worldFoleyClip('footstep_dirt_2', 0.12),
-  footstep_dirt_3: worldFoleyClip('footstep_dirt_3', 0.12),
+  footstep_grass_1: worldFoleyClip('footstep_grass_1', 0.14),
+  footstep_grass_2: worldFoleyClip('footstep_grass_2', 0.14),
+  footstep_grass_3: worldFoleyClip('footstep_grass_3', 0.14),
+  footstep_forest_1: worldFoleyClip('footstep_forest_1', 0.145),
+  footstep_forest_2: worldFoleyClip('footstep_forest_2', 0.145),
+  footstep_forest_3: worldFoleyClip('footstep_forest_3', 0.145),
+  footstep_dirt_1: worldFoleyClip('footstep_dirt_1', 0.14),
+  footstep_dirt_2: worldFoleyClip('footstep_dirt_2', 0.14),
+  footstep_dirt_3: worldFoleyClip('footstep_dirt_3', 0.14),
   footstep_timber_1: worldFoleyClip('footstep_timber_1', 0.115),
   footstep_timber_2: worldFoleyClip('footstep_timber_2', 0.115),
   footstep_timber_3: worldFoleyClip('footstep_timber_3', 0.115),
   footstep_stone_1: worldFoleyClip('footstep_stone_1', 0.11),
   footstep_stone_2: worldFoleyClip('footstep_stone_2', 0.11),
   footstep_stone_3: worldFoleyClip('footstep_stone_3', 0.11),
-  footstep_water_1: worldFoleyClip('footstep_water_1', 0.105),
-  footstep_water_2: worldFoleyClip('footstep_water_2', 0.105),
-  footstep_water_3: worldFoleyClip('footstep_water_3', 0.105),
+  footstep_water_1: worldFoleyClip('footstep_water_1', 0.15),
+  footstep_water_2: worldFoleyClip('footstep_water_2', 0.15),
+  footstep_water_3: worldFoleyClip('footstep_water_3', 0.15),
   fire_bucket_1: worldFoleyClip('fire_bucket_1', 0.095),
   fire_bucket_2: worldFoleyClip('fire_bucket_2', 0.095),
   fire_steam: worldFoleyClip('fire_steam', 0.075),

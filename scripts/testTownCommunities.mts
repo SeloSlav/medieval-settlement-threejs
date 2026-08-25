@@ -224,6 +224,7 @@ assert.doesNotMatch(
 const localReport = source('src/resources/settlementResourceReport.ts');
 const townReportPanel = source('src/ui/TownReportPanel.ts');
 const worldMapIcons = source('src/app/worldMapIcons.ts');
+const appBootstrap = source('src/app/appBootstrap.ts');
 assert.match(localReport, /export function computeSettlementResourceReport/);
 assert.doesNotMatch(
   localReport,
@@ -238,6 +239,17 @@ assert.match(
   worldMapIcons,
   /TownReportPanel[\s\S]*settlementId[\s\S]*townReport\.open/,
   'map community markers must open the local whereabouts report rather than switch the global HUD wallet',
+);
+assert.match(appBootstrap, /const REPORT_FOCUS_ZOOM_PERCENT = 50;/);
+assert.match(
+  appBootstrap,
+  /onSettlementSelect:[\s\S]*?focusWorldPositionAtZoom\([\s\S]*?REPORT_FOCUS_ZOOM_PERCENT[\s\S]*?onSettlementFocus:/,
+  'selecting a town marker must center its community at the shared report zoom',
+);
+assert.match(
+  appBootstrap,
+  /onSettlementFocus:[\s\S]*?focusWorldPositionAtZoom\(x, z, REPORT_FOCUS_ZOOM_PERCENT\)/,
+  'the town report focus action must center its community at the shared report zoom',
 );
 const { computeSettlementResourceReport } = await import(
   '../src/resources/settlementResourceReport.ts'

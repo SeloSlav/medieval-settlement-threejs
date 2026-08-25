@@ -535,6 +535,11 @@ pub struct Settlement {
     pub night_community_cohesion: f64,
     #[default(0.0)]
     pub night_labor_fatigue: f64,
+    /// Distinguishes a player-authored title from generated or legacy names so
+    /// the additive migration can replace old `Town N` placeholders once
+    /// without ever overwriting a deliberate rename.
+    #[default(false)]
+    pub name_customized: bool,
 }
 
 #[spacetimedb::table(accessor = quarry, public)]

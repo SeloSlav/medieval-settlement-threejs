@@ -15,6 +15,7 @@ use crate::night_policy::valid_policy_code;
 use crate::pantry_safeguard_policy::valid_pantry_safeguard_policy;
 use crate::reducers::buildings::rotate_construction_labor_for_settlement_with_reserve;
 use crate::resource_units::{whole_cost, whole_units};
+use crate::settlements::normalize_settlement_name;
 use crate::simulation::{
     game_clock, reconcile_seasonal_labor_for_settlement,
     reconcile_target_production_labor_for_settlement,
@@ -108,6 +109,34 @@ fn require_owned_town_hall(
         return Err("This building is not the active Town Hall for its settlement.".to_string());
     }
     Ok(settlement)
+}
+
+/// Renames any community owned by the sender. A Founders' Camp is sufficient:
+/// local identity exists before a Town Hall or clerk does.
+#[reducer]
+pub fn rename_settlement(
+    ctx: &ReducerContext,
+    settlement_id: u64,
+    name: String,
+) -> Result<(), String> {
+    let owner = ctx.sender();
+    let mut settlement = ctx
+        .db
+        .settlement()
+        .id()
+        .find(&settlement_id)
+        .ok_or_else(|| "Town not found.".to_string())?;
+    if settlement.owner != owner {
+        return Err("You do not own this town.".to_string());
+    }
+    let name = normalize_settlement_name(&name)?;
+    if settlement.name == name && settlement.name_customized {
+        return Ok(());
+    }
+    settlement.name = name;
+    settlement.name_customized = true;
+    ctx.db.settlement().id().update(settlement);
+    Ok(())
 }
 
 #[reducer]

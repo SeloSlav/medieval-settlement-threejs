@@ -795,6 +795,7 @@ export const Settlement = __t.object("Settlement", {
   lastNightLightingFuelShortfall: __t.f64(),
   nightCommunityCohesion: __t.f64(),
   nightLaborFatigue: __t.f64(),
+  nameCustomized: __t.bool(),
 });
 export type Settlement = __Infer<typeof Settlement>;
 
@@ -919,3 +920,4 @@ export const WorldConfig = __t.object("WorldConfig", {
   initialGoodsMultiplier: __t.u8(),
 });
 export type WorldConfig = __Infer<typeof WorldConfig>;
+
