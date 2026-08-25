@@ -1077,7 +1077,7 @@ function createUndergrowthBranchMaterial(
   material.positionNode = createRootedGeometryWindPosition(options.webglWindAmplitude ?? 0.075) as never;
   applyUndergrowthNodeSnow(
     material,
-    tsl.texture(textures.albedo).rgb,
+    tsl.texture(textures.albedo).rgb.mul(tsl.uniform(material.color)),
     tsl.float(1),
   );
   return material;

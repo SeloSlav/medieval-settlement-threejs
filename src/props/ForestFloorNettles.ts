@@ -695,27 +695,148 @@ function createNettleBranchMaterial(
   material.roughness = 1;
   material.metalness = 0;
   material.positionNode = createRootedGeometryWindPosition(0.07) as never;
-  applyNettleNodeSnow(material, tsl.texture(textures.albedo).rgb);
+  applyNettleNodeSnow(
+    material,
+    tsl.texture(textures.albedo).rgb.mul(tsl.uniform(material.color)),
+  );
   return material;
+}
+
+function applyNettleNodeSnow(material: THREE.Material, baseSurface: TslNode): void {
+  const target = material as THREE.Material & { colorNode?: unknown };
+  const snowCoverage = tsl.uniform(0);
+  const upwardExposure = tsl.smoothstep(
+    tsl.float(0.18),
+    tsl.float(0.84),
+    tsl.normalWorldGeometry.y,
+  );
+  const snowVariation = tsl.sin(
+    tsl.positionWorld.x.mul(0.81)
+      .add(tsl.positionWorld.z.mul(1.13)),
+  ).mul(0.12).add(0.88);
+  const snowAmount = snowCoverage
+    .mul(upwardExposure)
+    .mul(snowVariation)
+    .mul(0.54);
+  target.colorNode = tsl.mix(
+    baseSurface,
+    tsl.vec3(0.92, 0.955, 0.98),
+    snowAmount,
+  );
+  material.userData.forestSnowCoverage = snowCoverage;
+}
+
+function applyNettleWebGLSnow(material: THREE.MeshStandardMaterial): void {
+  const snowCoverage = { value: 0 };
+  material.userData.forestSnowCoverage = snowCoverage;
+  chainMaterialShaderPatch(material, 'seedthree-nettle-stem-snow-v1', (shader) => {
+    shader.uniforms.uNettleSnowCoverage = snowCoverage;
+    shader.vertexShader = shader.vertexShader.replace(
+      '#include <common>',
+      [
+        '#include <common>',
+        'varying float vNettleSnowExposure;',
+        'varying vec2 vNettleSnowWorldXZ;',
+      ].join('\n'),
+    );
+    shader.vertexShader = shader.vertexShader.replace(
+      '#include <defaultnormal_vertex>',
+      [
+        '#include <defaultnormal_vertex>',
+        'vec3 nettleSnowWorldNormal = normalize(',
+        '  inverseTransformDirection( transformedNormal, viewMatrix )',
+        ');',
+        'vNettleSnowExposure = smoothstep( 0.18, 0.84, nettleSnowWorldNormal.y );',
+      ].join('\n'),
+    );
+    shader.vertexShader = shader.vertexShader.replace(
+      '#include <project_vertex>',
+      [
+        'vec4 nettleSnowObjectPosition = vec4( transformed, 1.0 );',
+        '#ifdef USE_INSTANCING',
+        'nettleSnowObjectPosition = instanceMatrix * nettleSnowObjectPosition;',
+        '#endif',
+        'vNettleSnowWorldXZ = ( modelMatrix * nettleSnowObjectPosition ).xz;',
+        '#include <project_vertex>',
+      ].join('\n'),
+    );
+    shader.fragmentShader = shader.fragmentShader.replace(
+      '#include <common>',
+      [
+        '#include <common>',
+        'uniform float uNettleSnowCoverage;',
+        'varying float vNettleSnowExposure;',
+        'varying vec2 vNettleSnowWorldXZ;',
+      ].join('\n'),
+    );
+    shader.fragmentShader = shader.fragmentShader.replace(
+      '#include <color_fragment>',
+      [
+        '#include <color_fragment>',
+        'float nettleSnowVariation = sin(',
+        '  vNettleSnowWorldXZ.x * 0.81 + vNettleSnowWorldXZ.y * 1.13',
+        ') * 0.12 + 0.88;',
+        'float nettleSnowAmount = uNettleSnowCoverage',
+        '  * vNettleSnowExposure * nettleSnowVariation * 0.54;',
+        'diffuseColor.rgb = mix( diffuseColor.rgb, vec3( 0.92, 0.955, 0.98 ), nettleSnowAmount );',
+      ].join('\n'),
+    );
+  });
+  material.needsUpdate = true;
 }
 
 function applyNettleWebGLSeason(material: THREE.MeshStandardMaterial): void {
   const spring = { value: 0 };
   const autumn = { value: 0 };
   const dormancy = { value: 0 };
+  const snowCoverage = { value: 0 };
   material.userData.forestSeasonalSpringFlush = spring;
   material.userData.forestSeasonalAutumnColor = autumn;
   material.userData.forestSeasonalDormancy = dormancy;
+  material.userData.forestSnowCoverage = snowCoverage;
   chainMaterialShaderPatch(material, 'seedthree-nettle-season-v1', (shader) => {
     shader.uniforms.uNettleSpring = spring;
     shader.uniforms.uNettleAutumn = autumn;
     shader.uniforms.uNettleDormancy = dormancy;
+    shader.uniforms.uNettleSnowCoverage = snowCoverage;
+    shader.vertexShader = shader.vertexShader.replace(
+      '#include <common>',
+      [
+        '#include <common>',
+        'varying float vNettleSnowExposure;',
+        'varying vec2 vNettleSnowWorldXZ;',
+      ].join('\n'),
+    );
+    shader.vertexShader = shader.vertexShader.replace(
+      '#include <defaultnormal_vertex>',
+      [
+        '#include <defaultnormal_vertex>',
+        'vec3 nettleSnowWorldNormal = normalize(',
+        '  inverseTransformDirection( transformedNormal, viewMatrix )',
+        ');',
+        'vNettleSnowExposure = smoothstep( 0.18, 0.84, nettleSnowWorldNormal.y );',
+      ].join('\n'),
+    );
+    shader.vertexShader = shader.vertexShader.replace(
+      '#include <project_vertex>',
+      [
+        'vec4 nettleSnowObjectPosition = vec4( transformed, 1.0 );',
+        '#ifdef USE_INSTANCING',
+        'nettleSnowObjectPosition = instanceMatrix * nettleSnowObjectPosition;',
+        '#endif',
+        'vNettleSnowWorldXZ = ( modelMatrix * nettleSnowObjectPosition ).xz;',
+        '#include <project_vertex>',
+      ].join('\n'),
+    );
     shader.fragmentShader = shader.fragmentShader.replace(
       '#include <common>',
       `#include <common>
 uniform float uNettleSpring;
 uniform float uNettleAutumn;
-uniform float uNettleDormancy;`,
+uniform float uNettleDormancy;
+uniform float uNettleSnowCoverage;
+varying float vNettleSnowExposure;
+varying vec2 vNettleSnowWorldXZ;`,
     );
     shader.fragmentShader = shader.fragmentShader.replace(
       '#include <map_fragment>',
@@ -726,7 +847,20 @@ vec3 nettleAutumn = clamp( vec3( 0.90, 0.39, 0.065 ) * nettleValue * 1.55, 0.0, 
 vec3 nettleDormant = clamp( vec3( 0.53, 0.31, 0.16 ) * nettleValue * 1.72, 0.0, 1.0 );
 diffuseColor.rgb = mix( diffuseColor.rgb, nettleSpring, uNettleSpring * 0.58 );
 diffuseColor.rgb = mix( diffuseColor.rgb, nettleAutumn, uNettleAutumn );
-diffuseColor.rgb = mix( diffuseColor.rgb, nettleDormant, uNettleDormancy * 0.86 );`,
+diffuseColor.rgb = mix( diffuseColor.rgb, nettleDormant, uNettleDormancy * 0.86 );
+diffuseColor.a *= 1.0 - uNettleDormancy * 0.78;`,
+    );
+    shader.fragmentShader = shader.fragmentShader.replace(
+      '#include <color_fragment>',
+      [
+        '#include <color_fragment>',
+        'float nettleSnowVariation = sin(',
+        '  vNettleSnowWorldXZ.x * 0.81 + vNettleSnowWorldXZ.y * 1.13',
+        ') * 0.12 + 0.88;',
+        'float nettleSnowAmount = uNettleSnowCoverage',
+        '  * vNettleSnowExposure * nettleSnowVariation * 0.58;',
+        'diffuseColor.rgb = mix( diffuseColor.rgb, vec3( 0.92, 0.955, 0.98 ), nettleSnowAmount );',
+      ].join('\n'),
     );
   });
   material.needsUpdate = true;

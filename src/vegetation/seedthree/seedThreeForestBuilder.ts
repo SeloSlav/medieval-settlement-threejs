@@ -77,6 +77,7 @@ import {
   type SeedThreeTreeSlot as TreeSlot,
 } from './seedThreeForestCompaction.ts';
 import {
+  applySeedThreeBarkSnow,
   applySeedThreeForestCardMotion,
   applySeedThreeOverviewBillboardFade,
   applySeedThreeWholeCardDormancy,
@@ -313,13 +314,16 @@ function createInstancedLodSet(
       geo.userData.forestClone = true;
       geo.setAttribute('aWindVec', new THREE.InstancedBufferAttribute(new Float32Array(groupCount * 3), 3));
       geo.setAttribute('aAnchorPos', new THREE.InstancedBufferAttribute(new Float32Array(groupCount * 3), 3));
-      const sourceMaterial = forestBarkMaterial(mesh.material as THREE.Material);
+      const sourceMaterial = applySeedThreeBarkSnow(
+        forestBarkMaterial(mesh.material as THREE.Material),
+      );
       const material = options.overviewCards === true
         ? createSeedThreeOverviewBarkFadeMaterial(sourceMaterial)
         : sourceMaterial;
       if (options.overviewCards === true) {
         options.ownedOverviewFadeMaterials?.add(material);
       }
+      options.snowCardMaterials?.add(material);
       const im = new THREE.InstancedMesh(geo, material, groupCount);
       im.name = `${debugName} branches`;
       configureSeedThreeForestPassMesh(

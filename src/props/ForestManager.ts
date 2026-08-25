@@ -57,6 +57,7 @@ import {
   type ForestCanopyOcclusionMap,
 } from '../terrain/ForestCanopyOcclusion.ts';
 import type { ForestTreePlacement } from './forestPlacements.ts';
+import { gorskiKotarSpeciesIsDeciduous } from '../vegetation/seedthree/gorskiKotarSpecies.ts';
 
 const ROAD_CLEAR_MARGIN = 1.35;
 const BUILDING_CLEAR_MARGIN = 1.35;
@@ -214,6 +215,7 @@ export class ForestManager {
       x: placement.x,
       z: placement.z,
       canopyRadius: treeCanopyRadius(placement),
+      seasonalDeciduous: gorskiKotarSpeciesIsDeciduous(placement.species),
     })));
     this.harvestStumps = createHarvestStumpInstances(
       this.placements,
@@ -275,6 +277,7 @@ export class ForestManager {
     this.seedThreeForest?.setDeciduousFoliage(presentation);
     this.forestFloorNettles?.setDeciduousFoliage(presentation);
     this.undergrowth?.setDeciduousFoliage(presentation);
+    this.canopyOcclusion?.setDeciduousDormancy(presentation.dormancy);
   }
 
   setSnowCoverage(coverage: number): void {

@@ -1,11 +1,16 @@
 import * as THREE from 'three';
 import {
   attribute,
+  float,
+  mix,
   positionLocal,
   sin,
+  smoothstep,
+  texture,
   uniform,
   uv,
   vec3,
+  vec4,
 } from 'three/tsl';
 import { windSpeed, windStrength, WIND_DIR } from '@seedthree/core/wind.js';
 import type { RendererBackendKind } from '../../scene/RendererBackend.ts';
@@ -17,12 +22,17 @@ import {
   type SeedThreeGroundCoverTextures,
 } from './seedThreeGroundCover.ts';
 import { worldAnimationTime } from '../../scene/worldAnimationTime.ts';
+import { chainMaterialShaderPatch } from '../../scene/materialShaderPatch.ts';
+import type { DeciduousFoliagePresentation } from '../../world/deciduousFoliagePolicy.ts';
 
 export { WIND_DIR as SEEDTHREE_GRASS_WIND_DIR };
 
 type TslNode = {
   mul: (value: unknown) => TslNode;
   add: (value: unknown) => TslNode;
+  sub: (value: unknown) => TslNode;
+  a: TslNode;
+  rgb: TslNode;
   x: TslNode;
   y: TslNode;
   z: TslNode;
@@ -31,12 +41,17 @@ type TslNode = {
 
 const tsl = {
   attribute: attribute as (name: string, type: string) => TslNode,
+  float: float as (value: number) => TslNode,
+  mix: mix as (left: unknown, right: unknown, amount: unknown) => TslNode,
   positionLocal: positionLocal as TslNode,
   sin: sin as (value: unknown) => TslNode,
+  smoothstep: smoothstep as (low: unknown, high: unknown, value: unknown) => TslNode,
+  texture: texture as (map: THREE.Texture) => TslNode,
   time: worldAnimationTime as unknown as TslNode,
   uniform: uniform as <T>(value: T) => { value: T },
   uv: uv as () => TslNode,
   vec3: vec3 as (x: unknown, y: unknown, z: unknown) => TslNode,
+  vec4: vec4 as (...values: unknown[]) => TslNode,
   windSpeed: windSpeed as unknown as TslNode,
   windStrength: windStrength as unknown as TslNode,
 };
@@ -151,7 +166,21 @@ export function createSeedThreeGrassMaterial(
     createPinnedGrassWindPosition(),
   );
   mat.alphaTest = 0.28;
+  applySeedThreeGrassSeasonMaterial(mat, textures, rendererBackend);
   return mat;
+}
+
+export function setSeedThreeGrassSeason(
+  material: THREE.Material,
+  presentation: DeciduousFoliagePresentation,
+  snowCoverage: number,
+): boolean {
+  let changed = false;
+  changed = setGrassUniform(material, 'forestSeasonalSpringFlush', presentation.springFlush) || changed;
+  changed = setGrassUniform(material, 'forestSeasonalAutumnColor', presentation.autumnColor) || changed;
+  changed = setGrassUniform(material, 'forestSeasonalDormancy', presentation.dormancy) || changed;
+  changed = setGrassUniform(material, 'forestSnowCoverage', snowCoverage) || changed;
+  return changed;
 }
 
 const GRASS_TINT_WHITE = new THREE.Color(0xffffff);

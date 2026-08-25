@@ -38,7 +38,7 @@
 .noble-hud__reports-clear {
   min-height: 28px;
   padding: 5px 6px;
-  font-size: 10px;
+  font-size: var(--ui-readable-caption);
 }
 
 .noble-hud__reports-list {
@@ -150,14 +150,14 @@
 
 .ui-tooltip__season-current {
   padding: 2px 6px;
-  font-size: 10px;
+  font-size: var(--ui-readable-caption);
 }
 
 /* Top HUD and its flyout ledgers ---------------------------------------- */
 
 .settlement-vitals__zoom-label,
 .noble-hud__gold .settlement-hud__label {
-  font-size: 10px;
+  font-size: var(--ui-readable-caption);
 }
 
 .settlement-vitals__zoom-value,
@@ -168,6 +168,25 @@
 
 .settlement-hud__clock-time {
   font-size: 15px;
+}
+
+.settlement-hud__approval-kicker,
+.settlement-hud__approval-standing [data-approval-trend],
+.settlement-hud__speed-name,
+.settlement-hud .settlement-hud__stat.is-resource-locator::after {
+  font-size: var(--ui-readable-caption);
+}
+
+.settlement-hud__clock-detail,
+.settlement-hud__season,
+.settlement-hud__speed-button,
+.settlement-hud__speed-value,
+.settlement-hud__speed-button--pause .settlement-hud__speed-value {
+  font-size: var(--ui-readable-secondary);
+}
+
+.settlement-hud__approval-standing {
+  font-size: var(--ui-readable-body);
 }
 
 .settlement-hud__sub,
@@ -188,6 +207,8 @@
 .settlement-hud__animal-row p,
 .settlement-hud__animals-empty,
 .settlement-hud__animals-note,
+.settlement-hud__animals-status,
+.settlement-hud__animals-section .settlement-hud__animals-empty,
 .settlement-hud__animal-ledger-copy small,
 .settlement-hud__supply-summary span,
 .settlement-hud__fire-alert span,
@@ -240,6 +261,7 @@
 }
 
 .resource-inspector-status,
+.resource-inspector-assignment-copy small,
 .resource-inspector-labor-hint,
 .resource-inspector-demolish,
 .resource-inspector-demolish-hint,
@@ -258,9 +280,15 @@
 .backyard-picker-option__cost .resource-cost,
 .backyard-picker-option__funding,
 .monastery-extension-choice__copy strong,
-.monastery-extension-choice__copy small {
+.monastery-extension-choice__copy small,
+.resource-inspector-ox-mark,
+.villager-inspector-current span {
   font-size: var(--ui-readable-secondary);
   line-height: 1.35;
+}
+
+.resource-inspector-details [data-inspector-detail] > .inspector-detail-label::after {
+  font-size: var(--ui-readable-caption);
 }
 
 .resource-inspector-details [data-inspector-details] > .inspector-detail-section,

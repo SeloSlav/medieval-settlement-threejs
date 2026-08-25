@@ -30,7 +30,7 @@ assert.match(
 const undersizedLiteral = /font-size\s*:\s*([0-9]+(?:\.[0-9]+)?)px/g;
 for (const match of readability.matchAll(undersizedLiteral)) {
   assert.ok(
-    Number(match[1]) >= 10,
+    Number(match[1]) >= 11,
     `readability layer introduced undersized text: ${match[0]}`,
   );
 }

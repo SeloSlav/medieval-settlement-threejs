@@ -41,6 +41,7 @@ export type ForestCanopyOcclusionSource = {
   x: number;
   z: number;
   canopyRadius: number;
+  seasonalDeciduous?: boolean;
 };
 
 export type ForestCanopyFieldSample = {
@@ -67,6 +68,7 @@ type ForestCanopyTreeStamp = {
   crown: ForestCanopyStamp;
   stand: ForestCanopyStamp;
   bounds: PixelBounds;
+  seasonalDeciduous: boolean;
 };
 
 type PixelBounds = {
@@ -131,6 +133,7 @@ export class ForestCanopyOcclusionMap {
   private readonly pixels: Uint8Array;
   private stamps: ForestCanopyTreeStamp[] = [];
   private active: boolean[] = [];
+  private deciduousDormancy = 0;
   private derivedFieldsDirty = false;
   private fullRebuildDirty = false;
   private pendingDirtyBounds: PixelBounds | null = null;
@@ -179,8 +182,8 @@ export class ForestCanopyOcclusionMap {
     this.stamps = sources.map((source, index) => this.createTreeStamp(source, index));
     this.active = sources.map(() => true);
     for (const stamp of this.stamps) {
-      this.applyStamp(this.accumulation, stamp.crown, 1);
-      this.applyStamp(this.standDensity, stamp.stand, 1);
+      this.applyStamp(this.accumulation, stamp.crown, this.crownWeight(stamp));
+      this.applyStamp(this.standDensity, stamp.stand, this.standWeight(stamp));
     }
     this.derivedFieldsDirty = true;
     this.fullRebuildDirty = true;
@@ -197,8 +200,16 @@ export class ForestCanopyOcclusionMap {
     const stamp = this.stamps[treeIndex];
     if (!stamp || this.active[treeIndex] === active) return false;
     this.active[treeIndex] = active;
-    this.applyStamp(this.accumulation, stamp.crown, active ? 1 : -1);
-    this.applyStamp(this.standDensity, stamp.stand, active ? 1 : -1);
+    this.applyStamp(
+      this.accumulation,
+      stamp.crown,
+      (active ? 1 : -1) * this.crownWeight(stamp),
+    );
+    this.applyStamp(
+      this.standDensity,
+      stamp.stand,
+      (active ? 1 : -1) * this.standWeight(stamp),
+    );
     this.derivedFieldsDirty = true;
     this.pendingDirtyBounds = unionPixelBounds(
       this.pendingDirtyBounds,
@@ -223,6 +234,34 @@ export class ForestCanopyOcclusionMap {
 
   isTreeActive(treeIndex: number): boolean {
     return this.active[treeIndex] ?? false;
+  }
+
+  /**
+   * Rebalances the existing field when broadleaf crowns shed. Quantizing to
+   * twenty steps avoids rebuilding a 512² CPU field for imperceptible clock
+   * changes while preserving a smooth month-long transition.
+   */
+  setDeciduousDormancy(dormancy: number): boolean {
+    const clamped = THREE.MathUtils.clamp(
+      Number.isFinite(dormancy) ? dormancy : 0,
+      0,
+      1,
+    );
+    const next = Math.round(clamped * 20) / 20;
+    if (Math.abs(next - this.deciduousDormancy) <= 1e-6) return false;
+    this.deciduousDormancy = next;
+    this.accumulation.fill(0);
+    this.standDensity.fill(0);
+    for (let index = 0; index < this.stamps.length; index++) {
+      if (!this.active[index]) continue;
+      const stamp = this.stamps[index]!;
+      this.applyStamp(this.accumulation, stamp.crown, this.crownWeight(stamp));
+      this.applyStamp(this.standDensity, stamp.stand, this.standWeight(stamp));
+    }
+    this.derivedFieldsDirty = true;
+    this.fullRebuildDirty = true;
+    this.pendingDirtyBounds = null;
+    return this.commit();
   }
 
   setDebugMode(mode: ForestCanopyOcclusionDebugMode): void {
@@ -263,6 +302,7 @@ export class ForestCanopyOcclusionMap {
       crown,
       stand,
       bounds: unionPixelBounds(crown.bounds, stand.bounds),
+      seasonalDeciduous: source.seasonalDeciduous === true,
     };
   }
 
@@ -378,7 +418,7 @@ export class ForestCanopyOcclusionMap {
   private applyStamp(
     target: Float32Array,
     stamp: ForestCanopyStamp,
-    direction: 1 | -1,
+    direction: number,
   ): void {
     for (let index = 0; index < stamp.indices.length; index++) {
       const pixelIndex = stamp.indices[index]!;
@@ -387,6 +427,16 @@ export class ForestCanopyOcclusionMap {
         target[pixelIndex]! + stamp.weights[index]! * direction,
       );
     }
+  }
+
+  private crownWeight(stamp: ForestCanopyTreeStamp): number {
+    if (!stamp.seasonalDeciduous) return 1;
+    return THREE.MathUtils.lerp(1, 0.12, this.deciduousDormancy);
+  }
+
+  private standWeight(stamp: ForestCanopyTreeStamp): number {
+    if (!stamp.seasonalDeciduous) return 1;
+    return THREE.MathUtils.lerp(1, 0.38, this.deciduousDormancy);
   }
 
   private rebuildDerivedFields(rawDirtyBounds?: PixelBounds): PixelBounds | undefined {

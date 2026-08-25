@@ -1,6 +1,17 @@
-import type * as THREE from 'three';
+import * as THREE from 'three';
 import * as TSL from 'three/tsl';
-import { attribute, float, texture, uniform } from 'three/tsl';
+import {
+  attribute,
+  float,
+  mix,
+  normalWorldGeometry,
+  positionWorld,
+  sin,
+  smoothstep,
+  texture,
+  uniform,
+  vec3,
+} from 'three/tsl';
 
 /** Forest foliage is diffuse/transmissive; a sun-driven glossy lobe reads as shimmer. */
 export const SEEDTHREE_FOREST_CARD_SPECULAR_INTENSITY = 0;
@@ -30,13 +41,18 @@ type SeedThreePositionNodeMaterial = THREE.Material & {
 };
 
 type TslNode = {
+  add(value: unknown): TslNode;
+  clamp(minimum: unknown, maximum: unknown): TslNode;
   mul(value: unknown): TslNode;
   sub(value: unknown): TslNode;
 };
 
-type TslVectorNode = {
+type TslVectorNode = TslNode & {
   a: TslNode;
+  rgb: TslNode;
+  x: TslNode;
   y: TslNode;
+  z: TslNode;
 };
 
 // @types/three 0.185 omits step from the three/tsl barrel even though the
@@ -54,7 +70,62 @@ type SeedThreeFoliageNodeMaterial = SeedThreeOpacityNodeMaterial & {
   thicknessColorNode?: TslNode | null;
 };
 
+type SeedThreeBarkNodeMaterial = THREE.Material & {
+  color?: THREE.Color;
+  colorNode?: TslNode | null;
+  map?: THREE.Texture | null;
+};
+
+const barkSnowTsl = {
+  mix: mix as (left: unknown, right: unknown, amount: unknown) => TslNode,
+  normalWorldGeometry: normalWorldGeometry as unknown as TslVectorNode,
+  positionWorld: positionWorld as unknown as TslVectorNode,
+  sin: sin as (value: unknown) => TslNode,
+  smoothstep: smoothstep as (low: unknown, high: unknown, value: unknown) => TslNode,
+  texture: texture as (map: THREE.Texture) => TslVectorNode,
+  uniform: uniform as <T>(value: T) => { value: T } & TslNode,
+  vec3: vec3 as (x: unknown, y?: unknown, z?: unknown) => TslNode,
+};
+
 const overviewBillboardFadeOpacity = uniform(0) as { value: number } & TslNode;
+
+/**
+ * Adds one shared, upward-facing snow response to real trunks and branches.
+ * The world-space breakup is deterministic and consumes no extra instance
+ * attribute, texture sample, draw call, or geometry pass.
+ */
+export function applySeedThreeBarkSnow(
+  material: THREE.Material,
+): THREE.Material {
+  if (material.userData.seedThreeBarkSnow === true) return material;
+  const target = material as SeedThreeBarkNodeMaterial;
+  if (!target.map) return material;
+  const snowCoverage = barkSnowTsl.uniform(0);
+  const tint = barkSnowTsl.uniform(target.color?.clone() ?? new THREE.Color(0xffffff));
+  const baseSurface = barkSnowTsl.texture(target.map).rgb.mul(tint);
+  const upwardExposure = barkSnowTsl.smoothstep(
+    float(0.3),
+    float(0.88),
+    barkSnowTsl.normalWorldGeometry.y,
+  );
+  const snowVariation = barkSnowTsl.sin(
+    barkSnowTsl.positionWorld.x.mul(0.73)
+      .add(barkSnowTsl.positionWorld.z.mul(1.07)),
+  ).mul(0.11).add(0.89);
+  const snowAmount = snowCoverage
+    .mul(upwardExposure)
+    .mul(snowVariation)
+    .mul(0.62);
+  target.colorNode = barkSnowTsl.mix(
+    baseSurface,
+    barkSnowTsl.vec3(0.92, 0.955, 0.98),
+    snowAmount,
+  );
+  material.userData.forestSnowCoverage = snowCoverage;
+  material.userData.seedThreeBarkSnow = true;
+  material.needsUpdate = true;
+  return material;
+}
 
 /** Smoothly blend the far-card overlay over an always-resident real tree. */
 export function applySeedThreeOverviewBillboardFade(
@@ -77,7 +148,7 @@ export function applySeedThreeOverviewBillboardFade(
   return material;
 }
 
-/** Remove the complete strategic foliage-volume card on dormant deciduous instances. */
+/** Drop strategic foliage cards in stable clusters on dormant deciduous instances. */
 export function applySeedThreeWholeCardDormancy(
   material: THREE.Material,
 ): THREE.Material {
@@ -88,7 +159,26 @@ export function applySeedThreeWholeCardDormancy(
   // the forest compaction and SeedThree card shader without adding an attribute.
   const packedTreeOrigin = attribute('aTreeOrigin', 'vec3') as unknown as TslVectorNode;
   const deciduousInstance = tslStep(float(1024), packedTreeOrigin.y);
-  const retain = (float(1) as TslNode).sub(deciduousInstance.mul(dormancy));
+  const treeOriginY = packedTreeOrigin.y.sub(deciduousInstance.mul(float(2048)));
+  const anchor = attribute('aAnchorPos', 'vec3') as unknown as TslVectorNode;
+  const phenologyOffset = barkSnowTsl.sin(
+    packedTreeOrigin.x.mul(0.37).add(packedTreeOrigin.z.mul(0.53)),
+  ).mul(0.13)
+    .mul(dormancy)
+    .mul((float(1) as TslNode).sub(dormancy));
+  const effectiveDormancy = dormancy.add(phenologyOffset).clamp(0, 1);
+  const clusterNoise = barkSnowTsl.sin(
+    packedTreeOrigin.x.mul(0.19)
+      .add(treeOriginY.mul(0.11))
+      .add(packedTreeOrigin.z.mul(0.27))
+      .add(anchor.x.mul(1.31))
+      .add(anchor.y.mul(0.83))
+      .add(anchor.z.mul(1.57)),
+  ).mul(0.49).add(0.5);
+  const clusterRetain = tslStep(effectiveDormancy, clusterNoise);
+  const retain = (float(1) as TslNode).sub(
+    deciduousInstance.mul((float(1) as TslNode).sub(clusterRetain)),
+  );
   const target = material as SeedThreeFoliageNodeMaterial;
   const cardAlpha = target.map
     ? (texture(target.map) as unknown as TslVectorNode).a
