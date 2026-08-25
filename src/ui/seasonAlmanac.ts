@@ -17,13 +17,13 @@ export const SEASON_ALMANAC = {
     label: 'Autumn',
     months: 'September–November',
     icon: '❧',
-    description: 'Finish the late harvest, then plough and sow winter crops in October–November. Woodland swine feed best on autumn mast.',
+    description: 'Finish the late harvest, then plough and sow winter crops in October–November. Oat sheaves become edible oats at threshing barns; staffed pastoral farmsteads turn those oats into stored Animal Feed. Woodland swine feed best on autumn mast.',
   },
   winter: {
     label: 'Winter',
     months: 'December–February',
     icon: '❄',
-    description: 'Foraging, fishing, field work, and shearing stop. Pasture and mast thin: cattle and sheep use local hay before direct oats, while pigs turn from mast to oats; rye or maslin can substitute less efficiently. Frozen roads slow carts, while heated homes need twice their normal fuel.',
+    description: 'Foraging, fishing, field work, and shearing stop. Pasture and mast thin: cattle and sheep use local hay before prepared Animal Feed, while pigs use remaining mast before Animal Feed. Livestock never eat raw grain; transport and production ox upkeep remains abstract. Frozen roads slow carts, while heated homes need twice their normal fuel.',
   },
 } as const satisfies Record<Season, {
   label: string;

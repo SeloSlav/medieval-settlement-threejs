@@ -1289,8 +1289,10 @@ button.noble-hud__report-body:not(:disabled):focus-visible {
 
 @media (max-width: 760px) {
   .noble-hud {
-    top: 7px;
+    /* Keep every top-ribbon control, including Animals and Stores, clickable. */
+    top: calc(72px + env(safe-area-inset-top, 0px));
     right: 7px;
+    z-index: 3;
     grid-template-columns: 88px minmax(0, 1fr);
     gap: 11px;
     width: 238px;

@@ -71,12 +71,13 @@ pub enum CommodityKind {
     AroniaJam,
     RosehipJam,
     PearCider,
+    AnimalFeed,
 }
 
 /// Canonical exhaustive commodity iteration order. Systems that must prove a
 /// physical holder is empty (temporary camps, reclamation piles, diagnostics)
 /// use this list so adding a commodity cannot silently strand stock.
-pub const ALL_COMMODITIES: &[CommodityKind; 63] = &[
+pub const ALL_COMMODITIES: &[CommodityKind; 64] = &[
     CommodityKind::Firewood,
     CommodityKind::Water,
     CommodityKind::Food,
@@ -140,6 +141,7 @@ pub const ALL_COMMODITIES: &[CommodityKind; 63] = &[
     CommodityKind::AroniaJam,
     CommodityKind::RosehipJam,
     CommodityKind::PearCider,
+    CommodityKind::AnimalFeed,
 ];
 
 pub const FRESH_FOOD_COMMODITIES: [CommodityKind; 20] = [
@@ -374,6 +376,7 @@ impl CommodityKind {
             Self::PearCider => 57,
             Self::AroniaJam => 61,
             Self::RosehipJam => 62,
+            Self::AnimalFeed => 63,
         }
     }
 
@@ -442,6 +445,7 @@ impl CommodityKind {
             57 => Some(Self::PearCider),
             61 => Some(Self::AroniaJam),
             62 => Some(Self::RosehipJam),
+            63 => Some(Self::AnimalFeed),
             _ => None,
         }
     }
@@ -482,9 +486,8 @@ impl CommodityKind {
         matches!(self, Self::RyeFlour | Self::MaslinFlour)
     }
 
-    /// Every ready-to-eat commodity is one indivisible household ration.
-    /// Different foods still matter through category requirements, spoilage,
-    /// preservation, and recipes—not fractional nourishment multipliers.
+    /// Oats remain edible porridge grain, but one whole unit is only half a
+    /// meal; every other ready-to-eat commodity is one household ration.
     pub fn meal_value(self) -> f64 {
         match self {
             Self::Food
@@ -503,7 +506,6 @@ impl CommodityKind {
             | Self::CuredMeat
             | Self::SmokedFish
             | Self::Cheese
-            | Self::OatGrain
             | Self::RyeBread
             | Self::MaslinBread
             | Self::Pears
@@ -514,6 +516,7 @@ impl CommodityKind {
             | Self::Beetroot
             | Self::AroniaJam
             | Self::RosehipJam => 1.0,
+            Self::OatGrain => 0.5,
             _ => 0.0,
         }
     }
@@ -626,6 +629,7 @@ pub fn building_commodity_stock(building: &Building, kind: CommodityKind) -> f64
         CommodityKind::AroniaJam => building.aronia_jam,
         CommodityKind::RosehipJam => building.rosehip_jam,
         CommodityKind::PearCider => building.pear_cider,
+        CommodityKind::AnimalFeed => building.animal_feed,
     }
 }
 
@@ -713,6 +717,7 @@ pub fn building_commodity_cap(kind: &str, commodity: CommodityKind) -> f64 {
         | CommodityKind::Cheese
         | CommodityKind::AroniaJam
         | CommodityKind::RosehipJam => def.storage_preserved_food,
+        CommodityKind::AnimalFeed => def.storage_animal_feed,
     }
 }
 
@@ -901,6 +906,7 @@ pub fn withdraw_building_commodity(
         CommodityKind::AroniaJam => building.aronia_jam -= withdrawn,
         CommodityKind::RosehipJam => building.rosehip_jam -= withdrawn,
         CommodityKind::PearCider => building.pear_cider -= withdrawn,
+        CommodityKind::AnimalFeed => building.animal_feed -= withdrawn,
     }
     withdrawn
 }
@@ -975,6 +981,7 @@ pub fn deposit_building_commodity(
         CommodityKind::AroniaJam => building.aronia_jam += deposited,
         CommodityKind::RosehipJam => building.rosehip_jam += deposited,
         CommodityKind::PearCider => building.pear_cider += deposited,
+        CommodityKind::AnimalFeed => building.animal_feed += deposited,
     }
     deposited
 }
@@ -1063,6 +1070,8 @@ pub fn credit_treasury_commodity(
         CommodityKind::AroniaJam => treasury.aronia_jam += amount,
         CommodityKind::RosehipJam => treasury.rosehip_jam += amount,
         CommodityKind::PearCider => treasury.pear_cider += amount,
+        // Prepared fodder exists only in physical livestock stores.
+        CommodityKind::AnimalFeed => return,
     }
     let physical = treasury.physical_founding_site_enabled;
     ctx.db.player_resources().owner().update(treasury);
@@ -1408,12 +1417,12 @@ mod tests {
 
     #[test]
     fn commodity_ids_remain_stable_and_round_trip() {
-        for id in 0_u8..=62 {
+        for id in 0_u8..=63 {
             let commodity =
                 CommodityKind::from_u8(id).unwrap_or_else(|| panic!("missing commodity id {id}"));
             assert_eq!(commodity.as_u8(), id);
         }
-        assert_eq!(CommodityKind::from_u8(63), None);
+        assert_eq!(CommodityKind::from_u8(64), None);
     }
 
     #[test]
@@ -1423,8 +1432,8 @@ mod tests {
             .copied()
             .map(CommodityKind::as_u8)
             .collect::<HashSet<_>>();
-        assert_eq!(ids.len(), 63);
-        for id in 0_u8..=62 {
+        assert_eq!(ids.len(), 64);
+        for id in 0_u8..=63 {
             assert!(ids.contains(&id), "ALL_COMMODITIES omits commodity id {id}");
         }
     }
@@ -1451,7 +1460,7 @@ mod tests {
         assert!(CommodityKind::CuredMeat.is_preserved_food());
         assert!(CommodityKind::Honey.is_edible());
         assert_eq!(CommodityKind::RyeBread.meal_value(), 1.0);
-        assert_eq!(CommodityKind::OatGrain.meal_value(), 1.0);
+        assert_eq!(CommodityKind::OatGrain.meal_value(), 0.5);
         assert_eq!(CommodityKind::MaslinBread.meal_value(), 1.0);
         assert_eq!(CommodityKind::Meat.meal_value(), 1.0);
         assert_eq!(CommodityKind::Berries.meal_value(), 1.0);

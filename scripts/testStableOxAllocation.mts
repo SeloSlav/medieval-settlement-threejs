@@ -88,6 +88,31 @@ assert.equal(
   'unposted oxen continue through automatic assistance when a posted animal waits',
 );
 
+const numericTieBuildings = new Map<string, any>([
+  ['building-1', building('building-1', 'stable', 0, 0, 0)],
+  ['building-2', building('building-2', 'lumber_mill', -8, 0, 1)],
+  ['building-10', building('building-10', 'stone_quarry', 8, 0, 1)],
+]);
+assert.equal(
+  assignStableOxen([oxen[0]], numericTieBuildings).get('stable-ox-1')?.buildingId,
+  'building-2',
+  'equal-distance automatic work follows the server numeric building-id tie-break',
+);
+
+const numericOxOrderBuildings = new Map<string, any>([
+  ['building-2', building('building-2', 'stable', 0, 0, 0)],
+  ['building-10', building('building-10', 'stable', 2, 0, 0)],
+  ['building-20', building('building-20', 'lumber_mill', 5, 0, 1)],
+]);
+const numericOxOrder = assignStableOxen([
+  { id: 'stable-ox-10', stableId: 'building-10', slot: 0, assignedBuildingId: 'building-20' },
+  { id: 'stable-ox-2', stableId: 'building-2', slot: 0, assignedBuildingId: 'building-20' },
+], numericOxOrderBuildings);
+assert.ok(
+  numericOxOrder.has('stable-ox-2') && !numericOxOrder.has('stable-ox-10'),
+  'oversubscribed postings choose the same numeric stable/bay/ox order as the server',
+);
+
 const trip = {
   id: 'trip-1',
   buildingId: 'building-2',

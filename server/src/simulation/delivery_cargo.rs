@@ -79,6 +79,7 @@ pub struct DeliveryCargoTotals {
     pub beetroot: f64,
     pub aronia_jam: f64,
     pub rosehip_jam: f64,
+    pub animal_feed: f64,
 }
 
 impl DeliveryCargoTotals {
@@ -151,6 +152,7 @@ impl DeliveryCargoTotals {
             CommodityKind::Beetroot => self.beetroot += amount,
             CommodityKind::AroniaJam => self.aronia_jam += amount,
             CommodityKind::RosehipJam => self.rosehip_jam += amount,
+            CommodityKind::AnimalFeed => self.animal_feed += amount,
         }
     }
 }

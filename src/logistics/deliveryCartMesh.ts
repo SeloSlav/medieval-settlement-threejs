@@ -31,6 +31,9 @@ const FIRE_BUCKET_WATER_MATERIAL = new THREE.MeshStandardMaterial({
 const CARGO_MATERIALS = {
   rope: createCargoMaterial('Cargo rope', 0x8b7048, 0.98),
   grainCanvas: createCargoMaterial('Grain sack canvas', 0xc6aa70, 0.96),
+  feedCanvas: createCargoMaterial('Animal feed sack canvas', 0x9b8352, 0.98),
+  feedCake: createCargoMaterial('Compressed oat feed', 0x756036, 1),
+  feedMark: createCargoMaterial('Animal feed sack mark', 0x465338, 0.99),
   flourCanvas: createCargoMaterial('Flour sack canvas', 0xd8cfb9, 0.97),
   flourMark: createCargoMaterial('Flour sack mark', 0x766a58, 0.96),
   terracotta: createCargoMaterial('Preserving crock terracotta', 0x9a5339, 0.93),
@@ -139,6 +142,9 @@ function addCargo(
     case 'barley':
     case 'malt':
       addGrainLoad(group);
+      break;
+    case 'animalFeed':
+      addAnimalFeedLoad(group);
       break;
     case 'ryeFlour':
     case 'maslinFlour':
@@ -404,6 +410,43 @@ function addGrainLoad(group: THREE.Group): void {
     CARGO_MATERIALS.grainCanvas,
     new THREE.Vector3(0.23, 0.96, 0.08),
     new THREE.Euler(0.08, 0, -0.38),
+  );
+}
+
+function addAnimalFeedLoad(group: THREE.Group): void {
+  addSack(
+    group,
+    'Animal feed sack 1',
+    new THREE.Vector3(-0.2, 0.73, -0.02),
+    0.95,
+    CARGO_MATERIALS.feedCanvas,
+  );
+  addSack(
+    group,
+    'Animal feed sack 2',
+    new THREE.Vector3(0.2, 0.7, 0.04),
+    0.82,
+    CARGO_MATERIALS.feedCanvas,
+  );
+  for (const [index, position] of [
+    new THREE.Vector3(-0.1, 0.98, -0.08),
+    new THREE.Vector3(0.12, 0.99, -0.04),
+  ].entries()) {
+    addNamedMesh(
+      group,
+      `Compressed animal feed cake ${index + 1}`,
+      new THREE.BoxGeometry(0.2, 0.1, 0.28),
+      CARGO_MATERIALS.feedCake,
+      position,
+      new THREE.Euler(0, index === 0 ? -0.12 : 0.16, 0),
+    );
+  }
+  addNamedMesh(
+    group,
+    'Animal feed sack mark',
+    new THREE.CircleGeometry(0.075, 8),
+    CARGO_MATERIALS.feedMark,
+    new THREE.Vector3(-0.2, 0.76, 0.175),
   );
 }
 

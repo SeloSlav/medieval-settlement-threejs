@@ -106,14 +106,14 @@ export const NAMED_FOOD_LABELS: Record<NamedFoodKind, string> = {
 export type FoodInventoryLike = Partial<Record<FoodInventoryKind, number>>;
 
 /**
- * Every ready-to-eat physical food unit is one indivisible household ration.
- * Food identity still matters through category requirements, spoilage,
- * preservation, and recipes, but not through fractional nutrition weights.
+ * Most ready-to-eat physical food units are one household ration. Raw oats
+ * remain edible as thin porridge, but provide only half a meal per unit; their
+ * primary economic role is now the pastoral animal-feed recipe.
  * Keep this exhaustive table in parity with `CommodityKind::meal_value`.
  */
 export const FOOD_MEAL_VALUES: Readonly<Record<FoodInventoryKind, number>> = {
   food: 1,
-  oatGrain: 1,
+  oatGrain: 0.5,
   ryeBread: 1,
   maslinBread: 1,
   meat: 1,

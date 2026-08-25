@@ -375,6 +375,13 @@
   background-image: url('/assets/ui/icons/provisions/oat-grain.png');
 }
 
+.settlement-hud__stat[data-resource='animalFeed']::before {
+  background-image: url('/assets/ui/icons/provisions/animal-feed.png');
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: contain;
+}
+
 .settlement-hud__stat[data-resource='maslinGrain']::before {
   background-image: url('/assets/ui/icons/provisions/maslin-grain.png');
 }
@@ -635,6 +642,13 @@
 
 .resource-cost__item[data-resource-cost='oatGrain'] .resource-cost__icon {
   background-image: url('/assets/ui/icons/provisions/oat-grain.png');
+}
+
+.resource-cost__item[data-resource-cost='animalFeed'] .resource-cost__icon {
+  background-image: url('/assets/ui/icons/provisions/animal-feed.png');
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: contain;
 }
 
 .resource-cost__item[data-resource-cost='maslinGrain'] .resource-cost__icon {

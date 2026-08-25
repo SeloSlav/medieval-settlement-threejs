@@ -574,6 +574,7 @@ export class ResourceInspector {
       gold: this.mustElement(options.uiRoot, '[data-stockpile="gold"]'),
       ryeGrain: this.mustElement(options.uiRoot, '[data-stockpile="ryeGrain"]'),
       oatGrain: this.mustElement(options.uiRoot, '[data-stockpile="oatGrain"]'),
+      animalFeed: this.mustElement(options.uiRoot, '[data-stockpile="animalFeed"]'),
       maslinGrain: this.mustElement(options.uiRoot, '[data-stockpile="maslinGrain"]'),
       barley: this.mustElement(options.uiRoot, '[data-stockpile="barley"]'),
       malt: this.mustElement(options.uiRoot, '[data-stockpile="malt"]'),

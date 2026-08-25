@@ -79,6 +79,7 @@ function buildingStateFromRow(
     treeWorkAreaZ: number;
     treeWorkAreaRadius: number;
     settlementId: bigint;
+    animalFeed: number;
   }>;
   const treeWorkAreaX = Number(materialRow.treeWorkAreaX ?? 0);
   const treeWorkAreaZ = Number(materialRow.treeWorkAreaZ ?? 0);
@@ -111,6 +112,7 @@ function buildingStateFromRow(
     maslinSheaves: wholeResourceUnits(row.maslinSheaves),
     ryeGrain: wholeResourceUnits(row.ryeGrain),
     oatGrain: wholeResourceUnits(row.oatGrain),
+    animalFeed: wholeResourceUnits(materialRow.animalFeed),
     maslinGrain: wholeResourceUnits(row.maslinGrain),
     barley: wholeResourceUnits(row.barley),
     malt: wholeResourceUnits(row.malt),

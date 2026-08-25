@@ -452,10 +452,15 @@ const SETTLEMENT_HUD_HTML = `
         <strong class="settlement-hud__value" data-stockpile="ryeGrain">0</strong>
         <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="ryeGrain" hidden></span>
       </div>
-      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="oatGrain" data-tooltip="Threshed oats: one ready-to-eat porridge ration for people, or the preferred direct grain supplement for livestock. Cattle and sheep use local hay first in winter; pigs use woodland mast when available. No mill, bakery, or separate feed recipe required.">
+      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="oatGrain" data-tooltip="Threshed oats remain edible as thin porridge, but each unit provides only half a human meal. Their primary use is preparation into animal feed at a staffed Pastoral farmstead.">
         <span class="settlement-hud__label">Oats</span>
         <strong class="settlement-hud__value" data-stockpile="oatGrain">0</strong>
         <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="oatGrain" hidden></span>
+      </div>
+      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="animalFeed" data-tooltip="Prepared from oats at staffed Pastoral farmsteads and stored at livestock holdings for winter. Cattle and sheep use local hay first; pigs use woodland mast first. Animal feed is not human food, and stable transport oxen remain an upkeep abstraction.">
+        <span class="settlement-hud__label">Animal feed</span>
+        <strong class="settlement-hud__value" data-stockpile="animalFeed">0</strong>
+        <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="animalFeed" hidden></span>
       </div>
       <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="maslinGrain" data-tooltip="Mixed wheat–rye grain for maslin flour and bread.">
         <span class="settlement-hud__label">Maslin grain</span>

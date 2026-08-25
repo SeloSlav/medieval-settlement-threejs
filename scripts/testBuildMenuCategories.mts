@@ -101,6 +101,34 @@ assert.match(
 );
 assert.match(
   renderedCards,
+  /data-action="pastoral-farmstead"[\s\S]*?cattle and sheep graze[\s\S]*?cut (?:summer )?hay[\s\S]*?hay before (?:animal )?feed[\s\S]*?prepare animal feed from oats/i,
+  'the pastoral card must explain grazing, hay-before-feed winter order, and feed preparation',
+);
+assert.match(
+  renderedCards,
+  /data-action="swineherd"[\s\S]*?mast first, then prepared animal feed/i,
+  'the swineherd card must explain that winter mast is consumed before prepared feed',
+);
+assert.match(
+  renderedCards,
+  /data-action="stable"[\s\S]*?feed and water are abstracted[\s\S]*?never draw herd hay or (?:grain|Animal Feed)/i,
+  'the stable card must keep transport and production ox upkeep abstract',
+);
+const cardResourceFlow = (action: string): { inputs: string[]; outputs: string[] } => {
+  const encoded = renderedCards.match(
+    new RegExp(`data-action="${action}"[^>]*data-tooltip-flow="([^"]+)"`),
+  )?.[1];
+  assert.ok(encoded, `${action} must expose its physical resource flow`);
+  return JSON.parse(decodeURIComponent(encoded));
+};
+const pastoralFlow = cardResourceFlow('pastoral-farmstead');
+assert.ok(pastoralFlow.inputs.includes('oatGrain'));
+assert.ok(pastoralFlow.outputs.includes('animalFeed'));
+const swineFlow = cardResourceFlow('swineherd');
+assert.ok(swineFlow.inputs.includes('animalFeed'));
+assert.ok(!swineFlow.inputs.includes('oatGrain'), 'swineherds must receive prepared feed rather than raw oats');
+assert.match(
+  renderedCards,
   /<img class="construction-card__art"[^>]*alt=""[^>]*>[\s\S]*?<span class="construction-card__art-fallback" aria-hidden="true" hidden>/,
   'build-card art must be decorative while a deliberate visual fallback remains available',
 );

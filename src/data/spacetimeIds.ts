@@ -55,6 +55,11 @@ export function stableOxClientId(serverId: bigint | number): string {
   return `stable-ox-${serverId}`;
 }
 
+export function parseStableOxServerId(stableOxId: string): bigint | null {
+  const match = /^stable-ox-(\d+)$/.exec(stableOxId);
+  return match ? BigInt(match[1]) : null;
+}
+
 export function parsePastureServerId(pastureId: string): bigint | null {
   const match = /^pasture-(\d+)$/.exec(pastureId);
   return match ? BigInt(match[1]) : null;

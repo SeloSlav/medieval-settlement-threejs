@@ -1117,6 +1117,7 @@ pub(crate) fn place_building_internal(
         rosehip_jam: 0.0,
         pear_cider: 0.0,
         settlement_id,
+        animal_feed: 0.0,
     });
 
     if is_founders_camp_expansion {

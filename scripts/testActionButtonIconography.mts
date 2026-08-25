@@ -169,6 +169,7 @@ const generatedAssets = [
   'materials/roof-tiles.png',
   'materials/manure.png',
   'materials/remedies.png',
+  'provisions/animal-feed.png',
   'actions/graveyard.png',
   'actions/demolish.png',
   'actions/cattle-herd.png',
@@ -185,6 +186,19 @@ for (const asset of generatedAssets) {
   assert.equal(png.readUInt32BE(20), 256, `${asset} must be 256 pixels tall`);
   assert.equal(png[25], 6, `${asset} must retain a true RGBA transparency channel`);
 }
+
+const animalFeedRaster = await sharp('public/assets/ui/icons/provisions/animal-feed.png')
+  .raw()
+  .toBuffer({ resolveWithObject: true });
+assert.equal(animalFeedRaster.info.channels, 4, 'animal feed artwork must decode as RGBA');
+let animalFeedTransparentPixels = 0;
+let animalFeedVisiblePixels = 0;
+for (let offset = 3; offset < animalFeedRaster.data.length; offset += 4) {
+  if (animalFeedRaster.data[offset] === 0) animalFeedTransparentPixels += 1;
+  if (animalFeedRaster.data[offset] > 0) animalFeedVisiblePixels += 1;
+}
+assert.ok(animalFeedTransparentPixels > 0, 'animal feed artwork must retain real transparent padding');
+assert.ok(animalFeedVisiblePixels > 0, 'animal feed artwork must contain a visible painted subject');
 
 for (const [icon, asset] of [
   ['overnight-work-camp', 'actions/overnight-work-camp.png'],
@@ -315,6 +329,7 @@ for (const [resource, asset] of [
   ['roofTiles', 'materials/roof-tiles.png'],
   ['manure', 'materials/manure.png'],
   ['remedies', 'materials/remedies.png'],
+  ['animalFeed', 'provisions/animal-feed.png'],
 ] as const) {
   assert.match(
     iconography,

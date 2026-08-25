@@ -109,6 +109,8 @@ function storageNeed(plan: FoundingStockyardRelocationPlan): string {
       return 'a Guardhouse or Carpenter';
     case 'wool':
       return "a Weaver's Workshop or Pastoral Farmstead";
+    case 'animalFeed':
+      return 'a Pastoral Farmstead or Woodland Swineherd';
     case 'flax':
       return "a Weaver's Workshop or Threshing Barn";
     case 'cloth':

@@ -1,4 +1,4 @@
-export const RESOURCE_KINDS = ['timber', 'stone', 'firewood', 'water', 'game', 'berries', 'mushrooms', 'fish', 'food', 'ryeSheaves', 'oatSheaves', 'barleySheaves', 'maslinSheaves', 'ryeGrain', 'oatGrain', 'maslinGrain', 'barley', 'malt', 'ryeFlour', 'maslinFlour', 'ale', 'cider', 'pearCider', 'mead', 'preservedFood', 'honey', 'wine', 'wool', 'flax', 'cloth', 'hides', 'leather', 'shoes', 'ironwork', 'polearms', 'iron', 'clay', 'salt', 'charcoal', 'pottery', 'manure', 'remedies', 'roofTiles', 'gold', 'ryeBread', 'maslinBread', 'meat', 'milk', 'apples', 'pears', 'cherries', 'aronia', 'rosehips', 'vegetables', 'cabbage', 'carrots', 'beetroot', 'eggs', 'grapes', 'curedMeat', 'smokedFish', 'cheese', 'aroniaJam', 'rosehipJam'] as const;
+export const RESOURCE_KINDS = ['timber', 'stone', 'firewood', 'water', 'game', 'berries', 'mushrooms', 'fish', 'food', 'ryeSheaves', 'oatSheaves', 'barleySheaves', 'maslinSheaves', 'ryeGrain', 'oatGrain', 'maslinGrain', 'barley', 'malt', 'ryeFlour', 'maslinFlour', 'ale', 'cider', 'pearCider', 'mead', 'preservedFood', 'honey', 'wine', 'wool', 'flax', 'cloth', 'hides', 'leather', 'shoes', 'ironwork', 'polearms', 'iron', 'clay', 'salt', 'charcoal', 'pottery', 'manure', 'remedies', 'roofTiles', 'gold', 'ryeBread', 'maslinBread', 'meat', 'milk', 'apples', 'pears', 'cherries', 'aronia', 'rosehips', 'vegetables', 'cabbage', 'carrots', 'beetroot', 'eggs', 'grapes', 'curedMeat', 'smokedFish', 'cheese', 'aroniaJam', 'rosehipJam', 'animalFeed'] as const;
 export type ResourceKind = (typeof RESOURCE_KINDS)[number];
 
 export const RESOURCE_NODE_KINDS = ['quarry', 'game', 'berries', 'mushrooms', 'fish'] as const;
@@ -147,6 +147,7 @@ export type BuildingState = {
   maslinSheaves?: number;
   ryeGrain?: number;
   oatGrain?: number;
+  animalFeed?: number;
   maslinGrain?: number;
   barley?: number;
   malt?: number;

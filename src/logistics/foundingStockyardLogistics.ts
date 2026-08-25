@@ -276,6 +276,10 @@ function foundingDestinationPriority(
       if (building.kind === 'weaver') return 0;
       if (building.kind === 'pastoral_farmstead') return 1;
       return 3;
+    case 'animalFeed':
+      if (building.kind === 'pastoral_farmstead') return 0;
+      if (building.kind === 'swineherd') return 1;
+      return null;
     case 'flax':
       if (building.kind === 'weaver') return 0;
       if (building.kind === 'threshing_barn') return 1;

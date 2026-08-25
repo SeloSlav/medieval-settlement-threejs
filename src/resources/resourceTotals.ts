@@ -72,6 +72,7 @@ export type ResourceTotals = {
   maslinSheaves: number;
   ryeGrain: number;
   oatGrain: number;
+  animalFeed: number;
   maslinGrain: number;
   barley: number;
   malt: number;
@@ -142,6 +143,7 @@ export const HUD_RESOURCE_KINDS = [
   'gold',
   'ryeGrain',
   'oatGrain',
+  'animalFeed',
   'maslinGrain',
   'barley',
   'malt',
@@ -231,6 +233,7 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
   let maslinSheaves = ledger?.maslinSheaves ?? 0;
   let ryeGrain = ledger?.ryeGrain ?? 0;
   let oatGrain = ledger?.oatGrain ?? 0;
+  let animalFeed = ledger?.animalFeed ?? 0;
   let maslinGrain = ledger?.maslinGrain ?? 0;
   let barley = ledger?.barley ?? 0;
   let malt = ledger?.malt ?? 0;
@@ -336,6 +339,7 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
     ryeGrain += building.ryeGrain ?? 0;
     const buildingOatGrain = building.oatGrain ?? 0;
     oatGrain += buildingOatGrain;
+    animalFeed += building.animalFeed ?? 0;
     if (livestockHoldingProtectsFeedOats(
       building.kind,
       (state.livestockHerds?.get(building.id)?.headCount ?? 0) > 0,
@@ -592,6 +596,7 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
     maslinSheaves,
     ryeGrain,
     oatGrain,
+    animalFeed,
     maslinGrain,
     barley,
     malt,
@@ -1114,6 +1119,7 @@ function emptyResourceTotals(): ResourceTotals {
     maslinSheaves: 0,
     ryeGrain: 0,
     oatGrain: 0,
+    animalFeed: 0,
     maslinGrain: 0,
     barley: 0,
     malt: 0,

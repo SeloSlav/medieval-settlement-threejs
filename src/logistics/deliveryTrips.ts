@@ -72,6 +72,7 @@ export const DELIVERY_CARGO_KINDS = [
   'shoes',
   'aroniaJam',
   'rosehipJam',
+  'animalFeed',
 ] as const;
 export type DeliveryCargoKind = (typeof DELIVERY_CARGO_KINDS)[number];
 
@@ -427,6 +428,8 @@ export function cargoKindFromId(value: number): DeliveryCargoKind | null {
       return 'aroniaJam';
     case 62:
       return 'rosehipJam';
+    case 63:
+      return 'animalFeed';
     default:
       return null;
   }
@@ -484,6 +487,8 @@ export function cargoKindLabel(kind: DeliveryCargoKind): string {
       return 'Rye grain';
     case 'oatGrain':
       return 'Oats';
+    case 'animalFeed':
+      return 'Animal feed';
     case 'maslinGrain':
       return 'Maslin grain';
     case 'barley':
@@ -987,6 +992,8 @@ export function cargoColor(kind: DeliveryCargoKind): number {
       return 0xb99232;
     case 'malt':
       return 0x9d7335;
+    case 'animalFeed':
+      return 0x9a7a43;
     case 'ryeFlour':
     case 'maslinFlour':
       return 0xe8dcc8;

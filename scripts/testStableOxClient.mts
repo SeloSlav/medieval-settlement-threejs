@@ -52,9 +52,11 @@ const oxTeamRenderer = read('src/resources/inspector/buildingOxTeamRenderer.ts')
 assert.match(oxTeamRenderer, /if \(!isOxSupportedWorkplace\(building\.kind\)\) return view/);
 assert.match(oxTeamRenderer, /ox\.assignedBuildingId === building\.id[\s\S]{0,120}ox\.assignedBuildingId == null/);
 assert.match(oxTeamRenderer, /getBuildingDefinition\(building\.kind\)\.maxLabor/);
+assert.match(oxTeamRenderer, /const haulingOxIds[\s\S]{0,140}gameState\.deliveryTrips\.values\(\)/);
+assert.match(oxTeamRenderer, /postingReadyAutomaticCount/);
 assert.match(oxTeamRenderer, /doubles one active worker’s yield/);
 assert.match(oxTeamRenderer, /doubles one active hauler’s carrying capacity/);
-assert.match(oxTeamRenderer, /postingLocked[\s\S]{0,260}postedCount >= maxCount[\s\S]{0,80}automaticPoolCount <= 0/);
+assert.match(oxTeamRenderer, /postingLocked[\s\S]{0,420}postedCount >= maxCount[\s\S]{0,80}postingReadyAutomaticCount <= 0/);
 
 const stableRenderer = read('src/resources/inspector/stableRenderer.ts');
 assert.match(stableRenderer, /Array\.from\(\{ length: STABLE_OX_SLOTS \}/);

@@ -1072,6 +1072,10 @@ pub struct Building {
     /// diagnostics without preventing cross-town roads, carts, or commutes.
     #[default(0u64)]
     pub settlement_id: u64,
+    /// Chopped oat fodder prepared at a pastoral farmstead and reserved for
+    /// winter livestock care. This remains a physical building-only store.
+    #[default(0.0)]
+    pub animal_feed: f64,
 }
 
 /// One persistent import/export instruction for one Trading Post commodity.

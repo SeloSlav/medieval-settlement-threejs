@@ -1,6 +1,8 @@
 import {
   CALENDAR_DAYS_PER_MONTH,
   CALENDAR_MONTHS_PER_YEAR,
+  LIVESTOCK_ANIMAL_FEED_PER_CYCLE,
+  LIVESTOCK_FEED_OAT_GRAIN_PER_CYCLE,
 } from '../generated/gameBalance.ts';
 import { compareStableEntityIds } from '../logistics/roadLogistics.ts';
 import type { GameState } from '../resources/types.ts';
@@ -85,9 +87,9 @@ type SettlementGrainPlanInput = {
   };
   livestockFodder: Pick<
     SettlementLivestockFodderPlan,
-    | 'winterGrainNeed'
-    | 'winterReserveTarget'
-    | 'winterReserveStock'
+    | 'oatInputTarget'
+    | 'oatInputStock'
+    | 'winterFeedNeed'
     | 'firstShortBuildingId'
   >;
   granaryReserve: Pick<
@@ -269,8 +271,8 @@ function grainTransit(
     if (target?.kind === 'threshing_barn') {
       transit.seed += amount;
     } else if (
-      target?.kind === 'pastoral_farmstead'
-      || target?.kind === 'swineherd'
+      trip.cargoKind === 'oatGrain'
+      && target?.kind === 'pastoral_farmstead'
     ) {
       transit.winterFodder += amount;
     } else if (target?.kind === 'granary') {
@@ -342,8 +344,8 @@ export function computeSettlementGrainPlan(
     transit.seed,
   );
   const winterFodder = commitment(
-    input.livestockFodder.winterReserveTarget,
-    input.livestockFodder.winterReserveStock,
+    input.livestockFodder.oatInputTarget,
+    input.livestockFodder.oatInputStock,
     transit.winterFodder,
   );
   const granaryReserve = commitment(
@@ -358,8 +360,10 @@ export function computeSettlementGrainPlan(
   const breadGrainPerDay = positiveFinite(input.production.breadGrainPerDay);
   const processorGrainPerDay = breadGrainPerDay;
   const annualProcessorDemand = processorGrainPerDay * GRAIN_PLAN_DAYS_PER_YEAR;
+  const oatUnitsPerFeed = LIVESTOCK_FEED_OAT_GRAIN_PER_CYCLE
+    / Math.max(1e-9, LIVESTOCK_ANIMAL_FEED_PER_CYCLE);
   const annualCommitments = seed.target
-    + positiveFinite(input.livestockFodder.winterGrainNeed)
+    + positiveFinite(input.livestockFodder.winterFeedNeed) * oatUnitsPerFeed
     + annualProcessorDemand;
   const laborCoveredHarvest = positiveFinite(input.farmPlan.laborCoveredHarvest);
   const potentialHarvest = positiveFinite(input.farmPlan.expectedHarvest);

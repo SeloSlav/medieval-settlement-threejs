@@ -129,8 +129,8 @@ const DETAILS: Record<PlacementArtKey, BuildCardDetail> = {
   weaver: ["Weaver's workshop", 'Weaves wool into cloth and prepares flax with water for linen.', flow(['wool', 'flax', 'water'], ['cloth'])],
   tannery: ['Tannery', 'Tans goat and game hides with water and bark-fired heat into workable leather.', flow(['hides', 'water', 'firewood'], ['leather'])],
   cobbler: ["Cobbler's workshop", 'Cuts leather into finished shoes for prosperous Tier 3 households.', flow(['leather'], ['shoes'])],
-  pastoral_farmstead: ['Pastoral farmstead', 'Cattle and sheep graze, cut summer hay, use hay before oats in winter; rye/maslin substitute and trough water is separate.', flow(['water', 'oatGrain'], ['milk', 'wool', 'manure', 'meat'])],
-  swineherd: ['Woodland swineherd', 'Pigs use woodland mast before direct oats; rye/maslin substitute less efficiently, and trough water is separate.', flow(['water', 'oatGrain'], ['meat'])],
+  pastoral_farmstead: ['Pastoral farmstead', 'Cattle and sheep graze, cut hay, then use hay before feed. Staff prepare animal feed from oats; water stays separate.', flow(['water', 'oatGrain'], ['animalFeed', 'milk', 'wool', 'manure', 'meat'])],
+  swineherd: ['Woodland swineherd', 'Pigs use woodland mast first, then prepared animal feed when seasonal forage falls short; trough water is separate.', flow(['water', 'animalFeed'], ['meat'])],
 };
 
 const action = (kind: PlayerPlaceableBuildingKind): PlacementBuildMenuAction =>

@@ -27,7 +27,7 @@ use crate::simulation::{labor_and_logistics_paused, GameClock, SimTickContext};
 use crate::tables::{Building, PlayerResources, WorldConfig};
 
 const EPSILON: f64 = 1e-6;
-const RECOVERY_ORDER: [CommodityKind; 63] = [
+const RECOVERY_ORDER: [CommodityKind; 64] = [
     CommodityKind::Gold,
     CommodityKind::Remedies,
     CommodityKind::Food,
@@ -37,6 +37,7 @@ const RECOVERY_ORDER: [CommodityKind; 63] = [
     CommodityKind::MaslinSheaves,
     CommodityKind::RyeGrain,
     CommodityKind::OatGrain,
+    CommodityKind::AnimalFeed,
     CommodityKind::MaslinGrain,
     CommodityKind::Barley,
     CommodityKind::Malt,
@@ -145,6 +146,7 @@ pub struct ReclamationStock {
     pub maslin_sheaves: f64,
     pub rye_grain: f64,
     pub oat_grain: f64,
+    pub animal_feed: f64,
     pub maslin_grain: f64,
     pub rye_flour: f64,
     pub maslin_flour: f64,
@@ -364,6 +366,10 @@ impl ReclamationStock {
                 oat_grain: amount,
                 ..Self::default()
             },
+            CommodityKind::AnimalFeed => Self {
+                animal_feed: amount,
+                ..Self::default()
+            },
             CommodityKind::MaslinGrain => Self {
                 maslin_grain: amount,
                 ..Self::default()
@@ -479,6 +485,7 @@ impl ReclamationStock {
             maslin_sheaves,
             rye_grain,
             oat_grain,
+            animal_feed,
             maslin_grain,
             rye_flour,
             maslin_flour,
@@ -562,6 +569,7 @@ impl ReclamationStock {
             maslin_sheaves: cargo.maslin_sheaves,
             rye_grain: cargo.rye_grain,
             oat_grain: cargo.oat_grain,
+            animal_feed: cargo.animal_feed,
             maslin_grain: cargo.maslin_grain,
             rye_flour: cargo.rye_flour,
             maslin_flour: cargo.maslin_flour,
@@ -579,7 +587,7 @@ impl ReclamationStock {
         .normalized()
     }
 
-    pub fn commodities() -> [CommodityKind; 63] {
+    pub fn commodities() -> [CommodityKind; 64] {
         RECOVERY_ORDER
     }
 
@@ -643,6 +651,7 @@ impl ReclamationStock {
             maslin_sheaves,
             rye_grain,
             oat_grain,
+            animal_feed,
             maslin_grain,
             rye_flour,
             maslin_flour,
@@ -719,6 +728,7 @@ impl ReclamationStock {
             maslin_sheaves: resources.maslin_sheaves.max(0.0),
             rye_grain: resources.rye_grain.max(0.0),
             oat_grain: resources.oat_grain.max(0.0),
+            animal_feed: 0.0,
             maslin_grain: resources.maslin_grain.max(0.0),
             rye_flour: resources.rye_flour.max(0.0),
             maslin_flour: resources.maslin_flour.max(0.0),
@@ -788,6 +798,7 @@ impl ReclamationStock {
             CommodityKind::MaslinSheaves => self.maslin_sheaves,
             CommodityKind::RyeGrain => self.rye_grain,
             CommodityKind::OatGrain => self.oat_grain,
+            CommodityKind::AnimalFeed => self.animal_feed,
             CommodityKind::MaslinGrain => self.maslin_grain,
             CommodityKind::RyeFlour => self.rye_flour,
             CommodityKind::MaslinFlour => self.maslin_flour,
@@ -865,6 +876,7 @@ impl ReclamationStock {
             maslin_sheaves,
             rye_grain,
             oat_grain,
+            animal_feed,
             maslin_grain,
             rye_flour,
             maslin_flour,
@@ -1204,6 +1216,7 @@ pub fn insert_reclamation_pile(
         maslin_sheaves: stock.maslin_sheaves.max(0.0),
         rye_grain: stock.rye_grain.max(0.0),
         oat_grain: stock.oat_grain.max(0.0),
+        animal_feed: stock.animal_feed.max(0.0),
         maslin_grain: stock.maslin_grain.max(0.0),
         rye_flour: stock.rye_flour.max(0.0),
         maslin_flour: stock.maslin_flour.max(0.0),
@@ -1564,6 +1577,11 @@ pub(crate) fn reclamation_destination_priority(commodity: CommodityKind, kind: &
             "founders_camp" => Some(1),
             "marketplace" | "woodcutters_lodge" => Some(2),
             _ => Some(3),
+        },
+        CommodityKind::AnimalFeed => match kind {
+            "pastoral_farmstead" => Some(0),
+            "swineherd" => Some(1),
+            _ => None,
         },
         CommodityKind::Food
         | CommodityKind::RyeBread

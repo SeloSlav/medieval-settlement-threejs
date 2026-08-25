@@ -188,8 +188,8 @@ are all favorable, while fields have time to recover from a weak start.
   demand falls to 70%.
 - From June through August, staffed cattle and sheep holdings cut their chosen
   share of grazing meadow into local winter hay. That reserved meadow cannot feed
-  the herd at the same time, so an aggressive hay policy may require direct grain
-  supplementation during the cutting season. Woodland swine do not make hay.
+  the herd at the same time, so an aggressive hay policy may draw down prepared
+  animal feed during the cutting season. Woodland swine do not make hay.
 - Fresh food spoilage rises to 0.8% per day.
 
 During drought:
@@ -237,7 +237,7 @@ Other autumn rules:
 - New cart trips travel at 90% pace on seasonally softened tracks.
 - Grass-pasture capacity is 90%, while woodland pannage reaches its 125% acorn-
   and beechnut peak.
-- Pigs consume this seasonal mast before drawing direct grain supplements.
+- Pigs consume this seasonal mast before drawing prepared animal feed.
 - Household firewood demand rises to 115%.
 - Fresh-food spoilage returns to 0.4% per day.
 - Vegetable and herb gardens taper to 55%; flowers taper to 35%.
@@ -255,9 +255,9 @@ unfinished sowing cannot spill into winter.
 - A field still in the sowing stage when winter begins fails and must be ploughed
   again next autumn.
 - Grass-pasture capacity falls to 35% and woodland pannage to 45%. Cattle and
-  sheep use their holding's local hay first, then direct grain for unsupported
-  heads. Pigs use the remaining mast and then direct grain because they do not
-  participate in the hay chain.
+  sheep use their holding's local hay first, then prepared animal feed for
+  unsupported heads. Pigs use the remaining mast and then animal feed because
+  they do not participate in the hay chain. Livestock never consume raw grain.
 - Livestock breeding falls to 60%.
 - Sheep are not shorn; their annual physical fleece clip is an early-summer event.
 - Household firewood demand rises to 200% and continues through nights and
@@ -299,7 +299,7 @@ water trough, and logistics base. During each fixed daytime husbandry cycle, the
 simulation resolves:
 
 1. heads supported by grass or mast, then local winter hay where applicable, then
-   direct emergency grain;
+   prepared animal feed;
 2. heads supplied by the water physically present in the holding's trough; and
 3. heads covered by active herders at the species-specific care ratio.
 
@@ -311,14 +311,16 @@ and mortality use the building's fixed action interval even when a holding is
 unstaffed or temporarily work-paused, so abandoned animals do not become immortal
 and large crews cannot accelerate gestation.
 
-There is no separate **Animal Feed** commodity or mixing recipe. Threshed oats are
-both a ready-to-eat one-meal porridge grain for people and the preferred direct
-livestock supplement, creating a deliberate household-versus-herd allocation choice.
-Rye and maslin grain can be fed directly as weaker emergency substitutes. Cattle and
-sheep normally graze during the warm seasons, cut local hay from June through August,
-and consume that hay before grain in winter. Swine instead follow the pannage mast
-calendar and turn directly to grain when mast cannot support the herd. Carried water
-is consumed separately at the trough; it is not an input to a feed recipe.
+The winter-feed chain is physical and deliberately separate from human food. Oat
+sheaves are first threshed into edible oats at a threshing barn. Oats remain a
+lighter human porridge ration, but a staffed pastoral farmstead can process them
+into **Animal Feed**, store the finished feed locally, and dispatch it by road to
+a connected swineherd. Raw oats, rye, and maslin are never fed
+directly to livestock. Cattle and sheep normally graze during the warm seasons,
+cut local hay from June through August, and consume that hay before animal feed in
+winter. Swine instead follow the pannage mast calendar and consume remaining mast
+before animal feed. Carried water is consumed separately at each holding's trough;
+it is not an input to the feed recipe.
 
 Stable oxen used for transport or production remain a deliberate player abstraction:
 their feed and water are abstracted and are not drawn from the settlement's livestock

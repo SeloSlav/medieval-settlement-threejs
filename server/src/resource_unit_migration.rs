@@ -323,6 +323,7 @@ pub fn migrate_legacy_fractional_resources(ctx: &ReducerContext) {
             aronia_jam,
             rosehip_jam,
             pear_cider,
+            animal_feed,
         );
         ctx.db.building().id().update(row);
     }

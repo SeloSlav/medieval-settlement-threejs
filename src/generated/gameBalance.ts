@@ -616,7 +616,7 @@ export const FARM_CROP_DEFINITIONS = {
     "growthStartMonth": 4,
     "growthEndMonth": 8,
     "harvestMonth": 9,
-    "calendarLabel": "Spring-sown oats · cool, moisture-holding ground · harvest September · porridge staple or preferred direct livestock supplement"
+    "calendarLabel": "Spring-sown oats · cool, moisture-holding ground · harvest September · light porridge staple or pastoral animal-feed grain"
   },
   "fallow": {
     "kind": "fallow",
@@ -728,9 +728,9 @@ export const PANNAGE_SUMMER_CAPACITY_MULTIPLIER = 0.9;
 export const PANNAGE_AUTUMN_CAPACITY_MULTIPLIER = 1.25;
 export const PANNAGE_WINTER_CAPACITY_MULTIPLIER = 0.45;
 export const PANNAGE_DROUGHT_CAPACITY_MULTIPLIER = 0.55;
-export const LIVESTOCK_OAT_FODDER_VALUE = 1.25;
-export const LIVESTOCK_RYE_FODDER_VALUE = 1;
-export const LIVESTOCK_MASLIN_FODDER_VALUE = 0.9;
+export const LIVESTOCK_FEED_OAT_GRAIN_PER_CYCLE = 1;
+export const LIVESTOCK_ANIMAL_FEED_PER_CYCLE = 1;
+export const LIVESTOCK_ANIMAL_FEED_FODDER_VALUE = 1.25;
 export const LIVESTOCK_HAY_STORAGE_CAPACITY = 480;
 export const LIVESTOCK_MANURE_TRANSFER_PER_TRIP = 24;
 export const LIVESTOCK_FARMSTEAD_PRESERVATION_SALT_PER_OUTPUT = 0.125;
@@ -852,6 +852,7 @@ export type StorageCaps = {
   roofTiles?: number;
   manure?: number;
   remedies?: number;
+  animalFeed?: number;
 };
 
 export type BuildingDefinition = {
@@ -1742,7 +1743,7 @@ export const BUILDING_COSTS = {
 
 export const BUILDING_STORAGE_CAPS = {
   founders_camp: { timber: 400, firewood: 240, stone: 280, water: 120, food: 240, grain: 160, barley: 120, malt: 80, flour: 120, ale: 80, preservedFood: 120, honey: 80, wine: 80, wool: 120, flax: 120, cloth: 80, ironwork: 24, polearms: 80, iron: 80, clay: 80, salt: 80, charcoal: 80, pottery: 80, hides: 80, leather: 80, shoes: 80, roofTiles: 80 },
-  salvage_pile: { timber: 2000, firewood: 2000, stone: 2000, water: 2000, food: 2000, grain: 2000, barley: 2000, malt: 2000, flour: 2000, ale: 2000, preservedFood: 2000, honey: 2000, wine: 2000, wool: 2000, flax: 2000, cloth: 2000, ironwork: 2000, polearms: 2000, iron: 2000, clay: 2000, salt: 2000, charcoal: 2000, pottery: 2000, hides: 2000, leather: 2000, shoes: 2000, roofTiles: 2000, manure: 2000, remedies: 2000 },
+  salvage_pile: { timber: 2000, firewood: 2000, stone: 2000, water: 2000, food: 2000, grain: 2000, barley: 2000, malt: 2000, flour: 2000, ale: 2000, preservedFood: 2000, honey: 2000, wine: 2000, wool: 2000, flax: 2000, cloth: 2000, ironwork: 2000, polearms: 2000, iron: 2000, clay: 2000, salt: 2000, charcoal: 2000, pottery: 2000, hides: 2000, leather: 2000, shoes: 2000, roofTiles: 2000, manure: 2000, remedies: 2000, animalFeed: 2000 },
   lumber_mill: { timber: 240, firewood: 0, stone: 0, water: 48, ironwork: 3 },
   reforester: { timber: 0, firewood: 0, stone: 0 },
   woodcutters_lodge: { timber: 60, firewood: 120, stone: 0, ironwork: 3 },
@@ -1769,8 +1770,8 @@ export const BUILDING_STORAGE_CAPS = {
   guardhouse: { timber: 0, firewood: 0, stone: 0, food: 72, polearms: 12 },
   palisaded_refuge: { timber: 0, firewood: 0, stone: 0 },
   threshing_barn: { timber: 0, firewood: 0, stone: 0, grain: 240, barley: 180, flax: 180, ironwork: 3, manure: 120 },
-  pastoral_farmstead: { timber: 0, firewood: 0, stone: 0, water: 60, food: 120, grain: 240, preservedFood: 70, wool: 120, salt: 12, manure: 160 },
-  swineherd: { timber: 0, firewood: 0, stone: 0, water: 48, food: 150, grain: 240 },
+  pastoral_farmstead: { timber: 0, firewood: 0, stone: 0, water: 60, food: 120, grain: 240, preservedFood: 70, wool: 120, salt: 12, manure: 160, animalFeed: 240 },
+  swineherd: { timber: 0, firewood: 0, stone: 0, water: 48, food: 150, grain: 240, animalFeed: 180 },
   monastery: { timber: 0, firewood: 0, stone: 0, food: 180, grain: 180, cider: 80, mead: 120, preservedFood: 80, honey: 160, wine: 120 },
   brewery: { timber: 0, firewood: 40, stone: 0, water: 120, food: 96, barley: 96, malt: 48, ale: 200, cider: 200, pearCider: 200, mead: 200, honey: 72 },
   tavern: { timber: 0, firewood: 0, stone: 0, ale: 180, cider: 180, pearCider: 180, mead: 180 },

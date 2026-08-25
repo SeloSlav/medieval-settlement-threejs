@@ -904,7 +904,7 @@
         "growthStartMonth": 4,
         "growthEndMonth": 8,
         "harvestMonth": 9,
-        "calendarLabel": "Spring-sown oats · cool, moisture-holding ground · harvest September · porridge staple or preferred direct livestock supplement"
+        "calendarLabel": "Spring-sown oats · cool, moisture-holding ground · harvest September · light porridge staple or pastoral animal-feed grain"
       },
       "fallow": {
         "id": 2,
@@ -1016,9 +1016,9 @@
     "pannageAutumnCapacityMultiplier": 1.25,
     "pannageWinterCapacityMultiplier": 0.45,
     "pannageDroughtCapacityMultiplier": 0.55,
-    "oatFodderValue": 1.25,
-    "ryeFodderValue": 1,
-    "maslinFodderValue": 0.9,
+    "feedOatGrainPerCycle": 1,
+    "animalFeedPerCycle": 1,
+    "animalFeedFodderValue": 1.25,
     "hayStorageCapacity": 480,
     "manureTransferPerTrip": 24,
     "farmsteadPreservationSaltPerOutput": 0.125,
@@ -1178,6 +1178,7 @@
         "roofTiles": 2000,
         "manure": 2000,
         "remedies": 2000,
+        "animalFeed": 2000,
         "wool": 2000,
         "flax": 2000,
         "cloth": 2000,
@@ -1680,7 +1681,7 @@
     "pastoral_farmstead": {
       "label": "Pastoral farmstead",
       "cost": { "timber": 40, "stone": 20 },
-      "storage": { "timber": 0, "firewood": 0, "stone": 0, "water": 60, "food": 120, "grain": 240, "salt": 12, "preservedFood": 70, "wool": 120, "manure": 160 },
+      "storage": { "timber": 0, "firewood": 0, "stone": 0, "water": 60, "food": 120, "grain": 240, "salt": 12, "preservedFood": 70, "wool": 120, "manure": 160, "animalFeed": 240 },
       "workRadius": 110,
       "pickRadius": 10,
       "harvestInterval": 700,
@@ -1699,7 +1700,7 @@
     "swineherd": {
       "label": "Woodland swineherd",
       "cost": { "timber": 34, "stone": 10 },
-      "storage": { "timber": 0, "firewood": 0, "stone": 0, "water": 48, "food": 150, "grain": 240 },
+      "storage": { "timber": 0, "firewood": 0, "stone": 0, "water": 48, "food": 150, "grain": 240, "animalFeed": 180 },
       "workRadius": 120,
       "pickRadius": 9,
       "harvestInterval": 1050,

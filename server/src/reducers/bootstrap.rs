@@ -378,6 +378,7 @@ pub(crate) fn place_founding_camp(ctx: &ReducerContext, x: f64, z: f64) -> Resul
         rosehip_jam: resources.rosehip_jam.max(0.0),
         pear_cider: resources.pear_cider.max(0.0),
         settlement_id: settlement.id,
+        animal_feed: 0.0,
     });
 
     resources.timber = 0.0;

@@ -52,6 +52,7 @@ type BuildingBalance = {
     roofTiles?: number;
     manure?: number;
     remedies?: number;
+    animalFeed?: number;
   };
   workRadius: number;
   pickRadius: number;
@@ -763,9 +764,9 @@ export type GameBalance = {
     pannageAutumnCapacityMultiplier: number;
     pannageWinterCapacityMultiplier: number;
     pannageDroughtCapacityMultiplier: number;
-    oatFodderValue: number;
-    ryeFodderValue: number;
-    maslinFodderValue: number;
+    feedOatGrainPerCycle: number;
+    animalFeedPerCycle: number;
+    animalFeedFodderValue: number;
     hayStorageCapacity: number;
     manureTransferPerTrip: number;
     farmsteadPreservationSaltPerOutput: number;
@@ -1414,9 +1415,9 @@ function generateRust(): string {
     `pub const PANNAGE_AUTUMN_CAPACITY_MULTIPLIER: f64 = ${rustF64(b.livestock.pannageAutumnCapacityMultiplier)};`,
     `pub const PANNAGE_WINTER_CAPACITY_MULTIPLIER: f64 = ${rustF64(b.livestock.pannageWinterCapacityMultiplier)};`,
     `pub const PANNAGE_DROUGHT_CAPACITY_MULTIPLIER: f64 = ${rustF64(b.livestock.pannageDroughtCapacityMultiplier)};`,
-    `pub const LIVESTOCK_OAT_FODDER_VALUE: f64 = ${rustF64(b.livestock.oatFodderValue)};`,
-    `pub const LIVESTOCK_RYE_FODDER_VALUE: f64 = ${rustF64(b.livestock.ryeFodderValue)};`,
-    `pub const LIVESTOCK_MASLIN_FODDER_VALUE: f64 = ${rustF64(b.livestock.maslinFodderValue)};`,
+    `pub const LIVESTOCK_FEED_OAT_GRAIN_PER_CYCLE: f64 = ${rustF64(b.livestock.feedOatGrainPerCycle)};`,
+    `pub const LIVESTOCK_ANIMAL_FEED_PER_CYCLE: f64 = ${rustF64(b.livestock.animalFeedPerCycle)};`,
+    `pub const LIVESTOCK_ANIMAL_FEED_FODDER_VALUE: f64 = ${rustF64(b.livestock.animalFeedFodderValue)};`,
     `pub const LIVESTOCK_HAY_STORAGE_CAPACITY: f64 = ${rustF64(b.livestock.hayStorageCapacity)};`,
     `pub const LIVESTOCK_MANURE_TRANSFER_PER_TRIP: f64 = ${rustF64(b.livestock.manureTransferPerTrip)};`,
     `pub const LIVESTOCK_FARMSTEAD_PRESERVATION_SALT_PER_OUTPUT: f64 = ${rustF64(b.livestock.farmsteadPreservationSaltPerOutput)};`,
@@ -1668,6 +1669,7 @@ function generateRust(): string {
   lines.push('    pub storage_roof_tiles: f64,');
   lines.push('    pub storage_manure: f64,');
   lines.push('    pub storage_remedies: f64,');
+  lines.push('    pub storage_animal_feed: f64,');
   lines.push('    pub accepts_labor: bool,');
   lines.push('    pub max_labor: u32,');
   lines.push('    pub work_radius: f64,');
@@ -1727,6 +1729,7 @@ function generateRust(): string {
     lines.push(`    storage_roof_tiles: ${rustF64(def.storage.roofTiles ?? 0)},`);
     lines.push(`    storage_manure: ${rustF64(def.storage.manure ?? 0)},`);
     lines.push(`    storage_remedies: ${rustF64(def.storage.remedies ?? 0)},`);
+    lines.push(`    storage_animal_feed: ${rustF64(def.storage.animalFeed ?? 0)},`);
     lines.push(`    accepts_labor: ${def.acceptsLabor},`);
     lines.push(`    max_labor: ${def.maxLabor},`);
     lines.push(`    work_radius: ${rustF64(def.workRadius)},`);
@@ -2471,9 +2474,9 @@ function generateTypeScript(): string {
     `export const PANNAGE_AUTUMN_CAPACITY_MULTIPLIER = ${b.livestock.pannageAutumnCapacityMultiplier};`,
     `export const PANNAGE_WINTER_CAPACITY_MULTIPLIER = ${b.livestock.pannageWinterCapacityMultiplier};`,
     `export const PANNAGE_DROUGHT_CAPACITY_MULTIPLIER = ${b.livestock.pannageDroughtCapacityMultiplier};`,
-    `export const LIVESTOCK_OAT_FODDER_VALUE = ${b.livestock.oatFodderValue};`,
-    `export const LIVESTOCK_RYE_FODDER_VALUE = ${b.livestock.ryeFodderValue};`,
-    `export const LIVESTOCK_MASLIN_FODDER_VALUE = ${b.livestock.maslinFodderValue};`,
+    `export const LIVESTOCK_FEED_OAT_GRAIN_PER_CYCLE = ${b.livestock.feedOatGrainPerCycle};`,
+    `export const LIVESTOCK_ANIMAL_FEED_PER_CYCLE = ${b.livestock.animalFeedPerCycle};`,
+    `export const LIVESTOCK_ANIMAL_FEED_FODDER_VALUE = ${b.livestock.animalFeedFodderValue};`,
     `export const LIVESTOCK_HAY_STORAGE_CAPACITY = ${b.livestock.hayStorageCapacity};`,
     `export const LIVESTOCK_MANURE_TRANSFER_PER_TRIP = ${b.livestock.manureTransferPerTrip};`,
     `export const LIVESTOCK_FARMSTEAD_PRESERVATION_SALT_PER_OUTPUT = ${b.livestock.farmsteadPreservationSaltPerOutput};`,
@@ -2595,6 +2598,7 @@ function generateTypeScript(): string {
     '  roofTiles?: number;',
     '  manure?: number;',
     '  remedies?: number;',
+    '  animalFeed?: number;',
     '};',
     '',
     'export type BuildingDefinition = {',
@@ -2693,6 +2697,7 @@ function generateTypeScript(): string {
     const roofTiles = def.storage.roofTiles ?? 0;
     const manure = def.storage.manure ?? 0;
     const remedies = def.storage.remedies ?? 0;
+    const animalFeed = def.storage.animalFeed ?? 0;
     const extras: string[] = [];
     if (water > 0) extras.push(`water: ${water}`);
     if (food > 0) extras.push(`food: ${food}`);
@@ -2723,6 +2728,7 @@ function generateTypeScript(): string {
     if (roofTiles > 0) extras.push(`roofTiles: ${roofTiles}`);
     if (manure > 0) extras.push(`manure: ${manure}`);
     if (remedies > 0) extras.push(`remedies: ${remedies}`);
+    if (animalFeed > 0) extras.push(`animalFeed: ${animalFeed}`);
     lines.push(
       `  ${kind}: { timber: ${def.storage.timber}, firewood: ${def.storage.firewood}, stone: ${def.storage.stone}${extras.length > 0 ? `, ${extras.join(', ')}` : ''} },`,
     );

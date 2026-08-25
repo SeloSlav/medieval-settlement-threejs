@@ -1,5 +1,9 @@
 import { buildingPlacementYaw } from '../buildings/buildingPlacement.ts';
 import { STABLE_OX_REST_ANCHORS } from '../buildings/meshes/stableMesh.ts';
+import {
+  parseBuildingServerId,
+  parseStableOxServerId,
+} from '../data/spacetimeIds.ts';
 import type { DeliveryTripState } from '../logistics/deliveryTrips.ts';
 import { rosteredCartWorkersByBuilding } from '../logistics/deliveryTrips.ts';
 import type { RoadNetwork } from '../roads/RoadNetwork.ts';
@@ -69,10 +73,23 @@ export function isOxProductionWorkplace(kind: BuildingKind): boolean {
   return isOxSupportedWorkplace(kind) && !OX_LOGISTICS_ONLY_KIND_SET.has(kind);
 }
 
+function compareServerIds(
+  left: string,
+  right: string,
+  parse: (id: string) => bigint | null,
+): number {
+  const leftId = parse(left);
+  const rightId = parse(right);
+  if (leftId != null && rightId != null) {
+    return leftId < rightId ? -1 : leftId > rightId ? 1 : 0;
+  }
+  return left.localeCompare(right);
+}
+
 function stableOxOrder(left: StableOxLike, right: StableOxLike): number {
-  return left.stableId.localeCompare(right.stableId)
+  return compareServerIds(left.stableId, right.stableId, parseBuildingServerId)
     || left.slot - right.slot
-    || left.id.localeCompare(right.id);
+    || compareServerIds(left.id, right.id, parseStableOxServerId);
 }
 
 /**
@@ -169,7 +186,11 @@ export function assignStableOxen(
         || (
           Math.abs(distanceSq - best.distanceSq) <= 1e-6
           && (
-            building.id.localeCompare(best.building.id) < 0
+            compareServerIds(
+              building.id,
+              best.building.id,
+              parseBuildingServerId,
+            ) < 0
             || (building.id === best.building.id && slot < best.slot)
           )
         )

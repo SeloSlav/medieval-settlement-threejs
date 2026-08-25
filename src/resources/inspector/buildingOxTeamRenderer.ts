@@ -18,11 +18,20 @@ export function withBuildingOxTeam(
 ): InspectorView {
   if (!isOxSupportedWorkplace(building.kind)) return view;
 
+  const haulingOxIds = new Set(
+    [...context.gameState.deliveryTrips.values()]
+      .map((trip) => trip.oxId)
+      .filter((oxId): oxId is string => oxId != null),
+  );
   let postedCount = 0;
   let automaticPoolCount = 0;
+  let postingReadyAutomaticCount = 0;
   for (const ox of context.gameState.stableOxen.values()) {
     if (ox.assignedBuildingId === building.id) postedCount += 1;
-    else if (ox.assignedBuildingId == null) automaticPoolCount += 1;
+    else if (ox.assignedBuildingId == null) {
+      automaticPoolCount += 1;
+      if (!haulingOxIds.has(ox.id)) postingReadyAutomaticCount += 1;
+    }
   }
 
   const maxCount = getBuildingDefinition(building.kind).maxLabor;
@@ -44,11 +53,15 @@ export function withBuildingOxTeam(
       maxCount,
       hint: postingLocked
         ? `Posting changes resume after fire recovery. ${effect}`
-        : effect,
+        : postedCount < maxCount
+          && automaticPoolCount > 0
+          && postingReadyAutomaticCount === 0
+          ? `Automatic oxen can be posted after their current cart trips. ${effect}`
+          : effect,
       decreaseDisabled: postingLocked || postedCount <= 0,
       increaseDisabled: postingLocked
         || postedCount >= maxCount
-        || automaticPoolCount <= 0,
+        || postingReadyAutomaticCount <= 0,
     },
   };
 }

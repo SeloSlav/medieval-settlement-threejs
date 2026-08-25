@@ -67,8 +67,28 @@ assert.doesNotMatch(seasonAlmanacTooltip(false), /Harvest grain and orchards in 
 assert.doesNotMatch(seasonAlmanacTooltip(false), /Foraging, fishing, wool/);
 assert.match(
   seasonAlmanacTooltip(false),
-  /cattle and sheep use local hay before direct oats/i,
+  /oat sheaves become edible oats at threshing barns; staffed pastoral farmsteads turn those oats into stored Animal Feed/i,
+  'the almanac must expose the complete oat-to-feed production chain',
+);
+assert.match(
+  seasonAlmanacTooltip(false),
+  /cattle and sheep use local hay before prepared Animal Feed/i,
   'the almanac must make the cattle/sheep winter feeding order explicit',
+);
+assert.match(
+  seasonAlmanacTooltip(false),
+  /pigs use remaining mast before Animal Feed/i,
+  'the almanac must make the swine winter feeding order explicit',
+);
+assert.match(
+  seasonAlmanacTooltip(false),
+  /transport and production ox upkeep remains abstract/i,
+  'the almanac must preserve the stable-ox abstraction',
+);
+assert.doesNotMatch(
+  seasonAlmanacTooltip(false),
+  /direct (?:oats|grain)|rye or maslin can substitute/i,
+  'the almanac must not imply that livestock eat raw grain',
 );
 assert.doesNotMatch(
   seasonAlmanacTooltip(false),
