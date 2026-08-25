@@ -183,6 +183,99 @@ export function setSeedThreeGrassSeason(
   return changed;
 }
 
+function applySeedThreeGrassSeasonMaterial(
+  material: THREE.Material,
+  textures: SeedThreeGrassTextures,
+  rendererBackend: RendererBackendKind,
+): void {
+  const spring = tsl.uniform(0) as { value: number } & TslNode;
+  const autumn = tsl.uniform(0) as { value: number } & TslNode;
+  const dormancy = tsl.uniform(0) as { value: number } & TslNode;
+  const snowCoverage = tsl.uniform(0) as { value: number } & TslNode;
+  material.userData.forestSeasonalSpringFlush = spring;
+  material.userData.forestSeasonalAutumnColor = autumn;
+  material.userData.forestSeasonalDormancy = dormancy;
+  material.userData.forestSnowCoverage = snowCoverage;
+
+  if (rendererBackend !== 'webgpu') {
+    chainMaterialShaderPatch(material, 'seedthree-grass-season-snow-v1', (shader) => {
+      shader.uniforms.uGrassSpring = spring;
+      shader.uniforms.uGrassAutumn = autumn;
+      shader.uniforms.uGrassDormancy = dormancy;
+      shader.uniforms.uGrassSnowCoverage = snowCoverage;
+      shader.fragmentShader = shader.fragmentShader.replace(
+        '#include <common>',
+        [
+          '#include <common>',
+          'uniform float uGrassSpring;',
+          'uniform float uGrassAutumn;',
+          'uniform float uGrassDormancy;',
+          'uniform float uGrassSnowCoverage;',
+        ].join('\n'),
+      );
+      shader.fragmentShader = shader.fragmentShader.replace(
+        '#include <map_fragment>',
+        [
+          '#include <map_fragment>',
+          'float grassValue = dot( diffuseColor.rgb, vec3( 0.2126, 0.7152, 0.0722 ) );',
+          'vec3 grassSpring = clamp( vec3( 0.56, 0.86, 0.22 ) * grassValue * 1.35, 0.0, 1.0 );',
+          'vec3 grassAutumn = clamp( vec3( 0.72, 0.43, 0.13 ) * grassValue * 1.55, 0.0, 1.0 );',
+          'vec3 grassDormant = clamp( vec3( 0.43, 0.34, 0.19 ) * grassValue * 1.65, 0.0, 1.0 );',
+          'diffuseColor.rgb = mix( diffuseColor.rgb, grassSpring, uGrassSpring * 0.34 );',
+          'diffuseColor.rgb = mix( diffuseColor.rgb, grassAutumn, uGrassAutumn * 0.78 );',
+          'diffuseColor.rgb = mix( diffuseColor.rgb, grassDormant, uGrassDormancy * 0.9 );',
+          'float grassSnowBurial = uGrassSnowCoverage * 0.64;',
+          'diffuseColor.a *= ( 1.0 - uGrassDormancy * 0.24 ) * ( 1.0 - grassSnowBurial );',
+          'float grassSnowTip = smoothstep( 0.54, 1.0, vMapUv.y );',
+          'diffuseColor.rgb = mix( diffuseColor.rgb, vec3( 0.92, 0.955, 0.98 ), uGrassSnowCoverage * grassSnowTip * 0.52 );',
+        ].join('\n'),
+      );
+    });
+    material.needsUpdate = true;
+    return;
+  }
+
+  const target = material as THREE.Material & {
+    colorNode?: unknown;
+    opacityNode?: unknown;
+    thicknessColorNode?: TslNode;
+  };
+  const texel = tsl.texture(textures.albedo);
+  const base = texel.mul(tsl.vec4(tsl.attribute('aTint', 'vec3'), tsl.float(1)));
+  const value = base.rgb.x.mul(0.2126)
+    .add(base.rgb.y.mul(0.7152))
+    .add(base.rgb.z.mul(0.0722));
+  const springGrass = tsl.vec3(0.56, 0.86, 0.22).mul(value.mul(1.35));
+  const autumnGrass = tsl.vec3(0.72, 0.43, 0.13).mul(value.mul(1.55));
+  const dormantGrass = tsl.vec3(0.43, 0.34, 0.19).mul(value.mul(1.65));
+  let seasonal = tsl.mix(base.rgb, springGrass, spring.mul(0.34));
+  seasonal = tsl.mix(seasonal, autumnGrass, autumn.mul(0.78));
+  seasonal = tsl.mix(seasonal, dormantGrass, dormancy.mul(0.9));
+  const snowTip = tsl.smoothstep(tsl.float(0.54), tsl.float(1), tsl.uv().y);
+  const snowAmount = snowCoverage.mul(snowTip).mul(0.52);
+  target.colorNode = tsl.vec4(
+    tsl.mix(seasonal, tsl.vec3(0.92, 0.955, 0.98), snowAmount),
+    base.a,
+  );
+  target.opacityNode = base.a
+    .mul(tsl.float(1).sub(dormancy.mul(0.24)))
+    .mul(tsl.float(1).sub(snowCoverage.mul(0.64)));
+  if (target.thicknessColorNode) {
+    target.thicknessColorNode = target.thicknessColorNode
+      .mul(tsl.float(1).sub(dormancy.mul(0.58)))
+      .mul(tsl.float(1).sub(snowAmount.mul(0.82)));
+  }
+}
+
+function setGrassUniform(material: THREE.Material, key: string, value: number): boolean {
+  const target = material.userData[key] as { value: number } | undefined;
+  if (!target) return false;
+  const next = THREE.MathUtils.clamp(Number.isFinite(value) ? value : 0, 0, 1);
+  if (Math.abs(target.value - next) <= 1e-6) return false;
+  target.value = next;
+  return true;
+}
+
 const GRASS_TINT_WHITE = new THREE.Color(0xffffff);
 const grassTintScratch = new THREE.Color();
 
