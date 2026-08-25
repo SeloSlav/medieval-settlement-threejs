@@ -407,8 +407,6 @@ const SETTLEMENT_HUD_HTML = `
         aria-controls="settlement-animals-roster"
         aria-expanded="false"
         aria-label="Animals: no draft oxen"
-        data-tooltip-title="Draft animals"
-        data-tooltip="Purchased oxen can be posted permanently or left on automatic assistance."
       >
         <span class="settlement-hud__animals-label">Animals</span>
         <strong class="settlement-hud__animals-status" data-animals-count>0</strong>
@@ -426,7 +424,7 @@ const SETTLEMENT_HUD_HTML = `
         <div class="settlement-hud__animals-metrics" aria-label="Ox assignment summary">
           <span><strong data-animals-posted>0</strong> Posted</span>
           <span><strong data-animals-automatic>0</strong> Auto</span>
-          <span><strong data-animals-working>0</strong> Working</span>
+          <span><strong data-animals-working>0</strong> Tasked</span>
         </div>
         <div class="settlement-hud__animals-list" data-animals-list>
           <p class="settlement-hud__animals-empty">Build a Stable and purchase an ox to begin the roster.</p>
@@ -667,6 +665,7 @@ export class SettlementHud {
   private animalsCloseTimer: number | null = null;
   private specialtyStoresCloseTimer: number | null = null;
   private displayedAnimalsSignature: string | null = null;
+  private animalsTooltipText = 'Build a Stable and purchase an ox to begin the draft-animal roster.';
   private displayedClockDate: string | null = null;
   private displayedClockFullDate: string | null = null;
   private displayedClockTime: string | null = null;
@@ -892,17 +891,22 @@ export class SettlementHud {
     this.animals.classList.toggle('has-animals', view.total > 0);
     this.animalsMeta.textContent = view.total === 0
       ? 'No oxen purchased'
-      : `${view.total} ${view.total === 1 ? 'ox' : 'oxen'} · ${view.working} working`;
+      : `${view.total} ${view.total === 1 ? 'ox' : 'oxen'} · ${view.working} tasked`;
     const summary = [
       `Animals: ${view.total} ${view.total === 1 ? 'ox' : 'oxen'}`,
       `${view.posted} posted`,
       `${view.automatic} automatic`,
-      `${view.working} working`,
+      `${view.working} tasked`,
     ].join(', ');
     this.animalsSummary.setAttribute('aria-label', summary);
-    this.animalsSummary.dataset.tooltip = view.total === 0
+    this.animalsTooltipText = view.total === 0
       ? 'Build a Stable and purchase an ox to begin the draft-animal roster.'
       : `${view.posted} permanently posted · ${view.automatic} choosing the best available assistance task · ${view.working} currently tasked.`;
+    if (this.animals.open) {
+      delete this.animalsSummary.dataset.tooltip;
+    } else {
+      this.animalsSummary.dataset.tooltip = this.animalsTooltipText;
+    }
 
     this.animalsList.replaceChildren();
     if (view.entries.length === 0) {
@@ -1454,6 +1458,9 @@ export class SettlementHud {
       this.foodStores.open = false;
       this.fuelStores.open = false;
       this.specialtyStores.open = false;
+      delete this.animalsSummary.dataset.tooltip;
+    } else {
+      this.animalsSummary.dataset.tooltip = this.animalsTooltipText;
     }
     this.animalsSummary.setAttribute('aria-expanded', String(open));
   };
