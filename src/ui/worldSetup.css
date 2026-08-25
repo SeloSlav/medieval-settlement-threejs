@@ -134,7 +134,7 @@
 
 .world-setup-section__title {
   margin: 0 0 8px;
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -349,6 +349,53 @@
 
 .world-setup-mode-option:hover,
 .world-setup-mode-option:focus-visible {
+  background: rgba(255, 255, 255, 0.08);
+  outline: none;
+  transform: translateY(-1px);
+}
+
+.world-setup-rule-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.world-setup-rule-grid--two {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.world-setup-rule-option {
+  display: grid;
+  align-content: center;
+  gap: 3px;
+  min-height: 70px;
+  padding: 10px 11px;
+  color: var(--ink);
+  text-align: left;
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.02));
+  border: 1px solid rgba(238, 232, 220, 0.14);
+  border-radius: 3px;
+  cursor: pointer;
+  transition: border-color 150ms ease, background 150ms ease, transform 150ms ease;
+}
+
+.world-setup-rule-option strong {
+  font-size: 15px;
+}
+
+.world-setup-rule-option span {
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.35;
+}
+
+.world-setup-rule-option.is-selected {
+  border-color: rgba(215, 180, 99, 0.72);
+  background: linear-gradient(145deg, rgba(215, 180, 99, 0.2), rgba(215, 180, 99, 0.06));
+}
+
+.world-setup-rule-option:hover,
+.world-setup-rule-option:focus-visible {
   background: rgba(255, 255, 255, 0.08);
   outline: none;
   transform: translateY(-1px);
@@ -801,6 +848,10 @@
 
   .world-setup-mode-grid {
     grid-template-columns: 1fr;
+  }
+
+  .world-setup-rule-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .world-setup-hazard-option {

@@ -32,7 +32,7 @@ type ProvisionValueSnapshot = {
 };
 
 async function advanceToMapGeneration(page: Page): Promise<void> {
-  await expect(page.getByRole('heading', { name: 'Choose Your Noble House' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Choose Your Legacy' })).toBeVisible();
   await page.getByRole('button', { name: /Continue to Heraldry/ }).click();
   await expect(page.getByRole('heading', { name: 'Design Your Heraldry' })).toBeVisible();
   await page.getByRole('button', { name: /Continue to Map Generation/ }).click();

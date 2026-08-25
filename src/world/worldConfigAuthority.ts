@@ -1,5 +1,7 @@
 import type { WorldConfig } from '../generated/types.ts';
 import {
+  normalizeInitialGoodsMultiplier,
+  normalizeWorldDifficultyRate,
   normalizeWorldGenerationSettings,
   type WorldGenerationSettings,
   type WorldMapSize,
@@ -50,6 +52,9 @@ export function worldConfigRowToGeneration(row: WorldConfig): AuthoritativeWorld
       enemyPressure: row.enemyPressure,
       severeWeatherEnabled: row.severeWeatherEnabled,
       wellAquiferNetworksEnabled: row.wellAquiferNetworksEnabled,
+      approvalDeclineRate: normalizeWorldDifficultyRate(row.approvalDeclineRate),
+      foodSpoilageRate: normalizeWorldDifficultyRate(row.foodSpoilageRate),
+      initialGoodsMultiplier: normalizeInitialGoodsMultiplier(row.initialGoodsMultiplier),
     }),
     configured: row.configured,
   };
@@ -71,7 +76,10 @@ export function generationMatchesServer(
     && server.conflictMode === normalizedLocal.conflictMode
     && server.enemyPressure === normalizedLocal.enemyPressure
     && server.severeWeatherEnabled === normalizedLocal.severeWeatherEnabled
-    && server.wellAquiferNetworksEnabled === normalizedLocal.wellAquiferNetworksEnabled;
+    && server.wellAquiferNetworksEnabled === normalizedLocal.wellAquiferNetworksEnabled
+    && server.approvalDeclineRate === normalizedLocal.approvalDeclineRate
+    && server.foodSpoilageRate === normalizedLocal.foodSpoilageRate
+    && server.initialGoodsMultiplier === normalizedLocal.initialGoodsMultiplier;
 }
 
 export type WorldGenerationAuthorityResolution =
@@ -142,5 +150,8 @@ export function settingsToConfigurePayload(settings: WorldGenerationSettings) {
     enemyPressure: normalized.enemyPressure,
     severeWeatherEnabled: normalized.severeWeatherEnabled,
     wellAquiferNetworksEnabled: normalized.wellAquiferNetworksEnabled,
+    approvalDeclineRate: normalized.approvalDeclineRate,
+    foodSpoilageRate: normalized.foodSpoilageRate,
+    initialGoodsMultiplier: normalized.initialGoodsMultiplier,
   };
 }

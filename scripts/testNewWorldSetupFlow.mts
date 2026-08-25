@@ -13,6 +13,8 @@ const browserCoverage = readFileSync('e2e/onboarding-navigation.spec.ts', 'utf8'
 assert.match(noblePanel, /export type NobleSetupStep = 'house' \| 'heraldry'/);
 assert.match(noblePanel, /data-setup-step="house"/);
 assert.match(noblePanel, /data-setup-step="heraldry"/);
+assert.match(noblePanel, /Choose Your Legacy/);
+assert.doesNotMatch(noblePanel, /Choose Your Noble House/);
 assert.match(noblePanel, /Continue to Heraldry/);
 assert.match(noblePanel, /Continue to Map Generation/);
 assert.match(noblePanel, /HERALDRY_PRESETS\.findIndex/);
@@ -39,11 +41,11 @@ assert.match(
 );
 assert.match(
   nobleProfile,
-  /id: 'daniciceva-udovica'[\s\S]*?title: 'Senj Uskok expedition leader and organizer'[\s\S]*?portrait: null/,
+  /id: 'daniciceva-udovica'[\s\S]*?title: 'Senj Uskok expedition leader and organizer'[\s\S]*?portrait: '\/assets\/ui\/noble-setup\/portraits\/daniciceva-udovica\.webp'/,
 );
 assert.match(
   nobleProfile,
-  /id: 'filipa-lacea'[\s\S]*?title: 'Pula-born Neo-Latin poet and Renaissance humanist'[\s\S]*?portrait: null/,
+  /id: 'filipa-lacea'[\s\S]*?title: 'Pula-born Neo-Latin poet and Renaissance humanist'[\s\S]*?portrait: '\/assets\/ui\/noble-setup\/portraits\/filipa-lacea\.webp'/,
 );
 assert.doesNotMatch(nobleProfile, /juraj-julije-klovic|stjepan-konzul-istranin/);
 assert.doesNotMatch(
@@ -103,6 +105,10 @@ assert.match(worldPanel, /data-randomize-seed>Randomize map/);
 assert.match(worldPanel, /<nav class="world-setup-actions__navigation" aria-label="Setup navigation">/);
 assert.match(worldPanel, /aria-pressed="\$\{size === this\.draft\.mapSize\}"/);
 assert.match(worldPanel, /data-setup-heading/);
+assert.match(worldPanel, /data-approval-decline-rate="0"/);
+assert.match(worldPanel, /data-approval-decline-rate="150"/);
+assert.match(worldPanel, /data-food-spoilage-rate="0"[\s\S]*Food never spoils/);
+assert.match(worldPanel, /data-initial-goods-multiplier="2"[\s\S]*2× goods in the original camp/);
 assert.match(worldPanel, /class="world-setup-sr-title">Map Generation<\/h1>/);
 assert.doesNotMatch(worldPanel, /<p>New World<\/p>/);
 assert.match(
@@ -113,6 +119,8 @@ assert.match(worldPanel, /this\.resolve\(\{ action: 'start', settings \}\)/);
 assert.match(worldCss, /\.world-setup-actions\s*\{[\s\S]*?grid-template-rows: auto auto/);
 assert.match(worldCss, /\.world-setup-actions__navigation\s*\{[\s\S]*?justify-content: space-between/);
 assert.match(worldCss, /\.world-setup-back\s*\{[\s\S]*?min-width: 210px/);
+assert.match(worldCss, /\.world-setup-section__title\s*\{[\s\S]*?font-size: 15px/);
+assert.match(worldCss, /\.world-setup-rule-option span\s*\{[\s\S]*?font-size: 14px/);
 assert.match(
   worldCss,
   /\.world-setup-backdrop\s*\{[\s\S]*?padding-bottom: clamp\(12px, 2\.4vw, 34px\);/,
@@ -140,7 +148,8 @@ assert.match(bootstrapFlow, /if \(result\.action === 'start'\) return result\.se
 assert.match(bootstrapFlow, /nobleStep = 'heraldry'/);
 
 assert.match(browserCoverage, /Back to Heraldry/);
-assert.match(browserCoverage, /Back to Noble House/);
+assert.match(browserCoverage, /Back to Legacy/);
+assert.match(browserCoverage, /Choose Your Legacy/);
 assert.match(browserCoverage, /House of the Silver Pine/);
 assert.match(browserCoverage, /data-map-size="small"/);
 assert.match(browserCoverage, /data-aquifer-networks/);

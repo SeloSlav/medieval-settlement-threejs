@@ -216,6 +216,20 @@ assert.deepEqual(
   environmentFor(12345, 50, springClock),
   'weather must be deterministic for the same world and day',
 );
+const normalSpoilage = environmentFor(12345, 50, springClock, false, 100);
+const noSpoilage = environmentFor(12345, 50, springClock, false, 0);
+const reducedSpoilage = environmentFor(12345, 50, springClock, false, 50);
+const harshSpoilage = environmentFor(12345, 50, springClock, false, 150);
+assert.equal(noSpoilage.freshFoodSpoilageFractionPerDay, 0);
+assert.equal(noSpoilage.preservedFoodSpoilageFractionPerDay, 0);
+assert.equal(
+  reducedSpoilage.freshFoodSpoilageFractionPerDay,
+  normalSpoilage.freshFoodSpoilageFractionPerDay * 0.5,
+);
+assert.equal(
+  harshSpoilage.preservedFoodSpoilageFractionPerDay,
+  normalSpoilage.preservedFoodSpoilageFractionPerDay * 1.5,
+);
 
 let droughtFound = false;
 for (let year = 1; year <= 20 && !droughtFound; year += 1) {
@@ -418,6 +432,14 @@ const townHallSource = readFileSync(
 );
 const appSource = readFileSync('src/app/App.ts', 'utf8');
 const serverSimulationSource = readFileSync('server/src/reducers/simulation.rs', 'utf8');
+const serverFoodSpoilageSource = readFileSync(
+  'server/src/simulation/food_spoilage.rs',
+  'utf8',
+);
+const serverResidenceNeedsSource = readFileSync(
+  'server/src/simulation/residence_needs/mod.rs',
+  'utf8',
+);
 const seasonsAndTimeDocs = readFileSync('docs/SEASONS_AND_TIME.md', 'utf8');
 const sceneManagerSource = readFileSync('src/scene/SceneManager.ts', 'utf8');
 const riverWaterMaterialSource = readFileSync('src/rivers/RiverWaterMaterial.ts', 'utf8');
@@ -486,6 +508,15 @@ assert.match(
   /step_delivery_trips\([\s\S]*?heartbeat_sim_seconds[\s\S]*?step_live_raids\([\s\S]*?heartbeat_sim_seconds/,
   'deliveries and live combat must use the same authoritative speed rate as the calendar',
 );
+assert.match(
+  serverSimulationSource,
+  /step_fresh_food_spoilage\([\s\S]*?food_spoilage_rate[\s\S]*?step_residence\([\s\S]*?food_spoilage_rate/,
+  'the saved food rule must reach both ambient and household spoilage passes',
+);
+for (const source of [serverFoodSpoilageSource, serverResidenceNeedsSource]) {
+  assert.match(source, /food_spoilage_rate == 0/);
+  assert.match(source, /f64::from\(food_spoilage_rate\) \/ 100\.0/);
+}
 
 const durations = {
   normal: {

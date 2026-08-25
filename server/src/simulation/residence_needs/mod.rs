@@ -60,6 +60,7 @@ pub fn step_residence_needs(
     environment: EnvironmentState,
     world_seed: u64,
     sim_tick: u64,
+    food_spoilage_rate: u8,
 ) {
     if residence.population == 0 {
         return;
@@ -68,7 +69,13 @@ pub fn step_residence_needs(
     migrate_and_sync_food_inventory(ctx, &mut residence, &mut needs);
     let general_consumption_paused = is_consumption_paused(ctx, residence.owner, clock);
     if !general_consumption_paused && daily_household_bill_due(clock) {
-        spoil_residence_food_inventory(&mut residence, environment, world_seed, sim_tick);
+        spoil_residence_food_inventory(
+            &mut residence,
+            environment,
+            world_seed,
+            sim_tick,
+            food_spoilage_rate,
+        );
     }
     migrate_and_sync_food_inventory(ctx, &mut residence, &mut needs);
     let monthly_bill_due = monthly_household_bill_due(residence.id, clock);
@@ -409,14 +416,21 @@ fn spoil_residence_food_inventory(
     environment: EnvironmentState,
     world_seed: u64,
     sim_tick: u64,
+    food_spoilage_rate: u8,
 ) {
+    if food_spoilage_rate == 0 {
+        return;
+    }
+    let difficulty_multiplier = f64::from(food_spoilage_rate) / 100.0;
     let fresh_fraction = (environment.fresh_food_spoilage_fraction_per_second()
         * CALENDAR_SECONDS_PER_DAY
-        * FRESH_FOOD_STORAGE_RESIDENCE_FACTOR)
+        * FRESH_FOOD_STORAGE_RESIDENCE_FACTOR
+        * difficulty_multiplier)
         .clamp(0.0, 1.0);
     let preserved_fraction = (environment.preserved_food_spoilage_fraction_per_second()
         * CALENDAR_SECONDS_PER_DAY
-        * PRESERVED_FOOD_STORAGE_RESIDENCE_FACTOR)
+        * PRESERVED_FOOD_STORAGE_RESIDENCE_FACTOR
+        * difficulty_multiplier)
         .clamp(0.0, 1.0);
     for commodity in FRESH_FOOD_COMMODITIES {
         let stock = residence_commodity_stock(residence, commodity);

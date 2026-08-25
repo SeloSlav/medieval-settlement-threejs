@@ -23,6 +23,7 @@ export type SettlementApprovalPacingContext = {
   worldSeed: number;
   simTick: number;
   active: boolean;
+  approvalDeclineRate?: number;
 };
 
 type ApprovalPacingStorage = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
@@ -37,6 +38,7 @@ export function paceSettlementApproval(
   previous: SettlementApprovalPacingState | null,
   nowMs: number,
   active: boolean,
+  approvalDeclineRate = 100,
 ): { approval: SettlementApproval; state: SettlementApprovalPacingState } {
   const normalizedNow = Number.isFinite(nowMs)
     ? nowMs
@@ -54,7 +56,13 @@ export function paceSettlementApproval(
       MAX_PACING_STEP_MS,
       Math.max(0, normalizedNow - previous.lastUpdatedAtMs),
     );
-    const decline = APPROVAL_DECLINE_POINTS_PER_REAL_HOUR * elapsedMs / HOUR_MS;
+    const declineRateMultiplier = Number.isFinite(approvalDeclineRate)
+      ? Math.max(0, approvalDeclineRate) / 100
+      : 1;
+    const decline = APPROVAL_DECLINE_POINTS_PER_REAL_HOUR
+      * declineRateMultiplier
+      * elapsedMs
+      / HOUR_MS;
     score = Math.max(targetScore, score - decline);
   }
 
@@ -108,7 +116,13 @@ export class SettlementApprovalPacer {
       this.persistedDisplayedScore = null;
     }
 
-    const paced = paceSettlementApproval(target, this.state, nowMs, context.active);
+    const paced = paceSettlementApproval(
+      target,
+      this.state,
+      nowMs,
+      context.active,
+      context.approvalDeclineRate,
+    );
     this.state = paced.state;
     this.lastSimTick = context.simTick;
     if (paced.approval.score !== this.persistedDisplayedScore) {

@@ -493,8 +493,18 @@ assert.match(
 );
 assert.match(
   bootstrapReducer,
-  /create_initial_settlement\(ctx, owner, building_id, x, z\)[\s\S]{0,500}settlement_id: settlement\.id/,
+  /create_initial_settlement\(ctx, owner, building_id, x, z\)[\s\S]{0,12000}settlement_id: settlement\.id/,
   'the free first camp must seed a durable community row instead of serving as that community forever',
+);
+assert.match(
+  bootstrapReducer,
+  /let initial_goods_multiplier = config\.initial_goods_multiplier;/,
+  'the saved supply option must be read only while creating the original camp',
+);
+assert.equal(
+  bootstrapReducer.match(/first_camp_goods\(/g)?.length,
+  7,
+  'Double must add one extra allocation of the six existing starting goods',
 );
 
 const buildingReducer = read('server/src/reducers/buildings.rs');
@@ -534,6 +544,11 @@ assert.match(
   'the server should persistently distinguish free bootstrap camps from paid expansion camps',
 );
 const constructionSimulation = read('server/src/simulation/construction.rs');
+assert.doesNotMatch(
+  `${buildingReducer}\n${constructionSimulation}`,
+  /initial_goods_multiplier/,
+  'paid expansion camps must never receive the first-camp supply multiplier',
+);
 assert.match(
   constructionSimulation,
   /site\.kind == "founders_camp"[\s\S]{0,180}activate_founding_settlement\(ctx, site\.settlement_id, site\.id\)[\s\S]{0,220}site\.founding_shelter_active = true/,

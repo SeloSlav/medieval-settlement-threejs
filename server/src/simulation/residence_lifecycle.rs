@@ -22,6 +22,7 @@ pub fn step_residence(
     environment: EnvironmentState,
     world_seed: u64,
     sim_tick: u64,
+    food_spoilage_rate: u8,
 ) {
     let residence_id = residence.id;
     // Save-compatible migration: completed homes are permanent housing stock.
@@ -79,5 +80,6 @@ pub fn step_residence(
         environment,
         world_seed,
         sim_tick,
+        food_spoilage_rate,
     );
 }

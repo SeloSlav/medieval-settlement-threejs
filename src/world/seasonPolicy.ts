@@ -47,6 +47,7 @@ import {
   WINTER_ROAD_SPEED_MULTIPLIER,
   WINTER_WATERMILL_THROUGHPUT_MULTIPLIER,
 } from '../generated/gameBalance.ts';
+import { getActiveWorldGeneration } from './worldGenerationContext.ts';
 import {
   formatCalendarDate,
   gameClock,
@@ -199,6 +200,7 @@ export function environmentFor(
   hydrology: number,
   clock: GameClock,
   severeWeatherEnabled = false,
+  foodSpoilageRate = getActiveWorldGeneration().foodSpoilageRate,
 ): EnvironmentState {
   const season = seasonForMonth(clock.month);
   const weather: WeatherKind = season === 'spring' && springRain(seed, hydrology, clock)
@@ -209,6 +211,7 @@ export function environmentFor(
         ? 'frost'
         : 'fair';
 
+  const spoilageMultiplier = Math.max(0, foodSpoilageRate) / 100;
   return {
     season,
     weather,
@@ -236,16 +239,16 @@ export function environmentFor(
         autumn: AUTUMN_PASTURE_CAPACITY_MULTIPLIER,
         winter: WINTER_PASTURE_CAPACITY_MULTIPLIER,
       }[season],
-    freshFoodSpoilageFractionPerDay: weather === 'drought'
+    freshFoodSpoilageFractionPerDay: spoilageMultiplier * (weather === 'drought'
       ? FRESH_FOOD_SPOILAGE_DROUGHT_PER_DAY
       : {
         spring: FRESH_FOOD_SPOILAGE_SPRING_PER_DAY,
         summer: FRESH_FOOD_SPOILAGE_SUMMER_PER_DAY,
         autumn: FRESH_FOOD_SPOILAGE_AUTUMN_PER_DAY,
         winter: FRESH_FOOD_SPOILAGE_WINTER_PER_DAY,
-      }[season],
+      }[season]),
     preservedFoodSpoilageFractionPerDay:
-      preservedFoodSpoilageFractionPerDayFor(season, weather),
+      preservedFoodSpoilageFractionPerDayFor(season, weather) * spoilageMultiplier,
     preservedFoodDemandMultiplier:
       preservedFoodDemandMultiplierForSeason(season),
     roadTravelSpeedMultiplier: weather === 'rain'

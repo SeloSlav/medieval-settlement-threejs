@@ -4,6 +4,8 @@ export const DEFAULT_WORLD_SEED = 0x71a2e0d;
 
 export type WorldMapSize = 'small' | 'medium' | 'large';
 export type WorldConflictMode = 'peaceful' | 'frontier';
+export type WorldDifficultyRate = 0 | 50 | 100 | 150;
+export type WorldInitialGoodsMultiplier = 1 | 2;
 
 export type WorldGenerationSettings = {
   seed: number;
@@ -28,6 +30,12 @@ export type WorldGenerationSettings = {
   severeWeatherEnabled: boolean;
   /** Makes well groundwater vary by location instead of using one reliable score at every site. */
   wellAquiferNetworksEnabled: boolean;
+  /** Passive approval-loss pace as a percentage of the standard rate. */
+  approvalDeclineRate: WorldDifficultyRate;
+  /** Fresh and preserved food-loss pace as a percentage of the standard rate. */
+  foodSpoilageRate: WorldDifficultyRate;
+  /** Goods placed in the original founders' camp. Later camps are unaffected. */
+  initialGoodsMultiplier: WorldInitialGoodsMultiplier;
 };
 
 export type WorldDimensions = {
@@ -90,6 +98,9 @@ export const DEFAULT_WORLD_GENERATION_SETTINGS: WorldGenerationSettings = {
   enemyPressure: 0,
   severeWeatherEnabled: false,
   wellAquiferNetworksEnabled: false,
+  approvalDeclineRate: 100,
+  foodSpoilageRate: 100,
+  initialGoodsMultiplier: 1,
 };
 
 const STORAGE_KEY = 'medieval-road-system:world-generation';
@@ -193,6 +204,9 @@ export function normalizeWorldGenerationSettings(
       : 0,
     severeWeatherEnabled: partial.severeWeatherEnabled === true,
     wellAquiferNetworksEnabled: partial.wellAquiferNetworksEnabled === true,
+    approvalDeclineRate: normalizeWorldDifficultyRate(partial.approvalDeclineRate),
+    foodSpoilageRate: normalizeWorldDifficultyRate(partial.foodSpoilageRate),
+    initialGoodsMultiplier: normalizeInitialGoodsMultiplier(partial.initialGoodsMultiplier),
   };
 }
 
@@ -233,4 +247,14 @@ export function shouldShowWorldSetup(): boolean {
 function clampPercent(value: number): number {
   if (!Number.isFinite(value)) return 50;
   return Math.max(0, Math.min(100, Math.round(value)));
+}
+
+export function normalizeWorldDifficultyRate(value: number | undefined): WorldDifficultyRate {
+  return value === 0 || value === 50 || value === 150 ? value : 100;
+}
+
+export function normalizeInitialGoodsMultiplier(
+  value: number | undefined,
+): WorldInitialGoodsMultiplier {
+  return value === 2 ? 2 : 1;
 }

@@ -311,6 +311,32 @@ for (let step = 43; step < 53; step += 1) {
 assert.equal(paced.approval.score, 16, 'reaching the severe target must take over four real hours');
 assert.equal(APPROVAL_DECLINE_POINTS_PER_REAL_HOUR, 10);
 
+const difficultyStart = paceSettlementApproval(severeTarget, null, 0, true);
+const disabledDecline = paceSettlementApproval(
+  severeTarget,
+  difficultyStart.state,
+  fiveMinutesMs,
+  true,
+  0,
+);
+const relaxedDecline = paceSettlementApproval(
+  severeTarget,
+  difficultyStart.state,
+  fiveMinutesMs,
+  true,
+  50,
+);
+const demandingDecline = paceSettlementApproval(
+  severeTarget,
+  difficultyStart.state,
+  fiveMinutesMs,
+  true,
+  150,
+);
+assert.equal(disabledDecline.state.score, APPROVAL_BASE_SCORE);
+assert.ok(relaxedDecline.state.score > APPROVAL_BASE_SCORE - 1);
+assert.ok(demandingDecline.state.score < APPROVAL_BASE_SCORE - 1);
+
 let background = paceSettlementApproval(severeTarget, null, 0, true);
 background = paceSettlementApproval(severeTarget, background.state, 4 * 60 * 60 * 1_000, true);
 assert.equal(background.approval.score, 59, 'a throttled background tab must not spend hours at once');

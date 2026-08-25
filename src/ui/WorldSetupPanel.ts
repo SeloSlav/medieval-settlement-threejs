@@ -5,6 +5,7 @@ import {
   normalizeWorldGenerationSettings,
   parseSeedHex,
   randomWorldSeed,
+  type WorldDifficultyRate,
   type WorldGenerationSettings,
   type WorldMapSize,
 } from '../world/worldGenerationSettings.ts';
@@ -82,7 +83,7 @@ export class WorldSetupPanel {
             <h1 id="world-setup-heading" class="world-setup-sr-title">Map Generation</h1>
             <nav class="new-game-setup-steps" aria-label="New world setup progress">
               <ol>
-                <li class="is-complete" data-setup-progress="house"><span>1</span><strong>Noble House</strong></li>
+                <li class="is-complete" data-setup-progress="house"><span>1</span><strong>Legacy</strong></li>
                 <li class="is-complete" data-setup-progress="heraldry"><span>2</span><strong>Heraldry</strong></li>
                 <li data-setup-progress="map" data-setup-heading aria-current="step" tabindex="-1"><span>3</span><strong>Map Generation</strong></li>
               </ol>
@@ -114,6 +115,54 @@ export class WorldSetupPanel {
               <input id="world-setup-pressure" class="world-setup-slider" type="range" min="10" max="100" step="5" value="50" />
               <p class="world-setup-slider-hint">Higher pressure brings earlier scouts and heavier losses at exposed holdings.</p>
             </div>
+            </section>
+
+            <section class="world-setup-section" aria-label="Approval decline">
+              <h2 class="world-setup-section__title">Approval decline</h2>
+              <div class="world-setup-rule-grid" data-approval-decline-grid>
+                <button type="button" class="world-setup-rule-option" data-approval-decline-rate="0">
+                  <strong>Disabled</strong><span>No passive decline.</span>
+                </button>
+                <button type="button" class="world-setup-rule-option" data-approval-decline-rate="50">
+                  <strong>Relaxed</strong><span>50% slower.</span>
+                </button>
+                <button type="button" class="world-setup-rule-option" data-approval-decline-rate="100">
+                  <strong>Normal</strong><span>Current rate.</span>
+                </button>
+                <button type="button" class="world-setup-rule-option" data-approval-decline-rate="150">
+                  <strong>Demanding</strong><span>50% faster.</span>
+                </button>
+              </div>
+            </section>
+
+            <section class="world-setup-section" aria-label="Food spoilage">
+              <h2 class="world-setup-section__title">Food spoilage</h2>
+              <div class="world-setup-rule-grid" data-food-spoilage-grid>
+                <button type="button" class="world-setup-rule-option" data-food-spoilage-rate="0">
+                  <strong>None</strong><span>Food never spoils.</span>
+                </button>
+                <button type="button" class="world-setup-rule-option" data-food-spoilage-rate="50">
+                  <strong>Reduced</strong><span>50% slower.</span>
+                </button>
+                <button type="button" class="world-setup-rule-option" data-food-spoilage-rate="100">
+                  <strong>Normal</strong><span>Current rates.</span>
+                </button>
+                <button type="button" class="world-setup-rule-option" data-food-spoilage-rate="150">
+                  <strong>Harsh</strong><span>50% faster.</span>
+                </button>
+              </div>
+            </section>
+
+            <section class="world-setup-section" aria-label="Starting supplies">
+              <h2 class="world-setup-section__title">First camp supplies</h2>
+              <div class="world-setup-rule-grid world-setup-rule-grid--two" data-initial-goods-grid>
+                <button type="button" class="world-setup-rule-option" data-initial-goods-multiplier="1">
+                  <strong>Normal</strong><span>Current starting stock.</span>
+                </button>
+                <button type="button" class="world-setup-rule-option" data-initial-goods-multiplier="2">
+                  <strong>Double</strong><span>2× goods in the original camp.</span>
+                </button>
+              </div>
             </section>
 
             <section class="world-setup-section" aria-label="Severe weather">
@@ -269,6 +318,9 @@ export class WorldSetupPanel {
     const severeWeatherState = this.backdrop.querySelector<HTMLElement>('[data-severe-weather-state]')!;
     const aquiferNetworksButton = this.backdrop.querySelector<HTMLButtonElement>('[data-aquifer-networks]')!;
     const aquiferNetworksState = this.backdrop.querySelector<HTMLElement>('[data-aquifer-networks-state]')!;
+    const approvalDeclineGrid = this.backdrop.querySelector<HTMLElement>('[data-approval-decline-grid]')!;
+    const foodSpoilageGrid = this.backdrop.querySelector<HTMLElement>('[data-food-spoilage-grid]')!;
+    const initialGoodsGrid = this.backdrop.querySelector<HTMLElement>('[data-initial-goods-grid]')!;
     const backButton = this.backdrop.querySelector<HTMLButtonElement>('[data-setup-back]')!;
     const landscapeGrid = this.backdrop.querySelector<HTMLElement>('[data-landscape-grid]')!;
     const landscapeNote = this.backdrop.querySelector<HTMLElement>('[data-landscape-note]')!;
@@ -328,6 +380,24 @@ export class WorldSetupPanel {
         : 'Off · even groundwater';
     };
 
+    const syncRuleControls = (): void => {
+      for (const option of approvalDeclineGrid.querySelectorAll<HTMLButtonElement>('[data-approval-decline-rate]')) {
+        const selected = Number(option.dataset.approvalDeclineRate) === this.draft.approvalDeclineRate;
+        option.classList.toggle('is-selected', selected);
+        option.setAttribute('aria-pressed', String(selected));
+      }
+      for (const option of foodSpoilageGrid.querySelectorAll<HTMLButtonElement>('[data-food-spoilage-rate]')) {
+        const selected = Number(option.dataset.foodSpoilageRate) === this.draft.foodSpoilageRate;
+        option.classList.toggle('is-selected', selected);
+        option.setAttribute('aria-pressed', String(selected));
+      }
+      for (const option of initialGoodsGrid.querySelectorAll<HTMLButtonElement>('[data-initial-goods-multiplier]')) {
+        const selected = Number(option.dataset.initialGoodsMultiplier) === this.draft.initialGoodsMultiplier;
+        option.classList.toggle('is-selected', selected);
+        option.setAttribute('aria-pressed', String(selected));
+      }
+    };
+
     for (const button of modeGrid.querySelectorAll<HTMLButtonElement>('[data-conflict-mode]')) {
       button.addEventListener('click', () => {
         this.draft.conflictMode = button.dataset.conflictMode === 'frontier' ? 'frontier' : 'peaceful';
@@ -349,8 +419,27 @@ export class WorldSetupPanel {
       this.draft.wellAquiferNetworksEnabled = !this.draft.wellAquiferNetworksEnabled;
       syncHazardControls();
     });
+    for (const button of approvalDeclineGrid.querySelectorAll<HTMLButtonElement>('[data-approval-decline-rate]')) {
+      button.addEventListener('click', () => {
+        this.draft.approvalDeclineRate = Number(button.dataset.approvalDeclineRate) as WorldDifficultyRate;
+        syncRuleControls();
+      });
+    }
+    for (const button of foodSpoilageGrid.querySelectorAll<HTMLButtonElement>('[data-food-spoilage-rate]')) {
+      button.addEventListener('click', () => {
+        this.draft.foodSpoilageRate = Number(button.dataset.foodSpoilageRate) as WorldDifficultyRate;
+        syncRuleControls();
+      });
+    }
+    for (const button of initialGoodsGrid.querySelectorAll<HTMLButtonElement>('[data-initial-goods-multiplier]')) {
+      button.addEventListener('click', () => {
+        this.draft.initialGoodsMultiplier = button.dataset.initialGoodsMultiplier === '2' ? 2 : 1;
+        syncRuleControls();
+      });
+    }
     syncConflictControls();
     syncHazardControls();
+    syncRuleControls();
 
     topographySlider.addEventListener('input', () => {
       this.draft.topography = Number(topographySlider.value);

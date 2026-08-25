@@ -9,7 +9,7 @@ async function expectActiveStep(page: Page, step: 'house' | 'heraldry' | 'map'):
 test('new-world setup moves backward and forward without losing choices', async ({ page }) => {
   await page.goto('/?new');
 
-  const houseHeading = page.getByRole('heading', { name: 'Choose Your Noble House' });
+  const houseHeading = page.getByRole('heading', { name: 'Choose Your Legacy' });
   await expect(houseHeading).toBeVisible();
   await expect(houseHeading).toBeFocused();
   await expect(page.locator('[data-setup-step="house"]')).toBeVisible();
@@ -44,7 +44,7 @@ test('new-world setup moves backward and forward without losing choices', async 
   await expect(heraldryHeading).toBeFocused();
   await expect(page.locator('[data-setup-step="house"]')).toBeHidden();
   await expect(page.locator('[data-setup-step="heraldry"]')).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Back to Noble House' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Back to Legacy' })).toBeVisible();
   await expectActiveStep(page, 'heraldry');
 
   const heraldryProfile = page.locator('.noble-setup-heraldry-profile');
@@ -125,7 +125,7 @@ test('new-world setup moves backward and forward without losing choices', async 
   await expect(charge).toHaveAttribute('aria-pressed', 'true');
   await expectActiveStep(page, 'heraldry');
 
-  await page.getByRole('button', { name: 'Back to Noble House' }).click();
+  await page.getByRole('button', { name: 'Back to Legacy' }).click();
   await expect(houseHeading).toBeVisible();
   await expect(houseHeading).toBeFocused();
   await expect(noble).toHaveAttribute('aria-pressed', 'true');

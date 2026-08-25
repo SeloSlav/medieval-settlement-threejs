@@ -1255,6 +1255,7 @@ export class App {
         worldSeed: state.seed,
         simTick: snapshot.simTick,
         active: snapshot.gameSpeed > 0,
+        approvalDeclineRate: snapshot.worldGeneration?.approvalDeclineRate ?? 100,
       },
     ));
     this.toolbar?.setMapSize(

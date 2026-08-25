@@ -38,5 +38,8 @@ function sameGeneration(
     && current.enemyPressure === next.enemyPressure
     && current.severeWeatherEnabled === next.severeWeatherEnabled
     && current.wellAquiferNetworksEnabled === next.wellAquiferNetworksEnabled
+    && current.approvalDeclineRate === next.approvalDeclineRate
+    && current.foodSpoilageRate === next.foodSpoilageRate
+    && current.initialGoodsMultiplier === next.initialGoodsMultiplier
     && current.configured === next.configured;
 }

@@ -152,6 +152,7 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
     let well_aquifer_networks_enabled = config.well_aquifer_networks_enabled;
     let world_resource_abundance = config.resource_abundance;
     let severe_weather_enabled = config.severe_weather_enabled;
+    let food_spoilage_rate = config.food_spoilage_rate;
     let conflict_enabled = config.conflict_enabled;
     let enemy_pressure = config.enemy_pressure;
     ctx.db.world_config().id().update(WorldConfig {
@@ -563,7 +564,13 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
     }
 
     step_backyard_gardens(ctx, &tick, &clock, environment);
-    step_fresh_food_spoilage(ctx, &clock, environment, world_seed);
+    step_fresh_food_spoilage(
+        ctx,
+        &clock,
+        environment,
+        world_seed,
+        food_spoilage_rate,
+    );
     // Physical hauling ends at stalls. Several checks per game day issue real
     // market stock to connected homes after local production, intake, and
     // spoilage without multiplying the household's monthly target lot.
@@ -601,6 +608,7 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
             environment,
             world_seed,
             sim_tick,
+            food_spoilage_rate,
         );
     }
     step_burials(ctx, &tick, &clock, TICK_DT);

@@ -22,4 +22,7 @@ export default {
   enemyPressure: __t.u8(),
   severeWeatherEnabled: __t.bool(),
   wellAquiferNetworksEnabled: __t.bool(),
+  approvalDeclineRate: __t.u8(),
+  foodSpoilageRate: __t.u8(),
+  initialGoodsMultiplier: __t.u8(),
 };

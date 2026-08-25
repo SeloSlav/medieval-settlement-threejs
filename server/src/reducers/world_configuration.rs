@@ -48,6 +48,9 @@ pub fn configure_world(
     enemy_pressure: u8,
     severe_weather_enabled: bool,
     well_aquifer_networks_enabled: bool,
+    approval_decline_rate: u8,
+    food_spoilage_rate: u8,
+    initial_goods_multiplier: u8,
 ) -> Result<(), String> {
     validate_map_size(map_size)?;
     validate_percent(topography, "topography")?;
@@ -56,6 +59,9 @@ pub fn configure_world(
     validate_percent(resource_abundance, "resource_abundance")?;
     validate_percent(resource_variety, "resource_variety")?;
     validate_percent(enemy_pressure, "enemy_pressure")?;
+    validate_difficulty_rate(approval_decline_rate, "approval_decline_rate")?;
+    validate_difficulty_rate(food_spoilage_rate, "food_spoilage_rate")?;
+    validate_initial_goods_multiplier(initial_goods_multiplier)?;
     let enemy_pressure = if conflict_enabled {
         enemy_pressure.max(1)
     } else {
@@ -79,7 +85,10 @@ pub fn configure_world(
     let rules_changed = config.conflict_enabled != conflict_enabled
         || config.enemy_pressure != enemy_pressure
         || config.severe_weather_enabled != severe_weather_enabled
-        || config.well_aquifer_networks_enabled != well_aquifer_networks_enabled;
+        || config.well_aquifer_networks_enabled != well_aquifer_networks_enabled
+        || config.approval_decline_rate != approval_decline_rate
+        || config.food_spoilage_rate != food_spoilage_rate
+        || config.initial_goods_multiplier != initial_goods_multiplier;
     let setup_changed = terrain_changed || resources_changed || rules_changed;
 
     // Only lock generation after a client has published settings. The sim scheduler
@@ -105,6 +114,9 @@ pub fn configure_world(
             enemy_pressure,
             severe_weather_enabled,
             well_aquifer_networks_enabled,
+            approval_decline_rate,
+            food_spoilage_rate,
+            initial_goods_multiplier,
             configured: true,
             // Repair idle ticks that ran before the first client published settings.
             sim_tick: if !config.configured {
@@ -135,6 +147,20 @@ fn validate_percent(value: u8, label: &str) -> Result<(), String> {
     Err(format!("{label} must be between 0 and 100"))
 }
 
+fn validate_difficulty_rate(value: u8, label: &str) -> Result<(), String> {
+    if matches!(value, 0 | 50 | 100 | 150) {
+        return Ok(());
+    }
+    Err(format!("{label} must be 0, 50, 100, or 150"))
+}
+
+fn validate_initial_goods_multiplier(value: u8) -> Result<(), String> {
+    if matches!(value, 1 | 2) {
+        return Ok(());
+    }
+    Err("initial_goods_multiplier must be 1 or 2".into())
+}
+
 pub fn default_world_config() -> WorldConfig {
     WorldConfig {
         id: 0,
@@ -152,6 +178,9 @@ pub fn default_world_config() -> WorldConfig {
         enemy_pressure: 0,
         severe_weather_enabled: false,
         well_aquifer_networks_enabled: false,
+        approval_decline_rate: 100,
+        food_spoilage_rate: 100,
+        initial_goods_multiplier: 1,
         configured: false,
     }
 }

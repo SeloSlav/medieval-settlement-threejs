@@ -27,4 +27,7 @@ export default __t.row({
   resourceVariety: __t.u8().name("resource_variety"),
   severeWeatherEnabled: __t.bool().name("severe_weather_enabled"),
   wellAquiferNetworksEnabled: __t.bool().name("well_aquifer_networks_enabled"),
+  approvalDeclineRate: __t.u8().name("approval_decline_rate"),
+  foodSpoilageRate: __t.u8().name("food_spoilage_rate"),
+  initialGoodsMultiplier: __t.u8().name("initial_goods_multiplier"),
 });

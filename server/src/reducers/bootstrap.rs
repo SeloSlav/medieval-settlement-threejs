@@ -1,5 +1,9 @@
 use spacetimedb::{reducer, ReducerContext};
 
+use crate::balance_generated::{
+    STARTING_BREAD, STARTING_FIREWOOD, STARTING_GOLD, STARTING_IRONWORK, STARTING_STONE,
+    STARTING_TIMBER,
+};
 use crate::building_defs::building_def;
 use crate::construction_priority::CONSTRUCTION_PRIORITY_NORMAL;
 use crate::db::*;
@@ -162,6 +166,10 @@ fn owner_has_existing_settlement(ctx: &ReducerContext, owner: spacetimedb::Ident
             .is_some()
 }
 
+fn first_camp_goods(stock: f64, standard_allocation: f64, multiplier: u8) -> f64 {
+    stock.max(0.0) + standard_allocation.max(0.0) * f64::from(multiplier.saturating_sub(1).min(1))
+}
+
 /// Migrates developed legacy saves to physical storage without choosing a
 /// starting point for a fresh settlement. New players place their camp through
 /// the ordinary building-placement reducer once the world has loaded.
@@ -213,6 +221,7 @@ pub(crate) fn place_founding_camp(ctx: &ReducerContext, x: f64, z: f64) -> Resul
         .find(&0)
         .ok_or_else(|| "World not initialized.".to_string())?;
     let building_id = next_available_building_id(ctx, config.next_building_id)?;
+    let initial_goods_multiplier = config.initial_goods_multiplier;
     let settlement = crate::settlements::create_initial_settlement(ctx, owner, building_id, x, z)?;
     ctx.db.building().insert(Building {
         id: building_id,
@@ -225,16 +234,24 @@ pub(crate) fn place_founding_camp(ctx: &ReducerContext, x: f64, z: f64) -> Resul
         tree_work_area_z: 0.0,
         tree_work_area_radius: 0.0,
         action_cooldown: 0.0,
-        timber: resources.timber.max(0.0),
-        firewood: resources.firewood.max(0.0),
-        stone: resources.stone.max(0.0),
+        timber: first_camp_goods(resources.timber, STARTING_TIMBER, initial_goods_multiplier),
+        firewood: first_camp_goods(
+            resources.firewood,
+            STARTING_FIREWOOD,
+            initial_goods_multiplier,
+        ),
+        stone: first_camp_goods(resources.stone, STARTING_STONE, initial_goods_multiplier),
         water: resources.water.max(0.0),
         food: resources.food.max(0.0),
         ale: resources.ale.max(0.0),
         preserved_food: resources.preserved_food.max(0.0),
         honey: resources.honey.max(0.0),
         wine: resources.wine.max(0.0),
-        ironwork: resources.ironwork.max(0.0),
+        ironwork: first_camp_goods(
+            resources.ironwork,
+            STARTING_IRONWORK,
+            initial_goods_multiplier,
+        ),
         polearms: resources.polearms.max(0.0),
         wool: resources.wool.max(0.0),
         cloth: resources.cloth.max(0.0),
@@ -247,7 +264,7 @@ pub(crate) fn place_founding_camp(ctx: &ReducerContext, x: f64, z: f64) -> Resul
         storehouse_accepts_clay: true,
         storehouse_accepts_salt: true,
         storehouse_accepts_charcoal: true,
-        gold: resources.gold.max(0.0),
+        gold: first_camp_goods(resources.gold, STARTING_GOLD, initial_goods_multiplier),
         construction_complete: true,
         construction_progress: 1.0,
         construction_required_timber: 0.0,
@@ -347,7 +364,11 @@ pub(crate) fn place_founding_camp(ctx: &ReducerContext, x: f64, z: f64) -> Resul
         maslin_grain: resources.maslin_grain.max(0.0),
         rye_flour: resources.rye_flour.max(0.0),
         maslin_flour: resources.maslin_flour.max(0.0),
-        rye_bread: resources.rye_bread.max(0.0),
+        rye_bread: first_camp_goods(
+            resources.rye_bread,
+            STARTING_BREAD,
+            initial_goods_multiplier,
+        ),
         maslin_bread: resources.maslin_bread.max(0.0),
         threshing_priority: crate::farm_work_policy::THRESHING_PRIORITY_DEFAULT,
         fire_repair_active: false,

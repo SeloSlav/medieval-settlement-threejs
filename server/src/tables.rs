@@ -77,6 +77,15 @@ pub struct WorldConfig {
     /// Appended and disabled so existing and new settlements keep forgiving well placement.
     #[default(false)]
     pub well_aquifer_networks_enabled: bool,
+    /// Passive approval-loss pace: 0, 50, 100, or 150 percent of standard.
+    #[default(100)]
+    pub approval_decline_rate: u8,
+    /// Fresh and preserved food-loss pace: 0, 50, 100, or 150 percent of standard.
+    #[default(100)]
+    pub food_spoilage_rate: u8,
+    /// Goods multiplier for the original founders' camp only: 1 or 2.
+    #[default(1)]
+    pub initial_goods_multiplier: u8,
 }
 
 #[spacetimedb::table(accessor = player_resources, public)]

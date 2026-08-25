@@ -90,14 +90,14 @@ export const NOBLES = [
     name: 'Daničićeva udovica',
     title: 'Senj Uskok expedition leader and organizer',
     years: 'fl. 1571',
-    portrait: null,
+    portrait: '/assets/ui/noble-setup/portraits/daniciceva-udovica.webp',
   },
   {
     id: 'filipa-lacea',
     name: 'Filipa Lacea',
     title: 'Pula-born Neo-Latin poet and Renaissance humanist',
     years: '1545/46–1576',
-    portrait: null,
+    portrait: '/assets/ui/noble-setup/portraits/filipa-lacea.webp',
   },
   {
     id: 'frane-petric',

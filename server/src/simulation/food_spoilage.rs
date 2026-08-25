@@ -35,15 +35,19 @@ pub fn step_fresh_food_spoilage(
     clock: &GameClock,
     environment: EnvironmentState,
     world_seed: u64,
+    food_spoilage_rate: u8,
 ) {
-    if !daily_household_bill_due(clock) {
+    if food_spoilage_rate == 0 || !daily_household_bill_due(clock) {
         return;
     }
 
-    let fresh_rate =
-        environment.fresh_food_spoilage_fraction_per_second() * CALENDAR_SECONDS_PER_DAY;
-    let preserved_rate =
-        environment.preserved_food_spoilage_fraction_per_second() * CALENDAR_SECONDS_PER_DAY;
+    let difficulty_multiplier = f64::from(food_spoilage_rate) / 100.0;
+    let fresh_rate = environment.fresh_food_spoilage_fraction_per_second()
+        * CALENDAR_SECONDS_PER_DAY
+        * difficulty_multiplier;
+    let preserved_rate = environment.preserved_food_spoilage_fraction_per_second()
+        * CALENDAR_SECONDS_PER_DAY
+        * difficulty_multiplier;
 
     let weather_immune_building_ids = ctx
         .db

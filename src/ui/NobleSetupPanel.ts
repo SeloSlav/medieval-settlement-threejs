@@ -102,21 +102,21 @@ export class NobleSetupPanel {
         <header class="noble-setup-heading">
           <nav class="new-game-setup-steps" aria-label="New world setup progress">
             <ol>
-              <li data-setup-progress="house"><span>1</span><strong>Noble House</strong></li>
+              <li data-setup-progress="house"><span>1</span><strong>Legacy</strong></li>
               <li data-setup-progress="heraldry"><span>2</span><strong>Heraldry</strong></li>
               <li data-setup-progress="map"><span>3</span><strong>Map Generation</strong></li>
             </ol>
           </nav>
-          <h1 id="noble-setup-heading" data-setup-heading tabindex="-1">Choose Your Noble House</h1>
+          <h1 id="noble-setup-heading" data-setup-heading tabindex="-1">Choose Your Legacy</h1>
         </header>
 
         <div class="noble-setup-layout">
-          <section class="noble-setup-identity" data-setup-step="house" aria-label="Noble house selection">
+          <section class="noble-setup-identity" data-setup-step="house" aria-label="Historical figure selection">
             <div class="noble-setup-house-content">
               <div class="noble-setup-house-profile">
                 <div class="noble-setup-identity-showcase">
                   <div class="noble-setup-portrait-frame">
-                    <img data-noble-preview-portrait alt="Selected noble" width="560" height="737" />
+                    <img data-noble-preview-portrait alt="Selected historical figure" width="560" height="737" />
                   </div>
                 </div>
 
@@ -147,10 +147,10 @@ export class NobleSetupPanel {
 
           <section class="noble-setup-armory" data-setup-step="heraldry" aria-label="Heraldry editor" hidden>
             <div class="noble-setup-heraldry-layout">
-              <aside class="noble-setup-heraldry-profile" aria-label="Selected commander and live heraldry">
+              <aside class="noble-setup-heraldry-profile" aria-label="Chosen legacy and live heraldry">
                 <div class="noble-setup-heraldry-portrait-shell">
                   <div class="noble-setup-heraldry-portrait-frame">
-                    <img data-heraldry-preview-portrait alt="Selected commander" width="560" height="737" />
+                    <img data-heraldry-preview-portrait alt="Selected historical figure" width="560" height="737" />
                   </div>
                   <div class="noble-setup-heraldry-shield" data-main-shield></div>
                 </div>
@@ -160,7 +160,7 @@ export class NobleSetupPanel {
                   data-tooltip-placement="above"
                   tabindex="0"
                 >
-                  <p class="noble-setup-eyebrow">Selected Commander</p>
+                  <p class="noble-setup-eyebrow">Chosen Legacy</p>
                   <h2 data-heraldry-house-name></h2>
                   <p data-heraldry-preview-title></p>
                   <small data-heraldry-preview-years></small>
@@ -226,7 +226,7 @@ export class NobleSetupPanel {
 
         <footer class="noble-setup-actions">
           <button type="button" class="noble-setup-back" data-setup-back hidden>
-            <i aria-hidden="true">‹</i> Back to Noble House
+            <i aria-hidden="true">‹</i> Back to Legacy
           </button>
           <button type="submit" data-setup-next>
             Continue to Heraldry <i aria-hidden="true">›</i>
@@ -538,7 +538,7 @@ export class NobleSetupPanel {
     this.heraldryPage.hidden = isHouse;
     this.backButton.hidden = isHouse;
     this.heading.textContent = isHouse
-      ? 'Choose Your Noble House'
+      ? 'Choose Your Legacy'
       : 'Design Your Heraldry';
     this.nextButton.innerHTML = isHouse
       ? 'Continue to Heraldry <i aria-hidden="true">›</i>'

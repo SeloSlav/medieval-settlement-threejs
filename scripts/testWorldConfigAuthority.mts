@@ -40,6 +40,9 @@ const row = {
   enemyPressure: 70,
   severeWeatherEnabled: true,
   wellAquiferNetworksEnabled: true,
+  approvalDeclineRate: 50,
+  foodSpoilageRate: 150,
+  initialGoodsMultiplier: 2,
   configured: true,
 } satisfies WorldConfig;
 
@@ -53,6 +56,9 @@ assert.equal(generation.conflictMode, 'frontier');
 assert.equal(generation.enemyPressure, 70);
 assert.equal(generation.severeWeatherEnabled, true);
 assert.equal(generation.wellAquiferNetworksEnabled, true);
+assert.equal(generation.approvalDeclineRate, 50);
+assert.equal(generation.foodSpoilageRate, 150);
+assert.equal(generation.initialGoodsMultiplier, 2);
 assert.equal(generation.configured, true);
 
 assert.equal(
@@ -69,6 +75,9 @@ assert.equal(payload.conflictEnabled, false);
 assert.equal(payload.enemyPressure, 0);
 assert.equal(payload.severeWeatherEnabled, false);
 assert.equal(payload.wellAquiferNetworksEnabled, false);
+assert.equal(payload.approvalDeclineRate, 100);
+assert.equal(payload.foodSpoilageRate, 100);
+assert.equal(payload.initialGoodsMultiplier, 1);
 
 const frontierPayload = settingsToConfigurePayload({
   ...DEFAULT_WORLD_GENERATION_SETTINGS,
@@ -147,6 +156,9 @@ assert.deepEqual(
       enemyPressure: generation.enemyPressure,
       severeWeatherEnabled: generation.severeWeatherEnabled,
       wellAquiferNetworksEnabled: generation.wellAquiferNetworksEnabled,
+      approvalDeclineRate: generation.approvalDeclineRate,
+      foodSpoilageRate: generation.foodSpoilageRate,
+      initialGoodsMultiplier: generation.initialGoodsMultiplier,
     },
   },
 );
@@ -198,6 +210,7 @@ await testReducerLockBecomesTerminalMismatch();
 await testStartupAlwaysReconfirmsWorldConfiguration();
 await testSevereWeatherSetupContract();
 await testAquiferSetupContract();
+await testDifficultySetupContract();
 
 console.log('world config authority tests passed');
 
@@ -388,9 +401,33 @@ async function testSevereWeatherSetupContract(): Promise<void> {
     'utf8',
   );
   assert.match(setupSource, /data-severe-weather[\s\S]*Off · beginner friendly/);
-  assert.match(setupSource, /Summer droughts, lightning ignition, accidental structure fires, and fire spread/);
+  assert.match(setupSource, /Adds droughts, lightning, and spreading fires/);
   assert.match(settingsSource, /severeWeatherEnabled:\s*false/);
   assert.match(serverConfigSource, /severe_weather_enabled:\s*false/);
+}
+
+async function testDifficultySetupContract(): Promise<void> {
+  const setupSource = await readFile(
+    new URL('../src/ui/WorldSetupPanel.ts', import.meta.url),
+    'utf8',
+  );
+  const settingsSource = await readFile(
+    new URL('../src/world/worldGenerationSettings.ts', import.meta.url),
+    'utf8',
+  );
+  const serverConfigSource = await readFile(
+    new URL('../server/src/reducers/world_configuration.rs', import.meta.url),
+    'utf8',
+  );
+  assert.match(setupSource, /data-approval-decline-rate="0"[\s\S]*data-approval-decline-rate="150"/);
+  assert.match(setupSource, /data-food-spoilage-rate="0"[\s\S]*Food never spoils/);
+  assert.match(setupSource, /data-initial-goods-multiplier="1"[\s\S]*data-initial-goods-multiplier="2"/);
+  assert.match(settingsSource, /approvalDeclineRate:\s*100/);
+  assert.match(settingsSource, /foodSpoilageRate:\s*100/);
+  assert.match(settingsSource, /initialGoodsMultiplier:\s*1/);
+  assert.match(serverConfigSource, /validate_difficulty_rate\(approval_decline_rate/);
+  assert.match(serverConfigSource, /validate_difficulty_rate\(food_spoilage_rate/);
+  assert.match(serverConfigSource, /validate_initial_goods_multiplier\(initial_goods_multiplier\)/);
 }
 
 async function testAquiferSetupContract(): Promise<void> {
