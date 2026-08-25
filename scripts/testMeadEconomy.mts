@@ -87,7 +87,7 @@ assert.match(
 );
 assert.match(
   cargo,
-  /ResidenceNeedKind::Luxury => building\.wine \+ building\.honey/,
+  /ResidenceNeedKind::Luxury => building\.candles \+ building\.wine \+ building\.honey/,
   'Marketplace Honey must also satisfy Tier-4 Luxury comfort',
 );
 assert.match(

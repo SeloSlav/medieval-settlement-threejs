@@ -1197,7 +1197,9 @@ function tierNeedRecoveryState(
       + marketplace.cheese + marketplace.aroniaJam + marketplace.rosehipJam
     : 0;
   const potteryOutletStock = marketplace?.pottery ?? 0;
-  const luxuryOutletStock = marketplace ? marketplace.wine + marketplace.honey : 0;
+  const luxuryOutletStock = marketplace
+    ? marketplace.candles + marketplace.wine + marketplace.honey
+    : 0;
   const physicalTierTwoNeedsReady = (aleNeedStock > 1e-6 || aleOutletStock > 1e-6)
     && (clothNeedStock > 1e-6 || clothOutletStock > 1e-6);
   const physicalTierThreeNeedsReady = tier < 3

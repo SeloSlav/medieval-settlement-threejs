@@ -307,16 +307,6 @@
     rgba(23, 26, 21, 0.34);
 }
 
-.noble-setup-identity > h2 {
-  margin: 0;
-  color: #dacaa9;
-  font-size: 15px;
-  font-weight: 500;
-  letter-spacing: 0.14em;
-  text-align: center;
-  text-transform: uppercase;
-}
-
 .noble-setup-identity-showcase {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(106px, 0.44fr);
@@ -532,18 +522,6 @@
   display: grid;
   grid-template-rows: auto auto minmax(0, 1fr);
   gap: 12px;
-}
-
-.noble-setup-section-heading--armory {
-  align-items: center;
-  padding: 0 3px;
-}
-
-.noble-setup-section-heading--armory h2 {
-  margin: 1px 0 0;
-  color: #ead9b5;
-  font-size: 20px;
-  font-weight: 500;
 }
 
 .noble-setup-presets {
@@ -803,8 +781,8 @@
 }
 
 .noble-setup-identity {
-  grid-template-rows: auto minmax(0, 1fr);
-  gap: 14px;
+  grid-template-rows: minmax(0, 1fr);
+  gap: 0;
   border-right: 0;
 }
 
@@ -989,7 +967,7 @@
 
 .noble-setup-heraldry-editor {
   display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
   gap: 12px;
   min-width: 0;
   min-height: 0;
@@ -1071,9 +1049,7 @@
     grid-template-rows: auto auto minmax(0, 1fr);
     gap: 5px;
   }
-  .noble-setup-section-heading--armory { padding: 0; }
   .noble-setup-eyebrow { font-size: 6px; }
-  .noble-setup-section-heading--armory h2 { font-size: 14px; }
   .noble-setup-presets { gap: 3px; padding: 3px 4px; }
   .noble-setup-preset { padding: 2px 0; }
   .heraldry-shield--preset { width: 24px; }
@@ -1115,8 +1091,8 @@
   .noble-setup-actions button { width: 100%; min-width: 0; min-height: 32px; padding: 5px 12px; font-size: 12px; }
   .noble-setup-layout { grid-template-columns: minmax(0, 1fr); }
   .noble-setup-identity {
-    grid-template-rows: auto minmax(0, 1fr);
-    gap: 7px;
+    grid-template-rows: minmax(0, 1fr);
+    gap: 0;
     border-right: 0;
     overflow-y: auto;
   }
@@ -1210,7 +1186,7 @@
   }
   .noble-setup-heraldry-identity > p:not(.noble-setup-eyebrow) { display: block; }
   .noble-setup-heraldry-shield { width: 46px; }
-  .noble-setup-heraldry-editor { grid-template-rows: auto auto auto; }
+  .noble-setup-heraldry-editor { grid-template-rows: auto auto; }
   .noble-setup-armory-columns { grid-template-columns: minmax(0, 1fr); }
   .noble-setup-editor-panel {
     grid-template-rows: auto auto auto auto auto auto;

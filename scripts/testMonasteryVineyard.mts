@@ -52,7 +52,7 @@ const cargo = source('server/src/simulation/delivery_cargo.rs');
 const tavernCargo = cargo.match(/for beverage in \[[\s\S]*?\] \{/)?.[0] ?? '';
 assert.match(tavernCargo, /CommodityKind::Cider[\s\S]*CommodityKind::PearCider[\s\S]*CommodityKind::Ale/);
 assert.doesNotMatch(tavernCargo, /CommodityKind::Wine/);
-assert.match(cargo, /ResidenceNeedKind::Luxury => building\.wine \+ building\.honey/);
+assert.match(cargo, /ResidenceNeedKind::Luxury => building\.candles \+ building\.wine \+ building\.honey/);
 assert.match(
   cargo,
   /ResidenceNeedKind::Luxury => \{[\s\S]*CommodityKind::Wine[\s\S]*CommodityKind::Honey/,

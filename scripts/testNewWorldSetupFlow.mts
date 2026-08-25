@@ -25,6 +25,9 @@ assert.match(noblePanel, /class="noble-setup-heraldry-profile"/);
 assert.match(noblePanel, /data-heraldry-preview-portrait/);
 assert.match(noblePanel, /class="noble-setup-heraldry-shield" data-main-shield/);
 assert.match(noblePanel, /class="noble-setup-heraldry-editor"/);
+assert.doesNotMatch(noblePanel, /<h2[^>]*>Your Noble<\/h2>/);
+assert.doesNotMatch(noblePanel, /<p class="noble-setup-eyebrow">Coat of Arms<\/p>/);
+assert.doesNotMatch(noblePanel, /Heraldry of Your House/);
 assert.match(
   noblePanel,
   /this\.backButton\.addEventListener\('click',[\s\S]*?this\.step = 'house'[\s\S]*?this\.syncStep/,
@@ -46,6 +49,8 @@ assert.match(worldPanel, /data-randomize-seed>Randomize map/);
 assert.match(worldPanel, /<nav class="world-setup-actions__navigation" aria-label="Setup navigation">/);
 assert.match(worldPanel, /aria-pressed="\$\{size === this\.draft\.mapSize\}"/);
 assert.match(worldPanel, /data-setup-heading/);
+assert.match(worldPanel, /class="world-setup-sr-title">Map Generation<\/h1>/);
+assert.doesNotMatch(worldPanel, /<p>New World<\/p>/);
 assert.match(
   worldPanel,
   /backButton\.addEventListener\('click',[\s\S]*?this\.resolve\(\{ action: 'back', settings \}\)/,

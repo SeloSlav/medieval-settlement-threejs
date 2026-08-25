@@ -111,8 +111,7 @@ export class NobleSetupPanel {
         </header>
 
         <div class="noble-setup-layout">
-          <section class="noble-setup-identity" data-setup-step="house" aria-labelledby="noble-identity-title">
-            <h2 id="noble-identity-title">Your Noble</h2>
+          <section class="noble-setup-identity" data-setup-step="house" aria-label="Noble house selection">
             <div class="noble-setup-house-content">
               <div class="noble-setup-house-profile">
                 <div class="noble-setup-identity-showcase">
@@ -147,7 +146,7 @@ export class NobleSetupPanel {
             </div>
           </section>
 
-          <section class="noble-setup-armory" data-setup-step="heraldry" aria-labelledby="noble-armory-title" hidden>
+          <section class="noble-setup-armory" data-setup-step="heraldry" aria-label="Heraldry editor" hidden>
             <div class="noble-setup-heraldry-layout">
               <aside class="noble-setup-heraldry-profile" aria-label="Selected commander and live heraldry">
                 <div class="noble-setup-heraldry-portrait-shell">
@@ -170,13 +169,6 @@ export class NobleSetupPanel {
               </aside>
 
               <div class="noble-setup-heraldry-editor">
-                <div class="noble-setup-section-heading noble-setup-section-heading--armory">
-                  <div>
-                    <p class="noble-setup-eyebrow">Coat of Arms</p>
-                    <h2 id="noble-armory-title">Heraldry of Your House</h2>
-                  </div>
-                </div>
-
                 <div class="noble-setup-presets" aria-label="Coat of arms presets" data-preset-strip></div>
 
                 <div class="noble-setup-armory-columns">

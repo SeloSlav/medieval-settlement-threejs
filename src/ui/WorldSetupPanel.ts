@@ -69,15 +69,14 @@ export class WorldSetupPanel {
           aria-labelledby="world-setup-heading"
         >
           <header class="world-setup-wizard-heading">
+            <h1 id="world-setup-heading" class="world-setup-sr-title">Map Generation</h1>
             <nav class="new-game-setup-steps" aria-label="New world setup progress">
               <ol>
                 <li class="is-complete" data-setup-progress="house"><span>1</span><strong>Noble House</strong></li>
                 <li class="is-complete" data-setup-progress="heraldry"><span>2</span><strong>Heraldry</strong></li>
-                <li data-setup-progress="map" aria-current="step"><span>3</span><strong>Map Generation</strong></li>
+                <li data-setup-progress="map" data-setup-heading aria-current="step" tabindex="-1"><span>3</span><strong>Map Generation</strong></li>
               </ol>
             </nav>
-            <p>New World</p>
-            <h1 id="world-setup-heading" data-setup-heading tabindex="-1">Map Generation</h1>
           </header>
           <div class="world-setup-scroll" aria-label="World settings">
             <section class="world-setup-section" aria-label="Map size">

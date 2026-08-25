@@ -36,7 +36,7 @@ async function advanceToMapGeneration(page: Page): Promise<void> {
   await page.getByRole('button', { name: /Continue to Heraldry/ }).click();
   await expect(page.getByRole('heading', { name: 'Design Your Heraldry' })).toBeVisible();
   await page.getByRole('button', { name: /Continue to Map Generation/ }).click();
-  await expect(page.getByRole('heading', { name: 'Map Generation' })).toBeVisible();
+  await expect(page.locator('[data-setup-progress="map"]')).toBeVisible();
 }
 
 async function expectProvisionValuesToMatchTooltips(

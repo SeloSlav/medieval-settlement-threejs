@@ -68,9 +68,9 @@ test('new-world setup moves backward and forward without losing choices', async 
   await expect(preset).toHaveAttribute('aria-pressed', 'true');
   await page.getByRole('button', { name: /Continue to Map Generation/ }).click();
 
-  const mapHeading = page.getByRole('heading', { name: 'Map Generation' });
-  await expect(mapHeading).toBeVisible();
-  await expect(mapHeading).toBeFocused();
+  const mapStep = page.locator('[data-setup-progress="map"]');
+  await expect(mapStep).toBeVisible();
+  await expect(mapStep).toBeFocused();
   const mapBack = page.getByRole('button', { name: 'Back to Heraldry' });
   const mapStart = page.getByRole('button', { name: 'Start world' });
   const mapRandomize = page.getByRole('button', { name: 'Randomize map' });
@@ -109,7 +109,7 @@ test('new-world setup moves backward and forward without losing choices', async 
   await charge.click();
   await expect(liveShield).toHaveCSS('--charge-mask', /tower\.png/);
   await page.getByRole('button', { name: /Continue to Map Generation/ }).click();
-  await expect(mapHeading).toBeVisible();
+  await expect(mapStep).toBeVisible();
   await expect(page.locator('[data-map-size="small"]')).toHaveAttribute('aria-pressed', 'true');
   await expect(page.locator('[data-aquifer-networks]')).toHaveAttribute('aria-pressed', 'true');
   await page.getByRole('button', { name: 'Back to Heraldry' }).click();
@@ -128,8 +128,8 @@ test('new-world setup moves backward and forward without losing choices', async 
   await page.getByRole('button', { name: /Continue to Heraldry/ }).click();
   await expect(heraldryHeading).toBeFocused();
   await page.getByRole('button', { name: /Continue to Map Generation/ }).click();
-  await expect(mapHeading).toBeVisible();
-  await expect(mapHeading).toBeFocused();
+  await expect(mapStep).toBeVisible();
+  await expect(mapStep).toBeFocused();
   await expect(page.locator('[data-map-size="small"]')).toHaveAttribute('aria-pressed', 'true');
   await expect(page.locator('[data-aquifer-networks]')).toHaveAttribute('aria-pressed', 'true');
   await expectActiveStep(page, 'map');
