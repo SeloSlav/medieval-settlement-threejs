@@ -22,16 +22,14 @@ import {
   type ForestFloorIvyPlacement,
 } from '../src/props/ForestFloorIvy.ts';
 import {
-  FOREST_FLOOR_TWIG_ALBEDO_TEXTURE_PATH,
+  FOREST_FLOOR_TWIG_BARK_FILES,
+  FOREST_FLOOR_TWIG_BARK_PRESET_KEY,
   FOREST_FLOOR_TWIG_MAX_INSTANCES,
   FOREST_FLOOR_TWIG_MIN_SPACING,
-  FOREST_FLOOR_TWIG_NORMAL_TEXTURE_PATH,
   FOREST_FLOOR_TWIG_RADIAL_SEGMENTS,
-  FOREST_FLOOR_TWIG_ROUGHNESS_TEXTURE_PATH,
   FOREST_FLOOR_TWIG_SCALE_RANGE,
   FOREST_FLOOR_TWIG_TARGETS_PER_TREE,
   FOREST_FLOOR_TWIG_TEXTURE_REPEAT_METERS,
-  FOREST_FLOOR_TWIG_TEXTURE_SOURCES,
   FOREST_FLOOR_TWIG_THICKNESS_RANGE,
   FOREST_FLOOR_TWIG_VARIANT_COUNT,
   FOREST_FLOOR_TWIG_VARIANTS,
@@ -63,8 +61,8 @@ const visualHooksSource = readFileSync(
 const lineupSource = readFileSync(`${projectRoot}src/e2e/forestFloorLineup.ts`, 'utf8');
 const ivyTexturePath =
   `${projectRoot}public/assets/textures/vegetation/forest-floor-ivy-card.png`;
-const twigTexturePaths = Object.values(FOREST_FLOOR_TWIG_TEXTURE_SOURCES).map(
-  (path) => `${projectRoot}public${path}`,
+const twigTexturePaths = Object.values(FOREST_FLOOR_TWIG_BARK_FILES).map(
+  (file) => `${projectRoot}vendor/seedthree/assets/bark/${file}`,
 );
 
 const placementVisibilityEvents: Array<{ placementIndex: number; visible: boolean }> = [];
@@ -726,10 +724,11 @@ assert.deepEqual(
   [[0.9, 0.031], [1.25, 0.038], [1.65, 0.046]],
   'twig prototypes must retain legible twig-to-small-stick dimensions',
 );
-assert.deepEqual(FOREST_FLOOR_TWIG_TEXTURE_SOURCES, {
-  albedo: FOREST_FLOOR_TWIG_ALBEDO_TEXTURE_PATH,
-  normal: FOREST_FLOOR_TWIG_NORMAL_TEXTURE_PATH,
-  roughness: FOREST_FLOOR_TWIG_ROUGHNESS_TEXTURE_PATH,
+assert.equal(FOREST_FLOOR_TWIG_BARK_PRESET_KEY, 'americanBeech');
+assert.deepEqual(FOREST_FLOOR_TWIG_BARK_FILES, {
+  albedo: 'american_beech_albedo.png',
+  normal: 'american_beech_normal.png',
+  roughness: 'american_beech_roughness.png',
 });
 const twigGeometries = Array.from(
   { length: FOREST_FLOOR_TWIG_VARIANT_COUNT },
@@ -848,12 +847,27 @@ assert.match(
 assert.match(
   twigSource,
   /new THREE\.MeshStandardMaterial\(\{[\s\S]*map: textures\.albedo,[\s\S]*normalMap: textures\.normal,[\s\S]*roughnessMap: textures\.roughness,[\s\S]*vertexColors: true/,
-  'twigs must render their full authored PBR texture set with deterministic tint variation',
+  'twigs must render the complete shared beech PBR set with deterministic tint variation',
+);
+assert.match(
+  twigSource,
+  /FOREST_FLOOR_TWIG_BARK_PRESET_KEY = 'americanBeech'[\s\S]*loadSeedThreeSpeciesAssets[\s\S]*ownership: 'seedthree-shared'[\s\S]*ownership !== 'owned'/,
+  'live WebGPU twigs must borrow cached beech textures without disposing tree-owned assets',
+);
+assert.doesNotMatch(
+  twigSource,
+  /forest-floor-twig-(?:albedo|normal|roughness)\.png/,
+  'twigs must not retain a duplicate dedicated bark texture bundle',
 );
 assert.match(
   forestPropsSource,
   /const nettlesPromise = createForestFloorNettleInstances\([\s\S]*?const twigsPromise = createForestFloorTwigInstances\(/,
   'ForestProps must schedule both new forest-floor systems before renderer-specific tree setup',
+);
+assert.match(
+  forestPropsSource,
+  /createForestFloorTwigInstances\([\s\S]*sharedSeedThreeTextures: options\?\.rendererBackend === 'webgpu'/,
+  'WebGPU forest-floor twigs must opt into the live SeedThree texture cache',
 );
 assert.match(
   forestPropsSource,

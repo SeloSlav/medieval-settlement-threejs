@@ -18,6 +18,7 @@ import {
   composeForestFloorTwigMatrix,
   createForestFloorTwigGeometry,
   createForestFloorTwigMaterial,
+  disposeForestFloorTwigTextures,
   loadForestFloorTwigTextures,
   type ForestFloorTwigPlacement,
 } from '../props/ForestFloorTwigs.ts';
@@ -221,7 +222,7 @@ const [nettles, twigTextures] = await Promise.all([
     'webgpu',
     0x7572_7469,
   ),
-  loadForestFloorTwigTextures(undefined, renderer.getMaxAnisotropy()),
+  loadForestFloorTwigTextures(renderer.getMaxAnisotropy()),
 ]);
 nettles.setDeciduousFoliage(deciduousFoliage);
 scene.add(nettles.group);
@@ -232,9 +233,9 @@ const twigPlacements: ForestFloorTwigPlacement[] = Array.from(
     const variantIndex = index % FOREST_FLOOR_TWIG_VARIANT_COUNT;
     const scale = 0.86 + (index % 5) * 0.065;
     const tone = new THREE.Color().setHSL(
-      0.075 + (index % 4) * 0.009,
-      0.055 + (index % 3) * 0.018,
-      0.64 + (index % 5) * 0.035,
+      0.075 + (index % 4) * 0.006,
+      0.025 + (index % 3) * 0.012,
+      0.9 + (index % 5) * 0.015,
     );
     return {
       x: -7.4 + (index % 6) * 2.95 + (Math.floor(index / 6) % 2) * 0.42,
@@ -487,9 +488,7 @@ window.addEventListener('beforeunload', () => {
   nettles.dispose();
   for (const mesh of twigMeshes) mesh.geometry.dispose();
   twigMaterial.dispose();
-  twigTextures.albedo.dispose();
-  twigTextures.normal.dispose();
-  twigTextures.roughness.dispose();
+  disposeForestFloorTwigTextures(twigTextures);
   twigGroup.clear();
   ivyGeometry.dispose();
   ivyMaterial.dispose();

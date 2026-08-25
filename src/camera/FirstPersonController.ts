@@ -31,13 +31,23 @@ import {
   type FpLocomotionWalkOptions,
   type WalkGroundSampler,
 } from './fp/fpLocomotion.ts';
-import type { FootstepSurface } from '../audio/audioCatalog.ts';
+import type {
+  FootstepEvent,
+  FootstepMotion,
+  FootstepSurface,
+} from '../audio/audioCatalog.ts';
 import { FirstPersonPlacement } from './FirstPersonPlacement.ts';
 import {
   createFpLandingSoundState,
   resetFpLandingSoundState,
   stepFpLandingSound,
 } from './fp/fpLandingSound.ts';
+import {
+  createFpFootstepCadenceState,
+  resetFpFootstepCadenceState,
+  stepFpFootstepCadence,
+  takeFpLandingFootstep,
+} from './fp/fpFootstepCadence.ts';
 
 // The strategic camera needs a long 2.6 km range, but keeping its 10 cm near
 // plane while walking wastes half of the available depth precision. A 20 cm
@@ -58,7 +68,7 @@ export type FirstPersonControllerConfig = {
   onPlacementChange?: (active: boolean) => void;
   onModeChange?: (active: boolean) => void;
   getFootstepSurface?: (x: number, y: number, z: number) => FootstepSurface;
-  onFootstep?: (surface: FootstepSurface) => void;
+  onFootstep?: (event: FootstepEvent) => void;
   isMenuOpen?: () => boolean;
   isSessionReady?: () => boolean;
 };
@@ -78,6 +88,7 @@ export class FirstPersonController {
   private readonly lookInertia = createFpLookInertiaState();
   private readonly loco: FpLocomotionState = createFpLocomotionState();
   private readonly landingSound = createFpLandingSoundState();
+  private readonly footstepCadence = createFpFootstepCadenceState();
   private readonly input: FpLocomotionInput = {
     forward: false,
     backward: false,
@@ -97,7 +108,6 @@ export class FirstPersonController {
   private camBobY = 0;
   private camBobRoll = 0;
   private lastEyeLine: number = fpLocomotionConstants.eyeStand;
-  private footstepDistance = 0;
   private pendingLookDeltaX = 0;
   private pendingLookDeltaY = 0;
 
@@ -236,14 +246,13 @@ export class FirstPersonController {
     this.loco.velocity.set(0, 0, 0);
     this.loco.grounded = true;
     this.loco.jumpQueued = false;
-    this.loco.headBobPhase = 0;
     this.loco.eyeSmoothed = fpLocomotionConstants.eyeStand;
     this.keys.clear();
     this.crouchToggle = false;
     this.camBobY = 0;
     this.camBobRoll = 0;
     this.lastEyeLine = fpLocomotionConstants.eyeStand;
-    this.footstepDistance = 0;
+    resetFpFootstepCadenceState(this.footstepCadence);
     resetFpLandingSoundState(this.landingSound);
     this.pendingLookDeltaX = 0;
     this.pendingLookDeltaY = 0;
@@ -282,6 +291,7 @@ export class FirstPersonController {
     this.active = false;
     this.keys.clear();
     this.crouchToggle = false;
+    resetFpFootstepCadenceState(this.footstepCadence);
     resetFpLandingSoundState(this.landingSound);
     this.pendingLookDeltaX = 0;
     this.pendingLookDeltaY = 0;
@@ -330,8 +340,6 @@ export class FirstPersonController {
       this.pendingLookDeltaY = 0;
     }
 
-    const previousX = this.pos.x;
-    const previousZ = this.pos.z;
     const jumpStarted = this.loco.grounded && this.loco.jumpQueued;
     const eyeLine = stepFpLocomotion(
       this.loco,
@@ -353,23 +361,20 @@ export class FirstPersonController {
       dt,
     );
     if (playedLandingSound) {
-      this.footstepDistance = 0;
-      this.playFootstep();
-    }
-    if (!playedLandingSound && this.loco.grounded && moving && horizontalSpeed > 0.12) {
-      this.footstepDistance += Math.hypot(
-        this.pos.x - previousX,
-        this.pos.z - previousZ,
-      );
-      const stride = this.input.crouch
-        ? 0.75
-        : this.input.sprint ? 2.4 : 0.95;
-      while (this.footstepDistance >= stride) {
-        this.footstepDistance -= stride;
-        this.playFootstep();
-      }
-    } else if (!moving) {
-      this.footstepDistance = Math.min(this.footstepDistance, 0.2);
+      this.playFootstep(takeFpLandingFootstep(
+        this.footstepCadence,
+        horizontalSpeed,
+      ));
+    } else {
+      const footstep = stepFpFootstepCadence(this.footstepCadence, {
+        dtSeconds: dt,
+        horizontalSpeedMps: horizontalSpeed,
+        moving,
+        grounded: this.loco.grounded,
+        crouching: this.input.crouch,
+        sprinting: this.input.sprint,
+      });
+      if (footstep) this.playFootstep(footstep);
     }
     if (
       this.loco.grounded &&
@@ -383,7 +388,8 @@ export class FirstPersonController {
         0,
         1,
       );
-      const dip = Math.sin(this.loco.headBobPhase * 2) * CAM_BOB_DIP_Y * walkStrength;
+      const contactWave = Math.cos(this.footstepCadence.phase * Math.PI * 2);
+      const dip = -contactWave * CAM_BOB_DIP_Y * walkStrength;
       this.camBobY = dip;
       this.camBobRoll = 0;
     } else {
@@ -437,13 +443,13 @@ export class FirstPersonController {
     publishCompassHeadingFromYawRad(yaw);
   }
 
-  private playFootstep(): void {
+  private playFootstep(motion: FootstepMotion): void {
     const surface = this.config.getFootstepSurface?.(
       this.pos.x,
       this.pos.y,
       this.pos.z,
     ) ?? 'grass';
-    this.config.onFootstep?.(surface);
+    this.config.onFootstep?.({ surface, ...motion });
   }
 
   private readonly sampleTerrainGround: WalkGroundSampler = (
@@ -500,6 +506,7 @@ export class FirstPersonController {
     this.pendingLookDeltaX = 0;
     this.pendingLookDeltaY = 0;
     this.keys.clear();
+    resetFpFootstepCadenceState(this.footstepCadence);
   }
 
   private requestPointerLock(): void {

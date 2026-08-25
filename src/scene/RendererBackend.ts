@@ -64,6 +64,23 @@ type ShadowMapWithManualRefresh = THREE.WebGLRenderer['shadowMap'] & {
 export type RendererBackendKind = 'webgpu' | 'webgl2-node' | 'webgl';
 export type SupportedRenderer = THREE.WebGLRenderer | WebGPURenderer;
 
+type RendererAnimationCallback = (time: DOMHighResTimeStamp) => void;
+type RendererWithAnimationLoop = {
+  setAnimationLoop(callback: RendererAnimationCallback | null): void | Promise<void>;
+};
+
+/**
+ * Both supported Three renderers expose this runtime API. WebGPURenderer's
+ * bundled declaration currently omits it even though the common Renderer
+ * implements it, so keep the compatibility cast at this one boundary.
+ */
+export function setRendererAnimationLoop(
+  renderer: SupportedRenderer,
+  callback: RendererAnimationCallback | null,
+): void {
+  void (renderer as unknown as RendererWithAnimationLoop).setAnimationLoop(callback);
+}
+
 export type RendererAdapterEvidence = {
   source:
     | 'webgpu-adapter-info'

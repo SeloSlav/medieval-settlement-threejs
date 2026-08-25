@@ -14,12 +14,9 @@ def _save_tile_set(
     albedo_path: Path,
     *,
     normal_strength: float,
-    rotate_quarter_turn: bool = False,
 ) -> None:
     albedo_path.parent.mkdir(parents=True, exist_ok=True)
     albedo = ensure_square_tile(source, 1024)
-    if rotate_quarter_turn:
-        albedo = albedo.transpose(Image.Transpose.ROTATE_90)
     albedo.save(albedo_path, optimize=True)
 
     height = ImageEnhance.Contrast(ImageOps.grayscale(albedo)).enhance(1.22)
@@ -29,7 +26,7 @@ def _save_tile_set(
         optimize=True,
     )
 
-    # Young stems and dead twigs are both strongly dielectric and broadly rough.
+    # Young stems are strongly dielectric and broadly rough.
     # Lighter raised fibres are only a little smoother than the crevices.
     luminance = np.asarray(ImageOps.grayscale(albedo), dtype=np.float32) / 255.0
     roughness = np.clip(0.94 - luminance * 0.16, 0.72, 0.96)
@@ -140,7 +137,6 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--leaf-source", type=Path, required=True)
     parser.add_argument("--stem-source", type=Path, required=True)
-    parser.add_argument("--twig-source", type=Path, required=True)
     args = parser.parse_args()
 
     _save_leaf_set(
@@ -157,12 +153,6 @@ def main() -> None:
             "stinging_nettle_stem_albedo.png"
         ),
         normal_strength=2.8,
-    )
-    _save_tile_set(
-        args.twig_source,
-        Path("public/assets/textures/vegetation/forest-floor-twig-albedo.png"),
-        normal_strength=3.8,
-        rotate_quarter_turn=True,
     )
 
 

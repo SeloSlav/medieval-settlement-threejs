@@ -48,6 +48,7 @@ import { RoadSelection } from '../roads/RoadSelection.ts';
 import { RoadTool } from '../roads/RoadTool.ts';
 import { GameRuntime } from '../runtime/GameRuntime.ts';
 import { SceneManager } from '../scene/SceneManager.ts';
+import { setRendererAnimationLoop } from '../scene/RendererBackend.ts';
 import type { WorldMapUiBundle } from './worldMapIcons.ts';
 import { buildBuildingWorldMapMarkers } from '../map/worldMapMarkers.ts';
 import type { DeliveryAgentRenderer } from '../logistics/DeliveryAgentRenderer.ts';
@@ -198,7 +199,6 @@ export class App {
   private gameRuntime: GameRuntime | null = null;
   private snapshotApplierDeps: SpacetimeSnapshotApplierDeps | null = null;
   private readonly spacetimeSnapshotApplier = new SpacetimeSnapshotApplier();
-  private animationId = 0;
   private lastTime = 0;
   private fpsSampleStart = 0;
   private fpsFrameCount = 0;
@@ -705,14 +705,18 @@ export class App {
         .some((building) => building.kind === 'founders_camp'),
     );
     if (import.meta.env.VITE_E2E_TEST !== '1') {
-      this.animationId = requestAnimationFrame(this.tick);
+      // RenderPipeline scene passes are frame-scoped nodes. Three advances
+      // their NodeFrame only from the renderer-owned animation loop; driving
+      // tick from window.requestAnimationFrame leaves the world pass frozen
+      // after another pipeline (the illustrated map) renders in the same app.
+      setRendererAnimationLoop(session.sceneManager.renderer, this.tick);
     }
   }
 
   dispose(): void {
     if (this.disposed) return;
     this.disposed = true;
-    cancelAnimationFrame(this.animationId);
+    if (this.sceneManager) setRendererAnimationLoop(this.sceneManager.renderer, null);
     window.removeEventListener('resize', this.onResize);
     const startupMusic = this.startupMusic;
     this.startupMusic = null;
@@ -864,7 +868,6 @@ export class App {
     }
     this.villagerInspector?.tick();
     this.ambientAudio?.tick(dt);
-    this.animationId = requestAnimationFrame(this.tick);
     if (frameProfiler) {
       const phase = firstPersonActive
         ? 'road-eye'

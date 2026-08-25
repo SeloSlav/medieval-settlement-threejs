@@ -81,7 +81,6 @@ export type FpLocomotionInput = {
 export type FpLocomotionState = {
   velocity: THREE.Vector3;
   grounded: boolean;
-  headBobPhase: number;
   jumpQueued: boolean;
   eyeSmoothed: number;
 };
@@ -90,7 +89,6 @@ export function createFpLocomotionState(): FpLocomotionState {
   return {
     velocity: new THREE.Vector3(),
     grounded: true,
-    headBobPhase: 0,
     jumpQueued: false,
     eyeSmoothed: EYE_STAND,
   };
@@ -232,18 +230,10 @@ export function stepFpLocomotion(
     state.grounded = true;
   }
 
-  const horizontalSpeed = Math.hypot(state.velocity.x, state.velocity.z);
   const targetEye = input.crouch ? EYE_CROUCH : EYE_STAND;
   state.eyeSmoothed = THREE.MathUtils.damp(state.eyeSmoothed, targetEye, EYE_DAMP, h);
 
-  let bob = 0;
-  if (state.grounded && !input.crouch && moving && horizontalSpeed > 0.15) {
-    const walkStrength = THREE.MathUtils.clamp(horizontalSpeed / sprintSpeed, 0, 1);
-    state.headBobPhase += h * THREE.MathUtils.lerp(0, 6.5, walkStrength);
-    bob = Math.sin(state.headBobPhase * 2) * 0.0011 * walkStrength;
-  }
-
-  return state.eyeSmoothed + bob;
+  return state.eyeSmoothed;
 }
 
 export const fpLocomotionConstants = {

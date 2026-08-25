@@ -472,12 +472,12 @@ async function main(): Promise<void> {
     orbitDistance: 18,
   };
   const worldAssets = manifest.assets.filter((asset) => (
-    asset.group === 'world-foley'
+    asset.group === 'world-foley' || asset.group === 'movement-foley'
   ));
   invariant(
     worldAssets.length === Object.keys(WORLD_FOLEY_CLIPS).length
-    && worldAssets.length === 48,
-    'World Foley manifest and runtime catalog must retain all 48 cues',
+    && worldAssets.length === 51,
+    'World Foley manifest and runtime catalog must retain all 51 cues',
   );
   for (const [id, clip] of Object.entries(WORLD_FOLEY_CLIPS)) {
     const asset = worldAssets.find((candidate) => (

@@ -53,6 +53,20 @@ export type FootstepSurface =
   | 'stone'
   | 'water';
 
+export type FootstepGait = 'crouch' | 'walk' | 'sprint' | 'landing';
+export type FootstepSide = 'left' | 'right';
+
+export type FootstepMotion = {
+  gait: FootstepGait;
+  side: FootstepSide;
+  /** Actual horizontal speed normalized to the active gait's target speed. */
+  speedRatio: number;
+};
+
+export type FootstepEvent = FootstepMotion & {
+  surface: FootstepSurface;
+};
+
 export type WorldFoleySoundId =
   | 'cart_roll_1'
   | 'cart_roll_2'

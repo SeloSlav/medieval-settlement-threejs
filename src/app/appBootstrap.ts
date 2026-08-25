@@ -1577,7 +1577,7 @@ export async function bootstrapAppSession(
       }
       return 'grass';
     },
-    onFootstep: (surface) => ambientAudio.playFootstep(surface),
+    onFootstep: (event) => ambientAudio.playFootstep(event),
     collisionWorld: firstPersonCollisionWorld,
     placementParent: sceneManager.scene,
     pickPlacementGround: (clientX, clientY) => (

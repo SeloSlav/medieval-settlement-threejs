@@ -199,6 +199,7 @@ export async function createForestProps(
       seed: (options?.treeSeed ?? 0x5eedf0a5) ^ 0x7a193f2d,
       densityScale: options?.densityScale,
       isBlockedAt,
+      sharedSeedThreeTextures: options?.rendererBackend === 'webgpu',
     },
   );
   const [

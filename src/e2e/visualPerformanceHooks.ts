@@ -1834,10 +1834,10 @@ function startFrameIntervalCollector(
       }
     }
     previousFrame = currentFrame;
-    // App owns requestAnimationFrame instead of Renderer.setAnimationLoop, so
-    // Three does not perform its normal per-frame info reset. Our callback is
-    // registered after App.tick and therefore resets counters for the next
-    // frame after recording the just-completed one.
+    // SceneManager disables Three's automatic info reset so it can delimit the
+    // complete world/map submission itself. This callback runs after App.tick
+    // and resets counters for the next profiler sample after recording the
+    // just-completed one.
     rendererInfo.reset?.();
     if (now - lastPublished >= 500) {
       publish(now);

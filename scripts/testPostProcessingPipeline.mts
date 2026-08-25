@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const postSource = readFileSync(`${root}/src/scene/PostProcessing.ts`, 'utf8');
+const appSource = readFileSync(`${root}/src/app/App.ts`, 'utf8');
 const stockBloomSource = readFileSync(
   `${root}/node_modules/three/examples/jsm/tsl/display/BloomNode.js`,
   'utf8',
@@ -49,6 +50,22 @@ assert.doesNotMatch(
   postSource,
   /InlineCompositeBloomNode|_textureNodeBlur[0-4]|RendererUtils|QuadMesh/,
   'no quantization-changing bloom-composite fusion may remain',
+);
+
+assert.match(
+  appSource,
+  /setRendererAnimationLoop\(session\.sceneManager\.renderer, this\.tick\)/,
+  'the renderer must own the production frame loop so WebGPU frame-scoped passes advance',
+);
+assert.match(
+  appSource,
+  /setRendererAnimationLoop\(this\.sceneManager\.renderer, null\)/,
+  'disposing the app must release renderer animation-loop ownership',
+);
+assert.doesNotMatch(
+  appSource,
+  /requestAnimationFrame\(this\.tick\)/,
+  'an app-owned RAF loop freezes WebGPU PassNode output across render-owner handoffs',
 );
 
 console.log('Post-processing pipeline parity and pass-budget tests passed.');

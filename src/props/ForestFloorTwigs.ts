@@ -10,24 +10,12 @@ const TAU = Math.PI * 2;
 const LOCAL_TWIG_AXIS = new THREE.Vector3(1, 0, 0);
 const WORLD_UP = new THREE.Vector3(0, 1, 0);
 
-export const FOREST_FLOOR_TWIG_ALBEDO_TEXTURE_PATH =
-  '/assets/textures/vegetation/forest-floor-twig-albedo.png';
-export const FOREST_FLOOR_TWIG_NORMAL_TEXTURE_PATH =
-  '/assets/textures/vegetation/forest-floor-twig-normal.png';
-export const FOREST_FLOOR_TWIG_ROUGHNESS_TEXTURE_PATH =
-  '/assets/textures/vegetation/forest-floor-twig-roughness.png';
-
-export type ForestFloorTwigTextureSources = {
-  albedo: string;
-  normal: string;
-  roughness: string;
-};
-
-export const FOREST_FLOOR_TWIG_TEXTURE_SOURCES = {
-  albedo: FOREST_FLOOR_TWIG_ALBEDO_TEXTURE_PATH,
-  normal: FOREST_FLOOR_TWIG_NORMAL_TEXTURE_PATH,
-  roughness: FOREST_FLOOR_TWIG_ROUGHNESS_TEXTURE_PATH,
-} as const satisfies ForestFloorTwigTextureSources;
+export const FOREST_FLOOR_TWIG_BARK_PRESET_KEY = 'americanBeech';
+export const FOREST_FLOOR_TWIG_BARK_FILES = {
+  albedo: 'american_beech_albedo.png',
+  normal: 'american_beech_normal.png',
+  roughness: 'american_beech_roughness.png',
+} as const;
 
 export const FOREST_FLOOR_TWIG_SEED = 0x7a19_3f2d;
 export const FOREST_FLOOR_TWIG_MIN_BLEND = 0.22;
@@ -103,6 +91,7 @@ export type ForestFloorTwigTextures = {
   albedo: THREE.Texture;
   normal: THREE.Texture;
   roughness: THREE.Texture;
+  ownership: 'owned' | 'seedthree-shared';
 };
 
 export type ForestFloorTwigPlacement = {
@@ -127,7 +116,7 @@ export type ForestFloorTwigPlacementOptions = {
 };
 
 export type ForestFloorTwigCreateOptions = ForestFloorTwigPlacementOptions & {
-  textureSources?: Partial<ForestFloorTwigTextureSources>;
+  sharedSeedThreeTextures?: boolean;
 };
 
 export type ForestFloorTwigBlocker = (x: number, z: number) => boolean;
@@ -173,9 +162,29 @@ export type ForestFloorTwigInstances = {
 const textureLoader = new THREE.TextureLoader();
 
 export async function loadForestFloorTwigTextures(
-  sources: ForestFloorTwigTextureSources = FOREST_FLOOR_TWIG_TEXTURE_SOURCES,
   maxAnisotropy = 1,
+  sharedSeedThreeTextures = false,
 ): Promise<ForestFloorTwigTextures> {
+  if (sharedSeedThreeTextures) {
+    const [{ loadSeedThreeSpeciesAssets }, { GORSKI_KOTAR_SPECIES }] = await Promise.all([
+      import('../vegetation/seedthree/seedThreeAssets.ts'),
+      import('../vegetation/seedthree/gorskiKotarPresets.ts'),
+    ]);
+    const preset = GORSKI_KOTAR_SPECIES[FOREST_FLOOR_TWIG_BARK_PRESET_KEY];
+    if (!preset) throw new Error('Forest-floor twig beech bark preset is unavailable.');
+    const assets = await loadSeedThreeSpeciesAssets(preset, maxAnisotropy);
+    if (!assets.barkTexture || !assets.barkNormal || !assets.barkRoughness) {
+      throw new Error('Forest-floor twigs require the complete shared beech bark PBR set.');
+    }
+    return {
+      albedo: assets.barkTexture,
+      normal: assets.barkNormal,
+      roughness: assets.barkRoughness,
+      ownership: 'seedthree-shared',
+    };
+  }
+
+  const sources = await resolveForestFloorTwigBarkUrls();
   const results = await Promise.allSettled([
     loadTwigTexture(sources.albedo, true, maxAnisotropy),
     loadTwigTexture(sources.normal, false, maxAnisotropy),
@@ -199,7 +208,15 @@ export async function loadForestFloorTwigTextures(
     albedo: loaded[0]!,
     normal: loaded[1]!,
     roughness: loaded[2]!,
+    ownership: 'owned',
   };
+}
+
+export function disposeForestFloorTwigTextures(textures: ForestFloorTwigTextures): void {
+  if (textures.ownership !== 'owned') return;
+  textures.albedo.dispose();
+  textures.normal.dispose();
+  textures.roughness.dispose();
 }
 
 export function createForestFloorTwigMaterial(
@@ -404,9 +421,9 @@ export function createForestFloorTwigPlacements(
       if (twigIntersectsBlocker(x, z, yaw, length, options.isBlockedAt)) continue;
 
       tintColor.setHSL(
-        0.075 + (rng() - 0.5) * 0.035,
-        0.12 + rng() * 0.12,
-        0.87 + (rng() - 0.5) * 0.14,
+        0.075 + (rng() - 0.5) * 0.025,
+        0.025 + rng() * 0.05,
+        0.94 + (rng() - 0.5) * 0.08,
       );
       const placement: ForestFloorTwigPlacement = {
         x,
@@ -474,12 +491,8 @@ export async function createForestFloorTwigInstances(
   maxAnisotropy: number,
   options: ForestFloorTwigCreateOptions = {},
 ): Promise<ForestFloorTwigInstances> {
-  const textureSources: ForestFloorTwigTextureSources = {
-    ...FOREST_FLOOR_TWIG_TEXTURE_SOURCES,
-    ...options.textureSources,
-  };
   const [textures, placements] = await Promise.all([
-    loadForestFloorTwigTextures(textureSources, maxAnisotropy),
+    loadForestFloorTwigTextures(maxAnisotropy, options.sharedSeedThreeTextures),
     Promise.resolve(createForestFloorTwigPlacements(trees, terrain, options)),
   ]);
   const material = createForestFloorTwigMaterial(textures);
@@ -612,9 +625,7 @@ export async function createForestFloorTwigInstances(
     dispose(): void {
       for (const mesh of meshes) mesh.geometry.dispose();
       material.dispose();
-      textures.albedo.dispose();
-      textures.normal.dispose();
-      textures.roughness.dispose();
+      disposeForestFloorTwigTextures(textures);
       group.removeFromParent();
       group.clear();
     },
@@ -665,6 +676,23 @@ async function loadTwigTexture(
   texture.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace;
   texture.anisotropy = Math.max(1, Math.min(16, maxAnisotropy));
   return texture;
+}
+
+async function resolveForestFloorTwigBarkUrls(): Promise<{
+  albedo: string;
+  normal: string;
+  roughness: string;
+}> {
+  const { seedThreeBarkUrl } = await import(
+    '../vegetation/seedthree/seedThreeTextures.ts'
+  );
+  const albedo = seedThreeBarkUrl(FOREST_FLOOR_TWIG_BARK_FILES.albedo);
+  const normal = seedThreeBarkUrl(FOREST_FLOOR_TWIG_BARK_FILES.normal);
+  const roughness = seedThreeBarkUrl(FOREST_FLOOR_TWIG_BARK_FILES.roughness);
+  if (!albedo || !normal || !roughness) {
+    throw new Error('Forest-floor twig beech bark URLs are unavailable.');
+  }
+  return { albedo, normal, roughness };
 }
 
 function twigIntersectsBlocker(

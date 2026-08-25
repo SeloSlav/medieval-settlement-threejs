@@ -16,9 +16,15 @@ import { hasActiveRaiderThreat } from '../security/combatAgents.ts';
 import type { Season, WeatherKind } from '../world/seasonPolicy.ts';
 import {
   WORLD_FOLEY_CLIPS,
+  type FootstepEvent,
   type FootstepSurface,
   type WorldFoleySoundId,
 } from './audioCatalog.ts';
+import {
+  buildFootstepVariantBag,
+  resolveFootstepPlaybackTuning,
+  type FootstepVariant,
+} from './footstepPlayback.ts';
 
 export const WORLD_FOLEY_MAX_ZOOM_DISTANCE = 50;
 export const WORLD_FOLEY_FULL_VOLUME_DISTANCE = 10;
@@ -44,6 +50,11 @@ const STONE_STRUCTURE_KINDS = new Set<BuildingState['kind']>([
 type PoolEntry = {
   audio: HTMLAudioElement;
   baseGain: number;
+};
+
+type LocalPlaybackOptions = {
+  playbackRate?: number;
+  preservePitch?: boolean;
 };
 
 type StructureSnapshot = {
@@ -143,6 +154,22 @@ export class WorldFoleyAudio {
     stone: 0,
     water: 0,
   };
+  private readonly lastFootstepVariants: Record<FootstepSurface, number> = {
+    grass: 0,
+    forest: 0,
+    dirt: 0,
+    timber: 0,
+    stone: 0,
+    water: 0,
+  };
+  private readonly footstepVariantBags: Record<FootstepSurface, FootstepVariant[]> = {
+    grass: [],
+    forest: [],
+    dirt: [],
+    timber: [],
+    stone: [],
+    water: [],
+  };
   private view: CrowdViewState | null = null;
   private elapsedSeconds = 0;
   private sampleAccumulatorSeconds = WORLD_FOLEY_SAMPLE_INTERVAL_SECONDS;
@@ -184,12 +211,26 @@ export class WorldFoleyAudio {
     this.playScheduledSeason(input.season, input.weather, input.buildings);
   }
 
-  playFootstep(surface: FootstepSurface): void {
+  playFootstep(event: FootstepEvent): void {
     if (!this.enabled) return;
-    const sequence = this.footstepSequences[surface];
-    this.footstepSequences[surface] = sequence + 1;
-    const variant = (sequence % 3) + 1;
-    this.playLocal(`footstep_${surface}_${variant}` as WorldFoleySoundId, 1);
+    const sequence = this.footstepSequences[event.surface];
+    this.footstepSequences[event.surface] = sequence + 1;
+    const bag = this.footstepVariantBags[event.surface];
+    if (bag.length === 0) {
+      bag.push(...buildFootstepVariantBag(
+        event.surface,
+        Math.floor(sequence / 3),
+        this.lastFootstepVariants[event.surface],
+      ));
+    }
+    const variant = bag.shift() ?? 1;
+    this.lastFootstepVariants[event.surface] = variant;
+    const tuning = resolveFootstepPlaybackTuning(event, sequence);
+    this.playLocal(
+      `footstep_${event.surface}_${variant}` as WorldFoleySoundId,
+      tuning.gain,
+      { playbackRate: tuning.playbackRate, preservePitch: false },
+    );
   }
 
   setEnabled(enabled: boolean): void {
@@ -561,7 +602,11 @@ export class WorldFoleyAudio {
     this.playLocal(id, gain);
   }
 
-  private playLocal(id: WorldFoleySoundId, gain: number): void {
+  private playLocal(
+    id: WorldFoleySoundId,
+    gain: number,
+    options: LocalPlaybackOptions = {},
+  ): void {
     if (!this.enabled || typeof Audio === 'undefined') return;
     while (this.pool.length < WORLD_FOLEY_POOL_SIZE) {
       const audio = new Audio();
@@ -576,10 +621,13 @@ export class WorldFoleyAudio {
     entry.audio.src = clip.path;
     entry.baseGain = Math.min(1, Math.max(0, (clip.volume ?? 1) * gain));
     entry.audio.volume = entry.baseGain * this.volume;
-    entry.audio.playbackRate = 0.985 + deterministicIndex(
-      `${id}:${Math.floor(this.elapsedSeconds * 10)}`,
-      5,
-    ) * 0.0075;
+    entry.audio.preservesPitch = options.preservePitch ?? true;
+    entry.audio.playbackRate = options.playbackRate ?? (
+      0.985 + deterministicIndex(
+        `${id}:${Math.floor(this.elapsedSeconds * 10)}`,
+        5,
+      ) * 0.0075
+    );
     void entry.audio.play().catch(() => undefined);
   }
 

@@ -35,7 +35,7 @@ import { UiAudio } from './UiAudio.ts';
 import type {
   BuildingAudioKind,
   ChapelBellTier,
-  FootstepSurface,
+  FootstepEvent,
   MusicTrackId,
   UiSoundId,
 } from './audioCatalog.ts';
@@ -331,8 +331,8 @@ export class AmbientAudioController {
     this.uiAudio.play(id);
   }
 
-  playFootstep(surface: FootstepSurface): void {
-    this.worldFoley.playFootstep(surface);
+  playFootstep(event: FootstepEvent): void {
+    this.worldFoley.playFootstep(event);
   }
 
   playBuildingSelection(
