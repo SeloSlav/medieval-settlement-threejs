@@ -4,6 +4,7 @@ import { sampleTerrainMeshAttributeX } from '../terrain/TerrainMeshHeight.ts';
 import { mulberry32 } from '../utils/random.ts';
 import { SpatialHash2D } from '../utils/SpatialHash2D.ts';
 import type { ForestTreePlacement } from './forestPlacements.ts';
+import { createForestFloorPlacementMask } from './ForestFloorPlacementMask.ts';
 
 const TAU = Math.PI * 2;
 const LOCAL_TWIG_AXIS = new THREE.Vector3(1, 0, 0);
@@ -483,14 +484,7 @@ export async function createForestFloorTwigInstances(
   const meshes: THREE.InstancedMesh[] = [];
   const slots: ForestFloorTwigSlot[] = Array.from({ length: placements.length });
   const authoredMatrices = placements.map(() => new THREE.Matrix4());
-  const placementIndicesByTree = Array.from(
-    { length: trees.length },
-    () => [] as number[],
-  );
   const dirtyInstances = new Map<THREE.InstancedMesh, Set<number>>();
-  const treeActive = trees.map(() => true);
-  const placementActive = placements.map(() => true);
-  const placementVisible = placements.map(() => true);
   const hiddenMatrix = new THREE.Matrix4().makeTranslation(0, FOREST_FLOOR_TWIG_HIDDEN_Y, 0);
   const prototypeStats: ForestFloorTwigPrototypeStats[] = [];
 
@@ -520,7 +514,6 @@ export async function createForestFloorTwigInstances(
       mesh.setColorAt(instanceIndex, color);
       authoredMatrices[placementIndex]!.copy(matrix);
       slots[placementIndex] = { mesh, instanceIndex };
-      placementIndicesByTree[placement.sourceTreeIndex]?.push(placementIndex);
     });
     mesh.instanceMatrix.needsUpdate = true;
     if (mesh.instanceColor) {
@@ -538,27 +531,25 @@ export async function createForestFloorTwigInstances(
     });
   }
 
-  const applyPlacementVisibility = (placementIndex: number): boolean => {
-    const placement = placements[placementIndex];
-    const slot = slots[placementIndex];
-    if (!placement || !slot) return false;
-    const visible = treeActive[placement.sourceTreeIndex] === true
-      && placementActive[placementIndex] === true;
-    if (placementVisible[placementIndex] === visible) return false;
-    placementVisible[placementIndex] = visible;
-    slot.mesh.setMatrixAt(
-      slot.instanceIndex,
-      visible ? authoredMatrices[placementIndex]! : hiddenMatrix,
-    );
-    dirtyInstances.get(slot.mesh)?.add(slot.instanceIndex);
-    return true;
-  };
+  const placementMask = createForestFloorPlacementMask(
+    placements,
+    trees.length,
+    (placementIndex, visible) => {
+      const slot = slots[placementIndex];
+      if (!slot) return;
+      slot.mesh.setMatrixAt(
+        slot.instanceIndex,
+        visible ? authoredMatrices[placementIndex]! : hiddenMatrix,
+      );
+      dirtyInstances.get(slot.mesh)?.add(slot.instanceIndex);
+    },
+  );
 
   return {
     group,
     meshes,
     placements,
-    placementIndicesByTree,
+    placementIndicesByTree: placementMask.placementIndicesByTree,
     textures,
     material,
     stats: {
@@ -576,47 +567,16 @@ export async function createForestFloorTwigInstances(
       seed: options.seed ?? FOREST_FLOOR_TWIG_SEED,
       prototypes: prototypeStats,
     },
-    setTreeActive(treeIndex: number, active: boolean): boolean {
-      if (!Number.isInteger(treeIndex) || treeIndex < 0 || treeIndex >= treeActive.length) {
-        return false;
-      }
-      if (treeActive[treeIndex] === active) return false;
-      treeActive[treeIndex] = active;
-      for (const placementIndex of placementIndicesByTree[treeIndex] ?? []) {
-        applyPlacementVisibility(placementIndex);
-      }
-      return true;
-    },
-    setPlacementActive(placementIndex: number, active: boolean): boolean {
-      if (
-        !Number.isInteger(placementIndex)
-        || placementIndex < 0
-        || placementIndex >= placementActive.length
-      ) {
-        return false;
-      }
-      if (placementActive[placementIndex] === active) return false;
-      placementActive[placementIndex] = active;
-      applyPlacementVisibility(placementIndex);
-      return true;
-    },
+    setTreeActive: placementMask.setTreeActive,
+    setPlacementActive: placementMask.setPlacementActive,
     refreshBlockedMask(isBlockedAt?: ForestFloorTwigBlocker): number {
-      let changed = 0;
-      for (let placementIndex = 0; placementIndex < placements.length; placementIndex++) {
-        const placement = placements[placementIndex]!;
-        const active = !twigIntersectsBlocker(
-          placement.x,
-          placement.z,
-          placement.yaw,
-          placement.length,
-          isBlockedAt,
-        );
-        if (placementActive[placementIndex] === active) continue;
-        placementActive[placementIndex] = active;
-        applyPlacementVisibility(placementIndex);
-        changed++;
-      }
-      return changed;
+      return placementMask.refreshBlockedMask((placement) => twigIntersectsBlocker(
+        placement.x,
+        placement.z,
+        placement.yaw,
+        placement.length,
+        isBlockedAt,
+      ));
     },
     setCloseDetailVisible(visible: boolean): boolean {
       if (group.visible === visible) return false;

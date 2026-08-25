@@ -410,6 +410,8 @@ const matrixChunkSource = readFileSync(
 );
 const forestPropsSource = readFileSync(join(root, 'src/props/ForestProps.ts'), 'utf8');
 const forestManagerSource = readFileSync(join(root, 'src/props/ForestManager.ts'), 'utf8');
+const forestFloorIvySource = readFileSync(join(root, 'src/props/ForestFloorIvy.ts'), 'utf8');
+const forestFloorNettleSource = readFileSync(join(root, 'src/props/ForestFloorNettles.ts'), 'utf8');
 const sceneSource = readFileSync(join(root, 'src/scene/SceneManager.ts'), 'utf8');
 
 assert.match(
@@ -461,6 +463,26 @@ assert.match(
   sceneSource,
   /setDeciduousFoliage\(environment\.deciduousFoliage\)/,
   'the authoritative calendar presentation must drive foliage color and retention',
+);
+assert.match(
+  forestManagerSource,
+  /setDeciduousFoliage\(presentation: DeciduousFoliagePresentation\): void \{[\s\S]*?this\.seedThreeForest\?\.setDeciduousFoliage\(presentation\);[\s\S]*?this\.forestFloorNettles\?\.setDeciduousFoliage\(presentation\);[\s\S]*?\}/,
+  'the manager must forward the same authoritative seasonal state to young nettles',
+);
+assert.match(
+  forestFloorNettleSource,
+  /setDeciduousFoliage\(presentation\): boolean \{[\s\S]*?setNettleSeason\(foliageMaterial, presentation\)[\s\S]*?updateNettleStemSeason\(branchMaterial, presentation\)/,
+  'nettle foliage and stems must change season together without rebuilding instances',
+);
+assert.match(
+  forestFloorNettleSource,
+  /const springLeaf[\s\S]*?const autumnLeaf[\s\S]*?const dormantLeaf[\s\S]*?seasonal = tsl\.mix\(seasonal, autumnLeaf, autumn\)[\s\S]*?seasonal = tsl\.mix\(seasonal, dormantLeaf, dormancy\.mul\(0\.86\)\)/,
+  'the WebGPU nettle material must expose distinct spring, autumn, and winter treatments',
+);
+assert.match(
+  forestFloorNettleSource,
+  /uNettleSpring[\s\S]*?uNettleAutumn[\s\S]*?uNettleDormancy[\s\S]*?nettleAutumn[\s\S]*?nettleDormant/,
+  'the WebGL fallback must retain the same three nettle seasonal controls',
 );
 assert.match(
   sceneSource,
@@ -541,6 +563,21 @@ assert.match(
   sceneSource,
   /setSnowCoverage\(this\.environment\.snowCoverage\)[\s\S]*setSnowCoverage\(environment\.snowCoverage\)/,
   'both deferred and live forests must inherit the authoritative settled-snow coverage',
+);
+assert.match(
+  forestManagerSource,
+  /setSnowCoverage\(coverage: number\): void \{[\s\S]*?this\.seedThreeForest\?\.setSnowCoverage\(coverage\);[\s\S]*?this\.forestFloorIvy\?\.setSnowCoverage\(coverage\);[\s\S]*?\}/,
+  'the manager must forward settled-snow coverage to evergreen ivy',
+);
+assert.match(
+  forestFloorIvySource,
+  /const upwardExposure = ivySnowTsl\.smoothstep[\s\S]*?const snowAmount = snowCoverage[\s\S]*?ivySnowTsl\.mix\(baseColor\.rgb, snowColor, snowAmount\)/,
+  'winter ivy must whiten upward-facing leaves through the same snow envelope as the forest',
+);
+assert.match(
+  forestFloorIvySource,
+  /FOREST_FLOOR_IVY_SNOW_RGB = \[0\.92, 0\.955, 0\.98\][\s\S]*?FOREST_FLOOR_IVY_SNOW_MAX_BLEND = 0\.58/,
+  'ivy snow must keep a bright cool-white target while preserving evergreen identity beneath it',
 );
 assert.match(
   builderSource,

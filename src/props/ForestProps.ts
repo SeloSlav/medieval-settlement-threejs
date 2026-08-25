@@ -135,7 +135,13 @@ export async function createForestProps(
       );
   const forestCores = options?.forestCores ?? createForestCores(rng, spawnConfig);
   const rockPlacements = createRockPlacements(rng, forestCores, allTreePlacements, spawnConfig, isBlockedAt);
-  const undergrowthPlacements = createUndergrowthPlacements(rng, forestCores, spawnConfig, isBlockedAt);
+  const undergrowthPlacements = createUndergrowthPlacements(
+    rng,
+    forestCores,
+    spawnConfig,
+    isBlockedAt,
+    allTreePlacements,
+  );
   const ivyPromise = createForestFloorIvyInstances(
     allTreePlacements,
     terrain,

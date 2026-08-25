@@ -9,9 +9,13 @@ import { raspberry } from '@seedthree/species/raspberry.js';
 import { commonHornbeamHedge } from '@seedthree/species/common-hornbeam-hedge.js';
 import { aronia } from '@seedthree/species/aronia.js';
 import { rosehip } from '@seedthree/species/rosehip.js';
-import { stingingNettle } from '@seedthree/species/stinging-nettle.js';
+import {
+  commonDogwood,
+  createCommonDogwoodVariantPreset,
+} from './commonDogwoodPreset.ts';
+import { stingingNettle } from './stingingNettlePreset.ts';
 
-export type GorskiShrubKind = 'bush' | 'fern' | 'juniper' | 'raspberry' | 'field-hornbeam' | 'aronia' | 'rosehip' | 'nettle';
+export type GorskiShrubKind = 'bush' | 'fern' | 'juniper' | 'raspberry' | 'field-hornbeam' | 'aronia' | 'rosehip' | 'nettle' | 'dogwood';
 
 export type GorskiShrubPrototype = {
   geometry: THREE.BufferGeometry;
@@ -46,6 +50,7 @@ const PRESETS = {
   aronia: aronia as SeedThreeShrubPreset,
   rosehip: rosehip as SeedThreeShrubPreset,
   nettle: stingingNettle as SeedThreeShrubPreset,
+  dogwood: commonDogwood as SeedThreeShrubPreset,
 } as const;
 
 export function createGorskiShrubPrototype(
@@ -53,8 +58,12 @@ export function createGorskiShrubPrototype(
   variant: number,
 ): GorskiShrubPrototype {
   if (kind === 'fern') return createFernPrototype(variant);
-  const species = PRESETS[kind];
-  const seed = `gorski:${species.name}:${Math.abs(variant) % GORSKI_SHRUB_VARIANT_COUNT}`;
+  const dogwoodVariant = kind === 'dogwood'
+    ? createCommonDogwoodVariantPreset(variant)
+    : null;
+  const species = (dogwoodVariant?.preset ?? PRESETS[kind]) as SeedThreeShrubPreset;
+  const variantIndex = Math.abs(Math.trunc(variant)) % GORSKI_SHRUB_VARIANT_COUNT;
+  const seed = dogwoodVariant?.seed ?? `gorski:${species.name}:${variantIndex}`;
   const skeletonRng = new Rng(seed);
   const tipClearance = (species.foliage.clusterSize ?? 0.3) * 0.9;
   const generated = generateDichotomous(
@@ -70,7 +79,7 @@ export function createGorskiShrubPrototype(
   const foliageRng = new Rng(`${seed}:sprays`);
   const config = {
     ...species.foliage,
-    mode: kind === 'nettle' ? 'leaves' : 'clusters',
+    mode: kind === 'nettle' || kind === 'dogwood' ? 'leaves' : 'clusters',
   };
   const terminalFoliage = buildFoliage(
     generated.terminalStems,
@@ -114,7 +123,19 @@ export function createGorskiShrubPrototype(
   geometry.userData.gorskiShrubVariant = variant;
   geometry.userData.seedThreeGenerator = kind === 'nettle'
     ? 'dichotomous/opposite-paired-leaves'
-    : 'dichotomous/sprayClusters';
+    : kind === 'dogwood'
+      ? 'basal-thicket/opposite-leaf-pairs'
+      : 'dichotomous/sprayClusters';
+  if (dogwoodVariant) {
+    const { morphology } = dogwoodVariant;
+    geometry.userData.gorskiShrubVariant = dogwoodVariant.variantIndex;
+    geometry.userData.dogwoodStemCount = morphology.stemCount;
+    geometry.userData.dogwoodGroundOriginStemCount = morphology.stemCount;
+    geometry.userData.dogwoodStemBaseMaxY = 0;
+    geometry.userData.dogwoodSeed = dogwoodVariant.seed;
+    geometry.userData.dogwoodVariantId = morphology.id;
+    geometry.userData.dogwoodAuthoredHeight = morphology.authoredHeight;
+  }
 
   const fruitLimit = kind === 'raspberry'
     ? RASPBERRY_FRUIT_ANCHOR_LIMIT

@@ -9,9 +9,17 @@ from PIL import Image, ImageEnhance, ImageFilter, ImageOps
 from derive_pbr_maps import ensure_square_tile, height_to_normal
 
 
-def _save_tile_set(source: Path, albedo_path: Path, *, normal_strength: float) -> None:
+def _save_tile_set(
+    source: Path,
+    albedo_path: Path,
+    *,
+    normal_strength: float,
+    rotate_quarter_turn: bool = False,
+) -> None:
     albedo_path.parent.mkdir(parents=True, exist_ok=True)
     albedo = ensure_square_tile(source, 1024)
+    if rotate_quarter_turn:
+        albedo = albedo.transpose(Image.Transpose.ROTATE_90)
     albedo.save(albedo_path, optimize=True)
 
     height = ImageEnhance.Contrast(ImageOps.grayscale(albedo)).enhance(1.22)
@@ -137,17 +145,24 @@ def main() -> None:
 
     _save_leaf_set(
         args.leaf_source,
-        Path("vendor/seedthree/assets/leaves/stinging_nettle_single_albedo.png"),
+        Path(
+            "src/assets/vegetation/stinging-nettle/"
+            "stinging_nettle_single_albedo.png"
+        ),
     )
     _save_tile_set(
         args.stem_source,
-        Path("vendor/seedthree/assets/bark/stinging_nettle_stem_albedo.png"),
+        Path(
+            "src/assets/vegetation/stinging-nettle/"
+            "stinging_nettle_stem_albedo.png"
+        ),
         normal_strength=2.8,
     )
     _save_tile_set(
         args.twig_source,
         Path("public/assets/textures/vegetation/forest-floor-twig-albedo.png"),
         normal_strength=3.8,
+        rotate_quarter_turn=True,
     )
 
 

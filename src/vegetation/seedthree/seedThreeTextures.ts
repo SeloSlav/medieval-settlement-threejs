@@ -2,7 +2,7 @@
 // apple/cherry backyard models. A directory-wide eager glob made every unused
 // SeedThree biome texture part of the production payload.
 const barkModules = import.meta.glob(
-  '../../../vendor/seedthree/assets/bark/{american_beech,white_oak,red_maple,sweetgum,douglas_fir,loblolly,pine,apple_bark,cherry_bark,pear_bark,aronia_branch,rosehip_cane,bilberry_branch,common_juniper_branch,raspberry_cane,hornbeam_hedge_branch,stinging_nettle_stem}_{albedo,normal,roughness}.png',
+  '../../../vendor/seedthree/assets/bark/{american_beech,white_oak,red_maple,sweetgum,douglas_fir,loblolly,pine,apple_bark,cherry_bark,pear_bark,aronia_branch,rosehip_cane,bilberry_branch,common_juniper_branch,raspberry_cane,hornbeam_hedge_branch}_{albedo,normal,roughness}.png',
   {
     eager: true,
     query: '?url',
@@ -13,8 +13,29 @@ const barkModules = import.meta.glob(
 const leafModules = import.meta.glob(
   [
     '../../../vendor/seedthree/assets/leaves/{american_beech_single,white_oak_single,red_maple_single,sweetgum_single,douglas_fir_needle,loblolly_needle,pine_needle,apple_single,cherry_single,pear_single}_{albedo,normal,roughness,translucency}.png',
-    '../../../vendor/seedthree/assets/leaves/{bilberry,fern,juniper_scrub,raspberry_spray,hornbeam_hedge_spray,aronia_spray,rosehip_spray,stinging_nettle_single}_{albedo,normal,roughness,translucency}.png',
+    '../../../vendor/seedthree/assets/leaves/{bilberry,fern,juniper_scrub,raspberry_spray,hornbeam_hedge_spray,aronia_spray,rosehip_spray}_{albedo,normal,roughness,translucency}.png',
     '../../../vendor/seedthree/assets/leaves/cattail_reed_card{,_normal,_roughness,_translucency}.png',
+  ],
+  {
+    eager: true,
+    query: '?url',
+    import: 'default',
+  },
+) as Record<string, string>;
+
+const localNettleModules = import.meta.glob(
+  '../../assets/vegetation/stinging-nettle/stinging_nettle_{single,stem}_{albedo,normal,roughness,translucency}.png',
+  {
+    eager: true,
+    query: '?url',
+    import: 'default',
+  },
+) as Record<string, string>;
+
+const localDogwoodModules = import.meta.glob(
+  [
+    '../../assets/vegetation/common-dogwood/common_dogwood_branch_{albedo,normal,roughness}.png',
+    '../../assets/vegetation/common-dogwood/common_dogwood_single_{albedo,normal,roughness,translucency}.png',
   ],
   {
     eager: true,
@@ -40,8 +61,10 @@ function byBasename(modules: Record<string, string>): Record<string, string> {
   return out;
 }
 
-const barkUrls = byBasename(barkModules);
-const leafUrls = byBasename(leafModules);
+const localNettleUrls = byBasename(localNettleModules);
+const localDogwoodUrls = byBasename(localDogwoodModules);
+const barkUrls = { ...byBasename(barkModules), ...localNettleUrls, ...localDogwoodUrls };
+const leafUrls = { ...byBasename(leafModules), ...localNettleUrls, ...localDogwoodUrls };
 const fruitUrls = byBasename(fruitModules);
 
 export function seedThreeBarkUrl(name: string): string | undefined {

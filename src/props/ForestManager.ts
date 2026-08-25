@@ -9,10 +9,13 @@ import { collectRoadRemovedRockIndices } from '../roads/roadRockClearance.ts';
 import { distancePointToPolylineXZ, type RockObstacle } from '../utils/pathGeometry.ts';
 import { distancePointToPolygon2 } from '../utils/polygonGeometry.ts';
 import {
+  UNDERGROWTH_KINDS,
   markUndergrowthMatricesUpdated,
+  undergrowthPlacementClearanceRadius,
   undergrowthBucketForPlacement,
   type UndergrowthInstances,
   type UndergrowthPlacement,
+  type UndergrowthStats,
 } from './ForestUndergrowth.ts';
 import type {
   ForestFloorIvyInstances,
@@ -155,6 +158,8 @@ export class ForestManager {
   private roadRemovedRocks = new Set<number>();
   private placementRemovedRocks = new Set<number>();
   private removedRocks = new Set<number>();
+  private forestFloorRoadEdges: RoadEdge[] = [];
+  private forestFloorPlacementClearance: PlacementClearanceSpatialIndex | null = null;
   private treePhases = new Map<number, TreePhase>();
   private treeGrowthProgress = new Map<number, number>();
   private collisionVersion = 0;
@@ -269,6 +274,7 @@ export class ForestManager {
   setDeciduousFoliage(presentation: DeciduousFoliagePresentation): void {
     this.seedThreeForest?.setDeciduousFoliage(presentation);
     this.forestFloorNettles?.setDeciduousFoliage(presentation);
+    this.undergrowth?.setDeciduousFoliage(presentation);
   }
 
   setSnowCoverage(coverage: number): void {
@@ -301,6 +307,10 @@ export class ForestManager {
 
   getForestFloorTwigStats(): ForestFloorTwigStats | null {
     return this.forestFloorTwigs?.stats ?? null;
+  }
+
+  getUndergrowthStats(): UndergrowthStats | null {
+    return this.undergrowth?.stats ?? null;
   }
 
   setForestFloorDebugMode(mode: ForestCanopyOcclusionDebugMode): void {
@@ -443,7 +453,7 @@ export class ForestManager {
     this.broadleafShadowMesh.castShadow = enabled;
     setHarvestStumpShadowsEnabled(this.harvestStumps, enabled);
     if (this.undergrowth) {
-      for (const kind of ['bush', 'fern', 'juniper'] as const) {
+      for (const kind of UNDERGROWTH_KINDS) {
         for (const bucket of this.undergrowth.buckets[kind]) {
           bucket.shadowMesh.castShadow = enabled;
         }
@@ -517,6 +527,7 @@ export class ForestManager {
 
   syncRoadClearance(network: RoadNetwork | null): void {
     const edges = network ? [...network.edges.values()] : [];
+    this.forestFloorRoadEdges = edges;
     const nextRoadRemovedTrees = new Set<number>();
     for (let treeIndex = 0; treeIndex < this.placements.length; treeIndex++) {
       if (this.isTreeNearAnyEdge(this.placements[treeIndex], edges)) {
@@ -537,7 +548,7 @@ export class ForestManager {
           placement.x,
           placement.z,
           edges,
-          UNDERGROWTH_CLEAR_MARGIN,
+          undergrowthPlacementClearanceRadius(placement),
         )) {
           nextRoadRemovedUndergrowth.add(index);
         }
@@ -557,7 +568,7 @@ export class ForestManager {
       this.roadRemovedRocks,
       this.placementRemovedRocks,
     ));
-
+    this.syncForestFloorPlacementClearance();
   }
 
   syncPlacementClearance(clearance: ForestPlacementClearance): void {
@@ -572,6 +583,7 @@ export class ForestManager {
       burgageParcelPolygons,
       farmFieldPolygons,
     );
+    this.forestFloorPlacementClearance = clearanceIndex;
     const nextPlacementRemovedTrees = new Set<number>();
 
     for (let treeIndex = 0; treeIndex < this.placements.length; treeIndex++) {
@@ -613,11 +625,63 @@ export class ForestManager {
 
     this.syncPlacementUndergrowthClearance(clearanceIndex);
     this.syncPlacementRockClearance(clearanceIndex);
+    this.syncForestFloorPlacementClearance();
   }
 
   dispose(): void {
     disposeHarvestStumpInstances(this.harvestStumps);
     this.disposeResources();
+  }
+
+  private syncForestFloorPlacementClearance(): void {
+    const isBlockedAt = (x: number, z: number): boolean => (
+      this.isForestFloorPointWithinClearance(x, z)
+    );
+    if ((this.forestFloorIvy?.refreshBlockedMask(isBlockedAt) ?? 0) > 0) {
+      this.forestFloorIvy?.commit();
+    }
+    if ((this.forestFloorNettles?.refreshBlockedMask(isBlockedAt) ?? 0) > 0) {
+      this.forestFloorNettles?.commit();
+    }
+    if ((this.forestFloorTwigs?.refreshBlockedMask(isBlockedAt) ?? 0) > 0) {
+      this.forestFloorTwigs?.commit();
+    }
+  }
+
+  private isForestFloorPointWithinClearance(x: number, z: number): boolean {
+    if (isUndergrowthNearAnyEdge(
+      x,
+      z,
+      this.forestFloorRoadEdges,
+      UNDERGROWTH_CLEAR_MARGIN,
+    )) {
+      return true;
+    }
+    const clearanceIndex = this.forestFloorPlacementClearance;
+    if (!clearanceIndex) return false;
+    if (clearanceIndex.someBuildingNear(
+      x,
+      z,
+      0,
+      (building) => pointWithinBuildingSiteClearance(x, z, building),
+    )) {
+      return true;
+    }
+    const point = { x, z };
+    if (clearanceIndex.someBurgageParcelNear(
+      x,
+      z,
+      UNDERGROWTH_CLEAR_MARGIN,
+      (polygon) => distancePointToPolygon2(point, polygon) <= UNDERGROWTH_CLEAR_MARGIN,
+    )) {
+      return true;
+    }
+    return clearanceIndex.someFarmFieldNear(
+      x,
+      z,
+      UNDERGROWTH_CLEAR_MARGIN,
+      (polygon) => distancePointToPolygon2(point, polygon) <= UNDERGROWTH_CLEAR_MARGIN,
+    );
   }
 
   private syncPlacementUndergrowthClearance(
@@ -628,11 +692,17 @@ export class ForestManager {
     const nextPlacementRemovedUndergrowth = new Set<number>();
     for (let index = 0; index < this.undergrowthPlacements.length; index++) {
       const placement = this.undergrowthPlacements[index];
+      const clearRadius = undergrowthPlacementClearanceRadius(placement);
       if (clearanceIndex.someBuildingNear(
         placement.x,
         placement.z,
-        0,
-        (building) => pointWithinBuildingSiteClearance(placement.x, placement.z, building),
+        clearRadius,
+        (building) => pointWithinBuildingSiteClearance(
+          placement.x,
+          placement.z,
+          building,
+          clearRadius,
+        ),
       )) {
         nextPlacementRemovedUndergrowth.add(index);
         continue;
@@ -640,8 +710,8 @@ export class ForestManager {
       if (clearanceIndex.someBurgageParcelNear(
         placement.x,
         placement.z,
-        UNDERGROWTH_CLEAR_MARGIN,
-        (polygon) => distancePointToPolygon2(placement, polygon) <= UNDERGROWTH_CLEAR_MARGIN,
+        clearRadius,
+        (polygon) => distancePointToPolygon2(placement, polygon) <= clearRadius,
       )) {
         nextPlacementRemovedUndergrowth.add(index);
         continue;
@@ -649,8 +719,8 @@ export class ForestManager {
       if (clearanceIndex.someFarmFieldNear(
         placement.x,
         placement.z,
-        UNDERGROWTH_CLEAR_MARGIN,
-        (polygon) => distancePointToPolygon2(placement, polygon) <= UNDERGROWTH_CLEAR_MARGIN,
+        clearRadius,
+        (polygon) => distancePointToPolygon2(placement, polygon) <= clearRadius,
       )) {
         nextPlacementRemovedUndergrowth.add(index);
       }

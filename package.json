@@ -207,6 +207,7 @@
     "test:fishing": "node --experimental-strip-types scripts/testFishingSystem.mts",
     "test:foraging-ecology": "node --experimental-strip-types scripts/testForagingEcology.mts",
     "test:gorski-shrubs": "npx tsx scripts/testGorskiShrubIntegration.mts",
+    "test:dogwood-integration": "npx tsx scripts/testDogwoodIntegration.mts",
     "test:river-simulation": "npx tsx scripts/testSparseVirtualPipesWater.mts",
     "test:river-water-material": "npx tsx scripts/testRiverWaterMaterial.mts",
     "test:seedthree-forest-ecology": "npx tsx scripts/testSeedThreeForestEcology.mts",

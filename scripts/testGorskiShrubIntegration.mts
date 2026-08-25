@@ -7,6 +7,7 @@ import { bilberry } from '../vendor/seedthree/src/species/bilberry.js';
 import { commonHornbeamHedge } from '../vendor/seedthree/src/species/common-hornbeam-hedge.js';
 import { commonJuniper } from '../vendor/seedthree/src/species/common-juniper.js';
 import { raspberry } from '../vendor/seedthree/src/species/raspberry.js';
+import { stingingNettle } from '../src/vegetation/seedthree/stingingNettlePreset.ts';
 import {
   GORSKI_SHRUB_VARIANT_COUNT,
   RASPBERRY_FRUIT_ANCHOR_LIMIT,
@@ -18,7 +19,14 @@ import { MAX_RASPBERRIES_PER_CLUMP } from '../src/foraging/berryPatchPresentatio
 const projectRoot = fileURLToPath(new URL('../', import.meta.url));
 const PORTABLE_WEBGPU_VERTEX_BUFFER_LIMIT = 8;
 const undergrowthRuntimeAttributes = ['aAnchorPos', 'aWindVec'] as const;
-const kinds: GorskiShrubKind[] = ['bush', 'fern', 'juniper', 'raspberry', 'field-hornbeam'];
+const kinds: GorskiShrubKind[] = [
+  'bush',
+  'fern',
+  'juniper',
+  'raspberry',
+  'field-hornbeam',
+  'nettle',
+];
 const limits: Record<GorskiShrubKind, {
   triangles: [number, number];
   width: [number, number];
@@ -29,7 +37,24 @@ const limits: Record<GorskiShrubKind, {
   juniper: { triangles: [6_000, 12_000], width: [1.7, 2.5], height: [1.2, 1.8] },
   raspberry: { triangles: [4_500, 7_500], width: [1.2, 1.7], height: [0.85, 1.2] },
   'field-hornbeam': { triangles: [4_500, 5_200], width: [1.1, 1.5], height: [0.8, 0.95] },
+  nettle: { triangles: [120, 140], width: [0.28, 0.5], height: [0.7, 0.84] },
 };
+
+assert.equal(stingingNettle.category, 'shrub');
+assert.equal(stingingNettle.foliageType, 'singleLeaves');
+assert.equal(
+  stingingNettle.foliage.mode,
+  'leaves',
+  'stinging nettles must use SeedThree leaf mode rather than baked spray clusters',
+);
+assert.equal(
+  stingingNettle.foliage.whorlSize,
+  2,
+  'young nettles must grow leaves as opposite pairs',
+);
+assert.equal(stingingNettle.foliage.rotate, 90, 'successive nettle leaf pairs must be decussate');
+assert.equal(stingingNettle.bark, 'stinging_nettle_stem_albedo.png');
+assert.equal(stingingNettle.leaf, 'stinging_nettle_single_albedo.png');
 
 const startedAt = performance.now();
 const firstPass = prototypeSignatures();
@@ -101,16 +126,26 @@ const shrubTextureContracts = [
   { name: 'common juniper', preset: commonJuniper, foliageBase: 'juniper_scrub' },
   { name: 'raspberry', preset: raspberry, foliageBase: 'raspberry_spray' },
   { name: 'field hornbeam', preset: commonHornbeamHedge, foliageBase: 'hornbeam_hedge_spray' },
+  { name: 'stinging nettle', preset: stingingNettle, foliageBase: 'stinging_nettle_single' },
 ] as const;
+const localNettleAssetDir = `${projectRoot}src/assets/vegetation/stinging-nettle`;
 const albedoOwners = new Map<string, string>();
 for (const contract of shrubTextureContracts) {
   const barkBase = String(contract.preset.bark).replace(/_albedo\.png$/, '');
-  assertTextureSet(contract.name, 'bark', barkBase, ['albedo', 'normal', 'roughness']);
+  const assetDir = contract.name === 'stinging nettle' ? localNettleAssetDir : undefined;
+  assertTextureSet(
+    contract.name,
+    'bark',
+    barkBase,
+    ['albedo', 'normal', 'roughness'],
+    assetDir,
+  );
   assertTextureSet(
     contract.name,
     'leaves',
     contract.foliageBase,
     ['albedo', 'normal', 'roughness', 'translucency'],
+    assetDir,
   );
 }
 assertTextureSet('fern', 'leaves', 'fern', ['albedo', 'normal', 'roughness', 'translucency']);
@@ -139,6 +174,22 @@ const shrubPrototypesSource = readFileSync(
 const seedThreeTexturesSource = readFileSync(
   `${projectRoot}src/vegetation/seedthree/seedThreeTextures.ts`,
   'utf8',
+);
+assert.match(
+  shrubPrototypesSource,
+  /from '\.\/stingingNettlePreset\.ts'/,
+  'the project must own the nettle preset instead of depending on a dirty vendor submodule',
+);
+assert.doesNotMatch(shrubPrototypesSource, /@seedthree\/species\/stinging-nettle/);
+assert.match(
+  seedThreeTexturesSource,
+  /\.\.\/\.\.\/assets\/vegetation\/stinging-nettle\/stinging_nettle_/,
+  'the production texture graph must bundle the project-owned nettle PBR maps',
+);
+assert.doesNotMatch(
+  seedThreeTexturesSource,
+  /vendor\/seedthree\/assets\/(?:bark|leaves)\/[^'\n]*stinging_nettle/,
+  'the production nettle texture graph must not depend on hidden vendor worktree files',
 );
 assert.match(undergrowthVisuals, /GORSKI_SHRUB_VARIANT_COUNT/);
 assert.match(undergrowthVisuals, /new THREE\.InstancedMesh/);
@@ -210,6 +261,13 @@ function prototypeSignatures(): Record<string, string> {
           `${kind} variant ${variant} must retain separate wood/stem and foliage material groups`,
         );
       }
+      if (kind === 'nettle') {
+        assert.equal(
+          geometry.userData.seedThreeGenerator,
+          'dichotomous/opposite-paired-leaves',
+          `nettle variant ${variant} must retain the opposite-pair SeedThree prototype contract`,
+        );
+      }
       assert.ok(
         geometry.getAttribute('aRootWeight'),
         `${kind} variant ${variant} must carry rooted wind weights`,
@@ -275,9 +333,12 @@ function assertTextureSet(
   folder: 'bark' | 'leaves',
   base: string,
   maps: ReadonlyArray<'albedo' | 'normal' | 'roughness' | 'translucency'>,
+  assetDir?: string,
 ): void {
   for (const map of maps) {
-    const path = `${projectRoot}vendor/seedthree/assets/${folder}/${base}_${map}.png`;
+    const path = assetDir
+      ? `${assetDir}/${base}_${map}.png`
+      : `${projectRoot}vendor/seedthree/assets/${folder}/${base}_${map}.png`;
     assert.ok(existsSync(path), `${owner} must provide its own ${map} texture (${base}_${map}.png)`);
     if (map !== 'albedo') continue;
     const hash = createHash('sha256').update(readFileSync(path)).digest('hex');

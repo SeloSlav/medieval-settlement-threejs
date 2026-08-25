@@ -21,6 +21,18 @@ import {
   FOREST_FLOOR_IVY_VERTICES_PER_PATCH,
   type ForestFloorIvyPlacement,
 } from '../src/props/ForestFloorIvy.ts';
+import {
+  FOREST_FLOOR_TWIG_ALBEDO_TEXTURE_PATH,
+  FOREST_FLOOR_TWIG_NORMAL_TEXTURE_PATH,
+  FOREST_FLOOR_TWIG_RADIAL_SEGMENTS,
+  FOREST_FLOOR_TWIG_ROUGHNESS_TEXTURE_PATH,
+  FOREST_FLOOR_TWIG_TEXTURE_REPEAT_METERS,
+  FOREST_FLOOR_TWIG_TEXTURE_SOURCES,
+  FOREST_FLOOR_TWIG_VARIANT_COUNT,
+  FOREST_FLOOR_TWIG_VARIANTS,
+  createForestFloorTwigGeometry,
+} from '../src/props/ForestFloorTwigs.ts';
+import { createForestFloorPlacementMask } from '../src/props/ForestFloorPlacementMask.ts';
 
 const projectRoot = fileURLToPath(new URL('../', import.meta.url));
 const ivySource = readFileSync(`${projectRoot}src/props/ForestFloorIvy.ts`, 'utf8');
@@ -33,6 +45,9 @@ const groundCoverSource = readFileSync(
   'utf8',
 );
 const managerSource = readFileSync(`${projectRoot}src/props/ForestManager.ts`, 'utf8');
+const forestPropsSource = readFileSync(`${projectRoot}src/props/ForestProps.ts`, 'utf8');
+const nettleSource = readFileSync(`${projectRoot}src/props/ForestFloorNettles.ts`, 'utf8');
+const twigSource = readFileSync(`${projectRoot}src/props/ForestFloorTwigs.ts`, 'utf8');
 const terrainSource = readFileSync(`${projectRoot}src/terrain/TerrainGrassMaterial.ts`, 'utf8');
 const fieldSource = readFileSync(`${projectRoot}src/props/forestField.ts`, 'utf8');
 const grassSource = readFileSync(`${projectRoot}src/grass/grassLodMath.ts`, 'utf8');
@@ -40,8 +55,45 @@ const visualHooksSource = readFileSync(
   `${projectRoot}src/e2e/visualPerformanceHooks.ts`,
   'utf8',
 );
+const lineupSource = readFileSync(`${projectRoot}src/e2e/forestFloorLineup.ts`, 'utf8');
 const ivyTexturePath =
   `${projectRoot}public/assets/textures/vegetation/forest-floor-ivy-card.png`;
+const twigTexturePaths = Object.values(FOREST_FLOOR_TWIG_TEXTURE_SOURCES).map(
+  (path) => `${projectRoot}public${path}`,
+);
+
+const placementVisibilityEvents: Array<{ placementIndex: number; visible: boolean }> = [];
+const placementMask = createForestFloorPlacementMask(
+  [
+    { sourceTreeIndex: 0, x: -1 },
+    { sourceTreeIndex: 0, x: 1 },
+  ],
+  1,
+  (placementIndex, visible) => {
+    placementVisibilityEvents.push({ placementIndex, visible });
+  },
+);
+assert.equal(placementMask.isTreeActive(0), true);
+assert.equal(
+  placementMask.refreshBlockedMask((placement) => placement.x > 0),
+  1,
+  'an offset prop inside clearance must change even while its source tree remains active',
+);
+assert.equal(placementMask.isTreeActive(0), true);
+assert.equal(placementMask.isPlacementVisible(0), true);
+assert.equal(placementMask.isPlacementActive(1), false);
+assert.equal(placementMask.isPlacementVisible(1), false);
+assert.deepEqual(placementVisibilityEvents, [{ placementIndex: 1, visible: false }]);
+placementMask.setTreeActive(0, false);
+placementMask.setTreeActive(0, true);
+assert.equal(placementMask.isPlacementVisible(0), true);
+assert.equal(
+  placementMask.isPlacementVisible(1),
+  false,
+  'restoring a source tree must not resurrect a placement-blocked forest-floor prop',
+);
+assert.equal(placementMask.refreshBlockedMask(() => false), 1);
+assert.equal(placementMask.isPlacementVisible(1), true);
 
 const sources = [
   { x: -1.2, z: 0, canopyRadius: 4.1 },
@@ -656,6 +708,49 @@ assert.deepEqual(
   'fixed inputs should reproduce every leaf hinge and amplitude',
 );
 
+assert.equal(FOREST_FLOOR_TWIG_VARIANT_COUNT, 3);
+assert.equal(FOREST_FLOOR_TWIG_RADIAL_SEGMENTS, 6);
+assert.equal(FOREST_FLOOR_TWIG_TEXTURE_REPEAT_METERS, 0.19);
+assert.deepEqual(FOREST_FLOOR_TWIG_TEXTURE_SOURCES, {
+  albedo: FOREST_FLOOR_TWIG_ALBEDO_TEXTURE_PATH,
+  normal: FOREST_FLOOR_TWIG_NORMAL_TEXTURE_PATH,
+  roughness: FOREST_FLOOR_TWIG_ROUGHNESS_TEXTURE_PATH,
+});
+const twigGeometries = Array.from(
+  { length: FOREST_FLOOR_TWIG_VARIANT_COUNT },
+  (_, variantIndex) => createForestFloorTwigGeometry(variantIndex),
+);
+for (const [variantIndex, geometry] of twigGeometries.entries()) {
+  const repeated = createForestFloorTwigGeometry(variantIndex);
+  const position = geometry.getAttribute('position') as THREE.BufferAttribute;
+  const uv = geometry.getAttribute('uv') as THREE.BufferAttribute;
+  const triangles = (geometry.getIndex()?.count ?? 0) / 3;
+  const authored = FOREST_FLOOR_TWIG_VARIANTS[variantIndex]!;
+  const bounds = geometry.boundingBox!.getSize(new THREE.Vector3());
+  assert.equal(position.count, 58, `twig variant ${variantIndex} exceeded its vertex budget`);
+  assert.equal(uv.count, position.count, `twig variant ${variantIndex} must own continuous bark UVs`);
+  assert.equal(triangles, 72, `twig variant ${variantIndex} exceeded its triangle budget`);
+  assert.ok(
+    bounds.x >= authored.length * 0.98 && bounds.x <= authored.length * 1.02,
+    `twig variant ${variantIndex} must retain its authored ${authored.length.toFixed(2)} m length`,
+  );
+  assert.equal(geometry.userData.seedThreeGenerator, 'forest-floor-bent-tapered-tube');
+  assert.equal(geometry.userData.ringCount, authored.points.length);
+  assert.equal(geometry.userData.radialSegments, FOREST_FLOOR_TWIG_RADIAL_SEGMENTS);
+  assert.equal(geometry.userData.textureRepeatMeters, FOREST_FLOOR_TWIG_TEXTURE_REPEAT_METERS);
+  assert.deepEqual(
+    Array.from(repeated.getAttribute('position').array),
+    Array.from(position.array),
+    `twig variant ${variantIndex} must reproduce its bent centerline exactly`,
+  );
+  assert.deepEqual(
+    Array.from(repeated.getIndex()!.array),
+    Array.from(geometry.getIndex()!.array),
+    `twig variant ${variantIndex} must reproduce its capped topology exactly`,
+  );
+  repeated.dispose();
+}
+
 assert.match(ivySource, /loadSeedThreeGroundCoverTextures/);
 assert.match(ivySource, /createTerrainConformingIvyGeometry/);
 assert.match(
@@ -701,16 +796,131 @@ assert.match(
 assert.match(ivySource, /ivyStackHeightAtWorld[\s\S]*?overhangScale[\s\S]*?supportGap/);
 assert.match(ivySource, /geometry\.setAttribute\('ivyLayer'/);
 assert.match(
+  nettleSource,
+  /createGorskiShrubPrototype\('nettle', variant\)/,
+  'forest-floor nettles must instantiate the first-class SeedThree nettle prototype',
+);
+assert.match(
+  nettleSource,
+  /NETTLE_LEAF_FILES[\s\S]*stinging_nettle_single_albedo\.png[\s\S]*stinging_nettle_single_normal\.png[\s\S]*stinging_nettle_single_roughness\.png[\s\S]*stinging_nettle_single_translucency\.png/,
+  'nettle leaf cards must retain their complete dedicated PBR/SSS set',
+);
+assert.match(
+  nettleSource,
+  /NETTLE_STEM_FILES[\s\S]*stinging_nettle_stem_albedo\.png[\s\S]*stinging_nettle_stem_normal\.png[\s\S]*stinging_nettle_stem_roughness\.png/,
+  'nettle stems must retain their dedicated bark PBR set',
+);
+assert.match(
+  twigSource,
+  /new THREE\.MeshStandardMaterial\(\{[\s\S]*map: textures\.albedo,[\s\S]*normalMap: textures\.normal,[\s\S]*roughnessMap: textures\.roughness,[\s\S]*vertexColors: true/,
+  'twigs must render their full authored PBR texture set with deterministic tint variation',
+);
+assert.match(
+  forestPropsSource,
+  /const nettlesPromise = createForestFloorNettleInstances\([\s\S]*?const twigsPromise = createForestFloorTwigInstances\(/,
+  'ForestProps must schedule both new forest-floor systems before renderer-specific tree setup',
+);
+assert.match(
+  forestPropsSource,
+  /Promise\.all\(\[[\s\S]*?ivyPromise,[\s\S]*?nettlesPromise,[\s\S]*?twigsPromise,[\s\S]*?\]\)/,
+  'ivy, nettles, and twigs must resolve through the same deterministic forest bootstrap',
+);
+assert.equal(
+  forestPropsSource.match(/forest\.add\(forestFloorNettles\.group\);/g)?.length,
+  2,
+  'both WebGPU and fallback forest paths must attach nettles',
+);
+assert.equal(
+  forestPropsSource.match(/forest\.add\(forestFloorTwigs\.group\);/g)?.length,
+  2,
+  'both WebGPU and fallback forest paths must attach twigs',
+);
+assert.equal(
+  forestPropsSource.match(/forestFloorNettles\.dispose\(\);/g)?.length,
+  2,
+  'both forest disposal paths must release nettle geometry and textures',
+);
+assert.equal(
+  forestPropsSource.match(/forestFloorTwigs\.dispose\(\);/g)?.length,
+  2,
+  'both forest disposal paths must release twig geometry and textures',
+);
+assert.match(
+  lineupSource,
+  /requestedSeason === 'autumn' \|\| requestedSeason === 'winter'[\s\S]*?: 'summer'/,
+  'the forest-floor lineup must expose deterministic summer, autumn, and winter queries',
+);
+assert.match(
+  lineupSource,
+  /createForestFloorNettleInstances\([\s\S]*?loadForestFloorTwigTextures[\s\S]*?createForestFloorTwigGeometry/,
+  'the lineup must render live nettle prototypes beside the complete twig variant set',
+);
+assert.match(
+  lineupSource,
+  /setForestCardSnowCoverage\(ivyMaterial, ivySnowCoverage\)[\s\S]*?nettles\.setDeciduousFoliage\(deciduousFoliage\)/,
+  'seasonal lineup queries must apply winter snow to ivy and seasonal color to nettles',
+);
+assert.match(
+  lineupSource,
+  /dataset\.season = season[\s\S]*?dataset\.nettleInstances[\s\S]*?dataset\.twigInstances[\s\S]*?dataset\.forestFloorSignature/,
+  'the lineup must publish stable forest-floor evidence for browser regression tests',
+);
+assert.match(
   managerSource,
   /setTreeForestFloorActive\(treeIndex, false\)[\s\S]*?setTreeForestFloorActive\(treeIndex, true\)/,
   'tree hide/show paths should own both their ivy and floor shade',
 );
 assert.match(
   managerSource,
-  /this\.canopyOcclusion\?\.setTreeActive\(treeIndex, active, true\);[\s\S]*?this\.forestFloorIvy\?\.setTreeActive\(treeIndex, active\);/,
+  /this\.canopyOcclusion\?\.setTreeActive\(treeIndex, active, true\);[\s\S]*?this\.forestFloorIvy\?\.setTreeActive\(treeIndex, active\);[\s\S]*?this\.forestFloorNettles\?\.setTreeActive\(treeIndex, active\);[\s\S]*?this\.forestFloorTwigs\?\.setTreeActive\(treeIndex, active\);/,
+  'tree ownership must hide and restore ivy, nettles, and twigs together',
+);
+assert.match(
+  ivySource,
+  /createForestFloorPlacementMask\([\s\S]*?refreshBlockedMask[\s\S]*?ivyIntersectsBlocker/,
+  'broad offset ivy colonies need their own footprint clearance mask',
+);
+assert.match(
+  nettleSource,
+  /createForestFloorPlacementMask\([\s\S]*?refreshBlockedMask[\s\S]*?nettleIntersectsBlocker/,
+  'offset nettles need placement clearance independent of their source tree',
+);
+assert.match(
+  twigSource,
+  /createForestFloorPlacementMask\([\s\S]*?refreshBlockedMask[\s\S]*?twigIntersectsBlocker/,
+  'offset twigs need placement clearance independent of their source tree',
+);
+assert.match(
+  managerSource,
+  /syncRoadClearance\(network:[\s\S]*?this\.syncForestFloorPlacementClearance\(\);/,
+  'road refreshes must re-evaluate each forest-floor placement footprint',
+);
+assert.match(
+  managerSource,
+  /syncPlacementClearance\(clearance:[\s\S]*?this\.syncForestFloorPlacementClearance\(\);/,
+  'building, parcel, and field refreshes must re-evaluate forest-floor placements',
+);
+assert.match(
+  managerSource,
+  /forestFloorIvy\?\.refreshBlockedMask\(isBlockedAt\)[\s\S]*?forestFloorNettles\?\.refreshBlockedMask\(isBlockedAt\)[\s\S]*?forestFloorTwigs\?\.refreshBlockedMask\(isBlockedAt\)/,
+  'one combined manager blocker must refresh ivy, nettles, and twigs without changing source-tree state',
+);
+assert.match(
+  managerSource,
+  /isForestFloorPointWithinClearance[\s\S]*?isUndergrowthNearAnyEdge[\s\S]*?someBuildingNear[\s\S]*?someBurgageParcelNear[\s\S]*?someFarmFieldNear/,
+  'forest-floor blockers must combine road, building, burgage, and farm footprints',
 );
 assert.match(managerSource, /this\.canopyOcclusion\?\.commit\(\);/);
-assert.match(managerSource, /this\.forestFloorIvy\?\.commit\(\);/);
+assert.match(
+  managerSource,
+  /this\.forestFloorIvy\?\.commit\(\);[\s\S]*?this\.forestFloorNettles\?\.commit\(\);[\s\S]*?this\.forestFloorTwigs\?\.commit\(\);/,
+  'one tree-update flush must upload every owned forest-floor system',
+);
+assert.match(
+  managerSource,
+  /this\.forestFloorNettles\.group\.visible = visible;[\s\S]*?this\.forestFloorTwigs\?\.setCloseDetailVisible\(visible\);/,
+  'the close-detail visibility gate must cover nettles and twigs with ivy',
+);
 assert.match(
   terrainSource,
   /canopyCoverage[\s\S]*?canopyInterior[\s\S]*?canopySunAccess[\s\S]*?canopyOpeningNearWeight[\s\S]*?canopyGroundShade[\s\S]*?canopyAoFactor/,
@@ -743,6 +953,14 @@ assert.ok(
 );
 assert.equal(ivyTexture.subarray(1, 4).toString('ascii'), 'PNG');
 assert.equal(ivyTexture[25], 6, 'forest ivy should retain RGBA transparency');
+for (const twigTexturePath of twigTexturePaths) {
+  const texture = readFileSync(twigTexturePath);
+  assert.ok(
+    statSync(twigTexturePath).size > 200_000,
+    `${twigTexturePath} should remain an authored map rather than a placeholder`,
+  );
+  assert.equal(texture.subarray(1, 4).toString('ascii'), 'PNG');
+}
 
 map.dispose();
 isolatedMap.dispose();
@@ -752,6 +970,7 @@ denseMap.dispose();
 terrainGeometry.dispose();
 compiledIvy.geometry.dispose();
 repeatedIvy.geometry.dispose();
+for (const geometry of twigGeometries) geometry.dispose();
 console.log(
   `Forest-floor coverage contract tests passed (center shade ${covered.toFixed(3)}, sun openings ${(openingRatio * 100).toFixed(1)}%).`,
 );

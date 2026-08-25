@@ -31,11 +31,13 @@ import {
   seedThreeBarkUrl,
   seedThreeLeafUrl,
 } from '../vegetation/seedthree/seedThreeTextures.ts';
+import { createForestFloorPlacementMask } from './ForestFloorPlacementMask.ts';
 import type { ForestTreePlacement } from './forestPlacements.ts';
 
 export const FOREST_FLOOR_NETTLE_SEED = 0x75727469;
 export const FOREST_FLOOR_NETTLE_MAX_INSTANCES = 3_200;
 export const FOREST_FLOOR_NETTLE_MIN_SPACING = 0.48;
+export const FOREST_FLOOR_NETTLE_CLEAR_RADIUS = 0.34;
 
 const NETTLE_LEAF_FILES = {
   albedo: 'stinging_nettle_single_albedo.png',
@@ -108,6 +110,8 @@ export type ForestFloorNettleStats = {
   seed: number;
 };
 
+export type ForestFloorNettleBlocker = (x: number, z: number) => boolean;
+
 type NettleBucket = {
   mesh: THREE.InstancedMesh;
   placements: ForestFloorNettlePlacement[];
@@ -117,9 +121,12 @@ type NettleBucket = {
 export type ForestFloorNettleInstances = {
   group: THREE.Group;
   placements: ForestFloorNettlePlacement[];
+  placementIndicesByTree: number[][];
   buckets: NettleBucket[];
   stats: ForestFloorNettleStats;
   setTreeActive(treeIndex: number, active: boolean): boolean;
+  setPlacementActive(placementIndex: number, active: boolean): boolean;
+  refreshBlockedMask(isBlockedAt?: ForestFloorNettleBlocker): number;
   setDeciduousFoliage(presentation: DeciduousFoliagePresentation): boolean;
   commit(): void;
   dispose(): void;
@@ -131,7 +138,7 @@ export async function createForestFloorNettleInstances(
   maxAnisotropy: number,
   rendererBackend: RendererBackendKind | undefined,
   seed = FOREST_FLOOR_NETTLE_SEED,
-  isBlockedAt?: (x: number, z: number) => boolean,
+  isBlockedAt?: ForestFloorNettleBlocker,
 ): Promise<ForestFloorNettleInstances> {
   const [leafTextures, stemTextures] = await Promise.all([
     loadLeafTextures(maxAnisotropy),
@@ -145,14 +152,6 @@ export async function createForestFloorNettleInstances(
     (_, variant) => createGorskiShrubPrototype('nettle', variant),
   );
   const placements = createForestFloorNettlePlacements(trees, seed, isBlockedAt);
-  const placementIndicesByTree = Array.from(
-    { length: trees.length },
-    () => [] as number[],
-  );
-  placements.forEach((placement, index) => {
-    placementIndicesByTree[placement.sourceTreeIndex]?.push(index);
-  });
-
   const group = new THREE.Group();
   group.name = 'SeedThree young stinging nettles';
   const buckets = prototypes.map((prototype, prototypeIndex) => {
@@ -171,8 +170,21 @@ export async function createForestFloorNettleInstances(
     group.add(bucket.mesh);
     return bucket;
   });
-  const treeActive = trees.map(() => true);
   let matricesDirty = false;
+  const placementMask = createForestFloorPlacementMask(
+    placements,
+    trees.length,
+    (placementIndex, visible) => {
+      const placement = placements[placementIndex];
+      if (!placement) return;
+      const bucket = buckets[placement.prototypeIndex]!;
+      bucket.mesh.setMatrixAt(
+        placement.meshIndex,
+        visible ? bucket.matrices[placement.meshIndex]! : HIDDEN_MATRIX,
+      );
+      matricesDirty = true;
+    },
+  );
   const textures = [
     leafTextures.albedo,
     leafTextures.normal,
@@ -186,6 +198,7 @@ export async function createForestFloorNettleInstances(
   return {
     group,
     placements,
+    placementIndicesByTree: placementMask.placementIndicesByTree,
     buckets,
     stats: {
       instances: placements.length,
@@ -198,19 +211,12 @@ export async function createForestFloorNettleInstances(
       ),
       seed,
     },
-    setTreeActive(treeIndex: number, active: boolean): boolean {
-      if (treeActive[treeIndex] === active) return false;
-      treeActive[treeIndex] = active;
-      for (const placementIndex of placementIndicesByTree[treeIndex] ?? []) {
-        const placement = placements[placementIndex]!;
-        const bucket = buckets[placement.prototypeIndex]!;
-        bucket.mesh.setMatrixAt(
-          placement.meshIndex,
-          active ? bucket.matrices[placement.meshIndex]! : HIDDEN_MATRIX,
-        );
-      }
-      matricesDirty = true;
-      return true;
+    setTreeActive: placementMask.setTreeActive,
+    setPlacementActive: placementMask.setPlacementActive,
+    refreshBlockedMask(blocker?: ForestFloorNettleBlocker): number {
+      return placementMask.refreshBlockedMask((placement) => (
+        nettleIntersectsBlocker(placement, blocker)
+      ));
     },
     setDeciduousFoliage(presentation): boolean {
       const changed = setNettleSeason(foliageMaterial, presentation);
@@ -235,7 +241,7 @@ export async function createForestFloorNettleInstances(
 export function createForestFloorNettlePlacements(
   trees: readonly ForestTreePlacement[],
   seed = FOREST_FLOOR_NETTLE_SEED,
-  isBlockedAt?: (x: number, z: number) => boolean,
+  isBlockedAt?: ForestFloorNettleBlocker,
 ): ForestFloorNettlePlacement[] {
   const placements: ForestFloorNettlePlacement[] = [];
   const spatial = new SpatialHash2D<ForestFloorNettlePlacement>(0.75);
@@ -251,24 +257,45 @@ export function createForestFloorNettlePlacements(
       const angle = rng() * Math.PI * 2;
       const x = tree.x + Math.cos(angle) * radius;
       const z = tree.z + Math.sin(angle) * radius;
-      if (isBlockedAt?.(x, z)) continue;
       if (spatial.hasPointWithin(x, z, FOREST_FLOOR_NETTLE_MIN_SPACING)) continue;
       const placement: ForestFloorNettlePlacement = {
         x,
         z,
         sourceTreeIndex: treeIndex,
-        scale: THREE.MathUtils.lerp(0.64, 1.22, Math.pow(rng(), 0.72)),
+        // The ivy canopy can reach 0.48 m. Keep young plants varied but tall
+        // enough that several paired leaf nodes read above that ground layer.
+        scale: THREE.MathUtils.lerp(0.78, 1.28, Math.pow(rng(), 0.72)),
         yaw: rng() * Math.PI * 2,
         lean: THREE.MathUtils.lerp(0.015, 0.085, rng()),
         leanDirection: rng() * Math.PI * 2,
         prototypeIndex: Math.floor(rng() * GORSKI_SHRUB_VARIANT_COUNT),
         meshIndex: -1,
       };
+      if (nettleIntersectsBlocker(placement, isBlockedAt)) continue;
       placements.push(placement);
       spatial.add(placement);
     }
   }
   return placements;
+}
+
+function nettleIntersectsBlocker(
+  placement: ForestFloorNettlePlacement,
+  isBlockedAt?: ForestFloorNettleBlocker,
+): boolean {
+  if (!isBlockedAt) return false;
+  if (isBlockedAt(placement.x, placement.z)) return true;
+  const radius = FOREST_FLOOR_NETTLE_CLEAR_RADIUS * placement.scale;
+  for (let sampleIndex = 0; sampleIndex < 8; sampleIndex++) {
+    const angle = sampleIndex / 8 * Math.PI * 2;
+    if (isBlockedAt(
+      placement.x + Math.cos(angle) * radius,
+      placement.z + Math.sin(angle) * radius,
+    )) {
+      return true;
+    }
+  }
+  return false;
 }
 
 function createNettleBucket(

@@ -22,6 +22,7 @@ import { chainMaterialShaderPatch } from '../scene/materialShaderPatch.ts';
 import type { Terrain } from '../terrain/Terrain.ts';
 import { sampleTerrainMeshAttributeX } from '../terrain/TerrainMeshHeight.ts';
 import { mulberry32 } from '../utils/random.ts';
+import { createForestFloorPlacementMask } from './ForestFloorPlacementMask.ts';
 import type { ForestTreePlacement } from './forestPlacements.ts';
 import {
   createSeedThreeGroundCoverMaterial,
@@ -320,6 +321,8 @@ export type ForestFloorIvyPlacement = {
   reliefPhase: number;
 };
 
+export type ForestFloorIvyBlocker = (x: number, z: number) => boolean;
+
 export type ForestFloorIvyVertexRange = {
   start: number;
   count: number;
@@ -360,6 +363,7 @@ export type ForestFloorIvyStats = {
 export type CompiledForestFloorIvyGeometry = {
   geometry: THREE.BufferGeometry;
   originalPositions: Float32Array;
+  placementVertexRanges: ForestFloorIvyVertexRange[];
   placementVertexRangesByTree: ForestFloorIvyVertexRange[][];
   layerVertexRanges: ForestFloorIvyLayerVertexRange[];
   animatedLeafVertexRanges: ForestFloorIvyAnimatedLeafVertexRange[];
@@ -369,11 +373,15 @@ export type ForestFloorIvyInstances = {
   group: THREE.Group;
   mesh: THREE.Mesh;
   placements: ForestFloorIvyPlacement[];
+  placementVertexRanges: ForestFloorIvyVertexRange[];
   placementVertexRangesByTree: ForestFloorIvyVertexRange[][];
+  placementIndicesByTree: number[][];
   textures: SeedThreeGroundCoverTextures;
   stats: ForestFloorIvyStats;
   setSnowCoverage: (coverage: number) => boolean;
   setTreeActive: (treeIndex: number, active: boolean) => boolean;
+  setPlacementActive: (placementIndex: number, active: boolean) => boolean;
+  refreshBlockedMask: (isBlockedAt?: ForestFloorIvyBlocker) => number;
   commit: () => void;
   dispose: () => void;
 };
@@ -534,7 +542,7 @@ export async function createForestFloorIvyInstances(
   maxAnisotropy: number,
   rendererBackend: RendererBackendKind | undefined,
   seed = FOREST_FLOOR_IVY_SEED,
-  isBlockedAt?: (x: number, z: number) => boolean,
+  isBlockedAt?: ForestFloorIvyBlocker,
 ): Promise<ForestFloorIvyInstances> {
   const textures = await loadSeedThreeGroundCoverTextures({
     albedo: FOREST_FLOOR_IVY_TEXTURE_PATH,
@@ -569,14 +577,33 @@ export async function createForestFloorIvyInstances(
 
   const position = compiled.geometry.getAttribute('position') as THREE.BufferAttribute;
   const livePositions = position.array as Float32Array;
-  const treeActive = trees.map(() => true);
-  const dirtyTrees = new Set<number>();
+  const dirtyPlacements = new Set<number>();
+  const placementMask = createForestFloorPlacementMask(
+    placements,
+    trees.length,
+    (placementIndex, visible) => {
+      const range = compiled.placementVertexRanges[placementIndex];
+      if (!range) return;
+      const start = range.start * 3;
+      const end = (range.start + range.count) * 3;
+      if (visible) {
+        livePositions.set(compiled.originalPositions.subarray(start, end), start);
+      } else {
+        for (let vertex = range.start; vertex < range.start + range.count; vertex++) {
+          livePositions[vertex * 3 + 1] = FOREST_FLOOR_IVY_HIDDEN_Y;
+        }
+      }
+      dirtyPlacements.add(placementIndex);
+    },
+  );
 
   return {
     group,
     mesh,
     placements,
+    placementVertexRanges: compiled.placementVertexRanges,
     placementVertexRangesByTree: compiled.placementVertexRangesByTree,
+    placementIndicesByTree: placementMask.placementIndicesByTree,
     textures,
     stats: {
       instances: placements.length,
@@ -609,33 +636,22 @@ export async function createForestFloorIvyInstances(
     setSnowCoverage(coverage: number): boolean {
       return setForestCardSnowCoverage(material, coverage);
     },
-    setTreeActive(treeIndex: number, active: boolean): boolean {
-      if (treeActive[treeIndex] === active) return false;
-      treeActive[treeIndex] = active;
-      for (const range of compiled.placementVertexRangesByTree[treeIndex] ?? []) {
-        const start = range.start * 3;
-        const end = (range.start + range.count) * 3;
-        if (active) {
-          livePositions.set(compiled.originalPositions.subarray(start, end), start);
-        } else {
-          for (let vertex = range.start; vertex < range.start + range.count; vertex++) {
-            livePositions[vertex * 3 + 1] = FOREST_FLOOR_IVY_HIDDEN_Y;
-          }
-        }
-      }
-      dirtyTrees.add(treeIndex);
-      return true;
+    setTreeActive: placementMask.setTreeActive,
+    setPlacementActive: placementMask.setPlacementActive,
+    refreshBlockedMask(blocker?: ForestFloorIvyBlocker): number {
+      return placementMask.refreshBlockedMask((placement) => (
+        ivyIntersectsBlocker(placement, blocker)
+      ));
     },
     commit(): void {
-      if (dirtyTrees.size === 0) return;
+      if (dirtyPlacements.size === 0) return;
       position.clearUpdateRanges();
-      for (const treeIndex of dirtyTrees) {
-        for (const range of compiled.placementVertexRangesByTree[treeIndex] ?? []) {
-          position.addUpdateRange(range.start * 3, range.count * 3);
-        }
+      for (const placementIndex of dirtyPlacements) {
+        const range = compiled.placementVertexRanges[placementIndex];
+        if (range) position.addUpdateRange(range.start * 3, range.count * 3);
       }
       position.needsUpdate = true;
-      dirtyTrees.clear();
+      dirtyPlacements.clear();
     },
     dispose(): void {
       compiled.geometry.dispose();
@@ -661,6 +677,7 @@ export function createTerrainConformingIvyGeometry(
   const rootPhaseValues = new Float32Array(vertexCount * 4);
   const hingeValues = new Float32Array(vertexCount * 4);
   const indices = new Uint32Array(indexCount);
+  const placementVertexRanges: ForestFloorIvyVertexRange[] = [];
   const placementVertexRangesByTree = Array.from(
     { length: treeCount },
     () => [] as ForestFloorIvyVertexRange[],
@@ -801,10 +818,12 @@ export function createTerrainConformingIvyGeometry(
     vertexOffset = leafWrite.vertexOffset;
     indexOffset = leafWrite.indexOffset;
 
-    placementVertexRangesByTree[placement.sourceTreeIndex]?.push({
+    const placementRange = {
       start: placementStart,
       count: vertexOffset - placementStart,
-    });
+    };
+    placementVertexRanges.push(placementRange);
+    placementVertexRangesByTree[placement.sourceTreeIndex]?.push(placementRange);
   }
 
   if (vertexOffset !== vertexCount || indexOffset !== indexCount) {
@@ -839,6 +858,7 @@ export function createTerrainConformingIvyGeometry(
   return {
     geometry,
     originalPositions: positions.slice(),
+    placementVertexRanges,
     placementVertexRangesByTree,
     layerVertexRanges,
     animatedLeafVertexRanges,
@@ -1221,7 +1241,7 @@ export function createForestFloorIvyPlacements(
   trees: readonly ForestTreePlacement[],
   terrain: Terrain,
   seed = FOREST_FLOOR_IVY_SEED,
-  isBlockedAt?: (x: number, z: number) => boolean,
+  isBlockedAt?: ForestFloorIvyBlocker,
 ): ForestFloorIvyPlacement[] {
   const placements: ForestFloorIvyPlacement[] = [];
 
@@ -1244,13 +1264,12 @@ export function createForestFloorIvyPlacements(
       );
       const x = tree.x + Math.cos(angle) * radial;
       const z = tree.z + Math.sin(angle) * radial;
-      if (isBlockedAt?.(x, z)) continue;
       const localForestBlend = sampleForestBlend(terrain, x, z);
       if (localForestBlend < FOREST_FLOOR_IVY_MIN_BLEND * 0.72) continue;
 
       const scale = THREE.MathUtils.lerp(0.92, 1.42, rng())
         * THREE.MathUtils.lerp(0.9, 1.14, localForestBlend);
-      placements.push({
+      const placement: ForestFloorIvyPlacement = {
         x,
         z,
         sourceTreeIndex: treeIndex,
@@ -1266,11 +1285,42 @@ export function createForestFloorIvyPlacements(
           rng(),
         ),
         reliefPhase: rng() * Math.PI * 2,
-      });
+      };
+      if (ivyIntersectsBlocker(placement, isBlockedAt)) continue;
+      placements.push(placement);
     }
   }
 
   return placements;
+}
+
+function ivyIntersectsBlocker(
+  placement: ForestFloorIvyPlacement,
+  isBlockedAt?: ForestFloorIvyBlocker,
+): boolean {
+  if (!isBlockedAt) return false;
+  if (isBlockedAt(placement.x, placement.z)) return true;
+  const cosYaw = Math.cos(placement.yaw);
+  const sinYaw = Math.sin(placement.yaw);
+  const rings = [
+    { radius: 0.32, samples: 8 },
+    { radius: 0.64, samples: 12 },
+    { radius: 0.96, samples: 16 },
+  ] as const;
+  for (const ring of rings) {
+    for (let sampleIndex = 0; sampleIndex < ring.samples; sampleIndex++) {
+      const angle = sampleIndex / ring.samples * Math.PI * 2;
+      const localX = Math.cos(angle) * placement.radiusX * ring.radius;
+      const localZ = Math.sin(angle) * placement.radiusZ * ring.radius;
+      if (isBlockedAt(
+        placement.x + localX * cosYaw - localZ * sinYaw,
+        placement.z + localX * sinYaw + localZ * cosYaw,
+      )) {
+        return true;
+      }
+    }
+  }
+  return false;
 }
 
 function gaussian2(

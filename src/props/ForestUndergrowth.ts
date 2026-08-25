@@ -5,6 +5,7 @@ import {
   cameraViewMatrix,
   float,
   modelWorldMatrix,
+  mix,
   normalMap,
   normalView,
   normalize,
@@ -12,19 +13,27 @@ import {
   sin,
   texture,
   uniform,
+  vec3,
   vec4,
 } from 'three/tsl';
 import { windSpeed, windStrength, WIND_DIR } from '@seedthree/core/wind.js';
 import { createRootedGeometryWindPosition } from '../vegetation/seedthree/seedThreeFoliageWind.ts';
 import type { Terrain } from '../terrain/Terrain.ts';
 import { applyFoliageDoubleSideNormals } from '../scene/foliageDoubleSideNormals.ts';
+import { chainMaterialShaderPatch } from '../scene/materialShaderPatch.ts';
 import { TREE_SHADOW_CAST_LAYER } from '../scene/SceneLayers.ts';
+import { worldAnimationTime } from '../scene/worldAnimationTime.ts';
 import type { RendererBackendKind } from '../scene/RendererBackend.ts';
+import type { DeciduousFoliagePresentation } from '../world/deciduousFoliagePolicy.ts';
 import {
   seedThreeBarkUrl,
   seedThreeLeafUrl,
 } from '../vegetation/seedthree/seedThreeTextures.ts';
 import { sampleBilberryBushScale } from '../vegetation/bilberryBushVisual.ts';
+import {
+  COMMON_DOGWOOD_BRANCH_TEXTURE_FILES,
+  COMMON_DOGWOOD_LEAF_TEXTURE_FILES,
+} from '../vegetation/seedthree/commonDogwoodPreset.ts';
 import {
   createGorskiShrubPrototype,
   GORSKI_SHRUB_VARIANT_COUNT,
@@ -46,16 +55,20 @@ type TslNode = {
   add: (value: unknown) => TslNode;
   sub: (value: unknown) => TslNode;
   div: (value: unknown) => TslNode;
+  clamp: (minimum: unknown, maximum: unknown) => TslNode;
   x: TslNode;
   y: TslNode;
   z: TslNode;
   r: TslNode;
+  a: TslNode;
+  rgb: TslNode;
   xyz: TslNode;
 };
 
 const tsl = {
   cameraViewMatrix: cameraViewMatrix as TslNode,
   float: float as (value: number) => TslNode,
+  mix: mix as (a: unknown, b: unknown, t: unknown) => TslNode,
   modelWorldMatrix: modelWorldMatrix as TslNode,
   normalMap: normalMap as (sample: unknown) => TslNode,
   normalView: normalView as TslNode,
@@ -63,7 +76,8 @@ const tsl = {
   positionLocal: positionLocal as TslNode,
   sin: sin as (value: unknown) => TslNode,
   texture: texture as (map: THREE.Texture) => TslNode,
-  uniform: uniform as <T>(value: T) => { value: T },
+  uniform: uniform as <T>(value: T) => { value: T } & TslNode,
+  vec3: vec3 as (x: unknown, y?: unknown, z?: unknown) => TslNode,
   vec4: vec4 as (...values: unknown[]) => TslNode,
   windSpeed: windSpeed as unknown as TslNode,
   windStrength: windStrength as unknown as TslNode,
@@ -74,7 +88,30 @@ const Y_AXIS = new THREE.Vector3(0, 1, 0);
 const windQuat = new THREE.Quaternion();
 const windVecScratch = new THREE.Vector3();
 
-export type UndergrowthKind = 'bush' | 'fern' | 'juniper';
+// Project-owned runtime texture contract (values are sourced from the preset):
+// common_dogwood_branch_albedo.png
+// common_dogwood_branch_normal.png
+// common_dogwood_branch_roughness.png
+// common_dogwood_single_albedo.png
+// common_dogwood_single_normal.png
+// common_dogwood_single_roughness.png
+// common_dogwood_single_translucency.png
+
+export type UndergrowthKind = 'bush' | 'fern' | 'juniper' | 'dogwood';
+export const UNDERGROWTH_KINDS: readonly UndergrowthKind[] = [
+  'bush',
+  'fern',
+  'juniper',
+  'dogwood',
+];
+
+export const DOGWOOD_MIN_SCALE = 0.84;
+export const DOGWOOD_MAX_SCALE = 1.25;
+export const DOGWOOD_MAX_HEIGHT_METERS = 3.4;
+const DOGWOOD_TREE_TRUNK_CLEARANCE = 1.4;
+const DOGWOOD_COMPANION_CLEARANCE = 1.55;
+const DOGWOOD_FOOTPRINT_CLEARANCE = 1.7;
+const DOGWOOD_GROUND_OFFSET_METERS = 0.006;
 
 export type UndergrowthPlacement = {
   x: number;
@@ -84,6 +121,7 @@ export type UndergrowthPlacement = {
   yaw: number;
   prototypeIndex: number;
   meshIndex: number;
+  finalHeight?: number;
 };
 
 type UndergrowthTextureSet = {
@@ -106,11 +144,13 @@ export type UndergrowthMaterials = {
   bush: UndergrowthMaterialPair;
   fern: [foliage: THREE.Material];
   juniper: UndergrowthMaterialPair;
+  dogwood: UndergrowthMaterialPair;
   prototypes: Record<UndergrowthKind, GorskiShrubPrototype[]>;
   shadowCast: THREE.MeshStandardMaterial;
   bushShadowDepth: THREE.MeshDepthMaterial;
   fernShadowDepth: THREE.MeshDepthMaterial;
   juniperShadowDepth: THREE.MeshDepthMaterial;
+  dogwoodShadowDepth: THREE.MeshDepthMaterial;
   textures: THREE.Texture[];
 };
 
@@ -131,6 +171,23 @@ export type UndergrowthInstances = {
   group: THREE.Group;
   placements: UndergrowthPlacement[];
   buckets: Record<UndergrowthKind, UndergrowthBucket[]>;
+  stats: UndergrowthStats;
+  setDeciduousFoliage: (presentation: DeciduousFoliagePresentation) => boolean;
+};
+
+export type UndergrowthStats = {
+  instances: number;
+  instancesByKind: Record<UndergrowthKind, number>;
+  renderDrawCalls: number;
+  shadowDrawCalls: number;
+  maximumDrawCalls: number;
+  dogwood: {
+    instances: number;
+    minimumHeight: number;
+    maximumHeight: number;
+    leafyDrawCalls: number;
+    bareDrawCalls: number;
+  };
 };
 
 export type UndergrowthBucket = {
@@ -140,6 +197,7 @@ export type UndergrowthBucket = {
   matrices: THREE.Matrix4[];
   anchorAttr: THREE.InstancedBufferAttribute;
   windVecAttr: THREE.InstancedBufferAttribute;
+  prototypeHeight: number;
 };
 
 const CARD_FILES: Record<UndergrowthKind, UndergrowthTextureFiles> = {
@@ -161,11 +219,15 @@ const CARD_FILES: Record<UndergrowthKind, UndergrowthTextureFiles> = {
     roughness: 'juniper_scrub_roughness.png',
     translucency: 'juniper_scrub_translucency.png',
   },
+  dogwood: {
+    ...COMMON_DOGWOOD_LEAF_TEXTURE_FILES,
+  },
 };
 
 const BRANCH_FILES: Record<Exclude<UndergrowthKind, 'fern'>, Omit<UndergrowthTextureFiles, 'translucency'>> = {
   bush: { albedo: 'bilberry_branch_albedo.png', normal: 'bilberry_branch_normal.png', roughness: 'bilberry_branch_roughness.png' },
   juniper: { albedo: 'common_juniper_branch_albedo.png', normal: 'common_juniper_branch_normal.png', roughness: 'common_juniper_branch_roughness.png' },
+  dogwood: { ...COMMON_DOGWOOD_BRANCH_TEXTURE_FILES },
 };
 
 const loader = new THREE.TextureLoader();
@@ -179,22 +241,26 @@ export async function createUndergrowthMaterials(
     bushTextures,
     fernTextures,
     juniperTextures,
+    dogwoodTextures,
     bushBranch,
     juniperBranch,
+    dogwoodBranch,
   ] = await Promise.all([
     loadUndergrowthTextures(CARD_FILES.bush, maxAnisotropy),
     loadUndergrowthTextures(CARD_FILES.fern, maxAnisotropy),
     loadUndergrowthTextures(CARD_FILES.juniper, maxAnisotropy),
+    loadUndergrowthTextures(CARD_FILES.dogwood, maxAnisotropy),
     loadBranchTextures(BRANCH_FILES.bush, maxAnisotropy),
     loadBranchTextures(BRANCH_FILES.juniper, maxAnisotropy),
+    loadBranchTextures(BRANCH_FILES.dogwood, maxAnisotropy),
   ]);
   const useNodeMaterials = rendererBackend === 'webgpu';
   const textures = collectTextures(
-    bushTextures, fernTextures, juniperTextures,
-    bushBranch, juniperBranch,
+    bushTextures, fernTextures, juniperTextures, dogwoodTextures,
+    bushBranch, juniperBranch, dogwoodBranch,
   );
   const prototypes = Object.fromEntries(
-    (['bush', 'fern', 'juniper'] as const).map((kind) => [
+    UNDERGROWTH_KINDS.map((kind) => [
       kind,
       Array.from({ length: GORSKI_SHRUB_VARIANT_COUNT }, (_, variant) => (
         createGorskiShrubPrototype(kind, variant)
@@ -214,6 +280,21 @@ export async function createUndergrowthMaterials(
       createUndergrowthBranchMaterial('SeedThree common juniper stems', juniperBranch, useNodeMaterials),
       createUndergrowthCardMaterial('SeedThree common juniper needle-only sprays', juniperTextures, useNodeMaterials, [0.22, 0.36, 0.14]),
     ],
+    dogwood: [
+      createUndergrowthBranchMaterial(
+        'SeedThree common dogwood basal stems',
+        dogwoodBranch,
+        useNodeMaterials,
+        { webglWindAmplitude: 0.075 },
+      ),
+      createUndergrowthCardMaterial(
+        'SeedThree common dogwood opposite leaves',
+        dogwoodTextures,
+        useNodeMaterials,
+        [0.27, 0.43, 0.15],
+        { deciduousDogwood: true, webglWindAmplitude: 0.1 },
+      ),
+    ],
     prototypes,
     shadowCast: new THREE.MeshStandardMaterial({
       transparent: true,
@@ -224,6 +305,7 @@ export async function createUndergrowthMaterials(
     bushShadowDepth: new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking }),
     fernShadowDepth: new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking }),
     juniperShadowDepth: new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking }),
+    dogwoodShadowDepth: new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking }),
     textures,
   };
 }
@@ -301,9 +383,12 @@ export function createUndergrowthPlacements(
   forestCores: ForestCore[],
   spawnConfig: ForestSpawnConfig,
   isBlockedAt?: (x: number, z: number) => boolean,
+  treePlacements: ReadonlyArray<{ x: number; z: number }> = [],
 ): UndergrowthPlacement[] {
   const placements: UndergrowthPlacement[] = [];
   const placementIndex = new SpatialHash2D<UndergrowthPlacement>(2);
+  const dogwoodIndex = new SpatialHash2D<UndergrowthPlacement>(DOGWOOD_COMPANION_CLEARANCE);
+  const treeIndex = new SpatialHash2D(DOGWOOD_TREE_TRUNK_CLEARANCE, treePlacements);
   let attempts = 0;
 
   while (placements.length < spawnConfig.undergrowthTargetCount && attempts < spawnConfig.undergrowthTargetCount * 36) {
@@ -326,9 +411,17 @@ export function createUndergrowthPlacements(
         ? THREE.MathUtils.lerp(1.3, 0.8, density)
         : kind === 'juniper'
           ? THREE.MathUtils.lerp(1.85, 1.25, density)
-          : THREE.MathUtils.lerp(1.6, 1.0, density);
+          : kind === 'dogwood'
+            ? THREE.MathUtils.lerp(2.65, 2.05, density)
+            : THREE.MathUtils.lerp(1.6, 1.0, density);
     if (placementIndex.hasPointWithin(x, z, minDistance)) continue;
-    if (isBlockedAt?.(x, z)) continue;
+    if (kind !== 'dogwood' && dogwoodIndex.hasPointWithin(x, z, DOGWOOD_COMPANION_CLEARANCE)) continue;
+    if (kind === 'dogwood' && treeIndex.hasPointWithin(x, z, DOGWOOD_TREE_TRUNK_CLEARANCE)) continue;
+    if (
+      kind === 'dogwood'
+        ? isDogwoodFootprintBlocked(x, z, isBlockedAt)
+        : isBlockedAt?.(x, z)
+    ) continue;
 
     const placement = {
       x,
@@ -341,6 +434,7 @@ export function createUndergrowthPlacements(
     };
     placements.push(placement);
     placementIndex.add(placement);
+    if (kind === 'dogwood') dogwoodIndex.add(placement);
   }
 
   return placements;
@@ -356,12 +450,14 @@ export function buildUndergrowthInstances(
   group.name = 'SeedThree temperate undergrowth';
 
   const buckets = Object.fromEntries(
-    (['bush', 'fern', 'juniper'] as const).map((kind) => {
+    UNDERGROWTH_KINDS.map((kind) => {
       const shadowDepth = kind === 'bush'
         ? materials.bushShadowDepth
         : kind === 'fern'
           ? materials.fernShadowDepth
-          : materials.juniperShadowDepth;
+          : kind === 'juniper'
+            ? materials.juniperShadowDepth
+            : materials.dogwoodShadowDepth;
       const variants = materials.prototypes[kind].map((prototype, prototypeIndex) => {
         const variantPlacements = placements.filter(
           (placement) => placement.kind === kind && placement.prototypeIndex === prototypeIndex,
@@ -383,15 +479,29 @@ export function buildUndergrowthInstances(
     }),
   ) as Record<UndergrowthKind, UndergrowthBucket[]>;
 
+  const stats = createUndergrowthStats(placements, buckets);
+
   return {
     group,
     placements,
     buckets,
+    stats,
+    setDeciduousFoliage(presentation): boolean {
+      const dormancy = clampSeasonAmount(presentation.dormancy);
+      let changed = setDogwoodSeason(materials.dogwood[1], presentation);
+      changed = setDogwoodShadowDormancy(buckets.dogwood, dormancy) || changed;
+      const leafy = dormancy < 1;
+      if (materials.dogwood[1].visible !== leafy) {
+        materials.dogwood[1].visible = leafy;
+        changed = true;
+      }
+      return changed;
+    },
   };
 }
 
 export function disposeUndergrowthInstances(instances: UndergrowthInstances, materials: UndergrowthMaterials): void {
-  for (const kind of ['bush', 'fern', 'juniper'] as const) {
+  for (const kind of UNDERGROWTH_KINDS) {
     for (const bucket of instances.buckets[kind]) {
       bucket.mesh.geometry.dispose();
       bucket.shadowMesh.geometry.dispose();
@@ -402,6 +512,7 @@ export function disposeUndergrowthInstances(instances: UndergrowthInstances, mat
   materials.bushShadowDepth.dispose();
   materials.fernShadowDepth.dispose();
   materials.juniperShadowDepth.dispose();
+  materials.dogwoodShadowDepth.dispose();
   materials.textures.forEach((texture) => texture.dispose());
 }
 
@@ -416,6 +527,11 @@ function createUndergrowthBucket(
 ): UndergrowthBucket {
   const capacity = Math.max(placements.length, 1);
   const geometry = prototype.geometry;
+  geometry.computeBoundingBox();
+  const prototypeHeight = Math.max(
+    0.001,
+    (geometry.boundingBox?.max.y ?? 1) - (geometry.boundingBox?.min.y ?? 0),
+  );
   const anchorAttr = new THREE.InstancedBufferAttribute(new Float32Array(capacity * 3), 3);
   const windVecAttr = new THREE.InstancedBufferAttribute(new Float32Array(capacity * 3), 3);
   geometry.setAttribute('aAnchorPos', anchorAttr);
@@ -447,6 +563,7 @@ function createUndergrowthBucket(
     matrices: placements.map(() => new THREE.Matrix4()),
     anchorAttr,
     windVecAttr,
+    prototypeHeight,
   };
 }
 
@@ -459,7 +576,16 @@ function placeUndergrowthBucket(bucket: UndergrowthBucket, terrain: Terrain, rng
 
   bucket.placements.forEach((placement, index) => {
     placement.meshIndex = index;
-    const yaw = composeUndergrowthMatrix(placement, terrain, rng, matrix, quaternion, position, scaleVector);
+    const yaw = composeUndergrowthMatrix(
+      placement,
+      bucket.prototypeHeight,
+      terrain,
+      rng,
+      matrix,
+      quaternion,
+      position,
+      scaleVector,
+    );
     bucket.mesh.setMatrixAt(index, matrix);
     bucket.shadowMesh.setMatrixAt(index, matrix);
     bucket.matrices[index].copy(matrix);
@@ -491,7 +617,7 @@ export function undergrowthBucketForPlacement(
 }
 
 export function markUndergrowthMatricesUpdated(instances: UndergrowthInstances): void {
-  for (const kind of ['bush', 'fern', 'juniper'] as const) {
+  for (const kind of UNDERGROWTH_KINDS) {
     for (const bucket of instances.buckets[kind]) {
       bucket.mesh.instanceMatrix.needsUpdate = true;
       bucket.shadowMesh.instanceMatrix.needsUpdate = true;
@@ -517,6 +643,7 @@ function createShadowInstancedMesh(
 
 function composeUndergrowthMatrix(
   placement: UndergrowthPlacement,
+  prototypeHeight: number,
   terrain: Terrain,
   rng: () => number,
   matrix: THREE.Matrix4,
@@ -524,39 +651,60 @@ function composeUndergrowthMatrix(
   position: THREE.Vector3,
   scaleVector: THREE.Vector3,
 ): number {
-  const y = terrain.getHeightAt(placement.x, placement.z) + 0.08;
-  const yaw = placement.yaw + (rng() - 0.5) * 0.24;
-  const leanDirection = rng() * TAU;
-  const lean = placement.kind === 'fern'
-    ? THREE.MathUtils.lerp(0.1, 0.28, rng())
-    : THREE.MathUtils.lerp(0.04, 0.16, rng());
-  position.set(placement.x, y, placement.z);
-  quaternion.setFromEuler(
-    new THREE.Euler(
-      Math.cos(leanDirection) * lean,
-      yaw,
-      Math.sin(leanDirection) * lean * 0.7,
-      'YXZ',
-    ),
+  const y = terrain.getHeightAt(placement.x, placement.z) + (
+    placement.kind === 'dogwood' ? DOGWOOD_GROUND_OFFSET_METERS : 0.08
   );
+  const yaw = placement.yaw + (rng() - 0.5) * 0.24;
+  position.set(placement.x, y, placement.z);
+  if (placement.kind === 'dogwood') {
+    // The authored variants already carry natural basal-stem asymmetry. Keep
+    // the runtime transform upright so the agreed 0.84-1.25 envelope remains
+    // a strict 2.045-3.375 m height contract rather than gaining Y extent from
+    // a rotated wide crown.
+    quaternion.setFromAxisAngle(Y_AXIS, yaw);
+  } else {
+    const leanDirection = rng() * TAU;
+    const lean = placement.kind === 'fern'
+      ? THREE.MathUtils.lerp(0.1, 0.28, rng())
+      : THREE.MathUtils.lerp(0.04, 0.16, rng());
+    quaternion.setFromEuler(
+      new THREE.Euler(
+        Math.cos(leanDirection) * lean,
+        yaw,
+        Math.sin(leanDirection) * lean * 0.7,
+        'YXZ',
+      ),
+    );
+  }
   const widthFactor = placement.kind === 'fern'
     ? 1.15
     : placement.kind === 'juniper'
       ? 1.12
       : 1.0;
-  const widthScale = placement.scale * widthFactor * THREE.MathUtils.lerp(0.9, 1.14, rng());
-  const heightScale = placement.scale * THREE.MathUtils.lerp(0.92, 1.14, rng());
+  const widthScale = placement.scale * widthFactor * (
+    placement.kind === 'dogwood'
+      ? THREE.MathUtils.lerp(0.94, 1.06, rng())
+      : THREE.MathUtils.lerp(0.9, 1.14, rng())
+  );
+  const heightScale = placement.kind === 'dogwood'
+    ? Math.min(placement.scale, DOGWOOD_MAX_HEIGHT_METERS / prototypeHeight)
+    : placement.scale * THREE.MathUtils.lerp(0.92, 1.14, rng());
+  placement.finalHeight = prototypeHeight * heightScale;
   scaleVector.set(widthScale, heightScale, widthScale);
   matrix.compose(position, quaternion, scaleVector);
   return yaw;
 }
 
 function pickUndergrowthKind(rng: () => number, density: number): UndergrowthKind {
+  // Common dogwood favors brighter woodland edges. Keep it numerous overall
+  // while biasing its share away from the darkest fern-heavy core interiors.
+  const dogwoodChance = THREE.MathUtils.lerp(0.17, 0.11, density);
   const juniperChance = THREE.MathUtils.lerp(0.18, 0.055, density);
   const fernChance = THREE.MathUtils.lerp(0.26, 0.42, density);
   const roll = rng();
-  if (roll < juniperChance) return 'juniper';
-  if (roll < juniperChance + fernChance) return 'fern';
+  if (roll < dogwoodChance) return 'dogwood';
+  if (roll < dogwoodChance + juniperChance) return 'juniper';
+  if (roll < dogwoodChance + juniperChance + fernChance) return 'fern';
   return 'bush';
 }
 
@@ -568,6 +716,8 @@ function sampleUndergrowthScale(kind: UndergrowthKind, density: number, rng: () 
       return THREE.MathUtils.lerp(0.82, 1.36, Math.pow(rng(), 0.7)) * THREE.MathUtils.lerp(0.96, 1.16, density);
     case 'juniper':
       return THREE.MathUtils.lerp(0.66, 1.18, Math.pow(rng(), 0.84)) * THREE.MathUtils.lerp(1.08, 0.96, density);
+    case 'dogwood':
+      return THREE.MathUtils.lerp(DOGWOOD_MIN_SCALE, DOGWOOD_MAX_SCALE, Math.pow(rng(), 0.72));
     default: {
       const exhaustive: never = kind;
       return exhaustive;
@@ -595,6 +745,12 @@ function sampleUndergrowthTint(kind: UndergrowthKind, rng: () => number): THREE.
         rngRange(rng, 0.62, 0.8),
         rngRange(rng, 0.62, 0.82),
       );
+    case 'dogwood':
+      return new THREE.Vector3(
+        rngRange(rng, 0.7, 0.9),
+        rngRange(rng, 0.78, 0.96),
+        rngRange(rng, 0.64, 0.84),
+      );
     default: {
       const exhaustive: never = kind;
       return exhaustive;
@@ -602,11 +758,17 @@ function sampleUndergrowthTint(kind: UndergrowthKind, rng: () => number): THREE.
   }
 }
 
+type UndergrowthMaterialOptions = {
+  deciduousDogwood?: boolean;
+  webglWindAmplitude?: number;
+};
+
 function createUndergrowthCardMaterial(
   name: string,
   textures: UndergrowthTextureSet,
   useNodeMaterial: boolean,
   transmitRGB: [number, number, number],
+  options: UndergrowthMaterialOptions = {},
 ): THREE.Material {
   if (!useNodeMaterial) {
     const material = new THREE.MeshStandardMaterial({
@@ -623,6 +785,10 @@ function createUndergrowthCardMaterial(
     material.forceSinglePass = true;
     material.normalScale.set(0.45, 0.45);
     applyFoliageDoubleSideNormals(material);
+    if (options.webglWindAmplitude !== undefined) {
+      applyUndergrowthWebGLWind(material, options.webglWindAmplitude);
+    }
+    if (options.deciduousDogwood) applyDogwoodWebGLSeason(material);
     return material;
   }
 
@@ -641,9 +807,11 @@ function createUndergrowthCardMaterial(
   material.roughnessMap = textures.roughness;
   if (textures.roughness) material.roughness = 1.0;
 
+  const texel = tsl.texture(textures.albedo);
   const transmit = tsl.uniform(new THREE.Color().setRGB(...transmitRGB));
   const edge = textures.translucency ? tsl.texture(textures.translucency).r : tsl.float(1);
-  material.thicknessColorNode = edge.mul(transmit);
+  let thicknessColor = edge.mul(transmit);
+  material.thicknessColorNode = thicknessColor;
   material.thicknessDistortionNode = tsl.uniform(0.3);
   material.thicknessAmbientNode = tsl.uniform(0.026);
   material.thicknessAttenuationNode = tsl.uniform(1.0);
@@ -652,7 +820,30 @@ function createUndergrowthCardMaterial(
   // NodeMaterial applies InstancedMesh.instanceColor after colorNode. Keeping
   // tint on that built-in path avoids a duplicate per-instance vertex buffer.
   material.colorNode = tsl.texture(textures.albedo);
-  material.positionNode = createRootedGeometryWindPosition(0.1);
+  material.positionNode = createRootedGeometryWindPosition(options.webglWindAmplitude ?? 0.1);
+
+  if (options.deciduousDogwood) {
+    const spring = tsl.uniform(0);
+    const autumn = tsl.uniform(0);
+    const dormancy = tsl.uniform(0);
+    const value = texel.r.mul(0.2126)
+      .add(texel.rgb.y.mul(0.7152))
+      .add(texel.rgb.z.mul(0.0722));
+    const springLeaf = tsl.vec3(0.66, 0.96, 0.24)
+      .mul(value.mul(1.34)).clamp(0, 1);
+    const autumnLeaf = tsl.vec3(0.79, 0.075, 0.028)
+      .mul(value.mul(1.62)).clamp(0, 1);
+    let seasonal = tsl.mix(texel.rgb, springLeaf, spring.mul(0.58));
+    seasonal = tsl.mix(seasonal, autumnLeaf, autumn);
+    const retain = tsl.float(1).sub(dormancy);
+    material.colorNode = seasonal;
+    material.opacityNode = texel.a.mul(retain) as never;
+    thicknessColor = thicknessColor.mul(retain);
+    material.thicknessColorNode = thicknessColor;
+    material.userData.forestSeasonalSpringFlush = spring;
+    material.userData.forestSeasonalAutumnColor = autumn;
+    material.userData.forestSeasonalDormancy = dormancy;
+  }
 
   const upView = tsl.cameraViewMatrix.mul(tsl.vec4(0, 1, 0, 0)).xyz;
   const relief = textures.normal ? tsl.normalMap(tsl.texture(textures.normal)).sub(tsl.normalView) : null;
@@ -664,6 +855,7 @@ function createUndergrowthBranchMaterial(
   name: string,
   textures: UndergrowthTextureSet,
   useNodeMaterial: boolean,
+  options: UndergrowthMaterialOptions = {},
 ): THREE.Material {
   if (!useNodeMaterial) {
     const material = new THREE.MeshStandardMaterial({
@@ -675,6 +867,9 @@ function createUndergrowthBranchMaterial(
       metalness: 0,
     });
     material.normalScale.set(0.36, 0.36);
+    if (options.webglWindAmplitude !== undefined) {
+      applyUndergrowthWebGLWind(material, options.webglWindAmplitude);
+    }
     return material;
   }
   const material = new MeshStandardNodeMaterial() as unknown as THREE.MeshStandardMaterial & {
@@ -686,8 +881,191 @@ function createUndergrowthBranchMaterial(
   material.roughnessMap = textures.roughness;
   material.roughness = textures.roughness ? 1 : 0.94;
   material.metalness = 0;
-  material.positionNode = createRootedGeometryWindPosition(0.075) as never;
+  material.positionNode = createRootedGeometryWindPosition(options.webglWindAmplitude ?? 0.075) as never;
   return material;
+}
+
+function applyUndergrowthWebGLWind(material: THREE.Material, amplitude: number): void {
+  const cacheAmplitude = amplitude.toFixed(3);
+  chainMaterialShaderPatch(material, `seedthree-undergrowth-rooted-wind-${cacheAmplitude}`, (shader) => {
+    shader.uniforms.uUndergrowthTime = worldAnimationTime as unknown as THREE.IUniform;
+    shader.uniforms.uUndergrowthWindSpeed = windSpeed as unknown as THREE.IUniform;
+    shader.uniforms.uUndergrowthWindStrength = windStrength as unknown as THREE.IUniform;
+    shader.vertexShader = shader.vertexShader.replace(
+      '#include <common>',
+      `#include <common>
+attribute float aRootWeight;
+attribute vec3 aAnchorPos;
+attribute vec3 aWindVec;
+uniform float uUndergrowthTime;
+uniform float uUndergrowthWindSpeed;
+uniform float uUndergrowthWindStrength;`,
+    );
+    shader.vertexShader = shader.vertexShader.replace(
+      '#include <begin_vertex>',
+      `#include <begin_vertex>
+float undergrowthWindTime = uUndergrowthTime * uUndergrowthWindSpeed;
+float undergrowthWindPhase = aAnchorPos.x * 0.70 + aAnchorPos.z * 0.54;
+float undergrowthWindGust = sin( undergrowthWindTime * 1.15 + undergrowthWindPhase ) * 0.72
+  + sin( undergrowthWindTime * 2.63 + undergrowthWindPhase * 1.9 ) * 0.28;
+float undergrowthWindJitter = sin(
+  undergrowthWindTime * 2.7 + aAnchorPos.z * 1.7 + aAnchorPos.x * 1.3
+) * 0.12;
+float undergrowthWindBend = ( undergrowthWindGust + undergrowthWindJitter )
+  * uUndergrowthWindStrength * ${cacheAmplitude} * aRootWeight;
+transformed.x += aWindVec.x * undergrowthWindBend;
+transformed.z += aWindVec.z * undergrowthWindBend;`,
+    );
+  });
+  material.needsUpdate = true;
+}
+
+function applyDogwoodWebGLSeason(material: THREE.MeshStandardMaterial): void {
+  const spring = { value: 0 };
+  const autumn = { value: 0 };
+  const dormancy = { value: 0 };
+  material.userData.forestSeasonalSpringFlush = spring;
+  material.userData.forestSeasonalAutumnColor = autumn;
+  material.userData.forestSeasonalDormancy = dormancy;
+  chainMaterialShaderPatch(material, 'seedthree-dogwood-season-v1', (shader) => {
+    shader.uniforms.uDogwoodSpring = spring;
+    shader.uniforms.uDogwoodAutumn = autumn;
+    shader.uniforms.uDogwoodDormancy = dormancy;
+    shader.fragmentShader = shader.fragmentShader.replace(
+      '#include <common>',
+      `#include <common>
+uniform float uDogwoodSpring;
+uniform float uDogwoodAutumn;
+uniform float uDogwoodDormancy;`,
+    );
+    shader.fragmentShader = shader.fragmentShader.replace(
+      '#include <map_fragment>',
+      `#include <map_fragment>
+float dogwoodValue = dot( diffuseColor.rgb, vec3( 0.2126, 0.7152, 0.0722 ) );
+vec3 dogwoodSpring = clamp( vec3( 0.66, 0.96, 0.24 ) * dogwoodValue * 1.34, 0.0, 1.0 );
+vec3 dogwoodAutumn = clamp( vec3( 0.79, 0.075, 0.028 ) * dogwoodValue * 1.62, 0.0, 1.0 );
+diffuseColor.rgb = mix( diffuseColor.rgb, dogwoodSpring, uDogwoodSpring * 0.58 );
+diffuseColor.rgb = mix( diffuseColor.rgb, dogwoodAutumn, uDogwoodAutumn );
+diffuseColor.a *= 1.0 - uDogwoodDormancy;`,
+    );
+  });
+  material.needsUpdate = true;
+}
+
+function setDogwoodSeason(
+  material: THREE.Material,
+  presentation: DeciduousFoliagePresentation,
+): boolean {
+  let changed = false;
+  changed = setSeasonUniform(material, 'forestSeasonalSpringFlush', presentation.springFlush) || changed;
+  changed = setSeasonUniform(material, 'forestSeasonalAutumnColor', presentation.autumnColor) || changed;
+  changed = setSeasonUniform(material, 'forestSeasonalDormancy', presentation.dormancy) || changed;
+  return changed;
+}
+
+function setDogwoodShadowDormancy(
+  buckets: ReadonlyArray<UndergrowthBucket>,
+  dormancy: number,
+): boolean {
+  const width = THREE.MathUtils.lerp(1, 0.16, dormancy);
+  let changed = false;
+  for (const bucket of buckets) {
+    const geometry = bucket.shadowMesh.geometry;
+    const previousWidth = Number(geometry.userData.dogwoodShadowWidth ?? 1);
+    if (Math.abs(previousWidth - width) <= 1e-6) continue;
+    const position = geometry.getAttribute('position') as THREE.BufferAttribute;
+    const base = geometry.userData.dogwoodShadowBasePositions as Float32Array | undefined;
+    if (!base || base.length !== position.array.length) continue;
+    for (let index = 0; index < position.count; index++) {
+      const offset = index * 3;
+      position.setXYZ(index, base[offset] * width, base[offset + 1], base[offset + 2] * width);
+    }
+    position.needsUpdate = true;
+    geometry.userData.dogwoodShadowWidth = width;
+    geometry.computeBoundingSphere();
+    changed = true;
+  }
+  return changed;
+}
+
+function setSeasonUniform(material: THREE.Material, key: string, amount: number): boolean {
+  const target = material.userData[key] as { value: number } | undefined;
+  if (!target) return false;
+  const next = clampSeasonAmount(amount);
+  if (target.value === next) return false;
+  target.value = next;
+  return true;
+}
+
+function clampSeasonAmount(amount: number): number {
+  return THREE.MathUtils.clamp(Number.isFinite(amount) ? amount : 0, 0, 1);
+}
+
+export function undergrowthPlacementClearanceRadius(placement: UndergrowthPlacement): number {
+  return placement.kind === 'dogwood' ? DOGWOOD_FOOTPRINT_CLEARANCE : 0.95;
+}
+
+function isDogwoodFootprintBlocked(
+  x: number,
+  z: number,
+  isBlockedAt: ((x: number, z: number) => boolean) | undefined,
+): boolean {
+  if (!isBlockedAt) return false;
+  if (isBlockedAt(x, z)) return true;
+  for (let sample = 0; sample < 8; sample++) {
+    const angle = sample / 8 * TAU;
+    if (isBlockedAt(
+      x + Math.cos(angle) * DOGWOOD_FOOTPRINT_CLEARANCE,
+      z + Math.sin(angle) * DOGWOOD_FOOTPRINT_CLEARANCE,
+    )) return true;
+  }
+  return false;
+}
+
+function createUndergrowthStats(
+  placements: UndergrowthPlacement[],
+  buckets: Record<UndergrowthKind, UndergrowthBucket[]>,
+): UndergrowthStats {
+  const instancesByKind = Object.fromEntries(
+    UNDERGROWTH_KINDS.map((kind) => [
+      kind,
+      placements.reduce((count, placement) => count + +(placement.kind === kind), 0),
+    ]),
+  ) as Record<UndergrowthKind, number>;
+  let renderDrawCalls = 0;
+  let shadowDrawCalls = 0;
+  for (const kind of UNDERGROWTH_KINDS) {
+    for (const bucket of buckets[kind]) {
+      if (bucket.placements.length === 0) continue;
+      renderDrawCalls += Math.max(1, bucket.mesh.geometry.groups.length);
+      shadowDrawCalls += 1;
+    }
+  }
+  const dogwoodHeights = placements
+    .filter((placement) => placement.kind === 'dogwood')
+    .map((placement) => placement.finalHeight ?? 0)
+    .filter((height) => height > 0);
+  const dogwoodBuckets = buckets.dogwood.filter((bucket) => bucket.placements.length > 0);
+  const dogwoodLeafyDrawCalls = dogwoodBuckets.reduce(
+    (sum, bucket) => sum + Math.max(1, bucket.mesh.geometry.groups.length) + 1,
+    0,
+  );
+  return {
+    instances: placements.length,
+    instancesByKind,
+    renderDrawCalls,
+    shadowDrawCalls,
+    maximumDrawCalls: renderDrawCalls + shadowDrawCalls,
+    dogwood: {
+      instances: instancesByKind.dogwood,
+      minimumHeight: dogwoodHeights.length > 0 ? Math.min(...dogwoodHeights) : 0,
+      maximumHeight: dogwoodHeights.length > 0 ? Math.max(...dogwoodHeights) : 0,
+      leafyDrawCalls: dogwoodLeafyDrawCalls,
+      // At full dormancy the leaf group is hidden, while the woody-stem group
+      // and its narrowed seasonal shadow proxy remain.
+      bareDrawCalls: dogwoodBuckets.length * 2,
+    },
+  };
 }
 
 export function undergrowthWindVecForYaw(yaw: number, scale: THREE.Vector3, out = windVecScratch): THREE.Vector3 {
@@ -713,6 +1091,14 @@ function createUndergrowthShadowGeometry(kind: UndergrowthKind): THREE.BufferGeo
     case 'bush':
       geometry.scale(1.14, 0.48, 1.14);
       geometry.translate(0, 0.14, 0);
+      break;
+    case 'dogwood':
+      geometry.scale(1.12, 1.32, 1.12);
+      geometry.translate(0, 0.78, 0);
+      geometry.userData.dogwoodShadowBasePositions = Float32Array.from(
+        geometry.getAttribute('position').array,
+      );
+      geometry.userData.dogwoodShadowWidth = 1;
       break;
     default: {
       const exhaustive: never = kind;
