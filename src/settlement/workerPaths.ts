@@ -388,7 +388,7 @@ export function allocateProductionWorkers(
     visibleSlotBudget -= visibleWorkerCount;
   }
 
-  const commutePairs: Array<{
+  const travelPairs: Array<{
     building: BuildingState;
     residence: ResidenceState;
     travelCost: number;
@@ -410,7 +410,7 @@ export function allocateProductionWorkers(
     for (let index = 0; index < activeResidences.length; index += 1) {
       const residence = activeResidences[index];
       const roadDistance = roadDistances?.[index] ?? null;
-      commutePairs.push({
+      travelPairs.push({
         building,
         residence,
         travelCost: roadDistance != null
@@ -423,13 +423,13 @@ export function allocateProductionWorkers(
     }
   }
 
-  commutePairs.sort((a, b) =>
+  travelPairs.sort((a, b) =>
     a.travelCost - b.travelCost
       || a.building.id.localeCompare(b.building.id)
       || a.residence.id.localeCompare(b.residence.id),
   );
 
-  for (const pair of commutePairs) {
+  for (const pair of travelPairs) {
     const slots = openSlots.get(pair.building.id);
     if (!slots || slots.length === 0) continue;
     let remaining = remainingPopulationByResidence.get(pair.residence.id) ?? 0;

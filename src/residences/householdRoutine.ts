@@ -20,8 +20,8 @@ type HouseholdMemberProfile = {
 };
 
 const MEMBER_PROFILE_CACHE = new Map<string, HouseholdMemberProfile>();
-const COSMETIC_EVENING_GATHERING = 1;
-const COSMETIC_FAMILY_CURFEW = 1;
+const COSMETIC_EVENING_GATHERING_PERCENT = 48;
+const COSMETIC_FAMILY_CURFEW_PERCENT = 34;
 
 export function householdMemberRoutine(personIdentity: string): HouseholdMemberRoutine {
   return householdMemberProfile(personIdentity).routine;
@@ -61,11 +61,11 @@ export function householdMemberHomeState(
   const { routine, nightGroup: group } = householdMemberProfile(personIdentity);
   let indoorsHour = routine.indoorsHour;
   let bedtimeHour = routine.bedtimeHour;
-  if (COSMETIC_EVENING_GATHERING === 1 && group < 48) {
+  if (group < COSMETIC_EVENING_GATHERING_PERCENT) {
     indoorsHour = Math.min(22.15, indoorsHour + 0.85);
     bedtimeHour = Math.min(23.45, bedtimeHour + 0.45);
   }
-  if (COSMETIC_FAMILY_CURFEW === 1 && group < 34) {
+  if (group < COSMETIC_FAMILY_CURFEW_PERCENT) {
     indoorsHour = Math.min(indoorsHour, CALENDAR_WORK_END_HOUR + 0.08);
   }
   if (hour >= bedtimeHour || hour < routine.wakeHour) {

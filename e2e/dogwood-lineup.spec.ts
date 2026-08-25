@@ -170,16 +170,16 @@ async function comparePngFrames(
 
 const cases = [
   ['near', 'spring', '1.08', {
-    spring: '0.85', autumn: '0.00', dormancy: '0.15', snow: '0.00', month: '4', shadow: '0.8740',
+    spring: '0.85', autumn: '0.00', dormancy: '0.15', stemRed: '0.15', snow: '0.00', month: '4', shadow: '0.8740',
   }],
   ['near', 'summer', '0.98', {
-    spring: '0.00', autumn: '0.00', dormancy: '0.00', snow: '0.00', month: '7', shadow: '1.0000',
+    spring: '0.00', autumn: '0.00', dormancy: '0.00', stemRed: '0.00', snow: '0.00', month: '7', shadow: '1.0000',
   }],
   ['design', 'autumn', '1.20', {
-    spring: '0.00', autumn: '1.00', dormancy: '0.18', snow: '0.00', month: '10', shadow: '0.8488',
+    spring: '0.00', autumn: '1.00', dormancy: '0.18', stemRed: '0.63', snow: '0.00', month: '10', shadow: '0.8488',
   }],
   ['far', 'winter', '1.42', {
-    spring: '0.00', autumn: '0.00', dormancy: '1.00', snow: '0.86', month: '1', shadow: '0.1600',
+    spring: '0.00', autumn: '0.00', dormancy: '1.00', stemRed: '1.00', snow: '0.86', month: '1', shadow: '0.1600',
   }],
 ] as const;
 
@@ -202,6 +202,10 @@ for (const [view, season, scale, expected] of cases) {
     expect(dataset.dogwoodAutumnColor).toBe(expected.autumn);
     expect(dataset.dogwoodDormancy).toBe(expected.dormancy);
     expect(dataset.dogwoodSnowCoverage).toBe(expected.snow);
+    expect(dataset.dogwoodStemAutumnColor).toBe(expected.autumn);
+    expect(dataset.dogwoodStemDormancy).toBe(expected.dormancy);
+    expect(dataset.dogwoodStemRedReveal).toBe(expected.stemRed);
+    expect(dataset.dogwoodStemSeasonStrategy).toBe('age-aware-autumn-to-winter-red');
     expect(dataset.raspberrySpringFlush).toBe(expected.spring);
     expect(dataset.raspberryAutumnColor).toBe(expected.autumn);
     expect(dataset.raspberryDormancy).toBe(expected.dormancy);

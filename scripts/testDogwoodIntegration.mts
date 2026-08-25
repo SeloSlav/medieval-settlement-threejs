@@ -184,6 +184,21 @@ assert.match(
   'undergrowth instances must expose dogwood seasonal updates without rebuilding geometry',
 );
 assert.match(
+  undergrowthSource,
+  /DOGWOOD_AUTUMN_STEM_REVEAL = 0\.45[\s\S]*DOGWOOD_STEM_YOUTH_START = 0\.24[\s\S]*DOGWOOD_STEM_YOUTH_END = 0\.84[\s\S]*DOGWOOD_OLD_WINTER_STEM[\s\S]*DOGWOOD_YOUNG_WINTER_STEM/,
+  'dogwood stems must own an explicit autumn reveal, age threshold, and old/young winter palette',
+);
+assert.match(
+  undergrowthSource,
+  /seasonalDogwoodStem: true[\s\S]*applyDogwoodWebGLStemSeason[\s\S]*age-aware-autumn-to-winter-red[\s\S]*aRootWeight[\s\S]*dogwoodStemRedReveal/,
+  'dogwood branch materials must transition toward age-aware red stems on WebGL without rebuilding geometry',
+);
+assert.match(
+  undergrowthSource,
+  /seasonalDogwoodStem[\s\S]*tsl\.attribute\('aRootWeight', 'float'\)[\s\S]*winterStem[\s\S]*redReveal[\s\S]*age-aware-autumn-to-winter-red/,
+  'dogwood node materials must use SeedThree growth hierarchy weights to keep young winter stems brightest',
+);
+assert.match(
   forestManagerSource,
   /setDeciduousFoliage\(presentation:[\s\S]*undergrowth\?\.setDeciduousFoliage\(presentation\)/,
   'ForestManager must forward the authoritative foliage presentation to dogwood',
@@ -270,8 +285,8 @@ assert.match(
 );
 assert.match(
   undergrowthSource,
-  /setDeciduousFoliage\(presentation\): boolean \{[\s\S]*for \(const kind of UNDERGROWTH_KINDS\)[\s\S]*setUndergrowthSeason\(materials\[kind\]\.at\(-1\)!, presentation\)[\s\S]*setUndergrowthShadowDormancy\(buckets\.dogwood, dormancy, 0\.16\)[\s\S]*setUndergrowthShadowDormancy\(buckets\.bush, dormancy, 0\.28\)[\s\S]*setUndergrowthShadowDormancy\(buckets\.fern, dormancy, 0\.42\)[\s\S]*setSeasonalFoliageVisibility\(materials\.dogwood\[1\], dormancy < 1\)[\s\S]*setSeasonalFoliageVisibility\(materials\.bush\[1\], dormancy < 1\)/,
-  'season changes must update every undergrowth role, narrow deciduous shadows, and remove fully dormant cards',
+  /setDeciduousFoliage\(presentation\): boolean \{[\s\S]*setUndergrowthSeason\(materials\.dogwood\[0\], presentation\)[\s\S]*for \(const kind of UNDERGROWTH_KINDS\)[\s\S]*setUndergrowthSeason\(materials\[kind\]\.at\(-1\)!, presentation\)[\s\S]*setUndergrowthShadowDormancy\(buckets\.dogwood, dormancy, 0\.16\)[\s\S]*setUndergrowthShadowDormancy\(buckets\.bush, dormancy, 0\.28\)[\s\S]*setUndergrowthShadowDormancy\(buckets\.fern, dormancy, 0\.42\)[\s\S]*setSeasonalFoliageVisibility\(materials\.dogwood\[1\], dormancy < 1\)[\s\S]*setSeasonalFoliageVisibility\(materials\.bush\[1\], dormancy < 1\)/,
+  'season changes must color dogwood wood, update foliage roles, narrow deciduous shadows, and remove dormant cards',
 );
 assert.match(
   undergrowthSource,
@@ -298,10 +313,10 @@ assert.doesNotMatch(
   /shadowMesh\.visible/,
   'winter must retain the narrowed stem shadow instead of hiding the proxy wholesale',
 );
-assert.doesNotMatch(
+assert.match(
   undergrowthSource.match(/setDeciduousFoliage\(presentation\): boolean \{[\s\S]*?\n    \},/)?.[0] ?? '',
-  /materials\.dogwood\[0\]/,
-  'the dogwood stem material must remain untouched at full winter dormancy',
+  /setUndergrowthSeason\(materials\.dogwood\[0\], presentation\)/,
+  'the dogwood stem material must receive the same continuous autumn and dormancy envelope as its leaves',
 );
 assert.match(
   undergrowthSource,

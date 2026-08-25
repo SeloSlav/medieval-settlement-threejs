@@ -115,7 +115,7 @@ export function renderConstructionInspector(
     statusText = 'Raid shelter — builders and material carts resume when hostile raiders are cleared';
     statusState = 'warning';
   } else if (settlementSchedule.laborPaused) {
-    statusText = `${settlementSchedule.laborPauseLabel ?? 'Scheduled labor pause'} — builders and material carts resume during work hours`;
+    statusText = `${settlementSchedule.laborPauseLabel ?? 'Scheduled labor pause'} — builders and material carts resume after the observance`;
     statusState = 'warning';
   } else if (building.assignedLabor <= 0) {
     const availableBuilders = Math.max(0, context.populationStats.available);

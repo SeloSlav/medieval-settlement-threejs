@@ -6,6 +6,7 @@ import {
   buildUndergrowthInstances,
   createUndergrowthMaterials,
   createUndergrowthPlacements,
+  DOGWOOD_AUTUMN_STEM_REVEAL,
   DOGWOOD_MAX_SCALE,
   DOGWOOD_MIN_SCALE,
   disposeUndergrowthInstances,
@@ -595,6 +596,22 @@ document.body.dataset.dogwoodSpringFlush = foliagePresentation.springFlush.toFix
 document.body.dataset.dogwoodAutumnColor = foliagePresentation.autumnColor.toFixed(2);
 document.body.dataset.dogwoodDormancy = foliagePresentation.dormancy.toFixed(2);
 document.body.dataset.dogwoodSnowCoverage = snowCoverage.toFixed(2);
+const dogwoodStemAutumn = Number((
+  dogwoodMaterials?.[0].userData.forestSeasonalAutumnColor as { value?: number } | undefined
+)?.value ?? -1);
+const dogwoodStemDormancy = Number((
+  dogwoodMaterials?.[0].userData.forestSeasonalDormancy as { value?: number } | undefined
+)?.value ?? -1);
+document.body.dataset.dogwoodStemAutumnColor = dogwoodStemAutumn.toFixed(2);
+document.body.dataset.dogwoodStemDormancy = dogwoodStemDormancy.toFixed(2);
+document.body.dataset.dogwoodStemRedReveal = THREE.MathUtils.clamp(
+  dogwoodStemDormancy + dogwoodStemAutumn * DOGWOOD_AUTUMN_STEM_REVEAL,
+  0,
+  1,
+).toFixed(2);
+document.body.dataset.dogwoodStemSeasonStrategy = String(
+  dogwoodMaterials?.[0].userData.dogwoodStemSeasonStrategy ?? '',
+);
 document.body.dataset.dogwoodScale = dogwoodScale.toFixed(2);
 document.body.dataset.dogwoodRendererBackend = rendererBackendName;
 document.body.dataset.dogwoodNodeMaterial = String(Boolean(

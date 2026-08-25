@@ -114,11 +114,11 @@ assert.equal(
 assert.equal(distressed.summary, 'Fires and displacement are disrupting the settlement.');
 
 const earlyNeedCrisis = needCrisisApproval(3);
-assert.equal(earlyNeedCrisis.score, 49);
+assert.equal(earlyNeedCrisis.score, 59);
 assert.equal(
   earlyNeedCrisis.factors.filter((factor) => factor.impact < 0).length,
-  2,
-  'one combined hardship concern plus low cohesion should replace stacked need penalties',
+  1,
+  'one combined hardship concern should replace stacked need penalties',
 );
 assert.equal(
   earlyNeedCrisis.factors.find((factor) => factor.key === 'household-hardship')?.impact,
@@ -130,7 +130,7 @@ assert.equal(
 );
 
 const fiveDayNeedCrisis = needCrisisApproval(5);
-assert.equal(fiveDayNeedCrisis.score, 48);
+assert.equal(fiveDayNeedCrisis.score, 58);
 assert.ok(fiveDayNeedCrisis.score < earlyNeedCrisis.score, 'need pressure should mature over time');
 
 const longServiceFreshHunger = needCrisisApproval(3, APPROVAL_NEED_PRESSURE_RAMP_DAYS);
@@ -174,7 +174,7 @@ assert.ok(
 );
 
 const prolongedNeedCrisis = needCrisisApproval(APPROVAL_NEED_PRESSURE_RAMP_DAYS);
-assert.equal(prolongedNeedCrisis.score, 18);
+assert.equal(prolongedNeedCrisis.score, 28);
 assert.equal(
   prolongedNeedCrisis.factors.find((factor) => factor.key === 'household-hardship')?.impact,
   -APPROVAL_MAX_NEED_PENALTY,
@@ -231,8 +231,6 @@ assert.equal(peaceful.summary, 'Residents have no pressing concerns.');
 const summaryCases = [
   ['household-hardship', 'Some households are struggling to meet basic needs.'],
   ['illness', 'Illness is affecting the settlement.'],
-  ['community-cohesion', 'Community morale is low.'],
-  ['labor-fatigue', 'Residents are exhausted.'],
   ['burial-dignity', 'Bodies remain unburied.'],
   ['fire-disruption', 'Fires and displacement are disrupting the settlement.'],
   ['frontier-safety', 'Residents feel unsafe.'],

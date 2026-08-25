@@ -573,7 +573,7 @@ export function formatHouseholdMarketResidenceStatus(
     case 'cooldown':
       return `Standing order cools down for ${formatCooldownSeconds(plan.cooldownTicksRemaining)} more`;
     case 'closed':
-      return `${order} - cart rests until work hours`;
+      return `${order} - cart rests during the current calendar observance`;
     case 'no-market-route':
       return 'No completed, staffed Trading Post available for emergency imports.';
     case 'route-too-short':
@@ -624,7 +624,7 @@ export function formatHouseholdMarketBottlenecks(
   if (plan.busyCartHomes > 0) parts.push(`${plan.busyCartHomes} behind busy carts`);
   const storageBlocked = plan.marketStorageBlockedHomes + plan.householdStorageBlockedHomes;
   if (storageBlocked > 0) parts.push(`${storageBlocked} full-lot storage blocked`);
-  if (plan.closedHomes > 0) parts.push(`${plan.closedHomes} waiting for work hours`);
+  if (plan.closedHomes > 0) parts.push(`${plan.closedHomes} paused by calendar observance`);
   if (plan.fireDisabledHomes > 0) parts.push(`${plan.fireDisabledHomes} fire disabled`);
   if (plan.marketFireBlockedHomes > 0) {
     parts.push(`${plan.marketFireBlockedHomes} behind fire-disabled markets`);

@@ -2680,7 +2680,7 @@ function grainChainRoadPlan(
 }
 
 /**
- * Long-run installed workshop capacity using authoritative work hours, cycle
+ * Long-run installed workshop capacity using the authoritative calendar day, cycle
  * lengths, labor scaling, and Sabbath policy. Values deliberately assume full
  * input supply; the Town Hall labels them as capacity rather than production.
  * When a component resolver is supplied, multi-stage bread capacity is matched
