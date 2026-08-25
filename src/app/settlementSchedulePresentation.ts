@@ -1,6 +1,6 @@
 import type { SpacetimeGameSnapshot } from '../data/spacetimeGameStore.ts';
 import { SIM_REALTIME_RATE } from '../generated/gameBalance.ts';
-import { simElapsedSeconds } from '../world/gameCalendar.ts';
+import { simElapsedSeconds, type GameClock } from '../world/gameCalendar.ts';
 import type { AmbientAudioController } from '../audio/AmbientAudioController.ts';
 import type { BuildingMarkers } from '../buildings/BuildingMarkers.ts';
 import type { ResidenceMarkers } from '../residences/ResidenceMarkers.ts';
@@ -19,7 +19,10 @@ import {
   type VisualQaConditions,
 } from './visualQaConditions.ts';
 import { hasActiveRaiderThreat } from '../security/combatAgents.ts';
-import { computeFixedSkyState } from '../scene/fixedSkyPresentation.ts';
+import {
+  computeFixedSkyState,
+  fixedSkyPresentationClock,
+} from '../scene/fixedSkyPresentation.ts';
 import {
   getSkyPresentationPreference,
   type FixedSkyPresetId,
@@ -77,6 +80,7 @@ export class SettlementPresentationController {
   private lastRaidThreatActive = false;
   private tickSchedule: SettlementSchedule | null = null;
   private fixedSkyState: DayNightLightingState | null = null;
+  private fixedSkyClock: GameClock | null = null;
   private fixedSkyPreset: FixedSkyPresetId | null = null;
   private readonly now: () => number;
   private readonly visualQaConditions: VisualQaConditions | null;
@@ -225,6 +229,9 @@ export class SettlementPresentationController {
     monasteryFeastsEnabled: boolean,
   ): void {
     const presentationDayNight = this.resolveSceneLighting(schedule);
+    const householdPresentationClock = presentationDayNight === schedule.dayNight
+      ? schedule.clock
+      : this.fixedSkyClock ?? schedule.clock;
     targets.settlementHud?.setSettlementClock(schedule);
     targets.sceneManager?.applyDayNight(presentationDayNight);
     targets.buildingMarkers?.setFoundersCampfireNightLighting(
@@ -232,7 +239,7 @@ export class SettlementPresentationController {
     );
     targets.residenceMarkers?.setChimneySmokeAllowed(presentationDayNight.smokeAllowed);
     targets.residenceMarkers?.setHouseholdLighting(
-      schedule.clock,
+      householdPresentationClock,
       presentationDayNight.eveningWindowGlow * HOUSEHOLD_LIGHTING_VISUAL_SCALE,
     );
     targets.villagers?.setSchedule(
@@ -245,9 +252,8 @@ export class SettlementPresentationController {
       schedule.holiday,
     );
     targets.ambientAudio?.syncSettlementSchedule(
-      presentationDayNight === schedule.dayNight
-        ? schedule
-        : { ...schedule, dayNight: presentationDayNight },
+      schedule,
+      presentationDayNight.isNight,
     );
   }
 
@@ -257,6 +263,10 @@ export class SettlementPresentationController {
 
     if (!this.fixedSkyState || this.fixedSkyPreset !== preference.preset) {
       this.fixedSkyState = computeFixedSkyState(preference.preset, this.fixedSkyState ?? undefined);
+      this.fixedSkyClock = fixedSkyPresentationClock(
+        preference.preset,
+        this.fixedSkyClock ?? undefined,
+      );
       this.fixedSkyPreset = preference.preset;
     }
     return this.fixedSkyState;

@@ -284,7 +284,7 @@ function testStableScheduleSkipsResidentReconciliation(): number {
   assert.equal(
     workerReconciliations,
     20_000 * 24,
-    'precise commute and rest deadlines must still be evaluated every frame',
+    'precise worker-route and rest deadlines must still be evaluated every frame',
   );
   villagers.setSchedule(clock(1, 12 + 1 / 60), false);
   assert.equal(residentReconciliations, 1_000, 'a minute transition must reconcile residents');

@@ -190,6 +190,21 @@ assert.match(renderer, /idle[^\n]*eat[^\n]*walk|idle\/eating\/walk/);
 assert.match(renderer, /getWorkerPose/);
 assert.match(renderer, /getDeliveryPose/);
 assert.match(renderer, /Draft ox oak yoke/);
+assert.match(
+  renderer,
+  /pickOx\([\s\S]{0,900}projectedOxHitDistance/,
+  'every rendered ox should expose the same screen-space picking behavior as agents',
+);
+assert.match(
+  renderer,
+  /inspectionRoute\([\s\S]{0,1_600}getDeliveryRoute[\s\S]{0,800}getWorkerRoute/,
+  'selected oxen should inherit their live cart or worker route',
+);
+assert.match(
+  renderer,
+  /SELECTED_AGENT_ROUTE_Y_OFFSET/,
+  'ox routes should use the shared pink selected-agent line height',
+);
 
 const villagerRenderer = readFileSync('src/settlement/VillagerRenderer.ts', 'utf8');
 assert.match(
@@ -204,6 +219,23 @@ assert.match(
 assert.match(
   villagerRenderer,
   /this\.oxen\.sync\([\s\S]{0,260}deliveryTrips,/,
+);
+
+const villagerInspector = readFileSync('src/ui/VillagerInspector.ts', 'utf8');
+assert.match(
+  villagerInspector,
+  /this\.options\.villagers\.pickOx\([\s\S]{0,900}this\.renderOx\(ox\)/,
+  'clicking an ox should open the shared agent card',
+);
+assert.match(
+  villagerInspector,
+  /renderOx\(inspection: OxInspection\)[\s\S]{0,1_800}updateSelectedAgentRoute/,
+  'the ox card should update the shared marker and pink route on every frame',
+);
+assert.match(
+  villagerInspector,
+  /selectedOxId[\s\S]{0,1_800}inspectOx\(this\.selectedOxId\)/,
+  'ox selection should remain live until the ox disappears or selection is dismissed',
 );
 
 console.log('stable ox posted + automatic allocation and visual contracts passed');

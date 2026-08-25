@@ -138,8 +138,8 @@ const DOGWOOD_GROUND_OFFSET_METERS = 0.006;
 export const DOGWOOD_AUTUMN_STEM_REVEAL = 0.45;
 const DOGWOOD_STEM_YOUTH_START = 0.24;
 const DOGWOOD_STEM_YOUTH_END = 0.84;
-const DOGWOOD_OLD_WINTER_STEM = [0.2, 0.024, 0.012] as const;
-const DOGWOOD_YOUNG_WINTER_STEM = [0.86, 0.045, 0.012] as const;
+const DOGWOOD_OLD_WINTER_STEM = [0.22, 0.018, 0.008] as const;
+const DOGWOOD_YOUNG_WINTER_STEM = [0.96, 0.04, 0.008] as const;
 
 export type UndergrowthPlacement = {
   x: number;
@@ -1113,7 +1113,7 @@ function createUndergrowthBranchMaterial(
       tsl.vec3(...DOGWOOD_OLD_WINTER_STEM),
       tsl.vec3(...DOGWOOD_YOUNG_WINTER_STEM),
       youth,
-    ).mul(barkValue.mul(0.64).add(0.5)).clamp(0, 1);
+    ).mul(barkValue.mul(0.48).add(0.64)).clamp(0, 1);
     const redReveal = dormancy
       .add(autumn.mul(DOGWOOD_AUTUMN_STEM_REVEAL))
       .clamp(0, 1);
@@ -1170,7 +1170,7 @@ function applyDogwoodWebGLStemSeason(material: THREE.MeshStandardMaterial): void
         `vec3 dogwoodOldWinterStem = vec3( ${DOGWOOD_OLD_WINTER_STEM.join(', ')} );`,
         `vec3 dogwoodYoungWinterStem = vec3( ${DOGWOOD_YOUNG_WINTER_STEM.join(', ')} );`,
         'vec3 dogwoodWinterStem = mix( dogwoodOldWinterStem, dogwoodYoungWinterStem, vDogwoodStemYouth );',
-        'dogwoodWinterStem *= 0.5 + dogwoodStemValue * 0.64;',
+        'dogwoodWinterStem *= 0.64 + dogwoodStemValue * 0.48;',
         `float dogwoodStemRedReveal = clamp( uDogwoodStemDormancy + uDogwoodStemAutumn * ${DOGWOOD_AUTUMN_STEM_REVEAL.toFixed(2)}, 0.0, 1.0 );`,
         'diffuseColor.rgb = mix( diffuseColor.rgb, clamp( dogwoodWinterStem, 0.0, 1.0 ), dogwoodStemRedReveal );',
       ].join('\n'),

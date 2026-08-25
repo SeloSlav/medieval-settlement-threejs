@@ -158,7 +158,6 @@ const generatedAssets = [
   'backyards/chicken-pen.png',
   'backyards/goat-pen.png',
   'backyards/pig-pen.png',
-  'actions/overnight-work-camp.png',
   'actions/limit-work-area.png',
   'actions/luxury-flowers.png',
   'upgrades/residence-tier-2.png',
@@ -203,7 +202,6 @@ assert.ok(animalFeedTransparentPixels > 0, 'animal feed artwork must retain real
 assert.ok(animalFeedVisiblePixels > 0, 'animal feed artwork must contain a visible painted subject');
 
 for (const [icon, asset] of [
-  ['overnight-work-camp', 'actions/overnight-work-camp.png'],
   ['tree-work-area', 'actions/limit-work-area.png'],
   ['luxury-flowers', 'actions/luxury-flowers.png'],
   ['residence-tier-2', 'upgrades/residence-tier-2.png'],

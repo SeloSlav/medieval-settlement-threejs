@@ -3,6 +3,7 @@ import type {
   VillagerInspection,
   VillagerRenderer,
 } from '../settlement/VillagerRenderer.ts';
+import type { OxInspection } from '../settlement/OxenRenderer.ts';
 import { disposeObject3D } from '../utils/dispose.ts';
 import type {
   DeliveryAgentInspection,
@@ -65,13 +66,14 @@ export class VillagerInspector {
   private readonly selectedRoute: SelectedAgentRoute;
   private selectedPersonIdentity: string | null = null;
   private selectedDeliveryTripId: string | null = null;
+  private selectedOxId: string | null = null;
 
   constructor(options: VillagerInspectorOptions) {
     this.options = options;
     options.uiRoot.insertAdjacentHTML(
       'beforeend',
       `
-        <aside class="villager-inspector-panel" data-villager-inspector hidden aria-label="Villager details">
+        <aside class="villager-inspector-panel" data-villager-inspector hidden aria-label="Agent details">
           <header class="villager-inspector-header">
             <div class="villager-inspector-portrait" data-villager-initials aria-hidden="true">—</div>
             <div class="villager-inspector-heading">
@@ -158,6 +160,15 @@ export class VillagerInspector {
       this.renderDelivery(delivery);
       return;
     }
+    if (this.selectedOxId) {
+      const ox = this.options.villagers.inspectOx(this.selectedOxId);
+      if (!ox) {
+        this.clearSelection();
+        return;
+      }
+      this.renderOx(ox);
+      return;
+    }
     if (!this.selectedPersonIdentity) return;
     const inspection = this.options.villagers.inspectVillager(this.selectedPersonIdentity);
     if (!inspection) {
@@ -172,6 +183,7 @@ export class VillagerInspector {
     if (!delivery) return false;
     this.selectedPersonIdentity = null;
     this.selectedDeliveryTripId = tripId;
+    this.selectedOxId = null;
     this.options.deliveryAgents.selectDeliveryAgent(tripId);
     updateSelectedAgentRoute(this.selectedRoute, []);
     this.panel.hidden = false;
@@ -182,9 +194,11 @@ export class VillagerInspector {
 
   clearSelection(notify = false): void {
     const hadSelection = this.selectedPersonIdentity !== null
-      || this.selectedDeliveryTripId !== null;
+      || this.selectedDeliveryTripId !== null
+      || this.selectedOxId !== null;
     this.selectedPersonIdentity = null;
     this.selectedDeliveryTripId = null;
+    this.selectedOxId = null;
     this.options.deliveryAgents.selectDeliveryAgent(null);
     this.panel.hidden = true;
     this.marker.visible = false;
@@ -207,6 +221,25 @@ export class VillagerInspector {
 
   private readonly onPointerDown = (event: MouseEvent): void => {
     if (event.button !== 0 || event.altKey || this.options.isBlocked()) return;
+    const ox = this.options.villagers.pickOx(
+      event.clientX,
+      event.clientY,
+      this.options.camera,
+      this.options.domElement,
+    );
+    if (ox) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      this.options.deliveryAgents.selectDeliveryAgent(null);
+      this.selectedDeliveryTripId = null;
+      this.selectedPersonIdentity = null;
+      this.selectedOxId = ox.oxId;
+      this.panel.hidden = false;
+      this.renderOx(ox);
+      this.options.onSelectionChange?.(true);
+      return;
+    }
+
     const delivery = this.options.deliveryAgents.pickDeliveryAgent(
       event.clientX,
       event.clientY,
@@ -232,6 +265,7 @@ export class VillagerInspector {
     event.stopImmediatePropagation();
     this.options.deliveryAgents.selectDeliveryAgent(null);
     this.selectedDeliveryTripId = null;
+    this.selectedOxId = null;
     this.selectedPersonIdentity = inspection.personIdentity;
     this.panel.hidden = false;
     this.renderVillager(inspection);
@@ -268,6 +302,37 @@ export class VillagerInspector {
     setTextIfChanged(this.current, inspection.activity);
     setDatasetIfChanged(this.activity, 'state', inspection.activityState);
     setDatasetIfChanged(this.initials, 'portraitVariant', inspection.modelVariant);
+    setTextIfChanged(this.initials, inspection.initials);
+    setTextIfChanged(this.occupation, inspection.occupation);
+    setTextIfChanged(this.workplace, inspection.workplace);
+    setTextIfChanged(this.household, inspection.household);
+    setTextIfChanged(this.crew, inspection.crew);
+    setTextIfChanged(this.pace, inspection.pace);
+    this.marker.position.set(
+      inspection.position.x,
+      inspection.position.y + 2.12,
+      inspection.position.z,
+    );
+    this.marker.rotation.y += 0.035;
+    this.marker.visible = inspection.visible;
+    updateSelectedAgentRoute(
+      this.selectedRoute,
+      inspection.visible ? inspection.route : [],
+    );
+  }
+
+  private renderOx(inspection: OxInspection): void {
+    setTextIfChanged(this.workplaceLabel, inspection.workplaceLabel);
+    setTextIfChanged(this.householdLabel, inspection.householdLabel);
+    setTextIfChanged(this.crewLabel, inspection.crewLabel);
+    setTextIfChanged(this.paceLabel, inspection.paceLabel);
+    setHiddenIfChanged(this.distanceRow, true);
+    setTextIfChanged(this.name, inspection.name);
+    setTextIfChanged(this.eyebrow, inspection.eyebrow);
+    setTextIfChanged(this.activity, inspection.activity);
+    setTextIfChanged(this.current, inspection.activity);
+    setDatasetIfChanged(this.activity, 'state', inspection.activityState);
+    setDatasetIfChanged(this.initials, 'portraitVariant', inspection.portraitVariant);
     setTextIfChanged(this.initials, inspection.initials);
     setTextIfChanged(this.occupation, inspection.occupation);
     setTextIfChanged(this.workplace, inspection.workplace);

@@ -851,7 +851,7 @@ assert.match(villagerRendererSource, /agent\.workActivity = 'gather'/);
 assert.match(villagerRendererSource, /Harvesting \$\{backyardGardenLabel/);
 assert.match(
   villagerRendererSource,
-  /beginPreparedJourney\(agent, path, 'commute_to_work'\)/,
+  /beginPreparedJourney\(agent, path, 'return_to_work'\)/,
   'market sellers should visibly follow the authored entrance path to their counter',
 );
 assert.match(villagerRendererSource, /Keeping watch from the frontier gallery/);

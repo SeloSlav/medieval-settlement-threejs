@@ -112,6 +112,7 @@ export class AmbientAudioController {
   private lastSettlementSignature = '';
   private settlementZones: ReturnType<typeof buildSettlementZones> = [];
   private schedule: SettlementSchedule | null = null;
+  private presentationIsNight: boolean | null = null;
   private isRaining = false;
   private season: Season = 'summer';
   private weather: WeatherKind = 'fair';
@@ -162,8 +163,14 @@ export class AmbientAudioController {
     this.soundtrack.start();
   }
 
-  syncSettlementSchedule(schedule: SettlementSchedule | null): void {
+  syncSettlementSchedule(
+    schedule: SettlementSchedule | null,
+    presentationIsNight?: boolean,
+  ): void {
     this.schedule = schedule;
+    this.presentationIsNight = schedule
+      ? presentationIsNight ?? schedule.dayNight.isNight
+      : null;
   }
 
   syncEnvironment(
@@ -206,7 +213,7 @@ export class AmbientAudioController {
         cameraTarget: listener,
         orbitDistance,
         previous: this.ambientRuleState,
-        isNight: schedule?.dayNight.isNight ?? false,
+        isNight: this.presentationIsNight ?? false,
       });
       this.ambientRuleState.overviewActive = ambient.state.overviewActive;
       this.ambientRuleState.villageActive = ambient.state.villageActive;
@@ -224,7 +231,7 @@ export class AmbientAudioController {
         firstPersonActive: this.config.isFirstPersonActive(),
       }));
       this.soundtrack.syncContext({
-        isNight: schedule?.dayNight.isNight ?? false,
+        isNight: this.presentationIsNight ?? false,
         season: this.season,
         villageActive: ambient.state.villageActive,
       });

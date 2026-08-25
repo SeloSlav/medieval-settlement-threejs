@@ -4,7 +4,7 @@ The implementation takes its baseline behavior from Manor Lords:
 
 - A well enables firefighting.
 - A villager travels to the nearest well, fills a bucket, and returns to the fire.
-- Firefighting is an emergency, so it is not stopped by night or Sunday labor pauses.
+- Firefighting is an emergency, so it is not stopped by observed Sabbath or holy-day labor pauses.
 - Thunderstorms can start rare structure fires.
 - The Town Hall is treated as the local Manor analogue and is nonflammable.
 

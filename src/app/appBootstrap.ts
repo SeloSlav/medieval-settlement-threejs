@@ -379,6 +379,7 @@ export async function bootstrapAppSession(
     isWaterAt: (x, z) => sceneManager.riverField.isRenderedWetAt(x, z),
     routePathAroundObstacles: (path) => firstPersonCollisionWorld.routeAgentPath(path),
     getDeliveryOxPose: (tripId) => deliveryAgents.getOxFollowPose(tripId),
+    getDeliveryOxRoute: (tripId) => deliveryAgents.getRemainingRoute(tripId),
   });
   const placementGate: PlacementInteractionGate = {
     isSessionReady: () => sessionGate.isReady(),

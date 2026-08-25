@@ -50,15 +50,11 @@ for (let index = 0; index < identities.length; index++) {
   const identity = identities[index];
   const routine = routines[index];
   assert.equal(
-    householdMemberHomeState(identity, clockFromHour(routine.indoorsHour - 0.02)),
+    householdMemberHomeState(identity, clockFromHour(12)),
     'home_outdoors',
   );
   assert.equal(
-    householdMemberHomeState(identity, clockFromHour(routine.indoorsHour + 0.02)),
-    'indoors',
-  );
-  assert.equal(
-    householdMemberHomeState(identity, clockFromHour(routine.bedtimeHour + 0.02)),
+    householdMemberHomeState(identity, clockFromHour(23.9)),
     'asleep',
   );
   assert.equal(
@@ -133,8 +129,8 @@ const villagers = new VillagerRenderer({
 });
 const home = {
   ...residence('routine-home', 0, 0),
-  population: 2,
-  populationCapacity: 2,
+  population: 3,
+  populationCapacity: 3,
 };
 const workplace = building('routine-workplace', 12, 0);
 const chapel = {
@@ -144,7 +140,7 @@ const chapel = {
 const monastery = {
   ...building('routine-monastery', 34, 0),
   kind: 'monastery' as const,
-  assignedLabor: 0,
+  assignedLabor: 1,
 };
 const refuge = {
   ...building('routine-refuge', 40, 0),
@@ -215,6 +211,14 @@ const villagerInternals = (
 const agents = villagerInternals.agents;
 const worker = agents.get('worker:routine-workplace:0');
 assert.ok(worker);
+assert.equal(worker.routinePhase, 'returning_to_work');
+assert.equal(worker.pathPurpose, 'return_to_work');
+const initialDutyRoute = villagers.inspectVillager(worker.personIdentity)?.route ?? [];
+assert.ok(
+  initialDutyRoute.length >= 4,
+  'a newly assigned worker should physically follow the available road from home to duty',
+);
+for (let step = 0; step < realtimeTickBudget(600); step++) villagers.tick(0.05);
 assert.equal(worker.routinePhase, 'work');
 assert.equal(villagerInternals.workerToolFor(worker), 'hatchet');
 const standingWorkerRoute = villagers.inspectVillager(worker.personIdentity)?.route ?? [];
@@ -270,10 +274,10 @@ assert.notEqual(
 syncRoutineVillage();
 assert.equal(
   worker.routinePhase,
-  'commuting_to_work',
+  'returning_to_work',
   'the same rostered person should physically return when the fire outage clears',
 );
-assert.equal(worker.pathPurpose, 'commute_to_work');
+assert.equal(worker.pathPurpose, 'return_to_work');
 for (let step = 0; step < realtimeTickBudget(600); step++) villagers.tick(0.05);
 assert.equal(worker.routinePhase, 'work');
 assert.equal(villagerInternals.workerToolFor(worker), 'hatchet');
@@ -345,17 +349,27 @@ villagers.setSchedule({
   ...fullClock(1),
   totalDays: 1,
 }, false);
-assert.equal(worker.routinePhase, 'commuting_to_work');
-assert.equal(worker.pathPurpose, 'commute_to_work');
+assert.equal(worker.routinePhase, 'returning_to_work');
+assert.equal(worker.pathPurpose, 'return_to_work');
 for (let step = 0; step < realtimeTickBudget(600); step++) villagers.tick(0.05);
 assert.equal(worker.routinePhase, 'work');
-assert.notEqual(worker.pathPurpose, 'commute_to_work');
+assert.notEqual(worker.pathPurpose, 'return_to_work');
 
 villagers.setSchedule({
   ...fullClock(9),
   weekday: 0,
   isSunday: true,
 }, false);
+assert.equal(
+  worker.routinePhase,
+  'work',
+  'a staffed chapel must not pull an ordinary worker away on an unobserved Sunday',
+);
+villagers.setSchedule({
+  ...fullClock(9),
+  weekday: 0,
+  isSunday: true,
+}, true, true, true);
 assert.equal(worker.routinePhase, 'going_to_mass');
 assert.equal(worker.pathPurpose, 'chapel_mass');
 for (let step = 0; step < realtimeTickBudget(1200); step++) villagers.tick(0.05);
@@ -371,12 +385,22 @@ villagers.setSchedule({
   ...fullClock(12),
   weekday: 0,
   isSunday: true,
-}, false);
+}, true, true, true);
 assert.equal(worker.routinePhase, 'returning_from_mass');
 assert.equal(worker.pathPurpose, 'return_from_mass');
 for (let step = 0; step < realtimeTickBudget(1200); step++) villagers.tick(0.05);
-assert.equal(worker.routinePhase, 'work');
+assert.notEqual(worker.routinePhase, 'work');
 assert.notEqual(worker.pathPurpose, 'return_from_mass');
+
+villagers.setSchedule({
+  ...fullClock(12),
+  totalDays: 1,
+  weekday: 1,
+  isSunday: false,
+}, false);
+assert.equal(worker.routinePhase, 'returning_to_work');
+for (let step = 0; step < realtimeTickBudget(1200); step++) villagers.tick(0.05);
+assert.equal(worker.routinePhase, 'work');
 
 const jurjevoClock = {
   ...fullClock(12),
@@ -439,7 +463,7 @@ assert.equal(worker.pathPurpose, 'return_from_feast');
 for (let step = 0; step < realtimeTickBudget(4000); step++) villagers.tick(0.05);
 assert.match(
   worker.routinePhase,
-  /^(commuting_to_work|work)$/,
+  /^(returning_to_work|work)$/,
   'a worker returning from a feast should resume continuous ordinary labor',
 );
 
@@ -486,7 +510,7 @@ assert.equal(worker.pathPurpose, 'return_from_refuge');
 for (let step = 0; step < realtimeTickBudget(1800); step++) villagers.tick(0.05);
 assert.match(
   worker.routinePhase,
-  /^(commuting_to_work|work)$/,
+  /^(returning_to_work|work)$/,
   'a worker returning from refuge should resume continuous ordinary labor',
 );
 assert.equal(worker.refugeId, null);
@@ -565,7 +589,7 @@ continuousWorkVillagers.setSchedule({
 }, false);
 assert.equal(
   continuousAgent.routinePhase,
-  'commuting_to_work',
+  'returning_to_work',
   'ordinary labor must resume immediately after Sabbath even during cosmetic night',
 );
 continuousWorkVillagers.dispose();

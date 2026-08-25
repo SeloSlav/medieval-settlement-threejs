@@ -6,6 +6,11 @@ import type { DeliveryTripState } from '../logistics/deliveryTrips.ts';
 import { resolveRoadAwareGroundY } from '../roads/RoadSurfaceSampling.ts';
 import type { RoadNetwork } from '../roads/RoadNetwork.ts';
 import type { BuildingState } from '../resources/types.ts';
+import { getBuildingDefinition } from '../resources/buildings.ts';
+import {
+  SELECTED_AGENT_ROUTE_Y_OFFSET,
+  type SelectedAgentRoutePoint,
+} from '../scene/SelectedAgentRoute.ts';
 import type { GameSpeed } from '../world/gameSpeed.ts';
 import type { CrowdViewState } from './crowdView.ts';
 import {
@@ -49,6 +54,28 @@ export type OxFollowPose = Readonly<{
   active: boolean;
 }>;
 
+export type OxInspection = {
+  oxId: string;
+  portraitVariant: 'ox';
+  name: string;
+  initials: string;
+  eyebrow: string;
+  occupation: string;
+  activity: string;
+  activityState: 'active' | 'ready';
+  workplaceLabel: string;
+  workplace: string;
+  householdLabel: string;
+  household: string;
+  crewLabel: string;
+  crew: string;
+  paceLabel: string;
+  pace: string;
+  position: { x: number; y: number; z: number };
+  route: SelectedAgentRoutePoint[];
+  visible: boolean;
+};
+
 type OxVisual = {
   ox: StableOxLike;
   root: THREE.Group;
@@ -71,6 +98,11 @@ export type OxenRendererOptions = {
   getRoadDeckY?: (x: number, z: number) => number | null;
   getWorkerPose: (buildingId: string, workerSlot: number) => OxFollowPose | null;
   getDeliveryPose?: (tripId: string) => OxFollowPose | null;
+  getWorkerRoute?: (
+    buildingId: string,
+    workerSlot: number,
+  ) => readonly SelectedAgentRoutePoint[];
+  getDeliveryRoute?: (tripId: string) => readonly SelectedAgentRoutePoint[];
 };
 
 type OxenSyncInput = {
@@ -91,6 +123,8 @@ export class OxenRenderer {
   private readonly getRoadDeckY: ((x: number, z: number) => number | null) | null;
   private readonly getWorkerPose: OxenRendererOptions['getWorkerPose'];
   private readonly getDeliveryPose: NonNullable<OxenRendererOptions['getDeliveryPose']>;
+  private readonly getWorkerRoute: NonNullable<OxenRendererOptions['getWorkerRoute']>;
+  private readonly getDeliveryRoute: NonNullable<OxenRendererOptions['getDeliveryRoute']>;
   private readonly yokeMaterial = new THREE.MeshStandardMaterial({
     color: 0x6b492b,
     roughness: 0.9,
@@ -114,6 +148,8 @@ export class OxenRenderer {
     this.getRoadDeckY = options.getRoadDeckY ?? null;
     this.getWorkerPose = options.getWorkerPose;
     this.getDeliveryPose = options.getDeliveryPose ?? (() => null);
+    this.getWorkerRoute = options.getWorkerRoute ?? (() => []);
+    this.getDeliveryRoute = options.getDeliveryRoute ?? (() => []);
     this.root.name = 'Stable draft oxen';
     options.parent.add(this.root);
     this.ready = this.loadSource();
@@ -133,6 +169,40 @@ export class OxenRenderer {
   /** Deterministic lineup/debug evidence without exposing mutable visuals. */
   getVisualCount(): number {
     return this.visuals.size;
+  }
+
+  pickOx(
+    clientX: number,
+    clientY: number,
+    camera: THREE.Camera,
+    domElement: HTMLElement,
+  ): OxInspection | null {
+    if (!this.root.visible) return null;
+    const bounds = domElement.getBoundingClientRect();
+    if (bounds.width <= 0 || bounds.height <= 0) return null;
+
+    let nearest: { distance: number; inspection: OxInspection } | null = null;
+    for (const visual of this.visuals.values()) {
+      if (!visual.root.visible) continue;
+      const distance = projectedOxHitDistance(
+        clientX,
+        clientY,
+        visual.root.position.x,
+        visual.root.position.y,
+        visual.root.position.z,
+        camera,
+        bounds,
+      );
+      if (distance == null || (nearest && distance >= nearest.distance)) continue;
+      const inspection = this.describeOx(visual);
+      if (inspection) nearest = { distance, inspection };
+    }
+    return nearest?.inspection ?? null;
+  }
+
+  inspectOx(oxId: string): OxInspection | null {
+    const visual = this.visuals.get(oxId);
+    return visual ? this.describeOx(visual) : null;
   }
 
   tick(dtSeconds: number, view?: CrowdViewState): boolean {
@@ -424,6 +494,133 @@ export class OxenRenderer {
     };
   }
 
+  private describeOx(visual: OxVisual): OxInspection | null {
+    const input = this.latestInput;
+    if (!input) return null;
+    const stable = input.buildings.get(visual.ox.stableId);
+    if (!stable || stable.kind !== 'stable') return null;
+    let trip: DeliveryTripState | null = null;
+    if (visual.tripId) {
+      for (const candidate of input.deliveryTrips) {
+        if (candidate.id !== visual.tripId) continue;
+        trip = candidate;
+        break;
+      }
+    }
+    const assignmentBuilding = visual.assignment
+      ? input.buildings.get(visual.assignment.buildingId) ?? null
+      : null;
+    const postedBuilding = visual.ox.assignedBuildingId
+      ? input.buildings.get(visual.ox.assignedBuildingId) ?? null
+      : null;
+    const workerPose = visual.assignment
+      ? this.getWorkerPose(
+          visual.assignment.buildingId,
+          visual.assignment.workerSlot,
+        )
+      : null;
+    const activeAssignment = visual.assignment !== null && workerPose?.active === true;
+    const active = trip !== null || activeAssignment;
+    const assignmentLabel = assignmentBuilding
+      ? getBuildingDefinition(assignmentBuilding.kind).label
+      : null;
+    const postedLabel = postedBuilding
+      ? getBuildingDefinition(postedBuilding.kind).label
+      : null;
+    const tripOrigin = trip
+      ? input.buildings.get(trip.buildingId) ?? null
+      : null;
+    const tripOriginLabel = tripOrigin
+      ? getBuildingDefinition(tripOrigin.kind).label
+      : null;
+    const isPostedAssignment = visual.ox.assignedBuildingId != null;
+    const activity = trip
+      ? `Hauling with the ${tripOriginLabel ?? 'delivery'} cart crew`
+      : activeAssignment
+        ? `Assisting the crew at ${assignmentLabel ?? 'a workplace'}`
+        : postedLabel
+          ? `Waiting at the stable for work at ${postedLabel}`
+          : 'Resting in its stable bay between automatic assignments';
+    const workplace = trip
+      ? `${tripOriginLabel ?? 'Delivery route'} · cart team`
+      : assignmentLabel
+        ? `${assignmentLabel} · ${isPostedAssignment ? 'posted' : 'automatic'}`
+        : postedLabel
+          ? `${postedLabel} · posted`
+          : 'Automatic assistance pool';
+
+    return {
+      oxId: visual.ox.id,
+      portraitVariant: 'ox',
+      name: `Draft Ox · Bay ${visual.ox.slot + 1}`,
+      initials: 'OX',
+      eyebrow: 'Stable draft ox',
+      occupation: 'Draught animal',
+      activity,
+      activityState: active ? 'active' : 'ready',
+      workplaceLabel: trip ? 'Current route' : 'Posting',
+      workplace,
+      householdLabel: 'Stable',
+      household: `${getBuildingDefinition(stable.kind).label} · Bay ${visual.ox.slot + 1}`,
+      crewLabel: 'Team',
+      crew: trip
+        ? 'Ox-drawn cart crew'
+        : visual.assignment
+          ? `Paired with worker ${visual.assignment.workerSlot + 1}`
+          : 'Unpaired',
+      paceLabel: 'Walking pace',
+      pace: `${OX_WALK_SPEED.toFixed(1)} m/s`,
+      position: {
+        x: visual.root.position.x,
+        y: visual.root.position.y,
+        z: visual.root.position.z,
+      },
+      route: this.inspectionRoute(visual, stable),
+      visible: this.root.visible && visual.root.visible,
+    };
+  }
+
+  private inspectionRoute(
+    visual: OxVisual,
+    stable: BuildingState,
+  ): SelectedAgentRoutePoint[] {
+    const deliveryPose = visual.tripId
+      ? this.getDeliveryPose(visual.tripId)
+      : null;
+    const workerPose = visual.assignment
+      ? this.getWorkerPose(
+          visual.assignment.buildingId,
+          visual.assignment.workerSlot,
+        )
+      : null;
+    const followedRoute = visual.tripId && deliveryPose?.active
+      ? this.getDeliveryRoute(visual.tripId)
+      : visual.assignment && workerPose?.active
+        ? this.getWorkerRoute(
+            visual.assignment.buildingId,
+            visual.assignment.workerSlot,
+          )
+        : [];
+    const start = {
+      x: visual.root.position.x,
+      y: visual.root.position.y + SELECTED_AGENT_ROUTE_Y_OFFSET,
+      z: visual.root.position.z,
+    };
+    if (followedRoute.length >= 2) {
+      return [start, ...followedRoute.slice(1).map((point) => ({ ...point }))];
+    }
+
+    const target = this.targetPose(visual, stable);
+    if (target.attached || Math.hypot(target.x - visual.x, target.z - visual.z) < 0.2) {
+      return [];
+    }
+    const targetY = resolveRoadAwareGroundY(
+      this.getHeightAt(target.x, target.z),
+      this.getRoadDeckY?.(target.x, target.z) ?? null,
+    ) + target.groundOffset + SELECTED_AGENT_ROUTE_Y_OFFSET;
+    return [start, { x: target.x, y: targetY, z: target.z }];
+  }
+
   private transition(visual: OxVisual, nextMode: OxMotionMode): void {
     if (visual.mode === nextMode) return;
     visual.actions[visual.mode].fadeOut(0.2);
@@ -438,6 +635,71 @@ export class OxenRenderer {
     visual.root.removeFromParent();
     this.shadowCastersChanged = true;
   }
+}
+
+function projectedOxHitDistance(
+  clientX: number,
+  clientY: number,
+  x: number,
+  y: number,
+  z: number,
+  camera: THREE.Camera,
+  bounds: DOMRect,
+): number | null {
+  const feet = projectWorldPoint(x, y + 0.08, z, camera, bounds);
+  const shoulder = projectWorldPoint(x, y + OX_TARGET_HEIGHT, z, camera, bounds);
+  if (!feet || !shoulder) return null;
+  const projectedHeight = Math.hypot(feet.x - shoulder.x, feet.y - shoulder.y);
+  const hitRadius = Math.min(34, Math.max(13, projectedHeight * 0.46));
+  const distance = distanceToScreenSegment(
+    clientX,
+    clientY,
+    feet.x,
+    feet.y,
+    shoulder.x,
+    shoulder.y,
+  );
+  return distance <= hitRadius ? distance : null;
+}
+
+function projectWorldPoint(
+  x: number,
+  y: number,
+  z: number,
+  camera: THREE.Camera,
+  bounds: DOMRect,
+): { x: number; y: number } | null {
+  const projected = new THREE.Vector3(x, y, z).project(camera);
+  if (projected.z < -1 || projected.z > 1) return null;
+  return {
+    x: bounds.left + (projected.x * 0.5 + 0.5) * bounds.width,
+    y: bounds.top + (-projected.y * 0.5 + 0.5) * bounds.height,
+  };
+}
+
+function distanceToScreenSegment(
+  pointX: number,
+  pointY: number,
+  startX: number,
+  startY: number,
+  endX: number,
+  endY: number,
+): number {
+  const segmentX = endX - startX;
+  const segmentY = endY - startY;
+  const lengthSq = segmentX * segmentX + segmentY * segmentY;
+  if (lengthSq <= 0.0001) return Math.hypot(pointX - startX, pointY - startY);
+  const t = Math.min(
+    1,
+    Math.max(
+      0,
+      ((pointX - startX) * segmentX + (pointY - startY) * segmentY) / lengthSq,
+    ),
+  );
+  return Math.hypot(
+    pointX - (startX + segmentX * t),
+    pointY - (startY + segmentY * t),
+  );
 }
 
 function resolveClips(

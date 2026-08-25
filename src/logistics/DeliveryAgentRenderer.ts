@@ -208,6 +208,16 @@ export class DeliveryAgentRenderer {
     };
   }
 
+  /** Remaining route shared by a selected cart worker or its attached ox. */
+  getRemainingRoute(tripId: string): readonly SelectedAgentRoutePoint[] {
+    const visual = this.visuals.get(tripId);
+    if (!visual) {
+      this.selectedRoutePointScratch.length = 0;
+      return this.selectedRoutePointScratch;
+    }
+    return this.buildRemainingRoute(visual);
+  }
+
   update(dt: number, view?: CrowdViewState): boolean {
     let shadowCastersChanged = this.shadowCastersChanged;
     this.shadowCastersChanged = false;
@@ -522,9 +532,15 @@ export class DeliveryAgentRenderer {
   }
 
   private updateSelectedRoute(visual: TripVisual): void {
+    updateSelectedAgentRoute(this.selectedRoute, this.buildRemainingRoute(visual));
+  }
+
+  private buildRemainingRoute(
+    visual: TripVisual,
+  ): readonly SelectedAgentRoutePoint[] {
     if (visual.polyline.length < 2 || visual.pathDistance <= 1e-6) {
-      this.selectedRoute.visible = false;
-      return;
+      this.selectedRoutePointScratch.length = 0;
+      return this.selectedRoutePointScratch;
     }
     const sampleDistance = this.phaseSampleDistance(visual);
     const route = visual.phase === 'inbound'
@@ -543,8 +559,8 @@ export class DeliveryAgentRenderer {
           this.selectedRouteSampleScratch,
         );
     if (route.length < 2) {
-      this.selectedRoute.visible = false;
-      return;
+      this.selectedRoutePointScratch.length = 0;
+      return this.selectedRoutePointScratch;
     }
     const routePoints = this.selectedRoutePointScratch;
     for (let index = 0; index < route.length; index += 1) {
@@ -556,7 +572,7 @@ export class DeliveryAgentRenderer {
       routePoints[index] = point;
     }
     routePoints.length = route.length;
-    updateSelectedAgentRoute(this.selectedRoute, routePoints);
+    return routePoints;
   }
 
   private resolveGroundY(x: number, z: number): number {

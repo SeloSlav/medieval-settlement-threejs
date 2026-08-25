@@ -3037,6 +3037,15 @@ select:focus-visible {
     url('/assets/ui/portraits/worker-woman-gorski-kotar-1550.jpg');
 }
 
+.villager-inspector-portrait[data-portrait-variant='ox'] {
+  background-color: #332d21;
+  background-image:
+    radial-gradient(circle at 50% 44%, rgba(221, 185, 112, 0.2), transparent 58%),
+    url('/assets/ui/icons/hud-livestock.png');
+  background-position: center, center;
+  background-size: cover, 68%;
+}
+
 .villager-inspector-portrait[data-portrait-variant]::before {
   content: none;
 }

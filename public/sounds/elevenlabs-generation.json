@@ -300,17 +300,6 @@
       "sha256": "d3820e6ce16bd745ad09a872d02fcbda374da6164224b9183b60e511364f30fd"
     },
     {
-      "id": "building-remote-work-camp",
-      "output": "public/sounds/buildings/remote_work_camp.mp3",
-      "generatedAt": "2026-08-04T10:04:51.130Z",
-      "endpoint": "/v1/sound-generation",
-      "modelId": "eleven_text_to_sound_v2",
-      "outputFormat": "mp3_44100_128",
-      "characterCost": "23",
-      "byteLength": 37660,
-      "sha256": "86e83a4d09037cd762b66f3840a625791414a20833a6224d1a1869c3f28fe24c"
-    },
-    {
       "id": "building-residence",
       "output": "public/sounds/buildings/residence.mp3",
       "generatedAt": "2026-08-04T10:06:08.340Z",

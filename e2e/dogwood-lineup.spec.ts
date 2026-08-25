@@ -461,6 +461,50 @@ for (const [view, season, scale, expected] of cases) {
   });
 }
 
+test('Common dogwood stems transition from summer bark to vivid winter red', async ({ page }, testInfo) => {
+  const runtime = monitorRuntime(page);
+  await page.setViewportSize({ width: 1280, height: 720 });
+
+  await page.goto('/shrub-lineup.html?focus=dogwood&view=near&season=summer&time=4&scale=1.20');
+  await page.waitForFunction(() => document.body.dataset.ready === 'true');
+  expect(await page.evaluate(() => document.body.dataset.dogwoodStemRedReveal)).toBe('0.00');
+  await setCaptureMode(page, 'stems', { timeSeconds: 4, windStrength: 0 });
+  const summerFrame = await captureCanvas(page.locator('canvas'));
+
+  await page.goto('/shrub-lineup.html?focus=dogwood&view=near&season=winter&time=4&scale=1.20');
+  await page.waitForFunction(() => document.body.dataset.ready === 'true');
+  const winterDataset = await page.evaluate(() => ({ ...document.body.dataset }));
+  expect(winterDataset.dogwoodStemRedReveal).toBe('1.00');
+  expect(winterDataset.dogwoodStemSeasonStrategy).toBe('age-aware-autumn-to-winter-red');
+  await setCaptureMode(page, 'stems', { timeSeconds: 4, windStrength: 0 });
+  const winterFrame = await captureCanvas(page.locator('canvas'));
+  const transitionPixels = await comparePngFrames(page, summerFrame, winterFrame);
+
+  expect(transitionPixels.changedPixels).toBeGreaterThan(1_000);
+  expect(transitionPixels.meanAbsDelta).toBeGreaterThan(10);
+  expect(transitionPixels.meanTargetRed).toBeGreaterThan(transitionPixels.meanTargetGreen + 8);
+  expect(transitionPixels.meanTargetRed).toBeGreaterThan(transitionPixels.meanTargetBlue + 20);
+
+  if (process.env.E2E_CAPTURE === '1') {
+    const summerPath = testInfo.outputPath('dogwood-stems-summer.png');
+    const winterPath = testInfo.outputPath('dogwood-stems-winter-red.png');
+    await Promise.all([
+      writeFile(summerPath, summerFrame),
+      writeFile(winterPath, winterFrame),
+    ]);
+    await testInfo.attach('dogwood-stems-summer', {
+      path: summerPath,
+      contentType: 'image/png',
+    });
+    await testInfo.attach('dogwood-stems-winter-red', {
+      path: winterPath,
+      contentType: 'image/png',
+    });
+  }
+  console.log(`[dogwood-stem-season] ${JSON.stringify({ transitionPixels })}`);
+  expectCleanRuntime(runtime);
+});
+
 test('Common dogwood leaf motion is rooted, deterministic, and SeedThree-responsive', async ({ page }, testInfo) => {
   const runtime = monitorRuntime(page);
   await page.setViewportSize({ width: 1280, height: 720 });

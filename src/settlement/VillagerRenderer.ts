@@ -1,6 +1,10 @@
 import * as THREE from 'three';
 import type { RoadNetwork } from '../roads/RoadNetwork.ts';
-import { OxenRenderer, type OxFollowPose } from './OxenRenderer.ts';
+import {
+  OxenRenderer,
+  type OxFollowPose,
+  type OxInspection,
+} from './OxenRenderer.ts';
 import type { StableOxLike } from './stableOxen.ts';
 import {
   rosteredCartWorkersByBuilding,
@@ -163,7 +167,11 @@ import {
   palisadedRefugeRallyPosition,
 } from './palisadedRefugeRally.ts';
 import type { GameSpeed } from '../world/gameSpeed.ts';
-import { SIM_REALTIME_RATE, STARTING_POPULATION } from '../generated/gameBalance.ts';
+import {
+  CALENDAR_SECONDS_PER_DAY,
+  SIM_REALTIME_RATE,
+  STARTING_POPULATION,
+} from '../generated/gameBalance.ts';
 import {
   fireDisabledBuildingIds,
   fireDisabledResidenceIds,
@@ -180,6 +188,7 @@ type VillagerMode = VillagerRenderMode;
 type VillagerRole = 'founder' | 'resident' | 'worker';
 type VillagerRoutinePhase =
   | 'work'
+  | 'observance_at_worksite'
   | 'returning_to_work'
   | 'returning_home'
   | 'going_to_mass'
@@ -361,6 +370,9 @@ export type VillagerRendererOptions = {
   isWaterAt?: (x: number, z: number) => boolean;
   routePathAroundObstacles?: (path: readonly PointXZ[]) => PointXZ[] | null;
   getDeliveryOxPose?: (tripId: string) => OxFollowPose | null;
+  getDeliveryOxRoute?: (
+    tripId: string,
+  ) => readonly SelectedAgentRoutePoint[];
 };
 
 export class VillagerRenderer {
@@ -431,7 +443,6 @@ export class VillagerRenderer {
   private lastRoutineClockMonth = Number.NaN;
   private lastRoutineClockMonthDay = Number.NaN;
   private lastRoutineClockIsSunday: boolean | null = null;
-  private lastRoutineClockIsWorkHours: boolean | null = null;
   private lastRoutineLaborPaused: boolean | null = null;
   private lastRoutineMonasteryFeastsEnabled: boolean | null = null;
   private lastRoutineSabbathPausedToday: boolean | null = null;
@@ -454,6 +465,9 @@ export class VillagerRenderer {
       getWorkerPose: (buildingId, workerSlot) =>
         this.getWorkerFollowPose(buildingId, workerSlot),
       getDeliveryPose: options.getDeliveryOxPose,
+      getWorkerRoute: (buildingId, workerSlot) =>
+        this.getWorkerInspectionRoute(buildingId, workerSlot),
+      getDeliveryRoute: options.getDeliveryOxRoute,
     });
     this.visualAssetsReady = this.renderer.ready;
   }
@@ -479,7 +493,6 @@ export class VillagerRenderer {
       || this.lastRoutineClockMonth !== clock.month
       || this.lastRoutineClockMonthDay !== clock.monthDay
       || this.lastRoutineClockIsSunday !== clock.isSunday
-      || this.lastRoutineClockIsWorkHours !== clock.isWorkHours
       || this.lastRoutineLaborPaused !== laborPaused
       || this.lastRoutineMonasteryFeastsEnabled !== monasteryFeastsEnabled
       || this.lastRoutineSabbathPausedToday !== restDayPausedToday
@@ -490,7 +503,6 @@ export class VillagerRenderer {
     this.lastRoutineClockMonth = clock.month;
     this.lastRoutineClockMonthDay = clock.monthDay;
     this.lastRoutineClockIsSunday = clock.isSunday;
-    this.lastRoutineClockIsWorkHours = clock.isWorkHours;
     this.lastRoutineLaborPaused = laborPaused;
     this.lastRoutineMonasteryFeastsEnabled = monasteryFeastsEnabled;
     this.lastRoutineSabbathPausedToday = restDayPausedToday;
@@ -1064,7 +1076,7 @@ export class VillagerRenderer {
           x: origin.x,
           z: origin.z,
           y: this.resolveGroundY(origin.x, origin.z) + 0.02,
-          yaw: origin.yaw,
+          yaw: 'yaw' in origin ? origin.yaw : 0,
           simAccumulator: 0,
           frozen: false,
         };
@@ -1411,6 +1423,19 @@ export class VillagerRenderer {
     return nearest?.inspection ?? null;
   }
 
+  pickOx(
+    clientX: number,
+    clientY: number,
+    camera: THREE.Camera,
+    domElement: HTMLElement,
+  ): OxInspection | null {
+    return this.oxen.pickOx(clientX, clientY, camera, domElement);
+  }
+
+  inspectOx(oxId: string): OxInspection | null {
+    return this.oxen.inspectOx(oxId);
+  }
+
   inspectVillager(personIdentity: string): VillagerInspection | null {
     if (personIdentity.startsWith('combat:')) {
       const visual = this.combatAgentVisuals.get(personIdentity.slice('combat:'.length));
@@ -1453,6 +1478,21 @@ export class VillagerRenderer {
       };
     }
     return null;
+  }
+
+  private getWorkerInspectionRoute(
+    buildingId: string,
+    workerSlot: number,
+  ): SelectedAgentRoutePoint[] {
+    for (const agent of this.agents.values()) {
+      if (
+        agent.role !== 'worker'
+        || agent.workplaceId !== buildingId
+        || agent.workplaceSlot !== workerSlot
+      ) continue;
+      return this.inspectionRoute(agent);
+    }
+    return [];
   }
 
   dispose(): void {
@@ -2623,6 +2663,27 @@ export class VillagerRenderer {
       return this.transitionToSickRest(agent);
     }
 
+    if (
+      !shouldWork
+      && this.sabbathPausedToday
+      && workplace
+      && agent.routinePhase === 'work'
+      && !this.workerCanCompleteObservanceHomecoming(agent, workplace)
+    ) {
+      return this.transitionToWorksiteObservance(agent);
+    }
+    if (agent.routinePhase === 'observance_at_worksite') {
+      if (shouldWork) return this.beginWorkerReturnToWork(agent);
+      if (
+        !this.sabbathPausedToday
+        || !workplace
+        || this.fireDisabledBuildingIds.has(workplace.id)
+      ) {
+        return this.beginWorkerReturnHome(agent);
+      }
+      return false;
+    }
+
     const homeState = householdMemberHomeState(agent.personIdentity, this.clock);
     const chapel = this.findMassChapel(agent);
     const sundayMassTime = isSundayMassTime(
@@ -2663,11 +2724,13 @@ export class VillagerRenderer {
     if (agent.routinePhase === 'returning_from_mass') return false;
 
     const feastMonastery = this.findFeastMonastery(agent);
-    const shouldAttendFeast = isMonasteryFeastGatheringTime(
+    const feastGatheringTime = isMonasteryFeastGatheringTime(
       this.clock,
       this.monasteryFeastsEnabled && !this.frontierAlertActive,
       feastMonastery != null,
     );
+    const shouldAttendFeast = feastGatheringTime
+      && (agent.role !== 'worker' || !shouldWork);
     if (shouldAttendFeast && feastMonastery) {
       if (
         agent.routinePhase === 'going_to_feast'
@@ -2761,6 +2824,32 @@ export class VillagerRenderer {
     return !this.laborPaused
       && !this.sabbathPausedToday
       && this.holidayObservance === null;
+  }
+
+  private workerCanCompleteObservanceHomecoming(
+    agent: VillagerAgent,
+    workplace: BuildingState,
+  ): boolean {
+    const home = this.workerPermanentHomeDestination(agent);
+    if (!home) return false;
+    const duty = this.workerDutyPosition(workplace, agent.workplaceSlot);
+    const outward = pickWorkerTravelPath(agent, home, this.roadNetwork);
+    const returning = pickWorkerTravelPath(home, duty, this.roadNetwork);
+    const travelDistance = (outward ? polylineLengthXZ(outward) : 0)
+      + (returning ? polylineLengthXZ(returning) : 0);
+    const optimisticTravelSeconds = travelDistance / Math.max(
+      0.1,
+      agent.walkSpeed * PEDESTRIAN_ROAD_SPEED_MULTIPLIER,
+    );
+    return optimisticTravelSeconds <= CALENDAR_SECONDS_PER_DAY;
+  }
+
+  private transitionToWorksiteObservance(agent: VillagerAgent): boolean {
+    this.clearPath(agent);
+    agent.routinePhase = 'observance_at_worksite';
+    agent.idleRemaining = Number.POSITIVE_INFINITY;
+    agent.idleDirty = false;
+    return true;
   }
 
   private findMassChapel(agent: VillagerAgent): BuildingState | null {
@@ -4315,7 +4404,10 @@ export class VillagerRenderer {
     }
     if (
       agent.role === 'worker'
-      && agent.routinePhase === 'work'
+      && (
+        agent.routinePhase === 'work'
+        || agent.routinePhase === 'observance_at_worksite'
+      )
       && agent.mode === 'idle'
       && agent.workplaceId
     ) {
@@ -4373,6 +4465,7 @@ export class VillagerRenderer {
       || agent.routinePhase === 'going_to_fire_assembly'
       || agent.routinePhase === 'at_fire_assembly'
       || agent.routinePhase === 'returning_from_fire_assembly'
+      || agent.routinePhase === 'observance_at_worksite'
     ) return null;
     const workplace = this.buildings.get(agent.workplaceId);
     if (workplace && this.fireDisabledBuildingIds.has(workplace.id)) return null;
@@ -4671,6 +4764,10 @@ function describeVillagerActivity(
       return agent.mode === 'walk'
         ? `Working around ${workplaceLabel}`
         : `Working at ${workplaceLabel}`;
+    case 'observance_at_worksite':
+      return holiday
+        ? `Observing ${holiday.label} without working at ${workplaceLabel}`
+        : `Observing the Sabbath without working at ${workplaceLabel}`;
     case 'sick_rest':
       return 'Resting at home while ill';
     case 'home_outdoors':
