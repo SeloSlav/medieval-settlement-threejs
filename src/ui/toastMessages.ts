@@ -1,6 +1,5 @@
 import type { RoadPlacementFailureReason } from '../roads/RoadPlacementValidation.ts';
 import type { BuildingPlacementFailureReason } from '../buildings/BuildingPlacementValidation.ts';
-import { REMOTE_WORK_CAMP_MAX_DISTANCE } from '../buildings/remoteWorkCamp.ts';
 import type { BurgagePlacementFailureReason } from '../residences/burgagePlacementValidation.ts';
 
 export const TOAST_MESSAGES = {
@@ -40,9 +39,6 @@ export const TOAST_MESSAGES = {
   'building.placement.requires_completed_chapel': 'Build a church before founding the Town Hall',
   'building.placement.requires_completed_marketplace': 'Build a marketplace before founding the Town Hall',
   'building.placement.requires_civic_road_link': 'The Town Hall must be road-linked to both the church and marketplace',
-  'building.placement.requires_remote_worksite': 'Choose a completed extraction worksite before placing its overnight camp',
-  'building.placement.outside_remote_worksite_range': `Keep the overnight camp within ${REMOTE_WORK_CAMP_MAX_DISTANCE} metres of its worksite`,
-  'building.placement.remote_camp_exists': 'This worksite already has an overnight camp or construction site',
   'burgage.placement.water': 'Cannot place residences on water',
   'burgage.placement.too_steep': 'The slope is too steep here',
   'burgage.placement.invalid_shape': 'Invalid residence plot shape',
@@ -181,12 +177,6 @@ export function buildingPlacementReasonToToastId(reason: BuildingPlacementFailur
       return 'building.placement.requires_completed_marketplace';
     case 'requires_civic_road_link':
       return 'building.placement.requires_civic_road_link';
-    case 'requires_remote_worksite':
-      return 'building.placement.requires_remote_worksite';
-    case 'outside_remote_worksite_range':
-      return 'building.placement.outside_remote_worksite_range';
-    case 'remote_camp_exists':
-      return 'building.placement.remote_camp_exists';
     default: {
       const unhandled: never = reason;
       return unhandled;

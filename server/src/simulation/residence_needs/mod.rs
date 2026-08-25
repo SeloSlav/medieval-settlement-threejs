@@ -127,14 +127,9 @@ pub fn step_residence_needs(
         if kind == ResidenceNeedKind::Food {
             continue;
         }
-        // Heating is continuous through ordinary nights. Other services keep
-        // the daytime cadence, while named holy days and policy-observed
-        // Sundays freeze every shortage clock together with production.
-        if !service_need_clock_active(
-            kind,
-            clock.is_work_hours,
-            protected_rest_day,
-        ) {
+        // Every service clock is continuous. Named holy days and
+        // policy-observed Sundays freeze shortage clocks with production.
+        if !service_need_clock_active(kind, protected_rest_day) {
             continue;
         }
         if !kind.is_active_for_tier(residence.tier) {

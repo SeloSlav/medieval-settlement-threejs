@@ -36,6 +36,7 @@ import {
 } from './foodInventory.ts';
 import { fireDisabledBuildingIds } from '../fires/fireIncident.ts';
 import { gameClock, type GameClock } from '../world/gameCalendar.ts';
+import { isHoliday } from '../world/holidayCalendar.ts';
 
 export type HouseholdMarketOrderKind = 'food' | 'water';
 
@@ -261,7 +262,8 @@ export function computeSettlementHouseholdMarketPlan(
 ): SettlementHouseholdMarketPlan {
   const { state, marketState, roadNetwork, sabbathObserved } = input;
   const clock = input.clock ?? gameClock(state.tick);
-  const currentLogisticsPaused = !clock.isWorkHours || (clock.isSunday && sabbathObserved);
+  const currentLogisticsPaused = isHoliday(clock)
+    || (clock.isSunday && sabbathObserved);
   const fireDisabledMarketIds = fireDisabledBuildingIds(
     state.fireIncidents.values(),
   );

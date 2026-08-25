@@ -61,9 +61,6 @@ import {
   setFoundersCampfireNightLighting,
   setFoundersCampWinterAccumulation,
 } from './meshes/foundersCampMesh.ts';
-import {
-  REMOTE_WORK_CAMPFIRE_NAME,
-} from './remoteWorkCamp.ts';
 import { disposeFireEffect } from '../fires/FireEffect.ts';
 import {
   constructionDeliveredRatio,
@@ -900,14 +897,6 @@ export class BuildingMarkers {
           this.foundersCampfires.add(campfire);
         }
       }
-      const remoteCampfire = marker.getObjectByName(REMOTE_WORK_CAMPFIRE_NAME);
-      if (remoteCampfire instanceof THREE.Group) {
-        setFoundersCampfireNightLighting(
-          remoteCampfire,
-          this.foundersCampfireNightLighting,
-        );
-        this.foundersCampfires.add(remoteCampfire);
-      }
       if (operational) {
         if (!marker.userData.staticBuildingBatchStats) {
           batchCompletedBuildingStaticMeshes(marker);
@@ -970,12 +959,10 @@ export class BuildingMarkers {
   }
 
   private unregisterFoundersCampfire(marker: THREE.Group): void {
-    for (const name of [FOUNDERS_CAMPFIRE_NAME, REMOTE_WORK_CAMPFIRE_NAME]) {
-      const campfire = marker.getObjectByName(name);
-      if (!(campfire instanceof THREE.Group)) continue;
-      this.foundersCampfires.delete(campfire);
-      disposeFireEffect(campfire);
-    }
+    const campfire = marker.getObjectByName(FOUNDERS_CAMPFIRE_NAME);
+    if (!(campfire instanceof THREE.Group)) return;
+    this.foundersCampfires.delete(campfire);
+    disposeFireEffect(campfire);
   }
 
   private registerWatermillWheel(marker: THREE.Group): void {

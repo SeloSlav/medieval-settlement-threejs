@@ -1640,7 +1640,7 @@ export class SettlementHud {
       ? `${weekday} · ${pauseLabel}`
       : weekday;
     const sabbath = pauseLabel === 'Sunday sabbath';
-    const night = pauseLabel === 'Night hours';
+    const night = !schedule.clock.isWorkHours;
     if (date !== this.displayedClockDate) {
       this.clockDate.textContent = date;
       this.displayedClockDate = date;

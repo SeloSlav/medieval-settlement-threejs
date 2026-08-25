@@ -24,7 +24,6 @@ type BatchEntry = {
 const DYNAMIC_BUILDING_NAMES = new Set([
   'FoundingShelters',
   'FoundingCampfire',
-  'RemoteWorkCampfire',
   'Watermill wheel',
   'Windmill sails',
   'CharcoalClampSmoke',

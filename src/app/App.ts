@@ -80,7 +80,7 @@ import {
 import { SpacetimeSnapshotApplier, type SpacetimeSnapshotApplierDeps } from './spacetimeSnapshotApplier.ts';
 import { bootstrapAppSession, type BootstrappedSession, type SessionLiveContext } from './appBootstrap.ts';
 import { WorldGenerationMismatchError } from '../world/worldConfigAuthority.ts';
-import { formatSettlementClock, gameClock } from '../world/gameCalendar.ts';
+import { gameClock } from '../world/gameCalendar.ts';
 import { worldAnimationDelta } from '../world/gameSpeed.ts';
 import {
   environmentFor,
@@ -132,7 +132,6 @@ import {
   markFirstPlayableAssetsReady,
   markVegetationReady,
 } from './startupDiagnostics.ts';
-import { formatDawnReport, isDawnReportRelevant } from '../economy/nightPolicy.ts';
 import { deriveLordReportTransitions } from '../ui/lordReports.ts';
 import { buildSettlementAnimalsView } from '../ui/settlementAnimals.ts';
 import { buildSettlementPeopleView } from '../ui/settlementPeople.ts';
@@ -234,7 +233,6 @@ export class App {
   private lastSeenRaidTick: number | null = null;
   private lastSeenRaidWarningTick: number | null = null;
   private lastSeenActiveRaidId: string | null | undefined;
-  private lastSeenNightReportDay: number | null = null;
   private raidProjectionSignature = '';
   private combatInspectorSignature = '';
   private constructionResourceSignature = '';
@@ -1180,7 +1178,6 @@ export class App {
     );
     this.syncVisualQaFoundersCampFixture();
     this.notifySecurityChanges(snapshot);
-    this.notifyNightReport(snapshot);
     const projectedTargets = this.syncFrontierRiskFeedback(
       snapshot,
       state,
@@ -1248,7 +1245,6 @@ export class App {
     }
     const approvalTarget = computeSettlementApproval({
       provisioning,
-      nightPolicy: snapshot.nightPolicy,
       security: snapshot.settlementSecurity,
       conflictEnabled,
       activeFires,
@@ -1469,36 +1465,6 @@ export class App {
     this.projectedRaidTargets = [];
     this.villagers?.setFrontierAlert(false);
     this.frontierRiskMarkers?.sync([], 0, false);
-  }
-
-  private notifyNightReport(snapshot: SpacetimeGameSnapshot): void {
-    const reportDay = snapshot.nightPolicy.lastReportDay;
-    if (
-      this.lastSeenNightReportDay === null
-      || reportDay < this.lastSeenNightReportDay
-    ) {
-      this.lastSeenNightReportDay = reportDay;
-      return;
-    }
-    if (reportDay <= 0 || reportDay === this.lastSeenNightReportDay) return;
-    this.lastSeenNightReportDay = reportDay;
-    if (!isDawnReportRelevant(snapshot.nightPolicy)) {
-      this.resourceInspector?.refreshSelection();
-      return;
-    }
-    const troubled =
-      snapshot.nightPolicy.lastColdHouseholds > 0
-      || snapshot.nightPolicy.lastIncidents > 0
-      || snapshot.nightPolicy.lastTheftGold > 0.005;
-    this.toolbar?.settlementHud.addLordReport({
-      id: `dawn:${reportDay}`,
-      kind: 'dawn',
-      tone: troubled ? 'warning' : 'settled',
-      title: troubled ? 'Troubled dawn report' : 'Dawn report',
-      detail: formatDawnReport(snapshot.nightPolicy),
-      timeLabel: formatSettlementClock(snapshot.simTick),
-    });
-    this.resourceInspector?.refreshSelection();
   }
 
   private applyShowcaseView(state: GameState): void {

@@ -40,10 +40,7 @@ import {
   AUTUMN_PASTURE_CAPACITY_MULTIPLIER,
   BUILDING_DEFINITIONS,
   BUILDING_STORAGE_CAPS,
-  CALENDAR_HOURS_PER_DAY,
   CALENDAR_SECONDS_PER_DAY,
-  CALENDAR_WORK_END_HOUR,
-  CALENDAR_WORK_START_HOUR,
   CATTLE_AREA_PER_HEAD,
   CATTLE_DEFAULT_BREEDING_RESERVE,
   CATTLE_BREEDING_PER_CYCLE,
@@ -347,15 +344,13 @@ function fullySupportedHeadsAfterOneYear(
   return heads;
 }
 
-const workdaySeconds = CALENDAR_SECONDS_PER_DAY
-  * (CALENDAR_WORK_END_HOUR - CALENDAR_WORK_START_HOUR)
-  / CALENDAR_HOURS_PER_DAY;
+const workdaySeconds = CALENDAR_SECONDS_PER_DAY;
 const pastoralBreedingCyclesPerDay = workdaySeconds
   / BUILDING_DEFINITIONS.pastoral_farmstead.harvestInterval;
 const swineBreedingCyclesPerDay = workdaySeconds
   / BUILDING_DEFINITIONS.swineherd.harvestInterval;
-assert.equal(pastoralBreedingCyclesPerDay, 0.1);
-assert.ok(Math.abs(swineBreedingCyclesPerDay - 1 / 15) < 1e-12);
+assert.ok(Math.abs(pastoralBreedingCyclesPerDay - 6 / 35) < 1e-12);
+assert.ok(Math.abs(swineBreedingCyclesPerDay - 4 / 35) < 1e-12);
 assert.equal(WINTER_BREEDING_MULTIPLIER, 0);
 const serverSeasonPolicySource = fs.readFileSync('server/src/season_policy.rs', 'utf8');
 assert.match(
@@ -456,8 +451,6 @@ assert.equal(
 const fodderBuilding = buildingFixture('building-1', 60);
 const fodderHerd = herdFixture(fodderBuilding.id);
 const pastoralCyclesPerCalendarDay = CALENDAR_SECONDS_PER_DAY
-  * (CALENDAR_WORK_END_HOUR - CALENDAR_WORK_START_HOUR)
-  / CALENDAR_HOURS_PER_DAY
   / BUILDING_DEFINITIONS.pastoral_farmstead.harvestInterval;
 assert.equal(
   livestockCyclesPerCalendarDay(fodderBuilding, false),

@@ -137,7 +137,7 @@ const RESOURCE_COST_LABELS: Record<ResourceCostKind, string> = {
   cherries: 'cherries',
   aronia: 'aronia berries',
   rosehips: 'rosehips',
-  vegetables: 'vegetables',
+  vegetables: 'legacy mixed vegetables',
   cabbage: 'cabbage',
   carrots: 'carrots',
   beetroot: 'beetroot',

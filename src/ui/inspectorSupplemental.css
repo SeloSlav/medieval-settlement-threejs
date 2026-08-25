@@ -192,10 +192,6 @@
   pointer-events: none;
 }
 
-.inspector-action-icon[data-action-icon='overnight-work-camp'] {
-  background-image: url('/assets/ui/icons/actions/overnight-work-camp.png');
-}
-
 .inspector-action-icon[data-action-icon='tree-work-area'] {
   background-image: url('/assets/ui/icons/actions/limit-work-area.png');
 }

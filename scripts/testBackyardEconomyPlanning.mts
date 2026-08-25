@@ -181,10 +181,10 @@ function nonSundayClockInMonth(month: number): GameClock {
 
 assert.equal(
   BACKYARD_WORKDAY_SECONDS,
-  CALENDAR_SECONDS_PER_DAY * 14 / 24,
-  'daily garden forecasts must use the 06:00-20:00 workday',
+  CALENDAR_SECONDS_PER_DAY,
+  'daily garden forecasts must use the complete continuous-labor day',
 );
-assert.equal(BACKYARD_WORKDAY_SECONDS, 70);
+assert.equal(BACKYARD_WORKDAY_SECONDS, 120);
 assert.equal(
   backyardGardenSeasonalMultiplier(
     'apple_orchard',

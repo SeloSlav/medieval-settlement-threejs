@@ -26,7 +26,6 @@ mod large_quarry;
 mod livestock;
 mod lumber_mill;
 mod marketplace_caravan;
-mod night_cycle;
 mod oxen;
 mod production_labor_steward;
 mod raid_agents;
@@ -47,7 +46,6 @@ mod trading_post_trade;
 mod village_storehouse;
 mod well;
 mod woodcutters_lodge;
-mod workforce_commute;
 
 pub use backyard_garden::{clear_backyard_garden_for_residence, step_backyard_gardens};
 pub use burial::step_burials;
@@ -94,8 +92,10 @@ pub(crate) use livestock::{
 pub use livestock::{step_pastoral_farmstead, step_swineherd};
 pub use lumber_mill::step_lumber_mill;
 pub use marketplace_caravan::{step_marketplace_caravans, try_dispatch_marketplace_caravan};
-pub use night_cycle::step_night_cycle;
-pub(crate) use oxen::{claim_haul_ox_for_workplace, paired_production_ox_count, release_haul_ox};
+pub(crate) use oxen::{
+    claim_haul_ox_for_workplace, ox_amplified_production_labor, paired_production_ox_count,
+    release_haul_ox,
+};
 pub use production_labor_steward::{
     reconcile_target_production_labor_for_settlement, step_production_labor_stewards,
 };
@@ -127,4 +127,3 @@ pub use village_storehouse::{
 };
 pub use well::step_well;
 pub use woodcutters_lodge::step_woodcutters_lodge;
-pub use workforce_commute::{commute_adjusted_labor, step_workforce_commutes};

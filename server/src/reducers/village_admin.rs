@@ -11,7 +11,6 @@ use crate::monastery_estate_policy::{
     normalize_monastery_extensions, normalize_monastery_orchard_planting,
     MONASTERY_ESTATE_GOLD_RESERVE, MONASTERY_ORCHARD_MATURITY_NEW, MONASTERY_ORCHARD_REPLANT_COST,
 };
-use crate::night_policy::valid_policy_code;
 use crate::pantry_safeguard_policy::valid_pantry_safeguard_policy;
 use crate::reducers::buildings::rotate_construction_labor_for_settlement_with_reserve;
 use crate::resource_units::{whole_cost, whole_units};
@@ -151,27 +150,18 @@ pub fn set_night_policies(
 ) -> Result<(), String> {
     let owner = ctx.sender();
     ensure_player_resources(ctx, owner);
-    let mut settlement = require_owned_town_hall(ctx, town_hall_id, true)?;
+    require_owned_town_hall(ctx, town_hall_id, true)?;
 
-    if ![
+    // Compatibility reducer retained for clients and saves that still expose
+    // the former policy panel. Day/night is presentation-only, so none of the
+    // supplied choices may mutate authoritative settlement gameplay.
+    let _ = (
         watch_policy,
         gathering_policy,
         work_policy,
         lighting_policy,
         curfew_policy,
-    ]
-    .into_iter()
-    .all(valid_policy_code)
-    {
-        return Err("Night policy choices must be between 0 and 2.".to_string());
-    }
-
-    settlement.night_watch_policy = watch_policy;
-    settlement.night_gathering_policy = gathering_policy;
-    settlement.night_work_policy = work_policy;
-    settlement.night_lighting_policy = lighting_policy;
-    settlement.night_curfew_policy = curfew_policy;
-    ctx.db.settlement().id().update(settlement);
+    );
     Ok(())
 }
 

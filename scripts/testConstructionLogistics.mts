@@ -7,6 +7,7 @@ import {
   CARPENTER_CART_SERVICE_IRONWORK_PER_TRIP,
   CARPENTER_CART_SERVICE_TARGET_TRIPS,
   CARPENTER_CART_SERVICE_TIMBER_PER_TRIP,
+  CALENDAR_SECONDS_PER_DAY,
   CONSTRUCTION_DELIVERY_SPEED_MPS,
   CONSTRUCTION_HAUL_PER_WORKER,
   CONSTRUCTION_MAX_BUILDERS,
@@ -817,7 +818,9 @@ assert.deepEqual(
 );
 assert.equal(constructionQueue.assignedBuilders, 3);
 assert.equal(constructionQueue.builderCapacity, 12);
-assert.ok(Math.abs(constructionQueue.remainingBuilderDays - 47 / 70) < 1e-9);
+assert.ok(
+  Math.abs(constructionQueue.remainingBuilderDays - 47 / CALENDAR_SECONDS_PER_DAY) < 1e-9,
+);
 assert.deepEqual(
   constructionQueue.statusCounts,
   {
@@ -1155,10 +1158,10 @@ assert.equal(
 
 const nightPauseContext = constructionContext([stoneSource], 5, 30);
 nightPauseContext.gameState.tick = 300;
-assert.equal(
+assert.doesNotMatch(
   renderConstructionInspector(siteTarget, nightPauseContext as never).statusText,
-  'Night hours — builders and material carts resume during work hours',
-  'the worksite inspector must explain a schedule-stalled ready job',
+  /Night hours|resume during work hours/,
+  'cosmetic night must not present a false construction pause',
 );
 const raidPauseContext = {
   ...constructionContext([stoneSource], 5, 30),

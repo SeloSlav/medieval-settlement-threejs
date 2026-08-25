@@ -2,10 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { performance } from 'node:perf_hooks';
 import {
-  CALENDAR_HOURS_PER_DAY,
   CALENDAR_SECONDS_PER_DAY,
-  CALENDAR_WORK_END_HOUR,
-  CALENDAR_WORK_START_HOUR,
   RESIDENCE_ALE_PER_PERSON_PER_SEC,
   RESIDENCE_CLOTH_PER_PERSON_PER_SEC,
   RESIDENCE_SHOES_PER_PERSON_PER_SEC,
@@ -18,9 +15,7 @@ import {
   projectTierFourUpgrade,
 } from '../src/economy/settlementProsperity.ts';
 
-const workdaySeconds = CALENDAR_SECONDS_PER_DAY
-  * (CALENDAR_WORK_END_HOUR - CALENDAR_WORK_START_HOUR)
-  / CALENDAR_HOURS_PER_DAY;
+const workdaySeconds = CALENDAR_SECONDS_PER_DAY;
 const preservedPerResident =
   RESIDENCE_PRESERVED_FOOD_PER_PERSON_PER_SEC
   * workdaySeconds

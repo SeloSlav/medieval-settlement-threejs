@@ -114,9 +114,6 @@ pub fn backyard_interval_food_batch(
         * population as f64
         * interval_days as f64
         * crate::balance_generated::CALENDAR_SECONDS_PER_DAY
-        * crate::balance_generated::CALENDAR_WORK_END_HOUR
-            .saturating_sub(crate::balance_generated::CALENDAR_WORK_START_HOUR) as f64
-        / crate::balance_generated::CALENDAR_HOURS_PER_DAY.max(1) as f64
         * finite_nonnegative(seasonal_multiplier)
 }
 
@@ -385,7 +382,7 @@ mod tests {
     #[test]
     fn interval_batches_convert_authored_average_rates_into_discrete_yields() {
         let eggs = backyard_interval_food_batch(0.0017, 4, 2, 1.0);
-        assert!((eggs - 0.952).abs() < 1e-9);
+        assert!((eggs - 1.632).abs() < 1e-9);
     }
 
     #[test]

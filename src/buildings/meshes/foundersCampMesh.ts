@@ -28,11 +28,6 @@ import {
   FOUNDERS_CAMP_SEAT_SURFACE_HEIGHT,
   FOUNDERS_CAMPFIRE_POSITION,
 } from '../foundersCampLandmarks.ts';
-import {
-  REMOTE_WORK_CAMP_NAME,
-  REMOTE_WORK_CAMPFIRE_NAME,
-  remoteWorkCampLayout,
-} from '../remoteWorkCamp.ts';
 
 export const FOUNDERS_CAMPFIRE_NAME = 'FoundingCampfire';
 export const FOUNDERS_CAMP_TIMBER_WINTER_ACCUMULATION_NAME =
@@ -1880,36 +1875,4 @@ export function createFoundersCampMesh(): THREE.Group {
   });
   installBuildingDetailCasterBatches(group, 'Founders exact caster batches');
   return group;
-}
-
-/** Reuses the founding tents and fire treatment for opt-in rural lodging. */
-export function createRemoteWorkCampMesh(): THREE.Group {
-  const layout = remoteWorkCampLayout();
-  const camp = new THREE.Group();
-  camp.name = REMOTE_WORK_CAMP_NAME;
-  camp.userData.fpCollisionChildrenOnly = true;
-
-  layout.tents.forEach((tent, index) => {
-    // The reusable shelter is authored with its opening on local -Z, while
-    // camp placement (and the worker door targets) use local +Z as the side
-    // facing the snapped road. Turn only the overnight-camp instances around
-    // so their visible openings honor that shared road-facing convention.
-    const shelterYaw = tent.yaw + Math.PI;
-    // Leave the shared aisle free of crossed guy ropes and doubled stakes.
-    // The half-turn reverses each shelter's local X axis, so omit the adjusted
-    // inward side and retain the outer guys plus both ridge-end anchors.
-    const inwardSide = tent.x < 0 ? -1 : 1;
-    addAFrameShelter(camp, tent.x, tent.z, shelterYaw, index + 1, inwardSide);
-  });
-  const campfire = addCampfire(camp);
-  campfire.name = REMOTE_WORK_CAMPFIRE_NAME;
-  campfire.position.set(layout.campfire.x, 0, layout.campfire.z);
-  camp.traverse((object) => {
-    const mesh = object as THREE.Mesh;
-    if (mesh.isMesh && !mesh.name.startsWith('Animated fire')) {
-      markBuildingDetailShadowCaster(mesh);
-    }
-  });
-  installBuildingDetailCasterBatches(camp, 'Remote camp exact caster batches');
-  return camp;
 }

@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import type { BuildingKind } from '../resources/types.ts';
-import { createFoundersCampMesh, createRemoteWorkCampMesh } from './meshes/foundersCampMesh.ts';
+import { createFoundersCampMesh } from './meshes/foundersCampMesh.ts';
 import { createSalvagePileMesh } from './meshes/salvagePileMesh.ts';
 import { createChapelMesh } from './meshes/chapelMesh.ts';
 import { createWaysideShrineMesh } from './meshes/waysideShrineMesh.ts';
@@ -70,8 +70,6 @@ export function createBuildingMesh(
       return createFoundersCampMesh();
     case 'salvage_pile':
       return createSalvagePileMesh();
-    case 'remote_work_camp':
-      return createRemoteWorkCampMesh();
     case 'lumber_mill':
       return createLumberMillMesh();
     case 'reforester':

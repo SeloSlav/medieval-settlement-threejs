@@ -13,7 +13,7 @@ use crate::simulation::delivery_trips::onsite_building_labor;
 use crate::simulation::game_calendar::GameClock;
 use crate::simulation::spatial::find_nearest_mature_tree;
 use crate::simulation::tick_context::SimTickContext;
-use crate::simulation::{commute_adjusted_labor, labor_and_logistics_paused};
+use crate::simulation::{labor_and_logistics_paused, ox_amplified_production_labor};
 use crate::tables::{Building, TreeEntity};
 use crate::tree_work_area_policy::effective_tree_work_area;
 
@@ -33,7 +33,7 @@ pub fn step_lumber_mill(
     let interval = def.action_interval;
 
     let onsite_labor = onsite_building_labor(ctx, &building);
-    let productive_labor = commute_adjusted_labor(ctx, tick, &building, onsite_labor);
+    let productive_labor = ox_amplified_production_labor(ctx, tick, &building, onsite_labor);
     if productive_labor <= 1e-9 {
         return;
     }

@@ -5,10 +5,7 @@ import {
   BUILDING_COSTS,
   BUILDING_DEFINITIONS,
   BUILDING_STORAGE_CAPS,
-  CALENDAR_HOURS_PER_DAY,
   CALENDAR_SECONDS_PER_DAY,
-  CALENDAR_WORK_END_HOUR,
-  CALENDAR_WORK_START_HOUR,
   CHAPEL_TIER2_UPGRADE_IRONWORK,
   CHAPEL_TIER3_UPGRADE_IRONWORK,
   CHARCOAL_BURNER_CHARCOAL_PER_CYCLE,
@@ -82,9 +79,7 @@ assert.ok(
   'starter stone must fund logistics, utilities, church access, housing, quarrying, two food camps, and a recovery cushion',
 );
 
-const workSecondsPerDay = CALENDAR_SECONDS_PER_DAY
-  * (CALENDAR_WORK_END_HOUR - CALENDAR_WORK_START_HOUR)
-  / CALENDAR_HOURS_PER_DAY;
+const workSecondsPerDay = CALENDAR_SECONDS_PER_DAY;
 const mineIronwork = BUILDING_COSTS.mine.ironwork ?? 0;
 const tradingPostIronwork = BUILDING_COSTS.trading_post.ironwork ?? 0;
 const bootstrapContingency = Math.max(mineIronwork, tradingPostIronwork);

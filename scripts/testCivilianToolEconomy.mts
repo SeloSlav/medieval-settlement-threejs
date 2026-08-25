@@ -5,10 +5,7 @@ import * as THREE from 'three';
 import {
   BUILDING_DEFINITIONS,
   BUILDING_STORAGE_CAPS,
-  CALENDAR_HOURS_PER_DAY,
   CALENDAR_SECONDS_PER_DAY,
-  CALENDAR_WORK_END_HOUR,
-  CALENDAR_WORK_START_HOUR,
   CIVILIAN_TOOL_IRONWORK_PER_CYCLE,
   CIVILIAN_TOOL_REORDER_CYCLES,
   CIVILIAN_TOOL_THROUGHPUT_MULTIPLIER,
@@ -50,9 +47,7 @@ assert.equal(civilianToolRefillDue(0.6, 3), false);
 assert.equal(civilianToolRefillDue(0.59, 3), true);
 assert.equal(FARM_TOOL_IRONWORK_PER_WORKER_DAY, 0.05);
 const farmWorkerDayWork = FARM_WORK_METERS_PER_WORKER_PER_SEC
-  * CALENDAR_SECONDS_PER_DAY
-  * (CALENDAR_WORK_END_HOUR - CALENDAR_WORK_START_HOUR)
-  / CALENDAR_HOURS_PER_DAY;
+  * CALENDAR_SECONDS_PER_DAY;
 assert.equal(farmToolIronworkForWork(farmWorkerDayWork), 0.05);
 assert.ok(Math.abs(
   farmToolIronworkForWork(farmWorkerDayWork * 0.35)

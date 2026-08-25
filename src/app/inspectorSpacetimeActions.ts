@@ -12,7 +12,6 @@ import { computeResourceTotals } from '../resources/resourceTotals.ts';
 import type { FireTargetKind } from '../fires/fireIncident.ts';
 import type { StorehouseCommodity } from '../economy/storehousePolicy.ts';
 import type { StorageCommodity } from '../economy/storageAcceptancePolicy.ts';
-import type { NightPolicyCode } from '../economy/nightPolicy.ts';
 import type { PantrySafeguardPolicyCode } from '../economy/pantrySafeguardPolicy.ts';
 
 export type InspectorSpacetimeActions = {
@@ -77,14 +76,6 @@ export type InspectorSpacetimeActions = {
   onSetMonasteryPolicy: (titheShare: number, feastsEnabled: boolean) => Promise<void>;
   onSetMonasteryCharter: (levyRate: number) => Promise<void>;
   onSetMonasteryNextExtension: (buildingId: string, extension: number) => Promise<void>;
-  onSetNightPolicies: (
-    townHallId: string,
-    watch: NightPolicyCode,
-    gathering: NightPolicyCode,
-    work: NightPolicyCode,
-    lighting: NightPolicyCode,
-    curfew: NightPolicyCode,
-  ) => Promise<void>;
   onSetStorehousePolicy: (
     buildingId: string,
     acceptsTimber: boolean,
@@ -666,21 +657,6 @@ export function createInspectorSpacetimeActions(
         () => store.setMonasteryNextExtension(buildingId, extension),
         'Could not reserve the next monastery extension.',
       );
-    },
-    onSetNightPolicies: async (townHallId, watch, gathering, work, lighting, curfew) => {
-      const store = requireReady();
-      if (!store) return;
-      let updated = false;
-      await runReducer(
-        async () => {
-          await store.setNightPolicies(townHallId, watch, gathering, work, lighting, curfew);
-          updated = true;
-        },
-        'Could not update the settlement night policy.',
-      );
-      if (updated) {
-        toastManager.show('Night orders posted. They take effect this evening.');
-      }
     },
     onSetStorehousePolicy: async (
       buildingId,

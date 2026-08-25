@@ -48,6 +48,8 @@ export type CommonDogwoodArchitecture = {
   readonly foliageGapRetention: number;
   readonly foliageDensityVariation: number;
   readonly foliageMassBias: number;
+  /** Positive favors mature upper shoots; negative favors renewing low suckers. */
+  readonly foliageHeightBias: number;
 };
 
 export type CommonDogwoodVariant = {
@@ -82,16 +84,16 @@ export const COMMON_DOGWOOD_VARIANTS: readonly CommonDogwoodVariant[] = [
       trunks: 12,
       trunkSplayDeg: 20,
       firstForkHeight: 0.34,
-      armLength: 1.12,
+      armLength: 1.25,
       branchiness: 0.42,
-      forkSpread: 20,
+      forkSpread: 27,
       armBend: 15,
       gnarliness: 5,
     },
     architecture: {
       stoolRadius: 0.085,
-      lightGapDeg: 58,
-      lightGapAzimuthDeg: 34,
+      lightGapDeg: 52,
+      lightGapAzimuthDeg: 49,
       azimuthSlotJitter: 0.32,
       splayVariationDeg: 10,
       coherentLeanDeg: 7,
@@ -104,6 +106,7 @@ export const COMMON_DOGWOOD_VARIANTS: readonly CommonDogwoodVariant[] = [
       foliageGapRetention: 0.25,
       foliageDensityVariation: 0.28,
       foliageMassBias: 0.3,
+      foliageHeightBias: 0.04,
     },
   },
   {
@@ -114,7 +117,7 @@ export const COMMON_DOGWOOD_VARIANTS: readonly CommonDogwoodVariant[] = [
       trunks: 19,
       trunkSplayDeg: 15,
       firstForkHeight: 0.38,
-      armLength: 1.14,
+      armLength: 1.18,
       branchiness: 0.48,
       forkSpread: 17,
       armBend: 11,
@@ -123,7 +126,7 @@ export const COMMON_DOGWOOD_VARIANTS: readonly CommonDogwoodVariant[] = [
     architecture: {
       stoolRadius: 0.055,
       lightGapDeg: 34,
-      lightGapAzimuthDeg: 142,
+      lightGapAzimuthDeg: 155,
       azimuthSlotJitter: 0.24,
       splayVariationDeg: 7,
       coherentLeanDeg: 3.5,
@@ -136,6 +139,7 @@ export const COMMON_DOGWOOD_VARIANTS: readonly CommonDogwoodVariant[] = [
       foliageGapRetention: 0.5,
       foliageDensityVariation: 0.18,
       foliageMassBias: 0.18,
+      foliageHeightBias: 0.28,
     },
   },
   {
@@ -146,16 +150,16 @@ export const COMMON_DOGWOOD_VARIANTS: readonly CommonDogwoodVariant[] = [
       trunks: 27,
       trunkSplayDeg: 18,
       firstForkHeight: 0.42,
-      armLength: 1.16,
+      armLength: 1.22,
       branchiness: 0.52,
-      forkSpread: 18,
+      forkSpread: 20,
       armBend: 13,
       gnarliness: 5,
     },
     architecture: {
       stoolRadius: 0.095,
       lightGapDeg: 26,
-      lightGapAzimuthDeg: 252,
+      lightGapAzimuthDeg: 242,
       azimuthSlotJitter: 0.3,
       splayVariationDeg: 10,
       coherentLeanDeg: 5,
@@ -168,6 +172,7 @@ export const COMMON_DOGWOOD_VARIANTS: readonly CommonDogwoodVariant[] = [
       foliageGapRetention: 0.62,
       foliageDensityVariation: 0.22,
       foliageMassBias: 0.42,
+      foliageHeightBias: -0.34,
     },
   },
 ] as const;

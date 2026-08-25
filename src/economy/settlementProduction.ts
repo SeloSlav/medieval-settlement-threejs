@@ -1089,10 +1089,6 @@ function completedProcessorOverview(
       0,
       building.assignedLabor - (cartWorkersAway.get(building.id) ?? 0),
     );
-    const commuteEfficiency = Math.max(
-      0,
-      Math.min(1, building.commuteEfficiency ?? 1),
-    );
     if (
       isCivilianToolSite(building.kind)
       && (
@@ -1115,7 +1111,7 @@ function completedProcessorOverview(
       let fullyEquippedDemand: number;
       let maintainedDemand: number;
       if (building.kind === 'threshing_barn') {
-        fullyEquippedDemand = (canWork ? onsiteLabor * commuteEfficiency : 0)
+        fullyEquippedDemand = (canWork ? onsiteLabor : 0)
           * weeklyWorkShare
           * CIVILIAN_TOOL_THROUGHPUT_MULTIPLIER
           * FARM_TOOL_IRONWORK_PER_WORKER_DAY;
@@ -1138,7 +1134,7 @@ function completedProcessorOverview(
               : 1;
         const fullyEquippedCycles = cyclesPerCalendarDay(
           building.kind,
-          canWork ? productiveToolLabor * commuteEfficiency : 0,
+          canWork ? productiveToolLabor : 0,
           sabbathObserved,
           CIVILIAN_TOOL_THROUGHPUT_MULTIPLIER * environmentThroughput,
         );
@@ -1734,8 +1730,7 @@ function completedProcessorOverview(
       case 'smithy': {
         smithyWorkers += building.assignedLabor;
         const cycles = smithyCyclesPerWorker
-          * building.assignedLabor
-          * commuteEfficiency;
+          * building.assignedLabor;
         const branch = industrialMaterialBranch(
           industrialMaterialBranches,
           building,
@@ -1747,7 +1742,6 @@ function completedProcessorOverview(
         branch.toolSmithies.push({
           building,
           ironworkPerWorkerDay: smithyCyclesPerWorker
-            * commuteEfficiency
             * SMITHY_IRONWORK_PER_CYCLE,
           availableIronworkPerDay: 0,
         });

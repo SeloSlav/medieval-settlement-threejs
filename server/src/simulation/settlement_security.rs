@@ -177,25 +177,8 @@ fn step_owner_security(
         .find(&owner)
         .map(|resources| treasury_portable_stores(&resources, &buildings))
         .unwrap_or_default();
-    let mut towers = staffed_watch_coverage(&buildings, &fire_disabled_buildings);
-    let scheduled_raid_is_at_night = state.next_raid_tick > 0
-        && !crate::simulation::game_clock(state.next_raid_tick).is_work_hours;
-    if scheduled_raid_is_at_night {
-        towers.retain_mut(|tower| {
-            let settlement_id = buildings
-                .iter()
-                .find(|building| building.id == tower.source_id)
-                .map(|building| building.settlement_id)
-                .unwrap_or(0);
-            let night_watch_policy =
-                crate::settlement_policy::night(ctx, owner, settlement_id).watch;
-            if night_watch_policy == crate::night_policy::WATCH_STAND_DOWN {
-                return false;
-            }
-            tower.radius *= crate::night_policy::warning_policy_multiplier(night_watch_policy);
-            true
-        });
-    }
+    // Watch coverage is physical and identical at every cosmetic clock hour.
+    let towers = staffed_watch_coverage(&buildings, &fire_disabled_buildings);
     let watch_index = WatchCoverageIndex::new(&towers);
     let refuges = active_palisaded_refuge_coverage(&buildings, &fire_disabled_buildings);
     let refuge_index = WatchCoverageIndex::new(&refuges);

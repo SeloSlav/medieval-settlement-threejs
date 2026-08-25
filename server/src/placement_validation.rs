@@ -519,12 +519,6 @@ fn building_pad_params(kind: &str) -> BuildingPadParams {
             inner_fade: 0.88,
             outer_fade: 1.28,
         },
-        "remote_work_camp" => BuildingPadParams {
-            radius_x: 4.4,
-            radius_z: 4.0,
-            inner_fade: 0.86,
-            outer_fade: 1.24,
-        },
         "lumber_mill" => BuildingPadParams {
             radius_x: 10.2,
             radius_z: 4.8,

@@ -23,7 +23,7 @@ use crate::residence_service_policy::{
 use crate::residence_settlement_policy::settlement_buffers_ready;
 use crate::resource_units::{whole_cost, whole_units};
 use crate::simulation::chapel_community::recovery_stock_min;
-use crate::simulation::game_calendar::GameClock;
+use crate::simulation::game_calendar::{calendar_day_started, GameClock};
 use crate::simulation::residence_needs::load_needs;
 use crate::simulation::tick_context::SimTickContext;
 use crate::simulation::trading_post_exports_commodity;
@@ -43,10 +43,9 @@ pub fn step_household_discretionary_trade(
     tick: &SimTickContext,
     clock: &GameClock,
 ) {
-    // One short market-call window per day avoids turning a household scan
-    // into per-tick work while still allowing a newly arrived evening cart to
-    // find a buyer before nightfall.
-    if clock.hour != 18 || clock.minute >= 5 {
+    // One call at the stable calendar-date boundary avoids a per-tick scan
+    // without making household trade depend on the cosmetic clock hour.
+    if !calendar_day_started(clock) {
         return;
     }
     let day_marker = clock.total_days.saturating_add(1);

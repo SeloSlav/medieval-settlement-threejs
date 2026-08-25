@@ -50,7 +50,7 @@ assert.ok(
     tithePerTick * GAME_WORKDAY_SECONDS / SIM_TICK_SECONDS
     - 3 * CHAPEL_TITHE_GOLD_PER_PERSON_PER_DAY,
   ) < 1e-9,
-  'a complete 06:00-20:00 workday must accrue the configured daily flat tithe',
+  'a complete continuous-labor day must accrue the configured daily flat tithe',
 );
 
 const expectedDaily = expectedChapelTithePerDay(4, 1);

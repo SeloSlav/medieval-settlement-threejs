@@ -1,4 +1,3 @@
-import type { NightPolicyState } from './nightPolicy.ts';
 import type { SettlementProvisioning } from './settlementProvisioning.ts';
 import type { SettlementSecurityState } from '../security/frontierSecurity.ts';
 import {
@@ -34,7 +33,6 @@ export type SettlementApproval = {
 
 type ApprovalInput = {
   provisioning: SettlementProvisioning;
-  nightPolicy: Pick<NightPolicyState, 'communityCohesion' | 'laborFatigue'>;
   security: Pick<
     SettlementSecurityState,
     | 'coverage'
@@ -50,7 +48,7 @@ type ApprovalInput = {
 };
 
 export function computeSettlementApproval(input: ApprovalInput): SettlementApproval {
-  const { provisioning, nightPolicy } = input;
+  const { provisioning } = input;
   const welfare = provisioning.welfare;
   const factors: SettlementApprovalFactor[] = [];
   let rawHungerPenalty = 0;
@@ -185,22 +183,6 @@ export function computeSettlementApproval(input: ApprovalInput): SettlementAppro
     });
   }
 
-  const cohesion = finiteUnit(nightPolicy.communityCohesion);
-  factors.push({
-    key: 'community-cohesion',
-    label: 'Community cohesion',
-    impact: clampInteger(Math.round((cohesion - 0.5) * 20), -10, 10),
-  });
-
-  const fatigue = finiteUnit(nightPolicy.laborFatigue);
-  if (fatigue >= 0.08) {
-    factors.push({
-      key: 'labor-fatigue',
-      label: 'Night-work fatigue',
-      impact: -clampInteger(Math.round(fatigue * 8), 1, 8),
-    });
-  }
-
   if (welfare.uncollectedBodiesAtHomes > 0) {
     const burialBlocked = welfare.openGraves <= 0 || welfare.oldestUncollectedBodyDays >= 1;
     factors.push({
@@ -319,8 +301,6 @@ export function approvalConcernSummary(
   switch (strongestConcern?.key) {
     case 'household-hardship': return 'Some households are struggling to meet basic needs.';
     case 'illness': return 'Illness is affecting the settlement.';
-    case 'community-cohesion': return 'Community morale is low.';
-    case 'labor-fatigue': return 'Residents are exhausted.';
     case 'burial-dignity': return 'Bodies remain unburied.';
     case 'fire-disruption': return 'Fires and displacement are disrupting the settlement.';
     case 'frontier-safety': return 'Residents feel unsafe.';

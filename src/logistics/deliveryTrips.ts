@@ -540,7 +540,7 @@ export function cargoKindLabel(kind: DeliveryCargoKind): string {
     case 'rosehips':
       return 'Rosehips';
     case 'vegetables':
-      return 'Vegetables';
+      return 'Legacy mixed vegetables';
     case 'cabbage':
       return 'Cabbage';
     case 'carrots':

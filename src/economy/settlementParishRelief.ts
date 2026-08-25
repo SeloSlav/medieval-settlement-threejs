@@ -1,8 +1,5 @@
 import {
-  CALENDAR_HOURS_PER_DAY,
   CALENDAR_SECONDS_PER_DAY,
-  CALENDAR_WORK_END_HOUR,
-  CALENDAR_WORK_START_HOUR,
   CHAPEL_CHARITY_GOLD_PER_DAY,
   CHAPEL_CHARITY_MIN_COFFER_GOLD,
   CHAPEL_POOR_RELIEF_GOLD_PER_DISPATCH,
@@ -30,6 +27,7 @@ import type {
   ResidenceState,
 } from '../resources/types.ts';
 import { gameClock, type GameClock } from '../world/gameCalendar.ts';
+import { isHoliday } from '../world/holidayCalendar.ts';
 import type { RegionalMarketState } from './regionalMarket.ts';
 import {
   bestAffordableHouseholdFoodQuote,
@@ -137,9 +135,7 @@ export type SettlementParishReliefInput = {
 const TICKS_PER_DAY = Math.round(CALENDAR_SECONDS_PER_DAY / SIM_TICK_SECONDS);
 const SERVICE_WARNING_TICKS = TICKS_PER_DAY * RESIDENCE_SERVICE_WARNING_DAYS;
 const RELIEF_INTERVAL_TICKS = TICKS_PER_DAY * CHAPEL_POOR_RELIEF_INTERVAL_DAYS;
-const CHAPEL_WORKDAY_SECONDS = CALENDAR_SECONDS_PER_DAY
-  * (CALENDAR_WORK_END_HOUR - CALENDAR_WORK_START_HOUR)
-  / CALENDAR_HOURS_PER_DAY;
+const CHAPEL_WORKDAY_SECONDS = CALENDAR_SECONDS_PER_DAY;
 
 export function isChapelPoorReliefDue(simTick: number): boolean {
   const tick = Math.max(0, Math.floor(simTick));
@@ -164,7 +160,7 @@ export function computeSettlementParishReliefPlan(
   const clock = input.clock ?? gameClock(state.tick);
   const dueNow = isChapelPoorReliefDue(state.tick);
   const daysUntilDispatch = chapelPoorReliefDaysUntilDispatch(state.tick);
-  const logisticsPaused = !clock.isWorkHours
+  const logisticsPaused = isHoliday(clock)
     || (clock.isSunday && input.sabbathObserved);
   const physicalEconomy = state.physicalFoundingSiteEnabled === true;
   const disabledBuildingIds = fireDisabledBuildingIds(

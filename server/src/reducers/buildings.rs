@@ -103,7 +103,6 @@ use crate::tables::{
 use crate::tree_work_area_policy::{supports_tree_work_area, validate_tree_work_area};
 use crate::weaver_input_policy::is_valid_weaver_input_policy;
 use crate::woodcutter_policy::normalize_woodcutter_timber_reserve;
-use crate::workforce_commute_policy::supports_buildable_remote_work_camp;
 use crate::worksite_stall_policy::{
     alternative_processor_recipe_ready, is_production_labor_kind, stalled_labor_target,
     ProcessorRecipeAvailability, SpatialBuckets, RICH_DEPOSIT_CENTER_TOLERANCE,
@@ -331,9 +330,6 @@ pub(crate) fn next_available_building_id(
     Ok(candidate)
 }
 
-// Rich stone landmarks reserve up to 67 m around a quarry, so the linked camp
-// needs a placement band beyond the protected deposit footprint.
-const REMOTE_WORK_CAMP_MAX_DISTANCE: f64 = 80.0;
 const MAP_SIZE_SMALL: u8 = 0;
 const CONSTRUCTION_REQUIREMENT_EPSILON: f64 = 1e-6;
 
@@ -384,47 +380,9 @@ fn founders_camp_gold_refund(
 #[reducer]
 pub fn place_building(ctx: &ReducerContext, kind: String, x: f64, z: f64) -> Result<(), String> {
     if kind == "remote_work_camp" {
-        return Err("Plan an overnight camp from its rural worksite card.".to_string());
+        return Err("Overnight work camps have been removed.".to_string());
     }
-    place_building_internal(ctx, kind, x, z, 0).map(|_| ())
-}
-
-#[reducer]
-pub fn place_remote_work_camp(
-    ctx: &ReducerContext,
-    worksite_id: u64,
-    x: f64,
-    z: f64,
-) -> Result<(), String> {
-    let owner = ctx.sender();
-    let worksite = ctx
-        .db
-        .building()
-        .id()
-        .find(&worksite_id)
-        .ok_or_else(|| "Rural worksite not found.".to_string())?;
-    if worksite.owner != owner
-        || !worksite.construction_complete
-        || !supports_buildable_remote_work_camp(&worksite.kind)
-    {
-        return Err(
-            "This completed worksite cannot support a separate overnight camp.".to_string(),
-        );
-    }
-    if ctx.db.building().owner().filter(&owner).any(|building| {
-        building.kind == "remote_work_camp" && building.linked_worksite_id == worksite_id
-    }) {
-        return Err(
-            "This worksite already has an overnight camp or camp construction site.".to_string(),
-        );
-    }
-    if (x - worksite.x).hypot(z - worksite.z) > REMOTE_WORK_CAMP_MAX_DISTANCE {
-        return Err(format!(
-            "Place the overnight camp within {} metres of its worksite.",
-            REMOTE_WORK_CAMP_MAX_DISTANCE as u32
-        ));
-    }
-    place_building_internal(ctx, "remote_work_camp".to_string(), x, z, worksite_id).map(|_| ())
+    place_building_internal(ctx, kind, x, z).map(|_| ())
 }
 
 fn building_overlaps_vineyard(
@@ -467,7 +425,6 @@ pub(crate) fn place_building_internal(
     kind: String,
     x: f64,
     z: f64,
-    linked_worksite_id: u64,
 ) -> Result<u64, String> {
     if kind == LEGACY_CLAY_PIT_KIND {
         return Err(
@@ -547,14 +504,6 @@ pub(crate) fn place_building_internal(
     };
     let settlement_id = if let Some(settlement) = planned_settlement.as_ref() {
         settlement.id
-    } else if kind == "remote_work_camp" && linked_worksite_id != 0 {
-        ctx.db
-            .building()
-            .id()
-            .find(&linked_worksite_id)
-            .map(|worksite| worksite.settlement_id)
-            .filter(|settlement_id| *settlement_id != 0)
-            .ok_or_else(|| "The linked worksite has no community affiliation.".to_string())?
     } else {
         crate::settlements::settlement_for_position(ctx, owner, x, z)
             .ok_or_else(|| "Place the founders' camp before building the settlement.".to_string())?
@@ -1032,7 +981,7 @@ pub(crate) fn place_building_internal(
         potter_firing_policy: 0,
         carpenter_cart_service_target_trips,
         remote_work_camp_enabled: false,
-        linked_worksite_id,
+        linked_worksite_id: 0,
         commute_efficiency: 1.0,
         chapel_tier,
         meat: 0.0,
@@ -3121,13 +3070,6 @@ pub fn demolish_building(ctx: &ReducerContext, building_id: u64) -> Result<(), S
             "A reclamation pile clears itself after its goods are physically recovered."
                 .to_string(),
         );
-    }
-    if building.kind != "remote_work_camp"
-        && ctx.db.building().owner().filter(&owner).any(|candidate| {
-            candidate.kind == "remote_work_camp" && candidate.linked_worksite_id == building_id
-        })
-    {
-        return Err("Demolish this worksite's overnight camp first.".to_string());
     }
     if building.kind == "guardhouse" {
         let committed = guardhouse_roster_count(ctx, owner, building.id);

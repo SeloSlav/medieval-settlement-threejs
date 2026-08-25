@@ -52,7 +52,7 @@ export const DEFAULT_FIXED_SKY_PRESET: FixedSkyPresetId = 'high_noon';
 
 const STORAGE_KEY = 'medieval-road-system.skyPresentation';
 const DEFAULT_PREFERENCE: SkyPresentationPreference = {
-  cycleDisabled: false,
+  cycleDisabled: true,
   preset: DEFAULT_FIXED_SKY_PRESET,
 };
 
@@ -107,7 +107,7 @@ function writePreference(preference: SkyPresentationPreference): void {
   cachedPreference = preference;
   try {
     if (
-      !preference.cycleDisabled
+      preference.cycleDisabled
       && preference.preset === DEFAULT_FIXED_SKY_PRESET
     ) {
       localStorage.removeItem(STORAGE_KEY);

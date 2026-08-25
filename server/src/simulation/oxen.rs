@@ -7,7 +7,8 @@ use spacetimedb::{Identity, ReducerContext};
 use crate::db::*;
 use crate::ox_policy::{
     assign_oxen_to_worksites, available_ox_for_workplace, is_ox_production_workplace,
-    is_ox_supported_workplace, ox_workplace_capacity, OxCandidate, OxWorksiteCandidate,
+    is_ox_supported_workplace, ox_amplified_worker_count, ox_workplace_capacity, OxCandidate,
+    OxWorksiteCandidate,
 };
 use crate::simulation::{game_clock, production_labor_paused, SimTickContext};
 use crate::tables::Building;
@@ -153,6 +154,18 @@ pub(crate) fn paired_production_ox_count(
     let count = claimed.len() as u32;
     tick.record_production_ox_claims(building.id, claimed);
     count
+}
+
+/// Effective continuous production labor after draft-ox assistance. Commute
+/// distance and cosmetic clock hours deliberately have no role in this value.
+pub(crate) fn ox_amplified_production_labor(
+    ctx: &ReducerContext,
+    tick: &SimTickContext,
+    building: &Building,
+    human_workers: u32,
+) -> f64 {
+    let paired_oxen = paired_production_ox_count(ctx, tick, building, human_workers);
+    f64::from(ox_amplified_worker_count(human_workers, paired_oxen))
 }
 
 /// Reserves one ox for a local cart operated by `workplace_id`. A posted ox at

@@ -79,7 +79,6 @@ pub struct SimTickContext {
     local_marketplace_deposit_claims:
         RefCell<HashMap<(Identity, ResidenceNeedKind), HashMap<u64, u64>>>,
     marketplace_stall_rosters: RefCell<HashMap<Identity, MarketplaceStallRoster>>,
-    active_remote_camp_by_worksite: RefCell<HashMap<(Identity, u64), bool>>,
     waiting_corpse_index: RefCell<Option<HashMap<Identity, CorpseSpatialIndex>>>,
     farmstead_seed_reserves: RefCell<HashMap<Identity, HashMap<u64, FarmsteadSeedReserves>>>,
     farmstead_manure_requirements: RefCell<HashMap<Identity, HashMap<u64, (f64, u8)>>>,
@@ -124,7 +123,6 @@ impl SimTickContext {
             local_marketplace_claims: RefCell::new(HashMap::new()),
             local_marketplace_deposit_claims: RefCell::new(HashMap::new()),
             marketplace_stall_rosters: RefCell::new(HashMap::new()),
-            active_remote_camp_by_worksite: RefCell::new(HashMap::new()),
             waiting_corpse_index: RefCell::new(None),
             farmstead_seed_reserves: RefCell::new(HashMap::new()),
             farmstead_manure_requirements: RefCell::new(HashMap::new()),
@@ -271,38 +269,6 @@ impl SimTickContext {
         self.road_network(owner)
             .map(|network| network.road_connected(ax, az, bx, bz))
             .unwrap_or(false)
-    }
-
-    /// A handful of exposed yards may replace their household commute with a
-    /// separately constructed camp. Cache the owner-local lookup for the
-    /// substep while reading completion and fire state from current rows.
-    pub fn worksite_has_active_remote_camp(
-        &self,
-        ctx: &ReducerContext,
-        owner: Identity,
-        worksite_id: u64,
-    ) -> bool {
-        if let Some(active) = self
-            .active_remote_camp_by_worksite
-            .borrow()
-            .get(&(owner, worksite_id))
-            .copied()
-        {
-            return active;
-        }
-        let active = self
-            .building_ids_for_kinds(ctx, owner, &["remote_work_camp"])
-            .into_iter()
-            .filter_map(|camp_id| ctx.db.building().id().find(&camp_id))
-            .any(|camp| {
-                camp.linked_worksite_id == worksite_id
-                    && camp.construction_complete
-                    && !self.building_disabled_by_fire(ctx, camp.id)
-            });
-        self.active_remote_camp_by_worksite
-            .borrow_mut()
-            .insert((owner, worksite_id), active);
-        active
     }
 
     /// Combat rows cannot change during the economy phase of one simulation

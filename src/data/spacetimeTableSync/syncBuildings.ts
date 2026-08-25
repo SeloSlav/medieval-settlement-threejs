@@ -43,8 +43,6 @@ function buildingStateFromRow(
   const materialRow = row as Building & Partial<{
     roofTiles: number;
     potterFiringPolicy: number;
-    linkedWorksiteId: bigint;
-    commuteEfficiency: number;
     chapelTier: number;
     fireRepairActive: boolean;
     constructionRequiredRoofTiles: number;
@@ -236,11 +234,6 @@ function buildingStateFromRow(
     marketplaceSeedGrainTarget: wholeResourceUnits(row.marketplaceSeedGrainTarget),
     marketplacePendingTradeCode: row.marketplacePendingTradeCode,
     foundingShelterActive: row.foundingShelterActive,
-    linkedWorksiteId: materialRow.linkedWorksiteId == null
-      || materialRow.linkedWorksiteId === 0n
-      ? undefined
-      : buildingClientId(materialRow.linkedWorksiteId),
-    commuteEfficiency: Math.max(0, Math.min(1, Number(materialRow.commuteEfficiency ?? 1))),
     chapelMonasteryTitheDue: wholeResourceUnits(row.chapelMonasteryTitheDue),
     chapelTier: Math.max(1, Math.min(3, Number(materialRow.chapelTier ?? 3))) as 1 | 2 | 3,
     civicReceiptsGold: wholeResourceUnits(row.civicReceiptsGold),

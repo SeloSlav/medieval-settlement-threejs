@@ -51,9 +51,9 @@ const mondayWorkMorningElapsed =
 const workMorningTick = mondayWorkMorningElapsed / SIM_TICK_SECONDS;
 
 const nightClock = gameClock(nightTick);
-assert.equal(isLaborPaused(nightClock, false, false), true);
-assert.equal(laborPauseLabel(nightClock, false, false), 'Night hours');
-assert.equal(expectLaborPausedLikeServer(nightClock, false, false), true);
+assert.equal(isLaborPaused(nightClock, false, false), false);
+assert.equal(laborPauseLabel(nightClock, false, false), null);
+assert.equal(expectLaborPausedLikeServer(nightClock, false, false), false);
 
 const workClock = gameClock(workHourTick);
 assert.equal(isLaborPaused(workClock, false, false), false);
@@ -123,8 +123,8 @@ const schedule = deriveSettlementSchedule(
   { simTick: nightTick, parishPolicy: DEFAULT_PARISH_POLICY },
   null,
 );
-assert.equal(schedule.laborPaused, true);
-assert.equal(schedule.dayNight.smokeAllowed, false);
+assert.equal(schedule.laborPaused, false);
+assert.equal(schedule.dayNight.smokeAllowed, true);
 assert.equal(schedule.dayNight.isNight, true);
 
 const daySchedule = deriveSettlementSchedule(
@@ -570,6 +570,11 @@ assert.match(
   laborScheduleSource,
   /labor_and_logistics_paused\([\s\S]*?tick:\s*&SimTickContext[\s\S]*?owner_sabbath_observance_enabled\(ctx,\s*tick,\s*owner\)[\s\S]*?owner_has_staffed_chapel\(ctx,\s*tick,\s*owner\)/,
   'all schedule decisions should resolve through the tick-local owner caches',
+);
+assert.doesNotMatch(
+  laborScheduleSource,
+  /if\s+!clock\.is_work_hours|if\s+!is_work_hours\(clock\)/,
+  'displayed work-hour metadata must not pause continuous labor or logistics',
 );
 assert.match(
   constructionSource,

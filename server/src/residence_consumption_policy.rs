@@ -15,13 +15,10 @@ use crate::balance_generated::{
 use crate::holiday_calendar::holiday_for_date;
 use crate::resource_units::whole_units;
 use crate::simulation::residence_needs::ResidenceNeedKind;
-use crate::simulation::{game_clock, GameClock};
+use crate::simulation::{calendar_day_started, GameClock};
 
 fn household_service_day_started(clock: &GameClock) -> bool {
-    if clock.sim_tick == 0 || !clock.is_work_hours {
-        return false;
-    }
-    !game_clock(clock.sim_tick.saturating_sub(1)).is_work_hours
+    calendar_day_started(clock)
 }
 
 fn preferred_billing_day(residence_id: u64) -> u32 {
@@ -101,11 +98,12 @@ mod tests {
     use crate::simulation::game_clock;
     use crate::simulation::residence_needs::ResidenceNeedKind;
 
-    fn first_service_tick_of_total_day(day: u64) -> u64 {
+    fn first_calendar_tick_of_total_day(day: u64) -> u64 {
         let ticks_per_day = (CALENDAR_SECONDS_PER_DAY / TICK_DT).round() as u64;
-        // The game starts eight calendar hours into day zero; household bills
-        // post at 06:00 on the first ordinary work tick.
-        day * ticks_per_day - ticks_per_day / 3 + ticks_per_day / 4
+        // The game starts eight calendar hours into day zero. Date-boundary
+        // billing is therefore one third of a day earlier than this simple
+        // total-day marker.
+        day * ticks_per_day - ticks_per_day / 3
     }
 
     #[test]
@@ -113,7 +111,7 @@ mod tests {
         let residence_id = 4;
         let mut charges = Vec::new();
         for day in 1..=60 {
-            let clock = game_clock(first_service_tick_of_total_day(day));
+            let clock = game_clock(first_calendar_tick_of_total_day(day));
             if monthly_household_bill_due(residence_id, &clock) {
                 charges.push((clock.month, clock.month_day));
                 assert_eq!(
@@ -131,7 +129,7 @@ mod tests {
         // on the first ordinary date after the observance.
         let residence_id = 5;
         let april_days = (30..60)
-            .map(first_service_tick_of_total_day)
+            .map(first_calendar_tick_of_total_day)
             .map(game_clock)
             .filter(|clock| monthly_household_bill_due(residence_id, clock))
             .collect::<Vec<_>>();

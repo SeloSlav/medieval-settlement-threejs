@@ -544,10 +544,15 @@ assert.match(
   /let care_labor = essential_livestock_care_labor\([\s\S]{0,180}owner_has_active_raider_threat[\s\S]*let \(cycle_care_labor, cycle_productive_labor\) = if paused \{[\s\S]{0,80}\(care_labor, 0\)[\s\S]{0,260}paired_production_ox_count[\s\S]{0,220}ox_amplified_worker_count/,
   'observed Sundays must retain essential animal care while raids still remove it and working oxen amplify active-cycle labor',
 );
+assert.doesNotMatch(
+  serverLivestock,
+  /if clock\.is_work_hours/,
+  'cosmetic day and night must not gate the continuous husbandry clock',
+);
 assert.match(
   serverLivestock,
-  /if clock\.is_work_hours \{[\s\S]{0,220}building\.action_cooldown - TICK_DT/,
-  'animal biology must advance on a fixed daytime interval instead of worker throughput',
+  /building\.action_cooldown = \(building\.action_cooldown - TICK_DT\)\.max\(0\.0\)/,
+  'animal biology must advance continuously instead of scaling with worker throughput',
 );
 assert.match(
   serverLivestock,
@@ -581,7 +586,7 @@ assert.match(
 );
 assert.match(
   serverLivestockPolicy,
-  /pub fn livestock_cycles_per_calendar_day\(action_interval: f64\)[\s\S]{0,300}workday_seconds \/ action_interval/,
+  /pub fn livestock_cycles_per_calendar_day\(action_interval: f64\)[\s\S]{0,300}CALENDAR_SECONDS_PER_DAY \/ action_interval/,
   'winter-feed forecasting must use the same fixed husbandry cadence',
 );
 assert.doesNotMatch(

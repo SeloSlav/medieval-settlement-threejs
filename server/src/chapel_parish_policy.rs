@@ -1,6 +1,5 @@
 use crate::balance_generated::{
-    CALENDAR_DAYS_PER_MONTH, CALENDAR_HOURS_PER_DAY, CALENDAR_SECONDS_PER_DAY,
-    CALENDAR_SUNDAY_WEEKDAY, CALENDAR_WORK_END_HOUR, CALENDAR_WORK_START_HOUR,
+    CALENDAR_DAYS_PER_MONTH, CALENDAR_SECONDS_PER_DAY, CALENDAR_SUNDAY_WEEKDAY,
     CHAPEL_CHARITY_GOLD_PER_DAY, CHAPEL_POOR_RELIEF_INTERVAL_DAYS,
     CHAPEL_PRIEST_SALARY_GOLD_PER_DAY, CHAPEL_UNSTAFFED_UPKEEP_FRACTION,
     CHAPEL_UPKEEP_GOLD_PER_DAY, TICK_DT,
@@ -8,13 +7,12 @@ use crate::balance_generated::{
 use crate::holiday_calendar::holiday_for_date;
 use crate::residence_consumption_policy::monthly_household_bill_due;
 use crate::resource_units::whole_units;
-use crate::simulation::{game_clock, GameClock};
+use crate::simulation::{calendar_day_started, GameClock};
 
-/// Configured "per day" parish rates accrue only while the parish office is
-/// active, so normalize them over the same 06:00-20:00 work window.
+/// Compatibility name for the active span used by configured per-day rates.
+/// Work is continuous, so the active span is the complete calendar day.
 pub fn chapel_workday_seconds() -> f64 {
-    let work_hours = CALENDAR_WORK_END_HOUR.saturating_sub(CALENDAR_WORK_START_HOUR);
-    CALENDAR_SECONDS_PER_DAY * work_hours as f64 / CALENDAR_HOURS_PER_DAY.max(1) as f64
+    CALENDAR_SECONDS_PER_DAY
 }
 
 fn rounded_whole_units(value: f64) -> f64 {
@@ -33,9 +31,7 @@ pub fn chapel_monthly_expense_due(chapel_id: u64, clock: &GameClock) -> bool {
 }
 
 fn chapel_service_day_started(clock: &GameClock) -> bool {
-    clock.sim_tick > 0
-        && clock.is_work_hours
-        && !game_clock(clock.sim_tick.saturating_sub(1)).is_work_hours
+    calendar_day_started(clock)
 }
 
 fn weekday_for_month_day(clock: &GameClock, month_day: u32) -> u32 {
@@ -121,7 +117,7 @@ mod tests {
 
     #[test]
     fn monthly_expenses_are_posted_as_whole_coin_lots() {
-        assert!((chapel_workday_seconds() - 70.0).abs() < 1e-9);
+        assert!((chapel_workday_seconds() - CALENDAR_SECONDS_PER_DAY).abs() < 1e-9);
         assert_eq!(
             chapel_priest_salary_lot(1),
             (CHAPEL_PRIEST_SALARY_GOLD_PER_DAY * CALENDAR_DAYS_PER_MONTH as f64).round()
@@ -162,9 +158,9 @@ mod tests {
     #[test]
     fn monthly_tithe_never_posts_on_sunday() {
         let day_ticks = (CALENDAR_SECONDS_PER_DAY / TICK_DT).round() as u64;
-        let first_work_tick = |day: u64| day * day_ticks - day_ticks / 3 + day_ticks / 4;
+        let first_calendar_tick = |day: u64| day * day_ticks - day_ticks / 3;
         let charges = (1..=30)
-            .map(first_work_tick)
+            .map(first_calendar_tick)
             .map(crate::simulation::game_clock)
             .filter(|clock| chapel_monthly_tithe_due(6, clock))
             .collect::<Vec<_>>();

@@ -22,7 +22,10 @@ import { selectDirectProcessorInputTarget } from '../src/logistics/processorInpu
 import { createDefaultNeeds, mergeNeedRow } from '../src/residences/residenceNeedState.ts';
 import type { BuildingState, ResidenceState } from '../src/resources/types.ts';
 import type { RoadNetwork } from '../src/roads/RoadNetwork.ts';
-import { PRESERVED_FOOD_SPOILAGE_PER_DAY } from '../src/generated/gameBalance.ts';
+import {
+  CALENDAR_SECONDS_PER_DAY,
+  PRESERVED_FOOD_SPOILAGE_PER_DAY,
+} from '../src/generated/gameBalance.ts';
 
 function building(
   id: string,
@@ -102,7 +105,7 @@ assert.deepEqual(SHOES_PRODUCER_KINDS, ['cobbler']);
 assert.deepEqual(SHOES_SUPPLIER_KINDS, ['marketplace']);
 assert.deepEqual(POTTERY_SUPPLIER_KINDS, ['marketplace']);
 assert.equal(PRESERVED_FOOD_SUPPLIER_KINDS.includes('granary'), false);
-assert.equal(SPECIALTY_CONSUMPTION_SECONDS_PER_DAY, 70);
+assert.equal(SPECIALTY_CONSUMPTION_SECONDS_PER_DAY, CALENDAR_SECONDS_PER_DAY);
 const preservedRunway = residencePreservedFoodRunwayDays(
   residence('preserved-runway', 0, 4, 'preservedFood', 7),
 );
@@ -181,9 +184,9 @@ assert.ok(
   Math.abs(
     (residencePotteryRunwayDays(
       residence('pottery-runway', 0, 4, 'pottery', 2),
-    ) ?? 0) - (500 / 70),
+    ) ?? 0) - (500 / CALENDAR_SECONDS_PER_DAY),
   ) < 1e-9,
-  'household pottery runway must model slow vessel breakage on the workday cadence',
+  'household pottery runway must model slow vessel breakage on the calendar-day cadence',
 );
 
 const home = residence('home', 0, 4, 'preservedFood', 0);

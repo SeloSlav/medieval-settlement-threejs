@@ -481,20 +481,10 @@ assert.match(
   /RaidCartPosture::Recall[\s\S]*recall_trip_to_origin_during_raid/,
   'an outward ordinary cart must physically reverse when a capable raider is on the map',
 );
-assert.match(
-  deliveryServer,
-  /RaidCartPosture::ReturnHome[\s\S]*emergency alarm overrides night and sabbath rest/,
-  'a homeward cart must keep moving during the emergency instead of freezing on the road',
-);
-assert.match(
-  deliveryServer,
-  /RaidCartPosture::Ordinary[\s\S]*Dispatch is independently gated by work hours and Sabbath[\s\S]*completes the committed outbound leg, unload, and return/,
-  'a cart that departed during work hours must finish its active round trip after the workday boundary',
-);
 assert.doesNotMatch(
   deliveryServer,
   /RaidCartPosture::Ordinary\s*=>\s*\{[\s\S]{0,240}labor_and_logistics_paused/,
-  'night and Sabbath may block new departures but must not freeze an existing cart on the road',
+  'a Sabbath or holiday may block new departures but must not freeze a committed cart',
 );
 assert.match(
   deliveryServer,

@@ -30,7 +30,7 @@ use crate::simulation::delivery_trips::{
     try_start_market_stall_delivery_trip, try_start_market_stall_remedy_trip,
     try_start_private_export_income_trip,
 };
-use crate::simulation::game_calendar::GameClock;
+use crate::simulation::game_calendar::{calendar_day_started, GameClock};
 use crate::simulation::residence_needs::{load_needs, need_stock, ResidenceNeedKind};
 use crate::simulation::road_logistics::{
     local_delivery_distance, select_residence_for_need_delivery,
@@ -524,9 +524,9 @@ pub fn step_marketplace_caravans(
         let collectible_gold = if is_trading_post {
             unpledged_gold
         } else if unpledged_gold + 1e-9 >= LOCAL_MARKET_TAX_CART_THRESHOLD
-            || (clock.hour == 18 && clock.minute < 15)
+            || calendar_day_started(clock)
         {
-            // Batch local tolls into useful carts, with one early-evening
+            // Batch local tolls into useful carts, with one date-boundary
             // sweep so a quiet market never strands its final small balance.
             unpledged_gold
         } else {

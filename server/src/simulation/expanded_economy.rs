@@ -4144,7 +4144,7 @@ fn step_processor_with_labor(
         return building;
     }
     let productive_labor =
-        crate::simulation::commute_adjusted_labor(ctx, tick, &building, assigned_labor);
+        crate::simulation::ox_amplified_production_labor(ctx, tick, &building, assigned_labor);
     if productive_labor <= 1e-9 {
         return building;
     }
@@ -4510,7 +4510,7 @@ fn cycle_labor_if_ready_at_rate(
             return None;
         }
         let productive_labor =
-            crate::simulation::commute_adjusted_labor(ctx, tick, building, onsite_labor);
+            crate::simulation::ox_amplified_production_labor(ctx, tick, building, onsite_labor);
         if productive_labor <= 1e-9 {
             return None;
         }
@@ -5405,14 +5405,11 @@ fn run_monastery_feast(
     clock: &GameClock,
     monastery: &mut Building,
 ) {
-    let first_tick_of_minute = clock.sim_tick % (60.0 / TICK_DT).round() as u64 == 0;
     let enabled = tick.monastery_hospitality_enabled(ctx, monastery.owner);
     if !enabled
         || tick.owner_has_active_raider_threat(ctx, monastery.owner)
         || !is_monastery_feast_day(clock.month, clock.month_day)
-        || clock.hour != 12
-        || clock.minute != 0
-        || !first_tick_of_minute
+        || !crate::simulation::calendar_day_started(clock)
     {
         return;
     }
@@ -5441,8 +5438,8 @@ fn run_monastery_feast(
         return;
     }
 
-    // The complete batch remains at this physical venue until noon, when the
-    // covered parish gathers here to consume it. Household pantry stock must
+    // The complete batch remains at this physical venue until the feast date,
+    // when the covered parish gathers here to consume it. Household pantry stock must
     // not increase: this is a communal meal, not an invisible delivery.
     let food_requested = MONASTERY_FEAST_FOOD / batch.common_table_multiplier.max(1.0);
     let food_used = withdraw_monastery_feast_food(monastery, food_requested);

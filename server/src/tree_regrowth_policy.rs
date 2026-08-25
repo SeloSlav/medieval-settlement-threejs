@@ -1,6 +1,5 @@
 use crate::balance_generated::{
-    CALENDAR_HOURS_PER_DAY, CALENDAR_SECONDS_PER_DAY, CALENDAR_WORK_END_HOUR,
-    CALENDAR_WORK_START_HOUR, NATURAL_TREE_MATURATION_DAYS, REFORESTER_REGROW_PER_SEC,
+    CALENDAR_SECONDS_PER_DAY, NATURAL_TREE_MATURATION_DAYS, REFORESTER_REGROW_PER_SEC,
     REFORESTER_SPARSE_TREE_MATURATION_WORKDAYS, TICK_DT, TREE_REGROWTH_UPDATE_INTERVAL_SEC,
 };
 
@@ -23,8 +22,6 @@ pub fn tree_regrowth_step_seconds() -> f64 {
 
 pub fn tree_workday_seconds() -> f64 {
     CALENDAR_SECONDS_PER_DAY
-        * CALENDAR_WORK_END_HOUR.saturating_sub(CALENDAR_WORK_START_HOUR) as f64
-        / CALENDAR_HOURS_PER_DAY.max(1) as f64
 }
 
 pub fn natural_tree_growth_per_second() -> f64 {
@@ -86,7 +83,7 @@ mod tests {
         let tree_count = 500;
         let total_rate = reforester_growth_per_tree_per_second(tree_count, 1) * tree_count as f64;
         assert!((total_rate - REFORESTER_REGROW_PER_SEC).abs() < 1e-9);
-        assert!((reforester_tree_equivalents_per_workday(1) - 8.4).abs() < 1e-9);
+        assert!((reforester_tree_equivalents_per_workday(1) - 14.4).abs() < 1e-9);
     }
 
     #[test]
@@ -114,8 +111,8 @@ mod tests {
         );
         let forester_capacity = reforester_tree_equivalents_per_workday(1);
 
-        assert!((low_labor_demand - 9.333333333333334).abs() < 1e-9);
-        assert!((max_labor_demand - 28.0).abs() < 1e-9);
+        assert!((low_labor_demand - 16.0).abs() < 1e-9);
+        assert!((max_labor_demand - 48.0).abs() < 1e-9);
         assert!(forester_capacity >= low_labor_demand * 0.85);
         assert!(forester_capacity < max_labor_demand * 0.35);
     }

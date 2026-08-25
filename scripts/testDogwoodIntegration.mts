@@ -210,7 +210,7 @@ assert.match(
 );
 assert.match(
   undergrowthSource,
-  /widthScale = placement\.kind === 'dogwood'[\s\S]*THREE\.MathUtils\.lerp\(1, placement\.scale, 0\.72\)[\s\S]*THREE\.MathUtils\.lerp\(0\.96, 1\.08, rng\(\)\)/,
+  /widthScale = placement\.kind === 'dogwood'[\s\S]*THREE\.MathUtils\.lerp\(1, placement\.scale, 0\.72\)[\s\S]*THREE\.MathUtils\.lerp\(0\.96, 1\.04, rng\(\)\)/,
   'dogwood height growth must only modestly widen its crown',
 );
 assert.match(
@@ -395,6 +395,7 @@ console.log('test:dogwood-integration passed');
 
 function dogwoodPrototypeSignatures(): Record<string, string> {
   const signatures: Record<string, string> = {};
+  const canopyProfiles: number[][] = [];
   for (let variant = 0; variant < GORSKI_SHRUB_VARIANT_COUNT; variant++) {
     const variantPreset = createCommonDogwoodVariantPreset(variant);
     const prototype = createGorskiShrubPrototype('dogwood', variant);
@@ -411,6 +412,29 @@ function dogwoodPrototypeSignatures(): Record<string, string> {
     assert.equal(stemCount, variantPreset.morphology.stemCount);
     assert.equal(geometry.userData.dogwoodFirstForkHeight, firstForkHeight);
     assert.equal(geometry.userData.dogwoodFoliageStartFraction, commonDogwood.foliage.startFrac);
+    assert.equal(
+      geometry.userData.dogwoodArchitecture,
+      'irregular-stool-v1',
+      `dogwood variant ${variant} must retain its authored asymmetric growth pass`,
+    );
+    assert.ok(
+      Number(geometry.userData.dogwoodRootBaseSpread) >= 0.04,
+      `dogwood variant ${variant} basal canes still collapse into one exact origin`,
+    );
+    const rootAzimuthGapCv = Number(geometry.userData.dogwoodRootAzimuthGapCv);
+    assert.ok(
+      rootAzimuthGapCv >= 0.18 && rootAzimuthGapCv <= 0.7,
+      `dogwood variant ${variant} needs irregular but stratified basal angles (CV ${rootAzimuthGapCv.toFixed(3)})`,
+    );
+    assert.ok(
+      Number(geometry.userData.dogwoodFirstForkLengthRange) >= 0.12,
+      `dogwood variant ${variant} must stagger first-fork heights across its stool`,
+    );
+    const siblingLengthRatio = Number(geometry.userData.dogwoodForkSiblingLengthRatio);
+    assert.ok(
+      siblingLengthRatio >= 1.18 && siblingLengthRatio <= 1.5,
+      `dogwood variant ${variant} must keep one leader dominant at each fork`,
+    );
     assert.ok(
       firstForkHeight >= 0.3 && firstForkHeight <= 0.42,
       `dogwood variant ${variant} must branch within the basal 0.42 m thicket zone`,
@@ -474,6 +498,16 @@ function dogwoodPrototypeSignatures(): Record<string, string> {
       lowerThirdRootShare >= 0.2,
       `dogwood variant ${variant} needs substantial foliage roots in its lower third`,
     );
+    const canopy = measureDogwoodCanopyAsymmetry(geometry, variant);
+    assert.ok(
+      canopy.oppositeSectorImbalance >= 0.18,
+      `dogwood variant ${variant} canopy still mirrors across opposite sectors`,
+    );
+    assert.ok(
+      canopy.sectorCoefficientOfVariation >= 0.2,
+      `dogwood variant ${variant} foliage remains too evenly radial`,
+    );
+    canopyProfiles.push(canopy.verticalSectorProfile);
     const positions = geometry.getAttribute('position');
     let maximumRadialExtent = 0;
     for (let index = 0; index < positions.count; index++) {
@@ -482,7 +516,7 @@ function dogwoodPrototypeSignatures(): Record<string, string> {
         Math.hypot(positions.getX(index), positions.getZ(index)),
       );
     }
-    const maximumWidthScale = THREE.MathUtils.lerp(1, 1.42, 0.72) * 1.08;
+    const maximumWidthScale = THREE.MathUtils.lerp(1, 1.42, 0.72) * 1.04;
     assert.ok(
       maximumRadialExtent * maximumWidthScale <= 1.85,
       `dogwood variant ${variant} can exceed its 1.85 m clearance at maximum runtime width scale`,
@@ -522,7 +556,116 @@ function dogwoodPrototypeSignatures(): Record<string, string> {
     signatures[String(variant)] = geometryHash(geometry);
     geometry.dispose();
   }
+  for (let left = 0; left < canopyProfiles.length; left++) {
+    for (let right = left + 1; right < canopyProfiles.length; right++) {
+      const distance = rotationInvariantCanopyDistance(
+        canopyProfiles[left]!,
+        canopyProfiles[right]!,
+      );
+      assert.ok(
+        distance >= 0.1,
+        `dogwood variants ${left}/${right} still share the same rotation-normalized crown profile (${distance.toFixed(3)})`,
+      );
+    }
+  }
   return signatures;
+}
+
+function measureDogwoodCanopyAsymmetry(
+  geometry: THREE.BufferGeometry,
+  variant: number,
+): {
+  oppositeSectorImbalance: number;
+  sectorCoefficientOfVariation: number;
+  verticalSectorProfile: number[];
+} {
+  geometry.computeBoundingBox();
+  const bounds = geometry.boundingBox;
+  const index = geometry.index;
+  const position = geometry.getAttribute('position');
+  const foliageGroup = geometry.groups.find((group) => group.materialIndex === 1);
+  assert.ok(bounds && index && position && foliageGroup, `dogwood variant ${variant} needs canopy diagnostics`);
+  const verticalSectorCounts = new Array<number>(36).fill(0);
+  const cardAngles: number[] = [];
+  const height = Math.max(0.001, bounds.max.y - bounds.min.y);
+  let cardCount = 0;
+  for (
+    let offset = foliageGroup.start;
+    offset < foliageGroup.start + foliageGroup.count;
+    offset += 6
+  ) {
+    const vertices = [...new Set(Array.from(
+      { length: 6 },
+      (_, triangleIndex) => index.getX(offset + triangleIndex),
+    ))];
+    assert.equal(vertices.length, 4, `dogwood variant ${variant} foliage card ${cardCount} is malformed`);
+    const center = vertices.reduce(
+      (sum, vertex) => sum.add(new THREE.Vector3(
+        position.getX(vertex),
+        position.getY(vertex),
+        position.getZ(vertex),
+      )),
+      new THREE.Vector3(),
+    ).divideScalar(vertices.length);
+    const cardAngle = Math.atan2(center.z, center.x);
+    const normalizedAngle = ((cardAngle / (Math.PI * 2)) + 1) % 1;
+    const sector = Math.min(11, Math.floor(normalizedAngle * 12));
+    const heightBand = Math.min(
+      2,
+      Math.floor(((center.y - bounds.min.y) / height) * 3),
+    );
+    cardAngles.push(cardAngle);
+    verticalSectorCounts[heightBand * 12 + sector]!++;
+    cardCount++;
+  }
+  const mean = cardCount / 12;
+  let sectorCoefficientOfVariation = 0;
+  let oppositeSectorImbalance = 0;
+  // Sweep sub-sector phase so a global prototype yaw cannot move the same
+  // asymmetric crown across a 30-degree bin boundary and change the verdict.
+  for (let phase = 0; phase < 12; phase++) {
+    const sectorCounts = new Array<number>(12).fill(0);
+    const phaseAngle = (phase / 12) * (Math.PI / 6);
+    for (const cardAngle of cardAngles) {
+      const normalizedAngle = (((cardAngle + phaseAngle) / (Math.PI * 2)) + 1) % 1;
+      sectorCounts[Math.min(11, Math.floor(normalizedAngle * 12))]!++;
+    }
+    sectorCoefficientOfVariation = Math.max(
+      sectorCoefficientOfVariation,
+      Math.sqrt(
+        sectorCounts.reduce((sum, count) => sum + (count - mean) ** 2, 0) / 12,
+      ) / Math.max(0.001, mean),
+    );
+    let oppositeDifference = 0;
+    for (let sector = 0; sector < 6; sector++) {
+      oppositeDifference += Math.abs(sectorCounts[sector]! - sectorCounts[sector + 6]!);
+    }
+    oppositeSectorImbalance = Math.max(
+      oppositeSectorImbalance,
+      oppositeDifference / Math.max(1, cardCount),
+    );
+  }
+  return {
+    oppositeSectorImbalance,
+    sectorCoefficientOfVariation,
+    verticalSectorProfile: verticalSectorCounts.map((count) => count / Math.max(1, cardCount)),
+  };
+}
+
+function rotationInvariantCanopyDistance(left: number[], right: number[]): number {
+  let best = Number.POSITIVE_INFINITY;
+  for (let shift = 0; shift < 12; shift++) {
+    let squaredDistance = 0;
+    for (let heightBand = 0; heightBand < 3; heightBand++) {
+      for (let sector = 0; sector < 12; sector++) {
+        const difference = left[heightBand * 12 + sector]!
+          - right[heightBand * 12 + ((sector + shift) % 12)]!;
+        squaredDistance += difference ** 2;
+      }
+    }
+    best = Math.min(best, Math.sqrt(squaredDistance));
+  }
+  return best;
 }
 
 function dogwoodFoliageRootHeights(

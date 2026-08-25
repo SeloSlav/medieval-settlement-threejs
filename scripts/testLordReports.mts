@@ -474,7 +474,7 @@ assert.equal(arrivalReports[0]?.kind, 'labor');
 assert.equal(arrivalReports[0]?.title, 'A new laborer joined the city');
 assert.equal(arrivalReports[0]?.target?.kind, 'residence');
 assert.equal(arrivalReports[0]?.target?.id, occupiedHome.id);
-assert.match(arrivalReports[0]?.detail ?? '', /now houses 11/);
+assert.equal(arrivalReports[0]?.detail, '');
 assert.deepEqual(
   deriveLordReportTransitions(
     gameState(202, { residences: [{ ...occupiedHome }] }),

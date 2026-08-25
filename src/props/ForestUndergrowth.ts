@@ -744,7 +744,7 @@ function composeUndergrowthMatrix(
       : 1.0;
   const widthScale = placement.kind === 'dogwood'
     ? THREE.MathUtils.lerp(1, placement.scale, 0.72)
-      * THREE.MathUtils.lerp(0.96, 1.08, rng())
+      * THREE.MathUtils.lerp(0.96, 1.04, rng())
     : placement.scale * widthFactor * THREE.MathUtils.lerp(0.9, 1.14, rng());
   const dogwoodHeightCeiling = placement.kind === 'dogwood'
     ? THREE.MathUtils.lerp(

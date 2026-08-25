@@ -557,33 +557,9 @@ fn ignite_candidate(
             }
         }
     }
-    let clock = crate::simulation::game_clock(sim_tick);
-    let discovered_tick = if clock.is_work_hours || source == FIRE_SOURCE_RAID {
-        sim_tick
-    } else {
-        let settlement_id = if candidate.target_kind == FIRE_TARGET_RESIDENCE {
-            ctx.db
-                .residence()
-                .id()
-                .find(&candidate.target_id)
-                .map(|residence| residence.settlement_id)
-                .unwrap_or(0)
-        } else {
-            ctx.db
-                .building()
-                .id()
-                .find(&candidate.target_id)
-                .map(|building| building.settlement_id)
-                .unwrap_or(0)
-        };
-        let policies = crate::settlement_policy::night(ctx, candidate.owner, settlement_id);
-        let (watch_policy, lighting_policy) = (policies.watch, policies.lighting);
-        let delay_ticks =
-            (crate::night_policy::fire_discovery_delay_seconds(watch_policy, lighting_policy)
-                / TICK_DT)
-                .ceil() as u64;
-        sim_tick.saturating_add(delay_ticks)
-    };
+    // The visual day/night cycle cannot delay authoritative fire response.
+    // Every ignition is discovered on the tick it physically begins.
+    let discovered_tick = sim_tick;
     Some(ctx.db.fire_incident().insert(FireIncident {
         id: 0,
         owner: candidate.owner,

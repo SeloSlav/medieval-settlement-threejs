@@ -15,19 +15,14 @@ import {
   CHAPEL_TITHE_GOLD_PER_PERSON_PER_DAY,
   CHAPEL_UNSTAFFED_UPKEEP_FRACTION,
   CHAPEL_UPKEEP_GOLD_PER_DAY,
-  CALENDAR_HOURS_PER_DAY,
   CALENDAR_SECONDS_PER_DAY,
-  CALENDAR_WORK_END_HOUR,
-  CALENDAR_WORK_START_HOUR,
   MONASTERY_ATTENDANCE_BONUS,
   MONASTERY_SETTLEMENT_TICKS_MULTIPLIER,
   RESIDENCE_SETTLE_TICKS,
   SIM_TICK_SECONDS,
 } from '../src/generated/gameBalance.ts';
 
-const EXPECTED_WORKDAY_SECONDS = CALENDAR_SECONDS_PER_DAY
-  * (CALENDAR_WORK_END_HOUR - CALENDAR_WORK_START_HOUR)
-  / CALENDAR_HOURS_PER_DAY;
+const EXPECTED_LABOR_DAY_SECONDS = CALENDAR_SECONDS_PER_DAY;
 
 export function expectedEffectiveSettleTicks(
   hasChapelAccess: boolean,
@@ -79,7 +74,7 @@ export function expectedChapelTitheGoldPerTick(population: number): number {
   return population
     * CHAPEL_TITHE_GOLD_PER_PERSON_PER_DAY
     * SIM_TICK_SECONDS
-    / EXPECTED_WORKDAY_SECONDS;
+    / EXPECTED_LABOR_DAY_SECONDS;
 }
 
 export function expectedChapelPriestSalaryPerDay(assignedLabor: number): number {

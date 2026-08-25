@@ -256,14 +256,13 @@ fn step_livestock_building(
         }
     }
 
-    // Animal time is not worker throughput. A fixed daytime husbandry clock
+    // Animal time is not worker throughput. A continuous husbandry clock
     // advances even when the holding is unstaffed or work is interrupted;
     // labor instead determines how many heads receive active care and how much
     // hay can be cut. This prevents both immortal abandoned herds and workers
     // accelerating gestation, thirst, or milk production.
-    if clock.is_work_hours {
-        building.action_cooldown = (building.action_cooldown - TICK_DT).max(0.0);
-        if building.action_cooldown <= 1e-6 {
+    building.action_cooldown = (building.action_cooldown - TICK_DT).max(0.0);
+    if building.action_cooldown <= 1e-6 {
             let (cycle_care_labor, cycle_productive_labor) = if paused {
                 (care_labor, 0)
             } else {
@@ -339,7 +338,6 @@ fn step_livestock_building(
                 // consume feed or mint a partial production lot.
                 building.action_cooldown = 0.0;
             }
-        }
     }
 
     if !paused && onsite_labor > 0 {

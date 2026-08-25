@@ -1,10 +1,7 @@
 import assert from 'node:assert/strict';
 import {
   BUILDING_DEFINITIONS,
-  CALENDAR_HOURS_PER_DAY,
   CALENDAR_SECONDS_PER_DAY,
-  CALENDAR_WORK_END_HOUR,
-  CALENDAR_WORK_START_HOUR,
   FISH_PER_HARVEST,
   GAME_ANIMALS_PER_HARVEST,
   GAME_PER_HARVEST,
@@ -240,9 +237,7 @@ closeTo(
   'mixed foods must use the same one-unit household ration policy as the server',
 );
 
-const workSecondsPerDay = CALENDAR_SECONDS_PER_DAY
-  * (CALENDAR_WORK_END_HOUR - CALENDAR_WORK_START_HOUR)
-  / CALENDAR_HOURS_PER_DAY;
+const workSecondsPerDay = CALENDAR_SECONDS_PER_DAY;
 const sabbathAdjustedWorkFraction = 6 / 7;
 const fishing = BUILDING_DEFINITIONS.fishing_camp;
 const hunting = BUILDING_DEFINITIONS.hunters_hall;

@@ -1,6 +1,5 @@
 use crate::balance_generated::{
-    CALENDAR_HOURS_PER_DAY, CALENDAR_SECONDS_PER_DAY, CALENDAR_WORK_END_HOUR,
-    CALENDAR_WORK_START_HOUR, CATTLE_MANURE_COLLECTION_AUTUMN_MULTIPLIER,
+    CALENDAR_SECONDS_PER_DAY, CATTLE_MANURE_COLLECTION_AUTUMN_MULTIPLIER,
     CATTLE_MANURE_COLLECTION_SPRING_MULTIPLIER, CATTLE_MANURE_COLLECTION_SUMMER_MULTIPLIER,
     CATTLE_MANURE_COLLECTION_WINTER_MULTIPLIER, CATTLE_MANURE_PER_SUPPLIED_HEAD_PER_CYCLE,
     LIVESTOCK_ANIMAL_FEED_FODDER_VALUE, LIVESTOCK_AUTUMN_CULL_END_MONTH,
@@ -103,10 +102,7 @@ pub fn livestock_cycles_per_calendar_day(action_interval: f64) -> f64 {
     if action_interval <= 1e-9 {
         return 0.0;
     }
-    let workday_seconds = CALENDAR_SECONDS_PER_DAY
-        * (CALENDAR_WORK_END_HOUR - CALENDAR_WORK_START_HOUR) as f64
-        / CALENDAR_HOURS_PER_DAY as f64;
-    workday_seconds / action_interval
+    CALENDAR_SECONDS_PER_DAY / action_interval
 }
 
 /// Assigned herders still perform the irreducible feeding, watering, and
@@ -449,14 +445,14 @@ mod tests {
     }
 
     #[test]
-    fn winter_fodder_projection_uses_work_calendar_and_pasture_pressure() {
+    fn winter_fodder_projection_uses_continuous_calendar_and_pasture_pressure() {
         let cycles = livestock_cycles_per_calendar_day(10.0);
-        assert!((cycles - 7.0).abs() < 1e-9);
-        assert!((livestock_cycles_per_calendar_day(12.0) - 35.0 / 6.0).abs() < 1e-9);
+        assert!((cycles - 12.0).abs() < 1e-9);
+        assert!((livestock_cycles_per_calendar_day(12.0) - 10.0).abs() < 1e-9);
         let feed = projected_winter_animal_feed(6, 10.0, 0.0, 0.34, 0.34, cycles, 0.35);
-        assert!((feed - 142.8).abs() < 1e-9);
+        assert!((feed - 244.8).abs() < 1e-9);
         assert_eq!(
-            projected_winter_animal_feed(6, 10.0, 178.5, 0.34, 0.34, cycles, 0.35),
+            projected_winter_animal_feed(6, 10.0, 306.0, 0.34, 0.34, cycles, 0.35),
             0.0
         );
         assert_eq!(

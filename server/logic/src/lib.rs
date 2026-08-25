@@ -91,9 +91,6 @@ pub mod seasonal_labor_policy;
 pub mod security_policy;
 #[path = "../../src/wind_policy.rs"]
 pub mod wind_policy;
-#[path = "../../src/workforce_commute_policy.rs"]
-pub mod workforce_commute_policy;
-
 #[path = "../../src/raid_agent_policy.rs"]
 pub mod raid_agent_policy;
 

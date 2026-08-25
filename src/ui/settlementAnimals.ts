@@ -104,7 +104,7 @@ export type SettlementLivestockLedgerInput = Readonly<{
   herds?: Iterable<LivestockHerdState>;
   pastures?: Iterable<PastureState>;
   backyardGardens?: Iterable<BackyardGardenState>;
-  /** Current schedule pause (night, Sabbath, raid response, etc.) for production labor. */
+  /** Current schedule pause (holy day, Sabbath, raid response, etc.) for production labor. */
   laborPauseLabel?: string | null;
 }>;
 

@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { performance } from 'node:perf_hooks';
 import {
+  CALENDAR_SECONDS_PER_DAY,
   GUARDHOUSE_FOOD_PER_GUARD_PER_DAY,
   GUARDHOUSE_WAGE_PER_GUARD_PER_DAY,
   PRESERVED_FOOD_SPOILAGE_PER_DAY,
@@ -564,7 +565,7 @@ splitHome.x = 0;
 splitHome.needs.food.stock = householdFoodPerDay(4);
 splitHome.food = splitHome.needs.food.stock;
 splitHome.needs.firewood.stock = 4 * RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC * 170;
-splitHome.needs.water.stock = 4 * RESIDENCE_WATER_PER_PERSON_PER_SEC * 70;
+splitHome.needs.water.stock = 4 * RESIDENCE_WATER_PER_PERSON_PER_SEC * CALENDAR_SECONDS_PER_DAY;
 splitBranchState.residences.set(splitHome.id, splitHome);
 const remoteGranary = building('remote-granary', 'granary', 2, 0);
 remoteGranary.x = 100;
@@ -814,9 +815,9 @@ splitFuelHome.x = 0;
 splitFuelHome.needs.food.stock = householdFoodPerDay(4);
 splitFuelHome.food = splitFuelHome.needs.food.stock;
 splitFuelHome.needs.firewood.stock = 4 * RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC * 50;
-splitFuelHome.needs.water.stock = 4 * RESIDENCE_WATER_PER_PERSON_PER_SEC * 70;
-splitFuelHome.needs.cloth.stock = 4 * RESIDENCE_CLOTH_PER_PERSON_PER_SEC * 70;
-splitFuelHome.needs.ale.stock = 4 * RESIDENCE_ALE_PER_PERSON_PER_SEC * 70;
+splitFuelHome.needs.water.stock = 4 * RESIDENCE_WATER_PER_PERSON_PER_SEC * CALENDAR_SECONDS_PER_DAY;
+splitFuelHome.needs.cloth.stock = 4 * RESIDENCE_CLOTH_PER_PERSON_PER_SEC * CALENDAR_SECONDS_PER_DAY;
+splitFuelHome.needs.ale.stock = 4 * RESIDENCE_ALE_PER_PERSON_PER_SEC * CALENDAR_SECONDS_PER_DAY;
 splitFuelState.residences.set(splitFuelHome.id, splitFuelHome);
 const localGranary = building('local-granary', 'granary', 2, 0);
 localGranary.x = 0;
@@ -917,7 +918,7 @@ const seasonalRationState = emptyGameState();
 const seasonalRationHome = residence('seasonal-ration-home', 4, 5);
 seasonalRationHome.needs.preservedFood.stock = 5
   * RESIDENCE_PRESERVED_FOOD_PER_PERSON_PER_SEC
-  * 70;
+  * CALENDAR_SECONDS_PER_DAY;
 seasonalRationHome.preservedFood = seasonalRationHome.needs.preservedFood.stock;
 seasonalRationState.residences.set(
   seasonalRationHome.id,
@@ -943,7 +944,7 @@ assert.equal(ordinaryRationBuffer.householdBufferPreservedFoodShortHomes, 0);
 assert.equal(winterRationBuffer.householdBufferPreservedFoodShortHomes, 1);
 const seasonalGrossFoodPerDay = householdFoodPerDay(5);
 const ordinaryPreservedRotationPerDay =
-  5 * RESIDENCE_PRESERVED_FOOD_PER_PERSON_PER_SEC * 70;
+  5 * RESIDENCE_PRESERVED_FOOD_PER_PERSON_PER_SEC * CALENDAR_SECONDS_PER_DAY;
 assert.ok(Math.abs(
   ordinaryRationBuffer.grossHouseholdFoodPerDay - seasonalGrossFoodPerDay,
 ) < 1e-9);
@@ -1087,20 +1088,26 @@ for (const [id, tier, population] of [
     home.needs.firewood.stock = population * RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC * 170 * 1.15;
   }
   if (tier >= 1) {
-    home.needs.water.stock = population * RESIDENCE_WATER_PER_PERSON_PER_SEC * 70;
+    home.needs.water.stock = population
+      * RESIDENCE_WATER_PER_PERSON_PER_SEC
+      * CALENDAR_SECONDS_PER_DAY;
   }
   if (tier >= 2) {
-    home.needs.cloth.stock = population * RESIDENCE_CLOTH_PER_PERSON_PER_SEC * 70;
-    home.needs.ale.stock = population * RESIDENCE_ALE_PER_PERSON_PER_SEC * 70;
+    home.needs.cloth.stock = population
+      * RESIDENCE_CLOTH_PER_PERSON_PER_SEC
+      * CALENDAR_SECONDS_PER_DAY;
+    home.needs.ale.stock = population
+      * RESIDENCE_ALE_PER_PERSON_PER_SEC
+      * CALENDAR_SECONDS_PER_DAY;
   }
   if (tier >= 4) {
     home.needs.preservedFood.stock = population
       * RESIDENCE_PRESERVED_FOOD_PER_PERSON_PER_SEC
-      * 70;
+      * CALENDAR_SECONDS_PER_DAY;
     home.preservedFood = home.needs.preservedFood.stock;
     home.needs.pottery.stock = population
       * RESIDENCE_POTTERY_PER_PERSON_PER_SEC
-      * 70;
+      * CALENDAR_SECONDS_PER_DAY;
   }
   preparedState.residences.set(id, home);
 }
@@ -1202,7 +1209,9 @@ function householdBufferState(readyHomes: number) {
       home.needs.food.stock = householdFoodPerDay(3);
       home.food = home.needs.food.stock;
       home.needs.firewood.stock = 3 * RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC * 170;
-      home.needs.water.stock = 3 * RESIDENCE_WATER_PER_PERSON_PER_SEC * 70;
+      home.needs.water.stock = 3
+        * RESIDENCE_WATER_PER_PERSON_PER_SEC
+        * CALENDAR_SECONDS_PER_DAY;
     }
     state.residences.set(home.id, home);
   }

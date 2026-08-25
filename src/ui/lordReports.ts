@@ -213,7 +213,7 @@ function deriveLaborReports(
       title: joined === 1
         ? 'A new laborer joined the city'
         : `${joined} new laborers joined the city`,
-      detail: `${label} now houses ${residence.population}.`,
+      detail: '',
       timeLabel: reportTime(current),
       target: {
         kind: 'residence',
@@ -626,13 +626,17 @@ export class LordReportLedger {
     copy.className = 'noble-hud__report-copy';
     const title = document.createElement('strong');
     title.textContent = report.title;
-    const detail = document.createElement('span');
-    detail.className = 'noble-hud__report-detail';
-    detail.textContent = report.detail;
     const time = document.createElement('time');
     time.className = 'noble-hud__report-time';
     time.textContent = report.timeLabel;
-    copy.append(title, detail, time);
+    copy.append(title);
+    if (report.detail.trim()) {
+      const detail = document.createElement('span');
+      detail.className = 'noble-hud__report-detail';
+      detail.textContent = report.detail;
+      copy.append(detail);
+    }
+    copy.append(time);
     body.append(symbol, copy);
 
     const dismiss = document.createElement('button');

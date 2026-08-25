@@ -343,7 +343,11 @@ for (let step = 0; step < realtimeTickBudget(600); step++) villagers.tick(0.05);
 assert.notEqual(resident.routinePhase, 'at_fire_assembly');
 assert.equal(worker.routinePhase, 'work');
 
-villagers.setSchedule(fullClock(20), true);
+villagers.setSchedule({
+  ...fullClock(20),
+  weekday: 0,
+  isSunday: true,
+}, true, DEFAULT_NIGHT_POLICY, true, true);
 assert.equal(worker.routinePhase, 'returning_home');
 assert.equal(worker.pathPurpose, 'return_home');
 const pausedCursor = worker.simPathCursor;
@@ -369,9 +373,16 @@ for (let step = 0; step < realtimeTickBudget(600); step++) villagers.tick(0.05);
 assert.equal(worker.routinePhase, 'home_outdoors');
 assert.equal(worker.pathPurpose, null);
 
-villagers.setSchedule(fullClock(23.8), true);
+villagers.setSchedule({
+  ...fullClock(23.8),
+  weekday: 0,
+  isSunday: true,
+}, true, DEFAULT_NIGHT_POLICY, true, true);
 assert.equal(worker.routinePhase, 'asleep');
-villagers.setSchedule(fullClock(6), false);
+villagers.setSchedule({
+  ...fullClock(1),
+  totalDays: 1,
+}, false);
 assert.equal(worker.routinePhase, 'commuting_to_work');
 assert.equal(worker.pathPurpose, 'commute_to_work');
 for (let step = 0; step < realtimeTickBudget(600); step++) villagers.tick(0.05);
@@ -465,10 +476,10 @@ villagers.setSchedule({
 assert.equal(worker.routinePhase, 'returning_from_feast');
 assert.equal(worker.pathPurpose, 'return_from_feast');
 for (let step = 0; step < realtimeTickBudget(4000); step++) villagers.tick(0.05);
-assert.equal(
+assert.match(
   worker.routinePhase,
-  'home_outdoors',
-  'a worker returning late from a distant feast should not begin a commute with no useful shift left',
+  /^(commuting_to_work|work)$/,
+  'a worker returning from a feast should resume continuous ordinary labor',
 );
 
 villagers.setSchedule({
@@ -512,10 +523,10 @@ villagers.setRefugeAlert(false);
 assert.equal(worker.routinePhase, 'returning_from_refuge');
 assert.equal(worker.pathPurpose, 'return_from_refuge');
 for (let step = 0; step < realtimeTickBudget(1800); step++) villagers.tick(0.05);
-assert.equal(
+assert.match(
   worker.routinePhase,
-  'home_outdoors',
-  'a late refuge return should not trigger a commute with no useful shift left',
+  /^(commuting_to_work|work)$/,
+  'a worker returning from refuge should resume continuous ordinary labor',
 );
 assert.equal(worker.refugeId, null);
 syncRoutineVillage([
@@ -532,88 +543,21 @@ syncRoutineVillage();
 villagers.dispose();
 await new Promise((resolve) => setTimeout(resolve, 0));
 
-const committedCommuteVillagers = new VillagerRenderer({
+const continuousWorkVillagers = new VillagerRenderer({
   parent: new THREE.Group(),
   getGameSpeed: () => 1,
   getHeightAt: () => 0,
 });
-const distantHome = {
-  ...residence('distant-commute-home', 0, 0),
-  population: 1,
-  populationCapacity: 1,
-};
-const distantWorkplace = building('distant-commute-workplace', 110, 0);
-const distantRoads = new RoadNetwork();
-distantRoads.addRoadPath([
-  new THREE.Vector3(0, 0, 0),
-  new THREE.Vector3(110, 0, 0),
-]);
-committedCommuteVillagers.sync({
-  residences: [distantHome],
-  buildings: [distantWorkplace],
-  quarries: [],
-  foragingNodes: [],
-  trees: new Map(),
-  treeRegistry: null,
-  farmFields: [],
-  pastures: [],
-  fireIncidents: [],
-  roadNetwork: distantRoads,
-});
-committedCommuteVillagers.setSchedule(fullClock(12), false);
-committedCommuteVillagers.setSchedule(fullClock(20), true);
-const committedAgent = (
-  committedCommuteVillagers as unknown as {
-    agents: Map<string, {
-      routinePhase: string;
-      pathPurpose: string | null;
-      restUntilElapsedSeconds: number;
-    }>;
-  }
-).agents.get('worker:distant-commute-workplace:0');
-assert.ok(committedAgent);
-assert.equal(committedAgent.routinePhase, 'returning_home');
-committedCommuteVillagers.tick(0.05);
-committedCommuteVillagers.setSchedule({
-  ...fullClock(6),
-  totalDays: 1,
-}, false);
-assert.equal(
-  committedAgent.routinePhase,
-  'returning_home',
-  'dawn must not turn a worker around while their journey home is still in progress',
-);
-for (let step = 0; step < realtimeTickBudget(3000); step++) {
-  committedCommuteVillagers.tick(0.05);
-}
-assert.notEqual(
-  committedAgent.routinePhase,
-  'commuting_to_work',
-  'a worker who reaches home after dawn must take the guaranteed rest period before reporting again',
-);
-assert.notEqual(committedAgent.routinePhase, 'work');
-assert.ok(
-  committedAgent.restUntilElapsedSeconds > 120 + 30,
-  'the completed return journey should establish a six-hour minimum rest deadline',
-);
-committedCommuteVillagers.dispose();
-await new Promise((resolve) => setTimeout(resolve, 0));
-
-const bufferedCommuteVillagers = new VillagerRenderer({
-  parent: new THREE.Group(),
-  getGameSpeed: () => 1,
-  getHeightAt: () => 0,
-});
-const bufferedHome = residence('buffered-commute-home', 0, 0);
-const bufferedWorkplace = building('buffered-commute-workplace', 30, 0);
-const bufferedRoads = new RoadNetwork();
-bufferedRoads.addRoadPath([
+const continuousHome = residence('continuous-work-home', 0, 0);
+const continuousWorkplace = building('continuous-workplace', 30, 0);
+const continuousRoads = new RoadNetwork();
+continuousRoads.addRoadPath([
   new THREE.Vector3(0, 0, 0),
   new THREE.Vector3(30, 0, 0),
 ]);
-bufferedCommuteVillagers.sync({
-  residences: [bufferedHome],
-  buildings: [bufferedWorkplace],
+continuousWorkVillagers.sync({
+  residences: [continuousHome],
+  buildings: [continuousWorkplace],
   quarries: [],
   foragingNodes: [],
   trees: new Map(),
@@ -621,267 +565,49 @@ bufferedCommuteVillagers.sync({
   farmFields: [],
   pastures: [],
   fireIncidents: [],
-  roadNetwork: bufferedRoads,
+  roadNetwork: continuousRoads,
 });
-bufferedCommuteVillagers.setSchedule(fullClock(12), false);
-const bufferedAgent = (
-  bufferedCommuteVillagers as unknown as {
-    agents: Map<string, { routinePhase: string }>;
-  }
-).agents.get('worker:buffered-commute-workplace:0');
-assert.ok(bufferedAgent);
-bufferedCommuteVillagers.setSchedule(fullClock(17), false);
-assert.equal(
-  bufferedAgent.routinePhase,
-  'returning_home',
-  'a crew should leave before 20:00 when its measured return trip needs the remaining evening',
-);
-for (let step = 0; step < realtimeTickBudget(900); step++) {
-  bufferedCommuteVillagers.tick(0.05);
-}
-assert.notEqual(bufferedAgent.routinePhase, 'returning_home');
-const bufferedSummary = bufferedCommuteVillagers.getWorksiteCommuteSummary(
-  bufferedWorkplace.id,
-);
-assert.ok(bufferedSummary && bufferedSummary.averageOneWaySeconds > 0);
-const bufferedDepartureHour = 6 - bufferedSummary.averageOneWaySeconds / 5;
-assert.ok(
-  bufferedDepartureHour > 0.3,
-  'the buffered test route should open a measurable pre-dawn departure window',
-);
-bufferedCommuteVillagers.setSchedule({
-  ...fullClock(bufferedDepartureHour - 0.2),
-  totalDays: 1,
-}, false);
-assert.notEqual(
-  bufferedAgent.routinePhase,
-  'commuting_to_work',
-  'a crew should remain at rest until its pre-dawn departure window actually opens',
-);
-bufferedCommuteVillagers.setSchedule({
-  ...fullClock(bufferedDepartureHour + 0.2),
-  totalDays: 1,
-}, false);
-assert.equal(
-  bufferedAgent.routinePhase,
-  'commuting_to_work',
-  'a distant crew should depart before 06:00 when that is required to reach the opening shift',
-);
-bufferedCommuteVillagers.dispose();
-await new Promise((resolve) => setTimeout(resolve, 0));
-
-const remoteCampVillagers = new VillagerRenderer({
-  parent: new THREE.Group(),
-  getGameSpeed: () => 1,
-  getHeightAt: () => 0,
-});
-const campHome = residence('remote-camp-home', 0, 0);
-const campWorkplace = {
-  ...building('remote-camp-workplace', 90, 0),
-};
-const overnightCamp = {
-  ...building('remote-camp-lodging', 76, 8),
-  kind: 'remote_work_camp' as const,
-  assignedLabor: 0,
-  workRadius: 0,
-  linkedWorksiteId: campWorkplace.id,
-  constructionComplete: true,
-};
-const campRoads = new RoadNetwork();
-campRoads.addRoadPath([
-  new THREE.Vector3(0, 0, 0),
-  new THREE.Vector3(90, 0, 0),
-]);
-const syncRemoteCampVillage = (campState: 'none' | 'construction' | 'complete'): void => {
-  remoteCampVillagers.sync({
-    residences: [campHome],
-    buildings: [
-      campWorkplace,
-      ...(campState === 'none'
-        ? []
-        : [{ ...overnightCamp, constructionComplete: campState === 'complete' }]),
-    ],
-    quarries: [],
-    foragingNodes: [],
-    trees: new Map(),
-    treeRegistry: null,
-    farmFields: [],
-    pastures: [],
-    fireIncidents: [],
-    roadNetwork: campRoads,
-  });
-};
-syncRemoteCampVillage('construction');
-assert.equal(
-  remoteCampVillagers.getWorksiteCommuteSummary(campWorkplace.id)?.lodgingMode,
-  'none',
-  'an unfinished linked camp must leave the household commute active',
-);
-syncRemoteCampVillage('complete');
-remoteCampVillagers.setSchedule(fullClock(12), false);
-const campAgent = (
-  remoteCampVillagers as unknown as {
+continuousWorkVillagers.setSchedule(fullClock(12), false);
+const continuousAgent = (
+  continuousWorkVillagers as unknown as {
     agents: Map<string, {
-      personIdentity: string;
       routinePhase: string;
       pathPurpose: string | null;
-      pathDistance: number;
-      returnLodgingId: string | null;
-      x: number;
-      z: number;
     }>;
   }
-).agents.get('worker:remote-camp-workplace:0');
-assert.ok(campAgent);
-assert.equal(campAgent.routinePhase, 'work');
-remoteCampVillagers.setSchedule(fullClock(20), true);
-assert.equal(campAgent.routinePhase, 'returning_home');
-assert.ok(
-  campAgent.pathDistance < 30,
-  'an enabled remote camp should replace the long nightly trip home with a short walk to the tents',
+).agents.get('worker:continuous-workplace:0');
+assert.ok(continuousAgent);
+continuousWorkVillagers.setSchedule(fullClock(23), false);
+assert.equal(
+  continuousAgent.routinePhase,
+  'work',
+  'ordinary workers must remain on duty through cosmetic night hours',
+);
+continuousWorkVillagers.setSchedule({
+  ...fullClock(1),
+  totalDays: 1,
+  weekday: 0,
+  isSunday: true,
+}, true, DEFAULT_NIGHT_POLICY, true, true);
+assert.equal(
+  continuousAgent.routinePhase,
+  'returning_home',
+  'an observed Sabbath must still release the continuous crew toward home',
 );
 for (let step = 0; step < realtimeTickBudget(900); step++) {
-  remoteCampVillagers.tick(0.05);
+  continuousWorkVillagers.tick(0.05);
 }
-assert.match(campAgent.routinePhase, /^remote_camp_/);
-remoteCampVillagers.setSchedule(fullClock(23.8), true);
-assert.equal(campAgent.routinePhase, 'remote_camp_asleep');
-assert.equal(
-  remoteCampVillagers.inspectVillager(campAgent.personIdentity)?.visible,
-  false,
-  'sleeping remote workers should disappear inside their tents',
-);
-assert.match(
-  remoteCampVillagers.inspectVillager(campAgent.personIdentity)?.activity ?? '',
-  /Sleeping in the crew lodging/,
-);
-const campSummary = remoteCampVillagers.getWorksiteCommuteSummary(campWorkplace.id);
-assert.equal(campSummary?.lodgingMode, 'remote_camp');
-assert.equal(campSummary?.effectiveShiftRatio, 1);
-remoteCampVillagers.setSchedule({
+assert.equal(continuousAgent.routinePhase, 'asleep');
+continuousWorkVillagers.setSchedule({
   ...fullClock(1),
-  totalDays: 1,
-  weekday: 0,
-  isSunday: true,
-}, true, DEFAULT_NIGHT_POLICY, true, true);
-assert.equal(campAgent.routinePhase, 'returning_home');
-assert.equal(campAgent.returnLodgingId, null);
-assert.ok(
-  campAgent.pathDistance > 60,
-  'an observed Sunday must replace the local tent walk with the full household journey',
-);
-for (let step = 0; step < realtimeTickBudget(1800); step++) {
-  remoteCampVillagers.tick(0.05);
-}
-assert.equal(campAgent.routinePhase, 'asleep');
-assert.ok(
-  Math.hypot(campAgent.x - campHome.x, campAgent.z - campHome.z) < 6,
-  'a housed remote worker should spend the Sunday rest period at their residence',
-);
-remoteCampVillagers.setSchedule({
-  ...fullClock(6),
   totalDays: 2,
 }, false);
-assert.equal(campAgent.routinePhase, 'commuting_to_work');
-assert.ok(
-  campAgent.pathDistance > 60,
-  'Monday work should begin with the full journey from home, not from the remote tents',
-);
-for (let step = 0; step < realtimeTickBudget(1800); step++) {
-  remoteCampVillagers.tick(0.05);
-}
-assert.equal(campAgent.routinePhase, 'work');
-syncRemoteCampVillage('none');
-remoteCampVillagers.setSchedule({
-  ...fullClock(20),
-  totalDays: 2,
-}, true);
-assert.equal(campAgent.routinePhase, 'returning_home');
-assert.ok(
-  campAgent.pathDistance > 60,
-  'disabling the camp should restore the physical journey to the worker household',
-);
-remoteCampVillagers.dispose();
-await new Promise((resolve) => setTimeout(resolve, 0));
-
-const founderCampVillagers = new VillagerRenderer({
-  parent: new THREE.Group(),
-  getGameSpeed: () => 1,
-  getHeightAt: () => 0,
-});
-const foundersShelter = {
-  ...building('weekly-founders-camp', 0, 0),
-  kind: 'founders_camp' as const,
-  assignedLabor: 0,
-  workRadius: 0,
-  constructionComplete: true,
-  foundingShelterActive: true,
-};
-const founderWorkplace = building('founder-remote-workplace', 90, 0);
-const founderOvernightCamp = {
-  ...building('founder-remote-lodging', 76, 8),
-  kind: 'remote_work_camp' as const,
-  assignedLabor: 0,
-  workRadius: 0,
-  linkedWorksiteId: founderWorkplace.id,
-  constructionComplete: true,
-};
-founderCampVillagers.sync({
-  residences: [],
-  buildings: [foundersShelter, founderWorkplace, founderOvernightCamp],
-  quarries: [],
-  foragingNodes: [],
-  trees: new Map(),
-  treeRegistry: null,
-  farmFields: [],
-  pastures: [],
-  fireIncidents: [],
-  roadNetwork: campRoads,
-});
-founderCampVillagers.setSchedule(fullClock(12), false);
-const founderCampAgent = (
-  founderCampVillagers as unknown as {
-    agents: Map<string, {
-      personIdentity: string;
-      routinePhase: string;
-      pathDistance: number;
-      x: number;
-      z: number;
-    }>;
-  }
-).agents.get('worker:founder-remote-workplace:0');
-assert.ok(founderCampAgent);
-founderCampVillagers.setSchedule(fullClock(20), true);
-assert.equal(founderCampAgent.routinePhase, 'returning_home');
-founderCampVillagers.tick(0.5);
-founderCampVillagers.setSchedule({
-  ...fullClock(1),
-  totalDays: 1,
-  weekday: 0,
-  isSunday: true,
-}, true, DEFAULT_NIGHT_POLICY, true, true);
-assert.equal(founderCampAgent.routinePhase, 'returning_home');
-assert.ok(
-  founderCampAgent.pathDistance > 60,
-  'Sunday should immediately replan an active tent journey toward the founders camp',
-);
-for (let step = 0; step < realtimeTickBudget(1800); step++) {
-  founderCampVillagers.tick(0.05);
-}
-assert.equal(founderCampAgent.routinePhase, 'asleep');
-assert.ok(
-  Math.hypot(
-    founderCampAgent.x - foundersShelter.x,
-    founderCampAgent.z - foundersShelter.z,
-  ) < 7,
-  'without a residence, Sunday homecoming must end at the founders tents',
-);
 assert.equal(
-  founderCampVillagers.inspectVillager(founderCampAgent.personIdentity)?.visible,
-  false,
-  'an unhoused worker should disappear into the founders tents while sleeping',
+  continuousAgent.routinePhase,
+  'commuting_to_work',
+  'ordinary labor must resume immediately after Sabbath even during cosmetic night',
 );
-founderCampVillagers.dispose();
+continuousWorkVillagers.dispose();
 await new Promise((resolve) => setTimeout(resolve, 0));
 
 const defenseVillagers = new VillagerRenderer({

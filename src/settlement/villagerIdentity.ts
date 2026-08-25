@@ -52,7 +52,6 @@ const FAMILY_NAMES = [
 const OCCUPATIONS: Record<BuildingKind, string> = {
   founders_camp: 'Founder',
   salvage_pile: 'Hauler',
-  remote_work_camp: 'Camp builder',
   lumber_mill: 'Lumberjack',
   reforester: 'Forester',
   woodcutters_lodge: 'Woodcutter',

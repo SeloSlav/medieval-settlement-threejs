@@ -15,13 +15,13 @@ use crate::simulation::{
     step_land_levies, step_large_quarry, step_live_raids, step_local_material_dispatch,
     step_lumber_mill, step_market_household_distribution, step_marketplace_caravans,
     step_marketplace_material_dispatch, step_mine, step_monastery, step_natural_tree_regrowth,
-    step_night_cycle, step_pastoral_farmstead, step_potter_kiln, step_production_labor_stewards,
+    step_pastoral_farmstead, step_potter_kiln, step_production_labor_stewards,
     step_reclamation_piles, step_reforester, step_residence, step_residence_upgrades,
     step_seasonal_labor_stewards, step_seed_grain_distribution, step_settlement_security,
     step_smithy, step_smokehouse, step_stone_quarry, step_storehouse_market_stalls, step_swineherd,
     step_tannery, step_threshing_barn, step_trading_post_trade,
     step_village_storehouse_overflow_collection, step_watermill, step_weaver, step_well,
-    step_windmill, step_woodcutters_lodge, step_workforce_commutes,
+    step_windmill, step_woodcutters_lodge,
     try_dispatch_guardhouse_payroll, SharedRoadNetworks, SimTickContext,
 };
 use crate::supply_policy::{INSTITUTIONAL_FOOD_SOURCE_KINDS, LOCAL_MATERIAL_SOURCE_KINDS};
@@ -175,8 +175,6 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
     if crate::simulation::holiday_observance(&clock).is_some() {
         return;
     }
-    let previous_clock = crate::simulation::game_clock(sim_tick.saturating_sub(1));
-    step_night_cycle(ctx, &previous_clock, &clock, world_seed);
     let environment = crate::season_policy::environment_for(
         world_seed,
         world_hydrology,
@@ -211,7 +209,6 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
         world_seed,
         sim_tick,
     );
-    step_workforce_commutes(ctx, &tick, sim_tick);
     step_construction_sites(ctx, &tick, &clock);
     step_residence_upgrades(ctx, &tick, &clock);
     step_land_levies(ctx, &tick, &clock);

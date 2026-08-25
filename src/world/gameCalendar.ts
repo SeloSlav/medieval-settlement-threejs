@@ -145,9 +145,6 @@ export function isLaborPaused(
   if (holidayObservanceForClock(clock)) {
     return true;
   }
-  if (!clock.isWorkHours) {
-    return true;
-  }
   if (clock.isSunday && sabbathObservanceEnabled && staffedChapel) {
     return true;
   }
@@ -163,9 +160,6 @@ export function laborPauseLabel(
   if (holiday) {
     return holiday.label;
   }
-  if (!clock.isWorkHours) {
-    return 'Night hours';
-  }
   if (clock.isSunday && sabbathObservanceEnabled && staffedChapel) {
     return 'Sunday sabbath';
   }
@@ -175,6 +169,4 @@ export function laborPauseLabel(
 /** One in-game day for runway and per-day economy displays. */
 export const GAME_DAY_SECONDS = CALENDAR_SECONDS_PER_DAY;
 export const SECONDS_PER_DAY = CALENDAR_SECONDS_PER_DAY;
-export const GAME_WORKDAY_SECONDS = CALENDAR_SECONDS_PER_DAY
-  * (CALENDAR_WORK_END_HOUR - CALENDAR_WORK_START_HOUR)
-  / CALENDAR_HOURS_PER_DAY;
+export const GAME_WORKDAY_SECONDS = CALENDAR_SECONDS_PER_DAY;

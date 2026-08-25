@@ -242,7 +242,10 @@ function buildDogwoodFoliageCohorts(
   const densityRng = new Rng(`${seed}:${layer}:density-v1`);
   const gapAzimuth = architecture.lightGapAzimuthDeg * Math.PI / 180;
   const gapHalfWidth = architecture.foliageGapDeg * Math.PI / 360;
-  const weights = stems.map((stem) => {
+  const tipHeights = stems.map((stem) => stem.points.at(-1)!.y);
+  const minimumTipHeight = Math.min(...tipHeights);
+  const tipHeightSpan = Math.max(0.001, Math.max(...tipHeights) - minimumTipHeight);
+  const weights = stems.map((stem, stemIndex) => {
     const tip = stem.points.at(-1)!;
     const angularDistance = Math.abs(shortestSignedAngle(
       Math.atan2(tip.z, tip.x) - gapAzimuth,
@@ -261,11 +264,13 @@ function buildDogwoodFoliageCohorts(
     const massWeight = 1 + architecture.foliageMassBias * Math.cos(
       Math.atan2(tip.z, tip.x) - massDirection,
     );
+    const heightPosition = (tipHeights[stemIndex]! - minimumTipHeight) / tipHeightSpan;
+    const heightWeight = 1 + architecture.foliageHeightBias * (heightPosition * 2 - 1);
     const localVariation = 1 + densityRng.vary(
       0,
       architecture.foliageDensityVariation,
     );
-    return Math.max(0.05, gapWeight * massWeight * localVariation);
+    return Math.max(0.05, gapWeight * massWeight * heightWeight * localVariation);
   });
   const nodeCounts = allocateWeightedCounts(
     weights,

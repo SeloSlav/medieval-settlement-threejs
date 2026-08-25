@@ -230,7 +230,6 @@ export const BUILDING_AUDIO_CLIPS: Record<
   woodcutters_lodge: { path: '/sounds/buildings/woodcutters_lodge.mp3', volume: 0.065 },
   stone_quarry: { path: '/sounds/buildings/stone_quarry.mp3', volume: 0.065 },
   large_quarry: { path: '/sounds/buildings/large_quarry.mp3', volume: 0.07 },
-  remote_work_camp: { path: '/sounds/buildings/remote_work_camp.mp3', volume: 0.045 },
   mine: { path: '/sounds/buildings/mine.mp3', volume: 0.065 },
   clay_pit: { path: '/sounds/buildings/clay_pit.mp3', volume: 0.055 },
   charcoal_burner: { path: '/sounds/buildings/charcoal_burner.mp3', volume: 0.05 },
