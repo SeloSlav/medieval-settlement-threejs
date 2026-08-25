@@ -268,9 +268,10 @@ test('connects, places a reforester, and updates settlement HUD timber', async (
   for (const value of await foundingPopulationValues.all()) {
     await expect(value).toHaveText('0');
   }
-  const welcomeTutorial = page.getByRole('dialog', { name: 'Begin Your Settlement' });
+  const welcomeTutorial = page.getByRole('dialog', { name: 'The Frontier Awaits' });
   await expect(welcomeTutorial).toBeVisible({ timeout: SYNC_TIMEOUT_MS });
-  await welcomeTutorial.getByRole('button', { name: 'Got it' }).click();
+  await expect(welcomeTutorial).toContainText('You are Nikola IV. Zrinski');
+  await welcomeTutorial.getByRole('button', { name: 'Take up your charge' }).click();
   await starterCamp.click();
   await expect.poll(
     () => page.evaluate(() => window.__medievalE2e?.getBuildingMode()),

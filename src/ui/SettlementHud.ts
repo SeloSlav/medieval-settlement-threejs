@@ -804,8 +804,13 @@ export class SettlementHud {
     const noblePortrait = this.mustElement('[data-noble-hud-portrait]') as HTMLImageElement;
     const nobleName = this.mustElement('[data-noble-hud-name]');
     const nobleShieldMount = this.mustElement('[data-noble-hud-shield]');
-    noblePortrait.src = noble.portrait;
-    noblePortrait.alt = `Portrait of ${profile.displayName}`;
+    if (noble.portrait) {
+      noblePortrait.src = noble.portrait;
+      noblePortrait.alt = `Portrait of ${profile.displayName}`;
+    } else {
+      noblePortrait.removeAttribute('src');
+      noblePortrait.alt = '';
+    }
     nobleName.textContent = profile.displayName;
     const nobleShield = createHeraldryShield('heraldry-shield--hud');
     applyHeraldryToElement(nobleShield, profile.heraldry);

@@ -379,6 +379,18 @@ assert.match(
 );
 assert.match(source('server/src/reducers/residences.rs'), /ResidenceNeedKind::Luxury[\s\S]*?CommodityKind::Candles/);
 
+// Frontier raid valuation and plunder must stay in parity with physical candle cargo.
+const serverSecurity = source('server/src/security_policy.rs');
+assert.match(serverSecurity, /positive_store\(self\.wax\)\s*\*\s*1\.5/);
+assert.match(serverSecurity, /positive_store\(self\.candles\)\s*\*\s*2\.0/);
+assert.match(serverSecurity, /plunder_good!\(wax\)[\s\S]*plunder_good!\(candles\)/);
+
+const clientSecurity = source('src/security/frontierSecurity.ts');
+assert.match(clientSecurity, /positivePortableAmount\(stores\.wax\)\s*\*\s*1\.5/);
+assert.match(clientSecurity, /positivePortableAmount\(stores\.candles\)\s*\*\s*2/);
+assert.match(clientSecurity, /\['wax',\s*'beeswax',\s*1\.5\][\s\S]*\['candles',\s*'candles',\s*2\]/);
+assert.match(clientSecurity, /wax:\s*1\.5[\s\S]*candles:\s*2/);
+
 // Regional trade and all physical stock surfaces remain exact-commodity aware.
 assert.ok(TRADE_RESOURCE_KINDS.includes('wax'));
 assert.ok(TRADE_RESOURCE_KINDS.includes('candles'));
@@ -424,6 +436,34 @@ assert.ok(cards.includes('%22candles%22'));
 const buildingMeshes = source('src/buildings/BuildingMeshes.ts');
 assert.match(buildingMeshes, /createChandleryMesh/);
 assert.match(buildingMeshes, /case\s+'chandlery'\s*:\s*return\s+createChandleryMesh\(\)/);
+
+const iconography = source('src/ui/iconography.css');
+for (const [resource, asset] of [
+  ['wax', 'beeswax.png'],
+  ['candles', 'candles.png'],
+] as const) {
+  const path = `public/assets/ui/icons/materials/${asset}`;
+  const png = readFileSync(path);
+  assert.ok(png.byteLength > 20_000, `${resource} needs substantive painted resource artwork`);
+  assert.equal(png.readUInt32BE(16), 256, `${resource} icon must be 256 pixels wide`);
+  assert.equal(png.readUInt32BE(20), 256, `${resource} icon must be 256 pixels tall`);
+  assert.equal(png[25], 6, `${resource} icon must preserve an RGBA transparency channel`);
+  assert.match(
+    iconography,
+    new RegExp(`settlement-hud__stat\\[data-resource='${resource}'\\][\\s\\S]{0,180}${asset.replace('.', '\\.')}`),
+    `${resource} HUD totals must use their painted resource icon`,
+  );
+  assert.match(
+    iconography,
+    new RegExp(`resource-cost__item\\[data-resource-cost='${resource}'\\][\\s\\S]{0,220}${asset.replace('.', '\\.')}`),
+    `${resource} inspector and cost tokens must use their painted resource icon`,
+  );
+}
+assert.match(
+  source('src/resources/ResourceInspector.ts'),
+  /chandlery:\s*'\/assets\/ui\/build-menu\/cards\/chandlery\.webp'/,
+  'the Chandlery inspector must use its own building artwork',
+);
 
 const candleMeshPath = 'src/buildings/meshes/chandleryBuildingMesh.ts';
 assert.ok(existsSync(candleMeshPath), 'the Chandlery needs a dedicated procedural mesh module');

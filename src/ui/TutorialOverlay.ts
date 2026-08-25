@@ -1,4 +1,5 @@
 import type { BuildingKind } from '../generated/gameBalance.ts';
+import { getCurrentNobleProfile, getNoble } from './nobleProfile.ts';
 import { PersistentTutorialCompletions } from './PersistentTutorialCompletions.ts';
 
 type TutorialId =
@@ -40,6 +41,8 @@ type TutorialDefinition = {
   title: string;
   rows: TutorialRow[];
   blocksGameplay?: boolean;
+  confirmLabel?: string;
+  repeatOnFreshWorld?: boolean;
 };
 
 type TutorialOverlayOptions = {
@@ -81,34 +84,36 @@ const WORKSITE_BUILDING_KINDS = new Set<BuildingKind>([
 const TUTORIALS: Record<TutorialId, TutorialDefinition> = {
   welcome: {
     id: 'welcome',
-    eyebrow: 'Your valley is ready',
-    title: 'Begin Your Settlement',
+    eyebrow: 'Croatia · Anno Domini 1550',
+    title: 'The Frontier Awaits',
+    confirmLabel: 'Take up your charge',
+    repeatOnFreshWorld: true,
     rows: [
       {
         icon: 'camp',
-        label: 'Place the camp',
+        label: 'A realm between empires',
         parts: [
-          { text: 'Choose ' },
-          { text: 'Place starter camp', emphasis: 'gold' },
-          { text: ' at the bottom of the screen, then pick clear, dry ground near timber, stone, food, and water.' },
+          { text: 'To the east, the ' },
+          { text: 'Ottoman Empire presses westward', emphasis: 'gold' },
+          { text: '. Venice commands the Adriatic, while the Habsburg court gathers the frontier beneath its rule.' },
         ],
       },
       {
         icon: 'road',
-        label: 'Follow the guided steps',
+        label: 'The last Croatian estates',
         parts: [
-          { text: 'Tutorial cards will appear as you open ' },
-          { text: 'Roads, construction, workforce, and homes', emphasis: 'gold' },
-          { text: ' for the first time.' },
+          { text: 'Your house stands among the ' },
+          { text: 'last great Croatian estates', emphasis: 'gold' },
+          { text: '—old powers still governing lands, fortresses, and people while a new border world is being improvised around them.' },
         ],
       },
       {
         icon: 'build',
-        label: 'Open tutorials again',
+        label: 'Your charge',
         parts: [
-          { text: 'Use the always-visible ' },
-          { text: '?', emphasis: 'gold' },
-          { text: ' button beside Settings in the bottom toolbar whenever you want to replay the full guide.' },
+          { text: 'Raise a settlement into a living frontier. Feed its people, command its roads and trade, fortify its approaches, and ' },
+          { text: 'hold this ground', emphasis: 'gold' },
+          { text: '. Endure—and you may yet change the course of history.' },
         ],
       },
     ],
@@ -373,6 +378,7 @@ export class TutorialOverlay {
   private readonly dialog: HTMLElement;
   private readonly eyebrow: HTMLElement;
   private readonly title: HTMLElement;
+  private readonly address: HTMLElement;
   private readonly rows: HTMLElement;
   private readonly skipCheckbox: HTMLInputElement;
   private readonly confirmButton: HTMLButtonElement;
@@ -399,11 +405,12 @@ export class TutorialOverlay {
         role="dialog"
         aria-modal="true"
         aria-labelledby="tutorial-title"
-        aria-describedby="tutorial-rows"
+        aria-describedby="tutorial-address tutorial-rows"
       >
         <header class="tutorial-dialog__header">
           <p class="tutorial-dialog__eyebrow" data-tutorial-eyebrow></p>
           <h2 class="tutorial-dialog__title" id="tutorial-title" data-tutorial-title></h2>
+          <p class="tutorial-dialog__address" id="tutorial-address" data-tutorial-address hidden></p>
           <span class="tutorial-dialog__rule" aria-hidden="true"></span>
         </header>
         <div class="tutorial-dialog__rows" id="tutorial-rows" data-tutorial-rows></div>
@@ -424,6 +431,7 @@ export class TutorialOverlay {
     this.dialog = this.mustElement('.tutorial-dialog');
     this.eyebrow = this.mustElement('[data-tutorial-eyebrow]');
     this.title = this.mustElement('[data-tutorial-title]');
+    this.address = this.mustElement('[data-tutorial-address]');
     this.rows = this.mustElement('[data-tutorial-rows]');
     this.skipCheckbox = this.mustElement<HTMLInputElement>('[data-tutorial-skip]');
     this.confirmButton = this.mustElement<HTMLButtonElement>('[data-tutorial-confirm]');
@@ -505,12 +513,13 @@ export class TutorialOverlay {
   }
 
   private show(id: TutorialId): boolean {
-    if (this.shown.has(id) || this.completions.has(id) || this.areTutorialsSkipped()) return false;
+    const tutorial = TUTORIALS[id];
+    const wasCompleted = tutorial.repeatOnFreshWorld !== true && this.completions.has(id);
+    if (this.shown.has(id) || wasCompleted || this.areTutorialsSkipped()) return false;
     if (this.isOpen()) {
       if (!this.replayQueue.includes(id)) this.replayQueue.push(id);
       return true;
     }
-    const tutorial = TUTORIALS[id];
     const blocksGameplay = tutorial.blocksGameplay !== false;
     this.shown.add(id);
     this.current = id;
@@ -519,7 +528,17 @@ export class TutorialOverlay {
       : null;
     this.eyebrow.textContent = tutorial.eyebrow;
     this.title.textContent = tutorial.title;
+    if (id === 'welcome') {
+      const profile = getCurrentNobleProfile();
+      const noble = getNoble(profile.nobleId);
+      this.address.textContent = `You are ${profile.displayName} — ${noble.title}.`;
+      this.address.hidden = false;
+    } else {
+      this.address.textContent = '';
+      this.address.hidden = true;
+    }
     this.renderRows(tutorial.rows);
+    this.confirmButton.textContent = tutorial.confirmLabel ?? 'Got it';
     this.skipCheckbox.checked = false;
     this.root.hidden = false;
     this.root.dataset.tutorial = id;
@@ -566,7 +585,9 @@ export class TutorialOverlay {
 
   private readonly dismiss = (): void => {
     if (!this.isOpen()) return;
-    this.completions.complete(this.current!);
+    if (TUTORIALS[this.current!].repeatOnFreshWorld !== true) {
+      this.completions.complete(this.current!);
+    }
     const skipTutorials = this.skipCheckbox.checked;
     if (skipTutorials) {
       this.setTutorialsSkipped(true);

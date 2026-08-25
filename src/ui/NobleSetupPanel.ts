@@ -370,7 +370,9 @@ export class NobleSetupPanel {
       button.dataset.tooltipPlacement = 'above';
       button.setAttribute('aria-label', `${noble.name}. ${noble.title}. ${noble.years}`);
       button.innerHTML = `
-        <img src="${noble.portrait}" alt="" width="560" height="560" loading="eager" />
+        ${noble.portrait
+          ? `<img src="${noble.portrait}" alt="" width="560" height="560" loading="eager" />`
+          : '<i class="noble-setup-noble__portrait-placeholder" aria-hidden="true"></i>'}
         <span>${noble.name.replace(/\s+(?=[^ ]+$)/, '<br>')}</span>
       `;
       button.addEventListener('click', () => {
@@ -455,14 +457,12 @@ export class NobleSetupPanel {
 
   private syncIdentity(): void {
     const noble = getNoble(this.draft.nobleId);
-    this.previewPortrait.src = noble.portrait;
-    this.previewPortrait.alt = `Portrait of ${noble.name}`;
+    this.syncPortrait(this.previewPortrait, noble.portrait, noble.name);
     this.previewName.value = this.draft.displayName;
     this.previewTitle.textContent = noble.title;
     this.previewYears.textContent = noble.years;
     this.heraldryHouseName.textContent = this.draft.displayName;
-    this.heraldryPreviewPortrait.src = noble.portrait;
-    this.heraldryPreviewPortrait.alt = `Portrait of ${noble.name}`;
+    this.syncPortrait(this.heraldryPreviewPortrait, noble.portrait, noble.name);
     this.heraldryPreviewTitle.textContent = noble.title;
     this.heraldryPreviewYears.textContent = noble.years;
     const tooltipBody = `${noble.title}\n\n${noble.years}`;
@@ -475,6 +475,17 @@ export class NobleSetupPanel {
       button.classList.toggle('is-selected', selected);
       button.setAttribute('aria-pressed', String(selected));
     }
+  }
+
+  private syncPortrait(image: HTMLImageElement, portrait: string | null, name: string): void {
+    image.parentElement?.classList.toggle('is-portrait-pending', portrait === null);
+    if (portrait) {
+      image.src = portrait;
+      image.alt = `Portrait of ${name}`;
+      return;
+    }
+    image.removeAttribute('src');
+    image.alt = '';
   }
 
   private syncHeraldry(): void {

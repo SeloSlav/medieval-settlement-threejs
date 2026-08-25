@@ -658,8 +658,13 @@ assert.match(
 );
 assert.match(
   tutorialOverlay,
-  /welcome:\s*\{[\s\S]*?Begin Your Settlement[\s\S]*?notifyWorldReady\(hasFoundersCamp: boolean\)[\s\S]*?this\.show\('welcome'\)/,
-  'a fresh world must show first-step guidance without waiting for a later tool event',
+  /welcome:\s*\{[\s\S]*?Croatia · Anno Domini 1550[\s\S]*?The Frontier Awaits[\s\S]*?Ottoman Empire presses westward[\s\S]*?last great Croatian estates[\s\S]*?notifyWorldReady\(hasFoundersCamp: boolean\)[\s\S]*?this\.show\('welcome'\)/,
+  'a fresh world must open with the historical frontier charge without waiting for a later tool event',
+);
+assert.match(
+  tutorialOverlay,
+  /getCurrentNobleProfile\(\)[\s\S]*?You are \$\{profile\.displayName\}[\s\S]*?repeatOnFreshWorld !== true/,
+  'the opening charge must name the selected noble and return for each fresh settlement',
 );
 assert.match(
   app,

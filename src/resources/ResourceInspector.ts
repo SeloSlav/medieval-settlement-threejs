@@ -2896,7 +2896,7 @@ const BUILDING_INSPECTOR_ART = {
   weaver: '/assets/ui/build-menu/cards/weaver.webp',
   tannery: '/assets/ui/build-menu/cards/tannery.webp',
   cobbler: '/assets/ui/build-menu/cards/cobbler.webp',
-  chandlery: '/assets/ui/build-menu/cards/potter-kiln.webp',
+  chandlery: '/assets/ui/build-menu/cards/chandlery.webp',
 } satisfies Record<BuildingKind, string>;
 
 function inspectableIdentity(target: InspectableTarget | null): string {

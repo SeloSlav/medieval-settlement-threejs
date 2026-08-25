@@ -16,6 +16,10 @@ test('new-world setup moves backward and forward without losing choices', async 
   await expect(page.locator('[data-setup-step="heraldry"]')).toBeHidden();
   await expect(page.locator('[data-setup-back]')).toBeHidden();
   await expectActiveStep(page, 'house');
+  const pendingPortraitFigure = page.locator('[data-noble-id="simun-kozicic-benja"]');
+  await expect(pendingPortraitFigure).toBeVisible();
+  await expect(pendingPortraitFigure.locator('img')).toHaveCount(0);
+  await expect(pendingPortraitFigure.locator('.noble-setup-noble__portrait-placeholder')).toBeVisible();
 
   const noble = page.locator('[data-noble-id="vuk-frankapan"]');
   await noble.click();

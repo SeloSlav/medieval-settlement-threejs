@@ -364,11 +364,11 @@
 }
 
 .settlement-hud__stat[data-resource='wax']::before {
-  background-image: url('/assets/ui/icons/materials/beeswax.svg');
+  background-image: url('/assets/ui/icons/materials/beeswax.png');
 }
 
 .settlement-hud__stat[data-resource='candles']::before {
-  background-image: url('/assets/ui/icons/materials/candles.svg');
+  background-image: url('/assets/ui/icons/materials/candles.png');
 }
 
 .settlement-hud__stat[data-resource='ryeGrain']::before,
@@ -624,11 +624,11 @@
 }
 
 .resource-cost__item[data-resource-cost='wax'] .resource-cost__icon {
-  background-image: url('/assets/ui/icons/materials/beeswax.svg');
+  background-image: url('/assets/ui/icons/materials/beeswax.png');
 }
 
 .resource-cost__item[data-resource-cost='candles'] .resource-cost__icon {
-  background-image: url('/assets/ui/icons/materials/candles.svg');
+  background-image: url('/assets/ui/icons/materials/candles.png');
 }
 
 .resource-cost__item[data-resource-cost='ryeSheaves'] .resource-cost__icon,

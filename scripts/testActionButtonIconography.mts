@@ -97,6 +97,7 @@ for (const [kind, expectedUrl] of Object.entries({
   palisaded_refuge: '/assets/ui/build-menu/cards/palisaded-refuge.webp',
   tavern: '/assets/ui/build-menu/cards/tavern.webp',
   bakery: '/assets/ui/build-menu/cards/bakery.webp',
+  chandlery: '/assets/ui/build-menu/cards/chandlery.webp',
 })) {
   assert.equal(inspectorArtwork.get(kind), expectedUrl, `${kind} must use the intended inspector art`);
 }
@@ -169,6 +170,8 @@ const generatedAssets = [
   'materials/roof-tiles.png',
   'materials/manure.png',
   'materials/remedies.png',
+  'materials/beeswax.png',
+  'materials/candles.png',
   'provisions/animal-feed.png',
   'actions/graveyard.png',
   'actions/demolish.png',
@@ -329,6 +332,8 @@ for (const [resource, asset] of [
   ['roofTiles', 'materials/roof-tiles.png'],
   ['manure', 'materials/manure.png'],
   ['remedies', 'materials/remedies.png'],
+  ['wax', 'materials/beeswax.png'],
+  ['candles', 'materials/candles.png'],
   ['animalFeed', 'provisions/animal-feed.png'],
 ] as const) {
   assert.match(

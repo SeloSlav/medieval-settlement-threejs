@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
 const noblePanel = readFileSync('src/ui/NobleSetupPanel.ts', 'utf8');
+const nobleProfile = readFileSync('src/ui/nobleProfile.ts', 'utf8');
 const worldPanel = readFileSync('src/ui/WorldSetupPanel.ts', 'utf8');
 const bootstrapFlow = readFileSync('src/app/worldBootstrapFlow.ts', 'utf8');
 const nobleCss = readFileSync('src/ui/nobleSetup.css', 'utf8');
@@ -28,6 +29,18 @@ assert.match(noblePanel, /class="noble-setup-heraldry-editor"/);
 assert.doesNotMatch(noblePanel, /<h2[^>]*>Your Noble<\/h2>/);
 assert.doesNotMatch(noblePanel, /<p class="noble-setup-eyebrow">Coat of Arms<\/p>/);
 assert.doesNotMatch(noblePanel, /Heraldry of Your House/);
+for (const id of [
+  'juraj-julije-klovic',
+  'stjepan-konzul-istranin',
+  'frane-petric',
+  'matija-vlacic-ilirik',
+  'simun-kozicic-benja',
+  'mila-gojsalic',
+]) {
+  assert.match(nobleProfile, new RegExp(`id: '${id}'[\\s\\S]*?portrait: null`));
+}
+assert.match(noblePanel, /noble-setup-noble__portrait-placeholder/);
+assert.match(noblePanel, /image\.removeAttribute\('src'\)/);
 assert.match(
   noblePanel,
   /this\.backButton\.addEventListener\('click',[\s\S]*?this\.step = 'house'[\s\S]*?this\.syncStep/,

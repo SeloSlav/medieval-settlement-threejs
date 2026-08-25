@@ -85,6 +85,48 @@ export const NOBLES = [
     years: 'before 1521–1546 · legacy',
     portrait: '/assets/ui/noble-setup/portraits/vuk-frankapan.webp',
   },
+  {
+    id: 'juraj-julije-klovic',
+    name: 'Juraj Julije Klović',
+    title: 'Vinodol-born Augustinian canon and master illuminator',
+    years: '1498–1578',
+    portrait: null,
+  },
+  {
+    id: 'stjepan-konzul-istranin',
+    name: 'Stjepan Konzul Istranin',
+    title: 'Glagolitic priest, Protestant writer, and Bible translator',
+    years: '1521–1579',
+    portrait: null,
+  },
+  {
+    id: 'frane-petric',
+    name: 'Frane Petrić',
+    title: 'Cres-born philosopher, polymath, merchant, and sailor',
+    years: '1529–1597',
+    portrait: null,
+  },
+  {
+    id: 'matija-vlacic-ilirik',
+    name: 'Matija Vlačić Ilirik',
+    title: 'Labin-born Protestant theologian, historian, and philologist',
+    years: '1520–1575',
+    portrait: null,
+  },
+  {
+    id: 'simun-kozicic-benja',
+    name: 'Šimun Kožičić Benja',
+    title: 'Modruš bishop and Glagolitic printer in Rijeka',
+    years: 'c. 1460–1536',
+    portrait: null,
+  },
+  {
+    id: 'mila-gojsalic',
+    name: 'Mila Gojsalić',
+    title: 'Poljica heroine of resistance to Ottoman raiders',
+    years: 'fl. c. 1530',
+    portrait: null,
+  },
 ] as const;
 
 export type NobleId = (typeof NOBLES)[number]['id'];
