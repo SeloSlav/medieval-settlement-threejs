@@ -3530,9 +3530,9 @@ select:focus-visible {
 }
 
 .game-menu-dialog {
-  width: min(92vw, 440px);
-  gap: 14px;
-  padding: 26px 28px 28px 31px;
+  width: min(1080px, calc(100vw - 32px));
+  gap: 12px;
+  padding: 18px 20px 20px 23px;
 }
 
 .game-menu-title,

@@ -241,7 +241,7 @@ assert.match(residenceRenderer, /activeResidenceNeedKinds\(tier\)/);
 assert.match(residenceRenderer, /data-residence-need-state="\$\{met \? 'met' : 'unmet'\}"/);
 assert.match(residenceRenderer, /getNeed\(residence\.needs, kind\)\.deficitTicks <= 0/);
 assert.match(backyardCss, /residence-need-icon\.is-unmet \.resource-cost__icon[\s\S]{0,120}grayscale\(1\)/);
-assert.match(iconography, /data-residence-need='church'[\s\S]{0,180}chapel\.webp/);
+assert.match(iconography, /data-residence-need='church'[\s\S]{0,180}church-tier-2\.png/);
 assert.doesNotMatch(backyardRenderer, /<span>Household services<\/span>|formatResidenceServiceConsequence/);
 assert.match(
   residenceRenderer,
