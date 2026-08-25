@@ -10,10 +10,6 @@ import {
   normalizeLaborStewardReserve,
 } from '../../economy/laborSteward.ts';
 import { createEmptyStockpile } from '../../resources/types.ts';
-import {
-  DEFAULT_NIGHT_POLICY,
-  normalizeNightPolicyCode,
-} from '../../economy/nightPolicy.ts';
 import type { GameTableSyncState } from './gameTableSyncState.ts';
 import { DEFAULT_FISCAL_POLICY } from '../../economy/fiscalPolicy.ts';
 import { wholeResourceUnits } from '../../resources/resourceUnits.ts';
@@ -35,7 +31,6 @@ export function syncPlayerResources(rows: Iterable<PlayerResources>, state: Game
   state.laborStewardReserve = DEFAULT_LABOR_STEWARD_RESERVE;
   state.parishPolicy = { ...DEFAULT_PARISH_POLICY };
   state.monasteryPolicy = { ...DEFAULT_MONASTERY_POLICY };
-  state.nightPolicy = { ...DEFAULT_NIGHT_POLICY };
   if (!state.identityHex) return;
 
   for (const row of rows) {
@@ -182,27 +177,6 @@ export function syncPlayerResources(rows: Iterable<PlayerResources>, state: Game
       scriptoriumStoneSavedTotal: wholeResourceUnits(row.monasteryScriptoriumStoneSavedTotal),
       scriptoriumIronworkSavedTotal: wholeResourceUnits(row.monasteryScriptoriumIronworkSavedTotal),
       scriptoriumRoofTilesSavedTotal: wholeResourceUnits(row.monasteryScriptoriumRoofTilesSavedTotal),
-    };
-    state.nightPolicy = {
-      watch: normalizeNightPolicyCode(row.nightWatchPolicy),
-      gathering: normalizeNightPolicyCode(row.nightGatheringPolicy),
-      work: normalizeNightPolicyCode(row.nightWorkPolicy),
-      lighting: normalizeNightPolicyCode(row.nightLightingPolicy),
-      curfew: normalizeNightPolicyCode(row.nightCurfewPolicy),
-      lastReportDay: Number(row.lastNightReportDay ?? 0),
-      lastHouseholds: Number(row.lastNightHouseholds ?? 0),
-      lastWellRestedHouseholds: Number(row.lastNightWellRestedHouseholds ?? 0),
-      lastColdHouseholds: Number(row.lastNightColdHouseholds ?? 0),
-      lastSocialHouseholds: Number(row.lastNightSocialHouseholds ?? 0),
-      lastWorkers: Number(row.lastNightWorkers ?? 0),
-      lastWatchStrength: row.lastNightWatchStrength ?? 0,
-      lastIncidents: Number(row.lastNightIncidents ?? 0),
-      lastTheftGold: wholeResourceUnits(row.lastNightTheftGold),
-      lastWildlifeSightings: Number(row.lastNightWildlifeSightings ?? 0),
-      lastLightingFuelUsed: wholeResourceUnits(row.lastNightLightingFuelUsed),
-      lastLightingFuelShortfall: wholeResourceUnits(row.lastNightLightingFuelShortfall),
-      communityCohesion: row.nightCommunityCohesion ?? DEFAULT_NIGHT_POLICY.communityCohesion,
-      laborFatigue: row.nightLaborFatigue ?? 0,
     };
     break;
   }

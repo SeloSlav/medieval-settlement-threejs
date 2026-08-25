@@ -30,50 +30,12 @@ import { holidayObservanceForClock } from '../src/world/holidayCalendar.ts';
 import type { GameSpeed } from '../src/world/gameSpeed.ts';
 import { SIM_REALTIME_RATE } from '../src/generated/gameBalance.ts';
 import type { FireIncidentState } from '../src/fires/fireIncident.ts';
-import {
-  DEFAULT_NIGHT_POLICY,
-  formatDawnReport,
-  isNightWorkBuilding,
-  nightLightingVisualScale,
-} from '../src/economy/nightPolicy.ts';
 
 const identities = Array.from(
   { length: 12 },
   (_, index) => `residence-routine:person:${index}`,
 );
 const routines = identities.map((identity) => householdMemberRoutine(identity));
-
-const quietAtNine = identities.filter(
-  (identity) => householdMemberHomeState(
-    identity,
-    clockFromHour(21),
-    { gathering: 0, curfew: 2 },
-  ) === 'home_outdoors',
-).length;
-const livelyAtNine = identities.filter(
-  (identity) => householdMemberHomeState(
-    identity,
-    clockFromHour(21),
-    { gathering: 2, curfew: 0 },
-  ) === 'home_outdoors',
-).length;
-assert.ok(livelyAtNine > quietAtNine, 'open-late evenings should visibly outlast a general curfew');
-assert.ok(nightLightingVisualScale(2) > nightLightingVisualScale(0));
-assert.equal(isNightWorkBuilding('charcoal_burner', 1), true);
-assert.equal(isNightWorkBuilding('smithy', 1), false);
-assert.equal(isNightWorkBuilding('smithy', 2), true);
-assert.match(
-  formatDawnReport({
-    ...DEFAULT_NIGHT_POLICY,
-    lastReportDay: 2,
-    lastHouseholds: 4,
-    lastWellRestedHouseholds: 3,
-    lastSocialHouseholds: 2,
-    lastWorkers: 1,
-    lastLightingFuelUsed: 0.1,
-  }),
-  /3\/4 households well rested.*2 social.*1 night workers/,
-);
 
 assert.ok(
   new Set(routines.map((routine) => routine.bedtimeHour.toFixed(2))).size >= 8,
@@ -347,7 +309,7 @@ villagers.setSchedule({
   ...fullClock(20),
   weekday: 0,
   isSunday: true,
-}, true, DEFAULT_NIGHT_POLICY, true, true);
+}, true, true, true);
 assert.equal(worker.routinePhase, 'returning_home');
 assert.equal(worker.pathPurpose, 'return_home');
 const pausedCursor = worker.simPathCursor;
@@ -377,7 +339,7 @@ villagers.setSchedule({
   ...fullClock(23.8),
   weekday: 0,
   isSunday: true,
-}, true, DEFAULT_NIGHT_POLICY, true, true);
+}, true, true, true);
 assert.equal(worker.routinePhase, 'asleep');
 villagers.setSchedule({
   ...fullClock(1),
@@ -427,7 +389,6 @@ assert.ok(jurjevo);
 villagers.setSchedule(
   jurjevoClock,
   true,
-  DEFAULT_NIGHT_POLICY,
   true,
   false,
   jurjevo,
@@ -449,7 +410,7 @@ villagers.setSchedule({
   ...fullClock(12),
   month: 6,
   monthDay: 29,
-}, false, DEFAULT_NIGHT_POLICY, true);
+}, false, true);
 assert.equal(worker.routinePhase, 'going_to_feast');
 assert.equal(worker.pathPurpose, 'monastery_feast');
 assert.equal(villagerInternals.workerToolFor(worker), null);
@@ -472,7 +433,7 @@ villagers.setSchedule({
   ...fullClock(16),
   month: 6,
   monthDay: 29,
-}, false, DEFAULT_NIGHT_POLICY, true);
+}, false, true);
 assert.equal(worker.routinePhase, 'returning_from_feast');
 assert.equal(worker.pathPurpose, 'return_from_feast');
 for (let step = 0; step < realtimeTickBudget(4000); step++) villagers.tick(0.05);
@@ -486,7 +447,7 @@ villagers.setSchedule({
   ...fullClock(12),
   month: 8,
   monthDay: 15,
-}, false, DEFAULT_NIGHT_POLICY, false);
+}, false, false);
 assert.notEqual(
   worker.routinePhase,
   'going_to_feast',
@@ -497,7 +458,7 @@ villagers.setSchedule({
   ...fullClock(12),
   month: 9,
   monthDay: 14,
-}, false, DEFAULT_NIGHT_POLICY, true);
+}, false, true);
 assert.equal(worker.routinePhase, 'going_to_feast');
 villagers.setRefugeAlert(true, new Map([[home.id, refuge.id]]));
 assert.equal(worker.routinePhase, 'going_to_refuge');
@@ -518,7 +479,7 @@ villagers.setSchedule({
   ...fullClock(16),
   month: 9,
   monthDay: 14,
-}, false, DEFAULT_NIGHT_POLICY, true);
+}, false, true);
 villagers.setRefugeAlert(false);
 assert.equal(worker.routinePhase, 'returning_from_refuge');
 assert.equal(worker.pathPurpose, 'return_from_refuge');
@@ -588,7 +549,7 @@ continuousWorkVillagers.setSchedule({
   totalDays: 1,
   weekday: 0,
   isSunday: true,
-}, true, DEFAULT_NIGHT_POLICY, true, true);
+}, true, true, true);
 assert.equal(
   continuousAgent.routinePhase,
   'returning_home',

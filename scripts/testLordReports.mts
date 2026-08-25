@@ -14,11 +14,6 @@ import {
   SIM_TICK_SECONDS,
 } from '../src/generated/gameBalance.ts';
 import {
-  DEFAULT_NIGHT_POLICY,
-  dawnReportRelevanceScore,
-  isDawnReportRelevant,
-} from '../src/economy/nightPolicy.ts';
-import {
   deriveLordReportTransitions,
   fullStorageChannels,
   LordReportCollection,
@@ -38,46 +33,6 @@ assert.match(
   appSource,
   /notifyLordReportChanges\(\s*state,\s*previous,\s*snapshot\.parishPolicy\.sabbathObservanceEnabled,?\s*\)[\s\S]*?deriveLordReportTransitions\(state,\s*previous,\s*\{\s*sabbathObservanceEnabled,?\s*\}\)/,
   'Sabbath reports must receive the authoritative parish policy',
-);
-
-const routineDawn = {
-  ...DEFAULT_NIGHT_POLICY,
-  lastReportDay: 2,
-  lastHouseholds: 8,
-  lastWellRestedHouseholds: 7,
-  lastSocialHouseholds: 4,
-  lastWorkers: 2,
-};
-assert.equal(
-  isDawnReportRelevant(routineDawn),
-  false,
-  'an ordinary uneventful night should remain out of the Lord report ledger',
-);
-assert.equal(dawnReportRelevanceScore(routineDawn), 0);
-assert.equal(
-  isDawnReportRelevant({ ...routineDawn, lastColdHouseholds: 1 }),
-  true,
-  'a cold household is relevant to the Lord',
-);
-assert.equal(
-  isDawnReportRelevant({ ...routineDawn, lastIncidents: 1 }),
-  true,
-  'a night incident is relevant to the Lord',
-);
-assert.equal(
-  isDawnReportRelevant({ ...routineDawn, lastTheftGold: 1 }),
-  true,
-  'stolen household wealth is relevant to the Lord even if a legacy snapshot omitted its incident count',
-);
-assert.equal(
-  isDawnReportRelevant({ ...routineDawn, lastWildlifeSightings: 1 }),
-  false,
-  'a cosmetic wildlife sighting should remain out of the Lord ledger',
-);
-assert.equal(
-  isDawnReportRelevant({ ...routineDawn, lastLightingFuelShortfall: 1 }),
-  false,
-  'the legacy lighting-shortfall field has no current simulation consequence',
 );
 
 const staffedChapel = building({

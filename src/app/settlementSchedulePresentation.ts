@@ -224,15 +224,16 @@ export class SettlementPresentationController {
     schedule: SettlementSchedule,
     monasteryFeastsEnabled: boolean,
   ): void {
+    const presentationDayNight = this.resolveSceneLighting(schedule);
     targets.settlementHud?.setSettlementClock(schedule);
-    targets.sceneManager?.applyDayNight(this.resolveSceneLighting(schedule));
+    targets.sceneManager?.applyDayNight(presentationDayNight);
     targets.buildingMarkers?.setFoundersCampfireNightLighting(
-      schedule.dayNight.nightAmount * HOUSEHOLD_LIGHTING_VISUAL_SCALE,
+      presentationDayNight.nightAmount * HOUSEHOLD_LIGHTING_VISUAL_SCALE,
     );
-    targets.residenceMarkers?.setChimneySmokeAllowed(schedule.dayNight.smokeAllowed);
+    targets.residenceMarkers?.setChimneySmokeAllowed(presentationDayNight.smokeAllowed);
     targets.residenceMarkers?.setHouseholdLighting(
       schedule.clock,
-      schedule.dayNight.eveningWindowGlow * HOUSEHOLD_LIGHTING_VISUAL_SCALE,
+      presentationDayNight.eveningWindowGlow * HOUSEHOLD_LIGHTING_VISUAL_SCALE,
     );
     targets.villagers?.setSchedule(
       schedule.clock,
@@ -243,7 +244,11 @@ export class SettlementPresentationController {
         && schedule.staffedChapel,
       schedule.holiday,
     );
-    targets.ambientAudio?.syncSettlementSchedule(schedule);
+    targets.ambientAudio?.syncSettlementSchedule(
+      presentationDayNight === schedule.dayNight
+        ? schedule
+        : { ...schedule, dayNight: presentationDayNight },
+    );
   }
 
   private resolveSceneLighting(schedule: SettlementSchedule): DayNightLightingState {

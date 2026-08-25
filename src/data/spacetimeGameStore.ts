@@ -106,11 +106,6 @@ import {
   DEFAULT_SEASONAL_LABOR_STEWARD_ENABLED,
 } from '../economy/laborSteward.ts';
 import {
-  DEFAULT_NIGHT_POLICY,
-  type NightPolicyCode,
-  type NightPolicyState,
-} from '../economy/nightPolicy.ts';
-import {
   DEFAULT_PANTRY_SAFEGUARD_POLICY,
   type PantrySafeguardPolicyCode,
 } from '../economy/pantrySafeguardPolicy.ts';
@@ -131,7 +126,6 @@ export type SpacetimeGameSnapshot = {
   laborStewardReserve: number;
   parishPolicy: ParishPolicyState;
   monasteryPolicy: MonasteryPolicyState;
-  nightPolicy: NightPolicyState;
   marketState: RegionalMarketState;
   tradingPostTradeRules: Map<string, TradingPostTradeRuleState>;
   quarries: Map<string, ResourceNodeState>;
@@ -180,7 +174,6 @@ function createEmptyTableState(): GameTableSyncState {
     laborStewardReserve: DEFAULT_LABOR_STEWARD_RESERVE,
     parishPolicy: { ...DEFAULT_PARISH_POLICY },
     monasteryPolicy: { ...DEFAULT_MONASTERY_POLICY },
-    nightPolicy: { ...DEFAULT_NIGHT_POLICY },
     marketState: { ...DEFAULT_REGIONAL_MARKET_STATE },
     tradingPostTradeRules: new Map(),
     quarries: new Map(),
@@ -319,7 +312,6 @@ export class SpacetimeGameStore {
       laborStewardReserve: state.laborStewardReserve,
       parishPolicy: this.snapshotRecord(state.parishPolicy),
       monasteryPolicy: this.snapshotRecord(state.monasteryPolicy),
-      nightPolicy: this.snapshotRecord(state.nightPolicy),
       marketState: this.snapshotRecord(state.marketState),
       tradingPostTradeRules: this.snapshotMap(state.tradingPostTradeRules),
       quarries: this.snapshotMap(state.quarries),
@@ -691,24 +683,6 @@ export class SpacetimeGameStore {
 
   setMonasteryNextExtension(buildingId: string, extension: number): Promise<void> {
     return spacetimeReducers.setMonasteryNextExtension(buildingId, extension);
-  }
-
-  setNightPolicies(
-    townHallId: string,
-    watch: NightPolicyCode,
-    gathering: NightPolicyCode,
-    work: NightPolicyCode,
-    lighting: NightPolicyCode,
-    curfew: NightPolicyCode,
-  ): Promise<void> {
-    return spacetimeReducers.setNightPolicies(
-      townHallId,
-      watch,
-      gathering,
-      work,
-      lighting,
-      curfew,
-    );
   }
 
   setStorehousePolicy(

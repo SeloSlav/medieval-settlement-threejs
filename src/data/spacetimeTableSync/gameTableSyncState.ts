@@ -27,7 +27,6 @@ import type { FireIncidentState } from '../../fires/fireIncident.ts';
 import type { SettlementSecurityState } from '../../security/frontierSecurity.ts';
 import type { CombatAgentState } from '../../security/combatAgents.ts';
 import type { ActiveRaidState } from '../../security/activeRaid.ts';
-import type { NightPolicyState } from '../../economy/nightPolicy.ts';
 import type { FiscalPolicyState } from '../../economy/fiscalPolicy.ts';
 import type { PantrySafeguardPolicyCode } from '../../economy/pantrySafeguardPolicy.ts';
 import type { TradingPostTradeRuleState } from '../../economy/tradingPostTrade.ts';
@@ -49,7 +48,6 @@ export type GameTableSyncState = {
   laborStewardReserve: number;
   parishPolicy: ParishPolicyState;
   monasteryPolicy: MonasteryPolicyState;
-  nightPolicy: NightPolicyState;
   marketState: RegionalMarketState;
   tradingPostTradeRules: Map<string, TradingPostTradeRuleState>;
   quarries: Map<string, ResourceNodeState>;

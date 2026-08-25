@@ -25,7 +25,6 @@ import {
 } from '../economy/storageAcceptancePolicy.ts';
 import { normalizeLaborStewardReserve } from '../economy/laborSteward.ts';
 import { normalizeMonasteryCharterRate } from '../economy/monasteryPolicy.ts';
-import type { NightPolicyCode } from '../economy/nightPolicy.ts';
 import {
   parseBuildingServerId,
   parseFarmFieldServerId,
@@ -674,25 +673,6 @@ export async function setThreshingPriority(
   await callReducer('setThreshingPriority', 'set_threshing_priority', {
     buildingId: serverId,
     priority: Math.max(1, Math.min(3, Math.floor(priority))),
-  });
-}
-
-export async function setNightPolicies(
-  townHallId: string,
-  watch: NightPolicyCode,
-  gathering: NightPolicyCode,
-  work: NightPolicyCode,
-  lighting: NightPolicyCode,
-  curfew: NightPolicyCode,
-): Promise<void> {
-  const serverId = requireTownHallServerId(townHallId);
-  await callReducer('setNightPolicies', 'set_night_policies', {
-    townHallId: serverId,
-    watchPolicy: watch,
-    gatheringPolicy: gathering,
-    workPolicy: work,
-    lightingPolicy: lighting,
-    curfewPolicy: curfew,
   });
 }
 

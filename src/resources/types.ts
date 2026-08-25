@@ -94,29 +94,10 @@ export type SettlementState = {
   constructionLaborStewardEnabled: boolean;
   productionLaborStewardEnabled: boolean;
   laborStewardReserve: number;
-  nightWatchPolicy: 0 | 1 | 2;
-  nightGatheringPolicy: 0 | 1 | 2;
-  nightWorkPolicy: 0 | 1 | 2;
-  nightLightingPolicy: 0 | 1 | 2;
-  nightCurfewPolicy: 0 | 1 | 2;
   landLevyAssessedTotal: number;
   landLevyCollectedTotal: number;
   importDutyCollectedTotal: number;
   exportDutyCollectedTotal: number;
-  lastNightReportDay: number;
-  lastNightHouseholds: number;
-  lastNightWellRestedHouseholds: number;
-  lastNightColdHouseholds: number;
-  lastNightSocialHouseholds: number;
-  lastNightWorkers: number;
-  lastNightWatchStrength: number;
-  lastNightIncidents: number;
-  lastNightTheftGold: number;
-  lastNightWildlifeSightings: number;
-  lastNightLightingFuelUsed: number;
-  lastNightLightingFuelShortfall: number;
-  nightCommunityCohesion: number;
-  nightLaborFatigue: number;
 };
 
 export type TreeWorkArea = {

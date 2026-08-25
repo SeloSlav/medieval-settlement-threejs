@@ -1,6 +1,5 @@
 import type { SettlementState } from '../../resources/types.ts';
 import { buildingClientId, settlementClientId } from '../spacetimeIds.ts';
-import { normalizeNightPolicyCode } from '../../economy/nightPolicy.ts';
 import { normalizePantrySafeguardPolicy } from '../../economy/pantrySafeguardPolicy.ts';
 import { wholeResourceUnits } from '../../resources/resourceUnits.ts';
 
@@ -26,29 +25,10 @@ export type SettlementRow = {
   constructionLaborStewardEnabled: boolean;
   productionLaborStewardEnabled: boolean;
   laborStewardReserve: bigint | number;
-  nightWatchPolicy: number;
-  nightGatheringPolicy: number;
-  nightWorkPolicy: number;
-  nightLightingPolicy: number;
-  nightCurfewPolicy: number;
   landLevyAssessedTotal: number;
   landLevyCollectedTotal: number;
   importDutyCollectedTotal: number;
   exportDutyCollectedTotal: number;
-  lastNightReportDay: bigint | number;
-  lastNightHouseholds: bigint | number;
-  lastNightWellRestedHouseholds: bigint | number;
-  lastNightColdHouseholds: bigint | number;
-  lastNightSocialHouseholds: bigint | number;
-  lastNightWorkers: bigint | number;
-  lastNightWatchStrength: number;
-  lastNightIncidents: bigint | number;
-  lastNightTheftGold: number;
-  lastNightWildlifeSightings: bigint | number;
-  lastNightLightingFuelUsed: number;
-  lastNightLightingFuelShortfall: number;
-  nightCommunityCohesion: number;
-  nightLaborFatigue: number;
 };
 
 export function syncSettlements(
@@ -80,29 +60,10 @@ export function syncSettlements(
       constructionLaborStewardEnabled: row.constructionLaborStewardEnabled,
       productionLaborStewardEnabled: row.productionLaborStewardEnabled,
       laborStewardReserve: Number(row.laborStewardReserve),
-      nightWatchPolicy: normalizeNightPolicyCode(row.nightWatchPolicy),
-      nightGatheringPolicy: normalizeNightPolicyCode(row.nightGatheringPolicy),
-      nightWorkPolicy: normalizeNightPolicyCode(row.nightWorkPolicy),
-      nightLightingPolicy: normalizeNightPolicyCode(row.nightLightingPolicy),
-      nightCurfewPolicy: normalizeNightPolicyCode(row.nightCurfewPolicy),
       landLevyAssessedTotal: wholeResourceUnits(row.landLevyAssessedTotal),
       landLevyCollectedTotal: wholeResourceUnits(row.landLevyCollectedTotal),
       importDutyCollectedTotal: wholeResourceUnits(row.importDutyCollectedTotal),
       exportDutyCollectedTotal: wholeResourceUnits(row.exportDutyCollectedTotal),
-      lastNightReportDay: Number(row.lastNightReportDay),
-      lastNightHouseholds: Number(row.lastNightHouseholds),
-      lastNightWellRestedHouseholds: Number(row.lastNightWellRestedHouseholds),
-      lastNightColdHouseholds: Number(row.lastNightColdHouseholds),
-      lastNightSocialHouseholds: Number(row.lastNightSocialHouseholds),
-      lastNightWorkers: Number(row.lastNightWorkers),
-      lastNightWatchStrength: Number(row.lastNightWatchStrength),
-      lastNightIncidents: Number(row.lastNightIncidents),
-      lastNightTheftGold: wholeResourceUnits(row.lastNightTheftGold),
-      lastNightWildlifeSightings: Number(row.lastNightWildlifeSightings),
-      lastNightLightingFuelUsed: wholeResourceUnits(row.lastNightLightingFuelUsed),
-      lastNightLightingFuelShortfall: wholeResourceUnits(row.lastNightLightingFuelShortfall),
-      nightCommunityCohesion: Number(row.nightCommunityCohesion),
-      nightLaborFatigue: Number(row.nightLaborFatigue),
     });
   }
   return settlements;
