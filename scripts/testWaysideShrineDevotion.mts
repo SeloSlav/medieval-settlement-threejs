@@ -223,7 +223,7 @@ for (let quarter = 0; quarter < 20; quarter += 1) {
   }
 }
 assert.ok(runtimeClock);
-villagers.setSchedule(runtimeClock, true, undefined, true, true, null);
+villagers.setSchedule(runtimeClock, true, true, true, null);
 const outbound = [...agents.values()].filter(
   (agent) => agent.routinePhase === 'going_to_shrine',
 );

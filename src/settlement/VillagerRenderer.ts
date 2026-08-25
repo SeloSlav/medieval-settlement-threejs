@@ -1003,7 +1003,22 @@ export class VillagerRenderer {
       let agent = this.agents.get(assignment.id);
       if (!agent) {
         const colors = pickVillagerColors(appearanceSeed);
-        const yard = this.workerDutyPosition(building, assignment.slotIndex);
+        const idleOffset = pickIdleOffset(
+          assignment.personIdentity,
+          assignment.slotIndex,
+        );
+        const homeResidence = assignment.homeResidenceId
+          ? this.residences.get(assignment.homeResidenceId) ?? null
+          : null;
+        const origin = homeResidence
+          ? residenceDoorPosition(homeResidence)
+          : this.foundingCamp
+            ? {
+                x: this.foundingCamp.x + idleOffset.x * 2.6,
+                z: this.foundingCamp.z + 0.4 + idleOffset.z * 2.6,
+                yaw: idleOffset.yaw,
+              }
+            : this.workerDutyPosition(building, assignment.slotIndex);
         agent = {
           id: assignment.id,
           personIdentity: assignment.personIdentity,
@@ -1015,7 +1030,7 @@ export class VillagerRenderer {
           slotIndex: assignment.slotIndex,
           mode: 'idle',
           ambientBehavior: null,
-          routinePhase: 'work',
+          routinePhase: 'home_outdoors',
           pathPurpose: null,
           path: [],
           pathDistance: 0,
@@ -1042,19 +1057,23 @@ export class VillagerRenderer {
           tunicColor: colors.tunic,
           skinColor: colors.skin,
           hairColor: pickVillagerHairColor(appearanceSeed),
-          idleOffset: pickIdleOffset(assignment.personIdentity, assignment.slotIndex),
+          idleOffset,
           pathSeed: appearanceSeed ^ 0x27d4eb2d,
-          idleDirty: true,
+          idleDirty: false,
           nearestEdge: null,
-          x: yard.x,
-          z: yard.z,
-          y: 0,
-          yaw: yard.yaw,
+          x: origin.x,
+          z: origin.z,
+          y: this.resolveGroundY(origin.x, origin.z) + 0.02,
+          yaw: origin.yaw,
           simAccumulator: 0,
           frozen: false,
         };
         this.agents.set(assignment.id, agent);
       } else {
+        const assignmentChanged = agent.personIdentity !== assignment.personIdentity
+          || agent.residenceId !== assignment.homeResidenceId
+          || agent.workplaceId !== assignment.buildingId
+          || agent.workplaceSlot !== assignment.slotIndex;
         const previousHomeResidenceId = agent.residenceId;
         agent.personIdentity = assignment.personIdentity;
         agent.role = 'worker';
@@ -1072,19 +1091,37 @@ export class VillagerRenderer {
           agent.skinColor = colors.skin;
           agent.hairColor = pickVillagerHairColor(appearanceSeed);
           agent.walkSpeed = pickWalkSpeed(appearanceSeed);
+          agent.idleOffset = pickIdleOffset(
+            assignment.personIdentity,
+            assignment.slotIndex,
+          );
+          agent.pathSeed = appearanceSeed ^ 0x27d4eb2d;
         }
         const previousBuilding = previousBuildings.get(assignment.buildingId);
-        if (
-          previousHomeResidenceId !== assignment.homeResidenceId
+        const dutyChanged = previousHomeResidenceId !== assignment.homeResidenceId
           || !previousBuilding
           || previousBuilding.x !== building.x
           || previousBuilding.z !== building.z
           || !sameDutyPosition(
             previousMarketStallDuties.get(workerSlotKey(building.id, assignment.slotIndex)),
             this.marketStallDutyByWorker.get(workerSlotKey(building.id, assignment.slotIndex)),
-          )
-        ) {
-          agent.idleDirty = true;
+          );
+        if (assignmentChanged) {
+          this.clearPath(agent);
+          const origin = this.workerPermanentHomeDestination(agent)
+            ?? this.workerDutyPosition(building, assignment.slotIndex);
+          agent.routinePhase = 'home_outdoors';
+          agent.x = origin.x;
+          agent.z = origin.z;
+          agent.y = this.resolveGroundY(origin.x, origin.z) + 0.02;
+          agent.yaw = origin.yaw ?? agent.yaw;
+          agent.idleRemaining = pickIdleDuration(agent.pathSeed) * 0.55;
+          agent.idleDirty = false;
+        } else if (dutyChanged) {
+          this.clearPath(agent);
+          agent.routinePhase = 'home_outdoors';
+          agent.idleRemaining = 0;
+          agent.idleDirty = false;
         }
       }
     }
@@ -2588,10 +2625,11 @@ export class VillagerRenderer {
 
     const homeState = householdMemberHomeState(agent.personIdentity, this.clock);
     const chapel = this.findMassChapel(agent);
-    const shouldAttendMass = isSundayMassTime(
+    const sundayMassTime = isSundayMassTime(
       this.clock,
       chapel != null,
-    ) || Boolean(
+    );
+    const holidayMassTime = Boolean(
       chapel
       && this.holidayObservance
       && holidayChapelActivityFor(
@@ -2600,6 +2638,11 @@ export class VillagerRenderer {
         agent.personIdentity,
       ),
     );
+    const shouldAttendMass = holidayMassTime
+      || (
+        sundayMassTime
+        && (agent.role !== 'worker' || this.sabbathPausedToday)
+      );
 
     if (shouldAttendMass && chapel) {
       if (

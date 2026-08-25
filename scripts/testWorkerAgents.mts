@@ -802,6 +802,10 @@ assert.ok(
   `20,000 material workplaces took ${materialScaleElapsedMs.toFixed(1)} ms to roster`,
 );
 const villagerRendererSource = fs.readFileSync('src/settlement/VillagerRenderer.ts', 'utf8');
+const removedContentSource = fs.readFileSync(
+  'server/src/simulation/removed_content.rs',
+  'utf8',
+);
 for (const removedPath of [
   'src/buildings/remoteWorkCamp.ts',
   'src/resources/inspector/remoteWorkCampRenderer.ts',
@@ -815,6 +819,26 @@ for (const removedPath of [
     `${removedPath} must stay deleted with shift-based commute and overnight-camp gameplay`,
   );
 }
+assert.match(
+  removedContentSource,
+  /matches!\(building\.kind\.as_str\(\),\s*"ferry_landing"\s*\|\s*"remote_work_camp"\)[\s\S]*?building\.kind\s*=\s*"salvage_pile"\.to_string\(\)/,
+  'legacy remote-work camps must migrate in place to ordinary salvage piles',
+);
+assert.match(
+  removedContentSource,
+  /drain_trips_for_building\(ctx,\s*building\.id\)[\s\S]*?ReclamationStock::from_delivery_cargo\(&cargo\)[\s\S]*?ReclamationStock::from_building\(&building\)[\s\S]*?\.merged\(recovered_cargo\)/,
+  'retiring a camp must preserve both its stored inventory and cargo from drained trips',
+);
+assert.match(
+  removedContentSource,
+  /building\.assigned_labor\s*=\s*0[\s\S]*?for owner in owners\s*\{[\s\S]*?reconcile_building_labor\(ctx,\s*owner\)/,
+  'camp retirement must release assigned workers and reconcile each affected owner',
+);
+assert.match(
+  removedContentSource,
+  /for building_id in stale_compatibility_rows[\s\S]*?remote_work_camp_enabled\s*=\s*false[\s\S]*?linked_worksite_id\s*=\s*0[\s\S]*?commute_efficiency\s*=\s*1\.0/,
+  'surviving worksites must have every legacy camp/commute cache normalized',
+);
 assert.match(villagerRendererSource, /scanFromWatchtower/);
 assert.match(villagerRendererSource, /resolveAgentY/);
 assert.match(villagerRendererSource, /buildMarketplaceStallDuties/);

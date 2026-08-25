@@ -10,7 +10,6 @@ import {
   paceSettlementApproval,
   type SettlementApprovalPacingState,
 } from '../src/economy/settlementApprovalPacing.ts';
-import { DEFAULT_NIGHT_POLICY } from '../src/economy/nightPolicy.ts';
 import {
   APPROVAL_BASE_SCORE,
   APPROVAL_DECLINE_POINTS_PER_REAL_HOUR,
@@ -45,18 +44,12 @@ const thriving = computeSettlementApproval({
       stableResidents: 24,
     }),
   }),
-  nightPolicy: {
-    ...DEFAULT_NIGHT_POLICY,
-    communityCohesion: 0.9,
-  },
   security: DEFAULT_SETTLEMENT_SECURITY,
   conflictEnabled: false,
   activeFires: 0,
   month: 6,
 });
 assert.ok(thriving.score >= 80, `expected thriving approval, received ${thriving.score}`);
-assert.ok(thriving.factors.some((factor) =>
-  factor.key === 'community-cohesion' && factor.impact > 0));
 
 const distressed = computeSettlementApproval({
   provisioning: provisioning({
@@ -92,11 +85,6 @@ const distressed = computeSettlementApproval({
       oldestUncollectedBodyDays: 2,
     }),
   }),
-  nightPolicy: {
-    ...DEFAULT_NIGHT_POLICY,
-    communityCohesion: 0.1,
-    laborFatigue: 0.8,
-  },
   security: {
     ...DEFAULT_SETTLEMENT_SECURITY,
     threat: 1,
@@ -209,7 +197,6 @@ const recovered = computeSettlementApproval({
       longestServiceDeficitDays: 0,
     }),
   }),
-  nightPolicy: { ...DEFAULT_NIGHT_POLICY, communityCohesion: 0 },
   security: DEFAULT_SETTLEMENT_SECURITY,
   conflictEnabled: false,
   activeFires: 0,
@@ -225,7 +212,6 @@ assert.equal(approvalNeedPressureProgress(Number.POSITIVE_INFINITY), 1);
 
 const peaceful = computeSettlementApproval({
   provisioning: provisioning(),
-  nightPolicy: DEFAULT_NIGHT_POLICY,
   security: {
     ...DEFAULT_SETTLEMENT_SECURITY,
     threat: 1,
@@ -470,7 +456,6 @@ function needCrisisApproval(
         longestServiceDeficitDays: serviceExposureDays,
       }),
     }),
-    nightPolicy: { ...DEFAULT_NIGHT_POLICY, communityCohesion: 0 },
     security: DEFAULT_SETTLEMENT_SECURITY,
     conflictEnabled: false,
     activeFires: 0,

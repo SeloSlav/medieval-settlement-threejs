@@ -16,7 +16,6 @@ import {
 } from '../src/residences/ResidenceMarkers.ts';
 import { residenceWindowActivity } from '../src/residences/householdRoutine.ts';
 import type { GameClock } from '../src/world/gameCalendar.ts';
-import { DEFAULT_NIGHT_POLICY } from '../src/economy/nightPolicy.ts';
 import { VillagerRenderer } from '../src/settlement/VillagerRenderer.ts';
 import {
   beginMapIconFrame,
@@ -241,7 +240,6 @@ function testStableScheduleSkipsResidentReconciliation(): number {
     clock: null,
     lastScheduleElapsedSeconds: null,
     laborPaused: false,
-    nightPolicy: { ...DEFAULT_NIGHT_POLICY },
     monasteryFeastsEnabled: true,
     sabbathPausedToday: false,
     reconcileRoutine: (agent: { role: 'resident' | 'worker' }) => {
@@ -265,7 +263,7 @@ function testStableScheduleSkipsResidentReconciliation(): number {
     isWorkHours: true,
   });
 
-  villagers.setSchedule(clock(0, 12), false, DEFAULT_NIGHT_POLICY);
+  villagers.setSchedule(clock(0, 12), false);
   assert.equal(residentReconciliations, 1_000);
   assert.equal(workerReconciliations, 24);
   residentReconciliations = 0;
@@ -275,7 +273,6 @@ function testStableScheduleSkipsResidentReconciliation(): number {
     villagers.setSchedule(
       clock(0, 12 + frame / 20_000 / 60),
       false,
-      DEFAULT_NIGHT_POLICY,
     );
   }
   const elapsed = performance.now() - started;
@@ -289,15 +286,15 @@ function testStableScheduleSkipsResidentReconciliation(): number {
     20_000 * 24,
     'precise commute and rest deadlines must still be evaluated every frame',
   );
-  villagers.setSchedule(clock(1, 12 + 1 / 60), false, DEFAULT_NIGHT_POLICY);
+  villagers.setSchedule(clock(1, 12 + 1 / 60), false);
   assert.equal(residentReconciliations, 1_000, 'a minute transition must reconcile residents');
   assert.equal(workerReconciliations, 20_000 * 24 + 24);
   const retainedClock = clock(1, 12 + 1 / 60);
-  villagers.setSchedule(retainedClock, false, DEFAULT_NIGHT_POLICY);
+  villagers.setSchedule(retainedClock, false);
   residentReconciliations = 0;
   retainedClock.minute = 2;
   retainedClock.preciseHour = 12 + 2 / 60;
-  villagers.setSchedule(retainedClock, false, DEFAULT_NIGHT_POLICY);
+  villagers.setSchedule(retainedClock, false);
   assert.equal(
     residentReconciliations,
     1_000,
@@ -550,15 +547,14 @@ function testResidenceLightingPresentationInvalidation(): number {
   }
 
   const clock = presentationClock(20, 15);
-  const policy = { gathering: 0, curfew: 0 } as const;
-  markers.setHouseholdLighting(clock, 0.31, policy);
+  markers.setHouseholdLighting(clock, 0.31);
   assert.equal(activityScans, 1, 'the initial presentation call must build activity once');
   const writesAfterInitialPresentation = materialWrites;
 
   const stableStarted = performance.now();
   for (let frame = 0; frame < 20_000; frame += 1) {
     clock.preciseHour = 20.25 + frame / 1_000_000;
-    markers.setHouseholdLighting(clock, 0.31, policy);
+    markers.setHouseholdLighting(clock, 0.31);
   }
   const stableElapsed = performance.now() - stableStarted;
   assert.equal(
@@ -576,7 +572,7 @@ function testResidenceLightingPresentationInvalidation(): number {
   const sampleMaterial = materials.get(sampleId)!;
   for (let frame = 0; frame < 180; frame += 1) {
     const glow = 0.311 + frame / 1_000;
-    markers.setHouseholdLighting(clock, glow, policy);
+    markers.setHouseholdLighting(clock, glow);
     if (frame % 30 !== 0) continue;
     const reference = new THREE.MeshStandardMaterial();
     applyResidenceWindowGlow(
@@ -585,7 +581,6 @@ function testResidenceLightingPresentationInvalidation(): number {
         sampleId,
         populations.get(sampleId)!,
         clock,
-        policy,
       ),
       true,
     );
@@ -605,20 +600,10 @@ function testResidenceLightingPresentationInvalidation(): number {
   );
 
   clock.minute = 16;
-  markers.setHouseholdLighting(clock, 0.49, policy);
+  markers.setHouseholdLighting(clock, 0.49);
   assert.equal(activityScans, 2, 'a minute transition must invalidate household activity');
-  const mutablePolicy = { gathering: 0, curfew: 0 };
-  markers.setHouseholdLighting(clock, 0.49, mutablePolicy);
-  assert.equal(activityScans, 2, 'equal policy values must retain the activity cache');
-  mutablePolicy.curfew = 1;
-  markers.setHouseholdLighting(clock, 0.49, mutablePolicy);
-  assert.equal(
-    activityScans,
-    3,
-    'mutating a reused policy object must invalidate from its exact scalar value',
-  );
-  markers.setHouseholdLighting(clock, 0.49, { gathering: 0, curfew: 1 });
-  assert.equal(activityScans, 3, 'a replacement policy with equal values must not invalidate');
+  markers.setHouseholdLighting(clock, 0.49);
+  assert.equal(activityScans, 2, 'an unchanged cosmetic-lighting call must retain the activity cache');
   assert.ok(
     stableElapsed < 250,
     `20,000 stable residence-light presentation frames took ${stableElapsed.toFixed(1)} ms`,

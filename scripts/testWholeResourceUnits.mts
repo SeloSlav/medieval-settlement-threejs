@@ -244,12 +244,8 @@ syncPlayerResources([rowWithDefaults({
   parishCharityPaidTotal: 4.9,
   chapelCofferReserveGold: 12.9,
   monasteryFoodCharityTotal: 12.1,
-  lastNightTheftGold: 2.75,
-  lastNightLightingFuelUsed: 3.75,
-  lastNightLightingFuelShortfall: 4.75,
   economicActivityTaxRate: 0.1375,
   monasteryTitheShare: 0.275,
-  nightCommunityCohesion: 0.825,
 }) as never], playerState);
 assertWholeRecord(
   (playerState as { stockpile: Record<string, unknown> }).stockpile,
@@ -265,13 +261,9 @@ assert.equal((playerState as { parishPolicy: { cofferReserveGold: number } })
   .parishPolicy.cofferReserveGold, 12);
 assert.equal((playerState as { parishPolicy: { charityPaidTotal: number } })
   .parishPolicy.charityPaidTotal, 4);
-assert.equal((playerState as { nightPolicy: { lastTheftGold: number } })
-  .nightPolicy.lastTheftGold, 2);
 assert.equal((playerState as { economicActivityTaxRate: number }).economicActivityTaxRate, 0.1375);
 assert.equal((playerState as { monasteryPolicy: { titheShare: number } })
   .monasteryPolicy.titheShare, 0.275);
-assert.equal((playerState as { nightPolicy: { communityCohesion: number } })
-  .nightPolicy.communityCohesion, 0.825);
 
 const residencePantryFields = [
   'food',
@@ -400,20 +392,10 @@ const settlement = syncSettlements([rowWithDefaults({
   constructionLaborStewardEnabled: false,
   productionLaborStewardEnabled: true,
   laborStewardReserve: 4n,
-  nightWatchPolicy: 2,
-  nightGatheringPolicy: 1,
-  nightWorkPolicy: 0,
-  nightLightingPolicy: 2,
-  nightCurfewPolicy: 1,
   landLevyAssessedTotal: 11.9,
   landLevyCollectedTotal: 10.9,
   importDutyCollectedTotal: 3.9,
   exportDutyCollectedTotal: 4.9,
-  lastNightTheftGold: 2.9,
-  lastNightLightingFuelUsed: 5.9,
-  lastNightLightingFuelShortfall: 1.9,
-  nightCommunityCohesion: 0.825,
-  nightLaborFatigue: 0.175,
 }) as never], identityHex).get('settlement-41');
 assert.ok(settlement);
 assert.equal(settlement.name, 'East Mere');
@@ -424,11 +406,7 @@ assert.equal(settlement.landLevyAssessedTotal, 11);
 assert.equal(settlement.landLevyCollectedTotal, 10);
 assert.equal(settlement.importDutyCollectedTotal, 3);
 assert.equal(settlement.exportDutyCollectedTotal, 4);
-assert.equal(settlement.lastNightTheftGold, 2);
-assert.equal(settlement.lastNightLightingFuelUsed, 5);
-assert.equal(settlement.lastNightLightingFuelShortfall, 1);
 assert.equal(settlement.economicActivityTaxRate, 0.1375);
-assert.equal(settlement.nightCommunityCohesion, 0.825);
 
 const backyard = syncBackyardGardens([rowWithDefaults({
   id: 5n,

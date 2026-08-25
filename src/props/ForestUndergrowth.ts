@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { SpatialHash2D } from '../utils/SpatialHash2D.ts';
 import { MeshSSSNodeMaterial, MeshStandardNodeMaterial } from 'three/webgpu';
 import {
+  attribute,
   cameraViewMatrix,
   float,
   modelWorldMatrix,
@@ -79,6 +80,7 @@ type TslNode = {
 };
 
 const tsl = {
+  attribute: attribute as (name: string, type: string) => TslNode,
   cameraViewMatrix: cameraViewMatrix as TslNode,
   float: float as (value: number) => TslNode,
   mix: mix as (a: unknown, b: unknown, t: unknown) => TslNode,
@@ -133,6 +135,11 @@ const DOGWOOD_TREE_TRUNK_CLEARANCE = 1.4;
 const DOGWOOD_COMPANION_CLEARANCE = 1.85;
 const DOGWOOD_FOOTPRINT_CLEARANCE = 1.85;
 const DOGWOOD_GROUND_OFFSET_METERS = 0.006;
+const DOGWOOD_AUTUMN_STEM_REVEAL = 0.45;
+const DOGWOOD_STEM_YOUTH_START = 0.24;
+const DOGWOOD_STEM_YOUTH_END = 0.84;
+const DOGWOOD_OLD_WINTER_STEM = [0.2, 0.024, 0.012] as const;
+const DOGWOOD_YOUNG_WINTER_STEM = [0.86, 0.045, 0.012] as const;
 
 export type UndergrowthPlacement = {
   x: number;
@@ -331,7 +338,10 @@ export async function createUndergrowthMaterials(
         'SeedThree common dogwood basal stems',
         dogwoodBranch,
         useNodeMaterials,
-        { webglWindAmplitude: DOGWOOD_ROOT_SWAY_AMPLITUDE },
+        {
+          seasonalDogwoodStem: true,
+          webglWindAmplitude: DOGWOOD_ROOT_SWAY_AMPLITUDE,
+        },
       ),
       createUndergrowthCardMaterial(
         'SeedThree common dogwood opposite leaves',
@@ -539,6 +549,7 @@ export function buildUndergrowthInstances(
     setDeciduousFoliage(presentation): boolean {
       const dormancy = clampSeasonAmount(presentation.dormancy);
       let changed = false;
+      changed = setUndergrowthSeason(materials.dogwood[0], presentation) || changed;
       for (const kind of UNDERGROWTH_KINDS) {
         changed = setUndergrowthSeason(materials[kind].at(-1)!, presentation) || changed;
       }
@@ -840,6 +851,7 @@ function sampleUndergrowthTint(kind: UndergrowthKind, rng: () => number): THREE.
 type UndergrowthMaterialOptions = {
   albedoTint?: [number, number, number];
   seasonalRole?: UndergrowthSeasonalRole;
+  seasonalDogwoodStem?: boolean;
   webglWindAmplitude?: number;
   leafFlutterAmplitude?: number;
   transmissionAmbient?: number;
@@ -1070,6 +1082,7 @@ function createUndergrowthBranchMaterial(
     if (options.webglWindAmplitude !== undefined) {
       applyUndergrowthWebGLWind(material, options.webglWindAmplitude);
     }
+    if (options.seasonalDogwoodStem) applyDogwoodWebGLStemSeason(material);
     applyUndergrowthWebGLSnow(material);
     return material;
   }
@@ -1083,12 +1096,87 @@ function createUndergrowthBranchMaterial(
   material.roughness = textures.roughness ? 1 : 0.94;
   material.metalness = 0;
   material.positionNode = createRootedGeometryWindPosition(options.webglWindAmplitude ?? 0.075) as never;
+  const baseSurface = tsl.texture(textures.albedo).rgb.mul(tsl.uniform(material.color));
+  let seasonalSurface = baseSurface;
+  if (options.seasonalDogwoodStem) {
+    const autumn = tsl.uniform(0);
+    const dormancy = tsl.uniform(0);
+    const youth = tsl.smoothstep(
+      tsl.float(DOGWOOD_STEM_YOUTH_START),
+      tsl.float(DOGWOOD_STEM_YOUTH_END),
+      tsl.attribute('aRootWeight', 'float'),
+    );
+    const barkValue = baseSurface.x.mul(0.2126)
+      .add(baseSurface.y.mul(0.7152))
+      .add(baseSurface.z.mul(0.0722));
+    const winterStem = tsl.mix(
+      tsl.vec3(...DOGWOOD_OLD_WINTER_STEM),
+      tsl.vec3(...DOGWOOD_YOUNG_WINTER_STEM),
+      youth,
+    ).mul(barkValue.mul(0.64).add(0.5)).clamp(0, 1);
+    const redReveal = dormancy
+      .add(autumn.mul(DOGWOOD_AUTUMN_STEM_REVEAL))
+      .clamp(0, 1);
+    seasonalSurface = tsl.mix(baseSurface, winterStem, redReveal);
+    material.userData.forestSeasonalAutumnColor = autumn;
+    material.userData.forestSeasonalDormancy = dormancy;
+    material.userData.dogwoodStemSeasonStrategy = 'age-aware-autumn-to-winter-red';
+  }
   applyUndergrowthNodeSnow(
     material,
-    tsl.texture(textures.albedo).rgb.mul(tsl.uniform(material.color)),
+    seasonalSurface,
     tsl.float(1),
   );
   return material;
+}
+
+function applyDogwoodWebGLStemSeason(material: THREE.MeshStandardMaterial): void {
+  const autumn = { value: 0 };
+  const dormancy = { value: 0 };
+  material.userData.forestSeasonalAutumnColor = autumn;
+  material.userData.forestSeasonalDormancy = dormancy;
+  material.userData.dogwoodStemSeasonStrategy = 'age-aware-autumn-to-winter-red';
+  chainMaterialShaderPatch(material, 'seedthree-dogwood-age-aware-winter-stems-v1', (shader) => {
+    shader.uniforms.uDogwoodStemAutumn = autumn;
+    shader.uniforms.uDogwoodStemDormancy = dormancy;
+    shader.vertexShader = shader.vertexShader.replace(
+      '#include <common>',
+      [
+        '#include <common>',
+        'varying float vDogwoodStemYouth;',
+      ].join('\n'),
+    );
+    shader.vertexShader = shader.vertexShader.replace(
+      '#include <begin_vertex>',
+      [
+        '#include <begin_vertex>',
+        `vDogwoodStemYouth = smoothstep( ${DOGWOOD_STEM_YOUTH_START.toFixed(2)}, ${DOGWOOD_STEM_YOUTH_END.toFixed(2)}, aRootWeight );`,
+      ].join('\n'),
+    );
+    shader.fragmentShader = shader.fragmentShader.replace(
+      '#include <common>',
+      [
+        '#include <common>',
+        'uniform float uDogwoodStemAutumn;',
+        'uniform float uDogwoodStemDormancy;',
+        'varying float vDogwoodStemYouth;',
+      ].join('\n'),
+    );
+    shader.fragmentShader = shader.fragmentShader.replace(
+      '#include <map_fragment>',
+      [
+        '#include <map_fragment>',
+        'float dogwoodStemValue = dot( diffuseColor.rgb, vec3( 0.2126, 0.7152, 0.0722 ) );',
+        `vec3 dogwoodOldWinterStem = vec3( ${DOGWOOD_OLD_WINTER_STEM.join(', ')} );`,
+        `vec3 dogwoodYoungWinterStem = vec3( ${DOGWOOD_YOUNG_WINTER_STEM.join(', ')} );`,
+        'vec3 dogwoodWinterStem = mix( dogwoodOldWinterStem, dogwoodYoungWinterStem, vDogwoodStemYouth );',
+        'dogwoodWinterStem *= 0.5 + dogwoodStemValue * 0.64;',
+        `float dogwoodStemRedReveal = clamp( uDogwoodStemDormancy + uDogwoodStemAutumn * ${DOGWOOD_AUTUMN_STEM_REVEAL.toFixed(2)}, 0.0, 1.0 );`,
+        'diffuseColor.rgb = mix( diffuseColor.rgb, clamp( dogwoodWinterStem, 0.0, 1.0 ), dogwoodStemRedReveal );',
+      ].join('\n'),
+    );
+  });
+  material.needsUpdate = true;
 }
 
 function applyUndergrowthWebGLWind(
