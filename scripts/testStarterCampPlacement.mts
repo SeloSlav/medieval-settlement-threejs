@@ -650,8 +650,18 @@ assert.match(
 );
 assert.match(
   app,
-  /beginFoundersCampGpuPrewarm\(\)[\s\S]*?precompileFirstPlayableScene\(\)[\s\S]*?restoreFoundersCampPrewarm\(\)/,
-  'startup should compile and then detach the founding-camp mesh before play',
+  /beginFoundersCampGpuPrewarm\(\)[\s\S]*?precompileFirstPlayableScene\(\)[\s\S]*?invalidateStaticShadows\(\);[\s\S]*?sceneManager\.render\(0,[\s\S]*?waitForFirstPlayableGpuWork\(\);[\s\S]*?restorePrewarmObjects\(\);[\s\S]*?sceneManager\.render\(0,[\s\S]*?waitForFirstPlayableGpuWork\(\);/,
+  'startup should submit the temporary camp through the live post/shadow path, then submit one clean frame before play',
+);
+assert.match(
+  app,
+  /try \{[\s\S]*?precompileFirstPlayableScene\(\);[\s\S]*?catch \(error\) \{[\s\S]*?Direct first-playable shader compile is unavailable[\s\S]*?sceneManager\.invalidateStaticShadows\(\);/,
+  'a direct compile rejection must not skip the covered live-pipeline warmup',
+);
+assert.match(
+  app,
+  /finally \{\s*restorePrewarmObjects\(\);\s*\}/,
+  'temporary prewarm objects must be restored idempotently even when GPU submission fails',
 );
 assert.match(
   buildingMarkers,

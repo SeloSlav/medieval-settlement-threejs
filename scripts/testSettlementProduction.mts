@@ -250,7 +250,7 @@ approx(
 const materialState = emptyGameState();
 const materialBuildings = [
   building('material-clay', 'stone_quarry', 1),
-  building('material-potter', 'potter_kiln', 4),
+  building('material-potter', 'potter_kiln', 1),
   building('material-smokehouse', 'smokehouse', 1),
   building('material-charcoal', 'charcoal_burner', 2),
   building('material-smithy', 'smithy', 12),
@@ -272,7 +272,7 @@ materialState.farmFields.set(
   'material-field',
   farmField('material-field', 'material-farm', 'fallow'),
 );
-materialState.residences.set('material-home', residence('material-home', 10, 4));
+materialState.residences.set('material-home', residence('material-home', 2, 4));
 materialBuildings[3].firewood = 36;
 materialBuildings[1].water = 9;
 materialBuildings[4].water = 9;
@@ -470,6 +470,11 @@ assert.ok(
   joinedMaterials.fullToolIronworkPerDay
     > joinedMaterials.maintainedToolIronworkPerDay,
 );
+assert.equal(
+  joinedMaterials.toolRefillLoad,
+  CIVILIAN_TOOL_IRONWORK_PER_CYCLE,
+  'a full-capacity reorder threshold still dispatches the whole crossing unit',
+);
 assert.ok(joinedMaterials.ironworkOutputPerDay > 0);
 approx(
   joinedMaterials.smithyWaterPerDay,
@@ -533,7 +538,7 @@ const farToolRoutes = computeSettlementProductionCapacity(
   undefined,
   50,
   1,
-  () => 80,
+  () => 800,
 ).industrialMaterials;
 assert.ok(nearToolRoutes.sustainableToolUptime > 0);
 assert.ok(
@@ -704,22 +709,22 @@ const frostLimitedMaterials = computeSettlementProductionCapacity(
 assert.equal(frostLimitedMaterials.clayPitThroughputMultiplier, 0.35);
 approx(
   frostLimitedMaterials.industrialMaterials.clayOutputPerDay,
-  joinedMaterials.clayOutputPerDay * 0.35,
-  'frost-limited clay digging must constrain the connected pottery chain forecast',
+  joinedMaterials.clayOutputPerDay,
+  'the clay-pit weather control must not rewrite output from a surface-deposit Mining Camp',
 );
-assert.ok(
-  frostLimitedMaterials.industrialMaterials.potteryOutputPerDay
-    < joinedMaterials.potteryOutputPerDay,
+approx(
+  frostLimitedMaterials.industrialMaterials.potteryOutputPerDay,
+  joinedMaterials.potteryOutputPerDay,
 );
 approx(
   frostLimitedMaterials.potteryOutputPerDay,
   frostLimitedMaterials.industrialMaterials.potteryOutputPerDay,
   'frost-limited clay supply must constrain the prosperity forecast too',
 );
-assert.ok(
-  frostLimitedMaterials.industrialMaterials.maintainedToolIronworkPerDay
-    < joinedMaterials.maintainedToolIronworkPerDay,
-  'weather-limited clay extraction must also reduce forecast tool wear',
+approx(
+  frostLimitedMaterials.industrialMaterials.maintainedToolIronworkPerDay,
+  joinedMaterials.maintainedToolIronworkPerDay,
+  'surface-deposit tool wear must remain independent of the clay-pit weather control',
 );
 
 const wetClampProduction = computeSettlementProductionCapacity(

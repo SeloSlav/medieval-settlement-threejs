@@ -1154,10 +1154,7 @@ function completedProcessorOverview(
       materialBranch.toolSites.push({
         building,
         demandPerDay: fullyEquippedDemand,
-        refillLoad: Math.max(
-          0,
-          toolCapacity - civilianToolReorderStock(toolCapacity),
-        ),
+        refillLoad: civilianToolForecastRefillLoad(toolCapacity),
       });
       if (maintained) {
         toolMaintainedSites += 1;
@@ -2001,6 +1998,28 @@ function cyclesPerCalendarDay(
     / interval;
 }
 
+/**
+ * Average whole-unit refill after a rack crosses below its reorder stock.
+ * The crossing cycle itself is part of the load; omitting it makes a reorder
+ * threshold equal to rack capacity look like a zero-capacity cart route.
+ */
+function civilianToolForecastRefillLoad(capacity: number): number {
+  const normalizedCapacity = Math.max(0, capacity);
+  if (normalizedCapacity <= 1e-9) return 0;
+  const firstTriggeredStock = Math.max(
+    0,
+    civilianToolReorderStock(normalizedCapacity)
+      - CIVILIAN_TOOL_IRONWORK_PER_CYCLE,
+  );
+  return Math.min(
+    normalizedCapacity,
+    Math.max(
+      CIVILIAN_TOOL_IRONWORK_PER_CYCLE,
+      normalizedCapacity - firstTriggeredStock,
+    ),
+  );
+}
+
 type ToolMaintenanceRoutePlan = {
   deliveryCapacityPerDay: number;
   sustainableIronworkPerDay: number;
@@ -2547,10 +2566,8 @@ function industrialMaterialRoadPlan(
       )
       : 1,
     toolCartWorkerDaysPerDay,
-    toolRefillLoad: Math.max(
-      0,
-      (BUILDING_STORAGE_CAPS.lumber_mill.ironwork ?? 0)
-        - civilianToolReorderStock(BUILDING_STORAGE_CAPS.lumber_mill.ironwork ?? 0),
+    toolRefillLoad: civilianToolForecastRefillLoad(
+      BUILDING_STORAGE_CAPS.lumber_mill.ironwork ?? 0,
     ),
     toolUnreachableSites,
     ironworkSurplusAfterToolUpkeep,
