@@ -412,8 +412,21 @@ pub fn migrate_legacy_fractional_resources(ctx: &ReducerContext) {
         );
         ctx.db.livestock_herd().building_id().update(row);
     }
+    for mut row in ctx.db.pasture_herd().iter() {
+        normalize_fields!(
+            row,
+            last_food_output,
+            last_preserved_output,
+            last_wool_gold,
+            hay_stock,
+            last_hay_output,
+            last_wool_output,
+        );
+        ctx.db.pasture_herd().pasture_id().update(row);
+    }
     for mut row in ctx.db.backyard_garden().iter() {
         row.hide_stock = whole_units(row.hide_stock);
+        row.wax_stock = whole_units(row.wax_stock);
         ctx.db.backyard_garden().id().update(row);
     }
     for mut row in ctx.db.fire_incident().iter() {

@@ -82,8 +82,7 @@ pub fn step_founding_sites(ctx: &ReducerContext, tick: &SimTickContext, clock: &
             site_changed = true;
         }
 
-        let town_hall =
-            first_completed_building(ctx, site.owner, site.settlement_id, "town_hall");
+        let town_hall = first_completed_building(ctx, site.owner, site.settlement_id, "town_hall");
         if let Some(ref town_hall) = town_hall {
             if site.gold > EPSILON
                 && !building_has_active_trip(ctx, site.id)
@@ -444,10 +443,7 @@ mod tests {
                 CommodityKind::Ironwork,
             ],
         );
-        assert_eq!(
-                founding_relocation_commodities(false),
-                ALL_COMMODITIES,
-        );
+        assert_eq!(founding_relocation_commodities(false), ALL_COMMODITIES,);
     }
 
     #[test]

@@ -387,48 +387,48 @@ export async function placeVineyard(input: {
 }
 
 export async function setLivestockSpecies(
-  buildingId: string,
+  pastureId: string,
   species: Exclude<LivestockSpecies, 'swine'>,
 ): Promise<void> {
-  const serverId = parseBuildingServerId(buildingId);
-  if (serverId === null) throw new Error('Invalid pastoral farmstead id.');
+  const serverId = parsePastureServerId(pastureId);
+  if (serverId === null) throw new Error('Invalid pasture id.');
   await callReducer('setLivestockSpecies', 'set_livestock_species', {
-    buildingId: serverId,
+    pastureId: serverId,
     species: species === 'sheep' ? 1 : 0,
   });
 }
 
-export async function tradeLivestock(buildingId: string, headDelta: number): Promise<void> {
-  const serverId = parseBuildingServerId(buildingId);
-  if (serverId === null) throw new Error('Invalid livestock holding id.');
+export async function tradeLivestock(pastureId: string, headDelta: number): Promise<void> {
+  const serverId = parsePastureServerId(pastureId);
+  if (serverId === null) throw new Error('Invalid pasture id.');
   const normalizedDelta = Math.trunc(headDelta);
   if (normalizedDelta === 0) throw new Error('Livestock order must change at least one head.');
   await callReducer('tradeLivestock', 'trade_livestock', {
-    buildingId: serverId,
+    pastureId: serverId,
     headDelta: normalizedDelta,
   });
 }
 
 export async function setLivestockBreedingReserve(
-  buildingId: string,
+  pastureId: string,
   breedingReserve: number,
 ): Promise<void> {
-  const serverId = parseBuildingServerId(buildingId);
-  if (serverId === null) throw new Error('Invalid livestock holding id.');
+  const serverId = parsePastureServerId(pastureId);
+  if (serverId === null) throw new Error('Invalid pasture id.');
   await callReducer('setLivestockBreedingReserve', 'set_livestock_breeding_reserve', {
-    buildingId: serverId,
+    pastureId: serverId,
     breedingReserve: Math.max(0, Math.floor(breedingReserve)),
   });
 }
 
 export async function setLivestockHaymakingPercent(
-  buildingId: string,
+  pastureId: string,
   haymakingPercent: number,
 ): Promise<void> {
-  const serverId = parseBuildingServerId(buildingId);
-  if (serverId === null) throw new Error('Invalid pastoral farmstead id.');
+  const serverId = parsePastureServerId(pastureId);
+  if (serverId === null) throw new Error('Invalid pasture id.');
   await callReducer('setLivestockHaymakingPercent', 'set_livestock_haymaking_percent', {
-    buildingId: serverId,
+    pastureId: serverId,
     haymakingPercent: Math.max(0, Math.floor(haymakingPercent)),
   });
 }

@@ -2,10 +2,10 @@ use spacetimedb::{reducer, Identity, ReducerContext};
 
 use crate::db::*;
 use crate::tables::{
-    active_raid, corpse, farm_field, graveyard, livestock_herd, pasture, settlement_security,
-    vineyard_parcel, BackyardGarden, Building, BurgageZone, CombatAgent, Corpse, DeliveryTrip,
-    FarmField, FireIncident, Graveyard, LivestockHerd, Pasture, ResidenceNeed, Settlement,
-    StableOx, VineyardParcel, WorldConfig,
+    active_raid, corpse, farm_field, graveyard, livestock_herd, pasture, pasture_herd,
+    settlement_security, vineyard_parcel, BackyardGarden, Building, BurgageZone, CombatAgent,
+    Corpse, DeliveryTrip, FarmField, FireIncident, Graveyard, LivestockHerd, Pasture, PastureHerd,
+    ResidenceNeed, Settlement, StableOx, VineyardParcel, WorldConfig,
 };
 use crate::world_entities::clear_global_world_entities;
 
@@ -66,6 +66,15 @@ fn clear_owner_settlement(ctx: &ReducerContext, owner: Identity) {
         .collect::<Vec<Graveyard>>()
     {
         ctx.db.graveyard().id().delete(graveyard.id);
+    }
+    for herd in ctx
+        .db
+        .pasture_herd()
+        .owner()
+        .filter(&owner)
+        .collect::<Vec<PastureHerd>>()
+    {
+        ctx.db.pasture_herd().pasture_id().delete(&herd.pasture_id);
     }
     for pasture in ctx
         .db

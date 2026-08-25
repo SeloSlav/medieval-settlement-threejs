@@ -27,7 +27,7 @@ use crate::simulation::{labor_and_logistics_paused, GameClock, SimTickContext};
 use crate::tables::{Building, PlayerResources, WorldConfig};
 
 const EPSILON: f64 = 1e-6;
-const RECOVERY_ORDER: [CommodityKind; 64] = [
+const RECOVERY_ORDER: [CommodityKind; 66] = [
     CommodityKind::Gold,
     CommodityKind::Remedies,
     CommodityKind::Food,
@@ -72,11 +72,13 @@ const RECOVERY_ORDER: [CommodityKind; 64] = [
     CommodityKind::PearCider,
     CommodityKind::Mead,
     CommodityKind::Honey,
+    CommodityKind::Candles,
     CommodityKind::Wine,
     CommodityKind::Cloth,
     CommodityKind::Shoes,
     CommodityKind::Leather,
     CommodityKind::Hides,
+    CommodityKind::Wax,
     CommodityKind::Flax,
     CommodityKind::Iron,
     CommodityKind::Salt,
@@ -107,6 +109,8 @@ pub struct ReclamationStock {
     pub mead: f64,
     pub preserved_food: f64,
     pub honey: f64,
+    pub wax: f64,
+    pub candles: f64,
     pub wine: f64,
     pub ironwork: f64,
     pub polearms: f64,
@@ -208,6 +212,14 @@ impl ReclamationStock {
             },
             CommodityKind::Honey => Self {
                 honey: amount,
+                ..Self::default()
+            },
+            CommodityKind::Wax => Self {
+                wax: amount,
+                ..Self::default()
+            },
+            CommodityKind::Candles => Self {
+                candles: amount,
                 ..Self::default()
             },
             CommodityKind::Wine => Self {
@@ -446,6 +458,8 @@ impl ReclamationStock {
             mead,
             preserved_food,
             honey,
+            wax,
+            candles,
             wine,
             ironwork,
             polearms,
@@ -530,6 +544,8 @@ impl ReclamationStock {
             mead: cargo.mead,
             preserved_food: cargo.preserved_food,
             honey: cargo.honey,
+            wax: cargo.wax,
+            candles: cargo.candles,
             wine: cargo.wine,
             ironwork: cargo.ironwork,
             polearms: cargo.polearms,
@@ -587,7 +603,7 @@ impl ReclamationStock {
         .normalized()
     }
 
-    pub fn commodities() -> [CommodityKind; 64] {
+    pub fn commodities() -> [CommodityKind; 66] {
         RECOVERY_ORDER
     }
 
@@ -612,6 +628,8 @@ impl ReclamationStock {
             mead,
             preserved_food,
             honey,
+            wax,
+            candles,
             wine,
             ironwork,
             polearms,
@@ -689,6 +707,8 @@ impl ReclamationStock {
             mead: resources.mead.max(0.0),
             preserved_food: resources.preserved_food.max(0.0),
             honey: resources.honey.max(0.0),
+            wax: resources.wax.max(0.0),
+            candles: resources.candles.max(0.0),
             wine: resources.wine.max(0.0),
             ironwork: resources.ironwork.max(0.0),
             polearms: resources.polearms.max(0.0),
@@ -759,6 +779,8 @@ impl ReclamationStock {
             CommodityKind::Mead => self.mead,
             CommodityKind::PreservedFood => self.preserved_food,
             CommodityKind::Honey => self.honey,
+            CommodityKind::Wax => self.wax,
+            CommodityKind::Candles => self.candles,
             CommodityKind::Wine => self.wine,
             CommodityKind::Ironwork => self.ironwork,
             CommodityKind::Polearms => self.polearms,
@@ -837,6 +859,8 @@ impl ReclamationStock {
             mead,
             preserved_food,
             honey,
+            wax,
+            candles,
             wine,
             ironwork,
             polearms,
@@ -912,6 +936,8 @@ fn clear_resource_ledger(resources: &mut PlayerResources) {
     resources.mead = 0.0;
     resources.preserved_food = 0.0;
     resources.honey = 0.0;
+    resources.wax = 0.0;
+    resources.candles = 0.0;
     resources.wine = 0.0;
     resources.ironwork = 0.0;
     resources.polearms = 0.0;
@@ -1089,6 +1115,8 @@ pub fn insert_reclamation_pile(
         mead: stock.mead.max(0.0),
         preserved_food: stock.preserved_food.max(0.0),
         honey: stock.honey.max(0.0),
+        wax: stock.wax.max(0.0),
+        candles: stock.candles.max(0.0),
         wine: stock.wine.max(0.0),
         ironwork: stock.ironwork.max(0.0),
         polearms: stock.polearms.max(0.0),
@@ -1240,6 +1268,8 @@ pub fn insert_reclamation_pile(
         shoes: stock.shoes.max(0.0),
         storage_acceptance_mask: u64::MAX,
         settlement_id,
+        storage_acceptance_mask_high: u64::MAX,
+        apiary_wax_cycle_progress: 0,
     });
     ctx.db.world_config().id().update(WorldConfig {
         next_building_id: building_id
@@ -1640,6 +1670,18 @@ pub(crate) fn reclamation_destination_priority(commodity: CommodityKind, kind: &
         CommodityKind::Honey | CommodityKind::Wine => match kind {
             "marketplace" => Some(0),
             "monastery" => Some(1),
+            "founders_camp" => Some(2),
+            _ => Some(3),
+        },
+        CommodityKind::Wax => match kind {
+            "chandlery" => Some(0),
+            "village_storehouse" | "trading_post" => Some(1),
+            "founders_camp" => Some(2),
+            _ => Some(3),
+        },
+        CommodityKind::Candles => match kind {
+            "marketplace" => Some(0),
+            "village_storehouse" | "trading_post" | "chandlery" => Some(1),
             "founders_camp" => Some(2),
             _ => Some(3),
         },

@@ -7,6 +7,7 @@ import type {
   ForagingNodeState,
   GraveyardState,
   LivestockHerdState,
+  PastureState,
   ResidenceState,
 } from '../resources/types.ts';
 import type { CrowdViewState } from '../settlement/crowdView.ts';
@@ -35,6 +36,7 @@ import type {
   BuildingAudioKind,
   ChapelBellTier,
   FootstepSurface,
+  MusicTrackId,
   UiSoundId,
 } from './audioCatalog.ts';
 import { FireAudio } from './FireAudio.ts';
@@ -50,6 +52,7 @@ import {
 } from './audioPreferences.ts';
 import { ForestWindAudio } from './ForestWindAudio.ts';
 import { forestWindTargetMix } from './forestWindRules.ts';
+import { setExternalSoundtrackActive } from './audioPlaybackState.ts';
 
 export type AmbientAudioControllerConfig = {
   getCameraTarget: () => { x: number; z: number };
@@ -62,6 +65,7 @@ export type AmbientAudioControllerConfig = {
   getFireIncidents: () => Iterable<FireIncidentState>;
   getDeliveryTrips: () => Iterable<DeliveryTripState>;
   getLivestockHerds: () => Iterable<LivestockHerdState>;
+  getPastures: () => ReadonlyMap<string, PastureState>;
   getBackyardGardens: () => Iterable<BackyardGardenState>;
   getForagingNodes: () => Iterable<ForagingNodeState>;
   getGraveyards: () => Iterable<GraveyardState>;
@@ -71,6 +75,7 @@ export type AmbientAudioControllerConfig = {
   riverLayout: RiverLayout;
   getRiverWaterSurfaceY: (x: number, z: number) => number;
   unlockElement: HTMLElement;
+  gameplayMusicInitiallyActive?: boolean;
 };
 
 export class AmbientAudioController {
@@ -113,6 +118,8 @@ export class AmbientAudioController {
   private enabled = true;
   private forestWindEnabled = false;
   private musicEnabled = true;
+  private gameplayMusicActive = true;
+  private externalScoreActive = false;
   private running = false;
   private unlocked = false;
   private readonly onUnlock = (): void => {
@@ -137,6 +144,7 @@ export class AmbientAudioController {
     config.unlockElement.addEventListener('pointerdown', this.onUnlock, { capture: true });
     window.addEventListener('keydown', this.onUnlock, { capture: true });
     this.musicEnabled = isMusicEnabled();
+    this.gameplayMusicActive = config.gameplayMusicInitiallyActive ?? true;
     this.forestWindEnabled = isForestWindEnabled();
     this.audio.setVolume(getAmbienceVolume());
     this.forestWind.setVolume(getAmbienceVolume());
@@ -222,7 +230,7 @@ export class AmbientAudioController {
       });
     }
     this.soundtrack.tick(dtSeconds);
-    const scoreActive = this.soundtrack.isAudible();
+    const scoreActive = this.soundtrack.isAudible() || this.externalScoreActive;
     this.audio.setScoreActive(scoreActive);
     this.forestWind.setScoreActive(scoreActive);
     this.audio.tick(dtSeconds);
@@ -243,6 +251,7 @@ export class AmbientAudioController {
       deliveryTrips: this.config.getDeliveryTrips(),
       fireIncidents: this.config.getFireIncidents(),
       livestockHerds: this.config.getLivestockHerds(),
+      pastures: this.config.getPastures(),
       backyardGardens: this.config.getBackyardGardens(),
       foragingNodes: this.config.getForagingNodes(),
       graveyards: this.config.getGraveyards(),
@@ -260,7 +269,9 @@ export class AmbientAudioController {
     this.fireAudio.setEnabled(enabled);
     this.buildingAudio.setEnabled(enabled);
     this.worldFoley.setEnabled(enabled);
-    this.soundtrack.setEnabled(enabled && this.musicEnabled);
+    this.soundtrack.setEnabled(
+      enabled && this.musicEnabled && this.gameplayMusicActive,
+    );
     this.uiAudio.setEnabled(enabled);
     if (!enabled) {
       this.running = false;
@@ -272,7 +283,25 @@ export class AmbientAudioController {
 
   setMusicEnabled(enabled: boolean): void {
     this.musicEnabled = enabled;
-    this.soundtrack.setEnabled(this.enabled && enabled);
+    this.soundtrack.setEnabled(
+      this.enabled && enabled && this.gameplayMusicActive,
+    );
+  }
+
+  setGameplayMusicActive(active: boolean): void {
+    this.gameplayMusicActive = active;
+    this.soundtrack.setEnabled(
+      this.enabled && this.musicEnabled && active,
+    );
+  }
+
+  setExternalScoreActive(active: boolean): void {
+    this.externalScoreActive = active;
+    setExternalSoundtrackActive(active);
+  }
+
+  markMusicTrackPlayed(track: MusicTrackId): void {
+    this.soundtrack.markTrackPlayed(track);
   }
 
   setForestWindEnabled(enabled: boolean): void {
@@ -318,6 +347,7 @@ export class AmbientAudioController {
   }
 
   dispose(): void {
+    this.setExternalScoreActive(false);
     this.config.unlockElement.removeEventListener('pointerdown', this.onUnlock, { capture: true });
     window.removeEventListener('keydown', this.onUnlock, { capture: true });
     this.audio.dispose();

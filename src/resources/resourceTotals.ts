@@ -85,6 +85,8 @@ export type ResourceTotals = {
   mead: number;
   preservedFood: number;
   honey: number;
+  wax: number;
+  candles: number;
   wine: number;
   wool: number;
   cloth: number;
@@ -156,6 +158,8 @@ export const HUD_RESOURCE_KINDS = [
   'mead',
   'preservedFood',
   'honey',
+  'wax',
+  'candles',
   'wine',
   'wool',
   'cloth',
@@ -215,6 +219,11 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
   if (cachedState === state && cachedTotals) {
     return cachedTotals;
   }
+  const stockedLivestockBuildings = new Set(
+    [...state.livestockHerds.values()]
+      .filter((herd) => herd.headCount > 0)
+      .map((herd) => herd.buildingId),
+  );
 
   // The player-resource row remains in the schema for old saves and policy
   // fields, but a physical settlement may only count goods held by a map
@@ -246,6 +255,8 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
   let mead = ledger?.mead ?? 0;
   let legacyPreservedFood = ledger?.preservedFood ?? 0;
   let honey = ledger?.honey ?? 0;
+  let wax = ledger?.wax ?? 0;
+  let candles = ledger?.candles ?? 0;
   let wine = ledger?.wine ?? 0;
   let wool = ledger?.wool ?? 0;
   let cloth = ledger?.cloth ?? 0;
@@ -342,7 +353,7 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
     animalFeed += building.animalFeed ?? 0;
     if (livestockHoldingProtectsFeedOats(
       building.kind,
-      (state.livestockHerds?.get(building.id)?.headCount ?? 0) > 0,
+      stockedLivestockBuildings.has(building.id),
     )) {
       reservedOatGrain += Math.max(0, buildingOatGrain);
     }
@@ -358,6 +369,8 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
     mead += building.mead ?? 0;
     legacyPreservedFood += building.preservedFood;
     honey += building.honey;
+    wax += building.wax ?? 0;
+    candles += building.candles ?? 0;
     wine += building.wine;
     wool += building.wool ?? 0;
     cloth += building.cloth ?? 0;
@@ -442,6 +455,10 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
       reservedIronwork += Math.max(0, building.constructionReservedIronwork ?? 0);
       reservedRoofTiles += Math.max(0, building.constructionReservedRoofTiles ?? 0);
     }
+  }
+
+  for (const garden of state.backyardGardens.values()) {
+    wax += garden.waxStock ?? 0;
   }
 
   for (const residence of state.residences?.values() ?? []) {
@@ -609,6 +626,8 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
     mead,
     preservedFood: storedPreservedFood,
     honey,
+    wax,
+    candles,
     wine,
     wool,
     cloth,
@@ -903,6 +922,11 @@ export function computeMarketplaceTradeAvailability(
   marketplace: BuildingState,
   roadConnected: RoadConnectionQuery,
 ): MarketplaceTradeAvailability {
+  const stockedLivestockBuildings = new Set(
+    [...state.livestockHerds.values()]
+      .filter((herd) => herd.headCount > 0)
+      .map((herd) => herd.buildingId),
+  );
   const fireDisabled = fireDisabledBuildingIds(state.fireIncidents.values());
   const includeLegacyLedger = state.physicalFoundingSiteEnabled !== true;
   const availability = Object.fromEntries(
@@ -963,7 +987,7 @@ export function computeMarketplaceTradeAvailability(
       let stock = tradeResourceBuildingStock(building, resource);
       if (resource === 'oatGrain' && livestockHoldingProtectsFeedOats(
         building.kind,
-        (state.livestockHerds?.get(building.id)?.headCount ?? 0) > 0,
+        stockedLivestockBuildings.has(building.id),
       )) {
         // Trade availability is expressed in physical commodity units. Oats
         // convert to meals only in the separate food total, so protect every
@@ -1140,6 +1164,8 @@ function emptyResourceTotals(): ResourceTotals {
     mead: 0,
     preservedFood: 0,
     honey: 0,
+    wax: 0,
+    candles: 0,
     wine: 0,
     wool: 0,
     cloth: 0,

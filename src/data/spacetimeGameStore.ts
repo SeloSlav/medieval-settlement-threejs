@@ -600,12 +600,12 @@ export class SpacetimeGameStore {
     return spacetimeReducers.demolishGraveyard(graveyardId);
   }
 
-  setLivestockSpecies(buildingId: string, species: Exclude<LivestockSpecies, 'swine'>): Promise<void> {
-    return spacetimeReducers.setLivestockSpecies(buildingId, species);
+  setLivestockSpecies(pastureId: string, species: Exclude<LivestockSpecies, 'swine'>): Promise<void> {
+    return spacetimeReducers.setLivestockSpecies(pastureId, species);
   }
 
-  tradeLivestock(buildingId: string, headDelta: number): Promise<void> {
-    return spacetimeReducers.tradeLivestock(buildingId, headDelta);
+  tradeLivestock(pastureId: string, headDelta: number): Promise<void> {
+    return spacetimeReducers.tradeLivestock(pastureId, headDelta);
   }
 
   purchaseStableOx(stableId: string): Promise<void> {
@@ -616,12 +616,12 @@ export class SpacetimeGameStore {
     return spacetimeReducers.setBuildingOxen(buildingId, assignedOxen);
   }
 
-  setLivestockBreedingReserve(buildingId: string, breedingReserve: number): Promise<void> {
-    return spacetimeReducers.setLivestockBreedingReserve(buildingId, breedingReserve);
+  setLivestockBreedingReserve(pastureId: string, breedingReserve: number): Promise<void> {
+    return spacetimeReducers.setLivestockBreedingReserve(pastureId, breedingReserve);
   }
 
-  setLivestockHaymakingPercent(buildingId: string, haymakingPercent: number): Promise<void> {
-    return spacetimeReducers.setLivestockHaymakingPercent(buildingId, haymakingPercent);
+  setLivestockHaymakingPercent(pastureId: string, haymakingPercent: number): Promise<void> {
+    return spacetimeReducers.setLivestockHaymakingPercent(pastureId, haymakingPercent);
   }
 
   setEconomicActivityTaxRate(townHallId: string, taxRate: number): Promise<void> {

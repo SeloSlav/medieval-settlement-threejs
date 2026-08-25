@@ -47,7 +47,7 @@ const NEED_LABELS: Record<ResidenceNeedKind, string> = {
   pottery: 'household pottery',
   church: 'church access',
   foodVariety: 'food variety',
-  luxury: 'honey, wine, luxury preserves, or flowers',
+  luxury: 'candles, honey, wine, luxury preserves, or flowers',
 };
 
 /**

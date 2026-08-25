@@ -41,6 +41,7 @@ export const TRADE_RESOURCE_COMMODITY_CODES: Record<TradeResourceKind, number> =
   pears: 4, aronia: 5, rosehips: 27, cabbage: 38, carrots: 50, beetroot: 53,
   pearCider: 57, aroniaJam: 61, rosehipJam: 62,
   hides: 58, leather: 59, shoes: 60,
+  wax: 64, candles: 65,
 };
 
 export const TRADE_COMMODITY_BY_CODE = new Map<number, TradeResourceKind>(
@@ -61,7 +62,7 @@ export const TRADE_RESOURCE_LABELS: Record<TradeResourceKind, string> = {
   cherries: 'Cherries', aronia: 'Aronia berries', rosehips: 'Rosehips',
   vegetables: 'Vegetables', cabbage: 'Cabbage', carrots: 'Carrots', beetroot: 'Beetroot', eggs: 'Eggs', grapes: 'Grapes',
   preservedFood: 'Preserved food', curedMeat: 'Cured meat', smokedFish: 'Smoked fish',
-  cheese: 'Cheese', aroniaJam: 'Aronia jam', rosehipJam: 'Rosehip jam', honey: 'Honey',
+  cheese: 'Cheese', aroniaJam: 'Aronia jam', rosehipJam: 'Rosehip jam', honey: 'Honey', wax: 'Beeswax', candles: 'Candles',
   ale: 'Ale', cider: 'Apple cider', pearCider: 'Pear cider', wine: 'Wine', wool: 'Wool',
   cloth: 'Cloth', iron: 'Iron', clay: 'Clay', salt: 'Salt', ironwork: 'Ironwork',
   hides: 'Hides', leather: 'Leather', shoes: 'Shoes',
@@ -76,7 +77,7 @@ export const TRADING_POST_TRADE_CATEGORIES = [
   { label: 'Milled & prepared staples', resources: ['ryeFlour', 'maslinFlour', 'malt', 'ryeBread', 'maslinBread'] },
   { label: 'Fresh food', resources: ['food', 'meat', 'fish', 'berries', 'mushrooms', 'milk', 'apples', 'pears', 'cherries', 'aronia', 'rosehips', 'vegetables', 'cabbage', 'carrots', 'beetroot', 'eggs', 'grapes'] },
   { label: 'Preserved provisions', resources: ['preservedFood', 'curedMeat', 'smokedFish', 'cheese', 'aroniaJam', 'rosehipJam', 'honey'] },
-  { label: 'Finished goods', resources: ['ale', 'cider', 'pearCider', 'wine', 'wool', 'cloth', 'hides', 'leather', 'shoes', 'polearms', 'pottery', 'remedies'] },
+  { label: 'Finished goods', resources: ['ale', 'cider', 'pearCider', 'wine', 'wool', 'cloth', 'hides', 'leather', 'shoes', 'wax', 'candles', 'polearms', 'pottery', 'remedies'] },
 ] as const satisfies ReadonlyArray<{ label: string; resources: readonly TradeResourceKind[] }>;
 
 export function tradingPostRuleId(buildingId: string, resource: TradeResourceKind): string {

@@ -10,4 +10,6 @@ import {
   type Infer as __Infer,
 } from "spacetimedb";
 
-export default {};
+export default {
+  townHallId: __t.u64(),
+};

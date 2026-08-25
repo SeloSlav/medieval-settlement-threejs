@@ -1,4 +1,4 @@
-import type { LivestockHerd, Pasture } from '../../generated/types.ts';
+import type { Pasture, PastureHerd } from '../../generated/types.ts';
 import { buildingClientId, pastureClientId } from '../spacetimeIds.ts';
 import type {
   LivestockHerdState,
@@ -36,15 +36,17 @@ export function syncPastures(
 }
 
 export function syncLivestockHerds(
-  rows: Iterable<LivestockHerd>,
+  rows: Iterable<PastureHerd>,
   identityHex: string | null,
 ): Map<string, LivestockHerdState> {
   const herds = new Map<string, LivestockHerdState>();
   if (!identityHex) return herds;
   for (const row of rows) {
     if (row.owner.toHexString() !== identityHex) continue;
-    const buildingId = buildingClientId(row.buildingId);
-    herds.set(buildingId, {
+    const pastureId = pastureClientId(row.pastureId);
+    const buildingId = buildingClientId(row.farmsteadId);
+    herds.set(pastureId, {
+      pastureId,
       buildingId,
       species: SPECIES[row.species] ?? 'cattle',
       headCount: wholeResourceUnits(row.headCount),

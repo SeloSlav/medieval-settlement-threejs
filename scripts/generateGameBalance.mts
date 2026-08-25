@@ -36,6 +36,8 @@ type BuildingBalance = {
     mead?: number;
     preservedFood?: number;
     honey?: number;
+    wax?: number;
+    candles?: number;
     wine?: number;
     wool?: number;
     cloth?: number;
@@ -89,6 +91,8 @@ type BackyardGardenBalance = {
   secondaryHarvestEndMonth?: number;
   hidePerPersonPerSecondaryHarvest?: number;
   hideCapacity?: number;
+  waxPerSecondaryHarvest?: number;
+  waxCapacity?: number;
   yieldEfficiency?: number;
   jamPerPersonPerSec?: number;
   luxuryUpgradeGoldCost?: number;
@@ -634,6 +638,10 @@ export type GameBalance = {
     cobblerLeatherPerCycle: number;
     cobblerShoesPerCycle: number;
     leatherTransferPerTrip: number;
+    chandleryWaxPerCycle: number;
+    chandleryFirewoodPerCycle: number;
+    chandleryCandlesPerCycle: number;
+    candleTransferPerTrip: number;
     smokehouseFoodPerCycle: number;
     smokehouseFirewoodPerCycle: number;
     smokehouseSaltPerCycle: number;
@@ -663,6 +671,8 @@ export type GameBalance = {
     potterPotteryPerCycle: number;
     potterRoofTilesPerCycle: number;
     apiaryHoneyPerCycle: number;
+    apiaryWaxPerHoneyCycles: number;
+    apiaryWaxPerHarvest: number;
     apiarySeasonStartMonth: number;
     apiarySeasonEndMonth: number;
     apiaryWinterHoneyRequired: number;
@@ -849,6 +859,7 @@ const simKindByKind: Record<string, string | null> = {
   weaver: 'Weaver',
   tannery: 'Tannery',
   cobbler: 'Cobbler',
+  chandlery: 'Chandlery',
   pastoral_farmstead: 'PastoralFarmstead',
   swineherd: 'Swineherd',
 };
@@ -1292,6 +1303,10 @@ function generateRust(): string {
     `pub const COBBLER_LEATHER_PER_CYCLE: f64 = ${rustF64(b.production.cobblerLeatherPerCycle)};`,
     `pub const COBBLER_SHOES_PER_CYCLE: f64 = ${rustF64(b.production.cobblerShoesPerCycle)};`,
     `pub const LEATHER_TRANSFER_PER_TRIP: f64 = ${rustF64(b.production.leatherTransferPerTrip)};`,
+    `pub const CHANDLERY_WAX_PER_CYCLE: f64 = ${rustF64(b.production.chandleryWaxPerCycle)};`,
+    `pub const CHANDLERY_FIREWOOD_PER_CYCLE: f64 = ${rustF64(b.production.chandleryFirewoodPerCycle)};`,
+    `pub const CHANDLERY_CANDLES_PER_CYCLE: f64 = ${rustF64(b.production.chandleryCandlesPerCycle)};`,
+    `pub const CANDLE_TRANSFER_PER_TRIP: f64 = ${rustF64(b.production.candleTransferPerTrip)};`,
     `pub const SMOKEHOUSE_FOOD_PER_CYCLE: f64 = ${rustF64(b.production.smokehouseFoodPerCycle)};`,
     `pub const SMOKEHOUSE_FIREWOOD_PER_CYCLE: f64 = ${rustF64(b.production.smokehouseFirewoodPerCycle)};`,
     `pub const SMOKEHOUSE_SALT_PER_CYCLE: f64 = ${rustF64(b.production.smokehouseSaltPerCycle)};`,
@@ -1321,6 +1336,8 @@ function generateRust(): string {
     `pub const POTTER_POTTERY_PER_CYCLE: f64 = ${rustF64(b.production.potterPotteryPerCycle)};`,
     `pub const POTTER_ROOF_TILES_PER_CYCLE: f64 = ${rustF64(b.production.potterRoofTilesPerCycle)};`,
     `pub const APIARY_HONEY_PER_CYCLE: f64 = ${rustF64(b.production.apiaryHoneyPerCycle)};`,
+    `pub const APIARY_WAX_PER_HONEY_CYCLES: u8 = ${Math.max(1, Math.round(b.production.apiaryWaxPerHoneyCycles))};`,
+    `pub const APIARY_WAX_PER_HARVEST: f64 = ${rustF64(b.production.apiaryWaxPerHarvest)};`,
     `pub const APIARY_SEASON_START_MONTH: u8 = ${b.production.apiarySeasonStartMonth};`,
     `pub const APIARY_SEASON_END_MONTH: u8 = ${b.production.apiarySeasonEndMonth};`,
     `pub const APIARY_WINTER_HONEY_REQUIRED: f64 = ${rustF64(b.production.apiaryWinterHoneyRequired)};`,
@@ -1632,6 +1649,7 @@ function generateRust(): string {
   lines.push('    Weaver,');
   lines.push('    Tannery,');
   lines.push('    Cobbler,');
+  lines.push('    Chandlery,');
   lines.push('    Guardhouse,');
   lines.push('    PastoralFarmstead,');
   lines.push('    Swineherd,');
@@ -1661,6 +1679,8 @@ function generateRust(): string {
   lines.push('    pub storage_mead: f64,');
   lines.push('    pub storage_preserved_food: f64,');
   lines.push('    pub storage_honey: f64,');
+  lines.push('    pub storage_wax: f64,');
+  lines.push('    pub storage_candles: f64,');
   lines.push('    pub storage_wine: f64,');
   lines.push('    pub storage_wool: f64,');
   lines.push('    pub storage_cloth: f64,');
@@ -1721,6 +1741,8 @@ function generateRust(): string {
     lines.push(`    storage_mead: ${rustF64(def.storage.mead ?? 0)},`);
     lines.push(`    storage_preserved_food: ${rustF64(def.storage.preservedFood ?? 0)},`);
     lines.push(`    storage_honey: ${rustF64(def.storage.honey ?? 0)},`);
+    lines.push(`    storage_wax: ${rustF64(def.storage.wax ?? 0)},`);
+    lines.push(`    storage_candles: ${rustF64(def.storage.candles ?? 0)},`);
     lines.push(`    storage_wine: ${rustF64(def.storage.wine ?? 0)},`);
     lines.push(`    storage_wool: ${rustF64(def.storage.wool ?? 0)},`);
     lines.push(`    storage_cloth: ${rustF64(def.storage.cloth ?? 0)},`);
@@ -1821,6 +1843,8 @@ function generateRust(): string {
   lines.push('    pub secondary_harvest_end_month: u32,');
   lines.push('    pub hide_per_person_per_secondary_harvest: f64,');
   lines.push('    pub hide_capacity: f64,');
+  lines.push('    pub wax_per_secondary_harvest: f64,');
+  lines.push('    pub wax_capacity: f64,');
   lines.push('    pub yield_efficiency: f64,');
   lines.push('    pub jam_per_person_per_sec: f64,');
   lines.push('    pub luxury_upgrade_gold_cost: f64,');
@@ -1854,6 +1878,8 @@ function generateRust(): string {
     lines.push(`    secondary_harvest_end_month: ${Math.max(0, Math.round(def.secondaryHarvestEndMonth ?? 0))},`);
     lines.push(`    hide_per_person_per_secondary_harvest: ${rustF64(def.hidePerPersonPerSecondaryHarvest ?? 0)},`);
     lines.push(`    hide_capacity: ${rustF64(def.hideCapacity ?? 0)},`);
+    lines.push(`    wax_per_secondary_harvest: ${rustF64(def.waxPerSecondaryHarvest ?? 0)},`);
+    lines.push(`    wax_capacity: ${rustF64(def.waxCapacity ?? 0)},`);
     lines.push(`    yield_efficiency: ${rustF64(def.yieldEfficiency ?? 1)},`);
     lines.push(`    jam_per_person_per_sec: ${rustF64(def.jamPerPersonPerSec ?? 0)},`);
     lines.push(`    luxury_upgrade_gold_cost: ${rustF64(def.luxuryUpgradeGoldCost ?? 0)},`);
@@ -2326,6 +2352,10 @@ function generateTypeScript(): string {
     `export const COBBLER_LEATHER_PER_CYCLE = ${b.production.cobblerLeatherPerCycle};`,
     `export const COBBLER_SHOES_PER_CYCLE = ${b.production.cobblerShoesPerCycle};`,
     `export const LEATHER_TRANSFER_PER_TRIP = ${b.production.leatherTransferPerTrip};`,
+    `export const CHANDLERY_WAX_PER_CYCLE = ${b.production.chandleryWaxPerCycle};`,
+    `export const CHANDLERY_FIREWOOD_PER_CYCLE = ${b.production.chandleryFirewoodPerCycle};`,
+    `export const CHANDLERY_CANDLES_PER_CYCLE = ${b.production.chandleryCandlesPerCycle};`,
+    `export const CANDLE_TRANSFER_PER_TRIP = ${b.production.candleTransferPerTrip};`,
     `export const SMOKEHOUSE_FOOD_PER_CYCLE = ${b.production.smokehouseFoodPerCycle};`,
     `export const SMOKEHOUSE_FIREWOOD_PER_CYCLE = ${b.production.smokehouseFirewoodPerCycle};`,
     `export const SMOKEHOUSE_SALT_PER_CYCLE = ${b.production.smokehouseSaltPerCycle};`,
@@ -2355,6 +2385,8 @@ function generateTypeScript(): string {
     `export const POTTER_POTTERY_PER_CYCLE = ${b.production.potterPotteryPerCycle};`,
     `export const POTTER_ROOF_TILES_PER_CYCLE = ${b.production.potterRoofTilesPerCycle};`,
     `export const APIARY_HONEY_PER_CYCLE = ${b.production.apiaryHoneyPerCycle};`,
+    `export const APIARY_WAX_PER_HONEY_CYCLES = ${Math.max(1, Math.round(b.production.apiaryWaxPerHoneyCycles))};`,
+    `export const APIARY_WAX_PER_HARVEST = ${b.production.apiaryWaxPerHarvest};`,
     `export const APIARY_SEASON_START_MONTH = ${b.production.apiarySeasonStartMonth};`,
     `export const APIARY_SEASON_END_MONTH = ${b.production.apiarySeasonEndMonth};`,
     `export const APIARY_WINTER_HONEY_REQUIRED = ${b.production.apiaryWinterHoneyRequired};`,
@@ -2594,6 +2626,8 @@ function generateTypeScript(): string {
     '  mead?: number;',
     '  preservedFood?: number;',
     '  honey?: number;',
+    '  wax?: number;',
+    '  candles?: number;',
     '  wine?: number;',
     '  wool?: number;',
     '  cloth?: number;',
@@ -2692,6 +2726,8 @@ function generateTypeScript(): string {
     const mead = def.storage.mead ?? 0;
     const preservedFood = def.storage.preservedFood ?? 0;
     const honey = def.storage.honey ?? 0;
+    const wax = def.storage.wax ?? 0;
+    const candles = def.storage.candles ?? 0;
     const wine = def.storage.wine ?? 0;
     const wool = def.storage.wool ?? 0;
     const flax = def.storage.flax ?? 0;
@@ -2723,6 +2759,8 @@ function generateTypeScript(): string {
     if (mead > 0) extras.push(`mead: ${mead}`);
     if (preservedFood > 0) extras.push(`preservedFood: ${preservedFood}`);
     if (honey > 0) extras.push(`honey: ${honey}`);
+    if (wax > 0) extras.push(`wax: ${wax}`);
+    if (candles > 0) extras.push(`candles: ${candles}`);
     if (wine > 0) extras.push(`wine: ${wine}`);
     if (wool > 0) extras.push(`wool: ${wool}`);
     if (flax > 0) extras.push(`flax: ${flax}`);
@@ -2769,6 +2807,8 @@ function generateTypeScript(): string {
   lines.push('  secondaryHarvestEndMonth: number;');
   lines.push('  hidePerPersonPerSecondaryHarvest: number;');
   lines.push('  hideCapacity: number;');
+  lines.push('  waxPerSecondaryHarvest: number;');
+  lines.push('  waxCapacity: number;');
   lines.push('  yieldEfficiency: number;');
   lines.push('  jamPerPersonPerSec: number;');
   lines.push('  luxuryUpgradeGoldCost: number;');
@@ -2795,6 +2835,8 @@ function generateTypeScript(): string {
     lines.push(`    secondaryHarvestEndMonth: ${Math.max(0, Math.round(def.secondaryHarvestEndMonth ?? 0))},`);
     lines.push(`    hidePerPersonPerSecondaryHarvest: ${def.hidePerPersonPerSecondaryHarvest ?? 0},`);
     lines.push(`    hideCapacity: ${def.hideCapacity ?? 0},`);
+    lines.push(`    waxPerSecondaryHarvest: ${def.waxPerSecondaryHarvest ?? 0},`);
+    lines.push(`    waxCapacity: ${def.waxCapacity ?? 0},`);
     lines.push(`    yieldEfficiency: ${def.yieldEfficiency ?? 1},`);
     lines.push(`    jamPerPersonPerSec: ${def.jamPerPersonPerSec ?? 0},`);
     lines.push(`    luxuryUpgradeGoldCost: ${def.luxuryUpgradeGoldCost ?? 0},`);

@@ -29,6 +29,7 @@ export type SessionLifecycleDeps = {
   firstPersonController: FirstPersonController | null;
   recoverSession?: () => void;
   beginNewWorld?: () => void;
+  onFirstPlayable?: () => void;
 };
 
 const DISCONNECT_OVERLAY_DELAY_MS = 4_000;
@@ -38,6 +39,7 @@ export class SessionLifecycleController {
   private disconnectOverlayTimer: number | null = null;
   private unsubscribeStore: (() => void) | null = null;
   private presentationReady = false;
+  private firstPlayableNotified = false;
   private readonly deps: SessionLifecycleDeps;
 
   constructor(deps: SessionLifecycleDeps) {
@@ -197,6 +199,13 @@ export class SessionLifecycleController {
   private dismissLoadingWhenPlayable(): void {
     if (!this.presentationReady || !this.deps.sessionGate.isReady()) return;
     this.deps.loadingScreen?.dismiss();
+    if (this.firstPlayableNotified) return;
+    this.firstPlayableNotified = true;
+    try {
+      this.deps.onFirstPlayable?.();
+    } catch (error) {
+      console.warn('[SessionLifecycle] First-playable handoff failed:', error);
+    }
   }
 
   private clearDisconnectOverlayTimer(): void {

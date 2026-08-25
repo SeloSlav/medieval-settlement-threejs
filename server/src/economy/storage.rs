@@ -579,7 +579,11 @@ pub(crate) fn physical_treasury_seat_for_settlement(
         })
         .min_by_key(|building| {
             (
-                if building.kind == "town_hall" { 0_u8 } else { 1_u8 },
+                if building.kind == "town_hall" {
+                    0_u8
+                } else {
+                    1_u8
+                },
                 building.id,
             )
         })

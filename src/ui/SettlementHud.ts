@@ -584,6 +584,16 @@ const SETTLEMENT_HUD_HTML = `
         <strong class="settlement-hud__value" data-stockpile="honey">0</strong>
         <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="honey" hidden></span>
       </div>
+      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="wax" data-tooltip="Beeswax collected intermittently from backyard and forest apiaries for candle making.">
+        <span class="settlement-hud__label">Beeswax</span>
+        <strong class="settlement-hud__value" data-stockpile="wax">0</strong>
+        <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="wax" hidden></span>
+      </div>
+      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="candles" data-tooltip="Finished Chandlery goods that can supply Tier-4 household luxury demand.">
+        <span class="settlement-hud__label">Candles</span>
+        <strong class="settlement-hud__value" data-stockpile="candles">0</strong>
+        <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="candles" hidden></span>
+      </div>
       <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="wine" data-tooltip="Drink for prosperous households and monastery hospitality.">
         <span class="settlement-hud__label">Wine</span>
         <strong class="settlement-hud__value" data-stockpile="wine">0</strong>

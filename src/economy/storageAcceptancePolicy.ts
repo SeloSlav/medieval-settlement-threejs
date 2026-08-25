@@ -55,6 +55,8 @@ export const STORAGE_COMMODITY_CODES = {
   shoes: 60,
   aroniaJam: 61,
   rosehipJam: 62,
+  wax: 64,
+  candles: 65,
 } as const;
 
 export type StorageCommodity = keyof typeof STORAGE_COMMODITY_CODES;
@@ -114,12 +116,14 @@ export const STORAGE_COMMODITY_LABELS: Record<StorageCommodity, string> = {
   shoes: 'Shoes',
   aroniaJam: 'Aronia jam',
   rosehipJam: 'Rosehip jam',
+  wax: 'Beeswax',
+  candles: 'Candles',
 };
 
 export const STOREHOUSE_STORAGE_GROUPS = [
   { label: 'Building materials', commodities: ['timber', 'stone'] },
   { label: 'Fuel and minerals', commodities: ['firewood', 'charcoal', 'iron', 'clay', 'salt'] },
-  { label: 'Market wares', commodities: ['cloth', 'hides', 'leather', 'shoes', 'pottery', 'remedies'] },
+  { label: 'Market wares', commodities: ['cloth', 'hides', 'leather', 'shoes', 'pottery', 'remedies', 'wax', 'candles'] },
 ] as const satisfies ReadonlyArray<{
   label: string;
   commodities: readonly StorageCommodity[];
@@ -169,10 +173,18 @@ const GRANARY_LEGACY_FRESH = new Set<StorageCommodity>([
   'preservedFood', 'curedMeat', 'smokedFish', 'cheese', 'aroniaJam', 'rosehipJam',
 ]);
 
-function maskAccepts(mask: string | undefined, commodity: StorageCommodity): boolean {
+function masksAccept(
+  lowMask: string | undefined,
+  highMask: string | undefined,
+  commodity: StorageCommodity,
+): boolean {
+  const code = STORAGE_COMMODITY_CODES[commodity];
+  const high = code >= 64;
+  const mask = high ? highMask : lowMask;
   if (mask == null) return true;
   try {
-    return (BigInt(mask) & (1n << BigInt(STORAGE_COMMODITY_CODES[commodity]))) !== 0n;
+    const bit = BigInt(high ? code - 64 : code);
+    return (BigInt(mask) & (1n << bit)) !== 0n;
   } catch {
     return true;
   }
@@ -183,6 +195,7 @@ export function storageAcceptsCommodity(
     BuildingState,
     | 'kind'
     | 'storageAcceptanceMask'
+    | 'storageAcceptanceMaskHigh'
     | 'storehouseAcceptsTimber'
     | 'storehouseAcceptsStone'
     | 'storehouseAcceptsFirewood'
@@ -194,7 +207,11 @@ export function storageAcceptsCommodity(
   >,
   commodity: StorageCommodity,
 ): boolean {
-  if (!maskAccepts(building.storageAcceptanceMask, commodity)) return false;
+  if (!masksAccept(
+    building.storageAcceptanceMask,
+    building.storageAcceptanceMaskHigh,
+    commodity,
+  )) return false;
   if (building.kind === 'granary') {
     return !GRANARY_LEGACY_FRESH.has(commodity) || building.granaryAcceptsFreshFood !== false;
   }

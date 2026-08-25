@@ -212,7 +212,7 @@ function evaluateNeedRecovery(
     case 'luxury':
       return {
         kind,
-        label: 'Luxury wine, preserves, or flowers',
+        label: 'Candles, luxury provisions, or flowers',
         ready: need.stock > 0,
         stock: need.stock,
         threshold: 1,
@@ -459,7 +459,7 @@ function describeActiveNeed(
     }
     case 'luxury':
       return getNeed(residence.needs, kind).stock <= 1e-6
-        ? { label: 'Luxury comfort missing — supply market honey or wine, household jam, or upgraded cut flowers', state: 'warning' }
+        ? { label: 'Luxury comfort missing — supply market candles, honey or wine, household jam, or upgraded cut flowers', state: 'warning' }
         : null;
     default: {
       const unhandled: never = kind;
@@ -491,7 +491,7 @@ function needLabel(kind: ResidenceNeedKind): string {
     case 'foodVariety':
       return 'Food variety';
     case 'luxury':
-      return 'Luxury wine, preserves, or flowers';
+      return 'Candles, luxury provisions, or flowers';
     default: {
       const unhandled: never = kind;
       return unhandled;

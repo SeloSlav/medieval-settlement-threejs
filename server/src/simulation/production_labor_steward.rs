@@ -20,8 +20,7 @@ pub fn reconcile_target_production_labor_for_settlement(
     settlement_id: u64,
     labor_reserve: u32,
 ) -> (u32, u32) {
-    let recalled =
-        recall_target_idle_processor_labor_for_settlement(ctx, owner, settlement_id);
+    let recalled = recall_target_idle_processor_labor_for_settlement(ctx, owner, settlement_id);
     let called_up = call_up_operational_production_labor_for_settlement(
         ctx,
         owner,

@@ -118,10 +118,9 @@ pub fn step_backyard_gardens(
         } else {
             food_marketplace_id
         };
-        let (tax_rate, collection_multiplier) =
-            *tax_policy_by_town
-                .entry((garden.owner, residence.settlement_id))
-                .or_insert_with(|| {
+        let (tax_rate, collection_multiplier) = *tax_policy_by_town
+            .entry((garden.owner, residence.settlement_id))
+            .or_insert_with(|| {
                 (
                     settlement_economic_activity_tax_rate(
                         ctx,
@@ -182,6 +181,11 @@ fn step_one_garden(
     let def = backyard_garden_def(kind);
     if garden.first_harvest_day > clock.total_days {
         return 0.0;
+    }
+    if kind == BackyardGardenKind::BackyardApiary {
+        if let Some(marketplace_id) = goods_marketplace_id {
+            transfer_backyard_wax_to_storehouse(ctx, tick, garden.id, marketplace_id);
+        }
     }
     if matches!(
         kind,
@@ -308,7 +312,15 @@ fn step_one_garden(
         // after pantry/depot space becomes available. No partial lot committed.
         return 0.0;
     };
+    if kind == BackyardGardenKind::BackyardApiary && gross_food >= 1.0 {
+        collect_backyard_apiary_wax(ctx, garden.id, clock);
+    }
     mark_backyard_primary_production_day(ctx, garden.id, clock.total_days);
+    if kind == BackyardGardenKind::BackyardApiary {
+        if let Some(marketplace_id) = goods_marketplace_id {
+            transfer_backyard_wax_to_storehouse(ctx, tick, garden.id, marketplace_id);
+        }
+    }
     let market_food_sold = food_commit.market_sold;
 
     let economic_activity = market_food_sold * FOOD_SALE_GOLD_PER_UNIT
@@ -331,7 +343,9 @@ fn backyard_has_food_output(kind: BackyardGardenKind) -> bool {
 fn backyard_has_goods_output(kind: BackyardGardenKind) -> bool {
     matches!(
         kind,
-        BackyardGardenKind::HerbGarden | BackyardGardenKind::GoatPen
+        BackyardGardenKind::HerbGarden
+            | BackyardGardenKind::GoatPen
+            | BackyardGardenKind::BackyardApiary
     )
 }
 
@@ -510,11 +524,51 @@ fn transfer_backyard_hides_to_storehouse(
     garden_id: u64,
     marketplace_id: u64,
 ) -> f64 {
+    transfer_backyard_stored_material_to_storehouse(
+        ctx,
+        tick,
+        garden_id,
+        marketplace_id,
+        CommodityKind::Hides,
+    )
+}
+
+fn transfer_backyard_wax_to_storehouse(
+    ctx: &ReducerContext,
+    tick: &SimTickContext,
+    garden_id: u64,
+    marketplace_id: u64,
+) -> f64 {
+    transfer_backyard_stored_material_to_storehouse(
+        ctx,
+        tick,
+        garden_id,
+        marketplace_id,
+        CommodityKind::Wax,
+    )
+}
+
+fn transfer_backyard_stored_material_to_storehouse(
+    ctx: &ReducerContext,
+    tick: &SimTickContext,
+    garden_id: u64,
+    marketplace_id: u64,
+    commodity: CommodityKind,
+) -> f64 {
     let Some(mut garden) = ctx.db.backyard_garden().id().find(&garden_id) else {
         return 0.0;
     };
-    garden.hide_stock = whole_units(garden.hide_stock);
-    let available = garden.hide_stock;
+    let available = match commodity {
+        CommodityKind::Hides => {
+            garden.hide_stock = whole_units(garden.hide_stock);
+            garden.hide_stock
+        }
+        CommodityKind::Wax => {
+            garden.wax_stock = whole_units(garden.wax_stock);
+            garden.wax_stock
+        }
+        _ => return 0.0,
+    };
     if available <= 1e-9 {
         return 0.0;
     }
@@ -523,14 +577,58 @@ fn transfer_backyard_hides_to_storehouse(
         tick,
         marketplace_id,
         ResidenceNeedKind::Cloth,
-        CommodityKind::Hides,
+        commodity,
         available,
     );
     if deposited > 1e-9 {
-        garden.hide_stock = (available - deposited).max(0.0);
+        match commodity {
+            CommodityKind::Hides => garden.hide_stock = (available - deposited).max(0.0),
+            CommodityKind::Wax => garden.wax_stock = (available - deposited).max(0.0),
+            _ => unreachable!("unsupported backyard stored material"),
+        }
         ctx.db.backyard_garden().id().update(garden);
     }
     deposited
+}
+
+/// Beeswax is collected only alongside a real whole-unit honey harvest. Its
+/// lower-frequency clock remains due while the household shelf is full, but a
+/// blocked by-product never prevents the primary honey basket from resolving.
+fn collect_backyard_apiary_wax(ctx: &ReducerContext, garden_id: u64, clock: &GameClock) {
+    let Some(mut garden) = ctx.db.backyard_garden().id().find(&garden_id) else {
+        return;
+    };
+    let def = backyard_garden_def(BackyardGardenKind::BackyardApiary);
+    if !backyard_interval_harvest_due(
+        clock.total_days,
+        garden.first_harvest_day,
+        garden.last_secondary_production_day,
+        def.secondary_production_interval_days,
+        clock.month,
+        def.secondary_harvest_start_month,
+        def.secondary_harvest_end_month,
+    ) {
+        return;
+    }
+
+    let Some(next_wax_stock) = bounded_backyard_wax_stock(
+        garden.wax_stock,
+        def.wax_capacity,
+        def.wax_per_secondary_harvest,
+    ) else {
+        return;
+    };
+    garden.wax_stock = next_wax_stock;
+    garden.last_secondary_production_day = clock.total_days;
+    ctx.db.backyard_garden().id().update(garden);
+}
+
+fn bounded_backyard_wax_stock(current_stock: f64, capacity: f64, batch: f64) -> Option<f64> {
+    let current_stock = whole_units(current_stock);
+    let capacity = whole_units(capacity);
+    let batch = whole_units(batch);
+    let room = (capacity - current_stock).max(0.0);
+    (batch >= 1.0 && batch <= room + 1e-9).then_some(current_stock + batch)
 }
 
 fn livestock_primary_commodity(kind: BackyardGardenKind) -> Option<CommodityKind> {
@@ -721,6 +819,7 @@ fn mark_backyard_primary_production_day(ctx: &ReducerContext, garden_id: u64, da
     if let Some(mut garden) = ctx.db.backyard_garden().id().find(&garden_id) {
         garden.last_primary_production_day = day;
         garden.hide_stock = whole_units(garden.hide_stock);
+        garden.wax_stock = whole_units(garden.wax_stock);
         ctx.db.backyard_garden().id().update(garden);
     }
 }
@@ -777,7 +876,16 @@ pub fn clear_backyard_garden_for_residence(ctx: &ReducerContext, residence_id: u
 
 #[cfg(test)]
 mod tests {
-    use super::{discrete_expected_units, split_whole_sale_receipt, WholeSaleReceipt};
+    use super::{
+        bounded_backyard_wax_stock, discrete_expected_units, split_whole_sale_receipt,
+        WholeSaleReceipt,
+    };
+
+    #[test]
+    fn backyard_wax_batch_waits_when_household_stock_is_full() {
+        assert_eq!(bounded_backyard_wax_stock(7.0, 8.0, 1.0), Some(8.0));
+        assert_eq!(bounded_backyard_wax_stock(8.0, 8.0, 1.0), None);
+    }
 
     #[test]
     fn expected_backyard_yields_are_always_whole() {

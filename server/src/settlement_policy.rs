@@ -14,11 +14,7 @@ use crate::night_policy::WATCH_STANDARD;
 use crate::pantry_safeguard_policy::PANTRY_SAFEGUARD_DEFAULT;
 use crate::tables::Settlement;
 
-pub fn row(
-    ctx: &ReducerContext,
-    owner: Identity,
-    settlement_id: u64,
-) -> Option<Settlement> {
+pub fn row(ctx: &ReducerContext, owner: Identity, settlement_id: u64) -> Option<Settlement> {
     if settlement_id == 0 {
         return None;
     }

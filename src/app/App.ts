@@ -1,5 +1,9 @@
 ﻿import type { AmbientAudioController } from '../audio/AmbientAudioController.ts';
 import { CameraController } from '../camera/CameraController.ts';
+import {
+  STARTUP_MUSIC_TRACK_ID,
+  StartupMusicController,
+} from '../audio/StartupMusicController.ts';
 import { FirstPersonController } from '../camera/FirstPersonController.ts';
 import { BuildingMarkers } from '../buildings/BuildingMarkers.ts';
 import { BuildingTool } from '../buildings/BuildingTool.ts';
@@ -215,6 +219,7 @@ export class App {
   private readonly burgageLayoutHudPositionScratch = { clientX: 0, clientY: 0 };
   private settlementPresentationTargets: SettlementPresentationTargets | null = null;
   private ambientAudio: AmbientAudioController | null = null;
+  private startupMusic: StartupMusicController | null = null;
   private readonly visualQaConditions = import.meta.env.DEV
     ? parseVisualQaConditions(window.location.search)
     : null;
@@ -242,9 +247,39 @@ export class App {
   }
 
   async start(): Promise<void> {
-    const session = await bootstrapAppSession(this.root, {
-      syncToolbar: () => this.syncToolbar(),
-    });
+    if (
+      import.meta.env.VITE_E2E_TEST !== '1'
+      && !this.visualQaConditions
+      && !isShowcaseMode()
+    ) {
+      this.startupMusic = new StartupMusicController({
+        onAudibilityChange: (audible) => {
+          this.ambientAudio?.setExternalScoreActive(audible);
+        },
+      });
+      this.startupMusic.start();
+    }
+
+    let session: BootstrappedSession;
+    try {
+      session = await bootstrapAppSession(this.root, {
+        syncToolbar: () => this.syncToolbar(),
+        deferGameplayMusic: this.startupMusic !== null,
+        onGameAudioEnabledChange: (enabled) => {
+          this.startupMusic?.setGameAudioEnabled(enabled);
+        },
+        onMusicEnabledChange: (enabled) => {
+          this.startupMusic?.setMusicEnabled(enabled);
+        },
+        onMusicVolumeChange: (volume) => {
+          this.startupMusic?.setMusicVolume(volume);
+        },
+      });
+    } catch (error) {
+      this.startupMusic?.dispose();
+      this.startupMusic = null;
+      throw error;
+    }
     const weatherPreview = import.meta.env.DEV
       ? this.visualQaConditions
         ? standaloneVisualQaEnvironment(this.visualQaConditions)
@@ -302,6 +337,9 @@ export class App {
     this.villagerInspector = session.villagerInspector;
     this.worldMapUi = session.worldMapUi;
     this.ambientAudio = session.ambientAudio;
+    this.ambientAudio.setExternalScoreActive(
+      this.startupMusic?.isAudible() ?? false,
+    );
     this.ambientAudio.syncEnvironment(weatherPreview);
     this.spacetimeStore = session.spacetimeStore;
     this.sessionGate = session.sessionGate;
@@ -403,6 +441,7 @@ export class App {
             && this.spacetimeStore?.snapshot.identityHex !== null,
         );
       },
+      onFirstPlayable: () => this.handoffStartupMusic(),
     });
 
     if (!this.visualQaConditions) {
@@ -652,6 +691,7 @@ export class App {
       gpuReady,
     });
     await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    if (this.disposed) return;
     session.loadingScreen?.setProgress({
       label: 'Entering world…',
       detail: 'Terrain and woodland ready',
@@ -674,6 +714,9 @@ export class App {
     this.disposed = true;
     cancelAnimationFrame(this.animationId);
     window.removeEventListener('resize', this.onResize);
+    const startupMusic = this.startupMusic;
+    this.startupMusic = null;
+    startupMusic?.dispose();
     this.roadTool?.dispose();
     this.roadSelection?.dispose();
     this.buildingTool?.dispose();
@@ -716,6 +759,26 @@ export class App {
     this.visualFrameProfiler?.dispose();
     this.visualFrameProfiler = null;
     this.sceneManager?.dispose();
+  }
+
+  private handoffStartupMusic(): void {
+    const startupMusic = this.startupMusic;
+    if (!startupMusic) {
+      this.ambientAudio?.setGameplayMusicActive(true);
+      return;
+    }
+
+    const startupTrackPlayed = startupMusic.isAudible();
+    void startupMusic.fadeOut().then(() => {
+      if (this.disposed || this.startupMusic !== startupMusic) return;
+      startupMusic.dispose();
+      this.startupMusic = null;
+      this.ambientAudio?.setExternalScoreActive(false);
+      if (startupTrackPlayed) {
+        this.ambientAudio?.markMusicTrackPlayed(STARTUP_MUSIC_TRACK_ID);
+      }
+      this.ambientAudio?.setGameplayMusicActive(true);
+    });
   }
 
   /** Installs the dynamically loaded, query-only frame attribution adapter. */

@@ -16,6 +16,7 @@ const all = (1n << 64n) - 1n;
 const storehouse = {
   kind: 'village_storehouse',
   storageAcceptanceMask: all.toString(),
+  storageAcceptanceMaskHigh: all.toString(),
   storehouseAcceptsTimber: true,
   storehouseAcceptsStone: true,
   storehouseAcceptsFirewood: true,
@@ -25,13 +26,15 @@ const storehouse = {
   storehouseAcceptsSalt: true,
 } as BuildingState;
 
-assert.equal(STOREHOUSE_STORAGE_COMMODITIES.length, 13);
+assert.equal(STOREHOUSE_STORAGE_COMMODITIES.length, 15);
 assert.ok(STOREHOUSE_STORAGE_COMMODITIES.includes('cloth'));
 assert.ok(STOREHOUSE_STORAGE_COMMODITIES.includes('hides'));
 assert.ok(STOREHOUSE_STORAGE_COMMODITIES.includes('leather'));
 assert.ok(STOREHOUSE_STORAGE_COMMODITIES.includes('shoes'));
 assert.ok(STOREHOUSE_STORAGE_COMMODITIES.includes('pottery'));
 assert.ok(STOREHOUSE_STORAGE_COMMODITIES.includes('remedies'));
+assert.ok(STOREHOUSE_STORAGE_COMMODITIES.includes('wax'));
+assert.ok(STOREHOUSE_STORAGE_COMMODITIES.includes('candles'));
 assert.equal(GRANARY_STORAGE_COMMODITIES.length, 41);
 assert.equal(
   'animalFeed' in STORAGE_COMMODITY_CODES,
@@ -56,6 +59,8 @@ for (const kind of ['granary', 'trading_post', 'tavern'] as const) {
 }
 assert.equal(storageAcceptsCommodity(storehouse, 'charcoal'), true);
 assert.equal(storageAcceptsCommodity(storehouse, 'remedies'), true);
+assert.equal(storageAcceptsCommodity(storehouse, 'wax'), true);
+assert.equal(storageAcceptsCommodity(storehouse, 'candles'), true);
 assert.equal(
   storageAcceptsCommodity({
     ...storehouse,
@@ -67,6 +72,14 @@ assert.equal(
   storageAcceptsCommodity({ ...storehouse, storehouseAcceptsTimber: false }, 'timber'),
   false,
   'the coarse per-material switch remains effective when granular acceptance is enabled',
+);
+assert.equal(
+  storageAcceptsCommodity({
+    ...storehouse,
+    storageAcceptanceMaskHigh: (all & ~(1n << BigInt(STORAGE_COMMODITY_CODES.wax - 64))).toString(),
+  }, 'wax'),
+  false,
+  'commodity ids above 63 use the companion high mask without shifting saved low bits',
 );
 assert.equal(storageAcceptsCommodity({ ...storehouse, storageAcceptanceMask: undefined }, 'cloth'), true);
 
@@ -83,13 +96,15 @@ const storehouseControls = renderStorageAcceptanceControls(
   storehouse,
   STOREHOUSE_STORAGE_GROUPS,
 );
-assert.equal((storehouseControls.match(/data-storage-commodity=/g) ?? []).length, 13);
+assert.equal((storehouseControls.match(/data-storage-commodity=/g) ?? []).length, 15);
 assert.match(storehouseControls, /data-storage-commodity="cloth"/);
 assert.match(storehouseControls, /data-storage-commodity="hides"/);
 assert.match(storehouseControls, /data-storage-commodity="leather"/);
 assert.match(storehouseControls, /data-storage-commodity="shoes"/);
 assert.match(storehouseControls, /data-storage-commodity="pottery"/);
 assert.match(storehouseControls, /data-storage-commodity="remedies"/);
+assert.match(storehouseControls, /data-storage-commodity="wax"/);
+assert.match(storehouseControls, /data-storage-commodity="candles"/);
 assert.match(storehouseControls, /data-storage-accept-all="true"/);
 assert.match(storehouseControls, /data-storage-accept-all="false"/);
 assert.match(storehouseControls, />Accept all<\/button>/);

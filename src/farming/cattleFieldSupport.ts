@@ -85,10 +85,28 @@ export function selectCattleSupportedFields(
 export function computeCattleFieldSupport(
   state: CattleSupportState,
 ): Map<string, CattleFieldSupport> {
-  const eligibleHoldings: Array<{ building: BuildingState; herd: LivestockHerdState }> = [];
+  const cattleByBuilding = new Map<string, LivestockHerdState[]>();
   for (const herd of state.livestockHerds.values()) {
+    if (herd.species !== 'cattle') continue;
+    const linked = cattleByBuilding.get(herd.buildingId) ?? [];
+    linked.push(herd);
+    cattleByBuilding.set(herd.buildingId, linked);
+  }
+  const eligibleHoldings: Array<{ building: BuildingState; herd: LivestockHerdState }> = [];
+  for (const [buildingId, herds] of cattleByBuilding) {
+    const headCount = herds.reduce((sum, herd) => sum + herd.headCount, 0);
+    const suppliedCapacity = herds.reduce((sum, herd) => sum + herd.suppliedCapacity, 0);
+    const health = headCount > 0
+      ? herds.reduce((sum, herd) => sum + herd.health * herd.headCount, 0) / headCount
+      : 0;
+    const herd = {
+      ...herds[0]!,
+      headCount,
+      suppliedCapacity,
+      health,
+    };
     if (!eligibleCattleHerd(herd)) continue;
-    const building = state.buildings.get(herd.buildingId);
+    const building = state.buildings.get(buildingId);
     if (building) eligibleHoldings.push({ building, herd });
   }
   if (eligibleHoldings.length === 0) return new Map();

@@ -98,14 +98,7 @@ fn owner_worker_origins(ctx: &ReducerContext, owner: Identity) -> Vec<WorkerOrig
                 available: STARTING_POPULATION,
             });
         }
-    } else if ctx
-        .db
-        .settlement()
-        .owner()
-        .filter(&owner)
-        .next()
-        .is_none()
-    {
+    } else if ctx.db.settlement().owner().filter(&owner).next().is_none() {
         // Pre-migration fallback; client connection normally repairs this path.
         let unhoused = STARTING_POPULATION.saturating_sub(healthy_housed);
         if unhoused > 0 {

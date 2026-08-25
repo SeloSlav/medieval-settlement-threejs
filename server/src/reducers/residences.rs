@@ -813,6 +813,7 @@ fn first_unmet_current_tier_promotion_need(
                             && building.construction_complete
                             && building_commodity_stock(building, CommodityKind::Wine)
                                 + building_commodity_stock(building, CommodityKind::Honey)
+                                + building_commodity_stock(building, CommodityKind::Candles)
                                 > 1e-6
                     }
                     ResidenceNeedKind::FoodVariety => {
@@ -871,7 +872,8 @@ fn current_tier_promotion_remedy(kind: ResidenceNeedKind, current_tier: u8) -> S
             )
         }
         ResidenceNeedKind::Luxury => {
-            "stock wine or honey at a reachable Marketplace or in the household".to_string()
+            "stock candles, wine, or honey at a reachable Marketplace or in the household"
+                .to_string()
         }
     }
 }

@@ -107,7 +107,7 @@ export class GameTableSync {
       this.state.identityHex,
     );
     this.state.livestockHerds = syncLivestockHerds(
-      db.livestock_herd ? db.livestock_herd.iter() : [],
+      db.pasture_herd ? db.pasture_herd.iter() : [],
       this.state.identityHex,
     );
     this.state.stableOxen = syncStableOxen(
@@ -397,9 +397,9 @@ export class GameTableSync {
       );
     });
 
-    bindTable(db.livestock_herd, () => {
+    bindTable(db.pasture_herd, () => {
       this.state.livestockHerds = syncLivestockHerds(
-        db.livestock_herd ? db.livestock_herd.iter() : [],
+        db.pasture_herd ? db.pasture_herd.iter() : [],
         this.state.identityHex,
       );
     });

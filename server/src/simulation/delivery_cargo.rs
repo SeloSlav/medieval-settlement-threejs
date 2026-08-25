@@ -26,6 +26,8 @@ pub struct DeliveryCargoTotals {
     pub mead: f64,
     pub preserved_food: f64,
     pub honey: f64,
+    pub wax: f64,
+    pub candles: f64,
     pub wine: f64,
     pub ironwork: f64,
     pub stone: f64,
@@ -99,6 +101,8 @@ impl DeliveryCargoTotals {
             CommodityKind::Mead => self.mead += amount,
             CommodityKind::PreservedFood => self.preserved_food += amount,
             CommodityKind::Honey => self.honey += amount,
+            CommodityKind::Wax => self.wax += amount,
+            CommodityKind::Candles => self.candles += amount,
             CommodityKind::Wine => self.wine += amount,
             CommodityKind::Ironwork => self.ironwork += amount,
             CommodityKind::Stone => self.stone += amount,
@@ -171,7 +175,7 @@ pub fn building_delivery_stock(building: &Building, kind: ResidenceNeedKind) -> 
         ResidenceNeedKind::Cloth => building.cloth,
         ResidenceNeedKind::Shoes => building.shoes,
         ResidenceNeedKind::Pottery => building.pottery,
-        ResidenceNeedKind::Luxury => building.wine + building.honey,
+        ResidenceNeedKind::Luxury => building.candles + building.wine + building.honey,
         ResidenceNeedKind::Church | ResidenceNeedKind::FoodVariety => 0.0,
     }
 }
@@ -240,10 +244,13 @@ pub fn withdraw_delivery_cargo(
         }
         ResidenceNeedKind::Luxury => {
             let mut remaining = amount.max(0.0);
+            let candles_used =
+                withdraw_building_commodity(building, CommodityKind::Candles, remaining);
+            remaining = (remaining - candles_used).max(0.0);
             let wine_used = withdraw_building_commodity(building, CommodityKind::Wine, remaining);
             remaining = (remaining - wine_used).max(0.0);
             let honey_used = withdraw_building_commodity(building, CommodityKind::Honey, remaining);
-            wine_used + honey_used
+            candles_used + wine_used + honey_used
         }
         ResidenceNeedKind::Church | ResidenceNeedKind::FoodVariety => 0.0,
     }
@@ -355,7 +362,9 @@ pub fn selected_need_delivery_commodity(
         ResidenceNeedKind::Pottery => (building.pottery >= 1.0).then_some(CommodityKind::Pottery),
         // Honey remains an edible pantry commodity and therefore cannot encode
         // a distinct Luxury destination on the existing one-kind cart row.
-        ResidenceNeedKind::Luxury => (building.wine >= 1.0).then_some(CommodityKind::Wine),
+        ResidenceNeedKind::Luxury => [CommodityKind::Candles, CommodityKind::Wine]
+            .into_iter()
+            .find(|commodity| building_commodity_stock(building, *commodity) >= 1.0),
         ResidenceNeedKind::Church | ResidenceNeedKind::FoodVariety => None,
     }
 }
@@ -477,10 +486,12 @@ pub fn residence_commodity_delivery_room(
     commodity: CommodityKind,
 ) -> f64 {
     if commodity.is_preserved_food() {
-        return whole_units((provisions::stock_capacity(ResidenceNeedKind::PreservedFood)
-            - residence_preserved_food_stock(residence))
-        .max(0.0)
-            / commodity.meal_value().max(1e-9));
+        return whole_units(
+            (provisions::stock_capacity(ResidenceNeedKind::PreservedFood)
+                - residence_preserved_food_stock(residence))
+            .max(0.0)
+                / commodity.meal_value().max(1e-9),
+        );
     }
     if commodity.is_fresh_food() || commodity == CommodityKind::Honey {
         return whole_units(

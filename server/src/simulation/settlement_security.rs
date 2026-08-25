@@ -707,6 +707,8 @@ pub(super) fn building_portable_stores(building: &Building) -> RaidPortableStore
         mead: building.mead,
         preserved_food: building.preserved_food,
         honey: building.honey,
+        wax: building.wax,
+        candles: building.candles,
         wine: building.wine,
         wool: building.wool,
         cloth: building.cloth,
@@ -977,6 +979,8 @@ pub(super) fn delivery_trip_portable_stores(trip: &DeliveryTrip) -> RaidPortable
         Some(CommodityKind::AroniaJam) => stores.aronia_jam = amount,
         Some(CommodityKind::RosehipJam) => stores.rosehip_jam = amount,
         Some(CommodityKind::Honey) => stores.honey = amount,
+        Some(CommodityKind::Wax) => stores.wax = amount,
+        Some(CommodityKind::Candles) => stores.candles = amount,
         Some(CommodityKind::Wine) => stores.wine = amount,
         Some(CommodityKind::Wool) => stores.wool = amount,
         Some(CommodityKind::Cloth) => stores.cloth = amount,
@@ -1047,6 +1051,8 @@ fn delivery_trip_remaining_amount(cargo_kind: u8, stores: RaidPortableStores) ->
         Some(CommodityKind::AroniaJam) => stores.aronia_jam,
         Some(CommodityKind::RosehipJam) => stores.rosehip_jam,
         Some(CommodityKind::Honey) => stores.honey,
+        Some(CommodityKind::Wax) => stores.wax,
+        Some(CommodityKind::Candles) => stores.candles,
         Some(CommodityKind::Wine) => stores.wine,
         Some(CommodityKind::Wool) => stores.wool,
         Some(CommodityKind::Cloth) => stores.cloth,
@@ -1107,6 +1113,8 @@ fn treasury_portable_stores(
         mead: treasury.mead,
         preserved_food: treasury.preserved_food,
         honey: treasury.honey,
+        wax: treasury.wax,
+        candles: treasury.candles,
         wine: treasury.wine,
         wool: treasury.wool,
         cloth: treasury.cloth,
@@ -1227,6 +1235,8 @@ fn retain_unplundered_stores(building: &mut Building, stores: RaidPortableStores
     building.mead = stores.mead;
     building.preserved_food = stores.preserved_food;
     building.honey = stores.honey;
+    building.wax = stores.wax;
+    building.candles = stores.candles;
     building.wine = stores.wine;
     building.wool = stores.wool;
     building.cloth = stores.cloth;
@@ -1304,6 +1314,8 @@ fn retain_unplundered_treasury_stores(
     subtract_loss!(mead);
     subtract_loss!(preserved_food);
     subtract_loss!(honey);
+    subtract_loss!(wax);
+    subtract_loss!(candles);
     subtract_loss!(wine);
     subtract_loss!(wool);
     subtract_loss!(cloth);

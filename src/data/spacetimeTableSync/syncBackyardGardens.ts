@@ -13,6 +13,7 @@ export function syncBackyardGardens(
 
   for (const row of rows) {
     if (row.owner.toHexString() !== identityHex) continue;
+    const materialRow = row as BackyardGarden & Partial<{ waxStock: number }>;
     const residenceId = residenceClientId(row.residenceId);
     const kind = backyardGardenKindFromId(Number(row.kind));
     if (!kind) continue;
@@ -24,6 +25,7 @@ export function syncBackyardGardens(
       lastPrimaryProductionDay: Number(row.lastPrimaryProductionDay),
       lastSecondaryProductionDay: Number(row.lastSecondaryProductionDay),
       hideStock: wholeResourceUnits(row.hideStock),
+      waxStock: wholeResourceUnits(materialRow.waxStock),
       flowerLuxuryUpgraded: row.flowerLuxuryUpgraded,
     });
   }

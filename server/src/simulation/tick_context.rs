@@ -26,7 +26,7 @@ use crate::simulation::fires::{FIRE_TARGET_BUILDING, FIRE_TARGET_RESIDENCE};
 use crate::simulation::residence_needs::ResidenceNeedKind;
 use crate::simulation::road_logistics::claim_residences_by_nearest_supplier;
 use crate::supply_policy::{is_food_supplier_operational, is_well_supplier_operational};
-use crate::tables::{corpse, farm_field, livestock_herd, Building, LivestockHerd, Residence};
+use crate::tables::{corpse, farm_field, pasture_herd, Building, Pasture, PastureHerd, Residence};
 
 #[derive(Default)]
 struct OwnerBuildingIndex {
@@ -84,7 +84,7 @@ pub struct SimTickContext {
     farmstead_seed_reserves: RefCell<HashMap<Identity, HashMap<u64, FarmsteadSeedReserves>>>,
     farmstead_manure_requirements: RefCell<HashMap<Identity, HashMap<u64, (f64, u8)>>>,
     cattle_field_sources_by_owner: RefCell<HashMap<Identity, HashMap<u64, Vec<u64>>>>,
-    livestock_grazing_capacity_by_building: RefCell<HashMap<u64, f64>>,
+    livestock_grazing_capacity_by_pasture: RefCell<HashMap<u64, f64>>,
     mature_tree_spatial_index: RefCell<Option<MatureTreeSpatialIndex>>,
     used_ox_ids: RefCell<HashSet<u64>>,
     production_ox_assignments: RefCell<Option<HashMap<u64, Vec<u64>>>>,
@@ -129,7 +129,7 @@ impl SimTickContext {
             farmstead_seed_reserves: RefCell::new(HashMap::new()),
             farmstead_manure_requirements: RefCell::new(HashMap::new()),
             cattle_field_sources_by_owner: RefCell::new(HashMap::new()),
-            livestock_grazing_capacity_by_building: RefCell::new(HashMap::new()),
+            livestock_grazing_capacity_by_pasture: RefCell::new(HashMap::new()),
             mature_tree_spatial_index: RefCell::new(None),
             used_ox_ids: RefCell::new(HashSet::new()),
             production_ox_assignments: RefCell::new(None),
@@ -184,13 +184,13 @@ impl SimTickContext {
     pub fn livestock_grazing_capacity(
         &self,
         ctx: &ReducerContext,
-        building: &Building,
-        herd: &LivestockHerd,
+        pasture: &Pasture,
+        herd: &PastureHerd,
     ) -> f64 {
         if let Some(capacity) = self
-            .livestock_grazing_capacity_by_building
+            .livestock_grazing_capacity_by_pasture
             .borrow()
-            .get(&building.id)
+            .get(&pasture.id)
             .copied()
         {
             return capacity;
@@ -214,15 +214,30 @@ impl SimTickContext {
                     }
                     index
                 });
-                let radius = building.work_radius.max(0.0);
-                let min_cell_x =
-                    ((building.x - radius) / LIVESTOCK_TREE_INDEX_CELL_METERS).floor() as i32;
-                let max_cell_x =
-                    ((building.x + radius) / LIVESTOCK_TREE_INDEX_CELL_METERS).floor() as i32;
-                let min_cell_z =
-                    ((building.z - radius) / LIVESTOCK_TREE_INDEX_CELL_METERS).floor() as i32;
-                let max_cell_z =
-                    ((building.z + radius) / LIVESTOCK_TREE_INDEX_CELL_METERS).floor() as i32;
+                let xs = [
+                    pasture.corner_ax,
+                    pasture.corner_bx,
+                    pasture.corner_cx,
+                    pasture.corner_dx,
+                ];
+                let zs = [
+                    pasture.corner_az,
+                    pasture.corner_bz,
+                    pasture.corner_cz,
+                    pasture.corner_dz,
+                ];
+                let min_cell_x = (xs.iter().copied().fold(f64::INFINITY, f64::min)
+                    / LIVESTOCK_TREE_INDEX_CELL_METERS)
+                    .floor() as i32;
+                let max_cell_x = (xs.iter().copied().fold(f64::NEG_INFINITY, f64::max)
+                    / LIVESTOCK_TREE_INDEX_CELL_METERS)
+                    .floor() as i32;
+                let min_cell_z = (zs.iter().copied().fold(f64::INFINITY, f64::min)
+                    / LIVESTOCK_TREE_INDEX_CELL_METERS)
+                    .floor() as i32;
+                let max_cell_z = (zs.iter().copied().fold(f64::NEG_INFINITY, f64::max)
+                    / LIVESTOCK_TREE_INDEX_CELL_METERS)
+                    .floor() as i32;
                 let mut points = Vec::new();
                 for cell_x in min_cell_x..=max_cell_x {
                     for cell_z in min_cell_z..=max_cell_z {
@@ -233,18 +248,18 @@ impl SimTickContext {
                 }
                 points
             };
-            crate::simulation::grazing_capacity_with_mature_tree_points(
+            crate::simulation::grazing_capacity_for_pasture_with_mature_tree_points(
                 ctx,
-                building,
+                pasture,
                 herd,
                 Some(candidate_points.as_slice()),
             )
         } else {
-            crate::simulation::grazing_capacity(ctx, building, herd)
+            crate::simulation::grazing_capacity_for_pasture(ctx, pasture, herd)
         };
-        self.livestock_grazing_capacity_by_building
+        self.livestock_grazing_capacity_by_pasture
             .borrow_mut()
-            .insert(building.id, capacity);
+            .insert(pasture.id, capacity);
         capacity
     }
 
@@ -764,7 +779,7 @@ impl SimTickContext {
             .unwrap_or_default();
         source_ids
             .into_iter()
-            .filter_map(|building_id| ctx.db.livestock_herd().building_id().find(&building_id))
+            .filter_map(|pasture_id| ctx.db.pasture_herd().pasture_id().find(&pasture_id))
             .any(|herd| {
                 crate::livestock_policy::cattle_field_support_is_active(
                     herd.species,
@@ -1053,6 +1068,21 @@ impl SimTickContext {
                     ) > 1e-6
                     && if stall_need == ResidenceNeedKind::Ale {
                         building.assigned_labor > 0
+                    } else if stall_need == ResidenceNeedKind::Luxury {
+                        (building.candles > 1e-6
+                            && self
+                                .marketplace_stall_workplace_id(
+                                    ctx,
+                                    building,
+                                    ResidenceNeedKind::Pottery,
+                                )
+                                .is_some())
+                            || (building.wine + building.honey > 1e-6
+                                && self.marketplace_has_stall_workers(
+                                    ctx,
+                                    building,
+                                    ResidenceNeedKind::Luxury,
+                                ))
                     } else {
                         self.marketplace_has_stall_workers(ctx, building, stall_need)
                     }
@@ -1505,6 +1535,7 @@ fn stall_need_for_commodity(commodity: CommodityKind) -> Option<ResidenceNeedKin
             CommodityKind::Cloth => Some(ResidenceNeedKind::Cloth),
             CommodityKind::Shoes => Some(ResidenceNeedKind::Shoes),
             CommodityKind::Pottery => Some(ResidenceNeedKind::Pottery),
+            CommodityKind::Candles => Some(ResidenceNeedKind::Pottery),
             CommodityKind::Wine => Some(ResidenceNeedKind::Luxury),
             _ => None,
         }

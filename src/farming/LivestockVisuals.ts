@@ -261,27 +261,18 @@ export class LivestockVisuals {
     this.shadowCastersChanged = true;
     this.clearAnimals();
 
-    const pasturesByHerd = new Map<string, PastureState[]>();
-    for (const pasture of this.latestInput.pastures) {
-      const list = pasturesByHerd.get(pasture.farmsteadId) ?? [];
-      list.push(pasture);
-      pasturesByHerd.set(pasture.farmsteadId, list);
-    }
+    const pasturesById = new Map(
+      this.latestInput.pastures.map((pasture) => [pasture.id, pasture]),
+    );
 
     for (const herd of this.latestInput.herds.values()) {
-      const pastures = pasturesByHerd.get(herd.buildingId);
-      if (!pastures?.length || herd.headCount <= 0) continue;
+      const pasture = pasturesById.get(herd.pastureId);
+      if (!pasture || herd.headCount <= 0) continue;
       const visualCount = livestockVisualHeadCount(herd.species, herd.headCount);
       const cattleDistribution = herd.species === 'cattle'
         ? createCattleVisualDistribution(visualCount)
         : null;
-      const visualPastures = allocateLivestockVisualPastures(
-        pastures,
-        herd.species,
-        visualCount,
-      );
       for (let index = 0; index < visualCount; index++) {
-        const pasture = visualPastures[index]!;
         const modelKind = cattleDistribution?.[index] ?? resolveModelKind(herd.species);
         this.addAnimal(herd, pasture, index, modelKind);
       }
@@ -296,7 +287,7 @@ export class LivestockVisuals {
   ): void {
     if (!this.sources) return;
     const source = this.sources[modelKind];
-    const random = mulberry32(hashStringSeed(`${herd.buildingId}:${modelKind}:${index}`));
+    const random = mulberry32(hashStringSeed(`${herd.pastureId}:${modelKind}:${index}`));
     const model = cloneSkinned(source.scene) as THREE.Group;
     const scale = (source.targetHeight / source.sourceHeight) * THREE.MathUtils.lerp(0.9, 1.08, random());
     model.scale.setScalar(scale);
@@ -304,9 +295,10 @@ export class LivestockVisuals {
     configureModelMeshes(model);
 
     const root = new THREE.Group();
-    root.name = `${modelKind === 'swine' ? 'Pig' : modelKind[0]!.toUpperCase() + modelKind.slice(1)} in herd ${herd.buildingId}`;
+    root.name = `${modelKind === 'swine' ? 'Pig' : modelKind[0]!.toUpperCase() + modelKind.slice(1)} in pasture herd ${herd.pastureId}`;
     root.userData.livestockSpecies = herd.species;
     root.userData.herdBuildingId = herd.buildingId;
+    root.userData.herdPastureId = herd.pastureId;
     root.add(model);
     this.root.add(root);
 
@@ -326,7 +318,7 @@ export class LivestockVisuals {
     const initialMode: MotionMode = index % 4 === 0 ? 'walk' : index % 3 === 0 ? 'idle' : 'graze';
     const target = samplePasturePoint(pasture, random);
     const visual: AnimalVisual = {
-      herdId: herd.buildingId,
+      herdId: herd.pastureId,
       root,
       model,
       mixer,
@@ -383,8 +375,8 @@ export class LivestockVisuals {
 
 function buildSignature(input: ReplayableLivestockInput): string {
   const herds = [...input.herds.values()]
-    .sort((a, b) => a.buildingId.localeCompare(b.buildingId))
-    .map((herd) => `${herd.buildingId}:${herd.species}:${herd.headCount}`)
+    .sort((a, b) => a.pastureId.localeCompare(b.pastureId))
+    .map((herd) => `${herd.pastureId}:${herd.buildingId}:${herd.species}:${herd.headCount}`)
     .join('|');
   const pastures = [...input.pastures]
     .sort((a, b) => a.id.localeCompare(b.id))

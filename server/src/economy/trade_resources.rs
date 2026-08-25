@@ -26,6 +26,8 @@ pub fn trade_resource_for_commodity(commodity: CommodityKind) -> Option<TradeRes
         CommodityKind::Mead => return None,
         CommodityKind::PreservedFood => TradeResource::PreservedFood,
         CommodityKind::Honey => TradeResource::Honey,
+        CommodityKind::Wax => TradeResource::Wax,
+        CommodityKind::Candles => TradeResource::Candles,
         CommodityKind::Wine => TradeResource::Wine,
         CommodityKind::Ironwork => TradeResource::Ironwork,
         CommodityKind::Polearms => TradeResource::Polearms,
@@ -78,7 +80,7 @@ mod tests {
     #[test]
     fn every_market_traded_commodity_has_a_unique_trade_resource() {
         let mut resources = std::collections::HashSet::new();
-        for code in 0..=63 {
+        for code in 0..=65 {
             let Some(commodity) = CommodityKind::from_u8(code) else {
                 continue;
             };

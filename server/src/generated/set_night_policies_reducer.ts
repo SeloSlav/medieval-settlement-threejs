@@ -11,6 +11,7 @@ import {
 } from "spacetimedb";
 
 export default {
+  townHallId: __t.u64(),
   watchPolicy: __t.u8(),
   gatheringPolicy: __t.u8(),
   workPolicy: __t.u8(),

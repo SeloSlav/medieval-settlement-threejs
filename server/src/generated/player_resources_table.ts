@@ -131,4 +131,6 @@ export default __t.row({
   aroniaJam: __t.f64().name("aronia_jam"),
   rosehipJam: __t.f64().name("rosehip_jam"),
   pearCider: __t.f64().name("pear_cider"),
+  wax: __t.f64(),
+  candles: __t.f64(),
 });

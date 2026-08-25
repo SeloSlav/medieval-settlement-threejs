@@ -4,6 +4,7 @@ import type {
   ForagingNodeState,
   GraveyardState,
   LivestockHerdState,
+  PastureState,
   ResidenceState,
 } from '../resources/types.ts';
 import type { CrowdViewState } from '../settlement/crowdView.ts';
@@ -77,6 +78,7 @@ export type WorldFoleyTick = {
   deliveryTrips: Iterable<DeliveryTripState>;
   fireIncidents: Iterable<FireIncidentState>;
   livestockHerds: Iterable<LivestockHerdState>;
+  pastures: ReadonlyMap<string, PastureState>;
   backyardGardens: Iterable<BackyardGardenState>;
   foragingNodes: Iterable<ForagingNodeState>;
   graveyards: Iterable<GraveyardState>;
@@ -413,13 +415,20 @@ export class WorldFoleyAudio {
     const candidates: AnimalCandidate[] = [];
     for (const herd of input.livestockHerds) {
       if (herd.headCount <= 0) continue;
-      const building = input.buildings.get(herd.buildingId);
-      if (!building) continue;
+      const pasture = input.pastures.get(herd.pastureId);
+      if (!pasture) continue;
+      const center = pasture.corners.reduce(
+        (sum, point) => ({
+          x: sum.x + point.x / pasture.corners.length,
+          z: sum.z + point.z / pasture.corners.length,
+        }),
+        { x: 0, z: 0 },
+      );
       candidates.push({
-        id: `herd:${herd.buildingId}`,
+        id: `herd:${herd.pastureId}`,
         kind: herd.species,
-        x: building.x,
-        z: building.z,
+        x: center.x,
+        z: center.z,
       });
     }
     for (const garden of input.backyardGardens) {

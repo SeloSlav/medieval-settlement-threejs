@@ -114,6 +114,10 @@ import {
 
 export type AppBootstrapBridge = {
   syncToolbar: () => void;
+  deferGameplayMusic?: boolean;
+  onGameAudioEnabledChange?: (enabled: boolean) => void;
+  onMusicEnabledChange?: (enabled: boolean) => void;
+  onMusicVolumeChange?: (volume: number) => void;
 };
 
 export type SessionLiveContext = {
@@ -290,6 +294,7 @@ export async function bootstrapAppSession(
     audioParent: sceneManager.scene,
     riverLayout: sceneManager.riverField.layout,
     getRiverWaterSurfaceY: sceneManager.getBridgeSamplingContext().getWaterSurfaceY,
+    gameplayMusicInitiallyActive: !bridge.deferGameplayMusic,
     getCameraTarget: () => (
       firstPersonController?.isActive()
         ? sceneManager.camera.position
@@ -309,6 +314,7 @@ export async function bootstrapAppSession(
     getFireIncidents: () => liveContext.gameState.fireIncidents.values(),
     getDeliveryTrips: () => liveContext.gameState.deliveryTrips.values(),
     getLivestockHerds: () => liveContext.gameState.livestockHerds.values(),
+    getPastures: () => liveContext.gameState.pastures,
     getBackyardGardens: () => liveContext.gameState.backyardGardens.values(),
     getForagingNodes: () => liveContext.gameState.foragingNodes.values(),
     getGraveyards: () => liveContext.gameState.graveyards?.values() ?? [],
@@ -1042,6 +1048,7 @@ export async function bootstrapAppSession(
     },
     onAudioEnabledChange: (enabled) => {
       ambientAudio.setEnabled(enabled);
+      bridge.onGameAudioEnabledChange?.(enabled);
     },
     onAmbienceVolumeChange: (volume) => {
       ambientAudio.setAmbienceVolume(volume);
@@ -1054,9 +1061,11 @@ export async function bootstrapAppSession(
     },
     onMusicEnabledChange: (enabled) => {
       ambientAudio.setMusicEnabled(enabled);
+      bridge.onMusicEnabledChange?.(enabled);
     },
     onMusicVolumeChange: (volume) => {
       ambientAudio.setMusicVolume(volume);
+      bridge.onMusicVolumeChange?.(volume);
     },
     onShadowPreferenceChange: () => {
       sceneManager.applyShadowPreferences();

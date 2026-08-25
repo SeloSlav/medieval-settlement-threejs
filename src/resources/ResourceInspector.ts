@@ -309,12 +309,12 @@ type ResourceInspectorOptions = {
   onStartFarmFieldEarlyHarvest?: (fieldId: string) => void | Promise<void>;
   onDemolishPasture?: (pastureId: string) => void | Promise<void>;
   onDemolishGraveyard?: (graveyardId: string) => void | Promise<void>;
-  onSetLivestockSpecies?: (buildingId: string, species: Exclude<LivestockSpecies, 'swine'>) => void | Promise<void>;
-  onTradeLivestock?: (buildingId: string, headDelta: number) => void | Promise<void>;
+  onSetLivestockSpecies?: (pastureId: string, species: Exclude<LivestockSpecies, 'swine'>) => void | Promise<void>;
+  onTradeLivestock?: (pastureId: string, headDelta: number) => void | Promise<void>;
   onPurchaseStableOx?: (stableId: string) => void | Promise<void>;
   onSetBuildingOxen?: (buildingId: string, targetCount: number) => void | Promise<void>;
-  onSetLivestockBreedingReserve?: (buildingId: string, breedingReserve: number) => void | Promise<void>;
-  onSetLivestockHaymakingPercent?: (buildingId: string, haymakingPercent: number) => void | Promise<void>;
+  onSetLivestockBreedingReserve?: (pastureId: string, breedingReserve: number) => void | Promise<void>;
+  onSetLivestockHaymakingPercent?: (pastureId: string, haymakingPercent: number) => void | Promise<void>;
   onBeginFarmFieldPlacement?: (farmsteadId: string, crop: FarmCrop) => void;
   onBeginPasturePlacement?: (farmsteadId: string) => void;
   onBeginGraveyardPlacement?: (chapelId: string) => void;
@@ -586,6 +586,8 @@ export class ResourceInspector {
       mead: this.mustElement(options.uiRoot, '[data-stockpile="mead"]'),
       preservedFood: this.mustElement(options.uiRoot, '[data-stockpile="preservedFood"]'),
       honey: this.mustElement(options.uiRoot, '[data-stockpile="honey"]'),
+      wax: this.mustElement(options.uiRoot, '[data-stockpile="wax"]'),
+      candles: this.mustElement(options.uiRoot, '[data-stockpile="candles"]'),
       wine: this.mustElement(options.uiRoot, '[data-stockpile="wine"]'),
       wool: this.mustElement(options.uiRoot, '[data-stockpile="wool"]'),
       flax: this.mustElement(options.uiRoot, '[data-stockpile="flax"]'),
@@ -897,6 +899,24 @@ export class ResourceInspector {
       );
       return;
     }
+    const inspectPastureId = (event.target as HTMLElement)
+      .closest<HTMLElement>('[data-inspect-pasture]')
+      ?.dataset.inspectPasture;
+    if (inspectPastureId) {
+      const target = this.options.worldQueries.findPastureTarget(inspectPastureId);
+      if (target) {
+        this.selectTarget(target);
+        const center = target.pasture.corners.reduce(
+          (sum, point) => ({
+            x: sum.x + point.x / target.pasture.corners.length,
+            z: sum.z + point.z / target.pasture.corners.length,
+          }),
+          { x: 0, z: 0 },
+        );
+        this.options.onFocusWorldPosition?.(center.x, center.z);
+      }
+      return;
+    }
     if (
       (event.target as HTMLElement).closest('[data-rotate-construction-labor]')
       && this.selectedTarget?.kind === 'building'
@@ -1042,40 +1062,25 @@ export class ResourceInspector {
         return;
       }
     }
-    if (this.selectedTarget?.kind === 'building' && this.selectedTarget.building.kind === 'pastoral_farmstead') {
-      const species = (event.target as HTMLElement).closest<HTMLElement>('[data-livestock-species]')?.dataset.livestockSpecies;
-      if (species === 'cattle' || species === 'sheep') {
-        void this.options.onSetLivestockSpecies?.(this.selectedTarget.building.id, species);
-        return;
-      }
-    }
     if (
       this.selectedTarget?.kind === 'pasture'
       && this.selectedTarget.farmstead
       && (this.selectedTarget.farmstead.kind === 'pastoral_farmstead'
         || this.selectedTarget.farmstead.kind === 'swineherd')
     ) {
-      const livestockTradeValue = (event.target as HTMLElement)
-        .closest<HTMLElement>('[data-livestock-trade]')
-        ?.dataset.livestockTrade;
-      if (livestockTradeValue != null) {
-        const headDelta = Number(livestockTradeValue);
-        if (Number.isInteger(headDelta) && headDelta !== 0) {
-          // A selected parcel is a convenient stocking surface, but every
-          // linked parcel contributes to one herd owned by the holding.
-          void this.options.onTradeLivestock?.(
-            this.selectedTarget.farmstead.id,
-            headDelta,
-          );
-        }
+      const species = (event.target as HTMLElement)
+        .closest<HTMLElement>('[data-livestock-species]')
+        ?.dataset.livestockSpecies;
+      if (
+        this.selectedTarget.farmstead.kind === 'pastoral_farmstead'
+        && (species === 'cattle' || species === 'sheep')
+      ) {
+        void this.options.onSetLivestockSpecies?.(
+          this.selectedTarget.pasture.id,
+          species,
+        );
         return;
       }
-    }
-    if (
-      this.selectedTarget?.kind === 'building'
-      && (this.selectedTarget.building.kind === 'pastoral_farmstead'
-        || this.selectedTarget.building.kind === 'swineherd')
-    ) {
       const livestockTradeValue = (event.target as HTMLElement)
         .closest<HTMLElement>('[data-livestock-trade]')
         ?.dataset.livestockTrade;
@@ -1083,7 +1088,7 @@ export class ResourceInspector {
         const headDelta = Number(livestockTradeValue);
         if (Number.isInteger(headDelta) && headDelta !== 0) {
           void this.options.onTradeLivestock?.(
-            this.selectedTarget.building.id,
+            this.selectedTarget.pasture.id,
             headDelta,
           );
         }
@@ -1094,7 +1099,7 @@ export class ResourceInspector {
         ?.dataset.livestockBreedingReserve;
       if (reserveValue != null) {
         void this.options.onSetLivestockBreedingReserve?.(
-          this.selectedTarget.building.id,
+          this.selectedTarget.pasture.id,
           Number(reserveValue),
         );
         return;
@@ -1102,9 +1107,9 @@ export class ResourceInspector {
       const haymakingValue = (event.target as HTMLElement)
         .closest<HTMLElement>('[data-livestock-haymaking-percent]')
         ?.dataset.livestockHaymakingPercent;
-      if (haymakingValue != null && this.selectedTarget.building.kind === 'pastoral_farmstead') {
+      if (haymakingValue != null && this.selectedTarget.farmstead.kind === 'pastoral_farmstead') {
         void this.options.onSetLivestockHaymakingPercent?.(
-          this.selectedTarget.building.id,
+          this.selectedTarget.pasture.id,
           Number(haymakingValue),
         );
         return;

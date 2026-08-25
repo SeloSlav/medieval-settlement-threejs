@@ -31,6 +31,14 @@ type ProvisionValueSnapshot = {
   isEmpty: boolean;
 };
 
+async function advanceToMapGeneration(page: Page): Promise<void> {
+  await expect(page.getByRole('heading', { name: 'Choose Your Noble House' })).toBeVisible();
+  await page.getByRole('button', { name: /Continue to Heraldry/ }).click();
+  await expect(page.getByRole('heading', { name: 'Design Your Heraldry' })).toBeVisible();
+  await page.getByRole('button', { name: /Continue to Map Generation/ }).click();
+  await expect(page.getByRole('heading', { name: 'Map Generation' })).toBeVisible();
+}
+
 async function expectProvisionValuesToMatchTooltips(
   page: Page,
   expectedAmountLabel: string,
@@ -222,6 +230,7 @@ test('keeps the camera zoom percentage visible beside settlement time', async ({
 
 test('connects, places a reforester, and updates settlement HUD timber', async ({ page }) => {
   await page.goto('/?new');
+  await advanceToMapGeneration(page);
 
   const aquiferToggle = page.locator('[data-aquifer-networks]');
   const aquiferState = page.locator('[data-aquifer-networks-state]');

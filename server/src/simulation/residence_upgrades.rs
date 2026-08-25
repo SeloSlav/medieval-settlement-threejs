@@ -396,6 +396,7 @@ fn complete_project(ctx: &ReducerContext, residence: &mut Residence) -> bool {
                 last_primary_production_day: 0,
                 last_secondary_production_day: 0,
                 hide_stock: 0.0,
+                wax_stock: 0.0,
                 flower_luxury_upgraded: false,
             });
         }

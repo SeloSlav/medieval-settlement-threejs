@@ -186,10 +186,11 @@ are all favorable, while fields have time to recover from a weak start.
 - Berry and mushroom nodes continue regrowing.
 - Grass-pasture capacity is 100%, woodland pannage is 90%, and household firewood
   demand falls to 70%.
-- From June through August, staffed cattle and sheep holdings cut their chosen
-  share of grazing meadow into local winter hay. That reserved meadow cannot feed
-  the herd at the same time, so an aggressive hay policy may draw down prepared
-  animal feed during the cutting season. Woodland swine do not make hay.
+- From June through August, staffed cattle and sheep pastures cut their chosen
+  share of grazing meadow into winter hay kept by that parcel herd. That reserved
+  meadow cannot graze the same herd at the same time, so an aggressive hay policy
+  may draw down prepared animal feed during the cutting season. Woodland swine do
+  not make hay.
 - Fresh food spoilage rises to 0.8% per day.
 
 During drought:
@@ -254,10 +255,11 @@ unfinished sowing cannot spill into winter.
 - Fully sown grain remains alive but dormant.
 - A field still in the sowing stage when winter begins fails and must be ploughed
   again next autumn.
-- Grass-pasture capacity falls to 35% and woodland pannage to 45%. Cattle and
-  sheep use their holding's local hay first, then prepared animal feed for
-  unsupported heads. Pigs use the remaining mast and then animal feed because
-  they do not participate in the hay chain. Livestock never consume raw grain.
+- Grass-pasture capacity falls to 35% and woodland pannage to 45%. Each cattle or
+  sheep herd uses the hay retained by its own pasture first, then draws prepared
+  animal feed from the shared farmstead store for unsupported heads. Pigs use the
+  remaining mast and then animal feed because they do not participate in the hay
+  chain. Livestock never consume raw grain.
 - Livestock birth progress is dormant; healthy breeding herds resume in spring.
 - Sheep are not shorn; their annual physical fleece clip is an early-summer event.
 - Household firewood demand rises to 200% and continues through nights and
@@ -277,39 +279,50 @@ preservation, and the sharply higher household heating claim.
 
 ## Livestock land, stocking, and the husbandry clock
 
-A pastoral farmstead begins without a herd. The player first chooses cattle or
-sheep, draws one or more pasture polygons inside the holding's work extent, and
-then buys whole animals with civic gold. A woodland swineherd already has its pig
-policy, but likewise begins at zero head and needs player-drawn pannage before pigs
-can be bought. Selling live animals returns the lower regional sale price. Stocked
-holdings cannot change species or be demolished; even an empty pastoral holding
-must remove its linked species-shaped parcels before switching.
+A pastoral farmstead begins without animals. The player draws one or more pasture
+polygons inside its work extent, chooses cattle or sheep independently on each
+parcel, and buys whole animals with civic gold from that selected pasture. One
+farmstead may therefore serve cattle and sheep at the same time. A woodland
+swineherd likewise begins at zero head and needs player-drawn pannage before pigs
+can be bought, but every pannage parcel is permanently pig-specialized. Selling
+live animals returns the lower regional sale price.
 
-The exact placed land is authoritative, not just the main building. Cattle and
-sheep capacity sums every linked polygon after its area, slope, and moisture are
-evaluated. Pannage has two independent limits: suitable fenced area and the count
-of mature trees whose positions actually fall inside those polygons. Its carrying
-capacity is the smaller of the area and mast limits, then the species hard maximum
-is applied. Growing trees and mature trees outside the fence do not count. This is
-why clear-cutting a pig enclosure can reduce its support even though the polygon's
-area has not changed.
+The exact placed parcel is authoritative, not just the main building. Each cattle
+or sheep herd has its own capacity after its pasture's area, slope, and moisture
+are evaluated. The pastoral farmstead also has a shared 60-unit management budget:
+one sheep uses one unit and one cow uses three, preserving the homogeneous limits
+of 60 sheep or 20 cattle while allowing mixtures such as 30 sheep and 10 cattle.
+Purchases and births must fit both the selected parcel's whole-head land limit and
+the remaining shared budget, so subdividing the same land cannot multiply the
+farmstead's management ceiling.
 
-The farmstead or swineherd is the animals' shelter, local feed store, separate
-water trough, and logistics base. During each fixed daytime husbandry cycle, the
-simulation resolves:
+Each pannage parcel has two independent local limits: its suitable fenced area and
+the mature trees whose positions actually fall inside that polygon. Its pig
+capacity is the smaller of those area and mast limits. Growing trees and mature
+trees outside that fence do not count, and all parcel herds together remain subject
+to the swineherd's shared 30-pig management ceiling. This is why clear-cutting one
+pig enclosure can reduce that parcel's support even when its area and its siblings
+have not changed.
 
-1. heads supported by grass or mast, then local winter hay where applicable, then
-   prepared animal feed;
-2. heads supplied by the water physically present in the holding's trough; and
-3. heads covered by active herders at the species-specific care ratio.
+The farmstead or swineherd remains the shared shelter, prepared-feed store, water
+trough, workplace, product store, and logistics base for all of its parcel herds.
+During each fixed daytime husbandry cycle, the simulation resolves all linked herds
+together:
 
-Only the intersection of feed, water, and care counts as fully supplied. Poor
-support reduces milk, manure, wool, and health; prolonged severe neglect can kill
-animals. Additional labor raises care coverage, summer hay output, and hauling, but
-does not make biological time run faster. Thirst, production, breeding progress,
-and mortality use the building's fixed action interval even when a holding is
-unstaffed or temporarily work-paused, so abandoned animals do not become immortal
-and large crews cannot accelerate gestation.
+1. each herd's heads supported by its own grass or mast, then its own winter hay
+   where applicable, then its share of prepared animal feed from the hub;
+2. each herd's share of the water physically present in the hub's trough; and
+3. each herd's share of active herding care at its species-specific ratio.
+
+When shared feed, water, or labor is short, fulfillment is apportioned across the
+linked herds rather than making the first parcel in storage order consume
+everything. Only the intersection of feed, water, and care counts as fully
+supplied. Poor support reduces milk, manure, wool, and health; prolonged severe
+neglect can kill animals. Additional labor raises care coverage, summer hay output,
+and hauling, but does not make biological time run faster. Thirst, production,
+breeding progress, and mortality use one farmstead action cadence even with several
+pastures, so adding parcels cannot multiply feed preparation, slaughter, or
+gestation speed.
 
 The winter-feed chain is physical and deliberately separate from human food. Oat
 sheaves are first threshed into edible oats at a threshing barn. Each oat remains
@@ -317,11 +330,13 @@ worth half a human meal as a lighter porridge ration, but a staffed pastoral
 farmstead can process one oat into one unit of **Animal Feed**, store the
 finished feed locally, and dispatch it by road to
 a connected swineherd. Raw oats, rye, and maslin are never fed
-directly to livestock. Cattle and sheep normally graze during the warm seasons,
-cut local hay from June through August, and consume that hay before animal feed in
-winter. Swine instead follow the pannage mast calendar and consume remaining mast
-before animal feed. Carried water is consumed separately at each holding's trough;
-it is not an input to the feed recipe.
+directly to livestock. Cattle and sheep normally graze during the warm seasons.
+From June through August, each pasture's haymaking policy withholds part of that
+parcel from grazing and stores the resulting hay with that parcel herd; in winter
+that local hay is consumed before the herd draws from the farmstead's prepared
+Animal Feed. Swine instead follow the pannage mast calendar and consume remaining
+mast before feed. Carried water is consumed at the shared holding trough; it is not
+an input to the feed recipe.
 
 Stable oxen used for transport or production remain a deliberate player abstraction:
 their feed and water are abstracted and are not drawn from the settlement's livestock
@@ -333,30 +348,32 @@ farmer's ploughing and threshing pace, adds half a farmer's harvesting pace, and
 not accelerate sowing. Nearby supplied cattle retain their separate plough-work
 reduction, so the two forms of draft support can stack.
 
-Reproduction requires at least two animals, at least 90% support, and healthy
-breeding stock. Births stop at the lower of neutral placed-land capacity and the
-species management ceiling. Progress advances only during March–May, at the 125%
-spring rate; it pauses through summer, autumn, and winter. New holdings default to
-keeping the species maximum through winter, so a supplied starter herd naturally
-grows toward its placed-land limit. Autumn culling is opt-in by lowering the breeding
-reserve. Pannage capacity still follows its separate mast calendar described above.
+Reproduction is tracked separately for each parcel herd. It requires at least two
+animals of that pasture's species, at least 90% support, and healthy breeding stock.
+Births stop when that parcel reaches its neutral whole-head land capacity or when
+the parent farmstead reaches its shared management budget. Progress advances only
+during March–May, at the 125% spring rate; it pauses through summer, autumn, and
+winter. New parcel herds default to retaining their species maximum, so a supplied
+starter herd naturally grows toward the lower of its local land limit and available
+hub budget. Autumn culling is opt-in by lowering that parcel's breeding reserve.
+Pannage capacity still follows its separate mast calendar described above.
 
-The player stocks animals from a selected, already-fenced pasture or pannage parcel,
-not from the farmstead panel. The authoritative herd still belongs to the holding:
-all of its linked parcels add together to set one neutral purchase and reproduction
-ceiling, so buying through a particular parcel does not create a separate sub-herd.
-The farmstead remains the place for reserve policy and livestock sales. Changing a
-pastoral holding from cattle to sheep or back requires selling every animal at the
-lower sale price, removing every linked pasture, choosing the new species, fencing
-its land, and buying replacement stock. Only correcting an empty, never-stocked
-holding is free.
+Changing one pastoral parcel never requires removing its fence or disturbing its
+sibling pastures. The player must first sell every animal in that selected parcel
+at the lower regional sale price, may then change its cattle-or-sheep assignment on
+the same polygon, and buys replacement breeding stock at the higher purchase price.
+That sale-and-rebuy spread makes a stocked conversion costly without inventing a
+second arbitrary fee. Correcting the plan of an empty, never-stocked pasture is
+free. A stocked pasture cannot be demolished, and the farmstead itself cannot be
+removed while it still has linked parcels or animals.
 
-Grain fields use a different model because the crop belongs to the individual
-parcel. A crop choice schedules Year 2 or Year 3 and never replaces the crop already
-in the ground. Editing that future plan is free, but executing it still consumes the
-field's full area-scaled seed lot and its ploughing and sowing labor; changing plans
-therefore avoids an arbitrary conversion fee without bypassing the physical cost of
-the next crop.
+Grain fields follow the same parcel-versus-hub principle: the crop belongs to each
+individual field while its farmstead supplies shared workers and storage. A crop
+choice schedules Year 2 or Year 3 and never replaces the crop already in the ground.
+Editing that future plan is free, but executing it still consumes the field's full
+area-scaled seed lot and its ploughing and sowing labor. Likewise, an empty pasture
+may be reassigned freely, but living cattle never turn into sheep; replacing them
+still pays the livestock sale-and-purchase cost.
 
 ## Seasonal road logistics
 

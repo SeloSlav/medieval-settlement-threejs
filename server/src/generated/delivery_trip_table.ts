@@ -32,4 +32,5 @@ export default __t.row({
   routePolylineJson: __t.string().name("route_polyline_json"),
   freeHaulerWorkers: __t.u32().name("free_hauler_workers"),
   laborBuildingId: __t.u64().name("labor_building_id"),
+  oxId: __t.u64().name("ox_id"),
 });

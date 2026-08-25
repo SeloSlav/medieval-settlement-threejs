@@ -59,13 +59,7 @@ fn total_population(ctx: &ReducerContext, owner: spacetimedb::Identity) -> u32 {
         .map_or(true, |resources| {
             resources.legacy_unhoused_population_bonus_enabled
         });
-    let has_authoritative_settlements = ctx
-        .db
-        .settlement()
-        .owner()
-        .filter(&owner)
-        .next()
-        .is_some();
+    let has_authoritative_settlements = ctx.db.settlement().owner().filter(&owner).next().is_some();
     if !has_authoritative_settlements {
         return settlement_population(from_residences, legacy_unhoused_population_bonus_enabled);
     }

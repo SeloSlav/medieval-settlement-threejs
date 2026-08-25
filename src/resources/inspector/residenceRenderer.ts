@@ -257,6 +257,9 @@ export function renderResidenceInspector(
   const servingPotterySupplier = residence.tier >= 4
     ? context.worldQueries.getServingPotterySupplierForResidence(residence)
     : null;
+  const servingLuxurySupplier = residence.tier >= 3
+    ? context.worldQueries.getLuxuryUpgradeSupplierForResidence(residence)
+    : null;
   const upgradeProject = residenceUpgradeProject(
     residence,
     context.gameState.deliveryTrips.values(),
@@ -324,8 +327,8 @@ export function renderResidenceInspector(
         stocked: servingPotterySupplier != null,
       },
       luxury: {
-        supplier: null,
-        stocked: false,
+        supplier: servingLuxurySupplier,
+        stocked: servingLuxurySupplier != null,
       },
       church: {
         supplier: servingChapel,
@@ -1091,7 +1094,7 @@ function upgradeSupplierHasStock(
   if (kind === 'shoes') return (supplier.shoes ?? 0) > 1e-6;
   if (kind === 'pottery') return (supplier.pottery ?? 0) > 1e-6;
   if (kind === 'luxury') {
-    return (supplier.wine ?? 0) + (supplier.honey ?? 0) > 1e-6;
+    return (supplier.candles ?? 0) + (supplier.wine ?? 0) + (supplier.honey ?? 0) > 1e-6;
   }
   return false;
 }

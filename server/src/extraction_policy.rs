@@ -26,10 +26,7 @@ pub fn geological_commodity(deposit_id: &str) -> Option<CommodityKind> {
     }
 }
 
-pub fn mining_camp_geological_commodity(
-    deposit_id: &str,
-    _is_rich: bool,
-) -> Option<CommodityKind> {
+pub fn mining_camp_geological_commodity(deposit_id: &str, _is_rich: bool) -> Option<CommodityKind> {
     geological_commodity(deposit_id)
 }
 
@@ -37,18 +34,12 @@ pub fn mining_camp_clay_commodity(node_kind: &str, node_id: &str) -> Option<Comm
     (node_kind == "clay" && node_id.starts_with("clay-")).then_some(CommodityKind::Clay)
 }
 
-pub fn quarry_geological_commodity(
-    deposit_id: &str,
-    is_rich: bool,
-) -> Option<CommodityKind> {
+pub fn quarry_geological_commodity(deposit_id: &str, is_rich: bool) -> Option<CommodityKind> {
     (is_rich && geological_commodity(deposit_id) == Some(CommodityKind::Stone))
         .then_some(CommodityKind::Stone)
 }
 
-pub fn mineworks_geological_commodity(
-    deposit_id: &str,
-    is_rich: bool,
-) -> Option<CommodityKind> {
+pub fn mineworks_geological_commodity(deposit_id: &str, is_rich: bool) -> Option<CommodityKind> {
     if !is_rich {
         return None;
     }
@@ -59,18 +50,14 @@ pub fn mineworks_geological_commodity(
 }
 
 pub fn mineworks_clay_commodity(node_kind: &str, node_id: &str) -> Option<CommodityKind> {
-    (node_kind == "clay" && node_id.starts_with("clay-rich-"))
-        .then_some(CommodityKind::Clay)
+    (node_kind == "clay" && node_id.starts_with("clay-rich-")).then_some(CommodityKind::Clay)
 }
 
 pub fn extraction_site_accepts_commodity(kind: &str, commodity: CommodityKind) -> bool {
     match kind {
         "stone_quarry" => matches!(
             commodity,
-            CommodityKind::Stone
-                | CommodityKind::Iron
-                | CommodityKind::Salt
-                | CommodityKind::Clay
+            CommodityKind::Stone | CommodityKind::Iron | CommodityKind::Salt | CommodityKind::Clay
         ),
         "large_quarry" => commodity == CommodityKind::Stone,
         "mine" => matches!(
@@ -113,14 +100,8 @@ mod tests {
             Some(CommodityKind::Stone)
         );
         assert_eq!(quarry_geological_commodity("quarry-7", false), None);
-        assert_eq!(
-            quarry_geological_commodity("deposit-iron-7", true),
-            None
-        );
-        assert_eq!(
-            quarry_geological_commodity("deposit-salt-7", true),
-            None
-        );
+        assert_eq!(quarry_geological_commodity("deposit-iron-7", true), None);
+        assert_eq!(quarry_geological_commodity("deposit-salt-7", true), None);
     }
 
     #[test]
@@ -163,7 +144,11 @@ mod tests {
             "large_quarry",
             CommodityKind::Iron
         ));
-        for commodity in [CommodityKind::Iron, CommodityKind::Salt, CommodityKind::Clay] {
+        for commodity in [
+            CommodityKind::Iron,
+            CommodityKind::Salt,
+            CommodityKind::Clay,
+        ] {
             assert!(extraction_site_accepts_commodity("mine", commodity));
         }
         assert!(!extraction_site_accepts_commodity(

@@ -463,12 +463,7 @@ pub fn set_production_labor_steward(
     // Enabling immediately applies the conservative recall-then-deploy order;
     // unlike the manual call-up, automation will not pre-staff an empty chain.
     if enabled {
-        reconcile_target_production_labor_for_settlement(
-            ctx,
-            owner,
-            settlement_id,
-            labor_reserve,
-        );
+        reconcile_target_production_labor_for_settlement(ctx, owner, settlement_id, labor_reserve);
     }
     Ok(())
 }

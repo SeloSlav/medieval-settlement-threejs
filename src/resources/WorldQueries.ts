@@ -277,7 +277,7 @@ export class WorldQueries {
         kind: 'pasture',
         pasture,
         farmstead: state.buildings.get(pasture.farmsteadId) ?? null,
-        herd: state.livestockHerds.get(pasture.farmsteadId) ?? null,
+        herd: state.livestockHerds.get(pasture.id) ?? null,
       };
       break;
     }
@@ -404,14 +404,37 @@ export class WorldQueries {
     return { kind: 'residence', residence, zone, residenceCount };
   }
 
-  getLivestockHerd(buildingId: string): LivestockHerdState | null {
-    return this.getGameState().livestockHerds.get(buildingId) ?? null;
+  getLivestockHerdForPasture(pastureId: string): LivestockHerdState | null {
+    return this.getGameState().livestockHerds.get(pastureId) ?? null;
+  }
+
+  getLivestockHerdsForBuilding(buildingId: string): LivestockHerdState[] {
+    return [...this.getGameState().livestockHerds.values()].filter(
+      (herd) => herd.buildingId === buildingId,
+    );
+  }
+
+  hasStockedLivestock(buildingId: string): boolean {
+    return this.getLivestockHerdsForBuilding(buildingId)
+      .some((herd) => herd.headCount > 0);
   }
 
   getPasturesForBuilding(buildingId: string): PastureState[] {
     return [...this.getGameState().pastures.values()].filter(
       (pasture) => pasture.farmsteadId === buildingId,
     );
+  }
+
+  findPastureTarget(pastureId: string): Extract<InspectableTarget, { kind: 'pasture' }> | null {
+    const state = this.getGameState();
+    const pasture = state.pastures.get(pastureId);
+    if (!pasture) return null;
+    return {
+      kind: 'pasture',
+      pasture,
+      farmstead: state.buildings.get(pasture.farmsteadId) ?? null,
+      herd: state.livestockHerds.get(pasture.id) ?? null,
+    };
   }
 
   /** Exact live mast count inside this holding's authored pannage polygons. */
@@ -1205,7 +1228,9 @@ export class WorldQueries {
       (building) =>
         building.kind === 'marketplace'
         && building.constructionComplete !== false
-        && Math.max(0, building.wine ?? 0) + Math.max(0, building.honey ?? 0) > 1e-6,
+        && Math.max(0, building.candles ?? 0)
+          + Math.max(0, building.wine ?? 0)
+          + Math.max(0, building.honey ?? 0) > 1e-6,
     );
     return sortByRoadPathDistance(this.getRoadNetwork(), residence, candidates)[0] ?? null;
   }
@@ -1433,7 +1458,7 @@ export class WorldQueries {
     const sourceCapacity = (
       BUILDING_STORAGE_CAPS[source.kind] as { food?: number } | undefined
     )?.food ?? 0;
-    const hasFeedCommitment = (state.livestockHerds.get(source.id)?.headCount ?? 0) > 0;
+    const hasFeedCommitment = this.hasStockedLivestock(source.id);
     const dispatchableFoodStock = institutionalDispatchableFoodStock(
       source.kind,
       edibleFoodStock(source),

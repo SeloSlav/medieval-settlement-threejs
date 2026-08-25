@@ -150,6 +150,36 @@ export function livestockHoldingWholeHeadLimit(
   );
 }
 
+/** Mirrors the server's shared husbandry-management budget for one holding. */
+export const PASTORAL_MANAGEMENT_UNITS = 60;
+export const SWINE_MANAGEMENT_UNITS = 30;
+
+export function livestockManagementUnitsPerHead(species: LivestockSpecies): number {
+  return species === 'cattle' ? 3 : 1;
+}
+
+/**
+ * Maximum head of `species` that one selected pasture may contain after every
+ * sibling herd has claimed its share of the linked holding's management cap.
+ */
+export function livestockPastureManagementHeadAllowance(
+  species: LivestockSpecies,
+  siblingHerds: Iterable<Pick<LivestockHerdState, 'species' | 'headCount'>>,
+): number {
+  let usedUnits = 0;
+  for (const herd of siblingHerds) {
+    usedUnits += Math.max(0, Math.floor(herd.headCount))
+      * livestockManagementUnitsPerHead(herd.species);
+  }
+  const budget = species === 'swine'
+    ? SWINE_MANAGEMENT_UNITS
+    : PASTORAL_MANAGEMENT_UNITS;
+  return Math.max(
+    0,
+    Math.floor((budget - usedUnits) / livestockManagementUnitsPerHead(species)),
+  );
+}
+
 /**
  * Counts authoritative mature trees inside the exact union of authored
  * pannage polygons. Each parcel performs one spatial-index query against its

@@ -170,6 +170,7 @@ assert.match(offline.recoveryHint, /retry/i);
 function createLifecycleHarness() {
   const gate = new SessionConnectionGate();
   let dismissCount = 0;
+  let firstPlayableCount = 0;
   const controller = new SessionLifecycleController({
     sessionGate: gate,
     loadingScreen: {
@@ -201,11 +202,17 @@ function createLifecycleHarness() {
     burgageTool: null,
     farmFieldTool: null,
     firstPersonController: null,
+    onFirstPlayable: () => {
+      firstPlayableCount += 1;
+    },
   } as never);
   return {
     controller,
     get dismissCount() {
       return dismissCount;
+    },
+    get firstPlayableCount() {
+      return firstPlayableCount;
     },
   };
 }
@@ -219,6 +226,14 @@ assert.equal(
 );
 terrainFirst.controller.onReady();
 assert.equal(terrainFirst.dismissCount, 1);
+assert.equal(terrainFirst.firstPlayableCount, 1);
+terrainFirst.controller.onReady();
+terrainFirst.controller.onPresentationReady();
+assert.equal(
+  terrainFirst.firstPlayableCount,
+  1,
+  'repeated readiness and reconnect events must not repeat the music handoff',
+);
 terrainFirst.controller.dispose();
 
 const sessionFirst = createLifecycleHarness();
@@ -230,6 +245,7 @@ assert.equal(
 );
 sessionFirst.controller.onPresentationReady();
 assert.equal(sessionFirst.dismissCount, 1);
+assert.equal(sessionFirst.firstPlayableCount, 1);
 sessionFirst.controller.dispose();
 
 const overlaySource = readFileSync(

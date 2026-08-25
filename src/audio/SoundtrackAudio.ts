@@ -59,6 +59,10 @@ export class SoundtrackAudio {
     this.context = context;
   }
 
+  markTrackPlayed(track: MusicTrackId): void {
+    this.lastTrack = track;
+  }
+
   tick(dtSeconds: number): void {
     if (!this.enabled || !this.started) return;
     const nowMs = performance.now();

@@ -45,6 +45,8 @@ const RESOURCE_LABELS: Record<HudResourceKind, string> = {
   mead: 'Mead',
   preservedFood: 'Preserved staples',
   honey: 'Honey',
+  wax: 'Beeswax',
+  candles: 'Candles',
   wine: 'Wine',
   wool: 'Wool',
   cloth: 'Cloth',

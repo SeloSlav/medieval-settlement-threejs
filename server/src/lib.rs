@@ -32,6 +32,7 @@ mod holiday_calendar;
 mod hydrology;
 mod labor_steward_policy;
 mod lifecycle;
+mod livestock_migration;
 mod livestock_policy;
 mod marketplace_procurement_policy;
 mod marketplace_stall_policy;

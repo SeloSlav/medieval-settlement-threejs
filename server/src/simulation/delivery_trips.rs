@@ -27,12 +27,11 @@ use crate::economy::{
     building_commodity_stock, chapel_coffer_gold, chapel_monastery_tithe_due,
     credit_local_household_income, credit_marketplace_receipt_gold, credit_residence_wealth,
     credit_treasury_commodity, deposit_building_commodity, deposit_residence_commodity,
-    private_export_proceeds, record_parish_ledger,
-    record_private_export_income, restore_local_civic_receipts, restore_private_export_proceeds,
-    settle_regional_market_export, settlement_economic_activity_tax_rate,
-    settlement_town_hall_tax_collection_multiplier, storage_accepts_commodity,
-    taxed_economic_activity, withdraw_building_commodity, withdraw_coffer_in_place,
-    withdraw_private_export_proceeds, CommodityKind, ParishLedgerKind,
+    private_export_proceeds, record_parish_ledger, record_private_export_income,
+    restore_local_civic_receipts, restore_private_export_proceeds, settle_regional_market_export,
+    settlement_economic_activity_tax_rate, settlement_town_hall_tax_collection_multiplier,
+    storage_accepts_commodity, taxed_economic_activity, withdraw_building_commodity,
+    withdraw_coffer_in_place, withdraw_private_export_proceeds, CommodityKind, ParishLedgerKind,
 };
 use crate::fire_policy::fire_response_load;
 use crate::monastery_estate_policy::playable_half_for_monastery_map_size;
@@ -67,8 +66,8 @@ use crate::simulation::settlement_security::{
 };
 use crate::simulation::tick_context::SimTickContext;
 use crate::simulation::{
-    claim_haul_ox_for_workplace, recover_stock_at, recover_stock_beside_building,
-    release_haul_ox, ReclamationStock,
+    claim_haul_ox_for_workplace, recover_stock_at, recover_stock_beside_building, release_haul_ox,
+    ReclamationStock,
 };
 use crate::supply_policy::{carpenter_cart_service_ready, construction_source_available_stock};
 use crate::tables::{Building, DeliveryTrip, FireIncident, Residence};
@@ -2580,11 +2579,7 @@ fn unload_commodity_to_building(
             let base_activity = deposited * FOOD_SALE_GOLD_PER_UNIT;
             let receipt = split_whole_local_sale_receipt(
                 base_activity,
-                settlement_economic_activity_tax_rate(
-                    ctx,
-                    target.owner,
-                    target.settlement_id,
-                ),
+                settlement_economic_activity_tax_rate(ctx, target.owner, target.settlement_id),
                 settlement_town_hall_tax_collection_multiplier(
                     ctx,
                     target.owner,

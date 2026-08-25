@@ -2,8 +2,9 @@ import { clearStoredSpacetimeToken } from '../network/identityPersistence.ts';
 import { getConnection } from '../network/spacetimedbClient.ts';
 import { probeServerWorldConfig } from '../network/serverWorldProbe.ts';
 import { resetWorld } from '../data/spacetimeReducers.ts';
-import { NobleSetupPanel } from '../ui/NobleSetupPanel.ts';
+import { NobleSetupPanel, type NobleSetupStep } from '../ui/NobleSetupPanel.ts';
 import { WorldSetupPanel } from '../ui/WorldSetupPanel.ts';
+import type { NobleProfile } from '../ui/nobleProfile.ts';
 import { resolveWorldGenerationAuthority } from '../world/worldConfigAuthority.ts';
 import {
   clearStoredWorldGenerationSettings,
@@ -22,8 +23,7 @@ export async function resolveWorldGenerationSettings(
 ): Promise<WorldGenerationSettings> {
   const explicitNewWorld = new URLSearchParams(window.location.search).has('new');
   if (explicitNewWorld) {
-    await NobleSetupPanel.prompt(root);
-    return WorldSetupPanel.prompt(root);
+    return promptNewWorldSetup(root);
   }
 
   const local = loadStoredWorldGenerationSettings();
@@ -55,8 +55,26 @@ export async function resolveWorldGenerationSettings(
       detail: 'Choose map size, landscape, and seed',
     });
   }
-  await NobleSetupPanel.prompt(root);
-  return WorldSetupPanel.prompt(root);
+  return promptNewWorldSetup(root);
+}
+
+async function promptNewWorldSetup(root: HTMLElement): Promise<WorldGenerationSettings> {
+  let nobleStep: NobleSetupStep = 'house';
+  let nobleDraft: NobleProfile | undefined;
+  let worldDraft: WorldGenerationSettings | undefined;
+
+  while (true) {
+    nobleDraft = await NobleSetupPanel.prompt(root, {
+      initialStep: nobleStep,
+      initialProfile: nobleDraft,
+    });
+    const result = await WorldSetupPanel.prompt(root, {
+      initialSettings: worldDraft,
+    });
+    worldDraft = result.settings;
+    if (result.action === 'start') return result.settings;
+    nobleStep = 'heraldry';
+  }
 }
 
 export async function beginNewWorld(isReady: () => boolean): Promise<void> {

@@ -25,6 +25,7 @@ app.start().then(async () => {
     });
   }
 }).catch((error) => {
+  app.dispose();
   console.error(error);
   const loading = document.getElementById('app-loading');
   if (loading) {

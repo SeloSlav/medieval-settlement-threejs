@@ -15,6 +15,7 @@ import CallUpActiveSeasonalLaborReducer from "../call_up_active_seasonal_labor_r
 import CallUpTargetReadyProcessorLaborReducer from "../call_up_target_ready_processor_labor_reducer";
 import CallUpYearRoundLaborReducer from "../call_up_year_round_labor_reducer";
 import CancelMarketplaceTradeOrderReducer from "../cancel_marketplace_trade_order_reducer";
+import ClearTreeWorkAreaReducer from "../clear_tree_work_area_reducer";
 import ClientConnectedReducer from "../client_connected_reducer";
 import ClientDisconnectedReducer from "../client_disconnected_reducer";
 import CollectChapelCofferReducer from "../collect_chapel_coffer_reducer";
@@ -37,6 +38,7 @@ import PlaceGraveyardReducer from "../place_graveyard_reducer";
 import PlacePastureReducer from "../place_pasture_reducer";
 import PlaceRemoteWorkCampReducer from "../place_remote_work_camp_reducer";
 import PlaceVineyardReducer from "../place_vineyard_reducer";
+import PurchaseStableOxReducer from "../purchase_stable_ox_reducer";
 import RecallIdleSeasonalLaborReducer from "../recall_idle_seasonal_labor_reducer";
 import RecallTargetIdleProcessorLaborReducer from "../recall_target_idle_processor_labor_reducer";
 import RemoveRoadEdgeReducer from "../remove_road_edge_reducer";
@@ -47,6 +49,7 @@ import RotateConstructionLaborReducer from "../rotate_construction_labor_reducer
 import SetAllStorageAcceptanceReducer from "../set_all_storage_acceptance_reducer";
 import SetApiaryHarvestPolicyReducer from "../set_apiary_harvest_policy_reducer";
 import SetBreweryRecipePolicyReducer from "../set_brewery_recipe_policy_reducer";
+import SetBuildingOxenReducer from "../set_building_oxen_reducer";
 import SetCarpenterCartServiceTargetReducer from "../set_carpenter_cart_service_target_reducer";
 import SetCarpenterPolearmReserveReducer from "../set_carpenter_polearm_reserve_reducer";
 import SetChapelParishPolicyReducer from "../set_chapel_parish_policy_reducer";
@@ -69,7 +72,6 @@ import SetLaborStewardReserveReducer from "../set_labor_steward_reserve_reducer"
 import SetLivestockBreedingReserveReducer from "../set_livestock_breeding_reserve_reducer";
 import SetLivestockHaymakingPercentReducer from "../set_livestock_haymaking_percent_reducer";
 import SetLivestockSpeciesReducer from "../set_livestock_species_reducer";
-import TradeLivestockReducer from "../trade_livestock_reducer";
 import SetMarketplaceGoldReserveTargetReducer from "../set_marketplace_gold_reserve_target_reducer";
 import SetMarketplaceIronTargetReducer from "../set_marketplace_iron_target_reducer";
 import SetMarketplaceIronworkTargetReducer from "../set_marketplace_ironwork_target_reducer";
@@ -94,6 +96,7 @@ import SetStorehousePolicyReducer from "../set_storehouse_policy_reducer";
 import SetStorehouseStockTargetReducer from "../set_storehouse_stock_target_reducer";
 import SetThreshingPriorityReducer from "../set_threshing_priority_reducer";
 import SetTradingPostTradeRuleReducer from "../set_trading_post_trade_rule_reducer";
+import SetTreeWorkAreaReducer from "../set_tree_work_area_reducer";
 import SetWeaverInputPolicyReducer from "../set_weaver_input_policy_reducer";
 import SetWoodcutterTimberReserveReducer from "../set_woodcutter_timber_reserve_reducer";
 import SpecializeAnimalPenReducer from "../specialize_animal_pen_reducer";
@@ -102,6 +105,7 @@ import SpecializeVegetableGardenReducer from "../specialize_vegetable_garden_red
 import StartFarmFieldEarlyHarvestReducer from "../start_farm_field_early_harvest_reducer";
 import SyncRoadNetworkReducer from "../sync_road_network_reducer";
 import TickSimReducer from "../tick_sim_reducer";
+import TradeLivestockReducer from "../trade_livestock_reducer";
 import UpgradeChapelReducer from "../upgrade_chapel_reducer";
 import UpgradeFlowerGardenLuxuryReducer from "../upgrade_flower_garden_luxury_reducer";
 import UpgradeResidenceReducer from "../upgrade_residence_reducer";
@@ -115,6 +119,7 @@ export type CallUpActiveSeasonalLaborParams = __Infer<typeof CallUpActiveSeasona
 export type CallUpTargetReadyProcessorLaborParams = __Infer<typeof CallUpTargetReadyProcessorLaborReducer>;
 export type CallUpYearRoundLaborParams = __Infer<typeof CallUpYearRoundLaborReducer>;
 export type CancelMarketplaceTradeOrderParams = __Infer<typeof CancelMarketplaceTradeOrderReducer>;
+export type ClearTreeWorkAreaParams = __Infer<typeof ClearTreeWorkAreaReducer>;
 export type ClientConnectedParams = __Infer<typeof ClientConnectedReducer>;
 export type ClientDisconnectedParams = __Infer<typeof ClientDisconnectedReducer>;
 export type CollectChapelCofferParams = __Infer<typeof CollectChapelCofferReducer>;
@@ -137,6 +142,7 @@ export type PlaceGraveyardParams = __Infer<typeof PlaceGraveyardReducer>;
 export type PlacePastureParams = __Infer<typeof PlacePastureReducer>;
 export type PlaceRemoteWorkCampParams = __Infer<typeof PlaceRemoteWorkCampReducer>;
 export type PlaceVineyardParams = __Infer<typeof PlaceVineyardReducer>;
+export type PurchaseStableOxParams = __Infer<typeof PurchaseStableOxReducer>;
 export type RecallIdleSeasonalLaborParams = __Infer<typeof RecallIdleSeasonalLaborReducer>;
 export type RecallTargetIdleProcessorLaborParams = __Infer<typeof RecallTargetIdleProcessorLaborReducer>;
 export type RemoveRoadEdgeParams = __Infer<typeof RemoveRoadEdgeReducer>;
@@ -147,6 +153,7 @@ export type RotateConstructionLaborParams = __Infer<typeof RotateConstructionLab
 export type SetAllStorageAcceptanceParams = __Infer<typeof SetAllStorageAcceptanceReducer>;
 export type SetApiaryHarvestPolicyParams = __Infer<typeof SetApiaryHarvestPolicyReducer>;
 export type SetBreweryRecipePolicyParams = __Infer<typeof SetBreweryRecipePolicyReducer>;
+export type SetBuildingOxenParams = __Infer<typeof SetBuildingOxenReducer>;
 export type SetCarpenterCartServiceTargetParams = __Infer<typeof SetCarpenterCartServiceTargetReducer>;
 export type SetCarpenterPolearmReserveParams = __Infer<typeof SetCarpenterPolearmReserveReducer>;
 export type SetChapelParishPolicyParams = __Infer<typeof SetChapelParishPolicyReducer>;
@@ -169,7 +176,6 @@ export type SetLaborStewardReserveParams = __Infer<typeof SetLaborStewardReserve
 export type SetLivestockBreedingReserveParams = __Infer<typeof SetLivestockBreedingReserveReducer>;
 export type SetLivestockHaymakingPercentParams = __Infer<typeof SetLivestockHaymakingPercentReducer>;
 export type SetLivestockSpeciesParams = __Infer<typeof SetLivestockSpeciesReducer>;
-export type TradeLivestockParams = __Infer<typeof TradeLivestockReducer>;
 export type SetMarketplaceGoldReserveTargetParams = __Infer<typeof SetMarketplaceGoldReserveTargetReducer>;
 export type SetMarketplaceIronTargetParams = __Infer<typeof SetMarketplaceIronTargetReducer>;
 export type SetMarketplaceIronworkTargetParams = __Infer<typeof SetMarketplaceIronworkTargetReducer>;
@@ -194,6 +200,7 @@ export type SetStorehousePolicyParams = __Infer<typeof SetStorehousePolicyReduce
 export type SetStorehouseStockTargetParams = __Infer<typeof SetStorehouseStockTargetReducer>;
 export type SetThreshingPriorityParams = __Infer<typeof SetThreshingPriorityReducer>;
 export type SetTradingPostTradeRuleParams = __Infer<typeof SetTradingPostTradeRuleReducer>;
+export type SetTreeWorkAreaParams = __Infer<typeof SetTreeWorkAreaReducer>;
 export type SetWeaverInputPolicyParams = __Infer<typeof SetWeaverInputPolicyReducer>;
 export type SetWoodcutterTimberReserveParams = __Infer<typeof SetWoodcutterTimberReserveReducer>;
 export type SpecializeAnimalPenParams = __Infer<typeof SpecializeAnimalPenReducer>;
@@ -202,6 +209,8 @@ export type SpecializeVegetableGardenParams = __Infer<typeof SpecializeVegetable
 export type StartFarmFieldEarlyHarvestParams = __Infer<typeof StartFarmFieldEarlyHarvestReducer>;
 export type SyncRoadNetworkParams = __Infer<typeof SyncRoadNetworkReducer>;
 export type TickSimParams = __Infer<typeof TickSimReducer>;
+export type TradeLivestockParams = __Infer<typeof TradeLivestockReducer>;
 export type UpgradeChapelParams = __Infer<typeof UpgradeChapelReducer>;
 export type UpgradeFlowerGardenLuxuryParams = __Infer<typeof UpgradeFlowerGardenLuxuryReducer>;
 export type UpgradeResidenceParams = __Infer<typeof UpgradeResidenceReducer>;
+

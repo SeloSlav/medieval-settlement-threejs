@@ -11,6 +11,7 @@ import {
 } from "spacetimedb";
 
 export default {
+  townHallId: __t.u64(),
   landLevyRate: __t.f64(),
   importDutyRate: __t.f64(),
   exportDutyRate: __t.f64(),

@@ -379,6 +379,10 @@ pub(crate) fn place_founding_camp(ctx: &ReducerContext, x: f64, z: f64) -> Resul
         pear_cider: resources.pear_cider.max(0.0),
         settlement_id: settlement.id,
         animal_feed: 0.0,
+        storage_acceptance_mask_high: u64::MAX,
+        wax: resources.wax.max(0.0),
+        candles: resources.candles.max(0.0),
+        apiary_wax_cycle_progress: 0,
     });
 
     resources.timber = 0.0;
@@ -401,6 +405,8 @@ pub(crate) fn place_founding_camp(ctx: &ReducerContext, x: f64, z: f64) -> Resul
     resources.aronia_jam = 0.0;
     resources.rosehip_jam = 0.0;
     resources.pear_cider = 0.0;
+    resources.wax = 0.0;
+    resources.candles = 0.0;
     resources.preserved_food = 0.0;
     resources.honey = 0.0;
     resources.wine = 0.0;

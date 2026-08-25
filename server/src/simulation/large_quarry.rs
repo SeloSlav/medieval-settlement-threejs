@@ -1,8 +1,7 @@
 use spacetimedb::ReducerContext;
 
 use crate::balance_generated::{
-    CIVILIAN_TOOL_IRONWORK_PER_CYCLE, LARGE_QUARRY_TIMBER_SUPPORT_PER_CYCLE,
-    STONE_PER_HARVEST,
+    CIVILIAN_TOOL_IRONWORK_PER_CYCLE, LARGE_QUARRY_TIMBER_SUPPORT_PER_CYCLE, STONE_PER_HARVEST,
 };
 use crate::building_defs::building_def;
 use crate::civilian_tool_policy::{civilian_tool_throughput_multiplier, civilian_tools_maintained};

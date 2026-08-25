@@ -79,6 +79,8 @@ export function buildingStorageRows(
     caps.mead != null && caps.mead > 0 ? `<li><span>Mead stored</span><span>${Math.round(building.mead ?? 0)} / ${caps.mead}</span></li>` : '',
     buildingFoodStorageRows(building, caps.preservedFood ?? 0, true),
     caps.honey != null && caps.honey > 0 ? `<li><span>Honey stored</span><span>${Math.round(building.honey)} / ${caps.honey}</span></li>` : '',
+    caps.wax != null && caps.wax > 0 ? `<li><span>Beeswax stored</span><span>${Math.round(building.wax ?? 0)} / ${caps.wax}</span></li>` : '',
+    caps.candles != null && caps.candles > 0 ? `<li><span>Candles stored</span><span>${Math.round(building.candles ?? 0)} / ${caps.candles}</span></li>` : '',
     caps.wine != null && caps.wine > 0 ? `<li><span>Wine stored</span><span>${Math.round(building.wine)} / ${caps.wine}</span></li>` : '',
     caps.wool != null && caps.wool > 0 ? `<li><span>Wool stored</span><span>${Math.round(building.wool ?? 0)} / ${caps.wool}</span></li>` : '',
     caps.flax != null && caps.flax > 0 ? `<li><span>Flax fibre stored</span><span>${Math.round(building.flax ?? 0)} / ${caps.flax}</span></li>` : '',

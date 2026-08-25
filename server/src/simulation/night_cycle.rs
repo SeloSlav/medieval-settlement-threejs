@@ -172,8 +172,7 @@ fn complete_night_for_settlement(
     // Lighting fuel is included in the household's one monthly firewood unit.
     // Keep the legacy report fields at zero instead of charging an additional
     // nightly fractional resource stream.
-    let _bundled_lighting_share =
-        lighting_firewood_per_household(settlement.night_lighting_policy);
+    let _bundled_lighting_share = lighting_firewood_per_household(settlement.night_lighting_policy);
     let lighting_fuel_used = 0.0;
     let lighting_shortfall = 0.0;
     let lighting_supply_ratio = 1.0;
@@ -195,12 +194,8 @@ fn complete_night_for_settlement(
         0.0
     };
     let wildlife_sightings =
-        (deterministic_unit(
-            world_seed,
-            report_day,
-            &owner,
-            0x5749_4c44 ^ settlement.id,
-        ) < 0.1) as u32;
+        (deterministic_unit(world_seed, report_day, &owner, 0x5749_4c44 ^ settlement.id) < 0.1)
+            as u32;
     let incidents = recent_fires + u32::from(theft_gold > 1e-9);
 
     let social_ratio = social_households as f64 / household_count.max(1) as f64;

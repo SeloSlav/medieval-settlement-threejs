@@ -6,8 +6,8 @@ use crate::balance_generated::{STABLE_OX_PURCHASE_GOLD, STABLE_OX_SLOTS};
 use crate::db::*;
 use crate::economy::spend_treasury_gold;
 use crate::ox_policy::{
-    is_ox_supported_workplace, ox_workplace_capacity, reconcile_ox_posting,
-    OxPostingCandidate, OxPostingError,
+    is_ox_supported_workplace, ox_workplace_capacity, reconcile_ox_posting, OxPostingCandidate,
+    OxPostingError,
 };
 use crate::simulation::building_fire_state;
 use crate::tables::StableOx;

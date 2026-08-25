@@ -73,12 +73,14 @@ pub enum CommodityKind {
     RosehipJam,
     PearCider,
     AnimalFeed,
+    Wax,
+    Candles,
 }
 
 /// Canonical exhaustive commodity iteration order. Systems that must prove a
 /// physical holder is empty (temporary camps, reclamation piles, diagnostics)
 /// use this list so adding a commodity cannot silently strand stock.
-pub const ALL_COMMODITIES: &[CommodityKind; 64] = &[
+pub const ALL_COMMODITIES: &[CommodityKind; 66] = &[
     CommodityKind::Firewood,
     CommodityKind::Water,
     CommodityKind::Food,
@@ -143,6 +145,8 @@ pub const ALL_COMMODITIES: &[CommodityKind; 64] = &[
     CommodityKind::RosehipJam,
     CommodityKind::PearCider,
     CommodityKind::AnimalFeed,
+    CommodityKind::Wax,
+    CommodityKind::Candles,
 ];
 
 pub const FRESH_FOOD_COMMODITIES: [CommodityKind; 20] = [
@@ -378,6 +382,8 @@ impl CommodityKind {
             Self::AroniaJam => 61,
             Self::RosehipJam => 62,
             Self::AnimalFeed => 63,
+            Self::Wax => 64,
+            Self::Candles => 65,
         }
     }
 
@@ -447,6 +453,8 @@ impl CommodityKind {
             61 => Some(Self::AroniaJam),
             62 => Some(Self::RosehipJam),
             63 => Some(Self::AnimalFeed),
+            64 => Some(Self::Wax),
+            65 => Some(Self::Candles),
             _ => None,
         }
     }
@@ -631,6 +639,8 @@ pub fn building_commodity_stock(building: &Building, kind: CommodityKind) -> f64
         CommodityKind::RosehipJam => building.rosehip_jam,
         CommodityKind::PearCider => building.pear_cider,
         CommodityKind::AnimalFeed => building.animal_feed,
+        CommodityKind::Wax => building.wax,
+        CommodityKind::Candles => building.candles,
     }
 }
 
@@ -719,6 +729,8 @@ pub fn building_commodity_cap(kind: &str, commodity: CommodityKind) -> f64 {
         | CommodityKind::AroniaJam
         | CommodityKind::RosehipJam => def.storage_preserved_food,
         CommodityKind::AnimalFeed => def.storage_animal_feed,
+        CommodityKind::Wax => def.storage_wax,
+        CommodityKind::Candles => def.storage_candles,
     }
 }
 
@@ -749,8 +761,9 @@ pub fn storage_accepts_commodity(building: &Building, kind: CommodityKind) -> bo
     ) {
         return !matches!(building.kind.as_str(), "village_storehouse" | "granary");
     }
-    if !crate::storage_acceptance_policy::storage_mask_accepts(
+    if !crate::storage_acceptance_policy::storage_masks_accept(
         building.storage_acceptance_mask,
+        building.storage_acceptance_mask_high,
         kind.as_u8(),
     ) {
         return false;
@@ -908,6 +921,8 @@ pub fn withdraw_building_commodity(
         CommodityKind::RosehipJam => building.rosehip_jam -= withdrawn,
         CommodityKind::PearCider => building.pear_cider -= withdrawn,
         CommodityKind::AnimalFeed => building.animal_feed -= withdrawn,
+        CommodityKind::Wax => building.wax -= withdrawn,
+        CommodityKind::Candles => building.candles -= withdrawn,
     }
     withdrawn
 }
@@ -983,6 +998,8 @@ pub fn deposit_building_commodity(
         CommodityKind::RosehipJam => building.rosehip_jam += deposited,
         CommodityKind::PearCider => building.pear_cider += deposited,
         CommodityKind::AnimalFeed => building.animal_feed += deposited,
+        CommodityKind::Wax => building.wax += deposited,
+        CommodityKind::Candles => building.candles += deposited,
     }
     deposited
 }
@@ -1073,6 +1090,8 @@ pub fn credit_treasury_commodity(
         CommodityKind::PearCider => treasury.pear_cider += amount,
         // Prepared fodder exists only in physical livestock stores.
         CommodityKind::AnimalFeed => return,
+        CommodityKind::Wax => treasury.wax += amount,
+        CommodityKind::Candles => treasury.candles += amount,
     }
     let physical = treasury.physical_founding_site_enabled;
     ctx.db.player_resources().owner().update(treasury);
@@ -1418,12 +1437,12 @@ mod tests {
 
     #[test]
     fn commodity_ids_remain_stable_and_round_trip() {
-        for id in 0_u8..=63 {
+        for id in 0_u8..=65 {
             let commodity =
                 CommodityKind::from_u8(id).unwrap_or_else(|| panic!("missing commodity id {id}"));
             assert_eq!(commodity.as_u8(), id);
         }
-        assert_eq!(CommodityKind::from_u8(64), None);
+        assert_eq!(CommodityKind::from_u8(66), None);
     }
 
     #[test]
@@ -1433,8 +1452,8 @@ mod tests {
             .copied()
             .map(CommodityKind::as_u8)
             .collect::<HashSet<_>>();
-        assert_eq!(ids.len(), 64);
-        for id in 0_u8..=63 {
+        assert_eq!(ids.len(), 66);
+        for id in 0_u8..=65 {
             assert!(ids.contains(&id), "ALL_COMMODITIES omits commodity id {id}");
         }
     }

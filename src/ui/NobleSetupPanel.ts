@@ -16,13 +16,26 @@ import {
   type NobleProfile,
 } from './nobleProfile.ts';
 
+export type NobleSetupStep = 'house' | 'heraldry';
+
+export type NobleSetupOptions = {
+  initialStep?: NobleSetupStep;
+  initialProfile?: NobleProfile;
+};
+
 export class NobleSetupPanel {
   private readonly backdrop: HTMLElement;
   private readonly resolve: (profile: NobleProfile) => void;
+  private readonly heading: HTMLElement;
+  private readonly housePage: HTMLElement;
+  private readonly heraldryPage: HTMLElement;
+  private readonly backButton: HTMLButtonElement;
+  private readonly nextButton: HTMLButtonElement;
   private readonly previewPortrait: HTMLImageElement;
   private readonly previewName: HTMLInputElement;
   private readonly previewTitle: HTMLElement;
   private readonly previewYears: HTMLElement;
+  private readonly heraldryHouseName: HTMLElement;
   private readonly mainShield: HTMLElement;
   private readonly presetStrip: HTMLElement;
   private readonly nobleGrid: HTMLElement;
@@ -39,53 +52,78 @@ export class NobleSetupPanel {
   private readonly angleValue: HTMLElement;
   private readonly countValue: HTMLElement;
   private readonly scaleValue: HTMLElement;
-  private draft = getCurrentNobleProfile();
+  private draft: NobleProfile;
+  private step: NobleSetupStep;
   private selectedPreset = -1;
 
-  private constructor(parent: HTMLElement, resolve: (profile: NobleProfile) => void) {
+  private constructor(
+    parent: HTMLElement,
+    resolve: (profile: NobleProfile) => void,
+    options: NobleSetupOptions,
+  ) {
     this.resolve = resolve;
+    const initialProfile = options.initialProfile ?? getCurrentNobleProfile();
+    this.draft = {
+      ...initialProfile,
+      heraldry: { ...initialProfile.heraldry },
+    };
+    this.step = options.initialStep ?? 'house';
     this.backdrop = document.createElement('div');
     this.backdrop.className = 'noble-setup-backdrop';
     this.backdrop.innerHTML = `
       <form class="noble-setup-shell" aria-label="Noble house and coat of arms selection">
         <header class="noble-setup-heading">
-          <h1>Choose Your Noble House</h1>
+          <nav class="new-game-setup-steps" aria-label="New world setup progress">
+            <ol>
+              <li data-setup-progress="house"><span>1</span><strong>Noble House</strong></li>
+              <li data-setup-progress="heraldry"><span>2</span><strong>Heraldry</strong></li>
+              <li data-setup-progress="map"><span>3</span><strong>Map Generation</strong></li>
+            </ol>
+          </nav>
+          <h1 data-setup-heading tabindex="-1">Choose Your Noble House</h1>
         </header>
 
         <div class="noble-setup-layout">
-          <section class="noble-setup-identity" aria-labelledby="noble-identity-title">
+          <section class="noble-setup-identity" data-setup-step="house" aria-labelledby="noble-identity-title">
             <h2 id="noble-identity-title">Your Noble</h2>
-            <div class="noble-setup-identity-showcase">
-              <div class="noble-setup-portrait-frame">
-                <img data-noble-preview-portrait alt="Selected noble" width="560" height="560" />
+            <div class="noble-setup-house-content">
+              <div class="noble-setup-house-profile">
+                <div class="noble-setup-identity-showcase">
+                  <div class="noble-setup-portrait-frame">
+                    <img data-noble-preview-portrait alt="Selected noble" width="560" height="560" />
+                  </div>
+                </div>
+
+                <div class="noble-setup-portrait-caption">
+                  <span data-noble-preview-title></span>
+                  <small data-noble-preview-years></small>
+                </div>
+
+                <label class="noble-setup-name-label" for="noble-name">
+                  <span>Character Name</span>
+                  <input id="noble-name" data-noble-name maxlength="42" autocomplete="off" spellcheck="false" />
+                </label>
               </div>
-              <div class="noble-setup-emblem-card">
-                <span>Coat of Arms</span>
-                <div class="noble-setup-main-shield" data-main-shield></div>
+
+              <div class="noble-setup-house-roster">
+                <div class="noble-setup-section-heading">
+                  <h3>Historical Figures</h3>
+                  <span>Choose the founder of your house</span>
+                </div>
+                <div class="noble-setup-nobles" data-noble-grid></div>
               </div>
             </div>
-
-            <label class="noble-setup-name-label" for="noble-name">
-              <span>Character Name</span>
-              <input id="noble-name" data-noble-name maxlength="42" autocomplete="off" spellcheck="false" />
-            </label>
-
-            <div class="noble-setup-portrait-caption">
-              <span data-noble-preview-title></span>
-              <small data-noble-preview-years></small>
-            </div>
-
-            <div class="noble-setup-section-heading">
-              <h3>Historical Figures</h3>
-            </div>
-            <div class="noble-setup-nobles" data-noble-grid></div>
           </section>
 
-          <section class="noble-setup-armory" aria-labelledby="noble-armory-title">
+          <section class="noble-setup-armory" data-setup-step="heraldry" aria-labelledby="noble-armory-title" hidden>
             <div class="noble-setup-section-heading noble-setup-section-heading--armory">
               <div>
                 <p class="noble-setup-eyebrow">Coat of Arms</p>
                 <h2 id="noble-armory-title">Heraldry of Your House</h2>
+              </div>
+              <div class="noble-setup-heraldry-preview">
+                <span data-heraldry-house-name></span>
+                <div class="noble-setup-main-shield" data-main-shield></div>
               </div>
             </div>
 
@@ -144,16 +182,27 @@ export class NobleSetupPanel {
         </div>
 
         <footer class="noble-setup-actions">
-          <button type="submit">Continue to Map Setup <i aria-hidden="true">›</i></button>
+          <button type="button" class="noble-setup-back" data-setup-back hidden>
+            <i aria-hidden="true">‹</i> Back to Noble House
+          </button>
+          <button type="submit" data-setup-next>
+            Continue to Heraldry <i aria-hidden="true">›</i>
+          </button>
         </footer>
       </form>
     `;
 
     parent.appendChild(this.backdrop);
+    this.heading = this.mustElement('[data-setup-heading]');
+    this.housePage = this.mustElement('[data-setup-step="house"]');
+    this.heraldryPage = this.mustElement('[data-setup-step="heraldry"]');
+    this.backButton = this.mustButton('[data-setup-back]');
+    this.nextButton = this.mustButton('[data-setup-next]');
     this.previewPortrait = this.mustImage('[data-noble-preview-portrait]');
     this.previewName = this.mustInput('[data-noble-name]');
     this.previewTitle = this.mustElement('[data-noble-preview-title]');
     this.previewYears = this.mustElement('[data-noble-preview-years]');
+    this.heraldryHouseName = this.mustElement('[data-heraldry-house-name]');
     this.presetStrip = this.mustElement('[data-preset-strip]');
     this.nobleGrid = this.mustElement('[data-noble-grid]');
     this.patternGrid = this.mustElement('[data-pattern-grid]');
@@ -182,11 +231,12 @@ export class NobleSetupPanel {
     this.renderColorRow(this.chargeColorRow, 'chargeColor');
     this.bindEvents();
     this.syncAll();
+    this.syncStep();
   }
 
-  static prompt(parent: HTMLElement): Promise<NobleProfile> {
+  static prompt(parent: HTMLElement, options: NobleSetupOptions = {}): Promise<NobleProfile> {
     return new Promise((resolve) => {
-      new NobleSetupPanel(parent, resolve);
+      new NobleSetupPanel(parent, resolve, options);
     });
   }
 
@@ -214,10 +264,21 @@ export class NobleSetupPanel {
       this.clearPresetSelection();
       this.syncHeraldry();
     });
+    this.backButton.addEventListener('click', () => {
+      this.step = 'house';
+      this.syncStep(true);
+    });
     this.backdrop.querySelector<HTMLFormElement>('.noble-setup-shell')!.addEventListener('submit', (event) => {
       event.preventDefault();
       const noble = getNoble(this.draft.nobleId);
       this.draft.displayName = this.previewName.value.trim() || noble.name;
+      this.previewName.value = this.draft.displayName;
+      this.heraldryHouseName.textContent = this.draft.displayName;
+      if (this.step === 'house') {
+        this.step = 'heraldry';
+        this.syncStep(true);
+        return;
+      }
       setCurrentNobleProfile(this.draft);
       const profile = getCurrentNobleProfile();
       this.backdrop.classList.add('is-leaving');
@@ -344,6 +405,7 @@ export class NobleSetupPanel {
     this.previewName.value = this.draft.displayName;
     this.previewTitle.textContent = noble.title;
     this.previewYears.textContent = noble.years;
+    this.heraldryHouseName.textContent = this.draft.displayName;
     for (const button of this.nobleGrid.querySelectorAll<HTMLButtonElement>('[data-noble-id]')) {
       const selected = button.dataset.nobleId === noble.id;
       button.classList.toggle('is-selected', selected);
@@ -397,6 +459,30 @@ export class NobleSetupPanel {
     this.selectedPreset = -1;
   }
 
+  private syncStep(moveFocus = false): void {
+    const isHouse = this.step === 'house';
+    this.housePage.hidden = !isHouse;
+    this.heraldryPage.hidden = isHouse;
+    this.backButton.hidden = isHouse;
+    this.heading.textContent = isHouse
+      ? 'Choose Your Noble House'
+      : 'Design Your Heraldry';
+    this.nextButton.innerHTML = isHouse
+      ? 'Continue to Heraldry <i aria-hidden="true">›</i>'
+      : 'Continue to Map Generation <i aria-hidden="true">›</i>';
+    this.backdrop.dataset.activeSetupStep = this.step;
+
+    for (const item of this.backdrop.querySelectorAll<HTMLElement>('[data-setup-progress]')) {
+      const progressStep = item.dataset.setupProgress;
+      const active = progressStep === this.step;
+      if (active) item.setAttribute('aria-current', 'step');
+      else item.removeAttribute('aria-current');
+      item.classList.toggle('is-complete', this.step === 'heraldry' && progressStep === 'house');
+    }
+
+    if (moveFocus) this.heading.focus();
+  }
+
   private mustElement(selector: string): HTMLElement {
     const element = this.backdrop.querySelector<HTMLElement>(selector);
     if (!element) throw new Error(`Noble setup is missing ${selector}.`);
@@ -407,6 +493,12 @@ export class NobleSetupPanel {
     const input = this.backdrop.querySelector<HTMLInputElement>(selector);
     if (!input) throw new Error(`Noble setup is missing ${selector}.`);
     return input;
+  }
+
+  private mustButton(selector: string): HTMLButtonElement {
+    const button = this.backdrop.querySelector<HTMLButtonElement>(selector);
+    if (!button) throw new Error(`Noble setup is missing ${selector}.`);
+    return button;
   }
 
   private mustImage(selector: string): HTMLImageElement {

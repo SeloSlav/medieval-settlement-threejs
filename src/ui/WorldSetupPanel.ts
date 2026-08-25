@@ -22,18 +22,35 @@ import {
   type RegionalDepositResource,
 } from '../world/regionalResourceDistribution.ts';
 
+export type WorldSetupResult = {
+  action: 'back' | 'start';
+  settings: WorldGenerationSettings;
+};
+
+export type WorldSetupOptions = {
+  initialSettings?: WorldGenerationSettings;
+};
+
 export class WorldSetupPanel {
   private readonly backdrop: HTMLElement;
-  private readonly resolve: (settings: WorldGenerationSettings) => void;
-  private draft: WorldGenerationSettings = applyTerrainPreset(
-    { ...DEFAULT_WORLD_GENERATION_SETTINGS },
-    'delnice_meadow',
-  );
+  private readonly resolve: (result: WorldSetupResult) => void;
+  private draft: WorldGenerationSettings;
 
-  private constructor(parent: HTMLElement, resolve: (settings: WorldGenerationSettings) => void) {
+  private constructor(
+    parent: HTMLElement,
+    resolve: (result: WorldSetupResult) => void,
+    options: WorldSetupOptions,
+  ) {
     this.resolve = resolve;
+    this.draft = options.initialSettings
+      ? normalizeWorldGenerationSettings(options.initialSettings)
+      : applyTerrainPreset(
+        { ...DEFAULT_WORLD_GENERATION_SETTINGS },
+        'delnice_meadow',
+      );
     this.backdrop = document.createElement('div');
     this.backdrop.className = 'world-setup-backdrop';
+    this.backdrop.dataset.activeSetupStep = 'map';
     this.backdrop.innerHTML = `
       <div class="world-setup-shell">
         <img
@@ -45,7 +62,18 @@ export class WorldSetupPanel {
           fetchpriority="high"
           decoding="sync"
         />
-        <form class="world-setup-dialog" aria-label="World setup">
+        <form class="world-setup-dialog" aria-label="Map generation">
+          <header class="world-setup-wizard-heading">
+            <nav class="new-game-setup-steps" aria-label="New world setup progress">
+              <ol>
+                <li class="is-complete" data-setup-progress="house"><span>1</span><strong>Noble House</strong></li>
+                <li class="is-complete" data-setup-progress="heraldry"><span>2</span><strong>Heraldry</strong></li>
+                <li data-setup-progress="map" aria-current="step"><span>3</span><strong>Map Generation</strong></li>
+              </ol>
+            </nav>
+            <p>New World</p>
+            <h1>Map Generation</h1>
+          </header>
           <div class="world-setup-scroll" aria-label="World settings">
             <section class="world-setup-section" aria-label="Map size">
             <h2 class="world-setup-section__title">Map size</h2>
@@ -176,7 +204,10 @@ export class WorldSetupPanel {
                 <button type="button" class="world-setup-randomize" data-randomize-seed>Randomize</button>
               </div>
             </div>
-            <button type="submit" class="world-setup-start">Start world</button>
+            <div class="world-setup-actions__navigation">
+              <button type="button" class="world-setup-back" data-setup-back>Back to Heraldry</button>
+              <button type="submit" class="world-setup-start">Start world</button>
+            </div>
           </div>
         </form>
       </div>
@@ -188,9 +219,9 @@ export class WorldSetupPanel {
     this.bindEvents();
   }
 
-  static prompt(parent: HTMLElement): Promise<WorldGenerationSettings> {
+  static prompt(parent: HTMLElement, options: WorldSetupOptions = {}): Promise<WorldSetupResult> {
     return new Promise((resolve) => {
-      new WorldSetupPanel(parent, resolve);
+      new WorldSetupPanel(parent, resolve, options);
     });
   }
 
@@ -216,6 +247,7 @@ export class WorldSetupPanel {
     const severeWeatherState = this.backdrop.querySelector<HTMLElement>('[data-severe-weather-state]')!;
     const aquiferNetworksButton = this.backdrop.querySelector<HTMLButtonElement>('[data-aquifer-networks]')!;
     const aquiferNetworksState = this.backdrop.querySelector<HTMLElement>('[data-aquifer-networks-state]')!;
+    const backButton = this.backdrop.querySelector<HTMLButtonElement>('[data-setup-back]')!;
     const landscapeGrid = this.backdrop.querySelector<HTMLElement>('[data-landscape-grid]')!;
     const landscapeNote = this.backdrop.querySelector<HTMLElement>('[data-landscape-note]')!;
     const customLandscapeControls = this.backdrop.querySelector<HTMLElement>('[data-custom-landscape-controls]')!;
@@ -250,18 +282,37 @@ export class WorldSetupPanel {
     }
     syncLandscapeControls();
 
+    const syncConflictControls = (): void => {
+      pressureSlider.value = String(Math.max(10, this.draft.enemyPressure));
+      pressureValue.textContent = pressureSlider.value;
+      pressureControls.hidden = this.draft.conflictMode !== 'frontier';
+      for (const option of modeGrid.querySelectorAll<HTMLButtonElement>('[data-conflict-mode]')) {
+        const selected = option.dataset.conflictMode === this.draft.conflictMode;
+        option.classList.toggle('is-selected', selected);
+        option.setAttribute('aria-pressed', String(selected));
+      }
+    };
+
+    const syncHazardControls = (): void => {
+      severeWeatherButton.classList.toggle('is-selected', this.draft.severeWeatherEnabled);
+      severeWeatherButton.setAttribute('aria-pressed', String(this.draft.severeWeatherEnabled));
+      severeWeatherState.textContent = this.draft.severeWeatherEnabled
+        ? 'On · severe events'
+        : 'Off · beginner friendly';
+      aquiferNetworksButton.classList.toggle('is-selected', this.draft.wellAquiferNetworksEnabled);
+      aquiferNetworksButton.setAttribute('aria-pressed', String(this.draft.wellAquiferNetworksEnabled));
+      aquiferNetworksState.textContent = this.draft.wellAquiferNetworksEnabled
+        ? 'On · placement matters'
+        : 'Off · even groundwater';
+    };
+
     for (const button of modeGrid.querySelectorAll<HTMLButtonElement>('[data-conflict-mode]')) {
       button.addEventListener('click', () => {
         this.draft.conflictMode = button.dataset.conflictMode === 'frontier' ? 'frontier' : 'peaceful';
         if (this.draft.conflictMode === 'frontier' && this.draft.enemyPressure <= 0) {
           this.draft.enemyPressure = 50;
         }
-        pressureSlider.value = String(Math.max(10, this.draft.enemyPressure));
-        pressureValue.textContent = pressureSlider.value;
-        pressureControls.hidden = this.draft.conflictMode !== 'frontier';
-        for (const option of modeGrid.querySelectorAll<HTMLButtonElement>('[data-conflict-mode]')) {
-          option.classList.toggle('is-selected', option.dataset.conflictMode === this.draft.conflictMode);
-        }
+        syncConflictControls();
       });
     }
     pressureSlider.addEventListener('input', () => {
@@ -270,20 +321,14 @@ export class WorldSetupPanel {
     });
     severeWeatherButton.addEventListener('click', () => {
       this.draft.severeWeatherEnabled = !this.draft.severeWeatherEnabled;
-      severeWeatherButton.classList.toggle('is-selected', this.draft.severeWeatherEnabled);
-      severeWeatherButton.setAttribute('aria-pressed', String(this.draft.severeWeatherEnabled));
-      severeWeatherState.textContent = this.draft.severeWeatherEnabled
-        ? 'On · severe events'
-        : 'Off · beginner friendly';
+      syncHazardControls();
     });
     aquiferNetworksButton.addEventListener('click', () => {
       this.draft.wellAquiferNetworksEnabled = !this.draft.wellAquiferNetworksEnabled;
-      aquiferNetworksButton.classList.toggle('is-selected', this.draft.wellAquiferNetworksEnabled);
-      aquiferNetworksButton.setAttribute('aria-pressed', String(this.draft.wellAquiferNetworksEnabled));
-      aquiferNetworksState.textContent = this.draft.wellAquiferNetworksEnabled
-        ? 'On · placement matters'
-        : 'Off · even groundwater';
+      syncHazardControls();
     });
+    syncConflictControls();
+    syncHazardControls();
 
     topographySlider.addEventListener('input', () => {
       this.draft.topography = Number(topographySlider.value);
@@ -327,15 +372,25 @@ export class WorldSetupPanel {
       this.renderResourceSummary();
     });
 
-    form.addEventListener('submit', (event) => {
-      event.preventDefault();
+    const readSettings = (): WorldGenerationSettings => {
       const parsed = parseSeedHex(seedInput.value);
       if (parsed !== null) {
         this.draft.seed = seedForTerrainPreset(parsed, this.draft.terrainPreset);
       }
-      const settings = normalizeWorldGenerationSettings(this.draft);
+      return normalizeWorldGenerationSettings(this.draft);
+    };
+
+    backButton.addEventListener('click', () => {
+      const settings = readSettings();
       this.backdrop.remove();
-      this.resolve(settings);
+      this.resolve({ action: 'back', settings });
+    });
+
+    form.addEventListener('submit', (event) => {
+      event.preventDefault();
+      const settings = readSettings();
+      this.backdrop.remove();
+      this.resolve({ action: 'start', settings });
     });
   }
 

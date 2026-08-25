@@ -17,10 +17,7 @@ use crate::tables::{farm_field, Building, Settlement};
 
 use super::{building_fire_state, building_has_active_trip, preserve_in_transit_cart_labor};
 
-pub fn settlement_has_staffed_town_hall(
-    ctx: &ReducerContext,
-    settlement: &Settlement,
-) -> bool {
+pub fn settlement_has_staffed_town_hall(ctx: &ReducerContext, settlement: &Settlement) -> bool {
     settlement.town_hall_id != 0
         && ctx
             .db
@@ -253,8 +250,7 @@ pub fn reconcile_seasonal_labor_for_settlement(
     month: u32,
     labor_reserve: u32,
 ) -> (u32, u32) {
-    let recalled =
-        recall_idle_seasonal_labor_for_scope(ctx, owner, Some(settlement_id), month);
+    let recalled = recall_idle_seasonal_labor_for_scope(ctx, owner, Some(settlement_id), month);
     let called_up = call_up_active_seasonal_labor_for_scope(
         ctx,
         owner,

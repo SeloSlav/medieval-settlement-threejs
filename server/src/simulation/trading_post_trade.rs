@@ -484,10 +484,10 @@ fn source_exportable_stock(
     let has_feed_commitment = commodity == CommodityKind::OatGrain
         && ctx
             .db
-            .livestock_herd()
-            .building_id()
-            .find(&building.id)
-            .is_some_and(|herd| herd.head_count > 0);
+            .pasture_herd()
+            .farmstead_id()
+            .filter(&building.id)
+            .any(|herd| herd.head_count > 0);
     let stock = if commodity == CommodityKind::OatGrain {
         livestock_feed_oat_exportable_stock(&building.kind, stock, has_feed_commitment)
     } else {

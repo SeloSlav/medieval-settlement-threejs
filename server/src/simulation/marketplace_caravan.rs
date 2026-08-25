@@ -13,8 +13,8 @@ use crate::db::*;
 use crate::economy::{
     building_commodity_room, building_commodity_stock, building_edible_food_stock,
     building_preserved_food_stock, mark_local_civic_receipts_dispatched,
-    marketplace_proceeds_cart_load, physical_treasury_seat_for_settlement,
-    private_export_proceeds, CommodityKind,
+    marketplace_proceeds_cart_load, physical_treasury_seat_for_settlement, private_export_proceeds,
+    CommodityKind,
 };
 use crate::resource_units::whole_units;
 use crate::season_policy::EnvironmentState;
@@ -52,7 +52,7 @@ pub struct MarketCaravanDispatch {
     pub exact_load_amount: Option<f64>,
 }
 
-const TRADING_POST_SERVICE_ROUTES: [(ResidenceNeedKind, Option<CommodityKind>); 12] = [
+const TRADING_POST_SERVICE_ROUTES: [(ResidenceNeedKind, Option<CommodityKind>); 13] = [
     (ResidenceNeedKind::Food, None),
     (ResidenceNeedKind::PreservedFood, None),
     (ResidenceNeedKind::Firewood, None),
@@ -63,6 +63,7 @@ const TRADING_POST_SERVICE_ROUTES: [(ResidenceNeedKind, Option<CommodityKind>); 
     (ResidenceNeedKind::Cloth, None),
     (ResidenceNeedKind::Shoes, None),
     (ResidenceNeedKind::Pottery, None),
+    (ResidenceNeedKind::Luxury, Some(CommodityKind::Candles)),
     (ResidenceNeedKind::Luxury, Some(CommodityKind::Wine)),
     (ResidenceNeedKind::Luxury, Some(CommodityKind::Honey)),
 ];
@@ -561,11 +562,9 @@ fn try_dispatch_marketplace_proceeds(
     if load < 1.0 {
         return false;
     }
-    let Some(target) = physical_treasury_seat_for_settlement(
-        ctx,
-        marketplace.owner,
-        marketplace.settlement_id,
-    ) else {
+    let Some(target) =
+        physical_treasury_seat_for_settlement(ctx, marketplace.owner, marketplace.settlement_id)
+    else {
         return false;
     };
     if target.id == marketplace.id {
@@ -680,7 +679,11 @@ mod tests {
         ] {
             assert!(TRADING_POST_SERVICE_ROUTES.contains(&route));
         }
-        for commodity in [CommodityKind::Wine, CommodityKind::Honey] {
+        for commodity in [
+            CommodityKind::Candles,
+            CommodityKind::Wine,
+            CommodityKind::Honey,
+        ] {
             assert!(TRADING_POST_SERVICE_ROUTES
                 .contains(&(ResidenceNeedKind::Luxury, Some(commodity),)));
         }

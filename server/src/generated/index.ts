@@ -43,6 +43,7 @@ import CallUpActiveSeasonalLaborReducer from "./call_up_active_seasonal_labor_re
 import CallUpTargetReadyProcessorLaborReducer from "./call_up_target_ready_processor_labor_reducer";
 import CallUpYearRoundLaborReducer from "./call_up_year_round_labor_reducer";
 import CancelMarketplaceTradeOrderReducer from "./cancel_marketplace_trade_order_reducer";
+import ClearTreeWorkAreaReducer from "./clear_tree_work_area_reducer";
 import CollectChapelCofferReducer from "./collect_chapel_coffer_reducer";
 import ConfigureWorldReducer from "./configure_world_reducer";
 import DemolishBackyardGardenReducer from "./demolish_backyard_garden_reducer";
@@ -63,6 +64,7 @@ import PlaceGraveyardReducer from "./place_graveyard_reducer";
 import PlacePastureReducer from "./place_pasture_reducer";
 import PlaceRemoteWorkCampReducer from "./place_remote_work_camp_reducer";
 import PlaceVineyardReducer from "./place_vineyard_reducer";
+import PurchaseStableOxReducer from "./purchase_stable_ox_reducer";
 import RecallIdleSeasonalLaborReducer from "./recall_idle_seasonal_labor_reducer";
 import RecallTargetIdleProcessorLaborReducer from "./recall_target_idle_processor_labor_reducer";
 import RemoveRoadEdgeReducer from "./remove_road_edge_reducer";
@@ -73,6 +75,7 @@ import RotateConstructionLaborReducer from "./rotate_construction_labor_reducer"
 import SetAllStorageAcceptanceReducer from "./set_all_storage_acceptance_reducer";
 import SetApiaryHarvestPolicyReducer from "./set_apiary_harvest_policy_reducer";
 import SetBreweryRecipePolicyReducer from "./set_brewery_recipe_policy_reducer";
+import SetBuildingOxenReducer from "./set_building_oxen_reducer";
 import SetCarpenterCartServiceTargetReducer from "./set_carpenter_cart_service_target_reducer";
 import SetCarpenterPolearmReserveReducer from "./set_carpenter_polearm_reserve_reducer";
 import SetChapelParishPolicyReducer from "./set_chapel_parish_policy_reducer";
@@ -95,7 +98,6 @@ import SetLaborStewardReserveReducer from "./set_labor_steward_reserve_reducer";
 import SetLivestockBreedingReserveReducer from "./set_livestock_breeding_reserve_reducer";
 import SetLivestockHaymakingPercentReducer from "./set_livestock_haymaking_percent_reducer";
 import SetLivestockSpeciesReducer from "./set_livestock_species_reducer";
-import TradeLivestockReducer from "./trade_livestock_reducer";
 import SetMarketplaceGoldReserveTargetReducer from "./set_marketplace_gold_reserve_target_reducer";
 import SetMarketplaceIronTargetReducer from "./set_marketplace_iron_target_reducer";
 import SetMarketplaceIronworkTargetReducer from "./set_marketplace_ironwork_target_reducer";
@@ -120,6 +122,7 @@ import SetStorehousePolicyReducer from "./set_storehouse_policy_reducer";
 import SetStorehouseStockTargetReducer from "./set_storehouse_stock_target_reducer";
 import SetThreshingPriorityReducer from "./set_threshing_priority_reducer";
 import SetTradingPostTradeRuleReducer from "./set_trading_post_trade_rule_reducer";
+import SetTreeWorkAreaReducer from "./set_tree_work_area_reducer";
 import SetWeaverInputPolicyReducer from "./set_weaver_input_policy_reducer";
 import SetWoodcutterTimberReserveReducer from "./set_woodcutter_timber_reserve_reducer";
 import SpecializeAnimalPenReducer from "./specialize_animal_pen_reducer";
@@ -128,6 +131,7 @@ import SpecializeVegetableGardenReducer from "./specialize_vegetable_garden_redu
 import StartFarmFieldEarlyHarvestReducer from "./start_farm_field_early_harvest_reducer";
 import SyncRoadNetworkReducer from "./sync_road_network_reducer";
 import TickSimReducer from "./tick_sim_reducer";
+import TradeLivestockReducer from "./trade_livestock_reducer";
 import UpgradeChapelReducer from "./upgrade_chapel_reducer";
 import UpgradeFlowerGardenLuxuryReducer from "./upgrade_flower_garden_luxury_reducer";
 import UpgradeResidenceReducer from "./upgrade_residence_reducer";
@@ -151,15 +155,19 @@ import GuardMusterRouteRow from "./guard_muster_route_table";
 import LivestockHerdRow from "./livestock_herd_table";
 import MarketStateRow from "./market_state_table";
 import PastureRow from "./pasture_table";
+import PastureHerdRow from "./pasture_herd_table";
 import PlayerResourcesRow from "./player_resources_table";
 import QuarryRow from "./quarry_table";
 import RaidIncursionRouteRow from "./raid_incursion_route_table";
 import ResidenceRow from "./residence_table";
 import ResidenceNeedRow from "./residence_need_table";
+import ResourceUnitMigrationRow from "./resource_unit_migration_table";
 import RoadNetworkStateRow from "./road_network_state_table";
+import SettlementRow from "./settlement_table";
 import SettlementSecurityRow from "./settlement_security_table";
 import SimPacingStateRow from "./sim_pacing_state_table";
 import SimTickScheduleRow from "./sim_tick_schedule_table";
+import StableOxRow from "./stable_ox_table";
 import TradingPostTradeRuleRow from "./trading_post_trade_rule_table";
 import TreeEntityRow from "./tree_entity_table";
 import VineyardParcelRow from "./vineyard_parcel_table";
@@ -220,6 +228,9 @@ const tablesSchema = __schema({
       { name: 'owner', algorithm: 'btree', columns: [
         'owner',
       ] },
+      { name: 'settlement_id', algorithm: 'btree', columns: [
+        'settlementId',
+      ] },
     ],
     constraints: [
       { name: 'building_id_key', constraint: 'unique', columns: ['id'] },
@@ -233,6 +244,9 @@ const tablesSchema = __schema({
       ] },
       { name: 'owner', algorithm: 'btree', columns: [
         'owner',
+      ] },
+      { name: 'settlement_id', algorithm: 'btree', columns: [
+        'settlementId',
       ] },
     ],
     constraints: [
@@ -423,6 +437,23 @@ const tablesSchema = __schema({
       { name: 'pasture_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, PastureRow),
+  pasture_herd: __table({
+    name: 'pasture_herd',
+    indexes: [
+      { name: 'farmstead_id', algorithm: 'btree', columns: [
+        'farmsteadId',
+      ] },
+      { name: 'owner', algorithm: 'btree', columns: [
+        'owner',
+      ] },
+      { name: 'pasture_id', algorithm: 'btree', columns: [
+        'pastureId',
+      ] },
+    ],
+    constraints: [
+      { name: 'pasture_herd_pasture_id_key', constraint: 'unique', columns: ['pastureId'] },
+    ],
+  }, PastureHerdRow),
   player_resources: __table({
     name: 'player_resources',
     indexes: [
@@ -468,6 +499,9 @@ const tablesSchema = __schema({
       { name: 'owner', algorithm: 'btree', columns: [
         'owner',
       ] },
+      { name: 'settlement_id', algorithm: 'btree', columns: [
+        'settlementId',
+      ] },
       { name: 'zone_id', algorithm: 'btree', columns: [
         'zoneId',
       ] },
@@ -490,6 +524,17 @@ const tablesSchema = __schema({
       { name: 'residence_need_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, ResidenceNeedRow),
+  resource_unit_migration: __table({
+    name: 'resource_unit_migration',
+    indexes: [
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'resource_unit_migration_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, ResourceUnitMigrationRow),
   road_network_state: __table({
     name: 'road_network_state',
     indexes: [
@@ -501,6 +546,20 @@ const tablesSchema = __schema({
       { name: 'road_network_state_owner_key', constraint: 'unique', columns: ['owner'] },
     ],
   }, RoadNetworkStateRow),
+  settlement: __table({
+    name: 'settlement',
+    indexes: [
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+      { name: 'owner', algorithm: 'btree', columns: [
+        'owner',
+      ] },
+    ],
+    constraints: [
+      { name: 'settlement_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, SettlementRow),
   settlement_security: __table({
     name: 'settlement_security',
     indexes: [
@@ -534,6 +593,26 @@ const tablesSchema = __schema({
       { name: 'sim_tick_schedule_schedule_id_key', constraint: 'unique', columns: ['scheduleId'] },
     ],
   }, SimTickScheduleRow),
+  stable_ox: __table({
+    name: 'stable_ox',
+    indexes: [
+      { name: 'assigned_building_id', algorithm: 'btree', columns: [
+        'assignedBuildingId',
+      ] },
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+      { name: 'owner', algorithm: 'btree', columns: [
+        'owner',
+      ] },
+      { name: 'stable_id', algorithm: 'btree', columns: [
+        'stableId',
+      ] },
+    ],
+    constraints: [
+      { name: 'stable_ox_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, StableOxRow),
   trading_post_trade_rule: __table({
     name: 'trading_post_trade_rule',
     indexes: [
@@ -603,6 +682,7 @@ const reducersSchema = __reducers(
   __reducerSchema("call_up_target_ready_processor_labor", CallUpTargetReadyProcessorLaborReducer),
   __reducerSchema("call_up_year_round_labor", CallUpYearRoundLaborReducer),
   __reducerSchema("cancel_marketplace_trade_order", CancelMarketplaceTradeOrderReducer),
+  __reducerSchema("clear_tree_work_area", ClearTreeWorkAreaReducer),
   __reducerSchema("collect_chapel_coffer", CollectChapelCofferReducer),
   __reducerSchema("configure_world", ConfigureWorldReducer),
   __reducerSchema("demolish_backyard_garden", DemolishBackyardGardenReducer),
@@ -623,6 +703,7 @@ const reducersSchema = __reducers(
   __reducerSchema("place_pasture", PlacePastureReducer),
   __reducerSchema("place_remote_work_camp", PlaceRemoteWorkCampReducer),
   __reducerSchema("place_vineyard", PlaceVineyardReducer),
+  __reducerSchema("purchase_stable_ox", PurchaseStableOxReducer),
   __reducerSchema("recall_idle_seasonal_labor", RecallIdleSeasonalLaborReducer),
   __reducerSchema("recall_target_idle_processor_labor", RecallTargetIdleProcessorLaborReducer),
   __reducerSchema("remove_road_edge", RemoveRoadEdgeReducer),
@@ -633,6 +714,7 @@ const reducersSchema = __reducers(
   __reducerSchema("set_all_storage_acceptance", SetAllStorageAcceptanceReducer),
   __reducerSchema("set_apiary_harvest_policy", SetApiaryHarvestPolicyReducer),
   __reducerSchema("set_brewery_recipe_policy", SetBreweryRecipePolicyReducer),
+  __reducerSchema("set_building_oxen", SetBuildingOxenReducer),
   __reducerSchema("set_carpenter_cart_service_target", SetCarpenterCartServiceTargetReducer),
   __reducerSchema("set_carpenter_polearm_reserve", SetCarpenterPolearmReserveReducer),
   __reducerSchema("set_chapel_parish_policy", SetChapelParishPolicyReducer),
@@ -655,7 +737,6 @@ const reducersSchema = __reducers(
   __reducerSchema("set_livestock_breeding_reserve", SetLivestockBreedingReserveReducer),
   __reducerSchema("set_livestock_haymaking_percent", SetLivestockHaymakingPercentReducer),
   __reducerSchema("set_livestock_species", SetLivestockSpeciesReducer),
-  __reducerSchema("trade_livestock", TradeLivestockReducer),
   __reducerSchema("set_marketplace_gold_reserve_target", SetMarketplaceGoldReserveTargetReducer),
   __reducerSchema("set_marketplace_iron_target", SetMarketplaceIronTargetReducer),
   __reducerSchema("set_marketplace_ironwork_target", SetMarketplaceIronworkTargetReducer),
@@ -680,6 +761,7 @@ const reducersSchema = __reducers(
   __reducerSchema("set_storehouse_stock_target", SetStorehouseStockTargetReducer),
   __reducerSchema("set_threshing_priority", SetThreshingPriorityReducer),
   __reducerSchema("set_trading_post_trade_rule", SetTradingPostTradeRuleReducer),
+  __reducerSchema("set_tree_work_area", SetTreeWorkAreaReducer),
   __reducerSchema("set_weaver_input_policy", SetWeaverInputPolicyReducer),
   __reducerSchema("set_woodcutter_timber_reserve", SetWoodcutterTimberReserveReducer),
   __reducerSchema("specialize_animal_pen", SpecializeAnimalPenReducer),
@@ -688,6 +770,7 @@ const reducersSchema = __reducers(
   __reducerSchema("start_farm_field_early_harvest", StartFarmFieldEarlyHarvestReducer),
   __reducerSchema("sync_road_network", SyncRoadNetworkReducer),
   __reducerSchema("tick_sim", TickSimReducer),
+  __reducerSchema("trade_livestock", TradeLivestockReducer),
   __reducerSchema("upgrade_chapel", UpgradeChapelReducer),
   __reducerSchema("upgrade_flower_garden_luxury", UpgradeFlowerGardenLuxuryReducer),
   __reducerSchema("upgrade_residence", UpgradeResidenceReducer),
@@ -746,3 +829,4 @@ export class DbConnection extends __DbConnectionImpl<typeof REMOTE_MODULE> {
     return new SubscriptionBuilder(this);
   };
 }
+

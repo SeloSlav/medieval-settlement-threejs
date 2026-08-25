@@ -785,8 +785,103 @@
 
 .noble-setup-actions button i { margin-left: 9px; font-size: 20px; font-style: normal; line-height: 0; }
 
+/* Three-page new-world flow ------------------------------------------- */
+
+.noble-setup-heading h1:focus { outline: none; }
+
+.noble-setup-layout {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.noble-setup-layout > [data-setup-step][hidden] {
+  display: none;
+}
+
+.noble-setup-identity,
+.noble-setup-armory {
+  width: 100%;
+}
+
+.noble-setup-identity {
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 14px;
+  border-right: 0;
+}
+
+.noble-setup-house-content {
+  display: grid;
+  grid-template-columns: minmax(250px, 0.48fr) minmax(0, 1.52fr);
+  align-items: center;
+  gap: clamp(22px, 4vw, 58px);
+  width: min(1120px, 100%);
+  min-height: 0;
+  margin: auto;
+}
+
+.noble-setup-house-profile {
+  display: grid;
+  align-content: center;
+  gap: 9px;
+  width: min(340px, 100%);
+  min-width: 0;
+  justify-self: end;
+}
+
+.noble-setup-identity-showcase {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.noble-setup-house-roster {
+  display: grid;
+  align-content: center;
+  gap: 11px;
+  min-width: 0;
+}
+
+.noble-setup-heraldry-preview {
+  display: grid;
+  grid-template-columns: minmax(0, 130px) 72px;
+  align-items: center;
+  gap: 13px;
+  min-width: 0;
+  padding: 5px 8px 5px 14px;
+  border: 1px solid rgba(218, 190, 126, 0.24);
+  border-radius: 3px 3px 13px 3px;
+  background: rgba(8, 10, 8, 0.46);
+}
+
+.noble-setup-heraldry-preview > span {
+  overflow: hidden;
+  color: #cdbd9b;
+  font-size: 11px;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.noble-setup-heraldry-preview .heraldry-shield--main {
+  width: 54px;
+}
+
+.noble-setup-actions .noble-setup-back {
+  min-width: 210px;
+  margin-right: auto;
+  border-color: rgba(213, 190, 139, 0.32);
+  color: #cfc2a7;
+  background: rgba(8, 10, 8, 0.46);
+}
+
+.noble-setup-actions .noble-setup-back i {
+  margin-right: 9px;
+  margin-left: 0;
+}
+
+.noble-setup-actions button[hidden] {
+  display: none;
+}
+
 @media (max-width: 1120px) {
-  .noble-setup-layout { grid-template-columns: minmax(350px, 0.68fr) minmax(580px, 1.32fr); }
+  .noble-setup-layout { grid-template-columns: minmax(0, 1fr); }
   .noble-setup-identity, .noble-setup-armory { padding: 14px; }
   .noble-setup-presets { grid-template-columns: repeat(8, 1fr); }
   .noble-setup-preset:nth-child(n + 9) { display: none; }
@@ -796,40 +891,147 @@
 @media (max-width: 820px) {
   .noble-setup-backdrop { padding: 0; }
   .noble-setup-shell { width: 100%; height: 100%; border: 0; }
-  .noble-setup-heading { padding: 10px 14px; }
+  .noble-setup-heading { padding: 5px 12px 7px; }
+  .noble-setup-heading h1 { font-size: 20px; }
   .noble-setup-layout {
-    grid-template-columns: 1fr;
-    grid-template-rows: none;
-    grid-auto-rows: max-content;
-    align-content: start;
-    overflow-y: auto;
+    grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+    grid-template-rows: minmax(0, 1fr);
+    overflow: hidden;
+  }
+  .noble-setup-identity,
+  .noble-setup-armory {
+    min-width: 0;
+    min-height: 0;
+    padding: 7px;
+    overflow: hidden;
   }
   .noble-setup-identity {
     grid-template-rows: repeat(6, max-content);
-    min-height: auto;
-    border-right: 0;
-    border-bottom: 1px solid rgba(213, 190, 139, 0.18);
-    overflow: visible;
+    align-content: start;
+    gap: 4px;
+    border-right: 1px solid rgba(213, 190, 139, 0.18);
   }
+  .noble-setup-identity > h2 { font-size: 10px; }
   .noble-setup-identity-showcase {
-    grid-template-columns: minmax(0, 1fr) minmax(120px, 0.42fr);
-    min-height: auto;
+    grid-template-columns: minmax(0, 1fr) 68px;
+    gap: 6px;
   }
+  .noble-setup-emblem-card { padding: 5px 3px 6px; border-radius: 2px 2px 10px 2px; }
+  .noble-setup-emblem-card > span { font-size: 6px; letter-spacing: 0.08em; }
+  .heraldry-shield--main { width: min(100%, 62px); }
+  .noble-setup-name-label { gap: 2px; }
+  .noble-setup-name-label > span { font-size: 7px; }
+  .noble-setup-name-label input { height: 30px; padding: 3px 7px; font-size: 13px; }
+  .noble-setup-portrait-caption { gap: 4px; min-height: 11px; }
+  .noble-setup-portrait-caption span { font-size: 8px; }
+  .noble-setup-portrait-caption small { font-size: 6px; }
+  .noble-setup-section-heading h3 { font-size: 9px; }
+  .noble-setup-nobles { grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 3px; }
+  .noble-setup-noble span { padding: 9px 1px 2px; font-size: 5px; }
   .noble-setup-armory {
-    grid-template-rows: auto auto auto;
-    min-height: auto;
-    overflow: visible;
+    grid-template-rows: auto auto minmax(0, 1fr);
+    gap: 5px;
   }
-  .noble-setup-actions { padding: 8px 12px; }
+  .noble-setup-section-heading--armory { padding: 0; }
+  .noble-setup-eyebrow { font-size: 6px; }
+  .noble-setup-section-heading--armory h2 { font-size: 14px; }
+  .noble-setup-presets { gap: 3px; padding: 3px 4px; }
+  .noble-setup-preset { padding: 2px 0; }
+  .heraldry-shield--preset { width: 24px; }
+  .noble-setup-armory-columns { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 5px; }
+  .noble-setup-editor-panel { gap: 4px; padding: 5px; overflow: hidden; }
+  .noble-setup-editor-title {
+    grid-template-columns: 18px 1fr;
+    gap: 4px;
+    min-height: 20px;
+    padding-bottom: 3px;
+  }
+  .noble-setup-editor-title > span { width: 18px; height: 18px; font-size: 7px; }
+  .noble-setup-editor-title h3 { font-size: 11px; }
+  .noble-setup-color-setting { grid-template-columns: 1fr; gap: 2px; }
+  .noble-setup-color-setting > span { font-size: 6px; }
+  .noble-setup-colors { grid-template-columns: repeat(7, 14px); gap: 2px; }
+  .noble-setup-color { width: 14px; height: 14px; padding: 1px; }
+  .noble-setup-patterns,
+  .noble-setup-charges { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 3px; }
+  .noble-setup-pattern {
+    grid-template-columns: 18px minmax(0, 1fr);
+    gap: 2px;
+    min-height: 27px;
+    padding: 2px;
+    font-size: 6px;
+  }
+  .heraldry-shield--pattern { width: 16px; }
+  .noble-setup-charges { padding-right: 3px; }
+  .noble-setup-charge { gap: 0; min-height: 34px; padding: 2px 1px; font-size: 5px; }
+  .noble-setup-charge > span { width: 19px; height: 19px; }
+  .noble-setup-slider-row {
+    grid-template-columns: 47px minmax(0, 1fr) 24px;
+    gap: 3px;
+    font-size: 6px;
+  }
+  .noble-setup-slider-row strong { font-size: 6px; }
+  .noble-setup-actions { min-height: 44px; padding: 5px 10px; }
   .noble-setup-actions > span { display: none; }
-  .noble-setup-actions button { width: 100%; min-width: 0; }
+  .noble-setup-actions button { width: 100%; min-width: 0; min-height: 32px; padding: 5px 12px; font-size: 12px; }
+  .noble-setup-layout { grid-template-columns: minmax(0, 1fr); }
+  .noble-setup-identity {
+    grid-template-rows: auto minmax(0, 1fr);
+    gap: 7px;
+    border-right: 0;
+    overflow-y: auto;
+  }
+  .noble-setup-house-content {
+    grid-template-columns: minmax(150px, 0.6fr) minmax(0, 1.4fr);
+    align-items: center;
+    gap: 12px;
+  }
+  .noble-setup-house-profile { width: min(230px, 100%); }
+  .noble-setup-identity-showcase { grid-template-columns: minmax(0, 1fr); }
+  .noble-setup-house-roster { gap: 5px; }
+  .noble-setup-heraldry-preview {
+    grid-template-columns: minmax(0, 90px) 48px;
+    gap: 6px;
+    padding: 3px 5px 3px 8px;
+  }
+  .noble-setup-heraldry-preview > span { font-size: 8px; }
+  .noble-setup-heraldry-preview .heraldry-shield--main { width: 38px; }
+  .noble-setup-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+  .noble-setup-actions .noble-setup-back { margin-right: 0; }
+  .noble-setup-actions .noble-setup-back[hidden] + [data-setup-next] { grid-column: 1 / -1; }
 }
 
 @media (max-width: 560px) {
-  .noble-setup-armory-columns { grid-template-columns: 1fr; }
-  .noble-setup-nobles { grid-template-columns: repeat(4, 1fr); }
+  .noble-setup-armory-columns { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .noble-setup-nobles { grid-template-columns: repeat(6, minmax(0, 1fr)); }
   .noble-setup-presets { grid-template-columns: repeat(6, 1fr); }
   .noble-setup-preset:nth-child(n + 7) { display: none; }
+  .noble-setup-house-content {
+    grid-template-columns: minmax(0, 1fr);
+    align-content: start;
+    gap: 8px;
+  }
+  .noble-setup-house-profile {
+    grid-template-columns: 112px minmax(0, 1fr);
+    align-items: center;
+    gap: 5px 9px;
+    width: 100%;
+    justify-self: stretch;
+  }
+  .noble-setup-house-profile .noble-setup-identity-showcase {
+    grid-row: 1 / span 2;
+  }
+  .noble-setup-house-profile .noble-setup-portrait-caption {
+    display: grid;
+    justify-content: start;
+    text-align: left;
+  }
+  .noble-setup-house-profile .noble-setup-name-label { align-self: end; }
+  .noble-setup-nobles { grid-template-columns: repeat(6, minmax(0, 1fr)); }
 }
 
 @media (max-height: 760px) and (min-width: 821px) {
@@ -844,6 +1046,8 @@
   .noble-setup-charge { min-height: 48px; }
   .noble-setup-charge > span { width: 29px; height: 29px; }
   .noble-setup-actions { min-height: 50px; }
+  .noble-setup-identity-showcase { grid-template-columns: minmax(0, 1fr); }
+  .noble-setup-house-profile { width: min(255px, 100%); }
 }
 
 @media (prefers-reduced-motion: reduce) {

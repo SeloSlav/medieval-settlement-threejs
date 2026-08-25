@@ -436,7 +436,8 @@ assert.equal(backyard.hideStock, 7);
 
 const herd = syncLivestockHerds([rowWithDefaults({
   owner,
-  buildingId: 1n,
+  pastureId: 7n,
+  farmsteadId: 1n,
   species: 0,
   headCount: 9.9,
   health: 0.825,
@@ -451,8 +452,10 @@ const herd = syncLivestockHerds([rowWithDefaults({
   lastCulled: 1.9,
   hayStock: 18.9,
   lastHayOutput: 7.9,
-}) as never], identityHex).get('building-1');
+}) as never], identityHex).get('pasture-7');
 assert.ok(herd);
+assert.equal(herd.pastureId, 'pasture-7');
+assert.equal(herd.buildingId, 'building-1');
 assert.equal(herd.headCount, 9);
 assert.equal(herd.breedingReserve, 2);
 assert.equal(herd.lastCulled, 1);

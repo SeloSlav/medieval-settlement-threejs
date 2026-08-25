@@ -1,0 +1,109 @@
+.new-game-setup-steps {
+  width: min(620px, 100%);
+  margin: 0 auto 8px;
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+}
+
+.new-game-setup-steps ol {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.new-game-setup-steps li {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  color: rgba(180, 170, 150, 0.58);
+  font-size: 9px;
+  font-weight: 750;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.new-game-setup-steps li:not(:last-child)::after {
+  position: absolute;
+  z-index: 0;
+  top: 50%;
+  right: 8px;
+  left: calc(50% + 25px);
+  height: 1px;
+  content: '';
+  background: rgba(213, 190, 139, 0.18);
+}
+
+.new-game-setup-steps li > span {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border: 1px solid rgba(213, 190, 139, 0.22);
+  border-radius: 50%;
+  color: rgba(207, 190, 153, 0.62);
+  background: rgba(7, 9, 7, 0.72);
+  font-size: 9px;
+  font-variant-numeric: tabular-nums;
+}
+
+.new-game-setup-steps li > strong {
+  position: relative;
+  z-index: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.new-game-setup-steps li[aria-current='step'] {
+  color: #ead9b5;
+}
+
+.new-game-setup-steps li[aria-current='step'] > span {
+  border-color: rgba(225, 190, 105, 0.82);
+  color: #1b170f;
+  background: linear-gradient(180deg, #ead08f, #c99c45);
+  box-shadow: 0 0 16px rgba(201, 156, 69, 0.18);
+}
+
+.new-game-setup-steps li.is-complete {
+  color: rgba(215, 196, 154, 0.82);
+}
+
+.new-game-setup-steps li.is-complete > span {
+  border-color: rgba(169, 191, 128, 0.5);
+  color: #dce8c7;
+  background: rgba(70, 91, 52, 0.72);
+}
+
+@media (max-width: 560px) {
+  .new-game-setup-steps {
+    margin-bottom: 5px;
+  }
+
+  .new-game-setup-steps li {
+    justify-content: center;
+  }
+
+  .new-game-setup-steps li > strong {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .new-game-setup-steps li:not(:last-child)::after {
+    right: -30%;
+    left: calc(50% + 15px);
+  }
+}

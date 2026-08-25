@@ -103,6 +103,8 @@ pub fn price_multiplier_for(state: &MarketState, resource: TradeResource) -> f64
         | TradeResource::RosehipJam => state.provision_price_mult,
         TradeResource::Wool
         | TradeResource::Cloth
+        | TradeResource::Wax
+        | TradeResource::Candles
         | TradeResource::Hides
         | TradeResource::Leather
         | TradeResource::Shoes
@@ -261,6 +263,8 @@ pub fn record_market_trade(
         }
         TradeResource::Wool
         | TradeResource::Cloth
+        | TradeResource::Wax
+        | TradeResource::Candles
         | TradeResource::Hides
         | TradeResource::Leather
         | TradeResource::Shoes

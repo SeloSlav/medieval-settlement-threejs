@@ -133,7 +133,7 @@ export class PastureMarkers {
   ): void {
     const list = [...pastures];
     const signature = list.map((pasture) => {
-      const herd = herds.get(pasture.farmsteadId);
+      const herd = herds.get(pasture.id);
       return `${pasture.id}:${herd?.species ?? 'none'}:${pasture.corners.map((point) => `${point.x.toFixed(2)},${point.z.toFixed(2)}`).join(';')}`;
     }).join('|');
     if (signature === this.lastSignature) return;
@@ -151,7 +151,7 @@ export class PastureMarkers {
       const group = new THREE.Group();
       group.name = `Pasture ${pasture.id}`;
       group.userData.pastureId = pasture.id;
-      group.add(pastureSurface(corners, this.getHeightAt, herds.get(pasture.farmsteadId)));
+      group.add(pastureSurface(corners, this.getHeightAt, herds.get(pasture.id)));
       for (let edge = 0; edge < 4; edge++) {
         addFenceEdge(
           group,

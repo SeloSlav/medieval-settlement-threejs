@@ -42,6 +42,7 @@ export const BackyardGarden = __t.object("BackyardGarden", {
   lastSecondaryProductionDay: __t.u64(),
   hideStock: __t.f64(),
   flowerLuxuryUpgraded: __t.bool(),
+  waxStock: __t.f64(),
 });
 export type BackyardGarden = __Infer<typeof BackyardGarden>;
 
@@ -203,6 +204,15 @@ export const Building = __t.object("Building", {
   aroniaJam: __t.f64(),
   rosehipJam: __t.f64(),
   pearCider: __t.f64(),
+  treeWorkAreaX: __t.f64(),
+  treeWorkAreaZ: __t.f64(),
+  treeWorkAreaRadius: __t.f64(),
+  settlementId: __t.u64(),
+  animalFeed: __t.f64(),
+  storageAcceptanceMaskHigh: __t.u64(),
+  wax: __t.f64(),
+  candles: __t.f64(),
+  apiaryWaxCycleProgress: __t.u8(),
 });
 export type Building = __Infer<typeof Building>;
 
@@ -219,6 +229,7 @@ export const BurgageZone = __t.object("BurgageZone", {
   cornerDz: __t.f64(),
   frontageEdge: __t.u8(),
   plotCount: __t.u32(),
+  settlementId: __t.u64(),
 });
 export type BurgageZone = __Infer<typeof BurgageZone>;
 
@@ -291,6 +302,7 @@ export const DeliveryTrip = __t.object("DeliveryTrip", {
   routePolylineJson: __t.string(),
   freeHaulerWorkers: __t.u32(),
   laborBuildingId: __t.u64(),
+  oxId: __t.u64(),
 });
 export type DeliveryTrip = __Infer<typeof DeliveryTrip>;
 
@@ -462,6 +474,29 @@ export const Pasture = __t.object("Pasture", {
 });
 export type Pasture = __Infer<typeof Pasture>;
 
+export const PastureHerd = __t.object("PastureHerd", {
+  pastureId: __t.u64(),
+  farmsteadId: __t.u64(),
+  owner: __t.identity(),
+  species: __t.u8(),
+  headCount: __t.u32(),
+  health: __t.f64(),
+  breedingProgress: __t.f64(),
+  pastureCapacity: __t.f64(),
+  suppliedCapacity: __t.f64(),
+  lastFoodOutput: __t.f64(),
+  lastPreservedOutput: __t.f64(),
+  lastWoolGold: __t.f64(),
+  breedingReserve: __t.u32(),
+  lastCulled: __t.u32(),
+  hayStock: __t.f64(),
+  lastHayOutput: __t.f64(),
+  haymakingPercent: __t.u8(),
+  lastWoolOutput: __t.f64(),
+  lastShearingYear: __t.u32(),
+});
+export type PastureHerd = __Infer<typeof PastureHerd>;
+
 export const PlayerResources = __t.object("PlayerResources", {
   owner: __t.identity(),
   timber: __t.f64(),
@@ -583,6 +618,8 @@ export const PlayerResources = __t.object("PlayerResources", {
   aroniaJam: __t.f64(),
   rosehipJam: __t.f64(),
   pearCider: __t.f64(),
+  wax: __t.f64(),
+  candles: __t.f64(),
 });
 export type PlayerResources = __Infer<typeof PlayerResources>;
 
@@ -689,6 +726,7 @@ export const Residence = __t.object("Residence", {
   beetroot: __t.f64(),
   aroniaJam: __t.f64(),
   rosehipJam: __t.f64(),
+  settlementId: __t.u64(),
 });
 export type Residence = __Infer<typeof Residence>;
 
@@ -701,11 +739,64 @@ export const ResidenceNeed = __t.object("ResidenceNeed", {
 });
 export type ResidenceNeed = __Infer<typeof ResidenceNeed>;
 
+export const ResourceUnitMigration = __t.object("ResourceUnitMigration", {
+  id: __t.u8(),
+  version: __t.u8(),
+});
+export type ResourceUnitMigration = __Infer<typeof ResourceUnitMigration>;
+
 export const RoadNetworkState = __t.object("RoadNetworkState", {
   owner: __t.identity(),
   snapshotJson: __t.string(),
 });
 export type RoadNetworkState = __Infer<typeof RoadNetworkState>;
+
+export const Settlement = __t.object("Settlement", {
+  id: __t.u64(),
+  owner: __t.identity(),
+  name: __t.string(),
+  anchorX: __t.f64(),
+  anchorZ: __t.f64(),
+  foundingCampId: __t.u64(),
+  founderPopulation: __t.u32(),
+  unhousedFounders: __t.u32(),
+  active: __t.bool(),
+  townHallId: __t.u64(),
+  createdTick: __t.u64(),
+  economicActivityTaxRate: __t.f64(),
+  pantrySafeguardPolicy: __t.u8(),
+  landLevyRate: __t.f64(),
+  importDutyRate: __t.f64(),
+  exportDutyRate: __t.f64(),
+  seasonalLaborStewardEnabled: __t.bool(),
+  constructionLaborStewardEnabled: __t.bool(),
+  productionLaborStewardEnabled: __t.bool(),
+  laborStewardReserve: __t.u32(),
+  nightWatchPolicy: __t.u8(),
+  nightGatheringPolicy: __t.u8(),
+  nightWorkPolicy: __t.u8(),
+  nightLightingPolicy: __t.u8(),
+  nightCurfewPolicy: __t.u8(),
+  landLevyAssessedTotal: __t.f64(),
+  landLevyCollectedTotal: __t.f64(),
+  importDutyCollectedTotal: __t.f64(),
+  exportDutyCollectedTotal: __t.f64(),
+  lastNightReportDay: __t.u64(),
+  lastNightHouseholds: __t.u32(),
+  lastNightWellRestedHouseholds: __t.u32(),
+  lastNightColdHouseholds: __t.u32(),
+  lastNightSocialHouseholds: __t.u32(),
+  lastNightWorkers: __t.u32(),
+  lastNightWatchStrength: __t.f64(),
+  lastNightIncidents: __t.u32(),
+  lastNightTheftGold: __t.f64(),
+  lastNightWildlifeSightings: __t.u32(),
+  lastNightLightingFuelUsed: __t.f64(),
+  lastNightLightingFuelShortfall: __t.f64(),
+  nightCommunityCohesion: __t.f64(),
+  nightLaborFatigue: __t.f64(),
+});
+export type Settlement = __Infer<typeof Settlement>;
 
 export const SettlementSecurity = __t.object("SettlementSecurity", {
   owner: __t.identity(),
@@ -742,6 +833,15 @@ export const SimTickSchedule = __t.object("SimTickSchedule", {
   scheduledAt: __t.scheduleAt(),
 });
 export type SimTickSchedule = __Infer<typeof SimTickSchedule>;
+
+export const StableOx = __t.object("StableOx", {
+  id: __t.u64(),
+  owner: __t.identity(),
+  stableId: __t.u64(),
+  slot: __t.u8(),
+  assignedBuildingId: __t.u64(),
+});
+export type StableOx = __Infer<typeof StableOx>;
 
 export const TradingPostTradeRule = __t.object("TradingPostTradeRule", {
   id: __t.string(),
@@ -816,3 +916,4 @@ export const WorldConfig = __t.object("WorldConfig", {
   wellAquiferNetworksEnabled: __t.bool(),
 });
 export type WorldConfig = __Infer<typeof WorldConfig>;
+

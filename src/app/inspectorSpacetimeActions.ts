@@ -52,12 +52,12 @@ export type InspectorSpacetimeActions = {
   onSetThreshingPriority: (buildingId: string, priority: number) => Promise<void>;
   onStartFarmFieldEarlyHarvest: (fieldId: string) => Promise<void>;
   onDemolishPasture: (pastureId: string) => Promise<void>;
-  onSetLivestockSpecies: (buildingId: string, species: Exclude<LivestockSpecies, 'swine'>) => Promise<void>;
-  onTradeLivestock: (buildingId: string, headDelta: number) => Promise<void>;
+  onSetLivestockSpecies: (pastureId: string, species: Exclude<LivestockSpecies, 'swine'>) => Promise<void>;
+  onTradeLivestock: (pastureId: string, headDelta: number) => Promise<void>;
   onPurchaseStableOx: (stableId: string) => Promise<void>;
   onSetBuildingOxen: (buildingId: string, assignedOxen: number) => Promise<void>;
-  onSetLivestockBreedingReserve: (buildingId: string, breedingReserve: number) => Promise<void>;
-  onSetLivestockHaymakingPercent: (buildingId: string, haymakingPercent: number) => Promise<void>;
+  onSetLivestockBreedingReserve: (pastureId: string, breedingReserve: number) => Promise<void>;
+  onSetLivestockHaymakingPercent: (pastureId: string, haymakingPercent: number) => Promise<void>;
   onSetEconomicActivityTaxRate: (townHallId: string, taxRate: number) => Promise<void>;
   onSetPantrySafeguardPolicy: (
     townHallId: string,
@@ -475,19 +475,19 @@ export function createInspectorSpacetimeActions(
         'Could not remove burial ground.',
       );
     },
-    onSetLivestockSpecies: async (buildingId, species) => {
+    onSetLivestockSpecies: async (pastureId, species) => {
       const store = requireReady();
       if (!store) return;
       await runReducer(
-        () => store.setLivestockSpecies(buildingId, species),
+        () => store.setLivestockSpecies(pastureId, species),
         'Could not change livestock specialization.',
       );
     },
-    onTradeLivestock: async (buildingId, headDelta) => {
+    onTradeLivestock: async (pastureId, headDelta) => {
       const store = requireReady();
       if (!store) return;
       await runReducer(
-        () => store.tradeLivestock(buildingId, headDelta),
+        () => store.tradeLivestock(pastureId, headDelta),
         headDelta > 0 ? 'Could not purchase livestock.' : 'Could not sell livestock.',
       );
     },
@@ -516,19 +516,19 @@ export function createInspectorSpacetimeActions(
         'Could not change the ox posting.',
       );
     },
-    onSetLivestockBreedingReserve: async (buildingId, breedingReserve) => {
+    onSetLivestockBreedingReserve: async (pastureId, breedingReserve) => {
       const store = requireReady();
       if (!store) return;
       await runReducer(
-        () => store.setLivestockBreedingReserve(buildingId, breedingReserve),
+        () => store.setLivestockBreedingReserve(pastureId, breedingReserve),
         'Could not change the herd breeding reserve.',
       );
     },
-    onSetLivestockHaymakingPercent: async (buildingId, haymakingPercent) => {
+    onSetLivestockHaymakingPercent: async (pastureId, haymakingPercent) => {
       const store = requireReady();
       if (!store) return;
       await runReducer(
-        () => store.setLivestockHaymakingPercent(buildingId, haymakingPercent),
+        () => store.setLivestockHaymakingPercent(pastureId, haymakingPercent),
         'Could not change the summer hay meadow allocation.',
       );
     },

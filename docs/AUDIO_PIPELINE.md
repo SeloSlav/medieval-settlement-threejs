@@ -90,6 +90,12 @@ cost.
   fatiguing the player. Active cues gently duck ambience to 86%, with a slower
   release after the cue, so the score remains legible without flattening the
   environmental soundscape.
+- `valley_at_first_light.mp3` also serves as the looping startup theme. One
+  persistent player carries it across noble selection, world setup, and the
+  loading overlay. Browsers that block eager playback retry it on the first
+  pointer or keyboard gesture. Once both presentation and server state are
+  playable, it fades out over seven seconds before releasing the contextual
+  gameplay soundtrack scheduler.
 - `farm_workers_singing.mp3` is the authorized Selo Empire farm-worker song.
   It fades in only near actively tended grain fields at close zoom and yields
   to the instrumental score when a music cue is active.

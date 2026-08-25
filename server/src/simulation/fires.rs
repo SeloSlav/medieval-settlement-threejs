@@ -576,8 +576,7 @@ fn ignite_candidate(
                 .map(|building| building.settlement_id)
                 .unwrap_or(0)
         };
-        let policies =
-            crate::settlement_policy::night(ctx, candidate.owner, settlement_id);
+        let policies = crate::settlement_policy::night(ctx, candidate.owner, settlement_id);
         let (watch_policy, lighting_policy) = (policies.watch, policies.lighting);
         let delay_ticks =
             (crate::night_policy::fire_discovery_delay_seconds(watch_policy, lighting_policy)

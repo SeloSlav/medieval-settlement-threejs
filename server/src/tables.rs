@@ -410,6 +410,11 @@ pub struct PlayerResources {
     /// Pear cider is distinct from the established `cider` (apple cider) stock.
     #[default(0.0)]
     pub pear_cider: f64,
+    /// Beeswax and finished candles recovered from physical stores or interrupted hauling.
+    #[default(0.0)]
+    pub wax: f64,
+    #[default(0.0)]
+    pub candles: f64,
 }
 
 /// A durable community inside one owner-wide realm. Settlements carry civic
@@ -1076,6 +1081,18 @@ pub struct Building {
     /// winter livestock care. This remains a physical building-only store.
     #[default(0.0)]
     pub animal_feed: f64,
+    /// The low acceptance mask retains commodity codes 0-63. This companion
+    /// mask carries codes 64-127 without changing any established bit.
+    #[default(18446744073709551615u64)]
+    pub storage_acceptance_mask_high: u64,
+    /// Physical candle-chain inventories, appended for additive save compatibility.
+    #[default(0.0)]
+    pub wax: f64,
+    #[default(0.0)]
+    pub candles: f64,
+    /// Counts successful honey harvests toward the next infrequent wax harvest.
+    #[default(0u8)]
+    pub apiary_wax_cycle_progress: u8,
 }
 
 /// One persistent import/export instruction for one Trading Post commodity.
@@ -1267,7 +1284,49 @@ pub struct Graveyard {
     pub burials: u32,
 }
 
-/// Authoritative herd state. Species: 0 cattle, 1 sheep, 2 swine.
+/// Authoritative livestock attached to one authored grazing parcel. Species:
+/// 0 cattle, 1 sheep, 2 swine. A livestock building may therefore support
+/// several independent herds while its workers, trough water, prepared feed,
+/// processing rooms, and carts remain shared at the holding.
+#[spacetimedb::table(
+    accessor = pasture_herd,
+    public,
+    index(accessor = owner, btree(columns = [owner])),
+    index(accessor = farmstead_id, btree(columns = [farmstead_id]))
+)]
+#[derive(Clone)]
+pub struct PastureHerd {
+    #[primary_key]
+    pub pasture_id: u64,
+    pub farmstead_id: u64,
+    pub owner: Identity,
+    pub species: u8,
+    pub head_count: u32,
+    pub health: f64,
+    pub breeding_progress: f64,
+    /// Heads supported by this parcel in the current season after terrain,
+    /// haymaking, drought, or woodland-mast modifiers.
+    pub pasture_capacity: f64,
+    /// Heads jointly supported by this parcel plus its fair share of the
+    /// holding's fodder, trough water, and active care in the latest cycle.
+    pub supplied_capacity: f64,
+    pub last_food_output: f64,
+    pub last_preserved_output: f64,
+    pub last_wool_gold: f64,
+    pub breeding_reserve: u32,
+    pub last_culled: u32,
+    /// Parcel-local dried-grass fodder. Prepared Animal Feed remains a shared
+    /// physical stock at the linked building.
+    pub hay_stock: f64,
+    pub last_hay_output: f64,
+    pub haymaking_percent: u8,
+    pub last_wool_output: f64,
+    pub last_shearing_year: u32,
+}
+
+/// Legacy holding-level herd state retained only as an additive save-migration
+/// source. New gameplay never creates these rows; each row is deleted only
+/// after its state has been materialized into linked `pasture_herd` rows.
 #[spacetimedb::table(
     accessor = livestock_herd,
     public,
@@ -1614,6 +1673,9 @@ pub struct BackyardGarden {
     /// preserves while retaining the garden's pollinator/attraction effects.
     #[default(false)]
     pub flower_luxury_upgraded: bool,
+    /// Beeswax retained at a backyard apiary until a goods depot can collect it.
+    #[default(0.0)]
+    pub wax_stock: f64,
 }
 
 /// A deceased resident awaiting or undergoing physical transport to a

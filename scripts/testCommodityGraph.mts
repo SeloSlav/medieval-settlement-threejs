@@ -91,11 +91,11 @@ const authoritativeEntries = [...asU8Body.matchAll(/Self::([A-Z][A-Za-z0-9]*)\s*
     code: Number(match[2]),
   }))
   .sort((left, right) => left.code - right.code);
-assert.equal(authoritativeEntries.length, 64, 'the audit must cover every authoritative commodity');
+assert.equal(authoritativeEntries.length, 66, 'the audit must cover every authoritative commodity');
 assert.deepEqual(
   authoritativeEntries.map(({ code }) => code),
   Array.from({ length: authoritativeEntries.length }, (_, code) => code),
-  'CommodityKind codes must remain unique and contiguous inside the saved u64 mask range',
+  'CommodityKind codes must remain unique, contiguous, and append-only across persisted mask words',
 );
 
 const authoritativeResources = authoritativeEntries.map(({ resource }) => resource);
@@ -105,8 +105,10 @@ const codeByResource = new Map(
 assert.equal(
   codeByResource.get('animalFeed'),
   63,
-  'Animal Feed must use the final append-only u64 commodity bit',
+  'Animal Feed must retain its established final low-mask commodity bit',
 );
+assert.equal(codeByResource.get('wax'), 64, 'Wax must be the first companion high-mask bit');
+assert.equal(codeByResource.get('candles'), 65, 'Candles must be the second companion high-mask bit');
 assertSameSet(
   RESOURCE_KINDS,
   [...authoritativeResources, 'game'],
@@ -204,20 +206,27 @@ for (const commodity of storageCommodities) {
   assert.ok(STORAGE_COMMODITY_LABELS[commodity].trim());
 }
 
-const maskCodes = (name: string, next: string): number[] => {
+const maskCodes = (name: string, next: string, offset = 0): number[] => {
   const body = storagePolicySource.match(
     new RegExp(`${name}: u64 =([\\s\\S]*?)${next}`),
   )?.[1];
   assert.ok(body, `${name} must remain discoverable`);
-  return [...body.matchAll(/bit\((\d+)\)/g)].map((match) => Number(match[1]));
+  return [...body.matchAll(/(?:high_)?bit\((\d+)\)/g)]
+    .map((match) => Number(match[1]) + offset);
 };
 assert.deepEqual(
-  [...maskCodes('STOREHOUSE_ACCEPTANCE_MASK', 'pub const GRANARY_ACCEPTANCE_MASK')].sort((a, b) => a - b),
+  [
+    ...maskCodes('STOREHOUSE_ACCEPTANCE_MASK', 'pub const STOREHOUSE_ACCEPTANCE_MASK_HIGH'),
+    ...maskCodes('STOREHOUSE_ACCEPTANCE_MASK_HIGH', 'pub const GRANARY_ACCEPTANCE_MASK'),
+  ].sort((a, b) => a - b),
   [...STOREHOUSE_STORAGE_COMMODITIES].map((commodity) => STORAGE_COMMODITY_CODES[commodity]).sort((a, b) => a - b),
   'client Storehouse controls must exactly mirror the Rust default mask',
 );
 assert.deepEqual(
-  [...maskCodes('GRANARY_ACCEPTANCE_MASK', 'const fn bit')].sort((a, b) => a - b),
+  [
+    ...maskCodes('GRANARY_ACCEPTANCE_MASK', 'pub const GRANARY_ACCEPTANCE_MASK_HIGH'),
+    ...maskCodes('GRANARY_ACCEPTANCE_MASK_HIGH', 'const fn bit'),
+  ].sort((a, b) => a - b),
   [...GRANARY_STORAGE_COMMODITIES].map((commodity) => STORAGE_COMMODITY_CODES[commodity]).sort((a, b) => a - b),
   'client Granary controls must exactly mirror the Rust default mask',
 );

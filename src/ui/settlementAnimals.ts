@@ -360,11 +360,9 @@ function buildSettlementLivestockLedger(
     return open + Math.max(0, STABLE_OX_SLOTS - (oxenByStable.get(stableId) ?? 0));
   }, 0);
 
-  const pasturesByHolding = new Map<string, PastureState[]>();
+  const pasturesById = new Map<string, PastureState>();
   for (const pasture of input.pastures ?? []) {
-    const holdingPastures = pasturesByHolding.get(pasture.farmsteadId) ?? [];
-    holdingPastures.push(pasture);
-    pasturesByHolding.set(pasture.farmsteadId, holdingPastures);
+    pasturesById.set(pasture.id, pasture);
   }
   const herdsBySpecies = new Map<LivestockSpecies, LivestockHerdState[]>();
   for (const herd of input.herds ?? []) {
@@ -374,10 +372,11 @@ function buildSettlementLivestockLedger(
   }
   const herdSpecies = HERD_SPECIES_ROWS.map<SettlementHerdSpeciesLedgerEntry>((row) => {
     const herds = herdsBySpecies.get(row.species) ?? [];
-    const holdingIds = herds
-      .map((herd) => herd.buildingId)
+    const holdingIds = [...new Set(herds.map((herd) => herd.buildingId))]
       .sort((left, right) => compareServerIds(left, right, parseBuildingServerId));
-    const pastures = holdingIds.flatMap((holdingId) => pasturesByHolding.get(holdingId) ?? []);
+    const pastures = herds
+      .map((herd) => pasturesById.get(herd.pastureId))
+      .filter((pasture): pasture is PastureState => pasture != null);
     return {
       species: row.species,
       label: row.label,
@@ -407,6 +406,9 @@ function buildSettlementLivestockLedger(
   });
 
   const herdHeadCount = sumNumbers(herdSpecies.map((entry) => entry.headCount), true);
+  const livestockHoldingCount = new Set(
+    [...(input.herds ?? [])].map((herd) => herd.buildingId),
+  ).size;
   const backyardPenCount = sumNumbers(backyardPens.map((entry) => entry.penCount), true);
   const unstockedPenCount = backyardPens.find((entry) => entry.kind === 'unstocked')?.penCount ?? 0;
   return {
@@ -425,7 +427,7 @@ function buildSettlementLivestockLedger(
     },
     herds: {
       headCount: herdHeadCount,
-      holdingCount: sumNumbers(herdSpecies.map((entry) => entry.holdingCount), true),
+      holdingCount: livestockHoldingCount,
       pastureCount: sumNumbers(herdSpecies.map((entry) => entry.pastureCount), true),
       pastureArea: sumNumbers(herdSpecies.map((entry) => entry.pastureArea)),
       forageCapacity: sumNumbers(herdSpecies.map((entry) => entry.forageCapacity)),

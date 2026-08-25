@@ -49,6 +49,8 @@ const RESOURCE_LABELS: Record<TradeResourceKind | 'gold', string> = {
   pearCider: 'Pear cider',
   preservedFood: 'Preserved food',
   honey: 'Honey',
+  wax: 'Beeswax',
+  candles: 'Candles',
   wine: 'Wine',
   polearms: 'Polearms',
   wool: 'Wool',

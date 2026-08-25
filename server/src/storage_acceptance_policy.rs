@@ -1,7 +1,7 @@
 /// Every commodity keeps the stable numeric code used by delivery cargo and
 /// Trading Post rules. Reusing that code as the bit position keeps the saved
-/// mask compact. Animal feed occupies the final available bit at code 63;
-/// adding another commodity will require a wider persisted policy encoding.
+/// mask compact. Commodity codes 64-127 live in the companion high mask so
+/// established codes and saved policies never need to be renumbered.
 pub const STOREHOUSE_ACCEPTANCE_MASK: u64 = bit(0) // firewood
     | bit(3) // timber
     | bit(10) // stone
@@ -15,6 +15,9 @@ pub const STOREHOUSE_ACCEPTANCE_MASK: u64 = bit(0) // firewood
     | bit(58) // hides
     | bit(59) // leather
     | bit(60); // shoes
+
+pub const STOREHOUSE_ACCEPTANCE_MASK_HIGH: u64 = high_bit(64) // wax
+    | high_bit(65); // candles
 
 pub const GRANARY_ACCEPTANCE_MASK: u64 = bit(2) // legacy mixed food
     | bit(6) // ale
@@ -58,12 +61,28 @@ pub const GRANARY_ACCEPTANCE_MASK: u64 = bit(2) // legacy mixed food
     | bit(61) // aronia jam
     | bit(62); // rosehip jam
 
+pub const GRANARY_ACCEPTANCE_MASK_HIGH: u64 = 0;
+
 const fn bit(code: u8) -> u64 {
     1u64 << code
 }
 
+const fn high_bit(code: u8) -> u64 {
+    1u64 << (code - 64)
+}
+
 pub fn storage_mask_accepts(mask: u64, commodity_code: u8) -> bool {
     commodity_code < 64 && mask & bit(commodity_code) != 0
+}
+
+pub fn storage_masks_accept(low: u64, high: u64, commodity_code: u8) -> bool {
+    if commodity_code < 64 {
+        storage_mask_accepts(low, commodity_code)
+    } else if commodity_code < 128 {
+        high & high_bit(commodity_code) != 0
+    } else {
+        false
+    }
 }
 
 pub fn storage_kind_acceptance_mask(kind: &str) -> Option<u64> {
@@ -74,9 +93,17 @@ pub fn storage_kind_acceptance_mask(kind: &str) -> Option<u64> {
     }
 }
 
+pub fn storage_kind_acceptance_masks(kind: &str) -> Option<(u64, u64)> {
+    match kind {
+        "village_storehouse" => Some((STOREHOUSE_ACCEPTANCE_MASK, STOREHOUSE_ACCEPTANCE_MASK_HIGH)),
+        "granary" => Some((GRANARY_ACCEPTANCE_MASK, GRANARY_ACCEPTANCE_MASK_HIGH)),
+        _ => None,
+    }
+}
+
 pub fn storage_kind_supports_commodity(kind: &str, commodity_code: u8) -> bool {
-    storage_kind_acceptance_mask(kind)
-        .is_some_and(|mask| storage_mask_accepts(mask, commodity_code))
+    storage_kind_acceptance_masks(kind)
+        .is_some_and(|(low, high)| storage_masks_accept(low, high, commodity_code))
 }
 
 pub fn set_storage_mask_commodity(mask: u64, commodity_code: u8, accepts: bool) -> u64 {
@@ -90,6 +117,25 @@ pub fn set_storage_mask_commodity(mask: u64, commodity_code: u8, accepts: bool) 
     }
 }
 
+pub fn set_storage_masks_commodity(
+    low: u64,
+    high: u64,
+    commodity_code: u8,
+    accepts: bool,
+) -> (u64, u64) {
+    if commodity_code < 64 {
+        (
+            set_storage_mask_commodity(low, commodity_code, accepts),
+            high,
+        )
+    } else if commodity_code < 128 {
+        let bit = high_bit(commodity_code);
+        (low, if accepts { high | bit } else { high & !bit })
+    } else {
+        (low, high)
+    }
+}
+
 pub fn set_storage_mask_all(mask: u64, kind: &str, accepts: bool) -> u64 {
     let Some(relevant) = storage_kind_acceptance_mask(kind) else {
         return mask;
@@ -98,6 +144,17 @@ pub fn set_storage_mask_all(mask: u64, kind: &str, accepts: bool) -> u64 {
         mask | relevant
     } else {
         mask & !relevant
+    }
+}
+
+pub fn set_storage_masks_all(low: u64, high: u64, kind: &str, accepts: bool) -> (u64, u64) {
+    let Some((relevant_low, relevant_high)) = storage_kind_acceptance_masks(kind) else {
+        return (low, high);
+    };
+    if accepts {
+        (low | relevant_low, high | relevant_high)
+    } else {
+        (low & !relevant_low, high & !relevant_high)
     }
 }
 
@@ -114,6 +171,10 @@ mod tests {
         assert!(storage_kind_supports_commodity("granary", 9));
         assert!(!storage_kind_supports_commodity("granary", 22));
         assert!(storage_mask_accepts(u64::MAX, 54));
+        assert!(storage_kind_supports_commodity("village_storehouse", 64));
+        assert!(storage_kind_supports_commodity("village_storehouse", 65));
+        assert!(!storage_kind_supports_commodity("granary", 64));
+        assert!(storage_masks_accept(u64::MAX, u64::MAX, 65));
     }
 
     #[test]
@@ -130,5 +191,14 @@ mod tests {
                 & STOREHOUSE_ACCEPTANCE_MASK,
             STOREHOUSE_ACCEPTANCE_MASK,
         );
+
+        let (low, high) = set_storage_masks_commodity(u64::MAX, u64::MAX, 64, false);
+        assert_eq!(low, u64::MAX);
+        assert!(!storage_masks_accept(low, high, 64));
+        assert!(storage_masks_accept(low, high, 65));
+
+        let (low, high) = set_storage_masks_all(u64::MAX, u64::MAX, "village_storehouse", false);
+        assert_eq!(low & STOREHOUSE_ACCEPTANCE_MASK, 0);
+        assert_eq!(high & STOREHOUSE_ACCEPTANCE_MASK_HIGH, 0);
     }
 }

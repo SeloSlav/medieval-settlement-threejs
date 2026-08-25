@@ -120,6 +120,8 @@ export function priceMultiplierFor(
     case 'hides':
     case 'leather':
     case 'shoes':
+    case 'wax':
+    case 'candles':
     case 'pottery':
     case 'manure':
     case 'remedies':

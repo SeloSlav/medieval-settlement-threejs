@@ -227,11 +227,9 @@ pub fn credit_private_export_receipt(
         }
         ctx.db.player_resources().owner().update(resources);
     }
-    if let Some(mut settlement) = crate::settlement_policy::row(
-        ctx,
-        marketplace.owner,
-        marketplace.settlement_id,
-    ) {
+    if let Some(mut settlement) =
+        crate::settlement_policy::row(ctx, marketplace.owner, marketplace.settlement_id)
+    {
         settlement.export_duty_collected_total =
             whole_units(settlement.export_duty_collected_total) + split.export_duty;
         ctx.db.settlement().id().update(settlement);
@@ -312,12 +310,9 @@ pub fn credit_local_purchase_receipt(
     }
     let owner = market.owner;
     let rate = settlement_economic_activity_tax_rate(ctx, owner, market.settlement_id);
-    let collection = settlement_town_hall_tax_collection_multiplier(
-        ctx,
-        owner,
-        market.settlement_id,
-    )
-    .clamp(0.0, 1.0);
+    let collection =
+        settlement_town_hall_tax_collection_multiplier(ctx, owner, market.settlement_id)
+            .clamp(0.0, 1.0);
     let physical = ctx
         .db
         .player_resources()

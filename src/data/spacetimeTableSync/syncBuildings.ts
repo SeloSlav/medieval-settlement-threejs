@@ -80,6 +80,10 @@ function buildingStateFromRow(
     treeWorkAreaRadius: number;
     settlementId: bigint;
     animalFeed: number;
+    wax: number;
+    candles: number;
+    storageAcceptanceMaskHigh: bigint;
+    apiaryWaxCycleProgress: number;
   }>;
   const treeWorkAreaX = Number(materialRow.treeWorkAreaX ?? 0);
   const treeWorkAreaZ = Number(materialRow.treeWorkAreaZ ?? 0);
@@ -125,6 +129,8 @@ function buildingStateFromRow(
     mead: wholeResourceUnits(materialRow.mead),
     preservedFood: wholeResourceUnits(row.preservedFood),
     honey: wholeResourceUnits(row.honey),
+    wax: wholeResourceUnits(materialRow.wax),
+    candles: wholeResourceUnits(materialRow.candles),
     wine: wholeResourceUnits(row.wine),
     wool: wholeResourceUnits(row.wool),
     cloth: wholeResourceUnits(row.cloth),
@@ -211,6 +217,7 @@ function buildingStateFromRow(
     granaryGrainReserve: wholeResourceUnits(row.granaryGrainReserve),
     granaryFreshFoodTargetPercent: row.granaryFreshFoodTargetPercent,
     storageAcceptanceMask: row.storageAcceptanceMask.toString(),
+    storageAcceptanceMaskHigh: materialRow.storageAcceptanceMaskHigh?.toString(),
     constructionPriority: row.constructionPriority,
     woodcutterTimberReserve: wholeResourceUnits(row.woodcutterTimberReserve),
     harvestReservePercent: row.harvestReservePercent,
@@ -248,6 +255,7 @@ function buildingStateFromRow(
     apiaryColonyHealth: row.apiaryColonyHealth,
     apiaryLastWinterYear: row.apiaryLastWinterYear,
     apiaryForageScore: row.apiaryForageScore,
+    apiaryWaxCycleProgress: Number(materialRow.apiaryWaxCycleProgress ?? 0),
     monasteryOrchardPlanting: (materialRow.monasteryOrchardPlanting === 1 ? 1 : 0),
     monasteryCroftPlanting: (materialRow.monasteryCroftPlanting === 1 ? 1 : 0),
     monasteryExtensions: Number(materialRow.monasteryExtensions ?? 0),

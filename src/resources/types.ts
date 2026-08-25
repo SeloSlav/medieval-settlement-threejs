@@ -1,4 +1,4 @@
-export const RESOURCE_KINDS = ['timber', 'stone', 'firewood', 'water', 'game', 'berries', 'mushrooms', 'fish', 'food', 'ryeSheaves', 'oatSheaves', 'barleySheaves', 'maslinSheaves', 'ryeGrain', 'oatGrain', 'maslinGrain', 'barley', 'malt', 'ryeFlour', 'maslinFlour', 'ale', 'cider', 'pearCider', 'mead', 'preservedFood', 'honey', 'wine', 'wool', 'flax', 'cloth', 'hides', 'leather', 'shoes', 'ironwork', 'polearms', 'iron', 'clay', 'salt', 'charcoal', 'pottery', 'manure', 'remedies', 'roofTiles', 'gold', 'ryeBread', 'maslinBread', 'meat', 'milk', 'apples', 'pears', 'cherries', 'aronia', 'rosehips', 'vegetables', 'cabbage', 'carrots', 'beetroot', 'eggs', 'grapes', 'curedMeat', 'smokedFish', 'cheese', 'aroniaJam', 'rosehipJam', 'animalFeed'] as const;
+export const RESOURCE_KINDS = ['timber', 'stone', 'firewood', 'water', 'game', 'berries', 'mushrooms', 'fish', 'food', 'ryeSheaves', 'oatSheaves', 'barleySheaves', 'maslinSheaves', 'ryeGrain', 'oatGrain', 'maslinGrain', 'barley', 'malt', 'ryeFlour', 'maslinFlour', 'ale', 'cider', 'pearCider', 'mead', 'preservedFood', 'honey', 'wax', 'candles', 'wine', 'wool', 'flax', 'cloth', 'hides', 'leather', 'shoes', 'ironwork', 'polearms', 'iron', 'clay', 'salt', 'charcoal', 'pottery', 'manure', 'remedies', 'roofTiles', 'gold', 'ryeBread', 'maslinBread', 'meat', 'milk', 'apples', 'pears', 'cherries', 'aronia', 'rosehips', 'vegetables', 'cabbage', 'carrots', 'beetroot', 'eggs', 'grapes', 'curedMeat', 'smokedFish', 'cheese', 'aroniaJam', 'rosehipJam', 'animalFeed'] as const;
 export type ResourceKind = (typeof RESOURCE_KINDS)[number];
 
 export const RESOURCE_NODE_KINDS = ['quarry', 'game', 'berries', 'mushrooms', 'fish'] as const;
@@ -159,6 +159,9 @@ export type BuildingState = {
   mead?: number;
   preservedFood: number;
   honey: number;
+  /** Additive candle-chain inventories; absent only while legacy bindings are active. */
+  wax?: number;
+  candles?: number;
   wine: number;
   wool?: number;
   flax?: number;
@@ -254,6 +257,8 @@ export type BuildingState = {
   granaryFreshFoodTargetPercent?: number;
   /** Stable CommodityKind bitset controlling new Storehouse/Granary intake. */
   storageAcceptanceMask?: string;
+  /** Companion bitset for append-only CommodityKind ids 64-127. */
+  storageAcceptanceMaskHigh?: string;
   constructionPriority?: number;
   woodcutterTimberReserve?: number;
   harvestReservePercent?: number;
@@ -296,6 +301,8 @@ export type BuildingState = {
   apiaryColonyHealth?: number;
   apiaryLastWinterYear?: number;
   apiaryForageScore?: number;
+  /** Successful honey cycles accumulated toward the next infrequent wax harvest. */
+  apiaryWaxCycleProgress?: number;
   /** 0 apples, 1 grapevines; meaningful only for monasteries. */
   monasteryOrchardPlanting?: 0 | 1;
   /** 0 kitchen vegetables, 1 brewing barley; meaningful only for monasteries. */
@@ -400,6 +407,9 @@ export type CorpseState = {
 };
 
 export type LivestockHerdState = {
+  /** Owning grazing parcel; livestock herds are independently managed per pasture. */
+  pastureId: string;
+  /** Linked pastoral farmstead or swineherd that supplies labor, water, and stores. */
   buildingId: string;
   species: LivestockSpecies;
   headCount: number;
@@ -555,6 +565,7 @@ export type BackyardGardenState = {
   lastPrimaryProductionDay: number;
   lastSecondaryProductionDay: number;
   hideStock: number;
+  waxStock?: number;
   flowerLuxuryUpgraded: boolean;
 };
 

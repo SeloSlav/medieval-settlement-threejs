@@ -21,12 +21,17 @@ use crate::placement_validation::{
     zone_overlaps_building_footprint, zone_overlaps_resource_deposit,
 };
 use crate::roads::load_owner_road_network;
-use crate::simulation::grazing_capacity;
-use crate::tables::{farm_field, graveyard, livestock_herd, pasture, LivestockHerd, Pasture};
+use crate::simulation::grazing_capacity_for_pasture;
+use crate::tables::{farm_field, graveyard, pasture, pasture_herd, Pasture, PastureHerd};
 
 pub const SPECIES_CATTLE: u8 = 0;
 pub const SPECIES_SHEEP: u8 = 1;
 pub const SPECIES_SWINE: u8 = 2;
+pub const PASTORAL_MANAGEMENT_UNITS: u32 = 60;
+pub const SWINE_MANAGEMENT_UNITS: u32 = 30;
+pub const CATTLE_MANAGEMENT_UNITS_PER_HEAD: u32 = 3;
+pub const SHEEP_MANAGEMENT_UNITS_PER_HEAD: u32 = 1;
+pub const SWINE_MANAGEMENT_UNITS_PER_HEAD: u32 = 1;
 
 #[reducer]
 #[allow(clippy::too_many_arguments)]
@@ -55,13 +60,6 @@ pub fn place_pasture(
     {
         return Err("Pastures must belong to one of your livestock buildings.".to_string());
     }
-    let herd = ctx
-        .db
-        .livestock_herd()
-        .building_id()
-        .find(&farmstead_id)
-        .ok_or_else(|| "This livestock building has no herd state.".to_string())?;
-
     let corners = corners_from_values([
         corner_ax, corner_az, corner_bx, corner_bz, corner_cx, corner_cz, corner_dx, corner_dz,
     ]);
@@ -86,18 +84,16 @@ pub fn place_pasture(
     }
 
     let slope = average_slope_degrees.clamp(0.0, 90.0);
-    let max_slope = match herd.species {
-        SPECIES_CATTLE => CATTLE_MAX_SLOPE_DEGREES,
-        SPECIES_SHEEP => SHEEP_MAX_SLOPE_DEGREES,
-        SPECIES_SWINE => SWINE_MAX_SLOPE_DEGREES,
-        _ => return Err("Unknown herd species.".to_string()),
+    // An unstocked pastoral parcel may later receive either species, so its
+    // placement uses sheep's broader terrain envelope. Cattle's tighter limit
+    // is enforced when that specific pasture chooses cattle.
+    let max_slope = match farmstead.kind.as_str() {
+        "pastoral_farmstead" => SHEEP_MAX_SLOPE_DEGREES,
+        "swineherd" => SWINE_MAX_SLOPE_DEGREES,
+        _ => unreachable!(),
     };
     if slope > max_slope {
-        return Err(if herd.species == SPECIES_CATTLE {
-            "This ground is too steep for cattle pasture.".to_string()
-        } else {
-            "This ground is too steep for grazing.".to_string()
-        });
+        return Err("This ground is too steep for grazing.".to_string());
     }
 
     let center = centroid(&corners);
@@ -252,7 +248,7 @@ pub fn place_pasture(
         .id()
         .find(&0)
         .ok_or_else(|| "World not initialized.".to_string())?;
-    ctx.db.pasture().insert(Pasture {
+    let pasture = ctx.db.pasture().insert(Pasture {
         id: 0,
         owner,
         farmstead_id,
@@ -268,52 +264,83 @@ pub fn place_pasture(
         average_slope_degrees: slope,
         moisture: sample_world_groundwater_score(center.x, center.z, config.seed, config.hydrology),
     });
+    // A legacy herd with no former fencing is deliberately deferred until its
+    // first replacement parcel exists. Materialize it before creating any new
+    // swine row so legacy stock can never be overwritten.
+    crate::livestock_migration::migrate_legacy_livestock_herd_for_building(ctx, farmstead_id);
+    if farmstead.kind == "swineherd"
+        && ctx
+            .db
+            .pasture_herd()
+            .pasture_id()
+            .find(&pasture.id)
+            .is_none()
+    {
+        ctx.db
+            .pasture_herd()
+            .insert(unstocked_pasture_herd(&pasture, SPECIES_SWINE));
+    }
     Ok(())
 }
 
 #[reducer]
 pub fn set_livestock_species(
     ctx: &ReducerContext,
-    building_id: u64,
+    pasture_id: u64,
     species: u8,
 ) -> Result<(), String> {
     if !matches!(species, SPECIES_CATTLE | SPECIES_SHEEP) {
-        return Err("Pastoral farmsteads can specialize in cattle or sheep.".to_string());
+        return Err("Pastoral pastures can hold cattle or sheep.".to_string());
     }
+    let pasture = ctx
+        .db
+        .pasture()
+        .id()
+        .find(&pasture_id)
+        .ok_or_else(|| "Pasture not found.".to_string())?;
     let building = ctx
         .db
         .building()
         .id()
-        .find(&building_id)
+        .find(&pasture.farmstead_id)
         .ok_or_else(|| "Pastoral farmstead not found.".to_string())?;
-    if building.owner != ctx.sender()
+    if pasture.owner != ctx.sender()
+        || building.owner != ctx.sender()
         || building.kind != "pastoral_farmstead"
         || !building.construction_complete
     {
-        return Err("You do not own this completed pastoral farmstead.".to_string());
+        return Err(
+            "You do not own this pasture and its completed pastoral farmstead.".to_string(),
+        );
     }
-    let existing_herd = ctx.db.livestock_herd().building_id().find(&building_id);
+    let max_slope = if species == SPECIES_CATTLE {
+        CATTLE_MAX_SLOPE_DEGREES
+    } else {
+        SHEEP_MAX_SLOPE_DEGREES
+    };
+    if pasture.average_slope_degrees > max_slope + 1e-6 {
+        return Err(if species == SPECIES_CATTLE {
+            "This pasture is too steep for cattle; choose sheep instead.".to_string()
+        } else {
+            "This pasture is too steep for sheep.".to_string()
+        });
+    }
+    crate::livestock_migration::migrate_legacy_livestock_herd_for_building(
+        ctx,
+        pasture.farmstead_id,
+    );
+    let existing_herd = ctx.db.pasture_herd().pasture_id().find(&pasture_id);
     let Some(mut herd) = existing_herd else {
         ctx.db
-            .livestock_herd()
-            .insert(unstocked_herd(building.id, building.owner, species));
+            .pasture_herd()
+            .insert(unstocked_pasture_herd(&pasture, species));
         return Ok(());
     };
     if herd.species == species {
         return Ok(());
     }
     if herd.head_count > 0 {
-        return Err("Sell the current herd before changing this holding's species.".to_string());
-    }
-    if ctx
-        .db
-        .pasture()
-        .farmstead_id()
-        .filter(&building_id)
-        .next()
-        .is_some()
-    {
-        return Err("Remove this holding's linked pasture before changing species.".to_string());
+        return Err("Sell this pasture's current herd before changing its species.".to_string());
     }
     herd.species = species;
     herd.head_count = 0;
@@ -330,54 +357,69 @@ pub fn set_livestock_species(
     herd.last_culled = 0;
     herd.last_hay_output = 0.0;
     herd.haymaking_percent = LIVESTOCK_DEFAULT_HAYMAKING_PERCENT;
-    ctx.db.livestock_herd().building_id().update(herd);
+    ctx.db.pasture_herd().pasture_id().update(herd);
     Ok(())
 }
 
-/// Buy or sell whole animals at the holding. Positive deltas purchase regional
+/// Buy or sell whole animals at one pasture. Positive deltas purchase regional
 /// breeding stock with civic gold; negative deltas sell live animals back to
-/// drovers. Purchases may never exceed the land's neutral carrying capacity or
-/// the holding's management ceiling.
+/// drovers. Purchases may never exceed this parcel's neutral carrying capacity,
+/// its species ceiling, or the linked holding's shared management budget.
 #[reducer]
 pub fn trade_livestock(
     ctx: &ReducerContext,
-    building_id: u64,
+    pasture_id: u64,
     head_delta: i32,
 ) -> Result<(), String> {
     if head_delta == 0 || !(-100..=100).contains(&head_delta) {
         return Err("Livestock orders must change between 1 and 100 head.".to_string());
     }
     let owner = ctx.sender();
+    let pasture = ctx
+        .db
+        .pasture()
+        .id()
+        .find(&pasture_id)
+        .ok_or_else(|| "Pasture not found.".to_string())?;
     let building = ctx
         .db
         .building()
         .id()
-        .find(&building_id)
+        .find(&pasture.farmstead_id)
         .ok_or_else(|| "Livestock holding not found.".to_string())?;
-    if building.owner != owner
+    if pasture.owner != owner
+        || building.owner != owner
         || !matches!(building.kind.as_str(), "pastoral_farmstead" | "swineherd")
         || !building.construction_complete
     {
         return Err("You do not own this completed livestock holding.".to_string());
     }
+    crate::livestock_migration::migrate_legacy_livestock_herd_for_building(
+        ctx,
+        pasture.farmstead_id,
+    );
     let mut herd = ctx
         .db
-        .livestock_herd()
-        .building_id()
-        .find(&building_id)
-        .ok_or_else(|| "Choose a herd species before ordering animals.".to_string())?;
+        .pasture_herd()
+        .pasture_id()
+        .find(&pasture_id)
+        .ok_or_else(|| "Choose this pasture's herd species before ordering animals.".to_string())?;
 
     if head_delta > 0 {
         let quantity = head_delta as u32;
-        let land_limit = grazing_capacity(ctx, &building, &herd)
+        let land_limit = grazing_capacity_for_pasture(ctx, &pasture, &herd)
             .floor()
             .clamp(0.0, u32::MAX as f64) as u32;
-        let holding_limit = maximum_herd(herd.species).min(land_limit);
-        if herd.head_count.saturating_add(quantity) > holding_limit {
-            let available = holding_limit.saturating_sub(herd.head_count);
+        let parcel_limit = maximum_herd(herd.species).min(land_limit);
+        let used_management = holding_management_units(ctx, pasture.farmstead_id);
+        let management_room = management_headroom(&building.kind, used_management, herd.species);
+        let available = parcel_limit
+            .saturating_sub(herd.head_count)
+            .min(management_room);
+        if quantity > available {
             return Err(format!(
-                "This holding has room for only {available} more head ({} total by land and management capacity).",
-                holding_limit
+                "This pasture and its holding have room for only {available} more head ({} on this parcel by land and species capacity).",
+                parcel_limit
             ));
         }
         let cost = purchase_gold_per_head(herd.species) * f64::from(quantity);
@@ -406,33 +448,44 @@ pub fn trade_livestock(
         );
     }
 
-    ctx.db.livestock_herd().building_id().update(herd);
+    ctx.db.pasture_herd().pasture_id().update(herd);
     Ok(())
 }
 
 #[reducer]
 pub fn set_livestock_breeding_reserve(
     ctx: &ReducerContext,
-    building_id: u64,
+    pasture_id: u64,
     breeding_reserve: u32,
 ) -> Result<(), String> {
+    let pasture = ctx
+        .db
+        .pasture()
+        .id()
+        .find(&pasture_id)
+        .ok_or_else(|| "Pasture not found.".to_string())?;
     let building = ctx
         .db
         .building()
         .id()
-        .find(&building_id)
+        .find(&pasture.farmstead_id)
         .ok_or_else(|| "Livestock holding not found.".to_string())?;
-    if building.owner != ctx.sender()
+    if pasture.owner != ctx.sender()
+        || building.owner != ctx.sender()
         || !matches!(building.kind.as_str(), "pastoral_farmstead" | "swineherd")
         || !building.construction_complete
     {
         return Err("You do not own this completed livestock holding.".to_string());
     }
+    crate::livestock_migration::migrate_legacy_livestock_herd_for_building(
+        ctx,
+        pasture.farmstead_id,
+    );
     let mut herd = ctx
         .db
-        .livestock_herd()
-        .building_id()
-        .find(&building_id)
+        .pasture_herd()
+        .pasture_id()
+        .find(&pasture_id)
         .ok_or_else(|| "Herd state not found.".to_string())?;
     let minimum = minimum_breeding_reserve(herd.species);
     let maximum = maximum_herd(herd.species);
@@ -442,23 +495,30 @@ pub fn set_livestock_breeding_reserve(
         ));
     }
     herd.breeding_reserve = breeding_reserve;
-    ctx.db.livestock_herd().building_id().update(herd);
+    ctx.db.pasture_herd().pasture_id().update(herd);
     Ok(())
 }
 
 #[reducer]
 pub fn set_livestock_haymaking_percent(
     ctx: &ReducerContext,
-    building_id: u64,
+    pasture_id: u64,
     haymaking_percent: u8,
 ) -> Result<(), String> {
+    let pasture = ctx
+        .db
+        .pasture()
+        .id()
+        .find(&pasture_id)
+        .ok_or_else(|| "Pasture not found.".to_string())?;
     let building = ctx
         .db
         .building()
         .id()
-        .find(&building_id)
+        .find(&pasture.farmstead_id)
         .ok_or_else(|| "Pastoral farmstead not found.".to_string())?;
-    if building.owner != ctx.sender()
+    if pasture.owner != ctx.sender()
+        || building.owner != ctx.sender()
         || building.kind != "pastoral_farmstead"
         || !building.construction_complete
     {
@@ -469,17 +529,21 @@ pub fn set_livestock_haymaking_percent(
             "Haymaking may reserve at most {LIVESTOCK_MAXIMUM_HAYMAKING_PERCENT}% of summer pasture."
         ));
     }
+    crate::livestock_migration::migrate_legacy_livestock_herd_for_building(
+        ctx,
+        pasture.farmstead_id,
+    );
     let mut herd = ctx
         .db
-        .livestock_herd()
-        .building_id()
-        .find(&building_id)
+        .pasture_herd()
+        .pasture_id()
+        .find(&pasture_id)
         .ok_or_else(|| "Herd state not found.".to_string())?;
     if herd.species == SPECIES_SWINE {
         return Err("Woodland pigs use pannage rather than hay meadows.".to_string());
     }
     herd.haymaking_percent = haymaking_percent;
-    ctx.db.livestock_herd().building_id().update(herd);
+    ctx.db.pasture_herd().pasture_id().update(herd);
     Ok(())
 }
 
@@ -494,18 +558,25 @@ pub fn demolish_pasture(ctx: &ReducerContext, pasture_id: u64) -> Result<(), Str
     if pasture.owner != ctx.sender() {
         return Err("You do not own this pasture.".to_string());
     }
+    crate::livestock_migration::migrate_legacy_livestock_herd_for_building(
+        ctx,
+        pasture.farmstead_id,
+    );
+    if let Some(herd) = ctx.db.pasture_herd().pasture_id().find(&pasture_id) {
+        if herd.head_count > 0 {
+            return Err("Sell this pasture's animals before removing its fencing.".to_string());
+        }
+        ctx.db.pasture_herd().pasture_id().delete(&pasture_id);
+    }
     ctx.db.pasture().id().delete(pasture_id);
     Ok(())
 }
 
-pub fn unstocked_herd(
-    building_id: u64,
-    owner: spacetimedb::Identity,
-    species: u8,
-) -> LivestockHerd {
-    LivestockHerd {
-        building_id,
-        owner,
+pub fn unstocked_pasture_herd(pasture: &Pasture, species: u8) -> PastureHerd {
+    PastureHerd {
+        pasture_id: pasture.id,
+        farmstead_id: pasture.farmstead_id,
+        owner: pasture.owner,
         species,
         head_count: 0,
         health: 0.82,
@@ -527,6 +598,39 @@ pub fn unstocked_herd(
         last_wool_output: 0.0,
         last_shearing_year: 0,
     }
+}
+
+pub(crate) fn management_units_per_head(species: u8) -> u32 {
+    match species {
+        SPECIES_CATTLE => CATTLE_MANAGEMENT_UNITS_PER_HEAD,
+        SPECIES_SHEEP => SHEEP_MANAGEMENT_UNITS_PER_HEAD,
+        _ => SWINE_MANAGEMENT_UNITS_PER_HEAD,
+    }
+}
+
+pub(crate) fn management_capacity_units(building_kind: &str) -> u32 {
+    if building_kind == "swineherd" {
+        SWINE_MANAGEMENT_UNITS
+    } else {
+        PASTORAL_MANAGEMENT_UNITS
+    }
+}
+
+pub(crate) fn management_headroom(building_kind: &str, used_units: u32, species: u8) -> u32 {
+    management_capacity_units(building_kind).saturating_sub(used_units)
+        / management_units_per_head(species).max(1)
+}
+
+pub(crate) fn holding_management_units(ctx: &ReducerContext, farmstead_id: u64) -> u32 {
+    ctx.db
+        .pasture_herd()
+        .farmstead_id()
+        .filter(&farmstead_id)
+        .map(|herd| {
+            herd.head_count
+                .saturating_mul(management_units_per_head(herd.species))
+        })
+        .sum()
 }
 
 fn minimum_breeding_reserve(species: u8) -> u32 {
@@ -566,5 +670,37 @@ fn sale_gold_per_head(species: u8) -> f64 {
         SPECIES_CATTLE => CATTLE_SALE_GOLD_PER_HEAD,
         SPECIES_SHEEP => SHEEP_SALE_GOLD_PER_HEAD,
         _ => SWINE_SALE_GOLD_PER_HEAD,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{
+        management_headroom, management_units_per_head, SPECIES_CATTLE, SPECIES_SHEEP,
+        SPECIES_SWINE,
+    };
+
+    #[test]
+    fn shared_management_budget_preserves_species_equivalence() {
+        assert_eq!(
+            management_headroom("pastoral_farmstead", 0, SPECIES_CATTLE),
+            20
+        );
+        assert_eq!(
+            management_headroom("pastoral_farmstead", 0, SPECIES_SHEEP),
+            60
+        );
+        assert_eq!(management_headroom("swineherd", 0, SPECIES_SWINE), 30);
+
+        let mixed_used = 10 * management_units_per_head(SPECIES_CATTLE)
+            + 15 * management_units_per_head(SPECIES_SHEEP);
+        assert_eq!(
+            management_headroom("pastoral_farmstead", mixed_used, SPECIES_CATTLE),
+            5
+        );
+        assert_eq!(
+            management_headroom("pastoral_farmstead", mixed_used, SPECIES_SHEEP),
+            15
+        );
     }
 }

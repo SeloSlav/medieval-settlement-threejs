@@ -551,6 +551,13 @@ export function computeSettlementLivestockFodderPlan(
     firstDairySaltShortBuildingId: null,
     firstDairySaltRunwayDays: Number.POSITIVE_INFINITY,
   };
+  const countedBuildings = new Set<string>();
+  const countedPastoralBuildings = new Set<string>();
+  const countedHaymakingBuildings = new Set<string>();
+  const shortBuildings = new Set<string>();
+  const dairySaltShortBuildings = new Set<string>();
+  const capacityLimitedBuildings = new Set<string>();
+  const remainingFeedByBuilding = new Map<string, number>();
 
   for (const herd of state.livestockHerds.values()) {
     const building = state.buildings.get(herd.buildingId);
@@ -570,11 +577,31 @@ export function computeSettlementLivestockFodderPlan(
       monthDay,
       laborForecasts?.get(building.id),
     );
-    total.holdingCount += 1;
-    if (plan.onsiteHumanWorkers > 0) total.staffedHoldings += 1;
+    const firstHerdAtBuilding = !countedBuildings.has(building.id);
+    if (firstHerdAtBuilding) {
+      countedBuildings.add(building.id);
+      total.holdingCount += 1;
+      if (plan.onsiteHumanWorkers > 0) total.staffedHoldings += 1;
+      total.oatInputStock += plan.oatInputStock;
+      total.animalFeedStock += plan.animalFeedStock;
+      total.projectedAnimalFeedStock += plan.projectedAnimalFeedStock;
+      total.feedConversionPerDay += plan.feedConversionPerDay;
+      total.feedOatInputPerDay += plan.feedOatInputPerDay;
+      total.dairySaltStock += plan.dairySaltStock;
+      total.dairySaltTarget += plan.dairySaltTarget;
+      remainingFeedByBuilding.set(building.id, Math.max(0, plan.animalFeedStock));
+    }
     if (herd.species !== 'swine') {
-      total.pastoralHoldings += 1;
-      if (plan.haymakingPercent > 0 && plan.onsiteHumanWorkers > 0) {
+      if (!countedPastoralBuildings.has(building.id)) {
+        countedPastoralBuildings.add(building.id);
+        total.pastoralHoldings += 1;
+      }
+      if (
+        plan.haymakingPercent > 0
+        && plan.onsiteHumanWorkers > 0
+        && !countedHaymakingBuildings.has(building.id)
+      ) {
+        countedHaymakingBuildings.add(building.id);
         total.haymakingHoldings += 1;
       }
     }
@@ -586,14 +613,6 @@ export function computeSettlementLivestockFodderPlan(
     total.hayOutputPerDay += plan.hayOutputPerDay;
     total.hayStock += plan.hayStock;
     total.projectedHayStock += plan.projectedHayStock;
-    total.oatInputStock += plan.oatInputStock;
-    total.oatInputTarget += plan.winterReserveShortfall
-      * LIVESTOCK_FEED_OAT_GRAIN_PER_CYCLE
-      / Math.max(1e-9, LIVESTOCK_ANIMAL_FEED_PER_CYCLE);
-    total.animalFeedStock += plan.animalFeedStock;
-    total.projectedAnimalFeedStock += plan.projectedAnimalFeedStock;
-    total.feedConversionPerDay += plan.feedConversionPerDay;
-    total.feedOatInputPerDay += plan.feedOatInputPerDay;
     total.winterPastureCapacity += plan.winterPastureCapacity;
     total.winterUnsupportedHeads += plan.winterUnsupportedHeads;
     total.winterHayNeed += plan.winterHayNeed;
@@ -601,20 +620,28 @@ export function computeSettlementLivestockFodderPlan(
     total.winterFeedPerDay += plan.winterFeedPerDay;
     total.winterFeedNeed += plan.winterFeedNeed;
     total.winterReserveTarget += plan.winterReserveTarget;
-    total.winterReserveStock += plan.winterReserveStock;
-    total.winterReserveShortfall += plan.winterReserveShortfall;
+    const remainingFeed = remainingFeedByBuilding.get(building.id) ?? 0;
+    const allocatedFeed = Math.min(plan.winterReserveTarget, remainingFeed);
+    const parcelFeedShortfall = Math.max(0, plan.winterReserveTarget - allocatedFeed);
+    total.oatInputTarget += parcelFeedShortfall
+      * LIVESTOCK_FEED_OAT_GRAIN_PER_CYCLE
+      / Math.max(1e-9, LIVESTOCK_ANIMAL_FEED_PER_CYCLE);
+    remainingFeedByBuilding.set(building.id, Math.max(0, remainingFeed - allocatedFeed));
+    total.winterReserveStock += allocatedFeed;
+    total.winterReserveShortfall += parcelFeedShortfall;
     total.productiveDairyHeads += plan.productiveHeads;
     total.dairyPreservedFoodPerDay += plan.dairyPreservedFoodPerDay;
     total.dairySaltPerDay += plan.dairySaltPerDay;
-    total.dairySaltStock += plan.dairySaltStock;
-    total.dairySaltTarget += plan.dairySaltTarget;
-    total.dairySaltShortfall += plan.dairySaltShortfall;
+    if (firstHerdAtBuilding) total.dairySaltShortfall += plan.dairySaltShortfall;
     if (
       plan.onsiteHumanWorkers > 0
       && plan.dairySaltTarget > 0.01
       && plan.dairySaltShortfall > 0.05
     ) {
-      total.dairySaltShortHoldings += 1;
+      if (!dairySaltShortBuildings.has(building.id)) {
+        dairySaltShortBuildings.add(building.id);
+        total.dairySaltShortHoldings += 1;
+      }
       if (
         total.firstDairySaltShortBuildingId === null
         || plan.dairySaltRunwayDays < total.firstDairySaltRunwayDays - 1e-9
@@ -630,11 +657,18 @@ export function computeSettlementLivestockFodderPlan(
         total.firstDairySaltRunwayDays = plan.dairySaltRunwayDays;
       }
     }
-    if (plan.winterFeedNeed > plan.winterReserveTarget + 0.05) {
+    if (
+      plan.winterFeedNeed > plan.winterReserveTarget + 0.05
+      && !capacityLimitedBuildings.has(building.id)
+    ) {
+      capacityLimitedBuildings.add(building.id);
       total.capacityLimitedHoldings += 1;
     }
-    if (plan.winterReserveShortfall <= 0.05) continue;
-    total.shortHoldings += 1;
+    if (parcelFeedShortfall <= 0.05) continue;
+    if (!shortBuildings.has(building.id)) {
+      shortBuildings.add(building.id);
+      total.shortHoldings += 1;
+    }
     if (
       total.firstShortBuildingId === null
       || plan.winterCombinedRunwayDays < total.firstRunwayDays - 1e-9

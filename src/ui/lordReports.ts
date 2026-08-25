@@ -56,6 +56,8 @@ const STORAGE_CHANNEL_LABELS: Record<keyof StorageCaps, string> = {
   mead: 'Mead store',
   preservedFood: 'Preserved-food store',
   honey: 'Honey store',
+  wax: 'Wax store',
+  candles: 'Candle store',
   wine: 'Wine cellar',
   wool: 'Wool store',
   cloth: 'Cloth store',

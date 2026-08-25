@@ -131,11 +131,7 @@ pub fn step_land_levies(ctx: &ReducerContext, tick: &SimTickContext, clock: &Gam
             .collect::<Vec<_>>();
         for residence in residences {
             let rate = crate::fiscal_policy::clamp_land_levy_rate(
-                crate::settlement_policy::land_levy_rate(
-                    ctx,
-                    owner,
-                    residence.settlement_id,
-                ),
+                crate::settlement_policy::land_levy_rate(ctx, owner, residence.settlement_id),
             );
             if rate <= 1e-9 {
                 continue;
@@ -154,10 +150,7 @@ pub fn step_land_levies(ctx: &ReducerContext, tick: &SimTickContext, clock: &Gam
             );
             let assessment = monthly_land_levy(assessed_value, rate);
             assessed_total += assessment;
-            local_totals
-                .entry(residence.settlement_id)
-                .or_default()
-                .0 += assessment;
+            local_totals.entry(residence.settlement_id).or_default().0 += assessment;
             let local_markets = owner_markets
                 .iter()
                 .copied()
@@ -199,10 +192,7 @@ pub fn step_land_levies(ctx: &ReducerContext, tick: &SimTickContext, clock: &Gam
                 credit_residence_wealth(ctx, residence.id, paid - credited);
             }
             collected_total += credited;
-            local_totals
-                .entry(residence.settlement_id)
-                .or_default()
-                .1 += credited;
+            local_totals.entry(residence.settlement_id).or_default().1 += credited;
         }
         if let Some(mut ledger) = ctx.db.player_resources().owner().find(&owner) {
             ledger.land_levy_assessed_total =

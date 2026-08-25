@@ -266,6 +266,8 @@ pub struct RaidPortableStores {
     pub mead: f64,
     pub preserved_food: f64,
     pub honey: f64,
+    pub wax: f64,
+    pub candles: f64,
     pub wine: f64,
     pub wool: f64,
     pub cloth: f64,
@@ -350,6 +352,8 @@ impl RaidPortableStores {
             mead,
             preserved_food,
             honey,
+            wax,
+            candles,
             wine,
             wool,
             cloth,
@@ -416,6 +420,8 @@ impl RaidPortableStores {
             + positive_store(self.mead)
             + positive_store(self.preserved_food)
             + positive_store(self.honey)
+            + positive_store(self.wax) * 1.5
+            + positive_store(self.candles) * 2.0
             + positive_store(self.wine)
             + positive_store(self.wool)
             + positive_store(self.cloth) * CLOTH_RAID_VALUE_MULTIPLIER
@@ -480,6 +486,8 @@ impl RaidPortableStores {
             + positive_store(self.mead)
             + positive_store(self.preserved_food)
             + positive_store(self.honey)
+            + positive_store(self.wax)
+            + positive_store(self.candles)
             + positive_store(self.wine)
             + positive_store(self.wool)
             + positive_store(self.cloth)
@@ -560,6 +568,8 @@ impl RaidPortableStores {
         plunder_good!(mead);
         plunder_good!(preserved_food);
         plunder_good!(honey);
+        plunder_good!(wax);
+        plunder_good!(candles);
         plunder_good!(wine);
         plunder_good!(wool);
         plunder_good!(cloth);
@@ -637,6 +647,8 @@ impl RaidPortableStores {
             mead: removed!(mead),
             preserved_food: removed!(preserved_food),
             honey: removed!(honey),
+            wax: removed!(wax),
+            candles: removed!(candles),
             wine: removed!(wine),
             wool: removed!(wool),
             cloth: removed!(cloth),

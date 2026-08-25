@@ -54,6 +54,7 @@ pub fn run_sim_tick(ctx: &ReducerContext, _schedule: crate::schedule::SimTickSch
     // running so Pause remains a true no-mutation boundary.
     materialize_all_physical_resource_ledgers(ctx);
     crate::resource_unit_migration::migrate_legacy_fractional_resources(ctx);
+    crate::livestock_migration::migrate_legacy_livestock_herds(ctx);
     // A fresh world remains at its opening hour while the player surveys the
     // land. Placing the founders' camp creates the first building and starts
     // calendar/economy progression on the following scheduler heartbeat.
@@ -302,6 +303,7 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
             | crate::building_defs::BuildingSimKind::Tannery
             | crate::building_defs::BuildingSimKind::Cobbler
             | crate::building_defs::BuildingSimKind::PastoralFarmstead
+            | crate::building_defs::BuildingSimKind::Chandlery
             | crate::building_defs::BuildingSimKind::Swineherd => {
                 expanded_ids.push((sim_kind, building.id))
             }

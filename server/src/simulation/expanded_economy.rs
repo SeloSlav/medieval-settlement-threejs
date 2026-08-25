@@ -7,7 +7,8 @@ use crate::apiary_policy::{
     next_apiary_colony_health, pollination_contribution, pollination_multiplier,
 };
 use crate::balance_generated::{
-    BackyardGardenKind, FarmCropProduce, APIARY_HONEY_PER_CYCLE, APIARY_WINTER_HONEY_REQUIRED,
+    BackyardGardenKind, FarmCropProduce, APIARY_HONEY_PER_CYCLE, APIARY_WAX_PER_HARVEST,
+    APIARY_WAX_PER_HONEY_CYCLES, APIARY_WINTER_HONEY_REQUIRED,
     BACKYARD_APIARY_POLLINATION_CONTRIBUTION, BACKYARD_APIARY_POLLINATION_RADIUS,
     BAKERY_FIREWOOD_PER_CYCLE, BAKERY_FLOUR_PER_CYCLE, BAKERY_MASLIN_BREAD_PER_CYCLE,
     BAKERY_RYE_BREAD_PER_CYCLE, BAKERY_WATER_PER_CYCLE, BREWERY_ALE_PER_CYCLE,
@@ -15,31 +16,29 @@ use crate::balance_generated::{
     BREWERY_BREWING_FIREWOOD_PER_CYCLE, BREWERY_BREWING_WATER_PER_CYCLE, BREWERY_CIDER_PER_CYCLE,
     BREWERY_HONEY_PER_MEAD_CYCLE, BREWERY_MALTING_FIREWOOD_PER_CYCLE,
     BREWERY_MALTING_WATER_PER_CYCLE, BREWERY_MALT_PER_ALE_CYCLE, BREWERY_MALT_PER_CYCLE,
-    BREWERY_MEAD_PER_CYCLE, CALENDAR_SECONDS_PER_DAY, CHARCOAL_BURNER_CHARCOAL_PER_CYCLE,
+    BREWERY_MEAD_PER_CYCLE, CALENDAR_SECONDS_PER_DAY, CATTLE_GRAIN_PER_UNSUPPORTED_HEAD,
+    CATTLE_HAY_PER_UNSUPPORTED_HEAD, CHARCOAL_BURNER_CHARCOAL_PER_CYCLE,
     CHARCOAL_BURNER_FIREWOOD_PER_CYCLE, CIVILIAN_TOOL_IRONWORK_PER_CYCLE, CLAY_PIT_CLAY_PER_CYCLE,
-    CATTLE_GRAIN_PER_UNSUPPORTED_HEAD, CATTLE_HAY_PER_UNSUPPORTED_HEAD,
     COBBLER_LEATHER_PER_CYCLE, COBBLER_SHOES_PER_CYCLE, FARM_GROWTH_SECONDS,
     FARM_WORK_METERS_PER_WORKER_PER_SEC, GRAIN_TRANSFER_PER_TRIP, LEATHER_TRANSFER_PER_TRIP,
-    MINE_CLAY_PER_CYCLE, MINE_IRON_PER_CYCLE, MINE_SALT_PER_CYCLE,
-    MINE_TIMBER_SUPPORT_PER_CYCLE, MONASTERY_FEAST_DRINK,
-    MONASTERY_FEAST_FOOD, MONASTERY_FEAST_HONEY, MONASTERY_PILGRIMAGE_GOLD_PER_DAY,
-    MONASTERY_UNLINKED_PRODUCTIVITY, PANNAGE_WINTER_CAPACITY_MULTIPLIER,
-    POTTER_CLAY_PER_CYCLE, POTTER_FIREWOOD_PER_CYCLE,
+    MINE_CLAY_PER_CYCLE, MINE_IRON_PER_CYCLE, MINE_SALT_PER_CYCLE, MINE_TIMBER_SUPPORT_PER_CYCLE,
+    MONASTERY_FEAST_DRINK, MONASTERY_FEAST_FOOD, MONASTERY_FEAST_HONEY,
+    MONASTERY_PILGRIMAGE_GOLD_PER_DAY, MONASTERY_UNLINKED_PRODUCTIVITY,
+    PANNAGE_WINTER_CAPACITY_MULTIPLIER, POTTER_CLAY_PER_CYCLE, POTTER_FIREWOOD_PER_CYCLE,
     POTTER_POTTERY_PER_CYCLE, POTTER_ROOF_TILES_PER_CYCLE, POTTER_WATER_PER_CYCLE,
-    RICH_MINE_THROUGHPUT_MULTIPLIER, SMITHY_CHARCOAL_PER_CYCLE, SMITHY_IRONWORK_PER_CYCLE,
+    RICH_MINE_THROUGHPUT_MULTIPLIER, SHEEP_GRAIN_PER_UNSUPPORTED_HEAD,
+    SHEEP_HAY_PER_UNSUPPORTED_HEAD, SMITHY_CHARCOAL_PER_CYCLE, SMITHY_IRONWORK_PER_CYCLE,
     SMITHY_IRON_PER_CYCLE, SMITHY_WATER_PER_CYCLE, SMOKEHOUSE_FIREWOOD_PER_CYCLE,
     SMOKEHOUSE_FOOD_PER_CYCLE, SMOKEHOUSE_POTTERY_PER_CYCLE, SMOKEHOUSE_PRESERVED_FOOD_PER_CYCLE,
-    SMOKEHOUSE_SALT_PER_CYCLE, SUMMER_DROUGHT_DURATION_DAYS, TANNERY_FIREWOOD_PER_CYCLE,
-    TANNERY_HIDES_PER_CYCLE, TANNERY_LEATHER_PER_CYCLE, TANNERY_WATER_PER_CYCLE,
-    SHEEP_GRAIN_PER_UNSUPPORTED_HEAD, SHEEP_HAY_PER_UNSUPPORTED_HEAD,
-    SWINE_GRAIN_PER_UNSUPPORTED_HEAD, TEXTILE_TRANSFER_PER_TRIP, THRESHING_GRAIN_PER_CYCLE,
-    THRESHING_SHEAVES_PER_CYCLE, TICK_DT,
-    TIMBER_DELIVERY_SPEED_MPS, TIMBER_DELIVERY_UNLOAD_SEC, VINEYARD_FERMENTATION_SECONDS,
-    VINEYARD_GRAPES_PER_FERMENTATION_BATCH, VINEYARD_GRAPES_PER_HARVEST_CYCLE,
-    VINEYARD_WINE_PER_FERMENTATION_BATCH, WATERMILL_GRAIN_PER_CYCLE,
-    WATERMILL_MASLIN_FLOUR_PER_CYCLE, WATERMILL_RYE_FLOUR_PER_CYCLE,
-    WINTER_PASTURE_CAPACITY_MULTIPLIER, WEAVER_CLOTH_PER_CYCLE,
-    WEAVER_FLAX_PER_CYCLE, WEAVER_FLAX_WATER_PER_CYCLE, WEAVER_WOOL_PER_CYCLE,
+    SMOKEHOUSE_SALT_PER_CYCLE, SUMMER_DROUGHT_DURATION_DAYS, SWINE_GRAIN_PER_UNSUPPORTED_HEAD,
+    TANNERY_FIREWOOD_PER_CYCLE, TANNERY_HIDES_PER_CYCLE, TANNERY_LEATHER_PER_CYCLE,
+    TANNERY_WATER_PER_CYCLE, TEXTILE_TRANSFER_PER_TRIP, THRESHING_GRAIN_PER_CYCLE,
+    THRESHING_SHEAVES_PER_CYCLE, TICK_DT, TIMBER_DELIVERY_SPEED_MPS, TIMBER_DELIVERY_UNLOAD_SEC,
+    VINEYARD_FERMENTATION_SECONDS, VINEYARD_GRAPES_PER_FERMENTATION_BATCH,
+    VINEYARD_GRAPES_PER_HARVEST_CYCLE, VINEYARD_WINE_PER_FERMENTATION_BATCH,
+    WATERMILL_GRAIN_PER_CYCLE, WATERMILL_MASLIN_FLOUR_PER_CYCLE, WATERMILL_RYE_FLOUR_PER_CYCLE,
+    WEAVER_CLOTH_PER_CYCLE, WEAVER_FLAX_PER_CYCLE, WEAVER_FLAX_WATER_PER_CYCLE,
+    WEAVER_WOOL_PER_CYCLE, WINTER_PASTURE_CAPACITY_MULTIPLIER,
 };
 use crate::brewery_recipe_policy::{
     normalize_brewery_recipe_policy, BREWERY_RECIPE_ALE, BREWERY_RECIPE_AUTO, BREWERY_RECIPE_CIDER,
@@ -64,9 +63,8 @@ use crate::economy::{
     withdraw_building_edible_food, CommodityKind, FRESH_FOOD_COMMODITIES,
 };
 use crate::extraction_policy::{
-    extraction_site_accepts_commodity, mineworks_clay_commodity,
-    mineworks_geological_commodity, mining_camp_clay_commodity,
-    mining_camp_geological_commodity, quarry_geological_commodity,
+    extraction_site_accepts_commodity, mineworks_clay_commodity, mineworks_geological_commodity,
+    mining_camp_clay_commodity, mining_camp_geological_commodity, quarry_geological_commodity,
 };
 use crate::farm_work_policy::{
     farm_field_effective_labor, field_task_rank, threshing_preempts_fields,
@@ -1783,19 +1781,14 @@ pub fn step_mine(
     ctx.db.building().id().update(mine);
 }
 
-fn mineworks_commodity_beneath(
-    ctx: &ReducerContext,
-    x: f64,
-    z: f64,
-) -> Option<CommodityKind> {
+fn mineworks_commodity_beneath(ctx: &ReducerContext, x: f64, z: f64) -> Option<CommodityKind> {
     const CENTER_TOLERANCE: f64 = 2.5;
     let tolerance_sq = CENTER_TOLERANCE * CENTER_TOLERANCE;
     ctx.db
         .quarry()
         .iter()
         .find_map(|deposit| {
-            ((deposit.x - x) * (deposit.x - x) + (deposit.z - z) * (deposit.z - z)
-                <= tolerance_sq)
+            ((deposit.x - x) * (deposit.x - x) + (deposit.z - z) * (deposit.z - z) <= tolerance_sq)
                 .then(|| mineworks_geological_commodity(&deposit.quarry_id, deposit.is_rich))
                 .flatten()
         })
@@ -1803,9 +1796,7 @@ fn mineworks_commodity_beneath(
             ctx.db.foraging_node().iter().find_map(|deposit| {
                 ((deposit.x - x) * (deposit.x - x) + (deposit.z - z) * (deposit.z - z)
                     <= tolerance_sq)
-                    .then(|| {
-                        mineworks_clay_commodity(&deposit.node_kind, &deposit.node_id)
-                    })
+                    .then(|| mineworks_clay_commodity(&deposit.node_kind, &deposit.node_id))
                     .flatten()
             })
         })
@@ -2304,15 +2295,13 @@ fn step_farmstead_fields(
 
     let farm_tools_ready = farm_tools_maintained(farmstead.ironwork);
     let farm_tool_throughput = farm_tool_throughput_multiplier(farmstead.ironwork);
-    let paired_field_oxen = if work_allowed
-        && threshing_labor == 0
-        && highest_ready_field_rank > 0
-        && onsite_labor > 0
-    {
-        crate::simulation::paired_production_ox_count(ctx, tick, farmstead, onsite_labor)
-    } else {
-        0
-    };
+    let paired_field_oxen =
+        if work_allowed && threshing_labor == 0 && highest_ready_field_rank > 0 && onsite_labor > 0
+        {
+            crate::simulation::paired_production_ox_count(ctx, tick, farmstead, onsite_labor)
+        } else {
+            0
+        };
     let mut work_budget = if work_allowed && threshing_labor == 0 {
         onsite_labor as f64 * FARM_WORK_METERS_PER_WORKER_PER_SEC * TICK_DT * farm_tool_throughput
     } else {
@@ -3105,6 +3094,7 @@ pub fn step_apiary(
         forage_score,
         building.apiary_colony_health,
     );
+    let honey_before_cycle = building.honey;
     let mut apiary = if apiary_is_active(clock.month as u8) {
         step_simple_producer_at_rate(
             ctx,
@@ -3117,6 +3107,42 @@ pub fn step_apiary(
     } else {
         building
     };
+    if apiary.honey - honey_before_cycle + 1e-6 >= APIARY_HONEY_PER_CYCLE {
+        record_apiary_honey_harvest_wax(&mut apiary);
+    }
+
+    // Beeswax is the scarce industrial by-product. Give an operating
+    // chandlery first claim before the apiary's single cart is occupied by
+    // routine honey dispatch; staffed storage and regional trade remain
+    // fallbacks when no workshop currently needs the batch.
+    dispatch_to_building_where(
+        ctx,
+        tick,
+        clock,
+        &mut apiary,
+        CommodityKind::Wax,
+        &["chandlery"],
+        |target| target.assigned_labor > 0,
+    );
+    dispatch_to_building_where(
+        ctx,
+        tick,
+        clock,
+        &mut apiary,
+        CommodityKind::Wax,
+        &["village_storehouse"],
+        |target| target.assigned_labor > 0 && storage_accepts_commodity(target, CommodityKind::Wax),
+    );
+    dispatch_to_building_where(
+        ctx,
+        tick,
+        clock,
+        &mut apiary,
+        CommodityKind::Wax,
+        &["trading_post"],
+        |target| target.assigned_labor > 0 && storage_accepts_commodity(target, CommodityKind::Wax),
+    );
+
     let reserve = apiary_honey_reserve(apiary.apiary_harvest_policy);
     let transferable = (apiary.honey - reserve).max(0.0);
     dispatch_to_building_where_limited(
@@ -3152,6 +3178,60 @@ pub fn step_apiary(
         |_| true,
     );
     ctx.db.building().id().update(apiary);
+}
+
+/// Record one successful honey extraction toward a whole wax batch. A full
+/// wax shelf retains the due progress but never blocks the apiary's primary
+/// honey cycle; once room exists, a later successful extraction realizes the
+/// pending batch.
+fn record_apiary_honey_harvest_wax(apiary: &mut Building) {
+    let (progress, wax_batch) = plan_apiary_wax_harvest(
+        apiary.apiary_wax_cycle_progress,
+        building_commodity_room(apiary, CommodityKind::Wax),
+    );
+    apiary.apiary_wax_cycle_progress = progress;
+    let Some(wax_batch) = wax_batch else {
+        return;
+    };
+    if deposit_building_commodity(apiary, CommodityKind::Wax, wax_batch) + 1e-6 >= wax_batch {
+        apiary.apiary_wax_cycle_progress = 0;
+    }
+}
+
+fn plan_apiary_wax_harvest(current_progress: u8, wax_room: f64) -> (u8, Option<f64>) {
+    let cycles_per_wax = APIARY_WAX_PER_HONEY_CYCLES.max(1);
+    let progress = if current_progress < cycles_per_wax {
+        current_progress.saturating_add(1)
+    } else {
+        current_progress
+    };
+    let wax_batch = whole_units(APIARY_WAX_PER_HARVEST);
+    let can_fit = progress >= cycles_per_wax
+        && wax_batch >= 1.0
+        && wax_room.is_finite()
+        && wax_room + 1e-6 >= wax_batch;
+    (progress, can_fit.then_some(wax_batch))
+}
+
+#[cfg(test)]
+mod apiary_wax_tests {
+    use super::{plan_apiary_wax_harvest, APIARY_WAX_PER_HARVEST, APIARY_WAX_PER_HONEY_CYCLES};
+    use crate::resource_units::whole_units;
+
+    #[test]
+    fn due_wax_progress_waits_for_whole_batch_room() {
+        let threshold = APIARY_WAX_PER_HONEY_CYCLES.max(1);
+        let wax_batch = whole_units(APIARY_WAX_PER_HARVEST);
+
+        assert_eq!(
+            plan_apiary_wax_harvest(threshold.saturating_sub(1), 0.0),
+            (threshold, None)
+        );
+        assert_eq!(
+            plan_apiary_wax_harvest(threshold, wax_batch),
+            (threshold, Some(wax_batch))
+        );
+    }
 }
 
 fn advance_monastery_vineyard_fermentation(
@@ -4106,8 +4186,7 @@ fn nearest_surface_extraction_commodity(
         if deposit.remaining <= 1e-6 {
             continue;
         }
-        let Some(commodity) =
-            mining_camp_geological_commodity(&deposit.quarry_id, deposit.is_rich)
+        let Some(commodity) = mining_camp_geological_commodity(&deposit.quarry_id, deposit.is_rich)
         else {
             continue;
         };
@@ -4132,11 +4211,7 @@ fn nearest_surface_extraction_commodity(
     nearest
 }
 
-fn rich_stone_commodity_beneath(
-    ctx: &ReducerContext,
-    x: f64,
-    z: f64,
-) -> Option<CommodityKind> {
+fn rich_stone_commodity_beneath(ctx: &ReducerContext, x: f64, z: f64) -> Option<CommodityKind> {
     const CENTER_TOLERANCE_SQ: f64 = 2.5 * 2.5;
     ctx.db.quarry().iter().find_map(|deposit| {
         ((deposit.x - x).powi(2) + (deposit.z - z).powi(2) <= CENTER_TOLERANCE_SQ)
@@ -5048,45 +5123,55 @@ fn pastoral_winter_animal_feed_reserve(
     tick: &SimTickContext,
     source: &Building,
 ) -> f64 {
-    let Some(herd) = ctx.db.livestock_herd().building_id().find(&source.id) else {
+    let herds = ctx
+        .db
+        .pasture_herd()
+        .farmstead_id()
+        .filter(&source.id)
+        .filter(|herd| herd.head_count > 0)
+        .collect::<Vec<_>>();
+    if herds.is_empty() {
         return 0.0;
-    };
-    if herd.head_count == 0 {
-        return 0.0;
-    }
-    let (hay_per_head, feed_per_head, winter_multiplier) = match herd.species {
-        crate::reducers::livestock::SPECIES_CATTLE => (
-            CATTLE_HAY_PER_UNSUPPORTED_HEAD,
-            CATTLE_GRAIN_PER_UNSUPPORTED_HEAD,
-            WINTER_PASTURE_CAPACITY_MULTIPLIER,
-        ),
-        crate::reducers::livestock::SPECIES_SHEEP => (
-            SHEEP_HAY_PER_UNSUPPORTED_HEAD,
-            SHEEP_GRAIN_PER_UNSUPPORTED_HEAD,
-            WINTER_PASTURE_CAPACITY_MULTIPLIER,
-        ),
-        _ => (
-            0.0,
-            SWINE_GRAIN_PER_UNSUPPORTED_HEAD,
-            PANNAGE_WINTER_CAPACITY_MULTIPLIER,
-        ),
     };
     let cycles_per_day = building_def(&source.kind)
         .map(|def| livestock_cycles_per_calendar_day(def.action_interval))
         .unwrap_or(0.0);
-    projected_winter_animal_feed(
-        herd.head_count,
-        tick.livestock_grazing_capacity(ctx, source, &herd),
-        herd.hay_stock,
-        hay_per_head,
-        feed_per_head,
-        cycles_per_day,
-        winter_multiplier,
-    )
-    .min(building_commodity_cap(
-        &source.kind,
-        CommodityKind::AnimalFeed,
-    ))
+    herds
+        .into_iter()
+        .filter_map(|herd| {
+            let pasture = ctx.db.pasture().id().find(&herd.pasture_id)?;
+            let (hay_per_head, feed_per_head, winter_multiplier) = match herd.species {
+                crate::reducers::livestock::SPECIES_CATTLE => (
+                    CATTLE_HAY_PER_UNSUPPORTED_HEAD,
+                    CATTLE_GRAIN_PER_UNSUPPORTED_HEAD,
+                    WINTER_PASTURE_CAPACITY_MULTIPLIER,
+                ),
+                crate::reducers::livestock::SPECIES_SHEEP => (
+                    SHEEP_HAY_PER_UNSUPPORTED_HEAD,
+                    SHEEP_GRAIN_PER_UNSUPPORTED_HEAD,
+                    WINTER_PASTURE_CAPACITY_MULTIPLIER,
+                ),
+                _ => (
+                    0.0,
+                    SWINE_GRAIN_PER_UNSUPPORTED_HEAD,
+                    PANNAGE_WINTER_CAPACITY_MULTIPLIER,
+                ),
+            };
+            Some(projected_winter_animal_feed(
+                herd.head_count,
+                tick.livestock_grazing_capacity(ctx, &pasture, &herd),
+                herd.hay_stock,
+                hay_per_head,
+                feed_per_head,
+                cycles_per_day,
+                winter_multiplier,
+            ))
+        })
+        .sum::<f64>()
+        .min(building_commodity_cap(
+            &source.kind,
+            CommodityKind::AnimalFeed,
+        ))
 }
 
 fn institutional_source_food_surplus(
@@ -5119,10 +5204,10 @@ fn livestock_source_has_feed_commitment(ctx: &ReducerContext, source: &Building)
         return false;
     }
     ctx.db
-        .livestock_herd()
-        .building_id()
-        .find(&source.id)
-        .is_some_and(|herd| herd.head_count > 0)
+        .pasture_herd()
+        .farmstead_id()
+        .filter(&source.id)
+        .any(|herd| herd.head_count > 0)
 }
 
 fn request_connected_commodity_with_source_availability(

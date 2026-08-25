@@ -28,9 +28,8 @@ use crate::economy::{
     total_ironwork, total_roof_tiles, total_stone, total_timber, CommodityKind,
 };
 use crate::extraction_policy::{
-    mineworks_clay_commodity, mineworks_geological_commodity,
-    mining_camp_clay_commodity, mining_camp_geological_commodity,
-    quarry_geological_commodity, LEGACY_CLAY_PIT_KIND,
+    mineworks_clay_commodity, mineworks_geological_commodity, mining_camp_clay_commodity,
+    mining_camp_geological_commodity, quarry_geological_commodity, LEGACY_CLAY_PIT_KIND,
 };
 use crate::farm_work_policy::is_valid_threshing_priority;
 use crate::foraging_policy::harvest_available;
@@ -83,12 +82,12 @@ use crate::simulation::{
     building_has_inbound_supply_trip, call_up_active_seasonal_labor_for_settlement,
     cancel_inbound_construction_trips_for_site, clear_fire_for_target, drain_trips_for_building,
     game_clock, local_delivery_distance, preserve_in_transit_cart_labor,
-    recall_idle_seasonal_labor_for_settlement,
-    staffed_cart_workers_by_building, ReclamationStock, FIRE_TARGET_BUILDING,
+    recall_idle_seasonal_labor_for_settlement, staffed_cart_workers_by_building, ReclamationStock,
+    FIRE_TARGET_BUILDING,
 };
 use crate::specialty_trade_policy::{is_valid_specialty_export_policy, SpecialtyMarketFamily};
 use crate::storage_acceptance_policy::{
-    set_storage_mask_all, set_storage_mask_commodity, storage_kind_supports_commodity,
+    set_storage_masks_all, set_storage_masks_commodity, storage_kind_supports_commodity,
 };
 use crate::storehouse_policy::{
     is_valid_storehouse_stock_target_percent, STOREHOUSE_STOCK_TARGET_DEFAULT_PERCENT,
@@ -99,16 +98,16 @@ use crate::supply_policy::{
 };
 use crate::tables::graveyard;
 use crate::tables::{
-    farm_field, livestock_herd, pasture, Building, ForagingNode, Quarry, WorldConfig,
+    farm_field, livestock_herd, pasture, pasture_herd, Building, ForagingNode, Quarry, WorldConfig,
 };
 use crate::tree_work_area_policy::{supports_tree_work_area, validate_tree_work_area};
 use crate::weaver_input_policy::is_valid_weaver_input_policy;
 use crate::woodcutter_policy::normalize_woodcutter_timber_reserve;
+use crate::workforce_commute_policy::supports_buildable_remote_work_camp;
 use crate::worksite_stall_policy::{
     alternative_processor_recipe_ready, is_production_labor_kind, stalled_labor_target,
     ProcessorRecipeAvailability, SpatialBuckets, RICH_DEPOSIT_CENTER_TOLERANCE,
 };
-use crate::workforce_commute_policy::supports_buildable_remote_work_camp;
 use crate::year_round_labor_policy::{
     is_year_round_labor_kind, year_round_labor_rotation, YearRoundLaborSite,
 };
@@ -768,9 +767,7 @@ pub(crate) fn place_building_internal(
     }
 
     if kind == "large_quarry" && !on_rich_stone {
-        return Err(
-            "Quarries must be centered directly on a rich stone deposit.".to_string(),
-        );
+        return Err("Quarries must be centered directly on a rich stone deposit.".to_string());
     }
 
     if kind == "mine" && !on_mineworks_deposit {
@@ -1092,6 +1089,10 @@ pub(crate) fn place_building_internal(
         pear_cider: 0.0,
         settlement_id,
         animal_feed: 0.0,
+        storage_acceptance_mask_high: u64::MAX,
+        wax: 0.0,
+        candles: 0.0,
+        apiary_wax_cycle_progress: 0,
     });
 
     if is_founders_camp_expansion {
@@ -1198,9 +1199,7 @@ fn require_staffed_town_hall_settlement(
         .settlement()
         .id()
         .find(&hall.settlement_id)
-        .is_some_and(|settlement| {
-            settlement.owner == owner && settlement.town_hall_id == hall.id
-        });
+        .is_some_and(|settlement| settlement.owner == owner && settlement.town_hall_id == hall.id);
     if !valid_jurisdiction {
         return Err("This Town Hall has no active civic jurisdiction.".to_string());
     }
@@ -1212,10 +1211,7 @@ fn require_staffed_town_hall_settlement(
 /// immediate progress possible. Existing productive and inbound-waiting crews
 /// are never displaced.
 #[reducer]
-pub fn rotate_construction_labor(
-    ctx: &ReducerContext,
-    town_hall_id: u64,
-) -> Result<(), String> {
+pub fn rotate_construction_labor(ctx: &ReducerContext, town_hall_id: u64) -> Result<(), String> {
     let owner = ctx.sender();
     let settlement_id = require_staffed_town_hall_settlement(ctx, owner, town_hall_id)?;
     rotate_construction_labor_for_settlement_with_reserve(ctx, owner, settlement_id, 0);
@@ -1305,10 +1301,7 @@ fn rotate_construction_labor_for_scope(
 /// Stored output remains available to logistics labor. Restaffing remains an
 /// explicit player decision.
 #[reducer]
-pub fn recall_idle_seasonal_labor(
-    ctx: &ReducerContext,
-    town_hall_id: u64,
-) -> Result<(), String> {
+pub fn recall_idle_seasonal_labor(ctx: &ReducerContext, town_hall_id: u64) -> Result<(), String> {
     let owner = ctx.sender();
     let settlement_id = require_staffed_town_hall_settlement(ctx, owner, town_hall_id)?;
 
@@ -1559,9 +1552,7 @@ fn mineworks_source_commodity(
             building.x,
             building.z,
             RICH_DEPOSIT_CENTER_TOLERANCE,
-            |deposit| {
-                mineworks_clay_commodity(&deposit.node_kind, &deposit.node_id).is_some()
-            },
+            |deposit| mineworks_clay_commodity(&deposit.node_kind, &deposit.node_id).is_some(),
             |_| true,
         )
         .usable
@@ -1589,18 +1580,14 @@ fn surface_source_commodity(
         building.x,
         building.z,
         building.work_radius,
-        |deposit| {
-            mining_camp_geological_commodity(&deposit.quarry_id, deposit.is_rich).is_some()
-        },
+        |deposit| mining_camp_geological_commodity(&deposit.quarry_id, deposit.is_rich).is_some(),
         |deposit| deposit.remaining > 1e-6,
     );
     let clay_source = foraging_buckets.nearest_usable_within_radius(
         building.x,
         building.z,
         building.work_radius,
-        |deposit| {
-            mining_camp_clay_commodity(&deposit.node_kind, &deposit.node_id).is_some()
-        },
+        |deposit| mining_camp_clay_commodity(&deposit.node_kind, &deposit.node_id).is_some(),
         |deposit| deposit.remaining > 1e-6,
     );
     if clay_source.is_some_and(|(_, clay_distance_sq)| {
@@ -1628,9 +1615,7 @@ fn rich_stone_source_commodity(
             building.x,
             building.z,
             RICH_DEPOSIT_CENTER_TOLERANCE,
-            |deposit| {
-                quarry_geological_commodity(&deposit.quarry_id, deposit.is_rich).is_some()
-            },
+            |deposit| quarry_geological_commodity(&deposit.quarry_id, deposit.is_rich).is_some(),
             |_| true,
         )
         .usable
@@ -1698,14 +1683,11 @@ fn production_site_ready(
             !extraction_output_blocked(building, CommodityKind::Clay)
                 && clay_source_usable(building, foraging_buckets)
         }
-        "mine" => {
-            mineworks_source_commodity(building, quarry_buckets, foraging_buckets).is_some_and(
-                |commodity| {
-                    !extraction_output_blocked(building, commodity)
-                        && rich_mine_supports_ready(building.timber)
-                },
-            )
-        }
+        "mine" => mineworks_source_commodity(building, quarry_buckets, foraging_buckets)
+            .is_some_and(|commodity| {
+                !extraction_output_blocked(building, commodity)
+                    && rich_mine_supports_ready(building.timber)
+            }),
         "stone_quarry" => surface_source_commodity(building, quarry_buckets, foraging_buckets)
             .is_some_and(|commodity| !extraction_output_blocked(building, commodity)),
         "large_quarry" => {
@@ -1794,11 +1776,8 @@ fn recall_target_idle_processor_labor_for_scope(
                 building.clay > 1e-6 || has_active_trip,
             ),
             "mine" => {
-                let source = mineworks_source_commodity(
-                    &building,
-                    &quarry_buckets,
-                    &foraging_buckets,
-                );
+                let source =
+                    mineworks_source_commodity(&building, &quarry_buckets, &foraging_buckets);
                 let (stalled, supply_en_route) = source.map_or((true, false), |commodity| {
                     let output_blocked = extraction_output_blocked(&building, commodity);
                     let support_missing = !rich_mine_supports_ready(building.timber);
@@ -2041,10 +2020,7 @@ pub fn call_up_target_ready_processor_labor(
 /// from strictly lower tiers. Specialized crews and Town Hall clerks are never
 /// displaced by this order.
 #[reducer]
-pub fn call_up_year_round_labor(
-    ctx: &ReducerContext,
-    town_hall_id: u64,
-) -> Result<(), String> {
+pub fn call_up_year_round_labor(ctx: &ReducerContext, town_hall_id: u64) -> Result<(), String> {
     let owner = ctx.sender();
     let settlement_id = require_staffed_town_hall_settlement(ctx, owner, town_hall_id)?;
 
@@ -2053,15 +2029,9 @@ pub fn call_up_year_round_labor(
     let mut fire_disabled_sites = Vec::new();
     let cart_floors = staffed_cart_workers_by_building(ctx, owner);
     let roster_floors = guardhouse_roster_floors(ctx, owner);
-    for building in ctx
-        .db
-        .building()
-        .owner()
-        .filter(&owner)
-        .filter(|building| {
-            building.construction_complete && building.settlement_id == settlement_id
-        })
-    {
+    for building in ctx.db.building().owner().filter(&owner).filter(|building| {
+        building.construction_complete && building.settlement_id == settlement_id
+    }) {
         let Some(def) = building_def(&building.kind) else {
             continue;
         };
@@ -2212,11 +2182,14 @@ pub fn set_storehouse_policy(
         (CommodityKind::Clay, accepts_clay),
         (CommodityKind::Salt, accepts_salt),
     ] {
-        building.storage_acceptance_mask = set_storage_mask_commodity(
+        let (low, high) = set_storage_masks_commodity(
             building.storage_acceptance_mask,
+            building.storage_acceptance_mask_high,
             commodity.as_u8(),
             accepts,
         );
+        building.storage_acceptance_mask = low;
+        building.storage_acceptance_mask_high = high;
     }
     ctx.db.building().id().update(building);
     Ok(())
@@ -2245,8 +2218,14 @@ pub fn set_storage_commodity_acceptance(
     if !storage_kind_supports_commodity(&building.kind, commodity_kind) {
         return Err("That commodity cannot be stored in this building.".to_string());
     }
-    building.storage_acceptance_mask =
-        set_storage_mask_commodity(building.storage_acceptance_mask, commodity_kind, accepts);
+    let (low, high) = set_storage_masks_commodity(
+        building.storage_acceptance_mask,
+        building.storage_acceptance_mask_high,
+        commodity_kind,
+        accepts,
+    );
+    building.storage_acceptance_mask = low;
+    building.storage_acceptance_mask_high = high;
     if let Some(commodity) = CommodityKind::from_u8(commodity_kind) {
         match (building.kind.as_str(), commodity) {
             ("village_storehouse", CommodityKind::Timber) => {
@@ -2303,8 +2282,14 @@ pub fn set_all_storage_acceptance(
     {
         return Err("You do not own this completed storage building.".to_string());
     }
-    building.storage_acceptance_mask =
-        set_storage_mask_all(building.storage_acceptance_mask, &building.kind, accepts);
+    let (low, high) = set_storage_masks_all(
+        building.storage_acceptance_mask,
+        building.storage_acceptance_mask_high,
+        &building.kind,
+        accepts,
+    );
+    building.storage_acceptance_mask = low;
+    building.storage_acceptance_mask_high = high;
     if building.kind == "village_storehouse" {
         building.storehouse_accepts_timber = accepts;
         building.storehouse_accepts_stone = accepts;
@@ -2555,11 +2540,14 @@ pub fn set_granary_policy(
         CommodityKind::SmokedFish,
         CommodityKind::Cheese,
     ] {
-        building.storage_acceptance_mask = set_storage_mask_commodity(
+        let (low, high) = set_storage_masks_commodity(
             building.storage_acceptance_mask,
+            building.storage_acceptance_mask_high,
             commodity.as_u8(),
             accepts_fresh_food,
         );
+        building.storage_acceptance_mask = low;
+        building.storage_acceptance_mask_high = high;
     }
     ctx.db.building().id().update(building);
     Ok(())
@@ -3163,12 +3151,18 @@ pub fn demolish_building(ctx: &ReducerContext, building_id: u64) -> Result<(), S
         return Err("Remove or reassign this farmstead's fields first.".to_string());
     }
     if matches!(building.kind.as_str(), "pastoral_farmstead" | "swineherd")
-        && ctx
+        && (ctx
             .db
-            .livestock_herd()
-            .building_id()
-            .find(&building_id)
-            .is_some_and(|herd| herd.head_count > 0)
+            .pasture_herd()
+            .farmstead_id()
+            .filter(&building_id)
+            .any(|herd| herd.head_count > 0)
+            || ctx
+                .db
+                .livestock_herd()
+                .building_id()
+                .find(&building_id)
+                .is_some_and(|herd| herd.head_count > 0))
     {
         return Err("Sell this livestock holding's animals before demolition.".to_string());
     }
@@ -3276,6 +3270,15 @@ pub fn demolish_building(ctx: &ReducerContext, building_id: u64) -> Result<(), S
         .is_some()
     {
         ctx.db.livestock_herd().building_id().delete(&building_id);
+    }
+    for herd in ctx
+        .db
+        .pasture_herd()
+        .farmstead_id()
+        .filter(&building_id)
+        .collect::<Vec<_>>()
+    {
+        ctx.db.pasture_herd().pasture_id().delete(&herd.pasture_id);
     }
     for parcel in ctx
         .db

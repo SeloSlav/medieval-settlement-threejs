@@ -78,8 +78,8 @@ import {
 import {
   countMatureTreesInPasturePolygons,
   livestockHoldingWholeHeadLimit,
+  livestockPastureManagementHeadAllowance,
   neutralPastureHeadCapacity,
-  neutralPastureHoldingHeadCapacity,
   pannageHoldingHeadCapacity,
   pastureAreaHeadCapacity,
 } from './pastureCapacity.ts';
@@ -398,10 +398,7 @@ export class FarmFieldTool {
   ): string {
     const farmstead = validation.farmstead;
     const state = this.options.getState();
-    const herd = farmstead ? state.livestockHerds.get(farmstead.id) : null;
-    if (!farmstead || !herd) {
-      return `${roundedArea} m² pasture · choose a herd to calculate capacity · ${placementHint}`;
-    }
+    if (!farmstead) return `${roundedArea} m² pasture · ${placementHint}`;
 
     const draftPasture: PastureState = {
       id: 'pasture:zzzz-preview',
@@ -411,85 +408,55 @@ export class FarmFieldTool {
       averageSlopeDegrees: validation.slope,
       moisture: validation.moisture,
     };
-    const existingPastures = [...state.pastures.values()]
-      .filter((pasture) => pasture.farmsteadId === farmstead.id);
-    const resultingPastures = [...existingPastures, draftPasture];
-
-    if (herd.species !== 'swine') {
-      const existingCapacity = neutralPastureHoldingHeadCapacity(
-        existingPastures,
-        herd.species,
+    if (farmstead.kind === 'pastoral_farmstead') {
+      const cattleCapacity = neutralPastureHeadCapacity(draftPasture, 'cattle') ?? 0;
+      const sheepCapacity = neutralPastureHeadCapacity(draftPasture, 'sheep') ?? 0;
+      const siblingHerds = [...state.livestockHerds.values()]
+        .filter((herd) => herd.buildingId === farmstead.id);
+      const cattleLimit = Math.min(
+        livestockHoldingWholeHeadLimit(cattleCapacity, 'cattle'),
+        livestockPastureManagementHeadAllowance('cattle', siblingHerds),
       );
-      const addedCapacity = neutralPastureHeadCapacity(
-        draftPasture,
-        herd.species,
-      ) ?? 0;
-      const resultingCapacity = neutralPastureHoldingHeadCapacity(
-        resultingPastures,
-        herd.species,
+      const sheepLimit = Math.min(
+        livestockHoldingWholeHeadLimit(sheepCapacity, 'sheep'),
+        livestockPastureManagementHeadAllowance('sheep', siblingHerds),
       );
-      const wholeHeadLimit = livestockHoldingWholeHeadLimit(
-        resultingCapacity,
-        herd.species,
-      );
-      const existingWholeHeadLimit = livestockHoldingWholeHeadLimit(
-        existingCapacity,
-        herd.species,
-      );
-      const addedWholeHeadSlots = Math.max(0, wholeHeadLimit - existingWholeHeadLimit);
-      const areaOnlyCapacity = pastureAreaHeadCapacity(draftPasture, herd.species);
-      const landQualityPercent = areaOnlyCapacity <= 1e-9
-        ? 0
-        : Math.round((addedCapacity / areaOnlyCapacity) * 100);
-      const maximumHerd = herd.species === 'cattle' ? CATTLE_MAX_HERD : SHEEP_MAX_HERD;
-      const managementCap = wholeHeadLimit >= maximumHerd
-        ? ' · management cap reached'
-        : '';
-      return `${roundedArea} m² pasture · +${addedCapacity.toFixed(1)} neutral ${herd.species} capacity (${landQualityPercent}% land quality) · +${addedWholeHeadSlots} whole-head slots, holding limit ${wholeHeadLimit}${managementCap} · ${placementHint}`;
+      const cattleQuality = pastureAreaHeadCapacity(draftPasture, 'cattle') > 1e-9
+        ? Math.round(cattleCapacity / pastureAreaHeadCapacity(draftPasture, 'cattle') * 100)
+        : 0;
+      const sheepQuality = pastureAreaHeadCapacity(draftPasture, 'sheep') > 1e-9
+        ? Math.round(sheepCapacity / pastureAreaHeadCapacity(draftPasture, 'sheep') * 100)
+        : 0;
+      const cattleCompatibility = validation.slope > CATTLE_MAX_SLOPE_DEGREES
+        ? 'cattle too steep'
+        : `${cattleLimit} cattle (${cattleQuality}% quality)${cattleLimit >= CATTLE_MAX_HERD ? ' · management cap' : ''}`;
+      return `${roundedArea} m² pasture · choose after fencing: ${cattleCompatibility} or ${sheepLimit} sheep (${sheepQuality}% quality)${sheepLimit >= SHEEP_MAX_HERD ? ' · management cap' : ''} · each parcel keeps its own herd and cap · ${placementHint}`;
     }
 
     const treeRegistry = this.options.getTreeRegistry?.();
     if (!treeRegistry) {
-      const areaCapacity = pannageHoldingHeadCapacity(resultingPastures, 0)
+      const areaCapacity = pannageHoldingHeadCapacity([draftPasture], 0)
         .areaHeadCapacity;
-      return `${roundedArea} m² pannage · holding land cap ${areaCapacity.toFixed(1)} pigs · mature-tree mast cap loading · ${placementHint}`;
+      return `${roundedArea} m² pannage · parcel land cap ${areaCapacity.toFixed(1)} pigs · mature-tree mast cap loading · ${placementHint}`;
     }
-    const existingMatureTrees = countMatureTreesInPasturePolygons(
+    const matureTrees = countMatureTreesInPasturePolygons(
       state,
       treeRegistry,
-      existingPastures,
+      [draftPasture],
     );
-    const resultingMatureTrees = countMatureTreesInPasturePolygons(
-      state,
-      treeRegistry,
-      resultingPastures,
+    const capacity = pannageHoldingHeadCapacity([draftPasture], matureTrees);
+    const wholeHeadLimit = Math.min(
+      livestockHoldingWholeHeadLimit(capacity.headCapacity, 'swine'),
+      livestockPastureManagementHeadAllowance(
+        'swine',
+        [...state.livestockHerds.values()]
+          .filter((herd) => herd.buildingId === farmstead.id),
+      ),
     );
-    const existingCapacity = pannageHoldingHeadCapacity(
-      existingPastures,
-      existingMatureTrees,
-    );
-    const resultingCapacity = pannageHoldingHeadCapacity(
-      resultingPastures,
-      resultingMatureTrees,
-    );
-    const addedCapacity = Math.max(
-      0,
-      resultingCapacity.headCapacity - existingCapacity.headCapacity,
-    );
-    const wholeHeadLimit = livestockHoldingWholeHeadLimit(
-      resultingCapacity.headCapacity,
-      herd.species,
-    );
-    const existingWholeHeadLimit = livestockHoldingWholeHeadLimit(
-      existingCapacity.headCapacity,
-      herd.species,
-    );
-    const addedWholeHeadSlots = Math.max(0, wholeHeadLimit - existingWholeHeadLimit);
-    const addedMatureTrees = Math.max(0, resultingMatureTrees - existingMatureTrees);
     const managementCap = wholeHeadLimit >= SWINE_MAX_HERD
       ? ' · management cap reached'
       : '';
-    return `${roundedArea} m² pannage · +${addedCapacity.toFixed(1)} neutral pig capacity · +${addedWholeHeadSlots} whole-head slots, holding limit ${wholeHeadLimit}${managementCap} · land cap ${resultingCapacity.areaHeadCapacity.toFixed(1)} vs woodland browse/mast cap ${resultingCapacity.mastHeadCapacity.toFixed(1)} (+${addedMatureTrees}, ${resultingCapacity.matureTrees} mature trees total) · ${placementHint}`;
+    return `${roundedArea} m² pannage · ${wholeHeadLimit} pig slots${managementCap} · parcel land cap ${capacity.areaHeadCapacity.toFixed(1)} vs woodland browse/mast cap ${capacity.mastHeadCapacity.toFixed(1)} (${capacity.matureTrees} mature trees) · ${placementHint}`;
   }
 
   getBuildButtonPosition(): { clientX: number; clientY: number } | null {
@@ -825,13 +792,10 @@ export class FarmFieldTool {
         return { ok: false, reason: 'no_farmstead', corners, slope, moisture, southExposure };
       }
     }
-    const pastureSpecies = state.livestockHerds.get(farmstead!.id)?.species;
     const maxSlope = this.mode === 'pasture'
-      ? pastureSpecies === 'cattle'
-        ? CATTLE_MAX_SLOPE_DEGREES
-        : pastureSpecies === 'swine'
-          ? SWINE_MAX_SLOPE_DEGREES
-          : SHEEP_MAX_SLOPE_DEGREES
+      ? farmstead!.kind === 'swineherd'
+        ? SWINE_MAX_SLOPE_DEGREES
+        : SHEEP_MAX_SLOPE_DEGREES
       : this.mode === 'graveyard'
         ? GRAVEYARD_MAX_SLOPE
         : this.mode === 'vineyard'

@@ -86,6 +86,20 @@ export function buildingMarkerSignatures(
   livestockHerds?: ReadonlyMap<string, LivestockHerdState>,
   issuedGuardPolearms?: ReadonlyMap<string, number>,
 ): { visual: string; collider: string } {
+  const hayByBuilding = new Map<string, number>();
+  const hayPasturesByBuilding = new Map<string, number>();
+  for (const herd of livestockHerds?.values() ?? []) {
+    hayByBuilding.set(
+      herd.buildingId,
+      (hayByBuilding.get(herd.buildingId) ?? 0) + Math.max(0, herd.hayStock),
+    );
+    if (herd.species !== 'swine') {
+      hayPasturesByBuilding.set(
+        herd.buildingId,
+        (hayPasturesByBuilding.get(herd.buildingId) ?? 0) + 1,
+      );
+    }
+  }
   const entries = [...buildings.values()]
     .map((building) => {
       const foundingState = building.kind === 'founders_camp'
@@ -250,8 +264,9 @@ export function buildingMarkerSignatures(
       const hayState = building.kind === 'pastoral_farmstead'
         && building.constructionComplete !== false
         ? `:hay:${stockpileVisualLevel(
-          livestockHerds?.get(building.id)?.hayStock ?? 0,
-          LIVESTOCK_HAY_STORAGE_CAPACITY,
+          hayByBuilding.get(building.id) ?? 0,
+          LIVESTOCK_HAY_STORAGE_CAPACITY
+            * Math.max(1, hayPasturesByBuilding.get(building.id) ?? 0),
           HAYLOFT_VISUAL_SEGMENTS,
         )}`
         : '';

@@ -126,8 +126,8 @@ pub fn migrate_and_sync_food_inventory(
     needs: &mut [NeedState],
 ) {
     if !residence.food_inventory_migrated {
-        residence.food = whole_units(residence.food)
-            + whole_units(need_stock(needs, ResidenceNeedKind::Food));
+        residence.food =
+            whole_units(residence.food) + whole_units(need_stock(needs, ResidenceNeedKind::Food));
         residence.preserved_food = whole_units(residence.preserved_food)
             + whole_units(need_stock(needs, ResidenceNeedKind::PreservedFood));
         residence.food_inventory_migrated = true;

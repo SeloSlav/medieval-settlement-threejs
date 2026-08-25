@@ -194,6 +194,16 @@ export class BuildingMarkers {
     livestockHerds?: ReadonlyMap<string, LivestockHerdState>,
     issuedGuardPolearms?: ReadonlyMap<string, number>,
   ): void {
+    const visualHerdsByBuilding = new Map<string, LivestockHerdState>();
+    for (const herd of livestockHerds?.values() ?? []) {
+      const prior = visualHerdsByBuilding.get(herd.buildingId);
+      visualHerdsByBuilding.set(
+        herd.buildingId,
+        prior
+          ? { ...prior, hayStock: prior.hayStock + Math.max(0, herd.hayStock) }
+          : { ...herd, hayStock: Math.max(0, herd.hayStock) },
+      );
+    }
     const nextIds = new Set<string>();
     for (const building of buildings) {
       nextIds.add(building.id);
@@ -201,7 +211,7 @@ export class BuildingMarkers {
       if (
         priorState === building
         && this.buildingMeshes.has(building.id)
-        && livestockHerds?.has(building.id) !== true
+        && visualHerdsByBuilding.has(building.id) !== true
         && issuedGuardPolearms?.has(building.id) !== true
       ) {
         continue;
@@ -209,7 +219,7 @@ export class BuildingMarkers {
       this.buildingStates.set(building.id, building);
       this.upsertBuilding(
         building,
-        livestockHerds?.get(building.id),
+        visualHerdsByBuilding.get(building.id),
         issuedGuardPolearms?.get(building.id) ?? 0,
       );
       const marker = this.buildingMeshes.get(building.id);
