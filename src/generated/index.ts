@@ -155,6 +155,7 @@ import GuardMusterRouteRow from "./guard_muster_route_table";
 import LivestockHerdRow from "./livestock_herd_table";
 import MarketStateRow from "./market_state_table";
 import PastureRow from "./pasture_table";
+import PastureHerdRow from "./pasture_herd_table";
 import PlayerResourcesRow from "./player_resources_table";
 import QuarryRow from "./quarry_table";
 import RaidIncursionRouteRow from "./raid_incursion_route_table";
@@ -436,6 +437,23 @@ const tablesSchema = __schema({
       { name: 'pasture_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, PastureRow),
+  pasture_herd: __table({
+    name: 'pasture_herd',
+    indexes: [
+      { name: 'farmstead_id', algorithm: 'btree', columns: [
+        'farmsteadId',
+      ] },
+      { name: 'owner', algorithm: 'btree', columns: [
+        'owner',
+      ] },
+      { name: 'pasture_id', algorithm: 'btree', columns: [
+        'pastureId',
+      ] },
+    ],
+    constraints: [
+      { name: 'pasture_herd_pasture_id_key', constraint: 'unique', columns: ['pastureId'] },
+    ],
+  }, PastureHerdRow),
   player_resources: __table({
     name: 'player_resources',
     indexes: [

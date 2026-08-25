@@ -241,6 +241,7 @@ const PROCESS: Record<string, string> = {
   weaver: 'Annual sheep fleece or flax + hauled water → woven cloth → tier-2+ Marketplace stalls, then Trading Post export',
   tannery: 'Goat or game hides + hauled water + firewood → tanned leather for Cobbler workshops and trade',
   cobbler: 'Tanned leather + cobbler labor → finished shoes → Tier 3+ Marketplace stalls, then Trading Post export',
+  chandlery: '2 beeswax + 1 firewood + chandler labor → 6 candle lots for prosperous households, institutions, and trade',
 };
 
 const OUTBOUND_SUPPLY_KINDS = new Set<BuildingKind>([
@@ -257,6 +258,7 @@ const OUTBOUND_SUPPLY_KINDS = new Set<BuildingKind>([
   'carpenter',
   'tannery',
   'cobbler',
+  'chandlery',
   'weaver',
   'clay_pit',
   'charcoal_burner',
@@ -320,6 +322,8 @@ function buildingHasOutboundStock(
       return (building.ironwork ?? 0) > 0;
     case 'potter_kiln':
       return (building.pottery ?? 0) > 0;
+    case 'chandlery':
+      return (building.candles ?? 0) > 0;
     default:
       return false;
   }
@@ -356,6 +360,8 @@ function outboundDestinationLabel(building: BuildingState): string {
       return 'Settlement-wide match: highest-priority maintained worksite, then shortest forge route and overflow';
     case 'potter_kiln':
       return 'Settlement-wide match: staffed Storehouse market supply, highest-priority smokehouse, then export';
+    case 'chandlery':
+      return 'Staffed Storehouse first, then the road-linked Trading Post';
     default:
       return 'Awaiting destination';
   }

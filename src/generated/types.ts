@@ -42,6 +42,7 @@ export const BackyardGarden = __t.object("BackyardGarden", {
   lastSecondaryProductionDay: __t.u64(),
   hideStock: __t.f64(),
   flowerLuxuryUpgraded: __t.bool(),
+  waxStock: __t.f64(),
 });
 export type BackyardGarden = __Infer<typeof BackyardGarden>;
 
@@ -208,6 +209,10 @@ export const Building = __t.object("Building", {
   treeWorkAreaRadius: __t.f64(),
   settlementId: __t.u64(),
   animalFeed: __t.f64(),
+  storageAcceptanceMaskHigh: __t.u64(),
+  wax: __t.f64(),
+  candles: __t.f64(),
+  apiaryWaxCycleProgress: __t.u8(),
 });
 export type Building = __Infer<typeof Building>;
 
@@ -469,6 +474,29 @@ export const Pasture = __t.object("Pasture", {
 });
 export type Pasture = __Infer<typeof Pasture>;
 
+export const PastureHerd = __t.object("PastureHerd", {
+  pastureId: __t.u64(),
+  farmsteadId: __t.u64(),
+  owner: __t.identity(),
+  species: __t.u8(),
+  headCount: __t.u32(),
+  health: __t.f64(),
+  breedingProgress: __t.f64(),
+  pastureCapacity: __t.f64(),
+  suppliedCapacity: __t.f64(),
+  lastFoodOutput: __t.f64(),
+  lastPreservedOutput: __t.f64(),
+  lastWoolGold: __t.f64(),
+  breedingReserve: __t.u32(),
+  lastCulled: __t.u32(),
+  hayStock: __t.f64(),
+  lastHayOutput: __t.f64(),
+  haymakingPercent: __t.u8(),
+  lastWoolOutput: __t.f64(),
+  lastShearingYear: __t.u32(),
+});
+export type PastureHerd = __Infer<typeof PastureHerd>;
+
 export const PlayerResources = __t.object("PlayerResources", {
   owner: __t.identity(),
   timber: __t.f64(),
@@ -590,6 +618,8 @@ export const PlayerResources = __t.object("PlayerResources", {
   aroniaJam: __t.f64(),
   rosehipJam: __t.f64(),
   pearCider: __t.f64(),
+  wax: __t.f64(),
+  candles: __t.f64(),
 });
 export type PlayerResources = __Infer<typeof PlayerResources>;
 

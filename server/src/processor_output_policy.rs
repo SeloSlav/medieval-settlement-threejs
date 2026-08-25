@@ -21,6 +21,7 @@ pub enum ProcessorOutputKind {
     Pottery,
     Leather,
     Shoes,
+    Candles,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -42,6 +43,7 @@ pub enum ProcessorInputKind {
     Honey,
     Hides,
     Leather,
+    Wax,
 }
 
 pub fn processor_output_kind(kind: &str) -> Option<ProcessorOutputKind> {
@@ -56,6 +58,7 @@ pub fn processor_output_kind(kind: &str) -> Option<ProcessorOutputKind> {
         "potter_kiln" => Some(ProcessorOutputKind::Pottery),
         "tannery" => Some(ProcessorOutputKind::Leather),
         "cobbler" => Some(ProcessorOutputKind::Shoes),
+        "chandlery" => Some(ProcessorOutputKind::Candles),
         _ => None,
     }
 }
@@ -74,6 +77,7 @@ pub fn processor_input_kinds(kind: &str) -> &'static [ProcessorInputKind] {
         "potter_kiln" => &[Clay, Firewood, Water],
         "tannery" => &[Hides, Water, Firewood],
         "cobbler" => &[Leather],
+        "chandlery" => &[Wax, Firewood],
         _ => &[],
     }
 }
@@ -192,6 +196,7 @@ mod tests {
             "charcoal_burner",
             "smithy",
             "potter_kiln",
+            "chandlery",
         ] {
             assert!(is_processor_output_target_kind(kind));
         }
@@ -247,6 +252,11 @@ mod tests {
         assert_eq!(
             processor_input_kinds("potter_kiln"),
             &[Clay, Firewood, Water]
+        );
+        assert_eq!(processor_input_kinds("chandlery"), &[Wax, Firewood]);
+        assert_eq!(
+            processor_output_kind("chandlery"),
+            Some(ProcessorOutputKind::Candles)
         );
         assert!(processor_input_kinds("clay_pit").is_empty());
     }

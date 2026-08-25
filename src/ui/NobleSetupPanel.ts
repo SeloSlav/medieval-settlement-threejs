@@ -23,6 +23,18 @@ export type NobleSetupOptions = {
   initialProfile?: NobleProfile;
 };
 
+function heraldryMatches(left: Heraldry, right: Heraldry): boolean {
+  return left.pattern === right.pattern
+    && left.fieldColor === right.fieldColor
+    && left.patternColor === right.patternColor
+    && left.patternTiling === right.patternTiling
+    && left.patternAngle === right.patternAngle
+    && left.charge === right.charge
+    && left.chargeColor === right.chargeColor
+    && left.chargeCount === right.chargeCount
+    && left.chargeScale === right.chargeScale;
+}
+
 export class NobleSetupPanel {
   private readonly backdrop: HTMLElement;
   private readonly resolve: (profile: NobleProfile) => void;
@@ -54,7 +66,7 @@ export class NobleSetupPanel {
   private readonly scaleValue: HTMLElement;
   private draft: NobleProfile;
   private step: NobleSetupStep;
-  private selectedPreset = -1;
+  private selectedPreset: number;
 
   private constructor(
     parent: HTMLElement,
@@ -68,10 +80,18 @@ export class NobleSetupPanel {
       heraldry: { ...initialProfile.heraldry },
     };
     this.step = options.initialStep ?? 'house';
+    this.selectedPreset = HERALDRY_PRESETS.findIndex((preset) => (
+      heraldryMatches(preset, this.draft.heraldry)
+    ));
     this.backdrop = document.createElement('div');
     this.backdrop.className = 'noble-setup-backdrop';
     this.backdrop.innerHTML = `
-      <form class="noble-setup-shell" aria-label="Noble house and coat of arms selection">
+      <form
+        class="noble-setup-shell"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="noble-setup-heading"
+      >
         <header class="noble-setup-heading">
           <nav class="new-game-setup-steps" aria-label="New world setup progress">
             <ol>
@@ -80,7 +100,7 @@ export class NobleSetupPanel {
               <li data-setup-progress="map"><span>3</span><strong>Map Generation</strong></li>
             </ol>
           </nav>
-          <h1 data-setup-heading tabindex="-1">Choose Your Noble House</h1>
+          <h1 id="noble-setup-heading" data-setup-heading tabindex="-1">Choose Your Noble House</h1>
         </header>
 
         <div class="noble-setup-layout">
@@ -231,7 +251,7 @@ export class NobleSetupPanel {
     this.renderColorRow(this.chargeColorRow, 'chargeColor');
     this.bindEvents();
     this.syncAll();
-    this.syncStep();
+    this.syncStep(true);
   }
 
   static prompt(parent: HTMLElement, options: NobleSetupOptions = {}): Promise<NobleProfile> {

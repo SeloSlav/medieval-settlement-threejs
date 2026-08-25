@@ -13,6 +13,9 @@ import {
   BREWERY_MALTING_WATER_PER_CYCLE,
   CHARCOAL_BURNER_CHARCOAL_PER_CYCLE,
   CHARCOAL_BURNER_FIREWOOD_PER_CYCLE,
+  CHANDLERY_CANDLES_PER_CYCLE,
+  CHANDLERY_FIREWOOD_PER_CYCLE,
+  CHANDLERY_WAX_PER_CYCLE,
   CLAY_PIT_CLAY_PER_CYCLE,
   BAKERY_FIREWOOD_PER_CYCLE,
   BAKERY_FLOUR_PER_CYCLE,
@@ -126,7 +129,9 @@ type StockKey =
   | 'ironwork'
   | 'honey'
   | 'apples'
-  | 'pears';
+  | 'pears'
+  | 'wax'
+  | 'candles';
 
 type InputRequirement = {
   key: StockKey;
@@ -262,6 +267,28 @@ const PROCESSOR_PROFILES: Partial<Record<BuildingKind, ProcessorProfile>> = {
     outputPerCycle: POTTER_POTTERY_PER_CYCLE,
     operatingLabel: 'Firing household and preserving vessels',
     idleNoWorkersLabel: 'Idle - assign potters',
+  },
+  chandlery: {
+    requiresLabor: true,
+    waterPerCycle: 0,
+    inputs: [
+      {
+        key: 'wax',
+        label: 'beeswax',
+        required: CHANDLERY_WAX_PER_CYCLE,
+        deliveryHint: 'forest and backyard apiaries supply it through road-linked stores',
+      },
+      {
+        key: 'firewood',
+        label: 'firewood',
+        required: CHANDLERY_FIREWOOD_PER_CYCLE,
+        deliveryHint: 'household-cleared lodge/storehouse surplus follows lowest runway',
+      },
+    ],
+    output: 'candles',
+    outputPerCycle: CHANDLERY_CANDLES_PER_CYCLE,
+    operatingLabel: 'Melting wax, dipping tapers, and finishing candles',
+    idleNoWorkersLabel: 'Idle — assign chandlers to make candles',
   },
 };
 

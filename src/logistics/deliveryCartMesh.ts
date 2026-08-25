@@ -40,6 +40,9 @@ const CARGO_MATERIALS = {
   darkTerracotta: createCargoMaterial('Wine amphora terracotta', 0x75402f, 0.94),
   crockGlaze: createCargoMaterial('Honey crock glaze', 0xb9872e, 0.7),
   crockCloth: createCargoMaterial('Crock lid cloth', 0xc7b88e, 0.98),
+  beeswax: createCargoMaterial('Beeswax', 0xc99a42, 0.88),
+  candleWax: createCargoMaterial('Beeswax candles', 0xe3c878, 0.9),
+  candleWick: createCargoMaterial('Candle wicks', 0x3b3024, 0.99),
   leaf: createCargoMaterial('Food leaves', 0x536c3d, 0.98),
   apple: createCargoMaterial('Food apples', 0xa84637, 0.9),
   rootVegetable: createCargoMaterial('Food root vegetables', 0xb56f32, 0.94),
@@ -166,6 +169,12 @@ function addCargo(
       break;
     case 'honey':
       addHoneyLoad(group);
+      break;
+    case 'wax':
+      addWaxLoad(group);
+      break;
+    case 'candles':
+      addCandleLoad(group);
       break;
     case 'wine':
       addWineLoad(group);
@@ -509,6 +518,58 @@ function addHoneyLoad(group: THREE.Group): void {
       new THREE.Vector3(x, 0.73, z),
       scale,
       CARGO_MATERIALS.crockGlaze,
+    );
+  }
+}
+
+function addWaxLoad(group: THREE.Group): void {
+  for (const [index, [x, y, z]] of [
+    [-0.2, 0.67, -0.12],
+    [0, 0.67, -0.12],
+    [0.2, 0.67, -0.12],
+    [-0.11, 0.81, 0.05],
+    [0.11, 0.81, 0.05],
+  ].entries()) {
+    addNamedMesh(
+      group,
+      `Beeswax block ${index + 1}`,
+      new THREE.BoxGeometry(0.18, 0.12, 0.28),
+      CARGO_MATERIALS.beeswax,
+      new THREE.Vector3(x, y, z),
+      new THREE.Euler(0, index % 2 === 0 ? 0.025 : -0.025, 0),
+    );
+  }
+}
+
+function addCandleLoad(group: THREE.Group): void {
+  addCrate(
+    group,
+    'Candle crate',
+    new THREE.Vector3(0, 0.65, 0),
+    1.05,
+  );
+  for (const [index, [x, z, height]] of [
+    [-0.16, -0.1, 0.34],
+    [0, -0.1, 0.3],
+    [0.16, -0.1, 0.36],
+    [-0.16, 0.1, 0.29],
+    [0, 0.1, 0.37],
+    [0.16, 0.1, 0.32],
+  ].entries()) {
+    const baseY = 0.77;
+    addNamedMesh(
+      group,
+      `Beeswax candle ${index + 1}`,
+      new THREE.CylinderGeometry(0.045, 0.052, height, 8),
+      CARGO_MATERIALS.candleWax,
+      new THREE.Vector3(x, baseY + height * 0.5, z),
+    );
+    addNamedMesh(
+      group,
+      `Candle wick ${index + 1}`,
+      new THREE.CylinderGeometry(0.006, 0.006, 0.035, 5),
+      CARGO_MATERIALS.candleWick,
+      new THREE.Vector3(x, baseY + height + 0.015, z),
     );
   }
 }

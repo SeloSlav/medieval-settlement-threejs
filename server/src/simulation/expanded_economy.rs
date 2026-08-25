@@ -17,10 +17,12 @@ use crate::balance_generated::{
     BREWERY_HONEY_PER_MEAD_CYCLE, BREWERY_MALTING_FIREWOOD_PER_CYCLE,
     BREWERY_MALTING_WATER_PER_CYCLE, BREWERY_MALT_PER_ALE_CYCLE, BREWERY_MALT_PER_CYCLE,
     BREWERY_MEAD_PER_CYCLE, CALENDAR_SECONDS_PER_DAY, CATTLE_GRAIN_PER_UNSUPPORTED_HEAD,
-    CATTLE_HAY_PER_UNSUPPORTED_HEAD, CHARCOAL_BURNER_CHARCOAL_PER_CYCLE,
-    CHARCOAL_BURNER_FIREWOOD_PER_CYCLE, CIVILIAN_TOOL_IRONWORK_PER_CYCLE, CLAY_PIT_CLAY_PER_CYCLE,
-    COBBLER_LEATHER_PER_CYCLE, COBBLER_SHOES_PER_CYCLE, FARM_GROWTH_SECONDS,
-    FARM_WORK_METERS_PER_WORKER_PER_SEC, GRAIN_TRANSFER_PER_TRIP, LEATHER_TRANSFER_PER_TRIP,
+    CATTLE_HAY_PER_UNSUPPORTED_HEAD, CANDLE_TRANSFER_PER_TRIP,
+    CHARCOAL_BURNER_CHARCOAL_PER_CYCLE, CHARCOAL_BURNER_FIREWOOD_PER_CYCLE,
+    CHANDLERY_CANDLES_PER_CYCLE, CHANDLERY_FIREWOOD_PER_CYCLE, CHANDLERY_WAX_PER_CYCLE,
+    CIVILIAN_TOOL_IRONWORK_PER_CYCLE, CLAY_PIT_CLAY_PER_CYCLE, COBBLER_LEATHER_PER_CYCLE,
+    COBBLER_SHOES_PER_CYCLE, FARM_GROWTH_SECONDS, FARM_WORK_METERS_PER_WORKER_PER_SEC,
+    GRAIN_TRANSFER_PER_TRIP, LEATHER_TRANSFER_PER_TRIP,
     MINE_CLAY_PER_CYCLE, MINE_IRON_PER_CYCLE, MINE_SALT_PER_CYCLE, MINE_TIMBER_SUPPORT_PER_CYCLE,
     MONASTERY_FEAST_DRINK, MONASTERY_FEAST_FOOD, MONASTERY_FEAST_HONEY,
     MONASTERY_PILGRIMAGE_GOLD_PER_DAY, MONASTERY_UNLINKED_PRODUCTIVITY,
@@ -975,7 +977,7 @@ pub fn step_marketplace_material_dispatch(
         let Some(network) = tick.road_network(marketplace.owner) else {
             continue;
         };
-        const DISPATCHABLE_INPUTS: [CommodityKind; 31] = [
+        const DISPATCHABLE_INPUTS: [CommodityKind; 32] = [
             CommodityKind::RyeSheaves,
             CommodityKind::OatSheaves,
             CommodityKind::BarleySheaves,
@@ -1007,6 +1009,7 @@ pub fn step_marketplace_material_dispatch(
             CommodityKind::Wine,
             CommodityKind::Apples,
             CommodityKind::Honey,
+            CommodityKind::Wax,
         ];
         candidates.extend(
             tick.building_ids_for_kinds(ctx, marketplace.owner, MARKETPLACE_MATERIAL_TARGET_KINDS)
@@ -1484,6 +1487,7 @@ const LOCAL_MATERIAL_COMMODITIES: &[CommodityKind] = &[
     CommodityKind::Hides,
     CommodityKind::Leather,
     CommodityKind::Shoes,
+    CommodityKind::Wax,
 ];
 
 fn local_material_target_kinds(
@@ -1540,6 +1544,7 @@ fn local_material_target_kinds(
         ("trading_post", CommodityKind::Hides) => Some(&["tannery", "village_storehouse"]),
         ("trading_post", CommodityKind::Leather) => Some(&["cobbler", "village_storehouse"]),
         ("trading_post", CommodityKind::Shoes) => Some(&["village_storehouse"]),
+        ("trading_post", CommodityKind::Wax) => Some(&["chandlery", "village_storehouse"]),
         // Intake policy blocks new arrivals; it never strands material already
         // held by the depot, so every supported stored input remains dispatchable.
         ("village_storehouse", CommodityKind::Iron) => Some(&["smithy", "trading_post"]),
@@ -1550,6 +1555,7 @@ fn local_material_target_kinds(
         ("village_storehouse", CommodityKind::Charcoal) => Some(&["smithy"]),
         ("village_storehouse", CommodityKind::Hides) => Some(&["tannery", "trading_post"]),
         ("village_storehouse", CommodityKind::Leather) => Some(&["cobbler", "trading_post"]),
+        ("village_storehouse", CommodityKind::Wax) => Some(&["chandlery", "trading_post"]),
         _ => None,
     }
 }
@@ -1581,6 +1587,7 @@ fn local_material_target_plan(
         CommodityKind::Hides => "hides",
         CommodityKind::Leather => "leather",
         CommodityKind::Shoes => "shoes",
+        CommodityKind::Wax => "wax",
         _ => return None,
     };
     let stock = building_commodity_stock(target, commodity);
@@ -2857,6 +2864,42 @@ pub fn step_cobbler(
         &[(CommodityKind::Shoes, COBBLER_SHOES_PER_CYCLE)],
     );
     ctx.db.building().id().update(cobbler);
+}
+
+pub fn step_chandlery(
+    ctx: &ReducerContext,
+    tick: &SimTickContext,
+    clock: &GameClock,
+    building: Building,
+) {
+    let mut chandlery = step_processor(
+        ctx,
+        tick,
+        clock,
+        building,
+        &[
+            (CommodityKind::Wax, CHANDLERY_WAX_PER_CYCLE),
+            (CommodityKind::Firewood, CHANDLERY_FIREWOOD_PER_CYCLE),
+        ],
+        &[(CommodityKind::Candles, CHANDLERY_CANDLES_PER_CYCLE)],
+    );
+    dispatch_to_building(
+        ctx,
+        tick,
+        clock,
+        &mut chandlery,
+        CommodityKind::Candles,
+        &["village_storehouse"],
+    );
+    dispatch_to_building(
+        ctx,
+        tick,
+        clock,
+        &mut chandlery,
+        CommodityKind::Candles,
+        &["trading_post"],
+    );
+    ctx.db.building().id().update(chandlery);
 }
 
 pub fn step_smokehouse(
@@ -4162,6 +4205,7 @@ fn processor_output_commodity(kind: &str) -> Option<CommodityKind> {
         ProcessorOutputKind::Pottery => Some(CommodityKind::Pottery),
         ProcessorOutputKind::Leather => Some(CommodityKind::Leather),
         ProcessorOutputKind::Shoes => Some(CommodityKind::Shoes),
+        ProcessorOutputKind::Candles => Some(CommodityKind::Candles),
     }
 }
 
@@ -4291,6 +4335,7 @@ fn processor_uses_input(kind: &str, commodity: CommodityKind) -> bool {
             CommodityKind::Hides | CommodityKind::Water | CommodityKind::Firewood
         ),
         "cobbler" => commodity == CommodityKind::Leather,
+        "chandlery" => matches!(commodity, CommodityKind::Wax | CommodityKind::Firewood),
         _ => false,
     }
 }
@@ -4390,6 +4435,7 @@ fn commodity_transfer_per_trip(commodity: CommodityKind) -> f64 {
         CommodityKind::Hides | CommodityKind::Leather | CommodityKind::Shoes => {
             LEATHER_TRANSFER_PER_TRIP
         }
+        CommodityKind::Wax | CommodityKind::Candles => CANDLE_TRANSFER_PER_TRIP,
         _ => GRAIN_TRANSFER_PER_TRIP,
     }
 }
@@ -5063,6 +5109,8 @@ fn directly_dispatched_commodity_name(commodity: CommodityKind) -> Option<&'stat
         CommodityKind::Grapes => Some("grapes"),
         CommodityKind::Apples => Some("apples"),
         CommodityKind::Honey => Some("honey"),
+        CommodityKind::Wax => Some("wax"),
+        CommodityKind::Candles => Some("candles"),
         _ => None,
     }
 }

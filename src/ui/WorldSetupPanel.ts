@@ -62,7 +62,12 @@ export class WorldSetupPanel {
           fetchpriority="high"
           decoding="sync"
         />
-        <form class="world-setup-dialog" aria-label="Map generation">
+        <form
+          class="world-setup-dialog"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="world-setup-heading"
+        >
           <header class="world-setup-wizard-heading">
             <nav class="new-game-setup-steps" aria-label="New world setup progress">
               <ol>
@@ -72,7 +77,7 @@ export class WorldSetupPanel {
               </ol>
             </nav>
             <p>New World</p>
-            <h1>Map Generation</h1>
+            <h1 id="world-setup-heading" data-setup-heading tabindex="-1">Map Generation</h1>
           </header>
           <div class="world-setup-scroll" aria-label="World settings">
             <section class="world-setup-section" aria-label="Map size">
@@ -217,6 +222,7 @@ export class WorldSetupPanel {
     this.renderTerrainPresetOptions();
     this.renderSizeOptions();
     this.bindEvents();
+    this.backdrop.querySelector<HTMLElement>('[data-setup-heading]')!.focus();
   }
 
   static prompt(parent: HTMLElement, options: WorldSetupOptions = {}): Promise<WorldSetupResult> {
@@ -430,7 +436,12 @@ export class WorldSetupPanel {
       const selected = size === this.draft.mapSize ? ' is-selected' : '';
       const playableKm = (preset.playableSize / 1000).toFixed(1);
       return `
-        <button type="button" class="world-setup-size-option${selected}" data-map-size="${size}">
+        <button
+          type="button"
+          class="world-setup-size-option${selected}"
+          data-map-size="${size}"
+          aria-pressed="${size === this.draft.mapSize}"
+        >
           <strong>${preset.label}</strong>
           <span>${playableKm} km wide · ${preset.smallMapAreas}× small-map area</span>
         </button>
@@ -442,7 +453,9 @@ export class WorldSetupPanel {
         const size = button.dataset.mapSize as WorldMapSize;
         this.draft.mapSize = size;
         for (const option of grid.querySelectorAll<HTMLButtonElement>('[data-map-size]')) {
-          option.classList.toggle('is-selected', option.dataset.mapSize === size);
+          const isSelected = option.dataset.mapSize === size;
+          option.classList.toggle('is-selected', isSelected);
+          option.setAttribute('aria-pressed', String(isSelected));
         }
         this.renderResourceSummary();
       });

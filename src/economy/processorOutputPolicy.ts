@@ -24,6 +24,7 @@ export const PROCESSOR_OUTPUT_TARGET_KINDS = [
   'potter_kiln',
   'tannery',
   'cobbler',
+  'chandlery',
 ] as const satisfies readonly BuildingKind[];
 
 export type ProcessorOutputTargetKind =
@@ -53,7 +54,8 @@ export type ProcessorOutputCommodity =
   | 'pottery'
   | 'roofTiles'
   | 'leather'
-  | 'shoes';
+  | 'shoes'
+  | 'candles';
 
 export type ExtractionOutputCommodity = 'stone' | 'iron' | 'salt' | 'clay';
 
@@ -79,7 +81,8 @@ export type ProcessorInputCommodity =
   | 'pottery'
   | 'ironwork'
   | 'hides'
-  | 'leather';
+  | 'leather'
+  | 'wax';
 
 export const PROCESSOR_OUTPUT_TARGET_DEFAULT_PERCENT = 100;
 export const PROCESSOR_INPUT_STAGING_DEFAULT_CYCLES = 3;
@@ -144,6 +147,7 @@ const OUTPUT_BY_KIND: Record<
   potter_kiln: 'pottery',
   tannery: 'leather',
   cobbler: 'shoes',
+  chandlery: 'candles',
 };
 
 const INPUTS_BY_KIND: Record<
@@ -161,6 +165,7 @@ const INPUTS_BY_KIND: Record<
   potter_kiln: ['clay', 'firewood', 'water'],
   tannery: ['hides', 'water', 'firewood'],
   cobbler: ['leather'],
+  chandlery: ['wax', 'firewood'],
 };
 
 export function isProcessorOutputTargetKind(

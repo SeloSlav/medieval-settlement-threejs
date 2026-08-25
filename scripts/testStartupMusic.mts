@@ -358,6 +358,7 @@ const bootstrapIndex = appSource.indexOf('session = await bootstrapAppSession');
 assert.ok(startupIndex >= 0 && bootstrapIndex > startupIndex, 'music must start before setup prompts');
 assert.match(appSource, /deferGameplayMusic: this\.startupMusic !== null/);
 assert.match(appSource, /onFirstPlayable: \(\) => this\.handoffStartupMusic\(\)/);
+assert.match(appSource, /markMusicTrackPlayed\(STARTUP_MUSIC_TRACK_ID\)/);
 assert.match(appSource, /this\.startupMusic\?\.setGameAudioEnabled\(enabled\)/);
 assert.match(appSource, /this\.startupMusic\?\.setMusicEnabled\(enabled\)/);
 assert.match(appSource, /this\.startupMusic\?\.setMusicVolume\(volume\)/);

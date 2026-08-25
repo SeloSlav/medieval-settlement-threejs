@@ -11,6 +11,6 @@ import {
 } from "spacetimedb";
 
 export default {
-  buildingId: __t.u64(),
+  pastureId: __t.u64(),
   headDelta: __t.i32(),
 };

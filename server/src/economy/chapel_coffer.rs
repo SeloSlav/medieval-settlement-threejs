@@ -322,6 +322,10 @@ mod tests {
             storage_acceptance_mask: u64::MAX,
             settlement_id: 1,
             animal_feed: 0.0,
+            storage_acceptance_mask_high: u64::MAX,
+            wax: 0.0,
+            candles: 0.0,
+            apiary_wax_cycle_progress: 0,
         }
     }
 

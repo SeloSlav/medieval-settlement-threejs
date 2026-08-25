@@ -96,6 +96,7 @@ pub fn is_production_labor_kind(kind: &str) -> bool {
             | "charcoal_burner"
             | "smithy"
             | "potter_kiln"
+            | "chandlery"
             | "hunters_hall"
     )
 }
@@ -277,6 +278,7 @@ mod tests {
             "charcoal_burner",
             "smithy",
             "potter_kiln",
+            "chandlery",
             "hunters_hall",
         ] {
             assert!(is_production_labor_kind(kind), "{kind}");

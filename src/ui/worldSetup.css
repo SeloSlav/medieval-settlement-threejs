@@ -105,6 +105,8 @@
   letter-spacing: 0.015em;
 }
 
+.world-setup-wizard-heading h1:focus { outline: none; }
+
 .world-setup-scroll {
   min-height: 0;
   overflow-y: auto;

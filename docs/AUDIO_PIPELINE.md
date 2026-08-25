@@ -95,7 +95,8 @@ cost.
   loading overlay. Browsers that block eager playback retry it on the first
   pointer or keyboard gesture. Once both presentation and server state are
   playable, it fades out over seven seconds before releasing the contextual
-  gameplay soundtrack scheduler.
+  gameplay soundtrack scheduler, which treats the startup cue as recently
+  played so it does not immediately repeat it.
 - `farm_workers_singing.mp3` is the authorized Selo Empire farm-worker song.
   It fades in only near actively tended grain fields at close zoom and yields
   to the instrumental score when a music cue is active.

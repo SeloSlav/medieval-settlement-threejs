@@ -1354,6 +1354,7 @@ fn processor_output_commodity(kind: &str) -> Option<CommodityKind> {
         ProcessorOutputKind::Pottery => Some(CommodityKind::Pottery),
         ProcessorOutputKind::Leather => Some(CommodityKind::Leather),
         ProcessorOutputKind::Shoes => Some(CommodityKind::Shoes),
+        ProcessorOutputKind::Candles => Some(CommodityKind::Candles),
     }
 }
 
@@ -1418,6 +1419,7 @@ fn processor_input_commodity(kind: ProcessorInputKind) -> CommodityKind {
         ProcessorInputKind::Honey => CommodityKind::Honey,
         ProcessorInputKind::Hides => CommodityKind::Hides,
         ProcessorInputKind::Leather => CommodityKind::Leather,
+        ProcessorInputKind::Wax => CommodityKind::Wax,
     }
 }
 

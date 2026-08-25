@@ -3,6 +3,8 @@ import {
   BREWERY_BREWING_FIREWOOD_PER_CYCLE,
   BREWERY_MALTING_FIREWOOD_PER_CYCLE,
   BUILDING_STORAGE_CAPS,
+  CHANDLERY_FIREWOOD_PER_CYCLE,
+  CHANDLERY_WAX_PER_CYCLE,
   CHARCOAL_BURNER_FIREWOOD_PER_CYCLE,
   CIVILIAN_TOOL_IRONWORK_PER_CYCLE,
   BAKERY_FIREWOOD_PER_CYCLE,
@@ -58,8 +60,9 @@ export type DirectProcessorInputCommodity =
   | 'clay'
   | 'salt'
   | 'charcoal'
-  | 'pottery';
-export type MarketplaceMaterialInputCommodity = 'iron' | 'salt' | 'pottery';
+  | 'pottery'
+  | 'wax';
+export type MarketplaceMaterialInputCommodity = 'iron' | 'salt' | 'pottery' | 'wax';
 export type ProcessorInputDispatchDuty =
   | 'working-buffer'
   | 'central-storage'
@@ -91,6 +94,7 @@ type ProcessorInputDestinationLike = Pick<
   | 'salt'
   | 'charcoal'
   | 'pottery'
+  | 'wax'
 > & FoodInventoryLike;
 
 export type RoutedProcessorInputDestination<T extends ProcessorInputDestinationLike> = {
@@ -114,6 +118,7 @@ const TARGET_KINDS: Record<
     'smokehouse',
     'charcoal_burner',
     'potter_kiln',
+    'chandlery',
   ],
   ryeFlour: ['bakery', 'granary'],
   maslinFlour: ['bakery', 'granary'],
@@ -138,6 +143,7 @@ const TARGET_KINDS: Record<
   salt: ['smokehouse', 'pastoral_farmstead', 'trading_post'],
   charcoal: ['smithy'],
   pottery: ['smokehouse', 'village_storehouse', 'trading_post'],
+  wax: ['chandlery'],
 };
 
 export function directlyDispatchedProcessorInputPerCycle(
@@ -161,6 +167,8 @@ export function directlyDispatchedProcessorInputPerCycle(
           return CHARCOAL_BURNER_FIREWOOD_PER_CYCLE;
         case 'potter_kiln':
           return POTTER_FIREWOOD_PER_CYCLE;
+        case 'chandlery':
+          return CHANDLERY_FIREWOOD_PER_CYCLE;
         default:
           return 0;
       }
@@ -195,6 +203,8 @@ export function directlyDispatchedProcessorInputPerCycle(
       return targetKind === 'smokehouse'
         ? SMOKEHOUSE_POTTERY_PER_CYCLE
         : 0;
+    case 'wax':
+      return targetKind === 'chandlery' ? CHANDLERY_WAX_PER_CYCLE : 0;
   }
 }
 
@@ -363,7 +373,7 @@ export type RoutedMarketplaceMaterialDestination<
 
 type MarketplaceMaterialSourceLike = Pick<
   BuildingState,
-  'id' | 'iron' | 'salt' | 'pottery'
+  'id' | 'iron' | 'salt' | 'pottery' | 'wax'
 >;
 
 export type RoutedMarketplaceMaterialAssignment<
@@ -389,7 +399,8 @@ export type LocalMaterialInputCommodity =
   | 'clay'
   | 'charcoal'
   | 'ironwork'
-  | 'pottery';
+  | 'pottery'
+  | 'wax';
 
 export type RoutedDirectProcessorInputAssignment<
   S extends { id: string },
@@ -408,6 +419,7 @@ type LocalMaterialSourceLike = Pick<
   | 'charcoal'
   | 'ironwork'
   | 'pottery'
+  | 'wax'
   | 'storehouseAcceptsIron'
   | 'storehouseAcceptsClay'
   | 'storehouseAcceptsSalt'
@@ -431,6 +443,7 @@ export function localMaterialInputCommodities(
     case 'village_storehouse':
       return [
         ...((source?.charcoal ?? 0) > 1e-6 ? ['charcoal'] as const : []),
+        ...((source?.wax ?? 0) > 1e-6 ? ['wax'] as const : []),
         ...((['iron', 'clay', 'salt'] as const)
           .filter((commodity) => (source?.[commodity] ?? 0) > 1e-6)),
       ];
@@ -456,7 +469,7 @@ export function selectMarketplaceMaterialInputTarget<
   T extends ProcessorInputDestinationLike,
 >(
   targets: Iterable<T>,
-  source: Pick<BuildingState, 'id' | 'iron' | 'salt' | 'pottery'>,
+  source: Pick<BuildingState, 'id' | 'iron' | 'salt' | 'pottery' | 'wax'>,
   routeDistanceFor: (target: T) => number | null,
   hasInboundSupply: (target: T) => boolean = () => false,
   acceptsInput: (
@@ -478,7 +491,7 @@ export function selectMarketplaceMaterialInputTarget<
     routeDistanceByTargetId.set(target.id, distance);
     return distance;
   };
-  for (const commodity of ['iron', 'salt', 'pottery'] as const) {
+  for (const commodity of ['iron', 'salt', 'pottery', 'wax'] as const) {
     if (
       isSourceCommodityReserved(commodity)
       || Math.max(0, source[commodity] ?? 0) <= 1e-6

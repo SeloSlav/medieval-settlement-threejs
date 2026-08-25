@@ -8,7 +8,8 @@ use crate::balance_generated::{
     BREWERY_MALTING_WATER_PER_CYCLE, BREWERY_MALT_PER_ALE_CYCLE,
     CARPENTER_CART_SERVICE_IRONWORK_PER_TRIP, CARPENTER_CART_SERVICE_TARGET_TRIPS,
     CARPENTER_CART_SERVICE_TIMBER_PER_TRIP, CHARCOAL_BURNER_FIREWOOD_PER_CYCLE,
-    CIVILIAN_TOOL_IRONWORK_PER_CYCLE, COBBLER_LEATHER_PER_CYCLE,
+    CHANDLERY_FIREWOOD_PER_CYCLE, CHANDLERY_WAX_PER_CYCLE, CIVILIAN_TOOL_IRONWORK_PER_CYCLE,
+    COBBLER_LEATHER_PER_CYCLE,
     HOUSEHOLD_FOOD_RESERVE_CAPACITY_FRACTION, HOUSEHOLD_FOOD_RESERVE_PER_CLAIM,
     LARGE_QUARRY_TIMBER_SUPPORT_BUFFER_CYCLES, LARGE_QUARRY_TIMBER_SUPPORT_PER_CYCLE,
     LIVESTOCK_FARMSTEAD_SALT_STAGING_PER_CYCLE, LIVESTOCK_FEED_OAT_GRAIN_PER_CYCLE,
@@ -61,6 +62,7 @@ pub const INDUSTRIAL_FIREWOOD_TARGET_KINDS: &[&str] = &[
     "charcoal_burner",
     "potter_kiln",
     "tannery",
+    "chandlery",
 ];
 pub const MARKETPLACE_MATERIAL_TARGET_KINDS: &[&str] = &[
     "watermill",
@@ -74,6 +76,7 @@ pub const MARKETPLACE_MATERIAL_TARGET_KINDS: &[&str] = &[
     "potter_kiln",
     "tannery",
     "cobbler",
+    "chandlery",
     "pastoral_farmstead",
     "threshing_barn",
     "guardhouse",
@@ -533,6 +536,8 @@ pub fn directly_dispatched_processor_input_per_cycle(target_kind: &str, commodit
         ("tannery", "water") => TANNERY_WATER_PER_CYCLE,
         ("tannery", "firewood") => TANNERY_FIREWOOD_PER_CYCLE,
         ("cobbler", "leather") => COBBLER_LEATHER_PER_CYCLE,
+        ("chandlery", "wax") => CHANDLERY_WAX_PER_CYCLE,
+        ("chandlery", "firewood") => CHANDLERY_FIREWOOD_PER_CYCLE,
         ("smithy", "charcoal") => SMITHY_CHARCOAL_PER_CYCLE,
         ("smithy", "iron") => SMITHY_IRON_PER_CYCLE,
         ("smithy", "water") => SMITHY_WATER_PER_CYCLE,
@@ -1182,6 +1187,7 @@ mod tests {
                 "charcoal_burner",
                 "potter_kiln",
                 "tannery",
+                "chandlery",
             ]
         );
         assert_eq!(
@@ -1221,6 +1227,14 @@ mod tests {
             super::COBBLER_LEATHER_PER_CYCLE,
         );
         assert_eq!(
+            directly_dispatched_processor_input_per_cycle("chandlery", "wax"),
+            super::CHANDLERY_WAX_PER_CYCLE,
+        );
+        assert_eq!(
+            directly_dispatched_processor_input_per_cycle("chandlery", "firewood"),
+            super::CHANDLERY_FIREWOOD_PER_CYCLE,
+        );
+        assert_eq!(
             directly_dispatched_processor_input_per_cycle("smithy", "iron"),
             super::SMITHY_IRON_PER_CYCLE,
         );
@@ -1250,6 +1264,7 @@ mod tests {
                 "potter_kiln",
                 "tannery",
                 "cobbler",
+                "chandlery",
                 "pastoral_farmstead",
                 "threshing_barn",
                 "guardhouse",
