@@ -141,15 +141,6 @@ export type SettlementProvisioning = {
   guardWagePerDay: number;
   guardWageRunwayDays: number;
   sabbathObserved: boolean;
-  sabbathHouseholds: number;
-  sabbathReadyHouseholds: number;
-  sabbathFoodShortHomes: number;
-  sabbathFirewoodShortHomes: number;
-  sabbathWaterShortHomes: number;
-  sabbathPreservedFoodShortHomes: number;
-  sabbathAleShortHomes: number;
-  sabbathClothShortHomes: number;
-  sabbathPotteryShortHomes: number;
   roadBranches: SettlementRoadProvisioning | null;
   welfare: SettlementWelfare;
 };
@@ -482,6 +473,7 @@ export function computeSettlementProvisioning(input: {
     (CALENDAR_WORK_END_HOUR - CALENDAR_WORK_START_HOUR) / CALENDAR_HOURS_PER_DAY,
   );
   const workdaySeconds = CALENDAR_SECONDS_PER_DAY * workdayFraction;
+  const householdConsumptionWeekShare = sabbathObserved ? 6 / 7 : 1;
   const preservedFoodDemandMultiplier = Number.isFinite(
     currentPreservedFoodDemandMultiplier,
   )
@@ -527,15 +519,6 @@ export function computeSettlementProvisioning(input: {
   let householdBufferAleShortHomes = 0;
   let householdBufferClothShortHomes = 0;
   let householdBufferPotteryShortHomes = 0;
-  let sabbathHouseholds = 0;
-  let sabbathReadyHouseholds = 0;
-  let sabbathFoodShortHomes = 0;
-  let sabbathFirewoodShortHomes = 0;
-  let sabbathWaterShortHomes = 0;
-  let sabbathPreservedFoodShortHomes = 0;
-  let sabbathAleShortHomes = 0;
-  let sabbathClothShortHomes = 0;
-  let sabbathPotteryShortHomes = 0;
   for (const residence of state.residences.values()) {
     const householdFreshStock = freshFoodMealEquivalents(residence);
     const householdPreservedStock = preservedFoodStockForResidence(residence);
@@ -572,14 +555,16 @@ export function computeSettlementProvisioning(input: {
     }
     householdBufferHouseholds += 1;
     let householdBufferReady = true;
-    const grossFoodNeeded = householdFoodUnitsPerDayForTier(residence.tier);
+    const grossFoodNeeded = householdFoodUnitsPerDayForTier(residence.tier)
+      * householdConsumptionWeekShare;
     const monthlyFoodBill = householdFoodUnitsPerMonthForTier(residence.tier);
     let preservedFoodNeeded = 0;
     let monthlyPreservedFoodBill = 0;
     let preservedFoodRotationUsed = 0;
     if (residence.tier >= 4) {
       preservedFoodNeeded = householdFoodUnitsPerDay(1)
-        * preservedFoodDemandMultiplier;
+        * preservedFoodDemandMultiplier
+        * householdConsumptionWeekShare;
       monthlyPreservedFoodBill = householdFoodUnitsPerMonth(1);
       // Keep the settlement-wide scan allocation-free. This is the rotation
       // portion of allocatePreservedMeal with a full fresh-food plan, so no
@@ -635,7 +620,7 @@ export function computeSettlementProvisioning(input: {
         roadBranch.heatedHouseholds += 1;
         roadBranch.winterFirewoodDemandPerDay += householdFirewoodUnitsPerDay(
           WINTER_FIREWOOD_DEMAND_MULTIPLIER,
-        );
+        ) * householdConsumptionWeekShare;
         roadBranch.firewoodStock += residenceFirewoodStock;
       }
       if (residenceFirewoodStock + 1e-6 < firewoodNeeded) {
@@ -683,53 +668,6 @@ export function computeSettlementProvisioning(input: {
     }
     if (householdBufferReady) householdBufferReadyHouseholds += 1;
 
-    if (!sabbathObserved) continue;
-    sabbathHouseholds += 1;
-    let sabbathReady = householdBufferReady;
-    if (householdEdibleStock + 1e-6 < monthlyFoodBill) {
-      sabbathFoodShortHomes += 1;
-    }
-    if (residence.tier >= 1) {
-      const sabbathFirewoodNeeded = householdFirewoodUnitsPerMonth();
-      if (getNeedStock(residence.needs, 'firewood') + 1e-6 < sabbathFirewoodNeeded) {
-        sabbathFirewoodShortHomes += 1;
-        sabbathReady = false;
-      }
-    }
-    if (residence.tier >= 1) {
-      const waterNeeded = residence.population
-        * RESIDENCE_WATER_PER_PERSON_PER_SEC
-        * workdaySeconds;
-      if (getNeedStock(residence.needs, 'water') + 1e-6 < waterNeeded) {
-        sabbathWaterShortHomes += 1;
-      }
-    }
-    if (residence.tier >= 2) {
-      const clothNeeded = residence.population
-        * RESIDENCE_CLOTH_PER_PERSON_PER_SEC
-        * workdaySeconds;
-      const aleNeeded = residence.population
-        * RESIDENCE_ALE_PER_PERSON_PER_SEC
-        * workdaySeconds;
-      if (getNeedStock(residence.needs, 'cloth') + 1e-6 < clothNeeded) {
-        sabbathClothShortHomes += 1;
-      }
-      if (getNeedStock(residence.needs, 'ale') + 1e-6 < aleNeeded) {
-        sabbathAleShortHomes += 1;
-      }
-    }
-    if (residence.tier >= 4) {
-      const potteryNeeded = residence.population
-        * RESIDENCE_POTTERY_PER_PERSON_PER_SEC
-        * workdaySeconds;
-      if (householdPreservedStock + 1e-6 < monthlyPreservedFoodBill) {
-        sabbathPreservedFoodShortHomes += 1;
-      }
-      if (getNeedStock(residence.needs, 'pottery') + 1e-6 < potteryNeeded) {
-        sabbathPotteryShortHomes += 1;
-      }
-    }
-    if (sabbathReady) sabbathReadyHouseholds += 1;
   }
 
   let assignedGuards = 0;
@@ -1027,9 +965,11 @@ export function computeSettlementProvisioning(input: {
     householdHeatingStock - fireQuarantinedFirewoodStock,
   );
   const currentFirewoodPerDay = heatedHouseholds
-    * householdFirewoodUnitsPerDay(currentFirewoodDemandMultiplier);
+    * householdFirewoodUnitsPerDay(currentFirewoodDemandMultiplier)
+    * householdConsumptionWeekShare;
   const winterFirewoodPerDay = heatedHouseholds
-    * householdFirewoodUnitsPerDay(WINTER_FIREWOOD_DEMAND_MULTIPLIER);
+    * householdFirewoodUnitsPerDay(WINTER_FIREWOOD_DEMAND_MULTIPLIER)
+    * householdConsumptionWeekShare;
   const winterFirewoodNeed = winterFirewoodPerDay * WINTER_RESERVE_DAYS;
   const guardWagePerDay = armedGuards * GUARDHOUSE_WAGE_PER_GUARD_PER_DAY;
   const roadBranches = roadProvisionBranches === null
@@ -1123,15 +1063,6 @@ export function computeSettlementProvisioning(input: {
       guardWagePerDay,
     ),
     sabbathObserved,
-    sabbathHouseholds,
-    sabbathReadyHouseholds,
-    sabbathFoodShortHomes,
-    sabbathFirewoodShortHomes,
-    sabbathWaterShortHomes,
-    sabbathPreservedFoodShortHomes,
-    sabbathAleShortHomes,
-    sabbathClothShortHomes,
-    sabbathPotteryShortHomes,
     roadBranches,
     welfare,
   };
@@ -1205,27 +1136,6 @@ export function formatProvisionRunway(days: number): string {
   if (days < 10) return `${days.toFixed(1)} days`;
   if (days >= 100) return 'At least 100 days';
   return `${Math.floor(days + 1e-9)} days`;
-}
-
-export function formatSabbathReadiness(provisioning: SettlementProvisioning): string {
-  if (!provisioning.sabbathObserved || provisioning.sabbathHouseholds === 0) {
-    return 'Not observed';
-  }
-  const shortages = [
-    ['food', provisioning.sabbathFoodShortHomes],
-    ['fuel', provisioning.sabbathFirewoodShortHomes],
-    ['water', provisioning.sabbathWaterShortHomes],
-    ['preserved food', provisioning.sabbathPreservedFoodShortHomes],
-    ['ale', provisioning.sabbathAleShortHomes],
-    ['textiles', provisioning.sabbathClothShortHomes],
-    ['pottery', provisioning.sabbathPotteryShortHomes],
-  ] as const;
-  const shortageLabel = shortages
-    .filter(([, homes]) => homes > 0)
-    .map(([label, homes]) => `${homes} ${label}`)
-    .join(', ');
-  const base = `${provisioning.sabbathReadyHouseholds} / ${provisioning.sabbathHouseholds} homes stocked`;
-  return shortageLabel ? `${base} · short: ${shortageLabel}` : base;
 }
 
 export function formatHouseholdBufferReadiness(

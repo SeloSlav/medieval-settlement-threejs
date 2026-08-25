@@ -18,7 +18,6 @@ import {
   computeSettlementProvisioning,
   formatHouseholdBufferReadiness,
   formatProvisionDays,
-  formatSabbathReadiness,
   HOUSEHOLD_BUFFER_CRITICAL_COVERAGE,
   HOUSEHOLD_BUFFER_WARNING_COVERAGE,
   settlementProvisionLevel,
@@ -114,10 +113,18 @@ const appSource = readFileSync(
 assert.match(
   serverCalendar,
   /pub fn household_consumption_paused[\s\S]*?!clock\.is_work_hours/,
-  'household consumption should pause at night, not because the day is Sunday',
+  'the calendar helper should pause household consumption at night and on named holy days',
 );
-assert.match(laborSchedule, /is_consumption_paused[\s\S]*?household_consumption_paused\(clock\)/);
-assert.match(residenceNeeds, /Sunday observance does not make provisions free/);
+assert.match(
+  laborSchedule,
+  /pub fn protected_household_rest_day[\s\S]*?holiday_observance\(clock\)\.is_some\(\)[\s\S]*?owner_observes_sabbath/,
+  'the owner-aware schedule must protect both named holy days and observed Sundays',
+);
+assert.match(
+  residenceNeeds,
+  /protected_household_rest_day[\s\S]*?household_consumption_paused\(clock\)[\s\S]*?protected_rest_day/,
+  'residence consumption and shortage clocks must use the protected-rest decision',
+);
 for (const policySource of [
   serverPreservedFoodPolicy,
   clientPreservedFoodPolicy,
@@ -264,7 +271,7 @@ assert.equal(provisioning.householdBufferPotteryShortHomes, 0);
 assert.match(formatHouseholdBufferReadiness(provisioning), /0 \/ 2 homes buffered/);
 assert.ok(Math.abs(
   provisioning.householdFoodPerDay
-  - householdFoodPerDay(7),
+  - householdFoodPerDay(7) * 6 / 7,
 ) < 1e-9);
 assert.equal(
   provisioning.grossHouseholdFoodPerDay,
@@ -277,27 +284,21 @@ assert.equal(provisioning.grossFoodDemandPerDay, provisioning.totalFoodPerDay);
 assert.ok(Math.abs(
   provisioning.foodRunwayDays
   - provisioning.foodStock
-    / (householdFoodPerDay(7) + provisioning.guardFoodPerDay),
+    / (householdFoodPerDay(7) * 6 / 7 + provisioning.guardFoodPerDay),
 ) < 1e-9);
 assert.ok(Math.abs(
   provisioning.winterFirewoodPerDay
-  - 7 * RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC * 120 * WINTER_FIREWOOD_DEMAND_MULTIPLIER,
+  - 7 * RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC * 120
+    * WINTER_FIREWOOD_DEMAND_MULTIPLIER * 6 / 7,
 ) < 1e-9);
 assert.ok(
-  Math.abs(provisioning.winterFirewoodRunwayDays - 60 / 7) < 1e-9,
-  `expected 60/7 winter firewood days, received ${provisioning.winterFirewoodRunwayDays}`,
+  Math.abs(provisioning.winterFirewoodRunwayDays - 10) < 1e-9,
+  `expected 10 winter firewood days, received ${provisioning.winterFirewoodRunwayDays}`,
 );
-assert.ok(Math.abs(provisioning.winterFirewoodCoverage - 2 / 21) < 1e-9);
+assert.ok(Math.abs(provisioning.winterFirewoodCoverage - 1 / 9) < 1e-9);
 assert.equal(provisioning.guardWagePerDay, 2 * GUARDHOUSE_WAGE_PER_GUARD_PER_DAY);
 assert.ok(Math.abs(provisioning.guardWageRunwayDays - 10) < 1e-9);
-assert.equal(provisioning.sabbathHouseholds, 2);
-assert.equal(provisioning.sabbathReadyHouseholds, 0);
-assert.equal(provisioning.sabbathFoodShortHomes, 2);
-assert.equal(provisioning.sabbathFirewoodShortHomes, 2);
-assert.equal(provisioning.sabbathWaterShortHomes, 2);
-assert.equal(provisioning.sabbathClothShortHomes, 1);
 assert.equal(provisioning.roadBranches, null, 'legacy callers may omit road topology');
-assert.match(formatSabbathReadiness(provisioning), /0 \/ 2 homes stocked/);
 assert.equal(settlementProvisionLevel(provisioning, 10), 'critical');
 assert.equal(shouldShowProvisioning(provisioning, 10), true);
 assert.equal(formatProvisionDays(provisioning.winterFirewoodRunwayDays), '8.6d');
@@ -505,7 +506,6 @@ assert.equal(displaced.heatedResidents, 4);
 assert.equal(displaced.displacedHouseholds, 1);
 assert.equal(displaced.displacedResidents, 4);
 assert.equal(displaced.householdBufferHouseholds, 1);
-assert.equal(displaced.sabbathHouseholds, 1);
 assert.equal(displaced.fireQuarantinedFoodStock, 20);
 assert.equal(displaced.fireQuarantinedFirewoodStock, 30);
 assert.equal(displaced.foodStock, 74);
@@ -1028,8 +1028,6 @@ const elapsedMs = performance.now() - started;
 assert.equal(perfProvisioning.foodConsumers, 40_000);
 assert.equal(perfProvisioning.householdBufferHouseholds, 10_000);
 assert.equal(perfProvisioning.householdBufferReadyHouseholds, 0);
-assert.equal(perfProvisioning.sabbathHouseholds, 10_000);
-assert.equal(perfProvisioning.sabbathReadyHouseholds, 0);
 assert.ok(elapsedMs < 250, `10,000-home provisioning forecast took ${elapsedMs.toFixed(1)} ms`);
 
 const roadPerfState = emptyGameState();
@@ -1113,13 +1111,9 @@ const prepared = computeSettlementProvisioning({
   freshFoodSpoilageFractionPerDay: 0,
   sabbathObserved: true,
 });
-assert.equal(prepared.sabbathReadyHouseholds, 3);
-assert.equal(prepared.sabbathHouseholds, 3);
-assert.equal(formatSabbathReadiness(prepared), '3 / 3 homes stocked');
 assert.equal(prepared.householdBufferReadyHouseholds, 3);
 assert.equal(prepared.householdBufferHouseholds, 3);
 assert.equal(prepared.householdBufferPotteryShortHomes, 0);
-assert.equal(prepared.sabbathPotteryShortHomes, 0);
 assert.equal(formatHouseholdBufferReadiness(prepared), '3 / 3 homes buffered');
 
 console.log(
