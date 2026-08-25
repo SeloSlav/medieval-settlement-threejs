@@ -2435,7 +2435,7 @@ export const MARKETPLACE_TRADE_OFFERS = [
   {"id":"buy_wax","kind":"goldBuy","resource":"wax","amount":8,"goldCost":24},
   {"id":"sell_wax","kind":"goldSell","resource":"wax","amount":8,"goldYield":15},
   {"id":"buy_candles","kind":"goldBuy","resource":"candles","amount":8,"goldCost":34},
-  {"id":"sell_candles","kind":"goldSell","resource":"candles","amount":8,"goldYield":22},
+  {"id":"sell_candles","kind":"goldSell","resource":"candles","amount":8,"goldYield":14},
   {"id":"buy_wine","kind":"goldBuy","resource":"wine","amount":8,"goldCost":26},
   {"id":"sell_wine","kind":"goldSell","resource":"wine","amount":8,"goldYield":17},
   {"id":"buy_polearms","kind":"goldBuy","resource":"polearms","amount":4,"goldCost":24},

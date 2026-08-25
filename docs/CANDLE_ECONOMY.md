@@ -55,9 +55,9 @@ Both stages can be traded through the physical market-accessible inventory syste
 | Import beeswax | 8 | 24 cost |
 | Export beeswax | 8 | 15 yield |
 | Import candles | 8 | 34 cost |
-| Export candles | 8 | 22 yield |
+| Export candles | 8 | 14 yield |
 
-The import premium prevents a buy-and-sell profit loop. Marketplace, Trading Post, and Village Storehouse candle capacities allow imported or locally made lots to remain physical until a household caravan serves them.
+The import premium prevents a buy-and-sell profit loop. Even importing wax, buying a full firewood lot, processing it, and exporting the resulting candles leaves only a moderate value-added margin after four workshop cycles. Marketplace, Trading Post, and Village Storehouse candle capacities allow imported or locally made lots to remain physical until household distribution serves them.
 
 ## Possible future wax and candle sinks
 

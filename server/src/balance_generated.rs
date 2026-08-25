@@ -4587,7 +4587,7 @@ const TRADE_SELL_CANDLES: MarketplaceTradeOffer = MarketplaceTradeOffer {
     kind: MarketplaceTradeKind::GoldSell {
         resource: TradeResource::Candles,
         amount: 8.0,
-        gold_yield: 22.0,
+        gold_yield: 14.0,
     },
 };
 

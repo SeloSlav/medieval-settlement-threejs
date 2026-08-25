@@ -286,6 +286,50 @@ assert.match(
 );
 const caravan = source('server/src/simulation/marketplace_caravan.rs');
 assert.match(caravan, /ResidenceNeedKind::Luxury,\s*Some\(CommodityKind::Candles\)/);
+const caravanEligibility = blockBetween(
+  caravan,
+  'pub fn step_marketplace_caravans',
+  'fn try_dispatch_marketplace_proceeds',
+);
+assert.match(
+  caravanEligibility,
+  /building\.kind\s*==\s*"trading_post"[\s\S]*?building\.assigned_labor\s*>\s*0[\s\S]*?building\.candles\s*>\s*1e-6/,
+  'a staffed Trading Post holding only candles must remain eligible for local-service caravan dispatch',
+);
+
+const householdDistribution = source('server/src/simulation/household_distribution.rs');
+const staffedLuxuryStock = blockBetween(
+  householdDistribution,
+  'fn market_stock',
+  'fn withdraw_staffed_market_luxury',
+);
+assert.match(
+  staffedLuxuryStock,
+  /marketplace_stall_workplace_id_for_commodity\(ctx,\s*building,\s*CommodityKind::Candles\)[\s\S]*?then_some\(building\.candles\)/,
+  'routine household distribution may count candles only behind their staffed Household wares stall',
+);
+assert.match(
+  staffedLuxuryStock,
+  /marketplace_stall_workplace_id\(ctx,\s*building,\s*ResidenceNeedKind::Luxury\)[\s\S]*?then_some\(building\.wine\s*\+\s*building\.honey\)/,
+  'wine and honey must remain behind the staffed Luxury stall',
+);
+assert.match(staffedLuxuryStock, /candle_stock\s*\+\s*food_luxury_stock/);
+
+const staffedLuxuryWithdrawal = blockBetween(
+  householdDistribution,
+  'fn withdraw_staffed_market_luxury',
+  '#[cfg(test)]',
+);
+assert.match(
+  staffedLuxuryWithdrawal,
+  /marketplace_stall_workplace_id_for_commodity\(ctx,\s*source,\s*CommodityKind::Candles\)[\s\S]*?withdraw_building_commodity\(source,\s*CommodityKind::Candles,\s*remaining\)/,
+  'candle-first withdrawal must be authorized by the staffed Household wares stall',
+);
+assert.match(
+  staffedLuxuryWithdrawal,
+  /marketplace_stall_workplace_id\(ctx,\s*source,\s*ResidenceNeedKind::Luxury\)[\s\S]*?\[CommodityKind::Wine,\s*CommodityKind::Honey\][\s\S]*?withdraw_building_commodity\(source,\s*commodity,\s*remaining\)/,
+  'wine/honey withdrawal must be authorized independently by the staffed Luxury stall',
+);
 assert.match(source('server/src/reducers/residences.rs'), /ResidenceNeedKind::Luxury[\s\S]*?CommodityKind::Candles/);
 
 // Regional trade and all physical stock surfaces remain exact-commodity aware.
