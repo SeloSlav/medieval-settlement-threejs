@@ -233,9 +233,38 @@ for (const [view, season, scale, expected] of cases) {
     expect(finalWidthsX).toHaveLength(3);
     expect(finalWidthsZ).toHaveLength(3);
     expect(Math.min(...finalWidthsX, ...finalWidthsZ)).toBeGreaterThan(1.5);
-    // Rotated AABBs may approach the 2 × 1.752 m radial envelope even though
-    // the authored crown itself only widens about 6–10% over the old maximum.
-    expect(Math.max(...finalWidthsX, ...finalWidthsZ)).toBeLessThan(3.51);
+    // Rotated AABBs may approach the full 2 × 1.85 m dogwood clearance
+    // envelope at maximum scale; the structural suite checks radial clearance.
+    expect(Math.max(...finalWidthsX, ...finalWidthsZ)).toBeLessThanOrEqual(3.7);
+    const morphologyValues = (raw: string | undefined): number[] => (raw ?? '')
+      .split(',')
+      .filter(Boolean)
+      .map(Number);
+    const lowestFoliageMeters = morphologyValues(dataset.dogwoodLowestFoliageMeters);
+    const lowestFoliageRatios = morphologyValues(dataset.dogwoodLowestFoliageRatios);
+    const firstForkMeters = morphologyValues(dataset.dogwoodFirstForkMeters);
+    const firstForkRatios = morphologyValues(dataset.dogwoodFirstForkRatios);
+    const lowerThirdFoliageRatios = morphologyValues(
+      dataset.dogwoodLowerThirdFoliageRatios,
+    );
+    const basalBranchFanScores = morphologyValues(dataset.dogwoodBasalBranchFanScores);
+    for (const values of [
+      lowestFoliageMeters,
+      lowestFoliageRatios,
+      firstForkMeters,
+      firstForkRatios,
+      lowerThirdFoliageRatios,
+      basalBranchFanScores,
+    ]) {
+      expect(values).toHaveLength(3);
+      expect(values.every(Number.isFinite)).toBe(true);
+    }
+    for (const height of lowestFoliageMeters) expect(height).toBeLessThanOrEqual(0.45);
+    for (const ratio of lowestFoliageRatios) expect(ratio).toBeLessThanOrEqual(0.2);
+    for (const height of firstForkMeters) expect(height).toBeLessThanOrEqual(0.43);
+    for (const ratio of firstForkRatios) expect(ratio).toBeLessThanOrEqual(0.18);
+    for (const ratio of lowerThirdFoliageRatios) expect(ratio).toBeGreaterThanOrEqual(0.2);
+    for (const score of basalBranchFanScores) expect(score).toBeGreaterThanOrEqual(0.3);
     const groundContacts = (dataset.dogwoodGroundContacts ?? '')
       .split(',')
       .filter(Boolean)

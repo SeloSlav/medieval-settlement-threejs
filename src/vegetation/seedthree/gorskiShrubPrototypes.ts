@@ -140,6 +140,8 @@ export function createGorskiShrubPrototype(
     geometry.userData.dogwoodSeed = dogwoodVariant.seed;
     geometry.userData.dogwoodVariantId = morphology.id;
     geometry.userData.dogwoodAuthoredHeight = morphology.authoredHeight;
+    geometry.userData.dogwoodFirstForkHeight = morphology.params.firstForkHeight;
+    geometry.userData.dogwoodFoliageStartFraction = species.foliage.startFrac;
   }
 
   const fruitLimit = kind === 'raspberry'

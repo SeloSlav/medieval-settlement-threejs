@@ -300,6 +300,37 @@ for (const terrainPreset of mountainousTerrainPresets) {
   }
 }
 
+for (const terrainPreset of mountainousTerrainPresets) {
+  for (const mapSize of ['medium', 'large'] as const) {
+    const mountainousSettings = applyTerrainPreset(settings({
+      seed: 19,
+      mapSize,
+      topography: 100,
+      resourceAbundance: 100,
+      resourceVariety: 100,
+    }), terrainPreset);
+    const layout = createWorldLayout(mountainousSettings);
+    const nodes = WorldLayoutRegistry.fromWorldLayout(layout).definitionList;
+    const variant = `${terrainPreset}/${mapSize}/seed-19`;
+    assert.equal(
+      nodes.length + layout.clayDepositLayout.sites.length,
+      layout.resourcePlan.totalResourceNodes,
+      `${variant} must retain its complete resource budget after terrain-access filtering`,
+    );
+    assert.ok(nodes.every((node) =>
+      node.kind === 'fish'
+        ? hasAccessibleFishingShore(layout, node.x, node.z)
+        : layout.resourceTerrainAccessibility.isAccessible(node.x, node.z)
+    ), `${variant} must keep every registered resource accessible`);
+    assert.ok(
+      layout.clayDepositLayout.sites.every((site) =>
+        layout.resourceTerrainAccessibility.isAccessible(site.x, site.z)
+      ),
+      `${variant} must keep every clay site accessible`,
+    );
+  }
+}
+
 for (const mapSize of mapSizes) {
   const foodRolls = Array.from({ length: 512 }, (_, index) =>
     createRegionalResourcePlan(settings({

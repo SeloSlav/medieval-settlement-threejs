@@ -200,8 +200,13 @@ assert.doesNotMatch(
 );
 assert.match(
   undergrowthVisuals,
-  /material\.colorNode = tsl\.texture\(textures\.albedo\)/,
-  'the WebGPU card material must leave per-instance tinting to NodeMaterial instanceColor',
+  /SeedThree curved fern fronds[\s\S]*?albedoTint: \[0\.58, 0\.66, 0\.52\][\s\S]*?transmissionAmbient: 0[\s\S]*?transmissionAlbedoWeight: 1[\s\S]*?transmissionScale: 0\.9/,
+  'fern fronds must keep their albedo grounded and their translucency tied to leaf detail',
+);
+assert.match(
+  undergrowthVisuals,
+  /material\.colorNode = options\.albedoTint === undefined[\s\S]*?\? texel[\s\S]*?: tsl\.vec4\(texel\.rgb\.mul\(albedoTintNode\), texel\.a\)/,
+  'the WebGPU card material must apply its species tint without losing cutout alpha',
 );
 assert.doesNotMatch(
   `${undergrowthVisuals}\n${shrubPrototypesSource}\n${seedThreeTexturesSource}`,

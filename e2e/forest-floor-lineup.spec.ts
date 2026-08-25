@@ -211,19 +211,35 @@ for (const [season, expected] of seasons) {
     expect(dataset.nettleDormancy).toBe(expected.dormancy);
     expect(Number(dataset.ivyPatches)).toBe(7);
     expect(Number(dataset.nettleInstances)).toBeGreaterThanOrEqual(25);
+    expect(Number(dataset.nettleColonies)).toBeGreaterThanOrEqual(20);
+    expect(Number(dataset.nettleResidentInstances)).toBe(Number(dataset.nettleInstances));
     expect(Number(dataset.nettleDrawCalls)).toBeGreaterThan(0);
     expect(Number(dataset.nettleDrawCalls)).toBeLessThanOrEqual(6);
     expect(Number(dataset.nettleTriangles)).toBeGreaterThan(2_500);
-    expect(Number(dataset.nettleDefaultTreeCount)).toBeGreaterThan(10_000);
-    expect(Number(dataset.nettleDefaultCount)).toBe(9_600);
-    expect(Number(dataset.nettleDefaultUniqueSources)).toBeGreaterThan(4_000);
+    const defaultTreeCount = Number(dataset.nettleDefaultTreeCount);
+    const defaultNettleCount = Number(dataset.nettleDefaultCount);
+    const defaultNettleColonies = Number(dataset.nettleDefaultColonies);
+    expect(defaultTreeCount).toBeGreaterThan(10_000);
+    expect(defaultNettleCount).toBeGreaterThan(defaultTreeCount * 5);
+    expect(defaultNettleCount).toBeLessThan(defaultTreeCount * 6);
+    expect(defaultNettleColonies).toBeGreaterThan(defaultTreeCount * 0.75);
+    expect(Number(dataset.nettleDefaultMedianColonySize)).toBeGreaterThanOrEqual(6);
+    expect(Number(dataset.nettleDefaultNearestP90)).toBeLessThan(4.8);
+    expect(Number(dataset.nettleDefaultNearestP95)).toBeLessThan(7.5);
+    expect(Number(dataset.nettleDefaultTreesWithoutFiveMeters)).toBeLessThan(defaultTreeCount * 0.1);
+    expect(Number(dataset.nettleDefaultTreesWithoutEightMeters)).toBeLessThan(defaultTreeCount * 0.05);
+    expect(Number(dataset.nettleDefaultUniqueSources)).toBe(defaultNettleColonies);
     expect(Number(dataset.nettleDefaultMaximumSourceIndex)).toBeGreaterThan(10_000);
     const defaultNettleVariantCounts = (dataset.nettleDefaultVariantCounts ?? '')
       .split(',')
       .map(Number);
     expect(defaultNettleVariantCounts).toHaveLength(3);
-    expect(defaultNettleVariantCounts.reduce((sum, count) => sum + count, 0)).toBe(9_600);
-    for (const count of defaultNettleVariantCounts) expect(count).toBeGreaterThan(3_000);
+    expect(defaultNettleVariantCounts.reduce((sum, count) => sum + count, 0)).toBe(
+      defaultNettleCount,
+    );
+    for (const count of defaultNettleVariantCounts) {
+      expect(count).toBeGreaterThan(defaultNettleCount * 0.3);
+    }
     expect(Number(dataset.twigInstances)).toBe(18);
     expect(Number(dataset.twigDrawCalls)).toBe(3);
     expect(Number(dataset.twigPrototypeVertices)).toBe(174);

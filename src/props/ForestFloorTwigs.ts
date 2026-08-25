@@ -31,11 +31,15 @@ export const FOREST_FLOOR_TWIG_TEXTURE_SOURCES = {
 
 export const FOREST_FLOOR_TWIG_SEED = 0x7a19_3f2d;
 export const FOREST_FLOOR_TWIG_MIN_BLEND = 0.22;
-export const FOREST_FLOOR_TWIG_MIN_SPACING = 0.86;
+export const FOREST_FLOOR_TWIG_MIN_SPACING = 0.72;
 export const FOREST_FLOOR_TWIG_GROUND_CLEARANCE = 0.012;
 export const FOREST_FLOOR_TWIG_RADIAL_SEGMENTS = 6;
 export const FOREST_FLOOR_TWIG_TEXTURE_REPEAT_METERS = 0.19;
 export const FOREST_FLOOR_TWIG_HIDDEN_Y = -10_000;
+export const FOREST_FLOOR_TWIG_MAX_INSTANCES = 3_600;
+export const FOREST_FLOOR_TWIG_TARGETS_PER_TREE = 0.46;
+export const FOREST_FLOOR_TWIG_SCALE_RANGE = [0.94, 1.22] as const;
+export const FOREST_FLOOR_TWIG_THICKNESS_RANGE = [0.94, 1.18] as const;
 
 type TwigPoint = readonly [x: number, verticalRadiusUnits: number, lateral: number];
 
@@ -53,8 +57,8 @@ export type ForestFloorTwigVariantSpec = {
  */
 export const FOREST_FLOOR_TWIG_VARIANTS = [
   {
-    length: 0.72,
-    baseRadius: 0.025,
+    length: 0.9,
+    baseRadius: 0.031,
     points: [
       [-0.5, 0.15, 0],
       [-0.31, 0.02, 0.025],
@@ -66,8 +70,8 @@ export const FOREST_FLOOR_TWIG_VARIANTS = [
     radiusProfile: [1, 0.94, 0.84, 0.72, 0.56, 0.36],
   },
   {
-    length: 0.96,
-    baseRadius: 0.029,
+    length: 1.25,
+    baseRadius: 0.038,
     points: [
       [-0.5, 0.1, 0],
       [-0.34, 0.2, -0.042],
@@ -79,8 +83,8 @@ export const FOREST_FLOOR_TWIG_VARIANTS = [
     radiusProfile: [1, 0.96, 0.86, 0.74, 0.61, 0.42],
   },
   {
-    length: 1.24,
-    baseRadius: 0.033,
+    length: 1.65,
+    baseRadius: 0.046,
     points: [
       [-0.5, 0.13, 0],
       [-0.3, 0.02, 0.038],
@@ -347,8 +351,8 @@ export function createForestFloorTwigPlacements(
     options.minimumSpacing ?? FOREST_FLOOR_TWIG_MIN_SPACING,
   );
   const defaultMaximum = Math.min(
-    900,
-    Math.max(1, Math.round(trees.length * 0.22 * densityScale)),
+    FOREST_FLOOR_TWIG_MAX_INSTANCES,
+    Math.max(1, Math.round(trees.length * FOREST_FLOOR_TWIG_TARGETS_PER_TREE * densityScale)),
   );
   const maxTwigs = Math.max(0, Math.floor(options.maxTwigs ?? defaultMaximum));
   const placementIndex = new SpatialHash2D<ForestFloorTwigPlacement>(minimumSpacing);
@@ -361,12 +365,12 @@ export function createForestFloorTwigPlacements(
     const forestBlend = sampleForestBlend(terrain, tree.x, tree.z);
     if (forestBlend < minimumForestBlend) continue;
     const primaryChance = THREE.MathUtils.clamp(
-      THREE.MathUtils.lerp(0.08, 0.34, forestBlend) * densityScale,
+      THREE.MathUtils.lerp(0.18, 0.56, forestBlend) * densityScale,
       0,
       0.94,
     );
     const secondaryChance = THREE.MathUtils.clamp(
-      THREE.MathUtils.lerp(0, 0.075, forestBlend) * densityScale,
+      THREE.MathUtils.lerp(0.015, 0.16, forestBlend) * densityScale,
       0,
       0.32,
     );
@@ -394,15 +398,15 @@ export function createForestFloorTwigPlacements(
         FOREST_FLOOR_TWIG_VARIANT_COUNT - 1,
         Math.floor(rng() * FOREST_FLOOR_TWIG_VARIANT_COUNT),
       );
-      const scale = THREE.MathUtils.lerp(0.84, 1.16, rng());
-      const thicknessScale = THREE.MathUtils.lerp(0.86, 1.14, rng());
+      const scale = THREE.MathUtils.lerp(...FOREST_FLOOR_TWIG_SCALE_RANGE, rng());
+      const thicknessScale = THREE.MathUtils.lerp(...FOREST_FLOOR_TWIG_THICKNESS_RANGE, rng());
       const length = FOREST_FLOOR_TWIG_VARIANTS[variantIndex]!.length * scale;
       if (twigIntersectsBlocker(x, z, yaw, length, options.isBlockedAt)) continue;
 
       tintColor.setHSL(
-        0.085 + (rng() - 0.5) * 0.035,
-        0.045 + rng() * 0.055,
-        0.72 + (rng() - 0.5) * 0.16,
+        0.075 + (rng() - 0.5) * 0.035,
+        0.12 + rng() * 0.12,
+        0.87 + (rng() - 0.5) * 0.14,
       );
       const placement: ForestFloorTwigPlacement = {
         x,

@@ -289,7 +289,18 @@ export async function createUndergrowthMaterials(
       createUndergrowthCardMaterial('SeedThree bilberry sprays', bushTextures, useNodeMaterials, [0.3, 0.44, 0.16]),
     ],
     fern: [
-      createUndergrowthCardMaterial('SeedThree curved fern fronds', fernTextures, useNodeMaterials, [0.26, 0.5, 0.18]),
+      createUndergrowthCardMaterial(
+        'SeedThree curved fern fronds',
+        fernTextures,
+        useNodeMaterials,
+        [0.26, 0.5, 0.18],
+        {
+          albedoTint: [0.58, 0.66, 0.52],
+          transmissionAmbient: 0,
+          transmissionAlbedoWeight: 1,
+          transmissionScale: 0.9,
+        },
+      ),
     ],
     juniper: [
       createUndergrowthBranchMaterial('SeedThree common juniper stems', juniperBranch, useNodeMaterials),
@@ -788,9 +799,13 @@ function sampleUndergrowthTint(kind: UndergrowthKind, rng: () => number): THREE.
 }
 
 type UndergrowthMaterialOptions = {
+  albedoTint?: [number, number, number];
   deciduousDogwood?: boolean;
   webglWindAmplitude?: number;
   leafFlutterAmplitude?: number;
+  transmissionAmbient?: number;
+  transmissionAlbedoWeight?: number;
+  transmissionScale?: number;
 };
 
 function createUndergrowthCardMaterial(
@@ -800,9 +815,11 @@ function createUndergrowthCardMaterial(
   transmitRGB: [number, number, number],
   options: UndergrowthMaterialOptions = {},
 ): THREE.Material {
+  const albedoTint = new THREE.Color().setRGB(...(options.albedoTint ?? [1, 1, 1]));
   if (!useNodeMaterial) {
     const material = new THREE.MeshStandardMaterial({
       name,
+      color: albedoTint,
       map: textures.albedo,
       normalMap: textures.normal,
       roughnessMap: textures.roughness,
@@ -842,18 +859,26 @@ function createUndergrowthCardMaterial(
   if (textures.roughness) material.roughness = 1.0;
 
   const texel = tsl.texture(textures.albedo);
+  const albedoTintNode = tsl.uniform(albedoTint);
   const transmit = tsl.uniform(new THREE.Color().setRGB(...transmitRGB));
   const edge = textures.translucency ? tsl.texture(textures.translucency).r : tsl.float(1);
-  let thicknessColor = edge.mul(transmit);
+  const untintedTransmission = edge.mul(transmit);
+  let thicknessColor = tsl.mix(
+    untintedTransmission,
+    untintedTransmission.mul(texel.rgb),
+    options.transmissionAlbedoWeight ?? 0,
+  );
   material.thicknessColorNode = thicknessColor;
   material.thicknessDistortionNode = tsl.uniform(0.3);
-  material.thicknessAmbientNode = tsl.uniform(0.026);
+  material.thicknessAmbientNode = tsl.uniform(options.transmissionAmbient ?? 0.026);
   material.thicknessAttenuationNode = tsl.uniform(1.0);
   material.thicknessPowerNode = tsl.uniform(5.0);
-  material.thicknessScaleNode = tsl.uniform(1.5);
+  material.thicknessScaleNode = tsl.uniform(options.transmissionScale ?? 1.5);
   // NodeMaterial applies InstancedMesh.instanceColor after colorNode. Keeping
   // tint on that built-in path avoids a duplicate per-instance vertex buffer.
-  material.colorNode = tsl.texture(textures.albedo);
+  material.colorNode = options.albedoTint === undefined
+    ? texel
+    : tsl.vec4(texel.rgb.mul(albedoTintNode), texel.a);
   material.positionNode = options.leafFlutterAmplitude === undefined
     ? createRootedGeometryWindPosition(options.webglWindAmplitude ?? 0.1)
     : createRootedDogwoodFoliageWindPosition(

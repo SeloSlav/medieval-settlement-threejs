@@ -38,6 +38,10 @@ assert.equal(commonDogwood.category, 'shrub');
 assert.equal(commonDogwood.foliageType, 'singleLeaves');
 assert.equal(commonDogwood.foliage.mode, 'leaves');
 assert.equal(commonDogwood.foliage.flutterScale, 0.42);
+assert.ok(
+  commonDogwood.foliage.startFrac <= 0.04,
+  'dogwood foliage must begin close to the first low fork instead of leaving a bare lower crown',
+);
 assert.equal(commonDogwood.foliage.whorlSize, 2, 'dogwood leaves must remain opposite pairs');
 assert.ok(
   commonDogwood.foliage.rotate >= 85 && commonDogwood.foliage.rotate <= 95,
@@ -360,11 +364,22 @@ function dogwoodPrototypeSignatures(): Record<string, string> {
     const bounds = geometry.boundingBox!;
     const size = bounds.getSize(new THREE.Vector3());
     const stemCount = Number(geometry.userData.dogwoodStemCount);
+    const firstForkHeight = variantPreset.morphology.params.firstForkHeight;
     assert.equal(geometry.userData.gorskiShrubKind, 'dogwood');
     assert.equal(geometry.userData.gorskiShrubVariant, variant);
     assert.equal(geometry.userData.seedThreeGenerator, 'basal-thicket/opposite-leaf-pairs');
     assert.equal(geometry.userData.dogwoodSeed, `${COMMON_DOGWOOD_SEED_PREFIX}:${variant}`);
     assert.equal(stemCount, variantPreset.morphology.stemCount);
+    assert.equal(geometry.userData.dogwoodFirstForkHeight, firstForkHeight);
+    assert.equal(geometry.userData.dogwoodFoliageStartFraction, commonDogwood.foliage.startFrac);
+    assert.ok(
+      firstForkHeight >= 0.3 && firstForkHeight <= 0.42,
+      `dogwood variant ${variant} must branch within the basal 0.42 m thicket zone`,
+    );
+    assert.ok(
+      variantPreset.morphology.params.armLength >= 1.1,
+      `dogwood variant ${variant} must recover mature height above its low first fork`,
+    );
     assert.ok(stemCount >= 10 && stemCount <= 30, `dogwood variant ${variant} stem count is out of range`);
     assert.equal(
       geometry.userData.dogwoodGroundOriginStemCount,
@@ -392,6 +407,34 @@ function dogwoodPrototypeSignatures(): Record<string, string> {
     assert.ok(size.x >= 1.5 && size.x <= 2.2);
     assert.ok(size.z >= 1.5 && size.z <= 2.2);
     assert.ok(size.y >= 2.3 && size.y <= 2.8);
+    const foliageRootHeights = dogwoodFoliageRootHeights(geometry, variant);
+    const foliageRootP10 = foliageRootHeights[
+      Math.floor((foliageRootHeights.length - 1) * 0.1)
+    ]!;
+    const lowerThirdCeiling = bounds.min.y + size.y / 3;
+    const lowerThirdRootShare = foliageRootHeights.filter(
+      (height) => height <= lowerThirdCeiling,
+    ).length / foliageRootHeights.length;
+    assert.ok(
+      foliageRootHeights[0]! <= 0.5,
+      `dogwood variant ${variant} foliage begins too high above its basal stool`,
+    );
+    assert.ok(
+      foliageRootP10 <= 0.65,
+      `dogwood variant ${variant} still leaves its lower stems visually bare`,
+    );
+    assert.ok(
+      (foliageRootHeights[0]! - bounds.min.y) / size.y <= 0.17,
+      `dogwood variant ${variant} foliage must begin inside the lowest 17% of its height`,
+    );
+    assert.ok(
+      (foliageRootP10 - bounds.min.y) / size.y <= 0.23,
+      `dogwood variant ${variant} needs meaningful foliage inside the lowest 23% of its height`,
+    );
+    assert.ok(
+      lowerThirdRootShare >= 0.2,
+      `dogwood variant ${variant} needs substantial foliage roots in its lower third`,
+    );
     const positions = geometry.getAttribute('position');
     let maximumRadialExtent = 0;
     for (let index = 0; index < positions.count; index++) {
@@ -441,6 +484,31 @@ function dogwoodPrototypeSignatures(): Record<string, string> {
     geometry.dispose();
   }
   return signatures;
+}
+
+function dogwoodFoliageRootHeights(
+  geometry: THREE.BufferGeometry,
+  variant: number,
+): number[] {
+  const index = geometry.index;
+  const position = geometry.getAttribute('position');
+  const uv = geometry.getAttribute('uv');
+  const foliageGroup = geometry.groups.find((group) => group.materialIndex === 1);
+  assert.ok(index && position && uv && foliageGroup, `dogwood variant ${variant} needs indexed foliage`);
+  const rootVertices = new Set<number>();
+  for (
+    let offset = foliageGroup.start;
+    offset < foliageGroup.start + foliageGroup.count;
+    offset++
+  ) {
+    const vertex = index.getX(offset);
+    if (uv.getY(vertex) <= 0.001) rootVertices.add(vertex);
+  }
+  const heights = [...rootVertices]
+    .map((vertex) => position.getY(vertex))
+    .sort((left, right) => left - right);
+  assert.ok(heights.length > 0, `dogwood variant ${variant} needs measurable leaf roots`);
+  return heights;
 }
 
 function assertBakedDogwoodLeafCards(

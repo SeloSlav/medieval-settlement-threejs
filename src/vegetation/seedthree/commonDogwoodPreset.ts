@@ -54,8 +54,8 @@ export const COMMON_DOGWOOD_VARIANTS: readonly CommonDogwoodVariant[] = [
     params: {
       trunks: 12,
       trunkSplayDeg: 20,
-      firstForkHeight: 0.84,
-      armLength: 0.68,
+      firstForkHeight: 0.34,
+      armLength: 1.12,
       branchiness: 0.42,
       forkSpread: 20,
       armBend: 15,
@@ -69,8 +69,8 @@ export const COMMON_DOGWOOD_VARIANTS: readonly CommonDogwoodVariant[] = [
     params: {
       trunks: 19,
       trunkSplayDeg: 15,
-      firstForkHeight: 0.88,
-      armLength: 0.71,
+      firstForkHeight: 0.38,
+      armLength: 1.14,
       branchiness: 0.48,
       forkSpread: 17,
       armBend: 11,
@@ -84,8 +84,8 @@ export const COMMON_DOGWOOD_VARIANTS: readonly CommonDogwoodVariant[] = [
     params: {
       trunks: 27,
       trunkSplayDeg: 18,
-      firstForkHeight: 0.92,
-      armLength: 0.74,
+      firstForkHeight: 0.42,
+      armLength: 1.16,
       branchiness: 0.52,
       forkSpread: 18,
       armBend: 13,
@@ -111,7 +111,10 @@ export const commonDogwood = {
     sizeVar: 0.2,
     widthRatio: 0.67,
     taper: 0.18,
-    startFrac: 0.12,
+    // Woodland dogwood carries opposite leaves down close to the stool. Start
+    // almost immediately along the first leafy arms so the lower third reads
+    // as a living thicket rather than a bundle of exposed sapling trunks.
+    startFrac: 0.03,
     downAngle: 50,
     downAngleV: 12,
     droop: 12,
@@ -133,14 +136,16 @@ export const commonDogwood = {
   params: {
     trunks: 19,
     trunkSplayDeg: 15,
-    firstForkHeight: 0.88,
-    armLength: 0.71,
+    firstForkHeight: 0.38,
+    armLength: 1.14,
     armFalloff: 0.86,
     forkGenerations: 3,
     branchiness: 0.48,
     forkSpread: 17,
     forkTriChance: 0.025,
-    curlUp: 0.58,
+    // Longer post-fork arms recover the mature height after lowering the first
+    // fork; stronger upward tropism keeps the footprint shrub-like and arched.
+    curlUp: 0.74,
     armBend: 11,
     gnarliness: 4,
     continuationKink: 5,
