@@ -227,6 +227,7 @@ class WebGLPostProcessor implements ScenePostProcessor {
 }
 
 class WebGPUPostProcessor implements ScenePostProcessor {
+  private readonly renderer: WebGPURenderer;
   private readonly bloomPass: Disposable;
   private readonly pipeline: RenderPipeline;
   private readonly scenePass: PassNodeLike;
@@ -252,6 +253,7 @@ class WebGPUPostProcessor implements ScenePostProcessor {
     camera: THREE.PerspectiveCamera,
     illustratedMapScene: THREE.Scene,
   ) {
+    this.renderer = renderer;
     this.pipeline = new RenderPipeline(renderer);
     this.scenePass = pass(scene, camera) as PassNodeLike;
     this.illustratedMapPipeline = new RenderPipeline(renderer);
@@ -292,15 +294,11 @@ class WebGPUPostProcessor implements ScenePostProcessor {
   }
 
   render(): void {
-    this.pipeline.render();
+    this.renderPipelineToCanvas(this.pipeline);
   }
 
   renderIllustratedMap(): void {
-    // Keep both render owners on RenderPipeline. Mixing a direct WebGPU
-    // renderer submission for the map with the world's post pipeline can
-    // leave the swap-chain showing only its cleared parchment/sky colour when
-    // ownership returns to the world.
-    this.illustratedMapPipeline.render();
+    this.renderPipelineToCanvas(this.illustratedMapPipeline);
   }
 
   setDayNightGrade(grade: DayNightGrade): void {
@@ -317,6 +315,16 @@ class WebGPUPostProcessor implements ScenePostProcessor {
 
   setSize(): void {
     // WebGPU pass nodes size themselves from the renderer drawing buffer each frame.
+  }
+
+  private renderPipelineToCanvas(pipeline: RenderPipeline): void {
+    // RenderPipeline's final fullscreen draw targets the renderer's current
+    // target. Reclaim the swap chain explicitly at every scene-owner boundary
+    // so a leaked offscreen target/MRT cannot strand the visible canvas on the
+    // last parchment clear frame.
+    this.renderer.setRenderTarget(null);
+    this.renderer.setMRT(null);
+    pipeline.render();
   }
 }
 

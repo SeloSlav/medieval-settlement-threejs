@@ -25,8 +25,18 @@ assert.match(
 );
 assert.match(
   postSource,
-  /this\.illustratedMapPipeline\.render\(\)/,
+  /this\.renderPipelineToCanvas\(this\.illustratedMapPipeline\)/,
   'the WebGPU paper map should render through its pipeline instead of a direct submission',
+);
+assert.match(
+  postSource,
+  /private renderPipelineToCanvas\(pipeline: RenderPipeline\): void \{[\s\S]*?this\.renderer\.setRenderTarget\(null\);[\s\S]*?this\.renderer\.setMRT\(null\);[\s\S]*?pipeline\.render\(\);/,
+  'every top-level WebGPU pipeline must explicitly reclaim the canvas target and clear MRT state',
+);
+assert.equal(
+  (postSource.match(/this\.renderPipelineToCanvas\(/g) ?? []).length,
+  2,
+  'both world and illustrated-map owners must submit through the canvas-target guard',
 );
 assert.doesNotMatch(
   postSource,
@@ -55,7 +65,7 @@ assert.doesNotMatch(
 assert.match(
   appSource,
   /setRendererAnimationLoop\(session\.sceneManager\.renderer, this\.tick\)/,
-  'the renderer must own the production frame loop so WebGPU frame-scoped passes advance',
+  'the renderer must own the production callback so WebGPU passes and visible submission share a frame lifecycle',
 );
 assert.match(
   appSource,
@@ -65,7 +75,7 @@ assert.match(
 assert.doesNotMatch(
   appSource,
   /requestAnimationFrame\(this\.tick\)/,
-  'an app-owned RAF loop freezes WebGPU PassNode output across render-owner handoffs',
+  'production rendering must not create a second animation scheduler beside Three\'s WebGPU lifecycle',
 );
 
 console.log('Post-processing pipeline parity and pass-budget tests passed.');

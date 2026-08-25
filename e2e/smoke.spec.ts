@@ -251,7 +251,7 @@ test('connects, places a reforester, and updates settlement HUD timber', async (
     { timeout: STARTUP_TIMEOUT_MS },
   ).toBe(true);
   const rendererStats = await page.evaluate(() => window.__medievalE2e!.getRendererStats());
-  expect(rendererStats.backend).toBe('webgl2-node');
+  expect(rendererStats.backend).toBe('webgpu');
   await expect.poll(
     () => page.evaluate(() => window.__medievalE2e?.isConnected() === true),
     { timeout: STARTUP_TIMEOUT_MS },

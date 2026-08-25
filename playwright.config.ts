@@ -16,14 +16,13 @@ export default defineConfig({
   reporter: process.env.CI ? [['github'], ['list']] : [['list']],
   use: {
     baseURL: `http://${previewHost}:${previewPort}`,
-    // SwiftShader can spend longer reading back the volumetric WebGL canvas
-    // for diagnostics than rendering the frame itself. Keep capture opt-in so
-    // the smoke measures the game; E2E_CAPTURE=1 restores failure artifacts.
+    // Keep capture opt-in so the smoke measures the game rather than GPU
+    // readback; E2E_CAPTURE=1 restores failure artifacts.
     trace: process.env.E2E_CAPTURE === '1' ? 'retain-on-failure' : 'off',
     screenshot: process.env.E2E_CAPTURE === '1' ? 'only-on-failure' : 'off',
     video: process.env.E2E_CAPTURE === '1' ? 'retain-on-failure' : 'off',
     launchOptions: {
-      args: ['--use-gl=angle', '--use-angle=swiftshader-webgl'],
+      args: ['--enable-unsafe-webgpu'],
     },
   },
   projects: [

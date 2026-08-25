@@ -1054,8 +1054,8 @@ export class SceneManager {
     }
     if (import.meta.env.VITE_E2E_TEST === '1') {
       // The smoke test exercises the real node-material terrain through the
-      // WebGL 2 node backend. Its software renderer does not need to spend
-      // minutes raymarching the sky and bloom pipeline to prove compatibility.
+      // required WebGPU backend. It does not need to spend minutes raymarching
+      // the sky and bloom pipeline to prove startup and gameplay compatibility.
       const skyVisible = this.sky.visible;
       const precipitationVisible = this.precipitation.group.visible;
       this.sky.visible = false;

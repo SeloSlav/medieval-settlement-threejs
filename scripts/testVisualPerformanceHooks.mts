@@ -38,6 +38,7 @@ import {
   createPreferredRenderer,
   readWebGLAdapterEvidence,
   type RendererBackend,
+  WEBGPU_REQUIRED_MESSAGE,
   webGPUAdapterRequestOptionsForPlatform,
 } from '../src/scene/RendererBackend.ts';
 
@@ -823,7 +824,11 @@ assert.strictEqual(
   integratedDevice,
   'createPreferredRenderer must supply the exact acquired device to Three',
 );
-assert.equal(constructedRendererOptions?.forceWebGL, undefined);
+assert.equal(
+  'forceWebGL' in (constructedRendererOptions ?? {}),
+  false,
+  'the production renderer must never receive Three\'s WebGL fallback option',
+);
 assert.strictEqual(integratedBackend.renderer, constructedRenderer);
 assert.equal(integratedBackend.kind, 'webgpu');
 assert.equal(integratedBackend.adapterEvidence.source, 'webgpu-adapter-info');
@@ -845,6 +850,104 @@ await assert.rejects(
   integratedBackend.waitForSubmittedWork(),
   /Native WebGPU capture synchronization is unavailable on the active renderer device queue/,
   'native WebGPU capture must fail explicitly when queue synchronization is unavailable',
+);
+
+let missingProviderRendererConstructions = 0;
+await assert.rejects(
+  createPreferredRenderer({
+    gpu: null,
+    createRenderer: () => {
+      missingProviderRendererConstructions += 1;
+      throw new Error('renderer construction must not be reached');
+    },
+    waitForStartup: async (promise) => promise,
+  }),
+  (error: unknown) => {
+    assert.ok(error instanceof Error);
+    assert.equal(error.message, WEBGPU_REQUIRED_MESSAGE);
+    assert.match(String(error.cause), /navigator\.gpu is unavailable/);
+    return true;
+  },
+  'a browser without navigator.gpu must fail the WebGPU-only startup contract',
+);
+assert.equal(
+  missingProviderRendererConstructions,
+  0,
+  'missing WebGPU must not construct a fallback renderer',
+);
+
+let missingAdapterRendererConstructions = 0;
+await assert.rejects(
+  createPreferredRenderer({
+    gpu: { requestAdapter: async () => null },
+    createRenderer: () => {
+      missingAdapterRendererConstructions += 1;
+      throw new Error('renderer construction must not be reached');
+    },
+    waitForStartup: async (promise) => promise,
+  }),
+  (error: unknown) => {
+    assert.ok(error instanceof Error);
+    assert.equal(error.message, WEBGPU_REQUIRED_MESSAGE);
+    assert.match(String(error.cause), /No compatible WebGPU adapter is available/);
+    return true;
+  },
+  'a browser without a compatible adapter must fail the WebGPU-only startup contract',
+);
+assert.equal(
+  missingAdapterRendererConstructions,
+  0,
+  'missing adapters must not construct a fallback renderer',
+);
+
+const mismatchedDevice = { label: 'mismatch selected device' };
+let mismatchedRendererConstructions = 0;
+let mismatchedRendererDisposals = 0;
+let mismatchedRendererOptions: { device?: unknown; forceWebGL?: boolean } | null = null;
+await assert.rejects(
+  createPreferredRenderer({
+    gpu: {
+      requestAdapter: async () => ({
+        requestDevice: async () => mismatchedDevice,
+      }),
+    },
+    createRenderer: (options) => {
+      mismatchedRendererConstructions += 1;
+      mismatchedRendererOptions = options;
+      const renderer = {
+        backend: { isWebGLBackend: true },
+        dispose: () => { mismatchedRendererDisposals += 1; },
+        getMaxAnisotropy: () => 4,
+        init: async () => renderer,
+        outputColorSpace: '',
+        setClearColor: () => {},
+        shadowMap: { enabled: false, type: 0 },
+        toneMapping: 0,
+        toneMappingExposure: 1,
+      };
+      return renderer as never;
+    },
+    waitForStartup: async (promise) => promise,
+  }),
+  (error: unknown) => {
+    assert.ok(error instanceof Error);
+    assert.equal(error.message, WEBGPU_REQUIRED_MESSAGE);
+    assert.match(String(error.cause), /non-WebGPU renderer backend/);
+    return true;
+  },
+  'Three selecting its WebGL backend must fail instead of becoming playable',
+);
+assert.equal(mismatchedRendererConstructions, 1);
+assert.equal(
+  mismatchedRendererDisposals,
+  1,
+  'a rejected non-WebGPU renderer must be disposed exactly once',
+);
+assert.strictEqual(mismatchedRendererOptions?.device, mismatchedDevice);
+assert.equal(
+  'forceWebGL' in (mismatchedRendererOptions ?? {}),
+  false,
+  'backend mismatch must not trigger a second force-WebGL construction',
 );
 
 const subsystemNames = [

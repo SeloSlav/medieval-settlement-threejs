@@ -322,7 +322,7 @@ Food is physical and keeps its identity throughout the economy: bakeries make br
 
 ### Rendering & UI
 
-- WebGPU renderer preferred with automatic WebGL fallback.
+- Native WebGPU renderer required; unsupported browsers stop with a clear startup error.
 - Dual post-processing pipeline: WebGL or WebGPU/TSL bloom, daylight grade, and a globally switchable [Croatian naïve-art treatment](docs/CROATIAN_NAIVE_ART_POST_PROCESSING.md).
 - Scene-wide Croatian naïve-art treatment with painted tonal bands, chromatic contours, and subtle pigment texture. Flip the code-only `CROATIAN_NAIVE_ART_POST_PROCESSING_ENABLED` flag in `src/scene/naiveArtPostEffect.ts` to disable it without changing the UI.
 - Progressive loading screen with staged status labels while the world initializes.
@@ -605,7 +605,7 @@ git submodule update --init --recursive
 - `npm run test:lodge-logistics` runs a standalone script validating firewood delivery routing logic.
 - `npm run test:fishing` validates fish world placement, dry-land camp placement, storage, residence food claims, icon treatment, finite population harvesting, protected-stock caps, spring reproduction, winter freeze, extinction, population-scaled school visuals, and the rigged swimming/flop animation asset.
 - `npm run test:foraging-ecology` validates mushroom world placement and deep-forest bias, seasonal policy, forager compatibility, wild-stock reserve parity, persistent lifecycle wiring, herd visuals/migration, and granary collection.
-- WebGPU is attempted first; if initialization fails or the browser lacks support, the app falls back to WebGL automatically.
+- Native WebGPU is required. If the browser, GPU, or driver cannot initialize it, startup stops with a clear compatibility error instead of silently changing renderers.
 - Production build splits Three.js, SpacetimeDB bindings, and vendored vegetation/sky code into separate chunks to keep the main entry bundle smaller.
 - Forest and grass vegetation build asynchronously after the first frame to keep initial load responsive.
 - `window.__medievalGameState` exposes dev helpers for inspecting live client state in the browser console.

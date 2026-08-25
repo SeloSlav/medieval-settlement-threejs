@@ -705,10 +705,9 @@ export class App {
         .some((building) => building.kind === 'founders_camp'),
     );
     if (import.meta.env.VITE_E2E_TEST !== '1') {
-      // RenderPipeline scene passes are frame-scoped nodes. Three advances
-      // their NodeFrame only from the renderer-owned animation loop; driving
-      // tick from window.requestAnimationFrame leaves the world pass frozen
-      // after another pipeline (the illustrated map) renders in the same app.
+      // Run scene-owner handoffs inside Three's renderer lifecycle. Its common
+      // animation loop advances the NodeFrame immediately before this callback,
+      // keeping WebGPU PassNode updates and the visible submission in one frame.
       setRendererAnimationLoop(session.sceneManager.renderer, this.tick);
     }
   }

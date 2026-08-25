@@ -61,6 +61,7 @@ type ShadowMapWithManualRefresh = THREE.WebGLRenderer['shadowMap'] & {
   needsUpdate?: boolean;
 };
 
+/** Legacy variants remain for standalone fixtures; production creation resolves only WebGPU. */
 export type RendererBackendKind = 'webgpu' | 'webgl2-node' | 'webgl';
 export type SupportedRenderer = THREE.WebGLRenderer | WebGPURenderer;
 
@@ -70,9 +71,9 @@ type RendererWithAnimationLoop = {
 };
 
 /**
- * Both supported Three renderers expose this runtime API. WebGPURenderer's
- * bundled declaration currently omits it even though the common Renderer
- * implements it, so keep the compatibility cast at this one boundary.
+ * WebGPURenderer's bundled declaration currently omits this runtime API even
+ * though Three's common Renderer implements it, so keep the compatibility cast
+ * at this one boundary.
  */
 export function setRendererAnimationLoop(
   renderer: SupportedRenderer,
@@ -111,8 +112,7 @@ export type RendererBackend = {
 export type RendererConstructionOptions = {
   alpha: boolean;
   antialias: boolean;
-  device?: unknown;
-  forceWebGL?: boolean;
+  device: unknown;
   powerPreference: WebGPUPowerPreference;
 };
 
@@ -127,82 +127,59 @@ const RENDERER_OPTIONS = {
   powerPreference: 'high-performance' as const,
 };
 const WEBGPU_STARTUP_TIMEOUT_MS = 2500;
+export const WEBGPU_REQUIRED_MESSAGE =
+  'This game requires native WebGPU. Use a WebGPU-compatible browser and GPU driver.';
 
+/**
+ * Creates the production renderer. The historical name is retained for API
+ * stability, but WebGPU is required and this function never falls back to
+ * Three's WebGL backend.
+ */
 export async function createPreferredRenderer(
   dependencies: RendererBackendDependencies = defaultRendererBackendDependencies(),
 ): Promise<RendererBackend> {
-  const webGPU = await requestPreferredWebGPUDevice(
-    dependencies.gpu,
-    dependencies.waitForStartup,
-  );
-  if (webGPU) {
-    const renderer = dependencies.createRenderer({
+  let webGPU: Awaited<ReturnType<typeof requestRequiredWebGPUDevice>>;
+  try {
+    webGPU = await requestRequiredWebGPUDevice(
+      dependencies.gpu,
+      dependencies.waitForStartup,
+    );
+  } catch (error) {
+    throw webGPURequiredError(error);
+  }
+
+  let renderer: WebGPURenderer | null = null;
+  try {
+    renderer = dependencies.createRenderer({
       ...RENDERER_OPTIONS,
       alpha: true,
       device: webGPU.device,
     });
     configureRenderer(renderer);
 
-    try {
-      await dependencies.waitForStartup(
-        renderer.init(),
-        'WebGPU renderer initialization',
-      );
-
-      if (isNativeWebGPU(renderer)) {
-        return {
-          adapterEvidence: webGPU.adapterEvidence,
-          kind: 'webgpu',
-          maxAnisotropy: renderer.getMaxAnisotropy(),
-          renderer,
-          waitForSubmittedWork: () =>
-            waitForNativeWebGPUSubmittedWork(renderer),
-        };
-      }
-
-      if (isNodeWebGL(renderer)) {
-        console.warn('WebGPU is unavailable; using Three.js node materials through its WebGL 2 backend.');
-        return {
-          adapterEvidence: readWebGLAdapterEvidence(renderer),
-          kind: 'webgl2-node',
-          maxAnisotropy: renderer.getMaxAnisotropy(),
-          renderer,
-          waitForSubmittedWork: async () => {},
-        };
-      }
-    } catch (error) {
-      console.warn('WebGPU renderer initialization failed; falling back to WebGL.', error);
-    }
-
-    renderer.dispose();
-  }
-
-  const renderer = dependencies.createRenderer({
-    ...RENDERER_OPTIONS,
-    alpha: true,
-    forceWebGL: true,
-  });
-  configureRenderer(renderer);
-
-  try {
     await dependencies.waitForStartup(
       renderer.init(),
-      'WebGL 2 node renderer initialization',
+      'WebGPU renderer initialization',
     );
+    if (!isNativeWebGPU(renderer)) {
+      throw new Error('Three.js initialized a non-WebGPU renderer backend.');
+    }
+
     return {
-      adapterEvidence: readWebGLAdapterEvidence(renderer),
-      kind: 'webgl2-node',
+      adapterEvidence: webGPU.adapterEvidence,
+      kind: 'webgpu',
       maxAnisotropy: renderer.getMaxAnisotropy(),
       renderer,
-      waitForSubmittedWork: async () => {},
+      waitForSubmittedWork: () => waitForNativeWebGPUSubmittedWork(renderer!),
     };
   } catch (error) {
-    renderer.dispose();
-    throw new Error(
-      'This browser could not initialize the WebGPU or WebGL 2 renderer required by the game.',
-      { cause: error },
-    );
+    renderer?.dispose();
+    throw webGPURequiredError(error);
   }
+}
+
+function webGPURequiredError(cause: unknown): Error {
+  return new Error(WEBGPU_REQUIRED_MESSAGE, { cause });
 }
 
 function defaultRendererBackendDependencies(): RendererBackendDependencies {
@@ -458,32 +435,25 @@ function configureRenderer(renderer: SupportedRenderer): void {
   if ('autoUpdate' in shadowMap) shadowMap.autoUpdate = false;
 }
 
-async function requestPreferredWebGPUDevice(
+async function requestRequiredWebGPUDevice(
   gpu: WebGPUProviderLike | null,
   waitForStartup: RendererBackendDependencies['waitForStartup'],
 ): Promise<{
   adapterEvidence: RendererAdapterEvidence;
   device: unknown;
-} | null> {
-  if (!gpu) return null;
+}> {
+  if (!gpu) throw new Error('navigator.gpu is unavailable.');
 
-  try {
-    return await waitForStartup(
-      acquireWebGPUAdapterDevice(gpu),
-      'WebGPU adapter and device request',
-    );
-  } catch (error) {
-    console.warn('WebGPU adapter or device request failed; falling back to WebGL.', error);
-    return null;
-  }
+  const acquisition = await waitForStartup(
+    acquireWebGPUAdapterDevice(gpu),
+    'WebGPU adapter and device request',
+  );
+  if (!acquisition) throw new Error('No compatible WebGPU adapter is available.');
+  return acquisition;
 }
 
 function isNativeWebGPU(renderer: WebGPURenderer): boolean {
   return (renderer as RendererWithBackend).backend.isWebGPUBackend === true;
-}
-
-function isNodeWebGL(renderer: WebGPURenderer): boolean {
-  return (renderer as RendererWithBackend).backend.isWebGLBackend === true;
 }
 
 export function supportsNodeMaterials(backend: RendererBackendKind): boolean {
