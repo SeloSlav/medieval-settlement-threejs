@@ -2482,7 +2482,7 @@ export function renderTownHallInspector(
       <li><span>Fuel road branches</span><span>${firewoodPlan.distributors} staffed distributors across ${firewoodPlan.activeBranches} consuming branches &middot; ${firewoodPlan.flowDeficitBranches} production-short &middot; ${firewoodPlan.unservedBranches} without a distributor &middot; weakest combined runway ${formatProvisionRunway(firewoodPlan.worstBranchRunwayDays)}${firewoodInspectButton}</span></li>
       <li><span>Winter heating fuel</span><span>${Math.round(provisioning.usableFirewoodStock)} usable / ${Math.round(provisioning.firewoodStock)} owned · ${Math.ceil(provisioning.winterFirewoodNeed)} needed · ${formatProvisionRunway(provisioning.winterFirewoodRunwayDays)} of ${WINTER_RESERVE_DAYS}</span></li>
       ${provisioning.fireQuarantinedFirewoodStock > 0.05 ? `<li><span>Fire-quarantined fuel</span><span>${Math.round(provisioning.fireQuarantinedFirewoodStock)} firewood inaccessible until the damaged store or home recovers</span></li>` : ''}
-      ${provisioning.sabbathObserved ? '<li><span>Observed Sunday needs</span><span>Protected &middot; consumption and shortage clocks pause</span></li>' : ''}
+      ${provisioning.sabbathObserved ? '<li><span>Observed Sunday needs</span><span>Household consumption and service shortage clocks continue while ordinary labor rests</span></li>' : ''}
       <li><span>Processing basis</span><span>${processingWeek}</span></li>
       ${productionFireOutageRow}
       ${prosperityHouseholdFireOutageRow}

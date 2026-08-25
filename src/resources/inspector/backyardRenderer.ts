@@ -40,6 +40,7 @@ import {
 import { settlementHasStaffedChapel } from '../../logistics/landmarkAccess.ts';
 import { backyardGardenPlacement } from '../../residences/backyardPosition.ts';
 import { gameClock } from '../../world/gameCalendar.ts';
+import { holidayObservanceForClock } from '../../world/holidayCalendar.ts';
 import { environmentFor } from '../../world/seasonPolicy.ts';
 import type { BurgageZoneState, InspectableTarget } from '../types.ts';
 import type { InspectorRenderContext, InspectorView } from './renderInspectableTarget.ts';
@@ -96,6 +97,8 @@ export function renderBackyardInspector(
   const sabbathPaused = clock.isSunday
     && Boolean(parishPolicy?.sabbathObservanceEnabled)
     && settlementHasStaffedChapel(context.gameState);
+  const holiday = holidayObservanceForClock(clock);
+  const calendarPaused = sabbathPaused || holiday !== null;
   const staffedTownHall = Array.from(context.gameState.buildings.values()).some(
     (building) =>
       building.kind === 'town_hall'
@@ -105,7 +108,7 @@ export function renderBackyardInspector(
   const taxCollectionMultiplier = staffedTownHall
     ? 1
     : TOWN_HALL_UNSTAFFED_TAX_COLLECTION_MULTIPLIER;
-  const seasonalMultiplier = sabbathPaused ? 0 : season.multiplier;
+  const seasonalMultiplier = calendarPaused ? 0 : season.multiplier;
   const economy = buildBackyardEconomyView(
     garden.kind,
     residence.population,
@@ -125,8 +128,8 @@ export function renderBackyardInspector(
     : marketChannel === 'goods'
       ? 'Storehouse-run goods group'
       : null;
-  const statusText = sabbathPaused
-      ? 'Paused — Sunday Sabbath'
+  const statusText = calendarPaused
+      ? `Paused — ${holiday?.label ?? 'Sunday Sabbath'}`
       : garden.kind === 'flower_garden' && season.growing
         ? 'Flowering — no market stall needed'
         : season.harvestable
@@ -140,7 +143,7 @@ export function renderBackyardInspector(
             : season.phase === 'post_harvest'
               ? 'Post-harvest — crop cleared'
               : 'Dormant — no harvest';
-  const statusState = sabbathPaused
+  const statusState = calendarPaused
     ? 'idle'
     : season.harvestable && marketChannel !== null && !hasAllMarketAccess
       ? 'warning'
@@ -160,7 +163,7 @@ export function renderBackyardInspector(
     statusState,
     detailsHtml: `
       <li><span>Population</span><span>${residence.population}</span></li>
-      <li><span>${isLivestockPen ? 'Husbandry phase' : 'Crop phase'}</span><span>${season.label}${sabbathPaused ? ' · household work paused today by parish policy' : ''}</span></li>
+      <li><span>${isLivestockPen ? 'Husbandry phase' : 'Crop phase'}</span><span>${season.label}${calendarPaused ? ` · household work paused today ${holiday ? `for ${holiday.label}` : 'by parish policy'}` : ''}</span></li>
       <li><span>${isLivestockPen ? 'Collection window' : 'Harvest window'}</span><span>${season.harvestWindow}</span></li>
       <li><span>Product</span><span>${backyardGardenProductSummary(garden.kind)}</span></li>
       ${BACKYARD_GARDEN_DEFINITIONS[garden.kind].firstHarvestDays > 0

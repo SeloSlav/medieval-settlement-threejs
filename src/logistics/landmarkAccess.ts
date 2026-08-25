@@ -42,20 +42,17 @@ export function hasStaffedChapel(buildings: Iterable<BuildingState>): boolean {
 }
 
 export function settlementHasStaffedChapel(
-  state: Pick<GameState, 'buildings' | 'fireIncidents'>,
+  state: Pick<GameState, 'buildings'> & Partial<Pick<GameState, 'fireIncidents'>>,
 ): boolean {
-  const fireDisabled = fireDisabledBuildingIds(state.fireIncidents.values());
+  const fireDisabled = fireDisabledBuildingIds(
+    state.fireIncidents?.values() ?? [],
+  );
   for (const building of state.buildings.values()) {
     if (isChapelStaffed(building) && !fireDisabled.has(building.id)) {
       return true;
     }
   }
   return false;
-}
-
-/** Player-owned buildings only — mirrors server `owner_has_staffed_chapel` for the active identity. */
-export function playerHasStaffedChapel(buildings: Iterable<BuildingState>): boolean {
-  return hasStaffedChapel(buildings);
 }
 
 export function hasRoadPathToBuildingKind(

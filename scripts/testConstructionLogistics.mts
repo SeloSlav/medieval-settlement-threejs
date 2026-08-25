@@ -1158,10 +1158,10 @@ assert.equal(
 
 const cosmeticClockContext = constructionContext([stoneSource], 5, 30);
 cosmeticClockContext.gameState.tick = 300;
-assert.equal(
+assert.doesNotMatch(
   renderConstructionInspector(siteTarget, cosmeticClockContext as never).statusText,
-  '75% built · materials ready',
-  'the displayed clock must not change construction status at an ordinary hour',
+  /observance|Sabbath|holy day/i,
+  'the displayed clock must not invent a construction observance pause at an ordinary hour',
 );
 const raidPauseContext = {
   ...constructionContext([stoneSource], 5, 30),

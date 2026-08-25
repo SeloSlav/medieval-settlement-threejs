@@ -271,8 +271,8 @@ const tradeResourcesSource = readFileSync(
   'server/src/economy/trade_resources.rs',
   'utf8',
 );
-const nightCycleSource = readFileSync(
-  'server/src/simulation/night_cycle.rs',
+const residenceNeedsSource = readFileSync(
+  'server/src/simulation/residence_needs/mod.rs',
   'utf8',
 );
 assert.match(economySource, /CommodityKind::RyeBread/);
@@ -282,8 +282,8 @@ assert.match(economySource, /kind == "smokehouse" && commodity\.is_preserved_foo
 assert.match(tradeResourcesSource, /CommodityKind::Meat => TradeResource::Meat/);
 assert.match(tradeResourcesSource, /CommodityKind::CuredMeat => TradeResource::CuredMeat/);
 assert.match(tradeResourcesSource, /CommodityKind::Cheese => TradeResource::Cheese/);
-assert.match(nightCycleSource, /monthly tier slots are the single authoritative household food/);
-assert.doesNotMatch(nightCycleSource, /withdraw_residence_(?:fresh|preserved)_food/);
-assert.doesNotMatch(nightCycleSource, /take_need_stock/);
+assert.match(residenceNeedsSource, /consume_monthly_food_slots/);
+assert.doesNotMatch(residenceNeedsSource, /withdraw_residence_(?:fresh|preserved)_food/);
+assert.doesNotMatch(residenceNeedsSource, /take_need_stock/);
 
 console.log('Typed food identity, cargo, aggregation, and preservation tests passed.');

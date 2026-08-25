@@ -178,8 +178,8 @@ type FarmWorkWindows = {
   autumn: number;
 };
 
-const WORKDAY_SECONDS = CALENDAR_SECONDS_PER_DAY;
-const WORK_PER_WORKER_DAY = FARM_WORK_METERS_PER_WORKER_PER_SEC * WORKDAY_SECONDS;
+const WORK_PER_WORKER_DAY = FARM_WORK_METERS_PER_WORKER_PER_SEC
+  * CALENDAR_SECONDS_PER_DAY;
 
 type FieldWorkFarmstead = Pick<BuildingState, 'x' | 'z'>;
 type FieldLaborFarmstead = Pick<BuildingState, 'id' | 'x' | 'z' | 'workRadius'>;
@@ -517,7 +517,7 @@ function productiveSecondsInWindow(
       const hoursLeft = Math.max(0, CALENDAR_HOURS_PER_DAY - hour);
       productiveSeconds += hoursLeft / CALENDAR_HOURS_PER_DAY * CALENDAR_SECONDS_PER_DAY;
     } else {
-      productiveSeconds += WORKDAY_SECONDS;
+      productiveSeconds += CALENDAR_SECONDS_PER_DAY;
     }
   }
   return productiveSeconds;
@@ -532,7 +532,7 @@ function seasonalPlan(
   const requiredWorkerDays = fieldWorkerDays(requiredWork);
   const availableWorkerDays = Math.max(0, workers)
     * productiveSeconds
-    / WORKDAY_SECONDS
+    / CALENDAR_SECONDS_PER_DAY
     * Math.max(0, throughputMultiplier);
   return {
     requiredWork,

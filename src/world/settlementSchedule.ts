@@ -1,6 +1,7 @@
 import { DEFAULT_PARISH_POLICY } from '../economy/chapelParish.ts';
 import type { ParishPolicyState } from '../economy/chapelParish.ts';
-import { playerHasStaffedChapel } from '../logistics/landmarkAccess.ts';
+import { settlementHasStaffedChapel } from '../logistics/landmarkAccess.ts';
+import { fireDisabledBuildingIds } from '../fires/fireIncident.ts';
 import type { GameState } from '../resources/types.ts';
 import { computeDayNightState } from './dayNightPresentation.ts';
 import {
@@ -35,7 +36,7 @@ export function deriveSettlementScheduleFromClock(
   const sabbathObservance = parishPolicy.sabbathObservanceEnabled
     ?? DEFAULT_PARISH_POLICY.sabbathObservanceEnabled;
   const staffedChapel = staffedChapelOverride
-    ?? (gameState ? playerHasStaffedChapel(gameState.buildings.values()) : false);
+    ?? (gameState ? settlementHasStaffedChapel(gameState) : false);
   const holiday = holidayObservanceForClock(clock);
   const laborPaused = isLaborPaused(clock, sabbathObservance, staffedChapel);
   const pauseLabel = laborPauseLabel(clock, sabbathObservance, staffedChapel);
@@ -68,9 +69,14 @@ export function settlementScheduleDirtyKey(
     ?? DEFAULT_PARISH_POLICY.sabbathObservanceEnabled;
   let chapelSignature = '';
   if (gameState) {
+    const fireDisabled = fireDisabledBuildingIds(
+      gameState.fireIncidents?.values() ?? [],
+    );
     for (const building of gameState.buildings.values()) {
       if (building.kind !== 'chapel') continue;
-      chapelSignature += `${building.id}:${building.assignedLabor};`;
+      chapelSignature += `${building.id}:${building.assignedLabor}:${
+        fireDisabled.has(building.id) ? 1 : 0
+      };`;
     }
   }
   return `${snapshot.simTick}|${sabbathObservance ? 1 : 0}|${chapelSignature}`;

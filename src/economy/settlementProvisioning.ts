@@ -465,7 +465,7 @@ export function computeSettlementProvisioning(input: {
       : marketHasActiveStall(market, 'preservedFood');
   };
 
-  const workdaySeconds = CALENDAR_SECONDS_PER_DAY;
+  const calendarDaySeconds = CALENDAR_SECONDS_PER_DAY;
   const preservedFoodDemandMultiplier = Number.isFinite(
     currentPreservedFoodDemandMultiplier,
   )
@@ -621,7 +621,7 @@ export function computeSettlementProvisioning(input: {
     if (residence.tier >= 1) {
       const waterNeeded = residence.population
         * RESIDENCE_WATER_PER_PERSON_PER_SEC
-        * workdaySeconds;
+        * calendarDaySeconds;
       if (getNeedStock(residence.needs, 'water') + 1e-6 < waterNeeded) {
         householdBufferWaterShortHomes += 1;
         householdBufferReady = false;
@@ -630,10 +630,10 @@ export function computeSettlementProvisioning(input: {
     if (residence.tier >= 2) {
       const clothNeeded = residence.population
         * RESIDENCE_CLOTH_PER_PERSON_PER_SEC
-        * workdaySeconds;
+        * calendarDaySeconds;
       const aleNeeded = residence.population
         * RESIDENCE_ALE_PER_PERSON_PER_SEC
-        * workdaySeconds;
+        * calendarDaySeconds;
       if (getNeedStock(residence.needs, 'cloth') + 1e-6 < clothNeeded) {
         householdBufferClothShortHomes += 1;
         householdBufferReady = false;
@@ -646,7 +646,7 @@ export function computeSettlementProvisioning(input: {
     if (residence.tier >= 4) {
       const potteryNeeded = residence.population
         * RESIDENCE_POTTERY_PER_PERSON_PER_SEC
-        * workdaySeconds;
+        * calendarDaySeconds;
       if (householdPreservedStock + 1e-6 < monthlyPreservedFoodBill) {
         householdBufferPreservedFoodShortHomes += 1;
         householdBufferReady = false;

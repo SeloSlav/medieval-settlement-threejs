@@ -271,6 +271,11 @@ type BackyardWorksite = PointXZ & {
   yaw: number;
 };
 
+type EssentialSabbathDuty =
+  | 'livestock_care'
+  | 'watch'
+  | 'guard_readiness';
+
 function workerSlotKey(workplaceId: string, workplaceSlot: number): string {
   return `${workplaceId}:${workplaceSlot}`;
 }
@@ -1608,6 +1613,7 @@ export class VillagerRenderer {
             agent.residenceId
               ? this.backyardWorksites.get(agent.residenceId) ?? null
               : null,
+            this.essentialSabbathDutyFor(workplace),
           ),
       activityState: onDuty ? 'active' : 'ready',
       workplaceLabel: 'Workplace',
@@ -2355,7 +2361,10 @@ export class VillagerRenderer {
       agent.pathSeed = (agent.pathSeed * 1_664_525) ^ 0x165667b1;
       return;
     }
-    const targets = this.workerTargets.get(building.id) ?? [];
+    const allTargets = this.workerTargets.get(building.id) ?? [];
+    const targets = this.essentialSabbathDutyFor(building) === 'livestock_care'
+      ? allTargets.filter((target) => target.kind === 'pasture')
+      : allTargets;
     const plan = pickWorkerWalkPlan(
       building,
       agent.workplaceSlot,
@@ -2641,6 +2650,9 @@ export class VillagerRenderer {
       : null;
     const shouldWork = agent.role === 'worker'
       && this.shouldWorkerReportToWork(workplace);
+    const essentialSabbathDuty = agent.role === 'worker'
+      ? this.essentialSabbathDutyFor(workplace)
+      : null;
     const residence = agent.residenceId
       ? this.residences.get(agent.residenceId) ?? null
       : null;
@@ -2677,6 +2689,17 @@ export class VillagerRenderer {
 
     if (agent.isSick) {
       return this.transitionToSickRest(agent);
+    }
+
+    if (
+      essentialSabbathDuty === 'livestock_care'
+      && agent.routinePhase === 'work'
+      && (agent.mode === 'gather' || agent.workActivity === 'gather')
+    ) {
+      // Swineherds may normally range into the mast trees. At Sabbath they
+      // physically return to the holding and limit the visible loop to pasture
+      // care, matching the server's zero productive-labor cycle.
+      return this.beginWorkerReturnToWork(agent);
     }
 
     if (
@@ -2732,7 +2755,7 @@ export class VillagerRenderer {
     const shouldAttendMass = holidayMassTime
       || (
         sundayMassTime
-        && (agent.role !== 'worker' || this.sabbathPausedToday)
+        && (agent.role !== 'worker' || !shouldWork)
       );
 
     if (shouldAttendMass && chapel) {
@@ -2852,9 +2875,35 @@ export class VillagerRenderer {
     ) {
       return false;
     }
+    if (this.essentialSabbathDutyFor(workplace)) return true;
     return !this.laborPaused
       && !this.sabbathPausedToday
       && this.holidayObservance === null;
+  }
+
+  private essentialSabbathDutyFor(
+    workplace: BuildingState | null,
+  ): EssentialSabbathDuty | null {
+    if (
+      !this.clock?.isSunday
+      || !this.sabbathPausedToday
+      || this.holidayObservance !== null
+      || !workplace
+      || this.fireDisabledBuildingIds.has(workplace.id)
+    ) {
+      return null;
+    }
+    switch (workplace.kind) {
+      case 'pastoral_farmstead':
+      case 'swineherd':
+        return this.frontierAlertActive ? null : 'livestock_care';
+      case 'watchtower':
+        return 'watch';
+      case 'guardhouse':
+        return 'guard_readiness';
+      default:
+        return null;
+    }
   }
 
   private householdHomeStateFor(agent: VillagerAgent): HouseholdHomeState {
@@ -4695,6 +4744,7 @@ function describeVillagerActivity(
   holiday: HolidayObservance | null = null,
   marketStallDuty: MarketStallDuty | null = null,
   backyardWorksite: BackyardWorksite | null = null,
+  essentialSabbathDuty: EssentialSabbathDuty | null = null,
 ): string {
   const workplaceLabel = workplace
     ? isResidenceUpgradeWorkplaceId(workplace.id)
@@ -4773,6 +4823,15 @@ function describeVillagerActivity(
     case 'work':
       if (workplaceFireDisabled) {
         return `Leaving ${workplaceLabel} — the site is closed by fire`;
+      }
+      if (essentialSabbathDuty === 'livestock_care') {
+        return `Providing essential Sabbath livestock care at ${workplaceLabel}`;
+      }
+      if (essentialSabbathDuty === 'watch') {
+        return `Keeping the essential Sabbath watch at ${workplaceLabel}`;
+      }
+      if (essentialSabbathDuty === 'guard_readiness') {
+        return `Maintaining Sabbath guard readiness at ${workplaceLabel}`;
       }
       if (marketStallDuty) {
         return marketStallDuty.needKind

@@ -126,7 +126,6 @@ assert.match(
 const villageAdmin = source('server/src/reducers/village_admin.rs');
 const clientReducers = source('src/data/spacetimeReducers.ts');
 for (const [reducer, clientReducer] of [
-  ['set_night_policies', 'setNightPolicies'],
   ['set_economic_activity_tax_rate', 'setEconomicActivityTaxRate'],
   ['set_pantry_safeguard_policy', 'setPantrySafeguardPolicy'],
   ['set_fiscal_policy', 'setFiscalPolicy'],

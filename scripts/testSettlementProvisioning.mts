@@ -219,8 +219,8 @@ assert.match(
 );
 assert.match(
   chapelInspector,
-  /Household consumption and shortage penalties are frozen for the day/,
-  'the Chapel inspector must explain that observed Sabbath protects household needs',
+  /Households keep consuming provisions and service shortage clocks continue/,
+  'the Chapel inspector must explain that household needs continue through an observed Sabbath',
 );
 assert.match(guardhouseInspector, /Food endurance/);
 assert.match(guardhouseInspector, /PROVISION_WARNING_DAYS/);

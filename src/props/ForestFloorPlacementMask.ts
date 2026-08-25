@@ -6,7 +6,10 @@ export type ForestFloorPlacementMask<T extends ForestFloorOwnedPlacement> = {
   placementIndicesByTree: number[][];
   setTreeActive(treeIndex: number, active: boolean): boolean;
   setPlacementActive(placementIndex: number, active: boolean): boolean;
-  refreshBlockedMask(isBlocked: (placement: T, placementIndex: number) => boolean): number;
+  refreshBlockedMask(
+    isBlocked: (placement: T, placementIndex: number) => boolean,
+    shouldEvaluate?: (placement: T, placementIndex: number) => boolean,
+  ): number;
   isTreeActive(treeIndex: number): boolean;
   isPlacementActive(placementIndex: number): boolean;
   isPlacementVisible(placementIndex: number): boolean;
@@ -71,10 +74,12 @@ export function createForestFloorPlacementMask<T extends ForestFloorOwnedPlaceme
       applyPlacementVisibility(placementIndex);
       return true;
     },
-    refreshBlockedMask(isBlocked): number {
+    refreshBlockedMask(isBlocked, shouldEvaluate): number {
       let changed = 0;
       for (let placementIndex = 0; placementIndex < placements.length; placementIndex++) {
-        const active = !isBlocked(placements[placementIndex]!, placementIndex);
+        const placement = placements[placementIndex]!;
+        if (shouldEvaluate && !shouldEvaluate(placement, placementIndex)) continue;
+        const active = !isBlocked(placement, placementIndex);
         if (placementActive[placementIndex] === active) continue;
         placementActive[placementIndex] = active;
         applyPlacementVisibility(placementIndex);

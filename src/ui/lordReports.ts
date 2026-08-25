@@ -400,7 +400,7 @@ function deriveSabbathReports(
   if (holiday) {
     detail = `${holiday.label} is a protected holy day · labor and new cart departures pause regardless of parish policy · household consumption is frozen · ${massStatus} · ${committedCartLabel}.`;
   } else if (sabbathObserved) {
-    detail = `${peopleLabel} · ${churchLabel} · labor and new cart departures pause · household consumption and shortage penalties are frozen · ${massStatus} · ${committedCartLabel}.`;
+    detail = `${peopleLabel} · ${churchLabel} · labor and new cart departures pause · households keep eating and service shortage clocks continue · ${massStatus} · ${committedCartLabel}.`;
   } else if (context.sabbathObservanceEnabled) {
     tone = 'warning';
     detail = `Observance is ordered, but no staffed, serviceable church can lead it · normal labor and deliveries continue for ${peopleLabel} · no parish Mass.`;

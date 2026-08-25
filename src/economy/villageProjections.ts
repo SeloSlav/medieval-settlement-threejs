@@ -25,7 +25,7 @@ export type BackyardGardenEconomyPerDay = {
   marketFood: number;
 };
 
-export const BACKYARD_WORKDAY_SECONDS = CALENDAR_SECONDS_PER_DAY;
+export const BACKYARD_DAY_SECONDS = CALENDAR_SECONDS_PER_DAY;
 
 export function backyardGardenEconomyPerDay(
   kind: BackyardGardenKind,
@@ -48,11 +48,11 @@ export function backyardGardenEconomyPerDay(
   const marketLinked = options.hasMarketAccess ?? true;
   const grossHarvest = def.foodPerPersonPerSec
     * Math.max(0, population)
-    * BACKYARD_WORKDAY_SECONDS
+    * BACKYARD_DAY_SECONDS
     * seasonalMultiplier;
   const jamTarget = def.jamPerPersonPerSec
     * Math.max(0, population)
-    * BACKYARD_WORKDAY_SECONDS
+    * BACKYARD_DAY_SECONDS
     * seasonalMultiplier;
   const harvest = splitBackyardOrchardHarvest(grossHarvest, jamTarget);
   const totalFood = harvest.freshFruit + harvest.jam;
@@ -97,10 +97,10 @@ export function backyardGardenActivityPerDay(
   const def = BACKYARD_GARDEN_DEFINITIONS[kind];
   const grossHarvest = def.foodPerPersonPerSec
     * Math.max(0, population)
-    * BACKYARD_WORKDAY_SECONDS;
+    * BACKYARD_DAY_SECONDS;
   const jamTarget = def.jamPerPersonPerSec
     * Math.max(0, population)
-    * BACKYARD_WORKDAY_SECONDS;
+    * BACKYARD_DAY_SECONDS;
   const harvest = splitBackyardOrchardHarvest(grossHarvest, jamTarget);
   const totalFood = harvest.freshFruit + harvest.jam;
   return gardenMarketActivity(

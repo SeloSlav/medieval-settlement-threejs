@@ -58,6 +58,11 @@ export const FOREST_FLOOR_NETTLE_STREAM_RADIUS = 104;
 export const FOREST_FLOOR_NETTLE_STREAM_REBUILD_DISTANCE = 10;
 
 const FOREST_FLOOR_NETTLE_HEIGHT_REFERENCE = 0.9;
+/** Maximum authored blocker sample offset from a nettle placement center. */
+export const FOREST_FLOOR_NETTLE_BLOCKER_SAMPLE_REACH =
+  FOREST_FLOOR_NETTLE_CLEAR_RADIUS
+  * (FOREST_FLOOR_NETTLE_MAX_HEIGHT / FOREST_FLOOR_NETTLE_HEIGHT_REFERENCE)
+  * 1.02;
 const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));
 
 const NETTLE_LEAF_FILES = {
@@ -166,7 +171,10 @@ export type ForestFloorNettleInstances = {
   stats: ForestFloorNettleStats;
   setTreeActive(treeIndex: number, active: boolean): boolean;
   setPlacementActive(placementIndex: number, active: boolean): boolean;
-  refreshBlockedMask(isBlockedAt?: ForestFloorNettleBlocker): number;
+  refreshBlockedMask(
+    isBlockedAt?: ForestFloorNettleBlocker,
+    shouldEvaluate?: (placement: ForestFloorNettlePlacement, placementIndex: number) => boolean,
+  ): number;
   setDeciduousFoliage(presentation: DeciduousFoliagePresentation): boolean;
   setSnowCoverage(coverage: number): boolean;
   updateCamera(cameraPosition: Pick<THREE.Vector3, 'x' | 'z'>, closeDetailVisible: boolean): boolean;
@@ -311,10 +319,14 @@ export async function createForestFloorNettleInstances(
     stats,
     setTreeActive: placementMask.setTreeActive,
     setPlacementActive: placementMask.setPlacementActive,
-    refreshBlockedMask(blocker?: ForestFloorNettleBlocker): number {
-      return placementMask.refreshBlockedMask((placement) => (
-        nettleIntersectsBlocker(placement, blocker)
-      ));
+    refreshBlockedMask(
+      blocker?: ForestFloorNettleBlocker,
+      shouldEvaluate?: (placement: ForestFloorNettlePlacement, placementIndex: number) => boolean,
+    ): number {
+      return placementMask.refreshBlockedMask(
+        (placement) => nettleIntersectsBlocker(placement, blocker),
+        shouldEvaluate,
+      );
     },
     setDeciduousFoliage(presentation): boolean {
       let changed = setNettleSeason(foliageMaterial, presentation);

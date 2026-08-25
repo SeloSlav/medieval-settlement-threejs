@@ -31,6 +31,8 @@ import type {
 } from '../resources/types.ts';
 import { freshFoodStock, preservedFoodStock } from './foodInventory.ts';
 import {
+  averageNonHolidayCalendarDayShare,
+  averageObservedSabbathCalendarDayShare,
   averageProductiveCalendarDayShare,
 } from '../world/holidayCalendar.ts';
 import {
@@ -47,8 +49,6 @@ import {
   livestockStorageSecuredCullHeads,
   pendingLivestockCullHeads,
 } from './livestockPolicy.ts';
-
-const WORKDAY_SECONDS = CALENDAR_SECONDS_PER_DAY;
 
 const FODDER_VALUE_PER_UNSUPPORTED_HEAD: Record<LivestockSpecies, number> = {
   cattle: CATTLE_GRAIN_PER_UNSUPPORTED_HEAD,
@@ -230,7 +230,7 @@ export function livestockCyclesPerCalendarDay(
 ): number {
   const interval = getBuildingDefinition(building.kind).harvestInterval;
   if (interval <= 1e-9) return 0;
-  return WORKDAY_SECONDS / interval;
+  return CALENDAR_SECONDS_PER_DAY / interval;
 }
 
 export function projectLivestockFodderHolding(
@@ -242,14 +242,19 @@ export function projectLivestockFodderHolding(
   monthDay = 1,
   laborForecast?: LivestockLaborForecast | null,
 ): LivestockFodderHoldingPlan {
-  const cyclesPerDay = livestockCyclesPerCalendarDay(building, sabbathObserved);
+  const baseCyclesPerDay = livestockCyclesPerCalendarDay(building, sabbathObserved);
+  const nonHolidayDayShare = averageNonHolidayCalendarDayShare();
   const productiveDayShare = averageProductiveCalendarDayShare(sabbathObserved);
+  const sabbathCareDayShare = averageObservedSabbathCalendarDayShare(
+    sabbathObserved,
+  );
+  const cyclesPerDay = baseCyclesPerDay * nonHolidayDayShare;
   const {
     onsiteHumanWorkers,
     pairedOxen,
     effectiveWorkers,
   } = normalizedLivestockLaborForecast(building, laborForecast);
-  const laborCyclesPerDay = cyclesPerDay
+  const laborCyclesPerDay = baseCyclesPerDay
     * effectiveWorkers
     * productiveDayShare;
   const suppliedHeads = Math.min(
@@ -264,8 +269,12 @@ export function projectLivestockFodderHolding(
     suppliedHeads,
     livestockCareCapacity(herd.species, onsiteHumanWorkers),
   );
-  const careSupportedHeads = workdaySupportedHeads * productiveDayShare
-    + sabbathSupportedHeads * (1 - productiveDayShare);
+  const careSupportedHeads = nonHolidayDayShare > 1e-9
+    ? (
+      workdaySupportedHeads * productiveDayShare
+        + sabbathSupportedHeads * sabbathCareDayShare
+    ) / nonHolidayDayShare
+    : 0;
   const productiveHeads = herd.species === 'swine'
     ? 0
     : careSupportedHeads * Math.min(1, Math.max(0, herd.health));
@@ -402,7 +411,7 @@ export function projectLivestockFodderHolding(
   // but each due cycle can prepare only one feed batch. Stable oxen therefore
   // do not multiply the oats-to-feed workshop rate.
   const staffedFeedCyclesPerDay = onsiteHumanWorkers > 0
-    ? cyclesPerDay * productiveDayShare
+    ? baseCyclesPerDay * productiveDayShare
     : 0;
   const feedConversionPerDay = building.kind === 'pastoral_farmstead'
     ? staffedFeedCyclesPerDay * LIVESTOCK_ANIMAL_FEED_PER_CYCLE

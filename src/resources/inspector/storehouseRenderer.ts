@@ -136,7 +136,7 @@ export function renderStorehouseInspector(
       ${buildingCostRows(getBuildingCost(building.kind))}
       ${buildingRoadAccessRow(context.worldQueries, building)}
       <li><span>Role</span><span>Communal reserve, Marketplace goods-stall supply, construction logistics, and raw-material buffering</span></li>
-      <li><span>Duty priority</span><span>Refill active smithies from below 3 to 6 charcoal cycles; maintain a 21-day household- and season-scaled combined Marketplace reserve and winter-night fuel floor; serve other hot workshops; collect producer output last</span></li>
+      <li><span>Duty priority</span><span>Refill active smithies from below 3 to 6 charcoal cycles; maintain a 21-day household- and season-scaled combined Marketplace reserve and winter fuel floor; serve other hot workshops; collect producer output last</span></li>
       <li><span>Fuel territory</span><span>Handled by staffed Marketplace stalls across their connected road branch · scarce fuel goes to nearest homes first</span></li>
       <li><span>Next fuel delivery</span><span>Marketplace stall or urgent workshop · never a routine home cart</span></li>
       <li><span>Stall roster</span><span>Each assigned keeper can own one stocked goods category at one nearest connected Marketplace</span></li>

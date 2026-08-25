@@ -156,6 +156,7 @@ const gameState = {
       gold: 0,
     }],
   ]),
+  fireIncidents: new Map(),
 } as unknown as GameState;
 
 const staffedKey = settlementScheduleDirtyKey(
@@ -174,6 +175,32 @@ const staffedSunday = deriveSettlementSchedule(
 );
 assert.equal(staffedSunday.laborPaused, true);
 assert.equal(staffedSunday.staffedChapel, true);
+
+gameState.fireIncidents.set('chapel-fire', {
+  id: 'chapel-fire',
+  targetKind: 'building',
+  targetId: 'chapel-1',
+  status: 'burning',
+} as never);
+const fireDisabledKey = settlementScheduleDirtyKey(
+  { simTick: workHourTick, parishPolicy: { ...DEFAULT_PARISH_POLICY, sabbathObservanceEnabled: true } },
+  gameState,
+);
+assert.notEqual(
+  fireDisabledKey,
+  staffedKey,
+  'the presentation schedule must invalidate when its only staffed chapel catches fire',
+);
+const fireDisabledSunday = deriveSettlementSchedule(
+  { simTick: sundayWorkTick, parishPolicy: { ...DEFAULT_PARISH_POLICY, sabbathObservanceEnabled: true } },
+  gameState,
+);
+assert.equal(fireDisabledSunday.staffedChapel, false);
+assert.equal(
+  fireDisabledSunday.laborPaused,
+  false,
+  'workers must remain on duty when the only chapel is fire-disabled',
+);
 
 const holidaySchedule = deriveSettlementScheduleFromClock(
   jurjevoClock,
@@ -537,6 +564,17 @@ const simulationSource = readFileSync(
   new URL('../server/src/reducers/simulation.rs', import.meta.url),
   'utf8',
 );
+const laborStewardSources = [
+  'seasonal_labor_steward.rs',
+  'production_labor_steward.rs',
+  'construction_labor_steward.rs',
+].map((fileName) => ({
+  fileName,
+  source: readFileSync(
+    new URL(`../server/src/simulation/${fileName}`, import.meta.url),
+    'utf8',
+  ),
+}));
 assert.match(
   tickContextSource,
   /sabbath_observance_by_owner:\s*RefCell<HashMap<Identity,\s*bool>>/,
@@ -562,6 +600,13 @@ assert.match(
   /labor_and_logistics_paused\([\s\S]*?tick:\s*&SimTickContext[\s\S]*?owner_observes_sabbath\(ctx,\s*tick,\s*owner,\s*clock\)/,
   'all schedule decisions should resolve through the owner-aware Sabbath helper',
 );
+for (const { fileName, source } of laborStewardSources) {
+  assert.match(
+    source,
+    /&&\s*!.*owner_observes_sabbath\([\s\S]{0,180}?ctx,\s*tick,\s*settlement\.owner,\s*clock/,
+    `${fileName} must not churn worker assignments during an observed Sabbath`,
+  );
+}
 assert.doesNotMatch(
   laborScheduleSource,
   /if\s+!clock\.is_work_hours|if\s+!is_work_hours\(clock\)/,

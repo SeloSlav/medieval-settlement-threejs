@@ -42,8 +42,6 @@ import { householdFoodPerDay, isPreservedFoodCargo, preservedFoodStock } from '.
  */
 export const PRESERVATION_RESERVE_DAYS = 30;
 
-const WORKDAY_SECONDS = CALENDAR_SECONDS_PER_DAY;
-
 export type PreservationReserveBranch = {
   key: string;
   residents: number;
@@ -627,7 +625,7 @@ function cyclesPerCalendarDay(
   if (building.kind !== 'smokehouse' || building.assignedLabor <= 0) return 0;
   const interval = getBuildingDefinition('smokehouse').harvestInterval;
   if (interval <= 1e-9) return 0;
-  return WORKDAY_SECONDS
+  return CALENDAR_SECONDS_PER_DAY
     * averageProductiveCalendarDayShare(sabbathObserved)
     * Math.max(0, building.assignedLabor)
     / interval;

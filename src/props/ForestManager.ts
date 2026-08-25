@@ -21,14 +21,17 @@ import type {
   ForestFloorIvyInstances,
   ForestFloorIvyStats,
 } from './ForestFloorIvy.ts';
+import { FOREST_FLOOR_IVY_BLOCKER_SAMPLE_REACH } from './ForestFloorIvy.ts';
 import type {
   ForestFloorNettleInstances,
   ForestFloorNettleStats,
 } from './ForestFloorNettles.ts';
+import { FOREST_FLOOR_NETTLE_BLOCKER_SAMPLE_REACH } from './ForestFloorNettles.ts';
 import type {
   ForestFloorTwigInstances,
   ForestFloorTwigStats,
 } from './ForestFloorTwigs.ts';
+import { FOREST_FLOOR_TWIG_BLOCKER_SAMPLE_REACH } from './ForestFloorTwigs.ts';
 import {
   commitHarvestStumpInstanceUpdates,
   createHarvestStumpInstances,
@@ -162,6 +165,9 @@ export class ForestManager {
   private removedRocks = new Set<number>();
   private forestFloorRoadEdges: RoadEdge[] = [];
   private forestFloorPlacementClearance: PlacementClearanceSpatialIndex | null = null;
+  private placementClearanceBuildingKeys: string[] = [];
+  private placementClearancePolygonSignature = '';
+  private placementClearanceInitialized = false;
   private treePhases = new Map<number, TreePhase>();
   private treeGrowthProgress = new Map<number, number>();
   private collisionVersion = 0;
@@ -592,17 +598,51 @@ export class ForestManager {
     const buildings = clearance.buildings ? [...clearance.buildings] : [];
     const burgageParcelPolygons = clearance.burgageParcelPolygons ? [...clearance.burgageParcelPolygons] : [];
     const farmFieldPolygons = clearance.farmFieldPolygons ? [...clearance.farmFieldPolygons] : [];
+    const buildingKeys = buildings.map(placementClearanceBuildingKey);
+    const polygonSignature = placementClearancePolygonSignature(
+      burgageParcelPolygons,
+      farmFieldPolygons,
+    );
+    const addedBuildingIndices = this.placementClearanceInitialized
+      && polygonSignature === this.placementClearancePolygonSignature
+      ? monotonicAddedBuildingIndices(this.placementClearanceBuildingKeys, buildingKeys)
+      : null;
+    const addedBuildings = addedBuildingIndices && addedBuildingIndices.length > 0
+      ? addedBuildingIndices.map((index) => buildings[index]!)
+      : null;
+    const incrementalBuildingIndex = addedBuildings
+      ? new PlacementClearanceSpatialIndex(addedBuildings, [], [])
+      : null;
+    this.placementClearanceBuildingKeys = buildingKeys;
+    this.placementClearancePolygonSignature = polygonSignature;
+    this.placementClearanceInitialized = true;
     const clearanceIndex = new PlacementClearanceSpatialIndex(
       buildings,
       burgageParcelPolygons,
       farmFieldPolygons,
     );
     this.forestFloorPlacementClearance = clearanceIndex;
-    const nextPlacementRemovedTrees = new Set<number>();
+    const nextPlacementRemovedTrees = incrementalBuildingIndex
+      ? new Set(this.placementRemovedTrees)
+      : new Set<number>();
 
     for (let treeIndex = 0; treeIndex < this.placements.length; treeIndex++) {
       const placement = this.placements[treeIndex];
       const treeClearance = treeCanopyRadius(placement) + BUILDING_CLEAR_MARGIN;
+      if (
+        incrementalBuildingIndex
+        && (
+          nextPlacementRemovedTrees.has(treeIndex)
+          || !this.isIncrementalBuildingClearanceCandidate(
+            incrementalBuildingIndex,
+            placement.x,
+            placement.z,
+            treeClearance,
+          )
+        )
+      ) {
+        continue;
+      }
       if (clearanceIndex.someBuildingNear(
         placement.x,
         placement.z,
@@ -637,9 +677,9 @@ export class ForestManager {
       this.placementRemovedTrees,
     ));
 
-    this.syncPlacementUndergrowthClearance(clearanceIndex);
-    this.syncPlacementRockClearance(clearanceIndex);
-    this.syncForestFloorPlacementClearance();
+    this.syncPlacementUndergrowthClearance(clearanceIndex, incrementalBuildingIndex);
+    this.syncPlacementRockClearance(clearanceIndex, incrementalBuildingIndex);
+    this.syncForestFloorPlacementClearance(incrementalBuildingIndex);
   }
 
   dispose(): void {
@@ -647,19 +687,64 @@ export class ForestManager {
     this.disposeResources();
   }
 
-  private syncForestFloorPlacementClearance(): void {
+  private syncForestFloorPlacementClearance(
+    incrementalBuildingIndex: PlacementClearanceSpatialIndex | null = null,
+  ): void {
     const isBlockedAt = (x: number, z: number): boolean => (
       this.isForestFloorPointWithinClearance(x, z)
     );
-    if ((this.forestFloorIvy?.refreshBlockedMask(isBlockedAt) ?? 0) > 0) {
+    const ivyCandidate = incrementalBuildingIndex
+      ? (placement: { x: number; z: number }) => this.isIncrementalBuildingClearanceCandidate(
+          incrementalBuildingIndex,
+          placement.x,
+          placement.z,
+          FOREST_FLOOR_IVY_BLOCKER_SAMPLE_REACH,
+        )
+      : undefined;
+    const nettleCandidate = incrementalBuildingIndex
+      ? (placement: { x: number; z: number }) => this.isIncrementalBuildingClearanceCandidate(
+          incrementalBuildingIndex,
+          placement.x,
+          placement.z,
+          FOREST_FLOOR_NETTLE_BLOCKER_SAMPLE_REACH,
+        )
+      : undefined;
+    const twigCandidate = incrementalBuildingIndex
+      ? (placement: { x: number; z: number }) => this.isIncrementalBuildingClearanceCandidate(
+          incrementalBuildingIndex,
+          placement.x,
+          placement.z,
+          FOREST_FLOOR_TWIG_BLOCKER_SAMPLE_REACH,
+        )
+      : undefined;
+    if ((this.forestFloorIvy?.refreshBlockedMask(isBlockedAt, ivyCandidate) ?? 0) > 0) {
       this.forestFloorIvy?.commit();
     }
-    if ((this.forestFloorNettles?.refreshBlockedMask(isBlockedAt) ?? 0) > 0) {
+    if ((this.forestFloorNettles?.refreshBlockedMask(isBlockedAt, nettleCandidate) ?? 0) > 0) {
       this.forestFloorNettles?.commit();
     }
-    if ((this.forestFloorTwigs?.refreshBlockedMask(isBlockedAt) ?? 0) > 0) {
+    if ((this.forestFloorTwigs?.refreshBlockedMask(isBlockedAt, twigCandidate) ?? 0) > 0) {
       this.forestFloorTwigs?.commit();
     }
+  }
+
+  private isIncrementalBuildingClearanceCandidate(
+    incrementalBuildingIndex: PlacementClearanceSpatialIndex,
+    x: number,
+    z: number,
+    clearanceRadius: number,
+  ): boolean {
+    return incrementalBuildingIndex.someBuildingNear(
+      x,
+      z,
+      clearanceRadius,
+      (building) => pointWithinBuildingSiteClearance(
+        x,
+        z,
+        building,
+        clearanceRadius,
+      ),
+    );
   }
 
   private isForestFloorPointWithinClearance(x: number, z: number): boolean {
@@ -700,13 +785,30 @@ export class ForestManager {
 
   private syncPlacementUndergrowthClearance(
     clearanceIndex: PlacementClearanceSpatialIndex,
+    incrementalBuildingIndex: PlacementClearanceSpatialIndex | null = null,
   ): void {
     if (!this.undergrowth) return;
 
-    const nextPlacementRemovedUndergrowth = new Set<number>();
+    const nextPlacementRemovedUndergrowth = incrementalBuildingIndex
+      ? new Set(this.placementRemovedUndergrowth)
+      : new Set<number>();
     for (let index = 0; index < this.undergrowthPlacements.length; index++) {
       const placement = this.undergrowthPlacements[index];
       const clearRadius = undergrowthPlacementClearanceRadius(placement);
+      if (
+        incrementalBuildingIndex
+        && (
+          nextPlacementRemovedUndergrowth.has(index)
+          || !this.isIncrementalBuildingClearanceCandidate(
+            incrementalBuildingIndex,
+            placement.x,
+            placement.z,
+            clearRadius,
+          )
+        )
+      ) {
+        continue;
+      }
       if (clearanceIndex.someBuildingNear(
         placement.x,
         placement.z,
@@ -789,11 +891,28 @@ export class ForestManager {
 
   private syncPlacementRockClearance(
     clearanceIndex: PlacementClearanceSpatialIndex,
+    incrementalBuildingIndex: PlacementClearanceSpatialIndex | null = null,
   ): void {
-    const nextPlacementRemoved = new Set<number>();
+    const nextPlacementRemoved = incrementalBuildingIndex
+      ? new Set(this.placementRemovedRocks)
+      : new Set<number>();
     for (let index = 0; index < this.rockInstances.length; index++) {
       const placement = this.rockInstances[index].placement;
       const clearRadius = placement.scale * 1.35 + 0.35;
+      if (
+        incrementalBuildingIndex
+        && (
+          nextPlacementRemoved.has(index)
+          || !this.isIncrementalBuildingClearanceCandidate(
+            incrementalBuildingIndex,
+            placement.x,
+            placement.z,
+            clearRadius,
+          )
+        )
+      ) {
+        continue;
+      }
       if (
         clearanceIndex.someBuildingNear(
           placement.x,
@@ -962,6 +1081,56 @@ export class ForestManager {
       this.broadleafShadowMesh.setMatrixAt(layerIndex, this.broadleafFoliageMatrices[layerIndex]);
     }
   }
+}
+
+function placementClearanceBuildingKey(building: BuildingTerrainSource): string {
+  return [
+    building.kind,
+    building.x,
+    building.z,
+    building.yaw === undefined ? 'auto' : building.yaw,
+  ].join(':');
+}
+
+function placementClearancePolygonSignature(
+  burgageParcelPolygons: readonly Point2[][],
+  farmFieldPolygons: readonly Point2[][],
+): string {
+  const polygonKey = (polygon: readonly Point2[]) => polygon
+    .map((point) => `${point.x},${point.z}`)
+    .join(';');
+  return [
+    burgageParcelPolygons.map(polygonKey).join('|'),
+    farmFieldPolygons.map(polygonKey).join('|'),
+  ].join('§');
+}
+
+/**
+ * Returns the indices newly appended to a building multiset, or null when an
+ * earlier source moved, rotated, changed kind, or disappeared. Only the former
+ * is monotonic and may safely preserve the previous blocked masks.
+ */
+function monotonicAddedBuildingIndices(
+  previousKeys: readonly string[],
+  nextKeys: readonly string[],
+): number[] | null {
+  const matched = new Uint8Array(nextKeys.length);
+  for (const previousKey of previousKeys) {
+    let matchIndex = -1;
+    for (let index = 0; index < nextKeys.length; index++) {
+      if (matched[index] === 0 && nextKeys[index] === previousKey) {
+        matchIndex = index;
+        break;
+      }
+    }
+    if (matchIndex < 0) return null;
+    matched[matchIndex] = 1;
+  }
+  const added: number[] = [];
+  for (let index = 0; index < matched.length; index++) {
+    if (matched[index] === 0) added.push(index);
+  }
+  return added;
 }
 
 function treeCanopyRadius(placement: TreePlacement): number {

@@ -10,7 +10,7 @@ export type HolidayChapelActivity = 'service' | 'congregation';
  * Gives every named observance a deterministic physical rhythm. Most people
  * attend the morning service; later gatherings vary between processions,
  * bonfires, fairs, and quieter household feasts. The unselected households
- * remain visibly at home rather than disappearing indoors for the workday.
+ * remain visibly at home rather than disappearing indoors during the holy day.
  */
 export function holidayChapelActivity(
   clock: Pick<GameClock, 'hour' | 'minute'>,

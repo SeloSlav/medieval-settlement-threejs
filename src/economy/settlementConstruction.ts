@@ -22,8 +22,6 @@ import {
 } from './settlementProduction.ts';
 
 const EPSILON = 1e-6;
-const WORKDAY_SECONDS = CALENDAR_SECONDS_PER_DAY;
-
 export type ConstructionMaterialKind = 'timber' | 'stone' | 'ironwork' | 'roofTiles';
 
 export type ConstructionMaterialQueue = {
@@ -953,7 +951,10 @@ export function computeSettlementConstructionPlan(input: {
       remainingBuilderDays += Math.max(
         0,
         requiredTotal * (1 - Math.min(1, nonnegative(building.constructionProgress))),
-      ) / Math.max(EPSILON, CONSTRUCTION_WORK_PER_WORKER_PER_SEC * WORKDAY_SECONDS);
+      ) / Math.max(
+        EPSILON,
+        CONSTRUCTION_WORK_PER_WORKER_PER_SEC * CALENDAR_SECONDS_PER_DAY,
+      );
     }
 
     const status = statusForSite({

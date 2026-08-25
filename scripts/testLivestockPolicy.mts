@@ -95,11 +95,15 @@ import {
   WINTER_PASTURE_CAPACITY_MULTIPLIER,
 } from '../src/generated/gameBalance.ts';
 import type { BuildingState, LivestockHerdState } from '../src/resources/types.ts';
-import { averageProductiveCalendarDayShare } from '../src/world/holidayCalendar.ts';
+import {
+  averageNonHolidayCalendarDayShare,
+  averageProductiveCalendarDayShare,
+} from '../src/world/holidayCalendar.ts';
 import { pannageCapacityMultiplierFor } from '../src/world/seasonPolicy.ts';
 
 const ordinaryProductiveShare = averageProductiveCalendarDayShare(false);
 const sabbathProductiveShare = averageProductiveCalendarDayShare(true);
+const nonHolidayDayShare = averageNonHolidayCalendarDayShare();
 
 function buildingFixture(
   id: string,
@@ -348,10 +352,10 @@ function fullySupportedHeadsAfterOneYear(
   return heads;
 }
 
-const workdaySeconds = CALENDAR_SECONDS_PER_DAY;
-const pastoralBreedingCyclesPerDay = workdaySeconds
+const calendarDaySeconds = CALENDAR_SECONDS_PER_DAY;
+const pastoralBreedingCyclesPerDay = calendarDaySeconds
   / BUILDING_DEFINITIONS.pastoral_farmstead.harvestInterval;
-const swineBreedingCyclesPerDay = workdaySeconds
+const swineBreedingCyclesPerDay = calendarDaySeconds
   / BUILDING_DEFINITIONS.swineherd.harvestInterval;
 assert.ok(Math.abs(pastoralBreedingCyclesPerDay - 6 / 35) < 1e-12);
 assert.ok(Math.abs(swineBreedingCyclesPerDay - 4 / 35) < 1e-12);
@@ -493,6 +497,7 @@ assert.ok(
       - fodderPlan.winterUnsupportedHeads
         * CATTLE_GRAIN_PER_UNSUPPORTED_HEAD
         * pastoralCyclesPerCalendarDay
+        * nonHolidayDayShare
         / LIVESTOCK_ANIMAL_FEED_FODDER_VALUE,
   ) < 1e-9,
 );
@@ -519,7 +524,7 @@ assert.ok(
         'cattle',
         fodderPlan.productiveHeads,
         fodderBuilding.processorOutputTargetPercent,
-      ).cheese * pastoralCyclesPerCalendarDay,
+      ).cheese * pastoralCyclesPerCalendarDay * nonHolidayDayShare,
   ) < 1e-9,
 );
 assert.ok(
@@ -529,7 +534,7 @@ assert.ok(
         'cattle',
         fodderPlan.productiveHeads,
         fodderBuilding.processorOutputTargetPercent,
-      ) * pastoralCyclesPerCalendarDay,
+      ) * pastoralCyclesPerCalendarDay * nonHolidayDayShare,
   ) < 1e-9,
 );
 assert.equal(
@@ -568,8 +573,10 @@ assert.equal(
 );
 assert.equal(
   feedWorkshopPlan.feedConversionPerDay,
-  pastoralCyclesPerCalendarDay * LIVESTOCK_ANIMAL_FEED_PER_CYCLE,
-  'one staffed holding must prepare one recipe batch per due husbandry cycle',
+  pastoralCyclesPerCalendarDay
+    * ordinaryProductiveShare
+    * LIVESTOCK_ANIMAL_FEED_PER_CYCLE,
+  'one staffed holding must prepare one recipe batch per ordinary productive cycle',
 );
 const threeWorkerFeedWorkshopPlan = projectLivestockFodderHolding(
   { ...feedWorkshopBuilding, assignedLabor: 3 },
@@ -695,7 +702,8 @@ assert.ok(
     summerPlan.hayOutputPerDay
       - 3.5
         * CATTLE_HAY_YIELD_PER_RESERVED_CAPACITY_PER_CYCLE
-        * pastoralCyclesPerCalendarDay,
+        * pastoralCyclesPerCalendarDay
+        * ordinaryProductiveShare,
   ) < 1e-9,
 );
 assert.equal(summerPlan.haymakingDaysRemaining, 90);
@@ -710,6 +718,7 @@ assert.ok(
     summerPlan.winterHayNeed
       - summerPlan.winterUnsupportedHeads
         * pastoralCyclesPerCalendarDay
+        * nonHolidayDayShare
         * LIVESTOCK_WINTER_FODDER_RESERVE_DAYS
         * CATTLE_HAY_PER_UNSUPPORTED_HEAD,
   ) < 1e-9,

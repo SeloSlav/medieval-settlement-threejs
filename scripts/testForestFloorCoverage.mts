@@ -102,6 +102,41 @@ assert.equal(
 assert.equal(placementMask.refreshBlockedMask(() => false), 1);
 assert.equal(placementMask.isPlacementVisible(1), true);
 
+let subsetBlockerCalls = 0;
+let subsetCandidateCalls = 0;
+assert.equal(
+  placementMask.refreshBlockedMask(
+    (placement) => {
+      subsetBlockerCalls++;
+      return placement.x > 0;
+    },
+    (placement) => {
+      subsetCandidateCalls++;
+      return placement.x > 0;
+    },
+  ),
+  1,
+  'an additive blocker refresh should update the affected candidate subset',
+);
+assert.equal(subsetCandidateCalls, 2);
+assert.equal(
+  subsetBlockerCalls,
+  1,
+  'the exact footprint blocker must not run for a placement outside the additive broad phase',
+);
+const subsetState = [0, 1].map((index) => placementMask.isPlacementActive(index));
+assert.equal(
+  placementMask.refreshBlockedMask((placement) => placement.x > 0),
+  0,
+  'a subsequent full refresh must agree exactly with the additive candidate refresh',
+);
+assert.deepEqual(
+  [0, 1].map((index) => placementMask.isPlacementActive(index)),
+  subsetState,
+  'candidate filtering must preserve the same forest-floor visibility mask as a full refresh',
+);
+placementMask.refreshBlockedMask(() => false);
+
 const sources = [
   { x: -1.2, z: 0, canopyRadius: 4.1 },
   { x: 1.2, z: 0.4, canopyRadius: 4.3 },
@@ -977,13 +1012,18 @@ assert.match(
 );
 assert.match(
   managerSource,
-  /syncPlacementClearance\(clearance:[\s\S]*?this\.syncForestFloorPlacementClearance\(\);/,
-  'building, parcel, and field refreshes must re-evaluate forest-floor placements',
+  /syncPlacementClearance\(clearance:[\s\S]*?monotonicAddedBuildingIndices[\s\S]*?this\.syncForestFloorPlacementClearance\(incrementalBuildingIndex\);/,
+  'monotonic building additions should carry a bounded candidate index into forest-floor clearance',
 );
 assert.match(
   managerSource,
-  /forestFloorIvy\?\.refreshBlockedMask\(isBlockedAt\)[\s\S]*?forestFloorNettles\?\.refreshBlockedMask\(isBlockedAt\)[\s\S]*?forestFloorTwigs\?\.refreshBlockedMask\(isBlockedAt\)/,
-  'one combined manager blocker must refresh ivy, nettles, and twigs without changing source-tree state',
+  /forestFloorIvy\?\.refreshBlockedMask\(isBlockedAt, ivyCandidate\)[\s\S]*?forestFloorNettles\?\.refreshBlockedMask\(isBlockedAt, nettleCandidate\)[\s\S]*?forestFloorTwigs\?\.refreshBlockedMask\(isBlockedAt, twigCandidate\)/,
+  'one combined manager blocker must refresh only conservative ivy, nettle, and twig candidates',
+);
+assert.match(
+  managerSource,
+  /function monotonicAddedBuildingIndices[\s\S]*?if \(matchIndex < 0\) return null;/,
+  'removal, movement, rotation, or kind changes must fall back to a full exact refresh',
 );
 assert.match(
   managerSource,

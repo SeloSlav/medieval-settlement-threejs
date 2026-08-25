@@ -112,13 +112,31 @@ export function holidayObservanceAtDayOffset(
 const PRODUCTIVE_SHARE_CYCLE_YEARS = 70;
 const PRODUCTIVE_DAY_SHARES = computeAverageProductiveDayShares();
 
+/** Long-run share of days that are not named holidays. */
+export function averageNonHolidayCalendarDayShare(): number {
+  return PRODUCTIVE_DAY_SHARES.withoutSabbath;
+}
+
 /** Long-run labor-day share including every named holiday and optional Sabbath. */
 export function averageProductiveCalendarDayShare(
   sabbathObserved: boolean,
 ): number {
   return sabbathObserved
     ? PRODUCTIVE_DAY_SHARES.withSabbath
-    : PRODUCTIVE_DAY_SHARES.withoutSabbath;
+    : averageNonHolidayCalendarDayShare();
+}
+
+/**
+ * Long-run share reserved only for observed Sundays that are not already named
+ * holidays. Essential husbandry can use this without treating holy days as
+ * ordinary Sabbath-care cycles.
+ */
+export function averageObservedSabbathCalendarDayShare(
+  sabbathObserved: boolean,
+): number {
+  return sabbathObserved
+    ? averageNonHolidayCalendarDayShare() - PRODUCTIVE_DAY_SHARES.withSabbath
+    : 0;
 }
 
 export function julianEasterDate(year: number): { month: number; day: number } {

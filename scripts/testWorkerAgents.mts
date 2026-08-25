@@ -44,6 +44,7 @@ import {
   WATCHTOWER_ROOF_CENTER_Y,
   WATCHTOWER_ROOF_HEIGHT,
 } from '../src/buildings/watchtowerLayout.ts';
+import { MONASTERY_EXTENSION_INFIRMARY } from '../src/buildings/monasteryEstate.ts';
 import {
   villagerDisplayName,
   villagerOccupation,
@@ -633,6 +634,7 @@ const expectedWorkplaces = [
   'windmill',
   'carpenter',
   'weaver',
+  'chandlery',
   'watchtower',
   'guardhouse',
 ] as const;
@@ -643,6 +645,7 @@ assert.deepEqual(
 );
 
 const monasteryWorkplace = building('visible-monastery', 'monastery', 0, 0, 8, 0);
+monasteryWorkplace.monasteryExtensions = MONASTERY_EXTENSION_INFIRMARY;
 const monasteryTargets = collectWorkerTargets(monasteryWorkplace, {
   ...targetInputs,
   vineyardParcels: [{
@@ -851,10 +854,23 @@ assert.match(villagerRendererSource, /agent\.workActivity = 'gather'/);
 assert.match(villagerRendererSource, /Harvesting \$\{backyardGardenLabel/);
 assert.match(
   villagerRendererSource,
-  /beginPreparedJourney\(agent, path, 'return_to_work'\)/,
+  /const purpose = forObservance[\s\S]*?'return_for_observance'[\s\S]*?'return_to_work'[\s\S]*?marketStallDutyForAgent\(agent\)[\s\S]*?beginPreparedJourney\(agent, path, purpose\)/,
   'market sellers should visibly follow the authored entrance path to their counter',
 );
 assert.match(villagerRendererSource, /Keeping watch from the frontier gallery/);
+assert.match(villagerRendererSource, /Providing essential Sabbath livestock care/);
+assert.match(villagerRendererSource, /Keeping the essential Sabbath watch/);
+assert.match(villagerRendererSource, /Maintaining Sabbath guard readiness/);
+assert.match(
+  villagerRendererSource,
+  /essentialSabbathDutyFor\(building\) === 'livestock_care'[\s\S]*?target\.kind === 'pasture'/,
+  'observed-Sabbath livestock loops must exclude a swineherd mast-gather target',
+);
+assert.match(
+  villagerRendererSource,
+  /essentialSabbathDuty === 'livestock_care'[\s\S]*?agent\.mode === 'gather'[\s\S]*?beginWorkerReturnToWork\(agent\)/,
+  'a swineherd already gathering mast must physically return before essential care begins',
+);
 assert.match(villagerRendererSource, /Cutting wet river clay/);
 assert.match(villagerRendererSource, /Sealing and venting the clamp/);
 assert.match(villagerRendererSource, /Forging ironwork/);
@@ -880,6 +896,77 @@ assert.match(
   villagerRendererSource,
   /invalidateNavigation\(\)[\s\S]*fishingRerouteTouchesWater[\s\S]*polylineTouchesWater/,
   'navigation invalidation must not reroute an active fishing loop through water',
+);
+
+const pastoralSabbathWorkplace = building(
+  'sabbath-pastoral',
+  'pastoral_farmstead',
+  0,
+  0,
+  1,
+  120,
+);
+const swineSabbathWorkplace = building('sabbath-swine', 'swineherd', 0, 0, 1, 120);
+const watchSabbathWorkplace = building('sabbath-watch', 'watchtower', 0, 0, 1, 120);
+const guardSabbathWorkplace = building('sabbath-guard', 'guardhouse', 0, 0, 1, 120);
+const ordinarySabbathWorkplace = building('sabbath-smithy', 'smithy', 0, 0, 1, 120);
+const sabbathDutyFixture = {
+  clock: { isSunday: true },
+  sabbathPausedToday: true,
+  holidayObservance: null as null | Record<string, unknown>,
+  frontierAlertActive: false,
+  fireDisabledBuildingIds: new Set<string>(),
+};
+const essentialSabbathDutyFor = VillagerRenderer.prototype
+  .essentialSabbathDutyFor as (
+    this: typeof sabbathDutyFixture,
+    workplace: BuildingState | null,
+  ) => 'livestock_care' | 'watch' | 'guard_readiness' | null;
+assert.equal(
+  essentialSabbathDutyFor.call(sabbathDutyFixture, pastoralSabbathWorkplace),
+  'livestock_care',
+);
+assert.equal(
+  essentialSabbathDutyFor.call(sabbathDutyFixture, swineSabbathWorkplace),
+  'livestock_care',
+);
+assert.equal(
+  essentialSabbathDutyFor.call(sabbathDutyFixture, watchSabbathWorkplace),
+  'watch',
+);
+assert.equal(
+  essentialSabbathDutyFor.call(sabbathDutyFixture, guardSabbathWorkplace),
+  'guard_readiness',
+);
+assert.equal(
+  essentialSabbathDutyFor.call(sabbathDutyFixture, ordinarySabbathWorkplace),
+  null,
+  'ordinary production workers must observe the Sunday pause',
+);
+sabbathDutyFixture.frontierAlertActive = true;
+assert.equal(
+  essentialSabbathDutyFor.call(sabbathDutyFixture, pastoralSabbathWorkplace),
+  null,
+  'a frontier alert must displace essential livestock care',
+);
+assert.equal(
+  essentialSabbathDutyFor.call(sabbathDutyFixture, watchSabbathWorkplace),
+  'watch',
+  'the watch must remain staffed during a Sunday frontier alert',
+);
+sabbathDutyFixture.frontierAlertActive = false;
+sabbathDutyFixture.holidayObservance = { id: 'holiday' };
+assert.equal(
+  essentialSabbathDutyFor.call(sabbathDutyFixture, guardSabbathWorkplace),
+  null,
+  'named holidays freeze even otherwise essential Sunday duties',
+);
+sabbathDutyFixture.holidayObservance = null;
+sabbathDutyFixture.fireDisabledBuildingIds.add(watchSabbathWorkplace.id);
+assert.equal(
+  essentialSabbathDutyFor.call(sabbathDutyFixture, watchSabbathWorkplace),
+  null,
+  'fire-disabled security posts cannot claim an essential duty exception',
 );
 
 const loggingAgent = {
@@ -1300,6 +1387,8 @@ function readyYardBuilding(workplace: BuildingState): BuildingState {
         salt: 1,
         pottery: 1,
       };
+    case 'chandlery':
+      return { ...workplace, wax: 1, firewood: 1 };
     default:
       return workplace;
   }

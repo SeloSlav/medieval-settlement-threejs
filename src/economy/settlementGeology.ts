@@ -77,8 +77,6 @@ type MutableGeologicalResourcePlan = GeologicalResourcePlan & {
 
 const MINERAL_CENTER_TOLERANCE_SQ = 2.5 * 2.5;
 const EPSILON = 1e-9;
-const WORKDAY_SECONDS = CALENDAR_SECONDS_PER_DAY;
-
 /**
  * Settlement-wide reserve and extraction forecast for physical geological
  * materials. Every deposit has a finite surface reserve. Rich nodes also
@@ -572,7 +570,7 @@ function cyclesPerCalendarDay(
 ): number {
   const interval = getBuildingDefinition(kind).harvestInterval;
   if (assignedLabor <= 0 || interval <= EPSILON) return 0;
-  return WORKDAY_SECONDS
+  return CALENDAR_SECONDS_PER_DAY
     * averageProductiveCalendarDayShare(sabbathObserved)
     * assignedLabor
     * Math.max(0, throughputMultiplier)

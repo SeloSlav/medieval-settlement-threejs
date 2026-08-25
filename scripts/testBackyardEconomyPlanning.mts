@@ -22,7 +22,7 @@ import {
   computeSettlementBackyardEconomyPlan,
 } from '../src/economy/settlementBackyardEconomy.ts';
 import {
-  BACKYARD_WORKDAY_SECONDS,
+  BACKYARD_DAY_SECONDS,
   backyardGardenEconomyPerDay,
 } from '../src/economy/villageProjections.ts';
 import {
@@ -193,11 +193,11 @@ function clockOnDate(month: number, monthDay: number): GameClock {
 }
 
 assert.equal(
-  BACKYARD_WORKDAY_SECONDS,
+  BACKYARD_DAY_SECONDS,
   CALENDAR_SECONDS_PER_DAY,
   'daily garden forecasts must use the complete continuous-labor day',
 );
-assert.equal(BACKYARD_WORKDAY_SECONDS, 120);
+assert.equal(BACKYARD_DAY_SECONDS, 120);
 assert.equal(
   backyardGardenSeasonalMultiplier(
     'apple_orchard',

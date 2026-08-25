@@ -276,6 +276,8 @@ export const FOREST_FLOOR_IVY_RELIEF_MIN = 0.12;
 export const FOREST_FLOOR_IVY_RELIEF_MAX = 0.22;
 /** Absolute ground-to-crown guardrail, including every supporting shelf. */
 export const FOREST_FLOOR_IVY_CANOPY_HEIGHT_MAX = 0.48;
+/** Maximum authored blocker sample offset from an ivy placement center. */
+export const FOREST_FLOOR_IVY_BLOCKER_SAMPLE_REACH = 0.96 * 1.42 * 1.14 * 2.75;
 
 type IvyTerrainSurface = Pick<Terrain, 'getHeightAt'>;
 
@@ -347,7 +349,10 @@ export type ForestFloorIvyInstances = {
   setSnowCoverage: (coverage: number) => boolean;
   setTreeActive: (treeIndex: number, active: boolean) => boolean;
   setPlacementActive: (placementIndex: number, active: boolean) => boolean;
-  refreshBlockedMask: (isBlockedAt?: ForestFloorIvyBlocker) => number;
+  refreshBlockedMask: (
+    isBlockedAt?: ForestFloorIvyBlocker,
+    shouldEvaluate?: (placement: ForestFloorIvyPlacement, placementIndex: number) => boolean,
+  ) => number;
   updateCamera: (
     cameraPosition: Pick<THREE.Vector3, 'x' | 'z'>,
     closeDetailVisible: boolean,
@@ -793,10 +798,14 @@ export async function createForestFloorIvyInstances(
     },
     setTreeActive: placementMask.setTreeActive,
     setPlacementActive: placementMask.setPlacementActive,
-    refreshBlockedMask(blocker?: ForestFloorIvyBlocker): number {
-      return placementMask.refreshBlockedMask((placement) => (
-        ivyIntersectsBlocker(placement, blocker)
-      ));
+    refreshBlockedMask(
+      blocker?: ForestFloorIvyBlocker,
+      shouldEvaluate?: (placement: ForestFloorIvyPlacement, placementIndex: number) => boolean,
+    ): number {
+      return placementMask.refreshBlockedMask(
+        (placement) => ivyIntersectsBlocker(placement, blocker),
+        shouldEvaluate,
+      );
     },
     updateCamera(cameraPosition, closeDetailVisible): boolean {
       const visibilityChanged = group.visible !== closeDetailVisible;

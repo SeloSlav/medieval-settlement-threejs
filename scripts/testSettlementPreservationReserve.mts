@@ -2,7 +2,6 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { performance } from 'node:perf_hooks';
 import {
-  CALENDAR_SECONDS_PER_DAY,
   PRESERVED_FOOD_SPOILAGE_PER_DAY,
   PRESERVED_FOOD_STORAGE_CART_FACTOR,
   PRESERVED_FOOD_STORAGE_RESIDENCE_FACTOR,
@@ -31,7 +30,6 @@ import {
   type ResidenceState,
 } from '../src/resources/types.ts';
 
-const workdaySeconds = CALENDAR_SECONDS_PER_DAY;
 const oneResidentFallbackPerDay = householdFoodPerDay(1);
 const reserveTarget = (
   demandPerDay: number,

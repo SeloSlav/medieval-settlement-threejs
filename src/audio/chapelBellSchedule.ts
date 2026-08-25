@@ -2,7 +2,7 @@ import {
   CALENDAR_WORK_START_HOUR,
 } from '../generated/gameBalance.ts';
 
-/** 6 AM — start of the work day. */
+/** 6 AM — the morning Angelus. */
 export const CHAPEL_BELL_MORNING_HOUR = CALENDAR_WORK_START_HOUR;
 
 /** Noon — the midday Angelus. */

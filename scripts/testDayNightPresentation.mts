@@ -18,6 +18,7 @@ import { computeFixedSkyState } from '../src/scene/fixedSkyPresentation.ts';
 import {
   DEFAULT_FIXED_SKY_PRESET,
   FIXED_SKY_PRESETS,
+  getSkyPresentationPreference,
 } from '../src/scene/skyPresentationPreference.ts';
 
 const directionDotAtDegrees = (degrees: number): number => Math.cos(
@@ -150,6 +151,46 @@ const fixedSunset = computeFixedSkyState('ember_sunset');
 const fixedBlueHour = computeFixedSkyState('blue_hour');
 const fixedMidnight = computeFixedSkyState('moonlit_midnight');
 assert.equal(DEFAULT_FIXED_SKY_PRESET, 'high_noon');
+assert.deepEqual(
+  getSkyPresentationPreference(),
+  { cycleDisabled: true, preset: 'high_noon' },
+  'an empty or unavailable preference store must default to fixed daylight',
+);
+const originalStorageDescriptor = Object.getOwnPropertyDescriptor(
+  globalThis,
+  'localStorage',
+);
+try {
+  Object.defineProperty(globalThis, 'localStorage', {
+    configurable: true,
+    value: {
+      getItem: () => '{malformed',
+      setItem: () => undefined,
+      removeItem: () => undefined,
+      clear: () => undefined,
+      key: () => null,
+      length: 1,
+    } satisfies Storage,
+  });
+  const preferenceUrl = new URL(
+    '../src/scene/skyPresentationPreference.ts',
+    import.meta.url,
+  );
+  preferenceUrl.searchParams.set('test', 'malformed-storage');
+  const malformedPreferenceModule = await import(preferenceUrl.href) as
+    typeof import('../src/scene/skyPresentationPreference.ts');
+  assert.deepEqual(
+    malformedPreferenceModule.getSkyPresentationPreference(),
+    { cycleDisabled: true, preset: 'high_noon' },
+    'malformed legacy storage must recover to fixed High Noon',
+  );
+} finally {
+  if (originalStorageDescriptor) {
+    Object.defineProperty(globalThis, 'localStorage', originalStorageDescriptor);
+  } else {
+    delete (globalThis as { localStorage?: Storage }).localStorage;
+  }
+}
 assert.deepEqual(
   FIXED_SKY_PRESETS.map((preset) => preset.id),
   ['high_noon', 'rose_dawn', 'ember_sunset', 'blue_hour', 'moonlit_midnight'],

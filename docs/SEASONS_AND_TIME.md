@@ -15,9 +15,11 @@ The calendar is deliberately fictional and fixed:
 - Ordinary labor, construction, production, consumption, and logistics operate
   through all 24 displayed hours. The displayed hour and optional day/night
   lighting are presentation only and do not create shifts or reduce output.
-- A staffed chapel can make Sunday a Sabbath. Sunday still consumes ordinary
-  household provisions, so it must be supplied in advance. Named holy days use
-  the separate protected-rest contract below.
+- A staffed chapel can make Sunday a Sabbath. Ordinary production and new
+  dispatches stop, while essential herd care and settlement security remain
+  visibly staffed. Households still consume ordinary provisions, so Sunday must
+  be supplied in advance. Named holy days use the separate protected-rest
+  contract below.
 - An observed Sabbath or named holy day blocks new ordinary-cart departures. A
   cart that already departed remains a committed crew and completes its delivery,
   unloading, and return instead of being stranded on the road.

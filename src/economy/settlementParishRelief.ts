@@ -135,7 +135,7 @@ export type SettlementParishReliefInput = {
 const TICKS_PER_DAY = Math.round(CALENDAR_SECONDS_PER_DAY / SIM_TICK_SECONDS);
 const SERVICE_WARNING_TICKS = TICKS_PER_DAY * RESIDENCE_SERVICE_WARNING_DAYS;
 const RELIEF_INTERVAL_TICKS = TICKS_PER_DAY * CHAPEL_POOR_RELIEF_INTERVAL_DAYS;
-const CHAPEL_WORKDAY_SECONDS = CALENDAR_SECONDS_PER_DAY;
+const CHAPEL_DAY_SECONDS = CALENDAR_SECONDS_PER_DAY;
 
 export function isChapelPoorReliefDue(simTick: number): boolean {
   const tick = Math.max(0, Math.floor(simTick));
@@ -568,10 +568,10 @@ export function formatChapelDailyAlms(plan: ChapelReliefPlan): string {
       return `${Math.round(plan.almsGoldInTransit)} gold purse en route to the poorest household`;
     case 'returning': return 'Undelivered alms purse returning to the church';
     case 'cooling-down': {
-      const workdays = CHAPEL_WORKDAY_SECONDS <= 1e-9
+      const days = CHAPEL_DAY_SECONDS <= 1e-9
         ? 0
-        : plan.almsCooldownSeconds / CHAPEL_WORKDAY_SECONDS;
-      return `Next purse in ${formatWorkdays(workdays)}`;
+        : plan.almsCooldownSeconds / CHAPEL_DAY_SECONDS;
+      return `Next purse in ${formatParishDays(days)}`;
     }
     case 'closed': return `${Math.round(purseAmount)} gold purse ready · parish errands are resting`;
     case 'chapel-cart-busy':
@@ -656,8 +656,8 @@ function formatDays(days: number): string {
   return `${rounded} day${rounded === 1 ? '' : 's'}`;
 }
 
-function formatWorkdays(days: number): string {
+function formatParishDays(days: number): string {
   if (days <= 1e-6) return 'the next parish work period';
   const rounded = Math.ceil(days * 10) / 10;
-  return `${rounded.toFixed(rounded % 1 === 0 ? 0 : 1)} parish workday${rounded === 1 ? '' : 's'}`;
+  return `${rounded.toFixed(rounded % 1 === 0 ? 0 : 1)} parish day${rounded === 1 ? '' : 's'}`;
 }

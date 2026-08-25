@@ -366,8 +366,6 @@ export function productionRoadBranchKey(
     : `component:${typeof component}:${String(component)}`;
 }
 
-const WORKDAY_SECONDS = CALENDAR_SECONDS_PER_DAY;
-
 type ProcessorOverview = Pick<
   SettlementProductionCapacity,
   | 'millWorkers'
@@ -1996,7 +1994,7 @@ function cyclesPerCalendarDay(
   const interval = getBuildingDefinition(kind).harvestInterval;
   if (interval <= 1e-6) return 0;
   const weeklyWorkShare = averageProductiveCalendarDayShare(sabbathObserved);
-  return WORKDAY_SECONDS
+  return CALENDAR_SECONDS_PER_DAY
     * weeklyWorkShare
     * assignedLabor
     * Math.max(0, throughputMultiplier)
@@ -2046,7 +2044,7 @@ function toolMaintenanceRoutePlan(
     };
   }
 
-  const workSeconds = WORKDAY_SECONDS
+  const workSeconds = CALENDAR_SECONDS_PER_DAY
     * averageProductiveCalendarDayShare(sabbathObserved);
   const speed = TIMBER_DELIVERY_SPEED_MPS
     * Math.max(1e-6, travelSpeedMultiplier);
@@ -2906,7 +2904,7 @@ export function computeSettlementProductionCapacity(
       );
       const householdPotteryDemand = Math.max(0, residence.population)
         * RESIDENCE_POTTERY_PER_PERSON_PER_SEC
-        * WORKDAY_SECONDS;
+        * CALENDAR_SECONDS_PER_DAY;
       materialBranch.householdPotteryDemandPerDay += householdPotteryDemand;
       if (householdPotteryDemand > 1e-9) {
         materialBranch.firstResidenceId = earlierStableId(
@@ -3028,26 +3026,34 @@ export function computeSettlementProductionCapacity(
     fireDisabledTierFourResidents,
     fireDisabledTierFourHousingCapacity,
     aleDemandPerDay:
-      tierTwoPlusResidents * RESIDENCE_ALE_PER_PERSON_PER_SEC * WORKDAY_SECONDS,
+      tierTwoPlusResidents
+        * RESIDENCE_ALE_PER_PERSON_PER_SEC
+        * CALENDAR_SECONDS_PER_DAY,
     preservedFoodDemandPerDay:
       tierFourResidents
       * RESIDENCE_PRESERVED_FOOD_PER_PERSON_PER_SEC
-      * WORKDAY_SECONDS
+      * CALENDAR_SECONDS_PER_DAY
       * RESIDENCE_PRESERVED_FOOD_WINTER_MULTIPLIER,
     currentPreservedFoodDemandPerDay:
       tierFourResidents
       * RESIDENCE_PRESERVED_FOOD_PER_PERSON_PER_SEC
-      * WORKDAY_SECONDS
+      * CALENDAR_SECONDS_PER_DAY
       * normalizedPreservedFoodDemandMultiplier,
     currentPreservedFoodDemandMultiplier:
       normalizedPreservedFoodDemandMultiplier,
     clothDemandPerDay:
-      tierTwoPlusResidents * RESIDENCE_CLOTH_PER_PERSON_PER_SEC * WORKDAY_SECONDS,
+      tierTwoPlusResidents
+        * RESIDENCE_CLOTH_PER_PERSON_PER_SEC
+        * CALENDAR_SECONDS_PER_DAY,
     shoesDemandPerDay:
-      tierThreePlusResidents * RESIDENCE_SHOES_PER_PERSON_PER_SEC * WORKDAY_SECONDS,
+      tierThreePlusResidents
+        * RESIDENCE_SHOES_PER_PERSON_PER_SEC
+        * CALENDAR_SECONDS_PER_DAY,
     potteryOutputPerDay: industrialMaterials.potteryOutputPerDay,
     potteryDemandPerDay:
-      tierFourResidents * RESIDENCE_POTTERY_PER_PERSON_PER_SEC * WORKDAY_SECONDS,
+      tierFourResidents
+        * RESIDENCE_POTTERY_PER_PERSON_PER_SEC
+        * CALENDAR_SECONDS_PER_DAY,
     prosperityRoadBranches,
   };
 }

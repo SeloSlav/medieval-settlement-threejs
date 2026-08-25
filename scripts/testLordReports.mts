@@ -67,8 +67,8 @@ assert.match(
 );
 assert.match(
   initialObservedSabbath[0]?.detail ?? '',
-  /household consumption and shortage penalties are frozen/i,
-  'the report should explain that observed Sabbath protects household needs',
+  /households keep eating and service shortage clocks continue/i,
+  'the report should explain that observed Sabbath does not freeze household needs',
 );
 
 assert.deepEqual(

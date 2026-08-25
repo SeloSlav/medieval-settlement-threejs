@@ -15,15 +15,15 @@ import {
   projectTierFourUpgrade,
 } from '../src/economy/settlementProsperity.ts';
 
-const workdaySeconds = CALENDAR_SECONDS_PER_DAY;
+const calendarDaySeconds = CALENDAR_SECONDS_PER_DAY;
 const preservedPerResident =
   RESIDENCE_PRESERVED_FOOD_PER_PERSON_PER_SEC
-  * workdaySeconds
+  * calendarDaySeconds
   * RESIDENCE_PRESERVED_FOOD_WINTER_MULTIPLIER;
-const alePerResident = RESIDENCE_ALE_PER_PERSON_PER_SEC * workdaySeconds;
-const clothPerResident = RESIDENCE_CLOTH_PER_PERSON_PER_SEC * workdaySeconds;
-const shoesPerResident = RESIDENCE_SHOES_PER_PERSON_PER_SEC * workdaySeconds;
-const potteryPerResident = RESIDENCE_POTTERY_PER_PERSON_PER_SEC * workdaySeconds;
+const alePerResident = RESIDENCE_ALE_PER_PERSON_PER_SEC * calendarDaySeconds;
+const clothPerResident = RESIDENCE_CLOTH_PER_PERSON_PER_SEC * calendarDaySeconds;
+const shoesPerResident = RESIDENCE_SHOES_PER_PERSON_PER_SEC * calendarDaySeconds;
+const potteryPerResident = RESIDENCE_POTTERY_PER_PERSON_PER_SEC * calendarDaySeconds;
 
 const production = {
   tierTwoPlusResidents: 50,

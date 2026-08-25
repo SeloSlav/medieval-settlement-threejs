@@ -28,6 +28,9 @@ export const FOREST_FLOOR_TWIG_MAX_INSTANCES = 3_600;
 export const FOREST_FLOOR_TWIG_TARGETS_PER_TREE = 0.46;
 export const FOREST_FLOOR_TWIG_SCALE_RANGE = [0.94, 1.22] as const;
 export const FOREST_FLOOR_TWIG_THICKNESS_RANGE = [0.94, 1.18] as const;
+/** Maximum authored blocker sample offset from a twig placement center. */
+export const FOREST_FLOOR_TWIG_BLOCKER_SAMPLE_REACH =
+  1.65 * FOREST_FLOOR_TWIG_SCALE_RANGE[1] * 0.5;
 
 type TwigPoint = readonly [x: number, verticalRadiusUnits: number, lateral: number];
 
@@ -153,7 +156,10 @@ export type ForestFloorTwigInstances = {
   stats: ForestFloorTwigStats;
   setTreeActive: (treeIndex: number, active: boolean) => boolean;
   setPlacementActive: (placementIndex: number, active: boolean) => boolean;
-  refreshBlockedMask: (isBlockedAt?: ForestFloorTwigBlocker) => number;
+  refreshBlockedMask: (
+    isBlockedAt?: ForestFloorTwigBlocker,
+    shouldEvaluate?: (placement: ForestFloorTwigPlacement, placementIndex: number) => boolean,
+  ) => number;
   setSnowCoverage: (coverage: number) => boolean;
   setCloseDetailVisible: (visible: boolean) => boolean;
   commit: () => void;
@@ -594,14 +600,20 @@ export async function createForestFloorTwigInstances(
     },
     setTreeActive: placementMask.setTreeActive,
     setPlacementActive: placementMask.setPlacementActive,
-    refreshBlockedMask(isBlockedAt?: ForestFloorTwigBlocker): number {
-      return placementMask.refreshBlockedMask((placement) => twigIntersectsBlocker(
-        placement.x,
-        placement.z,
-        placement.yaw,
-        placement.length,
-        isBlockedAt,
-      ));
+    refreshBlockedMask(
+      isBlockedAt?: ForestFloorTwigBlocker,
+      shouldEvaluate?: (placement: ForestFloorTwigPlacement, placementIndex: number) => boolean,
+    ): number {
+      return placementMask.refreshBlockedMask(
+        (placement) => twigIntersectsBlocker(
+          placement.x,
+          placement.z,
+          placement.yaw,
+          placement.length,
+          isBlockedAt,
+        ),
+        shouldEvaluate,
+      );
     },
     setSnowCoverage(coverage: number): boolean {
       const next = THREE.MathUtils.clamp(

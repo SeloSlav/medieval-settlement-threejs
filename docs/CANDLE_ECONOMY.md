@@ -65,7 +65,7 @@ These are design directions only; none is implemented by this supply-chain chang
 
 - **Liturgy and Candlemas:** Chapels or monasteries could maintain a small candle reserve, with a larger one-day draw for the existing Candlemas calendar event.
 - **Wax seals:** Town Halls, monasteries, or Trading Posts could consume tiny wax lots for sealed records, charters, and high-value contracts.
-- **Night lighting:** Taverns, workshops, watch posts, or prosperous homes could spend candles to extend safe evening activity. This should be a policy-controlled bonus, not a hidden tax on basic production.
+- **Decorative lighting:** Taverns, workshops, watch posts, or prosperous homes could spend candles on visible lamps and window glow. This must remain cosmetic so enabling the optional day/night presentation never changes production or safety.
 - **Waterproofing and maintenance:** Wax could support treated thread, leather dressing, bowstrings, wooden vessels, or weatherproof cloth as a modest workshop-efficiency input.
 - **Lost-wax casting:** A future bellfounder, bronze workshop, or religious-metalwork chain could consume wax models for intricate cast parts.
 

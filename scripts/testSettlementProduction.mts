@@ -13,13 +13,37 @@ import { buildSettlementFarmPlan } from '../src/farming/farmWorkPlanning.ts';
 import type { DeliveryTripState } from '../src/logistics/deliveryTrips.ts';
 import type { FireIncidentState } from '../src/fires/fireIncident.ts';
 import {
+  BAKERY_FIREWOOD_PER_CYCLE,
+  BAKERY_FLOUR_PER_CYCLE,
+  BAKERY_RYE_BREAD_PER_CYCLE,
+  BAKERY_WATER_PER_CYCLE,
+  BREWERY_ALE_PER_CYCLE,
+  BREWERY_BARLEY_PER_MALT_CYCLE,
+  BREWERY_BREWING_FIREWOOD_PER_CYCLE,
+  BREWERY_BREWING_WATER_PER_CYCLE,
+  BREWERY_MALTING_FIREWOOD_PER_CYCLE,
+  BREWERY_MALTING_WATER_PER_CYCLE,
+  BUILDING_DEFINITIONS,
   CALENDAR_DAYS_PER_MONTH,
   CALENDAR_SECONDS_PER_DAY,
+  CIVILIAN_TOOL_IRONWORK_PER_CYCLE,
+  CIVILIAN_TOOL_THROUGHPUT_MULTIPLIER,
   RESIDENCE_PRESERVED_FOOD_WINTER_MULTIPLIER,
   POTTER_POTTERY_PER_CYCLE,
   POTTER_WATER_PER_CYCLE,
   SMITHY_IRONWORK_PER_CYCLE,
   SMITHY_WATER_PER_CYCLE,
+  SMOKEHOUSE_FIREWOOD_PER_CYCLE,
+  SMOKEHOUSE_FOOD_PER_CYCLE,
+  SMOKEHOUSE_POTTERY_PER_CYCLE,
+  SMOKEHOUSE_PRESERVED_FOOD_PER_CYCLE,
+  SMOKEHOUSE_SALT_PER_CYCLE,
+  WATERMILL_GRAIN_PER_CYCLE,
+  WATERMILL_RYE_FLOUR_PER_CYCLE,
+  WEAVER_CLOTH_PER_CYCLE,
+  WEAVER_FLAX_PER_CYCLE,
+  WEAVER_FLAX_WATER_PER_CYCLE,
+  WEAVER_WOOL_PER_CYCLE,
 } from '../src/generated/gameBalance.ts';
 import {
   createEmptyStockpile,
@@ -65,6 +89,25 @@ state.residences.set('tier-four-home', residence('tier-four-home', 10, 4));
 
 const ordinaryProductiveShare = averageProductiveCalendarDayShare(false);
 const sabbathProductiveShare = averageProductiveCalendarDayShare(true);
+const productiveCycles = (
+  kind: BuildingKind,
+  productiveShare: number,
+  labor = 1,
+): number => CALENDAR_SECONDS_PER_DAY
+  * productiveShare
+  * labor
+  / BUILDING_DEFINITIONS[kind].harvestInterval;
+const millCycles = productiveCycles('watermill', ordinaryProductiveShare);
+const bakeryCycles = productiveCycles('bakery', ordinaryProductiveShare);
+const breweryAleCycles = productiveCycles('brewery', ordinaryProductiveShare) / 2;
+const smokehouseCycles = productiveCycles('smokehouse', ordinaryProductiveShare);
+const weaverCycles = productiveCycles('weaver', ordinaryProductiveShare);
+const millFlourPerDay = millCycles * WATERMILL_RYE_FLOUR_PER_CYCLE;
+const bakeryFlourPerDay = bakeryCycles * BAKERY_FLOUR_PER_CYCLE;
+const matchedFlourPerDay = Math.min(millFlourPerDay, bakeryFlourPerDay);
+const matchedBakeryCycles = matchedFlourPerDay / BAKERY_FLOUR_PER_CYCLE;
+const matchedMillCycles = matchedFlourPerDay / WATERMILL_RYE_FLOUR_PER_CYCLE;
+const breadFoodPerDay = matchedBakeryCycles * BAKERY_RYE_BREAD_PER_CYCLE;
 const fullWeek = computeSettlementProductionCapacity(state, false);
 approx(fullWeek.capacityDaysPerWeek, ordinaryProductiveShare * 7);
 assert.deepEqual(
@@ -77,51 +120,92 @@ assert.deepEqual(
   ],
   [1, 1, 1, 1, 1],
 );
-approx(fullWeek.flourOutputPerDay, 40 * ordinaryProductiveShare);
-approx(fullWeek.bakeryFlourCapacityPerDay, 42 * ordinaryProductiveShare);
-approx(fullWeek.breadFoodCapacityPerDay, 160 / 3 * ordinaryProductiveShare);
-approx(fullWeek.breadGrainPerDay, 30 * ordinaryProductiveShare);
-approx(fullWeek.breadWaterPerDay, 80 / 3 * ordinaryProductiveShare);
-approx(fullWeek.breadFirewoodPerDay, 40 / 3 * ordinaryProductiveShare);
-approx(fullWeek.aleOutputPerDay, 20 * ordinaryProductiveShare);
-approx(fullWeek.aleBarleyPerDay, 15 * ordinaryProductiveShare);
-approx(fullWeek.aleWaterPerDay, 15 * ordinaryProductiveShare);
-approx(fullWeek.aleFirewoodPerDay, 5 * ordinaryProductiveShare);
-approx(fullWeek.preservedFoodOutputPerDay, 140 / 3 * ordinaryProductiveShare);
-approx(fullWeek.preservationFreshFoodPerDay, 35 * ordinaryProductiveShare);
-approx(fullWeek.preservationFirewoodPerDay, 35 / 3 * ordinaryProductiveShare);
-approx(fullWeek.preservationSaltPerDay, 35 / 6 * ordinaryProductiveShare);
-approx(fullWeek.preservationPotteryPerDay, 35 / 12 * ordinaryProductiveShare);
-approx(fullWeek.clothOutputPerDay, 17.5 * ordinaryProductiveShare);
-approx(fullWeek.clothWoolPerDay, 26.25 * ordinaryProductiveShare);
-approx(fullWeek.clothFlaxPerDay, 26.25 * ordinaryProductiveShare);
-approx(fullWeek.clothFlaxWaterPerDay, 8.75 * ordinaryProductiveShare);
+approx(fullWeek.flourOutputPerDay, millFlourPerDay);
+approx(fullWeek.bakeryFlourCapacityPerDay, bakeryFlourPerDay);
+approx(fullWeek.breadFoodCapacityPerDay, breadFoodPerDay);
+approx(fullWeek.breadGrainPerDay, matchedMillCycles * WATERMILL_GRAIN_PER_CYCLE);
+approx(fullWeek.breadWaterPerDay, matchedBakeryCycles * BAKERY_WATER_PER_CYCLE);
+approx(fullWeek.breadFirewoodPerDay, matchedBakeryCycles * BAKERY_FIREWOOD_PER_CYCLE);
+approx(fullWeek.aleOutputPerDay, breweryAleCycles * BREWERY_ALE_PER_CYCLE);
+approx(fullWeek.aleBarleyPerDay, breweryAleCycles * BREWERY_BARLEY_PER_MALT_CYCLE);
+approx(
+  fullWeek.aleWaterPerDay,
+  breweryAleCycles
+    * (BREWERY_MALTING_WATER_PER_CYCLE + BREWERY_BREWING_WATER_PER_CYCLE),
+);
+approx(
+  fullWeek.aleFirewoodPerDay,
+  breweryAleCycles
+    * (BREWERY_MALTING_FIREWOOD_PER_CYCLE + BREWERY_BREWING_FIREWOOD_PER_CYCLE),
+);
+approx(
+  fullWeek.preservedFoodOutputPerDay,
+  smokehouseCycles * SMOKEHOUSE_PRESERVED_FOOD_PER_CYCLE,
+);
+approx(
+  fullWeek.preservationFreshFoodPerDay,
+  smokehouseCycles * SMOKEHOUSE_FOOD_PER_CYCLE,
+);
+approx(
+  fullWeek.preservationFirewoodPerDay,
+  smokehouseCycles * SMOKEHOUSE_FIREWOOD_PER_CYCLE,
+);
+approx(
+  fullWeek.preservationSaltPerDay,
+  smokehouseCycles * SMOKEHOUSE_SALT_PER_CYCLE,
+);
+approx(
+  fullWeek.preservationPotteryPerDay,
+  smokehouseCycles * SMOKEHOUSE_POTTERY_PER_CYCLE,
+);
+approx(fullWeek.clothOutputPerDay, weaverCycles * WEAVER_CLOTH_PER_CYCLE);
+approx(fullWeek.clothWoolPerDay, weaverCycles * WEAVER_WOOL_PER_CYCLE);
+approx(fullWeek.clothFlaxPerDay, weaverCycles * WEAVER_FLAX_PER_CYCLE);
+approx(fullWeek.clothFlaxWaterPerDay, weaverCycles * WEAVER_FLAX_WATER_PER_CYCLE);
 assert.equal(fullWeek.watermillThroughputMultiplier, 1);
 assert.ok(fullWeek.millInputBuffer);
-approx(fullWeek.millInputBuffer.days, 2 / ordinaryProductiveShare);
+approx(
+  fullWeek.millInputBuffer.days,
+  mill.ryeGrain / (millCycles * WATERMILL_GRAIN_PER_CYCLE),
+);
 assert.equal(fullWeek.millInputBuffer.limitingInput, 'grain');
 assert.ok(fullWeek.bakeryInputBuffer);
-approx(fullWeek.bakeryInputBuffer.days, 2 / ordinaryProductiveShare);
+approx(
+  fullWeek.bakeryInputBuffer.days,
+  bakery.ryeFlour / (bakeryCycles * BAKERY_FLOUR_PER_CYCLE),
+);
 assert.equal(fullWeek.bakeryInputBuffer.limitingInput, 'flour');
 assert.ok(fullWeek.breweryInputBuffer);
-approx(fullWeek.breweryInputBuffer.days, 8 / 3 / ordinaryProductiveShare);
+approx(
+  fullWeek.breweryInputBuffer.days,
+  brewery.water / (
+    breweryAleCycles
+      * (BREWERY_MALTING_WATER_PER_CYCLE + BREWERY_BREWING_WATER_PER_CYCLE)
+  ),
+);
 assert.equal(fullWeek.breweryInputBuffer.limitingInput, 'water');
 assert.ok(fullWeek.smokehouseInputBuffer);
-approx(fullWeek.smokehouseInputBuffer.days, 1.5 / ordinaryProductiveShare);
-assert.equal(fullWeek.smokehouseInputBuffer.limitingInput, 'firewood');
+approx(
+  fullWeek.smokehouseInputBuffer.days,
+  smokehouse.salt / (smokehouseCycles * SMOKEHOUSE_SALT_PER_CYCLE),
+);
+assert.equal(fullWeek.smokehouseInputBuffer.limitingInput, 'salt');
 assert.ok(fullWeek.weaverInputBuffer);
-approx(fullWeek.weaverInputBuffer.days, 1.5 / ordinaryProductiveShare);
+approx(
+  fullWeek.weaverInputBuffer.days,
+  weaver.wool / (weaverCycles * WEAVER_WOOL_PER_CYCLE),
+);
 assert.equal(fullWeek.weaverInputBuffer.limitingInput, 'wool');
-approx(fullWeek.millOutputRoom?.days ?? -1, 2 / ordinaryProductiveShare);
-approx(fullWeek.bakeryOutputRoom?.days ?? -1, 25 / 14 / ordinaryProductiveShare);
-approx(fullWeek.breweryOutputRoom?.days ?? -1, 3 / ordinaryProductiveShare);
-approx(fullWeek.smokehouseOutputRoom?.days ?? -1, 9 / 8 / ordinaryProductiveShare);
-approx(fullWeek.weaverOutputRoom?.days ?? -1, 1.5 / ordinaryProductiveShare);
+approx(fullWeek.millOutputRoom?.days ?? -1, (260 - mill.ryeFlour) / millFlourPerDay);
+approx(fullWeek.bakeryOutputRoom?.days ?? -1, 100 / (bakeryCycles * BAKERY_RYE_BREAD_PER_CYCLE));
+approx(fullWeek.breweryOutputRoom?.days ?? -1, (200 - brewery.ale) / (breweryAleCycles * BREWERY_ALE_PER_CYCLE));
+approx(fullWeek.smokehouseOutputRoom?.days ?? -1, (180 - smokehouse.preservedFood) / (smokehouseCycles * SMOKEHOUSE_PRESERVED_FOOD_PER_CYCLE));
+approx(fullWeek.weaverOutputRoom?.days ?? -1, (90 - weaver.cloth) / (weaverCycles * WEAVER_CLOTH_PER_CYCLE));
 
 const maintainedMillState = emptyGameState();
 const maintainedMill = building('maintained-mill', 'watermill', 1);
 maintainedMill.ryeGrain = 180;
-maintainedMill.ironwork = 0.75;
+maintainedMill.ironwork = CIVILIAN_TOOL_IRONWORK_PER_CYCLE;
 maintainedMillState.buildings.set(maintainedMill.id, maintainedMill);
 const maintainedMillCapacity = computeSettlementProductionCapacity(
   maintainedMillState,
@@ -129,12 +213,16 @@ const maintainedMillCapacity = computeSettlementProductionCapacity(
 );
 approx(
   maintainedMillCapacity.flourOutputPerDay,
-  48,
+  millFlourPerDay * CIVILIAN_TOOL_THROUGHPUT_MULTIPLIER,
   'smith-dressed stones and maintained iron fittings must raise installed milling output by 20%',
 );
 approx(
   maintainedMillCapacity.millInputBuffer?.days ?? -1,
-  5,
+  maintainedMill.ryeGrain / (
+    millCycles
+      * CIVILIAN_TOOL_THROUGHPUT_MULTIPLIER
+      * WATERMILL_GRAIN_PER_CYCLE
+  ),
   'faster maintained milling must consume the onsite grain buffer at the same increased rate',
 );
 assert.equal(maintainedMillCapacity.industrialMaterials.toolEligibleSites, 1);
@@ -150,7 +238,7 @@ const strongFlowMaintainedMill = computeSettlementProductionCapacity(
 );
 approx(
   strongFlowMaintainedMill.flourOutputPerDay,
-  60,
+  millFlourPerDay * CIVILIAN_TOOL_THROUGHPUT_MULTIPLIER * 1.25,
   'river power and millstone condition must multiply rather than overwrite one another',
 );
 approx(
@@ -921,16 +1009,27 @@ assert.ok(sabbathWeek.bakeryInputBuffer);
 assert.ok(sabbathWeek.breweryInputBuffer);
 assert.ok(sabbathWeek.smokehouseInputBuffer);
 assert.ok(sabbathWeek.weaverInputBuffer);
-approx(sabbathWeek.millInputBuffer.days, 2 / sabbathProductiveShare);
-approx(sabbathWeek.bakeryInputBuffer.days, 2 / sabbathProductiveShare);
-approx(sabbathWeek.breweryInputBuffer.days, 8 / 3 / sabbathProductiveShare);
-approx(sabbathWeek.smokehouseInputBuffer.days, 1.5 / sabbathProductiveShare);
-approx(sabbathWeek.weaverInputBuffer.days, 1.5 / sabbathProductiveShare);
-approx(sabbathWeek.millOutputRoom?.days ?? -1, 2 / sabbathProductiveShare);
-approx(sabbathWeek.bakeryOutputRoom?.days ?? -1, 25 / 14 / sabbathProductiveShare);
-approx(sabbathWeek.breweryOutputRoom?.days ?? -1, 3 / sabbathProductiveShare);
-approx(sabbathWeek.smokehouseOutputRoom?.days ?? -1, 9 / 8 / sabbathProductiveShare);
-approx(sabbathWeek.weaverOutputRoom?.days ?? -1, 1.5 / sabbathProductiveShare);
+for (const key of [
+  'millInputBuffer',
+  'bakeryInputBuffer',
+  'breweryInputBuffer',
+  'smokehouseInputBuffer',
+  'weaverInputBuffer',
+  'millOutputRoom',
+  'bakeryOutputRoom',
+  'breweryOutputRoom',
+  'smokehouseOutputRoom',
+  'weaverOutputRoom',
+] as const) {
+  const ordinaryBuffer = fullWeek[key];
+  const sabbathBuffer = sabbathWeek[key];
+  assert.ok(ordinaryBuffer);
+  assert.ok(sabbathBuffer);
+  approx(
+    sabbathBuffer.days,
+    ordinaryBuffer.days * ordinaryProductiveShare / sabbathProductiveShare,
+  );
+}
 
 const inactiveState = emptyGameState();
 const unfinishedMill = building('unfinished-mill', 'watermill', 3);
@@ -2185,7 +2284,7 @@ console.log(
 function approx(actual: number, expected: number, message?: string): void {
   assert.ok(
     Math.abs(actual - expected) < 1e-9,
-    message ?? `expected ${actual} to equal ${expected}`,
+    `${message ?? 'values differ'}: expected ${expected}, received ${actual}`,
   );
 }
 

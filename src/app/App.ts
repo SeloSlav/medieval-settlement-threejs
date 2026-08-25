@@ -651,20 +651,40 @@ export class App {
     let gpuReady = true;
     const restoreVillagerPrewarm = session.villagers.beginFirstPlayableGpuPrewarm();
     const restoreFoundersCampPrewarm = session.buildingMarkers.beginFoundersCampGpuPrewarm();
-    try {
-      await session.sceneManager.precompileFirstPlayableScene();
-      // Prewarm-only objects must be detached before a frame reaches the
-      // canvas. The temporary founders' camp is not an actual world entity.
+    let prewarmObjectsRestored = false;
+    const restorePrewarmObjects = (): void => {
+      if (prewarmObjectsRestored) return;
+      prewarmObjectsRestored = true;
       restoreFoundersCampPrewarm();
       restoreVillagerPrewarm();
+      // The covered warmup frame may have populated the cached directional
+      // shadow atlas with temporary casters. Queue an exact clean frame before
+      // the loading cover is removed.
+      session.sceneManager.invalidateStaticShadows();
+    };
+    try {
+      try {
+        await session.sceneManager.precompileFirstPlayableScene();
+      } catch (error) {
+        // A direct compile failure must not skip the live post/shadow warmup.
+        // Some WebGPU backends can still submit the real graph successfully.
+        console.warn('Direct first-playable shader compile is unavailable:', error);
+      }
+      // compileAsync prepares direct scene pipelines, but ordinary gameplay
+      // renders through the offscreen WebGPU post graph and its shadow pass.
+      // Keep the temporary objects attached for one covered, submitted frame
+      // so the first placement never owns those cold pipeline compilations.
+      session.sceneManager.invalidateStaticShadows();
+      session.sceneManager.render(0, session.cameraController.getOrbitDistance());
+      await session.sceneManager.waitForFirstPlayableGpuWork();
+      restorePrewarmObjects();
       session.sceneManager.render(0, session.cameraController.getOrbitDistance());
       await session.sceneManager.waitForFirstPlayableGpuWork();
     } catch (error) {
       gpuReady = false;
-      console.warn('First-playable GPU prewarm is unavailable:', error);
+      console.warn('Live first-playable GPU prewarm is unavailable:', error);
     } finally {
-      restoreFoundersCampPrewarm();
-      restoreVillagerPrewarm();
+      restorePrewarmObjects();
     }
     if (this.disposed) return;
     const gpuPrecompileMs = performance.now() - gpuPrecompileStartedAt;
