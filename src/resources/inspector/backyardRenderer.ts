@@ -164,7 +164,6 @@ export function renderBackyardInspector(
     statusText,
     statusState,
     detailsHtml: `
-      <li><span>Parcel</span><span>#${residence.parcelIndex + 1}</span></li>
       <li><span>Population</span><span>${residence.population}</span></li>
       <li><span>${isLivestockPen ? 'Husbandry phase' : 'Crop phase'}</span><span>${season.label}${sabbathPaused ? ' · household work paused today by parish policy' : ''}</span></li>
       <li><span>${isLivestockPen ? 'Collection window' : 'Harvest window'}</span><span>${season.harvestWindow}</span></li>
@@ -264,7 +263,7 @@ function renderEmptyBackyardPicker(
     context.gameState.deliveryTrips.values(),
   );
   if (project) {
-    return renderBackyardProject(residence.parcelIndex, project);
+    return renderBackyardProject(project);
   }
   const totals = context.resourceTotals;
   const underConstruction = residence.tier === 0;
@@ -539,10 +538,7 @@ function backyardGardenPickerLabel(kind: BackyardGardenKind): string {
   }
 }
 
-function renderBackyardProject(
-  parcelIndex: number,
-  project: ResidenceBackyardProject,
-): InspectorView {
+function renderBackyardProject(project: ResidenceBackyardProject): InspectorView {
   const label = backyardGardenLabel(project.kind);
   const incoming = project.incomingTrips.length === 0
     ? 'None'
@@ -560,7 +556,6 @@ function renderBackyardProject(
       ?? `${Math.round(project.progress * 100)}% complete`,
     statusState: project.blockers.length === 0 ? 'ok' : 'warning',
     detailsHtml: `
-      <li><span>Parcel</span><span>#${parcelIndex + 1}</span></li>
       <li><span>Improvement</span><span>${label}</span></li>
       <li><span>Builder progress</span><span>${Math.round(project.progress * 100)}%</span></li>
       <li><span>Queue priority</span><span>${project.priorityLabel}</span></li>

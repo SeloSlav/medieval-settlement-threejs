@@ -591,6 +591,7 @@ assert.match(backyardView.detailsHtml, /Home food today/);
 assert.match(backyardView.detailsHtml, /Shared market food today/);
 assert.match(backyardView.detailsHtml, /Local trade value today/);
 assert.match(backyardView.detailsHtml, /collection without a staffed clerk/);
+assert.doesNotMatch(backyardView.detailsHtml, /<span>Parcel<\/span>/);
 
 const emptyBackyardView = renderBackyardInspector(
   {
@@ -661,6 +662,7 @@ assert.equal(backyardProjectView.eyebrow, 'Backyard worksite');
 assert.equal(backyardProjectView.title, 'Vegetable garden works');
 assert.match(backyardProjectView.detailsHtml, /42%/);
 assert.match(backyardProjectView.detailsHtml, /Begins only after the worksite is complete/);
+assert.doesNotMatch(backyardProjectView.detailsHtml, /<span>Parcel<\/span>/);
 assert.match(backyardProjectView.supplementalPanelHtml ?? '', /data-residence-upgrade-priority="3"/);
 assert.match(backyardProjectView.supplementalPanelHtml ?? '', /class="resource-action-row"/);
 assert.match(backyardProjectView.supplementalPanelHtml ?? '', /class="resource-action-button" data-residence-upgrade-priority="3" disabled/);
