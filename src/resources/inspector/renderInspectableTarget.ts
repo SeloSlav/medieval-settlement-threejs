@@ -31,6 +31,16 @@ export type InspectorLaborView = {
   increaseDisabled: boolean;
 };
 
+export type InspectorOxTeamView = {
+  visible: boolean;
+  count: number;
+  automaticPoolCount: number;
+  maxCount: number;
+  hint: string;
+  decreaseDisabled: boolean;
+  increaseDisabled: boolean;
+};
+
 export type InspectorDemolishView = {
   visible: boolean;
   label?: string;
@@ -49,6 +59,7 @@ export type InspectorView = {
   detailsHtml: string;
   demolish: InspectorDemolishView;
   labor: InspectorLaborView;
+  oxTeam?: InspectorOxTeamView;
   supplementalPanelHtml?: string;
   serviceCoverage?: ServiceCoverageView;
 };

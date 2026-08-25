@@ -7,6 +7,7 @@ import {
 } from '../placement/TerrainOverlayGeometry.ts';
 import type { TerrainProjector } from '../terrain/TerrainProjector.ts';
 import type { Point2 } from '../utils/polygonGeometry.ts';
+import { SecondaryClickGesture } from '../input/SecondaryClickGesture.ts';
 
 export const FORESTRY_WORK_AREA_MIN_RADIUS = 20;
 export const FORESTRY_WORK_AREA_INITIAL_RADIUS = 70;
@@ -55,10 +56,14 @@ export class ForestryWorkAreaTool {
   private pointerDirty = false;
   private wheelDelta = 0;
   private commitPending = false;
+  private readonly secondaryClickGesture: SecondaryClickGesture;
 
   constructor(options: ForestryWorkAreaToolOptions) {
     this.options = options;
     this.overlay = new ForestryWorkAreaOverlay(options.getHeightAt);
+    this.secondaryClickGesture = new SecondaryClickGesture({
+      onClick: this.onSecondaryClick,
+    });
     options.domElement.addEventListener('mousedown', this.onPointerDown, { capture: true });
     options.domElement.addEventListener('mousemove', this.onPointerMove);
     options.domElement.addEventListener('mouseenter', this.onPointerEnter);
@@ -73,6 +78,7 @@ export class ForestryWorkAreaTool {
 
   begin(buildingId: string, center: Point2, radius = FORESTRY_WORK_AREA_INITIAL_RADIUS): void {
     if (this.options.isBlocked() || this.commitPending) return;
+    this.secondaryClickGesture.cancel();
     this.buildingId = buildingId;
     this.center = { x: center.x, z: center.z };
     this.radius = clampForestryWorkAreaRadius(radius);
@@ -105,13 +111,13 @@ export class ForestryWorkAreaTool {
 
   shouldBlockCameraInput(event: MouseEvent | WheelEvent): boolean {
     if (!this.enabled || this.options.isBlocked()) return false;
-    if (event instanceof WheelEvent) return event.ctrlKey;
-    return event.button === 2;
+    return event instanceof WheelEvent && event.ctrlKey;
   }
 
   setEnabled(enabled: boolean): void {
     if (enabled) return;
     if (!this.enabled && this.buildingId === null) return;
+    this.secondaryClickGesture.cancel();
     this.enabled = false;
     this.buildingId = null;
     this.pointerDirty = false;
@@ -132,6 +138,7 @@ export class ForestryWorkAreaTool {
   }
 
   dispose(): void {
+    this.secondaryClickGesture.dispose();
     const { domElement } = this.options;
     domElement.removeEventListener('mousedown', this.onPointerDown, true);
     domElement.removeEventListener('mousemove', this.onPointerMove);
@@ -160,12 +167,7 @@ export class ForestryWorkAreaTool {
 
   private readonly onPointerDown = (event: MouseEvent): void => {
     if (!this.enabled || this.commitPending || this.options.isBlocked()) return;
-    if (event.button === 2) {
-      event.preventDefault();
-      event.stopImmediatePropagation();
-      this.setEnabled(false);
-      return;
-    }
+    if (this.secondaryClickGesture.begin(event)) return;
     if (event.button !== 0 || event.altKey) return;
     const picked = this.options.terrainProjector.pick(event.clientX, event.clientY);
     if (!picked || !this.buildingId) return;
@@ -188,6 +190,12 @@ export class ForestryWorkAreaTool {
         error instanceof Error ? error.message : 'Could not set the forestry work area.',
       );
     });
+  };
+
+  private readonly onSecondaryClick = (event: MouseEvent): void => {
+    if (!this.enabled || this.commitPending || this.options.isBlocked()) return;
+    event.preventDefault();
+    this.setEnabled(false);
   };
 
   private readonly onWheel = (event: WheelEvent): void => {

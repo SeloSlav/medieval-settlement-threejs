@@ -6,8 +6,8 @@ use spacetimedb::{Identity, ReducerContext};
 
 use crate::db::*;
 use crate::ox_policy::{
-    assign_oxen_to_nearest_worksites, is_ox_production_workplace, nearest_available_ox,
-    OxCandidate, OxWorksiteCandidate,
+    assign_oxen_to_worksites, available_ox_for_workplace, is_ox_production_workplace,
+    is_ox_supported_workplace, OxCandidate, OxWorksiteCandidate,
 };
 use crate::simulation::{game_clock, production_labor_paused, SimTickContext};
 use crate::tables::Building;
@@ -35,6 +35,7 @@ fn operational_oxen_for_owner(
             ox_id: ox.id,
             stable_id: ox.stable_id,
             stable_slot: ox.slot,
+            assigned_building_id: ox.assigned_building_id,
             x: stable.x,
             z: stable.z,
         });
@@ -91,7 +92,7 @@ fn build_production_assignments(
         let mut unavailable: Vec<u64> = active_trip_ox_ids(ctx, owner).into_iter().collect();
         unavailable.extend(used_ox_ids.iter().copied());
         let worksites = worksites_by_owner.remove(&owner).unwrap_or_default();
-        for assignment in assign_oxen_to_nearest_worksites(&oxen, &worksites, &unavailable) {
+        for assignment in assign_oxen_to_worksites(&oxen, &worksites, &unavailable) {
             by_building
                 .entry(assignment.building_id)
                 .or_default()
@@ -154,19 +155,32 @@ pub(crate) fn paired_production_ox_count(
     count
 }
 
-/// Reserves the nearest resting ox for one local cart. Active trip rows and
-/// production already performed in this substep always win.
-pub(crate) fn claim_nearest_haul_ox(
+/// Reserves one ox for a local cart operated by `workplace_id`. A posted ox at
+/// that workplace wins; otherwise the nearest unposted automatic ox may help.
+/// Oxen posted elsewhere, active trip rows, and production already performed
+/// in this substep are unavailable.
+pub(crate) fn claim_haul_ox_for_workplace(
     ctx: &ReducerContext,
     tick: &SimTickContext,
     owner: Identity,
+    workplace_id: u64,
     x: f64,
     z: f64,
 ) -> u64 {
+    let Some(workplace) = ctx.db.building().id().find(&workplace_id) else {
+        return 0;
+    };
+    if workplace.owner != owner
+        || !workplace.construction_complete
+        || !is_ox_supported_workplace(&workplace.kind)
+        || tick.building_disabled_by_fire(ctx, workplace.id)
+    {
+        return 0;
+    }
     let oxen = operational_oxen_for_owner(ctx, tick, owner);
     let mut unavailable: Vec<u64> = active_trip_ox_ids(ctx, owner).into_iter().collect();
     unavailable.extend(tick.used_ox_ids());
-    let Some(ox_id) = nearest_available_ox(&oxen, &unavailable, x, z) else {
+    let Some(ox_id) = available_ox_for_workplace(&oxen, &unavailable, workplace_id, x, z) else {
         return 0;
     };
     if !tick.try_mark_ox_used(ox_id) {

@@ -3320,6 +3320,20 @@ pub fn demolish_building(ctx: &ReducerContext, building_id: u64) -> Result<(), S
     {
         ctx.db.vineyard_parcel().id().delete(parcel.id);
     }
+    // A posted ox survives demolition of its workplace and returns to the
+    // automatic pool. Active cart reservations remain authoritative until the
+    // trip completes, so only the durable posting changes here.
+    for mut ox in ctx
+        .db
+        .stable_ox()
+        .assigned_building_id()
+        .filter(&building_id)
+        .collect::<Vec<_>>()
+    {
+        ox.assigned_building_id = 0;
+        ctx.db.stable_ox().id().update(ox);
+    }
+
     // Physical demolition may repurpose this exact Building row into a
     // salvage pile, so remove stable-owned animals before that identity can
     // change kind and leave orphaned ox rows behind.

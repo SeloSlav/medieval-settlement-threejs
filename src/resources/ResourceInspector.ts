@@ -312,6 +312,7 @@ type ResourceInspectorOptions = {
   onSetLivestockSpecies?: (buildingId: string, species: Exclude<LivestockSpecies, 'swine'>) => void | Promise<void>;
   onTradeLivestock?: (buildingId: string, headDelta: number) => void | Promise<void>;
   onPurchaseStableOx?: (stableId: string) => void | Promise<void>;
+  onSetBuildingOxen?: (buildingId: string, targetCount: number) => void | Promise<void>;
   onSetLivestockBreedingReserve?: (buildingId: string, breedingReserve: number) => void | Promise<void>;
   onSetLivestockHaymakingPercent?: (buildingId: string, haymakingPercent: number) => void | Promise<void>;
   onBeginFarmFieldPlacement?: (farmsteadId: string, crop: FarmCrop) => void;
@@ -399,6 +400,12 @@ export class ResourceInspector {
   private readonly laborHint: HTMLElement;
   private readonly laborDecrease: HTMLButtonElement;
   private readonly laborIncrease: HTMLButtonElement;
+  private readonly oxTeamSection: HTMLElement;
+  private readonly oxTeamCount: HTMLElement;
+  private readonly oxTeamPool: HTMLElement;
+  private readonly oxTeamHint: HTMLElement;
+  private readonly oxTeamDecrease: HTMLButtonElement;
+  private readonly oxTeamIncrease: HTMLButtonElement;
   private readonly supplementalPanelSection: HTMLElement;
   private readonly deleteDialog: AlertDialog;
   private readonly marker: THREE.Mesh;
@@ -480,6 +487,23 @@ export class ResourceInspector {
               </div>
             </div>
             <p class="resource-inspector-labor-hint" data-inspector-labor-hint></p>
+          </section>
+          <section class="resource-inspector-labor resource-inspector-ox-team" data-inspector-ox-team hidden aria-label="Ox posting">
+            <div class="resource-inspector-labor-row">
+              <span class="resource-inspector-labor-label">
+                <span class="resource-inspector-ox-mark" aria-hidden="true">OX</span>
+                <span class="resource-inspector-assignment-copy">
+                  <span>Posted oxen</span>
+                  <small data-inspector-ox-pool>Automatic pool · 0</small>
+                </span>
+              </span>
+              <div class="resource-inspector-labor-controls">
+                <button type="button" class="resource-action-button resource-action-button--icon resource-inspector-labor-button" data-action="ox-decrease" data-ox-posting-delta="-1" aria-label="Decrease posted oxen">−</button>
+                <strong data-inspector-ox-count aria-live="polite">0 / 0</strong>
+                <button type="button" class="resource-action-button resource-action-button--icon resource-inspector-labor-button" data-action="ox-increase" data-ox-posting-delta="1" aria-label="Increase posted oxen">+</button>
+              </div>
+            </div>
+            <p class="resource-inspector-labor-hint resource-inspector-ox-hint" data-inspector-ox-hint></p>
           </section>
           <section class="resource-inspector-supplemental" data-inspector-supplemental hidden aria-label="Inspector actions"></section>
         </div>
@@ -620,6 +644,12 @@ export class ResourceInspector {
     this.laborHint = this.mustElement(options.uiRoot, '[data-inspector-labor-hint]');
     this.laborDecrease = this.mustButton(options.uiRoot, '[data-action="labor-decrease"]');
     this.laborIncrease = this.mustButton(options.uiRoot, '[data-action="labor-increase"]');
+    this.oxTeamSection = this.mustElement(options.uiRoot, '[data-inspector-ox-team]');
+    this.oxTeamCount = this.mustElement(options.uiRoot, '[data-inspector-ox-count]');
+    this.oxTeamPool = this.mustElement(options.uiRoot, '[data-inspector-ox-pool]');
+    this.oxTeamHint = this.mustElement(options.uiRoot, '[data-inspector-ox-hint]');
+    this.oxTeamDecrease = this.mustButton(options.uiRoot, '[data-ox-posting-delta="-1"]');
+    this.oxTeamIncrease = this.mustButton(options.uiRoot, '[data-ox-posting-delta="1"]');
     this.supplementalPanelSection = this.mustElement(options.uiRoot, '[data-inspector-supplemental]');
 
     this.marker = createSelectionMarker();
@@ -752,6 +782,25 @@ export class ResourceInspector {
 
   private readonly onPanelClick = (event: MouseEvent): void => {
     event.stopPropagation();
+    const oxPostingButton = (event.target as HTMLElement)
+      .closest<HTMLButtonElement>('[data-ox-posting-delta]');
+    if (oxPostingButton && this.selectedTarget?.kind === 'building') {
+      if (oxPostingButton.disabled) return;
+      const delta = Number(oxPostingButton.dataset.oxPostingDelta);
+      const currentCount = Number(this.oxTeamSection.dataset.postedCount);
+      const maxCount = Number(this.oxTeamSection.dataset.maxCount);
+      if (Number.isFinite(delta) && Number.isFinite(currentCount) && Number.isFinite(maxCount)) {
+        const targetCount = Math.max(
+          0,
+          Math.min(Math.floor(maxCount), Math.floor(currentCount + delta)),
+        );
+        void this.options.onSetBuildingOxen?.(
+          this.selectedTarget.building.id,
+          targetCount,
+        );
+      }
+      return;
+    }
     if (
       this.selectedTarget?.kind === 'building'
       && (this.selectedTarget.building.kind === 'village_storehouse'
@@ -2015,6 +2064,7 @@ export class ResourceInspector {
     this.marker.visible = false;
     this.demolishSection.hidden = true;
     this.laborSection.hidden = true;
+    this.oxTeamSection.hidden = true;
     this.supplementalPanelSection.hidden = true;
     this.serviceCoverageButton.hidden = true;
     if (hidePanel) this.panel.hidden = true;
@@ -2354,6 +2404,24 @@ export class ResourceInspector {
     } else {
       this.laborHint.hidden = true;
       syncFocusableInspectorTooltip(this.laborLabel, '', '');
+    }
+
+    const oxTeam = view.oxTeam;
+    this.oxTeamSection.hidden = !oxTeam?.visible;
+    if (oxTeam?.visible) {
+      this.oxTeamSection.dataset.postedCount = oxTeam.count.toString();
+      this.oxTeamSection.dataset.maxCount = oxTeam.maxCount.toString();
+      this.oxTeamCount.textContent = `${oxTeam.count} / ${oxTeam.maxCount}`;
+      this.oxTeamPool.textContent = `Automatic pool · ${oxTeam.automaticPoolCount}`;
+      this.oxTeamHint.textContent = oxTeam.hint;
+      this.oxTeamDecrease.disabled = oxTeam.decreaseDisabled;
+      this.oxTeamIncrease.disabled = oxTeam.increaseDisabled;
+    } else {
+      delete this.oxTeamSection.dataset.postedCount;
+      delete this.oxTeamSection.dataset.maxCount;
+      this.oxTeamCount.textContent = '0 / 0';
+      this.oxTeamPool.textContent = 'Automatic pool · 0';
+      this.oxTeamHint.textContent = '';
     }
 
     if (view.supplementalPanelHtml) {

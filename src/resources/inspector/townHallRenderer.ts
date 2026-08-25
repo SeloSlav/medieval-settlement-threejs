@@ -1170,7 +1170,7 @@ export function renderSettlementTextileRows(plan: SettlementTextilePlan): string
   const attentionLabel = plan.firstAttentionKind === 'fire'
     ? 'first fire-disabled sheep holding'
     : plan.firstAttentionKind === 'storage'
-      ? 'first loft without full-clip room'
+      ? 'first holding waiting for full-clip room'
       : plan.firstAttentionKind === 'staffing'
         ? 'first unstaffed sheep holding'
         : plan.firstAttentionKind === 'flock'
@@ -1183,7 +1183,7 @@ export function renderSettlementTextileRows(plan: SettlementTextilePlan): string
     ? `${plan.annualClothBalance.toFixed(1)} cloth surplus`
     : `${Math.abs(plan.annualClothBalance).toFixed(1)} cloth shortfall`;
   const clipRisk = plan.annualWoolAtRisk > 0.05
-    ? ` · ${plan.annualWoolAtRisk.toFixed(1)} wool not secured at current staffing/storage`
+    ? ` · ${plan.annualWoolAtRisk.toFixed(1)} wool not yet secured by current shearing readiness`
     : ' · full projected clip secured';
   const blocked = plan.storageBlockedHoldings
     + plan.staffingBlockedHoldings
@@ -1193,7 +1193,7 @@ export function renderSettlementTextileRows(plan: SettlementTextilePlan): string
 
   return `
     <li><span>Annual wool clip</span><span>${plan.shornHoldings} / ${plan.sheepHoldings} holdings shorn · ${plan.sheepHeadCount} sheep / ${plan.productiveSheepHeads.toFixed(1)} productive-head equivalent · ${plan.projectedAnnualWool.toFixed(1)} wool potential${clipRisk}${attention}</span></li>
-    <li><span>Shearing readiness</span><span>${plan.readyPendingHoldings} pending and ready · ${plan.storageBlockedHoldings} storage-blocked · ${plan.staffingBlockedHoldings} unstaffed · ${plan.flockBlockedHoldings} flock-blocked · ${plan.fireDisabledSheepHoldings} fire-disabled · ${plan.missedHoldings} missed${blocked === 0 ? ' · no exposed clip' : ''}</span></li>
+    <li><span>Shearing readiness</span><span>${plan.readyPendingHoldings} pending and ready · ${plan.storageBlockedHoldings} waiting for full-clip room · ${plan.staffingBlockedHoldings} unstaffed · ${plan.flockBlockedHoldings} flock-blocked · ${plan.fireDisabledSheepHoldings} fire-disabled · ${plan.missedHoldings} missed${blocked === 0 ? ' · no exposed clip' : ''}</span></li>
     ${fireRow}
     ${storesRow}
     <li><span>Textile chain</span><span>${plan.annualClothPotential.toFixed(1)} cloth/year installed ceiling from projected wool, physical flax, and loom labor vs ${plan.annualHouseholdClothDemand.toFixed(1)} household need · ${annualBalance} over ${TEXTILE_PLAN_DAYS_PER_YEAR} days · flax assumes a supplied water route · ${textileChainBalanceLabel(plan)}</span></li>

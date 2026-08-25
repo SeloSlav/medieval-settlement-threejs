@@ -54,6 +54,40 @@ assert.ok(
   'logistics-only buildings reserve oxen through active cart trips, not idle worker slots',
 );
 
+const hybridOxen = [
+  { ...oxen[0], assignedBuildingId: 'building-3' },
+  { ...oxen[1], assignedBuildingId: null },
+  { ...oxen[2], assignedBuildingId: null },
+];
+const hybridAssignments = assignStableOxen(hybridOxen, buildings);
+assert.deepEqual(
+  [...hybridAssignments.values()].map((assignment) => [
+    assignment.oxId,
+    assignment.buildingId,
+    assignment.workerSlot,
+  ]),
+  [
+    ['stable-ox-1', 'building-3', 0],
+    ['stable-ox-2', 'building-2', 0],
+    ['stable-ox-3', 'building-2', 1],
+  ],
+  'posted oxen claim their permanent workplace before the automatic pool chooses open work',
+);
+
+const unavailablePosting = assignStableOxen([
+  { ...oxen[0], assignedBuildingId: 'building-4' },
+  { ...oxen[1], assignedBuildingId: null },
+], buildings);
+assert.ok(
+  !unavailablePosting.has('stable-ox-1'),
+  'a posted ox waits instead of automatically helping elsewhere when its posting is ineligible',
+);
+assert.equal(
+  unavailablePosting.get('stable-ox-2')?.buildingId,
+  'building-2',
+  'unposted oxen continue through automatic assistance when a posted animal waits',
+);
+
 const trip = {
   id: 'trip-1',
   buildingId: 'building-2',
@@ -106,4 +140,4 @@ assert.match(
   /this\.oxen\.sync\([\s\S]{0,260}deliveryTrips,/,
 );
 
-console.log('stable ox automatic allocation and visual contracts passed');
+console.log('stable ox posted + automatic allocation and visual contracts passed');

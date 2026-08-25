@@ -93,7 +93,7 @@ pub use livestock::{step_pastoral_farmstead, step_swineherd};
 pub use lumber_mill::step_lumber_mill;
 pub use marketplace_caravan::{step_marketplace_caravans, try_dispatch_marketplace_caravan};
 pub use night_cycle::step_night_cycle;
-pub(crate) use oxen::{claim_nearest_haul_ox, paired_production_ox_count, release_haul_ox};
+pub(crate) use oxen::{claim_haul_ox_for_workplace, paired_production_ox_count, release_haul_ox};
 pub use production_labor_steward::{
     reconcile_target_production_labor_for_settlement, step_production_labor_stewards,
 };

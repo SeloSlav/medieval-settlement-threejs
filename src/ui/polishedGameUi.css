@@ -80,10 +80,10 @@ select:focus-visible {
 .settlement-hud {
   position: relative;
   display: grid;
-  grid-template-columns: 72px 42px minmax(0, 1fr) 52px;
+  grid-template-columns: 72px 42px minmax(0, 1fr) 52px 52px;
   align-items: stretch;
   gap: 0;
-  width: min(704px, calc(100vw - 64px));
+  width: min(756px, calc(100vw - 64px));
   min-height: 52px;
   padding: 4px 6px;
   overflow: visible;
@@ -713,6 +713,259 @@ select:focus-visible {
   border-radius: 2px;
   background: rgba(224, 198, 135, 0.08);
   box-shadow: inset 0 -2px rgba(210, 171, 81, 0.62);
+}
+
+.settlement-hud__animals {
+  position: relative;
+  align-self: stretch;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-left: 1px solid rgba(216, 191, 134, 0.14);
+}
+
+.settlement-hud__animals-summary {
+  display: grid;
+  grid-template-columns: 25px minmax(0, 1fr);
+  grid-template-rows: 1fr;
+  align-items: center;
+  gap: 3px;
+  width: 100%;
+  height: 100%;
+  min-height: 58px;
+  padding: 4px 5px;
+  color: #b8a77f;
+  list-style: none;
+  cursor: pointer;
+}
+
+.settlement-hud__animals-summary::-webkit-details-marker {
+  display: none;
+}
+
+.settlement-hud__animals-summary::before {
+  grid-column: 1;
+  grid-row: 1;
+  align-self: center;
+  content: '\2649';
+  color: #c79c62;
+  font-family: var(--ui-display);
+  font-size: 20px;
+  line-height: 1;
+  text-align: center;
+}
+
+.settlement-hud__animals-label {
+  display: none;
+}
+
+.settlement-hud__animals-status {
+  grid-column: 2;
+  grid-row: 1;
+  align-self: center;
+  color: #e1dbc9;
+  font-family: var(--ui-display);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.settlement-hud__animals:not(.has-animals) > .settlement-hud__animals-summary {
+  opacity: 0.48;
+}
+
+.settlement-hud__animals:not(.has-animals) > .settlement-hud__animals-summary:hover,
+.settlement-hud__animals:not(.has-animals) > .settlement-hud__animals-summary:focus-visible,
+.settlement-hud__animals:not(.has-animals)[open] > .settlement-hud__animals-summary {
+  opacity: 0.85;
+}
+
+.settlement-hud__animals[open] > .settlement-hud__animals-summary {
+  background: rgba(224, 198, 135, 0.08);
+  box-shadow: inset 0 -2px rgba(210, 171, 81, 0.62);
+}
+
+.settlement-hud__animals[open] > .settlement-hud__animals-summary::before {
+  color: var(--ui-brass-bright);
+}
+
+.settlement-hud__animals-panel {
+  position: absolute;
+  top: calc(100% + 9px);
+  right: -53px;
+  z-index: 5;
+  display: grid;
+  gap: 8px;
+  width: min(360px, calc(100vw - 28px));
+  max-height: min(520px, calc(100vh - 96px));
+  padding: 9px;
+  overflow: auto;
+  border: 1px solid var(--ui-edge);
+  border-radius: 3px;
+  color: #d5cbb5;
+  background:
+    radial-gradient(circle at 12% 0, rgba(190, 140, 71, 0.1), transparent 42%),
+    rgba(16, 19, 15, 0.97);
+  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.42);
+  backdrop-filter: blur(18px);
+}
+
+.settlement-hud__animals-panel::before {
+  position: absolute;
+  right: 0;
+  bottom: 100%;
+  left: 0;
+  height: 9px;
+  content: '';
+}
+
+.settlement-hud__animals-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 1px 2px 7px;
+  border-bottom: 1px solid rgba(220, 191, 127, 0.2);
+}
+
+.settlement-hud__animals-header strong {
+  color: #ead8ac;
+  font-family: var(--ui-display);
+  font-size: 15px;
+  letter-spacing: 0.04em;
+}
+
+.settlement-hud__animals-header span {
+  color: #9f947f;
+  font-size: 10px;
+}
+
+.settlement-hud__animals-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.settlement-hud__animals-metrics > span {
+  display: grid;
+  gap: 2px;
+  padding: 7px 8px;
+  border: 1px solid rgba(218, 190, 127, 0.12);
+  border-radius: 2px;
+  color: #9f9582;
+  background: rgba(255, 255, 255, 0.02);
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.settlement-hud__animals-metrics strong {
+  color: #e5dac2;
+  font-family: var(--ui-display);
+  font-size: 15px;
+}
+
+.settlement-hud__animals-list {
+  display: grid;
+  gap: 5px;
+}
+
+.settlement-hud__animal-row {
+  display: grid;
+  gap: 5px;
+  padding: 8px 9px;
+  border: 1px solid rgba(218, 190, 127, 0.12);
+  border-left: 2px solid rgba(186, 145, 78, 0.68);
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.022);
+}
+
+.settlement-hud__animal-row[data-assignment-mode='automatic'] {
+  border-left-color: rgba(119, 155, 126, 0.72);
+}
+
+.settlement-hud__animal-row > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.settlement-hud__animal-row > header strong {
+  color: #e3d7be;
+  font-family: var(--ui-display);
+  font-size: 13px;
+}
+
+.settlement-hud__animal-mode {
+  padding: 2px 6px;
+  border: 1px solid rgba(200, 161, 89, 0.28);
+  border-radius: 999px;
+  color: #d2b479;
+  background: rgba(159, 116, 46, 0.1);
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.settlement-hud__animal-row[data-assignment-mode='automatic'] .settlement-hud__animal-mode {
+  border-color: rgba(125, 167, 135, 0.28);
+  color: #a9c2a9;
+  background: rgba(78, 128, 89, 0.1);
+}
+
+.settlement-hud__animal-row p {
+  margin: 0;
+  color: #9f9685;
+  font-size: 10px;
+  line-height: 1.35;
+}
+
+.settlement-hud__animal-activity {
+  padding-top: 5px;
+  border-top: 1px solid rgba(218, 190, 127, 0.09);
+  color: #c8bda5 !important;
+}
+
+.settlement-hud__animal-link {
+  padding: 0;
+  border: 0;
+  color: #d6bd83;
+  background: none;
+  font: inherit;
+  line-height: inherit;
+  text-align: left;
+  text-decoration: underline;
+  text-decoration-color: rgba(214, 189, 131, 0.35);
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.settlement-hud__animal-link:hover,
+.settlement-hud__animal-link:focus-visible {
+  color: #f0d79e;
+  text-decoration-color: currentColor;
+}
+
+.settlement-hud__animals-empty,
+.settlement-hud__animals-note {
+  margin: 0;
+  color: #948b7a;
+  font-size: 10px;
+  line-height: 1.45;
+}
+
+.settlement-hud__animals-empty {
+  padding: 16px 10px;
+  border: 1px dashed rgba(218, 190, 127, 0.18);
+  text-align: center;
+}
+
+.settlement-hud__animals-note {
+  padding: 2px 3px 0;
+  color: #817a6c;
 }
 
 .settlement-hud__stores {
@@ -1404,7 +1657,7 @@ select:focus-visible {
   font-size: 13px;
 }
 
-.resource-inspector-labor-label > span {
+.resource-inspector-labor-label > [aria-hidden='true'] {
   color: var(--ui-brass);
   font-size: 16px;
 }
@@ -1418,6 +1671,7 @@ select:focus-visible {
 }
 
 .resource-inspector-labor-button {
+  flex-basis: 30px;
   width: 30px;
   height: 30px;
   border-color: transparent;
@@ -1447,6 +1701,20 @@ select:focus-visible {
 
 .resource-inspector-panel[data-inspector-target='building'] .resource-inspector-labor-label {
   font-size: 12px;
+}
+
+.resource-inspector-panel[data-inspector-target='building'] .resource-inspector-ox-team {
+  margin-top: 5px;
+}
+
+.resource-inspector-ox-mark {
+  font-family: var(--ui-display);
+  font-size: 10px !important;
+  letter-spacing: 0.04em;
+}
+
+.resource-inspector-ox-hint {
+  margin-top: 3px;
 }
 
 .resource-inspector-footer {
@@ -3217,8 +3485,8 @@ select:focus-visible {
 
 @media (max-width: 1080px) {
   .settlement-hud {
-    grid-template-columns: 52px 36px minmax(0, 1fr) 42px;
-    width: min(570px, calc(100vw - 70px));
+    grid-template-columns: 52px 36px minmax(0, 1fr) 42px 42px;
+    width: min(612px, calc(100vw - 70px));
   }
 
   .settlement-hud__approval-button {
@@ -3258,7 +3526,7 @@ select:focus-visible {
   }
 
   .settlement-hud {
-    grid-template-columns: 52px 34px minmax(0, 1fr) 38px;
+    grid-template-columns: 52px 34px minmax(0, 1fr) 38px 38px;
     width: calc(100vw - 14px);
     min-height: 48px;
   }
@@ -3303,6 +3571,34 @@ select:focus-visible {
 
   .settlement-hud__clock {
     padding-inline: 2px 6px;
+  }
+
+  .settlement-hud__animals-summary {
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr 12px;
+    gap: 0;
+    padding: 4px 2px 3px;
+  }
+
+  .settlement-hud__animals-summary::before {
+    grid-column: 1;
+    grid-row: 1;
+    font-size: 16px;
+  }
+
+  .settlement-hud__animals-status {
+    grid-column: 1;
+    grid-row: 2;
+    justify-self: center;
+    font-size: 9px;
+  }
+
+  .settlement-hud__animals-panel {
+    position: fixed;
+    top: 70px;
+    right: 7px;
+    width: min(360px, calc(100vw - 14px));
+    max-height: calc(100vh - 84px);
   }
 
   .settlement-hud__clock-time {
@@ -3414,7 +3710,7 @@ select:focus-visible {
   }
 
   .settlement-hud {
-    grid-template-columns: 42px 32px minmax(0, 1fr) 36px;
+    grid-template-columns: 42px 32px minmax(0, 1fr) 34px 36px;
   }
 
   .settlement-hud__body {

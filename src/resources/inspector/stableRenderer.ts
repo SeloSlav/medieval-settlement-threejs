@@ -36,6 +36,10 @@ export function renderStableInspector(
   }
 
   const housed = occupiedSlots.size;
+  const posted = [...occupiedSlots.values()]
+    .filter((ox) => ox.assignedBuildingId != null)
+    .length;
+  const automaticPool = housed - posted;
   const openSlots = Math.max(0, STABLE_OX_SLOTS - housed);
   const treasuryGold = Math.max(0, context.resourceTotals.gold);
   const fire = fireForTarget(
@@ -50,9 +54,9 @@ export function renderStableInspector(
   const status = fire
     ? ['Dispatch suspended during fire recovery', 'warning'] as const
     : atCapacity
-      ? ['Three oxen housed · automatic dispatch active', 'ok'] as const
+      ? [`Three oxen housed · ${posted} posted, ${automaticPool} automatic`, 'ok'] as const
       : housed > 0
-        ? [`${housed} ${housed === 1 ? 'ox' : 'oxen'} housed · ${openSlots} ${openSlots === 1 ? 'bay' : 'bays'} open`, 'active'] as const
+        ? [`${housed} ${housed === 1 ? 'ox' : 'oxen'} housed · ${posted} posted, ${automaticPool} automatic`, 'active'] as const
         : treasuryShort
           ? ['Stable empty · treasury cannot fund an ox', 'warning'] as const
           : ['Stable ready · three ox bays open', 'idle'] as const;
@@ -69,7 +73,7 @@ export function renderStableInspector(
     const ox = occupiedSlots.get(slot);
     return `<li class="stable-ox-slot" data-stable-ox-slot="${slot}" data-state="${ox ? 'occupied' : 'open'}">
       <span class="stable-ox-slot__badge" aria-hidden="true">${ox ? 'OX' : '+'}</span>
-      <span class="stable-ox-slot__copy"><strong>Bay ${BAY_LABELS[slot] ?? slot + 1}</strong><small>${ox ? 'Ox housed · dispatch ready' : 'Open stall'}</small></span>
+      <span class="stable-ox-slot__copy"><strong>Bay ${BAY_LABELS[slot] ?? slot + 1}</strong><small>${ox ? ox.assignedBuildingId == null ? 'Automatic pool · dispatch ready' : 'Posted to a workplace' : 'Open stall'}</small></span>
     </li>`;
   }).join('');
 
@@ -83,14 +87,15 @@ export function renderStableInspector(
       ${buildingRoadAccessRow(context.worldQueries, building)}
       ${buildingExtentRow(building.kind)}
       <li data-inspector-primary><span>Draft team</span><span>${housed} / ${STABLE_OX_SLOTS} oxen · ${openSlots} open ${openSlots === 1 ? 'bay' : 'bays'}</span></li>
-      <li><span>Assignment</span><span>Automatic · oxen cannot be assigned individually</span></li>
+      <li><span>Posting</span><span>${posted} posted until changed · ${automaticPool} in the automatic assistance pool</span></li>
+      <li><span>Controls</span><span>Set posted counts from any eligible workplace card</span></li>
       <li><span>Work effect</span><span>One eligible worker receives one ox; production yield or hauling inventory is doubled</span></li>
       <li><span>Upkeep</span><span>Feed and water are abstracted · stable oxen never draw herd hay or grain</span></li>
       <li><span>Resting</span><span>Idle oxen return to their authored stable bays</span></li>
     `,
     supplementalPanelHtml: `
       <div class="inspector-action-panel stable-ox-panel" data-inspector-panel-title="Ox team">
-        <p class="resource-inspector-note">The dispatcher pairs housed oxen with useful active work. Productive crews and haulers are considered automatically; unneeded oxen rest here.</p>
+        <p class="resource-inspector-note">Post oxen persistently from an eligible workplace card. Every unposted ox remains in the automatic assistance pool and may help useful active work elsewhere.</p>
         <ol class="stable-ox-slots" aria-label="Stable ox bays">${slotIndicators}</ol>
         <div class="resource-action-row">
           <button type="button" class="resource-action-button" data-purchase-ox aria-label="Purchase one stable ox for ${STABLE_OX_PURCHASE_GOLD} gold" ${purchaseDisabled ? 'disabled' : ''}>Buy ox · ${renderResourceAmount('gold', STABLE_OX_PURCHASE_GOLD, { compact: true })}</button>

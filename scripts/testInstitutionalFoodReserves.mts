@@ -42,20 +42,26 @@ assert.equal(
   'a very large territory must not lock more than half the producer capacity',
 );
 assert.equal(institutionalFoodSurplus(120, 100, 120), 60);
-assert.equal(livestockHoldingProtectsFeedOats('pastoral_farmstead'), true);
-assert.equal(livestockHoldingProtectsFeedOats('swineherd'), true);
-assert.equal(livestockHoldingProtectsFeedOats('granary'), false);
+assert.equal(livestockHoldingProtectsFeedOats('pastoral_farmstead', true), true);
+assert.equal(livestockHoldingProtectsFeedOats('swineherd', true), true);
+assert.equal(livestockHoldingProtectsFeedOats('pastoral_farmstead', false), false);
+assert.equal(livestockHoldingProtectsFeedOats('granary', true), false);
 assert.equal(
-  institutionalDispatchableFoodStock('pastoral_farmstead', 30, 18),
+  institutionalDispatchableFoodStock('pastoral_farmstead', 30, 18, true),
   12,
   'a pastoral holding must keep locally staged feed oats out of institutional food carts',
 );
 assert.equal(
-  institutionalDispatchableFoodStock('swineherd', 8, 20),
+  institutionalDispatchableFoodStock('swineherd', 8, 20, true),
   0,
   'a swine holding must not expose more edible stock than remains after its local oats',
 );
-assert.equal(institutionalDispatchableFoodStock('granary', 30, 18), 30);
+assert.equal(
+  institutionalDispatchableFoodStock('pastoral_farmstead', 30, 18, false),
+  30,
+  'an empty holding must release its oats back to ordinary institutional food logistics',
+);
+assert.equal(institutionalDispatchableFoodStock('granary', 30, 18, true), 30);
 assert.deepEqual(
   granaryDispatchOrder(true),
   ['households', 'preservation'],
@@ -189,6 +195,7 @@ const livestockInspector = fs.readFileSync(
   'utf8',
 );
 const resourceTotals = fs.readFileSync('src/resources/resourceTotals.ts', 'utf8');
+const worldQueries = fs.readFileSync('src/resources/WorldQueries.ts', 'utf8');
 const granaryInspector = fs.readFileSync(
   'src/resources/inspector/expandedBuildingRenderer.ts',
   'utf8',
@@ -254,18 +261,23 @@ assert.match(
 assert.match(supplyPolicy, /pub fn granary_dispatch_order/);
 assert.match(
   supplyPolicy,
-  /pub fn livestock_holding_protects_feed_oats[\s\S]{0,180}"pastoral_farmstead" \| "swineherd"/,
-  'the authoritative policy must recognize both livestock holding kinds',
+  /pub fn livestock_holding_protects_feed_oats[\s\S]{0,220}has_feed_commitment && matches!\(source_kind, "pastoral_farmstead" \| "swineherd"\)/,
+  'the authoritative policy must protect both livestock kinds only while they have feed commitments',
 );
 assert.match(
   expandedEconomy,
-  /commodity == CommodityKind::OatGrain[\s\S]{0,100}livestock_holding_protects_feed_oats\(&source\.kind\)[\s\S]{0,160}continue/,
+  /commodity == CommodityKind::OatGrain && protects_feed_oats[\s\S]{0,80}continue/,
   'institutional dispatch must not select protected livestock-local oats as a food cart cargo',
 );
 assert.match(
   expandedEconomy,
-  /institutional_dispatchable_food_stock\([\s\S]{0,100}&source\.kind,[\s\S]{0,100}source\.oat_grain/,
-  'institutional source surplus must subtract livestock-local oats before household protection',
+  /fn livestock_source_has_feed_commitment[\s\S]{0,300}livestock_herd\(\)[\s\S]{0,160}head_count > 0/,
+  'authoritative oat protection must be backed by a live herd row rather than building kind alone',
+);
+assert.match(
+  expandedEconomy,
+  /institutional_dispatchable_food_stock\([\s\S]{0,100}&source\.kind,[\s\S]{0,100}source\.oat_grain,[\s\S]{0,100}livestock_source_has_feed_commitment/,
+  'institutional source surplus must subtract livestock-local oats only with a live feed commitment',
 );
 assert.match(supplyPolicy, /pub enum InstitutionalFoodDispatchDuty/);
 assert.match(supplyPolicy, /CriticalGuard[\s\S]*PreservationBuffer[\s\S]*GuardReserve[\s\S]*GranaryIntake/);
@@ -318,8 +330,13 @@ assert.match(guardhouseInspector, /becomes an emergency claim/);
 assert.match(guardhouseInspector, /None until polearms arm the company/);
 assert.match(
   resourceTotals,
-  /livestockHoldingProtectsFeedOats\(building\.kind\)[\s\S]{0,100}reservedOatGrain \+=/,
-  'settlement totals must reserve oats physically staged at livestock holdings',
+  /livestockHoldingProtectsFeedOats\([\s\S]{0,80}building\.kind,[\s\S]{0,120}livestockHerds\?\.get\(building\.id\)\?\.headCount[\s\S]{0,120}reservedOatGrain \+=/,
+  'settlement totals must reserve livestock-local oats only for holdings with live animals',
+);
+assert.match(
+  worldQueries,
+  /livestockHerds\.get\(source\.id\)\?\.headCount[\s\S]{0,180}institutionalDispatchableFoodStock\([\s\S]{0,180}hasFeedCommitment/,
+  'client dispatch previews must use the same live-herd commitment as the server',
 );
 assert.match(
   resourceTotals,

@@ -24,6 +24,7 @@ import {
   projectedLivestockCullYield,
 } from '../../economy/livestockPolicy.ts';
 import {
+  livestockLaborForecastByBuilding,
   livestockStoredFodderOatEquivalent,
   projectLivestockFodderHolding,
 } from '../../economy/livestockFodder.ts';
@@ -177,6 +178,14 @@ export function renderLivestockBuildingInspector(
     context.getParishPolicy?.().sabbathObservanceEnabled
       && settlementHasStaffedChapel(context.gameState),
   );
+  const activeTrip = context.worldQueries.getActiveDeliveryTrip(building);
+  const laborForecast = livestockLaborForecastByBuilding(context.gameState).get(
+    building.id,
+  );
+  const onsiteLabor = laborForecast?.onsiteHumanWorkers
+    ?? onsiteBuildingLabor(building, activeTrip);
+  const pairedOxen = laborForecast?.pairedOxen ?? 0;
+  const effectiveLabor = laborForecast?.effectiveWorkers ?? onsiteLabor;
   const fodderPlan = herd
     ? projectLivestockFodderHolding(
       building,
@@ -185,6 +194,7 @@ export function renderLivestockBuildingInspector(
       sabbathObserved,
       month,
       clock.monthDay,
+      laborForecast,
     )
     : null;
   const milkUse = livestockMilkUsePolicy(building.processorOutputTargetPercent);
@@ -236,11 +246,9 @@ export function renderLivestockBuildingInspector(
   const inboundSalt = inboundTrip?.cargoKind === 'salt'
     ? Math.max(0, inboundTrip.amount)
     : 0;
-  const activeTrip = context.worldQueries.getActiveDeliveryTrip(building);
-  const onsiteLabor = onsiteBuildingLabor(building, activeTrip);
   const headsPerWorker = herd ? livestockHeadsPerWorker(herd.species) : 0;
   const careCapacity = herd
-    ? livestockCareCapacity(herd.species, onsiteLabor)
+    ? livestockCareCapacity(herd.species, effectiveLabor)
     : 0;
   const troughWaterPerCycle = herd
     ? livestockWaterRequiredPerCycle(herd.species, herd.headCount)
@@ -265,6 +273,7 @@ export function renderLivestockBuildingInspector(
     building.kind,
     edibleFoodStock(building),
     building.oatGrain ?? 0,
+    (herd?.headCount ?? 0) > 0,
   );
   const institutionalSurplus = institutionalFoodSurplus(
     dispatchableFoodStock,
@@ -324,14 +333,16 @@ export function renderLivestockBuildingInspector(
     }
     if (troughWater + 1e-6 < troughWaterPerCycle) return 'Trough water is short';
     if (careCapacity < herd.headCount) {
-      return `Herders can care for ${careCapacity} of ${herd.headCount} head`;
+      return pairedOxen > 0
+        ? `Ox-assisted crew can care for ${careCapacity} of ${herd.headCount} head`
+        : `Herders can care for ${careCapacity} of ${herd.headCount} head`;
     }
     if (winterReserveAtRisk) {
       return `Winter grain supplement short ${fodderPlan!.winterReserveShortfall.toFixed(1)}`;
     }
     if (herd.species === 'sheep' && shearingWindow && !shornThisYear) {
       if (shearingStorageBlocked) {
-        return `Shearing needs ${projectedFleece.toFixed(1)} free wool storage`;
+        return `Shearing waits for full-clip room · ${projectedFleece.toFixed(1)} needed / ${woolRoom.toFixed(1)} free`;
       }
       if (shearingFlockBlocked) return 'Shearing waiting for a healthy supplied flock';
       return 'Annual shearing underway';
@@ -454,9 +465,9 @@ export function renderLivestockBuildingInspector(
       : building.assignedLabor <= 0
       ? 'The meadow allocation is configured, but no hay is cut while the holding is unstaffed.'
       : isLivestockHaymakingMonth(month)
-        ? `${fodderPlan.haymakingDaysRemaining} cutting days remain at current staffing, projecting ${fodderPlan.projectedHayStock.toFixed(1)} / ${LIVESTOCK_HAY_STORAGE_CAPACITY} in the loft; drought can reduce the cut.`
+        ? `${fodderPlan.haymakingDaysRemaining} cutting days remain at current ${pairedOxen > 0 ? 'ox-assisted ' : ''}staffing, projecting ${fodderPlan.projectedHayStock.toFixed(1)} / ${LIVESTOCK_HAY_STORAGE_CAPACITY} in the loft; drought can reduce the cut.`
         : month < LIVESTOCK_HAYMAKING_START_MONTH
-          ? `At current staffing, the coming hay season projects ${fodderPlan.projectedHayStock.toFixed(1)} / ${LIVESTOCK_HAY_STORAGE_CAPACITY} in the loft; drought can reduce the cut.`
+          ? `At current ${pairedOxen > 0 ? 'ox-assisted ' : ''}staffing, the coming hay season projects ${fodderPlan.projectedHayStock.toFixed(1)} / ${LIVESTOCK_HAY_STORAGE_CAPACITY} in the loft; drought can reduce the cut.`
           : `This year's cutting season has ended with ${Math.round(fodderPlan.hayStock)} / ${Math.round(LIVESTOCK_HAY_STORAGE_CAPACITY)} in the loft.`;
   const haymakingControls = herd && building.kind === 'pastoral_farmstead' && fodderPlan
     ? `<div class="inspector-action-panel" data-inspector-panel-title="Haymaking">
@@ -526,7 +537,7 @@ export function renderLivestockBuildingInspector(
     : '';
   const dairySaltRow = building.kind !== 'pastoral_farmstead' || !fodderPlan
     ? ''
-    : `<li><span>Cheese salt</span><span>${Math.round(fodderPlan.dairySaltStock)} onsite${inboundSalt > 0.001 ? ` + ${Math.round(inboundSalt)} inbound` : ''} / ${Math.ceil(fodderPlan.dairySaltTarget)} working target · ${renderResourceAmount('salt', fodderPlan.dairySaltPerDay, { compact: true, suffix: '/day' })} at current herd and staffing · ${formatProvisionRunway(fodderPlan.dairySaltRunwayDays)} onsite</span></li>
+    : `<li><span>Cheese salt</span><span>${Math.round(fodderPlan.dairySaltStock)} onsite${inboundSalt > 0.001 ? ` + ${Math.round(inboundSalt)} inbound` : ''} / ${Math.ceil(fodderPlan.dairySaltTarget)} working target · ${renderResourceAmount('salt', fodderPlan.dairySaltPerDay, { compact: true, suffix: '/day' })} at current herd and ${pairedOxen > 0 ? 'ox-assisted ' : ''}staffing · ${formatProvisionRunway(fodderPlan.dairySaltRunwayDays)} onsite</span></li>
       <li><span>Salt logistics</span><span>${inboundSalt > 0.001
         ? `Salt cart ${formatTripPhaseLabel(inboundTrip!.phase).toLowerCase()} from ${context.worldQueries.getBuildingLabel(context.worldQueries.getBuilding(inboundTrip!.buildingId)?.kind ?? 'marketplace')}`
         : 'Road-linked mine or marketplace carts share salt between smokehouses and pastoral holdings by runway and road distance'} · empty salt stops farmhouse cheese, not fresh milk or herd care</span></li>`;
@@ -555,7 +566,7 @@ export function renderLivestockBuildingInspector(
       <li><span>Pastures</span><span>${pastures.length} · ${Math.round(pastureArea)} m² fenced</span></li>
       <li><span>Main holding</span><span>Winter shelter, local hayloft, direct-grain store, purchase point, and separate water trough</span></li>
       <li><span>Feeding rule</span><span>${feedingRule}</span></li>
-      <li><span>Herding care</span><span>${herd ? `${careCapacity} / ${herd.headCount} head covered by ${onsiteLabor} onsite worker${onsiteLabor === 1 ? '' : 's'} · ${headsPerWorker} head/worker` : 'Choose a species first'}</span></li>
+      <li><span>Herding care</span><span>${herd ? `${careCapacity} / ${herd.headCount} head covered by ${onsiteLabor} onsite worker${onsiteLabor === 1 ? '' : 's'}${pairedOxen > 0 ? ` + ${pairedOxen} paired stable ox${pairedOxen === 1 ? '' : 'en'} = ${effectiveLabor} effective workers` : ''} · ${headsPerWorker} head/${pairedOxen > 0 ? 'effective ' : ''}worker` : 'Choose a species first'}</span></li>
       <li><span>Water trough</span><span>${herd ? `${troughWater.toFixed(1)} / ${Math.round(storageCaps.water ?? 0)} water · ${troughWaterPerCycle.toFixed(2)} needed/cycle · ${Number.isFinite(troughCycles) ? troughCycles.toFixed(1) : '∞'} cycles onsite` : 'Not stocked'}</span></li>
       <li><span>Health</span><span>${herd && herd.headCount > 0 ? `${healthPercent}%` : 'Not stocked'}</span></li>
       <li><span>Breeding cycle</span><span>${herd ? herd.headCount < LIVESTOCK_MINIMUM_BREEDING_HEADS ? `Needs at least ${LIVESTOCK_MINIMUM_BREEDING_HEADS} head` : `${breedingPercent}%` : 'Not started'}</span></li>
@@ -582,7 +593,7 @@ export function renderLivestockBuildingInspector(
         ? `${Math.round(herd.lastWoolOutput ?? 0)} wool stored in Year ${clock.year}`
         : shearingWindow
           ? shearingStorageBlocked
-            ? `Waiting for ${projectedFleece.toFixed(1)} free storage · ${woolRoom.toFixed(1)} available`
+            ? `Waiting for full-clip room · ${projectedFleece.toFixed(1)} needed / ${woolRoom.toFixed(1)} free · other husbandry continues`
             : shearingFlockBlocked
               ? 'Waiting for healthy, supplied sheep'
               : `Open now · ${projectedFleece.toFixed(1)} wool expected with full-clip room secured`

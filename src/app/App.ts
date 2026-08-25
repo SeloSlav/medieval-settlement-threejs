@@ -48,6 +48,7 @@ import type { WorldMapUiBundle } from './worldMapIcons.ts';
 import { buildBuildingWorldMapMarkers } from '../map/worldMapMarkers.ts';
 import type { DeliveryAgentRenderer } from '../logistics/DeliveryAgentRenderer.ts';
 import type { FireEffectsRenderer } from '../fires/FireEffectsRenderer.ts';
+import { fireDisabledBuildingIds } from '../fires/fireIncident.ts';
 import type { VillagerRenderer } from '../settlement/VillagerRenderer.ts';
 import { raidWithdrawingCartCount } from '../logistics/deliveryTrips.ts';
 import { BuildToolbar, type ToolbarStats } from '../ui/BuildToolbar.ts';
@@ -128,6 +129,7 @@ import {
 } from './startupDiagnostics.ts';
 import { formatDawnReport, isDawnReportRelevant } from '../economy/nightPolicy.ts';
 import { deriveLordReportTransitions } from '../ui/lordReports.ts';
+import { buildSettlementAnimalsView } from '../ui/settlementAnimals.ts';
 import { Vector3 } from 'three';
 
 export type AppFrameProfilePhase = 'strategic' | 'settlement' | 'road-eye';
@@ -1055,6 +1057,7 @@ export class App {
         snapshot.simTick,
       );
       this.toolbar?.settlementHud.clearProvisioningState();
+      this.toolbar?.settlementHud.clearAnimalsState();
       this.syncVisualQaFoundersCampFixture();
       this.syncToolbar();
       return;
@@ -1079,6 +1082,12 @@ export class App {
     if (this.liveContext) {
       this.liveContext.gameState = state;
     }
+    this.toolbar?.settlementHud.setAnimalsState(buildSettlementAnimalsView(
+      state.stableOxen.values(),
+      state.buildings,
+      state.deliveryTrips.values(),
+      fireDisabledBuildingIds(state.fireIncidents.values()),
+    ));
 
     if (!this.snapshotApplierDeps) return;
 

@@ -46,6 +46,7 @@ import {
   COMMUNITY_REACH_PALETTE,
   stableCommunityPaletteIndex,
 } from '../settlement/CommunityReachRaster.ts';
+import { SecondaryClickGesture } from '../input/SecondaryClickGesture.ts';
 
 export type { ToolbarStats };
 
@@ -115,6 +116,7 @@ export class BuildToolbar {
   private readonly buildMenuScrollCleanups: Array<() => void> = [];
   private readonly root: HTMLElement;
   private readonly compassHud: CompassHud;
+  private readonly buildMenuOutsideSecondaryClick: SecondaryClickGesture;
   private gameMenu: GameMenu | null = null;
   private firstPersonActive = false;
   private firstPersonPlacementActive = false;
@@ -158,12 +160,19 @@ export class BuildToolbar {
       || this.roadSnapControl.contains(target)
     ) return;
 
+    if (this.buildMenuOutsideSecondaryClick.begin(event)) return;
+
     this.closeAllBuildMenus();
     if (!this.root.contains(target)) {
       // A world click dismisses the open palette without placing the previously active tool.
       event.preventDefault();
       event.stopPropagation();
     }
+  };
+  private readonly onBuildMenuOutsideSecondaryClick = (event: MouseEvent): void => {
+    if (!this.isAnyBuildMenuOpen()) return;
+    event.preventDefault();
+    this.closeAllBuildMenus();
   };
   private readonly buildMenuToggle: DockToggle;
   private readonly dockToggles: DockToggle[];
@@ -418,6 +427,9 @@ export class BuildToolbar {
     `);
 
     this.root = root;
+    this.buildMenuOutsideSecondaryClick = new SecondaryClickGesture({
+      onClick: this.onBuildMenuOutsideSecondaryClick,
+    });
     this.onToggleCityAdministration = handlers.onToggleCityAdministration;
     this.requestGameSpeed = (speed) => {
       if (!this.gameplayEnabled) return;
@@ -922,6 +934,7 @@ export class BuildToolbar {
   }
 
   dispose(): void {
+    this.buildMenuOutsideSecondaryClick.dispose();
     window.removeEventListener('keydown', this.onKeyDown, true);
     window.removeEventListener('mousedown', this.onBuildMenuOutsideMouseDown, true);
     window.removeEventListener('pointerdown', this.onDeleteOutsidePointerDown, true);
@@ -979,6 +992,7 @@ export class BuildToolbar {
   private setOverlayMenuOpen(open: boolean): void {
     const allowed = open && this.gameplayEnabled && !this.cropSuitabilityActive;
     if (this.overlayMenuOpen === allowed) return;
+    if (!allowed) this.buildMenuOutsideSecondaryClick.cancel();
     if (allowed) {
       this.setBuildMenuOpen(false);
     }
@@ -992,6 +1006,7 @@ export class BuildToolbar {
   private setBuildMenuOpen(open: boolean): void {
     const allowed = open && this.gameplayEnabled;
     if (this.buildMenuOpen === allowed) return;
+    if (!allowed) this.buildMenuOutsideSecondaryClick.cancel();
     if (allowed) {
       this.beginBrowsingBuildMenu();
       // B always begins from the civic palette, even if a prior browsing session

@@ -81,6 +81,7 @@ import {
   pannageHoldingHeadCapacity,
   pastureAreaHeadCapacity,
 } from './pastureCapacity.ts';
+import { SecondaryClickGesture } from '../input/SecondaryClickGesture.ts';
 
 const MIN_CLICK_DISTANCE = 1.5;
 const PREVIEW_VALIDATION_INTERVAL_MS = 110;
@@ -174,10 +175,14 @@ export class FarmFieldTool {
   private validationDirty = false;
   private lastValidationTime = 0;
   private validation: Validation = { ok: false, reason: 'too_small', corners: null };
+  private readonly secondaryClickGesture: SecondaryClickGesture;
 
   constructor(options: FarmFieldToolOptions) {
     this.options = options;
     this.preview = new FarmFieldPreview(options.getHeightAt);
+    this.secondaryClickGesture = new SecondaryClickGesture({
+      onClick: this.onSecondaryClick,
+    });
     options.domElement.addEventListener('mousedown', this.onPointerDown, { capture: true });
     options.domElement.addEventListener('mousemove', this.onPointerMove);
     options.domElement.addEventListener('mouseenter', this.onPointerEnter);
@@ -199,6 +204,7 @@ export class FarmFieldTool {
 
   setMode(mode: LandParcelMode, farmsteadId: string | null): void {
     if (this.mode !== mode || this.farmsteadId !== farmsteadId) {
+      this.secondaryClickGesture.cancel();
       this.mode = mode;
       this.farmsteadId = farmsteadId;
       this.clearDraft();
@@ -222,8 +228,8 @@ export class FarmFieldTool {
     return this.enabled && !this.options.isBlocked() ? 'crosshair' : null;
   }
 
-  shouldBlockCameraInput(event: MouseEvent | WheelEvent): boolean {
-    return this.enabled && !this.options.isBlocked() && event instanceof MouseEvent && event.button === 2;
+  shouldBlockCameraInput(_event: MouseEvent | WheelEvent): boolean {
+    return false;
   }
 
   setEnabled(enabled: boolean): void {
@@ -231,6 +237,7 @@ export class FarmFieldTool {
     if (enabled === this.enabled) return;
     this.enabled = enabled;
     if (!enabled) {
+      this.secondaryClickGesture.cancel();
       this.clearDraft();
       this.farmsteadId = null;
     }
@@ -544,6 +551,7 @@ export class FarmFieldTool {
   }
 
   dispose(): void {
+    this.secondaryClickGesture.dispose();
     this.options.domElement.removeEventListener('mousedown', this.onPointerDown, { capture: true });
     this.options.domElement.removeEventListener('mousemove', this.onPointerMove);
     this.options.domElement.removeEventListener('mouseenter', this.onPointerEnter);
@@ -572,13 +580,7 @@ export class FarmFieldTool {
 
   private readonly onPointerDown = (event: MouseEvent): void => {
     if (!this.enabled || this.options.isBlocked()) return;
-    if (event.button === 2) {
-      event.preventDefault();
-      event.stopImmediatePropagation();
-      if (this.hasDraft()) this.undoLastStep();
-      else this.setEnabled(false);
-      return;
-    }
+    if (this.secondaryClickGesture.begin(event)) return;
     if (event.button !== 0 || event.altKey) return;
     const picked = this.options.terrainProjector.pick(event.clientX, event.clientY);
     if (!picked) return;
@@ -599,6 +601,13 @@ export class FarmFieldTool {
     }
     this.refreshPreview();
     this.options.onModeChanged();
+  };
+
+  private readonly onSecondaryClick = (event: MouseEvent): void => {
+    if (!this.enabled || this.options.isBlocked()) return;
+    event.preventDefault();
+    if (this.hasDraft()) this.undoLastStep();
+    else this.setEnabled(false);
   };
 
   private readonly onKeyDown = (event: KeyboardEvent): void => {

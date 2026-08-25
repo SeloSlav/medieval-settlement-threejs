@@ -9,23 +9,35 @@
 }
 
 .resource-inspector-labor-row {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  justify-content: space-between;
   gap: 12px;
+  min-width: 0;
   color: var(--text);
   font-size: 13px;
 }
 
+.resource-inspector-labor-label {
+  min-width: 0;
+  overflow: hidden;
+}
+
 .resource-inspector-labor-controls {
   display: flex;
+  flex: 0 0 auto;
   align-items: center;
   gap: 8px;
+  min-width: 0;
+  max-width: 100%;
+  white-space: nowrap;
 }
 
 .resource-inspector-labor-button {
+  flex: 0 0 28px;
   width: 28px;
   height: 28px;
+  padding: 0;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--panel-2);
@@ -45,6 +57,21 @@
   color: var(--muted);
   font-size: 12px;
   line-height: 1.4;
+}
+
+.resource-inspector-assignment-copy {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+  line-height: 1.15;
+}
+
+.resource-inspector-assignment-copy small {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .resource-inspector-panel {

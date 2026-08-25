@@ -32,6 +32,7 @@ import {
 } from '../src/economy/livestockPolicy.ts';
 import {
   computeSettlementLivestockFodderPlan,
+  livestockLaborForecastByBuilding,
   livestockCyclesPerCalendarDay,
   livestockStoredFodderOatEquivalent,
   livestockStoredFodderValue,
@@ -460,7 +461,13 @@ assert.ok(
 assert.ok(Math.abs(fodderPlan.winterReserveTarget - fodderPlan.winterGrainNeed) < 1e-9);
 assert.ok(Math.abs(fodderPlan.winterReserveStock - fodderPlan.winterReserveTarget) < 1e-9);
 assert.equal(fodderPlan.winterReserveShortfall, 0);
-assert.ok(Math.abs(fodderPlan.productiveHeads - 7.2) < 1e-9);
+assert.ok(
+  Math.abs(
+    fodderPlan.productiveHeads
+      - CATTLE_HEADS_PER_WORKER * fodderHerd.health,
+  ) < 1e-9,
+  'dairy forecast must respect the current care crew capacity',
+);
 assert.ok(
   Math.abs(
     fodderPlan.dairyPreservedFoodPerDay
@@ -583,12 +590,67 @@ const twoWorkerSummerPlan = projectLivestockFodderHolding(
   1,
 );
 assert.ok(Math.abs(twoWorkerSummerPlan.hayOutputPerDay - summerPlan.hayOutputPerDay * 2) < 1e-9);
-assert.equal(
-  twoWorkerSummerPlan.dairyPreservedFoodPerDay,
-  summerPlan.dairyPreservedFoodPerDay,
-  'workers may cut more hay but must not accelerate milk cycles',
+assert.ok(
+  twoWorkerSummerPlan.dairyPreservedFoodPerDay
+    > summerPlan.dairyPreservedFoodPerDay,
+  'a second worker should bring the eighth cow into care',
+);
+assert.ok(
+  twoWorkerSummerPlan.dairyPreservedFoodPerDay
+    < summerPlan.dairyPreservedFoodPerDay * 2,
+  'more care coverage must not accelerate the fixed animal cycle',
 );
 assert.equal(twoWorkerSummerPlan.winterGrainNeed, summerPlan.winterGrainNeed);
+
+const stableBuilding: BuildingState = {
+  ...buildingFixture('building-stable', 0, 0),
+  kind: 'stable',
+  x: -5,
+};
+const oxLaborForecast = livestockLaborForecastByBuilding({
+  buildings: new Map([
+    [fodderBuilding.id, fodderBuilding],
+    [stableBuilding.id, stableBuilding],
+  ]),
+  stableOxen: new Map([[
+    'ox-1',
+    {
+      id: 'ox-1',
+      stableId: stableBuilding.id,
+      slot: 0,
+      assignedBuildingId: fodderBuilding.id,
+    },
+  ]]),
+  deliveryTrips: new Map(),
+  fireIncidents: new Map(),
+}).get(fodderBuilding.id);
+assert.deepEqual(oxLaborForecast, {
+  onsiteHumanWorkers: 1,
+  pairedOxen: 1,
+  effectiveWorkers: 2,
+});
+const oxAssistedSummerPlan = projectLivestockFodderHolding(
+  fodderBuilding,
+  summerHerd,
+  1,
+  false,
+  6,
+  1,
+  oxLaborForecast,
+);
+assert.equal(oxAssistedSummerPlan.pairedOxen, 1);
+assert.equal(oxAssistedSummerPlan.effectiveWorkers, 2);
+assert.ok(
+  Math.abs(
+    oxAssistedSummerPlan.hayOutputPerDay - summerPlan.hayOutputPerDay * 2,
+  ) < 1e-9,
+  'one paired stable ox must add one worker-equivalent to haymaking',
+);
+assert.equal(
+  oxAssistedSummerPlan.dairyPreservedFoodPerDay,
+  twoWorkerSummerPlan.dairyPreservedFoodPerDay,
+  'the same effective labor must govern dairy care coverage',
+);
 
 const sabbathSummerPlan = projectLivestockFodderHolding(
   fodderBuilding,
@@ -862,24 +924,24 @@ assert.match(settlementHud, /preferred direct grain supplement/);
 assert.match(settlementHud, /No mill, bakery, or separate feed recipe required/);
 assert.match(
   buildMenuCards,
-  /pastoral_farmstead:[\s\S]{0,320}hay before direct oats in winter[\s\S]{0,180}trough water is separate/i,
+  /pastoral_farmstead:[\s\S]{0,260}graze, cut summer hay, use hay before oats in winter[\s\S]{0,160}trough water is separate/i,
 );
 assert.match(
   buildMenuCards,
-  /swineherd:[\s\S]{0,260}Seasonal mast feeds them first[\s\S]{0,160}direct oats/i,
+  /swineherd:[\s\S]{0,240}woodland mast before direct oats[\s\S]{0,160}trough water is separate/i,
 );
 assert.match(
   buildMenuCards,
-  /stable:[\s\S]{0,260}feed and water upkeep is abstracted[\s\S]{0,100}never draws herd hay or grain/i,
+  /stable:[\s\S]{0,240}feed and water are abstracted[\s\S]{0,100}never draw herd hay or grain/i,
 );
 assert.match(
   stableInspector,
   /Upkeep[\s\S]{0,100}Feed and water are abstracted[\s\S]{0,100}never draw herd hay or grain/,
 );
-const oatsCrop = FARM_CROP_DEFINITIONS.find((crop) => crop.kind === 'oats');
-assert.equal(oatsCrop?.workSeason, 'spring');
+const oatsCrop = FARM_CROP_DEFINITIONS.oats;
+assert.equal(oatsCrop.workSeason, 'spring');
 assert.match(
-  oatsCrop?.calendarLabel ?? '',
+  oatsCrop.calendarLabel,
   /porridge staple or preferred direct livestock supplement/,
 );
 

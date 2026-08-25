@@ -1312,14 +1312,15 @@ pub struct LivestockHerd {
     pub last_shearing_year: u32,
 }
 
-/// A purchased draft ox housed by one completed stable. Assignment to work is
-/// derived by the simulation; this row preserves the animal's durable identity
-/// and authored resting slot without coupling it to transient worker choices.
+/// A purchased draft ox housed by one completed stable. Zero
+/// `assigned_building_id` leaves the ox in the automatic work pool; a nonzero
+/// value permanently posts it to that workplace until the player releases it.
 #[spacetimedb::table(
     accessor = stable_ox,
     public,
     index(accessor = owner, btree(columns = [owner])),
-    index(accessor = stable_id, btree(columns = [stable_id]))
+    index(accessor = stable_id, btree(columns = [stable_id])),
+    index(accessor = assigned_building_id, btree(columns = [assigned_building_id]))
 )]
 #[derive(Clone)]
 pub struct StableOx {
@@ -1330,6 +1331,9 @@ pub struct StableOx {
     pub stable_id: u64,
     /// Zero-based authored bay within the stable.
     pub slot: u8,
+    /// Permanently posted workplace, or zero for automatic best-task selection.
+    #[default(0u64)]
+    pub assigned_building_id: u64,
 }
 
 #[spacetimedb::table(accessor = road_network_state, public)]

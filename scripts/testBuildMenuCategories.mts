@@ -473,7 +473,7 @@ assert.match(tooltipSource, /label\.textContent = 'Construction cost'/);
 assert.match(tooltipSource, /tooltipCostAffordable !== 'false'/);
 assert.match(
   tooltipSource,
-  /if \(activeAnchor === anchor && !tooltip\.hidden\) \{\s*refresh\(anchor\);\s*return;/,
+  /if \(activeAnchor === anchor && !tooltip\.hidden\) \{\s*activeTrigger = trigger;\s*refresh\(anchor\);\s*return;/,
   'repeated events inside one tooltip anchor must not restart its visibility transition',
 );
 const polishedGameUiSource = fs.readFileSync('src/ui/polishedGameUi.css', 'utf8');

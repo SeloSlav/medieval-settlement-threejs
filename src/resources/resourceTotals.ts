@@ -336,7 +336,10 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
     ryeGrain += building.ryeGrain ?? 0;
     const buildingOatGrain = building.oatGrain ?? 0;
     oatGrain += buildingOatGrain;
-    if (livestockHoldingProtectsFeedOats(building.kind)) {
+    if (livestockHoldingProtectsFeedOats(
+      building.kind,
+      (state.livestockHerds?.get(building.id)?.headCount ?? 0) > 0,
+    )) {
       reservedOatGrain += Math.max(0, buildingOatGrain);
     }
     maslinGrain += building.maslinGrain ?? 0;
@@ -788,6 +791,7 @@ export function computeInTransitResourceTotals(
     + totals.aroniaJam * foodMealValue('aroniaJam')
     + totals.rosehipJam * foodMealValue('rosehipJam');
   totals.food = totals.legacyFood * foodMealValue('food')
+    + totals.oatGrain * foodMealValue('oatGrain')
     + totals.ryeBread * foodMealValue('ryeBread')
     + totals.maslinBread * foodMealValue('maslinBread')
     + totals.meat * foodMealValue('meat')

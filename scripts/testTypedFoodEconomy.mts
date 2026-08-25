@@ -206,16 +206,18 @@ const trip = (
   routePolylineJson: '[]',
 });
 const transit = computeInTransitResourceTotals([
+  trip('oats', 'oatGrain', 5),
   trip('rye-bread', 'ryeBread', 10),
   trip('meat', 'meat', 4),
   trip('cheese', 'cheese', 3),
   trip('honey', 'honey', 2),
 ]);
+assert.equal(transit.oatGrain, 5);
 assert.equal(transit.ryeBread, 10);
 assert.equal(transit.meat, 4);
 assert.equal(transit.cheese, 3);
 assert.equal(transit.preservedFood, 3);
-assert.equal(transit.food, 19);
+assert.equal(transit.food, 24);
 
 assert.equal(processorInputCommodityStock(pantry, 'food'), 6);
 assert.equal(processorInputCommodityStock(pantry, 'preservedFood'), 21);

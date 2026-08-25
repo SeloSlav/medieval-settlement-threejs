@@ -594,13 +594,23 @@ assert.ok(routineOutputStart >= 0 && routineOutputEnd > routineOutputStart);
 const routineOutputContract = serverLivestock.slice(routineOutputStart, routineOutputEnd);
 assert.match(
   routineOutputContract,
-  /let milk_to_store[\s\S]*let manure_to_store[\s\S]*let fleece_to_store/,
-  'routine milk, manure, and wool output must be capped to each physical store',
+  /let milk_to_store[\s\S]*let manure_to_store/,
+  'routine milk and manure output must be capped to each physical store',
+);
+assert.match(
+  routineOutputContract,
+  /let wool_room = whole_units[\s\S]*if fleece >= 1\.0 && wool_room \+ 1e-9 >= fleece[\s\S]*deposit_building_commodity\(building, CommodityKind::Wool, fleece\)[\s\S]*herd\.last_shearing_year = clock\.year/,
+  'annual shearing must wait until the holding can store the full clip',
+);
+assert.doesNotMatch(
+  routineOutputContract,
+  /let fleece_to_store|storable_whole_output\(\s*fleece/,
+  'annual shearing must not store a partial clip or lose the excess',
 );
 assert.doesNotMatch(
   routineOutputContract,
   /return false/,
-  'full routine-output stores must not roll back feeding, health, or mortality',
+  'full routine-output stores or a deferred clip must not roll back feeding, health, or mortality',
 );
 assert.match(
   tickContext,

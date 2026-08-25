@@ -384,6 +384,11 @@ assert.equal(annualTextiles.annualHouseholdClothDemand, 18);
 assert.equal(annualTextiles.annualClothBalance, 0);
 assert.equal(annualTextiles.roadPlan, null);
 assert.match(textileChainBalanceLabel(annualTextiles), /covered/);
+const annualTextileRows = renderSettlementTextileRows(annualTextiles);
+assert.match(annualTextileRows, /1 waiting for full-clip room/);
+assert.match(annualTextileRows, /first holding waiting for full-clip room/);
+assert.match(annualTextileRows, /12\.0 wool not yet secured by current shearing readiness/);
+assert.doesNotMatch(annualTextileRows, /\d+ storage-blocked|lost excess fleece/i);
 
 const missedTextiles = computeSettlementTextilePlan({
   state: textileState,
@@ -794,9 +799,38 @@ const generatedWeaverPolicyReducer = readFileSync(
   'src/generated/set_weaver_input_policy_reducer.ts',
   'utf8',
 );
+const shearingContractStart = livestockSimulation.indexOf('// A flock is shorn once');
+const shearingContractEnd = livestockSimulation.indexOf(
+  'if herd.head_count >= LIVESTOCK_MINIMUM_BREEDING_HEADS',
+  shearingContractStart,
+);
+assert.ok(shearingContractStart >= 0, 'livestock simulation must retain the annual shearing block');
+assert.ok(
+  shearingContractEnd > shearingContractStart,
+  'annual shearing must remain a local step before breeding',
+);
+const shearingContract = livestockSimulation.slice(shearingContractStart, shearingContractEnd);
 assert.match(livestockSimulation, /herd\.last_shearing_year != clock\.year/);
-assert.match(livestockSimulation, /can_store_full_sheep_clip/);
-assert.match(livestockSimulation, /deposit_building_commodity\(building, CommodityKind::Wool/);
+assert.match(
+  shearingContract,
+  /let wool_room = whole_units\(building_commodity_room\(building, CommodityKind::Wool\)\)/,
+  'shearing must measure whole-unit room for the full annual clip',
+);
+assert.match(
+  shearingContract,
+  /if fleece >= 1\.0 && wool_room \+ 1e-9 >= fleece \{[\s\S]*deposit_building_commodity\(building, CommodityKind::Wool, fleece\)[\s\S]*herd\.last_shearing_year = clock\.year/,
+  'the flock must only be marked shorn after the full clip fits and is stored',
+);
+assert.doesNotMatch(
+  shearingContract,
+  /storable_whole_output|fleece_to_store/,
+  'shearing must defer instead of storing a partial clip and losing the remainder',
+);
+assert.doesNotMatch(
+  shearingContract,
+  /return false/,
+  'insufficient wool room must defer only shearing, not roll back feeding, health, or other husbandry',
+);
 assert.match(livestockSimulation, /CommodityKind::Wool,[\s\S]{0,120}&\["weaver"\]/);
 assert.doesNotMatch(livestockSimulation, /credit_treasury_gold/);
 assert.match(expandedEconomy, /pub fn step_weaver/);
@@ -857,13 +891,22 @@ const townHallRenderer = readFileSync(
   'src/resources/inspector/townHallRenderer.ts',
   'utf8',
 );
+const livestockBuildingRenderer = readFileSync(
+  'src/resources/inspector/livestockBuildingRenderer.ts',
+  'utf8',
+);
 assert.match(townHallRenderer, /Annual wool clip/);
 assert.match(townHallRenderer, /Shearing readiness/);
 assert.match(townHallRenderer, /Textile stores/);
 assert.match(townHallRenderer, /Textile chain/);
 assert.match(townHallRenderer, /Textile roads/);
 assert.match(townHallRenderer, /cloth\/year physically paired/);
-assert.match(townHallRenderer, /first loft without full-clip room/);
+assert.match(townHallRenderer, /first holding waiting for full-clip room/);
+assert.match(townHallRenderer, /waiting for full-clip room/);
+assert.match(livestockBuildingRenderer, /Shearing waits for full-clip room/);
+assert.match(livestockBuildingRenderer, /Waiting for full-clip room/);
+assert.match(livestockBuildingRenderer, /other husbandry continues/);
+assert.doesNotMatch(livestockBuildingRenderer, /lost excess fleece/i);
 
 console.log(
   `textile economy tests passed (${textilePerfElapsedMs.toFixed(1)} ms aggregate; ${roadTextilePerfElapsedMs.toFixed(1)} ms road-matched for 100,000 holdings)`,

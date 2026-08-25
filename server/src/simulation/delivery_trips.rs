@@ -67,8 +67,8 @@ use crate::simulation::settlement_security::{
 };
 use crate::simulation::tick_context::SimTickContext;
 use crate::simulation::{
-    claim_nearest_haul_ox, recover_stock_at, recover_stock_beside_building, release_haul_ox,
-    ReclamationStock,
+    claim_haul_ox_for_workplace, recover_stock_at, recover_stock_beside_building,
+    release_haul_ox, ReclamationStock,
 };
 use crate::supply_policy::{carpenter_cart_service_ready, construction_source_available_stock};
 use crate::tables::{Building, DeliveryTrip, FireIncident, Residence};
@@ -262,6 +262,32 @@ fn household_delivery_labor_source(origin: &Building) -> DeliveryLaborSource {
     } else {
         DeliveryLaborSource::Free
     }
+}
+
+/// A posted ox follows the workplace supplying the worker. Free haulers may
+/// use an ox posted to the cargo origin, while external merchants never do.
+fn ox_workplace_id(origin: &Building, labor_source: DeliveryLaborSource) -> u64 {
+    match labor_source {
+        DeliveryLaborSource::Free => origin.id,
+        DeliveryLaborSource::Building(building_id) => building_id,
+        DeliveryLaborSource::External => 0,
+    }
+}
+
+fn claim_trip_ox(
+    ctx: &ReducerContext,
+    tick: &SimTickContext,
+    origin: &Building,
+    labor_source: DeliveryLaborSource,
+) -> u64 {
+    claim_haul_ox_for_workplace(
+        ctx,
+        tick,
+        origin.owner,
+        ox_workplace_id(origin, labor_source),
+        origin.x,
+        origin.z,
+    )
 }
 
 fn delivery_labor_available(
@@ -825,7 +851,7 @@ pub fn try_start_delivery_trip(
         return false;
     }
 
-    let ox_id = claim_nearest_haul_ox(ctx, tick, building.owner, building.x, building.z);
+    let ox_id = claim_trip_ox(ctx, tick, building, labor_source);
     let batch = ox_amplified_cart_capacity(per_delivery_amount, delivery_workers, ox_id);
     let Some((residence_id, residence_x, residence_z, load_amount)) = pick_delivery_target(
         ctx,
@@ -909,7 +935,7 @@ pub fn try_start_market_stall_delivery_trip(
     let available = delivery_commodity
         .map(|commodity| building_commodity_stock(marketplace, commodity))
         .unwrap_or_else(|| building_delivery_stock(marketplace, need_kind));
-    let ox_id = claim_nearest_haul_ox(ctx, tick, marketplace.owner, marketplace.x, marketplace.z);
+    let ox_id = claim_trip_ox(ctx, tick, marketplace, labor_source);
     let batch = ox_amplified_cart_capacity(per_delivery_amount, delivery_workers, ox_id);
     let Some((residence_id, residence_x, residence_z, load_amount)) = pick_delivery_target(
         ctx,
@@ -1422,7 +1448,7 @@ fn try_start_building_supply_trip_with_labor(
         return false;
     }
 
-    let ox_id = claim_nearest_haul_ox(ctx, tick, origin.owner, origin.x, origin.z);
+    let ox_id = claim_trip_ox(ctx, tick, origin, labor_source);
     let batch = ox_amplified_cart_capacity(per_delivery_amount, delivery_workers, ox_id);
     let load = building_commodity_stock(origin, commodity)
         .min(target_room)
@@ -1517,7 +1543,7 @@ pub fn try_start_residence_upgrade_supply_trip(
         return false;
     };
 
-    let ox_id = claim_nearest_haul_ox(ctx, tick, origin.owner, origin.x, origin.z);
+    let ox_id = claim_trip_ox(ctx, tick, origin, DeliveryLaborSource::Free);
     let load = building_commodity_stock(origin, commodity)
         .min(reserved)
         .min(ox_amplified_cart_capacity(haul_per_worker, workers, ox_id));
@@ -1756,7 +1782,7 @@ pub fn try_start_construction_supply_trip(
         return false;
     };
 
-    let ox_id = claim_nearest_haul_ox(ctx, tick, origin.owner, origin.x, origin.z);
+    let ox_id = claim_trip_ox(ctx, tick, origin, labor_source);
     let load = construction_source_available_stock(
         &origin.kind,
         origin.carpenter_cart_service_target_trips,

@@ -1389,10 +1389,12 @@ export class WorldQueries {
     const sourceCapacity = (
       BUILDING_STORAGE_CAPS[source.kind] as { food?: number } | undefined
     )?.food ?? 0;
+    const hasFeedCommitment = (state.livestockHerds.get(source.id)?.headCount ?? 0) > 0;
     const dispatchableFoodStock = institutionalDispatchableFoodStock(
       source.kind,
       edibleFoodStock(source),
       source.oatGrain ?? 0,
+      hasFeedCommitment,
     );
     if (
       !INSTITUTIONAL_FOOD_SOURCE_KINDS.includes(

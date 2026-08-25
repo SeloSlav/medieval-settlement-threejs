@@ -338,20 +338,20 @@ pub fn institutional_food_surplus(
     (source_stock.max(0.0) - household_food_reserve(claimed_households, source_capacity)).max(0.0)
 }
 
-/// Grain staged at a livestock holding has already crossed the settlement's
-/// food-versus-fodder decision boundary. Oats remain edible while they are in
-/// general storage or at a Marketplace, but a producer-side food cart must not
-/// take them back out of a byre or sty after herders have secured them.
-pub fn livestock_holding_protects_feed_oats(source_kind: &str) -> bool {
-    matches!(source_kind, "pastoral_farmstead" | "swineherd")
+/// Grain staged at a livestock holding with live animals has crossed the
+/// settlement's food-versus-fodder decision boundary. Empty holdings release
+/// their oats back to ordinary food logistics.
+pub fn livestock_holding_protects_feed_oats(source_kind: &str, has_feed_commitment: bool) -> bool {
+    has_feed_commitment && matches!(source_kind, "pastoral_farmstead" | "swineherd")
 }
 
 pub fn institutional_dispatchable_food_stock(
     source_kind: &str,
     edible_stock: f64,
     oat_grain: f64,
+    has_feed_commitment: bool,
 ) -> f64 {
-    if livestock_holding_protects_feed_oats(source_kind) {
+    if livestock_holding_protects_feed_oats(source_kind, has_feed_commitment) {
         (edible_stock.max(0.0) - oat_grain.max(0.0)).max(0.0)
     } else {
         edible_stock.max(0.0)
@@ -948,15 +948,26 @@ mod tests {
                 "swineherd",
             ]
         );
-        assert!(livestock_holding_protects_feed_oats("pastoral_farmstead"));
-        assert!(livestock_holding_protects_feed_oats("swineherd"));
-        assert!(!livestock_holding_protects_feed_oats("granary"));
+        assert!(livestock_holding_protects_feed_oats(
+            "pastoral_farmstead",
+            true,
+        ));
+        assert!(livestock_holding_protects_feed_oats("swineherd", true));
+        assert!(!livestock_holding_protects_feed_oats(
+            "pastoral_farmstead",
+            false,
+        ));
+        assert!(!livestock_holding_protects_feed_oats("granary", true));
         assert_eq!(
-            institutional_dispatchable_food_stock("pastoral_farmstead", 30.0, 18.0),
+            institutional_dispatchable_food_stock("pastoral_farmstead", 30.0, 18.0, true),
             12.0,
         );
         assert_eq!(
-            institutional_dispatchable_food_stock("granary", 30.0, 18.0),
+            institutional_dispatchable_food_stock("pastoral_farmstead", 30.0, 18.0, false),
+            30.0,
+        );
+        assert_eq!(
+            institutional_dispatchable_food_stock("granary", 30.0, 18.0, true),
             30.0,
         );
         assert_eq!(

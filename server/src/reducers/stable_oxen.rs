@@ -1,8 +1,14 @@
+use std::collections::HashSet;
+
 use spacetimedb::{reducer, ReducerContext};
 
 use crate::balance_generated::{STABLE_OX_PURCHASE_GOLD, STABLE_OX_SLOTS};
+use crate::building_defs::building_def;
 use crate::db::*;
 use crate::economy::spend_treasury_gold;
+use crate::ox_policy::{
+    is_ox_supported_workplace, reconcile_ox_posting, OxPostingCandidate, OxPostingError,
+};
 use crate::simulation::building_fire_state;
 use crate::tables::StableOx;
 
@@ -49,6 +55,83 @@ pub fn purchase_stable_ox(ctx: &ReducerContext, stable_id: u64) -> Result<(), St
         owner,
         stable_id,
         slot,
+        assigned_building_id: 0,
     });
+    Ok(())
+}
+
+/// Sets the desired number of oxen permanently posted to one eligible
+/// workplace. Increasing draws deterministically from the unposted automatic
+/// pool; oxen already posted elsewhere or traveling on carts are never stolen.
+#[reducer]
+pub fn set_building_oxen(
+    ctx: &ReducerContext,
+    building_id: u64,
+    assigned_oxen: u32,
+) -> Result<(), String> {
+    let owner = ctx.sender();
+    let building = ctx
+        .db
+        .building()
+        .id()
+        .find(&building_id)
+        .ok_or_else(|| "Building not found.".to_string())?;
+    if building.owner != owner {
+        return Err("You do not own this building.".to_string());
+    }
+    if !building.construction_complete {
+        return Err("Finish this building before posting oxen here.".to_string());
+    }
+    if !is_ox_supported_workplace(&building.kind) {
+        return Err("This building cannot use oxen.".to_string());
+    }
+    if building_fire_state(ctx, building.id).is_some() {
+        return Err("Repair this fire-damaged building before posting oxen here.".to_string());
+    }
+    let maximum = building_def(&building.kind)
+        .map(|definition| definition.max_labor)
+        .unwrap_or(0);
+
+    let active_trip_ox_ids: HashSet<u64> = ctx
+        .db
+        .delivery_trip()
+        .owner()
+        .filter(&owner)
+        .filter_map(|trip| (trip.ox_id != 0).then_some(trip.ox_id))
+        .collect();
+    let candidates: Vec<OxPostingCandidate> = ctx
+        .db
+        .stable_ox()
+        .owner()
+        .filter(&owner)
+        .map(|ox| OxPostingCandidate {
+            ox_id: ox.id,
+            stable_id: ox.stable_id,
+            stable_slot: ox.slot,
+            assigned_building_id: ox.assigned_building_id,
+            active_trip: active_trip_ox_ids.contains(&ox.id),
+        })
+        .collect();
+    let updates = reconcile_ox_posting(&candidates, building_id, assigned_oxen, maximum).map_err(
+        |error| match error {
+            OxPostingError::AboveCapacity { maximum } => {
+                format!("This building supports at most {maximum} oxen.")
+            }
+            OxPostingError::NotEnoughUnposted { available, needed } => format!(
+                "Only {available} unposted oxen are available; {needed} are needed for this order."
+            ),
+        },
+    )?;
+
+    for update in updates {
+        let Some(mut ox) = ctx.db.stable_ox().id().find(&update.ox_id) else {
+            continue;
+        };
+        if ox.owner != owner {
+            continue;
+        }
+        ox.assigned_building_id = update.assigned_building_id;
+        ctx.db.stable_ox().id().update(ox);
+    }
     Ok(())
 }

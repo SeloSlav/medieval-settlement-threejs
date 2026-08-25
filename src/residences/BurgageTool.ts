@@ -30,6 +30,7 @@ import {
   snapBurgageBoundaryPoint,
   snapBurgageFrontagePoint,
 } from './burgagePlotSnap.ts';
+import { SecondaryClickGesture } from '../input/SecondaryClickGesture.ts';
 
 const MIN_POINT_DISTANCE = 1.2;
 const SNAP_DISTANCE = 6;
@@ -122,10 +123,14 @@ export class BurgageTool {
   private readonly undoStack: BurgagePlacementUndoEntry[] = [];
   private readonly redoStack: BurgagePlacementRedoEntry[] = [];
   private readonly layoutHudProjectionScratch = new THREE.Vector3();
+  private readonly secondaryClickGesture: SecondaryClickGesture;
 
   constructor(options: BurgageToolOptions) {
     this.options = options;
     this.preview = new BurgagePreview();
+    this.secondaryClickGesture = new SecondaryClickGesture({
+      onClick: this.onSecondaryClick,
+    });
     options.domElement.addEventListener('mousedown', this.onPointerDown, { capture: true });
     options.domElement.addEventListener('mousemove', this.onPointerMove);
     options.domElement.addEventListener('mouseenter', this.onPointerEnter);
@@ -146,9 +151,8 @@ export class BurgageTool {
     return 'crosshair';
   }
 
-  shouldBlockCameraInput(event: MouseEvent | WheelEvent): boolean {
-    if (!this.enabled || this.options.isBlocked()) return false;
-    return event instanceof MouseEvent && event.button === 2;
+  shouldBlockCameraInput(_event: MouseEvent | WheelEvent): boolean {
+    return false;
   }
 
   hasDraft(): boolean {
@@ -188,6 +192,7 @@ export class BurgageTool {
     if (this.enabled === enabled) return;
     this.enabled = enabled;
     if (!enabled) {
+      this.secondaryClickGesture.cancel();
       this.cancelDraft(false);
     } else {
       this.pointerDirty = true;
@@ -365,6 +370,7 @@ export class BurgageTool {
   }
 
   dispose(): void {
+    this.secondaryClickGesture.dispose();
     this.options.domElement.removeEventListener('mousedown', this.onPointerDown, { capture: true });
     this.options.domElement.removeEventListener('mousemove', this.onPointerMove);
     this.options.domElement.removeEventListener('mouseenter', this.onPointerEnter);
@@ -432,17 +438,7 @@ export class BurgageTool {
 
   private readonly onPointerDown = (event: MouseEvent): void => {
     if (!this.enabled || this.options.isBlocked()) return;
-
-    if (event.button === 2) {
-      event.preventDefault();
-      event.stopPropagation();
-      if (this.hasDraft()) {
-        this.undoLastStep();
-      } else {
-        this.setEnabled(false);
-      }
-      return;
-    }
+    if (this.secondaryClickGesture.begin(event)) return;
 
     if (event.button !== 0) return;
     if (event.altKey) return;
@@ -495,6 +491,16 @@ export class BurgageTool {
     }
     this.options.onModeChanged();
     this.refreshPreview();
+  };
+
+  private readonly onSecondaryClick = (event: MouseEvent): void => {
+    if (!this.enabled || this.options.isBlocked()) return;
+    event.preventDefault();
+    if (this.hasDraft()) {
+      this.undoLastStep();
+    } else {
+      this.setEnabled(false);
+    }
   };
 
   private readonly onKeyDown = (event: KeyboardEvent): void => {

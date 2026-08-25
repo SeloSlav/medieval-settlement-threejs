@@ -20,6 +20,7 @@ import {
   findDryStoneWallRoadSnap,
   type DryStoneWallRoadSnap,
 } from '../decorations/DryStoneWallRoadSnap.ts';
+import { SecondaryClickGesture } from '../input/SecondaryClickGesture.ts';
 
 const MIN_POINT_DISTANCE = 1.05;
 const MIN_COMMIT_LENGTH = 3.5;
@@ -100,6 +101,7 @@ export class RoadTool {
   private wallStartTangent: THREE.Vector3 | null = null;
   private readonly deleteRaycaster = new THREE.Raycaster();
   private readonly deletePointer = new THREE.Vector2();
+  private readonly secondaryClickGesture: SecondaryClickGesture;
 
   constructor(options: {
     domElement: HTMLElement;
@@ -117,6 +119,9 @@ export class RoadTool {
     getBuildings: () => Iterable<BuildingRoadConnectionSource>;
   }) {
     this.options = options;
+    this.secondaryClickGesture = new SecondaryClickGesture({
+      onClick: this.onSecondaryClick,
+    });
     this.preview = new RoadPreview(options.sceneManager.roadMeshBuilder, options.sceneManager.materials);
     options.sceneManager.previewGroup.add(this.preview.group);
     this.buildingConnections = new BuildingRoadConnections({
@@ -153,6 +158,7 @@ export class RoadTool {
 
   setEnabled(enabled: boolean): void {
     if (enabled && this.enabled && this.mode !== 'road') {
+      this.secondaryClickGesture.cancel();
       this.cancelDraft(false);
       this.mode = 'road';
       this.buildingConnections.setVisible(true);
@@ -176,6 +182,7 @@ export class RoadTool {
     this.options.onDeleteRequested(null);
     this.options.selection.setSelected(null);
     if (!enabled) {
+      this.secondaryClickGesture.cancel();
       this.cancelDraft(false);
       this.preview.updateCursor(null);
       this.options.sceneManager.dryStoneWallRenderer.setPreviewCursor(null);
@@ -194,6 +201,7 @@ export class RoadTool {
     }
     if (this.options.isBlocked()) return;
     if (this.enabled && this.mode === mode) return;
+    this.secondaryClickGesture.cancel();
     this.cancelDraft(false);
     this.mode = mode;
     this.enabled = true;
@@ -327,11 +335,11 @@ export class RoadTool {
 
   shouldBlockCameraInput(event: MouseEvent | WheelEvent): boolean {
     if (!this.enabled) return false;
-    if (event instanceof WheelEvent) return event.ctrlKey;
-    return event.button === 2;
+    return event instanceof WheelEvent && event.ctrlKey;
   }
 
   dispose(): void {
+    this.secondaryClickGesture.dispose();
     this.options.domElement.removeEventListener('mousedown', this.onPointerDown, true);
     window.removeEventListener('mousemove', this.onPointerMove, true);
     this.options.domElement.removeEventListener('wheel', this.onWheel, true);
@@ -345,14 +353,9 @@ export class RoadTool {
 
   private readonly onPointerDown = (event: MouseEvent): void => {
     if (!this.enabled || this.options.isBlocked()) return;
+    if (this.secondaryClickGesture.begin(event)) return;
     if (event.button === 0 && event.altKey) {
       this.requestDelete(event);
-      return;
-    }
-    if (event.button === 2) {
-      event.preventDefault();
-      event.stopPropagation();
-      this.setEnabled(false);
       return;
     }
     if (event.button !== 0) return;
@@ -388,6 +391,12 @@ export class RoadTool {
       this.preview.updateCursor(point);
     }
     this.addRoadPoint(point);
+  };
+
+  private readonly onSecondaryClick = (event: MouseEvent): void => {
+    if (!this.enabled || this.options.isBlocked()) return;
+    event.preventDefault();
+    this.setEnabled(false);
   };
 
   private readonly onPointerMove = (event: MouseEvent): void => {

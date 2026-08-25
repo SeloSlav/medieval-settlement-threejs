@@ -1326,6 +1326,28 @@ export async function bootstrapAppSession(
   const burialMarkers = new BurialMarkers(sceneManager.selectionGroup);
   let lastLocatedResource: HudResourceKind | null = null;
   let locatedResourceIndex = 0;
+  toolbar.settlementHud.setAnimalBuildingHandler((buildingId) => {
+    if (isWorldInspectionBlocked(placementGate)) {
+      toastManager.show(
+        sessionGate.isReady()
+          ? 'Finish or cancel the active tool before inspecting the animal roster.'
+          : 'Connect to the settlement before inspecting the animal roster.',
+        { variant: 'info', durationMs: 3200 },
+      );
+      return;
+    }
+    const building = liveContext.gameState.buildings.get(buildingId);
+    if (!building) {
+      toastManager.show(
+        'That animal-roster building is no longer present.',
+        { variant: 'info', durationMs: 3200 },
+      );
+      return;
+    }
+    villagerInspector.clearSelection();
+    resourceInspector.selectBuilding(building.id);
+    cameraController.focusWorldPositionAtZoom(building.x, building.z, 25);
+  });
   toolbar.settlementHud.setResourceLocator((resource) => {
     if (isWorldInspectionBlocked(placementGate)) {
       toastManager.show(

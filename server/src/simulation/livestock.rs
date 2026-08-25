@@ -475,15 +475,17 @@ fn run_livestock_cycle(
             u64::from(clock.year),
             0x574f_4f4c,
         );
-        let fleece_to_store = storable_whole_output(
-            fleece,
-            building_commodity_room(building, CommodityKind::Wool),
-        );
-        if fleece_to_store >= 1.0 {
-            herd.last_wool_output =
-                deposit_building_commodity(building, CommodityKind::Wool, fleece_to_store);
+        let wool_room = whole_units(building_commodity_room(building, CommodityKind::Wool));
+        // A fleece is one deliberate annual lot. If the loft cannot hold the
+        // complete clip, defer shearing without rolling back this cycle's
+        // feeding, water, health, breeding, or mortality.
+        if fleece >= 1.0 && wool_room + 1e-9 >= fleece {
+            let stored = deposit_building_commodity(building, CommodityKind::Wool, fleece);
+            if (stored - fleece).abs() <= 1e-9 {
+                herd.last_wool_output = stored;
+                herd.last_shearing_year = clock.year;
+            }
         }
-        herd.last_shearing_year = clock.year;
     }
 
     if herd.head_count >= LIVESTOCK_MINIMUM_BREEDING_HEADS

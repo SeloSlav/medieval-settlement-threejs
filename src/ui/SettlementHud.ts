@@ -58,6 +58,7 @@ import {
   type LordReport,
   type LordReportTarget,
 } from './lordReports.ts';
+import type { SettlementAnimalsView } from './settlementAnimals.ts';
 
 const STORES_POINTER_LEAVE_GRACE_MS = 180;
 
@@ -400,6 +401,41 @@ const SETTLEMENT_HUD_HTML = `
         </div>
       </details>
     </div>
+    <details class="settlement-hud__animals" data-animals>
+      <summary
+        class="settlement-hud__animals-summary"
+        aria-controls="settlement-animals-roster"
+        aria-expanded="false"
+        aria-label="Animals: no draft oxen"
+        data-tooltip-title="Draft animals"
+        data-tooltip="Purchased oxen can be posted permanently or left on automatic assistance."
+      >
+        <span class="settlement-hud__animals-label">Animals</span>
+        <strong class="settlement-hud__animals-status" data-animals-count>0</strong>
+      </summary>
+      <section
+        id="settlement-animals-roster"
+        class="settlement-hud__animals-panel"
+        aria-label="Draft animal roster"
+        aria-live="off"
+      >
+        <header class="settlement-hud__animals-header">
+          <strong>Draft animals</strong>
+          <span data-animals-meta>No oxen purchased</span>
+        </header>
+        <div class="settlement-hud__animals-metrics" aria-label="Ox assignment summary">
+          <span><strong data-animals-posted>0</strong> Posted</span>
+          <span><strong data-animals-automatic>0</strong> Auto</span>
+          <span><strong data-animals-working>0</strong> Working</span>
+        </div>
+        <div class="settlement-hud__animals-list" data-animals-list>
+          <p class="settlement-hud__animals-empty">Build a Stable and purchase an ox to begin the roster.</p>
+        </div>
+        <p class="settlement-hud__animals-note">
+          Posted oxen remain with one workplace until removed. Auto oxen choose the best useful task available.
+        </p>
+      </section>
+    </details>
     <details class="settlement-hud__stores" data-specialty-stores>
       <summary
         class="settlement-hud__stores-summary"
@@ -596,6 +632,14 @@ export class SettlementHud {
   private readonly fuelSupplyTotal: HTMLElement;
   private readonly goldStat: HTMLElement;
   private readonly polearmsStat: HTMLElement;
+  private readonly animals: HTMLDetailsElement;
+  private readonly animalsSummary: HTMLElement;
+  private readonly animalsCount: HTMLElement;
+  private readonly animalsMeta: HTMLElement;
+  private readonly animalsPosted: HTMLElement;
+  private readonly animalsAutomatic: HTMLElement;
+  private readonly animalsWorking: HTMLElement;
+  private readonly animalsList: HTMLElement;
   private readonly specialtyStores: HTMLDetailsElement;
   private readonly specialtyStoresSummary: HTMLElement;
   private readonly speedButtons: HTMLButtonElement[];
@@ -605,6 +649,7 @@ export class SettlementHud {
   private readonly lordReportLedger: LordReportLedger;
   private onToggleFirstPerson: (() => void) | null = null;
   private onLocateResource: ((resource: HudResourceKind) => void) | null = null;
+  private onInspectAnimalBuilding: ((buildingId: string) => void) | null = null;
   private onInspectSecurityAttention: ((
     target: ProjectedRaidTarget,
     index: number,
@@ -619,7 +664,9 @@ export class SettlementHud {
   private approvalCloseTimer: number | null = null;
   private foodStoresCloseTimer: number | null = null;
   private fuelStoresCloseTimer: number | null = null;
+  private animalsCloseTimer: number | null = null;
   private specialtyStoresCloseTimer: number | null = null;
+  private displayedAnimalsSignature: string | null = null;
   private displayedClockDate: string | null = null;
   private displayedClockFullDate: string | null = null;
   private displayedClockTime: string | null = null;
@@ -693,6 +740,14 @@ export class SettlementHud {
     this.fuelSupplyTotal = this.mustElement('[data-fuel-supply-total]');
     this.goldStat = this.mustElement('[data-resource="gold"]');
     this.polearmsStat = this.mustElement('[data-resource="polearms"]');
+    this.animals = this.mustDetails('[data-animals]');
+    this.animalsSummary = this.mustElement('[data-animals] > .settlement-hud__animals-summary');
+    this.animalsCount = this.mustElement('[data-animals-count]');
+    this.animalsMeta = this.mustElement('[data-animals-meta]');
+    this.animalsPosted = this.mustElement('[data-animals-posted]');
+    this.animalsAutomatic = this.mustElement('[data-animals-automatic]');
+    this.animalsWorking = this.mustElement('[data-animals-working]');
+    this.animalsList = this.mustElement('[data-animals-list]');
     this.specialtyStores = this.mustDetails('[data-specialty-stores]');
     this.specialtyStoresSummary = this.mustElement(
       '[data-specialty-stores] > .settlement-hud__stores-summary',
@@ -760,6 +815,13 @@ export class SettlementHud {
     this.fuelStores.addEventListener('focusin', this.onFuelStoresFocusIn);
     this.fuelStores.addEventListener('focusout', this.onFuelStoresFocusOut);
     this.fuelStat.addEventListener('click', this.onFuelStoresSummaryClick);
+    this.animals.addEventListener('toggle', this.onAnimalsToggle);
+    this.animals.addEventListener('pointerenter', this.onAnimalsPointerEnter);
+    this.animals.addEventListener('pointerleave', this.onAnimalsPointerLeave);
+    this.animals.addEventListener('focusin', this.onAnimalsFocusIn);
+    this.animals.addEventListener('focusout', this.onAnimalsFocusOut);
+    this.animals.addEventListener('click', this.onAnimalsClick);
+    this.animalsSummary.addEventListener('click', this.onAnimalsSummaryClick);
     this.specialtyStores.addEventListener('toggle', this.onSpecialtyStoresToggle);
     this.specialtyStores.addEventListener('pointerenter', this.onSpecialtyStoresPointerEnter);
     this.specialtyStores.addEventListener('pointerleave', this.onSpecialtyStoresPointerLeave);
@@ -814,6 +876,110 @@ export class SettlementHud {
 
   setResourceLocator(handler: ((resource: HudResourceKind) => void) | null): void {
     this.onLocateResource = handler;
+  }
+
+  setAnimalBuildingHandler(handler: ((buildingId: string) => void) | null): void {
+    this.onInspectAnimalBuilding = handler;
+  }
+
+  setAnimalsState(view: SettlementAnimalsView): void {
+    if (view.signature === this.displayedAnimalsSignature) return;
+    this.displayedAnimalsSignature = view.signature;
+    this.animalsCount.textContent = view.total.toString();
+    this.animalsPosted.textContent = view.posted.toString();
+    this.animalsAutomatic.textContent = view.automatic.toString();
+    this.animalsWorking.textContent = view.working.toString();
+    this.animals.classList.toggle('has-animals', view.total > 0);
+    this.animalsMeta.textContent = view.total === 0
+      ? 'No oxen purchased'
+      : `${view.total} ${view.total === 1 ? 'ox' : 'oxen'} · ${view.working} working`;
+    const summary = [
+      `Animals: ${view.total} ${view.total === 1 ? 'ox' : 'oxen'}`,
+      `${view.posted} posted`,
+      `${view.automatic} automatic`,
+      `${view.working} working`,
+    ].join(', ');
+    this.animalsSummary.setAttribute('aria-label', summary);
+    this.animalsSummary.dataset.tooltip = view.total === 0
+      ? 'Build a Stable and purchase an ox to begin the draft-animal roster.'
+      : `${view.posted} permanently posted · ${view.automatic} choosing the best available assistance task · ${view.working} currently tasked.`;
+
+    this.animalsList.replaceChildren();
+    if (view.entries.length === 0) {
+      const empty = document.createElement('p');
+      empty.className = 'settlement-hud__animals-empty';
+      empty.textContent = 'Build a Stable and purchase an ox to begin the roster.';
+      this.animalsList.appendChild(empty);
+      return;
+    }
+
+    view.entries.forEach((entry, index) => {
+      const row = document.createElement('article');
+      row.className = 'settlement-hud__animal-row';
+      row.dataset.assignmentMode = entry.mode;
+      row.dataset.activity = entry.activity;
+
+      const header = document.createElement('header');
+      const name = document.createElement('strong');
+      name.textContent = `Ox ${index + 1}`;
+      const mode = document.createElement('span');
+      mode.className = 'settlement-hud__animal-mode';
+      mode.textContent = entry.mode === 'posted' ? 'Posted' : 'Auto';
+      header.append(name, mode);
+
+      const home = document.createElement('p');
+      home.className = 'settlement-hud__animal-home';
+      home.append('Home · ', this.createAnimalBuildingButton(
+        `${entry.stableLabel}, Bay ${entry.bay}`,
+        entry.stableId,
+      ));
+
+      const posting = document.createElement('p');
+      posting.className = 'settlement-hud__animal-posting';
+      posting.append(entry.mode === 'posted' ? 'Posting · ' : 'Dispatch · ');
+      if (entry.postingBuildingId) {
+        posting.append(this.createAnimalBuildingButton(
+          entry.postingLabel,
+          entry.postingBuildingId,
+        ));
+      } else {
+        posting.append(entry.postingLabel);
+      }
+
+      const activity = document.createElement('p');
+      activity.className = 'settlement-hud__animal-activity';
+      if (entry.activityBuildingId) {
+        activity.append(this.createAnimalBuildingButton(
+          entry.activityLabel,
+          entry.activityBuildingId,
+        ));
+      } else {
+        activity.textContent = entry.activityLabel;
+      }
+      row.append(header, home, posting, activity);
+      this.animalsList.appendChild(row);
+    });
+  }
+
+  clearAnimalsState(): void {
+    this.setAnimalsState({
+      total: 0,
+      posted: 0,
+      automatic: 0,
+      working: 0,
+      entries: [],
+      signature: '__no-animals__',
+    });
+  }
+
+  private createAnimalBuildingButton(label: string, buildingId: string): HTMLButtonElement {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'settlement-hud__animal-link';
+    button.dataset.animalBuildingId = buildingId;
+    button.textContent = label;
+    button.setAttribute('aria-label', `${label}: inspect building`);
+    return button;
   }
 
   setSecurityAttentionHandler(
@@ -1208,6 +1374,7 @@ export class SettlementHud {
     const open = this.foodStores.open;
     if (open) {
       this.fuelStores.open = false;
+      this.animals.open = false;
       this.specialtyStores.open = false;
     }
     this.foodStat.setAttribute('aria-expanded', String(open));
@@ -1246,6 +1413,7 @@ export class SettlementHud {
     const open = this.fuelStores.open;
     if (open) {
       this.foodStores.open = false;
+      this.animals.open = false;
       this.specialtyStores.open = false;
     }
     this.fuelStat.setAttribute('aria-expanded', String(open));
@@ -1280,10 +1448,60 @@ export class SettlementHud {
     this.fuelStores.open = true;
   };
 
+  private readonly onAnimalsToggle = (): void => {
+    const open = this.animals.open;
+    if (open) {
+      this.foodStores.open = false;
+      this.fuelStores.open = false;
+      this.specialtyStores.open = false;
+    }
+    this.animalsSummary.setAttribute('aria-expanded', String(open));
+  };
+
+  private readonly onAnimalsPointerEnter = (): void => {
+    this.cancelAnimalsClose();
+    this.animals.open = true;
+  };
+
+  private readonly onAnimalsPointerLeave = (): void => {
+    this.cancelAnimalsClose();
+    this.animalsCloseTimer = window.setTimeout(() => {
+      this.animalsCloseTimer = null;
+      this.animals.open = false;
+    }, STORES_POINTER_LEAVE_GRACE_MS);
+  };
+
+  private readonly onAnimalsFocusIn = (): void => {
+    this.cancelAnimalsClose();
+    this.animals.open = true;
+  };
+
+  private readonly onAnimalsFocusOut = (event: FocusEvent): void => {
+    if (event.relatedTarget instanceof Node && this.animals.contains(event.relatedTarget)) return;
+    this.animals.open = false;
+  };
+
+  private readonly onAnimalsSummaryClick = (event: MouseEvent): void => {
+    event.preventDefault();
+    this.animals.open = true;
+  };
+
+  private readonly onAnimalsClick = (event: MouseEvent): void => {
+    const buildingId = (event.target as HTMLElement)
+      .closest<HTMLElement>('[data-animal-building-id]')
+      ?.dataset.animalBuildingId;
+    if (!buildingId || !this.onInspectAnimalBuilding) return;
+    event.preventDefault();
+    event.stopPropagation();
+    this.animals.open = false;
+    this.onInspectAnimalBuilding(buildingId);
+  };
+
   private readonly onSpecialtyStoresToggle = (): void => {
     if (this.specialtyStores.open) {
       this.foodStores.open = false;
       this.fuelStores.open = false;
+      this.animals.open = false;
     }
   };
 
@@ -1397,6 +1615,12 @@ export class SettlementHud {
     this.fuelStoresCloseTimer = null;
   }
 
+  private cancelAnimalsClose(): void {
+    if (this.animalsCloseTimer === null) return;
+    window.clearTimeout(this.animalsCloseTimer);
+    this.animalsCloseTimer = null;
+  }
+
   private cancelSpecialtyStoresClose(): void {
     if (this.specialtyStoresCloseTimer === null) return;
     window.clearTimeout(this.specialtyStoresCloseTimer);
@@ -1415,6 +1639,18 @@ export class SettlementHud {
       event.preventDefault();
       this.fuelStores.open = false;
       this.fuelStat.focus();
+      return;
+    }
+    if (this.animals.open) {
+      event.preventDefault();
+      this.animals.open = false;
+      this.animalsSummary.focus();
+      return;
+    }
+    if (this.specialtyStores.open) {
+      event.preventDefault();
+      this.specialtyStores.open = false;
+      this.specialtyStoresSummary.focus();
       return;
     }
     if (!this.approvalPanel.hidden) {
@@ -1519,6 +1755,7 @@ export class SettlementHud {
     this.cancelApprovalClose();
     this.cancelFoodStoresClose();
     this.cancelFuelStoresClose();
+    this.cancelAnimalsClose();
     this.cancelSpecialtyStoresClose();
     this.nobleEye.removeEventListener('click', this.onNobleEyeClick);
     this.lordReportLedger.dispose();
@@ -1541,6 +1778,13 @@ export class SettlementHud {
     this.fuelStores.removeEventListener('focusin', this.onFuelStoresFocusIn);
     this.fuelStores.removeEventListener('focusout', this.onFuelStoresFocusOut);
     this.fuelStat.removeEventListener('click', this.onFuelStoresSummaryClick);
+    this.animals.removeEventListener('toggle', this.onAnimalsToggle);
+    this.animals.removeEventListener('pointerenter', this.onAnimalsPointerEnter);
+    this.animals.removeEventListener('pointerleave', this.onAnimalsPointerLeave);
+    this.animals.removeEventListener('focusin', this.onAnimalsFocusIn);
+    this.animals.removeEventListener('focusout', this.onAnimalsFocusOut);
+    this.animals.removeEventListener('click', this.onAnimalsClick);
+    this.animalsSummary.removeEventListener('click', this.onAnimalsSummaryClick);
     this.specialtyStores.removeEventListener('toggle', this.onSpecialtyStoresToggle);
     this.specialtyStores.removeEventListener(
       'pointerenter',

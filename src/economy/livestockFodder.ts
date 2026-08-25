@@ -41,6 +41,7 @@ import {
   effectiveLivestockHaymakingPercent,
   farmhouseCheeseSaltStagingCycles,
   isLivestockHaymakingMonth,
+  livestockCareCapacity,
   livestockMilkAllocationPerCycle,
   livestockDairySaltPerCycle,
   livestockStorageSecuredCullHeads,
@@ -94,6 +95,9 @@ function haymakingDaysRemaining(month: number, monthDay: number): number {
 export type LivestockFodderHoldingPlan = {
   buildingId: string;
   species: LivestockSpecies;
+  onsiteHumanWorkers: number;
+  pairedOxen: number;
+  effectiveWorkers: number;
   basePastureCapacity: number;
   projectedHeadCount: number;
   plannedCullHeads: number;
@@ -129,6 +133,34 @@ export type LivestockFodderHoldingPlan = {
   dairySaltShortfall: number;
   dairySaltRunwayDays: number;
 };
+
+export type LivestockLaborForecast = Readonly<{
+  onsiteHumanWorkers: number;
+  pairedOxen: number;
+  effectiveWorkers: number;
+}>;
+
+function laborCount(value: number): number {
+  return Number.isFinite(value) ? Math.max(0, Math.floor(value)) : 0;
+}
+
+function normalizedLivestockLaborForecast(
+  building: BuildingState,
+  labor: LivestockLaborForecast | null | undefined,
+): LivestockLaborForecast {
+  const onsiteHumanWorkers = laborCount(
+    labor?.onsiteHumanWorkers ?? building.assignedLabor,
+  );
+  const pairedOxen = Math.min(
+    onsiteHumanWorkers,
+    laborCount(labor?.pairedOxen ?? 0),
+  );
+  return {
+    onsiteHumanWorkers,
+    pairedOxen,
+    effectiveWorkers: onsiteHumanWorkers + pairedOxen,
+  };
+}
 
 export function livestockStoredFodderValue(
   building: Pick<BuildingState, 'oatGrain' | 'ryeGrain' | 'maslinGrain'>,
@@ -198,20 +230,35 @@ export function projectLivestockFodderHolding(
   sabbathObserved: boolean,
   month: number,
   monthDay = 1,
+  laborForecast?: LivestockLaborForecast | null,
 ): LivestockFodderHoldingPlan {
   const cyclesPerDay = livestockCyclesPerCalendarDay(building, sabbathObserved);
-  const assignedLabor = Number.isFinite(building.assignedLabor)
-    ? Math.max(0, Math.floor(building.assignedLabor))
-    : 0;
+  const {
+    onsiteHumanWorkers,
+    pairedOxen,
+    effectiveWorkers,
+  } = normalizedLivestockLaborForecast(building, laborForecast);
   const laborCyclesPerDay = cyclesPerDay
-    * assignedLabor
+    * effectiveWorkers
     * (sabbathObserved ? 6 / 7 : 1);
+  const suppliedHeads = Math.min(
+    Math.max(0, herd.headCount),
+    Math.max(0, herd.suppliedCapacity),
+  );
+  const workdaySupportedHeads = Math.min(
+    suppliedHeads,
+    livestockCareCapacity(herd.species, effectiveWorkers),
+  );
+  const sabbathSupportedHeads = Math.min(
+    suppliedHeads,
+    livestockCareCapacity(herd.species, onsiteHumanWorkers),
+  );
+  const careSupportedHeads = sabbathObserved
+    ? (workdaySupportedHeads * 6 + sabbathSupportedHeads) / 7
+    : workdaySupportedHeads;
   const productiveHeads = herd.species === 'swine'
     ? 0
-    : Math.min(
-      Math.max(0, herd.headCount),
-      Math.max(0, herd.suppliedCapacity),
-    ) * Math.min(1, Math.max(0, herd.health));
+    : careSupportedHeads * Math.min(1, Math.max(0, herd.health));
   const dairyPreservedFoodPerCycle = livestockMilkAllocationPerCycle(
     herd.species,
     productiveHeads,
@@ -225,7 +272,7 @@ export function projectLivestockFodderHolding(
   const dairySaltStock = herd.species === 'swine'
     ? 0
     : Math.max(0, building.salt ?? 0);
-  const dairySaltTarget = herd.species === 'swine' || building.assignedLabor <= 0
+  const dairySaltTarget = herd.species === 'swine' || onsiteHumanWorkers <= 0
     ? 0
     : LIVESTOCK_FARMSTEAD_SALT_STAGING_PER_CYCLE
       * farmhouseCheeseSaltStagingCycles(building.processorOutputTargetPercent);
@@ -267,7 +314,7 @@ export function projectLivestockFodderHolding(
     )
     : 0;
   const executableCullHeads = cullsAffectThisWinter
-    && assignedLabor > 0
+    && onsiteHumanWorkers > 0
     ? livestockStorageSecuredCullHeads(
       herd.species,
       herd.headCount,
@@ -343,6 +390,9 @@ export function projectLivestockFodderHolding(
   return {
     buildingId: building.id,
     species: herd.species,
+    onsiteHumanWorkers,
+    pairedOxen,
+    effectiveWorkers,
     basePastureCapacity,
     projectedHeadCount,
     plannedCullHeads,
@@ -407,6 +457,7 @@ export function computeSettlementLivestockFodderPlan(
   sabbathObserved: boolean,
   month: number,
   monthDay = 1,
+  laborForecasts?: ReadonlyMap<string, LivestockLaborForecast> | null,
 ): SettlementLivestockFodderPlan {
   const total: SettlementLivestockFodderPlan = {
     holdingCount: 0,
@@ -461,12 +512,13 @@ export function computeSettlementLivestockFodderPlan(
       sabbathObserved,
       month,
       monthDay,
+      laborForecasts?.get(building.id),
     );
     total.holdingCount += 1;
-    if (building.assignedLabor > 0) total.staffedHoldings += 1;
+    if (plan.onsiteHumanWorkers > 0) total.staffedHoldings += 1;
     if (herd.species !== 'swine') {
       total.pastoralHoldings += 1;
-      if (plan.haymakingPercent > 0 && building.assignedLabor > 0) {
+      if (plan.haymakingPercent > 0 && plan.onsiteHumanWorkers > 0) {
         total.haymakingHoldings += 1;
       }
     }
@@ -494,7 +546,7 @@ export function computeSettlementLivestockFodderPlan(
     total.dairySaltTarget += plan.dairySaltTarget;
     total.dairySaltShortfall += plan.dairySaltShortfall;
     if (
-      building.assignedLabor > 0
+      plan.onsiteHumanWorkers > 0
       && plan.dairySaltTarget > 0.01
       && plan.dairySaltShortfall > 0.05
     ) {

@@ -424,6 +424,8 @@ export type StableOxState = {
   stableId: string;
   /** Zero-based authored resting bay within the stable. */
   slot: number;
+  /** Persistent workplace posting; null keeps this ox in the automatic assistance pool. */
+  assignedBuildingId: string | null;
 };
 
 export type BurgageFrontageEdge = 0 | 1 | 2 | 3;

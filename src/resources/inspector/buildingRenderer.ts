@@ -34,6 +34,7 @@ import { fireForTarget } from '../../fires/fireIncident.ts';
 import { withBuildingLocalStorage } from './buildingLocalStorageRenderer.ts';
 import { renderWaysideShrineInspector } from './waysideShrineRenderer.ts';
 import { renderStableInspector } from './stableRenderer.ts';
+import { withBuildingOxTeam } from './buildingOxTeamRenderer.ts';
 
 export function renderBuildingInspector(
   target: Extract<InspectableTarget, { kind: 'building' }>,
@@ -145,9 +146,10 @@ export function renderBuildingInspector(
   const storageView = building.kind === 'marketplace'
     ? worksiteView
     : withBuildingLocalStorage(worksiteView, building);
-  return withBuildingFireSafety(
+  const safeView = withBuildingFireSafety(
     storageView,
     building,
     context,
   );
+  return withBuildingOxTeam(safeView, building, context);
 }

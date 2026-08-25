@@ -42,6 +42,8 @@ export type StableOxLike = Readonly<{
   id: string;
   stableId: string;
   slot: number;
+  /** Persisted posting. Null means the ox remains in the automatic pool. */
+  assignedBuildingId?: string | null;
 }>;
 
 export type StableOxAssignment = Readonly<{
@@ -74,10 +76,11 @@ function stableOxOrder(left: StableOxLike, right: StableOxLike): number {
 }
 
 /**
- * Mirrors the server's automatic pairing contract. Active cart reservations
- * are removed first, then every remaining ox takes the nearest unclaimed
- * on-site heavy-work slot. Stable id, bay, building id, and worker slot make
- * every tie deterministic without exposing manual assignment controls.
+ * Mirrors the server's hybrid posting contract. Active cart reservations are
+ * removed first. Permanently posted oxen claim open worker slots at their
+ * building before unposted oxen automatically take the nearest remaining
+ * heavy-work slot. Stable id, bay, building id, and worker slot make every tie
+ * deterministic.
  */
 export function assignStableOxen(
   oxen: Iterable<StableOxLike>,
@@ -113,16 +116,39 @@ export function assignStableOxen(
     }
   }
 
-  const assignments = new Map<string, StableOxAssignment>();
   const orderedOxen = [...oxen].sort(stableOxOrder);
-  for (const ox of orderedOxen) {
-    if (reservedOxIds.has(ox.id)) continue;
+  const availableOxen = orderedOxen.filter((ox) => {
+    if (reservedOxIds.has(ox.id)) return false;
     const stable = buildings.get(ox.stableId);
-    if (
-      stable?.kind !== 'stable'
-      || stable.constructionComplete === false
-      || disabledBuildingIds.has(stable.id)
-    ) continue;
+    return stable?.kind === 'stable'
+      && stable.constructionComplete !== false
+      && !disabledBuildingIds.has(stable.id);
+  });
+  const assignments = new Map<string, StableOxAssignment>();
+
+  // Posted animals have first claim on their own building. If their crew is
+  // away, absent, or fire-disabled, they wait at the stable instead of taking
+  // an automatic job elsewhere.
+  for (const ox of availableOxen) {
+    const buildingId = ox.assignedBuildingId ?? null;
+    if (!buildingId) continue;
+    const slots = openWorkerSlots.get(buildingId);
+    const workerSlot = slots?.shift();
+    if (workerSlot == null) continue;
+    assignments.set(ox.id, {
+      oxId: ox.id,
+      stableId: ox.stableId,
+      buildingId,
+      workerSlot,
+    });
+    if (slots?.length === 0) openWorkerSlots.delete(buildingId);
+  }
+
+  // Unposted animals form the automatic assistance pool. Keep the established
+  // nearest-active-crew policy, after permanent postings have been honored.
+  for (const ox of availableOxen) {
+    if (ox.assignedBuildingId) continue;
+    const stable = buildings.get(ox.stableId)!;
 
     let best: {
       building: BuildingState;

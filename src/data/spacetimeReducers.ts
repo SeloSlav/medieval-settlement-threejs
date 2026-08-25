@@ -94,6 +94,18 @@ export async function purchaseStableOx(stableId: string): Promise<void> {
   });
 }
 
+export async function setBuildingOxen(
+  buildingId: string,
+  assignedOxen: number,
+): Promise<void> {
+  const serverId = parseBuildingServerId(buildingId);
+  if (serverId === null) throw new Error('Invalid ox workplace id.');
+  await callReducer('setBuildingOxen', 'set_building_oxen', {
+    buildingId: serverId,
+    assignedOxen: Math.max(0, Math.floor(assignedOxen)),
+  });
+}
+
 export async function placeBackyardGarden(
   residenceId: string,
   kind: BackyardGardenKind,

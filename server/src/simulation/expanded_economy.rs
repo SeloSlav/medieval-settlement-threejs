@@ -246,6 +246,10 @@ pub fn step_institutional_food_dispatch(
         let Some(network) = tick.road_network(source.owner) else {
             continue;
         };
+        let protects_feed_oats = livestock_holding_protects_feed_oats(
+            &source.kind,
+            livestock_source_has_feed_commitment(ctx, &source),
+        );
         for target_id in
             tick.building_ids_for_kinds(ctx, source.owner, &["guardhouse", "smokehouse", "granary"])
         {
@@ -264,9 +268,7 @@ pub fn step_institutional_food_dispatch(
                 continue;
             };
             for commodity in FRESH_FOOD_COMMODITIES {
-                if commodity == CommodityKind::OatGrain
-                    && livestock_holding_protects_feed_oats(&source.kind)
-                {
+                if commodity == CommodityKind::OatGrain && protects_feed_oats {
                     continue;
                 }
                 if building_commodity_stock(&source, commodity) <= 1e-6
@@ -335,6 +337,10 @@ pub fn step_institutional_food_dispatch(
         else {
             continue;
         };
+        let protects_feed_oats = livestock_holding_protects_feed_oats(
+            &source.kind,
+            livestock_source_has_feed_commitment(ctx, &source),
+        );
         let transferable = institutional_source_food_surplus(
             ctx,
             tick,
@@ -342,9 +348,7 @@ pub fn step_institutional_food_dispatch(
             building_edible_food_stock(&source),
         )
         .min(
-            if candidate.commodity == CommodityKind::OatGrain
-                && livestock_holding_protects_feed_oats(&source.kind)
-            {
+            if candidate.commodity == CommodityKind::OatGrain && protects_feed_oats {
                 0.0
             } else {
                 building_commodity_stock(&source, candidate.commodity)
@@ -5052,8 +5056,12 @@ fn institutional_source_food_surplus(
     stock: f64,
 ) -> f64 {
     let claimed_households = tick.food_claim_count_for_supplier(ctx, source.owner, source.id);
-    let dispatchable_stock =
-        institutional_dispatchable_food_stock(&source.kind, stock, source.oat_grain);
+    let dispatchable_stock = institutional_dispatchable_food_stock(
+        &source.kind,
+        stock,
+        source.oat_grain,
+        livestock_source_has_feed_commitment(ctx, source),
+    );
     let generic_surplus = institutional_food_surplus(
         dispatchable_stock,
         claimed_households,
@@ -5064,6 +5072,17 @@ fn institutional_source_food_surplus(
         _ => generic_surplus,
     };
     generic_surplus.min(policy_surplus)
+}
+
+fn livestock_source_has_feed_commitment(ctx: &ReducerContext, source: &Building) -> bool {
+    if !matches!(source.kind.as_str(), "pastoral_farmstead" | "swineherd") {
+        return false;
+    }
+    ctx.db
+        .livestock_herd()
+        .building_id()
+        .find(&source.id)
+        .is_some_and(|herd| herd.head_count > 0)
 }
 
 fn request_connected_commodity_with_source_availability(

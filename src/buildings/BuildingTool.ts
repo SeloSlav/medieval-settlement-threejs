@@ -37,6 +37,7 @@ import {
   resolveBuildingPlacementWildlifePreview,
 } from './buildingPlacementWildlifePreview.ts';
 import type { WorldMapSize } from '../world/worldGenerationSettings.ts';
+import { SecondaryClickGesture } from '../input/SecondaryClickGesture.ts';
 
 export type BuildingToolMode = BuildingKind | 'off';
 
@@ -117,9 +118,13 @@ export class BuildingTool {
   private placementIntentVersion = 0;
   private roadSnapEnabled = true;
   private linkedWorksiteId: string | null = null;
+  private readonly secondaryClickGesture: SecondaryClickGesture;
 
   constructor(options: BuildingToolOptions) {
     this.options = options;
+    this.secondaryClickGesture = new SecondaryClickGesture({
+      onClick: this.onSecondaryClick,
+    });
     options.domElement.addEventListener('mousedown', this.onPointerDown, { capture: true });
     options.domElement.addEventListener('mousemove', this.onPointerMove);
     options.domElement.addEventListener('mouseenter', this.onPointerEnter);
@@ -193,9 +198,8 @@ export class BuildingTool {
     };
   }
 
-  shouldBlockCameraInput(event: MouseEvent | WheelEvent): boolean {
-    if (!this.isEnabled() || this.options.isBlocked()) return false;
-    return event instanceof MouseEvent && event.button === 2;
+  shouldBlockCameraInput(_event: MouseEvent | WheelEvent): boolean {
+    return false;
   }
 
   setMode(mode: BuildingToolMode): void {
@@ -212,6 +216,7 @@ export class BuildingTool {
   }
 
   private activateMode(mode: BuildingToolMode): void {
+    this.secondaryClickGesture.cancel();
     if (mode !== 'off' && (this.options.isBlocked() || this.placementPending)) return;
     this.mode = mode;
     this.resetPreviewCache();
@@ -243,6 +248,7 @@ export class BuildingTool {
   }
 
   dispose(): void {
+    this.secondaryClickGesture.dispose();
     this.options.domElement.removeEventListener('mousedown', this.onPointerDown, { capture: true });
     this.options.domElement.removeEventListener('mousemove', this.onPointerMove);
     this.options.domElement.removeEventListener('mouseenter', this.onPointerEnter);
@@ -315,13 +321,7 @@ export class BuildingTool {
 
   private readonly onPointerDown = (event: MouseEvent): void => {
     if (this.mode === 'off' || this.options.isBlocked()) return;
-
-    if (event.button === 2) {
-      event.preventDefault();
-      event.stopPropagation();
-      this.setMode('off');
-      return;
-    }
+    if (this.secondaryClickGesture.begin(event)) return;
 
     if (event.button !== 0) return;
 
@@ -346,6 +346,12 @@ export class BuildingTool {
     this.setMode('off');
     const placementIntentVersion = this.placementIntentVersion;
     void this.placeAt(kind, resolved.x, resolved.z, linkedWorksiteId, placementIntentVersion);
+  };
+
+  private readonly onSecondaryClick = (event: MouseEvent): void => {
+    if (this.mode === 'off' || this.options.isBlocked()) return;
+    event.preventDefault();
+    this.setMode('off');
   };
 
   private async placeAt(
