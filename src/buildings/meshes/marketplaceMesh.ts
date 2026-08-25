@@ -102,6 +102,7 @@ function addMarketStallDisplay(
     case 'vegetables': addVegetableCounter(display); break;
     case 'eggs': addEggCounter(display); break;
     case 'honey': addHoneyCounter(display); break;
+    case 'wine': addWineCounter(display); break;
     case 'preserves': addPreserveCounter(display); break;
     case 'curedMeat': addMeatCounter(display, true); break;
     case 'smokedFish': addFishCounter(display, true); break;
@@ -310,6 +311,15 @@ function addHoneyCounter(display: THREE.Group): void {
       timberMaterial('dark'),
       new THREE.Vector3(x, 0.365, 0),
     );
+  }
+}
+
+function addWineCounter(display: THREE.Group): void {
+  for (const [index, x] of [-0.38, 0.38].entries()) {
+    const cask = new THREE.Group();
+    cask.position.set(x, 0, 0);
+    addWineCask(cask, index === 0 ? 0.82 : 0.7);
+    display.add(cask);
   }
 }
 

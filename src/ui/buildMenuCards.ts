@@ -132,7 +132,7 @@ const DETAILS: Record<PlacementArtKey, BuildCardDetail> = {
   weaver: ["Weaver's workshop", 'Weaves wool into cloth and prepares flax with water for linen.', flow(['wool', 'flax', 'water'], ['cloth'])],
   tannery: ['Tannery', 'Tans goat and game hides with water and bark-fired heat into workable leather.', flow(['hides', 'water', 'firewood'], ['leather'])],
   cobbler: ["Cobbler's workshop", 'Cuts leather into finished shoes for prosperous Tier 3 households.', flow(['leather'], ['shoes'])],
-  chandlery: ['Chandlery', 'Melts scarce beeswax over a wood-fired hearth and repeatedly dips long-burning candles for prosperous households and institutions.', flow(['wax', 'firewood'], ['candles'])],
+  chandlery: ['Chandlery', 'Melts scarce beeswax over a wood-fired hearth and repeatedly dips long-burning candles for prosperous households and regional trade.', flow(['wax', 'firewood'], ['candles'])],
   pastoral_farmstead: ['Pastoral farmstead', 'Cattle and sheep graze, cut hay, then use hay before feed. Staff prepare animal feed from oats; water stays separate.', flow(['water', 'oatGrain'], ['animalFeed', 'milk', 'wool', 'manure', 'meat'])],
   swineherd: ['Woodland swineherd', 'Pigs use woodland mast first, then prepared animal feed when seasonal forage falls short; trough water is separate.', flow(['water', 'animalFeed'], ['meat'])],
 };

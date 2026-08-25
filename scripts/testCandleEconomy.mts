@@ -24,7 +24,12 @@ import {
   STORAGE_COMMODITY_CODES,
   STOREHOUSE_STORAGE_GROUPS,
 } from '../src/economy/storageAcceptancePolicy.ts';
-import { marketStallLabel } from '../src/economy/marketStallAssignments.ts';
+import {
+  MARKET_FOOD_STALL_NEEDS,
+  marketStallLabel,
+  marketStallRepresentative,
+  marketStallStock,
+} from '../src/economy/marketStallAssignments.ts';
 import { TRADE_RESOURCE_COMMODITY_CODES } from '../src/economy/tradingPostTrade.ts';
 import { DELIVERY_CARGO_KINDS, cargoKindFromId } from '../src/logistics/deliveryTrips.ts';
 import { RESOURCE_KINDS } from '../src/resources/types.ts';
@@ -247,7 +252,33 @@ assert.match(source('server/src/tables.rs'), /storage_acceptance_mask_high:\s*u6
 // table and worker are the existing Pottery/Household wares stall.
 assert.equal(activeResidenceNeedKinds(3).includes('luxury'), false);
 assert.equal(activeResidenceNeedKinds(4).includes('luxury'), true);
+assert.ok(MARKET_FOOD_STALL_NEEDS.includes('luxury'));
+assert.equal(marketStallLabel('luxury'), 'Luxury provisions');
 assert.equal(marketStallLabel('pottery'), 'Household wares');
+type StallBuilding = Parameters<typeof marketStallStock>[0];
+const stallBuilding = (stock: Partial<StallBuilding>): StallBuilding => stock as StallBuilding;
+const noStallStock = stallBuilding({});
+const splitStallStock = stallBuilding({ wine: 3, honey: 2, candles: 7, pottery: 11 });
+assert.equal(marketStallStock(splitStallStock, 'luxury'), 5);
+assert.equal(marketStallStock(splitStallStock, 'pottery'), 18);
+assert.equal(
+  marketStallRepresentative(stallBuilding({ wine: 3 }), noStallStock, 'luxury')?.commodityKind,
+  'wine',
+);
+assert.equal(
+  marketStallRepresentative(stallBuilding({ honey: 3 }), noStallStock, 'luxury')?.commodityKind,
+  'honey',
+);
+assert.equal(
+  marketStallRepresentative(stallBuilding({ candles: 7 }), noStallStock, 'luxury'),
+  null,
+  'candles must not appear on the food-side Luxury provisions stall',
+);
+assert.equal(
+  marketStallRepresentative(stallBuilding({ candles: 7 }), noStallStock, 'pottery')?.commodityKind,
+  'candles',
+  'candles must remain visible on the goods-side Household wares stall',
+);
 const deliveryCargo = source('server/src/simulation/delivery_cargo.rs');
 assert.match(deliveryCargo, /ResidenceNeedKind::Luxury\s*=>\s*building\.candles\s*\+\s*building\.wine\s*\+\s*building\.honey/);
 const deliveryStock = blockBetween(deliveryCargo, 'pub fn building_delivery_stock', 'pub fn withdraw_delivery_cargo');
@@ -263,11 +294,27 @@ assert.match(
   'Luxury withdrawal must spend candles before the flexible food/beverage alternatives',
 );
 const tickContext = source('server/src/simulation/tick_context.rs');
+const serverStallPolicy = source('server/src/marketplace_stall_policy.rs');
+assert.match(
+  serverStallPolicy,
+  /MARKET_FOOD_STALL_NEEDS[^=]*=\s*\[[\s\S]*?ResidenceNeedKind::Food[\s\S]*?ResidenceNeedKind::PreservedFood[\s\S]*?ResidenceNeedKind::Luxury[\s\S]*?\];/,
+  'the authoritative food-side stall roster must include Luxury provisions',
+);
 assert.match(tickContext, /CommodityKind::Candles\s*=>\s*Some\(ResidenceNeedKind::Pottery\)/);
 assert.match(
   tickContext,
   /fn marketplace_stall_stock[\s\S]*?need_kind\s*==\s*ResidenceNeedKind::Pottery[\s\S]*?building\.pottery\s*\+\s*building\.candles/,
   'either pottery or candles must be able to bootstrap the shared Household wares stall',
+);
+const serverLuxuryStallStock = tickContext.match(
+  /else if need_kind\s*==\s*ResidenceNeedKind::Luxury\s*\{([\s\S]*?)\n\s*\}\s*else\s*\{/,
+);
+assert.ok(serverLuxuryStallStock, 'missing authoritative Luxury provisions stock branch');
+assert.match(serverLuxuryStallStock[1], /building\.wine\s*\+\s*building\.honey/);
+assert.doesNotMatch(
+  serverLuxuryStallStock[1],
+  /building\.candles/,
+  'candle-only stock belongs exclusively to Household wares, not the food-side Luxury table',
 );
 assert.match(
   tickContext,

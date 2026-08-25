@@ -7,6 +7,7 @@ import {
   CALENDAR_WORK_START_HOUR,
   CHARCOAL_HOUSEHOLD_FUEL_VALUE,
   CHARCOAL_BURNER_FIREWOOD_PER_CYCLE,
+  CHANDLERY_FIREWOOD_PER_CYCLE,
   BAKERY_FIREWOOD_PER_CYCLE,
   LODGE_FIREWOOD_PER_CYCLE,
   LODGE_TIMBER_PER_CYCLE,
@@ -34,6 +35,7 @@ export const INDUSTRIAL_FIREWOOD_KINDS = [
   'smokehouse',
   'charcoal_burner',
   'potter_kiln',
+  'chandlery',
 ] as const satisfies readonly BuildingKind[];
 
 export type FirewoodRoadEntity = Pick<
@@ -396,6 +398,8 @@ export function industrialFirewoodCapacityPerDay(
       return cycles * CHARCOAL_BURNER_FIREWOOD_PER_CYCLE;
     case 'potter_kiln':
       return cycles * POTTER_FIREWOOD_PER_CYCLE;
+    case 'chandlery':
+      return cycles * CHANDLERY_FIREWOOD_PER_CYCLE;
   }
 }
 

@@ -5,6 +5,7 @@ import {
   BREWERY_BREWING_FIREWOOD_PER_CYCLE,
   BREWERY_MALTING_FIREWOOD_PER_CYCLE,
   CHARCOAL_BURNER_FIREWOOD_PER_CYCLE,
+  CHANDLERY_FIREWOOD_PER_CYCLE,
   CIVILIAN_TOOL_THROUGHPUT_MULTIPLIER,
   BAKERY_FIREWOOD_PER_CYCLE,
   POTTER_FIREWOOD_PER_CYCLE,
@@ -38,6 +39,7 @@ const expectedFirewoodPerCycle = new Map<BuildingKind, number>([
   ['smokehouse', SMOKEHOUSE_FIREWOOD_PER_CYCLE],
   ['charcoal_burner', CHARCOAL_BURNER_FIREWOOD_PER_CYCLE],
   ['potter_kiln', POTTER_FIREWOOD_PER_CYCLE],
+  ['chandlery', CHANDLERY_FIREWOOD_PER_CYCLE],
 ]);
 for (const [kind, expected] of expectedFirewoodPerCycle) {
   assert.equal(

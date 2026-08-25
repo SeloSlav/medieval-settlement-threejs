@@ -16,6 +16,7 @@ import { combinedFuelEquivalent } from './fuelReservePolicy.ts';
 export const MARKET_FOOD_STALL_NEEDS = [
   'food',
   'preservedFood',
+  'luxury',
 ] as const satisfies readonly ResidenceNeedKind[];
 
 export const MARKET_GOODS_STALL_NEEDS = [
@@ -38,7 +39,8 @@ export type MarketStallCommodityKind =
   | 'cloth'
   | 'shoes'
   | 'pottery'
-  | 'candles';
+  | 'candles'
+  | 'wine';
 
 /**
  * A deliberately small visual kit. Closely related commodities share a prop
@@ -55,6 +57,7 @@ export type MarketStallDisplayKind =
   | 'vegetables'
   | 'eggs'
   | 'honey'
+  | 'wine'
   | 'preserves'
   | 'curedMeat'
   | 'smokedFish'
@@ -111,6 +114,7 @@ export type MarketStallRoadDistance = (
 const MARKET_STALL_LABELS: Readonly<Record<MarketStallNeed, string>> = {
   food: 'Fresh food',
   preservedFood: 'Preserved food',
+  luxury: 'Luxury provisions',
   firewood: 'Fuel',
   cloth: 'Cloth',
   shoes: 'Shoes',
@@ -126,6 +130,7 @@ const MARKET_STALL_COMMODITIES_BY_NEED: Readonly<
 > = {
   food: [...FRESH_FOOD_KINDS, 'honey'],
   preservedFood: PRESERVED_FOOD_KINDS,
+  luxury: ['wine', 'honey'],
   firewood: ['firewood', 'charcoal'],
   cloth: ['cloth'],
   shoes: ['shoes'],
@@ -184,6 +189,7 @@ function marketStallDisplayKind(
     case 'beetroot': return 'vegetables';
     case 'eggs': return 'eggs';
     case 'honey': return 'honey';
+    case 'wine': return 'wine';
     case 'preservedFood':
     case 'aroniaJam':
     case 'rosehipJam': return 'preserves';
@@ -440,6 +446,8 @@ export function marketStallStock(
       return freshFoodStock(building) + finiteStock(building.honey);
     case 'preservedFood':
       return preservedFoodStock(building);
+    case 'luxury':
+      return finiteStock(building.wine) + finiteStock(building.honey);
     case 'firewood':
       return combinedFuelEquivalent(
         finiteStock(building.firewood),
@@ -459,6 +467,7 @@ function stallNeedRank(needKind: MarketStallNeed): number {
     case 'food': return 0;
     case 'firewood': return 0;
     case 'preservedFood': return 1;
+    case 'luxury': return 2;
     case 'cloth': return 1;
     case 'shoes': return 2;
     case 'pottery': return 2;

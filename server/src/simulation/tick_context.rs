@@ -1549,6 +1549,10 @@ fn marketplace_stall_stock(building: &Building, need_kind: ResidenceNeedKind) ->
         // Pottery and candles share the staffed Household wares counter, but
         // only pottery satisfies the distinct Pottery residence need.
         building.pottery + building.candles
+    } else if need_kind == ResidenceNeedKind::Luxury {
+        // The food-side Luxury provisions table serves wine and honey. Candle
+        // stock is rostered exclusively through Household wares above.
+        building.wine + building.honey
     } else {
         crate::simulation::delivery_cargo::building_delivery_stock(building, need_kind)
     }
