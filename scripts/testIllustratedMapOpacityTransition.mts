@@ -2,53 +2,43 @@ import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
 import * as THREE from 'three';
 import {
-  ILLUSTRATED_MAP_CLOUD_TRANSITION,
-  buildIllustratedMapCloudPuffs,
-  illustratedMapCloudFrameAt,
-} from '../src/map/IllustratedMapCloudTransition.ts';
+  ILLUSTRATED_MAP_OPACITY_TRANSITION,
+  IllustratedMapOpacityTransition,
+} from '../src/map/IllustratedMapOpacityTransition.ts';
 import { LIVE_WORLD_MIN_ZOOM_PERCENT } from '../src/camera/CameraCurves.ts';
 
-const start = illustratedMapCloudFrameAt(0);
-assert.equal(start.phase, 'gather');
-assert.equal(start.coverage, 0);
-assert.equal(start.shouldCommitMap, false);
+assert.ok(ILLUSTRATED_MAP_OPACITY_TRANSITION.fadeOutMs <= 85,
+  'the outgoing view should fade in only a few frames');
+assert.ok(ILLUSTRATED_MAP_OPACITY_TRANSITION.fadeInMs <= 100,
+  'the incoming view should return in only a few frames');
 
-const gathering = illustratedMapCloudFrameAt(
-  ILLUSTRATED_MAP_CLOUD_TRANSITION.gatherEnd * 0.5,
-);
-assert.equal(gathering.phase, 'gather');
-assert.ok(gathering.coverage > 0 && gathering.coverage < 1);
-assert.equal(gathering.shouldCommitMap, false);
-
-const covered = illustratedMapCloudFrameAt(ILLUSTRATED_MAP_CLOUD_TRANSITION.gatherEnd);
-assert.equal(covered.phase, 'handoff');
-assert.equal(covered.coverage, 1);
-assert.equal(covered.partProgress, 0);
-assert.equal(covered.shouldCommitMap, true);
-
-const parting = illustratedMapCloudFrameAt(
-  (ILLUSTRATED_MAP_CLOUD_TRANSITION.handoffHoldEnd + 1) * 0.5,
-);
-assert.equal(parting.phase, 'part');
-assert.ok(parting.coverage > 0 && parting.coverage < 1);
-assert.ok(parting.partProgress > 0 && parting.partProgress < 1);
-assert.equal(parting.shouldCommitMap, true);
-
-const complete = illustratedMapCloudFrameAt(1);
-assert.deepEqual(complete, {
-  normalizedTime: 1,
-  coverage: 0,
-  partProgress: 1,
-  phase: 'complete',
-  shouldCommitMap: true,
-});
-
-const firstLayout = buildIllustratedMapCloudPuffs(24);
-const secondLayout = buildIllustratedMapCloudPuffs(24);
-assert.deepEqual(firstLayout, secondLayout, 'the authored cloud bank must be deterministic');
-assert.ok(firstLayout.some((puff) => puff.side === -1));
-assert.ok(firstLayout.some((puff) => puff.side === 1));
-assert.ok(firstLayout.every((puff) => puff.radius > 0 && puff.depth >= 0 && puff.depth <= 1));
+type FakeAnimation = Animation & { finish(): void; cancelled: boolean };
+const animations: FakeAnimation[] = [];
+const element = {
+  style: { opacity: '', willChange: '' },
+  animate(_frames: Keyframe[], _options: KeyframeAnimationOptions) {
+    const animation = {
+      cancelled: false,
+      onfinish: null,
+      cancel() { this.cancelled = true; },
+      finish() { this.onfinish?.(new Event('finish')); },
+    } as unknown as FakeAnimation;
+    animations.push(animation);
+    return animation;
+  },
+} as unknown as HTMLElement;
+const opacityTransition = new IllustratedMapOpacityTransition(element);
+let opacityHandoffs = 0;
+opacityTransition.play(() => { opacityHandoffs += 1; });
+assert.equal(animations.length, 1);
+assert.equal(opacityHandoffs, 0, 'the render owner must not swap before zero opacity');
+animations[0].finish();
+assert.equal(opacityHandoffs, 1, 'the transparent midpoint should swap render owners once');
+assert.equal(animations.length, 2, 'the new render owner should fade straight back in');
+animations[1].finish();
+assert.equal(element.style.opacity, '');
+assert.equal(element.style.willChange, '');
+opacityTransition.dispose();
 
 type WindowLike = EventEmitter & {
   addEventListener(type: string, listener: EventListener): void;
@@ -66,7 +56,7 @@ globalThis.cancelAnimationFrame = (() => undefined) as typeof cancelAnimationFra
 
 const { CameraController } = await import('../src/camera/CameraController.ts');
 
-function createDomElement(): HTMLElement & { dispatchWheel(): void } {
+function createDomElement(): HTMLElement & { dispatchWheel(deltaY: number): void } {
   const listeners = new Map<string, EventListener>();
   return {
     style: {},
@@ -76,21 +66,22 @@ function createDomElement(): HTMLElement & { dispatchWheel(): void } {
       listeners.set(type, listener);
     },
     removeEventListener() {},
-    dispatchWheel() {
+    dispatchWheel(deltaY: number) {
       listeners.get('wheel')?.({
-        deltaY: 120,
+        deltaY,
         deltaX: 0,
         deltaMode: 0,
         preventDefault() {},
       } as WheelEvent);
     },
-  } as unknown as HTMLElement & { dispatchWheel(): void };
+  } as unknown as HTMLElement & { dispatchWheel(deltaY: number): void };
 }
 
 {
   const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 2600);
   const domElement = createDomElement();
-  let commitTransition: (() => void) | null = null;
+  const requestedModes: boolean[] = [];
+  const commits: Array<() => void> = [];
   const modeChanges: boolean[] = [];
   const controller = new CameraController({
     camera,
@@ -100,21 +91,27 @@ function createDomElement(): HTMLElement & { dispatchWheel(): void } {
     getHeightAt: () => 0,
     isIllustratedMapReady: () => true,
     continuousRenderLoop: true,
-    onIllustratedMapEntryTransition: (commit) => {
-      commitTransition = commit;
+    onIllustratedMapModeTransition: (active, commit) => {
+      requestedModes.push(active);
+      commits.push(commit);
     },
     onIllustratedMapModeChanged: (active) => modeChanges.push(active),
   });
   controller.focusWorldPositionAtZoom(0, 0, LIVE_WORLD_MIN_ZOOM_PERCENT);
-  domElement.dispatchWheel();
+  domElement.dispatchWheel(120);
+  assert.deepEqual(requestedModes, [true]);
   assert.equal(controller.isIllustratedMapActive(), false,
-    'paper render ownership must wait for full cloud cover');
-  assert.deepEqual(modeChanges, []);
-  assert.ok(commitTransition);
-  commitTransition!();
+    'world ownership should remain until the opacity midpoint');
+  commits.shift()!();
+  assert.equal(controller.isIllustratedMapActive(), true);
+
+  domElement.dispatchWheel(-120);
+  assert.deepEqual(requestedModes, [true, false]);
   assert.equal(controller.isIllustratedMapActive(), true,
-    'the covered midpoint should commit paper render ownership');
-  assert.deepEqual(modeChanges, [true]);
+    'paper ownership should remain until the reverse opacity midpoint');
+  commits.shift()!();
+  assert.equal(controller.isIllustratedMapActive(), false);
+  assert.deepEqual(modeChanges, [true, false]);
   controller.dispose();
 }
 
@@ -131,19 +128,19 @@ function createDomElement(): HTMLElement & { dispatchWheel(): void } {
     getHeightAt: () => 0,
     isIllustratedMapReady: () => true,
     continuousRenderLoop: true,
-    onIllustratedMapEntryTransition: (commit) => {
+    onIllustratedMapModeTransition: (_active, commit) => {
       commitTransition = commit;
       return () => { cancelled = true; };
     },
   });
   controller.focusWorldPositionAtZoom(0, 0, LIVE_WORLD_MIN_ZOOM_PERCENT);
-  domElement.dispatchWheel();
+  domElement.dispatchWheel(120);
   controller.focusWorldPosition(12, -8);
-  assert.equal(cancelled, true, 'a direct world focus should cancel cloud gather');
+  assert.equal(cancelled, true, 'a direct world focus should cancel an uncommitted fade');
   commitTransition!();
   assert.equal(controller.isIllustratedMapActive(), false,
-    'a cancelled cloud handoff must ignore its stale commit callback');
+    'a cancelled fade must ignore its stale commit callback');
   controller.dispose();
 }
 
-console.log('test:map-cloud-transition passed');
+console.log('test:map-opacity-transition passed');
