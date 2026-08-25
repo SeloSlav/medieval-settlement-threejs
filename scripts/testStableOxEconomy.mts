@@ -3,12 +3,14 @@ import { readFileSync } from 'node:fs';
 
 import {
   STABLE_OX_PURCHASE_GOLD,
+  STABLE_OX_MAX_PER_WORKPLACE,
   STABLE_OX_SLOTS,
   STARTING_GOLD,
 } from '../src/generated/gameBalance.ts';
 
 assert.equal(STARTING_GOLD, 60, 'new settlements need the authored bootstrap treasury');
 assert.equal(STABLE_OX_SLOTS, 3, 'each stable must expose exactly three ox bays');
+assert.equal(STABLE_OX_MAX_PER_WORKPLACE, 3, 'no workplace may activate more than three ox teams');
 assert.equal(STABLE_OX_PURCHASE_GOLD, 24, 'trained oxen use the shared whole-gold price');
 assert.ok(
   STARTING_GOLD >= STABLE_OX_PURCHASE_GOLD * 2
@@ -29,6 +31,11 @@ assert.match(
   reducer,
   /stable\.owner != owner \|\| stable\.kind != "stable"[\s\S]{0,220}!stable\.construction_complete[\s\S]{0,220}building_fire_state\(ctx, stable_id\)\.is_some\(\)/,
   'purchase authority must validate ownership, stable kind, completion, and fire safety',
+);
+assert.match(
+  reducer,
+  /let maximum = ox_workplace_capacity\(&building\.kind\)/,
+  'posting capacity must be independent from the current or maximum human labor pool',
 );
 assert.match(
   reducer,

@@ -1,4 +1,5 @@
 import {
+  MINE_CLAY_PER_CYCLE,
   MINE_IRON_PER_CYCLE,
   MINE_SALT_PER_CYCLE,
   MINE_TIMBER_SUPPORT_PER_CYCLE,
@@ -50,8 +51,16 @@ export function renderMineralMineInspector(
     building,
     context.gameState.quarries.values(),
   );
-  const resource = deposit?.resource === 'salt' ? 'salt' : 'iron';
-  const resourceLabel = resource === 'iron' ? 'iron-bearing ore' : 'rock salt';
+  const resource = deposit?.resource === 'salt'
+    ? 'salt'
+    : deposit?.resource === 'clay'
+      ? 'clay'
+      : 'iron';
+  const resourceLabel = resource === 'iron'
+    ? 'iron-bearing ore'
+    : resource === 'salt'
+      ? 'rock salt'
+      : 'deep clay';
   const stock = Math.max(0, building[resource] ?? 0);
   const yardTarget = extractionOutputTarget(
     'mine',
@@ -66,18 +75,16 @@ export function renderMineralMineInspector(
     ? Math.max(0, inboundSupply.amount)
     : 0;
   const onsiteLabor = onsiteBuildingLabor(building, activeTrip);
-  const sourceUsable = deposit != null
-    && (deposit.isRich === true || deposit.remaining > 1e-6);
-  const onsiteSupportReady = deposit?.isRich !== true
-    || richMineSupportsReady(building.timber);
-  const supportRecovering = deposit?.isRich === true
+  const sourceUsable = deposit != null;
+  const onsiteSupportReady = richMineSupportsReady(building.timber);
+  const supportRecovering = deposit != null
     && !onsiteSupportReady
     && richMineSupportsReady(building.timber, inboundSupportTimber);
   const active = onsiteLabor > 0
     && sourceUsable
     && onsiteSupportReady
     && !targetReached;
-  const throughput = (deposit?.isRich ? RICH_MINE_THROUGHPUT_MULTIPLIER : 1)
+  const throughput = (deposit ? RICH_MINE_THROUGHPUT_MULTIPLIER : 1)
     * civilianToolThroughputMultiplier(building.ironwork ?? 0);
   const cycleSeconds = laborScaledInterval(
     definition.harvestInterval,
@@ -85,31 +92,28 @@ export function renderMineralMineInspector(
   ) / throughput;
   const batch = resource === 'iron'
     ? MINE_IRON_PER_CYCLE
-    : MINE_SALT_PER_CYCLE;
-  const grade = deposit?.isRich ? 'Rich' : 'Ordinary';
+    : resource === 'salt'
+      ? MINE_SALT_PER_CYCLE
+      : MINE_CLAY_PER_CYCLE;
   const supportRunway = richMineSupportRunwayCycles(
     building.timber,
     inboundSupportTimber,
   );
-  const supportRows = deposit?.isRich
-    ? `<li><span>Deep shaft supports</span><span>${formatResourceCostAmount(Math.max(0, building.timber))} onsite${
+  const supportRows = `<li><span>Deep shaft supports</span><span>${formatResourceCostAmount(Math.max(0, building.timber))} onsite${
         inboundSupportTimber > 1e-6
           ? ` + ${formatResourceCostAmount(inboundSupportTimber)} inbound`
           : ''
       } / ${formatResourceCostAmount(RICH_MINE_SUPPORT_TARGET)} timber target · ${supportRunway.toFixed(1)} cycles</span></li>
-      <li><span>Timber crib wear</span><span>${renderResourceAmount('timber', MINE_TIMBER_SUPPORT_PER_CYCLE, { compact: true, suffix: 'per completed deep batch' })} · nearest lumber mill or storehouse supplies it; roads make the haul faster</span></li>`
-    : '<li><span>Shaft timber</span><span>Ordinary surface seam · no recurring deep-support cost</span></li>';
+      <li><span>Timber crib wear</span><span>${renderResourceAmount('timber', MINE_TIMBER_SUPPORT_PER_CYCLE, { compact: true, suffix: 'per completed deep batch' })} · nearest lumber mill or storehouse supplies it; roads make the haul faster</span></li>`;
 
   return {
     eyebrow: deposit === null
-      ? 'Mineral mine'
-      : `${grade} ${resource} mine`,
+      ? 'Deep extraction'
+      : `Rich ${resource} mineworks`,
     title: context.worldQueries.getBuildingLabel(building.kind),
     statusText: deposit === null
-      ? 'Stopped - no physical iron or salt deposit beneath the shaft'
-      : !sourceUsable
-        ? `Exhausted - finite ${resource} seam is spent`
-        : targetReached
+      ? 'Stopped - no rich iron, salt, or clay deposit beneath the shaft'
+      : targetReached
           ? `Paused - ${resource} yard target reached (${stock.toFixed(0)} / ${yardTarget.toFixed(0)})`
           : !onsiteSupportReady
             ? supportRecovering
@@ -119,9 +123,7 @@ export function renderMineralMineInspector(
               ? building.assignedLabor > 0
                 ? 'Extraction paused - the full roster is away with its cart'
                 : 'Idle - assign miners'
-              : deposit.isRich
-                ? `Extracting rich deep ${resource} - source does not deplete`
-                : `Extracting finite ${resource} seam - ${Math.round(deposit.remaining)} reserve remains`,
+              : `Extracting rich deep ${resource} - source does not deplete`,
     statusState: active
       ? 'active'
       : targetReached
@@ -133,20 +135,16 @@ export function renderMineralMineInspector(
       ${buildingCostRows(getBuildingCost(building.kind))}
       <li><span>Physical source</span><span>${
         deposit === null
-          ? 'Missing - mine cannot produce'
-          : deposit.isRich
-            ? `Rich ${resourceLabel} seam - non-depleting deep workings`
-            : `Ordinary ${resourceLabel} seam - finite`
+          ? 'Missing - Mineworks cannot produce'
+          : `Rich ${resourceLabel} seam - non-depleting deep workings`
       }</span></li>
       <li><span>Geological reserve</span><span>${
         deposit === null
           ? 'None beneath shaft'
-          : deposit.isRich
-            ? `Deep source does not deplete - surface marker ${Math.round(deposit.remaining)} / ${Math.round(deposit.maxYield)}`
-            : `${Math.round(deposit.remaining)} / ${Math.round(deposit.maxYield)} ${resourceLabel}`
+          : `Deep source does not deplete - surface marker ${Math.round(deposit.remaining)} / ${Math.round(deposit.maxYield)}`
       }</span></li>
       <li><span>Extraction batch</span><span>${batch.toFixed(1)} ${resource} per completed cycle${
-        deposit?.isRich
+        deposit
           ? ` - ${Math.round((RICH_MINE_THROUGHPUT_MULTIPLIER - 1) * 100)}% faster deep working with maintained timber cribs`
           : ''
       }</span></li>
@@ -158,10 +156,12 @@ export function renderMineralMineInspector(
       } (${onsiteLabor} on site / ${building.assignedLabor} assigned)</span></li>
       <li><span>Dispatch</span><span>${
         deposit === null
-          ? 'No dispatch until the shaft is centered on a physical mineral deposit'
+          ? 'No dispatch until the shaft is centered on a rich iron, salt, or clay deposit'
           : resource === 'iron'
-          ? 'Mine carts serve road-linked smithies; market iron covers a local shortfall'
-          : 'Mine carts serve smokehouses and pastoral holdings; roads speed the haul and market salt covers a local shortfall'
+          ? 'Mineworks carts serve road-linked smithies; market iron covers a local shortfall'
+          : resource === 'salt'
+            ? 'Mineworks carts serve smokehouses and pastoral holdings; roads speed the haul and market salt covers a local shortfall'
+            : "Mineworks carts serve road-linked potters; roads speed the haul and imported clay covers a local shortfall"
       }</span></li>
       ${supportRows}
       ${civilianToolRows(building, context.worldQueries)}

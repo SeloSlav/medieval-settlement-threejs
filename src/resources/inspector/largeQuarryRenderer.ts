@@ -37,13 +37,10 @@ export function renderLargeQuarryInspector(
   const definition = getBuildingDefinition(building.kind);
   const richDeposit = [...context.gameState.quarries.values()].find((quarry) =>
     quarry.isRich
+    && quarry.resource === 'stone'
     && Math.hypot(quarry.x - building.x, quarry.z - building.z) <= 2.5
   );
-  const resource = richDeposit?.resource === 'iron'
-    || richDeposit?.resource === 'salt'
-    || richDeposit?.resource === 'clay'
-    ? richDeposit.resource
-    : 'stone';
+  const resource = 'stone' as const;
   const stock = Math.max(0, building[resource] ?? 0);
   const yardTarget = extractionOutputTarget(
     'large_quarry',
@@ -75,12 +72,12 @@ export function renderLargeQuarryInspector(
     / civilianToolThroughputMultiplier(building.ironwork ?? 0);
 
   return {
-    eyebrow: `Deep ${resource} quarry`,
+    eyebrow: 'Deep stone quarry',
     title: context.worldQueries.getBuildingLabel(building.kind),
     statusText: targetReached
       ? `Paused - ${resource} yard target reached (${stock.toFixed(0)} / ${yardTarget.toFixed(0)})`
       : !richDeposit
-        ? 'Stopped — no rich underground source beneath the shaft'
+        ? 'Stopped — no rich stone deposit beneath the quarry'
         : !onsiteSupportsReady
           ? supportsRecovering
             ? 'Waiting — prepared chamber supports are approaching'
@@ -88,8 +85,8 @@ export function renderLargeQuarryInspector(
           : onsiteLabor === 0
             ? building.assignedLabor > 0
               ? 'Extraction paused - the full roster is away with its cart'
-              : 'Idle - assign workers to the underground quarry'
-            : 'Extracting from the non-depleting underground source',
+              : 'Idle - assign quarry workers'
+            : 'Cutting rich stone from the non-depleting underground source',
     statusState: active
       ? 'active'
       : targetReached

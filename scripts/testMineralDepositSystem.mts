@@ -19,6 +19,7 @@ import { createMineralDepositSystem } from '../src/minerals/MineralDepositSystem
 import {
   BUILDING_STORAGE_CAPS,
   LARGE_QUARRY_TIMBER_SUPPORT_PER_CYCLE,
+  MINE_CLAY_PER_CYCLE,
   MINE_IRON_PER_CYCLE,
   MINE_SALT_PER_CYCLE,
   MINE_TIMBER_SUPPORT_BUFFER_CYCLES,
@@ -1172,7 +1173,7 @@ assert.deepEqual(
     mineralNode('rich-salt', 'salt', 0, 0, 1_080, 1_080, true),
   ),
   {
-    label: 'Rich salt deposit · 1080 / 1080 surface salt remaining · underground salt does not deplete · center a Quarry on this node',
+    label: 'Rich salt deposit · 1080 / 1080 surface salt remaining · underground salt does not deplete · center Mineworks on this node',
     level: 'deep',
   },
 );
@@ -1189,7 +1190,7 @@ assert.deepEqual(
     },
   ),
   {
-    label: 'Rich stone deposit · 120 / 600 surface stone remaining · underground stone does not deplete · center a Quarry on this node',
+    label: 'Rich stone deposit · 120 / 600 surface stone remaining · underground stone does not deplete · center Quarry on this node',
     level: 'deep',
   },
   'rich stone must use the same surface-plus-underground vocabulary as every mineral',
@@ -1207,7 +1208,7 @@ assert.deepEqual(
     },
   ),
   {
-    label: 'Rich clay deposit · 720 / 720 surface clay remaining · underground clay does not deplete · center a Quarry on this node',
+    label: 'Rich clay deposit · 720 / 720 surface clay remaining · underground clay does not deplete · center Mineworks on this node',
     level: 'deep',
   },
 );
@@ -1253,32 +1254,37 @@ assert.ok(
 );
 
 const mine = getBuildingDefinition('mine');
+assert.equal(mine.label, 'Mineworks');
 assert.equal(mine.acceptsLabor, true);
 assert.equal(mine.requiresRoad, true);
 assert.equal(mine.maxLabor, 4);
 assert.equal(BUILDING_STORAGE_CAPS.mine.iron, 240);
 assert.equal(BUILDING_STORAGE_CAPS.mine.salt, 240);
+assert.equal(BUILDING_STORAGE_CAPS.mine.clay, 240);
 assert.equal(BUILDING_STORAGE_CAPS.mine.ironwork, 3);
 assert.equal(BUILDING_STORAGE_CAPS.mine.timber, 12);
 assert.ok(MINE_IRON_PER_CYCLE > 0);
-assert.ok(MINE_SALT_PER_CYCLE > MINE_IRON_PER_CYCLE);
-assert.equal(MINE_TIMBER_SUPPORT_PER_CYCLE, 0.5);
+assert.ok(MINE_SALT_PER_CYCLE > 0);
+assert.ok(MINE_CLAY_PER_CYCLE > 0);
+assert.equal(MINE_TIMBER_SUPPORT_PER_CYCLE, 1);
 assert.equal(MINE_TIMBER_SUPPORT_BUFFER_CYCLES, 3);
-assert.equal(RICH_MINE_SUPPORT_TARGET, 1.5);
-assert.equal(richMineSupportRunwayCycles(1.5), 3);
-assert.equal(richMineSupportsReady(0.49), false);
-assert.equal(richMineSupportsReady(0.5), true);
+assert.equal(RICH_MINE_SUPPORT_TARGET, 3);
+assert.equal(richMineSupportRunwayCycles(3), 3);
+assert.equal(richMineSupportsReady(0.99), false);
+assert.equal(richMineSupportsReady(1), true);
 assert.ok(RICH_MINE_THROUGHPUT_MULTIPLIER > 1);
 
 const mineMesh = createBuildingMesh('mine');
-assert.equal(mineMesh.name, 'Mineral Mine');
-assert.ok(mineMesh.getObjectByName('Mineral mine sorting floor'));
+assert.equal(mineMesh.name, 'Mineworks');
+assert.ok(mineMesh.getObjectByName('Mineworks sorting floor'));
 const ironStockpile = mineMesh.getObjectByName('IronMineStockpile');
 const saltStockpile = mineMesh.getObjectByName('SaltMineStockpile');
+const clayStockpile = mineMesh.getObjectByName('ClayMineStockpile');
 const toolStockpile = mineMesh.getObjectByName('CivilianToolStockpile');
 const supportStockpile = mineMesh.getObjectByName('MineSupportStockpile');
 assert.ok(ironStockpile, 'the mine needs a physical iron stockpile');
 assert.ok(saltStockpile, 'the mine needs a physical salt stockpile');
+assert.ok(clayStockpile, 'Mineworks needs a physical clay stockpile');
 assert.ok(toolStockpile, 'the mine needs a physical replacement-tool rack');
 assert.ok(supportStockpile, 'the mine needs a physical prepared shaft-timber pile');
 assert.equal(
@@ -1290,6 +1296,11 @@ assert.equal(
   saltStockpile.children.filter((child) => child.name === 'SaltMineSaltSegment').length,
   6,
   'salt inventory must visibly rise and fall in discrete rock-salt piles',
+);
+assert.equal(
+  clayStockpile.children.filter((child) => child.name === 'ClayMineClaySegment').length,
+  6,
+  'clay inventory must visibly rise and fall in discrete excavated-clay piles',
 );
 assert.equal(
   supportStockpile.children.filter(
@@ -1339,22 +1350,26 @@ const mineStart = authority.indexOf('pub fn step_mine');
 const mineEnd = authority.indexOf('pub fn step_granary', mineStart);
 assert.ok(mineStart >= 0 && mineEnd > mineStart);
 const mineStep = authority.slice(mineStart, mineEnd);
-assert.match(mineStep, /deposit-iron-/);
-assert.match(mineStep, /deposit-salt-/);
+assert.match(mineStep, /mineworks_commodity_beneath/);
+assert.match(mineStep, /mineworks_geological_commodity/);
+assert.match(mineStep, /mineworks_clay_commodity/);
+assert.match(mineStep, /MINE_IRON_PER_CYCLE/);
+assert.match(mineStep, /MINE_SALT_PER_CYCLE/);
+assert.match(mineStep, /MINE_CLAY_PER_CYCLE/);
 assert.match(mineStep, /RICH_MINE_THROUGHPUT_MULTIPLIER/);
 assert.match(
   mineStep,
-  /deposit\.is_rich[\s\S]*request_connected_commodity[\s\S]*CommodityKind::Timber[\s\S]*lumber_mill[\s\S]*village_storehouse[\s\S]*rich_mine_support_target/,
-  'rich mines must physically request support timber from connected timber stores',
+  /request_connected_commodity[\s\S]*CommodityKind::Timber[\s\S]*lumber_mill[\s\S]*village_storehouse[\s\S]*rich_mine_support_target/,
+  'Mineworks must physically request support timber from connected timber stores',
 );
 assert.match(
   mineStep,
-  /deposit\.is_rich && !rich_mine_supports_ready\(building\.timber\)[\s\S]*return;/,
-  'rich extraction must stop safely before advancing without a complete timber crib batch',
+  /if !rich_mine_supports_ready\(building\.timber\)[\s\S]*return;/,
+  'deep extraction must stop safely before advancing without a complete timber crib batch',
 );
 assert.match(
   mineStep,
-  /produced > 1e-6 && deposit\.is_rich[\s\S]*CommodityKind::Timber[\s\S]*MINE_TIMBER_SUPPORT_PER_CYCLE/,
+  /if produced > 1e-6[\s\S]*CommodityKind::Timber[\s\S]*MINE_TIMBER_SUPPORT_PER_CYCLE/,
   'support timber must wear only after a completed deep extraction batch',
 );
 assert.match(mineStep, /civilian_tool_throughput_multiplier\(building\.ironwork\)/);
@@ -1363,10 +1378,10 @@ assert.match(
   /tools_maintained && produced > 1e-6[\s\S]*CommodityKind::Ironwork[\s\S]*CIVILIAN_TOOL_IRONWORK_PER_CYCLE/,
   'mine tools must wear only after a completed physical extraction batch',
 );
-assert.match(
+assert.doesNotMatch(
   mineStep,
-  /if produced > 1e-6 && !deposit\.is_rich[\s\S]*remaining:/,
-  'ordinary deposits must deplete while rich deposits remain a deep source',
+  /remaining:/,
+  'Mineworks must never consume the finite surface reserve owned by Mining Pits',
 );
 assert.match(
   authority,
@@ -1375,8 +1390,25 @@ assert.match(
 );
 assert.match(
   authority,
-  /\("mine", CommodityKind::Iron\)[\s\S]*smithy[\s\S]*marketplace[\s\S]*\("mine", CommodityKind::Salt\)[\s\S]*smokehouse[\s\S]*pastoral_farmstead[\s\S]*marketplace/,
-  'mines must physically dispatch their extracted commodity to matching processors',
+  /\("stone_quarry" \| "mine", CommodityKind::Iron\)[\s\S]*smithy[\s\S]*trading_post[\s\S]*\("stone_quarry" \| "mine", CommodityKind::Salt\)[\s\S]*smokehouse[\s\S]*pastoral_farmstead[\s\S]*trading_post[\s\S]*\("stone_quarry" \| "mine", CommodityKind::Clay\)[\s\S]*potter_kiln/,
+  'Mining Pit and Mineworks carts must dispatch iron, salt, and clay to matching processors',
+);
+
+const extractionPolicy = readFileSync('server/src/extraction_policy.rs', 'utf8');
+assert.match(
+  extractionPolicy,
+  /mineworks_geological_commodity[\s\S]*if !is_rich[\s\S]*return None[\s\S]*CommodityKind::Iron \| CommodityKind::Salt/,
+  'Mineworks must accept only rich iron and salt rows from the geological table',
+);
+assert.match(
+  extractionPolicy,
+  /mineworks_clay_commodity[\s\S]*node_id\.starts_with\("clay-rich-"\)/,
+  'Mineworks must accept only rich clay rows from the legacy natural-resource table',
+);
+assert.match(
+  extractionPolicy,
+  /quarry_geological_commodity[\s\S]*is_rich[\s\S]*CommodityKind::Stone/,
+  'Quarries must reserve their deep workings for rich stone',
 );
 
 const ordinaryIronDeposit = mineralNode(
@@ -1394,13 +1426,27 @@ let mineInspector = renderMineralMineInspector(
   buildingTarget(inspectorMine),
   inspectorContext(inspectorState),
 );
-assert.equal(mineInspector.eyebrow, 'Ordinary iron mine');
-assert.match(mineInspector.statusText, /Extracting finite iron seam - 75 reserve remains/);
-assert.match(mineInspector.detailsHtml, /Ordinary iron-bearing ore seam - finite/);
-assert.match(mineInspector.detailsHtml, /75 \/ 300 iron-bearing ore/);
-assert.match(mineInspector.detailsHtml, /Mine carts serve road-linked smithies/);
-assert.match(mineInspector.detailsHtml, /Baseline hand tools/);
-assert.match(mineInspector.detailsHtml, /refill to 3 \(30 cycles\)/);
+assert.equal(mineInspector.title, 'Mineworks');
+assert.equal(mineInspector.eyebrow, 'Deep extraction');
+assert.match(mineInspector.statusText, /no rich iron, salt, or clay deposit beneath the shaft/);
+assert.match(mineInspector.detailsHtml, /Missing - Mineworks cannot produce/);
+
+const inspectorMiningPit = mineBuilding({
+  id: 'mining-pit-inspector',
+  kind: 'stone_quarry',
+  workRadius: 40,
+  assignedLabor: 2,
+  iron: 12,
+});
+let miningPitInspector = renderStoneQuarryInspector(
+  buildingTarget(inspectorMiningPit),
+  inspectorContext(inspectorGameState(inspectorMiningPit, [ordinaryIronDeposit])),
+);
+assert.equal(miningPitInspector.title, 'Mining Pit');
+assert.equal(miningPitInspector.eyebrow, 'Surface extraction');
+assert.match(miningPitInspector.statusText, /Extracting surface iron/);
+assert.match(miningPitInspector.detailsHtml, /Ordinary iron surface deposit · finite/);
+assert.match(miningPitInspector.detailsHtml, /Baseline hand tools/);
 
 const richSaltDeposit = mineralNode(
   'deposit-salt-rich-inspector',
@@ -1416,9 +1462,9 @@ mineInspector = renderMineralMineInspector(
   buildingTarget(inspectorMine),
   inspectorContext(inspectorState),
 );
-assert.equal(mineInspector.eyebrow, 'Rich salt mine');
+assert.equal(mineInspector.eyebrow, 'Rich salt mineworks');
 assert.match(mineInspector.statusText, /awaits timber supports/);
-assert.match(mineInspector.detailsHtml, /0 onsite \/ 1.5 timber target/);
+assert.match(mineInspector.detailsHtml, /0 onsite \/ 3 timber target/);
 const recalledUnsupportedMine = {
   ...inspectorMine,
   id: 'mine-recalled-without-supports',
@@ -1485,17 +1531,39 @@ mineInspector = renderMineralMineInspector(
 assert.match(mineInspector.statusText, /Extracting rich deep salt - source does not deplete/);
 assert.match(mineInspector.detailsHtml, /50% faster deep working/);
 assert.match(mineInspector.detailsHtml, /3.0 cycles/);
-assert.match(mineInspector.detailsHtml, /0.5 timber per completed deep batch/);
+assert.match(mineInspector.detailsHtml, /1 timber per completed deep batch/);
+
+const richClayDeposit: ResourceNodeState = {
+  ...richSaltDeposit,
+  nodeId: 'clay-rich-inspector',
+  resource: 'clay',
+  remaining: 720,
+  maxYield: 720,
+};
+const supportedClayMineworks = {
+  ...supportedInspectorMine,
+  id: 'clay-mineworks-inspector',
+  iron: 0,
+  salt: 0,
+  clay: 0,
+};
+mineInspector = renderMineralMineInspector(
+  buildingTarget(supportedClayMineworks),
+  inspectorContext(inspectorGameState(supportedClayMineworks, [richClayDeposit])),
+);
+assert.equal(mineInspector.eyebrow, 'Rich clay mineworks');
+assert.match(mineInspector.statusText, /Extracting rich deep clay - source does not deplete/);
+assert.match(mineInspector.detailsHtml, /Rich deep clay seam - non-depleting deep workings/);
+assert.match(mineInspector.detailsHtml, /Mineworks carts serve road-linked potters/);
 
 const exhaustedIron = { ...ordinaryIronDeposit, remaining: 0 };
-inspectorState = inspectorGameState(inspectorMine, [exhaustedIron]);
-mineInspector = renderMineralMineInspector(
-  buildingTarget(inspectorMine),
-  inspectorContext(inspectorState),
+miningPitInspector = renderStoneQuarryInspector(
+  buildingTarget(inspectorMiningPit),
+  inspectorContext(inspectorGameState(inspectorMiningPit, [exhaustedIron])),
 );
-assert.equal(mineInspector.statusState, 'warning');
-assert.match(mineInspector.statusText, /Exhausted - finite iron seam is spent/);
-assert.match(mineInspector.detailsHtml, /Production interval<\/span><span>paused/);
+assert.equal(miningPitInspector.statusState, 'warning');
+assert.match(miningPitInspector.statusText, /no unexhausted surface deposit in range/);
+assert.match(miningPitInspector.detailsHtml, /Harvest interval<\/span><span>paused/);
 
 const richSaltNearQuarry = {
   ...richSaltDeposit,
@@ -1516,12 +1584,12 @@ const largeQuarryInspector = renderLargeQuarryInspector(
   buildingTarget(largeQuarryBuilding),
   inspectorContext(largeQuarryState),
 );
-assert.equal(largeQuarryInspector.eyebrow, 'Deep salt quarry');
-assert.match(largeQuarryInspector.statusText, /await prepared timber supports/);
-assert.match(
+assert.equal(largeQuarryInspector.eyebrow, 'Deep stone quarry');
+assert.match(largeQuarryInspector.statusText, /no rich stone deposit beneath the quarry/);
+assert.doesNotMatch(
   largeQuarryInspector.detailsHtml,
-  /Rich underground salt · does not deplete/,
-  'the shared Quarry inspector must identify the actual rich material under its shaft',
+  /underground salt/,
+  'a Quarry must not present a rich salt node as its deep source',
 );
 const richStoneAtQuarry: ResourceNodeState = {
   ...richSaltNearQuarry,
@@ -1542,7 +1610,7 @@ assert.match(
 );
 assert.match(
   supportedLargeQuarryInspector.detailsHtml,
-  /0 onsite \/ 1.5 timber target/,
+  /0 onsite \/ 6 timber target/,
 );
 const quarrySupportTrip: DeliveryTripState = {
   ...inboundSupportTrip,
@@ -1570,7 +1638,7 @@ supportedLargeQuarryInspector = renderLargeQuarryInspector(
 );
 assert.match(
   supportedLargeQuarryInspector.statusText,
-  /Extracting from the non-depleting underground source/,
+  /Cutting rich stone from the non-depleting underground source/,
 );
 assert.match(
   supportedLargeQuarryInspector.detailsHtml,
@@ -1720,8 +1788,8 @@ assert.match(
 );
 assert.match(
   uiSurfaces,
-  /iron or salt deposit/i,
-  'player-facing UI must explain that both mineral resources have real deposits',
+  /rich iron, salt, or clay deposit/i,
+  'player-facing UI must explain which rich deposits Mineworks can exploit',
 );
 assert.match(
   uiSurfaces,
@@ -1757,8 +1825,8 @@ assert.match(
 );
 assert.match(
   uiSurfaces,
-  /Delves mineral seams for iron or salt/,
-  'the Mine card must identify both of its physical mineral outputs',
+  /Extracts rich iron, salt, or clay with timber-supported shafts/,
+  'the Mineworks card must identify all three of its rich physical outputs',
 );
 assert.match(
   uiSurfaces,
@@ -1767,8 +1835,14 @@ assert.match(
 );
 assert.match(
   uiSurfaces,
-  /Works rich deposits with timber supports for a lasting supply of stone or minerals/,
-  'the Quarry card must expose the recurring support input and lasting rich source',
+  /Cuts rich stone with timber-supported deep workings/,
+  'the Quarry card must reserve its supported deep workings for rich stone',
+);
+assert.match(uiSurfaces, /Mineworks/);
+assert.doesNotMatch(
+  uiSurfaces,
+  /Mineral mine/i,
+  'player-facing extraction UI must use the Mineworks name consistently',
 );
 assert.doesNotMatch(
   uiSurfaces,
@@ -1782,7 +1856,7 @@ assert.match(
 );
 
 console.log(
-  `iron and salt deposit system tests passed (${geologicalMarkerProfileMs.toFixed(1)} ms / 100k marker reads)`,
+  `geological extraction system tests passed (${geologicalMarkerProfileMs.toFixed(1)} ms / 100k marker reads)`,
 );
 
 function worldSettings(

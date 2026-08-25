@@ -65,12 +65,16 @@ assert.match(buildingRenderer, /withBuildingOxTeam\(safeView, building, context\
 
 const oxTeamRenderer = read('src/resources/inspector/buildingOxTeamRenderer.ts');
 assert.match(oxTeamRenderer, /if \(!isOxSupportedWorkplace\(building\.kind\)\) return view/);
-assert.match(oxTeamRenderer, /ox\.assignedBuildingId === building\.id[\s\S]{0,120}ox\.assignedBuildingId == null/);
-assert.match(oxTeamRenderer, /getBuildingDefinition\(building\.kind\)\.maxLabor/);
+assert.match(oxTeamRenderer, /ox\.assignedBuildingId === building\.id/);
+assert.match(oxTeamRenderer, /ox\.assignedBuildingId == null/);
+assert.match(oxTeamRenderer, /oxWorkplaceCapacity\(building\.kind\)/);
 assert.match(oxTeamRenderer, /const haulingOxIds[\s\S]{0,140}gameState\.deliveryTrips\.values\(\)/);
 assert.match(oxTeamRenderer, /postingReadyAutomaticCount/);
-assert.match(oxTeamRenderer, /doubles one active worker’s yield/);
-assert.match(oxTeamRenderer, /doubles one active hauler’s carrying capacity/);
+assert.match(oxTeamRenderer, /doubles one farmer’s ploughing and threshing pace/);
+assert.match(oxTeamRenderer, /adds 50% to harvesting; sowing remains human-only/);
+assert.match(oxTeamRenderer, /waiting for labor/);
+assert.match(oxTeamRenderer, /doubles one present worker’s throughput/);
+assert.match(oxTeamRenderer, /doubles one present hauler’s carrying capacity/);
 assert.match(oxTeamRenderer, /postingLocked[\s\S]{0,420}postedCount >= maxCount[\s\S]{0,80}postingReadyAutomaticCount <= 0/);
 
 const stableRenderer = read('src/resources/inspector/stableRenderer.ts');
@@ -81,7 +85,8 @@ assert.match(stableRenderer, /const purchaseDisabled = atCapacity \|\| treasuryS
 assert.doesNotMatch(stableRenderer, /Automatic · oxen cannot be assigned individually/);
 assert.match(stableRenderer, /posted until changed/);
 assert.match(stableRenderer, /unposted ox remains in the automatic assistance pool/);
-assert.match(stableRenderer, /production yield or hauling inventory is doubled/);
+assert.match(stableRenderer, /Ox postings are separate from human labor slots/);
+assert.match(stableRenderer, /waiting for labor/);
 assert.match(stableRenderer, /const haulingOxIds/);
 assert.match(stableRenderer, /Automatic pool · hauling now/);
 assert.match(stableRenderer, /Automatic assistance pool/);

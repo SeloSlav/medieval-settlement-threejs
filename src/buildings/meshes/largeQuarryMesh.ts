@@ -9,95 +9,188 @@ import {
 import { addDarkOpening, addGableShell, addPlankDoor } from './buildingMeshKit.ts';
 import { createCivilianToolStockpile } from './civilianToolStockpileMesh.ts';
 
-function addShaft(group: THREE.Group): void {
-  addMesh(
-    group,
-    new THREE.CylinderGeometry(4.25, 4.65, 0.5, 20),
-    quarryRockMaterial('cut'),
-    new THREE.Vector3(0, 0.2, 0),
-  );
-  addMesh(
-    group,
-    new THREE.CylinderGeometry(3.45, 3.45, 0.16, 20),
-    sharedBuildingMaterial('interiorDark'),
-    new THREE.Vector3(0, 0.5, 0),
-  );
+const UP = new THREE.Vector3(0, 1, 0);
 
-  for (let index = 0; index < 12; index++) {
-    const angle = index / 12 * Math.PI * 2;
-    addMesh(
-      group,
-      new THREE.BoxGeometry(1.7, 0.5, 0.78),
-      quarryRockMaterial(index % 3 === 0 ? 'light' : index % 2 === 0 ? 'dark' : 'mid'),
-      new THREE.Vector3(Math.sin(angle) * 4, 0.64, Math.cos(angle) * 4),
-      new THREE.Euler(0, angle, 0),
+/**
+ * A broad, stepped rich-stone face. Keeping the dominant mass low and
+ * horizontal makes the quarry read as an open cut even when its terrain decal
+ * or rich-deposit marker is occluded by the camera.
+ */
+function addSteppedStoneCut(group: THREE.Group): void {
+  const cut = new THREE.Group();
+  cut.name = 'Rich stone quarry stepped cut';
+
+  addMesh(
+    cut,
+    new THREE.CylinderGeometry(7.2, 7.75, 0.24, 14),
+    sharedBuildingMaterial('interiorDark'),
+    new THREE.Vector3(-0.7, 0.09, -1.6),
+    undefined,
+    new THREE.Vector3(1, 1, 0.72),
+  ).name = 'Quarry working floor';
+
+  const rearBenches = [
+    { width: 17.2, height: 0.72, depth: 2.55, y: 0.36, z: -6.75, material: 'dark' as const },
+    { width: 14.8, height: 0.82, depth: 1.95, y: 1.03, z: -7.52, material: 'mid' as const },
+    { width: 11.6, height: 0.92, depth: 1.42, y: 1.79, z: -8.14, material: 'light' as const },
+  ];
+  for (const [index, bench] of rearBenches.entries()) {
+    const mesh = addMesh(
+      cut,
+      new THREE.BoxGeometry(bench.width, bench.height, bench.depth),
+      quarryRockMaterial(bench.material),
+      new THREE.Vector3(0.15 - index * 0.18, bench.y, bench.z),
+      new THREE.Euler(0, index % 2 === 0 ? 0.025 : -0.018, 0),
     );
+    mesh.name = `Rich stone rear bench ${index + 1}`;
   }
+
+  for (const side of [-1, 1] as const) {
+    const lower = addMesh(
+      cut,
+      new THREE.BoxGeometry(3.05, 0.72, 7.1),
+      quarryRockMaterial(side < 0 ? 'dark' : 'mid'),
+      new THREE.Vector3(side * 7.15, 0.36, -3.45),
+      new THREE.Euler(0, side * -0.055, 0),
+    );
+    lower.name = 'Rich stone side return';
+    const upper = addMesh(
+      cut,
+      new THREE.BoxGeometry(1.9, 0.78, 4.9),
+      quarryRockMaterial(side < 0 ? 'mid' : 'light'),
+      new THREE.Vector3(side * 7.82, 1.1, -5.0),
+      new THREE.Euler(0, side * -0.07, 0),
+    );
+    upper.name = 'Rich stone upper side return';
+  }
+
+  // Thin exposed bands break the large face into unmistakable sedimentary cuts.
+  for (const [index, y] of [0.68, 1.34, 2.08].entries()) {
+    addMesh(
+      cut,
+      new THREE.BoxGeometry(15.5 - index * 2.3, 0.11, 0.18),
+      quarryRockMaterial(index % 2 === 0 ? 'cut' : 'dark'),
+      new THREE.Vector3(0, y, -5.49 - index * 1.18),
+    ).name = 'Quarry exposed stone course';
+  }
+
+  const faceRubble = [
+    [-7.8, -7.8, 0.82], [-5.9, -6.0, 0.58], [-3.5, -5.55, 0.72],
+    [4.5, -5.75, 0.64], [6.35, -6.7, 0.88], [8.0, -7.75, 0.68],
+  ] as const;
+  faceRubble.forEach(([x, z, scale], index) => {
+    addMesh(
+      cut,
+      new THREE.DodecahedronGeometry(0.72, 0),
+      quarryRockMaterial(index % 3 === 0 ? 'light' : index % 2 === 0 ? 'dark' : 'mid'),
+      new THREE.Vector3(x, 0.3 + scale * 0.12, z),
+      new THREE.Euler(index * 0.31, index * 0.47, index * 0.16),
+      new THREE.Vector3(scale * 1.35, scale * 0.72, scale),
+    ).name = 'Fresh quarry face rubble';
+  });
+  group.add(cut);
 }
 
-function addHeadframe(group: THREE.Group): void {
+function addBeamBetween(
+  group: THREE.Group,
+  start: THREE.Vector3,
+  end: THREE.Vector3,
+  thickness: number,
+  material: THREE.Material,
+  name: string,
+): THREE.Mesh {
+  const direction = end.clone().sub(start);
+  const beam = addMesh(
+    group,
+    new THREE.BoxGeometry(thickness, direction.length(), thickness),
+    material,
+    start.clone().add(end).multiplyScalar(0.5),
+  );
+  beam.quaternion.setFromUnitVectors(UP, direction.normalize());
+  beam.name = name;
+  return beam;
+}
+
+/** A single-mast lifting crane, deliberately unlike an underground headframe. */
+function addStoneLiftingCrane(group: THREE.Group): void {
+  const crane = new THREE.Group();
+  crane.name = 'Quarry stone lifting crane';
+  crane.position.set(3.4, 0, 0.8);
+  crane.rotation.y = -0.16;
   const darkTimber = timberMaterial('dark');
   const weatheredTimber = timberMaterial('weathered');
-  for (const x of [-2.75, 2.75]) {
-    for (const z of [-1.9, 1.9]) {
-      addMesh(
-        group,
-        new THREE.BoxGeometry(0.42, 8.4, 0.42),
-        darkTimber,
-        new THREE.Vector3(x * 0.72, 4.45, z * 0.72),
-        new THREE.Euler(x * z > 0 ? 0.12 : -0.12, 0, x < 0 ? -0.28 : 0.28),
-      );
-    }
-  }
-  for (const z of [-1.75, 1.75]) {
-    addMesh(
-      group,
-      new THREE.BoxGeometry(6.35, 0.42, 0.5),
-      weatheredTimber,
-      new THREE.Vector3(0, 8.05, z),
-    );
-  }
-  addMesh(
-    group,
-    new THREE.BoxGeometry(0.5, 0.48, 4.1),
+
+  addBeamBetween(
+    crane,
+    new THREE.Vector3(0, 0.15, 0),
+    new THREE.Vector3(0, 7.25, 0),
+    0.48,
+    darkTimber,
+    'Quarry crane mast',
+  );
+  addBeamBetween(
+    crane,
+    new THREE.Vector3(0, 6.72, 0),
+    new THREE.Vector3(-5.9, 5.3, -1.65),
+    0.38,
     weatheredTimber,
-    new THREE.Vector3(0, 8.12, 0),
+    'Quarry crane lifting boom',
+  );
+  addBeamBetween(
+    crane,
+    new THREE.Vector3(0, 6.42, 0),
+    new THREE.Vector3(3.55, 0.2, 0.55),
+    0.22,
+    darkTimber,
+    'Quarry crane rear stay',
+  );
+  addBeamBetween(
+    crane,
+    new THREE.Vector3(0, 6.82, 0),
+    new THREE.Vector3(-5.9, 5.48, -1.65),
+    0.075,
+    metalMaterial('iron'),
+    'Quarry crane boom cable',
   );
 
-  const drum = addMesh(
-    group,
-    new THREE.CylinderGeometry(0.74, 0.74, 2.25, 16),
-    timberMaterial('mid'),
-    new THREE.Vector3(0, 7.35, 0),
-    new THREE.Euler(0, 0, Math.PI * 0.5),
-  );
-  drum.name = 'Large quarry winding drum';
-  for (const x of [-1.18, 1.18]) {
-    addMesh(
-      group,
-      new THREE.TorusGeometry(0.76, 0.09, 8, 18),
-      metalMaterial('iron'),
-      new THREE.Vector3(x, 7.35, 0),
-      new THREE.Euler(0, Math.PI * 0.5, 0),
-    );
-  }
   addMesh(
-    group,
-    new THREE.CylinderGeometry(0.055, 0.055, 5.7, 7),
+    crane,
+    new THREE.TorusGeometry(0.34, 0.07, 7, 14),
     metalMaterial('iron'),
-    new THREE.Vector3(0, 4.2, 0),
+    new THREE.Vector3(-5.82, 5.18, -1.62),
+    new THREE.Euler(0, Math.PI * 0.5, 0),
+  ).name = 'Quarry crane pulley';
+  addBeamBetween(
+    crane,
+    new THREE.Vector3(-5.82, 5.1, -1.62),
+    new THREE.Vector3(-5.82, 1.0, -1.62),
+    0.055,
+    metalMaterial('iron'),
+    'Quarry crane lifting rope',
   );
   addMesh(
-    group,
-    new THREE.BoxGeometry(1.35, 0.68, 1.25),
+    crane,
+    new THREE.BoxGeometry(1.35, 0.72, 1.2),
     quarryRockMaterial('cut'),
-    new THREE.Vector3(0, 1.15, 0),
-  );
+    new THREE.Vector3(-5.82, 0.58, -1.62),
+    new THREE.Euler(0, 0.08, -0.035),
+  ).name = 'Suspended dressed stone block';
+
+  for (const x of [-0.72, 0.72]) {
+    addMesh(
+      crane,
+      new THREE.BoxGeometry(1.1, 0.58, 1.35),
+      quarryRockMaterial(x < 0 ? 'dark' : 'mid'),
+      new THREE.Vector3(2.8 + x, 0.29, 0.45),
+    ).name = 'Quarry crane counterweight';
+  }
+  group.add(crane);
 }
 
-function addWinchHouse(group: THREE.Group): void {
+function addCuttersShelter(group: THREE.Group): void {
   const house = new THREE.Group();
-  house.position.set(7.15, 0, 1.6);
+  house.name = 'Quarry cutters shelter';
+  house.position.set(7.2, 0, 4.15);
   house.rotation.y = -Math.PI * 0.5;
   const shell = addGableShell(house, {
     width: 5.4,
@@ -106,7 +199,7 @@ function addWinchHouse(group: THREE.Group): void {
     wallHeight: 2.35,
     ridgeHeight: 1.75,
     wallMaterial: quarryRockMaterial('light'),
-    roofMaterial: sharedBuildingMaterial('shingle'),
+    roofMaterial: sharedBuildingMaterial('slate'),
     stoneGroundFloor: true,
   });
   addPlankDoor(house, -1.35, 1.03, shell.frontZ + 0.02, 0.95, 1.95);
@@ -114,24 +207,24 @@ function addWinchHouse(group: THREE.Group): void {
   group.add(house);
 }
 
-function addWorkPlatforms(group: THREE.Group): void {
-  const timber = timberMaterial('weathered');
-  for (const z of [-4.9, 4.9]) {
+function addBenchWalkway(group: THREE.Group): void {
+  const walkway = new THREE.Group();
+  walkway.name = 'Quarry face access walkway';
+  addMesh(
+    walkway,
+    new THREE.BoxGeometry(10.6, 0.25, 1.6),
+    timberMaterial('weathered'),
+    new THREE.Vector3(-0.9, 0.82, -4.15),
+  );
+  for (const x of [-5.7, -3.05, -0.4, 2.25, 4.9]) {
     addMesh(
-      group,
-      new THREE.BoxGeometry(9.4, 0.28, 2.1),
-      timber,
-      new THREE.Vector3(-0.8, 0.76, z),
+      walkway,
+      new THREE.BoxGeometry(0.28, 1.2, 0.28),
+      timberMaterial('dark'),
+      new THREE.Vector3(x, 0.43, -4.15),
     );
-    for (const x of [-4.8, -2.2, 0.4, 3.0]) {
-      addMesh(
-        group,
-        new THREE.BoxGeometry(0.28, 1.1, 0.28),
-        timberMaterial('dark'),
-        new THREE.Vector3(x, 0.42, z),
-      );
-    }
   }
+  group.add(walkway);
 }
 
 function addStoneYard(group: THREE.Group): void {
@@ -139,10 +232,10 @@ function addStoneYard(group: THREE.Group): void {
   stockpile.name = 'LargeQuarryStockpile';
   stockpile.visible = false;
   const stacks = [
-    [-8.4, -5.3, 0],
-    [-7.4, -3.8, Math.PI * 0.5],
-    [7.7, -5.4, 0.08],
-    [9.2, -4.0, Math.PI * 0.5],
+    [-8.4, -3.6, 0],
+    [-7.4, -1.8, Math.PI * 0.5],
+    [7.6, -3.5, 0.08],
+    [9.1, -1.8, Math.PI * 0.5],
   ] as const;
   for (const [x, z, yaw] of stacks) {
     const stack = new THREE.Group();
@@ -155,23 +248,23 @@ function addStoneYard(group: THREE.Group): void {
         new THREE.BoxGeometry(1.15, 0.72, 1.55),
         quarryRockMaterial(by > 1 ? 'light' : bx < 0 ? 'dark' : 'mid'),
         new THREE.Vector3(bx, by, 0),
-      );
+      ).name = 'Dressed rich-stone block';
     }
     stockpile.add(stack);
   }
   group.add(stockpile);
 
-  for (let index = 0; index < 14; index++) {
-    const angle = index / 14 * Math.PI * 2 + 0.16;
-    const radius = 10.7 + (index % 3) * 0.45;
+  for (let index = 0; index < 12; index++) {
+    const angle = index / 12 * Math.PI * 2 + 0.16;
+    const radius = 10.4 + (index % 3) * 0.42;
     addMesh(
       group,
-      new THREE.DodecahedronGeometry(0.62 + (index % 4) * 0.12, 0),
+      new THREE.DodecahedronGeometry(0.6 + (index % 4) * 0.1, 0),
       quarryRockMaterial(index % 3 === 0 ? 'light' : index % 2 === 0 ? 'dark' : 'mid'),
       new THREE.Vector3(Math.sin(angle) * radius, 0.3, Math.cos(angle) * radius),
       new THREE.Euler(index * 0.19, index * 0.37, index * 0.11),
       new THREE.Vector3(1.2, 0.7, 0.95),
-    );
+    ).name = 'Quarry spoil stone';
   }
 }
 
@@ -210,16 +303,18 @@ function addChamberSupportStockpile(group: THREE.Group): void {
   group.add(stockpile);
 }
 
-/** Permanent shaft quarry for the underground source of a rich stone deposit. */
+/** Open, terraced extraction works for the underground source of rich stone. */
 export function createLargeQuarryMesh(): THREE.Group {
   const group = new THREE.Group();
-  group.name = 'Large Quarry';
-  addShaft(group);
-  addHeadframe(group);
-  addWinchHouse(group);
-  addWorkPlatforms(group);
+  group.name = 'Quarry';
+  group.userData.semanticRole = 'rich-stone-quarry';
+  group.userData.silhouette = 'broad-stepped-open-cut';
+  addSteppedStoneCut(group);
+  addStoneLiftingCrane(group);
+  addCuttersShelter(group);
+  addBenchWalkway(group);
   addStoneYard(group);
   addChamberSupportStockpile(group);
-  group.add(createCivilianToolStockpile(new THREE.Vector3(7.8, 0, 5.45), -0.18));
+  group.add(createCivilianToolStockpile(new THREE.Vector3(7.8, 0, 6.1), -0.18));
   return group;
 }

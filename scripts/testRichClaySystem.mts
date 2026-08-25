@@ -336,15 +336,29 @@ assert.equal(
   true,
   'replicated clay rows must enter the shared geological state with their rich grade',
 );
+const ordinarySurfacePitPoint = {
+  x: ordinaryClay.x + 70,
+  z: ordinaryClay.z,
+};
 assert.deepEqual(
   resolveBuildingPlacementPoint(
-    'clay_pit',
+    'mine',
     richClay.x + 24,
     richClay.z - 12,
     clayNodes,
   ),
-  { x: richClay.x + 24, z: richClay.z - 12 },
-  'Clay Pit placement should remain exactly where the player points',
+  { x: richClay.x, z: richClay.z },
+  'Mineworks placement should snap to the center of a rich clay deposit',
+);
+assert.deepEqual(
+  resolveBuildingPlacementPoint(
+    'stone_quarry',
+    ordinarySurfacePitPoint.x,
+    ordinarySurfacePitPoint.z,
+    clayNodes,
+  ),
+  ordinarySurfacePitPoint,
+  'a Mining Pit works a nearby surface reserve without moving onto the deposit',
 );
 
 const placementContext = {
@@ -355,30 +369,40 @@ const placementContext = {
   foragingNodes: [],
   clayDepositSites: layout.clayDepositLayout.sites,
   stockpile: { timber: 10_000, stone: 10_000, ironwork: 10_000 },
-  isWaterAt: () => true,
+  isWaterAt: () => false,
   isResourceDepositAt: (x: number, z: number) =>
     isPhysicalDepositAt(physicalDeposits, x, z),
   getNaturalHeightAt: () => 0,
 };
 assert.equal(
   validateBuildingPlacement(
-    'clay_pit',
-    ordinaryClay.x,
-    ordinaryClay.z,
+    'stone_quarry',
+    ordinarySurfacePitPoint.x,
+    ordinarySurfacePitPoint.z,
     placementContext,
   ).ok,
   true,
-  'an ordinary generated clay bank must be a valid authoritative extraction site',
+  'an ordinary generated clay bank must be a valid surface source for a nearby Mining Pit',
 );
 assert.equal(
   validateBuildingPlacement(
-    'clay_pit',
+    'mine',
     richClay.x,
     richClay.z,
     placementContext,
   ).ok,
   true,
-  'a rich generated clay bank must be a valid authoritative extraction site',
+  'a rich generated clay bank must accept centered Mineworks',
+);
+assert.deepEqual(
+  validateBuildingPlacement(
+    'mine',
+    ordinaryClay.x,
+    ordinaryClay.z,
+    placementContext,
+  ),
+  { ok: false, reason: 'requires_mineral_deposit' },
+  'ordinary clay has only a finite surface layer and must not accept Mineworks',
 );
 const exhaustedOrdinaryNodes = clayNodes.map((node) =>
   node.x === ordinaryClay.x && node.z === ordinaryClay.z
@@ -387,13 +411,18 @@ const exhaustedOrdinaryNodes = clayNodes.map((node) =>
 );
 assert.deepEqual(
   validateBuildingPlacement(
-    'clay_pit',
-    ordinaryClay.x,
-    ordinaryClay.z,
-    { ...placementContext, quarries: exhaustedOrdinaryNodes },
+    'stone_quarry',
+    ordinarySurfacePitPoint.x,
+    ordinarySurfacePitPoint.z,
+    {
+      ...placementContext,
+      quarries: exhaustedOrdinaryNodes.filter(
+        (node) => node.x === ordinaryClay.x && node.z === ordinaryClay.z,
+      ),
+    },
   ),
-  { ok: false, reason: 'requires_clay_deposit' },
-  'an exhausted ordinary clay bank must not accept a replacement pit',
+  { ok: false, reason: 'no_quarry_in_range' },
+  'an exhausted ordinary clay bank must not satisfy a replacement Mining Pit',
 );
 assert.deepEqual(
   validateBuildingPlacement('smithy', richClay.x, richClay.z, {
@@ -404,12 +433,13 @@ assert.deepEqual(
   'an unrelated building must not erase a generated clay landmark',
 );
 assert.deepEqual(
-  validateBuildingPlacement('clay_pit', 0, 0, {
+  validateBuildingPlacement('stone_quarry', 0, 0, {
     ...placementContext,
+    quarries: [],
     clayDepositSites: [],
     isWaterAt: (x, z) => Math.hypot(x, z - 8) < 1.5,
   }),
-  { ok: false, reason: 'requires_clay_deposit' },
+  { ok: false, reason: 'no_quarry_in_range' },
   'an arbitrary usable shoreline must not create clay without a generated deposit',
 );
 
@@ -468,6 +498,10 @@ const clayPitSimulation = readFileSync(
   'server/src/simulation/expanded_economy.rs',
   'utf8',
 );
+const miningPitSimulation = readFileSync(
+  'server/src/simulation/stone_quarry.rs',
+  'utf8',
+);
 const buildingReducer = readFileSync('server/src/reducers/buildings.rs', 'utf8');
 assert.match(clayPitSimulation, /deposit\.node_kind == "clay"/);
 assert.match(clayPitSimulation, /clay_deposit_beneath/);
@@ -475,29 +509,43 @@ assert.match(clayPitSimulation, /clay_bank_yield_multiplier_at_deposit/);
 assert.match(authority, /clay_bank_yield_multiplier_with_richness/);
 assert.match(
   buildingReducer,
-  /let on_generated_clay_bank = kind == "clay_pit" && is_clay_deposit_at_center/,
-  'authority must recognize the generated landmark before applying water and deposit overlap checks',
-);
-assert.match(buildingReducer, /!on_generated_clay_bank\s*&& is_on_resource_deposit/);
-assert.match(
-  buildingReducer,
-  /let on_usable_clay_bank = kind == "clay_pit" && has_clay_deposit_at_center[\s\S]*kind == "clay_pit" && !on_usable_clay_bank/,
-  'authority must require remaining ordinary clay or a rich deep source before placement',
+  /if kind == LEGACY_CLAY_PIT_KIND[\s\S]*Clay Pits are legacy buildings and can no longer be constructed/,
+  'authority must reject new legacy Clay Pits with a migration-safe explanation',
 );
 assert.match(
   buildingReducer,
-  /fn clay_source_usable[\s\S]*"clay_pit" =>[\s\S]*clay_source_usable/,
-  'the production steward must treat an off-deposit legacy Clay Pit as source-stalled',
+  /fn has_surface_deposit_in_radius[\s\S]*mining_pit_clay_commodity[\s\S]*deposit\.remaining > 0\.0/,
+  'Mining Pit placement must recognize only a remaining finite clay surface layer in range',
+);
+assert.match(
+  buildingReducer,
+  /fn has_mineworks_deposit_at_center[\s\S]*mineworks_clay_commodity/,
+  'Mineworks placement must recognize centered rich clay as a deep source',
+);
+assert.match(
+  miningPitSimulation,
+  /mining_pit_clay_commodity[\s\S]*deposit\.remaining <= 1e-6/,
+  'surface extraction must route generated clay through the Mining Pit and reject depleted banks',
+);
+assert.match(
+  miningPitSimulation,
+  /SurfaceDeposit::Clay\(deposit\)[\s\S]*remaining: crate::resource_units::whole_units\(deposit\.remaining\) - batch/,
+  'a Mining Pit must subtract exactly the clay batch removed from either ordinary or rich surface layers',
+);
+assert.match(
+  clayPitSimulation,
+  /mineworks_commodity_beneath[\s\S]*mineworks_clay_commodity/,
+  'Mineworks must route centered rich clay through the shared deep-shaft simulation',
 );
 assert.match(
   clayPitSimulation,
   /deposit\.node_id\.starts_with\("clay-rich-"\)/,
-  'ordinary physical clay banks must not receive the rich-deposit multiplier',
+  'legacy Clay Pits must still distinguish rich save-state deposits from ordinary banks',
 );
 assert.match(
   clayPitSimulation,
   /let Some\(mut deposit\) = clay_deposit_beneath[\s\S]*else \{\s*return;/,
-  'legacy off-bank Clay Pits must stall rather than creating clay from a background shoreline score',
+  'loaded off-bank legacy Clay Pits must stall rather than creating clay from a background shoreline score',
 );
 assert.match(
   clayPitSimulation,

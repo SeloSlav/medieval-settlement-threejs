@@ -7,6 +7,7 @@ import {
 import type { DeliveryTripState } from '../logistics/deliveryTrips.ts';
 import { rosteredCartWorkersByBuilding } from '../logistics/deliveryTrips.ts';
 import type { RoadNetwork } from '../roads/RoadNetwork.ts';
+import { STABLE_OX_MAX_PER_WORKPLACE } from '../generated/gameBalance.ts';
 import type { BuildingKind, BuildingState } from '../resources/types.ts';
 
 /**
@@ -73,6 +74,35 @@ export function isOxProductionWorkplace(kind: BuildingKind): boolean {
   return isOxSupportedWorkplace(kind) && !OX_LOGISTICS_ONLY_KIND_SET.has(kind);
 }
 
+/** Mirrors the authoritative per-building posting and assistance ceiling. */
+export function oxWorkplaceCapacity(kind: BuildingKind): number {
+  const typeCapacity = (() => {
+    switch (kind) {
+      case 'lumber_mill':
+      case 'stone_quarry':
+      case 'large_quarry':
+      case 'mine':
+      case 'clay_pit':
+      case 'threshing_barn':
+      case 'pastoral_farmstead':
+        return 3;
+      case 'woodcutters_lodge':
+      case 'charcoal_burner':
+      case 'swineherd':
+      case 'carpenter':
+        return 2;
+      case 'reforester':
+      case 'village_storehouse':
+      case 'granary':
+      case 'trading_post':
+        return 1;
+      default:
+        return 0;
+    }
+  })();
+  return Math.min(STABLE_OX_MAX_PER_WORKPLACE, typeCapacity);
+}
+
 function compareServerIds(
   left: string,
   right: string,
@@ -125,10 +155,11 @@ export function assignStableOxen(
       Math.floor(building.assignedLabor)
         - Math.floor(awayWorkers.get(building.id) ?? 0),
     );
-    if (onsite > 0) {
+    const supportedSlots = Math.min(onsite, oxWorkplaceCapacity(building.kind));
+    if (supportedSlots > 0) {
       openWorkerSlots.set(
         building.id,
-        Array.from({ length: onsite }, (_, slot) => slot),
+        Array.from({ length: supportedSlots }, (_, slot) => slot),
       );
     }
   }

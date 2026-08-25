@@ -22,6 +22,8 @@ import {
   CALENDAR_SECONDS_PER_DAY,
   FARM_MANURE_FERTILITY_BONUS,
   FARM_MANURE_PER_SQUARE_METER,
+  FARM_OX_HARVEST_WORKER_MULTIPLIER,
+  FARM_OX_PLOUGH_WORKER_MULTIPLIER,
   CATTLE_PLOUGH_WORK_MULTIPLIER,
   CIVILIAN_TOOL_IRONWORK_PER_CYCLE,
   CIVILIAN_TOOL_THROUGHPUT_MULTIPLIER,
@@ -69,6 +71,8 @@ import {
   daysUntilCropHarvestWindow,
   earlyHarvestAvailability,
   earlyHarvestYieldMultiplier,
+  farmFieldEffectiveLabor,
+  farmFieldOxThroughputMultiplier,
   farmsteadExportableGrain,
   farmsteadSeedGrainRequired,
   fieldAcceptsFarmsteadLabor,
@@ -492,6 +496,19 @@ const planningField: FarmFieldState = {
   currentYield: 1,
   manureApplied: 0,
 };
+assert.equal(farmFieldEffectiveLabor('ploughing', 3, 3), 6);
+assert.equal(farmFieldEffectiveLabor('harvesting', 3, 3), 4.5);
+assert.equal(farmFieldEffectiveLabor('sowing', 3, 3), 3);
+assert.equal(farmFieldEffectiveLabor('ploughing', 3, 1), 4);
+assert.equal(farmFieldEffectiveLabor('ploughing', 0, 3), 0);
+assert.equal(
+  farmFieldOxThroughputMultiplier('ploughing', 3, 3),
+  FARM_OX_PLOUGH_WORKER_MULTIPLIER,
+);
+assert.equal(
+  farmFieldOxThroughputMultiplier('harvesting', 3, 3),
+  FARM_OX_HARVEST_WORKER_MULTIPLIER,
+);
 assert.ok(currentFieldWorkRemaining(planningField) > 0);
 assert.ok(projectedFieldFertility(planningField) < planningField.fertility);
 assert.ok(projectedFieldFertility({ ...planningField, crop: 'fallow' }) > planningField.fertility);
@@ -627,6 +644,16 @@ const september = gameClockAtElapsedSeconds(
   6 * CALENDAR_DAYS_PER_MONTH * CALENDAR_SECONDS_PER_DAY,
 );
 const staffedPlan = buildFarmsteadWorkPlan([planningField], 1, september, false);
+const stableOxHarvestPlan = buildFarmsteadWorkPlan(
+  [planningField],
+  1,
+  september,
+  false,
+  new Map(),
+  0,
+  undefined,
+  1,
+);
 const maintainedToolPlan = buildFarmsteadWorkPlan(
   [planningField],
   1,
@@ -662,6 +689,14 @@ const mixedCropPlan = buildFarmsteadWorkPlan([
   },
 ], 2, september, false);
 assert.ok(staffedPlan.toolIronworkRequired > 0);
+assert.equal(stableOxHarvestPlan.pairedStableOxen, 1);
+assert.ok(
+  Math.abs(
+    stableOxHarvestPlan.harvest.requiredWorkerDays
+      - staffedPlan.harvest.requiredWorkerDays / FARM_OX_HARVEST_WORKER_MULTIPLIER,
+  ) < 1e-9,
+  'one stable ox should add half a paired farmer during harvest',
+);
 assert.ok(
   staffedPlan.toolIronworkReserveTarget >= CIVILIAN_TOOL_IRONWORK_PER_CYCLE,
 );
@@ -883,11 +918,50 @@ const supportedAutumnPlan = buildFarmsteadWorkPlan(
     },
   ]]),
 );
+const stableOxAutumnPlan = buildFarmsteadWorkPlan(
+  [{ ...planningField, nextCrop: 'fallow' }],
+  2,
+  september,
+  false,
+  new Map(),
+  0,
+  undefined,
+  2,
+);
+const combinedOxAutumnPlan = buildFarmsteadWorkPlan(
+  [{ ...planningField, nextCrop: 'fallow' }],
+  2,
+  september,
+  false,
+  new Map([[
+    planningField.id,
+    {
+      buildingId: oxHolding.id,
+      distance: 0,
+      ploughWorkMultiplier: CATTLE_PLOUGH_WORK_MULTIPLIER,
+    },
+  ]]),
+  0,
+  undefined,
+  2,
+);
 assert.equal(supportedAutumnPlan.cattleSupportedFields, 1);
 assert.ok(
   supportedAutumnPlan.autumn.requiredWorkerDays
     < unsupportedAutumnPlan.autumn.requiredWorkerDays,
   'farmstead labor forecasts should include the ox ploughing reduction',
+);
+assert.ok(
+  stableOxAutumnPlan.autumn.requiredWorkerDays
+    < unsupportedAutumnPlan.autumn.requiredWorkerDays,
+  'stable oxen should reduce elapsed plough labor without occupying farmer slots',
+);
+assert.ok(
+  combinedOxAutumnPlan.autumn.requiredWorkerDays
+    < stableOxAutumnPlan.autumn.requiredWorkerDays
+    && combinedOxAutumnPlan.autumn.requiredWorkerDays
+      < supportedAutumnPlan.autumn.requiredWorkerDays,
+  'nearby cattle work reduction and paired stable-ox throughput should stack',
 );
 const planningStarted = performance.now();
 const largeFarmPlan = buildFarmsteadWorkPlan(
@@ -1024,13 +1098,15 @@ assert.match(farmFieldInspector, /toolThroughputMultiplier/);
 const townHallInspector = fs.readFileSync('src/resources/inspector/townHallRenderer.ts', 'utf8');
 assert.match(farmsteadInspector, /data-land-parcel="field"/, 'farmsteads need a contextual field-layout action');
 assert.match(livestockInspector, /data-land-parcel="pasture"/, 'livestock holdings need a contextual pasture action');
-assert.match(farmFieldInspector, /Ox support/);
+assert.match(farmFieldInspector, /Cattle plough support/);
+assert.match(farmFieldInspector, /Stable-ox field work/);
 assert.match(farmFieldInspector, /High and Urgent also enter every nearby farmstead crew’s queue/);
 assert.match(farmFieldInspector, /Available field crews/);
-assert.match(farmsteadInspector, /Ox-supported fields/);
+assert.match(farmsteadInspector, /Cattle plough support/);
+assert.match(farmsteadInspector, /Stable-ox field work/);
 assert.match(farmsteadInspector, /Crew-sharing queue/);
 assert.match(farmsteadInspector, /data-threshing-priority/);
-assert.match(farmsteadInspector, /field and threshing work never double-count the crew/);
+assert.match(farmsteadInspector, /ox postings are separate; any team without a present farmer waits/);
 assert.match(farmFieldInspector, /Current-cycle soil/);
 assert.match(farmFieldInspector, /Three-year rotation/);
 assert.match(
@@ -1080,6 +1156,16 @@ assert.match(
 assert.match(farmSimulation, /field_accepts_farmstead_labor/);
 assert.match(farmSimulation, /threshing_preempts_fields/);
 assert.match(farmSimulation, /work_allowed && threshing_labor == 0/);
+assert.match(
+  farmSimulation,
+  /paired_field_oxen[\s\S]{0,260}paired_production_ox_count\(ctx, tick, farmstead, onsite_labor\)/,
+  'field work must draw oxen from the independent stable-ox assignment pool',
+);
+assert.match(
+  farmSimulation,
+  /farm_field_effective_labor\(field\.stage, onsite_labor, paired_field_oxen\)[\s\S]{0,900}work_budget \* ox_throughput_multiplier[\s\S]{0,900}spent \/ ox_throughput_multiplier/,
+  'stage-specific ox output must preserve the one shared human work budget',
+);
 assert.match(farmSimulation, /step_processor_with_labor/);
 assert.match(
   farmSimulation,

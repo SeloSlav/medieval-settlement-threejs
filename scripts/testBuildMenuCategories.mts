@@ -42,14 +42,14 @@ assert.deepEqual(keys(CIVIC_BUILD_MENU_ENTRIES), [
   'village_storehouse', 'granary',
 ]);
 assert.deepEqual(keys(GATHERING_BUILD_MENU_ENTRIES), [
-  'lumber_mill', 'reforester', 'stone_quarry', 'large_quarry', 'mine', 'clay_pit',
+  'lumber_mill', 'reforester', 'stone_quarry', 'large_quarry', 'mine',
   'hunters_hall', 'foragers_shed', 'fishing_camp',
 ]);
 assert.equal(
   GATHERING_BUILD_MENU_ENTRIES.some((entry) => entry.artKey === 'mine')
-    && GATHERING_BUILD_MENU_ENTRIES.some((entry) => entry.artKey === 'clay_pit'),
+    && !GATHERING_BUILD_MENU_ENTRIES.some((entry) => entry.artKey === 'clay_pit'),
   true,
-  'the attainable iron/salt and clay chains must expose their dedicated gathering cards',
+  'Mineworks must remain buildable while the retired Clay Pit stays out of the palette',
 );
 assert.deepEqual(keys(AGRICULTURE_BUILD_MENU_ENTRIES), [
   'threshing_barn', 'apiary', 'pastoral_farmstead', 'swineherd',
@@ -66,7 +66,7 @@ assert.deepEqual(BUILD_MENU_CATEGORIES.map((category) => category.id), [
 assert.deepEqual(categoryKeys('civic'), ['residences', 'well', 'stable', 'founders_camp', 'town_hall']);
 assert.deepEqual(categoryKeys('trade'), ['marketplace', 'trading_post', 'village_storehouse', 'granary']);
 assert.deepEqual(categoryKeys('gathering'), [
-  'lumber_mill', 'reforester', 'stone_quarry', 'large_quarry', 'mine', 'clay_pit', 'hunters_hall', 'foragers_shed', 'fishing_camp',
+  'lumber_mill', 'reforester', 'stone_quarry', 'large_quarry', 'mine', 'hunters_hall', 'foragers_shed', 'fishing_camp',
 ]);
 assert.deepEqual(categoryKeys('agriculture'), ['threshing_barn', 'apiary', 'pastoral_farmstead', 'swineherd']);
 assert.deepEqual(categoryKeys('food'), ['watermill', 'windmill', 'bakery', 'brewery', 'tavern', 'smokehouse']);
@@ -357,6 +357,8 @@ assert.doesNotMatch(renderedCards, /data-hotkey=/, 'build cards must no longer e
 assert.doesNotMatch(renderedCards, /construction-card__hotkey/, 'build cards must not render hotkey badges');
 assert.match(renderedCards, />Mining Pit</);
 assert.match(renderedCards, />Quarry</);
+assert.match(renderedCards, />Mineworks</);
+assert.doesNotMatch(renderedCards, /data-action="clay-pit"/);
 assert.match(
   renderedCards,
   /data-action="tavern"[\s\S]*?data-src="\/assets\/ui\/build-menu\/cards\/tavern\.webp"/,
@@ -364,7 +366,6 @@ assert.match(
 );
 for (const [action, asset] of [
   ['mine', 'iron-mine.webp'],
-  ['clay-pit', 'clay-pit.webp'],
   ['charcoal-burner', 'charcoal-burner.webp'],
   ['smithy', 'smithy-bloomery.webp'],
   ['potter-kiln', 'potter-kiln.webp'],

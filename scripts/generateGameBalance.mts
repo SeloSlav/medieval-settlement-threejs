@@ -308,6 +308,7 @@ export type GameBalance = {
     startingIronwork: number;
     startingGold: number;
     stableOxSlots: number;
+    stableOxMaxPerWorkplace: number;
     stableOxPurchaseGold: number;
     stoneSalvageFraction: number;
     timberSalvageFraction: number;
@@ -643,6 +644,7 @@ export type GameBalance = {
     largeQuarryTimberSupportBufferCycles: number;
     mineIronPerCycle: number;
     mineSaltPerCycle: number;
+    mineClayPerCycle: number;
     mineTimberSupportPerCycle: number;
     mineTimberSupportBufferCycles: number;
     richMineThroughputMultiplier: number;
@@ -721,6 +723,8 @@ export type GameBalance = {
     minFieldEdge: number;
     workMetersPerWorkerPerSec: number;
     farmToolIronworkPerWorkerDay: number;
+    oxPloughWorkerMultiplier: number;
+    oxHarvestWorkerMultiplier: number;
     ploughWorkPerSquareMeter: number;
     sowWorkPerSquareMeter: number;
     harvestWorkPerSquareMeter: number;
@@ -967,6 +971,7 @@ function generateRust(): string {
     `pub const STARTING_IRONWORK: f64 = ${rustF64(b.economy.startingIronwork)};`,
     `pub const STARTING_GOLD: f64 = ${rustF64(b.economy.startingGold)};`,
     `pub const STABLE_OX_SLOTS: u8 = ${b.economy.stableOxSlots};`,
+    `pub const STABLE_OX_MAX_PER_WORKPLACE: u32 = ${b.economy.stableOxMaxPerWorkplace};`,
     `pub const STABLE_OX_PURCHASE_GOLD: f64 = ${rustF64(b.economy.stableOxPurchaseGold)};`,
     `pub const STONE_SALVAGE_FRACTION: f64 = ${rustF64(b.economy.stoneSalvageFraction)};`,
     `pub const TIMBER_SALVAGE_FRACTION: f64 = ${rustF64(b.economy.timberSalvageFraction)};`,
@@ -1297,6 +1302,7 @@ function generateRust(): string {
     `pub const LARGE_QUARRY_TIMBER_SUPPORT_BUFFER_CYCLES: f64 = ${rustF64(b.production.largeQuarryTimberSupportBufferCycles)};`,
     `pub const MINE_IRON_PER_CYCLE: f64 = ${rustF64(b.production.mineIronPerCycle)};`,
     `pub const MINE_SALT_PER_CYCLE: f64 = ${rustF64(b.production.mineSaltPerCycle)};`,
+    `pub const MINE_CLAY_PER_CYCLE: f64 = ${rustF64(b.production.mineClayPerCycle)};`,
     `pub const MINE_TIMBER_SUPPORT_PER_CYCLE: f64 = ${rustF64(b.production.mineTimberSupportPerCycle)};`,
     `pub const MINE_TIMBER_SUPPORT_BUFFER_CYCLES: f64 = ${rustF64(b.production.mineTimberSupportBufferCycles)};`,
     `pub const RICH_MINE_THROUGHPUT_MULTIPLIER: f64 = ${rustF64(b.production.richMineThroughputMultiplier)};`,
@@ -1374,6 +1380,8 @@ function generateRust(): string {
     `pub const FARM_MIN_FIELD_EDGE: f64 = ${rustF64(b.farming.minFieldEdge)};`,
     `pub const FARM_WORK_METERS_PER_WORKER_PER_SEC: f64 = ${rustF64(b.farming.workMetersPerWorkerPerSec)};`,
     `pub const FARM_TOOL_IRONWORK_PER_WORKER_DAY: f64 = ${rustF64(b.farming.farmToolIronworkPerWorkerDay)};`,
+    `pub const FARM_OX_PLOUGH_WORKER_MULTIPLIER: f64 = ${rustF64(b.farming.oxPloughWorkerMultiplier)};`,
+    `pub const FARM_OX_HARVEST_WORKER_MULTIPLIER: f64 = ${rustF64(b.farming.oxHarvestWorkerMultiplier)};`,
     `pub const FARM_PLOUGH_WORK_PER_SQUARE_METER: f64 = ${rustF64(b.farming.ploughWorkPerSquareMeter)};`,
     `pub const FARM_SOW_WORK_PER_SQUARE_METER: f64 = ${rustF64(b.farming.sowWorkPerSquareMeter)};`,
     `pub const FARM_HARVEST_WORK_PER_SQUARE_METER: f64 = ${rustF64(b.farming.harvestWorkPerSquareMeter)};`,
@@ -1997,6 +2005,7 @@ function generateTypeScript(): string {
     `export const STARTING_IRONWORK = ${b.economy.startingIronwork};`,
     `export const STARTING_GOLD = ${b.economy.startingGold};`,
     `export const STABLE_OX_SLOTS = ${b.economy.stableOxSlots};`,
+    `export const STABLE_OX_MAX_PER_WORKPLACE = ${b.economy.stableOxMaxPerWorkplace};`,
     `export const STABLE_OX_PURCHASE_GOLD = ${b.economy.stableOxPurchaseGold};`,
     `export const STONE_SALVAGE_FRACTION = ${b.economy.stoneSalvageFraction};`,
     `export const TIMBER_SALVAGE_FRACTION = ${b.economy.timberSalvageFraction};`,
@@ -2327,6 +2336,7 @@ function generateTypeScript(): string {
     `export const LARGE_QUARRY_TIMBER_SUPPORT_BUFFER_CYCLES = ${b.production.largeQuarryTimberSupportBufferCycles};`,
     `export const MINE_IRON_PER_CYCLE = ${b.production.mineIronPerCycle};`,
     `export const MINE_SALT_PER_CYCLE = ${b.production.mineSaltPerCycle};`,
+    `export const MINE_CLAY_PER_CYCLE = ${b.production.mineClayPerCycle};`,
     `export const MINE_TIMBER_SUPPORT_PER_CYCLE = ${b.production.mineTimberSupportPerCycle};`,
     `export const MINE_TIMBER_SUPPORT_BUFFER_CYCLES = ${b.production.mineTimberSupportBufferCycles};`,
     `export const RICH_MINE_THROUGHPUT_MULTIPLIER = ${b.production.richMineThroughputMultiplier};`,
@@ -2404,6 +2414,8 @@ function generateTypeScript(): string {
     `export const FARM_MIN_FIELD_EDGE = ${b.farming.minFieldEdge};`,
     `export const FARM_WORK_METERS_PER_WORKER_PER_SEC = ${b.farming.workMetersPerWorkerPerSec};`,
     `export const FARM_TOOL_IRONWORK_PER_WORKER_DAY = ${b.farming.farmToolIronworkPerWorkerDay};`,
+    `export const FARM_OX_PLOUGH_WORKER_MULTIPLIER = ${b.farming.oxPloughWorkerMultiplier};`,
+    `export const FARM_OX_HARVEST_WORKER_MULTIPLIER = ${b.farming.oxHarvestWorkerMultiplier};`,
     `export const FARM_PLOUGH_WORK_PER_SQUARE_METER = ${b.farming.ploughWorkPerSquareMeter};`,
     `export const FARM_SOW_WORK_PER_SQUARE_METER = ${b.farming.sowWorkPerSquareMeter};`,
     `export const FARM_HARVEST_WORK_PER_SQUARE_METER = ${b.farming.harvestWorkPerSquareMeter};`,

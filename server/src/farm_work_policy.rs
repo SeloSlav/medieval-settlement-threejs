@@ -1,3 +1,8 @@
+use crate::balance_generated::{
+    FARM_OX_HARVEST_WORKER_MULTIPLIER, FARM_OX_PLOUGH_WORKER_MULTIPLIER,
+};
+use crate::farming::{STAGE_HARVESTING, STAGE_PLOUGHING};
+
 pub const THRESHING_PRIORITY_LOW: u8 = 1;
 pub const THRESHING_PRIORITY_AUTO: u8 = 2;
 pub const THRESHING_PRIORITY_HIGH: u8 = 3;
@@ -63,6 +68,20 @@ pub fn threshing_preempts_fields(
     threshing_task_rank(priority, demanded) > highest_ready_field_rank
 }
 
+/// Stable oxen occupy their own posting pool, then pair with present farmers
+/// only while work is active. A paired farmer receives the stage-specific
+/// throughput; sowing and every non-field stage remain human-only here.
+pub fn farm_field_effective_labor(stage: u8, human_workers: u32, paired_oxen: u32) -> f64 {
+    let paired = paired_oxen.min(human_workers);
+    let paired_worker_multiplier = match stage {
+        STAGE_PLOUGHING => FARM_OX_PLOUGH_WORKER_MULTIPLIER,
+        STAGE_HARVESTING => FARM_OX_HARVEST_WORKER_MULTIPLIER,
+        _ => 1.0,
+    };
+    f64::from(human_workers.saturating_sub(paired))
+        + f64::from(paired) * paired_worker_multiplier.max(1.0)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -90,5 +109,17 @@ mod tests {
             false,
             field_task_rank(3, false),
         ));
+    }
+
+    #[test]
+    fn stable_oxen_amplify_present_farmers_without_using_human_slots() {
+        assert_eq!(farm_field_effective_labor(STAGE_PLOUGHING, 3, 3), 6.0);
+        assert_eq!(farm_field_effective_labor(STAGE_HARVESTING, 3, 3), 4.5);
+        assert_eq!(
+            farm_field_effective_labor(crate::farming::STAGE_SOWING, 3, 3),
+            3.0
+        );
+        assert_eq!(farm_field_effective_labor(STAGE_PLOUGHING, 3, 1), 4.0);
+        assert_eq!(farm_field_effective_labor(STAGE_PLOUGHING, 0, 3), 0.0);
     }
 }

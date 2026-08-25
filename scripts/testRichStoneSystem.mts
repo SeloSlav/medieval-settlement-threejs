@@ -60,13 +60,13 @@ const ordinary = quarryStates.find((quarry) => !quarry.isRich)!;
 
 assert.deepEqual(
   resolveBuildingPlacementPoint('large_quarry', rich.x + 24, rich.z - 12, quarryStates),
-  { x: rich.x + 24, z: rich.z - 12 },
-  'Large Quarry placement should remain exactly where the player points',
+  { x: rich.x, z: rich.z },
+  'Quarry placement should snap to the eligible rich-stone center',
 );
 assert.deepEqual(
   resolveBuildingPlacementPoint('large_quarry', ordinary.x, ordinary.z, quarryStates),
   { x: ordinary.x, z: ordinary.z },
-  'ordinary deposits must not become Large Quarry snap targets',
+  'ordinary deposits must not become Quarry snap targets',
 );
 
 const placementContext = {
@@ -119,15 +119,15 @@ assert.equal(BUILDING_DEFINITIONS.large_quarry.workRadius, 0);
 assert.equal(BUILDING_STORAGE_CAPS.large_quarry.stone, 360);
 assert.equal(BUILDING_STORAGE_CAPS.large_quarry.timber, 12);
 assert.equal(BUILDING_DEFINITIONS.large_quarry.requiresRoad, true);
-assert.equal(LARGE_QUARRY_TIMBER_SUPPORT_PER_CYCLE, 0.25);
+assert.equal(LARGE_QUARRY_TIMBER_SUPPORT_PER_CYCLE, 1);
 assert.equal(LARGE_QUARRY_TIMBER_SUPPORT_BUFFER_CYCLES, 6);
-assert.equal(LARGE_QUARRY_SUPPORT_TARGET, 1.5);
-assert.equal(largeQuarrySupportRunwayCycles(1.5), 6);
-assert.equal(largeQuarrySupportsReady(0.24), false);
-assert.equal(largeQuarrySupportsReady(0.25), true);
-assert.ok(
-  BUILDING_DEFINITIONS.large_quarry.harvestInterval
-    < BUILDING_DEFINITIONS.stone_quarry.harvestInterval,
+assert.equal(LARGE_QUARRY_SUPPORT_TARGET, 6);
+assert.equal(largeQuarrySupportRunwayCycles(6), 6);
+assert.equal(largeQuarrySupportsReady(0.99), false);
+assert.equal(largeQuarrySupportsReady(1), true);
+assert.equal(
+  BUILDING_DEFINITIONS.large_quarry.harvestInterval,
+  BUILDING_DEFINITIONS.stone_quarry.harvestInterval,
 );
 
 const largeQuarry = {
@@ -147,7 +147,7 @@ const workerTargets = collectWorkerTargets(largeQuarry, {
   farmFields: [],
   pastures: [],
 });
-assert.equal(workerTargets.length, 6, 'Large Quarry should expose one underground work stop per labor slot');
+assert.equal(workerTargets.length, 6, 'Quarry should expose one underground work stop per labor slot');
 const workerPlan = pickWorkerWalkPlan(largeQuarry, 0, workerTargets, 42);
 assert.equal(workerPlan?.activity, 'mine');
 
@@ -165,7 +165,7 @@ assert.match(
 );
 assert.match(
   serverWorkflow,
-  /produced > 1e-6[\s\S]*CommodityKind::Timber[\s\S]*LARGE_QUARRY_TIMBER_SUPPORT_PER_CYCLE/,
+  /deposit_building_commodity[\s\S]*!= batch[\s\S]*return;[\s\S]*CommodityKind::Timber[\s\S]*LARGE_QUARRY_TIMBER_SUPPORT_PER_CYCLE/,
   'prepared chamber timber must wear only after stone is actually produced',
 );
 assert.doesNotMatch(

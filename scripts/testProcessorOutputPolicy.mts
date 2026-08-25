@@ -161,6 +161,7 @@ assert.equal(extractionOutputCommodity('large_quarry'), 'stone');
 assert.equal(extractionOutputCommodity('clay_pit'), 'clay');
 assert.equal(extractionOutputCommodity('mine', 'iron'), 'iron');
 assert.equal(extractionOutputCommodity('mine', 'salt'), 'salt');
+assert.equal(extractionOutputCommodity('mine', 'clay'), 'clay');
 assert.equal(extractionOutputCommodity('mine'), null);
 assert.equal(extractionAcceptsMaintenance(leanQuarry), true);
 leanQuarry.stone = 45;
@@ -185,7 +186,7 @@ assert.equal(extractionAcceptsMaintenance(leanIronMine, 'iron'), true);
 assert.equal(
   extractionAcceptsMaintenance(leanIronMine, null),
   false,
-  'a mine without a physical iron or salt seam must not absorb smithy output',
+  'Mineworks without a rich iron, salt, or clay seam must not absorb smithy output',
 );
 const quarryPanel = renderExtractionStockTargetPanel(leanQuarry, 'stone') ?? '';
 assert.match(quarryPanel, /stone 45 \/ 45/);
@@ -200,6 +201,7 @@ assert.equal(extractionOutputTarget('large_quarry', 'stone', 25), 90);
 assert.equal(extractionOutputTarget('clay_pit', 'clay', 25), 45);
 assert.equal(extractionOutputTarget('mine', 'iron', 25), 60);
 assert.equal(extractionOutputTarget('mine', 'salt', 25), 60);
+assert.equal(extractionOutputTarget('mine', 'clay', 25), 60);
 assert.equal(
   extractionOutputTarget('mine', 'salt', undefined),
   240,

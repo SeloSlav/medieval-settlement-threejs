@@ -136,7 +136,7 @@ exhaustedQuarry.x = 100;
 exhaustedQuarry.workRadius = 30;
 const readyLargeQuarry = building('30', 'large_quarry', 0);
 readyLargeQuarry.x = 200;
-readyLargeQuarry.timber = 0.25;
+readyLargeQuarry.timber = 1;
 const readyHunter = building('40', 'hunters_hall', 0);
 readyHunter.x = 300;
 readyHunter.workRadius = 68;
@@ -188,12 +188,14 @@ assert.deepEqual(
 );
 
 const mineralCallupState = emptyGameState();
-const readyFiniteMine = building('mineral-10-ready', 'mine', 0);
-const exhaustedMine = building('mineral-20-exhausted', 'mine', 0);
+const readyFiniteMine = building('mineral-10-ready', 'stone_quarry', 0);
+readyFiniteMine.workRadius = 30;
+const exhaustedMine = building('mineral-20-exhausted', 'stone_quarry', 0);
 exhaustedMine.x = 100;
+exhaustedMine.workRadius = 30;
 const readyRichMine = building('mineral-30-rich', 'mine', 0);
 readyRichMine.x = 200;
-readyRichMine.timber = 0.5;
+readyRichMine.timber = 1;
 for (const site of [readyFiniteMine, exhaustedMine, readyRichMine]) {
   mineralCallupState.buildings.set(site.id, site);
 }
@@ -219,12 +221,13 @@ assert.equal(mineralCallup.blockedSites, 1);
 assert.deepEqual(
   mineralCallup.assignments.map((assignment) => assignment.buildingId),
   [readyFiniteMine.id, readyRichMine.id],
-  'ordinary usable and timber-supported rich mines should share labor while an exhausted finite seam stays empty',
+  'a surface-ready Mining Pit and timber-supported Mineworks should share labor while an exhausted surface seam stays empty',
 );
 
 const materialCallupState = emptyGameState();
-const readyClayPit = building('material-10-clay', 'clay_pit', 0);
-const fullClayPit = building('material-20-full-clay', 'clay_pit', 0);
+const readyClayPit = building('material-10-clay', 'stone_quarry', 0);
+const fullClayPit = building('material-20-full-clay', 'stone_quarry', 0);
+fullClayPit.x = 100;
 fullClayPit.clay = 999;
 const incompleteSmokehouse = building(
   'material-30-smokehouse',
@@ -258,6 +261,14 @@ for (const site of [
 ]) {
   materialCallupState.buildings.set(site.id, site);
 }
+materialCallupState.quarries.set(
+  'clay-surface-ready',
+  mineralDeposit('clay-surface-ready', 'clay', 0, 100, false),
+);
+materialCallupState.quarries.set(
+  'clay-surface-full',
+  mineralDeposit('clay-surface-full', 'clay', 100, 100, false),
+);
 const materialManualCallup = computeSettlementProcessorLaborCallupPlan(
   materialCallupState,
   10,
@@ -269,7 +280,7 @@ assert.ok(
   materialManualCallup.assignments.some(
     (assignment) => assignment.buildingId === readyClayPit.id,
   ),
-  'the explicit Town Hall order must be able to staff an open clay pit',
+  'the explicit Town Hall order must be able to staff a Mining Pit with open clay storage',
 );
 assert.equal(
   materialManualCallup.assignments.some(
@@ -554,8 +565,9 @@ for (let index = 0; index < 20_000; index += 1) {
     const node = wildStock(`game-${index}`, x, 0, 80, 100);
     spatialCallupState.foragingNodes.set(node.nodeId, node);
   } else {
-    const mine = building(`mine-${index}`, 'mine', 0);
+    const mine = building(`pit-${index}`, 'stone_quarry', 0);
     mine.x = x;
+    mine.workRadius = 30;
     spatialCallupState.buildings.set(mine.id, mine);
     const node = mineralDeposit(
       `deposit-iron-${index}`,
@@ -577,7 +589,7 @@ assert.equal(spatialCallupPlan.readySites, 20_000);
 assert.equal(spatialCallupPlan.callupWorkers, 20_000);
 assert.ok(
   spatialCallupElapsedMs < 750,
-  `20,000 source-aware mine/hunter call-ups took ${spatialCallupElapsedMs.toFixed(1)} ms`,
+  `20,000 source-aware Mining Pit/hunter call-ups took ${spatialCallupElapsedMs.toFixed(1)} ms`,
 );
 
 const stewardPerfState = emptyGameState();
@@ -817,7 +829,7 @@ function quarry(
 
 function mineralDeposit(
   nodeId: string,
-  resource: 'iron' | 'salt',
+  resource: 'iron' | 'salt' | 'clay',
   x: number,
   remaining: number,
   isRich: boolean,

@@ -112,6 +112,7 @@ export const STARTING_BREAD = 24;
 export const STARTING_IRONWORK = 12;
 export const STARTING_GOLD = 60;
 export const STABLE_OX_SLOTS = 3;
+export const STABLE_OX_MAX_PER_WORKPLACE = 3;
 export const STABLE_OX_PURCHASE_GOLD = 24;
 export const STONE_SALVAGE_FRACTION = 0.92;
 export const TIMBER_SALVAGE_FRACTION = 0.7;
@@ -442,6 +443,7 @@ export const LARGE_QUARRY_TIMBER_SUPPORT_PER_CYCLE = 1;
 export const LARGE_QUARRY_TIMBER_SUPPORT_BUFFER_CYCLES = 6;
 export const MINE_IRON_PER_CYCLE = 2;
 export const MINE_SALT_PER_CYCLE = 2;
+export const MINE_CLAY_PER_CYCLE = 4;
 export const MINE_TIMBER_SUPPORT_PER_CYCLE = 1;
 export const MINE_TIMBER_SUPPORT_BUFFER_CYCLES = 3;
 export const RICH_MINE_THROUGHPUT_MULTIPLIER = 1.5;
@@ -519,6 +521,8 @@ export const FARM_SHARED_LABOR_MIN_PRIORITY = 2;
 export const FARM_MIN_FIELD_EDGE = 6;
 export const FARM_WORK_METERS_PER_WORKER_PER_SEC = 20;
 export const FARM_TOOL_IRONWORK_PER_WORKER_DAY = 0.05;
+export const FARM_OX_PLOUGH_WORKER_MULTIPLIER = 2;
+export const FARM_OX_HARVEST_WORKER_MULTIPLIER = 1.5;
 export const FARM_PLOUGH_WORK_PER_SQUARE_METER = 1;
 export const FARM_SOW_WORK_PER_SQUARE_METER = 0.55;
 export const FARM_HARVEST_WORK_PER_SQUARE_METER = 0.8;
@@ -1030,7 +1034,7 @@ export const BUILDING_DEFINITIONS = {
   },
   mine: {
     kind: 'mine',
-    label: "Mineral mine",
+    label: "Mineworks",
     workRadius: 0,
     pickRadius: 11,
     harvestInterval: 700,
@@ -1748,9 +1752,9 @@ export const BUILDING_STORAGE_CAPS = {
   reforester: { timber: 0, firewood: 0, stone: 0 },
   woodcutters_lodge: { timber: 60, firewood: 120, stone: 0, ironwork: 3 },
   stone_quarry: { timber: 0, firewood: 0, stone: 180, ironwork: 3, iron: 180, clay: 180, salt: 180 },
-  large_quarry: { timber: 12, firewood: 0, stone: 360, ironwork: 3, iron: 360, clay: 360, salt: 360 },
+  large_quarry: { timber: 12, firewood: 0, stone: 360, ironwork: 3 },
   remote_work_camp: { timber: 0, firewood: 0, stone: 0 },
-  mine: { timber: 12, firewood: 0, stone: 0, ironwork: 3, iron: 240, salt: 240 },
+  mine: { timber: 12, firewood: 0, stone: 0, ironwork: 3, iron: 240, clay: 240, salt: 240 },
   clay_pit: { timber: 0, firewood: 0, stone: 0, ironwork: 3, clay: 180 },
   charcoal_burner: { timber: 0, firewood: 54, stone: 0, charcoal: 72 },
   smithy: { timber: 0, firewood: 0, stone: 0, water: 9, ironwork: 72, iron: 48, charcoal: 36 },

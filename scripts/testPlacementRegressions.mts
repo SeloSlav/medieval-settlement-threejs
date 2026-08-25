@@ -664,6 +664,7 @@ function testMovableBuildingsSnapToRoadSides(): void {
   const anchoredKinds = new Set<BuildingKind>([
     'large_quarry',
     'mine',
+    // Retained only so loaded legacy Clay Pits keep their authored position.
     'clay_pit',
     'watermill',
   ]);
@@ -1875,7 +1876,7 @@ function testDenseBuildingFootprintSpacingAndEdgeSnap(): void {
   );
 }
 
-function testMineralMineCanOccupyItsDeposit(): void {
+function testMineworksCanOccupyItsRichDeposit(): void {
   const ironDeposit: ResourceNodeState = {
     nodeId: 'deposit-iron-ordinary-0',
     kind: 'quarry',
@@ -1893,25 +1894,43 @@ function testMineralMineCanOccupyItsDeposit(): void {
     z: 35,
     isRich: true,
   };
+  const richClayDeposit: ResourceNodeState = {
+    ...ironDeposit,
+    nodeId: 'clay-rich-0',
+    resource: 'clay',
+    x: -75,
+    z: 90,
+    isRich: true,
+  };
   assert.deepEqual(
     resolveBuildingPlacementPoint(
       'mine',
       richIronDeposit.x + 18,
       richIronDeposit.z - 9,
-      [ironDeposit, richIronDeposit],
+      [ironDeposit, richIronDeposit, richClayDeposit],
     ),
     { x: richIronDeposit.x, z: richIronDeposit.z },
-    'a rich deep mine should snap to the resource center',
+    'Mineworks should snap to a rich iron resource center',
   );
   assert.deepEqual(
     resolveBuildingPlacementPoint(
       'mine',
       ironDeposit.x + 18,
       ironDeposit.z - 9,
-      [ironDeposit, richIronDeposit],
+      [ironDeposit, richIronDeposit, richClayDeposit],
     ),
     { x: ironDeposit.x + 18, z: ironDeposit.z - 9 },
-    'an ordinary surface mine should remain where the player points',
+    'an ordinary surface deposit must not become a Mineworks snap target',
+  );
+  assert.deepEqual(
+    resolveBuildingPlacementPoint(
+      'mine',
+      richClayDeposit.x - 12,
+      richClayDeposit.z + 10,
+      [ironDeposit, richIronDeposit, richClayDeposit],
+    ),
+    { x: richClayDeposit.x, z: richClayDeposit.z },
+    'Mineworks should use the same centered placement contract for rich clay',
   );
   const baseContext = {
     buildings: [],
@@ -1919,7 +1938,7 @@ function testMineralMineCanOccupyItsDeposit(): void {
     burgageZones: [],
     farmFields: [],
     pastures: [],
-    quarries: [ironDeposit],
+    quarries: [ironDeposit, richIronDeposit, richClayDeposit],
     foragingNodes: [],
     stockpile: { timber: 10_000, stone: 10_000, ironwork: 10_000 },
     isWaterAt: () => false,
@@ -1929,14 +1948,24 @@ function testMineralMineCanOccupyItsDeposit(): void {
   };
 
   assert.equal(
-    validateBuildingPlacement('mine', ironDeposit.x, ironDeposit.z, baseContext).ok,
+    validateBuildingPlacement('mine', richIronDeposit.x, richIronDeposit.z, baseContext).ok,
     true,
-    'a mine must be allowed to occupy the mineral pit it is required to cover',
+    'Mineworks must be allowed to occupy its required rich deposit',
   );
   assert.deepEqual(
-    validateBuildingPlacement('mine', ironDeposit.x + 8, ironDeposit.z, baseContext),
+    validateBuildingPlacement('mine', ironDeposit.x, ironDeposit.z, baseContext),
     { ok: false, reason: 'requires_mineral_deposit' },
-    'a mine offset from the deposit center must remain invalid',
+    'ordinary iron belongs to a nearby Mining Pit rather than Mineworks',
+  );
+  assert.deepEqual(
+    validateBuildingPlacement('mine', richIronDeposit.x + 8, richIronDeposit.z, baseContext),
+    { ok: false, reason: 'requires_mineral_deposit' },
+    'Mineworks offset from the rich deposit center must remain invalid',
+  );
+  assert.equal(
+    validateBuildingPlacement('mine', richClayDeposit.x, richClayDeposit.z, baseContext).ok,
+    true,
+    'Mineworks must accept centered rich clay as well as rich iron and salt',
   );
 }
 
@@ -1998,7 +2027,7 @@ testPlacementPreviewShowsAdvisoryWildlifeWarnings();
 testPlacementPreviewShowsHatchGhostAndRotatingRoadAttachments();
 testCivicAndFrontierPlacementPrerequisites();
 testDenseBuildingFootprintSpacingAndEdgeSnap();
-testMineralMineCanOccupyItsDeposit();
+testMineworksCanOccupyItsRichDeposit();
 testTerrainPointerPickingUsesBoundedHeightfieldWork();
 
 assert.equal(
@@ -2151,13 +2180,13 @@ assert.match(
   'authoritative Town Hall placement should batch every completed civic landmark and accept any linked chapel and market',
 );
 const buildingResourceDepositGate = buildingReducer.slice(
-  buildingReducer.indexOf('let on_mineral_deposit'),
+  buildingReducer.indexOf('let on_rich_stone'),
   buildingReducer.indexOf('// A fresh world has no roads'),
 );
 assert.match(
   buildingResourceDepositGate,
-  /let on_mineral_deposit = kind == "mine" && has_mineral_deposit_at_center\(ctx, x, z\);[\s\S]*?if kind != "large_quarry"\s*&& !on_mineral_deposit[\s\S]*?&& building_overlaps_resource_deposit\(ctx, owner, &kind, x, z\)/,
-  'the authority must allow a mine to occupy the mineral pit it is required to cover',
+  /let on_rich_stone = kind == "large_quarry" && has_rich_stone_at_center\(ctx, x, z\);[\s\S]*let on_mineworks_deposit = kind == "mine" && has_mineworks_deposit_at_center\(ctx, x, z\);[\s\S]*if !on_rich_stone[\s\S]*&& !on_mineworks_deposit[\s\S]*&& building_overlaps_resource_deposit\(ctx, owner, &kind, x, z\)/,
+  'the authority must allow only a centered rich-stone Quarry or rich-mineral Mineworks to occupy its required deposit',
 );
 for (const [source, label] of [
   [residenceReducer, 'residences'],

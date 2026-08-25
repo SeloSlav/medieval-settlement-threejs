@@ -109,6 +109,7 @@ pub const STARTING_BREAD: f64 = 24.0;
 pub const STARTING_IRONWORK: f64 = 12.0;
 pub const STARTING_GOLD: f64 = 60.0;
 pub const STABLE_OX_SLOTS: u8 = 3;
+pub const STABLE_OX_MAX_PER_WORKPLACE: u32 = 3;
 pub const STABLE_OX_PURCHASE_GOLD: f64 = 24.0;
 pub const STONE_SALVAGE_FRACTION: f64 = 0.92;
 pub const TIMBER_SALVAGE_FRACTION: f64 = 0.7;
@@ -439,6 +440,7 @@ pub const LARGE_QUARRY_TIMBER_SUPPORT_PER_CYCLE: f64 = 1.0;
 pub const LARGE_QUARRY_TIMBER_SUPPORT_BUFFER_CYCLES: f64 = 6.0;
 pub const MINE_IRON_PER_CYCLE: f64 = 2.0;
 pub const MINE_SALT_PER_CYCLE: f64 = 2.0;
+pub const MINE_CLAY_PER_CYCLE: f64 = 4.0;
 pub const MINE_TIMBER_SUPPORT_PER_CYCLE: f64 = 1.0;
 pub const MINE_TIMBER_SUPPORT_BUFFER_CYCLES: f64 = 3.0;
 pub const RICH_MINE_THROUGHPUT_MULTIPLIER: f64 = 1.5;
@@ -516,6 +518,8 @@ pub const FARM_SHARED_LABOR_MIN_PRIORITY: u8 = 2;
 pub const FARM_MIN_FIELD_EDGE: f64 = 6.0;
 pub const FARM_WORK_METERS_PER_WORKER_PER_SEC: f64 = 20.0;
 pub const FARM_TOOL_IRONWORK_PER_WORKER_DAY: f64 = 0.05;
+pub const FARM_OX_PLOUGH_WORKER_MULTIPLIER: f64 = 2.0;
+pub const FARM_OX_HARVEST_WORKER_MULTIPLIER: f64 = 1.5;
 pub const FARM_PLOUGH_WORK_PER_SQUARE_METER: f64 = 1.0;
 pub const FARM_SOW_WORK_PER_SQUARE_METER: f64 = 0.55;
 pub const FARM_HARVEST_WORK_PER_SQUARE_METER: f64 = 0.8;
@@ -1327,9 +1331,9 @@ const LARGE_QUARRY: BuildingDef = BuildingDef {
     storage_shoes: 0.0,
     storage_ironwork: 3.0,
     storage_polearms: 0.0,
-    storage_iron: 360.0,
-    storage_clay: 360.0,
-    storage_salt: 360.0,
+    storage_iron: 0.0,
+    storage_clay: 0.0,
+    storage_salt: 0.0,
     storage_charcoal: 0.0,
     storage_pottery: 0.0,
     storage_roof_tiles: 0.0,
@@ -1440,7 +1444,7 @@ const MINE: BuildingDef = BuildingDef {
     storage_ironwork: 3.0,
     storage_polearms: 0.0,
     storage_iron: 240.0,
-    storage_clay: 0.0,
+    storage_clay: 240.0,
     storage_salt: 240.0,
     storage_charcoal: 0.0,
     storage_pottery: 0.0,

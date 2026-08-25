@@ -28,6 +28,23 @@ pub mod constants;
 #[path = "../../src/delivery_trip_policy.rs"]
 pub mod delivery_trip_policy;
 
+// The extraction matrix is pure, but the authoritative WASM crate maps it to
+// its larger database-backed commodity enum.  This minimal host-test shim
+// keeps the exact same policy source native-testable without linking the
+// SpacetimeDB runtime.
+pub mod economy {
+    #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+    pub enum CommodityKind {
+        Stone,
+        Iron,
+        Salt,
+        Clay,
+    }
+}
+
+#[path = "../../src/extraction_policy.rs"]
+pub mod extraction_policy;
+
 #[path = "../../src/roads/network.rs"]
 pub mod road_network;
 

@@ -325,7 +325,13 @@ it is not an input to the feed recipe.
 
 Stable oxen used for transport or production remain a deliberate player abstraction:
 their feed and water are abstracted and are not drawn from the settlement's livestock
-stores.
+stores. Ox postings are separate from human labor assignments and use their own
+workplace controls. A posted animal only becomes active when a laborer is present;
+otherwise it waits at its stable without producing. Type-specific workplace limits
+range from one to three active teams. At a crop farmstead, each paired ox doubles one
+farmer's ploughing and threshing pace, adds half a farmer's harvesting pace, and does
+not accelerate sowing. Nearby supplied cattle retain their separate plough-work
+reduction, so the two forms of draft support can stack.
 
 Reproduction requires at least two animals, at least 90% support, and healthy
 breeding stock. Births stop at the lower of neutral placed-land capacity and the

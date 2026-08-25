@@ -14,6 +14,8 @@ import {
   FARM_FIELD_TRAVEL_WORK_PER_METER_PER_STAGE,
   FARM_SHARED_LABOR_MIN_PRIORITY,
   FARM_HARVEST_WORK_PER_SQUARE_METER,
+  FARM_OX_HARVEST_WORKER_MULTIPLIER,
+  FARM_OX_PLOUGH_WORKER_MULTIPLIER,
   FARM_PLOUGH_WORK_PER_SQUARE_METER,
   FARM_SOW_WORK_PER_SQUARE_METER,
   CIVILIAN_TOOL_IRONWORK_PER_CYCLE,
@@ -25,6 +27,7 @@ import {
   type BuildingState,
   type FarmCrop,
   type FarmFieldState,
+  type FarmFieldStage,
   type GameState,
 } from '../resources/types.ts';
 import type { GameClock } from '../world/gameCalendar.ts';
@@ -50,6 +53,8 @@ import {
   farmToolIronworkForWork,
 } from '../economy/civilianToolPolicy.ts';
 import { breadGrainStock } from '../economy/cropGoods.ts';
+import { fireDisabledBuildingIds } from '../fires/fireIncident.ts';
+import { assignStableOxen } from '../settlement/stableOxen.ts';
 
 export type SeasonalWorkPlan = {
   requiredWork: number;
@@ -62,6 +67,9 @@ export type FarmsteadWorkPlan = {
   activeFields: number;
   pausedFields: number;
   cattleSupportedFields: number;
+  pairedStableOxen: number;
+  oxPloughThroughputMultiplier: number;
+  oxHarvestThroughputMultiplier: number;
   expectedHarvest: number;
   expectedBarleyHarvest: number;
   expectedFibreHarvest: number;
@@ -285,6 +293,37 @@ export function currentFieldWorkRemaining(
 
 export function fieldWorkerDays(work: number): number {
   return Math.max(0, work) / Math.max(1e-6, WORK_PER_WORKER_DAY);
+}
+
+/**
+ * Stable oxen use their own assignment pool but only amplify farmers who are
+ * actually present. Ploughing doubles a paired farmer, harvesting adds half a
+ * farmer, and sowing remains entirely human work.
+ */
+export function farmFieldEffectiveLabor(
+  stage: FarmFieldStage,
+  humanWorkers: number,
+  pairedOxen: number,
+): number {
+  const humans = Math.max(0, Math.floor(humanWorkers));
+  const paired = Math.min(humans, Math.max(0, Math.floor(pairedOxen)));
+  const pairedWorkerMultiplier = stage === 'ploughing'
+    ? FARM_OX_PLOUGH_WORKER_MULTIPLIER
+    : stage === 'harvesting'
+      ? FARM_OX_HARVEST_WORKER_MULTIPLIER
+      : 1;
+  return humans - paired + paired * Math.max(1, pairedWorkerMultiplier);
+}
+
+export function farmFieldOxThroughputMultiplier(
+  stage: FarmFieldStage,
+  humanWorkers: number,
+  pairedOxen: number,
+): number {
+  const humans = Math.max(0, Math.floor(humanWorkers));
+  return humans <= 0
+    ? 1
+    : farmFieldEffectiveLabor(stage, humans, pairedOxen) / humans;
 }
 
 export function projectedCropFertility(
@@ -518,6 +557,7 @@ function remainingTillageAndSowingWork(
   field: FarmFieldState,
   support: CattleFieldSupport | undefined,
   metrics: FieldWorkMetrics,
+  oxPloughThroughputMultiplier = 1,
 ): number {
   const crop = plannedFieldWorkCrop(field);
   if (field.stage === 'sowing') {
@@ -528,12 +568,13 @@ function remainingTillageAndSowingWork(
       field,
       support?.ploughWorkMultiplier ?? 1,
       metrics,
-    ) + (crop === 'fallow'
+    ) / Math.max(1, oxPloughThroughputMultiplier) + (crop === 'fallow'
       ? 0
       : fieldStageWorkFromMetrics(metrics, FARM_SOW_WORK_PER_SQUARE_METER));
   }
   return fieldStageWorkFromMetrics(metrics, FARM_PLOUGH_WORK_PER_SQUARE_METER)
     * (support?.ploughWorkMultiplier ?? 1)
+    / Math.max(1, oxPloughThroughputMultiplier)
     + (crop === 'fallow'
       ? 0
       : fieldStageWorkFromMetrics(metrics, FARM_SOW_WORK_PER_SQUARE_METER));
@@ -557,6 +598,7 @@ function buildFarmsteadWorkPlanWithWindows(
   cattleSupport: ReadonlyMap<string, CattleFieldSupport>,
   toolIronworkAvailable = 0,
   farmstead?: FieldWorkFarmstead | null,
+  pairedStableOxen = 0,
 ): FarmsteadWorkPlan {
   let activeFields = 0;
   let pausedFields = 0;
@@ -567,6 +609,9 @@ function buildFarmsteadWorkPlanWithWindows(
   let harvestWork = 0;
   let springWork = 0;
   let autumnWork = 0;
+  let rawHarvestWork = 0;
+  let rawSpringWork = 0;
+  let rawAutumnWork = 0;
   let seedGrain = 0;
   let seedBarley = 0;
   let manureRequired = 0;
@@ -576,6 +621,20 @@ function buildFarmsteadWorkPlanWithWindows(
   let afterCurrentFertilityArea = 0;
   let afterPlannedFertilityArea = 0;
   let afterYearThreeFertilityArea = 0;
+  const activePairedStableOxen = Math.min(
+    Math.max(0, Math.floor(workers)),
+    Math.max(0, Math.floor(pairedStableOxen)),
+  );
+  const oxPloughThroughputMultiplier = farmFieldOxThroughputMultiplier(
+    'ploughing',
+    workers,
+    activePairedStableOxen,
+  );
+  const oxHarvestThroughputMultiplier = farmFieldOxThroughputMultiplier(
+    'harvesting',
+    workers,
+    activePairedStableOxen,
+  );
 
   for (const field of fields) {
     if (field.priority <= 0) {
@@ -691,16 +750,26 @@ function buildFarmsteadWorkPlanWithWindows(
       if (currentProduce === 'grain') expectedHarvest += remainingYield;
       else if (currentProduce === 'barley') expectedBarleyHarvest += remainingYield;
       else expectedFibreHarvest += remainingYield;
-      harvestWork += field.stage === 'harvesting'
+      const fieldHarvestWork = field.stage === 'harvesting'
         ? currentFieldWorkRemainingWithMetrics(field, 1, workMetrics)
         : fieldStageWorkFromMetrics(workMetrics, FARM_HARVEST_WORK_PER_SQUARE_METER);
+      rawHarvestWork += fieldHarvestWork;
+      harvestWork += fieldHarvestWork / oxHarvestThroughputMultiplier;
     }
 
-    const scheduledWork = remainingTillageAndSowingWork(field, support, workMetrics);
+    const scheduledWork = remainingTillageAndSowingWork(
+      field,
+      support,
+      workMetrics,
+      oxPloughThroughputMultiplier,
+    );
+    const rawScheduledWork = remainingTillageAndSowingWork(field, support, workMetrics);
     if (FARM_CROP_DEFINITIONS[plannedFieldWorkCrop(field)].workSeason === 'spring') {
       springWork += scheduledWork;
+      rawSpringWork += rawScheduledWork;
     } else {
       autumnWork += scheduledWork;
+      rawAutumnWork += rawScheduledWork;
     }
   }
   normalizeCropRotationFertility(
@@ -711,7 +780,7 @@ function buildFarmsteadWorkPlanWithWindows(
     afterYearThreeFertilityArea,
   );
   const toolIronworkRequired = farmToolIronworkForWork(
-    harvestWork + springWork + autumnWork,
+    rawHarvestWork + rawSpringWork + rawAutumnWork,
   );
   const toolIronworkReserveTarget = toolIronworkRequired <= 1e-9
     ? 0
@@ -725,6 +794,9 @@ function buildFarmsteadWorkPlanWithWindows(
     activeFields,
     pausedFields,
     cattleSupportedFields,
+    pairedStableOxen: activePairedStableOxen,
+    oxPloughThroughputMultiplier,
+    oxHarvestThroughputMultiplier,
     expectedHarvest,
     expectedBarleyHarvest,
     expectedFibreHarvest,
@@ -765,6 +837,7 @@ export function buildFarmsteadWorkPlan(
   cattleSupport: ReadonlyMap<string, CattleFieldSupport> = new Map(),
   toolIronworkAvailable = 0,
   farmstead?: FieldWorkFarmstead | null,
+  pairedStableOxen = 0,
 ): FarmsteadWorkPlan {
   return buildFarmsteadWorkPlanWithWindows(
     fields,
@@ -773,6 +846,7 @@ export function buildFarmsteadWorkPlan(
     cattleSupport,
     toolIronworkAvailable,
     farmstead,
+    pairedStableOxen,
   );
 }
 
@@ -941,6 +1015,19 @@ export function buildSettlementFarmPlan(
   };
   const windows = farmWorkWindows(clock, sabbathObserved);
   const cattleSupport = computeCattleFieldSupport(state);
+  const stableOxAssignments = assignStableOxen(
+    state.stableOxen.values(),
+    state.buildings,
+    state.deliveryTrips.values(),
+    fireDisabledBuildingIds(state.fireIncidents.values()),
+  );
+  const pairedStableOxenByBuilding = new Map<string, number>();
+  for (const assignment of stableOxAssignments.values()) {
+    pairedStableOxenByBuilding.set(
+      assignment.buildingId,
+      (pairedStableOxenByBuilding.get(assignment.buildingId) ?? 0) + 1,
+    );
+  }
   let firstSeedCoverage = Number.POSITIVE_INFINITY;
   let currentFertilityArea = 0;
   let afterCurrentFertilityArea = 0;
@@ -968,6 +1055,7 @@ export function buildSettlementFarmPlan(
       cattleSupport,
       onsiteIronwork + inboundIronwork,
       farmstead,
+      pairedStableOxenByBuilding.get(farmsteadId) ?? 0,
     );
     total.activeFields += plan.activeFields;
     total.pausedFields += plan.pausedFields;

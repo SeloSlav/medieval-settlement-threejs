@@ -23,6 +23,7 @@ import {
   daysUntilCropHarvestWindow,
   earlyHarvestAvailability,
   fieldAcceptsFarmsteadLabor,
+  farmFieldEffectiveLabor,
   fieldFarmsteadDistance,
   fieldPerimeter,
   fieldSeedGrainRemaining,
@@ -50,6 +51,7 @@ import {
 } from '../../economy/civilianToolPolicy.ts';
 import { breadGrainStock } from '../../economy/cropGoods.ts';
 import { fireDisabledBuildingIds } from '../../fires/fireIncident.ts';
+import { assignStableOxen } from '../../settlement/stableOxen.ts';
 
 const MONTH_LABELS = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -157,12 +159,35 @@ export function renderFarmFieldInspector(
     ));
   const assistingFarmsteads = eligibleFarmsteads
     .filter((building) => building.id !== field.farmsteadId);
-  const availableFieldLabor = eligibleFarmsteads.reduce((sum, building) => (
-    sum + onsiteBuildingLabor(
+  const stableOxAssignments = assignStableOxen(
+    context.gameState.stableOxen.values(),
+    context.gameState.buildings,
+    context.gameState.deliveryTrips.values(),
+    disabledFarmsteads,
+  );
+  const pairedStableOxenByBuilding = new Map<string, number>();
+  for (const assignment of stableOxAssignments.values()) {
+    pairedStableOxenByBuilding.set(
+      assignment.buildingId,
+      (pairedStableOxenByBuilding.get(assignment.buildingId) ?? 0) + 1,
+    );
+  }
+  let availableFieldLabor = 0;
+  let availableStableOxen = 0;
+  let effectiveFieldLabor = 0;
+  for (const building of eligibleFarmsteads) {
+    const humanLabor = onsiteBuildingLabor(
       building,
       context.worldQueries.getActiveDeliveryTrip(building),
-    )
-  ), 0);
+    );
+    const pairedOxen = Math.min(
+      humanLabor,
+      pairedStableOxenByBuilding.get(building.id) ?? 0,
+    );
+    availableFieldLabor += humanLabor;
+    availableStableOxen += pairedOxen;
+    effectiveFieldLabor += farmFieldEffectiveLabor(field.stage, humanLabor, pairedOxen);
+  }
   const toolThroughputMultiplier = farmToolThroughputMultiplier(
     farmstead?.ironwork ?? 0,
   );
@@ -174,8 +199,8 @@ export function renderFarmFieldInspector(
     / CIVILIAN_TOOL_THROUGHPUT_MULTIPLIER
     + remainingWorkerDays
     - toolCoveredWorkerDays;
-  const crewDays = farmstead && availableFieldLabor > 0
-    ? adjustedRemainingWorkerDays / availableFieldLabor
+  const crewDays = farmstead && effectiveFieldLabor > 0
+    ? adjustedRemainingWorkerDays / effectiveFieldLabor
     : null;
   const active = Boolean(farmstead && availableFieldLabor > 0 && field.priority > 0);
   const clock = gameClock(context.gameState.tick);
@@ -266,8 +291,15 @@ export function renderFarmFieldInspector(
       <li><span>Three-year rotation</span><span>${cropLabel(field.crop)} → ${cropLabel(field.nextCrop)} → ${cropLabel(thirdCrop)}${cyclicRotation ? ` → ${cropLabel(field.crop)}` : ' · Year 3 repeats until scheduled'}</span></li>
       <li><span>Crop calendar</span><span>${cropCalendarLabel(field.crop)}</span></li>
       <li><span>Priority</span><span>${PRIORITY_LABEL[field.priority] ?? 'Normal'}</span></li>
-      <li><span>Available field crews</span><span>${availableFieldLabor} workers across ${eligibleFarmsteads.length} farmstead${eligibleFarmsteads.length === 1 ? '' : 's'}${assistingFarmsteads.length > 0 ? ` · ${assistingFarmsteads.length} neighboring crew${assistingFarmsteads.length === 1 ? '' : 's'} may assist` : field.priority < 2 ? ' · set High or Urgent to request nearby help' : ' · no neighboring farmstead in range'} · higher queued field or threshing work may claim them first</span></li>
-      <li><span>Ox support</span><span>${cattleSupport
+      <li><span>Available field crews</span><span>${availableFieldLabor} farmers + ${availableStableOxen} active stable ox${availableStableOxen === 1 ? '' : 'en'} across ${eligibleFarmsteads.length} farmstead${eligibleFarmsteads.length === 1 ? '' : 's'}${assistingFarmsteads.length > 0 ? ` · ${assistingFarmsteads.length} neighboring crew${assistingFarmsteads.length === 1 ? '' : 's'} may assist` : field.priority < 2 ? ' · set High or Urgent to request nearby help' : ' · no neighboring farmstead in range'} · higher queued field or threshing work may claim them first</span></li>
+      <li><span>Stable-ox field work</span><span>${availableStableOxen <= 0
+        ? 'No ox currently paired with an eligible farmer'
+        : field.stage === 'ploughing'
+          ? `${effectiveFieldLabor.toFixed(1)} effective workers · each paired ox doubles one farmer’s ploughing pace`
+          : field.stage === 'harvesting'
+            ? `${effectiveFieldLabor.toFixed(1)} effective workers · each paired ox adds 50% of one farmer’s harvest pace`
+            : 'Oxen are present, but sowing remains human-only'}</span></li>
+      <li><span>Cattle plough support</span><span>${cattleSupport
         ? `Active from nearby cattle · ${Math.round((1 - cattleSupport.ploughWorkMultiplier) * 100)}% less ploughing`
         : 'None · requires a top-two priority slot and healthy, supplied cattle within range'}</span></li>
       <li><span>Manure spread</span><span>${Math.round(manureApplied)} / ${Math.ceil(manureRequired)} this cycle · +${(manureBonus * 100).toFixed(1)} soil${field.stage === 'ploughing' ? ` · ${Math.round(Math.max(0, farmstead?.manure ?? 0))} waiting at farmstead` : ''}</span></li>
@@ -283,7 +315,7 @@ export function renderFarmFieldInspector(
       <li><span>Shape efficiency</span><span>${shape}%</span></li>
       <li><span>Farmstead distance</span><span>${farmstead ? `${farmsteadDistance.toFixed(0)} m · travel adds work each field stage` : 'Unknown · farmstead missing'}</span></li>
       <li><span>Parcel boundary</span><span>${perimeter.toFixed(0)} m · separate parcels repeat setup and turning work</span></li>
-      <li><span>Full-cycle labor</span><span>${cycleWorkerDays.toFixed(1)} base worker-days · tools and oxen can reduce elapsed time</span></li>
+      <li><span>Full-cycle labor</span><span>${cycleWorkerDays.toFixed(1)} base worker-days · tools, stable teams, and nearby cattle can reduce elapsed time</span></li>
       ${earlyHarvestLocked ? `<li><span>Harvest decision</span><span>Early cut · ${Math.round((field.harvestYieldMultiplier ?? 1) * 100)}% of normal yield locked</span></li>` : ''}
       <li><span>Next-crop potential</span><span>${cropProduce(field.nextCrop) === 'none' ? 'Worked fallow · restores soil without seed' : `${plannedYield.toFixed(1)} ${cropHarvestUnit(field.nextCrop)} at current moisture · ${plannedSeed.toFixed(1)} seed`}</span></li>
       <li><span>Year 3 potential</span><span>${cropProduce(thirdCrop) === 'none' ? 'Worked fallow · restores soil without seed' : `${yearThreeYield.toFixed(1)} ${cropHarvestUnit(thirdCrop)} at current moisture · ${yearThreeSeed.toFixed(1)} seed`}</span></li>

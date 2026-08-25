@@ -325,7 +325,7 @@ export function extractionOutputHeadroom(
 
 export function extractionOutputCommodity(
   kind: BuildingKind,
-  mineralResource: 'iron' | 'salt' | null = null,
+  mineralResource: 'iron' | 'salt' | 'clay' | null = null,
 ): ExtractionOutputCommodity | null {
   switch (kind) {
     case 'stone_quarry':
@@ -352,7 +352,7 @@ export function extractionAcceptsMaintenance(
     | 'processorOutputTargetPercent'
     | ExtractionOutputCommodity
   >,
-  mineralResource: 'iron' | 'salt' | null = null,
+  mineralResource: 'iron' | 'salt' | 'clay' | null = null,
 ): boolean {
   if (!isExtractionOutputTargetKind(building.kind)) return true;
   const output = extractionOutputCommodity(building.kind, mineralResource);

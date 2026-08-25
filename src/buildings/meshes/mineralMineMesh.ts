@@ -2,40 +2,202 @@ import * as THREE from 'three';
 import {
   addMesh,
   metalMaterial,
-  sharedBuildingMaterial,
+  quarryRockMaterial,
   sharedBuildingDetailMaterial,
+  sharedBuildingMaterial,
   timberMaterial,
 } from '../buildingMaterials.ts';
-import { createLargeQuarryMesh } from './largeQuarryMesh.ts';
+import { addDarkOpening, addGableShell, addPlankDoor } from './buildingMeshKit.ts';
+import { createCivilianToolStockpile } from './civilianToolStockpileMesh.ts';
 
+const UP = new THREE.Vector3(0, 1, 0);
 const IRON_DARK = metalMaterial('iron');
 const IRON_OXIDE = sharedBuildingDetailMaterial('paintRed');
 const SALT_DARK = sharedBuildingMaterial('masonryMid');
 const SALT_LIGHT = sharedBuildingMaterial('masonryLight');
+const CLAY_DARK = sharedBuildingDetailMaterial('earth');
+const CLAY_LIGHT = sharedBuildingDetailMaterial('paintOchre');
+
+type MineworksResource = 'iron' | 'salt' | 'clay';
+
+function addBeamBetween(
+  group: THREE.Group,
+  start: THREE.Vector3,
+  end: THREE.Vector3,
+  thickness: number,
+  material: THREE.Material,
+  name: string,
+): THREE.Mesh {
+  const direction = end.clone().sub(start);
+  const beam = addMesh(
+    group,
+    new THREE.BoxGeometry(thickness, direction.length(), thickness),
+    material,
+    start.clone().add(end).multiplyScalar(0.5),
+  );
+  beam.quaternion.setFromUnitVectors(UP, direction.normalize());
+  beam.name = name;
+  return beam;
+}
+
+function addShaftCollar(group: THREE.Group): void {
+  const shaft = new THREE.Group();
+  shaft.name = 'Mineworks shaft collar';
+
+  addMesh(
+    shaft,
+    new THREE.BoxGeometry(4.5, 0.2, 3.5),
+    sharedBuildingMaterial('interiorDark'),
+    new THREE.Vector3(0, 0.12, 0),
+  ).name = 'Mineworks deep shaft opening';
+
+  for (const [x, z, width, depth] of [
+    [0, -1.88, 5.3, 0.42],
+    [0, 1.88, 5.3, 0.42],
+    [-2.48, 0, 0.42, 3.35],
+    [2.48, 0, 0.42, 3.35],
+  ] as const) {
+    addMesh(
+      shaft,
+      new THREE.BoxGeometry(width, 0.62, depth),
+      quarryRockMaterial('cut'),
+      new THREE.Vector3(x, 0.35, z),
+    ).name = 'Mineworks dressed shaft curb';
+  }
+
+  for (const z of [-1.25, 0, 1.25]) {
+    addMesh(
+      shaft,
+      new THREE.BoxGeometry(4.15, 0.16, 0.22),
+      timberMaterial(z === 0 ? 'dark' : 'weathered'),
+      new THREE.Vector3(0, 0.58, z),
+    ).name = 'Mineworks shaft safety bearer';
+  }
+  group.add(shaft);
+}
 
 /**
- * A compact mineral working. It shares the proven hand-winch structure of the
- * deep stone quarry while the sorting floor, chute, tubs, and inventory-driven
- * iron or salt piles give it a distinct and readable production state.
+ * A compact four-leg winding tower. Its closed vertical silhouette and paired
+ * sheaves identify deep underground work, in deliberate contrast with the
+ * quarry's low terraces and cantilevered crane.
  */
-export function createMineralMineMesh(): THREE.Group {
-  const group = createLargeQuarryMesh();
-  group.name = 'Mineral Mine';
+function addHeadframe(group: THREE.Group): void {
+  const headframe = new THREE.Group();
+  headframe.name = 'Mineworks winding headframe';
+  const darkTimber = timberMaterial('dark');
+  const weatheredTimber = timberMaterial('weathered');
 
-  const stoneStock = group.getObjectByName('LargeQuarryStockpile');
-  if (stoneStock) stoneStock.name = 'MineralMineUnusedStoneStockpile';
+  for (const x of [-2.4, 2.4]) {
+    for (const z of [-1.65, 1.65]) {
+      addBeamBetween(
+        headframe,
+        new THREE.Vector3(x, 0.35, z),
+        new THREE.Vector3(x * 0.58, 8.15, z * 0.68),
+        0.46,
+        darkTimber,
+        'Mineworks inclined headframe leg',
+      );
+    }
+  }
 
-  addOreSortingFloor(group);
-  addMineralStockpile(group, 'iron');
-  addMineralStockpile(group, 'salt');
-  addMineSupportStockpile(group);
-  return group;
+  for (const z of [-1.25, 1.25]) {
+    addBeamBetween(
+      headframe,
+      new THREE.Vector3(-1.65, 8.1, z),
+      new THREE.Vector3(1.65, 8.1, z),
+      0.44,
+      weatheredTimber,
+      'Mineworks headframe crown beam',
+    );
+  }
+  for (const side of [-1, 1] as const) {
+    addBeamBetween(
+      headframe,
+      new THREE.Vector3(side * 2.25, 2.0, -1.52),
+      new THREE.Vector3(side * 1.48, 6.9, 1.18),
+      0.23,
+      weatheredTimber,
+      'Mineworks headframe cross brace',
+    );
+    addBeamBetween(
+      headframe,
+      new THREE.Vector3(side * 2.25, 2.0, 1.52),
+      new THREE.Vector3(side * 1.48, 6.9, -1.18),
+      0.23,
+      weatheredTimber,
+      'Mineworks headframe cross brace',
+    );
+  }
+
+  for (const x of [-0.74, 0.74]) {
+    addMesh(
+      headframe,
+      new THREE.TorusGeometry(0.78, 0.1, 8, 20),
+      metalMaterial('iron'),
+      new THREE.Vector3(x, 7.58, 0),
+      new THREE.Euler(0, Math.PI * 0.5, 0),
+    ).name = 'Mineworks winding sheave';
+    addBeamBetween(
+      headframe,
+      new THREE.Vector3(x, 7.5, 0),
+      new THREE.Vector3(x, 0.7, 0),
+      0.055,
+      metalMaterial('iron'),
+      'Mineworks winding cable',
+    );
+  }
+
+  addMesh(
+    headframe,
+    new THREE.BoxGeometry(3.7, 0.22, 3.1),
+    sharedBuildingMaterial('shingle'),
+    new THREE.Vector3(0, 8.42, 0),
+  ).name = 'Mineworks headframe weather cap';
+  group.add(headframe);
+}
+
+function addHoistHouse(group: THREE.Group): void {
+  const house = new THREE.Group();
+  house.name = 'Mineworks hoist house';
+  house.position.set(7.1, 0, 1.55);
+  house.rotation.y = -Math.PI * 0.5;
+  const shell = addGableShell(house, {
+    width: 5.5,
+    depth: 4.65,
+    stoneHeight: 1.1,
+    wallHeight: 2.4,
+    ridgeHeight: 1.8,
+    wallMaterial: quarryRockMaterial('light'),
+    roofMaterial: sharedBuildingMaterial('shingle'),
+    stoneGroundFloor: true,
+  });
+  addPlankDoor(house, -1.35, 1.08, shell.frontZ + 0.02, 0.95, 1.95);
+  addDarkOpening(house, 1.18, 2.25, shell.frontZ + 0.04, 0.98, 0.82);
+
+  const drum = addMesh(
+    house,
+    new THREE.CylinderGeometry(0.67, 0.67, 1.8, 16),
+    timberMaterial('mid'),
+    new THREE.Vector3(0.3, 1.05, -1.35),
+    new THREE.Euler(0, 0, Math.PI * 0.5),
+  );
+  drum.name = 'Mineworks winding drum';
+  for (const x of [-0.64, 1.24]) {
+    addMesh(
+      house,
+      new THREE.TorusGeometry(0.69, 0.075, 7, 16),
+      metalMaterial('iron'),
+      new THREE.Vector3(x, 1.05, -1.35),
+      new THREE.Euler(0, Math.PI * 0.5, 0),
+    ).name = 'Mineworks winding drum rim';
+  }
+  group.add(house);
 }
 
 function addOreSortingFloor(group: THREE.Group): void {
   const floor = new THREE.Group();
-  floor.name = 'Mineral mine sorting floor';
-  floor.position.set(-7.3, 0, 4.1);
+  floor.name = 'Mineworks sorting floor';
+  floor.position.set(-7.15, 0, 3.9);
   floor.rotation.y = 0.18;
 
   addMesh(
@@ -60,7 +222,7 @@ function addOreSortingFloor(group: THREE.Group): void {
     new THREE.Vector3(2.25, 1.42, -1.25),
     new THREE.Euler(-0.28, 0.08, 0),
   );
-  chute.name = 'Mineral mine hand-sorting chute';
+  chute.name = 'Mineworks hand-sorting chute';
 
   for (const x of [-1.7, 0, 1.7]) {
     const tub = addMesh(
@@ -69,51 +231,95 @@ function addOreSortingFloor(group: THREE.Group): void {
       timberMaterial('mid'),
       new THREE.Vector3(x, 1.08, 0.38),
     );
-    tub.name = 'Mineral mine sorting tub';
+    tub.name = 'Mineworks sorting tub';
   }
   group.add(floor);
 }
 
-function addMineralStockpile(
-  group: THREE.Group,
-  resource: 'iron' | 'salt',
-): void {
+function stockpileNames(resource: MineworksResource): {
+  container: string;
+  segment: string;
+  item: string;
+} {
+  if (resource === 'iron') {
+    return {
+      container: 'IronMineStockpile',
+      segment: 'IronMineOreSegment',
+      item: 'Sorted rich iron ore',
+    };
+  }
+  if (resource === 'salt') {
+    return {
+      container: 'SaltMineStockpile',
+      segment: 'SaltMineSaltSegment',
+      item: 'Sorted rich salt rock',
+    };
+  }
+  return {
+    container: 'ClayMineStockpile',
+    segment: 'ClayMineClaySegment',
+    item: 'Sorted rich clay lump',
+  };
+}
+
+function stockpilePositions(resource: MineworksResource): readonly (readonly [number, number])[] {
+  if (resource === 'iron') {
+    return [
+      [7.4, -5.7], [8.7, -4.5], [9.5, -2.9],
+      [7.1, -6.9], [9.2, -6.1], [6.4, -4.2],
+    ];
+  }
+  if (resource === 'salt') {
+    return [
+      [8.3, 4.6], [9.6, 3.2], [7.1, 5.8],
+      [9.2, 5.4], [6.8, 3.4], [8.1, 6.6],
+    ];
+  }
+  return [
+    [-8.3, -5.2], [-9.5, -3.8], [-6.9, -6.2],
+    [-9.0, -6.5], [-6.6, -4.4], [-10.1, -5.3],
+  ];
+}
+
+function stockpileMaterials(resource: MineworksResource): readonly [THREE.Material, THREE.Material] {
+  if (resource === 'iron') return [IRON_DARK, IRON_OXIDE];
+  if (resource === 'salt') return [SALT_DARK, SALT_LIGHT];
+  return [CLAY_DARK, CLAY_LIGHT];
+}
+
+function addMineralStockpile(group: THREE.Group, resource: MineworksResource): void {
   const stockpile = new THREE.Group();
-  const isIron = resource === 'iron';
-  stockpile.name = isIron ? 'IronMineStockpile' : 'SaltMineStockpile';
+  const names = stockpileNames(resource);
+  const materials = stockpileMaterials(resource);
+  stockpile.name = names.container;
   stockpile.visible = false;
 
-  const positions = [
-    [7.4, -5.7],
-    [8.7, -4.5],
-    [9.5, -2.9],
-    [8.3, 4.6],
-    [9.6, 3.2],
-    [7.1, 5.8],
-  ] as const;
-  positions.forEach(([x, z], segmentIndex) => {
+  stockpilePositions(resource).forEach(([x, z], segmentIndex) => {
     const segment = new THREE.Group();
-    segment.name = isIron ? 'IronMineOreSegment' : 'SaltMineSaltSegment';
+    segment.name = names.segment;
     segment.visible = false;
     segment.position.set(x, 0, z);
     segment.rotation.y = segmentIndex * 0.57;
     for (let index = 0; index < 5; index++) {
       const angle = index / 5 * Math.PI * 2;
-      const ore = addMesh(
+      const geometry = resource === 'clay'
+        ? new THREE.SphereGeometry(0.5 + (index % 3) * 0.07, 8, 5)
+        : new THREE.DodecahedronGeometry(0.46 + (index % 3) * 0.09, 0);
+      const item = addMesh(
         segment,
-        new THREE.DodecahedronGeometry(0.46 + (index % 3) * 0.09, 0),
-        (index + segmentIndex) % 3 === 0
-          ? (isIron ? IRON_DARK : SALT_DARK)
-          : (isIron ? IRON_OXIDE : SALT_LIGHT),
+        geometry,
+        materials[(index + segmentIndex) % 3 === 0 ? 0 : 1],
         new THREE.Vector3(
           Math.cos(angle) * 0.62,
           0.36 + (index === 4 ? 0.48 : 0),
           Math.sin(angle) * 0.48,
         ),
         new THREE.Euler(index * 0.23, angle, segmentIndex * 0.11),
-        new THREE.Vector3(1.18, 0.76, 0.96),
+        resource === 'clay'
+          ? new THREE.Vector3(1.22, 0.68, 1.02)
+          : new THREE.Vector3(1.18, 0.76, 0.96),
       );
-      ore.name = isIron ? 'Sorted iron ore' : 'Sorted salt rock';
+      item.name = names.item;
     }
     stockpile.add(segment);
   });
@@ -124,7 +330,7 @@ function addMineSupportStockpile(group: THREE.Group): void {
   const stockpile = new THREE.Group();
   stockpile.name = 'MineSupportStockpile';
   stockpile.visible = false;
-  stockpile.position.set(-7.4, 0, -5.1);
+  stockpile.position.set(-4.7, 0, -6.5);
   stockpile.rotation.y = -0.18;
 
   for (let segmentIndex = 0; segmentIndex < 4; segmentIndex += 1) {
@@ -148,9 +354,28 @@ function addMineSupportStockpile(group: THREE.Group): void {
         ),
         new THREE.Euler(0, (beamIndex - 1) * 0.025, 0),
       );
-      beam.name = 'Prepared shaft-support beam';
+      beam.name = 'Prepared mineworks shaft-support beam';
     }
     stockpile.add(segment);
   }
   group.add(stockpile);
+}
+
+/** Deep rich-mineral works for iron, salt, and clay deposits. */
+export function createMineralMineMesh(): THREE.Group {
+  const group = new THREE.Group();
+  group.name = 'Mineworks';
+  group.userData.semanticRole = 'rich-mineral-mineworks';
+  group.userData.extractionResources = ['iron', 'salt', 'clay'];
+  group.userData.silhouette = 'vertical-shaft-headframe';
+  addShaftCollar(group);
+  addHeadframe(group);
+  addHoistHouse(group);
+  addOreSortingFloor(group);
+  addMineralStockpile(group, 'iron');
+  addMineralStockpile(group, 'salt');
+  addMineralStockpile(group, 'clay');
+  addMineSupportStockpile(group);
+  group.add(createCivilianToolStockpile(new THREE.Vector3(4.8, 0, 5.7), -0.16));
+  return group;
 }

@@ -18,6 +18,9 @@ export function renderQuarryInspector(
       : definition.resource === 'clay'
         ? 'clay'
         : 'stone';
+  const deepWorksiteInstruction = definition.resource === 'stone'
+    ? 'center a timber-supported Quarry on this node'
+    : 'center timber-supported Mineworks on this node';
 
   return {
     eyebrow: state.isRich
@@ -33,7 +36,7 @@ export function renderQuarryInspector(
     detailsHtml: `
       <li><span>Nearest road</span><span>${nearestRoad == null ? 'None nearby' : `${nearestRoad.toFixed(1)} m`}</span></li>
       <li><span>Surface extraction</span><span>Place a Mining Pit nearby · finite ${resourceLabel} reserve</span></li>
-      ${state.isRich ? `<li><span>Underground source</span><span>Does not deplete · center a timber-supported Quarry on this node</span></li>` : '<li><span>Underground source</span><span>None · imports remain available after surface exhaustion</span></li>'}
+      ${state.isRich ? `<li><span>Underground source</span><span>Does not deplete · ${deepWorksiteInstruction}</span></li>` : '<li><span>Underground source</span><span>None · imports remain available after surface exhaustion</span></li>'}
     `,
     demolish: hiddenDemolish(),
     labor: hiddenLabor(),

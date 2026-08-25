@@ -42,7 +42,6 @@ pub const INSTITUTIONAL_FOOD_SOURCE_KINDS: &[&str] = &[
 ];
 pub const LOCAL_MATERIAL_SOURCE_KINDS: &[&str] = &[
     "stone_quarry",
-    "large_quarry",
     "mine",
     "clay_pit",
     "charcoal_burner",
@@ -193,9 +192,10 @@ pub fn large_quarry_supports_ready(timber: f64) -> bool {
     large_quarry_support_runway_cycles(timber) + 1e-9 >= 1.0
 }
 
-/// Rich mineral seams represent deep, non-depleting workings. They require one
-/// complete timber-crib batch before labor can safely advance extraction.
-/// Ordinary finite seams remain support-free surface workings.
+/// Mineworks follow rich, non-depleting iron, salt, and clay seams. They
+/// require one complete timber-crib batch before labor can safely advance
+/// extraction. Finite surface reserves, including those above rich seams, are
+/// worked from a Mining Pit instead.
 pub fn rich_mine_support_target() -> f64 {
     whole_cost(MINE_TIMBER_SUPPORT_PER_CYCLE * MINE_TIMBER_SUPPORT_BUFFER_CYCLES)
 }
@@ -1158,7 +1158,6 @@ mod tests {
             LOCAL_MATERIAL_SOURCE_KINDS,
             &[
                 "stone_quarry",
-                "large_quarry",
                 "mine",
                 "clay_pit",
                 "charcoal_burner",

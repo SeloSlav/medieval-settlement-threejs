@@ -24,12 +24,15 @@ export type PlacementBuildMenuAction =
   | 'watchtower'
   | 'guardhouse'
   | 'palisaded-refuge'
-  | 'clay-pit' | 'charcoal-burner' | 'smithy' | 'potter-kiln'
+  | 'charcoal-burner' | 'smithy' | 'potter-kiln'
   | 'residences'
   | 'dry-stone-wall';
 
 export type BuildMenuAction = PlacementBuildMenuAction;
-type PlayerPlaceableBuildingKind = Exclude<BuildingKind, 'salvage_pile' | 'remote_work_camp'>;
+type PlayerPlaceableBuildingKind = Exclude<
+  BuildingKind,
+  'salvage_pile' | 'remote_work_camp' | 'clay_pit'
+>;
 type DecorationArtKey = 'dry_stone_wall';
 type PlacementArtKey = PlayerPlaceableBuildingKind | 'residences' | DecorationArtKey;
 export type BuildMenuEntry = { kind: 'placement'; action: PlacementBuildMenuAction; artKey: PlacementArtKey };
@@ -40,7 +43,6 @@ const BUILD_CARD_ART: Record<PlacementArtKey, string> = {
   woodcutters_lodge: '/assets/ui/build-menu/cards/woodcutters-lodge.webp', stone_quarry: '/assets/ui/build-menu/cards/stonecutters-camp.webp',
   large_quarry: '/assets/ui/build-menu/cards/large-quarry.webp',
   mine: '/assets/ui/build-menu/cards/iron-mine.webp',
-  clay_pit: '/assets/ui/build-menu/cards/clay-pit.webp',
   charcoal_burner: '/assets/ui/build-menu/cards/charcoal-burner.webp',
   smithy: '/assets/ui/build-menu/cards/smithy-bloomery.webp',
   potter_kiln: '/assets/ui/build-menu/cards/potter-kiln.webp',
@@ -105,9 +107,8 @@ const DETAILS: Record<PlacementArtKey, BuildCardDetail> = {
   palisaded_refuge: ['Palisaded refuge', 'Shelters warned families and their coin once a guardhouse stands.'],
   lumber_mill: ['Lumber mill', 'Fells mature trees and saws them into building timber; replacement axes raise output but wear each cycle.', flow([], ['timber'])],
   stone_quarry: ['Mining Pit', 'Gathers stone, iron, salt, or clay from shallow surface deposits; picks and hammer heads raise output but wear each cycle.', flow([], ['stone', 'iron', 'salt', 'clay'])],
-  large_quarry: ['Quarry', 'Works rich deposits with timber supports; picks and hammer heads raise output but wear each cycle.', flow(['timber'], ['stone', 'iron', 'salt', 'clay'])],
-  mine: ['Mine', 'Delves mineral seams for iron or salt; picks and hammer heads raise output but wear each cycle.', flow([], ['iron', 'salt'])],
-  clay_pit: ['Clay pit', 'Digs workable clay; picks and hammer heads raise output but wear each cycle.', flow([], ['clay'])],
+  large_quarry: ['Quarry', 'Cuts rich stone with timber-supported deep workings; maintained picks and hammer heads raise output.', flow(['timber'], ['stone'])],
+  mine: ['Mineworks', 'Extracts rich iron, salt, or clay with timber-supported shafts; maintained picks and hammer heads raise output.', flow(['timber'], ['iron', 'salt', 'clay'])],
   charcoal_burner: ["Charcoal burner's yard", 'Slow-burns firewood into charcoal for the smithy.', flow(['firewood'], ['charcoal'])],
   smithy: ['Forest bloomery & smithy', 'Forges ironwork, tools, fittings, and weapons from iron and charcoal.', flow(['iron', 'charcoal', 'water'], ['ironwork'])],
   potter_kiln: ["Potter's kiln", 'Fires clay into household pottery or sturdy roof tiles.', flow(['clay', 'water', 'firewood'], ['pottery', 'roofTiles'])],
@@ -116,7 +117,7 @@ const DETAILS: Record<PlacementArtKey, BuildCardDetail> = {
   hunters_hall: ["Hunter's hall", 'Hunts nearby game and dresses the catch for meat and hides.', flow([], ['meat', 'hides'])],
   foragers_shed: ["Forager's shed", 'Gathers woodland berries, mushrooms, and healing remedies.', flow([], ['berries', 'mushrooms', 'remedies'])],
   fishing_camp: ['Fishing camp', 'Catches fish from nearby waters through the warmer seasons.', flow([], ['fish'])],
-  threshing_barn: ['Farmstead', 'Harvests rye, oats, barley, maslin, and flax; maintained ploughshares, hoes, sickles, and scythes raise field output.', flow(['ryeSheaves', 'oatSheaves', 'barleySheaves', 'maslinSheaves'], ['ryeGrain', 'oatGrain', 'barley', 'maslinGrain', 'flax'])],
+  threshing_barn: ['Farmstead and threshing barn', 'Works grain and flax fields, then threshes sheaves. Stable oxen speed ploughing, harvesting, and threshing; sowing remains human-only.', flow(['ryeSheaves', 'oatSheaves', 'barleySheaves', 'maslinSheaves'], ['ryeGrain', 'oatGrain', 'barley', 'maslinGrain', 'flax'])],
   watermill: ['Grain watermill', 'Uses seasonal river power to grind rye and maslin. Smith-dressed millstones and maintained iron fittings raise output.', flow(['ryeGrain', 'maslinGrain'], ['ryeFlour', 'maslinFlour'])],
   windmill: ['Grain windmill', 'Uses strong winds to grind rye and maslin. Smith-dressed millstones and maintained iron fittings raise output.', flow(['ryeGrain', 'maslinGrain'], ['ryeFlour', 'maslinFlour'])],
   granary: ['Granary', 'Stores grain, fresh food, and preserved provisions for the settlement.'],
@@ -152,7 +153,7 @@ export const CIVIC_BUILD_MENU_ENTRIES: readonly BuildMenuEntry[] = [
 
 /** Sites whose crews gather raw resources from the landscape. */
 export const GATHERING_BUILD_MENU_ENTRIES: readonly BuildMenuEntry[] = [
-  entry('lumber_mill'), entry('reforester'), entry('stone_quarry'), entry('large_quarry'), entry('mine'), entry('clay_pit'),
+  entry('lumber_mill'), entry('reforester'), entry('stone_quarry'), entry('large_quarry'), entry('mine'),
   entry('hunters_hall'), entry('foragers_shed'), entry('fishing_camp'),
 ];
 

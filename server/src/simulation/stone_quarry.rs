@@ -12,6 +12,7 @@ use crate::economy::{
     building_commodity_cap, building_commodity_stock, deposit_building_commodity,
     withdraw_building_commodity, CommodityKind,
 };
+use crate::extraction_policy::{mining_pit_clay_commodity, mining_pit_geological_commodity};
 use crate::processor_output_policy::processor_output_headroom;
 use crate::simulation::delivery_trips::onsite_building_labor;
 use crate::simulation::game_calendar::GameClock;
@@ -42,7 +43,8 @@ impl SurfaceDeposit {
 
 /// The legacy `stone_quarry` identifier now represents the shared Mining Pit.
 /// It works the nearest finite surface reserve of stone, iron, salt, or clay
-/// inside its radius. Richness never makes surface material infinite.
+/// inside its radius. A rich marker still has a depleting surface layer; its
+/// non-depleting deep source remains exclusive to a Quarry or Mineworks.
 pub fn step_stone_quarry(
     ctx: &ReducerContext,
     tick: &SimTickContext,
@@ -140,7 +142,8 @@ fn nearest_surface_deposit(
         if deposit.remaining <= 1e-6 {
             continue;
         }
-        let Some(commodity) = quarry_commodity(&deposit.quarry_id) else {
+        let Some(commodity) = mining_pit_geological_commodity(&deposit.quarry_id, deposit.is_rich)
+        else {
             continue;
         };
         let distance_sq = (deposit.x - x).powi(2) + (deposit.z - z).powi(2);
@@ -152,8 +155,7 @@ fn nearest_surface_deposit(
     }
 
     for deposit in ctx.db.foraging_node().iter() {
-        if deposit.node_kind != "clay"
-            || !deposit.node_id.starts_with("clay-")
+        if mining_pit_clay_commodity(&deposit.node_kind, &deposit.node_id).is_none()
             || deposit.remaining <= 1e-6
         {
             continue;
@@ -167,18 +169,6 @@ fn nearest_surface_deposit(
     }
 
     nearest
-}
-
-fn quarry_commodity(quarry_id: &str) -> Option<CommodityKind> {
-    if quarry_id.starts_with("deposit-iron-") {
-        Some(CommodityKind::Iron)
-    } else if quarry_id.starts_with("deposit-salt-") {
-        Some(CommodityKind::Salt)
-    } else if quarry_id.starts_with("quarry-") {
-        Some(CommodityKind::Stone)
-    } else {
-        None
-    }
 }
 
 fn extraction_batch(commodity: CommodityKind) -> f64 {

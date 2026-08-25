@@ -28,7 +28,8 @@ export function geologicalNodeForMapMarker(
  * Gives all four physical geological resources one shared map vocabulary.
  * Every rich geological node exposes the same two-part model: a finite
  * surface reserve for a nearby Mining Pit and a non-depleting underground
- * source for a Quarry centered on the node.
+ * source for the matching deep worksite centered on the node: a Quarry for
+ * stone, or Mineworks for iron, salt, and clay.
  */
 export function describeGeologicalMapMarker(
   marker: Pick<WorldMapMarker, 'label'>,
@@ -45,8 +46,9 @@ export function describeGeologicalMapMarker(
   const remaining = Math.max(0, finiteOrZero(node.remaining));
   const capacity = Math.max(0, finiteOrZero(node.maxYield));
   if (node.isRich === true) {
+    const deepWorksite = node.resource === 'stone' ? 'Quarry' : 'Mineworks';
     return {
-      label: `${marker.label} · ${formatReserve(remaining)} / ${formatReserve(capacity)} surface ${resource} remaining · underground ${resource} does not deplete · center a Quarry on this node`,
+      label: `${marker.label} · ${formatReserve(remaining)} / ${formatReserve(capacity)} surface ${resource} remaining · underground ${resource} does not deplete · center ${deepWorksite} on this node`,
       level: 'deep',
     };
   }

@@ -314,11 +314,11 @@ export function validateBuildingPlacement(
     return { ok: false, reason: 'no_quarry_in_range' };
   }
 
-  if (kind === 'large_quarry' && !hasRichDepositAtCenter(x, z, quarries)) {
+  if (kind === 'large_quarry' && !hasRichStoneDepositAtCenter(x, z, quarries)) {
     return { ok: false, reason: 'requires_rich_deposit' };
   }
 
-  if (kind === 'mine' && !hasMineralDepositAtCenter(x, z, quarries)) {
+  if (kind === 'mine' && !hasMineworksDepositAtCenter(x, z, quarries)) {
     return { ok: false, reason: 'requires_mineral_deposit' };
   }
 
@@ -412,11 +412,15 @@ export function resolveBuildingPlacementPoint(
   let nearest: ResourceNodeState | null = null;
   let nearestDistance = Number.POSITIVE_INFINITY;
   for (const deposit of quarries) {
-    if (
-      kind === 'mine'
-        ? deposit.resource !== 'iron' && deposit.resource !== 'salt'
-        : deposit.isRich !== true
-    ) continue;
+    const isEligible = kind === 'mine'
+      ? deposit.isRich === true
+        && (
+          deposit.resource === 'iron'
+          || deposit.resource === 'salt'
+          || deposit.resource === 'clay'
+        )
+      : deposit.isRich === true && deposit.resource === 'stone';
+    if (!isEligible) continue;
     const distance = Math.hypot(deposit.x - x, deposit.z - z);
     if (distance >= nearestDistance) continue;
     nearest = deposit;
@@ -448,13 +452,13 @@ function hasUsableClayDepositAtCenter(
   return false;
 }
 
-function hasRichDepositAtCenter(
+function hasRichStoneDepositAtCenter(
   x: number,
   z: number,
   quarries: Iterable<ResourceNodeState>,
 ): boolean {
   for (const quarry of quarries) {
-    if (!quarry.isRich) continue;
+    if (!quarry.isRich || quarry.resource !== 'stone') continue;
     if (Math.hypot(quarry.x - x, quarry.z - z) <= RESOURCE_CENTER_TOLERANCE) {
       return true;
     }
@@ -462,19 +466,22 @@ function hasRichDepositAtCenter(
   return false;
 }
 
-function hasMineralDepositAtCenter(
+function hasMineworksDepositAtCenter(
   x: number,
   z: number,
   quarries: Iterable<ResourceNodeState>,
 ): boolean {
   for (const deposit of quarries) {
     if (
-      deposit.resource !== 'iron'
-      && deposit.resource !== 'salt'
+      deposit.isRich !== true
+      || (
+        deposit.resource !== 'iron'
+        && deposit.resource !== 'salt'
+        && deposit.resource !== 'clay'
+      )
     ) {
       continue;
     }
-    if (!deposit.isRich && deposit.remaining <= 0) continue;
     if (Math.hypot(deposit.x - x, deposit.z - z) <= RESOURCE_CENTER_TOLERANCE) {
       return true;
     }

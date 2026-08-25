@@ -298,7 +298,6 @@ for (const kind of [
   'charcoal_burner',
   'smithy',
   'well',
-  'clay_pit',
   'potter_kiln',
 ] as const) {
   const cost = BUILDING_COSTS[kind];
@@ -306,7 +305,7 @@ for (const kind of [
   assert.equal(cost.roofTiles ?? 0, 0, `${kind} must not circularly require roof tiles`);
   assert.equal(cost.gold ?? 0, 0, `${kind} must retain a local physical bootstrap`);
 }
-for (const kind of ['stone_quarry', 'charcoal_burner', 'smithy', 'clay_pit', 'potter_kiln'] as const) {
+for (const kind of ['stone_quarry', 'charcoal_burner', 'smithy', 'potter_kiln'] as const) {
   assert.equal(BUILDING_DEFINITIONS[kind].acceptsLabor, true, `${kind} must expose production labor`);
   assert.ok(BUILDING_DEFINITIONS[kind].maxLabor > 0, `${kind} needs positive labor capacity`);
 }

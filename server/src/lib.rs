@@ -16,6 +16,7 @@ mod construction_priority;
 mod db;
 mod delivery_trip_policy;
 mod economy;
+mod extraction_policy;
 mod farm_work_policy;
 mod farming;
 mod fire_policy;

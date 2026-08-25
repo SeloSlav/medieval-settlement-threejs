@@ -421,7 +421,7 @@ function formatIronImportPlan(
   const attentionInspect = plan.firstIronImportAttentionId === null
     ? ''
     : ` <button type="button" class="inspector-jump-button" data-inspect-building="${plan.firstIronImportAttentionId}" aria-label="Inspect first forge branch without standing iron supply">Inspect gap</button>`;
-  const local = `same-branch mines supply ${plan.localIronConsumedPerDay.toFixed(1)} / ${plan.localIronOutputPerDay.toFixed(1)} raw iron per day once downstream carts reopen held yards${
+  const local = `same-branch extraction sites supply ${plan.localIronConsumedPerDay.toFixed(1)} / ${plan.localIronOutputPerDay.toFixed(1)} raw iron per day once downstream carts reopen held yards${
     plan.localIronStrandedPerDay > 0.05
       ? `, leaving ${plan.localIronStrandedPerDay.toFixed(1)} stranded`
       : ''
@@ -1653,7 +1653,7 @@ export function renderPreservationReserveRows(
     : ` <button type="button" class="inspector-jump-button" data-inspect-building="${plan.firstSaltMarketId}" aria-label="Inspect preservation salt market">Inspect market</button>`;
   const saltMineInspect = plan.firstSaltMineId === null
     ? ''
-    : ` <button type="button" class="inspector-jump-button" data-inspect-building="${plan.firstSaltMineId}" aria-label="Inspect preservation salt mine">Inspect mine</button>`;
+    : ` <button type="button" class="inspector-jump-button" data-inspect-building="${plan.firstSaltMineId}" aria-label="Inspect preservation salt extraction source">Inspect source</button>`;
   const completion = plan.roadMatchedShortfall <= 0.05
     ? 'Target ready'
     : Number.isFinite(plan.productionDaysToTarget)
@@ -1676,8 +1676,8 @@ export function renderPreservationReserveRows(
     ? 'no Adriatic import required at the current plan'
     : `${plan.saltImportLots} twelve-unit Adriatic ${plan.saltImportLots === 1 ? 'lot' : 'lots'} &asymp; ${saltGold.toFixed(0)} gold at today&rsquo;s first-lot rate`;
   const localSalt = plan.staffedSaltMines <= 0
-    ? 'no staffed same-branch salt mine'
-    : `${plan.localSaltProduction.toFixed(1)} forecast from ${plan.staffedSaltMines} staffed same-branch ${plan.staffedSaltMines === 1 ? 'mine' : 'mines'} at ${plan.localSaltOutputPerDay.toFixed(1)} per working day${saltMineInspect}`;
+    ? 'no staffed same-branch salt extraction site'
+    : `${plan.localSaltProduction.toFixed(1)} forecast from ${plan.staffedSaltMines} staffed same-branch salt extraction ${plan.staffedSaltMines === 1 ? 'site' : 'sites'} at ${plan.localSaltOutputPerDay.toFixed(1)} per working day${saltMineInspect}`;
   const saltWarnings = [
     plan.selectedSaltTarget > 0
       ? `${plan.selectedSaltTarget.toFixed(0)} selected staffed-market reserve settlement-wide`
@@ -2324,7 +2324,7 @@ export function renderTownHallInspector(
     ? '<li><span>Cereal plan</span><span>No farm fields linked</span></li>'
     : `
       <li><span>Arable fields</span><span>${farmPlan.activeFields} active${farmPlan.pausedFields > 0 ? ` · ${farmPlan.pausedFields} paused` : ''} across ${farmPlan.holdingCount} holdings${farmPlan.orphanedFields > 0 ? ` · ${farmPlan.orphanedFields} orphaned` : ''}</span></li>
-      <li><span>Ox-supported fields</span><span>${farmPlan.cattleSupportedFields} / ${farmPlan.activeFields} active · plough labor includes current cattle coverage</span></li>
+      <li><span>Cattle-supported fields</span><span>${farmPlan.cattleSupportedFields} / ${farmPlan.activeFields} active · plough labor includes current cattle coverage; stable-team bonuses are also included per farmstead</span></li>
       <li><span>August–September grain</span><span>${farmPlan.laborCoveredHarvest.toFixed(1)} / ${farmPlan.expectedHarvest.toFixed(1)} bread grain covered by current crews</span></li>
       <li><span>August barley</span><span>${farmPlan.laborCoveredBarleyHarvest.toFixed(1)} / ${farmPlan.expectedBarleyHarvest.toFixed(1)} barley covered by current crews</span></li>
       <li><span>August flax</span><span>${farmPlan.laborCoveredFibreHarvest.toFixed(1)} / ${farmPlan.expectedFibreHarvest.toFixed(1)} fibre covered by current crews</span></li>
@@ -2341,7 +2341,7 @@ export function renderTownHallInspector(
     ? ''
     : `
       <li><span>Farmhouse cheese</span><span>${livestockFodder.productiveDairyHeads.toFixed(1)} productive cattle/sheep head · ${livestockFodder.dairyPreservedFoodPerDay.toFixed(1)} preserved food / day potential · ${livestockFodder.dairySaltPerDay.toFixed(2)} salt / day</span></li>
-      <li><span>Cheese-making salt</span><span>${Math.round(livestockFodder.dairySaltStock)} / ${Math.round(livestockFodder.dairySaltTarget)} onsite across staffed holdings${livestockFodder.dairySaltShortfall > 0.05 ? ` · short ${Math.ceil(livestockFodder.dairySaltShortfall)} across ${livestockFodder.dairySaltShortHoldings} holdings · first runway ${formatProvisionRunway(livestockFodder.firstDairySaltRunwayDays)}${livestockFodder.firstDairySaltShortBuildingId ? ` <button type="button" class="inspector-jump-button" data-inspect-building="${livestockFodder.firstDairySaltShortBuildingId}" aria-label="Inspect first cheese-making salt shortfall">Inspect</button>` : ''}` : ' · working buffers covered'} · mine and market carts share salt with smokehouses; fresh milk continues when empty</span></li>
+      <li><span>Cheese-making salt</span><span>${Math.round(livestockFodder.dairySaltStock)} / ${Math.round(livestockFodder.dairySaltTarget)} onsite across staffed holdings${livestockFodder.dairySaltShortfall > 0.05 ? ` · short ${Math.ceil(livestockFodder.dairySaltShortfall)} across ${livestockFodder.dairySaltShortHoldings} holdings · first runway ${formatProvisionRunway(livestockFodder.firstDairySaltRunwayDays)}${livestockFodder.firstDairySaltShortBuildingId ? ` <button type="button" class="inspector-jump-button" data-inspect-building="${livestockFodder.firstDairySaltShortBuildingId}" aria-label="Inspect first cheese-making salt shortfall">Inspect</button>` : ''}` : ' · working buffers covered'} · local extraction and market carts share salt with smokehouses; fresh milk continues when empty</span></li>
     `;
   const livestockFodderRows = livestockFodder.holdingCount === 0
     ? '<li><span>Winter herd plan</span><span>No livestock holdings</span></li>'

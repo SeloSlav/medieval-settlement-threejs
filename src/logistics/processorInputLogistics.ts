@@ -216,7 +216,8 @@ export function processorInputRunwayCycles(stock: number, perCycle: number): num
  * matching fibres to their selected specialization before
  * lowest runway and route; staffed heavy-tool worksites use the same ordering
  * for replacement iron tools. Imported raw iron and salt stop at processor
- * working buffers. Local mine carts do the same first, then may centralize
+ * working buffers. Local Mining Pit and Mineworks carts do the same first,
+ * then may centralize
  * surplus up to a staffed Trading Post's selected reserve, where imports cover
  * only any remaining gap;
  * after the kiln's household-ware duty, pottery reaches staffed smokehouses
@@ -373,6 +374,7 @@ export type RoutedMarketplaceMaterialAssignment<
 };
 
 export const LOCAL_MATERIAL_SOURCE_KINDS = [
+  'stone_quarry',
   'mine',
   'clay_pit',
   'charcoal_burner',
@@ -417,11 +419,10 @@ export function localMaterialInputCommodities(
 ): readonly LocalMaterialInputCommodity[] {
   switch (kind) {
     case 'stone_quarry':
-    case 'large_quarry':
       return (['iron', 'salt', 'clay'] as const)
         .filter((commodity) => (source?.[commodity] ?? 0) > 1e-6);
     case 'mine':
-      return (['iron', 'salt'] as const)
+      return (['iron', 'salt', 'clay'] as const)
         .filter((commodity) => (source?.[commodity] ?? 0) > 1e-6);
     case 'clay_pit': return ['clay'];
     case 'charcoal_burner': return ['charcoal'];

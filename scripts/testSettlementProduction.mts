@@ -158,7 +158,7 @@ approx(
 
 const materialState = emptyGameState();
 const materialBuildings = [
-  building('material-clay', 'clay_pit', 1),
+  building('material-clay', 'stone_quarry', 1),
   building('material-potter', 'potter_kiln', 1),
   building('material-smokehouse', 'smokehouse', 1),
   building('material-charcoal', 'charcoal_burner', 1),
@@ -224,7 +224,7 @@ targetHeldClayState.quarries.set(
   'clay-target-bank',
   mineralDeposit('clay-target-bank', 'clay', 0, 500, 500),
 );
-const targetHeldClayPit = building('target-held-clay', 'clay_pit', 1);
+const targetHeldClayPit = building('target-held-clay', 'stone_quarry', 1);
 targetHeldClayPit.processorOutputTargetPercent = 25;
 targetHeldClayPit.clay = 45;
 targetHeldClayPit.ironwork = 0.25;
@@ -238,7 +238,7 @@ assert.equal(heldClayProduction.toolEligibleSites, 1);
 assert.equal(
   heldClayProduction.maintainedToolIronworkPerDay,
   0,
-  'a target-held pit performs no current work and therefore wears no tools',
+  'a target-held surface Mining Pit performs no current work and therefore wears no tools',
 );
 targetHeldClayPit.clay = 44;
 const reopenedClayProduction = computeSettlementProductionCapacity(
@@ -257,20 +257,21 @@ assert.ok(
 
 const targetHeldMineState = emptyGameState();
 targetHeldMineState.quarries.set(
-  'deposit-iron-ordinary-target',
+  'deposit-iron-rich-target',
   mineralDeposit(
-    'deposit-iron-ordinary-target',
+    'deposit-iron-rich-target',
     'iron',
     0,
     300,
     300,
-    false,
+    true,
   ),
 );
 const targetHeldMine = building('target-held-mine', 'mine', 1);
 targetHeldMine.processorOutputTargetPercent = 25;
 targetHeldMine.iron = 60;
 targetHeldMine.ironwork = 0.25;
+targetHeldMine.timber = 1;
 targetHeldMineState.buildings.set(targetHeldMine.id, targetHeldMine);
 const heldMineProduction = computeSettlementProductionCapacity(
   targetHeldMineState,
@@ -281,7 +282,7 @@ assert.equal(heldMineProduction.toolEligibleSites, 1);
 assert.equal(
   heldMineProduction.maintainedToolIronworkPerDay,
   0,
-  'a target-held mine performs no current work and therefore wears no tools',
+  'target-held Mineworks performs no current work and therefore wears no tools',
 );
 targetHeldMine.iron = 59;
 const reopenedMineProduction = computeSettlementProductionCapacity(
@@ -295,7 +296,7 @@ approx(
 );
 assert.ok(
   reopenedMineProduction.maintainedToolIronworkPerDay > 0,
-  'mine-tool demand must resume when output space opens',
+  'Mineworks tool demand must resume when output space opens',
 );
 
 assert.ok(
@@ -500,7 +501,7 @@ assert.ok(waterlessMaterialChain.potteryBlockedBranches >= 1);
 materialState.buildings.set(materialBuildings[5].id, materialBuildings[5]);
 
 const localForgeState = emptyGameState();
-const localIronMine = building('local-iron-mine', 'mine', 1);
+const localIronMine = building('local-iron-pit', 'stone_quarry', 1);
 const localCharcoal = building('local-charcoal', 'charcoal_burner', 1);
 const localSmithy = building('local-smithy', 'smithy', 1);
 const localWell = building('local-well', 'well', 1);
@@ -526,7 +527,7 @@ const localForge = computeSettlementProductionCapacity(
 ).industrialMaterials;
 assert.ok(
   localForge.localIronOutputPerDay > 0,
-  'a staffed mine on a physical iron deposit must enter the material forecast',
+  'a staffed Mining Pit near an ordinary iron deposit must enter the material forecast',
 );
 assert.ok(
   localForge.ironworkOutputPerDay > 0,
@@ -560,7 +561,7 @@ const disconnectedLocalForge = computeSettlementProductionCapacity(
 assert.equal(
   disconnectedLocalForge.ironworkOutputPerDay,
   0,
-  'a mine on another road branch must not supply the forge in the forecast',
+  'a Mining Pit on another road branch must not supply the forge in the forecast',
 );
 assert.ok(disconnectedLocalForge.localIronStrandedPerDay > 0);
 assert.ok(disconnectedLocalForge.smithyBlockedBranches >= 1);
@@ -1890,7 +1891,7 @@ minePerfState.quarries.set(
 );
 for (let index = 0; index < 100_000; index += 1) {
   const mine = building(`mine-${index}`, 'mine', 1);
-  mine.timber = 0.5;
+  mine.timber = 1;
   minePerfState.buildings.set(mine.id, mine);
 }
 const mineLedgerStarted = performance.now();
@@ -2091,7 +2092,7 @@ assert.match(townHallInspector, /August–September grain/);
 assert.match(townHallInspector, /August barley/);
 assert.match(townHallInspector, /Seed on holdings/);
 assert.match(townHallInspector, /Spring crop labor/);
-assert.match(townHallInspector, /Ox-supported fields/);
+assert.match(townHallInspector, /Cattle-supported fields/);
 assert.match(townHallInspector, /Farm-tool reserve/);
 assert.match(townHallInspector, /planned wear/);
 assert.match(townHallInspector, /Grain allocation/);

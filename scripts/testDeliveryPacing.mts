@@ -179,9 +179,9 @@ const localIronTrip: DeliveryTripState = {
 };
 assert.equal(cargoKindLabelForTrip(localIronTrip), 'Raw iron');
 assert.match(
-  describeDeliveryTrip(localIronTrip, 'Mineral mine', 'Village smithy').activity,
+  describeDeliveryTrip(localIronTrip, 'Mineworks', 'Village smithy').activity,
   /Delivering 4 raw iron to Village smithy/,
-  'a settlement mine cart must remain visibly local',
+  'a settlement Mineworks cart must remain visibly local',
 );
 assert.equal(
   describeDeliveryTrip(

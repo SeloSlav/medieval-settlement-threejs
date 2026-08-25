@@ -20,7 +20,8 @@ use crate::balance_generated::{
     CATTLE_GRAIN_PER_UNSUPPORTED_HEAD, CATTLE_HAY_PER_UNSUPPORTED_HEAD,
     COBBLER_LEATHER_PER_CYCLE, COBBLER_SHOES_PER_CYCLE, FARM_GROWTH_SECONDS,
     FARM_WORK_METERS_PER_WORKER_PER_SEC, GRAIN_TRANSFER_PER_TRIP, LEATHER_TRANSFER_PER_TRIP,
-    MINE_IRON_PER_CYCLE, MINE_SALT_PER_CYCLE, MINE_TIMBER_SUPPORT_PER_CYCLE, MONASTERY_FEAST_DRINK,
+    MINE_CLAY_PER_CYCLE, MINE_IRON_PER_CYCLE, MINE_SALT_PER_CYCLE,
+    MINE_TIMBER_SUPPORT_PER_CYCLE, MONASTERY_FEAST_DRINK,
     MONASTERY_FEAST_FOOD, MONASTERY_FEAST_HONEY, MONASTERY_PILGRIMAGE_GOLD_PER_DAY,
     MONASTERY_UNLINKED_PRODUCTIVITY, PANNAGE_WINTER_CAPACITY_MULTIPLIER,
     POTTER_CLAY_PER_CYCLE, POTTER_FIREWOOD_PER_CYCLE,
@@ -62,7 +63,14 @@ use crate::economy::{
     storage_accepts_commodity, treasury_gold, withdraw_building_commodity,
     withdraw_building_edible_food, CommodityKind, FRESH_FOOD_COMMODITIES,
 };
-use crate::farm_work_policy::{field_task_rank, threshing_preempts_fields};
+use crate::extraction_policy::{
+    extraction_site_accepts_commodity, mineworks_clay_commodity,
+    mineworks_geological_commodity, mining_pit_clay_commodity,
+    mining_pit_geological_commodity, quarry_geological_commodity,
+};
+use crate::farm_work_policy::{
+    farm_field_effective_labor, field_task_rank, threshing_preempts_fields,
+};
 use crate::farming::{
     advance_crop_rotation, centroid, crop_growth_allowed, crop_harvest_month, crop_produce,
     expected_grain_yield, farmstead_exportable_grain, fertility_after_harvest,
@@ -151,7 +159,7 @@ use crate::supply_policy::{
     GRAIN_PROCESSOR_KINDS, INDUSTRIAL_FIREWOOD_TARGET_KINDS, INSTITUTIONAL_FOOD_SOURCE_KINDS,
     LOCAL_MATERIAL_SOURCE_KINDS, MARKETPLACE_MATERIAL_TARGET_KINDS,
 };
-use crate::tables::{farm_field, Building, FarmField, ForagingNode, Quarry, Residence};
+use crate::tables::{farm_field, Building, FarmField, ForagingNode, Residence};
 use crate::vineyard::fermentable_grapes;
 use crate::weaver_input_policy::{weaver_fibre_delivery_preference_rank, weaver_uses_flax};
 
@@ -1485,15 +1493,11 @@ fn local_material_target_kinds(
     commodity: CommodityKind,
 ) -> Option<&'static [&'static str]> {
     match (source.kind.as_str(), commodity) {
-        ("stone_quarry" | "large_quarry", CommodityKind::Iron) => Some(&["smithy", "trading_post"]),
-        ("stone_quarry" | "large_quarry", CommodityKind::Salt) => {
+        ("stone_quarry" | "mine", CommodityKind::Iron) => Some(&["smithy", "trading_post"]),
+        ("stone_quarry" | "mine", CommodityKind::Salt) => {
             Some(&["smokehouse", "pastoral_farmstead", "trading_post"])
         }
-        ("stone_quarry" | "large_quarry", CommodityKind::Clay) => Some(&["potter_kiln"]),
-        ("mine", CommodityKind::Iron) => Some(&["smithy", "trading_post"]),
-        ("mine", CommodityKind::Salt) => {
-            Some(&["smokehouse", "pastoral_farmstead", "trading_post"])
-        }
+        ("stone_quarry" | "mine", CommodityKind::Clay) => Some(&["potter_kiln"]),
         ("clay_pit", CommodityKind::Clay) => Some(&["potter_kiln"]),
         ("charcoal_burner", CommodityKind::Charcoal) => Some(&["smithy", "village_storehouse"]),
         ("smithy", CommodityKind::Ironwork) => Some(&[
@@ -1721,28 +1725,21 @@ pub fn step_mine(
     clock: &GameClock,
     building: Building,
 ) {
-    let Some(deposit) = mineral_deposit_beneath(ctx, building.x, building.z) else {
+    let Some(commodity) = mineworks_commodity_beneath(ctx, building.x, building.z) else {
         return;
     };
-    if !deposit.is_rich && deposit.remaining <= 1e-6 {
-        return;
-    }
-    let (commodity, base_batch) = if deposit.quarry_id.starts_with("deposit-iron-") {
-        (CommodityKind::Iron, MINE_IRON_PER_CYCLE)
-    } else {
-        (CommodityKind::Salt, MINE_SALT_PER_CYCLE)
-    };
-    let batch = if deposit.is_rich {
-        base_batch
-    } else {
-        base_batch.min(deposit.remaining)
+    let base_batch = match commodity {
+        CommodityKind::Iron => MINE_IRON_PER_CYCLE,
+        CommodityKind::Salt => MINE_SALT_PER_CYCLE,
+        CommodityKind::Clay => MINE_CLAY_PER_CYCLE,
+        _ => return,
     };
     let output_headroom = processor_output_headroom(
         building_commodity_stock(&building, commodity),
         building_commodity_cap(&building.kind, commodity),
         building.processor_output_target_percent,
     );
-    if deposit.is_rich && output_headroom > 1e-6 {
+    if output_headroom > 1e-6 {
         request_connected_commodity(
             ctx,
             tick,
@@ -1753,34 +1750,23 @@ pub fn step_mine(
             rich_mine_support_target(),
         );
     }
-    if deposit.is_rich && !rich_mine_supports_ready(building.timber) {
+    if !rich_mine_supports_ready(building.timber) {
         ctx.db.building().id().update(building);
         return;
     }
     let tools_maintained = civilian_tools_maintained(building.ironwork);
     let tool_throughput = civilian_tool_throughput_multiplier(building.ironwork);
     let before = building_commodity_stock(&building, commodity);
-    let geology_throughput = if deposit.is_rich {
-        RICH_MINE_THROUGHPUT_MULTIPLIER
-    } else {
-        1.0
-    };
     let mut mine = step_simple_producer_at_rate(
         ctx,
         tick,
         clock,
         building,
-        &[(commodity, batch)],
-        geology_throughput * tool_throughput,
+        &[(commodity, base_batch)],
+        RICH_MINE_THROUGHPUT_MULTIPLIER * tool_throughput,
     );
     let produced = (building_commodity_stock(&mine, commodity) - before).max(0.0);
-    if produced > 1e-6 && !deposit.is_rich {
-        ctx.db.quarry().quarry_id().update(Quarry {
-            remaining: (deposit.remaining - produced).max(0.0),
-            ..deposit
-        });
-    }
-    if produced > 1e-6 && deposit.is_rich {
+    if produced > 1e-6 {
         withdraw_building_commodity(
             &mut mine,
             CommodityKind::Timber,
@@ -1797,14 +1783,32 @@ pub fn step_mine(
     ctx.db.building().id().update(mine);
 }
 
-fn mineral_deposit_beneath(ctx: &ReducerContext, x: f64, z: f64) -> Option<Quarry> {
+fn mineworks_commodity_beneath(
+    ctx: &ReducerContext,
+    x: f64,
+    z: f64,
+) -> Option<CommodityKind> {
     const CENTER_TOLERANCE: f64 = 2.5;
     let tolerance_sq = CENTER_TOLERANCE * CENTER_TOLERANCE;
-    ctx.db.quarry().iter().find(|deposit| {
-        (deposit.quarry_id.starts_with("deposit-iron-")
-            || deposit.quarry_id.starts_with("deposit-salt-"))
-            && (deposit.x - x) * (deposit.x - x) + (deposit.z - z) * (deposit.z - z) <= tolerance_sq
-    })
+    ctx.db
+        .quarry()
+        .iter()
+        .find_map(|deposit| {
+            ((deposit.x - x) * (deposit.x - x) + (deposit.z - z) * (deposit.z - z)
+                <= tolerance_sq)
+                .then(|| mineworks_geological_commodity(&deposit.quarry_id, deposit.is_rich))
+                .flatten()
+        })
+        .or_else(|| {
+            ctx.db.foraging_node().iter().find_map(|deposit| {
+                ((deposit.x - x) * (deposit.x - x) + (deposit.z - z) * (deposit.z - z)
+                    <= tolerance_sq)
+                    .then(|| {
+                        mineworks_clay_commodity(&deposit.node_kind, &deposit.node_id)
+                    })
+                    .flatten()
+            })
+        })
 }
 
 pub fn step_granary(
@@ -2300,6 +2304,15 @@ fn step_farmstead_fields(
 
     let farm_tools_ready = farm_tools_maintained(farmstead.ironwork);
     let farm_tool_throughput = farm_tool_throughput_multiplier(farmstead.ironwork);
+    let paired_field_oxen = if work_allowed
+        && threshing_labor == 0
+        && highest_ready_field_rank > 0
+        && onsite_labor > 0
+    {
+        crate::simulation::paired_production_ox_count(ctx, tick, farmstead, onsite_labor)
+    } else {
+        0
+    };
     let mut work_budget = if work_allowed && threshing_labor == 0 {
         onsite_labor as f64 * FARM_WORK_METERS_PER_WORKER_PER_SEC * TICK_DT * farm_tool_throughput
     } else {
@@ -2327,6 +2340,12 @@ fn step_farmstead_fields(
             continue;
         }
         let plough_multiplier = cattle_support.get(&field.id).copied().unwrap_or(1.0);
+        let ox_throughput_multiplier = if onsite_labor > 0 {
+            farm_field_effective_labor(field.stage, onsite_labor, paired_field_oxen)
+                / f64::from(onsite_labor)
+        } else {
+            1.0
+        };
         let stage_before = field.stage;
         let harvest_count_before = field.harvest_count;
         let spent = if field.farmstead_id == worker_farmstead_id {
@@ -2336,7 +2355,7 @@ fn step_farmstead_fields(
                 farmstead.x,
                 farmstead.z,
                 plough_multiplier,
-                work_budget,
+                work_budget * ox_throughput_multiplier,
                 world_seed,
                 map_size,
             )
@@ -2351,7 +2370,7 @@ fn step_farmstead_fields(
                 farmstead.x,
                 farmstead.z,
                 plough_multiplier,
-                work_budget,
+                work_budget * ox_throughput_multiplier,
                 world_seed,
                 map_size,
             );
@@ -2363,7 +2382,7 @@ fn step_farmstead_fields(
         if spent <= 1e-9 {
             continue;
         }
-        work_budget -= spent;
+        work_budget -= spent / ox_throughput_multiplier.max(1.0);
         let completed_stage =
             field.stage != stage_before || field.harvest_count != harvest_count_before;
         if farm_tools_ready && completed_stage {
@@ -4070,21 +4089,8 @@ fn production_output_target_applies(kind: &str, commodity: CommodityKind) -> boo
     processor_output_commodity(kind) == Some(commodity)
         || (kind == "brewery" && commodity.is_beverage())
         || (kind == "smokehouse" && commodity.is_preserved_food())
-        || matches!(
-            (kind, commodity),
-            ("stone_quarry", CommodityKind::Stone)
-                | ("stone_quarry", CommodityKind::Iron)
-                | ("stone_quarry", CommodityKind::Salt)
-                | ("stone_quarry", CommodityKind::Clay)
-                | ("large_quarry", CommodityKind::Stone)
-                | ("large_quarry", CommodityKind::Iron)
-                | ("large_quarry", CommodityKind::Salt)
-                | ("large_quarry", CommodityKind::Clay)
-                | ("clay_pit", CommodityKind::Clay)
-                | ("mine", CommodityKind::Iron)
-                | ("mine", CommodityKind::Salt)
-                | ("potter_kiln", CommodityKind::RoofTiles)
-        )
+        || extraction_site_accepts_commodity(kind, commodity)
+        || (kind == "potter_kiln" && commodity == CommodityKind::RoofTiles)
 }
 
 fn nearest_surface_extraction_commodity(
@@ -4100,13 +4106,9 @@ fn nearest_surface_extraction_commodity(
         if deposit.remaining <= 1e-6 {
             continue;
         }
-        let commodity = if deposit.quarry_id.starts_with("deposit-iron-") {
-            CommodityKind::Iron
-        } else if deposit.quarry_id.starts_with("deposit-salt-") {
-            CommodityKind::Salt
-        } else if deposit.quarry_id.starts_with("quarry-") {
-            CommodityKind::Stone
-        } else {
+        let Some(commodity) =
+            mining_pit_geological_commodity(&deposit.quarry_id, deposit.is_rich)
+        else {
             continue;
         };
         let distance_sq = (deposit.x - x).powi(2) + (deposit.z - z).powi(2);
@@ -4116,8 +4118,7 @@ fn nearest_surface_extraction_commodity(
         }
     }
     for deposit in ctx.db.foraging_node().iter() {
-        if deposit.node_kind != "clay"
-            || !deposit.node_id.starts_with("clay-")
+        if mining_pit_clay_commodity(&deposit.node_kind, &deposit.node_id).is_none()
             || deposit.remaining <= 1e-6
         {
             continue;
@@ -4131,33 +4132,16 @@ fn nearest_surface_extraction_commodity(
     nearest
 }
 
-fn rich_extraction_commodity_beneath(
+fn rich_stone_commodity_beneath(
     ctx: &ReducerContext,
     x: f64,
     z: f64,
 ) -> Option<CommodityKind> {
     const CENTER_TOLERANCE_SQ: f64 = 2.5 * 2.5;
-    for deposit in ctx.db.quarry().iter() {
-        if !deposit.is_rich
-            || (deposit.x - x).powi(2) + (deposit.z - z).powi(2) > CENTER_TOLERANCE_SQ
-        {
-            continue;
-        }
-        if deposit.quarry_id.starts_with("deposit-iron-") {
-            return Some(CommodityKind::Iron);
-        }
-        if deposit.quarry_id.starts_with("deposit-salt-") {
-            return Some(CommodityKind::Salt);
-        }
-        if deposit.quarry_id.starts_with("quarry-") {
-            return Some(CommodityKind::Stone);
-        }
-    }
-    ctx.db.foraging_node().iter().find_map(|deposit| {
-        (deposit.node_kind == "clay"
-            && deposit.node_id.starts_with("clay-rich-")
-            && (deposit.x - x).powi(2) + (deposit.z - z).powi(2) <= CENTER_TOLERANCE_SQ)
-            .then_some(CommodityKind::Clay)
+    ctx.db.quarry().iter().find_map(|deposit| {
+        ((deposit.x - x).powi(2) + (deposit.z - z).powi(2) <= CENTER_TOLERANCE_SQ)
+            .then(|| quarry_geological_commodity(&deposit.quarry_id, deposit.is_rich))
+            .flatten()
     })
 }
 
@@ -4171,17 +4155,9 @@ fn extraction_accepts_maintenance_input(
     }
     let output = match building.kind.as_str() {
         "stone_quarry" => nearest_surface_extraction_commodity(ctx, building.x, building.z, 80.0),
-        "large_quarry" => rich_extraction_commodity_beneath(ctx, building.x, building.z),
+        "large_quarry" => rich_stone_commodity_beneath(ctx, building.x, building.z),
         "clay_pit" => Some(CommodityKind::Clay),
-        "mine" => mineral_deposit_beneath(ctx, building.x, building.z).and_then(|deposit| {
-            if deposit.quarry_id.starts_with("deposit-iron-") {
-                Some(CommodityKind::Iron)
-            } else if deposit.quarry_id.starts_with("deposit-salt-") {
-                Some(CommodityKind::Salt)
-            } else {
-                None
-            }
-        }),
+        "mine" => mineworks_commodity_beneath(ctx, building.x, building.z),
         _ => return true,
     };
     output.is_some()

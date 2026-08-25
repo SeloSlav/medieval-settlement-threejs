@@ -451,19 +451,19 @@ export class WorldSetupPanel {
       },
       clay: {
         name: 'Clay',
-        extractor: 'Mining Pit / Quarry',
+        extractor: 'Mining Pit / Mineworks',
         ordinaryDetail: 'finite surface deposit',
         richDetail: 'finite surface + unlimited underground',
       },
       iron: {
         name: 'Iron',
-        extractor: 'Mining Pit / Quarry',
+        extractor: 'Mining Pit / Mineworks',
         ordinaryDetail: 'finite surface deposit',
         richDetail: 'finite surface + unlimited underground',
       },
       salt: {
         name: 'Salt',
-        extractor: 'Mining Pit / Quarry',
+        extractor: 'Mining Pit / Mineworks',
         ordinaryDetail: 'finite surface deposit',
         richDetail: 'finite surface + unlimited underground',
       },

@@ -7,7 +7,7 @@ use spacetimedb::{Identity, ReducerContext};
 use crate::db::*;
 use crate::ox_policy::{
     assign_oxen_to_worksites, available_ox_for_workplace, is_ox_production_workplace,
-    is_ox_supported_workplace, OxCandidate, OxWorksiteCandidate,
+    is_ox_supported_workplace, ox_workplace_capacity, OxCandidate, OxWorksiteCandidate,
 };
 use crate::simulation::{game_clock, production_labor_paused, SimTickContext};
 use crate::tables::Building;
@@ -81,7 +81,7 @@ fn build_production_assignments(
                 building_id: building.id,
                 x: building.x,
                 z: building.z,
-                worker_slots: onsite_labor,
+                worker_slots: onsite_labor.min(ox_workplace_capacity(&building.kind)),
             });
     }
 

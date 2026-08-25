@@ -17,6 +17,9 @@ import {
 
 export const WOODCUTTERS_FIREWOOD_VISUAL_SEGMENTS = 4;
 export const STONE_QUARRY_STONE_VISUAL_SEGMENTS = 3;
+export const MINING_PIT_IRON_VISUAL_SEGMENTS = 3;
+export const MINING_PIT_SALT_VISUAL_SEGMENTS = 3;
+export const MINING_PIT_CLAY_VISUAL_SEGMENTS = 3;
 export const LARGE_QUARRY_STONE_VISUAL_SEGMENTS = 4;
 export const LARGE_QUARRY_SUPPORT_VISUAL_SEGMENTS = 6;
 export const LARGE_QUARRY_SUPPORT_VISUAL_CAPACITY =
@@ -24,6 +27,7 @@ export const LARGE_QUARRY_SUPPORT_VISUAL_CAPACITY =
   * LARGE_QUARRY_TIMBER_SUPPORT_PER_CYCLE;
 export const MINE_IRON_VISUAL_SEGMENTS = 6;
 export const MINE_SALT_VISUAL_SEGMENTS = 6;
+export const MINE_CLAY_VISUAL_SEGMENTS = 6;
 export const MINE_SUPPORT_TIMBER_VISUAL_SEGMENTS = 4;
 export const MINE_SUPPORT_TIMBER_VISUAL_CAPACITY =
   MINE_SUPPORT_TIMBER_VISUAL_SEGMENTS * MINE_TIMBER_SUPPORT_PER_CYCLE;
@@ -65,6 +69,18 @@ export function bulkStockpileVisualSignature(building: BuildingState): string {
         building.stone,
         BUILDING_STORAGE_CAPS.stone_quarry.stone,
         STONE_QUARRY_STONE_VISUAL_SEGMENTS,
+      )}:iron:${stockpileVisualLevel(
+        building.iron ?? 0,
+        BUILDING_STORAGE_CAPS.stone_quarry.iron,
+        MINING_PIT_IRON_VISUAL_SEGMENTS,
+      )}:salt:${stockpileVisualLevel(
+        building.salt ?? 0,
+        BUILDING_STORAGE_CAPS.stone_quarry.salt,
+        MINING_PIT_SALT_VISUAL_SEGMENTS,
+      )}:clay:${stockpileVisualLevel(
+        building.clay ?? 0,
+        BUILDING_STORAGE_CAPS.stone_quarry.clay,
+        MINING_PIT_CLAY_VISUAL_SEGMENTS,
       )}:tools:${stockpileVisualLevel(
         building.ironwork ?? 0,
         BUILDING_STORAGE_CAPS.stone_quarry.ironwork ?? 0,
@@ -93,6 +109,10 @@ export function bulkStockpileVisualSignature(building: BuildingState): string {
         building.salt ?? 0,
         BUILDING_STORAGE_CAPS.mine.salt,
         MINE_SALT_VISUAL_SEGMENTS,
+      )}:clay:${stockpileVisualLevel(
+        building.clay ?? 0,
+        BUILDING_STORAGE_CAPS.mine.clay,
+        MINE_CLAY_VISUAL_SEGMENTS,
       )}:tools:${stockpileVisualLevel(
         building.ironwork ?? 0,
         BUILDING_STORAGE_CAPS.mine.ironwork ?? 0,
@@ -208,6 +228,27 @@ export function syncBulkStockpileVisuals(
         building.stone,
         BUILDING_STORAGE_CAPS.stone_quarry.stone,
       );
+      syncNamedStockpile(
+        marker,
+        'MiningPitIronStockpile',
+        'MiningPitIronSegment',
+        building.iron ?? 0,
+        BUILDING_STORAGE_CAPS.stone_quarry.iron,
+      );
+      syncNamedStockpile(
+        marker,
+        'MiningPitSaltStockpile',
+        'MiningPitSaltSegment',
+        building.salt ?? 0,
+        BUILDING_STORAGE_CAPS.stone_quarry.salt,
+      );
+      syncNamedStockpile(
+        marker,
+        'MiningPitClayStockpile',
+        'MiningPitClaySegment',
+        building.clay ?? 0,
+        BUILDING_STORAGE_CAPS.stone_quarry.clay,
+      );
       syncCivilianToolStockpile(marker, building);
       break;
     case 'large_quarry':
@@ -241,6 +282,13 @@ export function syncBulkStockpileVisuals(
         'SaltMineSaltSegment',
         building.salt ?? 0,
         BUILDING_STORAGE_CAPS.mine.salt,
+      );
+      syncNamedStockpile(
+        marker,
+        'ClayMineStockpile',
+        'ClayMineClaySegment',
+        building.clay ?? 0,
+        BUILDING_STORAGE_CAPS.mine.clay,
       );
       syncNamedStockpile(
         marker,

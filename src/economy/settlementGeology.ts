@@ -5,6 +5,7 @@ import {
   CALENDAR_WORK_START_HOUR,
   CLAY_PIT_CLAY_PER_CYCLE,
   LARGE_QUARRY_TIMBER_SUPPORT_PER_CYCLE,
+  MINE_CLAY_PER_CYCLE,
   MINE_IRON_PER_CYCLE,
   MINE_SALT_PER_CYCLE,
   MINE_TIMBER_SUPPORT_PER_CYCLE,
@@ -139,7 +140,11 @@ export function computeSettlementGeologyPlan(
     }
   }
 
-  const mineralDeposits = [...deposits.iron, ...deposits.salt];
+  const mineworksDeposits = [
+    ...deposits.iron,
+    ...deposits.salt,
+    ...deposits.clay,
+  ];
   const geologicalDeposits = [
     ...deposits.stone,
     ...deposits.iron,
@@ -178,14 +183,18 @@ export function computeSettlementGeologyPlan(
     }
 
     if (building.kind === 'stone_quarry') {
-      const anyDeposit = nearestSurfaceDeposit(
+      const anyDeposit = miningPitSurfaceDeposit(
         building,
         geologicalDeposits,
-        building.workRadius || getBuildingDefinition('stone_quarry').workRadius,
         true,
       );
       if (anyDeposit === null) continue;
-      const resource = anyDeposit.resource as GeologicalResource;
+      const deposit = miningPitSurfaceDeposit(
+        building,
+        geologicalDeposits,
+        false,
+      );
+      const resource = (deposit ?? anyDeposit).resource as GeologicalResource;
       const plan = plans[resource];
       plan.extractionSites += 1;
       const targetPaused = recordExtractionYard(
@@ -201,22 +210,15 @@ export function computeSettlementGeologyPlan(
         recordTargetPause(plan, building);
         continue;
       }
-      const deposit = nearestSurfaceDeposit(
-        building,
-        geologicalDeposits,
-        building.workRadius || getBuildingDefinition('stone_quarry').workRadius,
-        false,
-      );
       if (deposit === null) {
         plan.blockedFiniteBuildingId ??= building.id;
         continue;
       }
-      const rate = cyclesPerCalendarDay(
-        'stone_quarry',
-        building.assignedLabor,
+      const rate = miningPitOutputPerDay(
+        building,
+        deposit,
         sabbathObserved,
-        civilianToolThroughputMultiplier(building.ironwork ?? 0),
-      ) * extractionBatch(resource);
+      );
       plan.operatingExtractionSites += 1;
       plan.finiteExtractionPerDay += rate;
       addFiniteRate(plan, deposit, building, rate);
@@ -226,7 +228,7 @@ export function computeSettlementGeologyPlan(
     if (building.kind === 'large_quarry') {
       const deposit = centeredDeposit(
         building,
-        geologicalDeposits,
+        deposits.stone,
         (candidate) => candidate.isRich === true,
       );
       if (deposit === null) continue;
@@ -315,16 +317,17 @@ export function computeSettlementGeologyPlan(
       continue;
     }
 
-    const deposit = mineralDepositBeneath(building, mineralDeposits);
-    if (deposit === null || (deposit.resource !== 'iron' && deposit.resource !== 'salt')) {
+    const deposit = mineralDepositBeneath(building, mineworksDeposits);
+    if (deposit === null) {
       continue;
     }
-    const plan = plans[deposit.resource];
+    const resource = deposit.resource as 'iron' | 'salt' | 'clay';
+    const plan = plans[resource];
     plan.extractionSites += 1;
     const targetPaused = recordExtractionYard(
       plan,
       building,
-      deposit.resource,
+      resource,
     );
     if (building.assignedLabor <= 0 || disabledBuildings.has(building.id)) {
       continue;
@@ -334,28 +337,22 @@ export function computeSettlementGeologyPlan(
       recordTargetPause(plan, building);
       continue;
     }
-    if (!deposit.isRich && deposit.remaining <= EPSILON) {
-      plan.blockedFiniteBuildingId ??= building.id;
-      continue;
-    }
     const inboundTimber = inboundTimberByBuildingId.get(building.id) ?? 0;
-    if (deposit.isRich) {
-      const installedCycles = mineralMineCyclesPerDay(
-        building,
-        sabbathObserved,
-        true,
-      );
-      plan.deepSupportTimberPerDay +=
-        installedCycles * MINE_TIMBER_SUPPORT_PER_CYCLE;
-      plan.deepSupportRunwayCycles += richMineSupportRunwayCycles(
-        building.timber,
-        inboundTimber,
-      );
-      if (!richMineSupportsReady(building.timber, inboundTimber)) {
-        plan.deepSourcesAwaitingSupports += 1;
-        plan.firstSupportBuildingId ??= building.id;
-        continue;
-      }
+    const installedCycles = mineralMineCyclesPerDay(
+      building,
+      sabbathObserved,
+      true,
+    );
+    plan.deepSupportTimberPerDay +=
+      installedCycles * MINE_TIMBER_SUPPORT_PER_CYCLE;
+    plan.deepSupportRunwayCycles += richMineSupportRunwayCycles(
+      building.timber,
+      inboundTimber,
+    );
+    if (!richMineSupportsReady(building.timber, inboundTimber)) {
+      plan.deepSourcesAwaitingSupports += 1;
+      plan.firstSupportBuildingId ??= building.id;
+      continue;
     }
     const rate = mineralMineOutputPerDay(
       building,
@@ -366,13 +363,8 @@ export function computeSettlementGeologyPlan(
     if (rate > EPSILON) {
       plan.operatingExtractionSites += 1;
     }
-    if (deposit.isRich) {
-      plan.activeDeepSources += 1;
-      plan.deepExtractionPerDay += rate;
-    } else {
-      plan.finiteExtractionPerDay += rate;
-      addFiniteRate(plan, deposit, building, rate);
-    }
+    plan.activeDeepSources += 1;
+    plan.deepExtractionPerDay += rate;
   }
 
   for (const resource of ['stone', 'clay', 'iron', 'salt'] as const) {
@@ -404,12 +396,56 @@ export function mineralDepositBeneath(
   deposits: Iterable<ResourceNodeState>,
 ): ResourceNodeState | null {
   for (const deposit of deposits) {
-    if (deposit.resource !== 'iron' && deposit.resource !== 'salt') continue;
+    if (
+      deposit.isRich !== true
+      || (deposit.resource !== 'iron'
+        && deposit.resource !== 'salt'
+        && deposit.resource !== 'clay')
+    ) {
+      continue;
+    }
     if (distanceSq(building, deposit) <= MINERAL_CENTER_TOLERANCE_SQ) {
       return deposit;
     }
   }
   return null;
+}
+
+/** The Mining Pit consumes the finite surface layer of any geological deposit in range. */
+export function miningPitSurfaceDeposit(
+  building: Pick<BuildingState, 'x' | 'z' | 'workRadius'>,
+  deposits: Iterable<ResourceNodeState>,
+  includeExhausted = false,
+): ResourceNodeState | null {
+  return nearestSurfaceDeposit(
+    building,
+    [...deposits],
+    building.workRadius || getBuildingDefinition('stone_quarry').workRadius,
+    includeExhausted,
+  );
+}
+
+/** Forecast output from the finite surface layer, including a rich node's surface cap. */
+export function miningPitOutputPerDay(
+  building: Pick<BuildingState, 'assignedLabor' | 'ironwork'>,
+  deposit: Pick<ResourceNodeState, 'resource' | 'remaining'>,
+  sabbathObserved: boolean,
+): number {
+  if (
+    deposit.remaining <= EPSILON
+    || (deposit.resource !== 'stone'
+      && deposit.resource !== 'iron'
+      && deposit.resource !== 'salt'
+      && deposit.resource !== 'clay')
+  ) {
+    return 0;
+  }
+  return cyclesPerCalendarDay(
+    'stone_quarry',
+    building.assignedLabor,
+    sabbathObserved,
+    civilianToolThroughputMultiplier(building.ironwork ?? 0),
+  ) * extractionBatch(deposit.resource);
 }
 
 export function mineralMineOutputPerDay(
@@ -419,8 +455,10 @@ export function mineralMineOutputPerDay(
   inboundTimber = 0,
 ): number {
   if (
-    (deposit.resource !== 'iron' && deposit.resource !== 'salt')
-    || (deposit.isRich !== true && deposit.remaining <= EPSILON)
+    deposit.isRich !== true
+    || (deposit.resource !== 'iron'
+      && deposit.resource !== 'salt'
+      && deposit.resource !== 'clay')
   ) {
     return 0;
   }
@@ -432,7 +470,9 @@ export function mineralMineOutputPerDay(
   }
   const batch = deposit.resource === 'iron'
     ? MINE_IRON_PER_CYCLE
-    : MINE_SALT_PER_CYCLE;
+    : deposit.resource === 'salt'
+      ? MINE_SALT_PER_CYCLE
+      : MINE_CLAY_PER_CYCLE;
   return mineralMineCyclesPerDay(
     building,
     sabbathObserved,
@@ -558,7 +598,7 @@ function centeredDeposit(
 }
 
 function nearestSurfaceDeposit(
-  building: BuildingState,
+  building: Pick<BuildingState, 'x' | 'z'>,
   deposits: readonly ResourceNodeState[],
   workRadius: number,
   includeExhausted: boolean,

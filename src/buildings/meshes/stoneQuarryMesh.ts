@@ -3,12 +3,22 @@ import {
   addMesh,
   metalMaterial,
   quarryRockMaterial,
+  sharedBuildingDetailMaterial,
   sharedBuildingMaterial,
   stoneMaterial,
   timberMaterial,
 } from '../buildingMaterials.ts';
 import { addGableShell, addPlankDoor, addSmallWindow } from './buildingMeshKit.ts';
 import { createCivilianToolStockpile } from './civilianToolStockpileMesh.ts';
+
+type MiningPitCommodity = 'iron' | 'salt' | 'clay';
+
+const IRON_ORE_DARK = metalMaterial('iron');
+const IRON_ORE_OXIDE = sharedBuildingDetailMaterial('paintRed');
+const SALT_ROCK_DARK = sharedBuildingMaterial('masonryMid');
+const SALT_ROCK_LIGHT = sharedBuildingMaterial('masonryLight');
+const CLAY_DARK = sharedBuildingDetailMaterial('earth');
+const CLAY_LIGHT = sharedBuildingDetailMaterial('paintOchre');
 
 function addCutBlockStack(
   group: THREE.Group,
@@ -42,9 +52,107 @@ function createStoneStockpile(): THREE.Group {
   const stockpile = new THREE.Group();
   stockpile.name = 'StoneQuarryStockpile';
   stockpile.visible = false;
-  addCutBlockStack(stockpile, 5.85, -4.75, 0.05);
-  addCutBlockStack(stockpile, 7.2, -1.6, Math.PI * 0.5);
-  addCutBlockStack(stockpile, -4.9, -5.6, -0.08);
+  addCutBlockStack(stockpile, -7.45, -6.55, 0.05);
+  addCutBlockStack(stockpile, -5.95, -6.55, -0.04);
+  addCutBlockStack(stockpile, -4.45, -6.55, 0.08);
+  return stockpile;
+}
+
+function commodityStockpileNames(commodity: MiningPitCommodity): {
+  container: string;
+  segment: string;
+  item: string;
+} {
+  if (commodity === 'iron') {
+    return {
+      container: 'MiningPitIronStockpile',
+      segment: 'MiningPitIronSegment',
+      item: 'Mining pit iron-ore lump',
+    };
+  }
+  if (commodity === 'salt') {
+    return {
+      container: 'MiningPitSaltStockpile',
+      segment: 'MiningPitSaltSegment',
+      item: 'Mining pit salt-rock lump',
+    };
+  }
+  return {
+    container: 'MiningPitClayStockpile',
+    segment: 'MiningPitClaySegment',
+    item: 'Mining pit clay lump',
+  };
+}
+
+function commodityStockpilePositions(
+  commodity: MiningPitCommodity,
+): readonly (readonly [number, number, number])[] {
+  if (commodity === 'iron') {
+    return [
+      [4.45, -6.55, -0.08],
+      [5.95, -6.55, 0.04],
+      [7.45, -6.55, -0.05],
+    ];
+  }
+  if (commodity === 'salt') {
+    return [
+      [-8.1, -2.15, 0.04],
+      [-8.1, -0.2, -0.08],
+      [-8.1, 1.75, 0.06],
+    ];
+  }
+  return [
+    [8.15, -2.15, -0.05],
+    [8.15, -0.2, 0.07],
+    [8.15, 1.75, -0.08],
+  ];
+}
+
+function commodityStockpileMaterials(
+  commodity: MiningPitCommodity,
+): readonly [THREE.Material, THREE.Material] {
+  if (commodity === 'iron') return [IRON_ORE_DARK, IRON_ORE_OXIDE];
+  if (commodity === 'salt') return [SALT_ROCK_DARK, SALT_ROCK_LIGHT];
+  return [CLAY_DARK, CLAY_LIGHT];
+}
+
+function createCommodityStockpile(commodity: MiningPitCommodity): THREE.Group {
+  const names = commodityStockpileNames(commodity);
+  const materials = commodityStockpileMaterials(commodity);
+  const stockpile = new THREE.Group();
+  stockpile.name = names.container;
+  stockpile.visible = false;
+
+  commodityStockpilePositions(commodity).forEach(([x, z, rotation], segmentIndex) => {
+    const segment = new THREE.Group();
+    segment.name = names.segment;
+    segment.visible = false;
+    segment.position.set(x, 0, z);
+    segment.rotation.y = rotation;
+
+    for (let itemIndex = 0; itemIndex < 5; itemIndex += 1) {
+      const angle = itemIndex / 5 * Math.PI * 2;
+      const geometry = commodity === 'clay'
+        ? new THREE.SphereGeometry(0.48 + (itemIndex % 2) * 0.07, 8, 5)
+        : new THREE.DodecahedronGeometry(0.42 + (itemIndex % 3) * 0.08, 0);
+      const item = addMesh(
+        segment,
+        geometry,
+        materials[(itemIndex + segmentIndex) % 3 === 0 ? 0 : 1],
+        new THREE.Vector3(
+          Math.cos(angle) * 0.58,
+          0.34 + (itemIndex === 4 ? 0.46 : 0),
+          Math.sin(angle) * 0.45,
+        ),
+        new THREE.Euler(itemIndex * 0.19, angle, segmentIndex * 0.08),
+        commodity === 'clay'
+          ? new THREE.Vector3(1.22, 0.66, 1.02)
+          : new THREE.Vector3(1.12, 0.78, 0.96),
+      );
+      item.name = names.item;
+    }
+    stockpile.add(segment);
+  });
   return stockpile;
 }
 
@@ -163,17 +271,45 @@ function addStonecuttingBench(group: THREE.Group): void {
       new THREE.Euler(0, 0, -0.52 + i * 0.09),
     );
   }
+
+  const samples = [
+    ['stone', quarryRockMaterial('mid')],
+    ['iron', IRON_ORE_OXIDE],
+    ['salt', SALT_ROCK_LIGHT],
+    ['clay', CLAY_LIGHT],
+  ] as const;
+  samples.forEach(([commodity, material], index) => {
+    const sample = addMesh(
+      group,
+      commodity === 'clay'
+        ? new THREE.SphereGeometry(0.22, 8, 5)
+        : new THREE.DodecahedronGeometry(0.22, 0),
+      material,
+      new THREE.Vector3(4.65 + index * 0.72, 1.17, 4.43),
+      new THREE.Euler(index * 0.13, index * 0.52, -index * 0.07),
+      commodity === 'clay'
+        ? new THREE.Vector3(1.2, 0.7, 1)
+        : undefined,
+    );
+    sample.name = `Mining pit ${commodity} sorting sample`;
+  });
 }
 
-/** Open stonecutters' yard with a tall lifting derrick and a small regional shelter. */
+/** Open surface-extraction yard for finite stone, iron, salt, and clay deposits. */
 export function createStoneQuarryMesh(): THREE.Group {
   const group = new THREE.Group();
-  group.name = 'Stone quarry';
+  group.name = 'Mining Pit';
+  group.userData.semanticRole = 'general-surface-extraction';
+  group.userData.extractionResources = ['stone', 'iron', 'salt', 'clay'];
+  group.userData.silhouette = 'open-yard-derrick';
   addRubble(group);
   addDerrick(group);
   addStonecuttersShelter(group);
   addStonecuttingBench(group);
   group.add(createStoneStockpile());
+  group.add(createCommodityStockpile('iron'));
+  group.add(createCommodityStockpile('salt'));
+  group.add(createCommodityStockpile('clay'));
   group.add(createCivilianToolStockpile(new THREE.Vector3(3.65, 0, 5.4), -0.08));
   return group;
 }

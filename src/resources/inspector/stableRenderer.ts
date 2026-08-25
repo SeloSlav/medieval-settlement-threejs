@@ -2,7 +2,8 @@ import {
   STABLE_OX_PURCHASE_GOLD,
   STABLE_OX_SLOTS,
 } from '../../generated/gameBalance.ts';
-import { fireForTarget } from '../../fires/fireIncident.ts';
+import { fireDisabledBuildingIds, fireForTarget } from '../../fires/fireIncident.ts';
+import { assignStableOxen } from '../../settlement/stableOxen.ts';
 import { renderResourceAmount } from '../../ui/resourceCost.ts';
 import { getBuildingCost } from '../buildingEconomy.ts';
 import type { InspectableTarget, StableOxState } from '../types.ts';
@@ -74,14 +75,32 @@ export function renderStableInspector(
       .map((trip) => trip.oxId)
       .filter((oxId): oxId is string => oxId != null),
   );
+  const activeAssignments = assignStableOxen(
+    context.gameState.stableOxen.values(),
+    context.gameState.buildings,
+    context.gameState.deliveryTrips.values(),
+    fireDisabledBuildingIds(context.gameState.fireIncidents.values()),
+  );
   const slotIndicators = Array.from({ length: STABLE_OX_SLOTS }, (_, slot) => {
     const ox = occupiedSlots.get(slot);
     const hauling = ox ? haulingOxIds.has(ox.id) : false;
+    const assignedBuilding = ox?.assignedBuildingId == null
+      ? null
+      : context.gameState.buildings.get(ox.assignedBuildingId) ?? null;
+    const assignmentActive = ox != null
+      && activeAssignments.get(ox.id)?.buildingId === ox.assignedBuildingId;
+    const assignedLabel = assignedBuilding == null
+      ? 'workplace'
+      : context.worldQueries.getBuildingLabel(assignedBuilding.kind);
     const assignmentLabel = !ox
       ? 'Open stall'
       : ox.assignedBuildingId == null
         ? hauling ? 'Automatic pool · hauling now' : 'Automatic assistance pool'
-        : hauling ? 'Posted to a workplace · hauling now' : 'Posted to a workplace';
+        : hauling
+          ? `Posted to ${assignedLabel} · hauling now`
+          : assignmentActive
+            ? `Posted to ${assignedLabel} · active with a worker`
+            : `Posted to ${assignedLabel} · waiting for labor`;
     return `<li class="stable-ox-slot" data-stable-ox-slot="${slot}" data-state="${ox ? 'occupied' : 'open'}">
       <span class="stable-ox-slot__badge" aria-hidden="true">${ox ? 'OX' : '+'}</span>
       <span class="stable-ox-slot__copy"><strong>Bay ${BAY_LABELS[slot] ?? slot + 1}</strong><small>${assignmentLabel}</small></span>
@@ -100,13 +119,13 @@ export function renderStableInspector(
       <li data-inspector-primary><span>Draft team</span><span>${housed} / ${STABLE_OX_SLOTS} oxen · ${openSlots} open ${openSlots === 1 ? 'bay' : 'bays'}</span></li>
       <li><span>Posting</span><span>${posted} posted until changed · ${automaticPool} in the automatic assistance pool</span></li>
       <li><span>Controls</span><span>Set posted counts from any eligible workplace card</span></li>
-      <li><span>Work effect</span><span>One eligible worker receives one ox; production yield or hauling inventory is doubled</span></li>
+      <li><span>Work effect</span><span>Ox postings are separate from human labor slots · one ox pairs with one present worker; exact stage effects appear on the workplace card</span></li>
       <li><span>Upkeep</span><span>Feed and water are abstracted · stable oxen never draw herd hay or Animal Feed</span></li>
       <li><span>Resting</span><span>Idle oxen return to their authored stable bays</span></li>
     `,
     supplementalPanelHtml: `
       <div class="inspector-action-panel stable-ox-panel" data-inspector-panel-title="Ox team">
-        <p class="resource-inspector-note">Post oxen persistently from an eligible workplace card. Every unposted ox remains in the automatic assistance pool and may help useful active work elsewhere.</p>
+        <p class="resource-inspector-note">Post oxen persistently from an eligible workplace card. Posted oxen wait here whenever no laborer is available; every unposted ox remains in the automatic assistance pool.</p>
         <ol class="stable-ox-slots" aria-label="Stable ox bays">${slotIndicators}</ol>
         <div class="resource-action-row">
           <button type="button" class="resource-action-button" data-purchase-ox aria-label="Purchase one stable ox for ${STABLE_OX_PURCHASE_GOLD} gold" ${purchaseDisabled ? 'disabled' : ''}>Buy ox · ${renderResourceAmount('gold', STABLE_OX_PURCHASE_GOLD, { compact: true })}</button>

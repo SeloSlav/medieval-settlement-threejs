@@ -25,6 +25,8 @@ import {
   type ProductionRoadComponentResolver,
 } from './settlementProduction.ts';
 import {
+  miningPitOutputPerDay,
+  miningPitSurfaceDeposit,
   mineralDepositBeneath,
   mineralMineOutputPerDay,
 } from './settlementGeology.ts';
@@ -238,17 +240,22 @@ export function computeSettlementPreservationReservePlan(
       branch.selectedSaltTarget += selectedTarget;
       if (selectedTarget > 1e-9) branch.standingSaltMarkets += 1;
       branch.firstMarketId = earlierStableId(branch.firstMarketId, building.id);
-    } else if (building.kind === 'mine') {
-      const deposit = mineralDepositBeneath(
-        building,
-        state.quarries.values(),
-      );
+    } else if (building.kind === 'mine' || building.kind === 'stone_quarry') {
+      const deposit = building.kind === 'mine'
+        ? mineralDepositBeneath(building, state.quarries.values())
+        : miningPitSurfaceDeposit(building, state.quarries.values());
       if (deposit?.resource !== 'salt') continue;
-      const ratePerDay = mineralMineOutputPerDay(
-        building,
-        deposit,
-        options.sabbathObserved,
-      );
+      const ratePerDay = building.kind === 'mine'
+        ? mineralMineOutputPerDay(
+          building,
+          deposit,
+          options.sabbathObserved,
+        )
+        : miningPitOutputPerDay(
+          building,
+          deposit,
+          options.sabbathObserved,
+        );
       if (ratePerDay <= 1e-9) continue;
       branch.localSaltOutputPerDay += ratePerDay;
       branch.staffedSaltMines += 1;
@@ -256,11 +263,12 @@ export function computeSettlementPreservationReservePlan(
         branch.firstSaltMineId,
         building.id,
       );
-      const source = branch.saltMineSourcesByDeposit.get(deposit.nodeId);
-      branch.saltMineSourcesByDeposit.set(deposit.nodeId, {
+      const sourceKey = `${building.kind === 'mine' ? 'deep' : 'surface'}:${deposit.nodeId}`;
+      const source = branch.saltMineSourcesByDeposit.get(sourceKey);
+      branch.saltMineSourcesByDeposit.set(sourceKey, {
         ratePerDay: (source?.ratePerDay ?? 0) + ratePerDay,
         remaining: finiteStock(deposit.remaining),
-        isRich: deposit.isRich === true,
+        isRich: building.kind === 'mine',
       });
     }
   }

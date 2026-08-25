@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import {
   OX_SUPPORTED_WORKPLACE_KINDS,
   assignStableOxen,
+  oxWorkplaceCapacity,
   stableOxRestPose,
 } from '../src/settlement/stableOxen.ts';
 
@@ -52,6 +53,46 @@ assert.ok(!OX_SUPPORTED_WORKPLACE_KINDS.includes('smithy' as never));
 assert.ok(
   [...assignments.values()].every((assignment) => assignment.buildingId !== 'building-5'),
   'logistics-only buildings reserve oxen through active cart trips, not idle worker slots',
+);
+assert.equal(oxWorkplaceCapacity('reforester'), 1);
+assert.equal(oxWorkplaceCapacity('carpenter'), 2);
+assert.equal(oxWorkplaceCapacity('threshing_barn'), 3);
+assert.equal(oxWorkplaceCapacity('granary'), 1);
+assert.equal(oxWorkplaceCapacity('smithy'), 0);
+
+const cappedFarmBuildings = new Map<string, any>([
+  ['building-11', building('building-11', 'stable', 0, 0, 0)],
+  ['building-12', building('building-12', 'stable', 2, 0, 0)],
+  ['building-20', building('building-20', 'threshing_barn', 8, 0, 8)],
+]);
+const cappedFarmOxen = Array.from({ length: 5 }, (_, index) => ({
+  id: `stable-ox-${index + 20}`,
+  stableId: index < 3 ? 'building-11' : 'building-12',
+  slot: index < 3 ? index : index - 3,
+}));
+assert.equal(
+  assignStableOxen(cappedFarmOxen, cappedFarmBuildings).size,
+  3,
+  'automatic assistance must never activate more than three oxen at a large farmstead',
+);
+assert.equal(
+  assignStableOxen(
+    cappedFarmOxen.map((ox) => ({ ...ox, assignedBuildingId: 'building-20' })),
+    cappedFarmBuildings,
+  ).size,
+  3,
+  'over-cap legacy postings remain persisted but only three teams may work',
+);
+
+const oneFarmerBuildings = new Map(cappedFarmBuildings);
+oneFarmerBuildings.set('building-20', building('building-20', 'threshing_barn', 8, 0, 1));
+assert.equal(
+  assignStableOxen(
+    cappedFarmOxen.slice(0, 3).map((ox) => ({ ...ox, assignedBuildingId: 'building-20' })),
+    oneFarmerBuildings,
+  ).size,
+  1,
+  'three separately posted oxen with one present farmer produce one active team and two waiting oxen',
 );
 
 const hybridOxen = [

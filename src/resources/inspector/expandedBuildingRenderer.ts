@@ -132,6 +132,8 @@ import {
   type SeedGrainSourceCoveragePlan,
 } from '../../economy/marketplaceSeedCoverage.ts';
 import { computeCattleFieldSupport } from '../../farming/cattleFieldSupport.ts';
+import { fireDisabledBuildingIds } from '../../fires/fireIncident.ts';
+import { assignStableOxen } from '../../settlement/stableOxen.ts';
 import { settlementHasStaffedChapel } from '../../logistics/landmarkAccess.ts';
 import { gameClock } from '../../world/gameCalendar.ts';
 import {
@@ -220,7 +222,7 @@ function dominantBreadGrainKind(building: BuildingState): BreadGrainKind {
 }
 
 const PROCESS: Record<string, string> = {
-  mine: 'A local iron or salt deposit + labor → raw material for linked local processing',
+  mine: 'Rich iron, salt, or clay + timber-supported deep labor → raw material for linked local processing',
   clay_pit: 'Finite ordinary bank or rich deep alluvium + labor -> wet clay for local potters',
   charcoal_burner: 'Firewood + labor -> charcoal, competing directly with winter heating reserves',
   smithy: 'Small direct-process bloomery reduces local ore or reheats imported blooms and bars; the smithing bay then uses charcoal and automatically staged well water to finish tools, fittings, and weapon heads',
@@ -1485,6 +1487,15 @@ function renderFarmsteadPlanning(
     building,
     context.worldQueries.getActiveDeliveryTrip(building),
   );
+  const stableOxAssignments = assignStableOxen(
+    context.gameState.stableOxen.values(),
+    context.gameState.buildings,
+    context.gameState.deliveryTrips.values(),
+    fireDisabledBuildingIds(context.gameState.fireIncidents.values()),
+  );
+  const pairedStableOxen = [...stableOxAssignments.values()]
+    .filter((assignment) => assignment.buildingId === building.id)
+    .length;
   const inboundSupply = context.worldQueries.getInboundSupplyTrip(building);
   const inboundIronwork = inboundSupply?.cargoKind === 'ironwork'
     ? Math.max(0, inboundSupply.amount)
@@ -1497,6 +1508,7 @@ function renderFarmsteadPlanning(
     cattleSupport,
     Math.max(0, building.ironwork ?? 0) + inboundIronwork,
     building,
+    pairedStableOxen,
   );
   const storageCaps = buildingStorageCaps(building.kind);
   const onsiteSeedGrain = breadGrainStock(building);
@@ -1583,9 +1595,10 @@ function renderFarmsteadPlanning(
   const rows = `
     <li><span>Linked fields</span><span>${plan.activeFields} active${plan.pausedFields > 0 ? ` · ${plan.pausedFields} paused` : ''}</span></li>
     <li><span>Threshing queue</span><span>${Math.round(threshingBacklog)} sheaves waiting · ${threshingPriorityLabel(threshingPriority)}</span></li>
-    <li><span>Shared farm labor</span><span>One ${onsiteLabor}-worker budget · harvesting always first · field and threshing work never double-count the crew</span></li>
+    <li><span>Shared farm labor</span><span>One ${onsiteLabor}-farmer budget + ${plan.pairedStableOxen} active stable ox${plan.pairedStableOxen === 1 ? '' : 'en'} · ox postings are separate; any team without a present farmer waits</span></li>
     <li><span>Crew-sharing queue</span><span>${sharedPriorityFields.length > 0 ? `${sharedPriorityFields.length} nearby High/Urgent field${sharedPriorityFields.length === 1 ? '' : 's'} may claim this crew ahead of lower-priority linked work` : 'No neighboring High/Urgent fields requesting help'} · seed, manure, and harvest remain at each field’s linked farm</span></li>
-    <li><span>Ox-supported fields</span><span>${plan.cattleSupportedFields} / ${plan.activeFields} active · labor forecast includes faster ploughing</span></li>
+    <li><span>Stable-ox field work</span><span>${Math.round((plan.oxPloughThroughputMultiplier - 1) * 100)}% crew plough bonus · ${Math.round((plan.oxHarvestThroughputMultiplier - 1) * 100)}% crew harvest bonus · sowing remains human-only</span></li>
+    <li><span>Cattle plough support</span><span>${plan.cattleSupportedFields} / ${plan.activeFields} active fields · stacks with stable teams by reducing required plough work</span></li>
     ${rotationRows}
     <li><span>August–September labor</span><span>${formatSeasonalWork(plan.harvest)}</span></li>
     <li><span>Spring crop labor</span><span>${formatSeasonalWork(plan.spring)}</span></li>

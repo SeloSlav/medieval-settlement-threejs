@@ -1377,6 +1377,7 @@ export class WorldQueries {
         : null;
       const mineralResource = deposit?.resource === 'iron'
         || deposit?.resource === 'salt'
+        || deposit?.resource === 'clay'
         ? deposit.resource
         : null;
       return extractionAcceptsMaintenance(target, mineralResource);

@@ -13,8 +13,13 @@ import {
   CHARCOAL_BURNER_CHARCOAL_VISUAL_SEGMENTS,
   CHARCOAL_BURNER_FIREWOOD_VISUAL_SEGMENTS,
   CLAY_PIT_CLAY_VISUAL_SEGMENTS,
+  LARGE_QUARRY_STONE_VISUAL_SEGMENTS,
+  MINE_CLAY_VISUAL_SEGMENTS,
   MINE_IRON_VISUAL_SEGMENTS,
   MINE_SALT_VISUAL_SEGMENTS,
+  MINING_PIT_CLAY_VISUAL_SEGMENTS,
+  MINING_PIT_IRON_VISUAL_SEGMENTS,
+  MINING_PIT_SALT_VISUAL_SEGMENTS,
   POTTER_CLAY_VISUAL_SEGMENTS,
   POTTER_FIREWOOD_VISUAL_SEGMENTS,
   POTTER_POTTERY_VISUAL_SEGMENTS,
@@ -24,6 +29,7 @@ import {
   SMITHY_IRON_VISUAL_SEGMENTS,
   SMITHY_IRONWORK_VISUAL_SEGMENTS,
   SMITHY_WATER_VISUAL_SEGMENTS,
+  STONE_QUARRY_STONE_VISUAL_SEGMENTS,
   syncBulkStockpileVisuals,
 } from '../src/buildings/bulkStockpileVisuals.ts';
 import {
@@ -517,6 +523,7 @@ assert.equal(
 assert.deepEqual(
   LOCAL_MATERIAL_SOURCE_KINDS,
   [
+    'stone_quarry',
     'mine',
     'clay_pit',
     'charcoal_burner',
@@ -529,14 +536,34 @@ assert.deepEqual(
   LOCAL_MATERIAL_SOURCE_KINDS.map((kind) =>
     localMaterialInputCommodity(
       kind,
-      kind === 'mine'
+      kind === 'stone_quarry'
         ? { iron: 12, salt: 0 }
+        : kind === 'mine'
+          ? { iron: 0, salt: 0, clay: 12 }
         : kind === 'village_storehouse'
           ? { iron: 12, clay: 0, salt: 0 }
           : undefined,
     )
   ),
-  ['iron', 'clay', 'charcoal', 'ironwork', 'pottery', 'iron'],
+  ['iron', 'clay', 'clay', 'charcoal', 'ironwork', 'pottery', 'iron'],
+);
+assert.deepEqual(
+  localMaterialInputCommodities('stone_quarry', {
+    iron: 12,
+    salt: 12,
+    clay: 12,
+  }),
+  ['iron', 'salt', 'clay'],
+  'Mining Pit carts must route every non-stone surface material to its processor',
+);
+assert.deepEqual(
+  localMaterialInputCommodities('mine', {
+    iron: 12,
+    salt: 12,
+    clay: 12,
+  }),
+  ['iron', 'salt', 'clay'],
+  'Mineworks carts must route each supported rich mineral output',
 );
 assert.equal(
   localMaterialInputCommodity('mine', { iron: 0, salt: 12 }),
@@ -813,6 +840,41 @@ assert.ok(
 
 const buildingVisuals = [
   {
+    kind: 'stone_quarry',
+    container: 'StoneQuarryStockpile',
+    segment: 'StoneQuarryStockSegment',
+    resource: 'stone',
+    segments: STONE_QUARRY_STONE_VISUAL_SEGMENTS,
+  },
+  {
+    kind: 'stone_quarry',
+    container: 'MiningPitIronStockpile',
+    segment: 'MiningPitIronSegment',
+    resource: 'iron',
+    segments: MINING_PIT_IRON_VISUAL_SEGMENTS,
+  },
+  {
+    kind: 'stone_quarry',
+    container: 'MiningPitSaltStockpile',
+    segment: 'MiningPitSaltSegment',
+    resource: 'salt',
+    segments: MINING_PIT_SALT_VISUAL_SEGMENTS,
+  },
+  {
+    kind: 'stone_quarry',
+    container: 'MiningPitClayStockpile',
+    segment: 'MiningPitClaySegment',
+    resource: 'clay',
+    segments: MINING_PIT_CLAY_VISUAL_SEGMENTS,
+  },
+  {
+    kind: 'large_quarry',
+    container: 'LargeQuarryStockpile',
+    segment: 'LargeQuarryStockSegment',
+    resource: 'stone',
+    segments: LARGE_QUARRY_STONE_VISUAL_SEGMENTS,
+  },
+  {
     kind: 'mine',
     container: 'IronMineStockpile',
     segment: 'IronMineOreSegment',
@@ -825,6 +887,13 @@ const buildingVisuals = [
     segment: 'SaltMineSaltSegment',
     resource: 'salt',
     segments: MINE_SALT_VISUAL_SEGMENTS,
+  },
+  {
+    kind: 'mine',
+    container: 'ClayMineStockpile',
+    segment: 'ClayMineClaySegment',
+    resource: 'clay',
+    segments: MINE_CLAY_VISUAL_SEGMENTS,
   },
   {
     kind: 'clay_pit',

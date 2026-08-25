@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import {
   computeSettlementGeologyPlan,
   geologicalFiniteRunwayDays,
+  miningPitOutputPerDay,
   mineralMineOutputPerDay,
 } from '../src/economy/settlementGeology.ts';
 import {
@@ -99,29 +100,32 @@ const buildings = [
     timber: 1.5,
   }),
   makeBuilding({
-    id: 'clay-pit-finite',
-    kind: 'clay_pit',
+    id: 'clay-surface-pit',
+    kind: 'stone_quarry',
     x: 600,
     z: 0,
+    workRadius: 30,
     assignedLabor: 2,
     ironwork: 1,
   }),
   makeBuilding({
-    id: 'clay-pit-deep',
-    kind: 'clay_pit',
+    id: 'clay-mineworks',
+    kind: 'mine',
     x: 700,
     z: 0,
     assignedLabor: 1,
+    timber: 1.5,
   }),
   makeBuilding({
-    id: 'iron-mine-finite',
-    kind: 'mine',
+    id: 'iron-surface-pit',
+    kind: 'stone_quarry',
     x: 200,
     z: 0,
+    workRadius: 30,
     assignedLabor: 2,
   }),
   makeBuilding({
-    id: 'iron-mine-deep',
+    id: 'iron-mineworks',
     kind: 'mine',
     x: 300,
     z: 0,
@@ -129,14 +133,15 @@ const buildings = [
     timber: 1.5,
   }),
   makeBuilding({
-    id: 'salt-mine-finite',
-    kind: 'mine',
-    x: 400,
+    id: 'salt-rich-surface-pit',
+    kind: 'stone_quarry',
+    x: 500,
     z: 0,
+    workRadius: 30,
     assignedLabor: 1,
   }),
   makeBuilding({
-    id: 'salt-mine-unbuilt',
+    id: 'salt-mineworks-unbuilt',
     kind: 'mine',
     x: 500,
     z: 0,
@@ -165,28 +170,37 @@ const state: GameState = {
 };
 
 const plan = computeSettlementGeologyPlan(state, false);
-const baselineMineOutput = mineralMineOutputPerDay(
-  { assignedLabor: 1, ironwork: 0, timber: 0 },
+const baselineSurfaceOutput = miningPitOutputPerDay(
+  { assignedLabor: 1, ironwork: 0 },
   deposits[4],
+  false,
+);
+const baselineMineOutput = mineralMineOutputPerDay(
+  { assignedLabor: 1, ironwork: 0, timber: 1 },
+  deposits[5],
   false,
 );
 const maintainedMineOutput = mineralMineOutputPerDay(
-  { assignedLabor: 1, ironwork: 0.25, timber: 0 },
-  deposits[4],
-  false,
-);
-assert.ok(
-  Math.abs(maintainedMineOutput / baselineMineOutput - 1.2) < 1e-9,
-  'maintained mine tools must multiply ordinary extraction without becoming a hard requirement',
-);
-const maintainedRichMineOutput = mineralMineOutputPerDay(
-  { assignedLabor: 1, ironwork: 0.25, timber: 0.5 },
+  { assignedLabor: 1, ironwork: 0.25, timber: 1 },
   deposits[5],
   false,
 );
 assert.ok(
-  Math.abs(maintainedRichMineOutput / baselineMineOutput - 1.8) < 1e-9,
-  'rich geology and maintained tool bonuses must multiply instead of replacing one another',
+  Math.abs(maintainedMineOutput / baselineMineOutput - 1.2) < 1e-9,
+  'maintained Mineworks tools must multiply rich extraction without becoming a hard requirement',
+);
+assert.ok(
+  Math.abs(maintainedMineOutput / baselineSurfaceOutput - 1.8) < 1e-9,
+  'rich Mineworks geology and maintained tool bonuses must multiply the shared surface rate',
+);
+assert.equal(
+  mineralMineOutputPerDay(
+    { assignedLabor: 1, ironwork: 0.25, timber: 1 },
+    deposits[4],
+    false,
+  ),
+  0,
+  'ordinary iron belongs to the Mining Pit and must not produce through Mineworks',
 );
 assert.equal(
   mineralMineOutputPerDay(
@@ -195,7 +209,7 @@ assert.equal(
     false,
   ),
   0,
-  'a rich deep working must stop without one complete timber-support batch',
+  'Mineworks must stop without one complete timber-support batch',
 );
 assert.deepEqual(
   [plan.stone.deposits, plan.clay.deposits, plan.iron.deposits, plan.salt.deposits],
@@ -248,6 +262,10 @@ assert.ok(plan.iron.finiteExtractionPerDay > 0);
 assert.ok(plan.iron.deepExtractionPerDay > 0);
 assert.ok(plan.salt.finiteExtractionPerDay > 0);
 assert.equal(plan.salt.deepExtractionPerDay, 0);
+assert.ok(
+  plan.salt.shortestFiniteRunwayDays !== null,
+  'a Mining Pit must consume the finite surface cap even when it belongs to a rich marker',
+);
 assert.deepEqual(
   [
     plan.stone.operatingExtractionSites,
@@ -264,7 +282,7 @@ assert.deepEqual(
 );
 assert.deepEqual(
   [plan.stone.yardTarget, plan.clay.yardTarget, plan.iron.yardTarget, plan.salt.yardTarget],
-  [540, 360, 480, 240],
+  [540, 420, 420, 180],
   'legacy 100% policy must expose the full combined physical yard capacities',
 );
 assert.equal(
@@ -273,31 +291,31 @@ assert.equal(
 );
 assert.equal(
   plan.salt.shortestFiniteRunwayDays,
-  deposits[6].remaining / plan.salt.finiteExtractionPerDay,
-  'a single worked finite seam must expose its own actionable depletion runway',
+  deposits[7].remaining / plan.salt.finiteExtractionPerDay,
+  'a worked rich marker surface layer must expose its own actionable depletion runway',
 );
 
 const stoneCamp = state.buildings.get('stone-camp');
 const deepStoneQuarry = state.buildings.get('deep-quarry');
-const finiteClayPit = state.buildings.get('clay-pit-finite');
-const deepClayPit = state.buildings.get('clay-pit-deep');
-const finiteIronMine = state.buildings.get('iron-mine-finite');
-const deepIronMine = state.buildings.get('iron-mine-deep');
-const finiteSaltMine = state.buildings.get('salt-mine-finite');
+const claySurfacePit = state.buildings.get('clay-surface-pit');
+const clayMineworks = state.buildings.get('clay-mineworks');
+const ironSurfacePit = state.buildings.get('iron-surface-pit');
+const deepIronMine = state.buildings.get('iron-mineworks');
+const richSaltSurfacePit = state.buildings.get('salt-rich-surface-pit');
 assert.ok(stoneCamp);
 assert.ok(deepStoneQuarry);
-assert.ok(finiteClayPit);
-assert.ok(deepClayPit);
-assert.ok(finiteIronMine);
+assert.ok(claySurfacePit);
+assert.ok(clayMineworks);
+assert.ok(ironSurfacePit);
 assert.ok(deepIronMine);
-assert.ok(finiteSaltMine);
+assert.ok(richSaltSurfacePit);
 Object.assign(stoneCamp, { processorOutputTargetPercent: 25, stone: 45 });
 Object.assign(deepStoneQuarry, { processorOutputTargetPercent: 25, stone: 110 });
-Object.assign(finiteClayPit, { processorOutputTargetPercent: 25, clay: 45 });
-Object.assign(deepClayPit, { processorOutputTargetPercent: 25, clay: 45 });
-Object.assign(finiteIronMine, { processorOutputTargetPercent: 25, iron: 60 });
+Object.assign(claySurfacePit, { processorOutputTargetPercent: 25, clay: 45 });
+Object.assign(clayMineworks, { processorOutputTargetPercent: 25, clay: 60 });
+Object.assign(ironSurfacePit, { processorOutputTargetPercent: 25, iron: 45 });
 Object.assign(deepIronMine, { processorOutputTargetPercent: 25, iron: 60 });
-Object.assign(finiteSaltMine, { processorOutputTargetPercent: 25, salt: 60 });
+Object.assign(richSaltSurfacePit, { processorOutputTargetPercent: 25, salt: 45 });
 const targetHeldPlan = computeSettlementGeologyPlan(state, false);
 assert.deepEqual(
   [
@@ -341,11 +359,11 @@ assert.ok(reopenedYardPlan.stone.finiteExtractionPerDay > 0);
 for (const [building, commodity] of [
   [stoneCamp, 'stone'],
   [deepStoneQuarry, 'stone'],
-  [finiteClayPit, 'clay'],
-  [deepClayPit, 'clay'],
-  [finiteIronMine, 'iron'],
+  [claySurfacePit, 'clay'],
+  [clayMineworks, 'clay'],
+  [ironSurfacePit, 'iron'],
   [deepIronMine, 'iron'],
-  [finiteSaltMine, 'salt'],
+  [richSaltSurfacePit, 'salt'],
 ] as const) {
   building.processorOutputTargetPercent = 100;
   building[commodity] = 0;
@@ -367,7 +385,7 @@ state.deliveryTrips.set('quarry-support-cart', {
   destinationKind: 'building',
   targetBuildingId: 'deep-quarry',
   cargoKind: 'timber',
-  amount: 0.5,
+  amount: 1,
   phase: 'outbound',
   x: 0,
   z: 0,
@@ -393,16 +411,16 @@ assert.equal(supportStarvedPlan.iron.deepExtractionPerDay, 0);
 assert.equal(supportStarvedPlan.iron.deepSourcesAwaitingSupports, 1);
 assert.equal(
   supportStarvedPlan.iron.firstSupportBuildingId,
-  'iron-mine-deep',
+  'iron-mineworks',
 );
 state.deliveryTrips.set('mine-support-cart', {
   id: 'mine-support-cart',
   buildingId: 'lumber-mill-source',
   residenceId: null,
   destinationKind: 'building',
-  targetBuildingId: 'iron-mine-deep',
+  targetBuildingId: 'iron-mineworks',
   cargoKind: 'timber',
-  amount: 0.5,
+  amount: 1,
   phase: 'outbound',
   x: 0,
   z: 0,
@@ -442,21 +460,21 @@ assert.equal(exhaustedPlan.iron.exhaustedFiniteDeposits, 1);
 assert.equal(exhaustedPlan.iron.finiteExtractionPerDay, 0);
 assert.equal(
   exhaustedPlan.iron.firstAttentionBuildingId,
-  'iron-mine-finite',
-  'a staffed mine on an exhausted seam must be the first geological warning',
+  'iron-surface-pit',
+  'a staffed Mining Pit on an exhausted seam must be the first geological warning',
 );
 assert.equal(exhaustedPlan.clay.exhaustedFiniteDeposits, 1);
 assert.equal(exhaustedPlan.clay.finiteExtractionPerDay, 0);
 assert.equal(
   exhaustedPlan.clay.firstAttentionBuildingId,
-  'clay-pit-finite',
-  'a staffed pit on an exhausted bank must be the first clay warning',
+  'clay-surface-pit',
+  'a staffed Mining Pit on an exhausted clay bank must be the first clay warning',
 );
 
 state.fireIncidents.set('fire-1', {
   incidentId: 'fire-1',
   targetKind: 'building',
-  targetId: 'iron-mine-deep',
+  targetId: 'iron-mineworks',
   source: 'workshop',
   status: 'burning',
   severity: 0.5,

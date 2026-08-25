@@ -3,8 +3,15 @@ import { performance } from 'node:perf_hooks';
 import * as THREE from 'three';
 import {
   bulkStockpileVisualSignature,
+  LARGE_QUARRY_SUPPORT_VISUAL_CAPACITY,
   LARGE_QUARRY_SUPPORT_VISUAL_SEGMENTS,
   LARGE_QUARRY_STONE_VISUAL_SEGMENTS,
+  MINE_CLAY_VISUAL_SEGMENTS,
+  MINE_IRON_VISUAL_SEGMENTS,
+  MINE_SALT_VISUAL_SEGMENTS,
+  MINING_PIT_CLAY_VISUAL_SEGMENTS,
+  MINING_PIT_IRON_VISUAL_SEGMENTS,
+  MINING_PIT_SALT_VISUAL_SEGMENTS,
   STONE_QUARRY_STONE_VISUAL_SEGMENTS,
   syncBulkStockpileVisuals,
   WOODCUTTERS_FIREWOOD_VISUAL_SEGMENTS,
@@ -27,6 +34,24 @@ const stockGroups = [
     STONE_QUARRY_STONE_VISUAL_SEGMENTS,
   ],
   [
+    'stone_quarry',
+    'MiningPitIronStockpile',
+    'MiningPitIronSegment',
+    MINING_PIT_IRON_VISUAL_SEGMENTS,
+  ],
+  [
+    'stone_quarry',
+    'MiningPitSaltStockpile',
+    'MiningPitSaltSegment',
+    MINING_PIT_SALT_VISUAL_SEGMENTS,
+  ],
+  [
+    'stone_quarry',
+    'MiningPitClayStockpile',
+    'MiningPitClaySegment',
+    MINING_PIT_CLAY_VISUAL_SEGMENTS,
+  ],
+  [
     'large_quarry',
     'LargeQuarryStockpile',
     'LargeQuarryStockSegment',
@@ -37,6 +62,24 @@ const stockGroups = [
     'LargeQuarrySupportStockpile',
     'LargeQuarrySupportSegment',
     LARGE_QUARRY_SUPPORT_VISUAL_SEGMENTS,
+  ],
+  [
+    'mine',
+    'IronMineStockpile',
+    'IronMineOreSegment',
+    MINE_IRON_VISUAL_SEGMENTS,
+  ],
+  [
+    'mine',
+    'SaltMineStockpile',
+    'SaltMineSaltSegment',
+    MINE_SALT_VISUAL_SEGMENTS,
+  ],
+  [
+    'mine',
+    'ClayMineStockpile',
+    'ClayMineClaySegment',
+    MINE_CLAY_VISUAL_SEGMENTS,
   ],
 ] as const;
 
@@ -72,6 +115,53 @@ assertVisibleSegments(
   'StoneQuarryStockSegment',
   2,
 );
+syncBulkStockpileVisuals(
+  quarryMarker,
+  building('stone_quarry', { iron: 61, salt: 1, clay: 121 }),
+);
+assertVisibleSegments(
+  quarryMarker,
+  'MiningPitIronStockpile',
+  'MiningPitIronSegment',
+  2,
+);
+assertVisibleSegments(
+  quarryMarker,
+  'MiningPitSaltStockpile',
+  'MiningPitSaltSegment',
+  1,
+);
+assertVisibleSegments(
+  quarryMarker,
+  'MiningPitClayStockpile',
+  'MiningPitClaySegment',
+  3,
+);
+
+const mineMarker = createBuildingMesh('mine');
+syncBulkStockpileVisuals(mineMarker, building('mine', { clay: 81 }));
+assertVisibleSegments(
+  mineMarker,
+  'ClayMineStockpile',
+  'ClayMineClaySegment',
+  3,
+);
+
+const emptyMiningPitSignature = bulkStockpileVisualSignature(
+  building('stone_quarry'),
+);
+for (const stock of [{ iron: 1 }, { salt: 1 }, { clay: 1 }]) {
+  assert.notEqual(
+    bulkStockpileVisualSignature(building('stone_quarry', stock)),
+    emptyMiningPitSignature,
+    'each Mining Pit commodity must independently refresh its inventory visuals',
+  );
+}
+assert.notEqual(
+  bulkStockpileVisualSignature(building('mine', { clay: 1 })),
+  bulkStockpileVisualSignature(building('mine')),
+  'Mineworks clay inventory must participate in the visual signature',
+);
 
 const largeQuarryMarker = createBuildingMesh('large_quarry');
 syncBulkStockpileVisuals(
@@ -103,7 +193,7 @@ assertVisibleSegments(
 );
 syncBulkStockpileVisuals(
   largeQuarryMarker,
-  building('large_quarry', { timber: 1.5 }),
+  building('large_quarry', { timber: LARGE_QUARRY_SUPPORT_VISUAL_CAPACITY }),
 );
 assertVisibleSegments(
   largeQuarryMarker,
@@ -175,7 +265,9 @@ function assertVisibleSegments(
 
 function building(
   kind: BuildingKind,
-  stocks: Partial<Pick<BuildingState, 'firewood' | 'stone' | 'timber'>> = {},
+  stocks: Partial<
+    Pick<BuildingState, 'firewood' | 'stone' | 'timber' | 'iron' | 'salt' | 'clay'>
+  > = {},
 ): BuildingState {
   return {
     id: `${kind}-1`,

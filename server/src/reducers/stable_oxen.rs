@@ -3,11 +3,11 @@ use std::collections::HashSet;
 use spacetimedb::{reducer, ReducerContext};
 
 use crate::balance_generated::{STABLE_OX_PURCHASE_GOLD, STABLE_OX_SLOTS};
-use crate::building_defs::building_def;
 use crate::db::*;
 use crate::economy::spend_treasury_gold;
 use crate::ox_policy::{
-    is_ox_supported_workplace, reconcile_ox_posting, OxPostingCandidate, OxPostingError,
+    is_ox_supported_workplace, ox_workplace_capacity, reconcile_ox_posting,
+    OxPostingCandidate, OxPostingError,
 };
 use crate::simulation::building_fire_state;
 use crate::tables::StableOx;
@@ -88,9 +88,7 @@ pub fn set_building_oxen(
     if building_fire_state(ctx, building.id).is_some() {
         return Err("Repair this fire-damaged building before posting oxen here.".to_string());
     }
-    let maximum = building_def(&building.kind)
-        .map(|definition| definition.max_labor)
-        .unwrap_or(0);
+    let maximum = ox_workplace_capacity(&building.kind);
 
     let active_trip_ox_ids: HashSet<u64> = ctx
         .db

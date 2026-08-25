@@ -5026,7 +5026,11 @@ function describeVillagerActivity(
         }
       }
       if (agent.mode === 'chop') return `Chopping timber near ${workplaceLabel}`;
-      if (agent.mode === 'mine') return `Quarrying stone near ${workplaceLabel}`;
+      if (agent.mode === 'mine') {
+        if (workplace?.kind === 'large_quarry') return `Cutting rich stone at ${workplaceLabel}`;
+        if (workplace?.kind === 'mine') return `Working the deep face at ${workplaceLabel}`;
+        return `Extracting surface material near ${workplaceLabel}`;
+      }
       if (agent.mode === 'plant') {
         return workplace?.kind === 'clay_pit'
           ? `Cutting wet river clay at ${workplaceLabel}`

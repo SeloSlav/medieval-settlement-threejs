@@ -156,7 +156,7 @@ assert.equal(
 );
 
 const materialState = emptyGameState();
-const fullClayPit = building('material-clay', 'clay_pit', 3, 0, 0);
+const fullClayPit = building('material-clay', 'stone_quarry', 3, 0, 0);
 fullClayPit.processorOutputTargetPercent = 25;
 fullClayPit.clay = 45;
 const saltAndPotteryStarvedSmokehouse = building(
@@ -192,6 +192,10 @@ for (const site of [
 ]) {
   materialState.buildings.set(site.id, site);
 }
+materialState.quarries.set(
+  'clay-material-surface',
+  mineralDeposit('clay-material-surface', 'clay', 0, 100, false),
+);
 const materialPlan = computeSettlementWorksiteStallPlan(materialState, 7);
 assert.equal(materialPlan.auditedSites, 5);
 assert.equal(materialPlan.stalledSites, 3);
@@ -215,7 +219,7 @@ assert.equal(
   materialPlan.sites.find((site) => site.buildingId === fullClayPit.id)
     ?.targetLabor,
   0,
-  'a full clay yard must release its extraction crew while logistics moves stock',
+  'a full Mining Pit clay yard must release its extraction crew while logistics moves stock',
 );
 assert.equal(
   materialPlan.sites.some(
@@ -361,12 +365,14 @@ assert.equal(
 );
 
 const mineralState = emptyGameState();
-const exhaustedIronMine = building('mine-10-exhausted', 'mine', 3, 0, 0);
-const fullSaltMine = building('mine-20-full', 'mine', 4, 100, 0);
+const exhaustedIronMine = building('pit-10-exhausted', 'stone_quarry', 3, 0, 0);
+exhaustedIronMine.workRadius = 30;
+const fullSaltMine = building('pit-20-full', 'stone_quarry', 4, 100, 0);
+fullSaltMine.workRadius = 30;
 fullSaltMine.processorOutputTargetPercent = 25;
-fullSaltMine.salt = 60;
+fullSaltMine.salt = 45;
 const richIronMine = building('mine-30-rich', 'mine', 2, 200, 0);
-richIronMine.timber = 0.5;
+richIronMine.timber = 1;
 const mineralOnlyStoneCamp = building(
   'quarry-40-mineral-only',
   'stone_quarry',
@@ -412,13 +418,13 @@ assert.equal(mineralPlan.reclaimableWorkers, 9);
 assert.equal(
   mineralPlan.sites.find((site) => site.buildingId === exhaustedIronMine.id)
     ?.detail,
-  'finite iron seam beneath the mine is exhausted',
+  'no unexhausted surface deposit lies within the work area',
 );
 assert.equal(
   mineralPlan.sites.find((site) => site.buildingId === fullSaltMine.id)
     ?.targetLabor,
   0,
-  'a mine at its selected yard target must not retain a producer for its salt cart',
+  'a Mining Pit at its selected yard target must not retain a producer for its salt cart',
 );
 assert.equal(
   mineralPlan.sites.find((site) => site.buildingId === fullSaltMine.id)?.detail,
@@ -434,7 +440,7 @@ assert.equal(
     (site) => site.buildingId === mineralOnlyStoneCamp.id,
   )?.detail,
   'no unexhausted surface deposit lies within the work area',
-  'mineral deposits must not masquerade as usable stone outcrops',
+  'a rich marker with an exhausted surface cap must remain unavailable to a Mining Pit',
 );
 
 const unsupportedMineState = emptyGameState();
@@ -632,9 +638,10 @@ assert.match(serverReducer, /stalled_labor_target/);
 assert.match(serverReducer, /alternative_processor_recipe_ready/);
 assert.match(serverReducer, /processor_input_kinds/);
 assert.match(serverReducer, /fn extraction_output_blocked/);
-assert.match(serverReducer, /"clay_pit" => \(/);
 assert.match(serverReducer, /"mine" => \{/);
-assert.match(serverReducer, /fn mineral_source/);
+assert.match(serverReducer, /fn mineworks_source_commodity/);
+assert.match(serverReducer, /fn surface_source_commodity/);
+assert.match(serverReducer, /fn rich_stone_source_commodity/);
 assert.match(serverReducer, /rich_mine_supports_ready/);
 assert.match(serverReducer, /CommodityKind::Timber/);
 assert.match(serverReducer, /SpatialBuckets::<Quarry>::new/);
@@ -737,7 +744,7 @@ function quarry(
 
 function mineralDeposit(
   nodeId: string,
-  resource: 'iron' | 'salt',
+  resource: 'iron' | 'salt' | 'clay',
   x: number,
   remaining: number,
   isRich: boolean,

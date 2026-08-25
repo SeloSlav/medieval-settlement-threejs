@@ -61,6 +61,8 @@ import {
   onsiteBuildingLabor,
 } from '../logistics/deliveryTrips.ts';
 import { gameClock } from '../world/gameCalendar.ts';
+import { fireDisabledBuildingIds } from '../fires/fireIncident.ts';
+import { assignStableOxen } from '../settlement/stableOxen.ts';
 import {
   sampleAverageSouthExposure,
   VINEYARD_MAX_AREA,
@@ -359,6 +361,12 @@ export class FarmFieldTool {
       farmstead,
       findActiveTripForBuilding(state.deliveryTrips.values(), farmstead.id),
     );
+    const pairedStableOxen = [...assignStableOxen(
+      state.stableOxen.values(),
+      state.buildings,
+      state.deliveryTrips.values(),
+      fireDisabledBuildingIds(state.fireIncidents.values()),
+    ).values()].filter((assignment) => assignment.buildingId === farmstead.id).length;
     const plan = buildFarmsteadWorkPlan(
       [...holdingFields, draftField],
       onsiteLabor,
@@ -367,6 +375,7 @@ export class FarmFieldTool {
       cattleSupport,
       farmstead.ironwork ?? 0,
       farmstead,
+      pairedStableOxen,
     );
     const sowingPlan = FARM_CROP_DEFINITIONS[this.crop].workSeason === 'spring'
       ? plan.spring

@@ -121,6 +121,8 @@ import {
   clayBankYieldAt,
 } from './clayBankPolicy.ts';
 import {
+  miningPitOutputPerDay,
+  miningPitSurfaceDeposit,
   mineralDepositBeneath,
   mineralMineOutputPerDay,
 } from './settlementGeology.ts';
@@ -859,7 +861,21 @@ function geologicalDepositForBuilding(
   let nearest: ResourceNodeState | null = null;
   let nearestDistance = radius;
   for (const deposit of deposits) {
-    if (richOnly ? deposit.isRich !== true : deposit.remaining <= 1e-6) continue;
+    if (
+      deposit.resource !== 'stone'
+      && deposit.resource !== 'iron'
+      && deposit.resource !== 'salt'
+      && deposit.resource !== 'clay'
+    ) {
+      continue;
+    }
+    if (
+      richOnly
+        ? deposit.isRich !== true || deposit.resource !== 'stone'
+        : deposit.remaining <= 1e-6
+    ) {
+      continue;
+    }
     const distance = Math.hypot(deposit.x - building.x, deposit.z - building.z);
     if (distance > nearestDistance) continue;
     nearest = deposit;
@@ -883,11 +899,13 @@ function civilianToolSiteCanWork(
         && building.timber + 1e-6 >= LODGE_TIMBER_PER_CYCLE;
     case 'stone_quarry':
     case 'large_quarry': {
-      const deposit = geologicalDepositForBuilding(
-        building,
-        state.quarries.values(),
-        building.kind === 'large_quarry',
-      );
+      const deposit = building.kind === 'stone_quarry'
+        ? miningPitSurfaceDeposit(building, state.quarries.values())
+        : geologicalDepositForBuilding(
+          building,
+          state.quarries.values(),
+          true,
+        );
       if (
         deposit?.resource !== 'stone'
         && deposit?.resource !== 'iron'
@@ -899,9 +917,13 @@ function civilianToolSiteCanWork(
     }
     case 'mine': {
       if (mineDeposit == null) return false;
-      const output = mineDeposit.resource === 'iron' ? 'iron' : 'salt';
+      const output = mineDeposit.resource === 'iron'
+        ? 'iron'
+        : mineDeposit.resource === 'salt'
+          ? 'salt'
+          : 'clay';
       return stockTargetHasRoom(building, output)
-        && (mineDeposit.isRich !== true || richMineSupportsReady(building.timber));
+        && richMineSupportsReady(building.timber);
     }
     case 'clay_pit':
       return stockTargetHasRoom(building, 'clay')
@@ -1057,6 +1079,9 @@ function completedProcessorOverview(
     const clayBankYield = building.kind === 'clay_pit'
       ? clayBankYieldAt(building.x, building.z, resourceAbundance)
       : 1;
+    const surfaceDeposit = building.kind === 'stone_quarry'
+      ? miningPitSurfaceDeposit(building, state.quarries.values())
+      : null;
     const mineDeposit = building.kind === 'mine'
       ? mineralDepositBeneath(building, state.quarries.values())
       : null;
@@ -1078,6 +1103,7 @@ function completedProcessorOverview(
         building.kind !== 'mine'
         || mineDeposit?.resource === 'iron'
         || mineDeposit?.resource === 'salt'
+        || mineDeposit?.resource === 'clay'
       )
     ) {
       toolEligibleSites += 1;
@@ -1637,6 +1663,34 @@ function completedProcessorOverview(
         branch.firstClayId = earlierStableId(branch.firstClayId, building.id);
         break;
       }
+      case 'stone_quarry': {
+        if (surfaceDeposit?.resource !== 'iron' && surfaceDeposit?.resource !== 'clay') {
+          break;
+        }
+        const outputPerDay = miningPitOutputPerDay(
+          building,
+          surfaceDeposit,
+          sabbathObserved,
+        );
+        const branch = industrialMaterialBranch(
+          industrialMaterialBranches,
+          building,
+          componentFor,
+        );
+        if (surfaceDeposit.resource === 'iron') {
+          branch.localIronOutputPerDay += outputPerDay;
+          branch.firstIronMineId = earlierStableId(
+            branch.firstIronMineId,
+            building.id,
+          );
+        } else {
+          clayWorkers += building.assignedLabor;
+          clayBankWeightedLabor += building.assignedLabor;
+          branch.clayOutputPerDay += outputPerDay;
+          branch.firstClayId = earlierStableId(branch.firstClayId, building.id);
+        }
+        break;
+      }
       case 'charcoal_burner': {
         charcoalWorkers += building.assignedLabor;
         const cycles = charcoalCyclesPerWorker * building.assignedLabor;
@@ -1745,7 +1799,7 @@ function completedProcessorOverview(
         break;
       }
       case 'mine': {
-        if (mineDeposit?.resource !== 'iron') break;
+        if (mineDeposit?.resource !== 'iron' && mineDeposit?.resource !== 'clay') break;
         const outputPerDay = mineralMineOutputPerDay(
           building,
           mineDeposit,
@@ -1757,11 +1811,18 @@ function completedProcessorOverview(
           building,
           componentFor,
         );
-        branch.localIronOutputPerDay += outputPerDay;
-        branch.firstIronMineId = earlierStableId(
-          branch.firstIronMineId,
-          building.id,
-        );
+        if (mineDeposit.resource === 'iron') {
+          branch.localIronOutputPerDay += outputPerDay;
+          branch.firstIronMineId = earlierStableId(
+            branch.firstIronMineId,
+            building.id,
+          );
+        } else {
+          clayWorkers += building.assignedLabor;
+          clayBankWeightedLabor += building.assignedLabor;
+          branch.clayOutputPerDay += outputPerDay;
+          branch.firstClayId = earlierStableId(branch.firstClayId, building.id);
+        }
         break;
       }
       case 'potter_kiln': {

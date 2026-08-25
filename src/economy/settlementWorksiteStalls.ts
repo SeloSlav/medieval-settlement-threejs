@@ -473,8 +473,8 @@ function clayPitStall(
 function mineralDepositState(
   building: BuildingState,
   quarryBuckets: ReadonlyMap<string, readonly ResourceNodeState[]>,
-): { resource: 'iron' | 'salt'; usable: boolean; isRich: boolean } | null {
-  for (const resource of ['iron', 'salt'] as const) {
+): { resource: 'iron' | 'salt' | 'clay' } | null {
+  for (const resource of ['iron', 'salt', 'clay'] as const) {
     const richSource = sourceStateWithinRadius(
       quarryBuckets,
       building.x,
@@ -484,22 +484,7 @@ function mineralDepositState(
       () => true,
     );
     if (richSource.relevant) {
-      return { resource, usable: true, isRich: true };
-    }
-    const ordinarySource = sourceStateWithinRadius(
-      quarryBuckets,
-      building.x,
-      building.z,
-      RICH_DEPOSIT_CENTER_TOLERANCE,
-      (deposit) => deposit.resource === resource && deposit.isRich !== true,
-      (deposit) => deposit.remaining > 1e-6,
-    );
-    if (ordinarySource.relevant) {
-      return {
-        resource,
-        usable: ordinarySource.usable,
-        isRich: false,
-      };
+      return { resource };
     }
   }
   return null;
@@ -514,7 +499,9 @@ function mineStall(
   const source = mineralDepositState(building, quarryBuckets);
   const assignedLabor = Math.max(0, Math.floor(building.assignedLabor));
   const outputStock = source === null
-    ? Math.max(0, building.iron ?? 0) + Math.max(0, building.salt ?? 0)
+    ? Math.max(0, building.iron ?? 0)
+      + Math.max(0, building.salt ?? 0)
+      + Math.max(0, building.clay ?? 0)
     : Math.max(0, building[source.resource] ?? 0);
   const hasDispatchDuty = hasActiveOriginTrip || outputStock > 1e-6;
   const targetLabor = 0;
@@ -532,7 +519,7 @@ function mineStall(
     return {
       ...base,
       reason: 'source_unavailable',
-      detail: 'no iron or salt deposit lies beneath the mine',
+      detail: 'no rich iron, salt, or clay deposit lies beneath the Mineworks',
     };
   }
   if (
@@ -545,14 +532,7 @@ function mineStall(
       detail: `local ${source.resource} yard target reached`,
     };
   }
-  if (!source.usable) {
-    return {
-      ...base,
-      reason: 'source_unavailable',
-      detail: `finite ${source.resource} seam beneath the mine is exhausted`,
-    };
-  }
-  if (source.isRich && !richMineSupportsReady(building.timber)) {
+  if (!richMineSupportsReady(building.timber)) {
     if (inboundCargo?.has('timber') === true) return 'supply_en_route';
     return {
       ...base,
@@ -605,7 +585,7 @@ function quarryStall(
       return {
         ...base,
         reason: 'source_unavailable',
-        detail: 'no rich underground source beneath the shaft',
+        detail: 'no rich stone deposit lies beneath the quarry',
       };
     }
     if (!largeQuarrySupportsReady(building.timber)) {
@@ -640,7 +620,7 @@ function geologicalSourceForQuarry(
   for (const deposits of quarryBuckets.values()) {
     for (const deposit of deposits) {
       if (building.kind === 'large_quarry') {
-        if (deposit.isRich !== true) continue;
+        if (deposit.isRich !== true || deposit.resource !== 'stone') continue;
       } else if (deposit.remaining <= 1e-6) {
         continue;
       }

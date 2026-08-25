@@ -4,6 +4,8 @@
 //! Keeping the matching policy free of SpacetimeDB types makes its ordering and
 //! capacity rules host-testable and keeps the client contract explicit.
 
+use crate::balance_generated::STABLE_OX_MAX_PER_WORKPLACE;
+
 /// Every workplace whose workers may be accompanied by a stable ox. The final
 /// three entries are logistics-only; the rest may receive a production boost.
 pub const OX_SUPPORTED_WORKPLACE_KINDS: &[&str] = &[
@@ -31,6 +33,20 @@ pub fn is_ox_supported_workplace(kind: &str) -> bool {
 pub fn is_ox_production_workplace(kind: &str) -> bool {
     is_ox_supported_workplace(kind)
         && !matches!(kind, "village_storehouse" | "granary" | "trading_post")
+}
+
+/// Ox postings use a pool independent from human labor. The type-specific
+/// ceiling represents useful room for teams at the workplace; actual work
+/// still pairs each ox with a present laborer, leaving excess oxen waiting.
+pub fn ox_workplace_capacity(kind: &str) -> u32 {
+    let type_capacity = match kind {
+        "lumber_mill" | "stone_quarry" | "large_quarry" | "mine" | "clay_pit"
+        | "threshing_barn" | "pastoral_farmstead" => 3,
+        "woodcutters_lodge" | "charcoal_burner" | "swineherd" | "carpenter" => 2,
+        "reforester" | "village_storehouse" | "granary" | "trading_post" => 1,
+        _ => 0,
+    };
+    type_capacity.min(STABLE_OX_MAX_PER_WORKPLACE)
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -312,6 +328,15 @@ mod tests {
         assert!(!is_ox_production_workplace("village_storehouse"));
         assert!(is_ox_production_workplace("lumber_mill"));
         assert!(!is_ox_supported_workplace("smithy"));
+    }
+
+    #[test]
+    fn workplace_capacity_follows_type_size_but_never_exceeds_three() {
+        assert_eq!(ox_workplace_capacity("reforester"), 1);
+        assert_eq!(ox_workplace_capacity("woodcutters_lodge"), 2);
+        assert_eq!(ox_workplace_capacity("threshing_barn"), 3);
+        assert_eq!(ox_workplace_capacity("granary"), 1);
+        assert_eq!(ox_workplace_capacity("smithy"), 0);
     }
 
     #[test]

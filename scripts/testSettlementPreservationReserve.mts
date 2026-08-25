@@ -268,7 +268,7 @@ localSaltState.buildings.set(
   building('local-salt-smokehouse', 'smokehouse', 1),
 );
 const localSaltMine = building('local-salt-mine', 'mine', 4);
-localSaltMine.timber = 0.5;
+localSaltMine.timber = 1;
 localSaltState.buildings.set(localSaltMine.id, localSaltMine);
 localSaltState.quarries.set(
   'local-rich-salt',
@@ -298,7 +298,7 @@ finiteSaltState.buildings.set(
   'finite-salt-smokehouse',
   building('finite-salt-smokehouse', 'smokehouse', 1),
 );
-const finiteSaltMine = building('finite-salt-mine', 'mine', 4);
+const finiteSaltMine = building('finite-salt-pit', 'stone_quarry', 4);
 finiteSaltState.buildings.set(finiteSaltMine.id, finiteSaltMine);
 finiteSaltState.quarries.set(
   'finite-salt-seam',
@@ -317,6 +317,51 @@ approx(
   Math.max(0, finiteSaltPlan.saltRequired - 0.25),
 );
 
+const layeredSaltState = emptyGameState();
+layeredSaltState.physicalFoundingSiteEnabled = true;
+layeredSaltState.residences.set(
+  'layered-salt-home',
+  residence('layered-salt-home', 1, 0),
+);
+layeredSaltState.buildings.set(
+  'layered-salt-smokehouse',
+  building('layered-salt-smokehouse', 'smokehouse', 1),
+);
+const layeredSaltPit = building('layered-salt-pit', 'stone_quarry', 1);
+const layeredSaltMineworks = building('layered-salt-mineworks', 'mine', 1);
+layeredSaltMineworks.timber = 1;
+layeredSaltState.buildings.set(layeredSaltPit.id, layeredSaltPit);
+layeredSaltState.buildings.set(layeredSaltMineworks.id, layeredSaltMineworks);
+layeredSaltState.quarries.set(
+  'layered-rich-salt',
+  mineralDeposit('layered-rich-salt', 'salt', 0, 0, 0.25, 300, true),
+);
+const layeredSaltPlan = computeSettlementPreservationReservePlan(
+  layeredSaltState,
+  {
+    sabbathObserved: false,
+    roadComponentFor: () => 'core',
+  },
+);
+assert.equal(layeredSaltPlan.staffedSaltMines, 2);
+assert.ok(
+  layeredSaltPlan.localSaltProduction > 0.25,
+  'Mineworks deep output must not be overwritten or capped by the same rich marker\'s finite Mining Pit surface row',
+);
+assert.equal(layeredSaltPlan.saltImportShortfall, 0);
+layeredSaltState.buildings.delete(layeredSaltMineworks.id);
+const layeredSurfaceOnlyPlan = computeSettlementPreservationReservePlan(
+  layeredSaltState,
+  {
+    sabbathObserved: false,
+    roadComponentFor: () => 'core',
+  },
+);
+assert.ok(
+  layeredSaltPlan.localSaltProduction > layeredSurfaceOnlyPlan.localSaltProduction,
+  'the finite surface and non-depleting deep forecasts must coexist as distinct sources',
+);
+
 const remoteSaltState = emptyGameState();
 remoteSaltState.physicalFoundingSiteEnabled = true;
 remoteSaltState.residences.set(
@@ -330,7 +375,7 @@ remoteSaltState.buildings.set(
 const remoteSaltMine = building('remote-salt-mine', 'mine', 4);
 remoteSaltMine.x = 100;
 remoteSaltMine.salt = 12;
-remoteSaltMine.timber = 0.5;
+remoteSaltMine.timber = 1;
 remoteSaltState.buildings.set(remoteSaltMine.id, remoteSaltMine);
 remoteSaltState.quarries.set(
   'remote-rich-salt',
@@ -366,7 +411,7 @@ const rendered = renderPreservationReserveRows(recipePlan, 14);
 assert.match(rendered, /30-day winter fallback/);
 assert.match(rendered, /Reserve completion/);
 assert.match(rendered, /Salt supply/);
-assert.match(rendered, /no staffed same-branch salt mine/);
+assert.match(rendered, /no staffed same-branch salt extraction site/);
 assert.match(rendered, /Preserving vessels/);
 assert.match(rendered, /data-inspect-residence="recipe-home"/);
 assert.match(rendered, /data-inspect-building="recipe-smokehouse"/);
@@ -381,7 +426,7 @@ assert.match(rendered, /including cured-stock aging while the reserve builds/);
 assert.doesNotMatch(rendered, /Adriatic salt burden/);
 
 const localSaltRows = renderPreservationReserveRows(localSaltPlan, 14);
-assert.match(localSaltRows, /forecast from 1 staffed same-branch mine/);
+assert.match(localSaltRows, /forecast from 1 staffed same-branch salt extraction site/);
 assert.match(localSaltRows, /no Adriatic import required/);
 assert.match(localSaltRows, /market import reserve not needed/);
 assert.match(localSaltRows, /data-inspect-building="local-salt-mine"/);
