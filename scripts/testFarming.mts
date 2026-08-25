@@ -891,6 +891,36 @@ const cattleSupport = computeCattleFieldSupport({
   livestockHerds: new Map([[healthyCattle.pastureId, healthyCattle]]),
 });
 assert.deepEqual([...cattleSupport.keys()], ['farm-field-2', 'farm-field-10']);
+assert.equal(
+  computeCattleFieldSupport({
+    buildings: new Map([[oxHolding.id, oxHolding]]),
+    farmFields: new Map(cattleCandidateFields.map((field) => [field.id, field])),
+    livestockHerds: new Map([
+      ['pasture-71', { ...healthyCattle, pastureId: 'pasture-71', headCount: 1, suppliedCapacity: 1 }],
+      ['pasture-72', { ...healthyCattle, pastureId: 'pasture-72', headCount: 1, suppliedCapacity: 1 }],
+    ]),
+  }).size,
+  0,
+  'two undersized parcel herds must not be combined into a synthetic ox team',
+);
+assert.deepEqual(
+  [...computeCattleFieldSupport({
+    buildings: new Map([[oxHolding.id, oxHolding]]),
+    farmFields: new Map(cattleCandidateFields.map((field) => [field.id, field])),
+    livestockHerds: new Map([
+      ['pasture-73', { ...healthyCattle, pastureId: 'pasture-73', headCount: 2, suppliedCapacity: 2 }],
+      ['pasture-74', {
+        ...healthyCattle,
+        pastureId: 'pasture-74',
+        headCount: 20,
+        suppliedCapacity: 0,
+        health: 0.12,
+      }],
+    ]),
+  }).keys()],
+  ['farm-field-2', 'farm-field-10'],
+  'one eligible parcel herd must still provide support beside an unhealthy sibling herd',
+);
 const unsupportedPloughWork = currentFieldWorkRemaining(cattleCandidateFields[0]);
 assert.equal(
   currentFieldWorkRemaining(

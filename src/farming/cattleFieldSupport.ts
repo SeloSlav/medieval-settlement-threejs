@@ -85,27 +85,14 @@ export function selectCattleSupportedFields(
 export function computeCattleFieldSupport(
   state: CattleSupportState,
 ): Map<string, CattleFieldSupport> {
-  const cattleByBuilding = new Map<string, LivestockHerdState[]>();
+  const eligibleHerdByBuilding = new Map<string, LivestockHerdState>();
   for (const herd of state.livestockHerds.values()) {
-    if (herd.species !== 'cattle') continue;
-    const linked = cattleByBuilding.get(herd.buildingId) ?? [];
-    linked.push(herd);
-    cattleByBuilding.set(herd.buildingId, linked);
+    if (!eligibleCattleHerd(herd)) continue;
+    if (eligibleHerdByBuilding.has(herd.buildingId)) continue;
+    eligibleHerdByBuilding.set(herd.buildingId, herd);
   }
   const eligibleHoldings: Array<{ building: BuildingState; herd: LivestockHerdState }> = [];
-  for (const [buildingId, herds] of cattleByBuilding) {
-    const headCount = herds.reduce((sum, herd) => sum + herd.headCount, 0);
-    const suppliedCapacity = herds.reduce((sum, herd) => sum + herd.suppliedCapacity, 0);
-    const health = headCount > 0
-      ? herds.reduce((sum, herd) => sum + herd.health * herd.headCount, 0) / headCount
-      : 0;
-    const herd = {
-      ...herds[0]!,
-      headCount,
-      suppliedCapacity,
-      health,
-    };
-    if (!eligibleCattleHerd(herd)) continue;
+  for (const [buildingId, herd] of eligibleHerdByBuilding) {
     const building = state.buildings.get(buildingId);
     if (building) eligibleHoldings.push({ building, herd });
   }

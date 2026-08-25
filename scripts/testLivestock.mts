@@ -309,7 +309,7 @@ assert.match(farmFieldToolSource, /management cap reached/);
 assert.match(farmFieldToolSource, /getTreeRegistry/);
 assert.match(
   farmFieldToolSource,
-  /pastureSpecies === 'swine'[\s\S]{0,80}SWINE_MAX_SLOPE_DEGREES/,
+  /farmstead!\.kind === 'swineherd'[\s\S]{0,80}SWINE_MAX_SLOPE_DEGREES/,
   'swine pannage preview validation must use the same slope ceiling as the server',
 );
 assert.match(worldQueriesSource, /getMaturePannageTreeCount/);
