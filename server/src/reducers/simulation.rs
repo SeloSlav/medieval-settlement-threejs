@@ -564,13 +564,7 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
     }
 
     step_backyard_gardens(ctx, &tick, &clock, environment);
-    step_fresh_food_spoilage(
-        ctx,
-        &clock,
-        environment,
-        world_seed,
-        food_spoilage_rate,
-    );
+    step_fresh_food_spoilage(ctx, &clock, environment, world_seed, food_spoilage_rate);
     // Physical hauling ends at stalls. Several checks per game day issue real
     // market stock to connected homes after local production, intake, and
     // spoilage without multiplying the household's monthly target lot.
