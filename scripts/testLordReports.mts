@@ -28,10 +28,16 @@ import {
 } from '../src/ui/lordReports.ts';
 
 const appBootstrap = readFileSync('src/app/appBootstrap.ts', 'utf8');
+const appSource = readFileSync('src/app/App.ts', 'utf8');
 assert.match(
   appBootstrap,
   /setLordReportTargetHandler[\s\S]*?focusWorldPositionAtZoom\([\s\S]*?REPORT_FOCUS_ZOOM_PERCENT[\s\S]*?setSecurityAttentionHandler/,
   'lord report targets must center at the shared 50% report zoom',
+);
+assert.match(
+  appSource,
+  /notifyLordReportChanges\(\s*state,\s*previous,\s*snapshot\.parishPolicy\.sabbathObservanceEnabled,\s*formatSabbathReadiness\(provisioning\),?\s*\)[\s\S]*?deriveLordReportTransitions\(state,\s*previous,\s*\{\s*sabbathObservanceEnabled,\s*sabbathReadinessLabel,?\s*\}\)/,
+  'Sabbath reports must receive the authoritative parish policy and live household readiness summary',
 );
 
 const routineDawn = {
@@ -84,7 +90,10 @@ const initialSunday = gameState(0, { buildings: [staffedChapel] });
 const initialObservedSabbath = deriveLordReportTransitions(
   initialSunday,
   null,
-  { sabbathObservanceEnabled: true },
+  {
+    sabbathObservanceEnabled: true,
+    sabbathReadinessLabel: '3.2 days of food · 1.7 days of firewood',
+  },
 ).filter((entry) => entry.kind === 'sabbath');
 assert.equal(initialObservedSabbath.length, 1);
 assert.equal(initialObservedSabbath[0]?.id, 'sabbath:1:0');
@@ -101,6 +110,11 @@ assert.match(
   initialObservedSabbath[0]?.detail ?? '',
   /labor|work|deliver/i,
   'the report should explain the in-game consequence of observance',
+);
+assert.match(
+  initialObservedSabbath[0]?.detail ?? '',
+  /3\.2 days of food · 1\.7 days of firewood/,
+  'the report should carry through the live in-game household readiness summary',
 );
 
 assert.deepEqual(
@@ -136,6 +150,36 @@ assert.deepEqual(
   ).filter((entry) => entry.kind === 'sabbath'),
   [],
   'hydrating on any non-Sunday must not invent a Sabbath report',
+);
+
+const easterSundayTick = (
+  35 * CALENDAR_SECONDS_PER_DAY - CALENDAR_DAY_START_OFFSET_SECONDS
+) / SIM_TICK_SECONDS;
+const easterSundayReports = deriveLordReportTransitions(
+  gameState(easterSundayTick, {
+    fires: [fireIncident({
+      targetKind: 'residence',
+      targetId: 'home-1',
+      status: 'burning',
+    })],
+  }),
+  null,
+  { sabbathObservanceEnabled: false },
+);
+assert.equal(
+  easterSundayReports.length,
+  1,
+  'initial hydration should still baseline entity transitions while allowing the Easter status report',
+);
+assert.equal(easterSundayReports[0]?.kind, 'sabbath');
+assert.equal(easterSundayReports[0]?.id, 'sabbath:1:35');
+assert.equal(easterSundayReports[0]?.tone, 'settled');
+assert.match(easterSundayReports[0]?.title ?? '', /Sabbath.*observed/);
+assert.doesNotMatch(easterSundayReports[0]?.title ?? '', /not observed/);
+assert.match(
+  easterSundayReports[0]?.detail ?? '',
+  /Easter|holy[- ]day/i,
+  'Easter Sunday should explain the settlement-wide protected holy-day observance',
 );
 
 const policyDisabledSabbath = deriveLordReportTransitions(

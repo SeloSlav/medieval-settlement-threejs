@@ -229,6 +229,16 @@ assert.match(residenceRenderer, /data-action="upgrade-residence" data-upgrade-ti
 assert.match(residenceRenderer, /data-residence-summary/);
 assert.match(
   residenceRenderer,
+  /data-inspector-detail="Staffed parish level \$\{requiredChapelTierForResidence\(residence\.tier\)\} required"><span>Church<\/span>/,
+  'the compact church summary should state only the actual staffed-parish requirement',
+);
+assert.doesNotMatch(
+  residenceRenderer,
+  /data-inspector-detail="[^"]*no monastery[^"]*"><span>Church<\/span>/,
+  'optional monastery coverage must not be presented as a church requirement',
+);
+assert.match(
+  residenceRenderer,
   /data-residence-summary data-inspector-primary data-inspector-resource-strip data-inspector-section="Materials"[\s\S]{0,240}renderInspectorResourceStrip\(worksiteTokens/,
   'residence worksites should summarize materials as an icon strip',
 );

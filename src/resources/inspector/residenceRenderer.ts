@@ -755,7 +755,7 @@ export function renderResidenceInspector(
       <li data-residence-summary data-inspector-primary data-inspector-detail="Parcel #${residence.parcelIndex + 1} · ${residenceCount} residence${residenceCount === 1 ? '' : 's'} · ${settlersRemaining} vacancies"><span>Population</span><span>${residence.population} / ${capacity}</span></li>
       <li data-residence-summary data-inspector-primary data-inspector-detail="Malnutrition ${Math.round((residence.malnutrition ?? 0) * 100)}% · sick ${residence.sickPopulation ?? 0} · deaths ${residence.deathsTotal ?? 0}"><span>Health</span><span>${compactHealthLabel}</span></li>
       <li data-residence-summary data-inspector-primary data-inspector-detail="${residence.tier >= 4 ? 'Fired clay tile' : residence.tier === 1 ? 'Bundled thatch' : 'Split wooden shingle'} · ${roadAccess}"><span>House tier</span><span>${residence.tier} / 4</span></li>
-      <li data-residence-summary data-inspector-primary data-inspector-detail="Required level ${requiredChapelTierForResidence(residence.tier)} · ${community.hasMonasteryCoverage ? 'monastery linked' : 'no monastery'}"><span>Church</span><span>${community.hasChapelAccess ? `L${community.chapelTier ?? 1}` : 'Missing'}</span></li>
+      <li data-residence-summary data-inspector-primary data-inspector-detail="Staffed parish level ${requiredChapelTierForResidence(residence.tier)} required"><span>Church</span><span>${community.hasChapelAccess ? `L${community.chapelTier ?? 1}` : 'Missing'}</span></li>
       <li data-residence-summary data-inspector-primary data-inspector-resource-strip data-inspector-section="Stores"><span>Stores</span>${renderInspectorResourceStrip(householdTokens, { ariaLabel: 'Household stores' })}</li>
     `;
 

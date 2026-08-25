@@ -13,6 +13,7 @@ import {
   formatSettlementClock,
   gameClock,
 } from '../world/gameCalendar.ts';
+import { holidayObservanceForClock } from '../world/holidayCalendar.ts';
 import {
   SUNDAY_MASS_END_HOUR,
   SUNDAY_MASS_START_HOUR,
@@ -378,39 +379,48 @@ function deriveSabbathReports(
   ));
   const sabbathObserved = context.sabbathObservanceEnabled
     && staffedChurches.length > 0;
+  const holiday = holidayObservanceForClock(clock);
   const reportChurch = staffedChurches[0] ?? completedChurches[0];
-  const people = computePopulationStats(current).total;
-  const peopleLabel = `${people} ${people === 1 ? 'person' : 'people'}`;
+  const population = computePopulationStats(current);
+  const peopleLabel = `${population.total} ${population.total === 1 ? 'person' : 'people'}`;
   const churchLabel = `${staffedChurches.length} staffed ${staffedChurches.length === 1 ? 'church' : 'churches'}`;
   const committedCarts = current.deliveryTrips.size;
   const committedCartLabel = committedCarts === 0
     ? 'no carts are currently committed'
     : `${committedCarts} committed ${committedCarts === 1 ? 'cart continues' : 'carts continue'}`;
   const massWindow = `${formatScheduleHour(SUNDAY_MASS_START_HOUR)}–${formatScheduleHour(SUNDAY_MASS_END_HOUR)}`;
+  const sickPeople = population.sick ?? 0;
+  const sickPeopleLabel = sickPeople > 0
+    ? ` ${sickPeople} sick ${sickPeople === 1 ? 'resident remains' : 'residents remain'} home.`
+    : '';
+  const massDetail = staffedChurches.length > 0
+    ? ` Sunday Mass is scheduled ${massWindow} for road-linked households.${sickPeopleLabel}`
+    : ' No staffed church is available for parish Mass.';
 
   let tone: LordReportTone = 'settled';
   let detail: string;
-  if (sabbathObserved) {
+  if (holiday) {
+    detail = `${holiday.label} is a protected holy day. Ordinary labor and new cart departures rest regardless of parish policy; ${committedCartLabel}. Household consumption and need clocks are frozen, and no household tithes are due.${massDetail}`;
+  } else if (sabbathObserved) {
     const readiness = context.sabbathReadinessLabel
       ? ` Sunday stores: ${context.sabbathReadinessLabel}.`
       : '';
-    detail = `${peopleLabel} · ${churchLabel}. Ordinary labor and new cart departures rest today; ${committedCartLabel}. Households still consume provisions, and no household tithes are due.${readiness} Sunday Mass is scheduled ${massWindow} for road-linked households.`;
+    detail = `${peopleLabel} · ${churchLabel}. Ordinary labor and new cart departures rest today; ${committedCartLabel}. Households still consume provisions, and no household tithes are due.${readiness}${massDetail}`;
   } else if (context.sabbathObservanceEnabled) {
     tone = 'warning';
     detail = `Observance is ordered, but no staffed, serviceable church is available. Normal labor and delivery schedules remain in effect for ${peopleLabel}; no parish Mass can gather.`;
   } else {
     tone = 'notice';
-    const mass = staffedChurches.length > 0
-      ? ` ${churchLabel} still schedules Mass ${massWindow} for road-linked households.`
-      : ' No staffed church is available for parish Mass.';
-    detail = `Parish policy does not order Sabbath rest. Normal labor and delivery schedules remain in effect for ${peopleLabel}.${mass}`;
+    detail = `Parish policy does not order Sabbath rest. Normal labor and delivery schedules remain in effect for ${peopleLabel}.${massDetail}`;
   }
 
   return [{
     id: `sabbath:${current.seed}:${clock.totalDays}`,
     kind: 'sabbath',
     tone,
-    title: `It is Sunday — the Sabbath is ${sabbathObserved ? '' : 'not '}observed`,
+    title: holiday
+      ? `It is Sunday — the Sabbath and ${holiday.label} are observed`
+      : `It is Sunday — the Sabbath is ${sabbathObserved ? '' : 'not '}observed`,
     detail,
     timeLabel: reportTime(current),
     ...(reportChurch
@@ -433,12 +443,15 @@ export function deriveLordReportTransitions(
   previous: GameState | null,
   context?: LordReportContext,
 ): LordReport[] {
-  if (
-    previous !== null
-    && (current.seed !== previous.seed || current.tick < previous.tick)
-  ) return [];
-  const sabbathReports = deriveSabbathReports(current, previous, context);
-  if (previous === null) return sabbathReports;
+  const establishesBaseline = previous === null
+    || current.seed !== previous.seed
+    || current.tick < previous.tick;
+  const sabbathReports = deriveSabbathReports(
+    current,
+    establishesBaseline ? null : previous,
+    context,
+  );
+  if (establishesBaseline) return sabbathReports;
   return [
     ...deriveFireReports(current, previous),
     ...deriveLaborReports(current, previous),

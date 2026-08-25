@@ -41,6 +41,10 @@ export const FOREST_FLOOR_IVY_TEXTURE_PATH =
   '/assets/textures/vegetation/forest-floor-ivy-leaf-atlas-v2.png';
 export const FOREST_FLOOR_IVY_SEED = 0x1f1c0a7;
 export const FOREST_FLOOR_IVY_MIN_BLEND = 0.24;
+/** Keep the live GPU batch local; the default world owns roughly 11k colonies. */
+export const FOREST_FLOOR_IVY_STREAM_RADIUS = 104;
+export const FOREST_FLOOR_IVY_STREAM_REBUILD_DISTANCE = 10;
+export const FOREST_FLOOR_IVY_MAX_RESIDENT_PATCHES = 1_024;
 export const FOREST_FLOOR_IVY_SNOW_RGB = [0.92, 0.955, 0.98] as const;
 export const FOREST_FLOOR_IVY_SNOW_EXPOSURE_MIN = 0.2;
 export const FOREST_FLOOR_IVY_SNOW_EXPOSURE_MAX = 0.86;
@@ -303,6 +307,7 @@ export type ForestFloorIvyLayerInstanceRange = ForestFloorIvyInstanceRange & {
 
 export type ForestFloorIvyStats = {
   instances: number;
+  residentInstances: number;
   verticesPerInstance: number;
   trianglesPerInstance: number;
   vertices: number;
@@ -311,12 +316,14 @@ export type ForestFloorIvyStats = {
   layers: number;
   leavesPerInstance: number;
   leaves: number;
+  residentLeaves: number;
   leafPrototypeVertices: number;
   leafPrototypeTriangles: number;
   drawCalls: number;
   maximumRelief: number;
   maximumCanopyHeight: number;
   seed: number;
+  streamRadius: number;
 };
 
 export type CompiledForestFloorIvyGeometry = {
@@ -341,6 +348,10 @@ export type ForestFloorIvyInstances = {
   setTreeActive: (treeIndex: number, active: boolean) => boolean;
   setPlacementActive: (placementIndex: number, active: boolean) => boolean;
   refreshBlockedMask: (isBlockedAt?: ForestFloorIvyBlocker) => number;
+  updateCamera: (
+    cameraPosition: Pick<THREE.Vector3, 'x' | 'z'>,
+    closeDetailVisible: boolean,
+  ) => boolean;
   commit: () => void;
   dispose: () => void;
 };
@@ -518,6 +529,79 @@ export function createForestFloorIvyMaterial(
     applyForestFloorIvyWebGLSnow(material);
   }
   return material;
+}
+
+type ForestFloorIvyResidentArray = Float32Array | Uint8Array;
+
+type ForestFloorIvyResidentAttribute = {
+  source: THREE.InstancedBufferAttribute;
+  target: THREE.InstancedBufferAttribute;
+};
+
+type ForestFloorIvyResidentGeometry = {
+  geometry: THREE.BufferGeometry;
+  attributes: ForestFloorIvyResidentAttribute[];
+};
+
+function createForestFloorIvyResidentGeometry(
+  sourceGeometry: THREE.BufferGeometry,
+  capacity: number,
+): ForestFloorIvyResidentGeometry {
+  const geometry = createForestFloorIvyLeafGeometry();
+  const attributes: ForestFloorIvyResidentAttribute[] = [];
+  const targetBySource = new Map<THREE.BufferAttribute, THREE.InstancedBufferAttribute>();
+
+  for (const [name, sourceAttribute] of Object.entries(sourceGeometry.attributes)) {
+    if (!(sourceAttribute as THREE.InstancedBufferAttribute).isInstancedBufferAttribute) continue;
+    const source = sourceAttribute as THREE.InstancedBufferAttribute;
+    let target = targetBySource.get(source);
+    if (!target) {
+      const sourceArray = source.array as ForestFloorIvyResidentArray;
+      const targetArray = sourceArray instanceof Uint8Array
+        ? new Uint8Array(capacity * source.itemSize)
+        : new Float32Array(capacity * source.itemSize);
+      target = new THREE.InstancedBufferAttribute(
+        targetArray,
+        source.itemSize,
+        source.normalized,
+        source.meshPerAttribute,
+      );
+      target.gpuType = source.gpuType;
+      target.setUsage(THREE.DynamicDrawUsage);
+      targetBySource.set(source, target);
+      attributes.push({ source, target });
+    }
+    geometry.setAttribute(name, target);
+  }
+
+  return { geometry, attributes };
+}
+
+function copyForestFloorIvyResidentAttributeRange(
+  attribute: ForestFloorIvyResidentAttribute,
+  sourceInstanceStart: number,
+  instanceCount: number,
+  targetInstanceStart: number,
+): void {
+  const itemSize = attribute.source.itemSize;
+  const source = attribute.source.array as ForestFloorIvyResidentArray;
+  const target = attribute.target.array as ForestFloorIvyResidentArray;
+  target.set(
+    source.subarray(
+      sourceInstanceStart * itemSize,
+      (sourceInstanceStart + instanceCount) * itemSize,
+    ),
+    targetInstanceStart * itemSize,
+  );
+}
+
+function markForestFloorIvyResidentAttributeUpdate(
+  attribute: THREE.InstancedBufferAttribute,
+  instanceCount: number,
+): void {
+  attribute.clearUpdateRanges();
+  if (instanceCount > 0) attribute.addUpdateRange(0, instanceCount * attribute.itemSize);
+  attribute.needsUpdate = true;
 }
 
 /**
