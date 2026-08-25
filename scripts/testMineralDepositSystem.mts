@@ -47,7 +47,6 @@ import { buildLayoutWorldMapMarkers } from '../src/map/worldMapMarkers.ts';
 import { renderMineralMineInspector } from '../src/resources/inspector/mineralMineRenderer.ts';
 import { renderLargeQuarryInspector } from '../src/resources/inspector/largeQuarryRenderer.ts';
 import { renderStoneQuarryInspector } from '../src/resources/inspector/stoneQuarryRenderer.ts';
-import { withWorksiteLodging } from '../src/resources/inspector/remoteWorkCampRenderer.ts';
 import type { InspectorRenderContext } from '../src/resources/inspector/renderInspectableTarget.ts';
 import {
   computePopulationStats,
@@ -1460,7 +1459,7 @@ const inspectorMiningPit = mineBuilding({
   assignedLabor: 2,
   iron: 12,
 });
-let miningPitInspector = renderStoneQuarryInspector(
+const miningPitInspector = renderStoneQuarryInspector(
   buildingTarget(inspectorMiningPit),
   inspectorContext(inspectorGameState(inspectorMiningPit, [ordinaryIronDeposit])),
 );
@@ -1470,17 +1469,6 @@ assert.match(miningPitInspector.statusText, /Extracting surface iron/);
 assert.match(miningPitInspector.detailsHtml, /never snaps to its center/);
 assert.match(miningPitInspector.detailsHtml, /Ordinary iron surface deposit · finite/);
 assert.match(miningPitInspector.detailsHtml, /Baseline hand tools/);
-miningPitInspector = withWorksiteLodging(
-  miningPitInspector,
-  inspectorMiningPit,
-  inspectorContext(inspectorGameState(inspectorMiningPit, [ordinaryIronDeposit])),
-);
-assert.match(
-  miningPitInspector.supplementalPanelHtml ?? '',
-  /data-begin-remote-work-camp[\s\S]*Plan overnight camp/,
-  'the Mining Camp inspector must offer the same linked overnight-camp placement control as a lumber mill',
-);
-
 const richSaltDeposit = mineralNode(
   'deposit-salt-rich-inspector',
   'salt',

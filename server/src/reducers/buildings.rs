@@ -785,7 +785,7 @@ pub(crate) fn place_building_internal(
         && !has_foraging_in_radius(ctx, x, z, def.work_radius, "berries", true)
         && !has_foraging_in_radius(ctx, x, z, def.work_radius, "mushrooms", true)
     {
-        return Err("No berries or mushrooms within work range.".to_string());
+        return Err("No raspberries or mushrooms within work range.".to_string());
     }
 
     if def.requires_fish && !has_foraging_in_radius(ctx, x, z, def.work_radius, "fish", false) {
@@ -2523,7 +2523,6 @@ pub fn set_granary_policy(
     building.granary_accepts_fresh_food = accepts_fresh_food;
     building.granary_households_first = households_first;
     for commodity in [
-        CommodityKind::Food,
         CommodityKind::OatGrain,
         CommodityKind::RyeBread,
         CommodityKind::MaslinBread,
@@ -2534,7 +2533,6 @@ pub fn set_granary_policy(
         CommodityKind::Milk,
         CommodityKind::Apples,
         CommodityKind::Cherries,
-        CommodityKind::Vegetables,
         CommodityKind::Eggs,
         CommodityKind::Grapes,
         CommodityKind::PreservedFood,

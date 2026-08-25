@@ -1169,7 +1169,7 @@ export function renderExpandedBuildingInspector(
           .reduce((sum, trip) => sum + trip.amount, 0);
         return `<li><span>Reserved estate</span><span>68 × 53 m inside a complete stone precinct wall · frontier belt is at least 200 m deep and scales with map size</span></li>
           <li><span>Monastery identity</span><span><strong>${archetype.name}</strong> · ${archetype.payoff}</span></li>
-          <li><span>Enclosed estate</span><span>Mixed apples and pears · kitchen vegetables · apiary · cattle and sheep pasture · no crop-by-crop player choices</span></li>
+          <li><span>Enclosed estate</span><span>Mixed apples and pears · cabbage, carrots, and beetroot · apiary · cattle and sheep pasture · no crop-by-crop player choices</span></li>
           <li><span>Estate development</span><span>${extensionCount} / 4 extensions · ${builtExtensions.join(' · ') || 'founding house only'}</span></li>
           <li><span>Service endowment</span><span>${Math.round(serviceFunding * 100)}% funded today · retained offerings, tithes, and export income pay real daily service costs after the charter levy</span></li>
           <li><span>Monastic community</span><span>${onsiteMonks} on site / ${building.assignedLabor} assigned / ${definition.maxLabor} cells · ${Math.round(staffing * 100)}% estate output before commute losses${building.assignedLabor <= 0 ? ' · every service dormant' : ''}</span></li>

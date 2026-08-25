@@ -84,7 +84,6 @@ pub fn price_multiplier_for(state: &MarketState, resource: TradeResource) -> f64
         | TradeResource::Cherries
         | TradeResource::Aronia
         | TradeResource::Rosehips
-        | TradeResource::Vegetables
         | TradeResource::Cabbage
         | TradeResource::Carrots
         | TradeResource::Beetroot
@@ -235,7 +234,6 @@ pub fn record_market_trade(
         | TradeResource::Cherries
         | TradeResource::Aronia
         | TradeResource::Rosehips
-        | TradeResource::Vegetables
         | TradeResource::Cabbage
         | TradeResource::Carrots
         | TradeResource::Beetroot

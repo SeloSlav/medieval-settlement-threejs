@@ -520,17 +520,17 @@ assert.equal(
   'an equal-influence seam must resolve by stable community id, not replication order',
 );
 
-const remoteCampReach = rasterizeCommunityReach({
+const industrialWorksiteReach = rasterizeCommunityReach({
   resolution: 41,
   bounds: communityBounds,
   settlements: [townA, townB] as never,
-  buildings: [reachBuilding('remote', townA.id, 'remote_work_camp', 0, 160)] as never,
+  buildings: [reachBuilding('remote', townA.id, 'stone_quarry', 0, 160)] as never,
   residences: [],
 });
 assert.equal(
-  communityReachSettlementAt(remoteCampReach, communityBounds, 0, 160),
+  communityReachSettlementAt(industrialWorksiteReach, communityBounds, 0, 160),
   null,
-  'an industrial overnight camp is a commute solution, not a new residential community seed',
+  'an industrial worksite must not become a residential community seed',
 );
 const localStoreReach = rasterizeCommunityReach({
   resolution: 41,

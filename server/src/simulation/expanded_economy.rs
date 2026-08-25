@@ -1889,7 +1889,6 @@ pub fn step_granary(
                     CommodityKind::Pears,
                     CommodityKind::Aronia,
                     CommodityKind::Rosehips,
-                    CommodityKind::Vegetables,
                     CommodityKind::Cabbage,
                     CommodityKind::Carrots,
                     CommodityKind::Beetroot,

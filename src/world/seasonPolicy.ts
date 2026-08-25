@@ -349,7 +349,7 @@ export function describeEnvironment(
   if (environment.weather === 'rain') {
     return {
       title: 'Spring rain',
-      detail: `Crops grow faster, shallow groundwater recharges more quickly, berries and mushrooms replenish, and mill streams reach ${Math.round(environment.watermillThroughputMultiplier * 100)}% power. Saturated banks hold clay digging to ${Math.round(environment.clayPitThroughputMultiplier * 100)}%, while damp billets slow covered charcoal clamps to ${Math.round(environment.charcoalBurnerThroughputMultiplier * 100)}%.${roadDetail}`,
+      detail: `Crops grow faster, shallow groundwater recharges more quickly, raspberries and mushrooms replenish, and mill streams reach ${Math.round(environment.watermillThroughputMultiplier * 100)}% power. Saturated banks hold clay digging to ${Math.round(environment.clayPitThroughputMultiplier * 100)}%, while damp billets slow covered charcoal clamps to ${Math.round(environment.charcoalBurnerThroughputMultiplier * 100)}%.${roadDetail}`,
       symbol: '☂',
     };
   }
@@ -357,21 +357,21 @@ export function describeEnvironment(
     const snowCover = Math.round(environment.snowCoverage * 100);
     return {
       title: 'Winter frost',
-      detail: `Settled snow cover is ${snowCover}% and changes through the winter. Berries, mushrooms, fishing, field work, sheep shearing, and watermills stop; release those crews to logging, construction, hunting, wind milling, or baking stockpiled flour. Higher-tier homes burn twice their normal firewood, while cold stores halve cured-food aging. Pasture is scarce, frozen mill races stop water-powered flour production entirely, frozen clay banks limit digging to ${Math.round(environment.clayPitThroughputMultiplier * 100)}%, and snowbound charcoal tending falls to ${Math.round(environment.charcoalBurnerThroughputMultiplier * 100)}%. A well-exposed windmill preserves winter milling capacity, while stockpiled autumn flour, clay, and charcoal keep sheltered processors working.${roadDetail}`,
+      detail: `Settled snow cover is ${snowCover}% and changes through the winter. Raspberries, mushrooms, fishing, field work, sheep shearing, and watermills stop; release those crews to logging, construction, hunting, wind milling, or baking stockpiled flour. Higher-tier homes burn twice their normal firewood, while cold stores halve cured-food aging. Pasture is scarce, frozen mill races stop water-powered flour production entirely, frozen clay banks limit digging to ${Math.round(environment.clayPitThroughputMultiplier * 100)}%, and snowbound charcoal tending falls to ${Math.round(environment.charcoalBurnerThroughputMultiplier * 100)}%. A well-exposed windmill preserves winter milling capacity, while stockpiled autumn flour, clay, and charcoal keep sheltered processors working.${roadDetail}`,
       symbol: '❄',
     };
   }
   if (environment.season === 'autumn') {
     return {
       title: 'Autumn',
-      detail: `Finish the late harvest, then plough and sow winter crops during October and November or lose unfinished fields at winter. Gather the last berries, stock firewood, and begin threshing grain and processing the harvest; the first light snow can settle late in November.${roadDetail}`,
+      detail: `Finish the late harvest, then plough and sow winter crops during October and November or lose unfinished fields at winter. Gather the last raspberries, stock firewood, and begin threshing grain and processing the harvest; the first light snow can settle late in November.${roadDetail}`,
       symbol: '♨',
     };
   }
   if (environment.season === 'summer') {
     return {
       title: 'Summer',
-      detail: `Crops and forage continue growing while most farm labor is free. Finish manpower-heavy construction and industry, gather remaining berries, and recall distant militia before September.${
+      detail: `Crops and forage continue growing while most farm labor is free. Finish manpower-heavy construction and industry, gather remaining raspberries, and recall distant militia before September.${
         severeWeatherEnabled
           ? ' Severe-weather maps can still bring drought that cuts crop growth, well yield, pasture, fish, and mill power.'
           : ''
@@ -381,7 +381,7 @@ export function describeEnvironment(
   }
   return {
     title: 'Spring',
-    detail: `The settled snow has cleared and fresh canopy is returning as berries and mushrooms replenish, fish reproduce, sheep shearing resumes, and autumn-sown crops grow again. March and April are the emergency window for spring oats; frequent rain boosts crop growth and shallow-groundwater recharge but slows dirt roads and threatens exposed supplies${
+    detail: `The settled snow has cleared and fresh canopy is returning as raspberries and mushrooms replenish, fish reproduce, sheep shearing resumes, and autumn-sown crops grow again. March and April are the emergency window for spring oats; frequent rain boosts crop growth and shallow-groundwater recharge but slows dirt roads and threatens exposed supplies${
       severeWeatherEnabled ? ', while severe storms can bring lightning fires' : ''
     }.`,
     symbol: '❀',

@@ -77,9 +77,7 @@ export type BuildingPlacementFailureReason =
   | 'requires_completed_chapel'
   | 'requires_completed_marketplace'
   | 'requires_civic_road_link'
-  | 'requires_remote_worksite'
-  | 'outside_remote_worksite_range'
-  | 'remote_camp_exists';
+  ;
 
 export type BuildingPlacementResult =
   | { ok: true }

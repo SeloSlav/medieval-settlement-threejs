@@ -129,7 +129,7 @@ const RESOURCE_COST_LABELS: Record<ResourceCostKind, string> = {
   maslinBread: 'maslin bread',
   meat: 'meat',
   fish: 'fish',
-  berries: 'berries',
+  berries: 'raspberries',
   mushrooms: 'mushrooms',
   milk: 'milk',
   apples: 'apples',

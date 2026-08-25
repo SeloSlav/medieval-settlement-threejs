@@ -117,7 +117,7 @@ const DETAILS: Record<PlacementArtKey, BuildCardDetail> = {
   reforester: ['Reforester', 'Restores felled woodland with young native trees.'],
   woodcutters_lodge: ["Woodcutter's lodge", 'Splits timber into firewood for settlement hearths; replacement axes raise output but wear each cycle.', flow(['timber'], ['firewood'])],
   hunters_hall: ["Hunter's hall", 'Hunts nearby game and dresses the catch for meat and hides.', flow([], ['meat', 'hides'])],
-  foragers_shed: ["Forager's shed", 'Gathers woodland berries, mushrooms, and healing remedies.', flow([], ['berries', 'mushrooms', 'remedies'])],
+  foragers_shed: ["Forager's shed", 'Gathers wild raspberries, mushrooms, and healing remedies.', flow([], ['berries', 'mushrooms', 'remedies'])],
   fishing_camp: ['Fishing camp', 'Catches fish from nearby waters through the warmer seasons.', flow([], ['fish'])],
   threshing_barn: ['Farmstead and threshing barn', 'Works grain and flax fields, then threshes sheaves. Stable oxen speed ploughing, harvesting, and threshing; sowing remains human-only.', flow(['ryeSheaves', 'oatSheaves', 'barleySheaves', 'maslinSheaves'], ['ryeGrain', 'oatGrain', 'barley', 'maslinGrain', 'flax'])],
   watermill: ['Grain watermill', 'Uses seasonal river power to grind rye and maslin. Smith-dressed millstones and maintained iron fittings raise output.', flow(['ryeGrain', 'maslinGrain'], ['ryeFlour', 'maslinFlour'])],

@@ -75,8 +75,8 @@ const HARVEST_BUILDING_COPY: Record<
   foragers_shed: {
     foragingKind: ['berries', 'mushrooms'],
     idleLabel: 'Idle — assign labor to gather wild food',
-    activeUnit: 'berries or mushrooms',
-    patchLabel: 'wild patch',
+    activeUnit: 'raspberries or mushrooms',
+    patchLabel: 'raspberry thicket or mushroom bed',
   },
   hunters_hall: {
     foragingKind: 'game',

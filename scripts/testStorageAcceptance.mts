@@ -35,7 +35,10 @@ assert.ok(STOREHOUSE_STORAGE_COMMODITIES.includes('pottery'));
 assert.ok(STOREHOUSE_STORAGE_COMMODITIES.includes('remedies'));
 assert.ok(STOREHOUSE_STORAGE_COMMODITIES.includes('wax'));
 assert.ok(STOREHOUSE_STORAGE_COMMODITIES.includes('candles'));
-assert.equal(GRANARY_STORAGE_COMMODITIES.length, 41);
+assert.equal(GRANARY_STORAGE_COMMODITIES.length, 40);
+assert.equal(GRANARY_STORAGE_COMMODITIES.includes('food'), false);
+assert.equal(GRANARY_STORAGE_COMMODITIES.includes('vegetables'), false);
+assert.ok(GRANARY_STORAGE_COMMODITIES.includes('mead'));
 assert.equal(
   'animalFeed' in STORAGE_COMMODITY_CODES,
   false,
@@ -49,10 +52,11 @@ assert.equal(BUILDING_STORAGE_CAPS.granary.animalFeed ?? 0, 0);
 assert.equal(BUILDING_STORAGE_CAPS.village_storehouse.animalFeed ?? 0, 0);
 for (const commodity of [
   'pears', 'aronia', 'rosehips', 'cabbage', 'carrots', 'beetroot',
-  'aroniaJam', 'rosehipJam', 'cider', 'pearCider', 'wine',
+  'aroniaJam', 'rosehipJam', 'cider', 'pearCider', 'mead', 'wine',
 ] as const) {
   assert.ok(GRANARY_STORAGE_COMMODITIES.includes(commodity));
 }
+assert.equal(BUILDING_STORAGE_CAPS.granary.mead, 180);
 for (const kind of ['granary', 'trading_post', 'tavern'] as const) {
   assert.equal(BUILDING_STORAGE_CAPS[kind].cider, 180);
   assert.equal(BUILDING_STORAGE_CAPS[kind].pearCider, 180);
@@ -120,6 +124,10 @@ assert.match(granaryControls, /Harvest and grain/);
 assert.match(granaryControls, /data-storage-commodity="meat"[^>]*aria-pressed="true"/);
 assert.match(granaryControls, /data-storage-commodity="fish"[^>]*is-blocked|class="[^"]*is-blocked[^"]*"[^>]*data-resource-cost="fish"/);
 assert.match(granaryControls, /data-storage-commodity="wine"/);
+assert.match(granaryControls, /data-storage-commodity="mead"/);
+assert.match(granaryControls, /Raspberries: new deliveries blocked\./);
+assert.doesNotMatch(granaryControls, /Mixed provisions|data-storage-commodity="food"/);
+assert.doesNotMatch(granaryControls, /data-storage-commodity="vegetables"/);
 
 const deliveryTrips = readFileSync('server/src/simulation/delivery_trips.rs', 'utf8');
 assert.match(
@@ -143,6 +151,16 @@ assert.match(
   expandedEconomy,
   /has_linked_export_post[\s\S]*CommodityKind::Charcoal[\s\S]*storehouse_stock_target/,
   'a filtered Storehouse can deliberately buffer charcoal for a linked export post',
+);
+assert.match(
+  expandedEconomy,
+  /step_brewery[\s\S]*CommodityKind::Mead,[\s\S]*&\["granary"\]/,
+  'mead and the other typed Brewery beverages must be able to overflow into an accepting Granary',
+);
+assert.match(
+  expandedEconomy,
+  /GranaryDispatchDuty::Households[\s\S]*CommodityKind::PearCider,[\s\S]*CommodityKind::Mead,[\s\S]*&\["tavern"\]/,
+  'Granaries must route every accepted typed beverage onward to staffed Taverns',
 );
 assert.match(
   expandedEconomy,

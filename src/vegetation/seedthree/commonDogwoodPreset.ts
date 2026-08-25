@@ -43,6 +43,10 @@ export type CommonDogwoodArchitecture = {
   readonly forkSubordinateScale: number;
   /** Independent roll given to fork children around their parent's tangent. */
   readonly forkRollVariationDeg: number;
+  /** Wider than the basal notch so foliage keeps a readable, irregular pocket. */
+  readonly foliageGapDeg: number;
+  readonly foliageGapRetention: number;
+  readonly foliageDensityVariation: number;
 };
 
 export type CommonDogwoodVariant = {
@@ -92,9 +96,12 @@ export const COMMON_DOGWOOD_VARIANTS: readonly CommonDogwoodVariant[] = [
       coherentLeanDeg: 7,
       firstForkLength: [0.23, 0.39],
       dominantLeaderCount: 2,
-      subordinateVigor: [0.72, 0.96],
-      forkSubordinateScale: 0.72,
+      subordinateVigor: [0.8, 0.98],
+      forkSubordinateScale: 0.76,
       forkRollVariationDeg: 13,
+      foliageGapDeg: 75,
+      foliageGapRetention: 0.25,
+      foliageDensityVariation: 0.28,
     },
   },
   {
@@ -123,6 +130,9 @@ export const COMMON_DOGWOOD_VARIANTS: readonly CommonDogwoodVariant[] = [
       subordinateVigor: [0.78, 0.98],
       forkSubordinateScale: 0.82,
       forkRollVariationDeg: 9,
+      foliageGapDeg: 45,
+      foliageGapRetention: 0.5,
+      foliageDensityVariation: 0.18,
     },
   },
   {
@@ -151,6 +161,9 @@ export const COMMON_DOGWOOD_VARIANTS: readonly CommonDogwoodVariant[] = [
       subordinateVigor: [0.68, 0.97],
       forkSubordinateScale: 0.76,
       forkRollVariationDeg: 11,
+      foliageGapDeg: 35,
+      foliageGapRetention: 0.62,
+      foliageDensityVariation: 0.22,
     },
   },
 ] as const;

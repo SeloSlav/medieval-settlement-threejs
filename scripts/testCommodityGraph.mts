@@ -157,8 +157,8 @@ const explicitNonTrade = [...tradeResourceSource.matchAll(
 )].map((match) => lowerCamel(match[1]));
 assertSameSet(
   explicitNonTrade,
-  ['animalFeed', 'gold', 'mead'],
-  'only currency, local-only mead, and local-only Animal Feed may lack trade',
+  ['animalFeed', 'gold', 'mead', 'vegetables'],
+  'only currency, local-only mead, local-only Animal Feed, and retired aggregate vegetables may lack trade',
 );
 assertSameSet(
   TRADE_RESOURCE_KINDS,

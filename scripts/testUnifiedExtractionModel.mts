@@ -6,7 +6,6 @@ import {
   BUILDING_STORAGE_CAPS,
 } from '../src/generated/gameBalance.ts';
 import { resolveBuildingPlacementPoint } from '../src/buildings/BuildingPlacementValidation.ts';
-import { supportsRemoteWorkCamp } from '../src/buildings/remoteWorkCamp.ts';
 import { describeGeologicalMapMarker } from '../src/map/geologicalMapMarkerState.ts';
 import { localMaterialInputCommodities } from '../src/logistics/processorInputLogistics.ts';
 import {
@@ -109,20 +108,10 @@ assert.deepEqual(
   miningCampCursor,
   'Mining Camp placement must remain under the cursor instead of snapping to a resource center',
 );
-assert.equal(
-  supportsRemoteWorkCamp('stone_quarry'),
-  true,
-  'Mining Camps must share the lumber-mill overnight-camp flow',
-);
-
 const surfaceSimulation = fs.readFileSync('server/src/simulation/stone_quarry.rs', 'utf8');
 const quarrySimulation = fs.readFileSync('server/src/simulation/large_quarry.rs', 'utf8');
 const mineworksSimulation = fs.readFileSync('server/src/simulation/expanded_economy.rs', 'utf8');
 const extractionPolicy = fs.readFileSync('server/src/extraction_policy.rs', 'utf8');
-const remoteWorkCampPolicy = fs.readFileSync('src/buildings/remoteWorkCamp.ts', 'utf8');
-assert.match(remoteWorkCampPolicy, /'stone_quarry'/);
-assert.match(remoteWorkCampPolicy, /'large_quarry'/);
-assert.match(remoteWorkCampPolicy, /'mine'/);
 assert.match(surfaceSimulation, /finite surface reserve of stone, iron, salt, or clay/);
 assert.match(surfaceSimulation, /SurfaceDeposit::Geological/);
 assert.match(surfaceSimulation, /SurfaceDeposit::Clay/);

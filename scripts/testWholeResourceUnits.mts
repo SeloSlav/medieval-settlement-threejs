@@ -106,7 +106,6 @@ const buildingRow = rowWithDefaults({
   linkedWorksiteId: 0n,
   actionCooldown: 0.375,
   constructionProgress: 0.625,
-  commuteEfficiency: 0.45,
   apiaryColonyHealth: 0.73,
   apiaryWaxCycleProgress: 7,
   storageAcceptanceMaskHigh: 3n,
@@ -154,7 +153,6 @@ for (const field of buildingMaterialLedgerFields) {
 }
 assert.equal(building.actionCooldown, 0.375);
 assert.equal(building.constructionProgress, 0.625);
-assert.equal(building.commuteEfficiency, 0.45);
 assert.equal(building.apiaryColonyHealth, 0.73);
 assert.equal(building.apiaryWaxCycleProgress, 7);
 assert.equal(building.storageAcceptanceMaskHigh, '3');

@@ -12,6 +12,7 @@ import { rosehip } from '@seedthree/species/rosehip.js';
 import {
   commonDogwood,
   createCommonDogwoodVariantPreset,
+  type CommonDogwoodArchitecture,
 } from './commonDogwoodPreset.ts';
 import {
   applyCommonDogwoodArchitecture,
@@ -34,6 +35,8 @@ type SeedThreeShrubPreset = {
     clustersPerBranch?: number;
     parentSprays?: number;
     clusterSize?: number;
+    leavesPerBranch?: number;
+    whorlSize?: number;
   };
 };
 
@@ -105,42 +108,64 @@ export function createGorskiShrubPrototype(
   }
 
   const foliageMaterial = new THREE.MeshBasicMaterial();
-  const foliageRng = new Rng(`${seed}:sprays`);
   const config = {
     ...species.foliage,
     mode: kind === 'nettle' || kind === 'dogwood' ? 'leaves' : 'clusters',
   };
-  const terminalFoliage = buildFoliage(
-    generated.terminalStems,
-    config,
-    foliageRng,
-    foliageMaterial,
-    null,
-  ) as THREE.InstancedMesh | null;
+  const terminalFoliage = dogwoodVariant
+    ? buildDogwoodFoliageCohorts(
+      generated.terminalStems,
+      config,
+      dogwoodVariant.morphology.architecture,
+      seed,
+      'terminal',
+      foliageMaterial,
+    )
+    : [buildFoliage(
+      generated.terminalStems,
+      config,
+      new Rng(`${seed}:sprays`),
+      foliageMaterial,
+      null,
+    ) as THREE.InstancedMesh | null].filter(
+      (mesh): mesh is THREE.InstancedMesh => Boolean(mesh),
+    );
   const parentFraction = species.foliage.parentSprays ?? 0;
   const parentStems = generated.stems.filter(
     (stem) => !stem.terminal && stem.children.some((child) => child.terminal),
   );
+  const parentConfig = {
+    ...config,
+    clustersPerBranch: Math.max(
+      1,
+      Math.round((species.foliage.clustersPerBranch ?? 2) * parentFraction),
+    ),
+  };
   const parentFoliage = parentFraction > 0 && parentStems.length > 0
-    ? buildFoliage(
-      parentStems,
-      {
-        ...config,
-        clustersPerBranch: Math.max(
-          1,
-          Math.round((species.foliage.clustersPerBranch ?? 2) * parentFraction),
-        ),
-      },
-      new Rng(`${seed}:parent-sprays`),
-      foliageMaterial,
-      null,
-    ) as THREE.InstancedMesh | null
-    : null;
+    ? dogwoodVariant
+      ? buildDogwoodFoliageCohorts(
+        parentStems,
+        parentConfig,
+        dogwoodVariant.morphology.architecture,
+        seed,
+        'parent',
+        foliageMaterial,
+      )
+      : [buildFoliage(
+        parentStems,
+        parentConfig,
+        new Rng(`${seed}:parent-sprays`),
+        foliageMaterial,
+        null,
+      ) as THREE.InstancedMesh | null].filter(
+        (mesh): mesh is THREE.InstancedMesh => Boolean(mesh),
+      )
+    : [];
 
   const branchGeometry = copySurfaceGeometry(generated.geometry);
   if (dogwoodVariant) addDogwoodBranchWindProfile(branchGeometry, generated.geometry);
-  const foliageGeometries = [terminalFoliage, parentFoliage]
-    .filter((mesh): mesh is THREE.InstancedMesh => Boolean(mesh))
+  const foliageMeshes = [...terminalFoliage, ...parentFoliage];
+  const foliageGeometries = foliageMeshes
     .map((mesh) => bakeInstancedSurfaceGeometry(mesh, Boolean(dogwoodVariant)));
   const foliageGeometry = mergeGeometries(foliageGeometries, false);
   if (!foliageGeometry) throw new Error(`Unable to bake foliage for ${species.name}`);
@@ -188,8 +213,7 @@ export function createGorskiShrubPrototype(
         : 0;
   const fruitAnchors = selectFruitAnchors(generated.terminalStems, fruitLimit);
 
-  terminalFoliage?.geometry.dispose();
-  parentFoliage?.geometry.dispose();
+  for (const mesh of foliageMeshes) mesh.geometry.dispose();
   foliageMaterial.dispose();
   branchGeometry.dispose();
   foliageGeometry.dispose();
@@ -198,6 +222,124 @@ export function createGorskiShrubPrototype(
     fruitAnchors,
     triangleCount: triangleCount(geometry),
   };
+}
+
+function buildDogwoodFoliageCohorts(
+  stems: SeedThreeStem[],
+  config: SeedThreeShrubPreset['foliage'],
+  architecture: CommonDogwoodArchitecture,
+  seed: string,
+  layer: 'terminal' | 'parent',
+  material: THREE.Material,
+): THREE.InstancedMesh[] {
+  if (stems.length === 0) return [];
+  const whorlSize = Math.max(1, Math.round(Number(config.whorlSize ?? 2)));
+  const leavesPerBranch = Math.max(
+    whorlSize,
+    Math.round(Number(config.leavesPerBranch ?? 8) / whorlSize) * whorlSize,
+  );
+  const nodesPerStem = leavesPerBranch / whorlSize;
+  const densityRng = new Rng(`${seed}:${layer}:density-v1`);
+  const gapAzimuth = architecture.lightGapAzimuthDeg * Math.PI / 180;
+  const gapHalfWidth = architecture.foliageGapDeg * Math.PI / 360;
+  const weights = stems.map((stem) => {
+    const tip = stem.points.at(-1)!;
+    const angularDistance = Math.abs(shortestSignedAngle(
+      Math.atan2(tip.z, tip.x) - gapAzimuth,
+    ));
+    const gapInfluence = 1 - THREE.MathUtils.smoothstep(
+      angularDistance,
+      gapHalfWidth * 0.58,
+      gapHalfWidth * 1.18,
+    );
+    const gapWeight = THREE.MathUtils.lerp(
+      1,
+      architecture.foliageGapRetention,
+      gapInfluence,
+    );
+    const localVariation = 1 + densityRng.vary(
+      0,
+      architecture.foliageDensityVariation,
+    );
+    return Math.max(0.05, gapWeight * localVariation);
+  });
+  const nodeCounts = allocateWeightedCounts(
+    weights,
+    stems.length * nodesPerStem,
+    1,
+    nodesPerStem + 4,
+  );
+  const cohorts = new Map<number, SeedThreeStem[]>();
+  for (let index = 0; index < stems.length; index++) {
+    const nodes = nodeCounts[index]!;
+    const cohort = cohorts.get(nodes) ?? [];
+    cohort.push(stems[index]!);
+    cohorts.set(nodes, cohort);
+  }
+
+  const meshes: THREE.InstancedMesh[] = [];
+  for (const [nodes, cohort] of [...cohorts].sort((left, right) => left[0] - right[0])) {
+    const mesh = buildFoliage(
+      cohort,
+      {
+        ...config,
+        leavesPerBranch: nodes * whorlSize,
+      },
+      new Rng(`${seed}:${layer}:nodes:${nodes}`),
+      material,
+      null,
+    ) as THREE.InstancedMesh | null;
+    if (mesh) meshes.push(mesh);
+  }
+  return meshes;
+}
+
+function allocateWeightedCounts(
+  weights: number[],
+  target: number,
+  minimum: number,
+  maximum: number,
+): number[] {
+  const counts = new Array<number>(weights.length).fill(minimum);
+  const remainingTarget = Math.max(0, target - minimum * weights.length);
+  const weightSum = weights.reduce((sum, weight) => sum + weight, 0);
+  const fractions = weights.map((weight, index) => {
+    const desired = remainingTarget * weight / Math.max(0.001, weightSum);
+    const whole = Math.min(maximum - minimum, Math.floor(desired));
+    counts[index] += whole;
+    return desired - whole;
+  });
+  let remaining = target - counts.reduce((sum, count) => sum + count, 0);
+  const descending = weights.map((_, index) => index).sort(
+    (left, right) => fractions[right]! - fractions[left]!,
+  );
+  while (remaining > 0) {
+    let changed = false;
+    for (const index of descending) {
+      if (counts[index]! >= maximum) continue;
+      counts[index]!++;
+      remaining--;
+      changed = true;
+      if (remaining === 0) break;
+    }
+    if (!changed) throw new Error('Dogwood foliage cohort allocation exhausted its upper bound');
+  }
+  while (remaining < 0) {
+    let changed = false;
+    for (const index of [...descending].reverse()) {
+      if (counts[index]! <= minimum) continue;
+      counts[index]!--;
+      remaining++;
+      changed = true;
+      if (remaining === 0) break;
+    }
+    if (!changed) throw new Error('Dogwood foliage cohort allocation exhausted its lower bound');
+  }
+  return counts;
+}
+
+function shortestSignedAngle(angle: number): number {
+  return Math.atan2(Math.sin(angle), Math.cos(angle));
 }
 
 function bakeInstancedSurfaceGeometry(

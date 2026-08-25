@@ -5,7 +5,7 @@ export const SEASON_ALMANAC = {
     label: 'Spring',
     months: 'March–May',
     icon: '❀',
-    description: 'Spring rain speeds crop growth and shallow-well recharge but slows dirt roads. Spring oats are sown; berries and mushrooms regrow, fish recover, and pasture livestock breed faster.',
+    description: 'Spring rain speeds crop growth and shallow-well recharge but slows dirt roads. Spring oats are sown; raspberries and mushrooms regrow, fish recover, and pasture livestock breed faster.',
   },
   summer: {
     label: 'Summer',

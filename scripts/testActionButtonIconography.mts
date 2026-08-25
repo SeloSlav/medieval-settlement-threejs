@@ -46,7 +46,6 @@ const actionCss = readFileSync('src/ui/inspectorSupplemental.css', 'utf8');
 const backyardRenderer = readFileSync('src/resources/inspector/backyardRenderer.ts', 'utf8');
 const residenceRenderer = readFileSync('src/resources/inspector/residenceRenderer.ts', 'utf8');
 const chapelRenderer = readFileSync('src/resources/inspector/chapelRenderer.ts', 'utf8');
-const campRenderer = readFileSync('src/resources/inspector/remoteWorkCampRenderer.ts', 'utf8');
 const expandedBuildingRenderer = readFileSync('src/resources/inspector/expandedBuildingRenderer.ts', 'utf8');
 const farmFieldRenderer = readFileSync('src/resources/inspector/farmFieldRenderer.ts', 'utf8');
 const livestockBuildingRenderer = readFileSync('src/resources/inspector/livestockBuildingRenderer.ts', 'utf8');
@@ -86,7 +85,6 @@ for (const [kind, url] of inspectorArtwork) {
   await assertRasterDecodes(path, `${kind} inspector art`);
 }
 for (const [kind, expectedUrl] of Object.entries({
-  remote_work_camp: '/assets/ui/icons/actions/overnight-work-camp.png',
   mine: '/assets/ui/build-menu/cards/iron-mine.webp',
   clay_pit: '/assets/ui/build-menu/cards/clay-pit.webp',
   charcoal_burner: '/assets/ui/build-menu/cards/charcoal-burner.webp',
@@ -294,15 +292,7 @@ assert.match(
   /<button(?=[^>]*data-action="upgrade-chapel")(?=[^>]*class="[^"]*\bresource-action-button\b)[^>]*>[\s\S]*?data-action-icon="church-tier-\$\{upgrade\.targetTier\}"/,
   'chapel upgrades must use the shared building-card action button',
 );
-assert.match(campRenderer, /data-begin-remote-work-camp[\s\S]*data-action-icon="overnight-work-camp"|data-action-icon="overnight-work-camp"[\s\S]*data-begin-remote-work-camp/);
-assert.match(campRenderer, /data-work-camp-action[\s\S]*Inspect overnight camp/);
-assert.match(
-  campRenderer,
-  /<button(?=[^>]*data-work-camp-action)(?=[^>]*class="[^"]*\bresource-action-button\b)[^>]*>/,
-  'overnight-camp actions must use the shared building-card action button',
-);
 assert.doesNotMatch(chapelRenderer, /inspector-action-panel__button/);
-assert.doesNotMatch(campRenderer, /inspector-action-panel__button/);
 
 const forestryBuilding = {
   id: 'lumber-1',

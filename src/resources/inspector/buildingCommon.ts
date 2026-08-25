@@ -116,7 +116,9 @@ function buildingFoodStorageRows(
       ? 'Legacy mixed food'
       : kind === 'preservedFood'
         ? 'Legacy preserved staples'
-        : NAMED_FOOD_LABELS[kind];
+        : kind === 'vegetables'
+          ? 'Legacy mixed vegetables'
+          : NAMED_FOOD_LABELS[kind];
     rows.push(`<li><span>&nbsp;&nbsp;${label}</span><span>${Math.round(amount)}</span></li>`);
   }
   return rows.join('');

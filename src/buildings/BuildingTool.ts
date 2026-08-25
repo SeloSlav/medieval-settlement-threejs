@@ -29,11 +29,6 @@ import {
 } from './buildingPlacement.ts';
 import { resolveBuildingEdgeSnap } from './BuildingSpacing.ts';
 import {
-  isWithinRemoteWorkCampRange,
-  linkedRemoteWorkCamp,
-  supportsRemoteWorkCamp,
-} from './remoteWorkCamp.ts';
-import {
   resolveBuildingPlacementWildlifePreview,
 } from './buildingPlacementWildlifePreview.ts';
 import type { WorldMapSize } from '../world/worldGenerationSettings.ts';
@@ -46,14 +41,12 @@ type BuildingPlacementUndoEntry = {
   kind: BuildingKind;
   x: number;
   z: number;
-  linkedWorksiteId: string | null;
 };
 
 type BuildingPlacementRedoEntry = {
   kind: BuildingKind;
   x: number;
   z: number;
-  linkedWorksiteId: string | null;
 };
 
 const BUILDING_POSITION_TOLERANCE = 0.75;
@@ -73,7 +66,6 @@ type BuildingToolOptions = {
   markers: BuildingMarkers;
   getState: () => GameState;
   onPlaceBuilding: (kind: BuildingKind, x: number, z: number) => void | Promise<void>;
-  onPlaceRemoteWorkCamp: (worksiteId: string, x: number, z: number) => void | Promise<void>;
   onDemolishBuilding: (buildingId: string) => void | Promise<void>;
   isWaterAt: (x: number, z: number) => boolean;
   isResourceDepositAt?: (x: number, z: number) => boolean;
@@ -117,7 +109,6 @@ export class BuildingTool {
   private placementPending = false;
   private placementIntentVersion = 0;
   private roadSnapEnabled = true;
-  private linkedWorksiteId: string | null = null;
   private readonly secondaryClickGesture: SecondaryClickGesture;
 
   constructor(options: BuildingToolOptions) {
@@ -204,15 +195,7 @@ export class BuildingTool {
 
   setMode(mode: BuildingToolMode): void {
     this.placementIntentVersion += 1;
-    this.linkedWorksiteId = null;
     this.activateMode(mode);
-  }
-
-  beginLinkedRemoteWorkCampPlacement(worksiteId: string): void {
-    if (this.options.isBlocked() || this.placementPending) return;
-    this.placementIntentVersion += 1;
-    this.linkedWorksiteId = worksiteId;
-    this.activateMode('remote_work_camp');
   }
 
   private activateMode(mode: BuildingToolMode): void {
@@ -341,11 +324,10 @@ export class BuildingTool {
     event.stopPropagation();
 
     const kind = this.mode;
-    const linkedWorksiteId = this.linkedWorksiteId;
     this.placementPending = true;
     this.setMode('off');
     const placementIntentVersion = this.placementIntentVersion;
-    void this.placeAt(kind, resolved.x, resolved.z, linkedWorksiteId, placementIntentVersion);
+    void this.placeAt(kind, resolved.x, resolved.z, placementIntentVersion);
   };
 
   private readonly onSecondaryClick = (event: MouseEvent): void => {
@@ -358,7 +340,6 @@ export class BuildingTool {
     kind: BuildingKind,
     x: number,
     z: number,
-    linkedWorksiteId: string | null,
     placementIntentVersion: number,
   ): Promise<void> {
     const stateBeforePlacement = this.options.getState();
@@ -370,17 +351,12 @@ export class BuildingTool {
       // Let the optimistic marker reach the screen before network and
       // authoritative world-sync work can occupy the main thread.
       await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
-      if (kind === 'remote_work_camp') {
-        if (!linkedWorksiteId) throw new Error('Choose a rural worksite before placing its camp.');
-        await this.options.onPlaceRemoteWorkCamp(linkedWorksiteId, x, z);
-      } else {
-        await this.options.onPlaceBuilding(kind, x, z);
-      }
+      await this.options.onPlaceBuilding(kind, x, z);
       this.placementPending = false;
       const buildingId = await waitForPlacedBuilding(this.options.getState, beforeIds, kind, x, z);
       this.options.markers.clearPendingPlacement();
       if (buildingId && !isFoundersCampBootstrap) {
-        this.undoStack.push({ buildingId, kind, x, z, linkedWorksiteId });
+        this.undoStack.push({ buildingId, kind, x, z });
         this.redoStack.length = 0;
       }
       if (buildingId) {
@@ -392,11 +368,7 @@ export class BuildingTool {
       this.placementPending = false;
       this.options.markers.clearPendingPlacement();
       if (!this.options.isBlocked() && this.placementIntentVersion === placementIntentVersion) {
-        if (kind === 'remote_work_camp' && linkedWorksiteId) {
-          this.beginLinkedRemoteWorkCampPlacement(linkedWorksiteId);
-        } else {
-          this.setMode(kind);
-        }
+        this.setMode(kind);
       }
       this.options.onPlacementFailed?.(message, kind);
       return;
@@ -412,7 +384,6 @@ export class BuildingTool {
         kind: entry.kind,
         x: entry.x,
         z: entry.z,
-        linkedWorksiteId: entry.linkedWorksiteId,
       });
     } catch (error) {
       this.undoStack.push(entry);
@@ -427,12 +398,7 @@ export class BuildingTool {
     if (!entry) return;
     const beforeIds = new Set(this.options.getState().buildings.keys());
     try {
-      if (entry.kind === 'remote_work_camp') {
-        if (!entry.linkedWorksiteId) throw new Error('The camp no longer has a linked worksite.');
-        await this.options.onPlaceRemoteWorkCamp(entry.linkedWorksiteId, entry.x, entry.z);
-      } else {
-        await this.options.onPlaceBuilding(entry.kind, entry.x, entry.z);
-      }
+      await this.options.onPlaceBuilding(entry.kind, entry.x, entry.z);
       const buildingId = await waitForPlacedBuilding(
         this.options.getState,
         beforeIds,
@@ -448,7 +414,6 @@ export class BuildingTool {
         kind: entry.kind,
         x: entry.x,
         z: entry.z,
-        linkedWorksiteId: entry.linkedWorksiteId,
       });
     } catch (error) {
       this.redoStack.push(entry);
@@ -745,24 +710,6 @@ export class BuildingTool {
 
   private validate(kind: BuildingKind, x: number, z: number) {
     const state = this.options.getState();
-    if (kind === 'remote_work_camp') {
-      const worksite = this.linkedWorksiteId
-        ? state.buildings.get(this.linkedWorksiteId)
-        : null;
-      if (
-        !worksite
-        || worksite.constructionComplete === false
-        || !supportsRemoteWorkCamp(worksite.kind)
-      ) {
-        return { ok: false as const, reason: 'requires_remote_worksite' as const };
-      }
-      if (linkedRemoteWorkCamp(worksite.id, state.buildings.values())) {
-        return { ok: false as const, reason: 'remote_camp_exists' as const };
-      }
-      if (!isWithinRemoteWorkCampRange(worksite, x, z)) {
-        return { ok: false as const, reason: 'outside_remote_worksite_range' as const };
-      }
-    }
     const totals = computeResourceTotals(state);
     return validateBuildingPlacement(kind, x, z, {
       buildings: state.buildings.values(),

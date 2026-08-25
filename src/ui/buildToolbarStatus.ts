@@ -59,7 +59,7 @@ const PLACEMENT_STATUS_HINTS: Partial<Record<BuildingKind, string>> = {
   town_hall: ' — requires 24 people, a church, a marketplace, and road access',
   village_storehouse: ' — road-linked haulers collect producer overflow',
   hunters_hall: ' — click near a game trail',
-  foragers_shed: ' — place within 48 m of berries or mushrooms without covering the patch',
+  foragers_shed: ' — place within 48 m of raspberries or mushrooms without covering the patch',
   chapel: ' — place near a road',
   marketplace: ' — place near a road',
 };

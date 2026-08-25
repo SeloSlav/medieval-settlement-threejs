@@ -22,7 +22,7 @@ export const TOAST_MESSAGES = {
   'building.placement.requires_mineral_deposit': 'Mineworks must be centered directly on a rich iron, salt, or clay deposit',
   'building.placement.requires_clay_deposit': 'Clay Pits need a marked bank with ordinary clay remaining or a rich deep source',
   'building.placement.no_game_in_range': 'No game within work range',
-  'building.placement.no_berries_in_range': 'Place within 48 m of a berry patch or mushroom bed (dormant and depleted patches still count)',
+  'building.placement.no_berries_in_range': 'Place within 48 m of a raspberry thicket or mushroom bed (dormant and depleted patches still count)',
   'building.placement.no_fish_in_range': 'No fish shoal within work range',
   'building.placement.no_trees_in_range': 'No mature trees within work range',
   'building.placement.on_road': 'Cannot build on a road',
