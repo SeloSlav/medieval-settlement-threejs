@@ -34,7 +34,10 @@ import {
   computeResourceTotals,
   computeStoredResourceTotals,
 } from '../resources/resourceTotals.ts';
-import { computeSettlementProvisioning } from '../economy/settlementProvisioning.ts';
+import {
+  computeSettlementProvisioning,
+  formatSabbathReadiness,
+} from '../economy/settlementProvisioning.ts';
 import { computeSettlementApproval } from '../economy/settlementApproval.ts';
 import { SettlementApprovalPacer } from '../economy/settlementApprovalPacing.ts';
 import { TreeRegistry } from '../resources/TreeRegistry.ts';
@@ -1179,7 +1182,6 @@ export class App {
       snapshot.combatAgents.values(),
     );
     this.syncVisualQaFoundersCampFixture();
-    this.notifyLordReportChanges(state, previous);
     this.notifySecurityChanges(snapshot);
     this.notifyNightReport(snapshot);
     const projectedTargets = this.syncFrontierRiskFeedback(
@@ -1237,6 +1239,12 @@ export class App {
         this.roadNetwork!.getPathfinder().roadPathDistance(ax, az, bx, bz),
     });
     this.toolbar?.settlementHud.setProvisioningState(provisioning, clock.month);
+    this.notifyLordReportChanges(
+      state,
+      previous,
+      snapshot.parishPolicy.sabbathObservanceEnabled,
+      formatSabbathReadiness(provisioning),
+    );
     const conflictEnabled = snapshot.worldGeneration?.conflictMode === 'frontier';
     let activeFires = 0;
     for (const incident of state.fireIncidents.values()) {
@@ -1308,14 +1316,22 @@ export class App {
     this.spacetimeSnapshotApplier.syncForestClearance(this.snapshotApplierDeps, this.gameState);
   }
 
-  private notifyLordReportChanges(state: GameState, previous: GameState | null): void {
+  private notifyLordReportChanges(
+    state: GameState,
+    previous: GameState | null,
+    sabbathObservanceEnabled: boolean,
+    sabbathReadinessLabel: string,
+  ): void {
     const newlyReportedFire = [...state.fireIncidents.values()].some((incident) => (
       incident.status === 'burning'
       && (!previous || !previous.fireIncidents.has(incident.id))
     ));
     if (newlyReportedFire) this.tutorialOverlay?.notifyFireStarted();
     this.toolbar?.settlementHud.addLordReports(
-      deriveLordReportTransitions(state, previous),
+      deriveLordReportTransitions(state, previous, {
+        sabbathObservanceEnabled,
+        sabbathReadinessLabel,
+      }),
     );
   }
 

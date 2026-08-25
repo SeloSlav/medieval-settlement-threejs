@@ -84,12 +84,19 @@
 .town-report-panel__action:focus-visible { border-color: var(--accent); outline: none; }
 .town-report-panel__pending { color: var(--muted); font-size: 11px; }
 .town-report-panel__ledger > header { display: flex; justify-content: space-between; gap: 10px; margin-bottom: 7px; }
-.town-report-panel__ledger > header small { color: var(--muted); }
 .town-report-panel__table { border: 1px solid rgba(238,232,220,.1); border-radius: 9px; overflow: hidden; }
 .town-report-panel__row { display: grid; grid-template-columns: minmax(92px, 1.35fr) repeat(4, minmax(58px, .7fr)); gap: 6px; align-items: center; padding: 7px 9px; border-top: 1px solid rgba(238,232,220,.07); font-size: 11px; }
 .town-report-panel__row:first-child { border-top: 0; }
 .town-report-panel__row > :not(:first-child) { text-align: right; font-variant-numeric: tabular-nums; }
 .town-report-panel__row--head { color: var(--muted); background: rgba(255,255,255,.035); font-size: 9px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; }
+.town-report-panel__good.resource-cost__item { min-width: 0; gap: 6px; }
+.town-report-panel__good .resource-cost__icon { width: 18px; height: 18px; }
+.town-report-panel__good > span:last-child { overflow: hidden; text-overflow: ellipsis; }
+.town-report-panel__good[data-resource-cost='game'] .resource-cost__icon {
+  background-image: url('/assets/ui/map-stamps/game-normal.png');
+  background-position: center;
+  background-size: contain;
+}
 .town-report-panel__empty,
 .town-report-panel__trade { margin: 0; padding: 12px; color: var(--muted); font-size: 11px; }
 .town-report-panel__trade { padding: 9px 2px 0; color: #d5c18b; }

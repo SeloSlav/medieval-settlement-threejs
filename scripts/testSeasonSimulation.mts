@@ -14,13 +14,18 @@ import {
   RESIDENCE_PRESERVED_FOOD_SUMMER_MULTIPLIER,
   RESIDENCE_PRESERVED_FOOD_WINTER_MULTIPLIER,
   SIM_REALTIME_RATE,
+  SIM_TICK_SECONDS,
   SPRING_RAIN_CHARCOAL_BURNER_THROUGHPUT_MULTIPLIER,
   SPRING_RAIN_WATERMILL_THROUGHPUT_MULTIPLIER,
   WINTER_CHARCOAL_BURNER_THROUGHPUT_MULTIPLIER,
   WINTER_FIREWOOD_DEMAND_MULTIPLIER,
   WINTER_WATERMILL_THROUGHPUT_MULTIPLIER,
 } from '../src/generated/gameBalance.ts';
-import { gameClock } from '../src/world/gameCalendar.ts';
+import {
+  formatCalendarDate,
+  formatWeekday,
+  gameClock,
+} from '../src/world/gameCalendar.ts';
 import {
   GAME_SPEEDS,
   PLAYER_GAME_SPEED_HOTKEYS,
@@ -96,10 +101,26 @@ assert.doesNotMatch(
   'winter copy must not imply that essential livestock care or feeding stops',
 );
 
+const dayTicks = CALENDAR_SECONDS_PER_DAY / SIM_TICK_SECONDS;
 const start = gameClock(0);
 assert.deepEqual(
   { month: start.month, day: start.monthDay, hour: start.hour, minute: start.minute },
   { month: 3, day: 1, hour: 8, minute: 0 },
+);
+assert.equal(formatWeekday(start), 'Sunday');
+assert.equal(formatCalendarDate(start), '1 March, Year 1');
+assert.deepEqual(
+  Array.from({ length: 7 }, (_, day) => formatWeekday(gameClock(day * dayTicks))),
+  ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
+  'the fictional calendar should expose every weekday in stable Sunday-first order',
+);
+const aprilNinth = gameClock((CALENDAR_DAYS_PER_MONTH + 8) * dayTicks);
+assert.equal(formatWeekday(aprilNinth), 'Wednesday');
+assert.equal(formatCalendarDate(aprilNinth), '9 April, Year 1');
+assert.equal(
+  `${formatWeekday(aprilNinth)}, ${formatCalendarDate(aprilNinth)}`,
+  'Wednesday, 9 April, Year 1',
+  'the season-card date should identify the weekday as well as the full date',
 );
 
 assert.equal(seasonForMonth(3), 'spring');
@@ -209,7 +230,6 @@ assert.equal(worldAnimationDelta(0.05, 0), 0);
 assert.equal(worldAnimationDelta(0.05, 1), 0.05);
 assert.equal(worldAnimationDelta(-1, 8), 0);
 
-const dayTicks = CALENDAR_SECONDS_PER_DAY / 0.2;
 const springClock = gameClock(2 * dayTicks);
 assert.deepEqual(
   environmentFor(12345, 50, springClock),
@@ -452,6 +472,11 @@ const foliageWindSource = readFileSync(
   'utf8',
 );
 assert.match(settlementHudSource, /seasonAlmanacTooltip/);
+assert.match(
+  settlementHudSource,
+  /const weekday = formatWeekday\(schedule\.clock\);[\s\S]*?const fullDate = `\$\{weekday\}, \$\{formatCalendarDate\(schedule\.clock\)\}`[\s\S]*?this\.seasonStatus\.dataset\.tooltipTitle = fullDate/,
+  'the season-card tooltip title should prefix every full date with its in-game weekday',
+);
 assert.match(settlementHudSource, /GAME_SPEEDS\.map/);
 assert.match(
   settlementHudSource,

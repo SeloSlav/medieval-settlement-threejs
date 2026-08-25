@@ -997,11 +997,28 @@ export class ResourceInspector {
     }
     if (this.selectedTarget?.kind === 'building') {
       const building = this.selectedTarget.building;
-      if (
-        building.kind === 'stable'
-        && (event.target as HTMLElement).closest('[data-purchase-ox]')
-      ) {
-        void this.options.onPurchaseStableOx?.(building.id);
+      const purchaseOxButton = (event.target as HTMLElement)
+        .closest<HTMLButtonElement>('[data-purchase-ox]');
+      if (building.kind === 'stable' && purchaseOxButton) {
+        if (
+          purchaseOxButton.getAttribute('aria-disabled') === 'true'
+          || purchaseOxButton.dataset.purchasePending === 'true'
+        ) return;
+
+        const idleLabel = purchaseOxButton.getAttribute('aria-label');
+        purchaseOxButton.dataset.purchasePending = 'true';
+        purchaseOxButton.setAttribute('aria-busy', 'true');
+        purchaseOxButton.setAttribute('aria-disabled', 'true');
+        purchaseOxButton.setAttribute('aria-label', 'Purchasing draft ox.');
+        void Promise.resolve()
+          .then(() => this.options.onPurchaseStableOx?.(building.id))
+          .finally(() => {
+            if (!purchaseOxButton.isConnected) return;
+            delete purchaseOxButton.dataset.purchasePending;
+            purchaseOxButton.removeAttribute('aria-busy');
+            purchaseOxButton.removeAttribute('aria-disabled');
+            if (idleLabel) purchaseOxButton.setAttribute('aria-label', idleLabel);
+          });
         return;
       }
       if (
@@ -2705,7 +2722,8 @@ export class ResourceInspector {
       const controls = [...panel.querySelectorAll<HTMLElement>(
         controlSelector,
       )].filter((control) => !control.hasAttribute('hidden'));
-      if (controls.length === 0) {
+      const hasStableOxRoster = panel.querySelector('[data-stable-ox-slot]') != null;
+      if (controls.length === 0 && !hasStableOxRoster) {
         const guidance = panel.textContent?.trim() ?? '';
         if (guidance && this.status.dataset.state === 'warning') {
           appendFocusableInspectorTooltip(

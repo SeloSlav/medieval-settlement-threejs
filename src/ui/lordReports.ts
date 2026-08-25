@@ -1,6 +1,7 @@
 import { flourStock, breadGrainBulkStock } from '../economy/cropGoods.ts';
 import { isCivilianToolSite } from '../economy/civilianToolPolicy.ts';
 import { freshFoodStock, preservedFoodStock } from '../economy/foodInventory.ts';
+import { fireDisabledBuildingIds } from '../fires/fireIncident.ts';
 import type { StorageCaps } from '../generated/gameBalance.ts';
 import { getBuildingDefinition } from '../resources/buildings.ts';
 import {
@@ -8,10 +9,23 @@ import {
   computePopulationStats,
 } from '../resources/resourceTotals.ts';
 import type { BuildingState, GameState, ResidenceState } from '../resources/types.ts';
-import { formatSettlementClock } from '../world/gameCalendar.ts';
+import {
+  formatSettlementClock,
+  gameClock,
+} from '../world/gameCalendar.ts';
+import {
+  SUNDAY_MASS_END_HOUR,
+  SUNDAY_MASS_START_HOUR,
+} from '../settlement/chapelMass.ts';
 
-export type LordReportKind = 'dawn' | 'labor' | 'storage' | 'fire';
+export type LordReportKind = 'dawn' | 'sabbath' | 'labor' | 'storage' | 'fire';
 export type LordReportTone = 'settled' | 'notice' | 'warning' | 'danger';
+
+export type LordReportContext = {
+  sabbathObservanceEnabled: boolean;
+  /** Current simulation-backed household stock summary, when already available. */
+  sabbathReadinessLabel?: string;
+};
 
 export type LordReportTarget = {
   kind: 'building' | 'residence';
@@ -335,20 +349,101 @@ function deriveFireReports(
   return reports;
 }
 
-/** Rising-edge reports only. The first hydrated snapshot establishes a baseline. */
+function formatScheduleHour(hour: number): string {
+  const wholeHour = Math.floor(hour);
+  const minutes = Math.round((hour - wholeHour) * 60);
+  return `${String(wholeHour).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+}
+
+function deriveSabbathReports(
+  current: GameState,
+  previous: GameState | null,
+  context: LordReportContext | undefined,
+): LordReport[] {
+  if (!context) return [];
+  const clock = gameClock(current.tick);
+  if (!clock.isSunday) return [];
+
+  const previousClock = previous ? gameClock(previous.tick) : null;
+  if (previousClock?.totalDays === clock.totalDays) return [];
+
+  const fireDisabled = fireDisabledBuildingIds(current.fireIncidents.values());
+  const completedChurches = [...current.buildings.values()].filter((building) => (
+    building.kind === 'chapel'
+    && building.constructionComplete !== false
+  ));
+  const staffedChurches = completedChurches.filter((building) => (
+    building.assignedLabor > 0
+    && !fireDisabled.has(building.id)
+  ));
+  const sabbathObserved = context.sabbathObservanceEnabled
+    && staffedChurches.length > 0;
+  const reportChurch = staffedChurches[0] ?? completedChurches[0];
+  const people = computePopulationStats(current).total;
+  const peopleLabel = `${people} ${people === 1 ? 'person' : 'people'}`;
+  const churchLabel = `${staffedChurches.length} staffed ${staffedChurches.length === 1 ? 'church' : 'churches'}`;
+  const committedCarts = current.deliveryTrips.size;
+  const committedCartLabel = committedCarts === 0
+    ? 'no carts are currently committed'
+    : `${committedCarts} committed ${committedCarts === 1 ? 'cart continues' : 'carts continue'}`;
+  const massWindow = `${formatScheduleHour(SUNDAY_MASS_START_HOUR)}–${formatScheduleHour(SUNDAY_MASS_END_HOUR)}`;
+
+  let tone: LordReportTone = 'settled';
+  let detail: string;
+  if (sabbathObserved) {
+    const readiness = context.sabbathReadinessLabel
+      ? ` Sunday stores: ${context.sabbathReadinessLabel}.`
+      : '';
+    detail = `${peopleLabel} · ${churchLabel}. Ordinary labor and new cart departures rest today; ${committedCartLabel}. Households still consume provisions, and no household tithes are due.${readiness} Sunday Mass is scheduled ${massWindow} for road-linked households.`;
+  } else if (context.sabbathObservanceEnabled) {
+    tone = 'warning';
+    detail = `Observance is ordered, but no staffed, serviceable church is available. Normal labor and delivery schedules remain in effect for ${peopleLabel}; no parish Mass can gather.`;
+  } else {
+    tone = 'notice';
+    const mass = staffedChurches.length > 0
+      ? ` ${churchLabel} still schedules Mass ${massWindow} for road-linked households.`
+      : ' No staffed church is available for parish Mass.';
+    detail = `Parish policy does not order Sabbath rest. Normal labor and delivery schedules remain in effect for ${peopleLabel}.${mass}`;
+  }
+
+  return [{
+    id: `sabbath:${current.seed}:${clock.totalDays}`,
+    kind: 'sabbath',
+    tone,
+    title: `It is Sunday — the Sabbath is ${sabbathObserved ? '' : 'not '}observed`,
+    detail,
+    timeLabel: reportTime(current),
+    ...(reportChurch
+      ? {
+          target: {
+            kind: 'building' as const,
+            id: reportChurch.id,
+            x: reportChurch.x,
+            z: reportChurch.z,
+          },
+          targetLabel: buildingLabel(reportChurch),
+        }
+      : {}),
+  }];
+}
+
+/** Rising-edge reports; entity events baseline on hydration, while Sunday may be announced. */
 export function deriveLordReportTransitions(
   current: GameState,
   previous: GameState | null,
+  context?: LordReportContext,
 ): LordReport[] {
   if (
-    previous === null
-    || current.seed !== previous.seed
-    || current.tick < previous.tick
+    previous !== null
+    && (current.seed !== previous.seed || current.tick < previous.tick)
   ) return [];
+  const sabbathReports = deriveSabbathReports(current, previous, context);
+  if (previous === null) return sabbathReports;
   return [
     ...deriveFireReports(current, previous),
     ...deriveLaborReports(current, previous),
     ...deriveStorageReports(current, previous),
+    ...sabbathReports,
   ];
 }
 
@@ -387,6 +482,7 @@ export class LordReportCollection {
 
 const REPORT_SYMBOLS: Record<LordReportKind, string> = {
   dawn: '☀',
+  sabbath: '✝',
   labor: '✦',
   storage: '▣',
   fire: '♦',

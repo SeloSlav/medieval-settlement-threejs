@@ -9,6 +9,11 @@ import type {
 import { createEmptyStockpile } from '../src/resources/types.ts';
 import type { FireIncidentState } from '../src/fires/fireIncident.ts';
 import {
+  CALENDAR_DAY_START_OFFSET_SECONDS,
+  CALENDAR_SECONDS_PER_DAY,
+  SIM_TICK_SECONDS,
+} from '../src/generated/gameBalance.ts';
+import {
   DEFAULT_NIGHT_POLICY,
   dawnReportRelevanceScore,
   isDawnReportRelevant,
@@ -67,6 +72,121 @@ assert.equal(
   isDawnReportRelevant({ ...routineDawn, lastLightingFuelShortfall: 1 }),
   false,
   'the legacy lighting-shortfall field has no current simulation consequence',
+);
+
+const staffedChapel = building({
+  id: 'sabbath-chapel',
+  kind: 'chapel',
+  assignedLabor: 1,
+  constructionComplete: true,
+});
+const initialSunday = gameState(0, { buildings: [staffedChapel] });
+const initialObservedSabbath = deriveLordReportTransitions(
+  initialSunday,
+  null,
+  { sabbathObservanceEnabled: true },
+).filter((entry) => entry.kind === 'sabbath');
+assert.equal(initialObservedSabbath.length, 1);
+assert.equal(initialObservedSabbath[0]?.id, 'sabbath:1:0');
+assert.match(
+  initialObservedSabbath[0]?.title ?? '',
+  /It is Sunday — the Sabbath is observed/,
+);
+assert.match(
+  initialObservedSabbath[0]?.detail ?? '',
+  /chapel|church/i,
+  'the report should ground observance in the settlement\'s actual chapel readiness',
+);
+assert.match(
+  initialObservedSabbath[0]?.detail ?? '',
+  /labor|work|deliver/i,
+  'the report should explain the in-game consequence of observance',
+);
+
+assert.deepEqual(
+  deriveLordReportTransitions(
+    gameState(1, { buildings: [staffedChapel] }),
+    initialSunday,
+    { sabbathObservanceEnabled: true },
+  ).filter((entry) => entry.kind === 'sabbath'),
+  [],
+  'an initial Sunday report must not repeat on every same-day snapshot',
+);
+
+const sundayDaySevenTick = (
+  7 * CALENDAR_SECONDS_PER_DAY - CALENDAR_DAY_START_OFFSET_SECONDS
+) / SIM_TICK_SECONDS;
+const sundayEntryReports = deriveLordReportTransitions(
+  gameState(sundayDaySevenTick, { buildings: [staffedChapel] }),
+  gameState(sundayDaySevenTick - 1, { buildings: [staffedChapel] }),
+  { sabbathObservanceEnabled: true },
+).filter((entry) => entry.kind === 'sabbath');
+assert.equal(sundayEntryReports.length, 1);
+assert.equal(sundayEntryReports[0]?.id, 'sabbath:1:7');
+assert.match(sundayEntryReports[0]?.title ?? '', /Sabbath is observed/);
+
+const mondayDayOneTick = (
+  CALENDAR_SECONDS_PER_DAY - CALENDAR_DAY_START_OFFSET_SECONDS
+) / SIM_TICK_SECONDS;
+assert.deepEqual(
+  deriveLordReportTransitions(
+    gameState(mondayDayOneTick, { buildings: [staffedChapel] }),
+    null,
+    { sabbathObservanceEnabled: true },
+  ).filter((entry) => entry.kind === 'sabbath'),
+  [],
+  'hydrating on any non-Sunday must not invent a Sabbath report',
+);
+
+const policyDisabledSabbath = deriveLordReportTransitions(
+  initialSunday,
+  null,
+  { sabbathObservanceEnabled: false },
+).find((entry) => entry.kind === 'sabbath');
+assert.ok(policyDisabledSabbath);
+assert.match(policyDisabledSabbath.title, /It is Sunday — the Sabbath is not observed/);
+assert.match(
+  policyDisabledSabbath.detail,
+  /polic|decre|observance/i,
+  'a non-observance report should distinguish disabled parish policy from missing facilities',
+);
+
+const unstaffedSabbath = deriveLordReportTransitions(
+  gameState(0),
+  null,
+  { sabbathObservanceEnabled: true },
+).find((entry) => entry.kind === 'sabbath');
+assert.ok(unstaffedSabbath);
+assert.match(unstaffedSabbath.title, /Sabbath is not observed/);
+assert.match(
+  unstaffedSabbath.detail,
+  /chapel|church/i,
+  'enabled observance without a staffed chapel should report the real readiness blocker',
+);
+
+const unfinishedChapelSabbath = deriveLordReportTransitions(
+  gameState(0, {
+    buildings: [{ ...staffedChapel, constructionComplete: false }],
+  }),
+  null,
+  { sabbathObservanceEnabled: true },
+).find((entry) => entry.kind === 'sabbath');
+assert.ok(unfinishedChapelSabbath);
+assert.match(unfinishedChapelSabbath.title, /Sabbath is not observed/);
+
+const fireUnsafeChapelSabbath = deriveLordReportTransitions(
+  gameState(0, {
+    buildings: [staffedChapel],
+    fires: [fireIncident({ targetId: staffedChapel.id, status: 'burning' })],
+  }),
+  null,
+  { sabbathObservanceEnabled: true },
+).find((entry) => entry.kind === 'sabbath');
+assert.ok(fireUnsafeChapelSabbath);
+assert.match(
+  fireUnsafeChapelSabbath.title,
+  /Sabbath is not observed/,
+  'a burning chapel must not count as an operational place of observance',
 );
 
 const aggregatedGranary = building({

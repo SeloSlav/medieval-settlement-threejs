@@ -234,7 +234,17 @@ assert.doesNotMatch(
 );
 assert.match(townReportPanel, /computeSettlementResourceReport/);
 assert.match(townReportPanel, /one realm economy/);
-assert.match(townReportPanel, /Not a separate town wallet/);
+assert.doesNotMatch(townReportPanel, /Not a separate town wallet/);
+assert.match(
+  townReportPanel,
+  /data-resource-cost="\$\{escapeHtml\(row\.resource\)\}"[\s\S]{0,180}resource-cost__icon/,
+  'each local resource row must pair its name with the canonical resource icon',
+);
+assert.match(
+  townReportStyles,
+  /town-report-panel__good\[data-resource-cost='game'\][\s\S]{0,180}game-normal\.png/,
+  'the canonical game resource must retain a real icon in the local report',
+);
 assert.match(townReportPanel, /bound for off-map trade/);
 assert.match(
   townReportPanel,

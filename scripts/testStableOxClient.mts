@@ -43,7 +43,10 @@ assert.match(
 );
 
 const inspector = read('src/resources/ResourceInspector.ts');
-assert.match(inspector, /data-purchase-ox[\s\S]{0,160}onPurchaseStableOx/);
+assert.match(inspector, /data-purchase-ox[\s\S]{0,900}onPurchaseStableOx/);
+assert.match(inspector, /purchaseOxButton\.getAttribute\('aria-disabled'\) === 'true'/);
+assert.match(inspector, /purchaseOxButton\.dataset\.purchasePending = 'true'/);
+assert.match(inspector, /hasStableOxRoster[\s\S]{0,120}controls\.length === 0 && !hasStableOxRoster/);
 assert.match(inspector, /data-inspector-ox-team/);
 assert.match(inspector, /data-ox-posting-delta="-1"[\s\S]{0,320}data-ox-posting-delta="1"/);
 assert.match(inspector, /onSetBuildingOxen\?\.[\s\S]{0,140}targetCount/);
@@ -82,6 +85,12 @@ assert.match(stableRenderer, /Array\.from\(\{ length: STABLE_OX_SLOTS \}/);
 assert.match(stableRenderer, /data-stable-ox-slot/);
 assert.match(stableRenderer, /data-purchase-ox/);
 assert.match(stableRenderer, /const purchaseDisabled = atCapacity \|\| treasuryShort \|\| fire !== null/);
+assert.match(stableRenderer, /const nextOpenSlot/);
+assert.match(stableRenderer, /data-state="purchase"/);
+assert.match(stableRenderer, /stable-ox-slot__portrait/);
+assert.match(stableRenderer, /stable-ox-slot__price[\s\S]{0,240}renderResourceAmount\('gold'/);
+assert.doesNotMatch(stableRenderer, />OX</);
+assert.doesNotMatch(stableRenderer, /Buy ox/);
 assert.doesNotMatch(stableRenderer, /Automatic · oxen cannot be assigned individually/);
 assert.match(stableRenderer, /posted until changed/);
 assert.match(stableRenderer, /unposted ox remains in the automatic assistance pool/);
@@ -121,5 +130,37 @@ assert.match(
 const inspectorCss = read('src/ui/resourceInspector.css');
 assert.match(inspectorCss, /grid-template-columns: minmax\(0, 1fr\) auto/);
 assert.match(inspectorCss, /resource-inspector-labor-controls[\s\S]{0,180}max-width: 100%/);
+
+const polishedInspectorCss = read('src/ui/polishedGameUi.css');
+assert.match(
+  polishedInspectorCss,
+  /\.resource-inspector-labor-controls\s*\{[\s\S]{0,260}border-radius:\s*4px/,
+);
+assert.match(
+  polishedInspectorCss,
+  /\.resource-action-button\.resource-inspector-labor-button\s*\{[\s\S]{0,360}min-height:\s*30px[\s\S]{0,180}border-radius:\s*0/,
+);
+assert.doesNotMatch(
+  polishedInspectorCss,
+  /\.resource(?:-action-button\.)?-inspector-labor-button\s*\{[^}]*border-radius:\s*50%/,
+);
+assert.match(
+  polishedInspectorCss,
+  /\.stable-ox-slot__portrait\s*\{[\s\S]{0,220}hud-livestock\.png/,
+);
+assert.match(
+  polishedInspectorCss,
+  /\.stable-ox-slot\[data-state='purchase'\]:hover[\s\S]{0,160}:focus-within/,
+);
+assert.match(
+  polishedInspectorCss,
+  /\.stable-ox-slot__price \.resource-cost\s*\{[\s\S]{0,120}font:\s*800 15px/,
+);
+assert.match(
+  polishedInspectorCss,
+  /\.stable-ox-slot\[data-state='occupied'\] \.stable-ox-slot__portrait\s*\{[\s\S]{0,80}opacity:\s*1/,
+);
+assert.match(polishedInspectorCss, /@media \(hover: none\)[\s\S]{0,520}stable-ox-slot__price/);
+assert.match(polishedInspectorCss, /@media \(prefers-reduced-motion: reduce\)/);
 
 console.log('stable ox client persistence and inspector tests passed');

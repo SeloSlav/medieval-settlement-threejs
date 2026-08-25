@@ -1632,12 +1632,13 @@ export class SettlementHud {
 
   setSettlementClock(schedule: SettlementSchedule): void {
     const date = formatCalendarMonthDay(schedule.clock);
-    const fullDate = formatCalendarDate(schedule.clock);
+    const weekday = formatWeekday(schedule.clock);
+    const fullDate = `${weekday}, ${formatCalendarDate(schedule.clock)}`;
     const time = formatClockTime(schedule.clock);
     const pauseLabel = schedule.laborPauseLabel;
     const detail = pauseLabel
-      ? `${formatWeekday(schedule.clock)} · ${pauseLabel}`
-      : formatWeekday(schedule.clock);
+      ? `${weekday} · ${pauseLabel}`
+      : weekday;
     const sabbath = pauseLabel === 'Sunday sabbath';
     const night = pauseLabel === 'Night hours';
     if (date !== this.displayedClockDate) {

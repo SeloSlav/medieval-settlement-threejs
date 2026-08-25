@@ -100,7 +100,7 @@ export class TownReportPanel {
         ${hallAction}
       </div>
       <section class="town-report-panel__ledger">
-        <header><strong>Goods physically here</strong><small>Not a separate town wallet</small></header>
+        <header><strong>Goods physically here</strong></header>
         <div class="town-report-panel__table" role="table" aria-label="Local resource flows">
           <div class="town-report-panel__row town-report-panel__row--head" role="row">
             <span>Good</span><span>Stored</span><span>Committed</span><span>Inbound</span><span>Outbound</span>
@@ -154,7 +154,10 @@ function hasReportValue(row: SettlementResourceReportRow): boolean {
 
 function renderResourceRow(row: SettlementResourceReportRow): string {
   return `<div class="town-report-panel__row" role="row">
-    <strong>${escapeHtml(resourceLabel(row.resource))}</strong>
+    <strong class="town-report-panel__good resource-cost__item" data-resource-cost="${escapeHtml(row.resource)}">
+      <span class="resource-cost__icon" aria-hidden="true"></span>
+      <span>${escapeHtml(resourceLabel(row.resource))}</span>
+    </strong>
     <span>${formatAmount(row.stored)}</span>
     <span>${formatAmount(row.committed)}</span>
     <span>${formatAmount(row.inbound)}</span>

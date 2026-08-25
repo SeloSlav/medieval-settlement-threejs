@@ -51,6 +51,10 @@ export function renderStableInspector(
   const atCapacity = openSlots === 0;
   const treasuryShort = treasuryGold + 1e-6 < STABLE_OX_PURCHASE_GOLD;
   const purchaseDisabled = atCapacity || treasuryShort || fire !== null;
+  const nextOpenSlot = Array.from(
+    { length: STABLE_OX_SLOTS },
+    (_, slot) => slot,
+  ).find((slot) => !occupiedSlots.has(slot)) ?? -1;
 
   const status = fire
     ? ['Dispatch suspended during fire recovery', 'warning'] as const
@@ -69,6 +73,11 @@ export function renderStableInspector(
       : treasuryShort
         ? `${renderResourceAmount('gold', STABLE_OX_PURCHASE_GOLD - treasuryGold, { compact: true })} more civic gold is required.`
         : `${openSlots} ${openSlots === 1 ? 'bay remains' : 'bays remain'} after this order.`;
+  const purchaseAvailabilityLabel = fire
+    ? 'Purchases are paused until the stable is repaired.'
+    : treasuryShort
+      ? `${Math.ceil(STABLE_OX_PURCHASE_GOLD - treasuryGold)} more gold is required.`
+      : 'The ox will join the automatic assistance pool.';
 
   const haulingOxIds = new Set(
     [...context.gameState.deliveryTrips.values()]
@@ -83,6 +92,7 @@ export function renderStableInspector(
   );
   const slotIndicators = Array.from({ length: STABLE_OX_SLOTS }, (_, slot) => {
     const ox = occupiedSlots.get(slot);
+    const isPurchaseSlot = !ox && slot === nextOpenSlot;
     const hauling = ox ? haulingOxIds.has(ox.id) : false;
     const assignedBuilding = ox?.assignedBuildingId == null
       ? null
@@ -93,7 +103,13 @@ export function renderStableInspector(
       ? 'workplace'
       : context.worldQueries.getBuildingLabel(assignedBuilding.kind);
     const assignmentLabel = !ox
-      ? 'Open stall'
+      ? isPurchaseSlot
+        ? fire
+          ? 'Purchases paused'
+          : treasuryShort
+            ? 'Treasury short'
+            : 'Add draft ox'
+        : 'Fills in order'
       : ox.assignedBuildingId == null
         ? hauling ? 'Automatic pool · hauling now' : 'Automatic assistance pool'
         : hauling
@@ -101,9 +117,31 @@ export function renderStableInspector(
           : assignmentActive
             ? `Posted to ${assignedLabel} · active with a worker`
             : `Posted to ${assignedLabel} · waiting for labor`;
-    return `<li class="stable-ox-slot" data-stable-ox-slot="${slot}" data-state="${ox ? 'occupied' : 'open'}">
-      <span class="stable-ox-slot__badge" aria-hidden="true">${ox ? 'OX' : '+'}</span>
-      <span class="stable-ox-slot__copy"><strong>Bay ${BAY_LABELS[slot] ?? slot + 1}</strong><small>${assignmentLabel}</small></span>
+    const bayLabel = `Bay ${BAY_LABELS[slot] ?? slot + 1}`;
+    const slotVisual = `<span class="stable-ox-slot__frame" aria-hidden="true">
+      <span class="stable-ox-slot__plus">+</span>
+      <span class="stable-ox-slot__portrait"></span>
+    </span>`;
+    const slotCopy = `<span class="stable-ox-slot__copy">
+      <strong>${bayLabel}</strong>
+      <span class="stable-ox-slot__detail">
+        <small class="stable-ox-slot__status">${assignmentLabel}</small>
+        ${isPurchaseSlot ? `<span class="stable-ox-slot__price" aria-hidden="true">${renderResourceAmount('gold', STABLE_OX_PURCHASE_GOLD, { compact: true, unaffordable: treasuryShort })}</span><small class="stable-ox-slot__pending">Purchasing…</small>` : ''}
+      </span>
+    </span>`;
+
+    if (isPurchaseSlot) {
+      return `<li class="stable-ox-slot" data-stable-ox-slot="${slot}" data-state="purchase" data-purchase-status="${fire ? 'paused' : treasuryShort ? 'unaffordable' : 'ready'}">
+        <button type="button" class="stable-ox-slot__purchase" data-purchase-ox aria-label="Purchase an ox for ${STABLE_OX_PURCHASE_GOLD} gold in ${bayLabel}. ${purchaseAvailabilityLabel}" ${purchaseDisabled ? 'aria-disabled="true"' : ''}>
+          ${slotVisual}
+          ${slotCopy}
+        </button>
+      </li>`;
+    }
+
+    return `<li class="stable-ox-slot" data-stable-ox-slot="${slot}" data-state="${ox ? 'occupied' : 'waiting'}">
+      ${slotVisual}
+      ${slotCopy}
     </li>`;
   }).join('');
 
@@ -127,9 +165,6 @@ export function renderStableInspector(
       <div class="inspector-action-panel stable-ox-panel" data-inspector-panel-title="Ox team">
         <p class="resource-inspector-note">Post oxen persistently from an eligible workplace card. Posted oxen wait here whenever no laborer is available; every unposted ox remains in the automatic assistance pool.</p>
         <ol class="stable-ox-slots" aria-label="Stable ox bays">${slotIndicators}</ol>
-        <div class="resource-action-row">
-          <button type="button" class="resource-action-button" data-purchase-ox aria-label="Purchase one stable ox for ${STABLE_OX_PURCHASE_GOLD} gold" ${purchaseDisabled ? 'disabled' : ''}>Buy ox · ${renderResourceAmount('gold', STABLE_OX_PURCHASE_GOLD, { compact: true })}</button>
-        </div>
         <p class="inspector-action-panel__hint">${purchaseHint} Treasury: ${renderResourceAmount('gold', treasuryGold, { compact: true })}. Each purchase permanently occupies the first open bay.</p>
       </div>
     `,
