@@ -40,7 +40,7 @@ use crate::livestock_policy::{
     can_cull_one, cattle_manure_output, essential_livestock_care_labor, haymaking_share,
     is_haymaking_month, is_shearing_month, livestock_cycles_per_calendar_day,
     livestock_milk_allocation, projected_winter_animal_feed, retain_priority_candidate,
-    sheep_fleece_output,
+    sheep_fleece_output, storage_secured_pending_cull_heads,
 };
 use crate::ox_policy::ox_amplified_worker_count;
 use crate::reducers::livestock::{
@@ -160,11 +160,47 @@ fn step_livestock_building(
             let cycles_per_day = building_def(&building.kind)
                 .map(|def| livestock_cycles_per_calendar_day(def.action_interval))
                 .unwrap_or(0.0);
+            let mut cull_food_room = building_commodity_room(&building, CommodityKind::Meat);
+            let mut cull_preserved_room =
+                building_commodity_room(&building, CommodityKind::CuredMeat);
+            let mut cull_salted_output_capacity = farmstead_salted_output_capacity(&building);
             parcels
                 .iter()
                 .map(|parcel| {
+                    let projected_head_count = if environment.season == Season::Autumn {
+                        let (slaughter_food, slaughter_preserved) =
+                            species_slaughter_yields(parcel.herd.species);
+                        let secured_culls = storage_secured_pending_cull_heads(
+                            parcel.herd.head_count,
+                            parcel.herd.breeding_reserve,
+                            species_max_herd(parcel.herd.species),
+                            cull_food_room,
+                            cull_preserved_room,
+                            cull_salted_output_capacity,
+                            slaughter_food,
+                            slaughter_preserved,
+                        );
+
+                        // Every parcel at this holding shares the same stores.
+                        // Debit the capacity secured for earlier parcels before
+                        // projecting later ones so it cannot be counted twice.
+                        let secured_culls = f64::from(secured_culls);
+                        let preserved_used = (secured_culls * slaughter_preserved)
+                            .min(cull_preserved_room)
+                            .min(cull_salted_output_capacity);
+                        let food_used =
+                            secured_culls * (slaughter_food + slaughter_preserved) - preserved_used;
+                        cull_food_room = (cull_food_room - food_used).max(0.0);
+                        cull_preserved_room = (cull_preserved_room - preserved_used).max(0.0);
+                        cull_salted_output_capacity =
+                            (cull_salted_output_capacity - preserved_used).max(0.0);
+
+                        parcel.herd.head_count.saturating_sub(secured_culls as u32)
+                    } else {
+                        parcel.herd.head_count
+                    };
                     projected_winter_animal_feed(
-                        parcel.herd.head_count,
+                        projected_head_count,
                         parcel.base_capacity,
                         parcel.herd.hay_stock,
                         species_hay_per_unsupported_head(parcel.herd.species),

@@ -85,14 +85,6 @@ pub fn storage_masks_accept(low: u64, high: u64, commodity_code: u8) -> bool {
     }
 }
 
-pub fn storage_kind_acceptance_mask(kind: &str) -> Option<u64> {
-    match kind {
-        "village_storehouse" => Some(STOREHOUSE_ACCEPTANCE_MASK),
-        "granary" => Some(GRANARY_ACCEPTANCE_MASK),
-        _ => None,
-    }
-}
-
 pub fn storage_kind_acceptance_masks(kind: &str) -> Option<(u64, u64)> {
     match kind {
         "village_storehouse" => Some((STOREHOUSE_ACCEPTANCE_MASK, STOREHOUSE_ACCEPTANCE_MASK_HIGH)),
@@ -136,17 +128,6 @@ pub fn set_storage_masks_commodity(
     }
 }
 
-pub fn set_storage_mask_all(mask: u64, kind: &str, accepts: bool) -> u64 {
-    let Some(relevant) = storage_kind_acceptance_mask(kind) else {
-        return mask;
-    };
-    if accepts {
-        mask | relevant
-    } else {
-        mask & !relevant
-    }
-}
-
 pub fn set_storage_masks_all(low: u64, high: u64, kind: &str, accepts: bool) -> (u64, u64) {
     let Some((relevant_low, relevant_high)) = storage_kind_acceptance_masks(kind) else {
         return (low, high);
@@ -183,13 +164,24 @@ mod tests {
         assert!(!storage_mask_accepts(without_charcoal, 22));
         assert!(storage_mask_accepts(without_charcoal, 28));
 
-        let no_storehouse_goods = set_storage_mask_all(u64::MAX, "village_storehouse", false);
+        let (no_storehouse_goods, unchanged_high) =
+            set_storage_masks_all(u64::MAX, u64::MAX, "village_storehouse", false);
         assert_eq!(no_storehouse_goods & STOREHOUSE_ACCEPTANCE_MASK, 0);
+        assert_eq!(unchanged_high & STOREHOUSE_ACCEPTANCE_MASK_HIGH, 0);
         assert!(storage_mask_accepts(no_storehouse_goods, 28));
+        let (restored_storehouse_goods, restored_high) = set_storage_masks_all(
+            no_storehouse_goods,
+            unchanged_high,
+            "village_storehouse",
+            true,
+        );
         assert_eq!(
-            set_storage_mask_all(no_storehouse_goods, "village_storehouse", true)
-                & STOREHOUSE_ACCEPTANCE_MASK,
-            STOREHOUSE_ACCEPTANCE_MASK,
+            restored_storehouse_goods & STOREHOUSE_ACCEPTANCE_MASK,
+            STOREHOUSE_ACCEPTANCE_MASK
+        );
+        assert_eq!(
+            restored_high & STOREHOUSE_ACCEPTANCE_MASK_HIGH,
+            STOREHOUSE_ACCEPTANCE_MASK_HIGH
         );
 
         let (low, high) = set_storage_masks_commodity(u64::MAX, u64::MAX, 64, false);
