@@ -38,6 +38,8 @@ export type HarvestStumpInstances = {
   dirtyMeshes: Set<THREE.InstancedMesh>;
   ownedMaterials: THREE.Material[];
   ownedTextures: THREE.Texture[];
+  cutFaceMaterial: THREE.MeshStandardMaterial;
+  snowCoverage: number;
 };
 
 const STUMP_RADIAL_SEGMENTS = 12;
@@ -179,6 +181,8 @@ export function createHarvestStumpInstances(
     dirtyMeshes,
     ownedMaterials,
     ownedTextures,
+    cutFaceMaterial,
+    snowCoverage: 0,
   };
 }
 
@@ -232,6 +236,24 @@ export function setHarvestStumpShadowsEnabled(
   enabled: boolean,
 ): void {
   for (const mesh of instances.meshes) mesh.castShadow = enabled;
+}
+
+/** The upward cut face is the natural accumulation surface on a low stump. */
+export function setHarvestStumpSnowCoverage(
+  instances: HarvestStumpInstances,
+  coverage: number,
+): boolean {
+  const next = THREE.MathUtils.clamp(
+    Number.isFinite(coverage) ? coverage : 0,
+    0,
+    1,
+  );
+  if (Math.abs(instances.snowCoverage - next) <= 1e-6) return false;
+  instances.snowCoverage = next;
+  instances.cutFaceMaterial.emissive.setHex(0xeaf4ff);
+  instances.cutFaceMaterial.emissiveIntensity = next * 0.58;
+  instances.cutFaceMaterial.roughness = THREE.MathUtils.lerp(0.88, 1, next);
+  return true;
 }
 
 export function disposeHarvestStumpInstances(instances: HarvestStumpInstances): void {

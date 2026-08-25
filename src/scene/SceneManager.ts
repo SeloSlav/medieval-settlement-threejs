@@ -157,6 +157,12 @@ type StartupPrecompilableRenderer = SupportedRenderer & {
 
 const MOON_KEY_DIRECTION = new THREE.Vector3(-0.38, 0.82, 0.42).normalize();
 const MOON_FILL_DIRECTION = new THREE.Vector3(0.52, 0.48, -0.71).normalize();
+const FORAGING_PRESENTATION_MONTH: Record<EnvironmentState['season'], number> = {
+  spring: 4,
+  summer: 7,
+  autumn: 10,
+  winter: 1,
+};
 // These implementations were formerly part of the synchronous game-entry
 // parse. Fetch them immediately but evaluate them as parallel vegetation
 // chunks; the later build reuses these exact promises before loading the GLBs.
@@ -677,6 +683,7 @@ export class SceneManager {
       this.forestManager.setSnowCoverage(this.environment.snowCoverage);
     }
     this.berryPatchVisuals = await berryPatchPromise;
+    if (this.environment) this.berryPatchVisuals.setEnvironment(this.environment);
     this.scene.add(this.berryPatchVisuals.group);
     this.mushroomPatchVisuals = await mushroomPatchPromise;
     this.scene.add(this.mushroomPatchVisuals.group);
@@ -1229,6 +1236,7 @@ export class SceneManager {
     this.forestManager?.setDeciduousFoliage(environment.deciduousFoliage);
     this.forestManager?.setSnowCoverage(environment.snowCoverage);
     this.grassField?.setEnvironment(environment);
+    this.berryPatchVisuals?.setEnvironment(environment);
     this.applyForagingVisualState();
     if (this.lastDayNightState) this.applyDayNight(this.lastDayNightState);
   }
@@ -1325,8 +1333,11 @@ export class SceneManager {
   }
 
   private applyForagingVisualState(): void {
-    this.berryPatchVisuals?.sync(this.latestForagingNodes, this.latestForagingMonth);
-    this.mushroomPatchVisuals?.sync(this.latestForagingNodes, this.latestForagingMonth);
+    const presentationMonth = this.environment
+      ? FORAGING_PRESENTATION_MONTH[this.environment.season]
+      : this.latestForagingMonth;
+    this.berryPatchVisuals?.sync(this.latestForagingNodes, presentationMonth);
+    this.mushroomPatchVisuals?.sync(this.latestForagingNodes, presentationMonth);
     this.deerWildlifeVisuals?.sync(this.latestForagingNodes);
     this.fishWildlifeVisuals?.sync(this.latestForagingNodes);
   }

@@ -35,6 +35,7 @@ import {
   disposeHarvestStumpInstances,
   hideHarvestStumpInstance,
   isUndergrowthNearAnyEdge,
+  setHarvestStumpSnowCoverage,
   setHarvestStumpShadowsEnabled,
   shouldShowHarvestStumps,
   type HarvestStumpBarkResolver,
@@ -284,7 +285,9 @@ export class ForestManager {
     this.seedThreeForest?.setSnowCoverage(coverage);
     this.forestFloorIvy?.setSnowCoverage(coverage);
     this.forestFloorNettles?.setSnowCoverage(coverage);
+    this.forestFloorTwigs?.setSnowCoverage(coverage);
     this.undergrowth?.setSnowCoverage(coverage);
+    setHarvestStumpSnowCoverage(this.harvestStumps, coverage);
   }
 
   setDistantCanopyCardsEnabled(enabled: boolean): void {

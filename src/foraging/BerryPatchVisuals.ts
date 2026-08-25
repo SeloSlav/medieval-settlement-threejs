@@ -1,6 +1,16 @@
 import * as THREE from 'three';
 import { MeshStandardNodeMaterial } from 'three/webgpu';
-import * as tsl from 'three/tsl';
+import {
+  float,
+  mix,
+  normalWorldGeometry,
+  positionWorld,
+  sin,
+  smoothstep,
+  texture,
+  uniform,
+  vec3,
+} from 'three/tsl';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import type { Terrain } from '../terrain/Terrain.ts';
 import type { RendererBackendKind } from '../scene/RendererBackend.ts';
@@ -82,6 +92,33 @@ export type BerryPatchVisuals = {
 const TAU = Math.PI * 2;
 const textureLoader = new THREE.TextureLoader();
 const gltfLoader = new GLTFLoader();
+
+type TslNode = {
+  mul(value: unknown): TslNode;
+  add(value: unknown): TslNode;
+  sub(value: unknown): TslNode;
+  clamp(minimum: unknown, maximum: unknown): TslNode;
+  r: TslNode;
+  g: TslNode;
+  b: TslNode;
+  a: TslNode;
+  rgb: TslNode;
+  x: TslNode;
+  y: TslNode;
+  z: TslNode;
+};
+
+const tsl = {
+  float: float as (value: number) => TslNode,
+  mix: mix as (left: unknown, right: unknown, amount: unknown) => TslNode,
+  normalWorldGeometry: normalWorldGeometry as unknown as TslNode,
+  positionWorld: positionWorld as unknown as TslNode,
+  sin: sin as (value: unknown) => TslNode,
+  smoothstep: smoothstep as (low: unknown, high: unknown, value: unknown) => TslNode,
+  texture: texture as (map: THREE.Texture) => TslNode,
+  uniform: uniform as <T>(value: T) => { value: T } & TslNode,
+  vec3: vec3 as (x: unknown, y?: unknown, z?: unknown) => TslNode,
+};
 
 /**
  * Turns authoritative berry sites into instanced Rubus idaeus cane shrubs.
@@ -379,6 +416,310 @@ export async function createBerryPatchVisuals(
       for (const texture of materials.textures) texture.dispose();
     },
   };
+}
+
+function createRaspberryBranchMaterial(
+  albedo: THREE.Texture,
+  normal: THREE.Texture | null,
+  roughness: THREE.Texture | null,
+  useNodeMaterial: boolean,
+): THREE.Material {
+  if (!useNodeMaterial) {
+    const material = new THREE.MeshStandardMaterial({
+      name: 'SeedThree raspberry cane bark',
+      map: albedo,
+      normalMap: normal,
+      roughnessMap: roughness,
+      roughness: roughness ? 1 : 0.92,
+      metalness: 0,
+    });
+    material.normalScale.set(0.38, 0.38);
+    applyRaspberryBranchWebGLSnow(material);
+    return material;
+  }
+
+  const material = new MeshStandardNodeMaterial() as unknown as
+    THREE.MeshStandardMaterial & { colorNode: unknown };
+  material.name = 'SeedThree raspberry cane bark';
+  material.map = albedo;
+  material.normalMap = normal;
+  material.roughnessMap = roughness;
+  material.roughness = roughness ? 1 : 0.92;
+  material.metalness = 0;
+  material.normalScale.set(0.38, 0.38);
+  const snowCoverage = tsl.uniform(0);
+  const texel = tsl.texture(albedo);
+  const upwardExposure = tsl.smoothstep(
+    tsl.float(0.18),
+    tsl.float(0.84),
+    tsl.normalWorldGeometry.y,
+  );
+  const snowVariation = tsl.sin(
+    tsl.positionWorld.x.mul(0.81)
+      .add(tsl.positionWorld.z.mul(1.13)),
+  ).mul(0.12).add(0.88);
+  const snowAmount = snowCoverage
+    .mul(upwardExposure)
+    .mul(snowVariation)
+    .mul(0.68);
+  material.colorNode = tsl.mix(
+    texel.rgb,
+    tsl.vec3(0.92, 0.955, 0.98),
+    snowAmount,
+  ) as never;
+  material.userData.raspberrySnowCoverage = snowCoverage;
+  return material;
+}
+
+function createRaspberryFoliageMaterial(
+  albedo: THREE.Texture,
+  normal: THREE.Texture | null,
+  roughness: THREE.Texture | null,
+  useNodeMaterial: boolean,
+): THREE.Material {
+  if (!useNodeMaterial) {
+    const material = new THREE.MeshStandardMaterial({
+      name: 'Generated Rubus idaeus leaf sprays',
+      map: albedo,
+      normalMap: normal,
+      roughnessMap: roughness,
+      roughness: roughness ? 1 : 0.9,
+      metalness: 0,
+      alphaTest: 0.38,
+      side: THREE.DoubleSide,
+      transparent: false,
+    });
+    material.forceSinglePass = true;
+    material.normalScale.set(0.45, 0.45);
+    applyRaspberryFoliageWebGLSeason(material);
+    return material;
+  }
+
+  const material = new MeshStandardNodeMaterial() as unknown as
+    THREE.MeshStandardMaterial & {
+      colorNode: unknown;
+      opacityNode: unknown;
+    };
+  material.name = 'Generated Rubus idaeus leaf sprays';
+  material.map = albedo;
+  material.normalMap = normal;
+  material.roughnessMap = roughness;
+  material.roughness = roughness ? 1 : 0.9;
+  material.metalness = 0;
+  material.alphaTest = 0.38;
+  material.side = THREE.DoubleSide;
+  material.transparent = false;
+  material.forceSinglePass = true;
+  material.normalScale.set(0.45, 0.45);
+
+  const texel = tsl.texture(albedo);
+  const springFlush = tsl.uniform(0);
+  const autumnColor = tsl.uniform(0);
+  const dormancy = tsl.uniform(0);
+  const snowCoverage = tsl.uniform(0);
+  const value = texel.r.mul(0.2126)
+    .add(texel.g.mul(0.7152))
+    .add(texel.b.mul(0.0722));
+  const springLeaf = tsl.vec3(0.62, 0.94, 0.27)
+    .mul(value.mul(1.38)).clamp(0, 1);
+  const autumnVariation = tsl.sin(
+    tsl.positionWorld.x.mul(1.71)
+      .add(tsl.positionWorld.z.mul(1.19)),
+  ).mul(0.5).add(0.5);
+  const autumnLeaf = tsl.mix(
+    tsl.vec3(0.96, 0.43, 0.045),
+    tsl.vec3(0.67, 0.075, 0.025),
+    autumnVariation,
+  ).mul(value.mul(1.62)).clamp(0, 1);
+  let seasonal = tsl.mix(texel.rgb, springLeaf, springFlush.mul(0.62));
+  seasonal = tsl.mix(seasonal, autumnLeaf, autumnColor.mul(0.92));
+  const upwardExposure = tsl.smoothstep(
+    tsl.float(0.18),
+    tsl.float(0.84),
+    tsl.normalWorldGeometry.y,
+  );
+  const snowVariation = tsl.sin(
+    tsl.positionWorld.x.mul(0.81)
+      .add(tsl.positionWorld.z.mul(1.13)),
+  ).mul(0.12).add(0.88);
+  const snowAmount = snowCoverage
+    .mul(upwardExposure)
+    .mul(snowVariation)
+    .mul(0.6);
+  material.colorNode = tsl.mix(
+    seasonal,
+    tsl.vec3(0.92, 0.955, 0.98),
+    snowAmount,
+  ) as never;
+  material.opacityNode = texel.a.mul(tsl.float(1).sub(dormancy)) as never;
+  material.userData.raspberrySeasonalSpringFlush = springFlush;
+  material.userData.raspberrySeasonalAutumnColor = autumnColor;
+  material.userData.raspberrySeasonalDormancy = dormancy;
+  material.userData.raspberrySnowCoverage = snowCoverage;
+  return material;
+}
+
+function applyRaspberryBranchWebGLSnow(
+  material: THREE.MeshStandardMaterial,
+): void {
+  const snowCoverage = { value: 0 };
+  material.userData.raspberrySnowCoverage = snowCoverage;
+  chainMaterialShaderPatch(material, 'raspberry-cane-snow-v1', (shader) => {
+    shader.uniforms.uRaspberrySnowCoverage = snowCoverage;
+    addRaspberrySnowVertexVaryings(shader);
+    shader.fragmentShader = shader.fragmentShader.replace(
+      '#include <common>',
+      `#include <common>
+uniform float uRaspberrySnowCoverage;
+varying float vRaspberrySnowExposure;
+varying vec2 vRaspberrySnowWorldXZ;`,
+    );
+    shader.fragmentShader = shader.fragmentShader.replace(
+      '#include <color_fragment>',
+      `#include <color_fragment>
+float raspberrySnowVariation = sin(
+  vRaspberrySnowWorldXZ.x * 0.81 + vRaspberrySnowWorldXZ.y * 1.13
+) * 0.12 + 0.88;
+float raspberrySnowAmount = uRaspberrySnowCoverage
+  * vRaspberrySnowExposure * raspberrySnowVariation * 0.68;
+diffuseColor.rgb = mix(
+  diffuseColor.rgb,
+  vec3( 0.92, 0.955, 0.98 ),
+  raspberrySnowAmount
+);`,
+    );
+  });
+  material.needsUpdate = true;
+}
+
+function applyRaspberryFoliageWebGLSeason(
+  material: THREE.MeshStandardMaterial,
+): void {
+  const springFlush = { value: 0 };
+  const autumnColor = { value: 0 };
+  const dormancy = { value: 0 };
+  const snowCoverage = { value: 0 };
+  material.userData.raspberrySeasonalSpringFlush = springFlush;
+  material.userData.raspberrySeasonalAutumnColor = autumnColor;
+  material.userData.raspberrySeasonalDormancy = dormancy;
+  material.userData.raspberrySnowCoverage = snowCoverage;
+  chainMaterialShaderPatch(material, 'raspberry-foliage-season-snow-v1', (shader) => {
+    shader.uniforms.uRaspberrySpringFlush = springFlush;
+    shader.uniforms.uRaspberryAutumnColor = autumnColor;
+    shader.uniforms.uRaspberryDormancy = dormancy;
+    shader.uniforms.uRaspberrySnowCoverage = snowCoverage;
+    addRaspberrySnowVertexVaryings(shader);
+    shader.fragmentShader = shader.fragmentShader.replace(
+      '#include <common>',
+      `#include <common>
+uniform float uRaspberrySpringFlush;
+uniform float uRaspberryAutumnColor;
+uniform float uRaspberryDormancy;
+uniform float uRaspberrySnowCoverage;
+varying float vRaspberrySnowExposure;
+varying vec2 vRaspberrySnowWorldXZ;`,
+    );
+    shader.fragmentShader = shader.fragmentShader.replace(
+      '#include <map_fragment>',
+      `#include <map_fragment>
+float raspberryLeafValue = dot(
+  diffuseColor.rgb,
+  vec3( 0.2126, 0.7152, 0.0722 )
+);
+vec3 raspberrySpringLeaf = clamp(
+  vec3( 0.62, 0.94, 0.27 ) * raspberryLeafValue * 1.38,
+  0.0,
+  1.0
+);
+float raspberryAutumnVariation = sin(
+  vRaspberrySnowWorldXZ.x * 1.71 + vRaspberrySnowWorldXZ.y * 1.19
+) * 0.5 + 0.5;
+vec3 raspberryAutumnLeaf = clamp(
+  mix(
+    vec3( 0.96, 0.43, 0.045 ),
+    vec3( 0.67, 0.075, 0.025 ),
+    raspberryAutumnVariation
+  ) * raspberryLeafValue * 1.62,
+  0.0,
+  1.0
+);
+diffuseColor.rgb = mix(
+  diffuseColor.rgb,
+  raspberrySpringLeaf,
+  uRaspberrySpringFlush * 0.62
+);
+diffuseColor.rgb = mix(
+  diffuseColor.rgb,
+  raspberryAutumnLeaf,
+  uRaspberryAutumnColor * 0.92
+);
+diffuseColor.a *= 1.0 - uRaspberryDormancy;`,
+    );
+    shader.fragmentShader = shader.fragmentShader.replace(
+      '#include <color_fragment>',
+      `#include <color_fragment>
+float raspberrySnowVariation = sin(
+  vRaspberrySnowWorldXZ.x * 0.81 + vRaspberrySnowWorldXZ.y * 1.13
+) * 0.12 + 0.88;
+float raspberrySnowAmount = uRaspberrySnowCoverage
+  * vRaspberrySnowExposure * raspberrySnowVariation * 0.60;
+diffuseColor.rgb = mix(
+  diffuseColor.rgb,
+  vec3( 0.92, 0.955, 0.98 ),
+  raspberrySnowAmount
+);`,
+    );
+  });
+  material.needsUpdate = true;
+}
+
+function addRaspberrySnowVertexVaryings(
+  shader: THREE.WebGLProgramParametersWithUniforms,
+): void {
+  shader.vertexShader = shader.vertexShader.replace(
+    '#include <common>',
+    `#include <common>
+varying float vRaspberrySnowExposure;
+varying vec2 vRaspberrySnowWorldXZ;`,
+  );
+  shader.vertexShader = shader.vertexShader.replace(
+    '#include <defaultnormal_vertex>',
+    `#include <defaultnormal_vertex>
+vec3 raspberrySnowWorldNormal = normalize(
+  inverseTransformDirection( transformedNormal, viewMatrix )
+);
+vRaspberrySnowExposure = smoothstep(
+  0.18,
+  0.84,
+  raspberrySnowWorldNormal.y
+);`,
+  );
+  shader.vertexShader = shader.vertexShader.replace(
+    '#include <project_vertex>',
+    `vec4 raspberrySnowObjectPosition = vec4( transformed, 1.0 );
+#ifdef USE_INSTANCING
+raspberrySnowObjectPosition = instanceMatrix * raspberrySnowObjectPosition;
+#endif
+vRaspberrySnowWorldXZ = (
+  modelMatrix * raspberrySnowObjectPosition
+).xz;
+#include <project_vertex>`,
+  );
+}
+
+function setMaterialUniform(
+  material: THREE.Material,
+  key: string,
+  amount: number,
+): boolean {
+  const uniform = material.userData[key] as { value: number } | undefined;
+  if (!uniform || uniform.value === amount) return false;
+  uniform.value = amount;
+  return true;
+}
+
+function clampSeasonAmount(amount: number): number {
+  return THREE.MathUtils.clamp(Number.isFinite(amount) ? amount : 0, 0, 1);
 }
 
 async function loadRaspberryFruit(): Promise<{ geometry: THREE.BufferGeometry; material: THREE.Material }> {
