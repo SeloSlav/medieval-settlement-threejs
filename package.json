@@ -182,6 +182,7 @@
     "test:stable-ox-client": "node --experimental-strip-types scripts/testStableOxClient.mts",
     "test:stable-ox-allocation": "npx tsx scripts/testStableOxAllocation.mts",
     "test:stable-ox-animals": "npx tsx scripts/testStableOxAnimals.mts",
+    "test:settlement-people": "npx tsx scripts/testSettlementPeople.mts",
     "test:agent-visuals": "node --experimental-strip-types scripts/testAgentVisualAssets.mts",
     "test:ambient-behaviors": "node --experimental-strip-types scripts/testAmbientBehaviors.mts",
     "test:worker-agents": "node --experimental-strip-types scripts/testWorkerAgents.mts",

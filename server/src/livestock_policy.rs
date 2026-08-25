@@ -3,9 +3,9 @@ use crate::balance_generated::{
     CALENDAR_WORK_START_HOUR, CATTLE_MANURE_COLLECTION_AUTUMN_MULTIPLIER,
     CATTLE_MANURE_COLLECTION_SPRING_MULTIPLIER, CATTLE_MANURE_COLLECTION_SUMMER_MULTIPLIER,
     CATTLE_MANURE_COLLECTION_WINTER_MULTIPLIER, CATTLE_MANURE_PER_SUPPLIED_HEAD_PER_CYCLE,
-    LIVESTOCK_AUTUMN_CULL_END_MONTH, LIVESTOCK_AUTUMN_CULL_START_MONTH,
-    LIVESTOCK_HAYMAKING_END_MONTH, LIVESTOCK_HAYMAKING_START_MONTH,
-    LIVESTOCK_MAXIMUM_HAYMAKING_PERCENT, LIVESTOCK_OAT_FODDER_VALUE,
+    LIVESTOCK_ANIMAL_FEED_FODDER_VALUE, LIVESTOCK_AUTUMN_CULL_END_MONTH,
+    LIVESTOCK_AUTUMN_CULL_START_MONTH, LIVESTOCK_HAYMAKING_END_MONTH,
+    LIVESTOCK_HAYMAKING_START_MONTH, LIVESTOCK_MAXIMUM_HAYMAKING_PERCENT,
     LIVESTOCK_WINTER_FODDER_RESERVE_DAYS, SHEEP_SHEARING_END_MONTH, SHEEP_SHEARING_START_MONTH,
     SHEEP_WOOL_PER_SHEARING_PER_HEAD,
 };
@@ -17,6 +17,25 @@ const SPECIES_CATTLE: u8 = 0;
 pub const MILK_USE_FRESH: u8 = 25;
 pub const MILK_USE_BALANCED: u8 = 50;
 pub const MILK_USE_CHEESE_FIRST: u8 = 75;
+
+/// Oats staged at a pastoral holding with live animals have crossed the
+/// food-versus-fodder boundary and belong to its feed workshop. Once the herd
+/// is empty, those physical oat units return to ordinary food and trade flows.
+pub fn livestock_holding_protects_feed_oats(source_kind: &str, has_feed_commitment: bool) -> bool {
+    has_feed_commitment && source_kind == "pastoral_farmstead"
+}
+
+pub fn livestock_feed_oat_exportable_stock(
+    source_kind: &str,
+    stock: f64,
+    has_feed_commitment: bool,
+) -> f64 {
+    if livestock_holding_protects_feed_oats(source_kind, has_feed_commitment) {
+        0.0
+    } else {
+        stock.max(0.0)
+    }
+}
 
 /// Pastoral holdings reuse the existing percentage field as a save-compatible
 /// three-way milk-use choice. Old rows used 100, so they retain the former
@@ -101,7 +120,7 @@ pub fn essential_livestock_care_labor(onsite_labor: u32, active_raider_threat: b
     }
 }
 
-pub fn projected_winter_fodder_grain(
+pub fn projected_winter_animal_feed(
     projected_head_count: u32,
     base_pasture_capacity: f64,
     hay_stock: f64,
@@ -121,7 +140,7 @@ pub fn projected_winter_fodder_grain(
     };
     let feed_value = (unsupported_head_cycles - hay_supported_head_cycles).max(0.0)
         * grain_per_unsupported_head.max(0.0);
-    feed_value / LIVESTOCK_OAT_FODDER_VALUE.max(1e-9)
+    feed_value / LIVESTOCK_ANIMAL_FEED_FODDER_VALUE.max(1e-9)
 }
 
 pub fn is_haymaking_month(month: u32) -> bool {
@@ -253,8 +272,9 @@ mod tests {
         cattle_manure_output, effective_breeding_reserve, essential_livestock_care_labor,
         farmhouse_cheese_salt_staging_cycles, haymaking_share, is_autumn_cull_month,
         is_haymaking_month, is_shearing_month, livestock_cycles_per_calendar_day,
+        livestock_feed_oat_exportable_stock, livestock_holding_protects_feed_oats,
         livestock_milk_allocation, normalize_milk_use_policy, pending_cull_heads,
-        projected_winter_fodder_grain, retain_priority_candidate, sheep_fleece_output,
+        projected_winter_animal_feed, retain_priority_candidate, sheep_fleece_output,
         storage_secured_pending_cull_heads, MILK_USE_BALANCED, MILK_USE_CHEESE_FIRST,
         MILK_USE_FRESH,
     };
@@ -267,6 +287,32 @@ mod tests {
         assert!(is_autumn_cull_month(10));
         assert!(is_autumn_cull_month(11));
         assert!(!is_autumn_cull_month(12));
+    }
+
+    #[test]
+    fn only_live_pastoral_holdings_protect_staged_feed_oats() {
+        assert!(livestock_holding_protects_feed_oats(
+            "pastoral_farmstead",
+            true
+        ));
+        assert!(!livestock_holding_protects_feed_oats(
+            "pastoral_farmstead",
+            false
+        ));
+        assert!(!livestock_holding_protects_feed_oats("granary", true));
+        assert!(!livestock_holding_protects_feed_oats("swineherd", true));
+        assert_eq!(
+            livestock_feed_oat_exportable_stock("pastoral_farmstead", 18.0, true),
+            0.0
+        );
+        assert_eq!(
+            livestock_feed_oat_exportable_stock("pastoral_farmstead", 18.0, false),
+            18.0
+        );
+        assert_eq!(
+            livestock_feed_oat_exportable_stock("granary", 18.0, true),
+            18.0
+        );
     }
 
     #[test]
@@ -407,14 +453,14 @@ mod tests {
         let cycles = livestock_cycles_per_calendar_day(10.0);
         assert!((cycles - 7.0).abs() < 1e-9);
         assert!((livestock_cycles_per_calendar_day(12.0) - 35.0 / 6.0).abs() < 1e-9);
-        let grain = projected_winter_fodder_grain(6, 10.0, 0.0, 0.34, 0.34, cycles, 0.35);
-        assert!((grain - 142.8).abs() < 1e-9);
+        let feed = projected_winter_animal_feed(6, 10.0, 0.0, 0.34, 0.34, cycles, 0.35);
+        assert!((feed - 142.8).abs() < 1e-9);
         assert_eq!(
-            projected_winter_fodder_grain(6, 10.0, 178.5, 0.34, 0.34, cycles, 0.35),
+            projected_winter_animal_feed(6, 10.0, 178.5, 0.34, 0.34, cycles, 0.35),
             0.0
         );
         assert_eq!(
-            projected_winter_fodder_grain(3, 10.0, 0.0, 0.34, 0.34, cycles, 0.35),
+            projected_winter_animal_feed(3, 10.0, 0.0, 0.34, 0.34, cycles, 0.35),
             0.0
         );
         assert_eq!(livestock_cycles_per_calendar_day(0.0), 0.0);

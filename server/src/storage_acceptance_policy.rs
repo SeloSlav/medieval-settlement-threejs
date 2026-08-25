@@ -1,6 +1,7 @@
 /// Every commodity keeps the stable numeric code used by delivery cargo and
 /// Trading Post rules. Reusing that code as the bit position keeps the saved
-/// mask compact and makes future commodities additive up to code 63.
+/// mask compact. Animal feed occupies the final available bit at code 63;
+/// adding another commodity will require a wider persisted policy encoding.
 pub const STOREHOUSE_ACCEPTANCE_MASK: u64 = bit(0) // firewood
     | bit(3) // timber
     | bit(10) // stone

@@ -69,11 +69,22 @@ export function renderStableInspector(
         ? `${renderResourceAmount('gold', STABLE_OX_PURCHASE_GOLD - treasuryGold, { compact: true })} more civic gold is required.`
         : `${openSlots} ${openSlots === 1 ? 'bay remains' : 'bays remain'} after this order.`;
 
+  const haulingOxIds = new Set(
+    [...context.gameState.deliveryTrips.values()]
+      .map((trip) => trip.oxId)
+      .filter((oxId): oxId is string => oxId != null),
+  );
   const slotIndicators = Array.from({ length: STABLE_OX_SLOTS }, (_, slot) => {
     const ox = occupiedSlots.get(slot);
+    const hauling = ox ? haulingOxIds.has(ox.id) : false;
+    const assignmentLabel = !ox
+      ? 'Open stall'
+      : ox.assignedBuildingId == null
+        ? hauling ? 'Automatic pool · hauling now' : 'Automatic assistance pool'
+        : hauling ? 'Posted to a workplace · hauling now' : 'Posted to a workplace';
     return `<li class="stable-ox-slot" data-stable-ox-slot="${slot}" data-state="${ox ? 'occupied' : 'open'}">
       <span class="stable-ox-slot__badge" aria-hidden="true">${ox ? 'OX' : '+'}</span>
-      <span class="stable-ox-slot__copy"><strong>Bay ${BAY_LABELS[slot] ?? slot + 1}</strong><small>${ox ? ox.assignedBuildingId == null ? 'Automatic pool · dispatch ready' : 'Posted to a workplace' : 'Open stall'}</small></span>
+      <span class="stable-ox-slot__copy"><strong>Bay ${BAY_LABELS[slot] ?? slot + 1}</strong><small>${assignmentLabel}</small></span>
     </li>`;
   }).join('');
 
@@ -90,7 +101,7 @@ export function renderStableInspector(
       <li><span>Posting</span><span>${posted} posted until changed · ${automaticPool} in the automatic assistance pool</span></li>
       <li><span>Controls</span><span>Set posted counts from any eligible workplace card</span></li>
       <li><span>Work effect</span><span>One eligible worker receives one ox; production yield or hauling inventory is doubled</span></li>
-      <li><span>Upkeep</span><span>Feed and water are abstracted · stable oxen never draw herd hay or grain</span></li>
+      <li><span>Upkeep</span><span>Feed and water are abstracted · stable oxen never draw herd hay or Animal Feed</span></li>
       <li><span>Resting</span><span>Idle oxen return to their authored stable bays</span></li>
     `,
     supplementalPanelHtml: `

@@ -321,6 +321,7 @@ mod tests {
             monastery_last_service_day: 0,
             storage_acceptance_mask: u64::MAX,
             settlement_id: 1,
+            animal_feed: 0.0,
         }
     }
 

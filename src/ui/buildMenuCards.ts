@@ -91,7 +91,7 @@ const DETAILS: Record<PlacementArtKey, BuildCardDetail> = {
   founders_camp: ["Founders' camp", 'Establishes a costly civic foothold for future settlement expansion.'],
   residences: ['Residence', 'Raises road-fronted homes that grow as their families prosper.'],
   well: ['Well', 'Draws water for nearby homes along the roads.', flow([], ['water'])],
-  stable: ['Stable', 'Houses three automatically dispatched draft oxen. Feed and water are abstracted; they never draw herd hay or grain.'],
+  stable: ['Stable', 'Provides persistent workplace postings or automatic assistance. Feed and water are abstracted; they never draw herd hay or Animal Feed.'],
   chapel: ['Church', 'Tends parish life, gathers tithes, and strengthens nearby households.'],
   wayside_shrine: ['Wayside shrine', 'Marks the roadside with a small place of prayer and devotion.'],
   dry_stone_wall: ['Dry-stone wall', 'Lines dirt roads with a free, instantly raised wall of fitted stone.'],

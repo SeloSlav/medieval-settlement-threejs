@@ -701,6 +701,7 @@ fn building_flammability(building: &Building) -> f64 {
             + building.maslin_sheaves
             + building.rye_grain
             + building.oat_grain
+            + building.animal_feed
             + building.maslin_grain
             + building.barley
             + building.malt
@@ -768,6 +769,7 @@ fn destroy_target(ctx: &ReducerContext, incident: &FireIncident) {
             building.maslin_sheaves = 0.0;
             building.rye_grain = 0.0;
             building.oat_grain = 0.0;
+            building.animal_feed = 0.0;
             building.maslin_grain = 0.0;
             building.rye_flour = 0.0;
             building.maslin_flour = 0.0;

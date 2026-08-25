@@ -254,6 +254,7 @@ pub struct RaidPortableStores {
     pub maslin_sheaves: f64,
     pub rye_grain: f64,
     pub oat_grain: f64,
+    pub animal_feed: f64,
     pub maslin_grain: f64,
     pub rye_flour: f64,
     pub maslin_flour: f64,
@@ -337,6 +338,7 @@ impl RaidPortableStores {
             maslin_sheaves,
             rye_grain,
             oat_grain,
+            animal_feed,
             maslin_grain,
             rye_flour,
             maslin_flour,
@@ -402,6 +404,7 @@ impl RaidPortableStores {
             + positive_store(self.maslin_sheaves)
             + positive_store(self.rye_grain)
             + positive_store(self.oat_grain)
+            + positive_store(self.animal_feed)
             + positive_store(self.maslin_grain)
             + positive_store(self.rye_flour)
             + positive_store(self.maslin_flour)
@@ -465,6 +468,7 @@ impl RaidPortableStores {
             + positive_store(self.maslin_sheaves)
             + positive_store(self.rye_grain)
             + positive_store(self.oat_grain)
+            + positive_store(self.animal_feed)
             + positive_store(self.maslin_grain)
             + positive_store(self.rye_flour)
             + positive_store(self.maslin_flour)
@@ -544,6 +548,7 @@ impl RaidPortableStores {
         plunder_good!(maslin_sheaves);
         plunder_good!(rye_grain);
         plunder_good!(oat_grain);
+        plunder_good!(animal_feed);
         plunder_good!(maslin_grain);
         plunder_good!(rye_flour);
         plunder_good!(maslin_flour);
@@ -620,6 +625,7 @@ impl RaidPortableStores {
             maslin_sheaves: removed!(maslin_sheaves),
             rye_grain: removed!(rye_grain),
             oat_grain: removed!(oat_grain),
+            animal_feed: removed!(animal_feed),
             maslin_grain: removed!(maslin_grain),
             rye_flour: removed!(rye_flour),
             maslin_flour: removed!(maslin_flour),

@@ -17,6 +17,7 @@ use crate::economy::{
     treasury_gold, withdraw_building_commodity, CommodityKind, MarketTradeDirection,
 };
 use crate::granary_policy::granary_exportable_grain;
+use crate::livestock_policy::livestock_feed_oat_exportable_stock;
 use crate::resource_units::{whole_cost, whole_signed_units, whole_units};
 use crate::simulation::delivery_trips::{
     building_has_active_trip, building_has_inbound_commodity_trip, onsite_building_labor,
@@ -282,12 +283,7 @@ fn settle_import(
     }
     let actual_expense = whole_cost(imported * unit_price);
     if actual_expense + 1e-6 < expense {
-        credit_treasury_gold_for_settlement(
-            ctx,
-            owner,
-            settlement_id,
-            expense - actual_expense,
-        );
+        credit_treasury_gold_for_settlement(ctx, owner, settlement_id, expense - actual_expense);
     }
     ctx.db.building().id().update(post);
     record_market_trade(ctx, owner, resource, MarketTradeDirection::Import, imported);
@@ -403,7 +399,7 @@ fn stage_one_export(
                     && source.construction_complete
                     && !tick.building_disabled_by_fire(ctx, source.id)
                     && !building_has_active_trip(ctx, source.id)
-                    && source_exportable_stock(source, commodity) > 1e-6
+                    && source_exportable_stock(ctx, source, commodity) > 1e-6
             })
             .filter_map(|source| {
                 let distance = crate::simulation::local_delivery_distance(
@@ -418,7 +414,7 @@ fn stage_one_export(
                 .then_with(|| left.0.id.cmp(&right.0.id))
         });
         for (mut source, _) in candidates {
-            let source_available = source_exportable_stock(&source, commodity).min(needed);
+            let source_available = source_exportable_stock(ctx, &source, commodity).min(needed);
             if try_start_building_supply_trip(
                 ctx,
                 tick,
@@ -466,7 +462,7 @@ fn protected_outside_stock(ctx: &ReducerContext, owner: Identity, commodity: Com
         .owner()
         .filter(&owner)
         .filter(|building| building.construction_complete && building.kind != "trading_post")
-        .map(|building| source_exportable_stock(&building, commodity))
+        .map(|building| source_exportable_stock(ctx, &building, commodity))
         .sum();
     let available_all = match commodity {
         CommodityKind::Timber => available_unreserved_building_timber(ctx, owner),
@@ -479,8 +475,24 @@ fn protected_outside_stock(ctx: &ReducerContext, owner: Identity, commodity: Com
     (outside - reserved).max(0.0)
 }
 
-fn source_exportable_stock(building: &Building, commodity: CommodityKind) -> f64 {
+fn source_exportable_stock(
+    ctx: &ReducerContext,
+    building: &Building,
+    commodity: CommodityKind,
+) -> f64 {
     let stock = building_commodity_stock(building, commodity).max(0.0);
+    let has_feed_commitment = commodity == CommodityKind::OatGrain
+        && ctx
+            .db
+            .livestock_herd()
+            .building_id()
+            .find(&building.id)
+            .is_some_and(|herd| herd.head_count > 0);
+    let stock = if commodity == CommodityKind::OatGrain {
+        livestock_feed_oat_exportable_stock(&building.kind, stock, has_feed_commitment)
+    } else {
+        stock
+    };
     match commodity {
         CommodityKind::RyeGrain | CommodityKind::OatGrain | CommodityKind::MaslinGrain
             if building.kind == "granary" =>

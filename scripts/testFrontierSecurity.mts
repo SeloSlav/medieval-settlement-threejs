@@ -1604,6 +1604,51 @@ const serverRoadNetwork = readFileSync('server/src/roads/network.rs', 'utf8');
 const frontierEconomy = readFileSync('server/src/frontier_economy_policy.rs', 'utf8');
 const expandedEconomy = readFileSync('server/src/simulation/expanded_economy.rs', 'utf8');
 const serverPolicy = readFileSync('server/src/security_policy.rs', 'utf8');
+assert.match(
+  serverPolicy,
+  /pub struct RaidPortableStores[\s\S]*pub animal_feed: f64/,
+  'prepared Animal Feed must remain visible to the exhaustive portable-store ledger',
+);
+assert.match(
+  serverPolicy,
+  /positive_store\(self\.oat_grain\)[\s\S]{0,80}positive_store\(self\.animal_feed\)/,
+  'raid targeting value must include local Animal Feed stores',
+);
+assert.match(
+  serverPolicy,
+  /plunder_good!\(oat_grain\);[\s\S]{0,80}plunder_good!\(animal_feed\);/,
+  'raid contact must transfer Animal Feed through the same physical loot ledger',
+);
+assert.match(
+  serverSimulation,
+  /oat_grain: building\.oat_grain,[\s\S]{0,80}animal_feed: building\.animal_feed/,
+  'authoritative holding snapshots must copy Animal Feed into portable stores',
+);
+assert.match(
+  serverRaidAgents,
+  /oat_grain: stores\.oat_grain,[\s\S]{0,80}animal_feed: stores\.animal_feed/,
+  'raiders must physically carry stolen Animal Feed rather than deleting it',
+);
+assert.match(
+  clientSecurity,
+  /type PortableRaidStoresLike = \{[\s\S]*?animalFeed\?: number;/,
+  'client raid projections must expose prepared Animal Feed on portable stores',
+);
+assert.match(
+  clientSecurity,
+  /positivePortableAmount\(stores\.oatGrain\)[\s\S]{0,100}positivePortableAmount\(stores\.animalFeed\)/,
+  'client raid targeting value must include local Animal Feed stores',
+);
+assert.match(
+  clientSecurity,
+  /\['animalFeed', 'animal feed', 1\]/,
+  'client raid summaries must name prepared Animal Feed',
+);
+assert.match(
+  clientSecurity,
+  /const DELIVERY_CARGO_RAID_VALUE[\s\S]*?animalFeed: 1/,
+  'client raid projections must value Animal Feed carts in transit',
+);
 const serverFires = readFileSync('server/src/simulation/fires.rs', 'utf8');
 const serverBuildingReducers = readFileSync('server/src/reducers/buildings.rs', 'utf8');
 const serverPopulation = readFileSync('server/src/economy/population.rs', 'utf8');

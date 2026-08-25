@@ -198,9 +198,10 @@ export function effectiveLivestockBreedingReserve(
 
 export function livestockReservePresets(species: LivestockSpecies): LivestockReservePreset[] {
   const policy = livestockPolicyDefinition(species);
+  const balancedReserve = Math.floor((policy.minimumReserve + policy.maximumHerd) / 2);
   return [
     { key: 'meat', label: 'Meat first', reserve: policy.minimumReserve },
-    { key: 'balanced', label: 'Balanced', reserve: policy.defaultReserve },
+    { key: 'balanced', label: 'Balanced', reserve: balancedReserve },
     { key: 'growth', label: 'Grow herd', reserve: policy.maximumHerd },
   ];
 }

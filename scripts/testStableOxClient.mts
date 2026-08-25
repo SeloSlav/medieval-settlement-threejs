@@ -31,6 +31,17 @@ const actions = read('src/app/inspectorSpacetimeActions.ts');
 assert.match(actions, /onPurchaseStableOx: async \(stableId\)[\s\S]{0,260}store\.purchaseStableOx\(stableId\)/);
 assert.match(actions, /onSetBuildingOxen: async \(buildingId, assignedOxen\)[\s\S]{0,220}store\.setBuildingOxen\(buildingId, assignedOxen\)/);
 
+const settlementHud = read('src/ui/SettlementHud.ts');
+assert.doesNotMatch(settlementHud, /onAnimalsSummaryClick/);
+assert.match(
+  settlementHud,
+  /onAnimalsPointerEnter = \(event: PointerEvent\)[\s\S]{0,260}event\.pointerType !== 'mouse'/,
+);
+assert.match(
+  settlementHud,
+  /onAnimalsFocusIn = \(event: FocusEvent\)[\s\S]{0,260}event\.target !== this\.animalsSummary/,
+);
+
 const inspector = read('src/resources/ResourceInspector.ts');
 assert.match(inspector, /data-purchase-ox[\s\S]{0,160}onPurchaseStableOx/);
 assert.match(inspector, /data-inspector-ox-team/);
@@ -39,6 +50,10 @@ assert.match(inspector, /onSetBuildingOxen\?\.[\s\S]{0,140}targetCount/);
 assert.match(inspector, /Automatic pool · \$\{oxTeam\.automaticPoolCount\}/);
 assert.match(inspector, /stable: '\/assets\/ui\/build-menu\/cards\/stable\.webp'/);
 assert.match(inspector, /target\.building\.kind === 'stable'/);
+assert.match(
+  inspector,
+  /focusPanel\(\): void[\s\S]{0,180}this\.closeButton\.focus\(\{ preventScroll: true \}\)/,
+);
 assert.ok(
   existsSync('public/assets/ui/build-menu/cards/stable.webp'),
   'the stable inspector art must resolve to a real build-card asset',
@@ -67,6 +82,20 @@ assert.doesNotMatch(stableRenderer, /Automatic · oxen cannot be assigned indivi
 assert.match(stableRenderer, /posted until changed/);
 assert.match(stableRenderer, /unposted ox remains in the automatic assistance pool/);
 assert.match(stableRenderer, /production yield or hauling inventory is doubled/);
+assert.match(stableRenderer, /const haulingOxIds/);
+assert.match(stableRenderer, /Automatic pool · hauling now/);
+assert.match(stableRenderer, /Automatic assistance pool/);
+assert.doesNotMatch(stableRenderer, /dispatch ready/);
+
+const buildMenuCards = read('src/ui/buildMenuCards.ts');
+assert.match(buildMenuCards, /persistent workplace postings or automatic assistance/);
+assert.doesNotMatch(buildMenuCards, /automatically dispatched draft oxen/);
+
+const bootstrap = read('src/app/appBootstrap.ts');
+assert.match(
+  bootstrap,
+  /setAnimalBuildingHandler\([\s\S]{0,1200}resourceInspector\.selectBuilding\(building\.id\);[\s\S]{0,100}resourceInspector\.focusPanel\(\)/,
+);
 
 const livestockLaborForecast = read(
   'src/resources/inspector/livestockLaborForecast.ts',

@@ -123,14 +123,15 @@ for (const tableName of subscriptions) {
 const building = rustTables.get('building');
 assert.ok(building, 'building table must be subscribed and public');
 assert.deepEqual(
-  building.fields.slice(-4),
+  building.fields.slice(-5),
   [
     { name: 'tree_work_area_x', type: 'f64' },
     { name: 'tree_work_area_z', type: 'f64' },
     { name: 'tree_work_area_radius', type: 'f64' },
     { name: 'settlement_id', type: 'u64' },
+    { name: 'animal_feed', type: 'f64' },
   ],
-  'sticky community identity must be appended after the existing additive Building fields',
+  'Animal Feed must append after sticky community identity without reordering saved Building fields',
 );
 
 for (const tableName of ['burgage_zone', 'residence'] as const) {

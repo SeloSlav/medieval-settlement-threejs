@@ -389,7 +389,7 @@ function cargoPerTripLabel(building: BuildingState): string | null {
 function outboundTargetKinds(kind: BuildingKind): BuildingKind[] {
   switch (kind) {
     case 'threshing_barn':
-      return ['watermill', 'windmill', 'brewery', 'granary', 'monastery', 'weaver'];
+      return ['pastoral_farmstead', 'watermill', 'windmill', 'brewery', 'granary', 'monastery', 'weaver'];
     case 'watermill':
     case 'windmill':
       return ['bakery', 'granary'];

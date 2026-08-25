@@ -17,22 +17,27 @@ use crate::balance_generated::{
     BREWERY_MALTING_WATER_PER_CYCLE, BREWERY_MALT_PER_ALE_CYCLE, BREWERY_MALT_PER_CYCLE,
     BREWERY_MEAD_PER_CYCLE, CALENDAR_SECONDS_PER_DAY, CHARCOAL_BURNER_CHARCOAL_PER_CYCLE,
     CHARCOAL_BURNER_FIREWOOD_PER_CYCLE, CIVILIAN_TOOL_IRONWORK_PER_CYCLE, CLAY_PIT_CLAY_PER_CYCLE,
+    CATTLE_GRAIN_PER_UNSUPPORTED_HEAD, CATTLE_HAY_PER_UNSUPPORTED_HEAD,
     COBBLER_LEATHER_PER_CYCLE, COBBLER_SHOES_PER_CYCLE, FARM_GROWTH_SECONDS,
     FARM_WORK_METERS_PER_WORKER_PER_SEC, GRAIN_TRANSFER_PER_TRIP, LEATHER_TRANSFER_PER_TRIP,
     MINE_IRON_PER_CYCLE, MINE_SALT_PER_CYCLE, MINE_TIMBER_SUPPORT_PER_CYCLE, MONASTERY_FEAST_DRINK,
     MONASTERY_FEAST_FOOD, MONASTERY_FEAST_HONEY, MONASTERY_PILGRIMAGE_GOLD_PER_DAY,
-    MONASTERY_UNLINKED_PRODUCTIVITY, POTTER_CLAY_PER_CYCLE, POTTER_FIREWOOD_PER_CYCLE,
+    MONASTERY_UNLINKED_PRODUCTIVITY, PANNAGE_WINTER_CAPACITY_MULTIPLIER,
+    POTTER_CLAY_PER_CYCLE, POTTER_FIREWOOD_PER_CYCLE,
     POTTER_POTTERY_PER_CYCLE, POTTER_ROOF_TILES_PER_CYCLE, POTTER_WATER_PER_CYCLE,
     RICH_MINE_THROUGHPUT_MULTIPLIER, SMITHY_CHARCOAL_PER_CYCLE, SMITHY_IRONWORK_PER_CYCLE,
     SMITHY_IRON_PER_CYCLE, SMITHY_WATER_PER_CYCLE, SMOKEHOUSE_FIREWOOD_PER_CYCLE,
     SMOKEHOUSE_FOOD_PER_CYCLE, SMOKEHOUSE_POTTERY_PER_CYCLE, SMOKEHOUSE_PRESERVED_FOOD_PER_CYCLE,
     SMOKEHOUSE_SALT_PER_CYCLE, SUMMER_DROUGHT_DURATION_DAYS, TANNERY_FIREWOOD_PER_CYCLE,
     TANNERY_HIDES_PER_CYCLE, TANNERY_LEATHER_PER_CYCLE, TANNERY_WATER_PER_CYCLE,
-    TEXTILE_TRANSFER_PER_TRIP, THRESHING_GRAIN_PER_CYCLE, THRESHING_SHEAVES_PER_CYCLE, TICK_DT,
+    SHEEP_GRAIN_PER_UNSUPPORTED_HEAD, SHEEP_HAY_PER_UNSUPPORTED_HEAD,
+    SWINE_GRAIN_PER_UNSUPPORTED_HEAD, TEXTILE_TRANSFER_PER_TRIP, THRESHING_GRAIN_PER_CYCLE,
+    THRESHING_SHEAVES_PER_CYCLE, TICK_DT,
     TIMBER_DELIVERY_SPEED_MPS, TIMBER_DELIVERY_UNLOAD_SEC, VINEYARD_FERMENTATION_SECONDS,
     VINEYARD_GRAPES_PER_FERMENTATION_BATCH, VINEYARD_GRAPES_PER_HARVEST_CYCLE,
     VINEYARD_WINE_PER_FERMENTATION_BATCH, WATERMILL_GRAIN_PER_CYCLE,
-    WATERMILL_MASLIN_FLOUR_PER_CYCLE, WATERMILL_RYE_FLOUR_PER_CYCLE, WEAVER_CLOTH_PER_CYCLE,
+    WATERMILL_MASLIN_FLOUR_PER_CYCLE, WATERMILL_RYE_FLOUR_PER_CYCLE,
+    WINTER_PASTURE_CAPACITY_MULTIPLIER, WEAVER_CLOTH_PER_CYCLE,
     WEAVER_FLAX_PER_CYCLE, WEAVER_FLAX_WATER_PER_CYCLE, WEAVER_WOOL_PER_CYCLE,
 };
 use crate::brewery_recipe_policy::{
@@ -84,7 +89,8 @@ use crate::hydrology::{
     sample_world_groundwater_score,
 };
 use crate::livestock_policy::{
-    farmhouse_cheese_salt_staging_cycles, normalize_milk_use_policy, MILK_USE_FRESH,
+    farmhouse_cheese_salt_staging_cycles, livestock_cycles_per_calendar_day,
+    normalize_milk_use_policy, projected_winter_animal_feed, MILK_USE_FRESH,
 };
 use crate::marketplace_procurement_policy::{
     normalize_marketplace_iron_target, normalize_marketplace_salt_target,
@@ -4242,8 +4248,8 @@ pub(crate) fn processor_accepts_input(building: &Building, commodity: CommodityK
     if !storage_accepts_commodity(building, commodity) {
         return false;
     }
-    // Oats leave the farmstead ready for households, livestock, or monastic
-    // hospitality; mills accept only rye and maslin grain.
+    // Oats bypass flour mills: households may eat them directly, while only
+    // pastoral farmsteads accept them as livestock-processing input.
     if matches!(building.kind.as_str(), "watermill" | "windmill")
         && commodity == CommodityKind::OatGrain
     {
@@ -4252,10 +4258,19 @@ pub(crate) fn processor_accepts_input(building: &Building, commodity: CommodityK
     if building.kind == "granary" && (commodity.is_fresh_food() || commodity.is_preserved_food()) {
         return true;
     }
-    if building.kind == "pastoral_farmstead" && commodity == CommodityKind::Salt {
-        return normalize_milk_use_policy(building.processor_output_target_percent)
-            != MILK_USE_FRESH
-            && building_commodity_room(building, CommodityKind::Cheese) > 1e-6;
+    if building.kind == "pastoral_farmstead" {
+        if commodity == CommodityKind::Salt {
+            return normalize_milk_use_policy(building.processor_output_target_percent)
+                != MILK_USE_FRESH
+                && building_commodity_room(building, CommodityKind::Cheese) > 1e-6;
+        }
+        if matches!(
+            commodity,
+            CommodityKind::RyeGrain | CommodityKind::OatGrain | CommodityKind::MaslinGrain
+        ) {
+            return commodity == CommodityKind::OatGrain
+                && building_commodity_room(building, CommodityKind::AnimalFeed) > 1e-6;
+        }
     }
     if building.kind == "smokehouse" && processor_uses_input(&building.kind, commodity) {
         return processor_output_headroom(
@@ -4410,7 +4425,7 @@ fn dispatch_farmstead_typed_grain(
             continue;
         }
         let targets: &[&str] = if grain == CommodityKind::OatGrain {
-            &["granary"]
+            &["pastoral_farmstead", "granary"]
         } else {
             &["watermill", "windmill", "granary"]
         };
@@ -5046,7 +5061,56 @@ fn connected_source_surplus(
     {
         return granary_typed_grain_surplus(source, commodity);
     }
+    if commodity == CommodityKind::AnimalFeed && source.kind == "pastoral_farmstead" {
+        return (stock - pastoral_winter_animal_feed_reserve(ctx, tick, source)).max(0.0);
+    }
     stock
+}
+
+fn pastoral_winter_animal_feed_reserve(
+    ctx: &ReducerContext,
+    tick: &SimTickContext,
+    source: &Building,
+) -> f64 {
+    let Some(herd) = ctx.db.livestock_herd().building_id().find(&source.id) else {
+        return 0.0;
+    };
+    if herd.head_count == 0 {
+        return 0.0;
+    }
+    let (hay_per_head, feed_per_head, winter_multiplier) = match herd.species {
+        crate::reducers::livestock::SPECIES_CATTLE => (
+            CATTLE_HAY_PER_UNSUPPORTED_HEAD,
+            CATTLE_GRAIN_PER_UNSUPPORTED_HEAD,
+            WINTER_PASTURE_CAPACITY_MULTIPLIER,
+        ),
+        crate::reducers::livestock::SPECIES_SHEEP => (
+            SHEEP_HAY_PER_UNSUPPORTED_HEAD,
+            SHEEP_GRAIN_PER_UNSUPPORTED_HEAD,
+            WINTER_PASTURE_CAPACITY_MULTIPLIER,
+        ),
+        _ => (
+            0.0,
+            SWINE_GRAIN_PER_UNSUPPORTED_HEAD,
+            PANNAGE_WINTER_CAPACITY_MULTIPLIER,
+        ),
+    };
+    let cycles_per_day = building_def(&source.kind)
+        .map(|def| livestock_cycles_per_calendar_day(def.action_interval))
+        .unwrap_or(0.0);
+    projected_winter_animal_feed(
+        herd.head_count,
+        tick.livestock_grazing_capacity(ctx, source, &herd),
+        herd.hay_stock,
+        hay_per_head,
+        feed_per_head,
+        cycles_per_day,
+        winter_multiplier,
+    )
+    .min(building_commodity_cap(
+        &source.kind,
+        CommodityKind::AnimalFeed,
+    ))
 }
 
 fn institutional_source_food_surplus(

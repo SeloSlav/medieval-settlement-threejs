@@ -1,5 +1,6 @@
 import {
   BUILDING_STORAGE_CAPS,
+  LIVESTOCK_FEED_OAT_GRAIN_PER_CYCLE,
   WATERMILL_GRAIN_PER_CYCLE,
 } from '../generated/gameBalance.ts';
 import type { BuildingKind, BuildingState } from '../resources/types.ts';
@@ -13,8 +14,13 @@ import { breadGrainStock, type BreadGrainKind } from '../economy/cropGoods.ts';
 import { wholeResourceUnits } from '../resources/resourceUnits.ts';
 
 export const GRAIN_DISPATCH_SOURCE_KINDS = ['threshing_barn', 'granary'] as const;
-export const GRAIN_PROCESSOR_KINDS = ['watermill', 'windmill'] as const;
+export const GRAIN_PROCESSOR_KINDS = [
+  'pastoral_farmstead',
+  'watermill',
+  'windmill',
+] as const;
 export const GRAIN_DISPATCH_TARGET_KINDS = [
+  'pastoral_farmstead',
   'watermill',
   'windmill',
   'granary',
@@ -23,7 +29,7 @@ export const GRAIN_CRITICAL_RUNWAY_CYCLES = 1;
 
 export type GrainProcessorKind = Extract<
   BuildingKind,
-  'watermill' | 'windmill'
+  'pastoral_farmstead' | 'watermill' | 'windmill'
 >;
 export type GrainDispatchDuty =
   | 'working-buffer'
@@ -54,10 +60,12 @@ export type RoutedGrainDestination<T extends GrainDestinationLike> = {
 };
 
 function grainInputPerCycle(
-  _kind: GrainProcessorKind,
+  kind: GrainProcessorKind,
   _productivity = 1,
 ): number {
-  return WATERMILL_GRAIN_PER_CYCLE;
+  return kind === 'pastoral_farmstead'
+    ? LIVESTOCK_FEED_OAT_GRAIN_PER_CYCLE
+    : WATERMILL_GRAIN_PER_CYCLE;
 }
 
 /** Mirrors the authoritative stock-policy working buffer for grain processors. */
@@ -88,6 +96,7 @@ export function grainDispatchDuty(
 ): GrainDispatchDuty | null {
   if (target.kind === 'granary') return 'granary-reserve';
   if (!(GRAIN_PROCESSOR_KINDS as readonly BuildingKind[]).includes(target.kind)) return null;
+  if (target.kind === 'pastoral_farmstead' && commodity !== 'oatGrain') return null;
   if (
     (target.kind === 'watermill' || target.kind === 'windmill')
     && commodity === 'oatGrain'
@@ -220,6 +229,7 @@ export function selectGrainProcessorTarget<T extends GrainDestinationLike>(
       || target.assignedLabor <= 0
       || hasInboundSupply(target)
       || !acceptsGrain(target)
+      || (target.kind === 'pastoral_farmstead' && commodity !== 'oatGrain')
       || (
         (target.kind === 'watermill' || target.kind === 'windmill')
         && commodity === 'oatGrain'

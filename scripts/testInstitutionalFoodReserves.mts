@@ -43,18 +43,22 @@ assert.equal(
 );
 assert.equal(institutionalFoodSurplus(120, 100, 120), 60);
 assert.equal(livestockHoldingProtectsFeedOats('pastoral_farmstead', true), true);
-assert.equal(livestockHoldingProtectsFeedOats('swineherd', true), true);
+assert.equal(
+  livestockHoldingProtectsFeedOats('swineherd', true),
+  false,
+  'swineherds receive finished Animal Feed and must not reserve raw oats',
+);
 assert.equal(livestockHoldingProtectsFeedOats('pastoral_farmstead', false), false);
 assert.equal(livestockHoldingProtectsFeedOats('granary', true), false);
 assert.equal(
   institutionalDispatchableFoodStock('pastoral_farmstead', 30, 18, true),
-  12,
-  'a pastoral holding must keep locally staged feed oats out of institutional food carts',
+  21,
+  'a pastoral holding must reserve staged feed oats at their half-meal human value',
 );
 assert.equal(
   institutionalDispatchableFoodStock('swineherd', 8, 20, true),
-  0,
-  'a swine holding must not expose more edible stock than remains after its local oats',
+  8,
+  'a swine holding must leave raw oats available to ordinary food logistics',
 );
 assert.equal(
   institutionalDispatchableFoodStock('pastoral_farmstead', 30, 18, false),
@@ -261,13 +265,13 @@ assert.match(
 assert.match(supplyPolicy, /pub fn granary_dispatch_order/);
 assert.match(
   supplyPolicy,
-  /pub fn livestock_holding_protects_feed_oats[\s\S]{0,220}has_feed_commitment && matches!\(source_kind, "pastoral_farmstead" \| "swineherd"\)/,
-  'the authoritative policy must protect both livestock kinds only while they have feed commitments',
+  /pub fn livestock_holding_protects_feed_oats[\s\S]{0,220}has_feed_commitment && source_kind == "pastoral_farmstead"/,
+  'the authoritative policy must protect feed-workshop oats only at live pastoral holdings',
 );
 assert.match(
   expandedEconomy,
   /commodity == CommodityKind::OatGrain && protects_feed_oats[\s\S]{0,80}continue/,
-  'institutional dispatch must not select protected livestock-local oats as a food cart cargo',
+  'institutional dispatch must not select protected pastoral feed-workshop oats as food cargo',
 );
 assert.match(
   expandedEconomy,
@@ -331,7 +335,7 @@ assert.match(guardhouseInspector, /None until polearms arm the company/);
 assert.match(
   resourceTotals,
   /livestockHoldingProtectsFeedOats\([\s\S]{0,80}building\.kind,[\s\S]{0,120}livestockHerds\?\.get\(building\.id\)\?\.headCount[\s\S]{0,120}reservedOatGrain \+=/,
-  'settlement totals must reserve livestock-local oats only for holdings with live animals',
+  'settlement totals must reserve pastoral feed-workshop oats only for holdings with live animals',
 );
 assert.match(
   worldQueries,

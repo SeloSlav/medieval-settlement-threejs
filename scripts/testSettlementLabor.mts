@@ -186,6 +186,7 @@ const renderedState: GameState = {
   residences: new Map(),
   backyardGardens: new Map(),
   deliveryTrips: new Map(),
+  stableOxen: new Map(),
   fireIncidents: new Map(),
   nextBuildingId: 4,
 };
@@ -388,17 +389,19 @@ assert.ok(
     && laborHudIndex < populationHudIndex
     && populationHudIndex < housingHudIndex
     && housingHudIndex < timberHudIndex,
-  'the HUD should lead with free workers, total population, and homeless residents',
+  'the HUD should lead with free workers, total population, and living space',
 );
-assert.match(settlementHud, /data-tooltip-title="Workers free to assign"/);
-assert.match(settlementHud, /data-tooltip-title="Total population"/);
-assert.match(settlementHud, /data-tooltip-title="Homeless residents"/);
+assert.match(settlementHud, /data-people-card="labor"/);
+assert.match(settlementHud, /Individual workforce/);
+assert.match(settlementHud, /data-tooltip-title="Residents"/);
+assert.match(settlementHud, /data-people-card="housing"/);
+assert.match(settlementHud, /Homes &amp; migration/);
 assert.match(settlementHud, /data-stockpile="housing">0<\/strong>/);
 assert.doesNotMatch(settlementHud, /data-stockpile="housing-sub"/);
 assert.match(
   resourceInspector,
-  /const displayedHomeless = starterCampCreated[\s\S]*Math\.max\(0, population\.total - population\.housed\)[\s\S]*this\.housingValue\.textContent = displayedHomeless\.toString\(\)/,
-  'the HUD must hide pre-founding population noise, then show the finite non-negative homeless count',
+  /const displayedOpenLivingPlaces = starterCampCreated \? population\.vacant : 0;[\s\S]*this\.housingValue\.textContent = displayedOpenLivingPlaces\.toString\(\)/,
+  'the HUD must hide pre-founding population noise, then show authoritative open living places',
 );
 assert.match(settlementHud, /data-stockpile-transit="timber"/);
 assert.match(

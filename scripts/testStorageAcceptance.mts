@@ -33,6 +33,17 @@ assert.ok(STOREHOUSE_STORAGE_COMMODITIES.includes('shoes'));
 assert.ok(STOREHOUSE_STORAGE_COMMODITIES.includes('pottery'));
 assert.ok(STOREHOUSE_STORAGE_COMMODITIES.includes('remedies'));
 assert.equal(GRANARY_STORAGE_COMMODITIES.length, 41);
+assert.equal(
+  'animalFeed' in STORAGE_COMMODITY_CODES,
+  false,
+  'Animal Feed must not become a configurable Storehouse or Granary commodity',
+);
+assert.equal((STOREHOUSE_STORAGE_COMMODITIES as readonly string[]).includes('animalFeed'), false);
+assert.equal((GRANARY_STORAGE_COMMODITIES as readonly string[]).includes('animalFeed'), false);
+assert.equal(BUILDING_STORAGE_CAPS.pastoral_farmstead.animalFeed, 240);
+assert.equal(BUILDING_STORAGE_CAPS.swineherd.animalFeed, 180);
+assert.equal(BUILDING_STORAGE_CAPS.granary.animalFeed ?? 0, 0);
+assert.equal(BUILDING_STORAGE_CAPS.village_storehouse.animalFeed ?? 0, 0);
 for (const commodity of [
   'pears', 'aronia', 'rosehips', 'cabbage', 'carrots', 'beetroot',
   'aroniaJam', 'rosehipJam', 'cider', 'pearCider', 'wine',

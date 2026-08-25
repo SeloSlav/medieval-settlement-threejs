@@ -11,7 +11,8 @@ use crate::balance_generated::{
     CIVILIAN_TOOL_IRONWORK_PER_CYCLE, COBBLER_LEATHER_PER_CYCLE,
     HOUSEHOLD_FOOD_RESERVE_CAPACITY_FRACTION, HOUSEHOLD_FOOD_RESERVE_PER_CLAIM,
     LARGE_QUARRY_TIMBER_SUPPORT_BUFFER_CYCLES, LARGE_QUARRY_TIMBER_SUPPORT_PER_CYCLE,
-    LIVESTOCK_FARMSTEAD_SALT_STAGING_PER_CYCLE, MINE_TIMBER_SUPPORT_BUFFER_CYCLES,
+    LIVESTOCK_FARMSTEAD_SALT_STAGING_PER_CYCLE, LIVESTOCK_FEED_OAT_GRAIN_PER_CYCLE,
+    MINE_TIMBER_SUPPORT_BUFFER_CYCLES,
     MINE_TIMBER_SUPPORT_PER_CYCLE, POTTER_CLAY_PER_CYCLE, POTTER_FIREWOOD_PER_CYCLE,
     POTTER_WATER_PER_CYCLE, SMITHY_CHARCOAL_PER_CYCLE, SMITHY_IRON_PER_CYCLE,
     SMITHY_WATER_PER_CYCLE, SMOKEHOUSE_FIREWOOD_PER_CYCLE, SMOKEHOUSE_FOOD_PER_CYCLE,
@@ -54,7 +55,7 @@ pub const LOCAL_MATERIAL_SOURCE_KINDS: &[&str] = &[
     "village_storehouse",
     "trading_post",
 ];
-pub const GRAIN_PROCESSOR_KINDS: &[&str] = &["watermill", "windmill"];
+pub const GRAIN_PROCESSOR_KINDS: &[&str] = &["pastoral_farmstead", "watermill", "windmill"];
 pub const INDUSTRIAL_FIREWOOD_TARGET_KINDS: &[&str] = &[
     "bakery",
     "brewery",
@@ -82,6 +83,10 @@ pub const MARKETPLACE_MATERIAL_TARGET_KINDS: &[&str] = &[
 /// Below one complete processing cycle, grain delivery preempts the granary's
 /// ordinary household or preservation cart duty.
 pub const GRAIN_CRITICAL_RUNWAY_CYCLES: f64 = 1.0;
+/// Physical oats remain edible, but a unit supplies only half a human meal.
+/// Kept in this pure policy module so both the native logic crate and the
+/// Spacetime commodity mapper share one authoritative conversion.
+pub const OAT_GRAIN_MEAL_VALUE: f64 = 0.5;
 
 /// Marketplace food bays deliberately refill in useful cart batches. Fresh
 /// food spoilage otherwise opens a tiny amount of room every tick and can trap
@@ -215,6 +220,7 @@ pub fn grain_input_target(
 ) -> f64 {
     let per_cycle = match kind {
         "watermill" | "windmill" => WATERMILL_GRAIN_PER_CYCLE,
+        "pastoral_farmstead" => LIVESTOCK_FEED_OAT_GRAIN_PER_CYCLE,
         _ => 0.0,
     };
     let staging_cycles = processor_input_staging_cycles(processor_output_target_percent);
@@ -224,6 +230,7 @@ pub fn grain_input_target(
 pub fn grain_input_runway_cycles(kind: &str, stock: f64, _productivity: f64) -> f64 {
     let per_cycle = match kind {
         "watermill" | "windmill" => WATERMILL_GRAIN_PER_CYCLE,
+        "pastoral_farmstead" => LIVESTOCK_FEED_OAT_GRAIN_PER_CYCLE,
         _ => 0.0,
     };
     let per_cycle = whole_cost(per_cycle);
@@ -342,7 +349,7 @@ pub fn institutional_food_surplus(
 /// settlement's food-versus-fodder decision boundary. Empty holdings release
 /// their oats back to ordinary food logistics.
 pub fn livestock_holding_protects_feed_oats(source_kind: &str, has_feed_commitment: bool) -> bool {
-    has_feed_commitment && matches!(source_kind, "pastoral_farmstead" | "swineherd")
+    has_feed_commitment && source_kind == "pastoral_farmstead"
 }
 
 pub fn institutional_dispatchable_food_stock(
@@ -352,7 +359,7 @@ pub fn institutional_dispatchable_food_stock(
     has_feed_commitment: bool,
 ) -> f64 {
     if livestock_holding_protects_feed_oats(source_kind, has_feed_commitment) {
-        (edible_stock.max(0.0) - oat_grain.max(0.0)).max(0.0)
+        (edible_stock.max(0.0) - oat_grain.max(0.0) * OAT_GRAIN_MEAL_VALUE).max(0.0)
     } else {
         edible_stock.max(0.0)
     }
@@ -512,6 +519,7 @@ pub fn directly_dispatched_processor_input_per_cycle(target_kind: &str, commodit
         ("smokehouse", "pottery") => SMOKEHOUSE_POTTERY_PER_CYCLE,
         ("smokehouse", "salt") => SMOKEHOUSE_SALT_PER_CYCLE,
         ("pastoral_farmstead", "salt") => LIVESTOCK_FARMSTEAD_SALT_STAGING_PER_CYCLE,
+        ("pastoral_farmstead", "oatGrain") => LIVESTOCK_FEED_OAT_GRAIN_PER_CYCLE,
         ("weaver", "wool") => WEAVER_WOOL_PER_CYCLE,
         ("weaver", "flax") => WEAVER_FLAX_PER_CYCLE,
         ("weaver", "water") => WEAVER_FLAX_WATER_PER_CYCLE,
@@ -952,7 +960,7 @@ mod tests {
             "pastoral_farmstead",
             true,
         ));
-        assert!(livestock_holding_protects_feed_oats("swineherd", true));
+        assert!(!livestock_holding_protects_feed_oats("swineherd", true));
         assert!(!livestock_holding_protects_feed_oats(
             "pastoral_farmstead",
             false,
@@ -960,7 +968,7 @@ mod tests {
         assert!(!livestock_holding_protects_feed_oats("granary", true));
         assert_eq!(
             institutional_dispatchable_food_stock("pastoral_farmstead", 30.0, 18.0, true),
-            12.0,
+            21.0,
         );
         assert_eq!(
             institutional_dispatchable_food_stock("pastoral_farmstead", 30.0, 18.0, false),
@@ -1123,16 +1131,21 @@ mod tests {
 
     #[test]
     fn grain_processors_stage_inputs_from_their_stock_policy() {
-        assert_eq!(GRAIN_PROCESSOR_KINDS, &["watermill", "windmill"]);
+        assert_eq!(
+            GRAIN_PROCESSOR_KINDS,
+            &["pastoral_farmstead", "watermill", "windmill"]
+        );
         assert_eq!(GRAIN_CRITICAL_RUNWAY_CYCLES, 1.0);
         assert_eq!(grain_input_target("watermill", 1.0, 25), 3.0);
         assert_eq!(grain_input_target("watermill", 1.0, 50), 6.0);
         assert_eq!(grain_input_target("watermill", 1.0, 75), 9.0);
         assert_eq!(grain_input_target("watermill", 1.0, 100), 9.0);
         assert_eq!(grain_input_target("windmill", 1.0, 100), 9.0);
+        assert_eq!(grain_input_target("pastoral_farmstead", 1.0, 100), 3.0);
         assert_eq!(grain_input_target("brewery", 1.0, 50), 0.0);
         assert_eq!(grain_input_target("granary", 1.0, 100), 0.0);
         assert_eq!(grain_input_runway_cycles("watermill", 6.0, 1.0), 2.0);
+        assert_eq!(grain_input_runway_cycles("pastoral_farmstead", 2.0, 1.0), 2.0);
         assert_eq!(grain_work_priority(0), 2);
         assert_eq!(grain_work_priority(1), 2);
         assert_eq!(grain_work_priority(3), 2);
@@ -1216,6 +1229,10 @@ mod tests {
         );
         assert_eq!(
             directly_dispatched_processor_input_per_cycle("pastoral_farmstead", "salt"),
+            1.0,
+        );
+        assert_eq!(
+            directly_dispatched_processor_input_per_cycle("pastoral_farmstead", "oatGrain"),
             1.0,
         );
         assert_eq!(

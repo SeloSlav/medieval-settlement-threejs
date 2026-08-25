@@ -385,6 +385,18 @@ export function processorAcceptsInput(
     (building.kind === 'watermill' || building.kind === 'windmill')
     && commodity === 'oatGrain'
   ) return false;
+  if (
+    building.kind === 'pastoral_farmstead'
+    && (
+      commodity === 'ryeGrain'
+      || commodity === 'oatGrain'
+      || commodity === 'maslinGrain'
+    )
+  ) {
+    return commodity === 'oatGrain'
+      && (building.animalFeed ?? 0) + 1e-6
+        < (BUILDING_STORAGE_CAPS.pastoral_farmstead.animalFeed ?? 0);
+  }
   if (building.kind === 'pastoral_farmstead' && commodity === 'salt') {
     return preservedFoodStock(building) + 1e-6
       < (BUILDING_STORAGE_CAPS.pastoral_farmstead.preservedFood ?? 0);

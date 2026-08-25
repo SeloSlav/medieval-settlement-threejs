@@ -18,8 +18,8 @@ use crate::balance_generated::{
     SPRING_RAIN_ROAD_SPEED_MULTIPLIER, SPRING_RAIN_WATERMILL_THROUGHPUT_MULTIPLIER,
     SPRING_RAIN_WELL_REFILL_MULTIPLIER, SUMMER_DROUGHT_CHANCE, SUMMER_DROUGHT_DURATION_DAYS,
     SUMMER_FIREWOOD_DEMAND_MULTIPLIER, SUMMER_PASTURE_CAPACITY_MULTIPLIER,
-    WINTER_BREEDING_MULTIPLIER, WINTER_CHARCOAL_BURNER_THROUGHPUT_MULTIPLIER,
-    WINTER_FIREWOOD_DEMAND_MULTIPLIER, WINTER_PASTURE_CAPACITY_MULTIPLIER,
+    WINTER_CHARCOAL_BURNER_THROUGHPUT_MULTIPLIER, WINTER_FIREWOOD_DEMAND_MULTIPLIER,
+    WINTER_PASTURE_CAPACITY_MULTIPLIER,
     WINTER_ROAD_SPEED_MULTIPLIER, WINTER_WATERMILL_THROUGHPUT_MULTIPLIER,
 };
 use crate::simulation::GameClock;
@@ -123,8 +123,7 @@ impl EnvironmentState {
     pub fn breeding_multiplier(self) -> f64 {
         match self.season {
             Season::Spring => SPRING_BREEDING_MULTIPLIER,
-            Season::Winter => WINTER_BREEDING_MULTIPLIER,
-            _ => 1.0,
+            Season::Summer | Season::Autumn | Season::Winter => 0.0,
         }
     }
 
@@ -283,6 +282,21 @@ mod tests {
         assert_eq!(season_for_month(8), Season::Summer);
         assert_eq!(season_for_month(10), Season::Autumn);
         assert_eq!(season_for_month(1), Season::Winter);
+    }
+
+    #[test]
+    fn livestock_breeding_progress_is_spring_only() {
+        let multiplier = |season| {
+            EnvironmentState {
+                season,
+                weather: WeatherKind::Fair,
+            }
+            .breeding_multiplier()
+        };
+        assert_eq!(multiplier(Season::Spring), SPRING_BREEDING_MULTIPLIER);
+        assert_eq!(multiplier(Season::Summer), 0.0);
+        assert_eq!(multiplier(Season::Autumn), 0.0);
+        assert_eq!(multiplier(Season::Winter), 0.0);
     }
 
     #[test]

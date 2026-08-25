@@ -1995,6 +1995,7 @@ fn reclamation_from_raid_stores(stores: RaidPortableStores) -> ReclamationStock 
         maslin_sheaves: stores.maslin_sheaves,
         rye_grain: stores.rye_grain,
         oat_grain: stores.oat_grain,
+        animal_feed: stores.animal_feed,
         maslin_grain: stores.maslin_grain,
         rye_flour: stores.rye_flour,
         maslin_flour: stores.maslin_flour,

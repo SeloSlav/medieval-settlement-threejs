@@ -168,7 +168,7 @@ The HUD shows the active season/weather and a tooltip listing its major effects.
   depleted shoal recovers slowly and a zero population is permanently extinct.
 - Grass-pasture capacity is 115%. Woodland pannage is only 75%; drought, if
   present, overrides it to 55% because a dry spring weakens the coming mast crop.
-- Livestock breeding is 125%.
+- Livestock birth progress occurs only in spring, at the 125% seasonal rate.
 - Household firewood demand is 100%.
 - Fresh food spoilage is 0.4% per game day before storage modifiers.
 
@@ -258,7 +258,7 @@ unfinished sowing cannot spill into winter.
   sheep use their holding's local hay first, then prepared animal feed for
   unsupported heads. Pigs use the remaining mast and then animal feed because
   they do not participate in the hay chain. Livestock never consume raw grain.
-- Livestock breeding falls to 60%.
+- Livestock birth progress is dormant; healthy breeding herds resume in spring.
 - Sheep are not shorn; their annual physical fleece clip is an early-summer event.
 - Household firewood demand rises to 200% and continues through nights and
   sabbaths. An unsupplied higher-tier residence accumulates its ordinary firewood
@@ -312,9 +312,10 @@ unstaffed or temporarily work-paused, so abandoned animals do not become immorta
 and large crews cannot accelerate gestation.
 
 The winter-feed chain is physical and deliberately separate from human food. Oat
-sheaves are first threshed into edible oats at a threshing barn. Oats remain a
-lighter human porridge ration, but a staffed pastoral farmstead can process them
-into **Animal Feed**, store the finished feed locally, and dispatch it by road to
+sheaves are first threshed into edible oats at a threshing barn. Each oat remains
+worth half a human meal as a lighter porridge ration, but a staffed pastoral
+farmstead can process one oat into one unit of **Animal Feed**, store the
+finished feed locally, and dispatch it by road to
 a connected swineherd. Raw oats, rye, and maslin are never fed
 directly to livestock. Cattle and sheep normally graze during the warm seasons,
 cut local hay from June through August, and consume that hay before animal feed in
@@ -328,9 +329,28 @@ stores.
 
 Reproduction requires at least two animals, at least 90% support, and healthy
 breeding stock. Births stop at the lower of neutral placed-land capacity and the
-species management ceiling. Seasonal breeding still peaks at 125% in spring and
-falls to 60% in winter; pannage capacity instead follows its separate mast calendar
-described above.
+species management ceiling. Progress advances only during March–May, at the 125%
+spring rate; it pauses through summer, autumn, and winter. New holdings default to
+keeping the species maximum through winter, so a supplied starter herd naturally
+grows toward its placed-land limit. Autumn culling is opt-in by lowering the breeding
+reserve. Pannage capacity still follows its separate mast calendar described above.
+
+The player stocks animals from a selected, already-fenced pasture or pannage parcel,
+not from the farmstead panel. The authoritative herd still belongs to the holding:
+all of its linked parcels add together to set one neutral purchase and reproduction
+ceiling, so buying through a particular parcel does not create a separate sub-herd.
+The farmstead remains the place for reserve policy and livestock sales. Changing a
+pastoral holding from cattle to sheep or back requires selling every animal at the
+lower sale price, removing every linked pasture, choosing the new species, fencing
+its land, and buying replacement stock. Only correcting an empty, never-stocked
+holding is free.
+
+Grain fields use a different model because the crop belongs to the individual
+parcel. A crop choice schedules Year 2 or Year 3 and never replaces the crop already
+in the ground. Editing that future plan is free, but executing it still consumes the
+field's full area-scaled seed lot and its ploughing and sowing labor; changing plans
+therefore avoids an arbitrary conversion fee without bypassing the physical cost of
+the next crop.
 
 ## Seasonal road logistics
 

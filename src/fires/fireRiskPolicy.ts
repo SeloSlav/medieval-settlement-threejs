@@ -48,6 +48,7 @@ type FireTarget = {
   maslinSheaves?: number;
   ryeGrain?: number;
   oatGrain?: number;
+  animalFeed?: number;
   maslinGrain?: number;
   barley?: number;
   malt?: number;
@@ -106,6 +107,7 @@ export function storedFuelMultiplier(target: FireTarget): number {
       + Math.max(0, target.maslinSheaves ?? 0)
       + Math.max(0, target.ryeGrain ?? 0)
       + Math.max(0, target.oatGrain ?? 0)
+      + Math.max(0, target.animalFeed ?? 0)
       + Math.max(0, target.maslinGrain ?? 0)
       + Math.max(0, target.barley ?? 0)
       + Math.max(0, target.malt ?? 0)

@@ -4,6 +4,7 @@ use crate::building_defs::building_def;
 use crate::db::*;
 pub use crate::food_demand_policy::household_food_units_per_day_for_tier;
 use crate::resource_units::{whole_room, whole_transfer, whole_units};
+use crate::supply_policy::OAT_GRAIN_MEAL_VALUE;
 use crate::tables::{Building, Residence};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
@@ -486,8 +487,8 @@ impl CommodityKind {
         matches!(self, Self::RyeFlour | Self::MaslinFlour)
     }
 
-    /// Oats remain edible porridge grain, but one whole unit is only half a
-    /// meal; every other ready-to-eat commodity is one household ration.
+    /// Every ready-to-eat commodity is one indivisible household ration except
+    /// oats: one whole oat unit remains edible but supplies only half a meal.
     pub fn meal_value(self) -> f64 {
         match self {
             Self::Food
@@ -516,7 +517,7 @@ impl CommodityKind {
             | Self::Beetroot
             | Self::AroniaJam
             | Self::RosehipJam => 1.0,
-            Self::OatGrain => 0.5,
+            Self::OatGrain => OAT_GRAIN_MEAL_VALUE,
             _ => 0.0,
         }
     }

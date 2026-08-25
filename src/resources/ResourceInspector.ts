@@ -1050,6 +1050,28 @@ export class ResourceInspector {
       }
     }
     if (
+      this.selectedTarget?.kind === 'pasture'
+      && this.selectedTarget.farmstead
+      && (this.selectedTarget.farmstead.kind === 'pastoral_farmstead'
+        || this.selectedTarget.farmstead.kind === 'swineherd')
+    ) {
+      const livestockTradeValue = (event.target as HTMLElement)
+        .closest<HTMLElement>('[data-livestock-trade]')
+        ?.dataset.livestockTrade;
+      if (livestockTradeValue != null) {
+        const headDelta = Number(livestockTradeValue);
+        if (Number.isInteger(headDelta) && headDelta !== 0) {
+          // A selected parcel is a convenient stocking surface, but every
+          // linked parcel contributes to one herd owned by the holding.
+          void this.options.onTradeLivestock?.(
+            this.selectedTarget.farmstead.id,
+            headDelta,
+          );
+        }
+        return;
+      }
+    }
+    if (
       this.selectedTarget?.kind === 'building'
       && (this.selectedTarget.building.kind === 'pastoral_farmstead'
         || this.selectedTarget.building.kind === 'swineherd')
@@ -1740,18 +1762,16 @@ export class ResourceInspector {
     this.guardhousePayrollGold = guardhousePayrollGold;
     this.renderHudResourceTotals();
     const displayedPopulation = starterCampCreated ? population.total : 0;
-    const displayedHomeless = starterCampCreated
-      ? Math.max(0, population.total - population.housed)
-      : 0;
+    const displayedOpenLivingPlaces = starterCampCreated ? population.vacant : 0;
     const displayedLabor = starterCampCreated ? population.available : 0;
     this.populationValue.textContent = displayedPopulation.toString();
-    this.housingValue.textContent = displayedHomeless.toString();
+    this.housingValue.textContent = displayedOpenLivingPlaces.toString();
     this.laborValue.textContent = displayedLabor.toString();
     this.setHudTooltipAmount(this.populationValue, displayedPopulation, 'Current population');
     this.setHudTooltipAmount(
       this.housingValue,
-      displayedHomeless,
-      'Homeless residents',
+      displayedOpenLivingPlaces,
+      'Open living places',
     );
     this.setHudTooltipAmount(this.laborValue, displayedLabor, 'Workers available');
     const laborSub = this.stockpileRoot.querySelector<HTMLElement>('[data-stockpile="labor-sub"]');
@@ -1907,6 +1927,12 @@ export class ResourceInspector {
     const target = this.options.worldQueries.findBuildingTarget(buildingId);
     if (!target) return;
     this.selectTarget(target);
+  }
+
+  /** Moves keyboard focus into an inspector opened by an external HUD link. */
+  focusPanel(): void {
+    if (this.panel.hidden) return;
+    this.closeButton.focus({ preventScroll: true });
   }
 
   selectResidence(residenceId: string): void {

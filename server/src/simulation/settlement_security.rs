@@ -695,6 +695,7 @@ pub(super) fn building_portable_stores(building: &Building) -> RaidPortableStore
         maslin_sheaves: building.maslin_sheaves,
         rye_grain: building.rye_grain,
         oat_grain: building.oat_grain,
+        animal_feed: building.animal_feed,
         maslin_grain: building.maslin_grain,
         rye_flour: building.rye_flour,
         maslin_flour: building.maslin_flour,
@@ -955,6 +956,7 @@ pub(super) fn delivery_trip_portable_stores(trip: &DeliveryTrip) -> RaidPortable
         Some(CommodityKind::MaslinSheaves) => stores.maslin_sheaves = amount,
         Some(CommodityKind::RyeGrain) => stores.rye_grain = amount,
         Some(CommodityKind::OatGrain) => stores.oat_grain = amount,
+        Some(CommodityKind::AnimalFeed) => stores.animal_feed = amount,
         Some(CommodityKind::MaslinGrain) => stores.maslin_grain = amount,
         Some(CommodityKind::RyeFlour) => stores.rye_flour = amount,
         Some(CommodityKind::MaslinFlour) => stores.maslin_flour = amount,
@@ -1024,6 +1026,7 @@ fn delivery_trip_remaining_amount(cargo_kind: u8, stores: RaidPortableStores) ->
         Some(CommodityKind::MaslinSheaves) => stores.maslin_sheaves,
         Some(CommodityKind::RyeGrain) => stores.rye_grain,
         Some(CommodityKind::OatGrain) => stores.oat_grain,
+        Some(CommodityKind::AnimalFeed) => stores.animal_feed,
         Some(CommodityKind::MaslinGrain) => stores.maslin_grain,
         Some(CommodityKind::RyeFlour) => stores.rye_flour,
         Some(CommodityKind::MaslinFlour) => stores.maslin_flour,
@@ -1092,6 +1095,7 @@ fn treasury_portable_stores(
         maslin_sheaves: treasury.maslin_sheaves,
         rye_grain: treasury.rye_grain,
         oat_grain: treasury.oat_grain,
+        animal_feed: 0.0,
         maslin_grain: treasury.maslin_grain,
         rye_flour: treasury.rye_flour,
         maslin_flour: treasury.maslin_flour,
@@ -1211,6 +1215,7 @@ fn retain_unplundered_stores(building: &mut Building, stores: RaidPortableStores
     building.maslin_sheaves = stores.maslin_sheaves;
     building.rye_grain = stores.rye_grain;
     building.oat_grain = stores.oat_grain;
+    building.animal_feed = stores.animal_feed;
     building.maslin_grain = stores.maslin_grain;
     building.rye_flour = stores.rye_flour;
     building.maslin_flour = stores.maslin_flour;

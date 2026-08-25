@@ -72,6 +72,7 @@ const STORAGE_CHANNEL_LABELS: Record<keyof StorageCaps, string> = {
   roofTiles: 'Roof-tile stack',
   manure: 'Manure store',
   remedies: 'Remedy store',
+  animalFeed: 'Animal feed store',
 };
 
 const STORAGE_CHANNEL_KEYS = Object.keys(STORAGE_CHANNEL_LABELS) as (keyof StorageCaps)[];

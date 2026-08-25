@@ -5,6 +5,7 @@ import {
   localDeliveryDistance,
   localDeliveryDistancesFrom,
   roadPathDistance,
+  compareStableEntityIds,
   sortByRoadPathDistance,
 } from '../logistics/roadLogistics.ts';
 import {
@@ -1101,10 +1102,10 @@ export class WorldQueries {
             : null;
       if (commodity) seedReserve[commodity] += fieldSeedGrainRemaining(field);
     }
-    const commodity = BREAD_GRAIN_KINDS
+    const commodities = BREAD_GRAIN_KINDS
       .map((kind) => ({ kind, surplus: Math.max(0, (farmstead[kind] ?? 0) - seedReserve[kind]) }))
-      .sort((left, right) => right.surplus - left.surplus)[0];
-    if (!commodity || commodity.surplus <= 1e-6) return null;
+      .sort((left, right) => right.surplus - left.surplus);
+    if ((commodities[0]?.surplus ?? 0) <= 1e-6) return null;
     const network = this.getRoadNetwork();
     const inboundTargets = new Set<string>();
     for (const trip of state.deliveryTrips.values()) {
@@ -1116,21 +1117,31 @@ export class WorldQueries {
         inboundTargets.add(trip.targetBuildingId);
       }
     }
-    return selectGrainDispatchTarget(
-      this.fireEnabledBuildings(state, fireDisabled),
-      farmstead.id,
-      (target) => localDeliveryDistance(
-        network,
-        farmstead.x,
-        farmstead.z,
-        target.x,
-        target.z,
-      ),
-      () => 1,
-      (target) => inboundTargets.has(target.id),
-      (target) => processorAcceptsInput(target, commodity.kind),
-      commodity.kind,
-    );
+    for (const commodity of commodities) {
+      if (commodity.surplus <= 1e-6) continue;
+      const dispatch = selectGrainDispatchTarget(
+        this.fireEnabledBuildings(state, fireDisabled),
+        farmstead.id,
+        (target) => localDeliveryDistance(
+          network,
+          farmstead.x,
+          farmstead.z,
+          target.x,
+          target.z,
+        ),
+        () => 1,
+        (target) => inboundTargets.has(target.id),
+        (target) => processorAcceptsInput(target, commodity.kind)
+          && (
+            target.kind !== 'pastoral_farmstead'
+            || (target.animalFeed ?? 0) + 1e-6
+              < (BUILDING_STORAGE_CAPS.pastoral_farmstead.animalFeed ?? 0)
+          ),
+        commodity.kind,
+      );
+      if (dispatch) return dispatch;
+    }
+    return null;
   }
 
   getServingShoesSupplierForResidence(residence: ResidenceState): BuildingState | null {
@@ -1259,10 +1270,14 @@ export class WorldQueries {
     const fireDisabled = fireDisabledBuildingIds(state.fireIncidents.values());
     if (fireDisabled.has(granary.id)) return null;
     const network = this.getRoadNetwork();
-    const commodity = BREAD_GRAIN_KINDS
-      .map((kind) => ({ kind, stock: granary[kind] ?? 0 }))
-      .sort((left, right) => right.stock - left.stock)[0];
-    if (!commodity || commodity.stock <= 1e-6) return null;
+    const totalGrain = breadGrainStock(granary);
+    const reserve = Math.max(0, granary.granaryGrainReserve ?? 0);
+    const commodities = BREAD_GRAIN_KINDS.map((kind) => {
+      const stock = Math.max(0, granary[kind] ?? 0);
+      const protectedFromThis = Math.max(0, reserve - (totalGrain - stock));
+      return { kind, stock, surplus: Math.max(0, stock - protectedFromThis) };
+    });
+    if (commodities.every((commodity) => commodity.surplus <= 1e-6)) return null;
     const inboundTargets = new Set<string>();
     for (const trip of state.deliveryTrips.values()) {
       if (
@@ -1273,21 +1288,49 @@ export class WorldQueries {
         inboundTargets.add(trip.targetBuildingId);
       }
     }
-    return selectGrainProcessorTarget(
-      this.fireEnabledBuildings(state, fireDisabled),
-      granary.id,
-      (target) => localDeliveryDistance(
-        network,
-        granary.x,
-        granary.z,
-        target.x,
-        target.z,
-      ),
-      () => 1,
-      (target) => inboundTargets.has(target.id),
-      (target) => processorAcceptsInput(target, commodity.kind),
-      commodity.kind,
-    );
+    let best: RoutedGrainDestination<BuildingState> | null = null;
+    for (const commodity of commodities) {
+      if (commodity.surplus <= 1e-6) continue;
+      const candidate = selectGrainProcessorTarget(
+        this.fireEnabledBuildings(state, fireDisabled),
+        granary.id,
+        (target) => localDeliveryDistance(
+          network,
+          granary.x,
+          granary.z,
+          target.x,
+          target.z,
+        ),
+        () => 1,
+        (target) => inboundTargets.has(target.id),
+        (target) => processorAcceptsInput(target, commodity.kind)
+          && (
+            target.kind !== 'pastoral_farmstead'
+            || (target.animalFeed ?? 0) + 1e-6
+              < (BUILDING_STORAGE_CAPS.pastoral_farmstead.animalFeed ?? 0)
+          ),
+        commodity.kind,
+      );
+      if (
+        candidate
+        && (
+          best === null
+          || candidate.runwayCycles < best.runwayCycles - 1e-6
+          || (
+            Math.abs(candidate.runwayCycles - best.runwayCycles) <= 1e-6
+            && candidate.routeDistance < best.routeDistance - 1e-6
+          )
+          || (
+            Math.abs(candidate.runwayCycles - best.runwayCycles) <= 1e-6
+            && Math.abs(candidate.routeDistance - best.routeDistance) <= 1e-6
+            && compareStableEntityIds(candidate.target.id, best.target.id) < 0
+          )
+        )
+      ) {
+        best = candidate;
+      }
+    }
+    return best;
   }
 
   getNextDirectProcessorInputDispatch(

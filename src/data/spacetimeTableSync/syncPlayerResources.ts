@@ -53,7 +53,6 @@ export function syncPlayerResources(rows: Iterable<PlayerResources>, state: Game
       aroniaJam: number;
       rosehipJam: number;
       pearCider: number;
-      animalFeed: number;
     }>;
     state.stockpile = {
       timber: wholeResourceUnits(row.timber),
@@ -72,7 +71,8 @@ export function syncPlayerResources(rows: Iterable<PlayerResources>, state: Game
       maslinSheaves: wholeResourceUnits(row.maslinSheaves),
       ryeGrain: wholeResourceUnits(row.ryeGrain),
       oatGrain: wholeResourceUnits(row.oatGrain),
-      animalFeed: wholeResourceUnits(leatherRow.animalFeed),
+      // Prepared fodder exists only in physical livestock-building stores.
+      animalFeed: 0,
       maslinGrain: wholeResourceUnits(row.maslinGrain),
       barley: wholeResourceUnits(row.barley),
       malt: wholeResourceUnits(row.malt),

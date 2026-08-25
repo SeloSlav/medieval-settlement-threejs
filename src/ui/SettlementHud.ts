@@ -59,6 +59,10 @@ import {
   type LordReportTarget,
 } from './lordReports.ts';
 import type { SettlementAnimalsView } from './settlementAnimals.ts';
+import {
+  EMPTY_SETTLEMENT_PEOPLE_VIEW,
+  type SettlementPeopleView,
+} from './settlementPeople.ts';
 
 const STORES_POINTER_LEAVE_GRACE_MS = 180;
 
@@ -69,6 +73,11 @@ function gameSpeedTimingLabel(speed: GameSpeed): string {
     ? realSeconds.toFixed(0)
     : realSeconds.toFixed(1);
   return `${formatted}-second day`;
+}
+
+function formatLedgerAmount(value: number): string {
+  const safe = Number.isFinite(value) ? Math.max(0, value) : 0;
+  return Number.isInteger(safe) ? safe.toString() : safe.toFixed(1);
 }
 
 const SETTLEMENT_HUD_HTML = `
@@ -238,6 +247,9 @@ const SETTLEMENT_HUD_HTML = `
         <p class="settlement-hud__approval-summary" data-approval-summary>
           Settlement data is not available yet.
         </p>
+        <div class="settlement-hud__approval-factors" data-approval-factors aria-label="Current approval factors">
+          <p>No current factors.</p>
+        </div>
       </section>
     </div>
     <div class="settlement-hud__perf">
@@ -258,7 +270,7 @@ const SETTLEMENT_HUD_HTML = `
       data-resource-totals-mode
       data-mode="surplus"
       data-tooltip-title="Realm surplus (default)"
-      data-tooltip="Available goods across every community after active construction and home-project commitments. Activate to show all realm holdings."
+      data-tooltip="Available goods after construction and home-project commitments. Activate to show every holding."
       aria-label="Showing realm-wide surplus goods. Show total realm holdings."
       aria-pressed="false"
     >
@@ -266,18 +278,58 @@ const SETTLEMENT_HUD_HTML = `
       <span class="settlement-hud__totals-mode-label" data-resource-totals-mode-label>Realm · Surplus</span>
     </button>
     <div class="settlement-hud__body">
-      <div class="settlement-hud__stat" tabindex="0" data-resource="labor" data-tooltip-title="Workers free to assign" data-tooltip="People currently available for a new work assignment.">
-        <span class="settlement-hud__label">Labor</span>
-        <strong class="settlement-hud__value" data-stockpile="labor">0</strong>
-        <span class="settlement-hud__sub" data-stockpile="labor-sub">available</span>
+      <div class="settlement-hud__people-card settlement-hud__people-card--labor" data-people-card="labor">
+        <div class="settlement-hud__stat" tabindex="0" data-resource="labor" aria-label="Labor ledger awaiting settlement data">
+          <span class="settlement-hud__label">Labor</span>
+          <strong class="settlement-hud__value" data-stockpile="labor">0</strong>
+          <span class="settlement-hud__sub" data-stockpile="labor-sub">available</span>
+        </div>
+        <section class="settlement-hud__people-panel" aria-label="Individual labor ledger" aria-live="off">
+          <header class="settlement-hud__people-header">
+            <strong>Laborers</strong>
+            <span>Individual workforce</span>
+          </header>
+          <div class="settlement-hud__people-metrics">
+            <span><strong data-people-total>0</strong>Total</span>
+            <span><strong data-people-available>0</strong>Available</span>
+            <span><strong data-people-assigned>0</strong>Assigned</span>
+          </div>
+          <dl class="settlement-hud__people-rows">
+            <div data-people-icon="work"><dt>Workplaces</dt><dd data-people-workplaces>0</dd></div>
+            <div data-people-icon="build"><dt>Construction</dt><dd data-people-builders>0</dd></div>
+            <div data-people-icon="home"><dt>Home projects</dt><dd data-people-home-projects>0</dd></div>
+            <div data-people-icon="cart"><dt>Hauling</dt><dd data-people-haulers>0</dd></div>
+            <div data-people-icon="care"><dt>Sick</dt><dd data-people-sick>0</dd></div>
+          </dl>
+          <p class="settlement-hud__people-note">Available laborers remain free for a new assignment or local cart work.</p>
+        </section>
       </div>
-      <div class="settlement-hud__stat" tabindex="0" data-resource="population" data-tooltip-title="Total population" data-tooltip="All townsfolk across every community in the realm.">
+      <div class="settlement-hud__stat" tabindex="0" data-resource="population" data-tooltip-title="Residents" data-tooltip="Individual residents across all communities.">
         <span class="settlement-hud__label">Population</span>
         <strong class="settlement-hud__value" data-stockpile="population">0</strong>
       </div>
-      <div class="settlement-hud__stat" tabindex="0" data-resource="housing" data-tooltip-title="Homeless residents" data-tooltip="Townsfolk who do not currently have a home.">
-        <span class="settlement-hud__label">Homeless residents</span>
-        <strong class="settlement-hud__value" data-stockpile="housing">0</strong>
+      <div class="settlement-hud__people-card settlement-hud__people-card--housing" data-people-card="housing">
+        <div class="settlement-hud__stat" tabindex="0" data-resource="housing" aria-label="Living-space ledger awaiting settlement data">
+          <span class="settlement-hud__label">Living space</span>
+          <strong class="settlement-hud__value" data-stockpile="housing">0</strong>
+        </div>
+        <section class="settlement-hud__people-panel" aria-label="Living space and migration" aria-live="off">
+          <header class="settlement-hud__people-header">
+            <strong>Homes &amp; migration</strong>
+            <span data-housing-meta>No residences</span>
+          </header>
+          <div class="settlement-hud__people-metrics">
+            <span><strong data-housing-residents>0</strong>Residents</span>
+            <span><strong data-housing-capacity>0</strong>Places</span>
+            <span><strong data-housing-vacant>0</strong>Open</span>
+          </div>
+          <dl class="settlement-hud__people-rows">
+            <div data-people-icon="home"><dt>Occupied homes</dt><dd data-housing-occupied>0 / 0</dd></div>
+            <div data-people-icon="space"><dt>Homes with room</dt><dd data-housing-open-homes>0</dd></div>
+            <div data-people-icon="founder"><dt>Unhoused residents</dt><dd data-housing-unhoused>0</dd></div>
+          </dl>
+          <p class="settlement-hud__migration-line" data-migration-label>Place the starter camp to found the settlement.</p>
+        </section>
       </div>
       <div class="settlement-hud__stat" tabindex="0" data-resource="timber" data-tooltip-title="Stored timber" data-tooltip="Unreserved timber in yards, mills, and depots.">
         <span class="settlement-hud__label">Timber</span>
@@ -414,24 +466,39 @@ const SETTLEMENT_HUD_HTML = `
       <section
         id="settlement-animals-roster"
         class="settlement-hud__animals-panel"
-        aria-label="Draft animal roster"
+        aria-label="Livestock ledger"
         aria-live="off"
       >
         <header class="settlement-hud__animals-header">
-          <strong>Draft animals</strong>
-          <span data-animals-meta>No oxen purchased</span>
+          <strong>Livestock</strong>
+          <span data-animals-meta>No livestock recorded</span>
         </header>
-        <div class="settlement-hud__animals-metrics" aria-label="Ox assignment summary">
-          <span><strong data-animals-posted>0</strong> Posted</span>
-          <span><strong data-animals-automatic>0</strong> Auto</span>
-          <span><strong data-animals-working>0</strong> Tasked</span>
-        </div>
-        <div class="settlement-hud__animals-list" data-animals-list>
-          <p class="settlement-hud__animals-empty">Build a Stable and purchase an ox to begin the roster.</p>
-        </div>
-        <p class="settlement-hud__animals-note">
-          Posted oxen remain with one workplace until removed. Auto oxen choose the best useful task available.
-        </p>
+        <section class="settlement-hud__animals-section settlement-hud__animals-section--draft">
+          <header><strong>Draft oxen</strong><span data-animals-stable-capacity>0 / 0 bays</span></header>
+          <div class="settlement-hud__animals-metrics" aria-label="Ox assignment summary">
+            <span><strong data-animals-posted>0</strong> Posted</span>
+            <span><strong data-animals-automatic>0</strong> Auto</span>
+            <span><strong data-animals-working>0</strong> Tasked</span>
+          </div>
+          <div class="settlement-hud__animals-list" data-animals-list>
+            <p class="settlement-hud__animals-empty">Build a Stable and purchase an ox to begin the roster.</p>
+          </div>
+          <p class="settlement-hud__animals-note">
+            Posted oxen stay with one workplace. Auto oxen choose useful work.
+          </p>
+        </section>
+        <section class="settlement-hud__animals-section" data-animals-herds>
+          <header><strong>Managed herds</strong><span data-animals-herd-meta>0 head</span></header>
+          <div class="settlement-hud__animal-ledger-list" data-animals-herd-list>
+            <p class="settlement-hud__animals-empty">No managed cattle, sheep, or swine.</p>
+          </div>
+        </section>
+        <section class="settlement-hud__animals-section" data-animals-backyards>
+          <header><strong>Household pens</strong><span data-animals-backyard-meta>0 pens</span></header>
+          <div class="settlement-hud__animal-ledger-list" data-animals-backyard-list>
+            <p class="settlement-hud__animals-empty">No household animal pens.</p>
+          </div>
+        </section>
       </section>
     </details>
     <details class="settlement-hud__stores" data-specialty-stores>
@@ -452,12 +519,12 @@ const SETTLEMENT_HUD_HTML = `
         <strong class="settlement-hud__value" data-stockpile="ryeGrain">0</strong>
         <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="ryeGrain" hidden></span>
       </div>
-      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="oatGrain" data-tooltip="Threshed oats remain edible as thin porridge, but each unit provides only half a human meal. Their primary use is preparation into animal feed at a staffed Pastoral farmstead.">
+      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="oatGrain" data-tooltip="Oats are edible by people, but each unit provides only half a human meal; their primary use is preparation into animal feed at staffed Pastoral farmsteads.">
         <span class="settlement-hud__label">Oats</span>
         <strong class="settlement-hud__value" data-stockpile="oatGrain">0</strong>
         <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="oatGrain" hidden></span>
       </div>
-      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="animalFeed" data-tooltip="Prepared from oats at staffed Pastoral farmsteads and stored at livestock holdings for winter. Cattle and sheep use local hay first; pigs use woodland mast first. Animal feed is not human food, and stable transport oxen remain an upkeep abstraction.">
+      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="animalFeed" data-tooltip="Animal feed is not human food. It is prepared winter fodder stored locally at livestock holdings.">
         <span class="settlement-hud__label">Animal feed</span>
         <strong class="settlement-hud__value" data-stockpile="animalFeed">0</strong>
         <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="animalFeed" hidden></span>
@@ -621,6 +688,29 @@ export class SettlementHud {
   private readonly approvalMeter: HTMLElement;
   private readonly approvalMeterFill: HTMLElement;
   private readonly approvalSummary: HTMLElement;
+  private readonly approvalFactors: HTMLElement;
+  private readonly laborStat: HTMLElement;
+  private readonly laborValue: HTMLElement;
+  private readonly laborSub: HTMLElement;
+  private readonly populationValue: HTMLElement;
+  private readonly housingStat: HTMLElement;
+  private readonly housingValue: HTMLElement;
+  private readonly peopleTotal: HTMLElement;
+  private readonly peopleAvailable: HTMLElement;
+  private readonly peopleAssigned: HTMLElement;
+  private readonly peopleWorkplaces: HTMLElement;
+  private readonly peopleBuilders: HTMLElement;
+  private readonly peopleHomeProjects: HTMLElement;
+  private readonly peopleHaulers: HTMLElement;
+  private readonly peopleSick: HTMLElement;
+  private readonly housingMeta: HTMLElement;
+  private readonly housingResidents: HTMLElement;
+  private readonly housingCapacity: HTMLElement;
+  private readonly housingVacant: HTMLElement;
+  private readonly housingOccupied: HTMLElement;
+  private readonly housingOpenHomes: HTMLElement;
+  private readonly housingUnhoused: HTMLElement;
+  private readonly migrationLabel: HTMLElement;
   private readonly foodStat: HTMLElement;
   private readonly foodStores: HTMLDetailsElement;
   private readonly foodRunwayValue: HTMLElement;
@@ -642,7 +732,12 @@ export class SettlementHud {
   private readonly animalsPosted: HTMLElement;
   private readonly animalsAutomatic: HTMLElement;
   private readonly animalsWorking: HTMLElement;
+  private readonly animalsStableCapacity: HTMLElement;
   private readonly animalsList: HTMLElement;
+  private readonly animalsHerdMeta: HTMLElement;
+  private readonly animalsHerdList: HTMLElement;
+  private readonly animalsBackyardMeta: HTMLElement;
+  private readonly animalsBackyardList: HTMLElement;
   private readonly specialtyStores: HTMLDetailsElement;
   private readonly specialtyStoresSummary: HTMLElement;
   private readonly speedButtons: HTMLButtonElement[];
@@ -669,6 +764,7 @@ export class SettlementHud {
   private fuelStoresCloseTimer: number | null = null;
   private animalsCloseTimer: number | null = null;
   private specialtyStoresCloseTimer: number | null = null;
+  private displayedPeopleSignature: string | null = null;
   private displayedAnimalsSignature: string | null = null;
   private animalsTooltipText = 'Build a Stable and purchase an ox to begin the draft-animal roster.';
   private displayedClockDate: string | null = null;
@@ -730,6 +826,29 @@ export class SettlementHud {
     this.approvalMeter = this.mustElement('[data-approval-meter]');
     this.approvalMeterFill = this.mustElement('[data-approval-meter-fill]');
     this.approvalSummary = this.mustElement('[data-approval-summary]');
+    this.approvalFactors = this.mustElement('[data-approval-factors]');
+    this.laborStat = this.mustElement('[data-resource="labor"]');
+    this.laborValue = this.mustElement('[data-stockpile="labor"]');
+    this.laborSub = this.mustElement('[data-stockpile="labor-sub"]');
+    this.populationValue = this.mustElement('[data-stockpile="population"]');
+    this.housingStat = this.mustElement('[data-resource="housing"]');
+    this.housingValue = this.mustElement('[data-stockpile="housing"]');
+    this.peopleTotal = this.mustElement('[data-people-total]');
+    this.peopleAvailable = this.mustElement('[data-people-available]');
+    this.peopleAssigned = this.mustElement('[data-people-assigned]');
+    this.peopleWorkplaces = this.mustElement('[data-people-workplaces]');
+    this.peopleBuilders = this.mustElement('[data-people-builders]');
+    this.peopleHomeProjects = this.mustElement('[data-people-home-projects]');
+    this.peopleHaulers = this.mustElement('[data-people-haulers]');
+    this.peopleSick = this.mustElement('[data-people-sick]');
+    this.housingMeta = this.mustElement('[data-housing-meta]');
+    this.housingResidents = this.mustElement('[data-housing-residents]');
+    this.housingCapacity = this.mustElement('[data-housing-capacity]');
+    this.housingVacant = this.mustElement('[data-housing-vacant]');
+    this.housingOccupied = this.mustElement('[data-housing-occupied]');
+    this.housingOpenHomes = this.mustElement('[data-housing-open-homes]');
+    this.housingUnhoused = this.mustElement('[data-housing-unhoused]');
+    this.migrationLabel = this.mustElement('[data-migration-label]');
     this.foodStat = this.mustElement('[data-resource="food"]');
     this.foodStores = this.mustDetails('[data-food-stores]');
     this.foodRunwayValue = this.mustElement('[data-food-runway]');
@@ -751,7 +870,12 @@ export class SettlementHud {
     this.animalsPosted = this.mustElement('[data-animals-posted]');
     this.animalsAutomatic = this.mustElement('[data-animals-automatic]');
     this.animalsWorking = this.mustElement('[data-animals-working]');
+    this.animalsStableCapacity = this.mustElement('[data-animals-stable-capacity]');
     this.animalsList = this.mustElement('[data-animals-list]');
+    this.animalsHerdMeta = this.mustElement('[data-animals-herd-meta]');
+    this.animalsHerdList = this.mustElement('[data-animals-herd-list]');
+    this.animalsBackyardMeta = this.mustElement('[data-animals-backyard-meta]');
+    this.animalsBackyardList = this.mustElement('[data-animals-backyard-list]');
     this.specialtyStores = this.mustDetails('[data-specialty-stores]');
     this.specialtyStoresSummary = this.mustElement(
       '[data-specialty-stores] > .settlement-hud__stores-summary',
@@ -779,6 +903,10 @@ export class SettlementHud {
       row.classList.add('is-resource-locator');
       row.setAttribute('role', 'button');
       row.setAttribute('aria-label', `${label}: locate physical holdings`);
+    }
+    for (const summaryCard of [this.laborStat, this.housingStat]) {
+      delete summaryCard.dataset.tooltipTitle;
+      delete summaryCard.dataset.tooltip;
     }
     this.foodStat.setAttribute('aria-controls', 'settlement-food-breakdown');
     this.foodStat.setAttribute('aria-expanded', 'false');
@@ -825,7 +953,6 @@ export class SettlementHud {
     this.animals.addEventListener('focusin', this.onAnimalsFocusIn);
     this.animals.addEventListener('focusout', this.onAnimalsFocusOut);
     this.animals.addEventListener('click', this.onAnimalsClick);
-    this.animalsSummary.addEventListener('click', this.onAnimalsSummaryClick);
     this.specialtyStores.addEventListener('toggle', this.onSpecialtyStoresToggle);
     this.specialtyStores.addEventListener('pointerenter', this.onSpecialtyStoresPointerEnter);
     this.specialtyStores.addEventListener('pointerleave', this.onSpecialtyStoresPointerLeave);
@@ -886,27 +1013,85 @@ export class SettlementHud {
     this.onInspectAnimalBuilding = handler;
   }
 
+  setPeopleState(view: SettlementPeopleView): void {
+    if (view.signature === this.displayedPeopleSignature) return;
+    this.displayedPeopleSignature = view.signature;
+
+    this.laborValue.textContent = view.available.toString();
+    this.laborSub.textContent = view.assigned > 0
+      ? `${view.assigned} assigned`
+      : 'available';
+    this.populationValue.textContent = view.total.toString();
+    this.housingValue.textContent = view.vacantPlaces.toString();
+    this.peopleTotal.textContent = view.total.toString();
+    this.peopleAvailable.textContent = view.available.toString();
+    this.peopleAssigned.textContent = view.assigned.toString();
+    this.peopleWorkplaces.textContent = view.workplaceWorkers.toString();
+    this.peopleBuilders.textContent = view.builders.toString();
+    this.peopleHomeProjects.textContent = view.homeProjectWorkers.toString();
+    this.peopleHaulers.textContent = view.haulers.toString();
+    this.peopleSick.textContent = view.sick.toString();
+    this.housingMeta.textContent = view.homes === 0
+      ? 'No completed homes'
+      : `${view.occupiedHomes} / ${view.homes} occupied`;
+    this.housingResidents.textContent = view.housed.toString();
+    this.housingCapacity.textContent = view.housingCapacity.toString();
+    this.housingVacant.textContent = view.vacantPlaces.toString();
+    this.housingOccupied.textContent = `${view.occupiedHomes} / ${view.homes}`;
+    this.housingOpenHomes.textContent = view.openHomes.toString();
+    this.housingUnhoused.textContent = view.unhoused.toString();
+    this.migrationLabel.textContent = view.migrationLabel;
+
+    this.laborStat.classList.toggle('is-empty', view.total === 0);
+    this.housingStat.classList.toggle('is-empty', view.housingCapacity === 0);
+    this.laborStat.setAttribute(
+      'aria-label',
+      `Labor: ${view.available} available, ${view.assigned} assigned, ${view.sick} sick.`,
+    );
+    this.housingStat.setAttribute(
+      'aria-label',
+      `Living space: ${view.vacantPlaces} open of ${view.housingCapacity}; ${view.unhoused} unhoused residents.`,
+    );
+  }
+
+  clearPeopleState(): void {
+    this.displayedPeopleSignature = null;
+    this.setPeopleState(EMPTY_SETTLEMENT_PEOPLE_VIEW);
+  }
+
   setAnimalsState(view: SettlementAnimalsView): void {
     if (view.signature === this.displayedAnimalsSignature) return;
     this.displayedAnimalsSignature = view.signature;
-    this.animalsCount.textContent = view.total.toString();
+    const knownHeads = view.ledger?.headCount ?? view.total;
+    const backyardPens = view.ledger?.backyard.penCount ?? 0;
+    const hasLivestock = knownHeads > 0 || backyardPens > 0;
+    this.animalsCount.textContent = `${knownHeads}${backyardPens > 0 ? '+' : ''}`;
     this.animalsPosted.textContent = view.posted.toString();
     this.animalsAutomatic.textContent = view.automatic.toString();
     this.animalsWorking.textContent = view.working.toString();
-    this.animals.classList.toggle('has-animals', view.total > 0);
-    this.animalsMeta.textContent = view.total === 0
-      ? 'No oxen purchased'
-      : `${view.total} ${view.total === 1 ? 'ox' : 'oxen'} · ${view.working} tasked`;
+    this.animals.classList.toggle('has-animals', hasLivestock);
+    this.animalsMeta.textContent = !hasLivestock
+      ? 'No livestock recorded'
+      : `${knownHeads} known ${knownHeads === 1 ? 'head' : 'heads'}${backyardPens > 0 ? ` · ${backyardPens} household ${backyardPens === 1 ? 'pen' : 'pens'}` : ''}`;
+    const stable = view.ledger?.stable;
+    this.animalsStableCapacity.textContent = stable && stable.capacity > 0
+      ? `${stable.occupied} / ${stable.capacity} bays · ${stable.purchaseReadyOpenBays} ready`
+      : 'No Stable bays';
+    this.animalsHerdMeta.textContent = view.ledger
+      ? `${view.ledger.herds.headCount} ${view.ledger.herds.headCount === 1 ? 'head' : 'heads'} · ${view.ledger.herds.holdingCount} ${view.ledger.herds.holdingCount === 1 ? 'holding' : 'holdings'}`
+      : '0 head';
+    this.animalsBackyardMeta.textContent = `${backyardPens} ${backyardPens === 1 ? 'pen' : 'pens'}`;
     const summary = [
-      `Animals: ${view.total} ${view.total === 1 ? 'ox' : 'oxen'}`,
+      `Animals: ${knownHeads} known ${knownHeads === 1 ? 'head' : 'heads'}`,
+      backyardPens > 0 ? `${backyardPens} household ${backyardPens === 1 ? 'pen' : 'pens'}` : null,
+      `${view.total} draft ${view.total === 1 ? 'ox' : 'oxen'}`,
       `${view.posted} posted`,
       `${view.automatic} automatic`,
-      `${view.working} tasked`,
-    ].join(', ');
+    ].filter((part): part is string => part !== null).join(', ');
     this.animalsSummary.setAttribute('aria-label', summary);
-    this.animalsTooltipText = view.total === 0
-      ? 'Build a Stable and purchase an ox to begin the draft-animal roster.'
-      : `${view.posted} permanently posted · ${view.automatic} choosing the best available assistance task · ${view.working} currently tasked.`;
+    this.animalsTooltipText = !hasLivestock
+      ? 'Build livestock holdings or a Stable to begin the ledger.'
+      : `${knownHeads} known herd heads · ${view.posted} oxen posted · ${view.automatic} oxen on Auto.`;
     if (this.animals.open) {
       delete this.animalsSummary.dataset.tooltip;
     } else {
@@ -919,10 +1104,7 @@ export class SettlementHud {
       empty.className = 'settlement-hud__animals-empty';
       empty.textContent = 'Build a Stable and purchase an ox to begin the roster.';
       this.animalsList.appendChild(empty);
-      return;
-    }
-
-    view.entries.forEach((entry, index) => {
+    } else view.entries.forEach((entry, index) => {
       const row = document.createElement('article');
       row.className = 'settlement-hud__animal-row';
       row.dataset.assignmentMode = entry.mode;
@@ -968,6 +1150,79 @@ export class SettlementHud {
       row.append(header, home, posting, activity);
       this.animalsList.appendChild(row);
     });
+
+    this.animalsHerdList.replaceChildren();
+    const herdRows = view.ledger?.herds.species.filter((entry) =>
+      entry.headCount > 0 || entry.holdingCount > 0) ?? [];
+    if (herdRows.length === 0) {
+      this.appendAnimalLedgerEmpty(
+        this.animalsHerdList,
+        'No managed cattle, sheep, or swine.',
+      );
+    } else {
+      const herdIcons = { cattle: '🐄', sheep: '🐑', swine: '🐖' } as const;
+      for (const herd of herdRows) {
+        const row = document.createElement('div');
+        row.className = 'settlement-hud__animal-ledger-row';
+        row.dataset.livestockKind = herd.species;
+        row.classList.toggle('is-undersupplied', herd.headCount > herd.suppliedCapacity);
+        const icon = document.createElement('span');
+        icon.className = 'settlement-hud__animal-ledger-icon';
+        icon.setAttribute('aria-hidden', 'true');
+        icon.textContent = herdIcons[herd.species];
+        const copy = document.createElement('span');
+        copy.className = 'settlement-hud__animal-ledger-copy';
+        const label = document.createElement('strong');
+        label.textContent = herd.label;
+        const detail = document.createElement('small');
+        detail.textContent = `${herd.holdingCount} ${herd.holdingCount === 1 ? 'holding' : 'holdings'} · ${formatLedgerAmount(herd.suppliedCapacity)} supplied · ${formatLedgerAmount(herd.forageCapacity)} ${herd.housingLabel === 'Pasture' ? 'forage' : 'pannage'}`;
+        copy.append(label, detail);
+        const amount = document.createElement('strong');
+        amount.className = 'settlement-hud__animal-ledger-value';
+        amount.textContent = herd.headCount.toString();
+        amount.setAttribute('aria-label', `${herd.headCount} head`);
+        row.append(icon, copy, amount);
+        this.animalsHerdList.appendChild(row);
+      }
+    }
+
+    this.animalsBackyardList.replaceChildren();
+    const penRows = view.ledger?.backyard.pens.filter((entry) => entry.penCount > 0) ?? [];
+    if (penRows.length === 0) {
+      this.appendAnimalLedgerEmpty(
+        this.animalsBackyardList,
+        'No household animal pens.',
+      );
+    } else {
+      const penIcons = {
+        chickens: '🐓',
+        goats: '🐐',
+        pigs: '🐖',
+        unstocked: '◇',
+      } as const;
+      for (const pen of penRows) {
+        const row = document.createElement('div');
+        row.className = 'settlement-hud__animal-ledger-row';
+        row.dataset.livestockKind = pen.kind;
+        const icon = document.createElement('span');
+        icon.className = 'settlement-hud__animal-ledger-icon';
+        icon.setAttribute('aria-hidden', 'true');
+        icon.textContent = penIcons[pen.kind];
+        const copy = document.createElement('span');
+        copy.className = 'settlement-hud__animal-ledger-copy';
+        const label = document.createElement('strong');
+        label.textContent = pen.label;
+        const detail = document.createElement('small');
+        detail.textContent = 'Household pens · animal heads are not individually counted';
+        copy.append(label, detail);
+        const amount = document.createElement('strong');
+        amount.className = 'settlement-hud__animal-ledger-value';
+        amount.textContent = pen.penCount.toString();
+        amount.setAttribute('aria-label', `${pen.penCount} pens`);
+        row.append(icon, copy, amount);
+        this.animalsBackyardList.appendChild(row);
+      }
+    }
   }
 
   clearAnimalsState(): void {
@@ -989,6 +1244,13 @@ export class SettlementHud {
     button.textContent = label;
     button.setAttribute('aria-label', `${label}: inspect building`);
     return button;
+  }
+
+  private appendAnimalLedgerEmpty(container: HTMLElement, text: string): void {
+    const empty = document.createElement('p');
+    empty.className = 'settlement-hud__animals-empty';
+    empty.textContent = text;
+    container.appendChild(empty);
   }
 
   setSecurityAttentionHandler(
@@ -1165,11 +1427,11 @@ export class SettlementHud {
       foodHasDemand,
     );
     this.foodSupplyUse.textContent = foodHasDemand
-      ? `${formatFoodDemandSource(provisioning)} currently use ${formatSupplyAmount(provisioning.grossFoodDemandPerDay)} meal-equivalents per day.`
-      : 'No occupied residences or armed guards are using food yet.';
+      ? `${formatFoodDemandSource(provisioning)} · ${formatSupplyAmount(provisioning.grossFoodDemandPerDay)} meals / day`
+      : 'No current food demand.';
     this.foodSupplyTotal.textContent = foodHasDemand
-      ? `${formatSupplyAmount(provisioning.usableFoodStock)} usable meal-equivalents are forecast against that rate; nutrition, storage, and spoilage are included.`
-      : `${formatSupplyAmount(provisioning.usableFoodStock)} usable meal-equivalents are stored. A runway appears once food is being consumed.`;
+      ? `${formatSupplyAmount(provisioning.usableFoodStock)} usable meals after storage and spoilage.`
+      : `${formatSupplyAmount(provisioning.usableFoodStock)} usable meals stored.`;
     this.foodStat.setAttribute(
       'aria-label',
       `Food supply: ${formatSupplyMonthsRemaining(provisioning.foodRunwayDays, foodHasDemand)}. Hover or focus for the current-use forecast and commodity breakdown.`,
@@ -1184,11 +1446,11 @@ export class SettlementHud {
       fuelHasDemand,
     );
     this.fuelSupplyUse.textContent = fuelHasDemand
-      ? `${formatResidenceResidents(provisioning.heatedResidents)} currently use ${formatSupplyAmount(provisioning.currentFirewoodPerDay)} fuel-equivalents per day at the seasonal rate.`
-      : 'No occupied residences are using fuel yet.';
+      ? `${formatResidenceResidents(provisioning.heatedResidents)} · ${formatSupplyAmount(provisioning.currentFirewoodPerDay)} fuel / day`
+      : 'No current household fuel demand.';
     this.fuelSupplyTotal.textContent = fuelHasDemand
-      ? `${formatSupplyAmount(provisioning.householdFirewoodStock)} firewood + ${formatSupplyAmount(provisioning.householdCharcoalStock)} charcoal = ${formatSupplyAmount(provisioning.firewoodStock)} fuel-equivalents owned; ${formatSupplyAmount(provisioning.usableFirewoodStock)} are currently usable by residences. Charcoal counts double.`
-      : `${formatSupplyAmount(provisioning.usableFirewoodStock)} usable fuel-equivalents are available to residences. A runway appears once heating begins.`;
+      ? `${formatSupplyAmount(provisioning.usableFirewoodStock)} usable · ${formatSupplyAmount(provisioning.householdFirewoodStock)} firewood + ${formatSupplyAmount(provisioning.householdCharcoalStock)} charcoal. Charcoal counts double.`
+      : `${formatSupplyAmount(provisioning.usableFirewoodStock)} usable household fuel stored.`;
     this.fuelStat.setAttribute(
       'aria-label',
       `Fuel supply: ${formatSupplyMonthsRemaining(provisioning.currentFirewoodRunwayDays, fuelHasDemand)}. Hover or focus for the current residence-use forecast and fuel breakdown.`,
@@ -1240,6 +1502,36 @@ export class SettlementHud {
     this.approvalMeter.setAttribute('aria-valuenow', String(approval.score));
     this.approvalMeterFill.style.width = `${approval.score}%`;
 
+    this.approvalFactors.replaceChildren();
+    const factors = approval.factors
+      .filter((factor) => factor.impact !== 0)
+      .sort((left, right) =>
+        Math.abs(right.impact) - Math.abs(left.impact)
+        || left.label.localeCompare(right.label))
+      .slice(0, 6);
+    if (factors.length === 0) {
+      const empty = document.createElement('p');
+      empty.textContent = 'No active modifiers.';
+      this.approvalFactors.appendChild(empty);
+    } else {
+      for (const factor of factors) {
+        const row = document.createElement('div');
+        row.className = 'settlement-hud__approval-factor';
+        row.dataset.impact = factor.impact > 0 ? 'positive' : 'negative';
+
+        const icon = document.createElement('span');
+        icon.className = 'settlement-hud__approval-factor-icon';
+        icon.setAttribute('aria-hidden', 'true');
+        icon.textContent = factor.impact > 0 ? '↑' : '↓';
+        const label = document.createElement('span');
+        label.textContent = factor.label;
+        const impact = document.createElement('strong');
+        impact.textContent = `${factor.impact > 0 ? '+' : ''}${factor.impact}`;
+        row.append(icon, label, impact);
+        this.approvalFactors.appendChild(row);
+      }
+    }
+
     const trendCopy = this.lastApprovalTrend === 'rising'
       ? { symbol: '↑', label: 'rising' }
       : this.lastApprovalTrend === 'falling'
@@ -1268,6 +1560,9 @@ export class SettlementHud {
     this.approvalPanelScore.textContent = '--';
     this.approvalPanelLabel.textContent = 'Awaiting ledger';
     this.approvalSummary.textContent = 'Settlement data is not available yet.';
+    const emptyFactor = document.createElement('p');
+    emptyFactor.textContent = 'No current factors.';
+    this.approvalFactors.replaceChildren(emptyFactor);
     this.approvalMeter.setAttribute('aria-valuenow', '0');
     this.approvalMeterFill.style.width = '0%';
     this.approvalButton.setAttribute('aria-label', 'Approval awaiting settlement data');
@@ -1470,12 +1765,16 @@ export class SettlementHud {
     this.animalsSummary.setAttribute('aria-expanded', String(open));
   };
 
-  private readonly onAnimalsPointerEnter = (): void => {
+  private readonly onAnimalsPointerEnter = (event: PointerEvent): void => {
+    // Touch and pen activation must reach the native <summary> toggle without
+    // a synthetic hover opening the disclosure immediately beforehand.
+    if (event.pointerType !== 'mouse') return;
     this.cancelAnimalsClose();
     this.animals.open = true;
   };
 
-  private readonly onAnimalsPointerLeave = (): void => {
+  private readonly onAnimalsPointerLeave = (event: PointerEvent): void => {
+    if (event.pointerType !== 'mouse') return;
     this.cancelAnimalsClose();
     this.animalsCloseTimer = window.setTimeout(() => {
       this.animalsCloseTimer = null;
@@ -1483,19 +1782,16 @@ export class SettlementHud {
     }, STORES_POINTER_LEAVE_GRACE_MS);
   };
 
-  private readonly onAnimalsFocusIn = (): void => {
+  private readonly onAnimalsFocusIn = (event: FocusEvent): void => {
     this.cancelAnimalsClose();
-    this.animals.open = true;
+    // Let the focused summary retain native disclosure-button semantics.
+    // Once open, focus moving into a roster link keeps the panel available.
+    if (event.target !== this.animalsSummary) this.animals.open = true;
   };
 
   private readonly onAnimalsFocusOut = (event: FocusEvent): void => {
     if (event.relatedTarget instanceof Node && this.animals.contains(event.relatedTarget)) return;
     this.animals.open = false;
-  };
-
-  private readonly onAnimalsSummaryClick = (event: MouseEvent): void => {
-    event.preventDefault();
-    this.animals.open = true;
   };
 
   private readonly onAnimalsClick = (event: MouseEvent): void => {
@@ -1796,7 +2092,6 @@ export class SettlementHud {
     this.animals.removeEventListener('focusin', this.onAnimalsFocusIn);
     this.animals.removeEventListener('focusout', this.onAnimalsFocusOut);
     this.animals.removeEventListener('click', this.onAnimalsClick);
-    this.animalsSummary.removeEventListener('click', this.onAnimalsSummaryClick);
     this.specialtyStores.removeEventListener('toggle', this.onSpecialtyStoresToggle);
     this.specialtyStores.removeEventListener(
       'pointerenter',

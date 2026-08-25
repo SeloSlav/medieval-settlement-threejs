@@ -36,6 +36,7 @@ import {
 import { renderMarketplaceTradePanel } from '../src/resources/inspector/marketplaceTradeRenderer.ts';
 import { marketplaceManualTradeStatus } from '../src/economy/marketplaceTrade.ts';
 import type { BuildingState, GameState } from '../src/resources/types.ts';
+import { computeMarketplaceTradeAvailability } from '../src/resources/resourceTotals.ts';
 
 function building(
   id: string,
@@ -127,6 +128,52 @@ const state = {
   buildings: new Map([[post.id, post], [storehouse.id, storehouse]]),
   tradingPostTradeRules: new Map([[exportFirewood.id, exportFirewood]]),
 } as GameState;
+
+function oatTradeAvailability(
+  source: BuildingState,
+  headCount?: number,
+): number {
+  const tradeState = {
+    physicalFoundingSiteEnabled: true,
+    stockpile: {},
+    buildings: new Map([[post.id, post], [source.id, source]]),
+    livestockHerds: new Map(headCount === undefined
+      ? []
+      : [[source.id, { buildingId: source.id, headCount }]]),
+    fireIncidents: new Map(),
+    residences: new Map(),
+  } as unknown as GameState;
+  return computeMarketplaceTradeAvailability(
+    tradeState,
+    post,
+    () => true,
+  ).oatGrain;
+}
+
+const pastoralFeedOats = building(
+  'pastoral-feed-oats',
+  'pastoral_farmstead',
+  { oatGrain: 18 },
+);
+assert.equal(
+  oatTradeAvailability(pastoralFeedOats, 4),
+  0,
+  'a live pastoral herd must protect every staged oat unit from Trading Post export',
+);
+assert.equal(
+  oatTradeAvailability(pastoralFeedOats, 0),
+  18,
+  'an empty pastoral holding must release all 18 physical oat units, not 9 meal-equivalents',
+);
+const reserveGranary = {
+  ...building('reserve-granary', 'granary', { oatGrain: 20 }),
+  granaryGrainReserve: 5,
+} as BuildingState;
+assert.equal(
+  oatTradeAvailability(reserveGranary),
+  15,
+  'the existing granary export floor must remain unchanged',
+);
 
 assert.equal(
   marketplaceManualTradeStatus({ ...post, actionCooldown: 7 }, true).ready,
@@ -252,7 +299,7 @@ assert.match(
 );
 assert.match(
   serverLoop,
-  /fair_import_gold_budget\([\s\S]*?treasury_gold\(ctx, post\.owner\)[\s\S]*?remaining_imports/,
+  /fair_whole_import_gold_budget\([\s\S]*?treasury_gold\(ctx, post\.owner\)[\s\S]*?remaining_imports/,
   'each due import must receive a conserved share of the real treasury rather than a first-rule monopoly',
 );
 assert.match(
@@ -275,8 +322,18 @@ assert.match(
 );
 assert.match(
   serverLoop,
-  /source\.id != post\.id[\s\S]*?source_exportable_stock\(source, commodity\)[\s\S]*?try_start_building_supply_trip/,
+  /source\.id != post\.id[\s\S]*?source_exportable_stock\(ctx, source, commodity\)[\s\S]*?try_start_building_supply_trip/,
   'export haulers must collect directly from any connected producer or storage building',
+);
+assert.match(
+  serverLoop,
+  /livestock_herd\(\)[\s\S]*?\.find\(&building\.id\)[\s\S]*?herd\.head_count > 0[\s\S]*?livestock_feed_oat_exportable_stock/,
+  'authoritative oat export collection must consult the source holding\'s live herd commitment',
+);
+assert.match(
+  serverLoop,
+  /building\.kind == "granary"[\s\S]*?granary_exportable_grain\(stock, protected\)/,
+  'pastoral feed protection must preserve the existing granary reserve branch',
 );
 assert.doesNotMatch(
   serverLoop,

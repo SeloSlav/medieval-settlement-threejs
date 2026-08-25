@@ -1,9 +1,11 @@
 import { localCivicReceiptGold } from '../economy/civicReceipts.ts';
 import {
   edibleFoodStock,
+  foodMealValue,
   isEdibleFoodCargo,
   isPreservedFoodCargo,
   preservedFoodStock,
+  type FoodInventoryKind,
 } from '../economy/foodInventory.ts';
 import { compareStableEntityIds } from '../logistics/roadLogistics.ts';
 import {
@@ -181,7 +183,10 @@ export function locatePhysicalResource(
         ? isPreservedFoodCargo(trip.cargoKind)
         : trip.cargoKind === resource;
     if (!matches) continue;
-    const amount = finitePositive(trip.amount);
+    const physicalAmount = finitePositive(trip.amount);
+    const amount = resource === 'food' || resource === 'preservedFood'
+      ? physicalAmount * foodMealValue(trip.cargoKind as FoodInventoryKind)
+      : physicalAmount;
     if (amount <= EPSILON) continue;
     const source = state.buildings.get(trip.buildingId);
     deliveries.push({

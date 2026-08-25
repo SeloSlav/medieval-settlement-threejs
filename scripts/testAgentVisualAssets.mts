@@ -360,6 +360,7 @@ const cargoSignatures: Record<DeliveryCargoKind, string> = {
   maslinSheaves: 'Grain sack',
   ryeGrain: 'Grain sack',
   oatGrain: 'Grain sack',
+  animalFeed: 'Animal feed sack 1',
   maslinGrain: 'Grain sack',
   ryeFlour: 'Flour sack',
   maslinFlour: 'Flour sack',

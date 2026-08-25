@@ -157,6 +157,30 @@ const physicalFoodState = gameState({
   }]]),
 });
 
+const ordinaryFoodCart = {
+  ...physicalFoodState.deliveryTrips.get('cart-1')!,
+  id: 'ordinary-food-cart',
+  cargoKind: 'food' as const,
+  amount: 10,
+};
+const oatCart = {
+  ...ordinaryFoodCart,
+  id: 'oat-cart',
+  cargoKind: 'oatGrain' as const,
+};
+assert.equal(
+  computeInTransitResourceTotals([ordinaryFoodCart]).food,
+  10,
+  'ten ordinary food units must remain ten in-transit meals',
+);
+const oatCartTotals = computeInTransitResourceTotals([oatCart]);
+assert.equal(oatCartTotals.oatGrain, 10);
+assert.equal(
+  oatCartTotals.food,
+  5,
+  'ten edible oat units must report five in-transit human meals',
+);
+
 const foodLocations = locatePhysicalResource(physicalFoodState, 'food');
 assert.deepEqual(
   foodLocations.map((location) => [location.kind, location.id, location.amount]),
@@ -299,6 +323,7 @@ assert.deepEqual(
 
 assert.equal(resourceDisplayLabel('gold'), 'Civic gold');
 assert.equal(resourceDisplayLabel('preservedFood'), 'Preserved staples');
+assert.equal(resourceDisplayLabel('animalFeed'), 'Animal feed');
 assert.equal(formatLocatedResourceAmount(12), '12');
 assert.equal(formatLocatedResourceAmount(12.25), '12');
 

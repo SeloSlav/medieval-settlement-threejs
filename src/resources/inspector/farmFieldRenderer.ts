@@ -230,7 +230,7 @@ export function renderFarmFieldInspector(
       : `${expectedYield.toFixed(1)} ${cropHarvestUnit(field.crop)} projected`;
 
   const cropControls = `<div class="inspector-action-panel" data-inspector-panel-title="Crop rotation">
-      <p class="resource-inspector-note">Year 2 crop — schedule the next cycle without changing the crop already in the ground.</p>
+      <p class="resource-inspector-note">Year 2 crop — schedule the next cycle without changing the crop already in the ground. Planning is free; execution still consumes the field’s full seed lot plus ploughing and sowing labor.</p>
       <div class="resource-action-row">${FARM_CROPS.map((crop) => cropButton(crop, field.nextCrop, 'data-field-crop')).join('')}</div>
       <p class="resource-inspector-note">Year 3 crop — choosing one enables a repeating ${cropLabel(field.crop)} → ${cropLabel(field.nextCrop)} → Year 3 cycle. Future manure is not promised.</p>
       <div class="resource-action-row">

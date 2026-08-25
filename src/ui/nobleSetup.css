@@ -855,7 +855,7 @@
 
 @media (min-width: 1081px) {
   .settlement-hud {
-    width: min(704px, calc(100vw - 64px));
+    width: min(756px, calc(100vw - 64px));
   }
 
   .settlement-hud__body {
@@ -1279,20 +1279,19 @@ button.noble-hud__report-body:not(:disabled):focus-visible {
   }
 }
 
-@media (max-width: 1320px) {
+@media (max-width: 1380px) {
   .noble-hud {
-    top: max(10px, env(safe-area-inset-top, 0px));
+    /* Keep the centered top ribbon and all of its flyouts clickable. */
+    top: calc(72px + env(safe-area-inset-top, 0px));
     right: max(14px, env(safe-area-inset-right, 0px));
+    z-index: 3;
     width: 292px;
   }
 }
 
 @media (max-width: 760px) {
   .noble-hud {
-    /* Keep every top-ribbon control, including Animals and Stores, clickable. */
-    top: calc(72px + env(safe-area-inset-top, 0px));
     right: 7px;
-    z-index: 3;
     grid-template-columns: 88px minmax(0, 1fr);
     gap: 11px;
     width: 238px;

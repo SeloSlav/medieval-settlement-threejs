@@ -94,7 +94,7 @@ function haymakingDaysRemaining(month: number, monthDay: number): number {
 
 function daysUntilWinter(month: number, monthDay: number): number {
   if (month < 3 || month > 11) return 0;
-  return (12 - month) * CALENDAR_DAYS_PER_MONTH
+  return (11 - month) * CALENDAR_DAYS_PER_MONTH
     + Math.max(0, CALENDAR_DAYS_PER_MONTH - monthDay + 1);
 }
 
@@ -400,11 +400,17 @@ export function projectLivestockFodderHolding(
     winterReserveTarget,
     animalFeedStock,
   );
+  // Husbandry time has a fixed cadence: extra hands improve care and haymaking,
+  // but each due cycle can prepare only one feed batch. Stable oxen therefore
+  // do not multiply the oats-to-feed workshop rate.
+  const staffedFeedCyclesPerDay = onsiteHumanWorkers > 0
+    ? cyclesPerDay * (sabbathObserved ? 6 / 7 : 1)
+    : 0;
   const feedConversionPerDay = building.kind === 'pastoral_farmstead'
-    ? laborCyclesPerDay * LIVESTOCK_ANIMAL_FEED_PER_CYCLE
+    ? staffedFeedCyclesPerDay * LIVESTOCK_ANIMAL_FEED_PER_CYCLE
     : 0;
   const feedOatInputPerDay = building.kind === 'pastoral_farmstead'
-    ? laborCyclesPerDay * LIVESTOCK_FEED_OAT_GRAIN_PER_CYCLE
+    ? staffedFeedCyclesPerDay * LIVESTOCK_FEED_OAT_GRAIN_PER_CYCLE
     : 0;
   const oatInputStock = building.kind === 'pastoral_farmstead'
     ? Math.max(0, building.oatGrain ?? 0)

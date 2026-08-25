@@ -46,11 +46,18 @@ assert.equal(preservedFoodMealEquivalents(pantry), 21);
 assert.equal(edibleFoodMealEquivalents(pantry), 45);
 assert.equal(foodMealValue('honey'), 1);
 assert.equal(foodMealValue('apples'), 1);
-assert.deepEqual(
-  Object.values(FOOD_MEAL_VALUES),
-  Array.from({ length: Object.keys(FOOD_MEAL_VALUES).length }, () => 1),
-  'every ready-to-eat physical food unit must equal one authoritative household ration',
+assert.equal(
+  foodMealValue('oatGrain'),
+  0.5,
+  'raw oats remain edible, but two physical units are required for one human meal',
 );
+for (const [kind, value] of Object.entries(FOOD_MEAL_VALUES)) {
+  assert.equal(
+    value,
+    kind === 'oatGrain' ? 0.5 : 1,
+    `${kind} must retain its intentional household meal value`,
+  );
+}
 assert.equal(
   edibleFoodMealEquivalents({ meat: 49, berries: 20, fish: 27 }),
   96,
@@ -179,6 +186,8 @@ for (const [id, kind] of [
   assert.equal(cargoKindFromId(id), kind);
   assert.notEqual(cargoKindLabel(kind), 'Food');
 }
+assert.equal(cargoKindFromId(63), 'animalFeed');
+assert.equal(cargoKindLabel('animalFeed'), 'Animal feed');
 
 const trip = (
   id: string,
@@ -207,17 +216,23 @@ const trip = (
 });
 const transit = computeInTransitResourceTotals([
   trip('oats', 'oatGrain', 5),
+  trip('animal-feed', 'animalFeed', 7),
   trip('rye-bread', 'ryeBread', 10),
   trip('meat', 'meat', 4),
   trip('cheese', 'cheese', 3),
   trip('honey', 'honey', 2),
 ]);
 assert.equal(transit.oatGrain, 5);
+assert.equal(transit.animalFeed, 7);
 assert.equal(transit.ryeBread, 10);
 assert.equal(transit.meat, 4);
 assert.equal(transit.cheese, 3);
 assert.equal(transit.preservedFood, 3);
-assert.equal(transit.food, 24);
+assert.equal(
+  transit.food,
+  21.5,
+  'in-transit food totals must count oats at half a meal and exclude Animal Feed entirely',
+);
 
 assert.equal(processorInputCommodityStock(pantry, 'food'), 6);
 assert.equal(processorInputCommodityStock(pantry, 'preservedFood'), 21);
@@ -226,13 +241,22 @@ const commoditiesSource = readFileSync(
   'server/src/economy/commodities.rs',
   'utf8',
 );
+const supplyPolicySource = readFileSync(
+  'server/src/supply_policy.rs',
+  'utf8',
+);
 assert.match(commoditiesSource, /Self::Meat => Some\(Self::CuredMeat\)/);
 assert.match(commoditiesSource, /Self::Fish => Some\(Self::SmokedFish\)/);
 assert.match(commoditiesSource, /Self::Milk => Some\(Self::Cheese\)/);
 assert.match(
   commoditiesSource,
-  /Every ready-to-eat commodity is one indivisible household ration[\s\S]*Self::RosehipJam\s*=> 1\.0/,
-  'client unit food values must remain in parity with the authoritative server policy',
+  /pub fn meal_value[\s\S]*Self::RosehipJam => 1\.0,[\s\S]*Self::OatGrain => OAT_GRAIN_MEAL_VALUE,[\s\S]*_ => 0\.0/,
+  'the server must make oats the sole half-meal edible commodity and reject non-food goods',
+);
+assert.match(
+  supplyPolicySource,
+  /pub const OAT_GRAIN_MEAL_VALUE: f64 = 0\.5/,
+  'client oat nutrition must remain in parity with the authoritative server policy',
 );
 const economySource = readFileSync(
   'server/src/simulation/expanded_economy.rs',

@@ -91,7 +91,7 @@ const authoritativeEntries = [...asU8Body.matchAll(/Self::([A-Z][A-Za-z0-9]*)\s*
     code: Number(match[2]),
   }))
   .sort((left, right) => left.code - right.code);
-assert.equal(authoritativeEntries.length, 63, 'the audit must cover every authoritative commodity');
+assert.equal(authoritativeEntries.length, 64, 'the audit must cover every authoritative commodity');
 assert.deepEqual(
   authoritativeEntries.map(({ code }) => code),
   Array.from({ length: authoritativeEntries.length }, (_, code) => code),
@@ -101,6 +101,11 @@ assert.deepEqual(
 const authoritativeResources = authoritativeEntries.map(({ resource }) => resource);
 const codeByResource = new Map(
   authoritativeEntries.map(({ resource, code }) => [resource, code]),
+);
+assert.equal(
+  codeByResource.get('animalFeed'),
+  63,
+  'Animal Feed must use the final append-only u64 commodity bit',
 );
 assertSameSet(
   RESOURCE_KINDS,
@@ -148,7 +153,11 @@ const rustTradeMappings = [...tradeResourceSource.matchAll(
 const explicitNonTrade = [...tradeResourceSource.matchAll(
   /CommodityKind::([A-Z][A-Za-z0-9]*)\s*=>\s*return None/g,
 )].map((match) => lowerCamel(match[1]));
-assertSameSet(explicitNonTrade, ['gold', 'mead'], 'only currency and local-only mead may lack trade');
+assertSameSet(
+  explicitNonTrade,
+  ['animalFeed', 'gold', 'mead'],
+  'only currency, local-only mead, and local-only Animal Feed may lack trade',
+);
 assertSameSet(
   TRADE_RESOURCE_KINDS,
   rustTradeMappings,
@@ -215,6 +224,19 @@ assert.deepEqual(
 
 const freshFoods = new Set<string>(FRESH_FOOD_KINDS);
 const preservedFoods = new Set<string>(PRESERVED_FOOD_KINDS);
+assert.equal(freshFoods.has('animalFeed'), false, 'Animal Feed must not count as human food');
+assert.equal(preservedFoods.has('animalFeed'), false, 'Animal Feed must not count as preserved human food');
+assert.equal(
+  (storageCommodities as readonly string[]).includes('animalFeed'),
+  false,
+  'Animal Feed must remain local livestock storage rather than a configurable central-store good',
+);
+assert.equal(BUILDING_STORAGE_CAPS.pastoral_farmstead.animalFeed, 240);
+assert.equal(BUILDING_STORAGE_CAPS.swineherd.animalFeed, 180);
+assert.ok(
+  (BUILDING_STORAGE_CAPS.salvage_pile.animalFeed ?? 0) > 0,
+  'recovery piles need enough Animal Feed room to preserve stranded local fodder',
+);
 function storageCapacity(caps: StorageCaps, commodity: ResourceKind): number {
   const direct = (caps as Record<string, number | undefined>)[commodity];
   if (direct != null) return direct;

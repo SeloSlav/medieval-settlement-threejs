@@ -1346,6 +1346,7 @@ export async function bootstrapAppSession(
     }
     villagerInspector.clearSelection();
     resourceInspector.selectBuilding(building.id);
+    resourceInspector.focusPanel();
     cameraController.focusWorldPositionAtZoom(building.x, building.z, 25);
   });
   toolbar.settlementHud.setResourceLocator((resource) => {

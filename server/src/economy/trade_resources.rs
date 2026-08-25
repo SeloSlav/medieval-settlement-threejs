@@ -67,6 +67,7 @@ pub fn trade_resource_for_commodity(commodity: CommodityKind) -> Option<TradeRes
         CommodityKind::AroniaJam => TradeResource::AroniaJam,
         CommodityKind::RosehipJam => TradeResource::RosehipJam,
         CommodityKind::Gold => return None,
+        CommodityKind::AnimalFeed => return None,
     })
 }
 
@@ -77,11 +78,14 @@ mod tests {
     #[test]
     fn every_market_traded_commodity_has_a_unique_trade_resource() {
         let mut resources = std::collections::HashSet::new();
-        for code in 0..=62 {
+        for code in 0..=63 {
             let Some(commodity) = CommodityKind::from_u8(code) else {
                 continue;
             };
-            if matches!(commodity, CommodityKind::Gold | CommodityKind::Mead) {
+            if matches!(
+                commodity,
+                CommodityKind::Gold | CommodityKind::Mead | CommodityKind::AnimalFeed
+            ) {
                 assert!(trade_resource_for_commodity(commodity).is_none());
             } else {
                 let resource = trade_resource_for_commodity(commodity).expect("trade resource");

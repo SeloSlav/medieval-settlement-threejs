@@ -1033,6 +1033,11 @@ assert.match(farmsteadInspector, /data-threshing-priority/);
 assert.match(farmsteadInspector, /field and threshing work never double-count the crew/);
 assert.match(farmFieldInspector, /Current-cycle soil/);
 assert.match(farmFieldInspector, /Three-year rotation/);
+assert.match(
+  farmFieldInspector,
+  /Planning is free; execution still consumes the field’s full seed lot plus ploughing and sowing labor/,
+  'crop switching must read as a scheduled rotation whose physical costs arrive at sowing',
+);
 assert.match(farmFieldInspector, /Year 3 soil/);
 assert.match(farmFieldInspector, /Next-crop potential/);
 assert.match(farmFieldInspector, /Year 3 potential/);
@@ -1078,7 +1083,7 @@ assert.match(farmSimulation, /work_allowed && threshing_labor == 0/);
 assert.match(farmSimulation, /step_processor_with_labor/);
 assert.match(
   farmSimulation,
-  /resource_farmstead[\s\S]*CommodityKind::Manure[\s\S]*resource_farmstead[\s\S]*seed_commodity[\s\S]*deposit_building_commodity\(resource_farmstead/,
+  /fn apply_farm_field_work\([\s\S]*?resource_farmstead: &mut Building[\s\S]*?withdraw_building_commodity\(resource_farmstead, seed_commodity[\s\S]*?withdraw_building_commodity\(resource_farmstead, CommodityKind::Manure[\s\S]*?deposit_building_commodity\(resource_farmstead/,
   'assisting crews must consume and deposit field resources at the linked farmstead',
 );
 assert.match(

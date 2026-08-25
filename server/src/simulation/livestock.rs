@@ -11,9 +11,10 @@ use crate::balance_generated::{
     CATTLE_MOISTURE_IDEAL, CATTLE_MOISTURE_TOLERANCE, CATTLE_PRESERVED_FOOD_PER_CYCLE_PER_HEAD,
     CATTLE_SLAUGHTER_FOOD_PER_HEAD, CATTLE_SLAUGHTER_PRESERVED_FOOD_PER_HEAD,
     CATTLE_WATER_PER_HEAD_PER_CYCLE, LIVESTOCK_FARMSTEAD_PRESERVATION_SALT_PER_OUTPUT,
-    LIVESTOCK_HAY_STORAGE_CAPACITY, LIVESTOCK_MANURE_TRANSFER_PER_TRIP,
-    LIVESTOCK_MASLIN_FODDER_VALUE, LIVESTOCK_MINIMUM_BREEDING_HEADS, LIVESTOCK_OAT_FODDER_VALUE,
-    LIVESTOCK_RYE_FODDER_VALUE, PANNAGE_WINTER_CAPACITY_MULTIPLIER, SHEEP_AREA_PER_HEAD,
+    LIVESTOCK_ANIMAL_FEED_FODDER_VALUE, LIVESTOCK_ANIMAL_FEED_PER_CYCLE,
+    LIVESTOCK_FEED_OAT_GRAIN_PER_CYCLE, LIVESTOCK_HAY_STORAGE_CAPACITY,
+    LIVESTOCK_MANURE_TRANSFER_PER_TRIP, LIVESTOCK_MINIMUM_BREEDING_HEADS,
+    PANNAGE_WINTER_CAPACITY_MULTIPLIER, SHEEP_AREA_PER_HEAD,
     SHEEP_BREEDING_PER_CYCLE, SHEEP_DAIRY_PRODUCTIVE_SHARE, SHEEP_FOOD_PER_CYCLE_PER_HEAD,
     SHEEP_GRAIN_PER_UNSUPPORTED_HEAD, SHEEP_HAY_PER_UNSUPPORTED_HEAD,
     SHEEP_HAY_YIELD_PER_RESERVED_CAPACITY_PER_CYCLE, SHEEP_HEADS_PER_WORKER,
@@ -39,7 +40,7 @@ use crate::farming::{centroid, point_in_field};
 use crate::livestock_policy::{
     can_cull_one, cattle_manure_output, essential_livestock_care_labor, haymaking_share,
     is_haymaking_month, is_shearing_month, livestock_cycles_per_calendar_day,
-    livestock_milk_allocation, projected_winter_fodder_grain, retain_priority_candidate,
+    livestock_milk_allocation, projected_winter_animal_feed, retain_priority_candidate,
     sheep_fleece_output, storage_secured_pending_cull_heads,
 };
 use crate::ox_policy::ox_amplified_worker_count;
@@ -128,11 +129,8 @@ fn step_livestock_building(
         tick.owner_has_active_raider_threat(ctx, building.owner),
     );
     if !paused && onsite_labor > 0 {
-        let unsupported = (herd.head_count as f64 - herd.pasture_capacity).max(0.0);
-        let grain_per_head = species_grain_per_unsupported_head(herd.species);
-        let immediate_grain_buffer =
-            unsupported * grain_per_head * 2.0 / LIVESTOCK_OAT_FODDER_VALUE.max(1e-9);
-        let winter_grain_target = if matches!(environment.season, Season::Autumn | Season::Winter) {
+        let feed_per_head = species_grain_per_unsupported_head(herd.species);
+        let winter_feed_target = if matches!(environment.season, Season::Autumn | Season::Winter) {
             let projected_head_count = if environment.season == Season::Autumn {
                 let maximum_herd = species_max_herd(herd.species);
                 let (slaughter_food, slaughter_preserved) = species_slaughter_yields(herd.species);
@@ -153,12 +151,12 @@ fn step_livestock_building(
             let cycles_per_day = building_def(&building.kind)
                 .map(|def| livestock_cycles_per_calendar_day(def.action_interval))
                 .unwrap_or(0.0);
-            projected_winter_fodder_grain(
+            projected_winter_animal_feed(
                 projected_head_count,
                 base_pasture_capacity,
                 herd.hay_stock,
                 species_hay_per_unsupported_head(herd.species),
-                grain_per_head,
+                feed_per_head,
                 cycles_per_day,
                 if herd.species == SPECIES_SWINE {
                     PANNAGE_WINTER_CAPACITY_MULTIPLIER
@@ -168,31 +166,43 @@ fn step_livestock_building(
             )
             .min(building_commodity_cap(
                 &building.kind,
-                CommodityKind::OatGrain,
+                CommodityKind::AnimalFeed,
             ))
         } else {
             0.0
         };
-        let substitute_oat_equivalent = (building.rye_grain.max(0.0) * LIVESTOCK_RYE_FODDER_VALUE
-            + building.maslin_grain.max(0.0) * LIVESTOCK_MASLIN_FODDER_VALUE)
-            / LIVESTOCK_OAT_FODDER_VALUE.max(1e-9);
-        let raw_desired_oats =
-            (immediate_grain_buffer.max(winter_grain_target) - substitute_oat_equivalent).max(0.0);
-        let desired_oats = if raw_desired_oats > 1e-9 {
-            whole_cost(raw_desired_oats)
-        } else {
-            0.0
-        };
-        if desired_oats >= 1.0 {
+        let desired_feed = whole_cost(winter_feed_target);
+        if herd.species == SPECIES_SWINE && desired_feed >= 1.0 {
             request_connected_commodity(
                 ctx,
                 tick,
                 clock,
                 &building,
-                CommodityKind::OatGrain,
-                &["threshing_barn", "granary"],
-                desired_oats,
+                CommodityKind::AnimalFeed,
+                &["pastoral_farmstead"],
+                desired_feed,
             );
+        } else if herd.species != SPECIES_SWINE && desired_feed >= 1.0 {
+            let feed_shortfall = (desired_feed - whole_units(building.animal_feed)).max(0.0);
+            let desired_oats = if LIVESTOCK_ANIMAL_FEED_PER_CYCLE > 1e-9 {
+                whole_cost(
+                    feed_shortfall * LIVESTOCK_FEED_OAT_GRAIN_PER_CYCLE
+                        / LIVESTOCK_ANIMAL_FEED_PER_CYCLE,
+                )
+            } else {
+                0.0
+            };
+            if desired_oats >= 1.0 {
+                request_connected_commodity(
+                    ctx,
+                    tick,
+                    clock,
+                    &building,
+                    CommodityKind::OatGrain,
+                    &["threshing_barn", "granary"],
+                    desired_oats,
+                );
+            }
         }
     }
 
@@ -308,6 +318,7 @@ fn run_livestock_cycle(
     herd: &mut LivestockHerd,
 ) -> bool {
     normalize_livestock_resource_stocks(building, herd);
+    prepare_animal_feed(building, productive_labor);
     herd.last_culled = 0;
     herd.last_hay_output = 0.0;
     herd.last_wool_output = 0.0;
@@ -349,20 +360,20 @@ fn run_livestock_cycle(
     if hay_units_used >= 1.0 {
         herd.hay_stock -= hay_units_used;
     }
-    let grain_unsupported = (unsupported - hay_supplement).max(0.0);
-    let grain_per_head = species_grain_per_unsupported_head(herd.species);
-    let grain_value_used = if grain_per_head > 1e-9 {
-        consume_whole_fodder(building, grain_unsupported * grain_per_head)
+    let feed_unsupported = (unsupported - hay_supplement).max(0.0);
+    let feed_per_head = species_grain_per_unsupported_head(herd.species);
+    let feed_value_used = if environment.season == Season::Winter && feed_per_head > 1e-9 {
+        consume_whole_animal_feed(building, feed_unsupported * feed_per_head)
     } else {
         0.0
     };
-    let grain_supplement = if grain_per_head > 1e-9 {
-        (grain_value_used / grain_per_head).min(grain_unsupported)
+    let feed_supplement = if feed_per_head > 1e-9 {
+        (feed_value_used / feed_per_head).min(feed_unsupported)
     } else {
         0.0
     };
     let feed_supported_heads =
-        (herd.pasture_capacity + hay_supplement + grain_supplement).min(heads);
+        (herd.pasture_capacity + hay_supplement + feed_supplement).min(heads);
     let water_per_head = species_water_per_head_per_cycle(herd.species);
     let requested_water = if water_per_head <= 1e-9 {
         0.0
@@ -488,7 +499,8 @@ fn run_livestock_cycle(
         }
     }
 
-    if herd.head_count >= LIVESTOCK_MINIMUM_BREEDING_HEADS
+    if environment.season == Season::Spring
+        && herd.head_count >= LIVESTOCK_MINIMUM_BREEDING_HEADS
         && support_ratio >= 0.9
         && herd.health >= 0.72
     {
@@ -626,34 +638,43 @@ fn try_store_exact_salted_output(
     (stored - output_units).abs() <= 1e-9
 }
 
-fn consume_whole_fodder(building: &mut Building, desired_feed_value: f64) -> f64 {
+fn prepare_animal_feed(building: &mut Building, productive_labor: u32) {
+    if building.kind != "pastoral_farmstead" || productive_labor == 0 {
+        return;
+    }
+    let oat_cost = whole_cost(LIVESTOCK_FEED_OAT_GRAIN_PER_CYCLE);
+    let feed_output = whole_units(LIVESTOCK_ANIMAL_FEED_PER_CYCLE);
+    if oat_cost < 1.0
+        || feed_output < 1.0
+        || whole_units(building.oat_grain) + 1e-9 < oat_cost
+        || whole_units(building_commodity_room(building, CommodityKind::AnimalFeed)) + 1e-9
+            < feed_output
+    {
+        return;
+    }
+    let oats_used = withdraw_building_commodity(building, CommodityKind::OatGrain, oat_cost);
+    if (oats_used - oat_cost).abs() <= 1e-9 {
+        deposit_building_commodity(building, CommodityKind::AnimalFeed, feed_output);
+    }
+}
+
+fn consume_whole_animal_feed(building: &mut Building, desired_feed_value: f64) -> f64 {
     if !desired_feed_value.is_finite() || desired_feed_value <= 1e-9 {
         return 0.0;
     }
-    let mut remaining = desired_feed_value;
-    let mut supplied = 0.0;
-    for (commodity, value_per_unit) in [
-        (CommodityKind::OatGrain, LIVESTOCK_OAT_FODDER_VALUE),
-        (CommodityKind::RyeGrain, LIVESTOCK_RYE_FODDER_VALUE),
-        (CommodityKind::MaslinGrain, LIVESTOCK_MASLIN_FODDER_VALUE),
-    ] {
-        if remaining <= 1e-9 || value_per_unit <= 1e-9 {
-            break;
-        }
-        let available = whole_units(crate::economy::building_commodity_stock(
-            building, commodity,
-        ));
-        let requested = whole_cost(remaining / value_per_unit).min(available);
-        let used = withdraw_building_commodity(building, commodity, requested);
-        supplied += used * value_per_unit;
-        remaining = (desired_feed_value - supplied).max(0.0);
-    }
-    supplied
+    let value_per_unit = LIVESTOCK_ANIMAL_FEED_FODDER_VALUE.max(1e-9);
+    let available = whole_units(crate::economy::building_commodity_stock(
+        building,
+        CommodityKind::AnimalFeed,
+    ));
+    let requested = whole_cost(desired_feed_value / value_per_unit).min(available);
+    withdraw_building_commodity(building, CommodityKind::AnimalFeed, requested) * value_per_unit
 }
 
 fn normalize_livestock_resource_stocks(building: &mut Building, herd: &mut LivestockHerd) {
     building.water = whole_units(building.water);
     building.oat_grain = whole_units(building.oat_grain);
+    building.animal_feed = whole_units(building.animal_feed);
     building.rye_grain = whole_units(building.rye_grain);
     building.maslin_grain = whole_units(building.maslin_grain);
     building.salt = whole_units(building.salt);

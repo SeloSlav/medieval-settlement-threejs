@@ -273,6 +273,17 @@ assert.match(livestockInspectorSource, /Choose cattle or sheep/);
 assert.match(pastureInspectorSource, /This parcel supports/);
 assert.match(pastureInspectorSource, /Production rhythm/);
 assert.match(pastureInspectorSource, /Linked holding's last cycle/);
+assert.match(
+  pastureInspectorSource,
+  /data-inspector-panel-title="Stock shared herd"[\s\S]{0,900}data-livestock-trade="1"/,
+  'a selected pasture must be the purchase surface for its shared holding herd',
+);
+assert.match(
+  pastureInspectorSource,
+  /all .* linked pasture[\s\S]{0,260}combine into the purchase and breeding ceiling/i,
+  'pasture stocking copy must explain that parcels combine into one holding-level cap',
+);
+assert.match(pastureInspectorSource, /spring only[\s\S]{0,80}stops at/);
 assert.match(farmFieldToolSource, /neutral .* capacity/);
 assert.match(farmFieldToolSource, /land cap .* vs woodland browse\/mast cap/);
 assert.match(farmFieldToolSource, /whole-head slots/);
@@ -286,13 +297,18 @@ assert.match(
 );
 assert.match(worldQueriesSource, /getMaturePannageTreeCount/);
 assert.match(worldQueriesSource, /getMaturePannageTreeCountForPasture/);
-assert.match(livestockInspectorSource, /data-livestock-trade="1"/);
-assert.match(
+assert.doesNotMatch(
   livestockInspectorSource,
+  /data-livestock-trade="1"/,
+  'new animals must be purchased from a selected pasture, not from the farmstead panel',
+);
+assert.match(
+  pastureInspectorSource,
   /starterTarget - \(herd\?\.headCount \?\? 0\)/,
   'a partial herd must only offer the remaining animals needed for its starter target',
 );
 assert.match(livestockInspectorSource, /data-livestock-trade="-1"/);
+assert.match(livestockInspectorSource, /Purchase new breeding stock from a selected linked pasture/);
 assert.match(livestockInspectorSource, /Fenced woodland trees/);
 assert.match(livestockInspectorSource, /Pannage bottleneck/);
 assert.match(
@@ -339,6 +355,11 @@ assert.match(
   resourceInspectorSource,
   /\[data-livestock-trade\][\s\S]{0,260}Number\.isInteger\(headDelta\)[\s\S]{0,180}onTradeLivestock/,
   'the inspector must pass only whole, non-zero head deltas to its action layer',
+);
+assert.match(
+  resourceInspectorSource,
+  /selectedTarget\?\.kind === 'pasture'[\s\S]{0,900}selectedTarget\.farmstead\.id[\s\S]{0,120}headDelta/,
+  'pasture stocking must forward the trade to its linked holding rather than invent a parcel herd',
 );
 assert.match(inspectorActionsSource, /onTradeLivestock:[\s\S]{0,260}store\.tradeLivestock\(buildingId, headDelta\)/);
 

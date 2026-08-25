@@ -91,7 +91,8 @@ assert.match(
 );
 assert.match(
   buildingReducer,
-  /timber: refund\.timber \+ building\.timber \* recoverable/,
+  /ReclamationStock::from_building\(&building\)[\s\S]{0,180}\.merged\(ReclamationStock \{[\s\S]{0,100}timber: refund\.timber/,
+  'physical demolition must merge live building inventory with structural salvage',
 );
 assert.match(
   buildingReducer,
@@ -100,12 +101,41 @@ assert.match(
 );
 
 const reclamation = read('server/src/simulation/reclamation.rs');
+const recoveryOrderBody = reclamation.match(
+  /const RECOVERY_ORDER: \[CommodityKind; 64\] = \[([\s\S]*?)\];/,
+)?.[1];
+assert.ok(recoveryOrderBody, 'the exhaustive 64-commodity recovery order must remain discoverable');
+const recoveredCommodityVariants = [...recoveryOrderBody.matchAll(/CommodityKind::(\w+)/g)]
+  .map((match) => match[1]);
+assert.equal(recoveredCommodityVariants.length, 64);
+assert.equal(new Set(recoveredCommodityVariants).size, 64);
+assert.ok(recoveredCommodityVariants.includes('AnimalFeed'));
 assert.match(reclamation, /available_free_haulers/);
 assert.match(reclamation, /local_delivery_distance/);
 assert.match(reclamation, /try_start_free_building_supply_trip/);
 assert.match(reclamation, /free_haulers_by_owner/);
 assert.match(reclamation, /destination_ids_by_owner/);
 assert.match(reclamation, /CommodityKind::Gold/);
+assert.match(
+  reclamation,
+  /pub struct ReclamationStock[\s\S]*pub animal_feed: f64/,
+  'reclamation stock must carry prepared Animal Feed as a physical local good',
+);
+assert.match(
+  reclamation,
+  /CommodityKind::AnimalFeed => Self \{[\s\S]{0,100}animal_feed: amount/,
+  'stranded Animal Feed carts must materialize into reclamation stock',
+);
+assert.match(
+  reclamation,
+  /CommodityKind::AnimalFeed => self\.animal_feed/,
+  'recovery dispatch must read Animal Feed from a reclamation pile',
+);
+assert.match(
+  reclamation,
+  /animal_feed: stock\.animal_feed\.max\(0\.0\)/,
+  'inserted salvage piles must retain recovered Animal Feed',
+);
 assert.match(reclamation, /"town_hall" => Some\(0\)/);
 assert.match(reclamation, /ctx\.db\.building\(\)\.id\(\)\.delete\(pile\.id\)/);
 assert.match(
@@ -229,7 +259,7 @@ assert.match(
 );
 assert.match(
   storage,
-  /treasury\.gold \+= amount[\s\S]*materialize_physical_resource_ledger\(ctx, owner\)/,
+  /treasury\.gold = whole_units\(treasury\.gold\) \+ amount;[\s\S]*if physical \{[\s\S]*materialize_physical_resource_ledger\(ctx, owner\)/,
   'gold without a surviving civic lockbox must materialize into a physical recovery pile',
 );
 

@@ -1299,7 +1299,7 @@ pub struct LivestockHerd {
     #[default(0u32)]
     pub last_culled: u32,
     /// Player-produced dried-grass fodder stored locally in the holding's loft
-    /// and hayrack; this is consumed before grain during winter shortages.
+    /// and hayrack; this is consumed before prepared Animal Feed in winter.
     #[default(0.0)]
     pub hay_stock: f64,
     /// Hay fodder cut during the most recent fixed husbandry cycle.
@@ -1551,7 +1551,7 @@ pub struct Residence {
     pub rye_bread: f64,
     #[default(0.0)]
     pub maslin_bread: f64,
-    /// Threshed oats are a ready household staple as well as livestock fodder.
+    /// Threshed oats are a light household staple and the pastoral feed-workshop input.
     #[default(0.0)]
     pub oat_grain: f64,
     /// Backyard harvest identity survives household storage and consumption.

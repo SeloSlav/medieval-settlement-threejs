@@ -40,6 +40,9 @@ import {
   type FireIncidentState,
 } from '../src/fires/fireIncident.ts';
 import {
+  storedFuelMultiplier,
+} from '../src/fires/fireRiskPolicy.ts';
+import {
   buildingFireRecoveryQuote,
   fireRecoveryCoolingSeconds,
   fireRecoveryCost,
@@ -68,6 +71,19 @@ assert.ok(FIRE_DROUGHT_RISK_MULTIPLIER > 1);
 assert.ok(FIRE_RAIN_RISK_MULTIPLIER < 1);
 assert.ok(FIRE_EXTINGUISH_CHANCE_BASE > 0);
 assert.ok(FIRE_EXTINGUISH_INTENSITY_THRESHOLD < 0.5);
+assert.ok(
+  storedFuelMultiplier({
+    kind: 'pastoral_farmstead',
+    x: 0,
+    z: 0,
+    animalFeed: 80,
+  }) > storedFuelMultiplier({
+    kind: 'pastoral_farmstead',
+    x: 0,
+    z: 0,
+  }),
+  'client fire planning must count prepared Animal Feed as combustible stock',
+);
 assert.equal(FIRE_LIGHTNING_IGNITION_CHANCE_PER_RAIN_DAY, 0.01);
 assert.equal(FIRE_INITIAL_INTENSITY, 0.24);
 assert.equal(FIRE_INTENSITY_GROWTH_PER_SECOND, 0.008);
@@ -347,6 +363,16 @@ assert.match(
   fireSource,
   /let salvage = fire_recoverable_stock\(&building\)[\s\S]*recover_stock_beside_building\(ctx, &building, salvage\)/,
   'destroyed buildings must materialize recoverable stock beside the ruin',
+);
+assert.match(
+  fireSource,
+  /let stored_fuel =[\s\S]{0,420}building\.oat_grain[\s\S]{0,80}building\.animal_feed/,
+  'prepared Animal Feed must contribute to combustible building stores',
+);
+assert.match(
+  fireSource,
+  /building\.oat_grain = 0\.0;[\s\S]{0,80}building\.animal_feed = 0\.0;/,
+  'fire destruction must clear Animal Feed rather than leave invisible stock in a ruin',
 );
 assert.match(fireSource, /FIRE_CHARRED_WOOD_RECOVERY_FRACTION/);
 assert.match(fireSource, /FIRE_DURABLE_STOCK_RECOVERY_FRACTION/);

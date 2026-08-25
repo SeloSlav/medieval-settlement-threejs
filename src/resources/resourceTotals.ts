@@ -961,7 +961,15 @@ export function computeMarketplaceTradeAvailability(
     if (!connected) continue;
     for (const resource of TRADE_RESOURCE_KINDS) {
       let stock = tradeResourceBuildingStock(building, resource);
-      if (
+      if (resource === 'oatGrain' && livestockHoldingProtectsFeedOats(
+        building.kind,
+        (state.livestockHerds?.get(building.id)?.headCount ?? 0) > 0,
+      )) {
+        // Trade availability is expressed in physical commodity units. Oats
+        // convert to meals only in the separate food total, so protect every
+        // staged oat here rather than applying their 0.5 meal value.
+        stock = 0;
+      } else if (
         (resource === 'ryeGrain' || resource === 'oatGrain' || resource === 'maslinGrain')
         && building.kind === 'granary'
       ) {

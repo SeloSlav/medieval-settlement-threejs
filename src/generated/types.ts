@@ -207,6 +207,7 @@ export const Building = __t.object("Building", {
   treeWorkAreaZ: __t.f64(),
   treeWorkAreaRadius: __t.f64(),
   settlementId: __t.u64(),
+  animalFeed: __t.f64(),
 });
 export type Building = __Infer<typeof Building>;
 

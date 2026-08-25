@@ -130,6 +130,8 @@ import {
 import { formatDawnReport, isDawnReportRelevant } from '../economy/nightPolicy.ts';
 import { deriveLordReportTransitions } from '../ui/lordReports.ts';
 import { buildSettlementAnimalsView } from '../ui/settlementAnimals.ts';
+import { buildSettlementPeopleView } from '../ui/settlementPeople.ts';
+import { deriveSettlementSchedule } from '../world/settlementSchedule.ts';
 import { Vector3 } from 'three';
 
 export type AppFrameProfilePhase = 'strategic' | 'settlement' | 'road-eye';
@@ -1057,6 +1059,7 @@ export class App {
         snapshot.simTick,
       );
       this.toolbar?.settlementHud.clearProvisioningState();
+      this.toolbar?.settlementHud.clearPeopleState();
       this.toolbar?.settlementHud.clearAnimalsState();
       this.syncVisualQaFoundersCampFixture();
       this.syncToolbar();
@@ -1082,11 +1085,24 @@ export class App {
     if (this.liveContext) {
       this.liveContext.gameState = state;
     }
+    const laborPauseLabel = raidThreatActive
+      ? 'Raid response'
+      : deriveSettlementSchedule(snapshot, state).laborPauseLabel;
+    this.toolbar?.settlementHud.setPeopleState(buildSettlementPeopleView(
+      state,
+      state.physicalFoundingSiteEnabled === true,
+    ));
     this.toolbar?.settlementHud.setAnimalsState(buildSettlementAnimalsView(
       state.stableOxen.values(),
       state.buildings,
       state.deliveryTrips.values(),
       fireDisabledBuildingIds(state.fireIncidents.values()),
+      {
+        herds: state.livestockHerds.values(),
+        pastures: state.pastures.values(),
+        backyardGardens: state.backyardGardens.values(),
+        laborPauseLabel,
+      },
     ));
 
     if (!this.snapshotApplierDeps) return;

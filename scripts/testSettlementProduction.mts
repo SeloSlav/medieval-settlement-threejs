@@ -1246,9 +1246,9 @@ const grainPlanInput = {
     expectedHarvest: 120,
   },
   livestockFodder: {
-    winterGrainNeed: 20,
-    winterReserveTarget: 12,
-    winterReserveStock: 3,
+    winterFeedNeed: 20,
+    oatInputTarget: 12,
+    oatInputStock: 3,
     firstShortBuildingId: fodderHolding.id,
   },
   granaryReserve: {
@@ -1345,9 +1345,9 @@ const roadGrainInput = {
     seedGrainByHolding: new Map([[remoteFarm.id, 20]]),
   },
   livestockFodder: {
-    winterGrainNeed: 0,
-    winterReserveTarget: 0,
-    winterReserveStock: 0,
+    winterFeedNeed: 0,
+    oatInputTarget: 0,
+    oatInputStock: 0,
     firstShortBuildingId: null,
   },
   granaryReserve: {
@@ -1422,9 +1422,9 @@ const abbeyGrainPlan = computeSettlementGrainPlan({
     seedGrainByHolding: new Map(),
   },
   livestockFodder: {
-    winterGrainNeed: 0,
-    winterReserveTarget: 0,
-    winterReserveStock: 0,
+    winterFeedNeed: 0,
+    oatInputTarget: 0,
+    oatInputStock: 0,
     firstShortBuildingId: null,
   },
   granaryReserve: {
@@ -1936,9 +1936,9 @@ const perfGrainPlan = computeSettlementGrainPlan({
     expectedHarvest: 0,
   },
   livestockFodder: {
-    winterGrainNeed: 0,
-    winterReserveTarget: 0,
-    winterReserveStock: 0,
+    winterFeedNeed: 0,
+    oatInputTarget: 0,
+    oatInputStock: 0,
     firstShortBuildingId: null,
   },
   granaryReserve: {

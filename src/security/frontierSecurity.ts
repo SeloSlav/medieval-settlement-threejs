@@ -520,6 +520,7 @@ type PortableRaidStoresLike = {
   maslinSheaves?: number;
   ryeGrain?: number;
   oatGrain?: number;
+  animalFeed?: number;
   maslinGrain?: number;
   barley?: number;
   malt?: number;
@@ -1285,6 +1286,7 @@ function portableRaidValue(stores: PortableRaidStoresLike): number {
     + positivePortableAmount(stores.maslinSheaves)
     + positivePortableAmount(stores.ryeGrain)
     + positivePortableAmount(stores.oatGrain)
+    + positivePortableAmount(stores.animalFeed)
     + positivePortableAmount(stores.maslinGrain)
     + positivePortableAmount(stores.barley)
     + positivePortableAmount(stores.malt)
@@ -1333,6 +1335,7 @@ const RAID_PORTABLE_STORE_SUMMARY = [
   ['maslinSheaves', 'maslin sheaves', 1],
   ['ryeGrain', 'rye grain', 1],
   ['oatGrain', 'oats', 1],
+  ['animalFeed', 'animal feed', 1],
   ['maslinGrain', 'maslin grain', 1],
   ['barley', 'barley', 1],
   ['malt', 'malt', 1],
@@ -1400,6 +1403,7 @@ const DELIVERY_CARGO_RAID_VALUE: Partial<Record<DeliveryCargoKind, number>> = {
   maslinSheaves: 1,
   ryeGrain: 1,
   oatGrain: 1,
+  animalFeed: 1,
   maslinGrain: 1,
   barley: 1,
   malt: 1,

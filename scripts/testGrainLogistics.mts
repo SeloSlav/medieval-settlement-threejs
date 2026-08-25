@@ -3,6 +3,8 @@ import { readFileSync } from 'node:fs';
 import { performance } from 'node:perf_hooks';
 import {
   BUILDING_STORAGE_CAPS,
+  LIVESTOCK_ANIMAL_FEED_PER_CYCLE,
+  LIVESTOCK_FEED_OAT_GRAIN_PER_CYCLE,
 } from '../src/generated/gameBalance.ts';
 import {
   formatGrainWorkingBuffer,
@@ -71,10 +73,15 @@ const worldQueries = readFileSync(
 );
 
 assert.deepEqual(GRAIN_DISPATCH_SOURCE_KINDS, ['threshing_barn', 'granary']);
-assert.deepEqual(GRAIN_PROCESSOR_KINDS, ['watermill', 'windmill']);
+assert.deepEqual(GRAIN_PROCESSOR_KINDS, ['pastoral_farmstead', 'watermill', 'windmill']);
 assert.deepEqual(
   GRAIN_DISPATCH_TARGET_KINDS,
-  ['watermill', 'windmill', 'granary'],
+  ['pastoral_farmstead', 'watermill', 'windmill', 'granary'],
+);
+assert.equal(
+  LIVESTOCK_FEED_OAT_GRAIN_PER_CYCLE,
+  LIVESTOCK_ANIMAL_FEED_PER_CYCLE,
+  'pastoral feed preparation must remain a 1:1 whole-unit recipe',
 );
 assert.equal(GRAIN_CRITICAL_RUNWAY_CYCLES, 1);
 assert.equal(PROCESSOR_INPUT_BUFFER_CYCLES, 3);
@@ -95,6 +102,7 @@ assert.equal(granaryProtectedGrain(90, 120), 90);
 assert.equal(granaryExportableGrain(150, 120), 30);
 assert.equal(granaryExportableGrain(90, 120), 0);
 assert.equal(grainInputTarget('watermill'), 9);
+assert.equal(grainInputTarget('pastoral_farmstead'), 3);
 assert.equal(grainInputTarget('watermill', 1, 25), 3);
 assert.equal(grainInputTarget('watermill', 1, 50), 6);
 assert.equal(grainInputTarget('watermill', 1, 75), 9);
@@ -151,6 +159,48 @@ assert.equal(
 
 const granary = grainDestination('granary', 'granary', 40, 0, 0);
 granary.granaryGrainReserve = 120;
+const feedWorkshop = grainDestination('feed-workshop', 'pastoral_farmstead', 6, 0, 1);
+assert.equal(grainDispatchDuty(feedWorkshop, 1, 'oatGrain'), 'working-buffer');
+assert.equal(grainDispatchDuty(feedWorkshop, 1, 'ryeGrain'), null);
+assert.equal(
+  selectGrainDispatchTarget(
+    [feedWorkshop, granary],
+    'farm',
+    (target) => target.x,
+    () => 1,
+    () => false,
+    () => true,
+    'oatGrain',
+  )?.target.id,
+  feedWorkshop.id,
+  'surplus farm oats must restore a staffed pastoral feed-workshop buffer before central storage',
+);
+assert.equal(
+  selectGrainProcessorTarget(
+    [feedWorkshop],
+    'central-granary',
+    (target) => target.x,
+    () => 1,
+    () => false,
+    () => true,
+    'oatGrain',
+  )?.target.id,
+  feedWorkshop.id,
+  'granary oats must use the same pastoral processor arbitration as farm oats',
+);
+assert.equal(
+  selectGrainProcessorTarget(
+    [feedWorkshop],
+    'central-granary',
+    (target) => target.x,
+    () => 1,
+    () => false,
+    () => true,
+    'maslinGrain',
+  ),
+  null,
+  'pastoral feed workshops must never request rye or maslin grain',
+);
 const bufferedMill = grainDestination('buffered-mill', 'watermill', 4, 12);
 assert.equal(
   selectGrainDispatchTarget(
@@ -656,7 +706,7 @@ assert.doesNotMatch(monasteryStep, /CommodityKind::Porridge|MONASTERY_OAT_GRAIN_
 
 assert.match(
   supplyPolicy,
-  /pub const GRAIN_PROCESSOR_KINDS: &\[&str\] = &\["watermill", "windmill"\]/,
+  /pub const GRAIN_PROCESSOR_KINDS: &\[&str\] = &\["pastoral_farmstead", "watermill", "windmill"\]/,
   'central grain arbitration must share one authoritative processor list',
 );
 assert.match(supplyPolicy, /pub const GRAIN_CRITICAL_RUNWAY_CYCLES: f64 = 1\.0/);
@@ -791,6 +841,11 @@ assert.match(supplyPolicy, /\("brewery", "barley"\)/);
 assert.match(supplyPolicy, /\("smokehouse", "food" \| "meat" \| "fish" \| "milk"\)/);
 assert.match(supplyPolicy, /\("weaver", "wool"\)/);
 assert.match(supplyPolicy, /\("weaver", "flax"\)/);
+assert.match(
+  supplyPolicy,
+  /\("pastoral_farmstead", "oatGrain"\) => LIVESTOCK_FEED_OAT_GRAIN_PER_CYCLE/,
+  'authoritative grain arbitration must recognize pastoral oats as a direct processor input',
+);
 assert.match(expandedSimulation, /select_processor_input_dispatch_candidate/);
 assert.match(
   expandedSimulation,
@@ -811,6 +866,11 @@ assert.match(
 assert.match(worldQueries, /getNextDirectProcessorInputDispatch/);
 assert.match(worldQueries, /getNextFarmFlaxDispatch/);
 assert.match(worldQueries, /selectDirectProcessorInputTarget/);
+assert.match(
+  worldQueries,
+  /getNextFarmGrainDispatch[\s\S]*target\.kind !== 'pastoral_farmstead'[\s\S]*target\.animalFeed/,
+  'client farm previews must route oats to pastoral workshops only while finished-feed storage has room',
+);
 assert.match(worldQueries, /private \*fireEnabledBuildings/);
 
 const shortReserveSummary = computeSettlementGranaryReserve({
