@@ -6,6 +6,7 @@ import {
   sampleRegionalPlacementCandidate,
   type ResourcePlacementTarget,
 } from '../world/resourceRegionDistribution.ts';
+import type { ResourceTerrainAccessibilityTest } from '../world/resourceTerrainAccessibility.ts';
 
 export type QuarryKind = 'large' | 'small';
 
@@ -30,6 +31,7 @@ export type QuarryLayoutOptions = {
   richSiteCount?: number;
   /** Soft regional targets, ordered rich sites first and ordinary sites second. */
   placementTargets?: readonly ResourcePlacementTarget[];
+  isTerrainAccessible?: ResourceTerrainAccessibilityTest;
 };
 
 export type SerializedQuarryLayout = {
@@ -71,6 +73,7 @@ export class QuarryLayout {
         sites,
         'large',
         options.placementTargets?.[i],
+        options.isTerrainAccessible,
       );
       if (largeSite) sites.push(largeSite);
     }
@@ -85,6 +88,7 @@ export class QuarryLayout {
         sites,
         'small',
         options.placementTargets?.[richSiteCount + i],
+        options.isTerrainAccessible,
       );
       if (smallSite) sites.push(smallSite);
     }
@@ -146,6 +150,7 @@ function pickQuarrySite(
   existing: QuarrySite[],
   kind: QuarryKind,
   placementTarget?: ResourcePlacementTarget,
+  isTerrainAccessible: ResourceTerrainAccessibilityTest = () => true,
 ): QuarrySite | null {
   const margin = playableHalf * 0.08;
   const maxAttempts = kind === 'large' ? 280 : 220;
@@ -161,6 +166,7 @@ function pickQuarrySite(
     );
     if (!point) continue;
     const { x, z } = point;
+    if (!isTerrainAccessible(x, z)) continue;
     if (Math.hypot(x, z) < CENTRAL_CLEARING_RADIUS + 48) continue;
     if (Math.hypot(x, z + 88) < DRAIN_AVOIDANCE_RADIUS) continue;
     if (!hasMinimumDistance(existing, x, z, minSpacing)) continue;
@@ -182,6 +188,7 @@ function pickQuarrySite(
     playableHalf,
     riverLayout,
     placementTarget,
+    isTerrainAccessible,
   );
 }
 
@@ -192,6 +199,7 @@ function createFallbackSite(
   playableHalf: number,
   riverLayout: RiverLayout | undefined,
   placementTarget?: ResourcePlacementTarget,
+  isTerrainAccessible: ResourceTerrainAccessibilityTest = () => true,
 ): QuarrySite | null {
   const presets: Array<{ x: number; z: number; rotation: number }> = placementTarget
     ? []
@@ -209,6 +217,7 @@ function createFallbackSite(
 
   for (let i = 0; i < presets.length; i++) {
     const preset = presets[i];
+    if (!isTerrainAccessible(preset.x, preset.z)) continue;
     const minSpacing = kind === 'large' ? MIN_LARGE_QUARRY_SPACING : MIN_SMALL_QUARRY_SPACING;
     if (!hasMinimumDistance(existing, preset.x, preset.z, minSpacing)) continue;
     const site = createQuarrySite(kind, preset.x, preset.z, preset.rotation, seed, i + 1000);
@@ -232,6 +241,7 @@ function createFallbackSite(
     );
     if (!point) continue;
     const { x, z } = point;
+    if (!isTerrainAccessible(x, z)) continue;
     if (Math.hypot(x, z) < CENTRAL_CLEARING_RADIUS + 48) continue;
     if (Math.hypot(x, z + 88) < DRAIN_AVOIDANCE_RADIUS) continue;
     if (!hasMinimumDistance(existing, x, z, minSpacing)) continue;

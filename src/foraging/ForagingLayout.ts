@@ -17,6 +17,7 @@ import {
   MUSHROOM_PATCH_MAX_SPAWN_RADIUS,
   gamePatchSpawnRadius,
 } from './foragingYields.ts';
+import type { ResourceTerrainAccessibilityTest } from '../world/resourceTerrainAccessibility.ts';
 
 export type ForagingNodeKind = 'game' | 'berries' | 'mushrooms' | 'fish';
 
@@ -36,6 +37,7 @@ export type ForagingLayoutOptions = {
   nodeCounts?: Partial<Record<ForagingNodeKind, number>>;
   richNodeCounts?: Partial<Record<ForagingNodeKind, number>>;
   placementTargets?: Partial<Record<ForagingNodeKind, readonly ResourcePlacementTarget[]>>;
+  isTerrainAccessible?: ResourceTerrainAccessibilityTest;
 };
 
 const DENSE_FOREST_MIN = 0.55;
@@ -92,6 +94,7 @@ export class ForagingLayout {
     const extent = playableHalf;
     const forestCores = options.forestCores;
     const wildlifeDeposits = options.wildlifeDepositFootprints ?? [];
+    const isTerrainAccessible = options.isTerrainAccessible ?? (() => true);
     const rng = mulberry32(seed);
     const nodeCounts = normalizeNodeCounts(options.nodeCounts);
     const richNodeCounts = normalizeRichNodeCounts(options.richNodeCounts, nodeCounts);
@@ -106,9 +109,11 @@ export class ForagingLayout {
       extent,
       forestCores,
       desiredGameCandidateCount,
+      isTerrainAccessible,
     );
     const gameRespawnCandidates = denseForestCandidates.filter((candidate) =>
-      isGameHabitatClearOfWater(options.riverLayout, candidate.x, candidate.z)
+      isTerrainAccessible(candidate.x, candidate.z)
+      && isGameHabitatClearOfWater(options.riverLayout, candidate.x, candidate.z)
       && isGameHabitatClearOfDeposits(wildlifeDeposits, candidate.x, candidate.z)
     );
     if (gameRespawnCandidates.length < nodeCounts.game) {
@@ -116,6 +121,7 @@ export class ForagingLayout {
         extent,
         options.riverLayout,
         wildlifeDeposits,
+        isTerrainAccessible,
       )) {
         if (gameRespawnCandidates.length >= nodeCounts.game) break;
         if (!hasMinimumDistance(gameRespawnCandidates, candidate.x, candidate.z, 85)) continue;
@@ -136,6 +142,7 @@ export class ForagingLayout {
         gameSiteCandidates,
         sites,
         options.placementTargets?.game?.[gameIndex],
+        isTerrainAccessible,
       );
       if (gameSite) {
         sites.push({
@@ -154,6 +161,7 @@ export class ForagingLayout {
         options.riverLayout,
         sites,
         options.placementTargets?.berries?.[i],
+        isTerrainAccessible,
       );
       if (berrySite) {
         sites.push({
@@ -171,6 +179,7 @@ export class ForagingLayout {
         denseForestCandidates,
         sites,
         options.placementTargets?.mushrooms?.[i],
+        isTerrainAccessible,
       );
       if (mushroomSite) {
         sites.push({
@@ -186,6 +195,7 @@ export class ForagingLayout {
       nodeCounts.fish,
       richNodeCounts.fish,
       options.placementTargets?.fish,
+      isTerrainAccessible,
     ));
 
     return new ForagingLayout(seed, sites, gameRespawnCandidates);
@@ -231,6 +241,7 @@ function pickMushroomSite(
   denseCandidates: ReadonlyArray<{ x: number; z: number }>,
   existing: ReadonlyArray<ForagingSite>,
   placementTarget?: ResourcePlacementTarget,
+  isTerrainAccessible: ResourceTerrainAccessibilityTest = () => true,
 ): ForagingSite | null {
   const terrainExtent = extent * (1080 / 820);
   const validCandidates = denseCandidates.filter((candidate) =>
@@ -241,6 +252,7 @@ function pickMushroomSite(
       extent,
       terrainExtent,
     ) >= MUSHROOM_FOREST_MIN
+    && isTerrainAccessible(candidate.x, candidate.z)
     && isMushroomPatchClearOfWater(riverLayout, candidate.x, candidate.z)
   );
   const sufficientlySpaced = validCandidates.filter((candidate) =>
@@ -281,6 +293,7 @@ function pickFishSites(
   requestedCount: number,
   requestedRichCount: number,
   placementTargets?: readonly ResourcePlacementTarget[],
+  isTerrainAccessible: ResourceTerrainAccessibilityTest = () => true,
 ): ForagingSite[] {
   if (requestedCount <= 0) return [];
   const margin = Math.max(24, extent * 0.06);
@@ -292,13 +305,23 @@ function pickFishSites(
       if (point.progress < 0.18 || point.progress > 0.82) continue;
       if (Math.abs(point.x) > extent - margin || Math.abs(point.z) > extent - margin) continue;
       if (!riverLayout.isWaterAt(point.x, point.z)) continue;
-      if (!hasReachableDryFishingShore(riverLayout, point.x, point.z)) continue;
+      if (!hasReachableDryFishingShore(
+        riverLayout,
+        point.x,
+        point.z,
+        isTerrainAccessible,
+      )) continue;
       candidates.push({ ...point, corridorIndex });
     }
   }
 
   if (candidates.length < requestedCount) {
-    for (const candidate of collectSurfaceWaterFishCandidates(riverLayout, extent, seed)) {
+    for (const candidate of collectSurfaceWaterFishCandidates(
+      riverLayout,
+      extent,
+      seed,
+      isTerrainAccessible,
+    )) {
       if (candidates.some((existing) =>
         Math.hypot(existing.x - candidate.x, existing.z - candidate.z) < 18
       )) continue;
@@ -353,6 +376,7 @@ function collectSurfaceWaterFishCandidates(
   riverLayout: RiverLayout,
   extent: number,
   seed: number,
+  isTerrainAccessible: ResourceTerrainAccessibilityTest = () => true,
 ): FishCandidate[] {
   const candidates: FishCandidate[] = [];
   const margin = Math.max(24, extent * 0.06);
@@ -363,7 +387,7 @@ function collectSurfaceWaterFishCandidates(
   for (let z = -limit + offsetZ; z <= limit; z += FISH_MASK_SCAN_SPACING) {
     for (let x = -limit + offsetX; x <= limit; x += FISH_MASK_SCAN_SPACING) {
       if (!riverLayout.isWaterAt(x, z)) continue;
-      if (!hasReachableDryFishingShore(riverLayout, x, z)) continue;
+      if (!hasReachableDryFishingShore(riverLayout, x, z, isTerrainAccessible)) continue;
       candidates.push({
         x,
         z,
@@ -402,6 +426,7 @@ function hasReachableDryFishingShore(
   riverLayout: RiverLayout,
   shoalX: number,
   shoalZ: number,
+  isTerrainAccessible: ResourceTerrainAccessibilityTest = () => true,
 ): boolean {
   for (let radius = 8; radius <= FISH_MAX_SHORE_DISTANCE; radius += 4) {
     const samples = Math.max(32, Math.ceil(Math.PI * 2 * radius / 4));
@@ -409,7 +434,10 @@ function hasReachableDryFishingShore(
       const angle = index / samples * Math.PI * 2;
       const x = shoalX + Math.cos(angle) * radius;
       const z = shoalZ + Math.sin(angle) * radius;
-      if (isDryFishingCampFootprint(riverLayout, x, z)) return true;
+      if (
+        isTerrainAccessible(x, z)
+        && isDryFishingCampFootprint(riverLayout, x, z)
+      ) return true;
     }
   }
   return false;
@@ -460,6 +488,7 @@ function collectDenseForestCandidates(
   extent: number,
   forestCores: ForestCore[],
   targetCount: number,
+  isTerrainAccessible: ResourceTerrainAccessibilityTest = () => true,
 ): Array<{ x: number; z: number }> {
   const candidates: Array<{ x: number; z: number }> = [];
   const margin = extent * 0.08;
@@ -469,6 +498,7 @@ function collectDenseForestCandidates(
     const x = (rng() * 2 - 1) * (extent - margin);
     const z = (rng() * 2 - 1) * (extent - margin);
     if (Math.hypot(x, z) < CENTRAL_CLEARING_RADIUS + 36) continue;
+    if (!isTerrainAccessible(x, z)) continue;
 
     const density = forestDensityAt(x, z, forestCores, extent, extent * (1080 / 820));
     if (density < DENSE_FOREST_MIN) continue;
@@ -478,7 +508,9 @@ function collectDenseForestCandidates(
   }
 
   if (candidates.length === 0) {
-    return createFallbackDenseCandidates(seed);
+    return createFallbackDenseCandidates(seed).filter((candidate) =>
+      isTerrainAccessible(candidate.x, candidate.z)
+    );
   }
 
   return candidates;
@@ -494,6 +526,7 @@ function pickGameSite(
   denseCandidates: Array<{ x: number; z: number }>,
   existing: ForagingSite[],
   placementTarget?: ResourcePlacementTarget,
+  isTerrainAccessible: ResourceTerrainAccessibilityTest = () => true,
 ): ForagingSite | null {
   const shuffled = denseCandidates
     .map((candidate, index) => ({
@@ -505,6 +538,7 @@ function pickGameSite(
     .map((entry) => entry.candidate);
 
   for (const candidate of shuffled) {
+    if (!isTerrainAccessible(candidate.x, candidate.z)) continue;
     if (!hasMinimumDistance(existing, candidate.x, candidate.z, MIN_FORAGING_SPACING)) continue;
     if (!isGameHabitatClearOfWater(riverLayout, candidate.x, candidate.z)) continue;
     if (!isGameHabitatClearOfDeposits(wildlifeDeposits, candidate.x, candidate.z)) continue;
@@ -523,6 +557,7 @@ function pickGameSite(
     if (!point) continue;
     const { x, z } = point;
     if (Math.hypot(x, z) < CENTRAL_CLEARING_RADIUS + 36) continue;
+    if (!isTerrainAccessible(x, z)) continue;
     if (!isGameHabitatClearOfWater(riverLayout, x, z)) continue;
     if (!isGameHabitatClearOfDeposits(wildlifeDeposits, x, z)) continue;
     const density = forestDensityAt(x, z, forestCores, extent, extent * (1080 / 820));
@@ -533,7 +568,8 @@ function pickGameSite(
 
   const fallback = denseCandidates
     .filter((candidate) =>
-      isGameHabitatClearOfWater(riverLayout, candidate.x, candidate.z)
+      isTerrainAccessible(candidate.x, candidate.z)
+      && isGameHabitatClearOfWater(riverLayout, candidate.x, candidate.z)
       && isGameHabitatClearOfDeposits(wildlifeDeposits, candidate.x, candidate.z)
     )
     .reduce<{ x: number; z: number } | null>(
@@ -571,6 +607,7 @@ function pickBerrySite(
   riverLayout: RiverLayout,
   existing: ForagingSite[],
   placementTarget?: ResourcePlacementTarget,
+  isTerrainAccessible: ResourceTerrainAccessibilityTest = () => true,
 ): ForagingSite | null {
   const margin = extent * 0.08;
   const terrainExtent = extent * (1080 / 820);
@@ -588,6 +625,7 @@ function pickBerrySite(
     if (!point) continue;
     const { x, z } = point;
     if (Math.hypot(x, z) < CENTRAL_CLEARING_RADIUS + 28) continue;
+    if (!isTerrainAccessible(x, z)) continue;
     if (!hasMinimumDistance(existing, x, z, MIN_FORAGING_SPACING)) continue;
 
     const density = forestDensityAt(x, z, forestCores, extent, terrainExtent);
@@ -618,6 +656,7 @@ function pickBerrySite(
       ];
   for (let i = 0; i < presets.length; i++) {
     const preset = presets[i];
+    if (!isTerrainAccessible(preset.x, preset.z)) continue;
     if (!hasMinimumDistance(existing, preset.x, preset.z, MIN_FORAGING_SPACING)) continue;
     if (!isBerryPatchClearOfWater(riverLayout, preset.x, preset.z)) continue;
     const density = forestDensityAt(preset.x, preset.z, forestCores, extent, terrainExtent);
@@ -633,6 +672,7 @@ function pickBerrySite(
     riverLayout,
     existing,
     placementTarget,
+    isTerrainAccessible,
   );
 }
 
@@ -643,6 +683,7 @@ function pickFallbackBerrySite(
   riverLayout: RiverLayout,
   existing: ReadonlyArray<ForagingSite>,
   placementTarget?: ResourcePlacementTarget,
+  isTerrainAccessible: ResourceTerrainAccessibilityTest = () => true,
 ): ForagingSite | null {
   const rng = mulberry32(seed ^ 0x62b97);
   const limit = extent * 0.92;
@@ -661,6 +702,7 @@ function pickFallbackBerrySite(
     if (!point) continue;
     const { x, z } = point;
     if (Math.hypot(x, z) < CENTRAL_CLEARING_RADIUS + 28) continue;
+    if (!isTerrainAccessible(x, z)) continue;
     if (!hasMinimumDistance(existing, x, z, MIN_FORAGING_SPACING)) continue;
     if (!isBerryPatchClearOfWater(riverLayout, x, z)) continue;
 
@@ -734,6 +776,7 @@ function createFallbackGameCandidates(
   extent: number,
   riverLayout: RiverLayout,
   wildlifeDeposits: ReadonlyArray<{ x: number; z: number; radius: number }>,
+  isTerrainAccessible: ResourceTerrainAccessibilityTest = () => true,
 ): Array<{ x: number; z: number }> {
   const candidates: Array<{ x: number; z: number }> = [];
   const limit = extent - GAME_HABITAT_WATER_CLEARANCE;
@@ -741,6 +784,7 @@ function createFallbackGameCandidates(
   for (let z = -limit; z <= limit && candidates.length < 12; z += gridStep) {
     for (let x = -limit; x <= limit && candidates.length < 12; x += gridStep) {
       if (Math.hypot(x, z) < CENTRAL_CLEARING_RADIUS + 36) continue;
+      if (!isTerrainAccessible(x, z)) continue;
       if (!hasMinimumDistance(candidates, x, z, 85)) continue;
       if (!isGameHabitatClearOfWater(riverLayout, x, z)) continue;
       if (!isGameHabitatClearOfDeposits(wildlifeDeposits, x, z)) continue;

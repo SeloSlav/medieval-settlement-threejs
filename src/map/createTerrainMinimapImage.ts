@@ -273,25 +273,18 @@ function drawParchmentMottling(context: CanvasRenderingContext2D, seed: number):
     const x = rng() * MINIMAP_RESOLUTION;
     const y = rng() * MINIMAP_RESOLUTION;
     const radius = (18 + rng() * 108) * MAP_ART_SCALE;
-    const gradient = context.createRadialGradient(x, y, 0, x, y, radius);
     const stain = paperStyle.stain;
     const stainAlpha = paperStyle.stainAlphaMin
       + rng() * paperStyle.stainAlphaRange;
-    gradient.addColorStop(0, `rgba(${stain.r}, ${stain.g}, ${stain.b}, ${stainAlpha})`);
-    gradient.addColorStop(0.42, `rgba(${stain.r}, ${stain.g}, ${stain.b}, ${stainAlpha * 0.72})`);
-    gradient.addColorStop(1, `rgba(${stain.r}, ${stain.g}, ${stain.b}, 0)`);
-    context.fillStyle = gradient;
-    context.beginPath();
-    context.ellipse(
+    drawFeatheredPaperOval(context, {
       x,
       y,
       radius,
-      radius * (0.3 + rng() * 0.58),
-      rng() * Math.PI,
-      0,
-      Math.PI * 2,
-    );
-    context.fill();
+      aspect: 0.3 + rng() * 0.58,
+      rotation: rng() * Math.PI,
+      color: stain,
+      alpha: stainAlpha,
+    });
   }
 
   // Hairline pulp fibres and sparse foxing live below the drawing ink. Their
@@ -337,18 +330,56 @@ function drawParchmentMottling(context: CanvasRenderingContext2D, seed: number):
     const x = rng() * MINIMAP_RESOLUTION;
     const y = rng() * MINIMAP_RESOLUTION;
     const radius = (28 + rng() * 88) * MAP_ART_SCALE;
-    const gradient = context.createRadialGradient(x, y, 0, x, y, radius);
     const bleach = paperStyle.bleach;
     const bleachAlpha = paperStyle.bleachAlphaMin
       + rng() * paperStyle.bleachAlphaRange;
-    gradient.addColorStop(0, `rgba(${bleach.r}, ${bleach.g}, ${bleach.b}, ${bleachAlpha})`);
-    gradient.addColorStop(1, `rgba(${bleach.r}, ${bleach.g}, ${bleach.b}, 0)`);
-    context.fillStyle = gradient;
-    context.beginPath();
-    context.ellipse(x, y, radius, radius * (0.4 + rng() * 0.5), rng() * Math.PI, 0, Math.PI * 2);
-    context.fill();
+    drawFeatheredPaperOval(context, {
+      x,
+      y,
+      radius,
+      aspect: 0.4 + rng() * 0.5,
+      rotation: rng() * Math.PI,
+      color: bleach,
+      alpha: bleachAlpha,
+    });
   }
 
+  context.restore();
+}
+
+/**
+ * Draw the gradient in the same transformed space as the oval. A circular
+ * gradient clipped by a narrow ellipse keeps substantial opacity at its short
+ * sides, which turns subtle paper weathering into a clearly outlined badge.
+ */
+function drawFeatheredPaperOval(
+  context: CanvasRenderingContext2D,
+  options: {
+    x: number;
+    y: number;
+    radius: number;
+    aspect: number;
+    rotation: number;
+    color: { r: number; g: number; b: number };
+    alpha: number;
+  },
+): void {
+  const { x, y, radius, aspect, rotation, color, alpha } = options;
+  context.save();
+  context.translate(x, y);
+  context.rotate(rotation);
+  context.scale(1, aspect);
+
+  const gradient = context.createRadialGradient(0, 0, 0, 0, 0, radius);
+  gradient.addColorStop(0, `rgba(${color.r}, ${color.g}, ${color.b}, ${alpha})`);
+  gradient.addColorStop(0.28, `rgba(${color.r}, ${color.g}, ${color.b}, ${alpha * 0.78})`);
+  gradient.addColorStop(0.62, `rgba(${color.r}, ${color.g}, ${color.b}, ${alpha * 0.32})`);
+  gradient.addColorStop(0.84, `rgba(${color.r}, ${color.g}, ${color.b}, ${alpha * 0.08})`);
+  gradient.addColorStop(1, `rgba(${color.r}, ${color.g}, ${color.b}, 0)`);
+  context.fillStyle = gradient;
+  context.beginPath();
+  context.arc(0, 0, radius, 0, Math.PI * 2);
+  context.fill();
   context.restore();
 }
 

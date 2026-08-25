@@ -304,6 +304,49 @@ export function createRootedGeometryWindPosition(ampScale = 0.08): TslNode {
   );
 }
 
+/** Classic WebGL parity for the rooted SeedThree shrub bend. */
+export function applyRootedGeometryWebGLWind(
+  material: THREE.Material,
+  amplitude = 0.08,
+): void {
+  const cacheAmplitude = amplitude.toFixed(3);
+  chainMaterialShaderPatch(
+    material,
+    `seedthree-rooted-geometry-wind-${cacheAmplitude}`,
+    (shader) => {
+      shader.uniforms.uRootedWindTime = worldAnimationTime as unknown as THREE.IUniform;
+      shader.uniforms.uRootedWindSpeed = windSpeed as unknown as THREE.IUniform;
+      shader.uniforms.uRootedWindStrength = windStrength as unknown as THREE.IUniform;
+      shader.vertexShader = shader.vertexShader.replace(
+        '#include <common>',
+        `#include <common>
+attribute float aRootWeight;
+attribute vec3 aAnchorPos;
+attribute vec3 aWindVec;
+uniform float uRootedWindTime;
+uniform float uRootedWindSpeed;
+uniform float uRootedWindStrength;`,
+      );
+      shader.vertexShader = shader.vertexShader.replace(
+        '#include <begin_vertex>',
+        `#include <begin_vertex>
+float rootedWindTime = uRootedWindTime * uRootedWindSpeed;
+float rootedWindPhase = aAnchorPos.x * 0.70 + aAnchorPos.z * 0.54;
+float rootedWindGust = sin( rootedWindTime * 1.15 + rootedWindPhase ) * 0.72
+  + sin( rootedWindTime * 2.63 + rootedWindPhase * 1.9 ) * 0.28;
+float rootedWindJitter = sin(
+  rootedWindTime * 2.7 + aAnchorPos.z * 1.7 + aAnchorPos.x * 1.3
+) * 0.12;
+float rootedWindBend = ( rootedWindGust + rootedWindJitter )
+  * uRootedWindStrength * ${cacheAmplitude} * aRootWeight;
+transformed.x += aWindVec.x * rootedWindBend;
+transformed.z += aWindVec.z * rootedWindBend;`,
+      );
+    },
+  );
+  material.needsUpdate = true;
+}
+
 /**
  * Baked dogwood foliage keeps SeedThree's fork-continuous anchor weight and
  * per-leaf random phase. Base sway exactly matches the woody group; the two

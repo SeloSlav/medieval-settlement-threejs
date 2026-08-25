@@ -15,6 +15,7 @@ import {
   ORDINARY_MINERAL_DEPOSIT_PROTECTION_RADIUS,
   RICH_MINERAL_DEPOSIT_PROTECTION_RADIUS,
 } from '../resources/physicalDepositProtection.ts';
+import type { ResourceTerrainAccessibilityTest } from '../world/resourceTerrainAccessibility.ts';
 
 export type MineralDepositResource = 'iron' | 'salt';
 export type MineralDepositGrade = 'ordinary' | 'rich';
@@ -48,6 +49,7 @@ export type MineralDepositLayoutOptions = {
   resourceVariety?: number;
   /** Soft regional targets in the same rich-first order as the mineral roster. */
   placementTargets?: readonly ResourcePlacementTarget[];
+  isTerrainAccessible?: ResourceTerrainAccessibilityTest;
 };
 
 export type MineralDepositRosterEntry = {
@@ -117,6 +119,7 @@ export class MineralDepositLayout {
         avoidSites,
         options.foragingSites ?? [],
         options.placementTargets?.[index],
+        options.isTerrainAccessible,
       );
       if (site) sites.push(site);
     }
@@ -176,6 +179,7 @@ function pickMineralSite(
   avoidSites: ReadonlyArray<{ x: number; z: number }>,
   foragingSites: readonly ForagingSite[],
   placementTarget?: ResourcePlacementTarget,
+  isTerrainAccessible: ResourceTerrainAccessibilityTest = () => true,
 ): MineralDepositSite | null {
   const formation = mineralDepositFormation(entry.resource, riverLayout);
   let best: MineralDepositSite | null = null;
@@ -197,6 +201,7 @@ function pickMineralSite(
     );
     if (!point) continue;
     const { x, z } = point;
+    if (!isTerrainAccessible(x, z)) continue;
     if (Math.hypot(x, z) < CENTRAL_CLEARING_RADIUS + 52) continue;
     if (!hasClearance(x, z, existing, MIN_DEPOSIT_SPACING)) continue;
     if (!hasClearance(x, z, avoidSites, RESOURCE_CLEARANCE)) continue;

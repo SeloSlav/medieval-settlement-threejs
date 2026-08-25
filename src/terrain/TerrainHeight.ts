@@ -2,7 +2,11 @@ import { BuildingTerrainLayout } from '../buildings/BuildingTerrainLayout.ts';
 import type { RiverLayout } from '../rivers/RiverLayout.ts';
 import type { QuarryLayout } from '../quarries/QuarryLayout.ts';
 import { getActiveWorldDimensions, getActiveWorldGeneration } from '../world/worldGenerationContext.ts';
-import { topographyScale } from '../world/worldGenerationSettings.ts';
+import {
+  topographyScale,
+  type WorldDimensions,
+  type WorldGenerationSettings,
+} from '../world/worldGenerationSettings.ts';
 import { sampleLicPoljeTerrainFields } from './LicPoljeTerrainField.ts';
 
 let activeRiverLayout: RiverLayout | null = null;
@@ -89,16 +93,24 @@ function ridgedFbm(x: number, z: number, octaves: number): number {
   return value / norm;
 }
 
-function getEdgeHillFactor(x: number, z: number): number {
-  const { generationSize, terrainSize } = getActiveWorldDimensions();
+function getEdgeHillFactor(
+  x: number,
+  z: number,
+  dimensions: WorldDimensions,
+): number {
+  const { generationSize, terrainSize } = dimensions;
   const edgeDistance = Math.max(Math.abs(x), Math.abs(z));
   const hillStart = generationSize * 0.44;
   const hillEnd = terrainSize * 0.5;
   return smoothstep(hillStart, hillEnd, edgeDistance);
 }
 
-function getEdgeHillHeight(x: number, z: number): number {
-  const t = getEdgeHillFactor(x, z);
+function getEdgeHillHeight(
+  x: number,
+  z: number,
+  dimensions: WorldDimensions,
+): number {
+  const t = getEdgeHillFactor(x, z, dimensions);
   if (t <= 0) return 0;
 
   const ridge = fbm(x * 0.0085 + 37.5, z * 0.0085 - 22.4, 5) + 0.5;
@@ -131,8 +143,14 @@ function presetNoiseOffset(seed: number): { x: number; z: number } {
 // regional rise horizontally, so it renders a little over half on each side.
 const KUPA_REGIONAL_RELIEF_METERS = 1_528 - 290;
 
-function sampleKupaValleyHeight(x: number, z: number, relief: number, seed: number): number {
-  const { generationHalf: playableHalf } = getActiveWorldDimensions();
+function sampleKupaValleyHeight(
+  x: number,
+  z: number,
+  relief: number,
+  seed: number,
+  dimensions: WorldDimensions,
+): number {
+  const { generationHalf: playableHalf } = dimensions;
   const offset = presetNoiseOffset(seed);
   const normalizedX = x / playableHalf;
   const westSlope = smoothstep(0.31, 0.94, -normalizedX);
@@ -161,7 +179,7 @@ function sampleKupaValleyHeight(x: number, z: number, relief: number, seed: numb
     + forestShoulder
     + valleyUndulation
     + riverGrade
-    + getEdgeHillHeight(x, z) * relief * 0.46;
+    + getEdgeHillHeight(x, z, dimensions) * relief * 0.46;
 }
 
 function sampleCustomMountainHeight(
@@ -169,11 +187,12 @@ function sampleCustomMountainHeight(
   z: number,
   topography: number,
   seed: number,
+  dimensions: WorldDimensions,
 ): number {
   const alpineStrength = smoothstep(62, 100, topography);
   if (alpineStrength <= 0) return 0;
 
-  const { generationHalf: playableHalf } = getActiveWorldDimensions();
+  const { generationHalf: playableHalf } = dimensions;
   const offset = presetNoiseOffset(seed);
   const normalizedX = Math.abs(x) / playableHalf;
   const normalizedZ = Math.abs(z) / playableHalf;
@@ -199,8 +218,14 @@ function sampleCustomMountainHeight(
   return sideMassif * Math.pow(alpineStrength, 1.25) * massifHeight;
 }
 
-function sampleRisnjakPassHeight(x: number, z: number, relief: number, seed: number): number {
-  const { generationHalf: playableHalf } = getActiveWorldDimensions();
+function sampleRisnjakPassHeight(
+  x: number,
+  z: number,
+  relief: number,
+  seed: number,
+  dimensions: WorldDimensions,
+): number {
+  const { generationHalf: playableHalf } = dimensions;
   const offset = presetNoiseOffset(seed);
   const angle = 0.31 + ((seed & 0xff) / 0xff - 0.5) * 0.12;
   const crossPass = x * Math.cos(angle) + z * Math.sin(angle);
@@ -226,11 +251,17 @@ function sampleRisnjakPassHeight(x: number, z: number, relief: number, seed: num
     (z + offset.z) * 0.008,
     4,
   ) * (2.4 + sideSlope * 4.8) * relief;
-  return mountain + saddle + meadow + getEdgeHillHeight(x, z) * relief * 0.58;
+  return mountain + saddle + meadow + getEdgeHillHeight(x, z, dimensions) * relief * 0.58;
 }
 
-function sampleDelniceMeadowHeight(x: number, z: number, relief: number, seed: number): number {
-  const { terrainSize } = getActiveWorldDimensions();
+function sampleDelniceMeadowHeight(
+  x: number,
+  z: number,
+  relief: number,
+  seed: number,
+  dimensions: WorldDimensions,
+): number {
+  const { terrainSize } = dimensions;
   const terrainHalf = terrainSize * 0.5;
   const offset = presetNoiseOffset(seed);
   const edge = Math.max(Math.abs(x), Math.abs(z)) / Math.max(1, terrainHalf);
@@ -257,10 +288,17 @@ function sampleDelniceMeadowHeight(x: number, z: number, relief: number, seed: n
     + mountainHeight;
 }
 
-function sampleVinodolCoastHeight(x: number, z: number, relief: number, seed: number): number {
-  const { generationHalf: playableHalf } = getActiveWorldDimensions();
+function sampleVinodolCoastHeight(
+  x: number,
+  z: number,
+  relief: number,
+  seed: number,
+  dimensions: WorldDimensions,
+  riverLayout: RiverLayout | null,
+): number {
+  const { generationHalf: playableHalf } = dimensions;
   const offset = presetNoiseOffset(seed);
-  const shoreX = activeRiverLayout?.getCoastalShoreX(z) ?? -playableHalf * 0.6;
+  const shoreX = riverLayout?.getCoastalShoreX(z) ?? -playableHalf * 0.6;
   const inland = x - shoreX;
   const coastalNoise = fbm(
     (x + offset.x) * 0.009,
@@ -285,11 +323,17 @@ function sampleVinodolCoastHeight(x: number, z: number, relief: number, seed: nu
     + karstRidge
     + shelfUndulation
     + dryTerraces
-    + getEdgeHillHeight(x, z) * relief * ridgeRise * 0.42;
+    + getEdgeHillHeight(x, z, dimensions) * relief * ridgeRise * 0.42;
 }
 
-function sampleLicPoljeHeight(x: number, z: number, relief: number, seed: number): number {
-  const { terrainSize } = getActiveWorldDimensions();
+function sampleLicPoljeHeight(
+  x: number,
+  z: number,
+  relief: number,
+  seed: number,
+  dimensions: WorldDimensions,
+): number {
+  const { terrainSize } = dimensions;
   const terrainHalf = terrainSize * 0.5;
   return sampleLicPoljeTerrainFields(
     x,
@@ -300,26 +344,31 @@ function sampleLicPoljeHeight(x: number, z: number, relief: number, seed: number
   ).height;
 }
 
-export function sampleRawTerrainHeight(x: number, z: number): number {
-  const settings = getActiveWorldGeneration();
-  const layout = activeRiverLayout;
+/** Pure terrain sample used by world generation before the scene owns globals. */
+export function sampleWorldRawTerrainHeight(
+  x: number,
+  z: number,
+  settings: WorldGenerationSettings,
+  dimensions: WorldDimensions,
+  layout: RiverLayout | null = null,
+): number {
   const basinX = layout?.drain.x ?? 0;
   const basinZ = layout?.drain.z ?? -88;
   const relief = topographyScale(settings.topography);
   if (settings.terrainPreset === 'kupa_valley') {
-    return sampleKupaValleyHeight(x, z, relief, settings.seed);
+    return sampleKupaValleyHeight(x, z, relief, settings.seed, dimensions);
   }
   if (settings.terrainPreset === 'risnjak_pass') {
-    return sampleRisnjakPassHeight(x, z, relief, settings.seed);
+    return sampleRisnjakPassHeight(x, z, relief, settings.seed, dimensions);
   }
   if (settings.terrainPreset === 'delnice_meadow') {
-    return sampleDelniceMeadowHeight(x, z, relief, settings.seed);
+    return sampleDelniceMeadowHeight(x, z, relief, settings.seed, dimensions);
   }
   if (settings.terrainPreset === 'vinodol_coast') {
-    return sampleVinodolCoastHeight(x, z, relief, settings.seed);
+    return sampleVinodolCoastHeight(x, z, relief, settings.seed, dimensions, layout);
   }
   if (settings.terrainPreset === 'lic_polje') {
-    return sampleLicPoljeHeight(x, z, relief, settings.seed);
+    return sampleLicPoljeHeight(x, z, relief, settings.seed, dimensions);
   }
   const n1 = fbm(x * 0.014, z * 0.014, 4) * 5.6 * relief;
   const n2 = fbm(x * 0.04 + 18.4, z * 0.04 - 9.2, 3) * 1.2 * relief;
@@ -330,8 +379,18 @@ export function sampleRawTerrainHeight(x: number, z: number): number {
     + broad
     + basin
     + getMacroDrainage(x, z) * relief
-    + getEdgeHillHeight(x, z) * relief
-    + sampleCustomMountainHeight(x, z, settings.topography, settings.seed);
+    + getEdgeHillHeight(x, z, dimensions) * relief
+    + sampleCustomMountainHeight(x, z, settings.topography, settings.seed, dimensions);
+}
+
+export function sampleRawTerrainHeight(x: number, z: number): number {
+  return sampleWorldRawTerrainHeight(
+    x,
+    z,
+    getActiveWorldGeneration(),
+    getActiveWorldDimensions(),
+    activeRiverLayout,
+  );
 }
 
 export function sampleNaturalTerrainHeight(x: number, z: number): number {

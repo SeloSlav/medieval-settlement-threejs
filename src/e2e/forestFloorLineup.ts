@@ -36,6 +36,7 @@ import {
   mulberry32,
 } from '../props/forestField.ts';
 import type { Terrain } from '../terrain/Terrain.ts';
+import { SpatialHash2D } from '../utils/SpatialHash2D.ts';
 import {
   disposeSeedThreeGroundCoverTextures,
   loadSeedThreeGroundCoverTextures,
@@ -118,6 +119,27 @@ const defaultNettleVariantCounts = [0, 1, 2].map(
     (placement) => placement.prototypeIndex === variant,
   ).length,
 );
+const defaultNettleSpatial = new SpatialHash2D(6, defaultNettlePlacements);
+const defaultNearestNettleDistances = defaultTreePlacements
+  .map((tree) => defaultNettleSpatial.distanceToNearestWithin(tree.x, tree.z, 64))
+  .sort((left, right) => left - right);
+const defaultNearestNettlePercentile = (percentile: number): number => (
+  defaultNearestNettleDistances[
+    Math.floor((defaultNearestNettleDistances.length - 1) * percentile)
+  ] ?? Number.POSITIVE_INFINITY
+);
+const defaultTreesWithoutNettlesWithin = (radius: number): number => (
+  defaultNearestNettleDistances.filter((distance) => distance > radius).length
+);
+const defaultNettleColonySizes = new Map<number, number>();
+for (const placement of defaultNettlePlacements) {
+  defaultNettleColonySizes.set(
+    placement.colonyIndex,
+    (defaultNettleColonySizes.get(placement.colonyIndex) ?? 0) + 1,
+  );
+}
+const sortedDefaultNettleColonySizes = [...defaultNettleColonySizes.values()]
+  .sort((left, right) => left - right);
 
 const renderer = new WebGPURenderer({ antialias: true, alpha: false });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.35));
@@ -335,6 +357,7 @@ if (view === 'near') {
   camera.position.set(0.25, 7.2, 12.8);
   camera.lookAt(0, 0.12, 0.35);
 }
+nettles.updateCamera(camera.position, true);
 
 let running = true;
 let capturePaused = false;
@@ -398,6 +421,8 @@ document.body.dataset.ivyDrawCalls = '1';
 document.body.dataset.ivyMaxHeight = FOREST_FLOOR_IVY_CANOPY_HEIGHT_MAX.toFixed(2);
 document.body.dataset.ivySnowCoverage = ivySnowCoverage.toFixed(2);
 document.body.dataset.nettleInstances = String(nettles.stats.instances);
+document.body.dataset.nettleColonies = String(nettles.stats.colonies);
+document.body.dataset.nettleResidentInstances = String(nettles.stats.residentInstances);
 document.body.dataset.nettleDrawCalls = String(nettles.stats.drawCalls);
 document.body.dataset.nettleTriangles = String(nettles.stats.triangles);
 document.body.dataset.nettleSpringFlush = deciduousFoliage.springFlush.toFixed(2);
@@ -405,6 +430,20 @@ document.body.dataset.nettleAutumnColor = deciduousFoliage.autumnColor.toFixed(2
 document.body.dataset.nettleDormancy = deciduousFoliage.dormancy.toFixed(2);
 document.body.dataset.nettleDefaultTreeCount = String(defaultTreePlacements.length);
 document.body.dataset.nettleDefaultCount = String(defaultNettlePlacements.length);
+document.body.dataset.nettleDefaultColonies = String(defaultNettleColonySizes.size);
+document.body.dataset.nettleDefaultMedianColonySize = String(
+  sortedDefaultNettleColonySizes[
+    Math.floor((sortedDefaultNettleColonySizes.length - 1) * 0.5)
+  ] ?? 0,
+);
+document.body.dataset.nettleDefaultNearestP90 = defaultNearestNettlePercentile(0.9).toFixed(2);
+document.body.dataset.nettleDefaultNearestP95 = defaultNearestNettlePercentile(0.95).toFixed(2);
+document.body.dataset.nettleDefaultTreesWithoutFiveMeters = String(
+  defaultTreesWithoutNettlesWithin(5),
+);
+document.body.dataset.nettleDefaultTreesWithoutEightMeters = String(
+  defaultTreesWithoutNettlesWithin(8),
+);
 document.body.dataset.nettleDefaultUniqueSources = String(defaultNettleSourceIndices.size);
 document.body.dataset.nettleDefaultMaximumSourceIndex = String(
   Math.max(...defaultNettleSourceIndices),
@@ -436,6 +475,9 @@ document.body.dataset.forestFloorSignature = [
   deciduousFoliage.autumnColor.toFixed(2),
   deciduousFoliage.dormancy.toFixed(2),
   defaultNettlePlacements.length,
+  defaultNettleColonySizes.size,
+  defaultNearestNettlePercentile(0.9).toFixed(2),
+  defaultTreesWithoutNettlesWithin(5),
   defaultNettleSourceIndices.size,
   defaultNettleVariantCounts.join(','),
 ].join(':');

@@ -802,13 +802,23 @@ assert.match(
 );
 assert.match(
   nettleSource,
-  /FOREST_FLOOR_NETTLE_MAX_INSTANCES = 9_600[\s\S]*shuffledNettleSourceTreeIndices\(trees\.length, seed\)[\s\S]*const attempts = 2 \+ \(rng\(\) < 0\.36 \? 1 : 0\)/,
-  'nettles must form numerous seed-stable patches across the complete forest instead of the first tree zone',
+  /FOREST_FLOOR_NETTLE_MAX_INSTANCES = 192_000[\s\S]*FOREST_FLOOR_NETTLE_COLONY_CHANCE = 0\.8[\s\S]*FOREST_FLOOR_NETTLE_COLONY_MIN_STEMS = 5[\s\S]*FOREST_FLOOR_NETTLE_COLONY_MAX_STEMS = 9[\s\S]*shuffledNettleSourceTreeIndices\(trees\.length, seed\)[\s\S]*colonyRotation[\s\S]*GOLDEN_ANGLE/,
+  'nettles must scale with accepted forest area and form seed-stable multi-stem colonies',
 );
 assert.match(
   nettleSource,
-  /FOREST_FLOOR_NETTLE_MIN_SCALE = 0\.9[\s\S]*FOREST_FLOOR_NETTLE_MAX_SCALE = 1\.38[\s\S]*scale: THREE\.MathUtils\.lerp\([\s\S]*FOREST_FLOOR_NETTLE_MIN_SCALE,[\s\S]*FOREST_FLOOR_NETTLE_MAX_SCALE/,
-  'young nettles must stand clearly above the layered ivy canopy',
+  /FOREST_FLOOR_NETTLE_MIN_HEIGHT = 0\.82[\s\S]*FOREST_FLOOR_NETTLE_MAX_HEIGHT = 1\.18[\s\S]*targetHeight: THREE\.MathUtils\.lerp\([\s\S]*prototypeHeight[\s\S]*placement\.targetHeight \/ prototypeHeight/,
+  'young nettles must normalize every prototype to an authored height above the ivy canopy',
+);
+assert.match(
+  nettleSource,
+  /FOREST_FLOOR_NETTLE_STREAM_RADIUS = 104[\s\S]*rebuildResidentInstances[\s\S]*dx \* dx \+ dz \* dz > radiusSquared[\s\S]*mesh\.count = writeIndex/,
+  'the larger world population must submit only camera-local resident nettles',
+);
+assert.match(
+  nettleSource,
+  /applyRootedGeometryWebGLWind\(material, 0\.07\)/,
+  'classic WebGL nettles must share the rooted SeedThree wind path',
 );
 assert.match(
   nettleSource,
@@ -829,6 +839,11 @@ assert.match(
   forestPropsSource,
   /const nettlesPromise = createForestFloorNettleInstances\([\s\S]*?const twigsPromise = createForestFloorTwigInstances\(/,
   'ForestProps must schedule both new forest-floor systems before renderer-specific tree setup',
+);
+assert.match(
+  forestPropsSource,
+  /createForestFloorNettlePlacements\([\s\S]*?nettleColonyIndex[\s\S]*?FOREST_FLOOR_NETTLE_UNDERGROWTH_CLEAR_RADIUS[\s\S]*?createUndergrowthPlacements\([\s\S]*?isUndergrowthBlockedAt/,
+  'nettle colony cores must reserve a small clearing from ferns and other understory bushes',
 );
 assert.match(
   forestPropsSource,
@@ -933,8 +948,8 @@ assert.match(
 );
 assert.match(
   managerSource,
-  /this\.forestFloorNettles\.group\.visible = visible;[\s\S]*?this\.forestFloorTwigs\?\.setCloseDetailVisible\(visible\);/,
-  'the close-detail visibility gate must cover nettles and twigs with ivy',
+  /this\.forestFloorNettles\?\.updateCamera\([\s\S]*?camera\.position,[\s\S]*?visible,[\s\S]*?this\.forestFloorTwigs\?\.setCloseDetailVisible\(visible\);/,
+  'the close-detail visibility gate must stream nearby nettles and cover twigs with ivy',
 );
 assert.match(
   terrainSource,

@@ -21,6 +21,14 @@ import { applyTerrainPreset } from '../src/world/worldTerrainPresets.ts';
 import { createResourceRegionDistribution } from '../src/world/resourceRegionDistribution.ts';
 
 const mapSizes: WorldMapSize[] = ['small', 'medium', 'large'];
+const mountainousTerrainPresets = [
+  'kupa_valley',
+  'risnjak_pass',
+  'delnice_meadow',
+  'vinodol_coast',
+  'lic_polje',
+  'custom',
+] as const;
 const balancedPlans = mapSizes.map((mapSize) => createRegionalResourcePlan(settings({ mapSize })));
 const representativeClayBank = { x: 4.252, z: -131.811 };
 
@@ -241,6 +249,55 @@ for (let index = 0; index < 64; index++) {
     smallLayout.foragingLayout.sites.some((site) => site.isRich === true),
     `small map seed ${seed} must physically place its reserved rich wild-food node`,
   );
+}
+
+for (const terrainPreset of mountainousTerrainPresets) {
+  for (const seed of [1, 7, 31, 63]) {
+    const mountainousSettings = applyTerrainPreset(settings({
+      seed,
+      mapSize: 'small',
+      topography: 100,
+      resourceAbundance: 100,
+      resourceVariety: 100,
+    }), terrainPreset);
+    const layout = createWorldLayout(mountainousSettings);
+    const nodes = WorldLayoutRegistry.fromWorldLayout(layout).definitionList;
+    const variant = `${terrainPreset}/small/seed-${seed}`;
+
+    if (seed === 1 && terrainPreset === 'risnjak_pass') {
+      const edgeRadius = resolveWorldDimensions('small').generationHalf * 0.92;
+      assert.ok(
+        Array.from({ length: 64 }, (_, index) => {
+          const angle = index / 64 * Math.PI * 2;
+          return layout.resourceTerrainAccessibility.isAccessible(
+            Math.cos(angle) * edgeRadius,
+            Math.sin(angle) * edgeRadius,
+          );
+        }).some((accessible) => !accessible),
+        `${terrainPreset} accessibility must actually exclude part of its mountain rim`,
+      );
+    }
+
+    assert.equal(
+      nodes.length + layout.clayDepositLayout.sites.length,
+      layout.resourcePlan.totalResourceNodes,
+      `${variant} must retain its complete resource budget after terrain-access filtering`,
+    );
+    for (const node of nodes) {
+      assert.ok(
+        node.kind === 'fish'
+          ? hasAccessibleFishingShore(layout, node.x, node.z)
+          : layout.resourceTerrainAccessibility.isAccessible(node.x, node.z),
+        `${variant} placed inaccessible ${node.resource ?? node.kind} at ${node.x.toFixed(1)}, ${node.z.toFixed(1)}`,
+      );
+    }
+    for (const site of layout.clayDepositLayout.sites) {
+      assert.ok(
+        layout.resourceTerrainAccessibility.isAccessible(site.x, site.z),
+        `${variant} placed inaccessible clay at ${site.x.toFixed(1)}, ${site.z.toFixed(1)}`,
+      );
+    }
+  }
 }
 
 for (const mapSize of mapSizes) {
@@ -469,4 +526,38 @@ function hasWaterWithin(
     }
   }
   return false;
+}
+
+function hasAccessibleFishingShore(
+  layout: ReturnType<typeof createWorldLayout>,
+  shoalX: number,
+  shoalZ: number,
+): boolean {
+  for (let radius = 8; radius <= 58; radius += 4) {
+    const samples = Math.max(32, Math.ceil(Math.PI * 2 * radius / 4));
+    for (let index = 0; index < samples; index++) {
+      const angle = index / samples * Math.PI * 2;
+      const x = shoalX + Math.cos(angle) * radius;
+      const z = shoalZ + Math.sin(angle) * radius;
+      if (!layout.resourceTerrainAccessibility.isAccessible(x, z)) continue;
+      if (dryFishingCampFootprint(layout, x, z)) return true;
+    }
+  }
+  return false;
+}
+
+function dryFishingCampFootprint(
+  layout: ReturnType<typeof createWorldLayout>,
+  x: number,
+  z: number,
+): boolean {
+  if (layout.riverLayout.isWaterAt(x, z)) return false;
+  for (let index = 0; index < 16; index++) {
+    const angle = index / 16 * Math.PI * 2;
+    if (layout.riverLayout.isWaterAt(
+      x + Math.cos(angle) * 7,
+      z + Math.sin(angle) * 7,
+    )) return false;
+  }
+  return true;
 }

@@ -11,6 +11,7 @@ import {
   regionalPlacementAffinity,
   type ResourcePlacementTarget,
 } from '../world/resourceRegionDistribution.ts';
+import type { ResourceTerrainAccessibilityTest } from '../world/resourceTerrainAccessibility.ts';
 
 export type ClayDepositSite = {
   x: number;
@@ -32,6 +33,7 @@ export type ClayDepositLayoutOptions = {
   richSiteCount?: number;
   /** Soft regional targets, ordered rich sites first and ordinary sites second. */
   placementTargets?: readonly ResourcePlacementTarget[];
+  isTerrainAccessible?: ResourceTerrainAccessibilityTest;
 };
 
 const PLAYABLE_EDGE_CLEARANCE = 34;
@@ -168,14 +170,16 @@ export class ClayDepositLayout {
       const placementTarget = options.placementTargets?.[index];
       const selected = bestRegionalClayCandidate(
         rankedCandidates.filter((candidate) =>
-          hasResourceClearance(candidate, avoidSites)
+          (options.isTerrainAccessible?.(candidate.x, candidate.z) ?? true)
+          && hasResourceClearance(candidate, avoidSites)
           && hasGameHabitatClearance(candidate, grade, options.foragingSites ?? [])
           && hasClayBankClearance(candidate, sites)
         ),
         placementTarget,
       ) ?? bestRegionalClayCandidate(
         rankedCandidates.filter((candidate) =>
-          hasGameHabitatClearance(candidate, grade, options.foragingSites ?? [])
+          (options.isTerrainAccessible?.(candidate.x, candidate.z) ?? true)
+          && hasGameHabitatClearance(candidate, grade, options.foragingSites ?? [])
           && hasClayBankClearance(candidate, sites)
         ),
         placementTarget,

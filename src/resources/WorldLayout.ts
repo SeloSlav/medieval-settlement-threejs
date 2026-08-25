@@ -38,6 +38,10 @@ import {
   type ResourcePlacementTarget,
   type ResourceRegionDistribution,
 } from '../world/resourceRegionDistribution.ts';
+import {
+  createResourceTerrainAccessibility,
+  type ResourceTerrainAccessibility,
+} from '../world/resourceTerrainAccessibility.ts';
 
 export { DEFAULT_WORLD_SEED } from '../world/worldGenerationSettings.ts';
 
@@ -53,6 +57,7 @@ export type WorldLayout = {
   treeSeed: number;
   resourcePlan: RegionalResourcePlan;
   resourceRegionDistribution: ResourceRegionDistribution;
+  resourceTerrainAccessibility: ResourceTerrainAccessibility;
 };
 
 export function createWorldLayout(settings: WorldGenerationSettings = DEFAULT_WORLD_GENERATION_SETTINGS): WorldLayout {
@@ -104,6 +109,12 @@ export function createWorldLayout(settings: WorldGenerationSettings = DEFAULT_WO
     drain: scaledRiverDrain(dims.generationHalf),
     terrainPreset: normalizedSettings.terrainPreset,
   });
+  const resourceTerrainAccessibility = createResourceTerrainAccessibility(
+    normalizedSettings,
+    dims,
+    riverLayout,
+  );
+  const isTerrainAccessible = resourceTerrainAccessibility.isAccessible;
   const quarryLayout = QuarryLayout.create({
     bounds: riverBounds,
     seed: normalizedSettings.seed,
@@ -112,6 +123,7 @@ export function createWorldLayout(settings: WorldGenerationSettings = DEFAULT_WO
     ordinarySiteCount: resourcePlan.ordinaryQuarryCount,
     richSiteCount: resourcePlan.richStoneDepositCount,
     placementTargets: quarryPlacementTargets,
+    isTerrainAccessible,
   });
   const densityScale = forestDensityScale(normalizedSettings.forestDensity);
   const spawnConfig = createForestSpawnConfig(dims.generationSize, dims.terrainSize, densityScale);
@@ -131,6 +143,7 @@ export function createWorldLayout(settings: WorldGenerationSettings = DEFAULT_WO
     nodeCounts: resourcePlan.foragingNodeCounts,
     richNodeCounts: resourcePlan.foragingRichNodeCounts,
     placementTargets: foragingPlacementTargets,
+    isTerrainAccessible,
   });
   const clayDepositLayout = ClayDepositLayout.create({
     riverLayout,
@@ -141,6 +154,7 @@ export function createWorldLayout(settings: WorldGenerationSettings = DEFAULT_WO
     ordinarySiteCount: resourcePlan.ordinaryClayDepositCount,
     richSiteCount: resourcePlan.richClayDepositCount,
     placementTargets: clayPlacementTargets,
+    isTerrainAccessible,
   });
   const mineralDepositLayout = MineralDepositLayout.create({
     riverLayout,
@@ -154,6 +168,7 @@ export function createWorldLayout(settings: WorldGenerationSettings = DEFAULT_WO
     mapSize: normalizedSettings.mapSize,
     resourceVariety: normalizedSettings.resourceVariety,
     placementTargets: mineralPlacementTargets,
+    isTerrainAccessible,
   });
   const physicalDeposits = createPhysicalDepositFootprints({
     quarryLayout,
@@ -175,5 +190,6 @@ export function createWorldLayout(settings: WorldGenerationSettings = DEFAULT_WO
     treeSeed,
     resourcePlan,
     resourceRegionDistribution,
+    resourceTerrainAccessibility,
   };
 }

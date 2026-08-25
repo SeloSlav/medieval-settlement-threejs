@@ -26,7 +26,10 @@ import {
   GORSKI_SHRUB_VARIANT_COUNT,
   type GorskiShrubPrototype,
 } from '../vegetation/seedthree/gorskiShrubPrototypes.ts';
-import { createRootedGeometryWindPosition } from '../vegetation/seedthree/seedThreeFoliageWind.ts';
+import {
+  applyRootedGeometryWebGLWind,
+  createRootedGeometryWindPosition,
+} from '../vegetation/seedthree/seedThreeFoliageWind.ts';
 import {
   seedThreeBarkUrl,
   seedThreeLeafUrl,
@@ -35,11 +38,23 @@ import { createForestFloorPlacementMask } from './ForestFloorPlacementMask.ts';
 import type { ForestTreePlacement } from './forestPlacements.ts';
 
 export const FOREST_FLOOR_NETTLE_SEED = 0x75727469;
-export const FOREST_FLOOR_NETTLE_MAX_INSTANCES = 9_600;
-export const FOREST_FLOOR_NETTLE_MIN_SPACING = 0.48;
+/** Safety ceiling only; normal population scales from accepted forest trees. */
+export const FOREST_FLOOR_NETTLE_MAX_INSTANCES = 192_000;
+export const FOREST_FLOOR_NETTLE_COLONY_CHANCE = 0.8;
+export const FOREST_FLOOR_NETTLE_COLONY_MIN_STEMS = 5;
+export const FOREST_FLOOR_NETTLE_COLONY_MAX_STEMS = 9;
+export const FOREST_FLOOR_NETTLE_COLONY_RADIUS_MIN = 0.68;
+export const FOREST_FLOOR_NETTLE_COLONY_RADIUS_MAX = 1.34;
+export const FOREST_FLOOR_NETTLE_MIN_SPACING = 0.34;
 export const FOREST_FLOOR_NETTLE_CLEAR_RADIUS = 0.34;
-export const FOREST_FLOOR_NETTLE_MIN_SCALE = 0.9;
-export const FOREST_FLOOR_NETTLE_MAX_SCALE = 1.38;
+export const FOREST_FLOOR_NETTLE_MIN_HEIGHT = 0.82;
+export const FOREST_FLOOR_NETTLE_MAX_HEIGHT = 1.18;
+export const FOREST_FLOOR_NETTLE_UNDERGROWTH_CLEAR_RADIUS = 0.76;
+export const FOREST_FLOOR_NETTLE_STREAM_RADIUS = 104;
+export const FOREST_FLOOR_NETTLE_STREAM_REBUILD_DISTANCE = 10;
+
+const FOREST_FLOOR_NETTLE_HEIGHT_REFERENCE = 0.9;
+const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));
 
 const NETTLE_LEAF_FILES = {
   albedo: 'stinging_nettle_single_albedo.png',
@@ -54,7 +69,6 @@ const NETTLE_STEM_FILES = {
   roughness: 'stinging_nettle_stem_roughness.png',
 } as const;
 
-const HIDDEN_MATRIX = new THREE.Matrix4().makeScale(0, 0, 0);
 const Y_AXIS = new THREE.Vector3(0, 1, 0);
 
 type TslNode = {
@@ -96,7 +110,11 @@ export type ForestFloorNettlePlacement = {
   x: number;
   z: number;
   sourceTreeIndex: number;
-  scale: number;
+  colonyIndex: number;
+  colonyX: number;
+  colonyZ: number;
+  targetHeight: number;
+  widthScale: number;
   yaw: number;
   lean: number;
   leanDirection: number;
@@ -106,10 +124,13 @@ export type ForestFloorNettlePlacement = {
 
 export type ForestFloorNettleStats = {
   instances: number;
+  colonies: number;
+  residentInstances: number;
   drawCalls: number;
   trianglesPerPrototype: number[];
   triangles: number;
   seed: number;
+  streamRadius: number;
 };
 
 export type ForestFloorNettleBlocker = (x: number, z: number) => boolean;
@@ -117,7 +138,13 @@ export type ForestFloorNettleBlocker = (x: number, z: number) => boolean;
 type NettleBucket = {
   mesh: THREE.InstancedMesh;
   placements: ForestFloorNettlePlacement[];
-  matrices: THREE.Matrix4[];
+  placementIndices: number[];
+  matrixElements: Float32Array;
+  anchorElements: Float32Array;
+  windElements: Float32Array;
+  colorElements: Float32Array;
+  anchorAttribute: THREE.InstancedBufferAttribute;
+  windAttribute: THREE.InstancedBufferAttribute;
 };
 
 export type ForestFloorNettleInstances = {
@@ -130,6 +157,7 @@ export type ForestFloorNettleInstances = {
   setPlacementActive(placementIndex: number, active: boolean): boolean;
   refreshBlockedMask(isBlockedAt?: ForestFloorNettleBlocker): number;
   setDeciduousFoliage(presentation: DeciduousFoliagePresentation): boolean;
+  updateCamera(cameraPosition: Pick<THREE.Vector3, 'x' | 'z'>, closeDetailVisible: boolean): boolean;
   commit(): void;
   dispose(): void;
 };
@@ -141,6 +169,7 @@ export async function createForestFloorNettleInstances(
   rendererBackend: RendererBackendKind | undefined,
   seed = FOREST_FLOOR_NETTLE_SEED,
   isBlockedAt?: ForestFloorNettleBlocker,
+  providedPlacements?: ForestFloorNettlePlacement[],
 ): Promise<ForestFloorNettleInstances> {
   const [leafTextures, stemTextures] = await Promise.all([
     loadLeafTextures(maxAnisotropy),
@@ -153,17 +182,22 @@ export async function createForestFloorNettleInstances(
     { length: GORSKI_SHRUB_VARIANT_COUNT },
     (_, variant) => createGorskiShrubPrototype('nettle', variant),
   );
-  const placements = createForestFloorNettlePlacements(trees, seed, isBlockedAt);
+  const placements = providedPlacements
+    ?? createForestFloorNettlePlacements(trees, seed, isBlockedAt);
   const group = new THREE.Group();
   group.name = 'SeedThree young stinging nettles';
+  group.visible = false;
   const buckets = prototypes.map((prototype, prototypeIndex) => {
-    const bucketPlacements = placements.filter(
-      (placement) => placement.prototypeIndex === prototypeIndex,
-    );
+    const placementIndices = placements
+      .map((placement, placementIndex) => ({ placement, placementIndex }))
+      .filter(({ placement }) => placement.prototypeIndex === prototypeIndex)
+      .map(({ placementIndex }) => placementIndex);
+    const bucketPlacements = placementIndices.map((placementIndex) => placements[placementIndex]!);
     const bucket = createNettleBucket(
       prototype,
       prototypeIndex,
       bucketPlacements,
+      placementIndices,
       terrain,
       branchMaterial,
       foliageMaterial,
@@ -172,19 +206,77 @@ export async function createForestFloorNettleInstances(
     group.add(bucket.mesh);
     return bucket;
   });
-  let matricesDirty = false;
+  const placementVisible = placements.map(() => true);
+  let streamDirty = true;
+  let lastStreamX = Number.NaN;
+  let lastStreamZ = Number.NaN;
+  const streamMatrix = new THREE.Matrix4();
+  const stats: ForestFloorNettleStats = {
+    instances: placements.length,
+    colonies: new Set(placements.map((placement) => placement.colonyIndex)).size,
+    residentInstances: 0,
+    drawCalls: buckets.filter((bucket) => bucket.placements.length > 0).length * 2,
+    trianglesPerPrototype: prototypes.map((prototype) => prototype.triangleCount),
+    triangles: buckets.reduce(
+      (total, bucket, index) => total
+        + bucket.placements.length * prototypes[index]!.triangleCount,
+      0,
+    ),
+    seed,
+    streamRadius: FOREST_FLOOR_NETTLE_STREAM_RADIUS,
+  };
+
+  const rebuildResidentInstances = (cameraX: number, cameraZ: number): void => {
+    const radiusSquared = FOREST_FLOOR_NETTLE_STREAM_RADIUS ** 2;
+    let residentInstances = 0;
+    for (const bucket of buckets) {
+      const matrixTarget = bucket.mesh.instanceMatrix.array as Float32Array;
+      const anchorTarget = bucket.anchorAttribute.array as Float32Array;
+      const windTarget = bucket.windAttribute.array as Float32Array;
+      const colorTarget = bucket.mesh.instanceColor!.array as Float32Array;
+      let writeIndex = 0;
+      for (let sourceIndex = 0; sourceIndex < bucket.placements.length; sourceIndex++) {
+        const placementIndex = bucket.placementIndices[sourceIndex]!;
+        if (!placementVisible[placementIndex]) continue;
+        const placement = bucket.placements[sourceIndex]!;
+        const dx = placement.x - cameraX;
+        const dz = placement.z - cameraZ;
+        if (dx * dx + dz * dz > radiusSquared) continue;
+        const matrixOffset = sourceIndex * 16;
+        streamMatrix.fromArray(bucket.matrixElements, matrixOffset);
+        streamMatrix.toArray(matrixTarget, writeIndex * 16);
+        const sourceOffset = sourceIndex * 3;
+        const targetOffset = writeIndex * 3;
+        anchorTarget[targetOffset] = bucket.anchorElements[sourceOffset]!;
+        anchorTarget[targetOffset + 1] = bucket.anchorElements[sourceOffset + 1]!;
+        anchorTarget[targetOffset + 2] = bucket.anchorElements[sourceOffset + 2]!;
+        windTarget[targetOffset] = bucket.windElements[sourceOffset]!;
+        windTarget[targetOffset + 1] = bucket.windElements[sourceOffset + 1]!;
+        windTarget[targetOffset + 2] = bucket.windElements[sourceOffset + 2]!;
+        colorTarget[targetOffset] = bucket.colorElements[sourceOffset]!;
+        colorTarget[targetOffset + 1] = bucket.colorElements[sourceOffset + 1]!;
+        colorTarget[targetOffset + 2] = bucket.colorElements[sourceOffset + 2]!;
+        writeIndex++;
+      }
+      bucket.mesh.count = writeIndex;
+      markResidentAttributeUpdate(bucket.mesh.instanceMatrix, writeIndex, 16);
+      markResidentAttributeUpdate(bucket.anchorAttribute, writeIndex, 3);
+      markResidentAttributeUpdate(bucket.windAttribute, writeIndex, 3);
+      markResidentAttributeUpdate(bucket.mesh.instanceColor!, writeIndex, 3);
+      residentInstances += writeIndex;
+    }
+    stats.residentInstances = residentInstances;
+    lastStreamX = cameraX;
+    lastStreamZ = cameraZ;
+    streamDirty = false;
+  };
   const placementMask = createForestFloorPlacementMask(
     placements,
     trees.length,
     (placementIndex, visible) => {
-      const placement = placements[placementIndex];
-      if (!placement) return;
-      const bucket = buckets[placement.prototypeIndex]!;
-      bucket.mesh.setMatrixAt(
-        placement.meshIndex,
-        visible ? bucket.matrices[placement.meshIndex]! : HIDDEN_MATRIX,
-      );
-      matricesDirty = true;
+      if (!placements[placementIndex]) return;
+      placementVisible[placementIndex] = visible;
+      streamDirty = true;
     },
   );
   const textures = [
@@ -202,17 +294,7 @@ export async function createForestFloorNettleInstances(
     placements,
     placementIndicesByTree: placementMask.placementIndicesByTree,
     buckets,
-    stats: {
-      instances: placements.length,
-      drawCalls: buckets.filter((bucket) => bucket.placements.length > 0).length * 2,
-      trianglesPerPrototype: prototypes.map((prototype) => prototype.triangleCount),
-      triangles: buckets.reduce(
-        (total, bucket, index) => total
-          + bucket.placements.length * prototypes[index]!.triangleCount,
-        0,
-      ),
-      seed,
-    },
+    stats,
     setTreeActive: placementMask.setTreeActive,
     setPlacementActive: placementMask.setPlacementActive,
     refreshBlockedMask(blocker?: ForestFloorNettleBlocker): number {
@@ -225,10 +307,21 @@ export async function createForestFloorNettleInstances(
       updateNettleStemSeason(branchMaterial, presentation);
       return changed;
     },
+    updateCamera(cameraPosition, closeDetailVisible): boolean {
+      const visibilityChanged = group.visible !== closeDetailVisible;
+      group.visible = closeDetailVisible;
+      if (!closeDetailVisible) return visibilityChanged;
+      const dx = cameraPosition.x - lastStreamX;
+      const dz = cameraPosition.z - lastStreamZ;
+      const streamMoved = !Number.isFinite(lastStreamX)
+        || dx * dx + dz * dz >= FOREST_FLOOR_NETTLE_STREAM_REBUILD_DISTANCE ** 2;
+      if (!streamDirty && !streamMoved) return visibilityChanged;
+      rebuildResidentInstances(cameraPosition.x, cameraPosition.z);
+      return true;
+    },
     commit(): void {
-      if (!matricesDirty) return;
-      for (const bucket of buckets) bucket.mesh.instanceMatrix.needsUpdate = true;
-      matricesDirty = false;
+      if (!streamDirty || !group.visible || !Number.isFinite(lastStreamX)) return;
+      rebuildResidentInstances(lastStreamX, lastStreamZ);
     },
     dispose(): void {
       group.removeFromParent();
@@ -246,36 +339,59 @@ export function createForestFloorNettlePlacements(
   isBlockedAt?: ForestFloorNettleBlocker,
 ): ForestFloorNettlePlacement[] {
   const placements: ForestFloorNettlePlacement[] = [];
-  const spatial = new SpatialHash2D<ForestFloorNettlePlacement>(0.75);
-  // Spread the capped population across the accepted forest rather than
-  // exhausting it against the first tree zone in layout order. Per-tree RNG
-  // still keys from the authoritative source index, so the same world seed is
-  // byte-stable while producing visible nettle patches throughout the woods.
+  const spatial = new SpatialHash2D<ForestFloorNettlePlacement>(0.7);
+  // Source shuffling keeps the safety ceiling spatially fair on exceptionally
+  // dense custom worlds. Normal maps stay below it and therefore scale from
+  // accepted forest area rather than collapsing to one fixed global count.
   const treeIndices = shuffledNettleSourceTreeIndices(trees.length, seed);
+  let colonyIndex = 0;
   for (const treeIndex of treeIndices) {
     if (placements.length >= FOREST_FLOOR_NETTLE_MAX_INSTANCES) break;
     const tree = trees[treeIndex]!;
     const rng = mulberry32((seed ^ Math.imul(treeIndex + 1, 0x9e3779b1)) >>> 0);
-    const attempts = 2 + (rng() < 0.36 ? 1 : 0);
-    for (let attempt = 0; attempt < attempts; attempt++) {
+    if (rng() > FOREST_FLOOR_NETTLE_COLONY_CHANCE) continue;
+
+    const sourceRadius = THREE.MathUtils.lerp(1.05, 4.35, Math.sqrt(rng()));
+    const sourceAngle = rng() * Math.PI * 2;
+    const colonyX = tree.x + Math.cos(sourceAngle) * sourceRadius;
+    const colonyZ = tree.z + Math.sin(sourceAngle) * sourceRadius;
+    const colonyRadius = THREE.MathUtils.lerp(
+      FOREST_FLOOR_NETTLE_COLONY_RADIUS_MIN,
+      FOREST_FLOOR_NETTLE_COLONY_RADIUS_MAX,
+      rng(),
+    );
+    const stemCount = FOREST_FLOOR_NETTLE_COLONY_MIN_STEMS + Math.floor(
+      rng() * (FOREST_FLOOR_NETTLE_COLONY_MAX_STEMS - FOREST_FLOOR_NETTLE_COLONY_MIN_STEMS + 1),
+    );
+    const colonyRotation = rng() * Math.PI * 2;
+    let acceptedStems = 0;
+    for (let stemIndex = 0; stemIndex < stemCount; stemIndex++) {
       if (placements.length >= FOREST_FLOOR_NETTLE_MAX_INSTANCES) break;
-      if (attempt === 0 && rng() > 0.94) continue;
-      const radius = THREE.MathUtils.lerp(1.15, 4.8, Math.sqrt(rng()));
-      const angle = rng() * Math.PI * 2;
-      const x = tree.x + Math.cos(angle) * radius;
-      const z = tree.z + Math.sin(angle) * radius;
+      const radial = stemIndex === 0
+        ? 0
+        : colonyRadius * Math.sqrt((stemIndex + rng()) / stemCount);
+      const angle = colonyRotation
+        + stemIndex * GOLDEN_ANGLE
+        + THREE.MathUtils.lerp(-0.24, 0.24, rng());
+      const x = colonyX + Math.cos(angle) * radial;
+      const z = colonyZ + Math.sin(angle) * radial;
       if (spatial.hasPointWithin(x, z, FOREST_FLOOR_NETTLE_MIN_SPACING)) continue;
       const placement: ForestFloorNettlePlacement = {
         x,
         z,
         sourceTreeIndex: treeIndex,
-        // The ivy canopy can reach 0.48 m. Keep young plants varied but tall
-        // enough that several paired leaf nodes read above that ground layer.
-        scale: THREE.MathUtils.lerp(
-          FOREST_FLOOR_NETTLE_MIN_SCALE,
-          FOREST_FLOOR_NETTLE_MAX_SCALE,
-          Math.pow(rng(), 0.72),
+        colonyIndex,
+        colonyX,
+        colonyZ,
+        // Store authored height in metres. Prototype variants differ by about
+        // eight centimetres, so raw scalar ranges made some crowns disappear
+        // into the 0.48 m ivy layer.
+        targetHeight: THREE.MathUtils.lerp(
+          FOREST_FLOOR_NETTLE_MIN_HEIGHT,
+          FOREST_FLOOR_NETTLE_MAX_HEIGHT,
+          Math.pow(rng(), 0.74),
         ),
+        widthScale: THREE.MathUtils.lerp(0.88, 1.02, rng()),
         yaw: rng() * Math.PI * 2,
         lean: THREE.MathUtils.lerp(0.015, 0.085, rng()),
         leanDirection: rng() * Math.PI * 2,
@@ -285,7 +401,9 @@ export function createForestFloorNettlePlacements(
       if (nettleIntersectsBlocker(placement, isBlockedAt)) continue;
       placements.push(placement);
       spatial.add(placement);
+      acceptedStems++;
     }
+    if (acceptedStems > 0) colonyIndex++;
   }
   return placements;
 }
@@ -306,7 +424,9 @@ function nettleIntersectsBlocker(
 ): boolean {
   if (!isBlockedAt) return false;
   if (isBlockedAt(placement.x, placement.z)) return true;
-  const radius = FOREST_FLOOR_NETTLE_CLEAR_RADIUS * placement.scale;
+  const radius = FOREST_FLOOR_NETTLE_CLEAR_RADIUS
+    * (placement.targetHeight / FOREST_FLOOR_NETTLE_HEIGHT_REFERENCE)
+    * placement.widthScale;
   for (let sampleIndex = 0; sampleIndex < 8; sampleIndex++) {
     const angle = sampleIndex / 8 * Math.PI * 2;
     if (isBlockedAt(
@@ -323,6 +443,7 @@ function createNettleBucket(
   prototype: GorskiShrubPrototype,
   prototypeIndex: number,
   placements: ForestFloorNettlePlacement[],
+  placementIndices: number[],
   terrain: Terrain,
   branchMaterial: THREE.Material,
   foliageMaterial: THREE.Material,
@@ -330,17 +451,18 @@ function createNettleBucket(
 ): NettleBucket {
   const capacity = Math.max(1, placements.length);
   const geometry = prototype.geometry;
-  const anchors = new THREE.InstancedBufferAttribute(new Float32Array(capacity * 3), 3);
-  const windVectors = new THREE.InstancedBufferAttribute(new Float32Array(capacity * 3), 3);
-  geometry.setAttribute('aAnchorPos', anchors);
-  geometry.setAttribute('aWindVec', windVectors);
+  const anchorAttribute = new THREE.InstancedBufferAttribute(new Float32Array(capacity * 3), 3);
+  const windAttribute = new THREE.InstancedBufferAttribute(new Float32Array(capacity * 3), 3);
+  geometry.setAttribute('aAnchorPos', anchorAttribute);
+  geometry.setAttribute('aWindVec', windAttribute);
   const mesh = new THREE.InstancedMesh(
     geometry,
     [branchMaterial, foliageMaterial],
     capacity,
   );
   mesh.name = `SeedThree stinging nettle prototype ${prototypeIndex + 1}`;
-  mesh.count = placements.length;
+  mesh.count = 0;
+  mesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(capacity * 3), 3);
   mesh.castShadow = false;
   mesh.receiveShadow = true;
   mesh.renderOrder = 2;
@@ -348,7 +470,10 @@ function createNettleBucket(
   mesh.userData.seedThreeGenerator = prototype.geometry.userData.seedThreeGenerator;
   mesh.userData.prototypeTriangleCount = prototype.triangleCount;
 
-  const matrices: THREE.Matrix4[] = [];
+  const matrixElements = new Float32Array(capacity * 16);
+  const anchorElements = new Float32Array(capacity * 3);
+  const windElements = new Float32Array(capacity * 3);
+  const colorElements = new Float32Array(capacity * 3);
   const matrix = new THREE.Matrix4();
   const quaternion = new THREE.Quaternion();
   const position = new THREE.Vector3();
@@ -356,6 +481,11 @@ function createNettleBucket(
   const wind = new THREE.Vector3();
   const color = new THREE.Color();
   const inverseYaw = new THREE.Quaternion();
+  const bounds = geometry.boundingBox;
+  const prototypeHeight = Math.max(
+    0.001,
+    (bounds?.max.y ?? 1) - (bounds?.min.y ?? 0),
+  );
   placements.forEach((placement, meshIndex) => {
     placement.meshIndex = meshIndex;
     position.set(
@@ -369,18 +499,22 @@ function createNettleBucket(
       Math.sin(placement.leanDirection) * placement.lean,
       'YXZ',
     ));
-    const width = placement.scale * 0.96;
-    scale.set(width, placement.scale, width);
+    const heightScale = placement.targetHeight / prototypeHeight;
+    const width = heightScale * placement.widthScale;
+    scale.set(width, heightScale, width);
     matrix.compose(position, quaternion, scale);
-    mesh.setMatrixAt(meshIndex, matrix);
-    matrices.push(matrix.clone());
-    anchors.setXYZ(meshIndex, position.x, position.y, position.z);
+    matrix.toArray(matrixElements, meshIndex * 16);
+    anchorElements[meshIndex * 3] = position.x;
+    anchorElements[meshIndex * 3 + 1] = position.y;
+    anchorElements[meshIndex * 3 + 2] = position.z;
     inverseYaw.setFromAxisAngle(Y_AXIS, -placement.yaw);
     wind.copy(WIND_DIR).applyQuaternion(inverseYaw);
     if (scale.x !== 0) wind.x /= scale.x;
     if (scale.y !== 0) wind.y /= scale.y;
     if (scale.z !== 0) wind.z /= scale.z;
-    windVectors.setXYZ(meshIndex, wind.x, wind.y, wind.z);
+    windElements[meshIndex * 3] = wind.x;
+    windElements[meshIndex * 3 + 1] = wind.y;
+    windElements[meshIndex * 3 + 2] = wind.z;
     const tintRng = mulberry32(
       (seed ^ Math.imul(placement.sourceTreeIndex + 17, 0x85ebca6b) ^ meshIndex) >>> 0,
     );
@@ -389,13 +523,31 @@ function createNettleBucket(
       THREE.MathUtils.lerp(0.88, 1.02, tintRng()),
       THREE.MathUtils.lerp(0.76, 0.92, tintRng()),
     );
-    mesh.setColorAt(meshIndex, color);
+    colorElements[meshIndex * 3] = color.r;
+    colorElements[meshIndex * 3 + 1] = color.g;
+    colorElements[meshIndex * 3 + 2] = color.b;
   });
-  mesh.instanceMatrix.needsUpdate = true;
-  anchors.needsUpdate = true;
-  windVectors.needsUpdate = true;
-  if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
-  return { mesh, placements, matrices };
+  return {
+    mesh,
+    placements,
+    placementIndices,
+    matrixElements,
+    anchorElements,
+    windElements,
+    colorElements,
+    anchorAttribute,
+    windAttribute,
+  };
+}
+
+function markResidentAttributeUpdate(
+  attribute: THREE.InstancedBufferAttribute,
+  instanceCount: number,
+  itemSize: number,
+): void {
+  attribute.clearUpdateRanges();
+  if (instanceCount > 0) attribute.addUpdateRange(0, instanceCount * itemSize);
+  attribute.needsUpdate = true;
 }
 
 function createNettleFoliageMaterial(
@@ -417,6 +569,7 @@ function createNettleFoliageMaterial(
     material.forceSinglePass = true;
     material.normalScale.set(0.52, 0.52);
     applyFoliageDoubleSideNormals(material);
+    applyRootedGeometryWebGLWind(material, 0.07);
     applyNettleWebGLSeason(material);
     return material;
   }
@@ -482,6 +635,7 @@ function createNettleBranchMaterial(
       metalness: 0,
     });
     material.normalScale.set(0.38, 0.38);
+    applyRootedGeometryWebGLWind(material, 0.07);
     return material;
   }
   const material = new MeshStandardNodeMaterial() as unknown as THREE.MeshStandardMaterial & {

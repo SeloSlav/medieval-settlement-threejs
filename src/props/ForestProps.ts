@@ -14,7 +14,12 @@ import {
   disposeUndergrowthInstances,
 } from './ForestUndergrowth.ts';
 import { createForestFloorIvyInstances } from './ForestFloorIvy.ts';
-import { createForestFloorNettleInstances } from './ForestFloorNettles.ts';
+import {
+  FOREST_FLOOR_NETTLE_SEED,
+  FOREST_FLOOR_NETTLE_UNDERGROWTH_CLEAR_RADIUS,
+  createForestFloorNettleInstances,
+  createForestFloorNettlePlacements,
+} from './ForestFloorNettles.ts';
 import { createForestFloorTwigInstances } from './ForestFloorTwigs.ts';
 import { applyForestFoliageMaterialPatches, applyTreeShadowReceiveFilter, setTreeShadowInstanceAttributes } from './treeShadowReceiveFilter.ts';
 import { TREE_SHADOW_CAST_LAYER } from '../scene/SceneLayers.ts';
@@ -135,11 +140,38 @@ export async function createForestProps(
       );
   const forestCores = options?.forestCores ?? createForestCores(rng, spawnConfig);
   const rockPlacements = createRockPlacements(rng, forestCores, allTreePlacements, spawnConfig, isBlockedAt);
+  const nettleSeed = (options?.treeSeed ?? 0x5eedf0a5) ^ FOREST_FLOOR_NETTLE_SEED;
+  const nettlePlacements = createForestFloorNettlePlacements(
+    allTreePlacements,
+    nettleSeed,
+    isBlockedAt,
+  );
+  const colonyCenters = new Map<number, { x: number; z: number }>();
+  for (const placement of nettlePlacements) {
+    if (!colonyCenters.has(placement.colonyIndex)) {
+      colonyCenters.set(placement.colonyIndex, {
+        x: placement.colonyX,
+        z: placement.colonyZ,
+      });
+    }
+  }
+  const nettleColonyIndex = new SpatialHash2D(
+    FOREST_FLOOR_NETTLE_UNDERGROWTH_CLEAR_RADIUS,
+    [...colonyCenters.values()],
+  );
+  const isUndergrowthBlockedAt = (x: number, z: number): boolean => (
+    (isBlockedAt?.(x, z) ?? false)
+    || nettleColonyIndex.hasPointWithin(
+      x,
+      z,
+      FOREST_FLOOR_NETTLE_UNDERGROWTH_CLEAR_RADIUS,
+    )
+  );
   const undergrowthPlacements = createUndergrowthPlacements(
     rng,
     forestCores,
     spawnConfig,
-    isBlockedAt,
+    isUndergrowthBlockedAt,
     allTreePlacements,
   );
   const ivyPromise = createForestFloorIvyInstances(
@@ -155,8 +187,9 @@ export async function createForestProps(
     terrain,
     maxAnisotropy,
     options?.rendererBackend,
-    (options?.treeSeed ?? 0x5eedf0a5) ^ 0x75727469,
+    nettleSeed,
     isBlockedAt,
+    nettlePlacements,
   );
   const twigsPromise = createForestFloorTwigInstances(
     allTreePlacements,
