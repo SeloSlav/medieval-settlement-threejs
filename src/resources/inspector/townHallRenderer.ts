@@ -612,7 +612,7 @@ function formatProsperityRoads(plan: ProsperityRoadPlan | null): string {
   if (plan.activeBranches === 0) {
     return 'No staffed specialty chain or tier-4 housing';
   }
-  const pairing = `${plan.matchedBranches} / ${plan.activeBranches} branches contain preserved-food, ale, cloth, and pottery capacity`;
+  const pairing = `${plan.matchedBranches} / ${plan.activeBranches} branches contain preserved-food, beverage, clothing, and pottery capacity`;
   const fragmentation = plan.fragmentationResidentCapacity > 0
     ? ` · ${plan.fragmentationResidentCapacity} resident capacity stranded between specialized branches`
     : ' · no installed capacity stranded';
@@ -1107,11 +1107,11 @@ function renderSettlementTextileRoadRow(plan: SettlementTextilePlan): string {
   const roads = plan.roadPlan;
   if (roads === null || roads.activeBranches === 0) return '';
   const fragmentation = roads.fragmentationClothPotential > 0.05
-    ? ` · ${roads.fragmentationClothPotential.toFixed(1)} cloth/year stranded until branches connect`
-    : ' · no cloth capacity stranded by topology';
+    ? ` · ${roads.fragmentationClothPotential.toFixed(1)} clothing/year stranded until branches connect`
+    : ' · no clothing capacity stranded by topology';
   const householdCoverage = roads.annualHouseholdClothDemand > 0.05
     ? ` · ${roads.coveredHouseholdClothDemand.toFixed(1)} / ${roads.annualHouseholdClothDemand.toFixed(1)} local household need covered`
-    : ' · no current household cloth claim';
+    : ' · no current household clothing claim';
   const exposure = roads.annualHouseholdClothShortfall > 0.05
     ? ` · ${roads.annualHouseholdClothShortfall.toFixed(1)} local shortfall across ${roads.exposedHouseholdBranches} ${roads.exposedHouseholdBranches === 1 ? 'branch' : 'branches'}`
     : ' · every current household branch covered';
@@ -1121,7 +1121,7 @@ function renderSettlementTextileRoadRow(plan: SettlementTextilePlan): string {
       ? ` <button type="button" class="inspector-jump-button" data-inspect-building="${roads.firstImbalancedBuildingId}" aria-label="Inspect first road-stranded wool holding">Inspect holding</button>`
       : '';
   const exportable = roads.annualExportableClothSurplus > 0.05
-    ? ` · ${roads.annualExportableClothSurplus.toFixed(1)} cloth/year remains above local household need; the specialty export ledger verifies market access separately`
+    ? ` · ${roads.annualExportableClothSurplus.toFixed(1)} clothing/year remains above local household need; the specialty export ledger verifies market access separately`
     : '';
   const reserveInspect = roads.firstReserveExposedResidenceId === null
     ? ''
@@ -1129,11 +1129,11 @@ function renderSettlementTextileRoadRow(plan: SettlementTextilePlan): string {
   const currentServiceRow = roads.householdBranches === 0
     ? ''
     : `
-    <li><span>Textile service</span><span>${roads.stockedSupplierBranches} / ${roads.householdBranches} current household branches have a stocked staffed loom route · ${Math.round(roads.serviceableClothStock)} cloth in local cupboards, staffed looms, or approaching home carts · weakest reserve ${formatProvisionRunway(roads.worstHouseholdClothRunwayDays)} · ${roads.unservedHouseholdBranches} without a stocked loom route · ${roads.reserveWarningBranches} below ${TEXTILE_RESERVE_WARNING_DAYS} days${reserveInspect}</span></li>
+    <li><span>Clothing service</span><span>${roads.stockedSupplierBranches} / ${roads.householdBranches} current household branches have a stocked staffed tailor route · ${Math.round(roads.serviceableClothStock)} clothing in local cupboards, staffed workshops, or approaching home carts · weakest reserve ${formatProvisionRunway(roads.worstHouseholdClothRunwayDays)} · ${roads.unservedHouseholdBranches} without a stocked tailor route · ${roads.reserveWarningBranches} below ${TEXTILE_RESERVE_WARNING_DAYS} days${reserveInspect}</span></li>
   `;
 
   return `
-    <li><span>Textile roads</span><span>${roads.matchedBranches} / ${roads.activeBranches} active branches pair raw fibre and loom capacity (${roads.fleeceBranches} wool · ${roads.flaxBranches} flax · ${roads.loomBranches} loom) · ${roads.roadMatchedAnnualClothPotential.toFixed(1)} / ${plan.annualClothPotential.toFixed(1)} cloth/year physically paired${fragmentation}${householdCoverage}${exposure}${exportable}${inspect}</span></li>
+    <li><span>Clothing roads</span><span>${roads.matchedBranches} / ${roads.activeBranches} active branches pair raw fibre and workshop capacity (${roads.fleeceBranches} wool · ${roads.flaxBranches} flax · ${roads.loomBranches} workshop) · ${roads.roadMatchedAnnualClothPotential.toFixed(1)} / ${plan.annualClothPotential.toFixed(1)} clothing/year physically paired${fragmentation}${householdCoverage}${exposure}${exportable}${inspect}</span></li>
     ${currentServiceRow}
   `;
 }
@@ -1143,19 +1143,19 @@ export function renderSettlementTextileRows(plan: SettlementTextilePlan): string
   const unavailableCloth = plan.unavailableHouseholdClothStock > 0.05
     ? ` · ${Math.round(plan.unavailableHouseholdClothStock)} in treasury, export, fire quarantine, idle, or disconnected stores`
     : '';
-  const storesRow = `<li><span>Textile stores</span><span>${Math.round(plan.woolStock)} wool owned${plan.woolInTransit > 0.05 ? ` · ${Math.round(plan.woolInTransit)} on carts` : ''} · ${Math.round(plan.flaxStock)} flax owned${plan.flaxInTransit > 0.05 ? ` · ${Math.round(plan.flaxInTransit)} on carts` : ''} · ${Math.round(plan.clothStock)} cloth owned${plan.clothInTransit > 0.05 ? ` · ${Math.round(plan.clothInTransit)} on carts` : ''} · ${Math.round(plan.serviceableHouseholdClothStock)} serviceable to current households${plan.householdClothInTransit > 0.05 ? ` including ${Math.round(plan.householdClothInTransit)} approaching homes` : ''}${unavailableCloth} · ${formatProvisionRunway(plan.clothReserveRunwayDays)} weakest household cloth reserve</span></li>`;
+  const storesRow = `<li><span>Clothing stores</span><span>${Math.round(plan.woolStock)} wool owned${plan.woolInTransit > 0.05 ? ` · ${Math.round(plan.woolInTransit)} on carts` : ''} · ${Math.round(plan.flaxStock)} flax owned${plan.flaxInTransit > 0.05 ? ` · ${Math.round(plan.flaxInTransit)} on carts` : ''} · ${Math.round(plan.clothStock)} clothing owned${plan.clothInTransit > 0.05 ? ` · ${Math.round(plan.clothInTransit)} on carts` : ''} · ${Math.round(plan.serviceableHouseholdClothStock)} serviceable to current households${plan.householdClothInTransit > 0.05 ? ` including ${Math.round(plan.householdClothInTransit)} approaching homes` : ''}${unavailableCloth} · ${formatProvisionRunway(plan.clothReserveRunwayDays)} weakest household clothing reserve</span></li>`;
   const fireRow = plan.fireDisabledSheepHoldings
     + plan.fireDisabledWeavers
     + plan.fireDisabledProsperousHomes === 0
     ? ''
-    : `<li><span>Textile fire outages</span><span>${plan.fireDisabledSheepHoldings} sheep ${plan.fireDisabledSheepHoldings === 1 ? 'holding' : 'holdings'} + ${plan.fireDisabledWeavers} staffed ${plan.fireDisabledWeavers === 1 ? 'loom' : 'looms'} + ${plan.fireDisabledProsperousHomes} prosperous ${plan.fireDisabledProsperousHomes === 1 ? 'home' : 'homes'} offline · ${Math.round(plan.fireQuarantinedClothStock)} cloth at affected looms, cupboards, or approaching carts unavailable until recovery</span></li>`;
+    : `<li><span>Clothing fire outages</span><span>${plan.fireDisabledSheepHoldings} sheep ${plan.fireDisabledSheepHoldings === 1 ? 'holding' : 'holdings'} + ${plan.fireDisabledWeavers} staffed ${plan.fireDisabledWeavers === 1 ? 'workshop' : 'workshops'} + ${plan.fireDisabledProsperousHomes} prosperous ${plan.fireDisabledProsperousHomes === 1 ? 'home' : 'homes'} offline · ${Math.round(plan.fireQuarantinedClothStock)} clothing at affected workshops, cupboards, or approaching carts unavailable until recovery</span></li>`;
   if (plan.sheepHoldings === 0) {
     return `
       <li><span>Annual wool clip</span><span>No completed sheep holding</span></li>
       <li><span>Flax route</span><span>${Math.round(plan.flaxStock)} harvested fibre owned · requires loom labor and hauled water</span></li>
       ${fireRow}
       ${storesRow}
-      <li><span>Textile chain</span><span>${textileChainBalanceLabel(plan)} · ${plan.annualHouseholdClothDemand.toFixed(1)} cloth/year household demand</span></li>
+      <li><span>Clothing chain</span><span>${textileChainBalanceLabel(plan)} · ${plan.annualHouseholdClothDemand.toFixed(1)} clothing/year household demand</span></li>
       ${roadRow}
     `;
   }
@@ -1173,8 +1173,8 @@ export function renderSettlementTextileRows(plan: SettlementTextilePlan): string
     ? ''
     : ` · ${attentionLabel} <button type="button" class="inspector-jump-button" data-inspect-building="${plan.firstAttentionBuildingId}" aria-label="Inspect ${attentionLabel}">Inspect</button>`;
   const annualBalance = plan.annualClothBalance >= 0
-    ? `${plan.annualClothBalance.toFixed(1)} cloth surplus`
-    : `${Math.abs(plan.annualClothBalance).toFixed(1)} cloth shortfall`;
+    ? `${plan.annualClothBalance.toFixed(1)} clothing surplus`
+    : `${Math.abs(plan.annualClothBalance).toFixed(1)} clothing shortfall`;
   const clipRisk = plan.annualWoolAtRisk > 0.05
     ? ` · ${plan.annualWoolAtRisk.toFixed(1)} wool not yet secured by current shearing readiness`
     : ' · full projected clip secured';
@@ -1189,7 +1189,7 @@ export function renderSettlementTextileRows(plan: SettlementTextilePlan): string
     <li><span>Shearing readiness</span><span>${plan.readyPendingHoldings} pending and ready · ${plan.storageBlockedHoldings} waiting for full-clip room · ${plan.staffingBlockedHoldings} unstaffed · ${plan.flockBlockedHoldings} flock-blocked · ${plan.fireDisabledSheepHoldings} fire-disabled · ${plan.missedHoldings} missed${blocked === 0 ? ' · no exposed clip' : ''}</span></li>
     ${fireRow}
     ${storesRow}
-    <li><span>Textile chain</span><span>${plan.annualClothPotential.toFixed(1)} cloth/year installed ceiling from projected wool, physical flax, and loom labor vs ${plan.annualHouseholdClothDemand.toFixed(1)} household need · ${annualBalance} over ${TEXTILE_PLAN_DAYS_PER_YEAR} days · flax assumes a supplied water route · ${textileChainBalanceLabel(plan)}</span></li>
+    <li><span>Clothing chain</span><span>${plan.annualClothPotential.toFixed(1)} clothing/year installed ceiling from projected wool, physical flax, and workshop labor vs ${plan.annualHouseholdClothDemand.toFixed(1)} household need · ${annualBalance} over ${TEXTILE_PLAN_DAYS_PER_YEAR} days · flax assumes a supplied water route · ${textileChainBalanceLabel(plan)}</span></li>
     ${roadRow}
   `;
 }
@@ -2175,7 +2175,7 @@ export function renderTownHallInspector(
   const prosperityHouseholdFireOutageRow =
     production.fireDisabledTierFourHomes === 0
       ? ''
-      : `<li><span>Tier-4 household outages</span><span>${production.fireDisabledTierFourResidents} tier-4 ${production.fireDisabledTierFourResidents === 1 ? 'resident is' : 'residents are'} excluded from active preserved-food, ale, cloth, and pottery demand across ${production.fireDisabledTierFourHomes} fire-disabled ${production.fireDisabledTierFourHomes === 1 ? 'home' : 'homes'} · ${production.fireDisabledTierFourHousingCapacity} tier-4 places return to the housing pipeline after recovery</span></li>`;
+      : `<li><span>Tier-4 household outages</span><span>${production.fireDisabledTierFourResidents} tier-4 ${production.fireDisabledTierFourResidents === 1 ? 'resident is' : 'residents are'} excluded from active preserved-food, beverage, clothing, and pottery demand across ${production.fireDisabledTierFourHomes} fire-disabled ${production.fireDisabledTierFourHomes === 1 ? 'home' : 'homes'} · ${production.fireDisabledTierFourHousingCapacity} tier-4 places return to the housing pipeline after recovery</span></li>`;
   const flourBalance = grainChainBalanceLabel(production);
   const farmPlan = buildSettlementFarmPlan(
     context.gameState,
@@ -2442,7 +2442,7 @@ export function renderTownHallInspector(
       <li><span>Next settler</span><span>${growth.nextArrivalSeconds === null ? growth.vacantSlots > 0 ? 'Paused until household buffers recover' : growth.fireDisabledVacantSlots > 0 ? `${growth.fireDisabledVacantSlots} vacant places return after structural recovery` : 'No vacant housing' : formatGrowthDuration(growth.nextArrivalSeconds)}</span></li>
       <li><span>Growth bottlenecks</span><span>${formatGrowthBottlenecks(growth)}${growthInspectButton}</span></li>
       <li><span>At full housing</span><span>+${growth.additionalFoodPerDay.toFixed(1)} winter fresh food/day after cured-ration displacement · ${growth.additionalGrossFoodPerDay.toFixed(1)} gross meal demand · +${growth.additionalWaterPerDay.toFixed(1)} water/day · +${growth.additionalWinterFirewoodPerDay.toFixed(1)} winter firewood/day</span></li>
-      ${growth.additionalPreservedFoodPerDay + growth.additionalAlePerDay + growth.additionalClothPerDay + growth.additionalPotteryPerDay > 1e-6 ? `<li><span>Prosperous-house growth</span><span>+${growth.additionalPreservedFoodPerDay.toFixed(1)} winter-peak preserved ration/day · +${growth.additionalAlePerDay.toFixed(1)} beverages/day · +${growth.additionalClothPerDay.toFixed(2)} cloth/day · +${growth.additionalPotteryPerDay.toFixed(2)} pottery/day</span></li>` : ''}
+      ${growth.additionalPreservedFoodPerDay + growth.additionalAlePerDay + growth.additionalClothPerDay + growth.additionalPotteryPerDay > 1e-6 ? `<li><span>Prosperous-house growth</span><span>+${growth.additionalPreservedFoodPerDay.toFixed(1)} winter-peak preserved ration/day · +${growth.additionalAlePerDay.toFixed(1)} beverages/day · +${growth.additionalClothPerDay.toFixed(2)} clothing/day · +${growth.additionalPotteryPerDay.toFixed(2)} pottery/day</span></li>` : ''}
       ${readout.backyardEconomy ? renderSettlementBackyardEconomyRows(readout.backyardEconomy) : ''}
       <li><span>Trade productivity</span><span>${readout.productivityLabel}</span></li>
       <li><span>Household prosperity</span><span>${readout.householdProsperityLabel}</span></li>
@@ -2491,7 +2491,7 @@ export function renderTownHallInspector(
       <li><span>Bakery buffers</span><span>Input ${formatProcessorInputBuffer(production.bakeryInputBuffer)} · bread room ${formatProcessorOutputRoom(production.bakeryOutputRoom)} ${processorInspectButton('bakery', production.bakeryInputBuffer, production.bakeryOutputRoom)}</span></li>
       <li><span>Brewery buffers</span><span>Input ${formatProcessorInputBuffer(production.breweryInputBuffer)} · ale room ${formatProcessorOutputRoom(production.breweryOutputRoom)} ${processorInspectButton('brewery', production.breweryInputBuffer, production.breweryOutputRoom)}</span></li>
       <li><span>Smokehouse buffers</span><span>Input ${formatProcessorInputBuffer(production.smokehouseInputBuffer)} · preserved-food room ${formatProcessorOutputRoom(production.smokehouseOutputRoom)} ${processorInspectButton('smokehouse', production.smokehouseInputBuffer, production.smokehouseOutputRoom)}</span></li>
-      <li><span>Weaver buffers</span><span>Input ${formatProcessorInputBuffer(production.weaverInputBuffer)} · cloth room ${formatProcessorOutputRoom(production.weaverOutputRoom)} ${processorInspectButton('weaver', production.weaverInputBuffer, production.weaverOutputRoom)}</span></li>
+      <li><span>Weaver buffers</span><span>Input ${formatProcessorInputBuffer(production.weaverInputBuffer)} · clothing room ${formatProcessorOutputRoom(production.weaverOutputRoom)} ${processorInspectButton('weaver', production.weaverInputBuffer, production.weaverOutputRoom)}</span></li>
       <li><span>Charcoal-yard buffers</span><span>Input ${formatProcessorInputBuffer(production.charcoalInputBuffer)} &middot; charcoal room ${formatProcessorOutputRoom(production.charcoalOutputRoom)} ${processorInspectButton('charcoal yard', production.charcoalInputBuffer, production.charcoalOutputRoom)}</span></li>
       <li><span>Bloomery-smithy buffers</span><span>Iron charge ${formatProcessorInputBuffer(production.smithyInputBuffer)} &middot; finished ironwork room ${formatProcessorOutputRoom(production.smithyOutputRoom)} ${processorInspectButton('bloomery-smithy', production.smithyInputBuffer, production.smithyOutputRoom)}</span></li>
       <li><span>Potter buffers</span><span>Input ${formatProcessorInputBuffer(production.potterInputBuffer)} &middot; selected firing room ${formatProcessorOutputRoom(production.potterOutputRoom)} ${processorInspectButton('potter', production.potterInputBuffer, production.potterOutputRoom)}</span></li>
@@ -2521,7 +2521,7 @@ export function renderTownHallInspector(
       <li><span>Beverage capacity</span><span>${production.aleOutputPerDay.toFixed(1)} ale, apple cider, pear cider, or mead / day vs ${production.aleDemandPerDay.toFixed(1)} tier-2+ demand · reflects each Brewery's selected recipe · ale uses two workshop cycles per batch and needs ${renderResourceCost({ barley: production.aleBarleyPerDay, water: production.aleWaterPerDay, firewood: production.aleFirewoodPerDay }, { compact: true, suffix: '/day' })}; the ciders and mead draw apples, pears, or honey directly</span></li>
       <li><span>Preservation capacity</span><span>${production.preservedFoodOutputPerDay.toFixed(1)} / day installed · ${production.currentPreservedFoodDemandPerDay.toFixed(1)} / day current ${environment.season} ration at ${production.currentPreservedFoodDemandMultiplier.toFixed(2)}&times; · ${production.preservedFoodDemandPerDay.toFixed(1)} / day winter design peak · rotated rations displace the same fresh-food calories · full crews need ${renderResourceCost({ food: production.preservationFreshFoodPerDay, firewood: production.preservationFirewoodPerDay, salt: production.preservationSaltPerDay, pottery: production.preservationPotteryPerDay }, { compact: true, suffix: '/day' })}</span></li>
       ${preservationReserveRows}
-      <li><span>Cloth capacity</span><span>${production.clothOutputPerDay.toFixed(1)} / day vs ${production.clothDemandPerDay.toFixed(1)} tier-2+ demand · choose ${renderResourceAmount('wool', production.clothWoolPerDay, { compact: true, suffix: '/day' })}, or ${renderResourceCost({ flax: production.clothFlaxPerDay, water: production.clothFlaxWaterPerDay }, { compact: true, suffix: '/day' })}</span></li>
+      <li><span>Clothing capacity</span><span>${production.clothOutputPerDay.toFixed(1)} / day vs ${production.clothDemandPerDay.toFixed(1)} tier-2+ demand · choose ${renderResourceAmount('wool', production.clothWoolPerDay, { compact: true, suffix: '/day' })}, or ${renderResourceCost({ flax: production.clothFlaxPerDay, water: production.clothFlaxWaterPerDay }, { compact: true, suffix: '/day' })}</span></li>
       <li><span>Household pottery</span><span>${production.potteryOutputPerDay.toFixed(1)} / day road-local clay-backed kiln output vs ${production.potteryDemandPerDay.toFixed(1)} tier-4 breakage replacement · homes share each kiln's physical cart with smokehouses and export</span></li>
       <li><span>Prosperity throughput</span><span>${formatProsperityCapacity(prosperity)}</span></li>
       <li><span>Prosperity roads</span><span>${formatProsperityRoads(prosperity.roadPlan)}</span></li>

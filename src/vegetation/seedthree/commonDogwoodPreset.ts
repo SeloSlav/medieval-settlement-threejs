@@ -39,8 +39,6 @@ export type CommonDogwoodArchitecture = {
   /** Basal canes allowed to retain the full authored crown length. */
   readonly dominantLeaderCount: number;
   readonly subordinateVigor: readonly [minimum: number, maximum: number];
-  /** Suppresses shaded-side canes while retaining full leaders toward the light. */
-  readonly lightwardVigorBias: number;
   /** Length retained by the weaker child at each Y fork. */
   readonly forkSubordinateScale: number;
   /** Independent roll given to fork children around their parent's tangent. */
@@ -102,7 +100,6 @@ export const COMMON_DOGWOOD_VARIANTS: readonly CommonDogwoodVariant[] = [
       firstForkLength: [0.23, 0.39],
       dominantLeaderCount: 2,
       subordinateVigor: [0.8, 0.98],
-      lightwardVigorBias: 0.14,
       forkSubordinateScale: 0.76,
       forkRollVariationDeg: 13,
       foliageGapDeg: 75,
@@ -136,7 +133,6 @@ export const COMMON_DOGWOOD_VARIANTS: readonly CommonDogwoodVariant[] = [
       firstForkLength: [0.27, 0.41],
       dominantLeaderCount: 3,
       subordinateVigor: [0.78, 0.98],
-      lightwardVigorBias: 0.15,
       forkSubordinateScale: 0.82,
       forkRollVariationDeg: 9,
       foliageGapDeg: 45,
@@ -170,7 +166,6 @@ export const COMMON_DOGWOOD_VARIANTS: readonly CommonDogwoodVariant[] = [
       firstForkLength: [0.28, 0.42],
       dominantLeaderCount: 4,
       subordinateVigor: [0.68, 0.97],
-      lightwardVigorBias: 0.2,
       forkSubordinateScale: 0.76,
       forkRollVariationDeg: 11,
       foliageGapDeg: 35,

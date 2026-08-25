@@ -3496,54 +3496,9 @@ export class VillagerRenderer {
 
   private completeWorkerReturnHome(agent: VillagerAgent): void {
     this.clearPath(agent);
-    const workplace = agent.workplaceId
-      ? this.buildings.get(agent.workplaceId) ?? null
-      : null;
-    const lodging = workplace
-      ? resolveWorksiteLodging(
-          workplace,
-          this.buildings.values(),
-          this.fireDisabledBuildingIds,
-        )
-      : null;
-    if (agent.returnLodgingId && lodging?.lodging.id !== agent.returnLodgingId) {
-      agent.returnLodgingId = null;
-      const residence = agent.residenceId
-        ? this.residences.get(agent.residenceId) ?? null
-        : null;
-      const home = residence
-        ? residenceDoorPosition(residence)
-        : this.foundingCamp
-          ? this.foundingCampRestPosition(agent, this.foundingCamp)
-          : null;
-      const path = home
-        ? pickWorkerCommutePath({ x: agent.x, z: agent.z }, home, this.roadNetwork)
-        : null;
-      if (path && this.beginJourney(agent, path, 'return_home')) {
-        agent.routinePhase = 'returning_home';
-        return;
-      }
-    }
-    if (this.clock && agent.returnRequiresRest) {
-      agent.restUntilElapsedSeconds = Math.max(
-        agent.restUntilElapsedSeconds,
-        clockElapsedSeconds(this.clock) + WORKER_MINIMUM_REST_SECONDS,
-      );
-    }
-    agent.returnRequiresRest = false;
-    agent.workArrivalElapsedSeconds = null;
-    const completedAtLodging = agent.returnLodgingId != null
-      && lodging?.lodging.id === agent.returnLodgingId;
-    agent.returnLodgingId = null;
     const homeState = this.clock
-      ? householdMemberHomeState(agent.personIdentity, this.clock, this.nightPolicy)
+      ? householdMemberHomeState(agent.personIdentity, this.clock)
       : 'home_outdoors';
-    if (workplace && completedAtLodging) {
-      this.transitionToRemoteCampState(agent, homeState, workplace);
-      agent.idleRemaining = pickIdleDuration(agent.pathSeed) * 0.7;
-      this.reconcileRoutine(agent);
-      return;
-    }
     const residence = agent.residenceId ? this.residences.get(agent.residenceId) : null;
     if (residence) this.placeIdle(agent, residence);
     else if (this.foundingCamp) this.placeFounderIdle(agent, this.foundingCamp);
@@ -3552,7 +3507,7 @@ export class VillagerRenderer {
     this.reconcileRoutine(agent);
   }
 
-  private beginWorkerCommuteToWork(agent: VillagerAgent): boolean {
+  private beginWorkerReturnToWork(agent: VillagerAgent): boolean {
     const building = agent.workplaceId ? this.buildings.get(agent.workplaceId) : null;
     if (!building || this.fireDisabledBuildingIds.has(building.id)) return false;
 
