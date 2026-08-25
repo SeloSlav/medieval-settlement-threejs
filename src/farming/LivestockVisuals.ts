@@ -96,10 +96,9 @@ export function createCattleVisualDistribution(headCount: number): CattleVisualK
 }
 
 /**
- * Spreads the displayed herd across linked parcels in proportion to the land
- * capacity each parcel contributes. Pannage uses its area share here because
- * mast is authoritative only at holding level; the actual pig limit still uses
- * mature trees inside the complete set of drawn polygons.
+ * General weighted parcel allocator retained for visual-planning callers.
+ * Live livestock rendering does not use it: each replicated herd is rendered
+ * only inside its own `pastureId` parcel.
  */
 export function allocateLivestockVisualPastures<
   T extends Pick<PastureState, 'area' | 'averageSlopeDegrees' | 'moisture'>,

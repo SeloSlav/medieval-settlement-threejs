@@ -17,6 +17,7 @@ use crate::db::*;
 use crate::economy::{
     building_commodity_stock, deposit_building_commodity, deposit_residence_commodity,
     residence_food_progression_required_slots, withdraw_building_commodity,
+    CommodityKind,
 };
 use crate::pantry_safeguard_policy::{
     daily_market_issue_target_days, emergency_pantry_rule, normalize_pantry_safeguard_policy,
@@ -150,7 +151,7 @@ pub fn step_market_household_distribution(
                 || !market.construction_complete
                 || (need_kind == ResidenceNeedKind::Ale && market.assigned_labor == 0)
                 || tick.building_disabled_by_fire(ctx, market.id)
-                || market_stock(&market, need_kind) <= 1e-9
+                || market_stock(ctx, tick, &market, need_kind) <= 1e-9
             {
                 continue;
             }
@@ -183,7 +184,7 @@ pub fn step_market_household_distribution(
                     && building.construction_complete
                     && (need_kind != ResidenceNeedKind::Ale || building.assigned_labor > 0)
                     && !tick.building_disabled_by_fire(ctx, building.id)
-                    && market_stock(building, need_kind) > 1e-9
+                    && market_stock(ctx, tick, building, need_kind) > 1e-9
             })
             .collect();
         let mut sources_by_owner: HashMap<Identity, Vec<Building>> = HashMap::new();
@@ -224,10 +225,11 @@ pub fn step_market_household_distribution(
                     let round_target = target.target_stock.min(current + target.daily_lot);
                     if let Some(preferred_index) = sources.iter().position(|market| {
                         market.id == target.preferred_source_id
-                            && market_stock(market, need_kind) > 1e-9
+                            && market_stock(ctx, tick, market, need_kind) > 1e-9
                     }) {
                         distribute_to_residence(
                             ctx,
+                            tick,
                             &mut sources[preferred_index],
                             target.residence_id,
                             need_kind,
@@ -247,13 +249,14 @@ pub fn step_market_household_distribution(
                     // day's ration when the preferred stall runs dry.
                     for source in sources.iter_mut() {
                         if source.id == target.preferred_source_id
-                            || market_stock(source, need_kind) <= 1e-9
+                            || market_stock(ctx, tick, source, need_kind) <= 1e-9
                             || !network.road_connected(source.x, source.z, target.x, target.z)
                         {
                             continue;
                         }
                         distribute_to_residence(
                             ctx,
+                            tick,
                             source,
                             target.residence_id,
                             need_kind,
@@ -382,6 +385,7 @@ pub fn distribute_well_water(ctx: &ReducerContext, tick: &SimTickContext, well: 
         }
         distribute_to_residence(
             ctx,
+            tick,
             well,
             target.residence_id,
             ResidenceNeedKind::Water,
@@ -445,6 +449,7 @@ fn residence_has_distribution_room(
 
 fn distribute_to_residence(
     ctx: &ReducerContext,
+    tick: &SimTickContext,
     source: &mut Building,
     residence_id: u64,
     need_kind: ResidenceNeedKind,
@@ -462,7 +467,11 @@ fn distribute_to_residence(
     if room <= 1e-9 {
         return;
     }
-    let delivered = withdraw_delivery_cargo(source, need_kind, room);
+    let delivered = if need_kind == ResidenceNeedKind::Luxury {
+        withdraw_staffed_market_luxury(ctx, tick, source, room)
+    } else {
+        withdraw_delivery_cargo(source, need_kind, room)
+    };
     if delivered > 1e-9 {
         apply_need_delivery(ctx, residence_id, need_kind, delivered);
     }
@@ -528,8 +537,59 @@ fn distribute_food_to_residence(
     }
 }
 
-fn market_stock(building: &Building, need_kind: ResidenceNeedKind) -> f64 {
-    crate::simulation::delivery_cargo::building_delivery_stock(building, need_kind)
+fn market_stock(
+    ctx: &ReducerContext,
+    tick: &SimTickContext,
+    building: &Building,
+    need_kind: ResidenceNeedKind,
+) -> f64 {
+    if need_kind != ResidenceNeedKind::Luxury {
+        return crate::simulation::delivery_cargo::building_delivery_stock(building, need_kind);
+    }
+    let candle_stock = tick
+        .marketplace_stall_workplace_id_for_commodity(ctx, building, CommodityKind::Candles)
+        .is_some()
+        .then_some(building.candles)
+        .unwrap_or(0.0);
+    let food_luxury_stock = tick
+        .marketplace_stall_workplace_id(ctx, building, ResidenceNeedKind::Luxury)
+        .is_some()
+        .then_some(building.wine + building.honey)
+        .unwrap_or(0.0);
+    candle_stock + food_luxury_stock
+}
+
+fn withdraw_staffed_market_luxury(
+    ctx: &ReducerContext,
+    tick: &SimTickContext,
+    source: &mut Building,
+    amount: f64,
+) -> f64 {
+    let mut remaining = amount.max(0.0);
+    let mut withdrawn = 0.0;
+    if tick
+        .marketplace_stall_workplace_id_for_commodity(ctx, source, CommodityKind::Candles)
+        .is_some()
+    {
+        let candles = withdraw_building_commodity(source, CommodityKind::Candles, remaining);
+        withdrawn += candles;
+        remaining = (remaining - candles).max(0.0);
+    }
+    if remaining > 1e-9
+        && tick
+            .marketplace_stall_workplace_id(ctx, source, ResidenceNeedKind::Luxury)
+            .is_some()
+    {
+        for commodity in [CommodityKind::Wine, CommodityKind::Honey] {
+            let used = withdraw_building_commodity(source, commodity, remaining);
+            withdrawn += used;
+            remaining = (remaining - used).max(0.0);
+            if remaining <= 1e-9 {
+                break;
+            }
+        }
+    }
+    withdrawn
 }
 
 #[cfg(test)]

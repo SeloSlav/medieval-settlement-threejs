@@ -27,7 +27,8 @@ test('new-world setup moves backward and forward without losing choices', async 
   await expect(tooltip).toBeVisible();
   await expect(tooltip).toContainText('Vuk I. Frankapan');
   await expect(tooltip).toContainText('Lord of Bosiljevo, Ribnik, and Novigrad');
-  await expect(tooltip).toContainText('before 1521–1546 · legacy');
+  await expect(tooltip).toContainText('before 1521–1546');
+  await expect(tooltip).toContainText('legacy');
   await page.locator('[data-noble-name]').fill('House of the Silver Pine');
   await page.getByRole('button', { name: /Continue to Heraldry/ }).click();
 

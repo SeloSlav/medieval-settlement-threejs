@@ -9,7 +9,9 @@ import {
 import {
   MUSIC_TRACKS,
   STARTUP_MUSIC_CLIP,
+  type MusicTrackId,
 } from '../src/audio/audioCatalog.ts';
+import { SoundtrackAudio } from '../src/audio/SoundtrackAudio.ts';
 import {
   isSoundtrackActive,
   setExternalSoundtrackActive,
@@ -186,6 +188,13 @@ assert.strictEqual(
   MUSIC_TRACKS[STARTUP_MUSIC_TRACK_ID],
   STARTUP_MUSIC_CLIP,
   'the planning theme must remain available to the gameplay soundtrack',
+);
+const soundtrackAfterPlanning = new SoundtrackAudio();
+soundtrackAfterPlanning.markTrackPlayed(STARTUP_MUSIC_TRACK_ID);
+assert.notEqual(
+  (soundtrackAfterPlanning as unknown as { pickTrack: () => MusicTrackId }).pickTrack(),
+  STARTUP_MUSIC_TRACK_ID,
+  'gameplay must not immediately repeat the planning cue',
 );
 setSoundtrackActive(false);
 setExternalSoundtrackActive(true);
@@ -367,6 +376,16 @@ assert.ok(startupIndex >= 0 && bootstrapIndex > startupIndex, 'music must start 
 assert.match(appSource, /deferGameplayMusic: this\.startupMusic !== null/);
 assert.match(appSource, /onFirstPlayable: \(\) => this\.handoffStartupMusic\(\)/);
 assert.match(appSource, /markMusicTrackPlayed\(STARTUP_MUSIC_TRACK_ID\)/);
+const handoffSource = appSource.slice(appSource.indexOf('private handoffStartupMusic'));
+const markPlayedIndex = handoffSource.indexOf('markMusicTrackPlayed(STARTUP_MUSIC_TRACK_ID)');
+const gameplayActivationIndex = handoffSource.indexOf(
+  'setGameplayMusicActive(true)',
+  markPlayedIndex,
+);
+assert.ok(
+  markPlayedIndex >= 0 && gameplayActivationIndex > markPlayedIndex,
+  'the planning cue must be marked before gameplay music is activated',
+);
 assert.match(appSource, /this\.startupMusic\?\.setGameAudioEnabled\(enabled\)/);
 assert.match(appSource, /this\.startupMusic\?\.setMusicEnabled\(enabled\)/);
 assert.match(appSource, /this\.startupMusic\?\.setMusicVolume\(volume\)/);

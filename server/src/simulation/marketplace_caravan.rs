@@ -480,6 +480,7 @@ pub fn step_marketplace_caravans(
                             || building.cider > 1e-6
                             || building.pear_cider > 1e-6
                             || building.honey > 1e-6
+                            || building.candles > 1e-6
                             || building.wine > 1e-6
                             || building.cloth > 1e-6
                             || building.shoes > 1e-6

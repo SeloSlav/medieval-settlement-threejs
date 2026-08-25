@@ -334,7 +334,7 @@ assert.match(
 );
 assert.match(
   livestockInspectorSource,
-  /data-land-parcel="pasture"[\s\S]{0,180}<span>\$\{pastureLabel\}<\/span><\/button>/,
+  /data-land-parcel="pasture"[\s\S]{0,600}<span>\$\{pastureLabel\}<\/span><\/button>/,
   'one farmstead must always be able to fence additional independent pastures',
 );
 assert.match(
@@ -374,7 +374,7 @@ assert.match(
 );
 assert.match(
   resourceInspectorSource,
-  /selectedTarget\?\.kind === 'pasture'[\s\S]{0,900}onTradeLivestock\?\.\([\s\S]{0,80}selectedTarget\.pasture\.id,[\s\S]{0,80}headDelta/,
+  /selectedTarget\?\.kind === 'pasture'[\s\S]{0,1800}onTradeLivestock\?\.\([\s\S]{0,80}selectedTarget\.pasture\.id,[\s\S]{0,80}headDelta/,
   'pasture stocking must forward the selected parcel id rather than the linked farmstead id',
 );
 assert.match(inspectorActionsSource, /onTradeLivestock: async \(pastureId, headDelta\)[\s\S]{0,260}store\.tradeLivestock\(pastureId, headDelta\)/);
@@ -536,7 +536,7 @@ assert.match(
 );
 assert.match(
   serverLivestock,
-  /herd\.supplied_capacity[\s\S]{0,120}\.max\(herd\.pasture_capacity\.min\(f64::from\(herd\.head_count\)\)\)/,
+  /parcel\.herd\.supplied_capacity = parcel[\s\S]{0,180}\.supplied_capacity[\s\S]{0,80}\.max\([\s\S]{0,180}\.pasture_capacity[\s\S]{0,100}\.min\(f64::from\(parcel\.herd\.head_count\)\)/,
   'fixed-cycle feed and water support must survive intervening simulation substeps',
 );
 assert.match(
@@ -561,8 +561,8 @@ assert.doesNotMatch(
 );
 assert.match(
   serverLivestock,
-  /let requested_water[\s\S]{0,300}CommodityKind::Water[\s\S]{0,240}let water_supported_heads[\s\S]{0,180}let care_supported_heads/,
-  'each husbandry cycle must consume trough water before resolving staffed care',
+  /fn allocate_holding_cycle_inputs[\s\S]{0,1800}water_demands\.push[\s\S]{0,900}fair_whole_allocations\(whole_units\(building\.water\), &water_demands\)[\s\S]{0,400}withdraw_building_commodity\(building, CommodityKind::Water, water_used\)[\s\S]{0,500}input\.water_units = water_allocations\[index\]/,
+  'shared trough water must be fairly allocated to pasture herds before their cycles resolve care',
 );
 assert.match(
   serverLivestock,
