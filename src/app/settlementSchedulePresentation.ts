@@ -253,6 +253,7 @@ export class SettlementPresentationController {
         && schedule.sabbathObservance
         && schedule.staffedChapel,
       schedule.holiday,
+      householdPresentationClock,
     );
     targets.ambientAudio?.syncSettlementSchedule(
       schedule,
