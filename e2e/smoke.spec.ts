@@ -316,6 +316,22 @@ test('connects, places a reforester, and updates settlement HUD timber', async (
   await expect(timberHud).toHaveText(String(timberBefore - REFORESTER_TIMBER_COST), { timeout: SYNC_TIMEOUT_MS });
   const totalsMode = page.locator('button[data-resource-totals-mode]');
   const tooltip = page.locator('#ui-tooltip');
+  await expect(page.locator('[data-resource="timber"]')).toHaveAttribute(
+    'data-tooltip-title',
+    'Timber',
+  );
+  await expect(page.locator('[data-resource="stone"]')).toHaveAttribute(
+    'data-tooltip-title',
+    'Stone',
+  );
+  await expect(page.locator('[data-resource="water"]')).toHaveAttribute(
+    'data-tooltip-title',
+    'Water',
+  );
+  await expect(page.locator('[data-resource="gold"]')).toHaveAttribute(
+    'data-tooltip-title',
+    'Gold',
+  );
   const seasonStatus = page.locator('[data-season-status]');
   await expect(seasonStatus).toHaveCSS('background-image', /woodcut-sundial\.webp/);
   await expect(seasonStatus).toHaveAttribute('aria-label', /^Season almanac: /);
@@ -432,6 +448,8 @@ test('connects, places a reforester, and updates settlement HUD timber', async (
     'Available surplus',
   );
   await timberHud.hover();
+  await expect(tooltip.locator('.ui-tooltip__title')).toHaveText('Timber');
+  await expect(tooltip.locator('.ui-tooltip__amount-label')).toHaveText('Available surplus');
   await expect(foodStores).not.toHaveAttribute('open', '');
   await totalsMode.hover();
   await expect(tooltip.locator('.ui-tooltip__title')).toHaveText('Surplus goods (default)');
@@ -485,6 +503,9 @@ test('connects, places a reforester, and updates settlement HUD timber', async (
   await expect(tooltip.locator('.ui-tooltip__body')).toContainText(
     'All stored goods',
   );
+  await timberHud.hover();
+  await expect(tooltip.locator('.ui-tooltip__title')).toHaveText('Timber');
+  await expect(tooltip.locator('.ui-tooltip__amount-label')).toHaveText('Total stored');
   await expect(specialtyStores.locator('[data-specialty-stores-mode-label]')).toHaveText(
     'Total stored',
   );

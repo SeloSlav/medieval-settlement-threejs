@@ -280,6 +280,8 @@ export class ForestManager {
   setSnowCoverage(coverage: number): void {
     this.seedThreeForest?.setSnowCoverage(coverage);
     this.forestFloorIvy?.setSnowCoverage(coverage);
+    this.forestFloorNettles?.setSnowCoverage(coverage);
+    this.undergrowth?.setSnowCoverage(coverage);
   }
 
   setDistantCanopyCardsEnabled(enabled: boolean): void {

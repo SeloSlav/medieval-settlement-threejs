@@ -6,7 +6,11 @@ import {
   mix,
   normalMap,
   normalView,
+  normalWorldGeometry,
   normalize,
+  positionWorld,
+  sin,
+  smoothstep,
   texture,
   uniform,
   vec3,
@@ -84,6 +88,9 @@ type TslNode = {
   a: TslNode;
   rgb: TslNode;
   xyz: TslNode;
+  x: TslNode;
+  y: TslNode;
+  z: TslNode;
 };
 
 const tsl = {
@@ -92,7 +99,11 @@ const tsl = {
   mix: mix as (left: unknown, right: unknown, amount: unknown) => TslNode,
   normalMap: normalMap as (sample: unknown) => TslNode,
   normalView: normalView as unknown as TslNode,
+  normalWorldGeometry: normalWorldGeometry as unknown as TslNode,
   normalize: normalize as (value: unknown) => TslNode,
+  positionWorld: positionWorld as unknown as TslNode,
+  sin: sin as (value: unknown) => TslNode,
+  smoothstep: smoothstep as (low: unknown, high: unknown, value: unknown) => TslNode,
   texture: texture as (map: THREE.Texture) => TslNode,
   uniform: uniform as <T>(value: T) => { value: T } & TslNode,
   vec3: vec3 as (x: unknown, y?: unknown, z?: unknown) => TslNode,
@@ -157,6 +168,7 @@ export type ForestFloorNettleInstances = {
   setPlacementActive(placementIndex: number, active: boolean): boolean;
   refreshBlockedMask(isBlockedAt?: ForestFloorNettleBlocker): number;
   setDeciduousFoliage(presentation: DeciduousFoliagePresentation): boolean;
+  setSnowCoverage(coverage: number): boolean;
   updateCamera(cameraPosition: Pick<THREE.Vector3, 'x' | 'z'>, closeDetailVisible: boolean): boolean;
   commit(): void;
   dispose(): void;
@@ -208,6 +220,7 @@ export async function createForestFloorNettleInstances(
   });
   const placementVisible = placements.map(() => true);
   let streamDirty = true;
+  let seasonalDormancy = 0;
   let lastStreamX = Number.NaN;
   let lastStreamZ = Number.NaN;
   const streamMatrix = new THREE.Matrix4();
@@ -238,6 +251,7 @@ export async function createForestFloorNettleInstances(
       for (let sourceIndex = 0; sourceIndex < bucket.placements.length; sourceIndex++) {
         const placementIndex = bucket.placementIndices[sourceIndex]!;
         if (!placementVisible[placementIndex]) continue;
+        if (!isNettleSeasonallyRetained(placementIndex, seasonalDormancy)) continue;
         const placement = bucket.placements[sourceIndex]!;
         const dx = placement.x - cameraX;
         const dz = placement.z - cameraZ;
@@ -303,8 +317,19 @@ export async function createForestFloorNettleInstances(
       ));
     },
     setDeciduousFoliage(presentation): boolean {
-      const changed = setNettleSeason(foliageMaterial, presentation);
+      let changed = setNettleSeason(foliageMaterial, presentation);
       updateNettleStemSeason(branchMaterial, presentation);
+      const nextDormancy = clampSeasonAmount(presentation.dormancy);
+      if (Math.abs(seasonalDormancy - nextDormancy) > 1e-6) {
+        seasonalDormancy = nextDormancy;
+        streamDirty = true;
+        changed = true;
+      }
+      return changed;
+    },
+    setSnowCoverage(coverage): boolean {
+      let changed = setSeasonUniform(foliageMaterial, 'forestSnowCoverage', coverage);
+      changed = setSeasonUniform(branchMaterial, 'forestSnowCoverage', coverage) || changed;
       return changed;
     },
     updateCamera(cameraPosition, closeDetailVisible): boolean {
@@ -589,6 +614,7 @@ function createNettleFoliageMaterial(
   const spring = tsl.uniform(0);
   const autumn = tsl.uniform(0);
   const dormancy = tsl.uniform(0);
+  const snowCoverage = tsl.uniform(0);
   const value = texel.r.mul(0.2126)
     .add(texel.g.mul(0.7152))
     .add(texel.b.mul(0.0722));
@@ -601,12 +627,31 @@ function createNettleFoliageMaterial(
   let seasonal = tsl.mix(texel.rgb, springLeaf, spring.mul(0.58));
   seasonal = tsl.mix(seasonal, autumnLeaf, autumn);
   seasonal = tsl.mix(seasonal, dormantLeaf, dormancy.mul(0.86));
-  material.colorNode = seasonal as never;
-  material.opacityNode = texel.a as never;
+  const upwardExposure = tsl.smoothstep(
+    tsl.float(0.18),
+    tsl.float(0.84),
+    tsl.normalWorldGeometry.y,
+  );
+  const snowVariation = tsl.sin(
+    tsl.positionWorld.x.mul(0.81)
+      .add(tsl.positionWorld.z.mul(1.13)),
+  ).mul(0.12).add(0.88);
+  const snowAmount = snowCoverage
+    .mul(upwardExposure)
+    .mul(snowVariation)
+    .mul(0.58);
+  material.colorNode = tsl.mix(
+    seasonal,
+    tsl.vec3(0.92, 0.955, 0.98),
+    snowAmount,
+  ) as never;
+  const retain = tsl.float(1).sub(dormancy.mul(0.78));
+  material.opacityNode = texel.a.mul(retain) as never;
   const transmit = tsl.vec3(0.24, 0.43, 0.14);
   material.thicknessColorNode = tsl.texture(textures.translucency!).r
     .mul(transmit)
-    .mul(tsl.float(1).sub(dormancy.mul(0.68))) as never;
+    .mul(retain)
+    .mul(tsl.float(1).sub(snowAmount.mul(0.82))) as never;
   material.thicknessDistortionNode = tsl.uniform(0.3) as never;
   material.thicknessAmbientNode = tsl.uniform(0.026) as never;
   material.thicknessAttenuationNode = tsl.uniform(1) as never;
@@ -618,6 +663,7 @@ function createNettleFoliageMaterial(
   material.userData.forestSeasonalSpringFlush = spring;
   material.userData.forestSeasonalAutumnColor = autumn;
   material.userData.forestSeasonalDormancy = dormancy;
+  material.userData.forestSnowCoverage = snowCoverage;
   return material;
 }
 
@@ -636,6 +682,7 @@ function createNettleBranchMaterial(
     });
     material.normalScale.set(0.38, 0.38);
     applyRootedGeometryWebGLWind(material, 0.07);
+    applyNettleWebGLSnow(material);
     return material;
   }
   const material = new MeshStandardNodeMaterial() as unknown as THREE.MeshStandardMaterial & {
@@ -648,6 +695,7 @@ function createNettleBranchMaterial(
   material.roughness = 1;
   material.metalness = 0;
   material.positionNode = createRootedGeometryWindPosition(0.07) as never;
+  applyNettleNodeSnow(material, tsl.texture(textures.albedo).rgb);
   return material;
 }
 
@@ -698,10 +746,30 @@ function setNettleSeason(
 function setSeasonUniform(material: THREE.Material, key: string, amount: number): boolean {
   const target = material.userData[key] as { value: number } | undefined;
   if (!target) return false;
-  const next = THREE.MathUtils.clamp(Number.isFinite(amount) ? amount : 0, 0, 1);
+  const next = clampSeasonAmount(amount);
   if (target.value === next) return false;
   target.value = next;
   return true;
+}
+
+function clampSeasonAmount(amount: number): number {
+  return THREE.MathUtils.clamp(Number.isFinite(amount) ? amount : 0, 0, 1);
+}
+
+/**
+ * Frost removes most above-ground nettle growth while retaining a stable,
+ * sparse cohort of dry stalks. The source placement index supplies the
+ * dropout pattern, so the same stems disappear in color and shadow passes
+ * without another instance attribute or a seasonal buffer rebuild.
+ */
+function isNettleSeasonallyRetained(
+  placementIndex: number,
+  dormancy: number,
+): boolean {
+  const onset = THREE.MathUtils.smoothstep(clampSeasonAmount(dormancy), 0.34, 1);
+  const retention = THREE.MathUtils.lerp(1, 0.14, onset);
+  const hash = Math.imul((placementIndex + 1) >>> 0, 0x9e37_79b1) >>> 0;
+  return hash / 0x1_0000_0000 < retention;
 }
 
 function updateNettleStemSeason(

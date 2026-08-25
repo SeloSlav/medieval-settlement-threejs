@@ -1009,9 +1009,6 @@ export class BuildToolbar {
     if (!allowed) this.buildMenuOutsideSecondaryClick.cancel();
     if (allowed) {
       this.beginBrowsingBuildMenu();
-      // B always begins from the civic palette, even if a prior browsing session
-      // ended in a specialized category.
-      this.setBuildMenuCategory(DEFAULT_BUILD_MENU_CATEGORY, true);
       hydrateBuildMenuImages(this.buildMenu);
     }
     this.buildMenuOpen = allowed;

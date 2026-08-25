@@ -89,7 +89,7 @@ const SETTLEMENT_HUD_HTML = `
       </div>
       <div class="noble-hud__identity">
         <strong data-noble-hud-name></strong>
-        <div class="settlement-hud__stat settlement-hud__stat--gold noble-hud__gold" tabindex="0" data-resource="gold" data-tooltip-title="Treasury gold" data-tooltip="Spendable gold in settlement lockboxes and the Town Hall treasury.">
+        <div class="settlement-hud__stat settlement-hud__stat--gold noble-hud__gold" tabindex="0" data-resource="gold" data-tooltip-title="Gold" data-tooltip="Spendable gold in settlement lockboxes and the Town Hall treasury.">
           <span class="settlement-hud__label">Treasury</span>
           <strong class="settlement-hud__value" data-stockpile="gold">0</strong>
           <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="gold" hidden></span>
@@ -331,12 +331,12 @@ const SETTLEMENT_HUD_HTML = `
           <p class="settlement-hud__migration-line" data-migration-label>Place the starter camp to found the settlement.</p>
         </section>
       </div>
-      <div class="settlement-hud__stat" tabindex="0" data-resource="timber" data-tooltip-title="Stored timber" data-tooltip="Unreserved timber in yards, mills, and depots.">
+      <div class="settlement-hud__stat" tabindex="0" data-resource="timber" data-tooltip-title="Timber" data-tooltip="Unreserved timber in yards, mills, and depots.">
         <span class="settlement-hud__label">Timber</span>
         <strong class="settlement-hud__value" data-stockpile="timber">0</strong>
         <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="timber" hidden></span>
       </div>
-      <div class="settlement-hud__stat" tabindex="0" data-resource="stone" data-tooltip-title="Stored stone" data-tooltip="Unreserved stone in quarry yards and depots.">
+      <div class="settlement-hud__stat" tabindex="0" data-resource="stone" data-tooltip-title="Stone" data-tooltip="Unreserved stone in quarry yards and depots.">
         <span class="settlement-hud__label">Stone</span>
         <strong class="settlement-hud__value" data-stockpile="stone">0</strong>
         <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="stone" hidden></span>
@@ -375,7 +375,7 @@ const SETTLEMENT_HUD_HTML = `
           </div>
         </div>
       </details>
-      <div class="settlement-hud__stat settlement-hud__stat--water" tabindex="0" data-resource="water" data-tooltip-title="Stored water" data-tooltip="Water in wells, workplaces, and homes.">
+      <div class="settlement-hud__stat settlement-hud__stat--water" tabindex="0" data-resource="water" data-tooltip-title="Water" data-tooltip="Water in wells, workplaces, and homes.">
         <span class="settlement-hud__label">Water</span>
         <strong class="settlement-hud__value" data-stockpile="water">0</strong>
         <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="water" hidden></span>

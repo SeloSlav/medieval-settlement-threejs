@@ -8,9 +8,12 @@ import {
   mix,
   normalMap,
   normalView,
+  normalWorldGeometry,
   normalize,
   positionLocal,
+  positionWorld,
   sin,
+  smoothstep,
   texture,
   uniform,
   vec3,
@@ -82,9 +85,12 @@ const tsl = {
   modelWorldMatrix: modelWorldMatrix as TslNode,
   normalMap: normalMap as (sample: unknown) => TslNode,
   normalView: normalView as TslNode,
+  normalWorldGeometry: normalWorldGeometry as TslNode,
   normalize: normalize as (value: unknown) => TslNode,
   positionLocal: positionLocal as TslNode,
+  positionWorld: positionWorld as TslNode,
   sin: sin as (value: unknown) => TslNode,
+  smoothstep: smoothstep as (low: unknown, high: unknown, value: unknown) => TslNode,
   texture: texture as (map: THREE.Texture) => TslNode,
   uniform: uniform as <T>(value: T) => { value: T } & TslNode,
   vec3: vec3 as (x: unknown, y?: unknown, z?: unknown) => TslNode,
@@ -188,6 +194,7 @@ export type UndergrowthInstances = {
   buckets: Record<UndergrowthKind, UndergrowthBucket[]>;
   stats: UndergrowthStats;
   setDeciduousFoliage: (presentation: DeciduousFoliagePresentation) => boolean;
+  setSnowCoverage: (coverage: number) => boolean;
 };
 
 export type UndergrowthStats = {
@@ -286,7 +293,13 @@ export async function createUndergrowthMaterials(
   return {
     bush: [
       createUndergrowthBranchMaterial('SeedThree bilberry woody stems', bushBranch, useNodeMaterials),
-      createUndergrowthCardMaterial('SeedThree bilberry sprays', bushTextures, useNodeMaterials, [0.3, 0.44, 0.16]),
+      createUndergrowthCardMaterial(
+        'SeedThree bilberry sprays',
+        bushTextures,
+        useNodeMaterials,
+        [0.3, 0.44, 0.16],
+        { seasonalRole: 'bilberry' },
+      ),
     ],
     fern: [
       createUndergrowthCardMaterial(
@@ -296,6 +309,7 @@ export async function createUndergrowthMaterials(
         [0.26, 0.5, 0.18],
         {
           albedoTint: [0.58, 0.66, 0.52],
+          seasonalRole: 'fern',
           transmissionAmbient: 0,
           transmissionAlbedoWeight: 1,
           transmissionScale: 0.9,
@@ -304,7 +318,13 @@ export async function createUndergrowthMaterials(
     ],
     juniper: [
       createUndergrowthBranchMaterial('SeedThree common juniper stems', juniperBranch, useNodeMaterials),
-      createUndergrowthCardMaterial('SeedThree common juniper needle-only sprays', juniperTextures, useNodeMaterials, [0.22, 0.36, 0.14]),
+      createUndergrowthCardMaterial(
+        'SeedThree common juniper needle-only sprays',
+        juniperTextures,
+        useNodeMaterials,
+        [0.22, 0.36, 0.14],
+        { seasonalRole: 'juniper' },
+      ),
     ],
     dogwood: [
       createUndergrowthBranchMaterial(
@@ -319,7 +339,7 @@ export async function createUndergrowthMaterials(
         useNodeMaterials,
         [0.27, 0.43, 0.15],
         {
-          deciduousDogwood: true,
+          seasonalRole: 'dogwood',
           webglWindAmplitude: DOGWOOD_ROOT_SWAY_AMPLITUDE,
           leafFlutterAmplitude: DOGWOOD_LEAF_FLUTTER_AMPLITUDE,
         },
@@ -518,12 +538,23 @@ export function buildUndergrowthInstances(
     stats,
     setDeciduousFoliage(presentation): boolean {
       const dormancy = clampSeasonAmount(presentation.dormancy);
-      let changed = setDogwoodSeason(materials.dogwood[1], presentation);
-      changed = setDogwoodShadowDormancy(buckets.dogwood, dormancy) || changed;
-      const leafy = dormancy < 1;
-      if (materials.dogwood[1].visible !== leafy) {
-        materials.dogwood[1].visible = leafy;
-        changed = true;
+      let changed = false;
+      for (const kind of UNDERGROWTH_KINDS) {
+        changed = setUndergrowthSeason(materials[kind].at(-1)!, presentation) || changed;
+      }
+      changed = setUndergrowthShadowDormancy(buckets.dogwood, dormancy, 0.16) || changed;
+      changed = setUndergrowthShadowDormancy(buckets.bush, dormancy, 0.28) || changed;
+      changed = setUndergrowthShadowDormancy(buckets.fern, dormancy, 0.42) || changed;
+      changed = setSeasonalFoliageVisibility(materials.dogwood[1], dormancy < 1) || changed;
+      changed = setSeasonalFoliageVisibility(materials.bush[1], dormancy < 1) || changed;
+      return changed;
+    },
+    setSnowCoverage(coverage): boolean {
+      let changed = false;
+      for (const kind of UNDERGROWTH_KINDS) {
+        for (const material of materials[kind]) {
+          changed = setSeasonUniform(material, 'forestSnowCoverage', coverage) || changed;
+        }
       }
       return changed;
     },
@@ -800,12 +831,68 @@ function sampleUndergrowthTint(kind: UndergrowthKind, rng: () => number): THREE.
 
 type UndergrowthMaterialOptions = {
   albedoTint?: [number, number, number];
-  deciduousDogwood?: boolean;
+  seasonalRole?: UndergrowthSeasonalRole;
   webglWindAmplitude?: number;
   leafFlutterAmplitude?: number;
   transmissionAmbient?: number;
   transmissionAlbedoWeight?: number;
   transmissionScale?: number;
+};
+
+type UndergrowthSeasonalRole = 'bilberry' | 'fern' | 'juniper' | 'dogwood';
+
+type UndergrowthSeasonalPalette = {
+  spring: readonly [number, number, number];
+  autumn: readonly [number, number, number];
+  dormant: readonly [number, number, number];
+  springBlend: number;
+  autumnBlend: number;
+  dormantBlend: number;
+  winterRetention: number;
+  snowBlend: number;
+};
+
+const UNDERGROWTH_SEASONAL_PALETTES: Readonly<Record<UndergrowthSeasonalRole, UndergrowthSeasonalPalette>> = {
+  bilberry: {
+    spring: [0.59, 0.94, 0.24],
+    autumn: [0.74, 0.13, 0.035],
+    dormant: [0.31, 0.19, 0.105],
+    springBlend: 0.54,
+    autumnBlend: 0.92,
+    dormantBlend: 0.82,
+    winterRetention: 0,
+    snowBlend: 0.56,
+  },
+  fern: {
+    spring: [0.55, 0.9, 0.22],
+    autumn: [0.78, 0.38, 0.055],
+    dormant: [0.43, 0.27, 0.12],
+    springBlend: 0.52,
+    autumnBlend: 0.82,
+    dormantBlend: 0.92,
+    winterRetention: 0.22,
+    snowBlend: 0.62,
+  },
+  juniper: {
+    spring: [0.28, 0.46, 0.17],
+    autumn: [0.2, 0.32, 0.12],
+    dormant: [0.13, 0.24, 0.13],
+    springBlend: 0.2,
+    autumnBlend: 0.08,
+    dormantBlend: 0.26,
+    winterRetention: 1,
+    snowBlend: 0.64,
+  },
+  dogwood: {
+    spring: [0.66, 0.96, 0.24],
+    autumn: [0.79, 0.075, 0.028],
+    dormant: [0.42, 0.22, 0.1],
+    springBlend: 0.58,
+    autumnBlend: 1,
+    dormantBlend: 0.72,
+    winterRetention: 0,
+    snowBlend: 0.56,
+  },
 };
 
 function createUndergrowthCardMaterial(
@@ -839,7 +926,14 @@ function createUndergrowthCardMaterial(
         options.leafFlutterAmplitude,
       );
     }
-    if (options.deciduousDogwood) applyDogwoodWebGLSeason(material);
+    if (options.seasonalRole) {
+      applyUndergrowthWebGLSeasonAndSnow(
+        material,
+        UNDERGROWTH_SEASONAL_PALETTES[options.seasonalRole],
+      );
+    } else {
+      applyUndergrowthWebGLSnow(material);
+    }
     return material;
   }
 
@@ -876,9 +970,10 @@ function createUndergrowthCardMaterial(
   material.thicknessScaleNode = tsl.uniform(options.transmissionScale ?? 1.5);
   // NodeMaterial applies InstancedMesh.instanceColor after colorNode. Keeping
   // tint on that built-in path avoids a duplicate per-instance vertex buffer.
-  material.colorNode = options.albedoTint === undefined
-    ? texel
-    : tsl.vec4(texel.rgb.mul(albedoTintNode), texel.a);
+  const baseSurface = options.albedoTint === undefined
+    ? texel.rgb
+    : texel.rgb.mul(albedoTintNode);
+  material.colorNode = tsl.vec4(baseSurface, texel.a);
   material.positionNode = options.leafFlutterAmplitude === undefined
     ? createRootedGeometryWindPosition(options.webglWindAmplitude ?? 0.1)
     : createRootedDogwoodFoliageWindPosition(
@@ -886,27 +981,60 @@ function createUndergrowthCardMaterial(
       options.leafFlutterAmplitude,
     );
 
-  if (options.deciduousDogwood) {
+  if (options.seasonalRole) {
+    const palette = UNDERGROWTH_SEASONAL_PALETTES[options.seasonalRole];
     const spring = tsl.uniform(0);
     const autumn = tsl.uniform(0);
     const dormancy = tsl.uniform(0);
+    const snowCoverage = tsl.uniform(0);
     const value = texel.r.mul(0.2126)
       .add(texel.rgb.y.mul(0.7152))
       .add(texel.rgb.z.mul(0.0722));
-    const springLeaf = tsl.vec3(0.66, 0.96, 0.24)
+    const springLeaf = tsl.vec3(...palette.spring)
       .mul(value.mul(1.34)).clamp(0, 1);
-    const autumnLeaf = tsl.vec3(0.79, 0.075, 0.028)
+    const autumnLeaf = tsl.vec3(...palette.autumn)
       .mul(value.mul(1.62)).clamp(0, 1);
-    let seasonal = tsl.mix(texel.rgb, springLeaf, spring.mul(0.58));
-    seasonal = tsl.mix(seasonal, autumnLeaf, autumn);
-    const retain = tsl.float(1).sub(dormancy);
-    material.colorNode = seasonal;
+    const dormantLeaf = tsl.vec3(...palette.dormant)
+      .mul(value.mul(1.68)).clamp(0, 1);
+    let seasonal = tsl.mix(
+      baseSurface,
+      springLeaf,
+      spring.mul(palette.springBlend),
+    );
+    seasonal = tsl.mix(seasonal, autumnLeaf, autumn.mul(palette.autumnBlend));
+    seasonal = tsl.mix(seasonal, dormantLeaf, dormancy.mul(palette.dormantBlend));
+    const retain = tsl.float(1).sub(
+      dormancy.mul(1 - palette.winterRetention),
+    );
+    const upwardExposure = tsl.smoothstep(
+      tsl.float(0.18),
+      tsl.float(0.84),
+      tsl.normalWorldGeometry.y,
+    );
+    const snowVariation = tsl.sin(
+      tsl.positionWorld.x.mul(0.81)
+        .add(tsl.positionWorld.z.mul(1.13)),
+    ).mul(0.12).add(0.88);
+    const snowAmount = snowCoverage
+      .mul(upwardExposure)
+      .mul(snowVariation)
+      .mul(palette.snowBlend);
+    const snowColor = tsl.vec3(0.92, 0.955, 0.98);
+    material.colorNode = tsl.vec4(
+      tsl.mix(seasonal, snowColor, snowAmount),
+      texel.a,
+    );
     material.opacityNode = texel.a.mul(retain) as never;
-    thicknessColor = thicknessColor.mul(retain);
+    thicknessColor = thicknessColor
+      .mul(retain)
+      .mul(tsl.float(1).sub(snowAmount.mul(0.82)));
     material.thicknessColorNode = thicknessColor;
     material.userData.forestSeasonalSpringFlush = spring;
     material.userData.forestSeasonalAutumnColor = autumn;
     material.userData.forestSeasonalDormancy = dormancy;
+    material.userData.forestSnowCoverage = snowCoverage;
+  } else {
+    applyUndergrowthNodeSnow(material, baseSurface, texel.a);
   }
 
   const upView = tsl.cameraViewMatrix.mul(tsl.vec4(0, 1, 0, 0)).xyz;
@@ -934,6 +1062,7 @@ function createUndergrowthBranchMaterial(
     if (options.webglWindAmplitude !== undefined) {
       applyUndergrowthWebGLWind(material, options.webglWindAmplitude);
     }
+    applyUndergrowthWebGLSnow(material);
     return material;
   }
   const material = new MeshStandardNodeMaterial() as unknown as THREE.MeshStandardMaterial & {
@@ -946,6 +1075,11 @@ function createUndergrowthBranchMaterial(
   material.roughness = textures.roughness ? 1 : 0.94;
   material.metalness = 0;
   material.positionNode = createRootedGeometryWindPosition(options.webglWindAmplitude ?? 0.075) as never;
+  applyUndergrowthNodeSnow(
+    material,
+    tsl.texture(textures.albedo).rgb,
+    tsl.float(1),
+  );
   return material;
 }
 
@@ -1010,39 +1144,199 @@ transformed.z += aWindVec.z * undergrowthLeafAlong
   material.needsUpdate = true;
 }
 
-function applyDogwoodWebGLSeason(material: THREE.MeshStandardMaterial): void {
+function applyUndergrowthNodeSnow(
+  material: THREE.Material,
+  baseSurface: TslNode,
+  baseAlpha: TslNode,
+): void {
+  const target = material as THREE.Material & {
+    colorNode?: unknown;
+    thicknessColorNode?: TslNode;
+  };
+  const snowCoverage = tsl.uniform(0);
+  const upwardExposure = tsl.smoothstep(
+    tsl.float(0.18),
+    tsl.float(0.84),
+    tsl.normalWorldGeometry.y,
+  );
+  const snowVariation = tsl.sin(
+    tsl.positionWorld.x.mul(0.81)
+      .add(tsl.positionWorld.z.mul(1.13)),
+  ).mul(0.12).add(0.88);
+  const snowAmount = snowCoverage
+    .mul(upwardExposure)
+    .mul(snowVariation)
+    .mul(0.58);
+  target.colorNode = tsl.vec4(
+    tsl.mix(baseSurface, tsl.vec3(0.92, 0.955, 0.98), snowAmount),
+    baseAlpha,
+  );
+  if (target.thicknessColorNode) {
+    target.thicknessColorNode = target.thicknessColorNode.mul(
+      tsl.float(1).sub(snowAmount.mul(0.82)),
+    );
+  }
+  material.userData.forestSnowCoverage = snowCoverage;
+}
+
+function applyUndergrowthWebGLSeasonAndSnow(
+  material: THREE.MeshStandardMaterial,
+  palette: UndergrowthSeasonalPalette,
+): void {
   const spring = { value: 0 };
   const autumn = { value: 0 };
   const dormancy = { value: 0 };
+  const snowCoverage = { value: 0 };
   material.userData.forestSeasonalSpringFlush = spring;
   material.userData.forestSeasonalAutumnColor = autumn;
   material.userData.forestSeasonalDormancy = dormancy;
-  chainMaterialShaderPatch(material, 'seedthree-dogwood-season-v1', (shader) => {
-    shader.uniforms.uDogwoodSpring = spring;
-    shader.uniforms.uDogwoodAutumn = autumn;
-    shader.uniforms.uDogwoodDormancy = dormancy;
+  material.userData.forestSnowCoverage = snowCoverage;
+  const paletteKey = [
+    ...palette.spring,
+    ...palette.autumn,
+    ...palette.dormant,
+    palette.springBlend,
+    palette.autumnBlend,
+    palette.dormantBlend,
+    palette.winterRetention,
+    palette.snowBlend,
+  ].map((value) => value.toFixed(3)).join('-');
+  chainMaterialShaderPatch(material, `seedthree-undergrowth-season-snow-v2-${paletteKey}`, (shader) => {
+    shader.uniforms.uUndergrowthSpring = spring;
+    shader.uniforms.uUndergrowthAutumn = autumn;
+    shader.uniforms.uUndergrowthDormancy = dormancy;
+    shader.uniforms.uUndergrowthSnowCoverage = snowCoverage;
+    shader.vertexShader = shader.vertexShader.replace(
+      '#include <common>',
+      [
+        '#include <common>',
+        'varying float vUndergrowthSnowExposure;',
+        'varying vec2 vUndergrowthSnowWorldXZ;',
+      ].join('\n'),
+    );
+    shader.vertexShader = shader.vertexShader.replace(
+      '#include <defaultnormal_vertex>',
+      [
+        '#include <defaultnormal_vertex>',
+        'vec3 undergrowthSnowWorldNormal = normalize(',
+        '  inverseTransformDirection( transformedNormal, viewMatrix )',
+        ');',
+        'vUndergrowthSnowExposure = smoothstep( 0.18, 0.84, undergrowthSnowWorldNormal.y );',
+      ].join('\n'),
+    );
+    shader.vertexShader = shader.vertexShader.replace(
+      '#include <project_vertex>',
+      [
+        'vec4 undergrowthSnowObjectPosition = vec4( transformed, 1.0 );',
+        '#ifdef USE_INSTANCING',
+        'undergrowthSnowObjectPosition = instanceMatrix * undergrowthSnowObjectPosition;',
+        '#endif',
+        'vUndergrowthSnowWorldXZ = ( modelMatrix * undergrowthSnowObjectPosition ).xz;',
+        '#include <project_vertex>',
+      ].join('\n'),
+    );
     shader.fragmentShader = shader.fragmentShader.replace(
       '#include <common>',
-      `#include <common>
-uniform float uDogwoodSpring;
-uniform float uDogwoodAutumn;
-uniform float uDogwoodDormancy;`,
+      [
+        '#include <common>',
+        'uniform float uUndergrowthSpring;',
+        'uniform float uUndergrowthAutumn;',
+        'uniform float uUndergrowthDormancy;',
+        'uniform float uUndergrowthSnowCoverage;',
+        'varying float vUndergrowthSnowExposure;',
+        'varying vec2 vUndergrowthSnowWorldXZ;',
+      ].join('\n'),
     );
     shader.fragmentShader = shader.fragmentShader.replace(
       '#include <map_fragment>',
-      `#include <map_fragment>
-float dogwoodValue = dot( diffuseColor.rgb, vec3( 0.2126, 0.7152, 0.0722 ) );
-vec3 dogwoodSpring = clamp( vec3( 0.66, 0.96, 0.24 ) * dogwoodValue * 1.34, 0.0, 1.0 );
-vec3 dogwoodAutumn = clamp( vec3( 0.79, 0.075, 0.028 ) * dogwoodValue * 1.62, 0.0, 1.0 );
-diffuseColor.rgb = mix( diffuseColor.rgb, dogwoodSpring, uDogwoodSpring * 0.58 );
-diffuseColor.rgb = mix( diffuseColor.rgb, dogwoodAutumn, uDogwoodAutumn );
-diffuseColor.a *= 1.0 - uDogwoodDormancy;`,
+      [
+        '#include <map_fragment>',
+        'float undergrowthValue = dot( diffuseColor.rgb, vec3( 0.2126, 0.7152, 0.0722 ) );',
+        `vec3 undergrowthSpring = clamp( vec3( ${palette.spring.join(', ')} ) * undergrowthValue * 1.34, 0.0, 1.0 );`,
+        `vec3 undergrowthAutumn = clamp( vec3( ${palette.autumn.join(', ')} ) * undergrowthValue * 1.62, 0.0, 1.0 );`,
+        `vec3 undergrowthDormant = clamp( vec3( ${palette.dormant.join(', ')} ) * undergrowthValue * 1.68, 0.0, 1.0 );`,
+        `diffuseColor.rgb = mix( diffuseColor.rgb, undergrowthSpring, uUndergrowthSpring * ${palette.springBlend.toFixed(3)} );`,
+        `diffuseColor.rgb = mix( diffuseColor.rgb, undergrowthAutumn, uUndergrowthAutumn * ${palette.autumnBlend.toFixed(3)} );`,
+        `diffuseColor.rgb = mix( diffuseColor.rgb, undergrowthDormant, uUndergrowthDormancy * ${palette.dormantBlend.toFixed(3)} );`,
+        `diffuseColor.a *= 1.0 - uUndergrowthDormancy * ${(1 - palette.winterRetention).toFixed(3)};`,
+      ].join('\n'),
+    );
+    shader.fragmentShader = shader.fragmentShader.replace(
+      '#include <color_fragment>',
+      [
+        '#include <color_fragment>',
+        'float undergrowthSnowVariation = sin(',
+        '  vUndergrowthSnowWorldXZ.x * 0.81 + vUndergrowthSnowWorldXZ.y * 1.13',
+        ') * 0.12 + 0.88;',
+        'float undergrowthSnowAmount = uUndergrowthSnowCoverage',
+        `  * vUndergrowthSnowExposure * undergrowthSnowVariation * ${palette.snowBlend.toFixed(3)};`,
+        'diffuseColor.rgb = mix( diffuseColor.rgb, vec3( 0.92, 0.955, 0.98 ), undergrowthSnowAmount );',
+      ].join('\n'),
     );
   });
   material.needsUpdate = true;
 }
 
-function setDogwoodSeason(
+function applyUndergrowthWebGLSnow(material: THREE.MeshStandardMaterial): void {
+  const snowCoverage = { value: 0 };
+  material.userData.forestSnowCoverage = snowCoverage;
+  chainMaterialShaderPatch(material, 'seedthree-undergrowth-snow-v1', (shader) => {
+    shader.uniforms.uUndergrowthSnowCoverage = snowCoverage;
+    shader.vertexShader = shader.vertexShader.replace(
+      '#include <common>',
+      [
+        '#include <common>',
+        'varying float vUndergrowthSnowExposure;',
+        'varying vec2 vUndergrowthSnowWorldXZ;',
+      ].join('\n'),
+    );
+    shader.vertexShader = shader.vertexShader.replace(
+      '#include <defaultnormal_vertex>',
+      [
+        '#include <defaultnormal_vertex>',
+        'vec3 undergrowthSnowWorldNormal = normalize(',
+        '  inverseTransformDirection( transformedNormal, viewMatrix )',
+        ');',
+        'vUndergrowthSnowExposure = smoothstep( 0.18, 0.84, undergrowthSnowWorldNormal.y );',
+      ].join('\n'),
+    );
+    shader.vertexShader = shader.vertexShader.replace(
+      '#include <project_vertex>',
+      [
+        'vec4 undergrowthSnowObjectPosition = vec4( transformed, 1.0 );',
+        '#ifdef USE_INSTANCING',
+        'undergrowthSnowObjectPosition = instanceMatrix * undergrowthSnowObjectPosition;',
+        '#endif',
+        'vUndergrowthSnowWorldXZ = ( modelMatrix * undergrowthSnowObjectPosition ).xz;',
+        '#include <project_vertex>',
+      ].join('\n'),
+    );
+    shader.fragmentShader = shader.fragmentShader.replace(
+      '#include <common>',
+      [
+        '#include <common>',
+        'uniform float uUndergrowthSnowCoverage;',
+        'varying float vUndergrowthSnowExposure;',
+        'varying vec2 vUndergrowthSnowWorldXZ;',
+      ].join('\n'),
+    );
+    shader.fragmentShader = shader.fragmentShader.replace(
+      '#include <color_fragment>',
+      [
+        '#include <color_fragment>',
+        'float undergrowthSnowVariation = sin(',
+        '  vUndergrowthSnowWorldXZ.x * 0.81 + vUndergrowthSnowWorldXZ.y * 1.13',
+        ') * 0.12 + 0.88;',
+        'float undergrowthSnowAmount = uUndergrowthSnowCoverage',
+        '  * vUndergrowthSnowExposure * undergrowthSnowVariation * 0.58;',
+        'diffuseColor.rgb = mix( diffuseColor.rgb, vec3( 0.92, 0.955, 0.98 ), undergrowthSnowAmount );',
+      ].join('\n'),
+    );
+  });
+  material.needsUpdate = true;
+}
+
+function setUndergrowthSeason(
   material: THREE.Material,
   presentation: DeciduousFoliagePresentation,
 ): boolean {
@@ -1053,25 +1347,35 @@ function setDogwoodSeason(
   return changed;
 }
 
-function setDogwoodShadowDormancy(
+function setSeasonalFoliageVisibility(
+  material: THREE.Material,
+  visible: boolean,
+): boolean {
+  if (material.visible === visible) return false;
+  material.visible = visible;
+  return true;
+}
+
+function setUndergrowthShadowDormancy(
   buckets: ReadonlyArray<UndergrowthBucket>,
   dormancy: number,
+  winterWidth: number,
 ): boolean {
-  const width = THREE.MathUtils.lerp(1, 0.16, dormancy);
+  const width = THREE.MathUtils.lerp(1, winterWidth, dormancy);
   let changed = false;
   for (const bucket of buckets) {
     const geometry = bucket.shadowMesh.geometry;
-    const previousWidth = Number(geometry.userData.dogwoodShadowWidth ?? 1);
+    const previousWidth = Number(geometry.userData.seasonalShadowWidth ?? 1);
     if (Math.abs(previousWidth - width) <= 1e-6) continue;
     const position = geometry.getAttribute('position') as THREE.BufferAttribute;
-    const base = geometry.userData.dogwoodShadowBasePositions as Float32Array | undefined;
+    const base = geometry.userData.seasonalShadowBasePositions as Float32Array | undefined;
     if (!base || base.length !== position.array.length) continue;
     for (let index = 0; index < position.count; index++) {
       const offset = index * 3;
       position.setXYZ(index, base[offset] * width, base[offset + 1], base[offset + 2] * width);
     }
     position.needsUpdate = true;
-    geometry.userData.dogwoodShadowWidth = width;
+    geometry.userData.seasonalShadowWidth = width;
     geometry.computeBoundingSphere();
     changed = true;
   }
@@ -1185,15 +1489,17 @@ function createUndergrowthShadowGeometry(kind: UndergrowthKind): THREE.BufferGeo
     case 'dogwood':
       geometry.scale(1.12, 1.32, 1.12);
       geometry.translate(0, 0.78, 0);
-      geometry.userData.dogwoodShadowBasePositions = Float32Array.from(
-        geometry.getAttribute('position').array,
-      );
-      geometry.userData.dogwoodShadowWidth = 1;
       break;
     default: {
       const exhaustive: never = kind;
       return exhaustive;
     }
+  }
+  if (kind !== 'juniper') {
+    geometry.userData.seasonalShadowBasePositions = Float32Array.from(
+      geometry.getAttribute('position').array,
+    );
+    geometry.userData.seasonalShadowWidth = 1;
   }
   geometry.computeVertexNormals();
   geometry.computeBoundingSphere();

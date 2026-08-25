@@ -484,6 +484,15 @@ assert.match(
 assert.match(toolbarSource, /data-build-menu-cards/);
 assert.match(toolbarSource, /class="build-menu-categories"/);
 assert.match(toolbarSource, /setBuildMenuCategory\(DEFAULT_BUILD_MENU_CATEGORY, true\)/);
+const buildMenuOpenSource = toolbarSource.match(
+  /private setBuildMenuOpen\(open: boolean\): void \{[\s\S]*?\n  \}\n\n  private setBuildMenuCategory/,
+)?.[0] ?? '';
+assert.ok(buildMenuOpenSource, 'the build-menu open-state controller must remain discoverable');
+assert.doesNotMatch(
+  buildMenuOpenSource,
+  /this\.setBuildMenuCategory\(/,
+  'reopening the build menu, including with B, must retain the last selected category',
+);
 assert.match(toolbarSource, /setMapSize\(mapSize: WorldMapSize\): void/);
 assert.match(
   toolbarSource,

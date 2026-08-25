@@ -1,0 +1,418 @@
+/* Readability pass -------------------------------------------------------
+ * Loaded after the authored skins so text keeps its visual hierarchy while
+ * no longer relying on 6–10px type for information the player must read. */
+
+:root {
+  --ui-readable-body: 13px;
+  --ui-readable-secondary: 12px;
+  --ui-readable-caption: 11px;
+}
+
+[data-ui-root] small {
+  font-size: var(--ui-readable-secondary);
+  line-height: 1.4;
+}
+
+/* Reports to the Lord --------------------------------------------------- */
+
+.noble-hud__reports {
+  width: min(340px, calc(100vw - 14px));
+}
+
+.noble-hud__reports-header {
+  min-height: 40px;
+  padding: 9px 11px 8px 13px;
+}
+
+.noble-hud__reports-header > strong {
+  font-size: 11px;
+  line-height: 1.15;
+}
+
+.noble-hud__reports-count {
+  min-width: 22px;
+  height: 22px;
+  font-size: 11px;
+}
+
+.noble-hud__reports-clear {
+  min-height: 28px;
+  padding: 5px 6px;
+  font-size: 10px;
+}
+
+.noble-hud__reports-list {
+  max-height: min(480px, calc(100vh - 174px));
+}
+
+.noble-hud__report {
+  grid-template-columns: minmax(0, 1fr) 34px;
+}
+
+.noble-hud__report-body {
+  grid-template-columns: 28px minmax(0, 1fr);
+  gap: 9px;
+  padding: 12px 5px 12px 13px;
+}
+
+.noble-hud__report-symbol {
+  font-size: 19px;
+}
+
+.noble-hud__report-copy {
+  gap: 5px;
+}
+
+.noble-hud__report-copy > strong {
+  font-size: 13px;
+  line-height: 1.3;
+}
+
+.noble-hud__report-detail {
+  font-size: 12px;
+  line-height: 1.48;
+}
+
+.noble-hud__report-time {
+  font-size: 11px;
+  line-height: 1.3;
+}
+
+.noble-hud__report-dismiss {
+  width: 28px;
+  height: 28px;
+  margin-top: 8px;
+  font-size: 19px;
+}
+
+/* Hover cards, including the entire top ribbon ------------------------- */
+
+.ui-tooltip {
+  max-width: min(400px, calc(100vw - 24px));
+  padding: 11px 13px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.ui-tooltip__title {
+  margin-bottom: 7px;
+  font-size: 1.1em;
+  line-height: 1.3;
+}
+
+.ui-tooltip__body {
+  gap: 9px;
+}
+
+.ui-tooltip__list {
+  gap: 5px;
+}
+
+.ui-tooltip__amount-label,
+.ui-tooltip__construction-cost-label {
+  font-size: 0.92em;
+}
+
+.ui-tooltip__resource-flow .ui-tooltip__resource-name,
+.ui-tooltip__resource-name,
+.ui-tooltip__resource-amount {
+  font-size: 13px;
+}
+
+.ui-tooltip__resource-inventory > li {
+  min-height: 26px;
+}
+
+.ui-tooltip.ui-tooltip--season-almanac {
+  width: min(480px, calc(100vw - 24px));
+  max-width: min(480px, calc(100vw - 24px));
+  padding: 16px 18px 18px;
+}
+
+.ui-tooltip.ui-tooltip--season-almanac .ui-tooltip__title {
+  font-size: 20px;
+  line-height: 1.1;
+}
+
+.ui-tooltip__season-introduction,
+.ui-tooltip__season-description {
+  font-size: 14px;
+  line-height: 1.46;
+}
+
+.ui-tooltip__season-name {
+  font-size: 15px;
+}
+
+.ui-tooltip__season-months {
+  font-size: 13px;
+}
+
+.ui-tooltip__season-current {
+  padding: 2px 6px;
+  font-size: 10px;
+}
+
+/* Top HUD and its flyout ledgers ---------------------------------------- */
+
+.settlement-vitals__zoom-label,
+.noble-hud__gold .settlement-hud__label {
+  font-size: 10px;
+}
+
+.settlement-vitals__zoom-value,
+.settlement-hud__clock-date,
+.settlement-hud__supply-value {
+  font-size: 13px;
+}
+
+.settlement-hud__clock-time {
+  font-size: 15px;
+}
+
+.settlement-hud__sub,
+.settlement-hud__approval-summary,
+.settlement-hud__approval-factors > p,
+.settlement-hud__approval-factor,
+.settlement-hud__food-breakdown-copy,
+.settlement-hud__food-breakdown-row,
+.settlement-hud__food-breakdown-empty,
+.settlement-hud__stores-summary,
+.settlement-hud__stores-status,
+.settlement-hud__people-header span,
+.settlement-hud__animals-section > header span,
+.settlement-hud__people-rows dt,
+.settlement-hud__people-note,
+.settlement-hud__migration-line,
+.settlement-hud__animals-header span,
+.settlement-hud__animal-row p,
+.settlement-hud__animals-empty,
+.settlement-hud__animals-note,
+.settlement-hud__animal-ledger-copy small,
+.settlement-hud__supply-summary span,
+.settlement-hud__fire-alert span,
+.settlement-hud__security-alert span,
+.settlement-hud__welfare-alert span {
+  font-size: var(--ui-readable-secondary);
+}
+
+.settlement-hud__people-metrics > span,
+.settlement-hud__animals-metrics > span,
+.settlement-hud__animal-mode,
+.settlement-hud__people-rows dd,
+.settlement-hud__animal-ledger-copy strong,
+.settlement-hud__fire-alert strong,
+.settlement-hud__security-alert strong,
+.settlement-hud__welfare-alert strong {
+  font-size: var(--ui-readable-body);
+}
+
+.settlement-hud__food-breakdown-eyebrow,
+.settlement-hud__food-breakdown-columns,
+.settlement-hud__stores-grid-header span,
+.settlement-hud__totals-mode-label,
+.settlement-hud__label {
+  font-size: var(--ui-readable-caption);
+}
+
+.settlement-hud__people-rows > div {
+  min-height: 32px;
+}
+
+.settlement-hud__animal-ledger-row {
+  min-height: 48px;
+}
+
+/* Inspectors, policies, and action controls ----------------------------- */
+
+.resource-inspector-heading .road-controls-eyebrow,
+.villager-inspector-heading .road-controls-eyebrow,
+.resource-inspector-details [data-inspector-details] > li > .inspector-detail-label,
+.villager-inspector-stats dt,
+.inspector-action-panel[data-inspector-action-group] > .inspector-action-panel__title,
+.inspector-action-panel__subheading,
+.city-admin-panel__range-hints,
+.city-admin-panel__eyebrow,
+.city-admin-panel__intro--compact,
+.city-admin-panel__stat dt {
+  font-size: var(--ui-readable-caption);
+  line-height: 1.25;
+}
+
+.resource-inspector-status,
+.resource-inspector-labor-hint,
+.resource-inspector-demolish,
+.resource-inspector-demolish-hint,
+.inspector-action-panel__hint,
+.resource-inspector-note,
+.villager-inspector-heading .road-controls-status,
+.villager-inspector-stats > div,
+.resource-action-button,
+.inspector-action-panel--compact .resource-action-button,
+.inspector-policy-select,
+.city-admin-panel__slider-label,
+.city-admin-panel__toggle,
+.inspector-jump-button,
+.inspector-resource-token__value,
+.inspector-resource-strip__empty,
+.backyard-picker-option__cost .resource-cost,
+.backyard-picker-option__funding,
+.monastery-extension-choice__copy strong,
+.monastery-extension-choice__copy small {
+  font-size: var(--ui-readable-secondary);
+  line-height: 1.35;
+}
+
+.resource-inspector-details [data-inspector-details] > .inspector-detail-section,
+.resource-inspector-details [data-inspector-details] > li > .inspector-detail-value,
+.resource-inspector-panel[data-inspector-target='building']
+  .resource-inspector-details [data-inspector-details] > li > .inspector-detail-value,
+.resource-inspector-labor-label,
+.villager-inspector-stats dd {
+  font-size: var(--ui-readable-body);
+}
+
+.resource-action-button,
+.resource-inspector-demolish,
+.inspector-jump-button {
+  min-height: 36px;
+}
+
+.inspector-action-panel--compact .resource-action-button {
+  min-height: 34px;
+}
+
+/* Construction, road, and map controls --------------------------------- */
+
+.construction-menu__header > span,
+.construction-menu__header > small,
+.build-menu-category > span:last-child,
+.construction-card__caption > span,
+.construction-card__cost .resource-cost,
+.construction-card__cost .resource-cost__suffix,
+.construction-card__tooltip-cost,
+.starter-camp-button__copy small,
+.map-overlay-menu__header span,
+.map-overlay-option small,
+.map-overlay-crops button,
+.road-controls-eyebrow,
+.crop-suitability-legend header span,
+.crop-suitability-labels,
+.crop-suitability-legend p,
+.road-controls-help-title,
+.road-controls-list li,
+.burgage-layout-hud-count span,
+.burgage-layout-hud-frontage {
+  font-size: var(--ui-readable-secondary);
+  line-height: 1.35;
+}
+
+.construction-card__caption strong {
+  font-size: var(--ui-readable-body);
+}
+
+.construction-dock-button__hotkey {
+  font-size: var(--ui-readable-caption);
+}
+
+/* Trade ledgers --------------------------------------------------------- */
+
+.trading-post-ledger__eyebrow,
+.trading-post-ledger__settlement,
+.trading-post-ledger__summary span,
+.trading-post-ledger__section h4,
+.trading-post-ledger__target > span,
+.trading-post-ledger__modes button,
+.marketplace-trade-bulletin,
+.marketplace-trade-intro,
+.marketplace-trade-depth,
+.marketplace-trade-rates,
+.marketplace-trade-stock,
+.marketplace-trade-option__hint,
+.marketplace-trade-section__title {
+  font-size: var(--ui-readable-secondary);
+  line-height: 1.4;
+}
+
+/* Dialogs, setup flows, and town reports ------------------------------- */
+
+.alert-dialog__eyebrow,
+.alert-dialog__button,
+.game-controls-dialog__eyebrow,
+.game-controls-list__keys,
+.game-menu-cheat__heading p,
+.game-menu-cheat__badge,
+.game-menu-cheat__amount,
+.game-menu-cheat__status,
+.game-menu-select small,
+.town-name-dialog__header p,
+.town-name-dialog__field > span,
+.town-name-dialog__field small,
+.town-name-dialog__error,
+.town-name-dialog__actions button,
+.town-report-panel__header p,
+.town-report-panel__stats small,
+.town-report-panel__pending,
+.town-report-panel__row,
+.town-report-panel__empty,
+.town-report-panel__trade,
+.tutorial-dialog__eyebrow,
+.new-game-setup-steps li,
+.new-game-setup-steps li > span,
+.world-setup-footer-seed__label,
+.world-setup-footer-seed__label small,
+.compass-hud__label {
+  font-size: var(--ui-readable-secondary);
+  line-height: 1.4;
+}
+
+.town-report-panel__row--head {
+  font-size: var(--ui-readable-caption);
+}
+
+/* Noble creation has an aggressive compact-height mode. Keep it compact,
+ * but never shrink meaningful labels to the former 5–9px range. */
+.noble-setup-eyebrow,
+.noble-setup-emblem-card > span,
+.noble-setup-name-label > span,
+.noble-setup-color-setting > span,
+.noble-setup-portrait-caption span,
+.noble-setup-portrait-caption small,
+.noble-setup-section-heading h3,
+.noble-setup-editor-title > span,
+.noble-setup-editor-title h3,
+.noble-setup-pattern,
+.noble-setup-charge,
+.noble-setup-slider-row,
+.noble-setup-slider-row strong,
+.noble-setup-heraldry-identity > p:not(.noble-setup-eyebrow),
+.noble-setup-heraldry-identity small,
+.noble-setup-heraldry-identity h2,
+.noble-setup-identity > h2 {
+  font-size: var(--ui-readable-caption);
+  line-height: 1.25;
+}
+
+@media (max-width: 760px) {
+  .noble-hud__reports {
+    width: min(320px, calc(100vw - 14px));
+  }
+
+  .noble-hud__reports-list {
+    max-height: min(420px, calc(100vh - 150px));
+  }
+
+  .noble-hud__report-body {
+    grid-template-columns: 25px minmax(0, 1fr);
+    gap: 8px;
+    padding-left: 11px;
+  }
+
+  .noble-hud__report-detail {
+    font-size: 12px;
+  }
+
+  .ui-tooltip.ui-tooltip--season-almanac {
+    padding: 14px 15px 16px;
+  }
+}

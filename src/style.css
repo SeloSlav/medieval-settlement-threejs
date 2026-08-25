@@ -22,6 +22,7 @@
 @import url('./ui/nobleSetup.css');
 @import url('./ui/iconography.css');
 @import url('./ui/tutorialOverlay.css');
+@import url('/src/ui/readability.css');
 
 :root {
   --ink: #eee8dc;
