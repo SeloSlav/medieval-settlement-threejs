@@ -133,16 +133,6 @@ export class WorldSetupPanel {
     this.backdrop.className = 'world-setup-backdrop';
     this.backdrop.dataset.activeSetupStep = 'map';
     this.backdrop.innerHTML = `
-      <video
-        class="world-setup-background-video"
-        src="/assets/ui/selo_empire_loading_screen.mp4"
-        autoplay
-        muted
-        loop
-        playsinline
-        preload="auto"
-        aria-hidden="true"
-      ></video>
       <div class="world-setup-shell">
         <img
           class="world-setup-logo"
