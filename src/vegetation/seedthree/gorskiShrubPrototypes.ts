@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { generateDichotomous } from '@seedthree/core/dichotomous.js';
+import { buildMergedMesh, generateDichotomous } from '@seedthree/core/dichotomous.js';
 import { buildFoliage } from '@seedthree/core/leaf-cards.js';
 import { Rng } from '@seedthree/core/rng.js';
 import { bilberry } from '@seedthree/species/bilberry.js';
@@ -13,6 +13,10 @@ import {
   commonDogwood,
   createCommonDogwoodVariantPreset,
 } from './commonDogwoodPreset.ts';
+import {
+  applyCommonDogwoodArchitecture,
+  type CommonDogwoodArchitectureStats,
+} from './commonDogwoodArchitecture.ts';
 import { stingingNettle } from './stingingNettlePreset.ts';
 
 export type GorskiShrubKind = 'bush' | 'fern' | 'juniper' | 'raspberry' | 'field-hornbeam' | 'aronia' | 'rosehip' | 'nettle' | 'dogwood';
@@ -36,6 +40,8 @@ type SeedThreeShrubPreset = {
 type SeedThreeStem = {
   terminal: boolean;
   points: THREE.Vector3[];
+  orients: THREE.Quaternion[];
+  total: number;
   children: SeedThreeStem[];
 };
 
@@ -68,22 +74,35 @@ export function createGorskiShrubPrototype(
   const seed = dogwoodVariant?.seed ?? `gorski:${species.name}:${variantIndex}`;
   const skeletonRng = new Rng(seed);
   const tipClearance = (species.foliage.clusterSize ?? 0.3) * 0.9;
+  const generatorParams = {
+    ...species.params,
+    // Leaf-bearing shrub shoots finish as a narrow growing point. Keeping
+    // this integration-owned leaves SeedThree's thick cactus/yucca tips
+    // unchanged while removing the blunt stem above the last leaf whorl.
+    terminalTaperStart: GORSKI_SHRUB_TERMINAL_TAPER_START,
+    terminalTipRadiusScale: GORSKI_SHRUB_TERMINAL_TIP_RADIUS_SCALE,
+    tipClearance,
+  };
   const generated = generateDichotomous(
-    {
-      ...species.params,
-      // Leaf-bearing shrub shoots finish as a narrow growing point. Keeping
-      // this integration-owned leaves SeedThree's thick cactus/yucca tips
-      // unchanged while removing the blunt stem above the last leaf whorl.
-      terminalTaperStart: GORSKI_SHRUB_TERMINAL_TAPER_START,
-      terminalTipRadiusScale: GORSKI_SHRUB_TERMINAL_TIP_RADIUS_SCALE,
-      tipClearance,
-    },
+    generatorParams,
     skeletonRng,
   ) as {
     stems: SeedThreeStem[];
     terminalStems: SeedThreeStem[];
     geometry: THREE.BufferGeometry;
   };
+  let dogwoodArchitecture: CommonDogwoodArchitectureStats | null = null;
+  if (dogwoodVariant) {
+    dogwoodArchitecture = applyCommonDogwoodArchitecture(
+      generated.stems,
+      dogwoodVariant.morphology.architecture,
+      dogwoodVariant.morphology.params.trunkSplayDeg,
+      seed,
+    );
+    // The architecture pass deliberately preserves topology and only moves
+    // existing stems, so rewrite SeedThree's connected tube mesh in place.
+    buildMergedMesh(generated.stems, generatorParams, generated.geometry);
+  }
 
   const foliageMaterial = new THREE.MeshBasicMaterial();
   const foliageRng = new Rng(`${seed}:sprays`);
@@ -152,6 +171,12 @@ export function createGorskiShrubPrototype(
     geometry.userData.dogwoodAuthoredHeight = morphology.authoredHeight;
     geometry.userData.dogwoodFirstForkHeight = morphology.params.firstForkHeight;
     geometry.userData.dogwoodFoliageStartFraction = species.foliage.startFrac;
+    geometry.userData.dogwoodArchitecture = 'irregular-stool-v1';
+    geometry.userData.dogwoodRootBaseSpread = dogwoodArchitecture!.rootBaseSpread;
+    geometry.userData.dogwoodRootAzimuthGapCv = dogwoodArchitecture!.rootAzimuthGapCv;
+    geometry.userData.dogwoodFirstForkLengthRange = dogwoodArchitecture!.firstForkLengthRange;
+    geometry.userData.dogwoodForkSiblingLengthRatio = dogwoodArchitecture!.meanForkSiblingLengthRatio;
+    geometry.userData.dogwoodCrownCentroidOffsetRatio = dogwoodArchitecture!.crownCentroidOffsetRatio;
   }
 
   const fruitLimit = kind === 'raspberry'

@@ -24,6 +24,27 @@ export const COMMON_DOGWOOD_LEAF_TEXTURE_FILES = {
 
 export const COMMON_DOGWOOD_SEED_PREFIX = 'gorski:Gorski Common Dogwood';
 
+export type CommonDogwoodArchitecture = {
+  /** Radius of the irregular root stool occupied by the basal canes. */
+  readonly stoolRadius: number;
+  /** Deliberately unoccupied basal sector, preventing a radial bottle-brush crown. */
+  readonly lightGapDeg: number;
+  readonly lightGapAzimuthDeg: number;
+  /** Jitter inside each stratified basal-angle slot, expressed in slot widths. */
+  readonly azimuthSlotJitter: number;
+  readonly splayVariationDeg: number;
+  /** Whole-stool lean away from the shaded/open sector. */
+  readonly coherentLeanDeg: number;
+  readonly firstForkLength: readonly [minimum: number, maximum: number];
+  /** Basal canes allowed to retain the full authored crown length. */
+  readonly dominantLeaderCount: number;
+  readonly subordinateVigor: readonly [minimum: number, maximum: number];
+  /** Length retained by the weaker child at each Y fork. */
+  readonly forkSubordinateScale: number;
+  /** Independent roll given to fork children around their parent's tangent. */
+  readonly forkRollVariationDeg: number;
+};
+
 export type CommonDogwoodVariant = {
   readonly id: 'open-arching' | 'upright-thicket' | 'dense-stool';
   readonly stemCount: number;
@@ -39,6 +60,7 @@ export type CommonDogwoodVariant = {
     readonly armBend: number;
     readonly gnarliness: number;
   };
+  readonly architecture: CommonDogwoodArchitecture;
 };
 
 /**
@@ -61,6 +83,19 @@ export const COMMON_DOGWOOD_VARIANTS: readonly CommonDogwoodVariant[] = [
       armBend: 15,
       gnarliness: 5,
     },
+    architecture: {
+      stoolRadius: 0.085,
+      lightGapDeg: 58,
+      lightGapAzimuthDeg: 34,
+      azimuthSlotJitter: 0.32,
+      splayVariationDeg: 10,
+      coherentLeanDeg: 7,
+      firstForkLength: [0.23, 0.39],
+      dominantLeaderCount: 2,
+      subordinateVigor: [0.72, 0.96],
+      forkSubordinateScale: 0.72,
+      forkRollVariationDeg: 13,
+    },
   },
   {
     id: 'upright-thicket',
@@ -76,6 +111,19 @@ export const COMMON_DOGWOOD_VARIANTS: readonly CommonDogwoodVariant[] = [
       armBend: 11,
       gnarliness: 4,
     },
+    architecture: {
+      stoolRadius: 0.055,
+      lightGapDeg: 34,
+      lightGapAzimuthDeg: 142,
+      azimuthSlotJitter: 0.24,
+      splayVariationDeg: 7,
+      coherentLeanDeg: 3.5,
+      firstForkLength: [0.27, 0.41],
+      dominantLeaderCount: 3,
+      subordinateVigor: [0.78, 0.98],
+      forkSubordinateScale: 0.82,
+      forkRollVariationDeg: 9,
+    },
   },
   {
     id: 'dense-stool',
@@ -90,6 +138,19 @@ export const COMMON_DOGWOOD_VARIANTS: readonly CommonDogwoodVariant[] = [
       forkSpread: 18,
       armBend: 13,
       gnarliness: 5,
+    },
+    architecture: {
+      stoolRadius: 0.095,
+      lightGapDeg: 26,
+      lightGapAzimuthDeg: 252,
+      azimuthSlotJitter: 0.3,
+      splayVariationDeg: 10,
+      coherentLeanDeg: 5,
+      firstForkLength: [0.28, 0.42],
+      dominantLeaderCount: 4,
+      subordinateVigor: [0.68, 0.97],
+      forkSubordinateScale: 0.76,
+      forkRollVariationDeg: 11,
     },
   },
 ] as const;

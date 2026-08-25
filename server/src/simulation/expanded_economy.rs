@@ -1923,6 +1923,20 @@ pub fn step_granary(
                     CommodityKind::Ale,
                     &["tavern"],
                 );
+                for beverage in [
+                    CommodityKind::Cider,
+                    CommodityKind::PearCider,
+                    CommodityKind::Mead,
+                ] {
+                    dispatch_to_building(
+                        ctx,
+                        tick,
+                        clock,
+                        &mut granary,
+                        beverage,
+                        &["tavern"],
+                    );
+                }
             }
             GranaryDispatchDuty::Preservation => {
                 for commodity in [
@@ -2651,6 +2665,25 @@ pub fn step_brewery(
             &mut brewery,
             beverage,
             &["tavern"],
+            |target| target.assigned_labor > 0,
+        );
+    }
+    // A staffed Granary is the overflow cellar when no staffed Tavern can
+    // take the batch. Its own logistics crew later supplies Taverns using the
+    // same typed beverage, so cider and mead never collapse into generic ale.
+    for beverage in [
+        CommodityKind::Cider,
+        CommodityKind::PearCider,
+        CommodityKind::Ale,
+        CommodityKind::Mead,
+    ] {
+        dispatch_to_building_where(
+            ctx,
+            tick,
+            clock,
+            &mut brewery,
+            beverage,
+            &["granary"],
             |target| target.assigned_labor > 0,
         );
     }
@@ -3494,7 +3527,9 @@ pub fn step_monastery(
         for (yield_index, (commodity, amount)) in [
             (CommodityKind::Apples, yields.apples),
             (CommodityKind::Pears, yields.pears),
-            (CommodityKind::Vegetables, yields.vegetables),
+            (CommodityKind::Cabbage, yields.cabbage),
+            (CommodityKind::Carrots, yields.carrots),
+            (CommodityKind::Beetroot, yields.beetroot),
             (CommodityKind::Eggs, yields.eggs),
             (CommodityKind::Milk, yields.milk),
             (CommodityKind::Meat, yields.meat),
@@ -3798,8 +3833,16 @@ fn dispatch_monastery_estate_export(
             food_exportable(CommodityKind::Pears, monastery.pears),
         ),
         (
-            CommodityKind::Vegetables,
-            food_exportable(CommodityKind::Vegetables, monastery.vegetables),
+            CommodityKind::Cabbage,
+            food_exportable(CommodityKind::Cabbage, monastery.cabbage),
+        ),
+        (
+            CommodityKind::Carrots,
+            food_exportable(CommodityKind::Carrots, monastery.carrots),
+        ),
+        (
+            CommodityKind::Beetroot,
+            food_exportable(CommodityKind::Beetroot, monastery.beetroot),
         ),
         (
             CommodityKind::Eggs,

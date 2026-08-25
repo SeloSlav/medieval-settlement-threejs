@@ -229,8 +229,9 @@ function foundingDestinationPriority(
     case 'pearCider':
     case 'mead':
       if (building.kind === 'tavern') return 0;
-      if (building.kind === 'brewery') return 1;
-      if (building.kind === 'marketplace') return 2;
+      if (building.kind === 'granary') return 1;
+      if (building.kind === 'brewery') return 2;
+      if (building.kind === 'marketplace') return 3;
       return 3;
     case 'honey':
     case 'wine':

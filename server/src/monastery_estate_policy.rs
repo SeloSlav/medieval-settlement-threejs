@@ -37,7 +37,9 @@ pub struct EstatePoint {
 pub struct MonasteryEstateYields {
     pub apples: f64,
     pub pears: f64,
-    pub vegetables: f64,
+    pub cabbage: f64,
+    pub carrots: f64,
+    pub beetroot: f64,
     pub eggs: f64,
     pub milk: f64,
     pub meat: f64,
@@ -300,7 +302,11 @@ pub fn monastery_estate_yields(
     MonasteryEstateYields {
         apples: 0.45 * multiplier * orchard_multiplier,
         pears: 0.30 * multiplier * orchard_multiplier,
-        vegetables: 0.5 * multiplier,
+        // The kitchen croft keeps the three canonical vegetable identities;
+        // the retired aggregate `Vegetables` commodity is migration-only.
+        cabbage: 0.20 * multiplier,
+        carrots: 0.16 * multiplier,
+        beetroot: 0.14 * multiplier,
         eggs: 0.42 * multiplier,
         milk: 0.45 * multiplier,
         meat: 0.16 * multiplier,
@@ -411,7 +417,13 @@ mod tests {
             MONASTERY_CROFT_VEGETABLES,
             MONASTERY_ORCHARD_MATURITY_MATURE,
         );
-        assert!(base.apples > 0.0 && base.pears > 0.0 && base.vegetables > 0.0);
+        assert!(
+            base.apples > 0.0
+                && base.pears > 0.0
+                && base.cabbage > 0.0
+                && base.carrots > 0.0
+                && base.beetroot > 0.0
+        );
         assert!(base.cider > 0.0);
         assert!(base.mead > 0.0);
         assert_eq!(base.ale, 0.0);

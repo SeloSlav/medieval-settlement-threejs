@@ -257,7 +257,9 @@ export function monasteryEstateYields(
 ): {
   apples: number;
   pears: number;
-  vegetables: number;
+  cabbage: number;
+  carrots: number;
+  beetroot: number;
   eggs: number;
   milk: number;
   meat: number;
@@ -278,7 +280,9 @@ export function monasteryEstateYields(
   return {
     apples: 0.45 * multiplier * orchardMultiplier,
     pears: 0.3 * multiplier * orchardMultiplier,
-    vegetables: 0.5 * multiplier,
+    cabbage: 0.2 * multiplier,
+    carrots: 0.16 * multiplier,
+    beetroot: 0.14 * multiplier,
     eggs: 0.42 * multiplier,
     milk: 0.45 * multiplier,
     meat: 0.16 * multiplier,

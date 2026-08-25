@@ -57,7 +57,9 @@ pub fn trade_resource_for_commodity(commodity: CommodityKind) -> Option<TradeRes
         CommodityKind::Cherries => TradeResource::Cherries,
         CommodityKind::Aronia => TradeResource::Aronia,
         CommodityKind::Rosehips => TradeResource::Rosehips,
-        CommodityKind::Vegetables => TradeResource::Vegetables,
+        // Stable commodity code 35 is retained only so old saves can migrate
+        // their aggregate vegetable stock into cabbage, carrots, and beetroot.
+        CommodityKind::Vegetables => return None,
         CommodityKind::Cabbage => TradeResource::Cabbage,
         CommodityKind::Carrots => TradeResource::Carrots,
         CommodityKind::Beetroot => TradeResource::Beetroot,
@@ -86,7 +88,10 @@ mod tests {
             };
             if matches!(
                 commodity,
-                CommodityKind::Gold | CommodityKind::Mead | CommodityKind::AnimalFeed
+                CommodityKind::Gold
+                    | CommodityKind::Mead
+                    | CommodityKind::Vegetables
+                    | CommodityKind::AnimalFeed
             ) {
                 assert!(trade_resource_for_commodity(commodity).is_none());
             } else {

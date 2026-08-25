@@ -72,7 +72,7 @@ const RESOURCE_LABELS: Record<TradeResourceKind | 'gold', string> = {
   roofTiles: 'Roof tiles',
   meat: 'Meat',
   fish: 'Fish',
-  berries: 'Berries',
+  berries: 'Raspberries',
   mushrooms: 'Mushrooms',
   milk: 'Milk',
   apples: 'Apples',
@@ -80,7 +80,6 @@ const RESOURCE_LABELS: Record<TradeResourceKind | 'gold', string> = {
   cherries: 'Cherries',
   aronia: 'Aronia berries',
   rosehips: 'Rosehips',
-  vegetables: 'Vegetables',
   cabbage: 'Cabbage',
   carrots: 'Carrots',
   beetroot: 'Beetroot',
@@ -350,7 +349,6 @@ function tradeStorageResource(resource: TradeResourceKind): TradeResourceKind | 
     || resource === 'milk'
     || resource === 'apples'
     || resource === 'cherries'
-    || resource === 'vegetables'
     || resource === 'eggs'
     || resource === 'grapes'
     || resource === 'ryeBread'

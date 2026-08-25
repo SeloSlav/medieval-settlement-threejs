@@ -8,7 +8,7 @@ export const MARKETPLACE_TRADE_RESOURCES = [
   'barley', 'malt', 'flax', 'iron', 'clay', 'salt', 'charcoal', 'pottery',
   'manure', 'remedies', 'roofTiles', 'meat', 'fish', 'berries', 'mushrooms',
   'milk', 'apples', 'pears', 'cherries', 'aronia', 'rosehips',
-  'vegetables', 'cabbage', 'carrots', 'beetroot', 'eggs', 'grapes',
+  'cabbage', 'carrots', 'beetroot', 'eggs', 'grapes',
   'curedMeat', 'smokedFish', 'cheese', 'aroniaJam', 'rosehipJam',
   'ryeSheaves', 'oatSheaves', 'barleySheaves', 'maslinSheaves',
 ] as const;

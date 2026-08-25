@@ -2,7 +2,6 @@ import type { BuildingState } from '../resources/types.ts';
 
 export const STORAGE_COMMODITY_CODES = {
   firewood: 0,
-  food: 2,
   timber: 3,
   ale: 6,
   preservedFood: 7,
@@ -28,7 +27,6 @@ export const STORAGE_COMMODITY_CODES = {
   cherries: 34,
   aronia: 5,
   rosehips: 27,
-  vegetables: 35,
   cabbage: 38,
   carrots: 50,
   beetroot: 53,
@@ -49,6 +47,7 @@ export const STORAGE_COMMODITY_CODES = {
   ryeBread: 52,
   maslinBread: 54,
   cider: 55,
+  mead: 56,
   pearCider: 57,
   hides: 58,
   leather: 59,
@@ -63,7 +62,6 @@ export type StorageCommodity = keyof typeof STORAGE_COMMODITY_CODES;
 
 export const STORAGE_COMMODITY_LABELS: Record<StorageCommodity, string> = {
   firewood: 'Firewood',
-  food: 'Mixed provisions',
   timber: 'Timber',
   ale: 'Ale',
   preservedFood: 'Preserved provisions',
@@ -81,7 +79,7 @@ export const STORAGE_COMMODITY_LABELS: Record<StorageCommodity, string> = {
   remedies: 'Remedies',
   meat: 'Fresh meat',
   fish: 'Fresh fish',
-  berries: 'Berries',
+  berries: 'Raspberries',
   mushrooms: 'Mushrooms',
   milk: 'Milk',
   apples: 'Apples',
@@ -89,7 +87,6 @@ export const STORAGE_COMMODITY_LABELS: Record<StorageCommodity, string> = {
   cherries: 'Cherries',
   aronia: 'Aronia berries',
   rosehips: 'Rosehips',
-  vegetables: 'Vegetables',
   cabbage: 'Cabbage',
   carrots: 'Carrots',
   beetroot: 'Beetroot',
@@ -110,6 +107,7 @@ export const STORAGE_COMMODITY_LABELS: Record<StorageCommodity, string> = {
   ryeBread: 'Rye bread',
   maslinBread: 'Maslin bread',
   cider: 'Apple cider',
+  mead: 'Mead',
   pearCider: 'Pear cider',
   hides: 'Untanned hides',
   leather: 'Leather',
@@ -133,8 +131,8 @@ export const GRANARY_STORAGE_GROUPS = [
   {
     label: 'Fresh provisions',
     commodities: [
-      'food', 'meat', 'fish', 'berries', 'mushrooms', 'milk', 'apples', 'pears',
-      'cherries', 'aronia', 'rosehips', 'vegetables', 'cabbage', 'carrots',
+      'meat', 'fish', 'berries', 'mushrooms', 'milk', 'apples', 'pears',
+      'cherries', 'aronia', 'rosehips', 'cabbage', 'carrots',
       'beetroot', 'eggs', 'grapes',
     ],
   },
@@ -142,7 +140,7 @@ export const GRANARY_STORAGE_GROUPS = [
     label: 'Preserved provisions',
     commodities: [
       'preservedFood', 'curedMeat', 'smokedFish', 'cheese', 'aroniaJam',
-      'rosehipJam', 'honey', 'cider', 'pearCider', 'wine',
+      'rosehipJam', 'honey', 'ale', 'cider', 'pearCider', 'mead', 'wine',
     ],
   },
   {
@@ -154,7 +152,7 @@ export const GRANARY_STORAGE_GROUPS = [
   },
   {
     label: 'Milled and baked',
-    commodities: ['ryeFlour', 'maslinFlour', 'ryeBread', 'maslinBread', 'ale'],
+    commodities: ['ryeFlour', 'maslinFlour', 'ryeBread', 'maslinBread'],
   },
 ] as const satisfies ReadonlyArray<{
   label: string;
@@ -167,9 +165,9 @@ export const GRANARY_STORAGE_COMMODITIES = GRANARY_STORAGE_GROUPS
   .flatMap((group) => [...group.commodities]);
 
 const GRANARY_LEGACY_FRESH = new Set<StorageCommodity>([
-  'food', 'oatGrain', 'ryeBread', 'maslinBread', 'meat', 'fish', 'berries',
+  'oatGrain', 'ryeBread', 'maslinBread', 'meat', 'fish', 'berries',
   'mushrooms', 'milk', 'apples', 'pears', 'cherries', 'aronia', 'rosehips',
-  'vegetables', 'cabbage', 'carrots', 'beetroot', 'eggs', 'grapes',
+  'cabbage', 'carrots', 'beetroot', 'eggs', 'grapes',
   'preservedFood', 'curedMeat', 'smokedFish', 'cheese', 'aroniaJam', 'rosehipJam',
 ]);
 

@@ -19,8 +19,7 @@ pub const STOREHOUSE_ACCEPTANCE_MASK: u64 = bit(0) // firewood
 pub const STOREHOUSE_ACCEPTANCE_MASK_HIGH: u64 = high_bit(64) // wax
     | high_bit(65); // candles
 
-pub const GRANARY_ACCEPTANCE_MASK: u64 = bit(2) // legacy mixed food
-    | bit(6) // ale
+pub const GRANARY_ACCEPTANCE_MASK: u64 = bit(6) // ale
     | bit(7) // legacy preserved food
     | bit(8) // honey
     | bit(9) // wine
@@ -28,12 +27,11 @@ pub const GRANARY_ACCEPTANCE_MASK: u64 = bit(2) // legacy mixed food
     | bit(18) // flax
     | bit(28) // meat
     | bit(29) // fish
-    | bit(30) // berries
+    | bit(30) // raspberries (legacy field name: berries)
     | bit(31) // mushrooms
     | bit(32) // milk
     | bit(33) // apples
     | bit(34) // cherries
-    | bit(35) // vegetables
     | bit(36) // eggs
     | bit(37) // grapes
     | bit(39) // cured meat
@@ -57,6 +55,7 @@ pub const GRANARY_ACCEPTANCE_MASK: u64 = bit(2) // legacy mixed food
     | bit(50) // carrots
     | bit(53) // beetroot
     | bit(55) // apple cider
+    | bit(56) // mead
     | bit(57) // pear cider
     | bit(61) // aronia jam
     | bit(62); // rosehip jam

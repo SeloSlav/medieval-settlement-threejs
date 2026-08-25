@@ -83,7 +83,7 @@ function storageNeed(plan: FoundingStockyardRelocationPlan): string {
     case 'cider':
     case 'pearCider':
     case 'mead':
-      return 'a staffed Tavern or Brewery';
+      return 'a staffed Tavern, Brewery, or accepting Granary';
     case 'honey':
     case 'wine':
       return 'a Marketplace, Monastery, or compatible producer';
