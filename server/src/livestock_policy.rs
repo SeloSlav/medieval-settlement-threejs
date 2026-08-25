@@ -451,9 +451,8 @@ mod tests {
         assert!((livestock_cycles_per_calendar_day(12.0) - 10.0).abs() < 1e-9);
         let feed = projected_winter_animal_feed(6, 10.0, 0.0, 0.34, 0.34, cycles, 0.35);
         assert!((feed - 244.8).abs() < 1e-9);
-        assert_eq!(
-            projected_winter_animal_feed(6, 10.0, 306.0, 0.34, 0.34, cycles, 0.35),
-            0.0
+        assert!(
+            projected_winter_animal_feed(6, 10.0, 306.0, 0.34, 0.34, cycles, 0.35).abs() < 1e-9
         );
         assert_eq!(
             projected_winter_animal_feed(3, 10.0, 0.0, 0.34, 0.34, cycles, 0.35),

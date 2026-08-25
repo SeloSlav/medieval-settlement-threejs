@@ -11,32 +11,21 @@ The calendar is deliberately fictional and fixed:
 - Every month and year has the same length. There are no leap years, variable month
   lengths, accumulated drift, or real-time-zone rules.
 - A new world begins on 1 March, Year 1 at 08:00 so the first session opens after
-  dawn, near the beginning of spring and the workday.
-- Labor normally works from 06:00 to 20:00. A staffed chapel can make Sunday a
-  sabbath. Sunday still consumes ordinary household provisions, so it must be
-  supplied in advance. Named holy days use the separate protected-rest contract
-  below.
-- Work hours and Sabbath observance block new ordinary-cart departures. A cart
-  that already departed remains a committed crew and completes its delivery,
-  unloading, and return home across the boundary instead of camping on the road.
-- Visible workers use the same commitment principle. They choose households by
-  routed road travel, may depart before 06:00 to reach a distant site, and leave a
-  long shift early enough to travel home. Dawn and dusk never reverse an active
-  journey. Reaching home establishes at least six displayed hours of rest, even
-  when an unusually long return finishes after the next workday begins.
-- Exposed extraction worksites may instead construct persistent remote lodging.
-  Lumber mills, mining camps, quarries, mineworks, and charcoal
-  yards expose a worksite-card order that starts targeted placement within 80 m,
-  leaving usable clear ground beyond large stone and mineral deposit footprints.
-  The resulting two-tent camp is a normal building project: it reserves 14 timber
-  and 3 stone, awaits physical material carts and builder labor, can burn, and can
-  be demolished into ordinary reclamation. The crew keeps commuting until it is
-  complete, then gathers at its fire, disappears into a tent while indoors or
-  asleep, and starts locally the next day. Reforester huts, woodcutters' lodges,
-  hunters' halls, foragers' sheds, fishing camps, pastoral farmsteads, and
-  swineherds have built-in crew lodging; barns, apiaries, vineyards, processors,
-  civic sites, and urban jobs retain the daily household commute. Inspectors report
-  the measured journey, effective workday cost, lodging rule, and linked project.
+  dawn, near the beginning of spring.
+- Ordinary labor, construction, production, consumption, and logistics operate
+  through all 24 displayed hours. The displayed hour and optional day/night
+  lighting are presentation only and do not create shifts or reduce output.
+- A staffed chapel can make Sunday a Sabbath. Sunday still consumes ordinary
+  household provisions, so it must be supplied in advance. Named holy days use
+  the separate protected-rest contract below.
+- An observed Sabbath or named holy day blocks new ordinary-cart departures. A
+  cart that already departed remains a committed crew and completes its delivery,
+  unloading, and return instead of being stranded on the road.
+- Visible workers travel real routed paths when assigned, when returning after an
+  observed rest day, or when fire, raids, refuges, and military orders move them.
+  Dawn and dusk never reverse an active journey and ordinary workers remain onsite
+  across the cosmetic lighting cycle. There are no commute-output penalties,
+  daily work shifts, or remote overnight work camps.
 
 ### 1550s Gorski Kotar holy-day schedule
 
@@ -73,8 +62,8 @@ policy or on having a staffed chapel. The calendar advances, but authoritative
 production and every potentially adverse simulation mutation are frozen: carts,
 construction, household consumption, heating, spoilage, wages, upkeep, taxes,
 illness, fires, raids, and similar penalties neither progress nor accumulate.
-Workers at remote camps return to their permanent households. With a staffed,
-road-connected chapel, deterministic cohorts physically walk to morning services
+Workers return to their permanent households. With a staffed, road-connected
+chapel, deterministic cohorts physically walk to morning services
 and later processions, fairs, or bonfire gatherings; the remaining agents stand
 behind their houses in stable backyard groups. Founders celebrate around their camp.
 Emergency refuge behavior still has presentation priority if an already-active
@@ -98,7 +87,7 @@ and [Roman-canonical feast-day work rules](https://hrcak.srce.hr/file/455439).
 
 The scheduler still fires every 200 milliseconds and every completed substep retains
 its established 0.2-second meaning. At 1× the fixed-point scheduler advances 0.75 simulation
-seconds per real second, making a complete day-night cycle last two minutes forty seconds. Faster
+seconds per real second, making a complete calendar day last two minutes forty seconds. Faster
 modes receive four or eight times that budget. They accelerate movement,
 labor, construction, production, deliveries, consumption, regrowth, reproduction,
 weather damage, and the calendar together.
@@ -110,35 +99,19 @@ camera and UI controls remain available. Speed is server authoritative and globa
 the world. In the current shared-world model, any connected player can change it;
 host-only authority should be added before a competitive multiplayer mode.
 
-## Night settlement loop
+## Cosmetic day/night presentation
 
-Night remains part of the authoritative game rather than a cosmetic sky pass. Ordinary
-field work, construction, and carts stop, but active delivery trips finish their routes,
-hearths consume heating fuel, and households consume an explicit evening meal at dawn.
-A staffed Town Hall exposes five persistent orders:
+The day/night option controls only the rendered sky, celestial lighting, lamps,
+windows, and atmospheric cues. It defaults to off, keeping the world in its fixed
+daylight presentation; players may enable the cycle without changing production,
+movement, construction, logistics, consumption, fire, crime, combat, or any other
+authoritative result. The calendar and displayed clock continue advancing either way
+because seasons, weather, Sundays, and named holy days still depend on dates.
 
-- Watch policy changes night-raid warning coverage, petty-theft risk, visible watchtower
-  duty, and how quickly an unnoticed fire is reported.
-- Evening gatherings keep a deterministic share of households outside in courtyards
-  longer and build community cohesion; curfews trade that social benefit for safety.
-- Continuous-process work lets stocked brewing, curing, milling, charcoal, and kiln
-  batches continue without enabling carts. A full night shift adds selected indoor
-  workshops and creates a persistent fatigue burden.
-- Public lighting visibly scales camp and household lamps, consumes physical firewood,
-  reduces theft, and shortens nighttime fire-discovery delay. Fuel shortfalls are
-  reported rather than silently granting the benefit.
-- Curfew can be unrestricted, children-only, or general.
-
-At 06:00 the server writes one structured dawn report: warm and well-rested households,
-social households, night workers, watch strength, lamp fuel used or missing, recent
-fires, theft, and occasional wildlife sightings. Safe and sociable nights smooth
-community cohesion upward; staffed night work smooths fatigue upward. Well-rested homes
-receive a small settlement-progress benefit.
-
-An incursion is never sliced into shifts. Once combat agents enter the map, guards and
-raiders remain authoritative through dusk and dawn until they are downed, retreat, or
-physically leave; the night policies affect warning and preparation, not whether the
-fight is allowed to continue.
+Household ambient poses can still vary visually with the displayed hour when a person
+is genuinely off duty, but an assigned worker does not go home simply because the sky
+darkens. Active combat likewise continues across every displayed hour until agents are
+downed, retreat, or physically leave.
 
 ## Deterministic weather
 
@@ -432,7 +405,7 @@ calculation is constant-time and advisory: it changes no orders, labor, or saves
 
 ## Backyard food and household trade
 
-Backyard plots produce only during the ordinary 06:00–20:00 workday. Their home
+Backyard plots produce throughout each ordinary calendar day. Their home
 food and market activity share one seasonal multiplier: apple and cherry orchards
 concentrate the annual crop into September at twelve times the baseline daily
 yield; vegetable and herb beds run at full output in spring and summer, taper to
@@ -450,7 +423,7 @@ tax follows the mayor's rate and productivity penalty; without any staffed,
 completed Town Hall, only the configured 60% is collected and the balance remains
 with the household. Wealth beyond the household cap is not stored.
 
-The backyard inspector reports today's full-workday food, routed activity,
+The backyard inspector reports today's full-calendar-day food, routed activity,
 assessed versus collected tax, seasonal state, and the missing market or clerk
 when relevant. The Town Hall groups occupied plots and completed markets by every
 road component touching their access point, separates routed from stranded trade,
@@ -479,9 +452,9 @@ home's cart departs; blocked attempts are rolled back and never charge the home.
 A blocked food attempt may still fall through to a viable water lot when both
 needs are critical.
 
-Night hours and an observed Sunday Sabbath pause new household orders while
-consumption continues under the ordinary calendar rules, making Saturday
-stockpiling and short market branches valuable. Fire-disabled homes do not order.
+An observed Sunday Sabbath pauses new household orders while consumption continues
+under the ordinary calendar rules, making Saturday stockpiling and short market
+branches valuable. Fire-disabled homes do not order.
 The residence inspector shows the current lot, price, route, and exact blocker.
 Each marketplace shows the critical and affordable homes for which it is the
 nearest market. The Town Hall totals settlement purchasing coverage, separates
@@ -503,8 +476,8 @@ persistent import and export rules every 30 simulation seconds: six displayed
 game hours, about 10 real seconds at 4× under the authoritative 0.75 base
 simulation rate. The interval comes from `balance/gameBalance.json`; the client
 countdown and Rust scheduler use the generated constant. A newly configured
-rule waits for the next window rather than executing instantly. If work or
-logistics is paused, the due window remains ready and executes when the post can
+rule waits for the next window rather than executing instantly. If a Sabbath or
+holiday pauses logistics, the due window remains ready and executes when the post can
 operate instead of silently skipping the order.
 
 Local export carts continuously stage only reachable public stock above the
@@ -539,11 +512,10 @@ household cap, then withdraws and records only the amount actually received.
 Equal-wealth households use stable residence order.
 
 Configured daily tithes, priest wages, upkeep, and alms are normalized across
-the 06:00-20:00 work window. They therefore total their displayed per-day rate
-instead of losing the 10 night hours when parish services pause. Automatic
-coffer sweep is an accounting transfer rather than a cart journey, so its
-global 900-tick cadence still fires when an interval lands at night; physical
-poor-relief imports remain subject to work and rest hours. When Sunday Sabbath
+the complete calendar day. They therefore total their displayed per-day rate
+while ordinary parish service continues at every displayed hour. Automatic
+coffer sweep is an accounting transfer rather than a cart journey; physical
+poor-relief imports remain subject to Sabbath and holiday pauses. When Sunday Sabbath
 is enabled, tithe forecasts use a seven-day average: the attendance bonus
 applies on the six collection days, while Sunday itself remains tithe-free.
 
@@ -708,9 +680,9 @@ total but cannot conceal a local service gap. The Town Hall reports the weakest
 branch, branches without a stocked loom route, and reserves below fourteen
 days—roughly one two-cloth delivery for a full ten-person household—then links
 to the first exposed home. Individual-house runway labels use the same
-seventy simulated seconds per calendar day (the 06:00–20:00 consumption
-window) as the aggregate forecast, instead of treating nighttime as active
-consumption. The reduction adds no save fields or path solves and remains
+120 simulated seconds per calendar day as the aggregate forecast, matching
+continuous ordinary consumption at every displayed hour. The reduction adds
+no save fields or path solves and remains
 linear in holdings, active textile branches, buildings, homes, and moving
 carts.
 

@@ -351,30 +351,6 @@ pub fn owner_unhoused_founders(ctx: &ReducerContext, owner: Identity) -> u32 {
         .sum()
 }
 
-pub fn active_settlement_founder_origins(
-    ctx: &ReducerContext,
-    owner: Identity,
-) -> Vec<(u64, f64, f64, u32)> {
-    let mut origins = ctx
-        .db
-        .settlement()
-        .owner()
-        .filter(&owner)
-        .filter(|settlement| settlement.active && settlement.unhoused_founders > 0)
-        .filter_map(|settlement| {
-            let camp = ctx.db.building().id().find(&settlement.founding_camp_id)?;
-            (camp.kind == "founders_camp" && camp.construction_complete).then_some((
-                settlement.id,
-                camp.x,
-                camp.z,
-                settlement.unhoused_founders,
-            ))
-        })
-        .collect::<Vec<_>>();
-    origins.sort_by_key(|origin| origin.0);
-    origins
-}
-
 fn is_community_influence_building(building: &Building) -> bool {
     building.kind == "founders_camp"
         || (building.construction_complete

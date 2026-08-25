@@ -1,10 +1,7 @@
 import {
   BACKYARD_GARDEN_DEFINITIONS,
   BACKYARD_GARDEN_KINDS,
-  CALENDAR_HOURS_PER_DAY,
   CALENDAR_SECONDS_PER_DAY,
-  CALENDAR_WORK_END_HOUR,
-  CALENDAR_WORK_START_HOUR,
   type BackyardGardenKind,
 } from '../generated/gameBalance.ts';
 import type { BuildingState, ResidenceState } from '../resources/types.ts';

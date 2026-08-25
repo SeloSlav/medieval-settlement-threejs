@@ -272,8 +272,8 @@ async function runProgressionScenario(connection: DbConnection): Promise<Record<
       () => Boolean(buildingByKind(connection, kind)?.constructionComplete),
       `${kind} construction completion`,
       {
-        // A site placed near the close of the workday may legitimately wait
-        // through the night before its next eligible construction cycle.
+        // Physical hauling and construction can still need several complete
+        // calendar cycles; cosmetic night introduces no separate pause.
         timeoutMs: 120_000,
         describe: () => `${describeBuilding(buildingByKind(connection, kind))}, tick=${worldConfig(connection)?.simTick}, speed=${worldConfig(connection)?.gameSpeed}; ${constructionTrace.describe(buildingByKind(connection, kind)?.id)}`,
       },

@@ -116,7 +116,7 @@ const MARKET_STALL_LABELS: Readonly<Record<MarketStallNeed, string>> = {
   preservedFood: 'Preserved food',
   luxury: 'Luxury provisions',
   firewood: 'Fuel',
-  cloth: 'Cloth',
+  cloth: 'Clothing',
   shoes: 'Shoes',
   pottery: 'Household wares',
 };

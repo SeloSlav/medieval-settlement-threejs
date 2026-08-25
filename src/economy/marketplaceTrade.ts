@@ -54,7 +54,7 @@ const RESOURCE_LABELS: Record<TradeResourceKind | 'gold', string> = {
   wine: 'Wine',
   polearms: 'Polearms',
   wool: 'Wool',
-  cloth: 'Cloth',
+  cloth: 'Clothing',
   hides: 'Hides',
   leather: 'Leather',
   shoes: 'Shoes',

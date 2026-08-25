@@ -269,6 +269,14 @@ for (const [view, season, scale, expected] of cases) {
       dataset.dogwoodLowerThirdFoliageRatios,
     );
     const basalBranchFanScores = morphologyValues(dataset.dogwoodBasalBranchFanScores);
+    const rootBaseSpreads = morphologyValues(dataset.dogwoodRootBaseSpreads);
+    const rootAzimuthGapCvs = morphologyValues(dataset.dogwoodRootAzimuthGapCvs);
+    const firstForkLengthRanges = morphologyValues(dataset.dogwoodFirstForkLengthRanges);
+    const forkSiblingLengthRatios = morphologyValues(dataset.dogwoodForkSiblingLengthRatios);
+    const canopyOppositeSectorImbalances = morphologyValues(
+      dataset.dogwoodCanopyOppositeSectorImbalances,
+    );
+    const canopySectorCvs = morphologyValues(dataset.dogwoodCanopySectorCvs);
     for (const values of [
       lowestFoliageMeters,
       lowestFoliageRatios,
@@ -276,6 +284,12 @@ for (const [view, season, scale, expected] of cases) {
       firstForkRatios,
       lowerThirdFoliageRatios,
       basalBranchFanScores,
+      rootBaseSpreads,
+      rootAzimuthGapCvs,
+      firstForkLengthRanges,
+      forkSiblingLengthRatios,
+      canopyOppositeSectorImbalances,
+      canopySectorCvs,
     ]) {
       expect(values).toHaveLength(3);
       expect(values.every(Number.isFinite)).toBe(true);
@@ -286,6 +300,28 @@ for (const [view, season, scale, expected] of cases) {
     for (const ratio of firstForkRatios) expect(ratio).toBeLessThanOrEqual(0.18);
     for (const ratio of lowerThirdFoliageRatios) expect(ratio).toBeGreaterThanOrEqual(0.2);
     for (const score of basalBranchFanScores) expect(score).toBeGreaterThanOrEqual(0.3);
+    for (const spread of rootBaseSpreads) {
+      expect(spread).toBeGreaterThanOrEqual(0.04);
+      expect(spread).toBeLessThanOrEqual(0.12);
+    }
+    for (const variation of rootAzimuthGapCvs) {
+      expect(variation).toBeGreaterThanOrEqual(0.18);
+      expect(variation).toBeLessThanOrEqual(0.7);
+    }
+    for (const range of firstForkLengthRanges) {
+      expect(range).toBeGreaterThanOrEqual(0.12);
+      expect(range).toBeLessThanOrEqual(0.18);
+    }
+    for (const ratio of forkSiblingLengthRatios) {
+      expect(ratio).toBeGreaterThanOrEqual(1.18);
+      expect(ratio).toBeLessThanOrEqual(1.5);
+    }
+    for (const imbalance of canopyOppositeSectorImbalances) {
+      expect(imbalance).toBeGreaterThanOrEqual(0.2);
+    }
+    for (const variation of canopySectorCvs) {
+      expect(variation).toBeGreaterThanOrEqual(0.2);
+    }
     const groundContacts = (dataset.dogwoodGroundContacts ?? '')
       .split(',')
       .filter(Boolean)

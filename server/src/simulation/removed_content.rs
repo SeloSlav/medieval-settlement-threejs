@@ -15,17 +15,19 @@ use crate::simulation::ReclamationStock;
 /// clears legacy overnight camps from existing saves now that labor is
 /// continuous and commute distance has no production effect.
 pub fn retire_removed_buildings(ctx: &ReducerContext) {
-    let retired: Vec<u64> = ctx
-        .db
-        .building()
-        .iter()
-        .filter(|building| matches!(building.kind.as_str(), "ferry_landing" | "remote_work_camp"))
-        .map(|building| building.id)
-        .collect();
-    if retired.is_empty() {
-        return;
+    let mut retired = Vec::new();
+    let mut stale_compatibility_rows = Vec::new();
+    for building in ctx.db.building().iter() {
+        if matches!(building.kind.as_str(), "ferry_landing" | "remote_work_camp") {
+            retired.push(building.id);
+        } else if building.remote_work_camp_enabled
+            || building.linked_worksite_id != 0
+            || !building.commute_efficiency.is_finite()
+            || (building.commute_efficiency - 1.0).abs() > 1e-9
+        {
+            stale_compatibility_rows.push(building.id);
+        }
     }
-
     let mut owners = HashSet::new();
     for building_id in retired {
         let Some(mut building) = ctx.db.building().id().find(&building_id) else {
@@ -91,6 +93,19 @@ pub fn retire_removed_buildings(ctx: &ReducerContext) {
         building.construction_treasury_roof_tiles = 0.0;
         building.civic_receipts_gold = 0.0;
         building.private_export_proceeds_gold = 0.0;
+        building.remote_work_camp_enabled = false;
+        building.linked_worksite_id = 0;
+        building.commute_efficiency = 1.0;
+        ctx.db.building().id().update(building);
+    }
+
+    // Earlier implementations also cached camp and commute state on parent
+    // worksites. Normalize every surviving row so no stale save value can
+    // affect diagnostics or a compatibility client after camps are retired.
+    for building_id in stale_compatibility_rows {
+        let Some(mut building) = ctx.db.building().id().find(&building_id) else {
+            continue;
+        };
         building.remote_work_camp_enabled = false;
         building.linked_worksite_id = 0;
         building.commute_efficiency = 1.0;

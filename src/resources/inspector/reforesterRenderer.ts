@@ -1,10 +1,7 @@
 import { getBuildingCost } from '../buildingEconomy.ts';
 import { getBuildingDefinition } from '../buildings.ts';
 import {
-  CALENDAR_HOURS_PER_DAY,
   CALENDAR_SECONDS_PER_DAY,
-  CALENDAR_WORK_END_HOUR,
-  CALENDAR_WORK_START_HOUR,
   NATURAL_TREE_MATURATION_DAYS,
 } from '../../generated/gameBalance.ts';
 import type { InspectableTarget } from '../types.ts';

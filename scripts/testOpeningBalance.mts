@@ -108,13 +108,13 @@ const smithyReplacementCycles = Math.ceil(STARTING_IRONWORK / SMITHY_IRONWORK_PE
 const smithyReplacementSeconds = smithyReplacementCycles * BUILDING_DEFINITIONS.smithy.harvestInterval;
 assert.ok(
   smithyReplacementSeconds <= workSecondsPerDay,
-  'a supplied one-worker Smithy must replace the complete starter reserve within one workday',
+  'a supplied one-worker Smithy must replace the complete starter reserve within one calendar day',
 );
 const tierFourChurchIronwork = CHAPEL_TIER2_UPGRADE_IRONWORK + CHAPEL_TIER3_UPGRADE_IRONWORK;
 assert.ok(
   Math.ceil(tierFourChurchIronwork / SMITHY_IRONWORK_PER_CYCLE)
     * BUILDING_DEFINITIONS.smithy.harvestInterval <= workSecondsPerDay,
-  'the post-bootstrap Smithy must replace the chapel ironwork needed along the Tier-4 service path within one workday',
+  'the post-bootstrap Smithy must replace the chapel ironwork needed along the Tier-4 service path within one calendar day',
 );
 const ironworkImport = MARKETPLACE_TRADE_OFFERS.find(
   (offer) => offer.kind === 'goldBuy' && offer.resource === 'ironwork',

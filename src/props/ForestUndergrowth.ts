@@ -746,11 +746,19 @@ function composeUndergrowthMatrix(
     ? THREE.MathUtils.lerp(1, placement.scale, 0.72)
       * THREE.MathUtils.lerp(0.96, 1.04, rng())
     : placement.scale * widthFactor * THREE.MathUtils.lerp(0.9, 1.14, rng());
+  const dogwoodHeightCeilingPosition = placement.kind === 'dogwood'
+    ? THREE.MathUtils.clamp(
+      placement.prototypeIndex / Math.max(1, GORSKI_SHRUB_VARIANT_COUNT - 1)
+        + THREE.MathUtils.lerp(-0.08, 0.08, rng()),
+      0,
+      1,
+    )
+    : 0;
   const dogwoodHeightCeiling = placement.kind === 'dogwood'
     ? THREE.MathUtils.lerp(
       DOGWOOD_MIN_HEIGHT_CEILING_METERS,
       DOGWOOD_MAX_HEIGHT_METERS,
-      rng(),
+      dogwoodHeightCeilingPosition,
     )
     : DOGWOOD_MAX_HEIGHT_METERS;
   const heightScale = placement.kind === 'dogwood'

@@ -205,7 +205,7 @@ assert.match(
 );
 assert.match(
   undergrowthSource,
-  /dogwoodHeightCeiling = placement\.kind === 'dogwood'[\s\S]*DOGWOOD_MIN_HEIGHT_CEILING_METERS,[\s\S]*DOGWOOD_MAX_HEIGHT_METERS,[\s\S]*rng\(\)[\s\S]*Math\.min\(placement\.scale, dogwoodHeightCeiling \/ prototypeHeight\)[\s\S]*placement\.finalHeight = prototypeHeight \* heightScale/,
+  /dogwoodHeightCeilingPosition = placement\.kind === 'dogwood'[\s\S]*placement\.prototypeIndex \/ Math\.max\(1, GORSKI_SHRUB_VARIANT_COUNT - 1\)[\s\S]*THREE\.MathUtils\.lerp\(-0\.08, 0\.08, rng\(\)\)[\s\S]*dogwoodHeightCeiling = placement\.kind === 'dogwood'[\s\S]*DOGWOOD_MIN_HEIGHT_CEILING_METERS,[\s\S]*DOGWOOD_MAX_HEIGHT_METERS,[\s\S]*dogwoodHeightCeilingPosition[\s\S]*Math\.min\(placement\.scale, dogwoodHeightCeiling \/ prototypeHeight\)[\s\S]*placement\.finalHeight = prototypeHeight \* heightScale/,
   'dogwood matrices must vary their upper ceiling while staying below 3.56 m',
 );
 assert.match(

@@ -432,16 +432,6 @@
       "promptInfluence": 0.89
     },
     {
-      "id": "building-remote-work-camp",
-      "group": "building-foley",
-      "kind": "sound-effect",
-      "output": "public/sounds/buildings/remote_work_camp.mp3",
-      "prompt": "Short quiet atmospheric Foley from a remote medieval work camp: a canvas shelter stirs, a wooden stool creaks once, and small camp gear shifts softly, no fire, no voices, no music",
-      "durationSeconds": 2.3,
-      "loop": false,
-      "promptInfluence": 0.83
-    },
-    {
       "id": "building-mine",
       "group": "building-foley",
       "kind": "sound-effect",

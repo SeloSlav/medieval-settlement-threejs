@@ -580,7 +580,7 @@ export function cargoKindLabel(kind: DeliveryCargoKind): string {
     case 'flax':
       return 'Flax fibre';
     case 'cloth':
-      return 'Cloth';
+      return 'Clothing';
     case 'hides':
       return 'Untanned hides';
     case 'leather':

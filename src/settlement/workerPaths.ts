@@ -794,7 +794,7 @@ export function pickWorkerWalkPlan(
     : null;
 }
 
-export function pickWorkerCommutePath(
+export function pickWorkerTravelPath(
   start: PointXZ,
   destination: PointXZ,
   roadNetwork: RoadNetwork | null,
@@ -818,8 +818,8 @@ export function pickWorkerCommutePath(
     }
   }
 
-  // A direct fallback is preferable to teleporting when a workplace or home
-  // has not yet been connected to the road graph.
+  // A direct fallback is preferable to teleporting when either endpoint has
+  // not yet been connected to the road graph.
   return [
     { x: start.x, z: start.z },
     { x: destination.x, z: destination.z },

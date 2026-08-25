@@ -73,7 +73,7 @@ const STORAGE_CHANNEL_LABELS: Record<keyof StorageCaps, string> = {
   candles: 'Candle store',
   wine: 'Wine cellar',
   wool: 'Wool store',
-  cloth: 'Cloth store',
+  cloth: 'Clothing store',
   ironwork: 'Ironwork store',
   polearms: 'Polearm rack',
   iron: 'Iron store',

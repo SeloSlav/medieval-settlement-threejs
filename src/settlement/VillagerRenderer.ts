@@ -42,13 +42,7 @@ import {
 } from '../economy/marketStallAssignments.ts';
 import {
   householdMemberHomeState,
-  type HouseholdHomeState,
 } from '../residences/householdRoutine.ts';
-import {
-  DEFAULT_NIGHT_POLICY,
-  isNightWorkBuilding,
-  type NightPolicyState,
-} from '../economy/nightPolicy.ts';
 import { polylineLengthXZ, samplePolylineXZ, type PointXZ } from '../utils/pathGeometry.ts';
 import type { GameClock } from '../world/gameCalendar.ts';
 import type { HolidayObservance } from '../world/holidayCalendar.ts';
@@ -97,7 +91,7 @@ import {
 import {
   allocateProductionWorkers,
   collectWorkerTargets,
-  pickWorkerCommutePath,
+  pickWorkerTravelPath,
   pickWorkerWalkPlan,
   watchtowerDutyPosition,
   watchtowerMusterPosition,
@@ -180,35 +174,13 @@ import {
   SELECTED_AGENT_ROUTE_Y_OFFSET,
   type SelectedAgentRoutePoint,
 } from '../scene/SelectedAgentRoute.ts';
-import {
-  resolveWorksiteLodging,
-  workLodgingDoorPosition,
-  workLodgingFiresidePosition,
-  type WorksiteLodging,
-} from '../buildings/remoteWorkCamp.ts';
-import {
-  clockElapsedSeconds,
-  clockSecondsIntoDay,
-  commuteBandForRatio,
-  commuteEffectiveShiftRatio,
-  estimatePedestrianTravelSeconds,
-  WORK_END_SECONDS,
-  WORK_START_SECONDS,
-  WORKDAY_SECONDS,
-  WORKER_MINIMUM_REST_SECONDS,
-  WORKER_MINIMUM_SHIFT_SECONDS,
-  type WorksiteCommuteSummary,
-} from './workerCommute.ts';
 
 type VillagerMode = VillagerRenderMode;
 type VillagerRole = 'founder' | 'resident' | 'worker';
 type VillagerRoutinePhase =
   | 'work'
-  | 'commuting_to_work'
+  | 'returning_to_work'
   | 'returning_home'
-  | 'remote_camp_outdoors'
-  | 'remote_camp_indoors'
-  | 'remote_camp_asleep'
   | 'going_to_mass'
   | 'at_mass'
   | 'returning_from_mass'
@@ -233,7 +205,7 @@ type VillagerPathPurpose =
   | 'home_wander'
   | 'backyard_work'
   | 'worker_work_loop'
-  | 'commute_to_work'
+  | 'return_to_work'
   | 'return_home'
   | 'chapel_mass'
   | 'return_from_mass'
@@ -249,23 +221,6 @@ type VillagerPathPurpose =
   | 'return_from_fire_assembly'
   | 'ambient'
   | null;
-
-type RemoteCampPhase =
-  | 'remote_camp_outdoors'
-  | 'remote_camp_indoors'
-  | 'remote_camp_asleep';
-
-function isRemoteCampPhase(phase: VillagerRoutinePhase): phase is RemoteCampPhase {
-  return phase === 'remote_camp_outdoors'
-    || phase === 'remote_camp_indoors'
-    || phase === 'remote_camp_asleep';
-}
-
-function remoteCampPhaseForHomeState(homeState: HouseholdHomeState): RemoteCampPhase {
-  if (homeState === 'asleep') return 'remote_camp_asleep';
-  if (homeState === 'indoors') return 'remote_camp_indoors';
-  return 'remote_camp_outdoors';
-}
 
 const WORKER_ACTIVITY_SECONDS = 9.5;
 const FISHING_PATH_WATER_SAMPLE_STEP = 0.3;
@@ -373,10 +328,6 @@ type VillagerAgent = {
   yaw: number;
   simAccumulator: number;
   frozen: boolean;
-  restUntilElapsedSeconds: number;
-  workArrivalElapsedSeconds: number | null;
-  returnRequiresRest: boolean;
-  returnLodgingId: string | null;
 };
 
 export type VillagerInspection = {
@@ -473,7 +424,6 @@ export class VillagerRenderer {
   private laborPaused = false;
   private sabbathPausedToday = false;
   private holidayObservance: HolidayObservance | null = null;
-  private lastScheduleElapsedSeconds: number | null = null;
   private lastRoutineClockTotalDays = Number.NaN;
   private lastRoutineClockHour = Number.NaN;
   private lastRoutineClockMinute = Number.NaN;
@@ -482,20 +432,9 @@ export class VillagerRenderer {
   private lastRoutineClockIsSunday: boolean | null = null;
   private lastRoutineClockIsWorkHours: boolean | null = null;
   private lastRoutineLaborPaused: boolean | null = null;
-  private lastRoutineNightWatch = Number.NaN;
-  private lastRoutineNightGathering = Number.NaN;
-  private lastRoutineNightWork = Number.NaN;
-  private lastRoutineNightCurfew = Number.NaN;
   private lastRoutineMonasteryFeastsEnabled: boolean | null = null;
   private lastRoutineSabbathPausedToday: boolean | null = null;
   private lastRoutineHolidaySignature = '';
-  private commuteEstimateNetwork: RoadNetwork | null = null;
-  private commuteEstimateTopologyRevision = -1;
-  private readonly workerCommuteEstimateCache = new Map<
-    string,
-    { key: string; seconds: number }
-  >();
-  private nightPolicy: NightPolicyState = { ...DEFAULT_NIGHT_POLICY };
   private lastView: CrowdViewState | undefined;
   private inspectedAgentCache: VillagerAgent | null = null;
 
@@ -525,31 +464,15 @@ export class VillagerRenderer {
   setSchedule(
     clock: GameClock,
     laborPaused: boolean,
-    nightPolicy: NightPolicyState = DEFAULT_NIGHT_POLICY,
     monasteryFeastsEnabled = true,
     sabbathPausedToday = false,
     holidayObservance: HolidayObservance | null = null,
   ): void {
-    const scheduleElapsed = clockElapsedSeconds(clock);
-    const scheduleRewound = this.lastScheduleElapsedSeconds != null
-      && scheduleElapsed + 1 < this.lastScheduleElapsedSeconds;
-    if (scheduleRewound) {
-      // Deterministic QA fixtures and world reconnects may replace the clock
-      // with an earlier snapshot; stale rest deadlines must not survive it.
-      for (const agent of this.agents.values()) {
-        agent.restUntilElapsedSeconds = Math.min(
-          agent.restUntilElapsedSeconds,
-          scheduleElapsed,
-        );
-        agent.workArrivalElapsedSeconds = null;
-      }
-    }
     const holidaySignature = holidayObservance
       ? `${holidayObservance.historicalYear}:${holidayObservance.id}`
       : '';
     const restDayPausedToday = sabbathPausedToday || holidayObservance !== null;
-    const fullRoutinePass = scheduleRewound
-      || this.lastRoutineClockTotalDays !== clock.totalDays
+    const fullRoutinePass = this.lastRoutineClockTotalDays !== clock.totalDays
       || this.lastRoutineClockHour !== clock.hour
       || this.lastRoutineClockMinute !== clock.minute
       || this.lastRoutineClockMonth !== clock.month
@@ -557,10 +480,6 @@ export class VillagerRenderer {
       || this.lastRoutineClockIsSunday !== clock.isSunday
       || this.lastRoutineClockIsWorkHours !== clock.isWorkHours
       || this.lastRoutineLaborPaused !== laborPaused
-      || this.lastRoutineNightWatch !== nightPolicy.watch
-      || this.lastRoutineNightGathering !== nightPolicy.gathering
-      || this.lastRoutineNightWork !== nightPolicy.work
-      || this.lastRoutineNightCurfew !== nightPolicy.curfew
       || this.lastRoutineMonasteryFeastsEnabled !== monasteryFeastsEnabled
       || this.lastRoutineSabbathPausedToday !== restDayPausedToday
       || this.lastRoutineHolidaySignature !== holidaySignature;
@@ -572,27 +491,18 @@ export class VillagerRenderer {
     this.lastRoutineClockIsSunday = clock.isSunday;
     this.lastRoutineClockIsWorkHours = clock.isWorkHours;
     this.lastRoutineLaborPaused = laborPaused;
-    this.lastRoutineNightWatch = nightPolicy.watch;
-    this.lastRoutineNightGathering = nightPolicy.gathering;
-    this.lastRoutineNightWork = nightPolicy.work;
-    this.lastRoutineNightCurfew = nightPolicy.curfew;
     this.lastRoutineMonasteryFeastsEnabled = monasteryFeastsEnabled;
     this.lastRoutineSabbathPausedToday = restDayPausedToday;
     this.lastRoutineHolidaySignature = holidaySignature;
-    this.lastScheduleElapsedSeconds = scheduleElapsed;
     this.clock = clock;
     this.laborPaused = laborPaused;
-    this.nightPolicy = nightPolicy;
     this.monasteryFeastsEnabled = monasteryFeastsEnabled;
     this.sabbathPausedToday = restDayPausedToday;
     this.holidayObservance = holidayObservance;
     this.refreshWaysideShrineVisitorRoster();
     let changed = false;
     for (const agent of this.agents.values()) {
-      // Residents and founders only observe minute-resolution home, mass, and
-      // feast schedules. Workers additionally have precise commute/rest
-      // deadlines, so they remain eligible between discrete clock changes.
-      if (!fullRoutinePass && agent.role !== 'worker') continue;
+      if (!fullRoutinePass) continue;
       changed = this.reconcileRoutine(agent) || changed;
     }
     if (changed) {
@@ -809,15 +719,6 @@ export class VillagerRenderer {
         && building.constructionComplete !== false
         && building.foundingShelterActive !== false,
     ) ?? null;
-    const topologyRevision = options.roadNetwork?.getTopologyRevision() ?? -1;
-    if (
-      this.commuteEstimateNetwork !== options.roadNetwork
-      || this.commuteEstimateTopologyRevision !== topologyRevision
-    ) {
-      this.workerCommuteEstimateCache.clear();
-      this.commuteEstimateNetwork = options.roadNetwork;
-      this.commuteEstimateTopologyRevision = topologyRevision;
-    }
     this.roadNetwork = options.roadNetwork;
     this.marketStallDutyByWorker = this.buildMarketplaceStallDuties(
       physicalBuildings,
@@ -953,10 +854,6 @@ export class VillagerRenderer {
           yaw: residence.yaw,
           simAccumulator: 0,
           frozen: false,
-          restUntilElapsedSeconds: 0,
-          workArrivalElapsedSeconds: null,
-          returnRequiresRest: false,
-          returnLodgingId: null,
         };
         this.agents.set(id, agent);
       } else {
@@ -1052,10 +949,6 @@ export class VillagerRenderer {
             yaw: residence.yaw,
             simAccumulator: 0,
             frozen: false,
-            restUntilElapsedSeconds: 0,
-            workArrivalElapsedSeconds: null,
-            returnRequiresRest: false,
-            returnLodgingId: null,
           };
           this.agents.set(id, agent);
         } else {
@@ -1158,10 +1051,6 @@ export class VillagerRenderer {
           yaw: yard.yaw,
           simAccumulator: 0,
           frozen: false,
-          restUntilElapsedSeconds: 0,
-          workArrivalElapsedSeconds: null,
-          returnRequiresRest: false,
-          returnLodgingId: null,
         };
         this.agents.set(assignment.id, agent);
       } else {
@@ -1267,10 +1156,6 @@ export class VillagerRenderer {
           yaw: 0,
           simAccumulator: 0,
           frozen: false,
-          restUntilElapsedSeconds: 0,
-          workArrivalElapsedSeconds: null,
-          returnRequiresRest: false,
-          returnLodgingId: null,
         };
         this.agents.set(id, agent);
       } else {
@@ -1296,7 +1181,6 @@ export class VillagerRenderer {
       if (nextIds.has(id)) continue;
       this.agents.delete(id);
       this.renderAgentsById.delete(id);
-      this.workerCommuteEstimateCache.delete(id);
     }
     this.syncRefugeRallySlots();
     this.syncGuardMusterSlots();
@@ -1363,8 +1247,8 @@ export class VillagerRenderer {
       }
 
       agent.frozen = !isWithinCrowdView(agent.x, agent.z, view);
-      const commuteMustAdvance = agent.pathPurpose === 'return_home'
-        || agent.pathPurpose === 'commute_to_work'
+      const offscreenJourneyMustAdvance = agent.pathPurpose === 'return_home'
+        || agent.pathPurpose === 'return_to_work'
         || agent.pathPurpose === 'chapel_mass'
         || agent.pathPurpose === 'return_from_mass'
         || agent.pathPurpose === 'monastery_feast'
@@ -1377,7 +1261,7 @@ export class VillagerRenderer {
         || agent.pathPurpose === 'return_from_muster'
         || agent.pathPurpose === 'fire_assembly'
         || agent.pathPurpose === 'return_from_fire_assembly';
-      if (agent.frozen && !commuteMustAdvance) continue;
+      if (agent.frozen && !offscreenJourneyMustAdvance) continue;
 
       agent.simAccumulator += simulationDt;
       while (agent.simAccumulator >= CROWD_SIM_DT) {
@@ -1520,7 +1404,7 @@ export class VillagerRenderer {
         || agent.workplaceSlot !== workerSlot
       ) continue;
       const active = agent.routinePhase === 'work'
-        || agent.routinePhase === 'commuting_to_work';
+        || agent.routinePhase === 'returning_to_work';
       return {
         x: agent.x,
         y: agent.y,
@@ -1531,64 +1415,6 @@ export class VillagerRenderer {
       };
     }
     return null;
-  }
-
-  getWorksiteCommuteSummary(buildingId: string): WorksiteCommuteSummary | null {
-    const workplace = this.buildings.get(buildingId);
-    if (!workplace) return null;
-    const lodging = resolveWorksiteLodging(
-      workplace,
-      this.buildings.values(),
-      this.fireDisabledBuildingIds,
-    );
-    let measuredWorkers = 0;
-    let totalDistance = 0;
-    let longestDistance = 0;
-    let totalSeconds = 0;
-    let longestSeconds = 0;
-
-    for (const agent of this.agents.values()) {
-      if (agent.role !== 'worker' || agent.workplaceId !== buildingId) continue;
-      const residence = agent.residenceId
-        ? this.residences.get(agent.residenceId) ?? null
-        : null;
-      const origin = residence
-        ? residenceDoorPosition(residence)
-        : this.foundingCamp
-          ? this.foundingCampRestPosition(agent, this.foundingCamp)
-          : null;
-      if (!origin) continue;
-      const destination = this.workerDutyPosition(workplace, agent.workplaceSlot);
-      const path = pickWorkerCommutePath(origin, destination, this.roadNetwork);
-      if (!path) continue;
-      const distance = polylineLengthXZ(path);
-      const seconds = estimatePedestrianTravelSeconds(
-        path,
-        agent.walkSpeed,
-        this.roadNetwork,
-      );
-      measuredWorkers += 1;
-      totalDistance += distance;
-      longestDistance = Math.max(longestDistance, distance);
-      totalSeconds += seconds;
-      longestSeconds = Math.max(longestSeconds, seconds);
-    }
-
-    const averageSeconds = measuredWorkers > 0 ? totalSeconds / measuredWorkers : 0;
-    const effectiveShiftRatio = lodging
-      ? 1
-      : commuteEffectiveShiftRatio(averageSeconds);
-    return {
-      workerCount: workplace.assignedLabor,
-      measuredWorkers,
-      averageOneWayDistance: measuredWorkers > 0 ? totalDistance / measuredWorkers : 0,
-      longestOneWayDistance: longestDistance,
-      averageOneWaySeconds: averageSeconds,
-      longestOneWaySeconds: longestSeconds,
-      effectiveShiftRatio,
-      band: commuteBandForRatio(lodging ? 0 : averageSeconds * 2 / WORKDAY_SECONDS),
-      lodgingMode: lodging?.mode ?? 'none',
-    };
   }
 
   dispose(): void {
@@ -1610,7 +1436,6 @@ export class VillagerRenderer {
     this.combatAudioSourceWorkspace.sourcePool.length = 0;
     this.combatAudioSourceWorkspace.sourceFirstIds.length = 0;
     this.combatAudioSourceWorkspace.sourceSecondIds.length = 0;
-    this.workerCommuteEstimateCache.clear();
     this.activityAudio.dispose();
     this.farmWorkerSongAudio.dispose();
     this.combatAudio.dispose();
@@ -1645,7 +1470,7 @@ export class VillagerRenderer {
       && !workplaceFireDisabled
       && (
         agent.routinePhase === 'work'
-        || agent.routinePhase === 'commuting_to_work'
+        || agent.routinePhase === 'returning_to_work'
       );
 
     return {
@@ -2277,8 +2102,8 @@ export class VillagerRenderer {
         case 'return_home':
           this.completeWorkerReturnHome(agent);
           break;
-        case 'commute_to_work':
-          this.completeWorkerCommuteToWork(agent);
+        case 'return_to_work':
+          this.completeWorkerReturnToWork(agent);
           break;
         case 'chapel_mass':
           this.completeMassArrival(agent);
@@ -2742,7 +2567,7 @@ export class VillagerRenderer {
       ? this.buildings.get(agent.workplaceId) ?? null
       : null;
     const shouldWork = agent.role === 'worker'
-      && this.shouldWorkerReportToWork(agent, workplace);
+      && this.shouldWorkerReportToWork(workplace);
     const residence = agent.residenceId
       ? this.residences.get(agent.residenceId) ?? null
       : null;
@@ -2754,11 +2579,6 @@ export class VillagerRenderer {
       residenceFireDisabled
       && residence
       && !shouldWork
-      && !(workplace && resolveWorksiteLodging(
-        workplace,
-        this.buildings.values(),
-        this.fireDisabledBuildingIds,
-      ))
     ) {
       if (
         agent.routinePhase === 'going_to_fire_assembly'
@@ -2773,12 +2593,12 @@ export class VillagerRenderer {
       || agent.routinePhase === 'at_fire_assembly'
     ) {
       return shouldWork
-        ? this.beginWorkerCommuteToWork(agent)
+        ? this.beginWorkerReturnToWork(agent)
         : this.beginFireAssemblyReturn(agent);
     }
     if (agent.routinePhase === 'returning_from_fire_assembly') {
       return shouldWork
-        ? this.beginWorkerCommuteToWork(agent)
+        ? this.beginWorkerReturnToWork(agent)
         : false;
     }
 
@@ -2786,11 +2606,7 @@ export class VillagerRenderer {
       return this.transitionToSickRest(agent);
     }
 
-    const homeState = householdMemberHomeState(
-      agent.personIdentity,
-      this.clock,
-      this.nightPolicy,
-    );
+    const homeState = householdMemberHomeState(agent.personIdentity, this.clock);
     const chapel = this.findMassChapel(agent);
     const shouldAttendMass = isSundayMassTime(
       this.clock,
@@ -2871,20 +2687,10 @@ export class VillagerRenderer {
     }
     if (agent.routinePhase === 'returning_from_shrine') return false;
 
-    // Worksite lodging covers the working week, not the observed Sabbath.
-    // Replan even an already-started trip so nobody reaches the tents only
-    // to turn around for their household or the founders camp.
     if (
-      this.sabbathPausedToday
+      !shouldWork
       && agent.role === 'worker'
-      && (
-        isRemoteCampPhase(agent.routinePhase)
-        || agent.pathPurpose === 'commute_to_work'
-        || (
-          agent.pathPurpose === 'return_home'
-          && agent.returnLodgingId != null
-        )
-      )
+      && agent.pathPurpose === 'return_to_work'
     ) {
       return this.beginWorkerReturnHome(agent);
     }
@@ -2893,7 +2699,7 @@ export class VillagerRenderer {
     // Emergencies and explicit religious gatherings may still preempt it.
     if (
       agent.pathPurpose === 'return_home'
-      || agent.pathPurpose === 'commute_to_work'
+      || agent.pathPurpose === 'return_to_work'
     ) {
       return false;
     }
@@ -2904,22 +2710,14 @@ export class VillagerRenderer {
 
     if (agent.role === 'worker') {
       if (shouldWork) {
-        if (agent.routinePhase === 'work' || agent.routinePhase === 'commuting_to_work') {
+        if (agent.routinePhase === 'work' || agent.routinePhase === 'returning_to_work') {
           return false;
         }
-        return this.beginWorkerCommuteToWork(agent);
+        return this.beginWorkerReturnToWork(agent);
       }
 
       if (agent.routinePhase === 'returning_home') return false;
-      if (agent.routinePhase === 'work' || agent.routinePhase === 'commuting_to_work') {
-        return this.beginWorkerReturnHome(agent);
-      }
-      if (workplace && this.workerWorksiteLodging(workplace)) {
-        if (isRemoteCampPhase(agent.routinePhase)) {
-          return this.transitionToRemoteCampState(agent, homeState, workplace);
-        }
-      }
-      if (isRemoteCampPhase(agent.routinePhase)) {
+      if (agent.routinePhase === 'work' || agent.routinePhase === 'returning_to_work') {
         return this.beginWorkerReturnHome(agent);
       }
     }
@@ -2928,7 +2726,6 @@ export class VillagerRenderer {
   }
 
   private shouldWorkerReportToWork(
-    agent: VillagerAgent,
     workplace: BuildingState | null,
   ): boolean {
     if (
@@ -2938,74 +2735,9 @@ export class VillagerRenderer {
     ) {
       return false;
     }
-    if (this.holidayObservance) return false;
-    if (
-      this.isNightWatchDuty(agent, workplace)
-      || (
-        !this.clock.isWorkHours
-        && workplace.constructionComplete !== false
-        && isNightWorkBuilding(workplace.kind, this.nightPolicy.work)
-        && !this.frontierAlertActive
-      )
-    ) {
-      return true;
-    }
-
-    const elapsed = clockElapsedSeconds(this.clock);
-    if (elapsed + 1e-6 < agent.restUntilElapsedSeconds) return false;
-
-    const secondsIntoDay = clockSecondsIntoDay(this.clock);
-    const atWork = agent.routinePhase === 'work';
-    const travelSeconds = this.estimateWorkerCommuteSeconds(agent, workplace);
-    const weeklyReturnToLodging = this.workerWorksiteLodging(workplace) != null
-      && !atWork
-      && !isRemoteCampPhase(agent.routinePhase);
-    const minimumUsefulShift = weeklyReturnToLodging
-      ? 0
-      : WORKER_MINIMUM_SHIFT_SECONDS;
-
-    if (secondsIntoDay < WORK_START_SECONDS) {
-      if (this.sabbathPausedToday) return false;
-      const untilWork = WORK_START_SECONDS - secondsIntoDay;
-      return travelSeconds + minimumUsefulShift <= WORKDAY_SECONDS
-        && untilWork <= travelSeconds + 0.25;
-    }
-
-    if (secondsIntoDay >= WORK_END_SECONDS || this.laborPaused) return false;
-
-    const remainingWorkday = WORK_END_SECONDS - secondsIntoDay;
-    if (atWork) {
-      const minimumShiftComplete = agent.workArrivalElapsedSeconds == null
-        || elapsed - agent.workArrivalElapsedSeconds >= WORKER_MINIMUM_SHIFT_SECONDS;
-      return !(minimumShiftComplete && remainingWorkday <= travelSeconds + 0.25);
-    }
-
-    return remainingWorkday >= travelSeconds + minimumUsefulShift;
-  }
-
-  private isNightWatchDuty(
-    agent: VillagerAgent,
-    workplace: BuildingState | null,
-  ): boolean {
-    if (
-      !this.clock
-      || this.clock.isWorkHours
-      || !workplace
-      || workplace.constructionComplete === false
-      || this.fireDisabledBuildingIds.has(workplace.id)
-      || this.nightPolicy.watch === 2
-    ) {
-      return false;
-    }
-    if (workplace.kind === 'watchtower') return true;
-    if (workplace.kind !== 'guardhouse') return false;
-    const armedSlots = Math.min(
-      workplace.assignedLabor,
-      Math.floor(workplace.polearms ?? 0),
-    );
-    if (agent.workplaceSlot >= armedSlots) return false;
-    return this.nightPolicy.watch === 1
-      || agent.workplaceSlot < Math.max(1, Math.ceil(armedSlots / 2));
+    return !this.laborPaused
+      && !this.sabbathPausedToday
+      && this.holidayObservance === null;
   }
 
   private findMassChapel(agent: VillagerAgent): BuildingState | null {

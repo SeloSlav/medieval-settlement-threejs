@@ -68,7 +68,7 @@ export const STORAGE_COMMODITY_LABELS: Record<StorageCommodity, string> = {
   honey: 'Honey',
   wine: 'Wine',
   stone: 'Stone',
-  cloth: 'Cloth',
+  cloth: 'Clothing',
   barley: 'Threshed barley',
   flax: 'Flax',
   iron: 'Iron ore',

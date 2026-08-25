@@ -599,18 +599,18 @@ const SETTLEMENT_HUD_HTML = `
         <strong class="settlement-hud__value" data-stockpile="wine">0</strong>
         <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="wine" hidden></span>
       </div>
-      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="wool" data-tooltip="Sheep fleece used by weavers to make cloth.">
+      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="wool" data-tooltip="Sheep fleece used by weavers to make clothing.">
         <span class="settlement-hud__label">Wool</span>
         <strong class="settlement-hud__value" data-stockpile="wool">0</strong>
         <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="wool" hidden></span>
       </div>
-      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="flax" data-tooltip="Plant fibre used by weavers to make cloth.">
+      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="flax" data-tooltip="Plant fibre used by weavers to make clothing.">
         <span class="settlement-hud__label">Flax</span>
         <strong class="settlement-hud__value" data-stockpile="flax">0</strong>
         <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="flax" hidden></span>
       </div>
-      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="cloth" data-tooltip="Woven fabric used by households and for trade.">
-        <span class="settlement-hud__label">Cloth</span>
+      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="cloth" data-tooltip="Finished clothing used by households and for trade.">
+        <span class="settlement-hud__label">Clothing</span>
         <strong class="settlement-hud__value" data-stockpile="cloth">0</strong>
         <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="cloth" hidden></span>
       </div>

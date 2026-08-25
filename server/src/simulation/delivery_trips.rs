@@ -2002,14 +2002,14 @@ fn step_one_trip(
             return;
         }
         RaidCartPosture::ReturnHome => {
-            // The emergency alarm overrides night and sabbath rest only long
-            // enough for this already-returning cart to reach its origin.
+            // The emergency alarm overrides protected rest only long enough
+            // for this already-returning cart to reach its origin.
         }
         RaidCartPosture::Ordinary => {
-            // Dispatch is independently gated by work hours and Sabbath at
-            // every trip-start boundary. Once a crew has physically departed,
-            // it completes the committed outbound leg, unload, and return
-            // instead of camping on the road when the workday ends.
+            // Dispatch is independently gated by protected rest and active
+            // threats at every trip-start boundary. Once a crew has physically
+            // departed, it completes the committed outbound leg, unload, and
+            // return instead of freezing between calendar ticks.
         }
     }
 

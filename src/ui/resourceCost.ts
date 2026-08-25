@@ -120,7 +120,7 @@ const RESOURCE_COST_LABELS: Record<ResourceCostKind, string> = {
   wine: 'wine',
   wool: 'wool',
   flax: 'flax',
-  cloth: 'cloth',
+  cloth: 'clothing',
   hides: 'hides',
   leather: 'leather',
   shoes: 'shoes',

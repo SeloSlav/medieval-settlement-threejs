@@ -444,7 +444,6 @@
 }
 
 .settlement-hud__stat[data-resource='flax']::before,
-.settlement-hud__stat[data-resource='cloth']::before,
 .settlement-hud__stat[data-resource='ironwork']::before,
 .settlement-hud__stat[data-resource='polearms']::before {
   background-image: url('/assets/ui/icons/hud-resources-goods-b.png');
@@ -452,9 +451,15 @@
 }
 
 .settlement-hud__stat[data-resource='flax']::before { background-position: 0 0; }
-.settlement-hud__stat[data-resource='cloth']::before { background-position: 100% 0; }
 .settlement-hud__stat[data-resource='ironwork']::before { background-position: 0 100%; }
 .settlement-hud__stat[data-resource='polearms']::before { background-position: 100% 100%; }
+
+.settlement-hud__stat[data-resource='cloth']::before {
+  background-image: url('/assets/ui/icons/materials/clothing.png');
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: contain;
+}
 
 .settlement-hud__stat[data-resource='iron']::before,
 .settlement-hud__stat[data-resource='clay']::before,
@@ -728,15 +733,20 @@
 }
 
 .resource-cost__item[data-resource-cost='flax'] .resource-cost__icon,
-.resource-cost__item[data-resource-cost='cloth'] .resource-cost__icon,
 .resource-cost__item[data-resource-cost='polearms'] .resource-cost__icon {
   background-image: url('/assets/ui/icons/hud-resources-goods-b.png');
   background-size: 200% 200%;
 }
 
 .resource-cost__item[data-resource-cost='flax'] .resource-cost__icon { background-position: 0 0; }
-.resource-cost__item[data-resource-cost='cloth'] .resource-cost__icon { background-position: 100% 0; }
 .resource-cost__item[data-resource-cost='polearms'] .resource-cost__icon { background-position: 100% 100%; }
+
+.resource-cost__item[data-resource-cost='cloth'] .resource-cost__icon {
+  background-image: url('/assets/ui/icons/materials/clothing.png');
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: contain;
+}
 
 .resource-cost__item[data-resource-cost='iron'] .resource-cost__icon,
 .resource-cost__item[data-resource-cost='clay'] .resource-cost__icon,

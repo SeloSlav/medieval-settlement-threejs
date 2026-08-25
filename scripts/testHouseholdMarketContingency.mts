@@ -410,7 +410,7 @@ assert.equal(
 );
 assert.equal(waterFallback.readyHomes, 1);
 
-const closed = computeSettlementHouseholdMarketPlan({
+const cosmeticNight = computeSettlementHouseholdMarketPlan({
   state: state({
     markets: [market('10', 0)],
     homes: [home('resting', 20)],
@@ -423,8 +423,8 @@ const closed = computeSettlementHouseholdMarketPlan({
   },
   sabbathObserved: false,
 });
-assert.equal(closed.closedHomes, 1);
-assert.equal(closed.currentLogisticsPaused, true);
+assert.equal(cosmeticNight.closedHomes, 0);
+assert.equal(cosmeticNight.currentLogisticsPaused, false);
 
 const sabbath = computeSettlementHouseholdMarketPlan({
   state: state({

@@ -49,7 +49,7 @@ const RESOURCE_LABELS: Record<HudResourceKind, string> = {
   candles: 'Candles',
   wine: 'Wine',
   wool: 'Wool',
-  cloth: 'Cloth',
+  cloth: 'Clothing',
   hides: 'Untanned hides',
   leather: 'Leather',
   shoes: 'Shoes',

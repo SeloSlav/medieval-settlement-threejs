@@ -64,7 +64,7 @@ export const TRADE_RESOURCE_LABELS: Record<TradeResourceKind, string> = {
   preservedFood: 'Preserved food', curedMeat: 'Cured meat', smokedFish: 'Smoked fish',
   cheese: 'Cheese', aroniaJam: 'Aronia jam', rosehipJam: 'Rosehip jam', honey: 'Honey', wax: 'Beeswax', candles: 'Candles',
   ale: 'Ale', cider: 'Apple cider', pearCider: 'Pear cider', wine: 'Wine', wool: 'Wool',
-  cloth: 'Cloth', iron: 'Iron', clay: 'Clay', salt: 'Salt', ironwork: 'Ironwork',
+  cloth: 'Clothing', iron: 'Iron', clay: 'Clay', salt: 'Salt', ironwork: 'Ironwork',
   hides: 'Hides', leather: 'Leather', shoes: 'Shoes',
   polearms: 'Polearms', pottery: 'Pottery', roofTiles: 'Roof tiles', manure: 'Manure',
   remedies: 'Remedies',

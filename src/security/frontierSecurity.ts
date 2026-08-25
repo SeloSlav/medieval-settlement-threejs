@@ -1353,7 +1353,7 @@ const RAID_PORTABLE_STORE_SUMMARY = [
   ['wine', 'wine', 1],
   ['wool', 'wool', 1],
   ['flax', 'flax fibre', 1],
-  ['cloth', 'cloth', CLOTH_RAID_VALUE_MULTIPLIER],
+  ['cloth', 'clothing', CLOTH_RAID_VALUE_MULTIPLIER],
   ['ironwork', 'ironwork', IRONWORK_RAID_VALUE_MULTIPLIER],
   ['polearms', 'polearms', POLEARM_RAID_VALUE_MULTIPLIER],
   ['iron', 'iron bars', IRONWORK_RAID_VALUE_MULTIPLIER],
