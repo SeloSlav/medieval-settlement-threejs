@@ -3,12 +3,13 @@ import { setForestCardSnowCoverage } from '@seedthree/core/branch-cards.js';
 import { windSpeed, windStrength } from '@seedthree/core/wind.js';
 import { WebGPURenderer } from 'three/webgpu';
 import {
-  FOREST_FLOOR_IVY_ANIMATED_LEAVES_PER_PATCH,
   FOREST_FLOOR_IVY_CANOPY_HEIGHT_MAX,
-  FOREST_FLOOR_IVY_LAYER_COUNT,
+  FOREST_FLOOR_IVY_LEAVES_PER_PATCH,
+  FOREST_FLOOR_IVY_RUNNERS_PER_PATCH,
   FOREST_FLOOR_IVY_SEED,
-  FOREST_FLOOR_IVY_TEXTURE_PATH,
+  FOREST_FLOOR_IVY_TRIANGLES_PER_PATCH,
   createForestFloorIvyMaterial,
+  createForestFloorIvyTextures,
   createTerrainConformingIvyGeometry,
   type ForestFloorIvyPlacement,
 } from '../props/ForestFloorIvy.ts';
@@ -39,7 +40,6 @@ import type { Terrain } from '../terrain/Terrain.ts';
 import { SpatialHash2D } from '../utils/SpatialHash2D.ts';
 import {
   disposeSeedThreeGroundCoverTextures,
-  loadSeedThreeGroundCoverTextures,
 } from '../vegetation/seedthree/seedThreeGroundCover.ts';
 import { setWorldAnimationTime } from '../scene/worldAnimationTime.ts';
 import { deciduousFoliageForSeasonPreview } from '../world/deciduousFoliagePolicy.ts';
@@ -51,12 +51,14 @@ import {
   resolveWorldDimensions,
 } from '../world/worldGenerationSettings.ts';
 
-type ForestFloorCaptureMode = 'baseline' | 'nettles' | 'twigs' | 'final';
+type ForestFloorCaptureMode = 'baseline' | 'ivy' | 'nettles' | 'twigs' | 'final';
 
 type ForestFloorRenderEvidence = {
   mode: ForestFloorCaptureMode;
+  ivyAttached: boolean;
   nettleGroupAttached: boolean;
   twigGroupAttached: boolean;
+  ivySubmissions: number;
   nettleSubmissions: number;
   twigSubmissions: number;
   renderCalls: number;
@@ -181,12 +183,9 @@ const ivyGeometry = createTerrainConformingIvyGeometry(
   placements.length,
   FOREST_FLOOR_IVY_SEED,
 ).geometry;
-const ivyTextures = await loadSeedThreeGroundCoverTextures(
-  { albedo: FOREST_FLOOR_IVY_TEXTURE_PATH },
-  renderer.getMaxAnisotropy(),
-);
+const ivyTextures = createForestFloorIvyTextures(renderer.getMaxAnisotropy());
 const ivyMaterial = createForestFloorIvyMaterial(
-  'SeedThree layered forest-floor ivy lineup',
+  'SeedThree runner-chain forest-floor ivy lineup',
   ivyTextures,
   'webgpu',
 );
@@ -194,7 +193,7 @@ setForestCardSnowCoverage(ivyMaterial, ivySnowCoverage);
 windStrength.value = 0.5;
 windSpeed.value = 0.84;
 const ivy = new THREE.Mesh(ivyGeometry, ivyMaterial);
-ivy.name = 'Four-strata terrain-conforming ivy lineup';
+ivy.name = 'Terrain-following ivy runner-chain lineup';
 ivy.frustumCulled = false;
 ivy.renderOrder = 2;
 scene.add(ivy);
@@ -277,8 +276,12 @@ for (let variantIndex = 0; variantIndex < FOREST_FLOOR_TWIG_VARIANT_COUNT; varia
 }
 scene.add(twigGroup);
 
+let ivySubmissions = 0;
 let nettleSubmissions = 0;
 let twigSubmissions = 0;
+ivy.onBeforeRender = () => {
+  ivySubmissions += 1;
+};
 for (const bucket of nettles.buckets) {
   bucket.mesh.onBeforeRender = () => {
     nettleSubmissions += 1;
@@ -384,8 +387,10 @@ function render(now = performance.now()): void {
 
 window.__FOREST_FLOOR_SET_CAPTURE_MODE__ = async (mode) => {
   capturePaused = true;
+  ivy.visible = mode === 'ivy' || mode === 'final';
   nettles.group.visible = mode === 'nettles' || mode === 'final';
   twigGroup.visible = mode === 'twigs' || mode === 'final';
+  ivySubmissions = 0;
   nettleSubmissions = 0;
   twigSubmissions = 0;
   prepareFrame(performance.now());
@@ -394,8 +399,10 @@ window.__FOREST_FLOOR_SET_CAPTURE_MODE__ = async (mode) => {
   await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
   return {
     mode,
+    ivyAttached: ivy.parent === scene,
     nettleGroupAttached: nettles.group.parent === scene,
     twigGroupAttached: twigGroup.parent === scene,
+    ivySubmissions,
     nettleSubmissions,
     twigSubmissions,
     renderCalls: renderer.info.render.calls,
@@ -412,12 +419,15 @@ document.body.dataset.season = season;
 document.body.dataset.animationTime = fixedAnimationTime === null
   ? 'live'
   : fixedAnimationTime.toFixed(2);
-document.body.dataset.ivyLayers = String(FOREST_FLOOR_IVY_LAYER_COUNT);
+document.body.dataset.ivyRunners = String(FOREST_FLOOR_IVY_RUNNERS_PER_PATCH);
 document.body.dataset.ivyPatches = String(placements.length);
-document.body.dataset.ivyAnimatedLeaves = String(
-  placements.length * FOREST_FLOOR_IVY_ANIMATED_LEAVES_PER_PATCH,
+document.body.dataset.ivyLeaves = String(
+  placements.length * FOREST_FLOOR_IVY_LEAVES_PER_PATCH,
 );
 document.body.dataset.ivyDrawCalls = '1';
+document.body.dataset.ivyTriangles = String(
+  placements.length * FOREST_FLOOR_IVY_TRIANGLES_PER_PATCH,
+);
 document.body.dataset.ivyMaxHeight = FOREST_FLOOR_IVY_CANOPY_HEIGHT_MAX.toFixed(2);
 document.body.dataset.ivySnowCoverage = ivySnowCoverage.toFixed(2);
 document.body.dataset.nettleInstances = String(nettles.stats.instances);

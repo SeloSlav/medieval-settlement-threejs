@@ -795,6 +795,7 @@ export const Settlement = __t.object("Settlement", {
   lastNightLightingFuelShortfall: __t.f64(),
   nightCommunityCohesion: __t.f64(),
   nightLaborFatigue: __t.f64(),
+  nameCustomized: __t.bool(),
 });
 export type Settlement = __Infer<typeof Settlement>;
 

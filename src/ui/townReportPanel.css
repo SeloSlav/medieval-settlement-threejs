@@ -1,10 +1,13 @@
 .town-report-panel {
   position: absolute;
-  top: 96px;
-  right: 18px;
+  top: 88px;
+  right: auto;
+  left: 14px;
   z-index: 13;
-  width: min(520px, calc(100vw - 36px));
-  max-height: calc(100vh - 126px);
+  display: flex;
+  flex-direction: column;
+  width: min(520px, calc(100vw - 340px));
+  max-height: calc(100vh - 102px);
   overflow: hidden;
   color: var(--ink);
   border: 1px solid rgba(215, 180, 99, 0.34);
@@ -61,7 +64,13 @@
   cursor: pointer;
 }
 
-.town-report-panel__body { padding: 15px 18px 18px; overflow: auto; max-height: calc(100vh - 200px); }
+.town-report-panel__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 15px 18px 18px;
+  overflow: auto;
+  max-height: calc(100vh - 176px);
+}
 .town-report-panel__scope { margin: 0 0 13px; color: var(--muted); font-size: 12px; line-height: 1.45; }
 .town-report-panel__stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
 .town-report-panel__stats span { padding: 10px 8px; text-align: center; border: 1px solid rgba(238,232,220,.09); border-radius: 9px; background: rgba(255,255,255,.035); }
@@ -85,8 +94,30 @@
 .town-report-panel__trade { margin: 0; padding: 12px; color: var(--muted); font-size: 11px; }
 .town-report-panel__trade { padding: 9px 2px 0; color: #d5c18b; }
 
-@media (max-width: 680px) {
-  .town-report-panel { top: 72px; right: 10px; width: calc(100vw - 20px); }
+@media (max-width: 760px) {
+  .town-report-panel {
+    top: 84px;
+    left: 10px;
+    width: min(440px, calc(100vw - 270px));
+    max-height: calc(100vh - 150px);
+  }
+  .town-report-panel__body { max-height: calc(100vh - 224px); }
   .town-report-panel__stats { grid-template-columns: repeat(2, 1fr); }
   .town-report-panel__row { grid-template-columns: minmax(78px, 1.2fr) repeat(4, minmax(46px, .7fr)); font-size: 10px; }
+}
+
+@media (max-width: 620px) {
+  .town-report-panel {
+    top: 180px;
+    right: 10px;
+    bottom: 150px;
+    left: 10px;
+    width: auto;
+    max-height: none;
+  }
+  .town-report-panel__body { max-height: none; }
+
+  /* Compact screens cannot fit two report columns. Keep the noble identity
+   * visible and restore its report ledger as soon as this panel closes. */
+  [data-ui-root].is-town-report-open .noble-hud__reports { display: none; }
 }

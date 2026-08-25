@@ -68,6 +68,7 @@ import PurchaseStableOxReducer from "./purchase_stable_ox_reducer";
 import RecallIdleSeasonalLaborReducer from "./recall_idle_seasonal_labor_reducer";
 import RecallTargetIdleProcessorLaborReducer from "./recall_target_idle_processor_labor_reducer";
 import RemoveRoadEdgeReducer from "./remove_road_edge_reducer";
+import RenameSettlementReducer from "./rename_settlement_reducer";
 import RepairFireDamageReducer from "./repair_fire_damage_reducer";
 import ResetWorldReducer from "./reset_world_reducer";
 import RetrofitResidenceTileRoofReducer from "./retrofit_residence_tile_roof_reducer";
@@ -707,6 +708,7 @@ const reducersSchema = __reducers(
   __reducerSchema("recall_idle_seasonal_labor", RecallIdleSeasonalLaborReducer),
   __reducerSchema("recall_target_idle_processor_labor", RecallTargetIdleProcessorLaborReducer),
   __reducerSchema("remove_road_edge", RemoveRoadEdgeReducer),
+  __reducerSchema("rename_settlement", RenameSettlementReducer),
   __reducerSchema("repair_fire_damage", RepairFireDamageReducer),
   __reducerSchema("reset_world", ResetWorldReducer),
   __reducerSchema("retrofit_residence_tile_roof", RetrofitResidenceTileRoofReducer),

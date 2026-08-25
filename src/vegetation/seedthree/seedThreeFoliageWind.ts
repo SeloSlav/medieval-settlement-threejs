@@ -146,11 +146,10 @@ function rotateAroundAxis(
 }
 
 /**
- * Individually rooted forest-floor ivy leaves. The broad carrier sheets write
- * zero hinge amplitude and remain terrain-welded; every explicit leaf repeats
- * its own root, hinge axis, phase, and maximum rotation on its vertices. This
- * is a rigid petiole hinge, so the root cannot slide and the leaf does not
- * stretch like a height-field sheet.
+ * Individually rooted forest-floor ivy leaves. Terrain-welded runners write
+ * zero hinge amplitude; every procedural leaf repeats its own root, hinge axis,
+ * phase, and maximum rotation on its vertices. This is a rigid petiole hinge,
+ * so the root cannot slide and the leaf does not stretch across the ground.
  */
 export function createIvyLeafHingeWindNodes(): IvyLeafHingeWindNodes {
   const local = ivyTsl.positionLocal;

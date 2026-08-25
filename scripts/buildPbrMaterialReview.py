@@ -566,7 +566,7 @@ Generated with `fal-ai/patina/material`. This is a non-destructive review set: n
 | `props/mossy_rock` | Live shared open-ground/forest, river, and quarry-deposit PBR | Generated three identities: woodland-only mossy stone, clean water-worn river stone, and clean freshly fractured quarry limestone. Open-meadow rocks need a neutral fallback because the current “forest” placement pass also emits rocks in low-forest-density areas. |
 | `snow_ground` | Only its albedo is packed into the live atlas; standalone data maps are ignored | Keep for this round. Current snow reads well and a full replacement cannot be used without atlas/material work. |
 | `roads/wood_logs` | Live UV-authored bridge/log surface | Keep. Its albedo encodes log layout, so a generic seamless PATINA tile is the wrong representation. |
-| close meadow grass and forest-floor ivy | Live alpha cards, not tileable ground PBR | Keep. These require foliage-card generation with preserved alpha, not PATINA Material. |
+| close meadow grass | Live alpha cards, not tileable ground PBR | Keep. These require foliage-card generation with preserved alpha, not PATINA Material. Forest-floor ivy is now procedural runner-and-leaf geometry and does not consume this card pipeline. |
 | bilberry, fern, and juniper forest undergrowth | Live SeedThree albedo/normal/roughness/translucency cards | Keep. They already use coherent foliage-specific maps. |
 | `manor_grass_blend`, `grass_ground`, `mammoth_grass_ground`, `mammoth_dead_grass_ground`, `mammoth_terrain_gravel` | Runtime-dead / archival | Audited, but no generation spend. |
 | SeedThree vegetables and kitchen-crop cards | Live but explicitly excluded | No inspection-driven replacement and no generation calls. |

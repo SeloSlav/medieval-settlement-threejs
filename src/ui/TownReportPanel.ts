@@ -46,11 +46,13 @@ export class TownReportPanel {
     this.invalidate();
     this.refresh();
     this.panel.hidden = false;
+    this.options.uiRoot.classList.add('is-town-report-open');
   }
 
   close(): void {
     this.selectedSettlementId = null;
     this.panel.hidden = true;
+    this.options.uiRoot.classList.remove('is-town-report-open');
   }
 
   isOpen(): boolean {
@@ -115,6 +117,7 @@ export class TownReportPanel {
   }
 
   dispose(): void {
+    this.options.uiRoot.classList.remove('is-town-report-open');
     this.panel.remove();
   }
 

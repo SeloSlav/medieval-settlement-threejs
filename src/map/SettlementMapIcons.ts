@@ -132,8 +132,11 @@ export class SettlementMapIcons {
     button.type = 'button';
     button.className = 'settlement-map-icon';
     button.hidden = true;
-    button.addEventListener('mousedown', (event) => {
-      if (event.button !== 0 || this.options.isBlocked()) return;
+    button.addEventListener('pointerdown', (event) => {
+      if (event.button === 0) event.stopPropagation();
+    });
+    button.addEventListener('click', (event) => {
+      if (this.options.isBlocked()) return;
       event.preventDefault();
       event.stopPropagation();
       const settlementId = button.dataset.settlementId;

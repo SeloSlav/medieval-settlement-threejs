@@ -263,6 +263,25 @@
   transform: scale(1.06);
 }
 
+.settlement-hud__animals-summary::before {
+  width: 25px;
+  height: 25px;
+  justify-self: center;
+  content: '';
+  background: url('/assets/ui/icons/hud-livestock.png') center / contain no-repeat;
+  filter: drop-shadow(0 1px 1px rgba(7, 6, 4, 0.8));
+  transition: filter 120ms ease, transform 120ms ease;
+}
+
+.settlement-hud__animals-summary:hover::before,
+.settlement-hud__animals-summary:focus-visible::before,
+.settlement-hud__animals[open] > .settlement-hud__animals-summary::before {
+  filter:
+    drop-shadow(0 1px 1px rgba(7, 6, 4, 0.82))
+    brightness(1.12);
+  transform: scale(1.06);
+}
+
 .settlement-hud__stat[data-resource]::before {
   width: 20px;
   height: 20px;

@@ -223,6 +223,7 @@ assert.doesNotMatch(
 
 const localReport = source('src/resources/settlementResourceReport.ts');
 const townReportPanel = source('src/ui/TownReportPanel.ts');
+const townReportStyles = source('src/ui/townReportPanel.css');
 const worldMapIcons = source('src/app/worldMapIcons.ts');
 const appBootstrap = source('src/app/appBootstrap.ts');
 assert.match(localReport, /export function computeSettlementResourceReport/);
@@ -235,6 +236,21 @@ assert.match(townReportPanel, /computeSettlementResourceReport/);
 assert.match(townReportPanel, /one realm economy/);
 assert.match(townReportPanel, /Not a separate town wallet/);
 assert.match(townReportPanel, /bound for off-map trade/);
+assert.match(
+  townReportPanel,
+  /open\(settlementId:[\s\S]*?classList\.add\('is-town-report-open'\)[\s\S]*?close\(\):[\s\S]*?classList\.remove\('is-town-report-open'\)/,
+  'the town report must publish its open state for responsive HUD collision handling',
+);
+assert.match(
+  townReportStyles,
+  /\.town-report-panel\s*\{[\s\S]*?right:\s*auto;[\s\S]*?left:\s*14px;[\s\S]*?width:\s*min\(520px, calc\(100vw - 340px\)\)/,
+  'the town report must use the left inspection rail and reserve the lord report rail',
+);
+assert.match(
+  townReportStyles,
+  /@media \(max-width: 620px\)[\s\S]*?top:\s*180px;[\s\S]*?bottom:\s*150px;[\s\S]*?is-town-report-open \.noble-hud__reports\s*\{\s*display:\s*none;/,
+  'compact screens must stack the town report between the top and bottom HUD without a second report column',
+);
 assert.match(
   worldMapIcons,
   /TownReportPanel[\s\S]*settlementId[\s\S]*townReport\.open/,
