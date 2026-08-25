@@ -596,11 +596,22 @@ const emptyBackyardView = renderBackyardInspector(
   {
     kind: 'backyard',
     residence: westHome,
-    zone: { plotCount: 4 },
+    zone: {
+      id: westHome.zoneId,
+      cornerA: { x: -16, z: 0 },
+      cornerB: { x: 16, z: 0 },
+      cornerC: { x: 16, z: 24 },
+      cornerD: { x: -16, z: 24 },
+      frontageEdge: 0,
+      plotCount: 4,
+    },
     garden: null,
   } as Parameters<typeof renderBackyardInspector>[0],
   {
-    gameState: state({ residences: [westHome] }) as GameState,
+    gameState: {
+      ...state({ residences: [westHome] }),
+      deliveryTrips: new Map(),
+    } as GameState,
     worldQueries: {} as WorldQueries,
     worldHydrology: 50,
     resourceTotals: { timber: 381, stone: 12, gold: 24 },
