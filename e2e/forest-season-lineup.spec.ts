@@ -1,4 +1,5 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
+import { writeFile } from 'node:fs/promises';
 
 type ForestSeason = 'spring' | 'summer' | 'autumn' | 'winter';
 type CaptureLayer =
@@ -294,10 +295,14 @@ test('SeedThree canopy — deterministic fixed-view four-season contract', async
     const frame = await captureCanvas(canvas);
     frames.set(season, frame);
     evidences.set(season, evidence);
-    await testInfo.attach(`forest-season-${season}`, {
-      body: frame,
-      contentType: 'image/png',
-    });
+    if (process.env.E2E_CAPTURE === '1') {
+      const capturePath = testInfo.outputPath(`forest-season-${season}.png`);
+      await writeFile(capturePath, frame);
+      await testInfo.attach(`forest-season-${season}`, {
+        path: capturePath,
+        contentType: 'image/png',
+      });
+    }
   }
 
   expect(fixedSignatures.size).toBe(1);

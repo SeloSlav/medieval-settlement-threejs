@@ -58,10 +58,6 @@ import { formatWaterRunwayDays, residenceWaterRunwayDays } from '../../logistics
 import { formatDeliveryRoadDistance } from '../../logistics/deliveryLogistics.ts';
 import { effectiveResidenceSettleTicks } from '../../economy/chapelCommunity.ts';
 import { formatHouseholdProsperity } from '../../economy/householdWealth.ts';
-import {
-  formatResidenceServiceConsequence,
-  residenceServiceState,
-} from '../../economy/residenceSatisfaction.ts';
 import { DEFAULT_PARISH_POLICY } from '../../economy/chapelParish.ts';
 import {
   DEFAULT_PANTRY_SAFEGUARD_POLICY,
@@ -104,6 +100,7 @@ import {
 import {
   renderBuildingResourceCost,
   renderResourceCost,
+  type ResourceCostKind,
 } from '../../ui/resourceCost.ts';
 import {
   renderInspectorResourceStrip,
@@ -128,6 +125,7 @@ import {
   residenceNeedsStatus,
   getNeed,
   getNeedStock,
+  type ResidenceNeedKind,
 } from '../../residences/residenceNeeds.ts';
 import { requiredChapelTierForResidence } from '../../residences/residenceNeedState.ts';
 import type { BuildingState, InspectableTarget, ResidenceState } from '../types.ts';
@@ -575,7 +573,6 @@ export function renderResidenceInspector(
     : remedyDailyDemand > 1e-9
       ? `${Math.round(residence.remedyStock ?? 0)} at home · ${remedyCoverageDays.toFixed(1)} treatment days`
       : `${Math.round(residence.remedyStock ?? 0)} at home · no current treatment demand`;
-  const service = residenceServiceState(residence);
   const householdCorpses = Array.from((context.gameState.corpses ?? new Map()).values())
     .filter((corpse) => corpse.residenceId === residence.id);
   const compactHealthLabel = hungerDays >= STARVATION_DEATH_START_DAYS
@@ -754,8 +751,7 @@ export function renderResidenceInspector(
     : `
       <li data-residence-summary data-inspector-primary data-inspector-detail="Parcel #${residence.parcelIndex + 1} · ${residenceCount} residence${residenceCount === 1 ? '' : 's'} · ${settlersRemaining} vacancies"><span>Population</span><span>${residence.population} / ${capacity}</span></li>
       <li data-residence-summary data-inspector-primary data-inspector-detail="Malnutrition ${Math.round((residence.malnutrition ?? 0) * 100)}% · sick ${residence.sickPopulation ?? 0} · deaths ${residence.deathsTotal ?? 0}"><span>Health</span><span>${compactHealthLabel}</span></li>
-      <li data-residence-summary data-inspector-primary data-inspector-detail="${residence.tier >= 4 ? 'Fired clay tile' : residence.tier === 1 ? 'Bundled thatch' : 'Split wooden shingle'} · ${roadAccess}"><span>House tier</span><span>${residence.tier} / 4</span></li>
-      <li data-residence-summary data-inspector-primary data-inspector-detail="Staffed parish level ${requiredChapelTierForResidence(residence.tier)} required"><span>Church</span><span>${community.hasChapelAccess ? `L${community.chapelTier ?? 1}` : 'Missing'}</span></li>
+      ${renderResidenceTierNeedsRow(residence, roadAccess)}
       <li data-residence-summary data-inspector-primary data-inspector-resource-strip data-inspector-section="Stores"><span>Stores</span>${renderInspectorResourceStrip(householdTokens, { ariaLabel: 'Household stores' })}</li>
     `;
 
@@ -817,7 +813,6 @@ export function renderResidenceInspector(
         ? residenceProsperityRows(prosperityPlan, tierThreeProjection)
         : ''}
       <li data-inspector-primary><span>Active needs</span><span>${displayedNeedsLabel}</span></li>
-      ${residence.tier > 0 && residence.population > 0 ? `<li><span>Approval & economy</span><span>${formatResidenceServiceConsequence(service)}</span></li>` : ''}
       ${residence.tier > 0 ? `<li><span>Household prosperity</span><span>${formatHouseholdProsperity(residence.householdWealth)}</span></li>` : ''}
       ${residence.tier > 0 ? `<li><span>Local supply cycle</span><span>Connected Marketplace checks ${MARKETPLACE_HOUSEHOLD_ISSUE_CHECKS_PER_DAY} times per day and replenishes the household's monthly bill buffer when needed · Town Hall safeguard: ${pantrySafeguard.label} — ${pantrySafeguard.hint} · well water draws automatically in radius · no household cart or player prompt</span></li>` : ''}
       ${fireDisabled

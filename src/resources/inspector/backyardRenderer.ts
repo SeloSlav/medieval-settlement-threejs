@@ -39,10 +39,6 @@ import {
 } from '../../logistics/constructionPriority.ts';
 import { settlementHasStaffedChapel } from '../../logistics/landmarkAccess.ts';
 import { backyardGardenPlacement } from '../../residences/backyardPosition.ts';
-import {
-  formatResidenceServiceConsequence,
-  residenceServiceState,
-} from '../../economy/residenceSatisfaction.ts';
 import { gameClock } from '../../world/gameCalendar.ts';
 import { environmentFor } from '../../world/seasonPolicy.ts';
 import type { BurgageZoneState, InspectableTarget } from '../types.ts';
@@ -109,7 +105,6 @@ export function renderBackyardInspector(
   const taxCollectionMultiplier = staffedTownHall
     ? 1
     : TOWN_HALL_UNSTAFFED_TAX_COLLECTION_MULTIPLIER;
-  const service = residenceServiceState(residence);
   const seasonalMultiplier = sabbathPaused ? 0 : season.multiplier;
   const economy = buildBackyardEconomyView(
     garden.kind,
@@ -225,7 +220,6 @@ export function renderBackyardInspector(
       ${marketChannel === null
         ? ''
         : `<li><span>Local trade value today</span><span>${economy.activityPerDay.toFixed(1)} gold${!hasMarketAccess ? ' · surplus selling paused' : seasonalMultiplier <= 1e-9 ? ' · no harvest today' : ''}</span></li>`}
-      <li><span>Household services</span><span>${formatResidenceServiceConsequence(service)}</span></li>
       ${marketChannel === null
         ? ''
         : `<li><span>Local market levy (${economy.taxPercent})</span><span>${taxLabel}${staffedTownHall ? '' : ` · ${Math.round(taxCollectionMultiplier * 100)}% collection without a staffed clerk`} · held in the market lockbox until a free hauler carts it to the civic treasury</span></li>

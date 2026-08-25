@@ -110,117 +110,165 @@ export class GameMenu {
     this.backdrop.hidden = true;
     this.backdrop.innerHTML = `
       <div class="game-menu-dialog" role="dialog" aria-modal="true" aria-labelledby="game-menu-title">
-        <h2 id="game-menu-title" class="game-menu-title">Settings</h2>
-        <label class="game-menu-option">
-          <input type="checkbox" data-tree-shadows-checkbox />
-          <span>Tree shadows</span>
-        </label>
-        <label class="game-menu-option">
-          <input type="checkbox" data-building-shadows-checkbox />
-          <span>Building shadows</span>
-        </label>
-        <label class="game-menu-option">
-          <input type="checkbox" data-distant-canopy-cards-checkbox />
-          <span>Distant canopy cards</span>
-        </label>
-        <label class="game-menu-option">
-          <input type="checkbox" data-constellation-guides-checkbox />
-          <span>Constellation guides</span>
-        </label>
-        <label class="game-menu-option">
-          <input type="checkbox" data-day-night-cycle-checkbox />
-          <span>Turn off day/night cycle</span>
-        </label>
-        <label class="game-menu-select game-menu-option--nested">
-          <span>Fixed sky</span>
-          <select data-fixed-sky-preset aria-describedby="fixed-sky-description">
-            ${FIXED_SKY_PRESETS.map((preset) => (
-              `<option value="${preset.id}">${preset.label}</option>`
-            )).join('')}
-          </select>
-          <small id="fixed-sky-description" data-fixed-sky-description></small>
-        </label>
-        <label class="game-menu-option">
-          <input type="checkbox" data-resource-icons-checkbox />
-          <span>Always show resource icons</span>
-        </label>
-        <label class="game-menu-option">
-          <input type="checkbox" data-game-audio-checkbox />
-          <span>Game audio</span>
-        </label>
-        <label class="game-menu-volume game-menu-option--nested">
-          <span>Ambience volume</span>
-          <output class="game-menu-volume__value" data-ambience-volume-value></output>
-          <input
-            type="range"
-            min="0"
-            max="100"
-            step="1"
-            aria-label="Ambience volume"
-            data-ambience-volume
-          />
-        </label>
-        <label class="game-menu-option game-menu-option--nested">
-          <input type="checkbox" data-forest-wind-checkbox />
-          <span>Forest wind sounds</span>
-        </label>
-        <label class="game-menu-volume game-menu-option--nested">
-          <span>Sound effects volume</span>
-          <output class="game-menu-volume__value" data-sound-effects-volume-value></output>
-          <input
-            type="range"
-            min="0"
-            max="100"
-            step="1"
-            aria-label="Sound effects volume"
-            data-sound-effects-volume
-          />
-        </label>
-        <label class="game-menu-option game-menu-option--nested">
-          <input type="checkbox" data-music-checkbox />
-          <span>Background music</span>
-        </label>
-        <label class="game-menu-volume game-menu-option--nested">
-          <span>Music volume</span>
-          <output class="game-menu-volume__value" data-music-volume-value></output>
-          <input
-            type="range"
-            min="0"
-            max="100"
-            step="1"
-            aria-label="Music volume"
-            data-music-volume
-          />
-        </label>
-        <section class="game-menu-cheat" aria-labelledby="game-menu-cheat-title">
-          <div class="game-menu-cheat__heading">
-            <div>
-              <h3 id="game-menu-cheat-title">Cheat mode</h3>
-              <p>Top up every resource for unrestricted sandbox building.</p>
-            </div>
-            <span class="game-menu-cheat__badge">Sandbox</span>
+        <header class="game-menu-header">
+          <div>
+            <p class="game-menu-eyebrow">Game paused</p>
+            <h2 id="game-menu-title" class="game-menu-title">Settings</h2>
           </div>
-          <label class="game-menu-cheat__amount">
-            <span>Resources each</span>
-            <input
-              type="number"
-              min="1"
-              max="1000000000"
-              step="10000"
-              value="100000"
-              inputmode="numeric"
-              data-cheat-amount
-            />
-          </label>
-          <button type="button" class="game-menu-cheat__grant" data-cheat-grant>
-            Enable cheat mode
-          </button>
-          <p class="game-menu-cheat__status" data-cheat-status aria-live="polite"></p>
-        </section>
-        <button type="button" class="game-menu-action" data-game-controls>Game controls…</button>
-        <button type="button" class="game-menu-action" data-replay-tutorials>Replay tutorials…</button>
-        <button type="button" class="game-menu-action" data-new-world>New world…</button>
-        <button type="button" class="game-menu-return" data-return-button>Return to game</button>
+          <button type="button" class="game-menu-return" data-return-button>Return to game</button>
+        </header>
+
+        <div class="game-menu-settings" aria-label="Settings categories">
+          <section class="game-menu-section" aria-labelledby="game-menu-visuals-title">
+            <header class="game-menu-section__header">
+              <h3 id="game-menu-visuals-title">Visuals</h3>
+              <p>World detail and map readability</p>
+            </header>
+            <div class="game-menu-section__controls">
+              <label class="game-menu-option">
+                <input type="checkbox" data-tree-shadows-checkbox />
+                <span>Tree shadows</span>
+              </label>
+              <label class="game-menu-option">
+                <input type="checkbox" data-building-shadows-checkbox />
+                <span>Building shadows</span>
+              </label>
+              <label class="game-menu-option">
+                <input type="checkbox" data-distant-canopy-cards-checkbox />
+                <span>Distant canopy cards</span>
+              </label>
+              <label class="game-menu-option">
+                <input type="checkbox" data-resource-icons-checkbox />
+                <span>Always show resource icons</span>
+              </label>
+            </div>
+          </section>
+
+          <section class="game-menu-section" aria-labelledby="game-menu-sky-title">
+            <header class="game-menu-section__header">
+              <h3 id="game-menu-sky-title">Sky &amp; time</h3>
+              <p>Celestial display and lighting</p>
+            </header>
+            <div class="game-menu-section__controls">
+              <label class="game-menu-option">
+                <input type="checkbox" data-constellation-guides-checkbox />
+                <span>Constellation guides</span>
+              </label>
+              <label class="game-menu-option">
+                <input type="checkbox" data-day-night-cycle-checkbox />
+                <span>Turn off day/night cycle</span>
+              </label>
+              <label class="game-menu-select game-menu-option--nested">
+                <span>Fixed sky</span>
+                <select data-fixed-sky-preset aria-describedby="fixed-sky-description">
+                  ${FIXED_SKY_PRESETS.map((preset) => (
+                    `<option value="${preset.id}">${preset.label}</option>`
+                  )).join('')}
+                </select>
+                <small id="fixed-sky-description" data-fixed-sky-description></small>
+              </label>
+            </div>
+          </section>
+
+          <section class="game-menu-section" aria-labelledby="game-menu-audio-title">
+            <header class="game-menu-section__header">
+              <h3 id="game-menu-audio-title">Audio</h3>
+              <p>Ambience, effects, and music</p>
+            </header>
+            <div class="game-menu-section__controls">
+              <label class="game-menu-option">
+                <input type="checkbox" data-game-audio-checkbox />
+                <span>Game audio</span>
+              </label>
+              <label class="game-menu-volume game-menu-option--nested">
+                <span>Ambience</span>
+                <output class="game-menu-volume__value" data-ambience-volume-value></output>
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  step="1"
+                  aria-label="Ambience volume"
+                  data-ambience-volume
+                />
+              </label>
+              <label class="game-menu-option game-menu-option--nested">
+                <input type="checkbox" data-forest-wind-checkbox />
+                <span>Forest wind sounds</span>
+              </label>
+              <label class="game-menu-volume game-menu-option--nested">
+                <span>Sound effects</span>
+                <output class="game-menu-volume__value" data-sound-effects-volume-value></output>
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  step="1"
+                  aria-label="Sound effects volume"
+                  data-sound-effects-volume
+                />
+              </label>
+              <label class="game-menu-option game-menu-option--nested">
+                <input type="checkbox" data-music-checkbox />
+                <span>Background music</span>
+              </label>
+              <label class="game-menu-volume game-menu-option--nested">
+                <span>Music</span>
+                <output class="game-menu-volume__value" data-music-volume-value></output>
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  step="1"
+                  aria-label="Music volume"
+                  data-music-volume
+                />
+              </label>
+            </div>
+          </section>
+        </div>
+
+        <div class="game-menu-lower">
+          <section class="game-menu-cheat" aria-labelledby="game-menu-cheat-title">
+            <div class="game-menu-cheat__heading">
+              <div>
+                <h3 id="game-menu-cheat-title">Sandbox</h3>
+                <p>Top up every resource for unrestricted building.</p>
+              </div>
+              <span class="game-menu-cheat__badge">Cheat mode</span>
+            </div>
+            <div class="game-menu-cheat__controls">
+              <label class="game-menu-cheat__amount">
+                <span>Resources each</span>
+                <input
+                  type="number"
+                  min="1"
+                  max="1000000000"
+                  step="10000"
+                  value="100000"
+                  inputmode="numeric"
+                  data-cheat-amount
+                />
+              </label>
+              <button type="button" class="game-menu-cheat__grant" data-cheat-grant>
+                Enable cheat mode
+              </button>
+            </div>
+            <p class="game-menu-cheat__status" data-cheat-status aria-live="polite"></p>
+          </section>
+
+          <section class="game-menu-actions" aria-labelledby="game-menu-actions-title">
+            <header class="game-menu-section__header">
+              <h3 id="game-menu-actions-title">Game</h3>
+              <p>Help, tutorials, and world management</p>
+            </header>
+            <div class="game-menu-actions__grid">
+              <button type="button" class="game-menu-action" data-game-controls>Game controls…</button>
+              <button type="button" class="game-menu-action" data-replay-tutorials>Replay tutorials…</button>
+              <button type="button" class="game-menu-action game-menu-action--danger" data-new-world>New world…</button>
+            </div>
+          </section>
+        </div>
       </div>
     `;
 
