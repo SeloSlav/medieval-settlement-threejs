@@ -554,7 +554,7 @@ assert.deepEqual(
     clay: 12,
   }),
   ['iron', 'salt', 'clay'],
-  'Mining Pit carts must route every non-stone surface material to its processor',
+  'Mining Camp carts must route every non-stone surface material to its processor',
 );
 assert.deepEqual(
   localMaterialInputCommodities('mine', {

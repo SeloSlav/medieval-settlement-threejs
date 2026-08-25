@@ -7,6 +7,11 @@ import {
   mineralMineOutputPerDay,
 } from '../src/economy/settlementGeology.ts';
 import {
+  BUILDING_DEFINITIONS,
+  CIVILIAN_TOOL_THROUGHPUT_MULTIPLIER,
+  RICH_MINE_THROUGHPUT_MULTIPLIER,
+} from '../src/generated/gameBalance.ts';
+import {
   createEmptyStockpile,
   type BuildingState,
   type GameState,
@@ -161,6 +166,7 @@ const state: GameState = {
   farmFields: new Map(),
   pastures: new Map(),
   livestockHerds: new Map(),
+  stableOxen: new Map(),
   burgageZones: new Map(),
   residences: new Map(),
   backyardGardens: new Map(),
@@ -181,7 +187,7 @@ const baselineMineOutput = mineralMineOutputPerDay(
   false,
 );
 const maintainedMineOutput = mineralMineOutputPerDay(
-  { assignedLabor: 1, ironwork: 0.25, timber: 1 },
+  { assignedLabor: 1, ironwork: 1, timber: 1 },
   deposits[5],
   false,
 );
@@ -190,21 +196,27 @@ assert.ok(
   'maintained Mineworks tools must multiply rich extraction without becoming a hard requirement',
 );
 assert.ok(
-  Math.abs(maintainedMineOutput / baselineSurfaceOutput - 1.8) < 1e-9,
-  'rich Mineworks geology and maintained tool bonuses must multiply the shared surface rate',
+  Math.abs(
+    maintainedMineOutput / baselineSurfaceOutput
+      - RICH_MINE_THROUGHPUT_MULTIPLIER
+        * CIVILIAN_TOOL_THROUGHPUT_MULTIPLIER
+        * BUILDING_DEFINITIONS.stone_quarry.harvestInterval
+        / BUILDING_DEFINITIONS.mine.harvestInterval,
+  ) < 1e-9,
+  'Mineworks richness and maintained tools must multiply before its deeper-work interval is applied',
 );
 assert.equal(
   mineralMineOutputPerDay(
-    { assignedLabor: 1, ironwork: 0.25, timber: 1 },
+    { assignedLabor: 1, ironwork: 1, timber: 1 },
     deposits[4],
     false,
   ),
   0,
-  'ordinary iron belongs to the Mining Pit and must not produce through Mineworks',
+  'ordinary iron belongs to the Mining Camp and must not produce through Mineworks',
 );
 assert.equal(
   mineralMineOutputPerDay(
-    { assignedLabor: 1, ironwork: 0.25, timber: 0 },
+    { assignedLabor: 1, ironwork: 1, timber: 0 },
     deposits[5],
     false,
   ),
@@ -242,12 +254,12 @@ assert.equal(
 );
 assert.equal(plan.stone.activeDeepSources, 1);
 assert.equal(plan.stone.deepSourcesAwaitingSupports, 0);
-assert.equal(plan.stone.deepSupportRunwayCycles, 6);
+assert.equal(plan.stone.deepSupportRunwayCycles, 1.5);
 assert.ok(plan.stone.deepSupportTimberPerDay > 0);
 assert.equal(plan.clay.activeDeepSources, 1);
 assert.equal(plan.iron.activeDeepSources, 1);
 assert.equal(plan.iron.deepSourcesAwaitingSupports, 0);
-assert.equal(plan.iron.deepSupportRunwayCycles, 3);
+assert.equal(plan.iron.deepSupportRunwayCycles, 1.5);
 assert.ok(plan.iron.deepSupportTimberPerDay > 0);
 assert.equal(
   plan.salt.activeDeepSources,
@@ -264,7 +276,7 @@ assert.ok(plan.salt.finiteExtractionPerDay > 0);
 assert.equal(plan.salt.deepExtractionPerDay, 0);
 assert.ok(
   plan.salt.shortestFiniteRunwayDays !== null,
-  'a Mining Pit must consume the finite surface cap even when it belongs to a rich marker',
+  'a Mining Camp must consume the finite surface cap even when it belongs to a rich marker',
 );
 assert.deepEqual(
   [
@@ -402,7 +414,7 @@ state.deliveryTrips.set('quarry-support-cart', {
 const inboundStoneSupportPlan = computeSettlementGeologyPlan(state, false);
 assert.equal(inboundStoneSupportPlan.stone.activeDeepSources, 1);
 assert.equal(inboundStoneSupportPlan.stone.deepSourcesAwaitingSupports, 0);
-assert.equal(inboundStoneSupportPlan.stone.deepSupportRunwayCycles, 2);
+assert.equal(inboundStoneSupportPlan.stone.deepSupportRunwayCycles, 1);
 
 deepIronMine.timber = 0;
 const supportStarvedPlan = computeSettlementGeologyPlan(state, false);
@@ -461,14 +473,14 @@ assert.equal(exhaustedPlan.iron.finiteExtractionPerDay, 0);
 assert.equal(
   exhaustedPlan.iron.firstAttentionBuildingId,
   'iron-surface-pit',
-  'a staffed Mining Pit on an exhausted seam must be the first geological warning',
+  'a staffed Mining Camp on an exhausted seam must be the first geological warning',
 );
 assert.equal(exhaustedPlan.clay.exhaustedFiniteDeposits, 1);
 assert.equal(exhaustedPlan.clay.finiteExtractionPerDay, 0);
 assert.equal(
   exhaustedPlan.clay.firstAttentionBuildingId,
   'clay-surface-pit',
-  'a staffed Mining Pit on an exhausted clay bank must be the first clay warning',
+  'a staffed Mining Camp on an exhausted clay bank must be the first clay warning',
 );
 
 state.fireIncidents.set('fire-1', {

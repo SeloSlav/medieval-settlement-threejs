@@ -343,8 +343,8 @@ const ordinarySurfacePitPoint = {
 assert.deepEqual(
   resolveBuildingPlacementPoint(
     'mine',
-    richClay.x + 24,
-    richClay.z - 12,
+    richClay.x + 12,
+    richClay.z - 8,
     clayNodes,
   ),
   { x: richClay.x, z: richClay.z },
@@ -358,7 +358,7 @@ assert.deepEqual(
     clayNodes,
   ),
   ordinarySurfacePitPoint,
-  'a Mining Pit works a nearby surface reserve without moving onto the deposit',
+  'a Mining Camp works a nearby surface reserve without moving onto the deposit',
 );
 
 const placementContext = {
@@ -382,7 +382,7 @@ assert.equal(
     placementContext,
   ).ok,
   true,
-  'an ordinary generated clay bank must be a valid surface source for a nearby Mining Pit',
+  'an ordinary generated clay bank must be a valid surface source for a nearby Mining Camp',
 );
 assert.equal(
   validateBuildingPlacement(
@@ -422,7 +422,7 @@ assert.deepEqual(
     },
   ),
   { ok: false, reason: 'no_quarry_in_range' },
-  'an exhausted ordinary clay bank must not satisfy a replacement Mining Pit',
+  'an exhausted ordinary clay bank must not satisfy a replacement Mining Camp',
 );
 assert.deepEqual(
   validateBuildingPlacement('smithy', richClay.x, richClay.z, {
@@ -514,8 +514,8 @@ assert.match(
 );
 assert.match(
   buildingReducer,
-  /fn has_surface_deposit_in_radius[\s\S]*mining_pit_clay_commodity[\s\S]*deposit\.remaining > 0\.0/,
-  'Mining Pit placement must recognize only a remaining finite clay surface layer in range',
+  /fn has_surface_deposit_in_radius[\s\S]*mining_camp_clay_commodity[\s\S]*deposit\.remaining > 0\.0/,
+  'Mining Camp placement must recognize only a remaining finite clay surface layer in range',
 );
 assert.match(
   buildingReducer,
@@ -524,13 +524,13 @@ assert.match(
 );
 assert.match(
   miningPitSimulation,
-  /mining_pit_clay_commodity[\s\S]*deposit\.remaining <= 1e-6/,
-  'surface extraction must route generated clay through the Mining Pit and reject depleted banks',
+  /mining_camp_clay_commodity[\s\S]*deposit\.remaining <= 1e-6/,
+  'surface extraction must route generated clay through the Mining Camp and reject depleted banks',
 );
 assert.match(
   miningPitSimulation,
   /SurfaceDeposit::Clay\(deposit\)[\s\S]*remaining: crate::resource_units::whole_units\(deposit\.remaining\) - batch/,
-  'a Mining Pit must subtract exactly the clay batch removed from either ordinary or rich surface layers',
+  'a Mining Camp must subtract exactly the clay batch removed from either ordinary or rich surface layers',
 );
 assert.match(
   clayPitSimulation,

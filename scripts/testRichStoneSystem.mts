@@ -99,7 +99,7 @@ const nearbyCampPoint = Array.from({ length: 23 }, (_, index) => 58 + index)
     !placementContext.isResourceDepositAt(point.x, point.z)
     && Math.hypot(point.x - rich.x, point.z - rich.z) <= BUILDING_DEFINITIONS.stone_quarry.workRadius
   );
-assert.ok(nearbyCampPoint, 'rich deposit should have nearby ground in Stonecutter range');
+assert.ok(nearbyCampPoint, 'rich deposit should have nearby ground in Mining Camp range');
 assert.deepEqual(
   validateBuildingPlacement('stone_quarry', nearbyCampPoint.x, nearbyCampPoint.z, placementContext),
   { ok: true },

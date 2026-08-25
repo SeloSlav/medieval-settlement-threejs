@@ -12,7 +12,7 @@ use crate::economy::{
     building_commodity_cap, building_commodity_stock, deposit_building_commodity,
     withdraw_building_commodity, CommodityKind,
 };
-use crate::extraction_policy::{mining_pit_clay_commodity, mining_pit_geological_commodity};
+use crate::extraction_policy::{mining_camp_clay_commodity, mining_camp_geological_commodity};
 use crate::processor_output_policy::processor_output_headroom;
 use crate::simulation::delivery_trips::onsite_building_labor;
 use crate::simulation::game_calendar::GameClock;
@@ -41,7 +41,7 @@ impl SurfaceDeposit {
     }
 }
 
-/// The legacy `stone_quarry` identifier now represents the shared Mining Pit.
+/// The legacy `stone_quarry` identifier now represents the shared Mining Camp.
 /// It works the nearest finite surface reserve of stone, iron, salt, or clay
 /// inside its radius. A rich marker still has a depleting surface layer; its
 /// non-depleting deep source remains exclusive to a Quarry or Mineworks.
@@ -142,7 +142,7 @@ fn nearest_surface_deposit(
         if deposit.remaining <= 1e-6 {
             continue;
         }
-        let Some(commodity) = mining_pit_geological_commodity(&deposit.quarry_id, deposit.is_rich)
+        let Some(commodity) = mining_camp_geological_commodity(&deposit.quarry_id, deposit.is_rich)
         else {
             continue;
         };
@@ -155,7 +155,7 @@ fn nearest_surface_deposit(
     }
 
     for deposit in ctx.db.foraging_node().iter() {
-        if mining_pit_clay_commodity(&deposit.node_kind, &deposit.node_id).is_none()
+        if mining_camp_clay_commodity(&deposit.node_kind, &deposit.node_id).is_none()
             || deposit.remaining <= 1e-6
         {
             continue;

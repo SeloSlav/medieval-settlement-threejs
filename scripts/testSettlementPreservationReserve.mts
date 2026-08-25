@@ -346,7 +346,7 @@ const layeredSaltPlan = computeSettlementPreservationReservePlan(
 assert.equal(layeredSaltPlan.staffedSaltMines, 2);
 assert.ok(
   layeredSaltPlan.localSaltProduction > 0.25,
-  'Mineworks deep output must not be overwritten or capped by the same rich marker\'s finite Mining Pit surface row',
+  'Mineworks deep output must not be overwritten or capped by the same rich marker\'s finite Mining Camp surface row',
 );
 assert.equal(layeredSaltPlan.saltImportShortfall, 0);
 layeredSaltState.buildings.delete(layeredSaltMineworks.id);
@@ -695,6 +695,7 @@ function emptyGameState(): GameState {
     farmFields: new Map(),
     pastures: new Map(),
     livestockHerds: new Map(),
+    stableOxen: new Map(),
     burgageZones: new Map(),
     residences: new Map(),
     backyardGardens: new Map(),

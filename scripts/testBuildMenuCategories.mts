@@ -355,7 +355,7 @@ stationaryBurgageTool.revalidatePreview();
 assert.equal(stationaryBurgageTool.isDraftBuildable(), true);
 assert.doesNotMatch(renderedCards, /data-hotkey=/, 'build cards must no longer expose sub-hotkeys');
 assert.doesNotMatch(renderedCards, /construction-card__hotkey/, 'build cards must not render hotkey badges');
-assert.match(renderedCards, />Mining Pit</);
+assert.match(renderedCards, />Mining Camp</);
 assert.match(renderedCards, />Quarry</);
 assert.match(renderedCards, />Mineworks</);
 assert.doesNotMatch(renderedCards, /data-action="clay-pit"/);

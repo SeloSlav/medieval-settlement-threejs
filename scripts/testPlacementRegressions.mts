@@ -1955,7 +1955,7 @@ function testMineworksCanOccupyItsRichDeposit(): void {
   assert.deepEqual(
     validateBuildingPlacement('mine', ironDeposit.x, ironDeposit.z, baseContext),
     { ok: false, reason: 'requires_mineral_deposit' },
-    'ordinary iron belongs to a nearby Mining Pit rather than Mineworks',
+    'ordinary iron belongs to a nearby Mining Camp rather than Mineworks',
   );
   assert.deepEqual(
     validateBuildingPlacement('mine', richIronDeposit.x + 8, richIronDeposit.z, baseContext),

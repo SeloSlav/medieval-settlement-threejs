@@ -1187,14 +1187,14 @@ assert.equal(
     siteTarget,
     constructionContext([stoneSource], 5, 30) as never,
   ).statusText,
-  'Unassigned worker fetching 15 stone from Mining Pit',
+  'Unassigned worker fetching 15 stone from Mining Camp',
 );
 assert.equal(
   renderConstructionInspector(
     siteTarget,
     constructionContext([stoneSource], 0, 30) as never,
   ).statusText,
-  'Site builder fetching 15 stone from Mining Pit',
+  'Site builder fetching 15 stone from Mining Camp',
   'a material-blocked crew must lend one builder to the site cart when no free hauler exists',
 );
 const workReadySite = {
@@ -1207,7 +1207,7 @@ assert.equal(
     { kind: 'building', building: workReadySite },
     constructionContext([stoneSource], 0, 30) as never,
   ).statusText,
-  'Waiting for an unassigned hauler — 15 stone is at Mining Pit',
+  'Waiting for an unassigned hauler — 15 stone is at Mining Camp',
   'builders who can still advance the frame must not leave it to haul',
 );
 assert.equal(
@@ -1215,7 +1215,7 @@ assert.equal(
     siteTarget,
     constructionContext([stoneSource], 5, null) as never,
   ).statusText,
-  'Unassigned worker fetching 15 stone from Mining Pit',
+  'Unassigned worker fetching 15 stone from Mining Camp',
   'construction supplies must remain available off-road at the slower travel rate',
 );
 const staffedStorehouse = buildingState({
@@ -1238,7 +1238,7 @@ const fireBlockedSourceView = renderConstructionInspector(
 );
 assert.equal(
   fireBlockedSourceView.statusText,
-  'Reserved 15 stone is fire-quarantined at Mining Pit — repair it or supply another store',
+  'Reserved 15 stone is fire-quarantined at Mining Camp — repair it or supply another store',
 );
 assert.match(fireBlockedSourceView.detailsHtml, /fire-disabled/);
 const healthyFallbackView = renderConstructionInspector(
@@ -1474,7 +1474,7 @@ assert.equal(
     siteTarget,
     constructionContext([stoneSource], 5, 30, visibleInbound) as never,
   ).statusText,
-  'Unassigned hauler bringing 8 stone from Mining Pit',
+  'Unassigned hauler bringing 8 stone from Mining Camp',
 );
 const builderInbound = {
   ...visibleInbound,
@@ -1487,7 +1487,7 @@ const builderInboundView = renderConstructionInspector(
 );
 assert.equal(
   builderInboundView.statusText,
-  'Site builder bringing 8 stone from Mining Pit',
+  'Site builder bringing 8 stone from Mining Camp',
 );
 assert.match(
   builderInboundView.labor.hint,
@@ -1505,7 +1505,7 @@ assert.equal(
     siteTarget,
     constructionContext([stoneSource], 0, 30, builderReturning) as never,
   ).statusText,
-  'Site builder fetching 15 stone from Mining Pit',
+  'Site builder fetching 15 stone from Mining Camp',
   'one returning site cart must not strand the other three material-blocked builders',
 );
 const haulingCrewReturning = Array.from({ length: 3 }, (_, index) => ({
@@ -1518,7 +1518,7 @@ const haulingCrewReturningView = renderConstructionInspector(
 );
 assert.equal(
   haulingCrewReturningView.statusText,
-  'Hauling crew returning — one builder remains onsite for arriving loads; next load is 15 stone at Mining Pit',
+  'Hauling crew returning — one builder remains onsite for arriving loads; next load is 15 stone at Mining Camp',
   'after three builders leave, the fourth must remain onsite for the first arriving load',
 );
 assert.match(

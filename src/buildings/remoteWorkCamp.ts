@@ -16,7 +16,6 @@ export const BUILDABLE_REMOTE_WORK_CAMP_KINDS = [
   'stone_quarry',
   'large_quarry',
   'mine',
-  'clay_pit',
   'charcoal_burner',
 ] as const satisfies readonly BuildingKind[];
 

@@ -29,7 +29,7 @@ use crate::economy::{
 };
 use crate::extraction_policy::{
     mineworks_clay_commodity, mineworks_geological_commodity,
-    mining_pit_clay_commodity, mining_pit_geological_commodity,
+    mining_camp_clay_commodity, mining_camp_geological_commodity,
     quarry_geological_commodity, LEGACY_CLAY_PIT_KIND,
 };
 use crate::farm_work_policy::is_valid_threshing_priority;
@@ -108,6 +108,7 @@ use crate::worksite_stall_policy::{
     alternative_processor_recipe_ready, is_production_labor_kind, stalled_labor_target,
     ProcessorRecipeAvailability, SpatialBuckets, RICH_DEPOSIT_CENTER_TOLERANCE,
 };
+use crate::workforce_commute_policy::supports_buildable_remote_work_camp;
 use crate::year_round_labor_policy::{
     is_year_round_labor_kind, year_round_labor_rotation, YearRoundLaborSite,
 };
@@ -261,11 +262,11 @@ fn has_quarry_stone_in_radius(ctx: &ReducerContext, x: f64, z: f64, radius: f64)
 fn has_surface_deposit_in_radius(ctx: &ReducerContext, x: f64, z: f64, radius: f64) -> bool {
     let radius_sq = radius * radius;
     ctx.db.quarry().iter().any(|deposit| {
-        mining_pit_geological_commodity(&deposit.quarry_id, deposit.is_rich).is_some()
+        mining_camp_geological_commodity(&deposit.quarry_id, deposit.is_rich).is_some()
             && deposit.remaining > 0.0
             && (deposit.x - x) * (deposit.x - x) + (deposit.z - z) * (deposit.z - z) <= radius_sq
     }) || ctx.db.foraging_node().iter().any(|deposit| {
-        mining_pit_clay_commodity(&deposit.node_kind, &deposit.node_id).is_some()
+        mining_camp_clay_commodity(&deposit.node_kind, &deposit.node_id).is_some()
             && deposit.remaining > 0.0
             && (deposit.x - x) * (deposit.x - x) + (deposit.z - z) * (deposit.z - z) <= radius_sq
     })
@@ -381,13 +382,6 @@ fn founders_camp_gold_refund(
     }
 }
 
-fn supports_buildable_remote_work_camp(kind: &str) -> bool {
-    matches!(
-        kind,
-        "lumber_mill" | "stone_quarry" | "large_quarry" | "mine" | "charcoal_burner"
-    )
-}
-
 #[reducer]
 pub fn place_building(ctx: &ReducerContext, kind: String, x: f64, z: f64) -> Result<(), String> {
     if kind == "remote_work_camp" {
@@ -478,7 +472,7 @@ pub(crate) fn place_building_internal(
 ) -> Result<u64, String> {
     if kind == LEGACY_CLAY_PIT_KIND {
         return Err(
-            "Clay Pits are legacy buildings and can no longer be constructed; use a Mining Pit for surface clay or Mineworks for a rich deep clay source."
+            "Clay Pits are legacy buildings and can no longer be constructed; use a Mining Camp for surface clay or Mineworks for a rich deep clay source."
                 .to_string(),
         );
     }
@@ -768,7 +762,7 @@ pub(crate) fn place_building_internal(
 
     if kind == "stone_quarry" && !has_surface_deposit_in_radius(ctx, x, z, def.work_radius) {
         return Err(
-            "Mining Pits need an unexhausted surface stone, iron, salt, or clay reserve within work range."
+            "Mining Camps need an unexhausted surface stone, iron, salt, or clay reserve within work range."
                 .to_string(),
         );
     }
@@ -1596,7 +1590,7 @@ fn surface_source_commodity(
         building.z,
         building.work_radius,
         |deposit| {
-            mining_pit_geological_commodity(&deposit.quarry_id, deposit.is_rich).is_some()
+            mining_camp_geological_commodity(&deposit.quarry_id, deposit.is_rich).is_some()
         },
         |deposit| deposit.remaining > 1e-6,
     );
@@ -1605,7 +1599,7 @@ fn surface_source_commodity(
         building.z,
         building.work_radius,
         |deposit| {
-            mining_pit_clay_commodity(&deposit.node_kind, &deposit.node_id).is_some()
+            mining_camp_clay_commodity(&deposit.node_kind, &deposit.node_id).is_some()
         },
         |deposit| deposit.remaining > 1e-6,
     );

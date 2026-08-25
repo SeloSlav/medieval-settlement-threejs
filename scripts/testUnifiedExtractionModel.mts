@@ -5,6 +5,8 @@ import {
   BUILDING_DEFINITIONS,
   BUILDING_STORAGE_CAPS,
 } from '../src/generated/gameBalance.ts';
+import { resolveBuildingPlacementPoint } from '../src/buildings/BuildingPlacementValidation.ts';
+import { supportsRemoteWorkCamp } from '../src/buildings/remoteWorkCamp.ts';
 import { describeGeologicalMapMarker } from '../src/map/geologicalMapMarkerState.ts';
 import { localMaterialInputCommodities } from '../src/logistics/processorInputLogistics.ts';
 import {
@@ -32,13 +34,13 @@ for (const resource of ['stone', 'iron', 'salt', 'clay'] as const) {
   });
 }
 
-assert.equal(BUILDING_DEFINITIONS.stone_quarry.label, 'Mining Pit');
+assert.equal(BUILDING_DEFINITIONS.stone_quarry.label, 'Mining Camp');
 assert.equal(BUILDING_DEFINITIONS.large_quarry.label, 'Quarry');
 assert.equal(BUILDING_DEFINITIONS.mine.label, 'Mineworks');
 for (const resource of ['stone', 'iron', 'salt', 'clay'] as const) {
   assert.ok(
     (BUILDING_STORAGE_CAPS.stone_quarry[resource] ?? 0) > 0,
-    `the Mining Pit must physically store surface ${resource}`,
+    `the Mining Camp must physically store surface ${resource}`,
   );
 }
 assert.ok((BUILDING_STORAGE_CAPS.large_quarry.stone ?? 0) > 0);
@@ -68,10 +70,10 @@ assert.equal(
   false,
 );
 const cards = renderBuildMenuCards(GATHERING_BUILD_MENU_ENTRIES);
-assert.match(cards, />Mining Pit</);
+assert.match(cards, />Mining Camp</);
 assert.match(cards, />Quarry</);
 assert.match(cards, />Mineworks</);
-assert.match(cards, /stone, iron, salt, or clay from shallow surface deposits/);
+assert.match(cards, /nearby finite surface deposits without snapping/);
 assert.match(cards, /rich stone/);
 assert.match(cards, /rich iron, salt, or clay/);
 assert.deepEqual(
@@ -85,6 +87,32 @@ assert.deepEqual(
 assert.deepEqual(
   localMaterialInputCommodities('mine', { iron: 4, salt: 6, clay: 7 }),
   ['iron', 'salt', 'clay'],
+);
+const richSurfaceNode = {
+  nodeId: 'rich-surface-stone',
+  kind: 'quarry' as const,
+  resource: 'stone' as const,
+  remaining: 125,
+  maxYield: 500,
+  x: 20,
+  z: -30,
+  isRich: true,
+};
+const miningCampCursor = { x: 61, z: -17 };
+assert.deepEqual(
+  resolveBuildingPlacementPoint(
+    'stone_quarry',
+    miningCampCursor.x,
+    miningCampCursor.z,
+    [richSurfaceNode],
+  ),
+  miningCampCursor,
+  'Mining Camp placement must remain under the cursor instead of snapping to a resource center',
+);
+assert.equal(
+  supportsRemoteWorkCamp('stone_quarry'),
+  true,
+  'Mining Camps must share the lumber-mill overnight-camp flow',
 );
 
 const surfaceSimulation = fs.readFileSync('server/src/simulation/stone_quarry.rs', 'utf8');
@@ -106,4 +134,4 @@ assert.match(mineworksSimulation, /CommodityKind::Clay => MINE_CLAY_PER_CYCLE/);
 assert.match(extractionPolicy, /fn quarry_accepts_only_rich_stone/);
 assert.match(extractionPolicy, /fn mineworks_accepts_only_rich_iron_salt_and_clay/);
 
-console.log('Unified Mining Pit, Quarry, and Mineworks model tests passed.');
+console.log('Unified Mining Camp, Quarry, and Mineworks model tests passed.');

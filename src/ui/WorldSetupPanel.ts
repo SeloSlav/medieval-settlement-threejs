@@ -445,25 +445,25 @@ export class WorldSetupPanel {
     }> = {
       stone: {
         name: 'Stone',
-        extractor: 'Mining Pit / Quarry',
+        extractor: 'Mining Camp / Quarry',
         ordinaryDetail: 'finite surface deposit',
         richDetail: 'finite surface + unlimited underground',
       },
       clay: {
         name: 'Clay',
-        extractor: 'Mining Pit / Mineworks',
+        extractor: 'Mining Camp / Mineworks',
         ordinaryDetail: 'finite surface deposit',
         richDetail: 'finite surface + unlimited underground',
       },
       iron: {
         name: 'Iron',
-        extractor: 'Mining Pit / Mineworks',
+        extractor: 'Mining Camp / Mineworks',
         ordinaryDetail: 'finite surface deposit',
         richDetail: 'finite surface + unlimited underground',
       },
       salt: {
         name: 'Salt',
-        extractor: 'Mining Pit / Mineworks',
+        extractor: 'Mining Camp / Mineworks',
         ordinaryDetail: 'finite surface deposit',
         richDetail: 'finite surface + unlimited underground',
       },

@@ -411,7 +411,7 @@ export function mineralDepositBeneath(
   return null;
 }
 
-/** The Mining Pit consumes the finite surface layer of any geological deposit in range. */
+/** The Mining Camp consumes the finite surface layer of any geological deposit in range. */
 export function miningPitSurfaceDeposit(
   building: Pick<BuildingState, 'x' | 'z' | 'workRadius'>,
   deposits: Iterable<ResourceNodeState>,

@@ -12,11 +12,19 @@ pub struct CommutePair {
     pub travel_seconds: f64,
 }
 
-pub fn is_exposed_commute_worksite(kind: &str) -> bool {
+/// Completed rural worksites that may construct one separately linked
+/// overnight workers' camp. Keep placement eligibility and commute relief on
+/// this shared policy so a Mining Camp follows the same contract as a Lumber
+/// Mill despite retaining the persisted `stone_quarry` kind.
+pub fn supports_buildable_remote_work_camp(kind: &str) -> bool {
     matches!(
         kind,
-        "lumber_mill" | "stone_quarry" | "large_quarry" | "mine" | "clay_pit" | "charcoal_burner"
+        "lumber_mill" | "stone_quarry" | "large_quarry" | "mine" | "charcoal_burner"
     )
+}
+
+pub fn is_exposed_commute_worksite(kind: &str) -> bool {
+    supports_buildable_remote_work_camp(kind) || kind == "clay_pit"
 }
 
 pub fn is_visible_worker_workplace(kind: &str) -> bool {
@@ -132,9 +140,18 @@ mod tests {
     #[test]
     fn only_exposed_yards_receive_the_cached_penalty() {
         assert!(is_exposed_commute_worksite("lumber_mill"));
+        assert!(is_exposed_commute_worksite("stone_quarry"));
         assert!(is_exposed_commute_worksite("charcoal_burner"));
         assert!(!is_exposed_commute_worksite("hunters_hall"));
         assert!(!is_exposed_commute_worksite("smithy"));
+    }
+
+    #[test]
+    fn mining_camp_and_lumber_mill_share_overnight_camp_eligibility() {
+        assert!(supports_buildable_remote_work_camp("lumber_mill"));
+        assert!(supports_buildable_remote_work_camp("stone_quarry"));
+        assert!(!supports_buildable_remote_work_camp("clay_pit"));
+        assert!(!supports_buildable_remote_work_camp("remote_work_camp"));
     }
 
     #[test]

@@ -5,13 +5,57 @@ import {
   quarryRockMaterial,
   sharedBuildingDetailMaterial,
   sharedBuildingMaterial,
-  stoneMaterial,
   timberMaterial,
 } from '../buildingMaterials.ts';
-import { addGableShell, addPlankDoor, addSmallWindow } from './buildingMeshKit.ts';
+import {
+  addGableShell,
+  addLeanToRoof,
+  addPlankDoor,
+  addSmallWindow,
+} from './buildingMeshKit.ts';
 import { createCivilianToolStockpile } from './civilianToolStockpileMesh.ts';
 
-type MiningPitCommodity = 'iron' | 'salt' | 'clay';
+type MiningCampCommodity = 'iron' | 'salt' | 'clay';
+type MiningCampModuleId =
+  | 'day-shelter'
+  | 'sorting-canopy'
+  | 'handcart'
+  | 'tool-rack'
+  | 'survey-stakes'
+  | 'surface-stockpiles'
+  | 'tool-stockpile';
+
+type MiningCampPlacement = {
+  id: MiningCampModuleId;
+  x: number;
+  z: number;
+  yaw: number;
+};
+
+type MiningCampPlan = {
+  semanticRole: 'general-surface-extraction-camp';
+  silhouette: 'day-work-shelter-and-sorting-yard';
+  centeredExcavationCount: 0;
+  resources: readonly ['stone', 'iron', 'salt', 'clay'];
+  placements: readonly MiningCampPlacement[];
+};
+
+/** Serializable mass-and-module plan compiled below into the authored camp mesh. */
+const MINING_CAMP_PLAN: MiningCampPlan = Object.freeze({
+  semanticRole: 'general-surface-extraction-camp',
+  silhouette: 'day-work-shelter-and-sorting-yard',
+  centeredExcavationCount: 0,
+  resources: ['stone', 'iron', 'salt', 'clay'] as const,
+  placements: [
+    { id: 'day-shelter', x: -5.7, z: 4.7, yaw: -0.07 },
+    { id: 'sorting-canopy', x: 2.55, z: 3.65, yaw: 0.04 },
+    { id: 'handcart', x: -0.75, z: -0.85, yaw: -0.34 },
+    { id: 'tool-rack', x: -3.35, z: 1.55, yaw: -0.18 },
+    { id: 'survey-stakes', x: 0, z: 0, yaw: 0 },
+    { id: 'surface-stockpiles', x: 0, z: 0, yaw: 0 },
+    { id: 'tool-stockpile', x: 3.65, z: 5.4, yaw: -0.08 },
+  ] as const,
+});
 
 const IRON_ORE_DARK = metalMaterial('iron');
 const IRON_ORE_OXIDE = sharedBuildingDetailMaterial('paintRed');
@@ -20,72 +64,87 @@ const SALT_ROCK_LIGHT = sharedBuildingMaterial('masonryLight');
 const CLAY_DARK = sharedBuildingDetailMaterial('earth');
 const CLAY_LIGHT = sharedBuildingDetailMaterial('paintOchre');
 
-function addCutBlockStack(
+function addSurfaceStonePile(
   group: THREE.Group,
   x: number,
   z: number,
   rotation = 0,
 ): void {
-  const stack = new THREE.Group();
-  stack.name = 'StoneQuarryStockSegment';
-  stack.position.set(x, 0, z);
-  stack.rotation.y = rotation;
-  const blocks = [
-    [-0.68, 0.28, 0],
-    [0.68, 0.28, 0],
-    [0, 0.84, 0],
+  const pile = new THREE.Group();
+  // These legacy names are the stock-visibility contract for stone_quarry.
+  pile.name = 'StoneQuarryStockSegment';
+  pile.position.set(x, 0, z);
+  pile.rotation.y = rotation;
+  const stones = [
+    [-0.62, 0.3, -0.12, 0.62],
+    [0.62, 0.27, 0.08, 0.56],
+    [0.02, 0.76, 0.05, 0.54],
+    [-0.05, 0.28, 0.58, 0.48],
   ] as const;
-  for (let i = 0; i < blocks.length; i++) {
-    const [bx, by, bz] = blocks[i];
-    addMesh(
-      stack,
-      new THREE.BoxGeometry(1.15, i === 2 ? 0.5 : 0.56, 1.5),
+  for (let i = 0; i < stones.length; i++) {
+    const [sx, sy, sz, scale] = stones[i];
+    const stone = addMesh(
+      pile,
+      new THREE.DodecahedronGeometry(scale, 0),
       quarryRockMaterial(i === 2 ? 'light' : i === 1 ? 'dark' : 'mid'),
-      new THREE.Vector3(bx, by, bz),
-      new THREE.Euler(0, (i - 1) * 0.025, 0),
+      new THREE.Vector3(sx, sy, sz),
+      new THREE.Euler(i * 0.17, (i - 1) * 0.38, i * 0.11),
+      new THREE.Vector3(1.16, 0.78, 1.02),
+    );
+    stone.name = 'Mining camp surface-stone lump';
+  }
+  // A low timber skid keeps the rough field stone visibly sorted from loose terrain rock.
+  for (const skidX of [-0.62, 0.62]) {
+    addMesh(
+      pile,
+      new THREE.BoxGeometry(0.14, 0.14, 1.7),
+      timberMaterial('weathered'),
+      new THREE.Vector3(skidX, 0.08, 0.08),
+      new THREE.Euler(0, 0.03 * Math.sign(skidX), 0),
     );
   }
-  group.add(stack);
+  group.add(pile);
 }
 
 function createStoneStockpile(): THREE.Group {
   const stockpile = new THREE.Group();
   stockpile.name = 'StoneQuarryStockpile';
   stockpile.visible = false;
-  addCutBlockStack(stockpile, -7.45, -6.55, 0.05);
-  addCutBlockStack(stockpile, -5.95, -6.55, -0.04);
-  addCutBlockStack(stockpile, -4.45, -6.55, 0.08);
+  addSurfaceStonePile(stockpile, -7.45, -6.55, 0.05);
+  addSurfaceStonePile(stockpile, -5.95, -6.55, -0.04);
+  addSurfaceStonePile(stockpile, -4.45, -6.55, 0.08);
   return stockpile;
 }
 
-function commodityStockpileNames(commodity: MiningPitCommodity): {
+function commodityStockpileNames(commodity: MiningCampCommodity): {
   container: string;
   segment: string;
   item: string;
 } {
   if (commodity === 'iron') {
     return {
+      // Retain legacy container/segment names for bulk-stock synchronization.
       container: 'MiningPitIronStockpile',
       segment: 'MiningPitIronSegment',
-      item: 'Mining pit iron-ore lump',
+      item: 'Mining camp iron-ore lump',
     };
   }
   if (commodity === 'salt') {
     return {
       container: 'MiningPitSaltStockpile',
       segment: 'MiningPitSaltSegment',
-      item: 'Mining pit salt-rock lump',
+      item: 'Mining camp salt-rock lump',
     };
   }
   return {
     container: 'MiningPitClayStockpile',
     segment: 'MiningPitClaySegment',
-    item: 'Mining pit clay lump',
+    item: 'Mining camp clay lump',
   };
 }
 
 function commodityStockpilePositions(
-  commodity: MiningPitCommodity,
+  commodity: MiningCampCommodity,
 ): readonly (readonly [number, number, number])[] {
   if (commodity === 'iron') {
     return [
@@ -109,14 +168,14 @@ function commodityStockpilePositions(
 }
 
 function commodityStockpileMaterials(
-  commodity: MiningPitCommodity,
+  commodity: MiningCampCommodity,
 ): readonly [THREE.Material, THREE.Material] {
   if (commodity === 'iron') return [IRON_ORE_DARK, IRON_ORE_OXIDE];
   if (commodity === 'salt') return [SALT_ROCK_DARK, SALT_ROCK_LIGHT];
   return [CLAY_DARK, CLAY_LIGHT];
 }
 
-function createCommodityStockpile(commodity: MiningPitCommodity): THREE.Group {
+function createCommodityStockpile(commodity: MiningCampCommodity): THREE.Group {
   const names = commodityStockpileNames(commodity);
   const materials = commodityStockpileMaterials(commodity);
   const stockpile = new THREE.Group();
@@ -156,120 +215,86 @@ function createCommodityStockpile(commodity: MiningPitCommodity): THREE.Group {
   return stockpile;
 }
 
-function addRubble(group: THREE.Group): void {
-  const pieces = [
-    [-7.7, -6.7, 1.2, 0.9], [-6.2, -7.5, 0.85, 1.15], [-4.6, -7.15, 1.0, 0.7],
-    [-8.4, -4.8, 0.75, 0.85], [-7.1, -3.8, 1.1, 0.8], [-8.55, -2.15, 0.7, 1.0],
-    [7.8, -6.9, 0.9, 0.75], [8.45, -5.15, 1.15, 0.9], [7.75, -3.35, 0.72, 0.82],
-    [-7.9, 6.9, 0.8, 1.0], [-6.2, 7.6, 1.05, 0.7], [7.4, 7.25, 0.9, 1.1],
-  ] as const;
-  for (let i = 0; i < pieces.length; i++) {
-    const [x, z, sx, sz] = pieces[i];
-    addMesh(
-      group,
-      new THREE.DodecahedronGeometry(0.72, 0),
-      quarryRockMaterial(i % 3 === 0 ? 'light' : i % 2 === 0 ? 'dark' : 'mid'),
-      new THREE.Vector3(x, 0.3 + (i % 2) * 0.08, z),
-      new THREE.Euler(i * 0.19, i * 0.31, i * 0.11),
-      new THREE.Vector3(sx, 0.68 + (i % 3) * 0.12, sz),
-    );
-  }
-}
-
-function addDerrick(group: THREE.Group): void {
-  const timber = timberMaterial('dark');
-  for (const x of [-2.15, 2.15]) {
-    addMesh(
-      group,
-      new THREE.BoxGeometry(0.28, 6.35, 0.28),
-      timber,
-      new THREE.Vector3(x, 3.08, 0),
-      new THREE.Euler(0, 0, x < 0 ? -0.34 : 0.34),
-    );
-  }
-  addMesh(
-    group,
-    new THREE.BoxGeometry(5.05, 0.32, 0.32),
-    timberMaterial('weathered'),
-    new THREE.Vector3(0, 5.88, 0),
-  );
-  addMesh(
-    group,
-    new THREE.BoxGeometry(0.24, 0.24, 5.75),
-    timberMaterial('weathered'),
-    new THREE.Vector3(0, 5.74, 2.48),
-    new THREE.Euler(-0.09, 0, 0),
-  );
-  addMesh(
-    group,
-    new THREE.CylinderGeometry(0.3, 0.3, 0.34, 12),
-    metalMaterial('iron'),
-    new THREE.Vector3(0, 5.48, 4.95),
-    new THREE.Euler(0, 0, Math.PI * 0.5),
-  );
-  addMesh(
-    group,
-    new THREE.CylinderGeometry(0.035, 0.035, 3.8, 6),
-    metalMaterial('iron'),
-    new THREE.Vector3(0, 3.45, 4.95),
-  );
-  addMesh(
-    group,
-    new THREE.TorusGeometry(0.24, 0.055, 6, 12),
-    metalMaterial('iron'),
-    new THREE.Vector3(0, 1.5, 4.95),
-    new THREE.Euler(Math.PI * 0.5, 0, 0),
-  );
-  addMesh(
-    group,
-    new THREE.BoxGeometry(1.1, 0.75, 1.42),
-    quarryRockMaterial('cut'),
-    new THREE.Vector3(0, 0.75, 4.95),
-    new THREE.Euler(0, 0.06, 0),
-  );
-}
-
-function addStonecuttersShelter(group: THREE.Group): void {
-  const shelter = new THREE.Group();
-  shelter.position.set(-5.7, 0, 4.7);
-  shelter.rotation.y = -0.07;
-  const shell = addGableShell(shelter, {
+function addDayShelter(group: THREE.Group): void {
+  group.name = 'MiningCampDayShelter';
+  const shell = addGableShell(group, {
     width: 5.55,
     depth: 4.25,
     stoneHeight: 0.52,
     wallHeight: 2.25,
     ridgeHeight: 1.7,
-    wallMaterial: stoneMaterial('light'),
+    wallMaterial: timberMaterial('weathered'),
     roofMaterial: sharedBuildingMaterial('slate'),
   });
-  addPlankDoor(shelter, -0.9, 0.56, shell.frontZ + 0.02, 0.88, 1.72);
-  addSmallWindow(shelter, 1.08, 1.48, shell.frontZ + 0.02, 0.7, 0.78);
-  group.add(shelter);
+  addPlankDoor(group, -0.9, 0.56, shell.frontZ + 0.02, 0.88, 1.72);
+  addSmallWindow(group, 1.08, 1.48, shell.frontZ + 0.02, 0.7, 0.78);
+
+  const sign = addMesh(
+    group,
+    new THREE.BoxGeometry(1.5, 0.52, 0.1),
+    timberMaterial('mid'),
+    new THREE.Vector3(0.7, 2.65, shell.frontZ + 0.12),
+    new THREE.Euler(0, 0, -0.03),
+  );
+  sign.name = 'Mining camp field office signboard';
 }
 
-function addStonecuttingBench(group: THREE.Group): void {
-  addMesh(
-    group,
-    new THREE.BoxGeometry(3.2, 0.28, 1.25),
-    timberMaterial('weathered'),
-    new THREE.Vector3(5.75, 0.92, 4.8),
-  );
-  for (const x of [4.55, 6.95]) {
+function addSortingCanopy(group: THREE.Group): void {
+  group.name = 'MiningCampSortingCanopy';
+  const halfWidth = 3.05;
+  const halfDepth = 1.62;
+  for (const x of [-halfWidth, halfWidth]) {
+    for (const z of [-halfDepth, halfDepth]) {
+      const post = addMesh(
+        group,
+        new THREE.BoxGeometry(0.2, 3.05, 0.2),
+        timberMaterial('dark'),
+        new THREE.Vector3(x, 1.52, z),
+      );
+      post.name = 'Mining camp sorting-canopy post';
+    }
+  }
+  for (const z of [-halfDepth, halfDepth]) {
     addMesh(
       group,
-      new THREE.BoxGeometry(0.24, 1.02, 0.92),
-      timberMaterial('dark'),
-      new THREE.Vector3(x, 0.5, 4.8),
+      new THREE.BoxGeometry(6.45, 0.2, 0.2),
+      timberMaterial('weathered'),
+      new THREE.Vector3(0, 2.92, z),
     );
   }
-  for (let i = 0; i < 3; i++) {
-    addMesh(
-      group,
-      new THREE.BoxGeometry(0.09, 1.35, 0.09),
-      metalMaterial('steel'),
-      new THREE.Vector3(5.15 + i * 0.55, 1.62, 4.75),
-      new THREE.Euler(0, 0, -0.52 + i * 0.09),
-    );
+  addLeanToRoof(group, {
+    width: 6.75,
+    depth: 3.8,
+    thickness: 0.1,
+    material: sharedBuildingDetailMaterial('canvas'),
+    position: new THREE.Vector3(0, 3.16, 0),
+    pitch: 0.085,
+    highEdge: 'negativeZ',
+    name: 'Mining camp sorting awning',
+  });
+  addSortingBench(group);
+}
+
+function addSortingBench(group: THREE.Group): void {
+  const yard = new THREE.Group();
+  yard.name = 'MiningCampSortingYard';
+  yard.position.set(-0.2, 0, 0.15);
+  const tabletop = addMesh(
+    yard,
+    new THREE.BoxGeometry(4.45, 0.24, 1.15),
+    timberMaterial('weathered'),
+    new THREE.Vector3(0, 1.02, 0),
+  );
+  tabletop.name = 'Mining camp sorting table';
+  for (const x of [-1.75, 1.75]) {
+    for (const z of [-0.38, 0.38]) {
+      addMesh(
+        yard,
+        new THREE.BoxGeometry(0.2, 0.96, 0.2),
+        timberMaterial('dark'),
+        new THREE.Vector3(x, 0.48, z),
+      );
+    }
   }
 
   const samples = [
@@ -280,36 +305,203 @@ function addStonecuttingBench(group: THREE.Group): void {
   ] as const;
   samples.forEach(([commodity, material], index) => {
     const sample = addMesh(
-      group,
+      yard,
       commodity === 'clay'
-        ? new THREE.SphereGeometry(0.22, 8, 5)
-        : new THREE.DodecahedronGeometry(0.22, 0),
+        ? new THREE.SphereGeometry(0.23, 8, 5)
+        : new THREE.DodecahedronGeometry(0.23, 0),
       material,
-      new THREE.Vector3(4.65 + index * 0.72, 1.17, 4.43),
+      new THREE.Vector3(-1.45 + index * 0.92, 1.27, -0.06),
       new THREE.Euler(index * 0.13, index * 0.52, -index * 0.07),
       commodity === 'clay'
         ? new THREE.Vector3(1.2, 0.7, 1)
         : undefined,
     );
-    sample.name = `Mining pit ${commodity} sorting sample`;
+    sample.name = `Mining camp ${commodity} sorting sample`;
   });
+
+  for (const x of [-1.25, 1.25]) {
+    const sieve = addMesh(
+      yard,
+      new THREE.TorusGeometry(0.38, 0.055, 6, 18),
+      timberMaterial('mid'),
+      new THREE.Vector3(x, 1.23, 0.38),
+      new THREE.Euler(Math.PI * 0.5, 0, x < 0 ? -0.08 : 0.11),
+    );
+    sieve.name = 'Mining camp hand sieve';
+  }
+  group.add(yard);
 }
 
-/** Open surface-extraction yard for finite stone, iron, salt, and clay deposits. */
-export function createStoneQuarryMesh(): THREE.Group {
-  const group = new THREE.Group();
-  group.name = 'Mining Pit';
-  group.userData.semanticRole = 'general-surface-extraction';
-  group.userData.extractionResources = ['stone', 'iron', 'salt', 'clay'];
-  group.userData.silhouette = 'open-yard-derrick';
-  addRubble(group);
-  addDerrick(group);
-  addStonecuttersShelter(group);
-  addStonecuttingBench(group);
+function addHandcart(group: THREE.Group): void {
+  group.name = 'MiningCampHandcart';
+  const bed = addMesh(
+    group,
+    new THREE.BoxGeometry(1.65, 0.18, 2.2),
+    timberMaterial('weathered'),
+    new THREE.Vector3(0, 0.9, 0),
+    new THREE.Euler(-0.08, 0, 0),
+  );
+  bed.name = 'Mining camp field handcart bed';
+  for (const x of [-0.75, 0.75]) {
+    const wheel = addMesh(
+      group,
+      new THREE.CylinderGeometry(0.58, 0.58, 0.16, 14),
+      timberMaterial('dark'),
+      new THREE.Vector3(x, 0.58, -0.12),
+      new THREE.Euler(0, 0, Math.PI * 0.5),
+    );
+    wheel.name = 'Mining camp handcart wheel';
+  }
+  addMesh(
+    group,
+    new THREE.CylinderGeometry(0.08, 0.08, 1.75, 8),
+    metalMaterial('iron'),
+    new THREE.Vector3(0, 0.58, -0.12),
+    new THREE.Euler(0, 0, Math.PI * 0.5),
+  );
+  for (const x of [-0.56, 0.56]) {
+    addMesh(
+      group,
+      new THREE.BoxGeometry(0.13, 0.13, 2.25),
+      timberMaterial('mid'),
+      new THREE.Vector3(x, 0.68, 1.72),
+      new THREE.Euler(-0.12, 0, 0),
+    );
+  }
+}
+
+function addCampToolRack(group: THREE.Group): void {
+  group.name = 'MiningCampToolRack';
+  for (const x of [-0.8, 0.8]) {
+    addMesh(
+      group,
+      new THREE.BoxGeometry(0.16, 1.75, 0.16),
+      timberMaterial('dark'),
+      new THREE.Vector3(x, 0.88, 0),
+    );
+  }
+  addMesh(
+    group,
+    new THREE.BoxGeometry(1.85, 0.15, 0.16),
+    timberMaterial('weathered'),
+    new THREE.Vector3(0, 1.5, 0),
+  );
+  for (let index = 0; index < 3; index += 1) {
+    const tool = new THREE.Group();
+    tool.name = 'Mining camp hand tool';
+    tool.position.set(-0.52 + index * 0.52, 0.08, 0.12);
+    tool.rotation.z = -0.13 + index * 0.12;
+    addMesh(
+      tool,
+      new THREE.CylinderGeometry(0.045, 0.052, 1.42, 6),
+      timberMaterial('weathered'),
+      new THREE.Vector3(0, 0.71, 0),
+    );
+    addMesh(
+      tool,
+      index === 2
+        ? new THREE.ConeGeometry(0.16, 0.44, 4)
+        : new THREE.BoxGeometry(0.55, 0.12, 0.14),
+      metalMaterial(index === 1 ? 'steel' : 'iron'),
+      new THREE.Vector3(index === 2 ? 0 : -0.12, 1.42, 0),
+      new THREE.Euler(index === 2 ? Math.PI * 0.5 : 0, 0, 0),
+    );
+    group.add(tool);
+  }
+}
+
+function addSurveyStakes(group: THREE.Group): void {
+  group.name = 'MiningCampSurveyStakes';
+  const stakes = [
+    [-3.8, -3.55, -0.08],
+    [0.25, -4.35, 0.06],
+    [3.45, -3.65, -0.04],
+  ] as const;
+  for (let index = 0; index < stakes.length; index += 1) {
+    const [x, z, tilt] = stakes[index];
+    const stake = addMesh(
+      group,
+      new THREE.CylinderGeometry(0.045, 0.065, 1.55, 6),
+      timberMaterial('dark'),
+      new THREE.Vector3(x, 0.76, z),
+      new THREE.Euler(0, 0, tilt),
+    );
+    stake.name = 'Mining camp survey stake';
+    const flag = addMesh(
+      group,
+      new THREE.BoxGeometry(0.58, 0.34, 0.035),
+      sharedBuildingDetailMaterial(index % 2 === 0 ? 'canvas' : 'paintRed'),
+      new THREE.Vector3(x + 0.26, 1.28, z),
+      new THREE.Euler(0, -0.08 + index * 0.07, tilt),
+    );
+    flag.name = 'Mining camp survey flag';
+  }
+}
+
+function addSurfaceStockpiles(group: THREE.Group): void {
+  group.name = 'MiningCampSurfaceStockpiles';
   group.add(createStoneStockpile());
   group.add(createCommodityStockpile('iron'));
   group.add(createCommodityStockpile('salt'));
   group.add(createCommodityStockpile('clay'));
-  group.add(createCivilianToolStockpile(new THREE.Vector3(3.65, 0, 5.4), -0.08));
+}
+
+function compileMiningCampModule(
+  target: THREE.Group,
+  placement: MiningCampPlacement,
+): void {
+  const moduleGroup = new THREE.Group();
+  moduleGroup.position.set(placement.x, 0, placement.z);
+  moduleGroup.rotation.y = placement.yaw;
+  switch (placement.id) {
+    case 'day-shelter':
+      addDayShelter(moduleGroup);
+      break;
+    case 'sorting-canopy':
+      addSortingCanopy(moduleGroup);
+      break;
+    case 'handcart':
+      addHandcart(moduleGroup);
+      break;
+    case 'tool-rack':
+      addCampToolRack(moduleGroup);
+      break;
+    case 'survey-stakes':
+      addSurveyStakes(moduleGroup);
+      break;
+    case 'surface-stockpiles':
+      addSurfaceStockpiles(moduleGroup);
+      break;
+    case 'tool-stockpile': {
+      const toolStockpile = createCivilianToolStockpile(new THREE.Vector3(), 0);
+      moduleGroup.name = 'MiningCampCivilianToolInventory';
+      moduleGroup.add(toolStockpile);
+      break;
+    }
+  }
+  target.add(moduleGroup);
+}
+
+/** Day-work camp for finite surface stone, iron, salt, and clay deposits. */
+export function createStoneQuarryMesh(): THREE.Group {
+  const group = new THREE.Group();
+  group.name = 'Mining Camp';
+  group.userData.semanticRole = MINING_CAMP_PLAN.semanticRole;
+  group.userData.extractionResources = [...MINING_CAMP_PLAN.resources];
+  group.userData.silhouette = MINING_CAMP_PLAN.silhouette;
+  group.userData.centeredResourceRequired = false;
+  group.userData.architecturePlan = {
+    ...MINING_CAMP_PLAN,
+    resources: [...MINING_CAMP_PLAN.resources],
+    placements: MINING_CAMP_PLAN.placements.map((placement) => ({ ...placement })),
+  };
+  group.userData.architectureDiagnostics = {
+    moduleCount: MINING_CAMP_PLAN.placements.length,
+    centeredExcavationCount: MINING_CAMP_PLAN.centeredExcavationCount,
+    dynamicStockpileCount: MINING_CAMP_PLAN.resources.length,
+  };
+  for (const placement of MINING_CAMP_PLAN.placements) {
+    compileMiningCampModule(group, placement);
+  }
   return group;
 }

@@ -216,7 +216,7 @@ export function processorInputRunwayCycles(stock: number, perCycle: number): num
  * matching fibres to their selected specialization before
  * lowest runway and route; staffed heavy-tool worksites use the same ordering
  * for replacement iron tools. Imported raw iron and salt stop at processor
- * working buffers. Local Mining Pit and Mineworks carts do the same first,
+ * working buffers. Local Mining Camp and Mineworks carts do the same first,
  * then may centralize
  * surplus up to a staffed Trading Post's selected reserve, where imports cover
  * only any remaining gap;

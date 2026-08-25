@@ -977,7 +977,7 @@ export const BUILDING_DEFINITIONS = {
   },
   stone_quarry: {
     kind: 'stone_quarry',
-    label: "Mining Pit",
+    label: "Mining Camp",
     workRadius: 80,
     pickRadius: 10,
     harvestInterval: 350,

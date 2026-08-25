@@ -282,6 +282,16 @@ assert.equal(
   'road travel time should beat a slightly shorter direct walk when the road pace makes it faster',
 );
 assert.equal(supportsRemoteWorkCamp('lumber_mill'), true);
+assert.equal(
+  supportsRemoteWorkCamp('stone_quarry'),
+  true,
+  'a Mining Camp must offer the same optional overnight-camp flow as a lumber mill',
+);
+assert.equal(
+  supportsRemoteWorkCamp('clay_pit'),
+  false,
+  'legacy Clay Pits must retain commute behavior without offering a server-rejected camp action',
+);
 assert.equal(supportsRemoteWorkCamp('smithy'), false);
 assert.equal(hasBuiltInWorkLodging('hunters_hall'), true);
 assert.equal(hasBuiltInWorkLodging('reforester'), true);
@@ -496,7 +506,7 @@ assert.equal(resourcePathFound, true, 'workers should regularly walk out to elig
 const quarryWorkPlan = Array.from({ length: 32 }, (_, seed) =>
   pickWorkerWalkPlan(quarryCamp, 0, quarryTargets, seed)
 ).find((plan) => plan?.activity === 'mine');
-assert.ok(quarryWorkPlan, 'stonecutters should schedule mining stops at quarry targets');
+assert.ok(quarryWorkPlan, 'surface miners should schedule extraction stops at geological targets');
 assert.equal(quarryWorkPlan.target?.id, quarryTarget.nodeId);
 assert.ok(
   quarryWorkPlan.workDistance != null
@@ -1308,7 +1318,7 @@ assert.equal(
   'a person identity should always resolve to the same name',
 );
 assert.match(stableName, /^\S+ \S+$/, 'villagers should receive a first and family name');
-assert.equal(villagerOccupation('stone_quarry'), 'Stonecutter');
+assert.equal(villagerOccupation('stone_quarry'), 'Miner');
 assert.equal(villagerOccupation('lumber_mill', true), 'Builder');
 assert.equal(villagerOccupation(null), 'Available labor');
 

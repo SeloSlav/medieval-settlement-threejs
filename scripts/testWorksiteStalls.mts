@@ -219,7 +219,7 @@ assert.equal(
   materialPlan.sites.find((site) => site.buildingId === fullClayPit.id)
     ?.targetLabor,
   0,
-  'a full Mining Pit clay yard must release its extraction crew while logistics moves stock',
+  'a full Mining Camp clay yard must release its extraction crew while logistics moves stock',
 );
 assert.equal(
   materialPlan.sites.some(
@@ -424,7 +424,7 @@ assert.equal(
   mineralPlan.sites.find((site) => site.buildingId === fullSaltMine.id)
     ?.targetLabor,
   0,
-  'a Mining Pit at its selected yard target must not retain a producer for its salt cart',
+  'a Mining Camp at its selected yard target must not retain a producer for its salt cart',
 );
 assert.equal(
   mineralPlan.sites.find((site) => site.buildingId === fullSaltMine.id)?.detail,
@@ -440,7 +440,7 @@ assert.equal(
     (site) => site.buildingId === mineralOnlyStoneCamp.id,
   )?.detail,
   'no unexhausted surface deposit lies within the work area',
-  'a rich marker with an exhausted surface cap must remain unavailable to a Mining Pit',
+  'a rich marker with an exhausted surface cap must remain unavailable to a Mining Camp',
 );
 
 const unsupportedMineState = emptyGameState();
@@ -620,10 +620,14 @@ const serverPolicy = readFileSync(
   new URL('../server/src/worksite_stall_policy.rs', import.meta.url),
   'utf8',
 );
-assert.match(expandedEconomy, /building_commodity_stock\(building, \*kind\) \/ amount/);
+assert.match(expandedEconomy, /processor_input_runway_cycles\(stock, per_cycle\)/);
 assert.match(expandedEconomy, /processor_output_headroom/);
 assert.match(stoneQuarrySimulation, /processor_output_headroom/);
-assert.match(stoneQuarrySimulation, /\.min\(output_headroom\)/);
+assert.match(
+  stoneQuarrySimulation,
+  /available \+ 1e-6 < batch \|\| room \+ 1e-6 < batch/,
+  'Mining Camps must refuse a whole extraction batch when either the finite surface reserve or selected yard headroom is too small',
+);
 assert.match(stoneQuarrySimulation, /nearest_surface_deposit/);
 assert.match(largeQuarrySimulation, /RICH_DEPOSIT_CENTER_TOLERANCE: f64 = 2\.5/);
 assert.match(largeQuarrySimulation, /request_connected_commodity/);
@@ -666,6 +670,7 @@ function emptyGameState(): GameState {
     farmFields: new Map(),
     pastures: new Map(),
     livestockHerds: new Map(),
+    stableOxen: new Map(),
     burgageZones: new Map(),
     residences: new Map(),
     backyardGardens: new Map(),

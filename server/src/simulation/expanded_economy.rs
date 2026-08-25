@@ -65,8 +65,8 @@ use crate::economy::{
 };
 use crate::extraction_policy::{
     extraction_site_accepts_commodity, mineworks_clay_commodity,
-    mineworks_geological_commodity, mining_pit_clay_commodity,
-    mining_pit_geological_commodity, quarry_geological_commodity,
+    mineworks_geological_commodity, mining_camp_clay_commodity,
+    mining_camp_geological_commodity, quarry_geological_commodity,
 };
 use crate::farm_work_policy::{
     farm_field_effective_labor, field_task_rank, threshing_preempts_fields,
@@ -4107,7 +4107,7 @@ fn nearest_surface_extraction_commodity(
             continue;
         }
         let Some(commodity) =
-            mining_pit_geological_commodity(&deposit.quarry_id, deposit.is_rich)
+            mining_camp_geological_commodity(&deposit.quarry_id, deposit.is_rich)
         else {
             continue;
         };
@@ -4118,7 +4118,7 @@ fn nearest_surface_extraction_commodity(
         }
     }
     for deposit in ctx.db.foraging_node().iter() {
-        if mining_pit_clay_commodity(&deposit.node_kind, &deposit.node_id).is_none()
+        if mining_camp_clay_commodity(&deposit.node_kind, &deposit.node_id).is_none()
             || deposit.remaining <= 1e-6
         {
             continue;

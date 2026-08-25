@@ -94,8 +94,8 @@ export function resolveRoadsideBuildingPlacementCandidates(
   }
 
   // Local +Z is the road-facing side. Use the complete authored envelopes so
-  // deep footprints such as the mining pit clear the road instead of snapping
-  // to a position that authoritative validation immediately rejects.
+  // large footprints clear the road instead of snapping to a position that
+  // authoritative validation immediately rejects.
   const footprintDepth = Math.max(
     definition.pickRadius * ROADSIDE_MINIMUM_PICK_RADIUS_SCALE,
     BUILDING_LOCAL_VISUAL_BOUNDS[kind].maxZ,

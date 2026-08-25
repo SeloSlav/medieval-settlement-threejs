@@ -106,7 +106,7 @@ const DETAILS: Record<PlacementArtKey, BuildCardDetail> = {
   guardhouse: ['Frontier guardhouse', 'Musters armed guards to defend the settlement once a watchtower stands.'],
   palisaded_refuge: ['Palisaded refuge', 'Shelters warned families and their coin once a guardhouse stands.'],
   lumber_mill: ['Lumber mill', 'Fells mature trees and saws them into building timber; replacement axes raise output but wear each cycle.', flow([], ['timber'])],
-  stone_quarry: ['Mining Pit', 'Gathers stone, iron, salt, or clay from shallow surface deposits; picks and hammer heads raise output but wear each cycle.', flow([], ['stone', 'iron', 'salt', 'clay'])],
+  stone_quarry: ['Mining Camp', 'Works nearby finite surface deposits without snapping; its inspector can plan an overnight camp.', flow([], ['stone', 'iron', 'salt', 'clay'])],
   large_quarry: ['Quarry', 'Cuts rich stone with timber-supported deep workings; maintained picks and hammer heads raise output.', flow(['timber'], ['stone'])],
   mine: ['Mineworks', 'Extracts rich iron, salt, or clay with timber-supported shafts; maintained picks and hammer heads raise output.', flow(['timber'], ['iron', 'salt', 'clay'])],
   charcoal_burner: ["Charcoal burner's yard", 'Slow-burns firewood into charcoal for the smithy.', flow(['firewood'], ['charcoal'])],

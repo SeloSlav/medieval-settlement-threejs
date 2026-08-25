@@ -25,7 +25,7 @@ The calendar is deliberately fictional and fixed:
   journey. Reaching home establishes at least six displayed hours of rest, even
   when an unusually long return finishes after the next workday begins.
 - Exposed extraction worksites may instead construct persistent remote lodging.
-  Lumber mills, stonecutters' camps, large quarries, mines, clay pits, and charcoal
+  Lumber mills, mining camps, quarries, mineworks, and charcoal
   yards expose a worksite-card order that starts targeted placement within 80 m,
   leaving usable clear ground beyond large stone and mineral deposit footprints.
   The resulting two-tent camp is a normal building project: it reserves 14 timber

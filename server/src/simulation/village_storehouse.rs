@@ -39,7 +39,7 @@ const STOREHOUSE_OVERFLOW_SOURCE_KINDS: &[&str] = &[
     "mine",
     "clay_pit",
 ];
-const MINING_PIT_OVERFLOW_COMMODITIES: &[CommodityKind] = &[
+const MINING_CAMP_OVERFLOW_COMMODITIES: &[CommodityKind] = &[
     CommodityKind::Stone,
     CommodityKind::Iron,
     CommodityKind::Salt,
@@ -459,7 +459,7 @@ fn storehouse_collection_room(storehouse: &Building, commodity: CommodityKind) -
 fn overflow_source_commodities(source: &Building) -> &'static [CommodityKind] {
     match source.kind.as_str() {
         "lumber_mill" => &[CommodityKind::Timber],
-        "stone_quarry" => MINING_PIT_OVERFLOW_COMMODITIES,
+        "stone_quarry" => MINING_CAMP_OVERFLOW_COMMODITIES,
         "large_quarry" => &[CommodityKind::Stone],
         "woodcutters_lodge" => &[CommodityKind::Firewood],
         "mine" => MINEWORKS_OVERFLOW_COMMODITIES,

@@ -47,6 +47,7 @@ import { buildLayoutWorldMapMarkers } from '../src/map/worldMapMarkers.ts';
 import { renderMineralMineInspector } from '../src/resources/inspector/mineralMineRenderer.ts';
 import { renderLargeQuarryInspector } from '../src/resources/inspector/largeQuarryRenderer.ts';
 import { renderStoneQuarryInspector } from '../src/resources/inspector/stoneQuarryRenderer.ts';
+import { withWorksiteLodging } from '../src/resources/inspector/remoteWorkCampRenderer.ts';
 import type { InspectorRenderContext } from '../src/resources/inspector/renderInspectableTarget.ts';
 import {
   computePopulationStats,
@@ -1253,6 +1254,22 @@ assert.ok(
   ),
 );
 
+const miningPit = getBuildingDefinition('stone_quarry');
+assert.equal(miningPit.label, 'Mining Camp');
+for (const resource of ['stone', 'iron', 'salt', 'clay'] as const) {
+  assert.ok(
+    (BUILDING_STORAGE_CAPS.stone_quarry[resource] ?? 0) > 0,
+    `Mining Camp must store extracted surface ${resource}`,
+  );
+}
+
+const quarry = getBuildingDefinition('large_quarry');
+assert.equal(quarry.label, 'Quarry');
+assert.ok(BUILDING_STORAGE_CAPS.large_quarry.stone > 0);
+assert.equal('iron' in BUILDING_STORAGE_CAPS.large_quarry, false);
+assert.equal('salt' in BUILDING_STORAGE_CAPS.large_quarry, false);
+assert.equal('clay' in BUILDING_STORAGE_CAPS.large_quarry, false);
+
 const mine = getBuildingDefinition('mine');
 assert.equal(mine.label, 'Mineworks');
 assert.equal(mine.acceptsLabor, true);
@@ -1381,7 +1398,7 @@ assert.match(
 assert.doesNotMatch(
   mineStep,
   /remaining:/,
-  'Mineworks must never consume the finite surface reserve owned by Mining Pits',
+  'Mineworks must never consume the finite surface reserve owned by Mining Camps',
 );
 assert.match(
   authority,
@@ -1391,10 +1408,15 @@ assert.match(
 assert.match(
   authority,
   /\("stone_quarry" \| "mine", CommodityKind::Iron\)[\s\S]*smithy[\s\S]*trading_post[\s\S]*\("stone_quarry" \| "mine", CommodityKind::Salt\)[\s\S]*smokehouse[\s\S]*pastoral_farmstead[\s\S]*trading_post[\s\S]*\("stone_quarry" \| "mine", CommodityKind::Clay\)[\s\S]*potter_kiln/,
-  'Mining Pit and Mineworks carts must dispatch iron, salt, and clay to matching processors',
+  'Mining Camp and Mineworks carts must dispatch iron, salt, and clay to matching processors',
 );
 
 const extractionPolicy = readFileSync('server/src/extraction_policy.rs', 'utf8');
+assert.match(
+  extractionPolicy,
+  /"stone_quarry" => matches![\s\S]*CommodityKind::Stone[\s\S]*CommodityKind::Iron[\s\S]*CommodityKind::Salt[\s\S]*CommodityKind::Clay/,
+  'Mining Camps must accept the finite surface layer of all four geological resources',
+);
 assert.match(
   extractionPolicy,
   /mineworks_geological_commodity[\s\S]*if !is_rich[\s\S]*return None[\s\S]*CommodityKind::Iron \| CommodityKind::Salt/,
@@ -1432,7 +1454,7 @@ assert.match(mineInspector.statusText, /no rich iron, salt, or clay deposit bene
 assert.match(mineInspector.detailsHtml, /Missing - Mineworks cannot produce/);
 
 const inspectorMiningPit = mineBuilding({
-  id: 'mining-pit-inspector',
+  id: 'mining-camp-inspector',
   kind: 'stone_quarry',
   workRadius: 40,
   assignedLabor: 2,
@@ -1442,11 +1464,22 @@ let miningPitInspector = renderStoneQuarryInspector(
   buildingTarget(inspectorMiningPit),
   inspectorContext(inspectorGameState(inspectorMiningPit, [ordinaryIronDeposit])),
 );
-assert.equal(miningPitInspector.title, 'Mining Pit');
-assert.equal(miningPitInspector.eyebrow, 'Surface extraction');
+assert.equal(miningPitInspector.title, 'Mining Camp');
+assert.equal(miningPitInspector.eyebrow, 'Surface extraction camp');
 assert.match(miningPitInspector.statusText, /Extracting surface iron/);
+assert.match(miningPitInspector.detailsHtml, /never snaps to its center/);
 assert.match(miningPitInspector.detailsHtml, /Ordinary iron surface deposit · finite/);
 assert.match(miningPitInspector.detailsHtml, /Baseline hand tools/);
+miningPitInspector = withWorksiteLodging(
+  miningPitInspector,
+  inspectorMiningPit,
+  inspectorContext(inspectorGameState(inspectorMiningPit, [ordinaryIronDeposit])),
+);
+assert.match(
+  miningPitInspector.supplementalPanelHtml ?? '',
+  /data-begin-remote-work-camp[\s\S]*Plan overnight camp/,
+  'the Mining Camp inspector must offer the same linked overnight-camp placement control as a lumber mill',
+);
 
 const richSaltDeposit = mineralNode(
   'deposit-salt-rich-inspector',
@@ -1642,7 +1675,7 @@ assert.match(
 );
 assert.match(
   supportedLargeQuarryInspector.detailsHtml,
-  /0.25 timber per completed underground batch/,
+  /1 timber per completed underground batch/,
 );
 const recalledUnsupportedLargeQuarry = {
   ...largeQuarryBuilding,
@@ -1830,8 +1863,8 @@ assert.match(
 );
 assert.match(
   uiSurfaces,
-  /Gathers stone, iron, salt, or clay from shallow surface deposits/,
-  'the Mining Pit card must identify all supported finite surface materials',
+  /Works nearby finite surface deposits without snapping/,
+  'the Mining Camp card must identify all supported finite surface materials',
 );
 assert.match(
   uiSurfaces,

@@ -17,7 +17,7 @@ export const TOAST_MESSAGES = {
   'building.placement.within_pasture': 'Cannot build inside a fenced pasture',
   'building.placement.within_vineyard': 'Cannot build inside a vineyard parcel',
   'building.placement.on_resource_deposit': 'Cannot build over a physical resource deposit',
-  'building.placement.no_quarry_in_range': 'No unexhausted stone, iron, salt, or clay surface deposit within Mining Pit range',
+  'building.placement.no_quarry_in_range': 'No unexhausted stone, iron, salt, or clay surface deposit within Mining Camp range',
   'building.placement.requires_rich_deposit': 'Quarries must be centered directly on a rich stone deposit',
   'building.placement.requires_mineral_deposit': 'Mineworks must be centered directly on a rich iron, salt, or clay deposit',
   'building.placement.requires_clay_deposit': 'Clay Pits need a marked bank with ordinary clay remaining or a rich deep source',

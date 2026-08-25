@@ -1255,7 +1255,7 @@
       "requiresBerries": false
     },
     "stone_quarry": {
-      "label": "Mining Pit",
+      "label": "Mining Camp",
       "cost": { "timber": 18, "stone": 14 },
       "storage": { "timber": 0, "firewood": 0, "stone": 180, "food": 0, "ironwork": 3, "iron": 180, "salt": 180, "clay": 180 },
       "workRadius": 80,

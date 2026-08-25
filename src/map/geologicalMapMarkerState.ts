@@ -27,7 +27,7 @@ export function geologicalNodeForMapMarker(
 /**
  * Gives all four physical geological resources one shared map vocabulary.
  * Every rich geological node exposes the same two-part model: a finite
- * surface reserve for a nearby Mining Pit and a non-depleting underground
+ * surface reserve for a nearby Mining Camp and a non-depleting underground
  * source for the matching deep worksite centered on the node: a Quarry for
  * stone, or Mineworks for iron, salt, and clay.
  */

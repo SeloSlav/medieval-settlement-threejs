@@ -227,7 +227,7 @@ const PROCESSOR_PROFILES: Partial<Record<BuildingKind, ProcessorProfile>> = {
         key: 'iron',
         label: 'iron charge',
         required: SMITHY_IRON_PER_CYCLE,
-        deliveryHint: 'Mining Pit or Mineworks carts supply ore; Adriatic merchants supply blooms or bars',
+        deliveryHint: 'Mining Camp or Mineworks carts supply ore; Adriatic merchants supply blooms or bars',
       },
       {
         key: 'charcoal',

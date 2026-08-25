@@ -221,7 +221,7 @@ assert.equal(mineralCallup.blockedSites, 1);
 assert.deepEqual(
   mineralCallup.assignments.map((assignment) => assignment.buildingId),
   [readyFiniteMine.id, readyRichMine.id],
-  'a surface-ready Mining Pit and timber-supported Mineworks should share labor while an exhausted surface seam stays empty',
+  'a surface-ready Mining Camp and timber-supported Mineworks should share labor while an exhausted surface seam stays empty',
 );
 
 const materialCallupState = emptyGameState();
@@ -280,7 +280,7 @@ assert.ok(
   materialManualCallup.assignments.some(
     (assignment) => assignment.buildingId === readyClayPit.id,
   ),
-  'the explicit Town Hall order must be able to staff a Mining Pit with open clay storage',
+  'the explicit Town Hall order must be able to staff a Mining Camp with open clay storage',
 );
 assert.equal(
   materialManualCallup.assignments.some(
@@ -565,16 +565,16 @@ for (let index = 0; index < 20_000; index += 1) {
     const node = wildStock(`game-${index}`, x, 0, 80, 100);
     spatialCallupState.foragingNodes.set(node.nodeId, node);
   } else {
-    const mine = building(`pit-${index}`, 'stone_quarry', 0);
+    const mine = building(`mineworks-${index}`, 'mine', 0);
     mine.x = x;
-    mine.workRadius = 30;
+    mine.timber = 1;
     spatialCallupState.buildings.set(mine.id, mine);
     const node = mineralDeposit(
-      `deposit-iron-${index}`,
+      `deposit-iron-rich-${index}`,
       'iron',
       x,
       80,
-      false,
+      true,
     );
     spatialCallupState.quarries.set(node.nodeId, node);
   }
@@ -589,7 +589,7 @@ assert.equal(spatialCallupPlan.readySites, 20_000);
 assert.equal(spatialCallupPlan.callupWorkers, 20_000);
 assert.ok(
   spatialCallupElapsedMs < 750,
-  `20,000 source-aware Mining Pit/hunter call-ups took ${spatialCallupElapsedMs.toFixed(1)} ms`,
+  `20,000 source-aware Mineworks/hunter call-ups took ${spatialCallupElapsedMs.toFixed(1)} ms`,
 );
 
 const stewardPerfState = emptyGameState();
@@ -659,9 +659,9 @@ const worksiteStallForecast = readFileSync(
 );
 assert.match(serverReducer, /pub fn recall_target_idle_processor_labor/);
 assert.match(serverReducer, /pub fn call_up_target_ready_processor_labor/);
-assert.match(serverReducer, /recall_target_idle_processor_labor_for_owner/);
-assert.match(serverReducer, /call_up_target_ready_processor_labor_for_owner/);
-assert.match(serverReducer, /call_up_operational_production_labor_for_owner/);
+assert.match(serverReducer, /recall_target_idle_processor_labor_for_settlement/);
+assert.match(serverReducer, /call_up_target_ready_processor_labor_for_settlement/);
+assert.match(serverReducer, /call_up_operational_production_labor_for_settlement/);
 assert.match(serverReducer, /require_operational_inputs/);
 assert.match(serverReducer, /production_steward_callup_allowed/);
 assert.match(serverReducer, /A staffed Town Hall is required/);
@@ -683,11 +683,11 @@ assert.match(serverTables, /production_labor_steward_enabled/);
 assert.match(serverTables, /labor_steward_reserve/);
 assert.match(villageAdminReducer, /pub fn set_production_labor_steward/);
 assert.match(villageAdminReducer, /pub fn set_labor_steward_reserve/);
-assert.match(villageAdminReducer, /reconcile_target_production_labor_for_owner/);
+assert.match(villageAdminReducer, /reconcile_target_production_labor_for_settlement/);
 assert.match(productionSteward, /seasonal_labor_steward_review_due/);
-assert.match(productionSteward, /resources\.production_labor_steward_enabled/);
-assert.match(productionSteward, /recall_target_idle_processor_labor_for_owner/);
-assert.match(productionSteward, /call_up_operational_production_labor_for_owner/);
+assert.match(productionSteward, /settlement\.production_labor_steward_enabled/);
+assert.match(productionSteward, /recall_target_idle_processor_labor_for_settlement/);
+assert.match(productionSteward, /call_up_operational_production_labor_for_settlement/);
 assert.match(worksiteStallForecast, /computeSettlementOperationalProductionReadiness/);
 assert.match(worksiteStallForecast, /buildInboundCargoByBuilding/);
 assert.match(
@@ -711,6 +711,7 @@ function emptyGameState(): GameState {
     farmFields: new Map(),
     pastures: new Map(),
     livestockHerds: new Map(),
+    stableOxen: new Map(),
     burgageZones: new Map(),
     residences: new Map(),
     backyardGardens: new Map(),

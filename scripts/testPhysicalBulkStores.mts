@@ -108,6 +108,48 @@ assertVisibleSegments(
 );
 
 const quarryMarker = createBuildingMesh('stone_quarry');
+assert.equal(quarryMarker.name, 'Mining Camp');
+assert.equal(
+  quarryMarker.userData.semanticRole,
+  'general-surface-extraction-camp',
+);
+assert.equal(
+  quarryMarker.userData.silhouette,
+  'day-work-shelter-and-sorting-yard',
+);
+assert.equal(quarryMarker.userData.centeredResourceRequired, false);
+assert.deepEqual(
+  quarryMarker.userData.extractionResources,
+  ['stone', 'iron', 'salt', 'clay'],
+);
+assert.equal(
+  quarryMarker.userData.architectureDiagnostics?.centeredExcavationCount,
+  0,
+  'the Mining Camp must not compile a centered pit or deep-extraction silhouette',
+);
+for (const moduleName of [
+  'MiningCampDayShelter',
+  'MiningCampSortingCanopy',
+  'MiningCampSortingYard',
+  'MiningCampHandcart',
+  'MiningCampToolRack',
+  'MiningCampSurveyStakes',
+] as const) {
+  assert.ok(
+    quarryMarker.getObjectByName(moduleName),
+    `the Mining Camp must expose its ${moduleName} visual module`,
+  );
+}
+assert.equal(
+  quarryMarker.getObjectByName('MiningPitDerrick'),
+  undefined,
+  'the former centered lifting-pit mechanism must not survive in the Mining Camp mesh',
+);
+const miningCampBounds = new THREE.Box3().setFromObject(quarryMarker);
+assert.ok(
+  miningCampBounds.max.y < 5.2,
+  `the Mining Camp must retain a low camp silhouette, got ${miningCampBounds.max.y.toFixed(2)} m`,
+);
 syncBulkStockpileVisuals(quarryMarker, building('stone_quarry', { stone: 61 }));
 assertVisibleSegments(
   quarryMarker,
@@ -154,7 +196,7 @@ for (const stock of [{ iron: 1 }, { salt: 1 }, { clay: 1 }]) {
   assert.notEqual(
     bulkStockpileVisualSignature(building('stone_quarry', stock)),
     emptyMiningPitSignature,
-    'each Mining Pit commodity must independently refresh its inventory visuals',
+    'each Mining Camp commodity must independently refresh its inventory visuals',
   );
 }
 assert.notEqual(

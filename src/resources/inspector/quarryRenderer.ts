@@ -35,7 +35,7 @@ export function renderQuarryInspector(
     statusState: state.remaining > 0 || state.isRich ? 'active' : 'idle',
     detailsHtml: `
       <li><span>Nearest road</span><span>${nearestRoad == null ? 'None nearby' : `${nearestRoad.toFixed(1)} m`}</span></li>
-      <li><span>Surface extraction</span><span>Place a Mining Pit nearby · finite ${resourceLabel} reserve</span></li>
+      <li><span>Surface extraction</span><span>Place a Mining Camp nearby · finite ${resourceLabel} reserve</span></li>
       ${state.isRich ? `<li><span>Underground source</span><span>Does not deplete · ${deepWorksiteInstruction}</span></li>` : '<li><span>Underground source</span><span>None · imports remain available after surface exhaustion</span></li>'}
     `,
     demolish: hiddenDemolish(),

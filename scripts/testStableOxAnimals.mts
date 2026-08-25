@@ -257,7 +257,7 @@ assert.deepEqual(
     mode: 'automatic',
     activity: 'assisting',
     activityBuildingId: 'quarry',
-    activityLabel: 'Assisting Mining Pit',
+    activityLabel: 'Assisting Mining Camp',
   },
   'the automatic ox falls back to the next open useful worker slot',
 );

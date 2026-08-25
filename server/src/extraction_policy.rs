@@ -4,7 +4,7 @@
 //! table and clay in `foraging_node`.  Keep the schema-compatible ids, but
 //! keep the finite surface layer distinct from the rich deep source:
 //!
-//! - `stone_quarry` (Mining Pit): the finite surface reserve of every material,
+//! - `stone_quarry` (Mining Camp): the finite surface reserve of every material,
 //!   including the surface layer carried by a rich marker.
 //! - `large_quarry` (Quarry): the non-depleting deep source of rich stone only.
 //! - `mine` (Mineworks): the non-depleting deep source of rich iron, salt, or
@@ -26,14 +26,14 @@ pub fn geological_commodity(deposit_id: &str) -> Option<CommodityKind> {
     }
 }
 
-pub fn mining_pit_geological_commodity(
+pub fn mining_camp_geological_commodity(
     deposit_id: &str,
     _is_rich: bool,
 ) -> Option<CommodityKind> {
     geological_commodity(deposit_id)
 }
 
-pub fn mining_pit_clay_commodity(node_kind: &str, node_id: &str) -> Option<CommodityKind> {
+pub fn mining_camp_clay_commodity(node_kind: &str, node_id: &str) -> Option<CommodityKind> {
     (node_kind == "clay" && node_id.starts_with("clay-")).then_some(CommodityKind::Clay)
 }
 
@@ -87,21 +87,21 @@ mod tests {
     use super::*;
 
     #[test]
-    fn mining_pits_accept_the_finite_surface_layer_of_ordinary_and_rich_nodes() {
+    fn mining_camps_accept_the_finite_surface_layer_of_ordinary_and_rich_nodes() {
         for (id, commodity) in [
             ("quarry-7", CommodityKind::Stone),
             ("deposit-iron-7", CommodityKind::Iron),
             ("deposit-salt-7", CommodityKind::Salt),
         ] {
-            assert_eq!(mining_pit_geological_commodity(id, false), Some(commodity));
-            assert_eq!(mining_pit_geological_commodity(id, true), Some(commodity));
+            assert_eq!(mining_camp_geological_commodity(id, false), Some(commodity));
+            assert_eq!(mining_camp_geological_commodity(id, true), Some(commodity));
         }
         assert_eq!(
-            mining_pit_clay_commodity("clay", "clay-7"),
+            mining_camp_clay_commodity("clay", "clay-7"),
             Some(CommodityKind::Clay)
         );
         assert_eq!(
-            mining_pit_clay_commodity("clay", "clay-rich-7"),
+            mining_camp_clay_commodity("clay", "clay-rich-7"),
             Some(CommodityKind::Clay)
         );
     }

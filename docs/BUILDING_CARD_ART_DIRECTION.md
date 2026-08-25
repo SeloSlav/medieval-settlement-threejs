@@ -92,7 +92,7 @@ painting, sepia-only drawing, detailed scenery, fantasy ornament, UI chrome
 | `granary.webp` | Lidded wooden grain bin, overflowing grain scoop, and tied cereal sheaves. |
 | `lumber-mill.webp` | Stout frame saw visibly biting through a horizontal squared log with curled shavings. |
 | `reforester.webp` | Rooted young fir sapling with a seed cone, planting dibble, and small protective wattle ring. |
-| `stonecutters-camp.webp` | Mason's mallet and iron chisel actively splitting a pale rectangular stone block. |
+| `stonecutters-camp.webp` | Mining Camp with an open sorting yard, hand tools, and mixed stone, iron, salt, and clay surface stock. |
 | `large-quarry.webp` | Timber pulley and windlass lifting a huge pale cut-stone block from a dark circular shaft rim. |
 | `iron-mine.webp` | Dark iron ore heaped in a period wooden ore tub with a pick and small oil lamp. |
 | `clay-pit.webp` | Layered wet ochre and red clay bank with wooden spade and a small blue puddle. |

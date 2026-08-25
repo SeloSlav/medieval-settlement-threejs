@@ -195,7 +195,7 @@ pub fn large_quarry_supports_ready(timber: f64) -> bool {
 /// Mineworks follow rich, non-depleting iron, salt, and clay seams. They
 /// require one complete timber-crib batch before labor can safely advance
 /// extraction. Finite surface reserves, including those above rich seams, are
-/// worked from a Mining Pit instead.
+/// worked from a Mining Camp instead.
 pub fn rich_mine_support_target() -> f64 {
     whole_cost(MINE_TIMBER_SUPPORT_PER_CYCLE * MINE_TIMBER_SUPPORT_BUFFER_CYCLES)
 }

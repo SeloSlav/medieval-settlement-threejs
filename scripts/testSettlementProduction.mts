@@ -227,7 +227,7 @@ targetHeldClayState.quarries.set(
 const targetHeldClayPit = building('target-held-clay', 'stone_quarry', 1);
 targetHeldClayPit.processorOutputTargetPercent = 25;
 targetHeldClayPit.clay = 45;
-targetHeldClayPit.ironwork = 0.25;
+targetHeldClayPit.ironwork = 1;
 targetHeldClayState.buildings.set(targetHeldClayPit.id, targetHeldClayPit);
 const heldClayProduction = computeSettlementProductionCapacity(
   targetHeldClayState,
@@ -238,7 +238,7 @@ assert.equal(heldClayProduction.toolEligibleSites, 1);
 assert.equal(
   heldClayProduction.maintainedToolIronworkPerDay,
   0,
-  'a target-held surface Mining Pit performs no current work and therefore wears no tools',
+  'a target-held surface Mining Camp performs no current work and therefore wears no tools',
 );
 targetHeldClayPit.clay = 44;
 const reopenedClayProduction = computeSettlementProductionCapacity(
@@ -270,7 +270,7 @@ targetHeldMineState.quarries.set(
 const targetHeldMine = building('target-held-mine', 'mine', 1);
 targetHeldMine.processorOutputTargetPercent = 25;
 targetHeldMine.iron = 60;
-targetHeldMine.ironwork = 0.25;
+targetHeldMine.ironwork = 1;
 targetHeldMine.timber = 1;
 targetHeldMineState.buildings.set(targetHeldMine.id, targetHeldMine);
 const heldMineProduction = computeSettlementProductionCapacity(
@@ -527,7 +527,7 @@ const localForge = computeSettlementProductionCapacity(
 ).industrialMaterials;
 assert.ok(
   localForge.localIronOutputPerDay > 0,
-  'a staffed Mining Pit near an ordinary iron deposit must enter the material forecast',
+  'a staffed Mining Camp near an ordinary iron deposit must enter the material forecast',
 );
 assert.ok(
   localForge.ironworkOutputPerDay > 0,
@@ -561,7 +561,7 @@ const disconnectedLocalForge = computeSettlementProductionCapacity(
 assert.equal(
   disconnectedLocalForge.ironworkOutputPerDay,
   0,
-  'a Mining Pit on another road branch must not supply the forge in the forecast',
+  'a Mining Camp on another road branch must not supply the forge in the forecast',
 );
 assert.ok(disconnectedLocalForge.localIronStrandedPerDay > 0);
 assert.ok(disconnectedLocalForge.smithyBlockedBranches >= 1);
@@ -2351,6 +2351,7 @@ function emptyGameState(): GameState {
     farmFields: new Map(),
     pastures: new Map(),
     livestockHerds: new Map(),
+    stableOxen: new Map(),
     burgageZones: new Map(),
     residences: new Map(),
     backyardGardens: new Map(),
