@@ -66,6 +66,22 @@ assert.match(stableRenderer, /posted until changed/);
 assert.match(stableRenderer, /unposted ox remains in the automatic assistance pool/);
 assert.match(stableRenderer, /production yield or hauling inventory is doubled/);
 
+const livestockLaborForecast = read(
+  'src/resources/inspector/livestockLaborForecast.ts',
+);
+assert.match(livestockLaborForecast, /assignStableOxen\(/);
+assert.match(livestockLaborForecast, /rosteredCartWorkersByBuilding\(/);
+assert.match(livestockLaborForecast, /pairedOxenByBuilding/);
+assert.match(
+  livestockLaborForecast,
+  /effectiveWorkers: onsiteHumanWorkers \+ pairedOxen/,
+);
+const townHallRenderer = read('src/resources/inspector/townHallRenderer.ts');
+assert.match(
+  townHallRenderer,
+  /computeSettlementLivestockFodderPlan\([\s\S]{0,260}livestockLaborForecastByBuilding\(context\.gameState\)/,
+);
+
 const inspectorCss = read('src/ui/resourceInspector.css');
 assert.match(inspectorCss, /grid-template-columns: minmax\(0, 1fr\) auto/);
 assert.match(inspectorCss, /resource-inspector-labor-controls[\s\S]{0,180}max-width: 100%/);

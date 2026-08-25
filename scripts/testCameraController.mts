@@ -37,6 +37,7 @@ function ensureBrowserGlobals(): void {
 ensureBrowserGlobals();
 
 const { CameraController } = await import('../src/camera/CameraController.ts');
+const { SecondaryClickGesture } = await import('../src/input/SecondaryClickGesture.ts');
 const { shouldDismissVillagerSelection } = await import('../src/ui/VillagerInspector.ts');
 const { resolveSceneRenderOwner } = await import('../src/scene/sceneRenderOwnership.ts');
 const {
@@ -284,6 +285,64 @@ function scrollToLiveWorldMaximum(
   controller.update(0.2);
   assert.equal(target.x, settledX,
     'a settled RMB pan must not keep drifting');
+}
+
+{
+  const { controller, target, domElement } = createController(undefined, true);
+  let stationarySecondaryClicks = 0;
+  const secondaryClickGesture = new SecondaryClickGesture({
+    onClick: () => {
+      stationarySecondaryClicks += 1;
+    },
+  });
+  domElement.addEventListener('mousedown', (event) => {
+    secondaryClickGesture.begin(event as MouseEvent);
+  }, { capture: true });
+
+  const startX = target.x;
+  domElement.dispatch('mousedown', mouseEvent({
+    type: 'mousedown',
+    button: 2,
+    clientX: 100,
+    clientY: 100,
+  }));
+  assert.equal(stationarySecondaryClicks, 0,
+    'secondary down must defer the placement action until drag intent is known');
+  window.dispatchEvent(mouseEvent({
+    type: 'mousemove',
+    clientX: 160,
+    clientY: 100,
+    buttons: 2,
+  }));
+  window.dispatchEvent(mouseEvent({
+    type: 'mouseup',
+    button: 2,
+    clientX: 160,
+    clientY: 100,
+  }));
+  settleNavigation(controller);
+  assert.ok(target.x > startX,
+    'RMB drag must continue to reach the camera while a placement gesture is armed');
+  assert.equal(stationarySecondaryClicks, 0,
+    'RMB camera drag must preserve the placement action');
+
+  domElement.dispatch('mousedown', mouseEvent({
+    type: 'mousedown',
+    button: 2,
+    clientX: 200,
+    clientY: 200,
+  }));
+  window.dispatchEvent(mouseEvent({
+    type: 'mouseup',
+    button: 2,
+    clientX: 200,
+    clientY: 200,
+  }));
+  assert.equal(stationarySecondaryClicks, 1,
+    'a stationary RMB release must retain the existing placement cancel or undo action');
+
+  secondaryClickGesture.dispose();
+  controller.dispose();
 }
 
 {

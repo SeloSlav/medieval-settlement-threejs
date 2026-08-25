@@ -75,6 +75,7 @@ import RotateConstructionLaborReducer from "./rotate_construction_labor_reducer"
 import SetAllStorageAcceptanceReducer from "./set_all_storage_acceptance_reducer";
 import SetApiaryHarvestPolicyReducer from "./set_apiary_harvest_policy_reducer";
 import SetBreweryRecipePolicyReducer from "./set_brewery_recipe_policy_reducer";
+import SetBuildingOxenReducer from "./set_building_oxen_reducer";
 import SetCarpenterCartServiceTargetReducer from "./set_carpenter_cart_service_target_reducer";
 import SetCarpenterPolearmReserveReducer from "./set_carpenter_polearm_reserve_reducer";
 import SetChapelParishPolicyReducer from "./set_chapel_parish_policy_reducer";
@@ -577,6 +578,9 @@ const tablesSchema = __schema({
   stable_ox: __table({
     name: 'stable_ox',
     indexes: [
+      { name: 'assigned_building_id', algorithm: 'btree', columns: [
+        'assignedBuildingId',
+      ] },
       { name: 'id', algorithm: 'btree', columns: [
         'id',
       ] },
@@ -692,6 +696,7 @@ const reducersSchema = __reducers(
   __reducerSchema("set_all_storage_acceptance", SetAllStorageAcceptanceReducer),
   __reducerSchema("set_apiary_harvest_policy", SetApiaryHarvestPolicyReducer),
   __reducerSchema("set_brewery_recipe_policy", SetBreweryRecipePolicyReducer),
+  __reducerSchema("set_building_oxen", SetBuildingOxenReducer),
   __reducerSchema("set_carpenter_cart_service_target", SetCarpenterCartServiceTargetReducer),
   __reducerSchema("set_carpenter_polearm_reserve", SetCarpenterPolearmReserveReducer),
   __reducerSchema("set_chapel_parish_policy", SetChapelParishPolicyReducer),

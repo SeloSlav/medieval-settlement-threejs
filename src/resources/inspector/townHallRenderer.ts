@@ -244,6 +244,7 @@ import {
   buildingLaborView,
   buildingRoadAccessRow,
 } from './buildingCommon.ts';
+import { livestockLaborForecastByBuilding } from './livestockLaborForecast.ts';
 import type { InspectorRenderContext, InspectorView } from './renderInspectableTarget.ts';
 import { renderResourceAmount, renderResourceCost } from '../../ui/resourceCost.ts';
 
@@ -2084,6 +2085,7 @@ export function renderTownHallInspector(
     provisioning.sabbathObserved,
     clock.month,
     clock.monthDay,
+    livestockLaborForecastByBuilding(context.gameState),
   );
   const toolRouteTargets = [...context.gameState.buildings.values()];
   const toolRouteDistances = new Map<string, Map<string, number | null>>();

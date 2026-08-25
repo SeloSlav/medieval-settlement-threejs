@@ -42,6 +42,18 @@ const gesture = new SecondaryClickGesture({
     clickCount += 1;
   },
 });
+const assertNoGestureListeners = (message: string): void => {
+  for (const type of ['mousemove', 'mouseup', 'blur']) {
+    assert.equal(windowLike.listenerCount(type), 0, `${message}: ${type}`);
+  }
+};
+const assertOneGestureListener = (message: string): void => {
+  for (const type of ['mousemove', 'mouseup', 'blur']) {
+    assert.equal(windowLike.listenerCount(type), 1, `${message}: ${type}`);
+  }
+};
+
+assertNoGestureListeners('idle gestures must not retain global listeners');
 
 assert.equal(
   gesture.begin(mouseEvent('mousedown', 0, 10, 10)),
@@ -53,6 +65,9 @@ assert.equal(
   true,
   'secondary down should begin tracking without running its click action',
 );
+assertOneGestureListener('an armed gesture should own one listener per global event');
+gesture.begin(mouseEvent('mousedown', 2, 10, 10));
+assertOneGestureListener('restarting a gesture must not duplicate global listeners');
 assert.equal(clickCount, 0);
 window.dispatchEvent(mouseEvent('mousemove', 0, 13, 14));
 window.dispatchEvent(mouseEvent('mouseup', 2, 13, 14));
@@ -61,6 +76,7 @@ assert.equal(
   1,
   'movement at the click threshold should retain the stationary right-click action',
 );
+assertNoGestureListeners('a completed click must release global listeners');
 
 gesture.begin(mouseEvent('mousedown', 2, 20, 20));
 window.dispatchEvent(mouseEvent('mousemove', 0, 30, 20));
@@ -71,17 +87,30 @@ assert.equal(
   1,
   'a drag that returns to its starting point must still preserve placement intent',
 );
+assertNoGestureListeners('a completed drag must release global listeners');
+
+gesture.begin(mouseEvent('mousedown', 2, 50, 50));
+window.dispatchEvent(mouseEvent('mouseup', 2, 60, 50));
+assert.equal(
+  clickCount,
+  1,
+  'release displacement must detect a drag even when the browser coalesces mousemove events',
+);
+assertNoGestureListeners('a release-classified drag must release global listeners');
 
 gesture.begin(mouseEvent('mousedown', 2, 30, 30));
 window.dispatchEvent({ type: 'blur' } as Event);
 window.dispatchEvent(mouseEvent('mouseup', 2, 30, 30));
 assert.equal(clickCount, 1, 'window blur must clear a pending secondary-click action');
+assertNoGestureListeners('window blur must release global listeners');
 
 gesture.begin(mouseEvent('mousedown', 2, 40, 40));
 window.dispatchEvent(mouseEvent('mousemove', 0, 40, 40, 0));
 window.dispatchEvent(mouseEvent('mouseup', 2, 40, 40));
 assert.equal(clickCount, 1, 'a lost secondary-button release must clear the pending action');
+assertNoGestureListeners('lost-button recovery must release global listeners');
 gesture.dispose();
+assertNoGestureListeners('disposing an idle gesture must leave no global listeners');
 
 const buildToolbar = readFileSync('src/ui/BuildToolbar.ts', 'utf8');
 assert.match(

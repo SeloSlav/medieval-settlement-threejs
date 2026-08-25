@@ -23,29 +23,32 @@ export class SecondaryClickGesture {
     this.options = options;
     const threshold = Math.max(0, options.dragThresholdPx ?? DEFAULT_DRAG_THRESHOLD_PX);
     this.dragThresholdSquared = threshold * threshold;
-    window.addEventListener('mousemove', this.onMouseMove);
-    window.addEventListener('mouseup', this.onMouseUp);
-    window.addEventListener('blur', this.onWindowBlur);
   }
 
   begin(event: MouseEvent): boolean {
     if (event.button !== 2) return false;
+    event.preventDefault();
+    this.cancel();
     this.tracking = true;
     this.dragged = false;
     this.startX = event.clientX;
     this.startY = event.clientY;
+    window.addEventListener('mousemove', this.onMouseMove);
+    window.addEventListener('mouseup', this.onMouseUp);
+    window.addEventListener('blur', this.onWindowBlur);
     return true;
   }
 
   cancel(): void {
+    if (!this.tracking) return;
     this.tracking = false;
     this.dragged = false;
-  }
-
-  dispose(): void {
     window.removeEventListener('mousemove', this.onMouseMove);
     window.removeEventListener('mouseup', this.onMouseUp);
     window.removeEventListener('blur', this.onWindowBlur);
+  }
+
+  dispose(): void {
     this.cancel();
   }
 

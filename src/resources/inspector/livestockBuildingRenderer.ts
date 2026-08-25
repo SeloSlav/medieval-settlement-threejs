@@ -24,7 +24,6 @@ import {
   projectedLivestockCullYield,
 } from '../../economy/livestockPolicy.ts';
 import {
-  livestockLaborForecastByBuilding,
   livestockStoredFodderOatEquivalent,
   projectLivestockFodderHolding,
 } from '../../economy/livestockFodder.ts';
@@ -92,6 +91,7 @@ import {
   FREE_CONSTRUCTION_COST_TOOLTIP,
   renderResourceAmount,
 } from '../../ui/resourceCost.ts';
+import { livestockLaborForecastByBuilding } from './livestockLaborForecast.ts';
 
 const SPECIES_LABEL = {
   cattle: 'Cattle',
@@ -462,7 +462,7 @@ export function renderLivestockBuildingInspector(
     ? ''
     : fodderPlan.hayStock + 0.05 >= LIVESTOCK_HAY_STORAGE_CAPACITY
       ? 'The loft is full, so designated meadow has returned to grazing until hay is consumed.'
-      : building.assignedLabor <= 0
+      : onsiteLabor <= 0
       ? 'The meadow allocation is configured, but no hay is cut while the holding is unstaffed.'
       : isLivestockHaymakingMonth(month)
         ? `${fodderPlan.haymakingDaysRemaining} cutting days remain at current ${pairedOxen > 0 ? 'ox-assisted ' : ''}staffing, projecting ${fodderPlan.projectedHayStock.toFixed(1)} / ${LIVESTOCK_HAY_STORAGE_CAPACITY} in the loft; drought can reduce the cut.`
@@ -511,8 +511,8 @@ export function renderLivestockBuildingInspector(
     : fodderPlan.currentGrainPerDay <= 0.01
       ? `${herd?.species === 'swine' ? 'Woodland mast' : 'Pasture'} covers the current herd; trough water remains a separate need`
       : environment.season === 'winter' && fodderPlan.hayStock > 0
-        ? `${fodderPlan.currentUnsupportedHeads.toFixed(1)} head unsupported by current pasture · local hay is consumed first; once empty, the full direct-grain draw is ${renderResourceAmount('oatGrain', fodderPlan.currentGrainPerDay, { compact: true, suffix: '/day oat-equivalent' })} · stored grain covers ${formatProvisionRunway(fodderPlan.currentGrainRunwayDays)} at that eventual rate${building.assignedLabor <= 0 ? ' · no herder is replenishing it' : ''}`
-        : `${fodderPlan.currentUnsupportedHeads.toFixed(1)} head unsupported by current ${herd?.species === 'swine' ? 'mast' : 'pasture'} · direct grain draw now ${renderResourceAmount('oatGrain', fodderPlan.currentGrainPerDay, { compact: true, suffix: '/day oat-equivalent' })} · ${formatProvisionRunway(fodderPlan.currentGrainRunwayDays)} stored${building.assignedLabor <= 0 ? ' · no herder is replenishing it' : ''}`;
+        ? `${fodderPlan.currentUnsupportedHeads.toFixed(1)} head unsupported by current pasture · local hay is consumed first; once empty, the full direct-grain draw is ${renderResourceAmount('oatGrain', fodderPlan.currentGrainPerDay, { compact: true, suffix: '/day oat-equivalent' })} · stored grain covers ${formatProvisionRunway(fodderPlan.currentGrainRunwayDays)} at that eventual rate${onsiteLabor <= 0 ? ' · no herder is replenishing it' : ''}`
+        : `${fodderPlan.currentUnsupportedHeads.toFixed(1)} head unsupported by current ${herd?.species === 'swine' ? 'mast' : 'pasture'} · direct grain draw now ${renderResourceAmount('oatGrain', fodderPlan.currentGrainPerDay, { compact: true, suffix: '/day oat-equivalent' })} · ${formatProvisionRunway(fodderPlan.currentGrainRunwayDays)} stored${onsiteLabor <= 0 ? ' · no herder is replenishing it' : ''}`;
   const winterHerdPlan = !fodderPlan
     ? 'No herd'
     : `${fodderPlan.projectedHeadCount} head after ${fodderPlan.executableCullHeads}/${fodderPlan.plannedCullHeads} currently executable planned culls${fodderPlan.unsecuredCullHeads > 0 ? ` · ${fodderPlan.unsecuredCullHeads} surplus still provisioned until labor and whole-carcass storage are ready` : ''} · ${fodderPlan.winterPastureCapacity.toFixed(1)} ${herd?.species === 'swine' ? 'mast' : 'pasture'}-supported · ${fodderPlan.winterUnsupportedHeads.toFixed(1)} ${herd?.species === 'swine' ? 'need direct grain' : 'need local hay, then direct grain'}`;
@@ -530,7 +530,7 @@ export function renderLivestockBuildingInspector(
         ? fodderPlan.winterUnsupportedHeads <= 0.01
           ? 'Winter pasture covers the projected herd'
           : 'Projected local hay covers the remaining winter feed demand'
-        : `${Math.round(fodderPlan.winterReserveStock)} / ${Math.ceil(fodderPlan.winterReserveTarget)} oat-equivalent ${herd?.species === 'swine' ? 'onsite after winter mast capacity' : 'onsite after local hay'} · ${formatProvisionRunway(fodderPlan.winterCombinedRunwayDays)} combined coverage${building.assignedLabor <= 0 ? ' · assign herders to replenish oats' : ''}`;
+        : `${Math.round(fodderPlan.winterReserveStock)} / ${Math.ceil(fodderPlan.winterReserveTarget)} oat-equivalent ${herd?.species === 'swine' ? 'onsite after winter mast capacity' : 'onsite after local hay'} · ${formatProvisionRunway(fodderPlan.winterCombinedRunwayDays)} combined coverage${onsiteLabor <= 0 ? ' · assign herders to replenish oats' : ''}`;
   const winterResupplyRow = fodderPlan
     && fodderPlan.winterGrainNeed > fodderPlan.winterReserveTarget + 0.05
     ? `<li><span>Winter resupply</span><span>Full direct-grain store covers ${formatProvisionRunway(fodderPlan.storageRunwayDays)} · ${renderResourceAmount('oatGrain', fodderPlan.winterGrainNeed, { compact: true, suffix: `oat-equivalent for ${LIVESTOCK_WINTER_FODDER_RESERVE_DAYS} days` })}</span></li>`

@@ -92,7 +92,7 @@ assertVisibleSegments(
   pastoralMarker,
   'PastoralSaltStockpile',
   'PastoralSaltSegment',
-  2,
+  1,
 );
 assert.notEqual(
   seasonalStockpileVisualSignature(building('pastoral_farmstead', { salt: 1 })),

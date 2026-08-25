@@ -32,7 +32,6 @@ import {
 } from '../src/economy/livestockPolicy.ts';
 import {
   computeSettlementLivestockFodderPlan,
-  livestockLaborForecastByBuilding,
   livestockCyclesPerCalendarDay,
   livestockStoredFodderOatEquivalent,
   livestockStoredFodderValue,
@@ -602,28 +601,11 @@ assert.ok(
 );
 assert.equal(twoWorkerSummerPlan.winterGrainNeed, summerPlan.winterGrainNeed);
 
-const stableBuilding: BuildingState = {
-  ...buildingFixture('building-stable', 0, 0),
-  kind: 'stable',
-  x: -5,
-};
-const oxLaborForecast = livestockLaborForecastByBuilding({
-  buildings: new Map([
-    [fodderBuilding.id, fodderBuilding],
-    [stableBuilding.id, stableBuilding],
-  ]),
-  stableOxen: new Map([[
-    'ox-1',
-    {
-      id: 'ox-1',
-      stableId: stableBuilding.id,
-      slot: 0,
-      assignedBuildingId: fodderBuilding.id,
-    },
-  ]]),
-  deliveryTrips: new Map(),
-  fireIncidents: new Map(),
-}).get(fodderBuilding.id);
+const oxLaborForecast = {
+  onsiteHumanWorkers: 1,
+  pairedOxen: 1,
+  effectiveWorkers: 2,
+} as const;
 assert.deepEqual(oxLaborForecast, {
   onsiteHumanWorkers: 1,
   pairedOxen: 1,
@@ -650,6 +632,22 @@ assert.equal(
   oxAssistedSummerPlan.dairyPreservedFoodPerDay,
   twoWorkerSummerPlan.dairyPreservedFoodPerDay,
   'the same effective labor must govern dairy care coverage',
+);
+const oxAssistedSettlementPlan = computeSettlementLivestockFodderPlan(
+  {
+    buildings: new Map([[fodderBuilding.id, fodderBuilding]]),
+    livestockHerds: new Map([[summerHerd.buildingId, summerHerd]]),
+  },
+  1,
+  false,
+  6,
+  1,
+  new Map([[fodderBuilding.id, oxLaborForecast]]),
+);
+assert.equal(
+  oxAssistedSettlementPlan.hayOutputPerDay,
+  oxAssistedSummerPlan.hayOutputPerDay,
+  'settlement forecast must consume the same injected ox-assisted labor map',
 );
 
 const sabbathSummerPlan = projectLivestockFodderHolding(

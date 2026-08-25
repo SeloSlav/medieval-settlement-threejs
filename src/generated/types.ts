@@ -808,6 +808,7 @@ export const StableOx = __t.object("StableOx", {
   owner: __t.identity(),
   stableId: __t.u64(),
   slot: __t.u8(),
+  assignedBuildingId: __t.u64(),
 });
 export type StableOx = __Infer<typeof StableOx>;
 

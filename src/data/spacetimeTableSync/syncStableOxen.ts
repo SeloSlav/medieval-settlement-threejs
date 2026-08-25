@@ -4,7 +4,7 @@ import { buildingClientId, stableOxClientId } from '../spacetimeIds.ts';
 
 // Keep the sync boundary compatible with the previous generated binding while
 // a newly published module adds the trailing assignment field.
-export type StableOxRow = StableOx & { assignedBuildingId?: bigint };
+export type StableOxRow = StableOx;
 
 export function syncStableOxen(
   rows: Iterable<StableOxRow>,
@@ -16,7 +16,7 @@ export function syncStableOxen(
   for (const row of rows) {
     if (row.owner.toHexString() !== identityHex) continue;
     const id = stableOxClientId(row.id);
-    const assignedBuildingId = row.assignedBuildingId ?? 0n;
+    const assignedBuildingId = row.assignedBuildingId;
     oxen.set(id, {
       id,
       stableId: buildingClientId(row.stableId),
