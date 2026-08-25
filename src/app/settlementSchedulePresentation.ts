@@ -232,7 +232,10 @@ export class SettlementPresentationController {
     const householdPresentationClock = presentationDayNight === schedule.dayNight
       ? schedule.clock
       : this.fixedSkyClock ?? schedule.clock;
-    targets.settlementHud?.setSettlementClock(schedule);
+    targets.settlementHud?.setSettlementClock(
+      schedule,
+      presentationDayNight.isNight,
+    );
     targets.sceneManager?.applyDayNight(presentationDayNight);
     targets.buildingMarkers?.setFoundersCampfireNightLighting(
       presentationDayNight.nightAmount * HOUSEHOLD_LIGHTING_VISUAL_SCALE,

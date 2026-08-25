@@ -1630,7 +1630,10 @@ export class SettlementHud {
     this.polearmsStat.hidden = !enabled;
   }
 
-  setSettlementClock(schedule: SettlementSchedule): void {
+  setSettlementClock(
+    schedule: SettlementSchedule,
+    presentationIsNight = schedule.dayNight.isNight,
+  ): void {
     const date = formatCalendarMonthDay(schedule.clock);
     const weekday = formatWeekday(schedule.clock);
     const fullDate = `${weekday}, ${formatCalendarDate(schedule.clock)}`;
@@ -1640,7 +1643,7 @@ export class SettlementHud {
       ? `${weekday} · ${pauseLabel}`
       : weekday;
     const sabbath = pauseLabel === 'Sunday sabbath';
-    const night = !schedule.clock.isWorkHours;
+    const night = presentationIsNight;
     if (date !== this.displayedClockDate) {
       this.clockDate.textContent = date;
       this.displayedClockDate = date;

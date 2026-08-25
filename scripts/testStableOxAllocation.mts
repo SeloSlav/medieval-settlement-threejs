@@ -197,7 +197,7 @@ assert.match(
 );
 assert.match(
   renderer,
-  /inspectionRoute\([\s\S]{0,1_600}getDeliveryRoute[\s\S]{0,800}getWorkerRoute/,
+  /inspectionRoute\([\s\S]{0,1600}getDeliveryRoute[\s\S]{0,800}getWorkerRoute/,
   'selected oxen should inherit their live cart or worker route',
 );
 assert.match(
@@ -229,12 +229,12 @@ assert.match(
 );
 assert.match(
   villagerInspector,
-  /renderOx\(inspection: OxInspection\)[\s\S]{0,1_800}updateSelectedAgentRoute/,
+  /renderOx\(inspection: OxInspection\)[\s\S]{0,1800}updateSelectedAgentRoute/,
   'the ox card should update the shared marker and pink route on every frame',
 );
 assert.match(
   villagerInspector,
-  /selectedOxId[\s\S]{0,1_800}inspectOx\(this\.selectedOxId\)/,
+  /selectedOxId[\s\S]{0,1800}inspectOx\(this\.selectedOxId\)/,
   'ox selection should remain live until the ox disappears or selection is dismissed',
 );
 

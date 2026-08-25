@@ -434,12 +434,15 @@ export class VillagerRenderer {
   private activeCombatGuardSlots = new Set<string>();
   private roadNetwork: RoadNetwork | null = null;
   private clock: GameClock | null = null;
+  private householdPresentationClock: GameClock | null = null;
   private laborPaused = false;
   private sabbathPausedToday = false;
   private holidayObservance: HolidayObservance | null = null;
   private lastRoutineClockTotalDays = Number.NaN;
   private lastRoutineClockHour = Number.NaN;
   private lastRoutineClockMinute = Number.NaN;
+  private lastRoutineHouseholdHour = Number.NaN;
+  private lastRoutineHouseholdMinute = Number.NaN;
   private lastRoutineClockMonth = Number.NaN;
   private lastRoutineClockMonthDay = Number.NaN;
   private lastRoutineClockIsSunday: boolean | null = null;
@@ -482,6 +485,7 @@ export class VillagerRenderer {
     monasteryFeastsEnabled = true,
     sabbathPausedToday = false,
     holidayObservance: HolidayObservance | null = null,
+    householdPresentationClock: GameClock = clock,
   ): void {
     const holidaySignature = holidayObservance
       ? `${holidayObservance.historicalYear}:${holidayObservance.id}`
@@ -490,6 +494,8 @@ export class VillagerRenderer {
     const fullRoutinePass = this.lastRoutineClockTotalDays !== clock.totalDays
       || this.lastRoutineClockHour !== clock.hour
       || this.lastRoutineClockMinute !== clock.minute
+      || this.lastRoutineHouseholdHour !== householdPresentationClock.hour
+      || this.lastRoutineHouseholdMinute !== householdPresentationClock.minute
       || this.lastRoutineClockMonth !== clock.month
       || this.lastRoutineClockMonthDay !== clock.monthDay
       || this.lastRoutineClockIsSunday !== clock.isSunday
@@ -500,6 +506,8 @@ export class VillagerRenderer {
     this.lastRoutineClockTotalDays = clock.totalDays;
     this.lastRoutineClockHour = clock.hour;
     this.lastRoutineClockMinute = clock.minute;
+    this.lastRoutineHouseholdHour = householdPresentationClock.hour;
+    this.lastRoutineHouseholdMinute = householdPresentationClock.minute;
     this.lastRoutineClockMonth = clock.month;
     this.lastRoutineClockMonthDay = clock.monthDay;
     this.lastRoutineClockIsSunday = clock.isSunday;
@@ -508,6 +516,7 @@ export class VillagerRenderer {
     this.lastRoutineSabbathPausedToday = restDayPausedToday;
     this.lastRoutineHolidaySignature = holidaySignature;
     this.clock = clock;
+    this.householdPresentationClock = householdPresentationClock;
     this.laborPaused = laborPaused;
     this.monasteryFeastsEnabled = monasteryFeastsEnabled;
     this.sabbathPausedToday = restDayPausedToday;
@@ -2684,7 +2693,7 @@ export class VillagerRenderer {
       return false;
     }
 
-    const homeState = householdMemberHomeState(agent.personIdentity, this.clock);
+    const homeState = this.householdHomeStateFor(agent);
     const chapel = this.findMassChapel(agent);
     const sundayMassTime = isSundayMassTime(
       this.clock,
@@ -2751,7 +2760,8 @@ export class VillagerRenderer {
     const waysideShrine = this.findWaysideShrine(agent);
     const waysideShrineSlot = this.waysideShrineVisitorSlots.get(agent.id);
     const shouldVisitWaysideShrine = waysideShrine != null
-      && waysideShrineSlot !== undefined;
+      && waysideShrineSlot !== undefined
+      && (agent.role !== 'worker' || !shouldWork);
     if (shouldVisitWaysideShrine && waysideShrine) {
       if (
         agent.routinePhase === 'going_to_shrine'
@@ -2824,6 +2834,13 @@ export class VillagerRenderer {
     return !this.laborPaused
       && !this.sabbathPausedToday
       && this.holidayObservance === null;
+  }
+
+  private householdHomeStateFor(agent: VillagerAgent): HouseholdHomeState {
+    const presentationClock = this.householdPresentationClock ?? this.clock;
+    return presentationClock
+      ? householdMemberHomeState(agent.personIdentity, presentationClock)
+      : 'home_outdoors';
   }
 
   private workerCanCompleteObservanceHomecoming(
@@ -2937,9 +2954,7 @@ export class VillagerRenderer {
   private completeMassReturn(agent: VillagerAgent): void {
     this.clearPath(agent);
     agent.massChapelId = null;
-    const homeState = this.clock
-      ? householdMemberHomeState(agent.personIdentity, this.clock)
-      : 'home_outdoors';
+    const homeState = this.householdHomeStateFor(agent);
     agent.routinePhase = 'returning_from_mass';
     this.transitionToHomeState(agent, homeState);
     this.reconcileRoutine(agent);
@@ -3032,9 +3047,7 @@ export class VillagerRenderer {
   private completeFeastReturn(agent: VillagerAgent): void {
     this.clearPath(agent);
     agent.massChapelId = null;
-    const homeState = this.clock
-      ? householdMemberHomeState(agent.personIdentity, this.clock)
-      : 'home_outdoors';
+    const homeState = this.householdHomeStateFor(agent);
     agent.routinePhase = 'returning_from_feast';
     this.transitionToHomeState(agent, homeState);
     this.reconcileRoutine(agent);
@@ -3056,8 +3069,12 @@ export class VillagerRenderer {
       Array<{ agent: VillagerAgent; priority: number }>
     >();
     for (const agent of this.agents.values()) {
+      const workplace = agent.role === 'worker' && agent.workplaceId
+        ? this.buildings.get(agent.workplaceId) ?? null
+        : null;
       if (
         agent.isSick
+        || (agent.role === 'worker' && this.shouldWorkerReportToWork(workplace))
         || !isWaysideShrinePrayerTime(
           this.clock,
           this.sabbathPausedToday,
@@ -3227,9 +3244,7 @@ export class VillagerRenderer {
     this.clearPath(agent);
     agent.devotionalShrineId = null;
     agent.devotionalShrineSlot = -1;
-    const homeState = this.clock
-      ? householdMemberHomeState(agent.personIdentity, this.clock)
-      : 'home_outdoors';
+    const homeState = this.householdHomeStateFor(agent);
     agent.routinePhase = 'returning_from_shrine';
     this.transitionToHomeState(agent, homeState);
     this.reconcileRoutine(agent);
@@ -3561,9 +3576,7 @@ export class VillagerRenderer {
       return;
     }
     if (residence) this.placeIdle(agent, residence);
-    agent.routinePhase = this.clock
-      ? householdMemberHomeState(agent.personIdentity, this.clock)
-      : 'home_outdoors';
+    agent.routinePhase = this.householdHomeStateFor(agent);
     agent.idleRemaining = pickIdleDuration(agent.pathSeed) * 0.7;
     this.reconcileRoutine(agent);
   }
@@ -3617,9 +3630,7 @@ export class VillagerRenderer {
 
   private completeWorkerReturnHome(agent: VillagerAgent): void {
     this.clearPath(agent);
-    const homeState = this.clock
-      ? householdMemberHomeState(agent.personIdentity, this.clock)
-      : 'home_outdoors';
+    const homeState = this.householdHomeStateFor(agent);
     const residence = agent.residenceId ? this.residences.get(agent.residenceId) : null;
     if (residence) this.placeIdle(agent, residence);
     else if (this.foundingCamp) this.placeFounderIdle(agent, this.foundingCamp);

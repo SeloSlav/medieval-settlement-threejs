@@ -430,11 +430,14 @@ assert.match(
   /Celebrating Jurjevo.*backyard/,
 );
 
-villagers.setSchedule({
+const peterAndPaulClock = {
   ...fullClock(12),
   month: 6,
   monthDay: 29,
-}, false, true);
+};
+const peterAndPaul = holidayObservanceForClock(peterAndPaulClock);
+assert.ok(peterAndPaul);
+villagers.setSchedule(peterAndPaulClock, true, true, false, peterAndPaul);
 assert.equal(worker.routinePhase, 'going_to_feast');
 assert.equal(worker.pathPurpose, 'monastery_feast');
 assert.equal(villagerInternals.workerToolFor(worker), null);
@@ -457,33 +460,52 @@ villagers.setSchedule({
   ...fullClock(16),
   month: 6,
   monthDay: 29,
-}, false, true);
+}, true, true, false, peterAndPaul);
 assert.equal(worker.routinePhase, 'returning_from_feast');
 assert.equal(worker.pathPurpose, 'return_from_feast');
 for (let step = 0; step < realtimeTickBudget(4000); step++) villagers.tick(0.05);
-assert.match(
+assert.notEqual(
   worker.routinePhase,
-  /^(returning_to_work|work)$/,
-  'a worker returning from a feast should resume continuous ordinary labor',
+  'work',
+  'a worker returning from a feast must continue observing the named holy day',
 );
 
 villagers.setSchedule({
+  ...fullClock(12),
+  totalDays: 2,
+  month: 6,
+  monthDay: 30,
+}, false);
+for (let step = 0; step < realtimeTickBudget(1200); step++) villagers.tick(0.05);
+assert.equal(worker.routinePhase, 'work');
+
+const assumptionClock = {
   ...fullClock(12),
   month: 8,
   monthDay: 15,
-}, false, false);
+};
+const assumption = holidayObservanceForClock(assumptionClock);
+assert.ok(assumption);
+villagers.setSchedule(assumptionClock, true, false, false, assumption);
 assert.notEqual(
   worker.routinePhase,
   'going_to_feast',
-  'disabling the policy must keep workers at their ordinary routines on feast dates',
+  'disabling monastery feasts must keep an observed holy-day worker out of the feast gathering',
 );
+for (let step = 0; step < realtimeTickBudget(1200); step++) villagers.tick(0.05);
 
 villagers.setSchedule({
   ...fullClock(12),
+  totalDays: 3,
   month: 9,
   monthDay: 14,
 }, false, true);
-assert.equal(worker.routinePhase, 'going_to_feast');
+for (let step = 0; step < realtimeTickBudget(1200); step++) villagers.tick(0.05);
+assert.equal(
+  worker.routinePhase,
+  'work',
+  'a monastery feast that is not a settlement holy day must not interrupt ordinary workers',
+);
 villagers.setRefugeAlert(true, new Map([[home.id, refuge.id]]));
 assert.equal(worker.routinePhase, 'going_to_refuge');
 assert.equal(worker.pathPurpose, 'refuge_rally');
