@@ -824,7 +824,7 @@ export function textileChainBalanceLabel(plan: SettlementTextilePlan): string {
       : 'Raw fibre missing · raise sheep or secure a flax harvest';
   }
   if (plan.annualWeaverClothCapacity <= 1e-9) {
-    return 'Weaving missing · wool and flax cannot become cloth';
+    return 'Tailoring missing · wool and flax cannot become clothing';
   }
   if (
     plan.roadPlan !== null
@@ -835,7 +835,7 @@ export function textileChainBalanceLabel(plan: SettlementTextilePlan): string {
       : 'Split textile chain · connect raw fibre and loom branches before export';
   }
   if (plan.annualHouseholdClothDemand <= 1e-9) {
-    return 'No prosperous-house demand · annual cloth can be exported';
+    return 'No prosperous-house demand · annual clothing can be exported';
   }
   if (plan.woolCapacitySurplus > 0.05) {
     return 'Weaving-limited · add loom labor before more sheep or flax';
@@ -843,5 +843,5 @@ export function textileChainBalanceLabel(plan: SettlementTextilePlan): string {
   if (plan.annualClothBalance < -0.05) {
     return 'Raw-fibre-limited · household demand exceeds secured wool and flax';
   }
-  return 'Household textiles covered · remaining cloth can be exported';
+  return 'Household clothing covered · remaining clothing can be exported';
 }

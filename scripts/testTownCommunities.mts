@@ -203,17 +203,11 @@ for (const [serverName, reducerName, actionName] of exactHallLaborReducers) {
 }
 
 const resourceTotals = source('src/resources/resourceTotals.ts');
-const workforceCommute = source('server/src/simulation/workforce_commute.rs');
 const storehouse = source('server/src/simulation/village_storehouse.rs');
 assert.doesNotMatch(
   resourceTotals,
   /activeSettlementId|selectedSettlementId|settlementFilter/,
   'the lord-facing Total/Surplus ledger must never switch to a selected-town wallet',
-);
-assert.doesNotMatch(
-  workforceCommute,
-  /\.filter\([^\n]*settlement_id|\.settlement_id\s*==/,
-  'town identity is porous: commute time and work camps, not a border, constrain workers',
 );
 assert.doesNotMatch(
   storehouse,

@@ -246,8 +246,8 @@ assert.deepEqual(
   'the first household identities remain reserved for visible homebound sick residents before founders fill the roster',
 );
 
-const commuteRoads = new RoadNetwork();
-commuteRoads.addRoadPath([
+const travelRoads = new RoadNetwork();
+travelRoads.addRoadPath([
   new THREE.Vector3(0, 0, 0),
   new THREE.Vector3(100, 0, 0),
 ]);
@@ -258,7 +258,7 @@ const routedRoster = allocateProductionWorkers(
   ],
   [building('remote-routed-workplace', 'lumber_mill', 100, 0, 1, 60)],
   new Map(),
-  commuteRoads,
+  travelRoads,
 );
 assert.equal(
   routedRoster.assignments[0]?.homeResidenceId,
@@ -802,6 +802,19 @@ assert.ok(
   `20,000 material workplaces took ${materialScaleElapsedMs.toFixed(1)} ms to roster`,
 );
 const villagerRendererSource = fs.readFileSync('src/settlement/VillagerRenderer.ts', 'utf8');
+for (const removedPath of [
+  'src/buildings/remoteWorkCamp.ts',
+  'src/resources/inspector/remoteWorkCampRenderer.ts',
+  'src/settlement/workerCommute.ts',
+  'server/src/simulation/workforce_commute.rs',
+  'server/src/workforce_commute_policy.rs',
+]) {
+  assert.equal(
+    fs.existsSync(removedPath),
+    false,
+    `${removedPath} must stay deleted with shift-based commute and overnight-camp gameplay`,
+  );
+}
 assert.match(villagerRendererSource, /scanFromWatchtower/);
 assert.match(villagerRendererSource, /resolveAgentY/);
 assert.match(villagerRendererSource, /buildMarketplaceStallDuties/);

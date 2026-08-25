@@ -239,7 +239,7 @@ const PROCESS: Record<string, string> = {
   apiary: 'April-September forage + a healthy overwintered colony → physical honey for household food or luxury comfort and Mead-selected Brewhouses, with nearby orchard and vineyard pollination',
   monastery: 'A self-governing 68 × 53 m walled estate raises mixed orchard and garden crops alongside cattle, sheep, eggs, milk, meat, honey, and cheese; orchard fruit becomes house cider, apiary honey becomes mead, and player-drawn vineyards produce town-market wine',
   carpenter: 'Timber + smith-forged ironwork → polearms and cartwright support',
-  weaver: 'Annual sheep fleece or flax + hauled water → woven cloth → tier-2+ Marketplace stalls, then Trading Post export',
+  weaver: 'Annual sheep fleece or flax + hauled water → finished clothing → tier-2+ Marketplace stalls, then Trading Post export',
   tannery: 'Goat or game hides + hauled water + firewood → tanned leather for Cobbler workshops and trade',
   cobbler: 'Tanned leather + cobbler labor → finished shoes → Tier 3+ Marketplace stalls, then Trading Post export',
   chandlery: '2 beeswax + 1 firewood + chandler labor → 6 candle lots for prosperous households and regional trade',
@@ -352,7 +352,7 @@ function outboundDestinationLabel(building: BuildingState): string {
     case 'carpenter':
       return 'Nearest road-linked guardhouse';
     case 'weaver':
-      return 'Staffed Storehouse for Marketplace cloth stalls, then road-linked export market';
+      return 'Staffed Storehouse for Marketplace clothing stalls, then road-linked export market';
     case 'clay_pit':
       return "Settlement-wide match: highest-priority road-linked potter's kiln, then shortest producer route";
     case 'charcoal_burner':
@@ -382,7 +382,7 @@ function cargoPerTripLabel(building: BuildingState): string | null {
     case 'smokehouse':
       return `3 per cured-food haul · ${GRAIN_TRANSFER_PER_TRIP} per granary haul`;
     case 'weaver':
-      return `${TEXTILE_TRANSFER_PER_TRIP} cloth per Storehouse or market haul`;
+      return `${TEXTILE_TRANSFER_PER_TRIP} clothing per Storehouse or market haul`;
     case 'chandlery':
       return `${CANDLE_TRANSFER_PER_TRIP} candle lots per Storehouse or market haul`;
     case 'clay_pit':
@@ -748,8 +748,8 @@ function renderLogisticsRows(
          <li><span>Physical cured route</span><span>${building.kind === 'smokehouse' ? 'Smokehouse → staffed Granary → Marketplace stall' : 'Granary → Marketplace stall'} · no routine home cart</span></li>`
       : '';
   const textileTerritoryRows = building.kind === 'weaver'
-    ? `<li><span>Textile territory</span><span>Connected tier-2+ homes draw cloth from stocked Marketplace goods stalls</span></li>
-       <li><span>Physical cloth route</span><span>Weaver → staffed Storehouse → Marketplace stall · no routine home cart</span></li>`
+    ? `<li><span>Clothing territory</span><span>Connected tier-2+ homes draw clothing from stocked Marketplace goods stalls</span></li>
+       <li><span>Physical clothing route</span><span>Weaver → staffed Storehouse → Marketplace stall · no routine home cart</span></li>`
     : '';
   const potteryTerritoryRows = building.kind === 'potter_kiln'
     ? `<li><span>Kiln firing</span><span>${potterFiringPolicyLabel(building.potterFiringPolicy)}</span></li>
@@ -1802,7 +1802,7 @@ export function renderProcessorOutputTargetPanel(building: BuildingState): strin
       <div class="resource-action-row">${WEAVER_INPUT_POLICY_PRESETS
         .map((preset) => `<button type="button" class="resource-action-button" data-weaver-input-policy="${preset.policy}" title="${preset.hint}" ${normalizeWeaverInputPolicy(building.weaverInputPolicy) === preset.policy ? 'disabled' : ''}>${preset.label}</button>`)
         .join('')}</div>
-      <p class="inspector-action-panel__hint">Matching specialization wins a contested working-buffer cart; Auto forms the neutral middle pool. The same order governs scarce well water once flax is physically staged. Covered buffers and ready alternate recipes remain fallbacks so neither carts nor crews deadlock. Wool avoids a water haul; flax turns planned field fibre and well capacity into cloth while preserving annual fleece.</p>
+      <p class="inspector-action-panel__hint">Matching specialization wins a contested working-buffer cart; Auto forms the neutral middle pool. The same order governs scarce well water once flax is physically staged. Covered buffers and ready alternate recipes remain fallbacks so neither carts nor crews deadlock. Wool avoids a water haul; flax turns planned field fibre and well capacity into clothing while preserving annual fleece.</p>
     `
     : '';
   const potteryDispatchPolicy = building.kind === 'potter_kiln'

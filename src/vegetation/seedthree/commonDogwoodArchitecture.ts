@@ -76,7 +76,7 @@ function createBasalDescriptors(
   const coherentLean = Math.tan(architecture.coherentLeanDeg * DEG_TO_RAD);
   const subordinateCount = Math.max(1, count - architecture.dominantLeaderCount);
 
-  return Array.from({ length: count }, (_, index) => {
+  const descriptors = Array.from({ length: count }, (_, index) => {
     const slotJitter = rng.vary(0, architecture.azimuthSlotJitter);
     const azimuth = occupiedStart
       + ((index + 0.5 + slotJitter) / count) * occupiedArc;
@@ -102,13 +102,19 @@ function createBasalDescriptors(
     );
 
     const vigorRank = vigorOrder[index]!;
-    const vigor = vigorRank < architecture.dominantLeaderCount
+    const cohortVigor = vigorRank < architecture.dominantLeaderCount
       ? 1
       : THREE.MathUtils.lerp(
         architecture.subordinateVigor[1],
         architecture.subordinateVigor[0],
         (vigorRank - architecture.dominantLeaderCount) / Math.max(1, subordinateCount - 1),
       );
+    const lightwardPosition = Math.cos(azimuth - leanAzimuth) * 0.5 + 0.5;
+    const vigor = cohortVigor * THREE.MathUtils.lerp(
+      1 - architecture.lightwardVigorBias,
+      1,
+      lightwardPosition,
+    );
 
     const outward = new THREE.Vector3(
       Math.cos(azimuth) * Math.sin(splay),
@@ -129,6 +135,9 @@ function createBasalDescriptors(
       vigor,
     };
   });
+  const maximumVigor = Math.max(...descriptors.map((descriptor) => descriptor.vigor));
+  for (const descriptor of descriptors) descriptor.vigor /= Math.max(0.001, maximumVigor);
+  return descriptors;
 }
 
 function reshapeBasalStem(

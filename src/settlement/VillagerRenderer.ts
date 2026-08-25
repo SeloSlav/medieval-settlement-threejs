@@ -1548,14 +1548,13 @@ export class VillagerRenderer {
         (agent.walkSpeed * PEDESTRIAN_ROAD_SPEED_MULTIPLIER).toFixed(1)
       } m/s on roads`,
       position: { x: agent.x, y: agent.y, z: agent.z },
-      route: this.inspectionRoute(agent, workplace),
+      route: this.inspectionRoute(agent),
       visible: this.isVisibleAgent(agent),
     };
   }
 
   private inspectionRoute(
     agent: VillagerAgent,
-    workplace: BuildingState | null,
   ): SelectedAgentRoutePoint[] {
     let route: PointXZ[] = [];
     if (agent.pathPurpose && agent.path.length >= 2) {
@@ -1564,22 +1563,6 @@ export class VillagerRenderer {
         Math.min(agent.pathDistance, agent.displayPathCursor),
       );
       if (route.length > 0) route[0] = { x: agent.x, z: agent.z };
-    } else if (
-      agent.role === 'worker'
-      && workplace
-      && !this.fireDisabledBuildingIds.has(workplace.id)
-    ) {
-      const destination = agent.routinePhase === 'work'
-        ? this.workerRestDestination(agent, workplace)
-        : this.workerDutyPosition(workplace, agent.workplaceSlot);
-      const commute = destination
-        ? pickWorkerCommutePath(
-            { x: agent.x, z: agent.z },
-            destination,
-            this.roadNetwork,
-          )
-        : null;
-      route = commute ? this.routePath(commute) ?? [] : [];
     }
 
     return route.length >= 2
@@ -3458,23 +3441,14 @@ export class VillagerRenderer {
     }
     if (residence) this.placeIdle(agent, residence);
     agent.routinePhase = this.clock
-      ? householdMemberHomeState(agent.personIdentity, this.clock, this.nightPolicy)
+      ? householdMemberHomeState(agent.personIdentity, this.clock)
       : 'home_outdoors';
     agent.idleRemaining = pickIdleDuration(agent.pathSeed) * 0.7;
     this.reconcileRoutine(agent);
   }
 
   private beginWorkerReturnHome(agent: VillagerAgent): boolean {
-    const workplace = agent.workplaceId
-      ? this.buildings.get(agent.workplaceId) ?? null
-      : null;
-    const destination = this.workerRestDestination(agent, workplace);
-    agent.returnLodgingId = workplace
-      ? this.workerWorksiteLodging(workplace)?.lodging.id ?? null
-      : null;
-    agent.returnRequiresRest = !(
-      workplace && this.fireDisabledBuildingIds.has(workplace.id)
-    );
+    const destination = this.workerPermanentHomeDestination(agent);
     if (!destination) {
       this.clearPath(agent);
       agent.routinePhase = 'indoors';
@@ -3483,7 +3457,7 @@ export class VillagerRenderer {
 
     const duty = this.marketStallDutyForAgent(agent);
     if (duty) {
-      const roadDeparture = pickWorkerCommutePath(
+      const roadDeparture = pickWorkerTravelPath(
         duty.approachOutside,
         destination,
         this.roadNetwork,
@@ -3506,7 +3480,7 @@ export class VillagerRenderer {
       return true;
     }
 
-    const path = pickWorkerCommutePath(
+    const path = pickWorkerTravelPath(
       { x: agent.x, z: agent.z },
       destination,
       this.roadNetwork,

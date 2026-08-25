@@ -129,7 +129,7 @@ const DETAILS: Record<PlacementArtKey, BuildCardDetail> = {
   smokehouse: ['Smokehouse', 'Preserves fresh food with firewood, salt, and pottery.', flow(['food', 'firewood', 'salt', 'pottery'], ['preservedFood'])],
   apiary: ['Forest apiary', 'Keeps bees for food, luxury honey, and mead throughout the warm season.', flow([], ['honey'])],
   carpenter: ['Carpenter & wheelwright', 'Crafts frames and carts that lower building costs and hasten deliveries.'],
-  weaver: ["Weaver's workshop", 'Weaves wool into cloth and prepares flax with water for linen.', flow(['wool', 'flax', 'water'], ['cloth'])],
+  weaver: ["Weaver's workshop", 'Tailors wool or water-prepared flax into finished clothing.', flow(['wool', 'flax', 'water'], ['cloth'])],
   tannery: ['Tannery', 'Tans goat and game hides with water and bark-fired heat into workable leather.', flow(['hides', 'water', 'firewood'], ['leather'])],
   cobbler: ["Cobbler's workshop", 'Cuts leather into finished shoes for prosperous Tier 3 households.', flow(['leather'], ['shoes'])],
   chandlery: ['Chandlery', 'Melts scarce beeswax over a wood-fired hearth and repeatedly dips long-burning candles for prosperous households and regional trade.', flow(['wax', 'firewood'], ['candles'])],

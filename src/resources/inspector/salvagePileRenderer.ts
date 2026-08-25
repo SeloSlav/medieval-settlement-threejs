@@ -38,7 +38,7 @@ const STOCK_ROWS: Array<[
   ['Polearms', (building) => building.polearms ?? 0],
   ['Wool', (building) => building.wool ?? 0],
   ['Flax fibre', (building) => building.flax ?? 0],
-  ['Cloth', (building) => building.cloth ?? 0],
+  ['Clothing', (building) => building.cloth ?? 0],
   ['Gold lockbox', (building) => building.gold],
 ];
 

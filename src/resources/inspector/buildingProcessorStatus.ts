@@ -810,7 +810,7 @@ function getWeaverStatus(
     <li><span>Selected textile route</span><span>${usesFlax ? 'Flax + hauled water' : 'Annual sheep fleece'} · ${formatInputCycleCoverage(routeCycles)}</span></li>
     <li><span>${usesFlax ? 'Flax' : 'Wool'} working stock</span><span>${Math.round(stockAmount(building, input.key))} onsite · ${input.required.toFixed(1)} per cycle · ${input.hint}</span></li>
     <li><span>Alternative input</span><span>${usesFlax ? `${Math.round(Math.max(0, building.wool ?? 0))} wool` : `${Math.round(Math.max(0, building.flax ?? 0))} flax + ${Math.round(Math.max(0, building.water))} water`} onsite</span></li>
-    <li><span>Cloth yield</span><span>${WEAVER_CLOTH_PER_CYCLE.toFixed(1)} per completed cycle</span></li>
+    <li><span>Clothing yield</span><span>${WEAVER_CLOTH_PER_CYCLE.toFixed(1)} per completed cycle</span></li>
   `;
   const outputAtLimit = isOutputAtLimit(building, 'weaver', 'cloth');
   if (onsiteLabor === 0 && !outputAtLimit) {
@@ -824,7 +824,7 @@ function getWeaverStatus(
   }
   if (outputAtLimit) {
     return {
-      statusText: 'Cloth target reached - weaving paused',
+      statusText: 'Clothing target reached - tailoring paused',
       statusState: 'idle',
       waterDetailHtml: detailHtml,
     };
@@ -845,8 +845,8 @@ function getWeaverStatus(
   }
   return {
     statusText: usesFlax
-      ? 'Preparing flax and weaving linen cloth'
-      : 'Weaving wool into cloth',
+      ? 'Preparing flax and tailoring linen clothing'
+      : 'Tailoring wool clothing',
     statusState: 'active',
     waterDetailHtml: detailHtml,
   };

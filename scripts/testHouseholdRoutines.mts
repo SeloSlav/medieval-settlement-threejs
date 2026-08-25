@@ -8,7 +8,7 @@ import {
   residenceWindowActivity,
 } from '../src/residences/householdRoutine.ts';
 import {
-  pickWorkerCommutePath,
+  pickWorkerTravelPath,
   WATCHTOWER_MUSTER_RANK_WIDTH,
   watchtowerMusterPosition,
 } from '../src/settlement/workerPaths.ts';
@@ -136,7 +136,7 @@ assert.equal(
 );
 
 assert.deepEqual(
-  pickWorkerCommutePath({ x: 2, z: 3 }, { x: 12, z: -4 }, null),
+  pickWorkerTravelPath({ x: 2, z: 3 }, { x: 12, z: -4 }, null),
   [{ x: 2, z: 3 }, { x: 12, z: -4 }],
   'workers should still walk home directly when no road route is available',
 );
@@ -146,14 +146,14 @@ shortTripNetwork.addRoadPath([
   new THREE.Vector3(0, 0, 0),
   new THREE.Vector3(20, 0, 0),
 ]);
-const shortRoadTrip = pickWorkerCommutePath(
+const shortRoadTrip = pickWorkerTravelPath(
   { x: 1, z: 3 },
   { x: 2, z: 3 },
   shortTripNetwork,
 );
 assert.ok(
   shortRoadTrip?.some((point) => Math.abs(point.z) < 1e-6),
-  'even a short same-node commute should attach to the road instead of cutting cross-country',
+  'even a short same-node work journey should attach to the road instead of cutting cross-country',
 );
 assert.equal(
   surfaceAdjustedTravelSpeed(1.2, true, PEDESTRIAN_ROAD_SPEED_MULTIPLIER),
@@ -258,7 +258,7 @@ assert.equal(villagerInternals.workerToolFor(worker), 'hatchet');
 const standingWorkerRoute = villagers.inspectVillager(worker.personIdentity)?.route ?? [];
 assert.ok(
   standingWorkerRoute.length >= 2,
-  'clicking a stationary assigned worker should still reveal their planned commute route',
+  'clicking a stationary assigned worker should still reveal their planned work route',
 );
 
 const resident = agents.get('resident:routine-home:0');
@@ -810,7 +810,7 @@ assert.equal(
 );
 residenceMarkers.dispose();
 
-console.log('household routine and worker commute tests passed');
+console.log('household routine and continuous-worker tests passed');
 
 function realtimeTickBudget(unscaledTicks: number): number {
   return Math.ceil(unscaledTicks / Math.max(SIM_REALTIME_RATE, 1e-6));

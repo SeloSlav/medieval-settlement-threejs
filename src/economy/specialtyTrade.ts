@@ -91,7 +91,7 @@ export type SpecialtyMarketFamily = 'drink' | 'provision' | 'wares';
 export const SPECIALTY_MARKET_FAMILIES = [
   { id: 0, kind: 'drink', label: 'Drinks', goods: 'ale and wine' },
   { id: 1, kind: 'provision', label: 'Provisions', goods: 'honey and cheese' },
-  { id: 2, kind: 'wares', label: 'Wares', goods: 'cloth and pottery' },
+  { id: 2, kind: 'wares', label: 'Wares', goods: 'clothing and pottery' },
 ] as const;
 
 export const APIARY_HARVEST_POLICIES = [
@@ -273,7 +273,7 @@ export function formatMarketplaceSpecialtyQueue(
     .filter(([, units]) => units > 1e-6)
     .map(([label, units]) => `${Math.round(units)} ${label}`);
   if (readable.length === 0) {
-    return 'Empty - awaiting ale, honey, wine, cloth, cheese, or pottery carts';
+    return 'Empty - awaiting ale, honey, wine, clothing, cheese, or pottery carts';
   }
   return `${readable.join(' · ')} · ${Math.round(queue.units)} total · about ${queue.goldValue.toFixed(1)} gold`;
 }

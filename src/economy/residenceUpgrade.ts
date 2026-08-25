@@ -174,7 +174,7 @@ function definitionForTier(tier: ResidenceState['tier']): UpgradeDefinition | nu
       roofTiles: 0,
       requiredChapelTier: requiredChapelTierForResidence(tier),
       serviceKinds: activeResidenceNeedKinds(tier),
-      addedNeeds: 'a grain staple plus another food group, beverages, and cloth; the level-1 church standard remains',
+      addedNeeds: 'a grain staple plus another food group, beverages, and clothing; the level-1 church standard remains',
     };
   }
   if (tier === 2) {
@@ -214,7 +214,7 @@ const SERVICE_LABELS: Record<ResidenceUpgradeServiceKind, string> = {
   water: 'Water',
   preservedFood: 'Cured provisions',
   ale: 'Beverages',
-  cloth: 'Cloth',
+  cloth: 'Clothing',
   shoes: 'Shoes',
   pottery: 'Pottery',
   luxury: 'Luxury source',
@@ -329,7 +329,7 @@ function promotionNeedBlocker(kind: ResidenceUpgradeServiceKind, label: string):
     case 'preservedFood':
       return 'cured provisions unmet — stock the household or a reachable Marketplace';
     case 'cloth':
-      return 'cloth unmet — stock the household or a reachable Marketplace goods stall';
+      return 'clothing unmet — stock the household or a reachable Marketplace goods stall';
     case 'shoes':
       return 'shoes unmet — stock the household or a reachable Marketplace goods stall';
     case 'pottery':

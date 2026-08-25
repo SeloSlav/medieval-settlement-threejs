@@ -150,7 +150,7 @@ export function renderStorehouseInspector(
       <li><span>Accepted cargo</span><span>${accepted.join(', ') || 'None'}</span></li>
       <li><span>Collection ceilings</span><span>${collectionTargets}</span></li>
       <li><span>Food policy</span><span>Never accepted — granaries remain specialized</span></li>
-      <li><span>Market role</span><span>Stocks firewood and 2×-value charcoal into one household fuel reserve, plus cloth and pottery · no food or regional trade</span></li>
+      <li><span>Market role</span><span>Stocks firewood and 2×-value charcoal into one household fuel reserve, plus clothing and pottery · no food or regional trade</span></li>
       <li><span>Hauling</span><span>${activeTrip ? `${formatTripPhaseLabel(activeTrip.phase)} · ${formatCooldown(activeTripRemaining ?? Infinity)} left` : inboundTrip ? 'Producer cart inbound' : 'Awaiting duty'}</span></li>
       ${buildingStorageRows(building, building.kind)}
     `,
