@@ -2,6 +2,8 @@ use spacetimedb::ReducerContext;
 
 use crate::building_defs::building_def;
 use crate::db::*;
+use crate::ox_policy::ox_amplified_worker_count;
+use crate::simulation::delivery_trips::onsite_building_labor;
 use crate::simulation::game_calendar::GameClock;
 use crate::simulation::labor_and_logistics_paused;
 use crate::simulation::SimTickContext;
@@ -47,7 +49,8 @@ pub fn step_reforester(
     let Some(def) = building_def(&building.kind) else {
         return;
     };
-    if building.assigned_labor == 0 {
+    let onsite_labor = onsite_building_labor(ctx, &building);
+    if onsite_labor == 0 {
         return;
     }
 
@@ -70,8 +73,11 @@ pub fn step_reforester(
             tree_work_area_contains(work_area, tree.x, tree.z)
         })
         .collect();
+    let paired_oxen =
+        crate::simulation::paired_production_ox_count(ctx, tick, &building, onsite_labor);
+    let productive_labor = ox_amplified_worker_count(onsite_labor, paired_oxen);
     let growth_increment =
-        reforester_growth_per_tree_per_second(recovering_trees.len(), building.assigned_labor)
+        reforester_growth_per_tree_per_second(recovering_trees.len(), productive_labor)
             * tree_regrowth_step_seconds();
     if growth_increment <= 0.0 {
         return;

@@ -7,6 +7,7 @@ use crate::balance_generated::{
 };
 use crate::db::*;
 use crate::labor_steward_policy::seasonal_labor_steward_review_due;
+use crate::ox_policy::ox_amplified_worker_count;
 use crate::tables::{Building, Residence};
 use crate::workforce_commute_policy::{
     assign_target_travel_seconds, commute_efficiency_from_average_seconds,
@@ -249,8 +250,11 @@ pub fn commute_adjusted_labor(
     let exposed = is_exposed_commute_worksite(&building.kind);
     let active_remote_camp =
         exposed && tick.worksite_has_active_remote_camp(ctx, building.owner, building.id);
+    let paired_oxen =
+        crate::simulation::paired_production_ox_count(ctx, tick, building, onsite_labor);
+    let amplified_labor = ox_amplified_worker_count(onsite_labor, paired_oxen);
     productive_labor_after_commute(
-        onsite_labor,
+        amplified_labor,
         exposed,
         active_remote_camp,
         building.commute_efficiency,

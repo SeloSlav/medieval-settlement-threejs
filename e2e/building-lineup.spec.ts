@@ -1,13 +1,16 @@
 import { expect, test } from '@playwright/test';
 
 const cases = [
-  ['all-design-final', '/building-lineup.html?camera=design', 8_217, 226_796],
-  ['all-far-no-post', '/building-lineup.html?camera=far&presentation=no-post', 8_200, 225_969],
-  ['residences-near', '/building-lineup.html?compare=residences&camera=near', 747, 18_900],
-  ['monastery-design', '/building-lineup.html?kind=monastery&camera=design', 2_458, 105_490],
+  ['all-design-final', '/building-lineup.html?camera=design', 8_217, 226_796, undefined],
+  ['all-far-no-post', '/building-lineup.html?camera=far&presentation=no-post', 8_200, 225_969, undefined],
+  ['residences-near', '/building-lineup.html?compare=residences&camera=near', 747, 18_900, undefined],
+  ['monastery-design', '/building-lineup.html?kind=monastery&camera=design', 2_458, 105_490, undefined],
+  ['stable-near-oxen', '/building-lineup.html?kind=stable&camera=near&oxen=3', 200, 18_000, 20],
+  ['stable-design-oxen', '/building-lineup.html?kind=stable&camera=design&oxen=3', 200, 18_000, 20],
+  ['stable-far-no-post-oxen', '/building-lineup.html?kind=stable&camera=far&presentation=no-post&oxen=3', 200, 18_000, 20],
 ] as const;
 
-for (const [label, url, maxDrawCalls, maxTriangles] of cases) {
+for (const [label, url, maxDrawCalls, maxTriangles, maxCpuFrameMs] of cases) {
   test(`Building lineup renderer budget — ${label}`, async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 720 });
     const runtimeErrors: string[] = [];
@@ -39,6 +42,12 @@ for (const [label, url, maxDrawCalls, maxTriangles] of cases) {
     expect(metrics!.triangles).toBeLessThanOrEqual(maxTriangles);
     expect(Number.isFinite(metrics!.drawCalls)).toBe(true);
     expect(Number.isFinite(metrics!.triangles)).toBe(true);
+    if (label.startsWith('stable-')) {
+      expect(metrics!.stableOxVisuals).toBe(3);
+      expect(metrics!.renderTargets).toBe(0);
+      expect(metrics!.cpuFrameMs).toBeGreaterThan(0);
+      expect(metrics!.cpuFrameMs).toBeLessThanOrEqual(maxCpuFrameMs!);
+    }
     console.log(`[building-lineup] ${label}: ${JSON.stringify(metrics)}`);
     const unexpectedRuntimeErrors = runtimeErrors.filter((message) => !(
       /No available adapters\./.test(message)

@@ -36,6 +36,7 @@ use crate::economy::{
 };
 use crate::fire_policy::fire_response_load;
 use crate::monastery_estate_policy::playable_half_for_monastery_map_size;
+use crate::ox_policy::ox_amplified_cart_capacity;
 use crate::raid_agent_policy::{
     arriving_cart_store_loot_fraction, combat_agent_follows_arriving_cart,
     playable_half_for_map_size, COMBAT_FACTION_RAIDER, COMBAT_STATE_ADVANCING,
@@ -65,7 +66,10 @@ use crate::simulation::settlement_security::{
     building_portable_stores_at_site, delivery_trip_portable_stores,
 };
 use crate::simulation::tick_context::SimTickContext;
-use crate::simulation::{recover_stock_at, recover_stock_beside_building, ReclamationStock};
+use crate::simulation::{
+    claim_nearest_haul_ox, recover_stock_at, recover_stock_beside_building, release_haul_ox,
+    ReclamationStock,
+};
 use crate::supply_policy::{carpenter_cart_service_ready, construction_source_available_stock};
 use crate::tables::{Building, DeliveryTrip, FireIncident, Residence};
 
@@ -224,6 +228,7 @@ struct StartTripSpec {
     speed_mps: f64,
     unload_seconds: f64,
     load_amount: f64,
+    ox_id: u64,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -654,6 +659,7 @@ pub fn start_regional_market_export_trip(
             speed_mps,
             unload_seconds,
             load_amount: amount,
+            ox_id: 0,
         },
         route,
         1.0,
@@ -819,7 +825,8 @@ pub fn try_start_delivery_trip(
         return false;
     }
 
-    let batch = per_delivery_amount * delivery_workers as f64;
+    let ox_id = claim_nearest_haul_ox(ctx, tick, building.owner, building.x, building.z);
+    let batch = ox_amplified_cart_capacity(per_delivery_amount, delivery_workers, ox_id);
     let Some((residence_id, residence_x, residence_z, load_amount)) = pick_delivery_target(
         ctx,
         available,
@@ -829,6 +836,7 @@ pub fn try_start_delivery_trip(
         delivery_commodity,
         |residence_id| !tick.residence_disabled_by_fire(ctx, residence_id),
     ) else {
+        release_haul_ox(tick, ox_id);
         return false;
     };
 
@@ -856,6 +864,7 @@ pub fn try_start_delivery_trip(
             speed_mps,
             unload_seconds,
             load_amount,
+            ox_id,
         },
         |origin, amount| {
             delivery_commodity
@@ -900,7 +909,8 @@ pub fn try_start_market_stall_delivery_trip(
     let available = delivery_commodity
         .map(|commodity| building_commodity_stock(marketplace, commodity))
         .unwrap_or_else(|| building_delivery_stock(marketplace, need_kind));
-    let batch = per_delivery_amount * delivery_workers as f64;
+    let ox_id = claim_nearest_haul_ox(ctx, tick, marketplace.owner, marketplace.x, marketplace.z);
+    let batch = ox_amplified_cart_capacity(per_delivery_amount, delivery_workers, ox_id);
     let Some((residence_id, residence_x, residence_z, load_amount)) = pick_delivery_target(
         ctx,
         available,
@@ -910,6 +920,7 @@ pub fn try_start_market_stall_delivery_trip(
         delivery_commodity,
         |residence_id| !tick.residence_disabled_by_fire(ctx, residence_id),
     ) else {
+        release_haul_ox(tick, ox_id);
         return false;
     };
     let cargo_kind = delivery_commodity
@@ -936,6 +947,7 @@ pub fn try_start_market_stall_delivery_trip(
             speed_mps,
             unload_seconds,
             load_amount,
+            ox_id,
         },
         |origin, amount| {
             delivery_commodity
@@ -1024,6 +1036,7 @@ pub fn try_start_market_stall_remedy_trip(
             speed_mps: REMEDY_DELIVERY_SPEED_MPS,
             unload_seconds: REMEDY_DELIVERY_UNLOAD_SEC,
             load_amount: load,
+            ox_id: 0,
         },
         |origin, amount| withdraw_building_commodity(origin, CommodityKind::Remedies, amount),
         |origin| *marketplace = origin.clone(),
@@ -1091,6 +1104,7 @@ pub fn try_start_remedy_delivery_trip(
             speed_mps: REMEDY_DELIVERY_SPEED_MPS,
             unload_seconds: REMEDY_DELIVERY_UNLOAD_SEC,
             load_amount: load,
+            ox_id: 0,
         },
         |origin, amount| withdraw_building_commodity(origin, CommodityKind::Remedies, amount),
         |origin| *forager = origin.clone(),
@@ -1152,6 +1166,7 @@ pub fn try_start_residence_wealth_trip(
             speed_mps,
             unload_seconds,
             load_amount: load,
+            ox_id: 0,
         },
         |source, amount| withdraw_coffer_in_place(source, amount),
         |source| *chapel = source.clone(),
@@ -1222,6 +1237,7 @@ pub fn try_start_private_export_income_trip(
             speed_mps: TIMBER_DELIVERY_SPEED_MPS,
             unload_seconds: TIMBER_DELIVERY_UNLOAD_SEC,
             load_amount: load,
+            ox_id: 0,
         },
         |source, amount| withdraw_private_export_proceeds(source, amount),
         |source| *trading_post = source.clone(),
@@ -1406,12 +1422,14 @@ fn try_start_building_supply_trip_with_labor(
         return false;
     }
 
-    let batch = per_delivery_amount * delivery_workers as f64;
+    let ox_id = claim_nearest_haul_ox(ctx, tick, origin.owner, origin.x, origin.z);
+    let batch = ox_amplified_cart_capacity(per_delivery_amount, delivery_workers, ox_id);
     let load = building_commodity_stock(origin, commodity)
         .min(target_room)
         .min(batch)
         .min(needed);
     if load <= 1e-6 {
+        release_haul_ox(tick, ox_id);
         return false;
     }
 
@@ -1433,6 +1451,7 @@ fn try_start_building_supply_trip_with_labor(
             speed_mps,
             unload_seconds,
             load_amount: load,
+            ox_id,
         },
         |source, amount| withdraw_building_commodity(source, commodity, amount),
         |source| *origin = source.clone(),
@@ -1492,21 +1511,25 @@ pub fn try_start_residence_upgrade_supply_trip(
     } else {
         CONSTRUCTION_HAUL_PER_WORKER
     };
-    let load = building_commodity_stock(origin, commodity)
-        .min(reserved)
-        .min(haul_per_worker * workers as f64);
-    if load <= 1e-6 {
-        return false;
-    }
     let Some(local_route) =
         local_delivery_route(network, origin.x, origin.z, residence.x, residence.z)
     else {
         return false;
     };
 
+    let ox_id = claim_nearest_haul_ox(ctx, tick, origin.owner, origin.x, origin.z);
+    let load = building_commodity_stock(origin, commodity)
+        .min(reserved)
+        .min(ox_amplified_cart_capacity(haul_per_worker, workers, ox_id));
+    if load <= 1e-6 {
+        release_haul_ox(tick, ox_id);
+        return false;
+    }
+
     let mut source = origin.clone();
     let withdrawn = withdraw_building_commodity(&mut source, commodity, load);
     if withdrawn <= 1e-6 {
+        release_haul_ox(tick, ox_id);
         return false;
     }
     match commodity {
@@ -1547,6 +1570,7 @@ pub fn try_start_residence_upgrade_supply_trip(
             speed_mps: CONSTRUCTION_DELIVERY_SPEED_MPS,
             unload_seconds: CONSTRUCTION_DELIVERY_UNLOAD_SEC,
             load_amount: withdrawn,
+            ox_id,
         },
         local_route.route,
         local_route.speed_multiplier,
@@ -1622,6 +1646,7 @@ pub fn try_start_fire_response_trip(
             speed_mps: FIRE_BUCKET_SPEED_MPS,
             unload_seconds: FIRE_BUCKET_UNLOAD_SECONDS,
             load_amount: load,
+            ox_id: 0,
         },
         local_route.route,
         local_route.speed_multiplier,
@@ -1726,6 +1751,12 @@ pub fn try_start_construction_supply_trip(
         CommodityKind::RoofTiles => "roofTiles",
         _ => "",
     };
+    let Some(local_route) = local_delivery_route(network, origin.x, origin.z, site.x, site.z)
+    else {
+        return false;
+    };
+
+    let ox_id = claim_nearest_haul_ox(ctx, tick, origin.owner, origin.x, origin.z);
     let load = construction_source_available_stock(
         &origin.kind,
         origin.carpenter_cart_service_target_trips,
@@ -1733,19 +1764,16 @@ pub fn try_start_construction_supply_trip(
         building_commodity_stock(origin, commodity),
     )
     .min(reserved_physical)
-    .min(haul_per_worker * workers as f64);
+    .min(ox_amplified_cart_capacity(haul_per_worker, workers, ox_id));
     if load <= 1e-6 {
+        release_haul_ox(tick, ox_id);
         return false;
     }
-
-    let Some(local_route) = local_delivery_route(network, origin.x, origin.z, site.x, site.z)
-    else {
-        return false;
-    };
 
     let mut source = origin.clone();
     let withdrawn = withdraw_building_commodity(&mut source, commodity, load);
     if withdrawn <= 1e-6 {
+        release_haul_ox(tick, ox_id);
         return false;
     }
     match commodity {
@@ -1788,6 +1816,7 @@ pub fn try_start_construction_supply_trip(
             speed_mps: CONSTRUCTION_DELIVERY_SPEED_MPS,
             unload_seconds: CONSTRUCTION_DELIVERY_UNLOAD_SEC,
             load_amount: withdrawn,
+            ox_id,
         },
         local_route.route,
         local_route.speed_multiplier,
@@ -1805,10 +1834,12 @@ fn try_start_road_trip(
     write_origin: impl FnOnce(&Building),
 ) -> bool {
     if labor_and_logistics_paused(ctx, tick, spec.origin.owner, clock) {
+        release_haul_ox(tick, spec.ox_id);
         return false;
     }
     spec.delivery_workers = resolve_delivery_workers(ctx, &spec);
     if spec.delivery_workers == 0 {
+        release_haul_ox(tick, spec.ox_id);
         return false;
     }
 
@@ -1816,12 +1847,14 @@ fn try_start_road_trip(
     let Some(local_route) =
         local_delivery_route(network, spec.origin.x, spec.origin.z, dest_x, dest_z)
     else {
+        release_haul_ox(tick, spec.ox_id);
         return false;
     };
 
     let mut origin = spec.origin.clone();
     let withdrawn = withdraw(&mut origin, spec.load_amount);
     if withdrawn <= 1e-6 {
+        release_haul_ox(tick, spec.ox_id);
         return false;
     }
     write_origin(&origin);
@@ -1851,6 +1884,7 @@ fn insert_trip(
 ) {
     let load_amount = whole_units(spec.load_amount);
     if load_amount < 1.0 {
+        release_haul_ox(tick, spec.ox_id);
         return;
     }
     let (destination_kind, residence_id, target_building_id) = spec.destination.to_row_fields();
@@ -1912,6 +1946,7 @@ fn insert_trip(
         travel_speed_multiplier,
         route_polyline_json: serialize_route_polyline(&route.polyline),
         free_hauler_workers,
+        ox_id: spec.ox_id,
     });
 }
 

@@ -327,10 +327,10 @@ test('connects, places a reforester, and updates settlement HUD timber', async (
     '(December–February)',
   ]);
   await expect(tooltip.locator('.ui-tooltip__season-description')).toHaveText([
-    /improves shallow-well recharge/,
-    /Crops mature while haymaking and shearing peak/,
+    /Spring oats are sown/,
+    /cattle and sheep graze, holdings cut local winter hay/,
     /Finish the late harvest/,
-    /heated homes need twice their normal fuel/,
+    /cattle and sheep use local hay before direct oats/,
   ]);
   await expect(tooltip.locator('.ui-tooltip__season-description').nth(1)).not.toContainText(/drought/i);
   const tooltipLifecycleFixture = page.locator('[data-e2e-tooltip-lifecycle]');

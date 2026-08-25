@@ -1,5 +1,7 @@
 import * as THREE from 'three';
 import type { RoadNetwork } from '../roads/RoadNetwork.ts';
+import { OxenRenderer, type OxFollowPose } from './OxenRenderer.ts';
+import type { StableOxLike } from './stableOxen.ts';
 import {
   rosteredCartWorkersByBuilding,
   type DeliveryTripState,
@@ -406,11 +408,13 @@ export type VillagerRendererOptions = {
   getRoadDeckY?: (x: number, z: number) => number | null;
   isWaterAt?: (x: number, z: number) => boolean;
   routePathAroundObstacles?: (path: readonly PointXZ[]) => PointXZ[] | null;
+  getDeliveryOxPose?: (tripId: string) => OxFollowPose | null;
 };
 
 export class VillagerRenderer {
   readonly visualAssetsReady: Promise<boolean>;
   private readonly renderer: SettlementCrowdRenderer;
+  private readonly oxen: OxenRenderer;
   private readonly activityAudio = new WorkerActivityAudio();
   private readonly farmWorkerSongAudio = new FarmWorkerSongAudio();
   private readonly combatAudio = new CombatAudio();
@@ -502,6 +506,15 @@ export class VillagerRenderer {
     this.isWaterAt = options.isWaterAt ?? null;
     this.routePathAroundObstacles = options.routePathAroundObstacles ?? null;
     this.renderer = new SettlementCrowdRenderer({ parent: options.parent });
+    this.oxen = new OxenRenderer({
+      parent: options.parent,
+      getGameSpeed: options.getGameSpeed,
+      getHeightAt: options.getHeightAt,
+      getRoadDeckY: options.getRoadDeckY,
+      getWorkerPose: (buildingId, workerSlot) =>
+        this.getWorkerFollowPose(buildingId, workerSlot),
+      getDeliveryPose: options.getDeliveryOxPose,
+    });
     this.visualAssetsReady = this.renderer.ready;
   }
 
@@ -736,6 +749,7 @@ export class VillagerRenderer {
     backyardGardens?: Iterable<BackyardGardenState>;
     burgageZones?: Iterable<BurgageZoneState>;
     deliveryTrips?: Iterable<DeliveryTripState>;
+    oxen?: Iterable<StableOxLike>;
     fireIncidents?: Iterable<FireIncidentState>;
     roadNetwork: RoadNetwork | null;
     foragingMonth?: number;
@@ -757,6 +771,7 @@ export class VillagerRenderer {
     const vineyardParcels = [...(options.vineyardParcels ?? [])];
     const backyardGardens = [...(options.backyardGardens ?? [])];
     const burgageZones = [...(options.burgageZones ?? [])];
+    const deliveryTrips = [...(options.deliveryTrips ?? [])];
     const fireIncidents = [...(options.fireIncidents ?? [])];
     const disabledBuildingIds = fireDisabledBuildingIds(fireIncidents);
     this.fireDisabledBuildingIds = disabledBuildingIds;
@@ -845,7 +860,7 @@ export class VillagerRenderer {
 
     const travelingWorkers = rosteredCartWorkersByBuilding(
       this.buildings,
-      options.deliveryTrips ?? [],
+      deliveryTrips,
     );
     const roster = allocateProductionWorkers(
       residences,
@@ -1309,6 +1324,13 @@ export class VillagerRenderer {
 
     this.syncCampAmbientAssignments();
     this.syncChapelAmbientAssignments();
+    this.oxen.sync({
+      oxen: options.oxen ?? [],
+      buildings: new Map(physicalBuildings.map((building) => [building.id, building])),
+      deliveryTrips,
+      disabledBuildingIds,
+      roadNetwork: options.roadNetwork,
+    });
     this.pushRenderState();
   }
 
@@ -1370,7 +1392,8 @@ export class VillagerRenderer {
 
     this.releaseVacatedCampSeats();
     this.pushRenderState(view, simulationDt, simulationDt > 0 ? realDt : 0);
-    return this.renderer.consumeShadowCastersChanged();
+    const oxShadowCastersChanged = this.oxen.tick(dt, view);
+    return this.renderer.consumeShadowCastersChanged() || oxShadowCastersChanged;
   }
 
   /**
@@ -1488,6 +1511,28 @@ export class VillagerRenderer {
     return null;
   }
 
+  /** Read-only live pose used by the automatically paired draft ox. */
+  getWorkerFollowPose(buildingId: string, workerSlot: number): OxFollowPose | null {
+    for (const agent of this.agents.values()) {
+      if (
+        agent.role !== 'worker'
+        || agent.workplaceId !== buildingId
+        || agent.workplaceSlot !== workerSlot
+      ) continue;
+      const active = agent.routinePhase === 'work'
+        || agent.routinePhase === 'commuting_to_work';
+      return {
+        x: agent.x,
+        y: agent.y,
+        z: agent.z,
+        yaw: agent.yaw,
+        moving: agent.currentMoveSpeed > 0.05,
+        active,
+      };
+    }
+    return null;
+  }
+
   getWorksiteCommuteSummary(buildingId: string): WorksiteCommuteSummary | null {
     const workplace = this.buildings.get(buildingId);
     if (!workplace) return null;
@@ -1569,6 +1614,7 @@ export class VillagerRenderer {
     this.activityAudio.dispose();
     this.farmWorkerSongAudio.dispose();
     this.combatAudio.dispose();
+    this.oxen.dispose();
     this.renderer.dispose();
   }
 

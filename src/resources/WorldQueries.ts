@@ -60,6 +60,7 @@ import {
   foodSupplierDeliveryTripSeconds,
   INSTITUTIONAL_FOOD_SOURCE_KINDS,
   type RoutedInstitutionalFoodDestination,
+  institutionalDispatchableFoodStock,
   institutionalFoodSurplus,
   selectInstitutionalFoodTarget,
 } from '../logistics/foodLogistics.ts';
@@ -1388,6 +1389,11 @@ export class WorldQueries {
     const sourceCapacity = (
       BUILDING_STORAGE_CAPS[source.kind] as { food?: number } | undefined
     )?.food ?? 0;
+    const dispatchableFoodStock = institutionalDispatchableFoodStock(
+      source.kind,
+      edibleFoodStock(source),
+      source.oatGrain ?? 0,
+    );
     if (
       !INSTITUTIONAL_FOOD_SOURCE_KINDS.includes(
         source.kind as (typeof INSTITUTIONAL_FOOD_SOURCE_KINDS)[number],
@@ -1396,7 +1402,7 @@ export class WorldQueries {
       || fireDisabled.has(source.id)
       || findActiveTripForBuilding(state.deliveryTrips.values(), source.id) != null
       || institutionalFoodSurplus(
-        edibleFoodStock(source),
+        dispatchableFoodStock,
         claimedHouseholds,
         sourceCapacity,
       ) <= 1e-6

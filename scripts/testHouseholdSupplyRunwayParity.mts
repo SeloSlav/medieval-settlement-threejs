@@ -186,8 +186,8 @@ assert.equal(
 const screenshotState = emptyGameState();
 screenshotState.stockpile.food = 193;
 screenshotState.stockpile.firewood = 55;
-for (let index = 0; index < 6; index += 1) {
-  const home = residence(`screenshot-tier-1-${index}`, 1, 3, index);
+for (const [index, population] of [3, 3, 3, 3, 2, 2, 2].entries()) {
+  const home = residence(`screenshot-tier-1-${index}`, 1, population, index);
   screenshotState.residences.set(home.id, home);
 }
 const screenshotProvisioning = computeSettlementProvisioning({
@@ -200,18 +200,18 @@ const screenshotProvisioning = computeSettlementProvisioning({
 });
 closeTo(
   screenshotProvisioning.foodRunwayWithoutSpoilageDays,
-  965,
-  '193 food must cover six Tier 1 homes for more than 32 months before spoilage',
+  5790 / 7,
+  '193 food must cover the screenshot\'s seven homes for more than 27 months before spoilage',
 );
 closeTo(
   screenshotProvisioning.currentFirewoodRunwayDays,
-  275,
-  '55 fuel must cover six Tier 1 homes for more than nine ordinary months',
+  1650 / 7,
+  '55 fuel must cover the screenshot\'s seven homes for more than seven ordinary months',
 );
 closeTo(
   screenshotProvisioning.winterFirewoodRunwayDays,
-  137.5,
-  '55 fuel must still cover six Tier 1 homes for more than four winter months',
+  825 / 7,
+  '55 fuel must still cover the screenshot\'s seven homes for more than three winter months',
 );
 
 const mixedFoodState = emptyGameState();

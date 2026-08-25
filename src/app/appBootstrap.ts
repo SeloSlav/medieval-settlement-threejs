@@ -371,6 +371,7 @@ export async function bootstrapAppSession(
     getRoadDeckY: (x, z) => sceneManager.sampleRoadDeckY(x, z),
     isWaterAt: (x, z) => sceneManager.riverField.isRenderedWetAt(x, z),
     routePathAroundObstacles: (path) => firstPersonCollisionWorld.routeAgentPath(path),
+    getDeliveryOxPose: (tripId) => deliveryAgents.getOxFollowPose(tripId),
   });
   const placementGate: PlacementInteractionGate = {
     isSessionReady: () => sessionGate.isReady(),

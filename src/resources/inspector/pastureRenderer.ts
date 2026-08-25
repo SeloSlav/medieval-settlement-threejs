@@ -38,13 +38,18 @@ export function renderPastureInspector(
   const parcelCapacity = !herd
     ? 'Choose a herd to calculate carrying capacity'
     : herd.species === 'swine'
-      ? `${parcelPannageCapacity?.headCapacity.toFixed(1) ?? '0.0'} pigs neutral · ${pastureAreaHeadCapacity(pasture, herd.species).toFixed(1)} by area / ${parcelPannageCapacity?.mastHeadCapacity.toFixed(1) ?? '0.0'} by woodland browse/mast (${parcelPannageCapacity?.matureTrees ?? 0} mature trees)`
+      ? `${parcelPannageCapacity?.headCapacity.toFixed(1) ?? '0.0'} pigs neutral · ${pastureAreaHeadCapacity(pasture, herd.species).toFixed(1)} by area / ${parcelPannageCapacity?.mastHeadCapacity.toFixed(1) ?? '0.0'} by woodland mast (${parcelPannageCapacity?.matureTrees ?? 0} mature trees)`
       : `${currentCapacity?.toFixed(1) ?? '0.0'} ${herd.species} now · ${neutralCapacity?.toFixed(1) ?? '0.0'} in neutral conditions`;
   const productionRhythm = !herd
     ? 'No herd linked'
     : herd.species === 'swine'
-      ? 'Mature woodland trees are an abstract browse/mast proxy · pork comes from surplus culls in October–November, not a parcel harvest'
-      : 'Grazing supports continuous dairy and breeding · hay is cut June–August at the linked holding';
+      ? 'Mature woodland trees provide seasonal mast capacity · pigs use direct oats when mast falls short · pork comes from surplus culls in October–November, not a parcel harvest'
+      : 'Warm-season grazing supports dairy and breeding · the linked holding cuts local hay June–August and uses it before direct grain in winter';
+  const feedingOrder = !herd
+    ? 'Choose a herd first'
+    : herd.species === 'swine'
+      ? 'Woodland mast → direct oats; rye or maslin are weaker substitutes · trough water is supplied separately at the sty'
+      : 'Warm-season grazing; in winter, reduced pasture → local hay → direct oats; rye or maslin are weaker substitutes · trough water is supplied separately at the holding';
   const recentOutput = herd
     ? `${Math.round(herd.lastFoodOutput)} fresh food · ${Math.round(herd.lastPreservedOutput)} preserved${herd.lastHayOutput > 0 ? ` · ${Math.round(herd.lastHayOutput)} hay` : ''}${herd.lastCulled > 0 ? ` · ${herd.lastCulled} culled` : ''}`
     : 'None';
@@ -65,6 +70,7 @@ export function renderPastureInspector(
       <li><span>Herd</span><span>${herd ? `${herd.headCount} ${herd.species}` : 'None'}</span></li>
       <li><span>This parcel supports</span><span>${parcelCapacity}</span></li>
       <li><span>Holding capacity</span><span>${herd ? `${herd.pastureCapacity.toFixed(1)} pasture · ${herd.suppliedCapacity.toFixed(1)} supplied` : 'Not calculated'}</span></li>
+      <li><span>Feeding order</span><span>${feedingOrder}</span></li>
       <li><span>Production rhythm</span><span>${productionRhythm}</span></li>
       <li><span>Linked holding's last cycle</span><span>${recentOutput}</span></li>
     `,

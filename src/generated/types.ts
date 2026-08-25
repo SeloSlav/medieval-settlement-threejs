@@ -296,6 +296,7 @@ export const DeliveryTrip = __t.object("DeliveryTrip", {
   routePolylineJson: __t.string(),
   freeHaulerWorkers: __t.u32(),
   laborBuildingId: __t.u64(),
+  oxId: __t.u64(),
 });
 export type DeliveryTrip = __Infer<typeof DeliveryTrip>;
 
@@ -801,6 +802,14 @@ export const SimTickSchedule = __t.object("SimTickSchedule", {
   scheduledAt: __t.scheduleAt(),
 });
 export type SimTickSchedule = __Infer<typeof SimTickSchedule>;
+
+export const StableOx = __t.object("StableOx", {
+  id: __t.u64(),
+  owner: __t.identity(),
+  stableId: __t.u64(),
+  slot: __t.u8(),
+});
+export type StableOx = __Infer<typeof StableOx>;
 
 export const TradingPostTradeRule = __t.object("TradingPostTradeRule", {
   id: __t.string(),

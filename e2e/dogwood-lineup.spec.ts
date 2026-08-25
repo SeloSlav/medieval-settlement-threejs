@@ -12,6 +12,8 @@ type DogwoodRenderEvidence = {
   timeSeconds: number;
   windStrength: number;
   variant: number | null;
+  rendererBackend: string;
+  nodeMaterial: boolean;
 };
 
 type DogwoodCaptureOptions = {
@@ -189,6 +191,8 @@ for (const [view, season, scale, expected] of cases) {
     expect(dataset.dogwoodScale).toBe(scale);
     expect(dataset.dogwoodAutumnColor).toBe(expected.autumn);
     expect(dataset.dogwoodDormancy).toBe(expected.dormancy);
+    expect(dataset.dogwoodRendererBackend).toMatch(/^(?:webgpu|webgl2-node)$/);
+    expect(dataset.dogwoodNodeMaterial).toBe('true');
     expect(Number(dataset.dogwoodInstances)).toBe(3);
     expect(dataset.dogwoodStemCounts).toBe('12,19,27');
     expect(Number(dataset.dogwoodDefaultTarget)).toBe(7_375);
@@ -229,7 +233,9 @@ for (const [view, season, scale, expected] of cases) {
     expect(finalWidthsX).toHaveLength(3);
     expect(finalWidthsZ).toHaveLength(3);
     expect(Math.min(...finalWidthsX, ...finalWidthsZ)).toBeGreaterThan(1.5);
-    expect(Math.max(...finalWidthsX, ...finalWidthsZ)).toBeLessThan(3.2);
+    // Rotated AABBs may approach the 2 × 1.752 m radial envelope even though
+    // the authored crown itself only widens about 6–10% over the old maximum.
+    expect(Math.max(...finalWidthsX, ...finalWidthsZ)).toBeLessThan(3.51);
     const groundContacts = (dataset.dogwoodGroundContacts ?? '')
       .split(',')
       .filter(Boolean)
@@ -246,7 +252,10 @@ for (const [view, season, scale, expected] of cases) {
     expect(groundOrigins).toHaveLength(3);
     for (const groundOrigin of groundOrigins) expect(groundOrigin).toBeCloseTo(0.006, 5);
     if (scale === '0.98') expect(Math.max(...finalHeights)).toBeLessThan(2.7);
-    if (scale === '1.42') expect(Math.min(...finalHeights)).toBeGreaterThan(3.4);
+    if (scale === '1.42') {
+      expect(Math.min(...finalHeights)).toBeGreaterThan(3.4);
+      expect(new Set(finalHeights.map((height) => height.toFixed(3))).size).toBe(3);
+    }
     expect(dataset.dogwoodSignature).toMatch(
       new RegExp(`^${view}:${season}:4\\.00:${scale}:`),
     );
@@ -287,6 +296,7 @@ for (const [view, season, scale, expected] of cases) {
       groupAttached: true,
       stemSubmissions: 0,
       foliageSubmissions: 0,
+      nodeMaterial: true,
     });
     expect(stemEvidence).toMatchObject({
       mode: 'stems',
@@ -369,7 +379,8 @@ test('Common dogwood leaf motion is rooted, deterministic, and SeedThree-respons
   const canvas = page.locator('canvas');
   await expect(canvas).toBeVisible();
 
-  const movingPixelCounts: number[] = [];
+  const movingPixelCounts: number[][] = [];
+  const checkpoints = [1.25, 5, 8] as const;
   for (let variant = 0; variant < 3; variant++) {
     const startEvidence = await setCaptureMode(page, 'foliage', {
       timeSeconds: 2.5,
@@ -385,13 +396,19 @@ test('Common dogwood leaf motion is rooted, deterministic, and SeedThree-respons
     const repeatedStartFrame = await captureCanvas(canvas);
     const repeatedNoise = await comparePngFrames(page, startFrame, repeatedStartFrame);
 
-    const endEvidence = await setCaptureMode(page, 'foliage', {
-      timeSeconds: 5,
-      windStrength: 0.55,
-      variant,
-    });
-    const endFrame = await captureCanvas(canvas);
-    const movingPixels = await comparePngFrames(page, startFrame, endFrame);
+    const checkpointEvidence: DogwoodRenderEvidence[] = [];
+    const checkpointFrames: Buffer[] = [];
+    const checkpointDeltas: PixelEvidence[] = [];
+    for (const timeSeconds of checkpoints) {
+      checkpointEvidence.push(await setCaptureMode(page, 'foliage', {
+        timeSeconds,
+        windStrength: 0.55,
+        variant,
+      }));
+      const frame = await captureCanvas(canvas);
+      checkpointFrames.push(frame);
+      checkpointDeltas.push(await comparePngFrames(page, startFrame, frame));
+    }
 
     await setCaptureMode(page, 'foliage', {
       timeSeconds: 2.5,
@@ -409,25 +426,42 @@ test('Common dogwood leaf motion is rooted, deterministic, and SeedThree-respons
       stemSubmissions: 0,
       foliageSubmissions: 1,
     });
-    expect(endEvidence).toMatchObject({
-      mode: 'foliage',
-      variant,
-      timeSeconds: 5,
-      windStrength: 0.55,
-      stemSubmissions: 0,
-      foliageSubmissions: 1,
-    });
-    expect(repeatedNoise.changedPixels).toBeLessThan(25);
-    expect(rewindNoise.changedPixels).toBeLessThan(25);
-    expect(movingPixels.changedPixels).toBeGreaterThan(30);
-    expect(movingPixels.meanAbsDelta).toBeGreaterThan(1);
-    movingPixelCounts.push(movingPixels.changedPixels);
+    for (let index = 0; index < checkpoints.length; index++) {
+      expect(checkpointEvidence[index]).toMatchObject({
+        mode: 'foliage',
+        variant,
+        timeSeconds: checkpoints[index],
+        windStrength: 0.55,
+        stemSubmissions: 0,
+        foliageSubmissions: 1,
+        nodeMaterial: true,
+      });
+    }
+    expect(repeatedNoise.changedPixels).toBeLessThan(5);
+    expect(rewindNoise.changedPixels).toBeLessThan(5);
+    for (const movingPixels of checkpointDeltas) {
+      expect(movingPixels.changedPixels).toBeGreaterThan(
+        Math.max(500, repeatedNoise.changedPixels * 5 + 100),
+      );
+      expect(movingPixels.meanAbsDelta).toBeGreaterThan(6);
+      expect(movingPixels.minY).toBeGreaterThan(12);
+      expect(movingPixels.maxY).toBeLessThan(708);
+    }
+    movingPixelCounts.push(checkpointDeltas.map((evidence) => evidence.changedPixels));
 
     if (process.env.E2E_CAPTURE === '1') {
-      const capturePath = testInfo.outputPath(`dogwood-motion-variant-${variant}.png`);
-      await writeFile(capturePath, endFrame);
-      await testInfo.attach(`dogwood-motion-variant-${variant}`, {
-        path: capturePath,
+      const startPath = testInfo.outputPath(`dogwood-motion-variant-${variant}-start.png`);
+      const endPath = testInfo.outputPath(`dogwood-motion-variant-${variant}-end.png`);
+      await Promise.all([
+        writeFile(startPath, startFrame),
+        writeFile(endPath, checkpointFrames.at(-1)!),
+      ]);
+      await testInfo.attach(`dogwood-motion-variant-${variant}-start`, {
+        path: startPath,
+        contentType: 'image/png',
+      });
+      await testInfo.attach(`dogwood-motion-variant-${variant}-end`, {
+        path: endPath,
         contentType: 'image/png',
       });
     }

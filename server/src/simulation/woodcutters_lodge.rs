@@ -12,6 +12,7 @@ use crate::economy::{
     available_unreserved_building_timber, building_storage_caps, deposit_building,
     withdraw_building, withdraw_building_commodity, CommodityKind,
 };
+use crate::ox_policy::ox_amplified_worker_count;
 use crate::simulation::delivery_trips::{
     building_has_active_trip, building_has_inbound_supply_trip, onsite_building_labor,
     try_start_timber_supply_trip,
@@ -54,6 +55,9 @@ pub fn step_woodcutters_lodge(
     }
     let process_ready = onsite_labor > 0 && lodge.action_cooldown <= 0.0;
     if process_ready {
+        let paired_oxen =
+            crate::simulation::paired_production_ox_count(ctx, tick, &lodge, onsite_labor);
+        let production_labor = ox_amplified_worker_count(onsite_labor, paired_oxen);
         // One authoritative stock scan serves both policy checks. Dispatching
         // cannot lead to same-tick processing because it only runs when the
         // lodge lacks the next cycle's timber.
@@ -65,10 +69,11 @@ pub fn step_woodcutters_lodge(
             network,
             lodge,
             onsite_labor,
+            production_labor,
             available_timber,
         );
         let (processed, committed) =
-            process_timber_to_firewood(lodge, onsite_labor, available_timber, tools_maintained);
+            process_timber_to_firewood(lodge, production_labor, available_timber, tools_maintained);
         lodge = processed;
         if committed {
             lodge.action_cooldown = def.action_interval;
@@ -83,14 +88,18 @@ fn dispatch_timber_supply_if_needed(
     clock: &GameClock,
     network: &crate::roads::RoadNetwork,
     lodge: Building,
-    processing_workers: u32,
+    delivery_workers: u32,
+    production_workers: u32,
     available_unreserved_timber: f64,
 ) -> Building {
-    if processing_workers == 0 || building_has_inbound_supply_trip(ctx, lodge.id) {
+    if delivery_workers == 0
+        || production_workers == 0
+        || building_has_inbound_supply_trip(ctx, lodge.id)
+    {
         return lodge;
     }
 
-    let labor = processing_workers as f64;
+    let labor = production_workers as f64;
     let timber_needed = LODGE_TIMBER_PER_CYCLE * labor;
     if !woodcutter_can_process(
         available_unreserved_timber,
@@ -132,7 +141,7 @@ fn dispatch_timber_supply_if_needed(
         network,
         &mut mill,
         &lodge,
-        processing_workers,
+        delivery_workers,
         TIMBER_DELIVERY_SPEED_MPS,
         TIMBER_DELIVERY_UNLOAD_SEC,
         LODGE_TIMBER_PER_DELIVERY,

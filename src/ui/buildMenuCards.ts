@@ -91,7 +91,7 @@ const DETAILS: Record<PlacementArtKey, BuildCardDetail> = {
   founders_camp: ["Founders' camp", 'Establishes a costly civic foothold for future settlement expansion.'],
   residences: ['Residence', 'Raises road-fronted homes that grow as their families prosper.'],
   well: ['Well', 'Draws water for nearby homes along the roads.', flow([], ['water'])],
-  stable: ['Stable', 'Houses up to three independently dispatched draft oxen, each bought with civic gold.'],
+  stable: ['Stable', 'Houses three automatically dispatched draft oxen. Feed and water are abstracted; they never draw herd hay or grain.'],
   chapel: ['Church', 'Tends parish life, gathers tithes, and strengthens nearby households.'],
   wayside_shrine: ['Wayside shrine', 'Marks the roadside with a small place of prayer and devotion.'],
   dry_stone_wall: ['Dry-stone wall', 'Lines dirt roads with a free, instantly raised wall of fitted stone.'],
@@ -129,8 +129,8 @@ const DETAILS: Record<PlacementArtKey, BuildCardDetail> = {
   weaver: ["Weaver's workshop", 'Weaves wool into cloth and prepares flax with water for linen.', flow(['wool', 'flax', 'water'], ['cloth'])],
   tannery: ['Tannery', 'Tans goat and game hides with water and bark-fired heat into workable leather.', flow(['hides', 'water', 'firewood'], ['leather'])],
   cobbler: ["Cobbler's workshop", 'Cuts leather into finished shoes for prosperous Tier 3 households.', flow(['leather'], ['shoes'])],
-  pastoral_farmstead: ['Pastoral farmstead', 'An unstocked byre: fence capacity, buy cattle or sheep, then supply trough water and winter fodder.', flow(['water', 'oatGrain'], ['milk', 'wool', 'manure', 'meat'])],
-  swineherd: ['Woodland swineherd', 'An unstocked sty: fence tree-rich pannage, buy pigs, and supplement woodland browse/mast with water and oats.', flow(['water', 'oatGrain'], ['meat'])],
+  pastoral_farmstead: ['Pastoral farmstead', 'Cattle and sheep graze, cut summer hay, use hay before oats in winter; rye/maslin substitute and trough water is separate.', flow(['water', 'oatGrain'], ['milk', 'wool', 'manure', 'meat'])],
+  swineherd: ['Woodland swineherd', 'Pigs use woodland mast before direct oats; rye/maslin substitute less efficiently, and trough water is separate.', flow(['water', 'oatGrain'], ['meat'])],
 };
 
 const action = (kind: PlayerPlaceableBuildingKind): PlacementBuildMenuAction =>

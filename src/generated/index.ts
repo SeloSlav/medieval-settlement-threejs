@@ -64,6 +64,7 @@ import PlaceGraveyardReducer from "./place_graveyard_reducer";
 import PlacePastureReducer from "./place_pasture_reducer";
 import PlaceRemoteWorkCampReducer from "./place_remote_work_camp_reducer";
 import PlaceVineyardReducer from "./place_vineyard_reducer";
+import PurchaseStableOxReducer from "./purchase_stable_ox_reducer";
 import RecallIdleSeasonalLaborReducer from "./recall_idle_seasonal_labor_reducer";
 import RecallTargetIdleProcessorLaborReducer from "./recall_target_idle_processor_labor_reducer";
 import RemoveRoadEdgeReducer from "./remove_road_edge_reducer";
@@ -164,6 +165,7 @@ import SettlementRow from "./settlement_table";
 import SettlementSecurityRow from "./settlement_security_table";
 import SimPacingStateRow from "./sim_pacing_state_table";
 import SimTickScheduleRow from "./sim_tick_schedule_table";
+import StableOxRow from "./stable_ox_table";
 import TradingPostTradeRuleRow from "./trading_post_trade_rule_table";
 import TreeEntityRow from "./tree_entity_table";
 import VineyardParcelRow from "./vineyard_parcel_table";
@@ -572,6 +574,23 @@ const tablesSchema = __schema({
       { name: 'sim_tick_schedule_schedule_id_key', constraint: 'unique', columns: ['scheduleId'] },
     ],
   }, SimTickScheduleRow),
+  stable_ox: __table({
+    name: 'stable_ox',
+    indexes: [
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+      { name: 'owner', algorithm: 'btree', columns: [
+        'owner',
+      ] },
+      { name: 'stable_id', algorithm: 'btree', columns: [
+        'stableId',
+      ] },
+    ],
+    constraints: [
+      { name: 'stable_ox_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, StableOxRow),
   trading_post_trade_rule: __table({
     name: 'trading_post_trade_rule',
     indexes: [
@@ -662,6 +681,7 @@ const reducersSchema = __reducers(
   __reducerSchema("place_pasture", PlacePastureReducer),
   __reducerSchema("place_remote_work_camp", PlaceRemoteWorkCampReducer),
   __reducerSchema("place_vineyard", PlaceVineyardReducer),
+  __reducerSchema("purchase_stable_ox", PurchaseStableOxReducer),
   __reducerSchema("recall_idle_seasonal_labor", RecallIdleSeasonalLaborReducer),
   __reducerSchema("recall_target_idle_processor_labor", RecallTargetIdleProcessorLaborReducer),
   __reducerSchema("remove_road_edge", RemoveRoadEdgeReducer),

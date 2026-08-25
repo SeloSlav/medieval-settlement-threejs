@@ -1,16 +1,10 @@
 import {
-  CALENDAR_HOURS_PER_DAY,
-  CALENDAR_SECONDS_PER_DAY,
-  CALENDAR_WORK_END_HOUR,
-  CALENDAR_WORK_START_HOUR,
-  RESIDENCE_ALE_PER_PERSON_PER_SEC,
-  RESIDENCE_CLOTH_PER_PERSON_PER_SEC,
-  RESIDENCE_SHOES_PER_PERSON_PER_SEC,
-  RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC,
-  RESIDENCE_PRESERVED_FOOD_PER_PERSON_PER_SEC,
-  RESIDENCE_PRESERVED_FOOD_WINTER_MULTIPLIER,
-  RESIDENCE_POTTERY_PER_PERSON_PER_SEC,
-  RESIDENCE_WATER_PER_PERSON_PER_SEC,
+  CALENDAR_DAYS_PER_MONTH,
+  RESIDENCE_ALE_UNITS_PER_MONTH,
+  RESIDENCE_CLOTH_MONTHS_PER_UNIT,
+  RESIDENCE_POTTERY_MONTHS_PER_UNIT,
+  RESIDENCE_SHOES_MONTHS_PER_UNIT,
+  RESIDENCE_WATER_UNITS_PER_DAY,
   SIM_TICK_SECONDS,
   WINTER_FIREWOOD_DEMAND_MULTIPLIER,
 } from '../generated/gameBalance.ts';
@@ -21,9 +15,14 @@ import {
   type ResidenceNeedKind,
 } from '../residences/residenceNeedState.ts';
 import type { GameState, ResidenceState } from '../resources/types.ts';
+import { wholeResourceUnits } from '../resources/resourceUnits.ts';
 import { effectiveResidenceSettleTicks } from './chapelCommunity.ts';
 import { residenceSettlementReadiness } from './residenceSettlement.ts';
-import { householdFoodPerDay } from './foodInventory.ts';
+import {
+  householdFirewoodUnitsPerDay,
+  householdFoodUnitsPerDay,
+  householdFoodUnitsPerDayForTier,
+} from './householdBillDemand.ts';
 
 export type SettlementGrowthPlan = {
   vacantSlots: number;
@@ -72,11 +71,10 @@ export function computeSettlementGrowthPlan(input: {
   const communityForResidence = input.communityForResidence
     ?? (() => DEFAULT_RESIDENCE_COMMUNITY_CONTEXT);
   const waitingOnHomes = EMPTY_WAITING_COUNTS();
-  const workdayFraction = Math.max(
-    0,
-    (CALENDAR_WORK_END_HOUR - CALENDAR_WORK_START_HOUR) / CALENDAR_HOURS_PER_DAY,
+  const calendarDaysPerMonth = Math.max(
+    1,
+    wholeResourceUnits(CALENDAR_DAYS_PER_MONTH),
   );
-  const workdaySeconds = CALENDAR_SECONDS_PER_DAY * workdayFraction;
   let vacantSlots = 0;
   let candidateHomes = 0;
   let progressingHomes = 0;
@@ -124,37 +122,42 @@ export function computeSettlementGrowthPlan(input: {
 
     vacantSlots += vacancies;
     candidateHomes += 1;
-    const grossFoodPerDay = householdFoodPerDay(vacancies);
+    // Filling more beds in an occupied residence does not create another
+    // household bill. Only a first arrival activates this home's obligations.
+    const establishesHousehold = residence.population === 0;
+    const grossFoodPerDay = establishesHousehold
+      ? householdFoodUnitsPerDayForTier(residence.tier)
+      : 0;
     additionalGrossFoodPerDay += grossFoodPerDay;
-    if (residence.tier >= 1) {
-      additionalWinterFirewoodPerDay += vacancies
-        * RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC
-        * CALENDAR_SECONDS_PER_DAY
-        * WINTER_FIREWOOD_DEMAND_MULTIPLIER;
+    if (establishesHousehold && residence.tier >= 1) {
+      additionalWinterFirewoodPerDay += householdFirewoodUnitsPerDay(
+        WINTER_FIREWOOD_DEMAND_MULTIPLIER,
+      );
+      additionalWaterPerDay += wholeResourceUnits(RESIDENCE_WATER_UNITS_PER_DAY);
     }
-    if (residence.tier >= 1) {
-      additionalWaterPerDay += vacancies * RESIDENCE_WATER_PER_PERSON_PER_SEC * workdaySeconds;
+    if (establishesHousehold && residence.tier >= 2) {
+      additionalClothPerDay += 1
+        / (calendarDaysPerMonth * Math.max(1, RESIDENCE_CLOTH_MONTHS_PER_UNIT));
+      additionalAlePerDay += wholeResourceUnits(RESIDENCE_ALE_UNITS_PER_MONTH)
+        / calendarDaysPerMonth;
     }
-    if (residence.tier >= 2) {
-      additionalClothPerDay += vacancies * RESIDENCE_CLOTH_PER_PERSON_PER_SEC * workdaySeconds;
-      additionalAlePerDay += vacancies * RESIDENCE_ALE_PER_PERSON_PER_SEC * workdaySeconds;
-    }
-    if (residence.tier >= 3) {
-      additionalShoesPerDay += vacancies * RESIDENCE_SHOES_PER_PERSON_PER_SEC * workdaySeconds;
+    if (establishesHousehold && residence.tier >= 3) {
+      additionalShoesPerDay += 1
+        / (calendarDaysPerMonth * Math.max(1, RESIDENCE_SHOES_MONTHS_PER_UNIT));
     }
     if (residence.tier >= 4) {
-      const preservedFoodPerDay = vacancies
-        * RESIDENCE_PRESERVED_FOOD_PER_PERSON_PER_SEC
-        * workdaySeconds
-        * RESIDENCE_PRESERVED_FOOD_WINTER_MULTIPLIER;
+      const preservedFoodPerDay = establishesHousehold
+        ? householdFoodUnitsPerDay(1)
+        : 0;
       additionalPreservedFoodPerDay += preservedFoodPerDay;
       additionalFoodPerDay += Math.max(
         0,
         grossFoodPerDay - preservedFoodPerDay,
       );
-      additionalPotteryPerDay += vacancies
-        * RESIDENCE_POTTERY_PER_PERSON_PER_SEC
-        * workdaySeconds;
+      if (establishesHousehold) {
+        additionalPotteryPerDay += 1
+          / (calendarDaysPerMonth * Math.max(1, RESIDENCE_POTTERY_MONTHS_PER_UNIT));
+      }
     } else {
       additionalFoodPerDay += grossFoodPerDay;
     }

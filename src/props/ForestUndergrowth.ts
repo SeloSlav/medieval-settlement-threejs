@@ -30,7 +30,10 @@ import { applyFoliageDoubleSideNormals } from '../scene/foliageDoubleSideNormals
 import { chainMaterialShaderPatch } from '../scene/materialShaderPatch.ts';
 import { TREE_SHADOW_CAST_LAYER } from '../scene/SceneLayers.ts';
 import { worldAnimationTime } from '../scene/worldAnimationTime.ts';
-import type { RendererBackendKind } from '../scene/RendererBackend.ts';
+import {
+  supportsNodeMaterials,
+  type RendererBackendKind,
+} from '../scene/RendererBackend.ts';
 import type { DeciduousFoliagePresentation } from '../world/deciduousFoliagePolicy.ts';
 import {
   seedThreeBarkUrl,
@@ -116,6 +119,8 @@ export const DOGWOOD_MIN_SCALE = 0.98;
 export const DOGWOOD_MAX_SCALE = 1.42;
 /** Exactly twice the 1.78 m standing first-person body. */
 export const DOGWOOD_MAX_HEIGHT_METERS = 3.56;
+/** Softens the upper ceiling so the tallest stools do not form one flat tier. */
+export const DOGWOOD_MIN_HEIGHT_CEILING_METERS = 3.44;
 export const DOGWOOD_FOREST_EDGE_SHARE = 0.32;
 export const DOGWOOD_FOREST_CORE_SHARE = 0.24;
 const DOGWOOD_TREE_TRUNK_CLEARANCE = 1.4;
@@ -264,7 +269,7 @@ export async function createUndergrowthMaterials(
     loadBranchTextures(BRANCH_FILES.juniper, maxAnisotropy),
     loadBranchTextures(BRANCH_FILES.dogwood, maxAnisotropy),
   ]);
-  const useNodeMaterials = rendererBackend === 'webgpu';
+  const useNodeMaterials = supportsNodeMaterials(rendererBackend ?? 'webgl');
   const textures = collectTextures(
     bushTextures, fernTextures, juniperTextures, dogwoodTextures,
     bushBranch, juniperBranch, dogwoodBranch,
@@ -699,8 +704,15 @@ function composeUndergrowthMatrix(
     ? THREE.MathUtils.lerp(1, placement.scale, 0.72)
       * THREE.MathUtils.lerp(0.96, 1.08, rng())
     : placement.scale * widthFactor * THREE.MathUtils.lerp(0.9, 1.14, rng());
+  const dogwoodHeightCeiling = placement.kind === 'dogwood'
+    ? THREE.MathUtils.lerp(
+      DOGWOOD_MIN_HEIGHT_CEILING_METERS,
+      DOGWOOD_MAX_HEIGHT_METERS,
+      rng(),
+    )
+    : DOGWOOD_MAX_HEIGHT_METERS;
   const heightScale = placement.kind === 'dogwood'
-    ? Math.min(placement.scale, DOGWOOD_MAX_HEIGHT_METERS / prototypeHeight)
+    ? Math.min(placement.scale, dogwoodHeightCeiling / prototypeHeight)
     : placement.scale * THREE.MathUtils.lerp(0.92, 1.14, rng());
   placement.finalHeight = prototypeHeight * heightScale;
   scaleVector.set(widthScale, heightScale, widthScale);
@@ -949,21 +961,23 @@ ${leafFlutterAmplitude === undefined ? `
 transformed.x += aWindVec.x * undergrowthWindBend;
 transformed.z += aWindVec.z * undergrowthWindBend;` : `
 float undergrowthLeafFlutterTime = undergrowthWindTime * 5.2
-  + aLeafPhase * ${DOGWOOD_LEAF_PHASE_MULTIPLIER.toFixed(1)}
-  + position.x * 2.1 + position.z * 1.7;
+  + aLeafPhase * ${DOGWOOD_LEAF_PHASE_MULTIPLIER.toFixed(1)};
 float undergrowthLeafTip = uv.y * uv.y;
 float undergrowthLeafGate = clamp( aRootWeight * ${DOGWOOD_LEAF_WEIGHT_GATE.toFixed(1)}, 0.0, 1.0 );
 float undergrowthLeafScale = uUndergrowthWindStrength
-  * ${leafFlutterAmplitude.toFixed(3)} * undergrowthLeafTip * undergrowthLeafGate;
-float undergrowthLeafLongitudinal = (
-  sin( undergrowthLeafFlutterTime )
-  + sin( undergrowthLeafFlutterTime * 1.31 ) * 0.35
-) * undergrowthLeafScale;
+  * ${leafFlutterAmplitude.toFixed(3)} * aLeafPhase
+  * undergrowthLeafTip * undergrowthLeafGate;
+float undergrowthLeafLongitudinal = sin( undergrowthLeafFlutterTime )
+  * undergrowthLeafScale;
+float undergrowthLeafVertical = sin( undergrowthLeafFlutterTime * 1.31 )
+  * 0.6 * undergrowthLeafScale;
 float undergrowthLeafLateral = sin( undergrowthLeafFlutterTime * 0.77 )
-  * 0.55 * undergrowthLeafScale;
+  * undergrowthLeafScale;
 float undergrowthLeafAlong = undergrowthWindBend + undergrowthLeafLongitudinal;
 transformed.x += aWindVec.x * undergrowthLeafAlong
   - aWindVec.z * undergrowthLeafLateral;
+transformed.y += undergrowthLeafVertical
+  / max( length( instanceMatrix[1].xyz ), 0.0001 );
 transformed.z += aWindVec.z * undergrowthLeafAlong
   + aWindVec.x * undergrowthLeafLateral;`}`,
     );

@@ -86,6 +86,9 @@ pub struct SimTickContext {
     cattle_field_sources_by_owner: RefCell<HashMap<Identity, HashMap<u64, Vec<u64>>>>,
     livestock_grazing_capacity_by_building: RefCell<HashMap<u64, f64>>,
     mature_tree_spatial_index: RefCell<Option<MatureTreeSpatialIndex>>,
+    used_ox_ids: RefCell<HashSet<u64>>,
+    production_ox_assignments: RefCell<Option<HashMap<u64, Vec<u64>>>>,
+    production_ox_claims: RefCell<HashMap<u64, Vec<u64>>>,
 }
 
 impl SimTickContext {
@@ -128,7 +131,51 @@ impl SimTickContext {
             cattle_field_sources_by_owner: RefCell::new(HashMap::new()),
             livestock_grazing_capacity_by_building: RefCell::new(HashMap::new()),
             mature_tree_spatial_index: RefCell::new(None),
+            used_ox_ids: RefCell::new(HashSet::new()),
+            production_ox_assignments: RefCell::new(None),
+            production_ox_claims: RefCell::new(HashMap::new()),
         }
+    }
+
+    pub(crate) fn used_ox_ids(&self) -> Vec<u64> {
+        self.used_ox_ids.borrow().iter().copied().collect()
+    }
+
+    pub(crate) fn try_mark_ox_used(&self, ox_id: u64) -> bool {
+        ox_id != 0 && self.used_ox_ids.borrow_mut().insert(ox_id)
+    }
+
+    pub(crate) fn release_ox_use(&self, ox_id: u64) {
+        if ox_id == 0 {
+            return;
+        }
+        self.used_ox_ids.borrow_mut().remove(&ox_id);
+        self.production_ox_assignments.borrow_mut().take();
+    }
+
+    pub(crate) fn invalidate_production_ox_assignments(&self) {
+        self.production_ox_assignments.borrow_mut().take();
+    }
+
+    pub(crate) fn cached_production_ox_assignments(&self) -> Option<HashMap<u64, Vec<u64>>> {
+        self.production_ox_assignments.borrow().clone()
+    }
+
+    pub(crate) fn cache_production_ox_assignments(&self, assignments: HashMap<u64, Vec<u64>>) {
+        *self.production_ox_assignments.borrow_mut() = Some(assignments);
+    }
+
+    pub(crate) fn claimed_production_ox_ids(&self, building_id: u64) -> Option<Vec<u64>> {
+        self.production_ox_claims
+            .borrow()
+            .get(&building_id)
+            .cloned()
+    }
+
+    pub(crate) fn record_production_ox_claims(&self, building_id: u64, ox_ids: Vec<u64>) {
+        self.production_ox_claims
+            .borrow_mut()
+            .insert(building_id, ox_ids);
     }
 
     /// Pannage capacity requires spatially testing live mature trees against

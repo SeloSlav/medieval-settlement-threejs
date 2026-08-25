@@ -54,6 +54,7 @@ export type InspectorSpacetimeActions = {
   onDemolishPasture: (pastureId: string) => Promise<void>;
   onSetLivestockSpecies: (buildingId: string, species: Exclude<LivestockSpecies, 'swine'>) => Promise<void>;
   onTradeLivestock: (buildingId: string, headDelta: number) => Promise<void>;
+  onPurchaseStableOx: (stableId: string) => Promise<void>;
   onSetLivestockBreedingReserve: (buildingId: string, breedingReserve: number) => Promise<void>;
   onSetLivestockHaymakingPercent: (buildingId: string, haymakingPercent: number) => Promise<void>;
   onSetEconomicActivityTaxRate: (townHallId: string, taxRate: number) => Promise<void>;
@@ -488,6 +489,23 @@ export function createInspectorSpacetimeActions(
         () => store.tradeLivestock(buildingId, headDelta),
         headDelta > 0 ? 'Could not purchase livestock.' : 'Could not sell livestock.',
       );
+    },
+    onPurchaseStableOx: async (stableId) => {
+      const store = requireReady();
+      if (!store) return;
+      let purchased = false;
+      await runReducer(
+        async () => {
+          await store.purchaseStableOx(stableId);
+          purchased = true;
+        },
+        'Could not purchase a stable ox.',
+      );
+      if (purchased) {
+        toastManager.show(
+          'Draft ox purchased. The stable dispatcher will assign it automatically.',
+        );
+      }
     },
     onSetLivestockBreedingReserve: async (buildingId, breedingReserve) => {
       const store = requireReady();

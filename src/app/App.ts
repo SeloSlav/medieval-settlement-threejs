@@ -1601,6 +1601,7 @@ function resourceUiNeedsSync(current: GameState, previous: GameState | null): bo
     || current.graveyards !== previous.graveyards
     || current.corpses !== previous.corpses
     || current.livestockHerds !== previous.livestockHerds
+    || current.stableOxen !== previous.stableOxen
     || current.burgageZones !== previous.burgageZones
     || current.residences !== previous.residences
     || current.backyardGardens !== previous.backyardGardens

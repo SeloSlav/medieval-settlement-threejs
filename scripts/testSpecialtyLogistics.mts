@@ -106,16 +106,33 @@ assert.equal(SPECIALTY_CONSUMPTION_SECONDS_PER_DAY, 70);
 const preservedRunway = residencePreservedFoodRunwayDays(
   residence('preserved-runway', 0, 4, 'preservedFood', 7),
 );
-assert.ok((preservedRunway ?? 0) < 6.25);
-assert.ok((preservedRunway ?? 0) > 6.2);
-assert.ok(
-  (
-    residencePreservedFoodRunwayDays(
-      residence('winter-preserved-runway', 0, 4, 'preservedFood', 7),
-      1.75,
-    ) ?? 0
-  ) < 6.25 / 1.75,
-  'winter rotation and continuous cupboard aging must both shorten household runway',
+assert.ok((preservedRunway ?? 0) > 30);
+assert.equal(
+  residencePreservedFoodRunwayDays(
+    residence('preserved-no-spoilage', 0, 4, 'preservedFood', 7),
+    1,
+    0,
+  ),
+  210,
+  'seven cured units must cover seven monthly household slots before spoilage',
+);
+assert.equal(
+  residencePreservedFoodRunwayDays(
+    residence('preserved-large-household', 0, 10, 'preservedFood', 7),
+    1,
+    0,
+  ),
+  210,
+  'cured runway must not shrink with resident count',
+);
+assert.equal(
+  residencePreservedFoodRunwayDays(
+    residence('winter-preserved-runway', 0, 4, 'preservedFood', 7),
+    1.75,
+    0,
+  ),
+  210,
+  'the authoritative monthly cured slot is not seasonally multiplied',
 );
 const seasonalRunwayHome = residence(
   'seasonal-preserved-runway',

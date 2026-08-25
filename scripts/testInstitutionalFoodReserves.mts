@@ -10,7 +10,9 @@ import {
   granaryDispatchPriorityLabel,
   householdFoodReserve,
   INSTITUTIONAL_FOOD_SOURCE_KINDS,
+  institutionalDispatchableFoodStock,
   institutionalFoodSurplus,
+  livestockHoldingProtectsFeedOats,
   selectInstitutionalFoodTarget,
 } from '../src/logistics/foodLogistics.ts';
 import type { BuildingKind } from '../src/resources/types.ts';
@@ -40,6 +42,20 @@ assert.equal(
   'a very large territory must not lock more than half the producer capacity',
 );
 assert.equal(institutionalFoodSurplus(120, 100, 120), 60);
+assert.equal(livestockHoldingProtectsFeedOats('pastoral_farmstead'), true);
+assert.equal(livestockHoldingProtectsFeedOats('swineherd'), true);
+assert.equal(livestockHoldingProtectsFeedOats('granary'), false);
+assert.equal(
+  institutionalDispatchableFoodStock('pastoral_farmstead', 30, 18),
+  12,
+  'a pastoral holding must keep locally staged feed oats out of institutional food carts',
+);
+assert.equal(
+  institutionalDispatchableFoodStock('swineherd', 8, 20),
+  0,
+  'a swine holding must not expose more edible stock than remains after its local oats',
+);
+assert.equal(institutionalDispatchableFoodStock('granary', 30, 18), 30);
 assert.deepEqual(
   granaryDispatchOrder(true),
   ['households', 'preservation'],
@@ -172,6 +188,7 @@ const livestockInspector = fs.readFileSync(
   'src/resources/inspector/livestockBuildingRenderer.ts',
   'utf8',
 );
+const resourceTotals = fs.readFileSync('src/resources/resourceTotals.ts', 'utf8');
 const granaryInspector = fs.readFileSync(
   'src/resources/inspector/expandedBuildingRenderer.ts',
   'utf8',
@@ -235,6 +252,21 @@ assert.match(
   /claimed_households as f64 \* HOUSEHOLD_FOOD_RESERVE_PER_CLAIM/,
 );
 assert.match(supplyPolicy, /pub fn granary_dispatch_order/);
+assert.match(
+  supplyPolicy,
+  /pub fn livestock_holding_protects_feed_oats[\s\S]{0,180}"pastoral_farmstead" \| "swineherd"/,
+  'the authoritative policy must recognize both livestock holding kinds',
+);
+assert.match(
+  expandedEconomy,
+  /commodity == CommodityKind::OatGrain[\s\S]{0,100}livestock_holding_protects_feed_oats\(&source\.kind\)[\s\S]{0,160}continue/,
+  'institutional dispatch must not select protected livestock-local oats as a food cart cargo',
+);
+assert.match(
+  expandedEconomy,
+  /institutional_dispatchable_food_stock\([\s\S]{0,100}&source\.kind,[\s\S]{0,100}source\.oat_grain/,
+  'institutional source surplus must subtract livestock-local oats before household protection',
+);
 assert.match(supplyPolicy, /pub enum InstitutionalFoodDispatchDuty/);
 assert.match(supplyPolicy, /CriticalGuard[\s\S]*PreservationBuffer[\s\S]*GuardReserve[\s\S]*GranaryIntake/);
 assert.match(
@@ -284,6 +316,21 @@ assert.match(granaryInspector, /Producer-owned carts protect local Marketplace r
 assert.match(granaryInspector, /data-inspector-panel-title="Protected grain/);
 assert.match(guardhouseInspector, /becomes an emergency claim/);
 assert.match(guardhouseInspector, /None until polearms arm the company/);
+assert.match(
+  resourceTotals,
+  /livestockHoldingProtectsFeedOats\(building\.kind\)[\s\S]{0,100}reservedOatGrain \+=/,
+  'settlement totals must reserve oats physically staged at livestock holdings',
+);
+assert.match(
+  resourceTotals,
+  /const storedFood[\s\S]{0,120}oatGrain \* foodMealValue\('oatGrain'\)/,
+  'owned oats remain edible and count toward total stored meals',
+);
+assert.match(
+  resourceTotals,
+  /const surplusOatGrain = Math\.max\(0, oatGrain - reservedOatGrain\)/,
+  'available-food totals must exclude protected household, monastery, and livestock oats',
+);
 
 const started = performance.now();
 let checksum = 0;
@@ -313,7 +360,11 @@ const perfDispatch = selectInstitutionalFoodTarget(
   (target) => 100_000 - Number(target.id),
 );
 const dispatchElapsedMs = performance.now() - dispatchStarted;
-assert.equal(perfDispatch?.target.id, '99999');
+assert.equal(
+  perfDispatch?.target.id,
+  '99997',
+  'neutralized workplace priorities should select the nearest empty smokehouse',
+);
 assert.ok(
   dispatchElapsedMs < 250,
   `100k institutional destinations took ${dispatchElapsedMs.toFixed(1)}ms`,

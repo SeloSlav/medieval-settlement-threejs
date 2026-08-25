@@ -1664,6 +1664,77 @@ select:focus-visible {
   cursor: default;
 }
 
+.stable-ox-slots {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 5px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.stable-ox-slot {
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr);
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  padding: 6px;
+  border: 1px dashed rgba(207, 187, 142, 0.25);
+  border-radius: 2px;
+  background: rgba(0, 0, 0, 0.1);
+}
+
+.stable-ox-slot[data-state='occupied'] {
+  border-style: solid;
+  border-color: rgba(211, 179, 102, 0.52);
+  background: linear-gradient(145deg, rgba(190, 145, 62, 0.12), rgba(60, 47, 27, 0.12));
+}
+
+.stable-ox-slot__badge {
+  display: grid;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  border: 1px solid rgba(226, 203, 152, 0.28);
+  border-radius: 50%;
+  color: #9d9583;
+  font: 800 8px/1 var(--ui-font-sans);
+}
+
+.stable-ox-slot[data-state='occupied'] .stable-ox-slot__badge {
+  border-color: rgba(236, 204, 126, 0.64);
+  color: #f0d696;
+  background: rgba(178, 127, 43, 0.16);
+}
+
+.stable-ox-slot__copy {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.stable-ox-slot__copy strong,
+.stable-ox-slot__copy small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.stable-ox-slot__copy strong {
+  color: #d5c39d;
+  font-size: 9px;
+}
+
+.stable-ox-slot__copy small {
+  color: #827b6e;
+  font-size: 7px;
+}
+
+.stable-ox-slot[data-state='occupied'] .stable-ox-slot__copy small {
+  color: #aaa08a;
+}
+
 .resource-action-button--toggle[aria-pressed='true'] {
   border-color: rgba(246, 236, 205, 0.86);
   color: #fff5db;

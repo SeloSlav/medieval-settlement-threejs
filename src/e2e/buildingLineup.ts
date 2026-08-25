@@ -32,6 +32,8 @@ import {
   readRendererFrameStats,
   type RendererFrameStats,
 } from '../scene/rendererFrameStats.ts';
+import { OxenRenderer } from '../settlement/OxenRenderer.ts';
+import type { BuildingState } from '../resources/types.ts';
 
 declare global {
   interface Window {
@@ -46,6 +48,9 @@ declare global {
       dpr: number;
       drawCalls: number;
       triangles: number;
+      cpuFrameMs: number;
+      renderTargets: number;
+      stableOxVisuals: number;
     };
   }
 }
@@ -65,6 +70,7 @@ const requestedKind = showClearedFoundingStockyard
 const showStockedState = lineupParams.get('stocked') === '1'
   || showClearedFoundingStockyard;
 const showCampSeating = lineupParams.get('seating') === '1';
+const showStableOxen = lineupParams.get('oxen') === '3';
 const compareResidences = lineupParams.get('compare') === 'residences';
 const compareServiceCoverage = lineupParams.get('compare') === 'service-coverage';
 const compareChurchTiers = lineupParams.get('compare') === 'church-tiers';
@@ -194,6 +200,7 @@ let lastRendererFrameStats: RendererFrameStats = {
   renderPasses: 0,
   triangles: 0,
 };
+let lastRenderCpuMs = 0;
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = presentationMode === 'no-post'
@@ -284,7 +291,7 @@ const views = viewSpecs.map((spec) => {
   );
 
   const building = spec.mesh;
-  building.rotation.y = -0.1;
+  building.rotation.y = showStableOxen && building.name === 'Stable' ? 0 : -0.1;
   building.traverse((object) => {
     const mesh = object as THREE.Mesh;
     if (!mesh.isMesh) return;
@@ -367,6 +374,9 @@ const views = viewSpecs.map((spec) => {
     && building.name === 'Gorski Kotar Wayside Shrine'
     ? createWaysidePrayerPreview(scene, building)
     : null;
+  const stableOxen = showStableOxen && building.name === 'Stable'
+    ? createStableOxPreview(scene, building)
+    : null;
   if (campSeating) {
     const benchFocus = building.localToWorld(new THREE.Vector3(
       FOUNDERS_CAMP_BENCH_SEAT.supportPosition.x,
@@ -392,7 +402,7 @@ const views = viewSpecs.map((spec) => {
   label.textContent = spec.label;
   cell.append(label);
   labels.append(cell);
-  return { scene, camera, campSeating, waysidePrayer };
+  return { scene, camera, campSeating, waysidePrayer, stableOxen };
 });
 
 for (let index = views.length; index < COLS * ROWS; index++) {
@@ -402,6 +412,7 @@ for (let index = views.length; index < COLS * ROWS; index++) {
 }
 
 function render(): void {
+  const frameStartedAt = performance.now();
   const frameBoundary = beginRendererFrame(renderer.info);
   const width = root!.clientWidth;
   const height = root!.clientHeight;
@@ -439,11 +450,15 @@ function render(): void {
   }
   renderer.setScissorTest(false);
   lastRendererFrameStats = readRendererFrameStats(renderer.info, frameBoundary);
+  lastRenderCpuMs = performance.now() - frameStartedAt;
 }
 
 await initializeBuildingMaterialLibrary(rendererBackend.maxAnisotropy);
 await Promise.all(
-  views.map((view) => view.waysidePrayer?.renderer.ready ?? Promise.resolve(true)),
+  views.flatMap((view) => [
+    view.waysidePrayer?.renderer.ready ?? Promise.resolve(true),
+    view.stableOxen?.renderer.ready ?? Promise.resolve(true),
+  ]),
 );
 for (const view of views) {
   view.waysidePrayer?.renderer.syncAgents(
@@ -451,6 +466,7 @@ for (const view of views) {
     { centerX: 0, centerZ: 0, viewRadius: 80, shadowRadius: 80 },
     0.25,
   );
+  view.stableOxen?.renderer.tick(0);
 }
 render();
 await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
@@ -466,7 +482,14 @@ window.__BUILDING_LINEUP_METRICS__ = {
   dpr: renderer.getPixelRatio(),
   drawCalls: lastRendererFrameStats.drawCalls,
   triangles: lastRendererFrameStats.triangles,
+  cpuFrameMs: lastRenderCpuMs,
+  renderTargets: 0,
+  stableOxVisuals: views.reduce(
+    (count, view) => count + (view.stableOxen?.renderer.getVisualCount() ?? 0),
+    0,
+  ),
 };
+document.body.dataset.lineupMetrics = JSON.stringify(window.__BUILDING_LINEUP_METRICS__);
 document.body.dataset.ready = 'true';
 document.body.dataset.rendererBackend = rendererBackend.kind;
 window.addEventListener('resize', render);
@@ -540,6 +563,7 @@ function animate(nowMs: number): void {
       },
       dtSeconds,
     );
+    view.stableOxen?.renderer.tick(dtSeconds);
   }
   render();
   requestAnimationFrame(animate);
@@ -547,8 +571,46 @@ function animate(nowMs: number): void {
 if (
   (selectedKinds.length === 1 && selectedKinds[0] === 'founders_camp')
   || showWaysidePrayerVisitors
+  || showStableOxen
 ) {
   requestAnimationFrame(animate);
+}
+
+function createStableOxPreview(
+  scene: THREE.Scene,
+  stableMesh: THREE.Object3D,
+): { renderer: OxenRenderer } {
+  const stableId = 'stable-preview';
+  const stable = {
+    id: stableId,
+    kind: 'stable',
+    x: stableMesh.position.x,
+    z: stableMesh.position.z,
+    assignedLabor: 0,
+    constructionComplete: true,
+  } as BuildingState;
+  const oxParent = new THREE.Group();
+  oxParent.name = 'Stable ox lineup preview';
+  scene.add(oxParent);
+  const oxRenderer = new OxenRenderer({
+    parent: oxParent,
+    getGameSpeed: () => 1,
+    getHeightAt: () => 0,
+    getWorkerPose: () => null,
+    getDeliveryPose: () => null,
+  });
+  oxRenderer.sync({
+    oxen: [0, 1, 2].map((slot) => ({
+      id: `stable-ox-preview-${slot + 1}`,
+      stableId,
+      slot,
+    })),
+    buildings: new Map([[stableId, stable]]),
+    deliveryTrips: [],
+    disabledBuildingIds: new Set(),
+    roadNetwork: null,
+  });
+  return { renderer: oxRenderer };
 }
 
 function createWaysidePrayerPreview(

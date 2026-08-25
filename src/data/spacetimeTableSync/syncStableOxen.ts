@@ -1,13 +1,8 @@
+import type { StableOx } from '../../generated/types.ts';
 import type { StableOxState } from '../../resources/types.ts';
 import { buildingClientId, stableOxClientId } from '../spacetimeIds.ts';
 
-/** Compatibility row shape until the generated StableOx binding is refreshed. */
-export type StableOxRow = {
-  id: bigint | number;
-  owner: { toHexString: () => string };
-  stableId: bigint | number;
-  slot: number | bigint;
-};
+export type StableOxRow = StableOx;
 
 export function syncStableOxen(
   rows: Iterable<StableOxRow>,

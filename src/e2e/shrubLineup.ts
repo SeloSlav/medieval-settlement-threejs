@@ -45,6 +45,8 @@ type DogwoodRenderEvidence = {
   timeSeconds: number;
   windStrength: number;
   variant: number | null;
+  rendererBackend: string;
+  nodeMaterial: boolean;
 };
 
 type DogwoodCaptureOptions = {
@@ -178,6 +180,19 @@ renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.08;
 await renderer.init();
+const activeRendererBackend = (
+  renderer as unknown as {
+    backend?: { isWebGPUBackend?: boolean; isWebGLBackend?: boolean };
+  }
+).backend;
+const rendererBackendName = activeRendererBackend?.isWebGPUBackend
+  ? 'webgpu'
+  : activeRendererBackend?.isWebGLBackend
+    ? 'webgl2-node'
+    : 'unknown';
+const rendererMaterialBackend = rendererBackendName === 'webgpu'
+  ? 'webgpu'
+  : 'webgl2-node';
 root.prepend(renderer.domElement);
 
 const scene = new THREE.Scene();
@@ -220,7 +235,7 @@ for (const [kind, centerX] of lineupKinds) {
 const random = mulberry32(0x6f72736b);
 const materials = await createUndergrowthMaterials(
   renderer.getMaxAnisotropy(),
-  'webgpu',
+  rendererMaterialBackend,
   [],
 );
 const undergrowth = buildUndergrowthInstances(placements, terrain, materials, random);
@@ -269,8 +284,8 @@ const camera = new THREE.PerspectiveCamera(38, 1, 0.05, 100);
 const view = query.get('view') ?? 'design';
 if (view === 'near') {
   if (isDogwoodFocus) {
-    camera.position.set(0.2, 2.9, 7.1);
-    camera.lookAt(0, 1.58, 0);
+    camera.position.set(0.2, 2.95, 8.0);
+    camera.lookAt(0, 1.5, 0);
   } else if (focus === 'bilberry') {
     camera.position.set(-7.2, 1.2, 2.05);
     camera.lookAt(-7.2, 0.55, 0);
@@ -333,7 +348,10 @@ for (const bucket of dogwoodBuckets ?? []) {
 }
 
 function prepareFrame(now: number, animationTimeOverride?: number): number {
-  const animationTime = animationTimeOverride ?? fixedAnimationTime ?? now * 0.001;
+  const animationTime = Math.max(
+    0,
+    animationTimeOverride ?? fixedAnimationTime ?? now * 0.001,
+  );
   setWorldAnimationTime(animationTime);
   const width = root!.clientWidth;
   const height = root!.clientHeight;
@@ -356,11 +374,15 @@ if (isDogwoodFocus && dogwoodMaterials) {
   window.__DOGWOOD_LINEUP_CAPTURE__ = async (mode, options = {}) => {
     capturePaused = true;
     const requestedVariant = options.variant;
-    const variant = Number.isInteger(requestedVariant)
+    const hasRequestedVariant = requestedVariant !== undefined && requestedVariant !== null;
+    if (hasRequestedVariant && !(
+      Number.isInteger(requestedVariant)
       && Number(requestedVariant) >= 0
       && Number(requestedVariant) < (dogwoodBuckets?.length ?? 0)
-      ? Number(requestedVariant)
-      : null;
+    )) {
+      throw new Error(`Invalid dogwood variant ${String(requestedVariant)}.`);
+    }
+    const variant = hasRequestedVariant ? Number(requestedVariant) : null;
     for (let index = 0; index < (dogwoodBuckets?.length ?? 0); index++) {
       const visible = variant === null || index === variant;
       dogwoodBuckets![index]!.mesh.visible = visible;
@@ -394,6 +416,10 @@ if (isDogwoodFocus && dogwoodMaterials) {
       timeSeconds: captureTime,
       windStrength: captureWindStrength,
       variant,
+      rendererBackend: rendererBackendName,
+      nodeMaterial: Boolean(
+        (dogwoodMaterials[1] as THREE.Material & { isNodeMaterial?: boolean }).isNodeMaterial,
+      ),
     };
   };
 }
@@ -412,6 +438,10 @@ document.body.dataset.dogwoodSpringFlush = foliagePresentation.springFlush.toFix
 document.body.dataset.dogwoodAutumnColor = foliagePresentation.autumnColor.toFixed(2);
 document.body.dataset.dogwoodDormancy = foliagePresentation.dormancy.toFixed(2);
 document.body.dataset.dogwoodScale = dogwoodScale.toFixed(2);
+document.body.dataset.dogwoodRendererBackend = rendererBackendName;
+document.body.dataset.dogwoodNodeMaterial = String(Boolean(
+  (dogwoodMaterials?.[1] as THREE.Material & { isNodeMaterial?: boolean } | undefined)?.isNodeMaterial,
+));
 if (dogwoodPlacementSweep && repeatedDogwoodPlacementSweep) {
   document.body.dataset.dogwoodDefaultTarget = String(dogwoodPlacementSweep.targetCount);
   document.body.dataset.dogwoodDefaultAccepted = String(dogwoodPlacementSweep.acceptedCount);

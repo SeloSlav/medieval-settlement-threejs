@@ -166,6 +166,11 @@ export function hasStaffedChapel(buildings: Iterable<BuildingState>): boolean {
   return false;
 }
 
+/**
+ * Tier-four cured provisions replace one whole monthly food slot. The legacy
+ * seasonal multiplier remains in the signature for callers, but demand is no
+ * longer seasonally or population scaled by the authoritative bill.
+ */
 export function residencePreservedFoodRunwaySeconds(
   residence: ResidenceState,
   _seasonalDemandMultiplier = 1,

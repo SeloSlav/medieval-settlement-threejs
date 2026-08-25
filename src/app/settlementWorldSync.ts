@@ -64,6 +64,10 @@ export function syncSettlementWorld(
     state.livestockHerds,
     previous.livestockHerds,
   );
+  const stableOxenChanged = !previous || !mapEntriesShareValues(
+    state.stableOxen,
+    previous.stableOxen,
+  );
   const burgageZonesChanged = !previous || !mapEntriesShareValues(
     state.burgageZones,
     previous.burgageZones,
@@ -83,7 +87,8 @@ export function syncSettlementWorld(
       current.buildingId === prior.buildingId
       && current.laborBuildingId === prior.laborBuildingId
       && current.deliveryWorkers === prior.deliveryWorkers
-      && current.freeHaulerWorkers === prior.freeHaulerWorkers,
+      && current.freeHaulerWorkers === prior.freeHaulerWorkers
+      && current.oxId === prior.oxId,
   );
   const fireIncidentsChanged = !previous || !mapEntriesShareValues(
     state.fireIncidents,
@@ -166,6 +171,7 @@ export function syncSettlementWorld(
     || fireIncidentsChanged
     || gardensChanged
     || burgageZonesChanged
+    || stableOxenChanged
   ) {
     targets.villagers?.sync({
       residences: state.residences.values(),
@@ -180,6 +186,7 @@ export function syncSettlementWorld(
       backyardGardens: state.backyardGardens.values(),
       burgageZones: state.burgageZones.values(),
       deliveryTrips: state.deliveryTrips.values(),
+      oxen: state.stableOxen.values(),
       fireIncidents: state.fireIncidents.values(),
       roadNetwork: targets.getRoadNetwork(),
       foragingMonth: gameClock(state.tick).month,

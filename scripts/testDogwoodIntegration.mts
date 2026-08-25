@@ -116,6 +116,19 @@ const forestPlacementSource = readFileSync(
   join(projectRoot, 'src/props/forestPlacements.ts'),
   'utf8',
 );
+const foliageWindSource = readFileSync(
+  join(projectRoot, 'src/vegetation/seedthree/seedThreeFoliageWind.ts'),
+  'utf8',
+);
+const dogwoodWindStart = foliageWindSource.indexOf(
+  'export function createRootedDogwoodFoliageWindPosition',
+);
+const dogwoodWindEnd = foliageWindSource.indexOf(
+  'export type DogwoodFoliageWindSample',
+  dogwoodWindStart,
+);
+assert.ok(dogwoodWindStart >= 0 && dogwoodWindEnd > dogwoodWindStart);
+const dogwoodWindFunctionSource = foliageWindSource.slice(dogwoodWindStart, dogwoodWindEnd);
 
 assert.match(
   shrubPrototypeSource,
@@ -179,13 +192,13 @@ assert.match(
 );
 assert.match(
   undergrowthSource,
-  /DOGWOOD_MIN_SCALE = 0\.98[\s\S]*DOGWOOD_MAX_SCALE = 1\.42[\s\S]*DOGWOOD_MAX_HEIGHT_METERS = 3\.56/,
+  /DOGWOOD_MIN_SCALE = 0\.98[\s\S]*DOGWOOD_MAX_SCALE = 1\.42[\s\S]*DOGWOOD_MAX_HEIGHT_METERS = 3\.56[\s\S]*DOGWOOD_MIN_HEIGHT_CEILING_METERS = 3\.44/,
   'dogwood placement scale and final-height budgets must remain explicit',
 );
 assert.match(
   undergrowthSource,
-  /heightScale = placement\.kind === 'dogwood'[\s\S]*Math\.min\(placement\.scale, DOGWOOD_MAX_HEIGHT_METERS \/ prototypeHeight\)[\s\S]*placement\.finalHeight = prototypeHeight \* heightScale/,
-  'dogwood matrices must clamp the generated prototype to the 3.56 m final-height ceiling',
+  /dogwoodHeightCeiling = placement\.kind === 'dogwood'[\s\S]*DOGWOOD_MIN_HEIGHT_CEILING_METERS,[\s\S]*DOGWOOD_MAX_HEIGHT_METERS,[\s\S]*rng\(\)[\s\S]*Math\.min\(placement\.scale, dogwoodHeightCeiling \/ prototypeHeight\)[\s\S]*placement\.finalHeight = prototypeHeight \* heightScale/,
+  'dogwood matrices must vary their upper ceiling while staying below 3.56 m',
 );
 assert.match(
   undergrowthSource,
@@ -205,17 +218,42 @@ assert.match(
 assert.match(
   undergrowthSource,
   /DOGWOOD_TREE_TRUNK_CLEARANCE[\s\S]*DOGWOOD_COMPANION_CLEARANCE = 1\.85[\s\S]*DOGWOOD_FOOTPRINT_CLEARANCE = 1\.85[\s\S]*isDogwoodFootprintBlocked/,
-  'large dogwood instances must reserve their complete footprint around trees and blockers',
+  'large dogwood instances must retain basal trunk clearance plus complete blocker and companion clearance',
 );
 assert.match(
   undergrowthSource,
-  /createRootedDogwoodFoliageWindPosition[\s\S]*DOGWOOD_ROOT_SWAY_AMPLITUDE[\s\S]*DOGWOOD_LEAF_FLUTTER_AMPLITUDE/,
+  /material\.positionNode = options\.leafFlutterAmplitude === undefined[\s\S]*createRootedDogwoodFoliageWindPosition\([\s\S]*DOGWOOD_ROOT_SWAY_AMPLITUDE,[\s\S]*options\.leafFlutterAmplitude/,
   'dogwood foliage must use the dedicated SeedThree-rooted leaf response',
+);
+assert.match(
+  undergrowthSource,
+  /supportsNodeMaterials\(rendererBackend \?\? 'webgl'\)/,
+  'the live WebGL2-node fallback must retain dogwood node materials and their wind graph',
+);
+assert.match(
+  dogwoodWindFunctionSource,
+  /windWorld = tsl\.vec3\(WIND_DIR\.x, WIND_DIR\.y, WIND_DIR\.z\)/,
+  'post-instance dogwood node wind must use the direct world-facing SeedThree direction',
+);
+assert.doesNotMatch(
+  dogwoodWindFunctionSource,
+  /const flutterTime(?:(?!const tip)[\s\S])*local\.(?:x|z)/,
+  'all four vertices of one baked dogwood leaf must share one flutter phase',
 );
 assert.match(
   undergrowthSource,
   /aLeafPhase[\s\S]*undergrowthLeafFlutterTime[\s\S]*5\.2[\s\S]*uv\.y \* uv\.y[\s\S]*1\.31[\s\S]*0\.77/,
   'the WebGL fallback must retain per-leaf phase, SeedThree frequencies, and a pinned petiole edge',
+);
+assert.doesNotMatch(
+  undergrowthSource,
+  /float undergrowthLeafFlutterTime(?:(?!float undergrowthLeafTip)[\s\S])*position\.(?:x|z)/,
+  'WebGL dogwood leaves must not shear their own quad with per-vertex phase',
+);
+assert.match(
+  undergrowthSource,
+  /undergrowthLeafScale[\s\S]*aLeafPhase[\s\S]*undergrowthLeafVertical[\s\S]*instanceMatrix\[1\]\.xyz/,
+  'classic WebGL must preserve SeedThree phase amplitude and compensate vertical flutter for instance height',
 );
 assert.match(
   undergrowthSource,
@@ -266,17 +304,20 @@ const windSampleOptions = {
   windStrengthValue: 0.55,
   anchorX: 13.4,
   anchorZ: -8.1,
-  localX: 0.42,
-  localZ: -0.31,
   rootWeight: 0.18,
   leafPhase: 0.73,
 };
 const rootSample = sampleDogwoodFoliageWind({ ...windSampleOptions, uvY: 0 });
 assert.equal(rootSample.longitudinalFlutter, 0, 'dogwood petiole vertices must not flutter');
+assert.equal(rootSample.verticalFlutter, 0, 'dogwood petiole vertices must not lift away from stems');
 assert.equal(rootSample.lateralFlutter, 0, 'dogwood petiole vertices must not twist away from stems');
 const tipSample = sampleDogwoodFoliageWind({ ...windSampleOptions, uvY: 1 });
 assert.ok(
-  Math.hypot(tipSample.longitudinalFlutter, tipSample.lateralFlutter) > 0.001,
+  Math.hypot(
+    tipSample.longitudinalFlutter,
+    tipSample.verticalFlutter,
+    tipSample.lateralFlutter,
+  ) > 0.001,
   'dogwood leaf tips must visibly respond at the SeedThree wind checkpoints',
 );
 assert.deepEqual(
@@ -298,7 +339,12 @@ const stillTipSample = sampleDogwoodFoliageWind({
 });
 assert.deepEqual(
   stillTipSample,
-  { baseSway: 0, longitudinalFlutter: 0, lateralFlutter: 0 },
+  {
+    baseSway: 0,
+    longitudinalFlutter: 0,
+    verticalFlutter: 0,
+    lateralFlutter: 0,
+  },
   'zero wind must reproduce the exact dogwood rest pose',
 );
 
@@ -389,11 +435,113 @@ function dogwoodPrototypeSignatures(): Record<string, string> {
       nonzeroLeafPhases.size > 20,
       `dogwood variant ${variant} needs visibly detuned leaf phases`,
     );
+    assertBakedDogwoodLeafCards(geometry, variant);
     assertPortableVertexBuffers(geometry, variant);
     signatures[String(variant)] = geometryHash(geometry);
     geometry.dispose();
   }
   return signatures;
+}
+
+function assertBakedDogwoodLeafCards(
+  geometry: THREE.BufferGeometry,
+  variant: number,
+): void {
+  const index = geometry.index;
+  assert.ok(index, `dogwood variant ${variant} must retain indexed leaf cards`);
+  const branchGroup = geometry.groups.find((group) => group.materialIndex === 0);
+  const foliageGroup = geometry.groups.find((group) => group.materialIndex === 1);
+  assert.ok(branchGroup && foliageGroup, `dogwood variant ${variant} needs branch and foliage groups`);
+  assert.equal(
+    foliageGroup.count % 6,
+    0,
+    `dogwood variant ${variant} foliage must remain a sequence of indexed quads`,
+  );
+  const uv = geometry.getAttribute('uv');
+  const rootWeight = geometry.getAttribute('aRootWeight');
+  const leafPhase = geometry.getAttribute('aLeafPhase');
+
+  const branchVertices = new Set<number>();
+  for (let offset = branchGroup.start; offset < branchGroup.start + branchGroup.count; offset++) {
+    branchVertices.add(index.getX(offset));
+  }
+  for (const vertex of branchVertices) {
+    assert.equal(
+      leafPhase.getX(vertex),
+      0,
+      `dogwood variant ${variant} woody vertices must not receive leaf flutter phase`,
+    );
+  }
+
+  const checkpoints = [0, 1.25, 2.5, 5, 8, 12] as const;
+  const activeTimelines = new Set<string>();
+  let activeCardCount = 0;
+  const cardCount = foliageGroup.count / 6;
+  for (let card = 0; card < cardCount; card++) {
+    const firstIndex = foliageGroup.start + card * 6;
+    const vertices = [...new Set(
+      Array.from({ length: 6 }, (_, triangleIndex) => index.getX(firstIndex + triangleIndex)),
+    )];
+    assert.equal(vertices.length, 4, `dogwood variant ${variant} leaf ${card} must be one quad`);
+    const weights = vertices.map((vertex) => rootWeight.getX(vertex));
+    const phases = vertices.map((vertex) => leafPhase.getX(vertex));
+    assert.ok(
+      Math.max(...weights) - Math.min(...weights) < 1e-6,
+      `dogwood variant ${variant} leaf ${card} must share one twig wind weight`,
+    );
+    assert.ok(
+      Math.max(...phases) - Math.min(...phases) < 1e-6,
+      `dogwood variant ${variant} leaf ${card} must share one SeedThree phase`,
+    );
+    assert.equal(
+      vertices.filter((vertex) => Math.abs(uv.getY(vertex)) < 1e-6).length,
+      2,
+      `dogwood variant ${variant} leaf ${card} needs two welded petiole vertices`,
+    );
+    assert.equal(
+      vertices.filter((vertex) => Math.abs(uv.getY(vertex) - 1) < 1e-6).length,
+      2,
+      `dogwood variant ${variant} leaf ${card} needs two responsive tip vertices`,
+    );
+
+    const weight = weights[0]!;
+    const phase = phases[0]!;
+    const timeline: number[] = [];
+    for (const timeSeconds of checkpoints) {
+      const options = {
+        timeSeconds,
+        windSpeedValue: 0.84,
+        windStrengthValue: 0.55,
+        anchorX: variant * 3.1,
+        anchorZ: card * 0.017,
+        rootWeight: weight,
+        leafPhase: phase,
+      };
+      const root = sampleDogwoodFoliageWind({ ...options, uvY: 0 });
+      assert.equal(root.longitudinalFlutter, 0);
+      assert.equal(root.verticalFlutter, 0);
+      assert.equal(root.lateralFlutter, 0);
+      const tip = sampleDogwoodFoliageWind({ ...options, uvY: 1 });
+      timeline.push(Math.hypot(
+        tip.longitudinalFlutter,
+        tip.verticalFlutter,
+        tip.lateralFlutter,
+      ));
+    }
+    if (weight > 0.001) {
+      activeCardCount += 1;
+      assert.ok(
+        Math.max(...timeline) > 0.0005,
+        `dogwood variant ${variant} leaf ${card} must respond at a fixed wind checkpoint`,
+      );
+      activeTimelines.add(timeline.map((value) => value.toFixed(6)).join(','));
+    }
+  }
+  assert.ok(activeCardCount > 20, `dogwood variant ${variant} needs many wind-active leaves`);
+  assert.ok(
+    activeTimelines.size > 20,
+    `dogwood variant ${variant} needs diverse deterministic leaf motion signatures`,
+  );
 }
 
 function assertPortableVertexBuffers(geometry: THREE.BufferGeometry, variant: number): void {

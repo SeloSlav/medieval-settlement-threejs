@@ -65,6 +65,16 @@ assert.match(
 );
 assert.doesNotMatch(seasonAlmanacTooltip(false), /Harvest grain and orchards in September/);
 assert.doesNotMatch(seasonAlmanacTooltip(false), /Foraging, fishing, wool/);
+assert.match(
+  seasonAlmanacTooltip(false),
+  /cattle and sheep use local hay before direct oats/i,
+  'the almanac must make the cattle/sheep winter feeding order explicit',
+);
+assert.doesNotMatch(
+  seasonAlmanacTooltip(false),
+  /livestock farms stop gathering/i,
+  'winter copy must not imply that essential livestock care or feeding stops',
+);
 
 const start = gameClock(0);
 assert.deepEqual(

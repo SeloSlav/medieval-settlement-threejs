@@ -178,6 +178,8 @@
     "test:livestock": "npx tsx scripts/testLivestock.mts",
     "test:livestock-policy": "node --experimental-strip-types scripts/testLivestockPolicy.mts",
     "test:stable-ox-economy": "node --experimental-strip-types scripts/testStableOxEconomy.mts",
+    "test:stable-ox-client": "node --experimental-strip-types scripts/testStableOxClient.mts",
+    "test:stable-ox-allocation": "npx tsx scripts/testStableOxAllocation.mts",
     "test:agent-visuals": "node --experimental-strip-types scripts/testAgentVisualAssets.mts",
     "test:ambient-behaviors": "node --experimental-strip-types scripts/testAmbientBehaviors.mts",
     "test:worker-agents": "node --experimental-strip-types scripts/testWorkerAgents.mts",

@@ -16,6 +16,7 @@ import {
 } from '../generated/gameBalance.ts';
 import type { MarketplaceTradeAvailability } from '../economy/marketplaceTrade.ts';
 import type { DeliveryTripState } from '../logistics/deliveryTrips.ts';
+import { livestockHoldingProtectsFeedOats } from '../economy/livestockFeedPolicy.ts';
 import { granaryExportableGrain } from '../economy/granaryPolicy.ts';
 import { localCivicReceiptGold } from '../economy/civicReceipts.ts';
 import { fireDisabledBuildingIds } from '../fires/fireIncident.ts';
@@ -296,6 +297,7 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
   let reservedRoofTiles = 0;
   let reservedLegacyFood = 0;
   let reservedLegacyPreservedFood = 0;
+  let reservedOatGrain = 0;
   let reservedHoney = 0;
   let reservedRyeBread = 0;
   let reservedMaslinBread = 0;
@@ -332,7 +334,11 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
     barleySheaves += building.barleySheaves ?? 0;
     maslinSheaves += building.maslinSheaves ?? 0;
     ryeGrain += building.ryeGrain ?? 0;
-    oatGrain += building.oatGrain ?? 0;
+    const buildingOatGrain = building.oatGrain ?? 0;
+    oatGrain += buildingOatGrain;
+    if (livestockHoldingProtectsFeedOats(building.kind)) {
+      reservedOatGrain += Math.max(0, buildingOatGrain);
+    }
     maslinGrain += building.maslinGrain ?? 0;
     barley += building.barley ?? 0;
     malt += building.malt ?? 0;
@@ -390,6 +396,7 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
     if (building.kind === 'monastery') {
       reservedLegacyFood += Math.max(0, building.food ?? 0);
       reservedLegacyPreservedFood += Math.max(0, building.preservedFood ?? 0);
+      reservedOatGrain += Math.max(0, building.oatGrain ?? 0);
       reservedHoney += Math.max(0, building.honey ?? 0);
       reservedRyeBread += Math.max(0, building.ryeBread ?? 0);
       reservedMaslinBread += Math.max(0, building.maslinBread ?? 0);
@@ -445,6 +452,7 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
     reservedWater += householdWater;
     const pantryLegacyFood = Math.max(0, residence.food ?? 0);
     const pantryLegacyPreserved = Math.max(0, residence.preservedFood ?? 0);
+    const pantryOatGrain = Math.max(0, residence.oatGrain ?? 0);
     const pantryHoney = Math.max(0, residence.honey ?? 0);
     const pantryRyeBread = Math.max(0, residence.ryeBread ?? 0);
     const pantryMaslinBread = Math.max(0, residence.maslinBread ?? 0);
@@ -471,6 +479,7 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
     const pantryRosehipJam = Math.max(0, residence.rosehipJam ?? 0);
     legacyFood += pantryLegacyFood;
     legacyPreservedFood += pantryLegacyPreserved;
+    oatGrain += pantryOatGrain;
     honey += pantryHoney;
     ryeBread += pantryRyeBread;
     maslinBread += pantryMaslinBread;
@@ -497,6 +506,7 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
     rosehipJam += pantryRosehipJam;
     reservedLegacyFood += pantryLegacyFood;
     reservedLegacyPreservedFood += pantryLegacyPreserved;
+    reservedOatGrain += pantryOatGrain;
     reservedHoney += pantryHoney;
     reservedRyeBread += pantryRyeBread;
     reservedMaslinBread += pantryMaslinBread;
@@ -545,6 +555,7 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
     + aroniaJam * foodMealValue('aroniaJam')
     + rosehipJam * foodMealValue('rosehipJam');
   const storedFood = legacyFood * foodMealValue('food')
+    + oatGrain * foodMealValue('oatGrain')
     + ryeBread * foodMealValue('ryeBread')
     + maslinBread * foodMealValue('maslinBread')
     + meat * foodMealValue('meat')
@@ -637,6 +648,7 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
     0,
     legacyPreservedFood - reservedLegacyPreservedFood,
   );
+  const surplusOatGrain = Math.max(0, oatGrain - reservedOatGrain);
   const surplusHoney = Math.max(0, honey - reservedHoney);
   const surplusRyeBread = Math.max(0, ryeBread - reservedRyeBread);
   const surplusMaslinBread = Math.max(0, maslinBread - reservedMaslinBread);
@@ -668,6 +680,7 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
     + surplusAroniaJam * foodMealValue('aroniaJam')
     + surplusRosehipJam * foodMealValue('rosehipJam');
   const surplusFood = surplusLegacyFood * foodMealValue('food')
+    + surplusOatGrain * foodMealValue('oatGrain')
     + surplusRyeBread * foodMealValue('ryeBread')
     + surplusMaslinBread * foodMealValue('maslinBread')
     + surplusMeat * foodMealValue('meat')
@@ -703,6 +716,7 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
     gold: Math.max(0, gold - reservedGold),
     roofTiles: Math.max(0, roofTiles - reservedRoofTiles),
     food: surplusFood,
+    oatGrain: surplusOatGrain,
     preservedFood: surplusPreservedFood,
     honey: surplusHoney,
     ryeBread: surplusRyeBread,

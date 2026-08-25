@@ -29,6 +29,7 @@ import {
   type DeliveryCartWorkerVisual,
 } from './deliveryCartWorker.ts';
 import type { Terrain } from '../terrain/Terrain.ts';
+import type { OxFollowPose } from '../settlement/OxenRenderer.ts';
 import {
   samplePolylineXZ,
   type PointXZ,
@@ -185,6 +186,26 @@ export class DeliveryAgentRenderer {
     if (this.selectedTripId && !this.nextTripIds.has(this.selectedTripId)) {
       this.selectDeliveryAgent(null);
     }
+  }
+
+  /** Front-of-cart attachment used by the ox reserved on this delivery trip. */
+  getOxFollowPose(tripId: string): OxFollowPose | null {
+    const visual = this.visuals.get(tripId);
+    const trip = this.latestTrips.get(tripId);
+    if (!visual || !trip || !trip.oxId) return null;
+    const yaw = visual.mesh.rotation.y;
+    const forwardX = Math.sin(yaw);
+    const forwardZ = Math.cos(yaw);
+    const rightX = Math.cos(yaw);
+    const rightZ = -Math.sin(yaw);
+    return {
+      x: visual.mesh.position.x + forwardX * 2.15 + rightX * 0.68,
+      y: visual.mesh.position.y - 0.05,
+      z: visual.mesh.position.z + forwardZ * 2.15 + rightZ * 0.68,
+      yaw,
+      moving: visual.phase !== 'unloading',
+      active: true,
+    };
   }
 
   update(dt: number, view?: CrowdViewState): boolean {

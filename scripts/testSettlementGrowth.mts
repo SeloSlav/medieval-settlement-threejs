@@ -2,23 +2,15 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { performance } from 'node:perf_hooks';
 import {
-  CALENDAR_HOURS_PER_DAY,
-  CALENDAR_SECONDS_PER_DAY,
-  CALENDAR_WORK_END_HOUR,
-  CALENDAR_WORK_START_HOUR,
-  RESIDENCE_ALE_PER_PERSON_PER_SEC,
-  RESIDENCE_CLOTH_PER_PERSON_PER_SEC,
-  RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC,
-  RESIDENCE_PRESERVED_FOOD_PER_PERSON_PER_SEC,
-  RESIDENCE_PRESERVED_FOOD_WINTER_MULTIPLIER,
-  RESIDENCE_POTTERY_PER_PERSON_PER_SEC,
   RESIDENCE_SETTLE_TICKS,
-  RESIDENCE_WATER_PER_PERSON_PER_SEC,
   SIM_TICK_SECONDS,
-  WINTER_FIREWOOD_DEMAND_MULTIPLIER,
 } from '../src/generated/gameBalance.ts';
 import { computeSettlementGrowthPlan } from '../src/economy/settlementGrowth.ts';
-import { householdFoodPerDay } from '../src/economy/foodInventory.ts';
+import {
+  householdFirewoodUnitsPerDay,
+  householdFoodUnitsPerDay,
+  householdFoodUnitsPerDayForTier,
+} from '../src/economy/householdBillDemand.ts';
 import {
   residenceSettlementBufferMin,
   type ResidenceSettlementVitalNeedKind,
@@ -41,6 +33,10 @@ assert.equal(
   vacantPlan.nextArrivalSeconds,
   (RESIDENCE_SETTLE_TICKS - 50) * SIM_TICK_SECONDS,
 );
+assertNear(vacantPlan.additionalGrossFoodPerDay, householdFoodUnitsPerDayForTier(1));
+assertNear(vacantPlan.additionalFoodPerDay, householdFoodUnitsPerDayForTier(1));
+assertNear(vacantPlan.additionalWinterFirewoodPerDay, householdFirewoodUnitsPerDay(2));
+assert.equal(vacantPlan.additionalWaterPerDay, 1);
 
 const hungry = residence('hungry', 1, 1, 3);
 const hungryPlan = computeSettlementGrowthPlan({ state: stateWith(hungry) });
@@ -84,51 +80,38 @@ for (const kind of ['food', 'firewood', 'water'] as const) {
 }
 const tierThreePlan = computeSettlementGrowthPlan({ state: stateWith(tierThree) });
 assert.equal(tierThreePlan.progressingHomes, 1);
-const workdaySeconds = CALENDAR_SECONDS_PER_DAY
-  * (CALENDAR_WORK_END_HOUR - CALENDAR_WORK_START_HOUR)
-  / CALENDAR_HOURS_PER_DAY;
+assert.equal(tierThreePlan.additionalGrossFoodPerDay, 0);
+assert.equal(tierThreePlan.additionalFoodPerDay, 0);
+assert.equal(tierThreePlan.additionalWaterPerDay, 0);
+assert.equal(tierThreePlan.additionalWinterFirewoodPerDay, 0);
+assert.equal(tierThreePlan.additionalPreservedFoodPerDay, 0);
+assert.equal(tierThreePlan.additionalAlePerDay, 0);
+assert.equal(tierThreePlan.additionalClothPerDay, 0);
+assert.equal(tierThreePlan.additionalShoesPerDay, 0);
+assert.equal(tierThreePlan.additionalPotteryPerDay, 0);
+
+const vacantTierFour = residence('vacant-tier-four', 4, 0, 15);
+const vacantTierFourPlan = computeSettlementGrowthPlan({
+  state: stateWith(vacantTierFour),
+});
 assertNear(
-  tierThreePlan.additionalGrossFoodPerDay,
-  householdFoodPerDay(4),
+  vacantTierFourPlan.additionalGrossFoodPerDay,
+  householdFoodUnitsPerDayForTier(4),
 );
 assertNear(
-  tierThreePlan.additionalWaterPerDay,
-  4 * RESIDENCE_WATER_PER_PERSON_PER_SEC * workdaySeconds,
+  vacantTierFourPlan.additionalPreservedFoodPerDay,
+  householdFoodUnitsPerDay(1),
 );
 assertNear(
-  tierThreePlan.additionalWinterFirewoodPerDay,
-  4
-    * RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC
-    * CALENDAR_SECONDS_PER_DAY
-    * WINTER_FIREWOOD_DEMAND_MULTIPLIER,
+  vacantTierFourPlan.additionalFoodPerDay,
+  householdFoodUnitsPerDayForTier(4) - householdFoodUnitsPerDay(1),
 );
-assertNear(
-  tierThreePlan.additionalPreservedFoodPerDay,
-  4
-    * RESIDENCE_PRESERVED_FOOD_PER_PERSON_PER_SEC
-    * workdaySeconds
-    * RESIDENCE_PRESERVED_FOOD_WINTER_MULTIPLIER,
-);
-assertNear(
-  tierThreePlan.additionalFoodPerDay,
-  Math.max(
-    0,
-    tierThreePlan.additionalGrossFoodPerDay
-      - tierThreePlan.additionalPreservedFoodPerDay,
-  ),
-);
-assertNear(
-  tierThreePlan.additionalAlePerDay,
-  4 * RESIDENCE_ALE_PER_PERSON_PER_SEC * workdaySeconds,
-);
-assertNear(
-  tierThreePlan.additionalClothPerDay,
-  4 * RESIDENCE_CLOTH_PER_PERSON_PER_SEC * workdaySeconds,
-);
-assertNear(
-  tierThreePlan.additionalPotteryPerDay,
-  4 * RESIDENCE_POTTERY_PER_PERSON_PER_SEC * workdaySeconds,
-);
+assertNear(vacantTierFourPlan.additionalWinterFirewoodPerDay, householdFirewoodUnitsPerDay(2));
+assert.equal(vacantTierFourPlan.additionalWaterPerDay, 1);
+assertNear(vacantTierFourPlan.additionalAlePerDay, 1 / 30);
+assertNear(vacantTierFourPlan.additionalClothPerDay, 1 / 90);
+assertNear(vacantTierFourPlan.additionalShoesPerDay, 1 / 120);
+assertNear(vacantTierFourPlan.additionalPotteryPerDay, 1 / 90);
 
 const mixedState = stateWith(
   residence('full', 1, 3, 3),
@@ -215,10 +198,6 @@ const worldQueries = readFileSync(
   new URL('../src/resources/WorldQueries.ts', import.meta.url),
   'utf8',
 );
-const settlementHud = readFileSync(
-  new URL('../src/ui/SettlementHud.ts', import.meta.url),
-  'utf8',
-);
 assert.match(townHallInspector, /Housing pipeline/);
 assert.match(townHallInspector, /Growth bottlenecks/);
 assert.match(townHallInspector, /At full housing/);
@@ -237,10 +216,6 @@ assert.doesNotMatch(
 assert.match(resourceInspector, /closest<HTMLElement>\('\[data-inspect-residence\]'\)/);
 assert.match(resourceInspector, /findResidenceTarget\(inspectResidenceId\)/);
 assert.match(worldQueries, /findResidenceTarget\(residenceId: string\)/);
-assert.match(
-  settlementHud,
-  /Authoritative arrivals,[\s\S]*departures,[\s\S]*welfare remain household-driven/,
-);
 
 console.log(`settlement growth forecast tests passed (${elapsedMs.toFixed(1)} ms for 100,000 homes / 25,000 fire outages)`);
 

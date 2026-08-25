@@ -32,6 +32,12 @@ const OX_SUPPORTED_WORKPLACE_KIND_SET = new Set<BuildingKind>(
   OX_SUPPORTED_WORKPLACE_KINDS,
 );
 
+const OX_LOGISTICS_ONLY_KIND_SET = new Set<BuildingKind>([
+  'village_storehouse',
+  'granary',
+  'trading_post',
+]);
+
 export type StableOxLike = Readonly<{
   id: string;
   stableId: string;
@@ -54,6 +60,11 @@ export type StableOxRestPose = Readonly<{
 
 export function isOxSupportedWorkplace(kind: BuildingKind): boolean {
   return OX_SUPPORTED_WORKPLACE_KIND_SET.has(kind);
+}
+
+/** Logistics buildings reserve oxen only while an actual cart trip is active. */
+export function isOxProductionWorkplace(kind: BuildingKind): boolean {
+  return isOxSupportedWorkplace(kind) && !OX_LOGISTICS_ONLY_KIND_SET.has(kind);
 }
 
 function stableOxOrder(left: StableOxLike, right: StableOxLike): number {
@@ -85,7 +96,7 @@ export function assignStableOxen(
 
   for (const building of buildings.values()) {
     if (
-      !isOxSupportedWorkplace(building.kind)
+      !isOxProductionWorkplace(building.kind)
       || building.constructionComplete === false
       || disabledBuildingIds.has(building.id)
     ) continue;

@@ -5,25 +5,25 @@ export const SEASON_ALMANAC = {
     label: 'Spring',
     months: 'March–May',
     icon: '❀',
-    description: 'Spring rain speeds crop growth and improves shallow-well recharge, but slows dirt roads. Berries and mushrooms regrow, fish recover, and livestock breed faster.',
+    description: 'Spring rain speeds crop growth and shallow-well recharge but slows dirt roads. Spring oats are sown; berries and mushrooms regrow, fish recover, and pasture livestock breed faster.',
   },
   summer: {
     label: 'Summer',
     months: 'June–August',
     icon: '☀',
-    description: 'Crops mature while haymaking and shearing peak, and homes use less fuel.',
+    description: 'Crops mature while cattle and sheep graze, holdings cut local winter hay, shearing peaks, and homes use less fuel.',
   },
   autumn: {
     label: 'Autumn',
     months: 'September–November',
     icon: '❧',
-    description: 'Finish the late harvest, then plough and sow winter crops in October–November.',
+    description: 'Finish the late harvest, then plough and sow winter crops in October–November. Woodland swine feed best on autumn mast.',
   },
   winter: {
     label: 'Winter',
     months: 'December–February',
     icon: '❄',
-    description: 'Berries, mushrooms, fishing, field work, and shearing stop. Frozen roads slow carts, while heated homes need twice their normal fuel.',
+    description: 'Foraging, fishing, field work, and shearing stop. Pasture and mast thin: cattle and sheep use local hay before direct oats, while pigs turn from mast to oats; rye or maslin can substitute less efficiently. Frozen roads slow carts, while heated homes need twice their normal fuel.',
   },
 } as const satisfies Record<Season, {
   label: string;
@@ -33,7 +33,7 @@ export const SEASON_ALMANAC = {
 }>;
 
 const SEVERE_WEATHER_SUMMER_DESCRIPTION =
-  'Crops mature while haymaking and shearing peak, and homes use less fuel. Drought may slow crops, cut well recharge, thin pasture and fish, and weaken mills.';
+  'Crops mature while cattle and sheep graze, holdings cut local winter hay, shearing peaks, and homes use less fuel. Drought may slow crops, cut well recharge, thin pasture and fish, reduce hay, and weaken mills.';
 
 function buildSeasonAlmanacTooltip(severeWeatherEnabled: boolean): string {
   return Object.values(SEASON_ALMANAC)

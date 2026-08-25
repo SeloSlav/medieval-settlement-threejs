@@ -39,6 +39,11 @@ import {
 } from '../economy/foodInventory.ts';
 import { householdFoodUnitsPerDayForTier } from '../economy/householdBillDemand.ts';
 
+export {
+  institutionalDispatchableFoodStock,
+  livestockHoldingProtectsFeedOats,
+} from '../economy/livestockFeedPolicy.ts';
+
 export type FoodLaborSplit = {
   harvesting: number;
   delivering: number;

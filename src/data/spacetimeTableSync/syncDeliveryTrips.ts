@@ -5,7 +5,12 @@ import {
   phaseFromId,
   type DeliveryTripState,
 } from '../../logistics/deliveryTrips.ts';
-import { buildingClientId, residenceClientId, tripClientId } from '../spacetimeIds.ts';
+import {
+  buildingClientId,
+  residenceClientId,
+  stableOxClientId,
+  tripClientId,
+} from '../spacetimeIds.ts';
 import { wholeResourceUnits } from '../../resources/resourceUnits.ts';
 
 export function syncDeliveryTrips(
@@ -31,6 +36,7 @@ export function syncDeliveryTrips(
     }
 
     const tripId = tripClientId(row.id);
+    const oxId = row.oxId;
     deliveryTrips.set(tripId, {
       id: tripId,
       buildingId: buildingClientId(row.buildingId),
@@ -61,6 +67,7 @@ export function syncDeliveryTrips(
       unloadRemaining: row.unloadRemaining,
       deliveryWorkers: Number(row.deliveryWorkers),
       freeHaulerWorkers: Number(row.freeHaulerWorkers ?? 0),
+      oxId: oxId > 0n ? stableOxClientId(oxId) : null,
       pathDistance: Number(row.pathDistance ?? 0),
       travelSpeedMultiplier: Number(row.travelSpeedMultiplier ?? 1),
       routePolylineJson: row.routePolylineJson ?? '',

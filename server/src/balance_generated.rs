@@ -757,7 +757,7 @@ pub const FARM_CROP_OATS: FarmCropDef = FarmCropDef {
     growth_start_month: 4,
     growth_end_month: 8,
     harvest_month: 9,
-    calendar_label: "Spring oats · thrives on cool wet ground · harvest September · premium fodder and ready food",
+    calendar_label: "Spring-sown oats · cool, moisture-holding ground · harvest September · porridge staple or preferred direct livestock supplement",
 };
 
 pub const FARM_CROP_FALLOW_ID: u8 = 2;

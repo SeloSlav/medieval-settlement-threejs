@@ -134,15 +134,16 @@ use crate::supply_policy::{
     compare_institutional_food_dispatch_candidates, compare_processor_input_dispatch_candidates,
     directly_dispatched_processor_input_per_cycle as processor_input_per_cycle_for_dispatch,
     grain_input_runway_cycles, grain_input_target, granary_dispatch_order,
-    institutional_food_surplus, local_material_dispatch_target, marketplace_refill_request,
-    processor_input_dispatch_duty, processor_input_dispatch_duty_for_target,
-    processor_input_runway_cycles, processor_input_target, rich_mine_support_target,
-    rich_mine_supports_ready, select_grain_dispatch_candidate,
-    select_processor_input_dispatch_candidate, select_seed_grain_delivery_candidate,
-    select_supply_route_candidate, GranaryDispatchDuty, InstitutionalFoodDispatchDuty,
-    ProcessorInputDispatchDuty, GRAIN_CRITICAL_RUNWAY_CYCLES, GRAIN_PROCESSOR_KINDS,
-    INDUSTRIAL_FIREWOOD_TARGET_KINDS, INSTITUTIONAL_FOOD_SOURCE_KINDS, LOCAL_MATERIAL_SOURCE_KINDS,
-    MARKETPLACE_MATERIAL_TARGET_KINDS,
+    institutional_dispatchable_food_stock, institutional_food_surplus,
+    livestock_holding_protects_feed_oats, local_material_dispatch_target,
+    marketplace_refill_request, processor_input_dispatch_duty,
+    processor_input_dispatch_duty_for_target, processor_input_runway_cycles,
+    processor_input_target, rich_mine_support_target, rich_mine_supports_ready,
+    select_grain_dispatch_candidate, select_processor_input_dispatch_candidate,
+    select_seed_grain_delivery_candidate, select_supply_route_candidate, GranaryDispatchDuty,
+    InstitutionalFoodDispatchDuty, ProcessorInputDispatchDuty, GRAIN_CRITICAL_RUNWAY_CYCLES,
+    GRAIN_PROCESSOR_KINDS, INDUSTRIAL_FIREWOOD_TARGET_KINDS, INSTITUTIONAL_FOOD_SOURCE_KINDS,
+    LOCAL_MATERIAL_SOURCE_KINDS, MARKETPLACE_MATERIAL_TARGET_KINDS,
 };
 use crate::tables::{farm_field, Building, FarmField, ForagingNode, Quarry, Residence};
 use crate::vineyard::fermentable_grapes;
@@ -263,6 +264,11 @@ pub fn step_institutional_food_dispatch(
                 continue;
             };
             for commodity in FRESH_FOOD_COMMODITIES {
+                if commodity == CommodityKind::OatGrain
+                    && livestock_holding_protects_feed_oats(&source.kind)
+                {
+                    continue;
+                }
                 if building_commodity_stock(&source, commodity) <= 1e-6
                     || building_commodity_room(&target, commodity) <= 1e-6
                 {
@@ -335,7 +341,15 @@ pub fn step_institutional_food_dispatch(
             &source,
             building_edible_food_stock(&source),
         )
-        .min(building_commodity_stock(&source, candidate.commodity));
+        .min(
+            if candidate.commodity == CommodityKind::OatGrain
+                && livestock_holding_protects_feed_oats(&source.kind)
+            {
+                0.0
+            } else {
+                building_commodity_stock(&source, candidate.commodity)
+            },
+        );
         let target_stock = institutional_food_target_stock(&target);
         let needed = (desired_stock - target_stock).max(0.0).min(transferable);
         if needed <= 1e-6 {
@@ -5038,8 +5052,10 @@ fn institutional_source_food_surplus(
     stock: f64,
 ) -> f64 {
     let claimed_households = tick.food_claim_count_for_supplier(ctx, source.owner, source.id);
+    let dispatchable_stock =
+        institutional_dispatchable_food_stock(&source.kind, stock, source.oat_grain);
     let generic_surplus = institutional_food_surplus(
-        stock,
+        dispatchable_stock,
         claimed_households,
         building_commodity_cap(&source.kind, CommodityKind::Food),
     );

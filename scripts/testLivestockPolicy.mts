@@ -39,12 +39,18 @@ import {
 } from '../src/economy/livestockFodder.ts';
 import {
   AUTUMN_PASTURE_CAPACITY_MULTIPLIER,
+  BUILDING_DEFINITIONS,
   BUILDING_STORAGE_CAPS,
+  CALENDAR_HOURS_PER_DAY,
+  CALENDAR_SECONDS_PER_DAY,
+  CALENDAR_WORK_END_HOUR,
+  CALENDAR_WORK_START_HOUR,
   CATTLE_AREA_PER_HEAD,
   CATTLE_DEFAULT_BREEDING_RESERVE,
   CATTLE_BREEDING_PER_CYCLE,
   CATTLE_DAIRY_PRODUCTIVE_SHARE,
   CATTLE_FOOD_PER_CYCLE_PER_HEAD,
+  CATTLE_GRAIN_PER_UNSUPPORTED_HEAD,
   CATTLE_HAY_PER_UNSUPPORTED_HEAD,
   CATTLE_HAY_YIELD_PER_RESERVED_CAPACITY_PER_CYCLE,
   CATTLE_HEADS_PER_WORKER,
@@ -56,6 +62,7 @@ import {
   CATTLE_STARTER_HERD,
   CATTLE_WATER_PER_HEAD_PER_CYCLE,
   DROUGHT_PASTURE_CAPACITY_MULTIPLIER,
+  FARM_CROP_DEFINITIONS,
   LIVESTOCK_FARMSTEAD_PRESERVATION_SALT_PER_OUTPUT,
   LIVESTOCK_FARMSTEAD_SALT_STAGING_PER_CYCLE,
   LIVESTOCK_HAY_STORAGE_CAPACITY,
@@ -400,16 +407,26 @@ assert.equal(
 
 const fodderBuilding = buildingFixture('building-1', 60);
 const fodderHerd = herdFixture(fodderBuilding.id);
-assert.equal(livestockCyclesPerCalendarDay(fodderBuilding, false), 7);
-assert.equal(livestockCyclesPerCalendarDay(fodderBuilding, true), 7);
+const pastoralCyclesPerCalendarDay = CALENDAR_SECONDS_PER_DAY
+  * (CALENDAR_WORK_END_HOUR - CALENDAR_WORK_START_HOUR)
+  / CALENDAR_HOURS_PER_DAY
+  / BUILDING_DEFINITIONS.pastoral_farmstead.harvestInterval;
+assert.equal(
+  livestockCyclesPerCalendarDay(fodderBuilding, false),
+  pastoralCyclesPerCalendarDay,
+);
+assert.equal(
+  livestockCyclesPerCalendarDay(fodderBuilding, true),
+  pastoralCyclesPerCalendarDay,
+);
 assert.equal(
   livestockCyclesPerCalendarDay(buildingFixture('building-0', 0, 0), true),
-  7,
+  pastoralCyclesPerCalendarDay,
   'animal needs continue when a holding is unstaffed or observes Sabbath',
 );
 assert.equal(
   livestockCyclesPerCalendarDay(buildingFixture('building-2', 0, 2), false),
-  7,
+  pastoralCyclesPerCalendarDay,
   'extra workers must not accelerate animal biology',
 );
 const fodderPlan = projectLivestockFodderHolding(
@@ -425,19 +442,45 @@ assert.equal(fodderPlan.executableCullHeads, 2);
 assert.equal(fodderPlan.unsecuredCullHeads, 0);
 assert.equal(fodderPlan.winterPastureCapacity, 3.5);
 assert.equal(fodderPlan.winterUnsupportedHeads, 2.5);
-assert.ok(Math.abs(fodderPlan.winterGrainPerDay - 1.68) < 1e-9);
+assert.ok(
+  Math.abs(
+    fodderPlan.winterGrainPerDay
+      - fodderPlan.winterUnsupportedHeads
+        * CATTLE_GRAIN_PER_UNSUPPORTED_HEAD
+        * pastoralCyclesPerCalendarDay
+        / LIVESTOCK_OAT_FODDER_VALUE,
+  ) < 1e-9,
+);
 assert.ok(
   Math.abs(
     fodderPlan.winterGrainNeed
       - fodderPlan.winterGrainPerDay * LIVESTOCK_WINTER_FODDER_RESERVE_DAYS,
   ) < 1e-9,
 );
-assert.ok(Math.abs(fodderPlan.winterReserveTarget - 50.4) < 1e-9);
-assert.ok(Math.abs(fodderPlan.winterReserveStock - 50.4) < 1e-9);
+assert.ok(Math.abs(fodderPlan.winterReserveTarget - fodderPlan.winterGrainNeed) < 1e-9);
+assert.ok(Math.abs(fodderPlan.winterReserveStock - fodderPlan.winterReserveTarget) < 1e-9);
 assert.equal(fodderPlan.winterReserveShortfall, 0);
 assert.ok(Math.abs(fodderPlan.productiveHeads - 7.2) < 1e-9);
-assert.ok(Math.abs(fodderPlan.dairyPreservedFoodPerDay - 3.024) < 1e-9);
-assert.ok(Math.abs(fodderPlan.dairySaltPerDay - 0.378) < 1e-9);
+assert.ok(
+  Math.abs(
+    fodderPlan.dairyPreservedFoodPerDay
+      - livestockMilkAllocationPerCycle(
+        'cattle',
+        fodderPlan.productiveHeads,
+        fodderBuilding.processorOutputTargetPercent,
+      ).cheese * pastoralCyclesPerCalendarDay,
+  ) < 1e-9,
+);
+assert.ok(
+  Math.abs(
+    fodderPlan.dairySaltPerDay
+      - livestockDairySaltPerCycle(
+        'cattle',
+        fodderPlan.productiveHeads,
+        fodderBuilding.processorOutputTargetPercent,
+      ) * pastoralCyclesPerCalendarDay,
+  ) < 1e-9,
+);
 assert.equal(
   fodderPlan.dairySaltTarget,
   LIVESTOCK_FARMSTEAD_SALT_STAGING_PER_CYCLE * 3,
@@ -486,12 +529,27 @@ assert.equal(summerPlan.summerReservedCapacity, 3.5);
 assert.ok(
   Math.abs(
     summerPlan.hayOutputPerDay
-      - 3.5 * CATTLE_HAY_YIELD_PER_RESERVED_CAPACITY_PER_CYCLE * 7,
+      - 3.5
+        * CATTLE_HAY_YIELD_PER_RESERVED_CAPACITY_PER_CYCLE
+        * pastoralCyclesPerCalendarDay,
   ) < 1e-9,
 );
 assert.equal(summerPlan.haymakingDaysRemaining, 90);
-assert.ok(Math.abs(summerPlan.projectedHayStock - 165.375) < 1e-9);
-assert.equal(summerPlan.winterHayNeed, 63);
+assert.ok(
+  Math.abs(
+    summerPlan.projectedHayStock
+      - summerPlan.hayOutputPerDay * summerPlan.haymakingDaysRemaining,
+  ) < 1e-9,
+);
+assert.ok(
+  Math.abs(
+    summerPlan.winterHayNeed
+      - summerPlan.winterUnsupportedHeads
+        * pastoralCyclesPerCalendarDay
+        * LIVESTOCK_WINTER_FODDER_RESERVE_DAYS
+        * CATTLE_HAY_PER_UNSUPPORTED_HEAD,
+  ) < 1e-9,
+);
 assert.equal(
   summerPlan.winterGrainNeed,
   0,
@@ -597,7 +655,7 @@ assert.equal(droughtSwinePlan.basePastureCapacity, 8);
 
 const hayFedAutumnPlan = projectLivestockFodderHolding(
   fodderBuilding,
-  { ...fodderHerd, hayStock: 63 },
+  { ...fodderHerd, hayStock: fodderPlan.winterHayNeed },
   AUTUMN_PASTURE_CAPACITY_MULTIPLIER,
   false,
   9,
@@ -607,8 +665,8 @@ assert.equal(
   hayFedAutumnPlan.hayStock,
   'a complete local hay reserve should cover the 30-day unsupported-head forecast',
 );
-assert.equal(hayFedAutumnPlan.winterGrainNeed, 0);
-assert.equal(hayFedAutumnPlan.winterReserveTarget, 0);
+assert.ok(hayFedAutumnPlan.winterGrainNeed <= 1e-9);
+assert.ok(hayFedAutumnPlan.winterReserveTarget <= 1e-9);
 assert.ok(CATTLE_HAY_PER_UNSUPPORTED_HEAD > 0);
 
 const firstShortState = {
@@ -638,7 +696,7 @@ assert.equal(
 );
 assert.equal(
   settlementFodder.winterReserveShortfall,
-  100.8,
+  fodderPlan.winterReserveTarget * 2,
   'one full holding must not hide local shortfalls at two others',
 );
 assert.equal(settlementFodder.dairySaltShortHoldings, 3);
@@ -675,6 +733,12 @@ const townHallInspector = fs.readFileSync(
   'src/resources/inspector/townHallRenderer.ts',
   'utf8',
 );
+const stableInspector = fs.readFileSync(
+  'src/resources/inspector/stableRenderer.ts',
+  'utf8',
+);
+const buildMenuCards = fs.readFileSync('src/ui/buildMenuCards.ts', 'utf8');
+const settlementHud = fs.readFileSync('src/ui/SettlementHud.ts', 'utf8');
 
 assert.match(serverPolicy, /pub fn can_cull_one/);
 assert.match(serverPolicy, /pub fn projected_winter_fodder_grain/);
@@ -700,7 +764,7 @@ assert.match(
 );
 assert.match(
   serverSimulation,
-  /let hay_supplement[\s\S]*herd\.hay_stock = [\s\S]*let grain_unsupported/,
+  /let hay_supplement[\s\S]{0,260}herd\.hay_stock -= hay_units_used[\s\S]{0,100}let grain_unsupported/,
   'winter feeding must consume local hay before emergency grain',
 );
 assert.match(
@@ -715,7 +779,7 @@ assert.match(
 );
 assert.match(
   serverSimulation,
-  /store_salted_farmstead_output[\s\S]*CommodityKind::Salt[\s\S]*LIVESTOCK_FARMSTEAD_PRESERVATION_SALT_PER_OUTPUT/,
+  /fn salted_output_salt_cost[\s\S]*LIVESTOCK_FARMSTEAD_PRESERVATION_SALT_PER_OUTPUT[\s\S]*fn try_store_exact_salted_output[\s\S]*withdraw_building_commodity\(building, CommodityKind::Salt/,
   'farmhouse preserved output must withdraw physical salt',
 );
 assert.match(serverSimulation, /livestock_milk_allocation/);
@@ -723,14 +787,14 @@ assert.match(serverSimulation, /species_dairy_productive_share/);
 assert.match(serverSimulation, /gross_milk - stored_cheese/);
 assert.match(
   serverSimulation,
-  /let care_labor = essential_livestock_care_labor[\s\S]{0,260}let productive_labor = if paused \{ 0 \} else \{ onsite_labor \}/,
-  'Sabbath must pause haymaking and slaughter without withdrawing essential herd care',
+  /let \(cycle_care_labor, cycle_productive_labor\) = if paused \{[\s\S]{0,80}\(care_labor, 0\)[\s\S]{0,260}paired_production_ox_count[\s\S]{0,220}ox_amplified_worker_count[\s\S]{0,180}essential_livestock_care_labor\(amplified_labor, false\)/,
+  'Sabbath must pause productive work without withdrawing essential herd care, while working oxen amplify active-cycle labor',
 );
 assert.match(serverDeliveryTrips, /local_milk_sale[\s\S]*FOOD_SALE_GOLD_PER_UNIT/);
-assert.match(serverDeliveryTrips, /credit_settlement_household_income/);
+assert.match(serverDeliveryTrips, /credit_local_household_income/);
 assert.match(
   serverSimulation,
-  /unsalted_slaughter[\s\S]*CommodityKind::Meat/,
+  /let fresh_slaughter[\s\S]{0,1200}deposit_building_commodity\(&mut cull_building, CommodityKind::Meat, fresh_slaughter\)/,
   'unsalted autumn meat must enter vulnerable fresh-food storage',
 );
 assert.doesNotMatch(
@@ -769,23 +833,55 @@ assert.ok(GAME_TABLE_SUBSCRIPTIONS.includes('livestock_herd'));
 assert.match(livestockInspector, /data-livestock-breeding-reserve/);
 assert.match(livestockInspector, /October and November/);
 assert.match(livestockInspector, /whole animal/);
-assert.match(livestockInspector, /Winter grain reserve/);
+assert.match(livestockInspector, /Feeding rule/);
+assert.match(livestockInspector, /Direct grain supplement/);
+assert.match(livestockInspector, /Feeding coverage/);
+assert.match(livestockInspector, /Winter grain supplement/);
 assert.match(livestockInspector, /Winter resupply/);
 assert.match(livestockInspector, /data-livestock-haymaking-percent/);
-assert.match(livestockInspector, /Summer hay meadow/);
-assert.match(livestockInspector, /Hayloft/);
+assert.match(livestockInspector, /Summer haymaking/);
+assert.match(livestockInspector, /Local hayloft/);
+assert.match(livestockInspector, /Winter hay coverage/);
+assert.match(livestockInspector, /no separate feed recipe/);
 assert.match(livestockInspector, /Cheese salt/);
 assert.match(livestockInspector, /fresh milk continues/);
 assert.match(livestockInspector, /data-processor-output-target/);
 assert.match(livestockInspector, /LIVESTOCK_MILK_USE_PRESETS/);
 assert.match(livestockInspector, /builds household wealth/);
 assert.match(townHallInspector, /computeSettlementLivestockFodderPlan/);
-assert.match(townHallInspector, /first winter fodder shortfall/);
-assert.match(townHallInspector, /Summer hay plan/);
-assert.match(townHallInspector, /Winter hay reserve/);
+assert.match(townHallInspector, /first winter grain-supplement shortfall/);
+assert.match(townHallInspector, /Summer haymaking/);
+assert.match(townHallInspector, /Winter hay coverage/);
+assert.match(townHallInspector, /Winter grain supplement/);
+assert.match(townHallInspector, /Winter feeding logistics/);
 assert.match(townHallInspector, /Cheese-making salt/);
 assert.match(townHallInspector, /first cheese-making salt shortfall/);
 assert.match(townHallInspector, /data-inspect-building/);
+assert.match(settlementHud, /one ready-to-eat porridge ration/);
+assert.match(settlementHud, /preferred direct grain supplement/);
+assert.match(settlementHud, /No mill, bakery, or separate feed recipe required/);
+assert.match(
+  buildMenuCards,
+  /pastoral_farmstead:[\s\S]{0,320}hay before direct oats in winter[\s\S]{0,180}trough water is separate/i,
+);
+assert.match(
+  buildMenuCards,
+  /swineherd:[\s\S]{0,260}Seasonal mast feeds them first[\s\S]{0,160}direct oats/i,
+);
+assert.match(
+  buildMenuCards,
+  /stable:[\s\S]{0,260}feed and water upkeep is abstracted[\s\S]{0,100}never draws herd hay or grain/i,
+);
+assert.match(
+  stableInspector,
+  /Upkeep[\s\S]{0,100}Feed and water are abstracted[\s\S]{0,100}never draw herd hay or grain/,
+);
+const oatsCrop = FARM_CROP_DEFINITIONS.find((crop) => crop.kind === 'oats');
+assert.equal(oatsCrop?.workSeason, 'spring');
+assert.match(
+  oatsCrop?.calendarLabel ?? '',
+  /porridge staple or preferred direct livestock supplement/,
+);
 
 let checksum = 0;
 const started = performance.now();

@@ -959,7 +959,7 @@ export function renderSettlementGrainRows(plan: SettlementGrainPlan): string {
   const attentionLabel = plan.firstAttentionKind === 'seed'
     ? 'first seed shortfall'
     : plan.firstAttentionKind === 'winter-fodder'
-      ? 'first winter-fodder shortfall'
+      ? 'first winter grain-supplement shortfall'
       : 'first central-reserve shortfall';
   const attention = plan.firstAttentionBuildingId === null
     ? ''
@@ -972,7 +972,7 @@ export function renderSettlementGrainRows(plan: SettlementGrainPlan): string {
     : `<li><span>Processor grain roads</span><span>${formatProcessorGrainRoads(plan.roadPlan)}</span></li>`;
   return `
     <li><span>Grain allocation</span><span>${Math.round(plan.totalStock)} owned · ${Math.round(plan.inTransit)} on carts · ${Math.floor(plan.discretionaryStock)} discretionary after protected claims</span></li>
-    <li><span>Protected grain</span><span>Seed ${Math.round(plan.seed.protected)} / ${Math.ceil(plan.seed.target)} · winter fodder ${Math.round(plan.winterFodder.protected)} / ${Math.ceil(plan.winterFodder.target)} · central reserve ${Math.round(plan.granaryReserve.protected)} / ${Math.ceil(plan.granaryReserve.target)}${attention}</span></li>
+    <li><span>Protected grain</span><span>Seed ${Math.round(plan.seed.protected)} / ${Math.ceil(plan.seed.target)} · winter livestock supplement ${Math.round(plan.winterFodder.protected)} / ${Math.ceil(plan.winterFodder.target)} · central reserve ${Math.round(plan.granaryReserve.protected)} / ${Math.ceil(plan.granaryReserve.target)}${attention}</span></li>
     <li><span>Installed grain draw</span><span>${plan.processorGrainPerDay.toFixed(1)} / day · bread ${plan.breadGrainPerDay.toFixed(1)} · ${runway}</span></li>
     ${roadRow}
     <li><span>Crop-year balance</span><span>${plan.laborCoveredHarvest.toFixed(1)} / ${plan.potentialHarvest.toFixed(1)} harvest covered · ${plan.annualCommitments.toFixed(1)} committed · ${balance} at current installed capacity over ${GRAIN_PLAN_DAYS_PER_YEAR} days; imports excluded</span></li>
@@ -2342,12 +2342,12 @@ export function renderTownHallInspector(
   const livestockFodderRows = livestockFodder.holdingCount === 0
     ? '<li><span>Winter herd plan</span><span>No livestock holdings</span></li>'
     : `
-      <li><span>Winter herd plan</span><span>${livestockFodder.projectedHeadCount} projected head after ${livestockFodder.executableCullHeads}/${livestockFodder.plannedCullHeads} currently executable planned culls${livestockFodder.unsecuredCullHeads > 0 ? ` · ${livestockFodder.unsecuredCullHeads} unsecured surplus still provisioned` : ''} · ${livestockFodder.winterPastureCapacity.toFixed(1)} pasture-supported · ${livestockFodder.winterUnsupportedHeads.toFixed(1)} need stored fodder · ${livestockFodder.staffedHoldings}/${livestockFodder.holdingCount} holdings staffed</span></li>
-      <li><span>Summer hay plan</span><span>${livestockFodder.haymakingHoldings} / ${livestockFodder.pastoralHoldings} cattle/sheep holdings reserving meadow · ${livestockFodder.summerReservedCapacity.toFixed(1)} pasture capacity reserved · ${livestockFodder.hayOutputPerDay.toFixed(1)} hay / day in season</span></li>
+      <li><span>Winter herd plan</span><span>${livestockFodder.projectedHeadCount} projected head after ${livestockFodder.executableCullHeads}/${livestockFodder.plannedCullHeads} currently executable planned culls${livestockFodder.unsecuredCullHeads > 0 ? ` · ${livestockFodder.unsecuredCullHeads} unsecured surplus still provisioned` : ''} · ${livestockFodder.winterPastureCapacity.toFixed(1)} pasture/mast-supported · ${livestockFodder.winterUnsupportedHeads.toFixed(1)} need local hay or direct grain · ${livestockFodder.staffedHoldings}/${livestockFodder.holdingCount} holdings staffed</span></li>
+      <li><span>Summer haymaking</span><span>${livestockFodder.haymakingHoldings} / ${livestockFodder.pastoralHoldings} cattle/sheep holdings reserving meadow in June–August · ${livestockFodder.summerReservedCapacity.toFixed(1)} pasture capacity reserved · ${livestockFodder.hayOutputPerDay.toFixed(1)} local hay / day in season</span></li>
       ${livestockDairyRows}
-      <li><span>Winter hay reserve</span><span>${Math.round(livestockFodder.hayStock)} stored · ${Math.round(livestockFodder.projectedHayStock)} projected at winter / ${Math.ceil(livestockFodder.winterHayNeed)} needed${livestockFodder.winterHayShortfall > 0.05 ? ` · short ${Math.ceil(livestockFodder.winterHayShortfall)} before grain` : ''}</span></li>
-      <li><span>Winter fodder grain</span><span>${Math.round(livestockFodder.winterReserveStock)} / ${Math.ceil(livestockFodder.winterReserveTarget)} onsite after hay${livestockFodder.winterReserveShortfall > 0.05 ? ` · short ${Math.ceil(livestockFodder.winterReserveShortfall)} across ${livestockFodder.shortHoldings} holdings · first combined coverage ${formatProvisionRunway(livestockFodder.firstRunwayDays)}${livestockFodder.firstShortBuildingId ? ` <button type="button" class="inspector-jump-button" data-inspect-building="${livestockFodder.firstShortBuildingId}" aria-label="Inspect first winter fodder shortfall">Inspect</button>` : ''}` : ' · stocked to holding targets'}</span></li>
-      <li><span>Winter fodder logistics</span><span>${renderResourceAmount('oatGrain', livestockFodder.winterGrainNeed, { compact: true, suffix: `preferred feed after projected hay for ${LIVESTOCK_WINTER_FODDER_RESERVE_DAYS} days` })} · ${renderResourceAmount('oatGrain', livestockFodder.winterGrainPerDay, { compact: true, suffix: '/day after hay runs out' })}${livestockFodder.capacityLimitedHoldings > 0 ? ` · ${livestockFodder.capacityLimitedHoldings} holdings need winter resupply even when full` : ''}</span></li>
+      <li><span>Winter hay coverage</span><span>${Math.round(livestockFodder.hayStock)} local hay stored · ${Math.round(livestockFodder.projectedHayStock)} projected at winter / ${Math.ceil(livestockFodder.winterHayNeed)} needed${livestockFodder.winterHayShortfall > 0.05 ? ` · short ${Math.ceil(livestockFodder.winterHayShortfall)} before direct grain` : ''}</span></li>
+      <li><span>Winter grain supplement</span><span>${Math.round(livestockFodder.winterReserveStock)} / ${Math.ceil(livestockFodder.winterReserveTarget)} oat-equivalent onsite for the need remaining after local hay and winter pasture/mast capacity${livestockFodder.winterReserveShortfall > 0.05 ? ` · short ${Math.ceil(livestockFodder.winterReserveShortfall)} across ${livestockFodder.shortHoldings} holdings · first combined coverage ${formatProvisionRunway(livestockFodder.firstRunwayDays)}${livestockFodder.firstShortBuildingId ? ` <button type="button" class="inspector-jump-button" data-inspect-building="${livestockFodder.firstShortBuildingId}" aria-label="Inspect first winter grain-supplement shortfall">Inspect</button>` : ''}` : ' · stocked to holding targets'}</span></li>
+      <li><span>Winter feeding logistics</span><span>${renderResourceAmount('oatGrain', livestockFodder.winterGrainNeed, { compact: true, suffix: `preferred direct supplement after projected local hay and winter pasture/mast capacity for ${LIVESTOCK_WINTER_FODDER_RESERVE_DAYS} days` })} · ${renderResourceAmount('oatGrain', livestockFodder.winterGrainPerDay, { compact: true, suffix: '/day at full grain draw' })} · rye and maslin substitute less efficiently; no separate feed recipe${livestockFodder.capacityLimitedHoldings > 0 ? ` · ${livestockFodder.capacityLimitedHoldings} holdings need winter resupply even when full` : ''}</span></li>
     `;
   const linkedMonasteries = [...context.gameState.buildings.values()].filter(
     (candidate) =>
@@ -2612,7 +2612,7 @@ export function renderTownHallInspector(
       </div>
       <div class="inspector-action-panel" data-inspector-panel-title="Market issues">
         <h4 class="inspector-action-panel__title">Household market issues</h4>
-        <p class="inspector-action-panel__hint">Covered homes are checked ${MARKETPLACE_HOUSEHOLD_ISSUE_CHECKS_PER_DAY} times per day and refilled up to their ordinary one-day target when needed. This doctrine controls only the extra buffer for critical food and heat already staged at connected markets; it never opens a prompt, spends gold, or creates a door-to-door cart.</p>
+        <p class="inspector-action-panel__hint">Covered homes are checked ${MARKETPLACE_HOUSEHOLD_ISSUE_CHECKS_PER_DAY} times per day and replenished up to their ordinary monthly bill buffer when needed. This doctrine controls only the extra buffer for critical food and heat already staged at connected markets; it never opens a prompt, spends gold, or creates a door-to-door cart.</p>
         <label class="city-admin-panel__slider-label" for="town-hall-pantry-safeguard"><span>Pantry safeguard</span></label>
         <select class="inspector-policy-select" id="town-hall-pantry-safeguard"
           data-pantry-safeguard-policy ${staffedTownHallAvailable ? '' : 'disabled'}>

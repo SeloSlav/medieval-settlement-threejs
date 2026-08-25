@@ -158,7 +158,9 @@ The HUD shows the active season/weather and a tooltip listing its major effects.
 
 ### Spring — March through May
 
-- Autumn-sown rye, oats, and fallow fields resume growth.
+- Autumn-sown rye and maslin, along with worked-fallow fields, resume growth.
+- Oats, barley, and flax are spring crops: farmers plough and sow them during
+  March–April. Oat growth begins in April for the September harvest.
 - Rain increases crop growth to 112% and well refill to 130%.
 - Rain slows new dirt-road cart trips to 82% of their dry-weather pace.
 - Berry and mushroom nodes regrow in place.
@@ -175,7 +177,8 @@ are all favorable, while fields have time to recover from a weak start.
 
 ### Summer — June through August
 
-- Grain and fallow continue growing.
+- Spring-sown oats, barley, and flax and autumn-sown rye, maslin, and fallow
+  continue growing.
 - During August, any food or fibre crop at 55% growth may be ordered into early
   harvest. Its current ripeness locks 47–85% of normal yield, opens fieldwork one
   month early, and cannot be undone by saving or reconnecting. Waiting until
@@ -183,6 +186,10 @@ are all favorable, while fields have time to recover from a weak start.
 - Berry and mushroom nodes continue regrowing.
 - Grass-pasture capacity is 100%, woodland pannage is 90%, and household firewood
   demand falls to 70%.
+- From June through August, staffed cattle and sheep holdings cut their chosen
+  share of grazing meadow into local winter hay. That reserved meadow cannot feed
+  the herd at the same time, so an aggressive hay policy may require direct grain
+  supplementation during the cutting season. Woodland swine do not make hay.
 - Fresh food spoilage rises to 0.8% per day.
 
 During drought:
@@ -230,6 +237,7 @@ Other autumn rules:
 - New cart trips travel at 90% pace on seasonally softened tracks.
 - Grass-pasture capacity is 90%, while woodland pannage reaches its 125% acorn-
   and beechnut peak.
+- Pigs consume this seasonal mast before drawing direct grain supplements.
 - Household firewood demand rises to 115%.
 - Fresh-food spoilage returns to 0.4% per day.
 - Vegetable and herb gardens taper to 55%; flowers taper to 35%.
@@ -246,8 +254,10 @@ unfinished sowing cannot spill into winter.
 - Fully sown grain remains alive but dormant.
 - A field still in the sowing stage when winter begins fails and must be ploughed
   again next autumn.
-- Grass-pasture capacity falls to 35% and woodland pannage to 45%, so hay and
-  grain reserves are needed to support herd size.
+- Grass-pasture capacity falls to 35% and woodland pannage to 45%. Cattle and
+  sheep use their holding's local hay first, then direct grain for unsupported
+  heads. Pigs use the remaining mast and then direct grain because they do not
+  participate in the hay chain.
 - Livestock breeding falls to 60%.
 - Sheep are not shorn; their annual physical fleece clip is an early-summer event.
 - Household firewood demand rises to 200% and continues through nights and
@@ -284,10 +294,12 @@ is applied. Growing trees and mature trees outside the fence do not count. This 
 why clear-cutting a pig enclosure can reduce its support even though the polygon's
 area has not changed.
 
-The farmstead or swineherd is the animals' shelter, feed store, water trough, and
-logistics base. During each fixed daytime husbandry cycle, the simulation resolves:
+The farmstead or swineherd is the animals' shelter, local feed store, separate
+water trough, and logistics base. During each fixed daytime husbandry cycle, the
+simulation resolves:
 
-1. heads supported by grass or mast, winter hay, and emergency grain;
+1. heads supported by grass or mast, then local winter hay where applicable, then
+   direct emergency grain;
 2. heads supplied by the water physically present in the holding's trough; and
 3. heads covered by active herders at the species-specific care ratio.
 
@@ -298,6 +310,19 @@ does not make biological time run faster. Thirst, production, breeding progress,
 and mortality use the building's fixed action interval even when a holding is
 unstaffed or temporarily work-paused, so abandoned animals do not become immortal
 and large crews cannot accelerate gestation.
+
+There is no separate **Animal Feed** commodity or mixing recipe. Threshed oats are
+both a ready-to-eat one-meal porridge grain for people and the preferred direct
+livestock supplement, creating a deliberate household-versus-herd allocation choice.
+Rye and maslin grain can be fed directly as weaker emergency substitutes. Cattle and
+sheep normally graze during the warm seasons, cut local hay from June through August,
+and consume that hay before grain in winter. Swine instead follow the pannage mast
+calendar and turn directly to grain when mast cannot support the herd. Carried water
+is consumed separately at the trough; it is not an input to a feed recipe.
+
+Stable oxen used for transport or production remain a deliberate player abstraction:
+their feed and water are abstracted and are not drawn from the settlement's livestock
+stores.
 
 Reproduction requires at least two animals, at least 90% support, and healthy
 breeding stock. Births stop at the lower of neutral placed-land capacity and the
@@ -565,15 +590,15 @@ apply the same staging depth to bakery and smokehouse fuel plus well water;
 Fill remains the save-compatible three-cycle default.
 
 The crop-year grain account keeps its settlement-wide owned-stock view for
-strategic harvest, seed, fodder, and reserve planning, but processor runway has
-a second physical view. Sustained bread, ale, and monastery draw is grouped by
-the same cached road components used by real carts. Only releasable grain at a
-completed staffed farmstead or granary on that component counts as source
+strategic harvest, seed, livestock-supplement, and reserve planning, but processor
+runway has a second physical view. Sustained bread, ale, and monastery draw is
+grouped by the same cached road components used by real carts. Only releasable
+grain at a completed staffed farmstead or granary on that component counts as source
 reserve: each holding's field seed claim and every selected granary floor remain
-protected. Marketplace seed stock, livestock fodder, roadless stores, and
-surplus on a disconnected branch cannot cover a processor branch. The Town Hall
-shows how many drawing branches have a source, the weakest branch's equivalent
-days of source reserve, grain outside current processor branches, and a link to
+protected. Marketplace seed stock, livestock grain committed at holdings, roadless
+stores, and surplus on a disconnected branch cannot cover a processor branch. The
+Town Hall shows how many drawing branches have a source, the weakest branch's
+equivalent days of source reserve, grain outside current processor branches, and a link to
 the first exposed processor. On-site workshop grain and cargo already committed
 to a workshop stay in the existing per-building buffer forecast, so the branch
 reserve neither reallocates locked inputs nor counts them twice. The reduction

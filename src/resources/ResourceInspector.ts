@@ -311,6 +311,7 @@ type ResourceInspectorOptions = {
   onDemolishGraveyard?: (graveyardId: string) => void | Promise<void>;
   onSetLivestockSpecies?: (buildingId: string, species: Exclude<LivestockSpecies, 'swine'>) => void | Promise<void>;
   onTradeLivestock?: (buildingId: string, headDelta: number) => void | Promise<void>;
+  onPurchaseStableOx?: (stableId: string) => void | Promise<void>;
   onSetLivestockBreedingReserve?: (buildingId: string, breedingReserve: number) => void | Promise<void>;
   onSetLivestockHaymakingPercent?: (buildingId: string, haymakingPercent: number) => void | Promise<void>;
   onBeginFarmFieldPlacement?: (farmsteadId: string, crop: FarmCrop) => void;
@@ -926,6 +927,13 @@ export class ResourceInspector {
     }
     if (this.selectedTarget?.kind === 'building') {
       const building = this.selectedTarget.building;
+      if (
+        building.kind === 'stable'
+        && (event.target as HTMLElement).closest('[data-purchase-ox]')
+      ) {
+        void this.options.onPurchaseStableOx?.(building.id);
+        return;
+      }
       if (
         (event.target as HTMLElement).closest('[data-tree-work-area-action]')
         && (building.kind === 'lumber_mill' || building.kind === 'reforester')
@@ -2759,6 +2767,7 @@ const BUILDING_INSPECTOR_ART = {
   smithy: '/assets/ui/build-menu/cards/smithy-bloomery.webp',
   potter_kiln: '/assets/ui/build-menu/cards/potter-kiln.webp',
   well: '/assets/ui/build-menu/cards/water-well.webp',
+  stable: '/assets/ui/build-menu/cards/stable.webp',
   hunters_hall: '/assets/ui/build-menu/cards/hunter-hall.webp',
   foragers_shed: '/assets/ui/build-menu/cards/foragers-hut.webp',
   fishing_camp: '/assets/ui/build-menu/cards/fishing-camp.webp',
@@ -2809,7 +2818,8 @@ function inspectablePresentation(target: InspectableTarget): InspectorPresentati
     const civic = target.building.kind === 'founders_camp'
       || target.building.kind === 'town_hall'
       || target.building.kind === 'chapel'
-      || target.building.kind === 'monastery';
+      || target.building.kind === 'monastery'
+      || target.building.kind === 'stable';
     const agricultural = target.building.kind === 'threshing_barn'
       || target.building.kind === 'pastoral_farmstead'
       || target.building.kind === 'swineherd'

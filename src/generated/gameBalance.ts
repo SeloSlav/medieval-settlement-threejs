@@ -616,7 +616,7 @@ export const FARM_CROP_DEFINITIONS = {
     "growthStartMonth": 4,
     "growthEndMonth": 8,
     "harvestMonth": 9,
-    "calendarLabel": "Spring oats · thrives on cool wet ground · harvest September · premium fodder and ready food"
+    "calendarLabel": "Spring-sown oats · cool, moisture-holding ground · harvest September · porridge staple or preferred direct livestock supplement"
   },
   "fallow": {
     "kind": "fallow",

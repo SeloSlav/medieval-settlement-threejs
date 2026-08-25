@@ -3330,6 +3330,19 @@ pub fn demolish_building(ctx: &ReducerContext, building_id: u64) -> Result<(), S
         .filter(&building_id)
         .collect::<Vec<_>>()
     {
+        for mut trip in ctx
+            .db
+            .delivery_trip()
+            .owner()
+            .filter(&owner)
+            .filter(|trip| trip.ox_id == ox.id)
+            .collect::<Vec<_>>()
+        {
+            // The loaded cart remains valid, but a demolished stable cannot
+            // leave a durable trip reservation pointing at a deleted animal.
+            trip.ox_id = 0;
+            ctx.db.delivery_trip().id().update(trip);
+        }
         ctx.db.stable_ox().id().delete(ox.id);
     }
 

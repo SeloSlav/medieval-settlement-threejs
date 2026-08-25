@@ -14,7 +14,7 @@ import {
   vec3,
   vec4,
 } from 'three/tsl';
-import { windSpeed, windStrength } from '@seedthree/core/wind.js';
+import { windSpeed, windStrength, WIND_DIR } from '@seedthree/core/wind.js';
 import * as THREE from 'three';
 import { worldAnimationTime } from '../../scene/worldAnimationTime.ts';
 import { chainMaterialShaderPatch } from '../../scene/materialShaderPatch.ts';
@@ -22,11 +22,13 @@ import { chainMaterialShaderPatch } from '../../scene/materialShaderPatch.ts';
 type TslNode = {
   mul: (value: unknown) => TslNode;
   add: (value: unknown) => TslNode;
-  sub: (value: unknown) => TslNode;
-  clamp: (minimum: unknown, maximum: unknown) => TslNode;
   x: TslNode;
   y: TslNode;
   z: TslNode;
+};
+
+type ClampedTslNode = TslNode & {
+  clamp: (minimum: unknown, maximum: unknown) => TslNode;
 };
 
 type IvyTslNode = {
@@ -291,11 +293,14 @@ export function createRootedGeometryWindPosition(ampScale = 0.08): TslNode {
     .add(anchorWorld.z.mul(1.7))
     .add(anchorWorld.x.mul(1.3));
   const bend = gust.add(tsl.sin(jitterT).mul(amp).mul(0.12)).mul(rootWeight);
-  const windLocal = tsl.attribute('aWindVec', 'vec3');
+  // NodeMaterial evaluates positionNode after the instance matrix. Use the
+  // world-facing direction directly; classic WebGL still consumes the
+  // inverse-instance aWindVec before its instance matrix is applied.
+  const windWorld = tsl.vec3(WIND_DIR.x, WIND_DIR.y, WIND_DIR.z);
   return tsl.vec3(
-    local.x.add(windLocal.x.mul(bend)),
+    local.x.add(windWorld.x.mul(bend)),
     local.y,
-    local.z.add(windLocal.z.mul(bend)),
+    local.z.add(windWorld.z.mul(bend)),
   );
 }
 
@@ -313,7 +318,7 @@ export function createRootedDogwoodFoliageWindPosition(
   const rootWeight = tsl.attribute('aRootWeight', 'float');
   const leafPhase = tsl.attribute('aLeafPhase', 'float');
   const anchorWorld = tsl.attribute('aAnchorPos', 'vec3');
-  const windLocal = tsl.attribute('aWindVec', 'vec3');
+  const windWorld = tsl.vec3(WIND_DIR.x, WIND_DIR.y, WIND_DIR.z);
   const time = tsl.time.mul(tsl.windSpeed);
   const rootScale = tsl.windStrength.mul(rootAmplitude);
   const rootJitterTime = time
@@ -326,27 +331,32 @@ export function createRootedDogwoodFoliageWindPosition(
     .mul(rootWeight);
   const flutterTime = time
     .mul(5.2)
-    .add(leafPhase.mul(DOGWOOD_LEAF_PHASE_MULTIPLIER))
-    .add(local.x.mul(2.1))
-    .add(local.z.mul(1.7));
+    .add(leafPhase.mul(DOGWOOD_LEAF_PHASE_MULTIPLIER));
   const tip = tsl.uv().y.mul(tsl.uv().y);
-  const gate = rootWeight.mul(DOGWOOD_LEAF_WEIGHT_GATE).clamp(0, 1);
-  const flutterScale = tsl.windStrength.mul(flutterAmplitude).mul(tip).mul(gate);
-  const longitudinal = tsl.sin(flutterTime)
-    .add(tsl.sin(flutterTime.mul(1.31)).mul(0.35))
-    .mul(flutterScale);
-  const lateral = tsl.sin(flutterTime.mul(0.77)).mul(0.55).mul(flutterScale);
+  const gate = (rootWeight.mul(DOGWOOD_LEAF_WEIGHT_GATE) as ClampedTslNode).clamp(0, 1);
+  // aLeafPhase is SeedThree's original 0.4..1 aThickness random. It drives
+  // both detuned timing and amplitude, while normalized card UV replaces the
+  // source card's pre-bake local height.
+  const flutterScale = tsl.windStrength
+    .mul(flutterAmplitude)
+    .mul(leafPhase)
+    .mul(tip)
+    .mul(gate);
+  const longitudinal = tsl.sin(flutterTime).mul(flutterScale);
+  const vertical = tsl.sin(flutterTime.mul(1.31)).mul(0.6).mul(flutterScale);
+  const lateral = tsl.sin(flutterTime.mul(0.77)).mul(flutterScale);
   const along = base.add(longitudinal);
   return tsl.vec3(
-    local.x.add(windLocal.x.mul(along)).sub(windLocal.z.mul(lateral)),
-    local.y,
-    local.z.add(windLocal.z.mul(along)).add(windLocal.x.mul(lateral)),
+    local.x.add(windWorld.x.mul(along)).add(windWorld.z.mul(lateral).mul(-1)),
+    local.y.add(vertical),
+    local.z.add(windWorld.z.mul(along)).add(windWorld.x.mul(lateral)),
   );
 }
 
 export type DogwoodFoliageWindSample = {
   baseSway: number;
   longitudinalFlutter: number;
+  verticalFlutter: number;
   lateralFlutter: number;
 };
 
@@ -357,8 +367,6 @@ export function sampleDogwoodFoliageWind(options: {
   windStrengthValue: number;
   anchorX: number;
   anchorZ: number;
-  localX: number;
-  localZ: number;
   rootWeight: number;
   leafPhase: number;
   uvY: number;
@@ -366,7 +374,12 @@ export function sampleDogwoodFoliageWind(options: {
   flutterAmplitude?: number;
 }): DogwoodFoliageWindSample {
   if (options.windStrengthValue === 0) {
-    return { baseSway: 0, longitudinalFlutter: 0, lateralFlutter: 0 };
+    return {
+      baseSway: 0,
+      longitudinalFlutter: 0,
+      verticalFlutter: 0,
+      lateralFlutter: 0,
+    };
   }
   const time = options.timeSeconds * options.windSpeedValue;
   const phase = (options.anchorX * 0.35 + options.anchorZ * 0.27) * 2;
@@ -380,21 +393,22 @@ export function sampleDogwoodFoliageWind(options: {
   const baseSway = (gust + jitter)
     * options.windStrengthValue * rootAmplitude * options.rootWeight;
   const flutterTime = time * 5.2
-    + options.leafPhase * DOGWOOD_LEAF_PHASE_MULTIPLIER
-    + options.localX * 2.1
-    + options.localZ * 1.7;
+    + options.leafPhase * DOGWOOD_LEAF_PHASE_MULTIPLIER;
   const tip = THREE.MathUtils.clamp(options.uvY, 0, 1) ** 2;
   const gate = THREE.MathUtils.clamp(options.rootWeight * DOGWOOD_LEAF_WEIGHT_GATE, 0, 1);
-  const scale = options.windStrengthValue * flutterAmplitude * tip * gate;
-  const longitudinalFlutter = scale === 0 ? 0 : (
-    Math.sin(flutterTime) + Math.sin(flutterTime * 1.31) * 0.35
-  ) * scale;
+  const scale = options.windStrengthValue
+    * flutterAmplitude * options.leafPhase * tip * gate;
+  const longitudinalFlutter = scale === 0 ? 0 : Math.sin(flutterTime) * scale;
+  const verticalFlutter = scale === 0
+    ? 0
+    : Math.sin(flutterTime * 1.31) * 0.6 * scale;
   const lateralFlutter = scale === 0
     ? 0
-    : Math.sin(flutterTime * 0.77) * 0.55 * scale;
+    : Math.sin(flutterTime * 0.77) * scale;
   return {
     baseSway,
     longitudinalFlutter,
+    verticalFlutter,
     lateralFlutter,
   };
 }

@@ -504,13 +504,18 @@ assert.match(
 );
 assert.match(
   serverLivestock,
-  /let care_labor = essential_livestock_care_labor\([\s\S]{0,180}owner_has_active_raider_threat[\s\S]{0,160}let productive_labor = if paused \{ 0 \} else \{ onsite_labor \}/,
-  'observed Sundays must retain essential animal care while raids still remove it and ordinary work pauses',
+  /let care_labor = essential_livestock_care_labor\([\s\S]{0,180}owner_has_active_raider_threat[\s\S]*let \(cycle_care_labor, cycle_productive_labor\) = if paused \{[\s\S]{0,80}\(care_labor, 0\)[\s\S]{0,260}paired_production_ox_count[\s\S]{0,220}ox_amplified_worker_count/,
+  'observed Sundays must retain essential animal care while raids still remove it and working oxen amplify active-cycle labor',
 );
 assert.match(
   serverLivestock,
-  /if clock\.is_work_hours \{[\s\S]{0,220}building\.action_cooldown - TICK_DT[\s\S]{0,420}def\.action_interval/,
+  /if clock\.is_work_hours \{[\s\S]{0,220}building\.action_cooldown - TICK_DT/,
   'animal biology must advance on a fixed daytime interval instead of worker throughput',
+);
+assert.match(
+  serverLivestock,
+  /if committed \{[\s\S]{0,220}building\.action_cooldown = building_def\(&building\.kind\)[\s\S]{0,120}def\.action_interval/,
+  'a committed husbandry cycle must reset to the generated building interval',
 );
 assert.doesNotMatch(
   serverLivestock,
@@ -519,7 +524,7 @@ assert.doesNotMatch(
 );
 assert.match(
   serverLivestock,
-  /let water_supported_heads[\s\S]{0,420}CommodityKind::Water[\s\S]{0,260}let care_supported_heads/,
+  /let requested_water[\s\S]{0,300}CommodityKind::Water[\s\S]{0,240}let water_supported_heads[\s\S]{0,180}let care_supported_heads/,
   'each husbandry cycle must consume trough water before resolving staffed care',
 );
 assert.match(
@@ -570,7 +575,7 @@ assert.match(
 );
 assert.match(
   serverLivestock,
-  /deposit_building_commodity\([\s\S]*CommodityKind::Manure[\s\S]*cattle_manure_output/,
+  /cattle_manure_output[\s\S]{0,500}deposit_building_commodity\(building, CommodityKind::Manure, manure_to_store\)/,
   'supplied cattle must produce manure into the holding rather than the treasury',
 );
 assert.match(
@@ -580,8 +585,22 @@ assert.match(
 );
 assert.match(
   serverLivestock,
-  /store_salted_farmstead_output[\s\S]*withdraw_building_commodity\([\s\S]*CommodityKind::Salt/,
+  /try_store_exact_salted_output[\s\S]*withdraw_building_commodity\([\s\S]*CommodityKind::Salt/,
   'farmhouse cheese must consume salt from the visible holding store',
+);
+const routineOutputStart = serverLivestock.indexOf('// Cheese that cannot be made falls back to fresh milk.');
+const routineOutputEnd = serverLivestock.indexOf('let maximum_herd', routineOutputStart);
+assert.ok(routineOutputStart >= 0 && routineOutputEnd > routineOutputStart);
+const routineOutputContract = serverLivestock.slice(routineOutputStart, routineOutputEnd);
+assert.match(
+  routineOutputContract,
+  /let milk_to_store[\s\S]*let manure_to_store[\s\S]*let fleece_to_store/,
+  'routine milk, manure, and wool output must be capped to each physical store',
+);
+assert.doesNotMatch(
+  routineOutputContract,
+  /return false/,
+  'full routine-output stores must not roll back feeding, health, or mortality',
 );
 assert.match(
   tickContext,

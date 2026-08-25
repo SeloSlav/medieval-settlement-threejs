@@ -1936,6 +1936,11 @@ pub struct DeliveryTrip {
     /// to `building_id`; labor ownership is intentionally independent.
     #[default(0u64)]
     pub labor_building_id: u64,
+    /// Purchased stable ox reserved for this complete round trip. Zero means
+    /// the cart has human capacity only; the ox never counts toward speed or
+    /// unloading labor.
+    #[default(0u64)]
+    pub ox_id: u64,
 }
 
 /// A server-authoritative structural fire. Resolved fires linger briefly so the

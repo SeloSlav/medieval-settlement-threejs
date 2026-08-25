@@ -103,6 +103,8 @@ export type DeliveryTripState = {
   unloadRemaining: number;
   deliveryWorkers: number;
   freeHaulerWorkers: number;
+  /** Reserved draft ox; absent/null for ordinary hand carts and legacy rows. */
+  oxId?: string | null;
   pathDistance: number;
   travelSpeedMultiplier: number;
   routePolylineJson: string;

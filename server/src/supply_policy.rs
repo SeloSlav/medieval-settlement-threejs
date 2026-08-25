@@ -338,6 +338,26 @@ pub fn institutional_food_surplus(
     (source_stock.max(0.0) - household_food_reserve(claimed_households, source_capacity)).max(0.0)
 }
 
+/// Grain staged at a livestock holding has already crossed the settlement's
+/// food-versus-fodder decision boundary. Oats remain edible while they are in
+/// general storage or at a Marketplace, but a producer-side food cart must not
+/// take them back out of a byre or sty after herders have secured them.
+pub fn livestock_holding_protects_feed_oats(source_kind: &str) -> bool {
+    matches!(source_kind, "pastoral_farmstead" | "swineherd")
+}
+
+pub fn institutional_dispatchable_food_stock(
+    source_kind: &str,
+    edible_stock: f64,
+    oat_grain: f64,
+) -> f64 {
+    if livestock_holding_protects_feed_oats(source_kind) {
+        (edible_stock.max(0.0) - oat_grain.max(0.0)).max(0.0)
+    } else {
+        edible_stock.max(0.0)
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum InstitutionalFoodDispatchDuty {
     CriticalGuard,
@@ -787,10 +807,11 @@ mod tests {
         compare_supply_route_candidates, construction_source_available_stock,
         construction_source_priority, directly_dispatched_processor_input_per_cycle,
         grain_input_runway_cycles, grain_input_target, grain_work_priority, granary_dispatch_order,
-        household_food_reserve, institutional_food_surplus, is_food_supplier_operational,
-        is_well_supplier_operational, large_quarry_support_runway_cycles,
-        large_quarry_support_target, large_quarry_supports_ready, local_material_dispatch_target,
-        marketplace_refill_request, processor_input_dispatch_duty,
+        household_food_reserve, institutional_dispatchable_food_stock, institutional_food_surplus,
+        is_food_supplier_operational, is_well_supplier_operational,
+        large_quarry_support_runway_cycles, large_quarry_support_target,
+        large_quarry_supports_ready, livestock_holding_protects_feed_oats,
+        local_material_dispatch_target, marketplace_refill_request, processor_input_dispatch_duty,
         processor_input_dispatch_duty_for_target, processor_input_runway_cycles,
         processor_input_target, rich_mine_support_runway_cycles, rich_mine_support_target,
         rich_mine_supports_ready, select_grain_dispatch_candidate, select_need_delivery_candidate,
@@ -926,6 +947,17 @@ mod tests {
                 "pastoral_farmstead",
                 "swineherd",
             ]
+        );
+        assert!(livestock_holding_protects_feed_oats("pastoral_farmstead"));
+        assert!(livestock_holding_protects_feed_oats("swineherd"));
+        assert!(!livestock_holding_protects_feed_oats("granary"));
+        assert_eq!(
+            institutional_dispatchable_food_stock("pastoral_farmstead", 30.0, 18.0),
+            12.0,
+        );
+        assert_eq!(
+            institutional_dispatchable_food_stock("granary", 30.0, 18.0),
+            30.0,
         );
         assert_eq!(
             compare_institutional_food_dispatch_candidates(

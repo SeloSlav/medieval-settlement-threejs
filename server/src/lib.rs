@@ -37,6 +37,7 @@ mod marketplace_stall_policy;
 mod monastery_estate_policy;
 mod monastery_hospitality_policy;
 mod night_policy;
+mod ox_policy;
 mod pantry_safeguard_policy;
 mod placement_validation;
 mod potter_firing_policy;

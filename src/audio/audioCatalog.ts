@@ -215,6 +215,7 @@ export const BUILDING_AUDIO_CLIPS: Record<
   marketplace: { path: '/sounds/buildings/marketplace.mp3', volume: 0.04 },
   trading_post: { path: '/sounds/buildings/trading_post.mp3', volume: 0.05 },
   town_hall: { path: '/sounds/buildings/town_hall.mp3', volume: 0.04 },
+  stable: { path: '/sounds/buildings/pastoral_farmstead.mp3', volume: 0.05 },
   village_storehouse: { path: '/sounds/buildings/village_storehouse.mp3', volume: 0.045 },
   watchtower: { path: '/sounds/buildings/watchtower.mp3', volume: 0.045 },
   guardhouse: { path: '/sounds/buildings/guardhouse.mp3', volume: 0.05 },

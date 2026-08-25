@@ -101,6 +101,9 @@ pub mod processor_output_policy;
 #[path = "../../src/pantry_safeguard_policy.rs"]
 pub mod pantry_safeguard_policy;
 
+#[path = "../../src/ox_policy.rs"]
+pub mod ox_policy;
+
 #[path = "../../src/pottery_dispatch_policy.rs"]
 pub mod pottery_dispatch_policy;
 

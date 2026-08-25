@@ -418,7 +418,7 @@ const SETTLEMENT_HUD_HTML = `
         <strong class="settlement-hud__value" data-stockpile="ryeGrain">0</strong>
         <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="ryeGrain" hidden></span>
       </div>
-      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="oatGrain" data-tooltip="Threshed oats: a modest ready-to-eat staple and premium feed for cattle, sheep, and pigs. No mill or bakery required.">
+      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="oatGrain" data-tooltip="Threshed oats: one ready-to-eat porridge ration for people, or the preferred direct grain supplement for livestock. Cattle and sheep use local hay first in winter; pigs use woodland mast when available. No mill, bakery, or separate feed recipe required.">
         <span class="settlement-hud__label">Oats</span>
         <strong class="settlement-hud__value" data-stockpile="oatGrain">0</strong>
         <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="oatGrain" hidden></span>

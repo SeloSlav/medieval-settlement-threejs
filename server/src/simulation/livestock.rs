@@ -42,6 +42,7 @@ use crate::livestock_policy::{
     livestock_milk_allocation, projected_winter_fodder_grain, retain_priority_candidate,
     sheep_fleece_output, storage_secured_pending_cull_heads,
 };
+use crate::ox_policy::ox_amplified_worker_count;
 use crate::reducers::livestock::{SPECIES_CATTLE, SPECIES_SHEEP, SPECIES_SWINE};
 use crate::resident_welfare_policy::deterministic_unit;
 use crate::resource_units::{whole_cost, whole_units};
@@ -126,7 +127,6 @@ fn step_livestock_building(
         onsite_labor,
         tick.owner_has_active_raider_threat(ctx, building.owner),
     );
-    let productive_labor = if paused { 0 } else { onsite_labor };
     if !paused && onsite_labor > 0 {
         let unsupported = (herd.head_count as f64 - herd.pasture_capacity).max(0.0);
         let grain_per_head = species_grain_per_unsupported_head(herd.species);
@@ -204,14 +204,29 @@ fn step_livestock_building(
     if clock.is_work_hours {
         building.action_cooldown = (building.action_cooldown - TICK_DT).max(0.0);
         if building.action_cooldown <= 1e-6 {
+            let (cycle_care_labor, cycle_productive_labor) = if paused {
+                (care_labor, 0)
+            } else {
+                let paired_oxen = crate::simulation::paired_production_ox_count(
+                    ctx,
+                    tick,
+                    &building,
+                    onsite_labor,
+                );
+                let amplified_labor = ox_amplified_worker_count(onsite_labor, paired_oxen);
+                (
+                    essential_livestock_care_labor(amplified_labor, false),
+                    amplified_labor,
+                )
+            };
             let mut next_building = building.clone();
             let mut next_herd = herd.clone();
             let committed = run_livestock_cycle(
                 clock,
                 environment,
                 base_pasture_capacity,
-                care_labor,
-                productive_labor,
+                cycle_care_labor,
+                cycle_productive_labor,
                 &mut next_building,
                 &mut next_herd,
             );
@@ -314,9 +329,7 @@ fn run_livestock_cycle(
             * f64::from(productive_labor);
         let hay = discrete_expected_units(expected_hay, building.id, clock.total_days, 0x4841_59);
         let hay_room = (whole_units(LIVESTOCK_HAY_STORAGE_CAPACITY) - herd.hay_stock).max(0.0);
-        if hay > hay_room + 1e-9 {
-            return false;
-        }
+        let hay = storable_whole_output(hay, hay_room);
         herd.hay_stock += hay;
         herd.last_hay_output = hay;
     }
@@ -351,23 +364,21 @@ fn run_livestock_cycle(
     let feed_supported_heads =
         (herd.pasture_capacity + hay_supplement + grain_supplement).min(heads);
     let water_per_head = species_water_per_head_per_cycle(herd.species);
-    let water_units_used = if water_per_head <= 1e-9 {
+    let requested_water = if water_per_head <= 1e-9 {
         0.0
     } else {
         whole_cost(heads * water_per_head).min(whole_units(building.water))
+    };
+    let water_units_used = if requested_water >= 1.0 {
+        withdraw_building_commodity(building, CommodityKind::Water, requested_water)
+    } else {
+        0.0
     };
     let water_supported_heads = if water_per_head <= 1e-9 {
         heads
     } else {
         (water_units_used / water_per_head).min(heads)
     };
-    if water_units_used >= 1.0 {
-        let withdrawn =
-            withdraw_building_commodity(building, CommodityKind::Water, water_units_used);
-        if (withdrawn - water_units_used).abs() > 1e-9 {
-            return false;
-        }
-    }
     let care_supported_heads =
         (f64::from(care_labor) * species_heads_per_worker(herd.species)).min(heads);
     herd.supplied_capacity = feed_supported_heads
@@ -389,11 +400,15 @@ fn run_livestock_cycle(
     let dairy_heads = productive_heads * species_dairy_productive_share(herd.species);
     let base_milk = dairy_heads * species_food_per_cycle(herd.species);
     let base_cheese = dairy_heads * species_preserved_per_cycle(herd.species);
+    let cheese_capacity = whole_units(
+        building_commodity_room(building, CommodityKind::Cheese)
+            .min(farmstead_salted_output_capacity(building)),
+    );
     let (_, expected_cheese) = livestock_milk_allocation(
         building.processor_output_target_percent,
         base_milk,
         base_cheese,
-        f64::INFINITY,
+        cheese_capacity,
     );
     let expected_gross_milk = base_milk.max(0.0) + base_cheese.max(0.0);
     let gross_milk = discrete_expected_units(
@@ -413,22 +428,24 @@ fn run_livestock_cycle(
         clock.total_days,
         0x4348_4545_5345,
     )
-    .min(gross_milk);
-    let fresh_milk = gross_milk - cheese;
-    if building_commodity_room(building, CommodityKind::Milk) + 1e-9 < fresh_milk
-        || !can_store_exact_salted_output(building, CommodityKind::Cheese, cheese)
-    {
-        return false;
-    }
-    if !try_store_exact_salted_output(building, CommodityKind::Cheese, cheese) {
-        return false;
-    }
-    let stored_milk = deposit_building_commodity(building, CommodityKind::Milk, fresh_milk);
-    if (stored_milk - fresh_milk).abs() > 1e-9 {
-        return false;
-    }
-    herd.last_preserved_output = cheese;
-    herd.last_food_output = fresh_milk;
+    .min(gross_milk)
+    .min(cheese_capacity);
+    let stored_cheese = if try_store_exact_salted_output(building, CommodityKind::Cheese, cheese) {
+        cheese
+    } else {
+        0.0
+    };
+    // Cheese that cannot be made falls back to fresh milk. Any routine output
+    // beyond the holding's remaining room is lost, but husbandry still
+    // advances: full stores must never suspend feeding, health, or mortality.
+    let fresh_milk = gross_milk - stored_cheese;
+    let milk_to_store = storable_whole_output(
+        fresh_milk,
+        building_commodity_room(building, CommodityKind::Milk),
+    );
+    let stored_milk = deposit_building_commodity(building, CommodityKind::Milk, milk_to_store);
+    herd.last_preserved_output = stored_cheese;
+    herd.last_food_output = stored_milk;
     if herd.species == SPECIES_CATTLE {
         let manure = discrete_expected_units(
             cattle_manure_output(productive_heads, environment.season),
@@ -436,13 +453,11 @@ fn run_livestock_cycle(
             clock.total_days,
             0x4d41_4e55_5245,
         );
-        if building_commodity_room(building, CommodityKind::Manure) + 1e-9 < manure {
-            return false;
-        }
-        let stored = deposit_building_commodity(building, CommodityKind::Manure, manure);
-        if (stored - manure).abs() > 1e-9 {
-            return false;
-        }
+        let manure_to_store = storable_whole_output(
+            manure,
+            building_commodity_room(building, CommodityKind::Manure),
+        );
+        deposit_building_commodity(building, CommodityKind::Manure, manure_to_store);
     }
 
     // A flock is shorn once in the early-summer window. The old implementation
@@ -460,16 +475,13 @@ fn run_livestock_cycle(
             u64::from(clock.year),
             0x574f_4f4c,
         );
-        let wool_room = building_commodity_room(building, CommodityKind::Wool);
-        if fleece >= 1.0 && wool_room + 1e-9 < fleece {
-            return false;
-        }
-        if fleece >= 1.0 {
-            let stored = deposit_building_commodity(building, CommodityKind::Wool, fleece);
-            if (stored - fleece).abs() > 1e-9 {
-                return false;
-            }
-            herd.last_wool_output = fleece;
+        let fleece_to_store = storable_whole_output(
+            fleece,
+            building_commodity_room(building, CommodityKind::Wool),
+        );
+        if fleece_to_store >= 1.0 {
+            herd.last_wool_output =
+                deposit_building_commodity(building, CommodityKind::Wool, fleece_to_store);
         }
         herd.last_shearing_year = clock.year;
     }
@@ -541,21 +553,26 @@ fn run_livestock_cycle(
             cured_slaughter,
         )
     {
-        herd.head_count -= 1;
-        herd.last_culled = 1;
-        herd.supplied_capacity = herd.supplied_capacity.min(herd.head_count as f64);
         // Unsalted meat enters the vulnerable fresh-food store instead of
         // becoming free cured provisions. No animal is discarded merely
         // because an imported salt cart has not reached the holding.
+        let mut cull_building = building.clone();
         let stored_meat =
-            deposit_building_commodity(building, CommodityKind::Meat, fresh_slaughter);
-        if (stored_meat - fresh_slaughter).abs() > 1e-9
-            || !try_store_exact_salted_output(building, CommodityKind::CuredMeat, cured_slaughter)
+            deposit_building_commodity(&mut cull_building, CommodityKind::Meat, fresh_slaughter);
+        if (stored_meat - fresh_slaughter).abs() <= 1e-9
+            && try_store_exact_salted_output(
+                &mut cull_building,
+                CommodityKind::CuredMeat,
+                cured_slaughter,
+            )
         {
-            return false;
+            *building = cull_building;
+            herd.head_count -= 1;
+            herd.last_culled = 1;
+            herd.supplied_capacity = herd.supplied_capacity.min(herd.head_count as f64);
+            herd.last_food_output += fresh_slaughter;
+            herd.last_preserved_output += cured_slaughter;
         }
-        herd.last_food_output += fresh_slaughter;
-        herd.last_preserved_output += cured_slaughter;
     }
     true
 }
@@ -665,6 +682,10 @@ fn discrete_expected_units(expected: f64, entity_id: u64, day: u64, salt: u64) -
     } else {
         0.0
     }
+}
+
+fn storable_whole_output(output_units: f64, available_room: f64) -> f64 {
+    whole_units(output_units).min(whole_units(available_room))
 }
 
 pub(crate) fn grazing_capacity(
@@ -1014,7 +1035,7 @@ fn species_max_herd(species: u8) -> u32 {
 
 #[cfg(test)]
 mod tests {
-    use super::{discrete_expected_units, salted_output_salt_cost};
+    use super::{discrete_expected_units, salted_output_salt_cost, storable_whole_output};
 
     #[test]
     fn livestock_expected_yields_commit_only_whole_units() {
@@ -1032,5 +1053,12 @@ mod tests {
         }
         assert_eq!(salted_output_salt_cost(0.0), 0.0);
         assert!(salted_output_salt_cost(1.0) >= 1.0);
+    }
+
+    #[test]
+    fn routine_livestock_output_caps_to_room_without_blocking_upkeep() {
+        assert_eq!(storable_whole_output(9.0, 3.0), 3.0);
+        assert_eq!(storable_whole_output(2.0, 12.0), 2.0);
+        assert_eq!(storable_whole_output(4.0, 0.0), 0.0);
     }
 }
