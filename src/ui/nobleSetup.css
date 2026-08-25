@@ -319,7 +319,7 @@
   position: relative;
   min-width: 0;
   min-height: 0;
-  aspect-ratio: 1;
+  aspect-ratio: 19 / 25;
   overflow: hidden;
   border: 1px solid rgba(218, 190, 126, 0.46);
   border-radius: 3px;
@@ -435,13 +435,6 @@
   text-transform: uppercase;
 }
 
-.noble-setup-section-heading > span {
-  color: #888170;
-  font: 8px/1.2 Inter, ui-sans-serif, system-ui, sans-serif;
-  text-align: right;
-  text-transform: uppercase;
-}
-
 .noble-setup-nobles {
   display: grid;
   grid-template-columns: repeat(6, minmax(0, 1fr));
@@ -501,18 +494,6 @@
 .noble-setup-portrait-frame.is-portrait-pending > img,
 .noble-setup-heraldry-portrait-frame.is-portrait-pending > img {
   visibility: hidden;
-}
-
-.noble-setup-noble span {
-  position: absolute;
-  inset: auto 0 0;
-  padding: 13px 2px 3px;
-  overflow: hidden;
-  color: #e6dbc4;
-  background: linear-gradient(transparent, rgba(4, 5, 4, 0.94));
-  font-size: 7px;
-  line-height: 1.05;
-  text-align: center;
 }
 
 .noble-setup-noble:hover,
@@ -913,7 +894,7 @@
 .noble-setup-heraldry-portrait-frame {
   position: relative;
   width: 100%;
-  aspect-ratio: 0.86;
+  aspect-ratio: 19 / 25;
   overflow: hidden;
   border: 1px solid rgba(218, 190, 126, 0.5);
   border-radius: 3px;
@@ -1070,7 +1051,6 @@
   .noble-setup-portrait-caption small { font-size: 6px; }
   .noble-setup-section-heading h3 { font-size: 9px; }
   .noble-setup-nobles { grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 3px; }
-  .noble-setup-noble span { padding: 9px 1px 2px; font-size: 5px; }
   .noble-setup-armory {
     grid-template-rows: auto auto minmax(0, 1fr);
     gap: 5px;

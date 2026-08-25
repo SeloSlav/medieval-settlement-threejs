@@ -116,7 +116,7 @@ export class NobleSetupPanel {
               <div class="noble-setup-house-profile">
                 <div class="noble-setup-identity-showcase">
                   <div class="noble-setup-portrait-frame">
-                    <img data-noble-preview-portrait alt="Selected noble" width="560" height="560" />
+                    <img data-noble-preview-portrait alt="Selected noble" width="560" height="737" />
                   </div>
                 </div>
 
@@ -139,7 +139,6 @@ export class NobleSetupPanel {
               <div class="noble-setup-house-roster">
                 <div class="noble-setup-section-heading">
                   <h3>Historical Figures</h3>
-                  <span>Choose the founder of your house</span>
                 </div>
                 <div class="noble-setup-nobles" data-noble-grid></div>
               </div>
@@ -151,7 +150,7 @@ export class NobleSetupPanel {
               <aside class="noble-setup-heraldry-profile" aria-label="Selected commander and live heraldry">
                 <div class="noble-setup-heraldry-portrait-shell">
                   <div class="noble-setup-heraldry-portrait-frame">
-                    <img data-heraldry-preview-portrait alt="Selected commander" width="560" height="560" />
+                    <img data-heraldry-preview-portrait alt="Selected commander" width="560" height="737" />
                   </div>
                   <div class="noble-setup-heraldry-shield" data-main-shield></div>
                 </div>
@@ -373,7 +372,6 @@ export class NobleSetupPanel {
         ${noble.portrait
           ? `<img src="${noble.portrait}" alt="" width="560" height="560" loading="eager" />`
           : '<i class="noble-setup-noble__portrait-placeholder" aria-hidden="true"></i>'}
-        <span>${noble.name.replace(/\s+(?=[^ ]+$)/, '<br>')}</span>
       `;
       button.addEventListener('click', () => {
         this.draft.nobleId = noble.id;

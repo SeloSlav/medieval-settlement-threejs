@@ -118,14 +118,14 @@ export const NOBLES = [
     name: 'Šimun Kožičić Benja',
     title: 'Modruš bishop and Glagolitic printer in Rijeka',
     years: 'c. 1460–1536',
-    portrait: null,
+    portrait: '/assets/ui/noble-setup/portraits/simun-kozicic-benja.webp',
   },
   {
-    id: 'mila-gojsalic',
-    name: 'Mila Gojsalić',
-    title: 'Poljica heroine of resistance to Ottoman raiders',
-    years: 'fl. c. 1530',
-    portrait: null,
+    id: 'magdalena-budrisic',
+    name: 'Magdalena Budrišić',
+    title: "Founder of Rab's Franciscan women's convent",
+    years: 'c. 1455–1532',
+    portrait: '/assets/ui/noble-setup/portraits/magdalena-budrisic.webp',
   },
 ] as const;
 

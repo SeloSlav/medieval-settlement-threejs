@@ -29,12 +29,10 @@ assert.match(noblePanel, /class="noble-setup-heraldry-editor"/);
 assert.doesNotMatch(noblePanel, /<h2[^>]*>Your Noble<\/h2>/);
 assert.doesNotMatch(noblePanel, /<p class="noble-setup-eyebrow">Coat of Arms<\/p>/);
 assert.doesNotMatch(noblePanel, /Heraldry of Your House/);
-for (const id of [
-  'simun-kozicic-benja',
-  'mila-gojsalic',
-]) {
-  assert.match(nobleProfile, new RegExp(`id: '${id}'[\\s\\S]*?portrait: null`));
-}
+assert.doesNotMatch(noblePanel, /Choose the founder of your house/);
+assert.doesNotMatch(noblePanel, /noble\.name\.replace/);
+assert.doesNotMatch(nobleCss, /\.noble-setup-noble span/);
+assert.doesNotMatch(nobleProfile, /mila-gojsalic/);
 assert.match(
   nobleProfile,
   /id: 'frane-petric'[\s\S]*?portrait: '\/assets\/ui\/noble-setup\/portraits\/frane-petric\.webp'/,
@@ -51,9 +49,21 @@ assert.match(
   nobleProfile,
   /id: 'matija-vlacic-ilirik'[\s\S]*?portrait: '\/assets\/ui\/noble-setup\/portraits\/matija-vlacic-ilirik\.webp'/,
 );
+assert.match(
+  nobleProfile,
+  /id: 'simun-kozicic-benja'[\s\S]*?portrait: '\/assets\/ui\/noble-setup\/portraits\/simun-kozicic-benja\.webp'/,
+);
+assert.match(
+  nobleProfile,
+  /id: 'magdalena-budrisic'[\s\S]*?portrait: '\/assets\/ui\/noble-setup\/portraits\/magdalena-budrisic\.webp'/,
+);
 assert.match(noblePanel, /noble-setup-noble__portrait-placeholder/);
 assert.match(noblePanel, /image\.removeAttribute\('src'\)/);
 assert.match(nobleCss, /\.noble-setup-noble\s*\{[\s\S]*?width: 100%;[\s\S]*?aspect-ratio: 19 \/ 25;/);
+assert.match(nobleCss, /\.noble-setup-portrait-frame\s*\{[\s\S]*?aspect-ratio: 19 \/ 25;/);
+assert.match(nobleCss, /\.noble-setup-heraldry-portrait-frame\s*\{[\s\S]*?aspect-ratio: 19 \/ 25;/);
+assert.match(noblePanel, /data-noble-preview-portrait[^>]*width="560" height="737"/);
+assert.match(noblePanel, /data-heraldry-preview-portrait[^>]*width="560" height="737"/);
 assert.match(nobleCss, /\.noble-setup-noble img\s*\{[\s\S]*?position: absolute;[\s\S]*?inset: 0;/);
 assert.match(
   nobleCss,
