@@ -189,6 +189,7 @@ type VillagerRole = 'founder' | 'resident' | 'worker';
 type VillagerRoutinePhase =
   | 'work'
   | 'observance_at_worksite'
+  | 'returning_for_observance'
   | 'returning_to_work'
   | 'returning_home'
   | 'going_to_mass'
@@ -216,6 +217,7 @@ type VillagerPathPurpose =
   | 'backyard_work'
   | 'worker_work_loop'
   | 'return_to_work'
+  | 'return_for_observance'
   | 'return_home'
   | 'chapel_mass'
   | 'return_from_mass'
@@ -3639,9 +3641,18 @@ export class VillagerRenderer {
     this.reconcileRoutine(agent);
   }
 
-  private beginWorkerReturnToWork(agent: VillagerAgent): boolean {
+  private beginWorkerReturnToWork(
+    agent: VillagerAgent,
+    forObservance = false,
+  ): boolean {
     const building = agent.workplaceId ? this.buildings.get(agent.workplaceId) : null;
     if (!building || this.fireDisabledBuildingIds.has(building.id)) return false;
+    const purpose = forObservance
+      ? 'return_for_observance'
+      : 'return_to_work';
+    const phase = forObservance
+      ? 'returning_for_observance'
+      : 'returning_to_work';
 
     const duty = this.marketStallDutyForAgent(agent);
     if (duty) {
@@ -3657,11 +3668,12 @@ export class VillagerRenderer {
         joinPolylines(routedApproach, [duty.approachOutside, duty.approachInside]),
         [duty.approachInside, { x: duty.x, z: duty.z }],
       );
-      if (!this.beginPreparedJourney(agent, path, 'return_to_work')) {
-        this.completeWorkerReturnToWork(agent);
+      if (!this.beginPreparedJourney(agent, path, purpose)) {
+        if (forObservance) this.completeWorkerObservanceReturn(agent);
+        else this.completeWorkerReturnToWork(agent);
         return true;
       }
-      agent.routinePhase = 'returning_to_work';
+      agent.routinePhase = phase;
       return true;
     }
 
@@ -3672,11 +3684,12 @@ export class VillagerRenderer {
       this.roadNetwork,
     );
     if (!path) {
-      this.completeWorkerReturnToWork(agent);
+      if (forObservance) this.completeWorkerObservanceReturn(agent);
+      else this.completeWorkerReturnToWork(agent);
       return true;
     }
-    if (!this.beginJourney(agent, path, 'return_to_work')) return false;
-    agent.routinePhase = 'returning_to_work';
+    if (!this.beginJourney(agent, path, purpose)) return false;
+    agent.routinePhase = phase;
     return true;
   }
 
@@ -3691,6 +3704,17 @@ export class VillagerRenderer {
     agent.routinePhase = 'work';
     this.placeWorkerIdle(agent, building);
     agent.idleRemaining = pickIdleDuration(agent.pathSeed) * 0.45;
+  }
+
+  private completeWorkerObservanceReturn(agent: VillagerAgent): void {
+    const workplace = agent.workplaceId
+      ? this.buildings.get(agent.workplaceId) ?? null
+      : null;
+    if (this.shouldWorkerReportToWork(workplace)) {
+      this.completeWorkerReturnToWork(agent);
+      return;
+    }
+    this.transitionToWorksiteObservance(agent);
   }
 
   private buildMarketplaceStallDuties(

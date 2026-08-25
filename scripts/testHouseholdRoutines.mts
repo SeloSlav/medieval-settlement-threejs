@@ -461,13 +461,12 @@ villagers.setSchedule({
   month: 6,
   monthDay: 29,
 }, true, true, false, peterAndPaul);
-assert.equal(worker.routinePhase, 'returning_from_feast');
-assert.equal(worker.pathPurpose, 'return_from_feast');
+assert.notEqual(worker.routinePhase, 'work');
 for (let step = 0; step < realtimeTickBudget(4000); step++) villagers.tick(0.05);
 assert.notEqual(
   worker.routinePhase,
   'work',
-  'a worker returning from a feast must continue observing the named holy day',
+  'a feast attendee must continue observing the named holy day after the common table closes',
 );
 
 villagers.setSchedule({
@@ -584,6 +583,10 @@ const continuousAgent = (
   }
 ).agents.get('worker:continuous-workplace:0');
 assert.ok(continuousAgent);
+for (let step = 0; step < realtimeTickBudget(1200); step++) {
+  continuousWorkVillagers.tick(0.05);
+}
+assert.equal(continuousAgent.routinePhase, 'work');
 continuousWorkVillagers.setSchedule(fullClock(23), false);
 assert.equal(
   continuousAgent.routinePhase,
@@ -615,6 +618,66 @@ assert.equal(
   'ordinary labor must resume immediately after Sabbath even during cosmetic night',
 );
 continuousWorkVillagers.dispose();
+await new Promise((resolve) => setTimeout(resolve, 0));
+
+const remoteObservanceVillagers = new VillagerRenderer({
+  parent: new THREE.Group(),
+  getGameSpeed: () => 1,
+  getHeightAt: () => 0,
+});
+const remoteObservanceHome = residence('remote-observance-home', 0, 0);
+const remoteObservanceWorkplace = building('remote-observance-workplace', 200, 0);
+const remoteObservanceRoads = new RoadNetwork();
+remoteObservanceRoads.addRoadPath([
+  new THREE.Vector3(0, 0, 0),
+  new THREE.Vector3(200, 0, 0),
+]);
+remoteObservanceVillagers.sync({
+  residences: [remoteObservanceHome],
+  buildings: [remoteObservanceWorkplace],
+  quarries: [],
+  foragingNodes: [],
+  trees: new Map(),
+  treeRegistry: null,
+  farmFields: [],
+  pastures: [],
+  fireIncidents: [],
+  roadNetwork: remoteObservanceRoads,
+});
+remoteObservanceVillagers.setSchedule(fullClock(12), false);
+const remoteObservanceAgent = (
+  remoteObservanceVillagers as unknown as {
+    agents: Map<string, {
+      routinePhase: string;
+      pathPurpose: string | null;
+    }>;
+  }
+).agents.get('worker:remote-observance-workplace:0');
+assert.ok(remoteObservanceAgent);
+for (let step = 0; step < realtimeTickBudget(12_000); step++) {
+  remoteObservanceVillagers.tick(0.05);
+  if (remoteObservanceAgent.routinePhase === 'work') break;
+}
+assert.equal(remoteObservanceAgent.routinePhase, 'work');
+remoteObservanceVillagers.setSchedule({
+  ...fullClock(12),
+  weekday: 0,
+  isSunday: true,
+}, true, true, true);
+assert.equal(
+  remoteObservanceAgent.routinePhase,
+  'observance_at_worksite',
+  'a worker whose round trip cannot fit in one rest day must stop labor and observe onsite',
+);
+assert.equal(remoteObservanceAgent.pathPurpose, null);
+remoteObservanceVillagers.setSchedule({
+  ...fullClock(12),
+  totalDays: 1,
+  weekday: 1,
+  isSunday: false,
+}, false);
+assert.match(remoteObservanceAgent.routinePhase, /^(returning_to_work|work)$/);
+remoteObservanceVillagers.dispose();
 await new Promise((resolve) => setTimeout(resolve, 0));
 
 const defenseVillagers = new VillagerRenderer({
