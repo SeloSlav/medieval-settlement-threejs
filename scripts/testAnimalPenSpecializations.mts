@@ -130,6 +130,13 @@ const commoditySource = readFileSync(join(process.cwd(), 'server/src/economy/com
 const tableSource = readFileSync(join(process.cwd(), 'server/src/tables.rs'), 'utf8');
 const inspectorSource = readFileSync(join(process.cwd(), 'src/resources/inspector/backyardRenderer.ts'), 'utf8');
 const foleySource = readFileSync(join(process.cwd(), 'src/audio/WorldFoleyAudio.ts'), 'utf8');
+const foodDistributorStart = simulationSource.indexOf('fn try_distribute_backyard_food_batches(');
+assert.notEqual(foodDistributorStart, -1, 'the atomic backyard-food distributor must exist');
+const foodDistributorEnd = simulationSource.indexOf('\nfn ', foodDistributorStart + 1);
+const foodDistributorSource = simulationSource.slice(
+  foodDistributorStart,
+  foodDistributorEnd === -1 ? simulationSource.length : foodDistributorEnd,
+);
 
 assert.match(reducerSource, /specialize_animal_pen[\s\S]*BackyardGardenKind::AnimalPen/);
 assert.match(reducerSource, /specialization_of == Some\("animal_pen"\)/);
@@ -144,8 +151,14 @@ assert.match(simulationSource, /PigPen => Some\(CommodityKind::Meat\)/);
 assert.match(simulationSource, /secondary_food_per_person_per_sec[\s\S]*CommodityKind::Meat/);
 assert.match(simulationSource, /hide_per_person_per_secondary_harvest[\s\S]*hide_capacity/);
 assert.match(
-  simulationSource,
-  /deposit_self_food[\s\S]*deposit_backyard_depot_commodity[\s\S]*ResidenceNeedKind::Food/,
+  foodDistributorSource,
+  /backyard_depot[\s\S]*ResidenceNeedKind::Food[\s\S]*allocate_backyard_food[\s\S]*deposit_residence_commodity[\s\S]*deposit_building_commodity/,
+  'animal food must reserve the household share before routing whole-unit surplus through a Food depot',
+);
+assert.match(
+  foodDistributorSource,
+  /deposit_building_commodity[\s\S]*deposit_residence_commodity[\s\S]*if remaining >= 1\.0 \{[\s\S]*return None;[\s\S]*ctx\.db\.residence\(\)\.id\(\)\.update/,
+  'a rejected surplus must return to the pantry, and an unplaceable basket must abort before committing either destination',
 );
 assert.match(simulationSource, /transfer_backyard_hides_to_storehouse/);
 assert.match(
