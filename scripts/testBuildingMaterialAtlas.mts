@@ -12,6 +12,7 @@ import {
 import {
   BUILDING_MATERIAL_ATLAS_ROOT,
   BUILDING_MATERIAL_ATLAS_TILES,
+  getBuildingMaterialAtlasTextures,
 } from '../src/buildings/buildingMaterialAtlas.ts';
 import { BRIDGE_DECK_ATLAS_TILE_ID } from '../src/roads/RoadSurfaceMaterial.ts';
 
@@ -47,6 +48,39 @@ assert.equal(
   BUILDING_MATERIAL_ATLAS_ROOT,
   '/assets/textures/buildings/gorski_building_atlas_v1',
   'bridge decks should load the shared packed building atlas',
+);
+assert.equal(
+  getBuildingMaterialAtlasTextures(),
+  getBuildingMaterialAtlasTextures(),
+  'roads and buildings must receive the same stable atlas texture handles',
+);
+
+const roadFactorySource = readFileSync(
+  resolve('src/roads/RoadMaterialFactory.ts'),
+  'utf8',
+);
+const roadBuilderSource = readFileSync(
+  resolve('src/roads/RoadMeshBuilder.ts'),
+  'utf8',
+);
+const roadLoaderSource = readFileSync(
+  resolve('src/roads/RoadTextureLoader.ts'),
+  'utf8',
+);
+assert.match(
+  roadFactorySource,
+  /bridgeDeckAtlasTextures = getBuildingMaterialAtlasTextures\(\)/,
+  'bridge materials should reuse the building library atlas handles',
+);
+assert.match(
+  roadBuilderSource,
+  /hasBridge \? this\.materials\.bridgeRoad : this\.materials\.road/,
+  'ordinary roads must stay on the atlas-free road material',
+);
+assert.doesNotMatch(
+  roadLoaderSource,
+  /gorski_building_atlas_v1/,
+  'the road loader must not create a second copy of the building atlas',
 );
 assert.equal(
   BRIDGE_DECK_ATLAS_TILE_ID,
