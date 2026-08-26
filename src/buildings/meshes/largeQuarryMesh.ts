@@ -20,15 +20,6 @@ function addSteppedStoneCut(group: THREE.Group): void {
   const cut = new THREE.Group();
   cut.name = 'Rich stone quarry stepped cut';
 
-  addMesh(
-    cut,
-    new THREE.CylinderGeometry(7.2, 7.75, 0.24, 14),
-    sharedBuildingMaterial('interiorDark'),
-    new THREE.Vector3(-0.7, 0.09, -1.6),
-    undefined,
-    new THREE.Vector3(1, 1, 0.72),
-  ).name = 'Quarry working floor';
-
   const rearBenches = [
     { width: 17.2, height: 0.72, depth: 2.55, y: 0.36, z: -6.75, material: 'dark' as const },
     { width: 14.8, height: 0.82, depth: 1.95, y: 1.03, z: -7.52, material: 'mid' as const },

@@ -223,6 +223,7 @@ function auditResidenceDynamicWindowSurfaces(
 const expectedLeanToRoofs = new Map<string, number>([
   ['lumber_mill', 1],
   ['woodcutters_lodge', 1],
+  ['stone_quarry', 1],
   ['hunters_hall', 1],
   ['foragers_shed', 1],
   ['trading_post', 1],
@@ -832,10 +833,17 @@ if (churchHeight < tallestResidenceHeight * 1.2) {
   );
 }
 
+type IndirectLitBuildingMaterial = THREE.Material & {
+  emissive: THREE.Color;
+  emissiveIntensity: number;
+};
 const indirectConstructionMaterials = [...sharedMaterials].filter(
-  (material): material is THREE.MeshStandardMaterial =>
-    material instanceof THREE.MeshStandardMaterial
-    && material.name.startsWith('Shared building material:'),
+  (material): material is IndirectLitBuildingMaterial =>
+    material.name.startsWith('Shared building material:')
+    && 'emissive' in material
+    && material.emissive instanceof THREE.Color
+    && 'emissiveIntensity' in material
+    && typeof material.emissiveIntensity === 'number',
 );
 if (indirectConstructionMaterials.length < 15) {
   throw new Error(`Expected at least 15 indirect-lit construction materials; found ${indirectConstructionMaterials.length}.`);
