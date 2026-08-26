@@ -546,13 +546,13 @@ pub fn preempt_free_hauler_trips(
         let left_phase = DeliveryTripPhase::from_u8(left.phase);
         let right_phase = DeliveryTripPhase::from_u8(right.phase);
         let left_key = (
-            left.amount > VISIBLE_CART_CARGO_EPSILON,
             left.destination_kind == DELIVERY_DESTINATION_FIRE,
+            left.amount > VISIBLE_CART_CARGO_EPSILON,
             left_phase != Some(DeliveryTripPhase::Inbound),
         );
         let right_key = (
-            right.amount > VISIBLE_CART_CARGO_EPSILON,
             right.destination_kind == DELIVERY_DESTINATION_FIRE,
+            right.amount > VISIBLE_CART_CARGO_EPSILON,
             right_phase != Some(DeliveryTripPhase::Inbound),
         );
         left_key
