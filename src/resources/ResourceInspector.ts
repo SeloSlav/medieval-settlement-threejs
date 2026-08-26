@@ -407,6 +407,7 @@ export class ResourceInspector {
   private serviceCoverageResidenceIds = new Set<string>();
   private serviceCoverageProjection: ServiceCoverageView | null = null;
   private renderedIdentity = '';
+  private renderedSupplementalPanelHtml = '';
   private selectedX = 0;
   private selectedZ = 0;
   private resourceTotalsPresentation: ResourceTotalsPresentation =
@@ -2488,8 +2489,12 @@ export class ResourceInspector {
     }
 
     if (view.supplementalPanelHtml) {
-      this.supplementalPanelSection.innerHTML = view.supplementalPanelHtml;
-      this.standardizeSupplementalPanels();
+      const supplementalPanelChanged = !preservePolicyState
+        || this.renderedSupplementalPanelHtml !== view.supplementalPanelHtml;
+      if (supplementalPanelChanged) {
+        this.supplementalPanelSection.innerHTML = view.supplementalPanelHtml;
+        this.standardizeSupplementalPanels();
+      }
       const hasSupplementalContent = this.supplementalPanelSection.childElementCount > 0;
       this.supplementalPanelSection.hidden = !hasSupplementalContent;
       if (hasSupplementalContent) {
@@ -2499,8 +2504,11 @@ export class ResourceInspector {
       }
     } else {
       this.supplementalPanelSection.hidden = true;
-      this.supplementalPanelSection.innerHTML = '';
+      if (this.renderedSupplementalPanelHtml) {
+        this.supplementalPanelSection.innerHTML = '';
+      }
     }
+    this.renderedSupplementalPanelHtml = view.supplementalPanelHtml ?? '';
     this.renderedIdentity = identity;
   }
 
@@ -3090,6 +3098,18 @@ function compactNonButtonTooltip(element: HTMLElement): void {
   );
   if (element instanceof HTMLOptionElement) {
     element.title = detail;
+    return;
+  }
+  if (element.classList.contains('resource-cost__item') && nativeTitle) {
+    const visibleAmount = element
+      .querySelector<HTMLElement>('.resource-cost__value')
+      ?.textContent
+      ?.trim() ?? '';
+    element.removeAttribute('title');
+    delete element.dataset.tooltipTitle;
+    element.dataset.tooltip = compactInspectorDetail(
+      [visibleAmount, nativeTitle].filter(Boolean).join(' '),
+    );
     return;
   }
   element.removeAttribute('title');
