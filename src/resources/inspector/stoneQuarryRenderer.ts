@@ -7,7 +7,6 @@ import {
   civilianToolRows,
   buildingDemolishHint,
   buildingLaborView,
-  buildingStorageRows,
   buildingExtentRow,
 } from './buildingCommon.ts';
 import type { InspectorRenderContext, InspectorView } from './renderInspectableTarget.ts';
@@ -78,7 +77,6 @@ export function renderStoneQuarryInspector(
       <li><span>Source</span><span>${nearestDeposit == null ? 'No unexhausted deposit in range' : `${nearestDeposit.isRich ? 'Rich' : 'Ordinary'} ${resource} surface deposit · finite`}</span></li>
       <li><span>Harvest interval</span><span>${active ? `${cycleSeconds.toFixed(1)}s` : 'paused'} (${onsiteLabor} on site / ${building.assignedLabor} assigned)</span></li>
       <li><span>Yard ceiling</span><span>${stock.toFixed(0)} / ${yardTarget.toFixed(0)} ${resource} · ${outputHeadroom.toFixed(0)} headroom</span></li>
-      ${buildingStorageRows(building, building.kind)}
     `,
     demolish: {
       visible: true,

@@ -129,7 +129,6 @@ export function renderWellInspector(
       <li><span>Well groundwater</span><span>${wellAquiferNetworksEnabled
         ? `${hydrologyGradeLabel(hydrology)} (${Math.round(hydrology * 100)}%)`
         : 'Even yield at every site'}</span></li>
-      <li><span>Stored water</span><span>${Math.round(building.water)} / ${Math.round(capacity)}</span></li>
       <li><span>Refill rate</span><span>${refillPerSec.toFixed(2)} / sec</span></li>
       <li data-inspector-secondary data-inspector-detail="${wellAquiferNetworksEnabled
         ? 'Capacity uses fully occupied four-person homes. Aquifer quality and weather reduce the best-case fifty-home yield, while connected homes retain priority over workshops.'

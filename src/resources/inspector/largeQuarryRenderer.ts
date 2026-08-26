@@ -20,7 +20,6 @@ import {
   buildingDemolishHint,
   buildingLaborView,
   buildingRoadAccessRow,
-  buildingStorageRows,
 } from './buildingCommon.ts';
 import type { InspectorRenderContext, InspectorView } from './renderInspectableTarget.ts';
 import {
@@ -108,7 +107,6 @@ export function renderLargeQuarryInspector(
       <li><span>Yard ceiling</span><span>${stock.toFixed(0)} / ${yardTarget.toFixed(0)} ${resource} · ${outputHeadroom.toFixed(0)} headroom</span></li>
       <li><span>Production interval</span><span>${active ? `${cycleSeconds.toFixed(1)}s` : 'paused'} (${onsiteLabor} on site / ${building.assignedLabor} assigned)</span></li>
       ${buildingRoadAccessRow(context.worldQueries, building)}
-      ${buildingStorageRows(building, building.kind)}
     `,
     demolish: {
       visible: true,

@@ -47,7 +47,6 @@ import {
   buildingDemolishHint,
   buildingLaborView,
   buildingRoadAccessRow,
-  buildingStorageRows,
 } from './buildingCommon.ts';
 import type { InspectorRenderContext, InspectorView } from './renderInspectableTarget.ts';
 import { renderResourceCost } from '../../ui/resourceCost.ts';
@@ -290,7 +289,6 @@ export function renderGuardhouseInspector(
       <li><span>Provision target</span><span>${suspendedByFire ? 'Suspended until fire recovery' : armed > 0 ? `${Math.ceil(foodTarget)} food · ${formatProvisionRunway(targetRunwayDays)} when full · below ${GUARDHOUSE_CRITICAL_FOOD_RUNWAY_DAYS} days becomes an emergency claim` : 'None until polearms arm the company'}</span></li>
       <li><span>Provision priority</span><span>Household reserves stay local · emergencies beat smokehouse batches · routine company reserves beat granary intake</span></li>
       <li><span>Supply chain</span><span>Food by road · polearms from a staffed carpenter · pay lockboxes from a civic treasury · ironwork imported at a staffed market</span></li>
-      ${buildingStorageRows(building, building.kind)}
     `,
     demolish: companyAgents.length > 0
       ? {

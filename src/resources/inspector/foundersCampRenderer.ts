@@ -9,9 +9,6 @@ import {
 } from '../../logistics/foundingStockyardLogistics.ts';
 import type { InspectableTarget } from '../types.ts';
 import {
-  buildingStorageRows,
-} from './buildingCommon.ts';
-import {
   hiddenDemolish,
   hiddenLabor,
   type InspectorRenderContext,
@@ -265,7 +262,6 @@ export function renderFoundersCampInspector(
       <li><span>Clearance order</span><span>${shelterActive ? 'Starter food moves before bulk fuel; other committed stores remain until every founder is housed' : 'Construction materials move first; provisions, drink, textiles, armaments, and water follow to compatible permanent stores'}</span></li>
       <li><span>Active cart</span><span>${activeTrip ? formatTripPhaseLabel(activeTrip.phase) : 'None'}</span></li>
       <li><span>Lockbox</span><span>${lockboxStatus}</span></li>
-      ${buildingStorageRows(building, building.kind)}
       <li><span>Final clearance</span><span>The camp disbands after every founder is housed, every cart returns, and its yard and lockbox are empty; no Town Hall or Storehouse is required once nothing remains</span></li>
     `,
     demolish: hiddenDemolish(),

@@ -14,7 +14,6 @@ import {
   buildingDemolishHint,
   buildingLaborView,
   buildingRoadAccessRow,
-  buildingStorageRows,
   buildingExtentRow,
 } from './buildingCommon.ts';
 import type { InspectorRenderContext, InspectorView } from './renderInspectableTarget.ts';
@@ -427,8 +426,7 @@ export function renderHarvestBuildingInspector(
       </div>`
     : undefined;
   const remedyRows = building.kind === 'foragers_shed'
-    ? `<li><span>Dried remedies</span><span>${Math.round(building.remedies ?? 0)} / ${Math.round(buildingStorageCaps(building.kind).remedies ?? 0)} prepared at the shed</span></li>
-      <li><span>Medicinal harvest</span><span>${FORAGER_REMEDIES_PER_HARVEST.toFixed(1)} per gatherer-cycle · months ${FORAGER_REMEDY_SEASON_START_MONTH}–${FORAGER_REMEDY_SEASON_END_MONTH}</span></li>
+    ? `<li><span>Medicinal harvest</span><span>${FORAGER_REMEDIES_PER_HARVEST.toFixed(1)} per gatherer-cycle · months ${FORAGER_REMEDY_SEASON_START_MONTH}–${FORAGER_REMEDY_SEASON_END_MONTH}</span></li>
       <li><span>Care dispatch rule</span><span>Least-covered sick home first · ${REMEDY_DELIVERY_TARGET_DAYS.toFixed(0)} treatment-day target · care preempts food on the shared cart</span></li>`
     : '';
 
@@ -449,7 +447,6 @@ export function renderHarvestBuildingInspector(
       ${remedyRows}
       ${reserveRows}
       ${deliveryRow}
-      ${buildingStorageRows(building, building.kind)}
     `,
     demolish: {
       visible: true,

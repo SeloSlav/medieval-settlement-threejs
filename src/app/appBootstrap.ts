@@ -499,6 +499,7 @@ export async function bootstrapAppSession(
     },
     onStateChanged: () => bridge.syncToolbar(),
     getBuildings: () => buildingMarkers.getRoadConnectionSources(),
+    getBurgageZones: () => liveContext.gameState.burgageZones.values(),
     isBlocked: () => isRoadPlacementBlocked(placementGate),
     onDeleteRequested: (request) => {
       if (!toolbar) return;

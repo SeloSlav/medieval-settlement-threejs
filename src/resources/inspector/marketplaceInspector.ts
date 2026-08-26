@@ -21,7 +21,6 @@ import {
   buildingDemolishHint,
   buildingLaborView,
   buildingRoadAccessRow,
-  buildingStorageRows,
 } from './buildingCommon.ts';
 import type { InspectorRenderContext, InspectorView } from './renderInspectableTarget.ts';
 import { renderMarketplaceTradePanel } from './marketplaceTradeRenderer.ts';
@@ -81,7 +80,6 @@ export function renderMarketplaceInspector(
     detailsHtml: `
       ${buildingCostRows(cost)}
       ${buildingRoadAccessRow(context.worldQueries, building)}
-      ${buildingStorageRows(building, building.kind, context.conflictEnabled ?? false)}
       <li><span>Purpose</span><span>Dedicated Trading Post for recurring import and export rules</span></li>
       <li><span>Next exchange</span><span>${exchangeCountdown} · repeats every ${REGIONAL_EXCHANGE_INTERVAL_SECONDS} simulation seconds (~${intervalAt4x} real seconds at 4×) while operational</span></li>
       <li><span>Regional transit</span><span>No caravan unit — approved imports and staged exports settle directly</span></li>

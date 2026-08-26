@@ -1774,6 +1774,67 @@ function testDenseBuildingFootprintSpacingAndEdgeSnap(): void {
     { x: outsideMagnet, z: existing.z },
     'the edge magnet should not drag buildings from across an open town square',
   );
+
+  const stableRoadside = resolveRoadsideBuildingPlacement('stable', 0, 6, roadNetwork);
+  assert.equal(
+    buildingFootprintOverlapsRoadSurface(
+      'stable',
+      stableRoadside.x,
+      stableRoadside.z,
+      roadNetwork,
+    ),
+    false,
+    'the road snap should initially put the Stable on a clear verge',
+  );
+  const stableExtent = getBuildingFootprintHalfExtents('stable');
+  const wellExtent = getBuildingFootprintHalfExtents('well');
+  const edgeSnapMovementTowardRoad = 2.5;
+  const inlandWell = {
+    id: 'well-inland-from-stable',
+    kind: 'well',
+    x: stableRoadside.x,
+    z: stableRoadside.z
+      - edgeSnapMovementTowardRoad
+      + stableExtent.halfDepth
+      + BUILDING_EDGE_CLEARANCE
+      + wellExtent.halfDepth,
+    constructionComplete: true,
+    assignedLabor: 0,
+  } as BuildingState;
+  const unguardedStableSnap = resolveBuildingEdgeSnap(
+    'stable',
+    stableRoadside.x,
+    stableRoadside.z,
+    [inlandWell],
+    roadNetwork,
+  );
+  assert.equal(
+    buildingFootprintOverlapsRoadSurface(
+      'stable',
+      unguardedStableSnap.x,
+      unguardedStableSnap.z,
+      roadNetwork,
+    ),
+    true,
+    'a nearby inland building can otherwise magnetize a road-clear Stable back onto the road',
+  );
+  assert.deepEqual(
+    resolveBuildingEdgeSnap(
+      'stable',
+      stableRoadside.x,
+      stableRoadside.z,
+      [inlandWell],
+      roadNetwork,
+      (candidateX, candidateZ) => buildingFootprintOverlapsRoadSurface(
+        'stable',
+        candidateX,
+        candidateZ,
+        roadNetwork,
+      ),
+    ),
+    stableRoadside,
+    'the building-edge magnet must preserve the Stable road-clear placement',
+  );
 }
 
 function testMineworksCanOccupyItsRichDeposit(): void {

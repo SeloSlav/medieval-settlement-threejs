@@ -3,7 +3,6 @@ import {
   livestockMilkUsePolicy,
   livestockWaterRequiredPerCycle,
 } from '../../economy/livestockPolicy.ts';
-import { freshFoodStock, preservedFoodStock } from '../../economy/foodInventory.ts';
 import {
   CATTLE_MAX_PLOUGH_SUPPORTED_FIELDS,
   CATTLE_PLOUGH_WORK_MULTIPLIER,
@@ -13,7 +12,6 @@ import {
   SHEEP_WOOL_PER_SHEARING_PER_HEAD,
 } from '../../generated/gameBalance.ts';
 import { onsiteBuildingLabor } from '../../logistics/deliveryTrips.ts';
-import { renderResourceAmount } from '../../ui/resourceCost.ts';
 import { getBuildingDefinition } from '../buildings.ts';
 import { buildingStorageCaps } from '../resourceTotals.ts';
 import type { InspectableTarget, LivestockHerdState, LivestockSpecies } from '../types.ts';
@@ -177,12 +175,9 @@ export function renderLivestockBuildingInspector(
       <li><span>Shared trough</span><span>${waterStock.toFixed(1)} / ${Math.round(storageCaps.water ?? 0)} water · ${waterPerCycle.toFixed(2)} needed per husbandry cycle</span></li>
       <li><span>Weighted herd health</span><span>${totalHead > 0 ? `${Math.round(weightedHealth * 100)}%` : 'Not stocked'}</span></li>
       <li><span>Pasture hay reserves</span><span>${Math.round(totalHay)} / ${Math.round(herds.filter((herd) => herd.species !== 'swine').length * LIVESTOCK_HAY_STORAGE_CAPACITY)} combined · ${Math.round(totalLastHay)} cut last cycle · configured on each pasture</span></li>
-      <li><span>Animal Feed store</span><span>${Math.round(Math.max(0, building.animalFeed ?? 0))} / ${Math.round(storageCaps.animalFeed ?? 0)} ready winter fodder</span></li>
       <li><span>Feed workshop</span><span>${building.kind === 'pastoral_farmstead' ? `${Math.round(Math.max(0, building.oatGrain ?? 0))} oats onsite · ${LIVESTOCK_FEED_OAT_GRAIN_PER_CYCLE} oat → ${LIVESTOCK_ANIMAL_FEED_PER_CYCLE} Animal Feed per staffed cycle` : 'Finished Animal Feed arrives from pastoral farmsteads; pigs do not consume raw oats'}</span></li>
       ${building.kind === 'pastoral_farmstead' ? `<li><span>Milk use</span><span>${milkUse.label} across every cattle and sheep pasture</span></li>` : ''}
       <li><span>Last combined cycle</span><span>${Math.round(totalLastFood)} fresh food · ${Math.round(totalLastPreserved)} preserved${totalLastWool > 0 ? ` · ${Math.round(totalLastWool)} wool` : ''}${totalLastCulled > 0 ? ` · ${totalLastCulled} culled` : ''}</span></li>
-      <li><span>Fresh-food store</span><span>${Math.round(freshFoodStock(building))} / ${Math.round(storageCaps.food ?? 0)}</span></li>
-      ${building.kind === 'pastoral_farmstead' ? `<li><span>Preserved store</span><span>${Math.round(preservedFoodStock(building))} / ${Math.round(storageCaps.preservedFood ?? 0)} · salt ${renderResourceAmount('salt', Math.max(0, building.salt ?? 0), { compact: true })}</span></li>` : ''}
       ${benefitRows}
       ${buildingRoadAccessRow(context.worldQueries, building)}
       ${buildingExtentRow(building.kind)}

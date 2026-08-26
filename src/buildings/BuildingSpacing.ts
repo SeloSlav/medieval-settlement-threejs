@@ -65,8 +65,8 @@ export function buildingFootprintsTooClose(
 
 /**
  * Pull a nearby candidate edge onto the closest existing edge while retaining
- * the small settlement seam. The final point is rejected if its resolved yaw
- * or another neighbour would make the real footprints too close.
+ * the small settlement seam. The final point is rejected if its resolved yaw,
+ * another neighbour, or a caller-owned placement constraint blocks it.
  */
 export function resolveBuildingEdgeSnap(
   kind: BuildingKind,
@@ -74,6 +74,7 @@ export function resolveBuildingEdgeSnap(
   z: number,
   buildings: Iterable<BuildingState>,
   roadNetwork?: RoadNetwork | null,
+  isBlocked?: (x: number, z: number) => boolean,
 ): { x: number; z: number } {
   const existingBuildings = [...buildings];
   if (existingBuildings.length === 0) return { x, z };
@@ -126,6 +127,10 @@ export function resolveBuildingEdgeSnap(
       )) {
         continue;
       }
+      // Edge alignment is secondary to placement rules such as road
+      // clearance. The caller owns those broader world constraints so this
+      // low-level footprint helper remains independent of validation policy.
+      if (isBlocked?.(proposal.x, proposal.z)) continue;
       proposals.push(proposal);
     }
   }

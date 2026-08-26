@@ -9,7 +9,6 @@ import {
   buildingCostRows,
   buildingDemolishHint,
   buildingLaborView,
-  buildingStorageRows,
   treeCountRows,
 } from './buildingCommon.ts';
 import type { InspectorRenderContext, InspectorView } from './renderInspectableTarget.ts';
@@ -51,7 +50,6 @@ export function renderReforesterInspector(
       <li><span>Managed capacity</span><span>${building.assignedLabor > 0 ? `${managedTreesPerDay.toFixed(1)} trees/day` : `${(definition.regrowRatePerSecond * laborDaySeconds).toFixed(1)} trees/day per worker`}</span></li>
       <li><span>Natural succession</span><span>about ${NATURAL_TREE_MATURATION_DAYS} days</span></li>
       ${treeCountRows(matureTrees, stumpTrees, growingTrees)}
-      ${buildingStorageRows(building, building.kind)}
     `,
     demolish: {
       visible: true,

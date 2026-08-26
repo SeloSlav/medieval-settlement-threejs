@@ -318,7 +318,7 @@ assert.match(buildingSync, /granaryHouseholdsFirst: row\.granaryHouseholdsFirst/
 assert.match(harvestInspector, /Local food reserve/);
 assert.match(harvestInspector, /central surplus/);
 assert.match(livestockInspector, /Linked pasture herds/);
-assert.match(livestockInspector, /Animal Feed store/);
+assert.doesNotMatch(livestockInspector, /Animal Feed store|Fresh-food store|Preserved store/);
 assert.match(granaryInspector, /Household priority/);
 assert.match(granaryInspector, /data-granary-households-first/);
 assert.match(granaryInspector, /data-granary-households-first="true"/);

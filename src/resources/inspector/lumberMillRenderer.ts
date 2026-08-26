@@ -8,7 +8,6 @@ import {
   buildingDemolishHint,
   buildingLaborView,
   buildingRoadAccessRow,
-  buildingStorageRows,
   treeCountRows,
 } from './buildingCommon.ts';
 import { getBuildingProcessorStatus } from './buildingProcessorStatus.ts';
@@ -49,7 +48,6 @@ export function renderLumberMillInspector(
       ${forestryWorkAreaDetailRow(building)}
       <li><span>Harvest interval</span><span>${onsiteLabor > 0 ? `${cycleSeconds.toFixed(1)}s` : 'paused'} (${onsiteLabor} on site / ${building.assignedLabor} assigned)</span></li>
       ${treeCountRows(matureTrees, stumpTrees, growingTrees)}
-      ${buildingStorageRows(building, building.kind)}
     `,
     demolish: {
       visible: true,

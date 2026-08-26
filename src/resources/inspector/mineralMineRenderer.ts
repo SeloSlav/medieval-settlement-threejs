@@ -28,7 +28,6 @@ import {
   buildingDemolishHint,
   buildingLaborView,
   buildingRoadAccessRow,
-  buildingStorageRows,
   civilianToolRows,
 } from './buildingCommon.ts';
 import type {
@@ -166,7 +165,6 @@ export function renderMineralMineInspector(
       ${supportRows}
       ${civilianToolRows(building, context.worldQueries)}
       ${buildingRoadAccessRow(context.worldQueries, building)}
-      ${buildingStorageRows(building, building.kind)}
     `,
     demolish: {
       visible: true,

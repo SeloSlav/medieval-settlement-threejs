@@ -5,6 +5,7 @@ import { computeResourceTotals } from '../resources/resourceTotals.ts';
 import { getBuildingDefinition } from '../resources/buildings.ts';
 import type { BuildingPlacementFailureReason, BuildingPlacementResult } from './BuildingPlacementValidation.ts';
 import {
+  buildingFootprintOverlapsRoadSurface,
   chooseRoadClearBuildingPlacement,
   resolveBuildingPlacementPoint,
   validateBuildingPlacement,
@@ -764,6 +765,14 @@ export class BuildingTool {
       roadsidePoint.z,
       state.buildings.values(),
       fullRoadNetwork,
+      fullRoadNetwork
+        ? (candidateX, candidateZ) => buildingFootprintOverlapsRoadSurface(
+          kind,
+          candidateX,
+          candidateZ,
+          fullRoadNetwork,
+        )
+        : undefined,
     );
   }
 

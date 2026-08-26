@@ -13,7 +13,6 @@ import {
   buildingDemolishHint,
   buildingLaborView,
   buildingRoadAccessRow,
-  buildingStorageRows,
 } from './buildingCommon.ts';
 import type { InspectorRenderContext, InspectorView } from './renderInspectableTarget.ts';
 import { formatCooldown } from './woodcuttersLodgeStatus.ts';
@@ -152,7 +151,6 @@ export function renderStorehouseInspector(
       <li><span>Food policy</span><span>Never accepted — granaries remain specialized</span></li>
       <li><span>Market role</span><span>Stocks household fuel and finished wares while buffering wool, yarn, and linen between textile workshops · no food or regional trade</span></li>
       <li><span>Hauling</span><span>${activeTrip ? `${formatTripPhaseLabel(activeTrip.phase)} · ${formatCooldown(activeTripRemaining ?? Infinity)} left` : inboundTrip ? 'Producer cart inbound' : 'Awaiting duty'}</span></li>
-      ${buildingStorageRows(building, building.kind)}
     `,
     demolish: { visible: true, hint: buildingDemolishHint(building.kind) },
     labor: buildingLaborView(building, context.populationStats, context.worldQueries),

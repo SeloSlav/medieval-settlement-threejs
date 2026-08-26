@@ -1105,7 +1105,7 @@ assert.doesNotMatch(livestockInspector, /data-livestock-breeding-reserve|data-li
 assert.match(livestockInspector, /Mixed livestock holding/);
 assert.match(livestockInspector, /Shared herders, trough water, winter Animal Feed/);
 assert.match(livestockInspector, /Pasture hay reserves/);
-assert.match(livestockInspector, /Animal Feed store/);
+assert.doesNotMatch(livestockInspector, /Animal Feed store|Fresh-food store|Preserved store/);
 assert.match(livestockInspector, /Feed workshop/);
 assert.match(livestockInspector, /pigs do not consume raw oats/);
 assert.match(livestockInspector, /data-processor-output-target/);

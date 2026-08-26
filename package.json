@@ -183,6 +183,7 @@
     "test:spacetime-schema-parity": "node --experimental-strip-types scripts/testSpacetimeSchemaParity.mts",
     "test:placement-regressions": "node --experimental-strip-types scripts/testPlacementRegressions.mts",
     "test:road-building-connections": "npx tsx scripts/testRoadBuildingConnections.mts",
+    "test:road-boundary-snapping": "npx tsx scripts/testRoadBoundarySnapping.mts",
     "test:road-junction-topology": "npx tsx scripts/testRoadJunctionTopology.mts",
     "test:road-rock-clearance": "npx tsx scripts/testRoadRockClearance.mts",
     "test:dry-stone-walls": "npx tsx scripts/testDryStoneWalls.mts",

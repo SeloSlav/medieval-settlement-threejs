@@ -754,7 +754,6 @@ function getTavernStatus(
   const mead = Math.max(0, building.mead ?? 0);
   const total = ale + cider + pearCider + mead;
   const details = `
-    <li><span>Beverage cellar</span><span>${total.toFixed(0)} total · ${ale.toFixed(0)} ale · ${cider.toFixed(0)} apple cider · ${pearCider.toFixed(0)} pear cider · ${mead.toFixed(0)} mead</span></li>
     <li><span>Household service</span><span>Any stocked beverage fulfills the same residential requirement</span></li>
   `;
   if (onsiteLabor <= 0) {

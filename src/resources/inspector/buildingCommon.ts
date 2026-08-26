@@ -14,7 +14,6 @@ import type { BuildingKind, BuildingState } from '../types.ts';
 import {
   buildingAcceptsLabor,
   buildingMaxLabor,
-  buildingStorageCaps,
   maxAssignableLabor,
   type PopulationStats,
 } from '../resourceTotals.ts';
@@ -44,89 +43,6 @@ import {
   CIVILIAN_TOOL_THROUGHPUT_MULTIPLIER,
   FARM_TOOL_IRONWORK_PER_WORKER_DAY,
 } from '../../generated/gameBalance.ts';
-import {
-  FRESH_FOOD_KINDS,
-  NAMED_FOOD_LABELS,
-  PRESERVED_FOOD_KINDS,
-  freshFoodStock,
-  preservedFoodStock,
-} from '../../economy/foodInventory.ts';
-import { breadGrainBulkStock, flourStock } from '../../economy/cropGoods.ts';
-
-export function buildingStorageRows(
-  building: BuildingState,
-  kind: BuildingKind,
-  includeFrontierStock = true,
-): string {
-  const caps = buildingStorageCaps(kind);
-  return [
-    caps.timber > 0 ? `<li><span>Timber stored</span><span>${Math.round(building.timber)} / ${caps.timber}</span></li>` : '',
-    caps.firewood > 0 ? `<li><span>Firewood stored</span><span>${Math.round(building.firewood)} / ${caps.firewood}</span></li>` : '',
-    caps.stone > 0 ? `<li><span>Stone stored</span><span>${Math.round(building.stone)} / ${caps.stone}</span></li>` : '',
-    caps.water != null && caps.water > 0 ? `<li><span>Water stored</span><span>${Math.round(building.water)} / ${caps.water}</span></li>` : '',
-    buildingFoodStorageRows(building, caps.food ?? 0, false),
-    caps.grain != null && caps.grain > 0 ? `<li><span>Grain bay</span><span>${Math.round(breadGrainBulkStock(building))} / ${caps.grain}</span></li>
-      <li><span>&nbsp;&nbsp;Rye sheaves / grain</span><span>${Math.round(building.ryeSheaves ?? 0)} / ${Math.round(building.ryeGrain ?? 0)}</span></li>
-      <li><span>&nbsp;&nbsp;Oat sheaves / grain</span><span>${Math.round(building.oatSheaves ?? 0)} / ${Math.round(building.oatGrain ?? 0)}</span></li>
-      <li><span>&nbsp;&nbsp;Maslin sheaves / grain</span><span>${Math.round(building.maslinSheaves ?? 0)} / ${Math.round(building.maslinGrain ?? 0)}</span></li>` : '',
-    caps.barley != null && caps.barley > 0 ? `<li><span>Barley bay</span><span>${Math.round((building.barleySheaves ?? 0) + (building.barley ?? 0))} / ${caps.barley}</span></li>
-      <li><span>&nbsp;&nbsp;Sheaves / threshed grain</span><span>${Math.round(building.barleySheaves ?? 0)} / ${Math.round(building.barley ?? 0)}</span></li>` : '',
-    caps.malt != null && caps.malt > 0 ? `<li><span>Malt stored</span><span>${Math.round(building.malt ?? 0)} / ${caps.malt}</span></li>` : '',
-    caps.flour != null && caps.flour > 0 ? `<li><span>Flour room</span><span>${Math.round(flourStock(building))} / ${caps.flour}</span></li>
-      <li><span>&nbsp;&nbsp;Rye / maslin</span><span>${Math.round(building.ryeFlour ?? 0)} / ${Math.round(building.maslinFlour ?? 0)}</span></li>` : '',
-    caps.ale != null && caps.ale > 0 ? `<li><span>Ale stored</span><span>${Math.round(building.ale)} / ${caps.ale}</span></li>` : '',
-    caps.cider != null && caps.cider > 0 ? `<li><span>Cider cellar</span><span>${Math.round(building.cider ?? 0)} apple · ${Math.round(building.pearCider ?? 0)} pear / ${caps.cider} each</span></li>` : '',
-    caps.mead != null && caps.mead > 0 ? `<li><span>Mead stored</span><span>${Math.round(building.mead ?? 0)} / ${caps.mead}</span></li>` : '',
-    buildingFoodStorageRows(building, caps.preservedFood ?? 0, true),
-    caps.honey != null && caps.honey > 0 ? `<li><span>Honey stored</span><span>${Math.round(building.honey)} / ${caps.honey}</span></li>` : '',
-    caps.wax != null && caps.wax > 0 ? `<li><span>Beeswax stored</span><span>${Math.round(building.wax ?? 0)} / ${caps.wax}</span></li>` : '',
-    caps.candles != null && caps.candles > 0 ? `<li><span>Candles stored</span><span>${Math.round(building.candles ?? 0)} / ${caps.candles}</span></li>` : '',
-    caps.wine != null && caps.wine > 0 ? `<li><span>Wine stored</span><span>${Math.round(building.wine)} / ${caps.wine}</span></li>` : '',
-    caps.wool != null && caps.wool > 0 ? `<li><span>Wool stored</span><span>${Math.round(building.wool ?? 0)} / ${caps.wool}</span></li>` : '',
-    caps.flax != null && caps.flax > 0 ? `<li><span>Flax fibre stored</span><span>${Math.round(building.flax ?? 0)} / ${caps.flax}</span></li>` : '',
-    caps.yarn != null && caps.yarn > 0 ? `<li><span>Yarn stored</span><span>${Math.round(building.yarn ?? 0)} / ${caps.yarn}</span></li>` : '',
-    caps.linen != null && caps.linen > 0 ? `<li><span>Linen stored</span><span>${Math.round(building.linen ?? 0)} / ${caps.linen}</span></li>` : '',
-    caps.cloth != null && caps.cloth > 0 ? `<li><span>Clothing stored</span><span>${Math.round(building.cloth ?? 0)} / ${caps.cloth}</span></li>` : '',
-    caps.pelts != null && caps.pelts > 0 ? `<li><span>Pelts stored</span><span>${Math.round(building.pelts ?? 0)} / ${caps.pelts}</span></li>` : '',
-    includeFrontierStock && caps.ironwork != null && caps.ironwork > 0 ? `<li><span>Ironwork stored</span><span>${Math.round(building.ironwork ?? 0)} / ${caps.ironwork}</span></li>` : '',
-    includeFrontierStock && caps.polearms != null && caps.polearms > 0 ? `<li><span>Polearms stored</span><span>${Math.round(building.polearms ?? 0)} / ${caps.polearms}</span></li>` : '',
-    caps.iron != null && caps.iron > 0 ? `<li><span>Iron stored</span><span>${Math.round(building.iron ?? 0)} / ${caps.iron}</span></li>` : '',
-    caps.clay != null && caps.clay > 0 ? `<li><span>Clay stored</span><span>${Math.round(building.clay ?? 0)} / ${caps.clay}</span></li>` : '',
-    caps.salt != null && caps.salt > 0 ? `<li><span>Salt stored</span><span>${Math.round(building.salt ?? 0)} / ${caps.salt}</span></li>` : '',
-    caps.charcoal != null && caps.charcoal > 0 ? `<li><span>Charcoal stored</span><span>${Math.round(building.charcoal ?? 0)} / ${caps.charcoal}</span></li>` : '',
-    caps.pottery != null && caps.pottery > 0 ? `<li><span>Pottery stored</span><span>${Math.round(building.pottery ?? 0)} / ${caps.pottery}</span></li>` : '',
-    caps.roofTiles != null && caps.roofTiles > 0 ? `<li><span>Roof tiles stacked</span><span>${Math.round(building.roofTiles ?? 0)} / ${caps.roofTiles}</span></li>` : '',
-  ].filter(Boolean).join('');
-}
-
-function buildingFoodStorageRows(
-  building: BuildingState,
-  capacity: number,
-  preserved: boolean,
-): string {
-  if (capacity <= 0) return '';
-  const total = preserved
-    ? preservedFoodStock(building)
-    : freshFoodStock(building);
-  const kinds = preserved ? PRESERVED_FOOD_KINDS : FRESH_FOOD_KINDS;
-  const rows = [
-    `<li><span>${preserved ? 'Preserved store' : 'Fresh-food store'}</span><span>${Math.round(total)} / ${capacity}</span></li>`,
-  ];
-  for (const kind of kinds) {
-    const amount = Math.max(0, building[kind] ?? 0);
-    if (amount <= 1e-6) continue;
-    const label = kind === 'food'
-      ? 'Legacy mixed food'
-      : kind === 'preservedFood'
-        ? 'Legacy preserved staples'
-        : kind === 'vegetables'
-          ? 'Legacy mixed vegetables'
-          : NAMED_FOOD_LABELS[kind];
-    rows.push(`<li><span>&nbsp;&nbsp;${label}</span><span>${Math.round(amount)}</span></li>`);
-  }
-  return rows.join('');
-}
-
 export function civilianToolRows(
   building: BuildingState,
   worldQueries?: WorldQueries,

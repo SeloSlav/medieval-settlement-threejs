@@ -60,7 +60,7 @@ export const BUILDING_LOCAL_VISUAL_BOUNDS = {
   weaver: { minX: -4.75, maxX: 7.24, minZ: -3.90, maxZ: 4.11 },
   tannery: { minX: -4.37, maxX: 4.20, minZ: -4.33, maxZ: 4.66 },
   cobbler: { minX: -3.46, maxX: 3.46, minZ: -3.37, maxZ: 3.57 },
-  chandlery: { minX: -4.48, maxX: 5.93, minZ: -3.45, maxZ: 4.82 },
+  chandlery: { minX: -4.48, maxX: 5.99, minZ: -3.45, maxZ: 4.82 },
 } as const satisfies Record<BuildingKind, BuildingLocalVisualBounds>;
 
 /**
