@@ -58,6 +58,7 @@ import {
   type LordReport,
   type LordReportTarget,
 } from './lordReports.ts';
+import { HUD_RESOURCE_CARD_PRESENTATION } from './hudResourceCards.ts';
 import type { SettlementAnimalsView } from './settlementAnimals.ts';
 import {
   EMPTY_SETTLEMENT_PEOPLE_VIEW,
@@ -89,10 +90,28 @@ const SETTLEMENT_HUD_HTML = `
       </div>
       <div class="noble-hud__identity">
         <strong data-noble-hud-name></strong>
-        <div class="settlement-hud__stat settlement-hud__stat--gold noble-hud__gold" tabindex="0" data-resource="gold" data-tooltip-title="Gold" data-tooltip="Spendable gold in settlement lockboxes and the Town Hall treasury.">
-          <span class="settlement-hud__label">Treasury</span>
-          <strong class="settlement-hud__value" data-stockpile="gold">0</strong>
-          <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="gold" hidden></span>
+        <div class="settlement-hud__people-card settlement-hud__resource-card noble-hud__gold-card" data-hud-card data-resource-card="gold">
+          <div class="settlement-hud__stat settlement-hud__stat--gold noble-hud__gold" tabindex="0" data-resource="gold" aria-describedby="settlement-gold-card">
+            <span class="settlement-hud__label">Treasury</span>
+            <strong class="settlement-hud__value" data-stockpile="gold">0</strong>
+          </div>
+          <section id="settlement-gold-card" class="settlement-hud__people-panel settlement-hud__resource-panel" aria-label="Treasury ledger" aria-live="off">
+            <header class="settlement-hud__people-header">
+              <strong>Treasury</strong>
+              <span data-resource-card-mode-label="gold">Available surplus</span>
+            </header>
+            <div class="settlement-hud__resource-reading">
+              <strong data-resource-card-amount="gold">0</strong>
+              <span>Gold on hand</span>
+            </div>
+            <div class="settlement-hud__resource-transit" data-resource-card-transit-row="gold" hidden>
+              <span>Movement</span>
+              <strong data-stockpile-transit="gold"></strong>
+            </div>
+            <p class="settlement-hud__resource-detail" data-resource-card-detail="gold">${HUD_RESOURCE_CARD_PRESENTATION.gold.surplusDetail}</p>
+            <p class="settlement-hud__resource-context" data-resource-card-context="gold">Spendable gold across every community lockbox and Town Hall treasury.</p>
+            <p class="settlement-hud__resource-note">Activate to locate physical holdings in the world.</p>
+          </section>
         </div>
       </div>
       <button
@@ -304,9 +323,27 @@ const SETTLEMENT_HUD_HTML = `
           <p class="settlement-hud__people-note">Available laborers remain free for a new assignment or local cart work.</p>
         </section>
       </div>
-      <div class="settlement-hud__stat" tabindex="0" data-resource="population" data-tooltip-title="Residents" data-tooltip="Individual residents across all communities.">
-        <span class="settlement-hud__label">Population</span>
-        <strong class="settlement-hud__value" data-stockpile="population">0</strong>
+      <div class="settlement-hud__people-card settlement-hud__resource-card settlement-hud__resource-card--residents" data-hud-card data-resident-card>
+        <div class="settlement-hud__stat" tabindex="0" data-resource="population" aria-describedby="settlement-residents-card">
+          <span class="settlement-hud__label">Population</span>
+          <strong class="settlement-hud__value" data-stockpile="population">0</strong>
+        </div>
+        <section id="settlement-residents-card" class="settlement-hud__people-panel settlement-hud__residents-panel" aria-label="Resident ledger" aria-live="off">
+          <header class="settlement-hud__people-header">
+            <strong>Residents</strong>
+            <span>Individual population</span>
+          </header>
+          <div class="settlement-hud__people-metrics">
+            <span><strong data-resident-card-total>0</strong>Total</span>
+            <span><strong data-resident-card-housed>0</strong>Housed</span>
+            <span><strong data-resident-card-unhoused>0</strong>Unhoused</span>
+          </div>
+          <dl class="settlement-hud__people-rows">
+            <div data-people-icon="home"><dt>Occupied homes</dt><dd data-resident-card-occupied>0</dd></div>
+            <div data-people-icon="care"><dt>Sick residents</dt><dd data-resident-card-sick>0</dd></div>
+          </dl>
+          <p class="settlement-hud__people-note">Population counts individual residents across every community.</p>
+        </section>
       </div>
       <div class="settlement-hud__people-card settlement-hud__people-card--housing" data-people-card="housing">
         <div class="settlement-hud__stat" tabindex="0" data-resource="housing" aria-label="Living-space ledger awaiting settlement data">
@@ -331,15 +368,37 @@ const SETTLEMENT_HUD_HTML = `
           <p class="settlement-hud__migration-line" data-migration-label>Place the starter camp to found the settlement.</p>
         </section>
       </div>
-      <div class="settlement-hud__stat" tabindex="0" data-resource="timber" data-tooltip-title="Timber" data-tooltip="Unreserved timber in yards, mills, and depots.">
-        <span class="settlement-hud__label">Timber</span>
-        <strong class="settlement-hud__value" data-stockpile="timber">0</strong>
-        <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="timber" hidden></span>
+      <div class="settlement-hud__people-card settlement-hud__resource-card" data-hud-card data-resource-card="timber">
+        <div class="settlement-hud__stat" tabindex="0" data-resource="timber" aria-describedby="settlement-timber-card">
+          <span class="settlement-hud__label">Timber</span>
+          <strong class="settlement-hud__value" data-stockpile="timber">0</strong>
+        </div>
+        <section id="settlement-timber-card" class="settlement-hud__people-panel settlement-hud__resource-panel" aria-label="Timber ledger" aria-live="off">
+          <header class="settlement-hud__people-header">
+            <strong>Timber</strong>
+            <span data-resource-card-mode-label="timber">Available surplus</span>
+          </header>
+          <div class="settlement-hud__resource-reading"><strong data-resource-card-amount="timber">0</strong><span>Timber on hand</span></div>
+          <div class="settlement-hud__resource-transit" data-resource-card-transit-row="timber" hidden><span>Movement</span><strong data-stockpile-transit="timber"></strong></div>
+          <p class="settlement-hud__resource-detail" data-resource-card-detail="timber">${HUD_RESOURCE_CARD_PRESENTATION.timber.surplusDetail}</p>
+          <p class="settlement-hud__resource-note">Activate to locate physical holdings in the world.</p>
+        </section>
       </div>
-      <div class="settlement-hud__stat" tabindex="0" data-resource="stone" data-tooltip-title="Stone" data-tooltip="Unreserved stone in quarry yards and depots.">
-        <span class="settlement-hud__label">Stone</span>
-        <strong class="settlement-hud__value" data-stockpile="stone">0</strong>
-        <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="stone" hidden></span>
+      <div class="settlement-hud__people-card settlement-hud__resource-card" data-hud-card data-resource-card="stone">
+        <div class="settlement-hud__stat" tabindex="0" data-resource="stone" aria-describedby="settlement-stone-card">
+          <span class="settlement-hud__label">Stone</span>
+          <strong class="settlement-hud__value" data-stockpile="stone">0</strong>
+        </div>
+        <section id="settlement-stone-card" class="settlement-hud__people-panel settlement-hud__resource-panel" aria-label="Stone ledger" aria-live="off">
+          <header class="settlement-hud__people-header">
+            <strong>Stone</strong>
+            <span data-resource-card-mode-label="stone">Available surplus</span>
+          </header>
+          <div class="settlement-hud__resource-reading"><strong data-resource-card-amount="stone">0</strong><span>Stone on hand</span></div>
+          <div class="settlement-hud__resource-transit" data-resource-card-transit-row="stone" hidden><span>Movement</span><strong data-stockpile-transit="stone"></strong></div>
+          <p class="settlement-hud__resource-detail" data-resource-card-detail="stone">${HUD_RESOURCE_CARD_PRESENTATION.stone.surplusDetail}</p>
+          <p class="settlement-hud__resource-note">Activate to locate physical holdings in the world.</p>
+        </section>
       </div>
       <details class="settlement-hud__food-stores settlement-hud__fuel-stores" data-fuel-stores>
         <summary class="settlement-hud__stat settlement-hud__stat--fuel" tabindex="0" data-resource="firewood">
@@ -375,10 +434,21 @@ const SETTLEMENT_HUD_HTML = `
           </div>
         </div>
       </details>
-      <div class="settlement-hud__stat settlement-hud__stat--water" tabindex="0" data-resource="water" data-tooltip-title="Water" data-tooltip="Water in wells, workplaces, and homes.">
-        <span class="settlement-hud__label">Water</span>
-        <strong class="settlement-hud__value" data-stockpile="water">0</strong>
-        <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="water" hidden></span>
+      <div class="settlement-hud__people-card settlement-hud__resource-card settlement-hud__resource-card--right" data-hud-card data-resource-card="water">
+        <div class="settlement-hud__stat settlement-hud__stat--water" tabindex="0" data-resource="water" aria-describedby="settlement-water-card">
+          <span class="settlement-hud__label">Water</span>
+          <strong class="settlement-hud__value" data-stockpile="water">0</strong>
+        </div>
+        <section id="settlement-water-card" class="settlement-hud__people-panel settlement-hud__resource-panel" aria-label="Water ledger" aria-live="off">
+          <header class="settlement-hud__people-header">
+            <strong>Water</strong>
+            <span data-resource-card-mode-label="water">Available surplus</span>
+          </header>
+          <div class="settlement-hud__resource-reading"><strong data-resource-card-amount="water">0</strong><span>Water on hand</span></div>
+          <div class="settlement-hud__resource-transit" data-resource-card-transit-row="water" hidden><span>Movement</span><strong data-stockpile-transit="water"></strong></div>
+          <p class="settlement-hud__resource-detail" data-resource-card-detail="water">${HUD_RESOURCE_CARD_PRESENTATION.water.surplusDetail}</p>
+          <p class="settlement-hud__resource-note">Activate to locate physical holdings in the world.</p>
+        </section>
       </div>
       <details class="settlement-hud__food-stores" data-food-stores>
         <summary class="settlement-hud__stat settlement-hud__stat--food" tabindex="0" data-resource="food">
