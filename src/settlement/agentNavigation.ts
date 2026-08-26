@@ -29,6 +29,11 @@ type SearchNode = GridPoint & {
 };
 
 export type AgentObstacleTest = (x: number, z: number) => boolean;
+export type AgentFootprintObstacleTest = (
+  x: number,
+  z: number,
+  radius: number,
+) => boolean;
 
 /**
  * Conservative footprint probe for non-solid navigation hazards such as water.
@@ -52,6 +57,23 @@ export function agentDiskTouchesSurface(
     || isSurfaceAt(x + diagonal, z - diagonal)
     || isSurfaceAt(x - diagonal, z + diagonal)
     || isSurfaceAt(x - diagonal, z - diagonal);
+}
+
+/**
+ * Builds the water portion of civilian navigation collision.
+ *
+ * Water is queried first because almost every A* probe is on dry land. The
+ * more involved road-surface lookup is therefore reserved for wet probes,
+ * where it decides whether a generated bridge deck provides safe passage.
+ */
+export function createAgentWaterObstacleTest(
+  isWaterAt: AgentObstacleTest,
+  isRoadSurfaceAt: AgentObstacleTest,
+): AgentFootprintObstacleTest {
+  return (x, z, radius) => {
+    if (!agentDiskTouchesSurface(x, z, radius, isWaterAt)) return false;
+    return !isRoadSurfaceAt(x, z);
+  };
 }
 
 /**

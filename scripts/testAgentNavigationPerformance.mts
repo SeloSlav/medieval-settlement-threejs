@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { routeAgentPolyline } from '../src/settlement/agentNavigation.ts';
+import {
+  createAgentWaterObstacleTest,
+  routeAgentPolyline,
+} from '../src/settlement/agentNavigation.ts';
 
 const path = [{ x: -20, z: 0 }, { x: 20, z: 0 }];
 const isBlocked = (x: number, z: number): boolean => (
@@ -24,6 +27,41 @@ assert.deepEqual(
   routeAgentPolyline(path, () => false),
   path,
   'clear routes must preserve their exact endpoints',
+);
+
+let roadSurfaceLookups = 0;
+const isBlockedByWater = createAgentWaterObstacleTest(
+  (_x, z) => Math.abs(z) <= 1,
+  () => {
+    roadSurfaceLookups += 1;
+    return false;
+  },
+);
+assert.equal(
+  isBlockedByWater(0, 0, 0.35),
+  true,
+  'open water must remain blocked',
+);
+assert.equal(roadSurfaceLookups, 1, 'wet probes must test for a bridge surface');
+assert.equal(
+  createAgentWaterObstacleTest(
+    (_x, z) => Math.abs(z) <= 1,
+    () => true,
+  )(0, 0, 0.35),
+  false,
+  'a bridge road surface must remain open through water',
+);
+roadSurfaceLookups = 0;
+for (let index = 0; index < 500; index += 1) {
+  routeAgentPolyline(
+    [{ x: -20, z: 20 }, { x: 20, z: 20 }],
+    (x, z) => isBlockedByWater(x, z, 0.35),
+  );
+}
+assert.equal(
+  roadSurfaceLookups,
+  0,
+  'dry A* probes must never pay for a road-surface lookup',
 );
 
 // This deterministic corpus was cross-checked against the pre-pooling HEAD

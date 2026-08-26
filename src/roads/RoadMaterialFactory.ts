@@ -7,6 +7,7 @@ import {
   initializeBuildingMaterialAtlas,
   type BuildingMaterialAtlasTextureSet,
 } from '../buildings/buildingMaterialAtlas.ts';
+import { timberMaterial } from '../buildings/buildingMaterials.ts';
 import {
   createRoadCoreMaterial,
   createRoadEdgeMaterial,
@@ -23,6 +24,8 @@ import type { MeshStandardNodeMaterial } from 'three/webgpu';
 export class RoadMaterialFactory {
   readonly road!: MeshStandardNodeMaterial;
   readonly bridgeRoad!: MeshStandardNodeMaterial;
+  /** Shared timberMid atlas material used by ordinary building doors/posts. */
+  readonly bridgeRailing!: THREE.Material;
   readonly roadEdge!: MeshStandardNodeMaterial;
   readonly riverBank!: MeshStandardNodeMaterial;
   readonly terrain!: MeshStandardNodeMaterial;
@@ -162,6 +165,7 @@ export class RoadMaterialFactory {
       this.snap,
     ];
     materials.forEach((material) => material.dispose());
+    // bridgeRailing is owned by the shared building-material library.
     this.rainTerrainTexture?.dispose();
     this.rainTerrainTexture = null;
     if (this.roadTextures) this.disposeTextureSet(this.roadTextures);
@@ -188,6 +192,7 @@ export class RoadMaterialFactory {
   private createMaterials(): {
     road: MeshStandardNodeMaterial;
     bridgeRoad: MeshStandardNodeMaterial;
+    bridgeRailing: THREE.Material;
     roadEdge: MeshStandardNodeMaterial;
     riverBank: MeshStandardNodeMaterial;
     terrain: MeshStandardNodeMaterial;
@@ -211,6 +216,7 @@ export class RoadMaterialFactory {
       this.roadWeatherUniforms,
       this.bridgeDeckAtlasTextures,
     );
+    const bridgeRailing = timberMaterial('mid');
     const roadEdge = createRoadEdgeMaterial(this.roadTextures, this.roadWeatherUniforms, true);
     const riverBank = createRiverBankMaterial(this.roadTextures);
     const terrain = createTerrainGrassMaterial(
@@ -242,7 +248,16 @@ export class RoadMaterialFactory {
       bridgeSupport.normalMap = this.bridgeTextures.normal;
       bridgeSupport.normalScale.set(0.45, 0.45);
     }
-    return { road, bridgeRoad, roadEdge, riverBank, terrain, rainTerrain, bridgeSupport };
+    return {
+      road,
+      bridgeRoad,
+      bridgeRailing,
+      roadEdge,
+      riverBank,
+      terrain,
+      rainTerrain,
+      bridgeSupport,
+    };
   }
 
   private disposeTextureSet(set: TextureSet): void {

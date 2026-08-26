@@ -174,7 +174,7 @@ export class RoadMeshBuilder {
           rightDeck: section.rightCore,
           bridgeBlend: section.bridgeBlend,
         })),
-        this.materials.bridgeSupport,
+        this.materials.bridgeRailing,
         {
           // Run collection decides whether a railing actually reaches either
           // endpoint. Always provide the shared-junction clearance so a run

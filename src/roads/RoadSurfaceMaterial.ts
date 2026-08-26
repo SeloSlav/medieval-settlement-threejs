@@ -9,6 +9,7 @@ import {
   pow,
   sin,
   smoothstep,
+  step,
   sub,
   texture,
   uniform,
@@ -22,6 +23,7 @@ import { applyPainterlyVegetationMaterial } from '../vegetation/painterly/painte
 
 type TslNode = {
   add(value: TslNode): TslNode;
+  clamp(minimum?: TslNode, maximum?: TslNode): TslNode;
   mul(value: TslNode): TslNode;
   r: TslNode;
   g: TslNode;
@@ -48,10 +50,14 @@ const BUILDING_ATLAS_GUTTER = 32;
 const BUILDING_ATLAS_CONTENT_SIZE = 448;
 const BUILDING_ATLAS_WIDTH = BUILDING_ATLAS_COLUMNS * BUILDING_ATLAS_CELL_SIZE;
 const BUILDING_ATLAS_HEIGHT = BUILDING_ATLAS_ROWS * BUILDING_ATLAS_CELL_SIZE;
-/** Tile 5 in the packed manifest: sawn oak planks, row 1 from the top. */
-export const BRIDGE_DECK_ATLAS_TILE_ID = 'sawn-planks';
-const BRIDGE_DECK_ATLAS_COLUMN = 0;
-const BRIDGE_DECK_ATLAS_TEXTURE_ROW = 2;
+/** Matches the timberMid material used by the standard building doors and posts. */
+export const BRIDGE_DECK_ATLAS_TILE_ID = 'rough-hewn-timber';
+const BRIDGE_DECK_ATLAS_COLUMN = 4;
+const BRIDGE_DECK_ATLAS_TEXTURE_ROW = 3;
+const BRIDGE_TIMBER_TINT: [number, number, number] = [0.402, 0.238, 0.145];
+const BRIDGE_TIMBER_TINT_STRENGTH = 0.2;
+const BRIDGE_TIMBER_NORMAL_STRENGTH = 0.58;
+const BRIDGE_SURFACE_CUT_THRESHOLD = 0.018;
 
 export type RoadWeatherUniforms = {
   wetness: TslScalarUniform;
@@ -121,17 +127,10 @@ function buildBridgeDeckColorNode(
   atlasUv: TslNode,
 ): TslNode {
   const sample = texture(textures.albedo, atlasUv) as TslNode;
-  const timber = greyCoolRoadColor(sample, 0.12, [1.04, 0.99, 0.93]);
-  const world = positionWorld as TslNode;
-  const broadVariation = (sin(
-    world.x
-      .mul(float(0.037) as TslNode)
-      .add(world.z.mul(float(0.051) as TslNode)) as TslNode,
-  ) as TslNode).mul(float(0.5) as TslNode).add(float(0.5) as TslNode);
-  return timber.mul(mix(
-    vec3(0.92, 0.9, 0.86) as TslNode,
-    vec3(1.04, 1.02, 0.98) as TslNode,
-    broadVariation,
+  return sample.rgb.mul(mix(
+    vec3(1, 1, 1) as TslNode,
+    vec3(...BRIDGE_TIMBER_TINT) as TslNode,
+    float(BRIDGE_TIMBER_TINT_STRENGTH) as TslNode,
   ) as TslNode);
 }
 
@@ -255,16 +254,21 @@ export function createRoadCoreMaterial(
   if (bridgeTextures) {
     const bridgeAtlasUv = buildBridgeDeckAtlasUv();
     const woodColor = buildBridgeDeckColorNode(bridgeTextures, bridgeAtlasUv);
-    const bridgeBlend = pow(attribute('bridgeBlend', 'float') as TslNode, float(0.92) as TslNode) as TslNode;
-    const surfaceColor = mix(dirtColor, woodColor, bridgeBlend) as TslNode;
+    // The deck is assembled timber, so it starts at a crisp plank edge rather
+    // than dissolving into the dirt road across the approach ramp.
+    const bridgeMask = step(
+      float(BRIDGE_SURFACE_CUT_THRESHOLD) as TslNode,
+      attribute('bridgeBlend', 'float') as TslNode,
+    ) as TslNode;
+    const surfaceColor = mix(dirtColor, woodColor, bridgeMask) as TslNode;
     material.colorNode = applyRoadWeatherColor(surfaceColor, weather);
 
     const dirtNormal = normalMap(texture(dirtTextures.normal, uv()));
     const woodNormal = normalMap(
       texture(bridgeTextures.normal, bridgeAtlasUv),
-      vec2(0.56, 0.56),
+      vec2(BRIDGE_TIMBER_NORMAL_STRENGTH, BRIDGE_TIMBER_NORMAL_STRENGTH),
     );
-    material.normalNode = mix(dirtNormal, woodNormal, bridgeBlend);
+    material.normalNode = mix(dirtNormal, woodNormal, bridgeMask);
 
     const dirtRoughBase = (texture(dirtTextures.roughness, uv() as TslNode) as TslNode).r;
     const dirtRough = mix(
@@ -273,17 +277,31 @@ export function createRoadCoreMaterial(
       rutMask.mul(float(0.46) as TslNode),
     ) as TslNode;
     const packedWood = texture(bridgeTextures.material, bridgeAtlasUv) as TslNode;
-    const woodRough = packedWood.r;
+    const woodRough = mix(
+      float(0.9) as TslNode,
+      packedWood.r,
+      float(0.82) as TslNode,
+    ).clamp(float(0.2) as TslNode, float(1) as TslNode) as TslNode;
     const surfaceRoughness = mix(
       dirtRough,
-      woodRough.mul(float(0.94) as TslNode),
-      bridgeBlend,
+      woodRough,
+      bridgeMask,
     ) as TslNode;
     material.roughnessNode = applyRoadWeatherRoughness(surfaceRoughness, weather);
     const dirtAo = dirtTextures.ao
       ? (texture(dirtTextures.ao, uv() as TslNode) as TslNode).r
       : float(1) as TslNode;
-    material.aoNode = mix(dirtAo, packedWood.b, bridgeBlend);
+    const woodAo = mix(
+      float(1) as TslNode,
+      packedWood.b,
+      float(0.56) as TslNode,
+    ) as TslNode;
+    material.aoNode = mix(dirtAo, woodAo, bridgeMask);
+    material.metalnessNode = mix(
+      float(0) as TslNode,
+      packedWood.g.mul(float(0.9) as TslNode),
+      bridgeMask,
+    );
     material.userData.bridgeSurfaceAtlas = 'gorski-building-atlas-v1';
     material.userData.bridgeSurfaceAtlasTile = BRIDGE_DECK_ATLAS_TILE_ID;
   } else {
@@ -326,7 +344,11 @@ export function createRoadEdgeMaterial(
   let opacity = buildBankOpacityNode(textures);
   if (fadeBridgeEdges) {
     const bridgeBlendAttr = attribute('bridgeBlend', 'float') as TslNode;
-    const edgeKeep = sub(float(1) as TslNode, bridgeBlendAttr) as TslNode;
+    const bridgeMask = step(
+      float(BRIDGE_SURFACE_CUT_THRESHOLD) as TslNode,
+      bridgeBlendAttr,
+    ) as TslNode;
+    const edgeKeep = sub(float(1) as TslNode, bridgeMask) as TslNode;
     opacity = opacity.mul(edgeKeep) as TslNode;
   }
   material.opacityNode = opacity;

@@ -102,7 +102,7 @@ export class RoadJunctionBuilder {
         );
         const railings = buildBridgeJunctionRailings(
           railingPaths,
-          this.materials.bridgeSupport,
+          this.materials.bridgeRailing,
         );
         if (railings) {
           railings.userData.nodeId = node.id;

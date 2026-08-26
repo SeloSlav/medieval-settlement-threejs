@@ -72,7 +72,7 @@ import { syncPlacedBuildingTerrain } from './placedBuildingTerrainSync.ts';
 import { createWorldMapUi, resolveWorldMapFocus, type WorldMapUiBundle } from './worldMapIcons.ts';
 import { buildBuildingWorldMapMarkers } from '../map/worldMapMarkers.ts';
 import type { DeliveryAgentRenderer } from '../logistics/DeliveryAgentRenderer.ts';
-import { agentDiskTouchesSurface } from '../settlement/agentNavigation.ts';
+import { createAgentWaterObstacleTest } from '../settlement/agentNavigation.ts';
 import type { FireEffectsRenderer } from '../fires/FireEffectsRenderer.ts';
 import type { VillagerRenderer } from '../settlement/VillagerRenderer.ts';
 import { beginProgressiveStartupTextureLoad } from '../scene/startupTextures.ts';
@@ -256,6 +256,10 @@ export async function bootstrapAppSession(
   roadNetwork.setRiverNavigation(
     encodeCombatRiverNavigation(sceneManager.riverField),
   );
+  const isAgentNavigationBlockedByWater = createAgentWaterObstacleTest(
+    (x, z) => sceneManager.riverField.isRenderedWetAt(x, z),
+    (x, z) => isOnRoadSurface(x, z, roadNetwork),
+  );
   const firstPersonCollisionWorld = new FpCollisionWorld({
     getStaticRoots: () => sceneManager.getFirstPersonCollisionRoots(),
     getHeightAt: (x, z) => sceneManager.terrain.getHeightAt(x, z),
@@ -268,17 +272,9 @@ export async function bootstrapAppSession(
     getTreeActivityVersion: () => sceneManager.getForestCollisionVersion(),
     isTreeLayoutActive: (layoutIndex) =>
       sceneManager.getForestManager()?.isTreeLayoutActiveForCollision(layoutIndex) ?? false,
-    isAgentNavigationBlocked: (x, z, radius) => {
-      // Rendered water remains impassable to civilian agents. A road surface
-      // over the same XZ is the generated bridge deck and is the sole opening.
-      if (sceneManager.sampleRoadDeckY(x, z) != null) return false;
-      return agentDiskTouchesSurface(
-        x,
-        z,
-        radius,
-        (probeX, probeZ) => sceneManager.riverField.isRenderedWetAt(probeX, probeZ),
-      );
-    },
+    // Rendered water remains impassable to civilian agents. A road surface
+    // over the same XZ is the generated bridge deck and is the sole opening.
+    isAgentNavigationBlocked: isAgentNavigationBlockedByWater,
   });
 
   const requireSessionReady = (): void => {
