@@ -82,7 +82,6 @@ import {
 import { residenceSettlementReadiness } from '../../economy/residenceSettlement.ts';
 import {
   evaluateResidenceUpgrade,
-  residenceBackyardProject,
   residenceFireRepairProject,
   residenceRoofTileProject,
   residenceUpgradeProject,
@@ -92,7 +91,6 @@ import {
   type ResidenceUpgradeProject,
   type ResidenceUpgradeServiceKind,
 } from '../../economy/residenceUpgrade.ts';
-import { backyardGardenLabel } from '../../residences/backyardGarden.ts';
 import {
   CONSTRUCTION_PRIORITIES,
   constructionPriorityLabel,
@@ -297,10 +295,7 @@ export function renderResidenceInspector(
     residence,
     context.gameState.deliveryTrips.values(),
   );
-  const backyardProject = residenceBackyardProject(
-    residence,
-    context.gameState.deliveryTrips.values(),
-  );
+  const backyardProjectActive = (residence.backyardProjectKind ?? 0) !== 0;
   const fireRepairProject = residenceFireRepairProject(
     residence,
     context.gameState.deliveryTrips.values(),
@@ -319,7 +314,7 @@ export function renderResidenceInspector(
   const structuralRepairProject = fireRepairProject;
   const initialConstruction = residence.tier === 0 && upgradeProject?.targetTier === 1;
   const upgradePlan = upgradeProject
-    || backyardProject
+    || backyardProjectActive
     || structuralRepairProject
     || roofTileProject
     ? null
@@ -748,8 +743,7 @@ export function renderResidenceInspector(
       ];
   const activeMaterialProject = roofTileProject
     ?? structuralRepairProject
-    ?? upgradeProject
-    ?? backyardProject;
+    ?? upgradeProject;
   const worksiteTokens: InspectorResourceTokenOptions[] = activeMaterialProject
     ? (['timber', 'stone', 'gold', 'roofTiles'] as const).flatMap((kind) => {
         const required = activeMaterialProject.required[kind];
@@ -772,9 +766,7 @@ export function renderResidenceInspector(
       ? `Tier ${residence.tier} homestead`
       : upgradeProject
         ? `Tier ${upgradeProject.targetTier}`
-        : backyardProject
-          ? backyardGardenLabel(backyardProject.kind)
-          : '';
+        : '';
   const residenceSummaryHtml = activeMaterialProject
     ? `
       <li data-residence-summary data-inspector-primary><span>Progress</span><span>${Math.round(activeMaterialProject.progress * 100)}%</span></li>
@@ -839,8 +831,8 @@ export function renderResidenceInspector(
         ? residenceFireRepairProjectRows(fireRepairProject, residence.tier)
         : upgradeProject
         ? residenceUpgradeProjectRows(upgradeProject, initialConstruction)
-        : backyardProject
-          ? `<li><span>Household works</span><span>${backyardGardenLabel(backyardProject.kind)} · ${Math.round(backyardProject.progress * 100)}% complete · shares the construction queue</span></li>`
+        : backyardProjectActive
+          ? '<li><span>Backyard extension</span><span>Worksite active · inspect the backyard parcel for construction progress</span></li>'
         : upgradePlan
           ? residenceUpgradeRows(upgradePlan, context.worldQueries.getBuildingLabel.bind(context.worldQueries))
           : ''}
@@ -922,7 +914,7 @@ export function renderResidenceInspector(
       ? residenceFireRepairProjectPanel(fireRepairProject)
       : upgradeProject
       ? residenceUpgradeProjectPanel(upgradeProject, initialConstruction)
-      : backyardProject
+      : backyardProjectActive
         ? ''
       : upgradePlan
         ? residenceUpgradePanel(upgradePlan, prosperityPlan, tierThreeProjection)

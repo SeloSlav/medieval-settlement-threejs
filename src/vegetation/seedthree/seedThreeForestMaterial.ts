@@ -13,6 +13,10 @@ import {
   uniform,
   vec3,
 } from 'three/tsl';
+import {
+  createSeedThreeForestBarkWindPosition,
+  createSeedThreeTreeCardWindPosition,
+} from './seedThreeFoliageWind.ts';
 
 /** Forest foliage is diffuse/transmissive; a sun-driven glossy lobe reads as shimmer. */
 export const SEEDTHREE_FOREST_CARD_SPECULAR_INTENSITY = 0;
@@ -40,6 +44,12 @@ export function resolveSeedThreeForestCardMotion(
 type SeedThreePositionNodeMaterial = THREE.Material & {
   positionNode?: unknown;
 };
+
+const seedThreeForestBarkPositionNode = createSeedThreeForestBarkWindPosition();
+const seedThreeForestCardPositionNodes = {
+  full: createSeedThreeTreeCardWindPosition(true),
+  sway: createSeedThreeTreeCardWindPosition(false),
+} as const;
 
 type TslNode = {
   add(value: unknown): TslNode;
@@ -262,18 +272,31 @@ export function setSeedThreeOverviewBillboardFadeOpacity(opacity: number): void 
 export function applySeedThreeForestCardMotion(
   material: THREE.Material,
   motion: SeedThreeForestCardMotion,
-  sourceMaterial?: THREE.Material,
+  _sourceMaterial?: THREE.Material,
 ): THREE.Material {
-  if (motion === 'full') return material;
   const target = material as SeedThreePositionNodeMaterial;
   const nextPositionNode = motion === 'static'
     ? null
-    : (sourceMaterial as SeedThreePositionNodeMaterial | undefined)?.positionNode ?? null;
+    : seedThreeForestCardPositionNodes[motion];
   if (target.positionNode !== nextPositionNode) {
     target.positionNode = nextPositionNode;
     material.needsUpdate = true;
   }
   material.userData.seedThreeForestCardMotion = motion;
+  material.userData.seedThreeWindClock = 'world-animation';
+  return material;
+}
+
+/** Replace SeedThree's wall-clock forest branch node with the shared world clock. */
+export function applySeedThreeForestBarkMotion(
+  material: THREE.Material,
+): THREE.Material {
+  const target = material as SeedThreePositionNodeMaterial;
+  if (target.positionNode !== seedThreeForestBarkPositionNode) {
+    target.positionNode = seedThreeForestBarkPositionNode;
+    material.needsUpdate = true;
+  }
+  material.userData.seedThreeWindClock = 'world-animation';
   return material;
 }
 

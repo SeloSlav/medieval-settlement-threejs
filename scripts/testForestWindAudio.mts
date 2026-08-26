@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFile, stat } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import {
+  ForestWindAudio,
   FOREST_WIND_CLIP_VOLUME,
   FOREST_WIND_FADE_IN_SECONDS,
   FOREST_WIND_FADE_OUT_SECONDS,
@@ -86,5 +87,55 @@ assert.equal(
   '0.35',
   'sound effects volume must persist independently from ambience',
 );
+
+class FakeAudio {
+  static readonly instances: FakeAudio[] = [];
+  readonly src: string;
+  loop = false;
+  preload = '';
+  volume = 0;
+  currentTime = 0;
+  paused = true;
+  pauseCalls = 0;
+
+  constructor(src: string) {
+    this.src = src;
+    FakeAudio.instances.push(this);
+  }
+
+  addEventListener(): void {}
+
+  play(): Promise<void> {
+    this.paused = false;
+    return Promise.resolve();
+  }
+
+  pause(): void {
+    this.pauseCalls += 1;
+    this.paused = true;
+  }
+}
+
+Object.defineProperty(globalThis, 'Audio', {
+  configurable: true,
+  value: FakeAudio,
+});
+const forestWind = new ForestWindAudio();
+forestWind.setTargetMix(1);
+const playingWind = FakeAudio.instances[0]!;
+playingWind.paused = false;
+playingWind.currentTime = 12.5;
+forestWind.setPaused(true);
+assert.equal(playingWind.paused, true, 'pausing the world must silence active forest wind immediately');
+assert.equal(playingWind.pauseCalls, 1, 'world pause must issue exactly one audio pause transition');
+assert.equal(
+  playingWind.currentTime,
+  12.5,
+  'world pause must retain the loop position so resume does not restart the wind bed',
+);
+forestWind.tick(10);
+assert.equal(playingWind.pauseCalls, 1, 'paused ticks must not restart or repeatedly pause forest wind');
+forestWind.setPaused(false);
+forestWind.dispose();
 
 console.log('test:forest-wind-audio passed');

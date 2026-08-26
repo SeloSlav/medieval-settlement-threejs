@@ -316,6 +316,10 @@ export class AmbientAudioController {
     this.forestWind.setEnabled(this.enabled && enabled);
   }
 
+  setWorldPaused(paused: boolean): void {
+    this.forestWind.setPaused(paused);
+  }
+
   setMusicVolume(volume: number): void {
     this.soundtrack.setVolume(volume);
   }

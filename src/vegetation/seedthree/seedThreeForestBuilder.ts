@@ -78,6 +78,7 @@ import {
 } from './seedThreeForestCompaction.ts';
 import {
   applySeedThreeBarkSnow,
+  applySeedThreeForestBarkMotion,
   applySeedThreeForestCardMotion,
   applySeedThreeOverviewBillboardFade,
   applySeedThreeWholeCardDormancy,
@@ -316,7 +317,9 @@ function createInstancedLodSet(
       geo.setAttribute('aWindVec', new THREE.InstancedBufferAttribute(new Float32Array(groupCount * 3), 3));
       geo.setAttribute('aAnchorPos', new THREE.InstancedBufferAttribute(new Float32Array(groupCount * 3), 3));
       const sourceMaterial = applySeedThreeBarkSnow(
-        forestBarkMaterial(mesh.material as THREE.Material),
+        applySeedThreeForestBarkMotion(
+          forestBarkMaterial(mesh.material as THREE.Material),
+        ),
       );
       applyPainterlyVegetationMaterial(sourceMaterial, 'bark');
       const material = options.overviewCards === true

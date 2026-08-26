@@ -11,7 +11,6 @@ import {
   gamePatchSpawnRadius,
 } from './foragingYields.ts';
 import type { ForagingNodeState } from '../resources/types.ts';
-import { TREE_SHADOW_CAST_LAYER } from '../scene/SceneLayers.ts';
 import { AGENT_ANIMAL_RENDER_MAX_ORBIT_DISTANCE } from '../settlement/crowdView.ts';
 import {
   beginDeerMigration,
@@ -40,31 +39,12 @@ type DeerVisual = {
   sex: DeerSex;
   sexIndex: number;
   root: THREE.Group;
-  skeleton: THREE.Skeleton;
   mixer: THREE.AnimationMixer;
   actions: DeerAnimationSet;
   activeMode: DeerBehaviorMode;
   motion: DeerMotionState;
   migrationOffsetX: number;
   migrationOffsetZ: number;
-};
-
-type DeerCasterLayer = {
-  mesh: THREE.SkinnedMesh;
-  geometry: THREE.BufferGeometry;
-  sourceDrawCount: number;
-};
-
-type DeerCasterShard = {
-  capacity: number;
-  skeleton: THREE.Skeleton;
-  layers: DeerCasterLayer[];
-};
-
-type AnimatedDeerCasterBatches = {
-  group: THREE.Group;
-  refreshVisibility: () => void;
-  dispose: () => void;
 };
 
 type DeerModelSource = {
@@ -85,7 +65,7 @@ export type DeerWildlifeVisuals = {
     firstPersonObserver: DeerObserver | null,
     cameraDistance: number,
     loggingSources?: readonly GameHabitatDisturbanceSource[],
-  ) => boolean;
+  ) => void;
   sync: (nodes: Iterable<ForagingNodeState>) => void;
   dispose: () => void;
 };
@@ -102,13 +82,6 @@ const STAG_MODEL_URL = '/assets/models/deer/quaternius-stag.glb';
 const DOE_TARGET_HEIGHT = 1.7;
 const STAG_TARGET_HEIGHT = 2;
 const TAU = Math.PI * 2;
-/**
- * Eight complete live rigs stay well below WebGPU's minimum 64 KiB uniform
- * binding limit, including the larger 46-bone doe skeleton (23,552 bytes).
- */
-export const DEER_CASTER_RIGS_PER_SHARD = 8;
-export const MAX_DEER_CASTER_SKELETON_BYTES = 32_768;
-
 /**
  * Adds a small animated herd to each authoritative game-resource site. The static
  * map marker remains owned by ForagingMapIcons; this is only its close-world form.
@@ -147,7 +120,7 @@ export async function createDeerWildlifeVisuals(
       deerCount: 0,
       doeCount: 0,
       stagCount: 0,
-      update: () => false,
+      update: () => undefined,
       sync: () => undefined,
       dispose: () => undefined,
     };
@@ -185,7 +158,6 @@ export async function createDeerWildlifeVisuals(
       model.scale.setScalar(modelScale);
       model.position.y = -source.bounds.min.y * modelScale + 0.025;
       configureModelMeshes(model);
-      const skeleton = requireSharedModelSkeleton(model, sex);
 
       const root = new THREE.Group();
       root.name = sex === 'stag' ? 'Rigged roaming stag' : 'Rigged roaming doe';
@@ -230,7 +202,6 @@ export async function createDeerWildlifeVisuals(
         sex,
         sexIndex,
         root,
-        skeleton,
         mixer,
         actions,
         activeMode: initialMode,
@@ -243,24 +214,15 @@ export async function createDeerWildlifeVisuals(
     }
   }
   group.userData.herdComposition = { doeCount, stagCount };
-  const casterBatches = createAnimatedDeerCasterBatches(
-    group,
-    deer,
-    modelSources,
-  );
-  let pendingShadowCastersChanged = true;
 
   const update = (
     dtSeconds: number,
     firstPersonObserver: DeerObserver | null,
     cameraDistance: number,
     loggingSources: readonly GameHabitatDisturbanceSource[] = [],
-  ): boolean => {
+  ): void => {
     const shouldShow = firstPersonObserver !== null
       || cameraDistance <= AGENT_ANIMAL_RENDER_MAX_ORBIT_DISTANCE;
-    let shadowCastersChanged = pendingShadowCastersChanged
-      || group.visible !== shouldShow;
-    pendingShadowCastersChanged = false;
     group.visible = shouldShow;
     if (!shouldShow) {
       for (const visual of deer) {
@@ -270,7 +232,7 @@ export async function createDeerWildlifeVisuals(
         }
         syncDeerVisualTransform(visual, terrain);
       }
-      return shadowCastersChanged;
+      return;
     }
 
     for (const sources of loggingSourcesByHabitat.values()) sources.length = 0;
@@ -289,7 +251,6 @@ export async function createDeerWildlifeVisuals(
     }
 
     for (const visual of deer) {
-      if (visual.root.visible && dtSeconds > 0) shadowCastersChanged = true;
       updateDeerMotion(visual.motion, dtSeconds, {
         observer: firstPersonObserver,
         forcedThreats: loggingSourcesByHabitat.get(visual.nodeId) ?? [],
@@ -303,7 +264,6 @@ export async function createDeerWildlifeVisuals(
         visual.mixer.update(Math.min(Math.max(dtSeconds, 0), 0.1));
       }
     }
-    return shadowCastersChanged;
   };
 
   const sync = (nodes: Iterable<ForagingNodeState>): void => {
@@ -317,7 +277,6 @@ export async function createDeerWildlifeVisuals(
       const visible = visual.sex === 'stag'
         ? visual.sexIndex < visibleSexCounts.stagCount
         : visual.sexIndex < visibleSexCounts.doeCount;
-      if (visual.root.visible !== visible) pendingShadowCastersChanged = true;
       visual.root.visible = visible;
     }
 
@@ -331,7 +290,6 @@ export async function createDeerWildlifeVisuals(
       authoritativeSyncedNodeIds.add(nodeId);
       if (!moved) continue;
 
-      pendingShadowCastersChanged = true;
       for (const visual of deer) {
         if (visual.nodeId !== nodeId) continue;
         if (firstAuthoritativeSync) {
@@ -361,7 +319,6 @@ export async function createDeerWildlifeVisuals(
         z: node?.z ?? site.z,
       };
     });
-    casterBatches.refreshVisibility();
   };
 
   return {
@@ -376,7 +333,6 @@ export async function createDeerWildlifeVisuals(
         visual.mixer.stopAllAction();
         visual.mixer.uncacheRoot(visual.root.children[0]);
       }
-      casterBatches.dispose();
       group.clear();
       disposeModelResources(doeSource.scene);
       disposeModelResources(stagSource.scene);
@@ -526,371 +482,10 @@ function configureModelMeshes(model: THREE.Object3D): void {
   model.traverse((child) => {
     const mesh = child as THREE.SkinnedMesh;
     if (!mesh.isSkinnedMesh) return;
-    mesh.castShadow = true;
-    mesh.receiveShadow = true;
+    mesh.castShadow = false;
+    mesh.receiveShadow = false;
     mesh.frustumCulled = false;
   });
-}
-
-function requireSharedModelSkeleton(
-  model: THREE.Object3D,
-  sex: DeerSex,
-): THREE.Skeleton {
-  let skeleton: THREE.Skeleton | null = null;
-  model.traverse((child) => {
-    const mesh = child as THREE.SkinnedMesh;
-    if (!mesh.isSkinnedMesh) return;
-    if (skeleton === null) skeleton = mesh.skeleton;
-    else if (!skeletonsUseSharedRig(mesh.skeleton, skeleton)) {
-      throw new Error(`The ${sex} deer layers must share one exact rig.`);
-    }
-  });
-  if (skeleton === null) throw new Error(`The ${sex} deer model has no skinned mesh.`);
-  return skeleton;
-}
-
-/**
- * SkeletonUtils.clone creates one Skeleton wrapper per skinned material layer,
- * even though those wrappers reference the same cloned bones and bind pose.
- * The shadow batch only requires that exact shared rig, not wrapper identity.
- */
-export function skeletonsUseSharedRig(
-  left: THREE.Skeleton,
-  right: THREE.Skeleton,
-): boolean {
-  if (
-    left.bones.length !== right.bones.length
-    || left.boneInverses.length !== right.boneInverses.length
-  ) {
-    return false;
-  }
-  for (let index = 0; index < left.bones.length; index += 1) {
-    if (
-      left.bones[index] !== right.bones[index]
-      || !left.boneInverses[index]!.equals(right.boneInverses[index]!)
-    ) {
-      return false;
-    }
-  }
-  return true;
-}
-
-function createAnimatedDeerCasterBatches(
-  parent: THREE.Group,
-  deer: readonly DeerVisual[],
-  sources: Readonly<Record<DeerSex, DeerModelSource>>,
-): AnimatedDeerCasterBatches {
-  const group = new THREE.Group();
-  group.name = 'Animated deer exact caster batches';
-  group.userData.animatedDeerCasterBatch = true;
-  parent.add(group);
-
-  const bySex: Record<DeerSex, DeerVisual[]> = { doe: [], stag: [] };
-  for (const visual of deer) bySex[visual.sex].push(visual);
-  const shardsBySex: Record<DeerSex, DeerCasterShard[]> = { doe: [], stag: [] };
-  let sourceMeshCount = 0;
-  let sourceTriangleCount = 0;
-  let batchMeshCount = 0;
-  let replicatedGeometryBytes = 0;
-  let maximumSkeletonBytes = 0;
-
-  try {
-    for (const sex of ['doe', 'stag'] as const) {
-      const visuals = bySex[sex];
-      if (visuals.length === 0) continue;
-      const sourceMeshes = collectSkinnedMeshes(sources[sex].scene);
-      const sourceSkeleton = sourceMeshes[0]?.skeleton;
-      if (!sourceSkeleton) throw new Error(`The ${sex} deer source has no skeleton.`);
-      for (const sourceMesh of sourceMeshes) {
-        if (!skeletonsUseSharedRig(sourceMesh.skeleton, sourceSkeleton)) {
-          throw new Error(`The ${sex} deer source layers must share one rig.`);
-        }
-        if (Object.keys(sourceMesh.geometry.morphAttributes).length > 0) {
-          throw new Error(`The ${sex}/${sourceMesh.name} caster cannot merge morph targets.`);
-        }
-        if (sourceMesh.geometry.drawRange.start !== 0) {
-          throw new Error(`The ${sex}/${sourceMesh.name} caster requires a zero draw start.`);
-        }
-      }
-      const bonesPerRig = sourceSkeleton.bones.length;
-      for (
-        let shardStart = 0;
-        shardStart < visuals.length;
-        shardStart += DEER_CASTER_RIGS_PER_SHARD
-      ) {
-        const capacity = Math.min(
-          DEER_CASTER_RIGS_PER_SHARD,
-          visuals.length - shardStart,
-        );
-        const skeletonBytes = bonesPerRig * capacity * 16
-          * Float32Array.BYTES_PER_ELEMENT;
-        if (skeletonBytes > MAX_DEER_CASTER_SKELETON_BYTES) {
-          throw new Error(
-            `${sex} deer caster skeleton requires ${skeletonBytes} bytes; `
-              + `the exact shard limit is ${MAX_DEER_CASTER_SKELETON_BYTES}.`,
-          );
-        }
-        maximumSkeletonBytes = Math.max(maximumSkeletonBytes, skeletonBytes);
-        const initialVisual = visuals[shardStart]!;
-        const bones: THREE.Bone[] = [];
-        const inverses: THREE.Matrix4[] = [];
-        for (let slot = 0; slot < capacity; slot += 1) {
-          bones.push(...initialVisual.skeleton.bones);
-          inverses.push(...initialVisual.skeleton.boneInverses);
-        }
-        const skeleton = new THREE.Skeleton(bones, inverses);
-        const layers = sourceMeshes.map((sourceMesh, layerIndex) => {
-          const geometry = createReplicatedDeerCasterGeometry(
-            sourceMesh.geometry,
-            bonesPerRig,
-            capacity,
-          );
-          replicatedGeometryBytes += geometryByteLength(geometry);
-          const mesh = new THREE.SkinnedMesh(geometry, sourceMesh.material);
-          mesh.name = `${sex} animated deer exact caster batch ${
-            Math.floor(shardStart / DEER_CASTER_RIGS_PER_SHARD) + 1
-          }:${layerIndex + 1}`;
-          mesh.bindMode = sourceMesh.bindMode;
-          mesh.bind(skeleton, sourceMesh.bindMatrix);
-          mesh.layers.set(TREE_SHADOW_CAST_LAYER);
-          mesh.castShadow = true;
-          mesh.receiveShadow = false;
-          mesh.frustumCulled = false;
-          mesh.renderOrder = sourceMesh.renderOrder;
-          mesh.customDepthMaterial = sourceMesh.customDepthMaterial;
-          mesh.customDistanceMaterial = sourceMesh.customDistanceMaterial;
-          mesh.userData.animatedDeerCasterBatch = true;
-          mesh.userData.sourceDeerCapacity = capacity;
-          const sourceDrawCount = sourceMesh.geometry.index?.count
-            ?? sourceMesh.geometry.getAttribute('position').count;
-          mesh.userData.sourceDrawCount = sourceDrawCount;
-          mesh.userData.sourceTriangleCount = sourceDrawCount / 3;
-          group.add(mesh);
-          batchMeshCount += 1;
-          return { mesh, geometry, sourceDrawCount };
-        });
-        shardsBySex[sex].push({ capacity, skeleton, layers });
-      }
-      sourceMeshCount += sourceMeshes.length * visuals.length;
-      sourceTriangleCount += sourceMeshes.reduce(
-        (sum, mesh) => sum + (
-          mesh.geometry.index?.count
-            ?? mesh.geometry.getAttribute('position').count
-        ) / 3,
-        0,
-      ) * visuals.length;
-    }
-
-    // Color remains on the authored meshes. Only their duplicate shadow
-    // submissions move to the exact aggregate caster layer.
-    for (const visual of deer) {
-      visual.root.traverse((object) => {
-        const mesh = object as THREE.SkinnedMesh;
-        if (mesh.isSkinnedMesh) mesh.castShadow = false;
-      });
-    }
-  } catch (error) {
-    for (const shards of Object.values(shardsBySex)) {
-      for (const shard of shards) {
-        for (const layer of shard.layers) layer.geometry.dispose();
-        shard.skeleton.dispose();
-      }
-    }
-    group.removeFromParent();
-    throw error;
-  }
-
-  const refreshVisibility = (): void => {
-    let activeMeshCount = 0;
-    let visibleDeerCount = 0;
-    let visibleTriangleCount = 0;
-    for (const sex of ['doe', 'stag'] as const) {
-      const visuals = bySex[sex];
-      let nextVisual = 0;
-      for (const shard of shardsBySex[sex]) {
-        let shardCount = 0;
-        while (shardCount < shard.capacity) {
-          let visual: DeerVisual | undefined;
-          while (nextVisual < visuals.length) {
-            const candidate = visuals[nextVisual++]!;
-            if (candidate.root.visible) {
-              visual = candidate;
-              break;
-            }
-          }
-          if (!visual) break;
-          const boneOffset = shardCount * visual.skeleton.bones.length;
-          for (let bone = 0; bone < visual.skeleton.bones.length; bone += 1) {
-            shard.skeleton.bones[boneOffset + bone] = visual.skeleton.bones[bone]!;
-            shard.skeleton.boneInverses[boneOffset + bone] =
-              visual.skeleton.boneInverses[bone]!;
-          }
-          shardCount += 1;
-        }
-        visibleDeerCount += shardCount;
-        for (const layer of shard.layers) {
-          const drawCount = shardCount * layer.sourceDrawCount;
-          layer.geometry.setDrawRange(0, drawCount);
-          layer.mesh.visible = shardCount > 0;
-          layer.mesh.userData.sourceDeerCount = shardCount;
-          if (shardCount > 0) activeMeshCount += 1;
-          visibleTriangleCount += drawCount / 3;
-        }
-      }
-    }
-    group.userData.visibleDeerCount = visibleDeerCount;
-    group.userData.activeBatchMeshCount = activeMeshCount;
-    group.userData.visibleTriangleCount = visibleTriangleCount;
-  };
-
-  group.userData.sourceMeshCount = sourceMeshCount;
-  group.userData.batchMeshCount = batchMeshCount;
-  group.userData.sourceTriangleCount = sourceTriangleCount;
-  group.userData.replicatedGeometryBytes = replicatedGeometryBytes;
-  group.userData.maximumSkeletonBytes = maximumSkeletonBytes;
-  refreshVisibility();
-
-  return {
-    group,
-    refreshVisibility,
-    dispose: () => {
-      for (const shards of Object.values(shardsBySex)) {
-        for (const shard of shards) {
-          for (const layer of shard.layers) {
-            layer.mesh.removeFromParent();
-            layer.geometry.dispose();
-          }
-          shard.skeleton.dispose();
-        }
-      }
-      group.removeFromParent();
-    },
-  };
-}
-
-function collectSkinnedMeshes(root: THREE.Object3D): THREE.SkinnedMesh[] {
-  const meshes: THREE.SkinnedMesh[] = [];
-  root.traverse((object) => {
-    const mesh = object as THREE.SkinnedMesh;
-    if (mesh.isSkinnedMesh) meshes.push(mesh);
-  });
-  return meshes;
-}
-
-/** Exact indexed/attribute replication with a disjoint bone range per live rig. */
-export function createReplicatedDeerCasterGeometry(
-  source: THREE.BufferGeometry,
-  bonesPerRig: number,
-  rigCount: number,
-): THREE.BufferGeometry {
-  if (!Number.isInteger(rigCount) || rigCount < 1) {
-    throw new Error('A deer caster shard requires at least one rig.');
-  }
-  const merged = new THREE.BufferGeometry();
-  const sourceVertexCount = source.getAttribute('position').count;
-  for (const [name, sourceAttribute] of Object.entries(source.attributes)) {
-    if (sourceAttribute instanceof THREE.InterleavedBufferAttribute) {
-      throw new Error(`Deer ${name} attribute must remain non-interleaved.`);
-    }
-    const attribute = sourceAttribute as THREE.BufferAttribute;
-    const itemCount = attribute.array.length;
-    const ArrayType = attribute.array.constructor as {
-      new(length: number): typeof attribute.array;
-    };
-    const values = new ArrayType(itemCount * rigCount);
-    for (let slot = 0; slot < rigCount; slot += 1) {
-      const targetOffset = slot * itemCount;
-      values.set(attribute.array, targetOffset);
-      if (name !== 'skinIndex') continue;
-      const boneOffset = slot * bonesPerRig;
-      for (let index = 0; index < itemCount; index += 1) {
-        values[targetOffset + index] += boneOffset;
-      }
-    }
-    const replicated = new THREE.BufferAttribute(
-      values,
-      attribute.itemSize,
-      attribute.normalized,
-    );
-    replicated.setUsage(attribute.usage);
-    replicated.gpuType = attribute.gpuType;
-    merged.setAttribute(name, replicated);
-  }
-  const morphAttributeNames = Object.keys(source.morphAttributes) as Array<
-    keyof THREE.BufferGeometry['morphAttributes']
-  >;
-  for (const name of morphAttributeNames) {
-    const morphTargets = source.morphAttributes[name];
-    if (!morphTargets) continue;
-    merged.morphAttributes[name] = morphTargets.map((sourceAttribute) => {
-      if (sourceAttribute instanceof THREE.InterleavedBufferAttribute) {
-        throw new Error(`Deer ${name} morph attribute must remain non-interleaved.`);
-      }
-      const attribute = sourceAttribute as THREE.BufferAttribute;
-      const ArrayType = attribute.array.constructor as {
-        new(length: number): typeof attribute.array;
-      };
-      const values = new ArrayType(attribute.array.length * rigCount);
-      for (let slot = 0; slot < rigCount; slot += 1) {
-        values.set(attribute.array, slot * attribute.array.length);
-      }
-      const replicated = new THREE.BufferAttribute(
-        values,
-        attribute.itemSize,
-        attribute.normalized,
-      );
-      replicated.setUsage(attribute.usage);
-      replicated.gpuType = attribute.gpuType;
-      return replicated;
-    });
-  }
-  merged.morphTargetsRelative = source.morphTargetsRelative;
-
-  const sourceIndex = source.index;
-  const sourceDrawCount = sourceIndex?.count ?? sourceVertexCount;
-  if (sourceIndex) {
-    const useUint32 = sourceIndex.array instanceof Uint32Array
-      || sourceVertexCount * rigCount > 65_535;
-    const values = useUint32
-      ? new Uint32Array(sourceIndex.count * rigCount)
-      : new Uint16Array(sourceIndex.count * rigCount);
-    for (let slot = 0; slot < rigCount; slot += 1) {
-      const vertexOffset = slot * sourceVertexCount;
-      const targetOffset = slot * sourceIndex.count;
-      for (let index = 0; index < sourceIndex.count; index += 1) {
-        values[targetOffset + index] = sourceIndex.getX(index) + vertexOffset;
-      }
-    }
-    const replicatedIndex = new THREE.BufferAttribute(values, 1);
-    replicatedIndex.setUsage(sourceIndex.usage);
-    replicatedIndex.gpuType = sourceIndex.gpuType;
-    merged.setIndex(replicatedIndex);
-  }
-  for (let slot = 0; slot < rigCount; slot += 1) {
-    const drawOffset = slot * sourceDrawCount;
-    for (const sourceGroup of source.groups) {
-      merged.addGroup(
-        drawOffset + sourceGroup.start,
-        sourceGroup.count,
-        sourceGroup.materialIndex,
-      );
-    }
-  }
-  merged.name = `${source.name}: exact deer caster x${rigCount}`;
-  return merged;
-}
-
-function geometryByteLength(geometry: THREE.BufferGeometry): number {
-  let bytes = geometry.index?.array.byteLength ?? 0;
-  for (const attribute of Object.values(geometry.attributes)) {
-    bytes += (attribute as THREE.BufferAttribute).array.byteLength;
-  }
-  for (const attributes of Object.values(geometry.morphAttributes)) {
-    for (const attribute of attributes) {
-      bytes += (attribute as THREE.BufferAttribute).array.byteLength;
-    }
-  }
-  return bytes;
 }
 
 function configureActions(actions: DeerAnimationSet): void {

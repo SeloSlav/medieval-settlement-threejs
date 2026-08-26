@@ -397,7 +397,6 @@ export class OxenRenderer {
     ) + rest.localGroundOffset;
     root.position.set(rest.x, y, rest.z);
     root.rotation.y = rest.yaw;
-    this.shadowCastersChanged = true;
     return {
       ox,
       root,
@@ -410,7 +409,6 @@ export class OxenRenderer {
       x: rest.x,
       z: rest.z,
       yaw: rest.yaw,
-      castShadow: null,
     };
   }
 
@@ -423,13 +421,15 @@ export class OxenRenderer {
     const bar = new THREE.Mesh(this.yokeBarGeometry, this.yokeMaterial);
     bar.name = 'Draft ox oak yoke';
     bar.position.set(0, barCenterY, 0.18);
-    bar.castShadow = true;
+    bar.castShadow = false;
+    bar.receiveShadow = false;
     yoke.add(bar);
     for (const x of [-0.48, 0.48]) {
       const bow = new THREE.Mesh(this.yokeBowGeometry, this.harnessMaterial);
       bow.name = 'Draft ox leather yoke bow';
       bow.position.set(x, bowCenterY, 0.2);
-      bow.castShadow = true;
+      bow.castShadow = false;
+      bow.receiveShadow = false;
       yoke.add(bow);
     }
     return yoke;
@@ -628,7 +628,6 @@ export class OxenRenderer {
     visual.mixer.uncacheRoot(visual.model);
     disposeClonedModelMaterials(visual.model);
     visual.root.removeFromParent();
-    this.shadowCastersChanged = true;
   }
 }
 
@@ -744,8 +743,8 @@ function configureModelMeshes(model: THREE.Object3D, slot: number): void {
       return material;
     });
     mesh.material = Array.isArray(mesh.material) ? cloned : cloned[0]!;
-    mesh.castShadow = true;
-    mesh.receiveShadow = true;
+    mesh.castShadow = false;
+    mesh.receiveShadow = false;
     mesh.frustumCulled = false;
   });
 }

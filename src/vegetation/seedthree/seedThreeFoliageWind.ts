@@ -5,6 +5,7 @@ import {
   float,
   modelWorldMatrix,
   normalLocal,
+  positionGeometry,
   positionLocal,
   sin,
   smoothstep,
@@ -28,6 +29,18 @@ type TslNode = {
 
 type ClampedTslNode = TslNode & {
   clamp: (minimum: unknown, maximum: unknown) => TslNode;
+};
+
+type SeedThreeTreeTslNode = {
+  mul: (value: unknown) => SeedThreeTreeTslNode;
+  add: (value: unknown) => SeedThreeTreeTslNode;
+  max: (value: unknown) => SeedThreeTreeTslNode;
+  clamp: (minimum: unknown, maximum: unknown) => SeedThreeTreeTslNode;
+  length: () => SeedThreeTreeTslNode;
+  x: SeedThreeTreeTslNode;
+  y: SeedThreeTreeTslNode;
+  z: SeedThreeTreeTslNode;
+  xyz: SeedThreeTreeTslNode;
 };
 
 type IvyTslNode = {
@@ -81,6 +94,26 @@ const ivyTsl = {
   windStrength: windStrength as unknown as IvyTslNode,
 };
 
+const seedThreeTreeTsl = {
+  attribute: attribute as (name: string, type: string) => SeedThreeTreeTslNode,
+  modelWorldMatrix: modelWorldMatrix as unknown as SeedThreeTreeTslNode,
+  positionGeometry: positionGeometry as unknown as SeedThreeTreeTslNode,
+  positionLocal: positionLocal as unknown as SeedThreeTreeTslNode,
+  sin: sin as (value: unknown) => SeedThreeTreeTslNode,
+  vec3: vec3 as (
+    x: unknown,
+    y: unknown,
+    z: unknown,
+  ) => SeedThreeTreeTslNode,
+  vec4: vec4 as (
+    x: unknown,
+    y?: unknown,
+    z?: unknown,
+    w?: unknown,
+  ) => SeedThreeTreeTslNode,
+  windStrength: windStrength as unknown as SeedThreeTreeTslNode,
+};
+
 export const IVY_HINGE_MACRO_FADE_START = 22;
 export const IVY_HINGE_MACRO_FADE_END = 44;
 export const IVY_HINGE_MACRO_FAR_SCALE = 0.15;
@@ -128,6 +161,74 @@ export function createRootedFoliageWindPosition(ampScale = 0.16): TslNode {
     local.y,
     local.z.add(windLocal.z.mul(bend)),
   );
+}
+
+/** Pause-aware equivalent of SeedThree's authored hero-tree branch wind. */
+export function createSeedThreeTreeBarkWindPosition(): SeedThreeTreeTslNode {
+  const stemCenter = seedThreeTreeTsl.attribute('aStemCenter', 'vec3');
+  const centerWorld = seedThreeTreeTsl.modelWorldMatrix
+    .mul(seedThreeTreeTsl.vec4(stemCenter, 1)).xyz;
+  const amplitude = seedThreeTreeTsl.windStrength
+    .mul(0.35)
+    .mul(seedThreeTreeTsl.attribute('aWind', 'float'));
+  const displacement = swayAt(centerWorld as unknown as TslNode, 1)
+    .mul(amplitude) as unknown as SeedThreeTreeTslNode;
+  const windDirection = seedThreeTreeTsl.vec3(WIND_DIR.x, WIND_DIR.y, WIND_DIR.z);
+  return seedThreeTreeTsl.positionLocal.add(windDirection.mul(displacement));
+}
+
+/** Pause-aware equivalent of SeedThree's instanced forest-branch wind. */
+export function createSeedThreeForestBarkWindPosition(): SeedThreeTreeTslNode {
+  const anchor = seedThreeTreeTsl.attribute('aAnchorPos', 'vec3');
+  const anchorWorld = seedThreeTreeTsl.modelWorldMatrix
+    .mul(seedThreeTreeTsl.vec4(anchor, 1)).xyz;
+  const amplitude = seedThreeTreeTsl.windStrength
+    .mul(0.35)
+    .mul(seedThreeTreeTsl.attribute('aWind', 'float'));
+  const displacement = swayAt(anchorWorld as unknown as TslNode, 1)
+    .mul(amplitude) as unknown as SeedThreeTreeTslNode;
+  return seedThreeTreeTsl.positionLocal.add(
+    seedThreeTreeTsl.attribute('aWindVec', 'vec3').mul(displacement),
+  );
+}
+
+/**
+ * SeedThree's full card recipe driven by the pause-aware world clock. The
+ * anchor remains welded to its branch while UV/local-height flutter affects
+ * only the leaf tip.
+ */
+export function createSeedThreeTreeCardWindPosition(
+  withFlutter = true,
+  flutterScale = 1,
+): SeedThreeTreeTslNode {
+  const local = seedThreeTreeTsl.positionLocal;
+  const windLocal = seedThreeTreeTsl.attribute('aWindVec', 'vec3');
+  const anchor = seedThreeTreeTsl.attribute('aAnchorPos', 'vec3');
+  const anchorWorld = seedThreeTreeTsl.modelWorldMatrix
+    .mul(seedThreeTreeTsl.vec4(anchor, 1)).xyz;
+  const base = windLocal.mul(
+    swayAt(anchorWorld as unknown as TslNode, 1)
+      .mul(seedThreeTreeTsl.windStrength.mul(0.35)),
+  );
+  if (!withFlutter) return local.add(base);
+
+  const random = seedThreeTreeTsl.attribute('aThickness', 'float');
+  const localHeight = seedThreeTreeTsl.positionGeometry.y.max(0);
+  const flutterTime = (tsl.time as unknown as SeedThreeTreeTslNode)
+    .mul(tsl.windSpeed)
+    .mul(5.2)
+    .add(random.mul(37.7));
+  const gate = windLocal.length().mul(2.5).clamp(0, 1);
+  const flutter = seedThreeTreeTsl.vec3(
+    seedThreeTreeTsl.sin(flutterTime),
+    seedThreeTreeTsl.sin(flutterTime.mul(1.31)).mul(0.6),
+    seedThreeTreeTsl.sin(flutterTime.mul(0.77)),
+  )
+    .mul(seedThreeTreeTsl.windStrength.mul(0.05 * flutterScale))
+    .mul(random)
+    .mul(localHeight)
+    .mul(gate);
+  return local.add(base).add(flutter);
 }
 
 function rotateAroundAxis(

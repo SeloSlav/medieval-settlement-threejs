@@ -819,10 +819,8 @@ export class App {
     this.lastTime = time;
 
     const firstPersonActive = this.firstPersonController?.isActive() ?? false;
-    const worldDt = worldAnimationDelta(
-      dt,
-      this.spacetimeStore?.snapshot.gameSpeed ?? 1,
-    );
+    const gameSpeed = this.spacetimeStore?.snapshot.gameSpeed ?? 1;
+    const worldDt = worldAnimationDelta(dt, gameSpeed);
     this.syncBuildInteractionPerf();
     this.frontierRiskMarkers?.tick(worldDt);
     if (this.settlementPresentationTargets) {
@@ -871,7 +869,7 @@ export class App {
     this.updateFps(time, rawDt);
     const crowdView = this.buildCrowdViewState();
     if (this.snapshotApplierDeps) {
-      const dynamicShadowCastersChanged = tickSettlementWorld(
+      tickSettlementWorld(
         this.snapshotApplierDeps.settlementWorld,
         worldDt,
         crowdView,
@@ -879,11 +877,9 @@ export class App {
       this.sceneManager?.setGameHabitatLoggingDisturbances(
         this.villagers?.getActiveLoggingDisturbances(),
       );
-      if (dynamicShadowCastersChanged) {
-        this.sceneManager?.invalidateDynamicShadows();
-      }
     }
     this.villagerInspector?.tick();
+    this.ambientAudio?.setWorldPaused(gameSpeed === 0);
     this.ambientAudio?.tick(dt);
     if (frameProfiler) {
       const phase = firstPersonActive

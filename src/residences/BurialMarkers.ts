@@ -163,7 +163,6 @@ function createShroudedBody(cause: CorpseState['cause']): THREE.Group {
   body.name = 'Shrouded body';
   body.rotation.z = Math.PI / 2;
   body.position.y = 0.25;
-  body.castShadow = true;
   group.add(body);
   return group;
 }
@@ -178,12 +177,10 @@ function createGravediggerCart(): THREE.Group {
 
   const bed = new THREE.Mesh(new THREE.BoxGeometry(1.45, 0.16, 0.62), timber);
   bed.position.y = 0.36;
-  bed.castShadow = true;
   group.add(bed);
   for (const side of [-1, 1]) {
     const wheel = new THREE.Mesh(new THREE.TorusGeometry(0.28, 0.055, 6, 12), iron);
     wheel.position.set(0, 0.28, side * 0.39);
-    wheel.castShadow = true;
     group.add(wheel);
     const handle = new THREE.Mesh(new THREE.BoxGeometry(0.95, 0.055, 0.055), timber);
     handle.position.set(-1.03, 0.43, side * 0.24);
@@ -193,11 +190,9 @@ function createGravediggerCart(): THREE.Group {
 
   const torso = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.27, 0.72, 8), wool);
   torso.position.set(-1.38, 1.08, 0);
-  torso.castShadow = true;
   group.add(torso);
   const head = new THREE.Mesh(new THREE.SphereGeometry(0.17, 8, 6), skin);
   head.position.set(-1.38, 1.58, 0);
-  head.castShadow = true;
   group.add(head);
   for (const side of [-1, 1]) {
     const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.065, 0.62, 6), wool);

@@ -1310,7 +1310,7 @@ export class VillagerRenderer {
     this.pushRenderState();
   }
 
-  tick(dt: number, view?: CrowdViewState): boolean {
+  tick(dt: number, view?: CrowdViewState): void {
     this.lastView = view;
     const realDt = Math.max(0, dt);
     const simulationDt = realDt * this.getGameSpeed() * SIM_REALTIME_RATE;
@@ -1369,8 +1369,7 @@ export class VillagerRenderer {
 
     this.releaseVacatedCampSeats();
     this.pushRenderState(view, simulationDt, simulationDt > 0 ? realDt : 0);
-    const oxShadowCastersChanged = this.oxen.tick(dt, view);
-    return this.renderer.consumeShadowCastersChanged() || oxShadowCastersChanged;
+    this.oxen.tick(dt, view);
   }
 
   /**

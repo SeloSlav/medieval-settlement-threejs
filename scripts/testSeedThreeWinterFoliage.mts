@@ -93,7 +93,19 @@ const forestCrownMaterial = new THREE.MeshBasicMaterial() as THREE.MeshBasicMate
 };
 forestCrownMaterial.positionNode = { kind: 'incorrect-flutter' };
 applySeedThreeForestCardMotion(forestCrownMaterial, 'sway', sourceCrownMaterial);
-assert.equal(forestCrownMaterial.positionNode, rigidSwayNode);
+assert.notEqual(
+  forestCrownMaterial.positionNode,
+  rigidSwayNode,
+  'forest crown sway must replace SeedThree wall time with the pause-aware world clock',
+);
+assert.equal(forestCrownMaterial.userData.seedThreeWindClock, 'world-animation');
+const pauseAwareSwayNode = forestCrownMaterial.positionNode;
+applySeedThreeForestCardMotion(forestCrownMaterial, 'full', sourceCrownMaterial);
+assert.notEqual(
+  forestCrownMaterial.positionNode,
+  pauseAwareSwayNode,
+  'full foliage motion must retain tip flutter in addition to rigid crown sway',
+);
 applySeedThreeForestCardMotion(forestCrownMaterial, 'static', sourceCrownMaterial);
 assert.equal(forestCrownMaterial.positionNode, null);
 sourceCrownMaterial.dispose();

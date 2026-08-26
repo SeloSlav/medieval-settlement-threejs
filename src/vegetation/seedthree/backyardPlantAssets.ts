@@ -8,6 +8,10 @@ import { seedThreeFruitUrl } from './seedThreeTextures.ts';
 import { BACKYARD_PLANT_SPECIES, type BackyardPlantKind } from './backyardPlantPresets.ts';
 import { createGorskiShrubPrototype } from './gorskiShrubPrototypes.ts';
 import { applyPainterlyVegetationMaterial } from '../painterly/painterlyVegetationMaterial.ts';
+import {
+  createSeedThreeTreeBarkWindPosition,
+  createSeedThreeTreeCardWindPosition,
+} from './seedThreeFoliageWind.ts';
 
 export type OrchardTreeKind = 'apple' | 'cherry' | 'pear';
 export type OrchardShrubKind = 'aronia' | 'rosehip';
@@ -51,6 +55,9 @@ const GARDEN_LOD_OPTIONS = {
   lod2Density: 0.72,
   lod2Prune: 0.18,
 };
+const BACKYARD_TREE_BARK_POSITION_NODE = createSeedThreeTreeBarkWindPosition();
+const BACKYARD_TREE_CARD_POSITION_NODE = createSeedThreeTreeCardWindPosition(true);
+const BACKYARD_TREE_CROWN_POSITION_NODE = createSeedThreeTreeCardWindPosition(false);
 
 let catalogPromise: Promise<BackyardPlantCatalog> | null = null;
 const fruitLoader = new GLTFLoader();
@@ -72,8 +79,26 @@ function markSharedPrototypeGeometry(root: THREE.Object3D): void {
  */
 export function normalizeBackyardPlantFoliageWind(root: THREE.Object3D): void {
   root.traverse((object) => {
-    const foliage = object as THREE.InstancedMesh;
-    if (!foliage.isInstancedMesh) return;
+    const mesh = object as THREE.Mesh;
+    if (!mesh.isMesh) return;
+    const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+    if (!(mesh as THREE.InstancedMesh).isInstancedMesh) {
+      if (
+        !mesh.geometry.getAttribute('aWind')
+        || !mesh.geometry.getAttribute('aStemCenter')
+      ) {
+        return;
+      }
+      for (const material of materials) {
+        (material as THREE.Material & { positionNode?: unknown }).positionNode =
+          BACKYARD_TREE_BARK_POSITION_NODE;
+        material.userData.seedThreeWindClock = 'world-animation';
+        material.needsUpdate = true;
+      }
+      return;
+    }
+
+    const foliage = mesh as THREE.InstancedMesh;
     const windVector = foliage.geometry.getAttribute('aWindVec');
     const weights = foliage.geometry.userData.windWeights;
     if (
@@ -93,6 +118,14 @@ export function normalizeBackyardPlantFoliageWind(root: THREE.Object3D): void {
       );
     }
     windVector.needsUpdate = true;
+    const positionNode = foliage.geometry.userData.crownUnderlay === true
+      ? BACKYARD_TREE_CROWN_POSITION_NODE
+      : BACKYARD_TREE_CARD_POSITION_NODE;
+    for (const material of materials) {
+      (material as THREE.Material & { positionNode?: unknown }).positionNode = positionNode;
+      material.userData.seedThreeWindClock = 'world-animation';
+      material.needsUpdate = true;
+    }
     foliage.userData.backyardFoliageWindNormalized = true;
   });
 }

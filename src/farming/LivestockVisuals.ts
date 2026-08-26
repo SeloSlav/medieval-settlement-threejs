@@ -6,7 +6,6 @@ import type { CrowdViewState } from '../settlement/crowdView.ts';
 import {
   isAgentAnimalRenderingEnabled,
   isWithinCrowdView,
-  isWithinShadowRange,
 } from '../settlement/crowdView.ts';
 import { hashStringSeed, mulberry32 } from '../utils/random.ts';
 import {
@@ -43,7 +42,6 @@ type AnimalVisual = {
   speed: number;
   pasture: PastureState;
   random: () => number;
-  castShadow: boolean | null;
 };
 
 type ReplayableLivestockInput = {
@@ -143,7 +141,6 @@ export class LivestockVisuals {
   private sources: Record<keyof typeof MODEL_URLS, AnimalSource> | null = null;
   private latestInput: ReplayableLivestockInput | null = null;
   private lastSignature = '';
-  private shadowCastersChanged = false;
   private disposed = false;
 
   constructor(
@@ -164,22 +161,16 @@ export class LivestockVisuals {
     this.rebuildIfNeeded();
   }
 
-  tick(dtSeconds: number, view?: CrowdViewState): boolean {
+  tick(dtSeconds: number, view?: CrowdViewState): void {
     const dt = Math.min(0.08, Math.max(0, dtSeconds));
-    let shadowCastersChanged = this.shadowCastersChanged;
-    this.shadowCastersChanged = false;
     const renderEnabled = isAgentAnimalRenderingEnabled(view);
     if (this.root.visible !== renderEnabled) {
       this.root.visible = renderEnabled;
-      shadowCastersChanged = true;
     }
-    if (!renderEnabled) return shadowCastersChanged;
+    if (!renderEnabled) return;
 
     for (const animal of this.animals) {
       const visible = isWithinCrowdView(animal.x, animal.z, view);
-      if (animal.root.visible !== visible && animal.castShadow !== false) {
-        shadowCastersChanged = true;
-      }
       animal.root.visible = visible;
       if (!visible) continue;
 
@@ -206,19 +197,8 @@ export class LivestockVisuals {
         this.getHeightAt(animal.x, animal.z),
         animal.z,
       );
-      const castShadow = isWithinShadowRange(animal.x, animal.z, view);
-      if (castShadow !== animal.castShadow) {
-        animal.model.traverse((object) => {
-          const mesh = object as THREE.SkinnedMesh;
-          if (mesh.isSkinnedMesh) mesh.castShadow = castShadow;
-        });
-        animal.castShadow = castShadow;
-        shadowCastersChanged = true;
-      }
-      if (castShadow && dt > 0) shadowCastersChanged = true;
       animal.mixer.update(dt);
     }
-    return shadowCastersChanged;
   }
 
   dispose(): void {
@@ -257,7 +237,6 @@ export class LivestockVisuals {
     const signature = buildSignature(this.latestInput);
     if (!force && signature === this.lastSignature) return;
     this.lastSignature = signature;
-    this.shadowCastersChanged = true;
     this.clearAnimals();
 
     const pasturesById = new Map(
@@ -331,7 +310,6 @@ export class LivestockVisuals {
       speed: herd.species === 'cattle' ? 0.72 : herd.species === 'sheep' ? 0.92 : 0.84,
       pasture,
       random,
-      castShadow: null,
     };
     actions[initialMode].play();
     actions[initialMode].time = random() * Math.max(0.1, actions[initialMode].getClip().duration);
@@ -441,8 +419,8 @@ function configureModelMeshes(model: THREE.Object3D): void {
   model.traverse((object) => {
     const mesh = object as THREE.SkinnedMesh;
     if (!mesh.isSkinnedMesh) return;
-    mesh.castShadow = true;
-    mesh.receiveShadow = true;
+    mesh.castShadow = false;
+    mesh.receiveShadow = false;
     mesh.frustumCulled = false;
   });
 }

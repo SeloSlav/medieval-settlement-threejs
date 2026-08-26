@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import * as THREE from 'three';
 import { BuildingMarkers } from '../src/buildings/BuildingMarkers.ts';
 import {
@@ -14,15 +15,20 @@ import {
   createResidenceMesh,
   ResidenceMarkers,
 } from '../src/residences/ResidenceMarkers.ts';
+import { BackyardGardenMarkers } from '../src/residences/BackyardGardenMarkers.ts';
+import { backyardGardenPlacement } from '../src/residences/backyardPosition.ts';
+import { layoutFromBurgageZone } from '../src/residences/burgageZoneLayout.ts';
 import { createDefaultNeeds } from '../src/residences/residenceNeedState.ts';
 import { ResourceInspector } from '../src/resources/ResourceInspector.ts';
 import { renderConstructionInspector } from '../src/resources/inspector/constructionRenderer.ts';
 import type {
   BuildingState,
+  BackyardGardenState,
   BurgageZoneState,
   InspectableTarget,
   ResidenceState,
 } from '../src/resources/types.ts';
+import { BACKYARD_GARDEN_KINDS } from '../src/generated/gameBalance.ts';
 
 const CHECKPOINTS = [0, 0.25, 0.5, 0.75, 0.99] as const;
 const COMPLETE_PROGRESS = 1;
@@ -334,6 +340,147 @@ function testResidenceCheckpointAndTierReplacement(): void {
   markers.dispose();
 }
 
+function testBackyardConstructionOwnership(): void {
+  const parent = new THREE.Group();
+  const residenceMarkers = new ResidenceMarkers(parent);
+  const backyardRoot = new THREE.Group();
+  parent.add(backyardRoot);
+  const backyardMarkers = Object.create(BackyardGardenMarkers.prototype) as BackyardGardenMarkers;
+  const backyardInternals = backyardMarkers as unknown as {
+    root: THREE.Group;
+    meshes: Map<string, THREE.Group>;
+    chickens: Map<string, unknown[]>;
+    goats: Map<string, unknown[]>;
+    pigs: Map<string, unknown[]>;
+    plants: null;
+    chickenSource: null;
+    goatSource: null;
+    pigSource: null;
+    latestInput: null;
+    deciduousFoliage: null;
+    animationElapsedSeconds: number;
+    disposed: boolean;
+  };
+  Object.assign(backyardInternals, {
+    root: backyardRoot,
+    meshes: new Map(),
+    chickens: new Map(),
+    goats: new Map(),
+    pigs: new Map(),
+    plants: null,
+    chickenSource: null,
+    goatSource: null,
+    pigSource: null,
+    latestInput: null,
+    deciduousFoliage: null,
+    animationElapsedSeconds: 0,
+    disposed: false,
+  });
+  const residenceInternals = residenceMarkers as unknown as {
+    meshes: Map<string, THREE.Group>;
+  };
+  const kind = 'vegetable_garden' as const;
+  const kindId = BACKYARD_GARDEN_KINDS.indexOf(kind) + 1;
+  let residenceMarker: THREE.Group | null = null;
+  let constructionMarker: THREE.Group | null = null;
+
+  for (const progress of CHECKPOINTS) {
+    const state = backyardProjectResidence(progress, kindId);
+    residenceMarkers.syncResidences([state], () => 0);
+    backyardMarkers.syncGardens({
+      residences: [state],
+      zones: [zone],
+      gardens: new Map(),
+      getHeightAt: () => 0,
+    });
+
+    const house = residenceInternals.meshes.get(state.id);
+    const site = backyardInternals.meshes.get(state.id);
+    const placement = backyardGardenPlacement(state, zone);
+    assert.ok(house);
+    assert.ok(site);
+    assert.ok(placement);
+    if (residenceMarker) assert.strictEqual(house, residenceMarker);
+    if (constructionMarker) assert.strictEqual(site, constructionMarker);
+    residenceMarker = house;
+    constructionMarker = site;
+
+    const houseWorks = house.getObjectByName('ResidenceUpgradeWorks');
+    assert.ok(houseWorks instanceof THREE.Group);
+    assert.equal(
+      isEffectivelyVisible(houseWorks, house),
+      false,
+      'backyard construction must never reactivate the completed house work mesh',
+    );
+    assert.equal(site.name, 'Backyard extension construction');
+    assert.equal(site.userData.backyardProjectKind, kind);
+    assert.equal(site.userData.constructionProgress, progress);
+    assert.equal(site.position.x, placement.x);
+    assert.equal(site.position.z, placement.z);
+    assert.notEqual(
+      Math.hypot(site.position.x - house.position.x, site.position.z - house.position.z),
+      0,
+      'the worksite must be anchored in the backyard rather than on the house',
+    );
+  }
+
+  assert.ok(constructionMarker);
+  const hammer = constructionMarker.getObjectByName('Backyard construction hammer');
+  assert.ok(hammer);
+  const hammerRotation = hammer.rotation.z;
+  backyardMarkers.tick(0.08);
+  assert.notEqual(
+    hammer.rotation.z,
+    hammerRotation,
+    'assigned backyard labor must animate the construction tool at the extension',
+  );
+
+  const completedResidence = {
+    ...backyardProjectResidence(1, 0),
+    backyardProjectKind: 0,
+    upgradeAssignedLabor: 0,
+  };
+  const garden: BackyardGardenState = {
+    id: 'visual-lifecycle-backyard',
+    residenceId: completedResidence.id,
+    kind,
+    firstHarvestDay: 20,
+    lastPrimaryProductionDay: 0,
+    lastSecondaryProductionDay: 0,
+    hideStock: 0,
+    flowerLuxuryUpgraded: false,
+  };
+  residenceMarkers.syncResidences([completedResidence], () => 0);
+  backyardMarkers.syncGardens({
+    residences: [completedResidence],
+    zones: [zone],
+    gardens: new Map([[completedResidence.id, garden]]),
+    getHeightAt: () => 0,
+  });
+  const completedHouse = residenceInternals.meshes.get(completedResidence.id);
+  const completedBackyard = backyardInternals.meshes.get(completedResidence.id);
+  assert.strictEqual(completedHouse, residenceMarker);
+  assert.ok(completedBackyard);
+  assert.notStrictEqual(completedBackyard, constructionMarker);
+  assert.equal(constructionMarker.parent, null);
+  assert.equal(completedBackyard.name, 'BackyardGarden:vegetable_garden');
+
+  const residenceInspectorSource = readFileSync(
+    'src/resources/inspector/residenceRenderer.ts',
+    'utf8',
+  );
+  assert.doesNotMatch(residenceInspectorSource, /residenceBackyardProject/);
+  assert.doesNotMatch(residenceInspectorSource, /Household works/);
+  assert.match(
+    residenceInspectorSource,
+    /inspect the backyard parcel for construction progress/,
+    'the house inspector may point to the plot but must not own its timer or materials',
+  );
+
+  residenceMarkers.dispose();
+  backyardMarkers.dispose();
+}
+
 async function testInspectorHeroArtRefreshStability(): Promise<void> {
   const inspector = Object.create(ResourceInspector.prototype) as ResourceInspector;
   const artClasses = new Set<string>();
@@ -566,6 +713,28 @@ function residence(
   };
 }
 
+function backyardProjectResidence(
+  progress: number,
+  backyardProjectKind: number,
+): ResidenceState {
+  const placement = layoutFromBurgageZone(zone)?.residences[0];
+  assert.ok(placement);
+  return {
+    ...residence(1, 0, progress),
+    x: placement.x,
+    z: placement.z,
+    yaw: placement.yaw,
+    parcelIndex: placement.parcelIndex,
+    backyardProjectKind,
+    upgradeProgress: progress,
+    upgradeRequiredTimber: 8,
+    upgradeRequiredStone: 8,
+    upgradeDeliveredTimber: 8,
+    upgradeDeliveredStone: 8,
+    upgradeAssignedLabor: backyardProjectKind > 0 ? 1 : 0,
+  };
+}
+
 const zone: BurgageZoneState = {
   id: 'visual-lifecycle-zone',
   cornerA: { x: 0, z: 0 },
@@ -782,6 +951,7 @@ testConstructionSiteCheckpoints();
 testConstructionMarkerReplacementAndInspectorRefresh();
 testResidenceMaterialOwnership();
 testResidenceCheckpointAndTierReplacement();
+testBackyardConstructionOwnership();
 await testInspectorHeroArtRefreshStability();
 
 console.log(
@@ -791,6 +961,7 @@ console.log(
     `construction meshes=${EXPECTED_SITE_MESH_COUNTS.join(',')}`,
     `initial cottage frame=${EXPECTED_INITIAL_FRAME_PARTS.join(',')},completed=0`,
     `upgrade pile segments=${EXPECTED_RESIDENCE_SEGMENTS.join(',')},completed=0`,
+    'backyard worksite=parcel-owned with atomic garden handoff',
     'material ownership=7 pooled construction-site + 6 pooled residence-work materials',
   ].join(' | '),
 );

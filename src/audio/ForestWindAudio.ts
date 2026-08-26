@@ -23,6 +23,7 @@ const PLAY_RETRY_MS = 1000;
 export class ForestWindAudio {
   private audio: HTMLAudioElement | null = null;
   private enabled = true;
+  private paused = false;
   private currentMix = 0;
   private targetMix = 0;
   private currentGain = 1;
@@ -41,17 +42,27 @@ export class ForestWindAudio {
     this.targetGain = clamp01(volume);
   }
 
+  setPaused(paused: boolean): void {
+    if (this.paused === paused) return;
+    this.paused = paused;
+    if (paused) {
+      this.audio?.pause();
+      return;
+    }
+    if (this.enabled && this.targetMix > 0) this.ensureAudio();
+  }
+
   setScoreActive(active: boolean): void {
     this.targetScoreDuckGain = active ? AMBIENT_SCORE_DUCK_GAIN : 1;
   }
 
   setTargetMix(mix: number): void {
     this.targetMix = this.enabled ? clamp01(mix) : 0;
-    if (this.targetMix > 0) this.ensureAudio();
+    if (this.targetMix > 0 && !this.paused) this.ensureAudio();
   }
 
   tick(dtSeconds: number): void {
-    if (!this.enabled) return;
+    if (!this.enabled || this.paused) return;
     const dt = Math.max(0, dtSeconds);
     const mixFadeSeconds = this.targetMix > this.currentMix
       ? FOREST_WIND_FADE_IN_SECONDS
@@ -116,6 +127,7 @@ export class ForestWindAudio {
     this.lastPlayAttemptAtMs = nowMs;
     this.audio.play().catch(() => undefined).finally(() => {
       this.playPending = false;
+      if (this.paused) this.audio?.pause();
     });
   }
 

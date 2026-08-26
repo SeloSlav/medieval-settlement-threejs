@@ -25,10 +25,7 @@ import {
   type ResidenceTrimColor,
 } from './residenceAppearance.ts';
 import { getNeedStock } from './residenceNeedState.ts';
-import {
-  residenceHasActiveProject,
-  type ResidenceState,
-} from '../resources/types.ts';
+import type { ResidenceState } from '../resources/types.ts';
 import { RESIDENCE_FIREWOOD_CAPACITY } from '../generated/gameBalance.ts';
 import { hashStringSeed } from '../utils/random.ts';
 import type { GameClock } from '../world/gameCalendar.ts';
@@ -2560,15 +2557,17 @@ export function syncResidenceUpgradeWorks(
 ): void {
   const works = marker.getObjectByName('ResidenceUpgradeWorks');
   if (!(works instanceof THREE.Group)) return;
-  const active = residenceHasActiveProject(residence);
+  const active = (residence.upgradeTargetTier ?? 0) > residence.tier
+    || residence.fireRepairActive === true
+    || residence.decayRepairActive === true
+    || residence.roofTileRetrofitActive === true;
   works.visible = active;
   if (!active) return;
   const initialConstruction = residence.tier === 0
     && (residence.upgradeTargetTier ?? 0) === 1;
-  const backyardConstruction = (residence.backyardProjectKind ?? 0) !== 0;
   for (const child of works.children) {
     if (child.name.startsWith('UpgradeScaffold')) {
-      child.visible = !initialConstruction && !backyardConstruction;
+      child.visible = !initialConstruction;
     }
   }
 
