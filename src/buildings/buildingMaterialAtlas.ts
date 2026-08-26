@@ -55,7 +55,7 @@ type TslNode = {
   mul(value: unknown): TslNode;
 };
 
-type AtlasTextureSet = {
+export type BuildingMaterialAtlasTextureSet = {
   albedo: THREE.Texture;
   normal: THREE.Texture;
   material: THREE.Texture;
@@ -75,7 +75,8 @@ const tsl = TSL as unknown as {
   vertexColor(index?: number): TslNode;
 };
 
-const ATLAS_ROOT = '/assets/textures/buildings/gorski_building_atlas_v1';
+export const BUILDING_MATERIAL_ATLAS_ROOT =
+  '/assets/textures/buildings/gorski_building_atlas_v1';
 const ATLAS_COLUMNS = 5;
 const ATLAS_ROWS = 4;
 const ATLAS_CELL_SIZE = 512;
@@ -109,43 +110,63 @@ const TILE_ORDER: readonly BuildingMaterialAtlasTile[] = [
 
 export const BUILDING_MATERIAL_ATLAS_TILES = Object.freeze([...TILE_ORDER]);
 
-let atlasTextures: AtlasTextureSet | null = null;
+let atlasTextures: BuildingMaterialAtlasTextureSet | null = null;
 let atlasLoadPromise: Promise<void> | null = null;
+let atlasLoaded = false;
+
+/** Stable handles shared by every material that samples the packed atlas. */
+export function getBuildingMaterialAtlasTextures(): BuildingMaterialAtlasTextureSet {
+  if (!atlasTextures) {
+    atlasTextures = {
+      albedo: createAtlasTextureHandle(true),
+      normal: createAtlasTextureHandle(false),
+      material: createAtlasTextureHandle(false),
+    };
+  }
+  return atlasTextures;
+}
 
 export async function initializeBuildingMaterialAtlas(
   maxAnisotropy = 8,
   preloadTexture?: (texture: THREE.Texture) => void,
 ): Promise<void> {
-  if (atlasTextures) {
-    preloadAtlasTextures(atlasTextures, preloadTexture);
+  if (atlasLoaded) {
+    preloadAtlasTextures(getBuildingMaterialAtlasTextures(), preloadTexture);
     return;
   }
   if (atlasLoadPromise) {
     await atlasLoadPromise;
-    if (atlasTextures) preloadAtlasTextures(atlasTextures, preloadTexture);
+    if (atlasLoaded) {
+      preloadAtlasTextures(getBuildingMaterialAtlasTextures(), preloadTexture);
+    }
     return;
   }
+  const sharedTextures = getBuildingMaterialAtlasTextures();
   const anisotropy = Math.max(1, Math.min(8, maxAnisotropy));
   atlasLoadPromise = Promise.all([
-    loadBitmapTexture(`${ATLAS_ROOT}/building_albedo_atlas.png`, anisotropy, {
+    loadBitmapTexture(`${BUILDING_MATERIAL_ATLAS_ROOT}/building_albedo_atlas.png`, anisotropy, {
       srgb: true,
       wrapping: THREE.ClampToEdgeWrapping,
       anisotropyLimit: 8,
     }),
-    loadBitmapTexture(`${ATLAS_ROOT}/building_normal_atlas.png`, anisotropy, {
+    loadBitmapTexture(`${BUILDING_MATERIAL_ATLAS_ROOT}/building_normal_atlas.png`, anisotropy, {
       wrapping: THREE.ClampToEdgeWrapping,
       anisotropyLimit: 8,
     }),
-    loadBitmapTexture(`${ATLAS_ROOT}/building_material_atlas.png`, anisotropy, {
+    loadBitmapTexture(`${BUILDING_MATERIAL_ATLAS_ROOT}/building_material_atlas.png`, anisotropy, {
       wrapping: THREE.ClampToEdgeWrapping,
       anisotropyLimit: 8,
     }),
   ]).then(([albedo, normal, material]) => {
-    albedo.name = 'Gorski building atlas v1 albedo';
-    normal.name = 'Gorski building atlas v1 normal';
-    material.name = 'Gorski building atlas v1 roughness-metalness-AO-height';
-    atlasTextures = { albedo, normal, material };
-    preloadAtlasTextures(atlasTextures, preloadTexture);
+    hydrateAtlasTexture(sharedTextures.albedo, albedo, 'Gorski building atlas v1 albedo');
+    hydrateAtlasTexture(sharedTextures.normal, normal, 'Gorski building atlas v1 normal');
+    hydrateAtlasTexture(
+      sharedTextures.material,
+      material,
+      'Gorski building atlas v1 roughness-metalness-AO-height',
+    );
+    atlasLoaded = true;
+    preloadAtlasTextures(sharedTextures, preloadTexture);
   }).catch((error) => {
     atlasLoadPromise = null;
     throw error;
@@ -159,8 +180,7 @@ export function applyBuildingMaterialAtlas(
 ): void {
   material.userData.buildingMaterialAtlas = 'gorski-building-atlas-v1';
   material.userData.buildingMaterialAtlasTile = options.tile;
-  if (!atlasTextures) return;
-  const textures = atlasTextures;
+  const textures = getBuildingMaterialAtlasTextures();
   mutatePainterlyMaterialSource(material, () => {
     const index = TILE_ORDER.indexOf(options.tile);
     if (index < 0) throw new Error(`Unknown building material atlas tile: ${options.tile}`);
@@ -230,6 +250,7 @@ export function disposeBuildingMaterialAtlas(): void {
   }
   atlasTextures = null;
   atlasLoadPromise = null;
+  atlasLoaded = false;
 }
 
 export function getBuildingMaterialAtlasStats(): {
@@ -239,19 +260,40 @@ export function getBuildingMaterialAtlasStats(): {
   dimensions: readonly [number, number];
 } {
   return {
-    loaded: atlasTextures !== null,
-    textures: atlasTextures ? 3 : 0,
+    loaded: atlasLoaded,
+    textures: atlasLoaded ? 3 : 0,
     tiles: TILE_ORDER.length,
     dimensions: [ATLAS_WIDTH, ATLAS_HEIGHT],
   };
 }
 
 function preloadAtlasTextures(
-  textures: AtlasTextureSet,
+  textures: BuildingMaterialAtlasTextureSet,
   preloadTexture?: (texture: THREE.Texture) => void,
 ): void {
   if (!preloadTexture) return;
   preloadTexture(textures.albedo);
   preloadTexture(textures.normal);
   preloadTexture(textures.material);
+}
+
+function createAtlasTextureHandle(srgb: boolean): THREE.Texture {
+  const texture = new THREE.Texture();
+  texture.wrapS = THREE.ClampToEdgeWrapping;
+  texture.wrapT = THREE.ClampToEdgeWrapping;
+  texture.minFilter = THREE.LinearMipmapLinearFilter;
+  texture.magFilter = THREE.LinearFilter;
+  if (srgb) texture.colorSpace = THREE.SRGBColorSpace;
+  return texture;
+}
+
+function hydrateAtlasTexture(
+  target: THREE.Texture,
+  source: THREE.Texture,
+  name: string,
+): void {
+  target.copy(source);
+  target.name = name;
+  target.needsUpdate = true;
+  source.dispose();
 }

@@ -17,15 +17,6 @@ export type TerrainBlendTextureSet = {
   dry: TextureSet;
 };
 
-export type BridgeDeckAtlasTextureSet = {
-  albedo: THREE.Texture;
-  normal: THREE.Texture;
-  material: THREE.Texture;
-};
-
-export const BRIDGE_DECK_ATLAS_ROOT =
-  '/assets/textures/buildings/gorski_building_atlas_v1';
-
 type TerrainBlendTextureUrls = Partial<
   Record<'albedo' | 'normal' | 'roughness' | 'ao' | 'height', string>
 >;
@@ -62,30 +53,6 @@ export class RoadTextureLoader {
       this.load(`${base}/edge_mask.png`, false),
     ]);
     return { albedo, normal, roughness, ao, height, edgeMask };
-  }
-
-  async loadBridgeDeckAtlasTextures(): Promise<BridgeDeckAtlasTextureSet> {
-    const [albedo, normal, material] = await Promise.all([
-      this.load(
-        `${BRIDGE_DECK_ATLAS_ROOT}/building_albedo_atlas.png`,
-        true,
-        THREE.ClampToEdgeWrapping,
-      ),
-      this.load(
-        `${BRIDGE_DECK_ATLAS_ROOT}/building_normal_atlas.png`,
-        false,
-        THREE.ClampToEdgeWrapping,
-      ),
-      this.load(
-        `${BRIDGE_DECK_ATLAS_ROOT}/building_material_atlas.png`,
-        false,
-        THREE.ClampToEdgeWrapping,
-      ),
-    ]);
-    albedo.name = 'Bridge deck building-atlas albedo';
-    normal.name = 'Bridge deck building-atlas normal';
-    material.name = 'Bridge deck building-atlas roughness-metalness-AO-height';
-    return { albedo, normal, material };
   }
 
   async loadTerrainTextures(): Promise<TextureSet> {

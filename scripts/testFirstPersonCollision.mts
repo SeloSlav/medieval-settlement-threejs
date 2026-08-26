@@ -357,6 +357,7 @@ function resolveAt(
     bridgeTerrain as never,
     {
       road: roadMaterial,
+      bridgeRoad: roadMaterial,
       roadEdge: edgeMaterial,
       bridgeSupport: supportMaterial,
     } as never,

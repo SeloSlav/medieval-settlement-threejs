@@ -107,6 +107,7 @@ const flatTerrain = {
 };
 const materials = {
   road: new THREE.MeshBasicMaterial(),
+  bridgeRoad: new THREE.MeshBasicMaterial(),
   roadEdge: new THREE.MeshBasicMaterial(),
   bridgeSupport: new THREE.MeshBasicMaterial(),
 };

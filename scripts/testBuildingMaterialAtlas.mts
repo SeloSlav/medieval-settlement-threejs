@@ -9,8 +9,10 @@ import {
   type BuildingDetailMaterialKey,
   type BuildingMaterialKey,
 } from '../src/buildings/buildingMaterials.ts';
-import { BUILDING_MATERIAL_ATLAS_TILES } from '../src/buildings/buildingMaterialAtlas.ts';
-import { BRIDGE_DECK_ATLAS_ROOT } from '../src/roads/RoadTextureLoader.ts';
+import {
+  BUILDING_MATERIAL_ATLAS_ROOT,
+  BUILDING_MATERIAL_ATLAS_TILES,
+} from '../src/buildings/buildingMaterialAtlas.ts';
 import { BRIDGE_DECK_ATLAS_TILE_ID } from '../src/roads/RoadSurfaceMaterial.ts';
 
 const atlasRoot = resolve('public/assets/textures/buildings/gorski_building_atlas_v1');
@@ -42,7 +44,7 @@ assert.deepEqual(
   'runtime tile order must exactly match the packed top-to-bottom manifest',
 );
 assert.equal(
-  BRIDGE_DECK_ATLAS_ROOT,
+  BUILDING_MATERIAL_ATLAS_ROOT,
   '/assets/textures/buildings/gorski_building_atlas_v1',
   'bridge decks should load the shared packed building atlas',
 );

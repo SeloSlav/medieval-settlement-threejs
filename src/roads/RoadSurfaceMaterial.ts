@@ -16,10 +16,8 @@ import {
   vec2,
   vec3,
 } from 'three/tsl';
-import type {
-  BridgeDeckAtlasTextureSet,
-  TextureSet,
-} from './RoadTextureLoader.ts';
+import type { BuildingMaterialAtlasTextureSet } from '../buildings/buildingMaterialAtlas.ts';
+import type { TextureSet } from './RoadTextureLoader.ts';
 import { applyPainterlyVegetationMaterial } from '../vegetation/painterly/painterlyVegetationMaterial.ts';
 
 type TslNode = {
@@ -119,7 +117,7 @@ function buildBridgeDeckAtlasUv(): TslNode {
 }
 
 function buildBridgeDeckColorNode(
-  textures: BridgeDeckAtlasTextureSet,
+  textures: BuildingMaterialAtlasTextureSet,
   atlasUv: TslNode,
 ): TslNode {
   const sample = texture(textures.albedo, atlasUv) as TslNode;
@@ -238,7 +236,7 @@ function buildRiverBankOpacityNode(): TslNode {
 export function createRoadCoreMaterial(
   dirtTextures: TextureSet,
   weather: RoadWeatherUniforms,
-  bridgeTextures?: BridgeDeckAtlasTextureSet,
+  bridgeTextures?: BuildingMaterialAtlasTextureSet,
 ): MeshStandardNodeMaterial {
   const material = new MeshStandardNodeMaterial();
   material.name = 'Road core';

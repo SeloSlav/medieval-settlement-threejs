@@ -325,7 +325,7 @@ export class RoadJunctionBuilder {
       positions,
       uvs,
       indices,
-      this.materials.road,
+      this.materials.bridgeRoad,
       bridgeBlend,
       undefined,
       bridgeUvs,

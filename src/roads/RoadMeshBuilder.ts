@@ -131,7 +131,7 @@ export class RoadMeshBuilder {
       crossSections,
       ribbonPath,
       visualWidth,
-      this.materials.road,
+      hasBridge ? this.materials.bridgeRoad : this.materials.road,
       bridgeBlends,
       endpointCaps,
     );
