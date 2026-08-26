@@ -330,6 +330,9 @@ test('connects, places a reforester, and updates settlement HUD timber', async (
     String(STARTING_POPULATION),
   );
   await expect(tooltip).toBeHidden();
+  await residentsCard.locator('[data-resource="population"]').click();
+  await page.mouse.move(12, 180);
+  await expect(residentsCard.locator('.settlement-hud__residents-panel')).toBeHidden();
   const seasonStatus = page.locator('[data-season-status]');
   await expect(seasonStatus).toHaveCSS('background-image', /woodcut-sundial\.webp/);
   await expect(seasonStatus).toHaveAttribute('aria-label', /^Season almanac: /);
@@ -438,10 +441,13 @@ test('connects, places a reforester, and updates settlement HUD timber', async (
   const supplyCardPresentation = await page.locator('[data-settlement-hud]').evaluate((hud) => {
     const foodGrid = hud.querySelector<HTMLElement>('[data-food-breakdown]')!;
     const fuelGrid = hud.querySelector<HTMLElement>('[data-fuel-breakdown]')!;
+    const provisionsGrid = hud.querySelector<HTMLElement>(
+      '[data-specialty-stores] > .settlement-hud__stores-grid',
+    )!;
     const timberPanel = hud.querySelector<HTMLElement>(
       '[data-resource-card="timber"] .settlement-hud__resource-panel',
     )!;
-    const headerMetrics = [foodGrid, fuelGrid, timberPanel].map((panel) => {
+    const headerMetrics = [foodGrid, fuelGrid, provisionsGrid, timberPanel].map((panel) => {
       const title = panel.querySelector<HTMLElement>('.settlement-hud__people-header strong')!;
       const meta = panel.querySelector<HTMLElement>('.settlement-hud__people-header span')!;
       return {
@@ -460,15 +466,18 @@ test('connects, places a reforester, and updates settlement HUD timber', async (
     return {
       foodWidth: Number.parseFloat(getComputedStyle(foodGrid).width),
       fuelWidth: Number.parseFloat(getComputedStyle(fuelGrid).width),
+      provisionsWidth: Number.parseFloat(getComputedStyle(provisionsGrid).width),
       headerMetrics,
       minimumCopySize: Math.min(...smallCopy),
     };
   });
   expect(supplyCardPresentation.foodWidth).toBeGreaterThanOrEqual(350);
   expect(supplyCardPresentation.fuelWidth).toBeGreaterThanOrEqual(300);
+  expect(supplyCardPresentation.provisionsWidth).toBeGreaterThanOrEqual(420);
   expect(new Set(supplyCardPresentation.headerMetrics.map(({ titleSize }) => titleSize)).size).toBe(1);
   expect(new Set(supplyCardPresentation.headerMetrics.map(({ metaSize }) => metaSize)).size).toBe(1);
   expect(supplyCardPresentation.headerMetrics.map(({ metaTransform }) => metaTransform)).toEqual([
+    'none',
     'none',
     'none',
     'none',

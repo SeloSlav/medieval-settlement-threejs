@@ -580,7 +580,7 @@ const SETTLEMENT_HUD_HTML = `
         <strong class="settlement-hud__stores-status" data-specialty-stores-status>0</strong>
       </summary>
       <div class="settlement-hud__stores-grid" aria-label="Provisions">
-      <div class="settlement-hud__stores-grid-header" role="heading" aria-level="2">
+      <div class="settlement-hud__stores-grid-header settlement-hud__people-header settlement-hud__supply-header" role="heading" aria-level="2">
         <strong>Provisions</strong>
         <span data-specialty-stores-mode-label>Available surplus</span>
       </div>
@@ -1029,8 +1029,10 @@ export class SettlementHud {
     delete this.fuelStat.dataset.tooltip;
     this.panel.addEventListener('click', this.onResourceRowClick);
     this.panel.addEventListener('keydown', this.onResourceRowKeyDown);
+    this.panel.addEventListener('pointerover', this.onHudCardPointerOver);
     this.nobleHud.addEventListener('click', this.onResourceRowClick);
     this.nobleHud.addEventListener('keydown', this.onResourceRowKeyDown);
+    this.nobleHud.addEventListener('pointerover', this.onHudCardPointerOver);
     this.securityAlert.addEventListener('click', this.onSecurityAlertClick);
     this.approvalButton.addEventListener('click', this.onApprovalOpen);
     this.approvalButton.addEventListener('focus', this.onApprovalOpen);
@@ -1787,20 +1789,29 @@ export class SettlementHud {
     this.activateResourceRow(event.target);
   };
 
+  private readonly onHudCardPointerOver = (event: PointerEvent): void => {
+    const card = event.target instanceof HTMLElement
+      ? event.target.closest<HTMLElement>('[data-hud-card]')
+      : null;
+    if (card === null) return;
+    if (event.relatedTarget instanceof Node && card.contains(event.relatedTarget)) return;
+
+    this.closeHudDisclosureCards();
+    this.cancelApprovalClose();
+    this.setApprovalOpen(false);
+    this.blurFocusedHudCard(card);
+  };
+
   private readonly onFoodStoresToggle = (): void => {
     const open = this.foodStores.open;
-    if (open) {
-      this.fuelStores.open = false;
-      this.animals.open = false;
-      this.specialtyStores.open = false;
-    }
+    if (open) this.openHudDisclosure(this.foodStores);
     this.foodStat.setAttribute('aria-expanded', String(open));
     this.foodStat.classList.toggle('is-open', open);
   };
 
   private readonly onFoodStoresPointerEnter = (): void => {
     this.cancelFoodStoresClose();
-    this.foodStores.open = true;
+    this.openHudDisclosure(this.foodStores);
   };
 
   private readonly onFoodStoresPointerLeave = (): void => {
@@ -1813,7 +1824,7 @@ export class SettlementHud {
 
   private readonly onFoodStoresFocusIn = (): void => {
     this.cancelFoodStoresClose();
-    this.foodStores.open = true;
+    this.openHudDisclosure(this.foodStores);
   };
 
   private readonly onFoodStoresFocusOut = (event: FocusEvent): void => {
@@ -1823,23 +1834,19 @@ export class SettlementHud {
 
   private readonly onFoodStoresSummaryClick = (event: MouseEvent): void => {
     event.preventDefault();
-    this.foodStores.open = true;
+    this.openHudDisclosure(this.foodStores);
   };
 
   private readonly onFuelStoresToggle = (): void => {
     const open = this.fuelStores.open;
-    if (open) {
-      this.foodStores.open = false;
-      this.animals.open = false;
-      this.specialtyStores.open = false;
-    }
+    if (open) this.openHudDisclosure(this.fuelStores);
     this.fuelStat.setAttribute('aria-expanded', String(open));
     this.fuelStat.classList.toggle('is-open', open);
   };
 
   private readonly onFuelStoresPointerEnter = (): void => {
     this.cancelFuelStoresClose();
-    this.fuelStores.open = true;
+    this.openHudDisclosure(this.fuelStores);
   };
 
   private readonly onFuelStoresPointerLeave = (): void => {
@@ -1852,7 +1859,7 @@ export class SettlementHud {
 
   private readonly onFuelStoresFocusIn = (): void => {
     this.cancelFuelStoresClose();
-    this.fuelStores.open = true;
+    this.openHudDisclosure(this.fuelStores);
   };
 
   private readonly onFuelStoresFocusOut = (event: FocusEvent): void => {
@@ -1862,16 +1869,12 @@ export class SettlementHud {
 
   private readonly onFuelStoresSummaryClick = (event: MouseEvent): void => {
     event.preventDefault();
-    this.fuelStores.open = true;
+    this.openHudDisclosure(this.fuelStores);
   };
 
   private readonly onAnimalsToggle = (): void => {
     const open = this.animals.open;
-    if (open) {
-      this.foodStores.open = false;
-      this.fuelStores.open = false;
-      this.specialtyStores.open = false;
-    }
+    if (open) this.openHudDisclosure(this.animals);
     delete this.animalsSummary.dataset.tooltipTitle;
     delete this.animalsSummary.dataset.tooltip;
     this.animalsSummary.setAttribute('aria-expanded', String(open));
@@ -1882,7 +1885,7 @@ export class SettlementHud {
     // a synthetic hover opening the disclosure immediately beforehand.
     if (event.pointerType !== 'mouse') return;
     this.cancelAnimalsClose();
-    this.animals.open = true;
+    this.openHudDisclosure(this.animals);
   };
 
   private readonly onAnimalsPointerLeave = (event: PointerEvent): void => {
@@ -1898,7 +1901,7 @@ export class SettlementHud {
     this.cancelAnimalsClose();
     // Let the focused summary retain native disclosure-button semantics.
     // Once open, focus moving into a roster link keeps the panel available.
-    if (event.target !== this.animalsSummary) this.animals.open = true;
+    if (event.target !== this.animalsSummary) this.openHudDisclosure(this.animals);
   };
 
   private readonly onAnimalsFocusOut = (event: FocusEvent): void => {
@@ -1918,20 +1921,12 @@ export class SettlementHud {
   };
 
   private readonly onSpecialtyStoresToggle = (): void => {
-    if (this.specialtyStores.open) {
-      this.foodStores.open = false;
-      this.fuelStores.open = false;
-      this.animals.open = false;
-    }
+    if (this.specialtyStores.open) this.openHudDisclosure(this.specialtyStores);
   };
 
   private readonly onSpecialtyStoresPointerEnter = (): void => {
     this.cancelSpecialtyStoresClose();
-    this.panel.removeEventListener('click', this.onResourceRowClick);
-    this.panel.removeEventListener('keydown', this.onResourceRowKeyDown);
-    this.nobleHud.removeEventListener('click', this.onResourceRowClick);
-    this.nobleHud.removeEventListener('keydown', this.onResourceRowKeyDown);
-    this.specialtyStores.open = true;
+    this.openHudDisclosure(this.specialtyStores);
   };
 
   private readonly onSpecialtyStoresPointerLeave = (): void => {
@@ -1944,7 +1939,7 @@ export class SettlementHud {
 
   private readonly onSpecialtyStoresFocusIn = (): void => {
     this.cancelSpecialtyStoresClose();
-    this.specialtyStores.open = true;
+    this.openHudDisclosure(this.specialtyStores);
   };
 
   private readonly onSpecialtyStoresFocusOut = (event: FocusEvent): void => {
@@ -1957,7 +1952,7 @@ export class SettlementHud {
 
   private readonly onSpecialtyStoresSummaryClick = (event: MouseEvent): void => {
     event.preventDefault();
-    this.specialtyStores.open = true;
+    this.openHudDisclosure(this.specialtyStores);
   };
 
   private readonly onResourceRowKeyDown = (event: KeyboardEvent): void => {
@@ -2047,6 +2042,31 @@ export class SettlementHud {
     this.specialtyStoresCloseTimer = null;
   }
 
+  private closeHudDisclosureCards(except: HTMLDetailsElement | null = null): void {
+    const cards = [this.foodStores, this.fuelStores, this.animals, this.specialtyStores];
+    this.cancelFoodStoresClose();
+    this.cancelFuelStoresClose();
+    this.cancelAnimalsClose();
+    this.cancelSpecialtyStoresClose();
+    for (const card of cards) {
+      if (card !== except) card.open = false;
+    }
+  }
+
+  private openHudDisclosure(card: HTMLDetailsElement): void {
+    this.closeHudDisclosureCards(card);
+    this.cancelApprovalClose();
+    this.setApprovalOpen(false);
+    this.blurFocusedHudCard(card);
+    card.open = true;
+  }
+
+  private blurFocusedHudCard(except: HTMLElement): void {
+    const active = document.activeElement;
+    if (!(active instanceof HTMLElement) || except.contains(active)) return;
+    if (active.closest('[data-hud-card]') !== null) active.blur();
+  }
+
   private readonly onApprovalEscape = (event: KeyboardEvent): void => {
     if (event.key !== 'Escape') return;
     if (this.foodStores.open) {
@@ -2082,6 +2102,10 @@ export class SettlementHud {
 
   private setApprovalOpen(open: boolean): void {
     const nextOpen = open && !this.approvalButton.disabled;
+    if (nextOpen) {
+      this.closeHudDisclosureCards();
+      this.blurFocusedHudCard(this.approvalShell);
+    }
     this.approvalPanel.hidden = !nextOpen;
     this.approvalButton.setAttribute('aria-expanded', String(nextOpen));
     this.panel.classList.toggle('has-approval-open', nextOpen);
@@ -2177,6 +2201,12 @@ export class SettlementHud {
     this.cancelFuelStoresClose();
     this.cancelAnimalsClose();
     this.cancelSpecialtyStoresClose();
+    this.panel.removeEventListener('click', this.onResourceRowClick);
+    this.panel.removeEventListener('keydown', this.onResourceRowKeyDown);
+    this.panel.removeEventListener('pointerover', this.onHudCardPointerOver);
+    this.nobleHud.removeEventListener('click', this.onResourceRowClick);
+    this.nobleHud.removeEventListener('keydown', this.onResourceRowKeyDown);
+    this.nobleHud.removeEventListener('pointerover', this.onHudCardPointerOver);
     this.nobleEye.removeEventListener('click', this.onNobleEyeClick);
     this.lordReportLedger.dispose();
     this.securityAlert.removeEventListener('click', this.onSecurityAlertClick);
