@@ -229,7 +229,7 @@ export class App {
   private readonly settlementApprovalPacer = new SettlementApprovalPacer();
   private visualQaFoundersCampFixture: BuildingState | null = null;
   private showcaseViewApplied = false;
-  private initialSettlementViewApplied = false;
+  private visualQaFoundersCampViewApplied = false;
   private lastSeenRaidTick: number | null = null;
   private lastSeenRaidWarningTick: number | null = null;
   private lastSeenActiveRaidId: string | null | undefined;
@@ -521,7 +521,7 @@ export class App {
         true,
       );
       this.syncResourceUi();
-      this.applyInitialSettlementView(this.gameState);
+      this.applyVisualQaFoundersCampView(this.gameState);
     }
     session.cameraController.update(0);
     this.toolbar?.setZoomPercent(session.cameraController.getHudZoomPercent());
@@ -1210,7 +1210,6 @@ export class App {
     this.frontierRiskMarkers?.trackDeliveryTrips(state.deliveryTrips);
 
     this.applyShowcaseView(state);
-    this.applyInitialSettlementView(state);
 
     if (resourceUiNeedsSync(state, previous)) {
       this.syncResourceUi();
@@ -1509,16 +1508,13 @@ export class App {
     this.showcaseViewApplied = true;
   }
 
-  /**
-   * A new settlement should open on its people and shelter, not on an anonymous
-   * map coordinate. Established towns retain the player's strategic camera.
-   */
-  private applyInitialSettlementView(state: GameState): void {
+  /** Keep deterministic visual-QA captures framed on their synthetic camp. */
+  private applyVisualQaFoundersCampView(state: GameState): void {
     if (
-      isShowcaseMode()
-      || this.initialSettlementViewApplied
+      !this.visualQaConditions
+      || isShowcaseMode()
+      || this.visualQaFoundersCampViewApplied
       || !this.cameraController
-      || (!this.visualQaConditions && state.residences.size > 0)
     ) {
       return;
     }
@@ -1536,7 +1532,7 @@ export class App {
       (40 * Math.PI) / 180,
       42,
     );
-    this.initialSettlementViewApplied = true;
+    this.visualQaFoundersCampViewApplied = true;
   }
 
   private getVisualQaPresentedBuildings(

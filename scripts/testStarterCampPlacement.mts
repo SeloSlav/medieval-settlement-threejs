@@ -602,6 +602,21 @@ assert.match(
   /physicalFoundingSiteEnabled !== true[\s\S]*setStarterCampRequired\(starterCampRequired\)/,
   'authoritative founding-site state should control the one-time HUD action',
 );
+assert.doesNotMatch(
+  app,
+  /applyInitialSettlementView/,
+  'placing the first founders camp must not trigger a special gameplay camera view',
+);
+assert.match(
+  app,
+  /if \(this\.visualQaConditions && this\.gameState\)[\s\S]{0,700}this\.applyVisualQaFoundersCampView\(this\.gameState\)/,
+  'the synthetic founders-camp framing should remain isolated to offline visual QA',
+);
+assert.equal(
+  app.match(/applyVisualQaFoundersCampView\(/g)?.length,
+  2,
+  'the visual-QA camp view should have one guarded call site and one implementation',
+);
 
 const buildingTool = read('src/buildings/BuildingTool.ts');
 assert.match(
