@@ -1321,6 +1321,8 @@ function addNamedMesh(
     scale,
   );
   mesh.name = name;
+  mesh.castShadow = false;
+  mesh.receiveShadow = false;
   return mesh;
 }
 

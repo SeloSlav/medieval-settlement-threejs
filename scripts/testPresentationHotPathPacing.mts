@@ -7,7 +7,6 @@ import {
   type RiverSoundPoint,
 } from '../src/audio/RiverAudio.ts';
 import { BuildToolbar } from '../src/ui/BuildToolbar.ts';
-import { LivestockVisuals } from '../src/farming/LivestockVisuals.ts';
 import { FireEffectsRenderer } from '../src/fires/FireEffectsRenderer.ts';
 import { BurgageTool } from '../src/residences/BurgageTool.ts';
 import {
@@ -24,7 +23,6 @@ import {
 import type { FireIncidentState } from '../src/fires/fireIncident.ts';
 import type { DeliveryTripState } from '../src/logistics/deliveryTrips.ts';
 
-testLivestockShadowTraversalCache();
 testResidenceSmokeStateIsEventDriven();
 const residenceLightingElapsed = testResidenceLightingPresentationInvalidation();
 testAmbientLayerIterationReuse();
@@ -403,62 +401,6 @@ function testStableMapIconProjectionCache(): number {
   return elapsed;
 }
 
-function testLivestockShadowTraversalCache(): void {
-  const model = new THREE.Group();
-  const mesh = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1));
-  Object.defineProperty(mesh, 'isSkinnedMesh', { value: true });
-  model.add(mesh);
-  const originalTraverse = model.traverse.bind(model);
-  let traversals = 0;
-  model.traverse = (callback) => {
-    traversals += 1;
-    originalTraverse(callback);
-  };
-
-  const renderer = Object.create(LivestockVisuals.prototype) as LivestockVisuals;
-  Object.assign(renderer as object, {
-    animals: [{
-      herdId: 'herd-1',
-      root: new THREE.Group(),
-      model,
-      mixer: { update: () => undefined },
-      actions: {},
-      mode: 'idle',
-      modeTimer: 10_000,
-      x: 0,
-      z: 0,
-      targetX: 0,
-      targetZ: 0,
-      speed: 0,
-      pasture: { corners: [] },
-      random: () => 0.5,
-      castShadow: null,
-    }],
-    getHeightAt: () => 0,
-  });
-
-  const nearView = {
-    centerX: 0,
-    centerZ: 0,
-    viewRadius: 200,
-    shadowRadius: 80,
-  };
-  for (let frame = 0; frame < 1_000; frame += 1) {
-    renderer.tick(1 / 60, nearView);
-  }
-  assert.equal(
-    traversals,
-    1,
-    'unchanged livestock shadow eligibility should traverse the model once, not every frame',
-  );
-  assert.equal(mesh.castShadow, true);
-
-  renderer.tick(1 / 60, { ...nearView, centerX: 100 });
-  assert.equal(traversals, 2, 'crossing the shadow boundary must still update the model immediately');
-  assert.equal(mesh.castShadow, false);
-  mesh.geometry.dispose();
-}
-
 function testResidenceSmokeStateIsEventDriven(): void {
   let activeUpdates = 0;
   let ticks = 0;
@@ -692,7 +634,6 @@ function testChapelSnapshotIdentityCache(): void {
       centerX: 0,
       centerZ: 0,
       viewRadius: 120,
-      shadowRadius: 80,
       orbitDistance: 40,
     },
     config: {
@@ -701,6 +642,7 @@ function testChapelSnapshotIdentityCache(): void {
       getDeliveryTrips: () => new Map(),
       getFireIncidents: () => new Map(),
       getLivestockHerds: () => new Map(),
+      getPastures: () => new Map(),
       getBackyardGardens: () => new Map(),
       getForagingNodes: () => new Map(),
       getGraveyards: () => new Map(),

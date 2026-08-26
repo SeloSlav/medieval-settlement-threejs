@@ -5,11 +5,6 @@ export const DIRECTIONAL_SHADOW_TARGET_STEP_DEGREES = 0.12;
 // the preferred redraw cadence.
 export const DIRECTIONAL_SHADOW_MAX_STEP_DEGREES = 0.5;
 export const DIRECTIONAL_SHADOW_MIN_REFRESH_INTERVAL_MS = 100;
-// A walking villager moves about 12 cm in this interval at normal speed,
-// roughly one close-view shadow texel. This keeps dynamic silhouettes attached
-// without turning the static forest/building atlas back into an every-frame
-// render cost.
-export const DYNAMIC_SHADOW_MIN_REFRESH_INTERVAL_MS = 100;
 
 const TARGET_STEP_DOT = Math.cos(
   DIRECTIONAL_SHADOW_TARGET_STEP_DEGREES * Math.PI / 180,
@@ -45,15 +40,6 @@ export function shouldRefreshFirstPersonDirectionalShadow(
   return firstPersonActive && cameraInteractionActive;
 }
 
-/** Pace redraws requested by animated people, carts, livestock, and wildlife. */
-export function shouldRefreshDynamicDirectionalShadow(
-  dynamicShadowCastersChanged: boolean,
-  elapsedSinceRefreshMs: number,
-): boolean {
-  return dynamicShadowCastersChanged
-    && elapsedSinceRefreshMs >= DYNAMIC_SHADOW_MIN_REFRESH_INTERVAL_MS;
-}
-
 /**
  * The shadow atlas is manually cached, so a completed caster-buffer upload is
  * as authoritative an invalidation as moving/refitting the shadow camera.
@@ -61,13 +47,11 @@ export function shouldRefreshDynamicDirectionalShadow(
 export function shouldRefreshDirectionalShadowAtlas(
   shadowCameraNeedsRefit: boolean,
   forestShadowCastersChanged: boolean,
-  dynamicShadowRefreshDue: boolean,
   firstPersonActive: boolean,
   cameraInteractionActive: boolean,
 ): boolean {
   return shadowCameraNeedsRefit
     || forestShadowCastersChanged
-    || dynamicShadowRefreshDue
     || shouldRefreshFirstPersonDirectionalShadow(
       firstPersonActive,
       cameraInteractionActive,

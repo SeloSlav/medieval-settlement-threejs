@@ -468,7 +468,6 @@ async function main(): Promise<void> {
     centerX: 0,
     centerZ: 0,
     viewRadius: 120,
-    shadowRadius: 80,
     orbitDistance: 18,
   };
   const worldAssets = manifest.assets.filter((asset) => (
@@ -574,7 +573,6 @@ async function main(): Promise<void> {
     listenerX: 0,
     listenerZ: 0,
     viewRadius: 120,
-    shadowRadius: 80,
     orbitDistance: 18,
   };
   invariant(

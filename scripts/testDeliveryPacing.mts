@@ -526,10 +526,20 @@ assert.match(
   /visual\.routePolylineJson !== trip\.routePolylineJson[\s\S]*visual\.measuredPathDistance/,
   'unchanged cart routes should retain their decoded polyline and measured distance',
 );
-assert.match(
+assert.doesNotMatch(
   deliveryRenderer,
-  /if \(visual\.castShadow !== castShadow\)[\s\S]*visual\.mesh\.traverse[\s\S]*visual\.castShadow = castShadow/,
-  'cart shadow flags should only traverse the authored mesh when the range state changes',
+  /castShadow|receiveShadow|shadowCaster|isWithinShadowRange/i,
+  'delivery agents should not participate in shadow rendering or invalidation',
+);
+assert.doesNotMatch(
+  read('src/logistics/deliveryCartMesh.ts'),
+  /castShadow\s*=\s*true|receiveShadow\s*=\s*true/,
+  'delivery carts should neither cast nor receive shadows',
+);
+assert.doesNotMatch(
+  read('src/logistics/deliveryCartWorker.ts'),
+  /castShadow\s*=\s*true|receiveShadow\s*=\s*true/,
+  'cart haulers should neither cast nor receive shadows',
 );
 assert.doesNotMatch(
   deliveryRenderer,

@@ -49,6 +49,7 @@ export class FireAudio {
   private targetVolume = 0;
   private loading = false;
   private enabled = true;
+  private paused = false;
   private volume = 1;
   private playPending = false;
   private lastLoadAttemptAtMs = Number.NEGATIVE_INFINITY;
@@ -60,7 +61,7 @@ export class FireAudio {
   }
 
   tick(dtSeconds: number): void {
-    if (!this.enabled) return;
+    if (!this.enabled || this.paused) return;
     const listener = this.config.getListener();
     let nearestDistance = Number.POSITIVE_INFINITY;
     let nearestIntensity = 0;
@@ -113,6 +114,12 @@ export class FireAudio {
       this.audio.pause();
       this.audio.volume = 0;
     }
+  }
+
+  setPaused(paused: boolean): void {
+    if (this.paused === paused) return;
+    this.paused = paused;
+    if (paused) this.audio?.pause();
   }
 
   setVolume(volume: number): void {
@@ -171,6 +178,7 @@ export class FireAudio {
     this.playPending = true;
     void this.audio.play().catch(() => undefined).finally(() => {
       this.playPending = false;
+      if (this.paused) this.audio?.pause();
     });
   }
 }

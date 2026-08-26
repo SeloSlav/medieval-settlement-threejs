@@ -78,6 +78,16 @@ async function parseGlb(path: string) {
   });
 }
 
+function assertNoMeshShadows(root: THREE.Object3D, label: string): void {
+  root.traverse((object) => {
+    const mesh = object as THREE.Mesh;
+    if (!mesh.isMesh) return;
+    const meshLabel = mesh.name ? `${label} (${mesh.name})` : label;
+    assert.equal(mesh.castShadow, false, `${meshLabel} should not cast shadows`);
+    assert.equal(mesh.receiveShadow, false, `${meshLabel} should not receive shadows`);
+  });
+}
+
 const villagerAssets = [
   {
     variant: 'man',
@@ -305,6 +315,9 @@ assert.equal(
   'an empty return cart must retain its chassis without stale cargo geometry',
 );
 assert.equal(emptyCart.name, deliveryCartMeshName('stone', true, false, false));
+assertNoMeshShadows(cartA, 'delivery cart');
+assertNoMeshShadows(cartB, 'delivery cart');
+assertNoMeshShadows(emptyCart, 'delivery cart');
 
 const cargoSignatures: Record<DeliveryCargoKind, string> = {
   firewood: 'Firewood split log 1',
@@ -370,6 +383,7 @@ const cargoSignatures: Record<DeliveryCargoKind, string> = {
   maslinFlour: 'Flour sack',
   ryeBread: 'Bread loaf',
   maslinBread: 'Bread loaf',
+  pelts: 'Woven cloth roll 1',
   hides: 'Woven cloth roll 1',
   leather: 'Woven cloth roll 1',
   shoes: 'Fired pottery vessel 1',
@@ -444,6 +458,7 @@ assert.match(
 
 const worker = createDeliveryCartWorkerVisual(84525, deliveryWorkerSources);
 cartA.add(worker.root);
+assertNoMeshShadows(worker.root, 'delivery hauler');
 assert.equal(worker.root.userData.deliveryCartWorker, true);
 assert.equal(worker.root.userData.deliveryCartCrewIndex, 0);
 assert.equal(worker.mode, 'walk');
@@ -525,6 +540,7 @@ for (const asset of workerToolAssets) {
   workerRig.scale.setScalar(1.72 / workerRigHeight);
   const tool = attachWorkerTool(workerRig, source);
   workerRig.updateMatrixWorld(true);
+  assertNoMeshShadows(tool, `${asset.kind} worker tool`);
 
   assert.equal(
     tool.parent?.name,
@@ -618,7 +634,6 @@ const workView = {
   centerX: 0,
   centerZ: 0,
   viewRadius: 180,
-  shadowRadius: 80,
 };
 assert.equal(
   isWithinWorkAnimationRange(AGENT_WORK_ANIMATION_DISTANCE - 0.1, 0, workView),
@@ -669,6 +684,36 @@ assert.match(
   buildingLineupSource,
   /campSeating\?\.renderer\.syncAgents/,
   'the camp seating showcase should update the same crowd renderer used in play',
+);
+
+for (const sourcePath of [
+  'src/settlement/SettlementCrowdRenderer.ts',
+  'src/settlement/OxenRenderer.ts',
+  'src/settlement/workerTools.ts',
+  'src/farming/LivestockVisuals.ts',
+  'src/logistics/DeliveryAgentRenderer.ts',
+  'src/logistics/deliveryCartMesh.ts',
+  'src/logistics/deliveryCartWorker.ts',
+  'src/foraging/DeerWildlifeVisuals.ts',
+  'src/foraging/FishWildlifeVisuals.ts',
+]) {
+  const source = fs.readFileSync(sourcePath, 'utf8');
+  assert.doesNotMatch(
+    source,
+    /castShadow\s*=\s*true|receiveShadow\s*=\s*true|shadowCastersChanged|isWithinShadowRange/i,
+    `${sourcePath} should remain outside the shadow system`,
+  );
+}
+
+const burialMarkerSource = fs.readFileSync('src/residences/BurialMarkers.ts', 'utf8');
+const movingBurialVisuals = burialMarkerSource.slice(
+  burialMarkerSource.indexOf('function createShroudedBody'),
+  burialMarkerSource.indexOf('function syncCorpseMarker'),
+);
+assert.doesNotMatch(
+  movingBurialVisuals,
+  /castShadow\s*=\s*true|receiveShadow\s*=\s*true/,
+  'moving bodies, gravediggers, and burial carts should remain outside the shadow system',
 );
 
 console.log('villager and delivery-cart asset tests passed');

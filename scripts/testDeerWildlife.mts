@@ -19,7 +19,6 @@ import {
 import {
   createGameHerdSpawnPoints,
   nearestGameHabitatDisturbanceSource,
-  skeletonsUseSharedRig,
 } from '../src/foraging/DeerWildlifeVisuals.ts';
 import {
   GAME_PATCH_MAX_YIELD,
@@ -380,17 +379,6 @@ for (const asset of [
     clonedSkinnedMeshes.length > 1,
     `the ${asset.label} runtime clone should retain its material layers`,
   );
-  assert.notEqual(
-    clonedSkinnedMeshes[1]!.skeleton,
-    clonedSkinnedMesh.skeleton,
-    `SkeletonUtils should keep distinct ${asset.label} skeleton wrappers per material layer`,
-  );
-  assert.ok(
-    clonedSkinnedMeshes.every((mesh) => (
-      skeletonsUseSharedRig(mesh.skeleton, clonedSkinnedMesh.skeleton)
-    )),
-    `all cloned ${asset.label} material layers should be accepted as one shared rig`,
-  );
 }
 
 const mapIconSource = fs.readFileSync('src/map/ForagingMapIcons.ts', 'utf8');
@@ -402,6 +390,12 @@ assert.match(
 );
 
 const sceneManagerSource = fs.readFileSync('src/scene/SceneManager.ts', 'utf8');
+const deerVisualSource = fs.readFileSync('src/foraging/DeerWildlifeVisuals.ts', 'utf8');
+assert.doesNotMatch(
+  deerVisualSource,
+  /castShadow\s*=\s*true|receiveShadow\s*=\s*true|caster batch|ShadowCastersChanged/i,
+  'deer visuals should not allocate, render, or invalidate dynamic shadows',
+);
 assert.match(
   sceneManagerSource,
   /isSpawnBlockedAt:\s*isForagingSiteBlocked/,

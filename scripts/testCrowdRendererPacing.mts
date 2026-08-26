@@ -9,23 +9,11 @@ import {
   type VillagerRenderMode,
 } from '../src/settlement/SettlementCrowdRenderer.ts';
 import {
-  isWithinShadowRange,
   isWithinWorkAnimationRange,
   type CrowdViewState,
 } from '../src/settlement/crowdView.ts';
 
 const MAX_ANIMATED_VILLAGERS = 72;
-const WORK_MODES = new Set<VillagerRenderMode>([
-  'chop',
-  'mine',
-  'gather',
-  'plant',
-  'sow',
-  'fish',
-  'tend',
-  'build',
-  'fight',
-]);
 
 type SelectionHarness = {
   animatedCandidates: CrowdRenderAgent[];
@@ -53,9 +41,7 @@ function referenceSelection(
   view?: CrowdViewState,
 ): Set<string> {
   const candidates = agents.filter((agent) =>
-    WORK_MODES.has(agent.mode)
-      ? isWithinWorkAnimationRange(agent.x, agent.z, view)
-      : isWithinShadowRange(agent.x, agent.z, view)
+    isWithinWorkAnimationRange(agent.x, agent.z, view)
   );
   if (view) {
     candidates.sort((a, b) => {
@@ -106,7 +92,6 @@ const view: CrowdViewState = {
   centerX: 0,
   centerZ: 0,
   viewRadius: 240,
-  shadowRadius: 80,
 };
 
 const harness = createSelectionHarness();
@@ -201,7 +186,7 @@ assert.equal(renderCache.renderAgentsById.size, firstAgents.length);
 const animationRoot = new THREE.Object3D();
 const animationMixer = new THREE.AnimationMixer(animationRoot);
 const actionModes: VillagerRenderMode[] = [
-  'idle', 'walk', 'sit', 'rest', 'talk', 'chop', 'mine',
+  'idle', 'walk', 'sit', 'rest', 'talk', 'pray', 'chop', 'mine',
   'gather', 'plant', 'sow', 'fish', 'tend', 'build', 'fight',
 ];
 const pooledActions = Object.fromEntries(actionModes.map((mode) => [
@@ -301,7 +286,8 @@ assert.match(
 );
 assert.doesNotMatch(source, /createProxyLayers|updateProxyLayers|villager LOD/i);
 assert.match(source, /mesh\.visible = false;\s*mesh\.castShadow = false;/);
-assert.match(source, /mesh\.castShadow = true;\s*mesh\.receiveShadow = false;/);
+assert.doesNotMatch(source, /castShadow = true/);
+assert.doesNotMatch(source, /shadowCaster|isWithinShadowRange/i);
 assert.match(source, /material\.vertexColors = true;/);
 assert.doesNotMatch(source, /mergeGeometries/);
 

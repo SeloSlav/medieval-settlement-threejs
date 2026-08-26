@@ -1934,6 +1934,8 @@ export class VillagerRenderer {
     }
     const activeView = view ?? this.lastView;
     this.renderer.syncAgents(renderAgents, activeView, animationDt);
+    const audioPaused = this.getGameSpeed() === 0;
+    this.farmWorkerSongAudio.setPaused(audioPaused);
     if (audioDt > 0) {
       this.combatAudio.tick(
         audioDt,
@@ -1953,7 +1955,7 @@ export class VillagerRenderer {
         this.farmSongSources,
         activeView,
       );
-    } else if (this.getGameSpeed() === 0) {
+    } else if (audioPaused) {
       // A pause freezes the combat presentation and immediately silences any
       // in-flight melee one-shots instead of letting them finish over a frozen
       // battlefield.

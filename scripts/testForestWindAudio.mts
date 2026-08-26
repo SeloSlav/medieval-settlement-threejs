@@ -13,10 +13,19 @@ import {
   FOREST_WIND_SILENT_RTS_DISTANCE,
   forestWindTargetMix,
 } from '../src/audio/forestWindRules.ts';
+import { FireAudio } from '../src/audio/FireAudio.ts';
 
 const windPath = fileURLToPath(SEEDTHREE_TEMPERATE_WIND_URL);
 const windStat = await stat(windPath);
 const header = await readFile(windPath);
+const controllerSource = await readFile(
+  fileURLToPath(new URL('../src/audio/AmbientAudioController.ts', import.meta.url)),
+  'utf8',
+);
+const villagerRendererSource = await readFile(
+  fileURLToPath(new URL('../src/settlement/VillagerRenderer.ts', import.meta.url)),
+  'utf8',
+);
 
 assert.ok(windStat.isFile() && windStat.size > 1_000_000, 'SeedThree wind WAV must be present');
 assert.equal(header.toString('ascii', 0, 4), 'RIFF', 'SeedThree wind must have a RIFF header');
@@ -56,6 +65,26 @@ assert.ok(
   && FOREST_WIND_FADE_IN_SECONDS >= 2
   && FOREST_WIND_FADE_OUT_SECONDS > FOREST_WIND_FADE_IN_SECONDS,
   'forest wind must remain subtle and fade out more slowly than it fades in',
+);
+
+const worldPauseBody = controllerSource.match(
+  /setWorldPaused\(paused: boolean\): void \{([\s\S]*?)\n  \}/,
+)?.[1];
+assert.ok(worldPauseBody, 'the ambient controller must expose a world-pause audio boundary');
+assert.match(worldPauseBody, /this\.audio\.setPaused\(paused\)/, 'world pause must silence ambient beds');
+assert.match(worldPauseBody, /this\.forestWind\.setPaused\(paused\)/, 'world pause must silence forest wind');
+assert.match(worldPauseBody, /this\.riverAudio\.setPaused\(paused\)/, 'world pause must silence river audio');
+assert.match(worldPauseBody, /this\.fireAudio\.setPaused\(paused\)/, 'world pause must silence fire ambience');
+assert.doesNotMatch(worldPauseBody, /soundtrack/, 'world pause must leave background music playing');
+assert.match(
+  controllerSource,
+  /tick\(dtSeconds: number\): void \{[\s\S]*?this\.soundtrack\.tick\(dtSeconds\);\s*if \(this\.worldPaused\) return;/,
+  'paused audio ticks must continue only far enough to advance the background soundtrack',
+);
+assert.match(
+  villagerRendererSource,
+  /const audioPaused = this\.getGameSpeed\(\) === 0;\s*this\.farmWorkerSongAudio\.setPaused\(audioPaused\)/,
+  'world pause must silence the diegetic farm-worker song',
 );
 
 const preferenceStorage = new Map<string, string>();
@@ -114,6 +143,8 @@ class FakeAudio {
     this.pauseCalls += 1;
     this.paused = true;
   }
+
+  removeAttribute(): void {}
 }
 
 Object.defineProperty(globalThis, 'Audio', {
@@ -137,5 +168,34 @@ forestWind.tick(10);
 assert.equal(playingWind.pauseCalls, 1, 'paused ticks must not restart or repeatedly pause forest wind');
 forestWind.setPaused(false);
 forestWind.dispose();
+
+const fireAudio = new FireAudio({
+  getListener: () => ({ x: 0, z: 0 }),
+  getOrbitDistance: () => 12,
+  getFireIncidents: () => [],
+});
+const playingFire = new FakeAudio('fire');
+playingFire.paused = false;
+playingFire.currentTime = 7.25;
+Object.assign(
+  fireAudio as unknown as { audio: FakeAudio },
+  { audio: playingFire },
+);
+fireAudio.setPaused(true);
+assert.equal(playingFire.paused, true, 'pausing the world must silence active fire ambience immediately');
+assert.equal(playingFire.currentTime, 7.25, 'world pause must retain the fire-loop position');
+
+const { FarmWorkerSongAudio } = await import('../src/audio/FarmWorkerSongAudio.ts');
+const farmSong = new FarmWorkerSongAudio();
+const playingFarmSong = new FakeAudio('farm-song');
+playingFarmSong.paused = false;
+playingFarmSong.currentTime = 18.75;
+Object.assign(
+  farmSong as unknown as { audio: FakeAudio },
+  { audio: playingFarmSong },
+);
+farmSong.setPaused(true);
+assert.equal(playingFarmSong.paused, true, 'pausing the world must silence active farm singing immediately');
+assert.equal(playingFarmSong.currentTime, 18.75, 'world pause must retain the farm-song position');
 
 console.log('test:forest-wind-audio passed');

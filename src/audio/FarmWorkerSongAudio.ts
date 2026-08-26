@@ -30,6 +30,7 @@ export class FarmWorkerSongAudio {
   private targetVolume = 0;
   private loading = false;
   private playPending = false;
+  private paused = false;
   private lastPlayAttemptAtMs = 0;
   private loadGeneration = 0;
 
@@ -38,6 +39,7 @@ export class FarmWorkerSongAudio {
     sources: readonly FarmSongSource[],
     view: CrowdViewState | undefined,
   ): void {
+    if (this.paused) return;
     this.targetVolume = (
       isGameAudioEnabled() && !isSoundtrackActive()
         ? this.audibleGain(sources, view)
@@ -63,6 +65,12 @@ export class FarmWorkerSongAudio {
     } else if (this.currentVolume <= 0.0001 && this.targetVolume <= 0.0001) {
       audio.pause();
     }
+  }
+
+  setPaused(paused: boolean): void {
+    if (this.paused === paused) return;
+    this.paused = paused;
+    if (paused) this.audio?.pause();
   }
 
   dispose(): void {
@@ -140,6 +148,7 @@ export class FarmWorkerSongAudio {
     this.playPending = true;
     void this.audio.play().catch(() => undefined).finally(() => {
       this.playPending = false;
+      if (this.paused) this.audio?.pause();
     });
   }
 }

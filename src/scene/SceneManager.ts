@@ -117,7 +117,6 @@ import { setWorldAnimationTime } from './worldAnimationTime.ts';
 import {
   shouldRefreshDirectionalShadow,
   shouldRefreshDirectionalShadowAtlas,
-  shouldRefreshDynamicDirectionalShadow,
 } from './directionalShadowRefreshPolicy.ts';
 import {
   beginRendererFrame,
@@ -280,8 +279,6 @@ export class SceneManager {
   private lastShadowTargetZ = Number.NaN;
   private lastShadowDistance = Number.NaN;
   private lastDirectionalShadowRefreshMs = Number.NEGATIVE_INFINITY;
-  private lastDynamicShadowRefreshMs = Number.NEGATIVE_INFINITY;
-  private dynamicShadowCastersChanged = false;
   private unsubscribeShadowPreferences: (() => void) | null = null;
   private unsubscribeMapOverlayPreference: (() => void) | null = null;
   private unsubscribeConstellationPreference: (() => void) | null = null;
@@ -757,11 +754,6 @@ export class SceneManager {
     this.refreshShadowMap();
   }
 
-  /** Queue a paced atlas redraw after an animated caster changes pose. */
-  invalidateDynamicShadows(): void {
-    this.dynamicShadowCastersChanged = true;
-  }
-
   applyMapOverlayPreference(): void {
     this.setMapOverlaySelection(getMapOverlaySelection());
   }
@@ -1059,22 +1051,13 @@ export class SceneManager {
       this.lastShadowKeyDirection.copy(this.shadowKeyDirection);
       this.lastDirectionalShadowRefreshMs = shadowRefreshNowMs;
     }
-    const dynamicShadowRefreshDue = shouldRefreshDynamicDirectionalShadow(
-      this.dynamicShadowCastersChanged,
-      shadowRefreshNowMs - this.lastDynamicShadowRefreshMs,
-    );
     if (shouldRefreshDirectionalShadowAtlas(
       shadowCameraNeedsRefit,
       forestShadowCastersChanged,
-      dynamicShadowRefreshDue,
       firstPersonActive,
       cameraInteractionActive,
     )) {
       this.refreshShadowMap();
-      // Any atlas redraw captures the latest animated poses too. Clear the
-      // pending invalidation and pace the next dynamic-only refresh from here.
-      this.dynamicShadowCastersChanged = false;
-      this.lastDynamicShadowRefreshMs = shadowRefreshNowMs;
     }
     if (import.meta.env.VITE_E2E_TEST === '1') {
       // The smoke test exercises the real node-material terrain through the

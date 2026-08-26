@@ -216,7 +216,8 @@ for (const source of sources) {
       );
       assert.equal(layer.material.vertexColors, true);
       assert.equal(layer.material.color.getHex(), 0xffffff);
-      assert.equal(layer.mesh.castShadow, true);
+      assert.equal(layer.mesh.castShadow, false);
+      assert.equal(layer.mesh.receiveShadow, false);
       assert.equal(layer.mesh.frustumCulled, false);
       for (const attribute of Object.values(layer.geometry.attributes)) {
         aggregateGeometryBytes += attribute.array.byteLength;

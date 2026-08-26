@@ -105,7 +105,6 @@ export class AmbientAudioController {
     centerX: 0,
     centerZ: 0,
     viewRadius: 120,
-    shadowRadius: 80,
     orbitDistance: 240,
   };
   private lastAmbientEvalAtMs = 0;
@@ -184,6 +183,8 @@ export class AmbientAudioController {
 
   tick(dtSeconds: number): void {
     if (!this.running || !this.audio.getEnabled()) return;
+    this.soundtrack.tick(dtSeconds);
+    if (this.worldPaused) return;
 
     const schedule = this.schedule;
     const buildingSnapshot = this.config.getBuildings();
@@ -237,7 +238,6 @@ export class AmbientAudioController {
         villageActive: ambient.state.villageActive,
       });
     }
-    this.soundtrack.tick(dtSeconds);
     const scoreActive = this.soundtrack.isAudible() || this.externalScoreActive;
     this.audio.setScoreActive(scoreActive);
     this.forestWind.setScoreActive(scoreActive);
@@ -323,6 +323,7 @@ export class AmbientAudioController {
     this.audio.setPaused(paused);
     this.forestWind.setPaused(paused);
     this.riverAudio.setPaused(paused);
+    this.fireAudio.setPaused(paused);
   }
 
   setMusicVolume(volume: number): void {

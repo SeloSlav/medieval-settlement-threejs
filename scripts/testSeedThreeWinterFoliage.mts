@@ -606,7 +606,7 @@ assert.match(
 );
 assert.match(
   builderSource,
-  /const sourceMaterial = applySeedThreeBarkSnow\(\s*forestBarkMaterial\(mesh\.material as THREE\.Material\)[\s\S]*?createSeedThreeOverviewBarkFadeMaterial\(sourceMaterial\)[\s\S]*?options\.snowCardMaterials\?\.add\(material\)/,
+  /const sourceMaterial = applySeedThreeBarkSnow\(\s*applySeedThreeForestBarkMotion\(\s*forestBarkMaterial\(mesh\.material as THREE\.Material\)[\s\S]*?createSeedThreeOverviewBarkFadeMaterial\(sourceMaterial\)[\s\S]*?options\.snowCardMaterials\?\.add\(material\)/,
   'near and overview bark materials must register with the shared forest snow controller',
 );
 assert.match(

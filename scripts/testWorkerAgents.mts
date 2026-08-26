@@ -1260,7 +1260,6 @@ assert.deepEqual(
     centerX: 12,
     centerZ: 18,
     viewRadius: 161.5,
-    shadowRadius: 80,
     orbitDistance: 90,
     listenerX: 4,
     listenerZ: 7,

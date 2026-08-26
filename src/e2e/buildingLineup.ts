@@ -486,7 +486,7 @@ await Promise.all(
 for (const view of views) {
   view.waysidePrayer?.renderer.syncAgents(
     view.waysidePrayer.agents,
-    { centerX: 0, centerZ: 0, viewRadius: 80, shadowRadius: 80 },
+    { centerX: 0, centerZ: 0, viewRadius: 80 },
     0.25,
   );
   view.stableOxen?.renderer.tick(0);
@@ -579,7 +579,6 @@ function animate(nowMs: number): void {
         centerX: 0,
         centerZ: 0,
         viewRadius: 80,
-        shadowRadius: 80,
       },
       dtSeconds,
     );
@@ -589,7 +588,6 @@ function animate(nowMs: number): void {
         centerX: 0,
         centerZ: 0,
         viewRadius: 80,
-        shadowRadius: 80,
       },
       dtSeconds,
     );
@@ -678,7 +676,7 @@ function createWaysidePrayerPreview(
   const renderer = new SettlementCrowdRenderer({ parent });
   renderer.syncAgents(
     agents,
-    { centerX: 0, centerZ: 0, viewRadius: 80, shadowRadius: 80 },
+    { centerX: 0, centerZ: 0, viewRadius: 80 },
   );
   return { renderer, agents };
 }
@@ -750,7 +748,6 @@ function createCampSeatingPreview(
     centerX: 0,
     centerZ: 0,
     viewRadius: 80,
-    shadowRadius: 80,
   });
   return { renderer, agents };
 }
