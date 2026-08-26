@@ -172,6 +172,9 @@ export function buildingLaborView(
       increaseDisabled: true,
     };
   }
+  const buildingCap = building.constructionComplete !== false
+    ? buildingMaxLabor(building.kind)
+    : CONSTRUCTION_MAX_BUILDERS;
   if (
     building.constructionComplete === false
     && normalizeConstructionPriority(building.constructionPriority) === CONSTRUCTION_PRIORITY_HOLD
@@ -179,6 +182,7 @@ export function buildingLaborView(
     return {
       visible: true,
       count: 0,
+      maxCount: buildingCap,
       hint: 'Construction is held. Reservations remain earmarked; resume the site before assigning builders.',
       decreaseDisabled: true,
       increaseDisabled: true,
@@ -186,9 +190,6 @@ export function buildingLaborView(
   }
 
   const maxLabor = maxAssignableLabor(building, populationStats);
-  const buildingCap = building.constructionComplete !== false
-    ? buildingMaxLabor(building.kind)
-    : CONSTRUCTION_MAX_BUILDERS;
   const dedicatedCartHaulers = building.constructionComplete !== false
     && (building.kind === 'village_storehouse' || building.kind === 'trading_post');
   const activeTrips = laborTrips == null
@@ -231,6 +232,7 @@ export function buildingLaborView(
         ? 'Cart haulers'
         : 'Workforce',
     count: building.assignedLabor,
+    maxCount: buildingCap,
     hint: building.constructionComplete !== false
       ? `${building.assignedLabor}/${buildingCap} ${workforceNoun} · ${populationStats.available} available (${populationStats.total} population, ${populationStats.assigned} committed${populationStats.cartAssigned > 0 ? `, including ${populationStats.cartAssigned} in-transit reservations` : ''}).${cartLaborHint}`
       : `${building.assignedLabor}/${buildingCap} builders · ${populationStats.available} available.${cartLaborHint} Builders construct while onsite; if no hauler is free at a material limit, idle builders may operate distinctly reserved carts while one remains ready for the first load. A lone builder may haul to break a bootstrap deadlock.`,

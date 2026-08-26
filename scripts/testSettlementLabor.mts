@@ -273,6 +273,11 @@ const rosterBackedCartLabor = buildingLaborView(
     }),
   } as unknown as WorldQueries,
 );
+assert.equal(
+  rosterBackedCartLabor.maxCount,
+  BUILDING_DEFINITIONS.village_storehouse.maxLabor,
+  'building labor cards must expose their staffing limit for the visible assigned / capacity counter',
+);
 assert.match(rosterBackedCartLabor.hint, /1 rostered worker is away, leaving 0 on site/);
 assert.match(rosterBackedCartLabor.hint, /Only the on-site crew performs this building's role until return/);
 const activeHaulageInspector = renderTownHallInspector(
@@ -420,6 +425,11 @@ assert.match(
   'the totals-mode resource card must keep in-transit cargo separate from physically stored stock',
 );
 assert.match(resourceInspector, /closest<HTMLElement>\('\[data-inspect-delivery-trip\]'\)/);
+assert.match(
+  resourceInspector,
+  /`\$\{view\.labor\.count\} \/ \$\{view\.labor\.maxCount\}`/,
+  'the visible building labor counter must render assigned labor with its denominator',
+);
 assert.match(resourceInspector, /en route/);
 assert.match(resourceInspector, /awaiting collection/);
 assert.match(villagerInspector, /selectDeliveryTrip\(tripId: string\): boolean/);

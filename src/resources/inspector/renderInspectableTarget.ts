@@ -24,6 +24,7 @@ export type InspectorLaborView = {
   visible: boolean;
   label?: string;
   count: number;
+  maxCount?: number;
   hint: string;
   decreaseDisabled: boolean;
   increaseDisabled: boolean;

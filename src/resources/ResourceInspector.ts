@@ -473,7 +473,7 @@ export class ResourceInspector {
               <span class="resource-inspector-labor-label"><span aria-hidden="true">⚒</span> <span data-inspector-labor-label>Workforce</span></span>
               <div class="resource-inspector-labor-controls">
                 <button type="button" class="resource-action-button resource-action-button--icon resource-inspector-labor-button" data-action="labor-decrease" aria-label="Decrease labor">−</button>
-                <strong data-inspector-labor-count>0</strong>
+                <strong data-inspector-labor-count aria-live="polite">0 / 0</strong>
                 <button type="button" class="resource-action-button resource-action-button--icon resource-inspector-labor-button" data-action="labor-increase" aria-label="Increase labor">+</button>
               </div>
             </div>
@@ -2455,7 +2455,9 @@ export class ResourceInspector {
       this.laborLabel.textContent = target.kind === 'building'
         ? `${laborLabel} · ${this.populationStats.available} free`
         : laborLabel;
-      this.laborCount.textContent = view.labor.count.toString();
+      this.laborCount.textContent = view.labor.maxCount == null
+        ? view.labor.count.toString()
+        : `${view.labor.count} / ${view.labor.maxCount}`;
       this.laborHint.textContent = view.labor.hint;
       this.laborHint.hidden = target.kind === 'building' || view.labor.hint.trim().length === 0;
       syncFocusableInspectorTooltip(
