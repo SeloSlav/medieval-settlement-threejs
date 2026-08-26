@@ -119,6 +119,7 @@ export function mountTooltips(root: HTMLElement): () => void {
         'data-tooltip-flow',
         'data-tooltip-resources',
         'data-tooltip-cost',
+        'data-tooltip-cost-label',
         'data-tooltip-cost-affordable',
         'data-tooltip-placement',
         'data-tooltip-variant',
@@ -426,6 +427,7 @@ function renderTooltipContent(
       resourceCost.items,
       resourceCost.suffix,
       anchor.dataset.tooltipCostAffordable !== 'false',
+      anchor.dataset.tooltipCostLabel?.trim() || 'Construction cost',
     ));
   }
 
@@ -526,6 +528,7 @@ function createTooltipConstructionCost(
   items: readonly ResourceCostEntry[],
   suffix: string,
   affordable: boolean,
+  costLabel: string,
 ): HTMLDivElement {
   const row = document.createElement('div');
   row.className = 'ui-tooltip__construction-cost';
@@ -533,7 +536,7 @@ function createTooltipConstructionCost(
 
   const label = document.createElement('span');
   label.className = 'ui-tooltip__construction-cost-label';
-  label.textContent = 'Construction cost';
+  label.textContent = costLabel;
 
   const cost = document.createElement('span');
   cost.className = `resource-cost resource-cost--compact${affordable ? '' : ' resource-cost--unaffordable'}`;

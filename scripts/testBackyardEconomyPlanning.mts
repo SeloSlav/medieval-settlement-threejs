@@ -33,6 +33,7 @@ import {
   renderSettlementBackyardEconomyRows,
 } from '../src/resources/inspector/townHallRenderer.ts';
 import { renderBackyardInspector } from '../src/resources/inspector/backyardRenderer.ts';
+import { decodeResourceCostTooltip } from '../src/ui/resourceCost.ts';
 import type {
   BackyardGardenState,
   BuildingState,
@@ -653,6 +654,60 @@ const emptyBackyardView = renderBackyardInspector(
 assert.doesNotMatch(emptyBackyardView.detailsHtml, /<span>Parcel<\/span>/);
 assert.doesNotMatch(emptyBackyardView.detailsHtml, /<span>Available timber<\/span>/);
 assert.match(emptyBackyardView.detailsHtml, /<span>Population<\/span>/);
+
+function assertCompactBackyardOptions(
+  markup: string,
+  expectedCostLabel: string,
+): void {
+  const options = [...markup.matchAll(
+    /<button\b[^>]*\bbackyard-picker-option[^>]*>([\s\S]*?)<\/button>/g,
+  )];
+  assert.ok(options.length > 0, 'the backyard picker should render at least one option');
+  for (const option of options) {
+    const tag = option[0].slice(0, option[0].indexOf('>') + 1);
+    const contents = option[1];
+    assert.match(contents, /backyard-picker-option__icon/);
+    assert.match(contents, /backyard-picker-option__title/);
+    assert.doesNotMatch(contents, /backyard-picker-option__(?:cost|funding)|resource-cost/);
+    assert.match(tag, /data-tooltip="[^"]+"/);
+    assert.match(tag, new RegExp(`data-tooltip-cost-label="${expectedCostLabel}"`));
+    const encodedCost = tag.match(/data-tooltip-cost="([^"]+)"/)?.[1] ?? '';
+    assert.ok(
+      (decodeResourceCostTooltip(encodedCost)?.items.length ?? 0) > 0,
+      'the hover tooltip should carry at least one icon-backed resource cost',
+    );
+  }
+}
+
+assertCompactBackyardOptions(emptyBackyardView.supplementalPanelHtml, 'Extension cost');
+
+const compactCardContext = {
+  gameState: splitState as GameState,
+  worldQueries: {} as WorldQueries,
+  worldHydrology: 50,
+  resourceTotals: { timber: 381, stone: 12, gold: 24 },
+  getEconomicActivityTaxRate: () => 0.25,
+  getParishPolicy: () => DEFAULT_PARISH_POLICY,
+} as Parameters<typeof renderBackyardInspector>[1];
+for (const [kind, expectedCostLabel] of [
+  ['orchard', 'Planting cost'],
+  ['animal_pen', 'Stocking cost'],
+  ['vegetable_garden', 'Seed cost'],
+] as const) {
+  const specializationView = renderBackyardInspector(
+    {
+      kind: 'backyard',
+      residence: westHome,
+      zone: { plotCount: 1 },
+      garden: garden(`compact-${kind}`, westHome.id, kind),
+    } as Parameters<typeof renderBackyardInspector>[0],
+    compactCardContext,
+  );
+  assertCompactBackyardOptions(
+    specializationView.supplementalPanelHtml,
+    expectedCostLabel,
+  );
+}
 
 const backyardProjectHome: ResidenceState = {
   ...westHome,

@@ -45,7 +45,11 @@ import { environmentFor } from '../../world/seasonPolicy.ts';
 import type { BurgageZoneState, InspectableTarget } from '../types.ts';
 import type { InspectorRenderContext, InspectorView } from './renderInspectableTarget.ts';
 import { hiddenLabor } from './renderInspectableTarget.ts';
-import { renderBuildingResourceCost } from '../../ui/resourceCost.ts';
+import {
+  buildingResourceCostAmounts,
+  encodeResourceCostTooltip,
+  renderBuildingResourceCost,
+} from '../../ui/resourceCost.ts';
 
 export function renderBackyardInspector(
   target: Extract<InspectableTarget, { kind: 'backyard' }>,
@@ -285,7 +289,6 @@ function renderEmptyBackyardPicker(
       && blockingPile === null
       && materialsAffordable
       && funding.ready;
-    const fundingLabel = `Household ${formatProjectAmount(funding.householdContribution)} · Treasury ${formatProjectAmount(funding.civicGoldRequired)}`;
     const availabilityLabel = underConstruction
       ? 'cottage unfinished'
       : blockingPile
@@ -296,7 +299,8 @@ function renderEmptyBackyardPicker(
             ? `treasury short ${formatProjectAmount(funding.treasuryShortfall)} gold`
             : 'ready';
     const actionLabel = `Build ${backyardGardenLabel(kind)}`;
-    const optionDetail = `Cost ${formatBackyardGardenCost(kind)} · ${availabilityLabel} · paid ${formatProjectAmount(funding.householdContribution)} household/${formatProjectAmount(funding.civicGoldRequired)} treasury gold`;
+    const optionDetail = `${availabilityLabel} · paid ${formatProjectAmount(funding.householdContribution)} household/${formatProjectAmount(funding.civicGoldRequired)} treasury gold`;
+    const accessibleDetail = `Cost ${formatBackyardGardenCost(kind)}. ${optionDetail}`;
     return `
       <li class="backyard-picker-row">
         <button
@@ -306,13 +310,14 @@ function renderEmptyBackyardPicker(
           data-garden-kind="${kind}"
           data-tooltip-title="${actionLabel}"
           data-tooltip="${optionDetail}"
-          aria-label="${actionLabel}. ${optionDetail}"
+          data-tooltip-cost="${encodeResourceCostTooltip(buildingResourceCostAmounts(cost))}"
+          data-tooltip-cost-label="Extension cost"
+          data-tooltip-cost-affordable="${materialsAffordable && funding.ready}"
+          aria-label="${actionLabel}. ${accessibleDetail}"
           ${affordable ? '' : 'disabled'}
         >
           <span class="backyard-picker-option__icon" aria-hidden="true"></span>
           <span class="backyard-picker-option__title">${backyardGardenPickerLabel(kind)}</span>
-          <span class="backyard-picker-option__cost">${renderBuildingResourceCost(cost, { compact: true })}</span>
-          <span class="backyard-picker-option__funding">${fundingLabel}</span>
         </button>
       </li>
     `;
@@ -362,16 +367,16 @@ function renderOrchardSpecializationPicker(
       ? 'ready'
       : `needs ${formatProjectAmount(funding.treasuryShortfall)} treasury gold`;
     const actionLabel = `Plant ${backyardGardenLabel(kind)}`;
-    const optionDetail = `${plantingGold} gold · ${fundingState} · paid ${formatProjectAmount(funding.householdContribution)} household/${formatProjectAmount(funding.civicGoldRequired)} treasury · first ${def.firstHarvestDays}d · ${harvestMonths} · ${efficiency}% yield${def.jamPerPersonPerSec > 0 ? ' · jam' : ''} · permanent`;
+    const optionDetail = `${fundingState} · paid ${formatProjectAmount(funding.householdContribution)} household/${formatProjectAmount(funding.civicGoldRequired)} treasury · first ${def.firstHarvestDays}d · ${harvestMonths} · ${efficiency}% yield${def.jamPerPersonPerSec > 0 ? ' · jam' : ''} · permanent`;
     return `<li class="backyard-picker-row">
       <button type="button" class="resource-action-button backyard-picker-option${ready ? '' : ' backyard-picker-option--disabled'}"
         data-inspector-action="specialize-orchard" data-garden-kind="${kind}"
         data-tooltip-title="${actionLabel}" data-tooltip="${optionDetail}"
-        ${ready ? '' : 'disabled'} aria-label="${actionLabel}. ${optionDetail}">
+        data-tooltip-cost="${encodeResourceCostTooltip({ gold: plantingGold })}"
+        data-tooltip-cost-label="Planting cost" data-tooltip-cost-affordable="${ready}"
+        ${ready ? '' : 'disabled'} aria-label="${actionLabel}. Planting cost ${plantingGold} gold. ${optionDetail}">
         <span class="backyard-picker-option__icon" aria-hidden="true"></span>
         <span class="backyard-picker-option__title">${backyardGardenLabel(kind)}</span>
-        <span class="backyard-picker-option__cost">${plantingGold} gold · first in ${def.firstHarvestDays}d</span>
-        <span class="backyard-picker-option__funding">${harvestMonths} · ${efficiency}% yield</span>
       </button>
     </li>`;
   }).join('');
@@ -422,16 +427,16 @@ function renderAnimalPenSpecializationPicker(
       ? 'ready'
       : `needs ${formatProjectAmount(funding.treasuryShortfall)} treasury gold`;
     const actionLabel = `House ${backyardGardenLabel(kind)}`;
-    const optionDetail = `${stockingGold} gold · ${fundingState} · paid ${formatProjectAmount(funding.householdContribution)} household/${formatProjectAmount(funding.civicGoldRequired)} treasury · ${primaryProduct} every ${def.productionIntervalDays}d ${formatMonthWindow(def.harvestStartMonth, def.harvestEndMonth)}${secondary} · permanent`;
+    const optionDetail = `${fundingState} · paid ${formatProjectAmount(funding.householdContribution)} household/${formatProjectAmount(funding.civicGoldRequired)} treasury · first ${def.firstHarvestDays}d · ${primaryProduct} every ${def.productionIntervalDays}d ${formatMonthWindow(def.harvestStartMonth, def.harvestEndMonth)}${secondary} · permanent`;
     return `<li class="backyard-picker-row">
       <button type="button" class="resource-action-button backyard-picker-option${funding.ready ? '' : ' backyard-picker-option--disabled'}"
         data-inspector-action="specialize-animal-pen" data-garden-kind="${kind}"
         data-tooltip-title="${actionLabel}" data-tooltip="${optionDetail}"
-        ${funding.ready ? '' : 'disabled'} aria-label="${actionLabel}. ${optionDetail}">
+        data-tooltip-cost="${encodeResourceCostTooltip({ gold: stockingGold })}"
+        data-tooltip-cost-label="Stocking cost" data-tooltip-cost-affordable="${funding.ready}"
+        ${funding.ready ? '' : 'disabled'} aria-label="${actionLabel}. Stocking cost ${stockingGold} gold. ${optionDetail}">
         <span class="backyard-picker-option__icon" aria-hidden="true"></span>
         <span class="backyard-picker-option__title">${backyardGardenLabel(kind)}</span>
-        <span class="backyard-picker-option__cost">${stockingGold} gold · first in ${def.firstHarvestDays}d</span>
-        <span class="backyard-picker-option__funding">${primaryProduct} · every ${def.productionIntervalDays}d</span>
       </button>
     </li>`;
   }).join('');
@@ -476,16 +481,16 @@ function renderVegetableGardenSpecializationPicker(
       ? 'ready'
       : `needs ${formatProjectAmount(funding.treasuryShortfall)} treasury gold`;
     const actionLabel = `Purchase ${backyardGardenLabel(kind)} seed`;
-    const optionDetail = `${seedGold} gold seed · ${fundingState} · paid ${formatProjectAmount(funding.householdContribution)} household/${formatProjectAmount(funding.civicGoldRequired)} treasury · first ${def.firstHarvestDays}d · ${harvestMonths} · ${efficiency}% yield · permanent`;
+    const optionDetail = `${fundingState} · paid ${formatProjectAmount(funding.householdContribution)} household/${formatProjectAmount(funding.civicGoldRequired)} treasury · first ${def.firstHarvestDays}d · ${harvestMonths} · ${efficiency}% yield · permanent`;
     return `<li class="backyard-picker-row">
       <button type="button" class="resource-action-button backyard-picker-option${funding.ready ? '' : ' backyard-picker-option--disabled'}"
         data-inspector-action="specialize-vegetable-garden" data-garden-kind="${kind}"
         data-tooltip-title="${actionLabel}" data-tooltip="${optionDetail}"
-        ${funding.ready ? '' : 'disabled'} aria-label="${actionLabel}. ${optionDetail}">
+        data-tooltip-cost="${encodeResourceCostTooltip({ gold: seedGold })}"
+        data-tooltip-cost-label="Seed cost" data-tooltip-cost-affordable="${funding.ready}"
+        ${funding.ready ? '' : 'disabled'} aria-label="${actionLabel}. Seed cost ${seedGold} gold. ${optionDetail}">
         <span class="backyard-picker-option__icon" aria-hidden="true"></span>
         <span class="backyard-picker-option__title">${backyardGardenLabel(kind)}</span>
-        <span class="backyard-picker-option__cost">${seedGold} gold seed · first in ${def.firstHarvestDays}d</span>
-        <span class="backyard-picker-option__funding">${harvestMonths} · ${efficiency}% yield</span>
       </button>
     </li>`;
   }).join('');

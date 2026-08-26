@@ -32,7 +32,7 @@
   min-height: 58px;
   display: grid;
   grid-template-columns: 38px minmax(0, 1fr);
-  grid-template-rows: 1fr auto auto;
+  grid-template-rows: 1fr;
   align-items: center;
   gap: 2px 8px;
   padding: 7px 8px;
@@ -66,7 +66,7 @@
 .backyard-picker-option__title {
   grid-column: 2;
   grid-row: 1;
-  align-self: end;
+  align-self: center;
   min-width: 0;
   font-size: 0.86rem;
   font-weight: 600;
@@ -75,7 +75,7 @@
 
 .backyard-picker-option__icon {
   grid-column: 1;
-  grid-row: 1 / span 3;
+  grid-row: 1;
   display: block;
   width: 36px;
   height: 36px;
@@ -86,28 +86,6 @@
   background-repeat: no-repeat;
   box-shadow: inset 0 0 8px rgba(0, 0, 0, 0.42);
   filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.72));
-}
-
-.backyard-picker-option__cost {
-  grid-column: 2;
-  grid-row: 2;
-  align-self: start;
-  display: inline-flex;
-  align-items: center;
-  white-space: nowrap;
-}
-
-.backyard-picker-option__cost .resource-cost {
-  color: rgba(226, 199, 123, 0.96);
-  font-size: 0.74rem;
-}
-
-.backyard-picker-option__funding {
-  grid-column: 2;
-  grid-row: 3;
-  color: rgba(226, 220, 207, 0.7);
-  font-size: 0.68rem;
-  line-height: 1.25;
 }
 
 @media (max-width: 330px) {
