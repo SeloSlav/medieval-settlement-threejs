@@ -23,6 +23,7 @@ import {
   type StableOxAssignment,
   type StableOxLike,
 } from './stableOxen.ts';
+import { advanceOxFollowPosition } from './oxFollowMotion.ts';
 
 const OX_MODEL_URL = '/assets/models/livestock/quaternius-bull.glb';
 const OX_TARGET_HEIGHT = 1.72;
@@ -246,10 +247,13 @@ export class OxenRenderer {
         const dz = target.z - visual.z;
         const distance = Math.hypot(dx, dz);
         moving = moving || distance > 0.16;
-        if (distance > 0.025 && simulationDt > 0) {
-          const step = Math.min(distance, OX_WALK_SPEED * simulationDt);
-          visual.x += dx / distance * step;
-          visual.z += dz / distance * step;
+        if (distance > 1e-6 && simulationDt > 0) {
+          advanceOxFollowPosition(
+            visual,
+            target.x,
+            target.z,
+            OX_WALK_SPEED * simulationDt,
+          );
           visual.yaw = Math.atan2(dx, dz);
         } else if (distance <= 0.16) {
           visual.yaw = target.yaw;
