@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import type { TerrainBounds } from '../terrain/Terrain.ts';
+import type { PointXZ } from '../utils/pathGeometry.ts';
 import type { RiverLayout } from './RiverLayout.ts';
 import { buildOrganicShoreSignedDistance, computeShoreSignedDistance, dilateRiverMask } from './organicShoreField.ts';
 
@@ -29,6 +30,7 @@ const SHORE_BAND_MAX = 5.2;
 const SHORE_MUD_FADE_START = 0.18;
 const SHORE_MUD_FADE_SPAN = 10.8;
 const SHORE_ORGANIC_DISTANCE_BLEND = 0.34;
+const NAVIGATION_WATER_TILE_CELLS = 4;
 
 export class RiverField {
   readonly resolution: number;
@@ -43,6 +45,7 @@ export class RiverField {
   readonly organicSignedDistance: Float32Array;
   readonly layout: RiverLayout;
   readonly maxCarveDepth = 0;
+  private navigationWaterTiles: Uint8Array | null = null;
 
   private constructor(
     resolution: number,
@@ -171,6 +174,157 @@ export class RiverField {
     if (ix < 0 || iz < 0 || ix >= this.resolution || iz >= this.resolution) return false;
     const i = iz * this.resolution + ix;
     return this.riverMask[i] >= RENDER_WATER_MASK_THRESHOLD;
+  }
+
+  /**
+   * Exact disk query against the rendered water cells. Agent navigation uses
+   * this instead of nine independent world-to-grid probes; at normal map
+   * scales an agent overlaps only one to four river-mask cells.
+   */
+  renderedWaterTouchesDisk(x: number, z: number, radius: number): boolean {
+    if (!Number.isFinite(radius) || radius <= 1e-6) {
+      return this.isRenderedWetAt(x, z);
+    }
+    const minGridX = Math.max(
+      0,
+      Math.ceil((x - radius - this.startX) / this.stepX - 0.5),
+    );
+    const maxGridX = Math.min(
+      this.resolution - 1,
+      Math.floor((x + radius - this.startX) / this.stepX + 0.5),
+    );
+    const minGridZ = Math.max(
+      0,
+      Math.ceil((z - radius - this.startZ) / this.stepZ - 0.5),
+    );
+    const maxGridZ = Math.min(
+      this.resolution - 1,
+      Math.floor((z + radius - this.startZ) / this.stepZ + 0.5),
+    );
+    if (minGridX > maxGridX || minGridZ > maxGridZ) return false;
+
+    const radiusSq = radius * radius;
+    for (let gridZ = minGridZ; gridZ <= maxGridZ; gridZ += 1) {
+      for (let gridX = minGridX; gridX <= maxGridX; gridX += 1) {
+        if (!this.isRenderedWetAtGrid(gridX, gridZ)) continue;
+        const cellCenterX = this.startX + gridX * this.stepX;
+        const cellCenterZ = this.startZ + gridZ * this.stepZ;
+        const dx = Math.max(0, Math.abs(x - cellCenterX) - this.stepX * 0.5);
+        const dz = Math.max(0, Math.abs(z - cellCenterZ) - this.stepZ * 0.5);
+        if (dx * dx + dz * dz <= radiusSq) return true;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * Conservative tile-level rejection for whole routes. It lets navigation
+   * avoid all detailed water probes when a completed land route is nowhere
+   * near the river. Detailed disk checks still own the final decision.
+   */
+  renderedWaterMayTouchPolyline(
+    path: readonly PointXZ[],
+    radius: number,
+  ): boolean {
+    if (path.length === 0) return false;
+    const tiles = this.getNavigationWaterTiles();
+    const tileResolution = Math.ceil(
+      this.resolution / NAVIGATION_WATER_TILE_CELLS,
+    );
+    const tileSizeX = this.stepX * NAVIGATION_WATER_TILE_CELLS;
+    const tileSizeZ = this.stepZ * NAVIGATION_WATER_TILE_CELLS;
+    const tileOriginX = this.startX - this.stepX * 0.5;
+    const tileOriginZ = this.startZ - this.stepZ * 0.5;
+    const neighborRadius = Math.max(
+      1,
+      Math.ceil(Math.max(0, radius) / Math.min(tileSizeX, tileSizeZ)),
+    );
+    const sampleStep = Math.min(tileSizeX, tileSizeZ) * 0.75;
+    const tileNeighborhoodIsWet = (x: number, z: number): boolean => {
+      const centerTileX = Math.floor((x - tileOriginX) / tileSizeX);
+      const centerTileZ = Math.floor((z - tileOriginZ) / tileSizeZ);
+      for (let dz = -neighborRadius; dz <= neighborRadius; dz += 1) {
+        const tileZ = centerTileZ + dz;
+        if (tileZ < 0 || tileZ >= tileResolution) continue;
+        for (let dx = -neighborRadius; dx <= neighborRadius; dx += 1) {
+          const tileX = centerTileX + dx;
+          if (tileX < 0 || tileX >= tileResolution) continue;
+          if (tiles[tileZ * tileResolution + tileX] !== 0) return true;
+        }
+      }
+      return false;
+    };
+
+    if (path.length === 1) {
+      return tileNeighborhoodIsWet(path[0].x, path[0].z);
+    }
+    for (let index = 0; index < path.length - 1; index += 1) {
+      const start = path[index];
+      const end = path[index + 1];
+      const length = Math.hypot(end.x - start.x, end.z - start.z);
+      const steps = Math.max(1, Math.ceil(length / sampleStep));
+      const startTileX = Math.floor((start.x - tileOriginX) / tileSizeX);
+      const startTileZ = Math.floor((start.z - tileOriginZ) / tileSizeZ);
+      const endTileX = Math.floor((end.x - tileOriginX) / tileSizeX);
+      const endTileZ = Math.floor((end.z - tileOriginZ) / tileSizeZ);
+      const minTileX = Math.max(
+        0,
+        Math.min(startTileX, endTileX) - neighborRadius,
+      );
+      const maxTileX = Math.min(
+        tileResolution - 1,
+        Math.max(startTileX, endTileX) + neighborRadius,
+      );
+      const minTileZ = Math.max(
+        0,
+        Math.min(startTileZ, endTileZ) - neighborRadius,
+      );
+      const maxTileZ = Math.min(
+        tileResolution - 1,
+        Math.max(startTileZ, endTileZ) + neighborRadius,
+      );
+      const rectangleChecks = Math.max(0, maxTileX - minTileX + 1)
+        * Math.max(0, maxTileZ - minTileZ + 1);
+      const sampleChecks = (steps + 1) * (neighborRadius * 2 + 1) ** 2;
+      if (rectangleChecks <= sampleChecks) {
+        for (let tileZ = minTileZ; tileZ <= maxTileZ; tileZ += 1) {
+          for (let tileX = minTileX; tileX <= maxTileX; tileX += 1) {
+            if (tiles[tileZ * tileResolution + tileX] !== 0) return true;
+          }
+        }
+        continue;
+      }
+      for (let step = 0; step <= steps; step += 1) {
+        const t = step / steps;
+        if (tileNeighborhoodIsWet(
+          start.x + (end.x - start.x) * t,
+          start.z + (end.z - start.z) * t,
+        )) return true;
+      }
+    }
+    return false;
+  }
+
+  prepareNavigationWaterIndex(): void {
+    this.getNavigationWaterTiles();
+  }
+
+  private getNavigationWaterTiles(): Uint8Array {
+    if (this.navigationWaterTiles) return this.navigationWaterTiles;
+    const tileResolution = Math.ceil(
+      this.resolution / NAVIGATION_WATER_TILE_CELLS,
+    );
+    const tiles = new Uint8Array(tileResolution * tileResolution);
+    for (let gridZ = 0; gridZ < this.resolution; gridZ += 1) {
+      for (let gridX = 0; gridX < this.resolution; gridX += 1) {
+        if (!this.isRenderedWetAtGrid(gridX, gridZ)) continue;
+        const tileX = Math.floor(gridX / NAVIGATION_WATER_TILE_CELLS);
+        const tileZ = Math.floor(gridZ / NAVIGATION_WATER_TILE_CELLS);
+        tiles[tileZ * tileResolution + tileX] = 1;
+      }
+    }
+    this.navigationWaterTiles = tiles;
+    return tiles;
   }
 
   sampleOrganicSignedDistance(x: number, z: number): number {

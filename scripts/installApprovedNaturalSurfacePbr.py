@@ -31,13 +31,16 @@ class ApprovedMaterial:
     target: str
     albedo_source: str = "basecolor.png"
     normal_strength: float = 0.6
+    approved_on: str = "2026-08-26"
 
 
 MATERIALS = (
     ApprovedMaterial(
         "rts-groundcover-meadow-v3",
         "terrain/gorski_meadow_grass_v1",
+        albedo_source="basecolor-runtime.png",
         normal_strength=0.28,
+        approved_on="2026-08-27",
     ),
     ApprovedMaterial(
         "rts-groundcover-dense-v2",
@@ -242,7 +245,7 @@ def install_material(material: ApprovedMaterial) -> dict[str, object]:
     readme = f"""# Approved natural-surface PBR material
 
 - Review candidate: `{material.slug}`
-- Approved: {date.today().isoformat()}
+- Approved: {material.approved_on}
 - Runtime albedo source: `{material.albedo_source}`
 - Runtime normal: PATINA green channel flipped to match the project's existing
   normal convention, mean XY tilt removed, attenuated to
@@ -259,6 +262,7 @@ Raw PATINA output remains unchanged under
     return {
         "slug": material.slug,
         "target": target.relative_to(ROOT).as_posix(),
+        "albedoSource": material.albedo_source,
         "normalProcessing": normal_processing,
     }
 

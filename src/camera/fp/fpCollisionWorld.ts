@@ -1,7 +1,10 @@
 import * as THREE from 'three';
 import type { TreeLayoutEntry, TreePhase } from '../../resources/types.ts';
 import type { TreeRegistry } from '../../resources/TreeRegistry.ts';
-import { routeAgentPolyline } from '../../settlement/agentNavigation.ts';
+import {
+  routeAgentPolyline,
+  routeAgentPolylineWithDeferredObstacle,
+} from '../../settlement/agentNavigation.ts';
 import type { PointXZ, RockObstacle } from '../../utils/pathGeometry.ts';
 import type { FpWalkProbePhase } from './fpAirborneWalkPolicy.ts';
 
@@ -35,6 +38,11 @@ export type FpCollisionWorldConfig = {
   isTreeLayoutActive?: (layoutIndex: number) => boolean;
   /** Extra non-mesh hazards used by crowd routing, such as open water. */
   isAgentNavigationBlocked?: (x: number, z: number, radius: number) => boolean;
+  /** Cheap conservative broad phase for the extra crowd-navigation hazard. */
+  mayAgentNavigationPathBeBlocked?: (
+    path: readonly PointXZ[],
+    radius: number,
+  ) => boolean;
 };
 
 export type FpBoxCollider = {
@@ -129,10 +137,18 @@ export class FpCollisionWorld {
     radius = 0.28,
   ): PointXZ[] | null {
     if (this.staticDirty) this.rebuildStaticIndex();
-    return routeAgentPolyline(
+    const isStaticBlocked = (x: number, z: number): boolean =>
+      this.staticIndex.diskOverlaps(x, z, radius);
+    const isNavigationBlocked = this.config.isAgentNavigationBlocked;
+    if (!isNavigationBlocked) return routeAgentPolyline(path, isStaticBlocked);
+    const mayNavigationPathBeBlocked = this.config.mayAgentNavigationPathBeBlocked;
+    return routeAgentPolylineWithDeferredObstacle(
       path,
-      (x, z) => this.staticIndex.diskOverlaps(x, z, radius)
-        || this.config.isAgentNavigationBlocked?.(x, z, radius) === true,
+      isStaticBlocked,
+      (x, z) => isNavigationBlocked(x, z, radius),
+      mayNavigationPathBeBlocked
+        ? (candidate) => mayNavigationPathBeBlocked(candidate, radius)
+        : undefined,
     );
   }
 

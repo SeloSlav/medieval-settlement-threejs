@@ -10,7 +10,7 @@
     "metalness"
   ],
   "localRuntimeMaps": [
-    "basecolor-runtime (dry grass v2 only)",
+    "basecolor-runtime (meadow color grade only)",
     "roughness-runtime",
     "ao-derived",
     "metalness-runtime"
@@ -37,17 +37,17 @@
         }
       },
       "candidate": {
-        "path": "artifacts/pbr-material-review/patina-candidates/rts-groundcover-meadow-v3/basecolor.png",
+        "path": "artifacts/pbr-material-review/patina-candidates/rts-groundcover-meadow-v3/basecolor-runtime.png",
         "width": 1024,
         "height": 1024,
         "meanRgb": [
-          122.69,
-          128.29,
-          87.59
+          82.51,
+          88.13,
+          47.04
         ],
         "seam": {
-          "leftRightMeanAbsoluteDifference": 0.05546,
-          "topBottomMeanAbsoluteDifference": 0.07146
+          "leftRightMeanAbsoluteDifference": 0.04162,
+          "topBottomMeanAbsoluteDifference": 0.05338
         }
       },
       "comparison": "artifacts/pbr-material-review/comparisons/rts-groundcover-meadow-v3.png",
@@ -57,7 +57,7 @@
       "returnedPrompt": "Flat orthographic seamless material of continuous low temperate meadow groundcover in Gorski Kotar, Croatia, designed specifically for a distant overhead RTS camera. Soft micro-moss cushions and compact tangled leaf flecks fuse into overlapping rounded organic clumps at 8 to 35 centimeter scale. Use a restrained medium-dark olive and sage-green palette with subtle cooler and warmer patches, a narrow luminance range, and no bright yellow. Favor broad cloud-like masses and granular breakup over recognizable individual plants or fine detail. The whole surface is densely filled, soft, matte, motif-neutral, and uniformly lit. Nothing elongated, directional, stringy, combed, or woven. No lichen, flowers, rosettes, stones, exposed soil, paths, directional lighting, cast shadows, perspective, horizon, borders, text, or obvious repeating motifs.",
       "maps": {
         "basecolorRaw": "artifacts/pbr-material-review/patina-candidates/rts-groundcover-meadow-v3/basecolor.png",
-        "basecolorRuntime": "artifacts/pbr-material-review/patina-candidates/rts-groundcover-meadow-v3/basecolor.png",
+        "basecolorRuntime": "artifacts/pbr-material-review/patina-candidates/rts-groundcover-meadow-v3/basecolor-runtime.png",
         "normal": "artifacts/pbr-material-review/patina-candidates/rts-groundcover-meadow-v3/normal.png",
         "roughnessRaw": "artifacts/pbr-material-review/patina-candidates/rts-groundcover-meadow-v3/roughness.png",
         "roughnessRuntime": "artifacts/pbr-material-review/patina-candidates/rts-groundcover-meadow-v3/roughness-runtime.png",

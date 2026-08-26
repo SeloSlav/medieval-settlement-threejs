@@ -161,6 +161,17 @@ ROUGHNESS_RUNTIME_RANGES = {
     "clean-quarry-limestone-v2": (0.80, 0.97),
 }
 
+# Preserve PATINA's authored surface structure while correcting only the
+# production-facing color response.  The raw model output remains untouched so
+# this grade is reproducible and reversible.
+BASECOLOR_RUNTIME_GRADES = {
+    "rts-groundcover-meadow-v3": {
+        "saturation": 1.35,
+        "brightness": 0.68,
+        "contrast": 1.10,
+    },
+}
+
 
 def font(size: int, bold: bool = False) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
     candidates = [
@@ -215,6 +226,13 @@ def derive_ao(height_path: Path, output_path: Path) -> None:
 
 
 def ensure_runtime_maps(candidate: ReviewCandidate, candidate_dir: Path) -> None:
+    grade = BASECOLOR_RUNTIME_GRADES.get(candidate.slug)
+    if grade is not None:
+        basecolor = Image.open(candidate_dir / "basecolor.png").convert("RGB")
+        basecolor = ImageEnhance.Color(basecolor).enhance(grade["saturation"])
+        basecolor = ImageEnhance.Brightness(basecolor).enhance(grade["brightness"])
+        basecolor = ImageEnhance.Contrast(basecolor).enhance(grade["contrast"])
+        basecolor.save(candidate_dir / "basecolor-runtime.png")
     ao_path = candidate_dir / "ao-derived.png"
     if not ao_path.exists():
         derive_ao(candidate_dir / "height.png", ao_path)
@@ -497,7 +515,7 @@ def write_manifest(comparisons: dict[str, Path]) -> None:
         "candidateCount": len(entries),
         "mapsReturnedByPatina": ["basecolor", "normal", "roughness", "height", "metalness"],
         "localRuntimeMaps": [
-            "basecolor-runtime (dry grass v2 only)",
+            "basecolor-runtime (meadow color grade only)",
             "roughness-runtime",
             "ao-derived",
             "metalness-runtime",
@@ -529,9 +547,9 @@ Generated with `fal-ai/patina/material`. This is a non-destructive review set: n
 
 | Candidate | What to watch before approval |
 | --- | --- |
-| Meadow grass | More organic and detailed, but it can read as flattened thatch; verify blade scale and normal strength in the terrain shader. |
+| Meadow groundcover | Rich clumped structure with a darker olive runtime grade; verify that it remains lighter than the dense/shaded source in game. |
 | Dense grass | Strongest grass candidate. A few dark holes may form motifs; attenuate the raw normal response. |
-| Dry grass v2 | Replaces the rejected hair-like v1 with shorter turf and a restrained palette grade; still verify that it remains distinct from meadow at game scale. |
+| Dry late-summer groundcover | Broad ochre/sage clumps replace the rejected hair-like drafts; verify that it remains distinct from meadow at game scale. |
 | Primary leaf litter | Largest visual upgrade. It is darker and has a few memorable bright leaves/twigs, so test three-projection repetition under canopy. |
 | Secondary litter | Excellent stochastic dark companion; intentionally reads as mixed humus with some needles rather than pure beech litter. |
 | Dirt road | Cleaner and less swirled, but smoother/sandier than ideal. Test at the 5.8 m road repeat with the existing rut mask and shader tint. |
@@ -560,7 +578,7 @@ Generated with `fal-ai/patina/material`. This is a non-destructive review set: n
 
 - PATINA returned `basecolor`, `normal`, `roughness`, `height`, and `metalness` at 1024×1024.
 - PATINA's raw roughness predictions were systematically too glossy for these dry materials. Each candidate therefore includes a conservative high-range `roughness-runtime.png`; raw `roughness.png` remains untouched for inspection.
-- Dry grass v2 includes a mild `basecolor-runtime.png` sRGB grade to restore the established straw/olive mean; its raw PATINA basecolor remains untouched.
+- Meadow v3 includes a darker, more saturated olive `basecolor-runtime.png` sRGB grade. Its raw PATINA basecolor remains untouched, and every non-color PBR channel remains paired to the original surface structure.
 - Natural ground and rock are dielectrics. The review retains the raw PATINA metalness for inspection and also provides an all-black `metalness-runtime.png`.
 - PATINA does not return AO. `ao-derived.png` is a conservative, wrap-aware local derivation from the returned height map.
 - Basecolor is the only sRGB map. Normal, roughness, height, metalness, and AO must remain linear/no-color-space.

@@ -1,5 +1,5 @@
 {
-  "installedOn": "2026-08-26",
+  "installedOn": "2026-08-27",
   "rawCandidatesPreserved": true,
   "runtimeRockOverride": {
     "changedOn": "2026-08-24",
@@ -24,6 +24,7 @@
     {
       "slug": "rts-groundcover-meadow-v3",
       "target": "public/assets/textures/terrain/gorski_meadow_grass_v1",
+      "albedoSource": "basecolor-runtime.png",
       "normalProcessing": {
         "greenChannelFlipped": true,
         "meanTiltRemoved": true,
@@ -57,6 +58,7 @@
     {
       "slug": "rts-groundcover-dense-v2",
       "target": "public/assets/textures/terrain/gorski_dense_grass_v1",
+      "albedoSource": "basecolor.png",
       "normalProcessing": {
         "greenChannelFlipped": true,
         "meanTiltRemoved": true,
@@ -90,6 +92,7 @@
     {
       "slug": "rts-groundcover-dry-v4",
       "target": "public/assets/textures/terrain/gorski_dry_grass_v1",
+      "albedoSource": "basecolor.png",
       "normalProcessing": {
         "greenChannelFlipped": true,
         "meanTiltRemoved": true,
@@ -123,6 +126,7 @@
     {
       "slug": "forest-leaf-litter-primary",
       "target": "public/assets/textures/terrain/gorski_forest_litter_primary_v1",
+      "albedoSource": "basecolor.png",
       "normalProcessing": {
         "greenChannelFlipped": true,
         "meanTiltRemoved": true,
@@ -156,6 +160,7 @@
     {
       "slug": "forest-leaf-litter-secondary",
       "target": "public/assets/textures/terrain/gorski_forest_litter_secondary_v1",
+      "albedoSource": "basecolor.png",
       "normalProcessing": {
         "greenChannelFlipped": true,
         "meanTiltRemoved": true,
@@ -189,6 +194,7 @@
     {
       "slug": "forest-mossy-karst-rock-v3",
       "target": "public/assets/textures/props/gorski_forest_mossy_rock_v1",
+      "albedoSource": "basecolor.png",
       "normalProcessing": {
         "greenChannelFlipped": true,
         "meanTiltRemoved": true,
@@ -222,6 +228,7 @@
     {
       "slug": "clean-river-stone",
       "target": "public/assets/textures/props/gorski_river_stone_v1",
+      "albedoSource": "basecolor.png",
       "normalProcessing": {
         "greenChannelFlipped": true,
         "meanTiltRemoved": true,
@@ -255,6 +262,7 @@
     {
       "slug": "clean-quarry-limestone-v2",
       "target": "public/assets/textures/props/gorski_quarry_limestone_v1",
+      "albedoSource": "basecolor.png",
       "normalProcessing": {
         "greenChannelFlipped": true,
         "meanTiltRemoved": true,
@@ -352,13 +360,13 @@
     "public/assets/textures/terrain/gorski_forest_litter_secondary_v1/normal.png": "310417c9d4cf87203bd76be9c2801b994666c020cf84ab5bf9b9f5b75adecb89",
     "public/assets/textures/terrain/gorski_forest_litter_secondary_v1/README.md": "c5eed42abd2db183b90b7e7ab7353008c0a39b2aa57a6f2752f1f41db42ca142",
     "public/assets/textures/terrain/gorski_forest_litter_secondary_v1/roughness.png": "34d6fb0de9441442bcba545458e51b7d87bc9cf249a3edac10d4b234f4b25eea",
-    "public/assets/textures/terrain/gorski_meadow_grass_v1/albedo.png": "8000b1879049e7b8d7381623523bc410ceace8684e0dc2068ba23d8a345c565b",
+    "public/assets/textures/terrain/gorski_meadow_grass_v1/albedo.png": "16d763f55a6c1101d8ae4231d7c437a7699d4ad7fc56be3488c431b99b15b5e9",
     "public/assets/textures/terrain/gorski_meadow_grass_v1/ao.png": "11c0e8b752d9598e193629f95b5e0a0a8ba6f2313b4bd90a317a464cb5c817c9",
     "public/assets/textures/terrain/gorski_meadow_grass_v1/generation.json": "f441a2fee8b8189a93e023e150be210a45cad18bc9e7b3d4cad222ded3a0d8b3",
     "public/assets/textures/terrain/gorski_meadow_grass_v1/height.png": "64066c7820ff7730021393b348e6dcecfd07251b91a3150db9710bf9c9e14c6d",
     "public/assets/textures/terrain/gorski_meadow_grass_v1/metalness.png": "0f4b1668d119f77ceb6b86645573f088ab2341d7b284314d5df0be7226ea5d91",
     "public/assets/textures/terrain/gorski_meadow_grass_v1/normal.png": "5e575d94a35715b6f113042de3701278ee14433b229397fcfc82aba1fd8fb96e",
-    "public/assets/textures/terrain/gorski_meadow_grass_v1/README.md": "cfb1cca4abe53cb541008cfe85f8e3ae491b00c3144e07e46dbd4385cf8ac1ec",
+    "public/assets/textures/terrain/gorski_meadow_grass_v1/README.md": "f3b7cfd52e7c41fb43e8008e9858694fdb4d61b293c8cd4c5cdc661f65a5bfd6",
     "public/assets/textures/terrain/gorski_meadow_grass_v1/roughness.png": "e2717e3dff74b6d2c5b392cc9002a14135c91f08f94c554bf15334cb6954ae21"
   }
 }

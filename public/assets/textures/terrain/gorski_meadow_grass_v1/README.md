@@ -1,8 +1,8 @@
 # Approved natural-surface PBR material
 
 - Review candidate: `rts-groundcover-meadow-v3`
-- Approved: 2026-08-26
-- Runtime albedo source: `basecolor.png`
+- Approved: 2026-08-27
+- Runtime albedo source: `basecolor-runtime.png`
 - Runtime normal: PATINA green channel flipped to match the project's existing
   normal convention, mean XY tilt removed, attenuated to
   `0.28`, then renormalized with a reconstructed

@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { MeshStandardNodeMaterial } from 'three/webgpu';
-import { normalMap, texture, uniform, vec2 } from 'three/tsl';
+import { attribute, normalMap, texture, uniform, vec2 } from 'three/tsl';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import {
   BACKYARD_GARDEN_DEFINITIONS,
@@ -32,7 +32,6 @@ const FLOWER_STEM_MAP_SIZE = 64;
 const MAX_GARDEN_GRID_COLUMNS = 8;
 const MAX_GARDEN_GRID_ROWS = 24;
 const MAX_FLOWER_GARDEN_STEMS = 160;
-const MAX_GARDEN_STEPPING_STONES = 48;
 const ORCHARD_SPRING_LEAF_COLOR = 0xb6d965;
 const ORCHARD_AUTUMN_LEAF_COLOR = {
   apple: 0xd1762b,
@@ -209,6 +208,12 @@ function createGardenSoilMaterial(): MeshStandardNodeMaterial {
   material.roughnessMap = GARDEN_BED_SOIL_TEXTURES.roughness;
   material.roughness = 1;
   material.metalness = 0;
+  // Every soil mesh supplies this coverage field so its cultivated earth can
+  // feather naturally into the surrounding terrain.
+  // Alpha hashing keeps the shared material depth-writing and order-independent
+  // instead of turning every backyard soil mesh into a sorted transparent quad.
+  material.opacityNode = attribute('soilEdgeBlend', 'float');
+  material.alphaHash = true;
   return material;
 }
 
@@ -420,7 +425,9 @@ type BackyardSwayBinding = {
 };
 
 export const BACKYARD_GROUND_SOIL_LIFT = 0.025;
-export const BACKYARD_GROUND_SOIL_SAMPLE_SPACING = 0.55;
+export const BACKYARD_GROUND_SOIL_SAMPLE_SPACING = 0.26;
+export const BACKYARD_GROUND_SOIL_EDGE_FADE = 0.36;
+export const BACKYARD_GROUND_SOIL_EDGE_INSET = 0.11;
 
 type BackyardTerrainSurfaceDiagnostics = {
   sampleCount: number;
@@ -428,6 +435,97 @@ type BackyardTerrainSurfaceDiagnostics = {
   maxWorldHeight: number;
   lift: number;
 };
+
+type GroundSoilFieldDiagnostics = {
+  coordinateDomain: 'bed-local-metres';
+  edgeModel: 'irregular-rounded-rectangle';
+  edgeFade: number;
+  edgeInset: number;
+  irregularityAmplitude: number;
+  seed: number;
+  minimumBlend: number;
+  maximumBlend: number;
+};
+
+function smoothstep01(value: number): number {
+  const t = THREE.MathUtils.clamp(value, 0, 1);
+  return t * t * (3 - 2 * t);
+}
+
+/**
+ * Builds the local-space field bundle used by an unframed garden bed:
+ *
+ * bed-local metres -> rounded cultivated footprint + coherent edge wobble
+ * -> signed edge distance -> soil/terrain coverage.
+ *
+ * Both named fields stay on the geometry for visual diagnostics. The denser
+ * plane also gives terrain conformance enough samples to follow small slopes.
+ */
+function createGroundLevelSoilGeometry(
+  width: number,
+  depth: number,
+  seed: number,
+): THREE.PlaneGeometry {
+  const widthSegments = Math.max(4, Math.ceil(width / BACKYARD_GROUND_SOIL_SAMPLE_SPACING));
+  const depthSegments = Math.max(4, Math.ceil(depth / BACKYARD_GROUND_SOIL_SAMPLE_SPACING));
+  const geometry = new THREE.PlaneGeometry(width, depth, widthSegments, depthSegments);
+  const positions = geometry.getAttribute('position') as THREE.BufferAttribute;
+  const signedEdges = new Float32Array(positions.count);
+  const edgeBlends = new Float32Array(positions.count);
+  const rng = mulberry32(seed ^ 0x61ca47);
+  const phaseA = rng() * Math.PI * 2;
+  const phaseB = rng() * Math.PI * 2;
+  const phaseC = rng() * Math.PI * 2;
+  const halfWidth = width * 0.5;
+  const halfDepth = depth * 0.5;
+  const footprintHalfWidth = Math.max(0.16, halfWidth - BACKYARD_GROUND_SOIL_EDGE_INSET);
+  const footprintHalfDepth = Math.max(0.16, halfDepth - BACKYARD_GROUND_SOIL_EDGE_INSET);
+  const cornerRadius = Math.min(
+    footprintHalfWidth * 0.46,
+    footprintHalfDepth * 0.22,
+    0.42,
+  );
+  const irregularityAmplitude = Math.min(0.085, Math.min(width, depth) * 0.055);
+  let minimumBlend = 1;
+  let maximumBlend = 0;
+
+  for (let index = 0; index < positions.count; index++) {
+    const x = positions.getX(index);
+    const z = positions.getY(index);
+    const qx = Math.abs(x) - (footprintHalfWidth - cornerRadius);
+    const qz = Math.abs(z) - (footprintHalfDepth - cornerRadius);
+    const outsideDistance = Math.hypot(Math.max(qx, 0), Math.max(qz, 0));
+    const insideDistance = Math.min(Math.max(qx, qz), 0);
+    const roundedRectangleDistance = outsideDistance + insideDistance - cornerRadius;
+
+    // Low, shared frequencies keep the edge coherent. They disturb the
+    // cultivated outline without making unrelated speckles or isolated holes.
+    const broadEdge = Math.sin(x * 1.41 + z * 0.37 + phaseA) * 0.58
+      + Math.sin(z * 1.83 - x * 0.29 + phaseB) * 0.42;
+    const detailEdge = Math.sin((x + z) * 3.17 + phaseC) * 0.28;
+    const signedEdge = -roundedRectangleDistance
+      + (broadEdge + detailEdge) * irregularityAmplitude;
+    const blend = smoothstep01(signedEdge / BACKYARD_GROUND_SOIL_EDGE_FADE);
+    signedEdges[index] = signedEdge;
+    edgeBlends[index] = blend;
+    minimumBlend = Math.min(minimumBlend, blend);
+    maximumBlend = Math.max(maximumBlend, blend);
+  }
+
+  geometry.setAttribute('soilSignedEdge', new THREE.BufferAttribute(signedEdges, 1));
+  geometry.setAttribute('soilEdgeBlend', new THREE.BufferAttribute(edgeBlends, 1));
+  geometry.userData.backyardSoilField = {
+    coordinateDomain: 'bed-local-metres',
+    edgeModel: 'irregular-rounded-rectangle',
+    edgeFade: BACKYARD_GROUND_SOIL_EDGE_FADE,
+    edgeInset: BACKYARD_GROUND_SOIL_EDGE_INSET,
+    irregularityAmplitude,
+    seed,
+    minimumBlend,
+    maximumBlend,
+  } satisfies GroundSoilFieldDiagnostics;
+  return geometry;
+}
 
 function addMesh(
   parent: THREE.Object3D,
@@ -681,45 +779,28 @@ function addSoilBed(
   width: number,
   depth: number,
   options: {
-    bordered?: boolean;
-    profile?: 'ground-level' | 'raised';
     soilMaterial?: THREE.Material;
     soilName?: string;
+    edgeSeed?: number;
   } = {},
 ): void {
   const {
-    bordered = true,
-    profile = 'raised',
     soilMaterial = MATERIALS.gardenSoil,
     soilName = 'Textured garden soil bed',
+    edgeSeed = Math.round((x + 37.1) * 101 + (z - 19.7) * 173 + width * 251 + depth * 307),
   } = options;
-  const groundLevel = profile === 'ground-level';
   const soil = addMesh(
     group,
-    groundLevel
-      ? new THREE.PlaneGeometry(
-          width,
-          depth,
-          Math.max(1, Math.ceil(width / BACKYARD_GROUND_SOIL_SAMPLE_SPACING)),
-          Math.max(1, Math.ceil(depth / BACKYARD_GROUND_SOIL_SAMPLE_SPACING)),
-        )
-      : new THREE.BoxGeometry(width, 0.1, depth),
+    createGroundLevelSoilGeometry(width, depth, edgeSeed),
     soilMaterial,
     x,
-    groundLevel ? 0.006 : 0.05,
+    0.006,
     z,
-    groundLevel ? new THREE.Euler(-Math.PI * 0.5, 0, 0) : undefined,
+    new THREE.Euler(-Math.PI * 0.5, 0, 0),
     undefined,
     soilName,
   );
-  if (groundLevel) soil.userData.backyardTerrainSurface = true;
-  if (!bordered) return;
-  const rail = 0.11;
-  const sideRailDepth = Math.max(rail, depth - rail);
-  addMesh(group, new THREE.BoxGeometry(width + rail, 0.18, rail), MATERIALS.timber, x, 0.1, z - depth * 0.5, undefined, undefined, 'Garden bed end rail');
-  addMesh(group, new THREE.BoxGeometry(width + rail, 0.18, rail), MATERIALS.timber, x, 0.1, z + depth * 0.5, undefined, undefined, 'Garden bed end rail');
-  addMesh(group, new THREE.BoxGeometry(rail, 0.18, sideRailDepth), MATERIALS.timber, x - width * 0.5, 0.1, z, undefined, undefined, 'Garden bed side rail');
-  addMesh(group, new THREE.BoxGeometry(rail, 0.18, sideRailDepth), MATERIALS.timber, x + width * 0.5, 0.1, z, undefined, undefined, 'Garden bed side rail');
+  soil.userData.backyardTerrainSurface = true;
 }
 
 /**
@@ -783,35 +864,6 @@ export function conformBackyardGroundSoilToTerrain(
 
   garden.userData.backyardTerrainSurfaceCount = diagnostics.length;
   return diagnostics;
-}
-
-function addSteppingStones(
-  group: THREE.Group,
-  z0: number,
-  z1: number,
-  seed: number,
-  collidable = true,
-): void {
-  const rng = mulberry32(seed ^ 0x51a77e);
-  const count = Math.min(
-    MAX_GARDEN_STEPPING_STONES,
-    Math.max(2, Math.floor(Math.abs(z1 - z0) / 0.75)),
-  );
-  for (let i = 0; i <= count; i++) {
-    const t = i / count;
-    const stone = addMesh(
-      group,
-      new THREE.CylinderGeometry(0.28 + rng() * 0.08, 0.31, 0.07, 7),
-      MATERIALS.stone,
-      (rng() - 0.5) * 0.22,
-      0.055,
-      THREE.MathUtils.lerp(z0, z1, t),
-      new THREE.Euler(0, rng() * Math.PI, 0),
-      undefined,
-      'Orchard stepping stone',
-    );
-    stone.userData.fpNoCollision = !collidable;
-  }
 }
 
 function addBasket(
@@ -1007,7 +1059,6 @@ function addPreparedOrchard(
   group: THREE.Group,
   width: number,
   depth: number,
-  seed: number,
 ): void {
   const { columns, rows, positions } = orchardTreeGrid(width, depth);
   group.userData.orchardGrid = { columns, rows };
@@ -1036,7 +1087,6 @@ function addPreparedOrchard(
       'Orchard planting stake',
     );
   }
-  addSteppingStones(group, -depth * 0.44, depth * 0.42, seed, false);
   addBasket(group, width * 0.34, -depth * 0.34, false, MATERIALS.apple);
 }
 
@@ -1294,8 +1344,7 @@ function addVegetableGarden(
   for (let bed = 0; bed < bedCount; bed++) {
     const x = -width * 0.5 + gap + bedWidth * 0.5 + bed * (bedWidth + gap);
     addSoilBed(group, x, bedZ, bedWidth, bedDepth, {
-      bordered: false,
-      profile: 'ground-level',
+      edgeSeed: seed + bed * 1013,
     });
     if (!cropDefinition || !crop) continue;
     const cropGroup = new THREE.Group();
@@ -1446,9 +1495,8 @@ function addFlowerGarden(
   luxuryUpgraded: boolean,
 ): void {
   const sideWidth = Math.max(1.25, width * 0.34);
-  const groundLevelBed = { bordered: false, profile: 'ground-level' } as const;
-  addSoilBed(group, -width * 0.29, 0, sideWidth, depth * 0.82, groundLevelBed);
-  addSoilBed(group, width * 0.29, 0, sideWidth, depth * 0.82, groundLevelBed);
+  addSoilBed(group, -width * 0.29, 0, sideWidth, depth * 0.82, { edgeSeed: seed });
+  addSoilBed(group, width * 0.29, 0, sideWidth, depth * 0.82, { edgeSeed: seed + 1013 });
   const roseCount = width > 5.2 ? 4 : 3;
   for (let i = 0; i < roseCount; i++) {
     const side = i % 2 ? 1 : -1;
@@ -1517,7 +1565,6 @@ function addFlowerGarden(
       0.075 + rng() * 0.035,
     );
   }
-  addSteppingStones(group, -depth * 0.45, depth * 0.42, seed);
   if (luxuryUpgraded) addLuxuryFlowerTable(group, width, depth);
 }
 
@@ -1619,7 +1666,7 @@ function addHerbGarden(group: THREE.Group, width: number, depth: number, seed: n
   const plotW = (bedAreaWidth - 0.75) * 0.5;
   for (let side = 0; side < 2; side++) {
     const x = bedAreaX + (side ? 1 : -1) * (plotW * 0.5 + 0.18);
-    addSoilBed(group, x, plotZ, plotW, plotDepth);
+    addSoilBed(group, x, plotZ, plotW, plotDepth, { edgeSeed: seed + side * 1013 });
     const naturalCols = Math.max(2, Math.floor(plotW / 0.65));
     const naturalRows = Math.max(2, Math.floor(plotDepth / 0.72));
     const cols = Math.min(MAX_GARDEN_GRID_COLUMNS, naturalCols);
@@ -1654,11 +1701,7 @@ export type AnimalPenVisualPlan = {
   species: AnimalPenVisualSpecies;
   footprint: { width: number; depth: number };
   enclosure: {
-    halfWidth: number;
-    halfDepth: number;
-    postHeight: number;
-    railHeights: readonly [number, number];
-    gateWidth: number;
+    owner: 'residence-perimeter';
   };
   shelter: { x: number; z: number; width: number; depth: number; wallHeight: number };
   fixtures: readonly ('trough' | 'nesting-boxes' | 'milking-stand' | 'mud-wallow')[];
@@ -1692,11 +1735,7 @@ export function createAnimalPenVisualPlan(
     species,
     footprint: { width, depth },
     enclosure: {
-      halfWidth: width * 0.47,
-      halfDepth: depth * 0.43,
-      postHeight: species === 'chickens' ? 0.95 : 1.12,
-      railHeights: species === 'chickens' ? [0.42, 0.76] : [0.44, 0.86],
-      gateWidth: Math.min(1.15, width * 0.22),
+      owner: 'residence-perimeter',
     },
     shelter: {
       x: -width * 0.24,
@@ -1721,48 +1760,14 @@ function addAnimalPen(
 ): void {
   const plan = createAnimalPenVisualPlan(kind, width, depth, seed);
   group.userData.animalPenPlan = plan;
-  compileAnimalPenShell(group, plan);
+  compileAnimalPenFixtures(group, plan);
   if (plan.species === 'chickens') addChickenPenFixtures(group, plan);
   if (plan.species === 'goats') addGoatPenFixtures(group, plan);
   if (plan.species === 'pigs') addPigPenFixtures(group, plan);
 }
 
-function compileAnimalPenShell(group: THREE.Group, plan: AnimalPenVisualPlan): void {
-  const { enclosure, shelter } = plan;
-  const fence = new THREE.Group();
-  fence.name = 'Animal pen enclosure fence';
-  fence.userData.architectureModule = 'enclosure';
-  group.add(fence);
-  const gateHalf = enclosure.gateWidth * 0.5;
-  const posts = [
-    [-enclosure.halfWidth, -enclosure.halfDepth],
-    [enclosure.halfWidth, -enclosure.halfDepth],
-    [-enclosure.halfWidth, enclosure.halfDepth],
-    [enclosure.halfWidth, enclosure.halfDepth],
-    [-gateHalf, enclosure.halfDepth],
-    [gateHalf, enclosure.halfDepth],
-  ] as const;
-  for (const [x, z] of posts) {
-    addMesh(fence, new THREE.CylinderGeometry(0.055, 0.075, enclosure.postHeight, 6), MATERIALS.darkTimber, x, enclosure.postHeight * 0.5, z);
-  }
-  for (const y of enclosure.railHeights) {
-    addMesh(fence, new THREE.BoxGeometry(enclosure.halfWidth * 2, 0.065, 0.065), MATERIALS.wicker, 0, y, -enclosure.halfDepth);
-    addMesh(fence, new THREE.BoxGeometry(0.065, 0.065, enclosure.halfDepth * 2), MATERIALS.wicker, -enclosure.halfWidth, y, 0);
-    addMesh(fence, new THREE.BoxGeometry(0.065, 0.065, enclosure.halfDepth * 2), MATERIALS.wicker, enclosure.halfWidth, y, 0);
-    const sideRailWidth = enclosure.halfWidth - gateHalf;
-    addMesh(fence, new THREE.BoxGeometry(sideRailWidth, 0.065, 0.065), MATERIALS.wicker, -(gateHalf + sideRailWidth * 0.5), y, enclosure.halfDepth);
-    addMesh(fence, new THREE.BoxGeometry(sideRailWidth, 0.065, 0.065), MATERIALS.wicker, gateHalf + sideRailWidth * 0.5, y, enclosure.halfDepth);
-  }
-  const gate = new THREE.Group();
-  gate.name = 'Animal pen gate';
-  gate.userData.architectureModule = 'gate';
-  gate.position.set(-gateHalf, 0, enclosure.halfDepth);
-  gate.rotation.y = -0.18;
-  for (const y of enclosure.railHeights) {
-    addMesh(gate, new THREE.BoxGeometry(enclosure.gateWidth, 0.07, 0.07), MATERIALS.darkTimber, gateHalf, y, 0);
-  }
-  fence.add(gate);
-
+function compileAnimalPenFixtures(group: THREE.Group, plan: AnimalPenVisualPlan): void {
+  const { shelter } = plan;
   const shelterGroup = new THREE.Group();
   shelterGroup.name = 'Animal pen weather shelter';
   shelterGroup.userData.architectureModule = 'shelter';
@@ -1885,7 +1890,7 @@ export function createBackyardGardenMesh(
 
   switch (kind) {
     case 'orchard':
-      addPreparedOrchard(group, width, depth, seed);
+      addPreparedOrchard(group, width, depth);
       break;
     case 'apple_orchard':
       addOrchard(group, 'apple', width, depth, seed, plants);

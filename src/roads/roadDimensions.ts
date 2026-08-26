@@ -19,6 +19,8 @@ export const BUILDING_ACCESS_SPUR_Y_LIFT = 0.003;
 /** Bridge clearance remains independent from the lower dry-road presentation. */
 export const ROAD_BRIDGE_CORE_Y_OFFSET = 0.12;
 export const ROAD_BRIDGE_SHOULDER_LIFT = 0.1;
+/** Shared dirt/timber boundary used by both the bridge shader and approach hubs. */
+export const BRIDGE_SURFACE_CUT_THRESHOLD = 0.018;
 /** Physical repeat scale declared by the building atlas's standard timber material. */
 export const BRIDGE_DECK_TEXTURE_METERS_PER_TILE = 2;
 

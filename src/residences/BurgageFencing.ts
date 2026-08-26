@@ -255,9 +255,9 @@ export class BurgageFencing {
   private readonly posts: THREE.InstancedMesh;
   private readonly rails: THREE.InstancedMesh;
   private readonly gateTimbers: THREE.InstancedMesh;
-  private readonly postMaterial = timberMaterial('weathered');
-  private readonly railMaterial = timberMaterial('weathered');
-  private readonly gateMaterial = timberMaterial('dark');
+  // Match the bridge railing/support finish so plot boundaries read as the
+  // same rough-hewn outdoor timber instead of pale weathered boards.
+  private readonly fenceMaterial = timberMaterial('mid');
   private readonly matrix = new THREE.Matrix4();
   private readonly position = new THREE.Vector3();
   private readonly quaternion = new THREE.Quaternion();
@@ -271,7 +271,7 @@ export class BurgageFencing {
 
     this.posts = new THREE.InstancedMesh(
       createFenceBoxGeometry(),
-      this.postMaterial,
+      this.fenceMaterial,
       MAX_POSTS,
     );
     this.posts.name = 'Fence posts';
@@ -283,7 +283,7 @@ export class BurgageFencing {
 
     this.rails = new THREE.InstancedMesh(
       createFenceBoxGeometry(),
-      this.railMaterial,
+      this.fenceMaterial,
       MAX_RAILS,
     );
     this.rails.name = 'Fence rails';
@@ -295,7 +295,7 @@ export class BurgageFencing {
 
     this.gateTimbers = new THREE.InstancedMesh(
       createFenceBoxGeometry(),
-      this.gateMaterial,
+      this.fenceMaterial,
       MAX_GATE_TIMBERS,
     );
     this.gateTimbers.name = 'Frontage gate frames';

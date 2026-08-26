@@ -3,7 +3,9 @@ import { createHash } from 'node:crypto';
 import {
   createAgentWaterObstacleTest,
   routeAgentPolyline,
+  routeAgentPolylineWithDeferredObstacle,
 } from '../src/settlement/agentNavigation.ts';
+import { RiverField } from '../src/rivers/RiverField.ts';
 
 const path = [{ x: -20, z: 0 }, { x: 20, z: 0 }];
 const isBlocked = (x: number, z: number): boolean => (
@@ -62,6 +64,76 @@ assert.equal(
   roadSurfaceLookups,
   0,
   'dry A* probes must never pay for a road-surface lookup',
+);
+
+let eagerWaterProbes = 0;
+const eagerRoute = routeAgentPolyline(path, (x, z) => {
+  if (isBlocked(x, z)) return true;
+  eagerWaterProbes += 1;
+  return false;
+});
+let deferredWaterProbes = 0;
+const deferredRoute = routeAgentPolylineWithDeferredObstacle(
+  path,
+  isBlocked,
+  () => {
+    deferredWaterProbes += 1;
+    return false;
+  },
+  () => false,
+);
+assert.deepEqual(
+  deferredRoute,
+  eagerRoute,
+  'deferring water must preserve ordinary static-obstacle routes exactly',
+);
+assert.ok(
+  deferredWaterProbes * 2 < eagerWaterProbes,
+  `deferred water validation used ${deferredWaterProbes} probes versus ${eagerWaterProbes} eager probes`,
+);
+const deferredHazard = (x: number, z: number): boolean => (
+  x > -1 && x < 1 && z > -2 && z < 2
+);
+assert.deepEqual(
+  routeAgentPolylineWithDeferredObstacle(
+    [{ x: -5, z: 0 }, { x: 5, z: 0 }],
+    () => false,
+    deferredHazard,
+    () => true,
+  ),
+  routeAgentPolyline(
+    [{ x: -5, z: 0 }, { x: 5, z: 0 }],
+    deferredHazard,
+  ),
+  'a route selected by the broad phase must receive the full combined A* result',
+);
+
+const riverMask = new Float32Array(25);
+riverMask[2 * 5 + 2] = 1;
+const riverField = RiverField.fromSerialized({
+  resolution: 5,
+  startX: -2,
+  startZ: -2,
+  spanX: 4,
+  spanZ: 4,
+  riverMask,
+  shoreDistance: new Float32Array(25),
+  organicSignedDistance: new Float32Array(25),
+}, {} as never);
+assert.equal(riverField.renderedWaterTouchesDisk(0.7, 0, 0.25), true);
+assert.equal(riverField.renderedWaterTouchesDisk(0.8, 0, 0.25), false);
+assert.equal(
+  riverField.renderedWaterTouchesDisk(0.65, 0.65, 0.25),
+  true,
+  'rendered-water disk queries must include diagonal shoreline contact',
+);
+assert.equal(
+  riverField.renderedWaterMayTouchPolyline([
+    { x: -2, z: -2 },
+    { x: 2, z: 2 },
+  ], 0.25),
+  true,
+  'water-route broad phase must retain paths that can cross a wet tile',
 );
 
 // This deterministic corpus was cross-checked against the pre-pooling HEAD

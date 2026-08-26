@@ -14,6 +14,7 @@ import { unwrapTriangleUvSeams } from '../src/utils/boulderUv.ts';
 type ApprovedMaterialManifest = {
   slug: string;
   target: string;
+  albedoSource: string;
   normalProcessing: {
     greenChannelFlipped: boolean;
     meanTiltRemoved: boolean;
@@ -138,6 +139,9 @@ const expectedMaterials = new Map([
   ['clean-river-stone', 'public/assets/textures/props/gorski_river_stone_v1'],
   ['clean-quarry-limestone-v2', 'public/assets/textures/props/gorski_quarry_limestone_v1'],
 ]);
+const expectedAlbedoSources = new Map([
+  ['rts-groundcover-meadow-v3', 'basecolor-runtime.png'],
+]);
 
 assert.equal(manifest.rawCandidatesPreserved, true);
 assert.equal(manifest.runtimeRockOverride.changedOn, '2026-08-24');
@@ -166,6 +170,10 @@ assert.equal(Object.keys(manifest.files).length, 66);
 
 for (const material of manifest.materials) {
   assert.equal(expectedMaterials.get(material.slug), material.target);
+  assert.equal(
+    material.albedoSource,
+    expectedAlbedoSources.get(material.slug) ?? 'basecolor.png',
+  );
   assert.equal(material.normalProcessing.greenChannelFlipped, true);
   assert.equal(material.normalProcessing.meanTiltRemoved, true);
   assert.ok(material.normalProcessing.xyStrength > 0 && material.normalProcessing.xyStrength <= 0.7);

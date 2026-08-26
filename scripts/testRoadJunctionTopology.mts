@@ -546,6 +546,86 @@ const bridgeContext = {
   getWaterSurfaceY: () => 2,
 };
 
+const bridgeApproachNetwork = new RoadNetwork();
+bridgeApproachNetwork.addRoadPath([point(-22, 0), point(22, 0)]);
+const bridgeApproachEdge = [...bridgeApproachNetwork.edges.values()][0];
+assert(bridgeApproachEdge);
+const bridgeApproachGroup = new RoadMeshBuilder(
+  flatTerrain as never,
+  materials as never,
+  {
+    isWaterAt: (x: number) => Math.abs(x) < 4.5,
+    getTerrainY: () => 0,
+    getWaterSurfaceY: () => 0.35,
+  },
+).buildEdge(bridgeApproachEdge, bridgeApproachNetwork);
+const approachHubs = bridgeApproachGroup.getObjectByName(
+  `Bridge approach road hubs ${bridgeApproachEdge.id}`,
+) as THREE.Group | undefined;
+assert(approachHubs, 'a dry road crossing a bridge should receive approach hubs');
+assert.equal(approachHubs.userData.fpNoCollision, true, 'visual road hubs must not become first-person blockers');
+assert.equal(
+  approachHubs.userData.bridgeApproachHubCount,
+  2,
+  'the entry and exit timber cutoffs should each receive a road hub cap',
+);
+assert.equal(approachHubs.children.length, 4, 'each approach hub should have a dirt core and grass blend');
+const approachHubCores = approachHubs.children.filter(
+  (child) => child.userData.bridgeApproachHubPart === 'core',
+) as THREE.Mesh[];
+const approachHubBlends = approachHubs.children.filter(
+  (child) => child.userData.bridgeApproachHubPart === 'blend',
+) as THREE.Mesh[];
+assert.equal(approachHubCores.length, 2);
+assert.equal(approachHubBlends.length, 2);
+for (const cap of approachHubCores) {
+  assert.equal(cap.material, materials.road, 'approach cap cores should stay dirt beneath the timber deck');
+  const positions = cap.geometry.getAttribute('position');
+  const centerX = positions.getX(0);
+  let bridgewardReach = 0;
+  for (let index = 0; index < positions.count; index++) {
+    assert(
+      Math.abs(positions.getY(index) - ROAD_VISUAL_CORE_Y_OFFSET) < 1e-6,
+      'approach cap cores should follow the terrain instead of inheriting bridge height',
+    );
+    bridgewardReach = Math.max(
+      bridgewardReach,
+      cap.userData.bridgeSide === 'forward'
+        ? positions.getX(index) - centerX
+        : centerX - positions.getX(index),
+    );
+  }
+  assert(bridgewardReach > roadVisualWidth(4.2) * 0.45, 'the rounded core should continue beneath the bridge mouth');
+  const normals = cap.geometry.getAttribute('normal');
+  for (let index = 0; index < normals.count; index++) {
+    assert(normals.getY(index) > 0.99, 'approach cap core triangles should face upward');
+  }
+}
+for (const blendCap of approachHubBlends) {
+  assert.equal(blendCap.material, materials.roadEdge);
+  const positions = blendCap.geometry.getAttribute('position');
+  const edgeFade = blendCap.geometry.getAttribute('edgeFade');
+  const bridgeBlend = blendCap.geometry.getAttribute('bridgeBlend');
+  assert.equal(edgeFade.count, positions.count);
+  assert.equal(bridgeBlend.count, positions.count);
+  let hasOpaqueInnerRing = false;
+  let hasTransparentOuterRing = false;
+  for (let index = 0; index < positions.count; index++) {
+    assert(
+      Math.abs(positions.getY(index) - ROAD_VISUAL_SHOULDER_Y_OFFSET) < 1e-6,
+      'approach shoulder caps should follow the grass terrain beneath the bridge',
+    );
+    assert.equal(bridgeBlend.getX(index), 0, 'the approach feather must remain dirt at a hard timber cutoff');
+    hasOpaqueInnerRing ||= edgeFade.getX(index) === 1;
+    hasTransparentOuterRing ||= edgeFade.getX(index) === 0;
+  }
+  assert(hasOpaqueInnerRing && hasTransparentOuterRing, 'approach shoulders should feather all the way into grass');
+  const normals = blendCap.geometry.getAttribute('normal');
+  for (let index = 0; index < normals.count; index++) {
+    assert(normals.getY(index) > 0.99, 'approach shoulder cap triangles should face upward');
+  }
+}
+
 function verifyBridgeJunction(arms: readonly THREE.Vector3[], expectedRuns: number): void {
   const network = new RoadNetwork();
   for (const arm of arms) network.addRoadPath([point(0, 0), arm]);

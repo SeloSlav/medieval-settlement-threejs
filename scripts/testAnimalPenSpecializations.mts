@@ -102,7 +102,7 @@ for (const kind of planKinds) {
   const right = createAnimalPenVisualPlan(kind, 6.2, 5.4, 4271);
   assert.deepEqual(left, right, `${kind} visual plan must be deterministic`);
   assert.equal(left.fixtures.includes('trough'), true);
-  assert.ok(left.enclosure.gateWidth > 0);
+  assert.equal(left.enclosure.owner, 'residence-perimeter');
 
   const mesh = createBackyardGardenMesh(kind, { width: 6.2, depth: 5.4, seed: 4271 });
   const names: string[] = [];
@@ -116,10 +116,10 @@ for (const kind of planKinds) {
       ?? 0;
     triangles += indexCount / 3;
   });
-  assert.equal(names.includes('Animal pen enclosure fence'), true);
-  assert.equal(names.includes('Animal pen gate'), true);
+  assert.equal(names.includes('Animal pen enclosure fence'), false);
+  assert.equal(names.includes('Animal pen gate'), false);
   assert.equal(names.includes('Animal pen weather shelter'), true);
-  assert.ok(triangles > 150, `${kind} should compile a composed enclosure, not a placeholder`);
+  assert.ok(triangles > 50, `${kind} should compile composed shelter and husbandry fixtures`);
   disposeBackyardGardenMesh(mesh);
 }
 
@@ -189,4 +189,4 @@ for (const file of ['quaternius-chicken.glb', 'quaternius-pig.glb', 'quaternius-
   assert.ok(existsSync(path) && statSync(path).size > 50_000, `${file} must remain a real rigged GLB`);
 }
 
-console.log('Animal Pen shell, livestock lifecycle, supply-chain, hide, and visual contracts passed.');
+console.log('Animal Pen perimeter ownership, livestock lifecycle, supply-chain, hide, and visual contracts passed.');

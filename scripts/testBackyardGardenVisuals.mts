@@ -162,18 +162,27 @@ for (const kind of kinds) {
 
   assert.equal(garden.userData.gardenKind, kind, `${kind} should retain its gameplay identity`);
   assert.equal(garden.userData.usesSeedThree, false, `${kind} should report that SeedThree is not yet attached`);
-  const minimumMeshCountWithoutStreamedPlants = kind.endsWith('_orchard')
-    ? 7
-    : kind === 'vegetable_garden'
-      ? 5
-      : BACKYARD_GARDEN_DEFINITIONS[kind]?.specializationOf === 'vegetable_garden'
-        ? 6
-        : 12;
+  const minimumMeshCountWithoutStreamedPlants = kind === 'orchard'
+    ? 10
+    : kind.endsWith('_orchard')
+      ? 7
+      : kind.endsWith('_pen')
+        ? 7
+        : kind === 'vegetable_garden'
+          ? 5
+          : BACKYARD_GARDEN_DEFINITIONS[kind]?.specializationOf === 'vegetable_garden'
+            ? 6
+            : 12;
   assert.ok(
     meshCount >= minimumMeshCountWithoutStreamedPlants,
     `${kind} should be a composed scene, not a placeholder prop`,
   );
   assert.ok(names.some((name) => name.startsWith(signatures[kind])), `${kind} should expose its signature feature`);
+  assert.equal(
+    names.some((name) => /stepping stone/i.test(name)),
+    false,
+    `${kind} should leave its planted ground free of stepping stones`,
+  );
   assert.ok(size.x <= 7.5, `${kind} should stay inside a 6.2m parcel with modest foliage overhang`);
   assert.ok(size.z <= 7.5, `${kind} should stay inside a 5.4m backyard with modest foliage overhang`);
   const minimumHeight = BACKYARD_GARDEN_DEFINITIONS[kind]?.specializationOf === 'vegetable_garden'
@@ -197,11 +206,7 @@ for (const kind of kinds) {
       });
     }
   }
-  if (kind === 'vegetable_garden'
-    || kind === 'cabbage_garden'
-    || kind === 'carrot_garden'
-    || kind === 'beetroot_garden'
-    || kind === 'flower_garden') {
+  if (soilBeds.length > 0) {
     assert.equal(bedRails.length, 0, `${kind} should not have timber frames around its beds`);
     for (const bed of soilBeds) {
       assert.equal(
@@ -224,6 +229,28 @@ for (const kind of kinds) {
           && Number(parameters.heightSegments) >= Math.ceil(Number(parameters.height) / BACKYARD_GROUND_SOIL_SAMPLE_SPACING),
         `${kind} soil should have enough vertices to follow terrain undulations`,
       );
+      const edgeBlend = bed.geometry.getAttribute('soilEdgeBlend') as THREE.BufferAttribute | undefined;
+      const signedEdge = bed.geometry.getAttribute('soilSignedEdge') as THREE.BufferAttribute | undefined;
+      assert.ok(edgeBlend && signedEdge, `${kind} ground soil should expose its edge fields for inspection`);
+      const blendValues = Array.from({ length: edgeBlend.count }, (_, index) => edgeBlend.getX(index));
+      assert.ok(
+        Math.min(...blendValues) <= 0.001 && Math.max(...blendValues) >= 0.99,
+        `${kind} soil should span transparent terrain edge through opaque cultivated earth`,
+      );
+      assert.ok(
+        blendValues.some((value) => value > 0.05 && value < 0.95),
+        `${kind} soil should feather into surrounding terrain instead of ending as a hard rectangle`,
+      );
+      assert.equal(
+        (bed.material as THREE.MeshStandardMaterial).alphaHash,
+        true,
+        `${kind} soil should use order-independent hashed edge coverage`,
+      );
+      assert.equal(
+        bed.geometry.userData.backyardSoilField?.edgeModel,
+        'irregular-rounded-rectangle',
+        `${kind} soil should retain its organic footprint field diagnostics`,
+      );
     }
   }
   for (let first = 0; first < bedRails.length; first++) {
@@ -241,19 +268,11 @@ for (const kind of kinds) {
     }
   }
   const fenceNames = names.filter((name) => /fence/i.test(name));
-  if (kind === 'animal_pen' || kind === 'chicken_pen' || kind === 'goat_pen' || kind === 'pig_pen') {
-    assert.deepEqual(
-      fenceNames,
-      ['Animal pen enclosure fence'],
-      `${kind} should compile the shared functional enclosure plan`,
-    );
-  } else {
-    assert.deepEqual(
-      fenceNames,
-      [],
-      `${kind} should leave fencing to the parcel perimeter renderer`,
-    );
-  }
+  assert.deepEqual(
+    fenceNames,
+    [],
+    `${kind} should leave fencing to the residence parcel perimeter renderer`,
+  );
 
   if (terrainBackedKinds.has(kind)) {
     let hasArtificialGroundPlane = false;

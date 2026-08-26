@@ -69,11 +69,55 @@ export function agentDiskTouchesSurface(
 export function createAgentWaterObstacleTest(
   isWaterAt: AgentObstacleTest,
   isRoadSurfaceAt: AgentObstacleTest,
+  doesWaterTouchDisk: AgentFootprintObstacleTest = (
+    x,
+    z,
+    radius,
+  ) => agentDiskTouchesSurface(x, z, radius, isWaterAt),
 ): AgentFootprintObstacleTest {
   return (x, z, radius) => {
-    if (!agentDiskTouchesSurface(x, z, radius, isWaterAt)) return false;
+    if (!doesWaterTouchDisk(x, z, radius)) return false;
     return !isRoadSurfaceAt(x, z);
   };
+}
+
+/**
+ * Runs the established static-obstacle route first and introduces a secondary
+ * hazard only when that finished route actually intersects it. This keeps a
+ * global hazard such as water out of ordinary building/fence A* searches while
+ * preserving a full combined replan for the routes that need a bridge.
+ */
+export function routeAgentPolylineWithDeferredObstacle(
+  path: readonly PointXZ[],
+  isPrimaryBlocked: AgentObstacleTest,
+  isDeferredBlocked: AgentObstacleTest,
+  mayDeferredObstacleAffectPath?: (path: readonly PointXZ[]) => boolean,
+): PointXZ[] | null {
+  const primaryRoute = routeAgentPolyline(path, isPrimaryBlocked);
+  if (
+    !primaryRoute
+    || (mayDeferredObstacleAffectPath
+      && !mayDeferredObstacleAffectPath(primaryRoute))
+    || !polylineTouchesObstacle(primaryRoute, isDeferredBlocked)
+  ) {
+    return primaryRoute;
+  }
+  return routeAgentPolyline(
+    path,
+    (x, z) => isPrimaryBlocked(x, z) || isDeferredBlocked(x, z),
+  );
+}
+
+export function polylineTouchesObstacle(
+  path: readonly PointXZ[],
+  isBlocked: AgentObstacleTest,
+): boolean {
+  if (path.length === 0) return false;
+  if (path.length === 1) return isBlocked(path[0].x, path[0].z);
+  for (let index = 0; index < path.length - 1; index += 1) {
+    if (!segmentIsClear(path[index], path[index + 1], isBlocked)) return true;
+  }
+  return false;
 }
 
 /**

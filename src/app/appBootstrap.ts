@@ -256,9 +256,11 @@ export async function bootstrapAppSession(
   roadNetwork.setRiverNavigation(
     encodeCombatRiverNavigation(sceneManager.riverField),
   );
+  sceneManager.riverField.prepareNavigationWaterIndex();
   const isAgentNavigationBlockedByWater = createAgentWaterObstacleTest(
     (x, z) => sceneManager.riverField.isRenderedWetAt(x, z),
     (x, z) => isOnRoadSurface(x, z, roadNetwork),
+    (x, z, radius) => sceneManager.riverField.renderedWaterTouchesDisk(x, z, radius),
   );
   const firstPersonCollisionWorld = new FpCollisionWorld({
     getStaticRoots: () => sceneManager.getFirstPersonCollisionRoots(),
@@ -275,6 +277,8 @@ export async function bootstrapAppSession(
     // Rendered water remains impassable to civilian agents. A road surface
     // over the same XZ is the generated bridge deck and is the sole opening.
     isAgentNavigationBlocked: isAgentNavigationBlockedByWater,
+    mayAgentNavigationPathBeBlocked: (path, radius) =>
+      sceneManager.riverField.renderedWaterMayTouchPolyline(path, radius),
   });
 
   const requireSessionReady = (): void => {

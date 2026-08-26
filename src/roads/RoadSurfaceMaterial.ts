@@ -20,6 +20,7 @@ import {
 import type { BuildingMaterialAtlasTextureSet } from '../buildings/buildingMaterialAtlas.ts';
 import type { TextureSet } from './RoadTextureLoader.ts';
 import { applyPainterlyVegetationMaterial } from '../vegetation/painterly/painterlyVegetationMaterial.ts';
+import { BRIDGE_SURFACE_CUT_THRESHOLD } from './roadDimensions.ts';
 
 type TslNode = {
   add(value: TslNode): TslNode;
@@ -61,7 +62,6 @@ const BRIDGE_TIMBER_TINT: [number, number, number] = [
 ];
 const BRIDGE_TIMBER_TINT_STRENGTH = 0.2;
 const BRIDGE_TIMBER_NORMAL_STRENGTH = 0.58;
-const BRIDGE_SURFACE_CUT_THRESHOLD = 0.018;
 
 export type RoadWeatherUniforms = {
   wetness: TslScalarUniform;

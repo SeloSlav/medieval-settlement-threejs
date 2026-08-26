@@ -21,6 +21,7 @@ import { buildBridgeSupports } from './BridgeSupports.ts';
 import {
   BUILDING_ACCESS_SPUR_Y_LIFT,
   BRIDGE_DECK_TEXTURE_METERS_PER_TILE,
+  BRIDGE_SURFACE_CUT_THRESHOLD,
   ROAD_BRIDGE_CORE_Y_OFFSET,
   ROAD_BRIDGE_SHOULDER_LIFT,
   ROAD_CORE_EDGE_JITTER_RATIO,
@@ -48,6 +49,13 @@ type RoadCrossSection = {
   rightCore: THREE.Vector3;
   normal: THREE.Vector3;
   bridgeBlend: number;
+};
+
+type BridgeSurfaceTransition = {
+  segmentIndex: number;
+  segmentT: number;
+  distance: number;
+  bridgeSide: 'forward' | 'backward';
 };
 
 export class RoadMeshBuilder {
@@ -157,6 +165,17 @@ export class RoadMeshBuilder {
     edgeBlend.receiveShadow = true;
     edgeBlend.renderOrder = hasBridge ? 12 : 10;
     group.add(edgeBlend);
+
+    if (hasBridge) {
+      const approachHubs = this.buildBridgeApproachHubs(
+        crossSections,
+        ribbonPath,
+        visualWidth,
+        edge.id,
+        bridgeBlends,
+      );
+      if (approachHubs) group.add(approachHubs);
+    }
 
     if (hasBridge && this.bridgeCtx) {
       const supports = buildBridgeSupports(
@@ -781,6 +800,265 @@ export class RoadMeshBuilder {
   }
 
   /**
+   * Add a rounded dry-road termination beneath each crisp timber edge. The
+   * opaque semicircle continues under the rising bridge while the concentric
+   * shoulder rings remain visible beside it and dissolve into the grass.
+   */
+  private buildBridgeApproachHubs(
+    crossSections: RoadCrossSection[],
+    path: THREE.Vector3[],
+    width: number,
+    seed: string,
+    bridgeBlends: Float32Array,
+  ): THREE.Group | null {
+    const distances = cumulativeDistances(path);
+    const transitions = bridgeSurfaceTransitions(
+      bridgeBlends,
+      distances,
+      BRIDGE_SURFACE_CUT_THRESHOLD,
+    );
+    if (transitions.length === 0) return null;
+
+    const group = new THREE.Group();
+    group.name = `Bridge approach road hubs ${seed}`;
+    group.userData.bridgeApproachHubCount = transitions.length;
+    group.userData.edgeId = seed;
+    group.userData.fpNoCollision = true;
+
+    transitions.forEach((transition, hubIndex) => {
+      const sectionIndex = transition.segmentIndex;
+      const nextIndex = sectionIndex + 1;
+      const t = transition.segmentT;
+      const center = path[sectionIndex].clone().lerp(path[nextIndex], t);
+      const tangent = new THREE.Vector3(
+        path[nextIndex].x - path[sectionIndex].x,
+        0,
+        path[nextIndex].z - path[sectionIndex].z,
+      );
+      if (tangent.lengthSq() < 1e-6) tangent.set(1, 0, 0);
+      else tangent.normalize();
+      const exterior = tangent.clone().multiplyScalar(
+        transition.bridgeSide === 'forward' ? 1 : -1,
+      );
+      const perpendicular = new THREE.Vector3(-tangent.z, 0, tangent.x);
+      const leftCore = crossSections[sectionIndex].leftCore
+        .clone()
+        .lerp(crossSections[nextIndex].leftCore, t);
+      const rightCore = crossSections[sectionIndex].rightCore
+        .clone()
+        .lerp(crossSections[nextIndex].rightCore, t);
+      const plusRadius = Math.max(0.1, leftCore.clone().sub(center).dot(perpendicular));
+      const minusRadius = Math.max(0.1, -rightCore.clone().sub(center).dot(perpendicular));
+      const phaseSign = transition.bridgeSide === 'forward' ? 1 : -1;
+
+      const core = this.buildBridgeApproachCoreCap(
+        center,
+        exterior,
+        perpendicular,
+        minusRadius,
+        plusRadius,
+        width,
+        transition.distance,
+        phaseSign,
+      );
+      core.name = `Bridge approach road hub core ${seed} ${hubIndex}`;
+      core.userData.bridgeApproachHub = true;
+      core.userData.bridgeApproachHubPart = 'core';
+      core.userData.bridgeSide = transition.bridgeSide;
+      core.castShadow = false;
+      core.receiveShadow = true;
+      core.renderOrder = 11.2;
+
+      const leftOuterJitter = THREE.MathUtils.lerp(
+        smoothEdgeJitter(seed, sectionIndex, 2),
+        smoothEdgeJitter(seed, nextIndex, 2),
+        t,
+      ) * width * OUTER_EDGE_JITTER_RATIO;
+      const rightOuterJitter = THREE.MathUtils.lerp(
+        smoothEdgeJitter(seed, sectionIndex, 3),
+        smoothEdgeJitter(seed, nextIndex, 3),
+        t,
+      ) * width * OUTER_EDGE_JITTER_RATIO;
+      const blend = this.buildBridgeApproachBlendCap(
+        center,
+        exterior,
+        perpendicular,
+        {
+          minus: minusRadius,
+          plus: plusRadius,
+          outerJitterMinus: rightOuterJitter,
+          outerJitterPlus: leftOuterJitter,
+        },
+        width,
+        transition.distance,
+        phaseSign,
+      );
+      blend.name = `Bridge approach road hub blend ${seed} ${hubIndex}`;
+      blend.userData.bridgeApproachHub = true;
+      blend.userData.bridgeApproachHubPart = 'blend';
+      blend.userData.bridgeSide = transition.bridgeSide;
+      blend.castShadow = false;
+      blend.receiveShadow = true;
+      blend.renderOrder = 10.2;
+      group.add(blend, core);
+    });
+    return group;
+  }
+
+  private buildBridgeApproachCoreCap(
+    center: THREE.Vector3,
+    exterior: THREE.Vector3,
+    perpendicular: THREE.Vector3,
+    minusRadius: number,
+    plusRadius: number,
+    width: number,
+    distance: number,
+    phaseSign: number,
+  ): THREE.Mesh {
+    const positions: number[] = [];
+    const uvs: number[] = [];
+    const indices: number[] = [];
+    const centerIndex = 0;
+    positions.push(
+      center.x,
+      this.terrain.getHeightAt(center.x, center.z) + ROAD_VISUAL_CORE_Y_OFFSET,
+      center.z,
+    );
+    uvs.push(0.5, distance / 5.8);
+    const bulge = (minusRadius + plusRadius) * 0.5 * ROAD_CAP_LONGITUDINAL_SCALE;
+
+    for (let segment = 0; segment <= ROAD_CAP_SEGMENTS; segment++) {
+      const theta = -Math.PI * 0.5 + segment / ROAD_CAP_SEGMENTS * Math.PI;
+      const sinTheta = Math.sin(theta);
+      const outwardDistance = Math.cos(theta) * bulge;
+      const lateralDistance = sinTheta * THREE.MathUtils.lerp(
+        minusRadius,
+        plusRadius,
+        (sinTheta + 1) * 0.5,
+      );
+      const point = center
+        .clone()
+        .addScaledVector(exterior, outwardDistance)
+        .addScaledVector(perpendicular, lateralDistance);
+      positions.push(
+        point.x,
+        this.terrain.getHeightAt(point.x, point.z) + ROAD_VISUAL_CORE_Y_OFFSET,
+        point.z,
+      );
+      uvs.push(
+        0.5 + lateralDistance / Math.max(1, width),
+        distance / 5.8 + phaseSign * outwardDistance / 5.8,
+      );
+    }
+    for (let segment = 0; segment < ROAD_CAP_SEGMENTS; segment++) {
+      indices.push(centerIndex, 1 + segment, 2 + segment);
+    }
+    orientTrianglesUpwardXZ(indices, positions);
+    const geometry = new THREE.BufferGeometry();
+    geometry.setIndex(indices);
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+    geometry.setAttribute('uv2', new THREE.Float32BufferAttribute(uvs, 2));
+    geometry.computeVertexNormals();
+    geometry.computeBoundingSphere();
+    return new THREE.Mesh(geometry, this.materials.road);
+  }
+
+  private buildBridgeApproachBlendCap(
+    center: THREE.Vector3,
+    exterior: THREE.Vector3,
+    perpendicular: THREE.Vector3,
+    radii: {
+      minus: number;
+      plus: number;
+      outerJitterMinus: number;
+      outerJitterPlus: number;
+    },
+    width: number,
+    distance: number,
+    phaseSign: number,
+  ): THREE.Mesh {
+    const positions: number[] = [];
+    const uvs: number[] = [];
+    const edgeFades: number[] = [];
+    const bridgeAttrs: number[] = [];
+    const indices: number[] = [];
+    const shoulderMid = width * 0.48;
+    const shoulderOuter = width * 0.92;
+    const innerOverlap = width * BLEND_INNER_OVERLAP_RATIO;
+    const rings = [
+      {
+        minus: Math.max(0.05, radii.minus - innerOverlap),
+        plus: Math.max(0.05, radii.plus - innerOverlap),
+        fade: 1,
+      },
+      {
+        minus: radii.minus + shoulderMid + radii.outerJitterMinus * 0.62,
+        plus: radii.plus + shoulderMid + radii.outerJitterPlus * 0.62,
+        fade: 0.42,
+      },
+      {
+        minus: radii.minus + shoulderOuter + radii.outerJitterMinus,
+        plus: radii.plus + shoulderOuter + radii.outerJitterPlus,
+        fade: 0,
+      },
+    ];
+
+    rings.forEach((ring) => {
+      const bulge = (ring.minus + ring.plus) * 0.5;
+      for (let segment = 0; segment <= ROAD_CAP_SEGMENTS; segment++) {
+        const theta = -Math.PI * 0.5 + segment / ROAD_CAP_SEGMENTS * Math.PI;
+        const sinTheta = Math.sin(theta);
+        const outwardDistance = Math.cos(theta) * bulge;
+        const lateralDistance = sinTheta * THREE.MathUtils.lerp(
+          ring.minus,
+          ring.plus,
+          (sinTheta + 1) * 0.5,
+        );
+        const point = center
+          .clone()
+          .addScaledVector(exterior, outwardDistance)
+          .addScaledVector(perpendicular, lateralDistance);
+        positions.push(
+          point.x,
+          this.terrain.getHeightAt(point.x, point.z) + ROAD_VISUAL_SHOULDER_Y_OFFSET,
+          point.z,
+        );
+        uvs.push(
+          ring.fade,
+          distance / 5.8 + phaseSign * outwardDistance / 5.8,
+        );
+        edgeFades.push(ring.fade);
+        bridgeAttrs.push(0);
+      }
+    });
+
+    const ringVertexCount = ROAD_CAP_SEGMENTS + 1;
+    for (let ringIndex = 0; ringIndex < rings.length - 1; ringIndex++) {
+      const innerStart = ringIndex * ringVertexCount;
+      const outerStart = innerStart + ringVertexCount;
+      for (let segment = 0; segment < ROAD_CAP_SEGMENTS; segment++) {
+        const a = innerStart + segment;
+        const b = a + 1;
+        const d = outerStart + segment;
+        const c = d + 1;
+        indices.push(a, d, b, b, d, c);
+      }
+    }
+    orientTrianglesUpwardXZ(indices, positions);
+    const geometry = new THREE.BufferGeometry();
+    geometry.setIndex(indices);
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+    geometry.setAttribute('uv2', new THREE.Float32BufferAttribute(uvs, 2));
+    geometry.setAttribute('edgeFade', new THREE.Float32BufferAttribute(edgeFades, 1));
+    geometry.setAttribute('bridgeBlend', new THREE.Float32BufferAttribute(bridgeAttrs, 1));
+    geometry.computeVertexNormals();
+    geometry.computeBoundingSphere();
+    return new THREE.Mesh(geometry, this.materials.roadEdge);
+  }
+
+  /**
    * Compile a dead-end cap into the same indexed fabric as the road core.
    * The two diameter vertices are the ribbon's real terminal vertices, so
    * terrain height, UV phase, and vertex normals cannot diverge at the join.
@@ -1101,6 +1379,33 @@ function cumulativeDistances(path: THREE.Vector3[]): number[] {
   const result = [0];
   for (let i = 1; i < path.length; i++) result.push(result[i - 1] + path[i - 1].distanceTo(path[i]));
   return result;
+}
+
+function bridgeSurfaceTransitions(
+  bridgeBlends: Float32Array,
+  distances: number[],
+  threshold: number,
+): BridgeSurfaceTransition[] {
+  const transitions: BridgeSurfaceTransition[] = [];
+  for (let index = 0; index < bridgeBlends.length - 1; index++) {
+    const startBlend = bridgeBlends[index] ?? 0;
+    const endBlend = bridgeBlends[index + 1] ?? 0;
+    const startsOnBridge = startBlend >= threshold;
+    const endsOnBridge = endBlend >= threshold;
+    if (startsOnBridge === endsOnBridge) continue;
+    const segmentT = THREE.MathUtils.clamp(
+      (threshold - startBlend) / (endBlend - startBlend),
+      0,
+      1,
+    );
+    transitions.push({
+      segmentIndex: index,
+      segmentT,
+      distance: THREE.MathUtils.lerp(distances[index] ?? 0, distances[index + 1] ?? 0, segmentT),
+      bridgeSide: endsOnBridge ? 'forward' : 'backward',
+    });
+  }
+  return transitions;
 }
 
 function pathLength(path: THREE.Vector3[]): number {

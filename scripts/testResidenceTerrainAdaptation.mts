@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import * as THREE from 'three';
 import { BuildingTerrainLayout } from '../src/buildings/BuildingTerrainLayout.ts';
+import { timberMaterial } from '../src/buildings/buildingMaterials.ts';
 import {
   BurgageFencing,
   residenceHasFramedGateway,
@@ -239,6 +240,11 @@ function testReloadedResidenceFencesHaveRenderableInstances(): void {
   const posts = root.getObjectByName('Fence posts') as THREE.InstancedMesh;
   const rails = root.getObjectByName('Fence rails') as THREE.InstancedMesh;
   const gates = root.getObjectByName('Frontage gate frames') as THREE.InstancedMesh;
+  const bridgeTimber = timberMaterial('mid');
+
+  assert.equal(posts.material, bridgeTimber, 'perimeter posts must share the bridge timber finish');
+  assert.equal(rails.material, bridgeTimber, 'perimeter rails must share the bridge timber finish');
+  assert.equal(gates.material, bridgeTimber, 'perimeter gate frames must share the bridge timber finish');
 
   assert.ok(posts.count > 0, 'saved residences must reconstruct perimeter posts');
   assert.ok(rails.count > 0, 'saved residences must reconstruct perimeter rails');
