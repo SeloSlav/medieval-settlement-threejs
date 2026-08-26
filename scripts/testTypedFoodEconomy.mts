@@ -7,6 +7,7 @@ import {
   foodCategoryQualifyingStock,
   foodProgressionStatus,
   foodMealValue,
+  foodSpoilageLabel,
   foodSpoilageMultiplier,
   foodVarietyCount,
   edibleFoodStock,
@@ -65,6 +66,10 @@ assert.equal(
 );
 assert.equal(foodSpoilageMultiplier('honey'), 0);
 assert.ok(foodSpoilageMultiplier('milk') > foodSpoilageMultiplier('apples'));
+assert.equal(foodSpoilageLabel('honey'), 'Shelf-stable');
+assert.equal(foodSpoilageLabel('ryeBread'), 'Slow spoilage');
+assert.equal(foodSpoilageLabel('eggs'), 'Moderate spoilage');
+assert.equal(foodSpoilageLabel('milk'), 'Fast spoilage');
 assert.equal(NAMED_FOOD_KINDS.length, 24);
 assert.equal(
   (NAMED_FOOD_KINDS as readonly string[]).includes('vegetables'),

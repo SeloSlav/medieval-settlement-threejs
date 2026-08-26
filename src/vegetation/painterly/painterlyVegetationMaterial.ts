@@ -25,6 +25,8 @@ export type PainterlyVegetationRole =
 export type PainterlyVegetationOptions = {
   textureScale?: number;
   nativeLightWeight?: number;
+  /** Lower-cost AO used while paint owns the terrain's micro-occlusion response. */
+  aoNodeWhilePainted?: unknown;
 };
 
 type TslNode = {
@@ -50,12 +52,14 @@ type PainterlyNodeMaterial = THREE.Material & {
   colorNode?: TslNode | null;
   normalNode?: TslNode | null;
   roughnessNode?: TslNode | null;
+  aoNode?: TslNode | null;
   setupOutput?: (builder: unknown, outputNode: TslNode) => TslNode;
 };
 type OriginalMaterialState = {
   colorNode: TslNode | null;
   normalNode: TslNode | null;
   roughnessNode: TslNode | null;
+  aoNode: TslNode | null;
   setupOutput: ((builder: unknown, outputNode: TslNode) => TslNode) | undefined;
   hadOwnSetupOutput: boolean;
 };
@@ -201,6 +205,7 @@ export function inheritPainterlyVegetationMaterial(
   target.colorNode = sourceRecord.original.colorNode;
   target.normalNode = sourceRecord.original.normalNode;
   target.roughnessNode = sourceRecord.original.roughnessNode;
+  target.aoNode = sourceRecord.original.aoNode;
   if (sourceRecord.original.hadOwnSetupOutput) target.setupOutput = sourceRecord.original.setupOutput;
   else delete target.setupOutput;
   return applyPainterlyVegetationMaterial(clone, sourceRecord.role, sourceRecord.options);
@@ -284,6 +289,7 @@ function captureOriginalState(material: PainterlyNodeMaterial): OriginalMaterial
     colorNode: material.colorNode ?? null,
     normalNode: material.normalNode ?? null,
     roughnessNode: material.roughnessNode ?? null,
+    aoNode: material.aoNode ?? null,
     setupOutput: material.setupOutput,
     hadOwnSetupOutput: Object.prototype.hasOwnProperty.call(material, 'setupOutput'),
   };
@@ -386,6 +392,13 @@ function installPainterlyGraph(record: PainterlyRecord): void {
       ? PAINTERLY_GROUND_SETTINGS.roughnessVariation
       : 0.16))
     .clamp(0.12, 1);
+  if (authored.treatment === 'ground' && record.options.aoNodeWhilePainted) {
+    // The full terrain graph sits at WebGPU's portable sixteen-texture limit.
+    // Its painter ramp owns micro-occlusion, so swap the three grass AO maps
+    // for a sampler-free node while enabled. World shadows and the supplied
+    // canopy AO remain active, and the native graph is restored on disable.
+    material.aoNode = record.options.aoNodeWhilePainted as TslNode;
+  }
 
   const originalSetupOutput = record.original.setupOutput;
   material.setupOutput = function setupPainterlyVegetationOutput(
@@ -512,6 +525,8 @@ function installPainterlyGraph(record: PainterlyRecord): void {
 
   material.userData.painterlyVegetationInstalled = true;
   material.userData.painterlyVegetationTexture = paintTexture;
+  material.userData.painterlyVegetationUsesReducedAo =
+    authored.treatment === 'ground' && Boolean(record.options.aoNodeWhilePainted);
   material.needsUpdate = true;
   record.installed = true;
 }
@@ -522,10 +537,12 @@ function restoreNativeGraph(record: PainterlyRecord): void {
   material.colorNode = original.colorNode;
   material.normalNode = original.normalNode;
   material.roughnessNode = original.roughnessNode;
+  material.aoNode = original.aoNode;
   if (original.hadOwnSetupOutput) material.setupOutput = original.setupOutput;
   else delete material.setupOutput;
   material.userData.painterlyVegetationInstalled = false;
   delete material.userData.painterlyVegetationTexture;
+  delete material.userData.painterlyVegetationUsesReducedAo;
   material.needsUpdate = true;
   record.installed = false;
 }

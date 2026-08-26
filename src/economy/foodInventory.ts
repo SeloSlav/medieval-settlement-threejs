@@ -175,6 +175,21 @@ export function foodSpoilageMultiplier(kind: FoodInventoryKind): number {
   return FOOD_SPOILAGE_MULTIPLIERS[kind];
 }
 
+export type FoodSpoilageLabel =
+  | 'Shelf-stable'
+  | 'Slow spoilage'
+  | 'Moderate spoilage'
+  | 'Fast spoilage';
+
+/** Player-facing perishability band; storage conditions are applied separately. */
+export function foodSpoilageLabel(kind: FoodInventoryKind): FoodSpoilageLabel {
+  const multiplier = foodSpoilageMultiplier(kind);
+  if (multiplier <= 0) return 'Shelf-stable';
+  if (multiplier <= 0.75) return 'Slow spoilage';
+  if (multiplier <= 1.25) return 'Moderate spoilage';
+  return 'Fast spoilage';
+}
+
 export const FOOD_CATEGORY_LABELS = {
   grains: 'Grains',
   vegetables: 'Vegetables',

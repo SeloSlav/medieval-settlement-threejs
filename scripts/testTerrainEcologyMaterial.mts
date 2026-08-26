@@ -24,6 +24,7 @@ import {
   terrainShoreRainVisibility,
 } from '../src/terrain/TerrainGrassMaterial.ts';
 import { createRoadWeatherUniforms } from '../src/roads/RoadSurfaceMaterial.ts';
+import { setPainterlyVegetationEnabled } from '../src/scene/painterlyVegetationPreference.ts';
 import type {
   TerrainBlendTextureSet,
   TextureSet,
@@ -309,6 +310,16 @@ assert.deepEqual(
     'textures.meadow.normal',
     'textures.meadow.roughness',
   ],
+);
+assert.equal(
+  (source.match(/aoNodeWhilePainted:/g) ?? []).length,
+  2,
+  'both terrain constructors must free micro-AO samplers for the painter texture',
+);
+assert.match(
+  source,
+  /aoNodeWhilePainted:\s*canopyAoFactor/,
+  'river-shore terrain must retain forest canopy AO while freeing grass AO samplers',
 );
 assert.doesNotMatch(
   source,
@@ -759,4 +770,47 @@ for (const constructorCase of constructorCases) {
   material?.dispose();
 }
 
-console.log('Terrain ecological material contract tests passed.');
+function collectNodeTextures(
+  value: unknown,
+  seen: Set<object>,
+  textures: Set<THREE.Texture>,
+): void {
+  if (!value || typeof value !== 'object') return;
+  if (seen.has(value)) return;
+  seen.add(value);
+  if ((value as THREE.Texture).isTexture) {
+    textures.add(value as THREE.Texture);
+    return;
+  }
+  for (const child of Object.values(value)) {
+    collectNodeTextures(child, seen, textures);
+  }
+}
+
+const paintedTerrain = createTerrainGrassMaterialWithRiverShore(
+  grassTextures,
+  roadTextures,
+  weather,
+);
+setPainterlyVegetationEnabled(true);
+assert.equal(paintedTerrain.userData.painterlyVegetationUsesReducedAo, true);
+const paintedTerrainTextures = new Set<THREE.Texture>();
+const seenPaintNodes = new Set<object>();
+for (const node of [
+  paintedTerrain.colorNode,
+  paintedTerrain.normalNode,
+  paintedTerrain.roughnessNode,
+  paintedTerrain.aoNode,
+]) {
+  collectNodeTextures(node, seenPaintNodes, paintedTerrainTextures);
+}
+assert.ok(
+  paintedTerrainTextures.size <= 13,
+  `painted terrain must leave room for renderer-owned shadow bindings; got ${paintedTerrainTextures.size} material textures`,
+);
+setPainterlyVegetationEnabled(false);
+paintedTerrain.dispose();
+
+console.log(
+  `Terrain ecological material contract tests passed (${paintedTerrainTextures.size} sampled textures in the painted material graph).`,
+);

@@ -520,6 +520,10 @@ test('connects, places a reforester, and updates settlement HUD timber', async (
   await expect(page.locator('#ui-tooltip .ui-tooltip__amount-label')).toHaveText(
     'Available surplus',
   );
+  await expect(page.locator('#ui-tooltip .ui-tooltip__list li')).toHaveText([
+    '1.00 meal-equivalents per unit',
+    'Slow spoilage',
+  ]);
   await timberHud.hover();
   await expect(timberPanel).toBeVisible();
   await expect(timberCard.locator('[data-resource-card-mode-label="timber"]')).toHaveText(

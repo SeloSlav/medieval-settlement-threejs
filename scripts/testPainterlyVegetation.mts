@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { MeshStandardNodeMaterial } from 'three/webgpu';
-import { vec4 } from 'three/tsl';
+import { float, vec4 } from 'three/tsl';
 
 const storage = new Map<string, string>();
 Object.defineProperty(globalThis, 'localStorage', {
@@ -50,6 +50,7 @@ assert.equal(
 const material = new MeshStandardNodeMaterial();
 const groundMaterial = new MeshStandardNodeMaterial();
 groundMaterial.colorNode = vec4(0.34, 0.42, 0.27, 1);
+groundMaterial.aoNode = float(0.72);
 const nativeColorNode = material.colorNode;
 const nativeNormalNode = material.normalNode;
 const nativeRoughnessNode = material.roughnessNode;
@@ -57,13 +58,16 @@ const hadOwnSetupOutput = Object.prototype.hasOwnProperty.call(material, 'setupO
 const nativeGroundColorNode = groundMaterial.colorNode;
 const nativeGroundNormalNode = groundMaterial.normalNode;
 const nativeGroundRoughnessNode = groundMaterial.roughnessNode;
+const nativeGroundAoNode = groundMaterial.aoNode;
 const groundHadOwnSetupOutput = Object.prototype.hasOwnProperty.call(
   groundMaterial,
   'setupOutput',
 );
 
 painterly.applyPainterlyVegetationMaterial(material, 'deciduous-leaf');
-painterly.applyPainterlyVegetationMaterial(groundMaterial, 'terrain-ground');
+painterly.applyPainterlyVegetationMaterial(groundMaterial, 'terrain-ground', {
+  aoNodeWhilePainted: float(1),
+});
 let diagnostics = painterly.getPainterlyVegetationDiagnostics();
 assert.equal(diagnostics.enabled, false);
 assert.equal(diagnostics.registeredMaterials, 2);
@@ -97,8 +101,14 @@ assert.ok(painterOutput, 'the complete post-light painter graph must construct')
 assert.notEqual(groundMaterial.colorNode, nativeGroundColorNode);
 assert.notEqual(groundMaterial.normalNode, nativeGroundNormalNode);
 assert.notEqual(groundMaterial.roughnessNode, nativeGroundRoughnessNode);
+assert.notEqual(groundMaterial.aoNode, nativeGroundAoNode);
 assert.equal(groundMaterial.userData.painterlyVegetationRole, 'terrain-ground');
 assert.equal(groundMaterial.userData.painterlyVegetationInstalled, true);
+assert.equal(
+  groundMaterial.userData.painterlyVegetationUsesReducedAo,
+  true,
+  'sampler-limited terrain must replace micro-AO while paint is enabled',
+);
 const groundPainterOutput = groundMaterial.setupOutput({}, vec4(0.4, 0.5, 0.3, 1));
 assert.ok(
   groundPainterOutput,
@@ -114,6 +124,7 @@ assert.equal(material.roughnessNode, nativeRoughnessNode);
 assert.equal(groundMaterial.colorNode, nativeGroundColorNode);
 assert.equal(groundMaterial.normalNode, nativeGroundNormalNode);
 assert.equal(groundMaterial.roughnessNode, nativeGroundRoughnessNode);
+assert.equal(groundMaterial.aoNode, nativeGroundAoNode);
 assert.equal(
   Object.prototype.hasOwnProperty.call(material, 'setupOutput'),
   hadOwnSetupOutput,

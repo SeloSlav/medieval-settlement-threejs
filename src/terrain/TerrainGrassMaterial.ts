@@ -1253,7 +1253,9 @@ export function createTerrainGrassMaterial(
     snowNodes.aoNode,
     snowNodes.mask,
   ) as TslNode;
-  applyPainterlyVegetationMaterial(material, 'terrain-ground');
+  applyPainterlyVegetationMaterial(material, 'terrain-ground', {
+    aoNodeWhilePainted: float(1) as TslNode,
+  });
   return material;
 }
 
@@ -1586,6 +1588,8 @@ export function createTerrainGrassMaterialWithRiverShore(
     snowNodes.mask,
   ) as TslNode).mul(canopyAoFactor) as TslNode;
   material.userData.forestCanopyOcclusionMap = canopyOcclusion;
-  applyPainterlyVegetationMaterial(material, 'terrain-ground');
+  applyPainterlyVegetationMaterial(material, 'terrain-ground', {
+    aoNodeWhilePainted: canopyAoFactor,
+  });
   return material;
 }

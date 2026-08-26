@@ -85,7 +85,7 @@ import {
 import { PlayerAuthoredHoverOutline } from './PlayerAuthoredHoverOutline.ts';
 import {
   foodMealValue,
-  foodSpoilageMultiplier,
+  foodSpoilageLabel,
   type FoodInventoryKind,
 } from '../economy/foodInventory.ts';
 import { AlertDialog } from '../ui/AlertDialog.ts';
@@ -1909,15 +1909,15 @@ export class ResourceInspector {
           ? 'preservedFood'
           : kind) as FoodInventoryKind;
       const mealValue = foodMealValue(inventoryKind);
-      const spoilage = foodSpoilageMultiplier(inventoryKind);
       elements.row.hidden = !visible;
       elements.row.classList.toggle('is-empty', !stocked);
       elements.stored.textContent = formatTransitAmount(displayed);
       elements.row.dataset.tooltipAmount = formatTransitAmount(displayed);
       elements.row.dataset.tooltipAmountLabel = amountLabel;
-      elements.row.dataset.tooltip = spoilage <= 0
-        ? `${mealValue.toFixed(2)} meal-equivalents per unit · shelf-stable`
-        : `${mealValue.toFixed(2)} meal-equivalents per unit · ${spoilage.toFixed(2)}× base spoilage before storage protection`;
+      elements.row.dataset.tooltip = [
+        `${mealValue.toFixed(2)} meal-equivalents per unit`,
+        foodSpoilageLabel(inventoryKind),
+      ].join(' · ');
       elements.transit.hidden = transit <= 1e-6;
       elements.transit.textContent = transit > 1e-6
         ? `+${formatTransitAmount(transit)} cart`
