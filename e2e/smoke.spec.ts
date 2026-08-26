@@ -316,22 +316,20 @@ test('connects, places a reforester, and updates settlement HUD timber', async (
   await expect(timberHud).toHaveText(String(timberBefore - REFORESTER_TIMBER_COST), { timeout: SYNC_TIMEOUT_MS });
   const totalsMode = page.locator('button[data-resource-totals-mode]');
   const tooltip = page.locator('#ui-tooltip');
-  await expect(page.locator('[data-resource="timber"]')).toHaveAttribute(
-    'data-tooltip-title',
-    'Timber',
+  const residentsCard = page.locator('[data-resident-card]');
+  const timberCard = page.locator('[data-resource-card="timber"]');
+  const timberPanel = timberCard.locator('.settlement-hud__resource-panel');
+  for (const resource of ['timber', 'stone', 'water', 'gold']) {
+    const summary = page.locator(`[data-resource-card="${resource}"] > [data-resource="${resource}"]`);
+    await expect(summary).not.toHaveAttribute('data-tooltip');
+    await expect(summary).not.toHaveAttribute('data-tooltip-title');
+  }
+  await residentsCard.locator('[data-resource="population"]').hover();
+  await expect(residentsCard.locator('.settlement-hud__residents-panel')).toBeVisible();
+  await expect(residentsCard.locator('[data-resident-card-total]')).toHaveText(
+    String(STARTING_POPULATION),
   );
-  await expect(page.locator('[data-resource="stone"]')).toHaveAttribute(
-    'data-tooltip-title',
-    'Stone',
-  );
-  await expect(page.locator('[data-resource="water"]')).toHaveAttribute(
-    'data-tooltip-title',
-    'Water',
-  );
-  await expect(page.locator('[data-resource="gold"]')).toHaveAttribute(
-    'data-tooltip-title',
-    'Gold',
-  );
+  await expect(tooltip).toBeHidden();
   const seasonStatus = page.locator('[data-season-status]');
   await expect(seasonStatus).toHaveCSS('background-image', /woodcut-sundial\.webp/);
   await expect(seasonStatus).toHaveAttribute('aria-label', /^Season almanac: /);
@@ -456,8 +454,14 @@ test('connects, places a reforester, and updates settlement HUD timber', async (
     'Available surplus',
   );
   await timberHud.hover();
-  await expect(tooltip.locator('.ui-tooltip__title')).toHaveText('Timber');
-  await expect(tooltip.locator('.ui-tooltip__amount-label')).toHaveText('Available surplus');
+  await expect(timberPanel).toBeVisible();
+  await expect(timberCard.locator('[data-resource-card-mode-label="timber"]')).toHaveText(
+    'Available surplus',
+  );
+  await expect(timberCard.locator('[data-resource-card-amount="timber"]')).toHaveText(
+    String(timberBefore - REFORESTER_TIMBER_COST),
+  );
+  await expect(tooltip).toBeHidden();
   await expect(foodStores).not.toHaveAttribute('open', '');
   await totalsMode.hover();
   await expect(tooltip.locator('.ui-tooltip__title')).toHaveText('Surplus goods (default)');
@@ -512,8 +516,14 @@ test('connects, places a reforester, and updates settlement HUD timber', async (
     'All stored goods',
   );
   await timberHud.hover();
-  await expect(tooltip.locator('.ui-tooltip__title')).toHaveText('Timber');
-  await expect(tooltip.locator('.ui-tooltip__amount-label')).toHaveText('Total stored');
+  await expect(timberPanel).toBeVisible();
+  await expect(timberCard.locator('[data-resource-card-mode-label="timber"]')).toHaveText(
+    'Total stored',
+  );
+  await expect(timberCard.locator('[data-resource-card-amount="timber"]')).toHaveText(
+    String(timberBefore),
+  );
+  await expect(tooltip).toBeHidden();
   await expect(specialtyStores.locator('[data-specialty-stores-mode-label]')).toHaveText(
     'Total stored',
   );

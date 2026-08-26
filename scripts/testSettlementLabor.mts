@@ -360,6 +360,10 @@ const resourceInspector = readFileSync(
   new URL('../src/resources/ResourceInspector.ts', import.meta.url),
   'utf8',
 );
+const hudResourceCards = readFileSync(
+  new URL('../src/ui/hudResourceCards.ts', import.meta.url),
+  'utf8',
+);
 const villagerInspector = readFileSync(
   new URL('../src/ui/VillagerInspector.ts', import.meta.url),
   'utf8',
@@ -393,7 +397,13 @@ assert.ok(
 );
 assert.match(settlementHud, /data-people-card="labor"/);
 assert.match(settlementHud, /Individual workforce/);
-assert.match(settlementHud, /data-tooltip-title="Residents"/);
+assert.match(settlementHud, /data-resident-card/);
+assert.match(settlementHud, /Resident ledger/);
+assert.doesNotMatch(
+  settlementHud,
+  /data-resource="population"[^>]*data-tooltip/,
+  'the resident summary must use its anchored ledger card instead of the global tooltip',
+);
 assert.match(settlementHud, /data-people-card="housing"/);
 assert.match(settlementHud, /Homes &amp; migration/);
 assert.match(settlementHud, /data-stockpile="housing">0<\/strong>/);
@@ -405,9 +415,9 @@ assert.match(
 );
 assert.match(settlementHud, /data-stockpile-transit="timber"/);
 assert.match(
-  resourceInspector,
+  hudResourceCards,
   /Loaded carts remain listed separately until unloading/,
-  'the totals-mode tooltip must keep in-transit cargo separate from physically stored stock',
+  'the totals-mode resource card must keep in-transit cargo separate from physically stored stock',
 );
 assert.match(resourceInspector, /closest<HTMLElement>\('\[data-inspect-delivery-trip\]'\)/);
 assert.match(resourceInspector, /en route/);
