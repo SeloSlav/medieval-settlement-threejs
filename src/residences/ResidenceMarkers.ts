@@ -6,6 +6,7 @@ import { BatchedBuildingShadowProxies } from '../buildings/buildingShadowProxy.t
 import {
   addProceduralDoor,
   addProceduralWindow,
+  type DoorEntranceAccess,
 } from '../buildings/meshes/facadeOpeningKit.ts';
 import {
   addMesh,
@@ -248,6 +249,7 @@ function addPlankDoor(
   width = 1.02,
   height = 1.92,
   weatheredMaterial: THREE.Material = timberMaterial('weathered'),
+  entranceAccess: DoorEntranceAccess = 'auto-stone-steps',
 ): void {
   const parts = addProceduralDoor(group, {
     position: new THREE.Vector3(x, baseY, z),
@@ -257,6 +259,7 @@ function addPlankDoor(
     leafMaterial: timberMaterial('mid'),
     frameMaterial: weatheredMaterial,
     namePrefix: 'Residence',
+    entranceAccess,
   });
   parts.reveal.name = 'Residence shadowed plank door aperture';
   parts.reveal.userData.residenceSurfaceRole = 'dark-aperture';
@@ -1639,7 +1642,16 @@ export function createResidenceMesh(
 
   if (tier > 1 && archetype === 'timber_balcony') {
     addFrontWindow(group, windowMaterial, shutterMaterial, -entrySide * 1.35, groundTop + upperHeight * 0.55, frontZ + 0.02);
-    addPlankDoor(group, entrySide * 0.82, groundTop + 0.08, frontZ + 0.03, 0.86, 1.84);
+    addPlankDoor(
+      group,
+      entrySide * 0.82,
+      groundTop + 0.08,
+      frontZ + 0.03,
+      0.86,
+      1.84,
+      tierOneWeatheredMaterial,
+      'existing-platform',
+    );
     addTimberBalcony(group, entrySide, frontZ, groundTop + 0.08);
   } else if (tier > 1) {
     addFrontWindow(group, windowMaterial, shutterMaterial, -1.38, groundTop + upperHeight * 0.54, frontZ + 0.02);
@@ -1673,17 +1685,6 @@ export function createResidenceMesh(
         1.05,
       );
     }
-  }
-
-  for (let step = 0; step < 2; step++) {
-    addMesh(
-      group,
-      new THREE.BoxGeometry(1.5 - step * 0.18, 0.16, 0.5),
-      tier === 1
-        ? (step === 0 ? tierOneFoundationMaterial : tierOneFoundationCapMaterial)
-        : stoneMaterial(step === 0 ? 'mid' : 'light'),
-      new THREE.Vector3(doorX, 0.08 + step * 0.12, halfD + 0.34 - step * 0.14),
-    );
   }
 
   for (const side of [-1, 1] as const) {

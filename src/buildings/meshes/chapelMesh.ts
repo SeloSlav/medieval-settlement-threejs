@@ -9,7 +9,11 @@ import {
   timberMaterial,
 } from '../buildingMaterials.ts';
 import { addTriangularGableWall } from '../meshPrimitives.ts';
-import { addProceduralDoor, addProceduralWindow } from './facadeOpeningKit.ts';
+import {
+  addProceduralDoor,
+  addProceduralWindow,
+  addStoneEntranceSteps,
+} from './facadeOpeningKit.ts';
 
 type ChapelMaterials = {
   limewash: THREE.MeshStandardMaterial;
@@ -201,6 +205,11 @@ function addPlankDoor(
   opening.userData.facadeOpeningHeight = doorHeight;
   opening.userData.hasCrossBars = false;
   group.add(opening);
+  addStoneEntranceSteps(opening, {
+    thresholdHeight: floorY,
+    width: doorWidth,
+    namePrefix: 'Chapel',
+  });
 
   const surround = addMesh(
     opening,
@@ -605,14 +614,6 @@ function createCompactChurchMesh(tier: 1 | 2): THREE.Group {
     stoneTier,
   );
   addParishCoffer(group, frontZ, stoneTier ? -1.42 : -1.12);
-  for (let step = 0; step < 2; step++) {
-    addMesh(
-      group,
-      new THREE.BoxGeometry((stoneTier ? 2.0 : 1.62) - step * 0.25, 0.14, 0.52),
-      stoneMaterial(step === 0 ? 'mid' : 'light'),
-      new THREE.Vector3(0, 0.07 + step * 0.1, halfD + 0.36 - step * 0.13),
-    );
-  }
   return root;
 }
 
@@ -674,15 +675,6 @@ function createLargeStoneChurchMesh(): THREE.Group {
   addPlankDoor(group, materials, frontZ, foundationHeight + 0.08);
   addParishCoffer(group, frontZ);
   addFolkFrieze(group, materials, frontZ, wallTop - 0.46);
-
-  for (let step = 0; step < 3; step++) {
-    addMesh(
-      group,
-      new THREE.BoxGeometry(2.45 - step * 0.32, 0.16, 0.62),
-      stoneMaterial(step === 1 ? 'mid' : 'light'),
-      new THREE.Vector3(0, 0.08 + step * 0.12, halfD + 0.52 - step * 0.18),
-    );
-  }
 
   for (const side of [-1, 1] as const) {
     addMesh(

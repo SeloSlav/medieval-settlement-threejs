@@ -6,7 +6,11 @@ import {
   stoneMaterial,
   timberMaterial,
 } from '../buildingMaterials.ts';
-import { addProceduralDoor, addProceduralWindow } from './facadeOpeningKit.ts';
+import {
+  addProceduralDoor,
+  addProceduralWindow,
+  type DoorEntranceAccess,
+} from './facadeOpeningKit.ts';
 
 export type GableShellOptions = {
   width: number;
@@ -215,6 +219,7 @@ export function addPlankDoor(
   z: number,
   width = 1.02,
   height = 1.92,
+  entranceAccess: DoorEntranceAccess = 'auto-stone-steps',
 ): void {
   addProceduralDoor(group, {
     position: new THREE.Vector3(x, baseY, z),
@@ -222,6 +227,7 @@ export function addPlankDoor(
     width,
     height,
     namePrefix: 'Building',
+    entranceAccess,
   });
 }
 

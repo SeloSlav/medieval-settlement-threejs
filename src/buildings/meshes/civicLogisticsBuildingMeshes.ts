@@ -231,7 +231,15 @@ export function createVillageStorehouseMesh(): THREE.Group {
     roofMaterial: shingleMaterial(),
     centerX: -0.7,
   });
-  addPlankDoor(group, -0.7, 0.88, shell.frontZ + 0.04, 2.65, 2.72);
+  addPlankDoor(
+    group,
+    -0.7,
+    0.88,
+    shell.frontZ + 0.04,
+    2.65,
+    2.72,
+    'existing-platform',
+  );
   for (const x of [-4.2, 2.8]) addSmallWindow(group, x, 2.75, shell.frontZ + 0.06, 0.62, 0.52);
 
   // Loading platform and deep canopy make the warehouse function legible at game camera distance.

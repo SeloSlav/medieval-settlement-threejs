@@ -35,7 +35,16 @@ export type ProceduralDoorOptions = FacadeOpeningBaseOptions & {
   thresholdMaterial?: THREE.Material;
   hardwareMaterial?: THREE.Material;
   doubleLeaf?: boolean;
+  entranceAccess?: DoorEntranceAccess;
 };
+
+export type DoorEntranceAccess =
+  | 'auto-stone-steps'
+  | 'existing-platform'
+  | 'ground-level';
+
+export const RAISED_DOOR_STEP_MIN_HEIGHT_METERS = 0.24;
+export const RAISED_DOOR_STEP_MAX_RISE_METERS = 0.2;
 
 export type ProceduralWindowParts = {
   root: THREE.Group;
@@ -53,7 +62,82 @@ export type ProceduralDoorParts = {
   seams: THREE.Mesh[];
   hinges: THREE.Mesh[];
   latch: THREE.Mesh;
+  steps: THREE.Mesh[];
 };
+
+export type StoneEntranceStepOptions = {
+  thresholdHeight: number;
+  width: number;
+  namePrefix?: string;
+  entranceAccess?: DoorEntranceAccess;
+};
+
+/**
+ * Adds a complete ground-to-threshold stair in the opening's local facade
+ * frame. Local +Z is always outward, so the opening root owns orientation for
+ * front, rear, and side doors without duplicating world-space placement code.
+ */
+export function addStoneEntranceSteps(
+  openingRoot: THREE.Group,
+  options: StoneEntranceStepOptions,
+): THREE.Mesh[] {
+  const {
+    thresholdHeight,
+    width,
+    namePrefix = 'Building',
+    entranceAccess = 'auto-stone-steps',
+  } = options;
+  const raised = thresholdHeight > RAISED_DOOR_STEP_MIN_HEIGHT_METERS;
+  openingRoot.userData.entranceAccess = entranceAccess;
+  openingRoot.userData.entranceThresholdHeightMeters = thresholdHeight;
+  openingRoot.userData.raisedEntranceRequiresSteps = raised && entranceAccess === 'auto-stone-steps';
+
+  if (!raised || entranceAccess !== 'auto-stone-steps') {
+    openingRoot.userData.entranceStepCount = 0;
+    return [];
+  }
+
+  const stepCount = Math.max(1, Math.ceil(
+    thresholdHeight / RAISED_DOOR_STEP_MAX_RISE_METERS,
+  ));
+  const riserHeight = thresholdHeight / stepCount;
+  const treadDepth = THREE.MathUtils.clamp(width * 0.28, 0.3, 0.42);
+  const baseWidth = width + THREE.MathUtils.clamp(width * 0.36, 0.4, 0.82);
+  const stairRoot = new THREE.Group();
+  stairRoot.name = `${namePrefix} raised stone entrance stair`;
+  stairRoot.userData.facadeOpeningRole = 'entrance-steps';
+  stairRoot.userData.entranceStepCount = stepCount;
+  stairRoot.userData.entranceStepRiseMeters = riserHeight;
+  stairRoot.userData.entranceStepRunMeters = treadDepth * stepCount;
+  openingRoot.add(stairRoot);
+
+  const steps: THREE.Mesh[] = [];
+  for (let stepIndex = 0; stepIndex < stepCount; stepIndex += 1) {
+    const topHeight = riserHeight * (stepIndex + 1);
+    const outwardIndex = stepCount - stepIndex - 1;
+    const stepWidth = baseWidth + outwardIndex * 0.035;
+    const step = addMesh(
+      stairRoot,
+      new THREE.BoxGeometry(stepWidth, topHeight, treadDepth + 0.025),
+      stoneMaterial(stepIndex % 2 === 0 ? 'mid' : 'light'),
+      new THREE.Vector3(
+        0,
+        -thresholdHeight + topHeight * 0.5,
+        0.05 + treadDepth * (outwardIndex + 0.5),
+      ),
+    );
+    step.name = `${namePrefix} raised stone entrance step ${stepIndex + 1}`;
+    step.userData.facadeOpeningRole = 'entrance-step';
+    step.userData.entranceStepIndex = stepIndex;
+    step.userData.entranceStepTopHeightMeters = topHeight;
+    steps.push(step);
+  }
+
+  openingRoot.userData.entranceStepCount = stepCount;
+  openingRoot.userData.entranceStepRiseMeters = riserHeight;
+  openingRoot.userData.entranceStepRunMeters = treadDepth * stepCount;
+  return steps;
+}
 
 function orientFacadeRoot(root: THREE.Group, face: FacadeFace): void {
   if (face === 'negative-z') root.rotation.y = Math.PI;
@@ -202,9 +286,16 @@ export function addProceduralDoor(
     hardwareMaterial = sharedBuildingMaterial('metalIron'),
     doubleLeaf = width >= 1.65,
     namePrefix = 'Building',
+    entranceAccess = 'auto-stone-steps',
   } = options;
   const root = createOpeningRoot(parent, options, 'door');
   root.userData.doubleLeaf = doubleLeaf;
+  const steps = addStoneEntranceSteps(root, {
+    thresholdHeight: options.position.y,
+    width,
+    namePrefix,
+    entranceAccess,
+  });
   const frameWidth = THREE.MathUtils.clamp(width * 0.13, 0.12, 0.2);
 
   const reveal = tagPart(
@@ -307,5 +398,5 @@ export function addProceduralDoor(
     'door-latch',
   );
 
-  return { root, reveal, leaf, frame, seams, hinges, latch };
+  return { root, reveal, leaf, frame, seams, hinges, latch, steps };
 }

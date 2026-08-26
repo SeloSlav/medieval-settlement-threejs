@@ -26,6 +26,10 @@ import {
 } from '../src/ui/buildMenuCards.ts';
 import { disposeObject3D } from '../src/utils/dispose.ts';
 import { createSpinningRettingHouseMesh } from '../src/buildings/meshes/spinningRettingHouseMesh.ts';
+import {
+  RAISED_DOOR_STEP_MAX_RISE_METERS,
+  RAISED_DOOR_STEP_MIN_HEIGHT_METERS,
+} from '../src/buildings/meshes/facadeOpeningKit.ts';
 
 type SharpDecodeResult = {
   data: Uint8Array;
@@ -189,6 +193,55 @@ function auditFacadeOpenings(
       for (const requiredRole of ['door-leaf', 'door-hinge', 'door-latch']) {
         if (!roles.has(requiredRole)) {
           throw new Error(`${label} door is missing its ${requiredRole} surface.`);
+        }
+      }
+
+      const entranceAccess = object.userData.entranceAccess as string | undefined;
+      if (entranceAccess) {
+        const thresholdHeight = Number(object.userData.entranceThresholdHeightMeters);
+        const requiresSteps = entranceAccess === 'auto-stone-steps'
+          && thresholdHeight > RAISED_DOOR_STEP_MIN_HEIGHT_METERS;
+        const stepMeshes: THREE.Mesh[] = [];
+        object.traverse((part) => {
+          if (
+            part instanceof THREE.Mesh
+            && part.userData.facadeOpeningRole === 'entrance-step'
+          ) stepMeshes.push(part);
+        });
+
+        if (!requiresSteps && stepMeshes.length !== 0) {
+          throw new Error(`${label} ${entranceAccess} door must not emit automatic stone steps.`);
+        }
+        if (requiresSteps) {
+          const expectedCount = Math.ceil(
+            thresholdHeight / RAISED_DOOR_STEP_MAX_RISE_METERS,
+          );
+          const reportedCount = Number(object.userData.entranceStepCount);
+          const reportedRise = Number(object.userData.entranceStepRiseMeters);
+          const topStep = stepMeshes.find(
+            (step) => step.userData.entranceStepIndex === expectedCount - 1,
+          );
+          if (
+            object.userData.raisedEntranceRequiresSteps !== true
+            || reportedCount !== expectedCount
+            || stepMeshes.length !== expectedCount
+            || !topStep
+            || Math.abs(
+              Number(topStep.userData.entranceStepTopHeightMeters) - thresholdHeight,
+            ) > 1e-9
+            || reportedRise > RAISED_DOOR_STEP_MAX_RISE_METERS + 1e-9
+          ) {
+            throw new Error(`${label} raised door stair does not reach its threshold with safe risers.`);
+          }
+          for (const step of stepMeshes) {
+            const material = Array.isArray(step.material) ? step.material[0] : step.material;
+            if (
+              step.position.z <= 0
+              || !material.name.startsWith('Shared building material: masonry')
+            ) {
+              throw new Error(`${label} raised door steps must extend outward in local facade space and use masonry.`);
+            }
+          }
         }
       }
     }
