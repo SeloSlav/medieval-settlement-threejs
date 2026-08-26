@@ -23,7 +23,6 @@ import { applyPainterlyVegetationMaterial } from '../vegetation/painterly/painte
 
 type TslNode = {
   add(value: TslNode): TslNode;
-  clamp(minimum?: TslNode, maximum?: TslNode): TslNode;
   mul(value: TslNode): TslNode;
   r: TslNode;
   g: TslNode;
@@ -54,7 +53,12 @@ const BUILDING_ATLAS_HEIGHT = BUILDING_ATLAS_ROWS * BUILDING_ATLAS_CELL_SIZE;
 export const BRIDGE_DECK_ATLAS_TILE_ID = 'rough-hewn-timber';
 const BRIDGE_DECK_ATLAS_COLUMN = 4;
 const BRIDGE_DECK_ATLAS_TEXTURE_ROW = 3;
-const BRIDGE_TIMBER_TINT: [number, number, number] = [0.402, 0.238, 0.145];
+// Linear-sRGB form of timberMid's authored #aa866b tint.
+const BRIDGE_TIMBER_TINT: [number, number, number] = [
+  0.40197778,
+  0.23839757,
+  0.14702727,
+];
 const BRIDGE_TIMBER_TINT_STRENGTH = 0.2;
 const BRIDGE_TIMBER_NORMAL_STRENGTH = 0.58;
 const BRIDGE_SURFACE_CUT_THRESHOLD = 0.018;
@@ -281,7 +285,7 @@ export function createRoadCoreMaterial(
       float(0.9) as TslNode,
       packedWood.r,
       float(0.82) as TslNode,
-    ).clamp(float(0.2) as TslNode, float(1) as TslNode) as TslNode;
+    ) as TslNode;
     const surfaceRoughness = mix(
       dirtRough,
       woodRough,
@@ -297,11 +301,11 @@ export function createRoadCoreMaterial(
       float(0.56) as TslNode,
     ) as TslNode;
     material.aoNode = mix(dirtAo, woodAo, bridgeMask);
-    material.metalnessNode = mix(
+    (material as MeshStandardNodeMaterial & { metalnessNode: TslNode }).metalnessNode = mix(
       float(0) as TslNode,
       packedWood.g.mul(float(0.9) as TslNode),
       bridgeMask,
-    );
+    ) as TslNode;
     material.userData.bridgeSurfaceAtlas = 'gorski-building-atlas-v1';
     material.userData.bridgeSurfaceAtlasTile = BRIDGE_DECK_ATLAS_TILE_ID;
   } else {

@@ -42,7 +42,6 @@ import {
 } from '../roads/roadTravel.ts';
 import {
   isAgentAnimalRenderingEnabled,
-  isWithinShadowRange,
   type CrowdViewState,
 } from '../settlement/crowdView.ts';
 import { hashStringSeed } from '../utils/random.ts';
@@ -65,7 +64,6 @@ const DISPLAY_BLEND_RATE = 14;
 type TripVisual = {
   mesh: THREE.Group;
   workers: DeliveryCartWorkerVisual[];
-  castShadow: boolean | null;
   routePolylineJson: string;
   polyline: PointXZ[];
   measuredPathDistance: number;
@@ -115,7 +113,6 @@ export class DeliveryAgentRenderer {
   private selectedTripId: string | null = null;
   private cartSource: DeliveryCartModelSource | null = null;
   private workerSources: DeliveryCartWorkerSources | null = null;
-  private shadowCastersChanged = false;
   private disposed = false;
 
   constructor(options: DeliveryAgentRendererOptions) {
@@ -148,8 +145,6 @@ export class DeliveryAgentRenderer {
       }
 
       const mesh = this.createCartMesh(trip);
-      mesh.castShadow = true;
-      mesh.receiveShadow = false;
       this.group.add(mesh);
       const polyline = decodeRoutePolyline(trip.routePolylineJson) ?? [];
       const measuredPathDistance = polyline.length >= 2
@@ -158,7 +153,6 @@ export class DeliveryAgentRenderer {
       const visual: TripVisual = {
         mesh,
         workers: [],
-        castShadow: null,
         routePolylineJson: trip.routePolylineJson,
         polyline,
         measuredPathDistance,
@@ -175,7 +169,6 @@ export class DeliveryAgentRenderer {
         sampleScratch: { x: 0, z: 0, yaw: 0 },
       };
       this.visuals.set(trip.id, visual);
-      this.shadowCastersChanged = true;
       this.ensureWorkerCrew(visual, trip);
     }
 
@@ -218,15 +211,12 @@ export class DeliveryAgentRenderer {
     return this.buildRemainingRoute(visual);
   }
 
-  update(dt: number, view?: CrowdViewState): boolean {
-    let shadowCastersChanged = this.shadowCastersChanged;
-    this.shadowCastersChanged = false;
+  update(dt: number, view?: CrowdViewState): void {
     const renderEnabled = isAgentAnimalRenderingEnabled(view);
     if (this.group.visible !== renderEnabled) {
       this.group.visible = renderEnabled;
-      shadowCastersChanged = true;
     }
-    if (!renderEnabled) return shadowCastersChanged;
+    if (!renderEnabled) return;
 
     const gameSpeed = this.getGameSpeed();
     for (const [tripId, visual] of this.visuals) {
@@ -285,19 +275,8 @@ export class DeliveryAgentRenderer {
           effectiveTravelSpeed,
         );
       }
-      const castShadow = isWithinShadowRange(x, z, view);
-      if (visual.castShadow !== castShadow) {
-        visual.mesh.traverse((object) => {
-          const mesh = object as THREE.Mesh;
-          if (mesh.isMesh) mesh.castShadow = castShadow;
-        });
-        visual.castShadow = castShadow;
-        shadowCastersChanged = true;
-      }
-      if (castShadow && dt > 0) shadowCastersChanged = true;
       if (this.selectedTripId === tripId) this.updateSelectedRoute(visual);
     }
-    return shadowCastersChanged;
   }
 
   applyTripStates(trips: Iterable<DeliveryTripState>): void {
@@ -451,21 +430,18 @@ export class DeliveryAgentRenderer {
     const replacement = this.createCartMesh(trip);
     replacement.position.copy(visual.mesh.position);
     replacement.rotation.copy(visual.mesh.rotation);
-    replacement.castShadow = visual.mesh.castShadow;
     for (const worker of visual.workers) worker.root.removeFromParent();
     this.group.remove(visual.mesh);
     disposeDeliveryCartMesh(visual.mesh);
     for (const worker of visual.workers) replacement.add(worker.root);
     this.group.add(replacement);
     visual.mesh = replacement;
-    visual.castShadow = null;
     this.ensureWorkerCrew(visual, trip);
   }
 
   private removeTrip(id: string): void {
     const visual = this.visuals.get(id);
     if (!visual) return;
-    if (visual.castShadow !== false) this.shadowCastersChanged = true;
     for (const worker of visual.workers) {
       disposeDeliveryCartWorkerVisual(worker);
     }
@@ -503,7 +479,6 @@ export class DeliveryAgentRenderer {
       );
       visual.workers.push(worker);
       visual.mesh.add(worker.root);
-      visual.castShadow = null;
     }
   }
 

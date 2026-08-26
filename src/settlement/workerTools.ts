@@ -154,7 +154,7 @@ export function attachWorkerTool(
   tool.traverse((object) => {
     const mesh = object as THREE.Mesh;
     if (!mesh.isMesh) return;
-    mesh.castShadow = true;
+    mesh.castShadow = false;
     mesh.receiveShadow = false;
     mesh.frustumCulled = false;
   });

@@ -3,7 +3,6 @@ import type { BridgeSamplingContext, BridgeSpan } from './RiverBridgeSpans.ts';
 import { bridgeBlendAtDistance, samplePathAtDistance } from './RiverBridgeSpans.ts';
 
 const POST_SPACING = 3.4;
-const DECK_THICKNESS = 0.14;
 const POST_INSET = 0.88;
 const POST_WIDTH = 0.28;
 const POST_DEPTH = 0.3;
@@ -39,11 +38,14 @@ export function buildBridgeSupports(
 
       const { point, tangent } = sample;
       const normal = new THREE.Vector3(-tangent.z, 0, tangent.x).normalize();
-      const deckBottomY = point.y - DECK_THICKNESS;
+      // The rendered bridge deck is a surface ribbon, not a thick slab. Its
+      // sampled centerline is therefore the underside/contact datum as well;
+      // subtracting a hypothetical thickness leaves a visible air gap.
+      const deckUndersideY = point.y;
       const waterY = ctx.getWaterSurfaceY(point.x, point.z);
       const bedY = ctx.getTerrainY(point.x, point.z);
       const bottomY = Math.min(waterY, bedY) - WATER_PENETRATION;
-      const height = Math.max(0.45, deckBottomY - bottomY);
+      const height = Math.max(0.45, deckUndersideY - bottomY);
       const centerY = bottomY + height * 0.5;
 
       for (const side of [-1, 1]) {

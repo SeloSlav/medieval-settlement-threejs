@@ -63,6 +63,10 @@ const roadBuilderSource = readFileSync(
   resolve('src/roads/RoadMeshBuilder.ts'),
   'utf8',
 );
+const roadSurfaceSource = readFileSync(
+  resolve('src/roads/RoadSurfaceMaterial.ts'),
+  'utf8',
+);
 const roadLoaderSource = readFileSync(
   resolve('src/roads/RoadTextureLoader.ts'),
   'utf8',
@@ -82,10 +86,35 @@ assert.doesNotMatch(
   /gorski_building_atlas_v1/,
   'the road loader must not create a second copy of the building atlas',
 );
+assert.match(
+  roadFactorySource,
+  /const bridgeRailing = timberMaterial\('mid'\)/,
+  'bridge railings should use the standard timberMid building material',
+);
+assert.match(
+  roadFactorySource,
+  /const bridgeSupport = bridgeRailing/,
+  'bridge supports and railings should share the standard timberMid material',
+);
+assert.doesNotMatch(
+  roadFactorySource,
+  /textureLoader\.loadBridgeTextures\(\)/,
+  'the superseded dark bridge-log texture set should not be loaded',
+);
+assert.match(
+  roadBuilderSource,
+  /this\.materials\.bridgeRailing/,
+  'bridge railings must not fall back to the support/log material',
+);
+assert.match(
+  roadSurfaceSource,
+  /const bridgeMask = step\(/,
+  'bridge planks should meet the dirt road at a hard material cut',
+);
 assert.equal(
   BRIDGE_DECK_ATLAS_TILE_ID,
-  'sawn-planks',
-  'bridge decks should sample the atlas surface authored for sawn oak planks',
+  'rough-hewn-timber',
+  'bridge decks should match the timberMid atlas surface used by doors and posts',
 );
 
 for (const [fileName, expected] of Object.entries(manifest.files)) {

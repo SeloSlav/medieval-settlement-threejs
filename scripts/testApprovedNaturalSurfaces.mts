@@ -129,9 +129,9 @@ const manifest = JSON.parse(
 ) as NaturalSurfaceManifest;
 
 const expectedMaterials = new Map([
-  ['manor-grass-meadow', 'public/assets/textures/terrain/gorski_meadow_grass_v1'],
-  ['manor-grass-dense', 'public/assets/textures/terrain/gorski_dense_grass_v1'],
-  ['manor-grass-dry-v2', 'public/assets/textures/terrain/gorski_dry_grass_v1'],
+  ['rts-groundcover-meadow-v3', 'public/assets/textures/terrain/gorski_meadow_grass_v1'],
+  ['rts-groundcover-dense-v2', 'public/assets/textures/terrain/gorski_dense_grass_v1'],
+  ['rts-groundcover-dry-v4', 'public/assets/textures/terrain/gorski_dry_grass_v1'],
   ['forest-leaf-litter-primary', 'public/assets/textures/terrain/gorski_forest_litter_primary_v1'],
   ['forest-leaf-litter-secondary', 'public/assets/textures/terrain/gorski_forest_litter_secondary_v1'],
   ['forest-mossy-karst-rock-v3', 'public/assets/textures/props/gorski_forest_mossy_rock_v1'],

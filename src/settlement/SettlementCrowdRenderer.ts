@@ -4,7 +4,6 @@ import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js
 import {
   isAgentAnimalRenderingEnabled,
   isWithinCrowdView,
-  isWithinShadowRange,
   isWithinWorkAnimationRange,
   type CrowdViewState,
 } from './crowdView.ts';
@@ -116,16 +115,6 @@ type AnimatedVariantBatch = {
   }>;
 };
 
-type ShadowCasterPose = {
-  x: number;
-  y: number;
-  z: number;
-  yaw: number;
-  variant: VillagerModelVariant;
-  mode: VillagerRenderMode;
-  tool: WorkerToolKind | null;
-};
-
 export type CrowdRenderAgent = {
   id: string;
   slot: number;
@@ -191,8 +180,6 @@ export class SettlementCrowdRenderer {
   private readonly visibleAgents: CrowdRenderAgent[] = [];
   private readonly animatedCandidates: CrowdRenderAgent[] = [];
   private readonly animatedIds = new Set<string>();
-  private readonly shadowCasterPoses = new Map<string, ShadowCasterPose>();
-  private shadowCastersChanged = false;
   private sources: Record<VillagerModelVariant, VillagerSource> | null = null;
   private toolSources: WorkerToolSources | null = null;
   private animatedBatches: Record<VillagerModelVariant, AnimatedVariantBatch> | null = null;
@@ -229,7 +216,6 @@ export class SettlementCrowdRenderer {
     const renderEnabled = isAgentAnimalRenderingEnabled(view);
     if (this.group.visible !== renderEnabled) {
       this.group.visible = renderEnabled;
-      this.shadowCastersChanged = true;
     }
     if (!renderEnabled) return;
 
@@ -250,14 +236,6 @@ export class SettlementCrowdRenderer {
     this.clearFallback();
     this.syncAnimatedVillagers(visibleAgents, animatedIds, dt);
     this.updateAnimatedBatches(visibleAgents, animatedIds);
-    this.recordShadowCasterState(visibleAgents, animatedIds, dt);
-  }
-
-  /** Consume movement/animation changes that require the manual atlas to redraw. */
-  consumeShadowCastersChanged(): boolean {
-    const changed = this.shadowCastersChanged;
-    this.shadowCastersChanged = false;
-    return changed;
   }
 
   beginFirstPlayableGpuPrewarm(): () => void {
@@ -456,11 +434,7 @@ export class SettlementCrowdRenderer {
     const candidates = this.animatedCandidates;
     candidates.length = 0;
     for (const agent of agents) {
-      if (
-        isWorkMode(agent.mode)
-          ? isWithinWorkAnimationRange(agent.x, agent.z, view)
-          : isWithinShadowRange(agent.x, agent.z, view)
-      ) {
+      if (isWithinWorkAnimationRange(agent.x, agent.z, view)) {
         candidates.push(agent);
       }
     }
@@ -480,55 +454,6 @@ export class SettlementCrowdRenderer {
       animatedIds.add(candidates[index]!.id);
     }
     return animatedIds;
-  }
-
-  private recordShadowCasterState(
-    agents: readonly CrowdRenderAgent[],
-    casterIds: ReadonlySet<string>,
-    animationDt: number,
-  ): void {
-    let changed = animationDt > 0 && casterIds.size > 0;
-    for (const id of this.shadowCasterPoses.keys()) {
-      if (casterIds.has(id)) continue;
-      this.shadowCasterPoses.delete(id);
-      changed = true;
-    }
-    for (const agent of agents) {
-      if (!casterIds.has(agent.id)) continue;
-      const previous = this.shadowCasterPoses.get(agent.id);
-      if (!previous) {
-        this.shadowCasterPoses.set(agent.id, {
-          x: agent.x,
-          y: agent.y,
-          z: agent.z,
-          yaw: agent.yaw,
-          variant: agent.variant,
-          mode: agent.mode,
-          tool: agent.tool,
-        });
-        changed = true;
-        continue;
-      }
-      if (
-        previous.x !== agent.x
-        || previous.y !== agent.y
-        || previous.z !== agent.z
-        || previous.yaw !== agent.yaw
-        || previous.variant !== agent.variant
-        || previous.mode !== agent.mode
-        || previous.tool !== agent.tool
-      ) {
-        changed = true;
-      }
-      previous.x = agent.x;
-      previous.y = agent.y;
-      previous.z = agent.z;
-      previous.yaw = agent.yaw;
-      previous.variant = agent.variant;
-      previous.mode = agent.mode;
-      previous.tool = agent.tool;
-    }
-    this.shadowCastersChanged ||= changed;
   }
 
   private syncAnimatedVillagers(
@@ -802,7 +727,7 @@ export class SettlementCrowdRenderer {
           mesh.name = `${variant} aggregate close villagers shard ${shardIndex}: ${sourceMaterial.name}`;
           mesh.bindMode = sourceMesh.bindMode;
           mesh.bind(skeleton, sourceMesh.bindMatrix);
-          mesh.castShadow = true;
+          mesh.castShadow = false;
           mesh.receiveShadow = false;
           mesh.frustumCulled = false;
           mesh.visible = false;

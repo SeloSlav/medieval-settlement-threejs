@@ -151,7 +151,7 @@ export function createDeliveryCartWorkerVisual(
   model.traverse((object) => {
     const mesh = object as THREE.SkinnedMesh;
     if (!mesh.isSkinnedMesh) return;
-    mesh.castShadow = true;
+    mesh.castShadow = false;
     mesh.receiveShadow = false;
     mesh.frustumCulled = false;
     const sourceMaterials = Array.isArray(mesh.material)

@@ -30,7 +30,7 @@ export class RoadMaterialFactory {
   readonly riverBank!: MeshStandardNodeMaterial;
   readonly terrain!: MeshStandardNodeMaterial;
   readonly rainTerrain!: THREE.MeshStandardMaterial;
-  readonly bridgeSupport!: THREE.MeshStandardMaterial;
+  readonly bridgeSupport!: THREE.Material;
   readonly previewValid: THREE.MeshBasicMaterial;
   readonly previewInvalid: THREE.MeshBasicMaterial;
   readonly previewBlendValid: THREE.MeshBasicMaterial;
@@ -39,7 +39,6 @@ export class RoadMaterialFactory {
   readonly selection: THREE.MeshBasicMaterial;
   readonly snap: THREE.MeshBasicMaterial;
   private roadTextures: TextureSet | null = null;
-  private bridgeTextures: TextureSet | null = null;
   private bridgeDeckAtlasTextures: BuildingMaterialAtlasTextureSet | null = null;
   private terrainBlendTextures: TerrainBlendTextureSet | null = null;
   private rainTerrainTexture: THREE.DataTexture | null = null;
@@ -102,7 +101,6 @@ export class RoadMaterialFactory {
   static createProgressive(maxAnisotropy: number): RoadMaterialFactory {
     const factory = new RoadMaterialFactory();
     factory.roadTextures = createPlaceholderTextureSet(THREE.RepeatWrapping, true);
-    factory.bridgeTextures = createPlaceholderTextureSet(THREE.RepeatWrapping, false);
     factory.bridgeDeckAtlasTextures = getBuildingMaterialAtlasTextures();
     factory.terrainBlendTextures = {
       meadow: createPlaceholderTextureSet(THREE.MirroredRepeatWrapping, false),
@@ -114,12 +112,10 @@ export class RoadMaterialFactory {
     const textureLoader = new RoadTextureLoader(Math.min(maxAnisotropy, 8));
     factory.texturesReadyPromise = Promise.all([
       textureLoader.loadRoadTextures(),
-      textureLoader.loadBridgeTextures(),
       textureLoader.loadTerrainBlendTextures(),
       initializeBuildingMaterialAtlas(maxAnisotropy),
-    ]).then(([roadTextures, bridgeTextures, terrainBlendTextures]) => {
+    ]).then(([roadTextures, terrainBlendTextures]) => {
       hydrateTextureSet(factory.roadTextures!, roadTextures);
-      hydrateTextureSet(factory.bridgeTextures!, bridgeTextures);
       hydrateTextureSet(factory.terrainBlendTextures!.meadow, terrainBlendTextures.meadow);
       hydrateTextureSet(factory.terrainBlendTextures!.dense, terrainBlendTextures.dense);
       hydrateTextureSet(factory.terrainBlendTextures!.dry, terrainBlendTextures.dry);
@@ -155,7 +151,6 @@ export class RoadMaterialFactory {
       this.riverBank,
       this.terrain,
       this.rainTerrain,
-      this.bridgeSupport,
       this.previewValid,
       this.previewInvalid,
       this.previewBlendValid,
@@ -165,11 +160,11 @@ export class RoadMaterialFactory {
       this.snap,
     ];
     materials.forEach((material) => material.dispose());
-    // bridgeRailing is owned by the shared building-material library.
+    // bridgeSupport and bridgeRailing alias a material owned by the shared
+    // building-material library.
     this.rainTerrainTexture?.dispose();
     this.rainTerrainTexture = null;
     if (this.roadTextures) this.disposeTextureSet(this.roadTextures);
-    if (this.bridgeTextures) this.disposeTextureSet(this.bridgeTextures);
     if (this.terrainBlendTextures) {
       this.disposeTextureSet(this.terrainBlendTextures.meadow);
       this.disposeTextureSet(this.terrainBlendTextures.dense);
@@ -197,11 +192,10 @@ export class RoadMaterialFactory {
     riverBank: MeshStandardNodeMaterial;
     terrain: MeshStandardNodeMaterial;
     rainTerrain: THREE.MeshStandardMaterial;
-    bridgeSupport: THREE.MeshStandardMaterial;
+    bridgeSupport: THREE.Material;
   } {
     if (
       !this.roadTextures
-      || !this.bridgeTextures
       || !this.bridgeDeckAtlasTextures
       || !this.terrainBlendTextures
     ) {
@@ -217,6 +211,7 @@ export class RoadMaterialFactory {
       this.bridgeDeckAtlasTextures,
     );
     const bridgeRailing = timberMaterial('mid');
+    const bridgeSupport = bridgeRailing;
     const roadEdge = createRoadEdgeMaterial(this.roadTextures, this.roadWeatherUniforms, true);
     const riverBank = createRiverBankMaterial(this.roadTextures);
     const terrain = createTerrainGrassMaterial(
@@ -238,16 +233,6 @@ export class RoadMaterialFactory {
       metalness: 0,
       vertexColors: true,
     });
-    const bridgeSupport = new THREE.MeshStandardMaterial({
-      map: this.bridgeTextures.albedo,
-      color: 0xa07850,
-      roughness: 0.94,
-      metalness: 0,
-    });
-    if (this.bridgeTextures.normal) {
-      bridgeSupport.normalMap = this.bridgeTextures.normal;
-      bridgeSupport.normalScale.set(0.45, 0.45);
-    }
     return {
       road,
       bridgeRoad,

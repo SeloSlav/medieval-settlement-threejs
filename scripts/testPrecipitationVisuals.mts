@@ -453,11 +453,19 @@ assert.doesNotMatch(
 );
 assert.match(
   roadFactorySource,
-  /const materials\s*=\s*\[[\s\S]*?this\.terrain,[\s\S]*?this\.rainTerrain,[\s\S]*?this\.bridgeSupport/,
+  /const materials\s*=\s*\[[\s\S]*?this\.terrain,[\s\S]*?this\.rainTerrain/,
   'the factory must dispose its shared rain material',
 );
+assert.doesNotMatch(
+  roadFactorySource.slice(
+    roadFactorySource.indexOf('const materials = ['),
+    roadFactorySource.indexOf('materials.forEach'),
+  ),
+  /this\.bridgeSupport/,
+  'the factory must not dispose the shared building-library timber material',
+);
 const rainTerrainStart = roadFactorySource.indexOf('const rainTerrain =');
-const rainTerrainEnd = roadFactorySource.indexOf('const bridgeSupport =', rainTerrainStart);
+const rainTerrainEnd = roadFactorySource.indexOf('return {', rainTerrainStart);
 assert.ok(rainTerrainStart >= 0 && rainTerrainEnd > rainTerrainStart);
 assert.doesNotMatch(
   roadFactorySource.slice(rainTerrainStart, rainTerrainEnd),

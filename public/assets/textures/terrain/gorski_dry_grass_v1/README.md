@@ -1,8 +1,8 @@
 # Approved natural-surface PBR material
 
-- Review candidate: `manor-grass-dry-v2`
-- Approved: 2026-08-23
-- Runtime albedo source: `basecolor-runtime.png`
+- Review candidate: `rts-groundcover-dry-v4`
+- Approved: 2026-08-26
+- Runtime albedo source: `basecolor.png`
 - Runtime normal: PATINA green channel flipped to match the project's existing
   normal convention, mean XY tilt removed, attenuated to
   `0.50`, then renormalized with a reconstructed
@@ -12,4 +12,4 @@
 - Runtime metalness: zero; this natural material is dielectric.
 
 Raw PATINA output remains unchanged under
-`artifacts/pbr-material-review/patina-candidates/manor-grass-dry-v2/`.
+`artifacts/pbr-material-review/patina-candidates/rts-groundcover-dry-v4/`.

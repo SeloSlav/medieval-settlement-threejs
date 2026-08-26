@@ -1,0 +1,89 @@
+{
+  "model": "fal-ai/patina/material",
+  "label": "Open meadow groundcover v2",
+  "source": null,
+  "requestId": "01a03fcf-0d10-78e1-85ee-50c8edd0fbaf",
+  "requestedInput": {
+    "prompt": "Flat orthographic seamless material of low temperate meadow groundcover in Gorski Kotar, Croatia, designed specifically for a distant overhead RTS camera. Dense interlocked tiny-leaf foliage and soft mossy cushions form irregular overlapping clumps, with broad stochastic patches of muted olive, sage, and restrained yellow-green. Favor rich clustered masses and soft organic breakup over fine individual detail. Natural matte dielectric terrain with uniform neutral illumination and no dominant feature. No lines, fibers, filaments, strands, strokes, combed texture, flowers, stones, exposed soil, paths, footprints, directional lighting, cast shadows, perspective, horizon, borders, text, or obvious repeating motifs.",
+    "image_size": "square_hd",
+    "num_inference_steps": 8,
+    "seed": 843101,
+    "num_images": 1,
+    "enable_prompt_expansion": false,
+    "enable_safety_checker": true,
+    "tiling_mode": "both",
+    "tile_size": 128,
+    "tile_stride": 64,
+    "maps": [
+      "basecolor",
+      "normal",
+      "roughness",
+      "metalness",
+      "height"
+    ],
+    "upscale_factor": 0,
+    "output_format": "png"
+  },
+  "returnedSeed": 843101,
+  "returnedPrompt": "Flat orthographic seamless material of low temperate meadow groundcover in Gorski Kotar, Croatia, designed specifically for a distant overhead RTS camera. Dense interlocked tiny-leaf foliage and soft mossy cushions form irregular overlapping clumps, with broad stochastic patches of muted olive, sage, and restrained yellow-green. Favor rich clustered masses and soft organic breakup over fine individual detail. Natural matte dielectric terrain with uniform neutral illumination and no dominant feature. No lines, fibers, filaments, strands, strokes, combed texture, flowers, stones, exposed soil, paths, footprints, directional lighting, cast shadows, perspective, horizon, borders, text, or obvious repeating motifs.",
+  "timings": {
+    "texture_generation": 8.14283968000018,
+    "pbr_prediction": 72.07376336200014
+  },
+  "images": [
+    {
+      "url": "https://v3b.fal.media/files/b/0aa7ee5d/MSW4qA8nnsuE8f_X4MIkG_hr53Wg00.png",
+      "content_type": "image/png",
+      "file_name": "MSW4qA8nnsuE8f_X4MIkG_hr53Wg00.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "url": "https://v3b.fal.media/files/b/0aa7ee63/dDnTIHHbvXk_hhwWm97Od_7mtPGXON.png",
+      "content_type": "image/png",
+      "file_name": "dDnTIHHbvXk_hhwWm97Od_7mtPGXON.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024,
+      "map_type": "basecolor"
+    },
+    {
+      "url": "https://v3b.fal.media/files/b/0aa7ee63/P90kOBfb8TrZHfDw-Qa_J_L9JmxrcK.png",
+      "content_type": "image/png",
+      "file_name": "P90kOBfb8TrZHfDw-Qa_J_L9JmxrcK.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024,
+      "map_type": "normal"
+    },
+    {
+      "url": "https://v3b.fal.media/files/b/0aa7ee63/LULOtHtuPxvcnK4BJUfDd_VPn6G3g6.png",
+      "content_type": "image/png",
+      "file_name": "LULOtHtuPxvcnK4BJUfDd_VPn6G3g6.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024,
+      "map_type": "roughness"
+    },
+    {
+      "url": "https://v3b.fal.media/files/b/0aa7ee78/75NhailwseHY_owbbQYpy_VjmwhOI4.png",
+      "content_type": "image/png",
+      "file_name": "75NhailwseHY_owbbQYpy_VjmwhOI4.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024,
+      "map_type": "metalness"
+    },
+    {
+      "url": "https://v3b.fal.media/files/b/0aa7ee63/REem8Me61Co5Te2mCYeM6_0kppDbhx.png",
+      "content_type": "image/png",
+      "file_name": "REem8Me61Co5Te2mCYeM6_0kppDbhx.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024,
+      "map_type": "height"
+    }
+  ],
+  "generatedAt": "2026-08-26T20:43:30.432Z"
+}

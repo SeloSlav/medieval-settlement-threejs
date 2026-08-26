@@ -110,6 +110,7 @@ const materials = {
   bridgeRoad: new THREE.MeshBasicMaterial(),
   roadEdge: new THREE.MeshBasicMaterial(),
   bridgeSupport: new THREE.MeshBasicMaterial(),
+  bridgeRailing: new THREE.MeshBasicMaterial(),
 };
 const patches = new RoadJunctionBuilder(flatTerrain as never, materials as never).build(elbow);
 const elbowNode = [...elbow.nodes.values()].find((node) => elbow.getNodeDegree(node) === 2);
@@ -751,8 +752,10 @@ nodeMarkers.dispose();
 assert.equal(markerParent.children.length, 0);
 
 materials.road.dispose();
+materials.bridgeRoad.dispose();
 materials.roadEdge.dispose();
 materials.bridgeSupport.dispose();
+materials.bridgeRailing.dispose();
 
 console.log('Road junction topology tests passed.');
 

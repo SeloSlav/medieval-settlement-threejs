@@ -360,6 +360,7 @@ function resolveAt(
       bridgeRoad: roadMaterial,
       roadEdge: edgeMaterial,
       bridgeSupport: supportMaterial,
+      bridgeRailing: supportMaterial,
     } as never,
     {
       isWaterAt: (x) => Math.abs(x) <= 4.5,
@@ -409,6 +410,9 @@ function resolveAt(
   const railingRails = bridgeGroup.getObjectByName(
     'Bridge railing rails',
   ) as THREE.InstancedMesh | undefined;
+  const supportPosts = bridgeGroup.getObjectByName(
+    'Bridge support posts',
+  ) as THREE.InstancedMesh | undefined;
   assert.ok(railings, 'generated bridges should have timber railings on both sides');
   assert.equal(
     railings.userData.fpPlayerRadiusScale,
@@ -423,6 +427,24 @@ function resolveAt(
     railingRails && railingRails.count >= (railingPosts.count - 4) * 2,
     'bridge railing bays should have continuous lower rails and handrails',
   );
+  assert.ok(supportPosts && supportPosts.count >= 4);
+  const supportMatrix = new THREE.Matrix4();
+  const supportPosition = new THREE.Vector3();
+  for (let index = 0; index < supportPosts.count; index++) {
+    supportPosts.getMatrixAt(index, supportMatrix);
+    supportPosition.setFromMatrixPosition(supportMatrix);
+    const supportTopY = supportPosition.y + Math.abs(supportMatrix.elements[5]) * 0.5;
+    const renderedDeckY = sampleRoadSurfaceY(
+      [bridgeEdge],
+      supportPosition.x,
+      supportPosition.z,
+    );
+    assert.ok(renderedDeckY != null);
+    assert.ok(
+      Math.abs(supportTopY - renderedDeckY) < 1e-5,
+      'each support post should finish flush against the rendered bridge underside',
+    );
+  }
 
   const railingMatrix = new THREE.Matrix4();
   const railingPosition = new THREE.Vector3();

@@ -35,19 +35,18 @@ class ApprovedMaterial:
 
 MATERIALS = (
     ApprovedMaterial(
-        "manor-grass-meadow",
+        "rts-groundcover-meadow-v3",
         "terrain/gorski_meadow_grass_v1",
         normal_strength=0.28,
     ),
     ApprovedMaterial(
-        "manor-grass-dense",
+        "rts-groundcover-dense-v2",
         "terrain/gorski_dense_grass_v1",
         normal_strength=0.32,
     ),
     ApprovedMaterial(
-        "manor-grass-dry-v2",
+        "rts-groundcover-dry-v4",
         "terrain/gorski_dry_grass_v1",
-        albedo_source="basecolor-runtime.png",
         normal_strength=0.5,
     ),
     ApprovedMaterial(

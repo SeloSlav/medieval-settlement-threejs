@@ -1,7 +1,7 @@
 # Approved natural-surface PBR material
 
 - Review candidate: `clean-river-stone`
-- Approved: 2026-08-23
+- Approved: 2026-08-26
 - Runtime albedo source: `basecolor.png`
 - Runtime normal: PATINA green channel flipped to match the project's existing
   normal convention, mean XY tilt removed, attenuated to

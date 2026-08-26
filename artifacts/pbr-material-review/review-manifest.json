@@ -17,8 +17,8 @@
   ],
   "candidates": [
     {
-      "slug": "manor-grass-meadow",
-      "label": "Open meadow grass",
+      "slug": "rts-groundcover-meadow-v3",
+      "label": "Open meadow groundcover v3",
       "priority": "High",
       "verdict": "Consider after an in-game scale test",
       "runtimeNote": "Runtime samples albedo, normal, roughness, and AO; keep height disabled and metalness at zero.",
@@ -37,39 +37,39 @@
         }
       },
       "candidate": {
-        "path": "artifacts/pbr-material-review/patina-candidates/manor-grass-meadow/basecolor.png",
+        "path": "artifacts/pbr-material-review/patina-candidates/rts-groundcover-meadow-v3/basecolor.png",
         "width": 1024,
         "height": 1024,
         "meanRgb": [
-          79.21,
-          80.4,
-          40.4
+          122.69,
+          128.29,
+          87.59
         ],
         "seam": {
-          "leftRightMeanAbsoluteDifference": 0.08295,
-          "topBottomMeanAbsoluteDifference": 0.08018
+          "leftRightMeanAbsoluteDifference": 0.05546,
+          "topBottomMeanAbsoluteDifference": 0.07146
         }
       },
-      "comparison": "artifacts/pbr-material-review/comparisons/manor-grass-meadow.png",
-      "seed": 431021,
-      "requestId": "01a02fa7-7569-7d72-af4c-e7ffc32e982c",
-      "requestedPrompt": "Flat top-down seamless material of dense short temperate upland meadow grass in Gorski Kotar, Croatia. Interwoven fine grass blades with restrained muted olive, sage, and soft yellow-green variation, a little fine dry thatch between blades, evenly distributed stochastic detail at 1 to 6 centimeter scale, natural matte dielectric ground suitable for a medieval landscape strategy game. No flowers, clover rosettes, stones, bare soil patches, paths, footprints, long standing stalks, directional lighting, cast shadows, perspective, horizon, borders, text, or obvious repeating motifs.",
-      "returnedPrompt": "A high-resolution 4k photograph of a flat, top-down view of dense, short temperate meadow grass. The texture features interwoven fine blades in muted olive, sage, and soft yellow-green tones, consistent with a Gorski Kotar upland landscape. The surface is an evenly distributed, stochastic mix of fresh grass and a light layer of dry thatch. The lighting is perfectly uniform and diffuse, creating a natural matte dielectric material suitable for professional game environments. The composition is entirely flat with no perspective, showing a consistent 1 to 6 centimeter scale of fine botanical detail across the entire 1024x1024 area, ensuring a clean and realistic medieval ground texture.",
+      "comparison": "artifacts/pbr-material-review/comparisons/rts-groundcover-meadow-v3.png",
+      "seed": 843111,
+      "requestId": "01a03fd2-0188-72b3-a176-a1ab70b9a8d2",
+      "requestedPrompt": "Flat orthographic seamless material of continuous low temperate meadow groundcover in Gorski Kotar, Croatia, designed specifically for a distant overhead RTS camera. Soft micro-moss cushions and compact tangled leaf flecks fuse into overlapping rounded organic clumps at 8 to 35 centimeter scale. Use a restrained medium-dark olive and sage-green palette with subtle cooler and warmer patches, a narrow luminance range, and no bright yellow. Favor broad cloud-like masses and granular breakup over recognizable individual plants or fine detail. The whole surface is densely filled, soft, matte, motif-neutral, and uniformly lit. Nothing elongated, directional, stringy, combed, or woven. No lichen, flowers, rosettes, stones, exposed soil, paths, directional lighting, cast shadows, perspective, horizon, borders, text, or obvious repeating motifs.",
+      "returnedPrompt": "Flat orthographic seamless material of continuous low temperate meadow groundcover in Gorski Kotar, Croatia, designed specifically for a distant overhead RTS camera. Soft micro-moss cushions and compact tangled leaf flecks fuse into overlapping rounded organic clumps at 8 to 35 centimeter scale. Use a restrained medium-dark olive and sage-green palette with subtle cooler and warmer patches, a narrow luminance range, and no bright yellow. Favor broad cloud-like masses and granular breakup over recognizable individual plants or fine detail. The whole surface is densely filled, soft, matte, motif-neutral, and uniformly lit. Nothing elongated, directional, stringy, combed, or woven. No lichen, flowers, rosettes, stones, exposed soil, paths, directional lighting, cast shadows, perspective, horizon, borders, text, or obvious repeating motifs.",
       "maps": {
-        "basecolorRaw": "artifacts/pbr-material-review/patina-candidates/manor-grass-meadow/basecolor.png",
-        "basecolorRuntime": "artifacts/pbr-material-review/patina-candidates/manor-grass-meadow/basecolor.png",
-        "normal": "artifacts/pbr-material-review/patina-candidates/manor-grass-meadow/normal.png",
-        "roughnessRaw": "artifacts/pbr-material-review/patina-candidates/manor-grass-meadow/roughness.png",
-        "roughnessRuntime": "artifacts/pbr-material-review/patina-candidates/manor-grass-meadow/roughness-runtime.png",
-        "height": "artifacts/pbr-material-review/patina-candidates/manor-grass-meadow/height.png",
-        "metalnessRaw": "artifacts/pbr-material-review/patina-candidates/manor-grass-meadow/metalness.png",
-        "metalnessRuntime": "artifacts/pbr-material-review/patina-candidates/manor-grass-meadow/metalness-runtime.png",
-        "aoDerived": "artifacts/pbr-material-review/patina-candidates/manor-grass-meadow/ao-derived.png"
+        "basecolorRaw": "artifacts/pbr-material-review/patina-candidates/rts-groundcover-meadow-v3/basecolor.png",
+        "basecolorRuntime": "artifacts/pbr-material-review/patina-candidates/rts-groundcover-meadow-v3/basecolor.png",
+        "normal": "artifacts/pbr-material-review/patina-candidates/rts-groundcover-meadow-v3/normal.png",
+        "roughnessRaw": "artifacts/pbr-material-review/patina-candidates/rts-groundcover-meadow-v3/roughness.png",
+        "roughnessRuntime": "artifacts/pbr-material-review/patina-candidates/rts-groundcover-meadow-v3/roughness-runtime.png",
+        "height": "artifacts/pbr-material-review/patina-candidates/rts-groundcover-meadow-v3/height.png",
+        "metalnessRaw": "artifacts/pbr-material-review/patina-candidates/rts-groundcover-meadow-v3/metalness.png",
+        "metalnessRuntime": "artifacts/pbr-material-review/patina-candidates/rts-groundcover-meadow-v3/metalness-runtime.png",
+        "aoDerived": "artifacts/pbr-material-review/patina-candidates/rts-groundcover-meadow-v3/ao-derived.png"
       }
     },
     {
-      "slug": "manor-grass-dense",
-      "label": "Dense shaded grass",
+      "slug": "rts-groundcover-dense-v2",
+      "label": "Dense shaded groundcover v2",
       "priority": "High",
       "verdict": "Consider after an in-game scale test",
       "runtimeNote": "Runtime samples albedo, normal, roughness, and AO; preserve the dark ecological identity and distance filtering.",
@@ -88,39 +88,39 @@
         }
       },
       "candidate": {
-        "path": "artifacts/pbr-material-review/patina-candidates/manor-grass-dense/basecolor.png",
+        "path": "artifacts/pbr-material-review/patina-candidates/rts-groundcover-dense-v2/basecolor.png",
         "width": 1024,
         "height": 1024,
         "meanRgb": [
-          72.16,
-          77.49,
-          47.11
+          73.69,
+          82.76,
+          24.01
         ],
         "seam": {
-          "leftRightMeanAbsoluteDifference": 0.06086,
-          "topBottomMeanAbsoluteDifference": 0.05984
+          "leftRightMeanAbsoluteDifference": 0.05244,
+          "topBottomMeanAbsoluteDifference": 0.05348
         }
       },
-      "comparison": "artifacts/pbr-material-review/comparisons/manor-grass-dense.png",
-      "seed": 431022,
-      "requestId": "01a02fa7-7566-79b1-afd4-a97a4444c93d",
-      "requestedPrompt": "Flat top-down seamless material of dense short shaded forest-edge grass in Gorski Kotar, Croatia. Closely interwoven fine blades, low soft turf, a trace of moss between blades, deep muted forest green and olive variation without crushed blacks, evenly distributed detail at 1 to 5 centimeter scale, natural matte dielectric ground for close and distant game terrain. No fallen leaves, flowers, stones, bare dirt, paths, footprints, long standing stalks, directional lighting, cast shadows, perspective, horizon, borders, text, or obvious repeating motifs.",
-      "returnedPrompt": "A high-resolution, 4k photograph of a top-down, flat terrain material featuring dense, short forest-edge grass from Gorski Kotar. The texture consists of closely interwoven fine blades of low, soft turf with subtle traces of dark moss nestled between them. The color palette is a rich, muted forest green with olive variations, maintaining a natural matte appearance with uniform lighting and no harsh shadows. The detail is evenly distributed across a 1 to 5 centimeter scale, creating a consistent dielectric surface ideal for game environments. This clean, organic ground cover is free of debris, stalks, or paths, focusing entirely on a lush, homogeneous grassy expanse with a professional, high-quality finish.",
+      "comparison": "artifacts/pbr-material-review/comparisons/rts-groundcover-dense-v2.png",
+      "seed": 843102,
+      "requestId": "01a03fcf-0d0f-7ce0-a66b-37bc3aad4017",
+      "requestedPrompt": "Flat orthographic seamless material of lush shaded forest-edge groundcover in Gorski Kotar, Croatia, designed specifically for a distant overhead RTS camera. Thick velvety moss mats and compact tiny-leaf foliage merge into dense rounded organic clumps, with layered deep forest green, muted emerald, and olive variation without crushed blacks. Favor bold cushion-like masses and rich patch breakup over fine individual detail. Natural matte dielectric terrain with uniform neutral illumination and no dominant feature. No lines, fibers, filaments, strands, strokes, combed texture, fallen leaves, flowers, stones, exposed soil, paths, directional lighting, cast shadows, perspective, horizon, borders, text, or obvious repeating motifs.",
+      "returnedPrompt": "Flat orthographic seamless material of lush shaded forest-edge groundcover in Gorski Kotar, Croatia, designed specifically for a distant overhead RTS camera. Thick velvety moss mats and compact tiny-leaf foliage merge into dense rounded organic clumps, with layered deep forest green, muted emerald, and olive variation without crushed blacks. Favor bold cushion-like masses and rich patch breakup over fine individual detail. Natural matte dielectric terrain with uniform neutral illumination and no dominant feature. No lines, fibers, filaments, strands, strokes, combed texture, fallen leaves, flowers, stones, exposed soil, paths, directional lighting, cast shadows, perspective, horizon, borders, text, or obvious repeating motifs.",
       "maps": {
-        "basecolorRaw": "artifacts/pbr-material-review/patina-candidates/manor-grass-dense/basecolor.png",
-        "basecolorRuntime": "artifacts/pbr-material-review/patina-candidates/manor-grass-dense/basecolor.png",
-        "normal": "artifacts/pbr-material-review/patina-candidates/manor-grass-dense/normal.png",
-        "roughnessRaw": "artifacts/pbr-material-review/patina-candidates/manor-grass-dense/roughness.png",
-        "roughnessRuntime": "artifacts/pbr-material-review/patina-candidates/manor-grass-dense/roughness-runtime.png",
-        "height": "artifacts/pbr-material-review/patina-candidates/manor-grass-dense/height.png",
-        "metalnessRaw": "artifacts/pbr-material-review/patina-candidates/manor-grass-dense/metalness.png",
-        "metalnessRuntime": "artifacts/pbr-material-review/patina-candidates/manor-grass-dense/metalness-runtime.png",
-        "aoDerived": "artifacts/pbr-material-review/patina-candidates/manor-grass-dense/ao-derived.png"
+        "basecolorRaw": "artifacts/pbr-material-review/patina-candidates/rts-groundcover-dense-v2/basecolor.png",
+        "basecolorRuntime": "artifacts/pbr-material-review/patina-candidates/rts-groundcover-dense-v2/basecolor.png",
+        "normal": "artifacts/pbr-material-review/patina-candidates/rts-groundcover-dense-v2/normal.png",
+        "roughnessRaw": "artifacts/pbr-material-review/patina-candidates/rts-groundcover-dense-v2/roughness.png",
+        "roughnessRuntime": "artifacts/pbr-material-review/patina-candidates/rts-groundcover-dense-v2/roughness-runtime.png",
+        "height": "artifacts/pbr-material-review/patina-candidates/rts-groundcover-dense-v2/height.png",
+        "metalnessRaw": "artifacts/pbr-material-review/patina-candidates/rts-groundcover-dense-v2/metalness.png",
+        "metalnessRuntime": "artifacts/pbr-material-review/patina-candidates/rts-groundcover-dense-v2/metalness-runtime.png",
+        "aoDerived": "artifacts/pbr-material-review/patina-candidates/rts-groundcover-dense-v2/ao-derived.png"
       }
     },
     {
-      "slug": "manor-grass-dry-v2",
-      "label": "Dry late-summer grass",
+      "slug": "rts-groundcover-dry-v4",
+      "label": "Dry late-summer groundcover v4",
       "priority": "High",
       "verdict": "Consider after an in-game scale test",
       "runtimeNote": "The accepted basecolor must also be repacked into snow_leaf_albedo_atlas.png; height remains unused.",
@@ -139,34 +139,34 @@
         }
       },
       "candidate": {
-        "path": "artifacts/pbr-material-review/patina-candidates/manor-grass-dry-v2/basecolor-runtime.png",
+        "path": "artifacts/pbr-material-review/patina-candidates/rts-groundcover-dry-v4/basecolor.png",
         "width": 1024,
         "height": 1024,
         "meanRgb": [
-          116.0,
-          114.0,
-          76.0
+          174.89,
+          155.64,
+          107.37
         ],
         "seam": {
-          "leftRightMeanAbsoluteDifference": 0.10923,
-          "topBottomMeanAbsoluteDifference": 0.09616
+          "leftRightMeanAbsoluteDifference": 0.06443,
+          "topBottomMeanAbsoluteDifference": 0.08127
         }
       },
-      "comparison": "artifacts/pbr-material-review/comparisons/manor-grass-dry-v2.png",
-      "seed": 431034,
-      "requestId": "01a02fc0-99d9-76a2-b764-372afd60ab47",
-      "requestedPrompt": "Flat top-down seamless material of very short late-summer upland meadow turf in Gorski Kotar, Croatia. Dense ground-hugging brittle cropped blades and tiny broken thatch fragments from 0.5 to 3 centimeters long, mixed with sparse short muted sage-green grass, restrained straw beige olive and dusty green variation, fine isotropic matte dry dielectric detail suitable for medieval game terrain. No long continuous fibers, hair-like strands, loops, scribbles, hay mat, twigs, cut rows, flowers, stones, bare holes, paths, footprints, standing stalks, directional lighting, shadows, perspective, borders, text, or repeating motifs.",
-      "returnedPrompt": "A high-resolution 4k photograph of a flat, top-down upland meadow turf from Gorski Kotar. The texture consists of dense, ground-hugging, brittle cropped grass blades and tiny broken thatch fragments. The color palette is a muted late-summer blend of sage-green, straw beige, olive, and dusty green. The surface is an isotropic matte dry dielectric material with uniform diffuse lighting and no shadows. Every blade is extremely short, ranging from 0.5 to 3 centimeters. The texture is completely uniform, featuring fine, realistic organic detail suitable for high-quality game environment terrain, with a seamless and consistent distribution of organic debris across the entire frame.",
+      "comparison": "artifacts/pbr-material-review/comparisons/rts-groundcover-dry-v4.png",
+      "seed": 843113,
+      "requestId": "01a03fd2-0191-7801-8e98-57c1259f556f",
+      "requestedPrompt": "Flat orthographic seamless material of continuous dry late-summer upland groundcover in Gorski Kotar, Croatia, designed specifically for a distant overhead RTS camera. Sun-faded compact moss cushions, tiny crumbled leaf matter, and dense low organic mats merge into overlapping rounded clumps at 8 to 35 centimeter scale. Use restrained dusty sage, muted olive, warm ochre, and straw-beige patches with a narrow natural luminance range and no pale highlights. Favor broad mottled masses and granular breakup over recognizable individual plants or fine detail. The whole surface is densely filled, dry, matte, motif-neutral, and uniformly lit. Nothing elongated, directional, stringy, combed, bundled, or woven. No hay, twigs, flowers, stones, exposed soil holes, paths, directional lighting, cast shadows, perspective, horizon, borders, text, or obvious repeating motifs.",
+      "returnedPrompt": "Flat orthographic seamless material of continuous dry late-summer upland groundcover in Gorski Kotar, Croatia, designed specifically for a distant overhead RTS camera. Sun-faded compact moss cushions, tiny crumbled leaf matter, and dense low organic mats merge into overlapping rounded clumps at 8 to 35 centimeter scale. Use restrained dusty sage, muted olive, warm ochre, and straw-beige patches with a narrow natural luminance range and no pale highlights. Favor broad mottled masses and granular breakup over recognizable individual plants or fine detail. The whole surface is densely filled, dry, matte, motif-neutral, and uniformly lit. Nothing elongated, directional, stringy, combed, bundled, or woven. No hay, twigs, flowers, stones, exposed soil holes, paths, directional lighting, cast shadows, perspective, horizon, borders, text, or obvious repeating motifs.",
       "maps": {
-        "basecolorRaw": "artifacts/pbr-material-review/patina-candidates/manor-grass-dry-v2/basecolor.png",
-        "basecolorRuntime": "artifacts/pbr-material-review/patina-candidates/manor-grass-dry-v2/basecolor-runtime.png",
-        "normal": "artifacts/pbr-material-review/patina-candidates/manor-grass-dry-v2/normal.png",
-        "roughnessRaw": "artifacts/pbr-material-review/patina-candidates/manor-grass-dry-v2/roughness.png",
-        "roughnessRuntime": "artifacts/pbr-material-review/patina-candidates/manor-grass-dry-v2/roughness-runtime.png",
-        "height": "artifacts/pbr-material-review/patina-candidates/manor-grass-dry-v2/height.png",
-        "metalnessRaw": "artifacts/pbr-material-review/patina-candidates/manor-grass-dry-v2/metalness.png",
-        "metalnessRuntime": "artifacts/pbr-material-review/patina-candidates/manor-grass-dry-v2/metalness-runtime.png",
-        "aoDerived": "artifacts/pbr-material-review/patina-candidates/manor-grass-dry-v2/ao-derived.png"
+        "basecolorRaw": "artifacts/pbr-material-review/patina-candidates/rts-groundcover-dry-v4/basecolor.png",
+        "basecolorRuntime": "artifacts/pbr-material-review/patina-candidates/rts-groundcover-dry-v4/basecolor.png",
+        "normal": "artifacts/pbr-material-review/patina-candidates/rts-groundcover-dry-v4/normal.png",
+        "roughnessRaw": "artifacts/pbr-material-review/patina-candidates/rts-groundcover-dry-v4/roughness.png",
+        "roughnessRuntime": "artifacts/pbr-material-review/patina-candidates/rts-groundcover-dry-v4/roughness-runtime.png",
+        "height": "artifacts/pbr-material-review/patina-candidates/rts-groundcover-dry-v4/height.png",
+        "metalnessRaw": "artifacts/pbr-material-review/patina-candidates/rts-groundcover-dry-v4/metalness.png",
+        "metalnessRuntime": "artifacts/pbr-material-review/patina-candidates/rts-groundcover-dry-v4/metalness-runtime.png",
+        "aoDerived": "artifacts/pbr-material-review/patina-candidates/rts-groundcover-dry-v4/ao-derived.png"
       }
     },
     {

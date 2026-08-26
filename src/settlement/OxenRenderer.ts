@@ -16,7 +16,6 @@ import type { CrowdViewState } from './crowdView.ts';
 import {
   isAgentAnimalRenderingEnabled,
   isWithinCrowdView,
-  isWithinShadowRange,
 } from './crowdView.ts';
 import {
   assignStableOxen,
@@ -28,6 +27,9 @@ import {
 const OX_MODEL_URL = '/assets/models/livestock/quaternius-bull.glb';
 const OX_TARGET_HEIGHT = 1.72;
 const OX_WALK_SPEED = 1.05;
+const OX_YOKE_BACK_CONTACT_Y = 1.69;
+const OX_YOKE_BAR_HEIGHT = 0.13;
+const OX_YOKE_BOW_LENGTH = 0.68;
 const WORKER_SIDE_OFFSET = 1.35;
 const WORKER_BACK_OFFSET = 0.55;
 const OX_COAT_PALETTES = [
@@ -88,7 +90,6 @@ type OxVisual = {
   x: number;
   z: number;
   yaw: number;
-  castShadow: boolean | null;
 };
 
 export type OxenRendererOptions = {
@@ -135,11 +136,19 @@ export class OxenRenderer {
     roughness: 0.96,
     metalness: 0,
   });
-  private readonly yokeBarGeometry = new THREE.BoxGeometry(1.92, 0.13, 0.16);
-  private readonly yokeBowGeometry = new THREE.CylinderGeometry(0.035, 0.035, 0.68, 7);
+  private readonly yokeBarGeometry = new THREE.BoxGeometry(
+    1.92,
+    OX_YOKE_BAR_HEIGHT,
+    0.16,
+  );
+  private readonly yokeBowGeometry = new THREE.CylinderGeometry(
+    0.035,
+    0.035,
+    OX_YOKE_BOW_LENGTH,
+    7,
+  );
   private source: OxSource | null = null;
   private latestInput: OxenSyncInput | null = null;
-  private shadowCastersChanged = false;
   private disposed = false;
 
   constructor(options: OxenRendererOptions) {
@@ -205,15 +214,12 @@ export class OxenRenderer {
     return visual ? this.describeOx(visual) : null;
   }
 
-  tick(dtSeconds: number, view?: CrowdViewState): boolean {
-    let shadowCastersChanged = this.shadowCastersChanged;
-    this.shadowCastersChanged = false;
+  tick(dtSeconds: number, view?: CrowdViewState): void {
     const renderEnabled = isAgentAnimalRenderingEnabled(view);
     if (this.root.visible !== renderEnabled) {
       this.root.visible = renderEnabled;
-      shadowCastersChanged = true;
     }
-    if (!renderEnabled || !this.latestInput) return shadowCastersChanged;
+    if (!renderEnabled || !this.latestInput) return;
 
     const realDt = Math.min(0.08, Math.max(0, dtSeconds));
     const simulationDt = realDt * this.getGameSpeed() * SIM_REALTIME_RATE;
@@ -227,9 +233,6 @@ export class OxenRenderer {
       const target = this.targetPose(visual, stable);
       const visible = isWithinCrowdView(visual.x, visual.z, view)
         || isWithinCrowdView(target.x, target.z, view);
-      if (visual.root.visible !== visible && visual.castShadow !== false) {
-        shadowCastersChanged = true;
-      }
       visual.root.visible = visible;
       if (!visible) continue;
 
@@ -271,19 +274,8 @@ export class OxenRenderer {
       visual.root.position.set(visual.x, y, visual.z);
       visual.root.rotation.y = visual.yaw;
 
-      const castShadow = isWithinShadowRange(visual.x, visual.z, view);
-      if (castShadow !== visual.castShadow) {
-        visual.root.traverse((object) => {
-          const mesh = object as THREE.Mesh;
-          if (mesh.isMesh) mesh.castShadow = castShadow;
-        });
-        visual.castShadow = castShadow;
-        shadowCastersChanged = true;
-      }
-      if (castShadow && realDt > 0) shadowCastersChanged = true;
       visual.mixer.update(simulationDt);
     }
-    return shadowCastersChanged;
   }
 
   dispose(): void {
@@ -425,15 +417,18 @@ export class OxenRenderer {
   private createYoke(): THREE.Group {
     const yoke = new THREE.Group();
     yoke.name = 'Draft ox oak yoke and leather bows';
+    const barCenterY = OX_YOKE_BACK_CONTACT_Y + OX_YOKE_BAR_HEIGHT * 0.5;
+    const bowCenterY = barCenterY + OX_YOKE_BAR_HEIGHT * 0.5
+      - OX_YOKE_BOW_LENGTH * 0.5;
     const bar = new THREE.Mesh(this.yokeBarGeometry, this.yokeMaterial);
     bar.name = 'Draft ox oak yoke';
-    bar.position.set(0, 1.22, 0.18);
+    bar.position.set(0, barCenterY, 0.18);
     bar.castShadow = true;
     yoke.add(bar);
     for (const x of [-0.48, 0.48]) {
       const bow = new THREE.Mesh(this.yokeBowGeometry, this.harnessMaterial);
       bow.name = 'Draft ox leather yoke bow';
-      bow.position.set(x, 0.94, 0.2);
+      bow.position.set(x, bowCenterY, 0.2);
       bow.castShadow = true;
       yoke.add(bow);
     }

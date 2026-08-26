@@ -47,8 +47,8 @@ class ReviewCandidate:
 
 CANDIDATES = [
     ReviewCandidate(
-        "manor-grass-meadow",
-        "Open meadow grass",
+        "rts-groundcover-meadow-v3",
+        "Open meadow groundcover v3",
         "public/assets/textures/terrain/manor_grass_meadow",
         "Current manor grass meadow",
         "High",
@@ -57,8 +57,8 @@ CANDIDATES = [
         "Runtime samples albedo, normal, roughness, and AO; keep height disabled and metalness at zero.",
     ),
     ReviewCandidate(
-        "manor-grass-dense",
-        "Dense shaded grass",
+        "rts-groundcover-dense-v2",
+        "Dense shaded groundcover v2",
         "public/assets/textures/terrain/manor_grass_dense",
         "Current manor grass dense",
         "High",
@@ -67,8 +67,8 @@ CANDIDATES = [
         "Runtime samples albedo, normal, roughness, and AO; preserve the dark ecological identity and distance filtering.",
     ),
     ReviewCandidate(
-        "manor-grass-dry-v2",
-        "Dry late-summer grass",
+        "rts-groundcover-dry-v4",
+        "Dry late-summer groundcover v4",
         "public/assets/textures/terrain/manor_grass_dry",
         "Current manor grass dry",
         "High",
@@ -149,9 +149,9 @@ CANDIDATES = [
 ]
 
 ROUGHNESS_RUNTIME_RANGES = {
-    "manor-grass-meadow": (0.80, 0.98),
-    "manor-grass-dense": (0.82, 0.99),
-    "manor-grass-dry-v2": (0.82, 0.99),
+    "rts-groundcover-meadow-v3": (0.80, 0.98),
+    "rts-groundcover-dense-v2": (0.82, 0.99),
+    "rts-groundcover-dry-v4": (0.82, 0.99),
     "forest-leaf-litter-primary": (0.80, 0.98),
     "forest-leaf-litter-secondary": (0.80, 0.98),
     "medieval-dirt-road": (0.76, 0.96),
@@ -215,21 +215,6 @@ def derive_ao(height_path: Path, output_path: Path) -> None:
 
 
 def ensure_runtime_maps(candidate: ReviewCandidate, candidate_dir: Path) -> None:
-    if candidate.slug == "manor-grass-dry-v2":
-        basecolor_runtime = candidate_dir / "basecolor-runtime.png"
-        if not basecolor_runtime.exists():
-            basecolor = Image.open(candidate_dir / "basecolor.png").convert("RGB")
-            current_mean = ImageStat.Stat(
-                basecolor.resize((128, 128), Image.Resampling.BILINEAR)
-            ).mean
-            target_mean = (116.0, 114.0, 76.0)
-            graded_bands = []
-            for band, source_mean, target in zip(basecolor.split(), current_mean, target_mean):
-                scale = target / max(source_mean, 1.0)
-                graded_bands.append(
-                    band.point(lambda value, gain=scale: min(255, round(value * gain)))
-                )
-            Image.merge("RGB", graded_bands).save(basecolor_runtime)
     ao_path = candidate_dir / "ao-derived.png"
     if not ao_path.exists():
         derive_ao(candidate_dir / "height.png", ao_path)

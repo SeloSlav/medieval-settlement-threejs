@@ -29,7 +29,17 @@ import {
   disposeBackyardGardenMesh,
   syncBackyardGardenSeasonVisuals,
 } from './backyardGardenMesh.ts';
+import {
+  animateBackyardConstructionMesh,
+  createBackyardConstructionMesh,
+  disposeBackyardConstructionMesh,
+  syncBackyardConstructionProgress,
+} from './backyardConstructionMesh.ts';
 import type { BackyardGardenState, BurgageZoneState, ResidenceState } from '../resources/types.ts';
+import {
+  BACKYARD_GARDEN_KINDS,
+  type BackyardGardenKind,
+} from '../generated/gameBalance.ts';
 import { hashStringSeed, mulberry32 } from '../utils/random.ts';
 import type { BackyardPlantCatalog } from '../vegetation/seedthree/backyardPlantAssets.ts';
 import type { CrowdViewState } from '../settlement/crowdView.ts';
@@ -176,6 +186,7 @@ export class BackyardGardenMarkers {
     this.deciduousFoliage = { ...presentation };
     const month = this.latestInput?.month ?? 1;
     for (const marker of this.meshes.values()) {
+      if (marker.userData.backyardConstructionSite === true) continue;
       syncBackyardGardenSeasonVisuals(
         marker,
         marker.userData.gardenKind as BackyardGardenState['kind'],
@@ -198,7 +209,8 @@ export class BackyardGardenMarkers {
     const nextIds = new Set<string>();
     for (const residence of input.residences) {
       const garden = input.gardens.get(residence.id);
-      if (!garden) continue;
+      const projectKind = backyardProjectKind(residence);
+      if (!garden && !projectKind) continue;
 
       const zone = zonesById.get(residence.zoneId);
       if (!zone) continue;
@@ -208,35 +220,48 @@ export class BackyardGardenMarkers {
 
       nextIds.add(residence.id);
       let marker = this.meshes.get(residence.id);
+      const kind = projectKind ?? garden!.kind;
+      const projectActive = projectKind !== null;
       const visualKey = [
-        garden.kind,
+        projectActive ? 'construction' : 'complete',
+        kind,
         placement.width.toFixed(2),
         placement.depth.toFixed(2),
-        this.plants ? 'seedthree' : 'vegetation-pending',
-        this.chickenSource ? 'animated-hens' : 'fallback-hens',
-        this.goatSource ? 'animated-goats' : 'fallback-goats',
-        this.pigSource ? 'animated-pigs' : 'fallback-pigs',
-        garden.flowerLuxuryUpgraded ? 'luxury-flowers' : 'ordinary-flowers',
+        ...(projectActive
+          ? []
+          : [
+              this.plants ? 'seedthree' : 'vegetation-pending',
+              this.chickenSource ? 'animated-hens' : 'fallback-hens',
+              this.goatSource ? 'animated-goats' : 'fallback-goats',
+              this.pigSource ? 'animated-pigs' : 'fallback-pigs',
+              garden!.flowerLuxuryUpgraded ? 'luxury-flowers' : 'ordinary-flowers',
+            ]),
       ].join(':');
-      if (force || !marker || marker.userData.visualKey !== visualKey) {
+      if ((force && !projectActive) || !marker || marker.userData.visualKey !== visualKey) {
         if (marker) {
           this.disposeChickens(residence.id);
           this.disposeGoats(residence.id);
           this.disposePigs(residence.id);
           this.root.remove(marker);
-          disposeBackyardGardenMesh(marker);
+          disposeBackyardMarker(marker);
         }
-        marker = createBackyardGardenMesh(garden.kind, {
-          width: placement.width,
-          depth: placement.depth,
-          seed: hashStringSeed(residence.id),
-          plants: this.plants,
-          flowerLuxuryUpgraded: garden.flowerLuxuryUpgraded,
-        });
+        marker = projectActive
+          ? createBackyardConstructionMesh(kind, {
+              width: placement.width,
+              depth: placement.depth,
+              seed: hashStringSeed(residence.id),
+            })
+          : createBackyardGardenMesh(kind, {
+              width: placement.width,
+              depth: placement.depth,
+              seed: hashStringSeed(residence.id),
+              plants: this.plants,
+              flowerLuxuryUpgraded: garden!.flowerLuxuryUpgraded,
+            });
         marker.userData.visualKey = visualKey;
         this.root.add(marker);
         this.meshes.set(residence.id, marker);
-        if (garden.kind === 'chicken_pen' && this.chickenSource) {
+        if (!projectActive && kind === 'chicken_pen' && this.chickenSource) {
           this.attachAnimatedChickens(
             residence.id,
             marker,
@@ -245,7 +270,7 @@ export class BackyardGardenMarkers {
             hashStringSeed(residence.id),
           );
         }
-        if (garden.kind === 'goat_pen' && this.goatSource) {
+        if (!projectActive && kind === 'goat_pen' && this.goatSource) {
           this.attachAnimatedGoats(
             residence.id,
             marker,
@@ -254,7 +279,7 @@ export class BackyardGardenMarkers {
             hashStringSeed(residence.id),
           );
         }
-        if (garden.kind === 'pig_pen' && this.pigSource) {
+        if (!projectActive && kind === 'pig_pen' && this.pigSource) {
           this.attachAnimatedPigs(
             residence.id,
             marker,
@@ -267,26 +292,30 @@ export class BackyardGardenMarkers {
       }
 
       const y = input.getHeightAt(placement.x, placement.z);
-      marker.userData.firstHarvestDay = garden.firstHarvestDay;
       marker.position.set(placement.x, y, placement.z);
       marker.rotation.y = placement.yaw;
-      const terrainConformanceKey = [
-        placement.x.toFixed(3),
-        y.toFixed(3),
-        placement.z.toFixed(3),
-        placement.yaw.toFixed(4),
-      ].join(':');
-      if (marker.userData.terrainConformanceKey !== terrainConformanceKey) {
-        conformBackyardGroundSoilToTerrain(marker, input.getHeightAt);
-        marker.userData.terrainConformanceKey = terrainConformanceKey;
+      if (projectActive) {
+        syncBackyardConstructionProgress(marker, backyardConstructionProgress(residence));
+      } else {
+        marker.userData.firstHarvestDay = garden!.firstHarvestDay;
+        const terrainConformanceKey = [
+          placement.x.toFixed(3),
+          y.toFixed(3),
+          placement.z.toFixed(3),
+          placement.yaw.toFixed(4),
+        ].join(':');
+        if (marker.userData.terrainConformanceKey !== terrainConformanceKey) {
+          conformBackyardGroundSoilToTerrain(marker, input.getHeightAt);
+          marker.userData.terrainConformanceKey = terrainConformanceKey;
+        }
+        syncBackyardGardenSeasonVisuals(
+          marker,
+          kind,
+          input.month ?? 1,
+          this.deciduousFoliage ?? undefined,
+          Math.max(0, garden!.firstHarvestDay - (input.totalDays ?? 0)),
+        );
       }
-      syncBackyardGardenSeasonVisuals(
-        marker,
-        garden.kind,
-        input.month ?? 1,
-        this.deciduousFoliage ?? undefined,
-        Math.max(0, garden.firstHarvestDay - (input.totalDays ?? 0)),
-      );
     }
 
     for (const [id, marker] of this.meshes) {
@@ -295,7 +324,7 @@ export class BackyardGardenMarkers {
       this.disposeChickens(id);
       this.disposeGoats(id);
       this.disposePigs(id);
-      disposeBackyardGardenMesh(marker);
+      disposeBackyardMarker(marker);
       this.meshes.delete(id);
     }
   }
@@ -304,7 +333,11 @@ export class BackyardGardenMarkers {
     const dt = Math.min(0.08, Math.max(0, dtSeconds));
     this.animationElapsedSeconds += dt;
     for (const marker of this.meshes.values()) {
-      animateBackyardGardenMesh(marker, this.animationElapsedSeconds);
+      if (marker.userData.backyardConstructionSite === true) {
+        animateBackyardConstructionMesh(marker, this.animationElapsedSeconds);
+      } else {
+        animateBackyardGardenMesh(marker, this.animationElapsedSeconds);
+      }
       const visible = isWithinCrowdView(marker.position.x, marker.position.z, view);
       const fallbacks = marker.userData.backyardAnimalFallbacks as THREE.Object3D[] | undefined;
       for (const fallback of fallbacks ?? []) fallback.visible = visible;
@@ -561,7 +594,7 @@ export class BackyardGardenMarkers {
     for (const id of this.goats.keys()) this.disposeGoats(id);
     for (const id of this.pigs.keys()) this.disposePigs(id);
     for (const marker of this.meshes.values()) {
-      disposeBackyardGardenMesh(marker);
+      disposeBackyardMarker(marker);
     }
     this.meshes.clear();
     if (this.chickenSource) disposeBackyardChickenSource(this.chickenSource.scene);
@@ -571,6 +604,52 @@ export class BackyardGardenMarkers {
     if (this.pigSource) disposeBackyardPigSource(this.pigSource.scene);
     this.pigSource = null;
     this.root.removeFromParent();
+  }
+}
+
+function backyardProjectKind(residence: ResidenceState): BackyardGardenKind | null {
+  return BACKYARD_GARDEN_KINDS[(residence.backyardProjectKind ?? 0) - 1] ?? null;
+}
+
+function backyardConstructionProgress(residence: ResidenceState): {
+  progress: number;
+  assignedLabor: number;
+  timberFill: number;
+  stoneFill: number;
+} {
+  const progress = Math.max(0, Math.min(1, residence.upgradeProgress ?? 0));
+  return {
+    progress,
+    assignedLabor: Math.max(0, residence.upgradeAssignedLabor ?? 0),
+    timberFill: remainingMaterialFill(
+      residence.upgradeRequiredTimber,
+      residence.upgradeDeliveredTimber,
+      progress,
+    ),
+    stoneFill: remainingMaterialFill(
+      residence.upgradeRequiredStone,
+      residence.upgradeDeliveredStone,
+      progress,
+    ),
+  };
+}
+
+function remainingMaterialFill(
+  requiredValue: number | undefined,
+  deliveredValue: number | undefined,
+  progress: number,
+): number {
+  const required = Math.max(0, requiredValue ?? 0);
+  if (required <= 1e-6) return 0;
+  const remaining = Math.max(0, (deliveredValue ?? 0) - required * progress);
+  return Math.max(0, Math.min(1, remaining / required));
+}
+
+function disposeBackyardMarker(marker: THREE.Group): void {
+  if (marker.userData.backyardConstructionSite === true) {
+    disposeBackyardConstructionMesh(marker);
+  } else {
+    disposeBackyardGardenMesh(marker);
   }
 }
 

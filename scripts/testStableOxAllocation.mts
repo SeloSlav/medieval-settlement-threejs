@@ -192,6 +192,16 @@ assert.match(renderer, /getDeliveryPose/);
 assert.match(renderer, /Draft ox oak yoke/);
 assert.match(
   renderer,
+  /OX_YOKE_BACK_CONTACT_Y\s*=\s*1\.69/,
+  'the oak yoke should use the measured ox back height',
+);
+assert.match(
+  renderer,
+  /barCenterY\s*=\s*OX_YOKE_BACK_CONTACT_Y\s*\+\s*OX_YOKE_BAR_HEIGHT\s*\*\s*0\.5/,
+  'the oak yoke beam center should derive from its bottom contact height',
+);
+assert.match(
+  renderer,
   /pickOx\([\s\S]{0,900}projectedOxHitDistance/,
   'every rendered ox should expose the same screen-space picking behavior as agents',
 );

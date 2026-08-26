@@ -1499,8 +1499,8 @@ function addQuaterniusCart(
       return clone;
     });
     mesh.material = Array.isArray(mesh.material) ? materials : materials[0]!;
-    mesh.castShadow = true;
-    mesh.receiveShadow = true;
+    mesh.castShadow = false;
+    mesh.receiveShadow = false;
     mesh.frustumCulled = false;
   });
 
