@@ -190,10 +190,16 @@ export function isHudResourceKind(value: string): value is HudResourceKind {
 
 export type PopulationStats = {
   total: number;
+  /** Residents explicitly rostered to completed workplaces. */
   assigned: number;
+  /** Reserve labor currently building, improving homes, or hauling. */
+  flexibleAssigned: number;
   cartAssigned: number;
   sick?: number;
+  /** Healthy residents not rostered to a completed workplace. */
   available: number;
+  /** Reserve labor not currently carrying out a temporary task. */
+  idle: number;
   housingCapacity: number;
   housed: number;
   vacant: number;
@@ -1112,9 +1118,14 @@ export function computePopulationStats(state: GameState): PopulationStats {
         ?? state.physicalFoundingSiteEnabled !== true)
       ? STARTING_POPULATION + housed
       : Math.max(STARTING_POPULATION, housed);
-  let buildingAssigned = 0;
+  let workplaceAssigned = 0;
+  let constructionAssigned = 0;
   for (const building of state.buildings.values()) {
-    buildingAssigned += building.assignedLabor;
+    if (building.constructionComplete === false) {
+      constructionAssigned += Math.max(0, building.assignedLabor);
+    } else {
+      workplaceAssigned += Math.max(0, building.assignedLabor);
+    }
   }
   let residenceUpgradeAssigned = 0;
   for (const residence of state.residences?.values() ?? []) {
@@ -1126,14 +1137,18 @@ export function computePopulationStats(state: GameState): PopulationStats {
   for (const trip of state.deliveryTrips.values()) {
     cartAssigned += Math.max(0, trip.freeHaulerWorkers);
   }
-  const assigned = buildingAssigned + residenceUpgradeAssigned + cartAssigned;
+  const flexibleAssigned = constructionAssigned + residenceUpgradeAssigned + cartAssigned;
+  const healthy = Math.max(0, total - sick);
+  const available = Math.max(0, healthy - workplaceAssigned);
 
   return {
     total,
-    assigned,
+    assigned: workplaceAssigned,
+    flexibleAssigned,
     cartAssigned,
     sick,
-    available: Math.max(0, total - assigned - sick),
+    available,
+    idle: Math.max(0, available - flexibleAssigned),
     housingCapacity,
     housed,
     vacant: Math.max(0, housingCapacity - housed),
@@ -1144,8 +1159,11 @@ export function maxAssignableLabor(
   building: BuildingState,
   stats: PopulationStats,
 ): number {
-  const assignedElsewhere = stats.assigned - building.assignedLabor;
-  const fromPool = Math.max(0, stats.total - (stats.sick ?? 0) - assignedElsewhere);
+  const healthy = Math.max(0, stats.total - (stats.sick ?? 0));
+  const committedElsewhere = building.constructionComplete !== false
+    ? stats.assigned - building.assignedLabor
+    : stats.assigned + stats.flexibleAssigned - building.assignedLabor;
+  const fromPool = Math.max(0, healthy - committedElsewhere);
   const buildingCap = building.constructionComplete !== false
     ? buildingMaxLabor(building.kind)
     : CONSTRUCTION_MAX_BUILDERS;

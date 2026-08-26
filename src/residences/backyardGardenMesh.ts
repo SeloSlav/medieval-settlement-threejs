@@ -209,11 +209,15 @@ function createGardenSoilMaterial(): MeshStandardNodeMaterial {
   material.roughness = 1;
   material.metalness = 0;
   // Every soil mesh supplies this coverage field so its cultivated earth can
-  // feather naturally into the surrounding terrain.
-  // Alpha hashing keeps the shared material depth-writing and order-independent
-  // instead of turning every backyard soil mesh into a sorted transparent quad.
+  // feather naturally into the surrounding terrain. Keep that coverage as a
+  // continuous alpha crossfade: hashed coverage turns the otherwise smooth
+  // field into a visible screen-door pattern along every garden edge.
   material.opacityNode = attribute('soilEdgeBlend', 'float');
-  material.alphaHash = true;
+  material.alphaTest = 0;
+  material.alphaHash = false;
+  material.alphaToCoverage = false;
+  material.transparent = true;
+  material.depthWrite = false;
   return material;
 }
 

@@ -243,8 +243,18 @@ for (const kind of kinds) {
       );
       assert.equal(
         (bed.material as THREE.MeshStandardMaterial).alphaHash,
+        false,
+        `${kind} soil should not dither its smooth edge coverage`,
+      );
+      assert.equal(
+        (bed.material as THREE.MeshStandardMaterial).transparent,
         true,
-        `${kind} soil should use order-independent hashed edge coverage`,
+        `${kind} soil should continuously crossfade into the terrain`,
+      );
+      assert.equal(
+        (bed.material as THREE.MeshStandardMaterial).depthWrite,
+        false,
+        `${kind} soil crossfade should not stamp partial edge coverage into depth`,
       );
       assert.equal(
         bed.geometry.userData.backyardSoilField?.edgeModel,
