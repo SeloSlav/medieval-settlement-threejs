@@ -2551,9 +2551,7 @@ select:focus-visible {
 .stable-ox-slot[data-state='occupied'],
 .stable-ox-slot[data-state='waiting'] {
   display: grid;
-  grid-template-columns: 38px minmax(0, 1fr);
-  align-items: center;
-  gap: 7px;
+  place-items: center;
   padding: 7px;
 }
 
@@ -2596,9 +2594,7 @@ select:focus-visible {
 
 .stable-ox-slot__purchase {
   display: grid;
-  grid-template-columns: 38px minmax(0, 1fr);
-  align-items: center;
-  gap: 7px;
+  place-items: center;
   width: 100%;
   min-width: 0;
   min-height: 60px;
@@ -2630,16 +2626,35 @@ select:focus-visible {
 
 .stable-ox-slot__plus {
   position: absolute;
-  display: grid;
+  display: block;
   width: 27px;
   height: 27px;
-  place-items: center;
   border: 1px solid rgba(226, 203, 152, 0.32);
   border-radius: 50%;
   color: #a9a08d;
   background: rgba(8, 9, 7, 0.24);
-  font: 500 17px/1 var(--ui-font-sans);
   transition: opacity 140ms ease, transform 140ms ease;
+}
+
+.stable-ox-slot__plus::before,
+.stable-ox-slot__plus::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  border-radius: 1px;
+  background: currentColor;
+  transform: translate(-50%, -50%);
+}
+
+.stable-ox-slot__plus::before {
+  width: 9px;
+  height: 1px;
+}
+
+.stable-ox-slot__plus::after {
+  width: 1px;
+  height: 9px;
 }
 
 .stable-ox-slot__portrait {
@@ -2691,115 +2706,10 @@ select:focus-visible {
   transform: scale(1);
 }
 
-.stable-ox-slot__copy {
-  display: grid;
-  min-width: 0;
-  gap: 3px;
-}
-
-.stable-ox-slot__copy strong,
-.stable-ox-slot__status,
-.stable-ox-slot__pending {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.stable-ox-slot__copy strong {
-  color: #d8c69f;
-  font: 750 10px/1.1 var(--ui-font-sans);
-  letter-spacing: 0.01em;
-}
-
-.stable-ox-slot__detail {
-  position: relative;
-  display: grid;
-  min-width: 0;
-  min-height: 17px;
-  align-items: center;
-}
-
-.stable-ox-slot__status,
-.stable-ox-slot__price,
-.stable-ox-slot__pending {
-  grid-area: 1 / 1;
-  transition: opacity 140ms ease, transform 140ms ease;
-}
-
-.stable-ox-slot__status,
-.stable-ox-slot__pending {
-  color: #827b6e;
-  font: 600 8px/1.15 var(--ui-font-sans);
-}
-
-.stable-ox-slot[data-state='occupied'] .stable-ox-slot__status {
-  color: #aaa08a;
-}
-
-.stable-ox-slot__price,
-.stable-ox-slot__pending {
-  opacity: 0;
-  transform: translateY(4px);
-}
-
-.stable-ox-slot__price .resource-cost {
-  color: #f2d58c;
-  font: 800 15px/1 var(--ui-display);
-  letter-spacing: 0.02em;
-}
-
-.stable-ox-slot__price .resource-cost__item {
-  gap: 2px;
-}
-
-.stable-ox-slot__price .resource-cost__icon {
-  width: 17px;
-  height: 17px;
-}
-
-.stable-ox-slot[data-state='purchase']:hover .stable-ox-slot__status,
-.stable-ox-slot[data-state='purchase']:focus-within .stable-ox-slot__status,
-.stable-ox-slot__purchase[data-purchase-pending='true'] .stable-ox-slot__status,
-.stable-ox-slot__purchase[data-purchase-pending='true'] .stable-ox-slot__price {
-  opacity: 0;
-  transform: translateY(-4px);
-}
-
-.stable-ox-slot[data-state='purchase']:hover .stable-ox-slot__price,
-.stable-ox-slot[data-state='purchase']:focus-within .stable-ox-slot__price,
-.stable-ox-slot__purchase[data-purchase-pending='true'] .stable-ox-slot__pending {
-  opacity: 1;
-  transform: translateY(0);
-}
-
-.stable-ox-slot__purchase[data-purchase-pending='true'] .stable-ox-slot__pending {
-  color: #ead49d;
-}
-
-@media (hover: none) {
-  .stable-ox-slot[data-state='purchase'] .stable-ox-slot__plus,
-  .stable-ox-slot[data-state='purchase'] .stable-ox-slot__status {
-    opacity: 0;
-  }
-
-  .stable-ox-slot[data-state='purchase'] .stable-ox-slot__portrait {
-    opacity: 0.78;
-    transform: scale(0.94);
-  }
-
-  .stable-ox-slot[data-state='purchase'] .stable-ox-slot__price {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
   .stable-ox-slot,
   .stable-ox-slot__plus,
-  .stable-ox-slot__portrait,
-  .stable-ox-slot__status,
-  .stable-ox-slot__price,
-  .stable-ox-slot__pending {
+  .stable-ox-slot__portrait {
     transition: none;
   }
 }

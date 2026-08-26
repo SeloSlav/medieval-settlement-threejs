@@ -88,7 +88,8 @@ assert.match(stableRenderer, /const purchaseDisabled = atCapacity \|\| treasuryS
 assert.match(stableRenderer, /const nextOpenSlot/);
 assert.match(stableRenderer, /data-state="purchase"/);
 assert.match(stableRenderer, /stable-ox-slot__portrait/);
-assert.match(stableRenderer, /stable-ox-slot__price[\s\S]{0,240}renderResourceAmount\('gold'/);
+assert.doesNotMatch(stableRenderer, /BAY_LABELS|Bay \$\{/);
+assert.doesNotMatch(stableRenderer, /stable-ox-slot__copy|stable-ox-slot__status|stable-ox-slot__price/);
 assert.doesNotMatch(stableRenderer, />OX</);
 assert.doesNotMatch(stableRenderer, /Buy ox/);
 assert.doesNotMatch(stableRenderer, /Automatic · oxen cannot be assigned individually/);
@@ -154,13 +155,13 @@ assert.match(
 );
 assert.match(
   polishedInspectorCss,
-  /\.stable-ox-slot__price \.resource-cost\s*\{[\s\S]{0,120}font:\s*800 15px/,
+  /\.stable-ox-slot__plus::before,[\s\S]{0,240}top:\s*50%;[\s\S]{0,80}left:\s*50%;[\s\S]{0,120}translate\(-50%, -50%\)/,
 );
 assert.match(
   polishedInspectorCss,
   /\.stable-ox-slot\[data-state='occupied'\] \.stable-ox-slot__portrait\s*\{[\s\S]{0,80}opacity:\s*1/,
 );
-assert.match(polishedInspectorCss, /@media \(hover: none\)[\s\S]{0,520}stable-ox-slot__price/);
+assert.doesNotMatch(polishedInspectorCss, /stable-ox-slot__copy|stable-ox-slot__status|stable-ox-slot__price/);
 assert.match(polishedInspectorCss, /@media \(prefers-reduced-motion: reduce\)/);
 
 console.log('stable ox client persistence and inspector tests passed');

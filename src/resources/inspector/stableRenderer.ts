@@ -19,8 +19,6 @@ import {
   type InspectorView,
 } from './renderInspectableTarget.ts';
 
-const BAY_LABELS = ['I', 'II', 'III'] as const;
-
 export function renderStableInspector(
   target: Extract<InspectableTarget, { kind: 'building' }>,
   context: InspectorRenderContext,
@@ -117,31 +115,21 @@ export function renderStableInspector(
           : assignmentActive
             ? `Posted to ${assignedLabel} · active with a worker`
             : `Posted to ${assignedLabel} · waiting for labor`;
-    const bayLabel = `Bay ${BAY_LABELS[slot] ?? slot + 1}`;
     const slotVisual = `<span class="stable-ox-slot__frame" aria-hidden="true">
-      <span class="stable-ox-slot__plus">+</span>
+      <span class="stable-ox-slot__plus"></span>
       <span class="stable-ox-slot__portrait"></span>
-    </span>`;
-    const slotCopy = `<span class="stable-ox-slot__copy">
-      <strong>${bayLabel}</strong>
-      <span class="stable-ox-slot__detail">
-        <small class="stable-ox-slot__status">${assignmentLabel}</small>
-        ${isPurchaseSlot ? `<span class="stable-ox-slot__price" aria-hidden="true">${renderResourceAmount('gold', STABLE_OX_PURCHASE_GOLD, { compact: true, unaffordable: treasuryShort })}</span><small class="stable-ox-slot__pending">Purchasing…</small>` : ''}
-      </span>
     </span>`;
 
     if (isPurchaseSlot) {
       return `<li class="stable-ox-slot" data-stable-ox-slot="${slot}" data-state="purchase" data-purchase-status="${fire ? 'paused' : treasuryShort ? 'unaffordable' : 'ready'}">
-        <button type="button" class="stable-ox-slot__purchase" data-purchase-ox aria-label="Purchase an ox for ${STABLE_OX_PURCHASE_GOLD} gold in ${bayLabel}. ${purchaseAvailabilityLabel}" ${purchaseDisabled ? 'aria-disabled="true"' : ''}>
+        <button type="button" class="stable-ox-slot__purchase" data-purchase-ox aria-label="Purchase a draft ox for ${STABLE_OX_PURCHASE_GOLD} gold. ${purchaseAvailabilityLabel}" ${purchaseDisabled ? 'aria-disabled="true"' : ''}>
           ${slotVisual}
-          ${slotCopy}
         </button>
       </li>`;
     }
 
-    return `<li class="stable-ox-slot" data-stable-ox-slot="${slot}" data-state="${ox ? 'occupied' : 'waiting'}">
+    return `<li class="stable-ox-slot" data-stable-ox-slot="${slot}" data-state="${ox ? 'occupied' : 'waiting'}" aria-label="${ox ? `Draft ox: ${assignmentLabel}.` : 'Open ox slot; purchases fill available slots in order.'}">
       ${slotVisual}
-      ${slotCopy}
     </li>`;
   }).join('');
 
