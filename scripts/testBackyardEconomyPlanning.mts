@@ -941,7 +941,11 @@ assert.match(serverStepSource, /local_marketplace_for_residence/);
 assert.match(serverStepSource, /credit_marketplace_receipt_gold/);
 assert.match(serverStepSource, /fn backyard_has_food_output/);
 assert.match(serverStepSource, /fn backyard_has_goods_output/);
-assert.match(serverStepSource, /HerbGarden \| BackyardGardenKind::GoatPen/);
+assert.match(
+  serverStepSource,
+  /fn backyard_has_goods_output[\s\S]*BackyardGardenKind::HerbGarden\s*\|\s*BackyardGardenKind::GoatPen\s*\|\s*BackyardGardenKind::BackyardApiary/,
+  'remedies, goat hides, and apiary wax must all resolve through the goods route',
+);
 assert.match(
   serverStepSource,
   /food_marketplace_id[\s\S]*ResidenceNeedKind::Food[\s\S]*goods_marketplace_id[\s\S]*ResidenceNeedKind::Cloth/,
