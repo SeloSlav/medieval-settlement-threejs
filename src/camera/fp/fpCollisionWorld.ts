@@ -50,6 +50,8 @@ export type FpBoxCollider = {
   minY: number;
   maxY: number;
   allowStep?: boolean;
+  /** Bridge rails can reduce body padding while retaining their physical box. */
+  playerRadiusScale?: number;
 };
 
 export type FpCylinderCollider = {
@@ -60,6 +62,7 @@ export type FpCylinderCollider = {
   minY: number;
   maxY: number;
   allowStep?: boolean;
+  playerRadiusScale?: number;
 };
 
 export type FpCollider = FpBoxCollider | FpCylinderCollider;
@@ -194,7 +197,7 @@ export class FpCollisionWorld {
       ) {
         continue;
       }
-      if (diskOverlapsCollider(x, z, footRadius, collider)) {
+      if (diskOverlapsCollider(x, z, playerRadiusForCollider(footRadius, collider), collider)) {
         top = collider.maxY;
       }
     }
@@ -213,16 +216,17 @@ export class FpCollisionWorld {
       let resolvedAny = false;
       for (const collider of this.nearby) {
         if (!bodyOverlapsVertically(position.y, velocity.y, collider, options)) continue;
+        const playerRadius = playerRadiusForCollider(options.footRadius, collider);
         const resolved = collider.shape === 'box'
           ? resolveBoxCollision(
               position,
               previousX,
               previousZ,
               velocity,
-              options.footRadius,
+              playerRadius,
               collider,
             )
-          : resolveCylinderCollision(position, velocity, options.footRadius, collider);
+          : resolveCylinderCollision(position, velocity, playerRadius, collider);
         resolvedAny = resolvedAny || resolved;
       }
       if (!resolvedAny) break;
@@ -466,32 +470,40 @@ function appendObjectColliders(
   object: THREE.Object3D,
   index: StaticColliderIndex,
   allowStep: boolean,
+  inheritedPlayerRadiusScale = 1,
 ): void {
   if (!isCollisionVisible(object) || shouldSkipObject(object)) return;
+  const requestedPlayerRadiusScale = object.userData.fpPlayerRadiusScale;
+  const playerRadiusScale = typeof requestedPlayerRadiusScale === 'number'
+    ? THREE.MathUtils.clamp(requestedPlayerRadiusScale, 0.25, 1)
+    : inheritedPlayerRadiusScale;
   const objectAllowsStep = (
     allowStep
     && object.userData.fpCollisionAllowStep !== false
     && !object.name.toLowerCase().includes('fence')
   );
   if (object.userData.fpCollisionAggregate === true) {
-    const collider = aggregateObjectCollider(object, false);
+    const collider = aggregateObjectCollider(object, false, playerRadiusScale);
     if (collider) index.add(collider);
     return;
   }
 
   const mesh = object as THREE.Mesh;
   if (mesh.isMesh && mesh.geometry) {
-    appendMeshColliders(mesh, index, objectAllowsStep);
+    appendMeshColliders(mesh, index, objectAllowsStep, playerRadiusScale);
     return;
   }
 
-  for (const child of object.children) appendObjectColliders(child, index, objectAllowsStep);
+  for (const child of object.children) {
+    appendObjectColliders(child, index, objectAllowsStep, playerRadiusScale);
+  }
 }
 
 function appendMeshColliders(
   mesh: THREE.Mesh,
   index: StaticColliderIndex,
   allowStep: boolean,
+  playerRadiusScale: number,
 ): void {
   const geometry = mesh.geometry;
   if (!geometry.boundingBox) geometry.computeBoundingBox();
@@ -503,20 +515,21 @@ function appendMeshColliders(
       if (matrixHasCollapsedScale(_instanceMatrix)) continue;
       _worldMatrix.multiplyMatrices(mesh.matrixWorld, _instanceMatrix);
       _worldBox.copy(geometry.boundingBox).applyMatrix4(_worldMatrix);
-      const collider = worldAabbCollider(_worldBox, allowStep);
+      const collider = worldAabbCollider(_worldBox, allowStep, playerRadiusScale);
       if (collider) index.add(collider);
     }
     return;
   }
 
   _worldBox.copy(geometry.boundingBox).applyMatrix4(mesh.matrixWorld);
-  const collider = worldAabbCollider(_worldBox, allowStep);
+  const collider = worldAabbCollider(_worldBox, allowStep, playerRadiusScale);
   if (collider) index.add(collider);
 }
 
 function aggregateObjectCollider(
   root: THREE.Object3D,
   allowStep: boolean,
+  playerRadiusScale = 1,
 ): FpBoxCollider | null {
   _localBox.makeEmpty();
   _inverseRootMatrix.copy(root.matrixWorld).invert();
@@ -576,10 +589,15 @@ function aggregateObjectCollider(
     minY: worldCenterY - halfY,
     maxY: worldCenterY + halfY,
     allowStep,
+    playerRadiusScale,
   });
 }
 
-function worldAabbCollider(box: THREE.Box3, allowStep: boolean): FpBoxCollider | null {
+function worldAabbCollider(
+  box: THREE.Box3,
+  allowStep: boolean,
+  playerRadiusScale: number,
+): FpBoxCollider | null {
   box.getCenter(_center);
   box.getSize(_size);
   return validateBoxCollider({
@@ -592,6 +610,7 @@ function worldAabbCollider(box: THREE.Box3, allowStep: boolean): FpBoxCollider |
     minY: box.min.y,
     maxY: box.max.y,
     allowStep,
+    playerRadiusScale,
   });
 }
 
@@ -611,7 +630,16 @@ function validateBoxCollider(collider: FpBoxCollider): FpBoxCollider | null {
   }
   collider.cosYaw = Math.cos(collider.yaw);
   collider.sinYaw = Math.sin(collider.yaw);
+  collider.playerRadiusScale = THREE.MathUtils.clamp(
+    collider.playerRadiusScale ?? 1,
+    0.25,
+    1,
+  );
   return collider;
+}
+
+function playerRadiusForCollider(radius: number, collider: FpCollider): number {
+  return radius * (collider.playerRadiusScale ?? 1);
 }
 
 function shouldSkipObject(object: THREE.Object3D): boolean {

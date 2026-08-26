@@ -3,6 +3,8 @@ import * as THREE from 'three';
 export const BRIDGE_RAILING_START_BLEND = 0.018;
 const BAY_SPACING_M = 2.25;
 export const BRIDGE_RAILING_EDGE_INSET = 0.18;
+/** Lets a walking body pass close to narrow rails without weakening the rail itself. */
+export const BRIDGE_FP_COLLISION_RADIUS_SCALE = 0.64;
 const POST_HEIGHT_M = 1.18;
 const POST_ANCHOR_DEPTH_M = 0.16;
 const POST_WIDTH_M = 0.18;
@@ -80,6 +82,7 @@ function buildRailingGroup(
   const group = new THREE.Group();
   group.name = names.group;
   group.userData.fpCollisionAllowStep = false;
+  group.userData.fpPlayerRadiusScale = BRIDGE_FP_COLLISION_RADIUS_SCALE;
   group.userData.railingRunCount = runs.length;
 
   const posts = new THREE.InstancedMesh(

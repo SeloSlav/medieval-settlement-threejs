@@ -8,7 +8,12 @@ import {
   createRoadWeatherUniforms,
   createRiverBankMaterial,
 } from './RoadSurfaceMaterial.ts';
-import { RoadTextureLoader, type TerrainBlendTextureSet, type TextureSet } from './RoadTextureLoader.ts';
+import {
+  RoadTextureLoader,
+  type BridgeDeckAtlasTextureSet,
+  type TerrainBlendTextureSet,
+  type TextureSet,
+} from './RoadTextureLoader.ts';
 import type { MeshStandardNodeMaterial } from 'three/webgpu';
 
 export class RoadMaterialFactory {
@@ -27,6 +32,7 @@ export class RoadMaterialFactory {
   readonly snap: THREE.MeshBasicMaterial;
   private roadTextures: TextureSet | null = null;
   private bridgeTextures: TextureSet | null = null;
+  private bridgeDeckAtlasTextures: BridgeDeckAtlasTextureSet | null = null;
   private terrainBlendTextures: TerrainBlendTextureSet | null = null;
   private rainTerrainTexture: THREE.DataTexture | null = null;
   private texturesReadyPromise: Promise<void> = Promise.resolve();
@@ -89,6 +95,7 @@ export class RoadMaterialFactory {
     const factory = new RoadMaterialFactory();
     factory.roadTextures = createPlaceholderTextureSet(THREE.RepeatWrapping, true);
     factory.bridgeTextures = createPlaceholderTextureSet(THREE.RepeatWrapping, false);
+    factory.bridgeDeckAtlasTextures = createPlaceholderBridgeDeckAtlasTextureSet();
     factory.terrainBlendTextures = {
       meadow: createPlaceholderTextureSet(THREE.MirroredRepeatWrapping, false),
       dense: createPlaceholderTextureSet(THREE.MirroredRepeatWrapping, false),
@@ -100,10 +107,15 @@ export class RoadMaterialFactory {
     factory.texturesReadyPromise = Promise.all([
       textureLoader.loadRoadTextures(),
       textureLoader.loadBridgeTextures(),
+      textureLoader.loadBridgeDeckAtlasTextures(),
       textureLoader.loadTerrainBlendTextures(),
-    ]).then(([roadTextures, bridgeTextures, terrainBlendTextures]) => {
+    ]).then(([roadTextures, bridgeTextures, bridgeDeckAtlasTextures, terrainBlendTextures]) => {
       hydrateTextureSet(factory.roadTextures!, roadTextures);
       hydrateTextureSet(factory.bridgeTextures!, bridgeTextures);
+      hydrateBridgeDeckAtlasTextureSet(
+        factory.bridgeDeckAtlasTextures!,
+        bridgeDeckAtlasTextures,
+      );
       hydrateTextureSet(factory.terrainBlendTextures!.meadow, terrainBlendTextures.meadow);
       hydrateTextureSet(factory.terrainBlendTextures!.dense, terrainBlendTextures.dense);
       hydrateTextureSet(factory.terrainBlendTextures!.dry, terrainBlendTextures.dry);
@@ -152,6 +164,9 @@ export class RoadMaterialFactory {
     this.rainTerrainTexture = null;
     if (this.roadTextures) this.disposeTextureSet(this.roadTextures);
     if (this.bridgeTextures) this.disposeTextureSet(this.bridgeTextures);
+    if (this.bridgeDeckAtlasTextures) {
+      Object.values(this.bridgeDeckAtlasTextures).forEach((texture) => texture.dispose());
+    }
     if (this.terrainBlendTextures) {
       this.disposeTextureSet(this.terrainBlendTextures.meadow);
       this.disposeTextureSet(this.terrainBlendTextures.dense);
@@ -182,6 +197,7 @@ export class RoadMaterialFactory {
     if (
       !this.roadTextures
       || !this.bridgeTextures
+      || !this.bridgeDeckAtlasTextures
       || !this.terrainBlendTextures
     ) {
       throw new Error('Textures are not loaded.');
@@ -189,7 +205,7 @@ export class RoadMaterialFactory {
     const road = createRoadCoreMaterial(
       this.roadTextures,
       this.roadWeatherUniforms,
-      this.bridgeTextures,
+      this.bridgeDeckAtlasTextures,
     );
     const roadEdge = createRoadEdgeMaterial(this.roadTextures, this.roadWeatherUniforms, true);
     const riverBank = createRiverBankMaterial(this.roadTextures);
@@ -250,6 +266,26 @@ function createPlaceholderTextureSet(
   return set;
 }
 
+function createPlaceholderBridgeDeckAtlasTextureSet(): BridgeDeckAtlasTextureSet {
+  return {
+    albedo: createPlaceholderTexture(
+      [151, 116, 82, 255],
+      true,
+      THREE.ClampToEdgeWrapping,
+    ),
+    normal: createPlaceholderTexture(
+      [128, 128, 255, 255],
+      false,
+      THREE.ClampToEdgeWrapping,
+    ),
+    material: createPlaceholderTexture(
+      [224, 0, 255, 128],
+      false,
+      THREE.ClampToEdgeWrapping,
+    ),
+  };
+}
+
 function createPlaceholderTexture(
   rgba: [number, number, number, number],
   srgb: boolean,
@@ -280,6 +316,16 @@ function hydrateTextureSet(target: TextureSet, source: TextureSet): void {
     if (!targetTexture || !sourceTexture) continue;
     targetTexture.copy(sourceTexture);
     targetTexture.needsUpdate = true;
+  }
+}
+
+function hydrateBridgeDeckAtlasTextureSet(
+  target: BridgeDeckAtlasTextureSet,
+  source: BridgeDeckAtlasTextureSet,
+): void {
+  for (const key of Object.keys(source) as Array<keyof BridgeDeckAtlasTextureSet>) {
+    target[key].copy(source[key]);
+    target[key].needsUpdate = true;
   }
 }
 

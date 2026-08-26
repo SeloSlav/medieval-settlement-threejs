@@ -366,6 +366,41 @@ impl RoadNetwork {
         effort
     }
 
+    /// Civilian off-road access may cross dry land and may step onto a road
+    /// deck, but it must never pass through open water beside that deck.
+    /// Bridge samples are therefore classified as road before consulting the
+    /// rendered wet mask shared by the client.
+    pub fn segment_avoids_open_water(&self, ax: f64, az: f64, bx: f64, bz: f64) -> bool {
+        let Some(navigation) = self.river_navigation.as_ref() else {
+            return true;
+        };
+        let length = distance(ax, az, bx, bz);
+        if !length.is_finite() {
+            return false;
+        }
+        if length <= 1e-8 {
+            return !self.is_open_water_at(ax, az);
+        }
+        let samples = (length / (navigation.cell_size() * 0.35))
+            .ceil()
+            .clamp(1.0, 256.0) as usize;
+        for index in 0..=samples {
+            let t = index as f64 / samples as f64;
+            if self.is_open_water_at(ax + (bx - ax) * t, az + (bz - az) * t) {
+                return false;
+            }
+        }
+        true
+    }
+
+    fn is_open_water_at(&self, x: f64, z: f64) -> bool {
+        !self.is_on_road_surface(x, z)
+            && self
+                .river_navigation
+                .as_ref()
+                .is_some_and(|navigation| navigation.is_water_at(x, z))
+    }
+
     pub fn road_connected(&self, ax: f64, az: f64, bx: f64, bz: f64) -> bool {
         let Some(nodes_a) = self.snap_nodes(ax, az) else {
             return false;
@@ -519,14 +554,19 @@ impl RoadNetwork {
 
     /// Canonical shortest route — distance matches sampled polyline length for movement.
     pub fn road_path_route(&self, ax: f64, az: f64, bx: f64, bz: f64) -> Option<RoadPathRoute> {
-        let graph_route = self.shortest_path_solve(ax, az, bx, bz).map(|solve| {
-            let polyline = self.materialize_polyline(ax, az, bx, bz, &solve.node_path);
-            RoadPathRoute {
-                distance: Self::polyline_length_xz(&polyline),
-                polyline,
-            }
-        });
-        let interior_edge_route = self.same_edge_road_route(ax, az, bx, bz);
+        let graph_route = self
+            .shortest_path_solve(ax, az, bx, bz)
+            .map(|solve| {
+                let polyline = self.materialize_polyline(ax, az, bx, bz, &solve.node_path);
+                RoadPathRoute {
+                    distance: Self::polyline_length_xz(&polyline),
+                    polyline,
+                }
+            })
+            .filter(|route| self.polyline_avoids_open_water(&route.polyline));
+        let interior_edge_route = self
+            .same_edge_road_route(ax, az, bx, bz)
+            .filter(|route| self.polyline_avoids_open_water(&route.polyline));
         match (graph_route, interior_edge_route) {
             (Some(graph), Some(interior)) if interior.distance <= graph.distance + 1e-6 => {
                 Some(interior)
@@ -576,7 +616,10 @@ impl RoadNetwork {
             let Some(target) = project_point_to_polyline(bx, bz, &edge.sampled_path) else {
                 continue;
             };
-            if origin.access_distance > max_snap + 1e-6 || target.access_distance > max_snap + 1e-6
+            if origin.access_distance > max_snap + 1e-6
+                || target.access_distance > max_snap + 1e-6
+                || !self.segment_avoids_open_water(ax, az, origin.point[0], origin.point[1])
+                || !self.segment_avoids_open_water(bx, bz, target.point[0], target.point[1])
             {
                 continue;
             }
@@ -867,6 +910,17 @@ impl RoadNetwork {
         total
     }
 
+    fn polyline_avoids_open_water(&self, path: &[[f64; 2]]) -> bool {
+        path.windows(2).all(|segment| {
+            self.segment_avoids_open_water(
+                segment[0][0],
+                segment[0][1],
+                segment[1][0],
+                segment[1][1],
+            )
+        })
+    }
+
     /// Sample a position `meters` from the start of a polyline.
     pub fn sample_polyline_xz(path: &[[f64; 2]], meters: f64) -> (f64, f64) {
         if path.is_empty() {
@@ -921,6 +975,9 @@ impl RoadNetwork {
                 let Some(&(nx, nz)) = self.nodes.get(id) else {
                     continue;
                 };
+                if !self.segment_avoids_open_water(x, z, nx, nz) {
+                    continue;
+                }
                 let dist = distance(x, z, nx, nz);
                 if dist <= best_distance + 1e-6 {
                     if dist < best_distance - 1e-6 {
@@ -947,13 +1004,24 @@ impl RoadNetwork {
                     continue;
                 };
                 let dist = distance_to_polyline(x, z, &edge.sampled_path);
+                let accessible_nodes = [&edge.start_node_id, &edge.end_node_id]
+                    .into_iter()
+                    .filter(|node_id| {
+                        self.nodes
+                            .get(*node_id)
+                            .is_some_and(|&(nx, nz)| self.segment_avoids_open_water(x, z, nx, nz))
+                    })
+                    .cloned()
+                    .collect::<Vec<_>>();
+                if accessible_nodes.is_empty() {
+                    continue;
+                }
                 if dist <= best_distance + 1e-6 {
                     if dist < best_distance - 1e-6 {
                         best_distance = dist;
-                        best_nodes = vec![edge.start_node_id.clone(), edge.end_node_id.clone()];
+                        best_nodes = accessible_nodes;
                     } else if (dist - best_distance).abs() <= 1e-6 {
-                        best_nodes.push(edge.start_node_id.clone());
-                        best_nodes.push(edge.end_node_id.clone());
+                        best_nodes.extend(accessible_nodes);
                     }
                 }
             }
@@ -1429,6 +1497,62 @@ mod tests {
             network.combat_cross_country_effort(4.0, 0.0, 6.0, 0.0, 0.6, 1.35) > 2.0,
             "route choice must account for the time spent wading",
         );
+    }
+
+    #[test]
+    fn civilian_routes_cross_on_the_bridge_and_never_beside_it() {
+        let navigation_hex = wet_row_hex(16, 8);
+        let snapshot = serde_json::json!({
+            "nodes": [
+                {"id": "south", "position": [0.0, 0.0, -4.0]},
+                {"id": "north", "position": [0.0, 0.0, 4.0]}
+            ],
+            "edges": [{
+                "startNodeId": "south",
+                "endNodeId": "north",
+                "width": 4.2,
+                "sampledPath": [[0.0, 0.0, -4.0], [0.0, 0.0, 4.0]]
+            }],
+            "riverNavigation": {
+                "resolution": 16,
+                "startX": -8.0,
+                "startZ": -8.0,
+                "spanX": 16.0,
+                "spanZ": 16.0,
+                "wetCellsHex": navigation_hex
+            }
+        })
+        .to_string();
+        let network = RoadNetwork::from_snapshot_json(&snapshot).expect("valid bridge navigation");
+
+        assert!(
+            !network.segment_avoids_open_water(5.0, -4.0, 5.0, 4.0),
+            "the shorter line beside the bridge must be impassable",
+        );
+        assert!(network.segment_avoids_open_water(0.0, -4.0, 0.0, 4.0));
+        let route = network
+            .road_path_route(5.0, -4.0, 5.0, 4.0)
+            .expect("the bridge should keep both banks connected");
+        assert!(route.distance > 8.0);
+        assert!(
+            route
+                .polyline
+                .windows(2)
+                .any(|segment| segment[0][0].abs() < 0.1
+                    && segment[1][0].abs() < 0.1
+                    && segment[0][1] < -1.0
+                    && segment[1][1] > 1.0),
+            "the authoritative cart, worker, and ox route must enter the bridge centerline",
+        );
+        assert!(route
+            .polyline
+            .windows(2)
+            .all(|segment| network.segment_avoids_open_water(
+                segment[0][0],
+                segment[0][1],
+                segment[1][0],
+                segment[1][1],
+            )));
     }
 
     #[test]

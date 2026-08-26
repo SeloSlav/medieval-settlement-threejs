@@ -20,6 +20,7 @@ import {
 import { buildBridgeSupports } from './BridgeSupports.ts';
 import {
   BUILDING_ACCESS_SPUR_Y_LIFT,
+  BRIDGE_DECK_TEXTURE_METERS_PER_TILE,
   ROAD_BRIDGE_CORE_Y_OFFSET,
   ROAD_BRIDGE_SHOULDER_LIFT,
   ROAD_CORE_EDGE_JITTER_RATIO,
@@ -549,6 +550,7 @@ export class RoadMeshBuilder {
   ): THREE.Mesh {
     const positions: number[] = [];
     const uvs: number[] = [];
+    const bridgeUvs: number[] = [];
     const bridgeAttrs: number[] = [];
     const indices: number[] = [];
     const distances = cumulativeDistances(path);
@@ -581,6 +583,16 @@ export class RoadMeshBuilder {
       );
       const v = distances[i] / 5.8;
       uvs.push(0, v, 0.5, v, 1, v);
+      const bridgeV = distances[i] / BRIDGE_DECK_TEXTURE_METERS_PER_TILE;
+      const bridgeRepeatsAcross = width / BRIDGE_DECK_TEXTURE_METERS_PER_TILE;
+      bridgeUvs.push(
+        0,
+        bridgeV,
+        bridgeRepeatsAcross * 0.5,
+        bridgeV,
+        bridgeRepeatsAcross,
+        bridgeV,
+      );
       bridgeAttrs.push(blend, blend, blend);
     }
 
@@ -603,6 +615,7 @@ export class RoadMeshBuilder {
         'start',
         positions,
         uvs,
+        bridgeUvs,
         bridgeAttrs,
         indices,
       );
@@ -616,6 +629,7 @@ export class RoadMeshBuilder {
         'end',
         positions,
         uvs,
+        bridgeUvs,
         bridgeAttrs,
         indices,
       );
@@ -628,6 +642,7 @@ export class RoadMeshBuilder {
     geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
     geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
     geometry.setAttribute('uv2', new THREE.Float32BufferAttribute(uvs, 2));
+    geometry.setAttribute('bridgeUv', new THREE.Float32BufferAttribute(bridgeUvs, 2));
     geometry.setAttribute('bridgeBlend', new THREE.Float32BufferAttribute(bridgeAttrs, 1));
     geometry.computeVertexNormals();
     geometry.computeBoundingSphere();
@@ -778,6 +793,7 @@ export class RoadMeshBuilder {
     end: 'start' | 'end',
     positions: number[],
     uvs: number[],
+    bridgeUvs: number[],
     bridgeAttrs: number[],
     indices: number[],
   ): void {
@@ -805,6 +821,12 @@ export class RoadMeshBuilder {
     positions.push(frame.center.x, centerY, frame.center.z);
     const terminalV = (distances[sectionIndex] ?? 0) / 5.8;
     uvs.push(0.5, terminalV);
+    const bridgeTerminalV = (distances[sectionIndex] ?? 0)
+      / BRIDGE_DECK_TEXTURE_METERS_PER_TILE;
+    bridgeUvs.push(
+      width / BRIDGE_DECK_TEXTURE_METERS_PER_TILE * 0.5,
+      bridgeTerminalV,
+    );
     bridgeAttrs.push(section.bridgeBlend);
 
     const boundary = [sides.minusIndex];
@@ -842,6 +864,13 @@ export class RoadMeshBuilder {
       uvs.push(
         0.5 + lateralDistance / Math.max(1, width),
         terminalV + (end === 'start' ? -1 : 1) * outwardDistance / 5.8,
+      );
+      bridgeUvs.push(
+        width / BRIDGE_DECK_TEXTURE_METERS_PER_TILE * 0.5
+          + lateralDistance / BRIDGE_DECK_TEXTURE_METERS_PER_TILE,
+        bridgeTerminalV
+          + (end === 'start' ? -1 : 1)
+            * outwardDistance / BRIDGE_DECK_TEXTURE_METERS_PER_TILE,
       );
       bridgeAttrs.push(section.bridgeBlend);
       boundary.push(vertexIndex);

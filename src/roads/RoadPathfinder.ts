@@ -130,12 +130,16 @@ export class RoadPathfinder {
       ? (() => {
           const polyline = this.materializePolyline(ax, az, bx, bz, solve.nodePath);
           const travelDistance = polylineLength(polyline);
-          return travelDistance > 1e-6
+          return travelDistance > 1e-6 && this.polylineAvoidsOpenWater(polyline)
             ? { distance: travelDistance, polyline }
             : null;
         })()
       : null;
-    const interiorEdgeRoute = this.sameEdgeRoadRoute(ax, az, bx, bz);
+    const interiorEdgeRouteCandidate = this.sameEdgeRoadRoute(ax, az, bx, bz);
+    const interiorEdgeRoute = interiorEdgeRouteCandidate
+      && this.polylineAvoidsOpenWater(interiorEdgeRouteCandidate.polyline)
+      ? interiorEdgeRouteCandidate
+      : null;
     if (!graphRoute) return interiorEdgeRoute;
     if (!interiorEdgeRoute) return graphRoute;
     return interiorEdgeRoute.distance <= graphRoute.distance + 1e-6
@@ -222,6 +226,8 @@ export class RoadPathfinder {
         || !target
         || origin.accessDistance > maxSnap + 1e-6
         || target.accessDistance > maxSnap + 1e-6
+        || !this.network.segmentAvoidsOpenWater(ax, az, origin.point.x, origin.point.z)
+        || !this.network.segmentAvoidsOpenWater(bx, bz, target.point.x, target.point.z)
       ) {
         continue;
       }
@@ -425,6 +431,7 @@ export class RoadPathfinder {
 
     for (const node of candidates.nodes) {
       const dist = distance(x, z, node.position.x, node.position.z);
+      if (!this.network.segmentAvoidsOpenWater(x, z, node.position.x, node.position.z)) continue;
       if (dist > bestDistance + 1e-6) continue;
       if (dist < bestDistance - 1e-6) {
         bestDistance = dist;
@@ -438,12 +445,18 @@ export class RoadPathfinder {
       const edge = this.network.edges.get(indexed.edgeId);
       if (!edge || indexed.path.length < 2) continue;
       const dist = distancePointToPolylineXZ(x, z, indexed.path);
+      const accessibleEndpoints = [edge.startNodeId, edge.endNodeId].filter((nodeId) => {
+        const node = this.network.nodes.get(nodeId);
+        return node != null
+          && this.network.segmentAvoidsOpenWater(x, z, node.position.x, node.position.z);
+      });
+      if (accessibleEndpoints.length === 0) continue;
       if (dist > bestDistance + 1e-6) continue;
       if (dist < bestDistance - 1e-6) {
         bestDistance = dist;
-        bestNodes = [edge.startNodeId, edge.endNodeId];
+        bestNodes = accessibleEndpoints;
       } else if (Math.abs(dist - bestDistance) <= 1e-6) {
-        bestNodes.push(edge.startNodeId, edge.endNodeId);
+        bestNodes.push(...accessibleEndpoints);
       }
     }
 
@@ -534,5 +547,14 @@ export class RoadPathfinder {
     const last = path[path.length - 1];
     if (last && distance(last.x, last.z, point.x, point.z) <= 1e-6) return;
     path.push(point);
+  }
+
+  private polylineAvoidsOpenWater(path: readonly RoadPoint[]): boolean {
+    for (let index = 0; index < path.length - 1; index += 1) {
+      const start = path[index];
+      const end = path[index + 1];
+      if (!this.network.segmentAvoidsOpenWater(start.x, start.z, end.x, end.z)) return false;
+    }
+    return true;
   }
 }

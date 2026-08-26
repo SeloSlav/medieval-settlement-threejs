@@ -19,6 +19,8 @@ export const BUILDING_ACCESS_SPUR_Y_LIFT = 0.003;
 /** Bridge clearance remains independent from the lower dry-road presentation. */
 export const ROAD_BRIDGE_CORE_Y_OFFSET = 0.12;
 export const ROAD_BRIDGE_SHOULDER_LIFT = 0.1;
+/** Physical repeat scale declared by the building atlas's sawn-oak-plank tile. */
+export const BRIDGE_DECK_TEXTURE_METERS_PER_TILE = 2;
 
 export function roadVisualWidth(logicalWidth: number): number {
   return Math.max(0, logicalWidth) * ROAD_VISUAL_WIDTH_SCALE;

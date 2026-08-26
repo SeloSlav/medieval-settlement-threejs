@@ -11,6 +11,7 @@ import {
 } from './BridgeRailings.ts';
 import { bridgeBlendAtDistance } from './RiverBridgeSpans.ts';
 import {
+  BRIDGE_DECK_TEXTURE_METERS_PER_TILE,
   ROAD_VISUAL_CORE_Y_OFFSET,
   ROAD_VISUAL_SHOULDER_Y_OFFSET,
   roadCoreMaximumHalfWidth,
@@ -167,12 +168,14 @@ export class RoadJunctionBuilder {
     material: THREE.Material,
     bridgeBlend = 0,
     edgeFades?: number[],
+    bridgeUvs: number[] = uvs,
   ): THREE.Mesh {
     const geometry = new THREE.BufferGeometry();
     geometry.setIndex(indices);
     geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
     geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
     geometry.setAttribute('uv2', new THREE.Float32BufferAttribute(uvs, 2));
+    geometry.setAttribute('bridgeUv', new THREE.Float32BufferAttribute(bridgeUvs, 2));
     const vertexCount = positions.length / 3;
     geometry.setAttribute(
       'bridgeBlend',
@@ -295,6 +298,10 @@ export class RoadJunctionBuilder {
     );
     const positions: number[] = [center.x, surfaceY, center.z];
     const uvs: number[] = [0.5, textureFrame.phaseV];
+    const bridgePhaseV = textureFrame.phaseV * 5.8
+      / BRIDGE_DECK_TEXTURE_METERS_PER_TILE;
+    const bridgeRepeatsAcross = width / BRIDGE_DECK_TEXTURE_METERS_PER_TILE;
+    const bridgeUvs: number[] = [bridgeRepeatsAcross * 0.5, bridgePhaseV];
     const indices: number[] = [];
 
     for (const local of contour) {
@@ -303,6 +310,11 @@ export class RoadJunctionBuilder {
         + local.y * textureFrame.perpendicular.z;
       positions.push(center.x + local.x, surfaceY, center.z + local.y);
       uvs.push(0.5 - lateral / width, textureFrame.phaseV + along / 5.8);
+      bridgeUvs.push(
+        bridgeRepeatsAcross * 0.5
+          - lateral / BRIDGE_DECK_TEXTURE_METERS_PER_TILE,
+        bridgePhaseV + along / BRIDGE_DECK_TEXTURE_METERS_PER_TILE,
+      );
     }
     for (let index = 0; index < contour.length; index++) {
       const current = index + 1;
@@ -315,7 +327,10 @@ export class RoadJunctionBuilder {
       indices,
       this.materials.road,
       bridgeBlend,
+      undefined,
+      bridgeUvs,
     );
+    mesh.userData.bridgeTextureMetersPerTile = BRIDGE_DECK_TEXTURE_METERS_PER_TILE;
     mesh.userData.junctionTextureDirection = [
       textureFrame.direction.x,
       textureFrame.direction.z,

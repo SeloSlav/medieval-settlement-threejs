@@ -3,7 +3,10 @@ import type { RoadEdge } from './RoadEdge.ts';
 import type { JunctionType, RoadNode } from './RoadNode.ts';
 import { RoadPathfinder } from './RoadPathfinder.ts';
 import { RoadSpatialIndex } from './roadSpatialIndex.ts';
-import type { CombatRiverNavigationGrid } from '../security/combatRiverNavigation.ts';
+import {
+  combatRiverNavigationIsWaterAt,
+  type CombatRiverNavigationGrid,
+} from '../security/combatRiverNavigation.ts';
 import {
   dryStoneWallSeed,
   type DryStoneWallState,
@@ -73,6 +76,42 @@ export class RoadNetwork {
 
   setRiverNavigation(grid: CombatRiverNavigationGrid): void {
     this.riverNavigation = grid;
+    this.pathfinder?.invalidate();
+  }
+
+  /**
+   * Civilian access legs may use dry ground or a rendered road deck, but never
+   * open water. Road membership is checked first because bridge XZ remains wet
+   * in the river mask beneath its elevated deck.
+   */
+  segmentAvoidsOpenWater(ax: number, az: number, bx: number, bz: number): boolean {
+    const navigation = this.riverNavigation;
+    if (!navigation) return true;
+    const length = Math.hypot(bx - ax, bz - az);
+    if (!Number.isFinite(length)) return false;
+    if (length <= 1e-8) return !this.isOpenWaterAt(ax, az);
+    const intervals = Math.max(1, navigation.resolution - 1);
+    const cellSize = Math.max(
+      navigation.spanX / intervals,
+      navigation.spanZ / intervals,
+      0.5,
+    );
+    const samples = Math.max(1, Math.min(256, Math.ceil(length / (cellSize * 0.35))));
+    for (let index = 0; index <= samples; index += 1) {
+      const t = index / samples;
+      if (this.isOpenWaterAt(
+        ax + (bx - ax) * t,
+        az + (bz - az) * t,
+      )) return false;
+    }
+    return true;
+  }
+
+  private isOpenWaterAt(x: number, z: number): boolean {
+    const navigation = this.riverNavigation;
+    return navigation != null
+      && !this.getSpatialIndex().isOnRoadSurface(x, z, 0.15)
+      && combatRiverNavigationIsWaterAt(navigation, x, z);
   }
 
   getPathfinder(): RoadPathfinder {

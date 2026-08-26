@@ -76,6 +76,17 @@ function effectiveDeliveryDistance(
   return directDistance / Math.max(OFFROAD_DELIVERY_SPEED_MULTIPLIER, 1e-6);
 }
 
+function directLocalRouteAllowed(
+  network: RoadNetwork,
+  ax: number,
+  az: number,
+  bx: number,
+  bz: number,
+): boolean {
+  return typeof network.segmentAvoidsOpenWater !== 'function'
+    || network.segmentAvoidsOpenWater(ax, az, bx, bz);
+}
+
 /**
  * Time-weighted local delivery distance. Disconnected destinations remain
  * reachable across open ground, while road routes are substantially faster.
@@ -87,7 +98,10 @@ export function localDeliveryDistance(
   bx: number,
   bz: number,
 ): number | null {
-  return effectiveDeliveryDistance(roadPathDistance(network, ax, az, bx, bz), ax, az, bx, bz);
+  const roadDistance = roadPathDistance(network, ax, az, bx, bz);
+  if (roadDistance != null && Number.isFinite(roadDistance)) return roadDistance;
+  if (!directLocalRouteAllowed(network, ax, az, bx, bz)) return null;
+  return effectiveDeliveryDistance(null, ax, az, bx, bz);
 }
 
 export type LocalDeliveryRoute = {
@@ -108,6 +122,7 @@ export function localDeliveryRoute(
   if (roadRoute && Number.isFinite(roadRoute.distance) && roadRoute.distance > 1e-6) {
     return { ...roadRoute, speedMultiplier: 1, offroad: false };
   }
+  if (!directLocalRouteAllowed(network, ax, az, bx, bz)) return null;
   const distance = Math.hypot(bx - ax, bz - az);
   if (!Number.isFinite(distance) || distance <= 1e-6) return null;
   return {
@@ -125,13 +140,12 @@ export function localDeliveryDistancesFrom(
   targets: readonly RoadPoint[],
 ): Array<number | null> {
   const roadDistances = roadPathDistancesFrom(network, ax, az, targets);
-  return targets.map((target, index) => effectiveDeliveryDistance(
-    roadDistances[index],
-    ax,
-    az,
-    target.x,
-    target.z,
-  ));
+  return targets.map((target, index) => {
+    const roadDistance = roadDistances[index];
+    if (roadDistance != null && Number.isFinite(roadDistance)) return roadDistance;
+    if (!directLocalRouteAllowed(network, ax, az, target.x, target.z)) return null;
+    return effectiveDeliveryDistance(null, ax, az, target.x, target.z);
+  });
 }
 
 export function isOperationalFirewoodSupplier(building: BuildingState): boolean {

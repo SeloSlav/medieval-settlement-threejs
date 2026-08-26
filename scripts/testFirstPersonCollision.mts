@@ -18,6 +18,8 @@ import {
 import type { RoadEdge } from '../src/roads/RoadEdge.ts';
 import { RoadMeshBuilder } from '../src/roads/RoadMeshBuilder.ts';
 import { RoadNetwork } from '../src/roads/RoadNetwork.ts';
+import { BRIDGE_FP_COLLISION_RADIUS_SCALE } from '../src/roads/BridgeRailings.ts';
+import { BRIDGE_DECK_TEXTURE_METERS_PER_TILE } from '../src/roads/roadDimensions.ts';
 import {
   resolveRoadAwareGroundY,
   sampleRoadSurfaceY,
@@ -407,6 +409,11 @@ function resolveAt(
     'Bridge railing rails',
   ) as THREE.InstancedMesh | undefined;
   assert.ok(railings, 'generated bridges should have timber railings on both sides');
+  assert.equal(
+    railings.userData.fpPlayerRadiusScale,
+    BRIDGE_FP_COLLISION_RADIUS_SCALE,
+    'narrow bridge rails should retain collision with a relaxed first-person padding radius',
+  );
   assert.ok(
     railingPosts && railingPosts.count >= 12,
     'bridge railings should have regularly spaced posts',
@@ -421,6 +428,7 @@ function resolveAt(
   const railingHeadings: number[] = [];
   let hasPitchedRail = false;
   let collisionRailPosition: THREE.Vector3 | null = null;
+  let collisionRailHalfExtentZ = 0;
   for (let index = 0; index < railingRails.count; index++) {
     railingRails.getMatrixAt(index, railingMatrix);
     railingPosition.setFromMatrixPosition(railingMatrix);
@@ -431,6 +439,11 @@ function resolveAt(
       && (!collisionRailPosition || railingPosition.z > collisionRailPosition.z)
     ) {
       collisionRailPosition = railingPosition.clone();
+      collisionRailHalfExtentZ = 0.5 * (
+        Math.abs(railingMatrix.elements[2])
+        + Math.abs(railingMatrix.elements[6])
+        + Math.abs(railingMatrix.elements[10])
+      );
     }
   }
   assert.ok(hasPitchedRail, 'railing bays should pitch with the bridge approach ramps');
@@ -439,6 +452,22 @@ function resolveAt(
     'railing bays should turn with a curved bridge centerline',
   );
   assert.ok(collisionRailPosition, 'the bridge should expose a railing bay near midspan');
+
+  const bridgeCore = bridgeGroup.getObjectByName(
+    `Road core ${bridgeEdge.id}`,
+  ) as THREE.Mesh | undefined;
+  const bridgeUv = bridgeCore?.geometry.getAttribute('bridgeUv');
+  assert.ok(bridgeUv, 'road ribbons should carry a dedicated metric bridge UV channel');
+  let bridgeUvMinU = Infinity;
+  let bridgeUvMaxU = -Infinity;
+  for (let index = 0; index < bridgeUv.count; index++) {
+    bridgeUvMinU = Math.min(bridgeUvMinU, bridgeUv.getX(index));
+    bridgeUvMaxU = Math.max(bridgeUvMaxU, bridgeUv.getX(index));
+  }
+  assert.ok(
+    bridgeUvMaxU - bridgeUvMinU > 1.2,
+    `the narrowed deck should repeat its ${BRIDGE_DECK_TEXTURE_METERS_PER_TILE} m plank tile across its width`,
+  );
 
   const roadCollisionRoot = new THREE.Group();
   roadCollisionRoot.name = 'Road network visuals';
@@ -483,6 +512,34 @@ function resolveAt(
   assert.ok(
     Math.abs(railingVelocity.z) < 1e-8,
     'bridge railing collision should remove velocity directed through the rail',
+  );
+
+  const relaxedClearance = collisionRailHalfExtentZ
+    + FP_WALK_FOOT_RADIUS_XZ
+      * (1 + BRIDGE_FP_COLLISION_RADIUS_SCALE)
+      * 0.5;
+  const closePassPosition = new THREE.Vector3(
+    collisionRailPosition.x,
+    collisionDeckY + 0.034,
+    collisionRailPosition.z - relaxedClearance,
+  );
+  const closePassVelocity = new THREE.Vector3(0, 0, 0.5);
+  bridgeCollisionWorld.prepare(closePassPosition.x, closePassPosition.z);
+  bridgeCollisionWorld.resolvePlayer(
+    closePassPosition,
+    closePassPosition.x,
+    closePassPosition.z - 0.04,
+    closePassVelocity,
+    {
+      bodyHeight: 1.78,
+      footRadius: FP_WALK_FOOT_RADIUS_XZ,
+      maxStepHeight: FP_WALK_STEP_UP_MARGIN,
+      grounded: true,
+    },
+  );
+  assert.ok(
+    Math.abs(closePassPosition.z - (collisionRailPosition.z - relaxedClearance)) < 1e-8,
+    'the player should be able to pass close to a narrow bridge rail without an oversized push',
   );
   assert.equal(
     bridgeCollisionWorld.sampleSupportTopY(

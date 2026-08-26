@@ -44,10 +44,11 @@ pub fn local_delivery_distance(
     bx: f64,
     bz: f64,
 ) -> Option<f64> {
-    effective_delivery_distance(
-        network.road_path_distance(ax, az, bx, bz),
-        direct_distance(ax, az, bx, bz),
-    )
+    let direct = network
+        .segment_avoids_open_water(ax, az, bx, bz)
+        .then(|| direct_distance(ax, az, bx, bz))
+        .flatten();
+    effective_delivery_distance(network.road_path_distance(ax, az, bx, bz), direct)
 }
 
 pub fn local_delivery_distances_from(
@@ -61,7 +62,11 @@ pub fn local_delivery_distances_from(
         .into_iter()
         .zip(targets)
         .map(|(road_distance, (bx, bz))| {
-            effective_delivery_distance(road_distance, direct_distance(ax, az, *bx, *bz))
+            let direct = network
+                .segment_avoids_open_water(ax, az, *bx, *bz)
+                .then(|| direct_distance(ax, az, *bx, *bz))
+                .flatten();
+            effective_delivery_distance(road_distance, direct)
         })
         .collect()
 }
@@ -82,6 +87,9 @@ pub fn local_delivery_route(
             route,
             speed_multiplier: 1.0,
         });
+    }
+    if !network.segment_avoids_open_water(ax, az, bx, bz) {
+        return None;
     }
     let distance = direct_distance(ax, az, bx, bz).filter(|distance| *distance > 1e-6)?;
     Some(LocalDeliveryRoute {
