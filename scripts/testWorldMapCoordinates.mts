@@ -700,7 +700,9 @@ assert.equal(
   'a tier-zero residence worksite should not retire the founders-camp emblem',
 );
 
-for (const tier of ['founders', 'hamlet', 'village', 'town'] as const) {
+assert.match(SETTLEMENT_MAP_ICON_HTML.founders, /gk-icon--camp/);
+assert.doesNotMatch(SETTLEMENT_MAP_ICON_HTML.founders, /<svg|<path/);
+for (const tier of ['hamlet', 'village', 'town'] as const) {
   assert.match(SETTLEMENT_MAP_ICON_HTML[tier], /settlement-map-icon-art/);
   assert.match(SETTLEMENT_MAP_ICON_HTML[tier], /<path/);
 }

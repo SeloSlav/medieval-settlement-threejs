@@ -2,15 +2,10 @@ import type { SettlementMapMarkerTier } from './settlementMapMarker.ts';
 
 const SVG_START = '<svg class="settlement-map-icon-art" viewBox="0 0 64 52" aria-hidden="true" focusable="false">';
 const SVG_END = '</svg>';
+const WOODCUT_CAMP_ICON = '<span class="settlement-map-icon-art settlement-map-icon-art--woodcut gk-icon gk-icon--construction gk-icon--camp" aria-hidden="true"></span>';
 
 export const SETTLEMENT_MAP_ICON_HTML: Record<SettlementMapMarkerTier, string> = {
-  founders: `${SVG_START}
-    <path class="settlement-map-icon-art__wash" d="M5 43 Q18 39 31 42 T59 42 L59 47 L5 47 Z"/>
-    <path d="M7 42 L18 20 L31 42 Z M18 20 L18 42 M12 42 L18 32 L24 42"/>
-    <path d="M35 42 L44 27 L55 42 Z M44 27 L44 42"/>
-    <path d="M28 43 q3-7 6 0 q-3 3-6 0 Z M31 36 q-4-4 0-8 q4-4 1-8"/>
-    <path class="settlement-map-icon-art__ground" d="M4 45 Q17 42 30 45 T60 44"/>
-  ${SVG_END}`,
+  founders: WOODCUT_CAMP_ICON,
   hamlet: `${SVG_START}
     <path class="settlement-map-icon-art__wash" d="M4 43 Q18 39 31 42 T60 42 L60 48 L4 48 Z"/>
     <path d="M20 43 V26 L32 15 L44 26 V43 M17 27 L32 12 L47 27 M28 43 V33 H36 V43"/>

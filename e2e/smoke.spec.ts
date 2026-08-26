@@ -431,6 +431,14 @@ test('connects, places a reforester, and updates settlement HUD timber', async (
     'Available surplus',
   );
   await expect(page.locator('#ui-tooltip')).toBeHidden();
+  const fuelStores = page.locator('[data-fuel-stores]');
+  const fuelSummary = fuelStores.locator('> summary');
+  await fuelSummary.hover();
+  await expect(fuelStores).toHaveAttribute('open', '');
+  await expect(fuelStores.getByRole('heading', { name: 'Fuel supply' })).toBeVisible();
+  await expect(page.locator('#ui-tooltip')).toBeHidden();
+  await foodSummary.hover();
+  await expect(foodStores).toHaveAttribute('open', '');
   const foodGrid = foodStores.locator('[data-food-breakdown]');
   const foodSummaryBox = await foodSummary.boundingBox();
   const foodGridBox = await foodGrid.boundingBox();
@@ -509,6 +517,11 @@ test('connects, places a reforester, and updates settlement HUD timber', async (
   await expect(specialtyStores.locator('[data-specialty-stores-mode-label]')).toHaveText(
     'Total stored',
   );
+  await fuelSummary.hover();
+  await expect(fuelStores).toHaveAttribute('open', '');
+  await expect(page.locator('#ui-tooltip')).toBeHidden();
+  await specialtySummary.hover();
+  await expect(specialtyStores).toHaveAttribute('open', '');
   await expectProvisionValuesToMatchTooltips(page, 'Total stored');
   await ironworkValue.hover();
   await expect(tooltip.locator('.ui-tooltip__amount-label')).toHaveText('Total stored');

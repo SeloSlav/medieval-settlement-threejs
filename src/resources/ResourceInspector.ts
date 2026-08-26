@@ -730,6 +730,11 @@ export class ResourceInspector {
       const stat = this.stockpileValues[resource]
         .closest<HTMLElement>('.settlement-hud__stat');
       if (!stat) continue;
+      if (resource === 'firewood' && stat.matches('.settlement-hud__stat--fuel')) {
+        delete stat.dataset.tooltipTitle;
+        delete stat.dataset.tooltip;
+        continue;
+      }
       const tooltip = showingTotal
         ? TOTAL_RESOURCE_TOOLTIPS[resource]
           ?? DEFAULT_TOTAL_RESOURCE_TOOLTIP
