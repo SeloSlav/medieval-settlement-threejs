@@ -643,6 +643,7 @@ function addTierOneWallShellWithOpenings(
   wallTop: number,
   openings: TierOneWallOpeningPlan,
   material: THREE.Material,
+  seed: number,
 ): THREE.Mesh {
   const halfW = width * 0.5;
   const halfD = depth * 0.5;
@@ -685,7 +686,7 @@ function addTierOneWallShellWithOpenings(
   }
   const wall = addMesh(
     group,
-    mergeBoxParts(parts),
+    applyTierOneDaubTint(mergeBoxParts(parts), seed),
     material,
     new THREE.Vector3(),
   );
@@ -845,6 +846,34 @@ function applyTierOneHewnTimberTint(
   geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
   geometry.userData.buildingWeatheringProfile = 'timber';
   geometry.userData.residenceHewnTimberTint = 'smoke-darkened-oak';
+  return geometry;
+}
+
+function applyTierOneDaubTint(
+  geometry: THREE.BufferGeometry,
+  seed: number,
+): THREE.BufferGeometry {
+  const position = geometry.getAttribute('position');
+  geometry.computeBoundingBox();
+  const minimumY = geometry.boundingBox?.min.y ?? 0;
+  const maximumY = geometry.boundingBox?.max.y ?? 1;
+  const height = Math.max(0.1, maximumY - minimumY);
+  const colors = new Float32Array(position.count * 3);
+  for (let index = 0; index < position.count; index += 1) {
+    const heightT = THREE.MathUtils.clamp(
+      (position.getY(index) - minimumY) / height,
+      0,
+      1,
+    );
+    const dampBase = 0.82 + heightT * 0.11;
+    const variation = tierOneCraftVariation(seed, index, 0.045);
+    colors[index * 3] = dampBase + variation;
+    colors[index * 3 + 1] = dampBase * 0.94 + variation * 0.7;
+    colors[index * 3 + 2] = dampBase * 0.84 + variation * 0.45;
+  }
+  geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+  geometry.userData.buildingWeatheringProfile = 'plaster';
+  geometry.userData.residenceDaubTint = 'earthy-clay-lime';
   return geometry;
 }
 
@@ -1987,6 +2016,7 @@ export function createResidenceMesh(
         wallTop,
         tierOneOpenings,
         wallMaterial,
+        seed,
       )
     : addMesh(
         group,
@@ -2035,6 +2065,7 @@ export function createResidenceMesh(
     tier === 1 ? 0.9 : 1.02,
     tier === 1 ? 1.72 : 1.92,
     tierOneWeatheredMaterial,
+    tier === 1 ? 'ground-level' : 'auto-stone-steps',
   );
   addFrontWindow(
     group,
@@ -2165,6 +2196,7 @@ export function createResidenceMesh(
   }
 
   for (const zSign of [-1, 1] as const) {
+    const beforeGable = group.children.length;
     addTriangularGableWall(
       group,
       'z',
@@ -2175,6 +2207,17 @@ export function createResidenceMesh(
       0.16,
       wallMaterial,
     );
+    if (tier === 1) {
+      const gable = group.children[beforeGable] as THREE.Mesh | undefined;
+      if (gable?.isMesh) {
+        applyTierOneDaubTint(
+          gable.geometry,
+          seed + (zSign > 0 ? 1_109 : 1_103),
+        );
+        gable.name = `Residence earthy daub gable ${zSign > 0 ? 'front' : 'rear'}`;
+        gable.userData.residenceSurfaceRole = 'clay-lime-daub';
+      }
+    }
   }
   if (tier > 1) {
     addWeatheredRoofEdgeCraft(

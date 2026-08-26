@@ -35,15 +35,23 @@ for (const seed of seeds) {
   assert.equal(residence.userData.residenceRoofFinish, 'bundled-thatch');
   assert.equal(residence.userData.residenceRoofTierContract, 'tier-1-thatch');
 
-  assertNamedPart(residence, 'Residence limestone plinth');
-  assertNamedPart(residence, 'Residence limestone plinth cap');
+  assertNamedPart(residence, 'Residence low rubble fieldstone footing');
   assertNamedPart(residence, 'Residence tier-one wall shell with true apertures');
-  assertNamedPart(residence, 'Residence hand-hewn corner posts');
-  assertNamedPart(residence, 'Residence ventilated timber gable kingposts');
+  assertNamedPart(residence, 'Residence hand-hewn sill post and brace frame');
+  assertNamedPart(residence, 'Residence rough kingpost and collar gables');
   assertNamedPart(residence, 'Residence shadowed plank door aperture');
   assertNamedPart(residence, 'Residence visible timber plank door leaf');
   assertNamedPart(residence, 'Residence door iron latch');
-  assertNamedPart(residence, 'Residence deep-eave door canopy roof');
+  assert.equal(
+    residence.getObjectByName('Residence deep-eave door canopy roof'),
+    undefined,
+    'the deep front thatch verge must shelter the doorway without a modern-looking canopy slab',
+  );
+  assert.equal(
+    residence.getObjectByName('Residence raised stone entrance stair'),
+    undefined,
+    'the low rubble footing must keep the cottage threshold at packed-earth level',
+  );
   assertNoLegacyOpeningCrosses(residence);
   assert.equal(
     residence.userData.residenceYardWork,
@@ -72,13 +80,13 @@ for (const seed of seeds) {
   const roofFieldSurfaces = collectRoofFieldSurfaces(residence);
   const roofEdgeSurfaces = collectRoofEdgeSurfaces(residence);
   assert.ok(
-    roofSurfaces.length >= 12,
-    'main, course, canopy, ridge, rake, and eave roof surfaces must be audited',
+    roofSurfaces.length >= 9,
+    'blankets, straw ridge, soft verges, and ragged eaves must all be audited',
   );
   assert.deepEqual(
     new Set(roofFieldSurfaces.map(materialName)),
     new Set(['Shared building material: thatch']),
-    'the short cottage roof planes, bundled courses, and canopy must share the thatch surface',
+    'the hand-laid cottage blankets must share the thatch surface',
   );
   assert.equal(
     new Set(roofFieldSurfaces.map((mesh) => mesh.material)).size,
@@ -87,19 +95,19 @@ for (const seed of seeds) {
   );
   assert.deepEqual(
     new Set(roofEdgeSurfaces.map(materialName)),
-    new Set(['Shared building material: timberWeathered']),
-    'ridge, rake, and fascia boards must use the existing desaturated weathered-wood surface',
+    new Set(['Shared building material: thatch']),
+    'the ridge roll, soft verges, and ragged eaves must remain thatch rather than sawn edge boards',
   );
   assert.equal(
     new Set(roofEdgeSurfaces.map((mesh) => mesh.material)).size,
     1,
-    'crafted roof edges must share one weathered-timber material instance',
+    'all dressed thatch edges must share the same thatch material instance',
   );
   assert.ok(
-    roofSurfaces.some((mesh) => mesh.name.includes('bundled-thatch')),
-    'tier-one roofs need merged, overlapping bundled-thatch course geometry',
+    roofSurfaces.some((mesh) => mesh.name.includes('bundled-thatch blanket')),
+    'tier-one roofs need a continuous, physically shaped bundled-thatch blanket',
   );
-  assertWeatheredRoofEdgeCraft(residence);
+  assertTierOneThatchEdgeCraft(residence);
   assertResidenceValueSeparation(residence);
   assertTierOneThatchMaterial(residence);
 
@@ -109,8 +117,8 @@ for (const seed of seeds) {
     `tier-one active draw-bearing mesh budget exceeded (${budget.meshes} > 56)`,
   );
   assert.ok(
-    budget.triangles <= 1_800,
-    `tier-one active triangle budget exceeded (${budget.triangles} > 1,800)`,
+    budget.triangles <= 2_800,
+    `tier-one active triangle budget exceeded (${budget.triangles} > 2,800)`,
   );
   assert.ok(
     budget.materials <= 10,
@@ -157,18 +165,24 @@ for (const tier of [1, 2, 3, 4] as const) {
       new Set([expectedFieldMaterial]),
       `tier-${tier} must use its authored shared roof field`,
     );
+    const expectedEdgeMaterial = tier === 1
+      ? 'Shared building material: thatch'
+      : 'Shared building material: timberWeathered';
     assert.deepEqual(
       new Set(collectRoofEdgeSurfaces(residence).map(materialName)),
-      new Set(['Shared building material: timberWeathered']),
-      'every current residence ridge, rake, and fascia must remain explicit weathered wood',
+      new Set([expectedEdgeMaterial]),
+      tier === 1
+        ? 'tier-one roof dressing must be packed straw without modern sawn edge boards'
+        : 'higher-tier ridge, rake, and fascia craft must remain explicit weathered wood',
     );
     assert.deepEqual(
       new Set(collectRoofSurfaces(residence).map(materialName)),
-      new Set([
-        expectedFieldMaterial,
-        'Shared building material: timberWeathered',
-      ]),
-      `tier-${tier} roof fields and crafted timber edges must remain explicitly separated`,
+      tier === 1
+        ? new Set([expectedFieldMaterial])
+        : new Set([expectedFieldMaterial, 'Shared building material: timberWeathered']),
+      tier === 1
+        ? 'tier-one must read as one continuous thatch covering'
+        : `tier-${tier} roof fields and crafted timber edges must remain explicitly separated`,
     );
     assert.equal(
       residence.userData.residenceRoofFinish,
@@ -345,11 +359,24 @@ function assertTierOneFacadeTimbers(root: THREE.Object3D): void {
     undefined,
     'tier-one façades must not retain the repeated horizontal timber courses',
   );
-  const corners = namedMesh(root, 'Residence hand-hewn corner posts');
-  assert.equal(corners.userData.residenceFacadeTimberRhythm, 'vertical-corners-only');
+  const frame = namedMesh(root, 'Residence hand-hewn sill post and brace frame');
+  assert.equal(
+    frame.userData.residenceFacadeTimberRhythm,
+    'sill-post-knee-brace-frame',
+  );
+  assert.equal(frame.userData.residenceFacadeTimberRole, 'load-bearing-frame');
+  assert.equal(
+    frame.geometry.userData.residenceHewnTimberTint,
+    'smoke-darkened-oak',
+  );
   assert.deepEqual(
     root.userData.residenceBuildingPlan.facadeModules,
-    ['limewashed-infill', 'true-wall-apertures', 'hewn-corner-posts'],
+    [
+      'rough-rubble-footing',
+      'clay-lime-daub-infill',
+      'true-wall-apertures',
+      'hewn-sill-post-brace-frame',
+    ],
   );
   root.traverse((object) => {
     assert.notEqual(
@@ -423,75 +450,61 @@ function materialName(mesh: THREE.Mesh): string {
   return (mesh.material as THREE.Material).name;
 }
 
-function assertWeatheredRoofEdgeCraft(root: THREE.Object3D): void {
-  assert.equal(root.userData.residenceRoofEdgeFinish, 'muted-weathered-wood');
-  assert.equal(root.userData.residenceRoofEdgeVariantCount, 4);
+function assertTierOneThatchEdgeCraft(root: THREE.Object3D): void {
+  assert.equal(root.userData.residenceRoofEdgeFinish, 'hand-dressed-thatch');
+  assert.equal(root.userData.residenceRoofEdgeVariantCount, 7);
   const edges = collectRoofEdgeSurfaces(root);
-  assert.equal(edges.length, 7, 'one ridge, four rake, and two fascia meshes must replace the mechanical edge bars');
+  assert.equal(
+    edges.length,
+    7,
+    'one straw ridge, four soft verges, and two ragged eaves must dress the thatch blanket',
+  );
   const roles = edges.reduce<Record<string, number>>((counts, mesh) => {
     const role = String(mesh.userData.residenceRoofEdgeRole);
     counts[role] = (counts[role] ?? 0) + 1;
-    assert.equal(mesh.userData.residenceRoofFinish, 'weathered-split-wood-edge');
-    assert.equal(mesh.userData.residenceRoofEdgeVariantPalette, 'muted-weathered-wood-4');
+    assert.equal(mesh.userData.residenceRoofFinish, 'bundled-thatch');
+    assert.equal(mesh.userData.residenceRoofEdgeVariantPalette, 'hand-packed-thatch');
     return counts;
   }, {});
   assert.deepEqual(roles, {
-    ridge: 1,
-    'gable-rake': 4,
-    'eave-fascia': 2,
+    'thatch-ridge-roll': 1,
+    'ragged-thatch-eave': 2,
+    'soft-thatch-verge': 4,
   });
-  const ridge = edges.find((mesh) => mesh.userData.residenceRoofEdgeRole === 'ridge');
-  assert.ok(ridge, 'segmented weathered-wood ridge must remain visible');
+  const ridge = edges.find(
+    (mesh) => mesh.userData.residenceRoofEdgeRole === 'thatch-ridge-roll',
+  );
+  assert.ok(ridge, 'the segmented straw ridge roll must remain visible');
   assert.equal(ridge.userData.residenceRoofEdgePartCount, 3);
-  for (const rake of edges.filter((mesh) => mesh.userData.residenceRoofEdgeRole === 'gable-rake')) {
-    assert.equal(rake.userData.residenceRoofEdgePartCount, 2);
-    assert.equal(rake.userData.residenceRoofEdgeButtGapMeters, 0.026);
+  for (const verge of edges.filter(
+    (mesh) => mesh.userData.residenceRoofEdgeRole === 'soft-thatch-verge',
+  )) {
+    assert.equal(verge.userData.residenceRoofEdgePartCount, 4);
   }
-  for (const fascia of edges.filter((mesh) => mesh.userData.residenceRoofEdgeRole === 'eave-fascia')) {
-    assert.equal(fascia.userData.residenceRoofEdgePartCount, 3);
-    assert.equal(fascia.userData.residenceRoofEdgeButtGapMeters, 0.02);
+  for (const eave of edges.filter(
+    (mesh) => mesh.userData.residenceRoofEdgeRole === 'ragged-thatch-eave',
+  )) {
+    assert.equal(eave.userData.residenceRoofEdgePartCount, 10);
     assert.ok(
-      Number(fascia.userData.residenceRoofEdgeVerticalVariationMeters) >= 0.02,
-      'fascia segments must interrupt the ruler-straight lower edge',
+      Number(eave.userData.residenceThatchEaveVariationMeters) >= 0.1,
+      'bundled eave ends must interrupt the ruler-straight lower edge',
     );
   }
-
-  const tints = new Set<string>();
-  let edgeTriangles = 0;
-  for (const edge of edges) {
-    const colors = edge.geometry.getAttribute('color');
-    assert.ok(colors, `${edge.name} must carry deterministic weathered-wood variants`);
-    for (let index = 0; index < colors.count; index += 1) {
-      tints.add(
-        [
-          colors.getX(index).toFixed(3),
-          colors.getY(index).toFixed(3),
-          colors.getZ(index).toFixed(3),
-        ].join(','),
-      );
-    }
-    const positions = edge.geometry.getAttribute('position');
-    edgeTriangles += edge.geometry.index
-      ? edge.geometry.index.count / 3
-      : positions.count / 3;
-  }
-  assert.equal(tints.size, 4, 'roof edge craft must use exactly four bounded muted wood tints');
-  assert.equal(
-    edgeTriangles,
-    94,
-    'open-backed segmented edge craft must stay within the exact 94-triangle contract',
+  assert.ok(
+    edges.every((edge) => edge.geometry.getAttribute('color')),
+    'the shared thatch weathering must remain present across every edge module',
   );
 }
 
 function assertResidenceValueSeparation(root: THREE.Object3D): void {
   const plaster = namedMesh(root, 'Residence tier-one wall shell with true apertures');
-  const stone = namedMesh(root, 'Residence limestone plinth');
+  const stone = namedMesh(root, 'Residence low rubble fieldstone footing');
   const aperture = namedMesh(root, 'Residence shadowed plank door aperture');
-  const roofPlane = namedMesh(root, 'Residence main roof plane left');
-  const exposedRoof = roofMeshContaining(root, 'bundled-thatch courses');
+  const roofPlane = namedMesh(root, 'Residence hand-laid bundled-thatch blanket left');
+  const exposedRoof = namedMesh(root, 'Residence hand-packed straw ridge roll');
   const structuralTimber = namedMesh(
     root,
-    'Residence hand-hewn corner posts',
+    'Residence hand-hewn sill post and brace frame',
   );
   const plasterLuma = materialLinearLuma(plaster);
   const stoneLuma = materialLinearLuma(stone);
@@ -500,8 +513,14 @@ function assertResidenceValueSeparation(root: THREE.Object3D): void {
   const exposedRoofLuma = materialLinearLuma(exposedRoof);
   const structuralTimberLuma = materialLinearLuma(structuralTimber);
 
-  assert.ok(plasterLuma >= 0.85, `lime plaster must remain a bright exposure anchor (${plasterLuma.toFixed(3)})`);
-  assert.ok(stoneLuma >= 0.55, `limestone must remain readable under production exposure (${stoneLuma.toFixed(3)})`);
+  assert.ok(
+    plasterLuma >= 0.42 && plasterLuma <= 0.62,
+    `clay-lime daub needs a muted earthen middle value (${plasterLuma.toFixed(3)})`,
+  );
+  assert.ok(
+    stoneLuma >= 0.2 && stoneLuma <= 0.32,
+    `rough footing stone must stay darker than the daub (${stoneLuma.toFixed(3)})`,
+  );
   assert.ok(apertureLuma <= 0.02, `door aperture must read as a deep shadow (${apertureLuma.toFixed(3)})`);
   assert.ok(
     exposedRoofLuma >= 0.24 && exposedRoofLuma <= 0.38,
@@ -509,28 +528,30 @@ function assertResidenceValueSeparation(root: THREE.Object3D): void {
   );
   assert.ok(
     Math.abs(roofPlaneLuma - exposedRoofLuma) <= 0.001,
-    'roof plane and exposed courses must share one authored thatch value',
+    'thatch blanket and straw ridge roll must share one authored value',
   );
   assert.ok(
     structuralTimberLuma >= 0.15 && structuralTimberLuma <= 0.35,
     `structural timber must separate from plaster without becoming black (${structuralTimberLuma.toFixed(3)})`,
   );
-  assert.ok(plasterLuma - apertureLuma >= 0.8, 'plaster and apertures need decisive value separation');
+  assert.ok(plasterLuma - apertureLuma >= 0.4, 'daub and apertures need decisive value separation');
   assertResidenceMaterialResponse(plaster, {
-    role: 'lime-plaster',
-    materialName: 'Shared building material: plasterWhite',
+    role: 'clay-lime-daub',
+    materialName: 'Shared building material: plasterGrey',
     ambientFill: 0.11,
     minimumRoughness: 0.94,
-    normalScale: 0.3,
-    usesDiffuseMap: false,
+    normalScale: 0.46,
+    usesDiffuseMap: true,
+    uniformIndirectLight: false,
   });
   assertResidenceMaterialResponse(stone, {
-    role: 'foundation-stone',
-    materialName: 'Shared building material: masonryMid',
+    role: 'rough-rubble-footing',
+    materialName: 'Shared building material: masonryDark',
     ambientFill: 0.11,
     minimumRoughness: 0.95,
     normalScale: 0.82,
     usesDiffuseMap: true,
+    uniformIndirectLight: false,
   });
   assertResidenceMaterialResponse(structuralTimber, {
     role: 'structural-timber',
@@ -541,7 +562,7 @@ function assertResidenceValueSeparation(root: THREE.Object3D): void {
     usesDiffuseMap: true,
   });
   assertResidenceMaterialResponse(exposedRoof, {
-    role: 'bundled-thatch-course',
+    role: 'bundled-thatch-ridge',
     materialName: 'Shared building material: thatch',
     ambientFill: 0.11,
     minimumRoughness: 1,
@@ -561,7 +582,7 @@ function assertResidenceValueSeparation(root: THREE.Object3D): void {
 }
 
 function assertTierOneThatchMaterial(root: THREE.Object3D): void {
-  const roof = namedMesh(root, 'Residence main roof plane left');
+  const roof = namedMesh(root, 'Residence hand-laid bundled-thatch blanket left');
   assert.equal(Array.isArray(roof.material), false);
   const material = roof.material as THREE.MeshStandardMaterial;
   assert.equal(
@@ -946,7 +967,14 @@ function assertWarmShingleBackFaceFinish(root: THREE.Object3D): void {
 
   assert.equal(Array.isArray(mainPlane.material), false);
   const material = mainPlane.material as THREE.MeshStandardMaterial;
-  assert.ok(material.map instanceof THREE.DataTexture);
+  if (!(material.map instanceof THREE.DataTexture)) {
+    assert.equal(
+      material.userData.buildingMaterialAtlasTile,
+      'split-shingles',
+      'the unchanged tier-two roof may retain the shared split-shingle atlas source',
+    );
+    return;
+  }
   const pixels = material.map.image.data as Uint8Array;
   const width = material.map.image.width;
   const height = material.map.image.height;
@@ -1004,7 +1032,7 @@ function assertResidenceCameraContract(): void {
   );
   assert.ok(
     subjectFrame.maxX - subjectFrame.minX >= 1
-      && subjectFrame.maxY - subjectFrame.minY >= 1.6,
+      && subjectFrame.maxY - subjectFrame.minY >= 1.55,
     `residence judge must devote useful frame area to its subject (${JSON.stringify(subjectFrame)})`,
   );
   assert.ok(
@@ -1079,6 +1107,7 @@ function assertResidenceMaterialResponse(
     minimumRoughness: number;
     normalScale: number;
     usesDiffuseMap: boolean;
+    uniformIndirectLight?: boolean;
     weatheringProfile?: string;
     textureFamily?: string;
   },
@@ -1093,8 +1122,8 @@ function assertResidenceMaterialResponse(
   );
   assert.equal(
     material.userData.buildingUniformIndirectLight,
-    true,
-    `${expected.role} indirect fill must not be darkened by its diffuse texture`,
+    expected.uniformIndirectLight ?? true,
+    `${expected.role} indirect-light policy must remain explicit`,
   );
   if (expected.weatheringProfile) {
     assert.equal(

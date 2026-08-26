@@ -230,9 +230,15 @@ export function sharedBuildingMaterial(key: BuildingMaterialKey): BuildingAtlasM
     material.userData.metricUvMeters = TEXTURE_METERS[definition.textureFamily];
   }
   if (key === 'shingle') configureSplitWoodShingleSurface(material);
-  if (key === 'thatch') configureProceduralThatchSurface(material);
   materialCache.set(key, material);
-  applyTextureSet(material, definition);
+  // Thatch owns a dedicated fibre/course/roughness texture set. It must not
+  // receive the generic atlas colorNode, which would take render ownership
+  // away from those reed maps and make the roof read as a flat board field.
+  if (key === 'thatch') {
+    configureProceduralThatchSurface(material);
+  } else {
+    applyTextureSet(material, definition);
+  }
   return material;
 }
 
