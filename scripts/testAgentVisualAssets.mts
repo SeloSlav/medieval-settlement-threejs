@@ -696,6 +696,9 @@ for (const sourcePath of [
   'src/logistics/deliveryCartWorker.ts',
   'src/foraging/DeerWildlifeVisuals.ts',
   'src/foraging/FishWildlifeVisuals.ts',
+  'src/residences/backyardGoatAssets.ts',
+  'src/residences/backyardPigAssets.ts',
+  'src/residences/backyardChickenAssets.ts',
 ]) {
   const source = fs.readFileSync(sourcePath, 'utf8');
   assert.doesNotMatch(
@@ -704,6 +707,13 @@ for (const sourcePath of [
     `${sourcePath} should remain outside the shadow system`,
   );
 }
+
+const backyardGardenSource = fs.readFileSync('src/residences/backyardGardenMesh.ts', 'utf8');
+assert.match(
+  backyardGardenSource,
+  /bird\.rotation[\s\S]*disableAnimalShadows\(bird\)[\s\S]*goat\.rotation[\s\S]*disableAnimalShadows\(goat\)[\s\S]*pig\.rotation[\s\S]*disableAnimalShadows\(pig\)/,
+  'procedural fallback chickens, goats, and pigs should all opt out of shadows',
+);
 
 const burialMarkerSource = fs.readFileSync('src/residences/BurialMarkers.ts', 'utf8');
 const movingBurialVisuals = burialMarkerSource.slice(

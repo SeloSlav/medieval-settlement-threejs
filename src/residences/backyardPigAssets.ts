@@ -39,8 +39,8 @@ export function createBackyardPigModel(
   model.traverse((object) => {
     const mesh = object as THREE.Mesh;
     if (!mesh.isMesh) return;
-    mesh.castShadow = true;
-    mesh.receiveShadow = true;
+    mesh.castShadow = false;
+    mesh.receiveShadow = false;
     mesh.frustumCulled = false;
     mesh.userData.backyardSharedGeometry = true;
   });

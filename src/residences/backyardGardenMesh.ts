@@ -1795,6 +1795,7 @@ function addChickenPenFixtures(group: THREE.Group, plan: AnimalPenVisualPlan): v
     addMesh(bird, new THREE.ConeGeometry(0.045, 0.14, 5), MATERIALS.terracotta, 0.27, 0.38, 0, new THREE.Euler(0, 0, -Math.PI * 0.5));
     bird.position.set((rng() - 0.34) * footprint.width * 0.72, 0, (rng() - 0.2) * footprint.depth * 0.62);
     bird.rotation.y = rng() * Math.PI * 2;
+    disableAnimalShadows(bird);
     group.add(bird);
   }
 }
@@ -1814,6 +1815,7 @@ function addGoatPenFixtures(group: THREE.Group, plan: AnimalPenVisualPlan): void
     }
     goat.position.set((rng() - 0.25) * footprint.width * 0.55, 0, (rng() - 0.1) * footprint.depth * 0.5);
     goat.rotation.y = rng() * Math.PI * 2;
+    disableAnimalShadows(goat);
     group.add(goat);
   }
 }
@@ -1834,8 +1836,18 @@ function addPigPenFixtures(group: THREE.Group, plan: AnimalPenVisualPlan): void 
     }
     pig.position.set((rng() - 0.28) * footprint.width * 0.58, 0, (rng() - 0.05) * footprint.depth * 0.5);
     pig.rotation.y = rng() * Math.PI * 2;
+    disableAnimalShadows(pig);
     group.add(pig);
   }
+}
+
+function disableAnimalShadows(animal: THREE.Object3D): void {
+  animal.traverse((object) => {
+    const mesh = object as THREE.Mesh;
+    if (!mesh.isMesh) return;
+    mesh.castShadow = false;
+    mesh.receiveShadow = false;
+  });
 }
 
 function addBackyardApiary(group: THREE.Group, width: number, depth: number, seed: number): void {

@@ -50,8 +50,8 @@ export function createBackyardGoatModel(
       return material;
     });
     mesh.material = Array.isArray(mesh.material) ? goatMaterials : goatMaterials[0]!;
-    mesh.castShadow = true;
-    mesh.receiveShadow = true;
+    mesh.castShadow = false;
+    mesh.receiveShadow = false;
     mesh.frustumCulled = false;
     mesh.userData.backyardSharedGeometry = true;
   });
@@ -65,7 +65,8 @@ export function createBackyardGoatModel(
     horn.name = 'Procedural goat horn';
     horn.position.set(side * 0.1, targetHeight * 0.82, targetHeight * 0.28);
     horn.rotation.set(side * 0.32, 0, side * -0.38);
-    horn.castShadow = true;
+    horn.castShadow = false;
+    horn.receiveShadow = false;
     root.add(horn);
   }
   const beard = new THREE.Mesh(
