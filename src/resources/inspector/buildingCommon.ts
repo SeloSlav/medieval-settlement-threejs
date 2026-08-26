@@ -88,7 +88,6 @@ export function buildingStorageRows(
     caps.linen != null && caps.linen > 0 ? `<li><span>Linen stored</span><span>${Math.round(building.linen ?? 0)} / ${caps.linen}</span></li>` : '',
     caps.cloth != null && caps.cloth > 0 ? `<li><span>Clothing stored</span><span>${Math.round(building.cloth ?? 0)} / ${caps.cloth}</span></li>` : '',
     caps.pelts != null && caps.pelts > 0 ? `<li><span>Pelts stored</span><span>${Math.round(building.pelts ?? 0)} / ${caps.pelts}</span></li>` : '',
-    caps.pelts != null && caps.pelts > 0 ? `<li><span>Pelts stored</span><span>${Math.round(building.pelts ?? 0)} / ${caps.pelts}</span></li>` : '',
     includeFrontierStock && caps.ironwork != null && caps.ironwork > 0 ? `<li><span>Ironwork stored</span><span>${Math.round(building.ironwork ?? 0)} / ${caps.ironwork}</span></li>` : '',
     includeFrontierStock && caps.polearms != null && caps.polearms > 0 ? `<li><span>Polearms stored</span><span>${Math.round(building.polearms ?? 0)} / ${caps.polearms}</span></li>` : '',
     caps.iron != null && caps.iron > 0 ? `<li><span>Iron stored</span><span>${Math.round(building.iron ?? 0)} / ${caps.iron}</span></li>` : '',

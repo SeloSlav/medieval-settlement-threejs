@@ -61,7 +61,7 @@ const requestedCamera = lineupParams.get('camera');
 const cameraBookmark = requestedCamera === 'near' || requestedCamera === 'far'
   ? requestedCamera
   : 'design';
-const shrineDebugMode = lineupParams.get('debug') === 'massing' ? 'massing' : 'final';
+const architectureDebugMode = lineupParams.get('debug') === 'massing' ? 'massing' : 'final';
 const presentationMode = lineupParams.get('presentation') === 'no-post' ? 'no-post' : 'final';
 const showWaysidePrayerVisitors = lineupParams.get('visitors') === 'prayer';
 const showClearedFoundingStockyard = lineupParams.get('mode') === 'cleared-stockyard';
@@ -249,9 +249,9 @@ const viewSpecs = compareServiceCoverage
   : [
       ...selectedKinds.map((kind) => {
         const mesh = kind === 'wayside_shrine'
-          ? createWaysideShrineMesh(shrineDebugMode)
+          ? createWaysideShrineMesh(architectureDebugMode)
           : kind === 'spinning_retting_house'
-            ? createSpinningRettingHouseMesh(shrineDebugMode)
+            ? createSpinningRettingHouseMesh(architectureDebugMode)
           : createBuildingMesh(kind);
         if (showStockedState) {
           mesh.traverse((object) => {
@@ -496,7 +496,7 @@ window.__BUILDING_LINEUP_METRICS__ = {
         : null
     : null,
   camera: cameraBookmark,
-  debugMode: shrineDebugMode,
+  debugMode: architectureDebugMode,
   presentation: presentationMode,
   rendererBackend: rendererBackend.kind,
   viewport: [root.clientWidth, root.clientHeight],

@@ -16,9 +16,9 @@ use crate::balance_generated::{
     MINE_TIMBER_SUPPORT_PER_CYCLE, POTTER_CLAY_PER_CYCLE, POTTER_FIREWOOD_PER_CYCLE,
     POTTER_WATER_PER_CYCLE, SMITHY_CHARCOAL_PER_CYCLE, SMITHY_IRON_PER_CYCLE,
     SMITHY_WATER_PER_CYCLE, SMOKEHOUSE_FIREWOOD_PER_CYCLE, SMOKEHOUSE_FOOD_PER_CYCLE,
-    SMOKEHOUSE_POTTERY_PER_CYCLE, SMOKEHOUSE_SALT_PER_CYCLE, TANNERY_FIREWOOD_PER_CYCLE,
-    SPINNING_RETTING_FLAX_PER_CYCLE, SPINNING_RETTING_FLAX_WATER_PER_CYCLE,
-    SPINNING_RETTING_WOOL_PER_CYCLE, TANNERY_HIDES_PER_CYCLE, TANNERY_WATER_PER_CYCLE,
+    SMOKEHOUSE_POTTERY_PER_CYCLE, SMOKEHOUSE_SALT_PER_CYCLE, SPINNING_RETTING_FLAX_PER_CYCLE,
+    SPINNING_RETTING_FLAX_WATER_PER_CYCLE, SPINNING_RETTING_WOOL_PER_CYCLE,
+    TANNERY_FIREWOOD_PER_CYCLE, TANNERY_HIDES_PER_CYCLE, TANNERY_WATER_PER_CYCLE,
     THRESHING_SHEAVES_PER_CYCLE, WATERMILL_GRAIN_PER_CYCLE, WEAVER_LINEN_PER_CYCLE,
     WEAVER_YARN_PER_CYCLE,
 };
@@ -1255,6 +1255,26 @@ mod tests {
         assert_eq!(
             directly_dispatched_processor_input_per_cycle("pastoral_farmstead", "oatGrain"),
             1.0,
+        );
+        assert_eq!(
+            directly_dispatched_processor_input_per_cycle("spinning_retting_house", "wool"),
+            super::SPINNING_RETTING_WOOL_PER_CYCLE,
+        );
+        assert_eq!(
+            directly_dispatched_processor_input_per_cycle("spinning_retting_house", "flax"),
+            super::SPINNING_RETTING_FLAX_PER_CYCLE,
+        );
+        assert_eq!(
+            directly_dispatched_processor_input_per_cycle("spinning_retting_house", "water"),
+            super::SPINNING_RETTING_FLAX_WATER_PER_CYCLE,
+        );
+        assert_eq!(
+            directly_dispatched_processor_input_per_cycle("weaver", "yarn"),
+            super::WEAVER_YARN_PER_CYCLE,
+        );
+        assert_eq!(
+            directly_dispatched_processor_input_per_cycle("weaver", "linen"),
+            super::WEAVER_LINEN_PER_CYCLE,
         );
         assert_eq!(
             MARKETPLACE_MATERIAL_TARGET_KINDS,

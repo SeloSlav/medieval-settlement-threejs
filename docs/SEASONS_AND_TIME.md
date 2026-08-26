@@ -601,12 +601,15 @@ target, route, and stable-order sequence. Construction queue intent never
 carries into these completed-building logistics.
 The same control also orders direct producer carts for the next link: flour
 from watermills to staffed granary bakeries, fresh food dispatched from
-granaries or swine holdings to smokehouses, and annual fleece sent to weavers.
-These routes restore the workshop stock policy's one-, two-, or three-cycle
-working buffer by priority before falling back to nearest-route overflow, so a
-high tier cannot absorb every warehouse. Lean, Balanced, Deep, and Fill also
-apply the same staging depth to bakery and smokehouse fuel plus well water;
-Fill remains the save-compatible three-cycle default.
+granaries or swine holdings to smokehouses, annual fleece and harvested flax
+sent to Spinning & Retting Houses, and prepared Yarn or Linen sent onward to
+Weavers. Flax preparation also enters the well's household-first industrial
+queue for its physical water cask. These routes restore the workshop stock
+policy's one-, two-, or three-cycle working buffer by priority before falling
+back to nearest-route overflow, so a high tier cannot absorb every warehouse.
+Lean, Balanced, Deep, and Fill apply the same staging depth to fibre, prepared
+fibre, bakery and smokehouse fuel, and industrial well water; Fill remains the
+save-compatible three-cycle default.
 
 The crop-year grain account keeps its settlement-wide owned-stock view for
 strategic harvest, seed, livestock-supplement, and reserve planning, but processor
@@ -647,44 +650,55 @@ links to the largest imbalance. It reuses the pathfinder's cached component map
 and performs no shortest-path solves.
 
 Prosperity throughput uses the same topology rule. Staffed smokehouses,
-breweries, and weavers contribute their preserved-food, ale, and cloth capacity
-only to their own road component. Each branch can sustain the smallest of those
-three resident-equivalent outputs; complete branch capacities are summed, while
-split specializations are reported as stranded installed capacity. Current
-tier-three residents and every vacant place in existing tier-three houses are
-audited against their own branch, and the first exposed home is inspectable.
-When previewing a tier-two promotion, the immediate occupants and the full
-house are compared with that specific branch rather than remote surplus.
-Upgrade authority remains with the existing physical service-route and resource
-checks. The forecast adds no save state or path solve and runs only for the Town
-Hall and tier-two residence inspectors that already request the production
-scan.
+breweries, Spinning & Retting Houses, Weavers, and potters contribute their
+preserved-food, ale, prepared-fibre, clothing, and pottery capacity only to
+their own road component. Textile capacity is the smaller of the local
+preparation and weaving stages before it joins the other resident-equivalent
+outputs. Complete branch capacities are summed, while split specializations are
+reported as stranded installed capacity. Current tier-three residents and
+every vacant place in existing tier-three houses are audited against their own
+branch, and the first exposed home is inspectable. When previewing a tier-two
+promotion, the immediate occupants and the full house are compared with that
+specific branch rather than remote surplus. Upgrade authority remains with the
+existing physical service-route and resource checks. The forecast adds no save
+state or path solve and runs only for the Town Hall and tier-two residence
+inspectors that already request the production scan.
 
-The annual textile account now follows the physical sheep-to-loom step as well.
-Each completed holding's projected and currently secured clip is grouped on
-the same cached road component used when the livestock simulation dispatches
-wool. Installed loom capacity can consume only that branch's fleece, and the
-cloth produced there first covers current prosperous-house demand on that
-branch; any local remainder is reported as above household need rather than
-silently covering a disconnected home. A separate physical export ledger then
-decides whether that remainder can actually reach a market. The Town Hall retains the settlement-wide
-installed ceiling for long-range planning, then reports physically paired
-output, topology-stranded capacity, local household coverage, and the first
-exposed home or wool holding. Joined and independently complete satellite
-branches keep their full output.
+The annual textile account follows both physical raw-fibre routes and both
+staffed workshop stages. Each complete preparation cycle consumes either three
+Wool or three Flax plus one hauled unit of well water and produces two Yarn or
+two Linen. A Weaver then consumes two Yarn or two Linen and produces two
+Clothing. The save-compatible textile preference is reused at both stages:
+Wool-first versus Flax-first at the Spinning & Retting House maps to Yarn-first
+versus Linen-first at the Weaver, while a complete alternate recipe remains a
+fallback so staged stock is not needlessly stranded.
 
-The current textile reserve uses the same physical scope. Cloth in an occupied
-tier-three cupboard, at a completed staffed weaver on that household's branch,
-or already aboard a cart bound for the home counts toward service runway.
-Treasury cloth, marketplace export stock, an unstaffed loom's inventory, and
-stock on a branch without current prosperous households remain in the owned
-total but cannot conceal a local service gap. The Town Hall reports the weakest
-branch, branches without a stocked loom route, and reserves below fourteen
-days—roughly one two-cloth delivery for a full ten-person household—then links
-to the first exposed home. Individual-house runway labels use the same
-120 simulated seconds per calendar day as the aggregate forecast, matching
-continuous ordinary consumption at every displayed hour. The reduction adds
-no save fields or path solves and remains
+Projected fleece, secured flax, existing Yarn and Linen, preparation capacity,
+and loom capacity are grouped on the same cached road component used by the
+physical carts. Installed weaving cannot promise output without enough local
+prepared fibre, and raw fibre cannot skip the Spinning & Retting House. Clothing
+first covers current prosperous-house demand on that branch; any local
+remainder is reported above household need rather than silently covering a
+disconnected home. A separate physical export ledger decides whether raw
+fibre, Yarn, Linen, or Clothing can actually reach a Trading Post. The Town Hall
+retains settlement-wide ceilings for long-range planning, then reports the
+paired two-stage output, the limiting stage, topology-stranded capacity, local
+household coverage, and the first exposed home or fibre holding. Joined and
+independently complete satellite branches keep their full output.
+
+The current textile reserve uses the same physical scope. Clothing in an
+occupied tier-three cupboard, at a completed staffed Weaver on that household's
+branch, or already aboard a cart bound for the home counts toward service
+runway. Treasury clothing, Marketplace export stock, an unstaffed workshop's
+inventory, and stock on a branch without current prosperous households remain
+in the owned total but cannot conceal a local service gap. Yarn and Linen remain
+physical intermediate inventory until a staffed Weaver processes them. The
+Town Hall reports the weakest branch, branches missing either preparation or
+weaving, and reserves below fourteen days—roughly one two-clothing delivery for
+a full ten-person household—then links to the first exposed home. Individual-
+house runway labels use the same 120 simulated seconds per calendar day as the
+aggregate forecast, matching continuous ordinary consumption at every
+displayed hour. The reduction adds no save fields or path solves and remains
 linear in holdings, active textile branches, buildings, homes, and moving
 carts.
 
@@ -817,7 +831,10 @@ Food is stored in several places:
 - Residences hold delivered food in their household need stock.
 - Treasury food exists as an overflow/salvage fallback, but is the least efficient
   place to leave it.
-- Village storehouses hold timber, stone, and firewood; they do not hold food.
+- Granaries also accept harvested Flax as an agricultural reserve and processor
+  source; they do not accept Wool, Yarn, or Linen.
+- Village Storehouses hold timber, stone, firewood, and dry workshop goods,
+  including Wool, Yarn, Linen, and Clothing; they do not hold food or Flax.
 
 Fresh food decays proportionally each simulation step. Granaries reduce spoilage to
 35% of the seasonal rate, smokehouses to 55%, monasteries to 65%, and marketplaces

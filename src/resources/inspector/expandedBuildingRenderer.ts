@@ -745,7 +745,7 @@ function renderLogisticsRows(
     : flaxDispatch
       ? flaxDispatch.duty === 'working-buffer'
         ? `${context.worldQueries.getBuildingLabel(flaxDispatch.target.kind)} · ${weaverFibreDeliveryPreferenceLabel(flaxDispatch.target.weaverInputPolicy, 'flax')} · ${Math.round(flaxDispatch.target.flax ?? 0)} / ${Math.ceil(flaxDispatch.desiredStock)} flax`
-        : `${context.worldQueries.getBuildingLabel(flaxDispatch.target.kind)} · active loom buffers covered · nearest overflow route`
+        : `${context.worldQueries.getBuildingLabel(flaxDispatch.target.kind)} · active fibre-workshop buffers covered · nearest overflow route`
       : flourDispatch
       ? flourDispatch.duty === 'working-buffer'
         ? `${context.worldQueries.getBuildingLabel(flourDispatch.target.kind)} · ${Math.round(Math.max(0, flourCommodity ? flourDispatch.target[flourCommodity] ?? 0 : 0))} / ${Math.ceil(flourDispatch.desiredStock)} ${flourCommodity?.replace(/([A-Z])/g, ' $1').toLowerCase()} · ${flourDispatch.runwayCycles.toFixed(1)} cycles`
@@ -793,7 +793,10 @@ function renderLogisticsRows(
       ? `<li><span>Cured-food territory</span><span>Connected homes are served from stocked Marketplace food stalls</span></li>
          <li><span>Physical cured route</span><span>${building.kind === 'smokehouse' ? 'Smokehouse → staffed Granary → Marketplace stall' : 'Granary → Marketplace stall'} · no routine home cart</span></li>`
       : '';
-  const textileTerritoryRows = building.kind === 'weaver'
+  const textileTerritoryRows = building.kind === 'spinning_retting_house'
+    ? `<li><span>Prepared-fibre route</span><span>Wool becomes yarn; flax + water becomes linen. Both are hauled as physical intermediate goods.</span></li>
+       <li><span>Next textile stage</span><span>Spinning & Retting House → Weaver working buffer → clothing; staffed Storehouse or Trading Post receives overflow</span></li>`
+    : building.kind === 'weaver'
     ? `<li><span>Clothing territory</span><span>Connected tier-2+ homes draw clothing from stocked Marketplace goods stalls</span></li>
        <li><span>Physical clothing route</span><span>Weaver → staffed Storehouse → Marketplace stall · no routine home cart</span></li>`
     : '';

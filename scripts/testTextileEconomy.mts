@@ -24,6 +24,7 @@ import {
   weaverFibreDeliveryPreferenceLabel,
   weaverFibreDeliveryPreferenceRank,
   weaverUsesFlax,
+  weaverUsesLinen,
 } from '../src/economy/weaverInputPolicy.ts';
 import {
   BUILDING_STORAGE_CAPS,
@@ -33,11 +34,15 @@ import {
   SHEEP_SHEARING_START_MONTH,
   SHEEP_WOOL_PER_SHEARING_PER_HEAD,
   SPECIALTY_EXPORT_GOLD_PER_CLOTH,
+  SPINNING_RETTING_FLAX_PER_CYCLE,
+  SPINNING_RETTING_FLAX_WATER_PER_CYCLE,
+  SPINNING_RETTING_LINEN_PER_CYCLE,
+  SPINNING_RETTING_WOOL_PER_CYCLE,
+  SPINNING_RETTING_YARN_PER_CYCLE,
   TEXTILE_TRANSFER_PER_TRIP,
   WEAVER_CLOTH_PER_CYCLE,
-  WEAVER_FLAX_PER_CYCLE,
-  WEAVER_FLAX_WATER_PER_CYCLE,
-  WEAVER_WOOL_PER_CYCLE,
+  WEAVER_LINEN_PER_CYCLE,
+  WEAVER_YARN_PER_CYCLE,
 } from '../src/generated/gameBalance.ts';
 import {
   cargoKindFromId,
@@ -93,21 +98,40 @@ function weaver(partial: Partial<BuildingState> = {}): BuildingState {
   };
 }
 
+function spinningHouse(partial: Partial<BuildingState> = {}): BuildingState {
+  return weaver({
+    id: 'spinner-1',
+    kind: 'spinning_retting_house',
+    ...partial,
+  });
+}
+
 assert.equal(SHEEP_SHEARING_START_MONTH, 6);
 assert.equal(SHEEP_SHEARING_END_MONTH, 7);
 assert.equal(SHEEP_WOOL_PER_SHEARING_PER_HEAD, 1);
-assert.equal(WEAVER_WOOL_PER_CYCLE, 3);
-assert.equal(WEAVER_FLAX_PER_CYCLE, 3);
-assert.equal(WEAVER_FLAX_WATER_PER_CYCLE, 1);
+assert.equal(SPINNING_RETTING_WOOL_PER_CYCLE, 3);
+assert.equal(SPINNING_RETTING_FLAX_PER_CYCLE, 3);
+assert.equal(SPINNING_RETTING_FLAX_WATER_PER_CYCLE, 1);
+assert.equal(SPINNING_RETTING_YARN_PER_CYCLE, 2);
+assert.equal(SPINNING_RETTING_LINEN_PER_CYCLE, 2);
+assert.equal(WEAVER_YARN_PER_CYCLE, 2);
+assert.equal(WEAVER_LINEN_PER_CYCLE, 2);
 assert.equal(WEAVER_CLOTH_PER_CYCLE, 2);
 assert.equal(TEXTILE_TRANSFER_PER_TRIP, 12);
 assert.equal(SPECIALTY_EXPORT_GOLD_PER_CLOTH, 1.5);
 assert.equal(RESIDENCE_CLOTH_CAPACITY, 8);
 assert.equal(RESIDENCE_CLOTH_PER_PERSON_PER_SEC, 0.00018);
 assert.equal(BUILDING_STORAGE_CAPS.pastoral_farmstead.wool, 120);
-assert.equal(BUILDING_STORAGE_CAPS.weaver.wool, 90);
-assert.equal(BUILDING_STORAGE_CAPS.weaver.flax, 90);
-assert.equal(BUILDING_STORAGE_CAPS.weaver.water, 24);
+assert.equal(BUILDING_STORAGE_CAPS.spinning_retting_house.wool, 90);
+assert.equal(BUILDING_STORAGE_CAPS.spinning_retting_house.flax, 90);
+assert.equal(BUILDING_STORAGE_CAPS.spinning_retting_house.water, 24);
+assert.equal(BUILDING_STORAGE_CAPS.spinning_retting_house.yarn, 90);
+assert.equal(BUILDING_STORAGE_CAPS.spinning_retting_house.linen, 90);
+assert.equal(BUILDING_STORAGE_CAPS.weaver.yarn, 90);
+assert.equal(BUILDING_STORAGE_CAPS.weaver.linen, 90);
+assert.equal(BUILDING_STORAGE_CAPS.weaver.wool ?? 0, 0);
+assert.equal(BUILDING_STORAGE_CAPS.weaver.flax ?? 0, 0);
+assert.equal(BUILDING_STORAGE_CAPS.weaver.water ?? 0, 0);
 assert.equal(BUILDING_STORAGE_CAPS.threshing_barn.flax, 180);
 assert.equal(BUILDING_STORAGE_CAPS.weaver.cloth, 90);
 assert.equal(BUILDING_STORAGE_CAPS.marketplace.cloth, 120);
@@ -130,13 +154,27 @@ assert.equal(definition.facesRoad, true);
 assert.ok(INDUSTRY_BUILD_MENU_ENTRIES.some((entry) => entry.artKey === 'weaver'));
 assert.ok(BUILD_MENU_ENTRIES.some((entry) => entry.artKey === 'weaver'));
 assert.match(renderBuildMenuCards(), /weaver\.webp/);
+const spinnerDefinition = getBuildingDefinition('spinning_retting_house');
+assert.equal(spinnerDefinition.maxLabor, 2);
+assert.equal(spinnerDefinition.requiresRoad, true);
+assert.equal(spinnerDefinition.facesRoad, true);
+assert.ok(
+  INDUSTRY_BUILD_MENU_ENTRIES.some(
+    (entry) => entry.artKey === 'spinning_retting_house',
+  ),
+);
+assert.match(renderBuildMenuCards(), /spinning-retting-house\.webp/);
 
 assert.equal(cargoKindFromId(13), 'wool');
 assert.equal(cargoKindFromId(14), 'cloth');
 assert.equal(cargoKindFromId(18), 'flax');
+assert.equal(cargoKindFromId(67), 'yarn');
+assert.equal(cargoKindFromId(68), 'linen');
 assert.equal(cargoKindLabel('wool'), 'Wool fleece');
 assert.equal(cargoKindLabel('flax'), 'Flax fibre');
 assert.equal(cargoKindLabel('cloth'), 'Clothing');
+assert.equal(cargoKindLabel('yarn'), 'Yarn');
+assert.equal(cargoKindLabel('linen'), 'Linen');
 assert.equal(needKindFromId(14), 'cloth');
 assert.equal(createDefaultNeeds().cloth.stock, 0);
 assert.equal(normalizeWeaverInputPolicy(undefined), WEAVER_INPUT_POLICY_AUTO);
@@ -168,51 +206,71 @@ assert.equal(
 );
 assert.equal(
   weaverUsesFlax(weaver({
-    wool: WEAVER_WOOL_PER_CYCLE,
-    flax: WEAVER_FLAX_PER_CYCLE * 2,
-    water: WEAVER_FLAX_WATER_PER_CYCLE * 2,
+    wool: SPINNING_RETTING_WOOL_PER_CYCLE,
+    flax: SPINNING_RETTING_FLAX_PER_CYCLE * 2,
+    water: SPINNING_RETTING_FLAX_WATER_PER_CYCLE * 2,
     weaverInputPolicy: WEAVER_INPUT_POLICY_WOOL_FIRST,
   })),
   false,
 );
 assert.equal(
   weaverUsesFlax(weaver({
-    wool: WEAVER_WOOL_PER_CYCLE * 2,
-    flax: WEAVER_FLAX_PER_CYCLE,
-    water: WEAVER_FLAX_WATER_PER_CYCLE,
+    wool: SPINNING_RETTING_WOOL_PER_CYCLE * 2,
+    flax: SPINNING_RETTING_FLAX_PER_CYCLE,
+    water: SPINNING_RETTING_FLAX_WATER_PER_CYCLE,
     weaverInputPolicy: WEAVER_INPUT_POLICY_FLAX_FIRST,
   })),
   true,
 );
 assert.equal(
   weaverUsesFlax(weaver({
-    wool: WEAVER_WOOL_PER_CYCLE,
-    flax: WEAVER_FLAX_PER_CYCLE,
+    wool: SPINNING_RETTING_WOOL_PER_CYCLE,
+    flax: SPINNING_RETTING_FLAX_PER_CYCLE,
     water: 0,
     weaverInputPolicy: WEAVER_INPUT_POLICY_FLAX_FIRST,
   })),
   false,
   'flax-first should fall back to a complete wool cycle instead of idling',
 );
+assert.equal(
+  weaverUsesLinen(weaver({
+    yarn: WEAVER_YARN_PER_CYCLE,
+    linen: WEAVER_LINEN_PER_CYCLE * 2,
+    weaverInputPolicy: WEAVER_INPUT_POLICY_FLAX_FIRST,
+  })),
+  true,
+);
+assert.equal(
+  weaverUsesLinen(weaver({
+    yarn: WEAVER_YARN_PER_CYCLE,
+    linen: 0,
+    weaverInputPolicy: WEAVER_INPUT_POLICY_FLAX_FIRST,
+  })),
+  false,
+  'linen-first should fall back to a complete yarn cycle instead of idling',
+);
 
 const worldQueries = {} as WorldQueries;
 assert.match(
-  getBuildingProcessorStatus(weaver(), worldQueries)?.statusText ?? '',
+  getBuildingProcessorStatus(spinningHouse(), worldQueries)?.statusText ?? '',
   /Waiting for wool/,
 );
 assert.equal(
   getBuildingProcessorStatus(
-    weaver({ wool: WEAVER_WOOL_PER_CYCLE }),
+    spinningHouse({ wool: SPINNING_RETTING_WOOL_PER_CYCLE }),
     worldQueries,
   )?.statusText,
-  'Tailoring wool clothing',
+  'Spinning wool into yarn',
 );
 assert.equal(
   getBuildingProcessorStatus(
-    weaver({ wool: WEAVER_WOOL_PER_CYCLE, cloth: BUILDING_STORAGE_CAPS.weaver.cloth }),
+    spinningHouse({
+      wool: SPINNING_RETTING_WOOL_PER_CYCLE,
+      yarn: BUILDING_STORAGE_CAPS.spinning_retting_house.yarn,
+    }),
     worldQueries,
   )?.statusText,
-  'Clothing target reached - tailoring paused',
+  'Yarn target reached - fibre preparation paused',
 );
 const flaxWorldQueries = {
   getRoadConnectedWells: () => [weaver({ id: 'well-1', kind: 'well', water: 8 })],
@@ -221,29 +279,63 @@ const flaxWorldQueries = {
 } as unknown as WorldQueries;
 assert.equal(
   getBuildingProcessorStatus(
-    weaver({ flax: WEAVER_FLAX_PER_CYCLE, water: WEAVER_FLAX_WATER_PER_CYCLE }),
+    spinningHouse({
+      flax: SPINNING_RETTING_FLAX_PER_CYCLE,
+      water: SPINNING_RETTING_FLAX_WATER_PER_CYCLE,
+    }),
     flaxWorldQueries,
   )?.statusText,
-  'Preparing flax and tailoring linen clothing',
+  'Retting flax and dressing linen fibre',
 );
 const policyStatus = getBuildingProcessorStatus(
-  weaver({
-    wool: WEAVER_WOOL_PER_CYCLE,
-    flax: WEAVER_FLAX_PER_CYCLE,
-    water: WEAVER_FLAX_WATER_PER_CYCLE,
+  spinningHouse({
+    wool: SPINNING_RETTING_WOOL_PER_CYCLE,
+    flax: SPINNING_RETTING_FLAX_PER_CYCLE,
+    water: SPINNING_RETTING_FLAX_WATER_PER_CYCLE,
     weaverInputPolicy: WEAVER_INPUT_POLICY_FLAX_FIRST,
   }),
   flaxWorldQueries,
 );
-assert.equal(policyStatus?.statusText, 'Preparing flax and tailoring linen clothing');
+assert.equal(policyStatus?.statusText, 'Retting flax and dressing linen fibre');
 assert.match(policyStatus?.waterDetailHtml ?? '', /Input policy<\/span><span>Flax first/);
-assert.match(policyStatus?.waterDetailHtml ?? '', /Selected textile route<\/span><span>Flax \+ hauled water/);
+assert.match(policyStatus?.waterDetailHtml ?? '', /Selected textile route<\/span><span>Ret flax with hauled water/);
+assert.equal(
+  getBuildingProcessorStatus(
+    weaver({ yarn: WEAVER_YARN_PER_CYCLE }),
+    worldQueries,
+  )?.statusText,
+  'Weaving yarn into clothing',
+);
+assert.equal(
+  getBuildingProcessorStatus(
+    weaver({
+      yarn: WEAVER_YARN_PER_CYCLE,
+      linen: WEAVER_LINEN_PER_CYCLE,
+      weaverInputPolicy: WEAVER_INPUT_POLICY_FLAX_FIRST,
+    }),
+    worldQueries,
+  )?.statusText,
+  'Weaving linen into clothing',
+);
+assert.equal(
+  getBuildingProcessorStatus(
+    weaver({
+      yarn: WEAVER_YARN_PER_CYCLE,
+      cloth: BUILDING_STORAGE_CAPS.weaver.cloth,
+    }),
+    worldQueries,
+  )?.statusText,
+  'Clothing target reached - weaving paused',
+);
 const policyPanel = renderProcessorOutputTargetPanel(weaver());
 assert.match(policyPanel ?? '', /data-weaver-input-policy="0"[^>]*disabled/);
 assert.match(policyPanel ?? '', /data-weaver-input-policy="1"/);
 assert.match(policyPanel ?? '', /data-weaver-input-policy="2"/);
 assert.match(policyPanel ?? '', /Matching specialization wins a contested working-buffer cart/);
-assert.match(policyPanel ?? '', /Covered buffers and ready alternate recipes remain fallbacks/);
+assert.match(policyPanel ?? '', /Water is no longer needed here/);
+const spinnerPolicyPanel = renderProcessorOutputTargetPanel(spinningHouse());
+assert.match(spinnerPolicyPanel ?? '', /Wool produces yarn without water/);
+assert.match(spinnerPolicyPanel ?? '', /Flax produces linen only when well water is staged/);
 
 const emptyWeaverVisual = buildingMarkerSignatures(
   new Map([['weaver-1', weaver()]]),
@@ -374,6 +466,8 @@ const annualTextiles = computeSettlementTextilePlan({
   clock: { month: 6, year: 2 },
   production: {
     clothWoolPerDay: 1,
+    spinnerIntermediateCapacityPerDay: 2 / 3,
+    weaverClothCapacityPerDay: 2 / 3,
     clothOutputPerDay: 2 / 3,
     clothDemandPerDay: 0.05,
   },
@@ -404,6 +498,8 @@ const physicalTextiles = computeSettlementTextilePlan({
   clock: { month: 6, year: 2 },
   production: {
     clothWoolPerDay: 1,
+    spinnerIntermediateCapacityPerDay: 2 / 3,
+    weaverClothCapacityPerDay: 2 / 3,
     clothOutputPerDay: 2 / 3,
     clothDemandPerDay: 0.05,
   },
@@ -435,6 +531,8 @@ const missedTextiles = computeSettlementTextilePlan({
   clock: { month: 8, year: 2 },
   production: {
     clothWoolPerDay: 1,
+    spinnerIntermediateCapacityPerDay: 2 / 3,
+    weaverClothCapacityPerDay: 2 / 3,
     clothOutputPerDay: 2 / 3,
     clothDemandPerDay: 0.5,
   },
@@ -545,6 +643,8 @@ const splitRoadTextiles = computeSettlementTextilePlan({
   clock: { month: 6, year: 2 },
   production: {
     clothWoolPerDay: 24 / 120,
+    spinnerIntermediateCapacityPerDay: 16 / 120,
+    weaverClothCapacityPerDay: 16 / 120,
     clothOutputPerDay: 16 / 120,
     clothDemandPerDay: 8 / 120,
     tierTwoPlusResidents: 2,
@@ -629,6 +729,8 @@ const fireAwareTextiles = computeSettlementTextilePlan({
   clock: { month: 6, year: 2 },
   production: {
     clothWoolPerDay: 12 / 120,
+    spinnerIntermediateCapacityPerDay: 8 / 120,
+    weaverClothCapacityPerDay: 8 / 120,
     clothOutputPerDay: 8 / 120,
     clothDemandPerDay: 4 / 120,
     tierTwoPlusResidents: 1,
@@ -666,6 +768,8 @@ const joinedRoadTextiles = computeSettlementTextilePlan({
   clock: { month: 6, year: 2 },
   production: {
     clothWoolPerDay: 24 / 120,
+    spinnerIntermediateCapacityPerDay: 16 / 120,
+    weaverClothCapacityPerDay: 16 / 120,
     clothOutputPerDay: 16 / 120,
     clothDemandPerDay: 8 / 120,
     tierTwoPlusResidents: 2,
@@ -704,6 +808,8 @@ const satelliteRoadTextiles = computeSettlementTextilePlan({
   clock: { month: 6, year: 2 },
   production: {
     clothWoolPerDay: 24 / 120,
+    spinnerIntermediateCapacityPerDay: 16 / 120,
+    weaverClothCapacityPerDay: 16 / 120,
     clothOutputPerDay: 16 / 120,
     clothDemandPerDay: 8 / 120,
     tierTwoPlusResidents: 2,
@@ -765,6 +871,8 @@ const largeTextilePlan = computeSettlementTextilePlan({
   clock: { month: 6, year: 2 },
   production: {
     clothWoolPerDay: 100_000,
+    spinnerIntermediateCapacityPerDay: 200_000 / 3,
+    weaverClothCapacityPerDay: 200_000 / 3,
     clothOutputPerDay: 200_000 / 3,
     clothDemandPerDay: 1,
   },
@@ -796,6 +904,8 @@ const largeRoadTextilePlan = computeSettlementTextilePlan({
   clock: { month: 6, year: 2 },
   production: {
     clothWoolPerDay: 15_000,
+    spinnerIntermediateCapacityPerDay: 10_000,
+    weaverClothCapacityPerDay: 10_000,
     clothOutputPerDay: 10_000,
     clothDemandPerDay: 0,
     tierTwoPlusResidents: 0,

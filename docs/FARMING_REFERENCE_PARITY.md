@@ -1,6 +1,6 @@
 # Farming reference parity
 
-Audit date: 24 August 2026
+Audit date: 26 August 2026
 
 References:
 
@@ -37,7 +37,8 @@ tree, development unlocks, or a Heavy Plow unlock.
 | Crop roster | Wheat/emmer, barley, flax, rye, and fallow | Mountain rye, spring oats, barley, fibre flax, wheat–rye maslin, and fallow | Matched, with oats as a regional addition |
 | Grain food chain | Wheat/rye is threshed, milled into flour, and baked into bread | Harvested cereal becomes physical grain; watermill makes flour; staffed granary bakery turns flour, water, and firewood into food | Matched at commodity-chain level |
 | Barley/ale chain | Barley becomes malt and then ale | Barley is harvested, seeded, stored, traded, and hauled separately from bread grain; the brewhouse spends one fueled, watered work cycle floor-malting it and a second cycle brewing physical malt into ale | Matched |
-| Flax/linen chain | Flax becomes linen | Flax is pulled into a distinct physical commodity, stored at the farmstead, carted to the weaver, and combined there with automatically staged water from a road-linked well before cloth is made; sheep fleece remains a separate dry route | Matched at commodity-chain abstraction — retting, breaking, spinning, and weaving are folded into the water-bound workshop cycle |
+| Flax/linen chain | Flax becomes linen | Harvested flax remains a distinct physical commodity, may be buffered in a Granary, and is carted with one unit of well water to a staffed Spinning & Retting House; each three-flax batch becomes two Linen, which is then hauled to a Weaver where two Linen becomes two Clothing | Matched with an explicit retting and weaving chain |
+| Wool/yarn chain | Sheep fleece is prepared before weaving | Wool is hauled from pastoral holdings or a Village Storehouse to the same Spinning & Retting House; each dry three-wool batch becomes two Yarn, and a Weaver turns two Yarn into two Clothing | Regional addition with explicit spinning, storage, and transport |
 | Field priority | Players can prioritize field work | Fields have four priority states, including paused, and the farm plan schedules higher priorities first | Matched |
 | Early harvest | A player may force an early harvest | In August, a crop at 55% growth may be cut to spread labor or secure emergency stores; its current ripeness permanently locks 47–85% of normal yield, while waiting for September keeps 100% | Matched |
 | Ox/plough support | Ox ploughing is tied to a development and Farmhouse upgrade | Healthy cattle reduce plough work on the two highest-priority nearby fields; independently posted stable oxen pair with present farmstead labor to double that farmer's ploughing and threshing pace and add 50% at harvest, while sowing stays human-only | Different by design |
@@ -69,9 +70,11 @@ stalks, `?view=overview&clean=1` checks terrain contact and field coverage, and
 
 ## Deliberately deferred gaps
 
-Flax retting and yarn remain deliberately folded into the weaver's
-water-consuming flax recipe instead of becoming two one-use intermediate
-commodities or a standalone retting-pit building. This preserves the
-historically important water and hauling constraint while keeping the
-production chain readable. Development unlocks and Heavy Plow technology
-remain out of scope until explicitly requested.
+Retting and spinning are no longer folded into the Weaver. The physical chain
+now uses one dual-purpose Spinning & Retting House, separate Yarn and Linen
+commodities, visible handcart loads, and workshop stockpiles. The existing
+save-compatible textile preference is reused at both workshops: it chooses
+Wool versus Flax at the preparation house and Yarn versus Linen at the Weaver,
+while a complete alternate recipe remains a fallback. Village Storehouses
+accept Wool, Yarn, and Linen; Granaries accept Flax. Development unlocks and
+Heavy Plow technology remain out of scope until explicitly requested.

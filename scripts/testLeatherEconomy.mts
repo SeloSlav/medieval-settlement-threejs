@@ -7,6 +7,7 @@ import {
   COBBLER_SHOES_PER_CYCLE,
   GAME_PELTS_PER_ANIMAL,
   LEATHER_TRANSFER_PER_TRIP,
+  MARKETPLACE_TRADE_OFFERS,
   RESIDENCE_SHOES_CAPACITY,
   RESIDENCE_SHOES_PER_PERSON_PER_SEC,
   TANNERY_FIREWOOD_PER_CYCLE,
@@ -48,6 +49,13 @@ assert.deepEqual(BUILDING_STORAGE_CAPS.hunters_hall, {
 });
 assert.equal(BUILDING_STORAGE_CAPS.village_storehouse.pelts, 180);
 assert.equal(BUILDING_STORAGE_CAPS.trading_post.pelts, 160);
+assert.deepEqual(
+  MARKETPLACE_TRADE_OFFERS.filter((offer) => offer.resource === 'pelts'),
+  [
+    { id: 'buy_pelts', kind: 'goldBuy', resource: 'pelts', amount: 12, goldCost: 13 },
+    { id: 'sell_pelts', kind: 'goldSell', resource: 'pelts', amount: 12, goldYield: 8 },
+  ],
+);
 
 assert.ok(PROCESSOR_OUTPUT_TARGET_KINDS.includes('tannery'));
 assert.ok(PROCESSOR_OUTPUT_TARGET_KINDS.includes('cobbler'));
@@ -107,6 +115,7 @@ const foodSupplier = fs.readFileSync('server/src/simulation/food_supplier.rs', '
 assert.match(foodSupplier, /"game" => CommodityKind::Meat/);
 assert.match(foodSupplier, /CommodityKind::Pelts/);
 assert.match(foodSupplier, /GAME_PELTS_PER_ANIMAL/);
+assert.match(foodSupplier, /if harvested_game \{[\s\S]*?deposit_building_commodity\([\s\S]*?CommodityKind::Pelts/);
 assert.doesNotMatch(foodSupplier, /CommodityKind::Hides/);
 const backyard = fs.readFileSync('server/src/simulation/backyard_garden.rs', 'utf8');
 assert.match(backyard, /CommodityKind::Hides/);

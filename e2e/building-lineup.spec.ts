@@ -5,6 +5,8 @@ const cases = [
   ['all-far-no-post', '/building-lineup.html?camera=far&presentation=no-post', 8_200, 225_969, undefined],
   ['residences-near', '/building-lineup.html?compare=residences&camera=near', 747, 18_900, undefined],
   ['monastery-design', '/building-lineup.html?kind=monastery&camera=design', 2_458, 105_490, undefined],
+  ['spinning-retting-design-stocked', '/building-lineup.html?kind=spinning_retting_house&camera=design&stocked=1', 400, 12_000, undefined],
+  ['spinning-retting-massing', '/building-lineup.html?kind=spinning_retting_house&camera=design&debug=massing', 100, 5_000, undefined],
   ['stable-near-oxen', '/building-lineup.html?kind=stable&camera=near&oxen=3', 200, 18_000, 20],
   ['stable-design-oxen', '/building-lineup.html?kind=stable&camera=design&oxen=3', 200, 18_000, 20],
   ['stable-far-no-post-oxen', '/building-lineup.html?kind=stable&camera=far&presentation=no-post&oxen=3', 200, 18_000, 20],
@@ -42,6 +44,10 @@ for (const [label, url, maxDrawCalls, maxTriangles, maxCpuFrameMs] of cases) {
     expect(metrics!.triangles).toBeLessThanOrEqual(maxTriangles);
     expect(Number.isFinite(metrics!.drawCalls)).toBe(true);
     expect(Number.isFinite(metrics!.triangles)).toBe(true);
+    if (label.startsWith('spinning-retting-')) {
+      expect(metrics!.seed).toBe(1551);
+      expect(metrics!.debugMode).toBe(label.endsWith('-massing') ? 'massing' : 'final');
+    }
     if (label.startsWith('stable-')) {
       expect(metrics!.stableOxVisuals).toBe(3);
       expect(metrics!.renderTargets).toBe(0);

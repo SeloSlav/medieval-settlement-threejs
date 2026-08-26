@@ -1226,14 +1226,18 @@ mod tests {
         let stores = RaidPortableStores {
             wool: 20.0,
             cloth: 10.0,
+            yarn: 8.0,
+            linen: 6.0,
             ..RaidPortableStores::default()
         };
-        assert_eq!(stores.raid_value(), 35.0);
+        assert_eq!(stores.raid_value(), 52.0);
 
         let plunder = stores.plunder(0.4);
         assert_eq!(plunder.remaining.wool, 12.0);
         assert_eq!(plunder.remaining.cloth, 6.0);
-        assert_eq!(plunder.goods_lost, 12.0);
+        assert_eq!(plunder.remaining.yarn, 5.0);
+        assert_eq!(plunder.remaining.linen, 4.0);
+        assert_eq!(plunder.goods_lost, 17.0);
         assert_eq!(plunder.wealth_lost, 0.0);
     }
 

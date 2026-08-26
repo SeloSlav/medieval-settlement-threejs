@@ -22,6 +22,7 @@ __pycache__/
 
 # Rust build artifacts
 server/target/
+server/target-*/
 
 # Playwright
 playwright-report/
