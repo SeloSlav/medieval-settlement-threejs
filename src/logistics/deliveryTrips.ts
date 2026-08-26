@@ -67,6 +67,7 @@ export const DELIVERY_CARGO_KINDS = [
   'maslinFlour',
   'ryeBread',
   'maslinBread',
+  'pelts',
   'hides',
   'leather',
   'shoes',
@@ -75,6 +76,8 @@ export const DELIVERY_CARGO_KINDS = [
   'animalFeed',
   'wax',
   'candles',
+  'yarn',
+  'linen',
 ] as const;
 export type DeliveryCargoKind = (typeof DELIVERY_CARGO_KINDS)[number];
 
@@ -436,6 +439,12 @@ export function cargoKindFromId(value: number): DeliveryCargoKind | null {
       return 'wax';
     case 65:
       return 'candles';
+    case 66:
+      return 'pelts';
+    case 67:
+      return 'yarn';
+    case 68:
+      return 'linen';
     default:
       return null;
   }
@@ -579,8 +588,14 @@ export function cargoKindLabel(kind: DeliveryCargoKind): string {
       return 'Wool fleece';
     case 'flax':
       return 'Flax fibre';
+    case 'yarn':
+      return 'Yarn';
+    case 'linen':
+      return 'Linen';
     case 'cloth':
       return 'Clothing';
+    case 'pelts':
+      return 'Wild-game pelts';
     case 'hides':
       return 'Untanned hides';
     case 'leather':
@@ -1040,8 +1055,14 @@ export function cargoColor(kind: DeliveryCargoKind): number {
       return 0xd8d1c2;
     case 'flax':
       return 0xc8ad69;
+    case 'yarn':
+      return 0xbcae92;
+    case 'linen':
+      return 0xd7c9a4;
     case 'cloth':
       return 0x52697a;
+    case 'pelts':
+      return 0xb77945;
     case 'hides':
       return 0xa68768;
     case 'leather':

@@ -6,7 +6,7 @@ use crate::balance_generated::{
     BAKERY_WATER_PER_CYCLE, BREWERY_BREWING_WATER_PER_CYCLE, BREWERY_MALTING_WATER_PER_CYCLE,
     CATTLE_MAX_HERD, CATTLE_WATER_PER_HEAD_PER_CYCLE, MILL_WATER_PER_HARVEST,
     POTTER_WATER_PER_CYCLE, SHEEP_MAX_HERD, SHEEP_WATER_PER_HEAD_PER_CYCLE, SMITHY_WATER_PER_CYCLE,
-    SWINE_MAX_HERD, SWINE_WATER_PER_HEAD_PER_CYCLE, WEAVER_FLAX_WATER_PER_CYCLE,
+    SPINNING_RETTING_FLAX_WATER_PER_CYCLE, SWINE_MAX_HERD, SWINE_WATER_PER_HEAD_PER_CYCLE,
     WELL_BASE_REFILL_PER_SEC, WELL_MINIMUM_REFILL_HYDROLOGY,
 };
 use crate::construction_priority::CONSTRUCTION_PRIORITY_NORMAL;
@@ -25,7 +25,7 @@ pub struct IndustrialWaterCandidate {
 pub const INDUSTRIAL_WATER_BUILDING_KINDS: &[&str] = &[
     "bakery",
     "brewery",
-    "weaver",
+    "spinning_retting_house",
     "smithy",
     "potter_kiln",
     "pastoral_farmstead",
@@ -36,7 +36,7 @@ pub fn industrial_water_requirement(building_kind: &str) -> f64 {
     match building_kind {
         "bakery" => BAKERY_WATER_PER_CYCLE,
         "brewery" => BREWERY_MALTING_WATER_PER_CYCLE + BREWERY_BREWING_WATER_PER_CYCLE,
-        "weaver" => WEAVER_FLAX_WATER_PER_CYCLE,
+        "spinning_retting_house" => SPINNING_RETTING_FLAX_WATER_PER_CYCLE,
         "smithy" => SMITHY_WATER_PER_CYCLE,
         "potter_kiln" => POTTER_WATER_PER_CYCLE,
         "pastoral_farmstead" => (f64::from(CATTLE_MAX_HERD) * CATTLE_WATER_PER_HEAD_PER_CYCLE)
@@ -47,11 +47,11 @@ pub fn industrial_water_requirement(building_kind: &str) -> f64 {
     }
 }
 
-/// Loom fibre policy doubles as its automatic well-service preference because
+/// Textile route policy doubles as the spinner's automatic well-service preference because
 /// only the flax route consumes water. Other wet workshops and automatic
-/// looms occupy the neutral middle tier.
+/// workshops occupy the neutral middle tier.
 pub fn industrial_water_input_preference_rank(building_kind: &str, weaver_input_policy: u8) -> u8 {
-    if building_kind == "weaver" {
+    if building_kind == "spinning_retting_house" {
         weaver_fibre_delivery_preference_rank(weaver_input_policy, true)
     } else {
         1
@@ -262,7 +262,7 @@ mod tests {
             &[
                 "bakery",
                 "brewery",
-                "weaver",
+                "spinning_retting_house",
                 "smithy",
                 "potter_kiln",
                 "pastoral_farmstead",
@@ -282,8 +282,8 @@ mod tests {
             MILL_WATER_PER_HARVEST
         );
         assert_eq!(
-            industrial_water_requirement("weaver"),
-            WEAVER_FLAX_WATER_PER_CYCLE
+            industrial_water_requirement("spinning_retting_house"),
+            SPINNING_RETTING_FLAX_WATER_PER_CYCLE
         );
         assert_eq!(
             industrial_water_requirement("smithy"),
@@ -306,14 +306,14 @@ mod tests {
         assert_eq!(industrial_water_requirement("windmill"), 0.0);
         assert_eq!(
             industrial_water_input_preference_rank(
-                "weaver",
+                "spinning_retting_house",
                 crate::weaver_input_policy::WEAVER_INPUT_POLICY_FLAX_FIRST,
             ),
             0
         );
         assert_eq!(
             industrial_water_input_preference_rank(
-                "weaver",
+                "spinning_retting_house",
                 crate::weaver_input_policy::WEAVER_INPUT_POLICY_WOOL_FIRST,
             ),
             2
@@ -328,8 +328,8 @@ mod tests {
         assert_eq!(industrial_water_target("bakery", 75), 6.0);
         assert_eq!(industrial_water_target("bakery", 100), 6.0);
         assert_eq!(industrial_water_target("brewery", 50), 6.0);
-        assert_eq!(industrial_water_target("weaver", 25), 1.0);
-        assert_eq!(industrial_water_target("weaver", 100), 3.0);
+        assert_eq!(industrial_water_target("spinning_retting_house", 25), 1.0);
+        assert_eq!(industrial_water_target("spinning_retting_house", 100), 3.0);
         assert_eq!(industrial_water_target("smithy", 25), 1.0);
         assert_eq!(industrial_water_target("smithy", 100), 3.0);
         assert_eq!(industrial_water_target("potter_kiln", 25), 1.0);

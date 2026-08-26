@@ -5,7 +5,7 @@ import {
   BUILDING_STORAGE_CAPS,
   COBBLER_LEATHER_PER_CYCLE,
   COBBLER_SHOES_PER_CYCLE,
-  GAME_HIDES_PER_ANIMAL,
+  GAME_PELTS_PER_ANIMAL,
   LEATHER_TRANSFER_PER_TRIP,
   RESIDENCE_SHOES_CAPACITY,
   RESIDENCE_SHOES_PER_PERSON_PER_SEC,
@@ -25,7 +25,7 @@ import { TRADE_RESOURCE_COMMODITY_CODES } from '../src/economy/tradingPostTrade.
 import { INDUSTRY_BUILD_MENU_ENTRIES, renderBuildMenuCards } from '../src/ui/buildMenuCards.ts';
 import { createCobblerMesh, createTanneryMesh } from '../src/buildings/meshes/leatherChainBuildingMeshes.ts';
 
-assert.equal(GAME_HIDES_PER_ANIMAL, 1);
+assert.equal(GAME_PELTS_PER_ANIMAL, 1);
 assert.deepEqual(
   [TANNERY_HIDES_PER_CYCLE, TANNERY_WATER_PER_CYCLE, TANNERY_FIREWOOD_PER_CYCLE, TANNERY_LEATHER_PER_CYCLE],
   [3, 2, 1, 2],
@@ -43,6 +43,11 @@ assert.deepEqual(BUILDING_STORAGE_CAPS.tannery, {
 assert.deepEqual(BUILDING_STORAGE_CAPS.cobbler, {
   timber: 0, firewood: 0, stone: 0, leather: 72, shoes: 96,
 });
+assert.deepEqual(BUILDING_STORAGE_CAPS.hunters_hall, {
+  timber: 0, firewood: 0, stone: 0, food: 100, pelts: 64,
+});
+assert.equal(BUILDING_STORAGE_CAPS.village_storehouse.pelts, 180);
+assert.equal(BUILDING_STORAGE_CAPS.trading_post.pelts, 160);
 
 assert.ok(PROCESSOR_OUTPUT_TARGET_KINDS.includes('tannery'));
 assert.ok(PROCESSOR_OUTPUT_TARGET_KINDS.includes('cobbler'));
@@ -55,10 +60,17 @@ assert.equal(activeResidenceNeedKinds(2).includes('shoes'), false);
 assert.equal(activeResidenceNeedKinds(3).includes('shoes'), true);
 assert.equal(activeResidenceNeedKinds(4).includes('shoes'), true);
 assert.deepEqual(
-  [TRADE_RESOURCE_COMMODITY_CODES.hides, TRADE_RESOURCE_COMMODITY_CODES.leather, TRADE_RESOURCE_COMMODITY_CODES.shoes],
-  [58, 59, 60],
+  [
+    TRADE_RESOURCE_COMMODITY_CODES.pelts,
+    TRADE_RESOURCE_COMMODITY_CODES.hides,
+    TRADE_RESOURCE_COMMODITY_CODES.leather,
+    TRADE_RESOURCE_COMMODITY_CODES.shoes,
+  ],
+  [66, 58, 59, 60],
 );
+assert.ok(DELIVERY_CARGO_KINDS.includes('pelts'));
 assert.ok(DELIVERY_CARGO_KINDS.includes('hides'));
+assert.equal(cargoKindFromId(66), 'pelts');
 assert.equal(cargoKindFromId(58), 'hides');
 assert.equal(cargoKindFromId(59), 'leather');
 assert.equal(cargoKindFromId(60), 'shoes');
@@ -69,12 +81,17 @@ assert.ok(industry.includes('cobbler'));
 const cards = renderBuildMenuCards();
 assert.match(cards, /data-action="tannery"[\s\S]*?tannery\.webp/);
 assert.match(cards, /data-action="cobbler"[\s\S]*?cobbler\.webp/);
+assert.match(cards, /data-action="hunters-hall"[\s\S]*?%22meat%22[\s\S]*?%22pelts%22/);
 assert.ok(cards.includes('%22hides%22') && cards.includes('%22leather%22'));
 assert.ok(cards.includes('%22shoes%22'));
 for (const file of ['tannery.webp', 'cobbler.webp']) {
   const path = `public/assets/ui/build-menu/cards/${file}`;
   assert.ok(fs.statSync(path).size > 20_000, `${file} must be a generated, production-sized card`);
 }
+assert.ok(
+  fs.statSync('public/assets/ui/icons/materials/pelts.png').size > 20_000,
+  'pelts must have a generated, production-sized material icon',
+);
 
 for (const [mesh, signature, requiredNames] of [
   [createTanneryMesh(), 'gorski-tannery-v1', ['Bark-liquor tanning vat', 'HidesStock', 'LeatherStock']],
@@ -87,14 +104,31 @@ for (const [mesh, signature, requiredNames] of [
 }
 
 const foodSupplier = fs.readFileSync('server/src/simulation/food_supplier.rs', 'utf8');
-assert.match(foodSupplier, /CommodityKind::Hides/);
-assert.match(foodSupplier, /GAME_HIDES_PER_ANIMAL/);
+assert.match(foodSupplier, /"game" => CommodityKind::Meat/);
+assert.match(foodSupplier, /CommodityKind::Pelts/);
+assert.match(foodSupplier, /GAME_PELTS_PER_ANIMAL/);
+assert.doesNotMatch(foodSupplier, /CommodityKind::Hides/);
 const backyard = fs.readFileSync('server/src/simulation/backyard_garden.rs', 'utf8');
 assert.match(backyard, /CommodityKind::Hides/);
 assert.match(backyard, /hide_stock/);
 const commodities = fs.readFileSync('server/src/economy/commodities.rs', 'utf8');
+assert.match(commodities, /Self::Pelts => 66/);
 assert.match(commodities, /Self::Hides => 58/);
 assert.match(commodities, /Self::Leather => 59/);
 assert.match(commodities, /Self::Shoes => 60/);
 
-console.log('Leather economy tests passed.');
+const expandedEconomy = fs.readFileSync('server/src/simulation/expanded_economy.rs', 'utf8');
+assert.match(
+  expandedEconomy,
+  /\("hunters_hall", CommodityKind::Pelts\)[\s\S]*?"village_storehouse", "trading_post"/,
+);
+assert.match(
+  expandedEconomy,
+  /\("village_storehouse", CommodityKind::Pelts\) => Some\(&\["trading_post"\]\)/,
+);
+assert.doesNotMatch(
+  expandedEconomy,
+  /CommodityKind::Pelts[^\n]*tannery|tannery[^\n]*CommodityKind::Pelts/,
+);
+
+console.log('Pelt and leather economy tests passed.');

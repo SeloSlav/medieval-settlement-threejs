@@ -89,7 +89,10 @@ export type ResourceTotals = {
   candles: number;
   wine: number;
   wool: number;
+  yarn: number;
+  linen: number;
   cloth: number;
+  pelts: number;
   hides: number;
   leather: number;
   shoes: number;
@@ -162,7 +165,10 @@ export const HUD_RESOURCE_KINDS = [
   'candles',
   'wine',
   'wool',
+  'yarn',
+  'linen',
   'cloth',
+  'pelts',
   'hides',
   'leather',
   'shoes',
@@ -259,7 +265,10 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
   let candles = ledger?.candles ?? 0;
   let wine = ledger?.wine ?? 0;
   let wool = ledger?.wool ?? 0;
+  let yarn = ledger?.yarn ?? 0;
+  let linen = ledger?.linen ?? 0;
   let cloth = ledger?.cloth ?? 0;
+  let pelts = ledger?.pelts ?? 0;
   let hides = ledger?.hides ?? 0;
   let leather = ledger?.leather ?? 0;
   let shoes = ledger?.shoes ?? 0;
@@ -373,7 +382,10 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
     candles += building.candles ?? 0;
     wine += building.wine;
     wool += building.wool ?? 0;
+    yarn += building.yarn ?? 0;
+    linen += building.linen ?? 0;
     cloth += building.cloth ?? 0;
+    pelts += building.pelts ?? 0;
     hides += building.hides ?? 0;
     leather += building.leather ?? 0;
     shoes += building.shoes ?? 0;
@@ -630,7 +642,10 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
     candles,
     wine,
     wool,
+    yarn,
+    linen,
     cloth,
+    pelts,
     hides,
     leather,
     shoes,
@@ -1168,7 +1183,10 @@ function emptyResourceTotals(): ResourceTotals {
     candles: 0,
     wine: 0,
     wool: 0,
+    yarn: 0,
+    linen: 0,
     cloth: 0,
+    pelts: 0,
     hides: 0,
     leather: 0,
     shoes: 0,

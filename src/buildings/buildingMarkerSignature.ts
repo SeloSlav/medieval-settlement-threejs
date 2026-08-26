@@ -29,9 +29,11 @@ import {
   HAYLOFT_VISUAL_SEGMENTS,
   CLOTH_STOCKPILE_VISUAL_SEGMENTS,
   FLAX_STOCKPILE_VISUAL_SEGMENTS,
+  LINEN_STOCKPILE_VISUAL_SEGMENTS,
   stockpileVisualLevel,
   TIMBER_STOCKPILE_VISUAL_SEGMENTS,
   WOOL_STOCKPILE_VISUAL_SEGMENTS,
+  YARN_STOCKPILE_VISUAL_SEGMENTS,
   SALVAGE_GOODS_VISUAL_CAPACITY,
   SALVAGE_GOODS_VISUAL_SEGMENTS,
   SALVAGE_STONE_VISUAL_CAPACITY,
@@ -270,11 +272,19 @@ export function buildingMarkerSignatures(
           HAYLOFT_VISUAL_SEGMENTS,
         )}`
         : '';
-      const woolState = (building.kind === 'pastoral_farmstead' || building.kind === 'weaver')
+      const textileCaps = building.kind === 'spinning_retting_house' || building.kind === 'weaver'
+        ? BUILDING_STORAGE_CAPS[building.kind] as Partial<Record<
+            'wool' | 'flax' | 'yarn' | 'linen' | 'cloth',
+            number
+          >>
+        : null;
+      const woolState = (building.kind === 'pastoral_farmstead' || building.kind === 'spinning_retting_house')
         && building.constructionComplete !== false
         ? `:wool:${stockpileVisualLevel(
           building.wool ?? 0,
-          BUILDING_STORAGE_CAPS[building.kind].wool ?? 0,
+          building.kind === 'pastoral_farmstead'
+            ? BUILDING_STORAGE_CAPS.pastoral_farmstead.wool ?? 0
+            : textileCaps?.wool ?? 0,
           WOOL_STOCKPILE_VISUAL_SEGMENTS,
         )}`
         : '';
@@ -282,7 +292,7 @@ export function buildingMarkerSignatures(
         && building.constructionComplete !== false
         ? `:cloth:${stockpileVisualLevel(
           building.cloth ?? 0,
-          BUILDING_STORAGE_CAPS.weaver.cloth ?? 0,
+          textileCaps?.cloth ?? 0,
           CLOTH_STOCKPILE_VISUAL_SEGMENTS,
         )}`
         : '';
@@ -304,12 +314,28 @@ export function buildingMarkerSignatures(
             `:candles:${stockpileVisualLevel(building.candles ?? 0, BUILDING_STORAGE_CAPS.chandlery.candles ?? 0, 3)}`,
           ].join('')
         : '';
-      const flaxState = building.kind === 'weaver'
+      const flaxState = building.kind === 'spinning_retting_house'
         && building.constructionComplete !== false
         ? `:flax:${stockpileVisualLevel(
           building.flax ?? 0,
-          BUILDING_STORAGE_CAPS.weaver.flax ?? 0,
+          textileCaps?.flax ?? 0,
           FLAX_STOCKPILE_VISUAL_SEGMENTS,
+        )}`
+        : '';
+      const yarnState = (building.kind === 'spinning_retting_house' || building.kind === 'weaver')
+        && building.constructionComplete !== false
+        ? `:yarn:${stockpileVisualLevel(
+          building.yarn ?? 0,
+          textileCaps?.yarn ?? 0,
+          YARN_STOCKPILE_VISUAL_SEGMENTS,
+        )}`
+        : '';
+      const linenState = (building.kind === 'spinning_retting_house' || building.kind === 'weaver')
+        && building.constructionComplete !== false
+        ? `:linen:${stockpileVisualLevel(
+          building.linen ?? 0,
+          textileCaps?.linen ?? 0,
+          LINEN_STOCKPILE_VISUAL_SEGMENTS,
         )}`
         : '';
       const foodStockState = foodStockpileVisualSignature(building);
@@ -330,7 +356,7 @@ export function buildingMarkerSignatures(
       ].join(':');
       return {
         id: building.id,
-        visual: `${structural}${foundingState}${salvageState}${treasuryState}${localReceiptState}${guardhousePayrollState}${marketState}${timberState}${storehouseState}${hayState}${woolState}${flaxState}${clothState}${leatherChainState}${chandleryState}${foodStockState}${bulkStockState}${armoryStockState}${seasonalStockState}${marketplaceSpecialtyStockState}${monasteryStockState}`,
+        visual: `${structural}${foundingState}${salvageState}${treasuryState}${localReceiptState}${guardhousePayrollState}${marketState}${timberState}${storehouseState}${hayState}${woolState}${flaxState}${yarnState}${linenState}${clothState}${leatherChainState}${chandleryState}${foodStockState}${bulkStockState}${armoryStockState}${seasonalStockState}${marketplaceSpecialtyStockState}${monasteryStockState}`,
         collider: structural,
       };
     })

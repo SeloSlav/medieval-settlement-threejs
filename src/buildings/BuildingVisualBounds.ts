@@ -56,6 +56,7 @@ export const BUILDING_LOCAL_VISUAL_BOUNDS = {
   watermill: { minX: -5.36, maxX: 7.33, minZ: -3.96, maxZ: 4.97 },
   windmill: { minX: -5.75, maxX: 5.75, minZ: -4.80, maxZ: 4.80 },
   carpenter: { minX: -5.24, maxX: 6.84, minZ: -3.94, maxZ: 3.94 },
+  spinning_retting_house: { minX: -5.18, maxX: 5.21, minZ: -4.26, maxZ: 4.49 },
   weaver: { minX: -4.75, maxX: 7.24, minZ: -3.90, maxZ: 4.11 },
   tannery: { minX: -4.37, maxX: 4.20, minZ: -4.33, maxZ: 4.66 },
   cobbler: { minX: -3.46, maxX: 3.46, minZ: -3.37, maxZ: 3.57 },

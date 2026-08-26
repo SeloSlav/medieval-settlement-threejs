@@ -8,6 +8,7 @@ export const STORAGE_COMMODITY_CODES = {
   honey: 8,
   wine: 9,
   stone: 10,
+  wool: 13,
   cloth: 14,
   barley: 16,
   flax: 18,
@@ -56,6 +57,9 @@ export const STORAGE_COMMODITY_CODES = {
   rosehipJam: 62,
   wax: 64,
   candles: 65,
+  pelts: 66,
+  yarn: 67,
+  linen: 68,
 } as const;
 
 export type StorageCommodity = keyof typeof STORAGE_COMMODITY_CODES;
@@ -68,6 +72,7 @@ export const STORAGE_COMMODITY_LABELS: Record<StorageCommodity, string> = {
   honey: 'Honey',
   wine: 'Wine',
   stone: 'Stone',
+  wool: 'Wool',
   cloth: 'Clothing',
   barley: 'Threshed barley',
   flax: 'Flax',
@@ -116,12 +121,16 @@ export const STORAGE_COMMODITY_LABELS: Record<StorageCommodity, string> = {
   rosehipJam: 'Rosehip jam',
   wax: 'Beeswax',
   candles: 'Candles',
+  pelts: 'Wild-game pelts',
+  yarn: 'Yarn',
+  linen: 'Linen',
 };
 
 export const STOREHOUSE_STORAGE_GROUPS = [
   { label: 'Building materials', commodities: ['timber', 'stone'] },
   { label: 'Fuel and minerals', commodities: ['firewood', 'charcoal', 'iron', 'clay', 'salt'] },
-  { label: 'Market wares', commodities: ['cloth', 'hides', 'leather', 'shoes', 'pottery', 'remedies', 'wax', 'candles'] },
+  { label: 'Textile materials', commodities: ['wool', 'yarn', 'linen'] },
+  { label: 'Market wares', commodities: ['cloth', 'pelts', 'hides', 'leather', 'shoes', 'pottery', 'remedies', 'wax', 'candles'] },
 ] as const satisfies ReadonlyArray<{
   label: string;
   commodities: readonly StorageCommodity[];

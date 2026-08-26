@@ -91,7 +91,7 @@ const authoritativeEntries = [...asU8Body.matchAll(/Self::([A-Z][A-Za-z0-9]*)\s*
     code: Number(match[2]),
   }))
   .sort((left, right) => left.code - right.code);
-assert.equal(authoritativeEntries.length, 66, 'the audit must cover every authoritative commodity');
+assert.equal(authoritativeEntries.length, 69, 'the audit must cover every authoritative commodity');
 assert.deepEqual(
   authoritativeEntries.map(({ code }) => code),
   Array.from({ length: authoritativeEntries.length }, (_, code) => code),
@@ -109,6 +109,9 @@ assert.equal(
 );
 assert.equal(codeByResource.get('wax'), 64, 'Wax must be the first companion high-mask bit');
 assert.equal(codeByResource.get('candles'), 65, 'Candles must be the second companion high-mask bit');
+assert.equal(codeByResource.get('pelts'), 66, 'Pelts must retain their appended commodity code');
+assert.equal(codeByResource.get('yarn'), 67, 'Yarn must retain its appended commodity code');
+assert.equal(codeByResource.get('linen'), 68, 'Linen must retain its appended commodity code');
 assertSameSet(
   RESOURCE_KINDS,
   [...authoritativeResources, 'game'],
@@ -164,6 +167,10 @@ assert.match(
 assert.ok(
   statSync('public/assets/ui/icons/materials/clothing.png').size > 20_000,
   'the finished-clothing icon must be a real raster asset',
+);
+assert.ok(
+  statSync('public/assets/ui/icons/materials/pelts.png').size > 20_000,
+  'the wild-game pelts icon must be a real raster asset',
 );
 
 const rustTradeMappings = [...tradeResourceSource.matchAll(

@@ -1,4 +1,4 @@
-export const RESOURCE_KINDS = ['timber', 'stone', 'firewood', 'water', 'game', 'berries', 'mushrooms', 'fish', 'food', 'ryeSheaves', 'oatSheaves', 'barleySheaves', 'maslinSheaves', 'ryeGrain', 'oatGrain', 'maslinGrain', 'barley', 'malt', 'ryeFlour', 'maslinFlour', 'ale', 'cider', 'pearCider', 'mead', 'preservedFood', 'honey', 'wax', 'candles', 'wine', 'wool', 'flax', 'cloth', 'hides', 'leather', 'shoes', 'ironwork', 'polearms', 'iron', 'clay', 'salt', 'charcoal', 'pottery', 'manure', 'remedies', 'roofTiles', 'gold', 'ryeBread', 'maslinBread', 'meat', 'milk', 'apples', 'pears', 'cherries', 'aronia', 'rosehips', 'vegetables', 'cabbage', 'carrots', 'beetroot', 'eggs', 'grapes', 'curedMeat', 'smokedFish', 'cheese', 'aroniaJam', 'rosehipJam', 'animalFeed'] as const;
+export const RESOURCE_KINDS = ['timber', 'stone', 'firewood', 'water', 'game', 'berries', 'mushrooms', 'fish', 'food', 'ryeSheaves', 'oatSheaves', 'barleySheaves', 'maslinSheaves', 'ryeGrain', 'oatGrain', 'maslinGrain', 'barley', 'malt', 'ryeFlour', 'maslinFlour', 'ale', 'cider', 'pearCider', 'mead', 'preservedFood', 'honey', 'wax', 'candles', 'wine', 'wool', 'flax', 'yarn', 'linen', 'cloth', 'pelts', 'hides', 'leather', 'shoes', 'ironwork', 'polearms', 'iron', 'clay', 'salt', 'charcoal', 'pottery', 'manure', 'remedies', 'roofTiles', 'gold', 'ryeBread', 'maslinBread', 'meat', 'milk', 'apples', 'pears', 'cherries', 'aronia', 'rosehips', 'vegetables', 'cabbage', 'carrots', 'beetroot', 'eggs', 'grapes', 'curedMeat', 'smokedFish', 'cheese', 'aroniaJam', 'rosehipJam', 'animalFeed'] as const;
 export type ResourceKind = (typeof RESOURCE_KINDS)[number];
 
 export const RESOURCE_NODE_KINDS = ['quarry', 'game', 'berries', 'mushrooms', 'fish'] as const;
@@ -146,7 +146,10 @@ export type BuildingState = {
   wine: number;
   wool?: number;
   flax?: number;
+  yarn?: number;
+  linen?: number;
   cloth?: number;
+  pelts?: number;
   hides?: number;
   leather?: number;
   shoes?: number;
@@ -226,7 +229,7 @@ export type BuildingState = {
   breweryRecipePolicy?: number;
   /** 1 fields first, 2 demand-aware automatic, 3 thresh before non-harvest fieldwork. */
   threshingPriority?: number;
-  /** 0 auto, 1 wool first, 2 flax first; meaningful only for weavers. */
+  /** Generic textile route preference: 0 auto, 1 first route, 2 second route. */
   weaverInputPolicy?: number;
   /** 0 storehouse market wares first, 1 preservation vessels first; potter kilns only. */
   potteryDispatchPolicy?: number;

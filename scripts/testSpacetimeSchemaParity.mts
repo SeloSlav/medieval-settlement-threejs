@@ -123,7 +123,7 @@ for (const tableName of subscriptions) {
 const building = rustTables.get('building');
 assert.ok(building, 'building table must be subscribed and public');
 assert.deepEqual(
-  building.fields.slice(-9),
+  building.fields.slice(-12),
   [
     { name: 'tree_work_area_x', type: 'f64' },
     { name: 'tree_work_area_z', type: 'f64' },
@@ -134,16 +134,25 @@ assert.deepEqual(
     { name: 'wax', type: 'f64' },
     { name: 'candles', type: 'f64' },
     { name: 'apiary_wax_cycle_progress', type: 'u8' },
+    { name: 'pelts', type: 'f64' },
+    { name: 'yarn', type: 'f64' },
+    { name: 'linen', type: 'f64' },
   ],
-  'candle-chain fields must append after Animal Feed without reordering saved Building fields',
+  'new commodity fields must append without reordering saved Building fields',
 );
 
 const playerResources = rustTables.get('player_resources');
 assert.ok(playerResources, 'player_resources table must be subscribed and public');
 assert.deepEqual(
-  playerResources.fields.slice(-2),
-  [{ name: 'wax', type: 'f64' }, { name: 'candles', type: 'f64' }],
-  'candle-chain treasury fields must remain additive',
+  playerResources.fields.slice(-5),
+  [
+    { name: 'wax', type: 'f64' },
+    { name: 'candles', type: 'f64' },
+    { name: 'pelts', type: 'f64' },
+    { name: 'yarn', type: 'f64' },
+    { name: 'linen', type: 'f64' },
+  ],
+  'new commodity treasury fields must remain additive',
 );
 
 const backyardGarden = rustTables.get('backyard_garden');

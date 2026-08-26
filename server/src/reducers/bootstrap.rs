@@ -404,6 +404,9 @@ pub(crate) fn place_founding_camp(ctx: &ReducerContext, x: f64, z: f64) -> Resul
         wax: resources.wax.max(0.0),
         candles: resources.candles.max(0.0),
         apiary_wax_cycle_progress: 0,
+        pelts: resources.pelts.max(0.0),
+        yarn: resources.yarn.max(0.0),
+        linen: resources.linen.max(0.0),
     });
 
     resources.timber = 0.0;
@@ -428,6 +431,9 @@ pub(crate) fn place_founding_camp(ctx: &ReducerContext, x: f64, z: f64) -> Resul
     resources.pear_cider = 0.0;
     resources.wax = 0.0;
     resources.candles = 0.0;
+    resources.pelts = 0.0;
+    resources.yarn = 0.0;
+    resources.linen = 0.0;
     resources.preserved_food = 0.0;
     resources.honey = 0.0;
     resources.wine = 0.0;

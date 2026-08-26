@@ -193,7 +193,7 @@ fn select_industrial_water_target(
                 {
                     return None;
                 }
-                if candidate.kind == "weaver" && candidate.flax <= 1e-6 {
+                if candidate.kind == "spinning_retting_house" && candidate.flax <= 1e-6 {
                     return None;
                 }
                 if !position_within_well_service_radius(

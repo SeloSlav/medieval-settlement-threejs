@@ -9,6 +9,7 @@ mod construction_labor_steward;
 mod delivery_cargo;
 mod delivery_supplier;
 mod delivery_trips;
+mod devotional_candles;
 mod expanded_economy;
 mod fires;
 mod fiscal_revenue;
@@ -60,13 +61,14 @@ pub use delivery_trips::{
     cancel_trips_for_residence, drain_trips_for_building, preserve_in_transit_cart_labor,
     staffed_cart_workers_by_building, step_delivery_trips, try_start_fire_response_trip,
 };
+pub use devotional_candles::step_devotional_candles;
 pub use expanded_economy::{
     step_apiary, step_bakery, step_brewery, step_carpenter, step_chandlery, step_charcoal_burner,
     step_clay_pit, step_cobbler, step_granary, step_guardhouse, step_industrial_firewood_dispatch,
     step_institutional_food_dispatch, step_local_material_dispatch,
     step_marketplace_material_dispatch, step_mine, step_monastery, step_potter_kiln,
-    step_seed_grain_distribution, step_smithy, step_smokehouse, step_tannery, step_threshing_barn,
-    step_watermill, step_weaver, step_windmill,
+    step_seed_grain_distribution, step_smithy, step_smokehouse, step_spinning_retting_house,
+    step_tannery, step_threshing_barn, step_watermill, step_weaver, step_windmill,
 };
 pub use fires::{
     building_fire_state, clear_fire_for_target, fire_response_needed_for_well,

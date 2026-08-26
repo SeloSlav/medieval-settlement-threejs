@@ -326,6 +326,9 @@ mod tests {
             wax: 0.0,
             candles: 0.0,
             apiary_wax_cycle_progress: 0,
+            pelts: 0.0,
+            yarn: 0.0,
+            linen: 0.0,
         }
     }
 

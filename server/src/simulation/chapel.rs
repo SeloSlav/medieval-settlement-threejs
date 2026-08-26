@@ -83,6 +83,7 @@ pub fn step_chapels(
             chapel.assigned_labor,
             sabbath_observance,
             has_monastery_coverage,
+            crate::devotional_candle_policy::devotional_candles_supplied(chapel.candles),
         );
         let route = monastery_tithe_routes.get(&chapel.id);
         let monastery_share = route

@@ -1315,14 +1315,60 @@ function syncBuildingVisualState(
       );
     }
   }
-  if (building.kind === 'weaver') {
-    const wool = marker.getObjectByName('WeaverWoolStockpile');
+  if (building.kind === 'spinning_retting_house') {
+    const caps = BUILDING_STORAGE_CAPS.spinning_retting_house as Partial<Record<
+      'wool' | 'flax' | 'yarn' | 'linen',
+      number
+    >>;
+    const wool = marker.getObjectByName('SpinningWoolStockpile');
     if (wool instanceof THREE.Group) {
       syncStockpileSegments(
         wool,
         'WoolStockSegment',
         building.wool ?? 0,
-        BUILDING_STORAGE_CAPS.weaver.wool ?? 0,
+        caps.wool ?? 0,
+      );
+    }
+    const flax = marker.getObjectByName('SpinningFlaxStockpile');
+    if (flax instanceof THREE.Group) {
+      syncStockpileSegments(
+        flax,
+        'FlaxStockSegment',
+        building.flax ?? 0,
+        caps.flax ?? 0,
+      );
+    }
+    const yarn = marker.getObjectByName('SpinningYarnStockpile');
+    if (yarn instanceof THREE.Group) {
+      syncStockpileSegments(
+        yarn,
+        'YarnStockSegment',
+        building.yarn ?? 0,
+        caps.yarn ?? 0,
+      );
+    }
+    const linen = marker.getObjectByName('SpinningLinenStockpile');
+    if (linen instanceof THREE.Group) {
+      syncStockpileSegments(
+        linen,
+        'LinenStockSegment',
+        building.linen ?? 0,
+        caps.linen ?? 0,
+      );
+    }
+  }
+  if (building.kind === 'weaver') {
+    const caps = BUILDING_STORAGE_CAPS.weaver as Partial<Record<
+      'yarn' | 'linen' | 'cloth',
+      number
+    >>;
+    const yarn = marker.getObjectByName('WeaverYarnStockpile');
+    if (yarn instanceof THREE.Group) {
+      syncStockpileSegments(
+        yarn,
+        'YarnStockSegment',
+        building.yarn ?? 0,
+        caps.yarn ?? 0,
       );
     }
     const cloth = marker.getObjectByName('ClothStockpile');
@@ -1331,16 +1377,16 @@ function syncBuildingVisualState(
         cloth,
         'ClothStockSegment',
         building.cloth ?? 0,
-        BUILDING_STORAGE_CAPS.weaver.cloth ?? 0,
+        caps.cloth ?? 0,
       );
     }
-    const flax = marker.getObjectByName('WeaverFlaxStockpile');
-    if (flax instanceof THREE.Group) {
+    const linen = marker.getObjectByName('WeaverLinenStockpile');
+    if (linen instanceof THREE.Group) {
       syncStockpileSegments(
-        flax,
-        'FlaxStockSegment',
-        building.flax ?? 0,
-        BUILDING_STORAGE_CAPS.weaver.flax ?? 0,
+        linen,
+        'LinenStockSegment',
+        building.linen ?? 0,
+        caps.linen ?? 0,
       );
     }
   }

@@ -600,7 +600,10 @@ export class ResourceInspector {
       wine: this.mustElement(options.uiRoot, '[data-stockpile="wine"]'),
       wool: this.mustElement(options.uiRoot, '[data-stockpile="wool"]'),
       flax: this.mustElement(options.uiRoot, '[data-stockpile="flax"]'),
+      yarn: this.mustElement(options.uiRoot, '[data-stockpile="yarn"]'),
+      linen: this.mustElement(options.uiRoot, '[data-stockpile="linen"]'),
       cloth: this.mustElement(options.uiRoot, '[data-stockpile="cloth"]'),
+      pelts: this.mustElement(options.uiRoot, '[data-stockpile="pelts"]'),
       hides: this.mustElement(options.uiRoot, '[data-stockpile="hides"]'),
       leather: this.mustElement(options.uiRoot, '[data-stockpile="leather"]'),
       shoes: this.mustElement(options.uiRoot, '[data-stockpile="shoes"]'),
@@ -1395,7 +1398,10 @@ export class ResourceInspector {
           return;
         }
       }
-      if (this.selectedTarget.building.kind === 'weaver') {
+      if (
+        this.selectedTarget.building.kind === 'spinning_retting_house'
+        || this.selectedTarget.building.kind === 'weaver'
+      ) {
         const inputPolicy = (event.target as HTMLElement)
           .closest<HTMLElement>('[data-weaver-input-policy]')
           ?.dataset.weaverInputPolicy;
@@ -2923,6 +2929,7 @@ const BUILDING_INSPECTOR_ART = {
   watermill: '/assets/ui/build-menu/cards/watermill.webp',
   windmill: '/assets/ui/build-menu/cards/windmill.webp',
   carpenter: '/assets/ui/build-menu/cards/carpenter.webp',
+  spinning_retting_house: '/assets/ui/build-menu/cards/spinning-retting-house.webp',
   weaver: '/assets/ui/build-menu/cards/weaver.webp',
   tannery: '/assets/ui/build-menu/cards/tannery.webp',
   cobbler: '/assets/ui/build-menu/cards/cobbler.webp',

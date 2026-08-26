@@ -80,6 +80,7 @@ const BUILDING_LABOR_SECTORS: Record<BuildingKind, LaborSector> = {
   watermill: 'provisions',
   windmill: 'provisions',
   carpenter: 'materials',
+  spinning_retting_house: 'materials',
   weaver: 'materials',
   tannery: 'materials',
   cobbler: 'materials',

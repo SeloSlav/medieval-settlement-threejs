@@ -424,6 +424,15 @@ pub struct PlayerResources {
     pub wax: f64,
     #[default(0.0)]
     pub candles: f64,
+    /// Raw fur-on skins recovered from hunted wild game and kept distinct from
+    /// livestock hides used by the Tannery.
+    #[default(0.0)]
+    pub pelts: f64,
+    /// Spun wool and retted flax recovered from physical stores or interrupted hauling.
+    #[default(0.0)]
+    pub yarn: f64,
+    #[default(0.0)]
+    pub linen: f64,
 }
 
 /// A durable community inside one owner-wide realm. Settlements carry civic
@@ -1102,6 +1111,16 @@ pub struct Building {
     /// Counts successful honey harvests toward the next infrequent wax harvest.
     #[default(0u8)]
     pub apiary_wax_cycle_progress: u8,
+    /// Fur-on wild-game skins. Appended for additive save compatibility;
+    /// unlike goat hides, pelts are a transportable regional trade good only.
+    #[default(0.0)]
+    pub pelts: f64,
+    /// Spun wool intermediate. Appended after all existing fields for additive save compatibility.
+    #[default(0.0)]
+    pub yarn: f64,
+    /// Retted flax intermediate. Appended after all existing fields for additive save compatibility.
+    #[default(0.0)]
+    pub linen: f64,
 }
 
 /// One persistent import/export instruction for one Trading Post commodity.

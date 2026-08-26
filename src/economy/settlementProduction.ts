@@ -52,10 +52,14 @@ import {
   WATERMILL_RYE_FLOUR_PER_CYCLE,
   WATERMILL_MASLIN_FLOUR_PER_CYCLE,
   WATERMILL_GRAIN_PER_CYCLE,
+  SPINNING_RETTING_WOOL_PER_CYCLE,
+  SPINNING_RETTING_FLAX_PER_CYCLE,
+  SPINNING_RETTING_FLAX_WATER_PER_CYCLE,
+  SPINNING_RETTING_YARN_PER_CYCLE,
+  SPINNING_RETTING_LINEN_PER_CYCLE,
   WEAVER_CLOTH_PER_CYCLE,
-  WEAVER_FLAX_PER_CYCLE,
-  WEAVER_FLAX_WATER_PER_CYCLE,
-  WEAVER_WOOL_PER_CYCLE,
+  WEAVER_YARN_PER_CYCLE,
+  WEAVER_LINEN_PER_CYCLE,
   TANNERY_HIDES_PER_CYCLE,
   TANNERY_WATER_PER_CYCLE,
   TANNERY_FIREWOOD_PER_CYCLE,
@@ -125,7 +129,7 @@ import {
   mineralMineOutputPerDay,
 } from './settlementGeology.ts';
 import { normalizeMarketplaceIronTarget } from './marketplaceMaterialProcurementPolicy.ts';
-import { weaverUsesFlax } from './weaverInputPolicy.ts';
+import { weaverUsesFlax, weaverUsesLinen } from './weaverInputPolicy.ts';
 import { largeQuarrySupportsReady } from './largeQuarrySupportPolicy.ts';
 import { richMineSupportsReady } from './mineSupportPolicy.ts';
 import { preservedFoodStock } from './foodInventory.ts';
@@ -144,6 +148,7 @@ export type SettlementProductionCapacity = {
   bakeryWorkers: number;
   breweryWorkers: number;
   smokehouseWorkers: number;
+  spinnerWorkers: number;
   weaverWorkers: number;
   tanneryWorkers: number;
   cobblerWorkers: number;
@@ -151,6 +156,7 @@ export type SettlementProductionCapacity = {
   bakeryInputBuffer: ProcessorInputBuffer | null;
   breweryInputBuffer: ProcessorInputBuffer | null;
   smokehouseInputBuffer: ProcessorInputBuffer | null;
+  spinnerInputBuffer: ProcessorInputBuffer | null;
   weaverInputBuffer: ProcessorInputBuffer | null;
   tanneryInputBuffer: ProcessorInputBuffer | null;
   cobblerInputBuffer: ProcessorInputBuffer | null;
@@ -161,6 +167,7 @@ export type SettlementProductionCapacity = {
   bakeryOutputRoom: ProcessorOutputRoom | null;
   breweryOutputRoom: ProcessorOutputRoom | null;
   smokehouseOutputRoom: ProcessorOutputRoom | null;
+  spinnerOutputRoom: ProcessorOutputRoom | null;
   weaverOutputRoom: ProcessorOutputRoom | null;
   tanneryOutputRoom: ProcessorOutputRoom | null;
   cobblerOutputRoom: ProcessorOutputRoom | null;
@@ -184,7 +191,13 @@ export type SettlementProductionCapacity = {
   preservationFirewoodPerDay: number;
   preservationSaltPerDay: number;
   preservationPotteryPerDay: number;
+  spinnerIntermediateCapacityPerDay: number;
+  weaverClothCapacityPerDay: number;
+  yarnOutputPerDay: number;
+  linenOutputPerDay: number;
   clothOutputPerDay: number;
+  clothYarnPerDay: number;
+  clothLinenPerDay: number;
   clothWoolPerDay: number;
   clothFlaxPerDay: number;
   clothFlaxWaterPerDay: number;
@@ -230,6 +243,8 @@ export type ProcessorInput =
   | 'pottery'
   | 'wool'
   | 'flax'
+  | 'yarn'
+  | 'linen'
   | 'hides'
   | 'leather';
 
@@ -349,6 +364,7 @@ export type ProsperityRoadBranch = {
   lowerTierShoesResidents: number;
   preservedFoodOutputPerDay: number;
   aleOutputPerDay: number;
+  textileIntermediateOutputPerDay: number;
   clothOutputPerDay: number;
   shoesOutputPerDay: number;
   potteryOutputPerDay: number;
@@ -372,6 +388,7 @@ type ProcessorOverview = Pick<
   | 'bakeryWorkers'
   | 'breweryWorkers'
   | 'smokehouseWorkers'
+  | 'spinnerWorkers'
   | 'weaverWorkers'
   | 'tanneryWorkers'
   | 'cobblerWorkers'
@@ -379,6 +396,7 @@ type ProcessorOverview = Pick<
   | 'bakeryInputBuffer'
   | 'breweryInputBuffer'
   | 'smokehouseInputBuffer'
+  | 'spinnerInputBuffer'
   | 'weaverInputBuffer'
   | 'tanneryInputBuffer'
   | 'cobblerInputBuffer'
@@ -389,6 +407,7 @@ type ProcessorOverview = Pick<
   | 'bakeryOutputRoom'
   | 'breweryOutputRoom'
   | 'smokehouseOutputRoom'
+  | 'spinnerOutputRoom'
   | 'weaverOutputRoom'
   | 'tanneryOutputRoom'
   | 'cobblerOutputRoom'
@@ -566,6 +585,7 @@ function prosperityRoadBranch(
     lowerTierShoesResidents: 0,
     preservedFoodOutputPerDay: 0,
     aleOutputPerDay: 0,
+    textileIntermediateOutputPerDay: 0,
     clothOutputPerDay: 0,
     shoesOutputPerDay: 0,
     potteryOutputPerDay: 0,
@@ -580,7 +600,7 @@ function recordProsperityOutput(
   branches: Map<string, ProsperityRoadBranch> | null,
   building: BuildingState,
   componentFor: ProductionRoadComponentResolver | undefined,
-  kind: 'preservedFood' | 'ale' | 'cloth' | 'shoes' | 'pottery',
+  kind: 'preservedFood' | 'ale' | 'textileIntermediate' | 'cloth' | 'shoes' | 'pottery',
   outputPerDay: number,
 ): void {
   if (!branches || !componentFor) return;
@@ -596,6 +616,8 @@ function recordProsperityOutput(
     branch.preservedFoodOutputPerDay += outputPerDay;
   } else if (kind === 'ale') {
     branch.aleOutputPerDay += outputPerDay;
+  } else if (kind === 'textileIntermediate') {
+    branch.textileIntermediateOutputPerDay += outputPerDay;
   } else if (kind === 'cloth') {
     branch.clothOutputPerDay += outputPerDay;
   } else if (kind === 'shoes') {
@@ -949,6 +971,7 @@ function completedProcessorOverview(
   const bakeryCyclesPerWorker = cyclesPerCalendarDay('bakery', 1, sabbathObserved);
   const breweryCyclesPerWorker = cyclesPerCalendarDay('brewery', 1, sabbathObserved);
   const smokehouseCyclesPerWorker = cyclesPerCalendarDay('smokehouse', 1, sabbathObserved);
+  const spinnerCyclesPerWorker = cyclesPerCalendarDay('spinning_retting_house', 1, sabbathObserved);
   const weaverCyclesPerWorker = cyclesPerCalendarDay('weaver', 1, sabbathObserved);
   const tanneryCyclesPerWorker = cyclesPerCalendarDay('tannery', 1, sabbathObserved);
   const cobblerCyclesPerWorker = cyclesPerCalendarDay('cobbler', 1, sabbathObserved);
@@ -972,6 +995,7 @@ function completedProcessorOverview(
   let bakeryWorkers = 0;
   let breweryWorkers = 0;
   let smokehouseWorkers = 0;
+  let spinnerWorkers = 0;
   let weaverWorkers = 0;
   let tanneryWorkers = 0;
   let cobblerWorkers = 0;
@@ -994,6 +1018,7 @@ function completedProcessorOverview(
   let bakeryInputBuffer: ProcessorInputBuffer | null = null;
   let breweryInputBuffer: ProcessorInputBuffer | null = null;
   let smokehouseInputBuffer: ProcessorInputBuffer | null = null;
+  let spinnerInputBuffer: ProcessorInputBuffer | null = null;
   let weaverInputBuffer: ProcessorInputBuffer | null = null;
   let tanneryInputBuffer: ProcessorInputBuffer | null = null;
   let cobblerInputBuffer: ProcessorInputBuffer | null = null;
@@ -1004,6 +1029,7 @@ function completedProcessorOverview(
   let bakeryOutputRoom: ProcessorOutputRoom | null = null;
   let breweryOutputRoom: ProcessorOutputRoom | null = null;
   let smokehouseOutputRoom: ProcessorOutputRoom | null = null;
+  let spinnerOutputRoom: ProcessorOutputRoom | null = null;
   let weaverOutputRoom: ProcessorOutputRoom | null = null;
   let tanneryOutputRoom: ProcessorOutputRoom | null = null;
   let cobblerOutputRoom: ProcessorOutputRoom | null = null;
@@ -1054,6 +1080,7 @@ function completedProcessorOverview(
         || building.kind === 'bakery'
         || building.kind === 'brewery'
         || building.kind === 'smokehouse'
+        || building.kind === 'spinning_retting_house'
         || building.kind === 'weaver'
         || building.kind === 'tannery'
         || building.kind === 'cobbler'
@@ -1489,6 +1516,63 @@ function completedProcessorOverview(
         );
         break;
       }
+      case 'spinning_retting_house': {
+        spinnerWorkers += building.assignedLabor;
+        const cycles = spinnerCyclesPerWorker * building.assignedLabor;
+        recordProsperityOutput(
+          prosperityRoadBranches,
+          building,
+          componentFor,
+          'textileIntermediate',
+          cycles * SPINNING_RETTING_YARN_PER_CYCLE,
+        );
+        const usesFlax = weaverUsesFlax(building);
+        let runway = buildingInputRunway(
+          deliveries,
+          building,
+          usesFlax ? 'flax' : 'wool',
+          cycles * (
+            usesFlax
+              ? SPINNING_RETTING_FLAX_PER_CYCLE
+              : SPINNING_RETTING_WOOL_PER_CYCLE
+          ),
+        );
+        let limitingInput: ProcessorInput = usesFlax ? 'flax' : 'wool';
+        if (usesFlax) {
+          const waterRunway = buildingInputRunway(
+            deliveries,
+            building,
+            'water',
+            cycles * SPINNING_RETTING_FLAX_WATER_PER_CYCLE,
+          );
+          if (waterRunway.days < runway.days) {
+            runway = waterRunway;
+            limitingInput = 'water';
+          }
+        }
+        spinnerInputBuffer = updateFirstToStop(
+          spinnerInputBuffer,
+          runway,
+          limitingInput,
+          building.id,
+        );
+        const outputKind = usesFlax ? 'linen' : 'yarn';
+        const outputPerCycle = usesFlax
+          ? SPINNING_RETTING_LINEN_PER_CYCLE
+          : SPINNING_RETTING_YARN_PER_CYCLE;
+        spinnerOutputRoom = updateFirstToFill(
+          spinnerOutputRoom,
+          outputRoomDays(
+            building[outputKind] ?? 0,
+            processorOutputTargetForBuilding(building)
+              ?? (BUILDING_STORAGE_CAPS.spinning_retting_house[outputKind] ?? 0),
+            cycles * outputPerCycle,
+          ),
+          building.id,
+          normalizeProcessorOutputTargetPercent(building.processorOutputTargetPercent),
+        );
+        break;
+      }
       case 'weaver': {
         weaverWorkers += building.assignedLabor;
         const cycles = weaverCyclesPerWorker * building.assignedLabor;
@@ -1499,32 +1583,18 @@ function completedProcessorOverview(
           'cloth',
           cycles * WEAVER_CLOTH_PER_CYCLE,
         );
-        const usesFlax = weaverUsesFlax(building);
-        let runway = buildingInputRunway(
+        const usesLinen = weaverUsesLinen(building);
+        const inputKind = usesLinen ? 'linen' : 'yarn';
+        const runway = buildingInputRunway(
           deliveries,
           building,
-          usesFlax ? 'flax' : 'wool',
-          cycles * (
-            usesFlax ? WEAVER_FLAX_PER_CYCLE : WEAVER_WOOL_PER_CYCLE
-          ),
+          inputKind,
+          cycles * (usesLinen ? WEAVER_LINEN_PER_CYCLE : WEAVER_YARN_PER_CYCLE),
         );
-        let limitingInput: ProcessorInput = usesFlax ? 'flax' : 'wool';
-        if (usesFlax) {
-          const waterRunway = buildingInputRunway(
-            deliveries,
-            building,
-            'water',
-            cycles * WEAVER_FLAX_WATER_PER_CYCLE,
-          );
-          if (waterRunway.days < runway.days) {
-            runway = waterRunway;
-            limitingInput = 'water';
-          }
-        }
         weaverInputBuffer = updateFirstToStop(
           weaverInputBuffer,
           runway,
-          limitingInput,
+          inputKind,
           building.id,
         );
         weaverOutputRoom = updateFirstToFill(
@@ -1937,6 +2007,7 @@ function completedProcessorOverview(
     bakeryWorkers,
     breweryWorkers,
     smokehouseWorkers,
+    spinnerWorkers,
     weaverWorkers,
     tanneryWorkers,
     cobblerWorkers,
@@ -1959,6 +2030,7 @@ function completedProcessorOverview(
     bakeryInputBuffer,
     breweryInputBuffer,
     smokehouseInputBuffer,
+    spinnerInputBuffer,
     weaverInputBuffer,
     tanneryInputBuffer,
     cobblerInputBuffer,
@@ -1969,6 +2041,7 @@ function completedProcessorOverview(
     bakeryOutputRoom,
     breweryOutputRoom,
     smokehouseOutputRoom,
+    spinnerOutputRoom,
     weaverOutputRoom,
     tanneryOutputRoom,
     cobblerOutputRoom,
@@ -2754,6 +2827,7 @@ export function computeSettlementProductionCapacity(
     bakeryWorkers,
     breweryWorkers,
     smokehouseWorkers,
+    spinnerWorkers,
     weaverWorkers,
     tanneryWorkers,
     cobblerWorkers,
@@ -2776,6 +2850,7 @@ export function computeSettlementProductionCapacity(
     bakeryInputBuffer,
     breweryInputBuffer,
     smokehouseInputBuffer,
+    spinnerInputBuffer,
     weaverInputBuffer,
     tanneryInputBuffer,
     cobblerInputBuffer,
@@ -2786,6 +2861,7 @@ export function computeSettlementProductionCapacity(
     bakeryOutputRoom,
     breweryOutputRoom,
     smokehouseOutputRoom,
+    spinnerOutputRoom,
     weaverOutputRoom,
     tanneryOutputRoom,
     cobblerOutputRoom,
@@ -2811,7 +2887,13 @@ export function computeSettlementProductionCapacity(
     smokehouseWorkers,
     sabbathObserved,
   );
+  const spinnerCycles = cyclesPerCalendarDay(
+    'spinning_retting_house',
+    spinnerWorkers,
+    sabbathObserved,
+  );
   const weaverCycles = cyclesPerCalendarDay('weaver', weaverWorkers, sabbathObserved);
+  const textileCycles = Math.min(spinnerCycles, weaverCycles);
   const tanneryCycles = cyclesPerCalendarDay('tannery', tanneryWorkers, sabbathObserved);
   const cobblerCycles = cyclesPerCalendarDay('cobbler', cobblerWorkers, sabbathObserved);
 
@@ -2984,6 +3066,7 @@ export function computeSettlementProductionCapacity(
     bakeryWorkers,
     breweryWorkers,
     smokehouseWorkers,
+    spinnerWorkers,
     weaverWorkers,
     tanneryWorkers,
     cobblerWorkers,
@@ -2991,6 +3074,7 @@ export function computeSettlementProductionCapacity(
     bakeryInputBuffer,
     breweryInputBuffer,
     smokehouseInputBuffer,
+    spinnerInputBuffer,
     weaverInputBuffer,
     tanneryInputBuffer,
     cobblerInputBuffer,
@@ -3001,6 +3085,7 @@ export function computeSettlementProductionCapacity(
     bakeryOutputRoom,
     breweryOutputRoom,
     smokehouseOutputRoom,
+    spinnerOutputRoom,
     weaverOutputRoom,
     tanneryOutputRoom,
     cobblerOutputRoom,
@@ -3024,11 +3109,18 @@ export function computeSettlementProductionCapacity(
     preservationFirewoodPerDay: smokehouseCycles * SMOKEHOUSE_FIREWOOD_PER_CYCLE,
     preservationSaltPerDay: smokehouseCycles * SMOKEHOUSE_SALT_PER_CYCLE,
     preservationPotteryPerDay: smokehouseCycles * SMOKEHOUSE_POTTERY_PER_CYCLE,
-    clothOutputPerDay: weaverCycles * WEAVER_CLOTH_PER_CYCLE,
-    clothWoolPerDay: weaverCycles * WEAVER_WOOL_PER_CYCLE,
-    clothFlaxPerDay: weaverCycles * WEAVER_FLAX_PER_CYCLE,
+    spinnerIntermediateCapacityPerDay:
+      spinnerCycles * SPINNING_RETTING_YARN_PER_CYCLE,
+    weaverClothCapacityPerDay: weaverCycles * WEAVER_CLOTH_PER_CYCLE,
+    yarnOutputPerDay: spinnerCycles * SPINNING_RETTING_YARN_PER_CYCLE,
+    linenOutputPerDay: spinnerCycles * SPINNING_RETTING_LINEN_PER_CYCLE,
+    clothOutputPerDay: textileCycles * WEAVER_CLOTH_PER_CYCLE,
+    clothYarnPerDay: textileCycles * WEAVER_YARN_PER_CYCLE,
+    clothLinenPerDay: textileCycles * WEAVER_LINEN_PER_CYCLE,
+    clothWoolPerDay: textileCycles * SPINNING_RETTING_WOOL_PER_CYCLE,
+    clothFlaxPerDay: textileCycles * SPINNING_RETTING_FLAX_PER_CYCLE,
     clothFlaxWaterPerDay:
-      weaverCycles * WEAVER_FLAX_WATER_PER_CYCLE,
+      textileCycles * SPINNING_RETTING_FLAX_WATER_PER_CYCLE,
     leatherOutputPerDay: tanneryCycles * TANNERY_LEATHER_PER_CYCLE,
     leatherHidesPerDay: tanneryCycles * TANNERY_HIDES_PER_CYCLE,
     leatherWaterPerDay: tanneryCycles * TANNERY_WATER_PER_CYCLE,

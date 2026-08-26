@@ -5,6 +5,7 @@
 pub const STOREHOUSE_ACCEPTANCE_MASK: u64 = bit(0) // firewood
     | bit(3) // timber
     | bit(10) // stone
+    | bit(13) // wool
     | bit(14) // cloth
     | bit(19) // iron
     | bit(20) // clay
@@ -17,7 +18,10 @@ pub const STOREHOUSE_ACCEPTANCE_MASK: u64 = bit(0) // firewood
     | bit(60); // shoes
 
 pub const STOREHOUSE_ACCEPTANCE_MASK_HIGH: u64 = high_bit(64) // wax
-    | high_bit(65); // candles
+    | high_bit(65) // candles
+    | high_bit(66) // pelts
+    | high_bit(67) // yarn
+    | high_bit(68); // linen
 
 pub const GRANARY_ACCEPTANCE_MASK: u64 = bit(6) // ale
     | bit(7) // legacy preserved food
@@ -153,8 +157,14 @@ mod tests {
         assert!(storage_mask_accepts(u64::MAX, 54));
         assert!(storage_kind_supports_commodity("village_storehouse", 64));
         assert!(storage_kind_supports_commodity("village_storehouse", 65));
+        assert!(storage_kind_supports_commodity("village_storehouse", 66));
+        assert!(storage_kind_supports_commodity("village_storehouse", 67));
+        assert!(storage_kind_supports_commodity("village_storehouse", 68));
         assert!(!storage_kind_supports_commodity("granary", 64));
         assert!(storage_masks_accept(u64::MAX, u64::MAX, 65));
+        assert!(storage_masks_accept(u64::MAX, u64::MAX, 66));
+        assert!(storage_masks_accept(u64::MAX, u64::MAX, 67));
+        assert!(storage_masks_accept(u64::MAX, u64::MAX, 68));
     }
 
     #[test]

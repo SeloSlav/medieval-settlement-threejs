@@ -113,6 +113,8 @@ export function placeBuilding(state: GameState, kind: BuildingKind, x: number, z
     candles: 0,
     wine: 0,
     wool: 0,
+    yarn: 0,
+    linen: 0,
     cloth: 0,
     waterCapacity: 0,
     assignedLabor: 0,

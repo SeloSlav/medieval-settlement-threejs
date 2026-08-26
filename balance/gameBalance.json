@@ -253,7 +253,10 @@
         "wine": "marketAccessible",
         "polearms": "marketAccessible",
         "wool": "marketAccessible",
+        "yarn": "marketAccessible",
+        "linen": "marketAccessible",
         "cloth": "marketAccessible",
+        "pelts": "marketAccessible",
         "hides": "marketAccessible",
         "leather": "marketAccessible",
         "shoes": "marketAccessible",
@@ -422,6 +425,12 @@
       { "id": "sell_cider", "kind": "goldSell", "resource": "cider", "amount": 12, "goldYield": 12 }
       ,{ "id": "buy_pear_cider", "kind": "goldBuy", "resource": "pearCider", "amount": 12, "goldCost": 21 }
       ,{ "id": "sell_pear_cider", "kind": "goldSell", "resource": "pearCider", "amount": 12, "goldYield": 13 }
+      ,{ "id": "buy_yarn", "kind": "goldBuy", "resource": "yarn", "amount": 8, "goldCost": 18 }
+      ,{ "id": "sell_yarn", "kind": "goldSell", "resource": "yarn", "amount": 8, "goldYield": 12 }
+      ,{ "id": "buy_linen", "kind": "goldBuy", "resource": "linen", "amount": 8, "goldCost": 19 }
+      ,{ "id": "sell_linen", "kind": "goldSell", "resource": "linen", "amount": 8, "goldYield": 13 }
+      ,{ "id": "buy_pelts", "kind": "goldBuy", "resource": "pelts", "amount": 12, "goldCost": 13 }
+      ,{ "id": "sell_pelts", "kind": "goldSell", "resource": "pelts", "amount": 12, "goldYield": 8 }
     ]
   },
   "regionalMarket": {
@@ -679,7 +688,7 @@
     "stonePerHarvest": 2,
     "gameAnimalsPerHarvest": 1,
     "gamePerHarvest": 4,
-    "gameHidesPerAnimal": 1,
+    "gamePeltsPerAnimal": 1,
     "berriesPerHarvest": 3,
     "mushroomsPerHarvest": 3,
     "foragerRemediesPerHarvest": 1,
@@ -743,9 +752,13 @@
     "breweryCiderPerCycle": 1,
     "breweryHoneyPerMeadCycle": 1,
     "breweryMeadPerCycle": 1,
-    "weaverWoolPerCycle": 3,
-    "weaverFlaxPerCycle": 3,
-    "weaverFlaxWaterPerCycle": 1,
+    "spinningRettingWoolPerCycle": 3,
+    "spinningRettingFlaxPerCycle": 3,
+    "spinningRettingFlaxWaterPerCycle": 1,
+    "spinningRettingYarnPerCycle": 2,
+    "spinningRettingLinenPerCycle": 2,
+    "weaverYarnPerCycle": 2,
+    "weaverLinenPerCycle": 2,
     "weaverClothPerCycle": 2,
     "textileTransferPerTrip": 12,
     "tanneryHidesPerCycle": 3,
@@ -1147,7 +1160,10 @@
         "roofTiles": 80,
         "wool": 120,
         "flax": 120,
+        "yarn": 80,
+        "linen": 80,
         "cloth": 80,
+        "pelts": 80,
         "hides": 80,
         "leather": 80,
         "shoes": 80
@@ -1197,7 +1213,10 @@
         "animalFeed": 2000,
         "wool": 2000,
         "flax": 2000,
+        "yarn": 2000,
+        "linen": 2000,
         "cloth": 2000,
+        "pelts": 2000,
         "hides": 2000,
         "leather": 2000,
         "shoes": 2000
@@ -1413,7 +1432,7 @@
     "hunters_hall": {
       "label": "Hunter's hall",
       "cost": { "timber": 30, "stone": 10 },
-      "storage": { "timber": 0, "firewood": 0, "stone": 0, "food": 100, "hides": 64 },
+      "storage": { "timber": 0, "firewood": 0, "stone": 0, "food": 100, "pelts": 64 },
       "workRadius": 68,
       "pickRadius": 9,
       "harvestInterval": 1050,
@@ -1518,7 +1537,7 @@
     "trading_post": {
       "label": "Trading Post",
       "cost": { "timber": 64, "stone": 42, "ironwork": 4 },
-      "storage": { "timber": 180, "firewood": 120, "stone": 180, "water": 72, "food": 160, "preservedFood": 120, "grain": 120, "barley": 120, "malt": 120, "flax": 120, "flour": 120, "ale": 180, "cider": 180, "pearCider": 180, "honey": 140, "wax": 160, "candles": 160, "wine": 160, "wool": 120, "cloth": 160, "hides": 160, "leather": 160, "shoes": 160, "ironwork": 96, "polearms": 48, "iron": 96, "clay": 120, "salt": 120, "charcoal": 120, "pottery": 144, "roofTiles": 120, "manure": 160, "remedies": 72 },
+      "storage": { "timber": 180, "firewood": 120, "stone": 180, "water": 72, "food": 160, "preservedFood": 120, "grain": 120, "barley": 120, "malt": 120, "flax": 120, "flour": 120, "ale": 180, "cider": 180, "pearCider": 180, "honey": 140, "wax": 160, "candles": 160, "wine": 160, "wool": 120, "yarn": 160, "linen": 160, "cloth": 160, "pelts": 160, "hides": 160, "leather": 160, "shoes": 160, "ironwork": 96, "polearms": 48, "iron": 96, "clay": 120, "salt": 120, "charcoal": 120, "pottery": 144, "roofTiles": 120, "manure": 160, "remedies": 72 },
       "workRadius": 0,
       "pickRadius": 10,
       "harvestInterval": 0,
@@ -1581,9 +1600,13 @@
         "clay": 180,
         "salt": 144,
         "charcoal": 280,
+        "wool": 180,
+        "yarn": 180,
+        "linen": 180,
         "cloth": 180,
         "wax": 120,
         "candles": 180,
+        "pelts": 180,
         "hides": 180,
         "leather": 180,
         "shoes": 180,
@@ -1899,10 +1922,29 @@
       "requiresBerries": false,
       "requiresWaterShore": false
     },
+    "spinning_retting_house": {
+      "label": "Spinning & Retting House",
+      "cost": { "timber": 36, "stone": 14 },
+      "storage": { "timber": 0, "firewood": 0, "stone": 0, "water": 24, "wool": 90, "flax": 90, "yarn": 90, "linen": 90 },
+      "workRadius": 0,
+      "pickRadius": 9,
+      "harvestInterval": 1050,
+      "regrowRatePerSecond": 0,
+      "maxLabor": 2,
+      "acceptsLabor": true,
+      "requiresRoad": true,
+      "facesRoad": true,
+      "requiresMatureTrees": false,
+      "requiresQuarryStone": false,
+      "requiresGame": false,
+      "requiresBerries": false,
+      "requiresWaterShore": false,
+      "requiresHillside": false
+    },
     "weaver": {
       "label": "Weaver's workshop",
       "cost": { "timber": 38, "stone": 16 },
-      "storage": { "timber": 0, "firewood": 0, "stone": 0, "water": 24, "wool": 90, "flax": 90, "cloth": 90 },
+      "storage": { "timber": 0, "firewood": 0, "stone": 0, "yarn": 90, "linen": 90, "cloth": 90 },
       "workRadius": 0,
       "pickRadius": 8,
       "harvestInterval": 1050,

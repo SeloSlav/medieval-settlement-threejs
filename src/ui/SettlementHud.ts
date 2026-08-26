@@ -574,14 +574,14 @@ const SETTLEMENT_HUD_HTML = `
     <details class="settlement-hud__stores" data-specialty-stores>
       <summary
         class="settlement-hud__stores-summary"
-        aria-label="Stores and provisions, no specialty stock"
+        aria-label="Goods and provisions, no specialty stock"
       >
         <span class="settlement-hud__stores-label">Stores</span>
         <strong class="settlement-hud__stores-status" data-specialty-stores-status>0</strong>
       </summary>
-      <div class="settlement-hud__stores-grid" aria-label="Provisions">
+      <div class="settlement-hud__stores-grid" aria-label="Goods and provisions">
       <div class="settlement-hud__stores-grid-header settlement-hud__people-header settlement-hud__supply-header" role="heading" aria-level="2">
-        <strong>Provisions</strong>
+        <strong>Goods &amp; provisions</strong>
         <span data-specialty-stores-mode-label>Available surplus</span>
       </div>
       <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="ryeGrain" data-tooltip="Grain for rye flour and bread.">
@@ -669,22 +669,37 @@ const SETTLEMENT_HUD_HTML = `
         <strong class="settlement-hud__value" data-stockpile="wine">0</strong>
         <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="wine" hidden></span>
       </div>
-      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="wool" data-tooltip="Sheep fleece used by weavers to make clothing.">
+      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="wool" data-tooltip="Sheep fleece spun into yarn at a Spinning &amp; Retting House.">
         <span class="settlement-hud__label">Wool</span>
         <strong class="settlement-hud__value" data-stockpile="wool">0</strong>
         <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="wool" hidden></span>
       </div>
-      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="flax" data-tooltip="Plant fibre used by weavers to make clothing.">
+      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="flax" data-tooltip="Plant fibre retted with water into linen at a Spinning &amp; Retting House.">
         <span class="settlement-hud__label">Flax</span>
         <strong class="settlement-hud__value" data-stockpile="flax">0</strong>
         <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="flax" hidden></span>
+      </div>
+      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="yarn" data-tooltip="Spun wool yarn hauled to Weavers for clothing production.">
+        <span class="settlement-hud__label">Yarn</span>
+        <strong class="settlement-hud__value" data-stockpile="yarn">0</strong>
+        <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="yarn" hidden></span>
+      </div>
+      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="linen" data-tooltip="Retted flax linen hauled to Weavers for clothing production.">
+        <span class="settlement-hud__label">Linen</span>
+        <strong class="settlement-hud__value" data-stockpile="linen">0</strong>
+        <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="linen" hidden></span>
       </div>
       <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="cloth" data-tooltip="Finished clothing used by households and for trade.">
         <span class="settlement-hud__label">Clothing</span>
         <strong class="settlement-hud__value" data-stockpile="cloth">0</strong>
         <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="cloth" hidden></span>
       </div>
-      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="hides" data-tooltip="Untanned hides supplied by hunters and backyard goats.">
+      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="pelts" data-tooltip="Fur-on wild-game skins from hunting. Store them in a Storehouse or export them through a Trading Post for Regional Wealth.">
+        <span class="settlement-hud__label">Pelts</span>
+        <strong class="settlement-hud__value" data-stockpile="pelts">0</strong>
+        <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="pelts" hidden></span>
+      </div>
+      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="hides" data-tooltip="Untanned livestock hides supplied by backyard goats for Tannery production.">
         <span class="settlement-hud__label">Hides</span>
         <strong class="settlement-hud__value" data-stockpile="hides">0</strong>
         <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="hides" hidden></span>

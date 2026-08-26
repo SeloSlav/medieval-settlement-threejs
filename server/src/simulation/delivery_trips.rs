@@ -25,8 +25,9 @@ use crate::delivery_trip_policy::{
 use crate::economy::{
     adriatic_trade_entry_point, available_building_labor, building_commodity_room,
     building_commodity_stock, chapel_coffer_gold, chapel_monastery_tithe_due,
-    credit_local_household_income, credit_marketplace_receipt_gold, credit_residence_wealth,
-    credit_treasury_commodity, deposit_building_commodity, deposit_residence_commodity,
+    credit_local_household_income, credit_local_purchase_receipt, credit_marketplace_receipt_gold,
+    credit_residence_wealth, credit_treasury_commodity, deposit_building_commodity,
+    deposit_residence_commodity,
     private_export_proceeds, record_parish_ledger, record_private_export_income,
     restore_local_civic_receipts, restore_private_export_proceeds, settle_regional_market_export,
     settlement_economic_activity_tax_rate, settlement_town_hall_tax_collection_multiplier,
@@ -2546,6 +2547,25 @@ fn unload_commodity_to_building(
     if !storage_accepts_commodity(&target, commodity) {
         return;
     }
+    let devotional_candle_delivery = commodity == CommodityKind::Candles
+        && matches!(target.kind.as_str(), "chapel" | "monastery")
+        && ctx
+            .db
+            .building()
+            .id()
+            .find(&trip.building_id)
+            .is_some_and(|origin| origin.kind == "trading_post");
+    if devotional_candle_delivery {
+        if let Some(payment) = super::devotional_candles::settle_devotional_candle_delivery(
+            &mut target,
+            trip.amount,
+        ) {
+            trip.cargo_kind = CommodityKind::Gold.as_u8();
+            trip.amount = payment;
+            ctx.db.building().id().update(target);
+        }
+        return;
+    }
     let monastery_tithe_delivery = commodity == CommodityKind::Gold
         && target.kind == "monastery"
         && ctx
@@ -2967,7 +2987,19 @@ fn return_commodity_to_building(
     let automatic_specialty_receipt = commodity == CommodityKind::Gold
         && is_regional_market_export_trip(trip)
         && trip.residence_id == 0;
-    let deposited = if automatic_specialty_receipt && building.kind == "trading_post" {
+    let devotional_purchase_receipt = commodity == CommodityKind::Gold
+        && trip.destination_kind == DELIVERY_DESTINATION_BUILDING
+        && building.kind == "trading_post"
+        && ctx
+            .db
+            .building()
+            .id()
+            .find(&trip.target_building_id)
+            .is_some_and(|target| matches!(target.kind.as_str(), "chapel" | "monastery"));
+    let deposited = if devotional_purchase_receipt {
+        let split = credit_local_purchase_receipt(ctx, &mut building, amount);
+        split.producer_income + split.local_tax
+    } else if automatic_specialty_receipt && building.kind == "trading_post" {
         let split = crate::economy::credit_private_export_receipt(ctx, &mut building, amount);
         split.household_income + split.export_duty
     } else if automatic_specialty_receipt && building.kind == "monastery" {

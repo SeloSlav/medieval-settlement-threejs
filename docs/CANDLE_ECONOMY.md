@@ -46,6 +46,22 @@ When a Marketplace can supply more than one Luxury commodity, withdrawal order i
 
 This protects flexible honey for food and mead and wine for other beverage uses. Existing upgraded flower gardens continue to satisfy Luxury through their household path.
 
+## Local devotional contracts
+
+Staffed chapels and monasteries maintain their own small physical candle cupboards. They buy only from a staffed, road-linked Trading Post; Marketplace Household wares stock is never claimed by an institution. This creates a legible routing choice:
+
+- Storehouse -> Marketplace stock serves Tier-4 Luxury.
+- Trading Post stock can satisfy local devotional contracts or leave on a regional export caravan.
+
+Each local contract exchanges four candle lots for five gold. A Trading Post worker carries the candles to the institution, the full lot must still fit and be affordable when the cart arrives, and the same cart returns with the payment. A damaged or partial load is not purchased. Returned payment enters the existing local-purchase accounting path: economic-activity tax becomes a protected civic receipt and the balance becomes protected local producer income.
+
+The local rate is deliberately below export parity: eight locally contracted candles yield ten gross gold, while eight exported candles yield fourteen. The non-cash return is devotional service:
+
+- A chapel holds up to eight lots, reorders at four, protects its 120-gold charity threshold, and burns one lot each Sunday. A supplied liturgy adds five percentage points to parish attendance and therefore modestly strengthens the tithe-supported parish economy.
+- A monastery holds up to sixteen lots, targets twelve, protects forty private gold for ordinary services, and burns one lot every three days. Supplied offices multiply hospitality gift prestige by 1.10, helping retained pilgrimage offerings fund services, charity, and estate upkeep.
+
+Unstaffed or fire-disabled institutions neither consume nor order candles. Road failure, occupied carts, empty Trading Posts, full cupboards, or insufficient unreserved institutional gold leave demand unmet without minting stock or payment.
+
 ## Regional trade
 
 Both stages can be traded through the physical market-accessible inventory system.
@@ -61,12 +77,12 @@ The import premium prevents a buy-and-sell profit loop. Even importing wax, buyi
 
 ## Possible future wax and candle sinks
 
-These are design directions only; none is implemented by this supply-chain change:
+The devotional contract above implements routine liturgical use. Remaining design directions are:
 
-- **Liturgy and Candlemas:** Chapels or monasteries could maintain a small candle reserve, with a larger one-day draw for the existing Candlemas calendar event.
+- **Candlemas surge:** The existing routine reserve could support a larger one-day draw for the calendar observance once protected holidays have a dedicated pre-feast provisioning phase.
 - **Wax seals:** Town Halls, monasteries, or Trading Posts could consume tiny wax lots for sealed records, charters, and high-value contracts.
 - **Decorative lighting:** Taverns, workshops, watch posts, or prosperous homes could spend candles on visible lamps and window glow. This must remain cosmetic so enabling the optional day/night presentation never changes production or safety.
 - **Waterproofing and maintenance:** Wax could support treated thread, leather dressing, bowstrings, wooden vessels, or weatherproof cloth as a modest workshop-efficiency input.
 - **Lost-wax casting:** A future bellfounder, bronze workshop, or religious-metalwork chain could consume wax models for intricate cast parts.
 
-Keeping these as later sinks leaves the first version legible: bees produce scarce wax, chandlers turn it into candles, and Tier-4 households value the finished good.
+Keeping the remaining ideas as later sinks preserves the central choice: homes consume candles for comfort, local religious houses buy them for a smaller cash return plus faith benefits, and regional merchants pay the strongest pure-cash rate.

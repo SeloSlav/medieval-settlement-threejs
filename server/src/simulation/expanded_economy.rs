@@ -32,14 +32,17 @@ use crate::balance_generated::{
     SMITHY_IRON_PER_CYCLE, SMITHY_WATER_PER_CYCLE, SMOKEHOUSE_FIREWOOD_PER_CYCLE,
     SMOKEHOUSE_FOOD_PER_CYCLE, SMOKEHOUSE_POTTERY_PER_CYCLE, SMOKEHOUSE_PRESERVED_FOOD_PER_CYCLE,
     SMOKEHOUSE_SALT_PER_CYCLE, SUMMER_DROUGHT_DURATION_DAYS, SWINE_GRAIN_PER_UNSUPPORTED_HEAD,
-    TANNERY_FIREWOOD_PER_CYCLE, TANNERY_HIDES_PER_CYCLE, TANNERY_LEATHER_PER_CYCLE,
-    TANNERY_WATER_PER_CYCLE, TEXTILE_TRANSFER_PER_TRIP, THRESHING_GRAIN_PER_CYCLE,
+    SPINNING_RETTING_FLAX_PER_CYCLE, SPINNING_RETTING_FLAX_WATER_PER_CYCLE,
+    SPINNING_RETTING_LINEN_PER_CYCLE, SPINNING_RETTING_WOOL_PER_CYCLE,
+    SPINNING_RETTING_YARN_PER_CYCLE, TANNERY_FIREWOOD_PER_CYCLE, TANNERY_HIDES_PER_CYCLE,
+    TANNERY_LEATHER_PER_CYCLE, TANNERY_WATER_PER_CYCLE, TEXTILE_TRANSFER_PER_TRIP,
+    THRESHING_GRAIN_PER_CYCLE,
     THRESHING_SHEAVES_PER_CYCLE, TICK_DT, TIMBER_DELIVERY_SPEED_MPS, TIMBER_DELIVERY_UNLOAD_SEC,
     VINEYARD_FERMENTATION_SECONDS, VINEYARD_GRAPES_PER_FERMENTATION_BATCH,
     VINEYARD_GRAPES_PER_HARVEST_CYCLE, VINEYARD_WINE_PER_FERMENTATION_BATCH,
     WATERMILL_GRAIN_PER_CYCLE, WATERMILL_MASLIN_FLOUR_PER_CYCLE, WATERMILL_RYE_FLOUR_PER_CYCLE,
-    WEAVER_CLOTH_PER_CYCLE, WEAVER_FLAX_PER_CYCLE, WEAVER_FLAX_WATER_PER_CYCLE,
-    WEAVER_WOOL_PER_CYCLE, WINTER_PASTURE_CAPACITY_MULTIPLIER,
+    WEAVER_CLOTH_PER_CYCLE, WEAVER_LINEN_PER_CYCLE, WEAVER_YARN_PER_CYCLE,
+    WINTER_PASTURE_CAPACITY_MULTIPLIER,
 };
 use crate::brewery_recipe_policy::{
     normalize_brewery_recipe_policy, BREWERY_RECIPE_ALE, BREWERY_RECIPE_AUTO, BREWERY_RECIPE_CIDER,
@@ -54,6 +57,7 @@ use crate::civilian_tool_policy::{
 };
 use crate::construction_priority::CONSTRUCTION_PRIORITY_NORMAL;
 use crate::db::*;
+use crate::devotional_candle_policy::monastery_liturgy_prestige_multiplier;
 use crate::economy::{
     available_unreserved_building_ironwork, building_commodity_cap, building_commodity_room,
     building_commodity_stock, building_edible_food_stock, building_fresh_food_stock,
@@ -160,7 +164,9 @@ use crate::supply_policy::{
 };
 use crate::tables::{farm_field, Building, FarmField, ForagingNode, Residence};
 use crate::vineyard::fermentable_grapes;
-use crate::weaver_input_policy::{weaver_fibre_delivery_preference_rank, weaver_uses_flax};
+use crate::weaver_input_policy::{
+    weaver_fibre_delivery_preference_rank, weaver_uses_flax, weaver_uses_linen,
+};
 
 struct RoutedBuilding {
     building: Building,
@@ -523,7 +529,7 @@ pub fn step_threshing_barn(
             clock,
             &mut building,
             CommodityKind::Flax,
-            &["weaver", "granary"],
+            &["spinning_retting_house", "granary"],
         );
         dispatch_farmstead_typed_grain(ctx, tick, clock, &mut building, farm_work.seed_reserves);
         dispatch_farmstead_barley(
@@ -976,7 +982,7 @@ pub fn step_marketplace_material_dispatch(
         let Some(network) = tick.road_network(marketplace.owner) else {
             continue;
         };
-        const DISPATCHABLE_INPUTS: [CommodityKind; 32] = [
+        const DISPATCHABLE_INPUTS: [CommodityKind; 34] = [
             CommodityKind::RyeSheaves,
             CommodityKind::OatSheaves,
             CommodityKind::BarleySheaves,
@@ -994,6 +1000,8 @@ pub fn step_marketplace_material_dispatch(
             CommodityKind::Milk,
             CommodityKind::Wool,
             CommodityKind::Flax,
+            CommodityKind::Yarn,
+            CommodityKind::Linen,
             CommodityKind::Ironwork,
             CommodityKind::Clay,
             CommodityKind::Charcoal,
@@ -1077,13 +1085,13 @@ pub fn step_marketplace_material_dispatch(
         compare_processor_input_dispatch_candidates(
             a.duty,
             CONSTRUCTION_PRIORITY_NORMAL,
-            0,
+            textile_input_preference_rank(&a.building, a.commodity),
             a.runway_cycles,
             a.distance,
             a.building.id,
             b.duty,
             CONSTRUCTION_PRIORITY_NORMAL,
-            0,
+            textile_input_preference_rank(&b.building, b.commodity),
             b.runway_cycles,
             b.distance,
             b.building.id,
@@ -1175,12 +1183,33 @@ fn marketplace_material_commodity_rank(commodity: CommodityKind) -> u8 {
         | CommodityKind::Grapes => 1,
         CommodityKind::Firewood | CommodityKind::Water => 2,
         CommodityKind::Iron | CommodityKind::Salt | CommodityKind::Charcoal => 3,
-        CommodityKind::Wool | CommodityKind::Flax => 4,
+        CommodityKind::Wool
+        | CommodityKind::Flax
+        | CommodityKind::Yarn
+        | CommodityKind::Linen => 4,
         CommodityKind::Clay | CommodityKind::Pottery => 5,
         CommodityKind::Manure | CommodityKind::Polearms => 6,
         CommodityKind::Wine => 7,
         CommodityKind::Ironwork => 8,
         _ => 9,
+    }
+}
+
+fn textile_input_preference_rank(target: &Building, commodity: CommodityKind) -> u8 {
+    if !matches!(
+        target.kind.as_str(),
+        "spinning_retting_house" | "weaver"
+    ) {
+        return 0;
+    }
+    match commodity {
+        CommodityKind::Wool | CommodityKind::Yarn => {
+            weaver_fibre_delivery_preference_rank(target.weaver_input_policy, false)
+        }
+        CommodityKind::Flax | CommodityKind::Linen => {
+            weaver_fibre_delivery_preference_rank(target.weaver_input_policy, true)
+        }
+        _ => 0,
     }
 }
 
@@ -1366,13 +1395,13 @@ fn sort_local_material_candidates(candidates: &mut [LocalMaterialDispatchCandida
         compare_processor_input_dispatch_candidates(
             a.duty,
             CONSTRUCTION_PRIORITY_NORMAL,
-            0,
+            textile_input_preference_rank(&a.building, a.commodity),
             a.runway_cycles,
             a.distance,
             a.building.id,
             b.duty,
             CONSTRUCTION_PRIORITY_NORMAL,
-            0,
+            textile_input_preference_rank(&b.building, b.commodity),
             b.runway_cycles,
             b.distance,
             b.building.id,
@@ -1477,12 +1506,17 @@ fn dispatch_local_material_candidates(
 }
 
 const LOCAL_MATERIAL_COMMODITIES: &[CommodityKind] = &[
+    CommodityKind::Wool,
+    CommodityKind::Flax,
+    CommodityKind::Yarn,
+    CommodityKind::Linen,
     CommodityKind::Iron,
     CommodityKind::Salt,
     CommodityKind::Clay,
     CommodityKind::Charcoal,
     CommodityKind::Ironwork,
     CommodityKind::Pottery,
+    CommodityKind::Pelts,
     CommodityKind::Hides,
     CommodityKind::Leather,
     CommodityKind::Shoes,
@@ -1516,7 +1550,13 @@ fn local_material_target_kinds(
         ("potter_kiln", CommodityKind::Pottery) => {
             Some(&["smokehouse", "village_storehouse", "trading_post"])
         }
-        ("hunters_hall" | "marketplace", CommodityKind::Hides) => {
+        ("spinning_retting_house", CommodityKind::Yarn | CommodityKind::Linen) => {
+            Some(&["weaver", "village_storehouse"])
+        }
+        ("hunters_hall", CommodityKind::Pelts) => {
+            Some(&["village_storehouse", "trading_post"])
+        }
+        ("marketplace", CommodityKind::Hides) => {
             Some(&["tannery", "village_storehouse", "trading_post"])
         }
         ("tannery", CommodityKind::Leather) => {
@@ -1540,6 +1580,13 @@ fn local_material_target_kinds(
             "carpenter",
         ]),
         ("trading_post", CommodityKind::Pottery) => Some(&["smokehouse", "village_storehouse"]),
+        ("trading_post", CommodityKind::Wool | CommodityKind::Flax) => {
+            Some(&["spinning_retting_house", "village_storehouse"])
+        }
+        ("trading_post", CommodityKind::Yarn | CommodityKind::Linen) => {
+            Some(&["weaver", "village_storehouse"])
+        }
+        ("trading_post", CommodityKind::Pelts) => Some(&["village_storehouse"]),
         ("trading_post", CommodityKind::Hides) => Some(&["tannery", "village_storehouse"]),
         ("trading_post", CommodityKind::Leather) => Some(&["cobbler", "village_storehouse"]),
         ("trading_post", CommodityKind::Shoes) => Some(&["village_storehouse"]),
@@ -1552,6 +1599,9 @@ fn local_material_target_kinds(
             Some(&["smokehouse", "pastoral_farmstead", "trading_post"])
         }
         ("village_storehouse", CommodityKind::Charcoal) => Some(&["smithy"]),
+        ("village_storehouse", CommodityKind::Wool) => Some(&["spinning_retting_house"]),
+        ("village_storehouse", CommodityKind::Yarn | CommodityKind::Linen) => Some(&["weaver"]),
+        ("village_storehouse", CommodityKind::Pelts) => Some(&["trading_post"]),
         ("village_storehouse", CommodityKind::Hides) => Some(&["tannery", "trading_post"]),
         ("village_storehouse", CommodityKind::Leather) => Some(&["cobbler", "trading_post"]),
         ("village_storehouse", CommodityKind::Wax) => Some(&["chandlery", "trading_post"]),
@@ -1577,12 +1627,17 @@ fn local_material_target_plan(
         ));
     }
     let commodity_name = match commodity {
+        CommodityKind::Wool => "wool",
+        CommodityKind::Flax => "flax",
+        CommodityKind::Yarn => "yarn",
+        CommodityKind::Linen => "linen",
         CommodityKind::Iron => "iron",
         CommodityKind::Salt => "salt",
         CommodityKind::Clay => "clay",
         CommodityKind::Charcoal => "charcoal",
         CommodityKind::Ironwork => "ironwork",
         CommodityKind::Pottery => "pottery",
+        CommodityKind::Pelts => "pelts",
         CommodityKind::Hides => "hides",
         CommodityKind::Leather => "leather",
         CommodityKind::Shoes => "shoes",
@@ -1859,7 +1914,7 @@ pub fn step_granary(
         clock,
         &mut granary,
         CommodityKind::Flax,
-        &["weaver"],
+        &["spinning_retting_house"],
     );
     for duty in granary_dispatch_order(granary.granary_households_first) {
         match duty {
@@ -2807,37 +2862,113 @@ fn request_brewery_recipe_inputs(
     }
 }
 
+pub fn step_spinning_retting_house(
+    ctx: &ReducerContext,
+    tick: &SimTickContext,
+    clock: &GameClock,
+    building: Building,
+) {
+    let yarn_headroom = processor_output_headroom(
+        building.yarn,
+        building_commodity_cap(&building.kind, CommodityKind::Yarn),
+        building.processor_output_target_percent,
+    );
+    let linen_headroom = processor_output_headroom(
+        building.linen,
+        building_commodity_cap(&building.kind, CommodityKind::Linen),
+        building.processor_output_target_percent,
+    );
+    let mut uses_flax = weaver_uses_flax(
+        building.weaver_input_policy,
+        building.wool,
+        building.flax,
+        building.water,
+        SPINNING_RETTING_WOOL_PER_CYCLE,
+        SPINNING_RETTING_FLAX_PER_CYCLE,
+        SPINNING_RETTING_FLAX_WATER_PER_CYCLE,
+    );
+    if yarn_headroom + 1e-6 < SPINNING_RETTING_YARN_PER_CYCLE
+        && linen_headroom + 1e-6 >= SPINNING_RETTING_LINEN_PER_CYCLE
+    {
+        uses_flax = true;
+    } else if linen_headroom + 1e-6 < SPINNING_RETTING_LINEN_PER_CYCLE
+        && yarn_headroom + 1e-6 >= SPINNING_RETTING_YARN_PER_CYCLE
+    {
+        uses_flax = false;
+    }
+    let (inputs, output) = if uses_flax {
+        (
+            [
+                (CommodityKind::Flax, SPINNING_RETTING_FLAX_PER_CYCLE),
+                (
+                    CommodityKind::Water,
+                    SPINNING_RETTING_FLAX_WATER_PER_CYCLE,
+                ),
+            ],
+            (CommodityKind::Linen, SPINNING_RETTING_LINEN_PER_CYCLE),
+        )
+    } else {
+        (
+            [
+                (CommodityKind::Wool, SPINNING_RETTING_WOOL_PER_CYCLE),
+                (CommodityKind::Water, 0.0),
+            ],
+            (CommodityKind::Yarn, SPINNING_RETTING_YARN_PER_CYCLE),
+        )
+    };
+    let mut spinner = step_processor(ctx, tick, clock, building, &inputs, &[output]);
+    for commodity in [CommodityKind::Yarn, CommodityKind::Linen] {
+        dispatch_to_building(
+            ctx,
+            tick,
+            clock,
+            &mut spinner,
+            commodity,
+            &["weaver"],
+        );
+        dispatch_to_building(
+            ctx,
+            tick,
+            clock,
+            &mut spinner,
+            commodity,
+            &["village_storehouse"],
+        );
+        dispatch_to_building(
+            ctx,
+            tick,
+            clock,
+            &mut spinner,
+            commodity,
+            &["trading_post"],
+        );
+    }
+    ctx.db.building().id().update(spinner);
+}
+
 pub fn step_weaver(
     ctx: &ReducerContext,
     tick: &SimTickContext,
     clock: &GameClock,
     building: Building,
 ) {
-    let inputs = if weaver_uses_flax(
+    let input = if weaver_uses_linen(
         building.weaver_input_policy,
-        building.wool,
-        building.flax,
-        building.water,
-        WEAVER_WOOL_PER_CYCLE,
-        WEAVER_FLAX_PER_CYCLE,
-        WEAVER_FLAX_WATER_PER_CYCLE,
+        building.yarn,
+        building.linen,
+        WEAVER_YARN_PER_CYCLE,
+        WEAVER_LINEN_PER_CYCLE,
     ) {
-        [
-            (CommodityKind::Flax, WEAVER_FLAX_PER_CYCLE),
-            (CommodityKind::Water, WEAVER_FLAX_WATER_PER_CYCLE),
-        ]
+        (CommodityKind::Linen, WEAVER_LINEN_PER_CYCLE)
     } else {
-        [
-            (CommodityKind::Wool, WEAVER_WOOL_PER_CYCLE),
-            (CommodityKind::Water, 0.0),
-        ]
+        (CommodityKind::Yarn, WEAVER_YARN_PER_CYCLE)
     };
     let mut weaver = step_processor(
         ctx,
         tick,
         clock,
         building,
-        &inputs,
+        &[input],
         &[(CommodityKind::Cloth, WEAVER_CLOTH_PER_CYCLE)],
     );
     dispatch_to_building(
@@ -3594,7 +3725,8 @@ pub fn step_monastery(
         receipt_daily_income = monastery_pilgrimage_gold(
             hospitality_enabled,
             hospitality.supply_ratio,
-            hospitality.prestige_multiplier,
+            hospitality.prestige_multiplier
+                * monastery_liturgy_prestige_multiplier(monastery.candles),
             monastery_guesthouse_multiplier(
                 monastery.monastery_extensions,
                 monastery.monastery_service_funding,
@@ -4240,6 +4372,7 @@ fn processor_output_commodity(kind: &str) -> Option<CommodityKind> {
         ProcessorOutputKind::Food => Some(CommodityKind::Food),
         ProcessorOutputKind::Ale => Some(CommodityKind::Ale),
         ProcessorOutputKind::PreservedFood => Some(CommodityKind::PreservedFood),
+        ProcessorOutputKind::TextileIntermediate => Some(CommodityKind::Yarn),
         ProcessorOutputKind::Cloth => Some(CommodityKind::Cloth),
         ProcessorOutputKind::Charcoal => Some(CommodityKind::Charcoal),
         ProcessorOutputKind::Ironwork => Some(CommodityKind::Ironwork),
@@ -4252,6 +4385,8 @@ fn processor_output_commodity(kind: &str) -> Option<CommodityKind> {
 
 fn production_output_target_applies(kind: &str, commodity: CommodityKind) -> bool {
     processor_output_commodity(kind) == Some(commodity)
+        || (kind == "spinning_retting_house"
+            && matches!(commodity, CommodityKind::Yarn | CommodityKind::Linen))
         || (kind == "brewery" && commodity.is_beverage())
         || (kind == "smokehouse" && commodity.is_preserved_food())
         || extraction_site_accepts_commodity(kind, commodity)
@@ -4358,10 +4493,11 @@ fn processor_uses_input(kind: &str, commodity: CommodityKind) -> bool {
                     | CommodityKind::Pottery
             )
         }
-        "weaver" => matches!(
+        "spinning_retting_house" => matches!(
             commodity,
             CommodityKind::Wool | CommodityKind::Flax | CommodityKind::Water
         ),
+        "weaver" => matches!(commodity, CommodityKind::Yarn | CommodityKind::Linen),
         "charcoal_burner" => commodity == CommodityKind::Firewood,
         "smithy" => matches!(
             commodity,
@@ -4448,6 +4584,20 @@ pub(crate) fn processor_accepts_input(building: &Building, commodity: CommodityK
         };
         return brewery_output_headroom(building, output) > 1e-6;
     }
+    if building.kind == "spinning_retting_house"
+        && processor_uses_input(&building.kind, commodity)
+    {
+        let output = if commodity == CommodityKind::Wool {
+            CommodityKind::Yarn
+        } else {
+            CommodityKind::Linen
+        };
+        return processor_output_headroom(
+            building_commodity_stock(building, output),
+            building_commodity_cap(&building.kind, output),
+            building.processor_output_target_percent,
+        ) > 1e-6;
+    }
     if !processor_uses_input(&building.kind, commodity) {
         return true;
     }
@@ -4470,10 +4620,17 @@ pub(crate) fn processor_accepts_input(building: &Building, commodity: CommodityK
 
 fn commodity_transfer_per_trip(commodity: CommodityKind) -> f64 {
     match commodity {
-        CommodityKind::Wool | CommodityKind::Flax | CommodityKind::Cloth => {
+        CommodityKind::Wool
+        | CommodityKind::Flax
+        | CommodityKind::Yarn
+        | CommodityKind::Linen
+        | CommodityKind::Cloth => {
             TEXTILE_TRANSFER_PER_TRIP
         }
-        CommodityKind::Hides | CommodityKind::Leather | CommodityKind::Shoes => {
+        CommodityKind::Pelts
+        | CommodityKind::Hides
+        | CommodityKind::Leather
+        | CommodityKind::Shoes => {
             LEATHER_TRANSFER_PER_TRIP
         }
         CommodityKind::Wax | CommodityKind::Candles => CANDLE_TRANSFER_PER_TRIP,
@@ -4997,19 +5154,7 @@ fn dispatch_to_building_where_limited(
                 } else {
                     building_commodity_cap(&target.kind, commodity)
                 };
-                let input_preference_rank = if target.kind == "weaver" {
-                    match commodity {
-                        CommodityKind::Wool => {
-                            weaver_fibre_delivery_preference_rank(target.weaver_input_policy, false)
-                        }
-                        CommodityKind::Flax => {
-                            weaver_fibre_delivery_preference_rank(target.weaver_input_policy, true)
-                        }
-                        _ => 0,
-                    }
-                } else {
-                    0
-                };
+                let input_preference_rank = textile_input_preference_rank(&target, commodity);
                 let runway_cycles = if commodity == CommodityKind::Ironwork
                     && is_civilian_tool_site(&target.kind)
                 {
@@ -5136,10 +5281,13 @@ fn directly_dispatched_commodity_name(commodity: CommodityKind) -> Option<&'stat
         CommodityKind::Milk => Some("milk"),
         CommodityKind::Wool => Some("wool"),
         CommodityKind::Flax => Some("flax"),
+        CommodityKind::Yarn => Some("yarn"),
+        CommodityKind::Linen => Some("linen"),
         CommodityKind::Ironwork => Some("ironwork"),
         CommodityKind::Clay => Some("clay"),
         CommodityKind::Charcoal => Some("charcoal"),
         CommodityKind::Pottery => Some("pottery"),
+        CommodityKind::Pelts => Some("pelts"),
         CommodityKind::Hides => Some("hides"),
         CommodityKind::Leather => Some("leather"),
         CommodityKind::Shoes => Some("shoes"),

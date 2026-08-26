@@ -53,6 +53,7 @@ import {
 import { createCobblerMesh, createTanneryMesh } from './meshes/leatherChainBuildingMeshes.ts';
 import { createChandleryMesh } from './meshes/chandleryBuildingMesh.ts';
 import { createStableMesh } from './meshes/stableMesh.ts';
+import { createSpinningRettingHouseMesh } from './meshes/spinningRettingHouseMesh.ts';
 
 export function createBuildingMesh(
   kind: BuildingKind,
@@ -132,6 +133,7 @@ export function createBuildingMesh(
     case 'watermill': return createWatermillMesh();
     case 'windmill': return createWindmillMesh();
     case 'carpenter': return createCarpenterMesh();
+    case 'spinning_retting_house': return createSpinningRettingHouseMesh();
     case 'weaver': return createWeaverMesh();
     case 'tannery': return createTanneryMesh();
     case 'cobbler': return createCobblerMesh();

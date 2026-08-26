@@ -8,7 +8,8 @@ use crate::simulation::{
     materialize_all_physical_resource_ledgers, retire_removed_buildings, step_apiary,
     step_backyard_gardens, step_bakery, step_brewery, step_burials, step_carpenter, step_chandlery,
     step_chapel_parish, step_chapels, step_charcoal_burner, step_clay_pit, step_cobbler,
-    step_construction_labor_stewards, step_construction_sites, step_delivery_trips, step_fires,
+    step_construction_labor_stewards, step_construction_sites, step_delivery_trips,
+    step_devotional_candles, step_fires,
     step_fishing_camp, step_foragers_shed, step_foraging_lifecycle, step_founding_sites,
     step_fresh_food_spoilage, step_granary, step_guardhouse, step_household_discretionary_trade,
     step_hunters_hall, step_industrial_firewood_dispatch, step_institutional_food_dispatch,
@@ -19,7 +20,7 @@ use crate::simulation::{
     step_reclamation_piles, step_reforester, step_residence, step_residence_upgrades,
     step_seasonal_labor_stewards, step_seed_grain_distribution, step_settlement_security,
     step_smithy, step_smokehouse, step_stone_quarry, step_storehouse_market_stalls, step_swineherd,
-    step_tannery, step_threshing_barn, step_trading_post_trade,
+    step_spinning_retting_house, step_tannery, step_threshing_barn, step_trading_post_trade,
     step_village_storehouse_overflow_collection, step_watermill, step_weaver, step_well,
     step_windmill, step_woodcutters_lodge,
     try_dispatch_guardhouse_payroll, SharedRoadNetworks, SimTickContext,
@@ -301,6 +302,7 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
             | crate::building_defs::BuildingSimKind::Watermill
             | crate::building_defs::BuildingSimKind::Windmill
             | crate::building_defs::BuildingSimKind::Carpenter
+            | crate::building_defs::BuildingSimKind::SpinningRettingHouse
             | crate::building_defs::BuildingSimKind::Weaver
             | crate::building_defs::BuildingSimKind::Tannery
             | crate::building_defs::BuildingSimKind::Cobbler
@@ -471,6 +473,9 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
             crate::building_defs::BuildingSimKind::Carpenter => {
                 step_carpenter(ctx, &tick, &clock, building)
             }
+            crate::building_defs::BuildingSimKind::SpinningRettingHouse => {
+                step_spinning_retting_house(ctx, &tick, &clock, building)
+            }
             crate::building_defs::BuildingSimKind::Weaver => {
                 step_weaver(ctx, &tick, &clock, building)
             }
@@ -570,6 +575,17 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
     // market stock to connected homes after local production, intake, and
     // spoilage without multiplying the household's monthly target lot.
     step_market_household_distribution(ctx, &tick, sim_tick, environment);
+
+    // Religious houses buy only from staffed Trading Posts, never directly
+    // from Household wares stalls. Players therefore route scarce candles to
+    // Tier-4 comfort through the Storehouse/Marketplace branch, or to local
+    // devotional contracts and regional export through the Trading Post.
+    let devotional_institution_ids = chapel_ids
+        .iter()
+        .chain(monastery_ids.iter())
+        .copied()
+        .collect::<Vec<_>>();
+    step_devotional_candles(ctx, &tick, &clock, &devotional_institution_ids);
 
     let chapels: Vec<Building> = chapel_ids
         .into_iter()

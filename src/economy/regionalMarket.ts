@@ -115,7 +115,10 @@ export function priceMultiplierFor(
     case 'rosehipJam':
       return state.provisionPriceMult;
     case 'wool':
+    case 'yarn':
+    case 'linen':
     case 'cloth':
+    case 'pelts':
     case 'hides':
     case 'leather':
     case 'shoes':

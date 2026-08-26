@@ -73,6 +73,7 @@ const PAD_PARAMS: Record<BuildingKind, BuildingPadParams> = {
   watermill: { radiusX: 6.7, radiusZ: 4.9, innerFade: 0.86, outerFade: 1.35 },
   windmill: { radiusX: 7.2, radiusZ: 6.0, innerFade: 0.86, outerFade: 1.34 },
   carpenter: { radiusX: 6.4, radiusZ: 4.8, innerFade: 0.88, outerFade: 1.32 },
+  spinning_retting_house: { radiusX: 6.3, radiusZ: 5.2, innerFade: 0.88, outerFade: 1.31 },
   weaver: { radiusX: 5.8, radiusZ: 4.5, innerFade: 0.88, outerFade: 1.3 },
   tannery: { radiusX: 5.2, radiusZ: 5.4, innerFade: 0.86, outerFade: 1.32 },
   cobbler: { radiusX: 4.2, radiusZ: 4.1, innerFade: 0.88, outerFade: 1.3 },

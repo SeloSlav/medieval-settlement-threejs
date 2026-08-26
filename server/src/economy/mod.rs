@@ -39,7 +39,7 @@ pub use aggregate_spend::{
 };
 pub use chapel_coffer::{
     chapel_coffer_gold, chapel_monastery_tithe_due, chapel_tithe_payment_room,
-    deposit_chapel_tithe, withdraw_coffer_in_place,
+    deposit_chapel_tithe, deposit_coffer_in_place, withdraw_coffer_in_place,
 };
 pub use civic_receipts::{
     credit_local_civic_receipts, local_civic_receipts, mark_local_civic_receipts_dispatched,

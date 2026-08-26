@@ -22,6 +22,7 @@ import {
   isProcessorOutputTargetKind,
   processorInputCommodities,
   processorOutputCommodity,
+  processorOutputCommodityForBuilding,
   processorOutputHeadroom,
   type ProcessorOutputTargetKind,
 } from './processorOutputPolicy.ts';
@@ -182,8 +183,11 @@ function inputLabel(commodity: DeliveryCargoKind): string {
   return commodity.replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase();
 }
 
-function outputLabel(kind: ProcessorOutputTargetKind): string {
-  const output = processorOutputCommodity(kind);
+function outputLabel(
+  building: BuildingState & { kind: ProcessorOutputTargetKind },
+): string {
+  const output = processorOutputCommodityForBuilding(building)
+    ?? processorOutputCommodity(building.kind);
   return output === 'preservedFood' ? 'preserved staples' : output;
 }
 
@@ -235,7 +239,8 @@ export function isProductionLaborKind(
 
 function outputStock(building: BuildingState): number {
   if (isProcessorOutputTargetKind(building.kind)) {
-    const output = processorOutputCommodity(building.kind);
+    const output = processorOutputCommodityForBuilding(building)
+      ?? processorOutputCommodity(building.kind);
     if (output === 'flour') return flourStock(building);
     if (output === 'bread') return breadStock(building);
     return Math.max(0, building[output] ?? 0);
@@ -293,6 +298,16 @@ function processorInputRecipes(
         ['salt'],
         ['pottery'],
       ]];
+    case 'spinning_retting_house':
+      return [
+        [['wool']],
+        [['flax'], ['water']],
+      ];
+    case 'weaver':
+      return [
+        [['yarn']],
+        [['linen']],
+      ];
     default:
       return [[...processorInputCommodities(building.kind).map(
         (commodity): ProcessorInputRequirement => [commodity],
@@ -397,27 +412,7 @@ function processorStall(
     return {
       ...base,
       reason: 'output_blocked',
-      detail: `${outputLabel(building.kind)} output target reached`,
-    };
-  }
-
-  if (building.kind === 'weaver') {
-    const hasWool = (building.wool ?? 0) > 1e-6;
-    const hasFlax = (building.flax ?? 0) > 1e-6;
-    const hasWater = building.water > 1e-6;
-    if (hasWool || (hasFlax && hasWater)) return null;
-    const woolAvailable = hasWool || inboundCargo?.has('wool') === true;
-    const flaxAvailable = hasFlax || inboundCargo?.has('flax') === true;
-    const waterAvailable = hasWater || inboundCargo?.has('water') === true;
-    if (woolAvailable || (flaxAvailable && waterAvailable)) {
-      return 'supply_en_route';
-    }
-    return {
-      ...base,
-      reason: 'input_empty',
-      detail: flaxAvailable
-        ? 'no water on site for flax preparation'
-        : 'no wool or flax on site',
+      detail: `${outputLabel(building)} output target reached`,
     };
   }
 

@@ -25,6 +25,7 @@ import {
   type ParishPolicyState,
 } from './chapelParish.ts';
 import { chapelTitheMultiplier } from './chapelUpgrade.ts';
+import { devotionalCandlesSupplied } from './devotionalCandles.ts';
 
 export function buildResidenceCommunityContext(
   servingChapel: BuildingState | null,
@@ -66,6 +67,7 @@ export function buildResidenceParishEconomyView(
     servingChapel.assignedLabor,
     sabbathObservance,
     hasMonasteryCoverage,
+    devotionalCandlesSupplied(servingChapel.candles),
   );
   const uncapped = residence.population > 0
       ? payableChapelTithePerDay(
@@ -75,6 +77,7 @@ export function buildResidenceParishEconomyView(
           sabbathObservance,
           hasMonasteryCoverage,
           chapelTitheMultiplier(servingChapel.chapelTier),
+          devotionalCandlesSupplied(servingChapel.candles),
         )
       : 0;
   const tithePerDay = payableChapelTithePerDay(
@@ -84,6 +87,7 @@ export function buildResidenceParishEconomyView(
     sabbathObservance,
     hasMonasteryCoverage,
     chapelTitheMultiplier(servingChapel.chapelTier),
+    devotionalCandlesSupplied(servingChapel.candles),
   );
 
   return {
@@ -164,6 +168,7 @@ export function buildChapelInspectorEconomyView(
   const uncappedAtInfinity = payableParishExpensePerDay(building.assignedLabor, Number.POSITIVE_INFINITY);
   const needsRequired = recoveryNeedsRequired(true);
   const needsTotal = RESIDENCE_NEED_KINDS.length;
+  const candleLiturgy = devotionalCandlesSupplied(building.candles);
 
   return {
     cofferGold,
@@ -176,9 +181,12 @@ export function buildChapelInspectorEconomyView(
           sabbathObservance,
           false,
           chapelTitheMultiplier(building.chapelTier),
+          candleLiturgy,
         )} → coffer`
       : '—',
-    attendanceLabel: staffed ? formatChapelAttendanceChance(building.assignedLabor) : '—',
+    attendanceLabel: staffed
+      ? formatChapelAttendanceChance(building.assignedLabor, candleLiturgy)
+      : '—',
     recoveryLabel: `${needsRequired} of ${needsTotal} needs · ${formatChapelRecoveryStockMultiplierPercent()} lower restock thresholds`,
     expense: {
       salary: uncapped.salary,

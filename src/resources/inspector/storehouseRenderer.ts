@@ -54,7 +54,7 @@ export function renderStorehouseInspector(
     : firewoodDispatch
       ? { commodity: 'firewood' as const, dispatch: firewoodDispatch }
       : null;
-  const materialDispatch = (['iron', 'clay', 'salt'] as const)
+  const materialDispatch = (['iron', 'clay', 'salt', 'wool', 'yarn', 'linen'] as const)
     .filter((commodity) =>
       Math.max(0, building[commodity] ?? 0) > 1e-6
     )
@@ -122,7 +122,7 @@ export function renderStorehouseInspector(
                 : industrialDispatch
                   ? [`Marketplace duty clear · ${context.worldQueries.getBuildingLabel(industrialDispatch.dispatch.target.kind)} is next for ${industrialDispatch.commodity}`, 'ok'] as const
                   : materialDispatch
-                    ? [`Ready to supply ${storehouseCommodityLabel(materialDispatch.commodity)} to ${context.worldQueries.getBuildingLabel(materialDispatch.dispatch!.target.kind)}`, 'ok'] as const
+                    ? [`Ready to supply ${storageCommodityLabel(materialDispatch.commodity)} to ${context.worldQueries.getBuildingLabel(materialDispatch.dispatch!.target.kind)}`, 'ok'] as const
                     : collectionHeadroom <= 0.05
                       ? ['Selected collection targets met', 'ok'] as const
                       : ['Ready to collect producer overflow', 'ok'] as const;
@@ -143,14 +143,14 @@ export function renderStorehouseInspector(
       <li><span>Last mile</span><span>Abstract from stocked goods stalls · no additional household-cart worker</span></li>
       <li><span>Market load</span><span>${fuelWorkers > 0 ? `${fuelPerTrip} physical fuel units per rostered fuel-table replenishment cart` : 'Paused · no haulers'}</span></li>
       <li><span>Surplus fuel duty</span><span>${industrialFuelDuty}</span></li>
-      <li><span>Raw-material duty</span><span>${materialDispatch ? `${storehouseCommodityLabel(materialDispatch.commodity)} to ${context.worldQueries.getBuildingLabel(materialDispatch.dispatch!.target.kind)} · ${materialDispatch.dispatch!.runwayCycles.toFixed(1)} cycles onsite · ${formatDeliveryRoadDistance(materialDispatch.dispatch!.routeDistance)}` : 'No staffed workshop currently requests stored iron, clay, or salt'}</span></li>
+      <li><span>Raw-material duty</span><span>${materialDispatch ? `${storageCommodityLabel(materialDispatch.commodity)} to ${context.worldQueries.getBuildingLabel(materialDispatch.dispatch!.target.kind)} · ${materialDispatch.dispatch!.runwayCycles.toFixed(1)} cycles onsite · ${formatDeliveryRoadDistance(materialDispatch.dispatch!.routeDistance)}` : 'No staffed workshop currently requests stored minerals or textile materials'}</span></li>
       <li><span>Collection trigger</span><span>Producer stock above ${Math.round(STOREHOUSE_OVERFLOW_THRESHOLD * 100)}%</span></li>
       <li><span>Cart assignment</span><span>Fullest producer first · nearest compatible idle depot</span></li>
       <li><span>Construction bonus</span><span>${STOREHOUSE_HAUL_PER_WORKER} materials per staffed hauler; up to 2 haulers per cart</span></li>
       <li><span>Accepted cargo</span><span>${accepted.join(', ') || 'None'}</span></li>
       <li><span>Collection ceilings</span><span>${collectionTargets}</span></li>
       <li><span>Food policy</span><span>Never accepted — granaries remain specialized</span></li>
-      <li><span>Market role</span><span>Stocks firewood and 2×-value charcoal into one household fuel reserve, plus clothing and pottery · no food or regional trade</span></li>
+      <li><span>Market role</span><span>Stocks household fuel and finished wares while buffering wool, yarn, and linen between textile workshops · no food or regional trade</span></li>
       <li><span>Hauling</span><span>${activeTrip ? `${formatTripPhaseLabel(activeTrip.phase)} · ${formatCooldown(activeTripRemaining ?? Infinity)} left` : inboundTrip ? 'Producer cart inbound' : 'Awaiting duty'}</span></li>
       ${buildingStorageRows(building, building.kind)}
     `,

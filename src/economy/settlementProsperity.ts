@@ -6,6 +6,8 @@ import {
   RESIDENCE_PRESERVED_FOOD_PER_PERSON_PER_SEC,
   RESIDENCE_PRESERVED_FOOD_WINTER_MULTIPLIER,
   RESIDENCE_POTTERY_PER_PERSON_PER_SEC,
+  WEAVER_CLOTH_PER_CYCLE,
+  WEAVER_YARN_PER_CYCLE,
 } from '../generated/gameBalance.ts';
 import { compareStableEntityIds } from '../logistics/roadLogistics.ts';
 import type { ResidenceState } from '../resources/types.ts';
@@ -294,7 +296,12 @@ function buildProsperityRoadPlan(
       {
         kind: 'cloth' as const,
         supported: safeRatio(
-          raw.clothOutputPerDay
+          Math.min(
+            raw.clothOutputPerDay,
+            raw.textileIntermediateOutputPerDay
+              * WEAVER_CLOTH_PER_CYCLE
+              / WEAVER_YARN_PER_CYCLE,
+          )
             - positive(raw.lowerTierAleClothResidents) * PER_RESIDENT_PER_DAY.cloth,
           PER_RESIDENT_PER_DAY.cloth,
         ),

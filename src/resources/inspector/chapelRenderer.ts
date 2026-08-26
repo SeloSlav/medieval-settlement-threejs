@@ -39,6 +39,12 @@ import {
   renderResourceCost,
 } from '../../ui/resourceCost.ts';
 import type { InspectorRenderContext, InspectorView } from './renderInspectableTarget.ts';
+import {
+  CHAPEL_CANDLE_CAPACITY,
+  CHAPEL_LITURGY_ATTENDANCE_BONUS,
+  devotionalCandleContractLabel,
+  devotionalCandlesSupplied,
+} from '../../economy/devotionalCandles.ts';
 
 function formatLinkedHomeStatus(
   connectedHomes: number,
@@ -167,6 +173,23 @@ export function renderChapelInspector(
           ? ` · ${Math.round(activeGoldTrip.amount)} travelling`
           : ''
       }`;
+  const candleStock = Math.max(0, building.candles ?? 0);
+  const inboundCandles = Array.from(context.gameState.deliveryTrips.values())
+    .filter(
+      (trip) =>
+        trip.targetBuildingId === building.id
+        && trip.cargoKind === 'candles'
+        && trip.phase !== 'inbound',
+    )
+    .reduce((sum, trip) => sum + trip.amount, 0);
+  const candleLiturgy = devotionalCandlesSupplied(candleStock);
+  const devotionalStatus = suspendedByFire
+    ? 'Sealed during structural recovery'
+    : !staffed
+      ? 'Dormant · assign a priest'
+      : candleLiturgy
+        ? `Supplied · +${Math.round(CHAPEL_LITURGY_ATTENDANCE_BONUS * 100)}% attendance; one lot burned each Sunday`
+        : 'Unlit · awaiting a local Trading Post contract';
   const reliefInspectButton = parishRelief?.targetResidenceId == null
     ? ''
     : ` <button type="button" class="inspector-jump-button" data-inspect-residence="${parishRelief.targetResidenceId}" aria-label="Inspect parish relief household">Inspect</button>`;
@@ -216,6 +239,9 @@ export function renderChapelInspector(
       <li><span>Priest</span><span>${suspendedByFire ? 'Displaced · parish work suspended' : staffed ? 'Serving the parish' : 'Unstaffed — benefits inactive'}</span></li>
       <li><span>Coffer</span><span>${cofferLabel}</span></li>
       <li><span>Monastery purse</span><span>${monasteryPurseLabel}</span></li>
+      <li><span>Devotional candles</span><span>${Math.round(candleStock)} / ${CHAPEL_CANDLE_CAPACITY}${inboundCandles > 0 ? ` · ${Math.round(inboundCandles)} incoming` : ''}</span></li>
+      <li><span>Local candle contract</span><span>${devotionalCandleContractLabel('chapel')} · Trading Post stock only</span></li>
+      <li><span>Liturgical service</span><span>${devotionalStatus}</span></li>
       <li><span>Parish handcart</span><span>${activeGoldTrip ? `${Math.round(activeGoldTrip.amount)} gold · ${activeGoldTrip.phase}` : 'None'}</span></li>
       <li><span>Parish territory</span><span>${parishRelief == null ? `${connectedHomes} road-linked homes` : formatChapelParishTerritory(parishRelief)}</span></li>
       <li><span>Tithe yield</span><span>${staffed ? economy.titheLabel : '—'}</span></li>

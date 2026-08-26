@@ -13,6 +13,7 @@ import type { BuildingState } from '../resources/types.ts';
 import { MONTH_NAMES, type GameClock } from '../world/gameCalendar.ts';
 import { edibleFoodStock, type FoodInventoryLike } from './foodInventory.ts';
 import { monasteryGuesthouseMultiplier } from '../buildings/monasteryEstate.ts';
+import { monasteryLiturgyPrestigeMultiplier } from './devotionalCandles.ts';
 
 export const MONASTERY_FEASTS = [
   { name: 'Epiphany', month: 1, monthDay: 6 },
@@ -94,7 +95,7 @@ export function monasteryHospitalityRunwayDays(
 }
 
 export function monasteryHospitalityPlan(
-  monastery: Pick<BuildingState, 'honey' | 'cider' | 'mead' | 'wine' | 'monasteryExtensions' | 'monasteryServiceFunding'>,
+  monastery: Pick<BuildingState, 'honey' | 'cider' | 'mead' | 'wine' | 'candles' | 'monasteryExtensions' | 'monasteryServiceFunding'>,
   enabled: boolean,
 ): MonasteryHospitalityPlan {
   const serviceFunding = enabled
@@ -120,7 +121,9 @@ export function monasteryHospitalityPlan(
   const commonDrinkShare = (drinks[0][1] + drinks[1][1]) / total;
   const wineShare = drinks[2][1] / total;
   const mixedCellar = availableDrinks.length >= 2;
-  const prestigeMultiplier = 1 + 0.25 * wineShare + (mixedCellar ? 0.1 : 0);
+  const prestigeMultiplier = (
+    1 + 0.25 * wineShare + (mixedCellar ? 0.1 : 0)
+  ) * monasteryLiturgyPrestigeMultiplier(monastery.candles);
   const commonTableMultiplier = 1 + 0.25 * commonDrinkShare;
   const resourceSupplyRatio = enabled
     ? (

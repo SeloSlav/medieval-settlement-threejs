@@ -1042,6 +1042,9 @@ pub(crate) fn place_building_internal(
         wax: 0.0,
         candles: 0.0,
         apiary_wax_cycle_progress: 0,
+        pelts: 0.0,
+        yarn: 0.0,
+        linen: 0.0,
     });
 
     if is_founders_camp_expansion {
@@ -1297,6 +1300,7 @@ fn processor_output_commodity(kind: &str) -> Option<CommodityKind> {
         ProcessorOutputKind::Food => Some(CommodityKind::Food),
         ProcessorOutputKind::Ale => Some(CommodityKind::Ale),
         ProcessorOutputKind::PreservedFood => Some(CommodityKind::PreservedFood),
+        ProcessorOutputKind::TextileIntermediate => Some(CommodityKind::Yarn),
         ProcessorOutputKind::Cloth => Some(CommodityKind::Cloth),
         ProcessorOutputKind::Charcoal => Some(CommodityKind::Charcoal),
         ProcessorOutputKind::Ironwork => Some(CommodityKind::Ironwork),
@@ -1335,6 +1339,16 @@ fn processor_output_room(building: &Building) -> Option<f64> {
             _ => headroom(CommodityKind::Ale),
         });
     }
+    if building.kind == "spinning_retting_house" {
+        let headroom = |commodity| {
+            processor_output_headroom(
+                building_commodity_stock(building, commodity),
+                building_commodity_cap(&building.kind, commodity),
+                building.processor_output_target_percent,
+            )
+        };
+        return Some(headroom(CommodityKind::Yarn).max(headroom(CommodityKind::Linen)));
+    }
     let commodity = if building.kind == "potter_kiln"
         && potter_fires_roof_tiles(building.potter_firing_policy)
     {
@@ -1361,6 +1375,8 @@ fn processor_input_commodity(kind: ProcessorInputKind) -> CommodityKind {
         ProcessorInputKind::Pottery => CommodityKind::Pottery,
         ProcessorInputKind::Wool => CommodityKind::Wool,
         ProcessorInputKind::Flax => CommodityKind::Flax,
+        ProcessorInputKind::Yarn => CommodityKind::Yarn,
+        ProcessorInputKind::Linen => CommodityKind::Linen,
         ProcessorInputKind::Iron => CommodityKind::Iron,
         ProcessorInputKind::Charcoal => CommodityKind::Charcoal,
         ProcessorInputKind::Clay => CommodityKind::Clay,
@@ -1401,6 +1417,8 @@ fn processor_recipe_availability(
         pottery: available(CommodityKind::Pottery),
         wool: available(CommodityKind::Wool),
         flax: available(CommodityKind::Flax),
+        yarn: available(CommodityKind::Yarn),
+        linen: available(CommodityKind::Linen),
     }
 }
 
@@ -2383,7 +2401,7 @@ pub fn set_weaver_input_policy(
     input_policy: u8,
 ) -> Result<(), String> {
     if !is_valid_weaver_input_policy(input_policy) {
-        return Err("Weaver input policy must be Auto, Wool first, or Flax first.".to_string());
+        return Err("Textile input policy must be Auto, Wool first, or Flax first.".to_string());
     }
     let owner = ctx.sender();
     let mut building = ctx
@@ -2391,9 +2409,12 @@ pub fn set_weaver_input_policy(
         .building()
         .id()
         .find(&building_id)
-        .ok_or_else(|| "Weaver workshop not found.".to_string())?;
-    if building.owner != owner || building.kind != "weaver" || !building.construction_complete {
-        return Err("You do not own this completed weaver workshop.".to_string());
+        .ok_or_else(|| "Textile workshop not found.".to_string())?;
+    if building.owner != owner
+        || !matches!(building.kind.as_str(), "spinning_retting_house" | "weaver")
+        || !building.construction_complete
+    {
+        return Err("You do not own this completed textile workshop.".to_string());
     }
     building.weaver_input_policy = input_policy;
     ctx.db.building().id().update(building);

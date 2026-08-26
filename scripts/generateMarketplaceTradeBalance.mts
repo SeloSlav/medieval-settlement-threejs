@@ -4,13 +4,14 @@ export const MARKETPLACE_TRADE_RESOURCES = [
   'ryeFlour', 'maslinFlour',
   'ryeBread', 'maslinBread', 'ale', 'cider', 'pearCider',
   'preservedFood', 'honey', 'wax', 'candles', 'wine', 'ironwork', 'polearms', 'wool', 'cloth',
-  'hides', 'leather', 'shoes',
+  'pelts', 'hides', 'leather', 'shoes',
   'barley', 'malt', 'flax', 'iron', 'clay', 'salt', 'charcoal', 'pottery',
   'manure', 'remedies', 'roofTiles', 'meat', 'fish', 'berries', 'mushrooms',
   'milk', 'apples', 'pears', 'cherries', 'aronia', 'rosehips',
   'cabbage', 'carrots', 'beetroot', 'eggs', 'grapes',
   'curedMeat', 'smokedFish', 'cheese', 'aroniaJam', 'rosehipJam',
   'ryeSheaves', 'oatSheaves', 'barleySheaves', 'maslinSheaves',
+  'yarn', 'linen',
 ] as const;
 
 export type MarketplaceTradeResource = (typeof MARKETPLACE_TRADE_RESOURCES)[number];

@@ -1,5 +1,6 @@
-//! Player-selected input preference for workshops that can weave either wool
-//! or water-prepared flax.
+//! Persisted player-selected route preference for the two-stage textile chain.
+//! The same stable codes select wool versus flax at the spinning/retting house
+//! and yarn versus linen at the Weaver.
 
 pub const WEAVER_INPUT_POLICY_AUTO: u8 = 0;
 pub const WEAVER_INPUT_POLICY_WOOL_FIRST: u8 = 1;
@@ -20,8 +21,8 @@ pub fn normalize_weaver_input_policy(policy: u8) -> u8 {
     }
 }
 
-/// Lower ranks win when equal-priority active looms compete for one raw-fibre
-/// cart. Automatic looms remain a neutral middle pool and the opposite
+/// Lower ranks win when equal-priority active textile workshops compete for a
+/// route-specific cart. Automatic workshops remain a neutral middle pool and the opposite
 /// specialization remains eligible as a fallback.
 pub fn weaver_fibre_delivery_preference_rank(policy: u8, flax: bool) -> u8 {
     match normalize_weaver_input_policy(policy) {
@@ -62,12 +63,36 @@ pub fn weaver_uses_flax(
     }
 }
 
+/// Selects the flax-family route at the Weaver, where retting has already
+/// happened and the two complete alternatives are yarn and linen.
+pub fn weaver_uses_linen(
+    policy: u8,
+    yarn: f64,
+    linen: f64,
+    yarn_per_cycle: f64,
+    linen_per_cycle: f64,
+) -> bool {
+    let yarn_cycles = yarn.max(0.0) / yarn_per_cycle.max(1e-6);
+    let linen_cycles = linen.max(0.0) / linen_per_cycle.max(1e-6);
+    let yarn_ready = yarn_cycles + 1e-9 >= 1.0;
+    let linen_ready = linen_cycles + 1e-9 >= 1.0;
+
+    match normalize_weaver_input_policy(policy) {
+        WEAVER_INPUT_POLICY_WOOL_FIRST => !yarn_ready && linen_ready,
+        WEAVER_INPUT_POLICY_FLAX_FIRST => linen_ready || !yarn_ready,
+        WEAVER_INPUT_POLICY_AUTO => {
+            (linen > 1e-6 && yarn <= 1e-6) || linen_cycles > yarn_cycles + 1e-9
+        }
+        _ => unreachable!("weaver input policy is normalized"),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::{
         is_valid_weaver_input_policy, normalize_weaver_input_policy,
-        weaver_fibre_delivery_preference_rank, weaver_uses_flax, WEAVER_INPUT_POLICY_AUTO,
-        WEAVER_INPUT_POLICY_FLAX_FIRST, WEAVER_INPUT_POLICY_WOOL_FIRST,
+        weaver_fibre_delivery_preference_rank, weaver_uses_flax, weaver_uses_linen,
+        WEAVER_INPUT_POLICY_AUTO, WEAVER_INPUT_POLICY_FLAX_FIRST, WEAVER_INPUT_POLICY_WOOL_FIRST,
     };
 
     fn uses_flax(policy: u8, wool: f64, flax: f64, water: f64) -> bool {
@@ -92,6 +117,31 @@ mod tests {
         assert!(uses_flax(WEAVER_INPUT_POLICY_WOOL_FIRST, 0.0, 3.0, 1.0));
         assert!(!uses_flax(WEAVER_INPUT_POLICY_FLAX_FIRST, 3.0, 3.0, 0.0));
         assert!(uses_flax(WEAVER_INPUT_POLICY_FLAX_FIRST, 0.0, 0.0, 0.0));
+    }
+
+    #[test]
+    fn the_same_persisted_preference_selects_yarn_or_linen_at_the_weaver() {
+        assert!(!weaver_uses_linen(
+            WEAVER_INPUT_POLICY_WOOL_FIRST,
+            2.0,
+            4.0,
+            2.0,
+            2.0,
+        ));
+        assert!(weaver_uses_linen(
+            WEAVER_INPUT_POLICY_FLAX_FIRST,
+            4.0,
+            2.0,
+            2.0,
+            2.0,
+        ));
+        assert!(weaver_uses_linen(
+            WEAVER_INPUT_POLICY_WOOL_FIRST,
+            0.0,
+            2.0,
+            2.0,
+            2.0,
+        ));
     }
 
     #[test]

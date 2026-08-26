@@ -15,6 +15,7 @@ mod constants;
 mod construction_priority;
 mod db;
 mod delivery_trip_policy;
+mod devotional_candle_policy;
 mod economy;
 mod extraction_policy;
 mod farm_work_policy;

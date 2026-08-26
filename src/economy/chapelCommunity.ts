@@ -71,6 +71,7 @@ export function formatChapelTithePerDay(
   sabbathObservance = false,
   hasMonasteryCoverage = false,
   titheMultiplier = 1,
+  devotionalCandlesSupplied = false,
 ): string {
   const expected = expectedChapelTithePerDay(
     linkedPopulation,
@@ -78,11 +79,13 @@ export function formatChapelTithePerDay(
     sabbathObservance,
     hasMonasteryCoverage,
     titheMultiplier,
+    devotionalCandlesSupplied,
   );
   const chance = Math.round(chapelAttendanceChance(
     assignedLabor,
     sabbathObservance,
     hasMonasteryCoverage,
+    devotionalCandlesSupplied,
   ) * 100);
   const flat = chapelTitheGoldPerDay(linkedPopulation, titheMultiplier);
   const titheDays = sabbathObservance

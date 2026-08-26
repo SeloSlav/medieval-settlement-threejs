@@ -62,6 +62,7 @@ function buildingStateFromRow(
     monasteryCroftChoiceYear: number;
     monasteryServiceFunding: number;
     monasteryLastServiceDay: bigint;
+    pelts: number;
     hides: number;
     leather: number;
     shoes: number;
@@ -78,6 +79,8 @@ function buildingStateFromRow(
     treeWorkAreaRadius: number;
     settlementId: bigint;
     animalFeed: number;
+    yarn: number;
+    linen: number;
   }>;
   const treeWorkAreaX = Number(materialRow.treeWorkAreaX ?? 0);
   const treeWorkAreaZ = Number(materialRow.treeWorkAreaZ ?? 0);
@@ -127,7 +130,10 @@ function buildingStateFromRow(
     candles: wholeResourceUnits(row.candles),
     wine: wholeResourceUnits(row.wine),
     wool: wholeResourceUnits(row.wool),
+    yarn: wholeResourceUnits(materialRow.yarn),
+    linen: wholeResourceUnits(materialRow.linen),
     cloth: wholeResourceUnits(row.cloth),
+    pelts: wholeResourceUnits(materialRow.pelts),
     hides: wholeResourceUnits(materialRow.hides),
     leather: wholeResourceUnits(materialRow.leather),
     shoes: wholeResourceUnits(materialRow.shoes),

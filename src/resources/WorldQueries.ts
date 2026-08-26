@@ -46,6 +46,7 @@ import {
   processorInputCommodityStock,
   selectDirectProcessorInputTarget,
   type DirectProcessorInputCommodity,
+  type MarketplaceMaterialInputCommodity,
   type RoutedMarketplaceMaterialDestination,
   type RoutedProcessorInputDestination,
 } from '../logistics/processorInputLogistics.ts';
@@ -650,7 +651,10 @@ export class WorldQueries {
         || candidate.assignedLabor <= 0
         || requiredPerCycle <= 0
         || desiredStock <= 0
-        || (candidate.kind === 'weaver' && (candidate.flax ?? 0) <= 1e-6)
+        || (
+          candidate.kind === 'spinning_retting_house'
+          && (candidate.flax ?? 0) <= 1e-6
+        )
         || !processorAcceptsInput(candidate, 'water')
         || !isWithinWellServiceRadius(well, candidate)
         || candidate.water + 1e-6 >= desiredStock
@@ -1515,21 +1519,20 @@ export class WorldQueries {
     const pendingTrade = marketplacePendingTradeOffer(
       source.marketplacePendingTradeCode,
     );
-    const potteryReservedForTrade = pendingTrade?.kind === 'goldSell'
-      && pendingTrade.resource === 'pottery';
+    const marketplaceInputCommodities = [
+      'iron', 'salt', 'pottery', 'wax', 'wool', 'flax', 'yarn', 'linen',
+    ] as const satisfies readonly MarketplaceMaterialInputCommodity[];
+    const reservedCommodity = pendingTrade?.kind === 'goldSell'
+      ? pendingTrade.resource
+      : null;
     if (
       source.kind !== 'trading_post'
       || source.constructionComplete === false
       || source.assignedLabor <= 0
       || fireDisabled.has(source.id)
-      || (
-        (source.iron ?? 0) <= 1e-6
-        && (source.salt ?? 0) <= 1e-6
-        && (
-          potteryReservedForTrade
-          || (source.pottery ?? 0) <= 1e-6
-        )
-      )
+      || !marketplaceInputCommodities.some((commodity) =>
+        commodity !== reservedCommodity
+        && (source[commodity] ?? 0) > 1e-6)
     ) {
       return null;
     }
@@ -1552,14 +1555,14 @@ export class WorldQueries {
         && candidate.constructionComplete !== false
         && candidate.assignedLabor > 0
         && !activeSources.has(candidate.id));
-    const reservations = new Map<string, boolean>();
+    const reservations = new Map<string, string | null>();
     for (const candidate of materialSources) {
       const pendingTrade = marketplacePendingTradeOffer(
         candidate.marketplacePendingTradeCode,
       );
       reservations.set(
         candidate.id,
-        pendingTrade?.kind === 'goldSell' && pendingTrade.resource === 'pottery',
+        pendingTrade?.kind === 'goldSell' ? pendingTrade.resource : null,
       );
     }
     const assignments = assignMarketplaceMaterialInputTargets(
@@ -1576,7 +1579,7 @@ export class WorldQueries {
       (target) => inboundTargets.has(target.id),
       (target, commodity) => processorAcceptsInput(target, commodity),
       (market, commodity) =>
-        commodity === 'pottery' && reservations.get(market.id) === true,
+        reservations.get(market.id) === commodity,
     );
     return assignments.get(source.id) ?? null;
   }

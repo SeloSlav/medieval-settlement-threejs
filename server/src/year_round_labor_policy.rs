@@ -149,6 +149,7 @@ mod tests {
             "bakery",
             "brewery",
             "smokehouse",
+            "spinning_retting_house",
             "weaver",
             "stone_quarry",
             "large_quarry",

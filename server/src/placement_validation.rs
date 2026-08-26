@@ -735,6 +735,12 @@ fn building_pad_params(kind: &str) -> BuildingPadParams {
             inner_fade: 0.88,
             outer_fade: 1.32,
         },
+        "spinning_retting_house" => BuildingPadParams {
+            radius_x: 5.8,
+            radius_z: 4.5,
+            inner_fade: 0.88,
+            outer_fade: 1.3,
+        },
         "weaver" => BuildingPadParams {
             radius_x: 5.8,
             radius_z: 4.5,

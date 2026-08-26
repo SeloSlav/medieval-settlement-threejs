@@ -75,6 +75,13 @@ import {
   nextMonasteryFeast,
 } from '../../economy/monasteryHospitality.ts';
 import {
+  MONASTERY_CANDLE_CAPACITY,
+  MONASTERY_CANDLE_USE_INTERVAL_DAYS,
+  MONASTERY_LITURGY_PRESTIGE_MULTIPLIER,
+  devotionalCandleContractLabel,
+  devotionalCandlesSupplied,
+} from '../../economy/devotionalCandles.ts';
+import {
   MONASTERY_INFIRMARY_FOOD_PER_BED_DAY,
   MONASTERY_EXTENSIONS,
   monasteryArchetype,
@@ -240,7 +247,7 @@ const PROCESS: Record<string, string> = {
   monastery: 'A self-governing 68 × 53 m walled estate raises mixed orchard and garden crops alongside cattle, sheep, eggs, milk, meat, honey, and cheese; orchard fruit becomes house cider, apiary honey becomes mead, and player-drawn vineyards produce town-market wine',
   carpenter: 'Timber + smith-forged ironwork → polearms and cartwright support',
   weaver: 'Annual sheep fleece or flax + hauled water → finished clothing → tier-2+ Marketplace stalls, then Trading Post export',
-  tannery: 'Goat or game hides + hauled water + firewood → tanned leather for Cobbler workshops and trade',
+  tannery: 'Livestock hides + hauled water + firewood → tanned leather for Cobbler workshops and trade; hunted pelts bypass the Tannery',
   cobbler: 'Tanned leather + cobbler labor → finished shoes → Tier 3+ Marketplace stalls, then Trading Post export',
   chandlery: '2 beeswax + 1 firewood + chandler labor → 6 candle lots for prosperous households and regional trade',
 };
@@ -1119,6 +1126,25 @@ export function renderExpandedBuildingInspector(
   const nextFeast = building.kind === 'monastery' && building.assignedLabor > 0
     ? nextMonasteryFeast(clock)
     : null;
+  const monasteryCandleStock = building.kind === 'monastery'
+    ? Math.max(0, building.candles ?? 0)
+    : 0;
+  const monasteryCandleLiturgy = devotionalCandlesSupplied(monasteryCandleStock);
+  const monasteryInboundCandles = building.kind === 'monastery'
+    ? Array.from(context.gameState.deliveryTrips.values())
+        .filter(
+          (trip) =>
+            trip.targetBuildingId === building.id
+            && trip.cargoKind === 'candles'
+            && trip.phase !== 'inbound',
+        )
+        .reduce((sum, trip) => sum + trip.amount, 0)
+    : 0;
+  const monasteryDevotionalRows = building.kind === 'monastery'
+    ? `<li><span>Devotional candles</span><span>${Math.round(monasteryCandleStock)} / ${MONASTERY_CANDLE_CAPACITY}${monasteryInboundCandles > 0 ? ` · ${Math.round(monasteryInboundCandles)} incoming` : ''}</span></li>
+      <li><span>Local candle contract</span><span>${devotionalCandleContractLabel('monastery')} · Trading Post stock only</span></li>
+      <li><span>Liturgical offices</span><span>${building.assignedLabor <= 0 ? 'Dormant · assign monks' : monasteryCandleLiturgy ? `Supplied · burns one lot every ${MONASTERY_CANDLE_USE_INTERVAL_DAYS} days · ×${MONASTERY_LITURGY_PRESTIGE_MULTIPLIER.toFixed(2)} liturgical gift prestige` : 'Unlit · baseline pilgrimage prestige'}</span></li>`
+    : '';
   const monasteryHospitalityRows = hospitality
     ? `<li><span>Hospitality</span><span>${monasteryHospitalityStatusLabel(hospitality)}</span></li>
       <li><span>Honey runway</span><span>${formatHospitalityRunway(hospitality.honeyRunwayDays)} daily surplus · ${MONASTERY_FEAST_HONEY} feast honey protected</span></li>
@@ -1167,7 +1193,7 @@ export function renderExpandedBuildingInspector(
               && trip.phase !== 'inbound',
           )
           .reduce((sum, trip) => sum + trip.amount, 0);
-        return `<li><span>Reserved estate</span><span>68 × 53 m inside a complete stone precinct wall · frontier belt is at least 200 m deep and scales with map size</span></li>
+        return `${monasteryDevotionalRows}<li><span>Reserved estate</span><span>68 × 53 m inside a complete stone precinct wall · frontier belt is at least 200 m deep and scales with map size</span></li>
           <li><span>Monastery identity</span><span><strong>${archetype.name}</strong> · ${archetype.payoff}</span></li>
           <li><span>Enclosed estate</span><span>Mixed apples and pears · cabbage, carrots, and beetroot · apiary · cattle and sheep pasture · no crop-by-crop player choices</span></li>
           <li><span>Estate development</span><span>${extensionCount} / 4 extensions · ${builtExtensions.join(' · ') || 'founding house only'}</span></li>

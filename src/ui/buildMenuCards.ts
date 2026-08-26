@@ -17,7 +17,7 @@ export type PlacementBuildMenuAction =
   | 'well' | 'stable' | 'hunters-hall' | 'foragers-shed' | 'fishing-camp' | 'chapel' | 'wayside-shrine' | 'marketplace' | 'trading-post'
   | 'threshing-barn' | 'monastery' | 'brewery' | 'tavern' | 'smokehouse'
   | 'granary' | 'bakery' | 'apiary' | 'watermill' | 'windmill' | 'carpenter'
-  | 'weaver'
+  | 'spinning-retting-house' | 'weaver'
   | 'tannery' | 'cobbler'
   | 'chandlery'
   | 'pastoral-farmstead' | 'swineherd'
@@ -67,6 +67,7 @@ const BUILD_CARD_ART: Record<PlacementArtKey, string> = {
   apiary: '/assets/ui/build-menu/cards/apiary.webp', watermill: '/assets/ui/build-menu/cards/watermill.webp',
   windmill: '/assets/ui/build-menu/cards/windmill.webp',
   carpenter: '/assets/ui/build-menu/cards/carpenter.webp',
+  spinning_retting_house: '/assets/ui/build-menu/cards/spinning-retting-house.webp',
   weaver: '/assets/ui/build-menu/cards/weaver.webp',
   tannery: '/assets/ui/build-menu/cards/tannery.webp',
   cobbler: '/assets/ui/build-menu/cards/cobbler.webp',
@@ -116,7 +117,7 @@ const DETAILS: Record<PlacementArtKey, BuildCardDetail> = {
   potter_kiln: ["Potter's kiln", 'Fires clay into household pottery or sturdy roof tiles.', flow(['clay', 'water', 'firewood'], ['pottery', 'roofTiles'])],
   reforester: ['Reforester', 'Restores felled woodland with young native trees.'],
   woodcutters_lodge: ["Woodcutter's lodge", 'Splits timber into firewood for settlement hearths; replacement axes raise output but wear each cycle.', flow(['timber'], ['firewood'])],
-  hunters_hall: ["Hunter's hall", 'Hunts nearby game and dresses the catch for meat and hides.', flow([], ['meat', 'hides'])],
+  hunters_hall: ["Hunter's hall", 'Hunts nearby game and dresses the catch for meat and trade-ready pelts.', flow([], ['meat', 'pelts'])],
   foragers_shed: ["Forager's shed", 'Gathers wild raspberries, mushrooms, and healing remedies.', flow([], ['berries', 'mushrooms', 'remedies'])],
   fishing_camp: ['Fishing camp', 'Catches fish from nearby waters through the warmer seasons.', flow([], ['fish'])],
   threshing_barn: ['Farmstead and threshing barn', 'Works grain and flax fields, then threshes sheaves. Stable oxen speed ploughing, harvesting, and threshing; sowing remains human-only.', flow(['ryeSheaves', 'oatSheaves', 'barleySheaves', 'maslinSheaves'], ['ryeGrain', 'oatGrain', 'barley', 'maslinGrain', 'flax'])],
@@ -129,8 +130,9 @@ const DETAILS: Record<PlacementArtKey, BuildCardDetail> = {
   smokehouse: ['Smokehouse', 'Preserves fresh food with firewood, salt, and pottery.', flow(['food', 'firewood', 'salt', 'pottery'], ['preservedFood'])],
   apiary: ['Forest apiary', 'Keeps bees for food, luxury honey, and mead throughout the warm season.', flow([], ['honey'])],
   carpenter: ['Carpenter & wheelwright', 'Crafts frames and carts that lower building costs and hasten deliveries.'],
-  weaver: ["Weaver's workshop", 'Tailors wool or water-prepared flax into finished clothing.', flow(['wool', 'flax', 'water'], ['cloth'])],
-  tannery: ['Tannery', 'Tans goat and game hides with water and bark-fired heat into workable leather.', flow(['hides', 'water', 'firewood'], ['leather'])],
+  spinning_retting_house: ['Spinning & Retting House', 'Spins sheep fleece into yarn or rets flax with water into linen.', flow(['wool', 'flax', 'water'], ['yarn', 'linen'])],
+  weaver: ["Weaver's workshop", 'Weaves yarn or linen into finished clothing.', flow(['yarn', 'linen'], ['cloth'])],
+  tannery: ['Tannery', 'Tans livestock hides with water and bark-fired heat into workable leather.', flow(['hides', 'water', 'firewood'], ['leather'])],
   cobbler: ["Cobbler's workshop", 'Cuts leather into finished shoes for prosperous Tier 3 households.', flow(['leather'], ['shoes'])],
   chandlery: ['Chandlery', 'Melts scarce beeswax over a wood-fired hearth and repeatedly dips long-burning candles for prosperous households and regional trade.', flow(['wax', 'firewood'], ['candles'])],
   pastoral_farmstead: ['Pastoral farmstead', 'Cattle and sheep graze, cut hay, then use hay before feed. Staff prepare animal feed from oats; water stays separate.', flow(['water', 'oatGrain'], ['animalFeed', 'milk', 'wool', 'manure', 'meat'])],
@@ -169,7 +171,7 @@ export const AGRICULTURE_BUILD_MENU_ENTRIES: readonly BuildMenuEntry[] = [
 /** Workshops that process gathered or agricultural inputs into finished goods. */
 export const INDUSTRY_BUILD_MENU_ENTRIES: readonly BuildMenuEntry[] = [
   entry('woodcutters_lodge'), entry('watermill'), entry('windmill'), entry('bakery'), entry('brewery'), entry('smokehouse'),
-  entry('carpenter'), entry('weaver'), entry('tannery'), entry('cobbler'), entry('chandlery'), entry('charcoal_burner'), entry('smithy'), entry('potter_kiln'),
+  entry('carpenter'), entry('spinning_retting_house'), entry('weaver'), entry('tannery'), entry('cobbler'), entry('chandlery'), entry('charcoal_burner'), entry('smithy'), entry('potter_kiln'),
 ];
 
 /** Conflict-enabled early warning and settlement defenses. */
@@ -207,7 +209,7 @@ const FOOD_BUILD_MENU_ENTRIES = [
   entry('watermill'), entry('windmill'), entry('bakery'), entry('brewery'), entry('tavern'), entry('smokehouse'),
 ] as const;
 const WORKSHOP_BUILD_MENU_ENTRIES = [
-  entry('woodcutters_lodge'), entry('carpenter'), entry('weaver'), entry('tannery'), entry('cobbler'), entry('chandlery'), entry('charcoal_burner'), entry('smithy'), entry('potter_kiln'),
+  entry('woodcutters_lodge'), entry('carpenter'), entry('spinning_retting_house'), entry('weaver'), entry('tannery'), entry('cobbler'), entry('chandlery'), entry('charcoal_burner'), entry('smithy'), entry('potter_kiln'),
 ] as const;
 const FAITH_BUILD_MENU_ENTRIES = [entry('chapel'), entry('monastery')] as const;
 const DECORATION_BUILD_MENU_ENTRIES = [entry('wayside_shrine'), entry('dry_stone_wall')] as const;

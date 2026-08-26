@@ -327,6 +327,8 @@ const cargoSignatures: Record<DeliveryCargoKind, string> = {
   ironwork: 'Ironwork spearhead 1',
   wool: 'Wool fleece bundle 1',
   flax: 'Flax bundle 1 stem 1',
+  yarn: 'Yarn skein 1',
+  linen: 'Linen bolt 1',
   cloth: 'Woven cloth roll 1',
   gold: 'Treasury lockbox',
   iron: 'Local iron ore chunk 1',

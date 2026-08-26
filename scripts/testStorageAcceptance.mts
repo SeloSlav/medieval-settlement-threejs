@@ -26,7 +26,7 @@ const storehouse = {
   storehouseAcceptsSalt: true,
 } as BuildingState;
 
-assert.equal(STOREHOUSE_STORAGE_COMMODITIES.length, 15);
+assert.equal(STOREHOUSE_STORAGE_COMMODITIES.length, 19);
 assert.ok(STOREHOUSE_STORAGE_COMMODITIES.includes('cloth'));
 assert.ok(STOREHOUSE_STORAGE_COMMODITIES.includes('hides'));
 assert.ok(STOREHOUSE_STORAGE_COMMODITIES.includes('leather'));
@@ -35,6 +35,7 @@ assert.ok(STOREHOUSE_STORAGE_COMMODITIES.includes('pottery'));
 assert.ok(STOREHOUSE_STORAGE_COMMODITIES.includes('remedies'));
 assert.ok(STOREHOUSE_STORAGE_COMMODITIES.includes('wax'));
 assert.ok(STOREHOUSE_STORAGE_COMMODITIES.includes('candles'));
+assert.ok(STOREHOUSE_STORAGE_COMMODITIES.includes('pelts'));
 assert.equal(GRANARY_STORAGE_COMMODITIES.length, 40);
 assert.equal(GRANARY_STORAGE_COMMODITIES.includes('food'), false);
 assert.equal(GRANARY_STORAGE_COMMODITIES.includes('vegetables'), false);
@@ -65,6 +66,7 @@ assert.equal(storageAcceptsCommodity(storehouse, 'charcoal'), true);
 assert.equal(storageAcceptsCommodity(storehouse, 'remedies'), true);
 assert.equal(storageAcceptsCommodity(storehouse, 'wax'), true);
 assert.equal(storageAcceptsCommodity(storehouse, 'candles'), true);
+assert.equal(storageAcceptsCommodity(storehouse, 'pelts'), true);
 assert.equal(
   storageAcceptsCommodity({
     ...storehouse,
@@ -100,7 +102,10 @@ const storehouseControls = renderStorageAcceptanceControls(
   storehouse,
   STOREHOUSE_STORAGE_GROUPS,
 );
-assert.equal((storehouseControls.match(/data-storage-commodity=/g) ?? []).length, 15);
+assert.equal(
+  (storehouseControls.match(/data-storage-commodity=/g) ?? []).length,
+  STOREHOUSE_STORAGE_COMMODITIES.length,
+);
 assert.match(storehouseControls, /data-storage-commodity="cloth"/);
 assert.match(storehouseControls, /Clothing: accepting new deliveries\./);
 assert.match(storehouseControls, /data-storage-commodity="hides"/);
@@ -110,6 +115,7 @@ assert.match(storehouseControls, /data-storage-commodity="pottery"/);
 assert.match(storehouseControls, /data-storage-commodity="remedies"/);
 assert.match(storehouseControls, /data-storage-commodity="wax"/);
 assert.match(storehouseControls, /data-storage-commodity="candles"/);
+assert.match(storehouseControls, /data-storage-commodity="pelts"/);
 assert.match(storehouseControls, /data-storage-accept-all="true"/);
 assert.match(storehouseControls, /data-storage-accept-all="false"/);
 assert.match(storehouseControls, />Accept all<\/button>/);

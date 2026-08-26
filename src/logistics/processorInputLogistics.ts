@@ -18,8 +18,10 @@ import {
   SMOKEHOUSE_FOOD_PER_CYCLE,
   SMOKEHOUSE_POTTERY_PER_CYCLE,
   SMOKEHOUSE_SALT_PER_CYCLE,
-  WEAVER_FLAX_PER_CYCLE,
-  WEAVER_WOOL_PER_CYCLE,
+  SPINNING_RETTING_FLAX_PER_CYCLE,
+  SPINNING_RETTING_WOOL_PER_CYCLE,
+  WEAVER_LINEN_PER_CYCLE,
+  WEAVER_YARN_PER_CYCLE,
 } from '../generated/gameBalance.ts';
 import {
   civilianToolRefillDue,
@@ -55,6 +57,8 @@ export type DirectProcessorInputCommodity =
   | 'preservedFood'
   | 'wool'
   | 'flax'
+  | 'yarn'
+  | 'linen'
   | 'ironwork'
   | 'iron'
   | 'clay'
@@ -62,7 +66,15 @@ export type DirectProcessorInputCommodity =
   | 'charcoal'
   | 'pottery'
   | 'wax';
-export type MarketplaceMaterialInputCommodity = 'iron' | 'salt' | 'pottery' | 'wax';
+export type MarketplaceMaterialInputCommodity =
+  | 'iron'
+  | 'salt'
+  | 'pottery'
+  | 'wax'
+  | 'wool'
+  | 'flax'
+  | 'yarn'
+  | 'linen';
 export type ProcessorInputDispatchDuty =
   | 'working-buffer'
   | 'central-storage'
@@ -86,6 +98,8 @@ type ProcessorInputDestinationLike = Pick<
   | 'preservedFood'
   | 'wool'
   | 'flax'
+  | 'yarn'
+  | 'linen'
   | 'barley'
   | 'firewood'
   | 'ironwork'
@@ -124,8 +138,10 @@ const TARGET_KINDS: Record<
   maslinFlour: ['bakery', 'granary'],
   food: ['smokehouse'],
   preservedFood: ['granary'],
-  wool: ['weaver'],
-  flax: ['weaver', 'granary'],
+  wool: ['spinning_retting_house'],
+  flax: ['spinning_retting_house', 'granary'],
+  yarn: ['weaver'],
+  linen: ['weaver'],
   ironwork: [
     'lumber_mill',
     'woodcutters_lodge',
@@ -180,9 +196,13 @@ export function directlyDispatchedProcessorInputPerCycle(
     case 'preservedFood':
       return 0;
     case 'wool':
-      return WEAVER_WOOL_PER_CYCLE;
+      return SPINNING_RETTING_WOOL_PER_CYCLE;
     case 'flax':
-      return WEAVER_FLAX_PER_CYCLE;
+      return SPINNING_RETTING_FLAX_PER_CYCLE;
+    case 'yarn':
+      return WEAVER_YARN_PER_CYCLE;
+    case 'linen':
+      return WEAVER_LINEN_PER_CYCLE;
     case 'ironwork':
       return isCivilianToolSite(targetKind)
         ? CIVILIAN_TOOL_IRONWORK_PER_CYCLE
@@ -222,8 +242,8 @@ export function processorInputRunwayCycles(stock: number, perCycle: number): num
 
 /**
  * Mirrors every source-side processor-input cart. Active processors receive
- * their selected stock-policy working buffers by lowest runway. Looms route
- * matching fibres to their selected specialization before
+ * their selected stock-policy working buffers by lowest runway. Textile
+ * processors route matching raw or prepared fibres to their specialization before
  * lowest runway and route; staffed heavy-tool worksites use the same ordering
  * for replacement iron tools. Imported raw iron and salt stop at processor
  * working buffers. Local Mining Camp and Mineworks carts do the same first,
@@ -341,8 +361,13 @@ export function selectDirectProcessorInputTarget<
       runwayCycles: processorInputRunwayCycles(stock, perCycle),
       routeDistance,
       workPriority: normalizeStaffingPriority(target.constructionPriority),
-      inputPreferenceRank: target.kind === 'weaver'
+      inputPreferenceRank: (
+        target.kind === 'spinning_retting_house'
         && (commodity === 'wool' || commodity === 'flax')
+      ) || (
+        target.kind === 'weaver'
+        && (commodity === 'yarn' || commodity === 'linen')
+      )
         ? weaverFibreDeliveryPreferenceRank(target.weaverInputPolicy, commodity)
         : 0,
     };
@@ -373,7 +398,7 @@ export type RoutedMarketplaceMaterialDestination<
 
 type MarketplaceMaterialSourceLike = Pick<
   BuildingState,
-  'id' | 'iron' | 'salt' | 'pottery' | 'wax'
+  'id' | 'iron' | 'salt' | 'pottery' | 'wax' | 'wool' | 'flax' | 'yarn' | 'linen'
 >;
 
 export type RoutedMarketplaceMaterialAssignment<
@@ -390,6 +415,8 @@ export const LOCAL_MATERIAL_SOURCE_KINDS = [
   'charcoal_burner',
   'smithy',
   'potter_kiln',
+  'granary',
+  'spinning_retting_house',
   'village_storehouse',
 ] as const satisfies readonly BuildingKind[];
 
@@ -400,7 +427,11 @@ export type LocalMaterialInputCommodity =
   | 'charcoal'
   | 'ironwork'
   | 'pottery'
-  | 'wax';
+  | 'wax'
+  | 'wool'
+  | 'flax'
+  | 'yarn'
+  | 'linen';
 
 export type RoutedDirectProcessorInputAssignment<
   S extends { id: string },
@@ -420,6 +451,10 @@ type LocalMaterialSourceLike = Pick<
   | 'ironwork'
   | 'pottery'
   | 'wax'
+  | 'wool'
+  | 'flax'
+  | 'yarn'
+  | 'linen'
   | 'storehouseAcceptsIron'
   | 'storehouseAcceptsClay'
   | 'storehouseAcceptsSalt'
@@ -440,10 +475,17 @@ export function localMaterialInputCommodities(
     case 'charcoal_burner': return ['charcoal'];
     case 'smithy': return ['ironwork'];
     case 'potter_kiln': return ['pottery'];
+    case 'granary':
+      return (source?.flax ?? 0) > 1e-6 ? ['flax'] : [];
+    case 'spinning_retting_house':
+      return (['yarn', 'linen'] as const)
+        .filter((commodity) => (source?.[commodity] ?? 0) > 1e-6);
     case 'village_storehouse':
       return [
         ...((source?.charcoal ?? 0) > 1e-6 ? ['charcoal'] as const : []),
         ...((source?.wax ?? 0) > 1e-6 ? ['wax'] as const : []),
+        ...((['wool', 'yarn', 'linen'] as const)
+          .filter((commodity) => (source?.[commodity] ?? 0) > 1e-6)),
         ...((['iron', 'clay', 'salt'] as const)
           .filter((commodity) => (source?.[commodity] ?? 0) > 1e-6)),
       ];
@@ -469,7 +511,7 @@ export function selectMarketplaceMaterialInputTarget<
   T extends ProcessorInputDestinationLike,
 >(
   targets: Iterable<T>,
-  source: Pick<BuildingState, 'id' | 'iron' | 'salt' | 'pottery' | 'wax'>,
+  source: Pick<BuildingState, 'id' | 'iron' | 'salt' | 'pottery' | 'wax' | 'wool' | 'flax' | 'yarn' | 'linen'>,
   routeDistanceFor: (target: T) => number | null,
   hasInboundSupply: (target: T) => boolean = () => false,
   acceptsInput: (
@@ -491,7 +533,7 @@ export function selectMarketplaceMaterialInputTarget<
     routeDistanceByTargetId.set(target.id, distance);
     return distance;
   };
-  for (const commodity of ['iron', 'salt', 'pottery', 'wax'] as const) {
+  for (const commodity of ['iron', 'salt', 'pottery', 'wax', 'wool', 'flax', 'yarn', 'linen'] as const) {
     if (
       isSourceCommodityReserved(commodity)
       || Math.max(0, source[commodity] ?? 0) <= 1e-6
@@ -544,7 +586,7 @@ export function assignMarketplaceMaterialInputTargets<
   const offers: ProcessorInputOffer<S, MarketplaceMaterialInputCommodity>[] = [];
   for (const source of sources) {
     if (!sourceIsAvailable(source)) continue;
-    for (const commodity of ['iron', 'salt', 'pottery'] as const) {
+    for (const commodity of ['iron', 'salt', 'pottery', 'wool', 'flax', 'yarn', 'linen'] as const) {
       if (
         isSourceCommodityReserved(source, commodity)
         || Math.max(0, source[commodity] ?? 0) <= 1e-6
@@ -744,5 +786,7 @@ function directMaterialCommodityRank(
     case 'preservedFood': return 12;
     case 'wool': return 13;
     case 'flax': return 14;
+    case 'yarn': return 15;
+    case 'linen': return 16;
   }
 }

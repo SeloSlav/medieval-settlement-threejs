@@ -37,13 +37,17 @@ import {
   POTTER_FIREWOOD_PER_CYCLE,
   POTTER_POTTERY_PER_CYCLE,
   POTTER_WATER_PER_CYCLE,
+  SPINNING_RETTING_FLAX_PER_CYCLE,
+  SPINNING_RETTING_FLAX_WATER_PER_CYCLE,
+  SPINNING_RETTING_LINEN_PER_CYCLE,
+  SPINNING_RETTING_WOOL_PER_CYCLE,
+  SPINNING_RETTING_YARN_PER_CYCLE,
   WATERMILL_RYE_FLOUR_PER_CYCLE,
   WATERMILL_MASLIN_FLOUR_PER_CYCLE,
   WATERMILL_GRAIN_PER_CYCLE,
   WEAVER_CLOTH_PER_CYCLE,
-  WEAVER_FLAX_PER_CYCLE,
-  WEAVER_FLAX_WATER_PER_CYCLE,
-  WEAVER_WOOL_PER_CYCLE,
+  WEAVER_LINEN_PER_CYCLE,
+  WEAVER_YARN_PER_CYCLE,
 } from '../../generated/gameBalance.ts';
 import { getBuildingDefinition } from '../buildings.ts';
 import { buildingStorageCaps } from '../resourceTotals.ts';
@@ -71,8 +75,10 @@ import {
 } from './buildingWaterStatus.ts';
 import { onsiteBuildingLabor } from '../../logistics/deliveryTrips.ts';
 import {
+  spinningRettingInputPolicyLabel,
   weaverInputPolicyLabel,
   weaverUsesFlax,
+  weaverUsesLinen,
 } from '../../economy/weaverInputPolicy.ts';
 import {
   renderResourceCost,
@@ -120,6 +126,8 @@ type StockKey =
   | 'preservedFood'
   | 'wool'
   | 'flax'
+  | 'yarn'
+  | 'linen'
   | 'cloth'
   | 'iron'
   | 'clay'
@@ -772,7 +780,7 @@ function getTavernStatus(
   };
 }
 
-function getWeaverStatus(
+function getSpinningRettingStatus(
   building: BuildingState,
   worldQueries: WorldQueries,
   onsiteLabor: number,
@@ -782,49 +790,58 @@ function getWeaverStatus(
     ? {
         key: 'flax' as const,
         label: 'flax fibre',
-        required: WEAVER_FLAX_PER_CYCLE,
+        required: SPINNING_RETTING_FLAX_PER_CYCLE,
         hint: 'farmstead carts supply harvested flax',
       }
     : {
         key: 'wool' as const,
         label: 'wool fleece',
-        required: WEAVER_WOOL_PER_CYCLE,
+        required: SPINNING_RETTING_WOOL_PER_CYCLE,
         hint: 'staffed sheep holdings dispatch annual fleece',
       };
   const waterAssessment = usesFlax
-    ? assessWellWaterSupply(building, worldQueries, WEAVER_FLAX_WATER_PER_CYCLE)
+    ? assessWellWaterSupply(
+        building,
+        worldQueries,
+        SPINNING_RETTING_FLAX_WATER_PER_CYCLE,
+      )
     : null;
   const routeCycles = usesFlax
     ? Math.min(
-        Math.max(0, building.flax ?? 0) / WEAVER_FLAX_PER_CYCLE,
-        Math.max(0, building.water) / WEAVER_FLAX_WATER_PER_CYCLE,
+        Math.max(0, building.flax ?? 0) / SPINNING_RETTING_FLAX_PER_CYCLE,
+        Math.max(0, building.water) / SPINNING_RETTING_FLAX_WATER_PER_CYCLE,
       )
-    : Math.max(0, building.wool ?? 0) / WEAVER_WOOL_PER_CYCLE;
+    : Math.max(0, building.wool ?? 0) / SPINNING_RETTING_WOOL_PER_CYCLE;
   const waterRows = formatWellWaterDetailRows(
     waterAssessment,
-    usesFlax ? undefined : 'None - wool preparation is a dry process',
+    usesFlax ? undefined : 'None - wool spinning is a dry process',
   );
   const detailHtml = waterRows + `
     <li><span>Inputs per cycle</span><span>${renderResourceCost(processorInputCost([input]), { compact: true })}</span></li>
-    <li><span>Input policy</span><span>${weaverInputPolicyLabel(building.weaverInputPolicy)} · ready alternate fibre remains a fallback</span></li>
-    <li><span>Selected textile route</span><span>${usesFlax ? 'Flax + hauled water' : 'Annual sheep fleece'} · ${formatInputCycleCoverage(routeCycles)}</span></li>
+    <li><span>Input policy</span><span>${spinningRettingInputPolicyLabel(building.weaverInputPolicy)} · a complete alternate raw-fibre recipe remains a fallback</span></li>
+    <li><span>Selected textile route</span><span>${usesFlax ? 'Ret flax with hauled water → linen' : 'Spin annual sheep fleece → yarn'} · ${formatInputCycleCoverage(routeCycles)}</span></li>
     <li><span>${usesFlax ? 'Flax' : 'Wool'} working stock</span><span>${Math.round(stockAmount(building, input.key))} onsite · ${input.required.toFixed(1)} per cycle · ${input.hint}</span></li>
     <li><span>Alternative input</span><span>${usesFlax ? `${Math.round(Math.max(0, building.wool ?? 0))} wool` : `${Math.round(Math.max(0, building.flax ?? 0))} flax + ${Math.round(Math.max(0, building.water))} water`} onsite</span></li>
-    <li><span>Clothing yield</span><span>${WEAVER_CLOTH_PER_CYCLE.toFixed(1)} per completed cycle</span></li>
+    <li><span>Prepared-fibre yield</span><span>${(usesFlax ? SPINNING_RETTING_LINEN_PER_CYCLE : SPINNING_RETTING_YARN_PER_CYCLE).toFixed(1)} ${usesFlax ? 'linen' : 'yarn'} per completed cycle</span></li>
   `;
-  const outputAtLimit = isOutputAtLimit(building, 'weaver', 'cloth');
+  const output = usesFlax ? 'linen' : 'yarn';
+  const outputAtLimit = isOutputAtLimit(
+    building,
+    'spinning_retting_house',
+    output,
+  );
   if (onsiteLabor === 0 && !outputAtLimit) {
     return {
       statusText: building.assignedLabor > 0
         ? 'Work paused - the full roster is away with its cart'
-        : 'Idle - assign weavers to work the loom',
+        : 'Idle - assign spinners and retting workers',
       statusState: 'idle',
       waterDetailHtml: detailHtml,
     };
   }
   if (outputAtLimit) {
     return {
-      statusText: 'Clothing target reached - tailoring paused',
+      statusText: `${usesFlax ? 'Linen' : 'Yarn'} target reached - fibre preparation paused`,
       statusState: 'idle',
       waterDetailHtml: detailHtml,
     };
@@ -845,8 +862,71 @@ function getWeaverStatus(
   }
   return {
     statusText: usesFlax
-      ? 'Preparing flax and tailoring linen clothing'
-      : 'Tailoring wool clothing',
+      ? 'Retting flax and dressing linen fibre'
+      : 'Spinning wool into yarn',
+    statusState: 'active',
+    waterDetailHtml: detailHtml,
+  };
+}
+
+function getWeaverStatus(
+  building: BuildingState,
+  onsiteLabor: number,
+): BuildingProcessorStatus {
+  const usesLinen = weaverUsesLinen(building);
+  const input = usesLinen
+    ? {
+        key: 'linen' as const,
+        label: 'linen',
+        required: WEAVER_LINEN_PER_CYCLE,
+        hint: 'Spinning & Retting House carts supply prepared flax fibre',
+      }
+    : {
+        key: 'yarn' as const,
+        label: 'yarn',
+        required: WEAVER_YARN_PER_CYCLE,
+        hint: 'Spinning & Retting House carts supply spun wool',
+      };
+  const routeCycles = Math.max(0, building[input.key] ?? 0) / input.required;
+  const detailHtml = formatWellWaterDetailRows(
+    null,
+    'None - all wet flax preparation happens at the Spinning & Retting House',
+  ) + `
+    <li><span>Inputs per cycle</span><span>${renderResourceCost(processorInputCost([input]), { compact: true })}</span></li>
+    <li><span>Input policy</span><span>${weaverInputPolicyLabel(building.weaverInputPolicy)} · ready alternate prepared fibre remains a fallback</span></li>
+    <li><span>Selected loom route</span><span>${usesLinen ? 'Linen → clothing' : 'Yarn → clothing'} · ${formatInputCycleCoverage(routeCycles)}</span></li>
+    <li><span>${usesLinen ? 'Linen' : 'Yarn'} working stock</span><span>${Math.round(stockAmount(building, input.key))} onsite · ${input.required.toFixed(1)} per cycle · ${input.hint}</span></li>
+    <li><span>Alternative input</span><span>${Math.round(Math.max(0, building[usesLinen ? 'yarn' : 'linen'] ?? 0))} ${usesLinen ? 'yarn' : 'linen'} onsite</span></li>
+    <li><span>Clothing yield</span><span>${WEAVER_CLOTH_PER_CYCLE.toFixed(1)} per completed cycle</span></li>
+  `;
+  const outputAtLimit = isOutputAtLimit(building, 'weaver', 'cloth');
+  if (onsiteLabor === 0 && !outputAtLimit) {
+    return {
+      statusText: building.assignedLabor > 0
+        ? 'Work paused - the full roster is away with its cart'
+        : 'Idle - assign weavers to work the loom',
+      statusState: 'idle',
+      waterDetailHtml: detailHtml,
+    };
+  }
+  if (outputAtLimit) {
+    return {
+      statusText: 'Clothing target reached - weaving paused',
+      statusState: 'idle',
+      waterDetailHtml: detailHtml,
+    };
+  }
+  if (stockAmount(building, input.key) <= 1e-6) {
+    return {
+      statusText: `Waiting for ${input.label}`,
+      statusState: 'warning',
+      waterDetailHtml: detailHtml,
+    };
+  }
+  return {
+    statusText: usesLinen
+      ? 'Weaving linen into clothing'
+      : 'Weaving yarn into clothing',
     statusState: 'active',
     waterDetailHtml: detailHtml,
   };
@@ -983,8 +1063,11 @@ export function getBuildingProcessorStatus(
   if (building.kind === 'tavern') {
     return getTavernStatus(building, onsiteLabor);
   }
+  if (building.kind === 'spinning_retting_house') {
+    return getSpinningRettingStatus(building, worldQueries, onsiteLabor);
+  }
   if (building.kind === 'weaver') {
-    return getWeaverStatus(building, worldQueries, onsiteLabor);
+    return getWeaverStatus(building, onsiteLabor);
   }
   const profile = selectedCerealProfile(building) ?? PROCESSOR_PROFILES[building.kind];
   if (profile) {

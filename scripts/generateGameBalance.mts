@@ -40,7 +40,10 @@ type BuildingBalance = {
     candles?: number;
     wine?: number;
     wool?: number;
+    yarn?: number;
+    linen?: number;
     cloth?: number;
+    pelts?: number;
     hides?: number;
     leather?: number;
     shoes?: number;
@@ -163,7 +166,8 @@ type TradeResource = 'timber' | 'stone' | 'firewood' | 'food'
   | 'ryeFlour' | 'maslinFlour'
   | 'ryeBread' | 'maslinBread'
   | 'barley' | 'ironwork' | 'iron' | 'salt' | 'pottery'
-  | 'hides' | 'leather' | 'shoes';
+  | 'pelts' | 'hides' | 'leather' | 'shoes'
+  | 'wool' | 'yarn' | 'linen' | 'cloth' | 'flax';
 
 type MarketplaceGoldBuyOffer = {
   id: string;
@@ -562,7 +566,7 @@ export type GameBalance = {
     stonePerHarvest: number;
     gameAnimalsPerHarvest: number;
     gamePerHarvest: number;
-    gameHidesPerAnimal: number;
+    gamePeltsPerAnimal: number;
     berriesPerHarvest: number;
     mushroomsPerHarvest: number;
     foragerRemediesPerHarvest: number;
@@ -626,9 +630,13 @@ export type GameBalance = {
     breweryCiderPerCycle: number;
     breweryHoneyPerMeadCycle: number;
     breweryMeadPerCycle: number;
-    weaverWoolPerCycle: number;
-    weaverFlaxPerCycle: number;
-    weaverFlaxWaterPerCycle: number;
+    spinningRettingWoolPerCycle: number;
+    spinningRettingFlaxPerCycle: number;
+    spinningRettingFlaxWaterPerCycle: number;
+    spinningRettingYarnPerCycle: number;
+    spinningRettingLinenPerCycle: number;
+    weaverYarnPerCycle: number;
+    weaverLinenPerCycle: number;
     weaverClothPerCycle: number;
     textileTransferPerTrip: number;
     tanneryHidesPerCycle: number;
@@ -856,6 +864,7 @@ const simKindByKind: Record<string, string | null> = {
   watermill: 'Watermill',
   windmill: 'Windmill',
   carpenter: 'Carpenter',
+  spinning_retting_house: 'SpinningRettingHouse',
   weaver: 'Weaver',
   tannery: 'Tannery',
   cobbler: 'Cobbler',
@@ -1227,7 +1236,7 @@ function generateRust(): string {
     `pub const STONE_PER_HARVEST: f64 = ${rustF64(b.production.stonePerHarvest)};`,
     `pub const GAME_ANIMALS_PER_HARVEST: f64 = ${rustF64(b.production.gameAnimalsPerHarvest)};`,
     `pub const GAME_PER_HARVEST: f64 = ${rustF64(b.production.gamePerHarvest)};`,
-    `pub const GAME_HIDES_PER_ANIMAL: f64 = ${rustF64(b.production.gameHidesPerAnimal)};`,
+    `pub const GAME_PELTS_PER_ANIMAL: f64 = ${rustF64(b.production.gamePeltsPerAnimal)};`,
     `pub const BERRIES_PER_HARVEST: f64 = ${rustF64(b.production.berriesPerHarvest)};`,
     `pub const MUSHROOMS_PER_HARVEST: f64 = ${rustF64(b.production.mushroomsPerHarvest)};`,
     `pub const FORAGER_REMEDIES_PER_HARVEST: f64 = ${rustF64(b.production.foragerRemediesPerHarvest)};`,
@@ -1291,9 +1300,13 @@ function generateRust(): string {
     `pub const BREWERY_CIDER_PER_CYCLE: f64 = ${rustF64(b.production.breweryCiderPerCycle)};`,
     `pub const BREWERY_HONEY_PER_MEAD_CYCLE: f64 = ${rustF64(b.production.breweryHoneyPerMeadCycle)};`,
     `pub const BREWERY_MEAD_PER_CYCLE: f64 = ${rustF64(b.production.breweryMeadPerCycle)};`,
-    `pub const WEAVER_WOOL_PER_CYCLE: f64 = ${rustF64(b.production.weaverWoolPerCycle)};`,
-    `pub const WEAVER_FLAX_PER_CYCLE: f64 = ${rustF64(b.production.weaverFlaxPerCycle)};`,
-    `pub const WEAVER_FLAX_WATER_PER_CYCLE: f64 = ${rustF64(b.production.weaverFlaxWaterPerCycle)};`,
+    `pub const SPINNING_RETTING_WOOL_PER_CYCLE: f64 = ${rustF64(b.production.spinningRettingWoolPerCycle)};`,
+    `pub const SPINNING_RETTING_FLAX_PER_CYCLE: f64 = ${rustF64(b.production.spinningRettingFlaxPerCycle)};`,
+    `pub const SPINNING_RETTING_FLAX_WATER_PER_CYCLE: f64 = ${rustF64(b.production.spinningRettingFlaxWaterPerCycle)};`,
+    `pub const SPINNING_RETTING_YARN_PER_CYCLE: f64 = ${rustF64(b.production.spinningRettingYarnPerCycle)};`,
+    `pub const SPINNING_RETTING_LINEN_PER_CYCLE: f64 = ${rustF64(b.production.spinningRettingLinenPerCycle)};`,
+    `pub const WEAVER_YARN_PER_CYCLE: f64 = ${rustF64(b.production.weaverYarnPerCycle)};`,
+    `pub const WEAVER_LINEN_PER_CYCLE: f64 = ${rustF64(b.production.weaverLinenPerCycle)};`,
     `pub const WEAVER_CLOTH_PER_CYCLE: f64 = ${rustF64(b.production.weaverClothPerCycle)};`,
     `pub const TEXTILE_TRANSFER_PER_TRIP: f64 = ${rustF64(b.production.textileTransferPerTrip)};`,
     `pub const TANNERY_HIDES_PER_CYCLE: f64 = ${rustF64(b.production.tanneryHidesPerCycle)};`,
@@ -1646,6 +1659,7 @@ function generateRust(): string {
   lines.push('    Watermill,');
   lines.push('    Windmill,');
   lines.push('    Carpenter,');
+  lines.push('    SpinningRettingHouse,');
   lines.push('    Weaver,');
   lines.push('    Tannery,');
   lines.push('    Cobbler,');
@@ -1683,7 +1697,10 @@ function generateRust(): string {
   lines.push('    pub storage_candles: f64,');
   lines.push('    pub storage_wine: f64,');
   lines.push('    pub storage_wool: f64,');
+  lines.push('    pub storage_yarn: f64,');
+  lines.push('    pub storage_linen: f64,');
   lines.push('    pub storage_cloth: f64,');
+  lines.push('    pub storage_pelts: f64,');
   lines.push('    pub storage_hides: f64,');
   lines.push('    pub storage_leather: f64,');
   lines.push('    pub storage_shoes: f64,');
@@ -1745,7 +1762,10 @@ function generateRust(): string {
     lines.push(`    storage_candles: ${rustF64(def.storage.candles ?? 0)},`);
     lines.push(`    storage_wine: ${rustF64(def.storage.wine ?? 0)},`);
     lines.push(`    storage_wool: ${rustF64(def.storage.wool ?? 0)},`);
+    lines.push(`    storage_yarn: ${rustF64(def.storage.yarn ?? 0)},`);
+    lines.push(`    storage_linen: ${rustF64(def.storage.linen ?? 0)},`);
     lines.push(`    storage_cloth: ${rustF64(def.storage.cloth ?? 0)},`);
+    lines.push(`    storage_pelts: ${rustF64(def.storage.pelts ?? 0)},`);
     lines.push(`    storage_hides: ${rustF64(def.storage.hides ?? 0)},`);
     lines.push(`    storage_leather: ${rustF64(def.storage.leather ?? 0)},`);
     lines.push(`    storage_shoes: ${rustF64(def.storage.shoes ?? 0)},`);
@@ -2276,7 +2296,7 @@ function generateTypeScript(): string {
     `export const STONE_PER_HARVEST = ${b.production.stonePerHarvest};`,
     `export const GAME_ANIMALS_PER_HARVEST = ${b.production.gameAnimalsPerHarvest};`,
     `export const GAME_PER_HARVEST = ${b.production.gamePerHarvest};`,
-    `export const GAME_HIDES_PER_ANIMAL = ${b.production.gameHidesPerAnimal};`,
+    `export const GAME_PELTS_PER_ANIMAL = ${b.production.gamePeltsPerAnimal};`,
     `export const BERRIES_PER_HARVEST = ${b.production.berriesPerHarvest};`,
     `export const MUSHROOMS_PER_HARVEST = ${b.production.mushroomsPerHarvest};`,
     `export const FORAGER_REMEDIES_PER_HARVEST = ${b.production.foragerRemediesPerHarvest};`,
@@ -2340,9 +2360,13 @@ function generateTypeScript(): string {
     `export const BREWERY_CIDER_PER_CYCLE = ${b.production.breweryCiderPerCycle};`,
     `export const BREWERY_HONEY_PER_MEAD_CYCLE = ${b.production.breweryHoneyPerMeadCycle};`,
     `export const BREWERY_MEAD_PER_CYCLE = ${b.production.breweryMeadPerCycle};`,
-    `export const WEAVER_WOOL_PER_CYCLE = ${b.production.weaverWoolPerCycle};`,
-    `export const WEAVER_FLAX_PER_CYCLE = ${b.production.weaverFlaxPerCycle};`,
-    `export const WEAVER_FLAX_WATER_PER_CYCLE = ${b.production.weaverFlaxWaterPerCycle};`,
+    `export const SPINNING_RETTING_WOOL_PER_CYCLE = ${b.production.spinningRettingWoolPerCycle};`,
+    `export const SPINNING_RETTING_FLAX_PER_CYCLE = ${b.production.spinningRettingFlaxPerCycle};`,
+    `export const SPINNING_RETTING_FLAX_WATER_PER_CYCLE = ${b.production.spinningRettingFlaxWaterPerCycle};`,
+    `export const SPINNING_RETTING_YARN_PER_CYCLE = ${b.production.spinningRettingYarnPerCycle};`,
+    `export const SPINNING_RETTING_LINEN_PER_CYCLE = ${b.production.spinningRettingLinenPerCycle};`,
+    `export const WEAVER_YARN_PER_CYCLE = ${b.production.weaverYarnPerCycle};`,
+    `export const WEAVER_LINEN_PER_CYCLE = ${b.production.weaverLinenPerCycle};`,
     `export const WEAVER_CLOTH_PER_CYCLE = ${b.production.weaverClothPerCycle};`,
     `export const TEXTILE_TRANSFER_PER_TRIP = ${b.production.textileTransferPerTrip};`,
     `export const TANNERY_HIDES_PER_CYCLE = ${b.production.tanneryHidesPerCycle};`,
@@ -2630,7 +2654,10 @@ function generateTypeScript(): string {
     '  candles?: number;',
     '  wine?: number;',
     '  wool?: number;',
+    '  yarn?: number;',
+    '  linen?: number;',
     '  cloth?: number;',
+    '  pelts?: number;',
     '  ironwork?: number;',
     '  polearms?: number;',
     '  iron?: number;',
@@ -2730,6 +2757,8 @@ function generateTypeScript(): string {
     const candles = def.storage.candles ?? 0;
     const wine = def.storage.wine ?? 0;
     const wool = def.storage.wool ?? 0;
+    const yarn = def.storage.yarn ?? 0;
+    const linen = def.storage.linen ?? 0;
     const flax = def.storage.flax ?? 0;
     const cloth = def.storage.cloth ?? 0;
     const ironwork = def.storage.ironwork ?? 0;
@@ -2739,6 +2768,7 @@ function generateTypeScript(): string {
     const salt = def.storage.salt ?? 0;
     const charcoal = def.storage.charcoal ?? 0;
     const pottery = def.storage.pottery ?? 0;
+    const pelts = def.storage.pelts ?? 0;
     const hides = def.storage.hides ?? 0;
     const leather = def.storage.leather ?? 0;
     const shoes = def.storage.shoes ?? 0;
@@ -2763,8 +2793,11 @@ function generateTypeScript(): string {
     if (candles > 0) extras.push(`candles: ${candles}`);
     if (wine > 0) extras.push(`wine: ${wine}`);
     if (wool > 0) extras.push(`wool: ${wool}`);
+    if (yarn > 0) extras.push(`yarn: ${yarn}`);
+    if (linen > 0) extras.push(`linen: ${linen}`);
     if (flax > 0) extras.push(`flax: ${flax}`);
     if (cloth > 0) extras.push(`cloth: ${cloth}`);
+    if (pelts > 0) extras.push(`pelts: ${pelts}`);
     if (ironwork > 0) extras.push(`ironwork: ${ironwork}`);
     if (polearms > 0) extras.push(`polearms: ${polearms}`);
     if (iron > 0) extras.push(`iron: ${iron}`);

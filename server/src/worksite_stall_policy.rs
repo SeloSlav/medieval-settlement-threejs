@@ -37,6 +37,8 @@ pub struct ProcessorRecipeAvailability {
     pub pottery: bool,
     pub wool: bool,
     pub flax: bool,
+    pub yarn: bool,
+    pub linen: bool,
 }
 
 /// Returns `Some` for processors with alternative recipes and `None` for
@@ -75,7 +77,10 @@ pub fn alternative_processor_recipe_ready(
                 && available.salt
                 && available.pottery,
         ),
-        "weaver" => Some(available.wool || (available.flax && available.water)),
+        "spinning_retting_house" => {
+            Some(available.wool || (available.flax && available.water))
+        }
+        "weaver" => Some(available.yarn || available.linen),
         _ => None,
     }
 }
@@ -88,6 +93,7 @@ pub fn is_production_labor_kind(kind: &str) -> bool {
             | "bakery"
             | "brewery"
             | "smokehouse"
+            | "spinning_retting_house"
             | "weaver"
             | "stone_quarry"
             | "large_quarry"
@@ -270,6 +276,7 @@ mod tests {
             "bakery",
             "brewery",
             "smokehouse",
+            "spinning_retting_house",
             "weaver",
             "stone_quarry",
             "large_quarry",
@@ -399,11 +406,22 @@ mod tests {
         );
         assert_eq!(
             alternative_processor_recipe_ready(
-                "weaver",
+                "spinning_retting_house",
                 0,
                 ProcessorRecipeAvailability {
                     flax: true,
                     water: true,
+                    ..Default::default()
+                },
+            ),
+            Some(true),
+        );
+        assert_eq!(
+            alternative_processor_recipe_ready(
+                "weaver",
+                0,
+                ProcessorRecipeAvailability {
+                    linen: true,
                     ..Default::default()
                 },
             ),

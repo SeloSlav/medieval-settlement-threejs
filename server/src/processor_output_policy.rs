@@ -15,6 +15,7 @@ pub enum ProcessorOutputKind {
     Food,
     Ale,
     PreservedFood,
+    TextileIntermediate,
     Cloth,
     Charcoal,
     Ironwork,
@@ -36,6 +37,8 @@ pub enum ProcessorInputKind {
     Pottery,
     Wool,
     Flax,
+    Yarn,
+    Linen,
     Iron,
     Charcoal,
     Clay,
@@ -52,6 +55,7 @@ pub fn processor_output_kind(kind: &str) -> Option<ProcessorOutputKind> {
         "bakery" => Some(ProcessorOutputKind::Food),
         "brewery" => Some(ProcessorOutputKind::Ale),
         "smokehouse" => Some(ProcessorOutputKind::PreservedFood),
+        "spinning_retting_house" => Some(ProcessorOutputKind::TextileIntermediate),
         "weaver" => Some(ProcessorOutputKind::Cloth),
         "charcoal_burner" => Some(ProcessorOutputKind::Charcoal),
         "smithy" => Some(ProcessorOutputKind::Ironwork),
@@ -71,7 +75,8 @@ pub fn processor_input_kinds(kind: &str) -> &'static [ProcessorInputKind] {
         "bakery" => &[Flour, Water, Firewood],
         "brewery" => &[Barley, Water, Firewood, Apples, Honey],
         "smokehouse" => &[Food, Firewood, Salt, Pottery],
-        "weaver" => &[Wool, Flax, Water],
+        "spinning_retting_house" => &[Wool, Flax, Water],
+        "weaver" => &[Yarn, Linen],
         "charcoal_burner" => &[Firewood],
         "smithy" => &[Iron, Charcoal, Water],
         "potter_kiln" => &[Clay, Firewood, Water],
@@ -192,6 +197,7 @@ mod tests {
             "bakery",
             "brewery",
             "smokehouse",
+            "spinning_retting_house",
             "weaver",
             "charcoal_burner",
             "smithy",
@@ -246,7 +252,11 @@ mod tests {
             processor_input_kinds("smokehouse"),
             &[Food, Firewood, Salt, Pottery]
         );
-        assert_eq!(processor_input_kinds("weaver"), &[Wool, Flax, Water]);
+        assert_eq!(
+            processor_input_kinds("spinning_retting_house"),
+            &[Wool, Flax, Water]
+        );
+        assert_eq!(processor_input_kinds("weaver"), &[Yarn, Linen]);
         assert_eq!(processor_input_kinds("charcoal_burner"), &[Firewood]);
         assert_eq!(processor_input_kinds("smithy"), &[Iron, Charcoal, Water]);
         assert_eq!(

@@ -2,7 +2,7 @@ use spacetimedb::ReducerContext;
 
 use crate::balance_generated::{
     FORAGER_REMEDIES_PER_HARVEST, FORAGER_REMEDY_SEASON_END_MONTH,
-    FORAGER_REMEDY_SEASON_START_MONTH, GAME_HIDES_PER_ANIMAL,
+    FORAGER_REMEDY_SEASON_START_MONTH, GAME_PELTS_PER_ANIMAL,
 };
 use crate::building_defs::building_def;
 use crate::constants::{
@@ -207,9 +207,9 @@ fn harvest_from_node(
     ));
     let mut extracted = requested.min(available).min(max_resource_for_room);
     if node.node_kind == "game" {
-        let hides_per_animal = crate::resource_units::whole_cost(GAME_HIDES_PER_ANIMAL);
-        let hide_room = building_commodity_room(&building, CommodityKind::Hides);
-        extracted = extracted.min((hide_room / hides_per_animal.max(1.0)).floor());
+        let pelts_per_animal = crate::resource_units::whole_cost(GAME_PELTS_PER_ANIMAL);
+        let pelt_room = building_commodity_room(&building, CommodityKind::Pelts);
+        extracted = extracted.min((pelt_room / pelts_per_animal.max(1.0)).floor());
     }
     if gathers_remedies
         && (FORAGER_REMEDY_SEASON_START_MONTH as u32..=FORAGER_REMEDY_SEASON_END_MONTH as u32)
@@ -252,9 +252,9 @@ fn harvest_from_node(
         }
     }
     if harvested_game {
-        let hide_output = extracted * crate::resource_units::whole_cost(GAME_HIDES_PER_ANIMAL);
-        if deposit_building_commodity(&mut updated_building, CommodityKind::Hides, hide_output)
-            != hide_output
+        let pelt_output = extracted * crate::resource_units::whole_cost(GAME_PELTS_PER_ANIMAL);
+        if deposit_building_commodity(&mut updated_building, CommodityKind::Pelts, pelt_output)
+            != pelt_output
         {
             return (original_building, false);
         }

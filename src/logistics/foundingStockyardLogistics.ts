@@ -282,7 +282,7 @@ function foundingDestinationPriority(
       if (building.kind === 'carpenter') return 1;
       return 3;
     case 'wool':
-      if (building.kind === 'weaver') return 0;
+      if (building.kind === 'spinning_retting_house') return 0;
       if (building.kind === 'pastoral_farmstead') return 1;
       return 3;
     case 'animalFeed':
@@ -290,16 +290,26 @@ function foundingDestinationPriority(
       if (building.kind === 'swineherd') return 1;
       return null;
     case 'flax':
-      if (building.kind === 'weaver') return 0;
+      if (building.kind === 'spinning_retting_house') return 0;
       if (building.kind === 'threshing_barn') return 1;
+      return 3;
+    case 'yarn':
+    case 'linen':
+      if (building.kind === 'weaver') return 0;
+      if (building.kind === 'village_storehouse') return 1;
+      if (building.kind === 'spinning_retting_house') return 2;
       return 3;
     case 'cloth':
       if (building.kind === 'marketplace') return 0;
       if (building.kind === 'weaver') return 1;
       return 3;
+    case 'pelts':
+      if (building.kind === 'trading_post') return 0;
+      if (building.kind === 'hunters_hall') return 1;
+      return 3;
     case 'hides':
       if (building.kind === 'tannery') return 0;
-      if (building.kind === 'hunters_hall' || building.kind === 'marketplace') return 1;
+      if (building.kind === 'marketplace') return 1;
       return 3;
     case 'leather':
       if (building.kind === 'cobbler') return 0;

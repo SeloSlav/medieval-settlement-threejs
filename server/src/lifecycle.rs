@@ -275,6 +275,9 @@ pub fn ensure_player_resources(ctx: &ReducerContext, owner: Identity) {
         pear_cider: 0.0,
         wax: 0.0,
         candles: 0.0,
+        pelts: 0.0,
+        yarn: 0.0,
+        linen: 0.0,
     });
     ensure_market_state(ctx, owner);
     ensure_settlement_security(ctx, owner);

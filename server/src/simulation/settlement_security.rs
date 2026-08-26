@@ -695,6 +695,9 @@ pub(super) fn building_portable_stores(building: &Building) -> RaidPortableStore
         wine: building.wine,
         wool: building.wool,
         cloth: building.cloth,
+        pelts: building.pelts,
+        yarn: building.yarn,
+        linen: building.linen,
         hides: building.hides,
         leather: building.leather,
         shoes: building.shoes,
@@ -967,6 +970,9 @@ pub(super) fn delivery_trip_portable_stores(trip: &DeliveryTrip) -> RaidPortable
         Some(CommodityKind::Wine) => stores.wine = amount,
         Some(CommodityKind::Wool) => stores.wool = amount,
         Some(CommodityKind::Cloth) => stores.cloth = amount,
+        Some(CommodityKind::Pelts) => stores.pelts = amount,
+        Some(CommodityKind::Yarn) => stores.yarn = amount,
+        Some(CommodityKind::Linen) => stores.linen = amount,
         Some(CommodityKind::Hides) => stores.hides = amount,
         Some(CommodityKind::Leather) => stores.leather = amount,
         Some(CommodityKind::Shoes) => stores.shoes = amount,
@@ -985,7 +991,11 @@ pub(super) fn delivery_trip_portable_stores(trip: &DeliveryTrip) -> RaidPortable
         Some(CommodityKind::Remedies) => stores.remedies = amount,
         // Raiders do not select bulk stone or water as plunder even when a
         // settlement cart happens to be carrying it.
-        Some(CommodityKind::Stone | CommodityKind::Water | CommodityKind::Manure) | None => {}
+        Some(
+            CommodityKind::Stone
+            | CommodityKind::Water
+            | CommodityKind::Manure,
+        ) | None => {}
     }
     stores.normalized_whole()
 }
@@ -1039,6 +1049,9 @@ fn delivery_trip_remaining_amount(cargo_kind: u8, stores: RaidPortableStores) ->
         Some(CommodityKind::Wine) => stores.wine,
         Some(CommodityKind::Wool) => stores.wool,
         Some(CommodityKind::Cloth) => stores.cloth,
+        Some(CommodityKind::Pelts) => stores.pelts,
+        Some(CommodityKind::Yarn) => stores.yarn,
+        Some(CommodityKind::Linen) => stores.linen,
         Some(CommodityKind::Hides) => stores.hides,
         Some(CommodityKind::Leather) => stores.leather,
         Some(CommodityKind::Shoes) => stores.shoes,
@@ -1055,7 +1068,11 @@ fn delivery_trip_remaining_amount(cargo_kind: u8, stores: RaidPortableStores) ->
         Some(CommodityKind::Pottery) => stores.pottery,
         Some(CommodityKind::RoofTiles) => stores.roof_tiles,
         Some(CommodityKind::Remedies) => stores.remedies,
-        Some(CommodityKind::Stone | CommodityKind::Water | CommodityKind::Manure) | None => 0.0,
+        Some(
+            CommodityKind::Stone
+            | CommodityKind::Water
+            | CommodityKind::Manure,
+        ) | None => 0.0,
     }
 }
 
@@ -1101,6 +1118,9 @@ fn treasury_portable_stores(
         wine: treasury.wine,
         wool: treasury.wool,
         cloth: treasury.cloth,
+        pelts: treasury.pelts,
+        yarn: treasury.yarn,
+        linen: treasury.linen,
         hides: treasury.hides,
         leather: treasury.leather,
         shoes: treasury.shoes,
@@ -1223,6 +1243,9 @@ fn retain_unplundered_stores(building: &mut Building, stores: RaidPortableStores
     building.wine = stores.wine;
     building.wool = stores.wool;
     building.cloth = stores.cloth;
+    building.pelts = stores.pelts;
+    building.yarn = stores.yarn;
+    building.linen = stores.linen;
     building.hides = stores.hides;
     building.leather = stores.leather;
     building.shoes = stores.shoes;
@@ -1302,6 +1325,9 @@ fn retain_unplundered_treasury_stores(
     subtract_loss!(wine);
     subtract_loss!(wool);
     subtract_loss!(cloth);
+    subtract_loss!(pelts);
+    subtract_loss!(yarn);
+    subtract_loss!(linen);
     subtract_loss!(hides);
     subtract_loss!(leather);
     subtract_loss!(shoes);

@@ -21,6 +21,7 @@ import {
 import { createResidenceMesh } from '../src/residences/ResidenceMarkers.ts';
 import { BUILD_MENU_ENTRIES, renderBuildMenuCards } from '../src/ui/buildMenuCards.ts';
 import { disposeObject3D } from '../src/utils/dispose.ts';
+import { createSpinningRettingHouseMesh } from '../src/buildings/meshes/spinningRettingHouseMesh.ts';
 
 type SharpDecodeResult = {
   data: Uint8Array;
@@ -112,6 +113,7 @@ const buildingsExpectedToHaveOpenings = new Set<string>([
   'watermill',
   'windmill',
   'carpenter',
+  'spinning_retting_house',
   'weaver',
 ]);
 const legacyOpeningCrossPart = /Small window (?:vertical mullion|horizontal transom)|Residence (?:front|side) window (?:vertical mullion|horizontal transom)|Residence door cross brace/;
@@ -235,6 +237,7 @@ const expectedLeanToRoofs = new Map<string, number>([
   ['tavern', 1],
   ['smokehouse', 1],
   ['carpenter', 1],
+  ['spinning_retting_house', 1],
   ['weaver', 1],
   ['tannery', 1],
   ['cobbler', 1],
@@ -307,6 +310,91 @@ for (const kind of BUILDING_KINDS) {
       || model.getObjectByName('Chandlery heated melt-bay lean-to roof') == null
     ) {
       throw new Error('Chandlery must expose semantic wax, candle-dipping, and heated-bay presentation modules.');
+    }
+  }
+  if (kind === 'spinning_retting_house') {
+    const plan = model.userData.architecturePlan as {
+      signature?: string;
+      seed?: number;
+      deterministic?: boolean;
+      roadFace?: string;
+      masses?: unknown[];
+      facadeEdges?: Array<{ exposed?: boolean }>;
+      placements?: unknown[];
+      diagnostics?: Record<string, unknown[]>;
+    } | undefined;
+    const diagnostics = model.userData.architectureDiagnostics as {
+      facadeOwnershipCount?: number;
+      exposedFacadeCount?: number;
+      plannedModuleCount?: number;
+      compiledModuleCount?: number;
+      meshCount?: number;
+      triangleCount?: number;
+    } | undefined;
+    const diagnosticLists = plan?.diagnostics == null
+      ? []
+      : Object.values(plan.diagnostics);
+    if (
+      plan?.signature !== 'gorski-spinning-retting-house-v1'
+      || plan.seed !== 1551
+      || plan.deterministic !== true
+      || plan.roadFace !== 'positive-z'
+      || plan.masses?.length !== 2
+      || plan.facadeEdges?.length !== 8
+      || plan.facadeEdges.filter((edge) => edge.exposed).length !== 6
+      || diagnosticLists.some((entries) => entries.length !== 0)
+      || diagnostics?.facadeOwnershipCount !== 8
+      || diagnostics.exposedFacadeCount !== 6
+      || diagnostics.plannedModuleCount !== plan.placements?.length
+      || diagnostics.compiledModuleCount !== plan.placements?.length
+      || (diagnostics.meshCount ?? 0) < 70
+      || (diagnostics.meshCount ?? Infinity) > 150
+      || (diagnostics.triangleCount ?? 0) < 500
+      || (diagnostics.triangleCount ?? Infinity) > 4_000
+    ) {
+      throw new Error('Spinning & Retting House must compile deterministically from a clean two-mass dry-hall/wet-bay architecture plan within its visual budget.');
+    }
+    for (const requiredName of [
+      'Spinning & Retting House wet-yard lean-to roof',
+      'Roadside spinning wheel',
+      'Retting trough 1',
+      'Flax drying rack',
+      'SpinningWoolStockpile',
+      'SpinningFlaxStockpile',
+      'SpinningYarnStockpile',
+      'SpinningLinenStockpile',
+    ]) {
+      if (model.getObjectByName(requiredName) == null) {
+        throw new Error(`Spinning & Retting House is missing its semantic visual module “${requiredName}”.`);
+      }
+    }
+    const massing = createSpinningRettingHouseMesh('massing');
+    const massingPlan = massing.userData.architecturePlan as { debugMode?: string } | undefined;
+    const massingDiagnostics = massing.userData.architectureDiagnostics as {
+      compiledModuleCount?: number;
+      meshCount?: number;
+      triangleCount?: number;
+    } | undefined;
+    if (
+      massingPlan?.debugMode !== 'massing'
+      || massingDiagnostics?.compiledModuleCount !== 2
+      || (massingDiagnostics.meshCount ?? 0) < 2
+      || (massingDiagnostics.meshCount ?? Infinity) > 40
+      || (massingDiagnostics.triangleCount ?? Infinity) > 1_000
+    ) {
+      throw new Error('Spinning & Retting House massing diagnostics must isolate the two authored volumes.');
+    }
+    disposeObject3D(massing);
+  }
+  if (kind === 'weaver') {
+    if (
+      model.getObjectByName('WeaverYarnStockpile') == null
+      || model.getObjectByName('WeaverLinenStockpile') == null
+      || model.getObjectByName('ClothStockpile') == null
+      || model.getObjectByName('WeaverWoolStockpile') != null
+      || model.getObjectByName('WeaverFlaxStockpile') != null
+    ) {
+      throw new Error('Weaver stock props must show Yarn and Linen inputs while retaining finished Clothing output.');
     }
   }
   if (kind === 'monastery') {

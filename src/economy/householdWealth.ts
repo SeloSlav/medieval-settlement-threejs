@@ -13,6 +13,7 @@ import {
 } from '../generated/gameBalance.ts';
 import { GAME_DAY_SECONDS } from '../world/gameCalendar.ts';
 import { taxedEconomicActivity } from './villageEconomy.ts';
+import { CHAPEL_LITURGY_ATTENDANCE_BONUS } from './devotionalCandles.ts';
 
 export { HOUSEHOLD_MAX_WEALTH };
 
@@ -20,6 +21,7 @@ export function chapelAttendanceChance(
   assignedLabor: number,
   sabbathObservance = false,
   hasMonasteryCoverage = false,
+  devotionalCandlesSupplied = false,
 ): number {
   if (assignedLabor <= 0) {
     return 0;
@@ -37,11 +39,23 @@ export function chapelAttendanceChance(
     chance += MONASTERY_ATTENDANCE_BONUS;
   }
 
+  if (devotionalCandlesSupplied) {
+    chance += CHAPEL_LITURGY_ATTENDANCE_BONUS;
+  }
+
   return Math.min(1, chance);
 }
 
-export function formatChapelAttendanceChance(assignedLabor: number): string {
-  const chance = chapelAttendanceChance(assignedLabor);
+export function formatChapelAttendanceChance(
+  assignedLabor: number,
+  devotionalCandlesSupplied = false,
+): string {
+  const chance = chapelAttendanceChance(
+    assignedLabor,
+    false,
+    false,
+    devotionalCandlesSupplied,
+  );
   return `${Math.round(chance * 100)}% per tick`;
 }
 
@@ -72,11 +86,13 @@ export function expectedChapelTithePerDay(
   sabbathObservance = false,
   hasMonasteryCoverage = false,
   titheMultiplier = 1,
+  devotionalCandlesSupplied = false,
 ): number {
   const chance = chapelAttendanceChance(
     assignedLabor,
     sabbathObservance,
     hasMonasteryCoverage,
+    devotionalCandlesSupplied,
   );
   const titheDayShare = sabbathObservance
     ? (CALENDAR_DAYS_PER_WEEK - 1) / CALENDAR_DAYS_PER_WEEK
@@ -92,6 +108,7 @@ export function payableChapelTithePerDay(
   sabbathObservance = false,
   hasMonasteryCoverage = false,
   titheMultiplier = 1,
+  devotionalCandlesSupplied = false,
 ): number {
   return Math.min(
     expectedChapelTithePerDay(
@@ -100,6 +117,7 @@ export function payableChapelTithePerDay(
       sabbathObservance,
       hasMonasteryCoverage,
       titheMultiplier,
+      devotionalCandlesSupplied,
     ),
     householdWealth,
   );

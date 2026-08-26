@@ -20,6 +20,8 @@ export const HAYLOFT_VISUAL_SEGMENTS = 8;
 export const WOOL_STOCKPILE_VISUAL_SEGMENTS = 4;
 export const PASTORAL_SALT_VISUAL_SEGMENTS = 3;
 export const FLAX_STOCKPILE_VISUAL_SEGMENTS = 4;
+export const YARN_STOCKPILE_VISUAL_SEGMENTS = 4;
+export const LINEN_STOCKPILE_VISUAL_SEGMENTS = 4;
 export const CLOTH_STOCKPILE_VISUAL_SEGMENTS = 4;
 
 export function stockpileVisualLevel(

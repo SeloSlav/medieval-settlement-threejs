@@ -681,6 +681,12 @@ fn building_flammability(building: &Building) -> f64 {
             + building.barley
             + building.malt
             + building.flax)
+            * 0.08
+        + (building.wool
+            + building.yarn
+            + building.linen
+            + building.cloth
+            + building.pelts)
             * 0.08;
     base * (1.0 + (stored_fuel / 160.0).clamp(0.0, 0.75))
 }
@@ -714,7 +720,10 @@ fn destroy_target(ctx: &ReducerContext, incident: &FireIncident) {
             building.honey = 0.0;
             building.wine = 0.0;
             building.wool = 0.0;
+            building.yarn = 0.0;
+            building.linen = 0.0;
             building.cloth = 0.0;
+            building.pelts = 0.0;
             building.roof_tiles = 0.0;
             building.ironwork = 0.0;
             building.polearms = 0.0;

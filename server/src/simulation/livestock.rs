@@ -343,14 +343,14 @@ fn step_livestock_building(
     if !paused && onsite_labor > 0 {
         if !swine_building {
             // Shearing briefly takes the holding's only cart away from food
-            // deliveries, making nearby weaving capacity matter in early summer.
+            // deliveries, making nearby spinning capacity matter in early summer.
             dispatch_to_building(
                 ctx,
                 tick,
                 clock,
                 &mut building,
                 CommodityKind::Wool,
-                &["weaver"],
+                &["spinning_retting_house", "village_storehouse"],
             );
             dispatch_manure_to_crop_farmstead(ctx, tick, clock, &mut building);
             // Household provisions and cattle manure keep priority. Any cured

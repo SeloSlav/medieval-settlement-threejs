@@ -9,7 +9,7 @@ import {
   RESIDENCE_WATER_REORDER_FRACTION,
   RESIDENCE_POPULATION_WIDE,
   SMITHY_WATER_PER_CYCLE,
-  WEAVER_FLAX_WATER_PER_CYCLE,
+  SPINNING_RETTING_FLAX_WATER_PER_CYCLE,
   WELL_BASE_REFILL_PER_SEC,
   WELL_MINIMUM_REFILL_HYDROLOGY,
   WELL_WATER_PER_DELIVERY,
@@ -64,8 +64,8 @@ export function industrialWaterRequirement(kind: BuildingKind): number {
       return BAKERY_WATER_PER_CYCLE;
     case 'brewery':
       return BREWERY_MALTING_WATER_PER_CYCLE + BREWERY_BREWING_WATER_PER_CYCLE;
-    case 'weaver':
-      return WEAVER_FLAX_WATER_PER_CYCLE;
+    case 'spinning_retting_house':
+      return SPINNING_RETTING_FLAX_WATER_PER_CYCLE;
     case 'smithy':
       return SMITHY_WATER_PER_CYCLE;
     case 'potter_kiln':
@@ -84,7 +84,7 @@ export function industrialWaterTarget(
   const perCycle = industrialWaterRequirement(kind);
   return kind === 'bakery'
     || kind === 'brewery'
-    || kind === 'weaver'
+    || kind === 'spinning_retting_house'
     || kind === 'smithy'
     || kind === 'potter_kiln'
     ? perCycle * processorInputStagingCycles(processorOutputTargetPercent)
@@ -95,7 +95,7 @@ export function industrialWaterInputPreferenceRank(
   kind: BuildingKind,
   weaverInputPolicy: number | undefined,
 ): number {
-  return kind === 'weaver'
+  return kind === 'spinning_retting_house'
     ? weaverFibreDeliveryPreferenceRank(weaverInputPolicy, 'flax')
     : 1;
 }

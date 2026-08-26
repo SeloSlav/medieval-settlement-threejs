@@ -461,6 +461,21 @@
   background-size: contain;
 }
 
+.settlement-hud__stat[data-resource='yarn']::before,
+.settlement-hud__stat[data-resource='linen']::before {
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: contain;
+}
+
+.settlement-hud__stat[data-resource='yarn']::before {
+  background-image: url('/assets/ui/icons/materials/yarn.png');
+}
+
+.settlement-hud__stat[data-resource='linen']::before {
+  background-image: url('/assets/ui/icons/materials/linen.png');
+}
+
 .settlement-hud__stat[data-resource='iron']::before,
 .settlement-hud__stat[data-resource='clay']::before,
 .settlement-hud__stat[data-resource='salt']::before,
@@ -495,12 +510,17 @@
   background-image: url('/assets/ui/icons/materials/roof-tiles.png');
 }
 
+.settlement-hud__stat[data-resource='pelts']::before,
 .settlement-hud__stat[data-resource='hides']::before,
 .settlement-hud__stat[data-resource='leather']::before,
 .settlement-hud__stat[data-resource='shoes']::before {
   background-position: center;
   background-repeat: no-repeat;
   background-size: contain;
+}
+
+.settlement-hud__stat[data-resource='pelts']::before {
+  background-image: url('/assets/ui/icons/materials/pelts.png');
 }
 
 .settlement-hud__stat[data-resource='hides']::before {
@@ -748,6 +768,21 @@
   background-size: contain;
 }
 
+.resource-cost__item[data-resource-cost='yarn'] .resource-cost__icon,
+.resource-cost__item[data-resource-cost='linen'] .resource-cost__icon {
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: contain;
+}
+
+.resource-cost__item[data-resource-cost='yarn'] .resource-cost__icon {
+  background-image: url('/assets/ui/icons/materials/yarn.png');
+}
+
+.resource-cost__item[data-resource-cost='linen'] .resource-cost__icon {
+  background-image: url('/assets/ui/icons/materials/linen.png');
+}
+
 .resource-cost__item[data-resource-cost='iron'] .resource-cost__icon,
 .resource-cost__item[data-resource-cost='clay'] .resource-cost__icon,
 .resource-cost__item[data-resource-cost='salt'] .resource-cost__icon,
@@ -782,12 +817,17 @@
   background-image: url('/assets/ui/icons/materials/roof-tiles.png');
 }
 
+.resource-cost__item[data-resource-cost='pelts'] .resource-cost__icon,
 .resource-cost__item[data-resource-cost='hides'] .resource-cost__icon,
 .resource-cost__item[data-resource-cost='leather'] .resource-cost__icon,
 .resource-cost__item[data-resource-cost='shoes'] .resource-cost__icon {
   background-position: center;
   background-repeat: no-repeat;
   background-size: contain;
+}
+
+.resource-cost__item[data-resource-cost='pelts'] .resource-cost__icon {
+  background-image: url('/assets/ui/icons/materials/pelts.png');
 }
 
 .resource-cost__item[data-resource-cost='hides'] .resource-cost__icon {

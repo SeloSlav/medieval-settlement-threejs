@@ -7,6 +7,7 @@ import {
   POTTER_FIRE_ROOF_TILES,
 } from './potterFiringPolicy.ts';
 import { breweryPolicyOutput } from './breweryRecipePolicy.ts';
+import { weaverUsesFlax } from './weaverInputPolicy.ts';
 import {
   isStorageCommodity,
   storageAcceptsCommodity,
@@ -18,6 +19,7 @@ export const PROCESSOR_OUTPUT_TARGET_KINDS = [
   'bakery',
   'brewery',
   'smokehouse',
+  'spinning_retting_house',
   'weaver',
   'charcoal_burner',
   'smithy',
@@ -48,6 +50,8 @@ export type ProcessorOutputCommodity =
   | 'pearCider'
   | 'mead'
   | 'preservedFood'
+  | 'yarn'
+  | 'linen'
   | 'cloth'
   | 'charcoal'
   | 'ironwork'
@@ -74,6 +78,8 @@ export type ProcessorInputCommodity =
   | 'food'
   | 'wool'
   | 'flax'
+  | 'yarn'
+  | 'linen'
   | 'iron'
   | 'clay'
   | 'salt'
@@ -141,6 +147,7 @@ const OUTPUT_BY_KIND: Record<
   bakery: 'bread',
   brewery: 'ale',
   smokehouse: 'preservedFood',
+  spinning_retting_house: 'yarn',
   weaver: 'cloth',
   charcoal_burner: 'charcoal',
   smithy: 'ironwork',
@@ -159,7 +166,8 @@ const INPUTS_BY_KIND: Record<
   bakery: ['ryeFlour', 'maslinFlour', 'water', 'firewood'],
   brewery: ['barley', 'apples', 'honey', 'water', 'firewood'],
   smokehouse: ['food', 'firewood', 'salt', 'pottery'],
-  weaver: ['wool', 'flax', 'water'],
+  spinning_retting_house: ['wool', 'flax', 'water'],
+  weaver: ['yarn', 'linen'],
   charcoal_burner: ['firewood'],
   smithy: ['iron', 'charcoal', 'water'],
   potter_kiln: ['clay', 'firewood', 'water'],
@@ -212,11 +220,18 @@ export function processorOutputCommodityForBuilding(
     | 'malt'
     | 'apples'
     | 'honey'
+    | 'wool'
+    | 'flax'
+    | 'water'
+    | 'weaverInputPolicy'
   >,
 ): ProcessorOutputCommodity | null {
   if (!isProcessorOutputTargetKind(building.kind)) return null;
   if (building.kind === 'brewery') {
     return breweryPolicyOutput(building.breweryRecipePolicy, building);
+  }
+  if (building.kind === 'spinning_retting_house') {
+    return weaverUsesFlax(building) ? 'linen' : 'yarn';
   }
   if (
     building.kind === 'potter_kiln'
@@ -270,6 +285,10 @@ export function processorOutputTargetForBuilding(
     | 'malt'
     | 'apples'
     | 'honey'
+    | 'wool'
+    | 'flax'
+    | 'water'
+    | 'weaverInputPolicy'
   >,
 ): number | null {
   const output = processorOutputCommodityForBuilding(building);
@@ -405,6 +424,15 @@ export function processorAcceptsInput(
   if (building.kind === 'pastoral_farmstead' && commodity === 'salt') {
     return preservedFoodStock(building) + 1e-6
       < (BUILDING_STORAGE_CAPS.pastoral_farmstead.preservedFood ?? 0);
+  }
+  if (
+    building.kind === 'spinning_retting_house'
+    && (commodity === 'wool' || commodity === 'flax' || commodity === 'water')
+  ) {
+    const output = commodity === 'wool' ? 'yarn' : 'linen';
+    const capacity = BUILDING_STORAGE_CAPS.spinning_retting_house[output] ?? 0;
+    const target = processorOutputTarget(capacity, building.processorOutputTargetPercent);
+    return Math.max(0, building[output] ?? 0) + 1e-6 < target;
   }
   return !processorUsesInput(building.kind, commodity)
     || processorNeedsInputs(building);

@@ -10,6 +10,7 @@ import {
 import { createDefaultNeeds } from '../residences/residenceNeedState.ts';
 import { createConstructionSiteMesh } from '../buildings/ConstructionSiteMesh.ts';
 import { createWaysideShrineMesh } from '../buildings/meshes/waysideShrineMesh.ts';
+import { createSpinningRettingHouseMesh } from '../buildings/meshes/spinningRettingHouseMesh.ts';
 import { createPreferredRenderer } from '../scene/RendererBackend.ts';
 import {
   animateFoundersCampfire,
@@ -137,6 +138,18 @@ const STOCKED_PREVIEW_PREFIXES = [
   'CarpenterIronworkSegment',
   'CarpenterPolearmStockpile',
   'CarpenterPolearmSegment',
+  'SpinningWoolStockpile',
+  'SpinningFlaxStockpile',
+  'SpinningYarnStockpile',
+  'SpinningLinenStockpile',
+  'WeaverYarnStockpile',
+  'WeaverLinenStockpile',
+  'WoolStockSegment',
+  'FlaxStockSegment',
+  'YarnStockSegment',
+  'LinenStockSegment',
+  'ClothStockpile',
+  'ClothStockSegment',
   'GuardhouseFoodStockpile',
   'GuardhouseFoodSegment',
   'GuardhousePolearmStockpile',
@@ -237,6 +250,8 @@ const viewSpecs = compareServiceCoverage
       ...selectedKinds.map((kind) => {
         const mesh = kind === 'wayside_shrine'
           ? createWaysideShrineMesh(shrineDebugMode)
+          : kind === 'spinning_retting_house'
+            ? createSpinningRettingHouseMesh(shrineDebugMode)
           : createBuildingMesh(kind);
         if (showStockedState) {
           mesh.traverse((object) => {
@@ -473,7 +488,13 @@ await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
 render();
 window.__BUILDING_LINEUP_READY__ = true;
 window.__BUILDING_LINEUP_METRICS__ = {
-  seed: selectedKinds.length === 1 && selectedKinds[0] === 'wayside_shrine' ? 1733 : null,
+  seed: selectedKinds.length === 1
+    ? selectedKinds[0] === 'wayside_shrine'
+      ? 1733
+      : selectedKinds[0] === 'spinning_retting_house'
+        ? 1551
+        : null
+    : null,
   camera: cameraBookmark,
   debugMode: shrineDebugMode,
   presentation: presentationMode,

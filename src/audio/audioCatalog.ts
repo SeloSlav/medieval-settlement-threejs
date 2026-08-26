@@ -261,6 +261,7 @@ export const BUILDING_AUDIO_CLIPS: Record<
   watermill: { path: '/sounds/buildings/watermill.mp3', volume: 0.055 },
   windmill: { path: '/sounds/buildings/windmill.mp3', volume: 0.055 },
   carpenter: { path: '/sounds/buildings/carpenter.mp3', volume: 0.06 },
+  spinning_retting_house: { path: '/sounds/buildings/weaver.mp3', volume: 0.05 },
   weaver: { path: '/sounds/buildings/weaver.mp3', volume: 0.05 },
   tannery: { path: '/sounds/buildings/smokehouse.mp3', volume: 0.045 },
   cobbler: { path: '/sounds/buildings/carpenter.mp3', volume: 0.045 },

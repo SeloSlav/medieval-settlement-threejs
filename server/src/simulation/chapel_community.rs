@@ -8,6 +8,7 @@ use crate::balance_generated::{
     RESIDENCE_RECOVERY_FOOD_MIN, RESIDENCE_RECOVERY_WATER_MIN, RESIDENCE_SETTLE_TICKS,
 };
 use crate::chapel_upgrade_policy::chapel_tithe_multiplier;
+use crate::devotional_candle_policy::CHAPEL_LITURGY_ATTENDANCE_BONUS;
 use crate::resource_units::whole_units;
 use crate::simulation::residence_needs::ResidenceNeedKind;
 
@@ -66,6 +67,7 @@ pub fn chapel_attendance_chance(
     assigned_labor: u32,
     sabbath_observance: bool,
     has_monastery_coverage: bool,
+    devotional_candles_supplied: bool,
 ) -> f64 {
     if assigned_labor == 0 {
         return 0.0;
@@ -81,6 +83,10 @@ pub fn chapel_attendance_chance(
 
     if has_monastery_coverage {
         chance += MONASTERY_ATTENDANCE_BONUS;
+    }
+
+    if devotional_candles_supplied {
+        chance += CHAPEL_LITURGY_ATTENDANCE_BONUS;
     }
 
     chance.clamp(0.0, 1.0)
@@ -124,6 +130,7 @@ mod tests {
         CHAPEL_TITHE_GOLD_PER_PERSON_PER_DAY, MONASTERY_SETTLEMENT_TICKS_MULTIPLIER,
         RESIDENCE_SETTLE_TICKS,
     };
+    use crate::devotional_candle_policy::CHAPEL_LITURGY_ATTENDANCE_BONUS;
 
     #[test]
     fn effective_settle_ticks_matches_balance() {
@@ -146,14 +153,22 @@ mod tests {
 
     #[test]
     fn chapel_attendance_chance_matches_balance() {
-        assert_eq!(chapel_attendance_chance(0, false, false), 0.0);
+        assert_eq!(chapel_attendance_chance(0, false, false, false), 0.0);
         assert_eq!(
-            chapel_attendance_chance(1, false, false),
+            chapel_attendance_chance(1, false, false, false),
             CHAPEL_BASE_ATTENDANCE_CHANCE
                 + CHAPEL_PRIEST_ATTENDANCE_BONUS
                 + CHAPEL_COMMUNITY_ATTENDANCE_BONUS,
         );
-        assert_eq!(chapel_attendance_chance(2, false, false), 1.0);
+        assert_eq!(chapel_attendance_chance(2, false, false, false), 1.0);
+        assert_eq!(
+            chapel_attendance_chance(1, false, false, true),
+            (CHAPEL_BASE_ATTENDANCE_CHANCE
+                + CHAPEL_PRIEST_ATTENDANCE_BONUS
+                + CHAPEL_COMMUNITY_ATTENDANCE_BONUS
+                + CHAPEL_LITURGY_ATTENDANCE_BONUS)
+                .min(1.0),
+        );
     }
 
     #[test]

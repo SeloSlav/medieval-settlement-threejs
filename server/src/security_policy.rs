@@ -271,6 +271,9 @@ pub struct RaidPortableStores {
     pub wine: f64,
     pub wool: f64,
     pub cloth: f64,
+    pub pelts: f64,
+    pub yarn: f64,
+    pub linen: f64,
     pub hides: f64,
     pub leather: f64,
     pub shoes: f64,
@@ -357,6 +360,9 @@ impl RaidPortableStores {
             wine,
             wool,
             cloth,
+            pelts,
+            yarn,
+            linen,
             hides,
             leather,
             shoes,
@@ -425,6 +431,9 @@ impl RaidPortableStores {
             + positive_store(self.wine)
             + positive_store(self.wool)
             + positive_store(self.cloth) * CLOTH_RAID_VALUE_MULTIPLIER
+            + positive_store(self.pelts)
+            + positive_store(self.yarn)
+            + positive_store(self.linen) * CLOTH_RAID_VALUE_MULTIPLIER
             + positive_store(self.hides)
             + positive_store(self.leather) * CLOTH_RAID_VALUE_MULTIPLIER
             + positive_store(self.shoes) * IRONWORK_RAID_VALUE_MULTIPLIER
@@ -491,6 +500,9 @@ impl RaidPortableStores {
             + positive_store(self.wine)
             + positive_store(self.wool)
             + positive_store(self.cloth)
+            + positive_store(self.pelts)
+            + positive_store(self.yarn)
+            + positive_store(self.linen)
             + positive_store(self.hides)
             + positive_store(self.leather)
             + positive_store(self.shoes)
@@ -573,6 +585,9 @@ impl RaidPortableStores {
         plunder_good!(wine);
         plunder_good!(wool);
         plunder_good!(cloth);
+        plunder_good!(pelts);
+        plunder_good!(yarn);
+        plunder_good!(linen);
         plunder_good!(hides);
         plunder_good!(leather);
         plunder_good!(shoes);
@@ -652,6 +667,9 @@ impl RaidPortableStores {
             wine: removed!(wine),
             wool: removed!(wool),
             cloth: removed!(cloth),
+            pelts: removed!(pelts),
+            yarn: removed!(yarn),
+            linen: removed!(linen),
             hides: removed!(hides),
             leather: removed!(leather),
             shoes: removed!(shoes),

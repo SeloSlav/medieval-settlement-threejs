@@ -112,15 +112,20 @@ function storageNeed(plan: FoundingStockyardRelocationPlan): string {
     case 'polearms':
       return 'a Guardhouse or Carpenter';
     case 'wool':
-      return "a Weaver's Workshop or Pastoral Farmstead";
+      return 'a Spinning & Retting House, Storehouse, or Pastoral Farmstead';
     case 'animalFeed':
       return 'a Pastoral Farmstead or Woodland Swineherd';
     case 'flax':
-      return "a Weaver's Workshop or Threshing Barn";
+      return 'a Spinning & Retting House, Granary, or Threshing Barn';
+    case 'yarn':
+    case 'linen':
+      return "a Weaver's Workshop or Storehouse";
     case 'cloth':
       return "a Marketplace or Weaver's Workshop";
+    case 'pelts':
+      return 'a Trading Post, Storehouse, or Hunter\'s Hall';
     case 'hides':
-      return "a Tannery, Hunter's Hall, Marketplace, or Storehouse";
+      return 'a Tannery, Marketplace, or Storehouse';
     case 'leather':
       return "a Cobbler's Workshop, Marketplace, or Storehouse";
     case 'shoes':

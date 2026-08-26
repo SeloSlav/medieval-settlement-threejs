@@ -52,6 +52,8 @@ const CARGO_MATERIALS = {
   stoneLight: createCargoMaterial('Cargo stone light', 0x858b91, 0.98),
   wool: createCargoMaterial('Raw wool fleece', 0xd8d1c2, 0.99),
   flax: createCargoMaterial('Dried flax stems', 0xc8ad69, 0.98),
+  yarn: createCargoMaterial('Spun wool yarn', 0xe1d9c9, 0.99),
+  linen: createCargoMaterial('Undyed retted linen', 0xd8caa7, 0.98),
   clothRed: createCargoMaterial('Madder-dyed cloth', 0x8f443d, 0.96),
   clothBlue: createCargoMaterial('Blue-grey woven cloth', 0x52697a, 0.96),
   ironBloom: createCargoMaterial('Forged iron bloom', 0x42494d, 0.78, 0.42),
@@ -197,9 +199,16 @@ function addCargo(
     case 'flax':
       addFlaxLoad(group);
       break;
+    case 'yarn':
+      addYarnLoad(group);
+      break;
+    case 'linen':
+      addLinenLoad(group);
+      break;
     case 'cloth':
       addClothLoad(group);
       break;
+    case 'pelts':
     case 'hides':
     case 'leather':
       addClothLoad(group);
@@ -962,6 +971,57 @@ function addFlaxLoad(group: THREE.Group): void {
       new THREE.BoxGeometry(0.035, 0.43, 0.035),
       CARGO_MATERIALS.rope,
       new THREE.Vector3(0, y, z),
+    );
+  }
+}
+
+function addYarnLoad(group: THREE.Group): void {
+  for (const [index, [x, y, z, yaw]] of ([
+    [-0.2, 0.7, -0.08, -0.08],
+    [0.2, 0.71, 0.06, 0.1],
+    [0, 0.93, 0.01, -0.03],
+  ] as const).entries()) {
+    addNamedMesh(
+      group,
+      `Yarn skein ${index + 1}`,
+      new THREE.TorusGeometry(0.18, 0.045, 7, 14),
+      CARGO_MATERIALS.yarn,
+      new THREE.Vector3(x, y, z),
+      new THREE.Euler(Math.PI * 0.5, yaw, 0),
+      new THREE.Vector3(1.45, 0.7, 1),
+    );
+    addNamedMesh(
+      group,
+      `Yarn skein tie ${index + 1}`,
+      new THREE.BoxGeometry(0.055, 0.08, 0.34),
+      CARGO_MATERIALS.rope,
+      new THREE.Vector3(x, y, z),
+      new THREE.Euler(0, yaw, 0),
+    );
+  }
+}
+
+function addLinenLoad(group: THREE.Group): void {
+  for (const [index, [x, y, z, yaw]] of ([
+    [-0.2, 0.7, -0.08, -0.08],
+    [0.21, 0.71, 0.06, 0.07],
+    [0, 0.93, 0, -0.02],
+  ] as const).entries()) {
+    addNamedMesh(
+      group,
+      `Linen bolt ${index + 1}`,
+      new THREE.CylinderGeometry(0.145, 0.145, 0.58, 10),
+      CARGO_MATERIALS.linen,
+      new THREE.Vector3(x, y, z),
+      new THREE.Euler(0, yaw, Math.PI * 0.5),
+    );
+    addNamedMesh(
+      group,
+      `Linen bolt core ${index + 1}`,
+      new THREE.CylinderGeometry(0.035, 0.035, 0.64, 8),
+      timberMaterial('dark'),
+      new THREE.Vector3(x, y, z),
+      new THREE.Euler(0, yaw, Math.PI * 0.5),
     );
   }
 }

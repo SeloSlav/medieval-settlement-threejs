@@ -27,7 +27,7 @@ use crate::simulation::{labor_and_logistics_paused, GameClock, SimTickContext};
 use crate::tables::{Building, PlayerResources, WorldConfig};
 
 const EPSILON: f64 = 1e-6;
-const RECOVERY_ORDER: [CommodityKind; 66] = [
+const RECOVERY_ORDER: [CommodityKind; 69] = [
     CommodityKind::Gold,
     CommodityKind::Remedies,
     CommodityKind::Food,
@@ -75,6 +75,9 @@ const RECOVERY_ORDER: [CommodityKind; 66] = [
     CommodityKind::Candles,
     CommodityKind::Wine,
     CommodityKind::Cloth,
+    CommodityKind::Pelts,
+    CommodityKind::Yarn,
+    CommodityKind::Linen,
     CommodityKind::Shoes,
     CommodityKind::Leather,
     CommodityKind::Hides,
@@ -116,6 +119,9 @@ pub struct ReclamationStock {
     pub polearms: f64,
     pub wool: f64,
     pub cloth: f64,
+    pub pelts: f64,
+    pub yarn: f64,
+    pub linen: f64,
     pub hides: f64,
     pub leather: f64,
     pub shoes: f64,
@@ -240,6 +246,18 @@ impl ReclamationStock {
             },
             CommodityKind::Cloth => Self {
                 cloth: amount,
+                ..Self::default()
+            },
+            CommodityKind::Pelts => Self {
+                pelts: amount,
+                ..Self::default()
+            },
+            CommodityKind::Yarn => Self {
+                yarn: amount,
+                ..Self::default()
+            },
+            CommodityKind::Linen => Self {
+                linen: amount,
                 ..Self::default()
             },
             CommodityKind::Hides => Self {
@@ -465,6 +483,9 @@ impl ReclamationStock {
             polearms,
             wool,
             cloth,
+            pelts,
+            yarn,
+            linen,
             hides,
             leather,
             shoes,
@@ -551,6 +572,9 @@ impl ReclamationStock {
             polearms: cargo.polearms,
             wool: cargo.wool,
             cloth: cargo.cloth,
+            pelts: cargo.pelts,
+            yarn: cargo.yarn,
+            linen: cargo.linen,
             hides: cargo.hides,
             leather: cargo.leather,
             shoes: cargo.shoes,
@@ -603,7 +627,7 @@ impl ReclamationStock {
         .normalized()
     }
 
-    pub fn commodities() -> [CommodityKind; 66] {
+    pub fn commodities() -> [CommodityKind; 69] {
         RECOVERY_ORDER
     }
 
@@ -635,6 +659,9 @@ impl ReclamationStock {
             polearms,
             wool,
             cloth,
+            pelts,
+            yarn,
+            linen,
             hides,
             leather,
             shoes,
@@ -714,6 +741,9 @@ impl ReclamationStock {
             polearms: resources.polearms.max(0.0),
             wool: resources.wool.max(0.0),
             cloth: resources.cloth.max(0.0),
+            pelts: resources.pelts.max(0.0),
+            yarn: resources.yarn.max(0.0),
+            linen: resources.linen.max(0.0),
             hides: resources.hides.max(0.0),
             leather: resources.leather.max(0.0),
             shoes: resources.shoes.max(0.0),
@@ -786,6 +816,9 @@ impl ReclamationStock {
             CommodityKind::Polearms => self.polearms,
             CommodityKind::Wool => self.wool,
             CommodityKind::Cloth => self.cloth,
+            CommodityKind::Pelts => self.pelts,
+            CommodityKind::Yarn => self.yarn,
+            CommodityKind::Linen => self.linen,
             CommodityKind::Hides => self.hides,
             CommodityKind::Leather => self.leather,
             CommodityKind::Shoes => self.shoes,
@@ -866,6 +899,9 @@ impl ReclamationStock {
             polearms,
             wool,
             cloth,
+            pelts,
+            yarn,
+            linen,
             hides,
             leather,
             shoes,
@@ -943,6 +979,9 @@ fn clear_resource_ledger(resources: &mut PlayerResources) {
     resources.polearms = 0.0;
     resources.wool = 0.0;
     resources.cloth = 0.0;
+    resources.pelts = 0.0;
+    resources.yarn = 0.0;
+    resources.linen = 0.0;
     resources.hides = 0.0;
     resources.leather = 0.0;
     resources.shoes = 0.0;
@@ -1270,6 +1309,9 @@ pub fn insert_reclamation_pile(
         settlement_id,
         storage_acceptance_mask_high: u64::MAX,
         apiary_wax_cycle_progress: 0,
+        pelts: stock.pelts.max(0.0),
+        yarn: stock.yarn.max(0.0),
+        linen: stock.linen.max(0.0),
     });
     ctx.db.world_config().id().update(WorldConfig {
         next_building_id: building_id
@@ -1698,20 +1740,32 @@ pub(crate) fn reclamation_destination_priority(commodity: CommodityKind, kind: &
             _ => Some(3),
         },
         CommodityKind::Wool => match kind {
-            "weaver" => Some(0),
-            "pastoral_farmstead" => Some(1),
+            "spinning_retting_house" => Some(0),
+            "pastoral_farmstead" | "village_storehouse" => Some(1),
             "founders_camp" => Some(2),
             _ => Some(3),
         },
         CommodityKind::Flax => match kind {
-            "weaver" => Some(0),
-            "threshing_barn" => Some(1),
+            "spinning_retting_house" => Some(0),
+            "threshing_barn" | "granary" => Some(1),
             "founders_camp" => Some(2),
             _ => Some(3),
         },
         CommodityKind::Cloth => match kind {
             "marketplace" => Some(0),
             "weaver" => Some(1),
+            "founders_camp" => Some(2),
+            _ => Some(3),
+        },
+        CommodityKind::Pelts => match kind {
+            "trading_post" => Some(0),
+            "village_storehouse" | "hunters_hall" => Some(1),
+            "founders_camp" => Some(2),
+            _ => Some(3),
+        },
+        CommodityKind::Yarn | CommodityKind::Linen => match kind {
+            "weaver" => Some(0),
+            "village_storehouse" | "trading_post" => Some(1),
             "founders_camp" => Some(2),
             _ => Some(3),
         },

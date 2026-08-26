@@ -32,7 +32,10 @@ pub fn trade_resource_for_commodity(commodity: CommodityKind) -> Option<TradeRes
         CommodityKind::Ironwork => TradeResource::Ironwork,
         CommodityKind::Polearms => TradeResource::Polearms,
         CommodityKind::Wool => TradeResource::Wool,
+        CommodityKind::Yarn => TradeResource::Yarn,
+        CommodityKind::Linen => TradeResource::Linen,
         CommodityKind::Cloth => TradeResource::Cloth,
+        CommodityKind::Pelts => TradeResource::Pelts,
         CommodityKind::Hides => TradeResource::Hides,
         CommodityKind::Leather => TradeResource::Leather,
         CommodityKind::Shoes => TradeResource::Shoes,
@@ -82,7 +85,7 @@ mod tests {
     #[test]
     fn every_market_traded_commodity_has_a_unique_trade_resource() {
         let mut resources = std::collections::HashSet::new();
-        for code in 0..=65 {
+        for code in 0..=68 {
             let Some(commodity) = CommodityKind::from_u8(code) else {
                 continue;
             };

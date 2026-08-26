@@ -4,9 +4,11 @@ import {
   CALENDAR_MONTHS_PER_YEAR,
   SHEEP_SHEARING_END_MONTH,
   SHEEP_WOOL_PER_SHEARING_PER_HEAD,
+  SPINNING_RETTING_WOOL_PER_CYCLE,
+  SPINNING_RETTING_FLAX_PER_CYCLE,
+  SPINNING_RETTING_YARN_PER_CYCLE,
   WEAVER_CLOTH_PER_CYCLE,
-  WEAVER_FLAX_PER_CYCLE,
-  WEAVER_WOOL_PER_CYCLE,
+  WEAVER_YARN_PER_CYCLE,
 } from '../generated/gameBalance.ts';
 import {
   fireDisabledBuildingIds,
@@ -42,7 +44,10 @@ export type SettlementTextileRoadBranch = {
   sheepHoldings: number;
   projectedAnnualWool: number;
   flaxStock: number;
+  yarnStock: number;
+  linenStock: number;
   securedAnnualWool: number;
+  annualSpinnerIntermediateCapacity: number;
   annualWeaverWoolCapacity: number;
   annualWeaverClothCapacity: number;
   annualClothPotential: number;
@@ -59,6 +64,7 @@ export type SettlementTextileRoadBranch = {
   hasStockedSupplier: boolean;
   firstWoolBuildingId: string | null;
   firstFlaxBuildingId: string | null;
+  firstSpinnerBuildingId: string | null;
   firstResidenceId: string | null;
 };
 
@@ -66,11 +72,14 @@ export type SettlementTextileRoadPlan = {
   activeBranches: number;
   fleeceBranches: number;
   flaxBranches: number;
+  spinnerBranches: number;
   loomBranches: number;
   matchedBranches: number;
   exposedHouseholdBranches: number;
   projectedAnnualWool: number;
   flaxStock: number;
+  yarnStock: number;
+  linenStock: number;
   roadMatchedAnnualClothPotential: number;
   fragmentationClothPotential: number;
   annualHouseholdClothDemand: number;
@@ -109,16 +118,22 @@ export type SettlementTextilePlan = {
   woolInTransit: number;
   flaxStock: number;
   flaxInTransit: number;
+  yarnStock: number;
+  yarnInTransit: number;
+  linenStock: number;
+  linenInTransit: number;
   clothStock: number;
   clothInTransit: number;
   householdClothStock: number;
   supplierClothStock: number;
   householdClothInTransit: number;
+  fireDisabledSpinners: number;
   fireDisabledWeavers: number;
   fireDisabledProsperousHomes: number;
   fireQuarantinedClothStock: number;
   serviceableHouseholdClothStock: number;
   unavailableHouseholdClothStock: number;
+  annualSpinnerIntermediateCapacity: number;
   annualWeaverWoolCapacity: number;
   annualWeaverClothCapacity: number;
   annualClothPotential: number;
@@ -133,7 +148,11 @@ export type SettlementTextilePlan = {
 
 type TextileProduction = Pick<
   SettlementProductionCapacity,
-  'clothWoolPerDay' | 'clothOutputPerDay' | 'clothDemandPerDay'
+  | 'clothWoolPerDay'
+  | 'spinnerIntermediateCapacityPerDay'
+  | 'weaverClothCapacityPerDay'
+  | 'clothOutputPerDay'
+  | 'clothDemandPerDay'
 > & Partial<Pick<
   SettlementProductionCapacity,
   'tierTwoPlusResidents' | 'prosperityRoadBranches'
@@ -165,16 +184,21 @@ function textileRoadBranch(
 ): SettlementTextileRoadBranch {
   let branch = branches.get(key);
   if (branch) return branch;
+  const annualSpinnerIntermediateCapacity =
+    positive(source?.textileIntermediateOutputPerDay) * TEXTILE_PLAN_DAYS_PER_YEAR;
   const annualWeaverClothCapacity =
     positive(source?.clothOutputPerDay) * TEXTILE_PLAN_DAYS_PER_YEAR;
   branch = {
     sheepHoldings: 0,
     projectedAnnualWool: 0,
     flaxStock: 0,
+    yarnStock: 0,
+    linenStock: 0,
     securedAnnualWool: 0,
-    annualWeaverWoolCapacity: annualWeaverClothCapacity
-      * WEAVER_WOOL_PER_CYCLE
-      / WEAVER_CLOTH_PER_CYCLE,
+    annualSpinnerIntermediateCapacity,
+    annualWeaverWoolCapacity: annualSpinnerIntermediateCapacity
+      * SPINNING_RETTING_WOOL_PER_CYCLE
+      / SPINNING_RETTING_YARN_PER_CYCLE,
     annualWeaverClothCapacity,
     annualClothPotential: 0,
     annualHouseholdClothDemand:
@@ -195,6 +219,7 @@ function textileRoadBranch(
     hasStockedSupplier: false,
     firstWoolBuildingId: null,
     firstFlaxBuildingId: null,
+    firstSpinnerBuildingId: null,
     firstResidenceId: source?.firstClothResidenceId ?? source?.firstResidenceId ?? null,
   };
   branches.set(key, branch);
@@ -224,11 +249,14 @@ function buildTextileRoadPlan(
   const branches = new Map<string, SettlementTextileRoadBranch>();
   let fleeceBranches = 0;
   let flaxBranches = 0;
+  let spinnerBranches = 0;
   let loomBranches = 0;
   let matchedBranches = 0;
   let exposedHouseholdBranches = 0;
   let projectedAnnualWool = 0;
   let flaxStock = 0;
+  let yarnStock = 0;
+  let linenStock = 0;
   let roadMatchedAnnualClothPotential = 0;
   let annualHouseholdClothDemand = 0;
   let coveredHouseholdClothDemand = 0;
@@ -249,14 +277,23 @@ function buildTextileRoadPlan(
   let firstImbalance = 0;
 
   for (const [key, branch] of source) {
-    const clothFromProjectedClip = (
+    const intermediateFromRawFibre = (
       branch.projectedAnnualWool + branch.flaxStock
     )
+      * SPINNING_RETTING_YARN_PER_CYCLE
+      / SPINNING_RETTING_FLAX_PER_CYCLE;
+    const spunIntermediate = Math.min(
+      branch.annualSpinnerIntermediateCapacity,
+      intermediateFromRawFibre,
+    );
+    const clothFromAvailableIntermediate = (
+      branch.yarnStock + branch.linenStock + spunIntermediate
+    )
       * WEAVER_CLOTH_PER_CYCLE
-      / WEAVER_FLAX_PER_CYCLE;
+      / WEAVER_YARN_PER_CYCLE;
     branch.annualClothPotential = Math.min(
       branch.annualWeaverClothCapacity,
-      clothFromProjectedClip,
+      clothFromAvailableIntermediate,
     );
     branch.coveredHouseholdClothDemand = Math.min(
       branch.annualClothPotential,
@@ -281,12 +318,17 @@ function buildTextileRoadPlan(
 
     const relevant = branch.sheepHoldings > 0
       || branch.flaxStock > 1e-9
+      || branch.yarnStock > 1e-9
+      || branch.linenStock > 1e-9
+      || branch.annualSpinnerIntermediateCapacity > 1e-9
       || branch.annualWeaverClothCapacity > 1e-9
       || branch.annualHouseholdClothDemand > 1e-9;
     if (!relevant) continue;
     branches.set(key, branch);
     projectedAnnualWool += branch.projectedAnnualWool;
     flaxStock += branch.flaxStock;
+    yarnStock += branch.yarnStock;
+    linenStock += branch.linenStock;
     roadMatchedAnnualClothPotential += branch.annualClothPotential;
     annualHouseholdClothDemand += branch.annualHouseholdClothDemand;
     coveredHouseholdClothDemand += branch.coveredHouseholdClothDemand;
@@ -341,9 +383,17 @@ function buildTextileRoadPlan(
 
     if (branch.projectedAnnualWool > 1e-9) fleeceBranches += 1;
     if (branch.flaxStock > 1e-9) flaxBranches += 1;
+    if (branch.annualSpinnerIntermediateCapacity > 1e-9) spinnerBranches += 1;
     if (branch.annualWeaverClothCapacity > 1e-9) loomBranches += 1;
     if (
-      (branch.projectedAnnualWool > 1e-9 || branch.flaxStock > 1e-9)
+      (
+        (
+          branch.annualSpinnerIntermediateCapacity > 1e-9
+          && (branch.projectedAnnualWool > 1e-9 || branch.flaxStock > 1e-9)
+        )
+        || branch.yarnStock > 1e-9
+        || branch.linenStock > 1e-9
+      )
       && branch.annualWeaverClothCapacity > 1e-9
     ) {
       matchedBranches += 1;
@@ -388,7 +438,7 @@ function buildTextileRoadPlan(
 
     const strandedClipPotential = Math.max(
       0,
-      clothFromProjectedClip - branch.annualClothPotential,
+      clothFromAvailableIntermediate - branch.annualClothPotential,
     );
     if (
       (branch.firstWoolBuildingId !== null || branch.firstFlaxBuildingId !== null)
@@ -417,11 +467,14 @@ function buildTextileRoadPlan(
     activeBranches: branches.size,
     fleeceBranches,
     flaxBranches,
+    spinnerBranches,
     loomBranches,
     matchedBranches,
     exposedHouseholdBranches,
     projectedAnnualWool,
     flaxStock,
+    yarnStock,
+    linenStock,
     roadMatchedAnnualClothPotential,
     fragmentationClothPotential: Math.max(
       0,
@@ -606,10 +659,13 @@ export function computeSettlementTextilePlan(input: {
   const includeLegacyLedger = input.state.physicalFoundingSiteEnabled !== true;
   let woolStock = includeLegacyLedger ? positive(input.state.stockpile.wool) : 0;
   let flaxStock = includeLegacyLedger ? positive(input.state.stockpile.flax) : 0;
+  let yarnStock = includeLegacyLedger ? positive(input.state.stockpile.yarn) : 0;
+  let linenStock = includeLegacyLedger ? positive(input.state.stockpile.linen) : 0;
   let clothStock = includeLegacyLedger ? positive(input.state.stockpile.cloth) : 0;
   let householdClothStock = 0;
   let supplierClothStock = 0;
   let householdClothInTransit = 0;
+  let fireDisabledSpinners = 0;
   let fireDisabledWeavers = 0;
   let fireDisabledProsperousHomes = 0;
   let fireQuarantinedClothStock = 0;
@@ -617,6 +673,10 @@ export function computeSettlementTextilePlan(input: {
     woolStock += positive(building.wool);
     const buildingFlax = positive(building.flax);
     flaxStock += buildingFlax;
+    const buildingYarn = positive(building.yarn);
+    const buildingLinen = positive(building.linen);
+    yarnStock += buildingYarn;
+    linenStock += buildingLinen;
     if (
       buildingFlax > 1e-9
       && !fireDisabledBuildings.has(building.id)
@@ -636,6 +696,45 @@ export function computeSettlementTextilePlan(input: {
         branch.firstFlaxBuildingId,
         building.id,
       );
+    }
+    if (
+      (buildingYarn > 1e-9 || buildingLinen > 1e-9)
+      && !fireDisabledBuildings.has(building.id)
+      && roadBranches
+      && input.roadComponentFor
+    ) {
+      const branch = textileRoadBranch(
+        roadBranches,
+        productionRoadBranchKey(
+          input.roadComponentFor(building),
+          'building',
+          building.id,
+        ),
+      );
+      branch.yarnStock += buildingYarn;
+      branch.linenStock += buildingLinen;
+    }
+    if (
+      building.kind === 'spinning_retting_house'
+      && building.constructionComplete !== false
+      && building.assignedLabor > 0
+    ) {
+      if (fireDisabledBuildings.has(building.id)) {
+        fireDisabledSpinners += 1;
+      } else if (roadBranches && input.roadComponentFor) {
+        const branch = textileRoadBranch(
+          roadBranches,
+          productionRoadBranchKey(
+            input.roadComponentFor(building),
+            'building',
+            building.id,
+          ),
+        );
+        branch.firstSpinnerBuildingId = earlierStableId(
+          branch.firstSpinnerBuildingId,
+          building.id,
+        );
+      }
     }
     const buildingCloth = positive(building.cloth);
     clothStock += buildingCloth;
@@ -694,11 +793,39 @@ export function computeSettlementTextilePlan(input: {
 
   let woolInTransit = 0;
   let flaxInTransit = 0;
+  let yarnInTransit = 0;
+  let linenInTransit = 0;
   let clothInTransit = 0;
   for (const trip of input.state.deliveryTrips.values()) {
     if (trip.phase === 'inbound') continue;
     if (trip.cargoKind === 'wool') woolInTransit += positive(trip.amount);
     if (trip.cargoKind === 'flax') flaxInTransit += positive(trip.amount);
+    if (trip.cargoKind === 'yarn' || trip.cargoKind === 'linen') {
+      const intermediate = positive(trip.amount);
+      if (trip.cargoKind === 'yarn') yarnInTransit += intermediate;
+      else linenInTransit += intermediate;
+      const target = trip.destinationKind === 'building'
+        && trip.targetBuildingId !== null
+        ? input.state.buildings.get(trip.targetBuildingId)
+        : undefined;
+      if (
+        target
+        && !fireDisabledBuildings.has(target.id)
+        && roadBranches
+        && input.roadComponentFor
+      ) {
+        const branch = textileRoadBranch(
+          roadBranches,
+          productionRoadBranchKey(
+            input.roadComponentFor(target),
+            'building',
+            target.id,
+          ),
+        );
+        if (trip.cargoKind === 'yarn') branch.yarnStock += intermediate;
+        else branch.linenStock += intermediate;
+      }
+    }
     if (trip.cargoKind === 'cloth') {
       const tripCloth = positive(trip.amount);
       clothInTransit += tripCloth;
@@ -737,18 +864,34 @@ export function computeSettlementTextilePlan(input: {
   }
   woolStock += woolInTransit;
   flaxStock += flaxInTransit;
+  yarnStock += yarnInTransit;
+  linenStock += linenInTransit;
   clothStock += clothInTransit;
 
-  const annualWeaverWoolCapacity =
-    positive(input.production.clothWoolPerDay) * TEXTILE_PLAN_DAYS_PER_YEAR;
+  const annualSpinnerIntermediateCapacity =
+    positive(input.production.spinnerIntermediateCapacityPerDay)
+    * TEXTILE_PLAN_DAYS_PER_YEAR;
+  const annualWeaverWoolCapacity = annualSpinnerIntermediateCapacity
+    * SPINNING_RETTING_WOOL_PER_CYCLE
+    / SPINNING_RETTING_YARN_PER_CYCLE;
   const annualWeaverClothCapacity =
-    positive(input.production.clothOutputPerDay) * TEXTILE_PLAN_DAYS_PER_YEAR;
-  const clothFromProjectedClip = (projectedAnnualWool + flaxStock)
+    positive(input.production.weaverClothCapacityPerDay)
+    * TEXTILE_PLAN_DAYS_PER_YEAR;
+  const intermediateFromRawFibre = (projectedAnnualWool + flaxStock)
+    * SPINNING_RETTING_YARN_PER_CYCLE
+    / SPINNING_RETTING_FLAX_PER_CYCLE;
+  const spunIntermediate = Math.min(
+    annualSpinnerIntermediateCapacity,
+    intermediateFromRawFibre,
+  );
+  const clothFromAvailableIntermediate = (
+    yarnStock + linenStock + spunIntermediate
+  )
     * WEAVER_CLOTH_PER_CYCLE
-    / WEAVER_FLAX_PER_CYCLE;
+    / WEAVER_YARN_PER_CYCLE;
   const annualClothPotential = Math.min(
     annualWeaverClothCapacity,
-    clothFromProjectedClip,
+    clothFromAvailableIntermediate,
   );
   const annualHouseholdClothDemand =
     positive(input.production.clothDemandPerDay) * TEXTILE_PLAN_DAYS_PER_YEAR;
@@ -788,11 +931,16 @@ export function computeSettlementTextilePlan(input: {
     woolInTransit,
     flaxStock,
     flaxInTransit,
+    yarnStock,
+    yarnInTransit,
+    linenStock,
+    linenInTransit,
     clothStock,
     clothInTransit,
     householdClothStock,
     supplierClothStock,
     householdClothInTransit,
+    fireDisabledSpinners,
     fireDisabledWeavers,
     fireDisabledProsperousHomes,
     fireQuarantinedClothStock,
@@ -801,6 +949,7 @@ export function computeSettlementTextilePlan(input: {
       0,
       clothStock - serviceableHouseholdClothStock,
     ),
+    annualSpinnerIntermediateCapacity,
     annualWeaverWoolCapacity,
     annualWeaverClothCapacity,
     annualClothPotential,
@@ -818,27 +967,38 @@ export function computeSettlementTextilePlan(input: {
 }
 
 export function textileChainBalanceLabel(plan: SettlementTextilePlan): string {
-  if (plan.projectedAnnualWool + plan.flaxStock <= 1e-9) {
+  const rawFibre = plan.projectedAnnualWool + plan.flaxStock;
+  const readyIntermediate = plan.yarnStock + plan.linenStock;
+  if (rawFibre <= 1e-9 && readyIntermediate <= 1e-9) {
     return plan.annualHouseholdClothDemand <= 1e-9
       ? 'No prosperous-house demand or raw textile supply'
       : 'Raw fibre missing · raise sheep or secure a flax harvest';
   }
+  if (plan.annualSpinnerIntermediateCapacity <= 1e-9 && readyIntermediate <= 1e-9) {
+    return 'Fibre processing missing · build and staff a Spinning & Retting House';
+  }
   if (plan.annualWeaverClothCapacity <= 1e-9) {
-    return 'Tailoring missing · wool and flax cannot become clothing';
+    return 'Weaving missing · yarn and linen cannot become clothing';
   }
   if (
     plan.roadPlan !== null
     && plan.roadPlan.fragmentationClothPotential > 0.05
   ) {
     return plan.roadPlan.annualHouseholdClothShortfall > 0.05
-      ? 'Road-limited · connect raw fibre, looms, and prosperous homes'
-      : 'Split textile chain · connect raw fibre and loom branches before export';
+      ? 'Road-limited · connect raw fibre, spinning, weaving, and prosperous homes'
+      : 'Split textile chain · connect fibre processors and Weaver branches before export';
   }
   if (plan.annualHouseholdClothDemand <= 1e-9) {
     return 'No prosperous-house demand · annual clothing can be exported';
   }
   if (plan.woolCapacitySurplus > 0.05) {
-    return 'Weaving-limited · add loom labor before more sheep or flax';
+    return 'Spinning-limited · add fibre-processing labor before more sheep or flax';
+  }
+  if (
+    plan.annualSpinnerIntermediateCapacity + readyIntermediate
+    > plan.annualWeaverClothCapacity + 0.05
+  ) {
+    return 'Weaving-limited · add Weaver labor to use available yarn and linen';
   }
   if (plan.annualClothBalance < -0.05) {
     return 'Raw-fibre-limited · household demand exceeds secured wool and flax';
