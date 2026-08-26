@@ -117,8 +117,8 @@ for (const seed of seeds) {
     `tier-one active draw-bearing mesh budget exceeded (${budget.meshes} > 56)`,
   );
   assert.ok(
-    budget.triangles <= 2_800,
-    `tier-one active triangle budget exceeded (${budget.triangles} > 2,800)`,
+    budget.triangles <= 3_000,
+    `tier-one active triangle budget exceeded (${budget.triangles} > 3,000)`,
   );
   assert.ok(
     budget.materials <= 10,

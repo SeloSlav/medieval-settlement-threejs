@@ -772,10 +772,16 @@ function addTierOneRubbleFooting(
   seed: number,
   material: THREE.Material,
 ): THREE.Mesh {
-  const parts: BoxPart[] = [{
-    size: [width + 0.18, foundationHeight * 0.68, depth + 0.18],
-    position: [0, foundationHeight * 0.34, 0],
-  }];
+  const parts: THREE.BufferGeometry[] = [];
+  const coreIndexed = new THREE.BoxGeometry(
+    width - 0.08,
+    foundationHeight * 0.5,
+    depth - 0.08,
+  );
+  const core = coreIndexed.toNonIndexed();
+  coreIndexed.dispose();
+  core.translate(0, foundationHeight * 0.25, 0);
+  parts.push(core);
   const halfW = width * 0.5;
   const halfD = depth * 0.5;
   let ordinal = 0;
@@ -795,17 +801,27 @@ function addTierOneRubbleFooting(
       const stoneSpan = nominal * (0.88 + widthVariation);
       const stoneHeight = foundationHeight * 0.46 + heightVariation;
       const along = -span * 0.5 + nominal * (index + 0.5) + centerVariation;
-      parts.push(face === 'front-back'
-        ? {
-            size: [stoneSpan, stoneHeight, 0.28],
-            position: [along, foundationHeight * 0.64 + verticalVariation, fixed],
-            rotation: [0, tierOneCraftVariation(seed, ordinal++, 0.045), 0],
-          }
-        : {
-            size: [0.28, stoneHeight, stoneSpan],
-            position: [fixed, foundationHeight * 0.64 + verticalVariation, along],
-            rotation: [0, tierOneCraftVariation(seed, ordinal++, 0.045), 0],
-          });
+      const stone = new THREE.IcosahedronGeometry(0.5, 0);
+      if (face === 'front-back') {
+        stone.scale(stoneSpan, stoneHeight, 0.34);
+        stone.rotateY(tierOneCraftVariation(seed, ordinal++, 0.14));
+        stone.rotateZ(tierOneCraftVariation(seed, ordinal++, 0.075));
+        stone.translate(
+          along,
+          foundationHeight * 0.64 + verticalVariation,
+          fixed,
+        );
+      } else {
+        stone.scale(0.34, stoneHeight, stoneSpan);
+        stone.rotateY(tierOneCraftVariation(seed, ordinal++, 0.14));
+        stone.rotateX(tierOneCraftVariation(seed, ordinal++, 0.075));
+        stone.translate(
+          fixed,
+          foundationHeight * 0.64 + verticalVariation,
+          along,
+        );
+      }
+      parts.push(stone);
     }
   };
 
@@ -814,12 +830,10 @@ function addTierOneRubbleFooting(
   addCourse(depth, Math.max(7, Math.round(depth / 0.72)), 'side', halfW + 0.04);
   addCourse(depth, Math.max(7, Math.round(depth / 0.72)), 'side', -halfW - 0.04);
 
-  const footing = addMesh(
-    group,
-    mergeBoxParts(parts),
-    material,
-    new THREE.Vector3(),
-  );
+  const footingGeometry = mergeGeometries(parts, false);
+  for (const part of parts) part.dispose();
+  if (!footingGeometry) throw new Error('Could not merge tier-one rubble footing.');
+  const footing = addMesh(group, footingGeometry, material, new THREE.Vector3());
   footing.name = 'Residence low rubble fieldstone footing';
   footing.userData.residenceFoundationConstruction = 'rough-laid-rubble-course';
   footing.userData.residenceFoundationStoneCount = parts.length - 1;
