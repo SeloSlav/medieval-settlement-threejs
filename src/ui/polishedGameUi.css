@@ -669,6 +669,13 @@ select:focus-visible {
   border-top: 0;
 }
 
+.settlement-hud__body > .settlement-hud__resource-card:nth-child(n + 7)
+  > .settlement-hud__stat {
+  margin: 0;
+  padding-top: 6px;
+  border-top: 0;
+}
+
 .settlement-hud__stat:hover,
 .settlement-hud__stat:focus-visible {
   border-radius: 2px;
@@ -813,6 +820,22 @@ select:focus-visible {
   left: 50%;
 }
 
+.settlement-hud__resource-card--right .settlement-hud__resource-panel,
+.noble-hud__gold-card .settlement-hud__resource-panel {
+  --people-panel-x: 0;
+  right: 0;
+  left: auto;
+}
+
+.noble-hud__gold-card {
+  position: relative;
+  min-width: 0;
+}
+
+.noble-hud__gold-card .settlement-hud__resource-panel {
+  top: calc(100% + 9px);
+}
+
 .settlement-hud__people-panel::before {
   position: absolute;
   right: 0;
@@ -947,6 +970,83 @@ select:focus-visible {
   color: #8f8777;
   font-size: 9px;
   line-height: 1.4;
+}
+
+.settlement-hud__resource-panel {
+  gap: 6px;
+  width: min(282px, calc(100vw - 28px));
+}
+
+.settlement-hud__resource-reading {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: baseline;
+  gap: 9px;
+  padding: 8px;
+  border: 1px solid rgba(218, 190, 127, 0.12);
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.settlement-hud__resource-reading strong {
+  color: #e8d7b4;
+  font-family: var(--ui-display);
+  font-size: 22px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.settlement-hud__resource-reading span,
+.settlement-hud__resource-transit > span {
+  color: #918978;
+  font-size: 8px;
+  font-weight: 750;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.settlement-hud__resource-transit {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: baseline;
+  gap: 9px;
+  padding: 5px 8px;
+  border-left: 2px solid rgba(119, 163, 183, 0.52);
+  color: #acc8d3;
+  background: rgba(78, 118, 136, 0.08);
+}
+
+.settlement-hud__resource-transit[hidden] {
+  display: none;
+}
+
+.settlement-hud__resource-transit strong {
+  font-size: 9px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.settlement-hud__resource-detail,
+.settlement-hud__resource-context,
+.settlement-hud__resource-note {
+  margin: 0;
+  color: #aca28e;
+  font-size: 9px;
+  line-height: 1.42;
+}
+
+.settlement-hud__resource-context {
+  padding: 6px 7px;
+  border-left: 2px solid rgba(197, 160, 83, 0.48);
+  color: #c2b28f;
+  background: rgba(157, 117, 50, 0.07);
+}
+
+.settlement-hud__resource-note {
+  padding-top: 6px;
+  border-top: 1px solid rgba(220, 191, 127, 0.12);
+  color: #827b6d;
+  font-size: 8px;
 }
 
 .settlement-hud__migration-line {
@@ -4305,6 +4405,10 @@ select:focus-visible {
     display: none;
   }
 
+  .settlement-hud__body > .settlement-hud__resource-card:nth-child(n + 5) {
+    display: none;
+  }
+
   .settlement-hud__stat {
     grid-template-columns: 22px minmax(0, 1fr);
     padding: 4px 3px;
@@ -4406,6 +4510,10 @@ select:focus-visible {
   }
 
   .settlement-hud__body > .settlement-hud__stat:nth-child(n + 3) {
+    display: none;
+  }
+
+  .settlement-hud__body > .settlement-hud__resource-card:nth-child(n + 3) {
     display: none;
   }
 

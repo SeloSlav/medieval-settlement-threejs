@@ -772,7 +772,13 @@ export class SettlementHud {
   private readonly laborStat: HTMLElement;
   private readonly laborValue: HTMLElement;
   private readonly laborSub: HTMLElement;
+  private readonly populationStat: HTMLElement;
   private readonly populationValue: HTMLElement;
+  private readonly residentCardTotal: HTMLElement;
+  private readonly residentCardHoused: HTMLElement;
+  private readonly residentCardUnhoused: HTMLElement;
+  private readonly residentCardOccupied: HTMLElement;
+  private readonly residentCardSick: HTMLElement;
   private readonly housingStat: HTMLElement;
   private readonly housingValue: HTMLElement;
   private readonly peopleTotal: HTMLElement;
@@ -804,6 +810,7 @@ export class SettlementHud {
   private readonly fuelSupplyUse: HTMLElement;
   private readonly fuelSupplyTotal: HTMLElement;
   private readonly goldStat: HTMLElement;
+  private readonly goldCardContext: HTMLElement;
   private readonly polearmsStat: HTMLElement;
   private readonly animals: HTMLDetailsElement;
   private readonly animalsSummary: HTMLElement;
@@ -915,7 +922,13 @@ export class SettlementHud {
     this.laborStat = this.mustElement('[data-resource="labor"]');
     this.laborValue = this.mustElement('[data-stockpile="labor"]');
     this.laborSub = this.mustElement('[data-stockpile="labor-sub"]');
+    this.populationStat = this.mustElement('[data-resource="population"]');
     this.populationValue = this.mustElement('[data-stockpile="population"]');
+    this.residentCardTotal = this.mustElement('[data-resident-card-total]');
+    this.residentCardHoused = this.mustElement('[data-resident-card-housed]');
+    this.residentCardUnhoused = this.mustElement('[data-resident-card-unhoused]');
+    this.residentCardOccupied = this.mustElement('[data-resident-card-occupied]');
+    this.residentCardSick = this.mustElement('[data-resident-card-sick]');
     this.housingStat = this.mustElement('[data-resource="housing"]');
     this.housingValue = this.mustElement('[data-stockpile="housing"]');
     this.peopleTotal = this.mustElement('[data-people-total]');
@@ -947,6 +960,7 @@ export class SettlementHud {
     this.fuelSupplyUse = this.mustElement('[data-fuel-supply-use]');
     this.fuelSupplyTotal = this.mustElement('[data-fuel-supply-total]');
     this.goldStat = this.mustElement('[data-resource="gold"]');
+    this.goldCardContext = this.mustElement('[data-resource-card-context="gold"]');
     this.polearmsStat = this.mustElement('[data-resource="polearms"]');
     this.animals = this.mustDetails('[data-animals]');
     this.animalsSummary = this.mustElement('[data-animals] > .settlement-hud__animals-summary');
@@ -982,9 +996,14 @@ export class SettlementHud {
       const label = row.querySelector<HTMLElement>('.settlement-hud__label')
         ?.textContent
         ?.trim() || resource;
-      const detail = row.dataset.tooltip?.trim();
-      row.dataset.tooltipTitle = row.dataset.tooltipTitle?.trim() || label;
-      row.dataset.tooltip = detail || label;
+      if (row.closest('[data-hud-card]')) {
+        delete row.dataset.tooltipTitle;
+        delete row.dataset.tooltip;
+      } else {
+        const detail = row.dataset.tooltip?.trim();
+        row.dataset.tooltipTitle = row.dataset.tooltipTitle?.trim() || label;
+        row.dataset.tooltip = detail || label;
+      }
       row.classList.add('is-resource-locator');
       row.setAttribute('role', 'button');
       row.setAttribute('aria-label', `${label}: locate physical holdings`);
@@ -1107,6 +1126,11 @@ export class SettlementHud {
       ? `${view.assigned} assigned`
       : 'available';
     this.populationValue.textContent = view.total.toString();
+    this.residentCardTotal.textContent = view.total.toString();
+    this.residentCardHoused.textContent = view.housed.toString();
+    this.residentCardUnhoused.textContent = view.unhoused.toString();
+    this.residentCardOccupied.textContent = view.occupiedHomes.toString();
+    this.residentCardSick.textContent = view.sick.toString();
     this.housingValue.textContent = view.vacantPlaces.toString();
     this.peopleTotal.textContent = view.total.toString();
     this.peopleAvailable.textContent = view.available.toString();
@@ -1128,6 +1152,7 @@ export class SettlementHud {
     this.migrationLabel.textContent = view.migrationLabel;
 
     this.laborStat.classList.toggle('is-empty', view.total === 0);
+    this.populationStat.classList.toggle('is-empty', view.total === 0);
     this.housingStat.classList.toggle('is-empty', view.housingCapacity === 0);
     this.laborStat.setAttribute(
       'aria-label',
@@ -1136,6 +1161,10 @@ export class SettlementHud {
     this.housingStat.setAttribute(
       'aria-label',
       `Living space: ${view.vacantPlaces} open of ${view.housingCapacity}; ${view.unhoused} unhoused residents.`,
+    );
+    this.populationStat.setAttribute(
+      'aria-label',
+      `Residents: ${view.total} total, ${view.housed} housed, ${view.unhoused} unhoused, ${view.sick} sick.`,
     );
   }
 
@@ -1540,7 +1569,9 @@ export class SettlementHud {
       'aria-label',
       `Fuel supply: ${formatSupplyMonthsRemaining(provisioning.currentFirewoodRunwayDays, fuelHasDemand)}. Hover or focus for the current residence-use forecast and fuel breakdown.`,
     );
-    this.goldStat.dataset.tooltip = provisioning.armedGuards > 0
+    delete this.goldStat.dataset.tooltipTitle;
+    delete this.goldStat.dataset.tooltip;
+    this.goldCardContext.textContent = provisioning.armedGuards > 0
       ? `Guard wages cost ${provisioning.guardWagePerDay.toFixed(1)} gold per day; current funds cover ${formatProvisionRunway(provisioning.guardWageRunwayDays)}.`
       : 'Spendable gold across every community lockbox and Town Hall treasury.';
   }

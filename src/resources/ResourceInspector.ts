@@ -59,6 +59,12 @@ import type { SettlementSecurityState } from '../security/frontierSecurity.ts';
 import type { CombatAgentState } from '../security/combatAgents.ts';
 import { renderBuildingResourceCost } from '../ui/resourceCost.ts';
 import {
+  HUD_RESOURCE_CARD_KINDS,
+  HUD_RESOURCE_CARD_PRESENTATION,
+  isHudResourceCardKind,
+  type HudResourceCardKind,
+} from '../ui/hudResourceCards.ts';
+import {
   isStorehouseCommodity,
   type StorehouseCommodity,
 } from '../economy/storehousePolicy.ts';
@@ -320,11 +326,6 @@ type ResourceInspectorOptions = {
   isBlocked: () => boolean;
 };
 
-const TOTAL_RESOURCE_TOOLTIPS: Partial<Record<HudResourceKind, string>> = {
-  timber: 'All timber stored at physical yards, mills, and depots, including stock committed to active construction and home projects. Material loaded on carts remains separate until unloading.',
-  stone: 'All stone stored at physical quarry yards and depots, including stock committed to active construction and home projects. Material loaded on carts remains separate until unloading.',
-  gold: 'All civic gold secured in the founders’ lockbox, reclamation chests, or Town Hall treasury, including coin committed to active home projects. Market working cash, company pay chests, and moving lockboxes remain separate.',
-};
 const DEFAULT_TOTAL_RESOURCE_TOOLTIP =
   'All physically stored stock for this resource, including household reserves and goods committed to active projects. Loaded carts remain listed separately until unloading.';
 
@@ -372,6 +373,9 @@ export class ResourceInspector {
   private readonly fuelStoresModeLabel: HTMLElement;
   private readonly fuelFirewoodAmount: HTMLElement;
   private readonly specialtyStoresModeLabel: HTMLElement;
+  private readonly resourceCardAmounts: Record<HudResourceCardKind, HTMLElement>;
+  private readonly resourceCardModeLabels: Record<HudResourceCardKind, HTMLElement>;
+  private readonly resourceCardDetails: Record<HudResourceCardKind, HTMLElement>;
   private readonly surplusResourceTooltips = new Map<HudResourceKind, string>();
   private readonly populationValue: HTMLElement;
   private readonly housingValue: HTMLElement;
@@ -552,6 +556,24 @@ export class ResourceInspector {
       options.uiRoot,
       '[data-specialty-stores-mode-label]',
     );
+    this.resourceCardAmounts = Object.fromEntries(
+      HUD_RESOURCE_CARD_KINDS.map((resource) => [
+        resource,
+        this.mustElement(options.uiRoot, `[data-resource-card-amount="${resource}"]`),
+      ]),
+    ) as Record<HudResourceCardKind, HTMLElement>;
+    this.resourceCardModeLabels = Object.fromEntries(
+      HUD_RESOURCE_CARD_KINDS.map((resource) => [
+        resource,
+        this.mustElement(options.uiRoot, `[data-resource-card-mode-label="${resource}"]`),
+      ]),
+    ) as Record<HudResourceCardKind, HTMLElement>;
+    this.resourceCardDetails = Object.fromEntries(
+      HUD_RESOURCE_CARD_KINDS.map((resource) => [
+        resource,
+        this.mustElement(options.uiRoot, `[data-resource-card-detail="${resource}"]`),
+      ]),
+    ) as Record<HudResourceCardKind, HTMLElement>;
     this.stockpileValues = {
       timber: this.mustElement(options.uiRoot, '[data-stockpile="timber"]'),
       stone: this.mustElement(options.uiRoot, '[data-stockpile="stone"]'),
@@ -725,19 +747,30 @@ export class ResourceInspector {
     this.specialtyStoresModeLabel.textContent = panelModeLabel;
     this.stockpileRoot.dataset.resourceTotalsPresentation =
       this.resourceTotalsPresentation;
+    for (const resource of HUD_RESOURCE_CARD_KINDS) {
+      const presentation = HUD_RESOURCE_CARD_PRESENTATION[resource];
+      this.resourceCardModeLabels[resource].textContent = panelModeLabel;
+      this.resourceCardDetails[resource].textContent = showingTotal
+        ? presentation.totalDetail
+        : presentation.surplusDetail;
+    }
 
     for (const resource of HUD_RESOURCE_KINDS) {
       const stat = this.stockpileValues[resource]
         .closest<HTMLElement>('.settlement-hud__stat');
       if (!stat) continue;
-      if (resource === 'firewood' && stat.matches('.settlement-hud__stat--fuel')) {
+      if (
+        (isHudResourceCardKind(resource) && stat.closest('[data-hud-card]'))
+        || stat.matches('.settlement-hud__stat--food, .settlement-hud__stat--fuel')
+      ) {
         delete stat.dataset.tooltipTitle;
         delete stat.dataset.tooltip;
+        delete stat.dataset.tooltipAmount;
+        delete stat.dataset.tooltipAmountLabel;
         continue;
       }
       const tooltip = showingTotal
-        ? TOTAL_RESOURCE_TOOLTIPS[resource]
-          ?? DEFAULT_TOTAL_RESOURCE_TOOLTIP
+        ? DEFAULT_TOTAL_RESOURCE_TOOLTIP
         : this.surplusResourceTooltips.get(resource);
       if (tooltip) stat.dataset.tooltip = tooltip;
     }
@@ -1784,6 +1817,9 @@ export class ResourceInspector {
     for (const resource of HUD_RESOURCE_KINDS) {
       this.stockpileValues[resource].textContent = Math.round(totals[resource]).toString();
     }
+    for (const resource of HUD_RESOURCE_CARD_KINDS) {
+      this.resourceCardAmounts[resource].textContent = Math.round(totals[resource]).toString();
+    }
     this.fuelFirewoodAmount.textContent = Math.round(totals.firewood).toString();
     const amountLabel = this.resourceTotalsPresentation === 'total'
       ? 'Total stored'
@@ -1805,7 +1841,15 @@ export class ResourceInspector {
       if (amount > 1e-6) {
         details.push(`+${formatTransitAmount(amount)} en route`);
       }
-      transit.hidden = details.length === 0;
+      const resourceCardTransitRow = transit.closest<HTMLElement>(
+        '[data-resource-card-transit-row]',
+      );
+      if (resourceCardTransitRow) {
+        resourceCardTransitRow.hidden = details.length === 0;
+        transit.hidden = false;
+      } else {
+        transit.hidden = details.length === 0;
+      }
       const stat = this.stockpileValues[resource]
         .closest<HTMLElement>('.settlement-hud__stat');
       stat?.classList.toggle(
@@ -1894,6 +1938,11 @@ export class ResourceInspector {
   ): void {
     const stat = valueElement.closest<HTMLElement>('.settlement-hud__stat');
     if (!stat) return;
+    if (!stat.dataset.tooltip?.trim()) {
+      delete stat.dataset.tooltipAmount;
+      delete stat.dataset.tooltipAmountLabel;
+      return;
+    }
     stat.dataset.tooltipAmount = formatTransitAmount(Math.max(0, amount));
     stat.dataset.tooltipAmountLabel = label;
   }
