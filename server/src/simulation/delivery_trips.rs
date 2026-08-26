@@ -48,7 +48,8 @@ use crate::roads::{RoadNetwork, RoadPathRoute};
 use crate::season_policy::environment_for;
 use crate::security_policy::raid_immune_building_kind;
 use crate::simulation::delivery_cargo::{
-    building_delivery_stock, pick_delivery_target, residence_delivery_room,
+    building_delivery_stock, delivery_commodity_need_value, pick_delivery_target,
+    residence_delivery_room, residence_need_for_delivery_commodity,
     selected_need_delivery_commodity, withdraw_delivery_cargo, DeliveryCargoTotals,
 };
 use crate::simulation::fires::{
@@ -59,7 +60,7 @@ use crate::simulation::game_calendar::{game_clock, GameClock};
 use crate::simulation::labor_and_logistics_paused;
 use crate::simulation::raid_agents::issued_guard_polearms_by_building;
 use crate::simulation::residence_needs::{
-    apply_need_delivery, sync_food_need_rows, ResidenceNeedKind,
+    apply_need_delivery_from_commodity, sync_food_need_rows, ResidenceNeedKind,
 };
 use crate::simulation::road_logistics::{local_delivery_distance, local_delivery_route};
 use crate::simulation::settlement_security::{
@@ -2296,8 +2297,8 @@ fn complete_unload(ctx: &ReducerContext, trip: &mut DeliveryTrip, sim_tick: u64)
         })
     {
         unload_residence_upgrade_material(ctx, trip, commodity);
-    } else if let Some(need_kind) = ResidenceNeedKind::from_u8(trip.cargo_kind) {
-        unload_need_to_residence(ctx, trip, need_kind);
+    } else if let Some(need_kind) = residence_need_for_delivery_commodity(commodity) {
+        unload_need_to_residence(ctx, trip, need_kind, commodity);
     }
 }
 
@@ -2638,18 +2639,27 @@ fn unload_need_to_residence(
     ctx: &ReducerContext,
     trip: &mut DeliveryTrip,
     need_kind: ResidenceNeedKind,
+    commodity: CommodityKind,
 ) {
     let room = residence_delivery_room(ctx, trip.residence_id, need_kind);
-    let delivered = trip.amount.min(room);
-    if delivered > 1e-6 {
-        apply_need_delivery(ctx, trip.residence_id, need_kind, delivered);
-        trip.amount = (trip.amount - delivered).max(0.0);
+    let need_value = delivery_commodity_need_value(need_kind, commodity);
+    let commodity_delivered = trip.amount.min(whole_units(room / need_value));
+    let need_delivered = commodity_delivered * need_value;
+    if need_delivered > 1e-6 {
+        apply_need_delivery_from_commodity(
+            ctx,
+            trip.residence_id,
+            need_kind,
+            need_delivered,
+            commodity,
+        );
+        trip.amount = (trip.amount - commodity_delivered).max(0.0);
         if need_kind == ResidenceNeedKind::Food {
             if let Some(origin) = ctx.db.building().id().find(&trip.building_id) {
                 if origin.kind == "monastery" {
                     if let Some(mut resources) = ctx.db.player_resources().owner().find(&trip.owner)
                     {
-                        resources.monastery_food_charity_total += delivered;
+                        resources.monastery_food_charity_total += need_delivered;
                         ctx.db.player_resources().owner().update(resources);
                     }
                 }

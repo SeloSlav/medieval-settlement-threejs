@@ -43,7 +43,7 @@ use crate::resident_welfare_policy::{
 };
 use crate::simulation::residence_needs::state::{
     delete_needs, find_need_mut, init_needs, migrate_and_sync_food_inventory, persist_needs,
-    NeedState,
+    NeedState, NEED_SOURCE_FLOWER_LUXURY,
 };
 use crate::simulation::tick_context::SimTickContext;
 use crate::tables::{corpse, Corpse, Residence};
@@ -167,6 +167,7 @@ pub fn step_residence_needs(
         {
             ConsumeResult::Met(NeedState {
                 stock: 1.0,
+                source_kind: NEED_SOURCE_FLOWER_LUXURY,
                 ..*need
             })
         } else if let Some(units) = need_units_due(residence.id, kind, clock) {
@@ -700,6 +701,25 @@ pub fn apply_need_delivery(
     persist_needs(ctx, residence_id, &needs);
 }
 
+/// Adds need stock while retaining the physical commodity that fulfilled it.
+/// The UI uses this provenance for substitute goods such as charcoal, cider,
+/// and Tier-4 luxury wares; it never replaces the authoritative stock value.
+pub fn apply_need_delivery_from_commodity(
+    ctx: &ReducerContext,
+    residence_id: u64,
+    kind: ResidenceNeedKind,
+    delivered: f64,
+    commodity: CommodityKind,
+) {
+    let mut needs = load_needs(ctx, residence_id);
+    let Some(need) = find_need_mut(&mut needs, kind) else {
+        return;
+    };
+    *need = apply_delivery_for_kind(kind, need, delivered);
+    need.source_kind = u16::from(commodity.as_u8());
+    persist_needs(ctx, residence_id, &needs);
+}
+
 /// Records a need satisfied by goods consumed at a physical communal venue.
 /// Unlike a delivery, this never adds stock to the household pantry.
 pub fn apply_need_consumed_at_source(
@@ -800,6 +820,7 @@ mod tests {
             kind: ResidenceNeedKind::Food,
             stock: 1.75,
             deficit_ticks: 42,
+            source_kind: crate::simulation::residence_needs::state::NEED_SOURCE_NONE,
         };
         let after = need_relief_without_delivery(&before);
         assert_eq!(after.stock, before.stock);

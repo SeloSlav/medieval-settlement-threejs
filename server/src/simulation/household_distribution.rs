@@ -25,11 +25,12 @@ use crate::pantry_safeguard_policy::{
 use crate::season_policy::EnvironmentState;
 use crate::simulation::delivery_cargo::{
     delivery_stock_room, residence_commodity_delivery_room,
-    selected_food_delivery_commodity_for_residence, withdraw_delivery_cargo,
+    selected_food_delivery_commodity_for_residence, withdraw_delivery_cargo_with_source,
 };
 use crate::simulation::residence_needs::state::{migrate_and_sync_food_inventory, persist_needs};
 use crate::simulation::residence_needs::{
-    apply_need_delivery, load_needs, need_stock, sync_food_need_rows, ResidenceNeedKind,
+    apply_need_delivery, apply_need_delivery_from_commodity, load_needs, need_stock,
+    sync_food_need_rows, ResidenceNeedKind,
 };
 use crate::simulation::tick_context::SimTickContext;
 use crate::tables::{Building, Residence};
@@ -467,13 +468,23 @@ fn distribute_to_residence(
     if room <= 1e-9 {
         return;
     }
-    let delivered = if need_kind == ResidenceNeedKind::Luxury {
+    let (delivered, source_commodity) = if need_kind == ResidenceNeedKind::Luxury {
         withdraw_staffed_market_luxury(ctx, tick, source, room)
     } else {
-        withdraw_delivery_cargo(source, need_kind, room)
+        withdraw_delivery_cargo_with_source(source, need_kind, room)
     };
     if delivered > 1e-9 {
-        apply_need_delivery(ctx, residence_id, need_kind, delivered);
+        if let Some(commodity) = source_commodity {
+            apply_need_delivery_from_commodity(
+                ctx,
+                residence_id,
+                need_kind,
+                delivered,
+                commodity,
+            );
+        } else {
+            apply_need_delivery(ctx, residence_id, need_kind, delivered);
+        }
     }
 }
 
@@ -564,9 +575,11 @@ fn withdraw_staffed_market_luxury(
     tick: &SimTickContext,
     source: &mut Building,
     amount: f64,
-) -> f64 {
+) -> (f64, Option<CommodityKind>) {
     let mut remaining = amount.max(0.0);
     let mut withdrawn = 0.0;
+    let mut primary = None;
+    let mut primary_amount = 0.0;
     if tick
         .marketplace_stall_workplace_id_for_commodity(ctx, source, CommodityKind::Candles)
         .is_some()
@@ -574,6 +587,10 @@ fn withdraw_staffed_market_luxury(
         let candles = withdraw_building_commodity(source, CommodityKind::Candles, remaining);
         withdrawn += candles;
         remaining = (remaining - candles).max(0.0);
+        if candles > primary_amount + 1e-9 {
+            primary = Some(CommodityKind::Candles);
+            primary_amount = candles;
+        }
     }
     if remaining > 1e-9
         && tick
@@ -584,12 +601,16 @@ fn withdraw_staffed_market_luxury(
             let used = withdraw_building_commodity(source, commodity, remaining);
             withdrawn += used;
             remaining = (remaining - used).max(0.0);
+            if used > primary_amount + 1e-9 {
+                primary = Some(commodity);
+                primary_amount = used;
+            }
             if remaining <= 1e-9 {
                 break;
             }
         }
     }
-    withdrawn
+    (withdrawn, primary)
 }
 
 #[cfg(test)]

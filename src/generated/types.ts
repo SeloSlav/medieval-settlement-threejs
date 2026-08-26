@@ -742,6 +742,7 @@ export const ResidenceNeed = __t.object("ResidenceNeed", {
   needKind: __t.u8(),
   stock: __t.f64(),
   deficitTicks: __t.u32(),
+  sourceKind: __t.u16(),
 });
 export type ResidenceNeed = __Infer<typeof ResidenceNeed>;
 
@@ -926,4 +927,3 @@ export const WorldConfig = __t.object("WorldConfig", {
   initialGoodsMultiplier: __t.u8(),
 });
 export type WorldConfig = __Infer<typeof WorldConfig>;
-

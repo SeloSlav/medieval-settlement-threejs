@@ -262,6 +262,83 @@ pub fn withdraw_delivery_cargo(
     }
 }
 
+/// Withdraws the same aggregate cargo as `withdraw_delivery_cargo` while also
+/// reporting the commodity that contributed the largest amount of need value.
+/// This preserves existing mixed-refill behavior without losing UI provenance.
+pub fn withdraw_delivery_cargo_with_source(
+    building: &mut Building,
+    kind: ResidenceNeedKind,
+    amount: f64,
+) -> (f64, Option<CommodityKind>) {
+    const FIREWOOD_SOURCES: [CommodityKind; 2] =
+        [CommodityKind::Charcoal, CommodityKind::Firewood];
+    const WATER_SOURCES: [CommodityKind; 1] = [CommodityKind::Water];
+    const FOOD_SOURCES: [CommodityKind; 0] = [];
+    const BEVERAGE_SOURCES: [CommodityKind; 4] = [
+        CommodityKind::Cider,
+        CommodityKind::PearCider,
+        CommodityKind::Ale,
+        CommodityKind::Mead,
+    ];
+    const CLOTH_SOURCES: [CommodityKind; 1] = [CommodityKind::Cloth];
+    const SHOES_SOURCES: [CommodityKind; 1] = [CommodityKind::Shoes];
+    const POTTERY_SOURCES: [CommodityKind; 1] = [CommodityKind::Pottery];
+    const LUXURY_SOURCES: [CommodityKind; 3] = [
+        CommodityKind::Candles,
+        CommodityKind::Wine,
+        CommodityKind::Honey,
+    ];
+
+    let candidates: &[CommodityKind] = match kind {
+        ResidenceNeedKind::Firewood => &FIREWOOD_SOURCES,
+        ResidenceNeedKind::Water => &WATER_SOURCES,
+        ResidenceNeedKind::Ale => &BEVERAGE_SOURCES,
+        ResidenceNeedKind::Cloth => &CLOTH_SOURCES,
+        ResidenceNeedKind::Shoes => &SHOES_SOURCES,
+        ResidenceNeedKind::Pottery => &POTTERY_SOURCES,
+        ResidenceNeedKind::Luxury => &LUXURY_SOURCES,
+        ResidenceNeedKind::Food
+        | ResidenceNeedKind::PreservedFood
+        | ResidenceNeedKind::Church
+        | ResidenceNeedKind::FoodVariety => &FOOD_SOURCES,
+    };
+    let before = building.clone();
+    let delivered = withdraw_delivery_cargo(building, kind, amount);
+    let mut primary = None;
+    let mut primary_value = 0.0;
+    for commodity in candidates {
+        let withdrawn = (building_commodity_stock(&before, *commodity)
+            - building_commodity_stock(building, *commodity))
+        .max(0.0);
+        let need_value = withdrawn * delivery_commodity_need_value(kind, *commodity);
+        if need_value > primary_value + 1e-9 {
+            primary = Some(*commodity);
+            primary_value = need_value;
+        }
+    }
+    (delivered, primary)
+}
+
+/// Maps an exact cart commodity back to the household need it fulfills. This
+/// must be explicit because commodity ids overlap later residence-need ids.
+pub fn residence_need_for_delivery_commodity(
+    commodity: CommodityKind,
+) -> Option<ResidenceNeedKind> {
+    match commodity {
+        CommodityKind::Firewood | CommodityKind::Charcoal => Some(ResidenceNeedKind::Firewood),
+        CommodityKind::Water => Some(ResidenceNeedKind::Water),
+        CommodityKind::Ale
+        | CommodityKind::Cider
+        | CommodityKind::PearCider
+        | CommodityKind::Mead => Some(ResidenceNeedKind::Ale),
+        CommodityKind::Cloth => Some(ResidenceNeedKind::Cloth),
+        CommodityKind::Shoes => Some(ResidenceNeedKind::Shoes),
+        CommodityKind::Pottery => Some(ResidenceNeedKind::Pottery),
+        CommodityKind::Candles | CommodityKind::Wine => Some(ResidenceNeedKind::Luxury),
+        _ => None,
+    }
+}
+
 /// Select one physical provision for a cart. Fast-spoiling foods leave first;
 /// durable and legacy mixed stores remain the fallback. A cart carries one
 /// traceable commodity even though every edible type satisfies the Food need.

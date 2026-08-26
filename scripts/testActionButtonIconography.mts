@@ -512,8 +512,18 @@ assert.match(
 );
 assert.match(
   compactNonButtonTooltipBlock,
+  /classList\.contains\('resource-cost__item'\)[\s\S]{0,360}querySelector<HTMLElement>\('\.resource-cost__value'\)[\s\S]{0,360}delete element\.dataset\.tooltipTitle[\s\S]{0,220}\.join\(' '\)/,
+  'inline resource costs should flatten their amount and resource name into one tooltip line',
+);
+assert.match(
+  compactNonButtonTooltipBlock,
   /element\.removeAttribute\('title'\)[\s\S]{0,100}syncInspectorTooltip\(element, title, detail\)/,
   'other non-button controls should move capped native titles into the shared tooltip',
+);
+assert.match(
+  resourceInspector,
+  /const supplementalPanelChanged = !preservePolicyState[\s\S]{0,180}renderedSupplementalPanelHtml !== view\.supplementalPanelHtml[\s\S]{0,180}if \(supplementalPanelChanged\)[\s\S]{0,180}standardizeSupplementalPanels\(\)/,
+  'unchanged inspector action cards must retain their DOM nodes across live state refreshes',
 );
 assert.match(backyardCss, /\.resource-inspector-demolish\[hidden\]\s*\{\s*display:\s*none/);
 assert.match(

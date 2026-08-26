@@ -419,6 +419,16 @@ type BackyardSwayBinding = {
   tilt: number;
 };
 
+export const BACKYARD_GROUND_SOIL_LIFT = 0.025;
+export const BACKYARD_GROUND_SOIL_SAMPLE_SPACING = 0.55;
+
+type BackyardTerrainSurfaceDiagnostics = {
+  sampleCount: number;
+  minWorldHeight: number;
+  maxWorldHeight: number;
+  lift: number;
+};
+
 function addMesh(
   parent: THREE.Object3D,
   geometry: THREE.BufferGeometry,
@@ -684,10 +694,15 @@ function addSoilBed(
     soilName = 'Textured garden soil bed',
   } = options;
   const groundLevel = profile === 'ground-level';
-  addMesh(
+  const soil = addMesh(
     group,
     groundLevel
-      ? new THREE.PlaneGeometry(width, depth)
+      ? new THREE.PlaneGeometry(
+          width,
+          depth,
+          Math.max(1, Math.ceil(width / BACKYARD_GROUND_SOIL_SAMPLE_SPACING)),
+          Math.max(1, Math.ceil(depth / BACKYARD_GROUND_SOIL_SAMPLE_SPACING)),
+        )
       : new THREE.BoxGeometry(width, 0.1, depth),
     soilMaterial,
     x,
@@ -697,6 +712,7 @@ function addSoilBed(
     undefined,
     soilName,
   );
+  if (groundLevel) soil.userData.backyardTerrainSurface = true;
   if (!bordered) return;
   const rail = 0.11;
   const sideRailDepth = Math.max(rail, depth - rail);
@@ -704,6 +720,69 @@ function addSoilBed(
   addMesh(group, new THREE.BoxGeometry(width + rail, 0.18, rail), MATERIALS.timber, x, 0.1, z + depth * 0.5, undefined, undefined, 'Garden bed end rail');
   addMesh(group, new THREE.BoxGeometry(rail, 0.18, sideRailDepth), MATERIALS.timber, x - width * 0.5, 0.1, z, undefined, undefined, 'Garden bed side rail');
   addMesh(group, new THREE.BoxGeometry(rail, 0.18, sideRailDepth), MATERIALS.timber, x + width * 0.5, 0.1, z, undefined, undefined, 'Garden bed side rail');
+}
+
+/**
+ * Warps only flush soil patches onto the rendered terrain. The source plane's
+ * local Z axis becomes world-up after its -90 degree X rotation, so changing
+ * that coordinate preserves the authored footprint and UVs while following
+ * hills and small heightfield undulations.
+ */
+export function conformBackyardGroundSoilToTerrain(
+  garden: THREE.Group,
+  getHeightAt: (x: number, z: number) => number,
+  lift = BACKYARD_GROUND_SOIL_LIFT,
+): BackyardTerrainSurfaceDiagnostics[] {
+  const diagnostics: BackyardTerrainSurfaceDiagnostics[] = [];
+  const worldSurfacePoint = new THREE.Vector3();
+  const worldVerticalPoint = new THREE.Vector3();
+  garden.updateWorldMatrix(true, true);
+
+  garden.traverse((object) => {
+    const soil = object as THREE.Mesh<THREE.BufferGeometry>;
+    if (!soil.isMesh || soil.userData.backyardTerrainSurface !== true) return;
+    const positions = soil.geometry.getAttribute('position') as THREE.BufferAttribute | undefined;
+    if (!positions) return;
+
+    soil.updateWorldMatrix(true, false);
+    let minWorldHeight = Number.POSITIVE_INFINITY;
+    let maxWorldHeight = Number.NEGATIVE_INFINITY;
+    for (let index = 0; index < positions.count; index++) {
+      const localX = positions.getX(index);
+      const localY = positions.getY(index);
+      worldSurfacePoint.set(localX, localY, 0);
+      soil.localToWorld(worldSurfacePoint);
+      worldVerticalPoint.set(localX, localY, 1);
+      soil.localToWorld(worldVerticalPoint);
+      const worldUnitsPerLocalZ = worldVerticalPoint.y - worldSurfacePoint.y;
+      if (Math.abs(worldUnitsPerLocalZ) <= 1e-6) continue;
+
+      const terrainHeight = getHeightAt(worldSurfacePoint.x, worldSurfacePoint.z);
+      const targetWorldHeight = terrainHeight + lift;
+      positions.setZ(
+        index,
+        (targetWorldHeight - worldSurfacePoint.y) / worldUnitsPerLocalZ,
+      );
+      minWorldHeight = Math.min(minWorldHeight, targetWorldHeight);
+      maxWorldHeight = Math.max(maxWorldHeight, targetWorldHeight);
+    }
+
+    positions.needsUpdate = true;
+    soil.geometry.computeVertexNormals();
+    soil.geometry.computeBoundingBox();
+    soil.geometry.computeBoundingSphere();
+    const surfaceDiagnostics: BackyardTerrainSurfaceDiagnostics = {
+      sampleCount: positions.count,
+      minWorldHeight,
+      maxWorldHeight,
+      lift,
+    };
+    soil.userData.backyardTerrainConformance = surfaceDiagnostics;
+    diagnostics.push(surfaceDiagnostics);
+  });
+
+  garden.userData.backyardTerrainSurfaceCount = diagnostics.length;
+  return diagnostics;
 }
 
 function addSteppingStones(

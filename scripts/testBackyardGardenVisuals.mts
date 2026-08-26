@@ -4,6 +4,9 @@ import { join } from 'node:path';
 import * as THREE from 'three';
 import {
   animateBackyardGardenMesh,
+  BACKYARD_GROUND_SOIL_LIFT,
+  BACKYARD_GROUND_SOIL_SAMPLE_SPACING,
+  conformBackyardGroundSoilToTerrain,
   createBackyardGardenMesh,
   disposeBackyardGardenMesh,
   syncBackyardGardenSeasonVisuals,
@@ -210,6 +213,17 @@ for (const kind of kinds) {
         bed.position.y <= 0.01,
         `${kind} soil should sit flush with the backyard terrain`,
       );
+      const parameters = bed.geometry.parameters as {
+        width?: number;
+        height?: number;
+        widthSegments?: number;
+        heightSegments?: number;
+      };
+      assert.ok(
+        Number(parameters.widthSegments) >= Math.ceil(Number(parameters.width) / BACKYARD_GROUND_SOIL_SAMPLE_SPACING)
+          && Number(parameters.heightSegments) >= Math.ceil(Number(parameters.height) / BACKYARD_GROUND_SOIL_SAMPLE_SPACING),
+        `${kind} soil should have enough vertices to follow terrain undulations`,
+      );
     }
   }
   for (let first = 0; first < bedRails.length; first++) {
@@ -264,6 +278,38 @@ for (const kind of kinds) {
 
   disposeBackyardGardenMesh(garden);
 }
+
+const terrainConformingGarden = createBackyardGardenMesh('vegetable_garden', {
+  width: 6.2,
+  depth: 5.4,
+  seed: 4271,
+});
+terrainConformingGarden.position.set(13.5, 2.75, -8.25);
+terrainConformingGarden.rotation.y = 0.41;
+const testTerrainHeight = (x: number, z: number): number => (
+  1.4 + x * 0.075 - z * 0.045 + Math.sin(x * 0.7) * 0.08
+);
+const terrainDiagnostics = conformBackyardGroundSoilToTerrain(
+  terrainConformingGarden,
+  testTerrainHeight,
+);
+assert.equal(terrainDiagnostics.length, 3, 'all three vegetable soil strips should conform to terrain');
+terrainConformingGarden.updateWorldMatrix(true, true);
+terrainConformingGarden.traverse((object) => {
+  const mesh = object as THREE.Mesh<THREE.BufferGeometry>;
+  if (!mesh.isMesh || mesh.userData.backyardTerrainSurface !== true) return;
+  const positions = mesh.geometry.getAttribute('position') as THREE.BufferAttribute;
+  const point = new THREE.Vector3();
+  for (let index = 0; index < positions.count; index++) {
+    point.fromBufferAttribute(positions, index);
+    mesh.localToWorld(point);
+    assert.ok(
+      Math.abs(point.y - (testTerrainHeight(point.x, point.z) + BACKYARD_GROUND_SOIL_LIFT)) < 1e-5,
+      'every soil vertex should sit at the sampled terrain height plus the anti-z-fighting lift',
+    );
+  }
+});
+disposeBackyardGardenMesh(terrainConformingGarden);
 
 const shallow = createBackyardGardenMesh('apple_orchard', { width: 4.4, depth: 2.1, seed: 99 });
 const shallowTrees: THREE.Object3D[] = [];

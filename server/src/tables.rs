@@ -2095,4 +2095,8 @@ pub struct ResidenceNeed {
     pub need_kind: u8,
     pub stock: f64,
     pub deficit_ticks: u32,
+    /// Exact commodity used by the latest refill, or a reserved household-source code.
+    /// This is display provenance only; stock remains the authoritative need balance.
+    #[default(65535u16)]
+    pub source_kind: u16,
 }

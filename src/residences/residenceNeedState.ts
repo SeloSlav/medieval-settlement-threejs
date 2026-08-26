@@ -95,6 +95,8 @@ export const RESIDENCE_NEED_KIND_IDS: Record<ResidenceNeedKind, number> = {
 export type ResidenceNeedRecord = {
   stock: number;
   deficitTicks: number;
+  /** Exact latest refill commodity, or a reserved household-source code. */
+  sourceKind?: number | null;
 };
 
 export type ResidenceNeedsState = Record<ResidenceNeedKind, ResidenceNeedRecord>;
@@ -145,17 +147,17 @@ export type ResidenceNeedsStatus = {
 
 export function createDefaultNeeds(): ResidenceNeedsState {
   return {
-    firewood: { stock: 0, deficitTicks: 0 },
-    water: { stock: 0, deficitTicks: 0 },
-    food: { stock: 0, deficitTicks: 0 },
-    ale: { stock: 0, deficitTicks: 0 },
-    preservedFood: { stock: 0, deficitTicks: 0 },
-    cloth: { stock: 0, deficitTicks: 0 },
-    shoes: { stock: 0, deficitTicks: 0 },
-    pottery: { stock: 0, deficitTicks: 0 },
-    church: { stock: 0, deficitTicks: 0 },
-    foodVariety: { stock: 0, deficitTicks: 0 },
-    luxury: { stock: 0, deficitTicks: 0 },
+    firewood: { stock: 0, deficitTicks: 0, sourceKind: null },
+    water: { stock: 0, deficitTicks: 0, sourceKind: null },
+    food: { stock: 0, deficitTicks: 0, sourceKind: null },
+    ale: { stock: 0, deficitTicks: 0, sourceKind: null },
+    preservedFood: { stock: 0, deficitTicks: 0, sourceKind: null },
+    cloth: { stock: 0, deficitTicks: 0, sourceKind: null },
+    shoes: { stock: 0, deficitTicks: 0, sourceKind: null },
+    pottery: { stock: 0, deficitTicks: 0, sourceKind: null },
+    church: { stock: 0, deficitTicks: 0, sourceKind: null },
+    foodVariety: { stock: 0, deficitTicks: 0, sourceKind: null },
+    luxury: { stock: 0, deficitTicks: 0, sourceKind: null },
   };
 }
 
@@ -192,7 +194,7 @@ export function getNeed(
   needs: ResidenceNeedsState,
   kind: ResidenceNeedKind,
 ): ResidenceNeedRecord {
-  return needs[kind] ?? { stock: 0, deficitTicks: 0 };
+  return needs[kind] ?? { stock: 0, deficitTicks: 0, sourceKind: null };
 }
 
 export function getNeedStock(needs: ResidenceNeedsState, kind: ResidenceNeedKind): number {
@@ -227,13 +229,14 @@ export function hasNeedStockRoom(stock: number, capacity: number): boolean {
 export function mergeNeedRow(
   needs: ResidenceNeedsState,
   kind: ResidenceNeedKind,
-  row: { stock: number; deficitTicks: number },
+  row: { stock: number; deficitTicks: number; sourceKind?: number | null },
 ): ResidenceNeedsState {
   return {
     ...needs,
     [kind]: {
       stock: row.stock,
       deficitTicks: row.deficitTicks,
+      sourceKind: row.sourceKind ?? null,
     },
   };
 }

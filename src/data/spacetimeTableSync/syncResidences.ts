@@ -14,12 +14,15 @@ function buildNeedsByResidence(rows: Iterable<ResidenceNeed>): Map<string, Resid
     const kind = needKindFromId(Number(row.needKind));
     if (!kind) continue;
     const residenceId = residenceClientId(row.residenceId);
+    const sourceRow = row as ResidenceNeed & Partial<{ sourceKind: number }>;
+    const sourceKind = Number(sourceRow.sourceKind ?? 65535);
     const needs = needsByResidence.get(residenceId) ?? createDefaultNeeds();
     needsByResidence.set(
       residenceId,
       mergeNeedRow(needs, kind, {
         stock: wholeResourceUnits(row.stock),
         deficitTicks: Number(row.deficitTicks),
+        sourceKind: sourceKind < 65535 ? sourceKind : null,
       }),
     );
   }

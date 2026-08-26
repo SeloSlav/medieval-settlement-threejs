@@ -7,11 +7,15 @@ use crate::resource_units::whole_units;
 use crate::simulation::residence_needs::kinds::ResidenceNeedKind;
 use crate::tables::{Residence, ResidenceNeed};
 
+pub const NEED_SOURCE_FLOWER_LUXURY: u16 = u16::MAX - 1;
+pub const NEED_SOURCE_NONE: u16 = u16::MAX;
+
 #[derive(Clone, Copy, Debug)]
 pub struct NeedState {
     pub kind: ResidenceNeedKind,
     pub stock: f64,
     pub deficit_ticks: u32,
+    pub source_kind: u16,
 }
 
 impl NeedState {
@@ -20,6 +24,7 @@ impl NeedState {
             kind,
             stock: 0.0,
             deficit_ticks: 0,
+            source_kind: NEED_SOURCE_NONE,
         }
     }
 }
@@ -35,6 +40,7 @@ pub fn load_needs(ctx: &ReducerContext, residence_id: u64) -> Vec<NeedState> {
                 kind,
                 stock: whole_units(row.stock),
                 deficit_ticks: row.deficit_ticks,
+                source_kind: row.source_kind,
             })
         })
         .collect();
@@ -98,6 +104,7 @@ pub fn persist_need(ctx: &ReducerContext, residence_id: u64, need: &NeedState) {
         ctx.db.residence_need().id().update(ResidenceNeed {
             stock,
             deficit_ticks: need.deficit_ticks,
+            source_kind: need.source_kind,
             ..existing
         });
         return;
@@ -109,6 +116,7 @@ pub fn persist_need(ctx: &ReducerContext, residence_id: u64, need: &NeedState) {
         need_kind: need.kind.as_u8(),
         stock,
         deficit_ticks: need.deficit_ticks,
+        source_kind: need.source_kind,
     });
 }
 

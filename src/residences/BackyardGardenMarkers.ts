@@ -24,6 +24,7 @@ import {
 } from './backyardPigAssets.ts';
 import {
   animateBackyardGardenMesh,
+  conformBackyardGroundSoilToTerrain,
   createBackyardGardenMesh,
   disposeBackyardGardenMesh,
   syncBackyardGardenSeasonVisuals,
@@ -269,6 +270,16 @@ export class BackyardGardenMarkers {
       marker.userData.firstHarvestDay = garden.firstHarvestDay;
       marker.position.set(placement.x, y, placement.z);
       marker.rotation.y = placement.yaw;
+      const terrainConformanceKey = [
+        placement.x.toFixed(3),
+        y.toFixed(3),
+        placement.z.toFixed(3),
+        placement.yaw.toFixed(4),
+      ].join(':');
+      if (marker.userData.terrainConformanceKey !== terrainConformanceKey) {
+        conformBackyardGroundSoilToTerrain(marker, input.getHeightAt);
+        marker.userData.terrainConformanceKey = terrainConformanceKey;
+      }
       syncBackyardGardenSeasonVisuals(
         marker,
         garden.kind,
