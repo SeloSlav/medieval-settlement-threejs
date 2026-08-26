@@ -59,8 +59,7 @@ import {
   type SelectedAgentRoutePoint,
   updateSelectedAgentRoute,
 } from '../scene/SelectedAgentRoute.ts';
-
-const DISPLAY_BLEND_RATE = 14;
+import { advanceDeliveryDisplayProgress } from './deliveryPresentationMotion.ts';
 
 type TripVisual = {
   mesh: THREE.Group;
@@ -241,16 +240,14 @@ export class DeliveryAgentRenderer {
         onRoadSurface,
         DELIVERY_ROAD_SPEED_MULTIPLIER,
       ) * gameSpeed * SIM_REALTIME_RATE;
-      if (visual.phase !== 'unloading') {
-        visual.displayProgress += effectiveTravelSpeed * dt;
-        const maxLead = Math.max(0.6, effectiveTravelSpeed * 0.35);
-        if (visual.displayProgress > visual.serverProgress + maxLead) {
-          visual.displayProgress = visual.serverProgress + maxLead;
-        }
-      }
-
-      const blend = 1 - Math.exp(-dt * DISPLAY_BLEND_RATE);
-      visual.displayProgress += (visual.serverProgress - visual.displayProgress) * blend;
+      visual.displayProgress = advanceDeliveryDisplayProgress({
+        displayProgress: visual.displayProgress,
+        serverProgress: visual.serverProgress,
+        pathDistance: visual.pathDistance,
+        phase: visual.phase,
+        effectiveTravelSpeed,
+        deltaSeconds: dt,
+      });
 
       let x = visual.serverX;
       let z = visual.serverZ;

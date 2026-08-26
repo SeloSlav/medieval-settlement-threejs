@@ -516,17 +516,17 @@ function buildGrassBlendNodes(
       .add((sub(float(1) as TslNode, densePatch) as TslNode).mul(float(0.1) as TslNode)) as TslNode,
   ) as TslNode;
   const overviewLightWeight = w.x
-    .mul(float(0.75) as TslNode)
-    .add(lightOverlap.mul(float(0.35) as TslNode))
-    .add(float(0.04) as TslNode) as TslNode;
+    .mul(float(1) as TslNode)
+    .add(lightOverlap.mul(float(0.22) as TslNode))
+    .add(float(0.02) as TslNode) as TslNode;
   const overviewDarkWeight = w.y
-    .mul(float(0.68) as TslNode)
-    .add(darkOverlap.mul(float(0.32) as TslNode))
-    .add(float(0.025) as TslNode) as TslNode;
+    .mul(float(0.9) as TslNode)
+    .add(darkOverlap.mul(float(0.2) as TslNode))
+    .add(float(0.015) as TslNode) as TslNode;
   const overviewDryWeight = w.z
-    .mul(float(0.62) as TslNode)
-    .add(dryOverlap.mul(float(0.3) as TslNode))
-    .add(float(0.025) as TslNode) as TslNode;
+    .mul(float(0.85) as TslNode)
+    .add(dryOverlap.mul(float(0.18) as TslNode))
+    .add(float(0.015) as TslNode) as TslNode;
   const overviewWeightSum = max(
     overviewLightWeight.add(overviewDarkWeight).add(overviewDryWeight),
     float(0.0001) as TslNode,
