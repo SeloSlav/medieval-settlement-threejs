@@ -33,6 +33,8 @@ export type FpCollisionWorldConfig = {
   getTreeStateVersion?: () => unknown;
   getTreeActivityVersion?: () => unknown;
   isTreeLayoutActive?: (layoutIndex: number) => boolean;
+  /** Extra non-mesh hazards used by crowd routing, such as open water. */
+  isAgentNavigationBlocked?: (x: number, z: number, radius: number) => boolean;
 };
 
 export type FpBoxCollider = {
@@ -126,7 +128,8 @@ export class FpCollisionWorld {
     if (this.staticDirty) this.rebuildStaticIndex();
     return routeAgentPolyline(
       path,
-      (x, z) => this.staticIndex.diskOverlaps(x, z, radius),
+      (x, z) => this.staticIndex.diskOverlaps(x, z, radius)
+        || this.config.isAgentNavigationBlocked?.(x, z, radius) === true,
     );
   }
 

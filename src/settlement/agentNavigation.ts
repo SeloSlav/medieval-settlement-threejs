@@ -31,6 +31,30 @@ type SearchNode = GridPoint & {
 export type AgentObstacleTest = (x: number, z: number) => boolean;
 
 /**
+ * Conservative footprint probe for non-solid navigation hazards such as water.
+ * The center plus an eight-point ring prevents an agent whose center is still
+ * on the bank from hanging part of its body over a forbidden surface.
+ */
+export function agentDiskTouchesSurface(
+  x: number,
+  z: number,
+  radius: number,
+  isSurfaceAt: AgentObstacleTest,
+): boolean {
+  if (isSurfaceAt(x, z)) return true;
+  if (!Number.isFinite(radius) || radius <= 1e-6) return false;
+  const diagonal = radius * Math.SQRT1_2;
+  return isSurfaceAt(x + radius, z)
+    || isSurfaceAt(x - radius, z)
+    || isSurfaceAt(x, z + radius)
+    || isSurfaceAt(x, z - radius)
+    || isSurfaceAt(x + diagonal, z + diagonal)
+    || isSurfaceAt(x + diagonal, z - diagonal)
+    || isSurfaceAt(x - diagonal, z + diagonal)
+    || isSurfaceAt(x - diagonal, z - diagonal);
+}
+
+/**
  * Detours a polyline around static obstacles. Clear waypoints are preserved
  * exactly for worker activity stops; any waypoint inside a collider is moved
  * to the nearest reachable grid point so an agent never walks into the mesh.

@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { FpCollisionWorld } from '../src/camera/fp/fpCollisionWorld.ts';
+import { agentDiskTouchesSurface } from '../src/settlement/agentNavigation.ts';
 import { PastureMarkers } from '../src/farming/PastureMarkers.ts';
 import {
   createFpLocomotionState,
@@ -445,6 +446,15 @@ function resolveAt(
   const bridgeCollisionWorld = new FpCollisionWorld({
     getStaticRoots: () => [roadCollisionRoot],
     getHeightAt: () => 0,
+    isAgentNavigationBlocked: (x, z, radius) => {
+      if (sampleRoadSurfaceY(bridgeNetwork.edges.values(), x, z) != null) return false;
+      return agentDiskTouchesSurface(
+        x,
+        z,
+        radius,
+        (probeX) => Math.abs(probeX) <= 4.5,
+      );
+    },
   });
   bridgeCollisionWorld.prepare(collisionRailPosition.x, collisionRailPosition.z);
   const collisionDeckY = collisionRailPosition.y - 0.43;
@@ -509,6 +519,32 @@ function resolveAt(
     point.y > 0.15 && point.y < deckY - 0.15
   );
   assert.ok(rampPoint, 'bridge approaches should expose a continuous elevated walking ramp');
+
+  const agentBridgeRoute = bridgeCollisionWorld.routeAgentPath([
+    { x: -12, z: 3.6 },
+    { x: 12, z: 3.6 },
+  ]);
+  assert.ok(
+    agentBridgeRoute && agentBridgeRoute.some((point) => Math.abs(point.z) < 1.6),
+    'civilian navigation should detour from open water onto the bridge opening',
+  );
+  for (let index = 0; index < (agentBridgeRoute?.length ?? 0) - 1; index += 1) {
+    const start = agentBridgeRoute![index];
+    const end = agentBridgeRoute![index + 1];
+    const distance = Math.hypot(end.x - start.x, end.z - start.z);
+    const samples = Math.max(1, Math.ceil(distance / 0.18));
+    for (let sampleIndex = 0; sampleIndex <= samples; sampleIndex += 1) {
+      const t = sampleIndex / samples;
+      const x = start.x + (end.x - start.x) * t;
+      const z = start.z + (end.z - start.z) * t;
+      const onDeck = sampleRoadSurfaceY(bridgeNetwork.edges.values(), x, z) != null;
+      assert.equal(
+        !onDeck && agentDiskTouchesSurface(x, z, 0.28, (probeX) => Math.abs(probeX) <= 4.5),
+        false,
+        'civilian bridge routes must never sample open water beside the deck',
+      );
+    }
+  }
 
   const authoritativeSnapshot = bridgeNetwork.snapshot();
   bridgeNetwork.restore(authoritativeSnapshot);

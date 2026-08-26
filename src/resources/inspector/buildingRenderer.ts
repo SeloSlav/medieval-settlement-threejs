@@ -138,9 +138,11 @@ export function renderBuildingInspector(
     }
     }
   })();
-  const storageView = building.kind === 'marketplace'
-    ? view
-    : withBuildingLocalStorage(view, building);
+  const summaryView: InspectorView = {
+    ...view,
+    detailsHtml: '',
+  };
+  const storageView = withBuildingLocalStorage(summaryView, building);
   const safeView = withBuildingFireSafety(
     storageView,
     building,

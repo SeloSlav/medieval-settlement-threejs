@@ -92,7 +92,6 @@ import { AlertDialog } from '../ui/AlertDialog.ts';
 import { hasCustomTreeWorkArea } from './treeWorkArea.ts';
 import { resourceNodeArtUrl } from './resourceNodeArt.ts';
 
-const BUILDING_SUMMARY_LIMIT = 4;
 const INSPECTOR_TOOLTIP_MAX_LENGTH = 120;
 
 type ResourceInspectorOptions = {
@@ -2651,37 +2650,10 @@ export class ResourceInspector {
       return;
     }
     if (this.panel.dataset.inspectorTarget === 'building') {
-      const compactRankedRows = ranked
-        .filter(({ row }) => !row.hasAttribute('data-inspector-secondary'))
-        .sort((a, b) => {
-          const aPriority = a.score
-            + (a.row.hasAttribute('data-inspector-primary') ? 48 : 0)
-            + (a.row.dataset.state === 'warning' ? 96 : 0);
-          const bPriority = b.score
-            + (b.row.hasAttribute('data-inspector-primary') ? 48 : 0)
-            + (b.row.dataset.state === 'warning' ? 96 : 0);
-          return bPriority - aPriority || a.index - b.index;
-        })
-        .slice(0, BUILDING_SUMMARY_LIMIT);
-      const compactRowSet = new Set(compactRankedRows.map(({ row }) => row));
-      const omittedPrimaryDetails = ranked
+      const compactRows = ranked
         .filter(({ row }) =>
-          row.hasAttribute('data-inspector-primary')
-          && !compactRowSet.has(row))
-        .map(({ label, value }) => {
-          return label && value ? `${label}: ${value}` : '';
-        })
-        .filter(Boolean)
-        .join(' · ');
-      if (omittedPrimaryDetails) {
-        appendFocusableInspectorTooltip(
-          this.status,
-          this.title.textContent?.trim() || 'Building status',
-          `Additional at-a-glance details: ${omittedPrimaryDetails}`,
-        );
-      }
-      const compactRows = compactRankedRows
-        .sort((a, b) => a.index - b.index)
+          row.hasAttribute('data-local-storage')
+          || row.hasAttribute('data-fire-safety'))
         .map(({ row }) => row);
       this.detailList.replaceChildren(...withInspectorSectionHeadings(compactRows));
       return;

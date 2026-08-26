@@ -56,6 +56,8 @@ const storageAcceptancePolicy = readFileSync('src/economy/storageAcceptancePolic
 const inspectorResourceTokens = readFileSync('src/resources/inspector/inspectorResourceTokens.ts', 'utf8');
 const supplementalPanel = readFileSync('src/resources/inspector/supplementalPanel.ts', 'utf8');
 const resourceInspector = readFileSync('src/resources/ResourceInspector.ts', 'utf8');
+const buildingRenderer = readFileSync('src/resources/inspector/buildingRenderer.ts', 'utf8');
+const fireSafetyRenderer = readFileSync('src/resources/inspector/fireSafetyRenderer.ts', 'utf8');
 const tooltipSource = readFileSync('src/ui/tooltips.ts', 'utf8');
 const readabilityCss = readFileSync('src/ui/readability.css', 'utf8');
 const alertDialog = readFileSync('src/ui/AlertDialog.ts', 'utf8');
@@ -426,16 +428,26 @@ assert.match(
   /row\.hasAttribute\('data-residence-summary'\)[\s\S]{0,260}this\.panel\.dataset\.inspectorTarget === 'residence'[\s\S]{0,180}replaceChildren/,
   'the residence inspector should display only explicitly compact summary rows',
 );
-assert.match(resourceInspector, /const BUILDING_SUMMARY_LIMIT = 4/);
+assert.doesNotMatch(resourceInspector, /BUILDING_SUMMARY_LIMIT/);
 assert.match(
   resourceInspector,
-  /this\.panel\.dataset\.inspectorTarget === 'building'[\s\S]{0,1200}\.slice\(0, BUILDING_SUMMARY_LIMIT\);[\s\S]{0,1800}replaceChildren/,
-  'every building inspector should have a hard four-card summary cap',
+  /this\.panel\.dataset\.inspectorTarget === 'building'[\s\S]{0,500}data-local-storage[\s\S]{0,160}data-fire-safety[\s\S]{0,300}replaceChildren/,
+  'every building inspector should display only Local Storage and Fire Safety cards',
+);
+assert.doesNotMatch(
+  resourceInspector,
+  /omittedPrimaryDetails|Additional at-a-glance details/,
+  'discarded building details should not be moved into another tooltip',
 );
 assert.match(
-  resourceInspector,
-  /omittedPrimaryDetails[\s\S]{0,900}appendFocusableInspectorTooltip/,
-  'primary details beyond the visible cap should remain keyboard-accessible',
+  buildingRenderer,
+  /const summaryView:[\s\S]{0,180}detailsHtml: ''[\s\S]{0,180}withBuildingLocalStorage\(summaryView[\s\S]{0,180}withBuildingFireSafety/,
+  'building-specific detail rows must be discarded before the two shared cards are added',
+);
+assert.equal(
+  (fireSafetyRenderer.match(/data-fire-safety/g) ?? []).length,
+  2,
+  'both fireproof and combustible buildings must mark the shared Fire Safety card',
 );
 const compactDemolitionBlock = resourceInspector.match(
   /const compactDemolition =[\s\S]*?;/,

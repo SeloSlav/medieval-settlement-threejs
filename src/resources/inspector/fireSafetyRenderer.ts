@@ -39,7 +39,7 @@ export function withBuildingFireSafety(
     return {
       ...view,
       detailsHtml: `${view.detailsHtml}
-        <li data-inspector-primary data-inspector-detail="This structure cannot ignite, so fire-response well coverage is not required."><span>Fire safety</span><span>Fire-safe · no well required</span></li>`,
+        <li data-inspector-primary data-fire-safety data-inspector-detail="This structure cannot ignite, so fire-response well coverage is not required."><span>Fire safety</span><span>Fire-safe · no well required</span></li>`,
     };
   }
 
@@ -74,7 +74,7 @@ export function withBuildingFireSafety(
   return {
     ...view,
     detailsHtml: `${view.detailsHtml}
-      <li data-inspector-primary data-inspector-detail="${safetyHelp}"><span>Fire safety</span><span>${riskDetail} · ${responseDetail}</span></li>
+      <li data-inspector-primary data-fire-safety data-inspector-detail="${safetyHelp}"><span>Fire safety</span><span>${riskDetail} · ${responseDetail}</span></li>
       <li data-inspector-secondary data-inspector-detail="${exposureHelp}"><span>Spread exposure</span><span>${exposureDetail}</span></li>`,
   };
 }
