@@ -1,12 +1,9 @@
 import * as THREE from 'three';
 
-/**
- * Bilberry reads as a knee-to-waist shrub layer: clearly above grass tufts,
- * well below tree trunks and juniper scrub.
- */
+/** Bilberry stays a low 0.3-0.75 m field layer but can form broad dense patches. */
 export function sampleBilberryBushScale(density: number, rng: () => number): number {
-  const densityMul = THREE.MathUtils.lerp(1.04, 1.18, density) * 1.18;
-  return THREE.MathUtils.lerp(0.9, 1.42, Math.pow(rng(), 0.74)) * densityMul;
+  const densityMul = THREE.MathUtils.lerp(0.92, 1.04, density);
+  return THREE.MathUtils.lerp(0.58, 1.02, Math.pow(rng(), 0.82)) * densityMul;
 }
 
 export function sampleBerryPatchClumpScale(rng: () => number): number {

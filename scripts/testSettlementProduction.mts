@@ -1329,7 +1329,7 @@ const farmState = emptyGameState();
 const shortFarm = building('short-farm', 'threshing_barn', 1);
 const stockedFarm = building('stocked-farm', 'threshing_barn', 6);
 stockedFarm.ryeGrain = 100;
-stockedFarm.ironwork = 0.5;
+stockedFarm.ironwork = CIVILIAN_TOOL_IRONWORK_PER_CYCLE;
 farmState.buildings.set(shortFarm.id, shortFarm);
 farmState.buildings.set(stockedFarm.id, stockedFarm);
 farmState.farmFields.set(
@@ -1418,7 +1418,7 @@ grainState.deliveryTrips.set(
 );
 grainState.deliveryTrips.set(
   'fodder-trip',
-  deliveryTrip('fodder-trip', fodderHolding.id, 4, 'unloading'),
+  deliveryTrip('fodder-trip', fodderHolding.id, 4, 'unloading', 'oatGrain'),
 );
 grainState.deliveryTrips.set(
   'reserve-trip',
@@ -1497,7 +1497,7 @@ assert.equal(fodderAttention.firstAttentionBuildingId, fodderHolding.id);
 
 grainState.deliveryTrips.set(
   'fodder-trip',
-  deliveryTrip('fodder-trip', fodderHolding.id, 9, 'unloading'),
+  deliveryTrip('fodder-trip', fodderHolding.id, 9, 'unloading', 'oatGrain'),
 );
 const reserveAttention = computeSettlementGrainPlan(grainPlanInput);
 assert.equal(reserveAttention.firstAttentionKind, 'granary-reserve');
@@ -1556,7 +1556,11 @@ const roadGrainInput = {
   roadComponentFor: roadGrainComponent,
 };
 const splitRoadGrainPlan = computeSettlementGrainPlan(roadGrainInput);
-approx(splitRoadGrainPlan.processorRunwayDays, 3);
+approx(
+  splitRoadGrainPlan.processorRunwayDays,
+  splitRoadGrainPlan.discretionaryStock
+    / splitRoadGrainPlan.processorGrainPerDay,
+);
 assert.equal(splitRoadGrainPlan.roadPlan?.activeBranches, 2);
 assert.equal(splitRoadGrainPlan.roadPlan?.drawingBranches, 1);
 assert.equal(splitRoadGrainPlan.roadPlan?.stockedDrawingBranches, 1);
@@ -1568,7 +1572,10 @@ approx(
 approx(splitRoadGrainPlan.roadPlan?.dispatchableSourceStock ?? -1, 90);
 approx(splitRoadGrainPlan.roadPlan?.matchedSourceStock ?? -1, 10);
 approx(splitRoadGrainPlan.roadPlan?.outsideProcessorBranchStock ?? -1, 80);
-approx(splitRoadGrainPlan.roadPlan?.weakestSourceRunwayDays ?? -1, 1 / 3);
+approx(
+  splitRoadGrainPlan.roadPlan?.weakestSourceRunwayDays ?? -1,
+  10 / splitRoadGrainPlan.processorGrainPerDay,
+);
 assert.equal(
   splitRoadGrainPlan.roadPlan?.firstExposedBuildingId,
   roadMill.id,
@@ -1591,7 +1598,10 @@ assert.equal(joinedRoadGrainPlan.roadPlan?.stockedDrawingBranches, 1);
 assert.equal(joinedRoadGrainPlan.roadPlan?.unstockedDrawingBranches, 0);
 approx(joinedRoadGrainPlan.roadPlan?.matchedSourceStock ?? -1, 90);
 assert.equal(joinedRoadGrainPlan.roadPlan?.outsideProcessorBranchStock, 0);
-approx(joinedRoadGrainPlan.roadPlan?.weakestSourceRunwayDays ?? -1, 3);
+approx(
+  joinedRoadGrainPlan.roadPlan?.weakestSourceRunwayDays ?? -1,
+  90 / (joinedRoadGrainPlan.roadPlan?.processorGrainPerDay ?? 0),
+);
 
 const abbeyRoadState = emptyGameState();
 const isolatedAbbey = building('isolated-abbey', 'monastery', 0);
@@ -2492,6 +2502,7 @@ function deliveryTrip(
   targetBuildingId: string,
   amount: number,
   phase: DeliveryTripState['phase'],
+  cargoKind: DeliveryTripState['cargoKind'] = 'ryeGrain',
 ): DeliveryTripState {
   return {
     id,
@@ -2499,7 +2510,7 @@ function deliveryTrip(
     residenceId: null,
     destinationKind: 'building',
     targetBuildingId,
-    cargoKind: 'ryeGrain',
+    cargoKind,
     amount,
     phase,
     x: 0,

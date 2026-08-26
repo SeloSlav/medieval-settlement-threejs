@@ -123,17 +123,21 @@ export const UNDERGROWTH_KINDS: readonly UndergrowthKind[] = [
   'dogwood',
 ];
 
-export const DOGWOOD_MIN_SCALE = 0.98;
-export const DOGWOOD_MAX_SCALE = 1.42;
-/** Exactly twice the 1.78 m standing first-person body. */
-export const DOGWOOD_MAX_HEIGHT_METERS = 3.56;
+/** Juvenile stools begin below the 1.55 m standing first-person eye line. */
+export const DOGWOOD_MIN_SCALE = 0.55;
+/** Mature outliers reach the real-world upper envelope without making every stool a thicket. */
+export const DOGWOOD_MAX_SCALE = 1.9;
+export const DOGWOOD_MAX_HEIGHT_METERS = 4.6;
 /** Softens the upper ceiling so the tallest stools do not form one flat tier. */
-export const DOGWOOD_MIN_HEIGHT_CEILING_METERS = 3.44;
+export const DOGWOOD_MIN_HEIGHT_CEILING_METERS = 4.34;
+export const DOGWOOD_MIN_WIDTH_SCALE = 0.64;
+export const DOGWOOD_MAX_WIDTH_SCALE = 1.8;
 export const DOGWOOD_FOREST_EDGE_SHARE = 0.32;
 export const DOGWOOD_FOREST_CORE_SHARE = 0.24;
-const DOGWOOD_TREE_TRUNK_CLEARANCE = 1.4;
-const DOGWOOD_COMPANION_CLEARANCE = 1.85;
-const DOGWOOD_FOOTPRINT_CLEARANCE = 1.85;
+const DOGWOOD_TREE_TRUNK_CLEARANCE_MIN = 1.05;
+const DOGWOOD_COMPANION_CLEARANCE = 2.2;
+export const DOGWOOD_MIN_FOOTPRINT_CLEARANCE = 0.9;
+export const DOGWOOD_MAX_FOOTPRINT_CLEARANCE = 2.6;
 const DOGWOOD_GROUND_OFFSET_METERS = 0.006;
 export const DOGWOOD_AUTUMN_STEM_REVEAL = 0.45;
 const DOGWOOD_STEM_YOUTH_START = 0.24;
@@ -448,7 +452,7 @@ export function createUndergrowthPlacements(
   const placements: UndergrowthPlacement[] = [];
   const placementIndex = new SpatialHash2D<UndergrowthPlacement>(2);
   const dogwoodIndex = new SpatialHash2D<UndergrowthPlacement>(DOGWOOD_COMPANION_CLEARANCE);
-  const treeIndex = new SpatialHash2D(DOGWOOD_TREE_TRUNK_CLEARANCE, treePlacements);
+  const treeIndex = new SpatialHash2D(DOGWOOD_MAX_FOOTPRINT_CLEARANCE, treePlacements);
   let attempts = 0;
 
   while (placements.length < spawnConfig.undergrowthTargetCount && attempts < spawnConfig.undergrowthTargetCount * 36) {
@@ -466,28 +470,33 @@ export function createUndergrowthPlacements(
     if (density < 0.12 || rng() > density * 1.05) continue;
 
     const kind = pickUndergrowthKind(rng, density);
+    const scale = sampleUndergrowthScale(kind, density, rng);
+    const footprintClearance = undergrowthPlacementClearanceRadius({ kind, scale });
     const minDistance =
       kind === 'fern'
         ? THREE.MathUtils.lerp(1.3, 0.8, density)
         : kind === 'juniper'
-          ? THREE.MathUtils.lerp(1.85, 1.25, density)
+          ? THREE.MathUtils.lerp(2.8, 1.9, density)
           : kind === 'dogwood'
-            ? THREE.MathUtils.lerp(2.65, 2.05, density)
+            ? THREE.MathUtils.lerp(3.6, 2.75, density)
             : THREE.MathUtils.lerp(1.6, 1.0, density);
     if (placementIndex.hasPointWithin(x, z, minDistance)) continue;
     if (kind !== 'dogwood' && dogwoodIndex.hasPointWithin(x, z, DOGWOOD_COMPANION_CLEARANCE)) continue;
-    if (kind === 'dogwood' && treeIndex.hasPointWithin(x, z, DOGWOOD_TREE_TRUNK_CLEARANCE)) continue;
     if (
       kind === 'dogwood'
-        ? isDogwoodFootprintBlocked(x, z, isBlockedAt)
-        : isBlockedAt?.(x, z)
+      && treeIndex.hasPointWithin(
+        x,
+        z,
+        Math.max(DOGWOOD_TREE_TRUNK_CLEARANCE_MIN, footprintClearance * 0.82),
+      )
     ) continue;
+    if (isUndergrowthFootprintBlocked(x, z, footprintClearance, isBlockedAt)) continue;
 
     const placement = {
       x,
       z,
       kind,
-      scale: sampleUndergrowthScale(kind, density, rng),
+      scale,
       yaw: rng() * TAU,
       prototypeIndex: Math.floor(rng() * GORSKI_SHRUB_VARIANT_COUNT),
       meshIndex: -1,
@@ -730,9 +739,8 @@ function composeUndergrowthMatrix(
   position.set(placement.x, y, placement.z);
   if (placement.kind === 'dogwood') {
     // The authored variants already carry natural basal-stem asymmetry. Keep
-    // the runtime transform upright so the 0.98-1.42 envelope remains a strict
-    // 2.39-3.56 m height contract rather than gaining Y extent from a rotated
-    // wide crown.
+    // the runtime transform upright so juvenile-to-mature height remains a
+    // strict metre contract rather than gaining Y extent from a rotated crown.
     quaternion.setFromAxisAngle(Y_AXIS, yaw);
   } else {
     const leanDirection = rng() * TAU;
@@ -748,15 +756,34 @@ function composeUndergrowthMatrix(
       ),
     );
   }
-  const widthFactor = placement.kind === 'fern'
-    ? 1.15
-    : placement.kind === 'juniper'
-      ? 1.12
-      : 1.0;
+  const widthFactor = placement.kind === 'bush'
+    ? 1.3
+    : placement.kind === 'fern'
+      ? 1.15
+      : placement.kind === 'juniper'
+        ? 1.08
+        : 1.0;
+  const widthVariation = placement.kind === 'bush'
+    ? THREE.MathUtils.lerp(0.94, 1.16, rng())
+    : placement.kind === 'fern'
+      ? THREE.MathUtils.lerp(0.94, 1.1, rng())
+      : placement.kind === 'juniper'
+        ? THREE.MathUtils.lerp(0.94, 1.08, rng())
+        : THREE.MathUtils.lerp(0.95, 1.05, rng());
+  const dogwoodMaturity = placement.kind === 'dogwood'
+    ? THREE.MathUtils.clamp(
+      (placement.scale - DOGWOOD_MIN_SCALE) / (DOGWOOD_MAX_SCALE - DOGWOOD_MIN_SCALE),
+      0,
+      1,
+    )
+    : 0;
   const widthScale = placement.kind === 'dogwood'
-    ? THREE.MathUtils.lerp(1, placement.scale, 0.72)
-      * THREE.MathUtils.lerp(0.96, 1.04, rng())
-    : placement.scale * widthFactor * THREE.MathUtils.lerp(0.9, 1.14, rng());
+    ? THREE.MathUtils.lerp(
+      DOGWOOD_MIN_WIDTH_SCALE,
+      DOGWOOD_MAX_WIDTH_SCALE,
+      Math.pow(dogwoodMaturity, 0.84),
+    ) * widthVariation
+    : placement.scale * widthFactor * widthVariation;
   const dogwoodHeightCeilingPosition = placement.kind === 'dogwood'
     ? THREE.MathUtils.clamp(
       placement.prototypeIndex / Math.max(1, GORSKI_SHRUB_VARIANT_COUNT - 1)
@@ -774,7 +801,13 @@ function composeUndergrowthMatrix(
     : DOGWOOD_MAX_HEIGHT_METERS;
   const heightScale = placement.kind === 'dogwood'
     ? Math.min(placement.scale, dogwoodHeightCeiling / prototypeHeight)
-    : placement.scale * THREE.MathUtils.lerp(0.92, 1.14, rng());
+    : placement.scale * (
+      placement.kind === 'bush'
+        ? THREE.MathUtils.lerp(0.94, 1.06, rng())
+        : placement.kind === 'fern'
+          ? THREE.MathUtils.lerp(0.94, 1.1, rng())
+          : THREE.MathUtils.lerp(0.94, 1.1, rng())
+    );
   placement.finalHeight = prototypeHeight * heightScale;
   scaleVector.set(widthScale, heightScale, widthScale);
   matrix.compose(position, quaternion, scaleVector);
@@ -798,16 +831,16 @@ function pickUndergrowthKind(rng: () => number, density: number): UndergrowthKin
   return 'bush';
 }
 
-function sampleUndergrowthScale(kind: UndergrowthKind, density: number, rng: () => number): number {
+export function sampleUndergrowthScale(kind: UndergrowthKind, density: number, rng: () => number): number {
   switch (kind) {
     case 'bush':
       return sampleBilberryBushScale(density, rng);
     case 'fern':
-      return THREE.MathUtils.lerp(0.82, 1.36, Math.pow(rng(), 0.7)) * THREE.MathUtils.lerp(0.96, 1.16, density);
+      return THREE.MathUtils.lerp(0.82, 1.36, Math.pow(rng(), 0.7)) * THREE.MathUtils.lerp(0.98, 1.1, density);
     case 'juniper':
-      return THREE.MathUtils.lerp(0.66, 1.18, Math.pow(rng(), 0.84)) * THREE.MathUtils.lerp(1.08, 0.96, density);
+      return THREE.MathUtils.lerp(0.78, 1.52, Math.pow(rng(), 0.82)) * THREE.MathUtils.lerp(1.08, 0.96, density);
     case 'dogwood':
-      return THREE.MathUtils.lerp(DOGWOOD_MIN_SCALE, DOGWOOD_MAX_SCALE, Math.pow(rng(), 0.72));
+      return THREE.MathUtils.lerp(DOGWOOD_MIN_SCALE, DOGWOOD_MAX_SCALE, Math.pow(rng(), 1.18));
     default: {
       const exhaustive: never = kind;
       return exhaustive;
@@ -1491,13 +1524,42 @@ function clampSeasonAmount(amount: number): number {
   return THREE.MathUtils.clamp(Number.isFinite(amount) ? amount : 0, 0, 1);
 }
 
-export function undergrowthPlacementClearanceRadius(placement: UndergrowthPlacement): number {
-  return placement.kind === 'dogwood' ? DOGWOOD_FOOTPRINT_CLEARANCE : 0.95;
+export function undergrowthPlacementClearanceRadius(
+  placement: Pick<UndergrowthPlacement, 'kind' | 'scale'>,
+): number {
+  switch (placement.kind) {
+    case 'bush':
+      return THREE.MathUtils.clamp(placement.scale * 0.8, 0.65, 0.95);
+    case 'fern':
+      return THREE.MathUtils.clamp(placement.scale * 0.85, 0.75, 1.25);
+    case 'juniper':
+      return THREE.MathUtils.clamp(placement.scale * 1.55, 1.1, 2.5);
+    case 'dogwood':
+      return dogwoodFootprintClearanceForScale(placement.scale);
+    default: {
+      const exhaustive: never = placement.kind;
+      return exhaustive;
+    }
+  }
 }
 
-function isDogwoodFootprintBlocked(
+export function dogwoodFootprintClearanceForScale(scale: number): number {
+  const maturity = THREE.MathUtils.clamp(
+    (scale - DOGWOOD_MIN_SCALE) / (DOGWOOD_MAX_SCALE - DOGWOOD_MIN_SCALE),
+    0,
+    1,
+  );
+  return THREE.MathUtils.lerp(
+    DOGWOOD_MIN_FOOTPRINT_CLEARANCE,
+    DOGWOOD_MAX_FOOTPRINT_CLEARANCE,
+    Math.pow(maturity, 0.84),
+  );
+}
+
+function isUndergrowthFootprintBlocked(
   x: number,
   z: number,
+  footprintClearance: number,
   isBlockedAt: ((x: number, z: number) => boolean) | undefined,
 ): boolean {
   if (!isBlockedAt) return false;
@@ -1505,8 +1567,8 @@ function isDogwoodFootprintBlocked(
   for (let sample = 0; sample < 8; sample++) {
     const angle = sample / 8 * TAU;
     if (isBlockedAt(
-      x + Math.cos(angle) * DOGWOOD_FOOTPRINT_CLEARANCE,
-      z + Math.sin(angle) * DOGWOOD_FOOTPRINT_CLEARANCE,
+      x + Math.cos(angle) * footprintClearance,
+      z + Math.sin(angle) * footprintClearance,
     )) return true;
   }
   return false;
