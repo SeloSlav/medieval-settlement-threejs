@@ -975,7 +975,7 @@ assert.match(
 assert.match(serverStepSource, /garden\.first_harvest_day > clock\.total_days/);
 assert.match(
   serverStepSource,
-  /gross_fruit[\s\S]*jam_target[\s\S]*split_backyard_orchard_harvest[\s\S]*backyard_jam_commodity[\s\S]*orchard_harvest\.jam/,
+  /gross_expected[\s\S]*jam_expected[\s\S]*jam_share[\s\S]*gross_food \* jam_share[\s\S]*\.min\(gross_food\)[\s\S]*split_backyard_orchard_harvest\(gross_food, jam\)[\s\S]*backyard_jam_commodity[\s\S]*orchard_harvest\.jam/,
   'jam must consume a bounded share of the same physical fruit harvest',
 );
 assert.match(serverStepSource, /AroniaOrchard => Some\(CommodityKind::AroniaJam\)/);
@@ -1004,7 +1004,7 @@ assert.match(
 );
 assert.match(
   serverMarketplaceCaravanSource,
-  /let unpledged_gold = \(building\.gold - private_export_proceeds\(&building\)\)[\s\S]*let collectible_gold = if is_trading_post[\s\S]*unpledged_gold[\s\S]*try_dispatch_marketplace_proceeds/,
+  /let unpledged_gold\s*=\s*whole_units\(\s*whole_units\(building\.gold\)\s*-\s*private_export_proceeds\(&building\)\s*\);[\s\S]*let collectible_gold = if is_trading_post[\s\S]*unpledged_gold[\s\S]*try_dispatch_marketplace_proceeds/,
   'local tax must remain in the Marketplace lockbox until its treasury cart launches',
 );
 assert.match(
