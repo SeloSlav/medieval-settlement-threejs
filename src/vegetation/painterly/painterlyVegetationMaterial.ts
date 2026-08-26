@@ -83,7 +83,7 @@ type PainterlyProfile = {
   textureScale: number;
   nativeLightWeight: number;
   treatment: 'vegetation' | 'ground';
-  coordinateSpace: 'uv' | 'world-ground';
+  coordinateSpace: 'uv' | 'surface-uv' | 'world-ground';
 };
 
 const tsl = TSL as unknown as {
@@ -135,6 +135,19 @@ export const PAINTERLY_GROUND_SETTINGS = Object.freeze({
   rimStrength: 0.18,
   rimPower: 5,
 });
+
+// Large-world projection controls are deliberately separate from the imported
+// paint-lab settings above. The lab only displays a single surface tile; the
+// game needs a decorrelated second projection so that tile cannot read as a
+// repeating grid across hundreds of metres.
+export const PAINTERLY_GROUND_PROJECTION_SETTINGS = Object.freeze({
+  secondaryRotationCos: 0.75471,
+  secondaryRotationSin: 0.65606,
+  secondaryScale: 1.137,
+  secondaryOffsetX: 0.317,
+  secondaryOffsetY: 0.619,
+  secondaryBlend: 0.32,
+});
 let paintTextureResult: PaintTextureResult | null = null;
 
 const lightDirection = tsl.uniform(new THREE.Vector3(-0.45, 0.82, 0.34).normalize());
@@ -148,7 +161,7 @@ const profiles: Record<PainterlyVegetationRole, PainterlyProfile> = {
   // The texture-study export uses palette three but sourceAlbedoWeight=1.
   // These profiles therefore preserve the authored terrain/road pigments and
   // use the palette only for the very light oil/rim response.
-  'terrain-ground': groundProfile('world-ground'),
+  'terrain-ground': groundProfile('surface-uv'),
   'road-ground': groundProfile('world-ground'),
   'river-bank': groundProfile('world-ground'),
   'grass-blade': groundProfile('uv'),
@@ -312,9 +325,10 @@ function installPainterlyGraph(record: PainterlyRecord): void {
   const one = tsl.float(1);
   const paintTexture = getPaintTexture();
 
-  // UVs stay on undeformed vegetation so wind cannot make paint swim. Ground
-  // materials share one rotated world-XZ field, keeping marks continuous at
-  // terrain/road/bank boundaries without another geometry attribute.
+  // UVs stay on undeformed vegetation so wind cannot make paint swim. Terrain
+  // uses its authored UV field because that field already contains the large-
+  // scale FBM warp which hides regular repetition. Roads and banks retain a
+  // shared rotated world-XZ field so their marks remain spatially stable.
   const phaseXBase = tsl.sin(tsl.float(tsl.instanceIndex).mul(12.9898).add(78.233))
     .mul(43758.5453);
   const phaseYBase = tsl.sin(tsl.float(tsl.instanceIndex).mul(39.3467).add(11.135))
@@ -328,12 +342,35 @@ function installPainterlyGraph(record: PainterlyRecord): void {
     world.x.mul(0.67).sub(world.z.mul(0.74)),
     world.x.mul(0.74).add(world.z.mul(0.67)),
   );
-  const paintUv = authored.coordinateSpace === 'world-ground'
-    ? groundCoordinate.mul((PAINTERLY_GROUND_SETTINGS.brushScale / 48) * textureScale)
-    : authored.treatment === 'ground'
+  const paintUv = authored.coordinateSpace === 'surface-uv'
+    ? tsl.uv().mul(PAINTERLY_GROUND_SETTINGS.brushScale * textureScale)
+    : authored.coordinateSpace === 'world-ground'
+      ? groundCoordinate.mul((PAINTERLY_GROUND_SETTINGS.brushScale / 48) * textureScale)
+      : authored.treatment === 'ground'
       ? tsl.uv().mul(PAINTERLY_GROUND_SETTINGS.brushScale * textureScale).add(phase)
       : tsl.uv().mul(textureScale / 0.7).add(phase);
-  const packed = tsl.texture(paintTexture, paintUv);
+  const primaryPacked = tsl.texture(paintTexture, paintUv);
+  const secondaryUv = tsl.vec2(
+    paintUv.x.mul(PAINTERLY_GROUND_PROJECTION_SETTINGS.secondaryRotationCos)
+      .sub(paintUv.y.mul(PAINTERLY_GROUND_PROJECTION_SETTINGS.secondaryRotationSin)),
+    paintUv.x.mul(PAINTERLY_GROUND_PROJECTION_SETTINGS.secondaryRotationSin)
+      .add(paintUv.y.mul(PAINTERLY_GROUND_PROJECTION_SETTINGS.secondaryRotationCos)),
+  )
+    .mul(PAINTERLY_GROUND_PROJECTION_SETTINGS.secondaryScale)
+    .add(tsl.vec2(
+      PAINTERLY_GROUND_PROJECTION_SETTINGS.secondaryOffsetX,
+      PAINTERLY_GROUND_PROJECTION_SETTINGS.secondaryOffsetY,
+    ));
+  const packed = authored.coordinateSpace === 'uv'
+    ? primaryPacked
+    : tsl.mix(
+      primaryPacked,
+      // Sampling the same packed texture does not consume another texture
+      // binding. Keeping all packed channels together also preserves one
+      // causal field for pigment, normals, roughness, bands, and oil coverage.
+      tsl.texture(paintTexture, secondaryUv),
+      PAINTERLY_GROUND_PROJECTION_SETTINGS.secondaryBlend,
+    );
   const groundStrokeInset = (1 - PAINTERLY_GROUND_SETTINGS.strokeContrast) * 0.22;
   const broad = authored.treatment === 'ground'
     ? tsl.smoothstep(0.16 + groundStrokeInset, 0.84 - groundStrokeInset, packed.b)
@@ -527,6 +564,8 @@ function installPainterlyGraph(record: PainterlyRecord): void {
   material.userData.painterlyVegetationTexture = paintTexture;
   material.userData.painterlyVegetationUsesReducedAo =
     authored.treatment === 'ground' && Boolean(record.options.aoNodeWhilePainted);
+  material.userData.painterlyVegetationCoordinateSpace = authored.coordinateSpace;
+  material.userData.painterlyVegetationDeperiodized = authored.coordinateSpace !== 'uv';
   material.needsUpdate = true;
   record.installed = true;
 }
@@ -543,6 +582,8 @@ function restoreNativeGraph(record: PainterlyRecord): void {
   material.userData.painterlyVegetationInstalled = false;
   delete material.userData.painterlyVegetationTexture;
   delete material.userData.painterlyVegetationUsesReducedAo;
+  delete material.userData.painterlyVegetationCoordinateSpace;
+  delete material.userData.painterlyVegetationDeperiodized;
   material.needsUpdate = true;
   record.installed = false;
 }

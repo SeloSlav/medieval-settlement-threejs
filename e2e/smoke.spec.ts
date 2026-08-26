@@ -457,6 +457,12 @@ test('connects, places a reforester, and updates settlement HUD timber', async (
   await expect(fuelStores).toHaveAttribute('open', '');
   await expect(fuelStores.getByRole('heading', { name: 'Fuel supply' })).toBeVisible();
   await expect(page.locator('#ui-tooltip')).toBeHidden();
+  await fuelStores.locator('[data-fuel-resource="firewood"]').hover();
+  await expect(tooltip.locator('.ui-tooltip__title')).toHaveText('Firewood');
+  await expect(tooltip.locator('.ui-tooltip__amount')).toHaveCount(0);
+  await fuelStores.locator('[data-fuel-resource="charcoal"]').hover();
+  await expect(tooltip.locator('.ui-tooltip__title')).toHaveText('Charcoal');
+  await expect(tooltip.locator('.ui-tooltip__amount')).toHaveCount(0);
   const supplyCardPresentation = await page.locator('[data-settlement-hud]').evaluate((hud) => {
     const foodGrid = hud.querySelector<HTMLElement>('[data-food-breakdown]')!;
     const fuelGrid = hud.querySelector<HTMLElement>('[data-fuel-breakdown]')!;
@@ -520,10 +526,7 @@ test('connects, places a reforester, and updates settlement HUD timber', async (
   await expect(page.locator('#ui-tooltip .ui-tooltip__amount-label')).toHaveText(
     'Available surplus',
   );
-  await expect(page.locator('#ui-tooltip .ui-tooltip__list li')).toHaveText([
-    '1.00 meal-equivalents per unit',
-    'Slow spoilage',
-  ]);
+  await expect(page.locator('#ui-tooltip .ui-tooltip__body')).toHaveText('Slow spoilage');
   await timberHud.hover();
   await expect(timberPanel).toBeVisible();
   await expect(timberCard.locator('[data-resource-card-mode-label="timber"]')).toHaveText(

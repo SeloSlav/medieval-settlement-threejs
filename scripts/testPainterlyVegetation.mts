@@ -40,6 +40,18 @@ assert.deepEqual(
   },
   'ground surfaces must retain the exported texture-study treatment',
 );
+assert.deepEqual(
+  painterly.PAINTERLY_GROUND_PROJECTION_SETTINGS,
+  {
+    secondaryRotationCos: 0.75471,
+    secondaryRotationSin: 0.65606,
+    secondaryScale: 1.137,
+    secondaryOffsetX: 0.317,
+    secondaryOffsetY: 0.619,
+    secondaryBlend: 0.32,
+  },
+  'large-world deperiodization must remain separate from the imported lab treatment',
+);
 
 assert.equal(
   preferences.isPainterlyVegetationEnabled(),
@@ -105,6 +117,16 @@ assert.notEqual(groundMaterial.aoNode, nativeGroundAoNode);
 assert.equal(groundMaterial.userData.painterlyVegetationRole, 'terrain-ground');
 assert.equal(groundMaterial.userData.painterlyVegetationInstalled, true);
 assert.equal(
+  groundMaterial.userData.painterlyVegetationCoordinateSpace,
+  'surface-uv',
+  'terrain paint must follow the authored warped terrain UV field',
+);
+assert.equal(
+  groundMaterial.userData.painterlyVegetationDeperiodized,
+  true,
+  'ground surfaces must blend a decorrelated projection to hide the source tile period',
+);
+assert.equal(
   groundMaterial.userData.painterlyVegetationUsesReducedAo,
   true,
   'sampler-limited terrain must replace micro-AO while paint is enabled',
@@ -125,6 +147,11 @@ assert.equal(groundMaterial.colorNode, nativeGroundColorNode);
 assert.equal(groundMaterial.normalNode, nativeGroundNormalNode);
 assert.equal(groundMaterial.roughnessNode, nativeGroundRoughnessNode);
 assert.equal(groundMaterial.aoNode, nativeGroundAoNode);
+assert.equal(
+  groundMaterial.userData.painterlyVegetationCoordinateSpace,
+  undefined,
+  'disabling must remove painter projection diagnostics',
+);
 assert.equal(
   Object.prototype.hasOwnProperty.call(material, 'setupOutput'),
   hadOwnSetupOutput,

@@ -84,7 +84,6 @@ import {
 } from './serviceCoverage.ts';
 import { PlayerAuthoredHoverOutline } from './PlayerAuthoredHoverOutline.ts';
 import {
-  foodMealValue,
   foodSpoilageLabel,
   type FoodInventoryKind,
 } from '../economy/foodInventory.ts';
@@ -1908,16 +1907,12 @@ export class ResourceInspector {
         : kind === 'legacyPreservedFood'
           ? 'preservedFood'
           : kind) as FoodInventoryKind;
-      const mealValue = foodMealValue(inventoryKind);
       elements.row.hidden = !visible;
       elements.row.classList.toggle('is-empty', !stocked);
       elements.stored.textContent = formatTransitAmount(displayed);
       elements.row.dataset.tooltipAmount = formatTransitAmount(displayed);
       elements.row.dataset.tooltipAmountLabel = amountLabel;
-      elements.row.dataset.tooltip = [
-        `${mealValue.toFixed(2)} meal-equivalents per unit`,
-        foodSpoilageLabel(inventoryKind),
-      ].join(' · ');
+      elements.row.dataset.tooltip = foodSpoilageLabel(inventoryKind);
       elements.transit.hidden = transit <= 1e-6;
       elements.transit.textContent = transit > 1e-6
         ? `+${formatTransitAmount(transit)} cart`
@@ -1944,7 +1939,7 @@ export class ResourceInspector {
   ): void {
     const stat = valueElement.closest<HTMLElement>('.settlement-hud__stat');
     if (!stat) return;
-    if (!stat.dataset.tooltip?.trim()) {
+    if (!stat.dataset.tooltip?.trim() || stat.matches('[data-fuel-resource]')) {
       delete stat.dataset.tooltipAmount;
       delete stat.dataset.tooltipAmountLabel;
       return;
