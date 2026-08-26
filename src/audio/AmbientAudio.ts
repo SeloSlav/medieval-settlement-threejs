@@ -45,6 +45,7 @@ async function loadAudioAsBlobUrl(path: string): Promise<string> {
 
 export class AmbientAudio {
   private enabled = true;
+  private paused = false;
   private currentAmbientGain = 1;
   private targetAmbientGain = 1;
   private currentScoreDuckGain = 1;
@@ -64,6 +65,20 @@ export class AmbientAudio {
 
   getEnabled(): boolean {
     return this.enabled;
+  }
+
+  setPaused(paused: boolean): void {
+    if (this.paused === paused) return;
+    this.paused = paused;
+    if (paused) {
+      for (const id of AMBIENT_LAYER_IDS) {
+        this.ambientTracks[id].audio?.pause();
+      }
+      return;
+    }
+    for (const id of AMBIENT_LAYER_IDS) {
+      if (this.ambientTracks[id].targetMix > 0) this.ensureAmbientTrackLoaded(id);
+    }
   }
 
   setVolume(volume: number): void {
@@ -109,7 +124,7 @@ export class AmbientAudio {
   }
 
   tick(dtSeconds: number): void {
-    if (!this.enabled) return;
+    if (!this.enabled || this.paused) return;
     const dt = Math.max(0, dtSeconds);
     this.currentAmbientGain = moveToward(
       this.currentAmbientGain,
@@ -249,6 +264,7 @@ export class AmbientAudio {
     state.lastPlayAttemptAtMs = nowMs;
     state.audio.play().catch(() => undefined).finally(() => {
       state.playPending = false;
+      if (this.paused) state.audio?.pause();
     });
   }
 }

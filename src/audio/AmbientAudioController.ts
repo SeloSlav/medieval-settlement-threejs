@@ -121,6 +121,7 @@ export class AmbientAudioController {
   private musicEnabled = true;
   private gameplayMusicActive = true;
   private externalScoreActive = false;
+  private worldPaused = false;
   private running = false;
   private unlocked = false;
   private readonly onUnlock = (): void => {
@@ -317,7 +318,11 @@ export class AmbientAudioController {
   }
 
   setWorldPaused(paused: boolean): void {
+    if (this.worldPaused === paused) return;
+    this.worldPaused = paused;
+    this.audio.setPaused(paused);
     this.forestWind.setPaused(paused);
+    this.riverAudio.setPaused(paused);
   }
 
   setMusicVolume(volume: number): void {

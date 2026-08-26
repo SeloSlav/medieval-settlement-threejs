@@ -124,6 +124,7 @@ export class RiverAudio {
   private loaded = false;
   private started = false;
   private enabled = true;
+  private paused = false;
   private ambienceVolume = 1;
 
   constructor(config: RiverAudioConfig) {
@@ -158,7 +159,7 @@ export class RiverAudio {
   }
 
   tick(dtSeconds: number): void {
-    if (!this.enabled || !this.started) return;
+    if (!this.enabled || !this.started || this.paused) return;
     const dt = Math.max(0, dtSeconds);
     this.refreshElapsed += dt;
     if (this.refreshElapsed >= POSITION_REFRESH_SECONDS || !this.hasPosition) {
@@ -192,6 +193,16 @@ export class RiverAudio {
 
   setVolume(volume: number): void {
     this.ambienceVolume = clamp01(volume);
+  }
+
+  setPaused(paused: boolean): void {
+    if (this.paused === paused) return;
+    this.paused = paused;
+    if (paused) {
+      if (this.source.isPlaying) this.source.pause();
+      return;
+    }
+    this.ensurePlayback();
   }
 
   setEnabled(enabled: boolean): void {
@@ -234,6 +245,7 @@ export class RiverAudio {
     if (
       !this.enabled
       || !this.started
+      || this.paused
       || !this.loaded
       || !this.hasPosition
       || this.source.isPlaying

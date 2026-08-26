@@ -1033,13 +1033,12 @@ export class SceneManager {
       this.firstPersonDeerObserver.z = this.camera.position.z;
       this.firstPersonDeerObserver.crouching = firstPersonCrouching;
     }
-    const deerShadowCastersChanged = this.deerWildlifeVisuals?.update(
+    this.deerWildlifeVisuals?.update(
       dt,
       firstPersonActive ? this.firstPersonDeerObserver : null,
       cameraDistance,
       this.gameHabitatLoggingDisturbances,
-    ) ?? false;
-    if (deerShadowCastersChanged) this.dynamicShadowCastersChanged = true;
+    );
     this.fishWildlifeVisuals?.update(dt, cameraDistance, firstPersonActive);
     this.mushroomPatchVisuals?.updateCameraState(cameraDistance, firstPersonActive);
     this.renderFrame++;
