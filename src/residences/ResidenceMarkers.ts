@@ -2056,13 +2056,55 @@ export function createResidenceMesh(
       seed,
     );
   }
-  const wallPlate = addMesh(
-    group,
-    new THREE.BoxGeometry(width + 0.12, 0.18, depth + 0.12),
-    tier === 1 ? tierOneStructuralMaterial : timberMaterial('dark'),
-    new THREE.Vector3(0, tier === 1 ? wallTop - 0.25 : groundTop + 0.04, 0),
-  );
-  wallPlate.name = 'Residence hewn timber wall plate';
+  if (tier === 1) {
+    const frontRearTieBeamY = groundTop + 0.04;
+    const frontRearTieBeams = addMesh(
+      group,
+      mergeBoxParts([
+        {
+          size: [width + 0.12, 0.18, 0.16],
+          position: [0, frontRearTieBeamY, halfD + 0.035],
+        },
+        {
+          size: [width + 0.12, 0.18, 0.16],
+          position: [0, frontRearTieBeamY, -halfD - 0.035],
+        },
+      ]),
+      tierOneStructuralMaterial,
+      new THREE.Vector3(),
+    );
+    frontRearTieBeams.name = 'Residence hewn timber wall plate';
+    frontRearTieBeams.userData.residenceFrontRearTieBeamY = frontRearTieBeamY;
+    frontRearTieBeams.userData.residenceWallColorTransitionY = groundTop;
+    frontRearTieBeams.userData.residenceDoorHeadClearanceMeters =
+      frontRearTieBeamY - 0.09 - (foundationHeight + 0.08 + 1.72);
+
+    const recessedSidePlates = addMesh(
+      group,
+      mergeBoxParts([
+        {
+          size: [0.16, 0.18, depth - 0.06],
+          position: [halfW + 0.035, wallTop - 0.25, 0],
+        },
+        {
+          size: [0.16, 0.18, depth - 0.06],
+          position: [-halfW - 0.035, wallTop - 0.25, 0],
+        },
+      ]),
+      tierOneStructuralMaterial,
+      new THREE.Vector3(),
+    );
+    recessedSidePlates.name = 'Residence recessed side wall plates below thatch';
+    recessedSidePlates.userData.residenceSideFrameRoofClearanceMeters = 0.25;
+  } else {
+    const wallPlate = addMesh(
+      group,
+      new THREE.BoxGeometry(width + 0.12, 0.18, depth + 0.12),
+      timberMaterial('dark'),
+      new THREE.Vector3(0, groundTop + 0.04, 0),
+    );
+    wallPlate.name = 'Residence hewn timber wall plate';
+  }
   if (tier > 1) {
     addMesh(
       group,

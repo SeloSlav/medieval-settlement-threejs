@@ -1767,7 +1767,7 @@ export const BUILDING_COSTS = {
   brewery: { timber: 48, stone: 36, ironwork: 3 },
   tavern: { timber: 42, stone: 28, ironwork: 2 },
   smokehouse: { timber: 34, stone: 22, ironwork: 2 },
-  granary: { timber: 50, stone: 28, ironwork: 3 },
+  granary: { timber: 50, stone: 28 },
   bakery: { timber: 36, stone: 30, ironwork: 2 },
   apiary: { timber: 22, stone: 6 },
   watermill: { timber: 58, stone: 42, ironwork: 6 },

@@ -375,6 +375,23 @@ function assertTierOneFacadeTimbers(root: THREE.Object3D): void {
     Number(frame.userData.residenceSideFrameRoofClearanceMeters) >= 0.24,
     'side framing must stop below the thatch blanket rather than poke through it',
   );
+  const tieBeam = namedMesh(root, 'Residence hewn timber wall plate');
+  assert.ok(
+    Math.abs(
+      Number(tieBeam.userData.residenceFrontRearTieBeamY)
+        - Number(tieBeam.userData.residenceWallColorTransitionY),
+    ) <= 0.05,
+    'front/rear tie beams must align with the upper wall color transition',
+  );
+  assert.ok(
+    Number(tieBeam.userData.residenceDoorHeadClearanceMeters) >= 0.1,
+    'the front/rear tie beam must clear the top of the tier-one door casing',
+  );
+  const sidePlates = namedMesh(root, 'Residence recessed side wall plates below thatch');
+  assert.ok(
+    Number(sidePlates.userData.residenceSideFrameRoofClearanceMeters) >= 0.24,
+    'side wall plates must remain recessed beneath the thatch edge',
+  );
   assert.equal(
     frame.geometry.userData.residenceHewnTimberTint,
     'smoke-darkened-oak',

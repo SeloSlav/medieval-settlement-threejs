@@ -2999,7 +2999,7 @@ const GRANARY: BuildingDef = BuildingDef {
     cost_timber: 50.0,
     cost_stone: 28.0,
     cost_gold: 0.0,
-    cost_ironwork: 3.0,
+    cost_ironwork: 0.0,
     cost_roof_tiles: 0.0,
     storage_timber: 0.0,
     storage_firewood: 0.0,

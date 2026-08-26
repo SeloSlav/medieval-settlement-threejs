@@ -341,6 +341,11 @@ for (const kind of [
   assert.equal(cost.roofTiles ?? 0, 0, `${kind} must not circularly require roof tiles`);
   assert.equal(cost.gold ?? 0, 0, `${kind} must retain a local physical bootstrap`);
 }
+assert.equal(
+  BUILDING_COSTS.granary.ironwork ?? 0,
+  0,
+  'granary must remain buildable without ironwork',
+);
 for (const kind of ['stone_quarry', 'charcoal_burner', 'smithy', 'potter_kiln'] as const) {
   assert.equal(BUILDING_DEFINITIONS[kind].acceptsLabor, true, `${kind} must expose production labor`);
   assert.ok(BUILDING_DEFINITIONS[kind].maxLabor > 0, `${kind} needs positive labor capacity`);
