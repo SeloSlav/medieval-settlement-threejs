@@ -200,7 +200,7 @@ assert.match(
 );
 assert.match(
   fiscalAccounting,
-  /local_discretionary_spend_total \+= split\.producer_income \+ split\.local_tax[\s\S]*local_producer_income_total \+= split\.producer_income/,
+  /local_discretionary_spend_total\s*=\s*whole_units\(resources\.local_discretionary_spend_total\)\s*\+ split\.producer_income\s*\+ split\.local_tax;[\s\S]*local_producer_income_total\s*=\s*whole_units\(resources\.local_producer_income_total\) \+ split\.producer_income/,
   'the economy ledger must report both gross local spending and producer income',
 );
 

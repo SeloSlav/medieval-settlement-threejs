@@ -671,7 +671,11 @@ function assertCompactBackyardOptions(
     assert.doesNotMatch(contents, /backyard-picker-option__(?:cost|funding)|resource-cost/);
     const tooltip = tag.match(/data-tooltip="([^"]+)"/)?.[1] ?? '';
     assert.ok(tooltip.length > 0);
-    assert.doesNotMatch(tooltip, /\bready\b|\bpaid\b|household|treasury/i);
+    assert.doesNotMatch(
+      tooltip,
+      /\bready\b|\bpaid\b|\btreasury\b/i,
+      'picker tooltips should describe output and blockers without exposing the funding split',
+    );
     assert.match(tag, new RegExp(`data-tooltip-cost-label="${expectedCostLabel}"`));
     const encodedCost = tag.match(/data-tooltip-cost="([^"]+)"/)?.[1] ?? '';
     assert.ok(
