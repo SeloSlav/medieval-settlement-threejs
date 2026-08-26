@@ -99,7 +99,7 @@ function tierOneResidenceMaterial(
   surface: TierOneResidenceSurface,
 ): THREE.MeshStandardMaterial {
   if (surface === 'wattle-daub') return sharedBuildingMaterial('plasterGrey');
-  if (surface === 'foundation-stone') return sharedBuildingMaterial('masonryMid');
+  if (surface === 'foundation-stone') return sharedBuildingMaterial('masonryDark');
   if (surface === 'structural-timber') return sharedBuildingMaterial('timberDark');
   if (surface === 'weathered-timber') {
     return sharedBuildingMaterial('timberWeathered');
@@ -790,18 +790,19 @@ function addTierOneRubbleFooting(
       const widthVariation = tierOneCraftVariation(seed, ordinal++, 0.18);
       const heightVariation = tierOneCraftVariation(seed, ordinal++, 0.055);
       const centerVariation = tierOneCraftVariation(seed, ordinal++, 0.045);
+      const verticalVariation = tierOneCraftVariation(seed, ordinal++, 0.032);
       const stoneSpan = nominal * (0.88 + widthVariation);
       const stoneHeight = foundationHeight * 0.46 + heightVariation;
       const along = -span * 0.5 + nominal * (index + 0.5) + centerVariation;
       parts.push(face === 'front-back'
         ? {
             size: [stoneSpan, stoneHeight, 0.28],
-            position: [along, foundationHeight * 0.64, fixed],
+            position: [along, foundationHeight * 0.64 + verticalVariation, fixed],
             rotation: [0, tierOneCraftVariation(seed, ordinal++, 0.045), 0],
           }
         : {
             size: [0.28, stoneHeight, stoneSpan],
-            position: [fixed, foundationHeight * 0.64, along],
+            position: [fixed, foundationHeight * 0.64 + verticalVariation, along],
             rotation: [0, tierOneCraftVariation(seed, ordinal++, 0.045), 0],
           });
     }
@@ -827,6 +828,24 @@ function addTierOneRubbleFooting(
 function tierOneCraftVariation(seed: number, ordinal: number, amount: number): number {
   const wave = Math.sin((seed + 17) * 12.9898 + (ordinal + 3) * 78.233) * 43_758.5453;
   return ((wave - Math.floor(wave)) * 2 - 1) * amount;
+}
+
+function applyTierOneHewnTimberTint(
+  geometry: THREE.BufferGeometry,
+  seed: number,
+): THREE.BufferGeometry {
+  const position = geometry.getAttribute('position');
+  const colors = new Float32Array(position.count * 3);
+  for (let index = 0; index < position.count; index += 1) {
+    const variation = 0.68 + tierOneCraftVariation(seed, index, 0.075);
+    colors[index * 3] = variation * 0.92;
+    colors[index * 3 + 1] = variation * 0.84;
+    colors[index * 3 + 2] = variation * 0.75;
+  }
+  geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+  geometry.userData.buildingWeatheringProfile = 'timber';
+  geometry.userData.residenceHewnTimberTint = 'smoke-darkened-oak';
+  return geometry;
 }
 
 function frontBackBracePart(
@@ -870,6 +889,7 @@ function addTierOneTimberConstruction(
   ridgeHeight: number,
   structuralMaterial: THREE.Material,
   weatheredMaterial: THREE.Material,
+  seed: number,
 ): void {
   const halfW = width * 0.5;
   const halfD = depth * 0.5;
@@ -932,7 +952,7 @@ function addTierOneTimberConstruction(
   }
   const construction = addMesh(
     group,
-    mergeBoxParts(parts),
+    applyTierOneHewnTimberTint(mergeBoxParts(parts), seed + 701),
     structuralMaterial,
     new THREE.Vector3(),
   );
@@ -950,7 +970,7 @@ function addTierOneTimberConstruction(
   }
   const gableScreen = addMesh(
     group,
-    mergeBoxParts(gableParts),
+    applyTierOneHewnTimberTint(mergeBoxParts(gableParts), seed + 907),
     weatheredMaterial,
     new THREE.Vector3(),
   );
@@ -1985,6 +2005,7 @@ export function createResidenceMesh(
       ridgeHeight,
       tierOneStructuralMaterial,
       tierOneWeatheredMaterial,
+      seed,
     );
   }
   const wallPlate = addMesh(
