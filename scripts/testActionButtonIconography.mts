@@ -109,7 +109,7 @@ assert.match(
 );
 assert.match(
   resourceInspector,
-  /TOTAL_RESOURCE_TOOLTIPS\[resource\][\s\S]{0,100}\?\? DEFAULT_TOTAL_RESOURCE_TOOLTIP/,
+  /const tooltip = showingTotal[\s\S]{0,100}\? DEFAULT_TOTAL_RESOURCE_TOOLTIP[\s\S]{0,100}: this\.surplusResourceTooltips\.get\(resource\)/,
   'every HUD resource without a tailored total tooltip must receive the truthful total-mode fallback',
 );
 assert.match(backyardCss, /\.resource-inspector-hero-image\[hidden\]\s*\{\s*display:\s*none/);

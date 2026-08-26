@@ -58,8 +58,8 @@ checkerboard is not repeated across utility icons.
 - Rendered at 26 px.
 - May use a pair or small bundle when quantity is part of the meaning.
 - Materials distinguish close concepts: full logs vs split firewood, grain
-  sheaf vs barley ears vs sprouted malt, raw flax bundle vs pale Linen hank,
-  wool fleece vs spun Yarn skein, and prepared fibre vs folded Clothing.
+  sheaf vs barley ears vs sprouted malt, raw flax bundle vs pale woven Linen,
+  wool fleece vs spun Yarn skein, and undyed cloth vs finished Clothing.
 - Resource value and label remain live text; never bake letters or numbers into
   art.
 
@@ -98,7 +98,7 @@ cells, preserving every existing background-position contract:
 | Asset | Readable subject and uses |
 | --- | --- |
 | `materials/yarn.png` | Cream wool skeins on a wooden spindle; used for the HUD, inspectors, costs, build-menu flows, provision/trade rows, and cart cargo labels. |
-| `materials/linen.png` | Pale prepared-flax hank on crossed bobbins with blue flax blossoms; used on the same resource surfaces and kept visually distinct from the raw Flax bundle and folded Clothing. |
+| `materials/linen.png` | Pale undyed linen folded and rolled into a compact twine-bound stack; used on the same resource surfaces and kept visually distinct from the raw Flax bundle and finished Clothing. |
 
 Both intermediates keep their own live labels and transit counts. A missing
 bitmap falls back to the labeled resource row; neither commodity is represented

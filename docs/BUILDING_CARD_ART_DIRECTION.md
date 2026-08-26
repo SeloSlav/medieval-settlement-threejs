@@ -111,7 +111,7 @@ painting, sepia-only drawing, detailed scenery, fantasy ornament, UI chrome
 | `smokehouse.webp` | Cured meat and smoked fish hanging over smoldering split logs with bold curling smoke. |
 | `woodcutters-lodge.webp` | Heavy axe actively splitting a round log on a stump with wedges and stacked firewood. |
 | `carpenter.webp` | Wooden hand plane cutting a board with one large curled shaving, backed by a cartwheel and joinery square. |
-| `spinning-retting-house.webp` | Large wooden spinning wheel interlocked with a low blue-water retting trough, flax drying rack, and small wool basket; the dry and wet routes must read as one compact process. |
+| `spinning-retting-house.webp` | One heraldic preparation emblem: a large dark-oak drop spindle crossed with a golden flax strick above three dull-lapis retting-water cuts. Do not inventory the workshop furniture. |
 | `weaver.webp` | Broad wooden shuttle crossing taut warp threads, with a Yarn skein and pale Linen hank feeding the loom and a rolled clothing edge emerging. |
 | `tannery.webp` | Clean hide stretched on a timber frame, interlocked with a bark-liquor vat, bark strips, and scraper. |
 | `cobbler.webp` | Leather boot on a wooden last with awl, thread, and pegs. |
@@ -128,7 +128,8 @@ painting, sepia-only drawing, detailed scenery, fantasy ornament, UI chrome
 
 ### Textile identity contract
 
-The Spinning & Retting House card depicts the process, while
+The Spinning & Retting House card reduces the process to one interlocked
+spindle, flax, and water emblem, while
 `src/buildings/meshes/spinningRettingHouseMesh.ts` owns the in-world
 architecture. Its deterministic two-mass workshop combines a dry fibre hall
 with a wet lean-to, road-facing spoked wheel, blue retting troughs, flax drying
