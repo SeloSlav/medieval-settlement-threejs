@@ -450,7 +450,12 @@ export class OxenRenderer {
     if (visual.tripId) {
       const tripPose = this.getDeliveryPose(visual.tripId);
       if (tripPose?.active) {
-        return { ...tripPose, moving: true, attached: true, groundOffset: 0 };
+        return {
+          ...tripPose,
+          moving: tripPose.moving,
+          attached: true,
+          groundOffset: 0,
+        };
       }
     }
     if (visual.assignment) {

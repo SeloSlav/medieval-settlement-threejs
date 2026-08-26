@@ -849,7 +849,7 @@ export type DeliveryTripPresentation = {
   eyebrow: string;
   activity: string;
   current: string;
-  occupation: 'Cart hauler' | 'Regional merchant';
+  occupation: 'Cart hauler' | 'Cart guide' | 'Regional merchant';
   workplaceHeading: 'Origin' | 'Contracting market';
   routeHeading: 'Route target' | 'Trade leg';
   routeTarget: string;
@@ -871,9 +871,15 @@ export function describeDeliveryTrip(
   const cargo = cargoKindLabelForTrip(trip);
   const cargoLower = cargo.toLocaleLowerCase();
   const cargoAmount = formatCargoAmount(trip.amount);
-  const crew = `${trip.deliveryWorkers} ${
-    trip.deliveryWorkers === 1 ? 'hauler' : 'haulers'
-  }`;
+  const crew = trip.oxId
+    ? trip.deliveryWorkers === 1
+      ? '1 guide - ox-drawn'
+      : `1 guide + ${trip.deliveryWorkers - 1} ${
+          trip.deliveryWorkers === 2 ? 'hauler' : 'haulers'
+        } - ox-drawn`
+    : `${trip.deliveryWorkers} ${
+        trip.deliveryWorkers === 1 ? 'hauler' : 'haulers'
+      }`;
   const returning = trip.phase === 'inbound';
   const returningLoaded = returning && trip.amount > 0.05;
   const regionalImport = isRegionalImportTrip(trip);
@@ -944,7 +950,7 @@ export function describeDeliveryTrip(
       : trip.phase === 'unloading'
         ? `Unloading at ${destinationLabel}`
         : `Traveling to ${destinationLabel}`,
-    occupation: 'Cart hauler',
+    occupation: trip.oxId ? 'Cart guide' : 'Cart hauler',
     workplaceHeading: 'Origin',
     routeHeading: 'Route target',
     routeTarget: returning ? originLabel : destinationLabel,

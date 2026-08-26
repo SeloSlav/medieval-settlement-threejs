@@ -17,6 +17,7 @@ import {
   createDeliveryCartWorkerSource,
   createDeliveryCartWorkerVisual,
   DELIVERY_CART_HANDLE_TARGETS,
+  DELIVERY_OX_CART_FORMATION,
   disposeDeliveryCartWorkerSources,
   disposeDeliveryCartWorkerVisual,
   updateDeliveryCartWorkerVisual,
@@ -495,6 +496,25 @@ assert.ok(
   'additional cart hands should walk beside the cart instead of overlapping the puller',
 );
 updateDeliveryCartWorkerVisual(companion, 1 / 30, true, 1.05);
+
+const oxGuide = createDeliveryCartWorkerVisual(84527, deliveryWorkerSources, 0, true);
+cartA.add(oxGuide.root);
+assert.equal(oxGuide.role, 'guide');
+assert.equal(oxGuide.pinsCartHandles, false);
+assert.equal(oxGuide.root.userData.deliveryCartRole, 'guide');
+assert.equal(oxGuide.root.position.x, DELIVERY_OX_CART_FORMATION.guide.x);
+assert.equal(oxGuide.root.position.z, DELIVERY_OX_CART_FORMATION.guide.z);
+assert.equal(
+  DELIVERY_OX_CART_FORMATION.guide.z,
+  DELIVERY_OX_CART_FORMATION.ox.z,
+  'the guide should walk directly abreast of the ox instead of pulling the handles',
+);
+assert.ok(
+  Math.abs(DELIVERY_OX_CART_FORMATION.guide.x - DELIVERY_OX_CART_FORMATION.ox.x) > 1.2,
+  'the guide and centered draft ox need a readable side-by-side gap',
+);
+updateDeliveryCartWorkerVisual(oxGuide, 1 / 30, true, 1.05);
+disposeDeliveryCartWorkerVisual(oxGuide);
 disposeDeliveryCartWorkerVisual(companion);
 disposeDeliveryCartWorkerVisual(worker);
 disposeDeliveryCartMesh(cartA);

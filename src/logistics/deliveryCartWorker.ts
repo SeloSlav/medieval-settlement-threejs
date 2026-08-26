@@ -19,6 +19,10 @@ const TARGET_HEIGHTS = {
 } as const;
 
 const CART_PULLER_Z = 1.4;
+export const DELIVERY_OX_CART_FORMATION = {
+  ox: { x: 0, z: 2.15 },
+  guide: { x: 1.28, z: 2.15 },
+} as const;
 const WORKER_LEAN_RADIANS = 0.08;
 const HANDLE_TARGETS = {
   left: new THREE.Vector3(0.264, 0.68, 1.225),
@@ -48,6 +52,7 @@ export const DELIVERY_CART_HANDLE_TARGETS = {
 } as const;
 
 type DeliveryWorkerMode = 'idle' | 'walk';
+export type DeliveryCartWorkerRole = 'hauler' | 'guide' | 'companion';
 
 export type DeliveryCartWorkerSource = {
   variant: VillagerModelVariant;
@@ -78,6 +83,7 @@ export type DeliveryCartWorkerVisual = {
   leftArm: ArmBones;
   rightArm: ArmBones;
   ownedMaterials: THREE.Material[];
+  role: DeliveryCartWorkerRole;
   pinsCartHandles: boolean;
 };
 
@@ -133,6 +139,7 @@ export function createDeliveryCartWorkerVisual(
   appearanceSeed: number,
   sources: DeliveryCartWorkerSources,
   crewIndex = 0,
+  oxDrawn = false,
 ): DeliveryCartWorkerVisual {
   const variant = pickVillagerModelVariant(appearanceSeed);
   const source = sources[variant];
@@ -144,7 +151,12 @@ export function createDeliveryCartWorkerVisual(
   const scale = source.targetHeight / source.sourceHeight * heightJitter;
   model.scale.setScalar(scale);
   model.position.y = -source.bounds.min.y * scale + 0.012;
-  const pinsCartHandles = crewIndex === 0;
+  const role: DeliveryCartWorkerRole = crewIndex > 0
+    ? 'companion'
+    : oxDrawn
+      ? 'guide'
+      : 'hauler';
+  const pinsCartHandles = role === 'hauler';
   model.rotation.x = pinsCartHandles ? WORKER_LEAN_RADIANS : 0;
 
   const ownedMaterials: THREE.Material[] = [];
@@ -177,8 +189,16 @@ export function createDeliveryCartWorkerVisual(
   });
 
   const root = new THREE.Group();
-  root.name = `Delivery cart worker (${variant})`;
-  if (pinsCartHandles) {
+  root.name = role === 'guide'
+    ? `Delivery cart guide (${variant})`
+    : `Delivery cart worker (${variant})`;
+  if (role === 'guide') {
+    root.position.set(
+      DELIVERY_OX_CART_FORMATION.guide.x,
+      0,
+      DELIVERY_OX_CART_FORMATION.guide.z,
+    );
+  } else if (pinsCartHandles) {
     root.position.z = CART_PULLER_Z;
   } else {
     const companionIndex = crewIndex - 1;
@@ -190,6 +210,7 @@ export function createDeliveryCartWorkerVisual(
   }
   root.userData.deliveryCartWorker = true;
   root.userData.deliveryCartCrewIndex = crewIndex;
+  root.userData.deliveryCartRole = role;
   root.userData.villagerGender = variant;
   root.add(model);
 
@@ -215,6 +236,7 @@ export function createDeliveryCartWorkerVisual(
     leftArm: findArmBones(model, 'L'),
     rightArm: findArmBones(model, 'R'),
     ownedMaterials,
+    role,
     pinsCartHandles,
   };
 }

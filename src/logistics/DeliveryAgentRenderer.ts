@@ -21,6 +21,7 @@ import {
 } from '../logistics/deliveryCartMesh.ts';
 import {
   createDeliveryCartWorkerVisual,
+  DELIVERY_OX_CART_FORMATION,
   disposeDeliveryCartWorkerSources,
   disposeDeliveryCartWorkerVisual,
   loadDeliveryCartWorkerSources,
@@ -192,9 +193,13 @@ export class DeliveryAgentRenderer {
     const rightX = Math.cos(yaw);
     const rightZ = -Math.sin(yaw);
     return {
-      x: visual.mesh.position.x + forwardX * 2.15 + rightX * 0.68,
+      x: visual.mesh.position.x
+        + forwardX * DELIVERY_OX_CART_FORMATION.ox.z
+        + rightX * DELIVERY_OX_CART_FORMATION.ox.x,
       y: visual.mesh.position.y - 0.05,
-      z: visual.mesh.position.z + forwardZ * 2.15 + rightZ * 0.68,
+      z: visual.mesh.position.z
+        + forwardZ * DELIVERY_OX_CART_FORMATION.ox.z
+        + rightZ * DELIVERY_OX_CART_FORMATION.ox.x,
       yaw,
       moving: visual.phase !== 'unloading',
       active: true,
@@ -465,6 +470,13 @@ export class DeliveryAgentRenderer {
 
   private ensureWorkerCrew(visual: TripVisual, trip: DeliveryTripState): void {
     const desiredCrewSize = Math.max(1, Math.floor(trip.deliveryWorkers));
+    const desiredLeadRole = trip.oxId ? 'guide' : 'hauler';
+    if (visual.workers[0] && visual.workers[0].role !== desiredLeadRole) {
+      for (const worker of visual.workers) {
+        disposeDeliveryCartWorkerVisual(worker);
+      }
+      visual.workers.length = 0;
+    }
     while (visual.workers.length > desiredCrewSize) {
       const worker = visual.workers.pop();
       if (worker) disposeDeliveryCartWorkerVisual(worker);
@@ -476,6 +488,7 @@ export class DeliveryAgentRenderer {
         hashStringSeed(deliveryWorkerPersonIdentity(trip, crewIndex)),
         this.workerSources,
         crewIndex,
+        Boolean(trip.oxId),
       );
       visual.workers.push(worker);
       visual.mesh.add(worker.root);

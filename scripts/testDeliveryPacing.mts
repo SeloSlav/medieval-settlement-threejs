@@ -183,6 +183,27 @@ assert.match(
   /Delivering 4 raw iron to Village smithy/,
   'a settlement Mineworks cart must remain visibly local',
 );
+const oxDrawnIronTrip: DeliveryTripState = {
+  ...localIronTrip,
+  oxId: 'stable-ox-1',
+  deliveryWorkers: 1,
+};
+const oxDrawnPresentation = describeDeliveryTrip(
+  oxDrawnIronTrip,
+  'Mineworks',
+  'Village smithy',
+);
+assert.deepEqual(
+  {
+    occupation: oxDrawnPresentation.occupation,
+    cargoSummary: oxDrawnPresentation.cargoSummary,
+  },
+  {
+    occupation: 'Cart guide',
+    cargoSummary: '4 raw iron - 1 guide - ox-drawn',
+  },
+  'an ox-drawn cart should present its resident worker as the guide, not the puller',
+);
 assert.equal(
   describeDeliveryTrip(
     regionalExportTrip,
