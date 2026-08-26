@@ -4968,6 +4968,9 @@ function describeVillagerActivity(
         }
       }
       if (holiday && agent.role !== 'founder') {
+        if (agent.pathPurpose === 'home_wander' && agent.mode === 'walk') {
+          return `Taking a ${holiday.label} holiday walk`;
+        }
         return `Celebrating ${holiday.label} with the household in the backyard`;
       }
       if (agent.role === 'founder') {

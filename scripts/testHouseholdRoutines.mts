@@ -8,6 +8,11 @@ import {
   residenceWindowActivity,
 } from '../src/residences/householdRoutine.ts';
 import {
+  findNearestRoadEdgePath,
+  pickHomePlotWanderPath,
+  pickVillagerWalkPath,
+} from '../src/settlement/villagerPaths.ts';
+import {
   pickWorkerTravelPath,
   WATCHTOWER_MUSTER_RANK_WIDTH,
   watchtowerMusterPosition,
@@ -117,6 +122,90 @@ assert.equal(
   surfaceAdjustedTravelSpeed(1.2, true, PEDESTRIAN_ROAD_SPEED_MULTIPLIER),
   1.5,
   'pedestrians should move 25% faster while their feet are on a road or bridge',
+);
+
+const leisureHome = residence('leisure-home', 0, 0);
+const shallowUnimprovedPlot = {
+  polygon: [
+    { x: -4, z: 7.2 },
+    { x: 4, z: 7.2 },
+    { x: 4, z: -4.2 },
+    { x: -4, z: -4.2 },
+  ],
+  backyardDepth: 0.5,
+};
+const localLeisurePath = pickHomePlotWanderPath(
+  leisureHome,
+  17,
+  shallowUnimprovedPlot,
+);
+assert.ok(localLeisurePath && localLeisurePath.length >= 5);
+assert.ok(
+  localLeisurePath.slice(1, -1).every(
+    (point) =>
+      point.x > -4
+      && point.x < 4
+      && point.z > 3.7
+      && point.z < 7.2,
+  ),
+  'a house-only plot should still provide a fence-inset front-yard stroll',
+);
+
+const backyardOrigin = { x: 0, z: -6 };
+const deepPlot = {
+  ...shallowUnimprovedPlot,
+  polygon: shallowUnimprovedPlot.polygon.map((point) => ({
+    ...point,
+    z: point.z < 0 ? -14 : point.z,
+  })),
+  backyardDepth: 10.3,
+};
+const backyardLeisurePath = pickHomePlotWanderPath(
+  leisureHome,
+  23,
+  deepPlot,
+  backyardOrigin,
+);
+assert.ok(backyardLeisurePath && backyardLeisurePath.length >= 5);
+assert.ok(
+  backyardLeisurePath.slice(1, -1).every(
+    (point) => point.z < -3.7 && point.z > -14,
+  ),
+  'an agent already relaxing behind the cottage should circulate inside that backyard',
+);
+
+const leisureRoads = new RoadNetwork();
+leisureRoads.addRoadPath([
+  new THREE.Vector3(-24, 0, 7.2),
+  new THREE.Vector3(24, 0, 7.2),
+]);
+const leisureNearestEdge = findNearestRoadEdgePath(leisureRoads, 0, 0);
+assert.ok(leisureNearestEdge);
+const leisureRoutes = Array.from({ length: 48 }, (_, seed) =>
+  pickVillagerWalkPath(
+    leisureHome,
+    [leisureHome],
+    leisureRoads,
+    seed,
+    leisureNearestEdge,
+    shallowUnimprovedPlot,
+  )
+).filter((path): path is NonNullable<typeof path> => path !== null);
+assert.ok(
+  leisureRoutes.some((path) => path.some((point) => Math.abs(point.z - 7.2) < 1e-6)),
+  'connected households should regularly take their leisure walk onto the road network',
+);
+assert.ok(
+  leisureRoutes.some((path) => path.every((point) => point.z < 7.2 - 1e-4)),
+  'connected households should retain some short movement within their own plot',
+);
+assert.ok(
+  leisureRoutes.every((path) => {
+    const first = path[0]!;
+    const last = path[path.length - 1]!;
+    return Math.hypot(first.x - last.x, first.z - last.z) < 1e-6;
+  }),
+  'leisure routes should be closed walks that bring an agent home without teleporting',
 );
 
 const originalWarn = console.warn;
@@ -337,7 +426,10 @@ assert.ok(
 gameSpeed = 1;
 for (let step = 0; step < realtimeTickBudget(600); step++) villagers.tick(0.05);
 assert.equal(worker.routinePhase, 'home_outdoors');
-assert.equal(worker.pathPurpose, null);
+assert.ok(
+  worker.pathPurpose === null || worker.pathPurpose === 'home_wander',
+  'an off-duty worker at home may already have started a leisure walk',
+);
 
 villagers.setSchedule({
   ...fullClock(23.8),
