@@ -1,9 +1,14 @@
+use std::collections::HashMap;
+
 use spacetimedb::{Identity, ReducerContext};
 
 use crate::building_defs::building_def;
 use crate::construction_priority::CONSTRUCTION_PRIORITY_NORMAL;
 use crate::db::*;
-use crate::economy::{available_building_labor, building_edible_food_stock};
+use crate::economy::{
+    available_workplace_labor, building_edible_food_stock,
+    preempt_flexible_labor_for_workplace_callup,
+};
 use crate::farming::{
     farmstead_exportable_grain, field_seed_crop, field_seed_grain_remaining, field_work_allowed,
     CROP_BARLEY, STAGE_GROWING,
@@ -170,7 +175,7 @@ fn call_up_active_seasonal_labor_for_scope(
     labor_reserve: u32,
 ) -> u32 {
     let available_labor =
-        steward_deployable_labor(available_building_labor(ctx, owner), labor_reserve);
+        steward_deployable_labor(available_workplace_labor(ctx, owner), labor_reserve);
     if available_labor == 0 {
         return 0;
     }
@@ -216,8 +221,17 @@ fn call_up_active_seasonal_labor_for_scope(
         });
     }
 
-    let mut called_up = 0_u32;
-    for (building_id, target_labor) in seasonal_callup_targets(&candidates, available_labor) {
+    let targets = seasonal_callup_targets(&candidates, available_labor);
+    let current_labor = candidates
+        .iter()
+        .map(|candidate| (candidate.building_id, candidate.assigned_labor))
+        .collect::<HashMap<_, _>>();
+    let called_up = targets.iter().fold(0_u32, |total, (building_id, target_labor)| {
+        let current = current_labor.get(building_id).copied().unwrap_or(0);
+        total.saturating_add(target_labor.saturating_sub(current))
+    });
+    preempt_flexible_labor_for_workplace_callup(ctx, owner, called_up);
+    for (building_id, target_labor) in targets {
         let Some(mut building) = ctx.db.building().id().find(&building_id) else {
             continue;
         };
@@ -227,7 +241,6 @@ fn call_up_active_seasonal_labor_for_scope(
         {
             continue;
         }
-        called_up = called_up.saturating_add(target_labor - building.assigned_labor);
         building.assigned_labor = target_labor;
         ctx.db.building().id().update(building);
     }

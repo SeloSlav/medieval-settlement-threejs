@@ -47,6 +47,8 @@ export type SettlementLaborStewardForecast = {
   enabledStages: number;
   availableLaborBefore: number;
   availableLaborAfter: number;
+  workplaceReserveBefore: number;
+  workplaceReserveAfter: number;
   totalRecalledWorkers: number;
   totalCalledWorkers: number;
   firstChangedBuildingId: string | null;
@@ -83,11 +85,14 @@ export function computeSettlementLaborStewardForecast(
   availableLabor: number,
   policies: LaborStewardPolicySelection,
   laborReserve = 0,
+  workplaceReserveLabor = availableLabor,
 ): SettlementLaborStewardForecast {
   const availableLaborBefore = Math.max(0, Math.floor(availableLabor));
+  const workplaceReserveBefore = Math.max(0, Math.floor(workplaceReserveLabor));
   const safeLaborReserve = Math.max(0, Math.floor(laborReserve));
   let projectedBuildings = state.buildings;
   let laborRemaining = availableLaborBefore;
+  let workplaceReserveRemaining = workplaceReserveBefore;
   let totalRecalledWorkers = 0;
   let totalCalledWorkers = 0;
   let firstChangedBuildingId: string | null = null;
@@ -101,13 +106,18 @@ export function computeSettlementLaborStewardForecast(
     );
     projectedBuildings = applySeasonalLaborRecall(projectedBuildings, recall);
     laborRemaining += recall.reclaimableWorkers;
+    workplaceReserveRemaining += recall.reclaimableWorkers;
     const callup = computeSettlementSeasonalCallupPlan(
       { ...state, buildings: projectedBuildings },
       reviewMonth,
-      Math.max(0, laborRemaining - safeLaborReserve),
+      Math.max(0, workplaceReserveRemaining - safeLaborReserve),
     );
     applyProjectedLaborTargets(projectedBuildings, callup.assignments);
-    laborRemaining -= callup.callupWorkers;
+    laborRemaining = Math.max(0, laborRemaining - callup.callupWorkers);
+    workplaceReserveRemaining = Math.max(
+      0,
+      workplaceReserveRemaining - callup.callupWorkers,
+    );
     seasonal = {
       recall,
       callup,
@@ -128,7 +138,7 @@ export function computeSettlementLaborStewardForecast(
     production = computeSettlementProductionStewardPlan(
       { ...state, buildings: projectedBuildings },
       reviewMonth,
-      laborRemaining,
+      workplaceReserveRemaining,
       safeLaborReserve,
     );
     projectedBuildings = applyWorksiteStallRecall(
@@ -136,7 +146,16 @@ export function computeSettlementLaborStewardForecast(
       production.recall,
     );
     applyProjectedLaborTargets(projectedBuildings, production.callup.assignments);
-    laborRemaining = production.availableLaborAfter;
+    laborRemaining = Math.max(
+      0,
+      laborRemaining + production.recalledWorkers - production.calledWorkers,
+    );
+    workplaceReserveRemaining = Math.max(
+      0,
+      workplaceReserveRemaining
+        + production.recalledWorkers
+        - production.calledWorkers,
+    );
     totalRecalledWorkers += production.recalledWorkers;
     totalCalledWorkers += production.calledWorkers;
     firstChangedBuildingId ??= production.firstChangedBuildingId;
@@ -173,6 +192,8 @@ export function computeSettlementLaborStewardForecast(
       + Number(policies.constructionEnabled),
     availableLaborBefore,
     availableLaborAfter: laborRemaining,
+    workplaceReserveBefore,
+    workplaceReserveAfter: workplaceReserveRemaining,
     totalRecalledWorkers,
     totalCalledWorkers,
     firstChangedBuildingId,

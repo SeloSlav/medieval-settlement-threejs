@@ -641,7 +641,8 @@ assert.equal(computeResourceTotals(backyardState).timber, 96);
 assert.equal(computeResourceTotals(backyardState).stone, 78);
 assert.equal(computeStoredResourceTotals(backyardState).timber, 100);
 assert.equal(computeStoredResourceTotals(backyardState).stone, 80);
-assert.equal(computePopulationStats(backyardState).assigned, 1);
+assert.equal(computePopulationStats(backyardState).assigned, 0);
+assert.equal(computePopulationStats(backyardState).flexibleAssigned, 1);
 
 const activeFireRepair = residence('active-fire-repair', 2, 0);
 Object.assign(activeFireRepair, {
@@ -686,7 +687,8 @@ const fireRepairState = emptyGameState(
 );
 assert.equal(computeResourceTotals(fireRepairState).timber, 93);
 assert.equal(computeResourceTotals(fireRepairState).stone, 75);
-assert.equal(computePopulationStats(fireRepairState).assigned, 1);
+assert.equal(computePopulationStats(fireRepairState).assigned, 0);
+assert.equal(computePopulationStats(fireRepairState).flexibleAssigned, 1);
 
 const initialCottage = residence('initial-cottage', 0, 0);
 Object.assign(initialCottage, {
@@ -793,7 +795,8 @@ assert.deepEqual(
   { timber: 100, stone: 80, gold: 20 },
   'total presentation should retain stock already committed to the active project',
 );
-assert.equal(computePopulationStats(physicalState).assigned, 2);
+assert.equal(computePopulationStats(physicalState).assigned, 0);
+assert.equal(computePopulationStats(physicalState).flexibleAssigned, 2);
 
 const stockedHousehold = residence('hud-stocked-household', 4, 3);
 stockedHousehold.needs.firewood.stock = 2;

@@ -329,6 +329,19 @@ fn preempt_flexible_labor_to_capacity(
     }
 }
 
+/// Make room for a known increase in completed-workplace rosters. The caller
+/// applies the roster targets after this returns; temporary queues and carts
+/// are reduced first so the new permanent posts become active immediately.
+pub fn preempt_flexible_labor_for_workplace_callup(
+    ctx: &ReducerContext,
+    owner: spacetimedb::Identity,
+    added_workplace_labor: u32,
+) {
+    let reserve_after = available_workplace_labor(ctx, owner)
+        .saturating_sub(added_workplace_labor);
+    preempt_flexible_labor_to_capacity(ctx, owner, reserve_after);
+}
+
 /// Clamp building assignments immediately after residence population is lost.
 pub fn reconcile_building_labor(ctx: &ReducerContext, owner: spacetimedb::Identity) {
     let cart_floors = staffed_cart_workers_by_building(ctx, owner);
@@ -512,11 +525,10 @@ pub fn assign_building_labor(
     }
 
     if building.construction_complete && requested_labor > building.assigned_labor {
-        let workplace_labor_after = assigned_elsewhere.saturating_add(requested_labor);
-        preempt_flexible_labor_to_capacity(
+        preempt_flexible_labor_for_workplace_callup(
             ctx,
             owner,
-            population.saturating_sub(workplace_labor_after),
+            requested_labor.saturating_sub(building.assigned_labor),
         );
     }
 

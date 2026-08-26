@@ -1578,10 +1578,10 @@ function formatLaborStewardForecast(
   ].filter(Boolean);
   const reserveStatus = forecast.laborReserve === 0
     ? ''
-    : forecast.availableLaborAfter >= forecast.laborReserve
-      ? ` · ${forecast.laborReserve} held free`
-      : ` · reserve short ${forecast.laborReserve - forecast.availableLaborAfter}; productive crews stay assigned`;
-  return `${timing}: ${stages.join(' → ')} · ${forecast.availableLaborAfter} free after review${reserveStatus}`;
+    : forecast.workplaceReserveAfter >= forecast.laborReserve
+      ? ` · ${forecast.laborReserve} held in reserve`
+      : ` · reserve short ${forecast.laborReserve - forecast.workplaceReserveAfter}; productive crews stay assigned`;
+  return `${timing}: ${stages.join(' → ')} · ${forecast.availableLaborAfter} idle after review · ${forecast.workplaceReserveAfter} workplace-ready${reserveStatus}`;
 }
 
 export function renderFreshFoodPreservationRows(
@@ -1852,13 +1852,14 @@ export function renderTownHallInspector(
   const laborStewardForecast = computeSettlementLaborStewardForecast(
     context.gameState,
     environmentOutlook.clock.month,
-    context.populationStats.available,
+    context.populationStats.idle,
     {
       seasonalEnabled: seasonalLaborStewardEnabled,
       productionEnabled: productionLaborStewardEnabled,
       constructionEnabled: constructionLaborStewardEnabled,
     },
     laborStewardReserve,
+    context.populationStats.available,
   );
   const laborStewardInspectButton = laborStewardForecast.firstChangedBuildingId === null
     ? ''
@@ -1974,7 +1975,7 @@ export function renderTownHallInspector(
   });
   const constructionLabor = computeSettlementConstructionLaborPlan(
     context.gameState,
-    context.populationStats.available,
+    context.populationStats.idle,
   );
   const constructionLaborInspectId = constructionLabor.recalledWorkers > 0
     ? constructionLabor.firstBlockedBuildingId
@@ -2040,7 +2041,7 @@ export function renderTownHallInspector(
     physicalEconomy:
       context.gameState.physicalFoundingSiteEnabled === true
       && (context.conflictEnabled ?? false),
-    freeHaulers: context.populationStats.available,
+    freeHaulers: context.populationStats.idle,
     roadComponentFor:
       typeof context.worldQueries.getRoadComponentId === 'function'
         ? (candidate) => context.worldQueries.getRoadComponentId(
@@ -2417,12 +2418,12 @@ export function renderTownHallInspector(
       <li><span>Population</span><span>${context.populationStats.total}</span></li>
       <li><span>Pantry safeguard</span><span>${pantrySafeguard.label} · ${pantrySafeguard.hint}</span></li>
       ${renderSettlementWelfareRows(provisioning.welfare)}
-      <li><span>Workforce</span><span>${context.populationStats.assigned} / ${context.populationStats.total} committed${context.populationStats.cartAssigned > 0 ? ` · ${context.populationStats.cartAssigned} reserved on carts outside building rosters` : ''} · ${context.populationStats.available} free · ${laborPlan.openPermanentPosts} open permanent posts${laborInspectButton}</span></li>
+      <li><span>Workforce</span><span>${context.populationStats.assigned} / ${context.populationStats.total} explicitly rostered · ${context.populationStats.available} workplace-ready reserve · ${context.populationStats.idle} currently idle${context.populationStats.flexibleAssigned > 0 ? ` · ${context.populationStats.flexibleAssigned} on flexible tasks` : ''}${context.populationStats.cartAssigned > 0 ? `, including ${context.populationStats.cartAssigned} on carts` : ''} · ${laborPlan.openPermanentPosts} open permanent posts${laborInspectButton}</span></li>
       <li><span>Sector staffing</span><span>${formatLaborSectorMix(laborPlan)}</span></li>
       <li><span>Seasonal steward</span><span>${seasonalLaborStewardStatus(seasonalLaborStewardEnabled, staffedTownHallAvailable)}</span></li>
       <li><span>Production steward</span><span>${productionLaborStewardStatus(productionLaborStewardEnabled, staffedTownHallAvailable)}</span></li>
       <li><span>Construction steward</span><span>${constructionLaborStewardStatus(constructionLaborStewardEnabled, staffedTownHallAvailable)}</span></li>
-      <li><span>Steward reserve</span><span>${laborStewardReserveLabel(laborStewardReserve)} · ${context.populationStats.available} currently free</span></li>
+      <li><span>Steward reserve</span><span>${laborStewardReserveLabel(laborStewardReserve)} · ${context.populationStats.available} workplace-ready · ${context.populationStats.idle} currently idle</span></li>
       <li><span>Dawn labor review</span><span>${formatLaborStewardForecast(laborStewardForecast, staffedTownHallAvailable)}${laborStewardInspectButton}</span></li>
       <li><span>Seasonal labor</span><span>${formatSeasonalLabor(seasonalLabor)}${seasonalLaborInspectButton}</span></li>
       <li><span>Seasonal call-up</span><span>${formatSeasonalCallup(seasonalCallup)}${seasonalCallupInspectButton}</span></li>

@@ -236,9 +236,10 @@ assert.match(residenceRenderer, /data-action="upgrade-residence" data-upgrade-ti
 assert.match(residenceRenderer, /data-residence-summary/);
 assert.match(
   residenceRenderer,
-  /data-residence-tier-needs[\s\S]{0,240}<span>Tier \$\{tier\} \/ 4 needs<\/span>[\s\S]{0,160}class="residence-needs-row"/,
-  'the residence summary should align the current tier with its need-icon row',
+  /data-residence-tier-needs[\s\S]{0,240}<span>Household needs<\/span>[\s\S]{0,160}class="residence-needs-row"/,
+  'the residence summary should label the need-icon row as household needs',
 );
+assert.doesNotMatch(residenceRenderer, /Tier \$\{tier\} \/ 4 needs/);
 assert.doesNotMatch(
   residenceRenderer,
   /<span>Approval & economy<\/span>|<span>Household services<\/span>/,

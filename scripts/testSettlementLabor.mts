@@ -18,6 +18,7 @@ import {
   computeInTransitResourceTotals,
   computePopulationStats,
   computeResourceTotals,
+  maxAssignableLabor,
 } from '../src/resources/resourceTotals.ts';
 import {
   createEmptyStockpile,
@@ -227,7 +228,7 @@ const renderedInspector = renderTownHallInspector(
   },
 );
 assert.ok(renderedInspector.detailsHtml.includes(
-  `${renderedPopulation.assigned} / ${renderedPopulation.total} committed · ${renderedPopulation.available} free · ${renderedPlan.openPermanentPosts} open permanent posts`,
+  `${renderedPopulation.assigned} / ${renderedPopulation.total} explicitly rostered · ${renderedPopulation.available} workplace-ready reserve · ${renderedPopulation.idle} currently idle · ${renderedPlan.openPermanentPosts} open permanent posts`,
 ));
 assert.ok(renderedInspector.detailsHtml.includes(
   `At full housing labor</span><span>${renderedPlan.populationAtFullHousing} people`,
@@ -253,8 +254,48 @@ renderedState.deliveryTrips.set(
 );
 const activePopulation = computePopulationStats(renderedState);
 assert.equal(activePopulation.cartAssigned, 1);
-assert.equal(activePopulation.assigned, renderedPopulation.assigned + 1);
-assert.equal(activePopulation.available, renderedPopulation.available - 1);
+assert.equal(activePopulation.assigned, renderedPopulation.assigned);
+assert.equal(activePopulation.flexibleAssigned, renderedPopulation.flexibleAssigned + 1);
+assert.equal(activePopulation.available, renderedPopulation.available);
+assert.equal(activePopulation.idle, renderedPopulation.idle - 1);
+assert.equal(
+  maxAssignableLabor(
+    building('reserve-workplace', 'lumber_mill', 0),
+    {
+      total: 5,
+      assigned: 1,
+      flexibleAssigned: 4,
+      cartAssigned: 1,
+      sick: 0,
+      available: 4,
+      idle: 0,
+      housingCapacity: 0,
+      housed: 0,
+      vacant: 0,
+    },
+  ),
+  BUILDING_DEFINITIONS.lumber_mill.maxLabor,
+  'temporary reserve tasks must not disable explicit workplace assignment',
+);
+assert.equal(
+  maxAssignableLabor(
+    building('reserve-construction', 'lumber_mill', 0, false),
+    {
+      total: 5,
+      assigned: 1,
+      flexibleAssigned: 4,
+      cartAssigned: 1,
+      sick: 0,
+      available: 4,
+      idle: 0,
+      housingCapacity: 0,
+      housed: 0,
+      vacant: 0,
+    },
+  ),
+  0,
+  'temporary construction still needs an actually idle reserve worker',
+);
 const activeCartLabor = buildingLaborView(
   renderedWell,
   activePopulation,
@@ -298,7 +339,7 @@ const activeHaulageInspector = renderTownHallInspector(
 );
 assert.match(activeHaulageInspector.detailsHtml, /Haulage posture/);
 assert.match(activeHaulageInspector.detailsHtml, /1 reserved outside building rosters/);
-assert.match(activeHaulageInspector.detailsHtml, /1 reserved on carts outside building rosters/);
+assert.match(activeHaulageInspector.detailsHtml, /1 on flexible tasks, including 1 on carts/);
 assert.match(activeHaulageInspector.detailsHtml, /Road commitment/);
 assert.match(activeHaulageInspector.detailsHtml, /Longest active haul/);
 assert.match(activeHaulageInspector.detailsHtml, /data-inspect-delivery-trip="route"/);

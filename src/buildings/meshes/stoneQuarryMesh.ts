@@ -73,6 +73,7 @@ function addSurfaceStonePile(
   const pile = new THREE.Group();
   // These legacy names are the stock-visibility contract for stone_quarry.
   pile.name = 'StoneQuarryStockSegment';
+  pile.visible = false;
   pile.position.set(x, 0, z);
   pile.rotation.y = rotation;
   const stones = [

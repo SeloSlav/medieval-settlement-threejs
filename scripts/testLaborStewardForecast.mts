@@ -42,8 +42,8 @@ assert.match(laborStewardReserveLabel(2), /2 villagers held/);
 
 const chainState = emptyGameState();
 const winterForager = building('forager', 'foragers_shed', 2);
-const suppliedMill = building('mill', 'watermill', 0);
-suppliedMill.grain = 20;
+const suppliedMill = building('mill', 'windmill', 0);
+suppliedMill.ryeGrain = 20;
 const readyConstruction = constructionSite('construction');
 for (const site of [winterForager, suppliedMill, readyConstruction]) {
   chainState.buildings.set(site.id, site);
@@ -110,8 +110,8 @@ assert.equal(reservedChainForecast.availableLaborAfter, 1);
 
 const seasonalFirstState = emptyGameState();
 const activeForager = building('active-forager', 'foragers_shed', 0);
-const waitingMill = building('waiting-mill', 'watermill', 0);
-waitingMill.grain = 20;
+const waitingMill = building('waiting-mill', 'windmill', 0);
+waitingMill.ryeGrain = 20;
 seasonalFirstState.buildings.set(activeForager.id, activeForager);
 seasonalFirstState.buildings.set(waitingMill.id, waitingMill);
 const seasonalFirst = computeSettlementLaborStewardForecast(
@@ -197,8 +197,8 @@ renderedState.tick = Math.round(
 const townHall = building('hall', 'town_hall', 1);
 const aprilApiary = building('apiary', 'apiary', 0);
 const aprilDormantFarm = building('dormant-farm', 'threshing_barn', 2);
-const aprilMill = building('mill', 'watermill', 0);
-aprilMill.grain = 20;
+const aprilMill = building('mill', 'windmill', 0);
+aprilMill.ryeGrain = 20;
 const aprilConstruction = constructionSite('construction');
 for (const site of [
   townHall,
@@ -232,7 +232,7 @@ const inspector = renderTownHallInspector(
 assert.match(inspector.detailsHtml, /Dawn labor review/);
 assert.match(
   inspector.detailsHtml,
-  /Next dawn: seasonal release 2\/deploy 1.*production deploy 3.*construction deploy 4.*1 free after review.*1 held free/,
+  /Next dawn: seasonal release 2\/deploy 1.*production deploy 3.*construction deploy 4.*1 idle after review.*5 workplace-ready.*1 held in reserve/,
 );
 assert.match(
   inspector.detailsHtml,
@@ -254,8 +254,8 @@ for (let index = 0; index < 50_000; index += 1) {
   perfState.buildings.set(forager.id, forager);
 }
 for (let index = 0; index < 20_000; index += 1) {
-  const mill = building(`mill-${index}`, 'watermill', 0);
-  mill.grain = 20;
+  const mill = building(`mill-${index}`, 'windmill', 0);
+  mill.ryeGrain = 20;
   perfState.buildings.set(mill.id, mill);
 }
 for (let index = 0; index < 30_000; index += 1) {
@@ -342,6 +342,7 @@ function emptyGameState(): GameState {
     residences: new Map(),
     backyardGardens: new Map(),
     deliveryTrips: new Map(),
+    stableOxen: new Map(),
     fireIncidents: new Map(),
     nextBuildingId: 1,
   };

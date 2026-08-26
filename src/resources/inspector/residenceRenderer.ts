@@ -968,7 +968,7 @@ function renderResidenceTierNeedsRow(
     : tier === 1
       ? 'Bundled thatch'
       : 'Split wooden shingle';
-  return `<li data-residence-summary data-inspector-primary data-residence-tier-needs data-inspector-detail="${roof} · ${roadAccess} · ${metCount} of ${needs.length} current needs met"><span>Tier ${tier} / 4 needs</span><span class="residence-needs-row" role="list" aria-label="Tier ${tier} household needs">${needs.join('')}</span></li>`;
+  return `<li data-residence-summary data-inspector-primary data-residence-tier-needs data-inspector-detail="${roof} · ${roadAccess} · ${metCount} of ${needs.length} current needs met"><span>Household needs</span><span class="residence-needs-row" role="list" aria-label="Household needs">${needs.join('')}</span></li>`;
 }
 
 type ResidenceFoodNeedSource = {

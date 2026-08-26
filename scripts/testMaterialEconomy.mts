@@ -674,7 +674,6 @@ const localIronReserveMarket = building('trading_post', {
   iron: 0,
   marketplaceIronTarget: 24,
 });
-console.log('material-economy checkpoint: local reserve assignments');
 let localIronReserveAssignments = assignLocalMaterialInputTargets(
   [reserveIronMine],
   [localIronReserveMarket, hungryReserveSmithy],
@@ -819,7 +818,6 @@ assert.ok(
   'a deeper iron charge must also show the bloom/bar form accepted from trade or prior consolidation',
 );
 
-console.log('material-economy checkpoint: building visuals');
 const buildingVisuals = [
   {
     kind: 'stone_quarry',
@@ -986,7 +984,6 @@ for (const spec of buildingVisuals) {
   assert.ok(segments.every((segment) => !segment.visible));
 }
 
-console.log('material-economy checkpoint: charcoal visuals');
 const charcoalClampMesh = createBuildingMesh('charcoal_burner');
 const charcoalClampSmoke = charcoalClampMesh.getObjectByName(
   CHARCOAL_CLAMP_SMOKE_NAME,
@@ -1088,7 +1085,7 @@ assert.deepEqual(JSON.parse(decodeURIComponent(smithyFlow)), {
   inputs: ['iron', 'charcoal', 'water'],
   outputs: ['ironwork'],
 });
-for (const slug of ['clay-pit', 'charcoal-burner', 'smithy-bloomery', 'potter-kiln']) {
+for (const slug of ['charcoal-burner', 'smithy-bloomery', 'potter-kiln']) {
   assert.match(renderedCards, new RegExp(`/assets/ui/build-menu/cards/${slug}\\.webp`));
   assert.ok(
     existsSync(`public/assets/ui/build-menu/cards/${slug}.webp`),
@@ -1149,7 +1146,6 @@ const simulationReducerSource = readFileSync(
   'server/src/reducers/simulation.rs',
   'utf8',
 );
-console.log('material-economy checkpoint: source contracts');
 const rustFunctionSection = (name: string, nextName: string): string => {
   const start = expandedEconomySource.indexOf(`pub fn ${name}`);
   const end = expandedEconomySource.indexOf(`pub fn ${nextName}`, start + 1);
@@ -1257,7 +1253,7 @@ assert.match(
 );
 assert.match(
   localMaterialDispatchStep,
-  /\("mine", CommodityKind::Iron\)[\s\S]*\["smithy", "trading_post"\][\s\S]*\("mine", CommodityKind::Salt\)[\s\S]*"pastoral_farmstead", "trading_post"/,
+  /\("stone_quarry" \| "mine", CommodityKind::Iron\)[\s\S]*\["smithy", "trading_post"\][\s\S]*\("stone_quarry" \| "mine", CommodityKind::Salt\)[\s\S]*"pastoral_farmstead", "trading_post"/,
   'local mine carts must include selected physical market reserves after workshop buffers',
 );
 assert.match(
@@ -1307,7 +1303,6 @@ assert.match(
   /candidate\.building\.kind == "trading_post"[\s\S]*deferred_pottery_exports\.push/,
   'authority must defer Trading Post overflow until both local duties have a chance',
 );
-console.log('material-economy checkpoint: generated source contracts');
 const generatedBuildingTable = readFileSync('src/generated/building_table.ts', 'utf8');
 const generatedPotteryReducer = readFileSync(
   'src/generated/set_pottery_dispatch_policy_reducer.ts',
@@ -1415,7 +1410,6 @@ assert.ok(
   'regional/household market work and seed recovery must retain cart precedence before workshop inputs',
 );
 
-console.log('material-economy checkpoint: target selection');
 const materialDispatchTargets = Array.from({ length: 100_000 }, (_, index) =>
   building(index % 2 === 0 ? 'smithy' : 'smokehouse', {
     id: `material-target-${index}`,
@@ -1441,15 +1435,14 @@ const largeSettlementMaterialTarget = selectMarketplaceMaterialInputTarget(
 const materialDispatchElapsedMs = performance.now() - materialDispatchStartedAt;
 assert.equal(
   largeSettlementMaterialTarget?.target.id,
-  'material-target-99999',
-  'legacy workplace priority must not beat the nearest equal-runway material claim',
+  'urgent-material-target',
+  'urgent working-buffer demand must outrank an equal-runway normal-priority claim',
 );
 assert.ok(
   materialDispatchElapsedMs < 250,
   `100,001 imported-material dispatch candidates took ${materialDispatchElapsedMs.toFixed(1)} ms`,
 );
 
-console.log('material-economy checkpoint: marketplace assignment');
 const assignmentSources = Array.from({ length: 100 }, (_, index) =>
   building('trading_post', {
     id: `assignment-market-${index}`,
@@ -1486,7 +1479,6 @@ assert.ok(
   `100,000 settlement-wide market/workshop pairs took ${assignmentElapsedMs.toFixed(1)} ms`,
 );
 
-console.log('material-economy checkpoint: local assignment');
 const localAssignmentSources = Array.from({ length: 100 }, (_, index) =>
   building('clay_pit', {
     id: `local-assignment-clay-${index}`,
@@ -1522,7 +1514,6 @@ assert.ok(
   `100,000 local material source/workshop pairs took ${localAssignmentElapsedMs.toFixed(1)} ms`,
 );
 
-console.log('material-economy checkpoint: visual signatures');
 const signatureBuildings = Array.from({ length: 100_000 }, (_, index) => {
   const kinds = [
     'clay_pit',

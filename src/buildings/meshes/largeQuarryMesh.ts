@@ -231,6 +231,7 @@ function addStoneYard(group: THREE.Group): void {
   for (const [x, z, yaw] of stacks) {
     const stack = new THREE.Group();
     stack.name = 'LargeQuarryStockSegment';
+    stack.visible = false;
     stack.position.set(x, 0, z);
     stack.rotation.y = yaw;
     for (const [bx, by] of [[-0.65, 0.38], [0.65, 0.38], [0, 1.08]] as const) {

@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use spacetimedb::{reducer, ReducerContext, Table};
 
 use crate::apiary_policy::is_valid_apiary_harvest_policy;
@@ -20,12 +22,14 @@ use crate::construction_priority::{
 };
 use crate::db::*;
 use crate::economy::{
-    assign_building_labor as set_building_labor, available_building_labor, building_commodity_cap,
-    building_commodity_stock, building_cost, building_salvage_refund,
+    assign_building_labor as set_building_labor, available_building_labor,
+    available_workplace_labor, building_commodity_cap, building_commodity_stock, building_cost,
+    building_salvage_refund,
     construction_treasury_reservation, credit_treasury_commodity, guardhouse_roster_count,
     guardhouse_roster_floors, initial_construction_labor, spend_aggregate_ironwork,
-    spend_aggregate_roof_tiles, spend_aggregate_stone, spend_aggregate_timber, spend_treasury_gold,
-    total_ironwork, total_roof_tiles, total_stone, total_timber, CommodityKind,
+    preempt_flexible_labor_for_workplace_callup, spend_aggregate_roof_tiles,
+    spend_aggregate_stone, spend_aggregate_timber, spend_treasury_gold, total_ironwork,
+    total_roof_tiles, total_stone, total_timber, CommodityKind,
 };
 use crate::extraction_policy::{
     mineworks_clay_commodity, mineworks_geological_commodity, mining_camp_clay_commodity,
@@ -1869,7 +1873,7 @@ fn call_up_target_ready_processor_labor_for_owner_with_policy(
     labor_reserve: u32,
 ) -> u32 {
     let available_labor =
-        steward_deployable_labor(available_building_labor(ctx, owner), labor_reserve);
+        steward_deployable_labor(available_workplace_labor(ctx, owner), labor_reserve);
     if available_labor == 0 {
         return 0;
     }
@@ -1920,8 +1924,17 @@ fn call_up_target_ready_processor_labor_for_owner_with_policy(
         });
     }
 
-    let mut called_up = 0_u32;
-    for (building_id, target_labor) in processor_callup_targets(&candidates, available_labor) {
+    let targets = processor_callup_targets(&candidates, available_labor);
+    let current_labor = candidates
+        .iter()
+        .map(|candidate| (candidate.building_id, candidate.assigned_labor))
+        .collect::<HashMap<_, _>>();
+    let called_up = targets.iter().fold(0_u32, |total, (building_id, target_labor)| {
+        let current = current_labor.get(building_id).copied().unwrap_or(0);
+        total.saturating_add(target_labor.saturating_sub(current))
+    });
+    preempt_flexible_labor_for_workplace_callup(ctx, owner, called_up);
+    for (building_id, target_labor) in targets {
         let Some(mut building) = ctx.db.building().id().find(&building_id) else {
             continue;
         };
@@ -1931,7 +1944,6 @@ fn call_up_target_ready_processor_labor_for_owner_with_policy(
         {
             continue;
         }
-        called_up = called_up.saturating_add(target_labor - building.assigned_labor);
         building.assigned_labor = target_labor;
         ctx.db.building().id().update(building);
     }
@@ -1993,9 +2005,10 @@ pub fn call_up_year_round_labor(ctx: &ReducerContext, town_hall_id: u64) -> Resu
     let owner = ctx.sender();
     let settlement_id = require_staffed_town_hall_settlement(ctx, owner, town_hall_id)?;
 
-    let mut available_labor = available_building_labor(ctx, owner);
+    let mut available_labor = available_workplace_labor(ctx, owner);
     let mut sites = Vec::new();
     let mut fire_disabled_sites = Vec::new();
+    let mut fire_recalled_labor = 0_u32;
     let cart_floors = staffed_cart_workers_by_building(ctx, owner);
     let roster_floors = guardhouse_roster_floors(ctx, owner);
     for building in ctx.db.building().owner().filter(&owner).filter(|building| {
@@ -2014,8 +2027,9 @@ pub fn call_up_year_round_labor(ctx: &ReducerContext, town_hall_id: u64) -> Resu
                     .copied()
                     .unwrap_or(0)
                     .max(roster_floors.get(&building.id).copied().unwrap_or(0));
-                available_labor = available_labor
-                    .saturating_add(building.assigned_labor.saturating_sub(cart_floor));
+                let releasable = building.assigned_labor.saturating_sub(cart_floor);
+                available_labor = available_labor.saturating_add(releasable);
+                fire_recalled_labor = fire_recalled_labor.saturating_add(releasable);
                 fire_disabled_sites.push(building.id);
             }
             continue;
@@ -2034,6 +2048,14 @@ pub fn call_up_year_round_labor(ctx: &ReducerContext, town_hall_id: u64) -> Resu
     }
 
     let rotation = year_round_labor_rotation(&sites, available_labor);
+    preempt_flexible_labor_for_workplace_callup(
+        ctx,
+        owner,
+        rotation
+            .called_workers
+            .saturating_sub(rotation.recalled_workers)
+            .saturating_sub(fire_recalled_labor),
+    );
     for building_id in fire_disabled_sites {
         let Some(mut building) = ctx.db.building().id().find(&building_id) else {
             continue;
