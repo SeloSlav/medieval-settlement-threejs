@@ -1410,6 +1410,7 @@ assert.ok(
   'regional/household market work and seed recovery must retain cart precedence before workshop inputs',
 );
 
+console.log('material-economy checkpoint: target selection');
 const materialDispatchTargets = Array.from({ length: 100_000 }, (_, index) =>
   building(index % 2 === 0 ? 'smithy' : 'smokehouse', {
     id: `material-target-${index}`,
@@ -1443,6 +1444,7 @@ assert.ok(
   `100,001 imported-material dispatch candidates took ${materialDispatchElapsedMs.toFixed(1)} ms`,
 );
 
+console.log('material-economy checkpoint: marketplace assignment');
 const assignmentSources = Array.from({ length: 100 }, (_, index) =>
   building('trading_post', {
     id: `assignment-market-${index}`,
@@ -1479,6 +1481,7 @@ assert.ok(
   `100,000 settlement-wide market/workshop pairs took ${assignmentElapsedMs.toFixed(1)} ms`,
 );
 
+console.log('material-economy checkpoint: local assignment');
 const localAssignmentSources = Array.from({ length: 100 }, (_, index) =>
   building('clay_pit', {
     id: `local-assignment-clay-${index}`,
@@ -1514,6 +1517,7 @@ assert.ok(
   `100,000 local material source/workshop pairs took ${localAssignmentElapsedMs.toFixed(1)} ms`,
 );
 
+console.log('material-economy checkpoint: visual signatures');
 const signatureBuildings = Array.from({ length: 100_000 }, (_, index) => {
   const kinds = [
     'clay_pit',

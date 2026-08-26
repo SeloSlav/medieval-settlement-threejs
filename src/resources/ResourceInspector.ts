@@ -420,8 +420,10 @@ export class ResourceInspector {
   private populationStats: PopulationStats = {
     total: 0,
     assigned: 0,
+    flexibleAssigned: 0,
     cartAssigned: 0,
     available: 0,
+    idle: 0,
     housingCapacity: 0,
     housed: 0,
     vacant: 0,

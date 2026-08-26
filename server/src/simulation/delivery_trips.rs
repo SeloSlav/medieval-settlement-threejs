@@ -520,6 +520,57 @@ pub fn preserve_in_transit_cart_labor(
     newly_reserved
 }
 
+/// Release temporary cart crews when explicit workplace staffing needs their
+/// reserve labor. Empty return legs are stopped first, then ordinary loads,
+/// while emergency carts are the last to yield. Loaded cargo is recovered at
+/// the cart's current position (or returned to its origin as a fallback), so
+/// the normal logistics queue can dispatch it again later without losing
+/// physical stock or destination reservations.
+pub fn preempt_free_hauler_trips(
+    ctx: &ReducerContext,
+    owner: spacetimedb::Identity,
+    workers_needed: u32,
+) -> u32 {
+    if workers_needed == 0 {
+        return 0;
+    }
+
+    let mut trips = ctx
+        .db
+        .delivery_trip()
+        .owner()
+        .filter(&owner)
+        .filter(|trip| trip.free_hauler_workers > 0)
+        .collect::<Vec<_>>();
+    trips.sort_by(|left, right| {
+        let left_phase = DeliveryTripPhase::from_u8(left.phase);
+        let right_phase = DeliveryTripPhase::from_u8(right.phase);
+        let left_key = (
+            left.amount > VISIBLE_CART_CARGO_EPSILON,
+            left.destination_kind == DELIVERY_DESTINATION_FIRE,
+            left_phase != Some(DeliveryTripPhase::Inbound),
+        );
+        let right_key = (
+            right.amount > VISIBLE_CART_CARGO_EPSILON,
+            right.destination_kind == DELIVERY_DESTINATION_FIRE,
+            right_phase != Some(DeliveryTripPhase::Inbound),
+        );
+        left_key
+            .cmp(&right_key)
+            .then_with(|| right.id.cmp(&left.id))
+    });
+
+    let mut released = 0_u32;
+    for trip in trips {
+        released = released.saturating_add(trip.free_hauler_workers);
+        settle_stranded_trip(ctx, trip);
+        if released >= workers_needed {
+            break;
+        }
+    }
+    released
+}
+
 /// Returns whether a matching commodity is still traveling to or unloading at
 /// a building. Returning carts do not make a starved processor look as though
 /// its supply is recovering.

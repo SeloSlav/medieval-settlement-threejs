@@ -234,8 +234,8 @@ export function buildingLaborView(
     count: building.assignedLabor,
     maxCount: buildingCap,
     hint: building.constructionComplete !== false
-      ? `${building.assignedLabor}/${buildingCap} ${workforceNoun} · ${populationStats.available} available (${populationStats.total} population, ${populationStats.assigned} committed${populationStats.cartAssigned > 0 ? `, including ${populationStats.cartAssigned} in-transit reservations` : ''}).${cartLaborHint}`
-      : `${building.assignedLabor}/${buildingCap} builders · ${populationStats.available} available.${cartLaborHint} Builders construct while onsite; if no hauler is free at a material limit, idle builders may operate distinctly reserved carts while one remains ready for the first load. A lone builder may haul to break a bootstrap deadlock.`,
+      ? `${building.assignedLabor}/${buildingCap} ${workforceNoun} · ${populationStats.available} reserve workers can be assigned (${populationStats.total} population, ${populationStats.assigned} explicitly rostered${populationStats.flexibleAssigned > 0 ? `, ${populationStats.flexibleAssigned} currently on flexible tasks` : ''}).${cartLaborHint}`
+      : `${building.assignedLabor}/${buildingCap} builders · ${populationStats.idle} reserve workers currently idle (${populationStats.available} total reserve).${cartLaborHint} Builders construct while onsite; if no hauler is idle at a material limit, site builders may operate distinctly reserved carts while one remains ready for the first load. A lone builder may haul to break a bootstrap deadlock.`,
     decreaseDisabled: building.assignedLabor <= 0,
     increaseDisabled: building.assignedLabor >= maxLabor,
   };

@@ -263,10 +263,9 @@ function resolveConstructionSupply(
   site: BuildingState,
   material: ConstructionMaterial,
 ): SupplyResolution {
-  // PopulationStats already deducts every trip's authoritative
-  // freeHaulerWorkers reservation. Subtracting visible carts again makes the
-  // inspector hide a genuinely available second founding hauler.
-  const freeHaulers = Math.max(0, context.populationStats.available);
+  // Idle is the portion of the flexible reserve not already building,
+  // improving a home, or operating a free-labor cart.
+  const freeHaulers = Math.max(0, context.populationStats.idle);
   const siteBuilderTrips = [...context.gameState.deliveryTrips.values()].filter(
     (trip) => trip.laborBuildingId === site.id,
   );

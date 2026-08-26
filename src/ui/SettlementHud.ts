@@ -308,8 +308,8 @@ const SETTLEMENT_HUD_HTML = `
           </header>
           <div class="settlement-hud__people-metrics">
             <span><strong data-people-total>0</strong>Total</span>
-            <span><strong data-people-available>0</strong>Available</span>
-            <span><strong data-people-assigned>0</strong>Assigned</span>
+            <span><strong data-people-available>0</strong>Reserve</span>
+            <span><strong data-people-assigned>0</strong>Workplaces</span>
           </div>
           <dl class="settlement-hud__people-rows">
             <div data-people-icon="work"><dt>Workplaces</dt><dd data-people-workplaces>0</dd></div>
@@ -318,7 +318,7 @@ const SETTLEMENT_HUD_HTML = `
             <div data-people-icon="cart"><dt>Hauling</dt><dd data-people-haulers>0</dd></div>
             <div data-people-icon="care"><dt>Sick</dt><dd data-people-sick>0</dd></div>
           </dl>
-          <p class="settlement-hud__people-note">Available laborers remain free for a new assignment or local cart work.</p>
+          <p class="settlement-hud__people-note">Reserve labor stays assignable to workplaces while temporarily building, hauling, or handling home projects.</p>
         </section>
       </div>
       <div class="settlement-hud__people-card settlement-hud__resource-card settlement-hud__resource-card--residents" data-hud-card data-resident-card>
@@ -1134,8 +1134,8 @@ export class SettlementHud {
 
     this.laborValue.textContent = view.available.toString();
     this.laborSub.textContent = view.assigned > 0
-      ? `${view.assigned} assigned`
-      : 'available';
+      ? `${view.assigned} in workplaces`
+      : 'reserve';
     this.populationValue.textContent = view.total.toString();
     this.residentCardTotal.textContent = view.total.toString();
     this.residentCardHoused.textContent = view.housed.toString();
@@ -1167,7 +1167,7 @@ export class SettlementHud {
     this.housingStat.classList.toggle('is-empty', view.housingCapacity === 0);
     this.laborStat.setAttribute(
       'aria-label',
-      `Labor: ${view.available} available, ${view.assigned} assigned, ${view.sick} sick.`,
+      `Labor: ${view.available} in reserve, ${view.assigned} assigned to workplaces, ${view.sick} sick.`,
     );
     this.housingStat.setAttribute(
       'aria-label',

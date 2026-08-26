@@ -15,7 +15,8 @@ use crate::raid_agent_policy::{
 };
 use crate::residence_upgrade_policy::residence_project_active;
 use crate::simulation::{
-    building_fire_state, preserve_in_transit_cart_labor, staffed_cart_workers_by_building,
+    building_fire_state, preempt_free_hauler_trips, preserve_in_transit_cart_labor,
+    staffed_cart_workers_by_building,
 };
 use crate::tables::Building;
 
@@ -101,6 +102,31 @@ fn total_building_labor(ctx: &ReducerContext, owner: spacetimedb::Identity) -> u
                 .assigned_labor
                 .max(roster_floors.get(&building.id).copied().unwrap_or(0))
         })
+        .sum()
+}
+
+fn total_workplace_labor(ctx: &ReducerContext, owner: spacetimedb::Identity) -> u32 {
+    let roster_floors = guardhouse_roster_floors(ctx, owner);
+    ctx.db
+        .building()
+        .owner()
+        .filter(&owner)
+        .filter(|building| building.construction_complete)
+        .map(|building| {
+            building
+                .assigned_labor
+                .max(roster_floors.get(&building.id).copied().unwrap_or(0))
+        })
+        .sum()
+}
+
+fn total_construction_labor(ctx: &ReducerContext, owner: spacetimedb::Identity) -> u32 {
+    ctx.db
+        .building()
+        .owner()
+        .filter(&owner)
+        .filter(|building| !building.construction_complete)
+        .map(|building| building.assigned_labor)
         .sum()
 }
 
@@ -216,6 +242,91 @@ pub fn available_building_labor(ctx: &ReducerContext, owner: spacetimedb::Identi
     total_population(ctx, owner).saturating_sub(
         total_assigned_labor(ctx, owner).saturating_add(total_free_hauler_labor(ctx, owner)),
     )
+}
+
+/// Healthy residents who are not explicitly rostered to completed
+/// workplaces. Builders, household-project crews, and free haulers remain in
+/// this reserve because a workplace call-up may preempt those temporary jobs.
+pub fn available_workplace_labor(ctx: &ReducerContext, owner: spacetimedb::Identity) -> u32 {
+    total_population(ctx, owner).saturating_sub(total_workplace_labor(ctx, owner))
+}
+
+fn preempt_flexible_labor_to_capacity(
+    ctx: &ReducerContext,
+    owner: spacetimedb::Identity,
+    reserve_capacity: u32,
+) {
+    let flexible_labor = total_construction_labor(ctx, owner)
+        .saturating_add(total_residence_project_labor(ctx, owner))
+        .saturating_add(total_free_hauler_labor(ctx, owner));
+    let mut excess = flexible_labor.saturating_sub(reserve_capacity);
+    if excess == 0 {
+        return;
+    }
+
+    // Household work is queued work, so its least urgent/newest crews yield
+    // first and can be called back by the normal residence-project planner.
+    let mut projects = ctx
+        .db
+        .residence()
+        .owner()
+        .filter(&owner)
+        .filter(|residence| {
+            residence_project_active(
+                residence.upgrade_target_tier,
+                residence.tier,
+                residence.backyard_project_kind,
+                residence.fire_repair_active,
+                residence.decay_repair_active,
+                residence.roof_tile_retrofit_active,
+            ) && residence.upgrade_assigned_labor > 0
+        })
+        .collect::<Vec<_>>();
+    projects.sort_by(|left, right| {
+        left.upgrade_priority
+            .cmp(&right.upgrade_priority)
+            .then_with(|| right.id.cmp(&left.id))
+    });
+    for mut residence in projects {
+        if excess == 0 {
+            break;
+        }
+        let released = residence.upgrade_assigned_labor.min(excess);
+        residence.upgrade_assigned_labor = residence.upgrade_assigned_labor.saturating_sub(released);
+        excess = excess.saturating_sub(released);
+        ctx.db.residence().id().update(residence);
+    }
+
+    // Construction is also reserve work. Preserve any crew already on a cart;
+    // those workers become free-hauler reservations and are handled by the
+    // cart-preemption pass below if the new workplace still needs them.
+    let mut sites = ctx
+        .db
+        .building()
+        .owner()
+        .filter(&owner)
+        .filter(|building| !building.construction_complete && building.assigned_labor > 0)
+        .collect::<Vec<_>>();
+    sites.sort_by(|left, right| {
+        left.construction_priority
+            .cmp(&right.construction_priority)
+            .then_with(|| right.id.cmp(&left.id))
+    });
+    for mut site in sites {
+        if excess == 0 {
+            break;
+        }
+        let requested_release = site.assigned_labor.min(excess);
+        let target_labor = site.assigned_labor.saturating_sub(requested_release);
+        let still_in_transit = preserve_in_transit_cart_labor(ctx, site.id, target_labor);
+        site.assigned_labor = target_labor;
+        ctx.db.building().id().update(site);
+        excess = excess.saturating_sub(requested_release.saturating_sub(still_in_transit));
+    }
+
+    if excess > 0 {
+        preempt_free_hauler_trips(ctx, owner, excess);
+    }
 }
 
 /// Clamp building assignments immediately after residence population is lost.
@@ -369,14 +480,17 @@ pub fn assign_building_labor(
         ));
     }
 
-    let current_commitment =
-        building
-            .assigned_labor
-            .max(guardhouse_roster_floor(ctx, owner, building.id));
-    let assigned_elsewhere = total_assigned_labor(ctx, owner)
-        .saturating_sub(current_commitment)
-        .saturating_add(total_free_hauler_labor(ctx, owner));
     let population = total_population(ctx, owner);
+    let current_commitment = building
+        .assigned_labor
+        .max(guardhouse_roster_floor(ctx, owner, building.id));
+    let assigned_elsewhere = if building.construction_complete {
+        total_workplace_labor(ctx, owner).saturating_sub(current_commitment)
+    } else {
+        total_assigned_labor(ctx, owner)
+            .saturating_sub(current_commitment)
+            .saturating_add(total_free_hauler_labor(ctx, owner))
+    };
     let max_allowed = population.saturating_sub(assigned_elsewhere);
     if population_limit_blocks_labor_request(
         building.assigned_labor,
@@ -384,10 +498,26 @@ pub fn assign_building_labor(
         population,
         assigned_elsewhere,
     ) {
-        return Err(format!(
-            "Only {} workers available ({} population assigned elsewhere or hauling).",
-            max_allowed, assigned_elsewhere
-        ));
+        return Err(if building.construction_complete {
+            format!(
+                "Only {} workplace workers available ({} healthy residents assigned to other workplaces).",
+                max_allowed, assigned_elsewhere
+            )
+        } else {
+            format!(
+                "Only {} reserve workers are idle ({} healthy residents assigned elsewhere or on temporary tasks).",
+                max_allowed, assigned_elsewhere
+            )
+        });
+    }
+
+    if building.construction_complete && requested_labor > building.assigned_labor {
+        let workplace_labor_after = assigned_elsewhere.saturating_add(requested_labor);
+        preempt_flexible_labor_to_capacity(
+            ctx,
+            owner,
+            population.saturating_sub(workplace_labor_after),
+        );
     }
 
     preserve_in_transit_cart_labor(ctx, building.id, requested_labor);

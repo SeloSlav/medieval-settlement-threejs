@@ -1683,7 +1683,7 @@ export class WorldQueries {
     target: ResidenceState | null,
   ): number {
     const network = this.getRoadNetwork();
-    const freeHaulerWorkers = computePopulationStats(this.getGameState()).available > 0 ? 1 : 0;
+    const freeHaulerWorkers = computePopulationStats(this.getGameState()).idle > 0 ? 1 : 0;
     return foodSupplierDeliveryTripSeconds(
       network,
       supplier,
@@ -1698,7 +1698,7 @@ export class WorldQueries {
     target: ResidenceState | null,
   ): number {
     const network = this.getRoadNetwork();
-    const freeHaulerWorkers = computePopulationStats(this.getGameState()).available > 0 ? 1 : 0;
+    const freeHaulerWorkers = computePopulationStats(this.getGameState()).idle > 0 ? 1 : 0;
     return lodgeDeliveryTripSeconds(
       network,
       lodge,
