@@ -56,8 +56,7 @@ export function formatWellWaterDetailRows(
   if (!assessment) {
     return noneLabel ? `<li><span>Water use</span><span>${noneLabel}</span></li>` : '';
   }
-  const inboundLabel = assessment.inboundWater ? ' · cart inbound' : '';
-  return `<li><span>Supplying wells</span><span>${assessment.wellSummary}</span></li><li><span>Stored water</span><span>${Math.round(assessment.storedWater)} / ${Math.round(assessment.required)} needed${inboundLabel}</span></li><li><span>Water per cycle</span><span>${renderResourceAmount('water', assessment.required, { compact: true })}</span></li>`;
+  return `<li><span>Supplying wells</span><span>${assessment.wellSummary}</span></li><li><span>Water per cycle</span><span>${renderResourceAmount('water', assessment.required, { compact: true })}</span></li>`;
 }
 
 export function wellWaterStatusIssue(assessment: WellWaterAssessment | null): string | null {

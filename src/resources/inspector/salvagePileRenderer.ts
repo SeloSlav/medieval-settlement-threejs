@@ -2,48 +2,14 @@ import {
   cargoKindLabel,
   formatTripPhaseLabel,
 } from '../../logistics/deliveryTrips.ts';
-import type { BuildingState, InspectableTarget } from '../types.ts';
-import {
-  NAMED_FOOD_KINDS,
-  NAMED_FOOD_LABELS,
-} from '../../economy/foodInventory.ts';
-import { BREAD_GRAIN_KINDS, FLOUR_KINDS, GRAIN_SHEAF_KINDS } from '../../economy/cropGoods.ts';
+import type { InspectableTarget } from '../types.ts';
+import { buildingLocalStorageItems } from './buildingLocalStorageRenderer.ts';
 import {
   hiddenDemolish,
   hiddenLabor,
   type InspectorRenderContext,
   type InspectorView,
 } from './renderInspectableTarget.ts';
-
-const STOCK_ROWS: Array<[
-  label: string,
-  amount: (building: BuildingState) => number,
-]> = [
-  ['Timber', (building) => building.timber],
-  ['Stone', (building) => building.stone],
-  ['Firewood', (building) => building.firewood],
-  ['Water', (building) => building.water],
-  ['Legacy mixed food', (building) => building.food],
-  ...GRAIN_SHEAF_KINDS.map((kind) => [cargoKindLabel(kind), (building: BuildingState) => building[kind] ?? 0] as [string, (building: BuildingState) => number]),
-  ...BREAD_GRAIN_KINDS.map((kind) => [cargoKindLabel(kind), (building: BuildingState) => building[kind] ?? 0] as [string, (building: BuildingState) => number]),
-  ...FLOUR_KINDS.map((kind) => [cargoKindLabel(kind), (building: BuildingState) => building[kind] ?? 0] as [string, (building: BuildingState) => number]),
-  ['Ale', (building) => building.ale],
-  ['Legacy preserved staples', (building) => building.preservedFood],
-  ...NAMED_FOOD_KINDS.map((kind) => [
-    NAMED_FOOD_LABELS[kind],
-    (building: BuildingState) => building[kind] ?? 0,
-  ] as [string, (building: BuildingState) => number]),
-  ['Wine', (building) => building.wine],
-  ['Ironwork', (building) => building.ironwork ?? 0],
-  ['Polearms', (building) => building.polearms ?? 0],
-  ['Wool', (building) => building.wool ?? 0],
-  ['Flax fibre', (building) => building.flax ?? 0],
-  ['Yarn', (building) => building.yarn ?? 0],
-  ['Linen', (building) => building.linen ?? 0],
-  ['Clothing', (building) => building.cloth ?? 0],
-  ['Pelts', (building) => building.pelts ?? 0],
-  ['Gold lockbox', (building) => building.gold],
-];
 
 export function renderSalvagePileInspector(
   target: Extract<InspectableTarget, { kind: 'building' }>,
@@ -52,14 +18,8 @@ export function renderSalvagePileInspector(
   const { building } = target;
   const activeTrip = context.worldQueries.getActiveDeliveryTrip(building);
   const roadAccess = context.worldQueries.getRoadAccessLabel(building.x, building.z);
-  const stockRows = STOCK_ROWS
-    .map(([label, amountFor]) => [label, amountFor(building)] as const)
-    .filter(([, amount]) => amount > 1e-6)
-    .map(([label, amount]) =>
-      `<li><span>${label}</span><span>${Math.floor(amount)}</span></li>`)
-    .join('');
-  const totalStock = STOCK_ROWS.reduce(
-    (total, [, amountFor]) => total + Math.max(0, amountFor(building)),
+  const totalStock = buildingLocalStorageItems(building).reduce(
+    (total, item) => total + item.amount,
     0,
   );
   const destination = activeTrip?.targetBuildingId
@@ -86,7 +46,6 @@ export function renderSalvagePileInspector(
     detailsHtml: `
       <li><span>Road access</span><span>${roadAccess}</span></li>
       <li><span>Active cart</span><span>${activeHaul}</span></li>
-      ${stockRows || '<li><span>Recoverable stock</span><span>Empty</span></li>'}
       <li><span>Construction claim</span><span>Reserved sites may take reclaimed timber and stone before depot clearance</span></li>
       <li><span>Clearance rule</span><span>One free hauler moves a cartload at a time; the footprint clears when all goods and carts are gone</span></li>
       ${building.gold > 1e-6 ? '<li><span>Treasury recovery</span><span>Requires a Town Hall or the founding lockbox; roads speed the cart</span></li>' : ''}

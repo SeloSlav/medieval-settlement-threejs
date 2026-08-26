@@ -164,6 +164,11 @@ assert.match(
   getBuildingProcessorStatus(readyBakery, readyQueries)?.waterDetailHtml ?? '',
   /Output room<\/span><span>25 cycles · rye bread before 100 target/,
 );
+assert.doesNotMatch(
+  getBuildingProcessorStatus(readyBakery, readyQueries)?.waterDetailHtml ?? '',
+  /Stored water/,
+  'the Local storage hover owns the on-site water quantity',
+);
 
 const smithy = makeBuilding({
   id: 'smithy-1',
@@ -316,9 +321,12 @@ assert.equal(
   getBuildingProcessorStatus(tavern, noWellQueries)?.statusText,
   'Serving beverages to connected households',
 );
-assert.match(
-  getBuildingProcessorStatus(tavern, noWellQueries)?.waterDetailHtml ?? '',
-  /10 total · 0 ale · 6 apple cider · 4 pear cider · 0 mead/,
+const tavernDetails = getBuildingProcessorStatus(tavern, noWellQueries)?.waterDetailHtml ?? '';
+assert.match(tavernDetails, /Household service/);
+assert.doesNotMatch(
+  tavernDetails,
+  /Beverage cellar|10 total · 0 ale · 6 apple cider · 4 pear cider · 0 mead/,
+  'the Local storage hover owns the tavern inventory breakdown',
 );
 
 const cappedBrewery = makeBuilding({
