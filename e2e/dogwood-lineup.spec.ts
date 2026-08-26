@@ -169,16 +169,19 @@ async function comparePngFrames(
 }
 
 const cases = [
-  ['near', 'spring', '1.08', {
+  ['near', 'spring', '1.10', {
     spring: '0.85', autumn: '0.00', dormancy: '0.15', stemRed: '0.15', snow: '0.00', month: '4', shadow: '0.8740',
   }],
-  ['near', 'summer', '0.98', {
+  ['near', 'summer', '0.55', {
     spring: '0.00', autumn: '0.00', dormancy: '0.00', stemRed: '0.00', snow: '0.00', month: '7', shadow: '1.0000',
   }],
-  ['design', 'autumn', '1.20', {
+  ['first-person', 'summer', '1.25', {
+    spring: '0.00', autumn: '0.00', dormancy: '0.00', stemRed: '0.00', snow: '0.00', month: '7', shadow: '1.0000',
+  }],
+  ['design', 'autumn', '1.45', {
     spring: '0.00', autumn: '1.00', dormancy: '0.18', stemRed: '0.63', snow: '0.00', month: '10', shadow: '0.8488',
   }],
-  ['far', 'winter', '1.42', {
+  ['far', 'winter', '1.90', {
     spring: '0.00', autumn: '0.00', dormancy: '1.00', stemRed: '1.00', snow: '0.86', month: '1', shadow: '0.1600',
   }],
 ] as const;
@@ -219,6 +222,8 @@ for (const [view, season, scale, expected] of cases) {
     expect(dataset.dogwoodRendererBackend).toMatch(/^(?:webgpu|webgl2-node)$/);
     expect(dataset.dogwoodNodeMaterial).toBe('true');
     expect(Number(dataset.dogwoodInstances)).toBe(3);
+    expect(dataset.firstPersonEyeHeight).toBe('1.55');
+    expect(dataset.firstPersonBodyHeight).toBe('1.78');
     expect(dataset.dogwoodStemCounts).toBe('12,19,27');
     expect(Number(dataset.dogwoodDefaultTarget)).toBe(7_375);
     expect(Number(dataset.dogwoodDefaultAccepted)).toBe(7_375);
@@ -226,10 +231,10 @@ for (const [view, season, scale, expected] of cases) {
     expect(Number(dataset.dogwoodDefaultRockCount)).toBeGreaterThan(300);
     expect(Number(dataset.dogwoodDefaultCount)).toBeGreaterThanOrEqual(1_300);
     expect(Number(dataset.dogwoodDefaultCount)).toBeLessThanOrEqual(1_750);
-    expect(Number(dataset.dogwoodDefaultMinimumScale)).toBeGreaterThanOrEqual(0.98);
-    expect(Number(dataset.dogwoodDefaultMinimumScale)).toBeLessThan(1);
-    expect(Number(dataset.dogwoodDefaultMaximumScale)).toBeGreaterThan(1.39);
-    expect(Number(dataset.dogwoodDefaultMaximumScale)).toBeLessThanOrEqual(1.42);
+    expect(Number(dataset.dogwoodDefaultMinimumScale)).toBeGreaterThanOrEqual(0.55);
+    expect(Number(dataset.dogwoodDefaultMinimumScale)).toBeLessThan(0.58);
+    expect(Number(dataset.dogwoodDefaultMaximumScale)).toBeGreaterThan(1.85);
+    expect(Number(dataset.dogwoodDefaultMaximumScale)).toBeLessThanOrEqual(1.9);
     expect(dataset.dogwoodDefaultSignature).toMatch(/^[0-9a-f]{8}$/);
     expect(dataset.dogwoodRepeatedSignature).toBe(dataset.dogwoodDefaultSignature);
     expect(Number(dataset.dogwoodTriangles)).toBeGreaterThan(24_000);
@@ -244,8 +249,8 @@ for (const [view, season, scale, expected] of cases) {
       .filter(Boolean)
       .map(Number);
     expect(finalHeights).toHaveLength(3);
-    expect(Math.max(...finalHeights)).toBeLessThanOrEqual(3.56);
-    expect(Math.min(...finalHeights)).toBeGreaterThanOrEqual(2.35);
+    expect(Math.max(...finalHeights)).toBeLessThanOrEqual(4.6);
+    expect(Math.min(...finalHeights)).toBeGreaterThanOrEqual(1.3);
     expect(Math.max(...finalHeights) - Math.min(...finalHeights)).toBeGreaterThan(0.08);
     const finalWidthsX = (dataset.dogwoodFinalWidthsX ?? '')
       .split(',')
@@ -257,10 +262,10 @@ for (const [view, season, scale, expected] of cases) {
       .map(Number);
     expect(finalWidthsX).toHaveLength(3);
     expect(finalWidthsZ).toHaveLength(3);
-    expect(Math.min(...finalWidthsX, ...finalWidthsZ)).toBeGreaterThan(1.5);
-    // Rotated AABBs may approach the full 2 × 1.85 m dogwood clearance
+    expect(Math.min(...finalWidthsX, ...finalWidthsZ)).toBeGreaterThan(0.9);
+    // Rotated AABBs may approach the full 2 × 2.6 m dogwood clearance
     // envelope at maximum scale; the structural suite checks radial clearance.
-    expect(Math.max(...finalWidthsX, ...finalWidthsZ)).toBeLessThanOrEqual(3.7);
+    expect(Math.max(...finalWidthsX, ...finalWidthsZ)).toBeLessThanOrEqual(5.2);
     const morphologyValues = (raw: string | undefined): number[] => (raw ?? '')
       .split(',')
       .filter(Boolean)
@@ -341,9 +346,9 @@ for (const [view, season, scale, expected] of cases) {
       .map(Number);
     expect(groundOrigins).toHaveLength(3);
     for (const groundOrigin of groundOrigins) expect(groundOrigin).toBeCloseTo(0.006, 5);
-    if (scale === '0.98') expect(Math.max(...finalHeights)).toBeLessThan(2.7);
-    if (scale === '1.42') {
-      expect(Math.min(...finalHeights)).toBeGreaterThan(3.4);
+    if (scale === '0.55') expect(Math.max(...finalHeights)).toBeLessThan(1.6);
+    if (scale === '1.90') {
+      expect(Math.min(...finalHeights)).toBeGreaterThan(4.3);
       expect(new Set(finalHeights.map((height) => height.toFixed(3))).size).toBe(3);
     }
     expect(dataset.dogwoodSignature).toMatch(

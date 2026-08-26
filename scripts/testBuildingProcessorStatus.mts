@@ -381,7 +381,7 @@ const recalledCappedWeaver = makeBuilding({
 });
 assert.equal(
   getBuildingProcessorStatus(recalledCappedWeaver, noWellQueries)?.statusText,
-  'Clothing target reached - tailoring paused',
+  'Clothing target reached - weaving paused',
   'processor target feedback should survive labor-steward recall',
 );
 

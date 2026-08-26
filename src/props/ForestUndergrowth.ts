@@ -123,6 +123,20 @@ export const UNDERGROWTH_KINDS: readonly UndergrowthKind[] = [
   'dogwood',
 ];
 
+/**
+ * Runtime metre envelopes against the 1.55 m standing eye / 1.78 m body.
+ * Width is the complete ground footprint, including rotated asymmetric crowns.
+ */
+export const UNDERGROWTH_REALISTIC_SIZE_METERS = {
+  bush: { height: [0.3, 0.8], width: [0.6, 1.7] },
+  fern: { height: [0.45, 1.2], width: [0.85, 2.5] },
+  juniper: { height: [0.95, 2.9], width: [1.5, 4.8] },
+  dogwood: { height: [1.3, 4.6], width: [0.95, 5.2] },
+} as const satisfies Record<
+  UndergrowthKind,
+  { height: readonly [number, number]; width: readonly [number, number] }
+>;
+
 /** Juvenile stools begin below the 1.55 m standing first-person eye line. */
 export const DOGWOOD_MIN_SCALE = 0.55;
 /** Mature outliers reach the real-world upper envelope without making every stool a thicket. */

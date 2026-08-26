@@ -215,18 +215,18 @@ assert.match(
 );
 assert.match(
   undergrowthSource,
-  /DOGWOOD_MIN_SCALE = 0\.98[\s\S]*DOGWOOD_MAX_SCALE = 1\.42[\s\S]*DOGWOOD_MAX_HEIGHT_METERS = 3\.56[\s\S]*DOGWOOD_MIN_HEIGHT_CEILING_METERS = 3\.44/,
-  'dogwood placement scale and final-height budgets must remain explicit',
+  /DOGWOOD_MIN_SCALE = 0\.55[\s\S]*DOGWOOD_MAX_SCALE = 1\.9[\s\S]*DOGWOOD_MAX_HEIGHT_METERS = 4\.6[\s\S]*DOGWOOD_MIN_HEIGHT_CEILING_METERS = 4\.34[\s\S]*DOGWOOD_MIN_WIDTH_SCALE = 0\.64[\s\S]*DOGWOOD_MAX_WIDTH_SCALE = 1\.8/,
+  'dogwood juvenile-to-exceptional height and crown budgets must remain explicit',
 );
 assert.match(
   undergrowthSource,
   /dogwoodHeightCeilingPosition = placement\.kind === 'dogwood'[\s\S]*placement\.prototypeIndex \/ Math\.max\(1, GORSKI_SHRUB_VARIANT_COUNT - 1\)[\s\S]*THREE\.MathUtils\.lerp\(-0\.08, 0\.08, rng\(\)\)[\s\S]*dogwoodHeightCeiling = placement\.kind === 'dogwood'[\s\S]*DOGWOOD_MIN_HEIGHT_CEILING_METERS,[\s\S]*DOGWOOD_MAX_HEIGHT_METERS,[\s\S]*dogwoodHeightCeilingPosition[\s\S]*Math\.min\(placement\.scale, dogwoodHeightCeiling \/ prototypeHeight\)[\s\S]*placement\.finalHeight = prototypeHeight \* heightScale/,
-  'dogwood matrices must vary their upper ceiling while staying below 3.56 m',
+  'dogwood matrices must vary their upper ceiling while staying below 4.6 m',
 );
 assert.match(
   undergrowthSource,
-  /widthScale = placement\.kind === 'dogwood'[\s\S]*THREE\.MathUtils\.lerp\(1, placement\.scale, 0\.72\)[\s\S]*THREE\.MathUtils\.lerp\(0\.96, 1\.04, rng\(\)\)/,
-  'dogwood height growth must only modestly widen its crown',
+  /dogwoodMaturity = placement\.kind === 'dogwood'[\s\S]*DOGWOOD_MIN_SCALE[\s\S]*DOGWOOD_MAX_SCALE[\s\S]*widthScale = placement\.kind === 'dogwood'[\s\S]*DOGWOOD_MIN_WIDTH_SCALE,[\s\S]*DOGWOOD_MAX_WIDTH_SCALE,[\s\S]*Math\.pow\(dogwoodMaturity, 0\.84\)/,
+  'dogwood crowns must widen independently across the juvenile-to-mature envelope',
 );
 assert.match(
   undergrowthSource,
@@ -240,8 +240,8 @@ assert.match(
 );
 assert.match(
   undergrowthSource,
-  /DOGWOOD_TREE_TRUNK_CLEARANCE[\s\S]*DOGWOOD_COMPANION_CLEARANCE = 1\.85[\s\S]*DOGWOOD_FOOTPRINT_CLEARANCE = 1\.85[\s\S]*isDogwoodFootprintBlocked/,
-  'large dogwood instances must retain basal trunk clearance plus complete blocker and companion clearance',
+  /DOGWOOD_TREE_TRUNK_CLEARANCE_MIN = 1\.05[\s\S]*DOGWOOD_COMPANION_CLEARANCE = 2\.2[\s\S]*DOGWOOD_MIN_FOOTPRINT_CLEARANCE = 0\.9[\s\S]*DOGWOOD_MAX_FOOTPRINT_CLEARANCE = 2\.6[\s\S]*isUndergrowthFootprintBlocked/,
+  'dogwood instances must scale their basal, companion, and blocker clearances with crown maturity',
 );
 assert.match(
   undergrowthSource,
@@ -531,10 +531,10 @@ function dogwoodPrototypeSignatures(): Record<string, string> {
         Math.hypot(positions.getX(index), positions.getZ(index)),
       );
     }
-    const maximumWidthScale = THREE.MathUtils.lerp(1, 1.42, 0.72) * 1.04;
+    const maximumWidthScale = 1.8 * 1.05;
     assert.ok(
-      maximumRadialExtent * maximumWidthScale <= 1.85,
-      `dogwood variant ${variant} can exceed its 1.85 m clearance at maximum runtime width scale`,
+      maximumRadialExtent * maximumWidthScale <= 2.6,
+      `dogwood variant ${variant} can exceed its 2.6 m clearance at maximum runtime width scale`,
     );
     const rootWeight = geometry.getAttribute('aRootWeight');
     assert.ok(rootWeight, `dogwood variant ${variant} needs rooted wind weights`);

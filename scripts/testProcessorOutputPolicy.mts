@@ -86,6 +86,7 @@ assert.deepEqual(
     'bakery',
     'brewery',
     'smokehouse',
+    'spinning_retting_house',
     'weaver',
     'charcoal_burner',
     'smithy',

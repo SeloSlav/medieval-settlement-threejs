@@ -546,7 +546,7 @@ const inspector = renderTownHallInspector(
 assert.match(inspector.detailsHtml, /Production stalls/);
 assert.match(inspector.detailsHtml, /2 production workers are stalled across 1 site/);
 assert.match(inspector.detailsHtml, /2 safely recallable/);
-assert.match(inspector.detailsHtml, /first Weaver's workshop: no wool or flax on site/);
+assert.match(inspector.detailsHtml, /first Weaver's workshop: no yarn on site/);
 assert.match(inspector.detailsHtml, /data-inspect-building="20"/);
 assert.match(
   inspector.supplementalPanelHtml ?? '',

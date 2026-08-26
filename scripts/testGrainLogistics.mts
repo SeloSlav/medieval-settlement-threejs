@@ -5,6 +5,10 @@ import {
   BUILDING_STORAGE_CAPS,
   LIVESTOCK_ANIMAL_FEED_PER_CYCLE,
   LIVESTOCK_FEED_OAT_GRAIN_PER_CYCLE,
+  SPINNING_RETTING_FLAX_PER_CYCLE,
+  SPINNING_RETTING_WOOL_PER_CYCLE,
+  WEAVER_LINEN_PER_CYCLE,
+  WEAVER_YARN_PER_CYCLE,
 } from '../src/generated/gameBalance.ts';
 import {
   formatGrainWorkingBuffer,
@@ -88,8 +92,24 @@ assert.equal(PROCESSOR_INPUT_BUFFER_CYCLES, 3);
 assert.equal(directlyDispatchedProcessorInputPerCycle('bakery', 'ryeFlour'), 3);
 assert.equal(directlyDispatchedProcessorInputPerCycle('brewery', 'barley'), 3);
 assert.equal(directlyDispatchedProcessorInputPerCycle('smokehouse', 'food'), 3);
-assert.equal(directlyDispatchedProcessorInputPerCycle('weaver', 'wool'), 3);
-assert.equal(directlyDispatchedProcessorInputPerCycle('weaver', 'flax'), 3);
+assert.equal(
+  directlyDispatchedProcessorInputPerCycle('spinning_retting_house', 'wool'),
+  SPINNING_RETTING_WOOL_PER_CYCLE,
+);
+assert.equal(
+  directlyDispatchedProcessorInputPerCycle('spinning_retting_house', 'flax'),
+  SPINNING_RETTING_FLAX_PER_CYCLE,
+);
+assert.equal(
+  directlyDispatchedProcessorInputPerCycle('weaver', 'yarn'),
+  WEAVER_YARN_PER_CYCLE,
+);
+assert.equal(
+  directlyDispatchedProcessorInputPerCycle('weaver', 'linen'),
+  WEAVER_LINEN_PER_CYCLE,
+);
+assert.equal(directlyDispatchedProcessorInputPerCycle('weaver', 'wool'), 0);
+assert.equal(directlyDispatchedProcessorInputPerCycle('weaver', 'flax'), 0);
 assert.equal(processorInputTarget(2), 6);
 assert.equal(processorInputTarget(2, 25), 2);
 assert.equal(processorInputTarget(2, 50), 4);
@@ -330,7 +350,15 @@ assert.equal(
 
 function processorInputDestination(
   id: string,
-  kind: Extract<BuildingKind, 'bakery' | 'brewery' | 'smokehouse' | 'weaver' | 'granary'>,
+  kind: Extract<
+    BuildingKind,
+    | 'bakery'
+    | 'brewery'
+    | 'smokehouse'
+    | 'spinning_retting_house'
+    | 'weaver'
+    | 'granary'
+  >,
   x: number,
   stock: number,
   assignedLabor = 1,
@@ -345,7 +373,10 @@ function processorInputDestination(
     ryeFlour: kind === 'bakery' || kind === 'granary' ? stock : 0,
     barley: kind === 'brewery' ? stock : 0,
     food: kind === 'smokehouse' ? stock : 0,
-    wool: kind === 'weaver' ? stock : 0,
+    wool: kind === 'spinning_retting_house' ? stock : 0,
+    flax: 0,
+    yarn: kind === 'weaver' ? stock : 0,
+    linen: 0,
     assignedLabor,
     constructionPriority,
     processorOutputTargetPercent,

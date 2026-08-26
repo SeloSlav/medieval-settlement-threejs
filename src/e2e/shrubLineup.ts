@@ -34,6 +34,7 @@ import {
   resolveWorldDimensions,
 } from '../world/worldGenerationSettings.ts';
 import { COMMON_DOGWOOD_VARIANTS } from '../vegetation/seedthree/commonDogwoodPreset.ts';
+import { fpLocomotionConstants } from '../camera/fp/fpLocomotion.ts';
 
 type DogwoodCaptureMode = 'baseline' | 'stems' | 'foliage' | 'final';
 
@@ -370,15 +371,15 @@ for (const [kind, centerX] of lineupKinds) {
   for (let variant = 0; variant < 3; variant++) {
     placements.push({
       kind,
-      x: centerX + (variant - 1) * (kind === 'dogwood' ? 2.65 : kind === 'juniper' ? 1.15 : 0.82),
+      x: centerX + (variant - 1) * (kind === 'dogwood' ? 3.25 : kind === 'juniper' ? 1.65 : 0.82),
       z: kind === 'dogwood' ? (variant === 1 ? 0.35 : -0.22) : variant === 1 ? 0.42 : -0.18,
       scale: kind === 'dogwood'
         ? dogwoodScale
         : kind === 'bush'
-          ? 0.92
+          ? 0.84
           : kind === 'fern'
             ? 1.0
-            : 0.72,
+            : 1.16,
       yaw: variant * 2.07 + 0.3,
       prototypeIndex: variant,
       meshIndex: -1,
@@ -440,7 +441,11 @@ scene.add(ground);
 
 const camera = new THREE.PerspectiveCamera(38, 1, 0.05, 100);
 const view = query.get('view') ?? 'design';
-if (view === 'near') {
+if (view === 'first-person') {
+  camera.fov = fpLocomotionConstants.cameraFovDeg;
+  camera.position.set(0.2, fpLocomotionConstants.eyeStand, 8.0);
+  camera.lookAt(0, fpLocomotionConstants.eyeStand, 0);
+} else if (view === 'near') {
   if (isDogwoodFocus) {
     camera.position.set(0.2, 2.95, 8.0);
     camera.lookAt(0, 1.5, 0);
@@ -613,6 +618,8 @@ document.body.dataset.dogwoodStemSeasonStrategy = String(
   dogwoodMaterials?.[0].userData.dogwoodStemSeasonStrategy ?? '',
 );
 document.body.dataset.dogwoodScale = dogwoodScale.toFixed(2);
+document.body.dataset.firstPersonEyeHeight = fpLocomotionConstants.eyeStand.toFixed(2);
+document.body.dataset.firstPersonBodyHeight = fpLocomotionConstants.bodyStand.toFixed(2);
 document.body.dataset.dogwoodRendererBackend = rendererBackendName;
 document.body.dataset.dogwoodNodeMaterial = String(Boolean(
   (dogwoodMaterials?.[1] as THREE.Material & { isNodeMaterial?: boolean } | undefined)?.isNodeMaterial,

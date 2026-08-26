@@ -58,7 +58,7 @@ export function renderWellInspector(
     DROUGHT_WELL_REFILL_MULTIPLIER,
   );
   const capacityLabel = `~${sustainableHomes}-home fair-weather yield`;
-  const industrialPreferenceLabel = nextIndustrialTarget?.kind === 'weaver'
+  const industrialPreferenceLabel = nextIndustrialTarget?.kind === 'spinning_retting_house'
     ? ` · ${weaverFibreDeliveryPreferenceLabel(nextIndustrialTarget.weaverInputPolicy, 'flax')}`
     : '';
   const nextTargetLabel = nextIndustrialTarget
@@ -109,7 +109,7 @@ export function renderWellInspector(
   const workshopDemand = [
     ['brewer', industrialConsumers.filter((item) => item.kind === 'brewery').length],
     ['bakery', industrialConsumers.filter((item) => item.kind === 'bakery').length],
-    ['weaver', industrialConsumers.filter((item) => item.kind === 'weaver').length],
+    ['fibre house', industrialConsumers.filter((item) => item.kind === 'spinning_retting_house').length],
     ['smithy', industrialConsumers.filter((item) => item.kind === 'smithy').length],
     ['potter', industrialConsumers.filter((item) => item.kind === 'potter_kiln').length],
   ]

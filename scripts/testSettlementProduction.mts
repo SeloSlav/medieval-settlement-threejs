@@ -2060,8 +2060,14 @@ assert.ok((perfCapacity.breweryOutputRoom?.days ?? 0) > 0);
 assert.ok((perfCapacity.smokehouseOutputRoom?.days ?? 0) > 0);
 assert.ok((perfCapacity.spinnerOutputRoom?.days ?? 0) > 0);
 assert.ok((perfCapacity.weaverOutputRoom?.days ?? 0) > 0);
-assert.equal(perfCapacity.industrialMaterials.activeRoadBranches, 1);
-assert.equal(perfCapacity.industrialMaterials.potteryBlockedBranches, 1);
+assert.equal(
+  perfCapacity.industrialMaterials.activeRoadBranches,
+  SMOKEHOUSE_POTTERY_PER_CYCLE > 0 ? 1 : 0,
+);
+assert.equal(
+  perfCapacity.industrialMaterials.potteryBlockedBranches,
+  SMOKEHOUSE_POTTERY_PER_CYCLE > 0 ? 1 : 0,
+);
 assert.ok(
   elapsedMs < 200,
   `120,000-building production ledger took ${elapsedMs.toFixed(1)} ms`,
@@ -2079,8 +2085,14 @@ assert.equal(branchedPerfCapacity.grainChainRoads.activeBranches, 240);
 assert.equal(branchedPerfCapacity.grainChainRoads.fragmentationFoodPerDay, 0);
 assert.equal(branchedPerfCapacity.prosperityRoadBranches?.size, 240);
 assert.equal(branchedPerfCapacity.grainRoadBranches?.size, 240);
-assert.equal(branchedPerfCapacity.industrialMaterials.activeRoadBranches, 240);
-assert.equal(branchedPerfCapacity.industrialMaterials.potteryBlockedBranches, 240);
+assert.equal(
+  branchedPerfCapacity.industrialMaterials.activeRoadBranches,
+  SMOKEHOUSE_POTTERY_PER_CYCLE > 0 ? 240 : 0,
+);
+assert.equal(
+  branchedPerfCapacity.industrialMaterials.potteryBlockedBranches,
+  SMOKEHOUSE_POTTERY_PER_CYCLE > 0 ? 240 : 0,
+);
 assert.ok(
   Math.abs(
     branchedPerfCapacity.breadFoodCapacityPerDay
@@ -2170,8 +2182,8 @@ const perfGrainPlan = computeSettlementGrainPlan({
 });
 const grainPerfElapsedMs = performance.now() - grainPerfStarted;
 assert.equal(perfGrainPlan.inTransit, 100_000);
-assert.equal(perfGrainPlan.roadPlan?.drawingBranches, 200);
-assert.equal(perfGrainPlan.roadPlan?.unstockedDrawingBranches, 200);
+assert.equal(perfGrainPlan.roadPlan?.drawingBranches, 240);
+assert.equal(perfGrainPlan.roadPlan?.unstockedDrawingBranches, 240);
 assert.equal('processorPriorityCounts' in perfGrainPlan, false);
 assert.ok(
   grainPerfElapsedMs < 300,
@@ -2372,7 +2384,7 @@ assert.match(townHallRenderer, /Material-chain roads/);
 assert.match(townHallRenderer, /Pottery chain/);
 assert.match(townHallRenderer, /Ironwork chain/);
 assert.match(townHallRenderer, /Raw iron supply/);
-assert.match(townHallRenderer, /same-branch mines supply/);
+assert.match(townHallRenderer, /same-branch extraction sites supply/);
 assert.match(townHallRenderer, /twelve-unit Adriatic lots\/day/);
 assert.match(townHallRenderer, /first-lot rate/);
 assert.match(townHallRenderer, /forge branches lack/);
@@ -2389,7 +2401,7 @@ assert.match(townHallRenderer, /remains physically above newly lowered targets/)
 assert.match(townHallRenderer, /operating \/ \$\{/);
 
 console.log(
-  `settlement production tests passed (${elapsedMs.toFixed(1)} ms for 100,000 buildings; ${branchedElapsedMs.toFixed(1)} ms with 200 road branches; ${mineLedgerElapsedMs.toFixed(1)} ms for 100,000 physical mines; ${timedProductionElapsedMs.toFixed(1)} ms for 100,000 buildings + timed carts; ${grainPerfElapsedMs.toFixed(1)} ms for 100,000 buildings + grain carts; ${aggregationElapsedMs.toFixed(1)} ms for 100,000 fields; ${farmToolLedgerElapsedMs.toFixed(1)} ms farm-tool scan; ${procurementPerfElapsedMs.toFixed(1)} ms for 100,000 markets; ${seedTopologyElapsedMs.toFixed(1)} ms for road-matched seed recovery)`,
+  `settlement production tests passed (${elapsedMs.toFixed(1)} ms for 120,000 buildings; ${branchedElapsedMs.toFixed(1)} ms with 240 road branches; ${mineLedgerElapsedMs.toFixed(1)} ms for 100,000 physical mines; ${timedProductionElapsedMs.toFixed(1)} ms for 100,000 buildings + timed carts; ${grainPerfElapsedMs.toFixed(1)} ms for 100,000 buildings + grain carts; ${aggregationElapsedMs.toFixed(1)} ms for 100,000 fields; ${farmToolLedgerElapsedMs.toFixed(1)} ms farm-tool scan; ${procurementPerfElapsedMs.toFixed(1)} ms for 100,000 markets; ${seedTopologyElapsedMs.toFixed(1)} ms for road-matched seed recovery)`,
 );
 
 function approx(actual: number, expected: number, message?: string): void {

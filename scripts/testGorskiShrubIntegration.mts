@@ -20,6 +20,7 @@ import {
   type GorskiShrubKind,
 } from '../src/vegetation/seedthree/gorskiShrubPrototypes.ts';
 import { MAX_RASPBERRIES_PER_CLUMP } from '../src/foraging/berryPatchPresentation.ts';
+import { sampleBilberryBushScale } from '../src/vegetation/bilberryBushVisual.ts';
 
 const projectRoot = fileURLToPath(new URL('../', import.meta.url));
 const PORTABLE_WEBGPU_VERTEX_BUFFER_LIMIT = 8;
@@ -60,6 +61,16 @@ assert.equal(
 assert.equal(stingingNettle.foliage.rotate, 90, 'successive nettle leaf pairs must be decussate');
 assert.equal(stingingNettle.bark, 'stinging_nettle_stem_albedo.png');
 assert.equal(stingingNettle.leaf, 'stinging_nettle_single_albedo.png');
+assert.equal(
+  sampleBilberryBushScale(0, () => 0),
+  0.58 * 0.92,
+  'young bilberry must begin around a 0.3 m final plant height',
+);
+assert.equal(
+  sampleBilberryBushScale(1, () => 1),
+  1.02 * 1.04,
+  'dense mature bilberry must remain below the oversized waist-high shrub regime',
+);
 
 assertTerminalStemTaper(
   'stinging nettle',
@@ -241,6 +252,16 @@ assert.doesNotMatch(
 );
 assert.match(undergrowthVisuals, /GORSKI_SHRUB_VARIANT_COUNT/);
 assert.match(undergrowthVisuals, /new THREE\.InstancedMesh/);
+assert.match(
+  undergrowthVisuals,
+  /UNDERGROWTH_REALISTIC_SIZE_METERS[\s\S]*bush: \{ height: \[0\.3, 0\.8\], width: \[0\.6, 1\.7\] \}[\s\S]*fern: \{ height: \[0\.45, 1\.2\], width: \[0\.85, 2\.5\] \}[\s\S]*juniper: \{ height: \[0\.95, 2\.9\], width: \[1\.5, 4\.8\] \}[\s\S]*dogwood: \{ height: \[1\.3, 4\.6\], width: \[0\.95, 5\.2\] \}/,
+  'forest undergrowth must publish species-specific final metre envelopes',
+);
+assert.match(
+  undergrowthVisuals,
+  /case 'juniper':[\s\S]*THREE\.MathUtils\.lerp\(0\.78, 1\.52, Math\.pow\(rng\(\), 0\.82\)\)[\s\S]*THREE\.MathUtils\.lerp\(1\.08, 0\.96, density\)/,
+  'common juniper must span established shrubs from below to well above the first-person eye line',
+);
 assert.doesNotMatch(
   undergrowthVisuals,
   /aTint/,

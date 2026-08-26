@@ -102,14 +102,16 @@ assert.match(
 
 const reclamation = read('server/src/simulation/reclamation.rs');
 const recoveryOrderBody = reclamation.match(
-  /const RECOVERY_ORDER: \[CommodityKind; 64\] = \[([\s\S]*?)\];/,
+  /const RECOVERY_ORDER: \[CommodityKind; 69\] = \[([\s\S]*?)\];/,
 )?.[1];
-assert.ok(recoveryOrderBody, 'the exhaustive 64-commodity recovery order must remain discoverable');
+assert.ok(recoveryOrderBody, 'the exhaustive 69-commodity recovery order must remain discoverable');
 const recoveredCommodityVariants = [...recoveryOrderBody.matchAll(/CommodityKind::(\w+)/g)]
   .map((match) => match[1]);
-assert.equal(recoveredCommodityVariants.length, 64);
-assert.equal(new Set(recoveredCommodityVariants).size, 64);
+assert.equal(recoveredCommodityVariants.length, 69);
+assert.equal(new Set(recoveredCommodityVariants).size, 69);
 assert.ok(recoveredCommodityVariants.includes('AnimalFeed'));
+assert.ok(recoveredCommodityVariants.includes('Yarn'));
+assert.ok(recoveredCommodityVariants.includes('Linen'));
 assert.match(reclamation, /available_free_haulers/);
 assert.match(reclamation, /local_delivery_distance/);
 assert.match(reclamation, /try_start_free_building_supply_trip/);
