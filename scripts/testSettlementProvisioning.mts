@@ -162,6 +162,11 @@ assert.doesNotMatch(
 assert.match(settlementHud, /data-food-runway/);
 assert.match(settlementHud, /data-fuel-stores/);
 assert.match(settlementHud, /data-fuel-runway/);
+assert.match(
+  settlementHud,
+  /return `\$\{Math\.round\(months\)\} mo`;/,
+  'the compact food and fuel runway buttons must show nearest whole months',
+);
 assert.match(settlementHud, /usable meal-equivalents are forecast against that rate/);
 assert.match(settlementHud, /firewood \+.*charcoal =.*fuel-equivalents owned;.*usable by residences/);
 assert.match(settlementHud, /occupied residences/);

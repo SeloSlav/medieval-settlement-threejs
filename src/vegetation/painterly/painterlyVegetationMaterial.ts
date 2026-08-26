@@ -265,6 +265,15 @@ export function isPainterlyMaterialRegistered(material: THREE.Material): boolean
   return recordsByMaterial.has(material);
 }
 
+/** Rebuild after an asynchronously hydrated material gains or swaps textures. */
+export function refreshPainterlyMaterial(material: THREE.Material): void {
+  const record = recordsByMaterial.get(material);
+  if (!record) return;
+  if (record.installed) restoreNativeGraph(record);
+  record.original = captureOriginalState(record.material);
+  if (enabled) installPainterlyGraph(record);
+}
+
 /** Give a NodeMaterial clone a clean native recipe and its source paint role. */
 export function inheritPainterlyVegetationMaterial(
   source: THREE.Material,

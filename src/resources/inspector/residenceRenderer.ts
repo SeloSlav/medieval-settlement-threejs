@@ -37,11 +37,13 @@ import {
   NAMED_FOOD_LABELS,
   edibleFoodStock,
   foodCategoryQualifyingStock,
+  foodMealValue,
   foodProgressionStatus,
   presentFoodCategories,
   FOOD_CATEGORY_LABELS,
   FOOD_PROGRESSION_SLOT_LABELS,
   preservedFoodStock,
+  type NamedFoodKind,
 } from '../../economy/foodInventory.ts';
 import {
   formatFoodRunwayDays,
@@ -915,9 +917,16 @@ function renderResidenceTierNeedsRow(
 ): string {
   if (residence.tier === 0) return '';
   const tier = residence.tier;
+  const foodSources = residenceFoodNeedSources(residence);
+  const primaryFoodSource = foodSources[0] ?? null;
+  const foodResourcesAttribute = foodSources.length > 0
+    ? ` data-tooltip-resources="${encodeURIComponent(JSON.stringify(
+        foodSources.map(({ kind, amount }) => ({ kind, amount })),
+      ))}"`
+    : '';
   const needStates = activeResidenceNeedKinds(tier).map((kind) => ({
     kind,
-    met: residence.population > 0 && getNeed(residence.needs, kind).deficitTicks <= 0,
+    met: residenceNeedIsMet(residence, kind),
   }));
   const needs = needStates.map(({ kind, met }) => {
     const occupied = residence.population > 0;
@@ -925,10 +934,21 @@ function renderResidenceTierNeedsRow(
     const churchRequirement = kind === 'church'
       ? ` A staffed level-${requiredChapelTierForResidence(tier)} parish is required.`
       : '';
+    const foodSupplyDetail = kind === 'food'
+      ? foodSources.length > 0
+        ? ` Pantry: ${foodSources.map(({ label: sourceLabel, amount }) => `${sourceLabel} ${amount.toFixed(1)}`).join(', ')}.`
+        : ' Pantry empty. The Founders’ Camp does not serve homes directly; use a staffed, road-linked Marketplace food stall or the household’s own food-producing backyard.'
+      : '';
     const detail = occupied
-      ? `${met ? 'Met' : 'Not currently met'} for this Tier ${tier} household.${churchRequirement}`
+      ? `${met ? 'Met' : 'Not currently met'} for this Tier ${tier} household.${churchRequirement}${foodSupplyDetail}`
       : `Inactive until this Tier ${tier} residence is occupied.${churchRequirement}`;
-    return `<span class="residence-need-icon ${met ? 'is-met' : 'is-unmet'}" role="listitem" tabindex="0" data-residence-need="${kind}" data-residence-need-state="${met ? 'met' : 'unmet'}" data-tooltip-title="${label}" data-tooltip="${detail}" aria-label="${label}: ${met ? 'met' : 'not met'}"><span class="resource-cost__item" data-resource-cost="${RESIDENCE_NEED_ICON_RESOURCES[kind]}" aria-hidden="true"><span class="resource-cost__icon"></span></span></span>`;
+    const foodSourceMarkup = kind === 'food' && primaryFoodSource
+      ? `<span class="resource-cost__item residence-need-icon__source" data-resource-cost="${primaryFoodSource.kind}" data-residence-need-source="${primaryFoodSource.kind}" aria-hidden="true"><span class="resource-cost__icon"></span></span>`
+      : '';
+    const sourceAria = kind === 'food' && primaryFoodSource
+      ? `; main pantry food ${primaryFoodSource.label}`
+      : '';
+    return `<span class="residence-need-icon ${met ? 'is-met' : 'is-unmet'}" role="listitem" tabindex="0" data-residence-need="${kind}" data-residence-need-state="${met ? 'met' : 'unmet'}" data-tooltip-title="${label}" data-tooltip="${detail}"${kind === 'food' ? foodResourcesAttribute : ''} aria-label="${label}: ${met ? 'met' : 'not met'}${sourceAria}"><span class="resource-cost__item residence-need-icon__symbol" data-resource-cost="${RESIDENCE_NEED_ICON_RESOURCES[kind]}" aria-hidden="true"><span class="resource-cost__icon"></span></span>${foodSourceMarkup}</span>`;
   });
   const metCount = needStates.filter(({ met }) => met).length;
   const roof = tier >= 4
@@ -937,6 +957,64 @@ function renderResidenceTierNeedsRow(
       ? 'Bundled thatch'
       : 'Split wooden shingle';
   return `<li data-residence-summary data-inspector-primary data-residence-tier-needs data-inspector-detail="${roof} · ${roadAccess} · ${metCount} of ${needs.length} current needs met"><span>Tier ${tier} / 4 needs</span><span class="residence-needs-row" role="list" aria-label="Tier ${tier} household needs">${needs.join('')}</span></li>`;
+}
+
+type ResidenceFoodNeedSource = {
+  kind: ResourceCostKind;
+  label: string;
+  amount: number;
+  mealEquivalent: number;
+};
+
+function residenceFoodNeedSources(residence: ResidenceState): ResidenceFoodNeedSource[] {
+  const namedSources = NAMED_FOOD_KINDS.flatMap((kind) => {
+    const amount = Math.max(0, residence[kind] ?? 0);
+    return amount > 1e-6
+      ? [{
+          kind,
+          label: NAMED_FOOD_LABELS[kind],
+          amount,
+          mealEquivalent: amount * foodMealValue(kind),
+        }]
+      : [];
+  });
+  const legacySources: ResidenceFoodNeedSource[] = [
+    ['food', 'Mixed food', Math.max(0, residence.food ?? 0)],
+    ['vegetables', 'Mixed vegetables', Math.max(0, residence.vegetables ?? 0)],
+    ['preservedFood', 'Preserved staples', Math.max(0, residence.preservedFood ?? 0)],
+  ].flatMap(([kind, label, amount]) => amount > 1e-6
+    ? [{
+        kind: kind as ResourceCostKind,
+        label: label as string,
+        amount: amount as number,
+        mealEquivalent: amount as number,
+      }]
+    : []);
+
+  return [...namedSources, ...legacySources].sort((left, right) =>
+    right.mealEquivalent - left.mealEquivalent
+      || right.amount - left.amount
+      || left.label.localeCompare(right.label));
+}
+
+function residenceNeedIsMet(
+  residence: ResidenceState,
+  kind: ResidenceNeedKind,
+): boolean {
+  if (residence.population <= 0) return false;
+  const need = getNeed(residence.needs, kind);
+  if (need.deficitTicks > 0) return false;
+  if (kind === 'church') {
+    return need.stock + 1e-6 >= requiredChapelTierForResidence(residence.tier);
+  }
+  if (kind === 'foodVariety') {
+    return foodProgressionStatus(
+      residence,
+      residence.population,
+      residence.tier as 1 | 2 | 3 | 4,
+    ).ready;
+  }
+  return need.stock > 1e-6;
 }
 
 function residenceNeedIconLabel(kind: ResidenceNeedKind): string {

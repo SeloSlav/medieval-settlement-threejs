@@ -430,6 +430,7 @@ for (let index = views.length; index < COLS * ROWS; index++) {
 }
 
 function render(): void {
+  for (const coverage of painterlyCoverages) coverage.update();
   const frameStartedAt = performance.now();
   const frameBoundary = beginRendererFrame(renderer.info);
   const width = root!.clientWidth;

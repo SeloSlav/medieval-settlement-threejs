@@ -2284,9 +2284,7 @@ function formatSupplyMonths(days: number, hasDemand: boolean): string {
   if (!hasDemand) return '--';
   if (!Number.isFinite(days)) return '∞ mo';
   const months = Math.max(0, days) / CALENDAR_DAYS_PER_MONTH;
-  if (months < 0.05) return '<0.1 mo';
-  if (months < 10) return `${months.toFixed(1)} mo`;
-  return `${Math.floor(months)} mo`;
+  return `${Math.round(months)} mo`;
 }
 
 function formatSupplyMonthsRemaining(days: number, hasDemand: boolean): string {

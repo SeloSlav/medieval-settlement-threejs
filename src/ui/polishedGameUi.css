@@ -2051,6 +2051,7 @@ select:focus-visible {
 }
 
 .residence-need-icon {
+  position: relative;
   display: inline-grid;
   place-items: center;
   width: 30px;
@@ -2060,7 +2061,6 @@ select:focus-visible {
   border-radius: 4px;
   background: rgba(10, 11, 9, 0.42);
   cursor: help;
-  transition: border-color 120ms ease, background 120ms ease, opacity 120ms ease;
 }
 
 .residence-need-icon .resource-cost__item {
@@ -2071,6 +2071,25 @@ select:focus-visible {
 .residence-need-icon .resource-cost__icon {
   width: 21px;
   height: 21px;
+}
+
+.residence-need-icon .residence-need-icon__source {
+  position: absolute;
+  right: -3px;
+  bottom: -3px;
+  width: 15px;
+  height: 15px;
+  border: 1px solid rgba(231, 213, 170, 0.72);
+  border-radius: 50%;
+  background: #171912;
+  box-shadow: 0 1px 3px rgba(4, 4, 3, 0.78);
+}
+
+.residence-need-icon .residence-need-icon__source .resource-cost__icon {
+  width: 12px;
+  height: 12px;
+  opacity: 1;
+  filter: drop-shadow(0 1px 1px rgba(7, 6, 4, 0.78));
 }
 
 .residence-need-icon.is-met {
@@ -2090,11 +2109,9 @@ select:focus-visible {
   filter: grayscale(1) brightness(0.72);
 }
 
-.residence-need-icon:hover,
 .residence-need-icon:focus-visible {
-  border-color: rgba(231, 199, 123, 0.72);
-  background-color: rgba(43, 39, 29, 0.7);
-  outline: none;
+  outline: 1px solid rgba(231, 199, 123, 0.78);
+  outline-offset: 2px;
 }
 
 .resource-inspector-panel[data-inspector-target='building'] .resource-inspector-details > [data-inspector-details] {
