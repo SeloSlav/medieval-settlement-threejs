@@ -23,7 +23,7 @@ export const SEASON_ALMANAC = {
     label: 'Winter',
     months: 'December–February',
     icon: '❄',
-    description: 'Foraging, fishing, field work, and shearing stop. Pasture and mast thin: cattle and sheep use local hay before prepared Animal Feed, while pigs use remaining mast before Animal Feed. Livestock never eat raw grain; transport and production ox upkeep remains abstract. Frozen roads slow carts, while heated homes need twice their normal fuel.',
+    description: 'Foraging, fishing, field work, and shearing stop. Pasture and mast thin: cattle and sheep use local hay before prepared Animal Feed, while pigs use remaining mast before Animal Feed. Frozen roads slow carts, while heated homes need twice their normal fuel.',
   },
 } as const satisfies Record<Season, {
   label: string;

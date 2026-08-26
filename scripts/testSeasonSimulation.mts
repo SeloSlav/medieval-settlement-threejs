@@ -85,10 +85,10 @@ assert.match(
   /pigs use remaining mast before Animal Feed/i,
   'the almanac must make the swine winter feeding order explicit',
 );
-assert.match(
+assert.doesNotMatch(
   seasonAlmanacTooltip(false),
-  /transport and production ox upkeep remains abstract/i,
-  'the almanac must preserve the stable-ox abstraction',
+  /livestock never eat raw grain|ox upkeep remains abstract/i,
+  'the almanac must omit implementation-oriented feed and ox abstraction copy',
 );
 assert.doesNotMatch(
   seasonAlmanacTooltip(false),
