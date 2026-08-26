@@ -1002,6 +1002,10 @@ function addTierOneTimberConstruction(
   construction.name = 'Residence hand-hewn sill post and brace frame';
   construction.userData.residenceFacadeTimberRhythm = 'sill-post-side-brace-frame';
   construction.userData.residenceFacadeTimberRole = 'load-bearing-frame';
+  construction.userData.residenceFrontRearDiagonalBraceCount = 0;
+  construction.userData.residenceSideDiagonalBraceCount = 4;
+  construction.userData.residenceSideFrameTopY = sideFrameTop;
+  construction.userData.residenceSideFrameRoofClearanceMeters = wallTop - sideFrameTop;
 
   const gableParts: BoxPart[] = [];
   for (const zSign of [-1, 1] as const) {

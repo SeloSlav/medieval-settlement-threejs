@@ -366,6 +366,16 @@ function assertTierOneFacadeTimbers(root: THREE.Object3D): void {
   );
   assert.equal(frame.userData.residenceFacadeTimberRole, 'load-bearing-frame');
   assert.equal(
+    frame.userData.residenceFrontRearDiagonalBraceCount,
+    0,
+    'tier-one doors and windows must not be crossed by front/rear diagonal braces',
+  );
+  assert.equal(frame.userData.residenceSideDiagonalBraceCount, 4);
+  assert.ok(
+    Number(frame.userData.residenceSideFrameRoofClearanceMeters) >= 0.24,
+    'side framing must stop below the thatch blanket rather than poke through it',
+  );
+  assert.equal(
     frame.geometry.userData.residenceHewnTimberTint,
     'smoke-darkened-oak',
   );
@@ -608,69 +618,22 @@ function assertTierOneThatchMaterial(root: THREE.Object3D): void {
   assert.ok(chroma <= 0.08, `thatch tint must stay neutral grey rather than painted yellow (${chroma.toFixed(3)} chroma)`);
 }
 
-function assertTextureWrapContinuity(
-  texture: THREE.DataTexture,
-  label: string,
-): void {
-  const data = texture.image.data as Uint8Array;
-  const width = texture.image.width;
-  const height = texture.image.height;
-  const columnDelta = (left: number, right: number): number => {
-    let total = 0;
-    for (let y = 0; y < height; y += 1) {
-      const leftIndex = (y * width + left) * 4;
-      const rightIndex = (y * width + right) * 4;
-      for (let channel = 0; channel < 3; channel += 1) {
-        total += Math.abs(data[leftIndex + channel]! - data[rightIndex + channel]!);
-      }
-    }
-    return total / (height * 3);
-  };
-  const seamDelta = columnDelta(width - 1, 0);
-  const adjacentEdgeDelta = Math.max(
-    columnDelta(0, 1),
-    columnDelta(width - 2, width - 1),
-  );
-  assert.ok(
-    seamDelta <= adjacentEdgeDelta * 1.5 + 0.5,
-    `${label} must wrap without a repeated vertical seam (${seamDelta.toFixed(2)} vs ${adjacentEdgeDelta.toFixed(2)})`,
-  );
-  const rowDelta = (top: number, bottom: number): number => {
-    let total = 0;
-    for (let x = 0; x < width; x += 1) {
-      const topIndex = (top * width + x) * 4;
-      const bottomIndex = (bottom * width + x) * 4;
-      for (let channel = 0; channel < 3; channel += 1) {
-        total += Math.abs(data[topIndex + channel]! - data[bottomIndex + channel]!);
-      }
-    }
-    return total / (width * 3);
-  };
-  const horizontalSeamDelta = rowDelta(height - 1, 0);
-  const adjacentHorizontalDelta = Math.max(
-    rowDelta(0, 1),
-    rowDelta(height - 2, height - 1),
-  );
-  assert.ok(
-    horizontalSeamDelta <= adjacentHorizontalDelta * 1.5 + 0.5,
-    `${label} must wrap without a repeated horizontal seam (${horizontalSeamDelta.toFixed(2)} vs ${adjacentHorizontalDelta.toFixed(2)})`,
-  );
-}
-
 function assertBuildingMaterialLifecycle(): void {
   const firstThatch = sharedBuildingMaterial('thatch');
   const firstShingle = sharedBuildingMaterial('shingle');
   const firstThatchMap = firstThatch.map;
   const firstShingleMap = firstShingle.map;
   assert.ok(firstThatchMap && firstShingleMap);
-  let thatchMapDisposed = false;
-  let shingleMapDisposed = false;
-  firstThatchMap.addEventListener('dispose', () => { thatchMapDisposed = true; });
-  firstShingleMap.addEventListener('dispose', () => { shingleMapDisposed = true; });
+  assert.strictEqual(
+    firstThatchMap,
+    firstShingleMap,
+    'thatch and shingle materials must sample the shared building-atlas albedo',
+  );
+  let atlasMapDisposed = false;
+  firstThatchMap.addEventListener('dispose', () => { atlasMapDisposed = true; });
 
   disposeBuildingMaterialLibrary();
-  assert.equal(thatchMapDisposed, true, 'disposing the shared library must release procedural thatch maps');
-  assert.equal(shingleMapDisposed, true, 'disposing the shared library must release procedural shingle maps');
+  assert.equal(atlasMapDisposed, true, 'disposing the shared library must release the building atlas');
   assert.deepEqual(getBuildingMaterialLibraryStats(), {
     constructionMaterials: 0,
     detailMaterials: 0,
@@ -679,11 +642,24 @@ function assertBuildingMaterialLifecycle(): void {
   });
 
   const recreatedThatch = sharedBuildingMaterial('thatch');
+  assert.deepEqual(
+    getBuildingMaterialLibraryStats(),
+    {
+      constructionMaterials: 1,
+      detailMaterials: 0,
+      textures: 0,
+      loaded: false,
+    },
+    'creating the tier-one thatch material must not allocate standalone texture maps',
+  );
   const recreatedShingle = sharedBuildingMaterial('shingle');
   assert.notStrictEqual(recreatedThatch, firstThatch, 'scene recreation needs a fresh thatch material');
   assert.notStrictEqual(recreatedShingle, firstShingle, 'scene recreation needs a fresh shingle material');
   assert.notStrictEqual(recreatedThatch.map, firstThatchMap, 'scene recreation needs fresh thatch textures');
   assert.notStrictEqual(recreatedShingle.map, firstShingleMap, 'scene recreation needs a fresh shingle texture');
+  assert.strictEqual(recreatedThatch.map, recreatedShingle.map);
+  assert.equal(recreatedThatch.userData.buildingMaterialAtlasTile, 'thatch-roof');
+  assert.equal(recreatedShingle.userData.buildingMaterialAtlasTile, 'split-shingles');
   disposeBuildingMaterialLibrary();
 }
 
