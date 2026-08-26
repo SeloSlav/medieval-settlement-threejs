@@ -669,7 +669,9 @@ function assertCompactBackyardOptions(
     assert.match(contents, /backyard-picker-option__icon/);
     assert.match(contents, /backyard-picker-option__title/);
     assert.doesNotMatch(contents, /backyard-picker-option__(?:cost|funding)|resource-cost/);
-    assert.match(tag, /data-tooltip="[^"]+"/);
+    const tooltip = tag.match(/data-tooltip="([^"]+)"/)?.[1] ?? '';
+    assert.ok(tooltip.length > 0);
+    assert.doesNotMatch(tooltip, /\bready\b|\bpaid\b|household|treasury/i);
     assert.match(tag, new RegExp(`data-tooltip-cost-label="${expectedCostLabel}"`));
     const encodedCost = tag.match(/data-tooltip-cost="([^"]+)"/)?.[1] ?? '';
     assert.ok(

@@ -289,17 +289,17 @@ function renderEmptyBackyardPicker(
       && blockingPile === null
       && materialsAffordable
       && funding.ready;
-    const availabilityLabel = underConstruction
+    const blocker = underConstruction
       ? 'cottage unfinished'
       : blockingPile
         ? 'salvage pile blocks site'
         : !materialsAffordable
-          ? `have ${Math.floor(totals.timber)} timber/${Math.floor(totals.stone)} stone`
+          ? 'not enough timber or stone'
           : !funding.ready
-            ? `treasury short ${formatProjectAmount(funding.treasuryShortfall)} gold`
-            : 'ready';
+            ? 'not enough gold'
+            : null;
     const actionLabel = `Build ${backyardGardenLabel(kind)}`;
-    const optionDetail = `${availabilityLabel} · paid ${formatProjectAmount(funding.householdContribution)} household/${formatProjectAmount(funding.civicGoldRequired)} treasury gold`;
+    const optionDetail = `${backyardGardenProductSummary(kind)}${blocker ? ` · Unavailable — ${blocker}` : ''}`;
     const accessibleDetail = `Cost ${formatBackyardGardenCost(kind)}. ${optionDetail}`;
     return `
       <li class="backyard-picker-row">
@@ -359,11 +359,8 @@ function renderOrchardSpecializationPicker(
       ? monthName(def.harvestStartMonth)
       : `${monthName(def.harvestStartMonth)}–${monthName(def.harvestEndMonth)}`;
     const efficiency = Math.round(def.yieldEfficiency * 100);
-    const fundingState = ready
-      ? 'ready'
-      : `needs ${formatProjectAmount(funding.treasuryShortfall)} treasury gold`;
     const actionLabel = `Plant ${backyardGardenLabel(kind)}`;
-    const optionDetail = `${fundingState} · paid ${formatProjectAmount(funding.householdContribution)} household/${formatProjectAmount(funding.civicGoldRequired)} treasury · first ${def.firstHarvestDays}d · ${harvestMonths} · ${efficiency}% yield${def.jamPerPersonPerSec > 0 ? ' · jam' : ''} · permanent`;
+    const optionDetail = `First harvest ${def.firstHarvestDays}d · ${harvestMonths} · ${efficiency}% yield${def.jamPerPersonPerSec > 0 ? ' · jam' : ''} · permanent${ready ? '' : ' · Unavailable — not enough gold'}`;
     return `<li class="backyard-picker-row">
       <button type="button" class="resource-action-button backyard-picker-option${ready ? '' : ' backyard-picker-option--disabled'}"
         data-inspector-action="specialize-orchard" data-garden-kind="${kind}"
@@ -419,11 +416,8 @@ function renderAnimalPenSpecializationPicker(
     const secondary = def.secondaryProductionIntervalDays > 0
       ? ` · cull ${def.secondaryProductionIntervalDays}d ${formatMonthWindow(def.secondaryHarvestStartMonth, def.secondaryHarvestEndMonth)}`
       : '';
-    const fundingState = funding.ready
-      ? 'ready'
-      : `needs ${formatProjectAmount(funding.treasuryShortfall)} treasury gold`;
     const actionLabel = `House ${backyardGardenLabel(kind)}`;
-    const optionDetail = `${fundingState} · paid ${formatProjectAmount(funding.householdContribution)} household/${formatProjectAmount(funding.civicGoldRequired)} treasury · first ${def.firstHarvestDays}d · ${primaryProduct} every ${def.productionIntervalDays}d ${formatMonthWindow(def.harvestStartMonth, def.harvestEndMonth)}${secondary} · permanent`;
+    const optionDetail = `First output ${def.firstHarvestDays}d · ${primaryProduct} every ${def.productionIntervalDays}d ${formatMonthWindow(def.harvestStartMonth, def.harvestEndMonth)}${secondary} · permanent${funding.ready ? '' : ' · Unavailable — not enough gold'}`;
     return `<li class="backyard-picker-row">
       <button type="button" class="resource-action-button backyard-picker-option${funding.ready ? '' : ' backyard-picker-option--disabled'}"
         data-inspector-action="specialize-animal-pen" data-garden-kind="${kind}"
@@ -473,11 +467,8 @@ function renderVegetableGardenSpecializationPicker(
     );
     const harvestMonths = formatMonthWindow(def.harvestStartMonth, def.harvestEndMonth);
     const efficiency = Math.round(def.yieldEfficiency * 100);
-    const fundingState = funding.ready
-      ? 'ready'
-      : `needs ${formatProjectAmount(funding.treasuryShortfall)} treasury gold`;
     const actionLabel = `Purchase ${backyardGardenLabel(kind)} seed`;
-    const optionDetail = `${fundingState} · paid ${formatProjectAmount(funding.householdContribution)} household/${formatProjectAmount(funding.civicGoldRequired)} treasury · first ${def.firstHarvestDays}d · ${harvestMonths} · ${efficiency}% yield · permanent`;
+    const optionDetail = `First harvest ${def.firstHarvestDays}d · ${harvestMonths} · ${efficiency}% yield · permanent${funding.ready ? '' : ' · Unavailable — not enough gold'}`;
     return `<li class="backyard-picker-row">
       <button type="button" class="resource-action-button backyard-picker-option${funding.ready ? '' : ' backyard-picker-option--disabled'}"
         data-inspector-action="specialize-vegetable-garden" data-garden-kind="${kind}"
