@@ -1964,7 +1964,7 @@ export function createResidenceMesh(
             'rough-rubble-footing',
             'clay-lime-daub-infill',
             'true-wall-apertures',
-            'hewn-sill-post-brace-frame',
+            'hewn-sill-post-side-brace-frame',
           ]
         : ['stone-ground-storey', 'plastered-upper-storey'],
     roofFinish,
@@ -2056,7 +2056,7 @@ export function createResidenceMesh(
     group,
     new THREE.BoxGeometry(width + 0.12, 0.18, depth + 0.12),
     tier === 1 ? tierOneStructuralMaterial : timberMaterial('dark'),
-    new THREE.Vector3(0, tier === 1 ? wallTop - 0.09 : groundTop + 0.04, 0),
+    new THREE.Vector3(0, tier === 1 ? wallTop - 0.25 : groundTop + 0.04, 0),
   );
   wallPlate.name = 'Residence hewn timber wall plate';
   if (tier > 1) {

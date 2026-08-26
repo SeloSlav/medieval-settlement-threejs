@@ -362,7 +362,7 @@ function assertTierOneFacadeTimbers(root: THREE.Object3D): void {
   const frame = namedMesh(root, 'Residence hand-hewn sill post and brace frame');
   assert.equal(
     frame.userData.residenceFacadeTimberRhythm,
-    'sill-post-knee-brace-frame',
+    'sill-post-side-brace-frame',
   );
   assert.equal(frame.userData.residenceFacadeTimberRole, 'load-bearing-frame');
   assert.equal(
@@ -375,7 +375,7 @@ function assertTierOneFacadeTimbers(root: THREE.Object3D): void {
       'rough-rubble-footing',
       'clay-lime-daub-infill',
       'true-wall-apertures',
-      'hewn-sill-post-brace-frame',
+      'hewn-sill-post-side-brace-frame',
     ],
   );
   root.traverse((object) => {
@@ -585,67 +585,27 @@ function assertTierOneThatchMaterial(root: THREE.Object3D): void {
   const roof = namedMesh(root, 'Residence hand-laid bundled-thatch blanket left');
   assert.equal(Array.isArray(roof.material), false);
   const material = roof.material as THREE.MeshStandardMaterial;
-  assert.equal(
-    material.userData.buildingUsesProceduralThatchMap,
-    true,
-    'Tier 1 must use the shared fibrous procedural thatch surface',
-  );
+  assert.equal(material.userData.buildingUsesProceduralThatchMap, undefined);
   assert.equal(material.userData.metricUvMeters, 1.4);
-  assert.deepEqual(
-    material.userData.proceduralThatchPattern,
-    {
-      tileMeters: 1.4,
-      fiberSpacingMeters: 1.4 / 56,
-      courseExposureMeters: 1.4 / 6,
-      direction: 'slope-aligned-reed-fibers',
-      palette: 'weathered-grey-reed',
-      channels: ['fiber-albedo', 'fiber-normal', 'fiber-roughness'],
-    },
+  assert.equal(
+    material.userData.buildingMaterialAtlas,
+    'gorski-building-atlas-v1',
   );
-  const textureContracts: Array<[
-    THREE.Texture | null,
-    string,
-    THREE.ColorSpace,
-  ]> = [
-    [material.map, 'Procedural grey bundled thatch albedo', THREE.SRGBColorSpace],
-    [material.normalMap, 'Procedural grey bundled thatch normal', THREE.NoColorSpace],
-    [material.roughnessMap, 'Procedural grey bundled thatch roughness', THREE.NoColorSpace],
-  ];
-  for (const [texture, name, colorSpace] of textureContracts) {
-    assert.ok(texture instanceof THREE.DataTexture, `${name} must be a shared data texture`);
-    assert.equal(texture.name, name);
-    assert.equal(texture.image.width, 256);
-    assert.equal(texture.image.height, 256);
-    assert.equal(texture.wrapS, THREE.RepeatWrapping);
-    assert.equal(texture.wrapT, THREE.RepeatWrapping);
-    assert.equal(texture.minFilter, THREE.LinearMipmapLinearFilter);
-    assert.equal(texture.colorSpace, colorSpace);
-    assertTextureWrapContinuity(texture, name);
-  }
+  assert.equal(material.userData.buildingMaterialAtlasTile, 'thatch-roof');
+  assert.ok(material.map instanceof THREE.Texture);
+  assert.ok(!(material.map instanceof THREE.DataTexture));
+  assert.ok(material.normalMap instanceof THREE.Texture);
+  assert.ok(material.roughnessMap instanceof THREE.Texture);
+  assert.notStrictEqual(material.map, material.normalMap);
+  assert.strictEqual(material.roughnessMap, material.metalnessMap);
+  assert.strictEqual(material.roughnessMap, material.aoMap);
+  assert.ok(material.colorNode, 'atlas colorNode must own the packed thatch albedo sample');
+  assert.ok(material.normalNode, 'atlas normalNode must own the packed thatch normal sample');
+  assert.ok(material.roughnessNode, 'atlas roughnessNode must own the packed thatch material sample');
 
   const color = material.color;
   const chroma = Math.max(color.r, color.g, color.b) - Math.min(color.r, color.g, color.b);
   assert.ok(chroma <= 0.08, `thatch tint must stay neutral grey rather than painted yellow (${chroma.toFixed(3)} chroma)`);
-  const pixels = (material.map as THREE.DataTexture).image.data as Uint8Array;
-  let red = 0;
-  let green = 0;
-  let blue = 0;
-  let minimum = 255;
-  let maximum = 0;
-  const pixelCount = pixels.length / 4;
-  for (let index = 0; index < pixels.length; index += 4) {
-    red += pixels[index]!;
-    green += pixels[index + 1]!;
-    blue += pixels[index + 2]!;
-    minimum = Math.min(minimum, pixels[index]!, pixels[index + 1]!, pixels[index + 2]!);
-    maximum = Math.max(maximum, pixels[index]!, pixels[index + 1]!, pixels[index + 2]!);
-  }
-  const means = [red / pixelCount, green / pixelCount, blue / pixelCount];
-  assert.ok(
-    Math.max(...means) - Math.min(...means) <= 12,
-    `procedural fibres must stay grey-balanced (${means.map((value) => value.toFixed(1)).join('/')})`,
-  );
-  assert.ok(maximum - minimum >= 80, 'the thatch albedo needs visible fibre and course contrast');
 }
 
 function assertTextureWrapContinuity(
