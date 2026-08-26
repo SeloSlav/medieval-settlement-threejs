@@ -436,10 +436,15 @@ function buildTextileRoadPlan(
       }
     }
 
-    const strandedClipPotential = Math.max(
+    const unspunClothPotential = Math.max(
+      0,
+      intermediateFromRawFibre - spunIntermediate,
+    ) * WEAVER_CLOTH_PER_CYCLE / WEAVER_YARN_PER_CYCLE;
+    const unwovenClothPotential = Math.max(
       0,
       clothFromAvailableIntermediate - branch.annualClothPotential,
     );
+    const strandedClipPotential = unspunClothPotential + unwovenClothPotential;
     if (
       (branch.firstWoolBuildingId !== null || branch.firstFlaxBuildingId !== null)
       && (

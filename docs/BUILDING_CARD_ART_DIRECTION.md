@@ -111,7 +111,8 @@ painting, sepia-only drawing, detailed scenery, fantasy ornament, UI chrome
 | `smokehouse.webp` | Cured meat and smoked fish hanging over smoldering split logs with bold curling smoke. |
 | `woodcutters-lodge.webp` | Heavy axe actively splitting a round log on a stump with wedges and stacked firewood. |
 | `carpenter.webp` | Wooden hand plane cutting a board with one large curled shaving, backed by a cartwheel and joinery square. |
-| `weaver.webp` | Broad wooden shuttle crossing taut colored warp threads with a rolled-cloth edge. |
+| `spinning-retting-house.webp` | Large wooden spinning wheel interlocked with a low blue-water retting trough, flax drying rack, and small wool basket; the dry and wet routes must read as one compact process. |
+| `weaver.webp` | Broad wooden shuttle crossing taut warp threads, with a Yarn skein and pale Linen hank feeding the loom and a rolled clothing edge emerging. |
 | `tannery.webp` | Clean hide stretched on a timber frame, interlocked with a bark-liquor vat, bark strips, and scraper. |
 | `cobbler.webp` | Leather boot on a wooden last with awl, thread, and pegs. |
 | `charcoal-burner.webp` | Black charcoal in a wicker basket beside a compact smoldering earth clamp and billet ring. |
@@ -125,6 +126,24 @@ painting, sepia-only drawing, detailed scenery, fantasy ornament, UI chrome
 | `guardhouse.webp` | Crossed period polearms behind a stout round shield and simple iron helmet. |
 | `palisaded-refuge.webp` | Large protective shield and closed oak gate bar sheltering a locked chest, loaf, and folded blanket, backed by a short arc of stakes. |
 
+### Textile identity contract
+
+The Spinning & Retting House card depicts the process, while
+`src/buildings/meshes/spinningRettingHouseMesh.ts` owns the in-world
+architecture. Its deterministic two-mass workshop combines a dry fibre hall
+with a wet lean-to, road-facing spoked wheel, blue retting troughs, flax drying
+rack, and scutching bench. Wool, Flax, Yarn, and Linen stock props fill and clear
+from authoritative onsite inventory. The adjacent Weaver instead exposes Yarn,
+Linen, and finished clothing stock, so the two workshop silhouettes and their
+physical handcart transfers remain readable without putting a building portrait
+on either card.
+
+The standalone `materials/yarn.png` and `materials/linen.png` icons use the
+same carved-contour and restrained-pigment language as the card. In menus, the
+Spinning & Retting House flow is Wool/Flax + Water → Yarn/Linen, and the Weaver
+flow is Yarn/Linen → Clothing; arrows and resource labels remain UI text rather
+than being painted into either illustration.
+
 ### Production pipeline
 
 - Generate every distinct card with a separate built-in image-generation call.
@@ -136,7 +155,8 @@ painting, sepia-only drawing, detailed scenery, fantasy ornament, UI chrome
 - Review a labeled contact sheet at both source size and the actual `122x184`
   build-menu footprint. Regenerate ambiguous, architectural, overly detailed,
   person-containing, framed, or duplicate-looking results.
-- Preserve the existing filenames so build-menu, inspector, category, and map
-  overlay mappings require no code changes.
+- Preserve existing filenames when replacing a card. New buildings use their
+  canonical kebab-case identifier; the textile preparation card therefore ships
+  as `spinning-retting-house.webp` for build-menu and inspector mappings.
 - Verify with `npm run test:building-art`, `npm run test:build-menus`,
   `npm run test:action-button-iconography`, and `npm run build`.

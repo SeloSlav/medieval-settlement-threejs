@@ -428,10 +428,12 @@ const unstaffedHolding = weaver({
   assignedLabor: 0,
   wool: 0,
 });
-const staffedWeaver = weaver({ wool: 4, cloth: 5 });
+const staffedSpinner = spinningHouse({ id: 'staffed-spinner', wool: 4 });
+const staffedWeaver = weaver({ cloth: 5 });
 textileState.buildings.set(storageBlockedHolding.id, storageBlockedHolding);
 textileState.buildings.set(readyHolding.id, readyHolding);
 textileState.buildings.set(unstaffedHolding.id, unstaffedHolding);
+textileState.buildings.set(staffedSpinner.id, staffedSpinner);
 textileState.buildings.set(staffedWeaver.id, staffedWeaver);
 textileState.livestockHerds.set(
   storageBlockedHolding.id,
@@ -618,6 +620,7 @@ const splitTextileBranches = new Map<string, ProsperityRoadBranch>([
     fullResidents: 1,
     preservedFoodOutputPerDay: 0,
     aleOutputPerDay: 0,
+    textileIntermediateOutputPerDay: 8 / 120,
     clothOutputPerDay: 8 / 120,
     firstResidenceId: westHome.id,
   }],
@@ -626,6 +629,7 @@ const splitTextileBranches = new Map<string, ProsperityRoadBranch>([
     fullResidents: 1,
     preservedFoodOutputPerDay: 0,
     aleOutputPerDay: 0,
+    textileIntermediateOutputPerDay: 0,
     clothOutputPerDay: 0,
     firstResidenceId: eastHome.id,
   }],
@@ -634,6 +638,7 @@ const splitTextileBranches = new Map<string, ProsperityRoadBranch>([
     fullResidents: 0,
     preservedFoodOutputPerDay: 0,
     aleOutputPerDay: 0,
+    textileIntermediateOutputPerDay: 8 / 120,
     clothOutputPerDay: 8 / 120,
     firstResidenceId: null,
   }],
@@ -740,6 +745,7 @@ const fireAwareTextiles = computeSettlementTextilePlan({
         fullResidents: 1,
         preservedFoodOutputPerDay: 0,
         aleOutputPerDay: 0,
+        textileIntermediateOutputPerDay: 0,
         clothOutputPerDay: 0,
         firstResidenceId: westHome.id,
       }],
@@ -779,6 +785,7 @@ const joinedRoadTextiles = computeSettlementTextilePlan({
         fullResidents: 2,
         preservedFoodOutputPerDay: 0,
         aleOutputPerDay: 0,
+        textileIntermediateOutputPerDay: 16 / 120,
         clothOutputPerDay: 16 / 120,
         firstResidenceId: westHome.id,
       }],
@@ -819,6 +826,7 @@ const satelliteRoadTextiles = computeSettlementTextilePlan({
         fullResidents: 1,
         preservedFoodOutputPerDay: 0,
         aleOutputPerDay: 0,
+        textileIntermediateOutputPerDay: 8 / 120,
         clothOutputPerDay: 8 / 120,
         firstResidenceId: westHome.id,
       }],
@@ -827,6 +835,7 @@ const satelliteRoadTextiles = computeSettlementTextilePlan({
         fullResidents: 1,
         preservedFoodOutputPerDay: 0,
         aleOutputPerDay: 0,
+        textileIntermediateOutputPerDay: 8 / 120,
         clothOutputPerDay: 8 / 120,
         firstResidenceId: eastHome.id,
       }],
@@ -894,6 +903,7 @@ for (let component = 0; component < 200; component += 1) {
     fullResidents: 0,
     preservedFoodOutputPerDay: 0,
     aleOutputPerDay: 0,
+    textileIntermediateOutputPerDay: 50,
     clothOutputPerDay: 50,
     firstResidenceId: null,
   });
@@ -951,7 +961,7 @@ const generatedWeaverPolicyReducer = readFileSync(
 );
 const shearingContractStart = livestockSimulation.indexOf('// A flock is shorn once');
 const shearingContractEnd = livestockSimulation.indexOf(
-  'if herd.head_count >= LIVESTOCK_MINIMUM_BREEDING_HEADS',
+  'if environment.season == Season::Spring',
   shearingContractStart,
 );
 assert.ok(shearingContractStart >= 0, 'livestock simulation must retain the annual shearing block');
@@ -981,17 +991,28 @@ assert.doesNotMatch(
   /return false/,
   'insufficient wool room must defer only shearing, not roll back feeding, health, or other husbandry',
 );
-assert.match(livestockSimulation, /CommodityKind::Wool,[\s\S]{0,120}&\["weaver"\]/);
+assert.match(
+  livestockSimulation,
+  /CommodityKind::Wool,[\s\S]{0,160}&\["spinning_retting_house", "village_storehouse"\]/,
+);
 assert.doesNotMatch(livestockSimulation, /credit_treasury_gold/);
+assert.match(expandedEconomy, /pub fn step_spinning_retting_house/);
 assert.match(expandedEconomy, /pub fn step_weaver/);
 assert.match(
   expandedEconomy,
-  /CommodityKind::Flax, WEAVER_FLAX_PER_CYCLE[\s\S]*CommodityKind::Water[\s\S]*WEAVER_FLAX_WATER_PER_CYCLE[\s\S]*CommodityKind::Cloth, WEAVER_CLOTH_PER_CYCLE/,
+  /step_spinning_retting_house[\s\S]*CommodityKind::Flax, SPINNING_RETTING_FLAX_PER_CYCLE[\s\S]*CommodityKind::Water[\s\S]*SPINNING_RETTING_FLAX_WATER_PER_CYCLE[\s\S]*CommodityKind::Linen, SPINNING_RETTING_LINEN_PER_CYCLE/,
 );
-assert.match(expandedEconomy, /CommodityKind::Wool, WEAVER_WOOL_PER_CYCLE/);
 assert.match(
   expandedEconomy,
-  /weaver_uses_flax\([\s\S]*building\.weaver_input_policy[\s\S]*WEAVER_FLAX_WATER_PER_CYCLE/,
+  /step_spinning_retting_house[\s\S]*CommodityKind::Wool, SPINNING_RETTING_WOOL_PER_CYCLE[\s\S]*CommodityKind::Yarn, SPINNING_RETTING_YARN_PER_CYCLE/,
+);
+assert.match(
+  expandedEconomy,
+  /step_spinning_retting_house[\s\S]*weaver_uses_flax\([\s\S]*building\.weaver_input_policy[\s\S]*SPINNING_RETTING_FLAX_WATER_PER_CYCLE/,
+);
+assert.match(
+  expandedEconomy,
+  /step_weaver[\s\S]*weaver_uses_linen\([\s\S]*CommodityKind::Linen, WEAVER_LINEN_PER_CYCLE[\s\S]*CommodityKind::Yarn, WEAVER_YARN_PER_CYCLE[\s\S]*CommodityKind::Cloth, WEAVER_CLOTH_PER_CYCLE/,
 );
 assert.match(
   expandedEconomy,
@@ -1024,6 +1045,9 @@ assert.match(
 assert.match(commodities, /Self::Wool => 13/);
 assert.match(commodities, /Self::Cloth => 14/);
 assert.match(commodities, /Self::Flax => 18/);
+assert.match(commodities, /Self::Pelts => 66/);
+assert.match(commodities, /Self::Yarn => 67/);
+assert.match(commodities, /Self::Linen => 68/);
 assert.match(
   residenceNeedState,
   /missing_progression_rows && legacy_tier >= 2[\s\S]*RESIDENCE_CLOTH_CAPACITY/,
@@ -1031,7 +1055,7 @@ assert.match(
 );
 assert.match(
   buildingReducers,
-  /set_weaver_input_policy[\s\S]*is_valid_weaver_input_policy[\s\S]*building\.kind != "weaver"[\s\S]*weaver_input_policy = input_policy/,
+  /set_weaver_input_policy[\s\S]*is_valid_weaver_input_policy[\s\S]*spinning_retting_house" \| "weaver[\s\S]*weaver_input_policy = input_policy/,
 );
 assert.match(buildingTable, /#\[default\(0u8\)\][\s\S]*pub weaver_input_policy: u8/);
 assert.match(generatedBuildingTable, /weaverInputPolicy:[\s\S]*weaver_input_policy/);
@@ -1048,14 +1072,14 @@ const livestockBuildingRenderer = readFileSync(
 assert.match(townHallRenderer, /Annual wool clip/);
 assert.match(townHallRenderer, /Shearing readiness/);
 assert.match(townHallRenderer, /Textile stores/);
-assert.match(townHallRenderer, /Textile chain/);
-assert.match(townHallRenderer, /Textile roads/);
+assert.match(townHallRenderer, /Clothing chain/);
+assert.match(townHallRenderer, /Clothing roads/);
+assert.match(townHallRenderer, /Fibre preparation/);
 assert.match(townHallRenderer, /clothing\/year physically paired/);
 assert.match(townHallRenderer, /first holding waiting for full-clip room/);
 assert.match(townHallRenderer, /waiting for full-clip room/);
-assert.match(livestockBuildingRenderer, /Shearing waits for full-clip room/);
-assert.match(livestockBuildingRenderer, /Waiting for full-clip room/);
-assert.match(livestockBuildingRenderer, /other husbandry continues/);
+assert.match(livestockBuildingRenderer, /Annual June–July clip/);
+assert.match(livestockBuildingRenderer, /totalLastWool/);
 assert.doesNotMatch(livestockBuildingRenderer, /lost excess fleece/i);
 
 console.log(

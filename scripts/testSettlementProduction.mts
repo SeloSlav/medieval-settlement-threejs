@@ -28,6 +28,9 @@ import {
   CALENDAR_SECONDS_PER_DAY,
   CIVILIAN_TOOL_IRONWORK_PER_CYCLE,
   CIVILIAN_TOOL_THROUGHPUT_MULTIPLIER,
+  RESIDENCE_ALE_PER_PERSON_PER_SEC,
+  RESIDENCE_CLOTH_PER_PERSON_PER_SEC,
+  RESIDENCE_PRESERVED_FOOD_PER_PERSON_PER_SEC,
   RESIDENCE_PRESERVED_FOOD_WINTER_MULTIPLIER,
   POTTER_POTTERY_PER_CYCLE,
   POTTER_WATER_PER_CYCLE,
@@ -38,12 +41,15 @@ import {
   SMOKEHOUSE_POTTERY_PER_CYCLE,
   SMOKEHOUSE_PRESERVED_FOOD_PER_CYCLE,
   SMOKEHOUSE_SALT_PER_CYCLE,
+  SPINNING_RETTING_FLAX_PER_CYCLE,
+  SPINNING_RETTING_FLAX_WATER_PER_CYCLE,
+  SPINNING_RETTING_WOOL_PER_CYCLE,
+  SPINNING_RETTING_YARN_PER_CYCLE,
   WATERMILL_GRAIN_PER_CYCLE,
   WATERMILL_RYE_FLOUR_PER_CYCLE,
   WEAVER_CLOTH_PER_CYCLE,
-  WEAVER_FLAX_PER_CYCLE,
-  WEAVER_FLAX_WATER_PER_CYCLE,
-  WEAVER_WOOL_PER_CYCLE,
+  WEAVER_LINEN_PER_CYCLE,
+  WEAVER_YARN_PER_CYCLE,
 } from '../src/generated/gameBalance.ts';
 import {
   createEmptyStockpile,
@@ -81,8 +87,12 @@ smokehouse.salt = 8.75;
 smokehouse.pottery = 4.375;
 smokehouse.preservedFood = 127.5;
 state.buildings.set(smokehouse.id, smokehouse);
+const spinner = building('spinner', 'spinning_retting_house', 1);
+spinner.wool = 39.375;
+spinner.yarn = 63.75;
+state.buildings.set(spinner.id, spinner);
 const weaver = building('weaver', 'weaver', 1);
-weaver.wool = 39.375;
+weaver.yarn = 39.375;
 weaver.cloth = 63.75;
 state.buildings.set(weaver.id, weaver);
 state.residences.set('tier-four-home', residence('tier-four-home', 10, 4));
@@ -101,7 +111,12 @@ const millCycles = productiveCycles('watermill', ordinaryProductiveShare);
 const bakeryCycles = productiveCycles('bakery', ordinaryProductiveShare);
 const breweryAleCycles = productiveCycles('brewery', ordinaryProductiveShare) / 2;
 const smokehouseCycles = productiveCycles('smokehouse', ordinaryProductiveShare);
+const spinnerCycles = productiveCycles(
+  'spinning_retting_house',
+  ordinaryProductiveShare,
+);
 const weaverCycles = productiveCycles('weaver', ordinaryProductiveShare);
+const textileCycles = Math.min(spinnerCycles, weaverCycles);
 const millFlourPerDay = millCycles * WATERMILL_RYE_FLOUR_PER_CYCLE;
 const bakeryFlourPerDay = bakeryCycles * BAKERY_FLOUR_PER_CYCLE;
 const matchedFlourPerDay = Math.min(millFlourPerDay, bakeryFlourPerDay);
@@ -116,9 +131,10 @@ assert.deepEqual(
     fullWeek.bakeryWorkers,
     fullWeek.breweryWorkers,
     fullWeek.smokehouseWorkers,
+    fullWeek.spinnerWorkers,
     fullWeek.weaverWorkers,
   ],
-  [1, 1, 1, 1, 1],
+  [1, 1, 1, 1, 1, 1],
 );
 approx(fullWeek.flourOutputPerDay, millFlourPerDay);
 approx(fullWeek.bakeryFlourCapacityPerDay, bakeryFlourPerDay);
@@ -158,10 +174,20 @@ approx(
   fullWeek.preservationPotteryPerDay,
   smokehouseCycles * SMOKEHOUSE_POTTERY_PER_CYCLE,
 );
-approx(fullWeek.clothOutputPerDay, weaverCycles * WEAVER_CLOTH_PER_CYCLE);
-approx(fullWeek.clothWoolPerDay, weaverCycles * WEAVER_WOOL_PER_CYCLE);
-approx(fullWeek.clothFlaxPerDay, weaverCycles * WEAVER_FLAX_PER_CYCLE);
-approx(fullWeek.clothFlaxWaterPerDay, weaverCycles * WEAVER_FLAX_WATER_PER_CYCLE);
+approx(
+  fullWeek.spinnerIntermediateCapacityPerDay,
+  spinnerCycles * SPINNING_RETTING_YARN_PER_CYCLE,
+);
+approx(fullWeek.weaverClothCapacityPerDay, weaverCycles * WEAVER_CLOTH_PER_CYCLE);
+approx(fullWeek.clothOutputPerDay, textileCycles * WEAVER_CLOTH_PER_CYCLE);
+approx(fullWeek.clothYarnPerDay, textileCycles * WEAVER_YARN_PER_CYCLE);
+approx(fullWeek.clothLinenPerDay, textileCycles * WEAVER_LINEN_PER_CYCLE);
+approx(fullWeek.clothWoolPerDay, textileCycles * SPINNING_RETTING_WOOL_PER_CYCLE);
+approx(fullWeek.clothFlaxPerDay, textileCycles * SPINNING_RETTING_FLAX_PER_CYCLE);
+approx(
+  fullWeek.clothFlaxWaterPerDay,
+  textileCycles * SPINNING_RETTING_FLAX_WATER_PER_CYCLE,
+);
 assert.equal(fullWeek.watermillThroughputMultiplier, 1);
 assert.ok(fullWeek.millInputBuffer);
 approx(
@@ -190,16 +216,26 @@ approx(
   smokehouse.salt / (smokehouseCycles * SMOKEHOUSE_SALT_PER_CYCLE),
 );
 assert.equal(fullWeek.smokehouseInputBuffer.limitingInput, 'salt');
+assert.ok(fullWeek.spinnerInputBuffer);
+approx(
+  fullWeek.spinnerInputBuffer.days,
+  spinner.wool / (spinnerCycles * SPINNING_RETTING_WOOL_PER_CYCLE),
+);
+assert.equal(fullWeek.spinnerInputBuffer.limitingInput, 'wool');
 assert.ok(fullWeek.weaverInputBuffer);
 approx(
   fullWeek.weaverInputBuffer.days,
-  weaver.wool / (weaverCycles * WEAVER_WOOL_PER_CYCLE),
+  weaver.yarn / (weaverCycles * WEAVER_YARN_PER_CYCLE),
 );
-assert.equal(fullWeek.weaverInputBuffer.limitingInput, 'wool');
+assert.equal(fullWeek.weaverInputBuffer.limitingInput, 'yarn');
 approx(fullWeek.millOutputRoom?.days ?? -1, (260 - mill.ryeFlour) / millFlourPerDay);
 approx(fullWeek.bakeryOutputRoom?.days ?? -1, 100 / (bakeryCycles * BAKERY_RYE_BREAD_PER_CYCLE));
 approx(fullWeek.breweryOutputRoom?.days ?? -1, (200 - brewery.ale) / (breweryAleCycles * BREWERY_ALE_PER_CYCLE));
 approx(fullWeek.smokehouseOutputRoom?.days ?? -1, (180 - smokehouse.preservedFood) / (smokehouseCycles * SMOKEHOUSE_PRESERVED_FOOD_PER_CYCLE));
+approx(
+  fullWeek.spinnerOutputRoom?.days ?? -1,
+  (90 - spinner.yarn) / (spinnerCycles * SPINNING_RETTING_YARN_PER_CYCLE),
+);
 approx(fullWeek.weaverOutputRoom?.days ?? -1, (90 - weaver.cloth) / (weaverCycles * WEAVER_CLOTH_PER_CYCLE));
 
 const maintainedMillState = emptyGameState();
@@ -859,18 +895,21 @@ assert.equal(fireDisabledMaterials.industrialMaterials.ironworkOutputPerDay, 0);
 assert.ok(fireDisabledMaterials.industrialMaterials.smithyBlockedBranches >= 1);
 materialState.fireIncidents.clear();
 
-weaver.wool = 0;
-weaver.flax = 39.375;
-weaver.water = 13.125;
+spinner.wool = 0;
+spinner.flax = 39.375;
+spinner.water = 13.125;
 const flaxWeek = computeSettlementProductionCapacity(state, false);
-assert.equal(flaxWeek.weaverInputBuffer?.limitingInput, 'flax');
-approx(flaxWeek.weaverInputBuffer?.days ?? -1, 1.5);
-weaver.water = 4;
+assert.equal(flaxWeek.spinnerInputBuffer?.limitingInput, 'flax');
+approx(
+  flaxWeek.spinnerInputBuffer?.days ?? -1,
+  spinner.flax / (spinnerCycles * SPINNING_RETTING_FLAX_PER_CYCLE),
+);
+spinner.water = 4;
 const waterLimitedFlaxWeek = computeSettlementProductionCapacity(state, false);
-assert.equal(waterLimitedFlaxWeek.weaverInputBuffer?.limitingInput, 'water');
-weaver.wool = 39.375;
-weaver.flax = 0;
-weaver.water = 0;
+assert.equal(waterLimitedFlaxWeek.spinnerInputBuffer?.limitingInput, 'water');
+spinner.wool = 39.375;
+spinner.flax = 0;
+spinner.water = 0;
 
 const frostWeek = computeSettlementProductionCapacity(
   state,
@@ -896,14 +935,24 @@ assert.equal(fullWeek.millOutputRoom?.buildingId, mill.id);
 assert.equal(fullWeek.tierTwoPlusResidents, 10);
 assert.equal(fullWeek.tierFourResidents, 10);
 assert.equal(fullWeek.fireDisabledTierFourHomes, 0);
-approx(fullWeek.aleDemandPerDay, 1.75);
+const tierFourResidents = 10;
+const dailyAleDemand = tierFourResidents
+  * RESIDENCE_ALE_PER_PERSON_PER_SEC
+  * CALENDAR_SECONDS_PER_DAY;
+const dailyPreservedDemand = tierFourResidents
+  * RESIDENCE_PRESERVED_FOOD_PER_PERSON_PER_SEC
+  * CALENDAR_SECONDS_PER_DAY;
+const dailyClothDemand = tierFourResidents
+  * RESIDENCE_CLOTH_PER_PERSON_PER_SEC
+  * CALENDAR_SECONDS_PER_DAY;
+approx(fullWeek.aleDemandPerDay, dailyAleDemand);
 approx(
   fullWeek.preservedFoodDemandPerDay,
-  2.8 * RESIDENCE_PRESERVED_FOOD_WINTER_MULTIPLIER,
+  dailyPreservedDemand * RESIDENCE_PRESERVED_FOOD_WINTER_MULTIPLIER,
 );
-approx(fullWeek.currentPreservedFoodDemandPerDay, 2.8);
+approx(fullWeek.currentPreservedFoodDemandPerDay, dailyPreservedDemand);
 assert.equal(fullWeek.currentPreservedFoodDemandMultiplier, 1);
-approx(fullWeek.clothDemandPerDay, 0.126);
+approx(fullWeek.clothDemandPerDay, dailyClothDemand);
 assert.equal(
   fullWeek.prosperityRoadBranches,
   null,
@@ -926,6 +975,10 @@ approx(
   localProsperityBranch?.preservedFoodOutputPerDay ?? -1,
   fullWeek.preservedFoodOutputPerDay,
 );
+approx(
+  localProsperityBranch?.textileIntermediateOutputPerDay ?? -1,
+  fullWeek.spinnerIntermediateCapacityPerDay,
+);
 approx(localProsperityBranch?.clothOutputPerDay ?? -1, fullWeek.clothOutputPerDay);
 const summerRationCapacity = computeSettlementProductionCapacity(
   state,
@@ -935,7 +988,10 @@ const summerRationCapacity = computeSettlementProductionCapacity(
   1,
   0.5,
 );
-approx(summerRationCapacity.currentPreservedFoodDemandPerDay, 1.4);
+approx(
+  summerRationCapacity.currentPreservedFoodDemandPerDay,
+  dailyPreservedDemand * 0.5,
+);
 approx(
   summerRationCapacity.preservedFoodDemandPerDay,
   fullWeek.preservedFoodDemandPerDay,
@@ -998,7 +1054,11 @@ for (const key of [
   'preservationFirewoodPerDay',
   'preservationSaltPerDay',
   'preservationPotteryPerDay',
+  'spinnerIntermediateCapacityPerDay',
+  'weaverClothCapacityPerDay',
   'clothOutputPerDay',
+  'clothYarnPerDay',
+  'clothLinenPerDay',
   'clothWoolPerDay',
 ] as const) {
   approx(
@@ -1025,17 +1085,20 @@ assert.ok(sabbathWeek.millInputBuffer);
 assert.ok(sabbathWeek.bakeryInputBuffer);
 assert.ok(sabbathWeek.breweryInputBuffer);
 assert.ok(sabbathWeek.smokehouseInputBuffer);
+assert.ok(sabbathWeek.spinnerInputBuffer);
 assert.ok(sabbathWeek.weaverInputBuffer);
 for (const key of [
   'millInputBuffer',
   'bakeryInputBuffer',
   'breweryInputBuffer',
   'smokehouseInputBuffer',
+  'spinnerInputBuffer',
   'weaverInputBuffer',
   'millOutputRoom',
   'bakeryOutputRoom',
   'breweryOutputRoom',
   'smokehouseOutputRoom',
+  'spinnerOutputRoom',
   'weaverOutputRoom',
 ] as const) {
   const ordinaryBuffer = fullWeek[key];
@@ -1066,11 +1129,13 @@ assert.equal(inactive.millInputBuffer, null);
 assert.equal(inactive.bakeryInputBuffer, null);
 assert.equal(inactive.breweryInputBuffer, null);
 assert.equal(inactive.smokehouseInputBuffer, null);
+assert.equal(inactive.spinnerInputBuffer, null);
 assert.equal(inactive.weaverInputBuffer, null);
 assert.equal(inactive.millOutputRoom, null);
 assert.equal(inactive.bakeryOutputRoom, null);
 assert.equal(inactive.breweryOutputRoom, null);
 assert.equal(inactive.smokehouseOutputRoom, null);
+assert.equal(inactive.spinnerOutputRoom, null);
 assert.equal(inactive.weaverOutputRoom, null);
 assert.equal(grainChainBalanceLabel(inactive), 'No staffed mill or bakery');
 
@@ -1084,14 +1149,18 @@ starvedMill.ryeFlour = 256;
 distributedState.buildings.set(starvedMill.id, starvedMill);
 const distributed = computeSettlementProductionCapacity(distributedState, false);
 assert.ok(distributed.millInputBuffer);
+const smallMillOnsiteDays = starvedMill.ryeGrain
+  / (millCycles * WATERMILL_GRAIN_PER_CYCLE);
+const smallMillOutputDays = (260 - starvedMill.ryeFlour)
+  / (millCycles * WATERMILL_RYE_FLOUR_PER_CYCLE);
 approx(
   distributed.millInputBuffer.days,
-  0.1,
+  smallMillOnsiteDays,
   'stock at one mill must not conceal another mill about to stop',
 );
 approx(
   distributed.millOutputRoom?.days ?? -1,
-  0.1,
+  smallMillOutputDays,
   'free output room at one mill must not conceal another mill about to fill',
 );
 assert.equal(distributed.millInputBuffer.buildingId, starvedMill.id);
@@ -1135,10 +1204,11 @@ const suppliedProduction = computeSettlementProductionCapacity(suppliedState, fa
 assert.ok(suppliedProduction.millInputBuffer);
 approx(
   suppliedProduction.millInputBuffer.days,
-  1.1,
+  (suppliedMill.ryeGrain + timelyGrain.amount)
+    / (millCycles * WATERMILL_GRAIN_PER_CYCLE),
   'a cart that unloads before onsite grain is exhausted should extend continuous runway',
 );
-approx(suppliedProduction.millInputBuffer.onsiteDays, 0.1);
+approx(suppliedProduction.millInputBuffer.onsiteDays, smallMillOnsiteDays);
 assert.equal(suppliedProduction.millInputBuffer.inTransitAmount, 30);
 assert.equal(suppliedProduction.millInputBuffer.inTransitTrips, 1);
 assert.equal(suppliedProduction.millInputBuffer.nextDeliverySeconds, 6);
@@ -1149,7 +1219,7 @@ const lateMill = building('late-mill', 'watermill', 1);
 lateMill.ryeGrain = 3;
 lateState.buildings.set(lateMill.id, lateMill);
 const lateGrain = deliveryTrip('late-grain', lateMill.id, 30, 'outbound');
-lateGrain.pathDistance = 100;
+lateGrain.pathDistance = smallMillOnsiteDays * CALENDAR_SECONDS_PER_DAY + 100;
 lateGrain.speedMps = 1;
 lateGrain.unloadSeconds = 1;
 lateState.deliveryTrips.set(lateGrain.id, lateGrain);
@@ -1157,11 +1227,14 @@ const lateProduction = computeSettlementProductionCapacity(lateState, false);
 assert.ok(lateProduction.millInputBuffer);
 approx(
   lateProduction.millInputBuffer.days,
-  0.1,
+  smallMillOnsiteDays,
   'a cart that arrives after depletion must not conceal the production stop',
 );
 assert.equal(lateProduction.millInputBuffer.deliveryGap, true);
-assert.equal(lateProduction.millInputBuffer.nextDeliverySeconds, 101);
+assert.equal(
+  lateProduction.millInputBuffer.nextDeliverySeconds,
+  lateGrain.pathDistance + lateGrain.unloadSeconds,
+);
 
 const targetedState = emptyGameState();
 const targetedMill = building('targeted-mill', 'watermill', 1);
@@ -1173,7 +1246,8 @@ const targetedProduction = computeSettlementProductionCapacity(targetedState, fa
 assert.ok(targetedProduction.millOutputRoom);
 approx(
   targetedProduction.millOutputRoom.days,
-  0.5,
+  (260 * 0.25 - targetedMill.ryeFlour)
+    / (millCycles * WATERMILL_RYE_FLOUR_PER_CYCLE),
   'Town Hall output runway should end at the selected 25% ceiling, not physical capacity',
 );
 assert.equal(targetedProduction.millOutputRoom.targetPercent, 25);
@@ -1217,7 +1291,7 @@ approx(
 );
 assert.equal(
   splitChain.grainChainRoads.firstImbalancedBuildingId,
-  splitBakery.id,
+  millFlourPerDay > bakeryFlourPerDay ? splitMill.id : splitBakery.id,
   'the larger stranded side should be directly inspectable',
 );
 assert.match(grainChainBalanceLabel(splitChain), /Road-limited/);
@@ -1943,8 +2017,15 @@ assert.ok(orphanPlan.harvest.shortfallWorkerDays > 0);
 assert.ok(orphanPlan.laborCoveredHarvest < orphanPlan.expectedHarvest);
 
 const perfState = emptyGameState();
-for (let index = 0; index < 100_000; index += 1) {
-  const kinds = ['watermill', 'bakery', 'brewery', 'smokehouse', 'weaver'] as const;
+for (let index = 0; index < 120_000; index += 1) {
+  const kinds = [
+    'watermill',
+    'bakery',
+    'brewery',
+    'smokehouse',
+    'spinning_retting_house',
+    'weaver',
+  ] as const;
   const kind = kinds[index % kinds.length];
   perfState.buildings.set(`processor-${index}`, building(`processor-${index}`, kind, 1));
 }
@@ -1955,22 +2036,25 @@ assert.equal(perfCapacity.millWorkers, 20_000);
 assert.equal(perfCapacity.bakeryWorkers, 20_000);
 assert.equal(perfCapacity.breweryWorkers, 20_000);
 assert.equal(perfCapacity.smokehouseWorkers, 20_000);
+assert.equal(perfCapacity.spinnerWorkers, 20_000);
 assert.equal(perfCapacity.weaverWorkers, 20_000);
 assert.equal(perfCapacity.millInputBuffer?.days, 0);
 assert.equal(perfCapacity.bakeryInputBuffer?.days, 0);
 assert.equal(perfCapacity.breweryInputBuffer?.days, 0);
 assert.equal(perfCapacity.smokehouseInputBuffer?.days, 0);
+assert.equal(perfCapacity.spinnerInputBuffer?.days, 0);
 assert.equal(perfCapacity.weaverInputBuffer?.days, 0);
 assert.ok((perfCapacity.millOutputRoom?.days ?? 0) > 0);
 assert.ok((perfCapacity.bakeryOutputRoom?.days ?? 0) > 0);
 assert.ok((perfCapacity.breweryOutputRoom?.days ?? 0) > 0);
 assert.ok((perfCapacity.smokehouseOutputRoom?.days ?? 0) > 0);
+assert.ok((perfCapacity.spinnerOutputRoom?.days ?? 0) > 0);
 assert.ok((perfCapacity.weaverOutputRoom?.days ?? 0) > 0);
 assert.equal(perfCapacity.industrialMaterials.activeRoadBranches, 1);
 assert.equal(perfCapacity.industrialMaterials.potteryBlockedBranches, 1);
 assert.ok(
   elapsedMs < 200,
-  `100,000-building production ledger took ${elapsedMs.toFixed(1)} ms`,
+  `120,000-building production ledger took ${elapsedMs.toFixed(1)} ms`,
 );
 const branchedStarted = performance.now();
 const branchedPerfCapacity = computeSettlementProductionCapacity(
@@ -1981,12 +2065,12 @@ const branchedPerfCapacity = computeSettlementProductionCapacity(
   ),
 );
 const branchedElapsedMs = performance.now() - branchedStarted;
-assert.equal(branchedPerfCapacity.grainChainRoads.activeBranches, 200);
+assert.equal(branchedPerfCapacity.grainChainRoads.activeBranches, 240);
 assert.equal(branchedPerfCapacity.grainChainRoads.fragmentationFoodPerDay, 0);
-assert.equal(branchedPerfCapacity.prosperityRoadBranches?.size, 200);
-assert.equal(branchedPerfCapacity.grainRoadBranches?.size, 200);
-assert.equal(branchedPerfCapacity.industrialMaterials.activeRoadBranches, 200);
-assert.equal(branchedPerfCapacity.industrialMaterials.potteryBlockedBranches, 200);
+assert.equal(branchedPerfCapacity.prosperityRoadBranches?.size, 240);
+assert.equal(branchedPerfCapacity.grainRoadBranches?.size, 240);
+assert.equal(branchedPerfCapacity.industrialMaterials.activeRoadBranches, 240);
+assert.equal(branchedPerfCapacity.industrialMaterials.potteryBlockedBranches, 240);
 assert.ok(
   Math.abs(
     branchedPerfCapacity.breadFoodCapacityPerDay

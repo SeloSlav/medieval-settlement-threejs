@@ -694,7 +694,7 @@ inventory, and stock on a branch without current prosperous households remain
 in the owned total but cannot conceal a local service gap. Yarn and Linen remain
 physical intermediate inventory until a staffed Weaver processes them. The
 Town Hall reports the weakest branch, branches missing either preparation or
-weaving, and reserves below fourteen days—roughly one two-clothing delivery for
+weaving, and reserves below fourteen days—roughly one two-unit clothing delivery for
 a full ten-person household—then links to the first exposed home. Individual-
 house runway labels use the same 120 simulated seconds per calendar day as the
 aggregate forecast, matching continuous ordinary consumption at every
