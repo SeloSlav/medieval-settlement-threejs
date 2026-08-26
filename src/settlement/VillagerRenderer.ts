@@ -6,6 +6,7 @@ import {
   type OxInspection,
 } from './OxenRenderer.ts';
 import type { StableOxLike } from './stableOxen.ts';
+import { oxDragLoadKindForWorkplace } from './oxDragLoad.ts';
 import {
   rosteredCartWorkersByBuilding,
   type DeliveryTripState,
@@ -1510,6 +1511,15 @@ export class VillagerRenderer {
       ) continue;
       const active = agent.routinePhase === 'work'
         || agent.routinePhase === 'returning_to_work';
+      const workplace = agent.workplaceId
+        ? this.buildings.get(agent.workplaceId) ?? null
+        : null;
+      const haulKind = workplace
+        && agent.pathPurpose === 'worker_work_loop'
+        && agent.mode === 'walk'
+        && agent.workPerformed
+        ? oxDragLoadKindForWorkplace(workplace.kind)
+        : null;
       return {
         x: agent.x,
         y: agent.y,
@@ -1517,6 +1527,7 @@ export class VillagerRenderer {
         yaw: agent.yaw,
         moving: agent.currentMoveSpeed > 0.05,
         active,
+        haulKind,
       };
     }
     return null;

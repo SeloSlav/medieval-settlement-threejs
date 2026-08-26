@@ -121,6 +121,7 @@ export function mountTooltips(root: HTMLElement): () => void {
         'data-tooltip-cost',
         'data-tooltip-cost-label',
         'data-tooltip-cost-affordable',
+        'data-tooltip-cost-shortages',
         'data-tooltip-placement',
         'data-tooltip-variant',
         'data-tooltip-season',
@@ -423,11 +424,13 @@ function renderTooltipContent(
     : null;
   tooltip.classList.toggle('has-cost', resourceCost !== null);
   if (resourceCost) {
+    const shortageKinds = readTooltipCostShortageKinds(anchor);
     bodyElement.appendChild(createTooltipConstructionCost(
       resourceCost.items,
       resourceCost.suffix,
       anchor.dataset.tooltipCostAffordable !== 'false',
       anchor.dataset.tooltipCostLabel?.trim() || 'Construction cost',
+      shortageKinds,
     ));
   }
 
@@ -529,17 +532,19 @@ function createTooltipConstructionCost(
   suffix: string,
   affordable: boolean,
   costLabel: string,
+  shortageKinds: ReadonlySet<ResourceCostKind> | null,
 ): HTMLDivElement {
+  const usesItemShortages = shortageKinds !== null;
   const row = document.createElement('div');
   row.className = 'ui-tooltip__construction-cost';
-  row.classList.toggle('is-unaffordable', !affordable);
+  row.classList.toggle('is-unaffordable', !affordable && !usesItemShortages);
 
   const label = document.createElement('span');
   label.className = 'ui-tooltip__construction-cost-label';
   label.textContent = costLabel;
 
   const cost = document.createElement('span');
-  cost.className = `resource-cost resource-cost--compact${affordable ? '' : ' resource-cost--unaffordable'}`;
+  cost.className = `resource-cost resource-cost--compact${!affordable && !usesItemShortages ? ' resource-cost--unaffordable' : ''}`;
   if (items.length === 0) {
     cost.classList.add('resource-cost--free');
     cost.textContent = 'Free';
@@ -552,6 +557,7 @@ function createTooltipConstructionCost(
       const identity = document.createElement('span');
       identity.className = 'resource-cost__item';
       identity.dataset.resourceCost = item.kind;
+      identity.classList.toggle('is-unaffordable', shortageKinds?.has(item.kind) === true);
 
       const icon = document.createElement('span');
       icon.className = 'resource-cost__icon';
@@ -572,6 +578,12 @@ function createTooltipConstructionCost(
 
   row.append(label, cost);
   return row;
+}
+
+function readTooltipCostShortageKinds(anchor: HTMLElement): ReadonlySet<ResourceCostKind> | null {
+  const source = anchor.dataset.tooltipCostShortages;
+  if (source === undefined) return null;
+  return new Set(source.split(',').filter(isResourceCostKind));
 }
 
 function readTooltipResourceFlow(anchor: HTMLElement): TooltipResourceFlow | null {

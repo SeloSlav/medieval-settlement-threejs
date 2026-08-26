@@ -5,8 +5,8 @@ import { MENU_ACTION_TO_BUILDING_KIND } from './buildMenuMapping.ts';
 import {
   buildingResourceCostAmounts,
   encodeResourceCostTooltip,
-  isResourceCostAffordable,
   renderBuildingResourceCost,
+  resourceCostShortfallKinds,
   type ResourceCostAmounts,
   type ResourceCostKind,
 } from './resourceCost.ts';
@@ -280,7 +280,7 @@ export function renderBuildMenuCards(
       ? ` disabled aria-disabled="true" title="${disabledReason}" data-build-disabled-reason="${disabledReason}"`
       : '';
     const ariaDisabledReason = disabledReason ? ` ${disabledReason}` : '';
-    return `<button type="button" class="construction-card" data-action="${entry.action}" data-tooltip-placement="above" data-tooltip-title="${title}" data-tooltip="${tooltipDescription}" data-tooltip-cost="${tooltipCost}" data-tooltip-cost-affordable="true"${flowAttribute}${disabledAttributes} aria-label="${title}. ${description} Cost: ${costText}.${ariaDisabledReason}">
+    return `<button type="button" class="construction-card" data-action="${entry.action}" data-tooltip-placement="above" data-tooltip-title="${title}" data-tooltip="${tooltipDescription}" data-tooltip-cost="${tooltipCost}" data-tooltip-cost-affordable="true" data-tooltip-cost-shortages=""${flowAttribute}${disabledAttributes} aria-label="${title}. ${description} Cost: ${costText}.${ariaDisabledReason}">
       <img class="construction-card__art" data-src="${BUILD_CARD_ART[entry.artKey]}" alt="" width="320" height="480" loading="lazy" decoding="async" draggable="false" />
       <span class="construction-card__art-fallback" aria-hidden="true" hidden></span>
       <span class="construction-card__caption" aria-hidden="true"><strong>${title}</strong><span class="construction-card__cost">${costMarkup}</span></span>
@@ -302,19 +302,32 @@ export function syncBuildMenuCardAffordability(
     if (!entry || !available) {
       button.classList.remove('is-unaffordable');
       delete button.dataset.tooltipCostAffordable;
+      delete button.dataset.tooltipCostShortages;
+      syncBuildMenuCostShortages(button, []);
       button.setAttribute('aria-label', baseAriaLabel);
       continue;
     }
-    const affordable = isResourceCostAffordable(
-      available,
-      buildingResourceCostAmounts(buildMenuEntryCost(entry)),
-    );
+    const required = buildingResourceCostAmounts(buildMenuEntryCost(entry));
+    const shortageKinds = resourceCostShortfallKinds(available, required);
+    const affordable = shortageKinds.length === 0;
     button.classList.toggle('is-unaffordable', !affordable);
     button.dataset.tooltipCostAffordable = String(affordable);
+    button.dataset.tooltipCostShortages = shortageKinds.join(',');
+    syncBuildMenuCostShortages(button, shortageKinds);
     button.setAttribute(
       'aria-label',
       affordable ? baseAriaLabel : `${baseAriaLabel}. Not enough resources.`,
     );
+  }
+}
+
+function syncBuildMenuCostShortages(
+  button: HTMLButtonElement,
+  shortageKinds: readonly ResourceCostKind[],
+): void {
+  const shortageSet = new Set<string>(shortageKinds);
+  for (const item of button.querySelectorAll<HTMLElement>('.resource-cost__item[data-resource-cost]')) {
+    item.classList.toggle('is-unaffordable', shortageSet.has(item.dataset.resourceCost ?? ''));
   }
 }
 

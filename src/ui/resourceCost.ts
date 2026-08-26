@@ -247,9 +247,16 @@ export function isResourceCostAffordable(
   available: ResourceCostAmounts,
   required: ResourceCostAmounts,
 ): boolean {
-  return resourceCostEntries(required).every(
-    ({ kind, amount }) => (available[kind] ?? 0) + 1e-6 >= amount,
-  );
+  return resourceCostShortfallKinds(available, required).length === 0;
+}
+
+export function resourceCostShortfallKinds(
+  available: ResourceCostAmounts,
+  required: ResourceCostAmounts,
+): ResourceCostKind[] {
+  return resourceCostEntries(required).flatMap(({ kind, amount }) => (
+    (available[kind] ?? 0) + 1e-6 < amount ? [kind] : []
+  ));
 }
 
 export function encodeResourceCostTooltip(

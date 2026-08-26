@@ -24,6 +24,10 @@ import {
   type StableOxLike,
 } from './stableOxen.ts';
 import { advanceOxFollowPosition } from './oxFollowMotion.ts';
+import {
+  OxDragLoadLibrary,
+  type OxDragLoadKind,
+} from './oxDragLoad.ts';
 
 const OX_MODEL_URL = '/assets/models/livestock/quaternius-bull.glb';
 const OX_TARGET_HEIGHT = 1.72;
@@ -55,6 +59,8 @@ export type OxFollowPose = Readonly<{
   yaw: number;
   moving: boolean;
   active: boolean;
+  /** Material collected by a worksite crew and currently returning with the ox. */
+  haulKind?: OxDragLoadKind | null;
 }>;
 
 export type OxInspection = {
@@ -88,6 +94,8 @@ type OxVisual = {
   mode: OxMotionMode;
   assignment: StableOxAssignment | null;
   tripId: string | null;
+  dragLoad: THREE.Group | null;
+  dragLoadKind: OxDragLoadKind | null;
   x: number;
   z: number;
   yaw: number;
@@ -148,6 +156,7 @@ export class OxenRenderer {
     OX_YOKE_BOW_LENGTH,
     7,
   );
+  private readonly dragLoadLibrary = new OxDragLoadLibrary();
   private source: OxSource | null = null;
   private latestInput: OxenSyncInput | null = null;
   private disposed = false;
@@ -277,6 +286,7 @@ export class OxenRenderer {
           ) + target.groundOffset;
       visual.root.position.set(visual.x, y, visual.z);
       visual.root.rotation.y = visual.yaw;
+      this.syncDragLoad(visual, target.haulKind);
 
       visual.mixer.update(simulationDt);
     }
@@ -293,6 +303,7 @@ export class OxenRenderer {
     this.yokeBowGeometry.dispose();
     this.yokeMaterial.dispose();
     this.harnessMaterial.dispose();
+    this.dragLoadLibrary.dispose();
     this.root.removeFromParent();
   }
 
@@ -410,6 +421,8 @@ export class OxenRenderer {
       mode: initialMode,
       assignment: null,
       tripId: null,
+      dragLoad: null,
+      dragLoadKind: null,
       x: rest.x,
       z: rest.z,
       yaw: rest.yaw,
@@ -450,6 +463,7 @@ export class OxenRenderer {
     moving: boolean;
     attached: boolean;
     groundOffset: number;
+    haulKind: OxDragLoadKind | null;
   } {
     if (visual.tripId) {
       const tripPose = this.getDeliveryPose(visual.tripId);
@@ -459,6 +473,7 @@ export class OxenRenderer {
           moving: tripPose.moving,
           attached: true,
           groundOffset: 0,
+          haulKind: null,
         };
       }
     }
@@ -483,6 +498,7 @@ export class OxenRenderer {
           moving: workerPose.moving,
           attached: false,
           groundOffset: 0,
+          haulKind: workerPose.haulKind ?? null,
         };
       }
     }
@@ -495,7 +511,55 @@ export class OxenRenderer {
       moving: false,
       attached: false,
       groundOffset: rest.localGroundOffset,
+      haulKind: null,
     };
+  }
+
+  private syncDragLoad(
+    visual: OxVisual,
+    kind: OxDragLoadKind | null,
+  ): void {
+    if (!kind) {
+      if (visual.dragLoad) visual.dragLoad.visible = false;
+      return;
+    }
+    if (!visual.dragLoad || visual.dragLoadKind !== kind) {
+      visual.dragLoad?.removeFromParent();
+      visual.dragLoad = this.dragLoadLibrary.create(kind);
+      visual.dragLoadKind = kind;
+      visual.root.add(visual.dragLoad);
+    }
+
+    const load = visual.dragLoad;
+    const metrics = this.dragLoadLibrary.metrics(kind);
+    const forwardX = Math.sin(visual.yaw);
+    const forwardZ = Math.cos(visual.yaw);
+    const centerX = visual.x - forwardX * metrics.centerDistance;
+    const centerZ = visual.z - forwardZ * metrics.centerDistance;
+    const halfLength = metrics.groundLength * 0.5;
+    const frontX = centerX + forwardX * halfLength;
+    const frontZ = centerZ + forwardZ * halfLength;
+    const backX = centerX - forwardX * halfLength;
+    const backZ = centerZ - forwardZ * halfLength;
+    const centerY = resolveRoadAwareGroundY(
+      this.getHeightAt(centerX, centerZ),
+      this.getRoadDeckY?.(centerX, centerZ) ?? null,
+    );
+    const frontY = resolveRoadAwareGroundY(
+      this.getHeightAt(frontX, frontZ),
+      this.getRoadDeckY?.(frontX, frontZ) ?? null,
+    );
+    const backY = resolveRoadAwareGroundY(
+      this.getHeightAt(backX, backZ),
+      this.getRoadDeckY?.(backX, backZ) ?? null,
+    );
+    load.visible = true;
+    load.position.set(0, centerY - visual.root.position.y + 0.018, -metrics.centerDistance);
+    load.rotation.set(
+      -Math.atan2(frontY - backY, metrics.groundLength),
+      0,
+      0,
+    );
   }
 
   private describeOx(visual: OxVisual): OxInspection | null {

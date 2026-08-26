@@ -89,9 +89,8 @@ type ResidenceTier = 1 | 2 | 3 | 4;
 type ResidenceRoofFinish = 'bundled-thatch' | 'split-wood-shingle' | 'fired-clay-tile';
 
 type TierOneResidenceSurface =
-  | 'lime-plaster'
+  | 'wattle-daub'
   | 'foundation-stone'
-  | 'foundation-cap'
   | 'structural-timber'
   | 'weathered-timber'
   | 'thatch';
@@ -99,9 +98,8 @@ type TierOneResidenceSurface =
 function tierOneResidenceMaterial(
   surface: TierOneResidenceSurface,
 ): THREE.MeshStandardMaterial {
-  if (surface === 'lime-plaster') return sharedBuildingMaterial('plasterWhite');
+  if (surface === 'wattle-daub') return sharedBuildingMaterial('plasterGrey');
   if (surface === 'foundation-stone') return sharedBuildingMaterial('masonryMid');
-  if (surface === 'foundation-cap') return sharedBuildingMaterial('masonryLight');
   if (surface === 'structural-timber') return sharedBuildingMaterial('timberDark');
   if (surface === 'weathered-timber') {
     return sharedBuildingMaterial('timberWeathered');
@@ -124,12 +122,12 @@ function dimensionsForTier(archetype: ResidenceArchetype, tier: ResidenceTier): 
   const base = dimensionsForArchetype(archetype);
   if (tier === 1) {
     return {
-      width: base.width * 0.82,
-      depth: base.depth * 0.8,
-      foundationHeight: 0.4,
-      groundHeight: 2.15,
-      upperHeight: 0.12,
-      ridgeHeight: 2.85,
+      width: base.width * 0.76,
+      depth: base.depth * 0.88,
+      foundationHeight: 0.3,
+      groundHeight: 2.02,
+      upperHeight: 0.08,
+      ridgeHeight: 2.72,
     };
   }
   if (tier === 4) return { width: base.width * 1.38, depth: base.depth * 1.28, foundationHeight: 0.72, groundHeight: 2.72, upperHeight: 2.7, ridgeHeight: 2.95 };
@@ -617,22 +615,22 @@ function createTierOneWallOpeningPlan(
     front: [
       {
         center: doorX,
-        width: 1.14,
+        width: 1.02,
         bottom: foundationHeight + 0.035,
-        height: 2.055,
+        height: 1.84,
       },
       {
         center: frontWindowX,
-        width: 0.72,
-        bottom: windowCenterY - 0.42,
-        height: 0.84,
+        width: 0.62,
+        bottom: windowCenterY - 0.34,
+        height: 0.68,
       },
     ],
     sides: [{
       center: -SIDE_WINDOW_CENTER_OFFSET_METERS,
-      width: 0.7,
-      bottom: windowCenterY - 0.41,
-      height: 0.82,
+      width: 0.6,
+      bottom: windowCenterY - 0.33,
+      height: 0.66,
     }],
   };
 }
@@ -695,7 +693,7 @@ function addTierOneWallShellWithOpenings(
   wall.userData.residenceWallOpeningCount =
     openings.front.length + openings.sides.length * 2;
   wall.userData.residenceWallConstruction = 'segmented-around-openings';
-  wall.userData.residenceSurfaceRole = 'lime-plaster';
+  wall.userData.residenceSurfaceRole = 'clay-lime-daub';
   return wall;
 }
 
@@ -765,6 +763,104 @@ function sortedUniqueCuts(values: readonly number[]): number[] {
     ));
 }
 
+function addTierOneRubbleFooting(
+  group: THREE.Group,
+  width: number,
+  depth: number,
+  foundationHeight: number,
+  seed: number,
+  material: THREE.Material,
+): THREE.Mesh {
+  const parts: BoxPart[] = [{
+    size: [width + 0.18, foundationHeight * 0.68, depth + 0.18],
+    position: [0, foundationHeight * 0.34, 0],
+  }];
+  const halfW = width * 0.5;
+  const halfD = depth * 0.5;
+  let ordinal = 0;
+
+  const addCourse = (
+    span: number,
+    count: number,
+    face: 'front-back' | 'side',
+    fixed: number,
+  ): void => {
+    const nominal = span / count;
+    for (let index = 0; index < count; index += 1) {
+      const widthVariation = tierOneCraftVariation(seed, ordinal++, 0.18);
+      const heightVariation = tierOneCraftVariation(seed, ordinal++, 0.055);
+      const centerVariation = tierOneCraftVariation(seed, ordinal++, 0.045);
+      const stoneSpan = nominal * (0.88 + widthVariation);
+      const stoneHeight = foundationHeight * 0.46 + heightVariation;
+      const along = -span * 0.5 + nominal * (index + 0.5) + centerVariation;
+      parts.push(face === 'front-back'
+        ? {
+            size: [stoneSpan, stoneHeight, 0.28],
+            position: [along, foundationHeight * 0.64, fixed],
+            rotation: [0, tierOneCraftVariation(seed, ordinal++, 0.045), 0],
+          }
+        : {
+            size: [0.28, stoneHeight, stoneSpan],
+            position: [fixed, foundationHeight * 0.64, along],
+            rotation: [0, tierOneCraftVariation(seed, ordinal++, 0.045), 0],
+          });
+    }
+  };
+
+  addCourse(width, Math.max(6, Math.round(width / 0.72)), 'front-back', halfD + 0.04);
+  addCourse(width, Math.max(6, Math.round(width / 0.72)), 'front-back', -halfD - 0.04);
+  addCourse(depth, Math.max(7, Math.round(depth / 0.72)), 'side', halfW + 0.04);
+  addCourse(depth, Math.max(7, Math.round(depth / 0.72)), 'side', -halfW - 0.04);
+
+  const footing = addMesh(
+    group,
+    mergeBoxParts(parts),
+    material,
+    new THREE.Vector3(),
+  );
+  footing.name = 'Residence low rubble fieldstone footing';
+  footing.userData.residenceFoundationConstruction = 'rough-laid-rubble-course';
+  footing.userData.residenceFoundationStoneCount = parts.length - 1;
+  return footing;
+}
+
+function tierOneCraftVariation(seed: number, ordinal: number, amount: number): number {
+  const wave = Math.sin((seed + 17) * 12.9898 + (ordinal + 3) * 78.233) * 43_758.5453;
+  return ((wave - Math.floor(wave)) * 2 - 1) * amount;
+}
+
+function frontBackBracePart(
+  z: number,
+  fromX: number,
+  fromY: number,
+  toX: number,
+  toY: number,
+): BoxPart {
+  const dx = toX - fromX;
+  const dy = toY - fromY;
+  return {
+    size: [Math.hypot(dx, dy), 0.13, 0.13],
+    position: [(fromX + toX) * 0.5, (fromY + toY) * 0.5, z],
+    rotation: [0, 0, Math.atan2(dy, dx)],
+  };
+}
+
+function sideBracePart(
+  x: number,
+  fromZ: number,
+  fromY: number,
+  toZ: number,
+  toY: number,
+): BoxPart {
+  const dz = toZ - fromZ;
+  const dy = toY - fromY;
+  return {
+    size: [0.13, 0.13, Math.hypot(dz, dy)],
+    position: [x, (fromY + toY) * 0.5, (fromZ + toZ) * 0.5],
+    rotation: [-Math.atan2(dy, dz), 0, 0],
+  };
+}
+
 function addTierOneTimberConstruction(
   group: THREE.Group,
   width: number,
@@ -778,7 +874,24 @@ function addTierOneTimberConstruction(
   const halfW = width * 0.5;
   const halfD = depth * 0.5;
   const wallHeight = wallTop - foundationHeight;
-  const parts: BoxPart[] = [];
+  const parts: BoxPart[] = [
+    {
+      size: [width + 0.08, 0.17, 0.16],
+      position: [0, foundationHeight + 0.08, halfD + 0.025],
+    },
+    {
+      size: [width + 0.08, 0.17, 0.16],
+      position: [0, foundationHeight + 0.08, -halfD - 0.025],
+    },
+    {
+      size: [0.16, 0.17, depth - 0.06],
+      position: [halfW + 0.025, foundationHeight + 0.08, 0],
+    },
+    {
+      size: [0.16, 0.17, depth - 0.06],
+      position: [-halfW - 0.025, foundationHeight + 0.08, 0],
+    },
+  ];
   for (const x of [-halfW, halfW]) {
     for (const z of [-halfD, halfD]) {
       parts.push({
@@ -787,20 +900,52 @@ function addTierOneTimberConstruction(
       });
     }
   }
+  for (const z of [-halfD - 0.035, halfD + 0.035]) {
+    parts.push({
+      size: [0.16, wallHeight, 0.14],
+      position: [0, foundationHeight + wallHeight * 0.5, z],
+    });
+    for (const side of [-1, 1] as const) {
+      parts.push(frontBackBracePart(
+        z,
+        side * (halfW - 0.1),
+        wallTop - 0.22,
+        side * (halfW * 0.62),
+        wallTop - 0.78,
+      ));
+    }
+  }
+  for (const x of [-halfW - 0.035, halfW + 0.035]) {
+    parts.push({
+      size: [0.14, wallHeight, 0.16],
+      position: [x, foundationHeight + wallHeight * 0.5, 0.42],
+    });
+    for (const zSide of [-1, 1] as const) {
+      parts.push(sideBracePart(
+        x,
+        zSide * (halfD - 0.1),
+        wallTop - 0.22,
+        zSide * (halfD * 0.68),
+        wallTop - 0.72,
+      ));
+    }
+  }
   const construction = addMesh(
     group,
     mergeBoxParts(parts),
     structuralMaterial,
     new THREE.Vector3(),
   );
-  construction.name = 'Residence hand-hewn corner posts';
-  construction.userData.residenceFacadeTimberRhythm = 'vertical-corners-only';
+  construction.name = 'Residence hand-hewn sill post and brace frame';
+  construction.userData.residenceFacadeTimberRhythm = 'sill-post-knee-brace-frame';
+  construction.userData.residenceFacadeTimberRole = 'load-bearing-frame';
 
   const gableParts: BoxPart[] = [];
   for (const zSign of [-1, 1] as const) {
     const z = zSign * (halfD + 0.045);
     gableParts.push(
       { size: [0.15, ridgeHeight - 0.08, 0.12], position: [0, wallTop + ridgeHeight * 0.48, z] },
+      { size: [halfW * 1.32, 0.14, 0.12], position: [0, wallTop + ridgeHeight * 0.34, z] },
     );
   }
   const gableScreen = addMesh(
@@ -809,7 +954,285 @@ function addTierOneTimberConstruction(
     weatheredMaterial,
     new THREE.Vector3(),
   );
-  gableScreen.name = 'Residence ventilated timber gable kingposts';
+  gableScreen.name = 'Residence rough kingpost and collar gables';
+  gableScreen.userData.residenceGableConstruction = 'kingpost-collar-frame';
+}
+
+type TierOneThatchRoofShape = {
+  roofHalfSpan: number;
+  roofDepth: number;
+  wallTop: number;
+  ridgeHeight: number;
+  eaveDrop: number;
+  roofPitch: number;
+  seed: number;
+};
+
+const TIER_ONE_THATCH_METERS_PER_TILE = 1.4;
+const TIER_ONE_THATCH_SURFACE_LIFT = 0.12;
+
+function tierOneThatchSurfaceY(
+  x: number,
+  z: number,
+  shape: TierOneThatchRoofShape,
+): number {
+  const slopeT = 1 - THREE.MathUtils.clamp(
+    Math.abs(x) / shape.roofHalfSpan,
+    0,
+    1,
+  );
+  const depthT = THREE.MathUtils.clamp(z / shape.roofDepth + 0.5, 0, 1);
+  const linear = shape.wallTop
+    - shape.eaveDrop
+    + (shape.ridgeHeight + shape.eaveDrop) * slopeT;
+  const handPackedSag = -0.105 * Math.sin(Math.PI * slopeT);
+  const ridgeSag = -0.052
+    * Math.sin(Math.PI * depthT)
+    * (0.26 + slopeT * 0.74);
+  return linear + handPackedSag + ridgeSag + TIER_ONE_THATCH_SURFACE_LIFT;
+}
+
+function createTierOneThatchBlanketGeometry(
+  side: -1 | 1,
+  shape: TierOneThatchRoofShape,
+): THREE.BufferGeometry {
+  const slopeSegments = 7;
+  const depthSegments = 10;
+  const top: THREE.Vector3[][] = [];
+  const bottom: THREE.Vector3[][] = [];
+  for (let slopeIndex = 0; slopeIndex <= slopeSegments; slopeIndex += 1) {
+    const slopeT = slopeIndex / slopeSegments;
+    const topRow: THREE.Vector3[] = [];
+    const bottomRow: THREE.Vector3[] = [];
+    for (let depthIndex = 0; depthIndex <= depthSegments; depthIndex += 1) {
+      const depthT = depthIndex / depthSegments;
+      const eaveWobble = slopeIndex === 0
+        ? tierOneCraftVariation(shape.seed + side * 31, depthIndex, 0.065)
+        : 0;
+      const vergeWobble = depthIndex === 0 || depthIndex === depthSegments
+        ? tierOneCraftVariation(shape.seed + side * 47, slopeIndex, 0.045)
+        : 0;
+      const x = side * (
+        shape.roofHalfSpan * (1 - slopeT) + eaveWobble
+      );
+      const zSign = depthIndex === 0 ? -1 : depthIndex === depthSegments ? 1 : 0;
+      const z = -shape.roofDepth * 0.5
+        + shape.roofDepth * depthT
+        + zSign * vergeWobble;
+      const packingVariation = tierOneCraftVariation(
+        shape.seed + side * 59,
+        slopeIndex * 19 + depthIndex,
+        0.014,
+      ) * Math.sin(Math.PI * slopeT);
+      const eaveDropVariation = slopeIndex === 0
+        ? Math.abs(tierOneCraftVariation(shape.seed, depthIndex + 113, 0.045))
+        : 0;
+      const y = tierOneThatchSurfaceY(x, z, shape)
+        + packingVariation
+        - eaveDropVariation;
+      const thickness = THREE.MathUtils.lerp(0.29, 0.2, slopeT);
+      topRow.push(new THREE.Vector3(x, y, z));
+      bottomRow.push(new THREE.Vector3(x, y - thickness, z));
+    }
+    top.push(topRow);
+    bottom.push(bottomRow);
+  }
+
+  const positions: number[] = [];
+  const uvs: number[] = [];
+  const indices: number[] = [];
+  const uvFor = (point: THREE.Vector3): [number, number] => [
+    Math.hypot(
+      shape.roofHalfSpan - Math.abs(point.x),
+      point.y - (shape.wallTop - shape.eaveDrop),
+    ) / TIER_ONE_THATCH_METERS_PER_TILE,
+    point.z / TIER_ONE_THATCH_METERS_PER_TILE,
+  ];
+  const appendFace = (
+    sourceCorners: readonly THREE.Vector3[],
+    expectedNormal: THREE.Vector3,
+  ): void => {
+    let corners = [...sourceCorners];
+    const actualNormal = new THREE.Vector3()
+      .subVectors(corners[1]!, corners[0]!)
+      .cross(new THREE.Vector3().subVectors(corners[2]!, corners[0]!));
+    if (actualNormal.dot(expectedNormal) < 0) {
+      corners = [corners[0]!, corners[3]!, corners[2]!, corners[1]!];
+    }
+    const base = positions.length / 3;
+    for (const corner of corners) {
+      positions.push(corner.x, corner.y, corner.z);
+      uvs.push(...uvFor(corner));
+    }
+    indices.push(base, base + 1, base + 2, base, base + 2, base + 3);
+  };
+
+  const upperNormal = new THREE.Vector3(side, 1, 0).normalize();
+  for (let slopeIndex = 0; slopeIndex < slopeSegments; slopeIndex += 1) {
+    for (let depthIndex = 0; depthIndex < depthSegments; depthIndex += 1) {
+      appendFace([
+        top[slopeIndex]![depthIndex]!,
+        top[slopeIndex + 1]![depthIndex]!,
+        top[slopeIndex + 1]![depthIndex + 1]!,
+        top[slopeIndex]![depthIndex + 1]!,
+      ], upperNormal);
+      appendFace([
+        bottom[slopeIndex]![depthIndex]!,
+        bottom[slopeIndex]![depthIndex + 1]!,
+        bottom[slopeIndex + 1]![depthIndex + 1]!,
+        bottom[slopeIndex + 1]![depthIndex]!,
+      ], new THREE.Vector3(0, -1, 0));
+    }
+  }
+  for (let depthIndex = 0; depthIndex < depthSegments; depthIndex += 1) {
+    appendFace([
+      bottom[0]![depthIndex]!,
+      top[0]![depthIndex]!,
+      top[0]![depthIndex + 1]!,
+      bottom[0]![depthIndex + 1]!,
+    ], new THREE.Vector3(side, 0, 0));
+    appendFace([
+      bottom[slopeSegments]![depthIndex]!,
+      bottom[slopeSegments]![depthIndex + 1]!,
+      top[slopeSegments]![depthIndex + 1]!,
+      top[slopeSegments]![depthIndex]!,
+    ], new THREE.Vector3(-side, 0, 0));
+  }
+  for (const depthIndex of [0, depthSegments]) {
+    const zSign = depthIndex === 0 ? -1 : 1;
+    for (let slopeIndex = 0; slopeIndex < slopeSegments; slopeIndex += 1) {
+      appendFace([
+        bottom[slopeIndex]![depthIndex]!,
+        bottom[slopeIndex + 1]![depthIndex]!,
+        top[slopeIndex + 1]![depthIndex]!,
+        top[slopeIndex]![depthIndex]!,
+      ], new THREE.Vector3(0, 0, zSign));
+    }
+  }
+
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute(
+    'position',
+    new THREE.Float32BufferAttribute(positions, 3),
+  );
+  geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+  geometry.setIndex(indices);
+  geometry.computeVertexNormals();
+  geometry.userData.metricUvMeters = TIER_ONE_THATCH_METERS_PER_TILE;
+  geometry.userData.residenceThatchBlanketGrid = {
+    slopeSegments,
+    depthSegments,
+  };
+  return geometry;
+}
+
+function markTierOneThatchEdge(
+  mesh: THREE.Mesh,
+  role: 'thatch-ridge-roll' | 'ragged-thatch-eave' | 'soft-thatch-verge',
+  partCount: number,
+): void {
+  mesh.userData.residenceRoofSurface = true;
+  mesh.userData.residenceRoofFinish = 'bundled-thatch';
+  mesh.userData.residenceRoofEdgeRole = role;
+  mesh.userData.residenceRoofEdgePartCount = partCount;
+  mesh.userData.residenceRoofEdgeVariantPalette = 'hand-packed-thatch';
+}
+
+function addTierOneThatchEdgeCraft(
+  group: THREE.Group,
+  material: THREE.Material,
+  shape: TierOneThatchRoofShape,
+): void {
+  const ridgeParts: THREE.BufferGeometry[] = [];
+  const ridgePartCount = 3;
+  const ridgePartDepth = shape.roofDepth / ridgePartCount;
+  for (let index = 0; index < ridgePartCount; index += 1) {
+    const radius = 0.17 + tierOneCraftVariation(shape.seed, 201 + index, 0.018);
+    const length = ridgePartDepth + 0.09
+      + tierOneCraftVariation(shape.seed, 211 + index, 0.04);
+    const z = -shape.roofDepth * 0.5 + ridgePartDepth * (index + 0.5);
+    const geometry = new THREE.CylinderGeometry(radius, radius * 0.94, length, 8, 1, false);
+    geometry.rotateX(Math.PI * 0.5);
+    geometry.translate(
+      tierOneCraftVariation(shape.seed, 221 + index, 0.018),
+      tierOneThatchSurfaceY(0, z, shape) + 0.075,
+      z + tierOneCraftVariation(shape.seed, 231 + index, 0.025),
+    );
+    ridgeParts.push(geometry);
+  }
+  const ridgeGeometry = mergeGeometries(ridgeParts, false);
+  for (const geometry of ridgeParts) geometry.dispose();
+  if (!ridgeGeometry) throw new Error('Could not merge tier-one thatch ridge geometry.');
+  const ridge = addMesh(group, ridgeGeometry, material, new THREE.Vector3());
+  ridge.name = 'Residence hand-packed straw ridge roll';
+  markTierOneThatchEdge(ridge, 'thatch-ridge-roll', ridgePartCount);
+
+  const eavePartCount = 10;
+  for (const side of [-1, 1] as const) {
+    const parts: BoxPart[] = [];
+    const partDepth = shape.roofDepth / eavePartCount;
+    for (let index = 0; index < eavePartCount; index += 1) {
+      const z = -shape.roofDepth * 0.5 + partDepth * (index + 0.5);
+      const outward = tierOneCraftVariation(shape.seed + side * 13, 241 + index, 0.045);
+      const drop = Math.abs(tierOneCraftVariation(shape.seed + side * 17, 251 + index, 0.055));
+      parts.push({
+        size: [0.31 + outward, 0.15 + drop * 0.45, partDepth + 0.075],
+        position: [
+          side * (shape.roofHalfSpan + 0.035 + outward * 0.35),
+          tierOneThatchSurfaceY(shape.roofHalfSpan, z, shape) - 0.055 - drop,
+          z,
+        ],
+        rotation: [0, 0, side * -shape.roofPitch],
+      });
+    }
+    const eave = addMesh(
+      group,
+      mergeBoxParts(parts),
+      material,
+      new THREE.Vector3(),
+    );
+    eave.name = `Residence ragged bundled-thatch eave ${side < 0 ? 'left' : 'right'}`;
+    markTierOneThatchEdge(eave, 'ragged-thatch-eave', parts.length);
+    eave.userData.residenceThatchEaveVariationMeters = 0.1;
+  }
+
+  const vergePartCount = 4;
+  const slopeLength = shape.roofHalfSpan / Math.cos(shape.roofPitch);
+  for (const zSign of [-1, 1] as const) {
+    for (const side of [-1, 1] as const) {
+      const parts: BoxPart[] = [];
+      for (let index = 0; index < vergePartCount; index += 1) {
+        const slopeT = (index + 0.5) / vergePartCount;
+        const x = side * shape.roofHalfSpan * (1 - slopeT);
+        const z = zSign * (shape.roofDepth * 0.5 + 0.055
+          + tierOneCraftVariation(shape.seed + side * 7, 271 + index, 0.035));
+        parts.push({
+          size: [
+            slopeLength / vergePartCount + 0.12,
+            0.145 + Math.abs(tierOneCraftVariation(shape.seed, 281 + index, 0.035)),
+            0.22,
+          ],
+          position: [
+            x,
+            tierOneThatchSurfaceY(x, z, shape) + 0.025,
+            z,
+          ],
+          rotation: [0, 0, side * -shape.roofPitch],
+        });
+      }
+      const verge = addMesh(
+        group,
+        mergeBoxParts(parts),
+        material,
+        new THREE.Vector3(),
+      );
+      verge.name = `Residence soft thatch verge ${zSign < 0 ? 'rear' : 'front'}-${side < 0 ? 'left' : 'right'}`;
+      markTierOneThatchEdge(verge, 'soft-thatch-verge', parts.length);
+    }
+  }
+
+  group.userData.residenceRoofEdgeFinish = 'hand-dressed-thatch';
+  group.userData.residenceRoofEdgeVariantCount = 7;
 }
 
 function addRoofShingleCourses(
@@ -1274,41 +1697,6 @@ function addWorkingLeanTo(
   applyWarmShingleBackFaceFinish(annexRoof);
 }
 
-function addTierOneEntryCanopy(
-  group: THREE.Group,
-  entryX: number,
-  frontZ: number,
-  foundationHeight: number,
-  roofMaterial: THREE.Material,
-  structuralMaterial: THREE.Material,
-): void {
-  const canopyY = foundationHeight + 2.08;
-  const canopy = addMesh(
-    group,
-    new THREE.BoxGeometry(1.72, 0.11, 0.92),
-    roofMaterial,
-    new THREE.Vector3(entryX, canopyY, frontZ + 0.35),
-    new THREE.Euler(0.18, 0, 0),
-  );
-  canopy.name = 'Residence deep-eave door canopy roof';
-  canopy.userData.residenceRoofSurface = true;
-  applyWarmShingleBackFaceFinish(canopy);
-  for (const side of [-1, 1] as const) {
-    const brace = addMesh(
-      group,
-      new THREE.BoxGeometry(0.1, 0.1, 0.82),
-      structuralMaterial,
-      new THREE.Vector3(
-        entryX + side * 0.65,
-        canopyY - 0.34,
-        frontZ + 0.2,
-      ),
-      new THREE.Euler(-0.67, 0, 0),
-    );
-    brace.name = 'Residence door canopy timber brace';
-  }
-}
-
 function addResidenceUpgradeWorks(
   residence: THREE.Group,
   dimensions: HouseDimensions,
@@ -1462,13 +1850,9 @@ export function createResidenceMesh(
     tier === 1
       ? tierOneResidenceMaterial('foundation-stone')
       : stoneMaterial('mid');
-  const tierOneFoundationCapMaterial =
-    tier === 1
-      ? tierOneResidenceMaterial('foundation-cap')
-      : stoneMaterial('light');
   const wallMaterial =
     tier === 1
-      ? tierOneResidenceMaterial('lime-plaster')
+      ? tierOneResidenceMaterial('wattle-daub')
       : residenceFacadeMaterial(facade);
   const roofFinish: ResidenceRoofFinish = tier === 1
     ? 'bundled-thatch'
@@ -1506,14 +1890,19 @@ export function createResidenceMesh(
     tier,
     seed,
     massing: tier === 1
-      ? ['short-cottage-mass', 'deep-steep-roof']
+      ? ['low-longhouse-mass', 'deep-sagging-thatch-roof']
       : tier === 4
         ? ['expanded-two-storey-mass', 'central-cross-gable']
         : ['two-storey-house-mass'],
     facadeModules: tier === 4
       ? ['stone-ground-storey', 'ashlar-corner-piers', 'dressed-floor-band', 'cross-gable']
       : tier === 1
-        ? ['limewashed-infill', 'true-wall-apertures', 'hewn-corner-posts']
+        ? [
+            'rough-rubble-footing',
+            'clay-lime-daub-infill',
+            'true-wall-apertures',
+            'hewn-sill-post-brace-frame',
+          ]
         : ['stone-ground-storey', 'plastered-upper-storey'],
     roofFinish,
   };
@@ -1525,7 +1914,7 @@ export function createResidenceMesh(
   const wallTop = groundTop + upperHeight;
   const roofPitch = Math.atan2(ridgeHeight, halfW);
   const roofOverhang = tier === 1 ? 0.54 : 0.3;
-  const roofDepthOverhang = tier === 1 ? 0.68 : 0.31;
+  const roofDepthOverhang = tier === 1 ? 0.78 : 0.31;
   const roofHalfSpan = halfW + roofOverhang;
   const roofEaveDrop = roofOverhang * Math.tan(roofPitch);
   const slopeLen = roofHalfSpan / Math.cos(roofPitch);
@@ -1543,22 +1932,23 @@ export function createResidenceMesh(
   group.userData.residenceRoofPitchDegrees = THREE.MathUtils.radToDeg(roofPitch);
   group.userData.residenceRoofOverhangMeters = roofOverhang;
 
-  const foundation = addMesh(
-    group,
-    new THREE.BoxGeometry(width + 0.38, foundationHeight, depth + 0.38),
-    tier === 1 ? tierOneFoundationMaterial : stoneMaterial('light'),
-    new THREE.Vector3(0, foundationHeight * 0.5, 0),
-  );
-  foundation.name = 'Residence limestone plinth';
   if (tier === 1) {
-    const plinthCap = addMesh(
+    addTierOneRubbleFooting(
       group,
-      new THREE.BoxGeometry(width + 0.46, 0.13, depth + 0.46),
-      tierOneFoundationCapMaterial,
-      new THREE.Vector3(0, foundationHeight - 0.035, 0),
+      width,
+      depth,
+      foundationHeight,
+      seed,
+      tierOneFoundationMaterial,
     );
-    plinthCap.name = 'Residence limestone plinth cap';
   } else {
+    const foundation = addMesh(
+      group,
+      new THREE.BoxGeometry(width + 0.38, foundationHeight, depth + 0.38),
+      stoneMaterial('light'),
+      new THREE.Vector3(0, foundationHeight * 0.5, 0),
+    );
+    foundation.name = 'Residence limestone plinth';
     addMesh(
       group,
       new THREE.BoxGeometry(width, groundHeight, depth),
@@ -1621,8 +2011,8 @@ export function createResidenceMesh(
     doorX,
     foundationHeight + 0.08,
     frontZ + 0.03,
-    1.02,
-    1.92,
+    tier === 1 ? 0.9 : 1.02,
+    tier === 1 ? 1.72 : 1.92,
     tierOneWeatheredMaterial,
   );
   addFrontWindow(
@@ -1632,8 +2022,8 @@ export function createResidenceMesh(
     frontWindowX,
     foundationHeight + groundHeight * 0.55,
     frontZ + 0.02,
-    tier === 1 ? 0.6 : 0.78,
-    tier === 1 ? 0.72 : 1.02,
+    tier === 1 ? 0.5 : 0.78,
+    tier === 1 ? 0.56 : 1.02,
     false,
     tierOneWeatheredMaterial,
     tierOneStructuralMaterial,
@@ -1667,8 +2057,8 @@ export function createResidenceMesh(
       x,
       foundationHeight + groundHeight * 0.56,
       -SIDE_WINDOW_CENTER_OFFSET_METERS,
-      tier === 1 ? 0.58 : 0.74,
-      tier === 1 ? 0.7 : 0.98,
+      tier === 1 ? 0.48 : 0.74,
+      tier === 1 ? 0.54 : 0.98,
       tierOneWeatheredMaterial,
       tierOneStructuralMaterial,
       tier !== 1,
@@ -1687,40 +2077,71 @@ export function createResidenceMesh(
     }
   }
 
+  const tierOneThatchShape: TierOneThatchRoofShape | null = tier === 1
+    ? {
+        roofHalfSpan,
+        roofDepth: depth + roofDepthOverhang * 2,
+        wallTop,
+        ridgeHeight,
+        eaveDrop: roofEaveDrop,
+        roofPitch,
+        seed,
+      }
+    : null;
   for (const side of [-1, 1] as const) {
     const roofPlane = addMesh(
       group,
-      new THREE.BoxGeometry(
-        slopeLen,
-        tier === 1 ? 0.24 : 0.14,
-        depth + roofDepthOverhang * 2,
-      ),
+      tierOneThatchShape
+        ? createTierOneThatchBlanketGeometry(side, tierOneThatchShape)
+        : new THREE.BoxGeometry(
+            slopeLen,
+            0.14,
+            depth + roofDepthOverhang * 2,
+          ),
       roofSurfaceMaterial,
-      new THREE.Vector3(
-        side * roofHalfSpan * 0.5,
-        wallTop + (ridgeHeight - roofEaveDrop) * 0.5,
-        0,
-      ),
-      new THREE.Euler(0, 0, side * -roofPitch),
+      tierOneThatchShape
+        ? new THREE.Vector3()
+        : new THREE.Vector3(
+            side * roofHalfSpan * 0.5,
+            wallTop + (ridgeHeight - roofEaveDrop) * 0.5,
+            0,
+          ),
+      tierOneThatchShape
+        ? new THREE.Euler()
+        : new THREE.Euler(0, 0, side * -roofPitch),
     );
-    roofPlane.name = `Residence main roof plane ${side < 0 ? 'left' : 'right'}`;
+    roofPlane.name = tierOneThatchShape
+      ? `Residence hand-laid bundled-thatch blanket ${side < 0 ? 'left' : 'right'}`
+      : `Residence main roof plane ${side < 0 ? 'left' : 'right'}`;
     roofPlane.userData.residenceRoofSurface = true;
     roofPlane.userData.residenceRoofFinish = roofFinish;
+    if (tierOneThatchShape) {
+      roofPlane.userData.residenceThatchCourseCount = 7;
+      roofPlane.userData.residenceThatchConstruction = 'continuous-hand-packed-blanket';
+    }
     if (roofFinish === 'split-wood-shingle') applyWarmShingleBackFaceFinish(roofPlane);
   }
-  addRoofShingleCourses(
-    group,
-    exposedRoofCourseMaterial,
-    roofHalfSpan,
-    depth,
-    roofDepthOverhang,
-    wallTop,
-    ridgeHeight,
-    roofPitch,
-    roofEaveDrop,
-    seed,
-    roofFinish,
-  );
+  if (tierOneThatchShape) {
+    addTierOneThatchEdgeCraft(
+      group,
+      exposedRoofCourseMaterial,
+      tierOneThatchShape,
+    );
+  } else {
+    addRoofShingleCourses(
+      group,
+      exposedRoofCourseMaterial,
+      roofHalfSpan,
+      depth,
+      roofDepthOverhang,
+      wallTop,
+      ridgeHeight,
+      roofPitch,
+      roofEaveDrop,
+      seed,
+      roofFinish,
+    );
+  }
 
   for (const zSign of [-1, 1] as const) {
     addTriangularGableWall(
@@ -1734,21 +2155,23 @@ export function createResidenceMesh(
       wallMaterial,
     );
   }
-  addWeatheredRoofEdgeCraft(
-    group,
-    tierOneWeatheredMaterial,
-    roofHalfSpan,
-    depth,
-    roofDepthOverhang,
-    halfD,
-    wallTop,
-    ridgeHeight,
-    roofPitch,
-    roofEaveDrop,
-    tier === 1 ? 0.3 : 0.24,
-    tier === 1 ? 0.24 : 0.18,
-    seed,
-  );
+  if (tier > 1) {
+    addWeatheredRoofEdgeCraft(
+      group,
+      tierOneWeatheredMaterial,
+      roofHalfSpan,
+      depth,
+      roofDepthOverhang,
+      halfD,
+      wallTop,
+      ridgeHeight,
+      roofPitch,
+      roofEaveDrop,
+      0.24,
+      0.18,
+      seed,
+    );
+  }
   if (tier === 4) {
     addTierFourCrossGable(
       group,
@@ -1762,16 +2185,7 @@ export function createResidenceMesh(
     );
   }
 
-  if (tier === 1) {
-    addTierOneEntryCanopy(
-      group,
-      doorX,
-      frontZ,
-      foundationHeight,
-      exposedRoofCourseMaterial,
-      tierOneStructuralMaterial,
-    );
-  } else if (archetype === 'stone_portal') {
+  if (tier > 1 && archetype === 'stone_portal') {
     addStonePortalPorch(
       group,
       doorX,
@@ -1805,11 +2219,10 @@ export function createResidenceMesh(
   const chimneyEmitter = new THREE.Object3D();
   chimneyEmitter.name = 'ChimneyEmitter';
   if (tier === 1) {
-    const roofExitY =
-      wallTop
-      + ridgeHeight
-      - Math.abs(chimneyX) * Math.tan(roofPitch);
-    chimneyEmitter.position.set(chimneyX, roofExitY + 0.22, chimneyZ);
+    const roofExitY = tierOneThatchShape
+      ? tierOneThatchSurfaceY(chimneyX, chimneyZ, tierOneThatchShape)
+      : wallTop + ridgeHeight - Math.abs(chimneyX) * Math.tan(roofPitch);
+    chimneyEmitter.position.set(chimneyX, roofExitY + 0.065, chimneyZ);
     chimneyEmitter.userData.residenceSmokeExit = 'through-thatch';
     group.userData.residenceSmokeExit = 'through-thatch';
     group.userData.residenceHasChimney = false;

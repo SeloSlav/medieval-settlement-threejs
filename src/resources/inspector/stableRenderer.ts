@@ -4,7 +4,10 @@ import {
 } from '../../generated/gameBalance.ts';
 import { fireDisabledBuildingIds, fireForTarget } from '../../fires/fireIncident.ts';
 import { assignStableOxen } from '../../settlement/stableOxen.ts';
-import { renderResourceAmount } from '../../ui/resourceCost.ts';
+import {
+  encodeResourceCostTooltip,
+  renderResourceAmount,
+} from '../../ui/resourceCost.ts';
 import { getBuildingCost } from '../buildingEconomy.ts';
 import type { InspectableTarget, StableOxState } from '../types.ts';
 import {
@@ -76,6 +79,14 @@ export function renderStableInspector(
     : treasuryShort
       ? `${Math.ceil(STABLE_OX_PURCHASE_GOLD - treasuryGold)} more gold is required.`
       : 'The ox will join the automatic assistance pool.';
+  const purchaseTooltip = fire
+    ? 'Purchases resume after the stable is repaired.'
+    : treasuryShort
+      ? 'The treasury cannot cover this purchase.'
+      : 'Adds one ox to the automatic assistance pool.';
+  const purchaseTooltipCost = encodeResourceCostTooltip({
+    gold: STABLE_OX_PURCHASE_GOLD,
+  });
 
   const haulingOxIds = new Set(
     [...context.gameState.deliveryTrips.values()]
@@ -122,7 +133,13 @@ export function renderStableInspector(
 
     if (isPurchaseSlot) {
       return `<li class="stable-ox-slot" data-stable-ox-slot="${slot}" data-state="purchase" data-purchase-status="${fire ? 'paused' : treasuryShort ? 'unaffordable' : 'ready'}">
-        <button type="button" class="stable-ox-slot__purchase" data-purchase-ox aria-label="Purchase a draft ox for ${STABLE_OX_PURCHASE_GOLD} gold. ${purchaseAvailabilityLabel}" ${purchaseDisabled ? 'aria-disabled="true"' : ''}>
+        <button type="button" class="stable-ox-slot__purchase" data-purchase-ox
+          data-tooltip-title="Purchase draft ox"
+          data-tooltip="${purchaseTooltip}"
+          data-tooltip-cost="${purchaseTooltipCost}"
+          data-tooltip-cost-label="Gold cost"
+          data-tooltip-cost-affordable="${!treasuryShort}"
+          aria-label="Purchase a draft ox for ${STABLE_OX_PURCHASE_GOLD} gold. ${purchaseAvailabilityLabel}" ${purchaseDisabled ? 'aria-disabled="true"' : ''}>
           ${slotVisual}
         </button>
       </li>`;

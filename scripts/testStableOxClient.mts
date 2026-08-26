@@ -88,6 +88,9 @@ assert.match(stableRenderer, /const purchaseDisabled = atCapacity \|\| treasuryS
 assert.match(stableRenderer, /const nextOpenSlot/);
 assert.match(stableRenderer, /data-state="purchase"/);
 assert.match(stableRenderer, /stable-ox-slot__portrait/);
+assert.match(stableRenderer, /encodeResourceCostTooltip\(\{[\s\S]{0,100}gold: STABLE_OX_PURCHASE_GOLD/);
+assert.match(stableRenderer, /data-tooltip-cost="\$\{purchaseTooltipCost\}"/);
+assert.match(stableRenderer, /data-tooltip-cost-affordable="\$\{!treasuryShort\}"/);
 assert.doesNotMatch(stableRenderer, /BAY_LABELS|Bay \$\{/);
 assert.doesNotMatch(stableRenderer, /stable-ox-slot__copy|stable-ox-slot__status|stable-ox-slot__price/);
 assert.doesNotMatch(stableRenderer, />OX</);

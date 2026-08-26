@@ -32,6 +32,7 @@ import {
   isResourceCostAffordable,
   renderResourceCost,
   resourceCostEntries,
+  resourceCostShortfallKinds,
 } from '../src/ui/resourceCost.ts';
 import { isConstructionResourceShortfallMessage } from '../src/ui/toastMessages.ts';
 import { resolveTooltipPosition } from '../src/ui/tooltips.ts';
@@ -290,22 +291,32 @@ assert.equal(describeBuildingPlacementBlocker('insufficient_resources'), 'Site c
 const unaffordableCard = fakeBuildMenuCard('residences');
 syncBuildMenuCardAffordability(
   fakeBuildMenu(unaffordableCard),
-  { timber: 0, stone: 0 },
+  { timber: residenceZoneCost(1).timber, stone: 0 },
 );
 assert.equal(unaffordableCard.dataset.tooltipCostAffordable, 'false');
+assert.equal(unaffordableCard.dataset.tooltipCostShortages, 'stone');
 assert.equal(unaffordableCard.classList.contains('is-unaffordable'), true);
+assert.equal(fakeCostItem(unaffordableCard, 'timber').classList.contains('is-unaffordable'), false);
+assert.equal(fakeCostItem(unaffordableCard, 'stone').classList.contains('is-unaffordable'), true);
 assert.match(unaffordableCard.getAttribute('aria-label') ?? '', /Not enough resources/);
 syncBuildMenuCardAffordability(
   fakeBuildMenu(unaffordableCard),
   buildingResourceCostAmounts(residenceZoneCost(1)),
 );
 assert.equal(unaffordableCard.dataset.tooltipCostAffordable, 'true');
+assert.equal(unaffordableCard.dataset.tooltipCostShortages, '');
 assert.equal(unaffordableCard.classList.contains('is-unaffordable'), false);
+assert.equal(fakeCostItem(unaffordableCard, 'stone').classList.contains('is-unaffordable'), false);
 assert.doesNotMatch(unaffordableCard.getAttribute('aria-label') ?? '', /Not enough resources/);
 const freeCard = fakeBuildMenuCard('dry-stone-wall');
 syncBuildMenuCardAffordability(fakeBuildMenu(freeCard), {});
 assert.equal(freeCard.dataset.tooltipCostAffordable, 'true');
 assert.equal(freeCard.classList.contains('is-unaffordable'), false);
+assert.deepEqual(
+  resourceCostShortfallKinds({ timber: 64, stone: 20, ironwork: 0 }, { timber: 64, stone: 42, ironwork: 4 }),
+  ['stone', 'ironwork'],
+  'shortfalls must identify only the individually missing construction resources',
+);
 
 const buildingPreviewValidity: boolean[] = [];
 const stationaryBuildingTool = Object.assign(Object.create(BuildingTool.prototype), {
@@ -513,8 +524,9 @@ assert.doesNotMatch(toolbarSource, /resolveBuildMenuHotkey/);
 assert.doesNotMatch(toolbarSource, /data-action="(?:civic|gathering|agriculture|industry|military)-build-menu"/);
 
 const tooltipSource = fs.readFileSync('src/ui/tooltips.ts', 'utf8');
-assert.match(tooltipSource, /label\.textContent = 'Construction cost'/);
+assert.match(tooltipSource, /label\.textContent = costLabel/);
 assert.match(tooltipSource, /tooltipCostAffordable !== 'false'/);
+assert.match(tooltipSource, /shortageKinds\?\.has\(item\.kind\) === true/);
 assert.match(
   tooltipSource,
   /if \(activeAnchor === anchor && !tooltip\.hidden\) \{\s*activeTrigger = trigger;\s*refresh\(anchor\);\s*return;/,
@@ -561,21 +573,42 @@ function categoryKeys(id: string): string[] {
 function fakeBuildMenuCard(action: string): HTMLButtonElement {
   const classes = new Set(['construction-card']);
   const attributes = new Map([['aria-label', `${action} cost`]]);
+  const costItems = ['timber', 'stone', 'ironwork', 'roofTiles', 'gold'].map(fakeResourceCostItem);
   return {
     dataset: { action },
-    classList: {
-      contains: (token: string) => classes.has(token),
-      remove: (...tokens: string[]) => tokens.forEach((token) => classes.delete(token)),
-      toggle: (token: string, force?: boolean) => {
-        const enabled = force ?? !classes.has(token);
-        if (enabled) classes.add(token);
-        else classes.delete(token);
-        return enabled;
-      },
-    },
+    classList: fakeClassList(classes),
     getAttribute: (name: string) => attributes.get(name) ?? null,
     setAttribute: (name: string, value: string) => { attributes.set(name, value); },
+    querySelectorAll: () => costItems,
   } as unknown as HTMLButtonElement;
+}
+
+function fakeResourceCostItem(kind: string): HTMLElement {
+  const classes = new Set(['resource-cost__item']);
+  return {
+    dataset: { resourceCost: kind },
+    classList: fakeClassList(classes),
+  } as unknown as HTMLElement;
+}
+
+function fakeCostItem(card: HTMLButtonElement, kind: string): HTMLElement {
+  const item = [...card.querySelectorAll<HTMLElement>('.resource-cost__item[data-resource-cost]')]
+    .find((candidate) => candidate.dataset.resourceCost === kind);
+  assert.ok(item, `missing fake ${kind} cost item`);
+  return item;
+}
+
+function fakeClassList(classes: Set<string>) {
+  return {
+    contains: (token: string) => classes.has(token),
+    remove: (...tokens: string[]) => tokens.forEach((token) => classes.delete(token)),
+    toggle: (token: string, force?: boolean) => {
+      const enabled = force ?? !classes.has(token);
+      if (enabled) classes.add(token);
+      else classes.delete(token);
+      return enabled;
+    },
+  };
 }
 
 function fakeBuildMenu(...cards: HTMLButtonElement[]): ParentNode {
