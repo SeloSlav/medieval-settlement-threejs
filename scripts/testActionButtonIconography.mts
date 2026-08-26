@@ -235,8 +235,18 @@ assert.doesNotMatch(
 );
 assert.match(residenceRenderer, /activeResidenceNeedKinds\(tier\)/);
 assert.match(residenceRenderer, /data-residence-need-state="\$\{met \? 'met' : 'unmet'\}"/);
-assert.match(residenceRenderer, /getNeed\(residence\.needs, kind\)\.deficitTicks <= 0/);
+assert.match(residenceRenderer, /met: residenceNeedIsMet\(residence, kind\)/);
+assert.match(residenceRenderer, /class="resource-cost__item residence-need-icon__source"/);
+assert.match(residenceRenderer, /data-residence-need-source="\$\{primaryFoodSource\.kind\}"/);
+assert.match(residenceRenderer, /data-tooltip-resources/);
+assert.match(residenceRenderer, /The Founders’ Camp does not serve homes directly/);
 assert.match(backyardCss, /residence-need-icon\.is-unmet \.resource-cost__icon[\s\S]{0,120}grayscale\(1\)/);
+assert.doesNotMatch(
+  backyardCss,
+  /residence-need-icon:hover[\s\S]{0,120}(?:border-color|background)/,
+  'hovering a live-updating residence need must not restart a border or background transition',
+);
+assert.match(backyardCss, /residence-need-icon__source[\s\S]{0,220}width: 15px/);
 assert.match(iconography, /data-residence-need='church'[\s\S]{0,180}church-tier-2\.png/);
 assert.doesNotMatch(backyardRenderer, /<span>Household services<\/span>|formatResidenceServiceConsequence/);
 assert.match(

@@ -2109,6 +2109,11 @@ select:focus-visible {
   filter: grayscale(1) brightness(0.72);
 }
 
+.residence-need-icon.is-unmet .residence-need-icon__source .resource-cost__icon {
+  opacity: 1;
+  filter: drop-shadow(0 1px 1px rgba(7, 6, 4, 0.78));
+}
+
 .residence-need-icon:focus-visible {
   outline: 1px solid rgba(231, 199, 123, 0.78);
   outline-offset: 2px;

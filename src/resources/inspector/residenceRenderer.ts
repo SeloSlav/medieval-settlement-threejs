@@ -43,7 +43,6 @@ import {
   FOOD_CATEGORY_LABELS,
   FOOD_PROGRESSION_SLOT_LABELS,
   preservedFoodStock,
-  type NamedFoodKind,
 } from '../../economy/foodInventory.ts';
 import {
   formatFoodRunwayDays,
@@ -966,7 +965,7 @@ type ResidenceFoodNeedSource = {
   mealEquivalent: number;
 };
 
-function residenceFoodNeedSources(residence: ResidenceState): ResidenceFoodNeedSource[] {
+export function residenceFoodNeedSources(residence: ResidenceState): ResidenceFoodNeedSource[] {
   const namedSources = NAMED_FOOD_KINDS.flatMap((kind) => {
     const amount = Math.max(0, residence[kind] ?? 0);
     return amount > 1e-6
@@ -978,18 +977,27 @@ function residenceFoodNeedSources(residence: ResidenceState): ResidenceFoodNeedS
         }]
       : [];
   });
-  const legacySources: ResidenceFoodNeedSource[] = [
-    ['food', 'Mixed food', Math.max(0, residence.food ?? 0)],
-    ['vegetables', 'Mixed vegetables', Math.max(0, residence.vegetables ?? 0)],
-    ['preservedFood', 'Preserved staples', Math.max(0, residence.preservedFood ?? 0)],
-  ].flatMap(([kind, label, amount]) => amount > 1e-6
-    ? [{
-        kind: kind as ResourceCostKind,
-        label: label as string,
-        amount: amount as number,
-        mealEquivalent: amount as number,
-      }]
-    : []);
+  const legacyCandidates: ResidenceFoodNeedSource[] = [
+    {
+      kind: 'food',
+      label: 'Mixed food',
+      amount: Math.max(0, residence.food ?? 0),
+      mealEquivalent: Math.max(0, residence.food ?? 0),
+    },
+    {
+      kind: 'vegetables',
+      label: 'Mixed vegetables',
+      amount: Math.max(0, residence.vegetables ?? 0),
+      mealEquivalent: Math.max(0, residence.vegetables ?? 0),
+    },
+    {
+      kind: 'preservedFood',
+      label: 'Preserved staples',
+      amount: Math.max(0, residence.preservedFood ?? 0),
+      mealEquivalent: Math.max(0, residence.preservedFood ?? 0),
+    },
+  ];
+  const legacySources = legacyCandidates.filter(({ amount }) => amount > 1e-6);
 
   return [...namedSources, ...legacySources].sort((left, right) =>
     right.mealEquivalent - left.mealEquivalent
@@ -997,7 +1005,7 @@ function residenceFoodNeedSources(residence: ResidenceState): ResidenceFoodNeedS
       || left.label.localeCompare(right.label));
 }
 
-function residenceNeedIsMet(
+export function residenceNeedIsMet(
   residence: ResidenceState,
   kind: ResidenceNeedKind,
 ): boolean {
