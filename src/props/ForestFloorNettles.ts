@@ -22,7 +22,6 @@ import type { RendererBackendKind } from '../scene/RendererBackend.ts';
 import { supportsNodeMaterials } from '../scene/RendererBackend.ts';
 import { applyFoliageDoubleSideNormals } from '../scene/foliageDoubleSideNormals.ts';
 import { chainMaterialShaderPatch } from '../scene/materialShaderPatch.ts';
-import { applyNaturalPainterlyMaterial } from '../scene/naturalPainterlyMaterial.ts';
 import { SpatialHash2D } from '../utils/SpatialHash2D.ts';
 import { mulberry32 } from '../utils/random.ts';
 import type { DeciduousFoliagePresentation } from '../world/deciduousFoliagePolicy.ts';
@@ -677,7 +676,6 @@ function createNettleFoliageMaterial(
   material.userData.forestSeasonalAutumnColor = autumn;
   material.userData.forestSeasonalDormancy = dormancy;
   material.userData.forestSnowCoverage = snowCoverage;
-  applyNaturalPainterlyMaterial(material, { role: 'undergrowth' });
   return material;
 }
 
@@ -713,7 +711,6 @@ function createNettleBranchMaterial(
     material,
     tsl.texture(textures.albedo).rgb.mul(tsl.uniform(material.color)),
   );
-  applyNaturalPainterlyMaterial(material, { role: 'undergrowth' });
   return material;
 }
 

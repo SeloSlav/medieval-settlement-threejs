@@ -13,10 +13,7 @@ import {
   vec4,
 } from 'three/tsl';
 import { windSpeed, windStrength, WIND_DIR } from '@seedthree/core/wind.js';
-import {
-  supportsNodeMaterials,
-  type RendererBackendKind,
-} from '../../scene/RendererBackend.ts';
+import type { RendererBackendKind } from '../../scene/RendererBackend.ts';
 import {
   createSeedThreeCardClumpGeometry,
   createSeedThreeGroundCoverMaterial,
@@ -26,7 +23,6 @@ import {
 } from './seedThreeGroundCover.ts';
 import { worldAnimationTime } from '../../scene/worldAnimationTime.ts';
 import { chainMaterialShaderPatch } from '../../scene/materialShaderPatch.ts';
-import { applyNaturalPainterlyMaterial } from '../../scene/naturalPainterlyMaterial.ts';
 import type { DeciduousFoliagePresentation } from '../../world/deciduousFoliagePolicy.ts';
 
 export { WIND_DIR as SEEDTHREE_GRASS_WIND_DIR };
@@ -171,9 +167,6 @@ export function createSeedThreeGrassMaterial(
   );
   mat.alphaTest = 0.28;
   applySeedThreeGrassSeasonMaterial(mat, textures, rendererBackend);
-  if (supportsNodeMaterials(rendererBackend)) {
-    applyNaturalPainterlyMaterial(mat, { role: 'grass' });
-  }
   return mat;
 }
 

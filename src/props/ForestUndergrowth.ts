@@ -32,7 +32,6 @@ import {
 import type { Terrain } from '../terrain/Terrain.ts';
 import { applyFoliageDoubleSideNormals } from '../scene/foliageDoubleSideNormals.ts';
 import { chainMaterialShaderPatch } from '../scene/materialShaderPatch.ts';
-import { applyNaturalPainterlyMaterial } from '../scene/naturalPainterlyMaterial.ts';
 import { TREE_SHADOW_CAST_LAYER } from '../scene/SceneLayers.ts';
 import { worldAnimationTime } from '../scene/worldAnimationTime.ts';
 import {
@@ -1061,7 +1060,6 @@ function createUndergrowthCardMaterial(
   const upView = tsl.cameraViewMatrix.mul(tsl.vec4(0, 1, 0, 0)).xyz;
   const relief = textures.normal ? tsl.normalMap(tsl.texture(textures.normal)).sub(tsl.normalView) : null;
   material.normalNode = relief ? tsl.normalize(upView.add(relief.mul(0.4))) : tsl.normalize(upView);
-  applyNaturalPainterlyMaterial(material, { role: 'undergrowth' });
   return material;
 }
 
@@ -1129,7 +1127,6 @@ function createUndergrowthBranchMaterial(
     seasonalSurface,
     tsl.float(1),
   );
-  applyNaturalPainterlyMaterial(material, { role: 'undergrowth' });
   return material;
 }
 

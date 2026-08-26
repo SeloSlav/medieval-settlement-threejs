@@ -92,7 +92,6 @@ import {
   updateSeedThreeOverviewBillboardFade,
   type SeedThreeOverviewBillboardFadeState,
 } from './seedThreeOverviewBillboardFade.ts';
-import { applyNaturalPainterlyMaterial } from '../../scene/naturalPainterlyMaterial.ts';
 import {
   SEEDTHREE_FOREST_WIND_SPEED,
   shouldShowSeedThreeCrownUnderlay,
@@ -318,7 +317,6 @@ function createInstancedLodSet(
       const sourceMaterial = applySeedThreeBarkSnow(
         forestBarkMaterial(mesh.material as THREE.Material),
       );
-      applyNaturalPainterlyMaterial(sourceMaterial, { role: 'bark' });
       const material = options.overviewCards === true
         ? createSeedThreeOverviewBarkFadeMaterial(sourceMaterial)
         : sourceMaterial;
@@ -390,7 +388,6 @@ function createInstancedLodSet(
           ),
           sourceMaterial,
         );
-        applyNaturalPainterlyMaterial(baseForestMaterial, { role: 'foliage' });
         const fmat = crownUnderlay && options.overviewCards !== true
           ? createSeedThreeOverviewFadeMaterial(
               baseForestMaterial,
