@@ -633,6 +633,7 @@ const expectedWorkplaces = [
   'watermill',
   'windmill',
   'carpenter',
+  'spinning_retting_house',
   'weaver',
   'chandlery',
   'watchtower',

@@ -58,6 +58,7 @@ import {
 import type { SettlementSecurityState } from '../security/frontierSecurity.ts';
 import type { CombatAgentState } from '../security/combatAgents.ts';
 import { renderBuildingResourceCost } from '../ui/resourceCost.ts';
+import { BACKYARD_EXTENSION_CARD_ART } from '../ui/buildMenuCards.ts';
 import {
   HUD_RESOURCE_CARD_KINDS,
   HUD_RESOURCE_CARD_PRESENTATION,
@@ -2956,7 +2957,7 @@ function inspectableIdentity(target: InspectableTarget | null): string {
   }
 }
 
-function inspectablePresentation(target: InspectableTarget): InspectorPresentation {
+export function inspectablePresentation(target: InspectableTarget): InspectorPresentation {
   if (target.kind === 'building') {
     const image = BUILDING_INSPECTOR_ART[target.building.kind];
     const civic = target.building.kind === 'founders_camp'
@@ -2977,11 +2978,18 @@ function inspectablePresentation(target: InspectableTarget): InspectorPresentati
       image,
     };
   }
-  if (target.kind === 'residence' || target.kind === 'backyard') {
+  if (target.kind === 'residence') {
     return {
       kind: 'residence',
       symbol: '\u2302',
       image: '/assets/ui/build-menu/cards/residence.webp',
+    };
+  }
+  if (target.kind === 'backyard') {
+    return {
+      kind: 'agriculture',
+      symbol: '\u2748',
+      image: BACKYARD_EXTENSION_CARD_ART,
     };
   }
   if (target.kind === 'farm-field') {

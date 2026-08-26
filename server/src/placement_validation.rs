@@ -585,6 +585,12 @@ fn building_pad_params(kind: &str) -> BuildingPadParams {
             inner_fade: 0.9,
             outer_fade: 1.2,
         },
+        "stable" => BuildingPadParams {
+            radius_x: 6.4,
+            radius_z: 4.2,
+            inner_fade: 0.9,
+            outer_fade: 1.3,
+        },
         "hunters_hall" => BuildingPadParams {
             radius_x: 5.2,
             radius_z: 4.8,
@@ -802,6 +808,31 @@ mod tests {
             "lumber_mill",
             x,
             z
+        ));
+    }
+
+    #[test]
+    fn snapped_stable_clears_the_road_with_the_client_footprint() {
+        let snapshot = r#"{
+            "nodes": [
+                {"id":"node-1","position":[-30.0,0.0,0.0]},
+                {"id":"node-2","position":[30.0,0.0,0.0]}
+            ],
+            "edges": [{
+                "startNodeId":"node-1",
+                "endNodeId":"node-2",
+                "width":4.2,
+                "sampledPath":[[-30.0,0.0,0.0],[30.0,0.0,0.0]]
+            }]
+        }"#;
+        let network = RoadNetwork::from_snapshot_json(snapshot).expect("valid straight road");
+
+        // The client snaps the Stable to this setback: road half-width,
+        // construction-site front depth (5.32), and roadside clearance.
+        let snapped_z = 4.2 * 0.5 + 5.32 + 0.65;
+
+        assert!(!building_overlaps_road_surface(
+            &network, "stable", 0.0, snapped_z
         ));
     }
 

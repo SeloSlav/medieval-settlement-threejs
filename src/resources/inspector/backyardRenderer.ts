@@ -50,7 +50,6 @@ import {
   encodeResourceCostTooltip,
   renderBuildingResourceCost,
 } from '../../ui/resourceCost.ts';
-import { BACKYARD_EXTENSION_CARD_ART } from '../../ui/buildMenuCards.ts';
 
 export function renderBackyardInspector(
   target: Extract<InspectableTarget, { kind: 'backyard' }>,
@@ -311,7 +310,6 @@ function renderEmptyBackyardPicker(
           data-garden-kind="${kind}"
           data-tooltip-title="${actionLabel}"
           data-tooltip="${optionDetail}"
-          data-tooltip-art="${BACKYARD_EXTENSION_CARD_ART}"
           data-tooltip-cost="${encodeResourceCostTooltip(buildingResourceCostAmounts(cost))}"
           data-tooltip-cost-label="Extension cost"
           data-tooltip-cost-affordable="${materialsAffordable && funding.ready}"

@@ -17,6 +17,7 @@ import {
   renderForestryWorkAreaPanel,
 } from '../src/resources/inspector/treeWorkAreaRenderer.ts';
 import { renderInspectorResourceToken } from '../src/resources/inspector/inspectorResourceTokens.ts';
+import { inspectablePresentation } from '../src/resources/ResourceInspector.ts';
 
 type SharpDecodeResult = {
   data: Uint8Array;
@@ -55,6 +56,8 @@ const storageAcceptancePolicy = readFileSync('src/economy/storageAcceptancePolic
 const inspectorResourceTokens = readFileSync('src/resources/inspector/inspectorResourceTokens.ts', 'utf8');
 const supplementalPanel = readFileSync('src/resources/inspector/supplementalPanel.ts', 'utf8');
 const resourceInspector = readFileSync('src/resources/ResourceInspector.ts', 'utf8');
+const tooltipSource = readFileSync('src/ui/tooltips.ts', 'utf8');
+const readabilityCss = readFileSync('src/ui/readability.css', 'utf8');
 const alertDialog = readFileSync('src/ui/AlertDialog.ts', 'utf8');
 const alertDialogCss = readFileSync('src/ui/alertDialog.css', 'utf8');
 const farmFieldTool = readFileSync('src/farming/FarmFieldTool.ts', 'utf8');
@@ -102,6 +105,12 @@ for (const [kind, expectedUrl] of Object.entries({
 assert.match(resourceInspector, /data-inspector-hero-image alt="" decoding="async"/);
 assert.match(resourceInspector, /this\.heroImage\.onerror = markArtUnavailable/);
 assert.match(resourceInspector, /this\.heroImage\.decode\(\)\.then\(markArtAvailable\)\.catch\(markArtUnavailable\)/);
+const backyardPresentation = inspectablePresentation({ kind: 'backyard' } as Parameters<typeof inspectablePresentation>[0]);
+assert.equal(backyardPresentation.image, '/assets/ui/build-menu/cards/backyard-extension.webp');
+assert.equal(backyardPresentation.kind, 'agriculture');
+assert.doesNotMatch(backyardRenderer, /data-tooltip-art/, 'backyard choice tooltips must remain text-only');
+assert.doesNotMatch(tooltipSource, /tooltipArt|ui-tooltip__art/, 'shared hover cards must not render card artwork');
+assert.doesNotMatch(readabilityCss, /ui-tooltip__art/, 'hover-card CSS must not reserve an image column');
 assert.match(
   resourceInspector,
   /DEFAULT_TOTAL_RESOURCE_TOOLTIP[\s\S]{0,260}household reserves and goods committed to active projects/,

@@ -2287,6 +2287,11 @@ assert.match(
   'authoritative residence conflicts must use the rotated visible building footprint instead of the broad pick-radius square',
 );
 assert.match(
+  placementValidation,
+  /"stable" => BuildingPadParams \{\s*radius_x: 6\.4,\s*radius_z: 4\.2,\s*inner_fade: 0\.9,\s*outer_fade: 1\.3,/,
+  'authoritative Stable placement must use the same footprint as the client instead of the oversized fallback pad',
+);
+assert.match(
   residenceReducer,
   /burgage_zone\(\)\.owner\(\)\.filter\(&owner\)[\s\S]*burgage_zone_overlaps_buildings\(ctx, owner, &corners\)[\s\S]*farm_field\(\)\.owner\(\)\.filter\(&owner\)/,
 );
