@@ -366,6 +366,70 @@ const SETTLEMENT_HUD_HTML = `
           <p class="settlement-hud__migration-line" data-migration-label>Place the starter camp to found the settlement.</p>
         </section>
       </div>
+      <details class="settlement-hud__animals" data-animals>
+        <summary
+          class="settlement-hud__animals-summary"
+          aria-controls="settlement-animals-roster"
+          aria-expanded="false"
+          aria-label="Animals: no draft oxen"
+        >
+          <span class="settlement-hud__animals-label">Animals</span>
+          <strong class="settlement-hud__animals-status" data-animals-count>0</strong>
+        </summary>
+        <section
+          id="settlement-animals-roster"
+          class="settlement-hud__animals-panel"
+          aria-label="Livestock ledger"
+          aria-live="off"
+        >
+          <header class="settlement-hud__animals-header">
+            <strong>Livestock</strong>
+            <span data-animals-meta>No livestock recorded</span>
+          </header>
+          <section class="settlement-hud__animals-section settlement-hud__animals-section--draft">
+            <header><strong>Draft oxen</strong><span data-animals-stable-capacity>0 / 0 bays</span></header>
+            <div class="settlement-hud__animals-metrics" aria-label="Ox assignment summary">
+              <span><strong data-animals-posted>0</strong> Posted</span>
+              <span><strong data-animals-automatic>0</strong> Auto</span>
+              <span><strong data-animals-working>0</strong> Tasked</span>
+            </div>
+            <div class="settlement-hud__animals-list" data-animals-list>
+              <p class="settlement-hud__animals-empty">Build a Stable and purchase an ox to begin the roster.</p>
+            </div>
+            <p class="settlement-hud__animals-note">
+              Posted oxen stay with one workplace. Auto oxen choose useful work.
+            </p>
+          </section>
+          <section class="settlement-hud__animals-section" data-animals-herds>
+            <header><strong>Managed herds</strong><span data-animals-herd-meta>0 head</span></header>
+            <div class="settlement-hud__animal-ledger-list" data-animals-herd-list>
+              <p class="settlement-hud__animals-empty">No managed cattle, sheep, or swine.</p>
+            </div>
+          </section>
+          <section class="settlement-hud__animals-section" data-animals-backyards>
+            <header><strong>Household pens</strong><span data-animals-backyard-meta>0 pens</span></header>
+            <div class="settlement-hud__animal-ledger-list" data-animals-backyard-list>
+              <p class="settlement-hud__animals-empty">No household animal pens.</p>
+            </div>
+          </section>
+        </section>
+      </details>
+      <div class="settlement-hud__people-card settlement-hud__resource-card" data-hud-card data-resource-card="water">
+        <div class="settlement-hud__stat settlement-hud__stat--water" tabindex="0" data-resource="water" aria-describedby="settlement-water-card">
+          <span class="settlement-hud__label">Water</span>
+          <strong class="settlement-hud__value" data-stockpile="water">0</strong>
+        </div>
+        <section id="settlement-water-card" class="settlement-hud__people-panel settlement-hud__resource-panel" aria-label="Water ledger" aria-live="off">
+          <header class="settlement-hud__people-header">
+            <strong>Water</strong>
+            <span data-resource-card-mode-label="water">Available surplus</span>
+          </header>
+          <div class="settlement-hud__resource-reading"><strong data-resource-card-amount="water">0</strong><span>Water on hand</span></div>
+          <div class="settlement-hud__resource-transit" data-resource-card-transit-row="water" hidden><span>Movement</span><strong data-stockpile-transit="water"></strong></div>
+          <p class="settlement-hud__resource-detail" data-resource-card-detail="water">${HUD_RESOURCE_CARD_PRESENTATION.water.surplusDetail}</p>
+          <p class="settlement-hud__resource-note">Activate to locate physical holdings in the world.</p>
+        </section>
+      </div>
       <div class="settlement-hud__people-card settlement-hud__resource-card" data-hud-card data-resource-card="timber">
         <div class="settlement-hud__stat" tabindex="0" data-resource="timber" aria-describedby="settlement-timber-card">
           <span class="settlement-hud__label">Timber</span>
@@ -382,7 +446,7 @@ const SETTLEMENT_HUD_HTML = `
           <p class="settlement-hud__resource-note">Activate to locate physical holdings in the world.</p>
         </section>
       </div>
-      <div class="settlement-hud__people-card settlement-hud__resource-card" data-hud-card data-resource-card="stone">
+      <div class="settlement-hud__people-card settlement-hud__resource-card settlement-hud__resource-card--right" data-hud-card data-resource-card="stone">
         <div class="settlement-hud__stat" tabindex="0" data-resource="stone" aria-describedby="settlement-stone-card">
           <span class="settlement-hud__label">Stone</span>
           <strong class="settlement-hud__value" data-stockpile="stone">0</strong>
@@ -432,22 +496,6 @@ const SETTLEMENT_HUD_HTML = `
           </div>
         </div>
       </details>
-      <div class="settlement-hud__people-card settlement-hud__resource-card settlement-hud__resource-card--right" data-hud-card data-resource-card="water">
-        <div class="settlement-hud__stat settlement-hud__stat--water" tabindex="0" data-resource="water" aria-describedby="settlement-water-card">
-          <span class="settlement-hud__label">Water</span>
-          <strong class="settlement-hud__value" data-stockpile="water">0</strong>
-        </div>
-        <section id="settlement-water-card" class="settlement-hud__people-panel settlement-hud__resource-panel" aria-label="Water ledger" aria-live="off">
-          <header class="settlement-hud__people-header">
-            <strong>Water</strong>
-            <span data-resource-card-mode-label="water">Available surplus</span>
-          </header>
-          <div class="settlement-hud__resource-reading"><strong data-resource-card-amount="water">0</strong><span>Water on hand</span></div>
-          <div class="settlement-hud__resource-transit" data-resource-card-transit-row="water" hidden><span>Movement</span><strong data-stockpile-transit="water"></strong></div>
-          <p class="settlement-hud__resource-detail" data-resource-card-detail="water">${HUD_RESOURCE_CARD_PRESENTATION.water.surplusDetail}</p>
-          <p class="settlement-hud__resource-note">Activate to locate physical holdings in the world.</p>
-        </section>
-      </div>
       <details class="settlement-hud__food-stores" data-food-stores>
         <summary class="settlement-hud__stat settlement-hud__stat--food" tabindex="0" data-resource="food">
           <span class="settlement-hud__label">Food</span>
@@ -521,54 +569,6 @@ const SETTLEMENT_HUD_HTML = `
         </div>
       </details>
     </div>
-    <details class="settlement-hud__animals" data-animals>
-      <summary
-        class="settlement-hud__animals-summary"
-        aria-controls="settlement-animals-roster"
-        aria-expanded="false"
-        aria-label="Animals: no draft oxen"
-      >
-        <span class="settlement-hud__animals-label">Animals</span>
-        <strong class="settlement-hud__animals-status" data-animals-count>0</strong>
-      </summary>
-      <section
-        id="settlement-animals-roster"
-        class="settlement-hud__animals-panel"
-        aria-label="Livestock ledger"
-        aria-live="off"
-      >
-        <header class="settlement-hud__animals-header">
-          <strong>Livestock</strong>
-          <span data-animals-meta>No livestock recorded</span>
-        </header>
-        <section class="settlement-hud__animals-section settlement-hud__animals-section--draft">
-          <header><strong>Draft oxen</strong><span data-animals-stable-capacity>0 / 0 bays</span></header>
-          <div class="settlement-hud__animals-metrics" aria-label="Ox assignment summary">
-            <span><strong data-animals-posted>0</strong> Posted</span>
-            <span><strong data-animals-automatic>0</strong> Auto</span>
-            <span><strong data-animals-working>0</strong> Tasked</span>
-          </div>
-          <div class="settlement-hud__animals-list" data-animals-list>
-            <p class="settlement-hud__animals-empty">Build a Stable and purchase an ox to begin the roster.</p>
-          </div>
-          <p class="settlement-hud__animals-note">
-            Posted oxen stay with one workplace. Auto oxen choose useful work.
-          </p>
-        </section>
-        <section class="settlement-hud__animals-section" data-animals-herds>
-          <header><strong>Managed herds</strong><span data-animals-herd-meta>0 head</span></header>
-          <div class="settlement-hud__animal-ledger-list" data-animals-herd-list>
-            <p class="settlement-hud__animals-empty">No managed cattle, sheep, or swine.</p>
-          </div>
-        </section>
-        <section class="settlement-hud__animals-section" data-animals-backyards>
-          <header><strong>Household pens</strong><span data-animals-backyard-meta>0 pens</span></header>
-          <div class="settlement-hud__animal-ledger-list" data-animals-backyard-list>
-            <p class="settlement-hud__animals-empty">No household animal pens.</p>
-          </div>
-        </section>
-      </section>
-    </details>
     <details class="settlement-hud__stores" data-specialty-stores>
       <summary
         class="settlement-hud__stores-summary"

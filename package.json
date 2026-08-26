@@ -10,6 +10,7 @@
     "dev:client": "vite --host 127.0.0.1 --port 5173 --strictPort",
     "build": "tsc && vite build",
     "test:painterly-vegetation": "node --experimental-strip-types scripts/testPainterlyVegetation.mts",
+    "test:painterly-scene-materials": "node --experimental-strip-types scripts/testPainterlySceneMaterials.mts",
     "build:e2e": "tsc && vite build --mode e2e",
     "build:visual-gauntlet": "tsc && vite build --mode visual-gauntlet",
     "preview": "vite preview",

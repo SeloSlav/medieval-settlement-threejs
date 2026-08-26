@@ -340,6 +340,8 @@ export class FirstPersonController {
       this.pendingLookDeltaY = 0;
     }
 
+    const previousX = this.pos.x;
+    const previousZ = this.pos.z;
     const jumpStarted = this.loco.grounded && this.loco.jumpQueued;
     const eyeLine = stepFpLocomotion(
       this.loco,
@@ -352,6 +354,10 @@ export class FirstPersonController {
     this.lastEyeLine = eyeLine;
     this.clampPositionXZ();
 
+    const traveledMeters = Math.hypot(
+      this.pos.x - previousX,
+      this.pos.z - previousZ,
+    );
     const horizontalSpeed = Math.hypot(this.loco.velocity.x, this.loco.velocity.z);
     const moving = this.input.forward || this.input.backward || this.input.left || this.input.right;
     const playedLandingSound = stepFpLandingSound(
@@ -367,7 +373,7 @@ export class FirstPersonController {
       ));
     } else {
       const footstep = stepFpFootstepCadence(this.footstepCadence, {
-        dtSeconds: dt,
+        traveledMeters,
         horizontalSpeedMps: horizontalSpeed,
         moving,
         grounded: this.loco.grounded,

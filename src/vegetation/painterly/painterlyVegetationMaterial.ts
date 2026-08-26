@@ -20,18 +20,23 @@ export type PainterlyVegetationRole =
   | 'terrain-ground'
   | 'road-ground'
   | 'river-bank'
-  | 'grass-blade';
+  | 'grass-blade'
+  | 'scene-surface';
 
 export type PainterlyVegetationOptions = {
   textureScale?: number;
   nativeLightWeight?: number;
+  /** UVs for textured assets; stable object-space triplanar for untextured solids. */
+  surfaceProjection?: 'uv' | 'object-triplanar';
+  /** Metre-like local-space frequency used by textureless triplanar surfaces. */
+  objectTextureScale?: number;
   /** Lower-cost AO used while paint owns the terrain's micro-occlusion response. */
   aoNodeWhilePainted?: unknown;
 };
 
 type TslNode = {
   a: TslNode; b: TslNode; g: TslNode; r: TslNode; rgb: TslNode;
-  x: TslNode; y: TslNode; z: TslNode;
+  x: TslNode; y: TslNode; z: TslNode; xy: TslNode; yz: TslNode; zx: TslNode;
   abs(): TslNode;
   add(value: unknown): TslNode;
   clamp(minimum?: unknown, maximum?: unknown): TslNode;
@@ -39,6 +44,7 @@ type TslNode = {
   dot(value: unknown): TslNode;
   max(value: unknown): TslNode;
   mul(value: unknown): TslNode;
+  normalize(): TslNode;
   oneMinus(): TslNode;
   pow(value: unknown): TslNode;
   sub(value: unknown): TslNode;
@@ -48,7 +54,10 @@ type TslUniform<T> = TslNode & { value: T };
 type PainterlyNodeMaterial = THREE.Material & {
   color?: THREE.Color;
   map?: THREE.Texture | null;
+  alphaMap?: THREE.Texture | null;
+  opacity?: number;
   roughness?: number;
+  vertexColors?: boolean;
   colorNode?: TslNode | null;
   normalNode?: TslNode | null;
   roughnessNode?: TslNode | null;
@@ -82,21 +91,25 @@ type PainterlyProfile = {
   strokeWeight: number;
   textureScale: number;
   nativeLightWeight: number;
-  treatment: 'vegetation' | 'ground';
-  coordinateSpace: 'uv' | 'surface-uv' | 'world-ground';
+  treatment: 'vegetation' | 'ground' | 'surface';
+  coordinateSpace: 'uv' | 'surface-uv' | 'world-ground' | 'object-triplanar';
 };
 
 const tsl = TSL as unknown as {
   TBNViewMatrix: TslNode;
+  bumpMap(height: unknown, scale?: unknown): TslNode;
   float(value: unknown): TslNode;
   floor(value: unknown): TslNode;
   instanceIndex: TslNode;
+  materialEmissive: TslNode;
   materialNormal: TslNode;
   materialRoughness: TslNode;
   mix(left: unknown, right: unknown, amount: unknown): TslNode;
   normalize(value: unknown): TslNode;
+  normalGeometry: TslNode;
   normalView: TslNode;
   normalWorld: TslNode;
+  positionGeometry: TslNode;
   positionWorld: TslNode;
   positionViewDirection: TslNode;
   sin(value: unknown): TslNode;
@@ -104,6 +117,7 @@ const tsl = TSL as unknown as {
   texture(map: THREE.Texture, uvNode?: unknown): TslNode;
   uniform<T>(value: T): TslUniform<T>;
   uv(): TslNode;
+  vertexColor(index?: number): TslNode;
   vec2(x: unknown, y?: unknown): TslNode;
   vec3(x: unknown, y?: unknown, z?: unknown): TslNode;
   vec4(x: unknown, y?: unknown, z?: unknown, w?: unknown): TslNode;
@@ -148,6 +162,45 @@ export const PAINTERLY_GROUND_PROJECTION_SETTINGS = Object.freeze({
   secondaryOffsetY: 0.619,
   secondaryBlend: 0.32,
 });
+
+// Exact controls exported from paint-lab-buildings.json. Surface albedo is
+// preserved by the residence scene itself; these values own the brush relief,
+// stepped lighting, roughness response, and dry-brush edge treatment.
+export const PAINTERLY_SCENE_SURFACE_SETTINGS = Object.freeze({
+  brushScale: 0.7,
+  parallaxDepth: 0.048,
+  normalStrength: 0.9,
+  strokeContrast: 0.9,
+  detailStrength: 0.72,
+  shadowThreshold: -0.68,
+  lightThreshold: 0.28,
+  bandSoftness: 0.03,
+  shadowValue: 0.04,
+  midtoneValue: 0.4,
+  oilStrength: 0,
+  oilThreshold: 0.34,
+  nativeSheen: 0,
+  highlightBrushiness: 1.08,
+  highlightSteps: 4,
+  roughnessVariation: 0.36,
+  rimStrength: 0.48,
+  rimPower: 5,
+  edgeErosion: 0.82,
+  edgeBristleReach: 0.76,
+  erosionScale: 0.66,
+  curvatureGuard: 8,
+  shadowErosion: 1,
+  shadowMaskOffset: -0.05,
+  shadowBrushScale: 0.72,
+  outerRimWidth: 0,
+  rimContinuity: 0.5,
+  outlineWidth: 0,
+  outlineJitter: 0,
+  outlineSeparation: 1.35,
+  outlineBreakup: 0.78,
+  outlineStrokeWidth: 1.45,
+  outlineWidthVariation: 0.68,
+});
 let paintTextureResult: PaintTextureResult | null = null;
 
 const lightDirection = tsl.uniform(new THREE.Vector3(-0.45, 0.82, 0.34).normalize());
@@ -165,6 +218,7 @@ const profiles: Record<PainterlyVegetationRole, PainterlyProfile> = {
   'road-ground': groundProfile('world-ground'),
   'river-bank': groundProfile('world-ground'),
   'grass-blade': groundProfile('uv'),
+  'scene-surface': sceneSurfaceProfile(),
 };
 const records = new Set<PainterlyRecord>();
 const recordsByMaterial = new WeakMap<THREE.Material, PainterlyRecord>();
@@ -205,6 +259,10 @@ export function applyPainterlyVegetationMaterial(
   material.userData.painterlyVegetationRegistered = true;
   if (enabled) installPainterlyGraph(record);
   return material;
+}
+
+export function isPainterlyMaterialRegistered(material: THREE.Material): boolean {
+  return recordsByMaterial.has(material);
 }
 
 /** Give a NodeMaterial clone a clean native recipe and its source paint role. */
@@ -297,6 +355,23 @@ function groundProfile(
   };
 }
 
+function sceneSurfaceProfile(): PainterlyProfile {
+  return {
+    dark: new THREE.Color('#378f9a'),
+    light: new THREE.Color('#e36a62'),
+    reflectionDark: new THREE.Color('#d3132c'),
+    reflectionLight: new THREE.Color('#ff7a38'),
+    rim: new THREE.Color('#ffb05e'),
+    paletteWeight: 0,
+    normalWeight: PAINTERLY_SCENE_SURFACE_SETTINGS.normalStrength,
+    strokeWeight: 1,
+    textureScale: 1,
+    nativeLightWeight: PAINTERLY_SCENE_SURFACE_SETTINGS.nativeSheen,
+    treatment: 'surface',
+    coordinateSpace: 'uv',
+  };
+}
+
 function captureOriginalState(material: PainterlyNodeMaterial): OriginalMaterialState {
   return {
     colorNode: material.colorNode ?? null,
@@ -320,6 +395,9 @@ function installPainterlyGraph(record: PainterlyRecord): void {
   if (record.installed) return;
   const material = record.material;
   const authored = profiles[record.role];
+  const coordinateSpace = authored.treatment === 'surface'
+    ? record.options.surfaceProjection ?? authored.coordinateSpace
+    : authored.coordinateSpace;
   const textureScale = authored.textureScale * (record.options.textureScale ?? 1);
   const nativeLightWeight = record.options.nativeLightWeight ?? authored.nativeLightWeight;
   const one = tsl.float(1);
@@ -342,14 +420,23 @@ function installPainterlyGraph(record: PainterlyRecord): void {
     world.x.mul(0.67).sub(world.z.mul(0.74)),
     world.x.mul(0.74).add(world.z.mul(0.67)),
   );
-  const paintUv = authored.coordinateSpace === 'surface-uv'
+  const paintUv = coordinateSpace === 'surface-uv'
     ? tsl.uv().mul(PAINTERLY_GROUND_SETTINGS.brushScale * textureScale)
-    : authored.coordinateSpace === 'world-ground'
+    : coordinateSpace === 'world-ground'
       ? groundCoordinate.mul((PAINTERLY_GROUND_SETTINGS.brushScale / 48) * textureScale)
+      : authored.treatment === 'surface'
+        ? tsl.uv().mul(PAINTERLY_SCENE_SURFACE_SETTINGS.brushScale * textureScale).add(phase)
       : authored.treatment === 'ground'
       ? tsl.uv().mul(PAINTERLY_GROUND_SETTINGS.brushScale * textureScale).add(phase)
       : tsl.uv().mul(textureScale / 0.7).add(phase);
-  const primaryPacked = tsl.texture(paintTexture, paintUv);
+  const objectCoordinate = tsl.positionGeometry
+    .mul((record.options.objectTextureScale ?? 0.26)
+      * PAINTERLY_SCENE_SURFACE_SETTINGS.brushScale
+      * textureScale)
+    .add(tsl.vec3(phase.x, phase.y, phase.x.add(phase.y).mul(0.5)));
+  const primaryPacked = coordinateSpace === 'object-triplanar'
+    ? samplePaintTriplanar(paintTexture, objectCoordinate, tsl.normalGeometry)
+    : tsl.texture(paintTexture, paintUv);
   const secondaryUv = tsl.vec2(
     paintUv.x.mul(PAINTERLY_GROUND_PROJECTION_SETTINGS.secondaryRotationCos)
       .sub(paintUv.y.mul(PAINTERLY_GROUND_PROJECTION_SETTINGS.secondaryRotationSin)),
@@ -361,7 +448,7 @@ function installPainterlyGraph(record: PainterlyRecord): void {
       PAINTERLY_GROUND_PROJECTION_SETTINGS.secondaryOffsetX,
       PAINTERLY_GROUND_PROJECTION_SETTINGS.secondaryOffsetY,
     ));
-  const packed = authored.coordinateSpace === 'uv'
+  const packed = coordinateSpace === 'uv' || coordinateSpace === 'object-triplanar'
     ? primaryPacked
     : tsl.mix(
       primaryPacked,
@@ -371,9 +458,14 @@ function installPainterlyGraph(record: PainterlyRecord): void {
       tsl.texture(paintTexture, secondaryUv),
       PAINTERLY_GROUND_PROJECTION_SETTINGS.secondaryBlend,
     );
-  const groundStrokeInset = (1 - PAINTERLY_GROUND_SETTINGS.strokeContrast) * 0.22;
-  const broad = authored.treatment === 'ground'
-    ? tsl.smoothstep(0.16 + groundStrokeInset, 0.84 - groundStrokeInset, packed.b)
+  const strokeContrast = authored.treatment === 'ground'
+    ? PAINTERLY_GROUND_SETTINGS.strokeContrast
+    : authored.treatment === 'surface'
+      ? PAINTERLY_SCENE_SURFACE_SETTINGS.strokeContrast
+      : 0.82;
+  const strokeInset = (1 - strokeContrast) * 0.22;
+  const broad = authored.treatment === 'ground' || authored.treatment === 'surface'
+    ? tsl.smoothstep(0.16 + strokeInset, 0.84 - strokeInset, packed.b)
     : tsl.smoothstep(0.2, 0.82, packed.b);
   const detail = tsl.smoothstep(0.16, 0.74, packed.a);
 
@@ -389,8 +481,8 @@ function installPainterlyGraph(record: PainterlyRecord): void {
   );
   let pigment = tsl.mix(sourceRgb, palette, authored.paletteWeight);
   const strokeLoad = broad.mul(0.72).add(detail.mul(0.28));
-  if (authored.treatment === 'ground') {
-    // Matches the texture demo's PAINT_PRESERVE_SOURCE_ALBEDO branch.
+  if (authored.treatment === 'ground' || authored.treatment === 'surface') {
+    // Matches the demos' source-albedo-preserving branch.
     pigment = sourceRgb.mul(tsl.mix(0.58, 1.18, broad)).clamp(0, 1);
   } else {
     const strokeGain = tsl.mix(0.72, 1.16, strokeLoad);
@@ -404,30 +496,44 @@ function installPainterlyGraph(record: PainterlyRecord): void {
   const nx = packed.r.mul(2).sub(1);
   const ny = packed.g.mul(2).sub(1);
   const nz = one.sub(nx.mul(nx).add(ny.mul(ny))).max(0.001).pow(0.5);
-  const paintNormalView = tsl.TBNViewMatrix.mul(tsl.vec3(
+  const paintNormalStrength = authored.treatment === 'ground'
+    ? PAINTERLY_GROUND_SETTINGS.normalStrength
+    : authored.treatment === 'surface'
+      ? PAINTERLY_SCENE_SURFACE_SETTINGS.normalStrength
+      : 0.9;
+  const paintNormalView = coordinateSpace === 'object-triplanar'
+    ? tsl.bumpMap(
+      packed.b.mul(0.85).add(packed.a.mul(0.15)),
+      paintNormalStrength * 0.0055,
+    )
+    : tsl.TBNViewMatrix.mul(tsl.vec3(
     nx.mul(authored.treatment === 'ground'
       ? PAINTERLY_GROUND_SETTINGS.normalStrength
-      : 0.9),
+      : paintNormalStrength),
     ny.mul(authored.treatment === 'ground'
       ? PAINTERLY_GROUND_SETTINGS.normalStrength
-      : 0.9),
-    authored.treatment === 'ground' ? 0.95 : nz,
+      : paintNormalStrength),
+    authored.treatment === 'ground' || authored.treatment === 'surface' ? 0.95 : nz,
   ));
   const mixedNormal = tsl.mix(
     record.original.normalNode ?? tsl.materialNormal,
     paintNormalView,
-    authored.treatment === 'ground'
+    authored.treatment === 'ground' || authored.treatment === 'surface'
       ? authored.normalWeight
       : authored.normalWeight * 0.9,
   );
-  material.normalNode = authored.treatment === 'ground'
+  material.normalNode = authored.treatment === 'ground' || authored.treatment === 'surface'
     ? tsl.normalize(mixedNormal)
     : mixedNormal;
   material.roughnessNode = (record.original.roughnessNode
     ?? tsl.materialRoughness)
-    .add(packed.a.sub(0.5).mul(authored.treatment === 'ground'
-      ? PAINTERLY_GROUND_SETTINGS.roughnessVariation
-      : 0.16))
+    .add(packed.a.sub(0.5).mul(
+      authored.treatment === 'ground'
+        ? PAINTERLY_GROUND_SETTINGS.roughnessVariation
+        : authored.treatment === 'surface'
+          ? PAINTERLY_SCENE_SURFACE_SETTINGS.roughnessVariation
+          : 0.16,
+    ))
     .clamp(0.12, 1);
   if (authored.treatment === 'ground' && record.options.aoNodeWhilePainted) {
     // The full terrain graph sits at WebGPU's portable sixteen-texture limit.
@@ -442,6 +548,107 @@ function installPainterlyGraph(record: PainterlyRecord): void {
     builder: unknown,
     basicOutput: TslNode,
   ): TslNode {
+    if (authored.treatment === 'surface') {
+      const settings = PAINTERLY_SCENE_SURFACE_SETTINGS;
+      const lightFacing = tsl.normalWorld.dot(lightDirection);
+      const shadowPacked = coordinateSpace === 'object-triplanar'
+        ? samplePaintTriplanar(
+          paintTexture,
+          objectCoordinate
+            .mul(settings.shadowBrushScale)
+            .add(tsl.vec3(0.311, 0.127, 0.491)),
+          tsl.normalGeometry,
+        )
+        : tsl.texture(
+          paintTexture,
+          paintUv.mul(settings.shadowBrushScale).add(tsl.vec2(0.311, 0.491)),
+        );
+      const shadowCarrier = shadowPacked.b.mul(0.72)
+        .add(shadowPacked.a.mul(0.28));
+      const shadowCutoff = 0.48 - settings.shadowMaskOffset * 0.55;
+      const shadowMask = tsl.smoothstep(
+        shadowCutoff - 0.13,
+        shadowCutoff + 0.13,
+        shadowCarrier,
+      );
+      const bandNoise = packed.a.sub(0.5).mul(settings.detailStrength * 0.24);
+      const noisyFacing = lightFacing
+        .add(bandNoise)
+        .sub(shadowMask.oneMinus().mul(settings.bandSoftness * settings.shadowErosion));
+      const midBand = tsl.smoothstep(
+        settings.shadowThreshold - settings.bandSoftness,
+        settings.shadowThreshold + settings.bandSoftness,
+        noisyFacing,
+      );
+      const lightBand = tsl.smoothstep(
+        settings.lightThreshold - settings.bandSoftness,
+        settings.lightThreshold + settings.bandSoftness,
+        noisyFacing,
+      );
+      const penumbraBand = tsl.smoothstep(
+        settings.shadowThreshold + settings.bandSoftness * 0.35,
+        settings.shadowThreshold + settings.bandSoftness * 3.2,
+        noisyFacing,
+      );
+      const penumbraValue = tsl.mix(
+        settings.shadowValue,
+        settings.midtoneValue,
+        0.46,
+      );
+      let toonBand = tsl.mix(settings.shadowValue, penumbraValue, midBand);
+      toonBand = tsl.mix(toonBand, settings.midtoneValue, penumbraBand);
+      toonBand = tsl.mix(toonBand, 0.94, lightBand);
+      const shadowedPigment = pigment.mul(toonBand);
+      const litPigment = pigment.mul(tsl.mix(0.92, 1.02, broad));
+      const paintedDiffuse = tsl.mix(
+        shadowedPigment,
+        litPigment,
+        lightBand.mul(0.72),
+      );
+
+      const baseLuma = pigment.x.mul(0.2126)
+        .add(pigment.y.mul(0.7152))
+        .add(pigment.z.mul(0.0722));
+      const physicalLuma = basicOutput.rgb.x.mul(0.2126)
+        .add(basicOutput.rgb.y.mul(0.7152))
+        .add(basicOutput.rgb.z.mul(0.0722));
+      const receiverLight = physicalLuma.div(baseLuma.max(0.025)).clamp(0, 1.6);
+      const receiverModulation = tsl.mix(
+        0.66,
+        1.08,
+        tsl.smoothstep(0.1, 1.05, receiverLight),
+      );
+      let resolved = tsl.mix(
+        paintedDiffuse.mul(receiverModulation).add(tsl.materialEmissive),
+        basicOutput.rgb,
+        settings.nativeSheen,
+      );
+
+      // The export has zero-width outline shells. Retain its dry-brush edge
+      // erosion as attached pigment breakup instead of creating extra meshes
+      // or holes that would diverge from the existing shadow/depth materials.
+      const edgeReach = 0.018 + (0.3 - 0.018) * settings.edgeBristleReach;
+      const viewEdge = tsl.normalWorld.dot(tsl.positionViewDirection)
+        .abs().oneMinus().clamp(0, 1);
+      const silhouetteZone = tsl.smoothstep(1 - edgeReach, 1, viewEdge);
+      const dryGap = tsl.smoothstep(0.18, 0.74, strokeLoad).oneMinus();
+      const edgeErosion = silhouetteZone
+        .mul(dryGap)
+        .mul(settings.edgeErosion * settings.erosionScale);
+      resolved = tsl.mix(resolved, resolved.mul(0.42), edgeErosion);
+
+      const rim = viewEdge
+        .pow(settings.rimPower)
+        .mul(settings.rimStrength)
+        .mul(tsl.smoothstep(-0.2, 0.7, lightFacing));
+      const surfaceRim = tsl.mix(sourceRgb, tsl.vec3(1, 0.945, 0.85), 0.74);
+      resolved = resolved.add(surfaceRim.mul(rim)).clamp(0, 16);
+      const finalOutput = tsl.vec4(resolved, basicOutput.a);
+      return originalSetupOutput
+        ? originalSetupOutput.call(this, builder, finalOutput)
+        : finalOutput;
+    }
+
     if (authored.treatment === 'ground') {
       const lightFacing = tsl.normalWorld.dot(lightDirection);
       const bandNoise = packed.a.sub(0.5)
@@ -564,8 +771,9 @@ function installPainterlyGraph(record: PainterlyRecord): void {
   material.userData.painterlyVegetationTexture = paintTexture;
   material.userData.painterlyVegetationUsesReducedAo =
     authored.treatment === 'ground' && Boolean(record.options.aoNodeWhilePainted);
-  material.userData.painterlyVegetationCoordinateSpace = authored.coordinateSpace;
-  material.userData.painterlyVegetationDeperiodized = authored.coordinateSpace !== 'uv';
+  material.userData.painterlyVegetationCoordinateSpace = coordinateSpace;
+  material.userData.painterlyVegetationDeperiodized =
+    authored.treatment === 'ground' && coordinateSpace !== 'uv';
   material.needsUpdate = true;
   record.installed = true;
 }
@@ -600,12 +808,28 @@ function resolveSourceColor(
   material: PainterlyNodeMaterial,
   originalColorNode: TslNode | null,
 ): TslNode {
+  const opacity = tsl.uniform(material.opacity ?? 1);
+  const mapAlpha = material.map ? tsl.texture(material.map).a : tsl.float(1);
+  const alphaMap = material.alphaMap ? tsl.texture(material.alphaMap).g : tsl.float(1);
+  const alpha = mapAlpha.mul(alphaMap).mul(opacity);
   if (originalColorNode) {
-    const alpha = material.map ? tsl.texture(material.map).a : tsl.float(1);
     return tsl.vec4(originalColorNode.rgb, alpha);
   }
   const tint = tsl.uniform(material.color?.clone() ?? new THREE.Color(0xffffff));
-  if (!material.map) return tsl.vec4(tint, 1);
+  const vertexTint = material.vertexColors ? tsl.vertexColor().rgb : tsl.vec3(1);
+  if (!material.map) return tsl.vec4(tint.mul(vertexTint), alpha);
   const texel = tsl.texture(material.map);
-  return tsl.vec4(texel.rgb.mul(tint), texel.a);
+  return tsl.vec4(texel.rgb.mul(tint).mul(vertexTint), alpha);
+}
+
+function samplePaintTriplanar(
+  texture: THREE.Texture,
+  coordinate: TslNode,
+  normal: TslNode,
+): TslNode {
+  const rawWeight = normal.abs().pow(5);
+  const weight = rawWeight.div(rawWeight.x.add(rawWeight.y).add(rawWeight.z).max(0.00001));
+  return tsl.texture(texture, coordinate.yz).mul(weight.x)
+    .add(tsl.texture(texture, coordinate.zx).mul(weight.y))
+    .add(tsl.texture(texture, coordinate.xy).mul(weight.z));
 }

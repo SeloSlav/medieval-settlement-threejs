@@ -73,6 +73,7 @@ import { TREE_SHADOW_CAST_LAYER } from './SceneLayers.ts';
 import { subscribeShadowPreferences } from './shadowPreference.ts';
 import { areDistantCanopyCardsEnabled } from './distantCanopyCardPreference.ts';
 import { setPainterlyVegetationLightDirection } from '../vegetation/painterly/painterlyVegetationMaterial.ts';
+import { PainterlySceneMaterialCoverage } from './PainterlySceneMaterialCoverage.ts';
 import { applyMaxAnisotropy, beginProgressiveStartupTextureLoad, type SceneStartupTextures } from './startupTextures.ts';
 import { HydrologyOverlay } from '../hydrology/HydrologyOverlay.ts';
 import { CropSuitabilityOverlay } from '../farming/CropSuitabilityOverlay.ts';
@@ -195,6 +196,7 @@ export class SceneManager {
   readonly selectionGroup = new THREE.Group();
   private readonly sky: SkyCloudMesh;
   private readonly precipitation: PrecipitationRenderer;
+  private readonly painterlySceneMaterials: PainterlySceneMaterialCoverage;
   private readonly sunDirection = new THREE.Vector3();
   private readonly shadowKeyDirection = new THREE.Vector3();
   private readonly skyFillDirection = new THREE.Vector3();
@@ -396,6 +398,7 @@ export class SceneManager {
       this.previewGroup,
       this.selectionGroup,
     );
+    this.painterlySceneMaterials = new PainterlySceneMaterialCoverage(this.scene);
     this.precipitation = new PrecipitationRenderer(this.camera, this.scene);
     this.addLighting();
     this.postProcessor = createPostProcessor(
@@ -974,6 +977,7 @@ export class SceneManager {
       );
       return;
     }
+    this.painterlySceneMaterials.update();
     const cameraDistance = orbitDistance ?? this.camera.position.distanceTo(this.cameraTarget);
     // The RTS target is intentionally frozen while first-person mode is active.
     // Center streaming and fitted shadows on the player instead, otherwise the
@@ -1547,6 +1551,7 @@ export class SceneManager {
     this.unsubscribeMapOverlayPreference = null;
     this.unsubscribeConstellationPreference?.();
     this.unsubscribeConstellationPreference = null;
+    this.painterlySceneMaterials.dispose();
     this.hydrologyOverlay?.dispose();
     this.hydrologyOverlay = null;
     this.windOverlay?.dispose();

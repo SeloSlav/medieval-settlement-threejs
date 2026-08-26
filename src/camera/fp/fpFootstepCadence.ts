@@ -9,13 +9,15 @@ import {
   OUTDOOR_WALK_SPEED_MPS,
 } from './fpConstants.ts';
 
-export const FP_CROUCH_STEP_CADENCE_HZ = { min: 1.15, max: 1.6 } as const;
-export const FP_WALK_STEP_CADENCE_HZ = { min: 1.55, max: 2.1 } as const;
-export const FP_SPRINT_STEP_CADENCE_HZ = { min: 2.6, max: 3.55 } as const;
+/** Horizontal distance covered between individual left/right foot contacts. */
+export const FP_CROUCH_STEP_LENGTH_METERS = { min: 0.54, max: 0.78 } as const;
+export const FP_WALK_STEP_LENGTH_METERS = { min: 0.64, max: 0.96 } as const;
+export const FP_SPRINT_STEP_LENGTH_METERS = { min: 0.46, max: 2.35 } as const;
 
 const FIRST_STEP_PHASE = 0.56;
-const MAX_CADENCE_DT_SECONDS = 0.1;
+const MAX_FRAME_TRAVEL_METERS = 1.25;
 const SPRINT_GAIT_ENTER_SPEED_MPS = OUTDOOR_WALK_SPEED_MPS * 1.08;
+const SPRINT_GAIT_EXIT_SPEED_MPS = OUTDOOR_WALK_SPEED_MPS * 0.95;
 
 export type FpFootstepCadenceState = {
   /** Normalized progress toward the next foot contact. */
@@ -25,7 +27,8 @@ export type FpFootstepCadenceState = {
 };
 
 export type FpFootstepCadenceInput = {
-  dtSeconds: number;
+  /** Actual post-collision horizontal displacement during this frame. */
+  traveledMeters: number;
   horizontalSpeedMps: number;
   moving: boolean;
   grounded: boolean;
@@ -62,8 +65,15 @@ export function resolveFpFootstepGait(
     FpFootstepCadenceInput,
     'crouching' | 'sprinting' | 'horizontalSpeedMps'
   >,
+  previousGait: Exclude<FootstepGait, 'landing'> | null = null,
 ): Exclude<FootstepGait, 'landing'> {
   if (input.crouching) return 'crouch';
+  if (
+    previousGait === 'sprint'
+    && input.horizontalSpeedMps >= SPRINT_GAIT_EXIT_SPEED_MPS
+  ) {
+    return 'sprint';
+  }
   if (input.sprinting && input.horizontalSpeedMps >= SPRINT_GAIT_ENTER_SPEED_MPS) {
     return 'sprint';
   }
@@ -82,16 +92,30 @@ export function fpFootstepSpeedRatio(
   return clamp01(horizontalSpeedMps / referenceSpeed);
 }
 
-export function fpFootstepCadenceHz(
+export function fpFootstepStepLengthMeters(
   gait: Exclude<FootstepGait, 'landing'>,
   speedRatio: number,
 ): number {
   const range = gait === 'crouch'
-    ? FP_CROUCH_STEP_CADENCE_HZ
+    ? FP_CROUCH_STEP_LENGTH_METERS
     : gait === 'sprint'
-      ? FP_SPRINT_STEP_CADENCE_HZ
-      : FP_WALK_STEP_CADENCE_HZ;
+      ? FP_SPRINT_STEP_LENGTH_METERS
+      : FP_WALK_STEP_LENGTH_METERS;
   return lerp(range.min, range.max, clamp01(speedRatio));
+}
+
+/** Diagnostic cadence implied by actual locomotion speed and authored stride. */
+export function fpFootstepCadenceHz(
+  gait: Exclude<FootstepGait, 'landing'>,
+  speedRatio: number,
+): number {
+  const referenceSpeed = gait === 'crouch'
+    ? OUTDOOR_CROUCH_SPEED_MPS
+    : gait === 'sprint'
+      ? OUTDOOR_SPRINT_SPEED_MPS
+      : OUTDOOR_WALK_SPEED_MPS;
+  const speed = referenceSpeed * clamp01(speedRatio);
+  return speed / fpFootstepStepLengthMeters(gait, speedRatio);
 }
 
 function takeNextSide(state: FpFootstepCadenceState): FootstepSide {
@@ -101,9 +125,9 @@ function takeNextSide(state: FpFootstepCadenceState): FootstepSide {
 }
 
 /**
- * Advances a human cadence phase and emits at most one contact per frame.
- * Locomotion already caps integration frames; this additionally bounds large
- * tab-resume deltas so missed contacts never arrive as a machine-gun burst.
+ * Advances foot-contact phase from actual post-collision travel, so pushing a
+ * wall is silent and cadence cannot drift away from visible ground speed.
+ * Large teleport/tab-resume deltas are bounded to avoid a burst of contacts.
  */
 export function stepFpFootstepCadence(
   state: FpFootstepCadenceState,
@@ -119,14 +143,14 @@ export function stepFpFootstepCadence(
     return null;
   }
 
-  const gait = resolveFpFootstepGait(input);
+  const gait = resolveFpFootstepGait(input, state.gait);
   const speedRatio = fpFootstepSpeedRatio(gait, input.horizontalSpeedMps);
-  const cadenceHz = fpFootstepCadenceHz(gait, speedRatio);
+  const stepLength = fpFootstepStepLengthMeters(gait, speedRatio);
   state.gait = gait;
   state.phase += Math.min(
-    MAX_CADENCE_DT_SECONDS,
-    Math.max(0, input.dtSeconds),
-  ) * cadenceHz;
+    MAX_FRAME_TRAVEL_METERS,
+    Math.max(0, input.traveledMeters),
+  ) / stepLength;
   if (state.phase < 1) return null;
 
   state.phase %= 1;

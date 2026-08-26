@@ -1,11 +1,13 @@
 import assert from 'node:assert/strict';
 import {
   createFpFootstepCadenceState,
-  FP_CROUCH_STEP_CADENCE_HZ,
+  FP_CROUCH_STEP_LENGTH_METERS,
   fpFootstepCadenceHz,
-  FP_SPRINT_STEP_CADENCE_HZ,
-  FP_WALK_STEP_CADENCE_HZ,
+  fpFootstepStepLengthMeters,
+  FP_SPRINT_STEP_LENGTH_METERS,
+  FP_WALK_STEP_LENGTH_METERS,
   resetFpFootstepCadenceState,
+  resolveFpFootstepGait,
   stepFpFootstepCadence,
   takeFpLandingFootstep,
 } from '../src/camera/fp/fpFootstepCadence.ts';
@@ -22,35 +24,64 @@ import type {
 import { WorldFoleyAudio } from '../src/audio/WorldFoleyAudio.ts';
 
 assert.ok(
-  FP_CROUCH_STEP_CADENCE_HZ.max < FP_WALK_STEP_CADENCE_HZ.max
-  && FP_WALK_STEP_CADENCE_HZ.max < FP_SPRINT_STEP_CADENCE_HZ.max,
-  'crouch, walk, and sprint need clearly separated maximum cadences',
+  FP_CROUCH_STEP_LENGTH_METERS.max < FP_WALK_STEP_LENGTH_METERS.max
+  && FP_WALK_STEP_LENGTH_METERS.max < FP_SPRINT_STEP_LENGTH_METERS.max,
+  'crouch, walk, and sprint need clearly separated full-speed step lengths',
 );
 assert.ok(
-  fpFootstepCadenceHz('crouch', 1) >= 1.5
-  && fpFootstepCadenceHz('walk', 1) >= 2
-  && fpFootstepCadenceHz('sprint', 1) >= 3.4,
-  'full-speed cadence should reach authored human gait targets',
+  fpFootstepCadenceHz('crouch', 1) >= 2.2
+  && fpFootstepCadenceHz('walk', 1) >= 2.9
+  && fpFootstepCadenceHz('sprint', 1) >= 4.5,
+  'full-speed cadence must match the unusually fast first-person travel speeds',
+);
+assert.ok(
+  Math.abs(
+    fpFootstepCadenceHz('walk', 1)
+    - fpFootstepCadenceHz('sprint', 2.9 / 11)
+  ) <= 0.1,
+  'walk and sprint stride curves must meet without a cadence jump',
+);
+assert.equal(
+  resolveFpFootstepGait({
+    crouching: false,
+    sprinting: false,
+    horizontalSpeedMps: 8,
+  }, 'sprint'),
+  'sprint',
+  'releasing sprint must retain the running gait while momentum is high',
+);
+assert.equal(
+  resolveFpFootstepGait({
+    crouching: false,
+    sprinting: false,
+    horizontalSpeedMps: 2.7,
+  }, 'sprint'),
+  'walk',
+  'the running gait should hand back after decelerating into walking speed',
 );
 
 function simulate(
   gait: Exclude<FootstepGait, 'landing'>,
   seconds = 5,
-): Array<{ time: number; motion: FootstepMotion }> {
+  frameRate = 120,
+): Array<{ time: number; distance: number; motion: FootstepMotion }> {
   const state = createFpFootstepCadenceState();
-  const frameSeconds = 1 / 120;
+  const frameSeconds = 1 / frameRate;
   const speed = gait === 'crouch' ? 1.8 : gait === 'sprint' ? 11 : 2.9;
-  const contacts: Array<{ time: number; motion: FootstepMotion }> = [];
+  const contacts: Array<{ time: number; distance: number; motion: FootstepMotion }> = [];
+  let distance = 0;
   for (let time = 0; time < seconds; time += frameSeconds) {
+    const traveledMeters = speed * frameSeconds;
+    distance += traveledMeters;
     const motion = stepFpFootstepCadence(state, {
-      dtSeconds: frameSeconds,
+      traveledMeters,
       horizontalSpeedMps: speed,
       moving: true,
       grounded: true,
       crouching: gait === 'crouch',
       sprinting: gait === 'sprint',
     });
-    if (motion) contacts.push({ time, motion });
+    if (motion) contacts.push({ time, distance, motion });
   }
   return contacts;
 }
@@ -59,16 +90,16 @@ const crouchContacts = simulate('crouch');
 const walkContacts = simulate('walk');
 const sprintContacts = simulate('sprint');
 assert.ok(
-  crouchContacts.length >= 7 && crouchContacts.length <= 9,
-  `five crouched seconds should produce about eight contacts, got ${crouchContacts.length}`,
+  crouchContacts.length >= 11 && crouchContacts.length <= 13,
+  `five crouched seconds should produce about twelve contacts, got ${crouchContacts.length}`,
 );
 assert.ok(
-  walkContacts.length >= 10 && walkContacts.length <= 12,
-  `five walking seconds should produce about eleven contacts, got ${walkContacts.length}`,
+  walkContacts.length >= 15 && walkContacts.length <= 16,
+  `five walking seconds should produce about fifteen contacts, got ${walkContacts.length}`,
 );
 assert.ok(
-  sprintContacts.length >= 17 && sprintContacts.length <= 19,
-  `five sprinting seconds should produce about eighteen contacts, got ${sprintContacts.length}`,
+  sprintContacts.length >= 23 && sprintContacts.length <= 25,
+  `five sprinting seconds should produce about twenty-four contacts, got ${sprintContacts.length}`,
 );
 for (const contacts of [crouchContacts, walkContacts, sprintContacts]) {
   for (let index = 1; index < contacts.length; index += 1) {
@@ -79,17 +110,48 @@ for (const contacts of [crouchContacts, walkContacts, sprintContacts]) {
     );
   }
 }
+for (const gait of ['crouch', 'walk', 'sprint'] as const) {
+  assert.ok(
+    Math.abs(simulate(gait, 5, 30).length - simulate(gait, 5, 144).length) <= 1,
+    `${gait} contact count must remain stable across frame rates`,
+  );
+}
+for (const [gait, contacts] of [
+  ['crouch', crouchContacts],
+  ['walk', walkContacts],
+  ['sprint', sprintContacts],
+] as const) {
+  const expectedStepLength = fpFootstepStepLengthMeters(gait, 1);
+  for (let index = 2; index < contacts.length; index += 1) {
+    const contactDistance = contacts[index].distance - contacts[index - 1].distance;
+    assert.ok(
+      Math.abs(contactDistance - expectedStepLength) <= 0.1,
+      `${gait} contacts must remain locked to distance traveled`,
+    );
+  }
+}
 
 const stopped = createFpFootstepCadenceState();
 for (let frame = 0; frame < 240; frame += 1) {
   assert.equal(stepFpFootstepCadence(stopped, {
-    dtSeconds: 1 / 60,
+    traveledMeters: 0,
     horizontalSpeedMps: 0,
     moving: false,
     grounded: true,
     crouching: false,
     sprinting: false,
   }), null, 'standing still must never advance a hidden footstep loop');
+}
+const blocked = createFpFootstepCadenceState();
+for (let frame = 0; frame < 240; frame += 1) {
+  assert.equal(stepFpFootstepCadence(blocked, {
+    traveledMeters: 0,
+    horizontalSpeedMps: 11,
+    moving: true,
+    grounded: true,
+    crouching: false,
+    sprinting: true,
+  }), null, 'velocity against a wall must not produce stationary footsteps');
 }
 resetFpFootstepCadenceState(stopped);
 const landingA = takeFpLandingFootstep(stopped, 0);

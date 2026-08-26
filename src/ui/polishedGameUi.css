@@ -80,7 +80,7 @@ select:focus-visible {
 .settlement-hud {
   position: relative;
   display: grid;
-  grid-template-columns: 72px 42px minmax(0, 1fr) 52px 52px;
+  grid-template-columns: 72px 42px minmax(0, 1fr) 52px;
   align-items: stretch;
   gap: 0;
   width: min(756px, calc(100vw - 64px));
@@ -601,9 +601,10 @@ select:focus-visible {
   display: grid;
   grid-template-columns:
     repeat(3, minmax(48px, 0.7fr))
+    minmax(52px, 0.8fr)
+    minmax(76px, 1.2fr)
     repeat(2, minmax(72px, 1.12fr))
     minmax(66px, 1fr)
-    minmax(76px, 1.2fr)
     minmax(66px, 1fr);
   align-content: stretch;
   gap: 0;
@@ -1059,7 +1060,7 @@ select:focus-visible {
   margin: 0;
   padding: 0;
   border: 0;
-  border-left: 1px solid rgba(216, 191, 134, 0.14);
+  border-left: 1px solid rgba(216, 191, 134, 0.09);
 }
 
 .settlement-hud__animals-summary {
@@ -1130,7 +1131,7 @@ select:focus-visible {
 .settlement-hud__animals-panel {
   position: absolute;
   top: calc(100% + 9px);
-  right: -53px;
+  left: 50%;
   z-index: 5;
   display: grid;
   gap: 8px;
@@ -1146,6 +1147,7 @@ select:focus-visible {
     rgba(16, 19, 15, 0.97);
   box-shadow: 0 20px 48px rgba(0, 0, 0, 0.42);
   backdrop-filter: blur(18px);
+  transform: translateX(-50%);
 }
 
 .settlement-hud__animals-panel::before {
@@ -4256,7 +4258,7 @@ select:focus-visible {
 
 @media (max-width: 1080px) {
   .settlement-hud {
-    grid-template-columns: 52px 36px minmax(0, 1fr) 42px 42px;
+    grid-template-columns: 52px 36px minmax(0, 1fr) 42px;
     width: min(612px, calc(100vw - 70px));
   }
 
@@ -4273,7 +4275,7 @@ select:focus-visible {
   }
 
   .settlement-hud__body {
-    grid-template-columns: repeat(6, minmax(48px, 1fr));
+    grid-template-columns: repeat(7, minmax(48px, 1fr));
   }
 
   .settlement-hud__body > .settlement-hud__stat:nth-child(n + 7),
@@ -4297,7 +4299,7 @@ select:focus-visible {
   }
 
   .settlement-hud {
-    grid-template-columns: 52px 34px minmax(0, 1fr) 38px 38px;
+    grid-template-columns: 52px 34px minmax(0, 1fr) 38px;
     width: calc(100vw - 14px);
     min-height: 48px;
   }
@@ -4369,8 +4371,10 @@ select:focus-visible {
     position: fixed;
     top: 70px;
     right: 7px;
+    left: auto;
     width: min(360px, calc(100vw - 14px));
     max-height: calc(100vh - 84px);
+    transform: none;
   }
 
   .settlement-hud__people-panel,
@@ -4494,7 +4498,7 @@ select:focus-visible {
   }
 
   .settlement-hud {
-    grid-template-columns: 42px 32px minmax(0, 1fr) 34px 36px;
+    grid-template-columns: 42px 32px minmax(0, 1fr) 36px;
   }
 
   .settlement-hud__body {
