@@ -166,10 +166,6 @@
   font-size: 13px;
 }
 
-.settlement-hud__clock-time {
-  font-size: 15px;
-}
-
 .settlement-hud__approval-kicker,
 .settlement-hud__approval-standing [data-approval-trend],
 .settlement-hud__speed-name,
@@ -178,7 +174,6 @@
 }
 
 .settlement-hud__clock-detail,
-.settlement-hud__season,
 .settlement-hud__speed-button,
 .settlement-hud__speed-value,
 .settlement-hud__speed-button--pause .settlement-hud__speed-value {

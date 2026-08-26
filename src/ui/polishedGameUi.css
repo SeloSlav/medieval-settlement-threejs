@@ -114,17 +114,17 @@ select:focus-visible {
 }
 
 .settlement-vitals {
-  --settlement-vitals-width: min(292px, calc(100vw - 28px));
+  --settlement-vitals-width: min(240px, calc(100vw - 28px));
   position: fixed;
   right: max(14px, env(safe-area-inset-right, 0px));
   bottom: max(14px, env(safe-area-inset-bottom, 0px));
   z-index: 4;
   isolation: isolate;
   display: grid;
-  grid-template-columns: 58px minmax(0, 1fr);
+  grid-template-columns: 52px minmax(0, 1fr);
   align-items: stretch;
   width: var(--settlement-vitals-width);
-  min-height: 56px;
+  min-height: 50px;
   padding: 3px 4px;
   overflow: visible;
   border: 1px solid rgba(224, 196, 132, 0.42);
@@ -167,22 +167,22 @@ select:focus-visible {
 .settlement-hud__clock {
   position: static;
   display: grid;
-  grid-template-columns: 42px minmax(0, 1fr) 46px;
-  grid-template-rows: 21px 22px;
-  gap: 0 5px;
+  grid-template-columns: 38px minmax(0, 1fr);
+  grid-template-rows: 19px 18px;
+  gap: 0 4px;
   min-width: 0;
-  padding: 3px 5px 2px 4px;
+  padding: 2px 4px;
   border: 0;
 }
 
 .settlement-vitals__zoom {
   position: relative;
   display: grid;
-  grid-template-rows: 15px 8px 15px;
+  grid-template-rows: 13px 12px 13px;
   place-items: center;
   align-content: center;
   min-width: 0;
-  padding: 3px 4px;
+  padding: 1px 3px;
   border-right: 1px solid rgba(218, 194, 139, 0.18);
   color: #bfa76f;
   cursor: help;
@@ -197,8 +197,8 @@ select:focus-visible {
 }
 
 .settlement-vitals__zoom-icon {
-  width: 15px;
-  height: 15px;
+  width: 13px;
+  height: 13px;
   overflow: visible;
   fill: none;
   stroke: currentColor;
@@ -412,21 +412,6 @@ select:focus-visible {
   white-space: nowrap;
 }
 
-.settlement-hud__clock-time {
-  grid-column: 3;
-  grid-row: 1;
-  align-self: center;
-  justify-self: end;
-  color: #e7ddc4;
-  font-family: var(--ui-display);
-  font-size: 13px;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  font-feature-settings: 'tnum' 1;
-  letter-spacing: -0.03em;
-  text-shadow: 0 1px 12px rgba(184, 145, 71, 0.18);
-}
-
 .settlement-hud__clock-detail {
   display: none;
 }
@@ -438,8 +423,8 @@ select:focus-visible {
   align-self: center;
   justify-self: center;
   display: block;
-  width: 42px;
-  height: 42px;
+  width: 36px;
+  height: 36px;
   padding: 0;
   overflow: hidden;
   border: 0;
@@ -495,8 +480,8 @@ select:focus-visible {
   flex: 1 1 0;
   width: auto;
   min-width: 0;
-  height: 19px;
-  min-height: 19px;
+  height: 17px;
+  min-height: 17px;
   padding: 0;
   border: 1px solid transparent;
   border-radius: 1px;
@@ -533,18 +518,6 @@ select:focus-visible {
 .settlement-hud__speed-button.is-active .settlement-hud__speed-value {
   color: #f1d37e;
   text-shadow: 0 0 7px rgba(220, 172, 61, 0.34);
-}
-
-.settlement-vitals.is-paused .settlement-hud__clock-time {
-  color: #d8c9a8;
-}
-
-.settlement-vitals.is-night .settlement-hud__clock-time {
-  color: #9ec5e8;
-}
-
-.settlement-vitals.is-sabbath .settlement-hud__clock-time {
-  color: #e8c86a;
 }
 
 .settlement-hud__perf {
@@ -4410,10 +4383,6 @@ select:focus-visible {
     width: auto;
     max-height: calc(100vh - 84px);
     overflow: auto;
-  }
-
-  .settlement-hud__clock-time {
-    font-size: 13px;
   }
 
   .settlement-hud__clock-detail {

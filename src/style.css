@@ -117,7 +117,7 @@ button {
 
 /* The strategic parchment is the primary interface while its render owner is
  * active. Reuse the camera's existing root dataset so entering and leaving the
- * map has no additional HUD lifecycle or per-frame work. The lord and clock
+ * map has no additional HUD lifecycle or per-frame work. The lord and calendar controls
  * are fixed descendants of the resource ribbon and deliberately stay live. */
 html[data-camera-view='illustrated-map'] [data-settlement-hud] {
   width: 0;

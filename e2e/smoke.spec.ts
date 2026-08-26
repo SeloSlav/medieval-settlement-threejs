@@ -187,8 +187,9 @@ test('keeps at least three specialty digits visible before truncation', async ({
   });
 });
 
-test('keeps the camera zoom percentage visible beside settlement time', async ({ page }) => {
+test('keeps the camera zoom visible beside compact calendar controls', async ({ page }) => {
   await page.setContent(`
+    <style>* { box-sizing: border-box; }</style>
     <div class="settlement-hud">
       <div class="settlement-vitals" data-settlement-vitals>
         <div class="settlement-vitals__zoom" data-stat-row="zoom">
@@ -201,30 +202,48 @@ test('keeps the camera zoom percentage visible beside settlement time', async ({
         </div>
         <div class="settlement-hud__clock" data-settlement-clock>
           <span class="settlement-hud__clock-date">27 March, Year 1</span>
-          <span class="settlement-hud__clock-time">11:16</span>
           <span class="settlement-hud__season">Spring rain</span>
+          <div class="settlement-hud__speed" role="group" aria-label="Simulation speed">
+            <button class="settlement-hud__speed-button settlement-hud__speed-button--pause"><span class="settlement-hud__speed-value">&#x23F8;</span></button>
+            <button class="settlement-hud__speed-button is-active"><span class="settlement-hud__speed-value">&#x25B6;</span></button>
+            <button class="settlement-hud__speed-button"><span class="settlement-hud__speed-value">&#x25B6;&#x25B6;</span></button>
+            <button class="settlement-hud__speed-button"><span class="settlement-hud__speed-value">&#x25B6;&#x25B6;&#x25B6;</span></button>
+          </div>
         </div>
       </div>
     </div>
   `);
   await page.addStyleTag({ path: 'src/ui/settlementHud.css' });
   await page.addStyleTag({ path: 'src/ui/polishedGameUi.css' });
+  await page.addStyleTag({ path: 'src/ui/readability.css' });
 
   const zoom = page.locator('[data-stat-row="zoom"]');
   const zoomValue = page.locator('[data-stat="zoom"]');
   const clock = page.locator('[data-settlement-clock]');
   await expect(zoom).toBeVisible();
   await expect(zoomValue).toHaveText('37%');
+  await expect(page.locator('.settlement-hud__clock-time')).toHaveCount(0);
   const layout = await page.locator('[data-settlement-vitals]').evaluate((vitals) => {
     const zoomBox = vitals.querySelector<HTMLElement>('[data-stat-row="zoom"]')!.getBoundingClientRect();
     const clockBox = vitals.querySelector<HTMLElement>('[data-settlement-clock]')!.getBoundingClientRect();
     return {
+      width: vitals.getBoundingClientRect().width,
+      height: vitals.getBoundingClientRect().height,
       zoomWidth: zoomBox.width,
       separated: zoomBox.right <= clockBox.left,
+      overflowing: [...vitals.querySelectorAll<HTMLElement>('*')]
+        .filter((element) => (
+          element.scrollWidth > element.clientWidth + 1
+          || element.scrollHeight > element.clientHeight + 1
+        ))
+        .map((element) => element.className),
     };
   });
-  expect(layout.zoomWidth).toBeGreaterThanOrEqual(56);
+  expect(layout.width).toBeLessThanOrEqual(240);
+  expect(layout.height).toBeLessThanOrEqual(50);
+  expect(layout.zoomWidth).toBeGreaterThanOrEqual(50);
   expect(layout.separated).toBe(true);
+  expect(layout.overflowing).toEqual([]);
   await expect(clock).toBeVisible();
 });
 

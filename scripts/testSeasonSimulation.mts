@@ -480,8 +480,13 @@ assert.match(
 assert.match(settlementHudSource, /GAME_SPEEDS\.map/);
 assert.match(
   settlementHudSource,
-  /date !== this\.displayedClockDate[\s\S]*time !== this\.displayedClockTime[\s\S]*detail !== this\.displayedClockDetail/,
-  'the per-frame presentation clock should only write changed visible strings',
+  /date !== this\.displayedClockDate[\s\S]*detail !== this\.displayedClockDetail/,
+  'the per-frame calendar presentation should only write changed visible strings',
+);
+assert.doesNotMatch(
+  settlementHudSource,
+  /data-clock-time|formatClockTime|displayedClockTime/,
+  'the obsolete 24-hour HUD clock should not be rendered or updated',
 );
 assert.match(
   settlementHudSource,

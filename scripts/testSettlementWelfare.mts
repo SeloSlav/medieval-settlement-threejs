@@ -74,7 +74,7 @@ assert.doesNotMatch(hudSource, /remedies in homes/);
 assert.match(hudCss, /settlement-hud__welfare-alert\[data-level='critical'\]/);
 assert.match(
   polishedHudCss,
-  /--settlement-vitals-width:\s*min\(292px,\s*calc\(100vw - 28px\)\)/,
+  /--settlement-vitals-width:\s*min\(240px,\s*calc\(100vw - 28px\)\)/,
 );
 assert.match(
   polishedHudCss,

@@ -2,7 +2,6 @@ import type { SettlementSchedule } from '../world/settlementSchedule.ts';
 import {
   formatCalendarDate,
   formatCalendarMonthDay,
-  formatClockTime,
   formatWeekday,
   gameClock,
 } from '../world/gameCalendar.ts';
@@ -130,7 +129,7 @@ const SETTLEMENT_HUD_HTML = `
         </svg>
       </button>
     </aside>
-    <div class="settlement-vitals" data-settlement-vitals aria-label="Time and settlement status">
+    <div class="settlement-vitals" data-settlement-vitals aria-label="Calendar and settlement controls">
     <div
       class="settlement-vitals__zoom"
       tabindex="0"
@@ -149,7 +148,6 @@ const SETTLEMENT_HUD_HTML = `
     </div>
     <div class="settlement-hud__clock" data-settlement-clock>
       <span class="settlement-hud__clock-date" data-clock-date>Year 1</span>
-      <span class="settlement-hud__clock-time" data-clock-time>08:00</span>
       <span class="settlement-hud__clock-detail" data-clock-detail></span>
       <span
         class="settlement-hud__season"
@@ -760,7 +758,6 @@ export class SettlementHud {
   private readonly nobleHud: HTMLElement;
   private readonly vitals: HTMLElement;
   private readonly clockDate: HTMLElement;
-  private readonly clockTime: HTMLElement;
   private readonly clockDetail: HTMLElement;
   private readonly seasonStatus: HTMLElement;
   private readonly fireAlert: HTMLElement;
@@ -870,7 +867,6 @@ export class SettlementHud {
   private displayedAnimalsSignature: string | null = null;
   private displayedClockDate: string | null = null;
   private displayedClockFullDate: string | null = null;
-  private displayedClockTime: string | null = null;
   private displayedClockDetail: string | null = null;
   private displayedSabbath: boolean | null = null;
   private displayedNight: boolean | null = null;
@@ -909,7 +905,6 @@ export class SettlementHud {
     this.nobleEye = this.mustButton('[data-noble-eye]');
     this.lordReportLedger = new LordReportLedger(this.nobleHud);
     this.clockDate = this.mustElement('[data-clock-date]');
-    this.clockTime = this.mustElement('[data-clock-time]');
     this.clockDetail = this.mustElement('[data-clock-detail]');
     this.seasonStatus = this.mustElement('[data-season-status]');
     this.fireAlert = this.mustElement('[data-fire-alert]');
@@ -1748,7 +1743,6 @@ export class SettlementHud {
     const date = formatCalendarMonthDay(schedule.clock);
     const weekday = formatWeekday(schedule.clock);
     const fullDate = `${weekday}, ${formatCalendarDate(schedule.clock)}`;
-    const time = formatClockTime(schedule.clock);
     const pauseLabel = schedule.laborPauseLabel;
     const detail = pauseLabel
       ? `${weekday} · ${pauseLabel}`
@@ -1762,10 +1756,6 @@ export class SettlementHud {
     if (fullDate !== this.displayedClockFullDate) {
       this.seasonStatus.dataset.tooltipTitle = fullDate;
       this.displayedClockFullDate = fullDate;
-    }
-    if (time !== this.displayedClockTime) {
-      this.clockTime.textContent = time;
-      this.displayedClockTime = time;
     }
     if (detail !== this.displayedClockDetail) {
       this.clockDetail.textContent = detail;
