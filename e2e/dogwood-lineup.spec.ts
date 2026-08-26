@@ -338,14 +338,14 @@ for (const [view, season, scale, expected] of cases) {
     expect(groundContacts).toHaveLength(3);
     for (const groundContact of groundContacts) {
       expect(groundContact).toBeGreaterThanOrEqual(-0.01);
-      expect(groundContact).toBeLessThanOrEqual(0.006);
+      expect(groundContact).toBeLessThanOrEqual(0.016);
     }
     const groundOrigins = (dataset.dogwoodGroundOrigins ?? '')
       .split(',')
       .filter(Boolean)
       .map(Number);
     expect(groundOrigins).toHaveLength(3);
-    for (const groundOrigin of groundOrigins) expect(groundOrigin).toBeCloseTo(0.006, 5);
+    for (const groundOrigin of groundOrigins) expect(groundOrigin).toBeCloseTo(0.015, 5);
     if (scale === '0.55') expect(Math.max(...finalHeights)).toBeLessThan(1.6);
     if (scale === '1.90') {
       expect(Math.min(...finalHeights)).toBeGreaterThan(4.3);

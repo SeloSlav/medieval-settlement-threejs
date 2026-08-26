@@ -280,8 +280,8 @@ assert.match(
 );
 assert.match(
   undergrowthSource,
-  /DOGWOOD_GROUND_OFFSET_METERS = 0\.006[\s\S]*placement\.kind === 'dogwood' \? DOGWOOD_GROUND_OFFSET_METERS : 0\.08/,
-  'dogwood basal stems must meet the terrain without the generic undergrowth hover offset',
+  /DOGWOOD_GROUND_OFFSET_METERS = 0\.015[\s\S]*placement\.kind === 'dogwood' \? DOGWOOD_GROUND_OFFSET_METERS : 0\.08/,
+  'dogwood basal stems must meet the terrain without wind pushing the enlarged skirt underground',
 );
 assert.match(
   undergrowthSource,
